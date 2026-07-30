@@ -485,7 +485,7 @@ static lvVector *hip_vector_clone(const lvVector *v) {
     HipVectorData *vd = lv_calloc(1, sizeof(HipVectorData));
     if (!vd) {
         lv_free((void **)&clone);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "HipVectorData 分配失败");
     }
     vd->length = n;
 
@@ -493,8 +493,7 @@ static lvVector *hip_vector_clone(const lvVector *v) {
     if (err != hipSuccess) {
         lv_free((void **)&vd);
         lv_free((void **)&clone);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "HIP 向量数据分配失败，长度=%lld", (long long)n);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "HIP 向量数据分配失败，长度=%lld", (long long)n);
     }
 
     err = hipMemcpy(vd->d_data, src_vd->d_data, (size_t)n * sizeof(double), hipMemcpyDeviceToDevice);
@@ -502,8 +501,7 @@ static lvVector *hip_vector_clone(const lvVector *v) {
         hipFree(vd->d_data);
         lv_free((void **)&vd);
         lv_free((void **)&clone);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "HIP 向量数据复制失败");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "HIP 向量数据复制失败");
     }
 
     clone->backend_data = vd;
@@ -778,7 +776,7 @@ static lvMatrix *hip_matrix_clone(const lvMatrix *A) {
     HipMatrixData *md = lv_calloc(1, sizeof(HipMatrixData));
     if (!md) {
         lv_free((void **)&clone);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "HipMatrixData 分配失败");
     }
     md->rows = rows;
     md->cols = cols;

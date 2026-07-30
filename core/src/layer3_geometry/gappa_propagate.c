@@ -371,7 +371,7 @@ bool lv_gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred) {
 
 int lv_gappa_pred_set_find(const lvGappaPredSet *set, const char *name, lvGappaPredicate *found) {
     if (!set || !name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_gappa_pred_set_find: NULL param");
     for (int i = 0; i < set->count; i++) {
         if (strcmp(set->preds[i].expr_lhs, name) == 0) {
             if (found)

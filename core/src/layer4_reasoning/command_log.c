@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file command_log.c
  * @brief 命令日志系统实现
  *
@@ -91,14 +91,15 @@ static void command_entry_cleanup(CommandEntry *entry) {
 
 CommandLog *command_log_create(int initial_capacity) {
     CommandLog *log = (CommandLog *) lv_calloc(1, sizeof(CommandLog));
-    if (!log)
-        return NULL;
+    if (!log) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_log_create: lv_calloc failed");
+    }
 
     int cap = (initial_capacity > 0) ? initial_capacity : 1024;
     lv_darray_init(&log->entries, sizeof(CommandEntry *));
     if (!lv_darray_reserve(&log->entries, cap)) {
         lv_free((void **) &log);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_log_create: lv_darray_reserve failed");
     }
     log->next_seq = 0;
     return log;
@@ -133,8 +134,9 @@ int command_log_count(const CommandLog *log) {
 }
 
 const CommandEntry *command_log_get(const CommandLog *log, int index) {
-    if (!log)
-        return NULL;
+    if (!log) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "command_log_get: log is NULL");
+    }
     CommandEntry *const *p = (CommandEntry *const *) lv_darray_get(&log->entries, index);
     return p ? *p : NULL;
 }
@@ -162,8 +164,7 @@ int64_t command_log_current_seq(const CommandLog *log) {
 CommandEntry *command_entry_create_add_node(int geom_type, int node_id, int coord_count, const double *nums,
                                             const uint64_t *dens) {
     CommandEntry *entry = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
-    if (!entry)
-        return NULL;
+    if (!entry) { lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_add_node: calloc failed"); }
     entry->type = CMD_ADD_NODE;
     entry->params.add_node.geom_type = geom_type;
     entry->params.add_node.node_id = node_id;
@@ -179,7 +180,7 @@ CommandEntry *command_entry_create_add_node(int geom_type, int node_id, int coor
             lv_free((void **) &entry->params.add_node.coords_num);
             lv_free((void **) &entry->params.add_node.coords_den);
             lv_free((void **) &entry);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_add_node: coord memory allocation failed");
         }
         memcpy(entry->params.add_node.coords_num, nums, (size_t) coord_count * sizeof(double));
         memcpy(entry->params.add_node.coords_den, dens, (size_t) coord_count * sizeof(uint64_t));
@@ -190,8 +191,9 @@ CommandEntry *command_entry_create_add_node(int geom_type, int node_id, int coor
 CommandEntry *command_entry_create_add_constraint(int constr_type, int constr_id, const int *participants,
                                                   int participant_count) {
     CommandEntry *entry = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
-    if (!entry)
-        return NULL;
+    if (!entry) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_add_constraint: calloc failed");
+    }
     entry->type = CMD_ADD_CONSTRAINT;
     entry->params.add_constraint.constraint_type = constr_type;
     entry->params.add_constraint.constraint_id = constr_id;
@@ -204,8 +206,7 @@ CommandEntry *command_entry_create_add_constraint(int constr_type, int constr_id
 
 CommandEntry *command_entry_create_remove_node(int node_id) {
     CommandEntry *entry = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
-    if (!entry)
-        return NULL;
+    if (!entry) { lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_remove_node: calloc failed"); }
     entry->type = CMD_REMOVE_NODE;
     entry->params.remove_node.node_id = node_id;
     return entry;
@@ -213,8 +214,9 @@ CommandEntry *command_entry_create_remove_node(int node_id) {
 
 CommandEntry *command_entry_create_remove_constraint(int constraint_idx) {
     CommandEntry *entry = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
-    if (!entry)
-        return NULL;
+    if (!entry) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_remove_constraint: calloc failed");
+    }
     entry->type = CMD_REMOVE_CONSTRAINT;
     entry->params.remove_constraint.constraint_index = constraint_idx;
     return entry;
@@ -223,8 +225,9 @@ CommandEntry *command_entry_create_remove_constraint(int constraint_idx) {
 CommandEntry *command_entry_create_pack_function(int internal_count, const int *internal_ids, int input_count,
                                                  const int *input_ports, int output_count, const int *output_ports) {
     CommandEntry *entry = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
-    if (!entry)
-        return NULL;
+    if (!entry) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_pack_function: calloc failed");
+    }
     entry->type = CMD_PACK_FUNCTION;
     entry->params.pack_function.internal_count = internal_count;
     entry->params.pack_function.input_count = input_count;
@@ -251,8 +254,9 @@ CommandEntry *command_entry_create_pack_function(int internal_count, const int *
 
 CommandEntry *command_entry_create_normalize_graph(bool scope_aware, int max_iterations) {
     CommandEntry *entry = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
-    if (!entry)
-        return NULL;
+    if (!entry) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_normalize_graph: calloc failed");
+    }
     entry->type = CMD_NORMALIZE_GRAPH;
     entry->params.normalize_graph.scope_aware = scope_aware;
     entry->params.normalize_graph.max_iterations = max_iterations;
@@ -261,8 +265,9 @@ CommandEntry *command_entry_create_normalize_graph(bool scope_aware, int max_ite
 
 CommandEntry *command_entry_create_unify(int construction_graph_id, int proposition_graph_id) {
     CommandEntry *entry = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
-    if (!entry)
-        return NULL;
+    if (!entry) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_unify: calloc failed");
+    }
     entry->type = CMD_UNIFY;
     entry->params.unify.construction_graph_id = construction_graph_id;
     entry->params.unify.proposition_graph_id = proposition_graph_id;
@@ -272,8 +277,9 @@ CommandEntry *command_entry_create_unify(int construction_graph_id, int proposit
 
 CommandEntry *command_entry_create_set_numeric_assumption(int node_id, double precision, const char *declaration) {
     CommandEntry *entry = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
-    if (!entry)
-        return NULL;
+    if (!entry) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_entry_create_set_numeric_assumption: calloc failed");
+    }
     entry->type = CMD_SET_NUMERIC_ASSUMPTION;
     entry->params.set_numeric_assumption.node_id = node_id;
     entry->params.set_numeric_assumption.precision = precision;
@@ -1142,26 +1148,28 @@ static void json_parse_params(JsonCtx *j, CommandEntry *e) {
 }
 
 CommandLog *command_log_deserialize_json(const char *filepath) {
-    if (!filepath)
-        return NULL;
+    if (!filepath) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "command_log_deserialize_json: filepath is NULL");
+    }
 
     FILE *fp = fopen(filepath, "rb");
-    if (!fp)
-        return NULL;
+    if (!fp) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "command_log_deserialize_json: cannot open file");
+    }
 
     /* 读取整个文件 */
     fseek(fp, 0, SEEK_END);
     long flen = ftell(fp);
     if (flen <= 0) {
         fclose(fp);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "command_log_deserialize_json: empty file");
     }
     fseek(fp, 0, SEEK_SET);
 
     char *buf = (char *) lv_malloc((size_t) (flen + 1));
     if (!buf) {
         fclose(fp);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_log_deserialize_json: malloc failed");
     }
     size_t nread = fread(buf, 1, (size_t) flen, fp);
     fclose(fp);
@@ -1175,7 +1183,7 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
     CommandLog *log = command_log_create(1024);
     if (!log) {
         lv_free((void **) &buf);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_log_deserialize_json: command_log_create failed");
     }
 
     /* 解析顶层对象 */
@@ -1263,3 +1271,4 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
     lv_free((void **) &buf);
     return log;
 }
+

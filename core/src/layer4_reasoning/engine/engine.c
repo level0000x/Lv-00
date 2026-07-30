@@ -1,30 +1,30 @@
-/**
+﻿/**
  * @file engine.c
  * @brief 主引擎实现
  * @details 实现工作流编排，协调规范化、重写、求解和冲突检查。
  *          支持重写-求解协作、位电路跳闸处理和冻结点回滚。
+ *          状态码映射已提取至 engine_status.c，状态转移已提取至 engine_state.c。
  *
  * ============================================================
- * 迁移计划：从全局状态到 lvContext（v3.3.0）
+ * 迁移状态：从全局状态到 lvContext（v3.3.0+）
  * ============================================================
  *
  * Lv-00 正在从"全局引擎模式"迁移到"隔离上下文模式"。迁移路线图：
  *
- *   第 1 阶段（当前）：lvEngine 持有 lvContext* 指针，两者共存。
+ *   第 1 阶段（已完成）：lvEngine 持有 lvContext* 指针，两者共存。
  *     上下文中已拥有独立的错误码、错误消息、递归深度追踪。
- *     引擎级全局变量标记为 LEGACY，新代码禁止新增全局状态。
+ *     LEGACY 线程局部变量（g_thread_last_status / g_thread_last_error）已移除。
  *
- *   第 2 阶段（下一主版本）：将引擎的核心逻辑逐步下沉到 lvContext。
+ *   第 2 阶段（进行中）：将引擎的核心逻辑逐步下沉到 lvContext。
  *     engine_solve()、engine_rewrite_and_solve() 等函数改用 context 参数。
- *     全局变量 last_status / last_error 彻底移除。
+ *     状态码映射和状态转移函数已提取到独立文件，减少主引擎文件的耦合度。
  *
  *   第 3 阶段（远期）：lvEngine 降级为 C API 的薄封装层，
  *     所有引擎逻辑由 lvContext 统一管理。
  *
  * 设计原则：
  *   1. 新代码必须通过 context 访问引擎状态，禁止新增全局/线程局部变量。
- *   2. 现有 LEGACY 变量在迁移完成前继续工作，不影响运行时行为。
- *   3. 每个 context 实例是完全隔离的，支持并发、分支推理和资源熔断。
+ *   2. 每个 context 实例是完全隔离的，支持并发、分支推理和资源熔断。
  * ============================================================
  */
 
@@ -82,30 +82,18 @@
  *   - 清理错误：成功操作后自动调用 engine_clear_error(engine)
  * ============================================================ */
 
-/*
- * [LEGACY] 线程局部回退状态 —— 仅在引擎实例不可用时使用
- *
- * 迁移状态（v3.4.1）：统一错误处理已引入 engine_set_error/engine_clear_error/engine_get_error，
- * 所有新代码应使用引擎实例级别的错误存储。这两个线程局部变量仅在以下场景回退：
- * 1. engine_create 失败时（实例尚不存在）
- * 2. 全局初始化阶段的早期错误
- *
- * 这些变量将在第 2 阶段迁移完成后移除。
- */
-#define lv_ERROR_MSG_SIZE 512
-static lv_THREAD_LOCAL EngineStatus g_thread_last_status = ENGINE_STATUS_OK;
-static lv_THREAD_LOCAL char g_thread_last_error[lv_ERROR_MSG_SIZE] = {0};
+/* ── 引擎错误管理 ── */
 
-/* 错误缓冲区大小 */
+/** 错误缓冲区大小 */
 #define lv_ENGINE_ERROR_SIZE 512
 
 /**
  * @brief 设置引擎错误状态（统一接口）
  *
- * 优先将错误信息存储在引擎实例中，如果引擎为 NULL 则存储在线程局部变量中。
+ * 将错误信息存储在引擎实例中。
  * 使用可变参数支持格式化错误消息。
  *
- * @param engine 引擎实例（可为 NULL）
+ * @param engine 引擎实例
  * @param status 错误状态码
  * @param fmt 格式化字符串（printf 风格）
  * @param ... 可变参数
@@ -117,102 +105,12 @@ static void engine_set_error(lvEngine *engine, EngineStatus status, const char *
     if (engine) {
         engine->last_status = status;
         vsnprintf(engine->last_error, sizeof(engine->last_error), fmt, args);
-    } else {
-        g_thread_last_status = status;
-        vsnprintf(g_thread_last_error, sizeof(g_thread_last_error), fmt, args);
     }
 
     va_end(args);
 }
 
-/**
- * @brief 将引擎状态码转换为可读字符串（公共API实现）
- *
- * 提供所有 EngineStatus 枚举值的人类可读描述。
- *
- * @param status 引擎状态码
- * @return 状态描述字符串（静态常量，无需释放）
- */
-const char *engine_status_to_string(EngineStatus status) {
-    switch (status) {
-        case ENGINE_STATUS_OK:
-            return "成功";
-        case ENGINE_STATUS_OUT_OF_MEMORY:
-            return "内存不足";
-        case ENGINE_STATUS_INVALID_ARGUMENT:
-            return "无效参数";
-        case ENGINE_STATUS_INVALID_STATE:
-            return "无效状态";
-        case ENGINE_STATUS_ERROR_INTERNAL:
-            return "内部错误";
-        case ENGINE_STATUS_CONSTRAINT_CONFLICT:
-            return "约束冲突";
-        case ENGINE_STATUS_MODULE_ERROR:
-            return "模块错误";
-        default:
-            return "未知错误";
-    }
-}
-
-/**
- * @brief 将引擎状态码转换为英文标识符字符串（公共API实现）
- *
- * 返回状态码的英文标识符，适合用于日志和程序逻辑判断。
- *
- * @param status 引擎状态码
- * @return 英文标识符字符串（静态常量，无需释放）
- */
-const char *engine_status_to_identifier(EngineStatus status) {
-    switch (status) {
-        case ENGINE_STATUS_OK:
-            return "ENGINE_STATUS_OK";
-        case ENGINE_STATUS_OUT_OF_MEMORY:
-            return "ENGINE_STATUS_OUT_OF_MEMORY";
-        case ENGINE_STATUS_INVALID_ARGUMENT:
-            return "ENGINE_STATUS_INVALID_ARGUMENT";
-        case ENGINE_STATUS_INVALID_STATE:
-            return "ENGINE_STATUS_INVALID_STATE";
-        case ENGINE_STATUS_ERROR_INTERNAL:
-            return "ENGINE_STATUS_ERROR_INTERNAL";
-        case ENGINE_STATUS_CONSTRAINT_CONFLICT:
-            return "ENGINE_STATUS_CONSTRAINT_CONFLICT";
-        case ENGINE_STATUS_MODULE_ERROR:
-            return "ENGINE_STATUS_MODULE_ERROR";
-        default:
-            return "ENGINE_STATUS_UNKNOWN";
-    }
-}
-
-/**
- * @brief 获取引擎状态的详细描述（公共API实现）
- *
- * 返回包含状态码、描述和建议操作的完整信息。
- *
- * @param status 引擎状态码
- * @return 详细描述字符串（静态常量，无需释放）
- */
-const char *engine_status_get_description(EngineStatus status) {
-    switch (status) {
-        case ENGINE_STATUS_OK:
-            return "操作成功完成。系统处于正常状态，可以继续后续操作。";
-        case ENGINE_STATUS_OUT_OF_MEMORY:
-            return "内存分配失败。系统无法分配所需的内存资源。建议：检查系统内存使用情况，尝试释放不必要的资源，或减小"
-                   "问题规模。";
-        case ENGINE_STATUS_INVALID_ARGUMENT:
-            return "传入参数无效。可能是空指针、越界值或格式错误的参数。建议：检查函数调用的参数是否符合文档要求。";
-        case ENGINE_STATUS_INVALID_STATE:
-            return "引擎处于无效状态。当前操作与引擎状态不兼容。建议：检查引擎当前状态，必要时调用 engine_reset() "
-                   "重置。";
-        case ENGINE_STATUS_ERROR_INTERNAL:
-            return "内部错误。系统内部出现意外情况。建议：检查日志获取详细信息，如果问题持续请报告给开发团队。";
-        case ENGINE_STATUS_CONSTRAINT_CONFLICT:
-            return "约束冲突。几何约束之间存在矛盾，无法满足所有约束条件。建议：检查约束定义，移除或修改冲突的约束。";
-        case ENGINE_STATUS_MODULE_ERROR:
-            return "模块错误。加载或执行模块/公理包时发生错误。建议：检查模块文件路径和格式是否正确。";
-        default:
-            return "未知错误。系统遇到未识别的错误状态。建议：检查日志并报告问题。";
-    }
-}
+/* 状态码映射函数已提取至 engine_status.c */
 
 /* 
  * 注意：以下宏定义用于向后兼容，但会导致问题，已移除。
@@ -611,20 +509,17 @@ bool engine_pack_function(lvEngine *engine, const int *internal_node_ids, int in
 int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int *arg_mappings, int arg_count,
                                  int *out_result_count) {
     if (!out_result_count) {
-        engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "out_result_count 不能为 NULL");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "out_result_count 不能为 NULL");
     }
     if (!engine || !engine->main_graph) {
         *out_result_count = 0;
-        engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "引擎或主图为空");
     }
     *out_result_count = 0;
 
     GeomNode *func_block = graph_get_node(engine->main_graph, func_block_id);
     if (!func_block || func_block->type != GEOM_FUNCTION_BLOCK) {
-        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "函数块 %d 不存在或类型不是函数块", func_block_id);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "函数块 %d 不存在或类型不是函数块", func_block_id);
     }
 
     /*
@@ -634,8 +529,7 @@ int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int 
      */
     FuncBlock *fb = func_block_create(func_block_id);
     if (!fb) {
-        engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "func_block_create 分配失败");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "func_block_create 分配失败");
     }
 
     /* 拷贝内部节点ID */
@@ -644,15 +538,13 @@ int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int 
         int *ids = lv_calloc((size_t) ic, sizeof(int));
         if (!ids) {
             func_block_destroy(fb);
-            engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "内部节点ID数组分配失败");
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "内部节点ID数组分配失败");
         }
         for (int i = 0; i < ic; i++) {
             if (!func_block->data.func_block.internal_nodes[i]) {
                 func_block_destroy(fb);
                 lv_free((void **) &ids);
-                engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "内部节点 %d 为空", i);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "内部节点 %d 为空", i);
             }
             ids[i] = func_block->data.func_block.internal_nodes[i]->id;
         }
@@ -681,9 +573,8 @@ int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int 
     func_block_destroy(fb);
 
     if (inst_result != INSTANTIATE_OK) {
-        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE,
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL,
                          "engine_instantiate_function: instantiation failed (code %d)", inst_result);
-        return NULL;
     }
 
     *out_result_count = new_node_count;
@@ -750,35 +641,31 @@ UnifyStatus engine_unify(lvEngine *engine, ConstraintGraph *construction, Constr
 /**
  * @brief 获取引擎最近一次操作的状态码
  *
- * 优先使用引擎实例级别的错误状态（每个引擎独立隔离）。
- * 若无引擎实例，回退到线程局部变量。
- * 当 engine 为 NULL 且线程局部变量未被初始化时，返回 ENGINE_STATUS_INVALID_ARGUMENT。
+ * 每个引擎实例独立维护自己的错误状态。
  *
- * @param[in] engine 引擎实例（可为 NULL，此时回退到线程局部状态）
+ * @param[in] engine 引擎实例（为 NULL 时返回 ENGINE_STATUS_INVALID_ARGUMENT）
  * @return 最近一次操作的状态码
  */
 EngineStatus engine_get_last_status(const lvEngine *engine) {
-    if (engine) {
-        return engine->last_status;
+    if (!engine) {
+        return ENGINE_STATUS_INVALID_ARGUMENT;
     }
-    /* 回退到线程局部变量（LEGACY 模式） */
-    return g_thread_last_status;
+    return engine->last_status;
 }
 
 /**
  * @brief 获取引擎最近一次错误的描述字符串
  *
- * @param[in] engine 引擎实例（为 NULL 时返回全局错误字符串）
+ * @param[in] engine 引擎实例（为 NULL 时返回空字符串）
  * @return 内部静态错误字符串指针。调用者不得 free。
  *         在下一次可能修改错误状态的操作前有效。
  *         如无错误，返回空字符串。
  */
 const char *engine_get_last_error(const lvEngine *engine) {
-    if (engine) {
-        return engine->last_error;
+    if (!engine) {
+        return "";
     }
-    /* 回退到线程局部变量（LEGACY 模式） */
-    return g_thread_last_error;
+    return engine->last_error;
 }
 
 /**
@@ -1231,7 +1118,7 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
     /* 最终冲突检查 */
     if (check_and_report_conflicts(engine, "engine_rewrite_and_solve") != 0) {
         engine_emit_stream_event(engine, STREAM_EVENT_CONFLICT_DETECTED, "最终冲突检查失败", total_steps, -1, -1);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_CONSTRAINT_CONFLICT, "engine_rewrite_and_solve: 最终冲突检查失败");
     }
 
     /* 流式事件: 引擎完成 */
@@ -1336,8 +1223,8 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(lvEngine *engine, Eng
                 symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
             }
             circuit_handle_overflow();
-            g_thread_last_status = ENGINE_STATUS_OK;
-            g_thread_last_error[0] = '\0';
+            engine->last_status = ENGINE_STATUS_OK;
+            engine->last_error[0] = '\0';
             return ENGINE_CIRCUIT_IGNORE;
 
         case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
@@ -1348,8 +1235,8 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(lvEngine *engine, Eng
                 /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
             }
             circuit_reset_context();
-            g_thread_last_status = ENGINE_STATUS_OK;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
+            engine->last_status = ENGINE_STATUS_OK;
+            snprintf(engine->last_error, sizeof(engine->last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
             return ENGINE_CIRCUIT_ROLLBACK;
 
         case ENGINE_CIRCUIT_ACTION_DOWNGRADE: /* 永久降级：替换为高精度浮点数近似值 */
@@ -1400,13 +1287,13 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(lvEngine *engine, Eng
                 }
             }
             circuit_handle_overflow();
-            g_thread_last_status = ENGINE_STATUS_OK;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine: 通过永久降级为琥珀色处理了电路跳闸");
+            engine->last_status = ENGINE_STATUS_OK;
+            snprintf(engine->last_error, sizeof(engine->last_error), "engine: 通过永久降级为琥珀色处理了电路跳闸");
             return ENGINE_CIRCUIT_DOWNGRADE;
 
         default:
-            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error),
+            engine->last_status = ENGINE_STATUS_INVALID_STATE;
+            snprintf(engine->last_error, sizeof(engine->last_error),
                      "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
             return ENGINE_CIRCUIT_ERROR;
     }
@@ -1817,76 +1704,7 @@ void engine_emit_stream_event(lvEngine *engine, StreamEventType type, const char
  * 所有状态变更通过 lv_engine_transition_state() 执行。
  * ============================================================ */
 
-/**
- * @brief 状态转移表 —— 定义所有合法的状态转移
- *
- * 二维矩阵：engine_transition_table[from][to] = true（转移合法）/ false（非法）。
- * 数组大小为 5x5（ENGINE_STATE_IDLE..ENGINE_STATE_COMPLETE）。
- *
- * 转移规则：
- *   IDLE      → PARSING   ✓  开始接收新输入
- *   IDLE      → ERROR     ✓  初始化失败
- *   PARSING   → REASONING ✓  解析成功完成
- *   PARSING   → ERROR     ✓  解析失败
- *   PARSING   → IDLE      ✓  取消/中断
- *   REASONING → COMPLETE  ✓  证明/求解成功
- *   REASONING → ERROR     ✓  矛盾/超时/资源耗尽
- *   REASONING → IDLE      ✓  取消/中断
- *   COMPLETE  → IDLE      ✓  重置，准备新问题
- *   ERROR     → IDLE      ✓  重置，清理错误状态
- *
- * 所有其他组合均非法（如 IDLE → COMPLETE，COMPLETE → REASONING 等）。
- */
-static const bool engine_transition_table[5][5] = {
-    /* from \ to →        IDLE  PARSING  REASONING  ERROR  COMPLETE */
-    /* IDLE      */ {false, true, false, true, false},
-    /* PARSING   */ {true, false, true, true, false},
-    /* REASONING */ {true, false, false, true, true},
-    /* ERROR     */ {true, false, false, false, false},
-    /* COMPLETE  */ {true, false, false, false, false},
-};
-
-/**
- * @brief 检查状态转移是否合法
- *
- * 直接查转移表，O(1) 时间复杂度。
- *
- * @param from 当前状态
- * @param to   目标状态
- * @return true 合法，false 非法
- */
-bool engine_is_valid_transition(EngineState from, EngineState to) {
-    /* 边界检查：防止无效状态索引 */
-    if (from > ENGINE_STATE_COMPLETE || to > ENGINE_STATE_COMPLETE) {
-        return false;
-    }
-    return engine_transition_table[from][to];
-}
-
-/**
- * @brief 获取引擎状态的中文名称
- *
- * 返回静态字符串，调用者无需释放。
- *
- * @param state 引擎状态枚举值
- * @return 状态的中文描述字符串
- */
-const char *engine_state_name(EngineState state) {
-    switch (state) {
-        case ENGINE_STATE_IDLE:
-            return "空闲"; /* IDLE: 等待输入 */
-        case ENGINE_STATE_PARSING:
-            return "解析中"; /* PARSING: 解析输入文本 */
-        case ENGINE_STATE_REASONING:
-            return "推理中"; /* REASONING: 执行重写/求解/证明 */
-        case ENGINE_STATE_ERROR:
-            return "错误"; /* ERROR: 发生不可恢复错误 */
-        case ENGINE_STATE_COMPLETE:
-            return "完成"; /* COMPLETE: 推理成功完成 */
-        default:
-            return "未知状态";
-    }
-}
+/* 状态转移函数已提取至 engine_state.c */
 
 /**
  * @brief 尝试将引擎转移到指定状态
@@ -1950,30 +1768,4 @@ EngineStatus lv_engine_transition_state(lvEngine *engine, EngineState new_state)
     return ENGINE_STATUS_OK;
 }
 
-/**
- * @brief 获取引擎当前状态
- *
- * @param engine 引擎实例（可为 NULL）
- * @return 当前状态（NULL 时返回 ENGINE_STATE_IDLE）
- */
-EngineState engine_get_state(const lvEngine *engine) {
-    if (!engine) {
-        return ENGINE_STATE_IDLE;
-    }
-    return engine->state;
-}
-
-/**
- * @brief 检查引擎是否正在忙于推理计算
- *
- * 引擎在 REASONING 状态下禁止接受新请求、修改约束图拓扑或执行销毁。
- * 此函数提供便捷的忙状态检查，供所有会修改引擎状态的公共 API 使用。
- *
- * @param engine 引擎实例（可为 NULL，返回 false 即非忙状态）
- * @return true 引擎繁忙（处于 REASONING），false 空闲
- */
-bool engine_is_busy(const lvEngine *engine) {
-    if (!engine)
-        return false;
-    return engine->state == ENGINE_STATE_REASONING;
-}
+/* engine_get_state / engine_is_busy 已提取至 engine_state.c */

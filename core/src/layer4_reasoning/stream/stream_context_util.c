@@ -25,6 +25,7 @@
  * 函数与此类型完全兼容，无需强制转换。 */
 
 #include "lv/constraint_graph.h" /* graph_set_stream_context   */
+#include "lv/interop.h"          /* interop_set_stream_context */
 #include "lv/proof.h"            /* proof_set_stream_context      */
 #include "lv/solver.h"           /* solver_set_stream_context     */
 
@@ -155,4 +156,7 @@ void stream_context_register_builtins(StreamContext *ctx) {
 
     /* ---- 约束图模块 ---- */
     stream_context_register_setter(graph_set_stream_context);
+
+    /* ---- 互操作模块 ---- */
+    stream_context_register_setter(interop_set_stream_context);
 }

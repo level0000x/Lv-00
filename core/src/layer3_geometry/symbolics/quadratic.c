@@ -62,11 +62,11 @@ static void q_transcendental_destroy(Transcendental *t);
  */
 static TranscendentalExpr *transcendental_expr_parse(const char *name) {
     if (!name || name[0] == '\0')
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "transcendental_expr_parse: name is NULL or empty");
     /* 委托给 transcendental.c 的 transcendental_create 进行完整解析 */
     Transcendental *tmp = transcendental_create(name);
     if (!tmp)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "transcendental_expr_parse: transcendental_create failed");
     TranscendentalExpr *expr = tmp->expr;
     tmp->expr = NULL;              /* 转移所有权 */
     q_transcendental_destroy(tmp); /* 释放外壳，expr 不受影响 */
@@ -105,11 +105,11 @@ static bool is_rational_zero(const Rational *r) {
  */
 Quadratic *quadratic_create(Rational *a, Rational *b, unsigned int n) {
     if (!a)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "quadratic_create: a is NULL");
 
     Quadratic *q = lv_calloc(1, sizeof(Quadratic));
     if (!q)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "quadratic_create: calloc failed");
 
     n = remove_square_factors(n);
     q->a = a;
@@ -210,7 +210,7 @@ static Rational *rational_from_int(int64_t val) {
  */
 Quadratic *quadratic_add(const Quadratic *a, const Quadratic *b) {
     if (a->n != b->n)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "quadratic_add: n values differ");
     Rational *new_a = rational_add(a->a, b->a);
     Rational *new_b = rational_add(a->b, b->b);
     return quadratic_create(new_a, new_b, a->n);
@@ -235,7 +235,7 @@ Quadratic *quadratic_subtract(const Quadratic *a, const Quadratic *b) {
 
 Quadratic *quadratic_multiply(const Quadratic *a, const Quadratic *b) {
     if (a->n != b->n)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "quadratic_multiply: n values differ");
 
     /* (a1 + b1*sqrt(n)) * (a2 + b2*sqrt(n)) = (a1*a2 + b1*b2*n) + (a1*b2 + a2*b1)*sqrt(n) */
     Rational *a1 = rational_copy(a->a);
@@ -269,14 +269,14 @@ Quadratic *quadratic_multiply(const Quadratic *a, const Quadratic *b) {
 
 Quadratic *quadratic_divide(const Quadratic *a, const Quadratic *b) {
     if (a->n != b->n)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "quadratic_divide: n values differ");
 
     Rational *zero = rational_create(0, 1);
     bool b_is_zero = (rational_compare(b->a, zero) == 0 && rational_compare(b->b, zero) == 0);
     rational_destroy(zero);
 
     if (b_is_zero)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "quadratic_divide: division by zero");
 
     /* (a1 + b1*sqrt(n)) / (a2 + b2*sqrt(n)) 
      * = (a1 + b1*sqrt(n)) * (a2 - b2*sqrt(n)) / (a2^2 - b2^2*n)
@@ -344,6 +344,7 @@ Quadratic *quadratic_divide(const Quadratic *a, const Quadratic *b) {
             rational_destroy(new_a);
         if (new_b)
             rational_destroy(new_b);
+        lv_ERROR_SET(lv_ERROR_INTERNAL, "quadratic_divide: rational division failed");
         return NULL;
     }
 

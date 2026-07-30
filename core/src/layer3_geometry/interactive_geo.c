@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interactive_geo.c
  * @brief 交互几何系统实现 —— 借鉴 Cinderella 与 Dr. Geo
  * @see interactive_geo.h
@@ -15,6 +15,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/lv.h"
+#include "lv/lv_internal.h"
 
 #define HIT_RADIUS 12.0
 #define MAX_ZOOM 20.0
@@ -117,7 +118,7 @@ static ConstraintMaintainStatus propagate(lvInteractiveGeo *g, int did) {
 lvInteractiveGeo *interactive_geo_init(lvEngine *engine) {
     lvInteractiveGeo *g = (lvInteractiveGeo *) lv_calloc(1, sizeof(*g));
     if (!g)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "interactive_geo_init: calloc failed");
     lvGeoCanvasState *cs = &g->canvas_state;
     cs->drag_target_id = -1;
     cs->primary_selected_id = -1;
@@ -129,7 +130,7 @@ lvInteractiveGeo *interactive_geo_init(lvEngine *engine) {
         lv_free((void **) &(cs->active_object_ids));
         lv_free((void **) &(cs->selected_ids));
         lv_free((void **) &g);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "interactive_geo_init: calloc for active_object_ids or selected_ids failed");
     }
     interactive_geo_reset_viewport(g);
 
@@ -212,14 +213,16 @@ InteractiveGeoMode interactive_geo_get_mode(const lvInteractiveGeo *g) {
 /* ==================== 选择管理 ==================== */
 
 int interactive_geo_select(lvInteractiveGeo *g, int id) {
-    if (!g || !is_active(g, id))
-        return -1;
+    if (!g)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_select: NULL g");
+    if (!is_active(g, id))
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "interactive_geo_select: id %d is not active", id);
     lvGeoCanvasState *cs = &g->canvas_state;
     for (int i = 0; i < cs->selected_count; i++)
         if (cs->selected_ids[i] == id)
             return 0;
     if (cs->selected_count >= lv_GEO_MAX_OBJECTS)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "interactive_geo_select: selected_count overflow");
     cs->selected_ids[cs->selected_count++] = id;
     cs->primary_selected_id = id;
     if (g->on_selection_changed)
@@ -250,9 +253,9 @@ void interactive_geo_deselect(lvInteractiveGeo *g, int id) {
 
 int interactive_geo_drag_start(lvInteractiveGeo *g, int id, double x, double y) {
     if (!g)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_drag_start: NULL g");
     if (id >= 0 && !is_active(g, id))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "interactive_geo_drag_start: id %d is not active", id);
     lvGeoCanvasState *cs = &g->canvas_state;
     cs->drag_target_id = id;
     cs->drag_start_x = x;
@@ -322,7 +325,7 @@ ConstraintMaintainStatus interactive_geo_drag_end(lvInteractiveGeo *g, double x,
 int interactive_geo_randomized_check(lvInteractiveGeo *g, int samples, double tol, const char *expr,
                                      lvRandomizedCheck *res) {
     if (!g || !res)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_randomized_check: NULL parameter");
     if (samples <= 0)
         samples = lv_GEO_DEFAULT_SAMPLE_COUNT;
     if (tol <= 0.0)
@@ -398,8 +401,10 @@ void interactive_geo_screen_to_world(const lvInteractiveGeo *g, double sx, doubl
 /* ==================== 命中检测 ==================== */
 
 int interactive_geo_hit_test(const lvInteractiveGeo *g, double sx, double sy, double r, double *out_d) {
-    if (!g || !g->canvas_state.active_object_ids)
-        return -1;
+    if (!g)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_hit_test: NULL g");
+    if (!g->canvas_state.active_object_ids)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "interactive_geo_hit_test: active_object_ids is NULL");
     if (r <= 0.0)
         r = HIT_RADIUS;
     double wx, wy;
@@ -426,7 +431,7 @@ int interactive_geo_hit_test(const lvInteractiveGeo *g, double sx, double sy, do
 
 int interactive_geo_get_object_position(const lvInteractiveGeo *g, int id, double *wx, double *wy) {
     if (!g)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_get_object_position: NULL g");
     if (g->engine_handle && g->engine_handle->main_graph) {
         GeomNode *nd = graph_get_node(g->engine_handle->main_graph, id);
         if (nd && nd->type == GEOM_POINT && nd->symbolic_coords && nd->coord_count >= 2) {
@@ -493,7 +498,7 @@ void interactive_geo_set_canvas_size(lvInteractiveGeo *g, double w, double h) {
 
 int interactive_geo_snapshot(lvInteractiveGeo *g) {
     if (!g)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_snapshot: NULL g");
     if (g->snapshot_count >= lv_GEO_MAX_SNAPSHOTS) {
         lv_free((void **) &(g->snapshots[0]));
         for (int i = 1; i < lv_GEO_MAX_SNAPSHOTS; i++)
@@ -502,7 +507,7 @@ int interactive_geo_snapshot(lvInteractiveGeo *g) {
     }
     char *buf = (char *) lv_malloc(SNAP_LEN);
     if (!buf)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "interactive_geo_snapshot: malloc failed");
     lvGeoCanvasState *cs = &g->canvas_state;
     int n = snprintf(buf, SNAP_LEN,
                      "{\"mode\":%d,\"drag_target\":%d,\"drag_pos\":[%.17g,%.17g],"
@@ -511,7 +516,7 @@ int interactive_geo_snapshot(lvInteractiveGeo *g) {
                      cs->viewport_offset_x, cs->viewport_offset_y, cs->selected_count, cs->modified ? "true" : "false");
     if (n < 0 || n >= SNAP_LEN) {
         lv_free((void **) &buf);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "interactive_geo_snapshot: snprintf failed");
     }
     g->snapshots[g->snapshot_count] = buf;
     g->current_snapshot_index = g->snapshot_count++;
@@ -519,8 +524,10 @@ int interactive_geo_snapshot(lvInteractiveGeo *g) {
 }
 
 int interactive_geo_restore(lvInteractiveGeo *g, int idx) {
-    if (!g || idx < 0 || idx >= g->snapshot_count || !g->snapshots[idx])
-        return -1;
+    if (!g)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_restore: NULL g");
+    if (idx < 0 || idx >= g->snapshot_count || !g->snapshots[idx])
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "interactive_geo_restore: invalid idx %d (count=%d)", idx, g->snapshot_count);
     const char *j = g->snapshots[idx];
     lvGeoCanvasState *cs = &g->canvas_state;
     int mv = (int) cs->current_mode, di = -1, sc = 0;
@@ -559,7 +566,7 @@ int interactive_geo_restore(lvInteractiveGeo *g, int idx) {
 
 int interactive_geo_generate_script(lvInteractiveGeo *g, ScriptLanguage lang, char *buf, int bufsz) {
     if (!g || !buf || bufsz <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_generate_script: NULL parameter or bufsz<=0");
     lvGeoScriptBinding *sb = &g->script_binding;
     const char *hdr;
     switch (lang) {
@@ -575,7 +582,7 @@ int interactive_geo_generate_script(lvInteractiveGeo *g, ScriptLanguage lang, ch
     }
     int w = snprintf(buf, (size_t) bufsz, "%s", hdr);
     if (w < 0 || w >= bufsz)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "interactive_geo_generate_script: snprintf header failed");
     for (int i = 0; i < sb->binding_count; i++) {
         int rem = bufsz - w - 1;
         if (rem <= 0)
@@ -593,7 +600,7 @@ int interactive_geo_generate_script(lvInteractiveGeo *g, ScriptLanguage lang, ch
 
 int interactive_geo_get_stats(const lvInteractiveGeo *g, char *buf, int bufsz) {
     if (!g || !buf || bufsz <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_get_stats: NULL parameter or bufsz<=0");
     const lvGeoCanvasState *cs = &g->canvas_state;
     int n = snprintf(buf, (size_t) bufsz,
                      "{\"mode\":%d,\"active\":%d,\"selected\":%d,\"drag\":%d,"

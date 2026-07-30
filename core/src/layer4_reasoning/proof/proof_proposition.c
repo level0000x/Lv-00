@@ -23,8 +23,6 @@
 #include "lv_utils.h"
 
 /* ── 流式上下文声明 ── */
-lv_DECLARE_STREAM_CTX(proof);
-
 /* ── 命题销毁栈初始容量 ── */
 #ifndef PROOF_DESTROY_STACK_INITIAL_CAPACITY
 #define PROOF_DESTROY_STACK_INITIAL_CAPACITY 64

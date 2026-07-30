@@ -93,14 +93,14 @@ Rational *rational_create(int64_t numerator, uint64_t denominator) {
 Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominator) {
     /* 参数有效性检查：分子和分母均不能为 NULL，分母不能为零 */
     if (!numerator) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_create_from_mpz: numerator is NULL");
     }
     if (!denominator || mpz_sgn(denominator) == 0) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_create_from_mpz: denominator is NULL or zero");
     }
     Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_create_from_mpz: allocation failed");
     mpq_init(r->value);
     mpq_set_num(r->value, numerator);
     mpq_set_den(r->value, denominator);
@@ -143,10 +143,10 @@ int rational_compare(const Rational *a, const Rational *b) {
  */
 Rational *rational_add(const Rational *a, const Rational *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_add: a or b is NULL");
     Rational *r = lv_malloc(sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_add: allocation failed");
     mpq_init(r->value);
     mpq_add(r->value, a->value, b->value);
     return r;
@@ -172,10 +172,10 @@ Rational *rational_subtract(const Rational *a, const Rational *b) {
  */
 Rational *rational_multiply(const Rational *a, const Rational *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_multiply: a or b is NULL");
     Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_multiply: allocation failed");
     mpq_init(r->value);
     mpq_mul(r->value, a->value, b->value);
     return r;
@@ -244,12 +244,12 @@ char *rational_serialize(const Rational *r) {
 Rational *rational_parse(const char *str) {
     Rational *r = lv_calloc(1, sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_parse: allocation failed");
     mpq_init(r->value);
     if (mpq_set_str(r->value, str, 10) != 0) {
         mpq_clear(r->value);
         lv_free((void **) &r);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "rational_parse: mpq_set_str failed for input string");
     }
     mpq_canonicalize(r->value);
     return r;

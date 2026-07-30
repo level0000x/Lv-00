@@ -25,8 +25,6 @@
 #include "lv/lv_json.h"
 #include "lv_utils.h"
 
-lv_DECLARE_STREAM_CTX(proof);
-
 /**
  * @brief 将 src 中的特殊 JSON 字符转义后写入 dst
  *

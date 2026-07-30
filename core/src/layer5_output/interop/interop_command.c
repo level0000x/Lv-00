@@ -26,7 +26,12 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 
-lv_DECLARE_STREAM_CTX(interop);
+/** @brief interop 模块全局流式上下文定义（供所有 interop 子模块通过 interop.h 的 extern 引用） */
+lv_THREAD_LOCAL StreamContext *interop_stream_ctx = NULL;
+
+void interop_set_stream_context(StreamContext *ctx) {
+    interop_stream_ctx = ctx;
+}
 
 /* ── 命令解析与执行 ── */
 

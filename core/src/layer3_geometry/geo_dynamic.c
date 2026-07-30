@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 #ifndef lv_PUBLIC_API
@@ -244,7 +245,7 @@ lvDynGraphConfig lv_dyn_graph_default_config(void) {
 lvDynGraph *lv_dyn_graph_create(const lvDynGraphConfig *config) {
     lvDynGraph *graph = (lvDynGraph *) lv_calloc(1, sizeof(lvDynGraph));
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_dyn_graph_create: calloc graph failed");
 
     if (config) {
         graph->config = *config;
@@ -491,11 +492,11 @@ static void update_node_params(lvDynGraph *graph, int node_id) {
 
 int lv_dyn_graph_update_cascade(lvDynGraph *graph, int root_id, lvDynUpdateFunc update_func) {
     if (!graph)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_dyn_graph_update_cascade: graph is NULL");
 
     lvDynNode *root = lv_dyn_graph_get_node(graph, root_id);
     if (!root)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_dyn_graph_update_cascade: root node not found");
 
     int updated = 0;
     int stack[256];
@@ -698,12 +699,12 @@ bool lv_dyn_graph_would_create_cycle(const lvDynGraph *graph, int parent_id, int
 
 int lv_dyn_graph_topological_sort(const lvDynGraph *graph, int *out_order) {
     if (!graph || !out_order)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_dyn_graph_topological_sort: graph or out_order is NULL");
 
     /* Kahn 算法 */
     int *in_degree = (int *) lv_calloc(graph->node_count, sizeof(int));
     if (!in_degree)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_dyn_graph_topological_sort: calloc in_degree failed");
 
     /* 计算入度 */
     for (int i = 0; i < graph->node_count; i++) {
@@ -742,7 +743,7 @@ int lv_dyn_graph_topological_sort(const lvDynGraph *graph, int *out_order) {
 
     /* 如果排序的节点数不等于总节点数，说明存在循环 */
     if (sorted_count != graph->node_count) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_CYCLIC_DEPENDENCY, "lv_dyn_graph_topological_sort: cycle detected");
     }
 
     return sorted_count;

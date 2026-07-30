@@ -204,15 +204,18 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     if (!graph || !sys)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "compute_elimination_order: NULL graph or sys");
 
-    int *var_ids = lv_calloc((size_t) sys->count, sizeof(int));
+    PolyEquation *const eqs = (PolyEquation *)sys->eqs.data;
+    const int eq_count_total = sys->eqs.count;
+
+    int *var_ids = lv_calloc((size_t) eq_count_total, sizeof(int));
     if (!var_ids)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "compute_elimination_order: lv_calloc for var_ids failed (count=%d)", sys->count);
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "compute_elimination_order: lv_calloc for var_ids failed (count=%d)", eq_count_total);
     int var_count = 0;
 
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0)
+    for (int i = 0; i < eq_count_total; i++) {
+        if (eqs[i].poly.degree < 0)
             continue;
-        int vid = sys->eqs[i].var_node_id;
+        int vid = eqs[i].var_node_id;
         bool found = false;
         for (int j = 0; j < var_count; j++) {
             if (var_ids[j] == vid) {
@@ -230,11 +233,11 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     }
 
     int *eq_count = lv_calloc((size_t) var_count, sizeof(int));
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0)
+    for (int i = 0; i < eq_count_total; i++) {
+        if (eqs[i].poly.degree < 0)
             continue;
         for (int j = 0; j < var_count; j++) {
-            if (var_ids[j] == sys->eqs[i].var_node_id) {
+            if (var_ids[j] == eqs[i].var_node_id) {
                 eq_count[j]++;
                 break;
             }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ga_codegen.c
  * @brief 几何代数代码生成器实现
  *
@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/lv_utils.h"
+#include "lv_internal.h"
 
 #define GA_CODEGEN_BUF_SIZE 512
 #define GA_CODEGEN_LATEX_BUF_SIZE 256
@@ -134,7 +135,7 @@ GACodegenResult *ga_codegen_compile(const lvMultiVector *mv, const GACodegenOpti
 
     GACodegenResult *res = (GACodegenResult *) calloc(1, sizeof(GACodegenResult));
     if (res == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_codegen_compile: calloc failed");
 
     res->target = options->target;
     res->error_msg = NULL;
@@ -191,11 +192,11 @@ void ga_codegen_result_destroy(GACodegenResult *result) {
 
 char *ga_render_latex(const lvMultiVector *mv) {
     if (mv == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "ga_render_latex: mv is NULL");
 
     char *buf = (char *) lv_malloc(GA_CODEGEN_LATEX_BUF_SIZE);
     if (buf == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_render_latex: malloc failed");
 
     /* 简化渲染：多重向量为零时输出 "0"，否则输出占位表达式 */
     if (ga_mv_zero() == NULL || mv == NULL) {
@@ -208,11 +209,11 @@ char *ga_render_latex(const lvMultiVector *mv) {
 
 char *ga_render_dot(const lvMultiVector *mv) {
     if (mv == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "ga_render_dot: mv is NULL");
 
     char *buf = (char *) lv_malloc(GA_CODEGEN_BUF_SIZE);
     if (buf == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_render_dot: malloc failed");
 
     /* 生成 Graphviz DOT 格式的多重向量分量图 */
     snprintf(buf, GA_CODEGEN_BUF_SIZE,

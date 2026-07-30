@@ -39,6 +39,7 @@
 
 #include "error_codes.h"
 #include "lv_utils.h"
+#include "lv_internal.h"
 
 /* ── 运行时配置默认值的边界函数 ── */
 int propagation_default_max_iterations(void) {
@@ -62,7 +63,7 @@ int propagation_wfc_max_collaboration_iterations(void) {
 static NodeStateSpace *state_create(int node_id) {
     NodeStateSpace *s = (NodeStateSpace *) calloc(1, sizeof(NodeStateSpace));
     if (!s)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "state_create: calloc failed");
     s->node_id = node_id;
     s->is_collapsed = false;
     s->is_unbounded = false;
@@ -95,10 +96,10 @@ static void state_destroy(NodeStateSpace *s) {
 /** @brief 深拷贝节点状态空间 */
 static NodeStateSpace *state_deep_copy(const NodeStateSpace *src) {
     if (!src)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "state_deep_copy: src is NULL");
     NodeStateSpace *dst = (NodeStateSpace *) calloc(1, sizeof(NodeStateSpace));
     if (!dst)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "state_deep_copy: calloc failed");
 
     dst->node_id = src->node_id;
     dst->is_collapsed = src->is_collapsed;
@@ -117,7 +118,7 @@ static NodeStateSpace *state_deep_copy(const NodeStateSpace *src) {
             dc.dim = src_cand[i].dim;
             if (lv_darray_push(&dst->candidates_da, &dc) < 0) {
                 state_destroy(dst);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "state_deep_copy: lv_darray_push failed");
             }
         }
     }
@@ -248,11 +249,11 @@ static void queue_clear(PropagationContext *ctx) {
 
 PropagationContext *propagation_context_create(ConstraintGraph *graph) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "propagation_context_create: graph is NULL");
 
     PropagationContext *ctx = (PropagationContext *) lv_malloc(sizeof(PropagationContext));
     if (!ctx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "propagation_context_create: malloc failed");
     memset(ctx, 0, sizeof(PropagationContext));
 
     ctx->graph = graph;
@@ -266,7 +267,7 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
     ctx->state_spaces = (NodeStateSpace *) lv_malloc((size_t) ctx->state_count * sizeof(NodeStateSpace));
     if (!ctx->state_spaces && ctx->state_count > 0) {
         lv_free((void **) &ctx);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "propagation_context_create: state_spaces malloc failed");
     }
     if (ctx->state_spaces)
         memset(ctx->state_spaces, 0, (size_t) ctx->state_count * sizeof(NodeStateSpace));
@@ -275,7 +276,7 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
     if (!queue_init(ctx)) {
         lv_free((void **) &ctx->state_spaces);
         lv_free((void **) &ctx);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "propagation_context_create: queue_init failed");
     }
 
     /* 初始化快照栈 */
@@ -286,7 +287,7 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
         queue_destroy(ctx);
         lv_free((void **) &ctx->state_spaces);
         lv_free((void **) &ctx);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "propagation_context_create: snapshot_stack malloc failed");
     }
     memset(ctx->snapshot_stack, 0, (size_t) ctx->snapshot_capacity * sizeof(PropagationSnapshot *));
 
@@ -392,7 +393,7 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
 
 NodeStateSpace *propagation_get_state_space(PropagationContext *ctx, int node_id) {
     if (!ctx || node_id < 0 || node_id >= ctx->state_count)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "propagation_get_state_space: invalid ctx or node_id");
     return &ctx->state_spaces[node_id];
 }
 
@@ -619,7 +620,7 @@ double propagation_compute_entropy(const NodeStateSpace *state) {
 
 int propagation_select_node(PropagationContext *ctx) {
     if (!ctx)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "propagation_select_node: ctx is NULL");
 
     double min_entropy = 1e30;
     int best_node = -1;
@@ -918,17 +919,17 @@ PropagationResult propagation_wfc_solve(PropagationContext *ctx) {
 
 PropagationSnapshot *propagation_snapshot_save(PropagationContext *ctx) {
     if (!ctx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "propagation_snapshot_save: ctx is NULL");
 
     PropagationSnapshot *snap = (PropagationSnapshot *) calloc(1, sizeof(PropagationSnapshot));
     if (!snap)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "propagation_snapshot_save: snap calloc failed");
 
     snap->state_count = ctx->state_count;
     snap->states = (NodeStateSpace *) calloc((size_t) snap->state_count, sizeof(NodeStateSpace));
     if (!snap->states) {
         lv_free((void **) &snap);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "propagation_snapshot_save: states calloc failed");
     }
 
     for (int i = 0; i < snap->state_count; i++) {

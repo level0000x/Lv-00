@@ -20,6 +20,7 @@
 #include <time.h>
 
 #include "lv/lv_thread.h"
+#include "lv_internal.h"
 
 /* ========================================================================
  * 内部常量与数据结构
@@ -136,13 +137,13 @@ lvThreadPool *lv_thread_pool_create(int num_threads) {
 
     lvThreadPool *pool = (lvThreadPool *) calloc(1, sizeof(lvThreadPool));
     if (pool == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_thread_pool_create: calloc pool failed");
 
     pool->thread_count = num_threads;
     pool->threads = (lv_thread_t *) calloc((size_t) num_threads, sizeof(lv_thread_t));
     if (pool->threads == NULL) {
         free(pool);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_thread_pool_create: calloc threads failed");
     }
 
     lv_mutex_init(&pool->mutex);
@@ -157,7 +158,7 @@ lvThreadPool *lv_thread_pool_create(int num_threads) {
         if (lv_thread_create(&pool->threads[i], worker_func, pool) != 0) {
             pool->thread_count = i;
             lv_thread_pool_destroy(pool);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_thread_pool_create: thread creation failed");
         }
     }
 
@@ -205,12 +206,12 @@ void lv_thread_pool_destroy(lvThreadPool *pool) {
  */
 lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task) {
     if (pool == NULL || task == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_thread_pool_submit: pool or task is NULL");
 
     /* 创建等待组 */
     lvWaitGroup *group = (lvWaitGroup *) calloc(1, sizeof(lvWaitGroup));
     if (group == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_thread_pool_submit: calloc group failed");
     lv_mutex_init(&group->mutex);
     lv_cond_init(&group->cond);
     group->pending = 1;
@@ -225,7 +226,7 @@ lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task) {
     if (pool->queue_size >= MAX_TASK_QUEUE) {
         lv_mutex_unlock(&pool->mutex);
         free(group);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "lv_thread_pool_submit: task queue full");
     }
 
     if (pool->queue_tail != NULL) {

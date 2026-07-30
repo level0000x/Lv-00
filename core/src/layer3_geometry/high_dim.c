@@ -101,10 +101,11 @@ static int high_dim_snprintf(char *str, size_t size, const char *format, ...) {
 HighDimManager *high_dim_manager_create(void) {
     HighDimManager *manager = (HighDimManager *) lv_malloc(sizeof(HighDimManager));
     if (!manager)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "high_dim_manager_create: malloc failed");
 
     if (high_dim_manager_init(manager) != 0) {
         lv_free((void **) &manager);
+        lv_ERROR_SET(lv_ERROR_INTERNAL, "high_dim_manager_create: init failed");
         return NULL;
     }
 
@@ -259,7 +260,7 @@ int high_dim_unregister_block(HighDimManager *manager, int block_id) {
  */
 HighDimAbstractBlock *high_dim_get_block(HighDimManager *manager, int block_id) {
     if (!manager)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "high_dim_get_block: manager is NULL");
 
     HighDimAbstractBlock *blocks_arr = (HighDimAbstractBlock *) manager->blocks.data;
     for (int i = 0; i < manager->blocks.count; i++) {
@@ -389,7 +390,7 @@ int high_dim_set_current_preset(HighDimManager *manager, int block_id, int prese
 
 const HighDimProjectionPreset *high_dim_get_current_preset(const HighDimManager *manager, int block_id) {
     if (!manager)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "high_dim_get_current_preset: manager is NULL");
 
     /* 注意: 此处将 const HighDimManager* 转换为非 const 是因为
      * high_dim_get_block() 缺少 const 版本的API，但该函数不会修改图结构 */
@@ -903,7 +904,7 @@ int high_dim_get_current_depth(const HighDimManager *manager) {
      * @return 当前透视深度（>= 0），manager为NULL时返回-1
      */
     if (!manager)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "high_dim_get_current_depth: manager is NULL");
 
     /* 直接返回C层维护的深度计数值 */
     return manager->perspective_depth;
@@ -969,7 +970,7 @@ static int high_dim_allocate_view_slot(int view_id, int block_id, int preset_ind
 
     /* 分配新槽位 */
     if (g_multi_view_count >= HIGH_DIM_MAX_ACTIVE_VIEWS) {
-        return -1; /* 视图槽位已满 */
+        lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "high_dim_allocate_view_slot: view slots exhausted");
     }
 
     int idx = g_multi_view_count;

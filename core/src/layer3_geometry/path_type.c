@@ -58,13 +58,13 @@ lvPathSystem *path_system_create(int path_capacity, int interval_capacity) {
 
     lvPathSystem *sys = lv_calloc(1, sizeof(lvPathSystem));
     if (!sys)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "path_system_create: calloc failed");
 
     /* 初始化路径动态数组 */
     lv_darray_init(&sys->paths_da, sizeof(lvPath));
     if (!lv_darray_reserve(&sys->paths_da, path_capacity)) {
         lv_free((void **) &sys);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "path_system_create: reserve paths_da failed");
     }
 
     /* 分配区间池 */
@@ -72,7 +72,7 @@ lvPathSystem *path_system_create(int path_capacity, int interval_capacity) {
     if (!sys->intervals) {
         lv_darray_free(&sys->paths_da);
         lv_free((void **) &sys);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "path_system_create: intervals calloc failed");
     }
     sys->interval_capacity = interval_capacity;
     sys->interval_count = 0;
@@ -83,7 +83,7 @@ lvPathSystem *path_system_create(int path_capacity, int interval_capacity) {
         lv_free((void **) &sys->intervals);
         lv_darray_free(&sys->paths_da);
         lv_free((void **) &sys);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "path_system_create: reserve coe_contexts_da failed");
     }
 
     sys->is_initialized = true;
@@ -141,7 +141,7 @@ void path_system_destroy(lvPathSystem *sys) {
 int path_create(lvPathSystem *sys, int endpoint_a, int endpoint_b, const char *label,
                 double (*path_func)(double t, void *user_data), void *user_data, int source_step) {
     if (!sys || !sys->is_initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_create: sys is NULL or not initialized");
 
     lvPath p;
     memset(&p, 0, sizeof(lvPath));
@@ -162,7 +162,7 @@ int path_create(lvPathSystem *sys, int endpoint_a, int endpoint_b, const char *l
     int id = lv_darray_push(&sys->paths_da, &p);
     if (id < 0) {
         if (p.label) lv_free((void **)&p.label);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "path_create: darray_push failed");
     }
     return id;
 }
@@ -185,9 +185,9 @@ int path_create_identity(lvPathSystem *sys, int endpoint_a, const char *label) {
  */
 int path_create_inverse(lvPathSystem *sys, int path_id) {
     if (!sys || !sys->is_initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_create_inverse: sys is NULL or not initialized");
     if (path_id < 0 || path_id >= sys->paths_da.count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_create_inverse: invalid path_id");
 
     const lvPath *orig = (const lvPath *)lv_darray_get(&sys->paths_da, path_id);
 
@@ -215,18 +215,18 @@ int path_create_inverse(lvPathSystem *sys, int path_id) {
  */
 int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q, const char *label) {
     if (!sys || !sys->is_initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_compose: sys is NULL or not initialized");
     if (path_id_p < 0 || path_id_p >= sys->paths_da.count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_compose: invalid path_id_p");
     if (path_id_q < 0 || path_id_q >= sys->paths_da.count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_compose: invalid path_id_q");
 
     const lvPath *p = (const lvPath *)lv_darray_get(&sys->paths_da, path_id_p);
     const lvPath *q = (const lvPath *)lv_darray_get(&sys->paths_da, path_id_q);
 
     /* 检查端点匹配：p 的终点 == q 的起点 */
     if (p->endpoint_b != q->endpoint_a)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_compose: endpoint mismatch p->endpoint_b != q->endpoint_a");
 
     /* 创建合成路径：起点为 p 的起点，终点为 q 的终点 */
     char comp_label[512];
@@ -256,9 +256,9 @@ int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q, const char *la
  */
 int path_transport(lvPathSystem *sys, int path_id, int source_type_id, lvTransportMode mode, void **transported) {
     if (!sys || !sys->is_initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_transport: sys is NULL or not initialized");
     if (path_id < 0 || path_id >= sys->paths_da.count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_transport: invalid path_id");
 
     const lvPath *p = (const lvPath *)lv_darray_get(&sys->paths_da, path_id);
 
@@ -312,7 +312,7 @@ int path_transport(lvPathSystem *sys, int path_id, int source_type_id, lvTranspo
     ctx.error_msg[0] = '\0';
 
     if (lv_darray_push(&sys->coe_contexts_da, &ctx) < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "path_transport: coe_contexts_da push failed");
     return 0;
 }
 
@@ -340,16 +340,16 @@ bool path_is_constant(const lvPathSystem *sys, int path_id) {
  */
 int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equality) {
     if (!sys || !sys->is_initialized || !out_equality)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_to_equality: sys/out_equality is NULL or not initialized");
     if (path_id < 0 || path_id >= sys->paths_da.count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_to_equality: invalid path_id");
 
     lvPath *path = (lvPath *)lv_darray_get(&sys->paths_da, path_id);
 
     /* 创建约束图表示等式关系 */
     ConstraintGraph *eq = graph_create();
     if (!eq)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "path_to_equality: graph_create failed");
 
     /* 使用端点 ID 创建区分性的符号坐标 */
     SymbolicCoord *coord_a_x = symbolic_coord_create_rational(path->endpoint_a * 1000 + 1, 1000);
@@ -368,7 +368,7 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
         symbolic_coord_destroy(coord_b_x);
         symbolic_coord_destroy(coord_b_y);
         graph_destroy(eq);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "path_to_equality: graph_add_point A failed");
     }
     int node_a = graph_get_last_added_node_id(eq);
 
@@ -377,7 +377,7 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
         symbolic_coord_destroy(coord_b_x);
         symbolic_coord_destroy(coord_b_y);
         graph_destroy(eq);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "path_to_equality: graph_add_point B failed");
     }
     int node_b = graph_get_last_added_node_id(eq);
 
@@ -417,7 +417,7 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
  */
 int path_from_construction(lvPathSystem *sys, int step_index, const char *label) {
     if (!sys || !sys->is_initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_from_construction: sys is NULL or not initialized");
 
     int endpoint_a = -1, endpoint_b = -1;
 
@@ -481,23 +481,23 @@ int path_from_construction(lvPathSystem *sys, int step_index, const char *label)
  */
 int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **out_constraint) {
     if (!sys || !sys->is_initialized || !out_constraint)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_to_constraint_graph: sys/out_constraint is NULL or not initialized");
     if (path_id < 0 || path_id >= sys->paths_da.count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_to_constraint_graph: invalid path_id");
 
     lvPath *path = (lvPath *)lv_darray_get(&sys->paths_da, path_id);
 
     /* 创建约束图并从路径中提取约束 */
     ConstraintGraph *cg = graph_create();
     if (!cg)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "path_to_constraint_graph: graph_create failed");
 
     /* 添加端点节点 */
     SymbolicCoord *coords_a[2] = {0};
     AddNodeResult r_a = graph_add_point(cg, coords_a, 0);
     if (r_a != ADD_NODE_OK) {
         graph_destroy(cg);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "path_to_constraint_graph: graph_add_point A failed");
     }
     int node_a = graph_get_last_added_node_id(cg);
 
@@ -505,7 +505,7 @@ int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **o
     AddNodeResult r_b = graph_add_point(cg, coords_b, 0);
     if (r_b != ADD_NODE_OK) {
         graph_destroy(cg);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "path_to_constraint_graph: graph_add_point B failed");
     }
     int node_b = graph_get_last_added_node_id(cg);
 
@@ -596,7 +596,7 @@ int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **o
 int path_system_get_all_paths_between(const lvPathSystem *sys, int endpoint_a, int endpoint_b, int *out_path_ids,
                                       int max_count) {
     if (!sys || !sys->is_initialized || !out_path_ids)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_system_get_all_paths_between: sys/out_path_ids is NULL or not initialized");
     if (max_count <= 0)
         return 0;
 
@@ -630,14 +630,14 @@ int path_system_get_all_paths_between(const lvPathSystem *sys, int endpoint_a, i
  */
 int path_system_create_interval(lvPathSystem *sys, double left, double right, const char *label) {
     if (!sys || !sys->is_initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_system_create_interval: sys is NULL or not initialized");
 
     /* 扩容检查 */
     if (sys->interval_count >= sys->interval_capacity) {
         int new_cap = sys->interval_capacity * 2;
         lvInterval *new_arr = lv_realloc(sys->intervals, (size_t) new_cap * sizeof(lvInterval));
         if (!new_arr)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "path_system_create_interval: realloc failed");
         sys->intervals = new_arr;
         memset(&sys->intervals[sys->interval_count], 0, (size_t) (new_cap - sys->interval_count) * sizeof(lvInterval));
         sys->interval_capacity = new_cap;

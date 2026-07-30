@@ -1556,6 +1556,72 @@ long stream_timestamp_ms(void) {
     return (long) (lv_get_time_ns() / 1000000);
 }
 
+/* ============================================================
+ * 事件类型映射表（数据驱动，替代 switch 语句）
+ *
+ * 统一管理事件类型的中文名称、英文标识符和前端颜色。
+ * 新增事件类型时只需在此表添加一行，无需修改 3 个函数。
+ * ============================================================ */
+
+/** 事件类型映射表条目 */
+typedef struct {
+    StreamEventType type;   /**< 事件类型枚举值 */
+    const char *name;       /**< 中文名称 */
+    const char *id;         /**< 英文标识符 */
+    const char *color;      /**< 前端颜色（十六进制） */
+} StreamEventTypeEntry;
+
+/** 事件类型映射表（按枚举值顺序排列，支持 O(1) 直接索引） */
+static const StreamEventTypeEntry s_event_type_table[STREAM_EVENT_TYPE_COUNT] = {
+    {STREAM_EVENT_ENGINE_START,              "引擎启动",       "ENGINE_START",              STREAM_COLOR_GREEN},
+    {STREAM_EVENT_ENGINE_DONE,               "引擎完成",       "ENGINE_DONE",               STREAM_COLOR_GREEN},
+    {STREAM_EVENT_ENGINE_PAUSED,             "引擎暂停",       "ENGINE_PAUSED",             STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_NORMALIZE_START,           "归一化开始",     "NORMALIZE_START",           STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_NORMALIZE_MERGE,           "节点合并",       "NORMALIZE_MERGE",           STREAM_COLOR_PURPLE},
+    {STREAM_EVENT_NORMALIZE_DONE,            "归一化完成",     "NORMALIZE_DONE",            STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_REWRITE_START,             "重写开始",       "REWRITE_START",             STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_REWRITE_RULE_LOADED,       "规则加载",       "REWRITE_RULE_LOADED",       STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_REWRITE_MATCH_FOUND,       "匹配找到",       "REWRITE_MATCH_FOUND",       STREAM_COLOR_PURPLE},
+    {STREAM_EVENT_REWRITE_APPLIED,           "规则应用",       "REWRITE_APPLIED",           STREAM_COLOR_PURPLE},
+    {STREAM_EVENT_REWRITE_ROLLBACK,          "规则回滚",       "REWRITE_ROLLBACK",          STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_REWRITE_DONE,              "重写完成",       "REWRITE_DONE",              STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_SOLVE_START,               "求解开始",       "SOLVE_START",               STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,  "方程提取",       "SOLVE_EQUATION_EXTRACTED",  STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_SOLVE_GROEBNER_STEP,       "Gröbner基步骤",  "SOLVE_GROEBNER_STEP",       STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,   "变量解得",       "SOLVE_VARIABLE_RESOLVED",   STREAM_COLOR_PURPLE},
+    {STREAM_EVENT_SOLVE_DONE,                "求解完成",       "SOLVE_DONE",                STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PROOF_STEP_ADDED,          "证明步骤添加",   "PROOF_STEP_ADDED",          STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PROOF_STEP_APPLIED,        "证明步骤应用",   "PROOF_STEP_APPLIED",        STREAM_COLOR_PURPLE},
+    {STREAM_EVENT_PROOF_UNIFY,               "合一检查",       "PROOF_UNIFY",               STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PROOF_COLOR_UPDATE,        "颜色更新",       "PROOF_COLOR_UPDATE",        STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PROOF_DEPENDENCY_CHANGE,   "依赖链变化",     "PROOF_DEPENDENCY_CHANGE",   STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_FUNC_BLOCK_PACK_START,     "函数打包开始",   "FUNC_BLOCK_PACK_START",     STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_FUNC_BLOCK_PACK_DONE,      "函数打包完成",   "FUNC_BLOCK_PACK_DONE",      STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START,"函数实例化开始","FUNC_BLOCK_INSTANTIATE_START",STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE,"函数实例化完成","FUNC_BLOCK_INSTANTIATE_DONE",STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY,  "部分应用",       "FUNC_BLOCK_PARTIAL_APPLY",  STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK,"确定性检查",   "FUNC_BLOCK_DETERMINISM_CHECK",STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID,  "捕获避免",       "FUNC_BLOCK_CAPTURE_AVOID",  STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY, "跨边界操作",     "FUNC_BLOCK_CROSS_BOUNDARY", STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PRESET_REGISTER_START,     "预设注册开始",   "PRESET_REGISTER_START",     STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PRESET_REGISTER_DONE,      "预设注册完成",   "PRESET_REGISTER_DONE",      STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PRESET_REGISTER_FAILED,    "预设注册失败",   "PRESET_REGISTER_FAILED",    STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PRESET_LOOKUP,             "预设查找",       "PRESET_LOOKUP",             STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PRESET_INSTANTIATE,        "预设实例化",     "PRESET_INSTANTIATE",        STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PRESET_VALIDATE,           "预设验证",       "PRESET_VALIDATE",           STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PRESET_CATEGORY_LOADED,    "预设类别加载",   "PRESET_CATEGORY_LOADED",    STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_PRESET_MODULE_LOADED,      "预设模块加载",   "PRESET_MODULE_LOADED",      STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_CONFLICT_DETECTED,         "冲突检测",       "CONFLICT_DETECTED",         STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_CONSTRAINT_ADDED,          "约束添加",       "CONSTRAINT_ADDED",          STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_NODE_ADDED,                "节点添加",       "NODE_ADDED",                STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_CIRCUIT_TRIP,              "位数熔断",       "CIRCUIT_TRIP",              STREAM_COLOR_ORANGE},
+    {STREAM_EVENT_ERROR,                     "错误",           "ERROR",                     STREAM_COLOR_RED},
+    {STREAM_EVENT_WARNING,                   "警告",           "WARNING",                   STREAM_COLOR_YELLOW},
+    {STREAM_EVENT_INFO,                      "信息",           "INFO",                      STREAM_COLOR_GRAY},
+    {STREAM_EVENT_PROGRESS,                  "进度",           "PROGRESS",                  STREAM_COLOR_BLUE},
+    {STREAM_EVENT_GRAPH_SNAPSHOT,            "图快照",         "GRAPH_SNAPSHOT",            STREAM_COLOR_LIGHT_GRAY},
+};
+
 /**
  * 获取事件类型的中文名称。
  * 用于前端 UI 显示和日志输出，将枚举值映射为可读的中文字符串。
@@ -1563,88 +1629,10 @@ long stream_timestamp_ms(void) {
  * @return 中文名称字符串（静态常量，无需释放）
  */
 const char *stream_event_type_name(StreamEventType type) {
-    switch (type) {
-        case STREAM_EVENT_ENGINE_START:
-            return "引擎启动";
-        case STREAM_EVENT_ENGINE_DONE:
-            return "引擎完成";
-        case STREAM_EVENT_ENGINE_PAUSED:
-            return "引擎暂停";
-        case STREAM_EVENT_NORMALIZE_START:
-            return "归一化开始";
-        case STREAM_EVENT_NORMALIZE_MERGE:
-            return "节点合并";
-        case STREAM_EVENT_NORMALIZE_DONE:
-            return "归一化完成";
-        case STREAM_EVENT_REWRITE_START:
-            return "重写开始";
-        case STREAM_EVENT_REWRITE_RULE_LOADED:
-            return "规则加载";
-        case STREAM_EVENT_REWRITE_MATCH_FOUND:
-            return "匹配找到";
-        case STREAM_EVENT_REWRITE_APPLIED:
-            return "规则应用";
-        case STREAM_EVENT_REWRITE_ROLLBACK:
-            return "规则回滚";
-        case STREAM_EVENT_REWRITE_DONE:
-            return "重写完成";
-        case STREAM_EVENT_SOLVE_START:
-            return "求解开始";
-        case STREAM_EVENT_SOLVE_EQUATION_EXTRACTED:
-            return "方程提取";
-        case STREAM_EVENT_SOLVE_GROEBNER_STEP:
-            return "Gröbner基步骤";
-        case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED:
-            return "变量解得";
-        case STREAM_EVENT_SOLVE_DONE:
-            return "求解完成";
-        case STREAM_EVENT_PROOF_STEP_ADDED:
-            return "证明步骤添加";
-        case STREAM_EVENT_PROOF_STEP_APPLIED:
-            return "证明步骤应用";
-        case STREAM_EVENT_PROOF_UNIFY:
-            return "合一检查";
-        case STREAM_EVENT_PROOF_COLOR_UPDATE:
-            return "颜色更新";
-        case STREAM_EVENT_PROOF_DEPENDENCY_CHANGE:
-            return "依赖链变化";
-        case STREAM_EVENT_FUNC_BLOCK_PACK_START:
-            return "函数打包开始";
-        case STREAM_EVENT_FUNC_BLOCK_PACK_DONE:
-            return "函数打包完成";
-        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START:
-            return "函数实例化开始";
-        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE:
-            return "函数实例化完成";
-        case STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY:
-            return "部分应用";
-        case STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK:
-            return "确定性检查";
-        case STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID:
-            return "捕获避免";
-        case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:
-            return "跨边界操作";
-        case STREAM_EVENT_CONFLICT_DETECTED:
-            return "冲突检测";
-        case STREAM_EVENT_CONSTRAINT_ADDED:
-            return "约束添加";
-        case STREAM_EVENT_NODE_ADDED:
-            return "节点添加";
-        case STREAM_EVENT_CIRCUIT_TRIP:
-            return "位数熔断";
-        case STREAM_EVENT_ERROR:
-            return "错误";
-        case STREAM_EVENT_WARNING:
-            return "警告";
-        case STREAM_EVENT_INFO:
-            return "信息";
-        case STREAM_EVENT_PROGRESS:
-            return "进度";
-        case STREAM_EVENT_GRAPH_SNAPSHOT:
-            return "图快照";
-        default:
-            return "未知事件";
+    if (type >= 0 && type < STREAM_EVENT_TYPE_COUNT) {
+        return s_event_type_table[type].name;
     }
+    return "未知事件";
 }
 
 /**
@@ -1654,104 +1642,10 @@ const char *stream_event_type_name(StreamEventType type) {
  * @return 英文标识符字符串（静态常量，无需释放）
  */
 const char *stream_event_type_id(StreamEventType type) {
-    switch (type) {
-        case STREAM_EVENT_ENGINE_START:
-            return "ENGINE_START";
-        case STREAM_EVENT_ENGINE_DONE:
-            return "ENGINE_DONE";
-        case STREAM_EVENT_ENGINE_PAUSED:
-            return "ENGINE_PAUSED";
-        case STREAM_EVENT_NORMALIZE_START:
-            return "NORMALIZE_START";
-        case STREAM_EVENT_NORMALIZE_MERGE:
-            return "NORMALIZE_MERGE";
-        case STREAM_EVENT_NORMALIZE_DONE:
-            return "NORMALIZE_DONE";
-        case STREAM_EVENT_REWRITE_START:
-            return "REWRITE_START";
-        case STREAM_EVENT_REWRITE_RULE_LOADED:
-            return "REWRITE_RULE_LOADED";
-        case STREAM_EVENT_REWRITE_MATCH_FOUND:
-            return "REWRITE_MATCH_FOUND";
-        case STREAM_EVENT_REWRITE_APPLIED:
-            return "REWRITE_APPLIED";
-        case STREAM_EVENT_REWRITE_ROLLBACK:
-            return "REWRITE_ROLLBACK";
-        case STREAM_EVENT_REWRITE_DONE:
-            return "REWRITE_DONE";
-        case STREAM_EVENT_SOLVE_START:
-            return "SOLVE_START";
-        case STREAM_EVENT_SOLVE_EQUATION_EXTRACTED:
-            return "SOLVE_EQUATION_EXTRACTED";
-        case STREAM_EVENT_SOLVE_GROEBNER_STEP:
-            return "SOLVE_GROEBNER_STEP";
-        case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED:
-            return "SOLVE_VARIABLE_RESOLVED";
-        case STREAM_EVENT_SOLVE_DONE:
-            return "SOLVE_DONE";
-        case STREAM_EVENT_PROOF_STEP_ADDED:
-            return "PROOF_STEP_ADDED";
-        case STREAM_EVENT_PROOF_STEP_APPLIED:
-            return "PROOF_STEP_APPLIED";
-        case STREAM_EVENT_PROOF_UNIFY:
-            return "PROOF_UNIFY";
-        case STREAM_EVENT_PROOF_COLOR_UPDATE:
-            return "PROOF_COLOR_UPDATE";
-        case STREAM_EVENT_PROOF_DEPENDENCY_CHANGE:
-            return "PROOF_DEPENDENCY_CHANGE";
-        case STREAM_EVENT_FUNC_BLOCK_PACK_START:
-            return "FUNC_BLOCK_PACK_START";
-        case STREAM_EVENT_FUNC_BLOCK_PACK_DONE:
-            return "FUNC_BLOCK_PACK_DONE";
-        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START:
-            return "FUNC_BLOCK_INSTANTIATE_START";
-        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE:
-            return "FUNC_BLOCK_INSTANTIATE_DONE";
-        case STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY:
-            return "FUNC_BLOCK_PARTIAL_APPLY";
-        case STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK:
-            return "FUNC_BLOCK_DETERMINISM_CHECK";
-        case STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID:
-            return "FUNC_BLOCK_CAPTURE_AVOID";
-        case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:
-            return "FUNC_BLOCK_CROSS_BOUNDARY";
-        case STREAM_EVENT_CONFLICT_DETECTED:
-            return "CONFLICT_DETECTED";
-        case STREAM_EVENT_CONSTRAINT_ADDED:
-            return "CONSTRAINT_ADDED";
-        case STREAM_EVENT_NODE_ADDED:
-            return "NODE_ADDED";
-        case STREAM_EVENT_CIRCUIT_TRIP:
-            return "CIRCUIT_TRIP";
-        case STREAM_EVENT_ERROR:
-            return "ERROR";
-        case STREAM_EVENT_WARNING:
-            return "WARNING";
-        case STREAM_EVENT_INFO:
-            return "INFO";
-        case STREAM_EVENT_PROGRESS:
-            return "PROGRESS";
-        case STREAM_EVENT_GRAPH_SNAPSHOT:
-            return "GRAPH_SNAPSHOT";
-        case STREAM_EVENT_PRESET_REGISTER_START:
-            return "PRESET_REGISTER_START";
-        case STREAM_EVENT_PRESET_REGISTER_DONE:
-            return "PRESET_REGISTER_DONE";
-        case STREAM_EVENT_PRESET_REGISTER_FAILED:
-            return "PRESET_REGISTER_FAILED";
-        case STREAM_EVENT_PRESET_LOOKUP:
-            return "PRESET_LOOKUP";
-        case STREAM_EVENT_PRESET_INSTANTIATE:
-            return "PRESET_INSTANTIATE";
-        case STREAM_EVENT_PRESET_VALIDATE:
-            return "PRESET_VALIDATE";
-        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
-            return "PRESET_CATEGORY_LOADED";
-        case STREAM_EVENT_PRESET_MODULE_LOADED:
-            return "PRESET_MODULE_LOADED";
-        default:
-            return "UNKNOWN_EVENT";
+    if (type >= 0 && type < STREAM_EVENT_TYPE_COUNT) {
+        return s_event_type_table[type].id;
     }
+    return "UNKNOWN_EVENT";
 }
 
 /**
@@ -1762,31 +1656,10 @@ const char *stream_event_type_id(StreamEventType type) {
  * @return 十六进制颜色字符串（如 "#3fb950"）
  */
 const char *stream_event_color(StreamEventType type) {
-    switch (type) {
-        case STREAM_EVENT_ENGINE_START:
-        case STREAM_EVENT_ENGINE_DONE:
-            return STREAM_COLOR_GREEN; /* 绿色 */
-        case STREAM_EVENT_ERROR:
-            return STREAM_COLOR_RED; /* 红色 */
-        case STREAM_EVENT_WARNING:
-            return STREAM_COLOR_YELLOW; /* 黄色 */
-        case STREAM_EVENT_CIRCUIT_TRIP:
-            return STREAM_COLOR_ORANGE; /* 橙色 */
-        case STREAM_EVENT_PROGRESS:
-            return STREAM_COLOR_BLUE; /* 蓝色 */
-        case STREAM_EVENT_INFO:
-            return STREAM_COLOR_GRAY; /* 灰色 */
-        case STREAM_EVENT_GRAPH_SNAPSHOT:
-            return STREAM_COLOR_LIGHT_GRAY; /* 浅灰 */
-        case STREAM_EVENT_NORMALIZE_MERGE:
-        case STREAM_EVENT_REWRITE_MATCH_FOUND:
-        case STREAM_EVENT_REWRITE_APPLIED:
-        case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED:
-        case STREAM_EVENT_PROOF_STEP_APPLIED:
-            return STREAM_COLOR_PURPLE; /* 紫色 */
-        default:
-            return STREAM_COLOR_LIGHT_GRAY; /* 默认浅灰 */
+    if (type >= 0 && type < STREAM_EVENT_TYPE_COUNT) {
+        return s_event_type_table[type].color;
     }
+    return STREAM_COLOR_LIGHT_GRAY;
 }
 
 /* ==================== 过滤掩码解析 ==================== */

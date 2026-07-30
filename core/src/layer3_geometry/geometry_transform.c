@@ -15,6 +15,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/lv_internal.h"
 
 #include "geometry_transform.h"
 
@@ -66,7 +67,7 @@ static void mpq_sub_by_ui(mpq_t result, const mpq_t op, unsigned long n) {
 lvTransform *lv_transform_identity(void) {
     lvTransform *t = (lvTransform *) lv_calloc(1, sizeof(lvTransform));
     if (!t) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_identity: calloc failed");
     }
 
     t->type = TRANSFORM_IDENTITY;
@@ -97,7 +98,7 @@ lvTransform *lv_transform_identity(void) {
 lvTransform *lv_transform_translation(const mpq_t dx, const mpq_t dy) {
     lvTransform *t = lv_transform_identity();
     if (!t) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_translation: identity creation failed");
     }
 
     t->type = TRANSFORM_TRANSLATION;
@@ -121,7 +122,7 @@ lvTransform *lv_transform_translation(const mpq_t dx, const mpq_t dy) {
 lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num, int angle_denom) {
     lvTransform *t = lv_transform_identity();
     if (!t) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_rotation: identity creation failed");
     }
 
     t->type = TRANSFORM_ROTATION;
@@ -283,7 +284,7 @@ lvTransform *lv_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy, con
                                              const mpq_t sin_theta) {
     lvTransform *t = lv_transform_identity();
     if (!t) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_rotation_arbitrary: identity creation failed");
     }
 
     t->type = TRANSFORM_ROTATION;
@@ -332,7 +333,7 @@ lvTransform *lv_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy, con
 lvTransform *lv_transform_reflection(const mpq_t ax, const mpq_t ay, const mpq_t bx, const mpq_t by) {
     lvTransform *t = lv_transform_identity();
     if (!t) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_reflection: identity creation failed");
     }
 
     t->type = TRANSFORM_REFLECTION;
@@ -465,7 +466,7 @@ lvTransform *lv_transform_reflection_line(const mpq_t a, const mpq_t b, const mp
             mpq_clear(ay);
             mpq_clear(bx);
             mpq_clear(by);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_transform_reflection_line: a and b both zero, invalid line equation");
         }
         mpq_neg(ax, c);
         mpq_div(ax, ax, a);
@@ -488,7 +489,7 @@ lvTransform *lv_transform_reflection_line(const mpq_t a, const mpq_t b, const mp
 lvTransform *lv_transform_scaling(const mpq_t cx, const mpq_t cy, const mpq_t scale) {
     lvTransform *t = lv_transform_identity();
     if (!t) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_scaling: identity creation failed");
     }
 
     t->type = TRANSFORM_SCALING;
@@ -657,13 +658,13 @@ bool lv_transform_get_matrix(lvTransform *t, lvTransformMatrix *matrix) {
 lvTransformSequence *lv_transform_sequence_create(void) {
     lvTransformSequence *seq = (lvTransformSequence *) lv_calloc(1, sizeof(lvTransformSequence));
     if (!seq) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_sequence_create: calloc failed");
     }
 
     lv_darray_init(&seq->transforms_da, sizeof(lvTransform *));
     if (!lv_darray_reserve(&seq->transforms_da, TRANSFORM_SEQ_INIT_CAPACITY)) {
         lv_free((void **) &seq);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_sequence_create: darray_reserve failed");
     }
 
     return seq;
@@ -700,12 +701,12 @@ bool lv_transform_sequence_add(lvTransformSequence *seq, lvTransform *t) {
 
 lvTransform *lv_transform_compose(const lvTransform *t1, const lvTransform *t2) {
     if (!t1 || !t2) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_transform_compose: NULL input transform");
     }
 
     lvTransform *result = (lvTransform *) lv_calloc(1, sizeof(lvTransform));
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_compose: calloc failed");
     }
 
     result->type = TRANSFORM_GLUING;
@@ -766,12 +767,12 @@ lvTransform *lv_transform_compose(const lvTransform *t1, const lvTransform *t2) 
 
 lvTransform *lv_transform_sequence_composite(const lvTransformSequence *seq) {
     if (!seq || seq->transforms_da.count == 0) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_transform_sequence_composite: NULL or empty sequence");
     }
 
     lvTransform *result = lv_transform_identity();
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_sequence_composite: identity creation failed");
     }
 
     for (int i = 0; i < seq->transforms_da.count; i++) {
@@ -779,7 +780,7 @@ lvTransform *lv_transform_sequence_composite(const lvTransformSequence *seq) {
         lvTransform *temp = lv_transform_compose(result, *pp);
         lv_transform_destroy(result);
         if (!temp) {
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_transform_sequence_composite: compose failed");
         }
         result = temp;
     }
@@ -872,12 +873,12 @@ bool lv_transform_find_fixed_point(const lvTransform *t, mpq_t out_x, mpq_t out_
 
 lvTransform *lv_transform_inverse(const lvTransform *t) {
     if (!t || !t->matrix_valid) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_transform_inverse: NULL or invalid matrix");
     }
 
     lvTransform *inv = (lvTransform *) lv_calloc(1, sizeof(lvTransform));
     if (!inv) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_inverse: calloc failed");
     }
 
     inv->type = t->type;
@@ -904,7 +905,7 @@ lvTransform *lv_transform_inverse(const lvTransform *t) {
         mpq_clear(det);
         mpq_clear(temp);
         lv_transform_destroy(inv);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_transform_inverse: singular matrix, not invertible");
     }
 
     /* 逆矩阵 */
@@ -1062,48 +1063,46 @@ bool lv_rotate_point(const mpq_t px, const mpq_t py, const mpq_t cx, const mpq_t
     return result;
 }
 
+/* ── 变换类型名称映射表（替代 switch 语句） ── */
+
+/** @brief 变换类型 → 显示名称 / JSON 标识符 */
+static const struct {
+    const char *display;
+    const char *json;
+} s_transform_type_names[] = {
+    [TRANSFORM_IDENTITY]    = {"Identity",    "identity"},
+    [TRANSFORM_TRANSLATION] = {"Translation", "translation"},
+    [TRANSFORM_ROTATION]    = {"Rotation",    "rotation"},
+    [TRANSFORM_SCALE]       = {"Scale",       "scale"},
+    [TRANSFORM_SHEAR]       = {"Shear",       "shear"},
+    [TRANSFORM_REFLECTION]  = {"Reflection",  "reflection"},
+    [TRANSFORM_SCALING]     = {"Scaling",     "scaling"},
+    [TRANSFORM_AFFINE]      = {"Affine",      "affine"},
+    [TRANSFORM_PROJECTIVE]  = {"Projective",  "protective"},
+    [TRANSFORM_GLUING]      = {"Composite",   "composite"},
+    [TRANSFORM_COMPOSITE]   = {"Composite",   "composite"},
+};
+
 /* ============== 变换序列化实现 ============== */
 
 char *lv_transform_to_string(const lvTransform *t) {
     if (!t) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_transform_to_string: NULL transform");
     }
 
-    const char *type_str;
-    switch (t->type) {
-        case TRANSFORM_IDENTITY:
-            type_str = "Identity";
-            break;
-        case TRANSFORM_TRANSLATION:
-            type_str = "Translation";
-            break;
-        case TRANSFORM_ROTATION:
-            type_str = "Rotation";
-            break;
-        case TRANSFORM_REFLECTION:
-            type_str = "Reflection";
-            break;
-        case TRANSFORM_SCALING:
-            type_str = "Scaling";
-            break;
-        case TRANSFORM_GLUING:
-            type_str = "Composite";
-            break;
-        default:
-            type_str = "Unknown";
-            break;
-    }
+    const char *type_str = (t->type >= 0 && t->type < (int)(sizeof(s_transform_type_names)/sizeof(s_transform_type_names[0])))
+                           ? s_transform_type_names[t->type].display : "Unknown";
 
     /* 动态计算字符串长度并分配缓冲区，避免固定缓冲区溢出 */
     int needed = snprintf(NULL, 0, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]", type_str, t->matrix.a, t->matrix.b,
                           t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty);
     if (needed < 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_transform_to_string: snprintf failed");
     size_t size = (size_t) needed + 1;
 
     char *result = (char *) lv_malloc(size);
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_to_string: lv_malloc failed");
     }
 
     snprintf(result, size, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]", type_str, t->matrix.a, t->matrix.b, t->matrix.tx,
@@ -1114,33 +1113,11 @@ char *lv_transform_to_string(const lvTransform *t) {
 
 char *lv_transform_to_json(const lvTransform *t) {
     if (!t) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_transform_to_json: NULL transform");
     }
 
-    const char *type_str;
-    switch (t->type) {
-        case TRANSFORM_IDENTITY:
-            type_str = "identity";
-            break;
-        case TRANSFORM_TRANSLATION:
-            type_str = "translation";
-            break;
-        case TRANSFORM_ROTATION:
-            type_str = "rotation";
-            break;
-        case TRANSFORM_REFLECTION:
-            type_str = "reflection";
-            break;
-        case TRANSFORM_SCALING:
-            type_str = "scaling";
-            break;
-        case TRANSFORM_GLUING:
-            type_str = "composite";
-            break;
-        default:
-            type_str = "unknown";
-            break;
-    }
+    const char *type_str = (t->type >= 0 && t->type < (int)(sizeof(s_transform_type_names)/sizeof(s_transform_type_names[0])))
+                           ? s_transform_type_names[t->type].json : "unknown";
 
     /* 动态计算字符串长度并分配缓冲区，避免固定缓冲区溢出 */
     int needed = snprintf(NULL, 0,
@@ -1150,12 +1127,12 @@ char *lv_transform_to_json(const lvTransform *t) {
                           type_str, t->matrix.a, t->matrix.b, t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty,
                           t->is_isometry ? "true" : "false", t->is_orientation_preserving ? "true" : "false");
     if (needed < 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_transform_to_json: snprintf failed");
     size_t size = (size_t) needed + 1;
 
     char *result = (char *) lv_malloc(size);
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_to_json: lv_malloc failed");
     }
 
     snprintf(result, size,
@@ -1173,7 +1150,7 @@ char *lv_transform_to_json(const lvTransform *t) {
 lvTransformGroup *lv_transform_group_create(const char *name) {
     lvTransformGroup *group = (lvTransformGroup *) lv_calloc(1, sizeof(lvTransformGroup));
     if (!group) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_group_create: calloc failed");
     }
 
     if (name) {
@@ -1188,7 +1165,7 @@ lvTransformGroup *lv_transform_group_create(const char *name) {
     group->generators = (lvTransform **) lv_malloc(GROUP_MAX_GENERATORS * sizeof(lvTransform *));
     if (!group->generators) {
         lv_free((void **) &group);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_group_create: generators malloc failed");
     }
 
     return group;
@@ -1220,12 +1197,12 @@ bool lv_transform_group_add_generator(lvTransformGroup *group, lvTransform *gene
 
 lvTransformGroup *lv_transform_group_create_preset(const char *type) {
     if (!type) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_transform_group_create_preset: NULL type");
     }
 
     lvTransformGroup *group = lv_transform_group_create(type);
     if (!group) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_group_create_preset: group creation failed");
     }
 
     mpq_t zero, one, neg_one;
@@ -1306,7 +1283,7 @@ lvTransformGroup *lv_transform_group_create_preset(const char *type) {
  */
 int lv_transform_order(const lvTransform *t) {
     if (!t || !t->matrix_valid) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_transform_order: NULL or invalid matrix");
     }
 
     /* 恒等变换的阶为 1 */
@@ -1317,14 +1294,14 @@ int lv_transform_order(const lvTransform *t) {
     /* 获取当前变换矩阵的有理数副本用于比较 */
     lvTransform *current = lv_transform_identity();
     if (!current) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_transform_order: identity creation failed");
     }
 
     /* 生成恒等矩阵用于比较 */
     lvTransform *identity = lv_transform_identity();
     if (!identity) {
         lv_transform_destroy(current);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_transform_order: identity creation failed");
     }
 
     /* 迭代计算 T^n，检查何时等于恒等变换 */
@@ -1337,7 +1314,7 @@ int lv_transform_order(const lvTransform *t) {
         if (!current) {
             /* 复合失败（内存不足等） */
             lv_transform_destroy(identity);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_transform_order: compose failed");
         }
 
         /* 检查 T^n 是否为单位矩阵 */

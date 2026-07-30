@@ -1125,7 +1125,7 @@ static void bitreader_init(BitReader *br, const uint8_t *buf, size_t size) {
 
 static int bitreader_read_bit(BitReader *br) {
     if (br->byte_pos >= br->size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "bitreader_read_bit: past end of buffer");
     int bit = (br->buf[br->byte_pos] >> br->bit_pos) & 1;
     br->bit_pos--;
     if (br->bit_pos < 0) {
@@ -1783,11 +1783,11 @@ static bool entropy_decode_real(const uint8_t *data, size_t size, uint8_t **out_
  */
 static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_clone: graph is NULL");
 
     ConstraintGraph *cloned = graph_create();
     if (!cloned)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_clone: graph_create failed");
 
     /* Deep copy all nodes */
     for (int i = 0; i < graph->node_count; i++) {
@@ -1798,7 +1798,7 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
         GeomNode *copy = node_deep_copy_geom_node(orig, NULL);
         if (!copy) {
             graph_destroy(cloned);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_clone: node_deep_copy failed");
         }
 
         /* Add node to cloned graph using the same ID */
@@ -1817,7 +1817,7 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
                 lv_free((void **) &copy->numeric_assumption_declaration);
             lv_free((void **) &copy);
             graph_destroy(cloned);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_clone: graph_add_node_with_id failed");
         }
 
         /* Copy additional fields that graph_add_node_with_id may not set */
@@ -1843,7 +1843,7 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
         int *parts_copy = (int *) lv_malloc(orig->participant_count * sizeof(int));
         if (!parts_copy) {
             graph_destroy(cloned);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_clone: malloc parts_copy failed");
         }
         memcpy(parts_copy, orig->participants, (size_t) orig->participant_count * sizeof(int));
 
@@ -1852,7 +1852,7 @@ static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
         if (!added) {
             lv_free((void **) &parts_copy);
             graph_destroy(cloned);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_clone: graph_add_constraint_with_id failed");
         }
         lv_free((void **) &parts_copy); /* graph_add_constraint_with_id makes its own copy */
     }
@@ -1893,7 +1893,7 @@ static size_t estimate_original_size(const ConstraintGraph *graph) {
  */
 static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_size) {
     if (!graph || !out_size)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "serialize_coords_raw: graph or out_size is NULL");
 
     size_t header = sizeof(int32_t);
     size_t body = 0;
@@ -1911,7 +1911,7 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
     size_t total = header + body;
     uint8_t *buf = (uint8_t *) lv_malloc(total);
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "serialize_coords_raw: malloc failed");
 
     uint8_t *ptr = buf;
     int32_t count = (int32_t) graph->node_count;
@@ -1948,17 +1948,17 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
  */
 static uint8_t *serialize_clers(const EdgebreakerMode *seq, int seq_len, size_t *out_size) {
     if (!out_size)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "serialize_clers: out_size is NULL");
 
     if (!seq || seq_len <= 0) {
         *out_size = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "serialize_clers: seq is NULL or len <= 0");
     }
 
     size_t total = sizeof(int32_t) + seq_len;
     uint8_t *buf = (uint8_t *) lv_malloc(total);
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "serialize_clers: malloc failed");
 
     int32_t len = (int32_t) seq_len;
     memcpy(buf, &len, sizeof(int32_t));

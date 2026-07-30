@@ -17,6 +17,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/lv_internal.h"
 
 #include "lv/geo_constraint_solver.h"
 
@@ -299,22 +300,17 @@ static int find_constraint_index_fast(const lvSolverSystemEx *sys_ex, int id) {
  *   - ARC_2D: 5 (cx, cy, r, start_angle, sweep)
  */
 lv_PUBLIC_API int lv_entity_dof(lvEntityType type) {
-    switch (type) {
-        case lv_ENTITY_POINT_2D:
-            return 2;
-        case lv_ENTITY_POINT_3D:
-            return 3;
-        case lv_ENTITY_LINE_2D:
-            return 4;
-        case lv_ENTITY_CIRCLE_2D:
-            return 3;
-        case lv_ENTITY_SEGMENT_2D:
-            return 4;
-        case lv_ENTITY_ARC_2D:
-            return 5;
-        default:
-            return 0;
-    }
+    static const int dof_map[] = {
+        [lv_ENTITY_POINT_2D]   = 2,
+        [lv_ENTITY_POINT_3D]   = 3,
+        [lv_ENTITY_LINE_2D]    = 4,
+        [lv_ENTITY_CIRCLE_2D]  = 3,
+        [lv_ENTITY_SEGMENT_2D] = 4,
+        [lv_ENTITY_ARC_2D]     = 5,
+    };
+    if (type >= 0 && type < (int)(sizeof(dof_map)/sizeof(dof_map[0])))
+        return dof_map[type];
+    return 0;
 }
 
 /* ========================================================================
@@ -344,44 +340,28 @@ lv_PUBLIC_API int lv_entity_dof(lvEntityType type) {
  *   - VERTICAL: 1
  */
 lv_PUBLIC_API int lv_constraint_dof(lvConstraintType type) {
-    switch (type) {
-        case lv_CONSTRAINT_POINTS_COINCIDENT:
-            return 2;
-        case lv_CONSTRAINT_PT_PT_DISTANCE:
-            return 1;
-        case lv_CONSTRAINT_PT_ON_LINE:
-            return 1;
-        case lv_CONSTRAINT_PT_LINE_DISTANCE:
-            return 1;
-        case lv_CONSTRAINT_PT_ON_SEGMENT:
-            return 1;
-        case lv_CONSTRAINT_PT_ON_CIRCLE:
-            return 1;
-        case lv_CONSTRAINT_PT_PT_MIDPOINT:
-            return 2;
-        case lv_CONSTRAINT_PARALLEL:
-            return 1;
-        case lv_CONSTRAINT_PERPENDICULAR:
-            return 1;
-        case lv_CONSTRAINT_ANGLE:
-            return 1;
-        case lv_CONSTRAINT_EQUAL_LENGTH:
-            return 1;
-        case lv_CONSTRAINT_EQUAL_RADIUS:
-            return 1;
-        case lv_CONSTRAINT_CONCENTRIC:
-            return 2;
-        case lv_CONSTRAINT_TANGENT:
-            return 1;
-        case lv_CONSTRAINT_FIXED:
-            return -1; /* 特殊：消除全部自由度 */
-        case lv_CONSTRAINT_HORIZONTAL:
-            return 1;
-        case lv_CONSTRAINT_VERTICAL:
-            return 1;
-        default:
-            return 0;
-    }
+    static const int dof_map[] = {
+        [lv_CONSTRAINT_POINTS_COINCIDENT]  = 2,
+        [lv_CONSTRAINT_PT_PT_DISTANCE]     = 1,
+        [lv_CONSTRAINT_PT_ON_LINE]         = 1,
+        [lv_CONSTRAINT_PT_LINE_DISTANCE]   = 1,
+        [lv_CONSTRAINT_PT_ON_SEGMENT]      = 1,
+        [lv_CONSTRAINT_PT_ON_CIRCLE]       = 1,
+        [lv_CONSTRAINT_PT_PT_MIDPOINT]     = 2,
+        [lv_CONSTRAINT_PARALLEL]           = 1,
+        [lv_CONSTRAINT_PERPENDICULAR]      = 1,
+        [lv_CONSTRAINT_ANGLE]              = 1,
+        [lv_CONSTRAINT_EQUAL_LENGTH]       = 1,
+        [lv_CONSTRAINT_EQUAL_RADIUS]       = 1,
+        [lv_CONSTRAINT_CONCENTRIC]         = 2,
+        [lv_CONSTRAINT_TANGENT]            = 1,
+        [lv_CONSTRAINT_FIXED]              = -1, /* 特殊：消除全部自由度 */
+        [lv_CONSTRAINT_HORIZONTAL]         = 1,
+        [lv_CONSTRAINT_VERTICAL]           = 1,
+    };
+    if (type >= 0 && type < (int)(sizeof(dof_map)/sizeof(dof_map[0])))
+        return dof_map[type];
+    return 0;
 }
 
 /* ========================================================================
@@ -418,21 +398,21 @@ lv_PUBLIC_API lvSolverConfig lv_solver_default_config(void) {
 lv_PUBLIC_API lvSolverSystem *lv_geo_solver_create(const lvSolverConfig *config) {
     lvSolverSystemEx *sys_ex = (lvSolverSystemEx *) lv_malloc(sizeof(lvSolverSystemEx));
     if (!sys_ex)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_geo_solver_create: sys_ex malloc failed");
 
     lvSolverSystem *sys = &sys_ex->base;
 
     sys->entities = (lvEntity *) lv_malloc(INITIAL_CAPACITY * sizeof(lvEntity));
     if (!sys->entities) {
         lv_free((void **) &(sys_ex));
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_geo_solver_create: entities malloc failed");
     }
 
     sys->constraints = (lvConstraint *) lv_calloc(INITIAL_CAPACITY, sizeof(lvConstraint));
     if (!sys->constraints) {
         lv_free((void **) &(sys->entities));
         lv_free((void **) &(sys_ex));
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_geo_solver_create: constraints calloc failed");
     }
 
     sys->entity_count = 0;
@@ -497,11 +477,11 @@ static int find_entity_index(const lvSolverSystem *sys, int id) {
  */
 lv_PUBLIC_API int lv_solver_add_entity(lvSolverSystem *sys, const lvEntity *entity) {
     if (!sys || !entity)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_solver_add_entity: NULL sys or entity");
 
     /* 检查 ID 是否已存在 */
     if (find_entity_index(sys, entity->id) >= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "lv_solver_add_entity: entity ID already exists");
 
     /* 扩容 */
     if (sys->entity_count >= sys->entity_capacity) {
@@ -536,7 +516,7 @@ lv_PUBLIC_API int lv_solver_add_entity(lvSolverSystem *sys, const lvEntity *enti
  */
 lv_PUBLIC_API lvEntity *lv_solver_get_entity(lvSolverSystem *sys, int id) {
     if (!sys)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_solver_get_entity: NULL sys");
 
     /* 优先使用哈希表查找 */
     lvSolverSystemEx *sys_ex = (lvSolverSystemEx *) sys;
@@ -577,18 +557,18 @@ static int find_constraint_index(const lvSolverSystem *sys, int id) {
  */
 lv_PUBLIC_API int lv_geo_solver_add_constraint(lvSolverSystem *sys, const lvConstraint *c) {
     if (!sys || !c)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_geo_solver_add_constraint: NULL sys or constraint");
 
     /* 检查 ID 是否已存在 */
     if (find_constraint_index(sys, c->id) >= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "lv_geo_solver_add_constraint: constraint ID already exists");
 
     /* 扩容 */
     if (sys->constraint_count >= sys->constraint_capacity) {
         int new_cap = sys->constraint_capacity * 2;
         lvConstraint *tmp = (lvConstraint *) lv_realloc(sys->constraints, new_cap * sizeof(lvConstraint));
         if (!tmp)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_geo_solver_add_constraint: realloc failed");
         sys->constraints = tmp;
         sys->constraint_capacity = new_cap;
     }
@@ -1069,7 +1049,7 @@ static double evaluate_constraint(const lvSolverSystem *sys, const lvConstraint 
  */
 static int gauss_eliminate(double *A, double *b, int n) {
     if (n <= 0 || n > 20)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "gauss_eliminate: invalid dimension n=%d", n);
 
     /* 前向消元（列主元选取） */
     for (int col = 0; col < n; col++) {
@@ -1613,11 +1593,11 @@ lv_PUBLIC_API lvSolveResult lv_geo_solver_solve(lvSolverSystem *sys) {
  */
 lv_PUBLIC_API lvDOFAnalysis *lv_solver_dof_analyze(const lvSolverSystem *sys) {
     if (!sys)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_solver_dof_analyze: NULL sys");
 
     lvDOFAnalysis *analysis = (lvDOFAnalysis *) lv_calloc(1, sizeof(lvDOFAnalysis));
     if (!analysis)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_solver_dof_analyze: calloc failed");
 
     /* 统计总自由度 */
     int total_dof = 0;
@@ -1865,13 +1845,13 @@ lv_PUBLIC_API lvConstraint lv_constraint_coincident(int id, int entity_a, int en
 
 lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t count, double *points, size_t n_points) {
     if (!constraints || count == 0 || !points || n_points == 0) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_solve_constraints: NULL or empty params");
     }
 
     lvSolverConfig config = lv_solver_default_config();
     lvSolverSystem *sys = lv_geo_solver_create(&config);
     if (!sys) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_solve_constraints: solver creation failed");
     }
 
     /* 为每个点创建实体 */
@@ -1879,7 +1859,7 @@ lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t c
         lvEntity e = lv_entity_point_2d((int) i, points[i * 2], points[i * 2 + 1]);
         if (lv_solver_add_entity(sys, &e) < 0) {
             lv_geo_solver_destroy(sys);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "lv_solve_constraints: add entity failed");
         }
     }
 
@@ -1887,7 +1867,7 @@ lv_PUBLIC_API int lv_solve_constraints(const lvConstraint *constraints, size_t c
     for (size_t i = 0; i < count; i++) {
         if (lv_geo_solver_add_constraint(sys, &constraints[i]) < 0) {
             lv_geo_solver_destroy(sys);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "lv_solve_constraints: add constraint failed");
         }
     }
 

@@ -386,7 +386,7 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
         return 0;
     }
     if (a >= b)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "count_roots_in_interval: a >= b");
 
     /*
      * 使用递归二分法计数实根。
@@ -473,14 +473,14 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
  */
 static int verify_unique_real_root(const mpz_poly_t *poly, double left, double right) {
     if (!poly || poly->degree < 1)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "verify_unique_real_root: poly is NULL or degree < 1");
     if (left >= right)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_COORD_INVALID, "verify_unique_real_root: left >= right");
 
     /* 步骤1：检查 [left, right] 内的根数量 */
     int count = count_roots_in_interval(poly, left, right);
     if (count < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "verify_unique_real_root: count_roots_in_interval failed");
 
     if (count != 1) {
         /* 无根或多个根 */
@@ -500,7 +500,7 @@ static int verify_unique_real_root(const mpz_poly_t *poly, double left, double r
     if (left_probe_left < left_probe_right) {
         int left_count = count_roots_in_interval(poly, left_probe_left, left_probe_right);
         if (left_count < 0)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "verify_unique_real_root: left probe count_roots_in_interval failed");
         if (left_count > 0) {
             /* 左侧有根，可能存在区间重叠 */
             return 1;
@@ -513,7 +513,7 @@ static int verify_unique_real_root(const mpz_poly_t *poly, double left, double r
     if (right_probe_left < right_probe_right) {
         int right_count = count_roots_in_interval(poly, right_probe_left, right_probe_right);
         if (right_count < 0)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "verify_unique_real_root: right probe count_roots_in_interval failed");
         if (right_count > 0) {
             /* 右侧有根，可能存在区间重叠 */
             return 1;
@@ -527,11 +527,11 @@ static int verify_unique_real_root(const mpz_poly_t *poly, double left, double r
 Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
     Algebraic *a = lv_calloc(1, sizeof(Algebraic));
     if (!a)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_create: calloc failed");
     mpz_poly_init(&a->minimal_poly);
     if (!mpz_poly_set(&a->minimal_poly, poly)) {
         lv_free((void **) &a);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_create: mpz_poly_set failed");
     }
     a->left_bound = left;
     a->right_bound = right;
@@ -559,7 +559,7 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
         /* 验证失败：释放已分配的资源并返回 NULL */
         mpz_poly_clear(&a->minimal_poly);
         lv_free((void **) &a);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_COORD_INVALID, "algebraic_create: unique real root verification failed");
     }
 
     return a;
@@ -576,7 +576,7 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
 Algebraic *algebraic_from_rational(const Rational *r) {
     Algebraic *a = lv_calloc(1, sizeof(Algebraic));
     if (!a)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_from_rational: calloc failed");
 
     mpz_poly_init(&a->minimal_poly);
     a->minimal_poly.degree = 0;
@@ -584,7 +584,7 @@ Algebraic *algebraic_from_rational(const Rational *r) {
     if (!a->minimal_poly.coeffs) {
         mpz_poly_clear(&a->minimal_poly);
         lv_free((void **) &a);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_from_rational: coeffs malloc failed");
     }
     mpz_init(a->minimal_poly.coeffs[0]);
     mpz_set(a->minimal_poly.coeffs[0], mpq_numref(r->value));
@@ -604,7 +604,7 @@ Algebraic *algebraic_from_rational(const Rational *r) {
 Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     Algebraic *alg = lv_calloc(1, sizeof(Algebraic));
     if (!alg)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_from_quadratic: calloc failed");
 
     mpz_poly_init(&alg->minimal_poly);
 
@@ -638,7 +638,7 @@ Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     if (!alg->minimal_poly.coeffs) {
         mpz_poly_clear(&alg->minimal_poly);
         lv_free((void **) &alg); /* lv_malloc分配 */
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_from_quadratic: coeffs malloc failed");
     }
 
     /* Coefficients: x^2 - 2ax + (a^2 - b^2*n) */
@@ -806,7 +806,7 @@ double algebraic_to_double(const Algebraic *a) {
 static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic *b) {
     mpz_poly_t *result = lv_calloc(1, sizeof(mpz_poly_t));
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "compute_sum_minimal_poly: result calloc failed");
     mpz_poly_init(result);
 
     int deg_a = a->minimal_poly.degree;
@@ -839,7 +839,7 @@ static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic 
 static mpz_poly_t *compute_product_minimal_poly(const Algebraic *a, const Algebraic *b) {
     mpz_poly_t *result = lv_calloc(1, sizeof(mpz_poly_t));
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "compute_product_minimal_poly: result calloc failed");
     mpz_poly_init(result);
 
     int deg_a = a->minimal_poly.degree;
@@ -880,7 +880,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
         double a_val = rational_to_double(a->cached_rational);
         Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_add: result calloc failed (rational a)");
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &b->minimal_poly);
         result->left_bound = b->left_bound + a_val;
@@ -893,7 +893,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
         double b_val = rational_to_double(b->cached_rational);
         Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_add: result calloc failed (rational b)");
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &a->minimal_poly);
         result->left_bound = a->left_bound + b_val;
@@ -905,7 +905,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
     /* General case: compute resultant-based minimal polynomial */
     mpz_poly_t *sum_poly = compute_sum_minimal_poly(a, b);
     if (!sum_poly)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_add: compute_sum_minimal_poly failed");
     double new_left = a->left_bound + b->left_bound;
     double new_right = a->right_bound + b->right_bound;
 
@@ -920,7 +920,7 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
 
     if (!result) {
         /* Failed to create algebraic number - likely due to root isolation failure */
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_COORD_INVALID, "algebraic_add: algebraic_create failed");
     }
 
     /* Refine bounds */
@@ -945,7 +945,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
         double a_val = rational_to_double(a->cached_rational);
         Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_subtract: result calloc failed (rational a)");
 
         /* For subtraction, negate b's polynomial */
         mpz_poly_init(&result->minimal_poly);
@@ -954,7 +954,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
             result->minimal_poly.coeffs = lv_malloc((b->minimal_poly.degree + 1) * sizeof(mpz_t));
             if (!result->minimal_poly.coeffs) {
                 lv_free((void **) &result);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_subtract: coeffs malloc failed (rational a)");
             }
             for (int i = 0; i <= b->minimal_poly.degree; i++) {
                 mpz_init(result->minimal_poly.coeffs[i]);
@@ -977,7 +977,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
         double b_val = rational_to_double(b->cached_rational);
         Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_subtract: result calloc failed (rational b)");
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &a->minimal_poly);
         result->left_bound = a->left_bound - b_val;
@@ -997,7 +997,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
         neg_b_poly.coeffs = lv_malloc((b->minimal_poly.degree + 1) * sizeof(mpz_t));
         if (!neg_b_poly.coeffs) {
             mpz_poly_clear(&neg_b_poly);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_subtract: neg_b_poly coeffs malloc failed");
         }
         for (int i = 0; i <= b->minimal_poly.degree; i++) {
             mpz_init(neg_b_poly.coeffs[i]);
@@ -1013,7 +1013,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     mpz_poly_t *diff_poly = lv_calloc(1, sizeof(mpz_poly_t));
     if (!diff_poly) {
         mpz_poly_clear(&neg_b_poly);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_subtract: diff_poly calloc failed");
     }
     mpz_poly_init(diff_poly);
     mpz_poly_t resultant;
@@ -1035,7 +1035,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     lv_free((void **) &diff_poly);
 
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_COORD_INVALID, "algebraic_subtract: algebraic_create failed");
     }
 
     refine_algebraic_bounds(result, 10);
@@ -1052,7 +1052,7 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
         double a_val = rational_to_double(a->cached_rational);
         Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_multiply: result calloc failed (rational a)");
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &b->minimal_poly);
 
@@ -1073,7 +1073,7 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
         double b_val = rational_to_double(b->cached_rational);
         Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_multiply: result calloc failed (rational b)");
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &a->minimal_poly);
 
@@ -1092,7 +1092,7 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
     /* General case */
     mpz_poly_t *prod_poly = compute_product_minimal_poly(a, b);
     if (!prod_poly)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_multiply: compute_product_minimal_poly failed");
 
     /* Compute product bounds (need to consider sign) */
     double products[4] = {a->left_bound * b->left_bound, a->left_bound * b->right_bound, a->right_bound * b->left_bound,
@@ -1117,7 +1117,7 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
     lv_free((void **) &prod_poly);
 
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_COORD_INVALID, "algebraic_multiply: algebraic_create failed");
     }
 
     refine_algebraic_bounds(result, 10);
@@ -1131,18 +1131,18 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
 Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     /* 检查 b 是否包含零 */
     if (b->left_bound <= 0 && b->right_bound >= 0) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_COORD_INVALID, "algebraic_divide: divisor contains zero");
     }
 
     /* Special case: if b is effectively a rational */
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
         if (mpq_sgn(b->cached_rational->value) == 0)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_COORD_INVALID, "algebraic_divide: divisor is zero (rational)");
 
         Algebraic *result = lv_calloc(1, sizeof(Algebraic));
         if (!result)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_divide: result calloc failed (rational b)");
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &a->minimal_poly);
 
@@ -1164,7 +1164,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
 
     mpz_poly_t *result_poly = lv_calloc(1, sizeof(mpz_poly_t));
     if (!result_poly)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "algebraic_divide: result_poly calloc failed");
     mpz_poly_init(result_poly);
 
     int deg_b = b->minimal_poly.degree;
@@ -1174,7 +1174,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
         if (!result_poly->coeffs) {
             mpz_poly_clear(result_poly);
             lv_free((void **) &result_poly);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_divide: result_poly coeffs malloc failed");
         }
 
         /* Reverse coefficients for reciprocal polynomial */
@@ -1194,7 +1194,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     } else {
         mpz_poly_clear(result_poly);
         lv_free((void **) &result_poly);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_COORD_INVALID, "algebraic_divide: divisor bounds are zero");
     }
 
     double new_left = quotients[0], new_right = quotients[0];
@@ -1223,7 +1223,7 @@ char *algebraic_serialize(const Algebraic *a) {
     char *result = lv_malloc(len);
     if (!result) {
         lv_free((void **) &poly_str);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_serialize: result malloc failed");
     }
     snprintf(result, len, "poly:%s left:%.15g right:%.15g", poly_str, a->left_bound, a->right_bound);
     lv_free((void **) &poly_str);
@@ -1277,7 +1277,7 @@ static bool is_rational_zero(const Rational *r) {
  */
 int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations) {
     if (!a || !b)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "algebraic_refine_for_equality: a or b is NULL");
 
     for (int i = 0; i < max_iterations; i++) {
         /* 检查区间是否不重叠 */

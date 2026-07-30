@@ -35,8 +35,6 @@
 #include "type_system.h"
 
 /* ── 流上下文声明 ── */
-lv_DECLARE_STREAM_CTX(graph);
-
 /* ── 前向声明（graph_node.c 中定义） ── */
 bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const int *participants, int count);
 Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type);
@@ -759,7 +757,7 @@ int graph_get_constraint_count(const ConstraintGraph *graph) {
  */
 GeomNode *graph_get_node_by_id(const ConstraintGraph *graph, int node_id) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_get_node_by_id: graph is NULL");
     for (int i = 0; i < graph->node_count; i++) {
         if (graph->nodes[i]->id == node_id)
             return graph->nodes[i];
@@ -769,7 +767,7 @@ GeomNode *graph_get_node_by_id(const ConstraintGraph *graph, int node_id) {
 
 GeomNode *graph_get_node(const ConstraintGraph *graph, int node_id) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_get_node: graph is NULL");
     if (graph->node_index) {
         unsigned idx = node_id_hash(node_id, graph->node_index_capacity);
         while (graph->node_index[idx] != NULL) {
@@ -815,7 +813,7 @@ Constraint *graph_get_constraint(const ConstraintGraph *graph, int constraint_id
 ConstraintGraph *graph_create(void) {
     ConstraintGraph *graph = lv_calloc(1, sizeof(ConstraintGraph));
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_create: calloc failed");
     graph->next_node_id = 0;
     graph->next_constraint_id = 0;
     graph->dirty = false; /* v3.5.0: 脏标记初始化为 false */

@@ -50,7 +50,8 @@
 #include "lv_utils.h"
 #include "rewrite.h"
 
-lv_DECLARE_STREAM_CTX(type_system);
+/* 流式上下文（非 static，供 type_path_explorer.c 通过 extern 访问） */
+lv_UNUSED_ATTR lv_THREAD_LOCAL StreamContext *type_system_stream_ctx = NULL;
 
 void type_system_set_stream_context(StreamContext *ctx) {
     type_system_stream_ctx = ctx;
@@ -169,7 +170,7 @@ static inline TypeEquivResult check_binary_type_equiv(TypeSystem *ts, TypeRegion
 TypeSystem *type_system_create(void) {
     TypeSystem *ts = lv_calloc(1, sizeof(TypeSystem));
     if (!ts)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_system_create: lv_calloc failed");
 
     ts->well_founded = true;                      /* 默认启用良基模式 */
     ts->cumulative = true;                        /* 默认启用累积性 */
@@ -179,7 +180,7 @@ TypeSystem *type_system_create(void) {
     ts->rewrite_path = type_rewrite_path_create();
     if (!ts->rewrite_path) {
         lv_free((void **) &ts);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_system_create: type_rewrite_path_create failed");
     }
 
     /* 注册默认类型推断规则 */
@@ -297,20 +298,20 @@ void type_system_set_cumulative(TypeSystem *ts, bool cumulative) {
 static TypeRegion *type_region_create(TypeSystem *ts, TypeKind kind) {
     TypeRegion *tr = lv_calloc(1, sizeof(TypeRegion));
     if (!tr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_region_create: lv_calloc failed");
 
     tr->kind = kind;
 
     /* 添加到类型系统 */
     if (ts->type_region_count >= INT_MAX) {
         lv_free((void **) &tr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "type_region_create: type_region_count overflow");
     }
     /* 确保容量 */
     if (!lv_ensure_capacity((void **)&ts->type_regions, ts->type_region_count,
                             &ts->type_region_capacity, sizeof(TypeRegion *), 1)) {
         lv_free((void **)&tr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_region_create: lv_ensure_capacity failed");
     }
     ts->type_regions[ts->type_region_count++] = tr;
 
@@ -365,7 +366,7 @@ TypeRegion *type_create_line_segment(TypeSystem *ts) {
 TypeRegion *type_create_region(TypeSystem *ts, const int *contained_ids, int count) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_REGION);
     if (!tr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_region: type_region_create failed");
 
     tr->level = UNIVERSE_TYPE_1;
 
@@ -393,7 +394,7 @@ TypeRegion *type_create_region(TypeSystem *ts, const int *contained_ids, int cou
 TypeRegion *type_create_function(TypeSystem *ts, TypeRegion *input, TypeRegion *output) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_FUNCTION);
     if (!tr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_function: type_region_create failed");
 
     tr->input_type = input;
     tr->output_type = output;
@@ -419,7 +420,7 @@ TypeRegion *type_create_function(TypeSystem *ts, TypeRegion *input, TypeRegion *
 TypeRegion *type_create_product(TypeSystem *ts, TypeRegion *left, TypeRegion *right) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_PRODUCT);
     if (!tr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_product: type_region_create failed");
 
     tr->left_type = left;
     tr->right_type = right;
@@ -445,7 +446,7 @@ TypeRegion *type_create_product(TypeSystem *ts, TypeRegion *left, TypeRegion *ri
 TypeRegion *type_create_sum(TypeSystem *ts, TypeRegion *first, TypeRegion *second) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_SUM);
     if (!tr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_sum: type_region_create failed");
 
     tr->first_type = first;
     tr->second_type = second;
@@ -472,7 +473,7 @@ TypeRegion *type_create_sum(TypeSystem *ts, TypeRegion *first, TypeRegion *secon
 TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_VARIABLE);
     if (!tr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_variable: type_region_create failed");
 
     if (name) {
         tr->variable_name = lv_strdup(name);
@@ -494,9 +495,10 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
                 ts->type_region_count--;
             }
             lv_free((void **) &tr);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_variable: lv_realloc type_vars failed");
         }
         ts->type_vars = new_arr;
+
         ts->type_var_count = new_count;
         ts->type_vars[new_count - 1] = tv;
         tv->id = new_count;
@@ -524,7 +526,7 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
 TypeRegion *type_create_dependent(TypeSystem *ts, int param_id, TypeRegion *body) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_DEPENDENT);
     if (!tr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_dependent: type_region_create failed");
 
     tr->param_node_id = param_id;
     tr->body_type = body;
@@ -555,11 +557,11 @@ TypeRegion *type_create_bottom(TypeSystem *ts) {
 TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type, const char *predicate_name,
                                           const char *predicate_expr) {
     if (!ts || !base_type || !predicate_name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "type_create_predicate_subtype: NULL parameter");
 
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_PREDICATE_SUBTYPE);
     if (!tr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_predicate_subtype: type_region_create failed");
 
     tr->base_type = base_type;
     tr->predicate_name = lv_strdup(predicate_name);
@@ -572,7 +574,7 @@ TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
         ts->type_region_count--;
         ts->type_regions[ts->type_region_count] = NULL;
         lv_free((void **) &tr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_predicate_subtype: lv_strdup predicate_name failed");
     }
 
     return tr;
@@ -626,7 +628,7 @@ bool type_check_predicate_subtype_value(TypeSystem *ts, TypeRegion *subtype, int
 
 TypeRegion *type_predicate_subtype_get_base(TypeRegion *subtype) {
     if (!subtype || subtype->kind != TYPE_KIND_PREDICATE_SUBTYPE)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "type_predicate_subtype_get_base: NULL or wrong kind");
     return subtype->base_type;
 }
 
@@ -2126,7 +2128,7 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
  */
 TypeRegion *type_get_node_type(const TypeSystem *ts, int node_id) {
     if (!ts || node_id <= 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "type_get_node_type: NULL ts or invalid node_id");
 
     for (int i = 0; i < ts->node_type_mapping_count; i++) {
         if (ts->node_type_mappings[i].node_id == node_id) {
@@ -2595,12 +2597,12 @@ static void inference_rules_sort_by_priority(TypeInferenceRule *rules, int count
 int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, int target_type_kind, int priority,
                                         const char *description) {
     if (!ts)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "type_system_register_inference_rule: ts is NULL");
 
     /* 需要扩容 */
     if (!lv_ensure_capacity((void **)&ts->inference_rules, ts->inference_rule_count,
                             &ts->inference_rule_capacity, sizeof(TypeInferenceRule), 1))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "type_system_register_inference_rule: lv_ensure_capacity failed");
 
     /* 添加新规则 */
     TypeInferenceRule *rule = &ts->inference_rules[ts->inference_rule_count];
@@ -2740,33 +2742,6 @@ TypeEquivResult type_infer_by_rules(TypeSystem *ts, ConstraintGraph *graph, int 
     return TYPE_EQUIV_NOT_EQUIV;
 }
 
-/* ============== 路径探索器 (PathExplorer) ============== */
-
-/**
- * @brief 路径探索器内部结构
- *
- * 通过 TypeSystem 的重写规则集，在 TypeRegion 空间中搜索从
- * current 到 target 的重写路径。使用 GraphSnapshot 实现撤销。
- */
-#define EXPLORER_INITIAL_CAPACITY 16
-#define EXPLORER_HISTORY_INITIAL_CAPACITY 16
-
-struct PathExplorer {
-    TypeSystem *ts;      /* 类型系统（不拥有） */
-    TypeRegion *current; /* 当前类型区域（探索器拥有副本） */
-    TypeRegion *target;  /* 目标类型区域（不拥有，外部引用） */
-
-    /* 探索历史 */
-    ExplorerStep *steps; /* 已执行步骤数组 */
-    int step_count;      /* 当前步骤数 */
-    int step_capacity;   /* 步骤数组容量 */
-
-    /* 撤销栈：每步应用前保存当前类型的深拷贝 */
-    TypeRegion **undo_stack; /* 撤销栈（每个元素为 TypeRegion 深拷贝） */
-    int undo_count;          /* 撤销栈深度 */
-    int undo_capacity;       /* 撤销栈容量 */
-};
-
 /**
  * @brief 深拷贝类型区域
  *
@@ -2875,352 +2850,4 @@ void type_region_deep_free(TypeRegion *tr) {
     lv_free((void **) &tr->variable_name);
 
     lv_free((void **) &tr);
-}
-
-PathExplorer *path_explorer_create(TypeSystem *ts, TypeRegion *current, TypeRegion *target) {
-    if (!ts || !current || !target)
-        return NULL;
-
-    PathExplorer *explorer = (PathExplorer *) lv_calloc(1, sizeof(PathExplorer));
-    if (!explorer)
-        return NULL;
-
-    explorer->ts = ts;
-    explorer->target = target;
-
-    /* 深拷贝当前类型区域（探索器拥有副本） */
-    explorer->current = type_region_deep_copy(current);
-    if (!explorer->current) {
-        lv_free((void **) &explorer);
-        return NULL;
-    }
-
-    /* 初始化步骤数组 */
-    explorer->step_capacity = EXPLORER_INITIAL_CAPACITY;
-    explorer->steps = (ExplorerStep *) lv_calloc(explorer->step_capacity, sizeof(ExplorerStep));
-    if (!explorer->steps) {
-        type_region_deep_free(explorer->current);
-        lv_free((void **) &explorer);
-        return NULL;
-    }
-    explorer->step_count = 0;
-
-    /* 初始化撤销栈 */
-    explorer->undo_capacity = EXPLORER_HISTORY_INITIAL_CAPACITY;
-    explorer->undo_stack = (TypeRegion **) lv_calloc(explorer->undo_capacity, sizeof(TypeRegion *));
-    if (!explorer->undo_stack) {
-        lv_free((void **) &explorer->steps);
-        type_region_deep_free(explorer->current);
-        lv_free((void **) &explorer);
-        return NULL;
-    }
-    explorer->undo_count = 0;
-
-    return explorer;
-}
-
-void path_explorer_destroy(PathExplorer *explorer) {
-    if (!explorer)
-        return;
-
-    /* 释放当前类型副本 */
-    type_region_deep_free(explorer->current);
-
-    /* 释放步骤记录 */
-    for (int i = 0; i < explorer->step_count; i++) {
-        lv_free((void **) &explorer->steps[i].rule_name);
-    }
-    lv_free((void **) &explorer->steps);
-
-    /* 释放撤销栈 */
-    for (int i = 0; i < explorer->undo_count; i++) {
-        type_region_deep_free(explorer->undo_stack[i]);
-    }
-    lv_free((void **) &explorer->undo_stack);
-
-    lv_free((void **) &explorer);
-}
-
-ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, int **rule_indices, int *count) {
-    if (!explorer || !rule_indices || !count)
-        return EXPLORER_ERROR;
-
-    *rule_indices = NULL;
-    *count = 0;
-
-    /* 先检查是否已达到目标 */
-    bool reached = false;
-    TypeEquivResult equiv = type_check_equivalence(explorer->ts, explorer->current, explorer->target, true);
-    if (equiv == TYPE_EQUIV_OK) {
-        return EXPLORER_GOAL_REACHED;
-    }
-
-    /* 遍历所有重写规则，检查哪些可以匹配当前类型 */
-    int *indices = (int *) lv_calloc(explorer->ts->rewrite_rule_count, sizeof(int));
-    if (!indices)
-        return EXPLORER_ERROR;
-
-    int applicable = 0;
-    for (int i = 0; i < explorer->ts->rewrite_rule_count; i++) {
-        RewriteRule *rule = explorer->ts->rewrite_rules[i];
-        if (!rule || !rule->pattern)
-            continue;
-
-        /* 可应用性检查：规则模式与当前类型结构匹配 */
-        bool rule_applicable = false;
-        if (rule->name && rule->pattern) {
-            /* 检查规则模式的顶层类型种类是否匹配当前类型 */
-            if (rule->pattern->kind == TYPE_KIND_VARIABLE) {
-                /* 模式为类型变量 → 可匹配任何类型 */
-                rule_applicable = true;
-            } else if (explorer->current && rule->pattern->kind == explorer->current->kind) {
-                /* 顶层种类匹配 → 候选规则 */
-                rule_applicable = true;
-            } else if (rule->pattern->kind == TYPE_KIND_BOTTOM) {
-                /* 底部类型模式可匹配任何类型 */
-                rule_applicable = true;
-            }
-        }
-        if (rule_applicable) {
-            indices[applicable++] = i;
-        }
-    }
-
-    if (applicable == 0) {
-        lv_free((void **) &indices);
-        return EXPLORER_NO_RULES;
-    }
-
-    *rule_indices = indices;
-    *count = applicable;
-    return EXPLORER_OK;
-}
-
-ExplorerResult path_explorer_preview_rule(PathExplorer *explorer, int rule_index, TypeRegion **preview_result) {
-    if (!explorer || !preview_result)
-        return EXPLORER_ERROR;
-    *preview_result = NULL;
-
-    /* 验证规则索引有效 */
-    if (rule_index < 0 || rule_index >= explorer->ts->rewrite_rule_count) {
-        return EXPLORER_INVALID_RULE;
-    }
-
-    RewriteRule *rule = explorer->ts->rewrite_rules[rule_index];
-    if (!rule || !rule->name) {
-        return EXPLORER_INVALID_RULE;
-    }
-
-    /*
-     * 预览：创建当前类型的深拷贝作为预览结果。
-     * 实际的重写效果取决于重写引擎的匹配和替换，
-     * 这里返回当前类型的副本作为保守预览。
-     * 调用者可据此判断规则是否值得应用。
-     */
-    TypeRegion *preview = type_region_deep_copy(explorer->current);
-    if (!preview)
-        return EXPLORER_ERROR;
-
-    *preview_result = preview;
-
-    /* 流式事件：预览规则 */
-    if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 预览规则 '%s'", rule->name ? rule->name : "?");
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
-    }
-
-    return EXPLORER_OK;
-}
-
-ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) {
-    if (!explorer)
-        return EXPLORER_ERROR;
-
-    /* 验证规则索引有效 */
-    if (rule_index < 0 || rule_index >= explorer->ts->rewrite_rule_count) {
-        return EXPLORER_INVALID_RULE;
-    }
-
-    RewriteRule *rule = explorer->ts->rewrite_rules[rule_index];
-    if (!rule || !rule->name) {
-        return EXPLORER_INVALID_RULE;
-    }
-
-    /* 应用前：将当前类型压入撤销栈 */
-    if (explorer->undo_count >= explorer->undo_capacity) {
-        if (explorer->undo_capacity > INT_MAX / 2)
-            return EXPLORER_ERROR;
-        int new_cap = explorer->undo_capacity * 2;
-        TypeRegion **new_stack = (TypeRegion **) lv_realloc(explorer->undo_stack, new_cap * sizeof(TypeRegion *));
-        if (!new_stack)
-            return EXPLORER_ERROR;
-        explorer->undo_stack = new_stack;
-        explorer->undo_capacity = new_cap;
-    }
-
-    TypeRegion *snapshot = type_region_deep_copy(explorer->current);
-    if (!snapshot)
-        return EXPLORER_ERROR;
-    explorer->undo_stack[explorer->undo_count++] = snapshot;
-
-    /*
-     * 应用重写规则：
-     * 使用类型系统的规范化功能尝试归一化当前类型。
-     * 如果归一化成功，用归一化结果替换当前类型。
-     * 这模拟了重写引擎在类型层面的效果。
-     */
-    TypeRegion *normalized = NULL;
-    bool norm_ok = type_normalize(explorer->ts, explorer->current, &normalized);
-
-    if (norm_ok && normalized) {
-        /* 用归一化结果替换当前类型 */
-        type_region_deep_free(explorer->current);
-        explorer->current = normalized;
-    }
-    /* 如果归一化失败，保留当前类型不变（规则应用为空操作） */
-
-    /* 记录步骤 */
-    if (explorer->step_count >= explorer->step_capacity) {
-        if (explorer->step_capacity > INT_MAX / 2) {
-            /* 步骤记录失败，但状态已改变，仍返回成功 */
-            return EXPLORER_OK;
-        }
-        int new_cap = explorer->step_capacity * 2;
-        ExplorerStep *new_steps = (ExplorerStep *) lv_realloc(explorer->steps, new_cap * sizeof(ExplorerStep));
-        if (!new_steps) {
-            /* 步骤记录失败，但状态已改变，仍返回成功 */
-            return EXPLORER_OK;
-        }
-        explorer->steps = new_steps;
-        explorer->step_capacity = new_cap;
-    }
-
-    ExplorerStep *step = &explorer->steps[explorer->step_count];
-    step->rule_index = rule_index;
-    step->rule_name = rule->name ? lv_strdup(rule->name) : NULL;
-    step->step_number = explorer->step_count;
-    explorer->step_count++;
-
-    /* 流式事件：规则应用成功 */
-    if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 应用规则 '%s' (步骤 %d)", rule->name ? rule->name : "?",
-                 explorer->step_count - 1);
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_REWRITE_APPLIED, buf, 0);
-    }
-
-    /* 流式事件：路径探索应用规则信息 */
-    if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 应用规则 '%s'", rule->name ? rule->name : "?");
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
-    }
-
-    return EXPLORER_OK;
-}
-
-ExplorerResult path_explorer_undo(PathExplorer *explorer) {
-    if (!explorer)
-        return EXPLORER_ERROR;
-
-    if (explorer->undo_count == 0) {
-        return EXPLORER_UNDO_EMPTY;
-    }
-
-    /* 弹出撤销栈顶部 */
-    explorer->undo_count--;
-    TypeRegion *restored = explorer->undo_stack[explorer->undo_count];
-    explorer->undo_stack[explorer->undo_count] = NULL;
-
-    /* 替换当前类型 */
-    type_region_deep_free(explorer->current);
-    explorer->current = restored;
-
-    /* 移除最后一步记录 */
-    if (explorer->step_count > 0) {
-        explorer->step_count--;
-        lv_free((void **) &explorer->steps[explorer->step_count].rule_name);
-        explorer->steps[explorer->step_count].rule_name = NULL;
-    }
-
-    /* 流式事件：撤销操作 */
-    if (type_system_stream_ctx != NULL) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_REWRITE_ROLLBACK, "路径探索: 撤销上一步操作", 0);
-    }
-
-    return EXPLORER_OK;
-}
-
-ExplorerResult path_explorer_check_goal(const PathExplorer *explorer, bool *reached) {
-    if (!explorer || !reached)
-        return EXPLORER_ERROR;
-
-    TypeEquivResult equiv = type_check_equivalence(explorer->ts, explorer->current, explorer->target, true);
-    *reached = (equiv == TYPE_EQUIV_OK);
-
-    /* 流式事件：目标检查结果 */
-    if (type_system_stream_ctx != NULL && *reached) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, "路径探索: 已达到目标类型", 0);
-    }
-
-    return EXPLORER_OK;
-}
-
-ExplorerResult path_explorer_save_path(const PathExplorer *explorer, TypeRewritePath **out_path) {
-    if (!explorer || !out_path)
-        return EXPLORER_ERROR;
-    *out_path = NULL;
-
-    TypeRewritePath *path = type_rewrite_path_create();
-    if (!path)
-        return EXPLORER_ERROR;
-
-    /* 将每一步记录到重写路径中
-     *
-     * 利用撤销栈恢复 before/after 快照：
-     *   undo_stack[i] 保存了第 i 步应用前的类型深拷贝。
-     *   undo_stack[i+1] 保存了第 i+1 步应用前的类型（即第 i 步之后的状态）。
-     *   对于最后一步，after 为 explorer->current。
-     */
-    for (int i = 0; i < explorer->step_count; i++) {
-        ExplorerStep *step = &explorer->steps[i];
-        const TypeRegion *before = NULL;
-        const TypeRegion *after = NULL;
-
-        /* before: 从撤销栈获取（应用规则前的深拷贝） */
-        if (i < explorer->undo_count) {
-            before = explorer->undo_stack[i];
-        }
-
-        /* after: 下一步的 before（撤销栈中），或当前类型 */
-        if (i + 1 < explorer->undo_count) {
-            after = explorer->undo_stack[i + 1];
-        } else {
-            after = explorer->current;
-        }
-
-        type_rewrite_path_record(path, step->rule_name, before, after);
-    }
-
-    *out_path = path;
-    return EXPLORER_OK;
-}
-
-int path_explorer_get_step_count(const PathExplorer *explorer) {
-    if (!explorer)
-        return 0;
-    return explorer->step_count;
-}
-
-const ExplorerStep *path_explorer_get_steps(const PathExplorer *explorer) {
-    if (!explorer || explorer->step_count == 0)
-        return NULL;
-    return explorer->steps;
-}
-
-const TypeRegion *path_explorer_get_current(const PathExplorer *explorer) {
-    if (!explorer)
-        return NULL;
-    return explorer->current;
 }

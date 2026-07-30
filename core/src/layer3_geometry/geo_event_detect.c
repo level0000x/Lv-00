@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_event_detect.c
  * @brief 几何事件检测器 —— 基于 SUNDIALS Rootfinding 的事件检测实现
  *
@@ -91,10 +91,10 @@ static int geodet_find_event_index(const lvEventDetector *detector, int event_id
 static int geodet_eval_event_func(lvEventDetector *detector, int event_idx, double t, const double *param, int dim,
                                   double *g_out) {
     if (!detector || !param || !g_out) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "geodet_eval_event_func: NULL parameter");
     }
     if (event_idx < 0 || event_idx >= detector->num_events) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "geodet_eval_event_func: invalid event_idx %d", event_idx);
     }
     lvEventEntry *evt = &detector->events[event_idx];
     if (!evt->enabled || !evt->func) {
@@ -112,14 +112,14 @@ static int geodet_eval_event_func(lvEventDetector *detector, int event_idx, doub
  */
 static int geodet_find_event_index(const lvEventDetector *detector, int event_id) {
     if (!detector) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "geodet_find_event_index: NULL detector");
     }
     for (int i = 0; i < detector->num_events; ++i) {
         if (detector->events[i].event_id == event_id) {
             return i;
         }
     }
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "geodet_find_event_index: event_id %d not found", event_id);
 }
 
 /* ========================================================================
@@ -232,7 +232,7 @@ static int geodet_root_bisection(lvEventDetector *detector, int event_id, const 
 
     int event_idx = geodet_find_event_index(detector, event_id);
     if (event_idx < 0) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "geodet_root_illinois: event_id %d not found", event_id);
     }
 
     double tol = detector->root_tol;
@@ -252,13 +252,13 @@ static int geodet_root_bisection(lvEventDetector *detector, int event_id, const 
 
         int ret = geodet_eval_event_func(detector, event_idx, mid, param_b, dim, &fmid);
         if (ret != 0) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_bisection: eval_event_func failed at mid=%.17g", mid);
         }
 
         /* 发散检测：如果 |fmid| 比初始函数值大 1e6 倍，
          * 说明区间内可能存在极点而非根。终止搜索。 */
         if (fa_initial > 0.0 && fabs(fmid) > fa_initial * 1e6) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_bisection: divergence detected, mid=%.17g fmid=%.17g", mid, fmid);
         }
 
         if (fabs(fmid) < lv_EPSILON_NUMERIC_COMPARE) {
@@ -276,7 +276,7 @@ static int geodet_root_bisection(lvEventDetector *detector, int event_id, const 
     }
 
     *root = 0.5 * (a + b);
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_bisection: failed to converge in %d iterations", max_iter);
 }
 
 /* ========================================================================
@@ -299,7 +299,7 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id, const d
                                 int dim, double a, double b, double ga, double gb, double *root) {
     int event_idx = geodet_find_event_index(detector, event_id);
     if (event_idx < 0) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "geodet_root_illinois: event_id %d not found", event_id);
     }
 
     double tol = detector->root_tol;
@@ -331,7 +331,7 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id, const d
         double f_new;
         int ret = geodet_eval_event_func(detector, event_idx, x_new, param_b, dim, &f_new);
         if (ret != 0) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_illinois: eval_event_func failed at x_new=%.17g", x_new);
         }
 
         if (f_new == 0.0) {
@@ -342,7 +342,7 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id, const d
         /* 发散检测：如果 |f_new| 比初始函数值大 1e6 倍，
          * 说明区间内可能存在极点而非根。终止搜索。 */
         if (f_l_initial > 0.0 && fabs(f_new) > f_l_initial * 1e6) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_illinois: divergence detected, x_new=%.17g f_new=%.17g", x_new, f_new);
         }
 
         /* 更新区间 */
@@ -364,7 +364,7 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id, const d
             double x_mid = 0.5 * (x_l + x_r);
             ret = geodet_eval_event_func(detector, event_idx, x_mid, param_b, dim, &f_new);
             if (ret != 0) {
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_illinois: eval_event_func failed at x_mid=%.17g", x_mid);
             }
             if (f_l * f_new < 0.0) {
                 x_r = x_mid;
@@ -378,7 +378,7 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id, const d
     }
 
     *root = 0.5 * (x_l + x_r);
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_illinois: failed to converge in %d iterations", max_iter);
 }
 
 /* ========================================================================
@@ -434,15 +434,13 @@ int geo_event_register(lvEventDetector *detector, int event_id, lvEventType type
     lv_CHECK_NULL(detector, -1);
 
     if (detector->num_events >= GEO_EVENT_MAX_EVENTS) {
-        lv_ERROR_SET(lv_ERROR_OVERFLOW, "事件注册已满，最大%d个事件", GEO_EVENT_MAX_EVENTS);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "事件注册已满，最大%d个事件", GEO_EVENT_MAX_EVENTS);
     }
 
     /* 检查 ID 是否重复 */
     for (int i = 0; i < detector->num_events; ++i) {
         if (detector->events[i].event_id == event_id) {
-            lv_ERROR_SET(lv_ERROR_ALREADY_EXISTS, "事件ID=%d已存在", event_id);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALREADY_EXISTS, "事件ID=%d已存在", event_id);
         }
     }
 
@@ -465,8 +463,7 @@ int geo_event_register(lvEventDetector *detector, int event_id, lvEventType type
                 func = geodet_check_periodic;
                 break;
             default:
-                lv_ERROR_SET(lv_ERROR_INVALID_PARAM, "自定义事件lv_EVENT_CUSTOM必须提供func参数");
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "自定义事件lv_EVENT_CUSTOM必须提供func参数");
         }
     }
 

@@ -24,8 +24,6 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 
-lv_DECLARE_STREAM_CTX(interop);
-
 /* ── 服务器核心 ── */
 
 /* ==================== 条件编译：套接字支持 ==================== */

@@ -72,7 +72,8 @@
 #include "lv_utils.h"
 #include "stream_context_util.h"
 
-lv_DECLARE_STREAM_CTX(proof);
+/** @brief proof 模块全局流式上下文定义（供所有 proof 子模块通过 proof.h 的 extern 引用） */
+lv_THREAD_LOCAL StreamContext *proof_stream_ctx = NULL;
 
 void proof_set_stream_context(StreamContext *ctx) {
     proof_stream_ctx = ctx;

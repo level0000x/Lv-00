@@ -24,7 +24,7 @@
 #include <string.h>
 
 #include "lv/geometry_config.h"
-
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* 如果 geometry_config.h 中没有定义 lv_PUBLIC_API，则定义空宏 */
@@ -1438,12 +1438,12 @@ static int aabb_tree_leaf_count(const lvAABBNode *nodes, int root) {
  */
 lv_PUBLIC_API lvAABBTree2D *lv_aabb2d_build(const lvAABB2D *bboxes, int count, const lvAABBTreeConfig *config) {
     if (!bboxes || count <= 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_aabb2d_build: invalid bboxes or count");
 
     /* 分配树结构 */
     lvAABBTree2D *tree = (lvAABBTree2D *) lv_calloc(1, sizeof(lvAABBTree2D));
     if (!tree)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_aabb2d_build: calloc failed");
 
     /* 初始化 */
     tree->nodes = NULL;
@@ -1465,6 +1465,7 @@ lv_PUBLIC_API lvAABBTree2D *lv_aabb2d_build(const lvAABB2D *bboxes, int count, c
     tree->primitives = (lvAABB2D *) lv_malloc((size_t) count * sizeof(lvAABB2D));
     if (!tree->primitives) {
         lv_free((void **) &(tree));
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "lv_aabb2d_build: malloc primitives failed");
         return NULL;
     }
     memcpy(tree->primitives, bboxes, (size_t) count * sizeof(lvAABB2D));
@@ -1474,6 +1475,7 @@ lv_PUBLIC_API lvAABBTree2D *lv_aabb2d_build(const lvAABB2D *bboxes, int count, c
     if (!prim_indices) {
         lv_free((void **) &(tree->primitives));
         lv_free((void **) &(tree));
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "lv_aabb3d_build: malloc prim_indices failed");
         return NULL;
     }
     for (int i = 0; i < count; i++) {
@@ -1644,12 +1646,12 @@ lv_PUBLIC_API void lv_aabb2d_stats(const lvAABBTree2D *tree, int *out_node_count
  */
 lv_PUBLIC_API lvAABBTree3D *lv_aabb3d_build(const lvAABB3D *bboxes, int count, const lvAABBTreeConfig *config) {
     if (!bboxes || count <= 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_aabb3d_build: invalid bboxes or count");
 
     /* 分配树结构 */
     lvAABBTree3D *tree = (lvAABBTree3D *) lv_malloc(sizeof(lvAABBTree3D));
     if (!tree)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_aabb3d_build: malloc failed");
 
     /* 初始化 */
     tree->nodes = NULL;
@@ -1678,6 +1680,7 @@ lv_PUBLIC_API lvAABBTree3D *lv_aabb3d_build(const lvAABB3D *bboxes, int count, c
     if (!prim_indices) {
         lv_free((void **) &(tree->primitives));
         lv_free((void **) &(tree));
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "lv_aabb3d_build: malloc prim_indices failed");
         return NULL;
     }
     for (int i = 0; i < count; i++) {
@@ -1693,6 +1696,7 @@ lv_PUBLIC_API lvAABBTree3D *lv_aabb3d_build(const lvAABB3D *bboxes, int count, c
         lv_free((void **) &(tree->primitives));
         lv_free((void **) &(tree->nodes));
         lv_free((void **) &(tree));
+        lv_ERROR_SET(lv_ERROR_INTERNAL, "lv_aabb3d_build: recursive build failed");
         return NULL;
     }
 

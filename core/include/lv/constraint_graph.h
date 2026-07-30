@@ -41,6 +41,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "error_codes.h"
+#include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
 #include "symbolic_coord.h"
 
 /* 前向声明 */
@@ -59,6 +60,9 @@ typedef struct StreamContext StreamContext;
  * 对于需要严格内存顺序的场景，可使用 atomic_fetch_add() 默认的
  * memory_order_seq_cst，或显式使用 memory_order_acq_rel。
  */
+
+/** @brief graph 模块全局流式上下文（由 constraint_graph.c 集中定义） */
+extern lv_THREAD_LOCAL StreamContext *graph_stream_ctx;
 
 /** @brief 原子递增节点ID并返回新值（线程安全） */
 #define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) \

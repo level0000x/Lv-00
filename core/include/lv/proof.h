@@ -37,12 +37,16 @@
 
 #include "exact_arithmetic.h" /* lv_TOLERATED_FLOAT for proof timing/thresholds */
 #include "unify.h"
+#include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
 #include "lv/lv_utils.h"
 
 /* 前向声明 */
 typedef struct ConstraintGraph ConstraintGraph;
 typedef struct StreamContext StreamContext;
 typedef struct TypeRegion TypeRegion;
+
+/** @brief proof 模块全局流式上下文（由 proof.c 集中定义） */
+extern lv_THREAD_LOCAL StreamContext *proof_stream_ctx;
 
 #ifdef __cplusplus
 extern "C" {

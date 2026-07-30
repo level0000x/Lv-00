@@ -1719,7 +1719,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
 fail:
     id_mapping_destroy(&id_map);
     graph_destroy(dst);
-    return NULL;
+    lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "deep_copy_graph: allocation failed during deep copy");
 }
 
 /**

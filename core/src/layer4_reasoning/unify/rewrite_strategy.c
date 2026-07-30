@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_internal.h"
+
 /* ============================================================
  * Internal helpers
  * ============================================================ */
@@ -699,7 +701,7 @@ void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result) {
 
 int lv_rewrite_apply_strategy(lvRewriteContext *ctx, lvRewriteStrategyType strategy) {
     if (!ctx) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_rewrite_apply_strategy: ctx 为空");
     }
 
     if (ctx->impl) {
@@ -711,7 +713,7 @@ int lv_rewrite_apply_strategy(lvRewriteContext *ctx, lvRewriteStrategyType strat
     /* 创建新引擎并存入 context */
     lvRewriteEngineEx *engine = rewrite_engine_ex_create((lvRewriteStrategyEx) strategy, 100);
     if (!engine) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_rewrite_apply_strategy: 创建引擎失败");
     }
     ctx->impl = engine;
     return 0;

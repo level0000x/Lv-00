@@ -210,7 +210,7 @@ static int *uf_create(int n, int **out_rank) {
     if (!parent || !rank) {
         lv_free((void **) &parent);
         lv_free((void **) &rank);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "uf_create: calloc failed for %d elements", n);
     }
     for (int i = 0; i < n; i++)
         parent[i] = i;
@@ -333,7 +333,7 @@ static int *uf_collect_merged(int *parent, int n, int *out_count) {
     int *merged = lv_calloc((size_t) n, sizeof(int));
     if (!merged) {
         *out_count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "uf_collect_merged: calloc failed for %d elements", n);
     }
     int total = 0;
     for (int i = 0; i < n; i++) {
@@ -366,17 +366,17 @@ static int *build_id_to_idx(ConstraintGraph *graph, int *out_max_id) {
     if (max_id < 0 || max_id > NORM_MAX_ID) {
         if (out_max_id)
             *out_max_id = -1;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "build_id_to_idx: max_id %d out of range [0, %d]", max_id, NORM_MAX_ID);
     }
     if (out_max_id)
         *out_max_id = max_id;
     size_t map_size = (size_t) max_id + 1;
     if (map_size > SIZE_MAX / sizeof(int)) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_id_to_idx: map_size %zu overflow", map_size);
     }
     int *map = lv_calloc(map_size, sizeof(int));
     if (!map)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "build_id_to_idx: calloc failed for %zu entries", map_size);
     for (int i = 0; i < graph->node_count; i++) {
         int nid = graph->nodes[i]->id;
         if (nid >= 0 && nid <= max_id) {
@@ -400,11 +400,11 @@ static int idx_from_id(int *id_to_idx, int max_id, int id) {
 NormalizationLog *normalization_log_create(int initial_capacity) {
     NormalizationLog *log = lv_calloc(1, sizeof(NormalizationLog));
     if (!log)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "normalization_log_create: calloc failed");
     lv_darray_init(&log->entries, sizeof(NormalizationLogEntry));
     if (!lv_darray_reserve(&log->entries, initial_capacity > 0 ? initial_capacity : NORM_DEFAULT_CAPACITY)) {
         lv_free((void **) &log);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "normalization_log_create: darray reserve failed");
     }
     return log;
 }
@@ -454,7 +454,7 @@ static int apply_uf_merges(ConstraintGraph *graph, int *parent, int *rank, int *
     if (!uf_resolve_to_min_id(parent, graph->nodes, n)) {
         lv_free((void **) &id_to_idx);
         uf_destroy(parent, rank);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "apply_uf_merges: uf_resolve_to_min_id failed for %d nodes", n);
     }
 
     /* 更新约束参与者 */
@@ -466,7 +466,7 @@ static int apply_uf_merges(ConstraintGraph *graph, int *parent, int *rank, int *
     if (!merged_indices) {
         lv_free((void **) &id_to_idx);
         uf_destroy(parent, rank);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "apply_uf_merges: uf_collect_merged failed");
     }
 
     /* 记录合并到规范化日志 */
@@ -730,7 +730,7 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
 
     NodeMergeCandidate *candidates = lv_calloc((size_t) max_candidates, sizeof(NodeMergeCandidate));
     if (!candidates)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "find_merge_candidates: calloc failed for %d candidates", max_candidates);
 
     /* 第一阶段：点候选（坐标相等）—— 使用哈希预分组 */
     {
@@ -1225,7 +1225,7 @@ static int normalize_phase(ConstraintGraph *graph, NormalizationResult *result, 
 NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
     NormalizationResult *result = lv_calloc(1, sizeof(NormalizationResult));
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_normalize: calloc failed for result");
     result->user_confirmed = true;
 
     int total_nodes = graph->node_count;
@@ -1237,7 +1237,7 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
     result->log = normalization_log_create(total_nodes > 0 ? total_nodes : NORM_DEFAULT_CAPACITY);
     if (!result->original_ids || !result->representative_ids || !result->merged_node_ids || !result->log) {
         normalization_result_destroy(result);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_normalize: allocation failed for result arrays");
     }
 
     /* 流式输出: 规范化开始 */
@@ -1332,13 +1332,13 @@ void normalization_result_destroy(NormalizationResult *result) {
 RewriteHistory *rewrite_history_create(int capacity) {
     RewriteHistory *rh = lv_calloc(1, sizeof(RewriteHistory));
     if (!rh)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rewrite_history_create: calloc failed for RewriteHistory");
     rh->capacity = capacity;
     rh->count = 0;
     rh->history = lv_calloc((size_t) capacity, sizeof(GraphHash *));
     if (!rh->history) {
         lv_free((void **) &rh);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rewrite_history_create: calloc failed for history array");
     }
     for (int i = 0; i < capacity; i++) {
         rh->history[i] = NULL;

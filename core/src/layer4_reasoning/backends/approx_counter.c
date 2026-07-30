@@ -66,7 +66,7 @@ typedef struct {
 static CNFBuilder *cnf_create(void) {
     CNFBuilder *cnf = (CNFBuilder *) lv_calloc(1, sizeof(CNFBuilder));
     if (!cnf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "cnf_create: 分配 CNFBuilder 失败");
     cnf->clause_capacity = 64;
     cnf->clauses = (int **) lv_calloc((size_t) cnf->clause_capacity, sizeof(int *));
     cnf->clause_sizes = (int *) lv_calloc((size_t) cnf->clause_capacity, sizeof(int));
@@ -74,7 +74,7 @@ static CNFBuilder *cnf_create(void) {
         lv_free((void **) &(cnf->clauses));
         lv_free((void **) &(cnf->clause_sizes));
         lv_free((void **) &cnf);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "cnf_create: 分配 clauses 或 clause_sizes 失败");
     }
     cnf->var_count = 0;
     return cnf;
@@ -140,17 +140,17 @@ static void cnf_destroy(CNFBuilder *cnf) {
  */
 static CNFBuilder *encode_constraint_graph(const ConstraintGraph *graph) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "encode_constraint_graph: graph 为空");
 
     CNFBuilder *cnf = cnf_create();
     if (!cnf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "encode_constraint_graph: 创建 CNFBuilder 失败");
 
     /* 为每个节点分配变量 ID */
     int *node_var = (int *) lv_calloc((size_t) graph->node_count, sizeof(int));
     if (!node_var) {
         cnf_destroy(cnf);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "encode_constraint_graph: 分配 node_var 失败");
     }
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -235,7 +235,7 @@ static CNFBuilder *encode_constraint_graph(const ConstraintGraph *graph) {
  */
 static char *cnf_to_dimacs(const CNFBuilder *cnf) {
     if (!cnf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "cnf_to_dimacs: cnf 为空");
 
     /* 估算缓冲区大小 */
     size_t est_size = 256;
@@ -245,7 +245,7 @@ static char *cnf_to_dimacs(const CNFBuilder *cnf) {
 
     char *buf = (char *) lv_malloc(est_size);
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "cnf_to_dimacs: 分配缓冲区失败");
 
     int offset = snprintf(buf, est_size, "p cnf %d %d\n", cnf->var_count, cnf->clause_count);
     for (int i = 0; i < cnf->clause_count; i++) {
@@ -281,13 +281,13 @@ typedef struct {
 static XORConstraint *xor_generate(int num_vars, uint64_t seed) {
     XORConstraint *xc = (XORConstraint *) lv_calloc(1, sizeof(XORConstraint));
     if (!xc)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "xor_generate: 分配 XORConstraint 失败");
 
     /* 最多 num_vars 个变量参与 */
     xc->vars = (int *) lv_calloc((size_t) num_vars, sizeof(int));
     if (!xc->vars) {
         lv_free((void **) &xc);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "xor_generate: 分配 vars 数组失败");
     }
 
     uint64_t rng = splitmix64(seed);
@@ -331,7 +331,7 @@ static CNFBuilder *xor_to_cnf(const XORConstraint *xc, CNFBuilder *base) {
 
     CNFBuilder *result = cnf_create();
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "xor_to_cnf: 创建 CNFBuilder 失败");
 
     /* 复制基底 CNF */
     if (base) {
@@ -352,7 +352,7 @@ static CNFBuilder *xor_to_cnf(const XORConstraint *xc, CNFBuilder *base) {
         int *aux = (int *) lv_calloc((size_t) xc->count, sizeof(int));
         if (!aux) {
             cnf_destroy(result);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "xor_to_cnf: 分配 aux 数组失败");
         }
 
         /* 第一个辅助变量 */
@@ -710,13 +710,13 @@ bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int pr
 
 char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "approx_count_to_sat: graph 为空");
 
     CNFBuilder *cnf = encode_constraint_graph(graph);
     if (!cnf) {
         if (out_cnf_vars)
             *out_cnf_vars = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "approx_count_to_sat: 编码约束图失败");
     }
 
     char *dimacs = cnf_to_dimacs(cnf);

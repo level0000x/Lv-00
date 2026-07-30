@@ -88,7 +88,7 @@ typedef struct {
 
 int lv_singular_register_backend(void) {
     LOG_WARN("Singular", "后端不可用：未定义 LV_HAS_SINGULAR（需要 libsingular SDK）");
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "Singular 后端不可用：未定义 LV_HAS_SINGULAR");
 }
 
 int lv_singular_available(void) {
@@ -146,8 +146,7 @@ int lv_singular_register_backend(void) {
     }
 
     if (singular_kernel_init() != 0) {
-        lv_ERROR_SET(lv_ERROR_INTERNAL, "Singular 内核初始化失败");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "Singular 内核初始化失败");
     }
 
     LOG_INFO("Singular", "后端注册成功（版本: %s）", g_singular_state.version_str);
@@ -206,8 +205,7 @@ static int singular_kernel_init(void) {
     /* 创建默认的 ℚ[x] 环作为初始环 */
     const char *default_vars[] = {"x"};
     if (singular_create_ring(default_vars, 1) < 0) {
-        lv_ERROR_SET(lv_ERROR_INTERNAL, "Singular 默认环创建失败");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "Singular 默认环创建失败");
     }
 
     /* 记录版本信息 */
@@ -264,8 +262,7 @@ static void singular_kernel_cleanup(void) {
  */
 static int singular_create_ring(const char *var_names[], int nvars) {
     if (!var_names || nvars <= 0) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "singular_create_ring: 无效参数");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_create_ring: 无效参数");
     }
 
 #ifdef LV_HAS_SINGULAR
@@ -300,7 +297,7 @@ static int singular_create_ring(const char *var_names[], int nvars) {
 #else
     (void)var_names;
     (void)nvars;
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "singular_create_ring: LV_HAS_SINGULAR 未定义");
 #endif
 }
 
@@ -319,8 +316,7 @@ static int singular_create_ring(const char *var_names[], int nvars) {
  */
 static void *singular_compute_groebner(void *ideal_ptr) {
     if (!ideal_ptr) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "singular_compute_groebner: 理想指针为空");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "singular_compute_groebner: 理想指针为空");
     }
 
 #ifdef LV_HAS_SINGULAR
@@ -349,7 +345,7 @@ static void *singular_compute_groebner(void *ideal_ptr) {
 
 #else
     (void)ideal_ptr;
-    return NULL;
+    lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED, "singular_compute_groebner: LV_HAS_SINGULAR 未定义");
 #endif
 }
 
@@ -367,8 +363,7 @@ static void *singular_compute_groebner(void *ideal_ptr) {
  */
 static int singular_ideal_intersection(void *ideal_a, void *ideal_b, void **result) {
     if (!ideal_a || !ideal_b || !result) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "singular_ideal_intersection: 无效参数");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_intersection: 无效参数");
     }
 
 #ifdef LV_HAS_SINGULAR
@@ -397,7 +392,7 @@ static int singular_ideal_intersection(void *ideal_a, void *ideal_b, void **resu
     (void)ideal_a;
     (void)ideal_b;
     *result = NULL;
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "singular_ideal_intersection: LV_HAS_SINGULAR 未定义");
 #endif
 }
 
@@ -411,8 +406,7 @@ static int singular_ideal_intersection(void *ideal_a, void *ideal_b, void **resu
  */
 static int singular_ideal_quotient(void *ideal_a, void *ideal_b, void **result) {
     if (!ideal_a || !ideal_b || !result) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "singular_ideal_quotient: 无效参数");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_quotient: 无效参数");
     }
 
 #ifdef LV_HAS_SINGULAR
@@ -439,7 +433,7 @@ static int singular_ideal_quotient(void *ideal_a, void *ideal_b, void **result) 
     (void)ideal_a;
     (void)ideal_b;
     *result = NULL;
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "singular_ideal_quotient: LV_HAS_SINGULAR 未定义");
 #endif
 }
 
@@ -452,8 +446,7 @@ static int singular_ideal_quotient(void *ideal_a, void *ideal_b, void **result) 
  */
 static int singular_ideal_membership(void *poly, void *ideal) {
     if (!poly || !ideal) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "singular_ideal_membership: 无效参数");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_membership: 无效参数");
     }
 
 #ifdef LV_HAS_SINGULAR
@@ -484,7 +477,7 @@ static int singular_ideal_membership(void *poly, void *ideal) {
 #else
     (void)poly;
     (void)ideal;
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "singular_ideal_membership: LV_HAS_SINGULAR 未定义");
 #endif
 }
 
@@ -514,9 +507,8 @@ static void *singular_constraint_graph_to_ideal(const int *constraint_ids,
                                                 const SingularVar *vars,
                                                 int n_vars) {
     if (!constraint_ids || n_constraints <= 0 || !vars || n_vars <= 0) {
-        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
-                     "singular_constraint_graph_to_ideal: 无效参数");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM,
+                             "singular_constraint_graph_to_ideal: 无效参数");
     }
 
 #ifdef LV_HAS_SINGULAR
@@ -545,14 +537,14 @@ static void *singular_constraint_graph_to_ideal(const int *constraint_ids,
     /* } */
 
     LOG_INFO("Singular", "约束图→理想转换: %d 个约束, %d 个变量", n_constraints, n_vars);
-    return NULL;
+    lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED, "singular_constraint_graph_to_ideal: 占位实现未完成");
 
 #else
     (void)constraint_ids;
     (void)n_constraints;
     (void)vars;
     (void)n_vars;
-    return NULL;
+    lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED, "singular_constraint_graph_to_ideal: LV_HAS_SINGULAR 未定义");
 #endif
 }
 
@@ -580,7 +572,7 @@ void *lv_singular_groebner_basis(void *ideal_ptr) {
 void *lv_singular_ideal_intersect(void *ideal_a, void *ideal_b) {
     void *result = NULL;
     if (singular_ideal_intersection(ideal_a, ideal_b, &result) != 0) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_singular_ideal_intersect: 理想交运算失败");
     }
     return result;
 }
@@ -595,7 +587,7 @@ void *lv_singular_ideal_intersect(void *ideal_a, void *ideal_b) {
 void *lv_singular_ideal_quotient_op(void *ideal_a, void *ideal_b) {
     void *result = NULL;
     if (singular_ideal_quotient(ideal_a, ideal_b, &result) != 0) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_singular_ideal_quotient_op: 理想商运算失败");
     }
     return result;
 }

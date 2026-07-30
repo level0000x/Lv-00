@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sym_expr.c
  * @brief Symbolic expression tree -- implementation
  *
@@ -14,6 +14,7 @@
 
 #include "sym_expr.h"
 #include "lv/lv_utils.h"
+#include "lv_internal.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -30,7 +31,7 @@
 static lvSymExpr *sym_expr_alloc(lvSymExprKind kind) {
     lvSymExpr *expr = (lvSymExpr *) lv_calloc(1, sizeof(lvSymExpr));
     if (!expr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_alloc: calloc failed");
     expr->kind = kind;
     expr->value = 0.0;
     expr->var_name = NULL;
@@ -44,11 +45,11 @@ static lvSymExpr *sym_expr_alloc(lvSymExprKind kind) {
  */
 static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
     if (!expr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_deep_copy: input expr is NULL");
 
     lvSymExpr *copy = sym_expr_alloc(expr->kind);
     if (!copy)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_deep_copy: alloc copy failed");
 
     copy->value = expr->value;
 
@@ -56,7 +57,7 @@ static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
         copy->var_name = lv_strdup_safe(expr->var_name);
         if (!copy->var_name) {
             lv_free((void **)&(copy));
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_deep_copy: strdup var_name failed");
         }
     }
 
@@ -65,7 +66,7 @@ static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
         if (!copy->children) {
             lv_free((void **)&(copy->var_name));
             lv_free((void **)&(copy));
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_deep_copy: calloc children failed");
         }
         copy->child_count = expr->child_count;
         for (int i = 0; i < expr->child_count; i++) {
@@ -78,7 +79,7 @@ static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
                 lv_free((void **)&(copy->children));
                 lv_free((void **)&(copy->var_name));
                 lv_free((void **)&(copy));
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_deep_copy: child copy failed");
             }
         }
     }
@@ -114,42 +115,42 @@ static int sym_expr_is_const_val(const lvSymExpr *expr, double val) {
 lv_PUBLIC_API lvSymExpr *sym_expr_create_const(double value) {
     lvSymExpr *expr = sym_expr_alloc(lv_SYM_CONST);
     if (!expr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_create_const: alloc failed");
     expr->value = value;
     return expr;
 }
 
 lv_PUBLIC_API lvSymExpr *sym_expr_create_var(const char *var_name) {
     if (!var_name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_create_var: var_name is NULL");
 
     lvSymExpr *expr = sym_expr_alloc(lv_SYM_VAR);
     if (!expr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_create_var: alloc failed");
 
     expr->var_name = lv_strdup_safe(var_name);
     if (!expr->var_name) {
         lv_free((void **)&(expr));
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_create_var: strdup failed");
     }
     return expr;
 }
 
 lv_PUBLIC_API lvSymExpr *sym_expr_create_binary(lvSymExprKind kind, lvSymExpr *left, lvSymExpr *right) {
     if (kind != lv_SYM_ADD && kind != lv_SYM_MUL && kind != lv_SYM_POW) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "sym_expr_create_binary: invalid kind %d", (int)kind);
     }
     if (!left || !right) {
         sym_expr_destroy(left);
         sym_expr_destroy(right);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_create_binary: left or right is NULL");
     }
 
     lvSymExpr *expr = sym_expr_alloc(kind);
     if (!expr) {
         sym_expr_destroy(left);
         sym_expr_destroy(right);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_create_binary: alloc failed");
     }
 
     expr->child_count = 2;
@@ -158,7 +159,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_create_binary(lvSymExprKind kind, lvSymExpr *l
         lv_free((void **)&(expr));
         sym_expr_destroy(left);
         sym_expr_destroy(right);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_create_binary: calloc children failed");
     }
     expr->children[0] = left;
     expr->children[1] = right;
@@ -167,15 +168,15 @@ lv_PUBLIC_API lvSymExpr *sym_expr_create_binary(lvSymExprKind kind, lvSymExpr *l
 
 lv_PUBLIC_API lvSymExpr *sym_expr_create_unary(lvSymExprKind kind, lvSymExpr *operand) {
     if (kind != lv_SYM_NEG && kind != lv_SYM_SIN && kind != lv_SYM_COS && kind != lv_SYM_SQRT && kind != lv_SYM_LOG) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "sym_expr_create_unary: invalid kind %d", (int)kind);
     }
     if (!operand)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_create_unary: operand is NULL");
 
     lvSymExpr *expr = sym_expr_alloc(kind);
     if (!expr) {
         sym_expr_destroy(operand);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_create_unary: alloc failed");
     }
 
     expr->child_count = 1;
@@ -183,7 +184,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_create_unary(lvSymExprKind kind, lvSymExpr *op
     if (!expr->children) {
         lv_free((void **)&(expr));
         sym_expr_destroy(operand);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_create_unary: calloc children failed");
     }
     expr->children[0] = operand;
     return expr;
@@ -212,7 +213,7 @@ lv_PUBLIC_API void sym_expr_destroy(lvSymExpr *expr) {
 
 lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
     if (!expr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_simplify: input expr is NULL");
 
     /* Leaf nodes: constants and variables are already simplified */
     if (expr->kind == lv_SYM_CONST || expr->kind == lv_SYM_VAR) {
@@ -224,14 +225,14 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
     if (expr->child_count > 0) {
         simplified_children = (lvSymExpr **) lv_calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
         if (!simplified_children)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_simplify: calloc simplified_children failed");
         for (int i = 0; i < expr->child_count; i++) {
             simplified_children[i] = sym_expr_simplify(expr->children[i]);
             if (!simplified_children[i]) {
                 for (int j = 0; j < i; j++)
                     sym_expr_destroy(simplified_children[j]);
                 lv_free((void **)&(simplified_children));
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_simplify: child simplify failed");
             }
         }
     }
@@ -655,7 +656,7 @@ static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf, int bufsize
 
 lv_PUBLIC_API char *sym_expr_to_string(const lvSymExpr *expr) {
     if (!expr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_to_string: input expr is NULL");
 
     /* First pass: compute required length */
     int len = sym_expr_to_string_impl(expr, NULL, 0, lv_SYM_CONST);
@@ -669,7 +670,7 @@ lv_PUBLIC_API char *sym_expr_to_string(const lvSymExpr *expr) {
     /* Allocate and second pass: fill buffer */
     char *buf = (char *) lv_malloc((size_t) (len + 1));
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_to_string: malloc buf failed");
     sym_expr_to_string_impl(expr, buf, len + 1, lv_SYM_CONST);
     buf[len] = '\0';
     return buf;
@@ -681,7 +682,7 @@ lv_PUBLIC_API char *sym_expr_to_string(const lvSymExpr *expr) {
 
 lv_PUBLIC_API lvSymExpr *sym_expr_diff(const lvSymExpr *expr, const char *var_name) {
     if (!expr || !var_name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_diff: expr or var_name is NULL");
 
     switch (expr->kind) {
         case lv_SYM_CONST:
@@ -792,7 +793,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_diff(const lvSymExpr *expr, const char *var_na
 lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *var_name,
                                              const lvSymExpr *replacement) {
     if (!expr || !var_name || !replacement)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_substitute: expr, var_name, or replacement is NULL");
 
     /* Leaf: variable matches -> return deep copy of replacement */
     if (expr->kind == lv_SYM_VAR) {
@@ -810,7 +811,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *
     /* Internal node: recursively substitute in children, then rebuild */
     lvSymExpr **new_children = (lvSymExpr **) lv_calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
     if (!new_children)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_substitute: calloc new_children failed");
 
     for (int i = 0; i < expr->child_count; i++) {
         new_children[i] = sym_expr_substitute(expr->children[i], var_name, replacement);
@@ -818,7 +819,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *
             for (int j = 0; j < i; j++)
                 sym_expr_destroy(new_children[j]);
             lv_free((void **)&(new_children));
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_substitute: child substitute failed");
         }
     }
 
@@ -828,7 +829,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *
         for (int i = 0; i < expr->child_count; i++)
             sym_expr_destroy(new_children[i]);
         lv_free((void **)&(new_children));
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_substitute: alloc result failed");
     }
     result->children = new_children;
     result->child_count = expr->child_count;

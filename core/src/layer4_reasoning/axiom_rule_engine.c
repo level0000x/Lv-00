@@ -14,6 +14,8 @@
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 
+#include "lv_internal.h"
+
 /* 默认规则库容量 */
 #define DEFAULT_LIBRARY_CAPACITY 64
 
@@ -43,7 +45,7 @@ static void rule_free_internals(lvRule *rule) {
 lvRuleLibrary *lv_rule_library_create(const lvRuleLibraryConfig *config) {
     lvRuleLibrary *lib = lv_calloc(1, sizeof(lvRuleLibrary));
     if (!lib)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_library_create: calloc failed for library");
 
     uint32_t cap = DEFAULT_LIBRARY_CAPACITY;
     if (config && config->max_rules > 0)
@@ -52,7 +54,7 @@ lvRuleLibrary *lv_rule_library_create(const lvRuleLibraryConfig *config) {
     lib->rules = lv_calloc(cap, sizeof(lvRule *));
     if (!lib->rules) {
         lv_free((void **) &lib);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_library_create: calloc failed for rules");
     }
     lib->rule_capacity = cap;
     lib->rule_count = 0;
@@ -87,16 +89,16 @@ void lv_rule_library_destroy(lvRuleLibrary *library) {
 
 bool lv_rule_library_add(lvRuleLibrary *library, lvRule *rule) {
     if (!library || !rule)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_library_add: NULL library or rule");
     if (library->rule_count >= library->rule_capacity)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_rule_library_add: library is full");
     library->rules[library->rule_count++] = rule;
     return true;
 }
 
 bool lv_rule_library_remove(lvRuleLibrary *library, uint32_t rule_id) {
     if (!library)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_library_remove: NULL library");
     for (uint32_t i = 0; i < library->rule_count; i++) {
         if (library->rules[i] && library->rules[i]->id == rule_id) {
             lv_rule_destroy(library->rules[i]);
@@ -114,7 +116,7 @@ bool lv_rule_library_remove(lvRuleLibrary *library, uint32_t rule_id) {
 
 lvRule *lv_rule_library_get_by_id(const lvRuleLibrary *library, uint32_t rule_id) {
     if (!library)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_library_get_by_id: NULL library");
     for (uint32_t i = 0; i < library->rule_count; i++) {
         if (library->rules[i] && library->rules[i]->id == rule_id) {
             return library->rules[i];
@@ -125,7 +127,7 @@ lvRule *lv_rule_library_get_by_id(const lvRuleLibrary *library, uint32_t rule_id
 
 lvRule *lv_rule_library_get_by_name(const lvRuleLibrary *library, const char *name) {
     if (!library || !name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_library_get_by_name: NULL library or name");
     for (uint32_t i = 0; i < library->rule_count; i++) {
         if (library->rules[i] && strcmp(library->rules[i]->name, name) == 0) {
             return library->rules[i];
@@ -137,7 +139,7 @@ lvRule *lv_rule_library_get_by_name(const lvRuleLibrary *library, const char *na
 uint32_t lv_rule_library_get_by_type(const lvRuleLibrary *library, lvRuleType type, lvRule **out_rules,
                                      uint32_t max_count) {
     if (!library || !out_rules)
-        return 0;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NULL_POINTER, 0, "lv_rule_library_get_by_type: NULL param");
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         if (library->rules[i] && library->rules[i]->type == type) {
@@ -150,7 +152,7 @@ uint32_t lv_rule_library_get_by_type(const lvRuleLibrary *library, lvRuleType ty
 uint32_t lv_rule_library_get_by_difficulty(const lvRuleLibrary *library, uint32_t min_level, uint32_t max_level,
                                            lvRule **out_rules, uint32_t max_count) {
     if (!library || !out_rules)
-        return 0;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NULL_POINTER, 0, "lv_rule_library_get_by_difficulty: NULL param");
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         lvRule *r = library->rules[i];
@@ -164,7 +166,7 @@ uint32_t lv_rule_library_get_by_difficulty(const lvRuleLibrary *library, uint32_
 uint32_t lv_rule_library_search_by_tag(const lvRuleLibrary *library, const char *tag, lvRule **out_rules,
                                        uint32_t max_count) {
     if (!library || !tag || !out_rules)
-        return 0;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NULL_POINTER, 0, "lv_rule_library_search_by_tag: NULL param");
     uint32_t found = 0;
     for (uint32_t i = 0; i < library->rule_count && found < max_count; i++) {
         lvRule *r = library->rules[i];
@@ -184,10 +186,10 @@ uint32_t lv_rule_library_search_by_tag(const lvRuleLibrary *library, const char 
 
 lvRule *lv_rule_create(const char *name, lvRuleType type) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_create: NULL name");
     lvRule *rule = lv_calloc(1, sizeof(lvRule));
     if (!rule)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_create: calloc failed");
     lv_strlcpy(rule->name, name, lv_RULE_NAME_MAX_LEN);
     rule->type = type;
     rule->status = RULE_STATUS_ENABLED;
@@ -204,16 +206,16 @@ void lv_rule_destroy(lvRule *rule) {
 
 bool lv_rule_set_description(lvRule *rule, const char *description) {
     if (!rule || !description)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_set_description: NULL rule or description");
     lv_strlcpy(rule->description, description, lv_RULE_DESC_MAX_LEN);
     return true;
 }
 
 bool lv_rule_add_variable(lvRule *rule, const char *name, const char *type) {
     if (!rule || !name || !type)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_add_variable: NULL param");
     if (rule->var_count >= lv_RULE_MAX_VARIABLES)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_rule_add_variable: max variables reached");
     lvRuleVariable *v = &rule->variables[rule->var_count++];
     lv_strlcpy(v->name, name, sizeof(v->name));
     lv_strlcpy(v->type, type, sizeof(v->type));
@@ -224,9 +226,9 @@ bool lv_rule_add_variable(lvRule *rule, const char *name, const char *type) {
 
 bool lv_rule_add_premise(lvRule *rule, const char *pattern, bool is_optional) {
     if (!rule || !pattern)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_add_premise: NULL param");
     if (rule->premise_count >= lv_RULE_MAX_PREMISES)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_rule_add_premise: max premises reached");
     lvRulePremise *p = &rule->premises[rule->premise_count++];
     lv_strlcpy(p->pattern, pattern, sizeof(p->pattern));
     p->is_optional = is_optional;
@@ -237,9 +239,9 @@ bool lv_rule_add_premise(lvRule *rule, const char *pattern, bool is_optional) {
 
 bool lv_rule_add_conclusion(lvRule *rule, const char *pattern, TrustColor trust_color) {
     if (!rule || !pattern)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_add_conclusion: NULL param");
     if (rule->conclusion_count >= lv_RULE_MAX_CONCLUSIONS)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_rule_add_conclusion: max conclusions reached");
     lvRuleConclusion *c = &rule->conclusions[rule->conclusion_count++];
     lv_strlcpy(c->pattern, pattern, sizeof(c->pattern));
     c->trust_color = trust_color;
@@ -248,14 +250,14 @@ bool lv_rule_add_conclusion(lvRule *rule, const char *pattern, TrustColor trust_
 
 bool lv_rule_add_tag(lvRule *rule, const char *tag) {
     if (!rule || !tag)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_add_tag: NULL rule or tag");
     char **new_tags = lv_realloc(rule->tags, (rule->tag_count + 1) * sizeof(char *));
     if (!new_tags)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_add_tag: realloc failed");
     rule->tags = new_tags;
     rule->tags[rule->tag_count] = lv_strdup(tag);
     if (!rule->tags[rule->tag_count])
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_add_tag: strdup failed");
     rule->tag_count++;
     return true;
 }
@@ -293,10 +295,10 @@ const char *lv_difficulty_dimension_to_string(lvDifficultyDimension dimension) {
 
 lvDifficultyAssessment *lv_rule_assess_difficulty(const lvRule *rule) {
     if (!rule)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_assess_difficulty: NULL rule");
     lvDifficultyAssessment *assess = lv_calloc(1, sizeof(lvDifficultyAssessment));
     if (!assess)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_assess_difficulty: calloc failed");
 
     /* 基于规则结构简单评估 */
     double structural = (double) rule->premise_count * 20.0 + (double) rule->conclusion_count * 15.0;
@@ -334,7 +336,7 @@ void lv_difficulty_assessment_destroy(lvDifficultyAssessment *assessment) {
 lvDifficultyAssessment *lv_proof_step_assess_difficulty(const ProofStep *step, const ConstraintGraph *graph) {
     lvDifficultyAssessment *a = lv_calloc(1, sizeof(lvDifficultyAssessment));
     if (!a)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_proof_step_assess_difficulty: calloc failed");
 
     uint32_t score = 100;
     uint32_t level = 1;
@@ -402,7 +404,7 @@ lvDifficultyAssessment *lv_proof_step_assess_difficulty(const ProofStep *step, c
 lvDifficultyAssessment *lv_proposition_assess_difficulty(const Proposition *prop) {
     lvDifficultyAssessment *a = lv_calloc(1, sizeof(lvDifficultyAssessment));
     if (!a)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_proposition_assess_difficulty: calloc failed");
 
     uint32_t score = 100;
     uint32_t level = 1;
@@ -455,7 +457,7 @@ lvDifficultyAssessment *lv_proposition_assess_difficulty(const Proposition *prop
 uint32_t lv_rule_find_matches(const lvRuleLibrary *library, const ConstraintGraph *graph, const ProofNavigator *context,
                               lvRuleMatch **out_matches, uint32_t max_count) {
     if (!library || !out_matches)
-        return 0;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NULL_POINTER, 0, "lv_rule_find_matches: NULL library or out_matches");
 
     uint32_t found = 0;
     int node_count = graph ? graph_get_node_count(graph) : 0;
@@ -502,7 +504,7 @@ uint32_t lv_rule_find_matches(const lvRuleLibrary *library, const ConstraintGrap
 uint32_t lv_rule_apply_match(const lvRuleMatch *match, ConstraintGraph *graph, ProofNavigator *context,
                              ProofStep **out_steps, uint32_t max_steps) {
     if (!match || !match->rule || !out_steps || !graph)
-        return 0;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NULL_POINTER, 0, "lv_rule_apply_match: NULL param");
 
     lvRule *rule = match->rule;
     /* 为每个结论创建一个证明步骤 */
@@ -554,7 +556,7 @@ void lv_rule_match_destroy(lvRuleMatch *match) {
 
 bool lv_rule_is_applicable(const lvRule *rule, const ConstraintGraph *graph, const ProofNavigator *context) {
     if (!rule)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_is_applicable: NULL rule");
     if (rule->status != RULE_STATUS_ENABLED)
         return false;
 
@@ -591,10 +593,10 @@ bool lv_rule_is_applicable(const lvRule *rule, const ConstraintGraph *graph, con
 lvRuleRecommendation *lv_rule_recommend(const lvRuleLibrary *library, const ConstraintGraph *graph,
                                         const ProofNavigator *context, uint32_t max_count) {
     if (!library)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_recommend: NULL library");
     lvRuleRecommendation *rec = lv_calloc(1, sizeof(lvRuleRecommendation));
     if (!rec)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_recommend: calloc failed for rec");
 
     uint32_t cnt = library->rule_count < max_count ? library->rule_count : max_count;
     rec->rules = lv_calloc(cnt, sizeof(lvRule *));
@@ -603,7 +605,7 @@ lvRuleRecommendation *lv_rule_recommend(const lvRuleLibrary *library, const Cons
         lv_free((void **) &rec->rules);
         lv_free((void **) &rec->scores);
         lv_free((void **) &rec);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_recommend: calloc failed for rules/scores");
     }
     for (uint32_t i = 0; i < cnt; i++) {
         rec->rules[i] = library->rules[i];
@@ -627,7 +629,7 @@ void lv_rule_recommendation_destroy(lvRuleRecommendation *rec) {
 
 char *lv_rule_to_json(const lvRule *rule) {
     if (!rule)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_to_json: NULL rule");
     char *json = lv_asprintf(
         "{\"id\":%u,\"name\":\"%s\",\"type\":%d,\"status\":%d,\"priority\":%d,"
         "\"premise_count\":%u,\"conclusion_count\":%u,\"difficulty_level\":%u}",
@@ -638,7 +640,7 @@ char *lv_rule_to_json(const lvRule *rule) {
 
 lvRule *lv_rule_from_json(const char *json) {
     if (!json)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_from_json: NULL json");
 
     /* 解析基本 JSON 字段 */
     const char *name_start = strstr(json, "\"name\":\"");
@@ -680,10 +682,10 @@ lvRule *lv_rule_from_json(const char *json) {
 
 lvRule *lv_rule_copy(const lvRule *rule) {
     if (!rule)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_copy: NULL rule");
     lvRule *copy = lv_calloc(1, sizeof(lvRule));
     if (!copy)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_copy: calloc failed");
     memcpy(copy, rule, sizeof(lvRule));
     /* 重置动态指针，避免双重释放 */
     copy->dependency_ids = NULL;
@@ -703,10 +705,10 @@ lvRule *lv_rule_copy(const lvRule *rule) {
 
 bool lv_rule_library_save(const lvRuleLibrary *library, const char *path) {
     if (!library || !path)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_library_save: NULL library or path");
     FILE *f = fopen(path, "w");
     if (!f)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INTERNAL, "lv_rule_library_save: fopen failed");
     lvJsonBuf buf;
     lv_json_buf_init(&buf, 64);
     lv_json_buf_append_fmt(&buf, "{\"rule_count\":%u}", library->rule_count);

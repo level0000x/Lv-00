@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* ============================================================
@@ -124,11 +125,11 @@ static void uf_union(int *parent, int *rank, int x, int y) {
 
 lvSimplicialComplex *geo_simplicial_create(int n_vertices) {
     if (n_vertices < 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "geo_simplicial_create: n_vertices < 0");
 
     lvSimplicialComplex *sc = (lvSimplicialComplex *) lv_calloc(1, sizeof(lvSimplicialComplex));
     if (!sc)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "geo_simplicial_create: calloc sc failed");
 
     sc->n_vertices = n_vertices;
     sc->edges = NULL;
@@ -243,11 +244,11 @@ int geo_simplicial_euler_characteristic(const lvSimplicialComplex *sc) {
 
 lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc, const lvTriangle *tri) {
     if (!tri && (!sc || sc->n_triangles == 0))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "geo_simplicial_boundary: NULL params or empty complex");
 
     lvBoundary *bnd = (lvBoundary *) lv_calloc(1, sizeof(lvBoundary));
     if (!bnd)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "geo_simplicial_boundary: calloc bnd failed");
 
     bnd->edges = NULL;
     bnd->n_edges = 0;
@@ -260,7 +261,7 @@ lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc, const lvTrian
         lvEdge *tmp_edges = (lvEdge *) lv_calloc(max_edges, sizeof(lvEdge));
         if (!tmp_edges) {
             lv_free((void **) &(bnd));
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "geo_simplicial_boundary: calloc tmp_edges failed");
         }
         size_t n_unique = 0;
 
@@ -324,7 +325,7 @@ lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc, const lvTrian
         bnd->edges = (lvEdge *) lv_calloc(3, sizeof(lvEdge));
         if (!bnd->edges) {
             lv_free((void **) &(bnd));
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "geo_simplicial_boundary: calloc edges failed");
         }
         bnd->n_edges = 3;
 

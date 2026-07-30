@@ -779,6 +779,8 @@ set(lv_LAYER3_SOURCES
 set(lv_LAYER4_SOURCES
     # 核心引擎与求解
     core/src/layer4_reasoning/engine/engine.c
+    core/src/layer4_reasoning/engine/engine_state.c
+    core/src/layer4_reasoning/engine/engine_status.c
     core/src/layer4_reasoning/solver.c
     core/src/layer4_reasoning/solver/solver_core.c
     # 证明系统
@@ -805,6 +807,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/model/recursion.c
     # 类型与属性
     core/src/layer4_reasoning/type_logic/type_system.c
+    core/src/layer4_reasoning/type_logic/type_path_explorer.c
     core/src/layer4_reasoning/type_logic/type_equiv_explorer.c
     core/src/layer4_reasoning/proof_system/prop_verifier.c
     # 后端求解引擎

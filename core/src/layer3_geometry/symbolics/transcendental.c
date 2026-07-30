@@ -51,7 +51,7 @@
 
 Transcendental *transcendental_create(const char *name) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "transcendental_create: name is NULL");
 
     /* 支持基础常量 "pi" 和 "e"，以及复合表达式如 "pi/2", "pi/3",
      * "pi/4", "pi/6", "3*pi/4", "5*pi/6", "2*pi/3" 及其负数形式 */
@@ -77,7 +77,7 @@ Transcendental *transcendental_create(const char *name) {
                     coeff_den = (int64_t) v;
             }
             if (coeff_den <= 0)
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
         }
     } else if (strncmp(name, "pi/", 3) == 0) {
         /* pi/N 形式 */
@@ -91,10 +91,10 @@ Transcendental *transcendental_create(const char *name) {
                 coeff_den = (int64_t) v;
         }
         if (coeff_den <= 0)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
     } else if (strncmp(name, "-pi/", 4) == 0) {
         /* 已在上面处理 */
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: unsupported format");
     } else {
         /* 尝试解析 N*pi/M 或 N*pi 形式 */
         char *star_pos = strstr(name, "*pi");
@@ -110,7 +110,7 @@ Transcendental *transcendental_create(const char *name) {
                     coeff_num = (int64_t) v;
             }
             if (coeff_num <= 0)
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid num");
             const char *after = star_pos + 3; /* skip "*pi" */
             if (*after == '/') {
                 {
@@ -121,7 +121,7 @@ Transcendental *transcendental_create(const char *name) {
                         coeff_den = (int64_t) v;
                 }
                 if (coeff_den <= 0)
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
             }
         } else if (star_pos && star_pos == name + 2 && name[0] == '-') {
             /* -N*pi 或 -N*pi/M */
@@ -135,7 +135,7 @@ Transcendental *transcendental_create(const char *name) {
                     coeff_num = (int64_t) v;
             }
             if (coeff_num >= 0)
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid num");
             const char *after = star_pos + 3;
             if (*after == '/') {
                 {
@@ -146,19 +146,19 @@ Transcendental *transcendental_create(const char *name) {
                         coeff_den = (int64_t) v;
                 }
                 if (coeff_den <= 0)
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
             }
         } else {
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED, "transcendental_create: unsupported name format");
         }
     }
 
     if (!base)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "transcendental_create: base is NULL");
 
     Transcendental *t = lv_calloc(1, sizeof(Transcendental));
     if (!t)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "transcendental_create: calloc failed");
     /* 安全字符串复制：确保以 null 终止 */
     {
         size_t name_len = strlen(name);
@@ -176,7 +176,7 @@ Transcendental *transcendental_create(const char *name) {
         TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
         if (!expr) {
             lv_free((void **) &t);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "transcendental_create: expr calloc failed");
         }
         /* 安全字符串复制：确保以 null 终止 */
         {
@@ -200,7 +200,7 @@ Transcendental *transcendental_create(const char *name) {
         if (!expr->rational_operand) {
             lv_free((void **) &expr);
             lv_free((void **) &t);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "transcendental_create: rational_operand failed");
         }
 
         t->expr = expr;
@@ -291,7 +291,7 @@ char *transcendental_serialize(const Transcendental *t) {
         size_t len = strlen(t->name) + strlen(op_str) + 32;
         char *buf = lv_malloc(len);
         if (!buf)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "transcendental_serialize: malloc failed");
         snprintf(buf, len, "[%s %s <out-of-scope>]", t->name, op_str);
         return buf;
     }

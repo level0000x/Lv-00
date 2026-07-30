@@ -483,7 +483,7 @@ CSGNode *csg_cube_create(double w, double h, double d) {
 CSGNode *csg_cylinder_create(double radius, double height) {
     CSGNode *node = csg_node_create(CSG_NODE_PRIMITIVE);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "csg_cylinder_create: node allocation failed");
     node->data.prim.type = 2;
     node->data.prim.params[0] = fabs(radius);
     node->data.prim.params[1] = fabs(height);
@@ -512,7 +512,7 @@ CSGNode *csg_box_create(double width, double height, double depth) {
 CSGNode *csg_cone_create(double radius1, double radius2, double height) {
     CSGNode *node = csg_node_create(CSG_NODE_PRIMITIVE);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "csg_cone_create: node allocation failed");
     node->data.prim.type = 3;
     node->data.prim.params[0] = fabs(radius1);
     node->data.prim.params[1] = fabs(radius2);
@@ -810,7 +810,7 @@ typedef struct CSGBSPNode {
 static CSGBSPNode *csg_bsp_node_create(void) {
     CSGBSPNode *node = (CSGBSPNode *) lv_calloc(1, sizeof(CSGBSPNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "csg_bsp_node_create: allocation failed");
     node->front = NULL;
     node->back = NULL;
     node->tris = NULL;
@@ -2222,7 +2222,7 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
             if (n > 0)
                 written += n;
             if (n < 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for primitive");
             break;
         }
 
@@ -2239,19 +2239,19 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
             if (n > 0)
                 written += n;
             else if (n < 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for boolean op");
 
             for (int i = 0; i < node->child_count; i++) {
                 written = csg_export_node(node->children[i], buf, buf_size, written, indent + 1);
                 if (written < 0)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: child export failed");
             }
 
             n = snprintf(buf + written, (size_t) (buf_size - written), "%s}\n", indent_str);
             if (n > 0)
                 written += n;
             else if (n < 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for boolean close");
             break;
         }
 
@@ -2260,11 +2260,11 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
             if (n > 0)
                 written += n;
             else if (n < 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for transform");
             if (node->child_count > 0) {
                 written = csg_export_node(node->children[0], buf, buf_size, written, indent);
                 if (written < 0)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: transform child export failed");
             }
             break;
 
@@ -2284,19 +2284,19 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
             if (n > 0)
                 written += n;
             else if (n < 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for hull/minkowski/extrude");
 
             for (int i = 0; i < node->child_count; i++) {
                 written = csg_export_node(node->children[i], buf, buf_size, written, indent + 1);
                 if (written < 0)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: child export failed");
             }
 
             n = snprintf(buf + written, (size_t) (buf_size - written), "%s}\n", indent_str);
             if (n > 0)
                 written += n;
             else if (n < 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for hull/minkowski/extrude close");
             break;
         }
     }
@@ -2315,12 +2315,12 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
  */
 char *csg_export_to_openscad(const CSGNode *root) {
     if (!root)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "csg_export_to_openscad: root is NULL");
 
     int buf_size = CSG_EXPORT_BUF_INIT;
     char *buf = (char *) lv_calloc((size_t) buf_size, sizeof(char));
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "csg_export_to_openscad: buffer allocation failed");
 
     /* 添加文件头 */
     int written = snprintf(buf, (size_t) buf_size,
@@ -2365,13 +2365,13 @@ CSGNode *csg_example_taj_mahal_dome(void) {
     /* 创建半球体（近似为完整球体） */
     CSGNode *dome = csg_sphere_create(10.0);
     if (!dome)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "csg_example_taj_mahal_dome: dome allocation failed");
 
     /* 创建圆柱体基座 */
     CSGNode *base = csg_cylinder_create(10.0, 4.0);
     if (!base) {
         csg_node_destroy(dome);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "csg_example_taj_mahal_dome: base allocation failed");
     }
 
     /* 组合为并集 */
@@ -2379,7 +2379,7 @@ CSGNode *csg_example_taj_mahal_dome(void) {
     if (!taj_mahal) {
         csg_node_destroy(dome);
         csg_node_destroy(base);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "csg_example_taj_mahal_dome: union allocation failed");
     }
 
     return taj_mahal;

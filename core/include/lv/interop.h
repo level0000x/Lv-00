@@ -21,7 +21,14 @@
 #include <stdint.h>
 
 #include "constraint_graph.h"
+#include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
 #include "proof.h"
+
+/** @brief interop 模块全局流式上下文（由 interop_command.c 集中定义） */
+extern lv_THREAD_LOCAL StreamContext *interop_stream_ctx;
+
+/** @brief 设置 interop 模块的流式上下文 */
+void interop_set_stream_context(StreamContext *ctx);
 
 /* 前向声明 —— 避免引入 lv.h 的 16+ 传递依赖 */
 struct lvEngine;

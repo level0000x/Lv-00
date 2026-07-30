@@ -24,8 +24,6 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 
-lv_DECLARE_STREAM_CTX(interop);
-
 /** @brief 单个约束节点涉及的最大约束数量（统一在 interop.h 中定义） */
 
 /* ── 导出模块 ── */

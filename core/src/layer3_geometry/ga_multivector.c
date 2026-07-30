@@ -75,11 +75,11 @@ void ga_mv_destroy(lvMultiVector *mv) {
  */
 lvMultiVector *ga_mv_copy(const lvMultiVector *src) {
     if (!src)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "ga_mv_copy: src is NULL");
 
     lvMultiVector *copy = ga_mv_create();
     if (!copy)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_mv_copy: copy allocation failed");
 
     memcpy(copy->c, src->c, sizeof(copy->c));
     return copy;
@@ -132,7 +132,7 @@ void ga_mv_set(lvMultiVector *mv, int index, double value) {
  */
 int ga_mv_grade(const lvMultiVector *mv) {
     if (!mv)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "ga_mv_grade: mv is NULL");
 
     int max_grade = -1;
     double eps = 1e-10;
@@ -260,11 +260,11 @@ lvMultiVector *ga_mv_sub(const lvMultiVector *a, const lvMultiVector *b) {
  */
 lvMultiVector *ga_mv_scale(const lvMultiVector *mv, double scalar) {
     if (!mv)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "ga_mv_scale: mv is NULL");
 
     lvMultiVector *result = ga_mv_create();
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_mv_scale: result allocation failed");
 
     for (int i = 0; i < 16; i++) {
         result->c[i] = mv->c[i] * scalar;
@@ -485,11 +485,11 @@ double ga_mv_inner_product(const lvMultiVector *a, const lvMultiVector *b) {
  */
 lvMultiVector *ga_mv_outer_product(const lvMultiVector *a, const lvMultiVector *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "ga_mv_outer_product: a or b is NULL");
 
     lvMultiVector *result = ga_mv_zero();
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_mv_outer_product: result allocation failed");
 
     /* scalar * anything */
     for (int i = 0; i < 16; i++) {

@@ -41,11 +41,11 @@ struct lvSparseMatrix {
  */
 lvSparseMatrix *lv_sparse_create(int rows, int cols) {
     if (rows <= 0 || cols <= 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_sparse_create: rows or cols <= 0");
 
     lvSparseMatrix *m = lv_calloc(1, sizeof(lvSparseMatrix));
     if (!m)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_sparse_create: calloc m failed");
 
     m->rows = rows;
     m->cols = cols;
@@ -61,7 +61,7 @@ lvSparseMatrix *lv_sparse_create(int rows, int cols) {
         lv_free(m->col_idx);
         lv_free(m->row_ptr);
         lv_free(m);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_sparse_create: malloc values/col_idx/row_ptr failed");
     }
 
     for (int i = 0; i <= rows; i++)
@@ -114,13 +114,13 @@ static bool sparse_grow(lvSparseMatrix *m, int needed) {
  */
 int lv_sparse_set(lvSparseMatrix *m, int row, int col, double val) {
     if (!m || row < 0 || row >= m->rows || col < 0 || col >= m->cols)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_sparse_set: invalid matrix or out of bounds");
 
     if (val == 0.0)
         return 0; /* 不存储零元素 */
 
     if (!sparse_grow(m, 1))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_sparse_set: sparse_grow failed");
 
     int pos = m->nnz;
     m->values[pos] = val;

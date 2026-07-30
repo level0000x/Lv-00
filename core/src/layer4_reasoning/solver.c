@@ -98,19 +98,9 @@ typedef struct SolverSnapshot {
     int coord_count;
 } SolverSnapshot;
 
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
-
-lv_DECLARE_STREAM_CTX(solver);
+/* solver_stream_ctx 由 solver_engine.c 集中定义，此处通过 solver_types.h 引用 extern 声明 */
+/* PolyEquation、EquationSystem 及其操作函数定义均在 solver_types.h 中 */
+#include "lv/solver_types.h"
 
 void solver_set_stream_context(StreamContext *ctx) {
     solver_stream_ctx = ctx;
@@ -122,11 +112,6 @@ void solver_set_stream_context(StreamContext *ctx) {
 /*  函数。这些函数在对应的 .c 文件中实现，solver.c 通过 unity build      */
 /*  或链接时可见。                                                      */
 /* ------------------------------------------------------------------ */
-
-/* solver_eq_system.c */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
-void equation_system_clear(EquationSystem *sys);
 
 /* solver_coord_extract.c */
 bool coord_to_double(const SymbolicCoord *c, double *out);

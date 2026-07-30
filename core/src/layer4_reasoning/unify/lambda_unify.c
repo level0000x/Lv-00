@@ -11,6 +11,7 @@
 
 #include "lv/lambda_unify.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
 #include "debug.h"
 
 #include <string.h>
@@ -37,7 +38,7 @@ static LambdaSubstitution *add_substitution_head(LambdaSubstitution **list,
                                                   int index, LvLambdaTerm *replacement) {
     LambdaSubstitution *node = (LambdaSubstitution *) lv_calloc(1, sizeof(LambdaSubstitution));
     if (!node) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "替换节点分配失败");
     }
     node->index = index;
     node->replacement = replacement;
@@ -231,7 +232,7 @@ static LvLambdaTerm *apply_subs_rec(LvLambdaTerm *term, LambdaSubstitution *subs
     }
 
     default:
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "未知的λ-项类型");
     }
 }
 
@@ -278,7 +279,7 @@ int lambda_unify_apply_to_graph(struct ConstraintGraph *graph,
                                  LambdaSubstitution *subs,
                                  int binder_depth) {
     if (!graph || !subs) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "参数为空: graph或subs");
     }
     (void) binder_depth;
 
@@ -290,7 +291,10 @@ int lambda_unify_apply_to_graph(struct ConstraintGraph *graph,
             count++;
         }
     }
-    return (count > 0) ? 0 : -1;
+    if (count == 0) {
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "没有可应用的替换项");
+    }
+    return 0;
 }
 
 /* ================================================================
@@ -385,7 +389,7 @@ static LvLambdaTerm *lift_free_vars(LvLambdaTerm *term, int binder_offset) {
 
     case LV_LAMBDA_ABS: {
         LvLambdaTerm *new_body = lift_free_vars(term->data.abs.body, binder_offset + 1);
-        if (!new_body && term->data.abs.body) return NULL;
+        if (!new_body && term->data.abs.body) lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "提升自由变量: 抽象体复制失败");
         /* 注意：abs 中的 binder 是绑定变量，不提升 */
         return lv_lambda_create_abs(term->data.abs.binder, new_body);
     }
@@ -396,13 +400,13 @@ static LvLambdaTerm *lift_free_vars(LvLambdaTerm *term, int binder_offset) {
         if ((!new_left && term->data.app.left) || (!new_right && term->data.app.right)) {
             lv_lambda_destroy(new_left);
             lv_lambda_destroy(new_right);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "提升自由变量: 应用体复制失败");
         }
         return lv_lambda_create_app(new_left, new_right);
     }
 
     default:
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "提升自由变量: 未知的λ-项类型");
     }
 }
 

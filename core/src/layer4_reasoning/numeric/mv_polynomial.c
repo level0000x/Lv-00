@@ -31,6 +31,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv_internal.h"
 
 /* 动态数组初始容量 */
 #ifndef lv_SOLVER_DYNARRAY_INIT_CAP
@@ -95,28 +96,24 @@ int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
     if (p->term_count >= p->capacity) {
         int new_cap = p->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
         if (new_cap > 0 && new_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "mv_poly_add_term: 容量溢出");
         }
         new_cap = new_cap == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : new_cap * lv_ARRAY_GROWTH_FACTOR;
         /* 检查 size_t 乘积溢出：new_cap * sizeof(MVMonomial) 可能超过 SIZE_MAX */
         if ((size_t) new_cap > SIZE_MAX / sizeof(MVMonomial)) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "mv_poly_add_term: 容量溢出");
         }
         p->capacity = new_cap;
         MVMonomial *new_terms = lv_realloc(p->terms, p->capacity * sizeof(MVMonomial));
         if (!new_terms) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "mv_poly_add_term: 扩容失败");
         }
         p->terms = new_terms;
     }
     MVMonomial *m = &p->terms[p->term_count];
     m->exponents = lv_calloc((size_t) p->var_count, sizeof(int));
     if (!m->exponents) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "mv_poly_add_term: 指数数组分配失败");
     }
     for (int v = 0; v < p->var_count; v++) {
         m->exponents[v] = exponents[v];
@@ -213,7 +210,7 @@ bool mv_poly_is_zero(const MVPolynomial *p) {
 
 int mv_poly_leading_term(const MVPolynomial *p, MVMonomial *out) {
     if (p->term_count == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "mv_poly_leading_term: polynomial is empty");
     /* 已排序，第一个即为首项 */
     if (out) {
         *out = p->terms[0];

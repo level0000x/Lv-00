@@ -243,4 +243,197 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                         eqs_arr[best] = tmp;
                         int tmp_pri = priority[i];
                         priority[i] = priority[best];
-                        priority[best] = tmp_pri
+                        priority[best] = tmp_pri;
+                    }
+                }
+
+                lv_free((void **) &priority);
+                lv_free((void **) &ordered_ids);
+            }
+        }
+        lv_free((void **) &all_var_ids);
+    }
+
+    if (solver_stream_ctx) {
+        StreamEvent ev;
+        memset(&ev, 0, sizeof(ev));
+        ev.type = STREAM_EVENT_PROGRESS;
+        ev.timestamp_ms = stream_timestamp_ms();
+        ev.progress = 0.25;
+        ev.description = "拓扑排序完成，开始逐方程消元求解";
+        stream_emit(solver_stream_ctx, &ev);
+    }
+
+    /* Step 5: Geometric reasoning elimination */
+    int solved_count = 0;
+    int multiple_solutions = 0;
+    bool no_solution = false;
+
+    solve_equations_pass(&sys, result, &solved_count, &multiple_solutions, &no_solution, true);
+
+    /* Step 6: Check for contradictions */
+    if (no_solution) {
+        cleanup_groebner_result(result);
+        equation_system_clear(&sys);
+        *out_result = result;
+        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 无解", 0);
+        solver_snapshot_restore(graph, &snapshot);
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_NO_SOLUTION;
+    }
+
+    /* Step 7: Gröbner basis elimination */
+    {
+        int remaining_before_gb = 0;
+        for (int i = 0; i < eqs_count; i++) {
+            if (eqs_arr[i].poly.degree >= 0)
+                remaining_before_gb++;
+        }
+
+        if (remaining_before_gb > 0) {
+            if (solver_stream_ctx) {
+                StreamEvent ev;
+                memset(&ev, 0, sizeof(ev));
+                ev.type = STREAM_EVENT_PROGRESS;
+                ev.timestamp_ms = stream_timestamp_ms();
+                ev.progress = 0.55;
+                ev.step_number = remaining_before_gb;
+                ev.description = "逐方程消元完成，仍有剩余方程，进入Gröbner基计算";
+                char detail[lv_SOLVER_DETAIL_BUF_SIZE];
+                int _snw_gb_prog;
+                lv_SAFE_SNPRINTF(_snw_gb_prog, detail, sizeof(detail),
+                                 "{\"phase\":\"groebner_entry\",\"remaining\":%d,\"solved\":%d}", remaining_before_gb,
+                                 solved_count);
+                lv_UNUSED(_snw_gb_prog);
+                ev.detail_json = detail;
+                stream_emit(solver_stream_ctx, &ev);
+            }
+
+            no_solution = false;
+
+            bool has_high_degree = false;
+            for (int i = 0; i < eqs_count; i++) {
+                if (eqs_arr[i].poly.degree >= 0 && eqs_arr[i].poly.degree > 4) {
+                    has_high_degree = true;
+                    break;
+                }
+            }
+
+            if (has_high_degree) {
+                char *suggestion = NULL;
+                analyze_out_of_scope(graph, -1, &suggestion);
+                lv_free((void **) &suggestion);
+                equation_system_clear(&sys);
+                *out_result = result;
+                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 高次方程无法处理", 0);
+                solver_snapshot_restore(graph, &snapshot);
+                solver_snapshot_free(&snapshot);
+                return SOLVER_STATUS_OUT_OF_SCOPE;
+            }
+
+            SolverStatus gb_status = groebner_basis_compute(&sys);
+
+            if (gb_status == SOLVER_STATUS_OUT_OF_SCOPE) {
+                char *suggestion = NULL;
+                analyze_out_of_scope(graph, -1, &suggestion);
+                lv_free((void **) &suggestion);
+                equation_system_clear(&sys);
+                *out_result = result;
+                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: Groebner基计算超出范围", 0);
+                solver_snapshot_restore(graph, &snapshot);
+                solver_snapshot_free(&snapshot);
+                return SOLVER_STATUS_OUT_OF_SCOPE;
+            }
+
+            if (gb_status == SOLVER_STATUS_OK) {
+                solve_equations_pass(&sys, result, &solved_count, &multiple_solutions, &no_solution, true);
+
+                if (no_solution || check_contradiction_after_substitution(&sys)) {
+                    cleanup_groebner_result(result);
+                    equation_system_clear(&sys);
+                    *out_result = result;
+                    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: Groebner基求解后无解", 0);
+                    solver_snapshot_restore(graph, &snapshot);
+                    solver_snapshot_free(&snapshot);
+                    return SOLVER_STATUS_NO_SOLUTION;
+                }
+            }
+        }
+    }
+
+    /* Step 8: Determine result status */
+    if (multiple_solutions > 0) {
+        result->unique = false;
+    } else if (solved_count > 0) {
+        result->unique = true;
+    }
+
+    int remaining = 0;
+    for (int i = 0; i < eqs_count; i++) {
+        if (eqs_arr[i].poly.degree >= 0)
+            remaining++;
+    }
+
+    equation_system_clear(&sys);
+
+    if (solver_stream_ctx) {
+        StreamEvent ev;
+        memset(&ev, 0, sizeof(ev));
+        ev.type = STREAM_EVENT_PROGRESS;
+        ev.timestamp_ms = stream_timestamp_ms();
+        ev.progress = 1.0;
+        ev.step_number = solved_count;
+        ev.total_steps = solved_count + remaining;
+        ev.description = "代数求解总结";
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
+        int _snw_sum;
+        lv_SAFE_SNPRINTF(_snw_sum, detail, sizeof(detail),
+                         "{\"phase\":\"solve_summary\","
+                         "\"solved_variables\":%d,"
+                         "\"remaining_equations\":%d,"
+                         "\"multiple_solutions\":%d,"
+                         "\"unique\":%s,"
+                         "\"overdetermined\":%s,"
+                         "\"max_degree\":%d}",
+                         solved_count, remaining, multiple_solutions, result->unique ? "true" : "false",
+                         result->overdetermined ? "true" : "false", max_degree_global);
+        lv_UNUSED(_snw_sum);
+        ev.detail_json = detail;
+        stream_emit(solver_stream_ctx, &ev);
+    }
+
+    if (remaining > 0 && solved_count == 0) {
+        *out_result = result;
+        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 未能求解任何变量", 0);
+        solver_snapshot_restore(graph, &snapshot);
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_OUT_OF_SCOPE;
+    }
+
+    if (result->overdetermined) {
+        *out_result = result;
+        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 超定系统", 0);
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_OVERCONSTRAINED;
+    }
+
+    if (multiple_solutions > 0) {
+        *out_result = result;
+        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 多解", 0);
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_MULTIPLE;
+    }
+
+    if (solved_count > 0 && remaining == 0) {
+        result->unique = true;
+        *out_result = result;
+        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 唯一解", 0);
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_UNIQUE;
+    }
+
+    *out_result = result;
+    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 部分求解/欠定", 0);
+    solver_snapshot_free(&snapshot);
+    return SOLVER_STATUS_OK;
+}

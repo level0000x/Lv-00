@@ -278,12 +278,12 @@ void euclidean_bind_graph(EuclideanContext *ctx, ConstraintGraph *graph) {
  */
 static bool euclidean_toggle_axiom(EuclideanContext *ctx, int group, int axiom_id, bool enabled) {
     if (!ctx) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "euclidean_toggle_axiom: ctx is NULL");
     }
 
     int offset = euclidean_axiom_mask_offset(group, axiom_id);
     if (offset < 0) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "euclidean_toggle_axiom: invalid group/axiom_id");
     }
 
     if (enabled) {
@@ -323,16 +323,16 @@ int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoo
         SymbolicCoord *coords[2] = {x, y};
         AddNodeResult result = graph_add_point(ctx->constraint_graph, coords, 2);
         if (result != ADD_NODE_OK) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_declare_point: graph_add_point failed");
         }
 
         int point_id = graph_get_last_added_node_id(ctx->constraint_graph);
         if (point_id < 0) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "euclidean_declare_point: got invalid point_id from graph");
         }
 
         if (!euclidean_register_point_id(ctx, point_id)) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "euclidean_declare_point: register_point_id failed");
         }
 
         return point_id;
@@ -341,7 +341,7 @@ int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoo
     /* 无约束图时的备用处理 */
     int point_id = (int)ctx->points_da.count;
     if (!euclidean_register_point_id(ctx, point_id)) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "euclidean_declare_point: register_point_id (no graph) failed");
     }
     return point_id;
 }
@@ -363,26 +363,26 @@ int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id) {
     }
 
     if (p1_id == p2_id) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "euclidean_declare_line: p1_id == p2_id");
     }
 
     if (!euclidean_point_is_registered(ctx, p1_id) || !euclidean_point_is_registered(ctx, p2_id)) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "euclidean_declare_line: point not registered");
     }
 
     if (ctx->constraint_graph) {
         AddNodeResult result = graph_add_line_segment(ctx->constraint_graph, p1_id, p2_id);
         if (result != ADD_NODE_OK) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_declare_line: graph_add_line_segment failed");
         }
 
         int line_id = graph_get_last_added_node_id(ctx->constraint_graph);
         if (line_id < 0) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "euclidean_declare_line: got invalid line_id from graph");
         }
 
         if (!euclidean_register_line_id(ctx, line_id)) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "euclidean_declare_line: register_line_id failed");
         }
 
         return line_id;
@@ -390,7 +390,7 @@ int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id) {
 
     int line_id = ctx->lines_da.count + 1000;
     if (!euclidean_register_line_id(ctx, line_id)) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "euclidean_declare_line: register_line_id (no graph) failed");
     }
     return line_id;
 }
@@ -407,15 +407,15 @@ int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id) {
  */
 int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord *radius) {
     if (!ctx) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "euclidean_declare_circle: ctx is NULL");
     }
 
     if (!radius) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "euclidean_declare_circle: radius is NULL");
     }
 
     if (!euclidean_point_is_registered(ctx, center_id)) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "euclidean_declare_circle: center point not registered");
     }
 
     if (ctx->constraint_graph) {
@@ -426,16 +426,16 @@ int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord
 
         AddNodeResult result = graph_add_point(ctx->constraint_graph, coords, 3);
         if (result != ADD_NODE_OK) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_declare_circle: graph_add_point failed");
         }
 
         int circle_id = graph_get_last_added_node_id(ctx->constraint_graph);
         if (circle_id < 0) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "euclidean_declare_circle: got invalid circle_id from graph");
         }
 
         if (!euclidean_register_circle_id(ctx, circle_id)) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "euclidean_declare_circle: register_circle_id failed");
         }
 
         return circle_id;
@@ -443,7 +443,7 @@ int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord
 
     int circle_id = (int)ctx->circles_da.count + 2000;
     if (!euclidean_register_circle_id(ctx, circle_id)) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "euclidean_declare_circle: register_circle_id (no graph) failed");
     }
     return circle_id;
 }
@@ -571,13 +571,13 @@ bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int
     if (ctx->constraint_graph) {
         AddNodeResult seg_a_result = graph_add_line_segment(ctx->constraint_graph, a1_id, a2_id);
         if (seg_a_result != ADD_NODE_OK) {
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_assert_congruent: add line segment A failed");
         }
         int seg_a_id = graph_get_last_added_node_id(ctx->constraint_graph);
 
         AddNodeResult seg_b_result = graph_add_line_segment(ctx->constraint_graph, b1_id, b2_id);
         if (seg_b_result != ADD_NODE_OK) {
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_assert_congruent: add line segment B failed");
         }
         /* 注：当前 ConstraintType 枚举尚无 CONGRUENCE 类型，
          * 全等关系暂通过线段节点创建隐式表达。
@@ -721,7 +721,7 @@ ConstraintGraph *euclidean_export_birkhoff(const EuclideanContext *ctx) {
         }
         if (graph_add_point(export_graph, coords, 2) != ADD_NODE_OK) {
             graph_destroy(export_graph);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_export_birkhoff: graph_add_point failed");
         }
     }
 
@@ -756,7 +756,7 @@ ConstraintGraph *euclidean_export_tarski(const EuclideanContext *ctx) {
         }
         if (graph_add_point(export_graph, coords, 2) != ADD_NODE_OK) {
             graph_destroy(export_graph);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_export_tarski: graph_add_point failed");
         }
     }
 
@@ -828,7 +828,7 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
 
     if (!euclidean_build_birkhoff_to_tarski_map(chain) || !euclidean_build_tarski_to_birkhoff_map(chain)) {
         euclidean_destroy_equivalence_chain(chain);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "euclidean_create_equivalence_chain: build translation map failed");
     }
 
     ctx->equivalence_chain = chain;

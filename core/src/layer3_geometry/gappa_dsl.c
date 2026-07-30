@@ -99,7 +99,7 @@ static ExprNode *expr_const_node(double val) {
 
 static ExprNode *expr_var_node(const char *name) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "expr_var_node: NULL name");
     ExprNode *n = (ExprNode *) lv_calloc(1, sizeof(ExprNode));
     if (n) {
         n->type = EXPR_VAR;
@@ -483,14 +483,16 @@ static void apply_round_err(double *lo, double *hi, const lvGappaFormat *fmt) {
  */
 int lv_gappa_parse(const char *input) {
     if (!input)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_gappa_parse: NULL input");
     lvGappaPredicate *hyp = NULL;
     lvGappaProofGoal *goals = NULL;
     int hyp_count = 0, goal_count = 0;
     bool ok = gappa_parse(input, &hyp, &hyp_count, &goals, &goal_count);
     gappa_predicates_free(hyp, hyp_count);
     gappa_goals_free(goals, goal_count);
-    return ok ? 0 : -1;
+    if (!ok)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_gappa_parse: gappa_parse failed");
+    return 0;
 }
 
 /**
@@ -503,7 +505,7 @@ int lv_gappa_parse(const char *input) {
  */
 int lv_gappa_eval(const char *expr, double *lo, double *hi) {
     if (!expr || !lo || !hi)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_gappa_eval: NULL parameter");
     return lv_gappa_propagate(expr, lo, hi);
 }
 
@@ -515,7 +517,7 @@ int lv_gappa_eval(const char *expr, double *lo, double *hi) {
  */
 char *lv_gappa_prove(const char *script) {
     if (!script)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_gappa_prove: NULL script");
 
     lvGappaPredicate *hyp = NULL;
     lvGappaProofGoal *goals = NULL;

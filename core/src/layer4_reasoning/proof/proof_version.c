@@ -27,8 +27,6 @@
 #include <windows.h>
 #endif
 
-lv_DECLARE_STREAM_CTX(proof);
-
 /**
  * 将证明步骤格式化为自然语言文本。
  *

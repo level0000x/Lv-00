@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_internal.h"
+
 /* ============================================================
  * Internal helpers
  * ============================================================ */
@@ -42,13 +44,13 @@ static int nt_poly_ensure_capacity(lvPoly *p, int deg) {
         new_cap = NT_POLY_DEFAULT_CAPACITY;
     while (new_cap <= deg) {
         if (new_cap > INT_MAX / 2)
-            return -1; /* overflow guard */
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "nt_poly_ensure_capacity: capacity overflow");
         new_cap *= 2;
     }
 
     mpz_t *new_coeffs = (mpz_t *) lv_realloc(p->coeffs, (size_t) new_cap * sizeof(mpz_t));
     if (!new_coeffs)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_ensure_capacity: realloc failed");
 
     p->coeffs = new_coeffs;
 
@@ -82,7 +84,7 @@ static void nt_poly_normalize(lvPoly *p) {
 lv_PUBLIC_API lvPoly *nt_poly_create(void) {
     lvPoly *p = (lvPoly *) lv_calloc(1, sizeof(lvPoly));
     if (!p)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "nt_poly_create: allocation failed");
     p->coeffs = NULL;
     p->degree = -1;
     p->capacity = 0;
@@ -107,10 +109,10 @@ lv_PUBLIC_API void nt_poly_destroy(lvPoly *p) {
 
 lv_PUBLIC_API int nt_poly_set_coeff(lvPoly *p, int deg, const mpz_t val) {
     if (!p || deg < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "nt_poly_set_coeff: null polynomial or negative degree");
 
     if (nt_poly_ensure_capacity(p, deg) != 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_set_coeff: ensure_capacity failed");
 
     mpz_set(p->coeffs[deg], val);
 
@@ -127,7 +129,7 @@ lv_PUBLIC_API int nt_poly_set_coeff(lvPoly *p, int deg, const mpz_t val) {
 lv_PUBLIC_API int nt_poly_get_coeff(const lvPoly *p, int deg, mpz_t out) {
     if (!p || deg < 0 || deg > p->degree) {
         mpz_set_ui(out, 0);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "nt_poly_get_coeff: null polynomial or degree out of range");
     }
     mpz_set(out, p->coeffs[deg]);
     return 0;
@@ -139,7 +141,7 @@ lv_PUBLIC_API int nt_poly_get_coeff(const lvPoly *p, int deg, mpz_t out) {
 
 lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a, const lvPoly *b) {
     if (!result || !a || !b)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "nt_poly_add: null argument");
 
     int max_deg = (a->degree > b->degree) ? a->degree : b->degree;
     if (max_deg < 0) {
@@ -149,7 +151,7 @@ lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a, const lvPoly *b) 
     }
 
     if (nt_poly_ensure_capacity(result, max_deg) != 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_add: ensure_capacity failed");
 
     for (int i = 0; i <= max_deg; i++) {
         mpz_t tmp;
@@ -172,7 +174,7 @@ lv_PUBLIC_API int nt_poly_add(lvPoly *result, const lvPoly *a, const lvPoly *b) 
 
 lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a, const lvPoly *b) {
     if (!result || !a || !b)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "nt_poly_mul: null argument");
 
     /* Zero polynomial cases */
     if (a->degree < 0 || b->degree < 0) {
@@ -182,12 +184,12 @@ lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a, const lvPoly *b) 
 
     /* Overflow guard */
     if (a->degree > INT_MAX - b->degree)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "nt_poly_mul: degree overflow");
 
     int new_deg = a->degree + b->degree;
 
     if (nt_poly_ensure_capacity(result, new_deg) != 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_mul: ensure_capacity failed");
 
     /* Zero out result coefficients up to new_deg */
     for (int i = 0; i <= new_deg; i++) {
@@ -212,16 +214,16 @@ lv_PUBLIC_API int nt_poly_mul(lvPoly *result, const lvPoly *a, const lvPoly *b) 
 
 lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m) {
     if (!result || !f || !m)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "nt_poly_mod: null argument");
     if (m->degree < 0)
-        return -1; /* cannot mod by zero polynomial */
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "nt_poly_mod: modulus is zero polynomial");
 
     /* If deg(f) < deg(m), remainder is f */
     if (f->degree < m->degree) {
         /* Copy f into result */
         if (f->degree >= 0) {
             if (nt_poly_ensure_capacity(result, f->degree) != 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_mod: ensure_capacity failed");
             for (int i = 0; i <= f->degree; i++) {
                 mpz_set(result->coeffs[i], f->coeffs[i]);
             }
@@ -235,7 +237,7 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m) 
     int rem_deg = f->degree;
     mpz_t *rem = (mpz_t *) lv_malloc((size_t) (rem_deg + 1) * sizeof(mpz_t));
     if (!rem)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_mod: remainder allocation failed");
 
     for (int i = 0; i <= rem_deg; i++) {
         mpz_init_set(rem[i], f->coeffs[i]);
@@ -275,7 +277,7 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m) 
             mpz_clear(lead_m);
             mpz_clear(factor);
             mpz_clear(tmp);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_mod: ensure_capacity for result failed");
         }
         for (int i = 0; i <= rem_deg; i++) {
             mpz_set(result->coeffs[i], rem[i]);
@@ -297,7 +299,7 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m) 
 
 lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b) {
     if (!result || !a || !b)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "nt_poly_gcd: null argument");
 
     /* Handle zero polynomial cases */
     if (a->degree < 0 && b->degree < 0) {
@@ -307,7 +309,7 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b) 
     if (a->degree < 0) {
         /* gcd(0, b) = b (normalized) */
         if (nt_poly_ensure_capacity(result, b->degree) != 0)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: ensure_capacity failed");
         for (int i = 0; i <= b->degree; i++) {
             mpz_set(result->coeffs[i], b->coeffs[i]);
         }
@@ -318,7 +320,7 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b) 
     if (b->degree < 0) {
         /* gcd(a, 0) = a (normalized) */
         if (nt_poly_ensure_capacity(result, a->degree) != 0)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: ensure_capacity failed");
         for (int i = 0; i <= a->degree; i++) {
             mpz_set(result->coeffs[i], a->coeffs[i]);
         }
@@ -338,7 +340,7 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b) 
         nt_poly_destroy(u);
         nt_poly_destroy(v);
         nt_poly_destroy(temp);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: temporary poly creation failed");
     }
 
     /* Copy a into u */
@@ -383,7 +385,7 @@ fail:
     nt_poly_destroy(u);
     nt_poly_destroy(v);
     nt_poly_destroy(temp);
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: operation failed");
 }
 
 /* ============================================================
@@ -393,7 +395,7 @@ fail:
 lv_PUBLIC_API int nt_poly_eval(const lvPoly *p, const mpz_t x, mpz_t out) {
     if (!p) {
         mpz_set_ui(out, 0);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "nt_poly_eval: null polynomial");
     }
 
     if (p->degree < 0) {
@@ -413,6 +415,6 @@ lv_PUBLIC_API int nt_poly_eval(const lvPoly *p, const mpz_t x, mpz_t out) {
 
 lv_PUBLIC_API int nt_poly_degree(const lvPoly *p) {
     if (!p)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "nt_poly_degree: null polynomial");
     return p->degree;
 }

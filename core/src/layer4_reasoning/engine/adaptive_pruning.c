@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv_internal.h"
 
 #define lv_DEFAULT_TIME_BUDGET_MS 30000.0
 #define lv_DEFAULT_MAX_ITERATIONS 10000
@@ -81,7 +82,7 @@ lvAdaptiveConfig lv_default_adaptive_config(void) {
 lvAdaptivePruner *lv_pruner_create(const lvAdaptiveConfig *config) {
     lvAdaptivePruner *pruner = lv_calloc(1, sizeof(lvAdaptivePruner));
     if (!pruner)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_pruner_create: allocation failed");
     pruner->config = config ? *config : lv_default_adaptive_config();
     pruner->max_iterations = lv_DEFAULT_MAX_ITERATIONS;
     pruner->max_time_ms = pruner->config.time_budget_ms;
@@ -94,7 +95,7 @@ void lv_pruner_destroy(lvAdaptivePruner *pruner) {
 
 int lv_pruner_set_problem(lvAdaptivePruner *pruner, const lvProblemComplexity *complexity) {
     if (!pruner || !complexity)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_pruner_set_problem: null argument");
     pruner->complexity = *complexity;
     pruner->max_iterations = lv_compute_adaptive_limit(complexity, pruner->config.time_budget_ms);
     pruner->max_depth = (size_t) (log2((double) complexity->node_count + 1.0) * 3.0);

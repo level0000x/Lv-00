@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file engine.h
  * @brief Lv-00 主引擎 —— 工作流编排、模块/公理加载、重写与求解
  *
@@ -134,18 +134,8 @@ Check that the source file belongs to a CMake layer target (lv_layerN_*)."
 /* 前向声明 —— lvContext 定义在 context.h 中，避免循环依赖 */
 struct lvContext;
 
-/* ── 引擎状态码（必须在 lvEngine 结构体之前定义）──
- * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
- */
-typedef enum {
-    ENGINE_STATUS_OK,                  /**< 操作成功完成 */
-    ENGINE_STATUS_OUT_OF_MEMORY,       /**< 内存分配失败 */
-    ENGINE_STATUS_INVALID_STATE,       /**< 引擎处于无效状态（如未初始化即调用） */
-    ENGINE_STATUS_INVALID_ARGUMENT,    /**< 传入参数无效（空指针、越界等） */
-    ENGINE_STATUS_CONSTRAINT_CONFLICT, /**< 约束冲突：无法满足的约束条件 */
-    ENGINE_STATUS_MODULE_ERROR,        /**< 模块加载/执行错误 */
-    ENGINE_STATUS_ERROR_INTERNAL       /**< 内部错误 */
-} EngineStatus;
+/* ── 引擎状态码（提取至 engine_status.h，供 engine.h 和 context.h 共用）── */
+#include "lv/engine_status.h"
 
 /* ============================================================
  * 五状态引擎状态机（v3.3.0 形式化）

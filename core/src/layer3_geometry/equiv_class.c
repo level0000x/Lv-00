@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* Missing enum/field aliases */
@@ -44,7 +45,7 @@ static int uf_create(EquivClassManager *mgr, int capacity) {
     if (!mgr->uf_parent || !mgr->uf_rank) {
         lv_free((void **) &mgr->uf_parent);
         lv_free((void **) &mgr->uf_rank);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "uf_create: calloc parent/rank failed");
     }
     for (int i = 0; i < capacity; i++) {
         mgr->uf_parent[i] = i;
@@ -187,7 +188,7 @@ static void equiv_log_proof(EquivClassManager *mgr, EquivSourceType source, int 
 /** @brief 查找或创建节点的等价类索引 */
 static int equiv_find_or_create_class(EquivClassManager *mgr, int node_id) {
     if (!equiv_ensure_node_mapping(mgr, node_id))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "equiv_find_or_create_class: ensure_node_mapping failed");
 
     int existing = mgr->node_to_class[node_id];
     if (existing >= 0 && existing < mgr->class_count) {
@@ -196,7 +197,7 @@ static int equiv_find_or_create_class(EquivClassManager *mgr, int node_id) {
 
     /* 创建新等价类 */
     if (!equiv_ensure_class_capacity(mgr))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "equiv_find_or_create_class: ensure_class_capacity failed");
 
     int idx = mgr->class_count++;
     EquivClass *ec = &mgr->classes[idx];
@@ -228,11 +229,11 @@ static int equiv_find_or_create_class(EquivClassManager *mgr, int node_id) {
  */
 EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "equiv_manager_create: graph is NULL");
 
     EquivClassManager *mgr = (EquivClassManager *) calloc(1, sizeof(EquivClassManager));
     if (!mgr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "equiv_manager_create: calloc mgr failed");
 
     mgr->graph = graph;
 
@@ -240,7 +241,7 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     int capacity = graph->node_count > 0 ? graph->node_count : 16;
     if (uf_create(mgr, capacity) != 0) {
         lv_free((void **) &mgr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "equiv_manager_create: uf_create failed");
     }
 
     /* 初始化节点映射 */
@@ -249,7 +250,7 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     if (!mgr->node_to_class) {
         uf_destroy(mgr);
         lv_free((void **) &mgr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "equiv_manager_create: calloc node_to_class failed");
     }
     for (int i = 0; i < capacity; i++) {
         mgr->node_to_class[i] = -1;

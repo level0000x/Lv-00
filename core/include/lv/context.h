@@ -50,6 +50,9 @@ extern "C" {
 /* 错误码系统 —— 所有上下文操作返回 lvErrorCode */
 #include "error_codes.h"
 
+/* 引擎状态码 —— EngineStatus 类型（供 last_status 字段使用） */
+#include "lv/engine_status.h"
+
 /* 工具函数 —— MemoryStats 类型定义在此 */
 #include "lv_utils.h"
 

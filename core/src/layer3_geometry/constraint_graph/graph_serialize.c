@@ -189,11 +189,11 @@ static const char *trust_color_to_string(TrustColor trust) {
 /* 序列化单个节点 */
 char *graph_node_serialize_to_json(const GeomNode *node) {
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_node_serialize_to_json: node is NULL");
 
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 1024))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_node_serialize_to_json: json buf init failed");
 
     lv_json_buf_append_raw(&buf, "{");
 
@@ -345,11 +345,11 @@ char *graph_node_serialize_to_json(const GeomNode *node) {
 /* 序列化单个约束 */
 char *graph_constraint_serialize_to_json(const Constraint *constraint) {
     if (!constraint)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_constraint_serialize_to_json: constraint is NULL");
 
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 256))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_constraint_serialize_to_json: json buf init failed");
 
     lv_json_buf_append_raw(&buf, "{");
 
@@ -393,13 +393,13 @@ char *graph_constraint_serialize_to_json(const Constraint *constraint) {
 char *graph_serialize_to_json(const ConstraintGraph *graph) {
     if (!graph) {
         set_serialize_error(graph, "图指针为空");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_serialize_to_json: graph is NULL");
     }
 
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 8192)) {
         set_serialize_error(graph, "内存分配失败");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_serialize_to_json: json buf init failed");
     }
 
     lv_json_buf_append_raw(&buf, "{");
@@ -499,14 +499,14 @@ static ConstraintType string_to_constraint_type(const char *str) {
 static int *json_parser_parse_int_array(lvJsonParser *p, int *out_count) {
     if (!lv_json_expect(p, '[')) {
         *out_count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "json_parser_parse_int_array: expected '['");
     }
 
     lv_json_skip_ws(p);
     if (lv_json_peek(p) == ']') {
         p->pos++;
         *out_count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "json_parser_parse_int_array: empty array");
     }
 
     /* 先计数 */
@@ -515,7 +515,7 @@ static int *json_parser_parse_int_array(lvJsonParser *p, int *out_count) {
     int *result = lv_malloc((size_t) capacity * sizeof(int));
     if (!result) {
         *out_count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json_parser_parse_int_array: malloc failed");
     }
 
     while (lv_json_peek(p) != ']' && lv_json_peek(p) != '\0') {
@@ -525,7 +525,7 @@ static int *json_parser_parse_int_array(lvJsonParser *p, int *out_count) {
             if (!new_result) {
                 lv_free((void **) &result);
                 *out_count = 0;
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json_parser_parse_int_array: realloc failed");
             }
             result = new_result;
         }
@@ -549,7 +549,7 @@ static int *json_parser_parse_int_array(lvJsonParser *p, int *out_count) {
 ConstraintGraph *graph_deserialize_from_json(const char *json) {
     if (!json) {
         set_serialize_error(NULL, "JSON 字符串为空");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_deserialize_from_json: json is NULL");
     }
 
     size_t json_len = strlen(json);
@@ -558,7 +558,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
     if (lv_json_peek(&p) != '{') {
         set_serialize_error(NULL, "期望 JSON 对象");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "graph_deserialize_from_json: expected JSON object");
     }
     p.pos++; /* skip '{' */
 
@@ -566,7 +566,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
     ConstraintGraph *graph = graph_create();
     if (!graph) {
         set_serialize_error(graph, "创建图失败");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_deserialize_from_json: graph_create failed");
     }
 
     /* 解析元数据（可选） */
@@ -591,7 +591,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 lv_free((void **) &key);
                 graph_destroy(graph);
                 set_serialize_error(graph, "节点数组格式错误");
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "graph_deserialize_from_json: expected node array");
             }
 
             while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
@@ -936,7 +936,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 lv_free((void **) &key);
                 graph_destroy(graph);
                 set_serialize_error(graph, "约束数组格式错误");
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "graph_deserialize_from_json: expected constraint array");
             }
 
             while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {

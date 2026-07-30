@@ -33,8 +33,6 @@
 #include "stream_context_util.h"
 
 /* 流式上下文声明 */
-lv_DECLARE_STREAM_CTX(proof);
-
 /* 证明树 API 占位（与 proof.c 保持一致） */
 /* lv_DEFAULT_MAX_STEPS 已迁移至 config.h */
 
@@ -795,36 +793,48 @@ typedef struct {
     ProofColor final_color; /* 最终颜色 */
 } ProofBreakpointSnapshot;
 
-/**
- * 断点存储（模块级静态变量）
- * 使用简单的固定大小数组存储断点快照
- */
 #define MAX_BREAKPOINT_SNAPSHOTS 64
 
-static ProofBreakpointSnapshot g_breakpoint_store[MAX_BREAKPOINT_SNAPSHOTS];
+/**
+ * @brief 断点存储与公理锁定状态（合并所有模块级静态变量）
+ *
+ * 将原本分散的 6 个 static 变量归并为单一上下文结构体，
+ * 降低模块耦合度，改善线程安全性和可维护性。
+ */
+typedef struct ProofNavigatorState {
+    ProofBreakpointSnapshot breakpoint_store[MAX_BREAKPOINT_SNAPSHOTS];
+    bool axiom_locked;                              /**< 公理库锁定标记 */
 #ifdef _WIN32
-static volatile LONG g_breakpoint_store_count = 0;
+    volatile LONG breakpoint_store_count;           /**< 已存储断点数量 */
+    CRITICAL_SECTION breakpoint_cs;                 /**< 断点存储临界区 */
+    volatile LONG breakpoint_cs_initialized;        /**< 临界区初始化标记 */
 #else
-static volatile int g_breakpoint_store_count = 0;
+    volatile int breakpoint_store_count;
+    pthread_mutex_t breakpoint_mutex;               /**< 断点存储互斥锁 */
 #endif
+} ProofNavigatorState;
+
+/** 模块级唯一状态实例（替代原有的 6 个分散 static 变量） */
+static ProofNavigatorState s_proof_state = {
+#if !defined(_WIN32)
+    .breakpoint_mutex = PTHREAD_MUTEX_INITIALIZER
+#endif
+};
 
 #ifdef _WIN32
-static CRITICAL_SECTION g_breakpoint_cs = {0};
-static volatile LONG g_breakpoint_cs_initialized = 0;
 #define BREAKPOINT_LOCK()                                                   \
     do {                                                                    \
-        if (!g_breakpoint_cs_initialized) {                                 \
-            InterlockedCompareExchange(&g_breakpoint_cs_initialized, 1, 0); \
-            if (g_breakpoint_cs_initialized)                                \
-                InitializeCriticalSection(&g_breakpoint_cs);                \
+        if (!s_proof_state.breakpoint_cs_initialized) {                     \
+            InterlockedCompareExchange(&s_proof_state.breakpoint_cs_initialized, 1, 0); \
+            if (s_proof_state.breakpoint_cs_initialized)                    \
+                InitializeCriticalSection(&s_proof_state.breakpoint_cs);    \
         }                                                                   \
-        EnterCriticalSection(&g_breakpoint_cs);                             \
+        EnterCriticalSection(&s_proof_state.breakpoint_cs);                 \
     } while (0)
-#define BREAKPOINT_UNLOCK() LeaveCriticalSection(&g_breakpoint_cs)
+#define BREAKPOINT_UNLOCK() LeaveCriticalSection(&s_proof_state.breakpoint_cs)
 #else
-static pthread_mutex_t g_breakpoint_mutex = PTHREAD_MUTEX_INITIALIZER;
-#define BREAKPOINT_LOCK() pthread_mutex_lock(&g_breakpoint_mutex)
-#define BREAKPOINT_UNLOCK() pthread_mutex_unlock(&g_breakpoint_mutex)
+#define BREAKPOINT_LOCK()   pthread_mutex_lock(&s_proof_state.breakpoint_mutex)
+#define BREAKPOINT_UNLOCK() pthread_mutex_unlock(&s_proof_state.breakpoint_mutex)
 #endif
 
 bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
@@ -839,8 +849,8 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 查找是否已有相同ID的快照，如果有则覆盖 */
     int slot = -1;
-    for (int i = 0; i < g_breakpoint_store_count; i++) {
-        if (g_breakpoint_store[i].breakpoint_id == breakpoint_id) {
+    for (int i = 0; i < s_proof_state.breakpoint_store_count; i++) {
+        if (s_proof_state.breakpoint_store[i].breakpoint_id == breakpoint_id) {
             slot = i;
             break;
         }
@@ -848,25 +858,23 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 如果没有找到，分配新槽位 */
     if (slot < 0) {
-        int current_count = (int) g_breakpoint_store_count;
+        int current_count = (int) s_proof_state.breakpoint_store_count;
         if (current_count >= MAX_BREAKPOINT_SNAPSHOTS) {
             BREAKPOINT_UNLOCK();
             return false; /* 存储已满 */
         }
         slot = current_count;
 #ifdef _WIN32
-        InterlockedIncrement(&g_breakpoint_store_count);
+        InterlockedIncrement(&s_proof_state.breakpoint_store_count);
 #else
-        __atomic_fetch_add(&g_breakpoint_store_count, 1, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&s_proof_state.breakpoint_store_count, 1, __ATOMIC_RELAXED);
 #endif
     }
-
-    /* 保存当前导航器状态 */
-    g_breakpoint_store[slot].breakpoint_id = breakpoint_id;
-    g_breakpoint_store[slot].current_step = nav->current_step;
-    g_breakpoint_store[slot].step_count = nav->step_count;
-    g_breakpoint_store[slot].is_complete = nav->is_complete;
-    g_breakpoint_store[slot].final_color = nav->final_color;
+    s_proof_state.breakpoint_store[slot].breakpoint_id = breakpoint_id;
+    s_proof_state.breakpoint_store[slot].current_step = nav->current_step;
+    s_proof_state.breakpoint_store[slot].step_count = nav->step_count;
+    s_proof_state.breakpoint_store[slot].is_complete = nav->is_complete;
+    s_proof_state.breakpoint_store[slot].final_color = nav->final_color;
 
     BREAKPOINT_UNLOCK();
 
@@ -894,8 +902,8 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 查找断点快照 */
     int slot = -1;
-    for (int i = 0; i < g_breakpoint_store_count; i++) {
-        if (g_breakpoint_store[i].breakpoint_id == breakpoint_id) {
+    for (int i = 0; i < s_proof_state.breakpoint_store_count; i++) {
+        if (s_proof_state.breakpoint_store[i].breakpoint_id == breakpoint_id) {
             slot = i;
             break;
         }
@@ -905,14 +913,14 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
         return false; /* 未找到断点 */
 
     /* 验证快照中的 step_count 不超过当前步骤数量 */
-    if (g_breakpoint_store[slot].step_count > nav->step_count) {
+    if (s_proof_state.breakpoint_store[slot].step_count > nav->step_count) {
         return false; /* 快照无效：保存时的步骤数多于当前 */
     }
 
     /* 恢复导航器状态 */
-    nav->current_step = g_breakpoint_store[slot].current_step;
-    nav->is_complete = g_breakpoint_store[slot].is_complete;
-    nav->final_color = g_breakpoint_store[slot].final_color;
+    nav->current_step = s_proof_state.breakpoint_store[slot].current_step;
+    nav->is_complete = s_proof_state.breakpoint_store[slot].is_complete;
+    nav->final_color = s_proof_state.breakpoint_store[slot].final_color;
 
     /* 确保 current_step 在有效范围内 */
     if (nav->current_step < -1) {
@@ -942,15 +950,15 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
  */
 void proof_breakpoint_storage_init(void) {
     BREAKPOINT_LOCK();
-    if (g_breakpoint_store_count == 0 && g_breakpoint_store[0].breakpoint_id == 0) {
+    if (s_proof_state.breakpoint_store_count == 0 && s_proof_state.breakpoint_store[0].breakpoint_id == 0) {
         /* 重置计数器 */
 #ifdef _WIN32
-        InterlockedExchange(&g_breakpoint_store_count, 0);
+        InterlockedExchange(&s_proof_state.breakpoint_store_count, 0);
 #else
-        __atomic_store_n(&g_breakpoint_store_count, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&s_proof_state.breakpoint_store_count, 0, __ATOMIC_RELAXED);
 #endif
         /* 清空存储 */
-        memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
+        memset(s_proof_state.breakpoint_store, 0, sizeof(s_proof_state.breakpoint_store));
     }
     BREAKPOINT_UNLOCK();
 }
@@ -967,11 +975,11 @@ void proof_breakpoint_storage_cleanup(void) {
 void proof_breakpoint_storage_reset(void) {
     BREAKPOINT_LOCK();
     /* 清空所有快照 */
-    memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
+    memset(s_proof_state.breakpoint_store, 0, sizeof(s_proof_state.breakpoint_store));
 #ifdef _WIN32
-    InterlockedExchange(&g_breakpoint_store_count, 0);
+    InterlockedExchange(&s_proof_state.breakpoint_store_count, 0);
 #else
-    __atomic_store_n(&g_breakpoint_store_count, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&s_proof_state.breakpoint_store_count, 0, __ATOMIC_RELAXED);
 #endif
     BREAKPOINT_UNLOCK();
 
@@ -985,7 +993,7 @@ void proof_breakpoint_storage_reset(void) {
  * @brief 获取当前断点数量
  */
 int proof_breakpoint_storage_count(void) {
-    return g_breakpoint_store_count;
+    return s_proof_state.breakpoint_store_count;
 }
 
 /**
@@ -1000,8 +1008,8 @@ bool proof_breakpoint_delete(int breakpoint_id) {
 
     /* 查找断点 */
     int slot = -1;
-    for (int i = 0; i < g_breakpoint_store_count; i++) {
-        if (g_breakpoint_store[i].breakpoint_id == breakpoint_id) {
+    for (int i = 0; i < s_proof_state.breakpoint_store_count; i++) {
+        if (s_proof_state.breakpoint_store[i].breakpoint_id == breakpoint_id) {
             slot = i;
             break;
         }
@@ -1014,13 +1022,13 @@ bool proof_breakpoint_delete(int breakpoint_id) {
     }
 
     /* 将最后一个元素移动到当前位置，然后减少计数 */
-    if (slot < g_breakpoint_store_count - 1) {
-        g_breakpoint_store[slot] = g_breakpoint_store[g_breakpoint_store_count - 1];
+    if (slot < s_proof_state.breakpoint_store_count - 1) {
+        s_proof_state.breakpoint_store[slot] = s_proof_state.breakpoint_store[s_proof_state.breakpoint_store_count - 1];
     }
 #ifdef _WIN32
-    InterlockedDecrement(&g_breakpoint_store_count);
+    InterlockedDecrement(&s_proof_state.breakpoint_store_count);
 #else
-    __atomic_fetch_sub(&g_breakpoint_store_count, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_sub(&s_proof_state.breakpoint_store_count, 1, __ATOMIC_RELAXED);
 #endif
 
     BREAKPOINT_UNLOCK();
@@ -1454,9 +1462,6 @@ LemmaViewState proof_get_lemma_view_state(const ProofNavigator *nav, int step_id
 
 /* ============== 公理库权限保护 ============== */
 
-/** 公理库锁定标记：true 时禁止修改公理集合 */
-static bool g_axiom_locked = false;
-
 /**
  * @brief 锁定公理库，禁止修改公理集合
  *
@@ -1464,7 +1469,7 @@ static bool g_axiom_locked = false;
  * 将被拒绝。用于保护已验证的证明不因公理变化而失效。
  */
 void proof_lock_axioms(void) {
-    g_axiom_locked = true;
+    s_proof_state.axiom_locked = true;
     if (proof_stream_ctx) {
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, "公理库已锁定：禁止修改公理集合", 0);
     }
@@ -1474,7 +1479,7 @@ void proof_lock_axioms(void) {
  * @brief 解锁公理库，允许修改公理集合
  */
 void proof_unlock_axioms(void) {
-    g_axiom_locked = false;
+    s_proof_state.axiom_locked = false;
     if (proof_stream_ctx) {
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, "公理库已解锁：允许修改公理集合", 0);
     }
@@ -1486,7 +1491,7 @@ void proof_unlock_axioms(void) {
  * @return true 表示公理库已锁定，禁止修改
  */
 bool proof_axioms_is_locked(void) {
-    return g_axiom_locked;
+    return s_proof_state.axiom_locked;
 }
 
 /* ============== 逻辑互斥校验 ============== */

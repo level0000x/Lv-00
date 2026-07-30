@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file constraint_graph.c
  * @brief 约束图核心实现
  * @details 实现几何约束图的数据结构和操作，包括点、线段、区域、端口和函数块节点。
@@ -65,7 +65,8 @@
 #include "stream_context_util.h"
 #include "symbolic_coord.h" /* SymbolicCoord, TrustColor (brings rational.h) */
 
-lv_DECLARE_STREAM_CTX(graph);
+/** @brief graph 模块全局流式上下文定义（供所有 graph 子模块通过 constraint_graph.h 的 extern 引用） */
+lv_THREAD_LOCAL StreamContext *graph_stream_ctx = NULL;
 
 void graph_set_stream_context(StreamContext *ctx) {
     graph_stream_ctx = ctx;

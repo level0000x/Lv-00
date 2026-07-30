@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_spec.c
  * @brief 几何规范描述实现
  *
@@ -16,6 +16,7 @@
 
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
+#include "lv_internal.h"
 
 /* ========================================================================
  * 内部辅助：简易 JSON 解析（提取数值字段）
@@ -30,7 +31,7 @@
  */
 static int json_get_double(const char *json, const char *field, double *out) {
     if (json == NULL || field == NULL || out == NULL)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "json_get_double: NULL param");
 
     /* 搜索 "field" : 模式 */
     char pattern[64];
@@ -42,7 +43,7 @@ static int json_get_double(const char *json, const char *field, double *out) {
     /* 跳过字段名和冒号 */
     pos = strchr(pos, ':');
     if (pos == NULL)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "json_get_double: colon not found after field");
     pos++;
 
     /* 跳过空白 */
@@ -59,7 +60,7 @@ static int json_get_double(const char *json, const char *field, double *out) {
  */
 static int json_get_int(const char *json, const char *field, int *out) {
     if (json == NULL || field == NULL || out == NULL)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "json_get_int: NULL param");
 
     char pattern[64];
     snprintf(pattern, sizeof(pattern), "\"%s\"", field);
@@ -69,7 +70,7 @@ static int json_get_int(const char *json, const char *field, int *out) {
 
     pos = strchr(pos, ':');
     if (pos == NULL)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "json_get_int: colon not found after field");
     pos++;
 
     while (*pos == ' ' || *pos == '\t' || *pos == '\n' || *pos == '\r') {
@@ -87,11 +88,11 @@ static int json_get_int(const char *json, const char *field, int *out) {
 /** 解析单个点 */
 static lvGeoSpecPoint *parse_point(const char *json) {
     if (json == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "parse_point: json is NULL");
 
     lvGeoSpecPoint *pt = (lvGeoSpecPoint *) calloc(1, sizeof(lvGeoSpecPoint));
     if (pt == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_point: calloc failed");
 
     if (json_get_double(json, "x", &pt->x) != 0) {
         pt->x = 0.0;
@@ -105,11 +106,11 @@ static lvGeoSpecPoint *parse_point(const char *json) {
 /** 解析多边形（含点数组） */
 static lvGeoSpecPolygon *parse_polygon(const char *json) {
     if (json == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "parse_polygon: json is NULL");
 
     lvGeoSpecPolygon *poly = (lvGeoSpecPolygon *) calloc(1, sizeof(lvGeoSpecPolygon));
     if (poly == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_polygon: calloc failed");
 
     int count = 0;
     if (json_get_int(json, "count", &count) != 0 || count <= 0) {
@@ -146,14 +147,14 @@ static lvGeoSpecPolygon *parse_polygon(const char *json) {
 int lv_geo_spec_parse(const char *json, void *out) {
     if (json == NULL || out == NULL) {
         /* NULL 指针安全检查 */
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_geo_spec_parse: NULL param");
     }
 
     /* 根据 JSON 中的 type 字段判断规范类型 */
     if (strstr(json, "point") != NULL || strstr(json, "Point") != NULL) {
         lvGeoSpecPoint *pt = parse_point(json);
         if (pt == NULL)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_geo_spec_parse: parse_point failed");
         *(lvGeoSpecPoint **) out = pt;
         return 0;
     }
@@ -161,13 +162,13 @@ int lv_geo_spec_parse(const char *json, void *out) {
     if (strstr(json, "polygon") != NULL || strstr(json, "Polygon") != NULL) {
         lvGeoSpecPolygon *poly = parse_polygon(json);
         if (poly == NULL)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_geo_spec_parse: parse_polygon failed");
         *(lvGeoSpecPolygon **) out = poly;
         return 1;
     }
 
     /* 未知类型 */
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "lv_geo_spec_parse: unknown spec type");
 }
 
 void lv_geo_spec_destroy(void *spec) {

@@ -63,8 +63,7 @@
 #ifndef LV_HAS_CUDA
 
 int lv_cuda_register_backend(void) {
-    lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "CUDA 后端不可用：未定义 LV_HAS_CUDA（需要 CUDA Toolkit SDK）");
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "CUDA 后端不可用：未定义 LV_HAS_CUDA（需要 CUDA Toolkit SDK）");
 }
 
 int lv_cuda_available(void) {
@@ -822,8 +821,7 @@ static lvMatrix *cuda_matrix_clone(const lvMatrix *A) {
     CudaMatrixData *cdata = lv_calloc(1, sizeof(CudaMatrixData));
     if (!cdata) {
         lv_free((void **) &clone);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "CudaMatrixData 分配失败");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "CudaMatrixData 分配失败");
     }
     cdata->rows = rows;
     cdata->cols = cols;
@@ -832,8 +830,7 @@ static lvMatrix *cuda_matrix_clone(const lvMatrix *A) {
     if (err != cudaSuccess) {
         lv_free((void **) &cdata);
         lv_free((void **) &clone);
-        lv_ERROR_SET(lv_BACKEND_MEM_ERROR, "cudaMalloc(matrix clone) 失败: %s", cudaGetErrorString(err));
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_BACKEND_MEM_ERROR, "cudaMalloc(matrix clone) 失败: %s", cudaGetErrorString(err));
     }
 
     if (adata->d_data) {
@@ -842,8 +839,7 @@ static lvMatrix *cuda_matrix_clone(const lvMatrix *A) {
             cudaFree(cdata->d_data);
             lv_free((void **) &cdata);
             lv_free((void **) &clone);
-            lv_ERROR_SET(lv_BACKEND_MEM_ERROR, "cudaMemcpy(D2D) matrix clone 失败: %s", cudaGetErrorString(err));
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_BACKEND_MEM_ERROR, "cudaMemcpy(D2D) matrix clone 失败: %s", cudaGetErrorString(err));
         }
     } else {
         err = cudaMemset(cdata->d_data, 0, data_size);
@@ -851,8 +847,7 @@ static lvMatrix *cuda_matrix_clone(const lvMatrix *A) {
             cudaFree(cdata->d_data);
             lv_free((void **) &cdata);
             lv_free((void **) &clone);
-            lv_ERROR_SET(lv_BACKEND_MEM_ERROR, "cudaMemset matrix clone 失败: %s", cudaGetErrorString(err));
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_BACKEND_MEM_ERROR, "cudaMemset matrix clone 失败: %s", cudaGetErrorString(err));
         }
     }
 
