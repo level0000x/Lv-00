@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file bootstrap_test.c
  * @brief Lv-00 自举差分测试框架实现
  *
@@ -21,10 +21,13 @@
 #include "lv/bootstrap_test.h"
 #include "lv/lv_log.h"
 
+#include "lv/lv_file.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 
 #include "lv/constraint_graph.h"
 #include "lv/cross_platform.h"
@@ -33,6 +36,7 @@
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
+
 
 /* ============== 兼容定义 ============== */
 
@@ -1679,14 +1683,14 @@ bool bootstrap_test_write_report(BootstrapDiffTestResult **results, uint32_t cou
         return false;
     }
 
-    FILE *fp = fopen(filepath, "w");
+    FILE *fp = lv_file_open(filepath, "w");
     if (!fp) {
         lv_free((void **) &report);
         return false;
     }
 
     fprintf(fp, "%s", report);
-    fclose(fp);
+    lv_file_close(fp);
 
     lv_free((void **) &report);
     return true;

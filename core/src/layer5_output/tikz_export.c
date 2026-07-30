@@ -24,6 +24,7 @@
 #include "lv/symbolic_coord.h"
 
 #include "lv_internal.h"
+#include "lv/lv_strbuf.h"
 
 /** 输出缓冲区初始容量（64 KB） */
 #define TIKZ_BUF_INIT_CAP (64 * 1024)
@@ -213,9 +214,10 @@ int lv_tikz_export_file(void *graph, const char *filename) {
                     node->symbolic_coords[1]) {
                     double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                     double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                    char line[128];
-                    snprintf(line, sizeof(line), "  \\fill (%.4f, %.4f) circle (2pt);\n", x, y);
-                    tikz_buf_append(&buf, line);
+                    lvStrBuf sb = {0};
+                    lv_strbuf_printf(&sb, "  \\fill (%.4f, %.4f) circle (2pt);\n", x, y);
+                    tikz_buf_append(&buf, sb.data);
+                    lv_strbuf_destroy(&sb);
                 }
                 break;
             }
@@ -226,9 +228,10 @@ int lv_tikz_export_file(void *graph, const char *filename) {
                     double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
                     double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
                     double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
-                    char line[128];
-                    snprintf(line, sizeof(line), "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
-                    tikz_buf_append(&buf, line);
+                    lvStrBuf sb_2 = {0};
+                    lv_strbuf_printf(&sb_2, "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
+                    tikz_buf_append(&buf, sb_2.data);
+                    lv_strbuf_destroy(&sb_2);
                 }
                 break;
             }
@@ -248,6 +251,5 @@ int lv_tikz_export_file(void *graph, const char *filename) {
     size_t written = fwrite(buf.arr.data, 1, buf.arr.count, fp);
     fclose(fp);
     tikz_buf_destroy(&buf);
-
     return (int) written;
 }

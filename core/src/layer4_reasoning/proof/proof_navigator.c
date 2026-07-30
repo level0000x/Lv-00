@@ -31,6 +31,7 @@
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "lv/lv_strbuf.h"
 
 /* 流式上下文声明 */
 /* 证明树 API 占位（与 proof.c 保持一致） */
@@ -132,9 +133,10 @@ ProofColor proof_navigator_compute_final_color(ProofNavigator *nav) {
 
     /* 流式输出：最终颜色计算 */
     if (proof_stream_ctx) {
-        char desc_buf[64];
-        snprintf(desc_buf, sizeof(desc_buf), "最终颜色计算: %s", proof_color_to_string(final_color));
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, desc_buf, 0);
+        lvStrBuf sb = {0};
+        lv_strbuf_printf(&sb, "最终颜色计算: %s", proof_color_to_string(final_color));
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, sb.data, 0);
+        lv_strbuf_destroy(&sb);
     }
 
     return final_color;
@@ -232,9 +234,10 @@ ProofColor proof_dependency_compute_color(ProofDependency *dep) {
 
     /* 流式事件：依赖颜色计算（仅在颜色变化时发出） */
     if (proof_stream_ctx != NULL && color != old_color) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "依赖颜色更新: dep_id=%d -> %s", dep->id, proof_color_to_string(color));
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, buf, 0);
+        lvStrBuf sb_2 = {0};
+        lv_strbuf_printf(&sb_2, "依赖颜色更新: dep_id=%d -> %s", dep->id, proof_color_to_string(color));
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, sb_2.data, 0);
+        lv_strbuf_destroy(&sb_2);
     }
 
     return color;
@@ -306,9 +309,10 @@ bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id) {
 
     /* 流式事件：爆炸原理块创建 */
     if (proof_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "爆炸原理函数块创建: block_id=%d", *out_block_id);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb_3 = {0};
+        lv_strbuf_printf(&sb_3, "爆炸原理函数块创建: block_id=%d", *out_block_id);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_3.data, 0);
+        lv_strbuf_destroy(&sb_3);
     }
 
     return true;
@@ -450,10 +454,11 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
 
     /* 设置否定命题的元数据 */
     {
-        char neg_name[256];
+        lvStrBuf sb_4 = {0};
         const char *orig_name = goal_prop->name ? goal_prop->name : "(未命名命题)";
-        snprintf(neg_name, sizeof(neg_name), "¬(%s)", orig_name);
-        negated_goal->name = lv_strdup(neg_name);
+        lv_strbuf_printf(&sb_4, "¬(%s)", orig_name);
+        negated_goal->name = lv_strdup(sb_4.data);
+        lv_strbuf_destroy(&sb_4);
     }
     negated_goal->description = lv_strdup("反证法临时假设：目标命题的否定");
 
@@ -472,10 +477,11 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
 
     /* 设置分支导航器的策略注释 */
     {
-        char strategy_buf[256];
+        lvStrBuf sb_5 = {0};
         const char *goal_str = goal_prop->name ? goal_prop->name : "目标命题";
-        snprintf(strategy_buf, sizeof(strategy_buf), "反证法：假设 %s 为假，推导矛盾", goal_str);
-        proof_navigator_set_strategy_note(branch_nav, strategy_buf);
+        lv_strbuf_printf(&sb_5, "反证法：假设 %s 为假，推导矛盾", goal_str);
+        proof_navigator_set_strategy_note(branch_nav, sb_5.data);
+        lv_strbuf_destroy(&sb_5);
     }
 
     /* ====== 阶段 2：创建证明追踪树 ====== */
@@ -528,9 +534,10 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
 
         /* 流式事件：正向推理步骤 */
         if (proof_stream_ctx && i % 10 == 0) {
-            char buf[64];
-            snprintf(buf, sizeof(buf), "反证法正向推理: 步骤 %d/%d", i + 1, effective_max);
-            stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+            lvStrBuf sb_6 = {0};
+            lv_strbuf_printf(&sb_6, "反证法正向推理: 步骤 %d/%d", i + 1, effective_max);
+            stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_6.data, 0);
+            lv_strbuf_destroy(&sb_6);
         }
 
         /* 创建正向推理步骤 */
@@ -538,9 +545,9 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
         if (!fw_step)
             continue;
 
-        char step_label[64];
-        snprintf(step_label, sizeof(step_label), "正向推理步骤 %d", i + 1);
-        fw_step->note = lv_strdup(step_label);
+        lvStrBuf sb_7 = {0};
+        lv_strbuf_printf(&sb_7, "正向推理步骤 %d", i + 1);
+        fw_step->note = lv_strdup(sb_7.data);
 
         /* 将步骤添加到分支导航器 */
         if (!proof_navigator_add_step(branch_nav, fw_step)) {
@@ -550,10 +557,10 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
 
         /* 记录到追踪树 */
         {
-            char node_label[128];
-            snprintf(node_label, sizeof(node_label), "从假设 ¬P 推导出中间结论（步骤 %d）", i + 1);
+            lvStrBuf sb_8 = {0};
+            lv_strbuf_printf(&sb_8, "从假设 ¬P 推导出中间结论（步骤 %d）", i + 1);
             lvProofTreeNode *fw_node =
-                lv_proof_tree_add_step(trace_tree, assume_node, "正向推理", node_label, fw_step->id);
+                lv_proof_tree_add_step(trace_tree, assume_node, "正向推理", sb_8.data, fw_step->id);
             if (fw_node) {
                 lv_proof_tree_mark_contradiction(fw_node);
                 lv_proof_tree_add_premise(fw_node, 0, negated_goal->name ? negated_goal->name : "¬P（反证法假设）",
@@ -600,10 +607,10 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
 
             /* 在追踪树中记录矛盾发现 */
             {
-                char contra_label[128];
-                snprintf(contra_label, sizeof(contra_label), "矛盾! %s", contradiction_desc);
+                lvStrBuf sb_9 = {0};
+                lv_strbuf_printf(&sb_9, "矛盾! %s", contradiction_desc);
                 lvProofTreeNode *contra_node =
-                    lv_proof_tree_add_step(trace_tree, assume_node, "矛盾检测", contra_label, i);
+                    lv_proof_tree_add_step(trace_tree, assume_node, "矛盾检测", sb_9.data, i);
                 if (contra_node) {
                     lv_proof_tree_mark_contradiction(contra_node);
                 }
@@ -641,10 +648,11 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
 
     if (!contradiction_found) {
         /* 未发现矛盾：记录失败原因 */
-        char err_buf[256];
-        snprintf(err_buf, sizeof(err_buf), "反证法失败：在 %d 步正向推理后未发现矛盾。假设 ¬P 未导出冲突。",
+        lvStrBuf sb_10 = {0};
+        lv_strbuf_printf(&sb_10, "反证法失败：在 %d 步正向推理后未发现矛盾。假设 ¬P 未导出冲突。",
                  forward_step_count);
-        result->error_message = lv_strdup(err_buf);
+        result->error_message = lv_strdup(sb_10.data);
+        lv_strbuf_destroy(&sb_10);
     }
 
     /* ====== 清理 ====== */
@@ -888,9 +896,10 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 流式事件：断点保存 */
     if (proof_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "断点保存: breakpoint_id=%d, step=%d", breakpoint_id, nav->current_step);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb_11 = {0};
+        lv_strbuf_printf(&sb_11, "断点保存: breakpoint_id=%d, step=%d", breakpoint_id, nav->current_step);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_11.data, 0);
+        lv_strbuf_destroy(&sb_11);
     }
 
     return true;
@@ -932,9 +941,10 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 流式事件：断点恢复 */
     if (proof_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "断点恢复: breakpoint_id=%d, step=%d", breakpoint_id, nav->current_step);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb_12 = {0};
+        lv_strbuf_printf(&sb_12, "断点恢复: breakpoint_id=%d, step=%d", breakpoint_id, nav->current_step);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_12.data, 0);
+        lv_strbuf_destroy(&sb_12);
     }
 
     return true;
@@ -1035,9 +1045,10 @@ bool proof_breakpoint_delete(int breakpoint_id) {
 
     /* 流式事件 */
     if (proof_stream_ctx != NULL) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "断点已删除: breakpoint_id=%d", breakpoint_id);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb_13 = {0};
+        lv_strbuf_printf(&sb_13, "断点已删除: breakpoint_id=%d", breakpoint_id);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_13.data, 0);
+        lv_strbuf_destroy(&sb_13);
     }
 
     return true;
@@ -1279,9 +1290,10 @@ void proof_declare_proposition_equivalence(ProofNavigator *nav, int prop_a_id, i
 
     /* 流式事件：等价声明 */
     if (proof_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "命题等价声明: prop_%d <-> prop_%d", prop_a_id, prop_b_id);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb = {0};
+        lv_strbuf_printf(&sb, "命题等价声明: prop_%d <-> prop_%d", prop_a_id, prop_b_id);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb.data, 0);
+        lv_strbuf_destroy(&sb);
     }
 }
 
@@ -1395,9 +1407,10 @@ int proof_validate_dependencies(ProofNavigator *nav, DependencyUpdateResult *res
 
     /* 流式事件：依赖验证结果 */
     if (proof_stream_ctx != NULL && update_count > 0) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "依赖验证完成: %d 个依赖需要更新", update_count);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_DEPENDENCY_CHANGE, buf, 0);
+        lvStrBuf sb = {0};
+        lv_strbuf_printf(&sb, "依赖验证完成: %d 个依赖需要更新", update_count);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_DEPENDENCY_CHANGE, sb.data, 0);
+        lv_strbuf_destroy(&sb);
     }
 
     return update_count;
@@ -2253,14 +2266,15 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
                     info->proof_strategy = "匹配已知不可构造问题";
                     info->reduction_steps = 0;
 
-                    char report[512];
-                    snprintf(report, sizeof(report), "构造匹配已知的不可构造问题 '%s'（来自公理包 '%s'）", ku->name,
+                    lvStrBuf sb_14 = {0};
+                    lv_strbuf_printf(&sb_14, "构造匹配已知的不可构造问题 '%s'（来自公理包 '%s'）", ku->name,
                              pkg->name ? pkg->name : "未知");
-                    info->detailed_report = lv_strdup(report);
+                    info->detailed_report = lv_strdup(sb_14.data);
 
                     if (proof_stream_ctx) {
                         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "匹配已知不可构造问题", 1);
                     }
+                    lv_strbuf_destroy(&sb_14);
                     return UNCONSTRUCT_PROVED;
                 }
             }
@@ -2277,10 +2291,10 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
             info->proof_strategy = "命题类型为矛盾（不可构造）";
             info->reduction_steps = 0;
 
-            char report[256];
-            snprintf(report, sizeof(report), "命题已被标记为矛盾类型（BOTTOM），表示不可构造");
-            info->detailed_report = lv_strdup(report);
-
+            lvStrBuf sb_15 = {0};
+            lv_strbuf_printf(&sb_15, "命题已被标记为矛盾类型（BOTTOM），表示不可构造");
+            info->detailed_report = lv_strdup(sb_15.data);
+            lv_strbuf_destroy(&sb_15);
             return UNCONSTRUCT_PROVED;
         }
     }

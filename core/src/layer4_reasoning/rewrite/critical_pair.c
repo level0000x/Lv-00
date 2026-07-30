@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
  * 关键对计算引擎实现
  *
  * 核心算法：
@@ -16,14 +16,18 @@
 
 #include "lv/critical_pair.h"
 
+#include "lv/lv_file.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "lv/graph_hash.h"
 #include "lv/normalization.h"
 #include "lv/unify.h"
+
 
 /* ---- 内部常量 ------------------------------------------------------------- */
 
@@ -477,7 +481,7 @@ bool critical_pair_export_text(const CriticalPair *cp, const char *filepath) {
     if (!cp || !filepath)
         return false;
 
-    FILE *f = fopen(filepath, "w");
+    FILE *f = lv_file_open(filepath, "w");
     if (!f)
         return false;
 
@@ -502,7 +506,7 @@ bool critical_pair_export_text(const CriticalPair *cp, const char *filepath) {
         }
     }
 
-    fclose(f);
+    lv_file_close(f);
     return true;
 }
 

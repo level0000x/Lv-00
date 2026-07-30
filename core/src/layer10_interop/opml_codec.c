@@ -6,6 +6,7 @@
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 /**
  * @file opml_codec.c
@@ -367,18 +368,19 @@ static const char *json_extract_string(const char *p, char *buf, int buf_size) {
 static const char *json_find_key(const char *obj_start, const char *key) {
     if (!obj_start || !key)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "NULL obj_start or key");
-    char search[256];
-    snprintf(search, sizeof(search), "\"%s\"", key);
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "\"%s\"", key);
     const char *p = obj_start;
     while (p && *p) {
-        p = strstr(p, search);
+        p = strstr(p, sb.data);
         if (!p)
             lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "key \"%s\" not found", key);
-        p += strlen(search);
+        p += strlen(sb.data);
         p = json_skip_ws(p);
         if (*p == ':') {
             p++;
             p = json_skip_ws(p);
+            lv_strbuf_destroy(&sb);
             return p;
         }
     }

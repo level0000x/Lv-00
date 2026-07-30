@@ -37,6 +37,7 @@
  * （<sys/socket.h> + <netinet/in.h> + <arpa/inet.h>）实现
  * WebSocket 服务器支持，功能等级与 Windows Winsock2 实现相同。
  */
+#include "lv/lv_strbuf.h"
 #if defined(_WIN32) || defined(_WIN64)
 /* 尝试包含Winsock2头文件用于套接字初始化 */
 #if __has_include(<winsock2.h>)
@@ -697,12 +698,13 @@ int interop_server_run(InteropServer *server) {
         char output[INTEROP_RESP_BUFFER_SIZE];
 
         {
-            char msg[160];
-            snprintf(msg, sizeof(msg),
+            lvStrBuf sb = {0};
+            lv_strbuf_printf(&sb,
                      "WebSocket服务器正在端口%d上监听（最大%d个并发客户端），"
                      "同时接受STDIN命令",
                      server->port, WS_MAX_CLIENTS);
-            lv_set_error(lv_OK, "%s", msg);
+            lv_set_error(lv_OK, "%s", sb.data);
+            lv_strbuf_destroy(&sb);
         }
 
         while (server->running) {
@@ -846,12 +848,13 @@ int interop_server_run(InteropServer *server) {
         char output[INTEROP_RESP_BUFFER_SIZE];
 
         {
-            char msg[160];
-            snprintf(msg, sizeof(msg),
+            lvStrBuf sb_2 = {0};
+            lv_strbuf_printf(&sb_2,
                      "WebSocket服务器正在端口%d上监听（最大%d个并发客户端），"
                      "同时接受STDIN命令",
                      server->port, WS_MAX_CLIENTS);
-            lv_set_error(lv_OK, "%s", msg);
+            lv_set_error(lv_OK, "%s", sb_2.data);
+            lv_strbuf_destroy(&sb_2);
         }
 
         while (server->running) {

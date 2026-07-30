@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_visual_complete.c
  * @brief 几何可视化完整版实现
  *
@@ -15,9 +15,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_file.h"
+
 #include "lv/geo_visual.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+
 
 
 
@@ -759,6 +762,7 @@ static void cairo_render_scene(FILE *fp, const lvVisualRenderer *renderer, const
     fprintf(fp, "#include <cairo.h>\n");
     fprintf(fp, "#include <math.h>\n");
     fprintf(fp, "#include <stdio.h>\n\n");
+
     fprintf(fp, "int main(void) {\n");
     fprintf(fp,
             "    cairo_surface_t *surface = "
@@ -1146,14 +1150,14 @@ static bool png_write_chunk(FILE *fp, const char *type, const uint8_t *data, uin
 
 /** 将 RGB 像素数据编码为 PNG 文件 */
 static bool write_png_rgb(const char *path, int width, int height, const uint8_t *rgb_data) {
-    FILE *fp = fopen(path, "wb");
+    FILE *fp = lv_file_open(path, "wb");
     if (!fp)
         return false;
 
     /* PNG 签名 */
     const uint8_t sig[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
     if (fwrite(sig, 8, 1, fp) != 1) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
@@ -1167,7 +1171,7 @@ static bool write_png_rgb(const char *path, int width, int height, const uint8_t
     ihdr[11] = 0; /* filter */
     ihdr[12] = 0; /* interlace */
     if (!png_write_chunk(fp, "IHDR", ihdr, 13)) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
@@ -1176,7 +1180,7 @@ static bool write_png_rgb(const char *path, int width, int height, const uint8_t
     size_t raw_size = (size_t) row_bytes * (size_t) height;
     uint8_t *raw = (uint8_t *) lv_malloc(raw_size);
     if (!raw) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
@@ -1190,7 +1194,7 @@ static bool write_png_rgb(const char *path, int width, int height, const uint8_t
     /* overflow check: raw_size + 5 + 64 must not wrap */
     if (raw_size > SIZE_MAX - 69) {
         lv_free((void **) &raw);
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
     size_t raw_remaining = raw_size;
@@ -1198,7 +1202,7 @@ static bool write_png_rgb(const char *path, int width, int height, const uint8_t
     uint8_t *idat_buf = (uint8_t *) lv_malloc(idat_capacity);
     if (!idat_buf) {
         lv_free((void **) &raw);
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
@@ -1211,7 +1215,7 @@ static bool write_png_rgb(const char *path, int width, int height, const uint8_t
             if (!nb) {
                 lv_free((void **) &idat_buf);
                 lv_free((void **) &raw);
-                fclose(fp);
+                lv_file_close(fp);
                 return false;
             }
             idat_buf = nb;
@@ -1231,18 +1235,18 @@ static bool write_png_rgb(const char *path, int width, int height, const uint8_t
 
     if (!png_write_chunk(fp, "IDAT", idat_buf, (uint32_t) idat_pos)) {
         lv_free((void **) &idat_buf);
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
     lv_free((void **) &idat_buf);
 
     /* IEND chunk */
     if (!png_write_chunk(fp, "IEND", NULL, 0)) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
-    fclose(fp);
+    lv_file_close(fp);
     return true;
 }
 
@@ -1250,7 +1254,7 @@ void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const ch
     if (renderer == NULL || scene == NULL || output_path == NULL)
         return;
 
-    FILE *fp = fopen(output_path, "w");
+    FILE *fp = lv_file_open(output_path, "w");
     if (fp == NULL)
         return;
 
@@ -1269,7 +1273,7 @@ void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const ch
             break;
         case lv_RENDER_PNG: {
             /* PNG 使用二进制模式，关闭文本模式 fp */
-            fclose(fp);
+            lv_file_close(fp);
             size_t px = (size_t) renderer->width * (size_t) renderer->height;
             size_t rgb_size = px * 3;
             uint8_t *rgb = (uint8_t *) lv_malloc(rgb_size);
@@ -1288,7 +1292,7 @@ void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const ch
             break;
     }
 
-    fclose(fp);
+    lv_file_close(fp);
 }
 
 /* ========================================================================

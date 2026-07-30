@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
  * 模块名称：几何数据压缩引擎 (geometry_compress)
  *
  * 功能概述：
@@ -26,17 +26,22 @@
 
 #include "geometry_compress.h"
 
+#include "lv/lv_file.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "lv/constraint_graph.h"
+
 
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "node_deep_copy.h"
 #include "symbolic_coord.h"
+
 
 /* ========================================================================
  * Internal constants
@@ -2287,7 +2292,7 @@ bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename)
     if (!data || size == 0 || !filename)
         return false;
 
-    FILE *fp = fopen(filename, "wb");
+    FILE *fp = lv_file_open(filename, "wb");
     if (!fp)
         return false;
 
@@ -2304,13 +2309,13 @@ bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename)
     /* Write file header */
     size_t written = fwrite(header, 1, LVZD_HEADER_SIZE, fp);
     if (written != LVZD_HEADER_SIZE) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
     /* Write compressed data */
     written = fwrite(data, 1, size, fp);
-    fclose(fp);
+    lv_file_close(fp);
     return (written == size);
 }
 
@@ -2318,7 +2323,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     if (!filename || !out_data || !out_size)
         return false;
 
-    FILE *fp = fopen(filename, "rb");
+    FILE *fp = lv_file_open(filename, "rb");
     if (!fp)
         return false;
 
@@ -2326,14 +2331,14 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     uint8_t header[LVZD_HEADER_SIZE];
     size_t read_bytes = fread(header, 1, LVZD_HEADER_SIZE, fp);
     if (read_bytes != LVZD_HEADER_SIZE) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
     /* Verify magic */
     uint32_t magic = read_uint32_le(header);
     if (magic != LVZD_MAGIC) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
@@ -2341,7 +2346,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     uint32_t ver_major = read_uint32_le(header + 4);
     uint32_t ver_minor = read_uint32_le(header + 8);
     if (ver_major > LVZD_VERSION_MAJOR) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
     (void) ver_minor;
@@ -2349,7 +2354,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     /* Read compressed data size */
     uint64_t comp_size = read_uint64_le(header + 20);
     if (comp_size == 0) {
-        fclose(fp);
+        lv_file_close(fp);
         *out_data = NULL;
         *out_size = 0;
         return true;
@@ -2358,12 +2363,12 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     /* Allocate buffer and read compressed data */
     uint8_t *buf = (uint8_t *) lv_malloc((size_t) comp_size);
     if (!buf) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
     read_bytes = fread(buf, 1, (size_t) comp_size, fp);
-    fclose(fp);
+    lv_file_close(fp);
 
     if (read_bytes != (size_t) comp_size) {
         lv_free((void **) &buf);

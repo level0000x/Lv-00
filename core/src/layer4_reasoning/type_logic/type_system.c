@@ -49,6 +49,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "rewrite.h"
+#include "lv/lv_strbuf.h"
 
 /* 流式上下文（非 static，供 type_path_explorer.c 通过 extern 访问） */
 lv_UNUSED_ATTR lv_THREAD_LOCAL StreamContext *type_system_stream_ctx = NULL;
@@ -1276,13 +1277,14 @@ TypeEquivResult type_check_equivalence(TypeSystem *ts, TypeRegion *type1, TypeRe
     /* 流式事件：等价检查结果 */
     if (type_system_stream_ctx != NULL) {
         const char *result_str = type_equiv_result_to_string(result);
-        char buf[128];
-        snprintf(buf, sizeof(buf), "类型等价检查完成: %s", result_str);
+        lvStrBuf sb = {0};
+        lv_strbuf_printf(&sb, "类型等价检查完成: %s", result_str);
         if (result == TYPE_EQUIV_NOT_EQUIV) {
-            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING, buf, 0);
+            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING, sb.data, 0);
         } else {
-            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, sb.data, 0);
         }
+        lv_strbuf_destroy(&sb);
     }
 
     return result;
@@ -1341,13 +1343,14 @@ TypeCheckResult type_check_port_compatibility(TypeSystem *ts, TypeRegion *source
     /* 流式事件：端口兼容性检查结果 */
     if (type_system_stream_ctx != NULL) {
         const char *result_str = type_check_result_to_string(result);
-        char buf[128];
-        snprintf(buf, sizeof(buf), "端口兼容性检查完成: %s", result_str);
+        lvStrBuf sb_2 = {0};
+        lv_strbuf_printf(&sb_2, "端口兼容性检查完成: %s", result_str);
         if (result == TYPE_CHECK_MISMATCH || result == TYPE_CHECK_INCOMPATIBLE) {
-            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING, buf, 0);
+            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING, sb_2.data, 0);
         } else {
-            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, sb_2.data, 0);
         }
+        lv_strbuf_destroy(&sb_2);
     }
 
     return result;
@@ -1587,9 +1590,10 @@ bool type_infer_node(TypeSystem *ts, ConstraintGraph *graph, int node_id, TypeRe
     /* 流式事件：结果 */
     if (type_system_stream_ctx != NULL) {
         if (result && out_type && *out_type) {
-            char buf[128];
-            snprintf(buf, sizeof(buf), "类型推断完成: %s", type_kind_to_string((*out_type)->kind));
-            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+            lvStrBuf sb_3 = {0};
+            lv_strbuf_printf(&sb_3, "类型推断完成: %s", type_kind_to_string((*out_type)->kind));
+            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, sb_3.data, 0);
+            lv_strbuf_destroy(&sb_3);
         } else {
             stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING, "类型推断失败", 0);
         }
@@ -1656,9 +1660,10 @@ bool type_instantiate_variable(TypeSystem *ts, int var_id, TypeRegion *concrete_
 
     /* 流式事件：变量实例化完成 */
     if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "类型变量实例化: var_id=%d -> %s", var_id, type_kind_to_string(concrete_type->kind));
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb_4 = {0};
+        lv_strbuf_printf(&sb_4, "类型变量实例化: var_id=%d -> %s", var_id, type_kind_to_string(concrete_type->kind));
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, sb_4.data, 0);
+        lv_strbuf_destroy(&sb_4);
     }
 
     return true;
@@ -2111,9 +2116,10 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
 
     /* 流式事件：类型附加到节点 */
     if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "类型附加到节点: node_id=%d, type=%s", node_id, type_kind_to_string(type->kind));
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_NODE_ADDED, buf, 0);
+        lvStrBuf sb_5 = {0};
+        lv_strbuf_printf(&sb_5, "类型附加到节点: node_id=%d, type=%s", node_id, type_kind_to_string(type->kind));
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_5.data, 0);
+        lv_strbuf_destroy(&sb_5);
     }
 
     return true;
@@ -2723,9 +2729,10 @@ TypeEquivResult type_infer_by_rules(TypeSystem *ts, ConstraintGraph *graph, int 
 
         /* 流式事件：规则推断成功 */
         if (type_system_stream_ctx != NULL) {
-            char buf[128];
-            snprintf(buf, sizeof(buf), "规则推断成功: 节点 %d -> %s", node_id, type_kind_to_string(type->kind));
-            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+            lvStrBuf sb_6 = {0};
+            lv_strbuf_printf(&sb_6, "规则推断成功: 节点 %d -> %s", node_id, type_kind_to_string(type->kind));
+            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, sb_6.data, 0);
+            lv_strbuf_destroy(&sb_6);
         }
 
         return TYPE_EQUIV_OK;
@@ -2734,9 +2741,10 @@ TypeEquivResult type_infer_by_rules(TypeSystem *ts, ConstraintGraph *graph, int 
     /* 无规则匹配 */
     /* 流式事件：规则表推断完成，无匹配规则 */
     if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "规则表推断完成: 节点 %d 无匹配规则", node_id);
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb_7 = {0};
+        lv_strbuf_printf(&sb_7, "规则表推断完成: 节点 %d 无匹配规则", node_id);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, sb_7.data, 0);
+        lv_strbuf_destroy(&sb_7);
     }
 
     return TYPE_EQUIV_NOT_EQUIV;

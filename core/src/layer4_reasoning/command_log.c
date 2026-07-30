@@ -10,10 +10,13 @@
 
 #include "lv/command_log.h"
 
+#include "lv/lv_file.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
@@ -22,8 +25,10 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
+
 #ifdef _WIN32
 #include <windows.h>
+
 #endif
 
 /* ════════════════════════════════════════════════════════════════
@@ -591,13 +596,13 @@ bool command_log_serialize_json(const CommandLog *log, const char *filepath) {
     lv_json_buf_append_raw(&buf, "  ]\n}\n");
 
     /* 写入文件 */
-    FILE *fp = fopen(filepath, "w");
+    FILE *fp = lv_file_open(filepath, "w");
     if (!fp) {
         lv_json_buf_free(&buf);
         return false;
     }
     fputs(buf.buffer, fp);
-    fclose(fp);
+    lv_file_close(fp);
 
     lv_json_buf_free(&buf);
     return true;
@@ -1152,7 +1157,7 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "command_log_deserialize_json: filepath is NULL");
     }
 
-    FILE *fp = fopen(filepath, "rb");
+    FILE *fp = lv_file_open(filepath, "rb");
     if (!fp) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "command_log_deserialize_json: cannot open file");
     }
@@ -1161,18 +1166,18 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
     fseek(fp, 0, SEEK_END);
     long flen = ftell(fp);
     if (flen <= 0) {
-        fclose(fp);
+        lv_file_close(fp);
         lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "command_log_deserialize_json: empty file");
     }
     fseek(fp, 0, SEEK_SET);
 
     char *buf = (char *) lv_malloc((size_t) (flen + 1));
     if (!buf) {
-        fclose(fp);
+        lv_file_close(fp);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_log_deserialize_json: malloc failed");
     }
     size_t nread = fread(buf, 1, (size_t) flen, fp);
-    fclose(fp);
+    lv_file_close(fp);
     buf[nread] = '\0';
 
     JsonCtx j;

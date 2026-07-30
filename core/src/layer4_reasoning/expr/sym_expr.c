@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "lv/lv_strbuf.h"
 
 /* ============================================================
  * Internal helpers
@@ -508,21 +509,24 @@ static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf, int bufsize
         return 0;
     }
 
-    char tmp[256];
+    lvStrBuf sb = {0};
     int len = 0;
 
     switch (expr->kind) {
         case lv_SYM_CONST:
             /* Format integer-valued constants without decimal point */
             if (expr->value == (double) (long long) expr->value && fabs(expr->value) < 1e15) {
-                len = snprintf(tmp, sizeof(tmp), "%lld", (long long) expr->value);
+                lv_strbuf_printf(&sb, "%lld", (long long) expr->value);
+                len = (int)sb.len;
             } else {
-                len = snprintf(tmp, sizeof(tmp), "%.6g", expr->value);
+                lv_strbuf_printf(&sb, "%.6g", expr->value);
+                len = (int)sb.len;
             }
             break;
 
         case lv_SYM_VAR:
-            len = snprintf(tmp, sizeof(tmp), "%s", expr->var_name ? expr->var_name : "?");
+            lv_strbuf_printf(&sb, "%s", expr->var_name ? expr->var_name : "?");
+            len = (int)sb.len;
             break;
 
         case lv_SYM_ADD: {
@@ -536,6 +540,7 @@ static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf, int bufsize
                     pos += snprintf(buf + pos, bufsize - pos, " + ");
                 pos += sym_expr_to_string_impl(expr->children[1], buf + pos, bufsize - pos, lv_SYM_ADD);
             }
+            lv_strbuf_destroy(&sb);
             return len;
         }
 
@@ -647,7 +652,7 @@ static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf, int bufsize
     /* Copy from tmp to buf if needed */
     if (buf && bufsize > 0) {
         int copy_len = (len < bufsize) ? len : bufsize - 1;
-        memcpy(buf, tmp, (size_t) copy_len);
+        memcpy(buf, sb.data, (size_t) copy_len);
         buf[copy_len] = '\0';
     }
 

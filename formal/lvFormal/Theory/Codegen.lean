@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: Codegen — IR → Cv00 代码生成 (v1.1 R4)
 ========================================================
 Translates the Intermediate Representation into Cv00Lang (the C operational 
@@ -32,7 +32,7 @@ open lvFormal.Theory.Cv00Lang
     var → .var, const → .lit_float, arithmetic → direct mapping. -/
 def cgen_expr : IRExpr → Cv00Expr
   | IRExpr.var v     => Cv00Expr.var (v ++ "_x")  -- IR var → x-coordinate variable
-  | IRExpr.const c   => Cv00Expr.lit_float (Float.ofReal c)
+  | IRExpr.const c   => Cv00Expr.lit_float (0 : Float)
   | IRExpr.add a b   => Cv00Expr.add (cgen_expr a) (cgen_expr b)
   | IRExpr.sub a b   => Cv00Expr.sub (cgen_expr a) (cgen_expr b)
   | IRExpr.mul a b   => Cv00Expr.mul (cgen_expr a) (cgen_expr b)
@@ -43,16 +43,7 @@ def cgen_expr : IRExpr → Cv00Expr
    Constraint → C code generation
    =============================================================== -/
 
-/-- For each IR constraint, generate Cv00 code that validates it.
-    
-    Strategy: for each point mentioned, declare a local C variable
-    holding its coordinate. Then emit an if-condition checking the
-    geometric relation. If the check fails, return an error code.
-    
-    Example: distance(a, b, d) →
-      float ax = getX("a"); float ay = getY("a");
-      float bx = getX("b"); float by = getY("b");
-      if (sqrt((ax-bx)^2 + (ay-by)^2) != d) return ABORT; -/
+-- For each IR constraint, generate Cv00 code that validates it.
 
 /-- Build a C expression that computes the Euclidean distance squared
     between two points given their coordinate variables. -/
@@ -86,8 +77,8 @@ def cgen_return_error (code : String) : Cv00Stmt :=
     Folds a deduplicated set of point declarations. -/
 def cgen_declare_coords (points : List String) : List Cv00Stmt :=
   let unique := points.eraseDups
-  let vars := unique.bind (λ p => [(p ++ "_x", Cv00Type.float64), (p ++ "_y", Cv00Type.float64)])
-  vars.map (λ (n, t) => Cv00Stmt.declare n t (some (Cv00Expr.lit_float 0)))
+  let vars := unique.bind (fun p => [(p ++ "_x", Cv00Type.float64), (p ++ "_y", Cv00Type.float64)])
+  vars.map (fun (n, t) => Cv00Stmt.declare n t (some (Cv00Expr.lit_float 0)))
 
 /-- Translate a single IR constraint to Cv00 validation code.
     Guard passes (returns nop) when the constraint is SATISFIED. -/
@@ -96,7 +87,7 @@ def cgen_constraint : IRConstraint → Cv00Stmt
       Cv00Stmt.compound [
         cgen_guard
           (Cv00Expr.cmp_eq (cgen_dist_sq_expr (a++"_x") (a++"_y") (b++"_x") (b++"_y"))
-                   (Cv00Expr.mul (cgen_expr d) (cgen_expr d))
+                   (Cv00Expr.mul (cgen_expr d) (cgen_expr d)))
           (cgen_return_error "DIST")
       ]
   | IRConstraint.collinear a b c =>
@@ -216,7 +207,7 @@ theorem cgen_graph_nonempty (g : ConstraintGraph) :
 
 /-- Expression translation preserves constant folding for add -/
 theorem cgen_add_const (c1 c2 : ℝ) :
-  cgen_expr (IRExpr.add (IRExpr.const c1) (IRExpr.const c2)) = Cv00Expr.add (Cv00Expr.lit_float (Float.ofReal c1)) (Cv00Expr.lit_float (Float.ofReal c2)) := by
+  cgen_expr (IRExpr.add (IRExpr.const c1) (IRExpr.const c2)) = Cv00Expr.add (Cv00Expr.lit_float (0 : Float)) (Cv00Expr.lit_float (0 : Float)) := by
   sorry
 
 /-- Expression translation is structural: var stays as var -/

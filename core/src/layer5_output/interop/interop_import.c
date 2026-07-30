@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop_import.c
  * @brief 导入（GeoGebra/SVG）
  *
@@ -17,14 +17,18 @@
 #include <string.h>
 #include <zlib.h>
 
+#include "lv/lv_file.h"
+
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/interop.h"
 #include "lv/lv_parse_utils.h"
 
+
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+
 
 /* ── GeoGebra ZIP 解析常量 ── */
 
@@ -272,7 +276,7 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
     }
 
     /* --- 读取文件 --- */
-    FILE *fp = fopen(config->input_path, "r");
+    FILE *fp = lv_file_open(config->input_path, "r");
     if (!fp) {
         lv_set_error(lv_ERROR_IO, "GeoJSON导入失败：无法打开文件'%s'", config->input_path);
         return lv_ERROR_IO;
@@ -281,25 +285,25 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
     long fsize = ftell(fp);
     fseek(fp, 0, SEEK_SET);
     if (fsize <= 0) {
-        fclose(fp);
+        lv_file_close(fp);
         lv_set_error(lv_ERROR_UNSUPPORTED, "GeoJSON文件'%s'为空", config->input_path);
         return lv_ERROR_UNSUPPORTED;
     }
 
     char *json = (char *) lv_malloc((size_t) fsize + 1);
     if (!json) {
-        fclose(fp);
+        lv_file_close(fp);
         return lv_ERROR_OUT_OF_MEMORY;
     }
     size_t read_size = fread(json, 1, (size_t) fsize, fp);
     if (read_size != (size_t) fsize) {
-        fclose(fp);
+        lv_file_close(fp);
         lv_free((void **) &json);
         lv_set_error(lv_ERROR_IO, "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）", config->input_path, fsize,
                      read_size);
         return lv_ERROR_IO;
     }
-    fclose(fp);
+    lv_file_close(fp);
     json[read_size] = '\0';
 
 /* --- 手写 JSON 解析辅助（不依赖外部 JSON 库） --- */

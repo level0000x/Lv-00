@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file axiom_pkg.c
  * @brief 公理系统包实现
  * @details 实现公理包的加载、验证和展开功能。支持约束模板、
@@ -7,6 +7,8 @@
 
 #include "axiom_pkg.h"
 
+#include "lv/lv_file.h"
+
 #include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -14,7 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "lv/sha256.h"
+
 
 #include "debug.h"
 #include "error_codes.h"
@@ -22,6 +26,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "stream.h"
+
 
 /* 兼容性宏：set_error → lv_set_error */
 #define set_error(fmt, ...) lv_set_error(lv_ERROR_INVALID_PARAM, (fmt), ##__VA_ARGS__)
@@ -954,7 +959,7 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     lv_clear_error();
 
     /* 读取文件 */
-    FILE *f = fopen(filepath, "r");
+    FILE *f = lv_file_open(filepath, "r");
     if (!f) {
         lv_set_error(lv_ERROR_IO, "无法打开文件: %s", filepath);
         return AXIOM_LOAD_FILE_NOT_FOUND;
@@ -965,28 +970,28 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     fseek(f, 0, SEEK_SET);
 
     if (len <= 0) {
-        fclose(f);
+        lv_file_close(f);
         lv_set_error(lv_ERROR_PARSE, "文件为空: %s", filepath);
         return AXIOM_LOAD_PARSE_ERROR;
     }
 
     /* 限制最大文件大小为64MB，防止内存耗尽 */
     if (len > AXIOM_MAX_FILE_SIZE) {
-        fclose(f);
+        lv_file_close(f);
         lv_set_error(lv_ERROR_INVALID_PARAM, "文件过大（超过64MB限制）: %s", filepath);
         return AXIOM_LOAD_PARSE_ERROR;
     }
 
     char *buf = lv_malloc((size_t) len + 1);
     if (!buf) {
-        fclose(f);
+        lv_file_close(f);
         lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
         return AXIOM_LOAD_PARSE_ERROR;
     }
 
     size_t read_len = fread(buf, 1, (size_t) len, f);
     int read_error = ferror(f);
-    fclose(f);
+    lv_file_close(f);
     if (read_len != (size_t) len && read_error) {
         lv_free((void **) &buf);
         lv_set_error(lv_ERROR_IO, "文件读取失败: %s", filepath);
@@ -1074,7 +1079,7 @@ AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const char *filepath
     if (!pkg || !filepath)
         return AXIOM_SAVE_FILE_ERROR;
 
-    FILE *f = fopen(filepath, "w");
+    FILE *f = lv_file_open(filepath, "w");
     if (!f) {
         lv_set_error(lv_ERROR_IO, "无法创建文件: %s", filepath);
         return AXIOM_SAVE_FILE_ERROR;
@@ -1128,7 +1133,7 @@ AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const char *filepath
     /* 关闭包 */
     fprintf(f, "}\n");
 
-    fclose(f);
+    lv_file_close(f);
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "公理包保存成功", 0);

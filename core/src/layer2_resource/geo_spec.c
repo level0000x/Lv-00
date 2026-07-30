@@ -20,6 +20,7 @@
 
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_strbuf.h"
 
 /* ================================================================
  *  内部辅助：简易 JSON 字段提取
@@ -36,15 +37,16 @@
  * @return 0 成功，-1 未找到字段或参数无效
  */
 static int json_get_double(const char *json, const char *field, double *out) {
-    char pattern[64];
+    lvStrBuf sb = {0};
     const char *pos;
 
     if (!json || !field || !out)
+        lv_strbuf_destroy(&sb);
         return -1;
 
     /* 构造搜索模式 "field" */
-    snprintf(pattern, sizeof(pattern), "\"%s\"", field);
-    pos = strstr(json, pattern);
+    lv_strbuf_printf(&sb, "\"%s\"", field);
+    pos = strstr(json, sb.data);
     if (!pos)
         return -1;
 
@@ -77,14 +79,15 @@ static int json_get_double(const char *json, const char *field, double *out) {
  * @return 0 成功，-1 未找到字段或参数无效
  */
 static int json_get_int(const char *json, const char *field, int *out) {
-    char pattern[64];
+    lvStrBuf sb_2 = {0};
     const char *pos;
 
     if (!json || !field || !out)
+        lv_strbuf_destroy(&sb_2);
         return -1;
 
-    snprintf(pattern, sizeof(pattern), "\"%s\"", field);
-    pos = strstr(json, pattern);
+    lv_strbuf_printf(&sb_2, "\"%s\"", field);
+    pos = strstr(json, sb_2.data);
     if (!pos)
         return -1;
 
@@ -113,18 +116,19 @@ static int json_get_int(const char *json, const char *field, int *out) {
  * @return 包含返回 1，不包含返回 0
  */
 static int json_has_type(const char *json, const char *type_name) {
-    char pattern[64];
+    lvStrBuf sb_3 = {0};
 
     if (!json || !type_name)
+        lv_strbuf_destroy(&sb_3);
         return 0;
 
-    /* 搜索 "type":"type_name" 或 "type" : "type_name" 等变体 */
-    snprintf(pattern, sizeof(pattern), "\"type\"");
-    if (!strstr(json, pattern))
+    /* 搜索 "type" 字段 */
+    lv_strbuf_printf(&sb_3, "\"type\"");
+    if (!strstr(json, sb_3.data))
         return 0;
 
-    snprintf(pattern, sizeof(pattern), "\"%s\"", type_name);
-    return (strstr(json, pattern) != NULL) ? 1 : 0;
+    lv_strbuf_printf(&sb_3, "\"%s\"", type_name);
+    return (strstr(json, sb_3.data) != NULL) ? 1 : 0;
 }
 
 /* ================================================================

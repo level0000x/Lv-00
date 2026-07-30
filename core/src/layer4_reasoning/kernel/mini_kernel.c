@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mini_kernel.c
  * @brief 极简验证内核实现 —— 借鉴 mm0/Metamath 的超小型可信计算基（TCB）
  *
@@ -40,16 +40,21 @@
 
 #include "mini_kernel.h"
 
+#include "lv/lv_file.h"
+
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "lv/constraint_graph.h"
+
 
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+
 
 /* ========================================================================
  * 模块级常量
@@ -664,7 +669,7 @@ MiniVerifyResult mini_kernel_verify_all(MiniKernel *kernel, int *out_passed, int
  * ======================================================================== */
 
 static bool mini_read_file_content(const char *filepath, char **out_content, size_t *out_len) {
-    FILE *fp = fopen(filepath, "r");
+    FILE *fp = lv_file_open(filepath, "r");
     if (!fp) {
         lv_set_error_ctx(lv_ERROR_IO, __FILE__, __LINE__, __func__, "无法打开文件: %s", filepath);
         return false;
@@ -674,17 +679,17 @@ static bool mini_read_file_content(const char *filepath, char **out_content, siz
     fseek(fp, 0, SEEK_SET);
 
     if (fsize < 0) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
 
     char *buf = lv_malloc((size_t) fsize + 1);
     if (!buf) {
-        fclose(fp);
+        lv_file_close(fp);
         return false;
     }
     size_t read_len = fread(buf, 1, (size_t) fsize, fp);
-    fclose(fp);
+    lv_file_close(fp);
     buf[read_len] = '\0';
 
     *out_content = buf;
@@ -794,7 +799,7 @@ bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath) {
     lv_CHECK_NULL(kernel, false);
     lv_CHECK_NULL(filepath, false);
 
-    FILE *fp = fopen(filepath, "w");
+    FILE *fp = lv_file_open(filepath, "w");
     if (!fp) {
         lv_set_error_ctx(lv_ERROR_IO, __FILE__, __LINE__, __func__, "无法创建文件: %s", filepath);
         return false;
@@ -833,7 +838,7 @@ bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath) {
         }
     }
 
-    fclose(fp);
+    lv_file_close(fp);
     return true;
 }
 

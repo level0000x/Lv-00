@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file module_serialize.c
  * @brief 模块序列化（MsgPack/JSON）
  *
@@ -14,14 +14,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_file.h"
+
 #include "lv/module.h"
 #include "lv/module_internal.h"
 #include "lv/sha256.h"
+
 
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "module_helpers.h"
+
 
 
 Module *module_create(const char *name, const char *version) {
@@ -194,7 +198,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     (*count)++;
 
     /* 读取文件内容 */
-    FILE *f = fopen(filepath, "r");
+    FILE *f = lv_file_open(filepath, "r");
     if (!f) {
         lv_set_error(lv_ERROR_IO, "无法打开文件: %s", filepath);
         *status = MODULE_LOAD_FILE_NOT_FOUND;
@@ -206,7 +210,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     fseek(f, 0, SEEK_SET);
 
     if (len <= 0) {
-        fclose(f);
+        lv_file_close(f);
         lv_set_error(lv_ERROR_IO, "文件为空: %s", filepath);
         *status = MODULE_LOAD_PARSE_ERROR;
         return false;
@@ -214,14 +218,14 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
 
     char *buf = lv_calloc(len + 1, 1);
     if (!buf) {
-        fclose(f);
+        lv_file_close(f);
         lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
         *status = MODULE_LOAD_PARSE_ERROR;
         return false;
     }
 
     size_t read_len = fread(buf, 1, len, f);
-    fclose(f);
+    lv_file_close(f);
     /* 检查 fread 是否完整读取了文件内容 */
     if (read_len != (size_t) len) {
         lv_free((void **) &buf);
@@ -516,7 +520,7 @@ static void serialize_constraint_graph(FILE *f, const ConstraintGraph *graph) {
 }
 
 ModuleSaveStatus module_save(const Module *mod, const char *filepath) {
-    FILE *f = fopen(filepath, "w");
+    FILE *f = lv_file_open(filepath, "w");
     if (!f)
         return MODULE_SAVE_FILE_ERROR;
 
@@ -548,7 +552,7 @@ ModuleSaveStatus module_save(const Module *mod, const char *filepath) {
     }
 
     fprintf(f, "end\n");
-    fclose(f);
+    lv_file_close(f);
     if (module_stream_ctx) {
         stream_emit_simple(module_stream_ctx, STREAM_EVENT_INFO, "模块保存成功", 0);
     }

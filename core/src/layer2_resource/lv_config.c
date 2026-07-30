@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv_config.c
  * @brief Lv-00 运行时配置系统实现
  *
@@ -21,11 +21,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_file.h"
+
 #include "lv/lv.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
+
 
 static lvConfig g_active_config;
 static int g_config_applied = 0;
@@ -591,23 +594,23 @@ static void json_config_double(const char *json, const char *key, double *out) {
 int lv_config_load_json(const char *json_path) {
     if (!json_path)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "json_path is NULL");
-    FILE *f = fopen(json_path, "rb");
+    FILE *f = lv_file_open(json_path, "rb");
     if (!f)
         lv_RETURN_ERROR(lv_ERROR_IO, "failed to open config file");
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (sz <= 0 || sz > (1024 * 1024)) {
-        fclose(f);
+        lv_file_close(f);
         lv_RETURN_ERROR(lv_ERROR_PARSE, "invalid config file size");
     }
     char *buf = (char *) lv_malloc((size_t) sz + 1);
     if (!buf) {
-        fclose(f);
+        lv_file_close(f);
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate JSON buffer");
     }
     size_t n = fread(buf, 1, (size_t) sz, f);
-    fclose(f);
+    lv_file_close(f);
     buf[n] = '\0';
 
     lvConfig cfg = *lv_config_default();

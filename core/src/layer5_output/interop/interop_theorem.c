@@ -23,6 +23,7 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 /* ── 定理系统 ── */
 
@@ -230,9 +231,10 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
                         written = snprintf(output + offset, output_size - offset, " %s", param);
                     } else {
                         /* Coq 风格：apply theorem_name with (A := param1) (B := param2) */
-                        char arg_label[8];
-                        snprintf(arg_label, sizeof(arg_label), "%c", (char) ('A' + pidx));
-                        written = snprintf(output + offset, output_size - offset, " with (%s := %s)", arg_label, param);
+                        lvStrBuf sb = {0};
+                        lv_strbuf_printf(&sb, "%c", (char) ('A' + pidx));
+                        written = snprintf(output + offset, output_size - offset, " with (%s := %s)", sb.data, param);
+                        lv_strbuf_destroy(&sb);
                     }
                     if (written < 0) {
                         lv_free((void **) &buf);
@@ -297,9 +299,9 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
     {
         StreamContext *sctx = engine_get_stream_context(engine);
         if (sctx) {
-            char msg[256];
-            snprintf(msg, sizeof(msg), "开始外部定理导入：\"%s\"", trust_base_name);
-            stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
+            lvStrBuf sb_2 = {0};
+            lv_strbuf_printf(&sb_2, "开始外部定理导入：\"%s\"", trust_base_name);
+            stream_emit_simple(sctx, STREAM_EVENT_INFO, sb_2.data, 0);
         }
     }
 
@@ -339,11 +341,12 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
 
     /* ---- 描述记录 ---- */
     if (description && strlen(description) > 0) {
-        char msg[512];
+        lvStrBuf sb_3 = {0};
         StreamContext *sctx = engine_get_stream_context(engine);
-        snprintf(msg, sizeof(msg), "外部定理\"%s\"（哈希=%s）描述：%s", trust_base_name, content_hash, description);
+        lv_strbuf_printf(&sb_3, "外部定理\"%s\"（哈希=%s）描述：%s", trust_base_name, content_hash, description);
         if (sctx)
-            stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
+            stream_emit_simple(sctx, STREAM_EVENT_INFO, sb_3.data, 0);
+        lv_strbuf_destroy(&sb_3);
     }
 
     /* ---- 注册信任基块 ---- */
@@ -356,14 +359,15 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
     *block_id = (int) (1000000 + (hash_val % 9000000));
 
     {
-        char msg[256];
+        lvStrBuf sb_4 = {0};
         StreamContext *sctx = engine_get_stream_context(engine);
-        snprintf(msg, sizeof(msg),
+        lv_strbuf_printf(&sb_4,
                  "外部定理\"%s\"（哈希前8位=%.8s）已注册为信任基块，block_id=%d。"
                  "注意：完整的外部证明验证和跨系统信任传递需要外部证明助手的配合。",
                  trust_base_name, content_hash, *block_id);
         if (sctx)
-            stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
+            stream_emit_simple(sctx, STREAM_EVENT_INFO, sb_4.data, 0);
+        lv_strbuf_destroy(&sb_4);
     }
 
     return lv_OK;
@@ -524,14 +528,15 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
             if (!node || !node->is_active)
                 continue;
 
-            char node_name[64];
-            snprintf(node_name, sizeof(node_name), "%s_%d",
+            lvStrBuf sb_5 = {0};
+            lv_strbuf_printf(&sb_5, "%s_%d",
                      interop_geom_type_name(node->type), node->id);
-            if (str_prefix_match(node_name, p)) {
-                result[count] = lv_strdup_safe(node_name);
+            if (str_prefix_match(sb_5.data, p)) {
+                result[count] = lv_strdup_safe(sb_5.data);
                 if (result[count])
                     count++;
             }
+            lv_strbuf_destroy(&sb_5);
         }
 
         /* 遍历所有活跃约束生成补全项 */
@@ -540,14 +545,15 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
             if (!con || !con->is_active)
                 continue;
 
-            char con_name[64];
-            snprintf(con_name, sizeof(con_name), "%s_%d",
+            lvStrBuf sb_6 = {0};
+            lv_strbuf_printf(&sb_6, "%s_%d",
                      interop_constraint_type_name(con->type), con->id);
-            if (str_prefix_match(con_name, p)) {
-                result[count] = lv_strdup_safe(con_name);
+            if (str_prefix_match(sb_6.data, p)) {
+                result[count] = lv_strdup_safe(sb_6.data);
                 if (result[count])
                     count++;
             }
+            lv_strbuf_destroy(&sb_6);
         }
     }
 

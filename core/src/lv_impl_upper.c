@@ -58,6 +58,7 @@
 #include "lv/visual_editor.h"
 
 #include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
+#include "lv/lv_strbuf.h"
 
 /** 全局唯一 ID 计数器 -- 从一百万起步,避免与内部 ID 冲突 */
 static int64_t g_upper_id = 1000000;
@@ -1056,10 +1057,11 @@ int64_t lv_orchestrator_run(lvOrchestrator *orch, lvEngine *ctx, const char *inp
 
         /* 推送阶段开始事件 */
         if (stream) {
-            char desc[256];
-            snprintf(desc, sizeof(desc), "Pipeline stage %s started (orch=%lld, step=%lld)",
+            lvStrBuf sb = {0};
+            lv_strbuf_printf(&sb, "Pipeline stage %s started (orch=%lld, step=%lld)",
                      (i < 6) ? g_stage_names[i] : "UNKNOWN", (long long) orch->orch_id, (long long) i);
-            stream_emit_simple(stream, STREAM_EVENT_INFO, desc, (int) i);
+            stream_emit_simple(stream, STREAM_EVENT_INFO, sb.data, (int) i);
+            lv_strbuf_destroy(&sb);
         }
 
         /* 对 REASONING 阶段,若引擎有约束图则尝试求解 */
@@ -1087,10 +1089,11 @@ int64_t lv_orchestrator_run(lvOrchestrator *orch, lvEngine *ctx, const char *inp
 
     /* 推送整体完成事件 */
     if (stream) {
-        char done_desc[256];
-        snprintf(done_desc, sizeof(done_desc), "Orchestrator #%lld pipeline completed successfully",
+        lvStrBuf sb_2 = {0};
+        lv_strbuf_printf(&sb_2, "Orchestrator #%lld pipeline completed successfully",
                  (long long) orch->orch_id);
-        stream_emit_simple(stream, STREAM_EVENT_ENGINE_DONE, done_desc, (int) orch->stage_count);
+        stream_emit_simple(stream, STREAM_EVENT_ENGINE_DONE, sb_2.data, (int) orch->stage_count);
+        lv_strbuf_destroy(&sb_2);
     }
 
     orch->status = 2; /* 完成 */

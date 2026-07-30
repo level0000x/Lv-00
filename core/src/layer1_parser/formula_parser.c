@@ -43,6 +43,7 @@
 #include "parser_safety.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "lv/lv_strbuf.h"
 
 /* ============================================================
  * 解析器上下文结构
@@ -230,11 +231,12 @@ bool formula_match_and_consume(ParserContext *ctx, const char *str) {
  */
 bool formula_expect_char(ParserContext *ctx, char c) {
     if (formula_peek(ctx) != c) {
-        char msg[lv_MAX_TEMP_MSG_SIZE];
-        snprintf(msg, sizeof(msg), "Expected '%c' but got '%s'", c, peek(ctx) ? "unexpected char" : "EOF");
+        lvStrBuf sb = {0};
+        lv_strbuf_printf(&sb, "Expected '%c' but got '%s'", c, peek(ctx) ? "unexpected char" : "EOF");
         /* 使用 lv_strlcpy 替代不安全的 strncpy */
-        lv_strlcpy(ctx->error_message, msg, sizeof(ctx->error_message));
+        lv_strlcpy(ctx->error_message, sb.data, sizeof(ctx->error_message));
         ctx->has_error = true;
+        lv_strbuf_destroy(&sb);
         return false;
     }
     consume(ctx);

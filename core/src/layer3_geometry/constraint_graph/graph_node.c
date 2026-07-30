@@ -42,6 +42,7 @@
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "lv/lv_strbuf.h"
 
 /* Forward declarations for hash index functions
  * graph_node_index_insert 和 graph_constraint_index_insert 已公开为公共接口，
@@ -245,10 +246,11 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
     /* 流式事件: 节点添加 */
     if (graph_stream_ctx) {
         static const char *type_names[] = {"POINT", "LINE", "REGION", "CIRCLE", "PORT", "FUNC_BLOCK"};
-        char desc[128];
+        lvStrBuf sb = {0};
         const char *tname = (type >= 0 && type <= 5) ? type_names[type] : "UNKNOWN";
-        snprintf(desc, sizeof(desc), "添加节点 #%d (类型: %s)", node_id, tname);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, desc, node_id);
+        lv_strbuf_printf(&sb, "添加节点 #%d (类型: %s)", node_id, tname);
+        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb.data, node_id);
+        lv_strbuf_destroy(&sb);
     }
 
     return node;
@@ -318,10 +320,11 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
             "CONNECTION",   /* 连接约束 */
             "ANGLE"         /* 角度约束 */
         };
-        char desc[256];
+        lvStrBuf sb_2 = {0};
         const char *cname = (type >= 0 && type <= 5) ? ctype_names[type] : "UNKNOWN";
-        snprintf(desc, sizeof(desc), "添加约束 #%d (类型: %s, 参与者: %d个)", constraint_id, cname, participant_count);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, desc, constraint_id);
+        lv_strbuf_printf(&sb_2, "添加约束 #%d (类型: %s, 参与者: %d个)", constraint_id, cname, participant_count);
+        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, sb_2.data, constraint_id);
+        lv_strbuf_destroy(&sb_2);
     }
 
     return con;
@@ -920,9 +923,10 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coor
     }
     node->coord_count = coord_count;
     if (graph_stream_ctx) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "添加点节点: id=%d", node->id);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, buf, 0);
+        lvStrBuf sb_3 = {0};
+        lv_strbuf_printf(&sb_3, "添加点节点: id=%d", node->id);
+        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_3.data, 0);
+        lv_strbuf_destroy(&sb_3);
     }
     return ADD_NODE_OK;
 }
@@ -1247,9 +1251,10 @@ AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segme
         node->data.region.boundary_segments[i] = graph_get_node(graph, boundary_segment_ids[i]);
     }
     if (graph_stream_ctx) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "添加区域节点: id=%d, segments=%d", node->id, segment_count);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, buf, 0);
+        lvStrBuf sb_4 = {0};
+        lv_strbuf_printf(&sb_4, "添加区域节点: id=%d, segments=%d", node->id, segment_count);
+        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_4.data, 0);
+        lv_strbuf_destroy(&sb_4);
     }
     return ADD_NODE_OK;
 }
@@ -1287,10 +1292,11 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
          * 后续由调用方通过 update_port_namespace_depth 或打包函数设置 */
     }
     if (graph_stream_ctx) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "添加端口节点: id=%d, type=%d, depth=%d, parent=%d", node->id, (int) type,
+        lvStrBuf sb_5 = {0};
+        lv_strbuf_printf(&sb_5, "添加端口节点: id=%d, type=%d, depth=%d, parent=%d", node->id, (int) type,
                  namespace_depth, parent_block_id);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, buf, 0);
+        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_5.data, 0);
+        lv_strbuf_destroy(&sb_5);
     }
     return ADD_NODE_OK;
 }
@@ -1341,10 +1347,11 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
     }
     (void) internal_node_ids; /* 已在上方处理 */
     if (graph_stream_ctx) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "添加函数块节点: id=%d, internal=%d, in=%d, out=%d", node->id, internal_count,
+        lvStrBuf sb_6 = {0};
+        lv_strbuf_printf(&sb_6, "添加函数块节点: id=%d, internal=%d, in=%d, out=%d", node->id, internal_count,
                  input_count, output_count);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, buf, 0);
+        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_6.data, 0);
+        lv_strbuf_destroy(&sb_6);
     }
     return ADD_NODE_OK;
 }

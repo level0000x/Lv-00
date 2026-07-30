@@ -16,12 +16,14 @@
 #include <string.h>
 
 #include "lv/lv_check.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 
 #ifdef _WIN32
 #include <windows.h>
 #else
 #include <dirent.h>
+#include "lv/lv_strbuf.h"
 #endif
 
 /* ============ 内部数据结构 ============ */
@@ -853,12 +855,13 @@ int lv_plugin_config_load(lvPluginConfig *config, const char *filepath) {
 
             /* 如果有节名，添加节前缀: "section.key" */
             if (current_section[0] != '\0') {
-                char full_key[512];
+                lvStrBuf sb = {0};
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-truncation"
-                snprintf(full_key, sizeof(full_key), "%s.%s", current_section, key);
+                lv_strbuf_printf(&sb, "%s.%s", current_section, key);
 #pragma GCC diagnostic pop
-                lv_plugin_config_set(config, full_key, value, 0);
+                lv_plugin_config_set(config, sb.data, value, 0);
+                lv_strbuf_destroy(&sb);
             } else {
                 lv_plugin_config_set(config, key, value, 0);
             }
@@ -1242,12 +1245,13 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
 
     /* 扫描目录中的 .dll 文件（Windows）或 .so 文件（Linux） */
 #ifdef _WIN32
-    char search_pattern[MAX_PATH];
-    snprintf(search_pattern, sizeof(search_pattern), "%s\\*.dll", directory);
+    lvStrBuf sb_2 = {0};
+    lv_strbuf_printf(&sb_2, "%s\\*.dll", directory);
 
     WIN32_FIND_DATAA find_data;
-    HANDLE hFind = FindFirstFileA(search_pattern, &find_data);
+    HANDLE hFind = FindFirstFileA(sb_2.data, &find_data);
     if (hFind == INVALID_HANDLE_VALUE) {
+        lv_strbuf_destroy(&sb_2);
         return 0; /* 目录为空或不存在，不算错误 */
     }
 
@@ -1258,14 +1262,14 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
         }
 
         /* 构造完整路径 */
-        char full_path[MAX_PATH];
+        lvStrBuf sb_3 = {0};
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-truncation"
-        snprintf(full_path, sizeof(full_path), "%s\\%s", directory, find_data.cFileName);
+        lv_strbuf_printf(&sb_3, "%s\\%s", directory, find_data.cFileName);
 #pragma GCC diagnostic pop
 
         /* 尝试加载为插件 */
-        lvPlugin *plugin = lv_plugin_load(system, full_path);
+        lvPlugin *plugin = lv_plugin_load(system, sb_3.data);
         if (plugin) {
             /* 版本兼容性检查：验证插件版本是否与系统版本兼容 */
             if (plugin->info.version[0] != '\0') {
@@ -1281,10 +1285,12 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
                 }
             }
         }
+        lv_strbuf_destroy(&sb_3);
 
     } while (FindNextFileA(hFind, &find_data));
 
     FindClose(hFind);
+    lv_strbuf_destroy(&sb_2);
 #else
     /* Linux/macOS: 使用 opendir/readdir 扫描 .so 文件 */
     DIR *dir = opendir(directory);
@@ -1300,11 +1306,11 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
         /* 检查是否为 .so 文件 */
         size_t name_len = strlen(entry->d_name);
         if (name_len > 3 && strcmp(entry->d_name + name_len - 3, ".so") == 0) {
-            char full_path[1024];
-            snprintf(full_path, sizeof(full_path), "%s/%s", directory, entry->d_name);
+            lvStrBuf sb_4 = {0};
+            lv_strbuf_printf(&sb_4, "%s/%s", directory, entry->d_name);
 
             /* 尝试加载为插件 */
-            lvPlugin *plugin = lv_plugin_load(system, full_path);
+            lvPlugin *plugin = lv_plugin_load(system, sb_4.data);
             if (plugin) {
                 /* 版本兼容性检查：验证插件版本是否与系统版本兼容 */
                 if (plugin->info.version[0] != '\0') {
@@ -1319,6 +1325,7 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
                     }
                 }
             }
+            lv_strbuf_destroy(&sb_4);
         }
     }
 

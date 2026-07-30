@@ -25,6 +25,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include "lv/lv_strbuf.h"
 #endif
 
 /**
@@ -327,18 +328,19 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
     /* 通用 fallback：至少返回一个 refine 建议 */
     if (!head) {
         /* 含维度信息的默认建议 */
-        char snippet[128];
+        lvStrBuf sb = {0};
         if (goal_dim > 0) {
-            snprintf(snippet, sizeof(snippet), "refine_goal_dim%d(\"%s\")", goal_dim, goal_type);
+            lv_strbuf_printf(&sb, "refine_goal_dim%d(\"%s\")", goal_dim, goal_type);
         } else {
-            snprintf(snippet, sizeof(snippet), "refine_goal(\"%s\")", goal_type);
+            lv_strbuf_printf(&sb, "refine_goal(\"%s\")", goal_type);
         }
-        APPEND_FILL(FILL_REFINE, "通用精化建议（由用户手动填充）", snippet, 0);
+        APPEND_FILL(FILL_REFINE, "通用精化建议（由用户手动填充）", sb.data, 0);
 
         /* 若求解器已有赋值，额外建议利用已知信息 */
         if (solver_has_assignments) {
             APPEND_FILL(FILL_EXACT, "查询求解器已赋值变量", "solver_assigned_variables()", 0);
         }
+        lv_strbuf_destroy(&sb);
     }
 
 #undef APPEND_FILL
@@ -829,7 +831,7 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
         sanitize_isar_label(safe_label, sizeof(safe_label), label);
 
         const char *proof_body;
-        char local_body[1024];
+        lvStrBuf sb_2 = {0};
 
         switch (prop->type) {
             case PROPOSITION_TYPE_ATOMIC:
@@ -841,20 +843,20 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
                                                : (prop->type == PROPOSITION_TYPE_CONJUNCTION)
                                                      ? "conjI"
                                                      : "disjI1";
-                snprintf(local_body, sizeof(local_body),
+                lv_strbuf_printf(&sb_2,
                          "proof -\n"
                          "  (* 构造证明：根据命题类型 %s 构建目标 *)\n"
                          "  have H: \"?thesis\"\n"
                          "    by %s\n"
                          "  thus ?thesis\n",
                          ptype, intro_method);
-                proof_body = local_body;
+                proof_body = sb_2.data;
                 break;
             }
             case PROPOSITION_TYPE_NEGATION:
             case PROPOSITION_TYPE_BOTTOM: {
                 /* ── CONTRADICTION 矛盾证明：assume + from 模式 ── */
-                snprintf(local_body, sizeof(local_body),
+                lv_strbuf_printf(&sb_2,
                          "proof -\n"
                          "  (* 矛盾证明：假设前提，推导矛盾 *)\n"
                          "  assume \"\\<not> ?thesis\"\n"
@@ -862,7 +864,7 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
                          "    by auto\n"
                          "  from this show ?thesis\n"
                          "    by blast\n");
-                proof_body = local_body;
+                proof_body = sb_2.data;
                 break;
             }
             case PROPOSITION_TYPE_IMPLICATION:
@@ -874,7 +876,7 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
                                              : (prop->type == PROPOSITION_TYPE_UNIVERSAL)
                                                    ? "allI"
                                                    : "exI";
-                snprintf(local_body, sizeof(local_body),
+                lv_strbuf_printf(&sb_2,
                          "proof -\n"
                          "  (* 代数/量化证明：使用 %s 规则引入 *)\n"
                          "  have H1: \"?thesis\"\n"
@@ -882,20 +884,22 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
                          "  show ?thesis\n"
                          "    by %s\n",
                          intro_rule, intro_rule, intro_rule);
-                proof_body = local_body;
+                proof_body = sb_2.data;
                 break;
             }
             default: {
                 /* 未知类型，生成基本框架 */
-                snprintf(local_body, sizeof(local_body),
+                lv_strbuf_printf(&sb_2,
                          "proof -\n"
                          "  (* 证明待填充（命题类型: %s） *)\n"
                          "  sorry\n",
                          ptype);
-                proof_body = local_body;
+                proof_body = sb_2.data;
                 break;
             }
         }
+
+        lv_strbuf_destroy(&sb_2);
 
         int n = snprintf(output + offset, est_size - offset,
                          "lemma %s_%d:\n"

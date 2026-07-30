@@ -141,7 +141,7 @@ def ir_sem (env : String → ℝ × ℝ) : IRConstraint → Prop
 /-! ## 约束图 -/
 
 /-- 约束图：约束的列表表示 -/
-def ConstraintGraph := List IRConstraint
+abbrev ConstraintGraph := List IRConstraint
 
 /-- 约束图在环境 env 下被满足 -/
 def graph_satisfied (g : ConstraintGraph) (env : String → ℝ × ℝ) : Prop :=

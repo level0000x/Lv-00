@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file prop_verifier.c
  * @brief 命题逻辑验证器实现 —— 自然演绎证明引擎
  *
@@ -632,6 +632,7 @@ typedef struct {
  * @return 当前时间的毫秒级数值
  */
 #include <time.h>
+#include "lv/lv_strbuf.h"
 static uint64_t get_time_ms(void) {
     return (uint64_t) time(NULL) * PROP_TIME_MS_PER_SEC;
 }
@@ -1676,10 +1677,11 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
                 }
             }
             if (!found) {
-                char tmp[64];
-                snprintf(tmp, sizeof(tmp), "%s%s", missing_count > 0 ? ", " : "", goal_atoms[i]);
-                strncat(missing, tmp, sizeof(missing) - strlen(missing) - 1);
+                lvStrBuf sb = {0};
+                lv_strbuf_printf(&sb, "%s%s", missing_count > 0 ? ", " : "", goal_atoms[i]);
+                strncat(missing, sb.data, sizeof(missing) - strlen(missing) - 1);
                 missing_count++;
+                lv_strbuf_destroy(&sb);
             }
         }
 
@@ -1901,12 +1903,13 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
                         }
                     }
                     if (!found) {
-                        char desc[256];
-                        snprintf(desc, sizeof(desc),
+                        lvStrBuf sb_2 = {0};
+                        lv_strbuf_printf(&sb_2,
                                  "ȱ��ԭ������ '%s' "
                                  "�ļ���֤���Ҫ��Ӧ�ĵ㡢�߶λ�����ڵ㣩",
                                  goal_atoms[i]);
-                        result.missing_descriptions[idx] = lv_strdup_safe(desc); /* �����ַ��� */
+                        result.missing_descriptions[idx] = lv_strdup_safe(sb_2.data); /* �����ַ��� */
+                        lv_strbuf_destroy(&sb_2);
                         idx++;
                     }
                 }
@@ -1917,12 +1920,13 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
             result.missing_count = 1;
             result.missing_descriptions = (char **) lv_malloc(sizeof(char *)); /* �����ڴ� */
             if (result.missing_descriptions) {
-                char desc[256];
-                snprintf(desc, sizeof(desc),
+                lvStrBuf sb_3 = {0};
+                lv_strbuf_printf(&sb_3,
                          "�޷�ͨ������ǰ�����Ϲ���Ŀ�꣨����������������"
                          "�"
                          "�");
-                result.missing_descriptions[0] = lv_strdup_safe(desc); /* �����ַ��� */
+                result.missing_descriptions[0] = lv_strdup_safe(sb_3.data); /* �����ַ��� */
+                lv_strbuf_destroy(&sb_3);
             }
         }
     }
@@ -2026,10 +2030,11 @@ int prop_verifier_apply_trust_colors(ConstraintGraph *graph, const PropFormula *
 
     /* ��ʽ���: ��֤��ʼ */
     if (prop_verifier_stream_ctx) {
-        char desc[256];
-        snprintf(desc, sizeof(desc), "������ɫ�Ž�: BHK��֤=%s, ȱʧ����=%d, Ŀ����ɫ=%s", bhk.verified ? "ͨ��" : "δͨ��",
+        lvStrBuf sb_4 = {0};
+        lv_strbuf_printf(&sb_4, "������ɫ�Ž�: BHK��֤=%s, ȱʧ����=%d, Ŀ����ɫ=%s", bhk.verified ? "ͨ��" : "δͨ��",
                  bhk.missing_constructions, trust_color_name(target_color));
-        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, desc, 0);
+        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, sb_4.data, 0);
+        lv_strbuf_destroy(&sb_4);
     }
 
     /* ����3: ����Լ��ͼ�е����нڵ㣬����������ɫ */
@@ -2067,25 +2072,27 @@ int prop_verifier_apply_trust_colors(ConstraintGraph *graph, const PropFormula *
                 ev.step_number = i;
                 ev.total_steps = graph->node_count;
                 ev.description = trust_color_name(target_color);
-                char detail_json[192];
-                snprintf(detail_json, sizeof(detail_json),
+                lvStrBuf sb_5 = {0};
+                lv_strbuf_printf(&sb_5,
                          "{\"node_id\":%d,\"type\":%d,\"old_color\":%d,\"new_color\":%d,"
                          "\"verified\":%s,\"missing\":%d}",
                          node->id, (int) node->type,
                          (int) symbolic_coord_get_trust(
                              node->coord_count > 0 && node->symbolic_coords[0] ? node->symbolic_coords[0] : NULL),
                          (int) target_color, bhk.verified ? "true" : "false", bhk.missing_constructions);
-                ev.detail_json = detail_json;
+                ev.detail_json = sb_5.data;
                 stream_emit(prop_verifier_stream_ctx, &ev);
+                lv_strbuf_destroy(&sb_5);
             }
         }
     }
 
     /* ��ʽ���: ���ͳ�� */
     if (prop_verifier_stream_ctx) {
-        char done_desc[128];
-        snprintf(done_desc, sizeof(done_desc), "������ɫӦ�����: ������ %d/%d ���ڵ�", updated_count, graph->node_count);
-        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, done_desc, 0);
+        lvStrBuf sb_6 = {0};
+        lv_strbuf_printf(&sb_6, "������ɫӦ�����: ������ %d/%d ���ڵ�", updated_count, graph->node_count);
+        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, sb_6.data, 0);
+        lv_strbuf_destroy(&sb_6);
     }
 
     /* ����4: �������������������Ҫ�� */

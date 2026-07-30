@@ -702,6 +702,10 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/simd_ops.c
     # v3.8.0 统一日志抽象层
     core/src/layer2_resource/lv_log.c
+    # v3.8.0 安全字符串构建器
+    core/src/layer2_resource/lv_strbuf.c
+    # v3.8.0 统一文件 I/O 抽象层
+    core/src/layer2_resource/lv_file.c
 )
 
 # ── Core: 核心便利层 (Core Convenience) ──

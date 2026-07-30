@@ -86,6 +86,7 @@
 #include "stream.h"
 #include "stream_context_util.h"
 #include "type_system.h"
+#include "lv/lv_strbuf.h"
 
 lv_DECLARE_STREAM_CTX(unify);
 
@@ -1947,13 +1948,14 @@ int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph
                 ev.step_number = match_count;
                 ev.var_id = pn->id;
                 ev.description = "端口匹配成功";
-                char detail[128];
-                snprintf(detail, sizeof(detail),
+                lvStrBuf sb = {0};
+                lv_strbuf_printf(&sb,
                          "{\"prop_port_id\":%d,\"const_port_id\":%d,"
                          "\"port_type\":%d,\"namespace_depth\":%d}",
                          pn->id, cn->id, (int) pp->type, pp->namespace_depth);
-                ev.detail_json = detail;
+                ev.detail_json = sb.data;
                 stream_emit(unify_stream_ctx, &ev);
+                lv_strbuf_destroy(&sb);
             }
             break;
         }
@@ -1964,10 +1966,11 @@ int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph
             if (ts)
                 type_system_destroy(ts);
             if (unify_stream_ctx) {
-                char msg[128];
-                snprintf(msg, sizeof(msg), "端口匹配失败: 命题端口 %d (type=%d) 无对应构造端口", pn->id,
+                lvStrBuf sb_2 = {0};
+                lv_strbuf_printf(&sb_2, "端口匹配失败: 命题端口 %d (type=%d) 无对应构造端口", pn->id,
                          pp ? (int) pp->type : -1);
-                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, match_count);
+                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, sb_2.data, match_count);
+                lv_strbuf_destroy(&sb_2);
             }
             return -1;
         }
@@ -1978,9 +1981,10 @@ int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph
         type_system_destroy(ts);
 
     if (unify_stream_ctx) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "精细端口匹配完成: %d 对端口匹配成功", match_count);
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, match_count);
+        lvStrBuf sb_3 = {0};
+        lv_strbuf_printf(&sb_3, "精细端口匹配完成: %d 对端口匹配成功", match_count);
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, sb_3.data, match_count);
+        lv_strbuf_destroy(&sb_3);
     }
 
     return match_count;
@@ -2056,13 +2060,14 @@ int unify_match_constraints(const ConstraintGraph *construction, const Constrain
                     ev.constraint_id = cc->id;
                     ev.step_number = match_count;
                     ev.description = "约束匹配成功";
-                    char detail[128];
-                    snprintf(detail, sizeof(detail),
+                    lvStrBuf sb_4 = {0};
+                    lv_strbuf_printf(&sb_4,
                              "{\"prop_constraint_id\":%d,\"const_constraint_id\":%d,"
                              "\"type\":%d,\"participants\":%d}",
                              pc->id, cc->id, (int) pc->type, pc->participant_count);
-                    ev.detail_json = detail;
+                    ev.detail_json = sb_4.data;
                     stream_emit(unify_stream_ctx, &ev);
+                    lv_strbuf_destroy(&sb_4);
                 }
                 break;
             }
@@ -2071,10 +2076,11 @@ int unify_match_constraints(const ConstraintGraph *construction, const Constrain
         if (!found) {
             lv_free((void **) &used);
             if (unify_stream_ctx) {
-                char msg[128];
-                snprintf(msg, sizeof(msg), "约束匹配失败: 命题约束 %d (type=%d) 无对应构造约束", pc->id,
+                lvStrBuf sb_5 = {0};
+                lv_strbuf_printf(&sb_5, "约束匹配失败: 命题约束 %d (type=%d) 无对应构造约束", pc->id,
                          (int) pc->type);
-                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, match_count);
+                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, sb_5.data, match_count);
+                lv_strbuf_destroy(&sb_5);
             }
             return -1;
         }
@@ -2083,9 +2089,10 @@ int unify_match_constraints(const ConstraintGraph *construction, const Constrain
     lv_free((void **) &used); /* 使用 lv_calloc/lv_free 统一内存管理 */
 
     if (unify_stream_ctx) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "精细约束匹配完成: %d 对约束匹配成功", match_count);
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, match_count);
+        lvStrBuf sb_6 = {0};
+        lv_strbuf_printf(&sb_6, "精细约束匹配完成: %d 对约束匹配成功", match_count);
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, sb_6.data, match_count);
+        lv_strbuf_destroy(&sb_6);
     }
 
     return match_count;
@@ -2112,11 +2119,12 @@ int unify_match_coords(const SymbolicCoord *c1, const SymbolicCoord *c2) {
     if (result != 0 && unify_stream_ctx) {
         char *s1 = symbolic_coord_serialize(c1);
         char *s2 = symbolic_coord_serialize(c2);
-        char msg[256];
-        snprintf(msg, sizeof(msg), "坐标不相等: \"%s\" vs \"%s\"", s1 ? s1 : "(null)", s2 ? s2 : "(null)");
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, 0);
+        lvStrBuf sb_7 = {0};
+        lv_strbuf_printf(&sb_7, "坐标不相等: \"%s\" vs \"%s\"", s1 ? s1 : "(null)", s2 ? s2 : "(null)");
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, sb_7.data, 0);
         lv_free((void **) &s1);
         lv_free((void **) &s2);
+        lv_strbuf_destroy(&sb_7);
     }
 
     return result;

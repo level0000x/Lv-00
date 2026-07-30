@@ -27,6 +27,7 @@
 
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 /* ============================================================
  * 内部辅助：获取当前时间戳（微秒）
@@ -192,19 +193,20 @@ int path_create_inverse(lvPathSystem *sys, int path_id) {
     const lvPath *orig = (const lvPath *)lv_darray_get(&sys->paths_da, path_id);
 
     /* 创建从终点到起点的路径 */
-    char inv_label[256];
+    lvStrBuf sb = {0};
     if (orig->label) {
-        snprintf(inv_label, sizeof(inv_label), "%s^{-1}", orig->label);
+        lv_strbuf_printf(&sb, "%s^{-1}", orig->label);
     } else {
-        snprintf(inv_label, sizeof(inv_label), "path_%d^{-1}", path_id);
+        lv_strbuf_printf(&sb, "path_%d^{-1}", path_id);
     }
 
-    int inv_id = path_create(sys, orig->endpoint_b, orig->endpoint_a, inv_label, NULL, NULL, orig->source_step_id);
+    int inv_id = path_create(sys, orig->endpoint_b, orig->endpoint_a, sb.data, NULL, NULL, orig->source_step_id);
     if (inv_id >= 0) {
         lvPath *inv_p = (lvPath *)lv_darray_get(&sys->paths_da, inv_id);
         inv_p->type = PATH_INVERSE;
         inv_p->direction = (orig->direction == DIRECTION_FORWARD) ? DIRECTION_BACKWARD : DIRECTION_FORWARD;
     }
+    lv_strbuf_destroy(&sb);
     return inv_id;
 }
 
@@ -229,20 +231,21 @@ int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q, const char *la
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_compose: endpoint mismatch p->endpoint_b != q->endpoint_a");
 
     /* 创建合成路径：起点为 p 的起点，终点为 q 的终点 */
-    char comp_label[512];
+    lvStrBuf sb_2 = {0};
     if (label) {
-        snprintf(comp_label, sizeof(comp_label), "%s", label);
+        lv_strbuf_printf(&sb_2, "%s", label);
     } else if (p->label && q->label) {
-        snprintf(comp_label, sizeof(comp_label), "(%s) @ (%s)", p->label, q->label);
+        lv_strbuf_printf(&sb_2, "(%s) @ (%s)", p->label, q->label);
     } else {
-        snprintf(comp_label, sizeof(comp_label), "path_%d @ path_%d", path_id_p, path_id_q);
+        lv_strbuf_printf(&sb_2, "path_%d @ path_%d", path_id_p, path_id_q);
     }
 
-    int comp_id = path_create(sys, p->endpoint_a, q->endpoint_b, comp_label, NULL, NULL, -1);
+    int comp_id = path_create(sys, p->endpoint_a, q->endpoint_b, sb_2.data, NULL, NULL, -1);
     if (comp_id >= 0) {
         lvPath *comp_p = (lvPath *)lv_darray_get(&sys->paths_da, comp_id);
         comp_p->type = PATH_COMPOSITE;
     }
+    lv_strbuf_destroy(&sb_2);
     return comp_id;
 }
 
@@ -460,12 +463,13 @@ int path_from_construction(lvPathSystem *sys, int step_index, const char *label)
         endpoint_b = step_index * 2 + 1;
     }
 
-    char auto_label[256];
+    lvStrBuf sb_3 = {0};
     if (!label) {
-        snprintf(auto_label, sizeof(auto_label), "construction_step_%d", step_index);
+        lv_strbuf_printf(&sb_3, "construction_step_%d", step_index);
     }
 
-    int id = path_create(sys, endpoint_a, endpoint_b, label ? label : auto_label, NULL, NULL, step_index);
+    int id = path_create(sys, endpoint_a, endpoint_b, label ? label : sb_3.data, NULL, NULL, step_index);
+    lv_strbuf_destroy(&sb_3);
     return id;
 }
 

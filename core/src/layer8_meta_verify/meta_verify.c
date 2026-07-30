@@ -21,6 +21,7 @@
 #include "lv/lv_utils.h"
 #include "lv/proof.h"
 #include "lv/proof_compiler.h"
+#include "lv/lv_strbuf.h"
 
 /* ============================================================
  * 内部验证检查函数
@@ -624,45 +625,45 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         }
 
         int passed = 0;
-        char desc[512] = {0};
+        lvStrBuf sb = {0};
 
         switch ((lvVerifyCheck) i) {
             case lv_CHECK_STRUCTURAL: {
                 /* 检查证明至少有一个步骤 */
                 if (!p) {
-                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    lv_strbuf_printf(&sb, "Proof is NULL");
                     break;
                 }
                 if (p->step_count < 1) {
-                    snprintf(desc, sizeof(desc), "Proof has no steps (step_count=%d)", p->step_count);
+                    lv_strbuf_printf(&sb, "Proof has no steps (step_count=%d)", p->step_count);
                     break;
                 }
                 if (!p->steps || !p->steps[0]) {
-                    snprintf(desc, sizeof(desc), "Proof steps array is NULL or first step is NULL");
+                    lv_strbuf_printf(&sb, "Proof steps array is NULL or first step is NULL");
                     break;
                 }
-                snprintf(desc, sizeof(desc), "Structural check passed: %d steps", p->step_count);
+                lv_strbuf_printf(&sb, "Structural check passed: %d steps", p->step_count);
                 passed = 1;
                 break;
             }
             case lv_CHECK_TYPE: {
                 /* 检查步骤链有效性：每个步骤的前提引用更早的步骤 */
                 if (!p) {
-                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    lv_strbuf_printf(&sb, "Proof is NULL");
                     break;
                 }
                 passed = 1;
                 for (int s = 0; s < p->step_count; s++) {
                     lvProofStepRecord *step = p->steps[s];
                     if (!step) {
-                        snprintf(desc, sizeof(desc), "Step %d is NULL", s);
+                        lv_strbuf_printf(&sb, "Step %d is NULL", s);
                         passed = 0;
                         break;
                     }
                     for (int j = 0; j < step->premise_count; j++) {
                         int pid = step->premise_step_ids[j];
                         if (pid < 0 || pid >= s) {
-                            snprintf(desc, sizeof(desc), "Step %d references premise %d which is not an earlier step",
+                            lv_strbuf_printf(&sb, "Step %d references premise %d which is not an earlier step",
                                      s, pid);
                             passed = 0;
                             break;
@@ -672,39 +673,39 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
                         break;
                 }
                 if (passed) {
-                    snprintf(desc, sizeof(desc), "Type/chain check passed: all premises reference earlier steps");
+                    lv_strbuf_printf(&sb, "Type/chain check passed: all premises reference earlier steps");
                 }
                 break;
             }
             case lv_CHECK_COMPLETE: {
                 /* 检查最后一步的结论是否匹配目标 */
                 if (!p) {
-                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    lv_strbuf_printf(&sb, "Proof is NULL");
                     break;
                 }
                 if (p->step_count == 0) {
-                    snprintf(desc, sizeof(desc), "No steps to check conclusion");
+                    lv_strbuf_printf(&sb, "No steps to check conclusion");
                     break;
                 }
                 lvProofStepRecord *last = p->steps[p->step_count - 1];
                 if (!last || !last->conclusion) {
-                    snprintf(desc, sizeof(desc), "Last step has no conclusion");
+                    lv_strbuf_printf(&sb, "Last step has no conclusion");
                     break;
                 }
                 if (p->goal && last->conclusion != p->goal &&
                     !(last->conclusion->label && p->goal->label &&
                       strcmp(last->conclusion->label, p->goal->label) == 0)) {
-                    snprintf(desc, sizeof(desc), "Last step conclusion does not match goal");
+                    lv_strbuf_printf(&sb, "Last step conclusion does not match goal");
                     break;
                 }
-                snprintf(desc, sizeof(desc), "Completeness check passed: final conclusion matches goal");
+                lv_strbuf_printf(&sb, "Completeness check passed: final conclusion matches goal");
                 passed = 1;
                 break;
             }
             case lv_CHECK_SOUND: {
                 /* 检查循环依赖：确保没有步骤间接依赖自身 */
                 if (!p) {
-                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    lv_strbuf_printf(&sb, "Proof is NULL");
                     break;
                 }
                 passed = 1;
@@ -723,7 +724,7 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
                     if (!queue || !visited) {
                         lv_free((void **) &queue);
                         lv_free((void **) &visited);
-                        snprintf(desc, sizeof(desc), "Memory allocation failed");
+                        lv_strbuf_printf(&sb, "Memory allocation failed");
                         passed = 0;
                         break;
                     }
@@ -758,28 +759,28 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
                     lv_free((void **) &queue);
                     lv_free((void **) &visited);
                     if (found_cycle) {
-                        snprintf(desc, sizeof(desc), "Circular dependency detected at step %d", s);
+                        lv_strbuf_printf(&sb, "Circular dependency detected at step %d", s);
                         passed = 0;
                         break;
                     }
                 }
                 if (passed) {
-                    snprintf(desc, sizeof(desc), "Soundness check passed: no circular dependencies");
+                    lv_strbuf_printf(&sb, "Soundness check passed: no circular dependencies");
                 }
                 break;
             }
             case lv_CHECK_NONTRIVIAL: {
                 /* 检查证明非平凡：至少有2个步骤或使用了公理/假设 */
                 if (!p) {
-                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    lv_strbuf_printf(&sb, "Proof is NULL");
                     break;
                 }
                 if (p->step_count <= 1 && p->axiom_count == 0 && p->assumption_count == 0) {
-                    snprintf(desc, sizeof(desc), "Proof is trivial: only %d step(s), no axioms or assumptions",
+                    lv_strbuf_printf(&sb, "Proof is trivial: only %d step(s), no axioms or assumptions",
                              p->step_count);
                     break;
                 }
-                snprintf(desc, sizeof(desc), "Nontriviality check passed: %d steps, %d axioms, %d assumptions",
+                lv_strbuf_printf(&sb, "Nontriviality check passed: %d steps, %d axioms, %d assumptions",
                          p->step_count, p->axiom_count, p->assumption_count);
                 passed = 1;
                 break;
@@ -787,19 +788,19 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
             case lv_CHECK_ROUNDTRIP: {
                 /* 检查证明标记为已完成 */
                 if (!p) {
-                    snprintf(desc, sizeof(desc), "Proof is NULL");
+                    lv_strbuf_printf(&sb, "Proof is NULL");
                     break;
                 }
                 if (!p->is_proved) {
-                    snprintf(desc, sizeof(desc), "Proof is not marked as proved");
+                    lv_strbuf_printf(&sb, "Proof is not marked as proved");
                     break;
                 }
-                snprintf(desc, sizeof(desc), "Roundtrip check passed: proof is marked as proved");
+                lv_strbuf_printf(&sb, "Roundtrip check passed: proof is marked as proved");
                 passed = 1;
                 break;
             }
             default:
-                snprintf(desc, sizeof(desc), "Unknown check");
+                lv_strbuf_printf(&sb, "Unknown check");
                 break;
         }
 
@@ -809,8 +810,9 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         } else {
             report.failed_checks++;
         }
-        strncpy(report.results[i].description, desc, sizeof(report.results[i].description));
+        strncpy(report.results[i].description, sb.data, sizeof(report.results[i].description));
         report.results[i].description[sizeof(report.results[i].description) - 1] = '\0';
+        lv_strbuf_destroy(&sb);
     }
 
     /* 生成摘要 */

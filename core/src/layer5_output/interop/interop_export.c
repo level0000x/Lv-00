@@ -23,6 +23,7 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 /** @brief 单个约束节点涉及的最大约束数量（统一在 interop.h 中定义） */
 
@@ -2809,25 +2810,25 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         double ly = symbolic_coord_to_double(node->symbolic_coords[1]);
 
         /* 标签放置：点/端口上方，线段中点下方，块居中 */
-        char label[32];
+        lvStrBuf sb = {0};
         if (node->type == GEOM_POINT) {
-            snprintf(label, sizeof(label), "P%d", node->id);
+            lv_strbuf_printf(&sb, "P%d", node->id);
             BUF_APPEND("%.2f %.2f Td\n", GX(lx) - 6.0, GY(ly) + 8.0);
         } else if (node->type == GEOM_LINE_SEGMENT && node->coord_count >= 4) {
             double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
             double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
             double mx = (lx + x2) / 2.0, my = (ly + y2) / 2.0;
-            snprintf(label, sizeof(label), "S%d", node->id);
+            lv_strbuf_printf(&sb, "S%d", node->id);
             BUF_APPEND("%.2f %.2f Td\n", GX(mx) - 6.0, GY(my) - 6.0);
         } else if (node->type == GEOM_FUNCTION_BLOCK) {
-            snprintf(label, sizeof(label), "FB_%d", node->id);
+            lv_strbuf_printf(&sb, "FB_%d", node->id);
             BUF_APPEND("%.2f %.2f Td\n", GX(lx) - 14.0, GY(ly) - 3.0);
         } else {
             continue;
         }
 
         /* 转义括号 */
-        for (const char *p = label; *p; p++) {
+        for (const char *p = sb.data; *p; p++) {
             if (*p == '(' || *p == ')' || *p == '\\')
                 BUF_APPEND("\\%c", *p);
             else
@@ -2835,6 +2836,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         }
         BUF_APPEND(" Tj\n");
         BUF_APPEND("%.2f %.2f Td\n", 0.0, 0.0); /* 重置文本位置到原点 */
+        lv_strbuf_destroy(&sb);
     }
     BUF_APPEND("ET\n");
 

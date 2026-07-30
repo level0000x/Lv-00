@@ -25,6 +25,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "rewrite.h"
+#include "lv/lv_strbuf.h"
 
 /*
  * 访问 type_system.c 中定义的流式上下文变量。
@@ -215,9 +216,10 @@ ExplorerResult path_explorer_preview_rule(PathExplorer *explorer, int rule_index
 
     /* 流式事件：预览规则 */
     if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 预览规则 '%s'", rule->name ? rule->name : "?");
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb = {0};
+        lv_strbuf_printf(&sb, "路径探索: 预览规则 '%s'", rule->name ? rule->name : "?");
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, sb.data, 0);
+        lv_strbuf_destroy(&sb);
     }
 
     return EXPLORER_OK;
@@ -294,17 +296,19 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     /* 流式事件：规则应用成功 */
     if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 应用规则 '%s' (步骤 %d)", rule->name ? rule->name : "?",
+        lvStrBuf sb_2 = {0};
+        lv_strbuf_printf(&sb_2, "路径探索: 应用规则 '%s' (步骤 %d)", rule->name ? rule->name : "?",
                  explorer->step_count - 1);
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_REWRITE_APPLIED, buf, 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_REWRITE_APPLIED, sb_2.data, 0);
+        lv_strbuf_destroy(&sb_2);
     }
 
     /* 流式事件：路径探索应用规则信息 */
     if (type_system_stream_ctx != NULL) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 应用规则 '%s'", rule->name ? rule->name : "?");
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        lvStrBuf sb_3 = {0};
+        lv_strbuf_printf(&sb_3, "路径探索: 应用规则 '%s'", rule->name ? rule->name : "?");
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, sb_3.data, 0);
+        lv_strbuf_destroy(&sb_3);
     }
 
     return EXPLORER_OK;

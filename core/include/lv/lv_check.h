@@ -121,6 +121,40 @@ extern "C" {
         }                                                              \
     } while (0)
 
+/**
+ * @brief 传播错误：调用函数，检查返回值，非零时自动返回
+ * @param call  函数调用表达式（返回 int）
+ * @param code  错误码
+ * @param fmt   错误描述
+ * @param ...   可变参数
+ *
+ * 示例：
+ * @code
+ *   lv_PROPAGATE(lv_session_run(session), lv_ERROR_INTERNAL, "run failed");
+ * @endcode
+ */
+#define lv_PROPAGATE(call, code, fmt, ...)                            \
+    do {                                                               \
+        int _lv_r = (call);                                           \
+        if (_lv_r != 0) {                                              \
+            lv_ERROR("PROPAGATE: %s -> %d [%s:%d]", #call, _lv_r, __FILE__, __LINE__); \
+            lv_RETURN_ERROR(code, fmt, ##__VA_ARGS__);                 \
+        }                                                              \
+    } while (0)
+
+/**
+ * @brief 传播错误（void 函数版本）
+ * @param call  函数调用表达式
+ */
+#define lv_PROPAGATE_VOID(call, code, fmt, ...)                       \
+    do {                                                               \
+        int _lv_r = (call);                                           \
+        if (_lv_r != 0) {                                              \
+            lv_ERROR("PROPAGATE: %s -> %d [%s:%d]", #call, _lv_r, __FILE__, __LINE__); \
+            return;                                                    \
+        }                                                              \
+    } while (0)
+
 #ifdef __cplusplus
 }
 #endif

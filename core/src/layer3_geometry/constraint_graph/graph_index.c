@@ -33,6 +33,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "type_system.h"
+#include "lv/lv_strbuf.h"
 
 /* ── 流上下文声明 ── */
 /* ── 前向声明（graph_node.c 中定义） ── */
@@ -136,9 +137,10 @@ AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, in
                  con->id, point_id, line_or_region_id);
     }
     if (graph_stream_ctx) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "添加关联约束: id=%d, point=%d, target=%d", con->id, point_id, line_or_region_id);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, buf, 0);
+        lvStrBuf sb = {0};
+        lv_strbuf_printf(&sb, "添加关联约束: id=%d, point=%d, target=%d", con->id, point_id, line_or_region_id);
+        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, sb.data, 0);
+        lv_strbuf_destroy(&sb);
     }
     graph->dirty = true; /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
@@ -504,9 +506,10 @@ RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
             }
             graph->node_count--;
             if (graph_stream_ctx) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "移除节点: id=%d", node_id);
-                stream_emit_node_event(graph_stream_ctx, STREAM_EVENT_INFO, node_id, buf, 0);
+                lvStrBuf sb_2 = {0};
+                lv_strbuf_printf(&sb_2, "移除节点: id=%d", node_id);
+                stream_emit_node_event(graph_stream_ctx, STREAM_EVENT_INFO, node_id, sb_2.data, 0);
+                lv_strbuf_destroy(&sb_2);
             }
             return REMOVE_NODE_OK;
         }
@@ -546,9 +549,10 @@ RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int const
     graph->constraint_count--;
     graph->dirty = true; /* v3.5.0: 约束被移除，标记脏状态 */
     if (graph_stream_ctx) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "移除约束: id=%d", cid);
-        stream_emit_constraint_event(graph_stream_ctx, STREAM_EVENT_INFO, cid, buf, 0);
+        lvStrBuf sb_3 = {0};
+        lv_strbuf_printf(&sb_3, "移除约束: id=%d", cid);
+        stream_emit_constraint_event(graph_stream_ctx, STREAM_EVENT_INFO, cid, sb_3.data, 0);
+        lv_strbuf_destroy(&sb_3);
     }
     return REMOVE_CONSTRAINT_OK;
 }
@@ -657,9 +661,10 @@ int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id) {
     LOG_INFO("constraint_graph", "约束 #%d (类型=%d) 已废弃，保留数据用于审计跟踪", constraint_id, (int) con->type);
 
     if (graph_stream_ctx) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "废弃约束: id=%d (已停用，保留审计数据)", constraint_id);
-        stream_emit_constraint_event(graph_stream_ctx, STREAM_EVENT_INFO, constraint_id, buf, 0);
+        lvStrBuf sb_4 = {0};
+        lv_strbuf_printf(&sb_4, "废弃约束: id=%d (已停用，保留审计数据)", constraint_id);
+        stream_emit_constraint_event(graph_stream_ctx, STREAM_EVENT_INFO, constraint_id, sb_4.data, 0);
+        lv_strbuf_destroy(&sb_4);
     }
 
     return lv_OK;

@@ -8,7 +8,10 @@
 
 #include "lv/lv_platform.h"
 
+#include "lv/lv_file.h"
+
 #include "test_framework.h"
+
 
 #include <math.h>
 #include <stdarg.h>
@@ -17,10 +20,13 @@
 #include <string.h>
 #include <time.h>
 
+
 #include "lv_utils.h"
+
 
 #include "lv/lv_json.h"
 #include "lv/lv_thread.h"
+
 
 static int64_t get_time_ns(void) {
     return (int64_t) lv_get_time_ns();
@@ -933,7 +939,7 @@ bool lv_test_report_write_file(const lvTestReport *report, const char *path, con
         return false;
     }
 
-    FILE *fp = fopen(path, "w");
+    FILE *fp = lv_file_open(path, "w");
     if (!fp) {
         return false;
     }
@@ -952,7 +958,7 @@ bool lv_test_report_write_file(const lvTestReport *report, const char *path, con
         lv_free((void **) &content);
     }
 
-    fclose(fp);
+    lv_file_close(fp);
     return content != NULL;
 }
 

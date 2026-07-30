@@ -50,6 +50,7 @@
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "lv/lv_strbuf.h"
 
 /* ==================== 内部常量 ==================== */
 
@@ -1448,13 +1449,16 @@ static const char *hd_json_skip_value(const char *p) {
 
 /** 在 JSON 文本中查找 "key": 并提取其后的字符串值 */
 static bool hd_json_extract_string(const char *json, const char *key, char *buf, size_t buf_size) {
-    char search[128];
-    snprintf(search, sizeof(search), "\"%s\"", key);
-    const char *pos = strstr(json, search);
-    if (!pos)
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "\"%s\"", key);
+    const char *pos = strstr(json, sb.data);
+    if (!pos) {
+        lv_strbuf_destroy(&sb);
         return false;
+    }
 
-    pos += strlen(search);
+    pos += strlen(sb.data);
+    lv_strbuf_destroy(&sb);
     pos = hd_json_skip_ws(pos);
     if (*pos != ':')
         return false;
@@ -1499,13 +1503,16 @@ static bool hd_json_extract_string(const char *json, const char *key, char *buf,
 
 /** 在 JSON 文本中查找 "key": 并提取其后的整数值 */
 static bool hd_json_extract_int(const char *json, const char *key, int *out_val) {
-    char search[128];
-    snprintf(search, sizeof(search), "\"%s\"", key);
-    const char *pos = strstr(json, search);
-    if (!pos)
+    lvStrBuf sb_2 = {0};
+    lv_strbuf_printf(&sb_2, "\"%s\"", key);
+    const char *pos = strstr(json, sb_2.data);
+    if (!pos) {
+        lv_strbuf_destroy(&sb_2);
         return false;
+    }
 
-    pos += strlen(search);
+    pos += strlen(sb_2.data);
+    lv_strbuf_destroy(&sb_2);
     pos = hd_json_skip_ws(pos);
     if (*pos != ':')
         return false;
@@ -1518,13 +1525,16 @@ static bool hd_json_extract_int(const char *json, const char *key, int *out_val)
 
 /** 在 JSON 文本中查找 "key": 并提取其后的布尔值 */
 static bool hd_json_extract_bool(const char *json, const char *key, bool *out_val) {
-    char search[128];
-    snprintf(search, sizeof(search), "\"%s\"", key);
-    const char *pos = strstr(json, search);
-    if (!pos)
+    lvStrBuf sb_3 = {0};
+    lv_strbuf_printf(&sb_3, "\"%s\"", key);
+    const char *pos = strstr(json, sb_3.data);
+    if (!pos) {
+        lv_strbuf_destroy(&sb_3);
         return false;
+    }
 
-    pos += strlen(search);
+    pos += strlen(sb_3.data);
+    lv_strbuf_destroy(&sb_3);
     pos = hd_json_skip_ws(pos);
     if (*pos != ':')
         return false;

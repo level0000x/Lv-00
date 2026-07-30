@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file atp_backend.c
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层实现
  *
@@ -27,19 +27,25 @@
 
 #include "lv/lv_platform.h"
 
+#include "lv/lv_file.h"
+
 #include "atp_backend.h"
+
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
+
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_thread.h"
+
 
 #ifdef _WIN32
 #include <io.h>
 #include <windows.h>
+
 #define popen _popen
 #define pclose _pclose
 #else
@@ -48,11 +54,13 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 #endif
 
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+
 
 /* ============================================================
  * 模块级常量
@@ -429,12 +437,12 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
     /* 生成唯一临时文件名 */
     snprintf(temp_path, sizeof(temp_path), "%slv_atp_%d.p", temp_dir, (int) GetCurrentProcessId());
 
-    FILE *tmp = fopen(temp_path, "w");
+    FILE *tmp = lv_file_open(temp_path, "w");
     if (!tmp)
         return (int) lv_ERROR_IO;
 
     fputs(tptp_text, tmp);
-    fclose(tmp);
+    lv_file_close(tmp);
 
     /* 构建命令行 */
     char cmd[2048];
@@ -562,12 +570,12 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
     const char *tmpdir = getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp";
     snprintf(temp_path, sizeof(temp_path), "%s/lv_atp_%d.p", tmpdir, (int) getpid());
 
-    FILE *tmp = fopen(temp_path, "w");
+    FILE *tmp = lv_file_open(temp_path, "w");
     if (!tmp)
         return (int) lv_ERROR_IO;
 
     fputs(tptp_text, tmp);
-    fclose(tmp);
+    lv_file_close(tmp);
 
     /* 准备参数列表 */
     char *exec_argv[16];

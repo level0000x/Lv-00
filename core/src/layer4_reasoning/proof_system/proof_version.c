@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_version.c
  * @brief Implementation of the proof version control system.
  *
@@ -26,20 +26,26 @@
 
 #include "proof_version.h"
 
+#include "lv/lv_file.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "lv_utils.h"
+
 
 #ifdef _WIN32
 #include <direct.h>
 #include <windows.h>
+
 #define lv_MKDIR(path) _mkdir(path)
 #else
 #include <sys/stat.h>
 #include <sys/types.h>
+
 #define lv_MKDIR(path) mkdir(path, 0755)
 #endif
 
@@ -316,13 +322,13 @@ static bool create_repo_dirs(const char *repo_path) {
  * @brief Write a string to a file.
  */
 static bool write_file(const char *path, const char *content) {
-    FILE *f = fopen(path, "w");
+    FILE *f = lv_file_open(path, "w");
     if (!f)
         return false;
     if (content) {
         fputs(content, f);
     }
-    fclose(f);
+    lv_file_close(f);
     return true;
 }
 
@@ -333,7 +339,7 @@ static bool write_file(const char *path, const char *content) {
  * @return Newly allocated string, or NULL on failure
  */
 static char *read_file(const char *path) {
-    FILE *f = fopen(path, "r");
+    FILE *f = lv_file_open(path, "r");
     if (!f)
         return NULL;
 
@@ -342,19 +348,19 @@ static char *read_file(const char *path) {
     fseek(f, 0, SEEK_SET);
 
     if (size < 0) {
-        fclose(f);
+        lv_file_close(f);
         return NULL;
     }
 
     char *buf = (char *) lv_malloc((size_t) size + 1);
     if (!buf) {
-        fclose(f);
+        lv_file_close(f);
         return NULL;
     }
 
     size_t read = fread(buf, 1, (size_t) size, f);
     buf[read] = '\0';
-    fclose(f);
+    lv_file_close(f);
     return buf;
 }
 
@@ -410,7 +416,7 @@ static bool write_commit_file(const char *repo_path, const lvProofCommit *commit
     build_path(dir, "commits", tmp, sizeof(tmp));
     build_path(tmp, commit->oid, path, sizeof(path));
 
-    FILE *f = fopen(path, "w");
+    FILE *f = lv_file_open(path, "w");
     if (!f)
         return false;
 
@@ -419,7 +425,7 @@ static bool write_commit_file(const char *repo_path, const lvProofCommit *commit
     fprintf(f, "parent: %s\n", commit->parent_oid);
     fprintf(f, "timestamp: %lld\n", (long long) commit->timestamp);
 
-    fclose(f);
+    lv_file_close(f);
     return true;
 }
 
@@ -464,6 +470,7 @@ static int64_t get_timestamp(void) {
     return (tt - 116444736000000000LL) / 10000000LL;
 #else
 #include <time.h>
+
     return (int64_t) time(NULL);
 #endif
 }

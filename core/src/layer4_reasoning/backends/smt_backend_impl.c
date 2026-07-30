@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_backend_impl.c
  * @brief SMT 后端抽象层实现 —— 多引擎 SMT 求解器框架（含 Groebner 基真实求解）
  *
@@ -36,20 +36,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_file.h"
+
 #include "smt_backend.h"
 #include "lv/lv_thread.h"
+
 
 #ifdef _WIN32
 #include <io.h>
 #include <windows.h>
+
 #else
 #include <pthread.h>
+
 #endif
 
 #include "error_codes.h"
 #include "groebner_engine.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+
 
 /* ============================================================
  * 模块级常量
@@ -2028,10 +2034,12 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverRe
 
 #ifdef _WIN32
 #include <windows.h>
+
 #define popen _popen
 #define pclose _pclose
 #else
 #include <unistd.h>
+
 #endif
 
 /**
@@ -2069,14 +2077,14 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
     /* 在 Windows 上获取临时文件路径 */
     char tmp_path[MAX_PATH];
     if (_get_osfhandle(fd) == -1 || tmpnam_s(tmp_path, MAX_PATH) != 0) {
-        fclose(tmp);
+        lv_file_close(tmp);
         lv_LOG_WARNING("外部求解器 %s: 无法获取临时文件路径，回退到 UNKNOWN", executable);
         return SMT_RESULT_UNKNOWN;
     }
     /* 将 tmpfile 内容复制到命名临时文件 */
-    FILE *named_tmp = fopen(tmp_path, "w");
+    FILE *named_tmp = lv_file_open(tmp_path, "w");
     if (!named_tmp) {
-        fclose(tmp);
+        lv_file_close(tmp);
         lv_LOG_WARNING("外部求解器 %s: 无法创建命名临时文件，回退到 UNKNOWN", executable);
         return SMT_RESULT_UNKNOWN;
     }
@@ -2090,8 +2098,8 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
             break;
         }
     }
-    fclose(named_tmp);
-    fclose(tmp);
+    lv_file_close(named_tmp);
+    lv_file_close(tmp);
 
     /* 构造命令行 */
     char cmd[1024];
@@ -2126,7 +2134,7 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
 #ifdef _WIN32
         _unlink(tmp_path);
 #else
-        fclose(tmp);
+        lv_file_close(tmp);
 #endif
         return SMT_RESULT_UNKNOWN;
     }
@@ -2145,7 +2153,7 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
 #ifdef _WIN32
     _unlink(tmp_path);
 #else
-    fclose(tmp);
+    lv_file_close(tmp);
 #endif
 
     /* 将原始输出复制到 result_buf（如果调用者需要） */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file meta_repr.c
  * @brief Lv-00 元表示层实现
  *
@@ -18,10 +18,13 @@
 
 #include "lv/meta_repr.h"
 
+#include "lv/lv_file.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 
 #include "lv/constraint_graph.h"
 #include "lv/error_codes.h"
@@ -29,6 +32,7 @@
 #include "lv/lv.h"
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
+
 
 /* ============== 内部数据结构 ============== */
 
@@ -894,7 +898,7 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
     if (!encoded_graph || !filepath)
         return false;
 
-    FILE *fp = fopen(filepath, "w");
+    FILE *fp = lv_file_open(filepath, "w");
     if (!fp)
         return false;
 
@@ -954,7 +958,7 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
     }
 
     fprintf(fp, "}\n");
-    fclose(fp);
+    lv_file_close(fp);
     return true;
 }
 

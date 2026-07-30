@@ -26,6 +26,7 @@
 #include "stream.h"
 #include "stream_context_util.h"
 #include "type_system.h"
+#include "lv/lv_strbuf.h"
 
 lv_DECLARE_STREAM_CTX(debug);
 
@@ -1013,13 +1014,13 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
                     int idx = result->invalid_ports;
                     result->invalid_port_ids[idx] = node->id;
                     const char *port_type_str = (port->type == PORT_INPUT) ? "INPUT" : "OUTPUT";
-                    char msg[lv_DEBUG_MSG_BUF_SIZE];
-                    snprintf(msg, sizeof(msg),
+                    lvStrBuf sb = {0};
+                    lv_strbuf_printf(&sb,
                              "Port %d (%s): namespace_depth (%d) > parent function block %d namespace_depth (%d)",
                              node->id, port_type_str, port->namespace_depth, port->parent_block_id,
                              parent->namespace_depth);
                     lv_free((void **) &result->error_messages[idx]);
-                    result->error_messages[idx] = lv_strdup_safe(msg);
+                    result->error_messages[idx] = lv_strdup_safe(sb.data);
                     result->invalid_ports++;
                     port_valid = false;
                 }
@@ -1039,10 +1040,10 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
             if (!found) {
                 int idx = result->invalid_ports;
                 result->invalid_port_ids[idx] = node->id;
-                char msg[lv_DEBUG_MSG_BUF_SIZE];
-                snprintf(msg, sizeof(msg), "Port %d: connected_to node does not exist in graph", node->id);
+                lvStrBuf sb_2 = {0};
+                lv_strbuf_printf(&sb_2, "Port %d: connected_to node does not exist in graph", node->id);
                 lv_free((void **) &result->error_messages[idx]);
-                result->error_messages[idx] = lv_strdup_safe(msg);
+                result->error_messages[idx] = lv_strdup_safe(sb_2.data);
                 result->invalid_ports++;
                 port_valid = false;
             }
@@ -1055,11 +1056,11 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
                 /* 类型不兼容——记录违规 */
                 int idx = result->invalid_ports;
                 result->invalid_port_ids[idx] = node->id;
-                char msg[lv_DEBUG_MSG_BUF_SIZE];
-                snprintf(msg, sizeof(msg), "Port %d: type incompatible with connected node %d", node->id,
+                lvStrBuf sb_3 = {0};
+                lv_strbuf_printf(&sb_3, "Port %d: type incompatible with connected node %d", node->id,
                          port->connected_to->id);
                 lv_free((void **) &result->error_messages[idx]);
-                result->error_messages[idx] = lv_strdup_safe(msg);
+                result->error_messages[idx] = lv_strdup_safe(sb_3.data);
                 result->invalid_ports++;
                 port_valid = false;
             }
@@ -1613,26 +1614,27 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
     va_end(args);
 
     /* 构建日志行 */
-    char log_line[lv_DEBUG_LOG_LINE_BUF_SIZE];
-    int len = snprintf(log_line, sizeof(log_line), "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
+    lvStrBuf sb_4 = {0};
+    lv_strbuf_printf(&sb_4, "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
                        module ? module : "unknown", message);
 
     /* ERROR 和 WARN 输出到 stderr，其余输出到 stdout */
     if (level >= LOG_LEVEL_WARN) {
-        fputs(log_line, stderr);
+        fputs(sb_4.data, stderr);
     } else {
-        fputs(log_line, stdout);
+        fputs(sb_4.data, stdout);
     }
 
     /* 写入日志文件 */
     if (s_debug_state.log_file && s_debug_state.initialized) {
-        fputs(log_line, s_debug_state.log_file);
+        fputs(sb_4.data, s_debug_state.log_file);
         fflush(s_debug_state.log_file);
-        s_debug_state.current_log_size += (size_t) len;
+        s_debug_state.current_log_size += sb_4.len;
     }
 
     /* 追加到紧急保存日志缓冲区 */
-    log_buffer_append(log_line);
+    log_buffer_append(sb_4.data);
+    lv_strbuf_destroy(&sb_4);
 
     log_unlock();
 

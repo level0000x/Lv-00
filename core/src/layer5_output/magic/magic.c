@@ -21,6 +21,7 @@
 #include "lv/lv_json.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 /* ============================================================
  * 模块级常量定义
@@ -1234,13 +1235,14 @@ static const char *json_find_key_safe(const char *start, const char *key) {
         return NULL;
 
     /* 构造搜索模式: "key" */
-    char pattern[128];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "\"%s\"", key);
 
     const char *p = start;
     while (*p) {
         /* 检查是否匹配目标键名 */
-        if (strncmp(p, pattern, strlen(pattern)) == 0) {
+        if (strncmp(p, sb.data, strlen(sb.data)) == 0) {
+            lv_strbuf_destroy(&sb);
             return p;
         }
 

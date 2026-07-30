@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 formal: NDimGeometry (Round 6)
 ======================================
 Corresponds to: bootstrap/src/layer3_geometry/core_graph.lv
@@ -45,4 +45,5 @@ theorem dist_to_zero (n : Nat) (v : VecN n) : distN n v (fun _ => 0) = norm n v 
   ext i
   simp
 
-end lvFormal.Theory.NDimGeometry
+end
+

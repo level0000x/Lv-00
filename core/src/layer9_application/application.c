@@ -11,16 +11,20 @@
 
 #include "lv/application.h"
 
+#include "lv/lv_file.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_log.h"
 #include "lv/lv_utils.h"
 #include "lv/orchestrator.h"
+
 
 /**
  * @brief 获取默认应用配置
@@ -191,7 +195,7 @@ int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
             continue;
 
         /* 以二进制只读方式打开文件 */
-        FILE *fp = fopen(files[i], "rb");
+        FILE *fp = lv_file_open(files[i], "rb");
         if (!fp) {
             lv_LOG_ERROR("无法打开文件: %s", files[i]);
             continue;
@@ -201,31 +205,31 @@ int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
         long fsize = ftell(fp);
         fseek(fp, 0, SEEK_SET);
         if (fsize < 0) {
-            fclose(fp);
+            lv_file_close(fp);
             lv_LOG_ERROR("无法获取文件大小: %s", files[i]);
             continue;
         }
         /* 限制单文件不超过 100MB，防止内存耗尽 */
         if (fsize > (long) (100 * 1024 * 1024)) {
-            fclose(fp);
+            lv_file_close(fp);
             lv_LOG_ERROR("文件过大: %s (%ld 字节)", files[i], fsize);
             continue;
         }
         /* 分配缓冲区并读取完整文件内容 */
         char *content = lv_malloc((size_t) fsize + 1);
         if (!content) {
-            fclose(fp);
+            lv_file_close(fp);
             lv_LOG_ERROR("内存分配失败，文件: %s", files[i]);
             continue;
         }
         size_t nread = fread(content, 1, (size_t) fsize, fp);
         if (nread != (size_t) fsize) {
-            fclose(fp);
+            lv_file_close(fp);
             lv_free((void **) &content);
             lv_LOG_ERROR("读取文件不完整: %s (期望 %ld, 实际 %zu)", files[i], fsize, nread);
             continue;
         }
-        fclose(fp);
+        lv_file_close(fp);
         content[nread] = '\0';
 
         /* 将文件内容传入会话流水线执行 */

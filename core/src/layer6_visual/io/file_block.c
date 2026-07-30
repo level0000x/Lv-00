@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file file_block.c
  * @brief 文件块实现
  *
@@ -12,9 +12,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv/lv_file.h"
+
 #include "lv/io_blocks.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
+
 
 /** @brief 文件块内部状态结构 */
 typedef struct {
@@ -119,14 +122,14 @@ int lv_file_block_read(lvFileBlock *block, void *buf, size_t buf_size, size_t *b
     if (!state->path)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "file path not set");
 
-    FILE *f = fopen(state->path, "rb");
+    FILE *f = lv_file_open(state->path, "rb");
     if (!f) {
         if (bytes_read)
             *bytes_read = 0;
         lv_RETURN_ERROR(lv_ERROR_IO, "failed to open file for reading");
     }
     size_t n = fread(buf, 1, buf_size, f);
-    fclose(f);
+    lv_file_close(f);
 
     if (bytes_read)
         *bytes_read = n;
@@ -153,11 +156,11 @@ int lv_file_block_write(lvFileBlock *block, const void *data, size_t data_size) 
     if (!state->path)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "file path not set for write");
 
-    FILE *f = fopen(state->path, "wb");
+    FILE *f = lv_file_open(state->path, "wb");
     if (!f)
         lv_RETURN_ERROR(lv_ERROR_IO, "failed to open file for writing");
     size_t n = fwrite(data, 1, data_size, f);
-    fclose(f);
+    lv_file_close(f);
 
     state->is_open = false;
     if (n == data_size)

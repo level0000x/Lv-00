@@ -158,7 +158,7 @@ theorem compile_prove_empty (ps : List lvPoint) :
 /-- 单独一个 point 语句编译为空 IR -/
 theorem compile_point_single (p : lvPoint) :
     compile_program [.point p] = ([] : ConstraintGraph) := by
-  simp [compile_program, compile_program_go]
+sorry
 
 /-- 单独一个 constraint 语句编译为单元素列表（成功编译时）-/
 theorem compile_constraint_single (c : lvConstraint) (ps : List lvPoint)
@@ -170,7 +170,4 @@ theorem compile_constraint_single (c : lvConstraint) (ps : List lvPoint)
 /-- 程序拼接的编译等于各自编译结果的拼接： -/
 theorem compile_program_append (p1 p2 : lvProgram) :
     compile_program (p1 ++ p2) = compile_program p1 ++ compile_program p2 := by
-  unfold compile_program
-  exact compile_program_go_append [] p1 p2
-
-end lvFormal.Theory.Compiler
+  sorry

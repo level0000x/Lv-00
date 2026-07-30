@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv_utils.c
  * @brief Lv-00 工具函数库实现
  *
@@ -39,6 +39,8 @@
 
 #include "lv_utils.h"
 
+#include "lv/lv_file.h"
+
 #include <ctype.h>
 #include <math.h>
 #include <stdarg.h>
@@ -47,19 +49,24 @@
 #include <string.h>
 #include <time.h>
 
+
 /* [Bug修复] 为 realloc 非本分配器路径获取旧大小所需的平台头文件 */
 #ifdef _WIN32
 #include <malloc.h> /* _msize */
+
 #elif defined(__linux__)
 #include <malloc.h> /* malloc_usable_size */
+
 #elif defined(__APPLE__)
 #include <malloc/malloc.h> /* malloc_size on macOS */
+
 #endif
 
 #include "error_codes.h"
 #include "lv.h"
 #include "debug.h"
 #include "lv_internal.h"
+
 
 /* ============================================================
  * 内存统计跟踪
@@ -1468,7 +1475,7 @@ bool config_load(ConfigManager *mgr) {
     if (!mgr || !mgr->config_file)
         lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_load 参数无效");
 
-    FILE *f = fopen(mgr->config_file, "r");
+    FILE *f = lv_file_open(mgr->config_file, "r");
     if (!f)
         lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_load 打开文件失败");
 
@@ -1537,7 +1544,7 @@ bool config_load(ConfigManager *mgr) {
         config_set_string(mgr, full_key, value);
     }
 
-    fclose(f);
+    lv_file_close(f);
     return true;
 }
 
@@ -1545,7 +1552,7 @@ bool config_save(const ConfigManager *mgr) {
     if (!mgr || !mgr->config_file)
         lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_save 参数无效");
 
-    FILE *f = fopen(mgr->config_file, "w");
+    FILE *f = lv_file_open(mgr->config_file, "w");
     if (!f)
         lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_save 打开文件失败");
 
@@ -1615,7 +1622,7 @@ bool config_save(const ConfigManager *mgr) {
         item = item->next;
     }
 
-    fclose(f);
+    lv_file_close(f);
     return true;
 }
 
@@ -1756,6 +1763,7 @@ bool lv_check_version(const char *min_version) {
 #ifdef _WIN32
 #include <windows.h>
 
+
 uint64_t lv_get_time_ns(void) {
     static double ns_per_count = 0.0;
     if (ns_per_count == 0.0) {
@@ -1777,6 +1785,7 @@ uint64_t lv_get_time_us(void) {
 
 #else
 #include <sys/time.h>
+
 
 uint64_t lv_get_time_ns(void) {
     struct timespec ts;

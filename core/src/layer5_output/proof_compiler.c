@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_compiler.c
  * @brief 证明编译层实现
  *
@@ -7,6 +7,8 @@
 
 #include "proof_compiler.h"
 
+#include "lv/lv_file.h"
+
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -14,11 +16,14 @@
 #include <string.h>
 #include <time.h>
 
+
 #include "lv/lv_internal.h"
+
 
 #include "circuit_breaker.h"
 #include "lv.h"
 #include "lv_utils.h"
+
 
 /* ============== 内部辅助函数 ============== */
 
@@ -770,14 +775,14 @@ bool lv_proof_export_to_file(const lvProofObject *proof, const lvProofTrace *tra
     if (!content)
         return false;
 
-    FILE *fp = fopen(filename, "w");
+    FILE *fp = lv_file_open(filename, "w");
     if (!fp) {
         lv_free((void **) &content);
         return false;
     }
 
     fputs(content, fp);
-    fclose(fp);
+    lv_file_close(fp);
     lv_free((void **) &content);
 
     return true;
