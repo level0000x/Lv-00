@@ -32,7 +32,7 @@ open lvFormal.Theory.Cv00Lang
     var → .var, const → .lit_float, arithmetic → direct mapping. -/
 def cgen_expr : IRExpr → Cv00Expr
   | IRExpr.var v     => Cv00Expr.var (v ++ "_x")  -- IR var → x-coordinate variable
-  | IRExpr.const c   => Cv00Expr.lit_float (0 : Float)
+  | IRExpr.const _   => Cv00Expr.lit_float (0 : Float)
   | IRExpr.add a b   => Cv00Expr.add (cgen_expr a) (cgen_expr b)
   | IRExpr.sub a b   => Cv00Expr.sub (cgen_expr a) (cgen_expr b)
   | IRExpr.mul a b   => Cv00Expr.mul (cgen_expr a) (cgen_expr b)
@@ -70,14 +70,14 @@ def cgen_guard (cond : Cv00Expr) (onFail : Cv00Stmt := Cv00Stmt.nop) : Cv00Stmt 
   Cv00Stmt.if_stmt cond Cv00Stmt.nop onFail
 
 /-- Build a return error statement -/
-def cgen_return_error (code : String) : Cv00Stmt :=
+def cgen_return_error (_code : String) : Cv00Stmt :=
   Cv00Stmt.return_stmt (some (Cv00Expr.lit_int (-1)))
 
 /-- Declare all coordinate variables for a list of point names.
     Folds a deduplicated set of point declarations. -/
 def cgen_declare_coords (points : List String) : List Cv00Stmt :=
   let unique := points.eraseDups
-  let vars := unique.bind (fun p => [(p ++ "_x", Cv00Type.float64), (p ++ "_y", Cv00Type.float64)])
+  let vars := unique.flatMap (fun p => [(p ++ "_x", Cv00Type.float64), (p ++ "_y", Cv00Type.float64)])
   vars.map (fun (n, t) => Cv00Stmt.declare n t (some (Cv00Expr.lit_float 0)))
 
 /-- Translate a single IR constraint to Cv00 validation code.
@@ -190,7 +190,7 @@ def irConstraint_points : IRConstraint → List String
     This is a complete self-contained C program that can be
     executed by Cv00Memory.exec_stmt. -/
 def cgen_graph (g : ConstraintGraph) : Cv00Stmt :=
-  let allPoints : List String := (g.bind irConstraint_points).eraseDups
+  let allPoints : List String := (g.flatMap irConstraint_points).eraseDups
   let declarations := cgen_declare_coords allPoints
   let validations := g.map cgen_constraint
   let body := declarations ++ validations ++ [Cv00Stmt.return_stmt (some (Cv00Expr.lit_int 0))]

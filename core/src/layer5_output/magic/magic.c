@@ -908,24 +908,18 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "magic_array_add_constraint: ensure_capacity failed");
 
     /* 将魔法阵约束类型映射为底层约束图内部类型 */
+    static const ConstraintType s_arr_to_ct[] = {
+        CONNECTION,   /* ARRAY_CONNECTION = 0 */
+        INCIDENCE,    /* ARRAY_ENHANCEMENT = 1 */
+        INCIDENCE,    /* ARRAY_CONFLICT = 2 */
+        INTERSECTION, /* ARRAY_INTERSECTION = 3 */
+        CONTAINMENT,  /* ARRAY_CONTAINMENT = 4 */
+    };
     ConstraintType graph_type;
-    switch (type) {
-        case ARRAY_CONNECTION:
-            graph_type = CONNECTION;
-            break;
-        case ARRAY_ENHANCEMENT:
-        case ARRAY_CONFLICT:
-            graph_type = INCIDENCE;
-            break;
-        case ARRAY_INTERSECTION:
-            graph_type = INTERSECTION;
-            break;
-        case ARRAY_CONTAINMENT:
-            graph_type = CONTAINMENT;
-            break;
-        default:
-            graph_type = CONNECTION;
-    }
+    if ((int)type >= 0 && (int)type < (int)(sizeof(s_arr_to_ct) / sizeof(s_arr_to_ct[0])))
+        graph_type = s_arr_to_ct[type];
+    else
+        graph_type = CONNECTION;
 
     int participants[2] = {rune1_index, rune2_index};
     AddConstraintResult result;
@@ -1294,32 +1288,30 @@ static int json_decode_string(const char *src, char *dst, size_t dst_cap) {
     while (*p && *p != '"' && written < dst_cap - 1) {
         if (*p == '\\') {
             p++;
-            switch (*p) {
-                case '"':
-                    dst[written++] = '"';
+            /* JSON 标准转义字符映射表 */
+            static const struct {
+                char escape;
+                char actual;
+            } s_json_escape_table[] = {
+                {'"', '"'},
+                {'\\', '\\'},
+                {'/', '/'},
+                {'b', '\b'},
+                {'f', '\f'},
+                {'n', '\n'},
+                {'r', '\r'},
+                {'t', '\t'},
+            };
+            int found = 0;
+            for (size_t i = 0; i < sizeof(s_json_escape_table) / sizeof(s_json_escape_table[0]); i++) {
+                if (*p == s_json_escape_table[i].escape) {
+                    dst[written++] = s_json_escape_table[i].actual;
+                    found = 1;
                     break;
-                case '\\':
-                    dst[written++] = '\\';
-                    break;
-                case '/':
-                    dst[written++] = '/';
-                    break;
-                case 'b':
-                    dst[written++] = '\b';
-                    break;
-                case 'f':
-                    dst[written++] = '\f';
-                    break;
-                case 'n':
-                    dst[written++] = '\n';
-                    break;
-                case 'r':
-                    dst[written++] = '\r';
-                    break;
-                case 't':
-                    dst[written++] = '\t';
-                    break;
-                case 'u':
+                }
+            }
+            if (!found) {
+                if (*p == 'u') {
                     /* \uXXXX unicode 转义：当前不解码，保留为原始文本 */
                     if (written + 6 < dst_cap - 1) {
                         dst[written++] = '\\';
@@ -1334,14 +1326,13 @@ static int json_decode_string(const char *src, char *dst, size_t dst_cap) {
                             dst[written++] = p[4];
                         p += 4;
                     }
-                    break;
-                default:
+                } else {
                     /* 未知转义序列，保留原样 */
                     if (written + 1 < dst_cap - 1) {
                         dst[written++] = '\\';
                         dst[written++] = *p;
                     }
-                    break;
+                }
             }
             p++;
         } else {
@@ -2337,25 +2328,15 @@ double incantation_calculate_power(const IncantationProfile *profile) {
                    profile->stealth * MAGIC_INCANTATION_WEIGHT_STEALTH;
 
     /* 根据咏唱长度施加倍率（瞬发0.5x ~ 仪式1.5x） */
-    switch (profile->length) {
-        case INCANTATION_INSTANT:
-            power *= MAGIC_INCANTATION_MULT_INSTANT;
-            break;
-        case INCANTATION_SHORT:
-            power *= MAGIC_INCANTATION_MULT_SHORT;
-            break;
-        case INCANTATION_STANDARD:
-            power *= MAGIC_INCANTATION_MULT_STANDARD;
-            break;
-        case INCANTATION_LONG:
-            power *= MAGIC_INCANTATION_MULT_LONG;
-            break;
-        case INCANTATION_RITUAL:
-            power *= MAGIC_INCANTATION_MULT_RITUAL;
-            break;
-        default:
-            break;
-    }
+    static const double s_power_multipliers[] = {
+        MAGIC_INCANTATION_MULT_INSTANT,   /* INCANTATION_INSTANT = 0 */
+        MAGIC_INCANTATION_MULT_SHORT,     /* INCANTATION_SHORT = 1 */
+        MAGIC_INCANTATION_MULT_STANDARD,  /* INCANTATION_STANDARD = 2 */
+        MAGIC_INCANTATION_MULT_LONG,      /* INCANTATION_LONG = 3 */
+        MAGIC_INCANTATION_MULT_RITUAL,    /* INCANTATION_RITUAL = 4 */
+    };
+    if ((int)profile->length >= 0 && (int)profile->length < (int)(sizeof(s_power_multipliers) / sizeof(s_power_multipliers[0])))
+        power *= s_power_multipliers[profile->length];
 
     return power;
 }

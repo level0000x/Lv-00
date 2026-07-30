@@ -115,8 +115,8 @@ def ir_sem (env : String → ℝ × ℝ) : IRConstraint → Prop
       dist (env c) (env a) = eval_expr env r
   | .tangent ctr pt la lb =>
       let r := dist (env ctr) (env pt)
-      let v := (ptX (env la) - ptX (env lb), ptY (env la) - ptY (env lb))
-      ∃ (t : ℝ), dist (env ctr) (ptX (env la) + t * (ptX (env la) - ptX (env lb)), ptY (env la) + t * (ptY (env la) - ptY (env lb))) = r
+      let d := (ptX (env la) - ptX (env lb), ptY (env la) - ptY (env lb))
+      ∃ (t : ℝ), dist (env ctr) (ptX (env la) + t * d.1, ptY (env la) + t * d.2) = r
   | .midpoint m a b =>
       ptX (env m) = (ptX (env a) + ptX (env b)) / 2 ∧
       ptY (env m) = (ptY (env a) + ptY (env b)) / 2

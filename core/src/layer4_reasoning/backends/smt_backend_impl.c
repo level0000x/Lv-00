@@ -40,6 +40,7 @@
 #include "lv/lv_str_utils.h"
 
 #include "smt_backend.h"
+#include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
 
 
@@ -114,23 +115,13 @@ struct SMTSolver {
  * 全局后端注册表（单例）
  * ============================================================ */
 
-/** @brief 全局注册表实例 */
+/** @brief 全局注册表（使用 lvRegistry 统一管理互斥锁） */
+static lvRegistry g_smt_registry_lock;
+static bool g_smt_registry_inited = false;
+
+/** @brief SMT 后端完整元数据（保持向后兼容的 SMTBackendRegistry 结构） */
 static SMTBackendRegistry g_smt_registry;
 static bool g_smt_registry_initialized = false;
-
-static lv_mutex_t g_smt_registry_mutex;
-static lv_once_t g_smt_once = lv_ONCE_INIT;
-
-static void smt_registry_mutex_init_func(void) {
-    lv_mutex_init(&g_smt_registry_mutex);
-}
-
-#define SMT_REGISTRY_LOCK()   \
-    do {                      \
-        lv_once(&g_smt_once, smt_registry_mutex_init_func); \
-        lv_mutex_lock(&g_smt_registry_mutex); \
-    } while (0)
-#define SMT_REGISTRY_UNLOCK() lv_mutex_unlock(&g_smt_registry_mutex)
 
 /* ============================================================
  * 前向声明 —— 内部辅助函数
@@ -2423,13 +2414,15 @@ const char *smtsolver_error_string(SMTErrorCode code) {
  * @brief 获取全局后端注册表（惰性初始化）
  */
 SMTBackendRegistry *smtsolver_get_registry(void) {
-    SMT_REGISTRY_LOCK();
+    if (!g_smt_registry_inited) {
+        lv_registry_init(&g_smt_registry_lock, 0);
+        g_smt_registry_inited = true;
+    }
     if (!g_smt_registry_initialized) {
         memset(&g_smt_registry, 0, sizeof(g_smt_registry));
         g_smt_registry.count = 0;
         g_smt_registry_initialized = true;
     }
-    SMT_REGISTRY_UNLOCK();
     return &g_smt_registry;
 }
 
@@ -2440,12 +2433,23 @@ int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEnt
     lv_CHECK_NULL(registry, -1);
     lv_CHECK_NULL(entry, -1);
 
+    if (!g_smt_registry_inited) {
+        lv_registry_init(&g_smt_registry_lock, 0);
+        g_smt_registry_inited = true;
+    }
+
+    /* 使用 lvRegistry 的互斥锁保护临界区 */
+    lv_MUTEX_LOCK(&g_smt_registry_lock.mutex);
+
     if (registry->count >= SMT_BACKEND_REGISTRY_CAPACITY) {
+        lv_MUTEX_UNLOCK(&g_smt_registry_lock.mutex);
         return -1;
     }
 
     registry->entries[registry->count] = *entry;
     registry->count++;
+
+    lv_MUTEX_UNLOCK(&g_smt_registry_lock.mutex);
     return 0;
 }
 

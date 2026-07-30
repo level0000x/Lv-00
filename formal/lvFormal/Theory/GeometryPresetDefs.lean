@@ -97,8 +97,8 @@ def convex_hull (pts : List Pt) : Set Pt :=
 def shoelace_sum (pts : List Pt) : ℝ :=
   match pts with
   | []  => 0
-  | [p] => 0
-  | ps  =>
+  | [_p] => 0
+  | _ps  =>
     let pairs := List.zip pts (pts.tail ++ [pts.head?].filterMap id)
     (pairs.map (fun (p, q) => p.x * q.y - q.x * p.y)).sum
 

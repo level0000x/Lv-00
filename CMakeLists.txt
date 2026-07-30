@@ -622,6 +622,8 @@ set(lv_HEADERS
     # v1.9.0 micro-bootstrap: 语义分析与加载器
     core/include/lv/lv_sema.h
     core/include/lv/lv_loader.h
+    # v1.1.0 通用注册表接口
+    core/include/lv/lv_registry.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -667,6 +669,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/memory_pool.c
     # v3.3.0 新增：内存池公共 API 包装
     core/src/layer2_resource/lv_mempool.c
+    # v3.3.0 新增：内存池静态单例工具（消除各模块重复的 init+alloc+clear 模式）
+    core/src/layer2_resource/lv_mempool_utils.c
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
     # 补全遗漏文件：缓存管理、全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息
@@ -713,6 +717,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_str_utils.c
     # v3.8.0 统一文件 I/O 抽象层
     core/src/layer2_resource/lv_file.c
+    # v1.1.0 通用注册表（统一 ATP/SMT/Groebner 后端注册表模式）
+    core/src/layer2_resource/lv_registry.c
 )
 
 # ── Core: 核心便利层 (Core Convenience) ──

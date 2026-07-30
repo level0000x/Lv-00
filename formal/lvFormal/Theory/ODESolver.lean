@@ -68,17 +68,17 @@ theorem harmonic_max_amplitude (s0 : State) (omega : ℝ) (t : ℝ) :
     
     当前简化版本保留为框架声明。 -/
 theorem rk4_local_truncation_error (f : ℝ → ℝ → ℝ) (h : ℝ) (t y : ℝ)
-    (hsm : h > 0) (hsmooth : ∃ C, ∀ x t', |f t' x| ≤ C) : True := by
+    (hsm : h > 0) (_hsmooth : ∃ C, ∀ x t', |f t' x| ≤ C) : True := by
   trivial
 
 /-- RK4 收敛性：当步长 h → 0 时，数值解收敛到真解。
     在 f 满足 Lipschitz 条件下，全局误差为 O(h⁴)。 -/
-theorem rk4_convergence (f : ℝ → ℝ → ℝ) (t0 y0 : ℝ) (T : ℝ) (h : ℝ) (hh : h > 0)
-    (hlip : ∃ L, ∀ t y1 y2, |f t y1 - f t y2| ≤ L * |y1 - y2|) : True := by
+theorem rk4_convergence (f : ℝ → ℝ → ℝ) (_t0 _y0 : ℝ) (_T : ℝ) (h : ℝ) (_hh : h > 0)
+    (_hlip : ∃ L, ∀ t y1 y2, |f t y1 - f t y2| ≤ L * |y1 - y2|) : True := by
   trivial
 
 /-- RK4 数值稳定性：对线性测试方程 y' = λy，稳定性条件为 |1 + hλ + (hλ)²/2 + (hλ)³/6 + (hλ)⁴/24| ≤ 1。 -/
-theorem rk4_stability_region (l h : ℝ) : True := by
+theorem rk4_stability_region (_l _h : ℝ) : True := by
   trivial
 
 /-- 线性测试方程 y' = λy 的精确解：y(t) = y₀·e^{λt} -/
@@ -87,7 +87,7 @@ theorem linear_test_exact_solution (l y0 t : ℝ) : (fun t' => y0 * Real.exp (l 
 
 /-- RK4 对线性测试方程的一步结果：
     若 y_{n+1} = R(hλ)·y_n，其中 R(z) = 1 + z + z²/2 + z³/6 + z⁴/24 -/
-theorem rk4_linear_stability_function (l h : ℝ) (y0 : ℝ) : True := by
+theorem rk4_linear_stability_function (_l _h : ℝ) (_y0 : ℝ) : True := by
   trivial
 
 end lvFormal.Theory.ODESolver

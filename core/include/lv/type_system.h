@@ -34,6 +34,7 @@
 #include "constraint_graph.h"
 #include "rewrite.h"
 #include "stream.h"
+#include "lv/lv_xmacro.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -77,17 +78,28 @@ typedef enum {
 #define UNIVERSE_TYPE_1 UNIVERSE_LEVEL_1 /* 第1层：类型区域 */
 
 /* ============== 类型种类 ============== */
+
+/**
+ * @brief X-macro 列表：TypeKind 枚举值与对应字符串
+ *
+ * 使用方法：
+ *   LV_TYPE_KIND_X(LV_X_ENUM_ITEM)   → 生成枚举值
+ *   LV_TYPE_KIND_X(LV_X_TO_STR_CASE) → 生成 switch-case 字符串映射
+ */
+#define LV_TYPE_KIND_X(x) \
+    x(TYPE_KIND_POINT, "Point") \
+    x(TYPE_KIND_LINE_SEGMENT, "LineSegment") \
+    x(TYPE_KIND_REGION, "Region") \
+    x(TYPE_KIND_FUNCTION, "Function") \
+    x(TYPE_KIND_PRODUCT, "Product") \
+    x(TYPE_KIND_SUM, "Sum") \
+    x(TYPE_KIND_VARIABLE, "Variable") \
+    x(TYPE_KIND_DEPENDENT, "Dependent") \
+    x(TYPE_KIND_BOTTOM, "Bottom") \
+    x(TYPE_KIND_PREDICATE_SUBTYPE, "PredicateSubtype")
+
 typedef enum {
-    TYPE_KIND_POINT,            /* 点类型 */
-    TYPE_KIND_LINE_SEGMENT,     /* 线段类型 */
-    TYPE_KIND_REGION,           /* 区域类型 */
-    TYPE_KIND_FUNCTION,         /* 函数类型 */
-    TYPE_KIND_PRODUCT,          /* 乘积类型 */
-    TYPE_KIND_SUM,              /* 和类型 */
-    TYPE_KIND_VARIABLE,         /* 类型变量（多态） */
-    TYPE_KIND_DEPENDENT,        /* 依赖类型 */
-    TYPE_KIND_BOTTOM,           /* ⊥ 类型 */
-    TYPE_KIND_PREDICATE_SUBTYPE /* PVS风格谓词子类型 {x:T | P(x)} */
+    LV_TYPE_KIND_X(LV_X_ENUM_ITEM)
 } TypeKind;
 
 /* ============== 类型区域 ============== */

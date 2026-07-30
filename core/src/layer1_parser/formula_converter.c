@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_converter.c
  * @brief 公式转换器实现
  *
@@ -212,28 +212,20 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
     }
 
     /* 根据节点类型生成名称 */
-    switch (node->type) {
-        case GEOM_POINT:
-            snprintf(out_name, buf_size, "P%d", node->id);
-            break;
-        case GEOM_LINE_SEGMENT:
-            snprintf(out_name, buf_size, "S%d", node->id);
-            break;
-        case GEOM_REGION:
-            snprintf(out_name, buf_size, "R%d", node->id);
-            break;
-        case GEOM_CIRCLE:
-            snprintf(out_name, buf_size, "C%d", node->id);
-            break;
-        case GEOM_PORT:
-            snprintf(out_name, buf_size, "Port%d", node->id);
-            break;
-        case GEOM_FUNCTION_BLOCK:
-            snprintf(out_name, buf_size, "FB%d", node->id);
-            break;
-        default:
-            snprintf(out_name, buf_size, "N%d", node->id);
-            break;
+    static const char *s_node_prefixes[] = {
+    [GEOM_POINT]          = "P",
+    [GEOM_LINE_SEGMENT]   = "S",
+    [GEOM_REGION]         = "R",
+    [GEOM_CIRCLE]         = "C",
+    [GEOM_PORT]           = "Port",
+    [GEOM_FUNCTION_BLOCK] = "FB",
+};
+
+#define NODE_PREFIX_COUNT (sizeof(s_node_prefixes) / sizeof(s_node_prefixes[0]))
+    {
+    const char *prefix = ((unsigned)node->type < NODE_PREFIX_COUNT && s_node_prefixes[node->type])
+                             ? s_node_prefixes[node->type] : "N";
+    snprintf(out_name, buf_size, "%s%d", prefix, node->id);
     }
 
     return true;

@@ -217,7 +217,7 @@ partial def lv_type_infer : LvExpr → Option LvType
     | some .int, some .int => some .int
     | some .real, some .real => some .real
     | _, _ => none
-  | .lambda p t b => some (LvType.arrow t ((lv_type_infer b).getD LvType.real))
+  | .lambda _ t b => some (LvType.arrow t ((lv_type_infer b).getD LvType.real))
   | .forall _ _ _ => some .bool
   | .exists _ _ _ => some .bool
   | .listLit es =>
@@ -286,8 +286,8 @@ partial def lv_free_vars : LvExpr → List String
   | .lambda p _ b => (lv_free_vars b).filter (· ≠ p)
   | .forall x _ b => (lv_free_vars b).filter (· ≠ x)
   | .exists x _ b => (lv_free_vars b).filter (· ≠ x)
-  | .listLit es => es.bind lv_free_vars
-  | .setLit es => es.bind lv_free_vars
+  | .listLit es => es.flatMap lv_free_vars
+  | .setLit es => es.flatMap lv_free_vars
   | .some e => lv_free_vars e
   | .none _ => []
   | .pair e1 e2 => lv_free_vars e1 ++ lv_free_vars e2

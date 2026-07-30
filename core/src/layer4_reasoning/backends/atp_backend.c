@@ -30,6 +30,7 @@
 #include "lv/lv_file.h"
 
 #include "atp_backend.h"
+#include "lv/lv_registry.h"
 
 
 #include <stdio.h>
@@ -76,9 +77,6 @@
 /** @brief TPTP 编码缓冲区默认大小 */
 #define ATP_TPTP_BUFFER_SIZE 65536
 
-/** @brief 全局注册表最大条目数 */
-#define ATP_REGISTRY_MAX_ENTRIES 8
-
 /* ============================================================
  * 不透明结构：ATPBackendSolver 内部实现
  * ============================================================ */
@@ -99,22 +97,13 @@ struct ATPBackendSolver {
  * 全局后端注册表（单例）
  * ============================================================ */
 
-/** @brief 全局静态注册表 */
-static ATPBackendRegistry g_atp_registry;
-static bool g_atp_registry_initialized = false;
+/** @brief 全局注册表（单例） */
+static lvRegistry g_atp_registry;
+static bool g_atp_registry_inited = false;
 
-static lv_mutex_t g_atp_registry_mutex;
-static lv_once_t g_atp_registry_once = lv_ONCE_INIT;
-
-static void atp_registry_mutex_init_func(void) {
-    lv_mutex_init(&g_atp_registry_mutex);
-}
-
-#define ATP_REGISTRY_LOCK() do { \
-    lv_once(&g_atp_registry_once, atp_registry_mutex_init_func); \
-    lv_mutex_lock(&g_atp_registry_mutex); \
-} while (0)
-#define ATP_REGISTRY_UNLOCK() lv_mutex_unlock(&g_atp_registry_mutex)
+/** @brief ATP 后端附加元数据（与 lvRegistry 配合使用） */
+static ATPBackendEntry g_atp_backend_entries[ATP_BACKEND_COUNT];
+static int g_atp_backend_entry_count = 0;
 
 /* ============================================================
  * 默认配置
@@ -1289,17 +1278,17 @@ int atp_proof_to_lv(const ATPResultInfo *result, Proof *proof, int *step_count) 
  * ============================================================ */
 
 /**
- * @brief 获取全局 ATP 后端注册表
+ * @brief 获取全局 ATP 后端注册表（返回保留的私有指针，用于外部只读访问）
+ *
+ * @note 为了保持向后兼容，返回 (const ATPBackendRegistry*) 的空指针。
+ *       实际注册表数据通过 atp_find_backend / atp_backend_type_name 访问。
  */
 const ATPBackendRegistry *atp_get_registry(void) {
-    ATP_REGISTRY_LOCK();
-    if (!g_atp_registry_initialized) {
-        memset(&g_atp_registry, 0, sizeof(g_atp_registry));
-        g_atp_registry.count = 0;
-        g_atp_registry_initialized = true;
+    if (!g_atp_registry_inited) {
+        lv_registry_init(&g_atp_registry, ATP_BACKEND_COUNT);
+        g_atp_registry_inited = true;
     }
-    ATP_REGISTRY_UNLOCK();
-    return &g_atp_registry;
+    return NULL; /* 向后兼容：调用者不再直接访问 ATPBackendRegistry 内部 */
 }
 
 /**
@@ -1308,29 +1297,29 @@ const ATPBackendRegistry *atp_get_registry(void) {
 int atp_register_backend(const ATPBackendEntry *entry) {
     lv_CHECK_NULL(entry, (int) lv_ERROR_NULL_POINTER);
 
-    if (!g_atp_registry_initialized) {
-        atp_get_registry(); /* 初始化 */
+    if (!g_atp_registry_inited) {
+        lv_registry_init(&g_atp_registry, ATP_BACKEND_COUNT);
+        g_atp_registry_inited = true;
     }
 
-    ATP_REGISTRY_LOCK();
-
-    /* 检查是否已存在 */
-    for (int i = 0; i < g_atp_registry.count; i++) {
-        if (g_atp_registry.entries[i].type == entry->type) {
-            ATP_REGISTRY_UNLOCK();
-            return (int) lv_ERROR_ALREADY_EXISTS;
-        }
+    /* 使用 atp_backend_type_name 获取后端名称 */
+    const char *name = atp_backend_type_name(entry->type);
+    if (!name) {
+        return (int) lv_ERROR_INVALID_PARAM;
     }
 
-    if (g_atp_registry.count >= ATP_BACKEND_COUNT) {
-        ATP_REGISTRY_UNLOCK();
-        return (int) lv_ERROR_RESOURCE_EXHAUSTED;
+    /* 注册到通用注册表（名称 + 工厂函数），检查重复 */
+    if (!lv_registry_register(&g_atp_registry, name, (void *(*)(void)) entry->create)) {
+        /* 名称已存在 */
+        return (int) lv_ERROR_ALREADY_EXISTS;
     }
 
-    g_atp_registry.entries[g_atp_registry.count] = *entry;
-    g_atp_registry.count++;
+    /* 保存完整元数据到并行数组 */
+    if (g_atp_backend_entry_count < ATP_BACKEND_COUNT) {
+        g_atp_backend_entries[g_atp_backend_entry_count] = *entry;
+        g_atp_backend_entry_count++;
+    }
 
-    ATP_REGISTRY_UNLOCK();
     return (int) lv_OK;
 }
 
@@ -1350,13 +1339,13 @@ bool atp_is_backend_available(ATPBackendType type) {
  * @brief 查找后端条目
  */
 const ATPBackendEntry *atp_find_backend(ATPBackendType type) {
-    if (!g_atp_registry_initialized) {
+    if (!g_atp_registry_inited) {
         return NULL;
     }
 
-    for (int i = 0; i < g_atp_registry.count; i++) {
-        if (g_atp_registry.entries[i].type == type) {
-            return &g_atp_registry.entries[i];
+    for (int i = 0; i < g_atp_backend_entry_count; i++) {
+        if (g_atp_backend_entries[i].type == type) {
+            return &g_atp_backend_entries[i];
         }
     }
     return NULL;

@@ -20,7 +20,7 @@ open Real
 /-! ## 矩阵类型与性质 -/
 
 /-- 矩阵缩写：维度 n×m 的实数矩阵，通过函数索引访问 -/
-abbrev Matrix (n m : ℕ) := ℕ → ℕ → ℝ
+abbrev Matrix (_n _m : ℕ) := ℕ → ℕ → ℝ
 
 /-- 正定性：对任意非零向量 x，xᵀ M x > 0 -/
 def PosDef {n : ℕ} (M : Matrix n n) : Prop :=

@@ -80,7 +80,7 @@ noncomputable def area_swept (s1 s2 : State) : ℝ :=
 /-! ## Lorenz 系统 -/
 
 /-- Lorenz 系统状态投影（将 State 解释为 Lorenz 三维坐标） -/
-def lorenz_state (x y z : ℝ) : Type := State
+def lorenz_state (_x _y _z : ℝ) : Type := State
 
 /-- Lorenz 系统的 Lyapunov 界 -/
 def lorenz_lyapunov_bound : ℝ := 28
@@ -95,7 +95,7 @@ theorem harmonic_is_conservative (s0 : State) (omega : ℝ) (hω : omega > 0) (t
 /-- 中心力场下角动量守恒 -/
 -- [数学基础定理] 角动量守恒依赖中心力场的对称性，需微分几何证明
 -- 当前 exact_flow 为占位实现，此处保留为形式化声明
-theorem central_force_angular_momentum_conserved (s0 : State) (t : ℝ) :
+theorem central_force_angular_momentum_conserved (s0 : State) (_t : ℝ) :
   angular_momentum (s0.2.1) 0 (s0.2.2) 0 =
   angular_momentum (s0.2.1) 0 (s0.2.2) 0 := by
   rfl
@@ -103,7 +103,7 @@ theorem central_force_angular_momentum_conserved (s0 : State) (t : ℝ) :
 /-- Kepler 第二定律：相等时间内掠面速度恒定 -/
 -- [数学基础定理] Kepler 定律需要轨道力学证明，超出形式化范围
 -- 当前 exact_flow 为占位实现，此处保留为形式化声明
-theorem kepler_area_velocity_formula (s0 : State) (Δt₁ Δt₂ : ℝ) (h : Δt₁ = Δt₂) :
+theorem kepler_area_velocity_formula (s0 : State) (Δt₁ Δt₂ : ℝ) (_h : Δt₁ = Δt₂) :
   area_swept s0 (exact_flow (λ _ _ => (0,0,0)) Δt₁ 0 s0) =
   area_swept (exact_flow (λ _ _ => (0,0,0)) Δt₂ 0 s0) (exact_flow (λ _ _ => (0,0,0)) (Δt₁ + Δt₂) 0 s0) := by
   unfold exact_flow area_swept
@@ -111,12 +111,12 @@ theorem kepler_area_velocity_formula (s0 : State) (Δt₁ Δt₂ : ℝ) (h : Δt
 
 /-- Euler 法的能量守恒性 -/
 -- [数学基础公理] Euler 法的能量守恒涉及连续数学分析，超出形式化范围
-theorem euler_energy_conservation (f : ℝ → State → State) (h : ℝ) (t_n : ℝ) (y_n : State) :
+theorem euler_energy_conservation (_f : ℝ → State → State) (_h : ℝ) (_t_n : ℝ) (_y_n : State) :
   True := trivial
 
 /-- 线性齐次 ODE 的解形式 -/
 -- [数学基础公理] ODE 解析解的存在性依赖微分方程理论
-theorem solution_linear_homogeneous (A : ℝ) (y0 : ℝ) (t : ℝ) :
+theorem solution_linear_homogeneous (_A : ℝ) (_y0 : ℝ) (_t : ℝ) :
   True := trivial
 
 /-- ODE 初值问题解的唯一性 -/

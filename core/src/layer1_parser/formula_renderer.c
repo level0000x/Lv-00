@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file formula_renderer.c
  * @brief 公式渲染器实现
  *
@@ -345,44 +345,24 @@ static bool needs_parentheses(const FormulaNode *node, NodeType parent_op, bool 
     int node_prec = 0;
     int parent_prec = 0;
 
-    switch (node->type) {
-        case NODE_BINARY_OP_ADD:
-            node_prec = 1;
-            break;
-        case NODE_BINARY_OP_SUB:
-            node_prec = 1;
-            break;
-        case NODE_BINARY_OP_MUL:
-            node_prec = 2;
-            break;
-        case NODE_BINARY_OP_DIV:
-            node_prec = 3;
-            break; /* 分数形式 */
-        case NODE_BINARY_OP_POW:
-            node_prec = 4;
-            break;
-        default:
-            return false;
+    /* 二元运算符优先级静态表 */
+    static const int s_binop_prec[] = {
+        [NODE_BINARY_OP_ADD] = 1,
+        [NODE_BINARY_OP_SUB] = 1,
+        [NODE_BINARY_OP_MUL] = 2,
+        [NODE_BINARY_OP_DIV] = 3,
+        [NODE_BINARY_OP_POW] = 4,
+    };
+#define BINOP_PREC_COUNT (sizeof(s_binop_prec) / sizeof(s_binop_prec[0]))
+    if ((unsigned)node->type < BINOP_PREC_COUNT && s_binop_prec[node->type] > 0) {
+        node_prec = s_binop_prec[node->type];
+    } else {
+        return false;
     }
-
-    switch (parent_op) {
-        case NODE_BINARY_OP_ADD:
-            parent_prec = 1;
-            break;
-        case NODE_BINARY_OP_SUB:
-            parent_prec = 1;
-            break;
-        case NODE_BINARY_OP_MUL:
-            parent_prec = 2;
-            break;
-        case NODE_BINARY_OP_DIV:
-            parent_prec = 3;
-            break;
-        case NODE_BINARY_OP_POW:
-            parent_prec = 4;
-            break;
-        default:
-            return false;
+    if ((unsigned)parent_op < BINOP_PREC_COUNT && s_binop_prec[parent_op] > 0) {
+        parent_prec = s_binop_prec[parent_op];
+    } else {
+        return false;
     }
 
     /* 子节点优先级更低时需要括号 */
@@ -2037,29 +2017,22 @@ char *formula_render_ex(const FormulaNode *node, OutputFormat format, const Rend
 
     int written = 0;
 
-    switch (format) {
-        case OUTPUT_LATEX:
-            written = render_latex_internal(node, buffer, lv_MAX_RENDER_BUFFER, options);
-            break;
-        case OUTPUT_PYTHON:
-            written = render_python_internal(node, buffer, lv_MAX_RENDER_BUFFER, options);
-            break;
-        case OUTPUT_DSL:
-            written = render_dsl_internal(node, buffer, lv_MAX_RENDER_BUFFER, options);
-            break;
-        case OUTPUT_MATHML:
-            written = render_mathml_internal(node, buffer, lv_MAX_RENDER_BUFFER, options);
-            break;
-        case OUTPUT_ASCII:
-            written = render_ascii_internal(node, buffer, lv_MAX_RENDER_BUFFER, options);
-            break;
-        case OUTPUT_HTML:
-            written = render_html_internal(node, buffer, lv_MAX_RENDER_BUFFER, options);
-            break;
-        default:
-            lv_set_error(lv_ERROR_UNSUPPORTED, "Unknown output format");
-            lv_free((void **) &buffer);
-            return NULL;
+    /* 渲染函数指针表 */
+    typedef int (*render_func_t)(const FormulaNode *, char *, size_t, const RenderOptions *);
+    static const render_func_t s_render_funcs[] = {
+        [OUTPUT_LATEX]  = render_latex_internal,
+        [OUTPUT_PYTHON] = render_python_internal,
+        [OUTPUT_DSL]    = render_dsl_internal,
+        [OUTPUT_MATHML] = render_mathml_internal,
+        [OUTPUT_ASCII]  = render_ascii_internal,
+        [OUTPUT_HTML]   = render_html_internal,
+    };
+    if ((unsigned)format < sizeof(s_render_funcs) / sizeof(s_render_funcs[0]) && s_render_funcs[format]) {
+        written = s_render_funcs[format](node, buffer, lv_MAX_RENDER_BUFFER, options);
+    } else {
+        lv_set_error(lv_ERROR_UNSUPPORTED, "Unknown output format");
+        lv_free((void **) &buffer);
+        return NULL;
     }
 
     if (written < 0) {

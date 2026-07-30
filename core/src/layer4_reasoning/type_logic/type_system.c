@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file type_system.c
  * @brief 类型系统实现 —— 宇宙层级类型论与等价检查
  *
@@ -44,6 +44,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_xmacro.h"
 #include "lv/stream.h"
 
 #include "lv_internal.h"
@@ -2316,26 +2317,8 @@ bool type_check_dependent(const TypeSystem *ts, const TypeRegion *output_type, c
 
 const char *type_kind_to_string(TypeKind kind) {
     switch (kind) {
-        case TYPE_KIND_POINT:
-            return "Point";
-        case TYPE_KIND_LINE_SEGMENT:
-            return "LineSegment";
-        case TYPE_KIND_REGION:
-            return "Region";
-        case TYPE_KIND_FUNCTION:
-            return "Function";
-        case TYPE_KIND_PRODUCT:
-            return "Product";
-        case TYPE_KIND_SUM:
-            return "Sum";
-        case TYPE_KIND_VARIABLE:
-            return "Variable";
-        case TYPE_KIND_DEPENDENT:
-            return "Dependent";
-        case TYPE_KIND_BOTTOM:
-            return "Bottom";
-        default:
-            return "Unknown";
+        LV_TYPE_KIND_X(LV_X_TO_STR_CASE)
+        default: return "Unknown";
     }
 }
 
@@ -2357,40 +2340,33 @@ const char *universe_level_to_string(UniverseLevel level) {
     return buf;
 }
 
+static const char *s_equiv_result_names[] = {
+    [TYPE_EQUIV_OK]                = "Equivalent",
+    [TYPE_EQUIV_NOT_EQUIV]         = "NotEquivalent",
+    [TYPE_EQUIV_UNKNOWN]           = "Unknown",
+    [TYPE_EQUIV_ERROR]             = "Error",
+    [TYPE_EQUIV_NEEDS_INTERACTION] = "NeedsInteraction",
+};
+
 const char *type_equiv_result_to_string(TypeEquivResult result) {
-    switch (result) {
-        case TYPE_EQUIV_OK:
-            return "Equivalent";
-        case TYPE_EQUIV_NOT_EQUIV:
-            return "NotEquivalent";
-        case TYPE_EQUIV_UNKNOWN:
-            return "Unknown";
-        case TYPE_EQUIV_ERROR:
-            return "Error";
-        case TYPE_EQUIV_NEEDS_INTERACTION:
-            return "NeedsInteraction";
-        default:
-            return "Unknown";
-    }
+    if ((unsigned)result >= sizeof(s_equiv_result_names) / sizeof(s_equiv_result_names[0]))
+        return "Unknown";
+    return s_equiv_result_names[result];
 }
 
+static const char *s_check_result_names[] = {
+    [TYPE_CHECK_OK]          = "OK",
+    [TYPE_CHECK_MISMATCH]   = "Mismatch",
+    [TYPE_CHECK_LEVEL_ERROR]= "LevelError",
+    [TYPE_CHECK_CYCLE]      = "Cycle",
+    [TYPE_CHECK_INFERRED]   = "Inferred",
+    [TYPE_CHECK_ERROR]      = "Error",
+};
+
 const char *type_check_result_to_string(TypeCheckResult result) {
-    switch (result) {
-        case TYPE_CHECK_OK:
-            return "OK";
-        case TYPE_CHECK_MISMATCH:
-            return "Mismatch";
-        case TYPE_CHECK_LEVEL_ERROR:
-            return "LevelError";
-        case TYPE_CHECK_CYCLE:
-            return "Cycle";
-        case TYPE_CHECK_INFERRED:
-            return "Inferred";
-        case TYPE_CHECK_ERROR:
-            return "Error";
-        default:
-            return "Unknown";
-    }
+    if ((unsigned)result >= sizeof(s_check_result_names) / sizeof(s_check_result_names[0]))
+        return "Unknown";
+    return s_check_result_names[result];
 }
 
 /**

@@ -72,7 +72,7 @@ def lv_constraint_sem (env : String → ℝ × ℝ) : LvConstraint → Prop
   | .radius c a r        => IR.dist (env c) (env a) = lv_expr_eval env r
   | .tangent ctr pt la lb =>
     let r := IR.dist (env ctr) (env pt)
-    let v := (ptX (env la) - ptX (env lb), ptY (env la) - ptY (env lb))
+    let _v := (ptX (env la) - ptX (env lb), ptY (env la) - ptY (env lb))
     ∃ (t : ℝ), IR.dist (env ctr) (ptX (env la) + t * (ptX (env la) - ptX (env lb)),
                               ptY (env la) + t * (ptY (env la) - ptY (env lb))) = r
   | .midpoint m a b      =>
@@ -209,7 +209,7 @@ def lvTypeToSignature : LvType → FormalSignature
         { name := "lt", arity := 2 }
       ]
     }
-  | .list elem => {
+  | .list _elem => {
       funcs := [
         { name := "cons", arity := 2 },
         { name := "nil", arity := 0 },
@@ -221,7 +221,7 @@ def lvTypeToSignature : LvType → FormalSignature
         { name := "forall_elem", arity := 2 }
       ]
     }
-  | .set elem => {
+  | .set _elem => {
       funcs := [
         { name := "insert", arity := 2 },
         { name := "empty", arity := 0 },

@@ -29,7 +29,7 @@
  */
 
 #include "lv/lv_platform.h"
-#include "lv/lv_mempool.h" /* v3.3.0 内存池公共 API */
+#include "lv/lv_mempool_utils.h" /* v3.3.0 内存池公共 API + 静态单例工具 */
 
 #include <float.h>
 #include <stdint.h>
@@ -59,14 +59,9 @@
  */
 static lvMemPool *g_coeff_pool = NULL;
 
-/** @brief 延迟初始化多项式系数内存池 */
-static inline int coeff_pool_init(void) {
-    if (!g_coeff_pool) {
-        g_coeff_pool = lv_mempool_create(sizeof(mpz_t) * 8, 256);
-        if (!g_coeff_pool) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "coeff_pool_init: lv_mempool_create failed");
-    }
-    return 0;
-}
+/* 系数池参数（共享于 symbolic_coord_ops 和 solver_coord_extract 的公共模式） */
+#define COEFF_POOL_BLOCK_SIZE (sizeof(mpz_t) * 8)
+#define COEFF_POOL_INITIAL_COUNT 256
 
 /**
  * @brief 从内存池分配多项式系数数组（含回退）
@@ -74,7 +69,7 @@ static inline int coeff_pool_init(void) {
  * @return mpz_t 数组指针，失败返回 NULL
  */
 static inline mpz_t *coeff_pool_alloc(int count) {
-    if (!g_coeff_pool && coeff_pool_init() != 0)
+    if (!lv_mempool_static_init(&g_coeff_pool, COEFF_POOL_BLOCK_SIZE, COEFF_POOL_INITIAL_COUNT))
         lv_RETURN_ERROR_NULL(lv_ERROR_NOT_INITIALIZED, "coeff_pool_alloc: coefficient pool not initialized");
     mpz_t *c = (mpz_t *)lv_mempool_alloc(g_coeff_pool);
     if (!c) {

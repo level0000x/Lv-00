@@ -10,6 +10,7 @@ extern "C" {
 #include <stdint.h>
 #include <gmp.h>
 
+#include "lv/lv_xmacro.h"
 #include "mpz_poly.h" /* mpz_poly_t, AlgebraicOp */
 
 /* ── Forward decls ── */
@@ -26,7 +27,17 @@ typedef Algebraic AlgebraicExpr;
 typedef Quadratic QuadraticExpr;
 
 /* ── Coord type ── */
-typedef enum { RATIONAL = 0, ALGEBRAIC = 1, QUADRATIC = 2, TRANSCENDENTAL = 3 } CoordType;
+
+/**
+ * @brief X-macro 列表：CoordType 枚举值与对应字符串
+ */
+#define LV_COORD_TYPE_X(x) \
+    x(RATIONAL, "Rational") \
+    x(ALGEBRAIC, "Algebraic") \
+    x(QUADRATIC, "Quadratic") \
+    x(TRANSCENDENTAL, "Transcendental")
+
+typedef enum { LV_COORD_TYPE_X(LV_X_ENUM_ITEM) } CoordType;
 typedef CoordType SymbolicCoordType;
 
 /* ── Circuit types ── */
@@ -58,17 +69,36 @@ typedef enum {
 typedef enum { PLAN_A_FULL_ALGEBRAIC = 0, PLAN_B_QUADRATIC_ONLY = 1, PLAN_C_RATIONAL_ONLY = 2 } AlgebraicPlan;
 
 /* ── Trust color ── */
+
+/**
+ * @brief X-macro 列表：TrustColor 枚举值与对应字符串
+ *
+ * 颜色含义：
+ *   TRUST_GREEN                全构造
+ *   TRUST_BLUE_UNEXPLORED      未探索
+ *   TRUST_BLUE_EXCEEDED        资源受限
+ *   TRUST_BLUE_OUT_OF_SCOPE    超出范围
+ *   TRUST_YELLOW               条件性不可构造
+ *   TRUST_LIGHT_ORANGE_ORACLE  非构造性 oracle（实心端口）
+ *   TRUST_LIGHT_ORANGE_EXPLOSION  爆炸原理（虚线箭头）
+ *   TRUST_AMBER                数值假设
+ *   TRUST_DEEP_ORANGE          叠加（非构造性+数值假设）
+ *   TRUST_RED                  矛盾 / 验证伪
+ */
+#define LV_TRUST_COLOR_X(x) \
+    x(TRUST_GREEN, "Green") \
+    x(TRUST_BLUE_UNEXPLORED, "BlueUnexplored") \
+    x(TRUST_BLUE_EXCEEDED, "BlueExceeded") \
+    x(TRUST_BLUE_OUT_OF_SCOPE, "BlueOutOfScope") \
+    x(TRUST_YELLOW, "Yellow") \
+    x(TRUST_LIGHT_ORANGE_ORACLE, "LightOrangeOracle") \
+    x(TRUST_LIGHT_ORANGE_EXPLOSION, "LightOrangeExplosion") \
+    x(TRUST_AMBER, "Amber") \
+    x(TRUST_DEEP_ORANGE, "DeepOrange") \
+    x(TRUST_RED, "Red")
+
 typedef enum {
-    TRUST_GREEN = 0,                  /* 全构造 */
-    TRUST_BLUE_UNEXPLORED = 1,        /* 未探索 */
-    TRUST_BLUE_EXCEEDED = 2,          /* 资源受限 */
-    TRUST_BLUE_OUT_OF_SCOPE = 3,      /* 超出范围 */
-    TRUST_YELLOW = 4,                 /* 条件性不可构造 */
-    TRUST_LIGHT_ORANGE_ORACLE = 5,    /* 非构造性 oracle（实心端口） */
-    TRUST_LIGHT_ORANGE_EXPLOSION = 6, /* 爆炸原理（虚线箭头） */
-    TRUST_AMBER = 7,                  /* 数值假设 */
-    TRUST_DEEP_ORANGE = 8,            /* 叠加（非构造性+数值假设） */
-    TRUST_RED = 9                     /* 矛盾 / 验证伪 */
+    LV_TRUST_COLOR_X(LV_X_ENUM_ITEM)
 } TrustColor;
 
 typedef enum {
