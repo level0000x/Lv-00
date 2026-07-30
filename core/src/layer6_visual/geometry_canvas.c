@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_check.h"
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
 #include "lv/lv_internal.h"
@@ -343,8 +344,7 @@ static void compute_bounds(lvGeometryCanvas *canvas) {
  * @return 成功返回0，边界无效返回-1
  */
 int lv_geometry_canvas_fit_view(lvGeometryCanvas *canvas) {
-    if (!canvas)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas");
+    lv_CHECK_NOT_NULL(canvas);
     compute_bounds(canvas);
     if (!canvas->bounds.valid)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "no entities to fit view");

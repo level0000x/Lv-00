@@ -42,6 +42,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_check.h"
 
 #include "debug.h"
 #include "error_codes.h"
@@ -358,9 +359,8 @@ int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoo
  * @return 新注册的线 ID（>= 0），失败返回 -1（点不存在或两点相同）
  */
 int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id) {
-    if (!ctx) {
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "euclidean_declare_line: ctx is NULL");
-    }
+    lv_CHECK_NOT_NULL(ctx);
+
 
     if (p1_id == p2_id) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "euclidean_declare_line: p1_id == p2_id");

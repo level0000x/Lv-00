@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_log.h"
 #include "lv/lv_utils.h"
@@ -121,8 +122,9 @@ lvSession *lv_app_create_session(lvApplication *app, const char *name) {
  * @return 会话运行结果码：成功返回 0，参数无效返回 -1，流水线失败返回非零值
  */
 int lv_app_run_session(lvApplication *app, lvSession *session, const char *input) {
-    if (!app || !session || !input)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL app, session or input");
+    lv_CHECK_NOT_NULL(app);
+    lv_CHECK_NOT_NULL(session);
+    lv_CHECK_NOT_NULL(input);
     int rc = lv_session_run(session, input);
     app->total_sessions_run++;
     /* 会话运行成功时，若启用元验证则进一步校验结果合法性 */
@@ -152,8 +154,7 @@ int lv_app_run_session(lvApplication *app, lvSession *session, const char *input
  * @return 成功返回 0，app 为 NULL 或未找到匹配会话返回 -1
  */
 int lv_app_remove_session(lvApplication *app, int session_id) {
-    if (!app)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL app");
+    lv_CHECK_NOT_NULL(app);
     for (int i = 0; i < app->sessions.count; i++) {
         lvSession **ps = (lvSession **) lv_darray_get(&app->sessions, i);
         if (ps && *ps && (*ps)->session_id == session_id) {
@@ -180,8 +181,8 @@ int lv_app_remove_session(lvApplication *app, int session_id) {
  * @return 成功完成的会话数量，参数无效返回 -1
  */
 int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
-    if (!app || !files || file_count <= 0)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL app/files or invalid file_count");
+    lv_CHECK_NOT_NULL(app);
+    lv_CHECK_ARG(files && file_count > 0, lv_ERROR_INVALID_PARAM, "NULL files or invalid file_count");
     int passed = 0;
     /* 遍历每个输入文件，为之创建独立会话并执行完整流水线 */
     for (int i = 0; i < file_count; i++) {
@@ -246,8 +247,7 @@ int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
  * @return 正常退出返回 0，app 为 NULL 返回 -1
  */
 int lv_app_run_repl(lvApplication *app) {
-    if (!app)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL app");
+    lv_CHECK_NOT_NULL(app);
 
     /* 交互式 REPL 循环 */
     char linebuf[4096];
@@ -321,8 +321,7 @@ int lv_app_run_repl(lvApplication *app) {
  * @return 成功返回 0，app 为 NULL 返回 -1
  */
 int lv_app_stats(const lvApplication *app, int *total, int *passed, int *failed) {
-    if (!app)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL app");
+    lv_CHECK_NOT_NULL(app);
     if (total)
         *total = app->total_sessions_run;
     if (passed)

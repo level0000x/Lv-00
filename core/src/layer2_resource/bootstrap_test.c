@@ -628,11 +628,11 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *gra
         return true;
 
     /* 计算度数序列 */
-    int *deg_a = (int *) calloc((size_t) n, sizeof(int));
-    int *deg_b = (int *) calloc((size_t) n, sizeof(int));
+    int *deg_a = (int *) lv_calloc((size_t) n, sizeof(int));
+    int *deg_b = (int *) lv_calloc((size_t) n, sizeof(int));
     if (!deg_a || !deg_b) {
-        free(deg_a);
-        free(deg_b);
+        lv_free((void **) &deg_a);
+        lv_free((void **) &deg_b);
         return false;
     }
 
@@ -667,20 +667,20 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *gra
     }
 
     if (!same_degree) {
-        free(deg_a);
-        free(deg_b);
+        lv_free((void **) &deg_a);
+        lv_free((void **) &deg_b);
         return false;
     }
 
     /* VF2 邻域签名比较：对每个节点，收集其邻居的度数并排序后比较 */
     /* 重新计算度数（因为上面的已排序） */
-    int *deg_a_raw = (int *) calloc((size_t) n, sizeof(int));
-    int *deg_b_raw = (int *) calloc((size_t) n, sizeof(int));
+    int *deg_a_raw = (int *) lv_calloc((size_t) n, sizeof(int));
+    int *deg_b_raw = (int *) lv_calloc((size_t) n, sizeof(int));
     if (!deg_a_raw || !deg_b_raw) {
-        free(deg_a);
-        free(deg_b);
-        free(deg_a_raw);
-        free(deg_b_raw);
+        lv_free((void **) &deg_a);
+        lv_free((void **) &deg_b);
+        lv_free((void **) &deg_a_raw);
+        lv_free((void **) &deg_b_raw);
         return false;
     }
 
@@ -692,19 +692,19 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *gra
 
     /* 为每个节点计算排序后的邻居度数签名 */
     int max_neighbors = 64;
-    int *neighbor_sigs_a = (int *) calloc((size_t) n * (size_t) max_neighbors, sizeof(int));
-    int *neighbor_sigs_b = (int *) calloc((size_t) n * (size_t) max_neighbors, sizeof(int));
-    int *neighbor_counts_a = (int *) calloc((size_t) n, sizeof(int));
-    int *neighbor_counts_b = (int *) calloc((size_t) n, sizeof(int));
+    int *neighbor_sigs_a = (int *) lv_calloc((size_t) n * (size_t) max_neighbors, sizeof(int));
+    int *neighbor_sigs_b = (int *) lv_calloc((size_t) n * (size_t) max_neighbors, sizeof(int));
+    int *neighbor_counts_a = (int *) lv_calloc((size_t) n, sizeof(int));
+    int *neighbor_counts_b = (int *) lv_calloc((size_t) n, sizeof(int));
     if (!neighbor_sigs_a || !neighbor_sigs_b || !neighbor_counts_a || !neighbor_counts_b) {
-        free(deg_a);
-        free(deg_b);
-        free(deg_a_raw);
-        free(deg_b_raw);
-        free(neighbor_sigs_a);
-        free(neighbor_sigs_b);
-        free(neighbor_counts_a);
-        free(neighbor_counts_b);
+        lv_free((void **) &deg_a);
+        lv_free((void **) &deg_b);
+        lv_free((void **) &deg_a_raw);
+        lv_free((void **) &deg_b_raw);
+        lv_free((void **) &neighbor_sigs_a);
+        lv_free((void **) &neighbor_sigs_b);
+        lv_free((void **) &neighbor_counts_a);
+        lv_free((void **) &neighbor_counts_b);
         return false;
     }
 
@@ -773,8 +773,8 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *gra
     bool same_signatures = (total_sigs_a == total_sigs_b);
     if (same_signatures && total_sigs_a > 0) {
         /* 拼接并排序所有签名 */
-        int *all_sigs_a = (int *) calloc((size_t) total_sigs_a, sizeof(int));
-        int *all_sigs_b = (int *) calloc((size_t) total_sigs_b, sizeof(int));
+        int *all_sigs_a = (int *) lv_calloc((size_t) total_sigs_a, sizeof(int));
+        int *all_sigs_b = (int *) lv_calloc((size_t) total_sigs_b, sizeof(int));
         if (!all_sigs_a || !all_sigs_b) {
             same_signatures = false;
         } else {
@@ -815,19 +815,19 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *gra
                     break;
                 }
             }
-            free(all_sigs_a);
-            free(all_sigs_b);
+            lv_free((void **) &all_sigs_a);
+            lv_free((void **) &all_sigs_b);
         }
     }
 
-    free(deg_a);
-    free(deg_b);
-    free(deg_a_raw);
-    free(deg_b_raw);
-    free(neighbor_sigs_a);
-    free(neighbor_sigs_b);
-    free(neighbor_counts_a);
-    free(neighbor_counts_b);
+    lv_free((void **) &deg_a);
+    lv_free((void **) &deg_b);
+    lv_free((void **) &deg_a_raw);
+    lv_free((void **) &deg_b_raw);
+    lv_free((void **) &neighbor_sigs_a);
+    lv_free((void **) &neighbor_sigs_b);
+    lv_free((void **) &neighbor_counts_a);
+    lv_free((void **) &neighbor_counts_b);
     return same_signatures;
 }
 
@@ -852,7 +852,7 @@ uint64_t graph_isomorphism_hash(const void *graph) {
         return 0;
 
     /* 初始标签：度数 */
-    uint64_t *labels = (uint64_t *) calloc((size_t) n, sizeof(uint64_t));
+    uint64_t *labels = (uint64_t *) lv_calloc((size_t) n, sizeof(uint64_t));
     if (!labels)
         return 0;
 
@@ -864,9 +864,9 @@ uint64_t graph_isomorphism_hash(const void *graph) {
 
     /* WL 迭代（3 轮） */
     for (int iter = 0; iter < 3; iter++) {
-        uint64_t *new_labels = (uint64_t *) calloc((size_t) n, sizeof(uint64_t));
+        uint64_t *new_labels = (uint64_t *) lv_calloc((size_t) n, sizeof(uint64_t));
         if (!new_labels) {
-            free(labels);
+            lv_free((void **) &labels);
             return 0;
         }
 
@@ -887,7 +887,7 @@ uint64_t graph_isomorphism_hash(const void *graph) {
             }
             new_labels[i] = hash;
         }
-        free(labels);
+        lv_free((void **) &labels);
         labels = new_labels;
     }
 
@@ -896,7 +896,7 @@ uint64_t graph_isomorphism_hash(const void *graph) {
     for (int i = 0; i < n; i++) {
         final_hash ^= (labels[i] * (uint64_t) (i + 1));
     }
-    free(labels);
+    lv_free((void **) &labels);
 
     return final_hash;
 }
@@ -931,17 +931,17 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp, const void
         return false;
 
     if (out_node_mapping) {
-        int *mapping = (int *) calloc((size_t) na, sizeof(int));
+        int *mapping = (int *) lv_calloc((size_t) na, sizeof(int));
         if (!mapping)
             return false;
 
         /* 计算度数 */
-        int *deg_a = (int *) calloc((size_t) na, sizeof(int));
-        int *deg_b = (int *) calloc((size_t) nb, sizeof(int));
+        int *deg_a = (int *) lv_calloc((size_t) na, sizeof(int));
+        int *deg_b = (int *) lv_calloc((size_t) nb, sizeof(int));
         if (!deg_a || !deg_b) {
-            free(mapping);
-            free(deg_a);
-            free(deg_b);
+            lv_free((void **) &mapping);
+            lv_free((void **) &deg_a);
+            lv_free((void **) &deg_b);
             return false;
         }
 
@@ -955,11 +955,11 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp, const void
         }
 
         /* 贪心匹配：按度数排序后逐个匹配 */
-        bool *used = (bool *) calloc((size_t) nb, sizeof(bool));
+        bool *used = (bool *) lv_calloc((size_t) nb, sizeof(bool));
         if (!used) {
-            free(mapping);
-            free(deg_a);
-            free(deg_b);
+            lv_free((void **) &mapping);
+            lv_free((void **) &deg_a);
+            lv_free((void **) &deg_b);
             return false;
         }
 
@@ -1037,12 +1037,12 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp, const void
         if (all_mapped && edges_preserved) {
             *out_node_mapping = mapping;
         } else {
-            free(mapping);
+            lv_free((void **) &mapping);
         }
 
-        free(deg_a);
-        free(deg_b);
-        free(used);
+        lv_free((void **) &deg_a);
+        lv_free((void **) &deg_b);
+        lv_free((void **) &used);
     }
 
     if (out_constraint_mapping) {

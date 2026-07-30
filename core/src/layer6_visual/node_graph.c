@@ -13,6 +13,7 @@
 #include <math.h>
 #include <string.h>
 
+#include "lv/lv_check.h"
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
 #include "lv/lv_internal.h"
@@ -115,8 +116,8 @@ void lv_node_graph_destroy(lvNodeGraphView *graph) {
  * @return 成功返回节点ID，失败返回-1
  */
 int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, double x, double y, int type) {
-    if (!graph || !label)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL graph or label");
+    lv_CHECK_NOT_NULL(graph);
+    lv_CHECK_NOT_NULL(label);
 
     lvGraphNode node;
     node.id = (id > 0) ? id : graph->next_node_id++;
@@ -148,8 +149,8 @@ int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, do
  * @return 成功返回0，失败返回-1
  */
 int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
-    if (!graph || id <= 0)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL graph or invalid id");
+    lv_CHECK_NOT_NULL(graph);
+    lv_CHECK_ARG(id > 0, lv_ERROR_INVALID_PARAM, "invalid node id %d", id);
     int found = -1;
     lvGraphNode *nodes = (lvGraphNode *)graph->nodes_da.data;
     for (int i = 0; i < graph->nodes_da.count; i++) {
@@ -192,8 +193,9 @@ int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
  * @return 成功返回连接ID，失败返回-1
  */
 int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id, const char *label) {
-    if (!graph || from_id <= 0 || to_id <= 0)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL graph or invalid node id");
+    lv_CHECK_NOT_NULL(graph);
+    lv_CHECK_ARG(from_id > 0 && to_id > 0, lv_ERROR_INVALID_PARAM,
+                 "invalid node id (from=%d, to=%d)", from_id, to_id);
 
     lvGraphConnection conn;
     conn.id = graph->next_connection_id++;
@@ -222,8 +224,8 @@ int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id,
  * @return 成功返回0，失败返回-1
  */
 int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
-    if (!graph || conn_id <= 0)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL graph or invalid conn_id");
+    lv_CHECK_NOT_NULL(graph);
+    lv_CHECK_ARG(conn_id > 0, lv_ERROR_INVALID_PARAM, "invalid conn_id %d", conn_id);
     int found = -1;
     lvGraphConnection *conns = (lvGraphConnection *)graph->connections_da.data;
     for (int i = 0; i < graph->connections_da.count; i++) {

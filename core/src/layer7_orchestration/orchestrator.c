@@ -19,6 +19,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/proof.h"
@@ -100,8 +101,8 @@ void lv_session_destroy(lvSession *session) {
  * @return 成功返回 0，session 或 config 为 NULL 返回 -1
  */
 int lv_session_configure(lvSession *session, const lvSessionConfig *config) {
-    if (!session || !config)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL session or config");
+    lv_CHECK_NOT_NULL(session);
+    lv_CHECK_NOT_NULL(config);
     session->config = *config;
     return 0;
 }
@@ -117,8 +118,8 @@ int lv_session_configure(lvSession *session, const lvSessionConfig *config) {
  * @return 成功返回 0，session 或 input 为 NULL 返回 -1，流水线失败返回非零值
  */
 int lv_session_run(lvSession *session, const char *input) {
-    if (!session || !input)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL session or input");
+    lv_CHECK_NOT_NULL(session);
+    lv_CHECK_NOT_NULL(input);
     session->success = 0;
 
     /* ── Stage 0: Parse ── 验证输入非空，模拟解析：统计行数/标记数 ── */
@@ -445,8 +446,8 @@ int lv_session_run(lvSession *session, const char *input) {
  * @return 成功返回 0，参数无效或阶段执行失败返回 -1
  */
 int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
-    if (!session || stage < 0 || stage >= lv_STAGE_COUNT)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL session or invalid stage");
+    lv_CHECK_NOT_NULL(session);
+    lv_CHECK_ARG(stage >= 0 && stage < lv_STAGE_COUNT, lv_ERROR_INVALID_PARAM, "invalid stage %d", stage);
     session->stages[stage].status = lv_STAGE_RUNNING;
 
     /* 检查前置阶段是否已完成（除第一个阶段外） */
@@ -729,8 +730,8 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
  * @return 全部阶段成功返回 0，参数无效或某阶段失败返回非零值
  */
 int lv_session_run_from(lvSession *session, lvPipelineStage from_stage) {
-    if (!session || from_stage < 0 || from_stage >= lv_STAGE_COUNT)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL session or invalid from_stage");
+    lv_CHECK_NOT_NULL(session);
+    lv_CHECK_ARG(from_stage >= 0 && from_stage < lv_STAGE_COUNT, lv_ERROR_INVALID_PARAM, "invalid from_stage %d", from_stage);
     /* 从指定阶段开始依次执行后续所有阶段，任一步失败即终止 */
     for (int i = from_stage; i < lv_STAGE_COUNT; i++) {
         int rc = lv_session_run_stage(session, (lvPipelineStage) i);

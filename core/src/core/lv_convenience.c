@@ -23,6 +23,7 @@
 #include "lv/context.h"
 #include "lv/dsl_compiler.h"
 #include "lv/engine.h"
+#include "lv/lv_check.h"
 #include "lv/stream.h"
 
 #include "func_block_preset.h"
@@ -100,9 +101,7 @@ static bool safe_transition(lvContext *ctx, lvContextState new_state, const char
  */
 int lv_prove(lvContext *ctx, const char *goal) {
     /* ---- 参数校验 ---- */
-    if (!ctx) {
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL context in lv_prove");
-    }
+    lv_CHECK_NOT_NULL(ctx);
 
     /* 只有 IDLE 和 COMPLETE 状态允许开始新的证明 */
     if (ctx->state != lv_CONTEXT_IDLE && ctx->state != lv_CONTEXT_COMPLETE) {
@@ -181,9 +180,8 @@ int lv_prove(lvContext *ctx, const char *goal) {
  */
 int lv_preset_load(lvContext *ctx, const char *name) {
     /* ---- 参数校验 ---- */
-    if (!ctx || !name || name[0] == '\0') {
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL ctx or name in lv_preset_load");
-    }
+    lv_CHECK_NOT_NULL(ctx);
+    lv_CHECK_ARG(name && name[0] != '\0', lv_ERROR_NULL_POINTER, "NULL or empty name in lv_preset_load");
 
     /* ---- 检查预设库状态 ---- */
     if (!preset_library_is_initialized()) {
@@ -234,9 +232,8 @@ int lv_preset_load(lvContext *ctx, const char *name) {
  */
 int lv_preset_unload(lvContext *ctx, const char *name) {
     /* ---- 参数校验 ---- */
-    if (!ctx || !name || name[0] == '\0') {
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL ctx or name in lv_preset_unload");
-    }
+    lv_CHECK_NOT_NULL(ctx);
+    lv_CHECK_ARG(name && name[0] != '\0', lv_ERROR_NULL_POINTER, "NULL or empty name in lv_preset_unload");
 
     /* ---- 在模块引用列表中查找匹配的预设 ---- */
     int found_idx = -1;
@@ -287,9 +284,8 @@ int lv_preset_unload(lvContext *ctx, const char *name) {
  */
 int lv_preset_apply(lvContext *ctx, const char *name) {
     /* ---- 参数校验 ---- */
-    if (!ctx || !name || name[0] == '\0') {
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL ctx or name in lv_preset_apply");
-    }
+    lv_CHECK_NOT_NULL(ctx);
+    lv_CHECK_ARG(name && name[0] != '\0', lv_ERROR_NULL_POINTER, "NULL or empty name in lv_preset_apply");
 
     /* 仅允许在 IDLE 或 PARSING 状态下应用预设 */
     if (ctx->state != lv_CONTEXT_IDLE && ctx->state != lv_CONTEXT_PARSING) {

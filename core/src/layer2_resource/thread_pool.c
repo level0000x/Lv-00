@@ -95,7 +95,7 @@ static void *worker_func(void *arg)
                 }
                 lv_mutex_unlock(&task->group->mutex);
             }
-            free(task);
+            lv_free((void **) &task);
         }
     }
 
@@ -119,14 +119,14 @@ lvThreadPool *lv_thread_pool_create(int num_threads) {
         num_threads = DEFAULT_THREADS;
     }
 
-    lvThreadPool *pool = (lvThreadPool *) calloc(1, sizeof(lvThreadPool));
+    lvThreadPool *pool = (lvThreadPool *) lv_calloc(1, sizeof(lvThreadPool));
     if (pool == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_thread_pool_create: calloc pool failed");
 
     pool->thread_count = num_threads;
-    pool->threads = (lv_thread_t *) calloc((size_t) num_threads, sizeof(lv_thread_t));
+    pool->threads = (lv_thread_t *) lv_calloc((size_t) num_threads, sizeof(lv_thread_t));
     if (pool->threads == NULL) {
-        free(pool);
+        lv_free((void **) &pool);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_thread_pool_create: calloc threads failed");
     }
 
@@ -172,13 +172,13 @@ void lv_thread_pool_destroy(lvThreadPool *pool) {
     lvThreadTask *task = pool->queue_head;
     while (task != NULL) {
         lvThreadTask *next = task->next;
-        free(task);
+        lv_free((void **) &task);
         task = next;
     }
 
     lv_mutex_destroy(&pool->mutex);
-    free(pool->threads);
-    free(pool);
+    lv_free((void **) &pool->threads);
+    lv_free((void **) &pool);
 }
 
 /**
@@ -193,7 +193,7 @@ lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_thread_pool_submit: pool or task is NULL");
 
     /* 创建等待组 */
-    lvWaitGroup *group = (lvWaitGroup *) calloc(1, sizeof(lvWaitGroup));
+    lvWaitGroup *group = (lvWaitGroup *) lv_calloc(1, sizeof(lvWaitGroup));
     if (group == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_thread_pool_submit: calloc group failed");
     lv_mutex_init(&group->mutex);
@@ -209,7 +209,7 @@ lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task) {
 
     if (pool->queue_size >= MAX_TASK_QUEUE) {
         lv_mutex_unlock(&pool->mutex);
-        free(group);
+        lv_free((void **) &group);
         lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "lv_thread_pool_submit: task queue full");
     }
 
@@ -247,7 +247,7 @@ void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeo
         }
         lv_mutex_unlock(&group->mutex);
         lv_mutex_destroy(&group->mutex);
-        free(group);
+        lv_free((void **) &group);
     } else if (timeout_ms == 0) {
         /* 非阻塞检查：立即返回，不等待 */
         /* pending > 0 表示任务未完成，调用者可自行检查 group->pending */
@@ -266,7 +266,7 @@ void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeo
             /* 所有任务已完成 */
             lv_mutex_unlock(&group->mutex);
             lv_mutex_destroy(&group->mutex);
-            free(group);
+            lv_free((void **) &group);
         } else {
             /* 超时，保留 group，调用者可检查 pending/completed_count */
             lv_mutex_unlock(&group->mutex);

@@ -22,6 +22,7 @@
 
 #include "lv/gappa_dsl.h"
 
+#include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_platform.h"
 #include "lv/lv_utils.h"
@@ -505,8 +506,9 @@ int lv_gappa_parse(const char *input) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_gappa_eval(const char *expr, double *lo, double *hi) {
-    if (!expr || !lo || !hi)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_gappa_eval: NULL parameter");
+    lv_CHECK_NOT_NULL(expr);
+    lv_CHECK_NOT_NULL(lo);
+    lv_CHECK_NOT_NULL(hi);
     return lv_gappa_propagate(expr, lo, hi);
 }
 

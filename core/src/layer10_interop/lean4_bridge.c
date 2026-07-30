@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "lv/interop.h"
+#include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 
 #include "lv_utils.h"
@@ -69,8 +70,9 @@ typedef struct {
 
 /* Lean 4 proof export: 遍历 Lv-00 证明树并生成 Lean 4 tactic 脚本 */
 static int lean4_export_proof(void *proof, char *output, int output_size) {
-    if (!proof || !output || output_size <= 0)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL proof/output or invalid output_size");
+    lv_CHECK_NOT_NULL(proof);
+    lv_CHECK_NOT_NULL(output);
+    lv_CHECK_ARG(output_size > 0, lv_ERROR_INVALID_PARAM, "invalid output_size");
 
     lvLean4Proof *p = (lvLean4Proof *) proof;
 
@@ -144,8 +146,8 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
 
 /* 辅助：向证明结构体添加一个步骤，自动处理扩容 */
 static int lean4_add_step(lvLean4Proof *p, int step_type, const char *desc, int desc_len) {
-    if (!p || step_type < 0)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL proof or invalid step type");
+    lv_CHECK_NOT_NULL(p);
+    lv_CHECK_ARG(step_type >= 0, lv_ERROR_INVALID_PARAM, "invalid step type %d", step_type);
     lvProofStep step;
     step.type = step_type;
     step.id = p->steps_da.count;
@@ -464,8 +466,8 @@ static void lean4_parse_tactics(const char *start, const char *end, lvLean4Proof
 }
 
 static int lean4_import_proof(const char *input, void **proof) {
-    if (!input || !proof)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL input or proof");
+    lv_CHECK_NOT_NULL(input);
+    lv_CHECK_NOT_NULL(proof);
 
     /* 验证输入非空 */
     if (strlen(input) == 0)
@@ -593,8 +595,7 @@ static int lean4_validate(const char *input) {
 
 /* 注册 Lean 4 插件 */
 int lv_register_lean4_plugin(lvInteropManager *mgr) {
-    if (!mgr)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL manager");
+    lv_CHECK_NOT_NULL(mgr);
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "lean4", sizeof(plugin.name) - 1);

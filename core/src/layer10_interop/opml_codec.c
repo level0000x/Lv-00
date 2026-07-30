@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "lv/interop.h"
+#include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
@@ -135,8 +136,9 @@ static const char *step_type_name(int type) {
  * @return 成功返回 0，失败返回 -1
  */
 static int opml_export_proof(void *proof, char *output, int output_size) {
-    if (!proof || !output || output_size <= 0)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL proof/output or invalid output_size");
+    lv_CHECK_NOT_NULL(proof);
+    lv_CHECK_NOT_NULL(output);
+    lv_CHECK_ARG(output_size > 0, lv_ERROR_INVALID_PARAM, "invalid output_size");
 
     lvOpmlProof *p = (lvOpmlProof *) proof;
 
@@ -531,8 +533,8 @@ static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int ma
  * @brief OPML JSON 导入
  */
 static int opml_import_proof(const char *input, void **proof) {
-    if (!input || !proof)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL input or proof");
+    lv_CHECK_NOT_NULL(input);
+    lv_CHECK_NOT_NULL(proof);
 
     /* 验证输入包含 OPML 版本头 */
     if (!strstr(input, "opml_version")) {
@@ -666,8 +668,7 @@ static int opml_validate(const char *input) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_register_opml_plugin(lvInteropManager *mgr) {
-    if (!mgr)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL manager");
+    lv_CHECK_NOT_NULL(mgr);
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "opml", sizeof(plugin.name) - 1);

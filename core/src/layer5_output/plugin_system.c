@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_check.h"
 #include "lv/lv_utils.h"
 
 #ifdef _WIN32
@@ -139,8 +140,7 @@ void lv_plugin_system_destroy(lvPluginSystem *system) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_system_init(lvPluginSystem *system) {
-    if (!system)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_system_init: system is NULL");
+    lv_CHECK_NOT_NULL(system);
 
     system->initialized = 1;
     return 0;
@@ -277,10 +277,8 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_unload(lvPluginSystem *system, lvPlugin *plugin) {
-    if (!system)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_unload: system is NULL");
-    if (!plugin)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_unload: plugin is NULL");
+    lv_CHECK_NOT_NULL(system);
+    lv_CHECK_NOT_NULL(plugin);
 
     /* 停用插件 */
     if (plugin->state == lv_PLUGIN_STATE_ACTIVE) {
@@ -349,12 +347,9 @@ int lv_plugin_unload(lvPluginSystem *system, lvPlugin *plugin) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_reload(lvPluginSystem *system, lvPlugin *plugin) {
-    if (!system)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_reload: system is NULL");
-    if (!plugin)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_reload: plugin is NULL");
-    if (plugin->path[0] == '\0')
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_plugin_reload: plugin path is empty");
+    lv_CHECK_NOT_NULL(system);
+    lv_CHECK_NOT_NULL(plugin);
+    lv_CHECK_ARG(plugin->path[0] != '\0', lv_ERROR_INVALID_PARAM, "plugin path is empty");
 
     char path[lv_PLUGIN_PATH_MAX];
     strncpy(path, plugin->path, sizeof(path) - 1);
@@ -377,10 +372,9 @@ int lv_plugin_reload(lvPluginSystem *system, lvPlugin *plugin) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_activate(lvPlugin *plugin) {
-    if (!plugin)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_activate: plugin is NULL");
-    if (plugin->state != lv_PLUGIN_STATE_LOADED)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_plugin_activate: plugin state is not LOADED");
+    lv_CHECK_NOT_NULL(plugin);
+    lv_CHECK_ARG(plugin->state == lv_PLUGIN_STATE_LOADED, lv_ERROR_INVALID_STATE,
+                 "plugin state is not LOADED (state=%d)", plugin->state);
 
     plugin->state = lv_PLUGIN_STATE_INITIALIZING;
 
@@ -418,10 +412,9 @@ int lv_plugin_activate(lvPlugin *plugin) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_deactivate(lvPlugin *plugin) {
-    if (!plugin)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_deactivate: plugin is NULL");
-    if (plugin->state != lv_PLUGIN_STATE_ACTIVE)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_plugin_deactivate: plugin state is not ACTIVE");
+    lv_CHECK_NOT_NULL(plugin);
+    lv_CHECK_ARG(plugin->state == lv_PLUGIN_STATE_ACTIVE, lv_ERROR_INVALID_STATE,
+                 "plugin state is not ACTIVE (state=%d)", plugin->state);
 
     plugin->state = lv_PLUGIN_STATE_DEACTIVATING;
 
@@ -594,10 +587,11 @@ lvPlugin **lv_plugin_get_by_state(lvPluginSystem *system, lvPluginState state, s
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_register_interface(lvPlugin *plugin, lvPluginInterface *iface) {
-    if (!plugin || !plugin->context || !iface)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_register_interface: invalid parameters");
-    if (plugin->registered_interface_count >= lv_MAX_INTERFACES)
-        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "lv_plugin_register_interface: max interfaces reached");
+    lv_CHECK_NOT_NULL(plugin);
+    lv_CHECK_ARG(plugin->context != NULL, lv_ERROR_NULL_POINTER, "plugin context is NULL");
+    lv_CHECK_NOT_NULL(iface);
+    lv_CHECK_ARG(plugin->registered_interface_count < lv_MAX_INTERFACES, lv_ERROR_RESOURCE_EXHAUSTED,
+                 "max interfaces reached");
 
     /* 检查是否已注册 */
     for (size_t i = 0; i < plugin->registered_interface_count; i++) {
@@ -633,8 +627,9 @@ int lv_plugin_register_interface(lvPlugin *plugin, lvPluginInterface *iface) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_unregister_interface(lvPlugin *plugin, const char *name) {
-    if (!plugin || !plugin->context || !name)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_unregister_interface: invalid parameters");
+    lv_CHECK_NOT_NULL(plugin);
+    lv_CHECK_ARG(plugin->context != NULL, lv_ERROR_NULL_POINTER, "plugin context is NULL");
+    lv_CHECK_NOT_NULL(name);
 
     /* 从插件注册表中移除 */
     for (size_t i = 0; i < plugin->registered_interface_count; i++) {
@@ -792,10 +787,8 @@ void lv_plugin_config_destroy(lvPluginConfig *config) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_config_load(lvPluginConfig *config, const char *filepath) {
-    if (!config)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_load: config is NULL");
-    if (!filepath)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_load: filepath is NULL");
+    lv_CHECK_NOT_NULL(config);
+    lv_CHECK_NOT_NULL(filepath);
 
     FILE *fp = fopen(filepath, "r");
     if (!fp)
@@ -884,10 +877,8 @@ int lv_plugin_config_load(lvPluginConfig *config, const char *filepath) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
-    if (!config)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_save: config is NULL");
-    if (!filepath)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_save: filepath is NULL");
+    lv_CHECK_NOT_NULL(config);
+    lv_CHECK_NOT_NULL(filepath);
 
     FILE *fp = fopen(filepath, "w");
     if (!fp)
@@ -910,14 +901,10 @@ int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_config_set(lvPluginConfig *config, const char *key, const char *value, int type) {
-    if (!config)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_set: config is NULL");
-    if (!key)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_set: key is NULL");
-    if (!value)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_set: value is NULL");
-    if (!config->entries)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_plugin_config_set: entries is NULL");
+    lv_CHECK_NOT_NULL(config);
+    lv_CHECK_NOT_NULL(key);
+    lv_CHECK_NOT_NULL(value);
+    lv_CHECK_ARG(config->entries != NULL, lv_ERROR_INTERNAL, "config entries is NULL");
     if (config->entry_count >= config->entry_capacity)
         lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "lv_plugin_config_set: entry_capacity exhausted");
 
@@ -968,8 +955,8 @@ const char *lv_plugin_config_get(const lvPluginConfig *config, const char *key, 
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_apply_config(lvPlugin *plugin, const lvPluginConfig *config) {
-    if (!plugin || !config)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_apply_config: plugin or config is NULL");
+    lv_CHECK_NOT_NULL(plugin);
+    lv_CHECK_NOT_NULL(config);
 
     if (plugin->on_configure) {
         return plugin->on_configure(plugin->context, config);
@@ -989,8 +976,8 @@ int lv_plugin_apply_config(lvPlugin *plugin, const lvPluginConfig *config) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_send_event(lvPlugin *plugin, lvPluginEventType type, void *data, size_t data_size) {
-    if (!plugin || !plugin->context)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_send_event: plugin or context is NULL");
+    lv_CHECK_NOT_NULL(plugin);
+    lv_CHECK_ARG(plugin->context != NULL, lv_ERROR_NULL_POINTER, "plugin context is NULL");
 
     lvPluginEvent event = {.type = type,
                            .timestamp = get_timestamp(),
@@ -1015,8 +1002,7 @@ int lv_plugin_send_event(lvPlugin *plugin, lvPluginEventType type, void *data, s
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_broadcast_event(lvPluginSystem *system, lvPluginEventType type, void *data, size_t data_size) {
-    if (!system)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_broadcast_event: system is NULL");
+    lv_CHECK_NOT_NULL(system);
 
     lvPluginEvent event = {.type = type,
                            .timestamp = get_timestamp(),
@@ -1102,10 +1088,9 @@ int lv_plugin_resolve_dependencies(lvPluginSystem *system, lvPlugin *plugin) {
  * @return 有非可选依赖返回 0，无非可选依赖返回 1，出错返回 -1
  */
 int lv_plugin_check_dependencies(const lvPlugin *plugin) {
-    if (!plugin)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_check_dependencies: plugin is NULL");
-    if (!plugin->info.dependencies && plugin->info.dependency_count > 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_plugin_check_dependencies: deps array NULL but count > 0");
+    lv_CHECK_NOT_NULL(plugin);
+    lv_CHECK_ARG(plugin->info.dependencies != NULL || plugin->info.dependency_count == 0, lv_ERROR_INTERNAL,
+                 "deps array NULL but count > 0");
 
     for (size_t i = 0; i < plugin->info.dependency_count; i++) {
         if (!plugin->info.dependencies[i]->optional) {
@@ -1349,8 +1334,7 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_system_autoload_all(lvPluginSystem *system) {
-    if (!system)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_system_autoload_all: system is NULL");
+    lv_CHECK_NOT_NULL(system);
 
     /* 遍历所有搜索路径，自动加载其中的插件（含版本兼容性检查） */
     for (int i = 0; i < system->search_paths.count; i++) {

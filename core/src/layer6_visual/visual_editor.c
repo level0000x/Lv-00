@@ -17,6 +17,7 @@
 #include "lv/block_scheduler.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_check.h"
 
 /**
  * @brief 创建可视化编辑器实例
@@ -58,8 +59,7 @@ void lv_visual_editor_destroy(lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_reset(lvVisualEditor *editor) {
-    if (!editor)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL editor");
+    lv_CHECK_NOT_NULL(editor);
     editor->state = lv_EDITOR_IDLE;
     editor->error_count = 0;
     memset(editor->last_error, 0, sizeof(editor->last_error));
@@ -74,10 +74,9 @@ int lv_visual_editor_reset(lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_switch_view(lvVisualEditor *editor, lvViewType view) {
-    if (!editor)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL editor");
-    if (view < lv_VIEW_GEOMETRY_CANVAS || view > lv_VIEW_TEXT_CODE)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "invalid view type");
+    lv_CHECK_NOT_NULL(editor);
+    lv_CHECK_ARG(view >= lv_VIEW_GEOMETRY_CANVAS && view <= lv_VIEW_TEXT_CODE, lv_ERROR_INVALID_PARAM,
+                 "invalid view type %d", view);
     editor->active_view = view;
     return 0;
 }
@@ -101,8 +100,7 @@ lvViewType lv_visual_editor_active_view(const lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_execute(lvVisualEditor *editor) {
-    if (!editor)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL editor");
+    lv_CHECK_NOT_NULL(editor);
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
         strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error));
@@ -161,8 +159,7 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
-    if (!editor)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL editor");
+    lv_CHECK_NOT_NULL(editor);
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
         strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error));

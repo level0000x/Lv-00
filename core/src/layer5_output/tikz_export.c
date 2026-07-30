@@ -17,6 +17,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "lv/lv_check.h"
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_utils.h"
@@ -110,8 +111,9 @@ static int tikz_byte(float c) {
  * @return 成功时返回写入缓冲区的字符数（不含终止符），失败返回 -1
  */
 int lv_tikz_export(void *graph, char *out, size_t buf_size) {
-    if (!graph || !out || buf_size == 0)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_tikz_export: graph, out or buf_size invalid");
+    lv_CHECK_NOT_NULL(graph);
+    lv_CHECK_NOT_NULL(out);
+    lv_CHECK_ARG(buf_size > 0, lv_ERROR_INVALID_PARAM, "buf_size is 0");
 
     ConstraintGraph *g = (ConstraintGraph *) graph;
     int written = 0;

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_check.h"
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
 #include "lv/lv_internal.h"
@@ -68,8 +69,7 @@ void lv_view_sync_destroy(lvViewSynchronizer *sync) {
  * @return 成功返回0，失败返回-1
  */
 int lv_view_sync_enable(lvViewSynchronizer *sync) {
-    if (!sync)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL sync");
+    lv_CHECK_NOT_NULL(sync);
     sync->sync_enabled = 1;
     return 0;
 }
@@ -83,8 +83,7 @@ int lv_view_sync_enable(lvViewSynchronizer *sync) {
  * @return 成功返回0，失败返回-1
  */
 int lv_view_sync_disable(lvViewSynchronizer *sync) {
-    if (!sync)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL sync");
+    lv_CHECK_NOT_NULL(sync);
     sync->sync_enabled = 0;
     return 0;
 }
@@ -170,8 +169,7 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
  * @return 成功返回处理的变更数量，失败返回-1
  */
 int lv_view_sync_flush(lvViewSynchronizer *sync) {
-    if (!sync)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL sync");
+    lv_CHECK_NOT_NULL(sync);
     if (!sync->sync_enabled)
         return 0;
 

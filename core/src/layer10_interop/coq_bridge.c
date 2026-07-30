@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "lv/interop.h"
+#include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
@@ -76,8 +77,9 @@ typedef struct {
  * @return 成功返回 0，参数无效或缓冲区不足返回 -1
  */
 static int coq_export_proof(void *proof, char *output, int output_size) {
-    if (!proof || !output || output_size <= 0)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL proof/output or invalid output_size");
+    lv_CHECK_NOT_NULL(proof);
+    lv_CHECK_NOT_NULL(output);
+    lv_CHECK_ARG(output_size > 0, lv_ERROR_INVALID_PARAM, "invalid output_size");
 
     lvCoqProof *p = (lvCoqProof *) proof;
 
@@ -158,8 +160,8 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
  * @return 成功返回 0，输入无效或解析失败返回 -1
  */
 static int coq_import_proof(const char *input, void **proof) {
-    if (!input || !proof)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL input or proof");
+    lv_CHECK_NOT_NULL(input);
+    lv_CHECK_NOT_NULL(proof);
     *proof = NULL;
 
     /* 检查输入非空 */
@@ -363,8 +365,7 @@ static int coq_validate(const char *input) {
  * @return 成功返回 0，mgr 为 NULL 返回 -1
  */
 int lv_register_coq_plugin(lvInteropManager *mgr) {
-    if (!mgr)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL manager");
+    lv_CHECK_NOT_NULL(mgr);
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "coq", sizeof(plugin.name) - 1);

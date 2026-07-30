@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_check.h"
 #include "lv/visual_editor.h"
 #include "lv/lv_internal.h"
 
@@ -155,8 +156,8 @@ void lv_block_canvas_destroy(lvBlockCanvasView *canvas) {
  */
 int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, double x, double y, double width,
                               double height, int type, int input_count, int output_count) {
-    if (!canvas || !label)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or label");
+    lv_CHECK_NOT_NULL(canvas);
+    lv_CHECK_NOT_NULL(label);
 
     /* 自动扩容 */
     if (canvas->block_count >= canvas->block_capacity) {
@@ -228,8 +229,8 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
  * @return 成功返回0，失败返回-1
  */
 int lv_block_canvas_remove_block(lvBlockCanvasView *canvas, int block_id) {
-    if (!canvas || block_id <= 0)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or invalid block_id");
+    lv_CHECK_NOT_NULL(canvas);
+    lv_CHECK_ARG(block_id > 0, lv_ERROR_INVALID_PARAM, "invalid block_id %d", block_id);
     int found = -1;
     for (int i = 0; i < canvas->block_count; i++) {
         if (canvas->blocks[i].id == block_id) {
@@ -321,8 +322,9 @@ static int find_port_pos(lvBlockCanvasView *canvas, int block_id, int port_id, d
  */
 int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id, int from_port_id, int to_block_id,
                                    int to_port_id) {
-    if (!canvas || from_block_id <= 0 || to_block_id <= 0)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or invalid block id");
+    lv_CHECK_NOT_NULL(canvas);
+    lv_CHECK_ARG(from_block_id > 0 && to_block_id > 0, lv_ERROR_INVALID_PARAM,
+                 "invalid block id (from=%d, to=%d)", from_block_id, to_block_id);
     if (from_block_id == to_block_id)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "self-connection not allowed");
 
