@@ -684,13 +684,10 @@ static PropagationResult propagation_run_with_assignment(PropagationContext *ctx
     propagation_snapshot_restore(ctx, snap);
 
     /* 超时检测：max_steps 表示传播的最大迭代次数
-     * propagation_run 内部采用两次迭代的固定策略，
-     * 当 max_steps > 0 时通知传播引擎。
-     * 当前 propagation_run 为确定性算法，不适用步数中断。
-     * 预留接口供后续非确定性传播使用。 */
+     * propagation_run 内部循环使用 ctx->max_iterations 作为上限，
+     * 当 max_steps > 0 时覆盖默认值以支持步数限制。 */
     if (max_steps > 0) {
-        /* 如果传播引擎支持步数限制，在此设置 */
-        /* ctx->max_iterations = max_steps; */  // 暂未实现
+        ctx->max_iterations = max_steps;
     }
 
     if (result == PROP_RESULT_CONTRADICTION)

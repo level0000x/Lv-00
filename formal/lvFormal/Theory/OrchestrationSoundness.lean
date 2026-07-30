@@ -37,7 +37,7 @@ theorem pipeline_order_preserved {α : Type} (s1 s2 : Stage α) (d : α) :
     
     本定理是管段组合的形式化保证。 -/
 theorem pipeline_soundness {α : Type} (stages : Pipeline α) (d : α)
-    (P : α → Prop) (h_stage_sound : ∀ (s ∈ stages), ∀ (x : α), P x → P (s.transform x))
+    (P : α → Prop) (h_stage_sound : ∀ s, s ∈ stages → ∀ (x : α), P x → P (s.transform x))
     (h_init : P d) : P (run_pipeline stages d) := by
   induction stages generalizing d with
   | nil => 

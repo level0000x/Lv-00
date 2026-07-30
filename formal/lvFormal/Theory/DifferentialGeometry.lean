@@ -424,22 +424,19 @@ lemma principal_curvatures_product_eq_gaussian (S : Surface) (u v : ℝ)
     (h_disc : mean_curvature S u v ^ 2 ≥ gaussian_curvature S u v) :
     (principal_curvatures S u v).1 * (principal_curvatures S u v).2 = gaussian_curvature S u v := by
   have hdisc' : mean_curvature S u v ^ 2 - gaussian_curvature S u v ≥ 0 := by linarith
-  have h_curv : principal_curvatures S u v =
-           (mean_curvature S u v - Real.sqrt (mean_curvature S u v ^ 2 - gaussian_curvature S u v),
-            mean_curvature S u v + Real.sqrt (mean_curvature S u v ^ 2 - gaussian_curvature S u v)) := by
-           unfold principal_curvatures
-           dsimp
-           split_ifs with h_cond
-           · apply Prod.ext <;> simp
-           · exfalso; linarith
-  calc
-    (principal_curvatures S u v).1 * (principal_curvatures S u v).2
-        = (mean_curvature S u v - Real.sqrt (mean_curvature S u v ^ 2 - gaussian_curvature S u v))
-          * (mean_curvature S u v + Real.sqrt (mean_curvature S u v ^ 2 - gaussian_curvature S u v)) := by
-      rw [h_curv]
-    _ = (mean_curvature S u v)^2 - (Real.sqrt (mean_curvature S u v ^ 2 - gaussian_curvature S u v)) ^ 2 := by ring
-    _ = (mean_curvature S u v)^2 - (mean_curvature S u v ^ 2 - gaussian_curvature S u v) := by rw [Real.sq_sqrt hdisc']
-    _ = gaussian_curvature S u v := by ring
+  unfold principal_curvatures
+  dsimp
+  simp
+  split_ifs with h_cond
+  · have hdisc_sq : mean_curvature S u v * mean_curvature S u v - gaussian_curvature S u v ≥ 0 := by
+      simpa [sq] using hdisc'
+    calc
+      (mean_curvature S u v - Real.sqrt (mean_curvature S u v * mean_curvature S u v - gaussian_curvature S u v)) *
+      (mean_curvature S u v + Real.sqrt (mean_curvature S u v * mean_curvature S u v - gaussian_curvature S u v))
+          = (mean_curvature S u v)^2 - (Real.sqrt (mean_curvature S u v * mean_curvature S u v - gaussian_curvature S u v))^2 := by ring
+      _ = (mean_curvature S u v)^2 - (mean_curvature S u v * mean_curvature S u v - gaussian_curvature S u v) := by rw [Real.sq_sqrt hdisc_sq]
+      _ = gaussian_curvature S u v := by ring
+  · exfalso; linarith
 
 /-- Theorema Egregium (绝妙定理) — 默认模型版本：
     

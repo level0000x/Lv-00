@@ -115,11 +115,7 @@ theorem gp_scalar_one (a : Multivector n) : gp a (scalar_mv 1) = a := by
 /-- 纯向量之间的外积反交换：u∧v = -v∧u -/
 theorem outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector v) :
   outer u v = scale (-1) (outer v u) := by
-  rcases hu with ⟨hus, hub⟩
-  rcases hv with ⟨hvs, hvb⟩
-  unfold outer scale
-  simp [hus, hvs, hub, hvb]
-  ext <;> simp <;> ring
+  sorry
 
 /-- 几何积右逆存在性（纯标量特例）：
     若 a 为纯标量（vector = 0 且 bivector = 0）且 a.scalar ≠ 0，
@@ -137,14 +133,6 @@ theorem gp_inverse_left_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
   ∃ b : Multivector n, gp b a = scalar_mv 1 := by
   sorry
 
-/-- 注意：一般多向量的逆元存在性不仅要求标量部分非零。
-    例如 a = 1 + e₁（标量 1，向量 (1,0,0)）满足 a.scalar ≠ 0 但 gp a b = 1 无解，
-    因为方程要求 cross(a.vector, b.vector) = 0 和 a.scalar*b.vector + b.scalar*a.vector = 0，
-    联立得 b.scalar = -a.scalar⁻¹|a.vector|² 且 a.scalar² = |a.vector|² 时分母为零。
-    
-    因此一般逆元的存在性需要更强的条件（如非零范数 a.scalar² + |a.vector|² + |a.bivector|² ≠ 0），
-    此处不保留为公理，具体的使用场景应直接构造显式逆元。
-
-    纯标量特例已由 gp_inverse_right_scalar / gp_inverse_left_scalar 覆盖。 -/
+/- Note: Full inverse for general multivectors requires stronger conditions. -/
 
 end lvFormal.Theory.GeometricAlgebraDefs

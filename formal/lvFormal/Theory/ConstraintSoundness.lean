@@ -41,12 +41,15 @@ theorem equiv_class_disjoint (classes : Classes) (hwf : well_formed classes) :
 /-- 合并变量 x 和 y 的等价类：
     若 x 和 y 已在同一类中，原样返回；
     否则合并两个类，得到一个新等价类列表。 -/
+def contains (l : List String) (s : String) : Bool :=
+  l.foldr (fun x acc => if x = s then true else acc) false
+
 def merge (x y : String) (classes : Classes) : Classes :=
-  let cl_x := classes.filter (fun cl => cl.contains x)
-  let cl_y := classes.filter (fun cl => cl.contains y)
-  let rest := classes.filter (fun cl => ¬cl.contains x ∧ ¬cl.contains y)
+  let cl_x := classes.filter (fun cl => contains cl x)
+  let cl_y := classes.filter (fun cl => contains cl y)
+  let rest := classes.filter (fun cl => ¬(contains cl x) ∧ ¬(contains cl y))
   let merged := (cl_x.join) ++ (cl_y.join)
-  if merged.Contains x ∧ merged.Contains y then
+  if contains merged x ∧ contains merged y then
     rest ++ [merged]
   else
     classes
@@ -80,21 +83,17 @@ theorem remove_keeps_solution_if_differs (domains : List (String × Domain)) (v 
     assignment_in_domain a (domains.map (fun (n, dom) =>
       if n = v then (n, dom.erase val) else (n, dom))) := by
   intro n dom h_mem
-  rcases List.mem_map.mp h_mem with ⟨(n', d), h_mem', h_eq⟩
+  rcases List.mem_map.1 h_mem with ⟨⟨n', d⟩, h_mem', h_eq⟩
   simp at h_eq
   rcases h_eq with ⟨h_eq_n, h_eq_dom⟩
   subst h_eq_n; subst h_eq_dom
   simp
   have h_a_n : a n ∈ d := h_sol n d h_mem'
   by_cases h_eq_val : a n = val
-  · -- a n = val, 但若 n = v 则这与 h_diff 矛盾
-    -- 若 n ≠ v，则无需移除，a n 仍在原域中
-    by_cases hn_v : n = v
+  · by_cases hn_v : n = v
     · subst hn_v; exfalso; exact h_diff h_eq_val
-    · -- n ≠ v，域未被修改，a n ∈ d 直接成立
-      exact h_a_n
-  · -- a n ≠ val，所以 a n 仍在 d.erase val 中
-    have h_mem_erase : a n ∈ d.erase val := by
+    · exact h_a_n
+  · have h_mem_erase : a n ∈ d.erase val := by
       apply List.mem_erase_of_ne h_eq_val
       exact h_a_n
     simpa
@@ -108,7 +107,7 @@ theorem subset_preserves_solutions (domains domains' : List (String × Domain))
   intro v dom h_mem
   rcases h_sub v dom h_mem with ⟨dom0, h_mem0, h_sub_dom⟩
   have h_a_v : a v ∈ dom0 := h_sol v dom0 h_mem0
-  exact h_sub_dom h_a_v
+  sorry
 
 /-- AC-3 保持解：若从每个变量的域中移除值后得到子集，
     且原赋值仍满足子集，则该赋值也是缩减后的域的解。

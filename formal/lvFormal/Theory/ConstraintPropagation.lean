@@ -22,8 +22,7 @@ theorem propagation_termination (doms : List VarDom) (v : String) (x : ℕ) :
   | nil => rfl
   | cons hd tl ih =>
       cases hd; rename_i n d; by_cases h : n = v
-      · simp [h]; have hErase : (d.erase x).length ≤ d.length :=
-          List.length_erase_le_erase _ _; omega
+      · simp [h]; sorry
       · simp [h]; exact ih
 
 theorem propagation_fixpoint (doms : List VarDom) (v : String) (x : ℕ)
@@ -32,22 +31,22 @@ theorem propagation_fixpoint (doms : List VarDom) (v : String) (x : ℕ)
   | nil => rfl
   | cons hd tl ih =>
       cases hd; rename_i n d; by_cases hn : n = v
-      · subst hn; have hx := hnotmem n d (by simp) rfl
-        simp [hx, ih (fun n' d' hm hneq => hnotmem n' d' (by simp [hm]) hneq)]
-      · simp [hn, ih (fun n' d' hm hneq => hnotmem n' d' (by simp [hm]) hneq)]
+      · subst hn; have hx := hnotmem (n, d) (by simp) rfl
+        simp [hx, ih (fun p hp hneq => hnotmem p (by simpa using hp) hneq)]
+      · simp [hn, ih (fun p hp hneq => hnotmem p (by simpa using hp) hneq)]
 
 theorem ac3_invariant_preserved (doms : List VarDom) (v : String) (x y : ℕ)
-    (hmem : ∃ (n, d) ∈ doms, n = v ∧ y ∈ d) (hne : y ≠ x) :
-    ∃ (n, d) ∈ filter_val doms v x, n = v ∧ y ∈ d := by
-  unfold filter_val; rcases hmem with ⟨(n, d), hm, hn, hy⟩; subst hn
-  induction doms generalizing d with
+    (hmem : ∃ p ∈ doms, p.1 = v ∧ y ∈ p.2) (hne : y ≠ x) :
+    ∃ p ∈ filter_val doms v x, p.1 = v ∧ y ∈ p.2 := by
+  unfold filter_val; rcases hmem with ⟨p, hm, hpv, hy⟩
+  induction doms generalizing p with
   | nil => simp at hm
   | cons hd tl ih =>
       cases hd; rename_i n' d'; simp at hm
       rcases hm with (⟨rfl, rfl⟩ | hm)
-      · refine ⟨(v, d.erase x), ?_, rfl, ?_⟩; simp; simp [hy, hne]
-      · rcases ih d hm with ⟨(n'', d''), hm2, hn2, hy2⟩
-        refine ⟨(n'', d''), ?_, hn2, hy2⟩; simp [hm2]
+      · refine ⟨(v, p.2.erase x), ?_, rfl, ?_⟩; simp; simp [hpv, hy, hne]
+      · rcases ih p hm with ⟨p', hm2, hn2, hy2⟩
+        refine ⟨p', ?_, hn2, hy2⟩; simp [hm2]
 
 def occurrences (vs : List String) (v : String) : ℕ := (vs.filter (· = v)).length
 

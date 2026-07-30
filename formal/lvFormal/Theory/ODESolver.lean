@@ -17,10 +17,9 @@ structure State where
   t : ℝ
   x : ℝ
   v : ℝ
-  deriving Repr
 
 /-- RK4 一步积分（标量版）-/
-def rk4_step (f : ℝ → ℝ → ℝ) (h : ℝ) (t y : ℝ) : ℝ :=
+noncomputable def rk4_step (f : ℝ → ℝ → ℝ) (h : ℝ) (t y : ℝ) : ℝ :=
   let k1 := f t y
   let k2 := f (t + h/2) (y + h/2 * k1)
   let k3 := f (t + h/2) (y + h/2 * k2)
@@ -57,11 +56,11 @@ theorem harmonic_energy_conserved_numeric (s0 : State) (h : ℝ) (hh : h > 0) (o
 /-- 谐波振荡器初始位置 x0 时，解析解的最大位移等于 |x0| -/
 theorem harmonic_max_amplitude (s0 : State) (omega : ℝ) (t : ℝ) :
     |s0.x * Real.cos (omega * t)| ≤ |s0.x| := by
-  have h_cos_bound : |Real.cos (omega * t)| ≤ 1 := by
-    exact abs_abs.mp (by
-      have := Real.abs_cos_le_one (omega * t)
-      exact this)
-  nlinarith [h_cos_bound]
+  have h_cos_bound : |Real.cos (omega * t)| ≤ 1 := Real.abs_cos_le_one (omega * t)
+  calc
+    |s0.x * Real.cos (omega * t)| = |s0.x| * |Real.cos (omega * t)| := by rw [abs_mul]
+    _ ≤ |s0.x| * 1 := by nlinarith
+    _ = |s0.x| := by ring
 
 /-! ## RK4 误差分析 -/
 
@@ -83,16 +82,16 @@ theorem rk4_convergence (f : ℝ → ℝ → ℝ) (t0 y0 : ℝ) (T : ℝ) (h : �
   trivial
 
 /-- RK4 数值稳定性：对线性测试方程 y' = λy，稳定性条件为 |1 + hλ + (hλ)²/2 + (hλ)³/6 + (hλ)⁴/24| ≤ 1。 -/
-theorem rk4_stability_region (λ h : ℝ) : True := by
+theorem rk4_stability_region (l h : ℝ) : True := by
   trivial
 
 /-- 线性测试方程 y' = λy 的精确解：y(t) = y₀·e^{λt} -/
-theorem linear_test_exact_solution (λ y0 t : ℝ) : (fun t' => y0 * Real.exp (λ * t')) t = y0 * Real.exp (λ * t) := by
+theorem linear_test_exact_solution (l y0 t : ℝ) : (fun t' => y0 * Real.exp (l * t')) t = y0 * Real.exp (l * t) := by
   rfl
 
 /-- RK4 对线性测试方程的一步结果：
     若 y_{n+1} = R(hλ)·y_n，其中 R(z) = 1 + z + z²/2 + z³/6 + z⁴/24 -/
-theorem rk4_linear_stability_function (λ h : ℝ) (y0 : ℝ) : True := by
+theorem rk4_linear_stability_function (l h : ℝ) (y0 : ℝ) : True := by
   trivial
 
 end lvFormal.Theory.ODESolver

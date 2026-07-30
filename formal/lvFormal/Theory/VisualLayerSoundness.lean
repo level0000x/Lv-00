@@ -14,7 +14,8 @@ inductive ViewMode where
   deriving DecidableEq, Repr
 
 structure CanvasState where
-  points : List (String × ℚ × ℚ); mode : ViewMode
+  points : List (String × ℚ × ℚ)
+  mode : ViewMode
   deriving DecidableEq, Repr
 
 def sync_views (cs : CanvasState) (target : ViewMode) : CanvasState := { cs with mode := target }
@@ -48,11 +49,12 @@ theorem geom_canvas_faithful (pts : List (String × ℚ × ℚ)) :
   induction pts with
   | nil => rfl
   | cons hd tl ih =>
-      cases hd; rename_i n xy; cases xy; rename_i x y
-      unfold geom_canvas_project geom_canvas_inverse; simp [ih]
+      simp [geom_canvas_project, geom_canvas_inverse, ih]
 
 structure EditorState where
-  points : List (String × ℚ × ℚ); constraints : List String; mode : ViewMode
+  points : List (String × ℚ × ℚ)
+  constraints : List String
+  mode : ViewMode
   deriving DecidableEq, Repr
 
 def switch_mode (es : EditorState) (m : ViewMode) : EditorState := { es with mode := m }

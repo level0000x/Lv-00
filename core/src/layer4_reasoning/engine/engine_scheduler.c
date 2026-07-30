@@ -18,8 +18,11 @@
 #include "lv/engine.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/normalization.h"
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
+
+#include "debug.h"
 
 /* ============================================================
  * EngineScheduler 内部结构（不透明）
@@ -985,10 +988,12 @@ int lv_engine_schedule(const char *task_name, int priority) {
     if (strcmp(task_name, "solve") == 0) {
         scheduler_solve(g_default_scheduler, g_compat_engine->main_graph, &result);
     } else if (strcmp(task_name, "normalize") == 0) {
-        /* normalize 走正常的引擎路径 */
-        return 0;
+        graph_normalize(g_compat_engine->main_graph, false);
     } else if (strcmp(task_name, "unify") == 0) {
-        return 0;
+        /* unify 任务需要两个图（构造图 + 命题图），调度器只有一个主图。
+         * 当前直接返回 0 表示"无操作完成"，上层应通过
+         * unify_construction_with_proposition() 显式调用。 */
+        LOG_WARN("scheduler", "unify 任务需要命题图，当前为无操作。请使用 unify_construction_with_proposition() 直接调用。");
     } else if (strcmp(task_name, "rewrite") == 0) {
         scheduler_solve(g_default_scheduler, g_compat_engine->main_graph, &result);
     }
