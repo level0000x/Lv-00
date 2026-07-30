@@ -286,13 +286,22 @@ theorem evidence_verifier_deterministic (g : ConstraintGraph) (t : ProofTrace) :
 /-- Running the verifier on an empty trace against an empty graph succeeds -/
 theorem evidence_empty_trivially_satisfiable :
     evidence_check ([] : ConstraintGraph) [.qed] = true := by
-  sorry
+  unfold evidence_check evidence_check_witness; simp
 
 /-- Running the verifier on a trace without qed at the end fails -/
 theorem evidence_no_qed_fails (g : ConstraintGraph) (t : ProofTrace)
     (h : t.getLast? ≠ some .qed) :
     evidence_check g t = false := by
-  sorry
+  unfold evidence_check evidence_check_witness
+  cases hq : t.getLast?
+  · simp [hq]
+  · rename_i step; cases step
+    · exfalso; exact h (by simp [hq])
+    · exfalso; exact h (by simp [hq])
+    · exfalso; exact h (by simp [hq])
+    · exfalso; exact h (by simp [hq])
+    · exfalso; exact h (by simp [hq])
+    · exfalso; exact h (by simp [hq])
 
 /-- If a proof trace contains no .qed step, then step_ok is independent of the
     constraint graph being verified (because .qed is the only step type that
@@ -344,7 +353,7 @@ theorem evidence_single_distance :
       ([.distance "A" "B" (.const 5)] : ConstraintGraph)
       [.hypothesis (.distance "A" "B" (.const 5)), .qed]
     = true := by
-  sorry
+  unfold evidence_check evidence_check_witness; simp
 
 /-- A 3-4-5 right triangle is verifiable -/
 theorem evidence_345_triangle :
@@ -359,7 +368,7 @@ theorem evidence_345_triangle :
        .hypothesis (.rightAngle "A" "B" "C"),
        .qed]
     = true := by
-  sorry
+  unfold evidence_check evidence_check_witness; simp
 
 /-- Evidence verifier rejects truncated traces -/
 theorem evidence_rejects_incomplete :
@@ -367,7 +376,7 @@ theorem evidence_rejects_incomplete :
       ([.distance "A" "A" (.const 0)] : ConstraintGraph)
       [.hypothesis (.distance "A" "A" (.const 0))]
     = false := by
-  sorry
+  unfold evidence_check evidence_check_witness; simp
 
 /- ===============================================================
    State-transition composition
@@ -380,4 +389,3 @@ lemma go_trans_compose (g : ConstraintGraph) (st1 st2 : VerifierState) (t1 t2 : 
   sorry
 
 end
-

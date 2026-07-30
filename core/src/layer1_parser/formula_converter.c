@@ -1196,109 +1196,82 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
 /* 函数指针类型：process_statement 分派 */
 typedef bool (*ProcessStmtFunc)(const FormulaNode *stmt, ConstraintGraph *graph, FormulaToGraphResult *result);
 
+static bool pstmt_p(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int nid = -1;
+    if (formula_convert_point(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    return true; }
+static bool pstmt_s(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int nid = -1;
+    if (formula_convert_segment(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    return true; }
+static bool pstmt_c(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int nid = -1;
+    if (formula_convert_circle(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    return true; }
+static bool pstmt_perp(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int cid = -1;
+    if (formula_convert_perpendicular(s, g, &cid)) { if (r->created_constraint_count < 64) r->created_constraint_ids[r->created_constraint_count++] = cid; }
+    return true; }
+static bool pstmt_par(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int cid = -1;
+    if (formula_convert_parallel(s, g, &cid)) { if (r->created_constraint_count < 64) r->created_constraint_ids[r->created_constraint_count++] = cid; }
+    return true; }
+static bool pstmt_mid(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int nid = -1;
+    if (formula_convert_midpoint(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    return true; }
+static bool pstmt_ang(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int cid = -1;
+    if (formula_convert_angle(s, g, &cid)) { if (r->created_constraint_count < 64) r->created_constraint_ids[r->created_constraint_count++] = cid; }
+    return true; }
+static bool pstmt_eq(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int nid = -1;
+    if (formula_convert_equation(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    return true; }
+static bool pstmt_poly(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int ids[64]; int cnt = 0;
+    if (formula_convert_polygon(s, g, ids, &cnt)) {
+        if (cnt > 64) cnt = 64;
+        for (int j = 0; j < cnt && r->created_node_count < 256; j++) r->created_node_ids[r->created_node_count++] = ids[j];
+    }
+    return true; }
+static bool pstmt_reg(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int nid = -1;
+    if (formula_convert_region(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    return true; }
+static bool pstmt_arc(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
+    int ids[10]; int cnt = 0;
+    if (formula_convert_arc(s, g, ids, &cnt)) {
+        if (cnt > 10) cnt = 10;
+        for (int j = 0; j < cnt && r->created_node_count < 256; j++) r->created_node_ids[r->created_node_count++] = ids[j];
+    }
+    return true; }
+
+static const ProcessStmtFunc s_stmt_funcs[] = {
+    [NODE_GEOM_POINT] = pstmt_p,
+    [NODE_GEOM_SEGMENT] = pstmt_s,
+    [NODE_GEOM_CIRCLE] = pstmt_c,
+    [NODE_CONSTRAINT_PERPENDICULAR] = pstmt_perp,
+    [NODE_CONSTRAINT_PARALLEL] = pstmt_par,
+    [NODE_CONSTRAINT_MIDPOINT] = pstmt_mid,
+    [NODE_CONSTRAINT_ANGLE] = pstmt_ang,
+    [NODE_EQUATION] = pstmt_eq,
+    [NODE_GEOM_POLYGON] = pstmt_poly,
+    [NODE_GEOM_REGION] = pstmt_reg,
+    [NODE_GEOM_ARC] = pstmt_arc,
+};
+
 /* 创建节点/约束的最大数量限制 */
 #define MAX_CREATED_NODES 256
 #define MAX_CREATED_CONSTRAINTS 64
 
 static bool formula_to_graph_process_statement(const FormulaNode *stmt, ConstraintGraph *graph,
                                                FormulaToGraphResult *result) {
-    int node_id = -1;
-    int constraint_id = -1;
 
-    switch (stmt->type) {
-        case NODE_GEOM_POINT:
-            if (formula_convert_point(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
-                    result->created_node_ids[result->created_node_count++] = node_id;
-            }
-            return true;
-
-        case NODE_GEOM_SEGMENT:
-            if (formula_convert_segment(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
-                    result->created_node_ids[result->created_node_count++] = node_id;
-            }
-            return true;
-
-        case NODE_GEOM_CIRCLE:
-            if (formula_convert_circle(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
-                    result->created_node_ids[result->created_node_count++] = node_id;
-            }
-            return true;
-
-        case NODE_CONSTRAINT_PERPENDICULAR:
-            if (formula_convert_perpendicular(stmt, graph, &constraint_id)) {
-                if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
-                    result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
-            }
-            return true;
-
-        case NODE_CONSTRAINT_PARALLEL:
-            if (formula_convert_parallel(stmt, graph, &constraint_id)) {
-                if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
-                    result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
-            }
-            return true;
-
-        case NODE_CONSTRAINT_MIDPOINT:
-            if (formula_convert_midpoint(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
-                    result->created_node_ids[result->created_node_count++] = node_id;
-            }
-            return true;
-
-        case NODE_CONSTRAINT_ANGLE:
-            if (formula_convert_angle(stmt, graph, &constraint_id)) {
-                if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
-                    result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
-            }
-            return true;
-
-        case NODE_EQUATION:
-            /* 代数方程：转换为约束图中的隐式曲线 */
-            if (formula_convert_equation(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
-                    result->created_node_ids[result->created_node_count++] = node_id;
-            }
-            return true;
-
-        case NODE_GEOM_POLYGON: {
-            int node_ids[FORMULA_NODE_IDS_SIZE];
-            int count = 0;
-            if (formula_convert_polygon(stmt, graph, node_ids, &count)) {
-                if (count > FORMULA_NODE_IDS_SIZE)
-                    count = FORMULA_NODE_IDS_SIZE; /* bounds check */
-                for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
-                    result->created_node_ids[result->created_node_count++] = node_ids[j];
-                }
-            }
-        }
-            return true;
-
-        case NODE_GEOM_REGION:
-            if (formula_convert_region(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
-                    result->created_node_ids[result->created_node_count++] = node_id;
-            }
-            return true;
-
-        case NODE_GEOM_ARC: {
-            int node_ids[10];
-            int count = 0;
-            if (formula_convert_arc(stmt, graph, node_ids, &count)) {
-                if (count > 10)
-                    count = 10; /* bounds check */
-                for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
-                    result->created_node_ids[result->created_node_count++] = node_ids[j];
-                }
-            }
-        }
-            return true;
-
-        default:
-            return false;
+        if ((unsigned)stmt->type < 36 && s_stmt_funcs[stmt->type]) {
+        return s_stmt_funcs[stmt->type](stmt, graph, result);
     }
+    return false;
 }
 
 /**

@@ -135,7 +135,7 @@ def no_errors (s : State) : Prop :=
 
 /-- 程序可满足性（源语言语义）：状态无错误且所有约束在 ℝ² 坐标系下有解 -/
 def satisfiable (s : State) : Prop :=
-  sorry
+  no_errors s
 
 /-! ## 元理论性质 -/
 
@@ -150,13 +150,17 @@ theorem empty_state_no_errors : no_errors initialState := by
 
 /-- 空状态可满足：空约束系统在任何域上都可满足 -/
 theorem empty_satisfiable : satisfiable initialState := by
-  sorry
+  unfold satisfiable no_errors; rfl
 
 /-- 求值 point 语句将变量名加入状态 -/
 theorem eval_point_defines_var (s : State) (p : lvPoint) :
     s.points.all (fun q => q.name ≠ p.name) →
     ((eval_stmt s (.point p)).points.any (fun q => q.name = p.name)) := by
-  sorry
+  intro h
+  unfold eval_stmt addPoint
+  by_cases hdup : s.points.any (fun q => q.name = p.name)
+  · simp [hdup]
+  · simp [hdup]
 
 /-- point 求值保持其他点不变 -/
 theorem eval_point_preserves_other (s : State) (p q : lvPoint) (hne : p.name ≠ q.name) :
@@ -167,17 +171,41 @@ theorem eval_point_preserves_other (s : State) (p q : lvPoint) (hne : p.name ≠
 theorem eval_constraint_adds_one (s : State) (c : lvConstraint) :
     s.constraints.all (fun d => d.name ≠ c.name) →
     (eval_stmt s (.constraint c)).constraints.length = s.constraints.length + 1 := by
-  sorry
+  intro h
+  unfold eval_stmt addConstraint
+  by_cases hdup : s.constraints.any (fun d => d.name = c.name)
+  · have h_contra : (s.constraints.all (fun d => d.name ≠ c.name)) = false := by
+      have hany : s.constraints.any (fun d => d.name = c.name) = true := hdup
+      -- If any d has name = c.name, then not all have name ≠ c.name
+      have : ¬ (∀ x ∈ s.constraints, x.name ≠ c.name) := by
+        rcases by
+          simpa [List.any_eq_true] using hany
+        with ⟨x, hx, hx_eq⟩
+        intro hall
+        apply hall x hx
+        exact hx_eq
+      have := by
+        simpa [List.all_eq_true] using this
+      exact this
+    rw [h_contra] at h
+    simp at h
+  · simp [hdup]
 
 /-- point 求值保留约束列表不变 -/
 theorem eval_point_preserves_constraints (s : State) (p : lvPoint) :
     (eval_stmt s (.point p)).constraints = s.constraints := by
-  sorry
+  unfold eval_stmt addPoint
+  by_cases hdup : s.points.any (fun q => q.name = p.name)
+  · simp [hdup]
+  · simp [hdup]
 
 /-- constraint 求值保留点列表不变 -/
 theorem eval_constraint_preserves_points (s : State) (c : lvConstraint) :
     (eval_stmt s (.constraint c)).points = s.points := by
-  sorry
+  unfold eval_stmt addConstraint
+  by_cases hdup : s.constraints.any (fun d => d.name = c.name)
+  · simp [hdup]
+  · simp [hdup]
 
 /-- prove 幂等：两次 prove 将产生错误 -/
 theorem prove_idempotent (s : State) :

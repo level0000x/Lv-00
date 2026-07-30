@@ -626,6 +626,8 @@ set(lv_HEADERS
     core/include/lv/lv_loader.h
     # v1.1.0 通用注册表接口
     core/include/lv/lv_registry.h
+    # v4.0.0 新增：推理分支栈独立模块头文件
+    core/include/lv/lv_reasoning_stack.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -666,6 +668,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/context.c
     # v4.0.0 新增：熔断器独立模块（从 lvContext God Object 提取）
     core/src/layer2_resource/lv_circuit_breaker.c
+    # v4.0.0 新增：推理分支栈独立模块（从 lvContext God Object 提取）
+    core/src/layer2_resource/lv_reasoning_stack.c
     core/src/layer2_resource/error_codes.c
     core/src/layer2_resource/debug.c
     core/src/layer2_resource/node_deep_copy.c

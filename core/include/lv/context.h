@@ -62,6 +62,9 @@ extern "C" {
 /* 熔断器独立模块 —— 从 lvContext God Object 中提取的 CircuitBreaker 子系统 */
 #include "lv/lv_circuit_breaker.h"
 
+/* 推理分支栈独立模块 —— 从 lvContext God Object 中提取的 ReasoningStack 子系统 */
+#include "lv/lv_reasoning_stack.h"
+
 /* 前向声明 —— 避免循环依赖，具体类型在各模块头文件中定义 */
 struct ConstraintGraph;     /* constraint_graph.h */
 struct StreamContext;       /* stream.h */
@@ -152,97 +155,10 @@ lv_PUBLIC_API bool lv_context_state_transition_valid(lvContextState from, lvCont
  *
  * 分支栈的每个帧 (ReasoningFrame) 记录了进入该分支时的完整状态快照。
  * 当分支推理失败时，通过 lv_context_rollback() 回滚到上一个栈帧。
+ *
+ * @note ReasoningBranchType、ReasoningBranchStatus、ReasoningFrame、
+ *       ReasoningStack 的定义已移至 lv/lv_reasoning_stack.h。
  * ============================================================ */
-
-/**
- * @brief 推理分支类型
- */
-typedef enum {
-    REASONING_BRANCH_NONE,          /**< 无分支（主推理线） */
-    REASONING_BRANCH_FORWARD,       /**< 前向证明分支 */
-    REASONING_BRANCH_CONTRADICTION, /**< 反证法分支：假设否定命题成立 */
-    REASONING_BRANCH_HYPOTHESIS     /**< 假设引入分支：引入临时假设 */
-} ReasoningBranchType;
-
-/**
- * @brief 推理分支状态
- */
-typedef enum {
-    BRANCH_ACTIVE,   /**< 分支仍在推理中 */
-    BRANCH_CLOSED,   /**< 分支已闭合（到达目标） */
-    BRANCH_FAILED,   /**< 分支推理失败 */
-    BRANCH_ABANDONED /**< 分支被放弃（超时/熔断） */
-} ReasoningBranchStatus;
-
-/**
- * @brief 推理栈帧 —— 记录进入一个推理分支时的状态
- *
- * 每个分支帧包含：
- * - 分支类型和状态，用于追踪推理路径
- * - 分支入口处约束图的深拷贝（用于回滚）
- * - 推理步骤计数器，防止无限深度
- * - 该分支特定的假设列表和目标列表
- */
-typedef struct ReasoningFrame {
-    /** 分支类型：前向证明 / 反证法 / 假设引入 */
-    ReasoningBranchType branch_type;
-
-    /** 分支当前状态 */
-    ReasoningBranchStatus status;
-
-    /** 该分支的推理深度（相对于根上下文） */
-    int depth;
-
-    /** 该分支内执行的推理步骤计数 */
-    int step_count;
-
-    /** 分支入口处约束图的深拷贝快照（回滚目标） */
-    struct ConstraintGraph *graph_snapshot;
-
-    /** 该分支引入的假设节点 ID 数组（以 -1 结尾） */
-    int *assumption_node_ids;
-
-    /** 假设数量 */
-    int assumption_count;
-
-    /** 该分支的目标节点 ID 数组（以 -1 结尾） */
-    int *target_node_ids;
-
-    /** 目标数量 */
-    int target_count;
-
-    /** 该分支的 AST 语法树根节点浅拷贝（指向上下文 AST 的引用） */
-    void *ast_root_ref;
-
-    /** 分支创建时间戳（微秒，用于超时判定） */
-    uint64_t created_at_us;
-
-    /** 分支的自行超时时间（毫秒，0 = 继承父上下文超时） */
-    uint64_t timeout_ms;
-
-    /** 用户自留的数据指针（用于扩展） */
-    void *user_data;
-} ReasoningFrame;
-
-/**
- * @brief 推理分支栈 —— 管理推理路径的栈结构
- *
- * 最大深度由 lv_CONTEXT_MAX_REASONING_DEPTH 限制。
- * 当栈满时，新的分支创建会失败并返回错误码。
- */
-typedef struct ReasoningStack {
-    /** 栈帧数组（动态增长，但不超过 max_depth） */
-    ReasoningFrame *frames;
-
-    /** 当前栈顶索引（-1 表示空栈，0 表示根帧） */
-    int top;
-
-    /** 栈当前容量 */
-    int capacity;
-
-    /** 栈绝对最大深度（在上下文创建时设定） */
-    int max_depth;
-} ReasoningStack;
 
 /* ============================================================
  * 第三部分：熔断器（Circuit Breaker）
@@ -666,14 +582,18 @@ typedef struct lvContext {
 #endif
 
 /**
- * @brief 推理栈默认初始容量
+ * @brief 推理栈默认初始容量（别名，引用 lv_reasoning_stack.h 中的定义）
  */
-#define lv_CONTEXT_REASONING_STACK_DEFAULT_CAPACITY 8
+#ifndef lv_CONTEXT_REASONING_STACK_DEFAULT_CAPACITY
+#define lv_CONTEXT_REASONING_STACK_DEFAULT_CAPACITY lv_REASONING_STACK_DEFAULT_CAPACITY
+#endif
 
 /**
- * @brief 推理栈最大深度上限
+ * @brief 推理栈最大深度上限（别名，引用 lv_reasoning_stack.h 中的定义）
  */
-#define lv_CONTEXT_REASONING_STACK_MAX_DEPTH 1000
+#ifndef lv_CONTEXT_REASONING_STACK_MAX_DEPTH
+#define lv_CONTEXT_REASONING_STACK_MAX_DEPTH lv_REASONING_STACK_MAX_DEPTH
+#endif
 
 /* ============================================================
  * 第六部分：生命周期管理 API

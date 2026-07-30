@@ -86,10 +86,7 @@ lvContext *lv_context_create(void) {
     ctx->recursion_policy = lv_RECURSION_POLICY_ERROR;
 
     /* 4. 推理分支栈 —— 初始化为空栈 */
-    ctx->reasoning_stack.frames = NULL;
-    ctx->reasoning_stack.top = -1;
-    ctx->reasoning_stack.capacity = 0;
-    ctx->reasoning_stack.max_depth = lv_CONTEXT_REASONING_STACK_MAX_DEPTH;
+    lv_reasoning_stack_init(&ctx->reasoning_stack);
 
     /* 3. 缓存状态 */
     ctx->cache_valid = false;
@@ -124,23 +121,7 @@ void lv_context_destroy(lvContext *ctx) {
     }
 
     /* 1. 释放推理栈帧数组（含每帧的子资源） */
-    if (ctx->reasoning_stack.frames) {
-        for (int i = 0; i <= ctx->reasoning_stack.top && i < ctx->reasoning_stack.capacity; i++) {
-            ReasoningFrame *frame = &ctx->reasoning_stack.frames[i];
-            if (frame->graph_snapshot) {
-                graph_destroy((ConstraintGraph *) frame->graph_snapshot);
-                frame->graph_snapshot = NULL;
-            }
-            if (frame->assumption_node_ids) {
-                lv_free((void **) &frame->assumption_node_ids);
-            }
-            if (frame->target_node_ids) {
-                lv_free((void **) &frame->target_node_ids);
-            }
-            /* user_data 由外部管理，不释放 */
-        }
-        lv_free((void **) &ctx->reasoning_stack.frames);
-    }
+    lv_reasoning_stack_clear(&ctx->reasoning_stack);
 
     /* 2. 释放代数计算缓存 */
     if (ctx->groebner_cache) {
@@ -397,21 +378,7 @@ bool lv_context_rollback(lvContext *ctx, lvContext *snapshot) {
     /* 释放当前上下文的可替换资源（不销毁结构体本身） */
 
     /* 释放推理栈帧 */
-    if (ctx->reasoning_stack.frames) {
-        for (int i = 0; i <= ctx->reasoning_stack.top && i < ctx->reasoning_stack.capacity; i++) {
-            ReasoningFrame *frame = &ctx->reasoning_stack.frames[i];
-            if (frame->graph_snapshot) {
-                graph_destroy((ConstraintGraph *) frame->graph_snapshot);
-            }
-            if (frame->assumption_node_ids) {
-                lv_free((void **) &frame->assumption_node_ids);
-            }
-            if (frame->target_node_ids) {
-                lv_free((void **) &frame->target_node_ids);
-            }
-        }
-        lv_free((void **) &ctx->reasoning_stack.frames);
-    }
+    lv_reasoning_stack_clear(&ctx->reasoning_stack);
 
     /* 释放缓存 */
     if (ctx->groebner_cache)
@@ -576,56 +543,10 @@ lvErrorCode lv_context_set_state(lvContext *ctx, lvContextState new_state) {
  * ============================================================ */
 
 /**
- * @brief 确保推理栈有足够容量（内部辅助函数）
- *
- * 如果当前容量不足，按 2 倍因子扩容，但不超过 max_depth。
- */
-static lvErrorCode reasoning_stack_ensure_capacity(ReasoningStack *stack) {
-    if (!stack) {
-        return lv_ERROR_NULL_POINTER;
-    }
-
-    /* 栈未满，无需扩容 */
-    if (stack->top + 1 < stack->capacity) {
-        return lv_OK;
-    }
-
-    /* 已达最大深度限制 */
-    if (stack->capacity >= stack->max_depth) {
-        return lv_ERROR_RESOURCE_EXHAUSTED;
-    }
-
-    int new_capacity;
-    if (stack->capacity == 0) {
-        new_capacity = lv_CONTEXT_REASONING_STACK_DEFAULT_CAPACITY;
-    } else {
-        new_capacity = stack->capacity * 2;
-    }
-
-    /* 不超过最大深度 */
-    if (new_capacity > stack->max_depth) {
-        new_capacity = stack->max_depth;
-    }
-
-    ReasoningFrame *new_frames =
-        (ReasoningFrame *) lv_realloc(stack->frames, (size_t) new_capacity * sizeof(ReasoningFrame));
-    if (!new_frames) {
-        return lv_ERROR_OUT_OF_MEMORY;
-    }
-
-    /* 清零新增部分 */
-    size_t old_size = (size_t) stack->capacity * sizeof(ReasoningFrame);
-    size_t new_size = (size_t) new_capacity * sizeof(ReasoningFrame);
-    memset((char *) new_frames + old_size, 0, new_size - old_size);
-
-    stack->frames = new_frames;
-    stack->capacity = new_capacity;
-
-    return lv_OK;
-}
-
-/**
  * @brief 在当前推理栈上压入一个新分支帧
+ *
+ * 压入分支帧前会自动创建当前约束图的快照并保存在帧中。
+ * 如果启用了熔断器且深度超限，此函数将失败。
  */
 lvErrorCode lv_context_push_reasoning(lvContext *ctx, ReasoningBranchType branch_type, uint64_t timeout_ms) {
     if (!ctx) {
@@ -637,30 +558,20 @@ lvErrorCode lv_context_push_reasoning(lvContext *ctx, ReasoningBranchType branch
         return lv_ERROR_INVALID_STATE;
     }
 
-    /* 检查深度限制 */
-    if (ctx->reasoning_stack.top + 1 >= ctx->reasoning_stack.max_depth) {
-        lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED, "推理栈深度超限: 当前 %d, 最大 %d",
-                             ctx->reasoning_stack.top + 1, ctx->reasoning_stack.max_depth);
-        return lv_ERROR_RESOURCE_EXHAUSTED;
-    }
-
-    /* 确保栈有足够容量 */
-    lvErrorCode err = reasoning_stack_ensure_capacity(&ctx->reasoning_stack);
+    /* 使用独立栈模块推入帧（包含深度检查和扩容） */
+    lvErrorCode err = lv_reasoning_stack_push(&ctx->reasoning_stack, branch_type);
     if (err != lv_OK) {
-        lv_context_set_error(ctx, err, "推理栈扩容失败");
+        if (err == lv_ERROR_RESOURCE_EXHAUSTED) {
+            lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED, "推理栈深度超限: 当前 %d, 最大 %d",
+                                 ctx->reasoning_stack.top + 1, ctx->reasoning_stack.max_depth);
+        } else {
+            lv_context_set_error(ctx, err, "推理栈操作失败");
+        }
         return err;
     }
 
-    /* 压入新帧 */
-    ctx->reasoning_stack.top++;
+    /* 上下文特定的帧字段初始化 */
     ReasoningFrame *frame = &ctx->reasoning_stack.frames[ctx->reasoning_stack.top];
-
-    /* 初始化帧字段 */
-    memset(frame, 0, sizeof(ReasoningFrame));
-    frame->branch_type = branch_type;
-    frame->status = BRANCH_ACTIVE;
-    frame->depth = ctx->reasoning_stack.top;
-    frame->step_count = 0;
     frame->timeout_ms = timeout_ms;
     frame->created_at_us = lv_get_time_us();
     frame->ast_root_ref = ctx->ast_root;
@@ -685,30 +596,13 @@ lvErrorCode lv_context_pop_reasoning(lvContext *ctx) {
         return lv_ERROR_NULL_POINTER;
     }
 
-    if (ctx->reasoning_stack.top < 0) {
-        lv_context_set_error(ctx, lv_ERROR_INVALID_STATE, "推理栈为空，无法弹出");
-        return lv_ERROR_INVALID_STATE;
+    lvErrorCode err = lv_reasoning_stack_pop(&ctx->reasoning_stack);
+    if (err != lv_OK) {
+        if (err == lv_ERROR_INVALID_STATE) {
+            lv_context_set_error(ctx, lv_ERROR_INVALID_STATE, "推理栈为空，无法弹出");
+        }
+        return err;
     }
-
-    ReasoningFrame *frame = &ctx->reasoning_stack.frames[ctx->reasoning_stack.top];
-
-    /* 释放帧内资源 */
-    if (frame->graph_snapshot) {
-        graph_destroy((ConstraintGraph *) frame->graph_snapshot);
-        frame->graph_snapshot = NULL;
-    }
-    if (frame->assumption_node_ids) {
-        lv_free((void **) &frame->assumption_node_ids);
-    }
-    if (frame->target_node_ids) {
-        lv_free((void **) &frame->target_node_ids);
-    }
-
-    /* 清零帧 */
-    memset(frame, 0, sizeof(ReasoningFrame));
-
-    /* 弹出 */
-    ctx->reasoning_stack.top--;
 
     /* 更新熔断器深度 */
     ctx->circuit_breaker.current_depth = (ctx->reasoning_stack.top >= 0) ? ctx->reasoning_stack.top + 1 : 0;
@@ -723,7 +617,7 @@ int lv_context_get_reasoning_depth(const lvContext *ctx) {
     if (!ctx) {
         return 0;
     }
-    return ctx->reasoning_stack.top + 1;
+    return lv_reasoning_stack_count(&ctx->reasoning_stack);
 }
 
 /**
@@ -733,10 +627,7 @@ ReasoningFrame *lv_context_get_current_reasoning_frame(lvContext *ctx) {
     if (!ctx) {
         return NULL;
     }
-    if (ctx->reasoning_stack.top < 0 || !ctx->reasoning_stack.frames) {
-        return NULL;
-    }
-    return &ctx->reasoning_stack.frames[ctx->reasoning_stack.top];
+    return lv_reasoning_stack_top(&ctx->reasoning_stack);
 }
 /* ============================================================
  * 第九部分：熔断器 API
@@ -1322,26 +1213,7 @@ void lv_context_reset(lvContext *ctx) {
     lv_context_enter_uncancellable(ctx);
 
     /* 1. 释放推理栈帧 */
-    if (ctx->reasoning_stack.frames) {
-        for (int i = 0; i <= ctx->reasoning_stack.top && i < ctx->reasoning_stack.capacity; i++) {
-            ReasoningFrame *frame = &ctx->reasoning_stack.frames[i];
-            if (frame->graph_snapshot) {
-                graph_destroy((ConstraintGraph *) frame->graph_snapshot);
-                frame->graph_snapshot = NULL;
-            }
-            if (frame->assumption_node_ids) {
-                lv_free((void **) &frame->assumption_node_ids);
-            }
-            if (frame->target_node_ids) {
-                lv_free((void **) &frame->target_node_ids);
-            }
-        }
-        lv_free((void **) &ctx->reasoning_stack.frames);
-    }
-    ctx->reasoning_stack.frames = NULL;
-    ctx->reasoning_stack.top = -1;
-    ctx->reasoning_stack.capacity = 0;
-    ctx->reasoning_stack.max_depth = lv_CONTEXT_REASONING_STACK_MAX_DEPTH;
+    lv_reasoning_stack_clear(&ctx->reasoning_stack);
 
     /* 2. 清除缓存 */
     lv_context_clear_cache(ctx);

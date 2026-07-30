@@ -1,0 +1,113 @@
+/* 函数指针表：graph_to_formula 节点格式化 */
+typedef void (*GtfNodeFunc)(const GeomNode *node, const char *name,
+                             GraphToFormulaResult *result,
+                             size_t *ll, size_t *pl, size_t *dl,
+                             size_t ls, size_t ps, size_t ds);
+
+static void gtf_point(const GeomNode *node, const char *name,
+                       GraphToFormulaResult *r,
+                       size_t *ll, size_t *pl, size_t *dl,
+                       size_t ls, size_t ps, size_t ds) {
+    double x=0,y=0;
+    if(node->symbolic_coords&&node->coord_count>=2){
+        x=symbolic_coord_to_double(node->symbolic_coords[0]);
+        y=symbolic_coord_to_double(node->symbolic_coords[1]);
+    }
+    char b[512];
+    int n=snprintf(b,sizeof(b),"%s = \\left(%.2f, %.2f\\right)\\\\\n",name,x,y);
+    if(n>0&&*ll+(size_t)n<ls){memcpy(r->latex_output+*ll,b,(size_t)n);*ll+=(size_t)n;r->latex_output[*ll]='\0';}
+    n=snprintf(b,sizeof(b),"%s = Point(%.2f, %.2f)\n",name,x,y);
+    if(n>0&&*pl+(size_t)n<ps){memcpy(r->python_output+*pl,b,(size_t)n);*pl+=(size_t)n;r->python_output[*pl]='\0';}
+    n=snprintf(b,sizeof(b),"point %s(%.2f, %.2f); ",name,x,y);
+    if(n>0&&*dl+(size_t)n<ds){memcpy(r->dsl_output+*dl,b,(size_t)n);*dl+=(size_t)n;r->dsl_output[*dl]='\0';}
+}
+
+static void gtf_seg(const GeomNode *node, const char *name,
+                     GraphToFormulaResult *r,
+                     size_t *ll, size_t *pl, size_t *dl,
+                     size_t ls, size_t ps, size_t ds) {
+    char b[512];
+    int n=snprintf(b,sizeof(b),"\\overline{%s}\\\\\n",name);
+    if(n>0&&*ll+(size_t)n<ls){memcpy(r->latex_output+*ll,b,(size_t)n);*ll+=(size_t)n;r->latex_output[*ll]='\0';}
+    n=snprintf(b,sizeof(b),"%s = Segment()\n",name);
+    if(n>0&&*pl+(size_t)n<ps){memcpy(r->python_output+*pl,b,(size_t)n);*pl+=(size_t)n;r->python_output[*pl]='\0';}
+    n=snprintf(b,sizeof(b),"segment %s(); ",name);
+    if(n>0&&*dl+(size_t)n<ds){memcpy(r->dsl_output+*dl,b,(size_t)n);*dl+=(size_t)n;r->dsl_output[*dl]='\0';}
+}
+
+static void gtf_region(const GeomNode *node, const char *name,
+                        GraphToFormulaResult *r,
+                        size_t *ll, size_t *pl, size_t *dl,
+                        size_t ls, size_t ps, size_t ds) {
+    int seg_cnt=node->data.region.segment_count;
+    char seg_l[256]="";size_t seg_ll=0;
+    for(int j=0;j<seg_cnt&&j<10;j++){
+        char sn[64];
+        if(node->data.region.boundary_segments&&node->data.region.boundary_segments[j])
+            formula_node_to_name(node->data.region.boundary_segments[j],sn,sizeof(sn));
+        else snprintf(sn,sizeof(sn),"S?");
+        if(j>0&&seg_ll+2<sizeof(seg_l)){memcpy(seg_l+seg_ll,", ",2);seg_ll+=2;}
+        size_t snl=strlen(sn);
+        if(seg_ll+snl<sizeof(seg_l)){memcpy(seg_l+seg_ll,sn,snl);seg_ll+=snl;}
+    }
+    seg_l[seg_ll]='\0';
+    char b[512];
+    int n=snprintf(b,sizeof(b),"\\text{region } %s(\\{%s\\})\\\\\n",name,seg_l);
+    if(n>0&&*ll+(size_t)n<ls){memcpy(r->latex_output+*ll,b,(size_t)n);*ll+=(size_t)n;r->latex_output[*ll]='\0';}
+    n=snprintf(b,sizeof(b),"%s = Region([%s])\n",name,seg_l);
+    if(n>0&&*pl+(size_t)n<ps){memcpy(r->python_output+*pl,b,(size_t)n);*pl+=(size_t)n;r->python_output[*pl]='\0';}
+    n=snprintf(b,sizeof(b),"region %s(%s); ",name,seg_l);
+    if(n>0&&*dl+(size_t)n<ds){memcpy(r->dsl_output+*dl,b,(size_t)n);*dl+=(size_t)n;r->dsl_output[*dl]='\0';}
+}
+
+static void gtf_circle(const GeomNode *node, const char *name,
+                        GraphToFormulaResult *r,
+                        size_t *ll, size_t *pl, size_t *dl,
+                        size_t ls, size_t ps, size_t ds) {
+    char b[512];
+    int n=snprintf(b,sizeof(b),"\\text{circle } %s\\\\\n",name);
+    if(n>0&&*ll+(size_t)n<ls){memcpy(r->latex_output+*ll,b,(size_t)n);*ll+=(size_t)n;r->latex_output[*ll]='\0';}
+    n=snprintf(b,sizeof(b),"%s = Circle()\n",name);
+    if(n>0&&*pl+(size_t)n<ps){memcpy(r->python_output+*pl,b,(size_t)n);*pl+=(size_t)n;r->python_output[*pl]='\0';}
+    n=snprintf(b,sizeof(b),"circle %s(); ",name);
+    if(n>0&&*dl+(size_t)n<ds){memcpy(r->dsl_output+*dl,b,(size_t)n);*dl+=(size_t)n;r->dsl_output[*dl]='\0';}
+}
+
+static void gtf_port(const GeomNode *node, const char *name,
+                      GraphToFormulaResult *r,
+                      size_t *ll, size_t *pl, size_t *dl,
+                      size_t ls, size_t ps, size_t ds) {
+    const char *pts="unknown";
+    if(node->data.port) pts=(node->data.port->type==PORT_INPUT)?"input":"output";
+    char b[512];
+    int n=snprintf(b,sizeof(b),"\\text{port } %s(\\text{%s})\\\\\n",name,pts);
+    if(n>0&&*ll+(size_t)n<ls){memcpy(r->latex_output+*ll,b,(size_t)n);*ll+=(size_t)n;r->latex_output[*ll]='\0';}
+    n=snprintf(b,sizeof(b),"%s = Port('%s')\n",name,pts);
+    if(n>0&&*pl+(size_t)n<ps){memcpy(r->python_output+*pl,b,(size_t)n);*pl+=(size_t)n;r->python_output[*pl]='\0';}
+    n=snprintf(b,sizeof(b),"port %s(%s); ",name,pts);
+    if(n>0&&*dl+(size_t)n<ds){memcpy(r->dsl_output+*dl,b,(size_t)n);*dl+=(size_t)n;r->dsl_output[*dl]='\0';}
+}
+
+static void gtf_fb(const GeomNode *node, const char *name,
+                    GraphToFormulaResult *r,
+                    size_t *ll, size_t *pl, size_t *dl,
+                    size_t ls, size_t ps, size_t ds) {
+    int ic=node->data.func_block.input_count;
+    int oc=node->data.func_block.output_count;
+    char b[512];
+    int n=snprintf(b,sizeof(b),"\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n",name,ic,oc);
+    if(n>0&&*ll+(size_t)n<ls){memcpy(r->latex_output+*ll,b,(size_t)n);*ll+=(size_t)n;r->latex_output[*ll]='\0';}
+    n=snprintf(b,sizeof(b),"%s = FuncBlock(inputs=%d, outputs=%d)\n",name,ic,oc);
+    if(n>0&&*pl+(size_t)n<ps){memcpy(r->python_output+*pl,b,(size_t)n);*pl+=(size_t)n;r->python_output[*pl]='\0';}
+    n=snprintf(b,sizeof(b),"func_block %s(in=%d, out=%d); ",name,ic,oc);
+    if(n>0&&*dl+(size_t)n<ds){memcpy(r->dsl_output+*dl,b,(size_t)n);*dl+=(size_t)n;r->dsl_output[*dl]='\0';}
+}
+
+static const GtfNodeFunc s_gtf_node_funcs[] = {
+    [GEOM_POINT]=gtf_point,
+    [GEOM_LINE_SEGMENT]=gtf_seg,
+    [GEOM_REGION]=gtf_region,
+    [GEOM_CIRCLE]=gtf_circle,
+    [GEOM_PORT]=gtf_port,
+    [GEOM_FUNCTION_BLOCK]=gtf_fb,
+};
