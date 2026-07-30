@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geometric_primitives.c
  * @brief 13 个几何原语统一包装层实现
  *
@@ -21,6 +21,7 @@
  */
 
 #include "lv/geometric_primitives.h"
+#include "lv/lv_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -55,7 +56,7 @@ static inline GeoResult geo_ok(void *d) {
     return r;
 }
 static int *geo_dup_int(int v) {
-    int *p = (int *) malloc(sizeof(int));
+    int *p = (int *) lv_malloc(sizeof(int));
     if (p)
         *p = v;
     return p;
@@ -70,7 +71,7 @@ GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type, const int *i
         case GEO_NODE_POINT: {
             if (!ids || count < 1)
                 return geo_err(GEO_STATUS_INVALID_PARAM, "点至少需要一个坐标维度");
-            SymbolicCoord **c = (SymbolicCoord **) malloc((size_t) count * sizeof(SymbolicCoord *));
+            SymbolicCoord **c = (SymbolicCoord **) lv_malloc((size_t) count * sizeof(SymbolicCoord *));
             if (!c)
                 return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
             for (int i = 0; i < count; i++)
@@ -78,7 +79,7 @@ GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type, const int *i
             res = graph_add_point(graph, c, count);
             for (int i = 0; i < count; i++)
                 symbolic_coord_destroy(c[i]);
-            free(c);
+            lv_free((void **)&(c));
             break;
         }
         case GEO_NODE_LINE_SEGMENT:
@@ -259,26 +260,26 @@ GeoResult geo_instantiate(ConstraintGraph *graph, lvEngine *engine, int func_blo
         return geo_err(GEO_STATUS_INVALID_PARAM, "参数映射为空");
 
     /* 底层 API 要求非 const，需拷贝 */
-    int *mutable_args = (int *) malloc((size_t) arg_count * sizeof(int));
+    int *mutable_args = (int *) lv_malloc((size_t) arg_count * sizeof(int));
     if (!mutable_args)
         return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
     memcpy(mutable_args, args, (size_t) arg_count * sizeof(int));
 
     int result_count = 0;
     int *nodes = engine_instantiate_function(engine, func_block_id, mutable_args, arg_count, &result_count);
-    free(mutable_args);
+    lv_free((void **)&(mutable_args));
     if (!nodes)
         return geo_err(GEO_STATUS_NO_SOLUTION, "实例化失败");
 
     /* 打包为 [count, id0, id1, ...] */
-    int *out = (int *) malloc((size_t) (result_count + 1) * sizeof(int));
+    int *out = (int *) lv_malloc((size_t) (result_count + 1) * sizeof(int));
     if (!out) {
-        free(nodes);
+        lv_free((void **)&(nodes));
         return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
     }
     out[0] = result_count;
     memcpy(&out[1], nodes, (size_t) result_count * sizeof(int));
-    free(nodes);
+    lv_free((void **)&(nodes));
     return geo_ok(out);
 }
 
@@ -360,7 +361,7 @@ GeoResult geo_query(const ConstraintGraph *graph, const char *query, int target_
         return r;
     }
     if (strcmp(query, "count") == 0) {
-        int *cnt = (int *) malloc(2 * sizeof(int));
+        int *cnt = (int *) lv_malloc(2 * sizeof(int));
         if (!cnt)
             return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
         cnt[0] = graph_get_node_count(graph);

@@ -679,6 +679,7 @@ void proof_step_destroy(ProofStep *step) {
     lv_free((void **) &step->dependency_step_ids);
     lv_free((void **) &step->dependent_step_ids);
     lv_free((void **) &step->note);
+    lv_free((void **) &step->conclusion);
     lv_free((void **) &step);
 }
 

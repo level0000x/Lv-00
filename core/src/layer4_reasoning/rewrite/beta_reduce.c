@@ -41,7 +41,7 @@ static int constraint_index_by_id(const ConstraintGraph *graph, int constraint_i
         if (graph->constraints[i] && graph->constraints[i]->id == constraint_id)
             return i;
     }
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "constraint_index_by_id: constraint %d not found", constraint_id);
 }
 
 /**
@@ -119,14 +119,14 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
             if (source->coord_count > 0 && source->symbolic_coords) {
                 coords = lv_calloc((size_t) source->coord_count, sizeof(SymbolicCoord *));
                 if (!coords)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "duplicate_node: calloc coords failed");
                 for (int c = 0; c < source->coord_count; c++) {
                     coords[c] = symbolic_coord_copy(source->symbolic_coords[c]);
                     if (!coords[c]) {
                         for (int j = 0; j < c; j++)
                             symbolic_coord_destroy(coords[j]);
                         lv_free((void **) &coords);
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "duplicate_node: symbolic_coord_copy failed");
                     }
                 }
             }
@@ -138,7 +138,7 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
                 lv_free((void **) &coords);
             }
             if (nr != ADD_NODE_OK)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node: graph_add_point failed");
             int new_id = graph_get_last_added_node_id(graph);
             /* 复制 namespace_depth 和 parent_block_id */
             GeomNode *new_node = graph_get_node(graph, new_id);
@@ -152,13 +152,13 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
         case GEOM_PORT: {
             /* 复制 PORT 节点 */
             if (!source->data.port)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "duplicate_node: source port data is NULL");
             PortType pt = source->data.port->type;
             int depth = source->namespace_depth;
             int parent = source->parent_block_id;
             AddNodeResult nr = graph_add_port(graph, pt, depth, parent);
             if (nr != ADD_NODE_OK)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node: graph_add_port failed");
             int new_id = graph_get_last_added_node_id(graph);
             GeomNode *new_node = graph_get_node(graph, new_id);
             if (new_node && new_node->data.port) {
@@ -182,20 +182,20 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
             AddNodeResult nr = graph_add_point(graph, tmp_coords, 1);
             symbolic_coord_destroy(zc);
             if (nr != ADD_NODE_OK)
-                return -1;
-            int ep1_id = graph_get_last_added_node_id(graph);
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_point ep1 failed");
+    int ep1_id = graph_get_last_added_node_id(graph);
 
-            zc = symbolic_coord_create_rational(0, 1);
-            SymbolicCoord *tmp_coords2[] = {zc};
-            nr = graph_add_point(graph, tmp_coords2, 1);
-            symbolic_coord_destroy(zc);
-            if (nr != ADD_NODE_OK)
-                return -1;
-            int ep2_id = graph_get_last_added_node_id(graph);
+    zc = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *tmp_coords2[] = {zc};
+    nr = graph_add_point(graph, tmp_coords2, 1);
+    symbolic_coord_destroy(zc);
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_point ep2 failed");
+    int ep2_id = graph_get_last_added_node_id(graph);
 
-            nr = graph_add_line_segment(graph, ep1_id, ep2_id);
-            if (nr != ADD_NODE_OK)
-                return -1;
+    nr = graph_add_line_segment(graph, ep1_id, ep2_id);
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_line_segment failed");
             int new_id = graph_get_last_added_node_id(graph);
             GeomNode *new_node = graph_get_node(graph, new_id);
             if (new_node) {
@@ -210,7 +210,7 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
             int empty_segs[] = {0};
             AddNodeResult nr = graph_add_region(graph, empty_segs, 0);
             if (nr != ADD_NODE_OK)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_REGION): graph_add_region failed");
             int new_id = graph_get_last_added_node_id(graph);
             GeomNode *new_node = graph_get_node(graph, new_id);
             if (new_node) {
@@ -224,7 +224,7 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
             int empty_segs[] = {0};
             AddNodeResult nr = graph_add_region(graph, empty_segs, 0);
             if (nr != ADD_NODE_OK)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_CIRCLE): graph_add_region failed");
             int new_id = graph_get_last_added_node_id(graph);
             GeomNode *new_node = graph_get_node(graph, new_id);
             if (new_node) {
@@ -286,7 +286,7 @@ static int build_id_mapping(ConstraintGraph *graph, int func_block_id, const int
                 int new_id = duplicate_node(graph, node);
                 if (new_id < 0) {
                     LOG_ERROR("beta_reduce", "复制内部节点 %d 失败", old_id);
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "build_id_mapping: duplicate_node failed for internal node %d", old_id);
                 }
                 out_id_map[old_id] = new_id;
                 copy_count++;
@@ -323,9 +323,9 @@ static int build_id_mapping(ConstraintGraph *graph, int func_block_id, const int
 static bool remap_internal_constraints(ConstraintGraph *graph, const int *internal_ids, int internal_count,
                                        const int *id_map) {
     if (!graph || !internal_ids || !id_map)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "remap_internal_constraints: NULL parameter");
 
-    /* 先找出涉及内部节点的约束 */
+    /* 找出涉及内部节点的约束 */
     int max_constraints = graph->constraint_count;
     int *affected_target_ids = NULL;
     int affected_count = 0;
@@ -333,7 +333,7 @@ static bool remap_internal_constraints(ConstraintGraph *graph, const int *intern
     /* 标记哪些旧 ID 需要映射 */
     bool *needs_remap = lv_calloc((size_t) graph->next_node_id, sizeof(bool));
     if (!needs_remap)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "remap_internal_constraints: calloc needs_remap failed");
     memset(needs_remap, 0, (size_t) graph->next_node_id * sizeof(bool));
 
     for (int i = 0; i < internal_count; i++) {
@@ -455,7 +455,7 @@ static bool remap_internal_constraints(ConstraintGraph *graph, const int *intern
 
 bool beta_reduce_match(ConstraintGraph *graph, int *out_func_block_id, int *out_arg_node_id, int *out_output_port_id) {
     if (!graph || !out_func_block_id || !out_arg_node_id || !out_output_port_id) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "beta_reduce_match: NULL parameter");
     }
 
     *out_func_block_id = -1;
@@ -619,19 +619,19 @@ bool beta_reduce_match(ConstraintGraph *graph, int *out_func_block_id, int *out_
 
 bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id, int arg_node_id, int output_port_id) {
     if (!graph)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "beta_reduce_apply: graph is NULL");
 
     GeomNode *func_node = graph_get_node(graph, func_block_id);
     if (!func_node || func_node->type != GEOM_FUNCTION_BLOCK) {
         LOG_WARN("beta_reduce", "函数块 %d 不存在或类型不正确", func_block_id);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "beta_reduce_apply: invalid func_block %d", func_block_id);
     }
 
     /* 检查实参节点 */
     GeomNode *arg_node = graph_get_node(graph, arg_node_id);
     if (!arg_node) {
         LOG_WARN("beta_reduce", "实参节点 %d 不存在", arg_node_id);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "beta_reduce_apply: arg_node %d not found", arg_node_id);
     }
 
     /* 获取内部节点信息 */
@@ -640,7 +640,7 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id, int arg_node_i
 
     if (internal_count <= 0 || !internal_nodes) {
         LOG_WARN("beta_reduce", "函数块 %d 无内部节点", func_block_id);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "beta_reduce_apply: func_block %d has no internal nodes", func_block_id);
     }
 
     LOG_DEBUG("beta_reduce", "β-归约应用: func_block=%d, arg=%d, internal_count=%d", func_block_id, arg_node_id,
@@ -649,7 +649,7 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id, int arg_node_i
     /* Step 1: 构建内部节点 ID 数组 */
     int *internal_ids = lv_calloc((size_t) internal_count, sizeof(int));
     if (!internal_ids)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "beta_reduce_apply: calloc internal_ids failed");
     for (int i = 0; i < internal_count; i++) {
         internal_ids[i] = internal_nodes[i] ? internal_nodes[i]->id : -1;
     }
@@ -660,7 +660,7 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id, int arg_node_i
     int *id_map = lv_calloc((size_t) map_size, sizeof(int));
     if (!id_map) {
         lv_free((void **) &internal_ids);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "beta_reduce_apply: calloc id_map failed");
     }
     memset(id_map, -1, (size_t) map_size * sizeof(int));
 
@@ -669,7 +669,7 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id, int arg_node_i
     if (copy_count < 0) {
         lv_free((void **) &internal_ids);
         lv_free((void **) &id_map);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INTERNAL, "beta_reduce_apply: build_id_mapping failed");
     }
 
     /* Step 4: 重建涉及内部节点的约束（使用 ID 映射） */
@@ -677,7 +677,7 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id, int arg_node_i
         LOG_WARN("beta_reduce", "重建内部约束失败");
         lv_free((void **) &internal_ids);
         lv_free((void **) &id_map);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INTERNAL, "beta_reduce_apply: remap_internal_constraints failed");
     }
 
     /* Step 5: 将输出端口的外部消费者重连到复制的内部输出端口副本。

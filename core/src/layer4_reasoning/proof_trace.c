@@ -43,9 +43,7 @@ typedef struct ProofStep {
  * @brief 证明追踪结构
  */
 struct ProofTrace {
-    ProofStep *steps;   /**< 步骤数组 */
-    int step_count;     /**< 当前步骤数 */
-    int capacity;       /**< 数组容量 */
+    lvDArray steps;     /**< 步骤数组 */
     bool complete;      /**< 是否完成 */
     int64_t start_time; /**< 开始时间 */
     int64_t end_time;   /**< 结束时间 */
@@ -65,14 +63,12 @@ static ProofTrace *proof_trace_internal_create(void) {
     if (!trace)
         return NULL;
 
-    trace->capacity = 64;
-    trace->steps = lv_calloc((size_t) trace->capacity, sizeof(ProofStep));
-    if (!trace->steps) {
+    lv_darray_init(&trace->steps, sizeof(ProofStep));
+    if (!lv_darray_reserve(&trace->steps, 64)) {
         lv_free((void **) &trace);
         return NULL;
     }
 
-    trace->step_count = 0;
     trace->complete = false;
     trace->start_time = (int64_t) time(NULL);
 
@@ -87,7 +83,7 @@ static ProofTrace *proof_trace_internal_create(void) {
 static void proof_trace_internal_destroy(ProofTrace *trace) {
     if (!trace)
         return;
-    lv_free((void **) &trace->steps);
+    lv_darray_free(&trace->steps);
     lv_free((void **) &trace);
 }
 
@@ -103,37 +99,26 @@ int lv_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *sta
     if (!trace || !rule)
         return -1;
 
-    /* 扩容检查 */
-    if (trace->step_count >= trace->capacity) {
-        if (trace->capacity > INT_MAX / 2)
-            return -1;
-        int new_cap = trace->capacity * 2;
-        ProofStep *new_steps = lv_realloc(trace->steps, (size_t) new_cap * sizeof(ProofStep));
-        if (!new_steps)
-            return -1;
-        trace->steps = new_steps;
-        trace->capacity = new_cap;
-    }
-
-    /* 添加步骤 */
-    ProofStep *step = &trace->steps[trace->step_count];
-    step->step_id = trace->step_count;
+    /* 准备新步骤 */
+    ProofStep step;
+    memset(&step, 0, sizeof(step));
+    step.step_id = trace->steps.count;
 
     /* 复制规则名称（截断保护） */
-    strncpy(step->rule, rule, MAX_RULE_NAME_LENGTH - 1);
-    step->rule[MAX_RULE_NAME_LENGTH - 1] = '\0';
+    strncpy(step.rule, rule, MAX_RULE_NAME_LENGTH - 1);
+    step.rule[MAX_RULE_NAME_LENGTH - 1] = '\0';
 
     /* 状态描述：使用调用者提供的 state 字符串，无则留空 */
     if (state) {
-        strncpy(step->state_desc, (const char *) state, MAX_STATE_DESC_LENGTH - 1);
-        step->state_desc[MAX_STATE_DESC_LENGTH - 1] = '\0';
+        strncpy(step.state_desc, (const char *) state, MAX_STATE_DESC_LENGTH - 1);
+        step.state_desc[MAX_STATE_DESC_LENGTH - 1] = '\0';
     } else {
-        step->state_desc[0] = '\0';
+        step.state_desc[0] = '\0';
     }
 
-    step->timestamp = (int64_t) time(NULL);
+    step.timestamp = (int64_t) time(NULL);
 
-    return trace->step_count++;
+    return lv_darray_push(&trace->steps, &step);
 }
 
 /**
@@ -165,7 +150,7 @@ void lv_proof_trace_mark_complete(ProofTrace *trace) {
  * @return 步骤数量，若 trace 为 NULL 则返回 0
  */
 int lv_proof_trace_get_step_count(const ProofTrace *trace) {
-    return trace ? trace->step_count : 0;
+    return trace ? trace->steps.count : 0;
 }
 
 /**
@@ -176,10 +161,10 @@ int lv_proof_trace_get_step_count(const ProofTrace *trace) {
  * @return 规则名称字符串，若索引无效则返回 NULL
  */
 const char *lv_proof_trace_get_rule(const ProofTrace *trace, int step_index) {
-    if (!trace || step_index < 0 || step_index >= trace->step_count) {
+    if (!trace || step_index < 0 || step_index >= trace->steps.count)
         return NULL;
-    }
-    return trace->steps[step_index].rule;
+    ProofStep *step = (ProofStep *)lv_darray_get(&trace->steps, step_index);
+    return step ? step->rule : NULL;
 }
 
 /**
@@ -193,7 +178,7 @@ char *lv_proof_trace_export(const ProofTrace *trace) {
         return NULL;
 
     /* 分配输出缓冲区 */
-    size_t buf_size = (size_t) trace->step_count * 256 + 1024;
+    size_t buf_size = (size_t) trace->steps.count * 256 + 1024;
     char *buf = lv_malloc(buf_size);
     if (!buf)
         return NULL;
@@ -211,11 +196,11 @@ char *lv_proof_trace_export(const ProofTrace *trace) {
     } while (0)
 
     TRACE_WRITE("=== 证明追踪 ===\n");
-    TRACE_WRITE("步骤数: %d\n", trace->step_count);
+    TRACE_WRITE("步骤数: %d\n", trace->steps.count);
     TRACE_WRITE("状态: %s\n\n", trace->complete ? "完成" : "进行中");
 
-    for (int i = 0; i < trace->step_count; i++) {
-        ProofStep *step = &trace->steps[i];
+    for (int i = 0; i < trace->steps.count; i++) {
+        ProofStep *step = (ProofStep *)lv_darray_get(&trace->steps, i);
         TRACE_WRITE("步骤 %d: %s", step->step_id, step->rule);
         if (step->state_desc[0] != '\0') {
             TRACE_WRITE(" [%s]", step->state_desc);

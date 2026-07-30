@@ -42,13 +42,9 @@ static lvProofTreeNode *create_node(int id, int depth, const char *desc, const c
     n->is_contradiction = false;
     n->is_contradiction_branch = false;
     n->parent = NULL;
-    n->children = NULL;
-    n->child_count = 0;
-    n->child_capacity = 0;
+    lv_darray_init(&n->children, sizeof(lvProofTreeNode *));
     n->step_index = 0;
-    n->premises = NULL;
-    n->premise_count = 0;
-    n->premise_capacity = 0;
+    lv_darray_init(&n->premises, sizeof(lvProofPremise));
     n->axiom_used = desc ? lv_strdup(desc) : NULL;
     n->conclusion = detail ? lv_strdup(detail) : NULL;
     return n;
@@ -64,59 +60,18 @@ static lvProofTreeNode *create_node(int id, int depth, const char *desc, const c
 static void free_node_recursive(lvProofTreeNode *n) {
     if (!n)
         return;
-    for (int i = 0; i < n->child_count; i++) {
-        free_node_recursive(n->children[i]);
+    for (int i = 0; i < n->children.count; i++) {
+        lvProofTreeNode **child = (lvProofTreeNode **)lv_darray_get(&n->children, i);
+        free_node_recursive(*child);
     }
-    lv_free((void **) &(n->children));
-    lv_free((void **) &(n->premises));
+    lv_darray_free(&n->children);
+    lv_darray_free(&n->premises);
     lv_free((void **) &n->axiom_used);
     lv_free((void **) &n->conclusion);
     lv_free((void **) &(n));
 }
 
-/**
- * @brief 确保证明树的全节点数组有足够容量
- *
- * 当 node_count 达到 node_capacity 时，将容量翻倍。
- *
- * @param tree 证明树指针
- * @return true 容量充足或扩展成功，false 扩展失败
- */
-static bool ensure_node_capacity(lvProofTree *tree) {
-    if (tree->node_count < tree->node_capacity)
-        return true;
-    int new_cap = tree->node_capacity * 2;
-    lvProofTreeNode **p = (lvProofTreeNode **) lv_realloc(tree->all_nodes, (size_t) new_cap * sizeof(lvProofTreeNode *));
-    if (!p)
-        return false;
-    tree->all_nodes = p;
-    tree->node_capacity = new_cap;
-    return true;
-}
-
-/**
- * @brief 确保父节点的子节点数组有足够容量
- *
- * 当 child_count 达到 child_capacity 时，将容量翻倍（最小为 INITIAL_CHILD_CAPACITY）。
- *
- * @param parent 父节点指针
- * @return true 容量充足或扩展成功，false 扩展失败
- */
-static bool ensure_child_capacity(lvProofTreeNode *parent) {
-    if (parent->child_count < parent->child_capacity)
-        return true;
-    int new_cap = parent->child_capacity > 0 ? parent->child_capacity * 2 : INITIAL_CHILD_CAPACITY;
-    if (parent->child_capacity > 0 && parent->child_capacity > INT_MAX / 2)
-        return false;
-    if ((size_t) new_cap > SIZE_MAX / sizeof(lvProofTreeNode *))
-        return false;
-    lvProofTreeNode **p = (lvProofTreeNode **) lv_realloc(parent->children, (size_t) new_cap * sizeof(lvProofTreeNode *));
-    if (!p)
-        return false;
-    parent->children = p;
-    parent->child_capacity = new_cap;
-    return true;
-}
+/* lvDArray 已提供扩容，不再需要单独的 ensure_*_capacity 函数 */
 
 /**
  * @brief 创建新的证明树
@@ -142,16 +97,15 @@ lvProofTree *lv_proof_tree_create(const char *name, const char *strategy) {
     tree->theorem_name = name ? lv_strdup(name) : NULL;
     tree->proof_strategy = strategy ? lv_strdup(strategy) : NULL;
 
-    tree->node_capacity = INITIAL_NODE_CAPACITY;
-    tree->all_nodes = (lvProofTreeNode **) lv_calloc((size_t) tree->node_capacity, sizeof(lvProofTreeNode *));
-    if (!tree->all_nodes) {
+    lv_darray_init(&tree->all_nodes, sizeof(lvProofTreeNode *));
+    if (!lv_darray_reserve(&tree->all_nodes, INITIAL_NODE_CAPACITY)) {
         lv_free((void **) &(tree));
         return NULL;
     }
 
     lvProofTreeNode *root = create_node(0, 0, NULL, NULL);
     if (!root) {
-        lv_free((void **) &(tree->all_nodes));
+        lv_darray_free(&tree->all_nodes);
         lv_free((void **) &(tree));
         return NULL;
     }
@@ -159,8 +113,7 @@ lvProofTree *lv_proof_tree_create(const char *name, const char *strategy) {
     tree->root = root;
     root->step_index = -1; /* Root node has no step index */
     root->conclusion = name ? lv_strdup(name) : NULL;
-    tree->all_nodes[0] = root;
-    tree->node_count = 1;
+    lv_darray_push(&tree->all_nodes, &root);
     tree->next_id = 1;
     tree->total_steps = 0;
     tree->max_depth = 0;
@@ -179,7 +132,7 @@ void lv_proof_tree_destroy(lvProofTree *tree) {
     if (!tree)
         return;
     free_node_recursive(tree->root);
-    lv_free((void **) &(tree->all_nodes));
+    lv_darray_free(&tree->all_nodes);
     lv_free((void **) &tree->theorem_name);
     lv_free((void **) &tree->proof_strategy);
     lv_free((void **) &(tree));
@@ -216,15 +169,14 @@ lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *pare
     node->parent = par;
     node->step_index = tree->total_steps;
 
-    if (!ensure_child_capacity(par)) {
+    /* 使用 lv_darray_push 追加子节点（自动扩容） */
+    if (lv_darray_push(&par->children, &node) < 0) {
         free_node_recursive(node);
         return NULL;
     }
-    par->children[par->child_count++] = node;
 
-    if (!ensure_node_capacity(tree))
-        return node;
-    tree->all_nodes[tree->node_count++] = node;
+    /* 注册到全节点数组 */
+    lv_darray_push(&tree->all_nodes, &node);
     tree->total_steps++;
     if (new_depth > tree->max_depth)
         tree->max_depth = new_depth;
@@ -247,26 +199,16 @@ void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negat
         return;
     lvProofTreeNode *node = (lvProofTreeNode *) tree;
 
-    /* Ensure capacity */
-    if (node->premise_count >= node->premise_capacity) {
-        int new_cap = node->premise_capacity > 0 ? node->premise_capacity * 2 : 4;
-        lvProofPremise *p = (lvProofPremise *) lv_realloc(node->premises, (size_t) new_cap * sizeof(lvProofPremise));
-        if (!p)
-            return;
-        node->premises = p;
-        node->premise_capacity = new_cap;
-    }
-
-    lvProofPremise *premise = &node->premises[node->premise_count];
-    premise->premise_id = idx;
+    /* 使用 lv_darray_push 自动扩容 */
+    lvProofPremise premise;
+    memset(&premise, 0, sizeof(premise));
+    premise.premise_id = idx;
     if (name) {
-        strncpy(premise->description, name, sizeof(premise->description) - 1);
-        premise->description[sizeof(premise->description) - 1] = '\0';
-    } else {
-        premise->description[0] = '\0';
+        strncpy(premise.description, name, sizeof(premise.description) - 1);
+        premise.description[sizeof(premise.description) - 1] = '\0';
     }
-    premise->is_axiom = negated;
-    node->premise_count++;
+    premise.is_axiom = negated;
+    lv_darray_push(&node->premises, &premise);
 }
 
 /**
@@ -327,8 +269,9 @@ static void export_node(const lvProofTreeNode *n, int indent, char **buf, size_t
     *len += (size_t) written;
     (*buf)[*len] = '\0';
 
-    for (int i = 0; i < n->child_count; i++) {
-        export_node(n->children[i], indent + 1, buf, len, cap);
+    for (int i = 0; i < n->children.count; i++) {
+        lvProofTreeNode **child = (lvProofTreeNode **)lv_darray_get(&n->children, i);
+        export_node(*child, indent + 1, buf, len, cap);
     }
 }
 

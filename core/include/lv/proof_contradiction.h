@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_contradiction.h
  * @brief 反证法与矛盾推演系统
  *
@@ -43,9 +43,7 @@ typedef struct lvAssumptionEntry {
 } lvAssumptionEntry;
 /* ============== 假设栈 ============== */
 struct lvAssumptionStack {
-    lvAssumptionEntry *entries;   /**< 假设条目数组 */
-    int count;                    /**< 当前假设数量 */
-    int capacity;                 /**< 栈容量 */
+    lvDArray entries;             /**< 假设条目数组 (lvAssumptionEntry) */
     int max_depth;                /**< 最大嵌套深度 */
     lvProofScopeId current_scope; /**< 当前作用域ID */
 };
@@ -93,12 +91,8 @@ struct lvContradictionBreakpoint {
 struct lvProofNavigatorEx {
     ProofNavigator base; /**< 基类证明导航器 */
     lvAssumptionStack *assumption_stack;
-    lvContradictionClosure **closures;
-    int closure_count;
-    int closure_capacity;
-    lvContradictionBreakpoint **breakpoints;
-    int breakpoint_count;
-    int breakpoint_capacity;
+    lvDArray closures;             /**< lvContradictionClosure * 指针数组 */
+    lvDArray breakpoints;          /**< lvContradictionBreakpoint * 指针数组 */
     int total_assumptions;
     int total_closures;
     int total_breakpoints;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_equation_extract.c
  * @brief 从约束图提取代数方程的增强版本
  *
@@ -128,7 +128,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                             break;
@@ -145,7 +145,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
 
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                             break;
@@ -210,7 +210,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     mpz_poly_t poly;
                     mpz_poly_init(&poly);
                     poly.degree = 1;
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
+                    poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                     if (!poly.coeffs) {
                         mpz_poly_clear(&poly);
                         continue;
@@ -227,7 +227,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
 
                     mpz_poly_init(&poly);
                     poly.degree = 1;
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
+                    poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                     if (!poly.coeffs) {
                         mpz_poly_clear(&poly);
                         continue;
@@ -299,7 +299,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                     mpz_poly_t poly;
                                     mpz_poly_init(&poly);
                                     poly.degree = 1;
-                                    poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                    poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                                     if (!poly.coeffs) {
                                         mpz_poly_clear(&poly);
                                     } else {
@@ -321,7 +321,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                     mpz_poly_t poly;
                                     mpz_poly_init(&poly);
                                     poly.degree = 1;
-                                    poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                    poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                                     if (!poly.coeffs) {
                                         mpz_poly_clear(&poly);
                                     } else {
@@ -361,7 +361,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                             mpz_poly_t poly;
                             mpz_poly_init(&poly);
                             poly.degree = 1;
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                             if (!poly.coeffs) {
                                 mpz_poly_clear(&poly);
                                 continue;
@@ -378,7 +378,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
 
                             mpz_poly_init(&poly);
                             poly.degree = 1;
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                             if (!poly.coeffs) {
                                 mpz_poly_clear(&poly);
                                 continue;
@@ -441,7 +441,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                 mpz_poly_t poly;
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
-                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                                 if (!poly.coeffs) {
                                     mpz_poly_clear(&poly);
                                 } else {
@@ -463,7 +463,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                 mpz_poly_t poly;
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
-                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                                 if (!poly.coeffs) {
                                     mpz_poly_clear(&poly);
                                 } else {
@@ -508,7 +508,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                         } else {
@@ -525,7 +525,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
 
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                         } else {
@@ -597,7 +597,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 2;
-                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     break;
@@ -616,7 +616,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
 
                 mpz_poly_init(&poly);
                 poly.degree = 2;
-                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     break;
@@ -675,7 +675,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 2;
-                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     continue;
@@ -694,7 +694,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
 
                 mpz_poly_init(&poly);
                 poly.degree = 2;
-                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     continue;

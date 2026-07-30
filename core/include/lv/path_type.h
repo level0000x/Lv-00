@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file path_type.h
  * @brief 路径类型系统 —— 借鉴 Arend 同伦类型论（HoTT）的路径类型设计
  *
@@ -28,6 +28,7 @@
 
 #include "constraint_graph.h"
 #include "unify.h"
+#include "lv/lv_utils.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -179,15 +180,11 @@ typedef struct {
  * 6. 调用 path_system_destroy() 清理
  */
 struct lvPathSystem {
-    lvPath *paths;                       /**< 路径动态数组 */
-    int path_count;                      /**< 当前路径数量 */
-    int path_capacity;                   /**< 路径数组容量 */
+    lvDArray paths_da;                   /**< 路径动态数组 */
     lvInterval *intervals;               /**< 区间实例池 */
     int interval_count;                  /**< 当前区间数量 */
     int interval_capacity;               /**< 区间池容量 */
-    lvPathCoercionContext *coe_contexts; /**< 路径消去上下文数组 */
-    int coe_count;                       /**< 当前消去上下文数量 */
-    int coe_capacity;                    /**< 消去上下文容量 */
+    lvDArray coe_contexts_da;            /**< 路径消去上下文数组 */
     bool is_initialized;                 /**< 系统初始化状态 */
     int64_t init_time_us;                /**< 系统初始化时间戳 */
 };

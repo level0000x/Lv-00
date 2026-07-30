@@ -1,4 +1,4 @@
-﻿#ifndef lv_GEOMETRY_TRANSFORM_H
+#ifndef lv_GEOMETRY_TRANSFORM_H
 #define lv_GEOMETRY_TRANSFORM_H
 
 #ifdef __cplusplus
@@ -8,6 +8,8 @@ extern "C" {
 #include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+#include "lv/lv_utils.h"
 
 /* -- 前向声明 -- */
 struct ConstraintGraph;
@@ -112,9 +114,7 @@ typedef struct lvTransform {
 
 /* -- Transform sequence -- */
 typedef struct {
-    lvTransform **transforms;
-    int count;
-    int capacity;
+    lvDArray transforms_da;
     bool composite_valid;
 } lvTransformSequence;
 

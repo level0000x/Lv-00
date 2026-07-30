@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_coord_extract.c
  * @brief 坐标提取与方程提取
  *
@@ -554,7 +554,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                             if (!poly.coeffs) {
                                 mpz_poly_clear(&poly);
                                 mpz_clear(dx_s);
@@ -588,7 +588,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                             if (!poly.coeffs) {
                                 mpz_poly_clear(&poly);
                                 mpz_clear(dx_s);
@@ -632,7 +632,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
                                 /* GMP 要求使用标准分配器 */
-                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                                 if (!poly.coeffs) {
                                     mpz_poly_clear(&poly);
                                     break;
@@ -647,7 +647,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
                                 /* GMP 要求使用标准分配器 */
-                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                                 if (!poly.coeffs) {
                                     mpz_poly_clear(&poly);
                                     break;
@@ -811,7 +811,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                             if (poly.coeffs) {
                                 mpz_init(poly.coeffs[1]);
                                 mpz_init(poly.coeffs[0]);
@@ -826,7 +826,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                             if (poly.coeffs) {
                                 mpz_init(poly.coeffs[1]);
                                 mpz_init(poly.coeffs[0]);
@@ -948,7 +948,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
                          * 因此此处必须使用标准 malloc 而非 lv_malloc。
                          * lv_SOLVER_LINEAR_COEFF_COUNT 为常量，不存在溢出风险。 */
-                        poly.coeffs = malloc(lv_SOLVER_LINEAR_COEFF_COUNT * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(lv_SOLVER_LINEAR_COEFF_COUNT * sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                             break;
@@ -964,7 +964,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         mpz_poly_init(&poly);
                         poly.degree = 1;
                         /* GMP 要求使用标准分配器 */
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                             break;
@@ -1022,7 +1022,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                         if (poly.coeffs) {
                             mpz_init(poly.coeffs[1]);
                             mpz_init(poly.coeffs[0]);
@@ -1047,7 +1047,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                         if (poly.coeffs) {
                             mpz_init(poly.coeffs[1]);
                             mpz_init(poly.coeffs[0]);
@@ -1128,7 +1128,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_poly_t poly;
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
-                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                                 if (poly.coeffs) {
                                     mpz_init(poly.coeffs[1]);
                                     mpz_init(poly.coeffs[0]);
@@ -1153,7 +1153,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_poly_t poly;
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
-                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                                 if (poly.coeffs) {
                                     mpz_init(poly.coeffs[1]);
                                     mpz_init(poly.coeffs[0]);
@@ -1250,7 +1250,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
                  * 因此此处必须使用标准 malloc 而非 lv_malloc。
                  * lv_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
-                poly.coeffs = malloc(lv_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(lv_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     break;
@@ -1268,7 +1268,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 mpz_poly_init(&poly);
                 poly.degree = 2;
                 /* GMP 要求使用标准分配器 */
-                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     break;
@@ -1347,7 +1347,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
                  * 因此此处必须使用标准 malloc 而非 lv_malloc。
                  * lv_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
-                poly.coeffs = malloc(lv_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(lv_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     continue;
@@ -1365,7 +1365,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 mpz_poly_init(&poly);
                 poly.degree = 2;
                 /* GMP 要求使用标准分配器 */
-                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     continue;

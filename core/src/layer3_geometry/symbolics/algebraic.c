@@ -580,7 +580,7 @@ Algebraic *algebraic_from_rational(const Rational *r) {
 
     mpz_poly_init(&a->minimal_poly);
     a->minimal_poly.degree = 0;
-    a->minimal_poly.coeffs = malloc(sizeof(mpz_t));
+    a->minimal_poly.coeffs = lv_malloc(sizeof(mpz_t));
     if (!a->minimal_poly.coeffs) {
         mpz_poly_clear(&a->minimal_poly);
         lv_free((void **) &a);
@@ -634,7 +634,7 @@ Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     double actual_val = a_val + b_val * sqrt_n;
 
     alg->minimal_poly.degree = 2;
-    alg->minimal_poly.coeffs = malloc(3 * sizeof(mpz_t));
+    alg->minimal_poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
     if (!alg->minimal_poly.coeffs) {
         mpz_poly_clear(&alg->minimal_poly);
         lv_free((void **) &alg); /* lv_malloc分配 */
@@ -951,7 +951,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
         mpz_poly_init(&result->minimal_poly);
         result->minimal_poly.degree = b->minimal_poly.degree;
         if (b->minimal_poly.degree >= 0) {
-            result->minimal_poly.coeffs = malloc((b->minimal_poly.degree + 1) * sizeof(mpz_t));
+            result->minimal_poly.coeffs = lv_malloc((b->minimal_poly.degree + 1) * sizeof(mpz_t));
             if (!result->minimal_poly.coeffs) {
                 lv_free((void **) &result);
                 return NULL;
@@ -994,7 +994,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     mpz_poly_init(&neg_b_poly);
     neg_b_poly.degree = b->minimal_poly.degree;
     if (b->minimal_poly.degree >= 0) {
-        neg_b_poly.coeffs = malloc((b->minimal_poly.degree + 1) * sizeof(mpz_t));
+        neg_b_poly.coeffs = lv_malloc((b->minimal_poly.degree + 1) * sizeof(mpz_t));
         if (!neg_b_poly.coeffs) {
             mpz_poly_clear(&neg_b_poly);
             return NULL;
@@ -1170,7 +1170,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     int deg_b = b->minimal_poly.degree;
     if (deg_b >= 0) {
         result_poly->degree = deg_b;
-        result_poly->coeffs = malloc((deg_b + 1) * sizeof(mpz_t));
+        result_poly->coeffs = lv_malloc((deg_b + 1) * sizeof(mpz_t));
         if (!result_poly->coeffs) {
             mpz_poly_clear(result_poly);
             lv_free((void **) &result_poly);

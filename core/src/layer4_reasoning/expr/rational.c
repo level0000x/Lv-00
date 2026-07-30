@@ -736,7 +736,7 @@ char *lv_rational_to_string(const lvRational *r) {
         if (!gmp_str)
             return NULL;
         size_t slen = strlen(gmp_str);
-        char *result = (char *) malloc(slen + 1);
+        char *result = (char *) lv_malloc(slen + 1);
         if (!result) {
             free(gmp_str);
             return NULL;
@@ -757,7 +757,7 @@ char *lv_rational_to_string(const lvRational *r) {
     }
 
     size_t len = strlen(num_str) + strlen(den_str) + 2; /* num + '/' + den + '\0' */
-    char *result = (char *) malloc(len);
+    char *result = (char *) lv_malloc(len);
     if (!result) {
         free(num_str); /* GMP分配，用标准 free 释放 */
         free(den_str); /* GMP分配，用标准 free 释放 */

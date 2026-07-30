@@ -220,8 +220,7 @@ struct lvPluginSystem {
     size_t interface_capacity;
 
     /* 搜索路径 */
-    char **search_paths;
-    size_t search_path_count;
+    lvDArray search_paths;
 
     /* 系统上下文 */
     lvContext *lv_context;

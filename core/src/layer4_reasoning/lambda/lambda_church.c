@@ -375,16 +375,16 @@ LvLambdaTerm *lv_church_eq(void) {
     LvLambdaTerm *sub_term = lv_church_sub();
     LvLambdaTerm *iszero_term = lv_church_iszero();
     LvLambdaTerm *and_term = lv_church_and();
-    /* iszero (sub m n) */
+    /* iszero (sub m n) — 第一次使用，sub_term/iszero_term 所有权转移给子树 */
     LvLambdaTerm *sub_mn = lv_lambda_create_app(
         lv_lambda_create_app(sub_term, lv_lambda_create_var(1)),
         lv_lambda_create_var(0));
     LvLambdaTerm *iszero_mn = lv_lambda_create_app(iszero_term, sub_mn);
-    /* iszero (sub n m) */
+    /* iszero (sub n m) — 第二次使用，必须复制 term 避免 double-free */
     LvLambdaTerm *sub_nm = lv_lambda_create_app(
-        lv_lambda_create_app(lv_lambda_copy(sub_term), lv_lambda_create_var(0)),
+        lv_lambda_create_app(lv_lambda_copy(lv_church_sub()), lv_lambda_create_var(0)),
         lv_lambda_create_var(1));
-    LvLambdaTerm *iszero_nm = lv_lambda_create_app(iszero_term, sub_nm);
+    LvLambdaTerm *iszero_nm = lv_lambda_create_app(lv_lambda_copy(lv_church_iszero()), sub_nm);
     /* and */
     LvLambdaTerm *body = lv_lambda_create_app(
         lv_lambda_create_app(and_term, iszero_mn), iszero_nm);
@@ -418,4 +418,115 @@ LvLambdaTerm *lv_church_y_combinator(void) {
                                 lv_lambda_create_app(lv_lambda_create_var(0), lv_lambda_create_var(0))));
     LvLambdaTerm *body = lv_lambda_create_app(lv_lambda_copy(inner), inner);
     return lv_lambda_create_abs(0, body);
+}
+
+/* ================================================================
+ *  扩展 Church 运算
+ * ================================================================ */
+
+/**
+ * div = Y (λf.λm.λn.if (leq n m) (succ (f (sub m n) n)) 0)
+ * De Bruijn: f=2, m=1, n=0
+ */
+LvLambdaTerm *lv_church_div(void) {
+    LvLambdaTerm *y = lv_church_y_combinator();
+
+    /* n=0: sub m n */
+    LvLambdaTerm *sub_mn = lv_lambda_create_app(
+        lv_lambda_create_app(lv_church_sub(), lv_lambda_create_var(1)),
+        lv_lambda_create_var(0));
+
+    /* f (sub m n) n = APP(APP(2, sub_mn), 0) */
+    LvLambdaTerm *rec_call = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(2), sub_mn),
+        lv_lambda_create_var(0));
+
+    /* succ (rec_call) */
+    LvLambdaTerm *then_branch = lv_lambda_create_app(lv_church_succ(), rec_call);
+
+    /* leq n m = APP(APP(leq, 0), 1) */
+    LvLambdaTerm *leq_nm = lv_lambda_create_app(
+        lv_lambda_create_app(lv_church_leq(), lv_lambda_create_var(0)),
+        lv_lambda_create_var(1));
+
+    /* if (leq n m) then_branch 0 */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_app(lv_church_if(), leq_nm), then_branch),
+        lv_church_0());
+
+    LvLambdaTerm *core = lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
+    return lv_lambda_create_app(y, core);
+}
+
+/**
+ * fact = Y (λf.λn.if (leq n 1) 1 (mul n (f (pred n))))
+ * De Bruijn: f=1, n=0
+ */
+LvLambdaTerm *lv_church_factorial(void) {
+    LvLambdaTerm *y = lv_church_y_combinator();
+
+    /* leq n 1 */
+    LvLambdaTerm *leq_n1 = lv_lambda_create_app(
+        lv_lambda_create_app(lv_church_leq(), lv_lambda_create_var(0)),
+        lv_church_1());
+
+    /* pred n */
+    LvLambdaTerm *pred_n = lv_lambda_create_app(lv_church_pred(), lv_lambda_create_var(0));
+
+    /* f (pred n) */
+    LvLambdaTerm *f_pred = lv_lambda_create_app(lv_lambda_create_var(1), pred_n);
+
+    /* mul n (f (pred n)) */
+    LvLambdaTerm *mul_n = lv_lambda_create_app(
+        lv_lambda_create_app(lv_church_mul(), lv_lambda_create_var(0)), f_pred);
+
+    /* if (leq n 1) 1 (mul n (f (pred n))) */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_app(lv_church_if(), leq_n1), lv_church_1()),
+        mul_n);
+
+    LvLambdaTerm *core = lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+    return lv_lambda_create_app(y, core);
+}
+
+/**
+ * fib = Y (λf.λn.if (leq n 1) n (add (f (sub n 1)) (f (sub n 2))))
+ * De Bruijn: f=1, n=0
+ */
+LvLambdaTerm *lv_church_fib(void) {
+    LvLambdaTerm *y = lv_church_y_combinator();
+
+    /* leq n 1 */
+    LvLambdaTerm *leq_n1 = lv_lambda_create_app(
+        lv_lambda_create_app(lv_church_leq(), lv_lambda_create_var(0)),
+        lv_church_1());
+
+    /* sub n 1 => APP(APP(sub, 0), 1) */
+    LvLambdaTerm *sub_n1 = lv_lambda_create_app(
+        lv_lambda_create_app(lv_church_sub(), lv_lambda_create_var(0)),
+        lv_church_1());
+
+    /* f (sub n 1) */
+    LvLambdaTerm *f_sub_n1 = lv_lambda_create_app(lv_lambda_create_var(1), sub_n1);
+
+    /* sub n 2 => APP(APP(sub, 0), 2) */
+    LvLambdaTerm *sub_n2 = lv_lambda_create_app(
+        lv_lambda_create_app(lv_church_sub(), lv_lambda_create_var(0)),
+        lv_church_2());
+
+    /* f (sub n 2) */
+    LvLambdaTerm *f_sub_n2 = lv_lambda_create_app(lv_lambda_create_var(1), sub_n2);
+
+    /* add (f (sub n 1)) (f (sub n 2)) */
+    LvLambdaTerm *rec_call = lv_lambda_create_app(
+        lv_lambda_create_app(lv_church_add(), f_sub_n1), f_sub_n2);
+
+    /* if (leq n 1) n rec_call */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_app(lv_church_if(), leq_n1),
+                             lv_lambda_create_var(0)),
+        rec_call);
+
+    LvLambdaTerm *core = lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+    return lv_lambda_create_app(y, core);
 }

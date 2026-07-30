@@ -58,29 +58,6 @@ int propagation_wfc_max_collaboration_iterations(void) {
  * 内部辅助函数
  * ================================================================ */
 
-/** @brief 确保状态空间数组有足够容量 */
-static bool state_ensure_capacity(NodeStateSpace *state, int needed) {
-    if (needed <= state->capacity)
-        return true;
-    int new_cap = state->capacity < 8 ? 8 : state->capacity;
-    while (new_cap < needed)
-        new_cap *= 2;
-
-    SymbolicCoord **new_coords =
-        (SymbolicCoord **) lv_realloc(state->possible_coords, (size_t) new_cap * sizeof(SymbolicCoord *));
-    if (!new_coords)
-        return false;
-    int *new_dims = (int *) lv_realloc(state->coord_dims, (size_t) new_cap * sizeof(int));
-    if (!new_dims) {
-        free(new_coords);
-        return false;
-    }
-    state->possible_coords = new_coords;
-    state->coord_dims = new_dims;
-    state->capacity = new_cap;
-    return true;
-}
-
 /** @brief 创建一个节点状态空间 */
 static NodeStateSpace *state_create(int node_id) {
     NodeStateSpace *s = (NodeStateSpace *) calloc(1, sizeof(NodeStateSpace));
@@ -90,10 +67,7 @@ static NodeStateSpace *state_create(int node_id) {
     s->is_collapsed = false;
     s->is_unbounded = false;
     s->collapsed_value = NULL;
-    s->possible_coords = NULL;
-    s->coord_dims = NULL;
-    s->coord_count = 0;
-    s->capacity = 0;
+    lv_darray_init(&s->candidates_da, sizeof(CoordCandidate));
     return s;
 }
 
@@ -105,17 +79,16 @@ static void state_destroy(NodeStateSpace *s) {
         symbolic_coord_destroy(s->collapsed_value);
         s->collapsed_value = NULL;
     }
-    if (s->possible_coords) {
-        for (int i = 0; i < s->coord_count; i++) {
-            if (s->possible_coords[i]) {
-                symbolic_coord_destroy(s->possible_coords[i]);
+    /* 释放候选坐标数组中每个条目的坐标指针 */
+    if (s->candidates_da.data && s->candidates_da.count > 0) {
+        CoordCandidate *cand = (CoordCandidate *)s->candidates_da.data;
+        for (int i = 0; i < s->candidates_da.count; i++) {
+            if (cand[i].coord) {
+                symbolic_coord_destroy(cand[i].coord);
             }
         }
-        lv_free((void **) &s->possible_coords);
-        s->possible_coords = NULL;
     }
-    lv_free((void **) &s->coord_dims);
-    s->coord_dims = NULL;
+    lv_darray_free(&s->candidates_da);
     /* 注意：不释放 s 本身，因为它指向 state_spaces 数组的元素 */
 }
 
@@ -130,24 +103,21 @@ static NodeStateSpace *state_deep_copy(const NodeStateSpace *src) {
     dst->node_id = src->node_id;
     dst->is_collapsed = src->is_collapsed;
     dst->is_unbounded = src->is_unbounded;
-    dst->coord_count = src->coord_count;
-    dst->capacity = src->coord_count > 0 ? src->coord_count : 1;
+    lv_darray_init(&dst->candidates_da, sizeof(CoordCandidate));
 
     if (src->collapsed_value) {
         dst->collapsed_value = symbolic_coord_copy(src->collapsed_value);
     }
 
-    if (src->coord_count > 0 && src->possible_coords) {
-        dst->possible_coords = (SymbolicCoord **) calloc((size_t) dst->capacity, sizeof(SymbolicCoord *));
-        dst->coord_dims = (int *) calloc((size_t) dst->capacity, sizeof(int));
-        if (!dst->possible_coords || !dst->coord_dims) {
-            state_destroy(dst);
-            return NULL;
-        }
-        for (int i = 0; i < src->coord_count; i++) {
-            if (src->possible_coords[i]) {
-                dst->possible_coords[i] = symbolic_coord_copy(src->possible_coords[i]);
-                dst->coord_dims[i] = src->coord_dims[i];
+    if (src->candidates_da.count > 0 && src->candidates_da.data) {
+        CoordCandidate *src_cand = (CoordCandidate *)src->candidates_da.data;
+        for (int i = 0; i < src->candidates_da.count; i++) {
+            CoordCandidate dc;
+            dc.coord = src_cand[i].coord ? symbolic_coord_copy(src_cand[i].coord) : NULL;
+            dc.dim = src_cand[i].dim;
+            if (lv_darray_push(&dst->candidates_da, &dc) < 0) {
+                state_destroy(dst);
+                return NULL;
             }
         }
     }
@@ -158,29 +128,26 @@ static NodeStateSpace *state_deep_copy(const NodeStateSpace *src) {
 static bool state_add_candidate(NodeStateSpace *state, const SymbolicCoord *coord, int dim) {
     if (state->is_collapsed)
         return false;
-    if (!state_ensure_capacity(state, state->coord_count + 1))
-        return false;
-    state->possible_coords[state->coord_count] = symbolic_coord_copy(coord);
-    state->coord_dims[state->coord_count] = dim;
-    state->coord_count++;
-    return true;
+    CoordCandidate c;
+    c.coord = symbolic_coord_copy(coord);
+    c.dim = dim;
+    return lv_darray_push(&state->candidates_da, &c) >= 0;
 }
 
 /** @brief 从状态空间移除指定索引的候选 */
 static bool state_remove_at(NodeStateSpace *state, int index) {
-    if (index < 0 || index >= state->coord_count)
+    if (index < 0 || index >= state->candidates_da.count)
         return false;
-    if (state->possible_coords[index]) {
-        symbolic_coord_destroy(state->possible_coords[index]);
+    CoordCandidate *cand = (CoordCandidate *)state->candidates_da.data;
+    if (cand[index].coord) {
+        symbolic_coord_destroy(cand[index].coord);
     }
     /* 将最后一个元素移到被删除位置 */
-    int last = state->coord_count - 1;
+    int last = state->candidates_da.count - 1;
     if (index != last) {
-        state->possible_coords[index] = state->possible_coords[last];
-        state->coord_dims[index] = state->coord_dims[last];
+        cand[index] = cand[last];
     }
-    state->coord_count--;
-    state->possible_coords[last] = NULL;
+    state->candidates_da.count--;
     return true;
 }
 
@@ -195,8 +162,9 @@ static bool coords_equal(const SymbolicCoord *a, const SymbolicCoord *b) {
 static bool state_contains(const NodeStateSpace *state, const SymbolicCoord *coord) {
     if (!state || !coord)
         return false;
-    for (int i = 0; i < state->coord_count; i++) {
-        if (state->possible_coords[i] && coords_equal(state->possible_coords[i], coord)) {
+    CoordCandidate *cand = (CoordCandidate *)state->candidates_da.data;
+    for (int i = 0; i < state->candidates_da.count; i++) {
+        if (cand[i].coord && coords_equal(cand[i].coord, coord)) {
             return true;
         }
     }
@@ -532,13 +500,14 @@ bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id) {
             continue;
 
         NodeStateSpace *ss = &ctx->state_spaces[node_id];
-        if (ss->is_collapsed || ss->is_unbounded || ss->coord_count == 0)
+        if (ss->is_collapsed || ss->is_unbounded || ss->candidates_da.count == 0)
             continue;
 
         /* 检查每个候选是否与约束兼容 */
         int i = 0;
-        while (i < ss->coord_count) {
-            SymbolicCoord *candidate = ss->possible_coords[i];
+        CoordCandidate *cand = (CoordCandidate *)ss->candidates_da.data;
+        while (i < ss->candidates_da.count) {
+            SymbolicCoord *candidate = cand[i].coord;
             if (!candidate || check_constraint_compatible(candidate, c, ctx->graph)) {
                 i++; /* 兼容，保留 */
             } else {
@@ -549,13 +518,14 @@ bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id) {
         }
 
         /* 若状态空间为空 → 矛盾 */
-        if (ss->coord_count == 0 && !ss->is_unbounded) {
+        if (ss->candidates_da.count == 0 && !ss->is_unbounded) {
             return true; /* changed = true 表示有问题 */
         }
 
         /* 若状态空间收缩为单一值 → 自动坍缩 */
-        if (ss->coord_count == 1 && !ss->is_collapsed) {
-            ss->collapsed_value = symbolic_coord_copy(ss->possible_coords[0]);
+        if (ss->candidates_da.count == 1 && !ss->is_collapsed) {
+            CoordCandidate *cand_single = (CoordCandidate *)ss->candidates_da.data;
+            ss->collapsed_value = symbolic_coord_copy(cand_single[0].coord);
             ss->is_collapsed = true;
             changed = true;
         }
@@ -599,7 +569,7 @@ PropagationResult propagation_run(PropagationContext *ctx) {
                 /* 检查是否有节点状态空间为空 */
                 for (int j = 0; j < ctx->state_count; j++) {
                     NodeStateSpace *ss = &ctx->state_spaces[j];
-                    if (!ss->is_unbounded && ss->coord_count == 0 && !ss->is_collapsed) {
+                    if (!ss->is_unbounded && ss->candidates_da.count == 0 && !ss->is_collapsed) {
                         return PROP_RESULT_CONTRADICTION;
                     }
                 }
@@ -642,9 +612,9 @@ double propagation_compute_entropy(const NodeStateSpace *state) {
         return PROP_ENTROPY_UNBOUNDED;
     if (state->is_collapsed)
         return 0.0;
-    if (state->coord_count <= 0)
+    if (state->candidates_da.count <= 0)
         return PROP_ENTROPY_UNBOUNDED;
-    return log2((double) state->coord_count);
+    return log2((double) state->candidates_da.count);
 }
 
 int propagation_select_node(PropagationContext *ctx) {
@@ -659,7 +629,7 @@ int propagation_select_node(PropagationContext *ctx) {
         NodeStateSpace *ss = &ctx->state_spaces[i];
         if (ss->is_collapsed || ss->is_unbounded)
             continue;
-        if (ss->coord_count <= 0)
+        if (ss->candidates_da.count <= 0)
             continue;
 
         double entropy = propagation_compute_entropy(ss);
@@ -724,7 +694,7 @@ int propagation_select_node(PropagationContext *ctx) {
                                     visited[nb] = true;
 
                                     const NodeStateSpace *ss_nb = &ctx->state_spaces[nb];
-                                    if (!ss_nb->is_collapsed && !ss_nb->is_unbounded && ss_nb->coord_count > 0) {
+                                    if (!ss_nb->is_collapsed && !ss_nb->is_unbounded && ss_nb->candidates_da.count > 0) {
                                         /* 找到最近的未坍缩邻居 */
                                         best_node = nb;
                                         found_bfs = true;
@@ -799,9 +769,10 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
     NodeStateSpace *ss = &ctx->state_spaces[node_id];
     if (ss->is_collapsed || ss->is_unbounded)
         return false;
-    if (ss->coord_count == 0)
+    if (ss->candidates_da.count == 0)
         return false;
 
+    CoordCandidate *cand = (CoordCandidate *)ss->candidates_da.data;
     int selected_index = 0;
 
     switch (ctx->collapse_strategy) {
@@ -811,15 +782,15 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
         case PROP_COLLAPSE_WEIGHTED: {
             /* 基于约束兼容性的加权随机选择 */
             /* 计算每个候选坐标的兼容性权重：与邻域约束兼容的数量 */
-            double *weights = (double *) calloc((size_t) ss->coord_count, sizeof(double));
-            if (weights && ss->coord_count > 0) {
+            double *weights = (double *) calloc((size_t) ss->candidates_da.count, sizeof(double));
+            if (weights && ss->candidates_da.count > 0) {
                 int cids[128];
                 int nc = graph_find_constraints_involving(ctx->graph, node_id, cids, 128);
-                for (int k = 0; k < ss->coord_count; k++) {
+                for (int k = 0; k < ss->candidates_da.count; k++) {
                     double w = 1.0;
                     for (int ci = 0; ci < nc; ci++) {
                         Constraint *c = graph_get_constraint(ctx->graph, cids[ci]);
-                        if (c && c->is_active && check_constraint_compatible(ss->possible_coords[k], c, ctx->graph)) {
+                        if (c && c->is_active && check_constraint_compatible(cand[k].coord, c, ctx->graph)) {
                             w += 1.0;
                         }
                     }
@@ -827,13 +798,13 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
                 }
                 /* 计算总权重 */
                 double total = 0.0;
-                for (int k = 0; k < ss->coord_count; k++)
+                for (int k = 0; k < ss->candidates_da.count; k++)
                     total += weights[k];
                 /* 加权随机选择（轮盘赌算法） */
                 if (total > 0.0) {
                     double r = lv_random_double(0.0, total);
                     double accum = 0.0;
-                    for (int k = 0; k < ss->coord_count; k++) {
+                    for (int k = 0; k < ss->candidates_da.count; k++) {
                         accum += weights[k];
                         if (r <= accum) {
                             selected_index = k;
@@ -850,20 +821,18 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
     }
 
     /* 保存选中的坐标，释放其余 */
-    SymbolicCoord *selected = ss->possible_coords[selected_index];
-    ss->possible_coords[selected_index] = NULL;
+    SymbolicCoord *selected = cand[selected_index].coord;
 
     /* 释放未选中的候选 */
-    for (int i = 0; i < ss->coord_count; i++) {
-        if (ss->possible_coords[i]) {
-            symbolic_coord_destroy(ss->possible_coords[i]);
-            ss->possible_coords[i] = NULL;
+    for (int i = 0; i < ss->candidates_da.count; i++) {
+        if (i != selected_index && cand[i].coord) {
+            symbolic_coord_destroy(cand[i].coord);
         }
     }
 
     ss->collapsed_value = selected;
     ss->is_collapsed = true;
-    ss->coord_count = 0;
+    lv_darray_clear(&ss->candidates_da);
     ctx->collapse_count++;
 
     return true;
@@ -920,7 +889,7 @@ PropagationResult propagation_wfc_solve(PropagationContext *ctx) {
         PropagationSnapshot *snap = propagation_snapshot_save(ctx);
         if (snap) {
             snap->decision_node_id = node_id;
-            if (ctx->state_spaces[node_id].coord_count > 0) {
+            if (ctx->state_spaces[node_id].candidates_da.count > 0) {
                 snap->decision_coord_index = 0;
             }
             /* 压入快照栈 */
@@ -1065,7 +1034,7 @@ int propagation_count_uncollapsed(const PropagationContext *ctx) {
     int count = 0;
     for (int i = 0; i < ctx->state_count; i++) {
         const NodeStateSpace *ss = &ctx->state_spaces[i];
-        if (!ss->is_collapsed && !ss->is_unbounded && ss->coord_count > 0) {
+        if (!ss->is_collapsed && !ss->is_unbounded && ss->candidates_da.count > 0) {
             count++;
         }
     }

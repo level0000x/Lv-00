@@ -231,8 +231,7 @@ const char *engine_status_get_description(EngineStatus status) {
 lvEngine *engine_create(void) {
     lvEngine *engine = lv_calloc(1, sizeof(lvEngine));
     if (!engine) {
-        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "engine_create: calloc engine failed");
     }
     engine->rewrite_step_limit = lv_DEFAULT_REWRITE_STEP_LIMIT; /* 默认重写步数限制 */
     engine->frozen_point = NULL;
@@ -240,8 +239,7 @@ lvEngine *engine_create(void) {
     engine->stream_ctx = stream_context_create(); /* 创建流式上下文 */
     if (!engine->stream_ctx) {
         lv_free((void **) &engine);
-        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "engine_create: stream_ctx creation failed");
     }
 
     /* 初始化五状态机（v3.3.0 形式化） */
@@ -270,8 +268,7 @@ lvEngine *engine_create(void) {
     if (!engine->main_graph) {
         stream_context_destroy(engine->stream_ctx);
         lv_free((void **) &engine);
-        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "engine_create: main_graph creation failed");
     }
     engine->last_status = ENGINE_STATUS_OK;
     engine->last_error[0] = '\0';
@@ -364,7 +361,7 @@ static bool engine_ensure_capacity(void **arr, int count, int *capacity, size_t 
  */
 bool engine_add_rewrite_rule(lvEngine *engine, const RewriteRule *rule) {
     if (!engine || !rule)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "engine_add_rewrite_rule: NULL engine or rule");
 
     if (!engine_ensure_capacity((void **) &engine->rewrite_rules, engine->rewrite_rule_count,
                                 &engine->rewrite_rule_capacity, sizeof(RewriteRule *)))
@@ -534,7 +531,7 @@ bool engine_pack_function(lvEngine *engine, const int *internal_node_ids, int in
     if (!engine || !engine->main_graph || (internal_count > 0 && !internal_node_ids) ||
         (input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
         engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "engine_pack_function: NULL parameter");
     }
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, internal_node_ids[i]);
@@ -810,9 +807,8 @@ static int check_and_report_conflicts(lvEngine *engine, const char *context) {
         lv_free((void **) &conflicts);
     }
     if (conflict_count > 0) {
-        engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-        snprintf(engine->last_error, sizeof(engine->last_error), "%s: 检测到 %d 个冲突", context, conflict_count);
-        return -1;
+        engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, "%s: 检测到 %d 个冲突", context, conflict_count);
+        lv_RETURN_ERROR(lv_ERROR_CONSTRAINT_CONFLICT, "check_and_report_conflicts: %d conflicts detected", conflict_count);
     }
     return 0;
 }
@@ -1061,10 +1057,9 @@ EngineSolveResult engine_solve(lvEngine *engine) {
  */
 int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_solve_steps) {
     if (!engine || !engine->main_graph) {
-        engine->last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(engine->last_error, sizeof(engine->last_error), "重写-求解协作失败: 引擎实例或约束图为空 (engine=%p)",
-                 (void *) engine);
-        return -1;
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "重写-求解协作失败: 引擎实例或约束图为空 (engine=%p)",
+                         (void *) engine);
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "engine_rewrite_and_solve: NULL engine or main_graph");
     }
 
     /* 流式事件: 引擎开始 */
@@ -1469,11 +1464,11 @@ int engine_get_rewrite_step_limit(const lvEngine *engine) {
  */
 static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
     if (!src)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_deep_copy: src is NULL");
 
     ConstraintGraph *dst = graph_create();
     if (!dst)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_deep_copy: graph_create failed");
 
     /* 构建ID映射表：old_id -> new_id */
     int max_id = 0;
@@ -1486,7 +1481,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
         id_map = lv_calloc((size_t) (max_id + 1), sizeof(int));
         if (!id_map) {
             graph_destroy(dst);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_deep_copy: calloc id_map failed");
         }
         for (int i = 0; i <= max_id; i++)
             id_map[i] = -1;
@@ -1499,7 +1494,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
         if (!dst->nodes) {
             graph_destroy(dst);
             lv_free((void **) &id_map);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_deep_copy: calloc dst->nodes failed");
         }
     }
     for (int i = 0; i < src->node_count; i++) {
@@ -1509,7 +1504,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
             /* 失败时清理 */
             graph_destroy(dst);
             lv_free((void **) &id_map);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_deep_copy: node_deep_copy_geom_node failed");
         }
 
         /* 分配新ID并记录映射 */
@@ -1606,7 +1601,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
             lv_free((void **) &dst->constraints);
             graph_destroy(dst);
             lv_free((void **) &id_map);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_deep_copy: calloc copy_c failed");
         }
 
         copy_c->id = dst->next_constraint_id++;
@@ -1652,7 +1647,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
             lv_free((void **) &dst->constraints);
             graph_destroy(dst);
             lv_free((void **) &id_map);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_deep_copy: realloc constraints failed");
         }
     }
 
@@ -1675,7 +1670,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
             dst->node_index = lv_calloc((size_t) ni_cap, sizeof(GeomNode *));
             if (!dst->node_index) {
                 graph_destroy(dst);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_deep_copy: calloc node_index failed");
             }
             dst->node_index_capacity = ni_cap;
             for (int i = 0; i < dst->node_count; i++) {
@@ -1697,7 +1692,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
             dst->constraint_index = lv_calloc((size_t) ci_cap, sizeof(Constraint *));
             if (!dst->constraint_index) {
                 graph_destroy(dst);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_deep_copy: calloc constraint_index failed");
             }
             dst->constraint_index_capacity = ci_cap;
             for (int i = 0; i < dst->constraint_count; i++) {
@@ -1716,7 +1711,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
 /** @brief 创建引擎状态冻结点 @details 保存当前引擎状态，用于后续回滚。 @param engine 引擎实例 @return 冻结点句柄，失败返回 NULL */
 void *engine_create_frozen_point(lvEngine *engine) {
     if (!engine || !engine->main_graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "engine_create_frozen_point: NULL engine or main_graph");
 
     ConstraintGraph *snapshot = graph_deep_copy(engine->main_graph);
     return (void *) snapshot;
@@ -1725,7 +1720,7 @@ void *engine_create_frozen_point(lvEngine *engine) {
 /** @brief 恢复引擎状态到指定冻结点 @param engine 引擎实例 @param frozen_point 冻结点句柄 @return true 成功 */
 bool engine_restore_frozen_point(lvEngine *engine, void *frozen_point) {
     if (!engine || !frozen_point)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "engine_restore_frozen_point: NULL engine or frozen_point");
 
     ConstraintGraph *snapshot = (ConstraintGraph *) frozen_point;
 
@@ -1759,7 +1754,7 @@ void engine_destroy_frozen_point(void *frozen_point) {
 /** @brief 获取引擎的流式上下文 @param engine 引擎实例 @return 流式上下文指针 */
 StreamContext *engine_get_stream_context(const lvEngine *engine) {
     if (!engine)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "engine_get_stream_context: engine is NULL");
     return engine->stream_ctx;
 }
 

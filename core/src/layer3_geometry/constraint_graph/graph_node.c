@@ -83,7 +83,7 @@ static void *graph_ensure_capacity(void *arr, int count, int *capacity, size_t e
 static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
     GeomNode *node = lv_calloc(1, sizeof(GeomNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_alloc_node: calloc node failed");
     /* v3.4.1: 使用原子操作分配节点ID，确保多线程安全 */
     node->id = GRAPH_ATOMIC_NODE_ID_INCREMENT(graph);
     node->type = type;
@@ -106,7 +106,7 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
                                                                sizeof(GeomNode *), 1);
     if (!new_nodes) {
         lv_free((void **) &node);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_alloc_node: ensure_capacity failed");
     }
     graph->nodes = new_nodes;
     graph->nodes[graph->node_count++] = node;
@@ -128,7 +128,7 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
 Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) {
     Constraint *con = lv_calloc(1, sizeof(Constraint));
     if (!con)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_alloc_constraint: calloc con failed");
     /* v3.4.1: 使用原子操作分配约束ID，确保多线程安全 */
     con->id = GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph);
     con->type = type;
@@ -137,7 +137,7 @@ Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) 
         graph->constraints, graph->constraint_count, &graph->constraint_capacity, sizeof(Constraint *), 1);
     if (!new_constraints) {
         lv_free((void **) &con);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_alloc_constraint: ensure_capacity failed");
     }
     graph->constraints = new_constraints;
     graph->constraints[graph->constraint_count++] = con;
@@ -149,17 +149,16 @@ Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) 
 GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType type, SymbolicCoord **coords,
                                  int coord_count) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_add_node_with_id: graph is NULL");
 
     /* 检查ID是否已被使用 */
     if (graph_get_node(graph, node_id) != NULL) {
-        lv_set_error(lv_ERROR_UNKNOWN, "%s", "Node ID already exists");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALREADY_EXISTS, "graph_add_node_with_id: node ID %d already exists", node_id);
     }
 
     GeomNode *node = lv_calloc(1, sizeof(GeomNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: calloc node failed");
 
     node->id = node_id;
     node->type = type;
@@ -184,7 +183,7 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
         node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
         if (!node->symbolic_coords) {
             lv_free((void **) &node);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: malloc symbolic_coords failed");
         }
         for (int i = 0; i < coord_count; i++) {
             node->symbolic_coords[i] = symbolic_coord_copy(coords[i]);
@@ -195,7 +194,7 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
                 }
                 lv_free((void **) &node->symbolic_coords);
                 lv_free((void **) &node);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: symbolic_coord_copy failed");
             }
         }
         node->coord_count = coord_count;
@@ -205,14 +204,14 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
     if (graph->node_count >= graph->node_capacity) {
         if (graph->node_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
             lv_free((void **) &node);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "graph_add_node_with_id: node_capacity overflow");
         }
         int new_capacity =
             graph->node_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY : graph->node_capacity * lv_ARRAY_GROWTH_FACTOR;
         /* 检查 size_t 乘积溢出：new_capacity * sizeof(GeomNode *) 可能超过 SIZE_MAX */
         if ((size_t) new_capacity > SIZE_MAX / sizeof(GeomNode *)) {
             lv_free((void **) &node);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "graph_add_node_with_id: new_capacity overflow for node array");
         }
         GeomNode **new_nodes = lv_realloc(graph->nodes, (size_t) new_capacity * sizeof(GeomNode *));
         if (!new_nodes) {
@@ -223,7 +222,7 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
             }
             lv_free((void **) &node->symbolic_coords);
             lv_free((void **) &node);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: realloc nodes failed");
         }
         graph->nodes = new_nodes;
         graph->node_capacity = new_capacity;
@@ -261,17 +260,16 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_id, ConstraintType type,
                                          const int *participants, int participant_count) {
     if (!graph || !participants || participant_count <= 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_add_constraint_with_id: NULL parameter or zero count");
 
     /* 检查ID是否已被使用 */
     if (graph_get_constraint(graph, constraint_id) != NULL) {
-        lv_set_error(lv_ERROR_UNKNOWN, "%s", "Constraint ID already exists");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALREADY_EXISTS, "graph_add_constraint_with_id: constraint ID %d already exists", constraint_id);
     }
 
     Constraint *con = lv_calloc(1, sizeof(Constraint));
     if (!con)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: calloc con failed");
 
     con->id = constraint_id;
     con->type = type;
@@ -280,7 +278,7 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
     con->participants = lv_malloc((size_t) participant_count * sizeof(int));
     if (!con->participants) {
         lv_free((void **) &con);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: malloc participants failed");
     }
     memcpy(con->participants, participants, participant_count * sizeof(int));
 
@@ -289,7 +287,7 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
         if (graph->constraint_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
             lv_free((void **) &con->participants);
             lv_free((void **) &con);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "graph_add_constraint_with_id: constraint_capacity overflow");
         }
         int new_capacity = graph->constraint_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY
                                                            : graph->constraint_capacity * lv_ARRAY_GROWTH_FACTOR;
@@ -297,7 +295,7 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
         if (!new_constraints) {
             lv_free((void **) &con->participants);
             lv_free((void **) &con);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: realloc constraints failed");
         }
         graph->constraints = new_constraints;
         graph->constraint_capacity = new_capacity;
@@ -396,7 +394,7 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
         int cap = lv_NODE_INDEX_INITIAL_SIZE;
         graph->node_index = lv_calloc(cap, sizeof(GeomNode *));
         if (!graph->node_index)
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "node_index_ensure_capacity: calloc node_index failed");
         graph->node_index_capacity = cap;
         /* 重新插入所有现有节点 */
         for (int i = 0; i < graph->node_count; i++) {
@@ -416,11 +414,11 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
 
     /* 重新哈希到更大的表 */
     if (graph->node_index_capacity > INT_MAX / 2)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "node_index_ensure_capacity: capacity overflow");
     int new_cap = graph->node_index_capacity * 2;
     GeomNode **new_index = lv_calloc(new_cap, sizeof(GeomNode *));
     if (!new_index)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "node_index_ensure_capacity: calloc new_index failed");
 
     for (int i = 0; i < graph->node_count; i++) {
         unsigned idx = node_id_hash(graph->nodes[i]->id, new_cap);
@@ -529,7 +527,7 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
         int cap = lv_CONSTRAINT_INDEX_INITIAL_SIZE;
         graph->constraint_index = lv_calloc(cap, sizeof(Constraint *));
         if (!graph->constraint_index)
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "constraint_index_ensure_capacity: calloc constraint_index failed");
         graph->constraint_index_capacity = cap;
         for (int i = 0; i < graph->constraint_count; i++) {
             unsigned idx = constraint_id_hash(graph->constraints[i]->id, cap);
@@ -546,11 +544,11 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
     }
 
     if (graph->constraint_index_capacity > INT_MAX / 2)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "constraint_index_ensure_capacity: capacity overflow");
     int new_cap = graph->constraint_index_capacity * 2;
     Constraint **new_index = lv_calloc(new_cap, sizeof(Constraint *));
     if (!new_index)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "constraint_index_ensure_capacity: calloc new_index failed");
 
     for (int i = 0; i < graph->constraint_count; i++) {
         unsigned idx = constraint_id_hash(graph->constraints[i]->id, new_cap);
@@ -646,7 +644,7 @@ void constraint_index_remove(ConstraintGraph *graph, int constraint_id) {
  */
 static bool segments_intersect(const GeomNode *seg_a, const GeomNode *seg_b) {
     if (!seg_a || !seg_b)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "segments_intersect: NULL segment");
     if (seg_a->type != GEOM_LINE_SEGMENT || seg_b->type != GEOM_LINE_SEGMENT)
         return false;
     if (seg_a->coord_count < 4 || seg_b->coord_count < 4)
@@ -1089,7 +1087,7 @@ bool graph_check_compatibility(const ConstraintGraph *graph, lvConstraintCompati
         out_result->diagnostic = "输入无效";
     }
     if (!graph || !out_result)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "graph_check_compatibility: NULL graph or out_result");
 
     if (graph->node_count == 0) {
         out_result->status = lv_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
@@ -1361,7 +1359,7 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
  */
 int graph_get_last_added_node_id(const ConstraintGraph *graph) {
     if (!graph || graph->node_count <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_get_last_added_node_id: graph is NULL or empty");
     return graph->nodes[graph->node_count - 1]->id;
 }
 
@@ -1382,14 +1380,14 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
     if (out_count)
         *out_count = 0;
     if (!graph || !internal_node_ids || internal_count <= 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "find_cross_boundary_constraints: NULL parameter or empty internal");
 
     /* 存根实现：遍历所有约束，检查是否引用了内部节点和外部节点 */
     int capacity = 16;
     int found = 0;
     CrossBoundaryConstraint *results = lv_malloc((size_t) capacity * sizeof(CrossBoundaryConstraint));
     if (!results)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "find_cross_boundary_constraints: malloc results failed");
 
     for (int c = 0; c < graph->constraint_count; c++) {
         Constraint *con = graph->constraints[c];
@@ -1418,7 +1416,7 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
                     lv_realloc(results, (size_t) capacity * sizeof(CrossBoundaryConstraint));
                 if (!new_results) {
                     lv_free((void **) &results);
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "find_cross_boundary_constraints: realloc results failed");
                 }
                 results = new_results;
             }
@@ -1438,7 +1436,7 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
         lv_free((void **) &results);
         if (out_count)
             *out_count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "find_cross_boundary_constraints: no cross-boundary constraints found");
     }
     if (out_count)
         *out_count = found;

@@ -602,10 +602,15 @@ static LvLambdaTerm *graph_to_lambda_internal(ConstraintGraph *graph, int node_i
 
     switch (node->type) {
         /* ============================================================
-     * GEOM_PORT：变量（VAR）
+     * GEOM_PORT：变量（VAR）或应用（APP）
      *
-     * 查找该端口在 binder_port_ids 栈中的位置来确定 De Bruijn 索引。
-     * 如果在栈中找不到（自由变量），使用 namespace_depth 作为索引。
+     * 如果该端口是函数块的输出端口且不在本函数块的 body 内部
+     * （binder 栈中不含该函数块的输入端口）：
+     *   - 检查函数块的输入端口是否有外部 CONNECTION 进入
+     *   - 有：重建 APP(func=函数块作为 ABS, arg=连接来源)
+     *   - 无：重定向到函数块重建 ABS
+     *
+     * 否则：查找端口在 binder 栈中的位置确定 De Bruijn 索引。
      * ============================================================ */
         case GEOM_PORT: {
             if (!node->data.port) {
@@ -613,19 +618,78 @@ static LvLambdaTerm *graph_to_lambda_internal(ConstraintGraph *graph, int node_i
                 return NULL;
             }
 
-            int de_bruijn_index = -1;
+            /* ── 检测是否是函数块输出端口 ── */
+            int parent_fb_id = node->parent_block_id;
+            if (parent_fb_id >= 0) {
+                GeomNode *fb_node = graph_get_node(graph, parent_fb_id);
+                if (fb_node && fb_node->type == GEOM_FUNCTION_BLOCK &&
+                    fb_node->data.func_block.output_count > 0 &&
+                    fb_node->data.func_block.output_port_ids) {
 
-            /* 查找该端口在 binder 栈中的位置 */
+                    /* 确认本节点是函数块的输出端口 */
+                    bool is_output = false;
+                    for (int i = 0; i < fb_node->data.func_block.output_count; i++) {
+                        if (fb_node->data.func_block.output_port_ids[i] == node_id) {
+                            is_output = true;
+                            break;
+                        }
+                    }
+
+                    if (is_output && fb_node->data.func_block.input_count > 0 &&
+                        fb_node->data.func_block.input_port_ids) {
+                        int fb_input = fb_node->data.func_block.input_port_ids[0];
+
+                        /* 检查是否在本函数块 body 内部（binder 栈中有此输入端口） */
+                        bool inside_body = false;
+                        for (int i = 0; i < binder_count; i++) {
+                            if (binder_port_ids[i] == fb_input) {
+                                inside_body = true;
+                                break;
+                            }
+                        }
+
+                        if (!inside_body) {
+                            /* 在外部：检查是否有 APP 模式（外部 CONNECTION 进入输入端口） */
+                            int arg_src = -1;
+                            bool has_app = find_connection_target(graph, fb_input, 1, &arg_src);
+
+                            if (has_app && arg_src >= 0 && arg_src != node_id) {
+                                /* APP: func=函数块作为 ABS, arg=连接来源 */
+                                LvLambdaTerm *func = graph_to_lambda_internal(graph, parent_fb_id,
+                                                                               binder_port_ids,
+                                                                               binder_count, binder_capacity);
+                                if (!func) return NULL;
+
+                                LvLambdaTerm *arg = graph_to_lambda_internal(graph, arg_src,
+                                                                              binder_port_ids,
+                                                                              binder_count, binder_capacity);
+                                if (!arg) {
+                                    lv_lambda_destroy(func);
+                                    return NULL;
+                                }
+
+                                LOG_DEBUG("graph_to_lambda", "APP: func=FB%d, arg=node%d", parent_fb_id, arg_src);
+                                return lv_lambda_create_app(func, arg);
+                            }
+
+                            /* 无 APP：重定向到函数块重建 ABS */
+                            return graph_to_lambda_internal(graph, parent_fb_id, binder_port_ids,
+                                                            binder_count, binder_capacity);
+                        }
+                    }
+                }
+            }
+
+            /* ── 常规 VAR 查找逻辑 ── */
+            int de_bruijn_index = -1;
             for (int i = 0; i < binder_count; i++) {
                 if (binder_port_ids[i] == node_id) {
-                    /* De Bruijn index: 最内层绑定 (栈顶) 为 0 */
                     de_bruijn_index = binder_count - 1 - i;
                     break;
                 }
             }
 
             if (de_bruijn_index < 0) {
-                /* 自由变量：使用 namespace_depth 作为兜底 */
                 de_bruijn_index = node->namespace_depth;
             }
 
@@ -641,7 +705,7 @@ static LvLambdaTerm *graph_to_lambda_internal(ConstraintGraph *graph, int node_i
      *
      * 1. 获取输入端口（binder）和输出端口
      * 2. 将输入端口加入 binder 栈
-     * 3. 沿输出端口的 CONNECTION 找到 body 的根节点
+     * 3. 沿 connected_to 指针或 CONNECTION 找到 body 的根节点
      * 4. 递归重建 body
      * ============================================================ */
         case GEOM_FUNCTION_BLOCK: {
@@ -681,12 +745,15 @@ static LvLambdaTerm *graph_to_lambda_internal(ConstraintGraph *graph, int node_i
 
             new_binders[binder_count] = input_port_id;
 
-            /* 查找 body 根节点：沿输出端口的输入连接追踪 */
+            /* 查找 body 根节点：
+             * 优先使用 connected_to 指针（ABS 编译时设置 body_output→output_port 的关联）
+             * 然后查找 CONNECTION(src → output_port)
+             * 最后回退到输出端口自身 */
             int body_root_id = -1;
-
-            /* 优先查找 CONNECTION(src → output_port) */
-            if (!find_connection_target(graph, output_port_id, 1, &body_root_id)) {
-                /* 如果没有连接，尝试使用输出端口自身 */
+            GeomNode *op_node = graph_get_node(graph, output_port_id);
+            if (op_node && op_node->data.port && op_node->data.port->connected_to) {
+                body_root_id = op_node->data.port->connected_to->id;
+            } else if (!find_connection_target(graph, output_port_id, 1, &body_root_id)) {
                 body_root_id = output_port_id;
             }
 
@@ -717,17 +784,9 @@ static LvLambdaTerm *graph_to_lambda_internal(ConstraintGraph *graph, int node_i
             return abs;
         }
 
-        /* ============================================================
-     * GEOM_PORT 但已通过 CONNECTION 关联：应用（APP）
-     *
-     * 查找从该端口出发的所有 CONNECTION。
-     * 但这里的重建逻辑需要从更高层的函数块视角处理。
-     * 此处的兜底处理：将 GEOM_PORT 节点当作 VAR。
-     * ============================================================ */
         default:
-            LOG_WARN("graph_to_lambda", "不支持的节点类型 %d (id=%d)，尝试作为 VAR", (int) node->type, node_id);
-            /* 兜底：创建变量项 */
-            return lv_lambda_create_var(node->namespace_depth);
+            LOG_ERROR("graph_to_lambda", "不支持的节点类型 %d (id=%d)，无法重建", (int) node->type, node_id);
+            return NULL;
     }
 }
 

@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：剪枝合法性元证明 (meta_proof)
  * 功能概述：在证明系统之上增加元证明层，证明"被排除的状态空间
  *          确实不包含合法解"。这是 WFC 范式数学严格化的基础。
@@ -46,6 +46,7 @@ extern "C" {
 #include "propagation.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#include "lv/lv_utils.h"
 /* 前向声明 */
 typedef struct ProofNavigator ProofNavigator;
 typedef struct EquivClassManager EquivClassManager;
@@ -98,9 +99,7 @@ typedef struct PruningOperation {
  * 记录整个求解过程中的所有剪枝操作。
  */
 typedef struct PruningRecord {
-    PruningOperation *operations;   /**< 剪枝操作数组 */
-    int operation_count;            /**< 操作数量 */
-    int capacity;                   /**< 预分配容量 */
+    lvDArray operations;            /**< 剪枝操作数组 (PruningOperation) */
     int64_t total_states_removed;   /**< 总移除状态数 */
     int64_t total_states_remaining; /**< 总剩余状态数 */
 } PruningRecord;

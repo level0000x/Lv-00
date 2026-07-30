@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_core.h
  * @brief CDCL SAT 求解器核心 —— 不透明句柄与公共 API
  *
@@ -24,6 +24,8 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "lv/lv_utils.h"
 
 #include "constraint_graph.h"
 
@@ -118,9 +120,7 @@ typedef struct {
     int var_capacity; /**< 赋值数组容量 */
 
     /* Trail（赋值序列） */
-    int *trail;             /**< 赋值序列（文字列表） */
-    int trail_size;         /**< trail 当前大小 */
-    int trail_capacity;     /**< trail 容量 */
+    lvDArray trail;         /**< 动态数组，元素类型：int（文字列表） */
     int *trail_lim;         /**< 决策层起始位置数组 */
     int trail_lim_capacity; /**< trail_lim 数组容量 */
 

@@ -2,6 +2,7 @@
 #define lv_PROOF_TRACE_H
 #include <stdbool.h>
 #include "lv/lv_api_spec.h"
+#include "lv/lv_utils.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,14 +32,10 @@ typedef struct lvProofTreeNode {
     bool is_contradiction;
     bool is_contradiction_branch;
     struct lvProofTreeNode *parent;
-    struct lvProofTreeNode **children;
-    int child_count;
-    int child_capacity;
+    lvDArray children;       /**< lvProofTreeNode * 指针数组 */
     int depth;
     int step_index;
-    lvProofPremise *premises;
-    int premise_count;
-    int premise_capacity;
+    lvDArray premises;       /**< lvProofPremise 元素数组 */
     char *axiom_used;
     char *conclusion;
 } lvProofTreeNode;
@@ -49,9 +46,7 @@ typedef struct lvProofTree {
     char *theorem_name;
     char *proof_strategy;
     lvProofTreeNode *root;
-    lvProofTreeNode **all_nodes;
-    int node_count;
-    int node_capacity;
+    lvDArray all_nodes;      /**< lvProofTreeNode * 指针数组 */
     int next_id;
     int total_steps;
     int max_depth;

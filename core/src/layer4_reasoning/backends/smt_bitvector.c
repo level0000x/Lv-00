@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_bitvector.c
  * @brief Fixed-width bitvector arithmetic implementation
  *
@@ -25,6 +25,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv/lv_utils.h"
 
 #undef bv_from_int
 
@@ -69,14 +71,14 @@ lvBitVector *bv_create(int width) {
     if (width <= 0)
         return NULL;
 
-    lvBitVector *bv = (lvBitVector *) malloc(sizeof(lvBitVector));
+    lvBitVector *bv = (lvBitVector *) lv_malloc(sizeof(lvBitVector));
     if (!bv)
         return NULL;
 
     int wc = word_count(width);
-    bv->words = (uint64_t *) calloc((size_t) wc, sizeof(uint64_t));
+    bv->words = (uint64_t *) lv_calloc((size_t) wc, sizeof(uint64_t));
     if (!bv->words) {
-        free(bv);
+        lv_free((void **) &bv);
         return NULL;
     }
 
@@ -87,10 +89,9 @@ lvBitVector *bv_create(int width) {
 void bv_destroy(lvBitVector *bv) {
     if (!bv)
         return;
-    free(bv->words);
-    bv->words = NULL;
+    lv_free((void **) &bv->words);
     bv->width = 0;
-    free(bv);
+    lv_free((void **) &bv);
 }
 
 lvBitVector *bv_from_int(uint64_t value, int width) {

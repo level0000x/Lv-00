@@ -139,35 +139,10 @@ EuclideanContext *euclidean_init(ConstraintGraph *graph) {
     /* 默认使用 Hilbert 公理体系 */
     ctx->active_axiom_system = EUCLID_HILBERT;
 
-    /* 分配点注册数组 */
-    ctx->point_capacity = EUCLID_INITIAL_CAPACITY;
-    ctx->registered_points = lv_malloc((size_t) ctx->point_capacity * sizeof(int));
-    if (!ctx->registered_points) {
-        lv_free((void **) &ctx);
-        return NULL;
-    }
-    ctx->point_count = 0;
-
-    /* 分配线注册数组 */
-    ctx->line_capacity = EUCLID_INITIAL_CAPACITY;
-    ctx->registered_lines = lv_malloc((size_t) ctx->line_capacity * sizeof(int));
-    if (!ctx->registered_lines) {
-        lv_free((void **) &ctx->registered_points);
-        lv_free((void **) &ctx);
-        return NULL;
-    }
-    ctx->line_count = 0;
-
-    /* 分配圆注册数组 */
-    ctx->circle_capacity = EUCLID_INITIAL_CAPACITY;
-    ctx->registered_circles = lv_malloc((size_t) ctx->circle_capacity * sizeof(int));
-    if (!ctx->registered_circles) {
-        lv_free((void **) &ctx->registered_lines);
-        lv_free((void **) &ctx->registered_points);
-        lv_free((void **) &ctx);
-        return NULL;
-    }
-    ctx->circle_count = 0;
+    /* 初始化动态数组 */
+    lv_darray_init(&ctx->points_da, sizeof(int));
+    lv_darray_init(&ctx->lines_da, sizeof(int));
+    lv_darray_init(&ctx->circles_da, sizeof(int));
 
     /* 绑定约束图（可为 NULL） */
     ctx->constraint_graph = graph;
@@ -199,15 +174,9 @@ void euclidean_destroy(EuclideanContext *ctx) {
         return;
     }
 
-    if (ctx->registered_points) {
-        lv_free((void **) &ctx->registered_points);
-    }
-    if (ctx->registered_lines) {
-        lv_free((void **) &ctx->registered_lines);
-    }
-    if (ctx->registered_circles) {
-        lv_free((void **) &ctx->registered_circles);
-    }
+    lv_darray_free(&ctx->points_da);
+    lv_darray_free(&ctx->lines_da);
+    lv_darray_free(&ctx->circles_da);
     if (ctx->equivalence_chain) {
         euclidean_destroy_equivalence_chain(ctx->equivalence_chain);
         ctx->equivalence_chain = NULL;
@@ -370,7 +339,7 @@ int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoo
     }
 
     /* 无约束图时的备用处理 */
-    int point_id = ctx->point_count;
+    int point_id = (int)ctx->points_da.count;
     if (!euclidean_register_point_id(ctx, point_id)) {
         return -1;
     }
@@ -419,7 +388,7 @@ int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id) {
         return line_id;
     }
 
-    int line_id = ctx->line_count + 1000;
+    int line_id = ctx->lines_da.count + 1000;
     if (!euclidean_register_line_id(ctx, line_id)) {
         return -1;
     }
@@ -472,7 +441,7 @@ int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord
         return circle_id;
     }
 
-    int circle_id = ctx->circle_count + 2000;
+    int circle_id = (int)ctx->circles_da.count + 2000;
     if (!euclidean_register_circle_id(ctx, circle_id)) {
         return -1;
     }
@@ -667,7 +636,7 @@ bool euclidean_check_consistency(EuclideanContext *ctx) {
 
     euclidean_clear_inconsistency(ctx);
 
-    if (ctx->point_count == 0) {
+    if (ctx->points_da.count == 0) {
         ctx->is_consistent = true;
         return true;
     }
@@ -732,8 +701,10 @@ ConstraintGraph *euclidean_export_birkhoff(const EuclideanContext *ctx) {
     if (!export_graph)
         return NULL;
 
-    for (int i = 0; i < ctx->point_count; i++) {
-        int point_id = ctx->registered_points[i];
+    for (int i = 0; i < (int)ctx->points_da.count; i++) {
+        int *pp = (int *)lv_darray_get(&ctx->points_da, i);
+        if (!pp) break;
+        int point_id = *pp;
         SymbolicCoord *coords[2] = {NULL, NULL};
         if (ctx->constraint_graph) {
             GeomNode *node = graph_get_node(ctx->constraint_graph, point_id);
@@ -765,8 +736,10 @@ ConstraintGraph *euclidean_export_tarski(const EuclideanContext *ctx) {
     if (!export_graph)
         return NULL;
 
-    for (int i = 0; i < ctx->point_count; i++) {
-        int point_id = ctx->registered_points[i];
+    for (int i = 0; i < (int)ctx->points_da.count; i++) {
+        int *pp = (int *)lv_darray_get(&ctx->points_da, i);
+        if (!pp) break;
+        int point_id = *pp;
         SymbolicCoord *coords[2] = {NULL, NULL};
         if (ctx->constraint_graph) {
             GeomNode *node = graph_get_node(ctx->constraint_graph, point_id);
@@ -985,10 +958,11 @@ static int euclidean_axiom_mask_offset(int group, int axiom_id) {
  * @brief 检查上下文中指定 ID 的点是否已注册
  */
 static bool euclidean_point_is_registered(const EuclideanContext *ctx, int point_id) {
-    if (!ctx || ctx->point_count == 0)
+    if (!ctx || ctx->points_da.count == 0)
         return false;
-    for (int i = 0; i < ctx->point_count; i++) {
-        if (ctx->registered_points[i] == point_id)
+    const int *points = (const int *)ctx->points_da.data;
+    for (int i = 0; i < ctx->points_da.count; i++) {
+        if (points[i] == point_id)
             return true;
     }
     return false;
@@ -998,10 +972,11 @@ static bool euclidean_point_is_registered(const EuclideanContext *ctx, int point
  * @brief 检查上下文中指定 ID 的线是否已注册
  */
 static bool euclidean_line_is_registered(const EuclideanContext *ctx, int line_id) {
-    if (!ctx || ctx->line_count == 0)
+    if (!ctx || ctx->lines_da.count == 0)
         return false;
-    for (int i = 0; i < ctx->line_count; i++) {
-        if (ctx->registered_lines[i] == line_id)
+    const int *lines = (const int *)ctx->lines_da.data;
+    for (int i = 0; i < ctx->lines_da.count; i++) {
+        if (lines[i] == line_id)
             return true;
     }
     return false;
@@ -1011,10 +986,11 @@ static bool euclidean_line_is_registered(const EuclideanContext *ctx, int line_i
  * @brief 检查上下文中指定 ID 的圆是否已注册
  */
 static bool euclidean_circle_is_registered(const EuclideanContext *ctx, int circle_id) {
-    if (!ctx || ctx->circle_count == 0)
+    if (!ctx || ctx->circles_da.count == 0)
         return false;
-    for (int i = 0; i < ctx->circle_count; i++) {
-        if (ctx->registered_circles[i] == circle_id)
+    const int *circles = (const int *)ctx->circles_da.data;
+    for (int i = 0; i < ctx->circles_da.count; i++) {
+        if (circles[i] == circle_id)
             return true;
     }
     return false;
@@ -1086,17 +1062,7 @@ static bool graph_find_congruence_constraint(const ConstraintGraph *graph, int a
 static bool euclidean_register_point_id(EuclideanContext *ctx, int point_id) {
     if (!ctx)
         return false;
-
-    if (ctx->point_count >= ctx->point_capacity) {
-        int new_capacity = ctx->point_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int *new_array = lv_realloc(ctx->registered_points, (size_t) new_capacity * sizeof(int));
-        if (!new_array)
-            return false;
-        ctx->registered_points = new_array;
-        ctx->point_capacity = new_capacity;
-    }
-    ctx->registered_points[ctx->point_count++] = point_id;
-    return true;
+    return lv_darray_push(&ctx->points_da, &point_id) >= 0;
 }
 
 /**
@@ -1105,17 +1071,7 @@ static bool euclidean_register_point_id(EuclideanContext *ctx, int point_id) {
 static bool euclidean_register_line_id(EuclideanContext *ctx, int line_id) {
     if (!ctx)
         return false;
-
-    if (ctx->line_count >= ctx->line_capacity) {
-        int new_capacity = ctx->line_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int *new_array = lv_realloc(ctx->registered_lines, (size_t) new_capacity * sizeof(int));
-        if (!new_array)
-            return false;
-        ctx->registered_lines = new_array;
-        ctx->line_capacity = new_capacity;
-    }
-    ctx->registered_lines[ctx->line_count++] = line_id;
-    return true;
+    return lv_darray_push(&ctx->lines_da, &line_id) >= 0;
 }
 
 /**
@@ -1124,17 +1080,7 @@ static bool euclidean_register_line_id(EuclideanContext *ctx, int line_id) {
 static bool euclidean_register_circle_id(EuclideanContext *ctx, int circle_id) {
     if (!ctx)
         return false;
-
-    if (ctx->circle_count >= ctx->circle_capacity) {
-        int new_capacity = ctx->circle_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int *new_array = lv_realloc(ctx->registered_circles, (size_t) new_capacity * sizeof(int));
-        if (!new_array)
-            return false;
-        ctx->registered_circles = new_array;
-        ctx->circle_capacity = new_capacity;
-    }
-    ctx->registered_circles[ctx->circle_count++] = circle_id;
-    return true;
+    return lv_darray_push(&ctx->circles_da, &circle_id) >= 0;
 }
 
 /**
@@ -1373,12 +1319,13 @@ static bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx) {
 
     /* 关联公理 I.1 验证：任意两点确定唯一直线 */
     if (ctx->enabled_axioms_mask & (1u << (EUCLID_INCIDENCE_OFFSET + (int) INCIDENCE_TWO_POINTS_ONE_LINE))) {
-        if (ctx->constraint_graph && ctx->point_count >= 2) {
+        if (ctx->constraint_graph && ctx->points_da.count >= 2) {
+            const int *points = (const int *)ctx->points_da.data;
             int constraint_count = graph_get_constraint_count(ctx->constraint_graph);
-            for (int i = 0; i < ctx->point_count && i < 20; i++) {
-                for (int j = i + 1; j < ctx->point_count && j < 20; j++) {
-                    int pi = ctx->registered_points[i];
-                    int pj = ctx->registered_points[j];
+            for (int i = 0; i < ctx->points_da.count && i < 20; i++) {
+                for (int j = i + 1; j < ctx->points_da.count && j < 20; j++) {
+                    int pi = points[i];
+                    int pj = points[j];
                     int shared_lines = 0;
                     for (int k = 0; k < constraint_count && k < 100; k++) {
                         Constraint *c = graph_get_constraint(ctx->constraint_graph, k);

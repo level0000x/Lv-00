@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_memory_management.c
  * @brief 内存管理系统综合测试
  *
@@ -277,7 +277,7 @@ static void test_tracked_allocation(void) {
 
 static void resource_destroy_callback(void *resource) {
     /* 简单的销毁回调：释放内存 */
-    free(resource);
+    lv_free((void **) &resource);
 }
 
 static void test_resource_tracker(void) {
@@ -287,9 +287,9 @@ static void test_resource_tracker(void) {
     TEST_ASSERT_EQ(lv_resource_tracker_count(rt), 0);
 
     /* 追踪多个资源 */
-    void *res1 = malloc(100);
-    void *res2 = malloc(200);
-    void *res3 = malloc(300);
+    void *res1 = lv_malloc(100);
+    void *res2 = lv_malloc(200);
+    void *res3 = lv_malloc(300);
 
     bool ok;
     ok = lv_resource_track(rt, res1, resource_destroy_callback, "resource_1");
@@ -307,7 +307,7 @@ static void test_resource_tracker(void) {
     TEST_ASSERT_EQ(lv_resource_tracker_count(rt), 2);
 
     /* 手动释放 res2（已取消追踪） */
-    free(res2);
+    lv_free((void **) &res2);
 
     /* 清理剩余资源（应自动调用销毁回调） */
     lv_resource_tracker_cleanup(rt);

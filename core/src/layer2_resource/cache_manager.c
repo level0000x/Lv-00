@@ -19,6 +19,7 @@
  */
 
 #include "lv/cache_manager.h"
+#include "lv/lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,9 +98,9 @@ static void remove_entry(lvCacheManager *mgr, lvCacheEntry *entry) {
     if (entry->destructor && entry->data) {
         entry->destructor(entry->data, entry->data_size);
     } else {
-        free(entry->data);
+        lv_free((void **) &(entry->data));
     }
-    free(entry);
+    lv_free((void **) &entry);
 }
 
 /** LRU 淘汰：移除最久未使用的条目 */
@@ -127,7 +128,7 @@ static void evict_lru(lvCacheManager *mgr) {
  * @return 新创建的缓存管理器指针，失败返回 NULL
  */
 lvCacheManager *lv_cache_manager_create(const lvCacheConfig *config) {
-    lvCacheManager *mgr = (lvCacheManager *) calloc(1, sizeof(lvCacheManager));
+    lvCacheManager *mgr = (lvCacheManager *) lv_calloc(1, sizeof(lvCacheManager));
     if (mgr == NULL)
         return NULL;
 
@@ -146,18 +147,18 @@ lvCacheManager *lv_cache_manager_create(const lvCacheConfig *config) {
 
     /* 哈希桶 */
     mgr->bucket_count = DEFAULT_BUCKET_COUNT;
-    mgr->buckets = (lvCacheEntry **) calloc((size_t) mgr->bucket_count, sizeof(lvCacheEntry *));
+    mgr->buckets = (lvCacheEntry **) lv_calloc((size_t) mgr->bucket_count, sizeof(lvCacheEntry *));
     if (mgr->buckets == NULL) {
-        free(mgr);
+        lv_free((void **) &mgr);
         return NULL;
     }
 
     /* 上下文数组 */
     mgr->context_capacity = DEFAULT_CONTEXT_CAPACITY;
-    mgr->contexts = (lvCacheContext *) calloc((size_t) mgr->context_capacity, sizeof(lvCacheContext));
+    mgr->contexts = (lvCacheContext *) lv_calloc((size_t) mgr->context_capacity, sizeof(lvCacheContext));
     if (mgr->contexts == NULL) {
-        free(mgr->buckets);
-        free(mgr);
+        lv_free((void **) &(mgr->buckets));
+        lv_free((void **) &mgr);
         return NULL;
     }
 
@@ -192,16 +193,16 @@ void lv_cache_manager_destroy(lvCacheManager *manager) {
             if (entry->destructor && entry->data) {
                 entry->destructor(entry->data, entry->data_size);
             } else {
-                free(entry->data);
+                lv_free((void **) &(entry->data));
             }
-            free(entry);
+            lv_free((void **) &entry);
             entry = next;
         }
     }
 
-    free(manager->buckets);
-    free(manager->contexts);
-    free(manager);
+    lv_free((void **) &(manager->buckets));
+    lv_free((void **) &(manager->contexts));
+    lv_free((void **) &manager);
 }
 
 /**
@@ -251,8 +252,8 @@ bool lv_cache_put(lvCacheManager *manager, const char *key, const void *data, si
     while (existing != NULL) {
         if (strncmp(existing->key, key, sizeof(existing->key) - 1) == 0) {
             /* 更新现有条目 */
-            free(existing->data);
-            existing->data = malloc(size);
+            lv_free((void **) &(existing->data));
+            existing->data = lv_malloc(size);
             if (existing->data == NULL)
                 return false;
             memcpy(existing->data, data, size);
@@ -266,15 +267,15 @@ bool lv_cache_put(lvCacheManager *manager, const char *key, const void *data, si
     }
 
     /* 创建新条目 */
-    lvCacheEntry *entry = (lvCacheEntry *) calloc(1, sizeof(lvCacheEntry));
+    lvCacheEntry *entry = (lvCacheEntry *) lv_calloc(1, sizeof(lvCacheEntry));
     if (entry == NULL)
         return false;
 
     strncpy(entry->key, key, sizeof(entry->key) - 1);
     entry->key[sizeof(entry->key) - 1] = '\0'; /* 确保 null-terminate */
-    entry->data = malloc(size);
+    entry->data = lv_malloc(size);
     if (entry->data == NULL) {
-        free(entry);
+        lv_free((void **) &entry);
         return false;
     }
     memcpy(entry->data, data, size);
@@ -591,9 +592,9 @@ lvErrorCode lv_cache_manager_reset(lvCacheManager *manager) {
             if (entry->destructor && entry->data) {
                 entry->destructor(entry->data, entry->data_size);
             } else {
-                free(entry->data);
+                lv_free((void **) &(entry->data));
             }
-            free(entry);
+            lv_free((void **) &entry);
             entry = next;
         }
         manager->buckets[i] = NULL;

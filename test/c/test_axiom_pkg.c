@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_pkg.c
  * @brief 公理包系统测试 - 公理包创建、已知不可构造项、模板注册
  *
@@ -26,8 +26,8 @@ static int test_axiom_package_lifecycle(void) {
     assert(pkg != NULL);
     assert(strcmp(pkg->name, "Euclidean") == 0);
     assert(strcmp(pkg->version, "1.0.0") == 0);
-    assert(pkg->template_count == 0);
-    assert(pkg->unconstructible_count == 0);
+    assert(pkg->templates.count == 0);
+    assert(pkg->known_unconstructibles.count == 0);
 
     printf("  公理包 '%s' v%s 创建成功\n", pkg->name, pkg->version);
 
@@ -45,19 +45,18 @@ static int test_known_unconstructible(void) {
     assert(pkg != NULL);
 
     /* 创建已知不可构造项 */
-    KnownUnconstructible *item = malloc(sizeof(KnownUnconstructible));
+    KnownUnconstructible *item = lv_malloc(sizeof(KnownUnconstructible));
     assert(item != NULL);
     item->name = strdup("TrisectAngle");
     item->reduces_to = strdup("CubicEquation");
-    item->dependency_count = 0;
-    item->dependency_chain = NULL;
+    lv_darray_init(&item->dependency_chain, sizeof(char *));
     item->external_ref = strdup("https://math.example/trisection");
     item->green_verified = true;
 
     /* 添加到公理包 */
     bool ok = axiom_package_add_known_unconstructible(pkg, item);
     assert(ok);
-    assert(pkg->unconstructible_count == 1);
+    assert(pkg->known_unconstructibles.count == 1);
     printf("  添加不可构造项 '%s' 成功\n", item->name);
 
     /* 查找 */
@@ -91,7 +90,7 @@ static int test_constraint_templates(void) {
     assert(pkg != NULL);
 
     /* 创建模板 */
-    ConstraintTemplate *tmpl = malloc(sizeof(ConstraintTemplate));
+    ConstraintTemplate *tmpl = lv_malloc(sizeof(ConstraintTemplate));
     assert(tmpl != NULL);
     tmpl->name = strdup("Midpoint");
     tmpl->param_count = 2;
@@ -101,7 +100,7 @@ static int test_constraint_templates(void) {
     /* 注册模板 */
     bool ok = axiom_package_register_template(pkg, tmpl);
     assert(ok);
-    assert(pkg->template_count == 1);
+    assert(pkg->templates.count == 1);
     printf("  注册模板 '%s' 成功\n", tmpl->name);
 
     /* 获取模板 */
@@ -130,7 +129,7 @@ static int test_content_hash(void) {
     assert(pkg != NULL);
 
     /* 添加一些内容 */
-    ConstraintTemplate *tmpl = malloc(sizeof(ConstraintTemplate));
+    ConstraintTemplate *tmpl = lv_malloc(sizeof(ConstraintTemplate));
     tmpl->name = strdup("TestTemplate");
     tmpl->param_count = 1;
     tmpl->expand = test_expand_func;

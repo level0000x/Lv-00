@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_json.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -1173,48 +1174,27 @@ char *magic_array_serialize(const MagicArray *array) {
     if (!array)
         return NULL;
 
-    /* 计算所需缓冲区大小 */
     int rune_count = array->runes->rune_count;
     int constraint_count = array->constraint_count;
 
-    /* 基础 JSON 结构 + 每个符文预估大小 */
-    size_t buf_size = MAGIC_SERIALIZE_JSON_BASE_SIZE + (size_t) rune_count * MAGIC_SERIALIZE_PER_RUNE_SIZE;
-    char *json = (char *) lv_malloc(buf_size);
-    if (!json)
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, MAGIC_SERIALIZE_JSON_BASE_SIZE + (size_t) rune_count * MAGIC_SERIALIZE_PER_RUNE_SIZE))
         return NULL;
 
-    /* 写入 JSON 头部：符文数和约束数 */
-    int offset = 0;
-    offset += snprintf(json + offset, buf_size - offset, "{\"rune_count\":%d,\"constraint_count\":%d,\"runes\":[",
-                       rune_count, constraint_count);
-    if (offset < 0)
-        goto done;
+    lv_json_buf_append_fmt(&buf, "{\"rune_count\":%d,\"constraint_count\":%d,\"runes\":[",
+                           rune_count, constraint_count);
 
-    /* 逐个序列化符文为 JSON 对象 */
-    for (int i = 0; i < rune_count && offset < (int) buf_size; i++) {
+    for (int i = 0; i < rune_count; i++) {
         Rune *rune = array->runes->runes[i];
         const char *elem_str = element_to_string(rune->element);
-        /* 元素间用逗号分隔 */
-        if (i > 0 && offset < (int) buf_size) {
-            offset += snprintf(json + offset, buf_size - offset, ",");
-            if (offset < 0)
-                break;
-        }
-        if (offset < (int) buf_size) {
-            offset += snprintf(json + offset, buf_size - offset, "{\"element\":\"%s\",\"power\":%d}", elem_str,
-                               rune->power_level);
-            if (offset < 0)
-                break;
-        }
+        if (i > 0)
+            lv_json_buf_append_char(&buf, ',');
+        lv_json_buf_append_fmt(&buf, "{\"element\":\"%s\",\"power\":%d}", elem_str, rune->power_level);
     }
 
-    /* 闭合 JSON 数组和对象 */
-    if (offset >= 0 && offset < (int) buf_size)
-        offset += snprintf(json + offset, buf_size - offset, "]}");
+    lv_json_buf_append_raw(&buf, "]}");
 
-done:
-
-    return json;
+    return lv_json_buf_finalize(&buf);
 }
 
 /**

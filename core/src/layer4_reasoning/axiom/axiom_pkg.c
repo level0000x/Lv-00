@@ -101,23 +101,15 @@ AxiomPackage *axiom_package_create(const char *name, const char *version) {
 
     pkg->name = safe_lv_strdup_safe(name);
     pkg->version = safe_lv_strdup_safe(version);
-    pkg->templates = NULL;
-    pkg->template_count = 0;
-    pkg->known_unconstructibles = NULL;
-    pkg->unconstructible_count = 0;
-    pkg->unconstructible_templates = NULL;
-    pkg->unconstructible_template_count = 0;
-    pkg->unconstructible_template_capacity = 0;
+    lv_darray_init(&pkg->templates, sizeof(ConstraintTemplate));
+    lv_darray_init(&pkg->known_unconstructibles, sizeof(KnownUnconstructible));
+    lv_darray_init(&pkg->unconstructible_templates, sizeof(UnconstructibleTemplate));
     pkg->bottom_geometry = NULL;
     pkg->negation_encoding = NULL;
     pkg->contradiction_behavior = EXPLOSION_PRINCIPLE;
-    pkg->expansion_cache = NULL;
-    pkg->expansion_cache_count = 0;
-    pkg->expansion_cache_capacity = 0;
+    lv_darray_init(&pkg->expansion_cache, sizeof(TemplateExpansionCache));
     pkg->max_expansion_depth = AXIOM_MAX_EXPANSION_DEPTH; /* 默认递归深度 */
-    pkg->dep_refs = NULL;
-    pkg->dep_ref_count = 0;
-    pkg->dep_ref_capacity = 0;
+    lv_darray_init(&pkg->dep_refs, sizeof(DependencyRef));
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "公理包创建成功", 0);
@@ -134,34 +126,34 @@ void axiom_package_destroy(AxiomPackage *pkg) {
     lv_free((void **) &pkg->version);
 
     /* 释放模板 */
-    for (int i = 0; i < pkg->template_count; i++) {
-        lv_free((void **) &pkg->templates[i].name);
-        lv_free((void **) &pkg->templates[i].params);
-        /* v3.6.0: 释放压缩态子图 */
-        if (pkg->templates[i].compressed_subgraph) {
-            graph_destroy(pkg->templates[i].compressed_subgraph);
+    for (int i = 0; i < pkg->templates.count; i++) {
+        ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
+        lv_free((void **) &t->name);
+        lv_free((void **) &t->params);
+        if (t->compressed_subgraph) {
+            graph_destroy(t->compressed_subgraph);
         }
     }
-    lv_free((void **) &pkg->templates);
+    lv_darray_free(&pkg->templates);
 
     /* 释放不可构造问题 */
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+    for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
+        KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
         lv_free((void **) &uc->name);
         lv_free((void **) &uc->reduces_to);
         lv_free((void **) &uc->external_ref);
 
         /* 释放依赖链 */
-        for (int j = 0; j < uc->dependency_count; j++) {
-            lv_free((void **) &uc->dependency_chain[j]);
+        for (int j = 0; j < uc->dependency_chain.count; j++) {
+            lv_free((void **) lv_darray_get(&uc->dependency_chain, j));
         }
-        lv_free((void **) &uc->dependency_chain);
+        lv_darray_free(&uc->dependency_chain);
     }
-    lv_free((void **) &pkg->known_unconstructibles);
+    lv_darray_free(&pkg->known_unconstructibles);
 
     /* 释放不可构造性证明模板 */
-    for (int i = 0; i < pkg->unconstructible_template_count; i++) {
-        UnconstructibleTemplate *tmpl = &pkg->unconstructible_templates[i];
+    for (int i = 0; i < pkg->unconstructible_templates.count; i++) {
+        UnconstructibleTemplate *tmpl = (UnconstructibleTemplate *)lv_darray_get(&pkg->unconstructible_templates, i);
         lv_free((void **) &tmpl->target_problem_name);
         lv_free((void **) &tmpl->known_unconstructible_name);
         if (tmpl->reduction_construction) {
@@ -169,22 +161,23 @@ void axiom_package_destroy(AxiomPackage *pkg) {
         }
         lv_free((void **) &tmpl->description);
     }
-    lv_free((void **) &pkg->unconstructible_templates);
+    lv_darray_free(&pkg->unconstructible_templates);
 
     lv_free((void **) &pkg->bottom_geometry);
     lv_free((void **) &pkg->negation_encoding);
 
     /* 释放模板展开缓存 */
-    for (int i = 0; i < pkg->expansion_cache_count; i++) {
-        lv_free((void **) &pkg->expansion_cache[i].template_name);
-        if (pkg->expansion_cache[i].expanded_graph) {
-            graph_destroy(pkg->expansion_cache[i].expanded_graph);
+    for (int i = 0; i < pkg->expansion_cache.count; i++) {
+        TemplateExpansionCache *c = (TemplateExpansionCache *)lv_darray_get(&pkg->expansion_cache, i);
+        lv_free((void **) &c->template_name);
+        if (c->expanded_graph) {
+            graph_destroy(c->expanded_graph);
         }
     }
-    lv_free((void **) &pkg->expansion_cache);
+    lv_darray_free(&pkg->expansion_cache);
 
     /* 释放依赖引用数组 */
-    lv_free((void **) &pkg->dep_refs);
+    lv_darray_free(&pkg->dep_refs);
 
     lv_free((void **) &pkg);
 }
@@ -195,41 +188,41 @@ bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstruct
     if (!pkg || !item)
         return false;
 
-    KnownUnconstructible *new_arr =
-        lv_realloc(pkg->known_unconstructibles, (pkg->unconstructible_count + 1) * sizeof(KnownUnconstructible));
-    if (!new_arr)
-        return false;
-
-    pkg->known_unconstructibles = new_arr;
-    KnownUnconstructible *target = &pkg->known_unconstructibles[pkg->unconstructible_count];
+    KnownUnconstructible target_item;
+    memset(&target_item, 0, sizeof(KnownUnconstructible));
 
     /* 深拷贝语义：对所有字符串字段进行独立拷贝，
      * 确保包内部持有独立的内存副本。
      * 调用者可以安全地释放或修改原始 item 的字符串字段。 */
-    memset(target, 0, sizeof(KnownUnconstructible));
-    target->name = safe_lv_strdup_safe(item->name);
-    target->reduces_to = safe_lv_strdup_safe(item->reduces_to);
-    target->external_ref = safe_lv_strdup_safe(item->external_ref);
-    target->green_verified = item->green_verified;
-    target->dependency_count = item->dependency_count;
+    target_item.name = safe_lv_strdup_safe(item->name);
+    target_item.reduces_to = safe_lv_strdup_safe(item->reduces_to);
+    target_item.external_ref = safe_lv_strdup_safe(item->external_ref);
+    target_item.green_verified = item->green_verified;
 
     /* 深拷贝依赖链中的每个字符串 */
-    if (item->dependency_count > 0 && item->dependency_chain) {
-        target->dependency_chain = lv_calloc((size_t) item->dependency_count, sizeof(char *));
-        if (!target->dependency_chain) {
+    lv_darray_init(&target_item.dependency_chain, sizeof(char *));
+    for (int i = 0; i < item->dependency_chain.count; i++) {
+        char *s = safe_lv_strdup_safe(*(char **)lv_darray_get(&item->dependency_chain, i));
+        if (lv_darray_push(&target_item.dependency_chain, &s) < 0) {
             /* 分配失败时回滚已拷贝的字段 */
-            lv_free((void **) &target->name);
-            lv_free((void **) &target->reduces_to);
-            lv_free((void **) &target->external_ref);
-            memset(target, 0, sizeof(KnownUnconstructible));
+            lv_free((void **) &target_item.name);
+            lv_free((void **) &target_item.reduces_to);
+            lv_free((void **) &target_item.external_ref);
+            lv_darray_free(&target_item.dependency_chain);
+            memset(&target_item, 0, sizeof(KnownUnconstructible));
             return false;
-        }
-        for (int i = 0; i < item->dependency_count; i++) {
-            target->dependency_chain[i] = safe_lv_strdup_safe(item->dependency_chain[i]);
         }
     }
 
-    pkg->unconstructible_count++;
+    /* 推入包数组 */
+    if (lv_darray_push(&pkg->known_unconstructibles, &target_item) < 0) {
+        lv_free((void **) &target_item.name);
+        lv_free((void **) &target_item.reduces_to);
+        lv_free((void **) &target_item.external_ref);
+        lv_darray_free(&target_item.dependency_chain);
+        memset(&target_item, 0, sizeof(KnownUnconstructible));
+        return false;
+    }
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册不可构造问题", 0);
@@ -242,9 +235,10 @@ KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, co
     if (!pkg || !name)
         return NULL;
 
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        if (strcmp(pkg->known_unconstructibles[i].name, name) == 0) {
-            return &pkg->known_unconstructibles[i];
+    for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
+        KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
+        if (strcmp(uc->name, name) == 0) {
+            return uc;
         }
     }
     return NULL;
@@ -257,30 +251,24 @@ int axiom_package_add_unconstructible_template(AxiomPackage *pkg, const char *ta
     if (!pkg || !target_name || !known_name || !construction)
         return -1;
 
-    /* 扩容 */
-    if (pkg->unconstructible_template_count >= pkg->unconstructible_template_capacity) {
-        int new_cap = pkg->unconstructible_template_capacity == 0 ? 8 : pkg->unconstructible_template_capacity * 2;
-        UnconstructibleTemplate *new_arr =
-            lv_realloc(pkg->unconstructible_templates, (size_t) new_cap * sizeof(UnconstructibleTemplate));
-        if (!new_arr)
-            return -2;
-        pkg->unconstructible_templates = new_arr;
-        pkg->unconstructible_template_capacity = new_cap;
-    }
-
-    UnconstructibleTemplate *slot = &pkg->unconstructible_templates[pkg->unconstructible_template_count];
-    memset(slot, 0, sizeof(UnconstructibleTemplate));
+    UnconstructibleTemplate tmpl;
+    memset(&tmpl, 0, sizeof(UnconstructibleTemplate));
 
     /* 深拷贝字符串字段 */
-    slot->target_problem_name = safe_lv_strdup_safe(target_name);
-    slot->known_unconstructible_name = safe_lv_strdup_safe(known_name);
-    slot->description = safe_lv_strdup_safe(description);
-    slot->verified = false;
+    tmpl.target_problem_name = safe_lv_strdup_safe(target_name);
+    tmpl.known_unconstructible_name = safe_lv_strdup_safe(known_name);
+    tmpl.description = safe_lv_strdup_safe(description);
+    tmpl.verified = false;
 
     /* 接过归约构造图的所有权 */
-    slot->reduction_construction = construction;
+    tmpl.reduction_construction = construction;
 
-    pkg->unconstructible_template_count++;
+    if (lv_darray_push(&pkg->unconstructible_templates, &tmpl) < 0) {
+        lv_free((void **) &tmpl.target_problem_name);
+        lv_free((void **) &tmpl.known_unconstructible_name);
+        lv_free((void **) &tmpl.description);
+        return -2;
+    }
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册不可构造性证明模板", 0);
@@ -293,9 +281,10 @@ UnconstructibleTemplate *axiom_package_lookup_unconstructible_template(AxiomPack
     if (!pkg || !target_name)
         return NULL;
 
-    for (int i = 0; i < pkg->unconstructible_template_count; i++) {
-        if (strcmp(pkg->unconstructible_templates[i].target_problem_name, target_name) == 0) {
-            return &pkg->unconstructible_templates[i];
+    for (int i = 0; i < pkg->unconstructible_templates.count; i++) {
+        UnconstructibleTemplate *t = (UnconstructibleTemplate *)lv_darray_get(&pkg->unconstructible_templates, i);
+        if (strcmp(t->target_problem_name, target_name) == 0) {
+            return t;
         }
     }
     return NULL;
@@ -311,8 +300,8 @@ bool axiom_package_verify_unconstructible(ConstraintGraph *graph, int target_nod
         return false;
 
     /* 遍历所有不可构造性证明模板 */
-    for (int i = 0; i < pkg->unconstructible_template_count; i++) {
-        UnconstructibleTemplate *tmpl = &pkg->unconstructible_templates[i];
+    for (int i = 0; i < pkg->unconstructible_templates.count; i++) {
+        UnconstructibleTemplate *tmpl = (UnconstructibleTemplate *)lv_darray_get(&pkg->unconstructible_templates, i);
         if (!tmpl->target_problem_name || !tmpl->reduction_construction)
             continue;
 
@@ -440,28 +429,26 @@ bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl
     if (!pkg || !tmpl)
         return false;
 
-    ConstraintTemplate *new_arr = lv_realloc(pkg->templates, (pkg->template_count + 1) * sizeof(ConstraintTemplate));
-    if (!new_arr)
-        return false;
-
-    pkg->templates = new_arr;
-    ConstraintTemplate *slot = &pkg->templates[pkg->template_count];
-    *slot = *tmpl;
+    ConstraintTemplate slot = *tmpl;
     /* 深拷贝 name（调用者可能释放原始字符串） */
-    if (slot->name) {
-        slot->name = lv_strdup_safe(slot->name);
+    if (slot.name) {
+        slot.name = lv_strdup_safe(slot.name);
     }
     /* 安全初始化：浅拷贝后 params 指针指向调用者的内存（或未初始化），
      * pkg 不应持有该指针的所有权。无条件置 NULL 以避免 free() 未初始化
      * 指针或调用者内存导致 bad-free / double-free。
      * 若调用者需要注册参数描述，应使用独立的 API 设置。 */
-    slot->params = NULL;
-    slot->param_desc_count = 0;
+    slot.params = NULL;
+    slot.param_desc_count = 0;
     /* v3.6.0: 模板分级管理初始化 */
-    slot->level = TEMPLATE_LEVEL_ONE; /* 默认为一级模板 */
-    slot->is_compressed = false;
-    slot->compressed_subgraph = NULL;
-    pkg->template_count++;
+    slot.level = TEMPLATE_LEVEL_ONE; /* 默认为一级模板 */
+    slot.is_compressed = false;
+    slot.compressed_subgraph = NULL;
+
+    if (lv_darray_push(&pkg->templates, &slot) < 0) {
+        lv_free((void **) &slot.name);
+        return false;
+    }
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册约束模板", 0);
@@ -474,9 +461,10 @@ ConstraintTemplate *axiom_package_get_template(AxiomPackage *pkg, const char *na
     if (!pkg || !name)
         return NULL;
 
-    for (int i = 0; i < pkg->template_count; i++) {
-        if (strcmp(pkg->templates[i].name, name) == 0) {
-            return &pkg->templates[i];
+    for (int i = 0; i < pkg->templates.count; i++) {
+        ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
+        if (strcmp(t->name, name) == 0) {
+            return t;
         }
     }
     return NULL;
@@ -697,15 +685,13 @@ static void unconstructible_desc_cleanup(KnownUnconstructible *uc) {
     lv_free((void **) &uc->name);
     lv_free((void **) &uc->reduces_to);
     lv_free((void **) &uc->external_ref);
-    for (int i = 0; i < uc->dependency_count; i++) {
-        lv_free((void **) &uc->dependency_chain[i]);
+    for (int i = 0; i < uc->dependency_chain.count; i++) {
+        lv_free((void **) lv_darray_get(&uc->dependency_chain, i));
     }
-    lv_free((void **) &uc->dependency_chain);
+    lv_darray_free(&uc->dependency_chain);
     uc->name = NULL;
     uc->reduces_to = NULL;
     uc->external_ref = NULL;
-    uc->dependency_chain = NULL;
-    uc->dependency_count = 0;
 }
 
 /* 解析不可构造问题 */
@@ -717,6 +703,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
         return false;
 
     KnownUnconstructible uc = {0};
+    lv_darray_init(&uc.dependency_chain, sizeof(char *));
     uc.name = safe_lv_strdup_safe(p->current.str_value);
     uc.green_verified = false;
 
@@ -756,12 +743,8 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             }
 
             /* 添加到依赖链 */
-            char **new_deps = lv_realloc(uc.dependency_chain, (uc.dependency_count + 1) * sizeof(char *));
-            if (new_deps) {
-                uc.dependency_chain = new_deps;
-                uc.dependency_chain[uc.dependency_count] = safe_lv_strdup_safe(p->current.str_value);
-                uc.dependency_count++;
-            }
+            char *dep = safe_lv_strdup_safe(p->current.str_value);
+            lv_darray_push(&uc.dependency_chain, &dep);
             parser_advance(p);
         } else if (strcmp(prop, "external_ref") == 0) {
             if (!parser_expect(p, PKG_STRING)) {
@@ -1093,21 +1076,22 @@ AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const char *filepath
     fprintf(f, "axiom \"%s\" \"%s\" {\n", pkg->name ? pkg->name : "unnamed", pkg->version ? pkg->version : "0.0.0");
 
     /* 写入模板 */
-    for (int i = 0; i < pkg->template_count; i++) {
-        fprintf(f, "    template \"%s\" %d\n", pkg->templates[i].name, pkg->templates[i].param_count);
+    for (int i = 0; i < pkg->templates.count; i++) {
+        ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
+        fprintf(f, "    template \"%s\" %d\n", t->name, t->param_count);
     }
 
     /* 写入不可构造问题 */
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+    for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
+        KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
         fprintf(f, "\n    unconstructible \"%s\" {\n", uc->name);
 
         if (uc->reduces_to) {
             fprintf(f, "        reduces_to \"%s\"\n", uc->reduces_to);
         }
 
-        for (int j = 0; j < uc->dependency_count; j++) {
-            fprintf(f, "        dependency \"%s\"\n", uc->dependency_chain[j]);
+        for (int j = 0; j < uc->dependency_chain.count; j++) {
+            fprintf(f, "        dependency \"%s\"\n", *(char **)lv_darray_get(&uc->dependency_chain, j));
         }
 
         if (uc->external_ref) {
@@ -1163,19 +1147,20 @@ char *axiom_package_compute_content_hash(AxiomPackage *pkg) {
     }
 
     /* 哈希所有模板名称和参数数量 */
-    for (int i = 0; i < pkg->template_count; i++) {
-        if (pkg->templates[i].name) {
-            lv_sha256_update(&ctx, (const uint8_t *) pkg->templates[i].name, strlen(pkg->templates[i].name));
+    for (int i = 0; i < pkg->templates.count; i++) {
+        ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
+        if (t->name) {
+            lv_sha256_update(&ctx, (const uint8_t *) t->name, strlen(t->name));
         } else {
             lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
         }
-        lv_sha256_update(&ctx, (const uint8_t *) &pkg->templates[i].param_count, sizeof(int));
-        lv_sha256_update(&ctx, (const uint8_t *) &pkg->templates[i].verified, sizeof(bool));
+        lv_sha256_update(&ctx, (const uint8_t *) &t->param_count, sizeof(int));
+        lv_sha256_update(&ctx, (const uint8_t *) &t->verified, sizeof(bool));
     }
 
     /* 哈希所有不可构造问题 */
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+    for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
+        KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
 
         if (uc->name) {
             lv_sha256_update(&ctx, (const uint8_t *) uc->name, strlen(uc->name));
@@ -1189,9 +1174,10 @@ char *axiom_package_compute_content_hash(AxiomPackage *pkg) {
         }
 
         /* 哈希依赖链 */
-        for (int j = 0; j < uc->dependency_count; j++) {
-            if (uc->dependency_chain[j]) {
-                lv_sha256_update(&ctx, (const uint8_t *) uc->dependency_chain[j], strlen(uc->dependency_chain[j]));
+        for (int j = 0; j < uc->dependency_chain.count; j++) {
+            char *dep = *(char **)lv_darray_get(&uc->dependency_chain, j);
+            if (dep) {
+                lv_sha256_update(&ctx, (const uint8_t *) dep, strlen(dep));
             } else {
                 lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
             }
@@ -1320,8 +1306,8 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
 
     bool all_valid = true;
 
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+    for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
+        KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
 
         /* 验证 reduces_to 引用 */
         if (uc->reduces_to && uc->reduces_to[0] != '\0') {
@@ -1341,8 +1327,8 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
         }
 
         /* 验证依赖链中的所有项 */
-        for (int j = 0; j < uc->dependency_count; j++) {
-            const char *dep = uc->dependency_chain[j];
+        for (int j = 0; j < uc->dependency_chain.count; j++) {
+            const char *dep = *(char **)lv_darray_get(&uc->dependency_chain, j);
 
             /* 检查是否为已知问题 */
             KnownUnconstructible *dep_problem = find_problem_in_packages(loaded_packages, package_count, dep);
@@ -1648,10 +1634,11 @@ ConstraintGraph *axiom_package_lookup_expansion_cache(AxiomPackage *pkg, const c
 
     uint64_t target_hash = compute_param_hash(params, param_count);
 
-    for (int i = 0; i < pkg->expansion_cache_count; i++) {
-        if (pkg->expansion_cache[i].param_hash == target_hash && pkg->expansion_cache[i].template_name &&
-            strcmp(pkg->expansion_cache[i].template_name, template_name) == 0) {
-            return pkg->expansion_cache[i].expanded_graph;
+    for (int i = 0; i < pkg->expansion_cache.count; i++) {
+        TemplateExpansionCache *c = (TemplateExpansionCache *)lv_darray_get(&pkg->expansion_cache, i);
+        if (c->param_hash == target_hash && c->template_name &&
+            strcmp(c->template_name, template_name) == 0) {
+            return c->expanded_graph;
         }
     }
 
@@ -1666,22 +1653,15 @@ bool axiom_package_store_expansion_cache(AxiomPackage *pkg, const char *template
     if (!pkg)
         return false;
 
-    /* 扩容 */
-    if (pkg->expansion_cache_count >= pkg->expansion_cache_capacity) {
-        int new_cap =
-            pkg->expansion_cache_capacity == 0 ? AXIOM_EXPANSION_CACHE_CAP : pkg->expansion_cache_capacity * 2;
-        TemplateExpansionCache *new_arr = lv_realloc(pkg->expansion_cache, new_cap * sizeof(TemplateExpansionCache));
-        if (!new_arr)
-            return false;
-        pkg->expansion_cache = new_arr;
-        pkg->expansion_cache_capacity = new_cap;
-    }
+    TemplateExpansionCache c;
+    c.param_hash = compute_param_hash(params, param_count);
+    c.template_name = template_name ? lv_strdup_safe(template_name) : NULL;
+    c.expanded_graph = expanded_graph;
 
-    pkg->expansion_cache[pkg->expansion_cache_count].param_hash = compute_param_hash(params, param_count);
-    pkg->expansion_cache[pkg->expansion_cache_count].template_name =
-        template_name ? lv_strdup_safe(template_name) : NULL;
-    pkg->expansion_cache[pkg->expansion_cache_count].expanded_graph = expanded_graph;
-    pkg->expansion_cache_count++;
+    if (lv_darray_push(&pkg->expansion_cache, &c) < 0) {
+        lv_free((void **) &c.template_name);
+        return false;
+    }
 
     return true;
 }
@@ -1693,12 +1673,14 @@ void axiom_package_clear_expansion_cache(AxiomPackage *pkg) {
     if (!pkg)
         return;
 
-    for (int i = 0; i < pkg->expansion_cache_count; i++) {
-        if (pkg->expansion_cache[i].expanded_graph) {
-            graph_destroy(pkg->expansion_cache[i].expanded_graph);
+    for (int i = 0; i < pkg->expansion_cache.count; i++) {
+        TemplateExpansionCache *c = (TemplateExpansionCache *)lv_darray_get(&pkg->expansion_cache, i);
+        lv_free((void **) &c->template_name);
+        if (c->expanded_graph) {
+            graph_destroy(c->expanded_graph);
         }
     }
-    pkg->expansion_cache_count = 0;
+    lv_darray_clear(&pkg->expansion_cache);
 }
 
 /* ============== 依赖引用追踪（Section 11.5: 依赖链断裂自动降级） ============== */
@@ -1714,31 +1696,16 @@ int axiom_package_register_dependency_ref(AxiomPackage *pkg, const char *ref_id,
     if (!pkg || !ref_id || !content_hash)
         return -1;
 
-    /* 扩容 */
-    if (pkg->dep_ref_count >= pkg->dep_ref_capacity) {
-        int new_cap = pkg->dep_ref_capacity == 0 ? AXIOM_DEP_REF_CACHE_CAP : pkg->dep_ref_capacity * 2;
-        DependencyRef *new_arr = lv_realloc(pkg->dep_refs, (size_t) new_cap * sizeof(DependencyRef));
-        if (!new_arr)
-            return -2;
-        pkg->dep_refs = new_arr;
-        pkg->dep_ref_capacity = new_cap;
-    }
+    DependencyRef ref;
+    memset(&ref, 0, sizeof(DependencyRef));
 
-    DependencyRef *ref = &pkg->dep_refs[pkg->dep_ref_count];
-    memset(ref, 0, sizeof(DependencyRef));
+    lv_strlcpy(ref.ref_id, ref_id, sizeof(ref.ref_id));
+    lv_strlcpy(ref.content_hash, content_hash, sizeof(ref.content_hash));
+    ref.dependent_node_id = dependent_node_id;
+    ref.original_color = DEP_TRUST_GREEN;
 
-    /* 安全复制 ref_id（使用 lv_strlcpy 自动保证零终止） */
-    lv_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
-
-    /* 安全复制 content_hash（使用 lv_strlcpy 自动保证零终止） */
-    lv_strlcpy(ref->content_hash, content_hash, sizeof(ref->content_hash));
-
-    ref->dependent_node_id = dependent_node_id;
-
-    /* 记录原始信任颜色为 GREEN */
-    ref->original_color = DEP_TRUST_GREEN;
-
-    pkg->dep_ref_count++;
+    if (lv_darray_push(&pkg->dep_refs, &ref) < 0)
+        return -2;
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册依赖引用", 0);
@@ -1761,7 +1728,7 @@ int axiom_package_validate_dependencies_with_hashes(AxiomPackage *pkg, Dependenc
     *invalidated_refs = NULL;
     *invalidated_count = 0;
 
-    if (pkg->dep_ref_count == 0)
+    if (pkg->dep_refs.count == 0)
         return 0;
 
     /* 重新计算当前包的内容哈希 */
@@ -1773,8 +1740,8 @@ int axiom_package_validate_dependencies_with_hashes(AxiomPackage *pkg, Dependenc
      * REF_EXTERNAL 为公认文献，永久有效，不参与自动重验
      * REF_AUTHOR 为基础黄色，无形式化支撑，不参与哈希验证 */
     int fail_count = 0;
-    for (int i = 0; i < pkg->dep_ref_count; i++) {
-        DependencyRef *ref = &pkg->dep_refs[i];
+    for (int i = 0; i < pkg->dep_refs.count; i++) {
+        DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
         if (ref->ref_type != REF_INTERNAL)
             continue;
         if (strcmp(ref->content_hash, current_hash) != 0) {
@@ -1796,8 +1763,8 @@ int axiom_package_validate_dependencies_with_hashes(AxiomPackage *pkg, Dependenc
 
     /* 第二遍：填充失效引用 */
     int out_idx = 0;
-    for (int i = 0; i < pkg->dep_ref_count; i++) {
-        DependencyRef *ref = &pkg->dep_refs[i];
+    for (int i = 0; i < pkg->dep_refs.count; i++) {
+        DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
         if (ref->ref_type != REF_INTERNAL)
             continue;
         if (strcmp(ref->content_hash, current_hash) != 0) {
@@ -1868,8 +1835,8 @@ int axiom_package_auto_degrade_invalidated(AxiomPackage *pkg, ConstraintGraph *g
     lv_free((void **) &invalidated);
 
     /* 步骤3：处理作者断言引用 —— 确保依赖节点保持 YELLOW */
-    for (int i = 0; i < pkg->dep_ref_count; i++) {
-        DependencyRef *ref = &pkg->dep_refs[i];
+    for (int i = 0; i < pkg->dep_refs.count; i++) {
+        DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
         if (ref->ref_type != REF_AUTHOR)
             continue;
 
@@ -1916,8 +1883,8 @@ static char *compute_lemma_block_hash(AxiomPackage *pkg, int lemma_block_id) {
     lv_sha256_update(&ctx, (const uint8_t *) &lemma_block_id, sizeof(lemma_block_id));
 
     /* 哈希所有已知不可构造问题中的依赖链（这些构成引理块的约束逻辑） */
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+    for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
+        KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
         if (uc->name) {
             lv_sha256_update(&ctx, (const uint8_t *) uc->name, strlen(uc->name));
         } else {
@@ -1931,9 +1898,10 @@ static char *compute_lemma_block_hash(AxiomPackage *pkg, int lemma_block_id) {
         lv_sha256_update(&ctx, (const uint8_t *) &uc->green_verified, sizeof(bool));
 
         /* 哈希依赖链 */
-        for (int j = 0; j < uc->dependency_count; j++) {
-            if (uc->dependency_chain[j]) {
-                lv_sha256_update(&ctx, (const uint8_t *) uc->dependency_chain[j], strlen(uc->dependency_chain[j]));
+        for (int j = 0; j < uc->dependency_chain.count; j++) {
+            char *dep = *(char **)lv_darray_get(&uc->dependency_chain, j);
+            if (dep) {
+                lv_sha256_update(&ctx, (const uint8_t *) dep, strlen(dep));
             } else {
                 lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
             }
@@ -1947,14 +1915,15 @@ static char *compute_lemma_block_hash(AxiomPackage *pkg, int lemma_block_id) {
     }
 
     /* 哈希所有模板名称和参数（构成构造性基础） */
-    for (int i = 0; i < pkg->template_count; i++) {
-        if (pkg->templates[i].name) {
-            lv_sha256_update(&ctx, (const uint8_t *) pkg->templates[i].name, strlen(pkg->templates[i].name));
+    for (int i = 0; i < pkg->templates.count; i++) {
+        ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
+        if (t->name) {
+            lv_sha256_update(&ctx, (const uint8_t *) t->name, strlen(t->name));
         } else {
             lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
         }
-        lv_sha256_update(&ctx, (const uint8_t *) &pkg->templates[i].param_count, sizeof(int));
-        lv_sha256_update(&ctx, (const uint8_t *) &pkg->templates[i].verified, sizeof(bool));
+        lv_sha256_update(&ctx, (const uint8_t *) &t->param_count, sizeof(int));
+        lv_sha256_update(&ctx, (const uint8_t *) &t->verified, sizeof(bool));
     }
 
     /* 哈希几何信息和矛盾行为 */
@@ -2001,31 +1970,20 @@ int axiom_package_add_internal_ref(AxiomPackage *pkg, int lemma_block_id, int de
     char ref_id[64];
     snprintf(ref_id, sizeof(ref_id), "internal:lemma:%d", lemma_block_id);
 
-    /* 扩容 */
-    if (pkg->dep_ref_count >= pkg->dep_ref_capacity) {
-        int new_cap = pkg->dep_ref_capacity == 0 ? AXIOM_DEP_REF_CACHE_CAP : pkg->dep_ref_capacity * 2;
-        DependencyRef *new_arr = lv_realloc(pkg->dep_refs, (size_t) new_cap * sizeof(DependencyRef));
-        if (!new_arr) {
-            lv_free((void **) &hash);
-            return -2;
-        }
-        pkg->dep_refs = new_arr;
-        pkg->dep_ref_capacity = new_cap;
-    }
+    DependencyRef ref;
+    memset(&ref, 0, sizeof(DependencyRef));
 
-    DependencyRef *ref = &pkg->dep_refs[pkg->dep_ref_count];
-    memset(ref, 0, sizeof(DependencyRef));
-
-    lv_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
-    lv_strlcpy(ref->content_hash, hash, sizeof(ref->content_hash));
+    lv_strlcpy(ref.ref_id, ref_id, sizeof(ref.ref_id));
+    lv_strlcpy(ref.content_hash, hash, sizeof(ref.content_hash));
     lv_free((void **) &hash);
 
-    ref->dependent_node_id = dependent_node_id;
-    ref->original_color = DEP_TRUST_GREEN;
-    ref->ref_type = REF_INTERNAL;
-    ref->hash_valid = true;
+    ref.dependent_node_id = dependent_node_id;
+    ref.original_color = DEP_TRUST_GREEN;
+    ref.ref_type = REF_INTERNAL;
+    ref.hash_valid = true;
 
-    pkg->dep_ref_count++;
+    if (lv_darray_push(&pkg->dep_refs, &ref) < 0)
+        return -2;
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册内引用（内容哈希验证）", 0);
@@ -2045,35 +2003,22 @@ int axiom_package_add_external_ref(AxiomPackage *pkg, const char *ref_string, in
     char ref_id[64];
     snprintf(ref_id, sizeof(ref_id), "external:%.48s", ref_string);
 
-    /* 扩容 */
-    if (pkg->dep_ref_count >= pkg->dep_ref_capacity) {
-        int new_cap = pkg->dep_ref_capacity == 0 ? AXIOM_DEP_REF_CACHE_CAP : pkg->dep_ref_capacity * 2;
-        DependencyRef *new_arr = lv_realloc(pkg->dep_refs, (size_t) new_cap * sizeof(DependencyRef));
-        if (!new_arr)
-            return -2;
-        pkg->dep_refs = new_arr;
-        pkg->dep_ref_capacity = new_cap;
-    }
+    DependencyRef ref;
+    memset(&ref, 0, sizeof(DependencyRef));
 
-    DependencyRef *ref = &pkg->dep_refs[pkg->dep_ref_count];
-    memset(ref, 0, sizeof(DependencyRef));
-
-    lv_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
-    /* 外引用不设内容哈希（永久有效，不参与自动重验） */
-    ref->content_hash[0] = '\0';
-
-    ref->dependent_node_id = dependent_node_id;
-    ref->original_color = DEP_TRUST_GREEN;
-    ref->ref_type = REF_EXTERNAL;
-    ref->hash_valid = false;
-
-    /* 存储外部引用字符串和信任注释 */
-    lv_strlcpy(ref->external_ref, ref_string, sizeof(ref->external_ref));
+    lv_strlcpy(ref.ref_id, ref_id, sizeof(ref.ref_id));
+    ref.content_hash[0] = '\0';
+    ref.dependent_node_id = dependent_node_id;
+    ref.original_color = DEP_TRUST_GREEN;
+    ref.ref_type = REF_EXTERNAL;
+    ref.hash_valid = false;
+    lv_strlcpy(ref.external_ref, ref_string, sizeof(ref.external_ref));
     if (trust_comment && trust_comment[0] != '\0') {
-        lv_strlcpy(ref->trust_comment, trust_comment, sizeof(ref->trust_comment));
+        lv_strlcpy(ref.trust_comment, trust_comment, sizeof(ref.trust_comment));
     }
 
-    pkg->dep_ref_count++;
+    if (lv_darray_push(&pkg->dep_refs, &ref) < 0)
+        return -2;
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册外引用（公认文献，永久有效）", 0);
@@ -2092,30 +2037,18 @@ int axiom_package_add_author_assertion(AxiomPackage *pkg, int dependent_node_id)
     char ref_id[64];
     snprintf(ref_id, sizeof(ref_id), "author:node:%d", dependent_node_id);
 
-    /* 扩容 */
-    if (pkg->dep_ref_count >= pkg->dep_ref_capacity) {
-        int new_cap = pkg->dep_ref_count == 0 ? AXIOM_DEP_REF_CACHE_CAP : pkg->dep_ref_capacity * 2;
-        DependencyRef *new_arr = lv_realloc(pkg->dep_refs, (size_t) new_cap * sizeof(DependencyRef));
-        if (!new_arr)
-            return -2;
-        pkg->dep_refs = new_arr;
-        pkg->dep_ref_capacity = new_cap;
-    }
+    DependencyRef ref;
+    memset(&ref, 0, sizeof(DependencyRef));
 
-    DependencyRef *ref = &pkg->dep_refs[pkg->dep_ref_count];
-    memset(ref, 0, sizeof(DependencyRef));
+    lv_strlcpy(ref.ref_id, ref_id, sizeof(ref.ref_id));
+    ref.content_hash[0] = '\0';
+    ref.dependent_node_id = dependent_node_id;
+    ref.original_color = DEP_TRUST_YELLOW;
+    ref.ref_type = REF_AUTHOR;
+    ref.hash_valid = false;
 
-    lv_strlcpy(ref->ref_id, ref_id, sizeof(ref->ref_id));
-    /* 作者断言不设内容哈希（无形式化支撑） */
-    ref->content_hash[0] = '\0';
-
-    ref->dependent_node_id = dependent_node_id;
-    /* 作者断言基础即为黄色，无形式化支撑 */
-    ref->original_color = DEP_TRUST_YELLOW;
-    ref->ref_type = REF_AUTHOR;
-    ref->hash_valid = false;
-
-    pkg->dep_ref_count++;
+    if (lv_darray_push(&pkg->dep_refs, &ref) < 0)
+        return -2;
 
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册作者断言（无形式化支撑，黄色基础）", 0);
@@ -2284,8 +2217,8 @@ int axiom_package_reverify_lemmas(AxiomPackage *pkg, int *out_stale, char ***out
     int stale_count = 0;
 
     /* 第一遍：统计需要处理的 REF_INTERNAL 引用总数和失效数 */
-    for (int i = 0; i < pkg->dep_ref_count; i++) {
-        DependencyRef *ref = &pkg->dep_refs[i];
+    for (int i = 0; i < pkg->dep_refs.count; i++) {
+        DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
         if (ref->ref_type != REF_INTERNAL)
             continue;
         total++;
@@ -2309,8 +2242,8 @@ int axiom_package_reverify_lemmas(AxiomPackage *pkg, int *out_stale, char ***out
 
     /* 第二遍：标记失效引用并记录名称 */
     int idx = 0;
-    for (int i = 0; i < pkg->dep_ref_count; i++) {
-        DependencyRef *ref = &pkg->dep_refs[i];
+    for (int i = 0; i < pkg->dep_refs.count; i++) {
+        DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
         if (ref->ref_type != REF_INTERNAL)
             continue;
         if (!lemma_reverify(pkg, ref)) {
@@ -2345,8 +2278,8 @@ int axiom_package_mark_lemma_stale(AxiomPackage *pkg, const char *ref_id) {
     if (!pkg || !ref_id)
         return -1;
 
-    for (int i = 0; i < pkg->dep_ref_count; i++) {
-        DependencyRef *ref = &pkg->dep_refs[i];
+    for (int i = 0; i < pkg->dep_refs.count; i++) {
+        DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
         if (strcmp(ref->ref_id, ref_id) != 0)
             continue;
 

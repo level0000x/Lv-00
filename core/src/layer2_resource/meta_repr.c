@@ -27,6 +27,7 @@
 #include "lv/error_codes.h"
 #include "lv/func_block.h"
 #include "lv/lv.h"
+#include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 
 /* ============== 内部数据结构 ============== */
@@ -972,21 +973,14 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph) {
 
     /* 预估缓冲区大小 */
     size_t est_size = 512 + (size_t) encoded_graph->node_count * 128 + (size_t) encoded_graph->constraint_count * 64;
-    char *buf = (char *) lv_calloc(1, est_size);
-    if (!buf)
+    lvJsonBuf _jb;
+    if (!lv_json_buf_init(&_jb, est_size))
         return NULL;
 
-    char *p = buf;
-    size_t remaining = est_size;
-    int written = 0;
-
-    written = snprintf(p, remaining, "{\n  \"nodes\": [\n");
-    if (written < 0 || (size_t) written >= remaining)
-        goto overflow;
-    p += written;
-    remaining -= (size_t) written;
+    lv_json_buf_append_raw(&_jb, "{\n  \"nodes\": [\n");
 
     /* 序列化节点 */
+    bool first = true;
     for (int i = 0; i < encoded_graph->node_count; i++) {
         GeomNode *node = encoded_graph->nodes[i];
         if (!node || !node->is_active)
@@ -997,100 +991,34 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph) {
             tname = type_names[(int) node->type];
         }
 
-        written = snprintf(p, remaining, "    {\"id\": %d, \"type\": \"%s\", \"coord_count\": %d}", node->id, tname,
-                           node->coord_count);
-        if (written < 0 || (size_t) written >= remaining)
-            goto overflow;
-        p += written;
-        remaining -= (size_t) written;
+        if (!first)
+            lv_json_buf_append_raw(&_jb, ",\n");
+        first = false;
 
-        if (i < encoded_graph->node_count - 1) {
-            int has_next = 0;
-            for (int j = i + 1; j < encoded_graph->node_count; j++) {
-                if (encoded_graph->nodes[j] && encoded_graph->nodes[j]->is_active) {
-                    has_next = 1;
-                    break;
-                }
-            }
-            if (has_next) {
-                written = snprintf(p, remaining, ",");
-                if (written < 0 || (size_t) written >= remaining)
-                    goto overflow;
-                p += written;
-                remaining -= (size_t) written;
-            }
-        }
-        written = snprintf(p, remaining, "\n");
-        if (written < 0 || (size_t) written >= remaining)
-            goto overflow;
-        p += written;
-        remaining -= (size_t) written;
+        lv_json_buf_append_fmt(&_jb, "    {\"id\": %d, \"type\": \"%s\", \"coord_count\": %d}", node->id, tname,
+                               node->coord_count);
     }
-
-    written = snprintf(p, remaining, "  ],\n  \"constraints\": [\n");
-    if (written < 0 || (size_t) written >= remaining)
-        goto overflow;
-    p += written;
-    remaining -= (size_t) written;
+    lv_json_buf_append_raw(&_jb, "\n  ],\n  \"constraints\": [\n");
 
     /* 序列化约束 */
+    first = true;
     for (int i = 0; i < encoded_graph->constraint_count; i++) {
         Constraint *con = encoded_graph->constraints[i];
         if (!con || !con->is_active)
             continue;
 
-        written = snprintf(p, remaining, "    {\"id\": %d, \"type\": %d, \"participant_count\": %d}", con->id,
-                           (int) con->type, con->participant_count);
-        if (written < 0 || (size_t) written >= remaining)
-            goto overflow;
-        p += written;
-        remaining -= (size_t) written;
+        if (!first)
+            lv_json_buf_append_raw(&_jb, ",\n");
+        first = false;
 
-        if (i < encoded_graph->constraint_count - 1) {
-            int has_next = 0;
-            for (int j = i + 1; j < encoded_graph->constraint_count; j++) {
-                if (encoded_graph->constraints[j] && encoded_graph->constraints[j]->is_active) {
-                    has_next = 1;
-                    break;
-                }
-            }
-            if (has_next) {
-                written = snprintf(p, remaining, ",");
-                if (written < 0 || (size_t) written >= remaining)
-                    goto overflow;
-                p += written;
-                remaining -= (size_t) written;
-            }
-        }
-        written = snprintf(p, remaining, "\n");
-        if (written < 0 || (size_t) written >= remaining)
-            goto overflow;
-        p += written;
-        remaining -= (size_t) written;
+        lv_json_buf_append_fmt(&_jb, "    {\"id\": %d, \"type\": %d, \"participant_count\": %d}", con->id,
+                               (int) con->type, con->participant_count);
     }
 
-    written = snprintf(p, remaining, "  ],\n  \"metadata\": {\n");
-    if (written < 0 || (size_t) written >= remaining)
-        goto overflow;
-    p += written;
-    remaining -= (size_t) written;
-    written = snprintf(p, remaining, "    \"node_count\": %d,\n", encoded_graph->node_count);
-    if (written < 0 || (size_t) written >= remaining)
-        goto overflow;
-    p += written;
-    remaining -= (size_t) written;
-    written = snprintf(p, remaining, "    \"constraint_count\": %d\n", encoded_graph->constraint_count);
-    if (written < 0 || (size_t) written >= remaining)
-        goto overflow;
-    p += written;
-    remaining -= (size_t) written;
-    written = snprintf(p, remaining, "  }\n}\n");
-    if (written < 0 || (size_t) written >= remaining)
-        goto overflow;
+    lv_json_buf_append_raw(&_jb, "\n  ],\n  \"metadata\": {\n");
+    lv_json_buf_append_fmt(&_jb, "    \"node_count\": %d,\n", encoded_graph->node_count);
+    lv_json_buf_append_fmt(&_jb, "    \"constraint_count\": %d\n", encoded_graph->constraint_count);
+    lv_json_buf_append_raw(&_jb, "  }\n}\n");
 
-    return buf;
-
-overflow:
-    lv_free((void **) &buf);
-    return NULL;
+    return lv_json_buf_finalize(&_jb);
 }

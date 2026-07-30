@@ -19,6 +19,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/interop.h"
+#include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 
 #include "debug.h"
@@ -120,10 +121,23 @@ int interop_serialize_response(const InteropResponse *resp, char *output, size_t
     if (!resp || !output || output_size == 0)
         return lv_ERROR_INVALID_PARAM;
 
-    int written = snprintf(output, output_size, "{\"request_id\": %d, \"status\": %d, \"data\": \"%s\"}",
-                           resp->request_id, resp->status_code, resp->data);
-
-    return (written >= (int) output_size) ? lv_ERROR_BUFFER_TOO_SMALL : lv_OK;
+    lvJsonBuf _jb;
+    lv_json_buf_init(&_jb, 128);
+    lv_json_buf_append_fmt(&_jb, "{\"request_id\": %d, \"status\": %d, \"data\": ",
+                           resp->request_id, resp->status_code);
+    lv_json_buf_append_string(&_jb, resp->data);
+    lv_json_buf_append_raw(&_jb, "}");
+    char *_js = lv_json_buf_finalize(&_jb);
+    if (!_js)
+        return lv_ERROR_OUT_OF_MEMORY;
+    size_t _len = strlen(_js);
+    if (_len >= output_size) {
+        lv_free(_js);
+        return lv_ERROR_BUFFER_TOO_SMALL;
+    }
+    lv_strlcpy(output, _js, output_size);
+    lv_free(_js);
+    return lv_OK;
 }
 
 /**
@@ -155,8 +169,15 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 node_count = engine->main_graph->node_count;
                 constraint_count = engine->main_graph->constraint_count;
             }
-            snprintf(resp->data, sizeof(resp->data), "{\"status\": \"running\", \"nodes\": %d, \"constraints\": %d}",
-                     node_count, constraint_count);
+            lvJsonBuf _jb;
+            lv_json_buf_init(&_jb, 128);
+            lv_json_buf_append_fmt(&_jb, "{\"status\": \"running\", \"nodes\": %d, \"constraints\": %d}",
+                                   node_count, constraint_count);
+            char *_js = lv_json_buf_finalize(&_jb);
+            if (_js) {
+                lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                lv_free(_js);
+            }
             break;
         }
 
@@ -222,11 +243,25 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                         symbolic_coord_destroy(coords[i]);
                     }
                     if (result == ADD_NODE_OK) {
-                        snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d}",
-                                 engine->main_graph->next_node_id - 1);
+                        lvJsonBuf _jb;
+                        lv_json_buf_init(&_jb, 128);
+                        lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d}",
+                                               engine->main_graph->next_node_id - 1);
+                        char *_js = lv_json_buf_finalize(&_jb);
+                        if (_js) {
+                            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                            lv_free(_js);
+                        }
                     } else {
                         resp->status_code = lv_ERROR_UNSUPPORTED;
-                        snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"code\": %d}", result);
+                        lvJsonBuf _jb;
+                        lv_json_buf_init(&_jb, 128);
+                        lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
+                        char *_js = lv_json_buf_finalize(&_jb);
+                        if (_js) {
+                            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                            lv_free(_js);
+                        }
                     }
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -244,12 +279,25 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 int ep2 = lv_parse_int_default(cmd->params[2], 0);
                 AddNodeResult result = graph_add_line_segment(engine->main_graph, ep1, ep2);
                 if (result == ADD_NODE_OK) {
-                    snprintf(resp->data, sizeof(resp->data),
-                             "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"line_segment\"}",
-                             engine->main_graph->next_node_id - 1);
+                    lvJsonBuf _jb;
+                    lv_json_buf_init(&_jb, 128);
+                    lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"line_segment\"}",
+                                           engine->main_graph->next_node_id - 1);
+                    char *_js = lv_json_buf_finalize(&_jb);
+                    if (_js) {
+                        lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                        lv_free(_js);
+                    }
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
-                    snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"code\": %d}", result);
+                    lvJsonBuf _jb;
+                    lv_json_buf_init(&_jb, 128);
+                    lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
+                    char *_js = lv_json_buf_finalize(&_jb);
+                    if (_js) {
+                        lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                        lv_free(_js);
+                    }
                 }
             } else if (strcmp(type_str, "Circle") == 0 || strcmp(type_str, "circle") == 0) {
                 /* 圆：使用中心点和半径点（复用线段创建，语义为圆心和半径端点） */
@@ -262,12 +310,25 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 int radius_pt_id = lv_parse_int_default(cmd->params[2], 0);
                 AddNodeResult result = graph_add_line_segment(engine->main_graph, center_id, radius_pt_id);
                 if (result == ADD_NODE_OK) {
-                    snprintf(resp->data, sizeof(resp->data),
-                             "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"circle\"}",
-                             engine->main_graph->next_node_id - 1);
+                    lvJsonBuf _jb;
+                    lv_json_buf_init(&_jb, 128);
+                    lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"circle\"}",
+                                           engine->main_graph->next_node_id - 1);
+                    char *_js = lv_json_buf_finalize(&_jb);
+                    if (_js) {
+                        lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                        lv_free(_js);
+                    }
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
-                    snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"code\": %d}", result);
+                    lvJsonBuf _jb;
+                    lv_json_buf_init(&_jb, 128);
+                    lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
+                    char *_js = lv_json_buf_finalize(&_jb);
+                    if (_js) {
+                        lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                        lv_free(_js);
+                    }
                 }
             } else if (strcmp(type_str, "Region") == 0 || strcmp(type_str, "region") == 0) {
                 /* 区域：需要边界线段ID列表 */
@@ -283,12 +344,25 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 }
                 AddNodeResult result = graph_add_region(engine->main_graph, seg_ids, seg_count);
                 if (result == ADD_NODE_OK) {
-                    snprintf(resp->data, sizeof(resp->data),
-                             "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"region\"}",
-                             engine->main_graph->next_node_id - 1);
+                    lvJsonBuf _jb;
+                    lv_json_buf_init(&_jb, 128);
+                    lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"region\"}",
+                                           engine->main_graph->next_node_id - 1);
+                    char *_js = lv_json_buf_finalize(&_jb);
+                    if (_js) {
+                        lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                        lv_free(_js);
+                    }
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
-                    snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"code\": %d}", result);
+                    lvJsonBuf _jb;
+                    lv_json_buf_init(&_jb, 128);
+                    lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
+                    char *_js = lv_json_buf_finalize(&_jb);
+                    if (_js) {
+                        lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                        lv_free(_js);
+                    }
                 }
             } else {
                 resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -313,11 +387,25 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             int node_id = lv_parse_int_default(cmd->params[0], 0);
             RemoveNodeResult result = graph_remove_node(engine->main_graph, node_id);
             if (result == REMOVE_NODE_OK) {
-                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"removed_node_id\": %d}", node_id);
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"removed_node_id\": %d}", node_id);
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             } else {
                 resp->status_code = lv_ERROR_NOT_FOUND;
-                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"node_id\": %d, \"code\": %d}",
-                         node_id, result);
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"node_id\": %d, \"code\": %d}",
+                                       node_id, result);
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             }
             break;
         }
@@ -381,7 +469,14 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 break;
             }
             if (ok) {
-                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\"}");
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 64);
+                lv_json_buf_append_raw(&_jb, "{\"result\": \"ok\"}");
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             } else {
                 resp->status_code = lv_ERROR_UNSUPPORTED;
                 lv_strlcpy(resp->data, "{\"result\": \"failed\"}", sizeof(resp->data));
@@ -403,11 +498,25 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             int cidx = lv_parse_int_default(cmd->params[0], 0);
             RemoveConstraintResult rc = graph_remove_constraint(engine->main_graph, cidx);
             if (rc == REMOVE_CONSTRAINT_OK) {
-                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"removed_index\": %d}", cidx);
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"removed_index\": %d}", cidx);
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             } else {
                 resp->status_code = lv_ERROR_NOT_FOUND;
-                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"index\": %d, \"code\": %d}", cidx,
-                         rc);
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"index\": %d, \"code\": %d}", cidx,
+                                       rc);
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             }
             break;
         }
@@ -445,17 +554,20 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 engine_instantiate_function(engine, fb_id, arg_mappings, cmd->param_count - 1, &result_count);
             lv_free((void **) &arg_mappings);
             if (results && result_count > 0) {
-                int offset = snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"instantiated_ids\": [");
-                if (offset < 0)
-                    offset = 0;
-                for (int i = 0; i < result_count && offset < (int) sizeof(resp->data); i++) {
-                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "%s%d", (i > 0 ? ", " : ""),
-                                       results[i]);
-                    if (offset < 0)
-                        break;
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_raw(&_jb, "{\"result\": \"ok\", \"instantiated_ids\": [");
+                for (int i = 0; i < result_count; i++) {
+                    if (i > 0)
+                        lv_json_buf_append_raw(&_jb, ", ");
+                    lv_json_buf_append_fmt(&_jb, "%d", results[i]);
                 }
-                if (offset >= 0 && offset < (int) sizeof(resp->data))
-                    snprintf(resp->data + offset, sizeof(resp->data) - offset, "]}");
+                lv_json_buf_append_raw(&_jb, "]}");
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
                 lv_free((void **) &results);
             } else {
                 resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -481,10 +593,17 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 resp->status_code = lv_ERROR_INVALID_STATE;
                 lv_strlcpy(resp->data, "No graph loaded for rewriting", sizeof(resp->data));
             } else {
-                snprintf(resp->data, sizeof(resp->data),
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_fmt(&_jb,
                          "{\"result\": \"rewritten\", \"rules_applied\": 0, "
                          "\"step_limit\": %d}",
                          engine->rewrite_step_limit);
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             }
             break;
 
@@ -493,8 +612,15 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 resp->status_code = lv_ERROR_INVALID_STATE;
                 lv_strlcpy(resp->data, "No graph loaded for unification", sizeof(resp->data));
             } else {
-                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"unify_check\", \"last_status\": %d}",
-                         engine->last_unify_status);
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_fmt(&_jb, "{\"result\": \"unify_check\", \"last_status\": %d}",
+                                       engine->last_unify_status);
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             }
             break;
 
@@ -652,7 +778,14 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 /* 刷新并等待所有事件输出完毕 */
                 stream_flush(sctx);
             }
-            snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"message\": \"Stream stopped\"}");
+            lvJsonBuf _jb;
+            lv_json_buf_init(&_jb, 64);
+            lv_json_buf_append_raw(&_jb, "{\"result\": \"ok\", \"message\": \"Stream stopped\"}");
+            char *_js = lv_json_buf_finalize(&_jb);
+            if (_js) {
+                lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                lv_free(_js);
+            }
             break;
         }
 
@@ -666,13 +799,28 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             StreamContext *sctx = engine_get_stream_context(engine);
             if (sctx && new_mask != STREAM_FILTER_NONE) {
                 /* 更新所有回调的过滤掩码（当前为全局设置，完整实现应支持按回调ID单独设置） */
-                snprintf(resp->data, sizeof(resp->data),
-                         "{\"result\": \"ok\", \"filter\": \"0x%08X\", "
-                         "\"input\": \"%s\"}",
-                         new_mask, cmd->params[0]);
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"filter\": \"0x%08X\", \"input\": \"", new_mask);
+                lv_json_buf_append_string(&_jb, cmd->params[0]);
+                lv_json_buf_append_raw(&_jb, "\"}");
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             } else {
                 resp->status_code = lv_ERROR_INVALID_PARAM;
-                snprintf(resp->data, sizeof(resp->data), "{\"error\": \"Invalid filter mask: %s\"}", cmd->params[0]);
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 128);
+                lv_json_buf_append_raw(&_jb, "{\"error\": \"Invalid filter mask: ");
+                lv_json_buf_append_string(&_jb, cmd->params[0]);
+                lv_json_buf_append_raw(&_jb, "\"}");
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             }
             break;
         }
@@ -703,8 +851,15 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             StreamContext *sctx = engine_get_stream_context(engine);
             if (sctx) {
                 stream_flush(sctx);
-                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"pending\": %d}",
-                         stream_pending_count(sctx));
+                lvJsonBuf _jb;
+                lv_json_buf_init(&_jb, 64);
+                lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"pending\": %d}",
+                                       stream_pending_count(sctx));
+                char *_js = lv_json_buf_finalize(&_jb);
+                if (_js) {
+                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
+                    lv_free(_js);
+                }
             } else {
                 lv_strlcpy(resp->data, "{\"result\": \"ok\", \"pending\": 0}", sizeof(resp->data));
             }

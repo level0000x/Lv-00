@@ -46,6 +46,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "lv/lv_config.h"
+#include "lv/lv_utils.h"
 
 #include "constraint_graph.h"
 #include "stream.h"
@@ -107,12 +108,15 @@ typedef enum {
  * 记录约束图中每个节点的可能取值集合。
  * 当 is_collapsed 为 true 时，状态空间收缩为唯一值。
  */
+/** @brief 候选坐标条目（coord + dim 配对，用于 lvDArray） */
+typedef struct {
+    SymbolicCoord *coord; /**< 符号坐标指针 */
+    int dim;               /**< 维度 */
+} CoordCandidate;
+
 typedef struct NodeStateSpace {
     int node_id;                     /**< 关联的节点 ID */
-    SymbolicCoord **possible_coords; /**< 可能坐标列表（每个元素是一个 dim 维坐标数组） */
-    int *coord_dims;                 /**< 每个候选坐标的维度 */
-    int coord_count;                 /**< 候选坐标数量 */
-    int capacity;                    /**< 预分配容量 */
+    lvDArray candidates_da;          /**< 候选坐标动态数组（lvDArray<CoordCandidate>） */
     bool is_collapsed;               /**< 是否已坍缩为唯一值 */
     SymbolicCoord *collapsed_value;  /**< 坍缩后的唯一坐标值 */
     bool is_unbounded;               /**< 是否为无界自由变量 */

@@ -284,7 +284,7 @@ int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 0;
-                        poly.coeffs = malloc(sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(sizeof(mpz_t));
                         if (poly.coeffs) {
                             mpz_init_set(poly.coeffs[0], diff_mpz);
                             mpz_poly_clear(&poly);
@@ -401,7 +401,7 @@ int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                             continue;
@@ -532,7 +532,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 0;
-                        poly.coeffs = malloc(sizeof(mpz_t));
+                        poly.coeffs = lv_malloc(sizeof(mpz_t));
                         if (!poly.coeffs) {
                             mpz_poly_clear(&poly);
                             continue;

@@ -59,38 +59,38 @@ static int modal_ensure_reach_matrix(lvModalFrame *frame, int needed_dim) {
             new_dim *= 2;
         }
 
-        new_matrix = (lvReachabilityType **) calloc((size_t) new_dim, sizeof(lvReachabilityType *));
+        new_matrix = (lvReachabilityType **) lv_calloc((size_t) new_dim, sizeof(lvReachabilityType *));
         if (!new_matrix)
             return -1;
 
         /* 复制旧数据 */
         for (i = 0; i < frame->reach_dimension; i++) {
-            new_matrix[i] = (lvReachabilityType *) calloc((size_t) new_dim, sizeof(lvReachabilityType));
+            new_matrix[i] = (lvReachabilityType *) lv_calloc((size_t) new_dim, sizeof(lvReachabilityType));
             if (!new_matrix[i]) {
                 /* 回滚 */
                 for (j = 0; j < i; j++)
-                    free(new_matrix[j]);
-                free(new_matrix);
+                    lv_free((void **) &new_matrix[j]);
+                lv_free((void **) &new_matrix);
                 return -1;
             }
             if (frame->reach_matrix && frame->reach_matrix[i]) {
                 memcpy(new_matrix[i], frame->reach_matrix[i],
                        (size_t) frame->reach_dimension * sizeof(lvReachabilityType));
-                free(frame->reach_matrix[i]);
+                lv_free((void **) &frame->reach_matrix[i]);
             }
         }
         /* 分配新增行 */
         for (i = frame->reach_dimension; i < new_dim; i++) {
-            new_matrix[i] = (lvReachabilityType *) calloc((size_t) new_dim, sizeof(lvReachabilityType));
+            new_matrix[i] = (lvReachabilityType *) lv_calloc((size_t) new_dim, sizeof(lvReachabilityType));
             if (!new_matrix[i]) {
                 for (j = 0; j < i; j++)
-                    free(new_matrix[j]);
-                free(new_matrix);
+                    lv_free((void **) &new_matrix[j]);
+                lv_free((void **) &new_matrix);
                 return -1;
             }
         }
 
-        free(frame->reach_matrix);
+        lv_free((void **) &frame->reach_matrix);
         frame->reach_matrix = new_matrix;
         frame->reach_dimension = new_dim;
     }
@@ -193,7 +193,7 @@ static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvM
  * ================================================================ */
 
 lvModalWorld *lv_modal_world_create(int id, const char *world_name, ConstraintGraph *configuration) {
-    lvModalWorld *w = (lvModalWorld *) calloc(1, sizeof(lvModalWorld));
+    lvModalWorld *w = (lvModalWorld *) lv_calloc(1, sizeof(lvModalWorld));
     if (!w)
         return NULL;
     w->id = id;
@@ -210,10 +210,10 @@ lvModalWorld *lv_modal_world_create(int id, const char *world_name, ConstraintGr
 void lv_modal_world_destroy(lvModalWorld *world) {
     if (!world)
         return;
-    free(world->world_name);
+    lv_free((void **) &world->world_name);
     /* 注意：configuration 所有权由调用者管理 */
-    free(world->true_props);
-    free(world);
+    lv_free((void **) &world->true_props);
+    lv_free((void **) &world);
 }
 
 bool lv_modal_world_assert(lvModalWorld *world, Proposition *prop) {
@@ -251,7 +251,7 @@ lvTruthValue lv_modal_world_holds(const lvModalWorld *world, const Proposition *
  * ================================================================ */
 
 lvModalFrame *lv_modal_frame_create(void) {
-    lvModalFrame *f = (lvModalFrame *) calloc(1, sizeof(lvModalFrame));
+    lvModalFrame *f = (lvModalFrame *) lv_calloc(1, sizeof(lvModalFrame));
     if (!f)
         return NULL;
     f->worlds = NULL;
@@ -270,12 +270,12 @@ void lv_modal_frame_destroy(lvModalFrame *frame) {
     for (i = 0; i < frame->world_count; i++) {
         lv_modal_world_destroy(frame->worlds[i]);
     }
-    free(frame->worlds);
+    lv_free((void **) &frame->worlds);
     for (i = 0; i < frame->reach_dimension; i++) {
-        free(frame->reach_matrix[i]);
+        lv_free((void **) &frame->reach_matrix[i]);
     }
-    free(frame->reach_matrix);
-    free(frame);
+    lv_free((void **) &frame->reach_matrix);
+    lv_free((void **) &frame);
 }
 
 bool lv_modal_frame_add_world(lvModalFrame *frame, lvModalWorld *world) {
@@ -342,7 +342,7 @@ bool lv_modal_frame_get_reachable_worlds(const lvModalFrame *frame, int world_id
         return false;
 
     count = 0;
-    ids = (int *) malloc((size_t) frame->world_count * sizeof(int));
+    ids = (int *) lv_malloc((size_t) frame->world_count * sizeof(int));
     if (!ids)
         return false;
 
@@ -366,7 +366,7 @@ bool lv_modal_frame_get_reachable_worlds(const lvModalFrame *frame, int world_id
  * ================================================================ */
 
 lvModalFormula *lv_modal_formula_create(lvModalOperator op, Proposition *inner_prop) {
-    lvModalFormula *f = (lvModalFormula *) calloc(1, sizeof(lvModalFormula));
+    lvModalFormula *f = (lvModalFormula *) lv_calloc(1, sizeof(lvModalFormula));
     if (!f)
         return NULL;
     f->op = op;
@@ -376,7 +376,7 @@ lvModalFormula *lv_modal_formula_create(lvModalOperator op, Proposition *inner_p
 }
 
 lvModalFormula *lv_modal_formula_create_nested(lvModalOperator op, lvModalFormula *sub) {
-    lvModalFormula *f = (lvModalFormula *) calloc(1, sizeof(lvModalFormula));
+    lvModalFormula *f = (lvModalFormula *) lv_calloc(1, sizeof(lvModalFormula));
     if (!f)
         return NULL;
     f->op = op;
@@ -389,7 +389,7 @@ void lv_modal_formula_destroy(lvModalFormula *formula) {
     if (!formula)
         return;
     lv_modal_formula_destroy(formula->sub);
-    free(formula);
+    lv_free((void **) &formula);
 }
 
 /* ================================================================
@@ -542,8 +542,7 @@ lvModalFormula *lv_modal_assert_point_can_on_line(lvModalFrame *frame, int point
 void lv_modal_eval_result_destroy(lvModalEvalResult *result) {
     if (!result)
         return;
-    free(result->explanation);
-    result->explanation = NULL;
+    lv_free((void **) &result->explanation);
 }
 
 /* ================================================================
@@ -590,7 +589,7 @@ char *lv_modal_formula_to_string(const lvModalFormula *formula) {
         return NULL;
 
     op_str = lv_modal_op_to_string(formula->op);
-    buf = (char *) malloc(256);
+    buf = (char *) lv_malloc(256);
     if (!buf)
         return NULL;
 
@@ -598,7 +597,7 @@ char *lv_modal_formula_to_string(const lvModalFormula *formula) {
         char *sub_str = lv_modal_formula_to_string(formula->sub);
         if (sub_str) {
             snprintf(buf, 256, "%s(%s)", op_str, sub_str);
-            free(sub_str);
+            lv_free((void **) &sub_str);
         } else {
             snprintf(buf, 256, "%s(?)", op_str);
         }

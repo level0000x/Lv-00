@@ -37,7 +37,7 @@
  * @return Newly allocated node, or NULL on failure
  */
 static lvADExpr *expr_alloc(lvADExprKind kind) {
-    lvADExpr *expr = (lvADExpr *) calloc(1, sizeof(lvADExpr));
+    lvADExpr *expr = (lvADExpr *) lv_calloc(1, sizeof(lvADExpr));
     if (expr) {
         expr->kind = kind;
         expr->var_index = -1;
@@ -55,7 +55,7 @@ static lvADExpr *expr_alloc(lvADExprKind kind) {
  * @return true on success, false on failure
  */
 static bool expr_set_binary_children(lvADExpr *expr, lvADExpr *a, lvADExpr *b) {
-    expr->children = (lvADExpr **) malloc(2 * sizeof(lvADExpr *));
+    expr->children = (lvADExpr **) lv_malloc(2 * sizeof(lvADExpr *));
     if (!expr->children)
         return false;
     expr->children[0] = a;
@@ -72,7 +72,7 @@ static bool expr_set_binary_children(lvADExpr *expr, lvADExpr *a, lvADExpr *b) {
  * @return true on success, false on failure
  */
 static bool expr_set_unary_child(lvADExpr *expr, lvADExpr *child) {
-    expr->children = (lvADExpr **) malloc(sizeof(lvADExpr *));
+    expr->children = (lvADExpr **) lv_malloc(sizeof(lvADExpr *));
     if (!expr->children)
         return false;
     expr->children[0] = child;
@@ -368,7 +368,7 @@ static void store_values(lvADExpr *expr, const double *var_values, size_t var_co
  * ============================================================ */
 
 lvADEngine *ad_engine_create(lvADMode mode) {
-    lvADEngine *engine = (lvADEngine *) malloc(sizeof(lvADEngine));
+    lvADEngine *engine = (lvADEngine *) lv_malloc(sizeof(lvADEngine));
     if (engine) {
         engine->mode = mode;
     }
@@ -376,7 +376,7 @@ lvADEngine *ad_engine_create(lvADMode mode) {
 }
 
 void ad_engine_destroy(lvADEngine *engine) {
-    free(engine);
+    lv_free((void **)&(engine));
 }
 
 /* ============================================================
@@ -406,7 +406,7 @@ lvADExpr *ad_expr_add(lvADExpr *a, lvADExpr *b) {
     if (!expr)
         return NULL;
     if (!expr_set_binary_children(expr, a, b)) {
-        free(expr);
+        lv_free((void **)&(expr));
         return NULL;
     }
     return expr;
@@ -419,7 +419,7 @@ lvADExpr *ad_expr_mul(lvADExpr *a, lvADExpr *b) {
     if (!expr)
         return NULL;
     if (!expr_set_binary_children(expr, a, b)) {
-        free(expr);
+        lv_free((void **)&(expr));
         return NULL;
     }
     return expr;
@@ -432,7 +432,7 @@ lvADExpr *ad_expr_sin(lvADExpr *x) {
     if (!expr)
         return NULL;
     if (!expr_set_unary_child(expr, x)) {
-        free(expr);
+        lv_free((void **)&(expr));
         return NULL;
     }
     return expr;
@@ -445,7 +445,7 @@ lvADExpr *ad_expr_cos(lvADExpr *x) {
     if (!expr)
         return NULL;
     if (!expr_set_unary_child(expr, x)) {
-        free(expr);
+        lv_free((void **)&(expr));
         return NULL;
     }
     return expr;
@@ -458,7 +458,7 @@ lvADExpr *ad_expr_pow(lvADExpr *base, lvADExpr *exponent) {
     if (!expr)
         return NULL;
     if (!expr_set_binary_children(expr, base, exponent)) {
-        free(expr);
+        lv_free((void **)&(expr));
         return NULL;
     }
     return expr;
@@ -491,8 +491,8 @@ void ad_expr_destroy(lvADExpr *expr) {
         }
     }
 
-    free(saved);
-    free(expr);
+    lv_free((void **)&(saved));
+    lv_free((void **)&(expr));
 }
 
 /* ============================================================

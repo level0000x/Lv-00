@@ -19,6 +19,7 @@
 
 #include "lv_utils.h"
 
+#include "lv/lv_json.h"
 #include "lv/lv_thread.h"
 
 static int64_t get_time_ns(void) {
@@ -783,12 +784,12 @@ char *lv_test_report_to_json(const lvTestReport *report) {
         return NULL;
     }
 
-    char *json = (char *) lv_malloc(8192);
-    if (!json) {
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, 1024)) {
         return NULL;
     }
 
-    int pos = snprintf(json, 8192,
+    lv_json_buf_append_fmt(&buf,
                        "{"
                        "\"total\":%u,"
                        "\"passed\":%u,"
@@ -798,28 +799,19 @@ char *lv_test_report_to_json(const lvTestReport *report) {
                        "\"suites\":[",
                        report->total_tests, report->passed_count, report->failed_count, report->skipped_count,
                        (long long) report->total_time_ns);
-    if (pos < 0) {
-        json[0] = '\0';
-        return json;
-    }
 
-    for (uint32_t i = 0; i < report->suite_count && pos < 8192; i++) {
+    for (uint32_t i = 0; i < report->suite_count; i++) {
         const lvTestSuite *suite = &report->suites[i];
-        pos += snprintf(json + pos, 8192 - pos, "{\"name\":\"%s\",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
+        lv_json_buf_append_fmt(&buf, "{\"name\":\"%s\",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
                         suite->name, suite->passed_count, suite->failed_count, suite->skipped_count);
-        if (pos < 0)
-            break;
-        if (i < report->suite_count - 1 && pos < 8192) {
-            pos += snprintf(json + pos, 8192 - pos, ",");
-            if (pos < 0)
-                break;
+        if (i < report->suite_count - 1) {
+            lv_json_buf_append_char(&buf, ',');
         }
     }
 
-    if (pos >= 0 && pos < 8192)
-        snprintf(json + pos, 8192 - pos, "]}");
+    lv_json_buf_append_raw(&buf, "]}");
 
-    return json;
+    return lv_json_buf_finalize(&buf);
 }
 
 char *lv_test_report_to_xml(const lvTestReport *report) {

@@ -136,14 +136,12 @@ static PruningRecord *create_pruning_record(void) {
     if (!record)
         return NULL;
 
-    record->capacity = 64;
-    record->operations = lv_calloc((size_t) record->capacity, sizeof(PruningOperation));
-    if (!record->operations) {
+    lv_darray_init(&record->operations, sizeof(PruningOperation));
+    if (!lv_darray_reserve(&record->operations, 64)) {
         lv_free((void **) &record);
         return NULL;
     }
 
-    record->operation_count = 0;
     record->total_states_removed = 0;
     record->total_states_remaining = 0;
 
@@ -155,8 +153,8 @@ static void destroy_pruning_record(PruningRecord *record) {
     if (!record)
         return;
 
-    for (int i = 0; i < record->operation_count; i++) {
-        PruningOperation *op = &record->operations[i];
+    for (int i = 0; i < record->operations.count; i++) {
+        PruningOperation *op = (PruningOperation *)lv_darray_get(&record->operations, i);
         if (op->removed_states) {
             for (int j = 0; j < op->removed_count; j++) {
                 if (op->removed_states[j]) {
@@ -170,7 +168,7 @@ static void destroy_pruning_record(PruningRecord *record) {
         }
     }
 
-    lv_free((void **) &record->operations);
+    lv_darray_free(&record->operations);
     lv_free((void **) &record);
 }
 
@@ -179,16 +177,8 @@ static bool add_pruning_operation(PruningRecord *record, const PruningOperation 
     if (!record || !op)
         return false;
 
-    if (record->operation_count >= record->capacity) {
-        int new_cap = record->capacity * 2;
-        PruningOperation *new_ops = lv_realloc(record->operations, (size_t) new_cap * sizeof(PruningOperation));
-        if (!new_ops)
-            return false;
-        record->operations = new_ops;
-        record->capacity = new_cap;
-    }
-
-    record->operations[record->operation_count++] = *op;
+    if (lv_darray_push(&record->operations, op) < 0)
+        return false;
     record->total_states_removed += op->removed_count;
 
     return true;
@@ -435,13 +425,13 @@ CompletenessReport *meta_prove_completeness(MetaProofContext *ctx) {
         return NULL;
 
     /* 统计剪枝记录 */
-    report->total_prunings = ctx->record->operation_count;
+    report->total_prunings = ctx->record->operations.count;
     report->proven_prunings = 0;
     report->unproven_prunings = 0;
     report->invalid_prunings = 0;
 
-    for (int i = 0; i < ctx->record->operation_count; i++) {
-        PruningOperation *op = &ctx->record->operations[i];
+    for (int i = 0; i < ctx->record->operations.count; i++) {
+        PruningOperation *op = (PruningOperation *)lv_darray_get(&ctx->record->operations, i);
 
         switch (op->trust) {
             case 0: /* GREEN */

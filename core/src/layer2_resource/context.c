@@ -19,6 +19,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv_internal.h"
+
 #include "lv/constraint_graph.h"
 
 #include "config.h" /* lv_DEFAULT_* macros */
@@ -46,8 +48,7 @@ static atomic_uint_fast64_t s_next_context_id = 1;
 lvContext *lv_context_create(void) {
     lvContext *ctx = (lvContext *) lv_calloc(1, sizeof(lvContext));
     if (!ctx) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "lv_context_create: 分配 lvContext 失败");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_create: 分配 lvContext 失败");
     }
 
     /* 5. 运行时参数 —— 错误码初始化为 OK */
@@ -264,8 +265,7 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
 
     lvContext *snap = (lvContext *) lv_calloc(1, sizeof(lvContext));
     if (!snap) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: 分配快照失败");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: 分配快照失败");
     }
 
     /* 拷贝整个结构体（浅拷贝） */
@@ -276,7 +276,7 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
         snap->main_graph = graph_create();
         if (!snap->main_graph) {
             lv_free((void **) &snap);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: graph_create failed");
         }
         /* graph_create 创建空图；当前为浅拷贝（仅创建空图），完整版应深拷贝所有节点和约束 */
     }
@@ -293,7 +293,7 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
             if (snap->main_graph)
                 graph_destroy((ConstraintGraph *) snap->main_graph);
             lv_free((void **) &snap);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: 分配推理栈帧失败");
         }
         snap->reasoning_stack.top = ctx->reasoning_stack.top;
         for (int i = 0; i <= ctx->reasoning_stack.top; i++) {
@@ -377,7 +377,7 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
  */
 bool lv_context_rollback(lvContext *ctx, lvContext *snapshot) {
     if (!ctx || !snapshot) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_context_rollback: NULL ctx or snapshot");
     }
 
     /* 保存需要保留的字段 */
@@ -891,7 +891,7 @@ void lv_context_leave_uncancellable(lvContext *ctx) {
  */
 bool lv_context_record_step(lvContext *ctx) {
     if (!ctx) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_context_record_step: ctx is NULL");
     }
 
     ctx->circuit_breaker.total_steps++;
@@ -943,7 +943,7 @@ void lv_context_record_success(lvContext *ctx) {
  */
 bool lv_context_record_error(lvContext *ctx) {
     if (!ctx) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_context_record_error: ctx is NULL");
     }
 
     ctx->circuit_breaker.consecutive_errors++;

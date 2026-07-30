@@ -820,7 +820,7 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
                                              int *output_port_ids, int output_count) {
     SimpleProposition *prop = lv_calloc(1, sizeof(SimpleProposition));
     if (!prop)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "simple_proposition_create: calloc prop failed");
 
     /* 使用 lv_strdup_safe 替代裸 strdup，统一内存管理，
      * 确保内存统计正确且避免混用标准 free 与 lv_free。
@@ -828,14 +828,14 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
     prop->name = name ? lv_strdup_safe(name) : lv_strdup_safe("");
     if (!prop->name) {
         lv_free((void **) &prop);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "simple_proposition_create: strdup name failed");
     }
 
     prop->pattern = graph_create();
     if (!prop->pattern) {
         lv_free((void **) &prop->name);
         lv_free((void **) &prop);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "simple_proposition_create: graph_create failed");
     }
 
     /* 检查 input_port_ids 和 output_port_ids 是否为 NULL。
@@ -844,7 +844,7 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
         graph_destroy(prop->pattern);
         lv_free((void **) &prop->name);
         lv_free((void **) &prop);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "simple_proposition_create: NULL port_ids with non-zero count");
     }
 
     prop->input_port_ids = input_count > 0 ? lv_calloc((size_t) input_count, sizeof(int)) : NULL;
@@ -873,7 +873,7 @@ void simple_proposition_destroy(SimpleProposition *prop) {
 SimpleProof *simple_proof_create(SimpleProposition *prop, ConstraintGraph *construction) {
     SimpleProof *proof = lv_calloc(1, sizeof(SimpleProof));
     if (!proof)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "simple_proof_create: calloc proof failed");
     proof->proposition = prop;
     proof->construction = construction;
     proof->normalized = false;
@@ -1255,7 +1255,7 @@ static bool id_mapping_init(IdMappingTable *table, int initial_capacity) {
     if (!table->entries) {
         table->capacity = 0;
         table->count = 0;
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "id_mapping_init: calloc entries failed");
     }
     table->count = 0;
     table->capacity = initial_capacity;
@@ -1285,7 +1285,7 @@ static void id_mapping_destroy(IdMappingTable *table) {
 static bool id_mapping_add(IdMappingTable *table, int old_id, int new_id) {
     /* 检查表是否已初始化（init 失败时 entries 为 NULL） */
     if (!table->entries)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "id_mapping_add: table not initialized");
     if (!lv_ensure_capacity((void **)&table->entries, table->count,
                             &table->capacity, sizeof(IdMappingEntry), 1))
         return false;
@@ -1338,11 +1338,11 @@ static int id_mapping_find(const IdMappingTable *table, int old_id) {
  */
 static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
     if (!src)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "deep_copy_graph: src is NULL");
 
     ConstraintGraph *dst = graph_create();
     if (!dst)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "deep_copy_graph: graph_create failed");
 
     /* 创建ID映射表 */
     IdMappingTable id_map;
@@ -1351,7 +1351,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
     id_mapping_init(&id_map, src->node_count + 16);
     if (!id_map.entries) {
         graph_destroy(dst);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "deep_copy_graph: id_mapping_init failed");
     }
 
     /*
@@ -1767,14 +1767,14 @@ fail:
 bool unify_instantiate_proposition(ConstraintGraph *proposition, int type_var_node_id, const TypeRegion *concrete_type,
                                    ConstraintGraph **out_instantiated) {
     if (!proposition || !concrete_type || !out_instantiated)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "unify_instantiate_proposition: NULL parameter");
 
     *out_instantiated = NULL;
 
     /* 深拷贝命题图 */
     ConstraintGraph *inst = deep_copy_graph(proposition);
     if (!inst)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "unify_instantiate_proposition: deep_copy_graph failed");
 
     /* 查找类型变量节点 */
     GeomNode *type_var_node = NULL;
@@ -1869,7 +1869,7 @@ bool unify_instantiate_proposition(ConstraintGraph *proposition, int type_var_no
 int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition, int *out_port_bindings,
                       int max_bindings) {
     if (!construction || !proposition)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "unify_match_ports: NULL construction or proposition");
 
     if (unify_stream_ctx) {
         stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "精细端口匹配开始", 0);
@@ -1885,7 +1885,7 @@ int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph
     /* 跟踪已匹配的构造端口 */
     bool *used = lv_calloc((size_t) construction->node_count, sizeof(bool));
     if (!used && construction->node_count > 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "unify_match_ports: calloc used failed");
 
     /* 创建 TypeSystem 用于端口类型等价检查 */
     TypeSystem *ts = type_system_create();
@@ -1997,7 +1997,7 @@ int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph
 int unify_match_constraints(const ConstraintGraph *construction, const ConstraintGraph *proposition,
                             int *out_constraint_bindings) {
     if (!construction || !proposition)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "unify_match_constraints: NULL construction or proposition");
 
     if (unify_stream_ctx) {
         stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "精细约束匹配开始", 0);
@@ -2008,7 +2008,7 @@ int unify_match_constraints(const ConstraintGraph *construction, const Constrain
     /* 跟踪已匹配的构造约束 */
     bool *used = lv_calloc((size_t) construction->constraint_count, sizeof(bool));
     if (!used && construction->constraint_count > 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "unify_match_constraints: calloc used failed");
 
     for (int i = 0; i < proposition->constraint_count; i++) {
         const Constraint *pc = proposition->constraints[i];

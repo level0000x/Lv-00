@@ -34,14 +34,12 @@ lvAssumptionStack *lv_assumption_stack_create(int capacity) {
     if (!stack)
         return NULL;
 
-    stack->entries = lv_calloc((size_t) capacity, sizeof(lvAssumptionEntry));
-    if (!stack->entries) {
+    lv_darray_init(&stack->entries, sizeof(lvAssumptionEntry));
+    if (!lv_darray_reserve(&stack->entries, capacity)) {
         lv_free((void **) &stack);
         return NULL;
     }
 
-    stack->capacity = capacity;
-    stack->count = 0;
     stack->max_depth = 10; /* 默认最大嵌套深度 */
     stack->current_scope = 0;
 
@@ -53,13 +51,14 @@ void lv_assumption_stack_destroy(lvAssumptionStack *stack) {
         return;
 
     /* 释放每个条目中的命题 */
-    for (int i = 0; i < stack->count; i++) {
-        if (stack->entries[i].prop) {
-            proposition_destroy(stack->entries[i].prop);
+    for (int i = 0; i < stack->entries.count; i++) {
+        lvAssumptionEntry *entry = (lvAssumptionEntry *)lv_darray_get(&stack->entries, i);
+        if (entry->prop) {
+            proposition_destroy(entry->prop);
         }
     }
 
-    lv_free((void **) &stack->entries);
+    lv_darray_free(&stack->entries);
     lv_free((void **) &stack);
 }
 
@@ -68,23 +67,12 @@ int lv_assumption_stack_push(lvAssumptionStack *stack, lvProofScopeId scope_id, 
     if (!stack || !prop)
         return -1;
 
-    /* 检查容量 */
-    if (stack->count >= stack->capacity) {
-        if (stack->capacity > INT_MAX / 2)
-            return -1;
-        int new_cap = stack->capacity * 2;
-        lvAssumptionEntry *new_entries = lv_realloc(stack->entries, (size_t) new_cap * sizeof(lvAssumptionEntry));
-        if (!new_entries)
-            return -1;
-        stack->entries = new_entries;
-        stack->capacity = new_cap;
-    }
-
     /* 计算深度 */
     int depth = 0;
-    for (int i = stack->count - 1; i >= 0; i--) {
-        if (stack->entries[i].scope_id == scope_id) {
-            depth = stack->entries[i].depth + 1;
+    for (int i = stack->entries.count - 1; i >= 0; i--) {
+        lvAssumptionEntry *prev = (lvAssumptionEntry *)lv_darray_get(&stack->entries, i);
+        if (prev->scope_id == scope_id) {
+            depth = prev->depth + 1;
             break;
         }
     }
@@ -93,37 +81,40 @@ int lv_assumption_stack_push(lvAssumptionStack *stack, lvProofScopeId scope_id, 
     if (depth > stack->max_depth)
         return -1;
 
-    /* 添加新假设 */
-    lvAssumptionEntry *entry = &stack->entries[stack->count];
-    entry->assumption_id = stack->count;
-    entry->scope_id = scope_id;
-    entry->type = type;
-    entry->prop = prop;
-    entry->depth = depth;
-    entry->parent_assumption_id = (stack->count > 0) ? stack->count - 1 : -1;
-    entry->derivation_step_count = 0;
-    entry->is_contradictory = false;
-    entry->timestamp = (int64_t) time(NULL);
+    /* 添加新假设（lv_darray_push 自动扩容） */
+    lvAssumptionEntry entry;
+    memset(&entry, 0, sizeof(entry));
+    entry.assumption_id = stack->entries.count;
+    entry.scope_id = scope_id;
+    entry.type = type;
+    entry.prop = prop;
+    entry.depth = depth;
+    entry.parent_assumption_id = (stack->entries.count > 0) ? stack->entries.count - 1 : -1;
+    entry.derivation_step_count = 0;
+    entry.is_contradictory = false;
+    entry.timestamp = (int64_t) time(NULL);
 
     stack->current_scope = scope_id;
 
-    return stack->count++;
+    return lv_darray_push(&stack->entries, &entry);
 }
 
 lvAssumptionEntry *lv_assumption_stack_pop(lvAssumptionStack *stack) {
-    if (!stack || stack->count == 0)
+    if (!stack || stack->entries.count == 0)
         return NULL;
 
-    return &stack->entries[--stack->count];
+    stack->entries.count--;
+    return (lvAssumptionEntry *)lv_darray_get(&stack->entries, stack->entries.count);
 }
 
 lvAssumptionEntry *lv_assumption_stack_find(lvAssumptionStack *stack, int assumption_id) {
     if (!stack)
         return NULL;
 
-    for (int i = 0; i < stack->count; i++) {
-        if (stack->entries[i].assumption_id == assumption_id) {
-            return &stack->entries[i];
+    for (int i = 0; i < stack->entries.count; i++) {
+        lvAssumptionEntry *entry = (lvAssumptionEntry *)lv_darray_get(&stack->entries, i);
+        if (entry->assumption_id == assumption_id) {
+            return entry;
         }
     }
 
@@ -136,9 +127,10 @@ int lv_assumption_stack_get_by_scope(lvAssumptionStack *stack, lvProofScopeId sc
         return 0;
 
     int count = 0;
-    for (int i = 0; i < stack->count && count < max_out; i++) {
-        if (stack->entries[i].scope_id == scope_id) {
-            out[count++] = &stack->entries[i];
+    for (int i = 0; i < stack->entries.count && count < max_out; i++) {
+        lvAssumptionEntry *entry = (lvAssumptionEntry *)lv_darray_get(&stack->entries, i);
+        if (entry->scope_id == scope_id) {
+            out[count++] = entry;
         }
     }
 
@@ -250,11 +242,12 @@ int lv_contradiction_detect_breakpoints(lvProofNavigatorEx *navigator, lvContrad
         return 0;
 
     int count = 0;
-    int limit = (navigator->breakpoint_count < max_breakpoints) ? navigator->breakpoint_count : max_breakpoints;
+    int limit = (navigator->breakpoints.count < max_breakpoints) ? navigator->breakpoints.count : max_breakpoints;
 
     for (int i = 0; i < limit && count < max_breakpoints; i++) {
-        if (navigator->breakpoints[i] && navigator->breakpoints[i]->is_active) {
-            breakpoints[count++] = navigator->breakpoints[i];
+        lvContradictionBreakpoint **bp = (lvContradictionBreakpoint **)lv_darray_get(&navigator->breakpoints, i);
+        if (*bp && (*bp)->is_active) {
+            breakpoints[count++] = *bp;
         }
     }
 
@@ -278,19 +271,17 @@ lvProofNavigatorEx *lv_proof_navigator_ex_create(void) {
     }
 
     /* 初始化闭包数组 */
-    nav->closure_capacity = 16;
-    nav->closures = lv_calloc((size_t) nav->closure_capacity, sizeof(lvContradictionClosure *));
-    if (!nav->closures) {
+    lv_darray_init(&nav->closures, sizeof(lvContradictionClosure *));
+    if (!lv_darray_reserve(&nav->closures, 16)) {
         lv_assumption_stack_destroy(nav->assumption_stack);
         lv_free((void **) &nav);
         return NULL;
     }
 
     /* 初始化断点数组 */
-    nav->breakpoint_capacity = 16;
-    nav->breakpoints = lv_calloc((size_t) nav->breakpoint_capacity, sizeof(lvContradictionBreakpoint *));
-    if (!nav->breakpoints) {
-        lv_free((void **) &nav->closures);
+    lv_darray_init(&nav->breakpoints, sizeof(lvContradictionBreakpoint *));
+    if (!lv_darray_reserve(&nav->breakpoints, 16)) {
+        lv_darray_free(&nav->closures);
         lv_assumption_stack_destroy(nav->assumption_stack);
         lv_free((void **) &nav);
         return NULL;
@@ -313,24 +304,22 @@ void lv_proof_navigator_ex_destroy(lvProofNavigatorEx *navigator) {
     }
 
     /* 释放闭包 */
-    if (navigator->closures) {
-        for (int i = 0; i < navigator->closure_count; i++) {
-            if (navigator->closures[i]) {
-                lv_contradiction_closure_destroy(navigator->closures[i]);
-            }
+    for (int i = 0; i < navigator->closures.count; i++) {
+        lvContradictionClosure **closure = (lvContradictionClosure **)lv_darray_get(&navigator->closures, i);
+        if (*closure) {
+            lv_contradiction_closure_destroy(*closure);
         }
-        lv_free((void **) &navigator->closures);
     }
+    lv_darray_free(&navigator->closures);
 
     /* 释放断点 */
-    if (navigator->breakpoints) {
-        for (int i = 0; i < navigator->breakpoint_count; i++) {
-            if (navigator->breakpoints[i]) {
-                lv_contradiction_breakpoint_destroy(navigator->breakpoints[i]);
-            }
+    for (int i = 0; i < navigator->breakpoints.count; i++) {
+        lvContradictionBreakpoint **bp = (lvContradictionBreakpoint **)lv_darray_get(&navigator->breakpoints, i);
+        if (*bp) {
+            lv_contradiction_breakpoint_destroy(*bp);
         }
-        lv_free((void **) &navigator->breakpoints);
     }
+    lv_darray_free(&navigator->breakpoints);
 
     lv_free((void **) &navigator);
 }
@@ -372,20 +361,8 @@ bool lv_proof_end_contradiction(lvProofNavigatorEx *navigator, lvProofScopeId sc
     lvContradictionClosure *closure = lv_contradiction_closure_create(scope_id, CONTRADICTION_TYPE_DIRECT, dummy_prop);
 
     if (closure) {
-        /* 添加到导航器 */
-        if (navigator->closure_count >= navigator->closure_capacity) {
-            int new_cap = navigator->closure_capacity * 2;
-            lvContradictionClosure **new_closures =
-                lv_realloc(navigator->closures, (size_t) new_cap * sizeof(lvContradictionClosure *));
-            if (!new_closures) {
-                lv_contradiction_closure_destroy(closure);
-                return false;
-            }
-            navigator->closures = new_closures;
-            navigator->closure_capacity = new_cap;
-        }
-
-        navigator->closures[navigator->closure_count++] = closure;
+        /* 添加到导航器（lv_darray_push 自动扩容） */
+        lv_darray_push(&navigator->closures, &closure);
         navigator->total_closures++;
 
         if (out_closure) {
@@ -401,9 +378,9 @@ bool lv_proof_scope_is_valid(lvProofNavigatorEx *navigator, lvProofScopeId scope
         return false;
 
     /* 检查是否有该作用域的矛盾闭包 */
-    for (int i = 0; i < navigator->closure_count; i++) {
-        if (navigator->closures[i] && navigator->closures[i]->scope_id == scope_id &&
-            navigator->closures[i]->is_closed) {
+    for (int i = 0; i < navigator->closures.count; i++) {
+        lvContradictionClosure **closure = (lvContradictionClosure **)lv_darray_get(&navigator->closures, i);
+        if (*closure && (*closure)->scope_id == scope_id && (*closure)->is_closed) {
             return false; /* 该作用域已关闭 */
         }
     }
@@ -448,17 +425,19 @@ char *lv_proof_export_contradiction_trace(lvProofNavigatorEx *navigator, lvProof
 
     /* 输出闭包信息 */
     int closure_count = 0;
-    for (int i = 0; i < navigator->closure_count; i++) {
-        if (navigator->closures[i] && navigator->closures[i]->scope_id == scope_id) {
+    for (int i = 0; i < navigator->closures.count; i++) {
+        lvContradictionClosure **closure = (lvContradictionClosure **)lv_darray_get(&navigator->closures, i);
+        if (*closure && (*closure)->scope_id == scope_id) {
             closure_count++;
         }
     }
 
     CONTRADICTION_WRITE("\n矛盾闭包 (%d 个):\n", closure_count);
-    for (int i = 0; i < navigator->closure_count; i++) {
-        if (navigator->closures[i] && navigator->closures[i]->scope_id == scope_id) {
-            CONTRADICTION_WRITE("  [%d] 类型=%d, 已关闭=%s\n", navigator->closures[i]->closure_id,
-                                navigator->closures[i]->type, navigator->closures[i]->is_closed ? "是" : "否");
+    for (int i = 0; i < navigator->closures.count; i++) {
+        lvContradictionClosure **closure = (lvContradictionClosure **)lv_darray_get(&navigator->closures, i);
+        if (*closure && (*closure)->scope_id == scope_id) {
+            CONTRADICTION_WRITE("  [%d] 类型=%d, 已关闭=%s\n", (*closure)->closure_id,
+                                (*closure)->type, (*closure)->is_closed ? "是" : "否");
         }
     }
 #undef CONTRADICTION_WRITE

@@ -1530,6 +1530,99 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
  * - 解析求解结果并生成证明步骤
  * - 所有步骤标记为 PROOF_COLOR_ORANGE_ORACLE
  */
+/* ── HOL Light 微内核验证 ── */
+
+/**
+ * @brief HOL Light 微内核验证策略
+ *
+ * 使用 proof_minimal_verify 函数，以 HOL Light 的 10 条基本推理规则
+ * (REFL, TRANS, ASSUME, BETA_CONV, MK_COMB, etc.) 验证证明中的每个步骤。
+ * 适用于任何具备等式/lambda/应用结构证明步骤的验证场景。
+ *
+ * 策略逻辑：
+ *   1. 遍历 nav 中的所有证明步骤
+ *   2. 对每个步骤，根据其类型映射到对应的 VerifyRuleType
+ *   3. 调用 proof_minimal_verify 验证
+ *   4. 将验证结果和追溯信息写入步骤元数据
+ *   5. 若所有步骤验证通过则返回 true
+ */
+static bool execute_hol_light(ProofMultiStrategy *mse, ProofNavigator *nav) {
+    (void) mse;
+    if (!nav)
+        return false;
+
+    int step_count = nav->step_count;
+    if (step_count <= 0)
+        return false;
+
+    bool all_valid = true;
+    for (int i = 0; i < step_count; i++) {
+        const ProofStep *step = nav->steps[i];
+        if (!step)
+            continue;
+
+        /* 将 ProofStepType 映射到 VerifyRuleType */
+        VerifyRuleType rule;
+        switch (step->type) {
+            case PROOF_STEP_REWRITE:
+                rule = VERIFY_TRANS;
+                break;
+            case PROOF_STEP_FUNCTION_APP:
+                rule = VERIFY_MK_COMB;
+                break;
+            case PROOF_STEP_NORMALIZATION:
+                rule = VERIFY_BETA_CONV;
+                break;
+            default:
+                /* 无对应 HOL Light 规则的步骤跳过 */
+                continue;
+        }
+
+        /* 收集前提（依赖的前驱步骤的结论） */
+        const char *premises[16];
+        int premise_count = 0;
+        if (step->dependency_step_ids && step->dependency_count > 0) {
+            for (int d = 0; d < step->dependency_count && premise_count < 14; d++) {
+                int dep_id = step->dependency_step_ids[d];
+                if (dep_id >= 0 && dep_id < step_count) {
+                    const ProofStep *dep = nav->steps[dep_id];
+                    if (dep && dep->conclusion)
+                        premises[premise_count++] = dep->conclusion;
+                }
+            }
+        }
+        premises[premise_count] = NULL;
+
+        /* 检查步骤是否有结论 */
+        if (!step->conclusion)
+            continue;
+
+        /* 执行 HOL Light 验证 */
+        char *trace = NULL;
+        VerifyResult result = proof_minimal_verify(rule, premises, step->conclusion, &trace);
+
+        if (result != VERIFY_VALID) {
+            all_valid = false;
+            if (trace)
+                LOG_WARN("hol_light", "步骤 #%d: %s", i, trace);
+        }
+
+        if (trace)
+            lv_free((void **) &trace);
+    }
+
+    return all_valid;
+}
+
+/* ── Oracle 外部求解器 ── */
+
+/**
+ * @brief 执行 Oracle 外部求解器策略
+ *
+ * 遍历构造的约束图，检测是否存在外部求解器（ATP/CAS 等）、
+ * 调用外部求解器、解析求解结果并生成证明步骤。
+ * 所有步骤标记为 PROOF_COLOR_ORANGE_ORACLE。
+ */
 static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
     (void) mse;
     if (!nav || !nav->construction)
@@ -1933,6 +2026,13 @@ static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategy
             desc->execute = execute_lambda_unify;
             break;
 
+        case PROOF_STRATEGY_HOL_LIGHT:
+            desc->name = lv_strdup_safe("HOL Light 微内核验证");
+            desc->description = lv_strdup_safe("使用 10 条基本推理规则验证证明步骤的形式化正确性");
+            desc->applicability_check = default_applicability_check;
+            desc->execute = execute_hol_light;
+            break;
+
         case PROOF_STRATEGY_ORACLE:
             desc->name = lv_strdup_safe("Oracle法");
             desc->description = lv_strdup_safe("调用外部求解器辅助验证非构造性命題");
@@ -1973,11 +2073,11 @@ ProofMultiStrategy *proof_multi_strategy_create(ProofNavigator *nav) {
         return NULL;
     }
 
-    /* 默认回退顺序：直接构造 -> 面积法 -> Groebner -> 向量 -> 全角 -> 演绎 -> 坐标 */
+    /* 默认回退顺序：直接构造 -> 面积法 -> Groebner -> 向量 -> 全角 -> 演绎 -> 坐标 -> HOL Light */
     int default_order[] = {
         PROOF_STRATEGY_DIRECT_CONSTRUCTION, PROOF_STRATEGY_AREA_METHOD,       PROOF_STRATEGY_GROEBNER_BASIS,
         PROOF_STRATEGY_VECTOR_METHOD,       PROOF_STRATEGY_FULL_ANGLE_METHOD, PROOF_STRATEGY_DEDUCTIVE_DATABASE,
-        PROOF_STRATEGY_COORDINATE,
+        PROOF_STRATEGY_COORDINATE,          PROOF_STRATEGY_HOL_LIGHT,
     };
     int default_count = sizeof(default_order) / sizeof(default_order[0]);
     proof_multi_strategy_set_fallback_order(mse, default_order, default_count);
@@ -2222,6 +2322,12 @@ const char *proof_strategy_type_to_string(ProofStrategyType type) {
             return "演绎数据库法";
         case PROOF_STRATEGY_COORDINATE:
             return "坐标法";
+        case PROOF_STRATEGY_LAMBDA_CALCULUS:
+            return "λ-演算归约法";
+        case PROOF_STRATEGY_LAMBDA_UNIFY:
+            return "λ-演算合一法";
+        case PROOF_STRATEGY_HOL_LIGHT:
+            return "HOL Light 微内核验证";
         case PROOF_STRATEGY_ORACLE:
             return "Oracle法";
         default:
@@ -2278,6 +2384,12 @@ const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {
             return "deductive_database";
         case PROOF_STRATEGY_COORDINATE:
             return "coordinate";
+        case PROOF_STRATEGY_LAMBDA_CALCULUS:
+            return "lambda_calculus";
+        case PROOF_STRATEGY_LAMBDA_UNIFY:
+            return "lambda_unify";
+        case PROOF_STRATEGY_HOL_LIGHT:
+            return "hol_light";
         case PROOF_STRATEGY_ORACLE:
             return "oracle";
         default:
@@ -3055,6 +3167,9 @@ bool proof_search_with_strategy(ProofNavigator *proof, ProofStrategyType strateg
         case PROOF_STRATEGY_FULL_ANGLE_METHOD:
         case PROOF_STRATEGY_DEDUCTIVE_DATABASE:
         case PROOF_STRATEGY_COORDINATE:
+        case PROOF_STRATEGY_LAMBDA_CALCULUS:
+        case PROOF_STRATEGY_LAMBDA_UNIFY:
+        case PROOF_STRATEGY_HOL_LIGHT:
         case PROOF_STRATEGY_ORACLE:
             /* 使用深度优先搜索策略执行 */
             return proof_depth_first_search(proof, max_steps);

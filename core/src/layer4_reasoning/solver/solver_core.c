@@ -133,6 +133,7 @@ static bool ensure_var_cap(lvSolver *s) {
  */
 static void cdcl_context_init(CDCLContext *ctx) {
     memset(ctx, 0, sizeof(CDCLContext));
+    lv_darray_init(&ctx->trail, sizeof(int));
     ctx->state = CDCL_IDLE;
     ctx->decision_level = 0;
 }
@@ -145,7 +146,7 @@ static void cdcl_context_destroy(CDCLContext *ctx) {
     lv_free((void **) &ctx->assigns);
     lv_free((void **) &ctx->levels);
     lv_free((void **) &ctx->reasons);
-    lv_free((void **) &ctx->trail);
+    lv_darray_free(&ctx->trail);
     lv_free((void **) &ctx->trail_lim);
     lv_free((void **) &ctx->conflict_clause);
 
@@ -467,17 +468,8 @@ static void cdcl_assign(CDCLContext *ctx, int lit, int reason_clause) {
     ctx->levels[var] = ctx->decision_level;
     ctx->reasons[var] = reason_clause;
 
-    /* 扩展 trail 容量 */
-    if (ctx->trail_size >= ctx->trail_capacity) {
-        int new_cap =
-            (ctx->trail_capacity == 0) ? DEFAULT_TRAIL_CAPACITY : ctx->trail_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int *new_trail = (int *) lv_realloc(ctx->trail, (size_t) new_cap * sizeof(int));
-        if (!new_trail)
-            return;
-        ctx->trail = new_trail;
-        ctx->trail_capacity = new_cap;
-    }
-    ctx->trail[ctx->trail_size++] = lit;
+    /* 追加到 trail（lv_darray_push 自动扩容） */
+    lv_darray_push(&ctx->trail, &lit);
 }
 
 /**
@@ -494,8 +486,9 @@ static void cdcl_assign_unit(CDCLContext *ctx, int lit, int reason_clause) {
  * @brief 回溯：撤销从 trail[top..trail_size) 的所有赋值
  */
 static void cdcl_undo_trail(CDCLContext *ctx, int top) {
-    while (ctx->trail_size > top) {
-        int lit = ctx->trail[--ctx->trail_size];
+    int *t = (int *) ctx->trail.data;
+    while (ctx->trail.count > top) {
+        int lit = t[--ctx->trail.count];
         int var = (lit < 0) ? -lit : lit;
         ctx->assigns[var] = 0;
         ctx->levels[var] = 0;
@@ -510,15 +503,15 @@ static void cdcl_backtrack_to(CDCLContext *ctx, int level) {
     if (level >= ctx->decision_level)
         return;
     /* 撤销 trail_lim[level+1..] 对应的所有赋值 */
-    int new_trail_size = (level >= 0 && level < ctx->decision_level) ? ctx->trail_lim[level] : 0;
-    /* trail_lim 索引从 0 开始，但决策层 0 的 trail_lim[0] 不一定存在 */
+    int new_trail_size;
     if (level < 0)
         new_trail_size = 0;
     else if (level == 0)
         new_trail_size = 0; /* 决策层 0 保留单元传播 */
-    else if (level < ctx->decision_level && ctx->trail_lim) {
+    else if (level < ctx->decision_level && ctx->trail_lim)
         new_trail_size = ctx->trail_lim[level];
-    }
+    else
+        new_trail_size = 0;
     cdcl_undo_trail(ctx, new_trail_size);
     ctx->decision_level = level;
 }
@@ -745,7 +738,7 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
     if (!seen)
         return CDCL_UNSAT;
 
-    int *resolving = (int *) lv_malloc((size_t) (ctx->trail_capacity + 1) * sizeof(int));
+    int *resolving = (int *) lv_malloc((size_t) (ctx->trail.capacity + 1) * sizeof(int));
     int resolve_count = 0;
     if (!resolving) {
         lv_free((void **) &seen);
@@ -830,8 +823,8 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
         /* 尝试从 trail 中找到当前决策层上最近的赋值作为 UIP */
         if (ctx->trail_lim && ctx->decision_level > 0) {
             int trail_start = ctx->trail_lim[ctx->decision_level];
-            if (trail_start >= 0 && trail_start < ctx->trail_size) {
-                uip_lit = ctx->trail[trail_start];
+            if (trail_start >= 0 && trail_start < ctx->trail.count) {
+                uip_lit = ((int *) ctx->trail.data)[trail_start];
             }
         }
     }
@@ -890,12 +883,13 @@ static CDCLState cdcl_step_backjump(CDCLContext *ctx) {
     int target = ctx->backtrack_level;
 
     /* 撤销 trail 中高于 target 层的所有赋值 */
-    while (ctx->trail_size > 0) {
-        int lit = ctx->trail[ctx->trail_size - 1];
+    int *t = (int *) ctx->trail.data;
+    while (ctx->trail.count > 0) {
+        int lit = t[ctx->trail.count - 1];
         int var = (lit < 0) ? -lit : lit;
         if (ctx->levels[var] <= target)
             break;
-        ctx->trail_size--;
+        ctx->trail.count--;
         ctx->assigns[var] = 0;
         ctx->levels[var] = 0;
         ctx->reasons[var] = -1;
@@ -1017,7 +1011,7 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
     }
     ctx->trail_lim = new_lim;
     ctx->trail_lim_capacity = needed;
-    ctx->trail_lim[ctx->decision_level] = ctx->trail_size;
+    ctx->trail_lim[ctx->decision_level] = ctx->trail.count;
 
     /* 赋值：默认选正文字（可扩展为 VSIDS 等启发式） */
     cdcl_assign(ctx, decision_var, -1); /* -1 表示决策赋值 */

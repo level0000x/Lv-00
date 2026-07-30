@@ -64,16 +64,16 @@ typedef struct {
 
 /** 初始化 CNF 构建器 */
 static CNFBuilder *cnf_create(void) {
-    CNFBuilder *cnf = (CNFBuilder *) calloc(1, sizeof(CNFBuilder));
+    CNFBuilder *cnf = (CNFBuilder *) lv_calloc(1, sizeof(CNFBuilder));
     if (!cnf)
         return NULL;
     cnf->clause_capacity = 64;
-    cnf->clauses = (int **) calloc((size_t) cnf->clause_capacity, sizeof(int *));
-    cnf->clause_sizes = (int *) calloc((size_t) cnf->clause_capacity, sizeof(int));
+    cnf->clauses = (int **) lv_calloc((size_t) cnf->clause_capacity, sizeof(int *));
+    cnf->clause_sizes = (int *) lv_calloc((size_t) cnf->clause_capacity, sizeof(int));
     if (!cnf->clauses || !cnf->clause_sizes) {
-        free(cnf->clauses);
-        free(cnf->clause_sizes);
-        free(cnf);
+        lv_free((void **) &(cnf->clauses));
+        lv_free((void **) &(cnf->clause_sizes));
+        lv_free((void **) &cnf);
         return NULL;
     }
     cnf->var_count = 0;
@@ -101,7 +101,7 @@ static void cnf_add_clause(CNFBuilder *cnf, const int *literals, int count) {
         cnf->clause_capacity = new_cap;
     }
 
-    int *clause = (int *) malloc((size_t) (count + 1) * sizeof(int));
+    int *clause = (int *) lv_malloc((size_t) (count + 1) * sizeof(int));
     if (!clause)
         return;
     memcpy(clause, literals, (size_t) count * sizeof(int));
@@ -116,11 +116,11 @@ static void cnf_destroy(CNFBuilder *cnf) {
     if (!cnf)
         return;
     for (int i = 0; i < cnf->clause_count; i++) {
-        free(cnf->clauses[i]);
+        lv_free((void **) &(cnf->clauses[i]));
     }
-    free(cnf->clauses);
-    free(cnf->clause_sizes);
-    free(cnf);
+    lv_free((void **) &(cnf->clauses));
+    lv_free((void **) &(cnf->clause_sizes));
+    lv_free((void **) &cnf);
 }
 
 /* ============================================================
@@ -147,7 +147,7 @@ static CNFBuilder *encode_constraint_graph(const ConstraintGraph *graph) {
         return NULL;
 
     /* 为每个节点分配变量 ID */
-    int *node_var = (int *) calloc((size_t) graph->node_count, sizeof(int));
+    int *node_var = (int *) lv_calloc((size_t) graph->node_count, sizeof(int));
     if (!node_var) {
         cnf_destroy(cnf);
         return NULL;
@@ -166,7 +166,7 @@ static CNFBuilder *encode_constraint_graph(const ConstraintGraph *graph) {
             continue;
 
         /* 查找参与者在 node_var 中的索引 */
-        int *p_indices = (int *) calloc((size_t) c->participant_count, sizeof(int));
+        int *p_indices = (int *) lv_calloc((size_t) c->participant_count, sizeof(int));
         if (!p_indices)
             continue;
         int found = 0;
@@ -180,7 +180,7 @@ static CNFBuilder *encode_constraint_graph(const ConstraintGraph *graph) {
         }
 
         if (found < 2) {
-            free(p_indices);
+            lv_free((void **) &p_indices);
             continue;
         }
 
@@ -207,17 +207,17 @@ static CNFBuilder *encode_constraint_graph(const ConstraintGraph *graph) {
             default:
                 /* 其他类型：确保至少一个参与者为真 */
                 {
-                    int *lit = (int *) malloc((size_t) (found + 1) * sizeof(int));
+                    int *lit = (int *) lv_malloc((size_t) (found + 1) * sizeof(int));
                     if (lit) {
                         for (int k = 0; k < found; k++)
                             lit[k] = node_var[p_indices[k]];
                         cnf_add_clause(cnf, lit, found);
-                        free(lit);
+                        lv_free((void **) &lit);
                     }
                 }
                 break;
         }
-        free(p_indices);
+        lv_free((void **) &p_indices);
     }
 
     /* 确保每个节点变量至少存在（节点本身总是可满足的） */
@@ -226,7 +226,7 @@ static CNFBuilder *encode_constraint_graph(const ConstraintGraph *graph) {
         cnf_add_clause(cnf, lit, 1);
     }
 
-    free(node_var);
+    lv_free((void **) &node_var);
     return cnf;
 }
 
@@ -279,14 +279,14 @@ typedef struct {
 } XORConstraint;
 
 static XORConstraint *xor_generate(int num_vars, uint64_t seed) {
-    XORConstraint *xc = (XORConstraint *) calloc(1, sizeof(XORConstraint));
+    XORConstraint *xc = (XORConstraint *) lv_calloc(1, sizeof(XORConstraint));
     if (!xc)
         return NULL;
 
     /* 最多 num_vars 个变量参与 */
-    xc->vars = (int *) calloc((size_t) num_vars, sizeof(int));
+    xc->vars = (int *) lv_calloc((size_t) num_vars, sizeof(int));
     if (!xc->vars) {
-        free(xc);
+        lv_free((void **) &xc);
         return NULL;
     }
 
@@ -305,8 +305,8 @@ static XORConstraint *xor_generate(int num_vars, uint64_t seed) {
 
 static void xor_destroy(XORConstraint *xc) {
     if (xc) {
-        free(xc->vars);
-        free(xc);
+        lv_free((void **) &(xc->vars));
+        lv_free((void **) &xc);
     }
 }
 
@@ -349,7 +349,7 @@ static CNFBuilder *xor_to_cnf(const XORConstraint *xc, CNFBuilder *base) {
            ...
            y_{m-1} = y_{m-2} ⊕ vₘ
            最后 y_{m-1} = parity */
-        int *aux = (int *) calloc((size_t) xc->count, sizeof(int));
+        int *aux = (int *) lv_calloc((size_t) xc->count, sizeof(int));
         if (!aux) {
             cnf_destroy(result);
             return NULL;
@@ -396,7 +396,7 @@ static CNFBuilder *xor_to_cnf(const XORConstraint *xc, CNFBuilder *base) {
             cnf_add_clause(result, clause, 1);
         }
 
-        free(aux);
+        lv_free((void **) &aux);
     } else {
         /* 小 XOR：枚举编码 */
         int k = xc->count;
@@ -511,12 +511,12 @@ static void dpll_solve(DPLLSolver *s, CNFBuilder *cnf) {
     /* 分支：先试 True */
     DPLLSolver copy;
     memcpy(&copy, s, sizeof(DPLLSolver));
-    copy.assign = (int *) malloc((size_t) (s->var_count + 1) * sizeof(int));
+    copy.assign = (int *) lv_malloc((size_t) (s->var_count + 1) * sizeof(int));
     if (copy.assign) {
         memcpy(copy.assign, s->assign, (size_t) (s->var_count + 1) * sizeof(int));
         copy.assign[var] = 1;
         dpll_solve(&copy, cnf);
-        free(copy.assign);
+        lv_free((void **) &(copy.assign));
     }
 
     if (s->solution_count >= s->max_solutions)
@@ -540,13 +540,13 @@ static int count_solutions(CNFBuilder *cnf, int max_count) {
     solver.satisfiable = -1;
     solver.max_solutions = max_count;
 
-    solver.assign = (int *) calloc((size_t) (cnf->var_count + 1), sizeof(int));
+    solver.assign = (int *) lv_calloc((size_t) (cnf->var_count + 1), sizeof(int));
     if (!solver.assign)
         return 0;
 
     dpll_solve(&solver, cnf);
 
-    free(solver.assign);
+    lv_free((void **) &(solver.assign));
     return solver.solution_count;
 }
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interactive_geo.c
  * @brief 交互几何系统实现 —— 借鉴 Cinderella 与 Dr. Geo
  * @see interactive_geo.h
@@ -115,7 +115,7 @@ static ConstraintMaintainStatus propagate(lvInteractiveGeo *g, int did) {
  * @return 交互几何上下文（调用者通过 interactive_geo_destroy 释放），失败返回 NULL
  */
 lvInteractiveGeo *interactive_geo_init(lvEngine *engine) {
-    lvInteractiveGeo *g = (lvInteractiveGeo *) calloc(1, sizeof(*g));
+    lvInteractiveGeo *g = (lvInteractiveGeo *) lv_calloc(1, sizeof(*g));
     if (!g)
         return NULL;
     lvGeoCanvasState *cs = &g->canvas_state;
@@ -123,20 +123,20 @@ lvInteractiveGeo *interactive_geo_init(lvEngine *engine) {
     cs->primary_selected_id = -1;
     cs->current_mode = GEO_MODE_SELECT;
     cs->grid_visible = true;
-    cs->active_object_ids = (int *) calloc(lv_GEO_MAX_OBJECTS, sizeof(int));
-    cs->selected_ids = (int *) calloc(lv_GEO_MAX_OBJECTS, sizeof(int));
+    cs->active_object_ids = (int *) lv_calloc(lv_GEO_MAX_OBJECTS, sizeof(int));
+    cs->selected_ids = (int *) lv_calloc(lv_GEO_MAX_OBJECTS, sizeof(int));
     if (!cs->active_object_ids || !cs->selected_ids) {
-        free(cs->active_object_ids);
-        free(cs->selected_ids);
-        free(g);
+        lv_free((void **) &(cs->active_object_ids));
+        lv_free((void **) &(cs->selected_ids));
+        lv_free((void **) &g);
         return NULL;
     }
     interactive_geo_reset_viewport(g);
 
     lvConstraintMaintainer *cm = &g->constraint_maint;
-    cm->constraint_ids = (int *) calloc(lv_GEO_MAX_CONSTRAINTS, sizeof(int));
-    cm->constraint_subjects = (int *) calloc(lv_GEO_MAX_CONSTRAINTS, sizeof(int));
-    cm->affected_objects = (int *) calloc(lv_GEO_MAX_DRAG_CHAIN, sizeof(int));
+    cm->constraint_ids = (int *) lv_calloc(lv_GEO_MAX_CONSTRAINTS, sizeof(int));
+    cm->constraint_subjects = (int *) lv_calloc(lv_GEO_MAX_CONSTRAINTS, sizeof(int));
+    cm->affected_objects = (int *) lv_calloc(lv_GEO_MAX_DRAG_CHAIN, sizeof(int));
     cm->use_projective_method = true;
     cm->convergence_epsilon = 1e-10;
     cm->max_iterations = 100;
@@ -147,8 +147,8 @@ lvInteractiveGeo *interactive_geo_init(lvEngine *engine) {
     g->continuity.degenerate_threshold = 1e-10;
 
     lvGeoScriptBinding *sb = &g->script_binding;
-    sb->object_ids = (int *) calloc(lv_GEO_MAX_OBJECTS, sizeof(int));
-    sb->script_snippets = (char **) calloc(lv_GEO_MAX_OBJECTS, sizeof(char *));
+    sb->object_ids = (int *) lv_calloc(lv_GEO_MAX_OBJECTS, sizeof(int));
+    sb->script_snippets = (char **) lv_calloc(lv_GEO_MAX_OBJECTS, sizeof(char *));
     sb->current_language = SCRIPT_LANG_lv_DSL;
     sb->auto_generate = true;
 
@@ -168,20 +168,20 @@ void interactive_geo_destroy(lvInteractiveGeo *g) {
     if (!g)
         return;
     for (int i = 0; i < g->snapshot_count; i++)
-        free(g->snapshots[i]);
+        lv_free((void **) &(g->snapshots[i]));
     lvGeoScriptBinding *sb = &g->script_binding;
     for (int i = 0; i < sb->binding_count; i++)
-        free(sb->script_snippets[i]);
-    free(sb->object_ids);
-    free(sb->script_snippets);
-    free(g->constraint_maint.constraint_ids);
-    free(g->constraint_maint.constraint_subjects);
-    free(g->constraint_maint.affected_objects);
-    free(g->continuity.last_config);
-    free(g->rand_check.failed_sample_params);
-    free(g->canvas_state.active_object_ids);
-    free(g->canvas_state.selected_ids);
-    free(g);
+        lv_free((void **) &(sb->script_snippets[i]));
+    lv_free((void **) &(sb->object_ids));
+    lv_free((void **) &(sb->script_snippets));
+    lv_free((void **) &(g->constraint_maint.constraint_ids));
+    lv_free((void **) &(g->constraint_maint.constraint_subjects));
+    lv_free((void **) &(g->constraint_maint.affected_objects));
+    lv_free((void **) &(g->continuity.last_config));
+    lv_free((void **) &(g->rand_check.failed_sample_params));
+    lv_free((void **) &(g->canvas_state.active_object_ids));
+    lv_free((void **) &(g->canvas_state.selected_ids));
+    lv_free((void **) &g);
 }
 
 /* ==================== 模式管理 ==================== */
@@ -344,7 +344,7 @@ int interactive_geo_randomized_check(lvInteractiveGeo *g, int samples, double to
             } else {
                 failed++;
                 if (!res->failed_sample_params) {
-                    res->failed_sample_params = (double *) malloc(sizeof(double));
+                    res->failed_sample_params = (double *) lv_malloc(sizeof(double));
                     if (res->failed_sample_params)
                         res->failed_sample_params[0] = p;
                     res->failed_sample_param_count = 1;
@@ -495,12 +495,12 @@ int interactive_geo_snapshot(lvInteractiveGeo *g) {
     if (!g)
         return -1;
     if (g->snapshot_count >= lv_GEO_MAX_SNAPSHOTS) {
-        free(g->snapshots[0]);
+        lv_free((void **) &(g->snapshots[0]));
         for (int i = 1; i < lv_GEO_MAX_SNAPSHOTS; i++)
             g->snapshots[i - 1] = g->snapshots[i];
         g->snapshot_count = lv_GEO_MAX_SNAPSHOTS - 1;
     }
-    char *buf = (char *) malloc(SNAP_LEN);
+    char *buf = (char *) lv_malloc(SNAP_LEN);
     if (!buf)
         return -1;
     lvGeoCanvasState *cs = &g->canvas_state;
@@ -510,7 +510,7 @@ int interactive_geo_snapshot(lvInteractiveGeo *g) {
                      (int) cs->current_mode, cs->drag_target_id, cs->drag_current_x, cs->drag_current_y, cs->zoom_level,
                      cs->viewport_offset_x, cs->viewport_offset_y, cs->selected_count, cs->modified ? "true" : "false");
     if (n < 0 || n >= SNAP_LEN) {
-        free(buf);
+        lv_free((void **) &buf);
         return -1;
     }
     g->snapshots[g->snapshot_count] = buf;

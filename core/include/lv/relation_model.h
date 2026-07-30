@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file relation_model.h
  * @brief 关系模型层公共接口 —— Alloy 风格的"关系即一切"统一建模范式
  *
@@ -20,6 +20,7 @@
 #define lv_RELATION_MODEL_H
 
 #include "lv.h"
+#include "lv/lv_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -79,9 +80,7 @@ typedef struct RelSignature {
 typedef struct Relation {
     char *name;               /**< 关系名称 */
     int arity;                /**< 元数（每个元组的元素个数） */
-    int **tuples;             /**< 元组数组，每个元组是 int[arity] */
-    int tuple_count;          /**< 当前元组数量 */
-    int tuple_capacity;       /**< 元组数组容量 */
+    lvDArray tuples;          /**< 元组指针数组 (int *) */
     RelSignature *domains[8]; /**< 每列对应的域签名（最多 8 列） */
 } Relation;
 
@@ -166,9 +165,7 @@ typedef struct RelFormula {
  * 包含一组签名（类型）、一组命名关系、一组事实和一组断言。
  */
 typedef struct RelModel {
-    RelSignature **sigs; /**< 签名数组 */
-    int sig_count;       /**< 签名数量 */
-    int sig_capacity;    /**< 签名数组容量 */
+    lvDArray sigs;         /**< 签名指针数组 (RelSignature *) */
 
     Relation **relations;  /**< 命名关系数组 */
     int relation_count;    /**< 关系数量 */

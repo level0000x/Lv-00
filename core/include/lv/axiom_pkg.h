@@ -18,6 +18,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "constraint_graph.h"
+#include "lv_utils.h"
 #include "stream.h"
 #include "symbolic_coord.h"
 
@@ -36,8 +37,7 @@ typedef struct AxiomPackage AxiomPackage;
 typedef struct KnownUnconstructible {
     char *name;
     char *reduces_to;        /* 目标问题名称 */
-    char **dependency_chain; /* 依赖项数组 */
-    int dependency_count;    /* 依赖项数量 */
+    lvDArray dependency_chain; /* 依赖项数组（lvDArray<char*>） */
     char *external_ref;      /* 外部引用URL或标识符 */
     bool green_verified;     /* 是否已验证 */
 } KnownUnconstructible;
@@ -434,27 +434,19 @@ typedef struct {
 struct AxiomPackage {
     char *name;
     char *version;
-    ConstraintTemplate *templates;
-    int template_count;
-    KnownUnconstructible *known_unconstructibles;
-    int unconstructible_count;
-    UnconstructibleTemplate *unconstructible_templates;  // 不可构造性证明模板
-    int unconstructible_template_count;                  // 模板数量
-    int unconstructible_template_capacity;               // 模板容量
-    char *bottom_geometry;                               /* 底层几何类型 */
-    char *negation_encoding;                             /* 否定编码方法 */
-    int contradiction_behavior;                          /* 矛盾行为 */
+    lvDArray templates;                   /* lvDArray<ConstraintTemplate> */
+    lvDArray known_unconstructibles;      /* lvDArray<KnownUnconstructible> */
+    lvDArray unconstructible_templates;   /* lvDArray<UnconstructibleTemplate> */
+    char *bottom_geometry;                /* 底层几何类型 */
+    char *negation_encoding;              /* 否定编码方法 */
+    int contradiction_behavior;           /* 矛盾行为 */
 
     /* 模板展开缓存 */
-    TemplateExpansionCache *expansion_cache;
-    int expansion_cache_count;
-    int expansion_cache_capacity;
-    int max_expansion_depth; /* 默认 8 */
+    lvDArray expansion_cache;             /* lvDArray<TemplateExpansionCache> */
+    int max_expansion_depth;              /* 默认 8 */
 
     /* 依赖引用追踪 */
-    DependencyRef *dep_refs;
-    int dep_ref_count;
-    int dep_ref_capacity;
+    lvDArray dep_refs;                    /* lvDArray<DependencyRef> */
 };
 
 /* ============== 依赖引用管理 ============== */

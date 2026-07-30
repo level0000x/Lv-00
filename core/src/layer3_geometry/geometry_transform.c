@@ -660,13 +660,11 @@ lvTransformSequence *lv_transform_sequence_create(void) {
         return NULL;
     }
 
-    seq->transforms = (lvTransform **) lv_malloc(TRANSFORM_SEQ_INIT_CAPACITY * sizeof(lvTransform *));
-    if (!seq->transforms) {
+    lv_darray_init(&seq->transforms_da, sizeof(lvTransform *));
+    if (!lv_darray_reserve(&seq->transforms_da, TRANSFORM_SEQ_INIT_CAPACITY)) {
         lv_free((void **) &seq);
         return NULL;
     }
-    seq->capacity = TRANSFORM_SEQ_INIT_CAPACITY;
-    seq->count = 0;
 
     return seq;
 }
@@ -676,10 +674,11 @@ void lv_transform_sequence_destroy(lvTransformSequence *seq) {
         return;
     }
 
-    for (uint32_t i = 0; i < seq->count; i++) {
-        lv_transform_unref(seq->transforms[i]);
+    for (int i = 0; i < seq->transforms_da.count; i++) {
+        lvTransform **pp = (lvTransform **)lv_darray_get(&seq->transforms_da, i);
+        lv_transform_unref(*pp);
     }
-    lv_free((void **) &seq->transforms);
+    lv_darray_free(&seq->transforms_da);
     lv_free((void **) &seq);
 }
 
@@ -688,18 +687,12 @@ bool lv_transform_sequence_add(lvTransformSequence *seq, lvTransform *t) {
         return false;
     }
 
-    if (seq->count >= seq->capacity) {
-        uint32_t new_cap = seq->capacity * 2;
-        lvTransform **new_arr = (lvTransform **) lv_realloc(seq->transforms, new_cap * sizeof(lvTransform *));
-        if (!new_arr) {
-            return false;
-        }
-        seq->transforms = new_arr;
-        seq->capacity = new_cap;
+    int idx = lv_darray_push(&seq->transforms_da, &t);
+    if (idx < 0) {
+        return false;
     }
 
     lv_transform_ref(t);
-    seq->transforms[seq->count++] = t;
     seq->composite_valid = false;
 
     return true;
@@ -772,7 +765,7 @@ lvTransform *lv_transform_compose(const lvTransform *t1, const lvTransform *t2) 
 }
 
 lvTransform *lv_transform_sequence_composite(const lvTransformSequence *seq) {
-    if (!seq || seq->count == 0) {
+    if (!seq || seq->transforms_da.count == 0) {
         return NULL;
     }
 
@@ -781,8 +774,9 @@ lvTransform *lv_transform_sequence_composite(const lvTransformSequence *seq) {
         return NULL;
     }
 
-    for (uint32_t i = 0; i < seq->count; i++) {
-        lvTransform *temp = lv_transform_compose(result, seq->transforms[i]);
+    for (int i = 0; i < seq->transforms_da.count; i++) {
+        lvTransform **pp = (lvTransform **)lv_darray_get(&seq->transforms_da, i);
+        lvTransform *temp = lv_transform_compose(result, *pp);
         lv_transform_destroy(result);
         if (!temp) {
             return NULL;
@@ -798,8 +792,9 @@ bool lv_transform_sequence_apply(const lvTransformSequence *seq, mpq_t x, mpq_t 
         return false;
     }
 
-    for (uint32_t i = 0; i < seq->count; i++) {
-        if (!lv_transform_apply_point(seq->transforms[i], x, y)) {
+    for (int i = 0; i < seq->transforms_da.count; i++) {
+        lvTransform **pp = (lvTransform **)lv_darray_get(&seq->transforms_da, i);
+        if (!lv_transform_apply_point(*pp, x, y)) {
             return false;
         }
     }

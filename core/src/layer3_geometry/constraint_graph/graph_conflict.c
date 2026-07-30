@@ -55,11 +55,11 @@ lv_DECLARE_STREAM_CTX(graph);
  */
 static int *find_linearly_dependent_constraints(ConstraintGraph *graph, int *out_count, int max_redundant) {
     if (!graph || !out_count || max_redundant <= 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "find_linearly_dependent_constraints: NULL parameter or invalid redundant");
 
     int *redundant = lv_malloc((size_t) max_redundant * sizeof(int));
     if (!redundant)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "find_linearly_dependent_constraints: malloc redundant failed");
     *out_count = 0;
 
     /* 统计线性约束和点的数量 */
@@ -99,7 +99,7 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph, int *out
         lv_free((void **) &point_seen);
         lv_free((void **) &node_id_to_var_idx);
         lv_free((void **) &linear_constraint_indices);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "find_linearly_dependent_constraints: array allocation failed");
     }
     memset(node_id_to_var_idx, -1, (size_t) (max_node_id + 1) * 2 * sizeof(int));
 
@@ -136,7 +136,7 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph, int *out
         lv_free((void **) &linear_constraint_indices);
         lv_free((void **) &matrix);
         lv_free((void **) &pivot_row);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "find_linearly_dependent_constraints: matrix/pivot_row allocation failed");
     }
 
     for (int i = 0; i < num_linear * (num_vars + 1); i++)
@@ -267,7 +267,7 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph, int *out
  */
 static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_con) {
     if (!graph || !new_con)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "algebraic_conflict_detected: NULL graph or new_con");
 
     /* 使用求解器模块检查约束系统是否有解 */
     int *dirty_vars = NULL;
@@ -278,7 +278,7 @@ static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_
     int max_vars = new_con->participant_count * 2;
     dirty_vars = lv_malloc((size_t) max_vars * sizeof(int));
     if (!dirty_vars)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "algebraic_conflict_detected: malloc dirty_vars failed");
 
     /* 将新约束的参与者添加为脏变量 */
     for (int i = 0; i < new_con->participant_count && i < max_vars; i++) {
@@ -377,7 +377,7 @@ static bool constraints_are_independent(const Constraint *c1, const Constraint *
  */
 static bool parse_distance_value(const char *decl, double *out_value) {
     if (!decl || !out_value)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "parse_distance_value: NULL decl or out_value");
 
     /* 查找等号模式 */
     const char *eq = strchr(decl, '=');
@@ -670,7 +670,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
             *out_conflict_count = 0;
         if (out_conflict_sizes)
             *out_conflict_sizes = NULL;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_detect_conflicts: NULL graph or output params");
     }
 
     *out_conflict_count = 0;
@@ -685,7 +685,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
         lv_free((void **) &*out_conflict_sizes);
         *out_conflict_sizes = NULL;
         *out_conflict_count = -1; /* 使用 -1 表示 OOM 错误，与 0（无冲突）区分 */
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_detect_conflicts: malloc conflicts or sizes failed");
     }
 
     /* ===== 预构建邻接索引以实现 O(1) 约束查找 ===== */
@@ -702,7 +702,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
         lv_free((void **) out_conflict_sizes);
         *out_conflict_sizes = NULL;
         *out_conflict_count = -1;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "graph_detect_conflicts: adj_total overflow");
     }
     int *adj_lists = lv_calloc((int) adj_total, sizeof(int));
     int *adj_counts = lv_calloc(max_node_id + 1, sizeof(int));
@@ -1063,8 +1063,7 @@ bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) 
     lv_clear_error();
 
     if (!graph) {
-        lv_set_error(lv_ERROR_NULL_POINTER, __func__, "graph is NULL");
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "graph_validate_region_closure: graph is NULL");
     }
 
     const GeomNode *region = graph_get_node(graph, region_id);

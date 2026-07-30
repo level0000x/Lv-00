@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 
 /* 默认规则库容量 */
@@ -706,7 +707,15 @@ bool lv_rule_library_save(const lvRuleLibrary *library, const char *path) {
     FILE *f = fopen(path, "w");
     if (!f)
         return false;
-    fprintf(f, "{\"rule_count\":%u}\n", library->rule_count);
+    lvJsonBuf buf;
+    lv_json_buf_init(&buf, 64);
+    lv_json_buf_append_fmt(&buf, "{\"rule_count\":%u}", library->rule_count);
+    char *json = lv_json_buf_finalize(&buf);
+    if (json) {
+        fputs(json, f);
+        fputc('\n', f);
+        lv_free(json);
+    }
     fclose(f);
     return true;
 }

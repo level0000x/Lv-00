@@ -17,6 +17,7 @@
 #include <time.h>
 
 #include "lv/engine.h"
+#include "lv/lv_json.h"
 
 #include "context.h" /* v3.3.0: 结构化日志需要 lvContext */
 #include "debug.h"
@@ -1281,11 +1282,11 @@ static bool trace_json_escape_string(char **json, size_t *capacity, size_t *pos,
 
 char *trace_session_export_json(const TraceSession *session) {
     if (!session) {
-        char *empty = lv_malloc(lv_DEBUG_EMPTY_JSON_BUF_SIZE);
-        if (!empty)
+        lvJsonBuf buf;
+        if (!lv_json_buf_init(&buf, lv_DEBUG_EMPTY_JSON_BUF_SIZE))
             return NULL;
-        snprintf(empty, lv_DEBUG_EMPTY_JSON_BUF_SIZE, "{\"event_count\":0,\"active\":false}");
-        return empty;
+        lv_json_buf_append_raw(&buf, "{\"event_count\":0,\"active\":false}");
+        return lv_json_buf_finalize(&buf);
     }
 
     /* 动态增长缓冲区 */

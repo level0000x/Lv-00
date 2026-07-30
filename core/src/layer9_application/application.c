@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file application.c
  * @brief 应用层实现
  *
@@ -54,13 +54,8 @@ lvApplication *lv_app_create(const lvAppConfig *config) {
         app->config = *config;
     else
         app->config = lv_default_app_config();
-    /* 预分配会话指针数组（初始容量 16），后续按需扩容 */
-    app->session_capacity = 16;
-    app->sessions = lv_calloc(app->session_capacity, sizeof(lvSession *));
-    if (!app->sessions) {
-        lv_free((void **) &app);
-        return NULL;
-    }
+    /* 使用 lvDArray 管理会话指针数组，后续自动扩容 */
+    lv_darray_init(&app->sessions, sizeof(lvSession *));
     /* 若启用元验证，初始化元验证器用于结果校验 */
     if (app->config.enable_meta_verify) {
         app->verifier = lv_meta_verifier_create();
@@ -80,11 +75,11 @@ void lv_app_destroy(lvApplication *app) {
     if (!app)
         return;
     /* 释放所有注册的会话 */
-    for (int i = 0; i < app->session_count; i++) {
-        lv_session_destroy(app->sessions[i]);
+    for (int i = 0; i < app->sessions.count; i++) {
+        lv_session_destroy(*((lvSession **) lv_darray_get(&app->sessions, i)));
     }
-    /* 释放会话数组及元验证器 */
-    lv_free((void **) &app->sessions);
+    /* 释放会话动态数组及元验证器 */
+    lv_darray_free(&app->sessions);
     if (app->verifier)
         lv_meta_verifier_destroy(app->verifier);
     lv_free((void **) &app);
@@ -102,22 +97,13 @@ void lv_app_destroy(lvApplication *app) {
 lvSession *lv_app_create_session(lvApplication *app, const char *name) {
     if (!app)
         return NULL;
-    /* 检查容量，不足时进行动态扩容（容量翻倍） */
-    if (app->session_count >= app->session_capacity) {
-        /* [安全] 乘法前做溢出检查：防止 INT_MAX/2 以下时 int * 2 溢出导致 UB */
-        if (app->session_capacity > INT_MAX / 2)
-            return NULL;
-        int new_cap = app->session_capacity * 2;
-        lvSession **_tmp = (lvSession **) lv_realloc(app->sessions, (size_t) new_cap * sizeof(lvSession *));
-        if (!_tmp)
-            return NULL;
-        app->sessions = _tmp;
-        app->session_capacity = new_cap;
-    }
-    /* 创建新会话并注册到应用实例中 */
+    /* 创建新会话并注册到应用实例中（lvDArray 自动扩容） */
     lvSession *session = lv_session_create(name);
     if (session) {
-        app->sessions[app->session_count++] = session;
+        if (lv_darray_push(&app->sessions, &session) < 0) {
+            lv_session_destroy(session);
+            return NULL;
+        }
     }
     return session;
 }
@@ -167,11 +153,14 @@ int lv_app_run_session(lvApplication *app, lvSession *session, const char *input
 int lv_app_remove_session(lvApplication *app, int session_id) {
     if (!app)
         return -1;
-    for (int i = 0; i < app->session_count; i++) {
-        if (app->sessions[i] && app->sessions[i]->session_id == session_id) {
-            lv_session_destroy(app->sessions[i]);
+    for (int i = 0; i < app->sessions.count; i++) {
+        lvSession **ps = (lvSession **) lv_darray_get(&app->sessions, i);
+        if (ps && *ps && (*ps)->session_id == session_id) {
+            lv_session_destroy(*ps);
             /* 交换删除：将数组最后一个元素移到被删除位置，避免数组移动开销 */
-            app->sessions[i] = app->sessions[--app->session_count];
+            lvSession **last = (lvSession **) lv_darray_get(&app->sessions, app->sessions.count - 1);
+            if (last) *ps = *last;
+            lv_darray_pop(&app->sessions);
             return 0;
         }
     }
@@ -307,11 +296,11 @@ int lv_app_run_repl(lvApplication *app) {
 
         /*
          * REPL 模式下每个输入使用独立临时会话，执行完毕后立即销毁。
-         * 同时手动维护应用内部的 sessions 数组：将最后一个有效指针置空并递减计数。
+         * 同时从 lvDArray 中弹出最后一个元素。
          */
         lv_session_destroy(session);
-        if (app->session_count > 0) {
-            app->sessions[--app->session_count] = NULL;
+        if (app->sessions.count > 0) {
+            lv_darray_pop(&app->sessions);
         }
     }
 

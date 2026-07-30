@@ -663,7 +663,7 @@ static void test_type_check_app_id(void) {
  * @brief 测试 Church 编码公共 API 的各个函数不会崩溃或返回 NULL
  */
 static void test_church_public_api(void) {
-    LvLambdaTerm *terms[24];
+    LvLambdaTerm *terms[27];
     int count = 0;
     bool ok = true;
 
@@ -688,6 +688,9 @@ static void test_church_public_api(void) {
     terms[count++] = lv_church_nil();
     terms[count++] = lv_church_cons();
     terms[count++] = lv_church_y_combinator();
+    terms[count++] = lv_church_div();
+    terms[count++] = lv_church_factorial();
+    terms[count++] = lv_church_fib();
 
     for (int i = 0; i < count; i++) {
         if (!terms[i]) {
@@ -891,8 +894,8 @@ int main(void) {
 
     printf("\n[Church 比较运算]\n");
     TEST("leq 编译");     test_church_leq_compile();
-    //TEST("eq 编译");      test_church_eq_compile();  /* 已知问题：graph_to_lambda 堆损坏 */
-    //TEST("gt 编译");      test_church_gt_compile();   /* 同上 */
+    TEST("eq 编译");      test_church_eq_compile();
+    TEST("gt 编译");      test_church_gt_compile();
 
     printf("\n[Church 数字编译与还原]\n");
     TEST("Church 0: λf.λx.x");

@@ -160,7 +160,7 @@ static SMTSatResult solver_status_to_sat(SolverStatus status) {
 static int extract_assignments_from_graph(const ConstraintGraph *graph, SMTVariableAssignment **out_assignments,
                                           int *out_count) {
     if (!graph || !out_assignments || !out_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "extract_assignments_from_graph: NULL parameter");
 
     /* 统计 POINT 节点数 */
     int point_count = 0;
@@ -179,14 +179,14 @@ static int extract_assignments_from_graph(const ConstraintGraph *graph, SMTVaria
 
     /* 每个点有两个坐标 (x, y)，所以最多 point_count * 2 个赋值 */
     if (point_count > INT_MAX / 2)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "extract_assignments_from_graph: point_count overflow");
     int max_assignments = point_count * 2;
     SMTVariableAssignment *assignments =
         (SMTVariableAssignment *) lv_calloc((size_t) max_assignments, sizeof(SMTVariableAssignment));
     if (!assignments) {
         *out_assignments = NULL;
         *out_count = 0;
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "extract_assignments_from_graph: calloc assignments failed");
     }
 
     int idx = 0;
@@ -229,7 +229,7 @@ static int extract_assignments_from_graph(const ConstraintGraph *graph, SMTVaria
 EngineScheduler *scheduler_create(void) {
     EngineScheduler *sched = (EngineScheduler *) lv_calloc(1, sizeof(EngineScheduler));
     if (!sched)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "scheduler_create: calloc failed");
 
     /* 默认后端：GROEBNER */
     sched->default_backend = GROEBNER;
@@ -293,7 +293,7 @@ void scheduler_reset(EngineScheduler *scheduler) {
 int scheduler_register_backend(EngineScheduler *scheduler, SolverBackendType type, int priority,
                                const char *description, SolverBackendDetectFunc detect_func) {
     if (!scheduler)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_register_backend: scheduler is NULL");
 
     /* 检查是否已注册 */
     for (int i = 0; i < scheduler->backend_count; i++) {
@@ -313,7 +313,7 @@ int scheduler_register_backend(EngineScheduler *scheduler, SolverBackendType typ
 
     /* 检查容量 */
     if (scheduler->backend_count >= SCHEDULER_MAX_BACKEND_INSTANCES) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "scheduler_register_backend: max backends reached");
     }
 
     SchedulerBackendEntry *entry = &scheduler->backends[scheduler->backend_count];
@@ -333,7 +333,7 @@ int scheduler_register_backend(EngineScheduler *scheduler, SolverBackendType typ
 
 int scheduler_unregister_backend(EngineScheduler *scheduler, SolverBackendType type) {
     if (!scheduler)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_unregister_backend: scheduler is NULL");
 
     for (int i = 0; i < scheduler->backend_count; i++) {
         if (scheduler->backends[i].type == type) {
@@ -346,7 +346,7 @@ int scheduler_unregister_backend(EngineScheduler *scheduler, SolverBackendType t
             return 0;
         }
     }
-    return -1; /* 未找到 */
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "scheduler_unregister_backend: backend type not found");
 }
 
 int scheduler_list_available_backends(const EngineScheduler *scheduler, SolverBackendType *out_types, int max_count) {
@@ -400,9 +400,9 @@ void scheduler_set_backend_available(EngineScheduler *scheduler, SolverBackendTy
  * ============================================================ */
 int scheduler_add_routing_rule(EngineScheduler *scheduler, RoutingRule *rule) {
     if (!scheduler || !rule)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_add_routing_rule: NULL scheduler or rule");
     if (scheduler->routing_rule_count >= SCHEDULER_MAX_ROUTING_RULES)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "scheduler_add_routing_rule: max routing rules reached");
 
     /* 检查名称是否已存在 */
     for (int i = 0; i < scheduler->routing_rule_count; i++) {
@@ -421,7 +421,7 @@ int scheduler_add_routing_rule(EngineScheduler *scheduler, RoutingRule *rule) {
 
 int scheduler_remove_routing_rule(EngineScheduler *scheduler, const char *name) {
     if (!scheduler || !name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_remove_routing_rule: NULL scheduler or name");
 
     for (int i = 0; i < scheduler->routing_rule_count; i++) {
         if (strcmp(scheduler->routing_rules[i].name, name) == 0) {
@@ -433,12 +433,12 @@ int scheduler_remove_routing_rule(EngineScheduler *scheduler, const char *name) 
             return 0;
         }
     }
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "scheduler_remove_routing_rule: rule not found");
 }
 
 int scheduler_load_preset_rules(EngineScheduler *scheduler) {
     if (!scheduler)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_load_preset_rules: scheduler is NULL");
 
     /* 清空现有规则 */
     scheduler->routing_rule_count = 0;
@@ -478,7 +478,7 @@ int scheduler_load_preset_rules(EngineScheduler *scheduler) {
  * ============================================================ */
 int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *features) {
     if (!graph || !features)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_analyze_graph: NULL graph or features");
 
     memset(features, 0, sizeof(GraphFeatures));
 
@@ -711,7 +711,7 @@ int scheduler_solve_with_backend(EngineScheduler *scheduler, const ConstraintGra
 
 int scheduler_solve(EngineScheduler *scheduler, const ConstraintGraph *graph, SMTSolverResult *out_result) {
     if (!scheduler || !graph || !out_result)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_solve: NULL parameter");
 
     /* 自动选择后端 */
     char reason[128];
@@ -746,7 +746,7 @@ int scheduler_solve(EngineScheduler *scheduler, const ConstraintGraph *graph, SM
 int scheduler_solve_groebner_compat(EngineScheduler *scheduler, const ConstraintGraph *graph,
                                     GroebnerResult **out_result) {
     if (!scheduler || !graph || !out_result)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_solve_groebner_compat: NULL parameter");
 
     *out_result = NULL;
 
@@ -841,7 +841,7 @@ void scheduler_reset_stats(EngineScheduler *scheduler) {
 
 int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_size) {
     if (!scheduler || !buf || buf_size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_diagnose: NULL parameter or zero buf_size");
 
     int pos = 0;
     int rc;
@@ -898,11 +898,11 @@ int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_s
  * ============================================================ */
 GroebnerResult *scheduler_convert_smt_to_groebner(const SMTSolverResult *smt_result, const ConstraintGraph *graph) {
     if (!smt_result || !graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "scheduler_convert_smt_to_groebner: NULL parameter");
 
     GroebnerResult *result = (GroebnerResult *) lv_calloc(1, sizeof(GroebnerResult));
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "scheduler_convert_smt_to_groebner: calloc result failed");
 
     if (smt_result->sat_result != SMT_RESULT_SAT || smt_result->assignment_count <= 0) {
         /* 无解或无赋值 */
@@ -917,7 +917,7 @@ GroebnerResult *scheduler_convert_smt_to_groebner(const SMTSolverResult *smt_res
     result->solutions = (SymbolicCoord **) lv_calloc((size_t) smt_result->assignment_count, sizeof(SymbolicCoord *));
     if (!result->solutions) {
         lv_free((void **) &result);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "scheduler_convert_smt_to_groebner: calloc solutions failed");
     }
 
     for (int i = 0; i < smt_result->assignment_count; i++) {
@@ -969,7 +969,7 @@ int lv_engine_schedule(const char *task_name, int priority) {
     if (!g_default_scheduler) {
         g_default_scheduler = scheduler_create();
         if (!g_default_scheduler)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_engine_schedule: scheduler_create failed");
     }
 
     /* 旧版调度器是一个简单的优先级队列。
@@ -978,7 +978,7 @@ int lv_engine_schedule(const char *task_name, int priority) {
     lv_UNUSED(priority);
 
     if (!g_compat_engine)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_engine_schedule: g_compat_engine is NULL");
     if (!g_compat_engine->main_graph)
         return 0;
 
@@ -1004,9 +1004,9 @@ int lv_engine_schedule(const char *task_name, int priority) {
 
 bool lv_engine_execute_pending(void) {
     if (!g_compat_engine || !g_default_scheduler)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_engine_execute_pending: engine or scheduler not initialized");
     if (!g_compat_engine->main_graph)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_engine_execute_pending: main_graph is NULL");
 
     /* 用默认后端执行一次求解 */
     SMTSolverResult result;

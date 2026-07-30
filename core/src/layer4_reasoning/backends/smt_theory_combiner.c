@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_theory_combiner.c
  * @brief SMT theory combination dispatcher implementation
  *
@@ -92,13 +92,13 @@ lvTheoryCombiner *smt_combiner_create(int initial_capacity, double timeout_ms) {
     if (initial_capacity <= 0)
         initial_capacity = DEFAULT_CAPACITY;
 
-    lvTheoryCombiner *combiner = (lvTheoryCombiner *) malloc(sizeof(lvTheoryCombiner));
+    lvTheoryCombiner *combiner = (lvTheoryCombiner *) lv_malloc(sizeof(lvTheoryCombiner));
     if (!combiner)
         return NULL;
 
-    combiner->entries = (lvTheoryEntry *) calloc((size_t) initial_capacity, sizeof(lvTheoryEntry));
+    combiner->entries = (lvTheoryEntry *) lv_calloc((size_t) initial_capacity, sizeof(lvTheoryEntry));
     if (!combiner->entries) {
-        free(combiner);
+        lv_free((void **) &combiner);
         return NULL;
     }
 
@@ -113,12 +113,11 @@ void smt_combiner_destroy(lvTheoryCombiner *combiner) {
     if (!combiner)
         return;
 
-    free(combiner->entries);
-    combiner->entries = NULL;
+    lv_free((void **) &combiner->entries);
     combiner->entry_count = 0;
     combiner->entry_capacity = 0;
 
-    free(combiner);
+    lv_free((void **) &combiner);
 }
 
 /* ========================================================================

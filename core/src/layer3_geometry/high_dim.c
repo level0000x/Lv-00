@@ -125,7 +125,7 @@ void high_dim_manager_destroy(HighDimManager *manager) {
 
     /* HighDimAbstractBlock 仅含标量和固定大小数组，无动态资源需要释放；
      * 已移除空 for 循环（迭代无副作用）。 */
-    lv_free((void **) &manager->blocks);
+    lv_darray_free(&manager->blocks);
 
     lv_free((void **) &manager);
 }
@@ -142,13 +142,10 @@ int high_dim_manager_init(HighDimManager *manager) {
     if (!manager)
         return lv_ERROR_INVALID_PARAM;
 
-    manager->blocks = (HighDimAbstractBlock *) lv_malloc(sizeof(HighDimAbstractBlock) * HIGH_DIM_INITIAL_CAPACITY);
-    if (!manager->blocks) {
+    lv_darray_init(&manager->blocks, sizeof(HighDimAbstractBlock));
+    if (!lv_darray_reserve(&manager->blocks, HIGH_DIM_INITIAL_CAPACITY)) {
         return lv_ERROR_OUT_OF_MEMORY;
     }
-
-    manager->block_count = 0;
-    manager->block_capacity = HIGH_DIM_INITIAL_CAPACITY;
 
     /* 初始化语义缩放深度栈 */
     manager->perspective_depth = 0;
@@ -175,30 +172,21 @@ int high_dim_register_block(HighDimManager *manager, int block_id, int dimension
     }
 
     /* 检查是否已存在 */
-    for (int i = 0; i < manager->block_count; i++) {
-        if (manager->blocks[i].block_id == block_id) {
+    HighDimAbstractBlock *blocks_arr = (HighDimAbstractBlock *) manager->blocks.data;
+    for (int i = 0; i < manager->blocks.count; i++) {
+        if (blocks_arr[i].block_id == block_id) {
             return lv_ERROR_ALREADY_EXISTS;
         }
     }
 
-    /* 扩容检查 */
-    if (manager->block_count >= manager->block_capacity) {
-        /* 修复：添加整数溢出检查，防止 block_capacity * 2 超过 int 范围 */
-        if (manager->block_capacity > INT_MAX / 2) {
-            return lv_ERROR_OUT_OF_MEMORY;
-        }
-        int new_capacity = manager->block_capacity * 2;
-        HighDimAbstractBlock *new_blocks =
-            (HighDimAbstractBlock *) lv_realloc(manager->blocks, sizeof(HighDimAbstractBlock) * new_capacity);
-        if (!new_blocks) {
-            return lv_ERROR_OUT_OF_MEMORY;
-        }
-        manager->blocks = new_blocks;
-        manager->block_capacity = new_capacity;
+    /* 确保容量（lv_darray_reserve 替代手写扩容） */
+    if (!lv_darray_reserve(&manager->blocks, manager->blocks.count + 1)) {
+        return lv_ERROR_OUT_OF_MEMORY;
     }
 
     /* 初始化新块 */
-    HighDimAbstractBlock *block = &manager->blocks[manager->block_count];
+    blocks_arr = (HighDimAbstractBlock *) manager->blocks.data; /* 扩容后重取指针 */
+    HighDimAbstractBlock *block = &blocks_arr[manager->blocks.count];
     memset(block, 0, sizeof(HighDimAbstractBlock));
 
     block->block_id = block_id;
@@ -218,7 +206,7 @@ int high_dim_register_block(HighDimManager *manager, int block_id, int dimension
     block->preset_count = 1;
     block->current_preset_index = 0;
 
-    manager->block_count++;
+    manager->blocks.count++;
 
     return lv_OK;
 }
@@ -236,9 +224,10 @@ int high_dim_unregister_block(HighDimManager *manager, int block_id) {
     if (!manager)
         return lv_ERROR_INVALID_PARAM;
 
+    HighDimAbstractBlock *blocks_arr = (HighDimAbstractBlock *) manager->blocks.data;
     int index = -1;
-    for (int i = 0; i < manager->block_count; i++) {
-        if (manager->blocks[i].block_id == block_id) {
+    for (int i = 0; i < manager->blocks.count; i++) {
+        if (blocks_arr[i].block_id == block_id) {
             index = i;
             break;
         }
@@ -249,12 +238,12 @@ int high_dim_unregister_block(HighDimManager *manager, int block_id) {
     }
 
     /* 移动后续元素：使用单次 memmove 替代循环，提高效率 */
-    if (index < manager->block_count - 1) {
-        memmove(&manager->blocks[index], &manager->blocks[index + 1],
-                (manager->block_count - index - 1) * sizeof(HighDimAbstractBlock));
+    if (index < manager->blocks.count - 1) {
+        memmove(&blocks_arr[index], &blocks_arr[index + 1],
+                (manager->blocks.count - index - 1) * sizeof(HighDimAbstractBlock));
     }
 
-    manager->block_count--;
+    manager->blocks.count--;
 
     return lv_OK;
 }
@@ -272,9 +261,10 @@ HighDimAbstractBlock *high_dim_get_block(HighDimManager *manager, int block_id) 
     if (!manager)
         return NULL;
 
-    for (int i = 0; i < manager->block_count; i++) {
-        if (manager->blocks[i].block_id == block_id) {
-            return &manager->blocks[i];
+    HighDimAbstractBlock *blocks_arr = (HighDimAbstractBlock *) manager->blocks.data;
+    for (int i = 0; i < manager->blocks.count; i++) {
+        if (blocks_arr[i].block_id == block_id) {
+            return &blocks_arr[i];
         }
     }
 

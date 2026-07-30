@@ -187,7 +187,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     mpz_poly_init(&poly);
     poly.degree = test_degree;
     int coeff_count = test_degree + 1;
-    poly.coeffs = malloc((size_t) coeff_count * sizeof(mpz_t));
+    poly.coeffs = lv_malloc((size_t) coeff_count * sizeof(mpz_t));
     if (!poly.coeffs) {
         mpz_poly_clear(&poly);
         result.precision_stable = false;
@@ -216,7 +216,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     mpz_poly_t poly2;
     mpz_poly_init(&poly2);
     poly2.degree = test_degree;
-    poly2.coeffs = malloc((size_t) coeff_count * sizeof(mpz_t));
+    poly2.coeffs = lv_malloc((size_t) coeff_count * sizeof(mpz_t));
     if (!poly2.coeffs) {
         mpz_poly_clear(&poly2);
         algebraic_destroy(current);

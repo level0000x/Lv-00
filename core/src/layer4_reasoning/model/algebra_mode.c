@@ -84,13 +84,13 @@ static void history_push(AlgebraicGeom *geom, int step) {
  * ================================================================ */
 
 AlgebraicGeom *algebra_create(lvPlane plane, const char *name) {
-    AlgebraicGeom *geom = (AlgebraicGeom *) calloc(1, sizeof(AlgebraicGeom));
+    AlgebraicGeom *geom = (AlgebraicGeom *) lv_calloc(1, sizeof(AlgebraicGeom));
     if (!geom)
         return NULL;
 
     geom->graph = graph_create();
     if (!geom->graph) {
-        free(geom);
+        lv_free((void **) &geom);
         return NULL;
     }
 
@@ -118,24 +118,24 @@ void algebra_destroy(AlgebraicGeom *geom) {
     }
 
     /* 释放历史 */
-    free(geom->history);
+    lv_free((void **) &(geom->history));
 
     /* 释放快照 */
     if (geom->snapshots) {
         for (int i = 0; i < geom->snapshot_count; i++) {
             algebra_destroy(geom->snapshots[i]);
         }
-        free(geom->snapshots);
+        lv_free((void **) &(geom->snapshots));
     }
 
     /* 释放重做栈 */
-    free(geom->redo_stack);
+    lv_free((void **) &(geom->redo_stack));
 
     /* 释放名称 */
-    free(geom->name);
+    lv_free((void **) &(geom->name));
 
     memset(geom, 0, sizeof(*geom));
-    free(geom);
+    lv_free((void **) &geom);
 }
 
 /* ================================================================
@@ -493,7 +493,7 @@ AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double s
  * ================================================================ */
 
 lvSelector *algebra_selector_create(lvSelectorType type, const char *expr) {
-    lvSelector *sel = (lvSelector *) calloc(1, sizeof(lvSelector));
+    lvSelector *sel = (lvSelector *) lv_calloc(1, sizeof(lvSelector));
     if (!sel)
         return NULL;
 
@@ -527,17 +527,17 @@ void algebra_selector_destroy(lvSelector *sel) {
     if (!sel)
         return;
 
-    free(sel->expr);
+    lv_free((void **) &(sel->expr));
 
     if (sel->children) {
         for (int i = 0; i < sel->child_count; i++) {
             algebra_selector_destroy(sel->children[i]);
         }
-        free(sel->children);
+        lv_free((void **) &(sel->children));
     }
 
     memset(sel, 0, sizeof(*sel));
-    free(sel);
+    lv_free((void **) &sel);
 }
 
 AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const lvSelector *sel, int **out_ids, int *out_count) {
@@ -551,7 +551,7 @@ AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const lvSelector *sel, int **
     if (!geom->graph || geom->graph->node_count == 0)
         return geom;
 
-    *out_ids = (int *) calloc((size_t) geom->graph->node_count, sizeof(int));
+    *out_ids = (int *) lv_calloc((size_t) geom->graph->node_count, sizeof(int));
     if (!*out_ids)
         return geom;
 
@@ -722,7 +722,7 @@ int algebra_snapshot(AlgebraicGeom *geom) {
     }
 
     /* 创建当前状态的浅拷贝 */
-    AlgebraicGeom *copy = (AlgebraicGeom *) calloc(1, sizeof(AlgebraicGeom));
+    AlgebraicGeom *copy = (AlgebraicGeom *) lv_calloc(1, sizeof(AlgebraicGeom));
     if (!copy)
         return -1;
     memcpy(copy, geom, sizeof(AlgebraicGeom));
@@ -732,7 +732,7 @@ int algebra_snapshot(AlgebraicGeom *geom) {
         copy->name = lv_strdup_safe(geom->name);
 
     if (geom->history_count > 0) {
-        copy->history = (int *) malloc((size_t) geom->history_count * sizeof(int));
+        copy->history = (int *) lv_malloc((size_t) geom->history_count * sizeof(int));
         if (copy->history) {
             memcpy(copy->history, geom->history, (size_t) geom->history_count * sizeof(int));
         }

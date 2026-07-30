@@ -162,6 +162,7 @@ ProofDependency *proof_dependency_create(ProofColor color) {
 
     dep->color = color;
     dep->source = DEP_SOURCE_DIRECT;
+    lv_darray_init(&dep->sub_deps, sizeof(ProofDependency *));
 
     return dep;
 }
@@ -174,10 +175,11 @@ void proof_dependency_destroy(ProofDependency *dep) {
     lv_free((void **) &dep->external_ref);
     lv_free((void **) &dep->numeric_declaration);
 
-    for (int i = 0; i < dep->sub_dep_count; i++) {
-        proof_dependency_destroy(dep->sub_deps[i]);
+    for (int i = 0; i < dep->sub_deps.count; i++) {
+        ProofDependency **child = (ProofDependency **)lv_darray_get(&dep->sub_deps, i);
+        proof_dependency_destroy(*child);
     }
-    lv_free((void **) &dep->sub_deps);
+    lv_darray_free(&dep->sub_deps);
 
     lv_free((void **) &dep);
 }
@@ -186,15 +188,7 @@ bool proof_dependency_add_sub(ProofDependency *parent, ProofDependency *child) {
     if (!parent || !child)
         return false;
 
-    int new_count = parent->sub_dep_count + 1;
-    ProofDependency **new_arr = lv_realloc(parent->sub_deps, (size_t) new_count * sizeof(ProofDependency *));
-    if (!new_arr)
-        return false;
-
-    parent->sub_deps = new_arr;
-    parent->sub_deps[parent->sub_dep_count] = child;
-    parent->sub_dep_count = new_count;
-    return true;
+    return lv_darray_push(&parent->sub_deps, &child) >= 0;
 }
 
 ProofColor proof_dependency_compute_color(ProofDependency *dep) {
@@ -220,8 +214,9 @@ ProofColor proof_dependency_compute_color(ProofDependency *dep) {
     }
 
     /* 检查子依赖 */
-    for (int i = 0; i < dep->sub_dep_count; i++) {
-        ProofColor sub_color = proof_dependency_compute_color(dep->sub_deps[i]);
+    for (int i = 0; i < dep->sub_deps.count; i++) {
+        ProofDependency **sub_dep = (ProofDependency **)lv_darray_get(&dep->sub_deps, i);
+        ProofColor sub_color = proof_dependency_compute_color(*sub_dep);
 
         /* 颜色叠加 */
         if (sub_color == PROOF_COLOR_DARK_ORANGE) {
@@ -1261,30 +1256,20 @@ void proof_declare_proposition_equivalence(ProofNavigator *nav, int prop_a_id, i
         return;
 
     /* 检查是否已存在相同的等价声明 */
-    for (int i = 0; i < nav->equivalence_count; i++) {
-        PropositionEquivalence *eq = &nav->equivalences[i];
+    for (int i = 0; i < nav->equivalences.count; i++) {
+        PropositionEquivalence *eq = (PropositionEquivalence *)lv_darray_get(&nav->equivalences, i);
         if ((eq->prop_a_id == prop_a_id && eq->prop_b_id == prop_b_id) ||
             (eq->prop_a_id == prop_b_id && eq->prop_b_id == prop_a_id)) {
             return; /* 已存在，不重复添加 */
         }
     }
 
-    /* 扩容 */
-    if (nav->equivalence_count >= nav->equivalence_capacity) {
-        int new_cap = nav->equivalence_capacity == 0 ? 8 : nav->equivalence_capacity * 2;
-        PropositionEquivalence *new_arr = lv_realloc(nav->equivalences, new_cap * sizeof(PropositionEquivalence));
-        if (!new_arr)
-            return;
-        nav->equivalences = new_arr;
-        nav->equivalence_capacity = new_cap;
-    }
-
-    /* 添加等价声明 */
-    PropositionEquivalence *eq = &nav->equivalences[nav->equivalence_count];
-    eq->prop_a_id = prop_a_id;
-    eq->prop_b_id = prop_b_id;
-    eq->transformation = NULL; /* 变换规则可后续设置 */
-    nav->equivalence_count++;
+    /* 添加等价声明（lv_darray_push 自动扩容） */
+    PropositionEquivalence eq;
+    eq.prop_a_id = prop_a_id;
+    eq.prop_b_id = prop_b_id;
+    eq.transformation = NULL; /* 变换规则可后续设置 */
+    lv_darray_push(&nav->equivalences, &eq);
 
     /* 流式事件：等价声明 */
     if (proof_stream_ctx != NULL) {
@@ -1299,8 +1284,8 @@ int proof_find_equivalent_proposition(const ProofNavigator *nav, int prop_id, in
         return 0;
 
     int found = 0;
-    for (int i = 0; i < nav->equivalence_count && found < max_count; i++) {
-        const PropositionEquivalence *eq = &nav->equivalences[i];
+    for (int i = 0; i < nav->equivalences.count && found < max_count; i++) {
+        const PropositionEquivalence *eq = (const PropositionEquivalence *)lv_darray_get(&nav->equivalences, i);
         if (eq->prop_a_id == prop_id) {
             equivalent_ids[found++] = eq->prop_b_id;
         } else if (eq->prop_b_id == prop_id) {
@@ -1325,8 +1310,9 @@ static void collect_dependencies(const ProofDependency *dep, int *dep_ids, char 
     dep_hashes[*count] = dep->content_hash ? lv_strdup_safe(dep->content_hash) : NULL;
     (*count)++;
 
-    for (int i = 0; i < dep->sub_dep_count; i++) {
-        collect_dependencies(dep->sub_deps[i], dep_ids, dep_hashes, count, max_count);
+    for (int i = 0; i < dep->sub_deps.count; i++) {
+        ProofDependency **child = (ProofDependency **)lv_darray_get(&dep->sub_deps, i);
+        collect_dependencies(*child, dep_ids, dep_hashes, count, max_count);
     }
 }
 
@@ -1439,42 +1425,29 @@ void proof_set_lemma_view_state(ProofNavigator *nav, int step_id, LemmaViewState
         return;
 
     /* 查找是否已存在该步骤的视图状态 */
-    for (int i = 0; i < nav->lemma_view_count; i++) {
-        if (nav->lemma_view_step_ids[i] == step_id) {
-            nav->lemma_view_states[i] = state;
+    for (int i = 0; i < nav->lemma_view_step_ids.count; i++) {
+        int *sid = (int *)lv_darray_get(&nav->lemma_view_step_ids, i);
+        if (*sid == step_id) {
+            LemmaViewState *st = (LemmaViewState *)lv_darray_get(&nav->lemma_view_states, i);
+            *st = state;
             return;
         }
     }
 
-    /* 扩容 */
-    if (nav->lemma_view_count >= nav->lemma_view_capacity) {
-        int new_cap = nav->lemma_view_capacity == 0 ? 16 : nav->lemma_view_capacity * 2;
-        int *new_ids = lv_realloc(nav->lemma_view_step_ids, new_cap * sizeof(int));
-        if (!new_ids)
-            return;
-        LemmaViewState *new_states = lv_realloc(nav->lemma_view_states, new_cap * sizeof(LemmaViewState));
-        if (!new_states) {
-            lv_free((void **) &new_ids);
-            return;
-        }
-        nav->lemma_view_step_ids = new_ids;
-        nav->lemma_view_states = new_states;
-        nav->lemma_view_capacity = new_cap;
-    }
-
-    /* 添加新的视图状态 */
-    nav->lemma_view_step_ids[nav->lemma_view_count] = step_id;
-    nav->lemma_view_states[nav->lemma_view_count] = state;
-    nav->lemma_view_count++;
+    /* 添加新的视图状态（lv_darray_push 自动扩容） */
+    lv_darray_push(&nav->lemma_view_step_ids, &step_id);
+    lv_darray_push(&nav->lemma_view_states, &state);
 }
 
 LemmaViewState proof_get_lemma_view_state(const ProofNavigator *nav, int step_id) {
     if (!nav || step_id < 0)
         return LEMMA_VIEW_STATE_EXPANDED; /* 默认展开 */
 
-    for (int i = 0; i < nav->lemma_view_count; i++) {
-        if (nav->lemma_view_step_ids[i] == step_id) {
-            return nav->lemma_view_states[i];
+    for (int i = 0; i < nav->lemma_view_step_ids.count; i++) {
+        int *sid = (int *)lv_darray_get(&nav->lemma_view_step_ids, i);
+        if (*sid == step_id) {
+            LemmaViewState *st = (LemmaViewState *)lv_darray_get(&nav->lemma_view_states, i);
+            return *st;
         }
     }
 
@@ -1631,12 +1604,9 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
     if (!current)
         return false;
 
-    /* 先遍历一次计算祖先数量 */
-    int capacity = 16;
-    int count = 0;
-    int *ancestors = lv_malloc((size_t) capacity * sizeof(int));
-    if (!ancestors)
-        return false;
+    /* 使用 lvDArray 存储祖先 ID（自动扩容） */
+    lvDArray ancestors;
+    lv_darray_init(&ancestors, sizeof(int));
 
     ProofStep *cursor = current;
     while (cursor->parent_step_id >= 0) {
@@ -1651,28 +1621,16 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
         if (!parent)
             break;
 
-        /* 扩容 */
-        if (count >= capacity) {
-            if (capacity > INT_MAX / 2) {
-                lv_free((void **) &ancestors);
-                return false;
-            }
-            int new_cap = capacity * 2;
-            int *new_arr = lv_realloc(ancestors, new_cap * sizeof(int));
-            if (!new_arr) {
-                lv_free((void **) &ancestors);
-                return false;
-            }
-            ancestors = new_arr;
-            capacity = new_cap;
-        }
-
-        ancestors[count++] = parent->id;
+        lv_darray_push(&ancestors, &parent->id);
         cursor = parent;
     }
 
-    *out_ancestor_ids = ancestors;
-    *out_count = count;
+    /* 转移所有权给调用者 */
+    *out_ancestor_ids = (int *)ancestors.data;
+    *out_count = ancestors.count;
+    /* 防止 lv_darray_free 释放 data */
+    ancestors.data = NULL;
+    lv_darray_free(&ancestors);
     return true;
 }
 

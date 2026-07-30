@@ -144,20 +144,20 @@ lvTriggerEngine *trigger_engine_create(int initial_trigger_count, int initial_ca
     if (max_instances <= 0)
         max_instances = DEFAULT_MAX_INSTANCES;
 
-    lvTriggerEngine *engine = (lvTriggerEngine *) malloc(sizeof(lvTriggerEngine));
+    lvTriggerEngine *engine = (lvTriggerEngine *) lv_malloc(sizeof(lvTriggerEngine));
     if (!engine)
         return NULL;
 
-    engine->triggers = (lvTrigger *) calloc((size_t) initial_trigger_count, sizeof(lvTrigger));
+    engine->triggers = (lvTrigger *) lv_calloc((size_t) initial_trigger_count, sizeof(lvTrigger));
     if (!engine->triggers) {
-        free(engine);
+        lv_free((void **) &engine);
         return NULL;
     }
 
-    engine->instance_cache = (lvInstanceEntry *) calloc((size_t) initial_cache_size, sizeof(lvInstanceEntry));
+    engine->instance_cache = (lvInstanceEntry *) lv_calloc((size_t) initial_cache_size, sizeof(lvInstanceEntry));
     if (!engine->instance_cache) {
-        free(engine->triggers);
-        free(engine);
+        lv_free((void **) &engine->triggers);
+        lv_free((void **) &engine);
         return NULL;
     }
 

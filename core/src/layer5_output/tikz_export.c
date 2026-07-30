@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file tikz_export.c
  * @brief TikZ/LaTeX 导出 —— 将约束图导出为 TikZ 绘图代码
  *
@@ -35,9 +35,7 @@
  * 用于在内存中逐步构建 TikZ 代码，避免频繁的 snprintf 边界检查。
  */
 typedef struct {
-    char *data; /**< 缓冲区数据指针 */
-    size_t len; /**< 当前数据长度 */
-    size_t cap; /**< 缓冲区总容量 */
+    lvDArray arr; /**< 动态字符数组（lvDArray<char>） */
 } TikzBuf;
 
 /**
@@ -47,13 +45,8 @@ typedef struct {
  * @return true 成功，false 内存分配失败
  */
 static bool tikz_buf_init(TikzBuf *b) {
-    b->data = lv_malloc(TIKZ_BUF_INIT_CAP);
-    if (!b->data)
-        return false;
-    b->data[0] = '\0';
-    b->len = 0;
-    b->cap = TIKZ_BUF_INIT_CAP;
-    return true;
+    lv_darray_init(&b->arr, 1);
+    return lv_darray_reserve(&b->arr, TIKZ_BUF_INIT_CAP);
 }
 
 /**
@@ -63,7 +56,7 @@ static bool tikz_buf_init(TikzBuf *b) {
  */
 static void tikz_buf_destroy(TikzBuf *b) {
     if (b)
-        lv_free((void **) &b->data);
+        lv_darray_free(&b->arr);
 }
 
 /**
@@ -77,18 +70,10 @@ static void tikz_buf_destroy(TikzBuf *b) {
  */
 static bool tikz_buf_append(TikzBuf *b, const char *s) {
     size_t slen = strlen(s);
-    if (b->len + slen + 1 > b->cap) {
-        size_t new_cap = b->cap * 2;
-        if (new_cap < b->cap)
-            return false; /* 溢出 */
-        char *nd = lv_realloc(b->data, new_cap);
-        if (!nd)
-            return false;
-        b->data = nd;
-        b->cap = new_cap;
-    }
-    memcpy(b->data + b->len, s, slen + 1);
-    b->len += slen;
+    if (!lv_darray_reserve(&b->arr, b->arr.count + (int)slen + 1))
+        return false;
+    memcpy((char *)b->arr.data + b->arr.count, s, slen + 1);
+    b->arr.count += (int)slen;
     return true;
 }
 
@@ -258,7 +243,7 @@ int lv_tikz_export_file(void *graph, const char *filename) {
         tikz_buf_destroy(&buf);
         return -1;
     }
-    size_t written = fwrite(buf.data, 1, buf.len, fp);
+    size_t written = fwrite(buf.arr.data, 1, buf.arr.count, fp);
     fclose(fp);
     tikz_buf_destroy(&buf);
 

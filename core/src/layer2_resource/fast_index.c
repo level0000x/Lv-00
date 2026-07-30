@@ -124,7 +124,7 @@ static int grid_coord(double val, double cell_size) {
  * @return 新创建的索引指针，失败返回 NULL
  */
 lvFastIndex *lv_fast_index_create(int capacity) {
-    lvFastIndex *idx = (lvFastIndex *) calloc(1, sizeof(lvFastIndex));
+    lvFastIndex *idx = (lvFastIndex *) lv_calloc(1, sizeof(lvFastIndex));
     if (!idx)
         return NULL;
 
@@ -133,9 +133,9 @@ lvFastIndex *lv_fast_index_create(int capacity) {
     idx->cell_size = DEFAULT_CELL_SIZE;
 
     /* 分配网格单元数组 */
-    idx->cells = (GridCell *) calloc((size_t) idx->capacity, sizeof(GridCell));
+    idx->cells = (GridCell *) lv_calloc((size_t) idx->capacity, sizeof(GridCell));
     if (!idx->cells) {
-        free(idx);
+        lv_free((void **) &idx);
         return NULL;
     }
 
@@ -156,12 +156,12 @@ void lv_fast_index_destroy(lvFastIndex *idx) {
         CellEntry *entry = idx->cells[i].head;
         while (entry) {
             CellEntry *next = entry->next;
-            free(entry);
+            lv_free((void **) &entry);
             entry = next;
         }
     }
-    free(idx->cells);
-    free(idx);
+    lv_free((void **) &(idx->cells));
+    lv_free((void **) &idx);
 }
 
 /**
@@ -214,7 +214,7 @@ int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, doub
     if (total_cells > idx->capacity / 4 && idx->capacity < 4096) {
         /* 扩容：加倍桶数量 */
         int new_cap = idx->capacity * BUCKET_GROWTH_FACTOR;
-        GridCell *new_cells = (GridCell *) calloc((size_t) new_cap, sizeof(GridCell));
+        GridCell *new_cells = (GridCell *) lv_calloc((size_t) new_cap, sizeof(GridCell));
         if (!new_cells)
             return -1;
 
@@ -232,7 +232,7 @@ int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, doub
                 entry = next;
             }
         }
-        free(idx->cells);
+        lv_free((void **) &(idx->cells));
         idx->cells = new_cells;
         idx->capacity = new_cap;
     }
@@ -241,7 +241,7 @@ int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, doub
     for (int gx = gx_min; gx <= gx_max; gx++) {
         for (int gy = gy_min; gy <= gy_max; gy++) {
             int bucket = cell_hash(gx, gy, idx->capacity);
-            CellEntry *entry = (CellEntry *) malloc(sizeof(CellEntry));
+            CellEntry *entry = (CellEntry *) lv_malloc(sizeof(CellEntry));
             if (!entry)
                 continue; /* 尽力而为：内存不足时跳过此单元 */
 

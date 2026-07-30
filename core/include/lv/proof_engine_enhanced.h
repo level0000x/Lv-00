@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_engine_enhanced.h
  * @brief 增强证明引擎 —— 反证法完善与逻辑溯源树
  *
@@ -27,6 +27,7 @@ extern "C" {
 #include "axiom_rule_engine.h"
 #include "constraint_graph.h"
 #include "proof.h"
+#include "lv/lv_utils.h"
 
 /* ============== 配置常量 ============== */
 
@@ -98,9 +99,7 @@ struct lvProofTraceNode {
 
     /* 树结构 */
     lvProofTraceNode *parent;    /**< 父节点 */
-    lvProofTraceNode **children; /**< 子节点数组 */
-    uint32_t child_count;        /**< 子节点数量 */
-    uint32_t child_capacity;     /**< 子节点容量 */
+    lvDArray children;           /**< 子节点指针数组 (lvProofTraceNode *) */
 
     /* 依赖关系 */
     uint32_t *dependency_ids;  /**< 依赖节点 ID */
@@ -118,9 +117,7 @@ struct lvProofTraceNode {
  */
 struct lvProofTraceTree {
     lvProofTraceNode *root;       /**< 根节点 */
-    lvProofTraceNode **all_nodes; /**< 所有节点（用于遍历） */
-    uint32_t node_count;          /**< 节点总数 */
-    uint32_t node_capacity;       /**< 节点容量 */
+    lvDArray all_nodes;           /**< 所有节点指针数组 (lvProofTraceNode *) */
 
     /* 统计信息 */
     uint32_t proved_count;    /**< 已证明节点数 */
@@ -161,9 +158,7 @@ typedef struct {
  * @brief 反证法路径
  */
 struct lvContradictionPath {
-    lvContradictionPathNode *nodes; /**< 节点数组 */
-    uint32_t node_count;            /**< 节点数量 */
-    uint32_t node_capacity;         /**< 节点容量 */
+    lvDArray nodes;                /**< 节点数组 (lvContradictionPathNode) */
 
     lvContradictionType type;     /**< 矛盾类型 */
     char contradiction_desc[512]; /**< 矛盾描述 */

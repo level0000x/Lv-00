@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_performance.c
  * @brief 性能基准测试
  *
@@ -113,10 +113,10 @@ static void test_pool_performance(void) {
  * ================================================================ */
 
 static void bench_malloc_free(void) {
-    TestObj *obj = (TestObj *) malloc(sizeof(TestObj));
+    TestObj *obj = (TestObj *) lv_malloc(sizeof(TestObj));
     if (obj) {
         obj->data[0] = 1;
-        free(obj);
+        lv_free((void **) &obj);
     }
 }
 

@@ -37,6 +37,7 @@
 
 #include "exact_arithmetic.h" /* lv_TOLERATED_FLOAT for proof timing/thresholds */
 #include "unify.h"
+#include "lv/lv_utils.h"
 
 /* 前向声明 */
 typedef struct ConstraintGraph ConstraintGraph;
@@ -188,6 +189,9 @@ struct ProofStep {
     int parent_step_id; /* 父步骤ID（-1 表示根步骤） */
     int depth;          /* 步骤在证明树中的深度 */
 
+    /* HOL Light 微内核验证数据 */
+    char *conclusion; /* 步骤的结论字符串（用于 HOL Light 验证） */
+
     /* 时间戳 */
     int64_t timestamp; /* 步骤时间戳 */
 };
@@ -220,8 +224,7 @@ struct ProofDependency {
                                                         * 阈值用于证明规则参数化，不参与代数计算 */
 
     /* 子依赖 */
-    ProofDependency **sub_deps; /* 子依赖数组 */
-    int sub_dep_count;          /* 子依赖数量 */
+    lvDArray sub_deps;          /**< 子依赖的指针数组 (ProofDependency *) */
 };
 
 /* ============== 引理块折叠 ============== */
@@ -311,18 +314,14 @@ struct ProofNavigator {
     int breakpoint_count;    /* 断点数量 */
 
     /* 命题等价表 */
-    PropositionEquivalence *equivalences; /* 等价命题数组 */
-    int equivalence_count;                /* 等价命题数量 */
-    int equivalence_capacity;             /* 等价命题容量 */
+    lvDArray equivalences;              /**< 等价命题数组 (PropositionEquivalence) */
 
     /* ⊥ 的定义 */
     BottomDefinition *bottom_def; /* 矛盾定义（动态分配） */
 
     /* 引理视图状态 */
-    int *lemma_view_step_ids;          /* 引理步骤ID数组 */
-    LemmaViewState *lemma_view_states; /* 引理视图状态数组 */
-    int lemma_view_count;              /* 引理视图状态数量 */
-    int lemma_view_capacity;           /* 引理视图状态容量 */
+    lvDArray lemma_view_step_ids;       /**< 引理步骤ID数组 (int) */
+    lvDArray lemma_view_states;         /**< 引理视图状态数组 (LemmaViewState) */
 
     /* 引擎上下文（用于访问已加载的公理包等） */
     lvEngine *engine;
@@ -1240,6 +1239,7 @@ typedef enum {
     PROOF_STRATEGY_COORDINATE,          /**< 坐标法：解析几何坐标计算 */
     PROOF_STRATEGY_LAMBDA_CALCULUS,     /**< λ-演算归约法：β-归约化简 λ-项 */
     PROOF_STRATEGY_LAMBDA_UNIFY,        /**< λ-演算合一法：λ-项模式合一与变量实例化 */
+    PROOF_STRATEGY_HOL_LIGHT,           /**< HOL Light 微内核验证：使用 10 条基本规则验证证明步骤 */
     PROOF_STRATEGY_ORACLE,              /**< Oracle 法：外部求解器辅助（不可构造性） */
     PROOF_STRATEGY_COUNT                /**< 策略总数（用于数组大小） */
 } ProofStrategyType;

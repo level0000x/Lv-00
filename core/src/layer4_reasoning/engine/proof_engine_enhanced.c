@@ -271,15 +271,13 @@ lvProofTraceNode *lv_trace_node_create(lvTraceNodeType type, const char *label) 
     }
 
     /* 初始化子节点数组 */
-    node->child_capacity = TRACE_NODE_INITIAL_CHILD_CAPACITY;
-    node->children = (lvProofTraceNode **) lv_calloc(node->child_capacity, sizeof(lvProofTraceNode *));
-    if (!node->children) {
+    lv_darray_init(&node->children, sizeof(lvProofTraceNode *));
+    if (!lv_darray_reserve(&node->children, TRACE_NODE_INITIAL_CHILD_CAPACITY)) {
         lv_free((void **) &node);
         lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配溯源节点子节点数组");
         return NULL;
     }
 
-    node->child_count = 0;
     node->parent = NULL;
     node->proposition = NULL;
     node->step = NULL;
@@ -303,14 +301,13 @@ void lv_trace_node_destroy(lvProofTraceNode *node) {
         return;
 
     /* 递归销毁所有子节点 */
-    for (uint32_t i = 0; i < node->child_count; i++) {
-        lv_trace_node_destroy(node->children[i]);
+    for (int i = 0; i < node->children.count; i++) {
+        lvProofTraceNode **child = (lvProofTraceNode **)lv_darray_get(&node->children, i);
+        lv_trace_node_destroy(*child);
     }
 
     /* 释放子节点数组 */
-    if (node->children) {
-        lv_free((void **) &node->children);
-    }
+    lv_darray_free(&node->children);
 
     /* 释放依赖 ID 数组 */
     if (node->dependency_ids) {
@@ -339,20 +336,11 @@ bool lv_trace_node_add_child(lvProofTraceNode *parent, lvProofTraceNode *child) 
         return false;
     }
 
-    /* 检查容量是否足够 */
-    if (parent->child_count >= parent->child_capacity) {
-        uint32_t new_cap = parent->child_capacity * 2;
-        lvProofTraceNode **new_children =
-            (lvProofTraceNode **) lv_realloc(parent->children, new_cap * sizeof(lvProofTraceNode *));
-        if (!new_children) {
-            lv_set_error(lv_ERROR_ALLOCATION_FAILED, "扩容子节点数组失败");
-            return false;
-        }
-        parent->children = new_children;
-        parent->child_capacity = new_cap;
+    /* lv_darray_push 自动扩容 */
+    if (lv_darray_push(&parent->children, &child) < 0) {
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "添加子节点失败");
+        return false;
     }
-
-    parent->children[parent->child_count++] = child;
     child->parent = parent;
     child->depth = parent->depth + 1;
 
@@ -425,8 +413,9 @@ TrustColor lv_trace_node_compute_color(lvProofTraceNode *node) {
         case TRACE_NODE_GOAL: {
             /* 取子节点中最低信任颜色 */
             TrustColor min_color = TRUST_GREEN;
-            for (uint32_t i = 0; i < node->child_count; i++) {
-                TrustColor child_color = lv_trace_node_compute_color(node->children[i]);
+            for (int i = 0; i < node->children.count; i++) {
+                lvProofTraceNode **child = (lvProofTraceNode **)lv_darray_get(&node->children, i);
+                TrustColor child_color = lv_trace_node_compute_color(*child);
                 if (child_color < min_color) {
                     min_color = child_color;
                 }
@@ -458,14 +447,12 @@ lvProofTraceTree *lv_trace_tree_create(Proposition *root_prop) {
     }
 
     /* 初始化节点数组 */
-    tree->node_capacity = TRACE_TREE_INITIAL_CAPACITY;
-    tree->all_nodes = (lvProofTraceNode **) lv_calloc(tree->node_capacity, sizeof(lvProofTraceNode *));
-    if (!tree->all_nodes) {
+    lv_darray_init(&tree->all_nodes, sizeof(lvProofTraceNode *));
+    if (!lv_darray_reserve(&tree->all_nodes, TRACE_TREE_INITIAL_CAPACITY)) {
         lv_free((void **) &tree);
         lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配溯源树节点数组");
         return NULL;
     }
-    tree->node_count = 0;
 
     /* 创建根节点 */
     const char *root_label = "Goal";
@@ -483,7 +470,7 @@ lvProofTraceTree *lv_trace_tree_create(Proposition *root_prop) {
     tree->root->proposition = root_prop;
 
     /* 将根节点加入节点数组 */
-    tree->all_nodes[tree->node_count++] = tree->root;
+    lv_darray_push(&tree->all_nodes, &tree->root);
 
     /* 初始化统计信息 */
     tree->proved_count = 0;
@@ -512,9 +499,7 @@ void lv_trace_tree_destroy(lvProofTraceTree *tree) {
     }
 
     /* 释放节点数组 */
-    if (tree->all_nodes) {
-        lv_free((void **) &tree->all_nodes);
-    }
+    lv_darray_free(&tree->all_nodes);
 
     lv_free((void **) &tree);
 }
@@ -530,17 +515,9 @@ static bool trace_tree_register_node(lvProofTraceTree *tree, lvProofTraceNode *n
     if (!tree || !node)
         return false;
 
-    if (tree->node_count >= tree->node_capacity) {
-        uint32_t new_cap = tree->node_capacity * 2;
-        lvProofTraceNode **new_nodes =
-            (lvProofTraceNode **) lv_realloc(tree->all_nodes, new_cap * sizeof(lvProofTraceNode *));
-        if (!new_nodes)
-            return false;
-        tree->all_nodes = new_nodes;
-        tree->node_capacity = new_cap;
-    }
-
-    tree->all_nodes[tree->node_count++] = node;
+    /* lv_darray_push 自动扩容 */
+    if (lv_darray_push(&tree->all_nodes, &node) < 0)
+        return false;
 
     /* 更新最大深度 */
     if ((uint32_t) node->depth > tree->max_depth) {
@@ -565,8 +542,9 @@ static void trace_tree_update_stats(lvProofTraceTree *tree) {
     tree->disproved_count = 0;
     tree->max_depth = 0;
 
-    for (uint32_t i = 0; i < tree->node_count; i++) {
-        lvProofTraceNode *node = tree->all_nodes[i];
+    for (int i = 0; i < tree->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&tree->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
         if (node->status == TRACE_STATUS_PROVED) {
             tree->proved_count++;
         } else if (node->status == TRACE_STATUS_DISPROVED) {
@@ -598,9 +576,10 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
 
     /* 查找起始节点 */
     lvProofTraceNode *start = NULL;
-    for (uint32_t i = 0; i < tree->node_count; i++) {
-        if (tree->all_nodes[i]->id == from_id) {
-            start = tree->all_nodes[i];
+    for (int i = 0; i < tree->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&tree->all_nodes, i);
+        if ((*node_p)->id == from_id) {
+            start = *node_p;
             break;
         }
     }
@@ -620,13 +599,14 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
         uint32_t depth;
     } SearchFrame;
 
-    SearchFrame *stack = (SearchFrame *) lv_calloc(tree->node_count, sizeof(SearchFrame));
+    int ncount = tree->all_nodes.count;
+    SearchFrame *stack = (SearchFrame *) lv_calloc((size_t)ncount, sizeof(SearchFrame));
     if (!stack)
         return 0;
 
     /* 访问标记：使用 ID 到索引的映射避免哈希碰撞 */
     /* visited_map[id % map_size] 存储已访问节点的 id，0 表示空槽 */
-    uint32_t map_size = tree->node_count * 2; /* 负载因子 <= 0.5 减少碰撞 */
+    uint32_t map_size = (uint32_t)(ncount * 2); /* 负载因子 <= 0.5 减少碰撞 */
     if (map_size < 8)
         map_size = 8;
     uint32_t *visited_map = (uint32_t *) lv_calloc(map_size, sizeof(uint32_t));
@@ -636,7 +616,7 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
     }
 
     /* 记录路径 */
-    lvProofTraceNode **path = (lvProofTraceNode **) lv_malloc(tree->node_count * sizeof(lvProofTraceNode *));
+    lvProofTraceNode **path = (lvProofTraceNode **) lv_malloc((size_t)ncount * sizeof(lvProofTraceNode *));
     if (!path) {
         lv_free((void **) &visited_map);
         lv_free((void **) &stack);
@@ -668,12 +648,13 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
 
     uint32_t result = 0;
 
-    while (top < tree->node_count) {
+    while (top < (uint32_t)ncount) {
         lvProofTraceNode *current = stack[top].node;
         bool found_child = false;
 
-        for (uint32_t i = 0; i < current->child_count; i++) {
-            lvProofTraceNode *child = current->children[i];
+        for (int i = 0; i < current->children.count; i++) {
+            lvProofTraceNode **child_p = (lvProofTraceNode **)lv_darray_get(&current->children, i);
+            lvProofTraceNode *child = *child_p;
 
             if (!VISIT_CHECK(child->id)) {
                 VISIT_MARK(child->id);
@@ -767,8 +748,9 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
     };
 
     /* 输出所有节点 */
-    for (uint32_t i = 0; i < tree->node_count; i++) {
-        lvProofTraceNode *node = tree->all_nodes[i];
+    for (int i = 0; i < tree->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&tree->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
         int type_idx = (int) node->type;
         if (type_idx > 7)
             type_idx = 0;
@@ -787,10 +769,12 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
     fprintf(fp, "\n");
 
     /* 输出所有边 */
-    for (uint32_t i = 0; i < tree->node_count; i++) {
-        lvProofTraceNode *node = tree->all_nodes[i];
-        for (uint32_t j = 0; j < node->child_count; j++) {
-            lvProofTraceNode *child = node->children[j];
+    for (int i = 0; i < tree->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&tree->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
+        for (int j = 0; j < node->children.count; j++) {
+            lvProofTraceNode **child_p = (lvProofTraceNode **)lv_darray_get(&node->children, j);
+            lvProofTraceNode *child = *child_p;
             fprintf(fp, "    n%d -> n%d;\n", node->id, child->id);
         }
     }
@@ -831,14 +815,15 @@ char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
 
     string_buffer_append(buf, "{\n");
     string_buffer_append(buf, "  \"is_complete\": %s,\n", tree->is_complete ? "true" : "false");
-    string_buffer_append(buf, "  \"node_count\": %u,\n", tree->node_count);
+    string_buffer_append(buf, "  \"node_count\": %d,\n", tree->all_nodes.count);
     string_buffer_append(buf, "  \"proved_count\": %u,\n", tree->proved_count);
     string_buffer_append(buf, "  \"disproved_count\": %u,\n", tree->disproved_count);
     string_buffer_append(buf, "  \"max_depth\": %u,\n", tree->max_depth);
     string_buffer_append(buf, "  \"nodes\": [\n");
 
-    for (uint32_t i = 0; i < tree->node_count; i++) {
-        lvProofTraceNode *node = tree->all_nodes[i];
+    for (int i = 0; i < tree->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&tree->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
 
         string_buffer_append(buf, "    {\n");
         string_buffer_append(buf, "      \"id\": %u,\n", node->id);
@@ -847,9 +832,9 @@ char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
         string_buffer_append(buf, "      \"label\": \"%s\",\n", node->label);
         string_buffer_append(buf, "      \"description\": \"%s\",\n", node->description);
         string_buffer_append(buf, "      \"depth\": %d,\n", node->depth);
-        string_buffer_append(buf, "      \"child_count\": %u,\n", node->child_count);
+        string_buffer_append(buf, "      \"child_count\": %d,\n", node->children.count);
         string_buffer_append(buf, "      \"elapsed_ms\": %.3f\n", node->elapsed_ms);
-        string_buffer_append(buf, "    }%s\n", (i + 1 < tree->node_count) ? "," : "");
+        string_buffer_append(buf, "    }%s\n", (i + 1 < tree->all_nodes.count) ? "," : "");
     }
 
     string_buffer_append(buf, "  ]\n");
@@ -875,15 +860,13 @@ lvContradictionPath *lv_contradiction_path_create(void) {
         return NULL;
     }
 
-    path->node_capacity = CONTRADICTION_PATH_INITIAL_CAPACITY;
-    path->nodes = (lvContradictionPathNode *) lv_calloc(path->node_capacity, sizeof(lvContradictionPathNode));
-    if (!path->nodes) {
+    lv_darray_init(&path->nodes, sizeof(lvContradictionPathNode));
+    if (!lv_darray_reserve(&path->nodes, CONTRADICTION_PATH_INITIAL_CAPACITY)) {
         lv_free((void **) &path);
         lv_set_error(lv_ERROR_ALLOCATION_FAILED, "无法分配矛盾路径节点数组");
         return NULL;
     }
 
-    path->node_count = 0;
     path->type = CONTRADICTION_TYPE_P_AND_NOT_P;
     path->contradiction_desc[0] = '\0';
     path->trace_tree = NULL;
@@ -903,9 +886,7 @@ void lv_contradiction_path_destroy(lvContradictionPath *path) {
     if (!path)
         return;
 
-    if (path->nodes) {
-        lv_free((void **) &path->nodes);
-    }
+    lv_darray_free(&path->nodes);
 
     /* 溯源树由引擎管理，此处不销毁 */
     path->trace_tree = NULL;
@@ -932,33 +913,21 @@ uint32_t lv_contradiction_path_add_node(lvContradictionPath *path, const char *s
         return (uint32_t) -1;
     }
 
-    /* 检查容量 */
-    if (path->node_count >= path->node_capacity) {
-        uint32_t new_cap = path->node_capacity * 2;
-        lvContradictionPathNode *new_nodes =
-            (lvContradictionPathNode *) lv_realloc(path->nodes, new_cap * sizeof(lvContradictionPathNode));
-        if (!new_nodes) {
-            lv_set_error(lv_ERROR_ALLOCATION_FAILED, "扩容矛盾路径节点数组失败");
-            return (uint32_t) -1;
-        }
-        path->nodes = new_nodes;
-        path->node_capacity = new_cap;
-    }
+    /* 准备新节点 */
+    lvContradictionPathNode node;
+    memset(&node, 0, sizeof(node));
+    node.id = (uint32_t)path->nodes.count;
 
-    uint32_t idx = path->node_count++;
-    lvContradictionPathNode *node = &path->nodes[idx];
-
-    node->id = idx;
-    safe_strncpy(node->statement, statement, sizeof(node->statement));
+    safe_strncpy(node.statement, statement, sizeof(node.statement));
     if (justification) {
-        safe_strncpy(node->justification, justification, sizeof(node->justification));
+        safe_strncpy(node.justification, justification, sizeof(node.justification));
     } else {
-        node->justification[0] = '\0';
+        node.justification[0] = '\0';
     }
-    node->is_assumption = is_assumption;
-    node->leads_to_contradiction = false;
+    node.is_assumption = is_assumption;
+    node.leads_to_contradiction = false;
 
-    return idx;
+    return (uint32_t)lv_darray_push(&path->nodes, &node);
 }
 
 /**
@@ -1202,21 +1171,23 @@ bool lv_contradiction_path_validate(lvContradictionPath *path) {
     }
 
     /* 路径必须非空 */
-    if (path->node_count == 0) {
+    if (path->nodes.count == 0) {
         lv_set_error(lv_ERROR_PROOF_INCOMPLETE, "矛盾路径为空");
         return false;
     }
 
     /* 第一个节点必须是假设 */
-    if (!path->nodes[0].is_assumption) {
+    lvContradictionPathNode *first = (lvContradictionPathNode *)lv_darray_get(&path->nodes, 0);
+    if (!first->is_assumption) {
         lv_set_error(lv_ERROR_PROOF_INVALID, "矛盾路径的第一个节点不是假设");
         return false;
     }
 
     /* 必须存在导致矛盾的节点 */
     bool has_contradiction = false;
-    for (uint32_t i = 0; i < path->node_count; i++) {
-        if (path->nodes[i].leads_to_contradiction) {
+    for (int i = 0; i < path->nodes.count; i++) {
+        lvContradictionPathNode *pn = (lvContradictionPathNode *)lv_darray_get(&path->nodes, i);
+        if (pn->leads_to_contradiction) {
             has_contradiction = true;
             break;
         }
@@ -1310,8 +1281,9 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine, const Proposition *
             safe_strncpy(path->contradiction_desc, cdesc, sizeof(path->contradiction_desc));
 
             /* 标记最后一个节点为矛盾节点 */
-            if (path->node_count > 0) {
-                path->nodes[path->node_count - 1].leads_to_contradiction = true;
+            if (path->nodes.count > 0) {
+                lvContradictionPathNode *last = (lvContradictionPathNode *)lv_darray_get(&path->nodes, path->nodes.count - 1);
+                last->leads_to_contradiction = true;
             }
 
             /* 添加矛盾节点到溯源树 */
@@ -2434,11 +2406,12 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
     }
 
     /* 检查所有节点 */
-    for (uint32_t i = 0; i < trace->node_count; i++) {
-        lvProofTraceNode *node = trace->all_nodes[i];
+    for (int i = 0; i < trace->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
 
         /* 推导节点必须有子节点（依赖） */
-        if (node->type == TRACE_NODE_DERIVATION && node->child_count == 0) {
+        if (node->type == TRACE_NODE_DERIVATION && node->children.count == 0) {
             if (out_error) {
                 snprintf(out_error, 512, "推导节点 %u ('%s') 没有子节点（缺少推导依据）", node->id, node->label);
             }
@@ -2541,13 +2514,14 @@ static bool is_redundant_node(const lvProofTraceNode *node) {
         return false;
 
     /* 无子节点的推导节点是冗余的 */
-    if (node->type == TRACE_NODE_DERIVATION && node->child_count == 0) {
+    if (node->type == TRACE_NODE_DERIVATION && node->children.count == 0) {
         return true;
     }
 
     /* 单子节点的推导节点可能是传递节点 */
-    if (node->type == TRACE_NODE_DERIVATION && node->child_count == 1) {
-        lvProofTraceNode *child = node->children[0];
+    if (node->type == TRACE_NODE_DERIVATION && node->children.count == 1) {
+        lvProofTraceNode **child_p = (lvProofTraceNode **)lv_darray_get(&node->children, 0);
+        lvProofTraceNode *child = *child_p;
         if (child && child->type == TRACE_NODE_DERIVATION) {
             return true;
         }
@@ -2586,8 +2560,9 @@ bool lv_optimize_proof(const lvProofTraceTree *trace, lvProofTraceTree **out_opt
     /* 复制非冗余节点 */
     uint32_t removed_count = 0;
 
-    for (uint32_t i = 0; i < trace->node_count; i++) {
-        lvProofTraceNode *src_node = trace->all_nodes[i];
+    for (int i = 0; i < trace->all_nodes.count; i++) {
+        lvProofTraceNode **src_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
+        lvProofTraceNode *src_node = *src_p;
 
         /* 跳过根节点（已由 create 创建） */
         if (src_node == trace->root)
@@ -2648,25 +2623,26 @@ uint32_t lv_compute_proof_complexity(const lvProofTraceTree *trace) {
     uint32_t score = 0;
 
     /* 节点数量贡献 */
-    score += trace->node_count * 1;
+    score += trace->all_nodes.count * 1;
 
     /* 深度贡献 */
     score += trace->max_depth * 3;
 
     /* 分支因子贡献 */
-    if (trace->node_count > 0) {
+    if (trace->all_nodes.count > 0) {
         uint32_t total_children = 0;
-        for (uint32_t i = 0; i < trace->node_count; i++) {
-            total_children += trace->all_nodes[i]->child_count;
+        for (int i = 0; i < trace->all_nodes.count; i++) {
+            lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
+            total_children += (uint32_t)(*node_p)->children.count;
         }
-        double avg_branch = (double) total_children / (double) trace->node_count;
+        double avg_branch = (double) total_children / (double) trace->all_nodes.count;
         score += (uint32_t) (avg_branch * 2);
     }
 
     /* 未完成节点贡献 */
-    uint32_t incomplete = trace->node_count - trace->proved_count - trace->disproved_count;
-    if (trace->node_count > 0) {
-        double incomplete_ratio = (double) incomplete / (double) trace->node_count;
+    uint32_t incomplete = (uint32_t)(trace->all_nodes.count - trace->proved_count - trace->disproved_count);
+    if (trace->all_nodes.count > 0) {
+        double incomplete_ratio = (double) incomplete / (double) trace->all_nodes.count;
         score += (uint32_t) (incomplete_ratio * 5000);
     }
 
@@ -2691,8 +2667,9 @@ uint32_t lv_simplify_proof(lvProofTraceTree *trace) {
     uint32_t removed = 0;
 
     /* 标记冗余节点为阻塞 */
-    for (uint32_t i = 0; i < trace->node_count; i++) {
-        lvProofTraceNode *node = trace->all_nodes[i];
+    for (int i = 0; i < trace->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
         if (is_redundant_node(node)) {
             lv_trace_node_set_status(node, TRACE_STATUS_BLOCKED);
             removed++;
@@ -2708,7 +2685,7 @@ uint32_t lv_simplify_proof(lvProofTraceTree *trace) {
     /* 更新统计 */
     trace_tree_update_stats(trace);
 
-    return trace->node_count - removed;
+    return (uint32_t)(trace->all_nodes.count - removed);
 }
 
 /* ============== 证明导出 ============== */
@@ -2745,8 +2722,9 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace, ProofNaturalLa
     string_buffer_append(buf, "%s\n\n", begin_str);
 
     /* 遍历溯源树生成自然语言 */
-    for (uint32_t i = 0; i < trace->node_count; i++) {
-        lvProofTraceNode *node = trace->all_nodes[i];
+    for (int i = 0; i < trace->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
 
         /* 跳过根节点 */
         if (node == trace->root)
@@ -2896,8 +2874,9 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
     static const int color_map_count = sizeof(color_map) / sizeof(color_map[0]);
 
     /* 遍历节点生成 LaTeX */
-    for (uint32_t i = 0; i < trace->node_count; i++) {
-        lvProofTraceNode *node = trace->all_nodes[i];
+    for (int i = 0; i < trace->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
         if (node == trace->root)
             continue;
 
@@ -2995,8 +2974,9 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
     string_buffer_append(buf, "Proof.\n");
 
     /* 遍历节点生成 Coq tactic */
-    for (uint32_t i = 0; i < trace->node_count; i++) {
-        lvProofTraceNode *node = trace->all_nodes[i];
+    for (int i = 0; i < trace->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
         if (node == trace->root)
             continue;
 
@@ -3100,8 +3080,9 @@ char *lv_proof_to_isar(const lvProofTraceTree *trace) {
     string_buffer_append(buf, "proof -\n");
 
     /* 遍历节点生成 Isar */
-    for (uint32_t i = 0; i < trace->node_count; i++) {
-        lvProofTraceNode *node = trace->all_nodes[i];
+    for (int i = 0; i < trace->all_nodes.count; i++) {
+        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
+        lvProofTraceNode *node = *node_p;
         if (node == trace->root)
             continue;
 

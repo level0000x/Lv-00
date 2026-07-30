@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 内部数据结构
@@ -33,9 +34,7 @@ typedef struct {
 
 /** @brief Herbie 优化上下文 */
 typedef struct {
-    OptimizedEntry *entries; /**< 优化结果列表 */
-    int entry_count;         /**< 结果数量 */
-    int entry_capacity;      /**< 结果容量 */
+    lvDArray entries;        /**< 优化结果列表（lvDArray<OptimizedEntry>） */
     char *original_expr;     /**< 原始表达式 */
     double original_error;   /**< 原始误差 */
     double best_error;       /**< 最优误差 */
@@ -144,21 +143,18 @@ static int add_entry(HerbieOptimizer *opt, const char *expr, double error, const
     if (!opt || !expr)
         return -1;
 
-    if (opt->entry_count >= opt->entry_capacity) {
-        int new_cap = opt->entry_capacity == 0 ? 8 : opt->entry_capacity * 2;
-        OptimizedEntry *new_arr = lv_realloc(opt->entries, (size_t) new_cap * sizeof(OptimizedEntry));
-        if (!new_arr)
-            return -1;
-        opt->entries = new_arr;
-        opt->entry_capacity = new_cap;
-    }
-
-    OptimizedEntry *e = &opt->entries[opt->entry_count];
-    e->expr = lv_strdup(expr);
-    e->error_bound = error;
-    e->description = lv_strdup(desc ? desc : "");
-    if (!e->expr)
+    OptimizedEntry e;
+    e.expr = lv_strdup(expr);
+    e.error_bound = error;
+    e.description = lv_strdup(desc ? desc : "");
+    if (!e.expr)
         return -1;
+
+    if (lv_darray_push(&opt->entries, &e) < 0) {
+        lv_free((void **) &e.expr);
+        lv_free((void **) &e.description);
+        return -1;
+    }
 
     /* 更新最优结果 */
     if (error < opt->best_error) {
@@ -167,7 +163,6 @@ static int add_entry(HerbieOptimizer *opt, const char *expr, double error, const
         opt->best_expr = lv_strdup(expr);
     }
 
-    opt->entry_count++;
     return 0;
 }
 
@@ -177,16 +172,14 @@ static int add_entry(HerbieOptimizer *opt, const char *expr, double error, const
 static void optimizer_clear(HerbieOptimizer *opt) {
     if (!opt)
         return;
-    for (int i = 0; i < opt->entry_count; i++) {
-        lv_free((void **) &opt->entries[i].expr);
-        lv_free((void **) &opt->entries[i].description);
+    for (int i = 0; i < opt->entries.count; i++) {
+        OptimizedEntry *e = (OptimizedEntry *) lv_darray_get(&opt->entries, i);
+        lv_free((void **) &e->expr);
+        lv_free((void **) &e->description);
     }
-    lv_free((void **) &opt->entries);
+    lv_darray_free(&opt->entries);
     lv_free((void **) &opt->original_expr);
     lv_free((void **) &opt->best_expr);
-    opt->entries = NULL;
-    opt->entry_count = 0;
-    opt->entry_capacity = 0;
     opt->original_expr = NULL;
     opt->best_expr = NULL;
 }

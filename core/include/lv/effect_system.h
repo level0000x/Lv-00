@@ -1,6 +1,7 @@
-﻿#ifndef lv_EFFECT_SYSTEM_H
+#ifndef lv_EFFECT_SYSTEM_H
 #define lv_EFFECT_SYSTEM_H
 
+#include "lv/lv_utils.h"
 #include "lv/io_blocks.h"
 
 #ifdef __cplusplus
@@ -23,9 +24,7 @@ typedef struct lvEffectLogEntry {
 
 /* Effect tracker */
 typedef struct lvEffectTracker {
-    lvEffectLogEntry *entries;
-    int entry_count;
-    int entry_capacity;
+    lvDArray entries; /* lvDArray<lvEffectLogEntry> */
 
     /* Current combined effect */
     lvEffectAnnotation *current_effect;

@@ -13,7 +13,6 @@
  */
 
 #include <ctype.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,9 +59,7 @@ typedef struct {
  */
 typedef struct {
     char theorem_name[256]; /**< 定理名称 */
-    int step_count;         /**< 当前步骤数量 */
-    int step_capacity;      /**< 步骤数组容量 */
-    lvProofStep *steps;     /**< 步骤动态数组 */
+    lvDArray steps_da;      /**< 步骤动态数组 */
 } lvLean4Proof;
 
 /* 映射表大小常量 */
@@ -115,8 +112,8 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
     pos += snprintf(output + pos, output_size - pos, " : Prop := by\n");
 
     /* 遍历证明树中每个步骤，生成对应的 tactic */
-    for (int i = 0; i < p->step_count; i++) {
-        lvProofStep *step = &p->steps[i];
+    for (int i = 0; i < p->steps_da.count; i++) {
+        lvProofStep *step = (lvProofStep *)lv_darray_get(&p->steps_da, i);
         const char *tac = "sorry"; /* 默认 tactic（未知类型） */
 
         /* 在映射表中查找对应的 tactic */
@@ -149,29 +146,20 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
 static int lean4_add_step(lvLean4Proof *p, int step_type, const char *desc, int desc_len) {
     if (!p || step_type < 0)
         return -1;
-    if (p->step_count >= p->step_capacity) {
-        if (p->step_capacity > INT_MAX / 2)
-            return -1;
-        int new_cap = p->step_capacity * 2;
-        lvProofStep *new_steps = (lvProofStep *) lv_realloc(p->steps, new_cap * sizeof(lvProofStep));
-        if (!new_steps)
-            return -1;
-        p->steps = new_steps;
-        p->step_capacity = new_cap;
-    }
-    lvProofStep *step = &p->steps[p->step_count];
-    step->type = step_type;
-    step->id = p->step_count;
+    lvProofStep step;
+    step.type = step_type;
+    step.id = p->steps_da.count;
     if (desc && desc_len > 0) {
         int copy_len = desc_len;
-        if (copy_len >= (int) sizeof(step->description))
-            copy_len = (int) sizeof(step->description) - 1;
-        memcpy(step->description, desc, copy_len);
-        step->description[copy_len] = '\0';
+        if (copy_len >= (int) sizeof(step.description))
+            copy_len = (int) sizeof(step.description) - 1;
+        memcpy(step.description, desc, copy_len);
+        step.description[copy_len] = '\0';
     } else {
-        step->description[0] = '\0';
+        step.description[0] = '\0';
     }
-    p->step_count++;
+    if (lv_darray_push(&p->steps_da, &step) < 0)
+        return -1;
     return 0;
 }
 
@@ -521,10 +509,9 @@ static int lean4_import_proof(const char *input, void **proof) {
         p->theorem_name[nlen] = '\0';
     }
 
-    /* 初始化步骤数组 */
-    p->step_capacity = 16;
-    p->steps = (lvProofStep *) lv_calloc(p->step_capacity, sizeof(lvProofStep));
-    if (!p->steps) {
+    /* 初始化步骤动态数组 */
+    lv_darray_init(&p->steps_da, sizeof(lvProofStep));
+    if (!lv_darray_reserve(&p->steps_da, 16)) {
         lv_free((void **) &(p));
         return -1;
     }

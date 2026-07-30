@@ -15,6 +15,7 @@
 #include <time.h>
 
 #include "lv/debug.h"
+#include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 
 /* ========================================================================
@@ -159,15 +160,11 @@ char *trace_session_export_json(const TraceSession *session) {
     if (session == NULL)
         return NULL;
 
-    /* 估算缓冲区大小 */
-    size_t buf_size = (size_t) (session->event_count * 256) + 256;
-    char *buf = (char *) lv_malloc(buf_size);
-    if (buf == NULL)
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, (size_t) session->event_count * 256 + 256))
         return NULL;
 
-    int offset = 0;
-    offset +=
-        snprintf(buf + offset, buf_size - (size_t) offset, "{\"event_count\":%d,\"events\":[\n", session->event_count);
+    lv_json_buf_append_fmt(&buf, "{\"event_count\":%d,\"events\":[\n", session->event_count);
 
     for (int i = 0; i < session->event_count; i++) {
         const TraceEvent *evt = &session->events[i];
@@ -179,15 +176,18 @@ char *trace_session_export_json(const TraceSession *session) {
         else if (evt->type == TRACE_SOLVER)
             type_str = "solver";
 
-        offset += snprintf(buf + offset, buf_size - (size_t) offset,
-                           "  {\"type\":\"%s\",\"step\":%d,\"time\":%.6f,"
-                           "\"desc\":\"%s\"}%s\n",
-                           type_str, evt->step_number, evt->timestamp, evt->description ? evt->description : "",
-                           (i < session->event_count - 1) ? "," : "");
+        lv_json_buf_append_raw(&buf, "  {\"type\":\"");
+        lv_json_buf_append_string(&buf, type_str);
+        lv_json_buf_append_fmt(&buf, "\",\"step\":%d,\"time\":%.6f,\"desc\":\"", evt->step_number, evt->timestamp);
+        lv_json_buf_append_string(&buf, evt->description ? evt->description : "");
+        lv_json_buf_append_raw(&buf, "\"}");
+        if (i < session->event_count - 1)
+            lv_json_buf_append_raw(&buf, ",");
+        lv_json_buf_append_raw(&buf, "\n");
     }
 
-    snprintf(buf + offset, buf_size - (size_t) offset, "]}\n");
-    return buf;
+    lv_json_buf_append_raw(&buf, "]}\n");
+    return lv_json_buf_finalize(&buf);
 }
 
 /** @brief 获取全局调试追踪会话 */

@@ -56,12 +56,8 @@ typedef struct lvLayoutEngine {
 /** @brief 节点图视图内部结构 */
 typedef struct lvNodeGraphView {
     int view_type;                  /**< 视图类型标识 */
-    lvGraphNode *nodes;             /**< 节点数组 */
-    int node_count;                 /**< 节点数量 */
-    int node_capacity;              /**< 节点数组容量 */
-    lvGraphConnection *connections; /**< 连接数组 */
-    int connection_count;           /**< 连接数量 */
-    int connection_capacity;        /**< 连接数组容量 */
+    lvDArray nodes_da;              /**< 节点动态数组（lvDArray<lvGraphNode>） */
+    lvDArray connections_da;        /**< 连接动态数组（lvDArray<lvGraphConnection>） */
     lvLayoutEngine layout_engine;   /**< 布局引擎 */
     int next_node_id;               /**< 下一个节点ID */
     int next_connection_id;         /**< 下一个连接ID */
@@ -79,19 +75,8 @@ lvNodeGraphView *lv_node_graph_create(void) {
     if (!graph)
         return NULL;
     graph->view_type = lv_VIEW_NODE_GRAPH;
-    graph->node_capacity = 16;
-    graph->nodes = lv_calloc(graph->node_capacity, sizeof(lvGraphNode));
-    if (!graph->nodes) {
-        lv_free((void **) &graph);
-        return NULL;
-    }
-    graph->connection_capacity = 16;
-    graph->connections = lv_calloc(graph->connection_capacity, sizeof(lvGraphConnection));
-    if (!graph->connections) {
-        lv_free((void **) &graph->nodes);
-        lv_free((void **) &graph);
-        return NULL;
-    }
+    lv_darray_init(&graph->nodes_da, sizeof(lvGraphNode));
+    lv_darray_init(&graph->connections_da, sizeof(lvGraphConnection));
     graph->layout_engine.area_width = 800.0;
     graph->layout_engine.area_height = 600.0;
     graph->layout_engine.iterations = 50;
@@ -110,8 +95,8 @@ lvNodeGraphView *lv_node_graph_create(void) {
 void lv_node_graph_destroy(lvNodeGraphView *graph) {
     if (!graph)
         return;
-    lv_free((void **) &graph->nodes);
-    lv_free((void **) &graph->connections);
+    lv_darray_free(&graph->nodes_da);
+    lv_darray_free(&graph->connections_da);
     lv_free((void **) &graph);
 }
 
@@ -132,34 +117,23 @@ int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, do
     if (!graph || !label)
         return -1;
 
-    /* 自动扩容 */
-    if (graph->node_count >= graph->node_capacity) {
-        /* [安全] 防止 node_capacity * 2 整数溢出 */
-        if (graph->node_capacity > INT_MAX / 2)
-            return -1;
-        int new_cap = graph->node_capacity * 2;
-        lvGraphNode *new_nodes = lv_realloc(graph->nodes, new_cap * sizeof(lvGraphNode));
-        if (!new_nodes)
-            return -1;
-        graph->nodes = new_nodes;
-        graph->node_capacity = new_cap;
-    }
+    lvGraphNode node;
+    node.id = (id > 0) ? id : graph->next_node_id++;
+    node.x = x;
+    node.y = y;
+    node.type = (lvNodeType) type;
+    strncpy(node.label, label, sizeof(node.label) - 1);
+    node.label[sizeof(node.label) - 1] = '\0';
 
-    lvGraphNode *node = &graph->nodes[graph->node_count];
-    node->id = (id > 0) ? id : graph->next_node_id++;
-    node->x = x;
-    node->y = y;
-    node->type = (lvNodeType) type;
-    strncpy(node->label, label, sizeof(node->label) - 1);
-    node->label[sizeof(node->label) - 1] = '\0';
+    if (lv_darray_push(&graph->nodes_da, &node) < 0)
+        return -1;
 
     /* 更新自增ID */
-    if (node->id >= graph->next_node_id) {
-        graph->next_node_id = node->id + 1;
+    if (node.id >= graph->next_node_id) {
+        graph->next_node_id = node.id + 1;
     }
 
-    graph->node_count++;
-    return node->id;
+    return node.id;
 }
 
 /**
@@ -176,8 +150,9 @@ int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
     if (!graph || id <= 0)
         return -1;
     int found = -1;
-    for (int i = 0; i < graph->node_count; i++) {
-        if (graph->nodes[i].id == id) {
+    lvGraphNode *nodes = (lvGraphNode *)graph->nodes_da.data;
+    for (int i = 0; i < graph->nodes_da.count; i++) {
+        if (nodes[i].id == id) {
             found = i;
             break;
         }
@@ -186,20 +161,21 @@ int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
         return -1;
 
     /* 移除与该节点相关的所有连接 */
+    lvGraphConnection *conns = (lvGraphConnection *)graph->connections_da.data;
     int new_conn_count = 0;
-    for (int i = 0; i < graph->connection_count; i++) {
-        if (graph->connections[i].from_node_id != id && graph->connections[i].to_node_id != id) {
+    for (int i = 0; i < graph->connections_da.count; i++) {
+        if (conns[i].from_node_id != id && conns[i].to_node_id != id) {
             if (new_conn_count != i) {
-                graph->connections[new_conn_count] = graph->connections[i];
+                conns[new_conn_count] = conns[i];
             }
             new_conn_count++;
         }
     }
-    graph->connection_count = new_conn_count;
+    graph->connections_da.count = new_conn_count;
 
     /* 移除节点（用最后一个元素填充空位） */
-    graph->nodes[found] = graph->nodes[graph->node_count - 1];
-    graph->node_count--;
+    nodes[found] = nodes[graph->nodes_da.count - 1];
+    graph->nodes_da.count--;
     return 0;
 }
 
@@ -218,32 +194,21 @@ int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id,
     if (!graph || from_id <= 0 || to_id <= 0)
         return -1;
 
-    /* 自动扩容 */
-    if (graph->connection_count >= graph->connection_capacity) {
-        /* [安全] 防止 connection_capacity * 2 整数溢出 */
-        if (graph->connection_capacity > INT_MAX / 2)
-            return -1;
-        int new_cap = graph->connection_capacity * 2;
-        lvGraphConnection *new_conns = lv_realloc(graph->connections, new_cap * sizeof(lvGraphConnection));
-        if (!new_conns)
-            return -1;
-        graph->connections = new_conns;
-        graph->connection_capacity = new_cap;
-    }
-
-    lvGraphConnection *conn = &graph->connections[graph->connection_count];
-    conn->id = graph->next_connection_id++;
-    conn->from_node_id = from_id;
-    conn->to_node_id = to_id;
+    lvGraphConnection conn;
+    conn.id = graph->next_connection_id++;
+    conn.from_node_id = from_id;
+    conn.to_node_id = to_id;
     if (label) {
-        strncpy(conn->label, label, sizeof(conn->label) - 1);
-        conn->label[sizeof(conn->label) - 1] = '\0';
+        strncpy(conn.label, label, sizeof(conn.label) - 1);
+        conn.label[sizeof(conn.label) - 1] = '\0';
     } else {
-        conn->label[0] = '\0';
+        conn.label[0] = '\0';
     }
 
-    graph->connection_count++;
-    return conn->id;
+    if (lv_darray_push(&graph->connections_da, &conn) < 0)
+        return -1;
+
+    return conn.id;
 }
 
 /**
@@ -259,8 +224,9 @@ int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
     if (!graph || conn_id <= 0)
         return -1;
     int found = -1;
-    for (int i = 0; i < graph->connection_count; i++) {
-        if (graph->connections[i].id == conn_id) {
+    lvGraphConnection *conns = (lvGraphConnection *)graph->connections_da.data;
+    for (int i = 0; i < graph->connections_da.count; i++) {
+        if (conns[i].id == conn_id) {
             found = i;
             break;
         }
@@ -268,8 +234,8 @@ int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
     if (found < 0)
         return -1;
 
-    graph->connections[found] = graph->connections[graph->connection_count - 1];
-    graph->connection_count--;
+    conns[found] = conns[graph->connections_da.count - 1];
+    graph->connections_da.count--;
     return 0;
 }
 
@@ -285,9 +251,10 @@ int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
 lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id) {
     if (!graph || id <= 0)
         return NULL;
-    for (int i = 0; i < graph->node_count; i++) {
-        if (graph->nodes[i].id == id)
-            return &graph->nodes[i];
+    lvGraphNode *nodes = (lvGraphNode *)graph->nodes_da.data;
+    for (int i = 0; i < graph->nodes_da.count; i++) {
+        if (nodes[i].id == id)
+            return &nodes[i];
     }
     return NULL;
 }
@@ -302,13 +269,14 @@ lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id) {
  * @return 成功返回0，失败返回-1
  */
 int lv_node_graph_layout(lvNodeGraphView *graph) {
-    if (!graph || graph->node_count <= 1)
+    if (!graph || graph->nodes_da.count <= 1)
         return 0;
 
     const double C = 1.0; /* 常数因子 */
     const int max_iter = graph->layout_engine.iterations;
     const double area = graph->layout_engine.area_width * graph->layout_engine.area_height;
-    const int n = graph->node_count;
+    const int n = graph->nodes_da.count;
+    lvGraphNode *nodes = (lvGraphNode *)graph->nodes_da.data;
 
     /* 理想距离 k = C * sqrt(area / n) */
     const double k = C * sqrt(area / (double) n);
@@ -334,8 +302,8 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
         /* 排斥力：所有节点对之间 F_r = k^2 / d */
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
-                double diff_x = graph->nodes[i].x - graph->nodes[j].x;
-                double diff_y = graph->nodes[i].y - graph->nodes[j].y;
+                double diff_x = nodes[i].x - nodes[j].x;
+                double diff_y = nodes[i].y - nodes[j].y;
                 double dist = sqrt(diff_x * diff_x + diff_y * diff_y);
                 if (dist < 0.01)
                     dist = 0.01; /* 避免除零 */
@@ -352,21 +320,22 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
         }
 
         /* 吸引力：沿边方向 F_a = d^2 / k */
-        for (int c = 0; c < graph->connection_count; c++) {
+        lvGraphConnection *conns = (lvGraphConnection *)graph->connections_da.data;
+        for (int c = 0; c < graph->connections_da.count; c++) {
             int fi = -1, ti = -1;
-            int from = graph->connections[c].from_node_id;
-            int to = graph->connections[c].to_node_id;
+            int from = conns[c].from_node_id;
+            int to = conns[c].to_node_id;
             for (int i = 0; i < n; i++) {
-                if (graph->nodes[i].id == from)
+                if (nodes[i].id == from)
                     fi = i;
-                if (graph->nodes[i].id == to)
+                if (nodes[i].id == to)
                     ti = i;
             }
             if (fi < 0 || ti < 0)
                 continue;
 
-            double diff_x = graph->nodes[fi].x - graph->nodes[ti].x;
-            double diff_y = graph->nodes[fi].y - graph->nodes[ti].y;
+            double diff_x = nodes[fi].x - nodes[ti].x;
+            double diff_y = nodes[fi].y - nodes[ti].y;
             double dist = sqrt(diff_x * diff_x + diff_y * diff_y);
             if (dist < 0.01)
                 dist = 0.01;
@@ -388,13 +357,13 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
                 continue;
 
             double scale = fmin(disp, temperature) / disp;
-            graph->nodes[i].x += dx[i] * scale;
-            graph->nodes[i].y += dy[i] * scale;
+            nodes[i].x += dx[i] * scale;
+            nodes[i].y += dy[i] * scale;
 
             /* 限制在区域内 */
             double margin = 10.0;
-            graph->nodes[i].x = fmax(margin, fmin(graph->layout_engine.area_width - margin, graph->nodes[i].x));
-            graph->nodes[i].y = fmax(margin, fmin(graph->layout_engine.area_height - margin, graph->nodes[i].y));
+            nodes[i].x = fmax(margin, fmin(graph->layout_engine.area_width - margin, nodes[i].x));
+            nodes[i].y = fmax(margin, fmin(graph->layout_engine.area_height - margin, nodes[i].y));
         }
 
         /* 降温 */

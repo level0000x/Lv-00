@@ -92,8 +92,7 @@ lvPluginSystem *lv_plugin_system_create(lvContext *ctx) {
         return NULL;
     }
 
-    system->search_path_count = 0;
-    system->search_paths = NULL;
+    lv_darray_init(&system->search_paths, sizeof(char *));
 
     PluginSystemInternal *internal = (PluginSystemInternal *) lv_calloc(1, sizeof(PluginSystemInternal));
     if (!internal) {
@@ -124,12 +123,10 @@ void lv_plugin_system_destroy(lvPluginSystem *system) {
     if (system->interfaces)
         lv_free((void **) &system->interfaces);
 
-    for (size_t i = 0; i < system->search_path_count; i++) {
-        if (system->search_paths[i])
-            lv_free((void **) &system->search_paths[i]);
+    for (int i = 0; i < system->search_paths.count; i++) {
+        lv_free((void **) lv_darray_get(&system->search_paths, i));
     }
-    if (system->search_paths)
-        lv_free((void **) &system->search_paths);
+    lv_darray_free(&system->search_paths);
 
     if (system->mutex)
         lv_free((void **) &system->mutex);
@@ -1162,28 +1159,23 @@ lvPlugin **lv_plugin_get_dependents(lvPluginSystem *system, const lvPlugin *plug
 int lv_plugin_system_add_search_path(lvPluginSystem *system, const char *path) {
     if (!system || !path)
         return -1;
-    if (!system->search_paths)
-        return -1;
 
     /* 检查是否已存在 */
-    for (size_t i = 0; i < system->search_path_count; i++) {
-        if (strcmp(system->search_paths[i], path) == 0) {
+    for (int i = 0; i < system->search_paths.count; i++) {
+        if (strcmp(*(char **)lv_darray_get(&system->search_paths, i), path) == 0) {
             return 0;
         }
     }
 
     /* 添加新路径 */
-    char **new_paths = (char **) lv_realloc(system->search_paths, sizeof(char *) * (system->search_path_count + 1));
-    if (!new_paths)
+    char *copy = lv_strdup_safe(path);
+    if (!copy)
         return -1;
 
-    system->search_paths = new_paths;
-    system->search_paths[system->search_path_count] = (char *) lv_malloc(strlen(path) + 1);
-    if (!system->search_paths[system->search_path_count])
+    if (lv_darray_push(&system->search_paths, &copy) < 0) {
+        lv_free((void **) &copy);
         return -1;
-
-    snprintf(system->search_paths[system->search_path_count], strlen(path) + 1, "%s", path);
-    system->search_path_count++;
+    }
 
     return 0;
 }
@@ -1197,13 +1189,15 @@ int lv_plugin_system_add_search_path(lvPluginSystem *system, const char *path) {
 int lv_plugin_system_remove_search_path(lvPluginSystem *system, const char *path) {
     if (!system || !path)
         return -1;
-    if (!system->search_paths)
-        return -1;
 
-    for (size_t i = 0; i < system->search_path_count; i++) {
-        if (strcmp(system->search_paths[i], path) == 0) {
-            lv_free((void **) &system->search_paths[i]);
-            system->search_paths[i] = system->search_paths[--system->search_path_count];
+    for (int i = 0; i < system->search_paths.count; i++) {
+        if (strcmp(*(char **)lv_darray_get(&system->search_paths, i), path) == 0) {
+            lv_free((void **) lv_darray_get(&system->search_paths, i));
+            /* 将最后一个元素移到当前位置 */
+            char **last = (char **)lv_darray_get(&system->search_paths, system->search_paths.count - 1);
+            char **cur = (char **)lv_darray_get(&system->search_paths, i);
+            *cur = *last;
+            lv_darray_pop(&system->search_paths);
             return 0;
         }
     }
@@ -1221,8 +1215,8 @@ char **lv_plugin_system_get_search_paths(lvPluginSystem *system, size_t *count) 
     if (!system || !count)
         return NULL;
 
-    *count = system->search_path_count;
-    return system->search_paths;
+    *count = (size_t)system->search_paths.count;
+    return (char **)system->search_paths.data;
 }
 
 /* ============ 自动加载 ============ */
@@ -1338,8 +1332,8 @@ int lv_plugin_system_autoload_all(lvPluginSystem *system) {
         return -1;
 
     /* 遍历所有搜索路径，自动加载其中的插件（含版本兼容性检查） */
-    for (size_t i = 0; i < system->search_path_count; i++) {
-        lv_plugin_system_autoload(system, system->search_paths[i]);
+    for (int i = 0; i < system->search_paths.count; i++) {
+        lv_plugin_system_autoload(system, *(char **)lv_darray_get(&system->search_paths, i));
     }
 
     return 0;

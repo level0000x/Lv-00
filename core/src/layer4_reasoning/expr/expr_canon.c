@@ -598,7 +598,7 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
     if (!expr)
         return NULL;
     if (expr->term_count == 0) {
-        char *zero = (char *) malloc(2);
+        char *zero = (char *) lv_malloc(2);
         if (zero)
             memcpy(zero, "0", 2);
         return zero;
@@ -607,7 +607,7 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
     /* 使用动态增长的缓冲区。返回值由调用者用 free() 释放。 */
     size_t buf_cap = 256;
     size_t buf_len = 0;
-    char *buf = (char *) malloc(buf_cap);
+    char *buf = (char *) lv_malloc(buf_cap);
     if (!buf)
         return NULL;
     buf[0] = '\0';
@@ -663,7 +663,7 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
                     pos += w;
                     remain -= (size_t) w;
                 }
-                free(cs);
+                lv_free((void **)&(cs));
             }
             lv_rational_destroy(&abs_coeff);
         } else {
@@ -679,7 +679,7 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
                         pos += w;
                         remain -= (size_t) w;
                     }
-                    free(cs);
+                    lv_free((void **)&(cs));
                 }
             }
             lv_rational_destroy(&abs_coeff);
@@ -729,7 +729,7 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
             buf_cap *= 2;
             char *new_buf = (char *) lv_realloc(buf, buf_cap);
             if (!new_buf) {
-                free(buf);
+                lv_free((void **)&(buf));
                 return NULL;
             }
             buf = new_buf;

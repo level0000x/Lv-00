@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_json.h"
 #include "lv/proof.h"
 
 #include "lv_utils.h"
@@ -374,24 +375,10 @@ char *proof_widget_get_dependency_graph(const ProofNavigator *navigator) {
     if (!navigator)
         return NULL;
 
-    size_t cap = JSON_BUF_INIT_SIZE;
-    char *buf = (char *) lv_malloc(cap);
-    if (!buf)
-        return NULL;
-
-    int n = snprintf(buf, cap, "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
-    if (n < 0 || (size_t) n >= cap) {
-        cap = (size_t) n + 1;
-        char *nb = (char *) lv_realloc(buf, cap);
-        if (!nb) {
-            lv_free_ptr(buf);
-            return NULL;
-        }
-        buf = nb;
-        snprintf(buf, cap, "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
-    }
-
-    return buf;
+    lvJsonBuf _jb;
+    lv_json_buf_init(&_jb, 64);
+    lv_json_buf_append_raw(&_jb, "{\"type\":\"dependency_graph\",\"nodes\":[],\"edges\":[]}");
+    return lv_json_buf_finalize(&_jb);
 }
 
 /* ================================================================

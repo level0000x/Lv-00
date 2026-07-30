@@ -40,11 +40,9 @@ typedef struct {
 
 /** 工作队列：存储待处理的 S-多项式对 */
 typedef struct WorkQueue {
-    SPair *pairs; /**< 对数组 */
-    int size;     /**< 当前队列中的对数 */
-    int capacity; /**< 队列容量 */
-    int head;     /**< 队列头部索引（出队位置） */
-    int tail;     /**< 队列尾部索引（入队位置） */
+    lvDArray pairs; /**< 对数组 (SPair) */
+    int head;       /**< 队列头部索引（出队位置） */
+    int tail;       /**< 队列尾部索引（入队位置） */
 } WorkQueue;
 
 /** 多项式项：单项式 c * x^a * y^b * ... */
@@ -56,9 +54,7 @@ typedef struct {
 
 /** 简化多项式表示（用于内部计算） */
 typedef struct {
-    PolyTerm *terms;   /**< 项数组 */
-    int term_count;    /**< 项数 */
-    int term_capacity; /**< 项容量 */
+    lvDArray terms;    /**< 项数组 (PolyTerm) */
 } SimplePoly;
 
 /** 工作线程参数 */
@@ -81,16 +77,9 @@ typedef struct {
 
 /** 初始化工作队列，成功返回0，失败返回-1 */
 static int work_queue_init(WorkQueue *q, int initial_capacity) {
-    q->pairs = (SPair *) lv_calloc((size_t) initial_capacity, sizeof(SPair));
-    if (!q->pairs) {
-        q->size = 0;
-        q->capacity = 0;
-        q->head = 0;
-        q->tail = 0;
+    lv_darray_init(&q->pairs, sizeof(SPair));
+    if (!lv_darray_reserve(&q->pairs, initial_capacity))
         return -1;
-    }
-    q->size = 0;
-    q->capacity = initial_capacity;
     q->head = 0;
     q->tail = 0;
     return 0;
@@ -99,10 +88,7 @@ static int work_queue_init(WorkQueue *q, int initial_capacity) {
 /** 销毁工作队列 */
 static void work_queue_destroy(WorkQueue *q) {
     if (q) {
-        lv_free((void **) &q->pairs);
-        q->pairs = NULL;
-        q->size = 0;
-        q->capacity = 0;
+        lv_darray_free(&q->pairs);
         q->head = 0;
         q->tail = 0;
     }
@@ -110,47 +96,30 @@ static void work_queue_destroy(WorkQueue *q) {
 
 /** 向队列添加一个 S-多项式对 */
 static int work_queue_push(WorkQueue *q, int i, int j) {
-    if (q->size >= q->capacity) {
-        /* 溢出检查：确保 capacity * 2 不超过 INT_MAX */
-        if (q->capacity > INT_MAX / 2)
-            return -1;
-        int new_cap = q->capacity * 2;
-        SPair *new_pairs = (SPair *) lv_realloc(q->pairs, (size_t) new_cap * sizeof(SPair));
-        if (!new_pairs)
-            return -1;
-        q->pairs = new_pairs;
-        /* 环形缓冲区扩容：将数据从 head 到 tail 复制到开头 */
-        if (q->head > q->tail) {
-            int count = q->size;
-            memmove(q->pairs, q->pairs + q->head, (size_t) count * sizeof(SPair));
-            q->head = 0;
-            q->tail = count;
-        }
-        q->capacity = new_cap;
-    }
-    q->pairs[q->tail] = (SPair) {i, j};
-    q->tail = (q->tail + 1) % q->capacity;
-    q->size++;
+    SPair pair = {i, j};
+    if (lv_darray_push(&q->pairs, &pair) < 0)
+        return -1;
+    q->tail = q->pairs.count;
     return 0;
 }
 
-/** 从队列取出一个 S-多项式对（线程安全版本使用简单自旋） */
+/** 从队列取出一个 S-多项式对 */
 static int work_queue_pop(WorkQueue *q, SPair *out) {
-    if (q->size <= 0)
+    if (q->pairs.count <= q->head)
         return -1;
-    *out = q->pairs[q->head];
-    q->head = (q->head + 1) % q->capacity;
-    q->size--;
+    SPair *p = (SPair *)lv_darray_get(&q->pairs, q->head);
+    *out = *p;
+    q->head++;
     return 0;
 }
 
 /** 从其他线程的队列窃取工作（从尾部取） */
 static int work_queue_steal(WorkQueue *q, SPair *out) {
-    if (q->size <= 0)
+    if (q->pairs.count <= q->head)
         return -1;
-    q->tail = (q->tail - 1 + q->capacity) % q->capacity;
-    *out = q->pairs[q->tail];
-    q->size--;
+    SPair *p = (SPair *)lv_darray_get(&q->pairs, q->pairs.count - 1);
+    *out = *p;
+    q->pairs.count--;
     return 0;
 }
 
@@ -160,52 +129,38 @@ static int work_queue_steal(WorkQueue *q, SPair *out) {
 
 /** 创建空多项式，成功返回true */
 static bool simple_poly_create(SimplePoly *out, int initial_capacity) {
-    out->terms = (PolyTerm *) lv_calloc((size_t) initial_capacity, sizeof(PolyTerm));
-    if (!out->terms) {
-        out->term_count = 0;
-        out->term_capacity = 0;
-        return false;
-    }
-    out->term_count = 0;
-    out->term_capacity = initial_capacity;
-    return true;
+    lv_darray_init(&out->terms, sizeof(PolyTerm));
+    return lv_darray_reserve(&out->terms, initial_capacity);
 }
 
 /** 销毁多项式 */
 static void simple_poly_destroy(SimplePoly *p) {
     if (!p)
         return;
-    for (int i = 0; i < p->term_count; i++) {
-        lv_free((void **) &p->terms[i].exponents);
+    for (int i = 0; i < p->terms.count; i++) {
+        PolyTerm *pt = (PolyTerm *)lv_darray_get(&p->terms, i);
+        lv_free((void **) &pt->exponents);
     }
-    lv_free((void **) &p->terms);
-    p->terms = NULL;
-    p->term_count = 0;
-    p->term_capacity = 0;
+    lv_darray_free(&p->terms);
 }
 
 /** 添加一个项到多项式 */
 static int simple_poly_add_term(SimplePoly *p, double coeff, const int *exponents, int var_count) {
-    if (p->term_count >= p->term_capacity) {
-        int new_cap = (p->term_capacity == 0) ? 8 : p->term_capacity * 2;
-        PolyTerm *new_terms = (PolyTerm *) lv_realloc(p->terms, (size_t) new_cap * sizeof(PolyTerm));
-        if (!new_terms)
-            return -1;
-        p->terms = new_terms;
-        p->term_capacity = new_cap;
-    }
-    int idx = p->term_count;
-    p->terms[idx].coeff = coeff;
-    p->terms[idx].var_count = var_count;
+    PolyTerm pt;
+    pt.coeff = coeff;
+    pt.var_count = var_count;
     if (var_count > 0) {
-        p->terms[idx].exponents = (int *) lv_malloc((size_t) var_count * sizeof(int));
-        if (!p->terms[idx].exponents)
+        pt.exponents = (int *) lv_malloc((size_t) var_count * sizeof(int));
+        if (!pt.exponents)
             return -1;
-        memcpy(p->terms[idx].exponents, exponents, (size_t) var_count * sizeof(int));
+        memcpy(pt.exponents, exponents, (size_t) var_count * sizeof(int));
     } else {
-        p->terms[idx].exponents = NULL;
+        pt.exponents = NULL;
     }
-    p->term_count++;
+    if (lv_darray_push(&p->terms, &pt) < 0) {
+        lv_free((void **) &pt.exponents);
+        return -1;
+    }
     return 0;
 }
 

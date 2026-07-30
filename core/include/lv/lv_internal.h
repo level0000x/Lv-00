@@ -202,6 +202,28 @@ extern void lv_log_message(int level, const char *file, int line, const char *fm
     } while (0)
 
 /* ================================================================
+ * 便捷错误返回宏（lv_ERROR_RETURN 的便捷别名）
+ *
+ * 常用返回类型的快捷写法，避免每次指定 ret_val。
+ * - lv_RETURN_ERROR:    返回 -1（int 函数常用）
+ * - lv_RETURN_ERROR_NULL: 返回 NULL（指针函数常用）
+ * - lv_RETURN_ERROR_BOOL: 返回 false（bool 函数常用）
+ * - lv_RETURN_ERROR_VAL:  返回任意值
+ * ================================================================ */
+
+#define lv_RETURN_ERROR(code, fmt, ...) \
+    lv_ERROR_RETURN((code), -1, (fmt), ##__VA_ARGS__)
+
+#define lv_RETURN_ERROR_NULL(code, fmt, ...) \
+    lv_ERROR_RETURN((code), NULL, (fmt), ##__VA_ARGS__)
+
+#define lv_RETURN_ERROR_BOOL(code, fmt, ...) \
+    lv_ERROR_RETURN((code), false, (fmt), ##__VA_ARGS__)
+
+#define lv_RETURN_ERROR_VAL(code, val, fmt, ...) \
+    lv_ERROR_RETURN((code), (val), (fmt), ##__VA_ARGS__)
+
+/* ================================================================
  * 安全整数加法宏
  * ================================================================ */
 

@@ -10,6 +10,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "lv/lv_config.h"
+#include "lv/lv_utils.h"
 
 #include "constraint_graph.h"
 
@@ -106,9 +107,7 @@ typedef struct HighDimAbstractBlock {
 
 /* ── High-Dim Manager ── */
 typedef struct HighDimManager {
-    HighDimAbstractBlock *blocks; /* inline array, not pointer array */
-    int block_count;
-    int block_capacity;
+    lvDArray blocks; /**< 动态数组，元素类型：HighDimAbstractBlock */
     int perspective_depth;
     int perspective_stack[HIGH_DIM_MAX_DEPTH];
 } HighDimManager;

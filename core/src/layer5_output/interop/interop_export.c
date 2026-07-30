@@ -18,6 +18,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/interop.h"
+#include "lv/lv_json.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -2318,10 +2319,16 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
     if (!fp)
         return lv_ERROR_IO;
 
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, 4096)) {
+        fclose(fp);
+        return lv_ERROR_OUT_OF_MEMORY;
+    }
+
     /* R02：基于实际图数据动态生成GeoJSON，而非硬编码占位数据 */
-    fprintf(fp, "{\n");
-    fprintf(fp, "  \"type\": \"FeatureCollection\",\n");
-    fprintf(fp, "  \"features\": [\n");
+    lv_json_buf_append_raw(&buf, "{\n");
+    lv_json_buf_append_raw(&buf, "  \"type\": \"FeatureCollection\",\n");
+    lv_json_buf_append_raw(&buf, "  \"features\": [\n");
 
     int feature_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
@@ -2332,7 +2339,7 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
         /* 仅导出点类型节点（线段和区域的坐标较为复杂） */
         if (node->type == GEOM_POINT && node->coord_count >= 2 && node->symbolic_coords != NULL) {
             if (feature_count > 0) {
-                fprintf(fp, ",\n");
+                lv_json_buf_append_raw(&buf, ",\n");
             }
             /* 获取有理数坐标值，转为double */
             double x_val = 0.0, y_val = 0.0;
@@ -2344,17 +2351,17 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
             if (cy)
                 y_val = symbolic_coord_to_double(cy);
 
-            fprintf(fp, "    {\n");
-            fprintf(fp, "      \"type\": \"Feature\",\n");
-            fprintf(fp, "      \"geometry\": {\n");
-            fprintf(fp, "        \"type\": \"Point\",\n");
-            fprintf(fp, "        \"coordinates\": [%.15g, %.15g]\n", x_val, y_val);
-            fprintf(fp, "      },\n");
-            fprintf(fp, "      \"properties\": {\n");
-            fprintf(fp, "        \"id\": %d,\n", node->id);
-            fprintf(fp, "        \"type\": \"point\"\n");
-            fprintf(fp, "      }\n");
-            fprintf(fp, "    }");
+            lv_json_buf_append_raw(&buf, "    {\n");
+            lv_json_buf_append_raw(&buf, "      \"type\": \"Feature\",\n");
+            lv_json_buf_append_raw(&buf, "      \"geometry\": {\n");
+            lv_json_buf_append_fmt(&buf, "        \"type\": \"Point\",\n");
+            lv_json_buf_append_fmt(&buf, "        \"coordinates\": [%.15g, %.15g]\n", x_val, y_val);
+            lv_json_buf_append_raw(&buf, "      },\n");
+            lv_json_buf_append_raw(&buf, "      \"properties\": {\n");
+            lv_json_buf_append_fmt(&buf, "        \"id\": %d,\n", node->id);
+            lv_json_buf_append_raw(&buf, "        \"type\": \"point\"\n");
+            lv_json_buf_append_raw(&buf, "      }\n");
+            lv_json_buf_append_raw(&buf, "    }");
             feature_count++;
         }
     }
@@ -2395,26 +2402,31 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
 
         if (endpoint_found >= 2) {
             if (feature_count > 0)
-                fprintf(fp, ",\n");
-            fprintf(fp, "    {\n");
-            fprintf(fp, "      \"type\": \"Feature\",\n");
-            fprintf(fp, "      \"geometry\": {\n");
-            fprintf(fp, "        \"type\": \"LineString\",\n");
-            fprintf(fp, "        \"coordinates\": [[%.15g, %.15g], [%.15g, %.15g]]\n", endpoints[0], endpoints[1],
-                    endpoints[2], endpoints[3]);
-            fprintf(fp, "      },\n");
-            fprintf(fp, "      \"properties\": {\n");
-            fprintf(fp, "        \"id\": %d,\n", node->id);
-            fprintf(fp, "        \"type\": \"line_segment\"\n");
-            fprintf(fp, "      }\n");
-            fprintf(fp, "    }");
+                lv_json_buf_append_raw(&buf, ",\n");
+            lv_json_buf_append_raw(&buf, "    {\n");
+            lv_json_buf_append_raw(&buf, "      \"type\": \"Feature\",\n");
+            lv_json_buf_append_raw(&buf, "      \"geometry\": {\n");
+            lv_json_buf_append_raw(&buf, "        \"type\": \"LineString\",\n");
+            lv_json_buf_append_fmt(&buf, "        \"coordinates\": [[%.15g, %.15g], [%.15g, %.15g]]\n", endpoints[0],
+                                   endpoints[1], endpoints[2], endpoints[3]);
+            lv_json_buf_append_raw(&buf, "      },\n");
+            lv_json_buf_append_raw(&buf, "      \"properties\": {\n");
+            lv_json_buf_append_fmt(&buf, "        \"id\": %d,\n", node->id);
+            lv_json_buf_append_raw(&buf, "        \"type\": \"line_segment\"\n");
+            lv_json_buf_append_raw(&buf, "      }\n");
+            lv_json_buf_append_raw(&buf, "    }");
             feature_count++;
         }
     }
 
-    fprintf(fp, "\n  ]\n");
-    fprintf(fp, "}\n");
+    lv_json_buf_append_raw(&buf, "\n  ]\n");
+    lv_json_buf_append_raw(&buf, "}\n");
 
+    char *json = lv_json_buf_finalize(&buf);
+    if (json) {
+        fputs(json, fp);
+        lv_free(json);
+    }
     fclose(fp);
     return lv_OK;
 }

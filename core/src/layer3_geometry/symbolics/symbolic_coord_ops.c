@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file symbolic_coord_ops.c
  * @brief SymbolicCoord 四类型算术运算与比较操作
  *
@@ -2049,7 +2049,7 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             /* P(-x): negate odd-degree coefficients */
             if (a->minimal_poly.degree >= 0) {
                 neg_poly.degree = a->minimal_poly.degree;
-                neg_poly.coeffs = malloc((neg_poly.degree + 1) * sizeof(mpz_t));
+                neg_poly.coeffs = lv_malloc((neg_poly.degree + 1) * sizeof(mpz_t));
                 if (!neg_poly.coeffs) {
                     mpz_poly_clear(&neg_poly);
                     return NULL;
@@ -2426,7 +2426,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                     mpz_poly_t sq_poly;
                     mpz_poly_init(&sq_poly);
                     sq_poly.degree = 2;
-                    sq_poly.coeffs = malloc(3 * sizeof(mpz_t));
+                    sq_poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
                     if (sq_poly.coeffs) {
                         mpz_init(sq_poly.coeffs[0]); /* c0^2 */
                         mpz_init(sq_poly.coeffs[1]); /* c1^2 - 2*c0*c2 */
@@ -2497,7 +2497,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                     mpz_poly_t check_poly;
                     mpz_poly_init(&check_poly);
                     check_poly.degree = 1;
-                    check_poly.coeffs = malloc(2 * sizeof(mpz_t));
+                    check_poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                     if (check_poly.coeffs) {
                         mpz_init(check_poly.coeffs[0]);
                         mpz_init(check_poly.coeffs[1]);
@@ -2544,7 +2544,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
             mpz_poly_t poly;
             mpz_poly_init(&poly);
             poly.degree = 1;
-            poly.coeffs = malloc(2 * sizeof(mpz_t));
+            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
             if (!poly.coeffs) {
                 mpz_poly_clear(&poly);
                 return NULL;
@@ -2579,7 +2579,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 1;
-                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     return NULL;
@@ -2943,7 +2943,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 4;
-                poly.coeffs = malloc(5 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(5 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     return NULL;
@@ -3061,7 +3061,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             mpz_poly_t sqrt_poly;
             mpz_poly_init(&sqrt_poly);
             sqrt_poly.degree = new_deg;
-            sqrt_poly.coeffs = malloc((new_deg + 1) * sizeof(mpz_t));
+            sqrt_poly.coeffs = lv_malloc((new_deg + 1) * sizeof(mpz_t));
             if (!sqrt_poly.coeffs) {
                 mpz_poly_clear(&sqrt_poly);
                 return NULL;
@@ -3110,7 +3110,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 1;
-                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     return NULL;

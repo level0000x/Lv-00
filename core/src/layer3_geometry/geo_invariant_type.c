@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_invariant_type.c
  * @brief Implementation of geometric invariant types
  *
@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv/lv_json.h"
 #include "lv_utils.h"
 
 /* ========================================================================
@@ -206,14 +207,17 @@ int geo_invariant_attach_to_type(GeoInvariant *inv, int type_id, const char *reg
     if (type_id < 0)
         return -1;
 
-    /* Store the type attachment as JSON metadata */
+    /* Store the type attachment as JSON metadata using lvJsonBuf */
     size_t region_len = strlen(region_name);
-    size_t meta_capacity = 128 + region_len;
-    char *meta = (char *) lv_malloc(meta_capacity);
-    if (!meta)
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, 128 + region_len))
         return -1;
 
-    snprintf(meta, meta_capacity, "{\"type_id\": %d, \"region\": \"%s\"}", type_id, region_name);
+    lv_json_buf_append_fmt(&buf, "{\"type_id\": %d, \"region\": \"%s\"}", type_id, region_name);
+
+    char *meta = lv_json_buf_finalize(&buf);
+    if (!meta)
+        return -1;
 
     /* Free existing metadata if any */
     if (inv->metadata) {

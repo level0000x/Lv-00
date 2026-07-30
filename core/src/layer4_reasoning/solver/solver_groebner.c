@@ -1010,7 +1010,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
             mpz_poly_t poly;
             mpz_poly_init(&poly);
             poly.degree = best_degree;
-            poly.coeffs = malloc((best_degree + 1) * sizeof(mpz_t));
+            poly.coeffs = lv_malloc((best_degree + 1) * sizeof(mpz_t));
             if (!poly.coeffs) {
                 mpz_poly_clear(&poly);
                 continue;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file nt_polynomial.c
  * @brief Polynomial arithmetic with arbitrary-precision integer coefficients
  *
@@ -80,7 +80,7 @@ static void nt_poly_normalize(lvPoly *p) {
  * ============================================================ */
 
 lv_PUBLIC_API lvPoly *nt_poly_create(void) {
-    lvPoly *p = (lvPoly *) calloc(1, sizeof(lvPoly));
+    lvPoly *p = (lvPoly *) lv_calloc(1, sizeof(lvPoly));
     if (!p)
         return NULL;
     p->coeffs = NULL;
@@ -96,9 +96,9 @@ lv_PUBLIC_API void nt_poly_destroy(lvPoly *p) {
         for (int i = 0; i < p->capacity; i++) {
             mpz_clear(p->coeffs[i]);
         }
-        free(p->coeffs);
+        lv_free((void **) &p->coeffs);
     }
-    free(p);
+    lv_free((void **) &p);
 }
 
 /* ============================================================
@@ -233,7 +233,7 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m) 
     /* Polynomial long division: compute f mod m
      * We work on a copy of f's coefficients */
     int rem_deg = f->degree;
-    mpz_t *rem = (mpz_t *) malloc((size_t) (rem_deg + 1) * sizeof(mpz_t));
+    mpz_t *rem = (mpz_t *) lv_malloc((size_t) (rem_deg + 1) * sizeof(mpz_t));
     if (!rem)
         return -1;
 
@@ -271,7 +271,7 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m) 
             /* cleanup on failure */
             for (int i = 0; i <= f->degree; i++)
                 mpz_clear(rem[i]);
-            free(rem);
+            lv_free((void **) &rem);
             mpz_clear(lead_m);
             mpz_clear(factor);
             mpz_clear(tmp);
@@ -287,7 +287,7 @@ lv_PUBLIC_API int nt_poly_mod(lvPoly *result, const lvPoly *f, const lvPoly *m) 
     for (int i = 0; i <= f->degree; i++) {
         mpz_clear(rem[i]);
     }
-    free(rem);
+    lv_free((void **) &rem);
     mpz_clear(lead_m);
     mpz_clear(factor);
     mpz_clear(tmp);

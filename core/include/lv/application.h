@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "lv/lv_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,9 +57,7 @@ typedef struct lvVerifyReport {
 
 typedef struct lvApplication {
     lvAppConfig config;
-    lvSession **sessions;
-    int session_count;
-    int session_capacity;
+    lvDArray sessions; /* lvDArray<lvSession*> */
     void *verifier; /* lvMetaVerifier* */
     int total_sessions_run;
     int total_sessions_passed;

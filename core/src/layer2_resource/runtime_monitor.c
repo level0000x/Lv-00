@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file runtime_monitor.c
  * @brief 运行时监控与日志系统实现
  *
@@ -17,7 +17,9 @@
 #include <string.h>
 #include <time.h>
 
+#include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv_internal.h"
 
 #include "config.h" /* lv_LOCALTIME */
 #include "lv_utils.h"
@@ -147,7 +149,7 @@ void lv_log_set_targets(lvLogTarget targets) {
 
 bool lv_log_set_file(const char *path) {
     if (!path) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_log_set_file: path is NULL");
     }
 
     lv_mutex_lock(&g_log_system.mutex);
@@ -156,7 +158,7 @@ bool lv_log_set_file(const char *path) {
     FILE *new_file = fopen(path, "a");
     if (!new_file) {
         lv_mutex_unlock(&g_log_system.mutex);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_log_set_file: fopen failed");
     }
 
     /* 新文件打开成功，关闭旧文件 */
@@ -381,12 +383,12 @@ void lv_perf_shutdown(void) {
 
 lvTimer *lv_timer_create(const char *name) {
     if (!g_perf_system.initialized || g_perf_system.timer_count >= MAX_TIMERS) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_timer_create: perf system not initialized or full");
     }
 
     lvTimer *timer = (lvTimer *) lv_calloc(1, sizeof(lvTimer));
     if (!timer) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_timer_create: calloc timer failed");
     }
 
     if (name) {
@@ -493,12 +495,12 @@ int64_t lv_timer_elapsed_ns(const lvTimer *timer) {
 
 lvPerfStats *lv_perf_stats_create(const char *name) {
     if (!g_perf_system.initialized || g_perf_system.stats_count >= MAX_PERF_STATS) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_perf_stats_create: perf system not initialized or full");
     }
 
     lvPerfStats *stats = (lvPerfStats *) lv_calloc(1, sizeof(lvPerfStats));
     if (!stats) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_perf_stats_create: calloc stats failed");
     }
 
     if (name) {
@@ -740,14 +742,14 @@ static double get_cpu_usage_percent(void) {
 lvHealthReport *lv_runtime_health_check(void) {
     lvHealthReport *report = (lvHealthReport *) lv_calloc(1, sizeof(lvHealthReport));
     if (!report) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_runtime_health_check: calloc report failed");
     }
 
     report->check_count = 5;
     report->checks = (lvHealthCheck *) lv_calloc(report->check_count, sizeof(lvHealthCheck));
     if (!report->checks) {
         lv_free((void **) &report);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_runtime_health_check: calloc checks failed");
     }
 
     report->timestamp_ms = lv_get_time_ns() / 1000000;
@@ -864,7 +866,7 @@ void lv_health_report_destroy(lvHealthReport *report) {
 lvDiagnostics *lv_diagnostics_generate(void) {
     lvDiagnostics *diag = (lvDiagnostics *) lv_calloc(1, sizeof(lvDiagnostics));
     if (!diag) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_diagnostics_generate: calloc diag failed");
     }
 
     /* 基本信息 */
@@ -921,12 +923,12 @@ void lv_diagnostics_destroy(lvDiagnostics *diag) {
 
 bool lv_diagnostics_write_file(const lvDiagnostics *diag, const char *path) {
     if (!diag || !path) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_diagnostics_write_file: NULL diag or path");
     }
 
     FILE *fp = fopen(path, "w");
     if (!fp) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_diagnostics_write_file: fopen failed");
     }
 
     fprintf(fp, "========== Lv-00 Diagnostics Report ==========\n\n");
@@ -961,50 +963,41 @@ bool lv_diagnostics_write_file(const lvDiagnostics *diag, const char *path) {
 
 char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
     if (!diag) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_diagnostics_to_json: diag is NULL");
     }
 
-    char *json = (char *) lv_malloc(4096);
-    if (!json) {
-        return NULL;
-    }
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, 4096))
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_diagnostics_to_json: json_buf_init failed");
 
-    snprintf(json, 4096,
-             "{"
-             "\"version\":\"%s\","
-             "\"build_date\":\"%s\","
-             "\"uptime_ms\":%lld,"
-             "\"memory\":{"
-             "\"total\":%llu,"
-             "\"peak\":%llu,"
-             "\"alloc_count\":%llu,"
-             "\"free_count\":%llu"
-             "},"
-             "\"performance\":{"
-             "\"proof_count\":%llu,"
-             "\"solve_count\":%llu,"
-             "\"avg_proof_time_ms\":%.2f,"
-             "\"avg_solve_time_ms\":%.2f"
-             "},"
-             "\"errors\":{"
-             "\"count\":%llu,"
-             "\"warning_count\":%llu,"
-             "\"last_error\":\"%s\""
-             "},"
-             "\"system\":{"
-             "\"os\":\"%s\","
-             "\"cpu_cores\":%u,"
-             "\"total_memory_mb\":%u"
-             "}"
-             "}",
-             diag->version, diag->build_date, (long long) diag->uptime_ms, (unsigned long long) diag->memory_total,
-             (unsigned long long) diag->memory_peak, (unsigned long long) diag->alloc_count,
-             (unsigned long long) diag->free_count, (unsigned long long) diag->proof_count,
-             (unsigned long long) diag->solve_count, diag->avg_proof_time_ms, diag->avg_solve_time_ms,
-             (unsigned long long) diag->error_count, (unsigned long long) diag->warning_count, diag->last_error,
-             diag->os_info, diag->cpu_cores, diag->total_memory_mb);
+    lv_json_buf_append_raw(&buf, "{");
+    lv_json_buf_append_fmt(&buf, "\"version\":\"%s\",", diag->version);
+    lv_json_buf_append_fmt(&buf, "\"build_date\":\"%s\",", diag->build_date);
+    lv_json_buf_append_fmt(&buf, "\"uptime_ms\":%lld,", (long long) diag->uptime_ms);
+    lv_json_buf_append_raw(&buf, "\"memory\":{");
+    lv_json_buf_append_fmt(&buf, "\"total\":%llu,", (unsigned long long) diag->memory_total);
+    lv_json_buf_append_fmt(&buf, "\"peak\":%llu,", (unsigned long long) diag->memory_peak);
+    lv_json_buf_append_fmt(&buf, "\"alloc_count\":%llu,", (unsigned long long) diag->alloc_count);
+    lv_json_buf_append_fmt(&buf, "\"free_count\":%llu", (unsigned long long) diag->free_count);
+    lv_json_buf_append_raw(&buf, "},");
+    lv_json_buf_append_raw(&buf, "\"performance\":{");
+    lv_json_buf_append_fmt(&buf, "\"proof_count\":%llu,", (unsigned long long) diag->proof_count);
+    lv_json_buf_append_fmt(&buf, "\"solve_count\":%llu,", (unsigned long long) diag->solve_count);
+    lv_json_buf_append_fmt(&buf, "\"avg_proof_time_ms\":%.2f,", diag->avg_proof_time_ms);
+    lv_json_buf_append_fmt(&buf, "\"avg_solve_time_ms\":%.2f", diag->avg_solve_time_ms);
+    lv_json_buf_append_raw(&buf, "},");
+    lv_json_buf_append_raw(&buf, "\"errors\":{");
+    lv_json_buf_append_fmt(&buf, "\"count\":%llu,", (unsigned long long) diag->error_count);
+    lv_json_buf_append_fmt(&buf, "\"warning_count\":%llu,", (unsigned long long) diag->warning_count);
+    lv_json_buf_append_fmt(&buf, "\"last_error\":\"%s\"", diag->last_error);
+    lv_json_buf_append_raw(&buf, "},");
+    lv_json_buf_append_raw(&buf, "\"system\":{");
+    lv_json_buf_append_fmt(&buf, "\"os\":\"%s\",", diag->os_info);
+    lv_json_buf_append_fmt(&buf, "\"cpu_cores\":%u,", diag->cpu_cores);
+    lv_json_buf_append_fmt(&buf, "\"total_memory_mb\":%u", diag->total_memory_mb);
+    lv_json_buf_append_raw(&buf, "}}");
 
-    return json;
+    return lv_json_buf_finalize(&buf);
 }
 
 /* ============== 事件追踪实现 ============== */
@@ -1039,7 +1032,7 @@ bool lv_event_trace_init(uint32_t max_events) {
     g_event_system.events = (lvEventRecord *) lv_calloc(actual_max, sizeof(lvEventRecord));
     if (!g_event_system.events) {
         lv_mutex_unlock(&g_event_init_mutex);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lv_event_trace_init: calloc events failed");
     }
     g_event_system.max_events = actual_max;
     lv_mutex_init(&g_event_system.mutex);
@@ -1083,7 +1076,7 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
 
 int lv_event_trace_begin(lvEventType type, const char *name) {
     if (!g_event_system.initialized || g_event_system.event_count >= g_event_system.max_events) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_event_trace_begin: event system not initialized or full");
     }
 
     lv_mutex_lock(&g_event_system.mutex);
@@ -1150,17 +1143,19 @@ void lv_event_trace_clear(void) {
 
 bool lv_event_trace_export_chrome(const char *path) {
     if (!g_event_system.initialized || !path) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_event_trace_export_chrome: not initialized or NULL path");
     }
-
-    FILE *fp = fopen(path, "w");
-    if (!fp) {
-        return false;
-    }
-
-    fprintf(fp, "[\n");
 
     lv_mutex_lock(&g_event_system.mutex);
+
+    /* 使用 lvJsonBuf 构建 JSON */
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, (size_t) g_event_system.event_count * 256 + 64)) {
+        lv_mutex_unlock(&g_event_system.mutex);
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lv_event_trace_export_chrome: json_buf_init failed");
+    }
+
+    lv_json_buf_append_raw(&buf, "[\n");
 
     for (uint32_t i = 0; i < g_event_system.event_count; i++) {
         lvEventRecord *event = &g_event_system.events[i];
@@ -1180,23 +1175,30 @@ bool lv_event_trace_export_chrome(const char *path) {
                 break;
         }
 
-        fprintf(fp, "  {\"name\":\"%s\",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}",
-                event->name,
-                event->type == EVENT_TYPE_PROOF_START || event->type == EVENT_TYPE_PROOF_END ? "proof" : "other",
-                type_str, (long long) (event->timestamp_ns / 1000), (long long) (event->duration_ns / 1000),
-                event->thread_id);
+        const char *cat = (event->type == EVENT_TYPE_PROOF_START || event->type == EVENT_TYPE_PROOF_END) ? "proof" : "other";
 
-        if (i < g_event_system.event_count - 1) {
-            fprintf(fp, ",\n");
-        } else {
-            fprintf(fp, "\n");
-        }
+        lv_json_buf_append_fmt(&buf,
+                     "  {\"name\":\"%s\",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}%s\n",
+                     event->name, cat, type_str,
+                     (long long) (event->timestamp_ns / 1000),
+                     (long long) (event->duration_ns / 1000),
+                     event->thread_id,
+                     (i < g_event_system.event_count - 1) ? "," : "");
     }
 
     lv_mutex_unlock(&g_event_system.mutex);
 
-    fprintf(fp, "]\n");
+    lv_json_buf_append_raw(&buf, "]\n");
+
+    /* 写入文件 */
+    FILE *fp = fopen(path, "w");
+    if (!fp) {
+        lv_json_buf_free(&buf);
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_event_trace_export_chrome: fopen failed");
+    }
+    fwrite(buf.buffer, 1, buf.pos, fp);
     fclose(fp);
 
+    lv_json_buf_free(&buf);
     return true;
 }

@@ -28,7 +28,7 @@
  * @brief Allocate a new expression node with zero-initialized fields
  */
 static lvSymExpr *sym_expr_alloc(lvSymExprKind kind) {
-    lvSymExpr *expr = (lvSymExpr *) calloc(1, sizeof(lvSymExpr));
+    lvSymExpr *expr = (lvSymExpr *) lv_calloc(1, sizeof(lvSymExpr));
     if (!expr)
         return NULL;
     expr->kind = kind;
@@ -55,16 +55,16 @@ static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
     if (expr->var_name) {
         copy->var_name = lv_strdup_safe(expr->var_name);
         if (!copy->var_name) {
-            free(copy);
+            lv_free((void **)&(copy));
             return NULL;
         }
     }
 
     if (expr->child_count > 0 && expr->children) {
-        copy->children = (lvSymExpr **) calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
+        copy->children = (lvSymExpr **) lv_calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
         if (!copy->children) {
-            free(copy->var_name);
-            free(copy);
+            lv_free((void **)&(copy->var_name));
+            lv_free((void **)&(copy));
             return NULL;
         }
         copy->child_count = expr->child_count;
@@ -75,9 +75,9 @@ static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
                 for (int j = 0; j < i; j++) {
                     sym_expr_destroy(copy->children[j]);
                 }
-                free(copy->children);
-                free(copy->var_name);
-                free(copy);
+                lv_free((void **)&(copy->children));
+                lv_free((void **)&(copy->var_name));
+                lv_free((void **)&(copy));
                 return NULL;
             }
         }
@@ -129,7 +129,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_create_var(const char *var_name) {
 
     expr->var_name = lv_strdup_safe(var_name);
     if (!expr->var_name) {
-        free(expr);
+        lv_free((void **)&(expr));
         return NULL;
     }
     return expr;
@@ -153,9 +153,9 @@ lv_PUBLIC_API lvSymExpr *sym_expr_create_binary(lvSymExprKind kind, lvSymExpr *l
     }
 
     expr->child_count = 2;
-    expr->children = (lvSymExpr **) calloc(2, sizeof(lvSymExpr *));
+    expr->children = (lvSymExpr **) lv_calloc(2, sizeof(lvSymExpr *));
     if (!expr->children) {
-        free(expr);
+        lv_free((void **)&(expr));
         sym_expr_destroy(left);
         sym_expr_destroy(right);
         return NULL;
@@ -179,9 +179,9 @@ lv_PUBLIC_API lvSymExpr *sym_expr_create_unary(lvSymExprKind kind, lvSymExpr *op
     }
 
     expr->child_count = 1;
-    expr->children = (lvSymExpr **) calloc(1, sizeof(lvSymExpr *));
+    expr->children = (lvSymExpr **) lv_calloc(1, sizeof(lvSymExpr *));
     if (!expr->children) {
-        free(expr);
+        lv_free((void **)&(expr));
         sym_expr_destroy(operand);
         return NULL;
     }
@@ -200,10 +200,10 @@ lv_PUBLIC_API void sym_expr_destroy(lvSymExpr *expr) {
         for (int i = 0; i < expr->child_count; i++) {
             sym_expr_destroy(expr->children[i]);
         }
-        free(expr->children);
+        lv_free((void **)&(expr->children));
     }
-    free(expr->var_name);
-    free(expr);
+    lv_free((void **)&(expr->var_name));
+    lv_free((void **)&(expr));
 }
 
 /* ============================================================
@@ -222,7 +222,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
     /* Recursively simplify children first */
     lvSymExpr **simplified_children = NULL;
     if (expr->child_count > 0) {
-        simplified_children = (lvSymExpr **) calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
+        simplified_children = (lvSymExpr **) lv_calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
         if (!simplified_children)
             return NULL;
         for (int i = 0; i < expr->child_count; i++) {
@@ -230,7 +230,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
             if (!simplified_children[i]) {
                 for (int j = 0; j < i; j++)
                     sym_expr_destroy(simplified_children[j]);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return NULL;
             }
         }
@@ -247,14 +247,14 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
             if (sym_expr_is_const_val(left, 0.0)) {
                 result = right;
                 sym_expr_destroy(left);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* x + 0 -> x */
             if (sym_expr_is_const_val(right, 0.0)) {
                 result = left;
                 sym_expr_destroy(right);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* const + const -> const */
@@ -262,7 +262,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
                 result = sym_expr_create_const(left->value + right->value);
                 sym_expr_destroy(left);
                 sym_expr_destroy(right);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* Default: build simplified add node */
@@ -279,21 +279,21 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
                 result = sym_expr_create_const(0.0);
                 sym_expr_destroy(left);
                 sym_expr_destroy(right);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* 1 * x -> x */
             if (sym_expr_is_const_val(left, 1.0)) {
                 result = right;
                 sym_expr_destroy(left);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* x * 1 -> x */
             if (sym_expr_is_const_val(right, 1.0)) {
                 result = left;
                 sym_expr_destroy(right);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* const * const -> const */
@@ -301,7 +301,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
                 result = sym_expr_create_const(left->value * right->value);
                 sym_expr_destroy(left);
                 sym_expr_destroy(right);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* Default: build simplified mul node */
@@ -318,14 +318,14 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
                 result = sym_expr_create_const(1.0);
                 sym_expr_destroy(base);
                 sym_expr_destroy(exp);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* x^1 -> x */
             if (sym_expr_is_const_val(exp, 1.0)) {
                 result = base;
                 sym_expr_destroy(exp);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* const^const -> const */
@@ -342,7 +342,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
                 result = sym_expr_create_const(val);
                 sym_expr_destroy(base);
                 sym_expr_destroy(exp);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* Default: build simplified pow node */
@@ -357,7 +357,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
             if (sym_expr_is_const(operand)) {
                 result = sym_expr_create_const(-operand->value);
                 sym_expr_destroy(operand);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* -(-x) -> x */
@@ -365,7 +365,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
                 result = operand->children[0];
                 operand->children[0] = NULL; /* prevent double-free */
                 sym_expr_destroy(operand);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* Default: build simplified neg node */
@@ -400,7 +400,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
                 }
                 result = sym_expr_create_const(val);
                 sym_expr_destroy(operand);
-                free(simplified_children);
+                lv_free((void **)&(simplified_children));
                 return result;
             }
             /* Default: build simplified node */
@@ -414,7 +414,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
             break;
     }
 
-    free(simplified_children);
+    lv_free((void **)&(simplified_children));
     return result;
 }
 
@@ -660,14 +660,14 @@ lv_PUBLIC_API char *sym_expr_to_string(const lvSymExpr *expr) {
     /* First pass: compute required length */
     int len = sym_expr_to_string_impl(expr, NULL, 0, lv_SYM_CONST);
     if (len <= 0) {
-        char *s = (char *) malloc(1);
+        char *s = (char *) lv_malloc(1);
         if (s)
             s[0] = '\0';
         return s;
     }
 
     /* Allocate and second pass: fill buffer */
-    char *buf = (char *) malloc((size_t) (len + 1));
+    char *buf = (char *) lv_malloc((size_t) (len + 1));
     if (!buf)
         return NULL;
     sym_expr_to_string_impl(expr, buf, len + 1, lv_SYM_CONST);
@@ -808,7 +808,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *
     }
 
     /* Internal node: recursively substitute in children, then rebuild */
-    lvSymExpr **new_children = (lvSymExpr **) calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
+    lvSymExpr **new_children = (lvSymExpr **) lv_calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
     if (!new_children)
         return NULL;
 
@@ -817,7 +817,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *
         if (!new_children[i]) {
             for (int j = 0; j < i; j++)
                 sym_expr_destroy(new_children[j]);
-            free(new_children);
+            lv_free((void **)&(new_children));
             return NULL;
         }
     }
@@ -827,7 +827,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *
     if (!result) {
         for (int i = 0; i < expr->child_count; i++)
             sym_expr_destroy(new_children[i]);
-        free(new_children);
+        lv_free((void **)&(new_children));
         return NULL;
     }
     result->children = new_children;

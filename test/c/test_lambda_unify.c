@@ -329,7 +329,7 @@ static void test_subs_snprint(void) {
 
     /* 添加一个替换 */
     LvLambdaTerm *v = lv_lambda_create_var(0);
-    LambdaSubstitution *node = (LambdaSubstitution *) malloc(sizeof(LambdaSubstitution));
+    LambdaSubstitution *node = (LambdaSubstitution *) lv_malloc(sizeof(LambdaSubstitution));
     node->index = 42;
     node->replacement = v;
     node->next = NULL;
@@ -343,7 +343,7 @@ static void test_subs_snprint(void) {
     }
 
     lv_lambda_destroy(v);
-    free(node);
+    lv_free((void **) &node);
 }
 
 /* ================================================================

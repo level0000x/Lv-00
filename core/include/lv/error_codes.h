@@ -146,6 +146,51 @@ typedef enum {
     lv_ERROR_CIRCUIT_OPEN = 903,              /**< 熔断器已跳闸（OPEN 态） */
     lv_ERROR_COUNT                            /**< 错误码总数，用于数组大小计算 */
 } lvErrorCode;
+
+/* ============================================================
+ * lvResult —— 统一错误传播结果类型
+ *
+ * 用于需要在成功/失败之间携带丰富错误信息的函数。
+ * 配合 lv_RETURN_ERROR_* 宏使用，使错误路径代码更简洁。
+ * ============================================================ */
+
+/** 最大错误消息长度 */
+#define lv_ERROR_MSG_MAX 256
+
+/**
+ * @brief 错误传播结果类型
+ *
+ * 成功时设置 success=true，error_code=lv_OK。
+ * 失败时设置 success=false，error_code 为具体错误码，error_message 为描述。
+ *
+ * 使用示例：
+ *   lvResult r = some_function();
+ *   if (!r.success) { LOG_ERROR(...); return r; }
+ */
+typedef struct {
+    bool success;                  /**< 操作是否成功 */
+    lvErrorCode error_code;        /**< 错误码（成功时为 lv_OK） */
+    char error_message[lv_ERROR_MSG_MAX]; /**< 错误描述 */
+} lvResult;
+
+/** @brief 生成成功结果 */
+#define lv_RESULT_OK() ((lvResult){true, lv_OK, ""})
+
+/** @brief 生成失败结果 */
+#define lv_RESULT_ERROR(code, msg) ((lvResult){false, (code), (msg)})
+
+/**
+ * @brief 检查表达式，若失败则提前返回（用于 lvResult 传播链）
+ *
+ * 使用示例：
+ *   lvResult r = lv_TRY(some_function());
+ *   等价于：
+ *   lvResult _r = some_function();
+ *   if (!_r.success) return _r;
+ */
+#define lv_TRY(expr) \
+    ({ lvResult _r = (expr); if (!_r.success) return _r; _r; })
+
 /* ============================================================
  * 错误信息获取
  * ============================================================ */
@@ -333,52 +378,6 @@ lv_PUBLIC_API lvErrorCode lv_error_code_from_string(const char *name);
                              "值超出范围: %s=%d, 有效范围[%s=%d, %s=%d]", #val, (val), #min, (min), #max, (max)); \
             return (ret);                                                                                         \
         }                                                                                                         \
-    } while (0)
-
-/* ============================================================
- * lvResult 结果类型
- * ============================================================ */
-/**
- * @brief lvResult 结构体 - 统一的结果返回类型
- *
- * 封装错误码和返回值，用于需要同时返回成功/失败状态和数据的场景。
- * 可选的 value 字段可用于传递计算结果。
- */
-typedef struct {
-    lvErrorCode code; /**< 错误码 */
-    int value;        /**< 返回值（可选，仅 code == lv_OK 时有效） */
-} lvResult;
-
-/* ============================================================
- * 便捷宏定义
- * ============================================================ */
-/**
- * @brief 创建成功的 lvResult
- * @param val 返回值
- */
-#define lv_RESULT_OK(val) ((lvResult) {.code = lv_OK, .value = (val)})
-
-/**
- * @brief 创建失败的 lvResult
- * @param err 错误码
- */
-#define lv_ERR(err) ((lvResult) {.code = (err), .value = 0})
-
-/**
- * @brief 传播错误 - 如果 result 包含错误，则立即返回该错误结果
- *
- * 用法示例：
- *   lvResult result = some_operation();
- *   lv_PROPAGATE(result);
- *
- * @param result_expr 要检查的 lvResult 表达式
- */
-#define lv_PROPAGATE(result_expr)             \
-    do {                                      \
-        lvResult _lv_tmp_res = (result_expr); \
-        if ((_lv_tmp_res).code != lv_OK) {    \
-            return _lv_tmp_res;               \
-        }                                     \
     } while (0)
 
 #ifdef __cplusplus

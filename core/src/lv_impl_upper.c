@@ -46,6 +46,7 @@
 #include "lv/func_block_registry.h"
 #include "lv/geom_evol.h"
 #include "lv/interop.h"
+#include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 #include "lv/meta_verify.h"
 #include "lv/orchestrator.h"
@@ -4365,7 +4366,15 @@ int64_t upper_interop_export_geojson(lvEngine *ctx, int64_t graph_id, char *buf,
     /* 委托真实 interop 导出引擎 */
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph) {
-        return (int64_t) snprintf(buf, (size_t) buf_size, "{\"type\":\"FeatureCollection\",\"features\":[]}");
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 64);
+        lv_json_buf_append_raw(&_jb, "{\"type\":\"FeatureCollection\",\"features\":[]}");
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (!_js) return -1;
+        int64_t _len = (int64_t) strlen(_js);
+        lv_strlcpy(buf, _js, (size_t) buf_size);
+        lv_free(_js);
+        return _len;
     }
     InteropExportConfig config;
     memset(&config, 0, sizeof(config));
@@ -4764,27 +4773,47 @@ int64_t func_block_preset_metadata(lvEngine *ctx, const char *name, char *buf, i
     const char *sname = name ? name : "unknown";
     PresetEntry *entry = func_block_registry_find(name);
     if (!entry) {
-        return (int64_t) snprintf(buf, (size_t) buf_size, "{\"name\":\"%s\",\"error\":\"not_found\"}", sname);
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 64);
+        lv_json_buf_append_raw(&_jb, "{\"name\":");
+        lv_json_buf_append_string(&_jb, sname);
+        lv_json_buf_append_raw(&_jb, ",\"error\":\"not_found\"}");
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (!_js) return -1;
+        int64_t _len = (int64_t) strlen(_js);
+        lv_strlcpy(buf, _js, (size_t) buf_size);
+        lv_free(_js);
+        return _len;
     }
     PresetMetadata *m = &entry->metadata;
     const char *cat_str = func_block_preset_category_name(ctx, (int64_t) m->category);
     const char *ver_str = func_block_preset_version(ctx, name);
-    return (int64_t) snprintf(buf, (size_t) buf_size,
-                              "{"
-                              "\"name\":\"%s\","
-                              "\"description\":\"%s\","
-                              "\"version\":\"%s\","
-                              "\"category\":\"%s\","
-                              "\"input_count\":%d,"
-                              "\"output_count\":%d,"
-                              "\"precondition_count\":%d,"
-                              "\"postcondition_count\":%d,"
-                              "\"properties\":%d,"
-                              "\"complexity\":%d"
-                              "}",
-                              sname, m->description ? m->description : "", ver_str, cat_str, m->input_count,
-                              m->output_count, m->precondition_count, m->postcondition_count, (int) m->properties,
-                              (int) m->complexity);
+    {
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 512);
+        lv_json_buf_append_raw(&_jb, "{");
+        lv_json_buf_append_raw(&_jb, "\"name\":");
+        lv_json_buf_append_string(&_jb, sname);
+        lv_json_buf_append_raw(&_jb, ",\"description\":");
+        lv_json_buf_append_string(&_jb, m->description ? m->description : "");
+        lv_json_buf_append_raw(&_jb, ",\"version\":");
+        lv_json_buf_append_string(&_jb, ver_str);
+        lv_json_buf_append_raw(&_jb, ",\"category\":");
+        lv_json_buf_append_string(&_jb, cat_str);
+        lv_json_buf_append_fmt(&_jb, ",\"input_count\":%d", m->input_count);
+        lv_json_buf_append_fmt(&_jb, ",\"output_count\":%d", m->output_count);
+        lv_json_buf_append_fmt(&_jb, ",\"precondition_count\":%d", m->precondition_count);
+        lv_json_buf_append_fmt(&_jb, ",\"postcondition_count\":%d", m->postcondition_count);
+        lv_json_buf_append_fmt(&_jb, ",\"properties\":%d", (int) m->properties);
+        lv_json_buf_append_fmt(&_jb, ",\"complexity\":%d", (int) m->complexity);
+        lv_json_buf_append_raw(&_jb, "}");
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (!_js) return -1;
+        int64_t _len = (int64_t) strlen(_js);
+        lv_strlcpy(buf, _js, (size_t) buf_size);
+        lv_free(_js);
+        return _len;
+    }
 }
 
 /** 实例化预设函数块 -- 查找预设,通过 func_block_preset_instantiate 绑定输入参数 */
@@ -5022,26 +5051,34 @@ int64_t func_block_preset_bindings(lvEngine *ctx, int64_t instance_id, char *buf
         }
     }
     if (!found) {
-        return (int64_t) snprintf(buf, (size_t) buf_size, "{\"instance\":%lld,\"bindings\":[],\"error\":\"not_found\"}",
-                                  (long long) instance_id);
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 64);
+        lv_json_buf_append_fmt(&_jb, "{\"instance\":%lld,\"bindings\":[],\"error\":\"not_found\"}",
+                               (long long) instance_id);
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (!_js) return -1;
+        int64_t _len = (int64_t) strlen(_js);
+        lv_strlcpy(buf, _js, (size_t) buf_size);
+        lv_free(_js);
+        return _len;
     }
-    int64_t written = (int64_t) snprintf(buf, (size_t) buf_size, "{\"instance\":%lld,\"name\":\"%s\",\"bindings\":[",
-                                         (long long) instance_id, found->name ? found->name : "unnamed");
-    for (int i = 0; i < found->input_count && written < buf_size - 1; i++) {
-        if (i > 0) {
-            buf[written++] = ',';
-            if (written >= buf_size)
-                break;
-        }
-        written += (int64_t) snprintf(buf + written, (size_t) (buf_size - written), "{\"port\":%d}", i);
+    lvJsonBuf _jb;
+    lv_json_buf_init(&_jb, 128);
+    lv_json_buf_append_fmt(&_jb, "{\"instance\":%lld,\"name\":", (long long) instance_id);
+    lv_json_buf_append_string(&_jb, found->name ? found->name : "unnamed");
+    lv_json_buf_append_raw(&_jb, ",\"bindings\":[");
+    for (int i = 0; i < found->input_count; i++) {
+        if (i > 0)
+            lv_json_buf_append_raw(&_jb, ",");
+        lv_json_buf_append_fmt(&_jb, "{\"port\":%d}", i);
     }
-    if (written < buf_size - 1)
-        buf[written++] = ']';
-    if (written < buf_size - 1)
-        buf[written++] = '}';
-    if (written < buf_size)
-        buf[written] = '\0';
-    return written;
+    lv_json_buf_append_raw(&_jb, "]}");
+    char *_js = lv_json_buf_finalize(&_jb);
+    if (!_js) return -1;
+    int64_t _len = (int64_t) strlen(_js);
+    lv_strlcpy(buf, _js, (size_t) buf_size);
+    lv_free(_js);
+    return _len;
 }
 
 /** 按名称模糊搜索预设 -- 遍历注册表,将名称匹配的条目列出 */

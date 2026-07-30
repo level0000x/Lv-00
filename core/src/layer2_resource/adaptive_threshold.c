@@ -271,7 +271,7 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
     /* 自动初始化 */
     lv_adaptive_threshold_init();
 
-    lvAdaptiveThresholdCtx *c = (lvAdaptiveThresholdCtx *) malloc(sizeof(lvAdaptiveThresholdCtx));
+    lvAdaptiveThresholdCtx *c = (lvAdaptiveThresholdCtx *) lv_malloc(sizeof(lvAdaptiveThresholdCtx));
     if (!c)
         return lv_ERROR_OUT_OF_MEMORY;
 
@@ -288,7 +288,7 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
     /* 分析复杂度 */
     lvError err = lv_compute_complexity(graph, &c->complexity);
     if (err != lv_OK) {
-        free(c);
+        lv_free((void **) &c);
         return err;
     }
 

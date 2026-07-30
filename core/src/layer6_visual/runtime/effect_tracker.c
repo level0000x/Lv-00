@@ -1,4 +1,4 @@
-﻿#include <string.h>
+#include <string.h>
 
 #include "lv/effect_system.h"
 #include "lv/lv_utils.h"
@@ -7,9 +7,8 @@ lvEffectTracker *lv_effect_tracker_create(void) {
     lvEffectTracker *tracker = lv_calloc(1, sizeof(lvEffectTracker));
     if (!tracker)
         return NULL;
-    tracker->entry_capacity = 64;
-    tracker->entries = lv_calloc(tracker->entry_capacity, sizeof(lvEffectLogEntry));
-    if (!tracker->entries) {
+    lv_darray_init(&tracker->entries, sizeof(lvEffectLogEntry));
+    if (!lv_darray_reserve(&tracker->entries, 64)) {
         lv_free((void **) &tracker);
         return NULL;
     }
@@ -19,7 +18,7 @@ lvEffectTracker *lv_effect_tracker_create(void) {
 void lv_effect_tracker_destroy(lvEffectTracker *tracker) {
     if (!tracker)
         return;
-    lv_free((void **) &tracker->entries);
+    lv_darray_free(&tracker->entries);
     if (tracker->current_effect)
         lv_effect_annotation_destroy(tracker->current_effect);
     lv_free((void **) &tracker);
@@ -28,7 +27,7 @@ void lv_effect_tracker_destroy(lvEffectTracker *tracker) {
 void lv_effect_tracker_reset(lvEffectTracker *tracker) {
     if (!tracker)
         return;
-    tracker->entry_count = 0;
+    lv_darray_clear(&tracker->entries);
     if (tracker->current_effect) {
         lv_effect_annotation_destroy(tracker->current_effect);
         tracker->current_effect = NULL;
@@ -38,29 +37,21 @@ void lv_effect_tracker_reset(lvEffectTracker *tracker) {
 void lv_effect_tracker_record(lvEffectTracker *tracker, lvEffectType effect, int block_id, const char *desc) {
     if (!tracker)
         return;
-    if (tracker->entry_count >= tracker->entry_capacity) {
-        int new_cap = tracker->entry_capacity * 2;
-        if (new_cap <= 0)
-            new_cap = 16;
-        lvEffectLogEntry *new_entries =
-            (lvEffectLogEntry *) lv_realloc(tracker->entries, (size_t) new_cap * sizeof(lvEffectLogEntry));
-        if (!new_entries)
-            return;
-        tracker->entries = new_entries;
-        tracker->entry_capacity = new_cap;
-    }
-    lvEffectLogEntry *e = &tracker->entries[tracker->entry_count++];
-    e->effect = effect;
-    e->block_id = block_id;
+    lvEffectLogEntry e;
+    memset(&e, 0, sizeof(e));
+    e.effect = effect;
+    e.block_id = block_id;
     if (desc)
-        strncpy(e->description, desc, sizeof(e->description) - 1);
+        strncpy(e.description, desc, sizeof(e.description) - 1);
+    lv_darray_push(&tracker->entries, &e);
 }
 
 int lv_effect_tracker_has_effect(const lvEffectTracker *tracker, lvEffectType effect) {
     if (!tracker)
         return 0;
-    for (int i = 0; i < tracker->entry_count; i++) {
-        if (tracker->entries[i].effect == effect)
+    for (int i = 0; i < tracker->entries.count; i++) {
+        lvEffectLogEntry *e = (lvEffectLogEntry *) lv_darray_get(&tracker->entries, i);
+        if (e && e->effect == effect)
             return 1;
     }
     return 0;
@@ -69,7 +60,7 @@ int lv_effect_tracker_has_effect(const lvEffectTracker *tracker, lvEffectType ef
 int lv_effect_tracker_is_pure(const lvEffectTracker *tracker) {
     if (!tracker)
         return 1;
-    return tracker->entry_count == 0;
+    return tracker->entries.count == 0;
 }
 
 const lvEffectAnnotation *lv_effect_tracker_current(const lvEffectTracker *tracker) {
@@ -116,9 +107,9 @@ void lv_effect_annotation_destroy(lvEffectAnnotation *ann) {
 int lv_effect_check_geometry_pure(const lvEffectTracker *tracker) {
     if (!tracker)
         return 1;
-    for (int i = 0; i < tracker->entry_count; i++) {
-        lvEffectType e = tracker->entries[i].effect;
-        if (e != lv_EFFECT_PURE)
+    for (int i = 0; i < tracker->entries.count; i++) {
+        lvEffectLogEntry *entry = (lvEffectLogEntry *) lv_darray_get(&tracker->entries, i);
+        if (entry && entry->effect != lv_EFFECT_PURE)
             return 0;
     }
     return 1;

@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 #include "lv/simd_ops.h"
 #include "lv/symbolic_coord.h"
@@ -1029,31 +1030,21 @@ void lv_bench_suite_print_report(const lvBenchSuite *suite, void *stream) {
 
 char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
     if (!suite) {
-        char *buf = malloc(4);
+        char *buf = lv_malloc(4);
         if (buf) buf[0] = '\0';
         return buf;
     }
 
-    /* 第一遍：计算所需缓冲区大小 */
-    int size = 2;
-    size += (int) strlen("  \"name\": \"\",\n  \"results\": [\n  ]\n") + 64;
-    for (int i = 0; i < suite->result_count; i++) {
-        const lvBenchResult *r = &suite->results[i];
-        size += 256 + (int) strlen(r->name);
-    }
-
-    char *buf = (char *) malloc((size_t) size);
-    if (!buf)
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, (size_t) suite->result_count * 256 + 256))
         return NULL;
 
-    /* 第二遍：格式化输出 */
-    char *p = buf;
-    p += sprintf(p, "{\n");
-    p += sprintf(p, "  \"name\": \"%s\",\n", suite->name);
-    p += sprintf(p, "  \"results\": [\n");
+    lv_json_buf_append_raw(&buf, "{\n");
+    lv_json_buf_append_fmt(&buf, "  \"name\": \"%s\",\n", suite->name);
+    lv_json_buf_append_raw(&buf, "  \"results\": [\n");
     for (int i = 0; i < suite->result_count; i++) {
         const lvBenchResult *r = &suite->results[i];
-        p += sprintf(p,
+        lv_json_buf_append_fmt(&buf,
                      "    {\n"
                      "      \"name\": \"%s\",\n"
                      "      \"iterations\": %d,\n"
@@ -1076,15 +1067,14 @@ char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
                      r->success ? "true" : "false",
                      (i < suite->result_count - 1) ? "," : "");
     }
-    p += sprintf(p, "  ]\n");
-    p += sprintf(p, "}\n");
+    lv_json_buf_append_raw(&buf, "  ]\n}\n");
 
-    return buf;
+    return lv_json_buf_finalize(&buf);
 }
 
 char *lv_bench_suite_to_markdown(const lvBenchSuite *suite) {
     if (!suite) {
-        char *buf = malloc(1);
+        char *buf = lv_malloc(1);
         if (buf) buf[0] = '\0';
         return buf;
     }
@@ -1096,7 +1086,7 @@ char *lv_bench_suite_to_markdown(const lvBenchSuite *suite) {
         size += 128 + (int) strlen(r->name);
     }
 
-    char *buf = (char *) malloc((size_t) size);
+    char *buf = (char *) lv_malloc((size_t) size);
     if (!buf)
         return NULL;
 

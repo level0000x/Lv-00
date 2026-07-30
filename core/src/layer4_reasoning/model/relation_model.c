@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file relation_model.c
  * @brief 关系模型层实现 —— 借鉴 Alloy 的"关系即一切"统一建模范式
  *
@@ -59,29 +59,15 @@ static int *tuple_clone(const int *src, int arity) {
     return dst;
 }
 
-/**
- * @brief 确保关系有足够容量
- */
-static bool rel_ensure_capacity(Relation *r) {
-    if (r->tuple_count >= r->tuple_capacity) {
-        int new_cap = (r->tuple_capacity == 0) ? TUPLE_INITIAL_CAP : r->tuple_capacity * lv_ARRAY_GROWTH_FACTOR;
-        if (r->tuple_capacity > 0 && new_cap / r->tuple_capacity != lv_ARRAY_GROWTH_FACTOR)
-            return false; /* 整数溢出 */
-        int **new_t = (int **) lv_realloc(r->tuples, (size_t) new_cap * sizeof(int *));
-        if (!new_t)
-            return false;
-        r->tuples = new_t;
-        r->tuple_capacity = new_cap;
-    }
-    return true;
-}
+/* lvDArray 自动管理扩容，不再需要 rel_ensure_capacity */
 
 /**
  * @brief 检查元组是否在关系中
  */
 static bool rel_contains_tuple(const Relation *r, const int *tuple) {
-    for (int i = 0; i < r->tuple_count; i++) {
-        if (tuple_eq(r->tuples[i], tuple, r->arity))
+    for (int i = 0; i < r->tuples.count; i++) {
+        int **t = (int **)lv_darray_get(&r->tuples, i);
+        if (tuple_eq(*t, tuple, r->arity))
             return true;
     }
     return false;
@@ -91,12 +77,13 @@ static bool rel_contains_tuple(const Relation *r, const int *tuple) {
  * @brief 向关系中添加元组（不去重）
  */
 static bool rel_add_tuple_inner(Relation *r, const int *tuple) {
-    if (!rel_ensure_capacity(r))
-        return false;
     int *clone = tuple_clone(tuple, r->arity);
     if (!clone)
         return false;
-    r->tuples[r->tuple_count++] = clone;
+    if (lv_darray_push(&r->tuples, &clone) < 0) {
+        lv_free((void **) &clone);
+        return false;
+    }
     return true;
 }
 
@@ -109,9 +96,7 @@ static Relation *rel_new(const char *name, int arity) {
         return NULL;
     r->name = name ? lv_strdup_safe(name) : NULL;
     r->arity = arity;
-    r->tuples = NULL;
-    r->tuple_count = 0;
-    r->tuple_capacity = 0;
+    lv_darray_init(&r->tuples, sizeof(int *));
     return r;
 }
 
@@ -121,10 +106,11 @@ static Relation *rel_new(const char *name, int arity) {
 static void rel_destroy(Relation *r) {
     if (!r)
         return;
-    for (int i = 0; i < r->tuple_count; i++) {
-        lv_free((void **) &r->tuples[i]);
+    for (int i = 0; i < r->tuples.count; i++) {
+        int **t = (int **)lv_darray_get(&r->tuples, i);
+        lv_free((void **) t);
     }
-    lv_free((void **) &r->tuples);
+    lv_darray_free(&r->tuples);
     if (r->name)
         lv_free((void **) &r->name);
     lv_free((void **) &r);
@@ -150,16 +136,17 @@ Relation *rel_union(const Relation *a, const Relation *b) {
         return NULL;
 
     /* 添加 a 的所有元组 */
-    for (int i = 0; i < a->tuple_count; i++) {
-        if (!rel_add_tuple_inner(r, a->tuples[i])) {
+    for (int i = 0; i < a->tuples.count; i++) {
+        int **t = (int **)lv_darray_get(&a->tuples, i);
+        if (!rel_add_tuple_inner(r, *t)) {
             rel_destroy(r);
             return NULL;
         }
     }
     /* 添加 b 中不重复的元组 */
-    for (int i = 0; i < b->tuple_count; i++) {
-        if (!rel_contains_tuple(a, b->tuples[i])) {
-            if (!rel_add_tuple_inner(r, b->tuples[i])) {
+    for (int i = 0; i < b->tuples.count; i++) {
+        if (!rel_contains_tuple(a, *(int **)lv_darray_get(&b->tuples, i))) {
+            if (!rel_add_tuple_inner(r, *(int **)lv_darray_get(&b->tuples, i))) {
                 rel_destroy(r);
                 return NULL;
             }
@@ -185,9 +172,9 @@ Relation *rel_intersection(const Relation *a, const Relation *b) {
         return NULL;
 
     /* 取同时在 a 和 b 中的元组 */
-    for (int i = 0; i < a->tuple_count; i++) {
-        if (rel_contains_tuple(b, a->tuples[i])) {
-            if (!rel_add_tuple_inner(r, a->tuples[i])) {
+    for (int i = 0; i < a->tuples.count; i++) {
+        if (rel_contains_tuple(b, *(int **)lv_darray_get(&a->tuples, i))) {
+            if (!rel_add_tuple_inner(r, *(int **)lv_darray_get(&a->tuples, i))) {
                 rel_destroy(r);
                 return NULL;
             }
@@ -213,9 +200,9 @@ Relation *rel_difference(const Relation *a, const Relation *b) {
         return NULL;
 
     /* 在 a 但不在 b 中的元组 */
-    for (int i = 0; i < a->tuple_count; i++) {
-        if (!rel_contains_tuple(b, a->tuples[i])) {
-            if (!rel_add_tuple_inner(r, a->tuples[i])) {
+    for (int i = 0; i < a->tuples.count; i++) {
+        if (!rel_contains_tuple(b, *(int **)lv_darray_get(&a->tuples, i))) {
+            if (!rel_add_tuple_inner(r, *(int **)lv_darray_get(&a->tuples, i))) {
                 rel_destroy(r);
                 return NULL;
             }
@@ -242,10 +229,11 @@ Relation *rel_join(const Relation *a, const Relation *b) {
         return NULL;
 
     /* a 的最后一列 == b 的第一列时产生连接元组 */
-    for (int i = 0; i < a->tuple_count; i++) {
-        int a_last = a->tuples[i][a->arity - 1];
-        for (int j = 0; j < b->tuple_count; j++) {
-            if (a_last == b->tuples[j][0]) {
+    for (int i = 0; i < a->tuples.count; i++) {
+        int *a_tuple_i = *(int **)lv_darray_get(&a->tuples, i);
+        int a_last = a_tuple_i[a->arity - 1];
+        for (int j = 0; j < b->tuples.count; j++) {
+            if (a_last == (*(int **)lv_darray_get(&b->tuples, j))[0]) {
                 /* 构建新元组: a[0..a->arity-2] + b[1..b->arity-1] */
                 int *t = (int *) lv_calloc((size_t) new_arity, sizeof(int));
                 if (!t) {
@@ -254,10 +242,11 @@ Relation *rel_join(const Relation *a, const Relation *b) {
                 }
                 int pos = 0;
                 for (int k = 0; k < a->arity - 1; k++, pos++) {
-                    t[pos] = a->tuples[i][k];
+                    t[pos] = a_tuple_i[k];
                 }
+                int *b_tuple_j = *(int **)lv_darray_get(&b->tuples, j);
                 for (int k = 1; k < b->arity; k++, pos++) {
-                    t[pos] = b->tuples[j][k];
+                    t[pos] = b_tuple_j[k];
                 }
                 if (!rel_contains_tuple(r, t)) {
                     if (!rel_add_tuple_inner(r, t)) {
@@ -286,21 +275,20 @@ Relation *rel_product(const Relation *a, const Relation *b) {
     if (!r)
         return NULL;
 
-    for (int i = 0; i < a->tuple_count; i++) {
-        for (int j = 0; j < b->tuple_count; j++) {
+    for (int i = 0; i < a->tuples.count; i++) {
+        for (int j = 0; j < b->tuples.count; j++) {
             int *t = (int *) lv_calloc((size_t) new_arity, sizeof(int));
             if (!t) {
                 rel_destroy(r);
                 return NULL;
             }
-            memcpy(t, a->tuples[i], (size_t) a->arity * sizeof(int));
-            memcpy(t + a->arity, b->tuples[j], (size_t) b->arity * sizeof(int));
-            if (!rel_ensure_capacity(r)) {
+            memcpy(t, *(int **)lv_darray_get(&a->tuples, i), (size_t) a->arity * sizeof(int));
+            memcpy(t + a->arity, *(int **)lv_darray_get(&b->tuples, j), (size_t) b->arity * sizeof(int));
+            if (lv_darray_push(&r->tuples, &t) < 0) {
                 lv_free((void **) &t);
                 rel_destroy(r);
                 return NULL;
             }
-            r->tuples[r->tuple_count++] = t;
         }
     }
 
@@ -321,8 +309,9 @@ Relation *rel_transpose(const Relation *r) {
     if (!result)
         return NULL;
 
-    for (int i = 0; i < r->tuple_count; i++) {
-        int t[2] = {r->tuples[i][1], r->tuples[i][0]};
+    for (int i = 0; i < r->tuples.count; i++) {
+        int *r_tuple_i = *(int **)lv_darray_get(&r->tuples, i);
+        int t[2] = {r_tuple_i[1], r_tuple_i[0]};
         if (!rel_add_tuple_inner(result, t)) {
             rel_destroy(result);
             return NULL;
@@ -346,8 +335,8 @@ Relation *rel_transitive_closure(const Relation *r) {
     Relation *closure = rel_new("tclosure", 2);
     if (!closure)
         return NULL;
-    for (int i = 0; i < r->tuple_count; i++) {
-        if (!rel_add_tuple_inner(closure, r->tuples[i])) {
+    for (int i = 0; i < r->tuples.count; i++) {
+        if (!rel_add_tuple_inner(closure, *(int **)lv_darray_get(&r->tuples, i))) {
             rel_destroy(closure);
             return NULL;
         }
@@ -359,14 +348,16 @@ Relation *rel_transitive_closure(const Relation *r) {
     int iter = 0;
     while (changed && iter < max_iter) {
         changed = false;
-        int prev_count = closure->tuple_count;
+        int prev_count = closure->tuples.count;
 
         /* 对于每对 (i, j) 和 (k, l)，若 j==k 则添加 (i, l) */
         for (int i = 0; i < prev_count; i++) {
-            int mid = closure->tuples[i][1];
+            int *c_i = *(int **)lv_darray_get(&closure->tuples, i);
+            int mid = c_i[1];
             for (int j = 0; j < prev_count; j++) {
-                if (closure->tuples[j][0] == mid) {
-                    int new_t[2] = {closure->tuples[i][0], closure->tuples[j][1]};
+                int *c_j = *(int **)lv_darray_get(&closure->tuples, j);
+                if (c_j[0] == mid) {
+                    int new_t[2] = {c_i[0], c_j[1]};
                     if (!rel_contains_tuple(closure, new_t)) {
                         if (!rel_add_tuple_inner(closure, new_t)) {
                             rel_destroy(closure);
@@ -406,8 +397,8 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
     }
 
     /* 复制 tc 中的所有元组 */
-    for (int i = 0; i < tc->tuple_count; i++) {
-        if (!rel_add_tuple_inner(result, tc->tuples[i])) {
+    for (int i = 0; i < tc->tuples.count; i++) {
+        if (!rel_add_tuple_inner(result, *(int **)lv_darray_get(&tc->tuples, i))) {
             rel_destroy(result);
             rel_destroy(tc);
             return NULL;
@@ -418,11 +409,12 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
     /* 收集所有出现的原子，添加 (x, x) */
     /* 动态位图去重：计算最大元素 ID 以确定位图大小 */
     int max_elem = 0;
-    for (int i = 0; i < r->tuple_count; i++) {
-        if (r->tuples[i][0] > max_elem)
-            max_elem = r->tuples[i][0];
-        if (r->tuples[i][1] > max_elem)
-            max_elem = r->tuples[i][1];
+    for (int i = 0; i < r->tuples.count; i++) {
+        int *r_i = *(int **)lv_darray_get(&r->tuples, i);
+        if (r_i[0] > max_elem)
+            max_elem = r_i[0];
+        if (r_i[1] > max_elem)
+            max_elem = r_i[1];
     }
     size_t bitmap_size = (size_t) (max_elem + 8) / 8 + 1;
     uint8_t *seen = (uint8_t *) lv_calloc(bitmap_size, sizeof(uint8_t));
@@ -436,9 +428,10 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
             seen[(id) / 8] |= (1u << ((id) % 8)); \
     } while (0)
 #define SEEN_TEST(id) ((((id) >= 0) ? (seen[(id) / 8] & (1u << ((id) % 8))) : 0))
-    for (int i = 0; i < r->tuple_count; i++) {
-        int a = r->tuples[i][0];
-        int b = r->tuples[i][1];
+    for (int i = 0; i < r->tuples.count; i++) {
+        int *r_i = *(int **)lv_darray_get(&r->tuples, i);
+        int a = r_i[0];
+        int b = r_i[1];
         if (!SEEN_TEST(a)) {
             int t[2] = {a, a};
             rel_add_tuple_inner(result, t);
@@ -461,17 +454,7 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
  * 关系模型构建 API
  * ======================================================================== */
 
-static bool model_ensure_sig_capacity(RelModel *model) {
-    if (model->sig_count >= model->sig_capacity) {
-        int new_cap = (model->sig_capacity == 0) ? SIG_INITIAL_CAP : model->sig_capacity * lv_ARRAY_GROWTH_FACTOR;
-        RelSignature **new_s = (RelSignature **) lv_realloc(model->sigs, (size_t) new_cap * sizeof(RelSignature *));
-        if (!new_s)
-            return false;
-        model->sigs = new_s;
-        model->sig_capacity = new_cap;
-    }
-    return true;
-}
+/* lvDArray 自动管理扩容，不再需要 model_ensure_sig_capacity */
 
 RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
     lv_CHECK_NULL(graph, NULL);
@@ -484,13 +467,11 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
     RelAtomType sig_types[] = {REL_ATOM_POINT, REL_ATOM_LINE, REL_ATOM_REGION, REL_ATOM_PORT, REL_ATOM_FUNC_BLOCK};
 
     /* 分配初始签名容量 */
-    model->sigs = (RelSignature **) lv_calloc((size_t) SIG_INITIAL_CAP, sizeof(RelSignature *));
-    if (!model->sigs) {
+    lv_darray_init(&model->sigs, sizeof(RelSignature *));
+    if (!lv_darray_reserve(&model->sigs, SIG_INITIAL_CAP)) {
         lv_free((void **) &model);
         return NULL;
     }
-    model->sig_capacity = SIG_INITIAL_CAP;
-    model->sig_count = 0;
 
     /* 为每个节点分类创建原子 */
     for (int si = 0; si < 5; si++) {
@@ -514,11 +495,10 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
         sig->sub_sigs = NULL;
         sig->sub_sig_count = 0;
 
-        if (!model_ensure_sig_capacity(model)) {
+        if (lv_darray_push(&model->sigs, &sig) < 0) {
             relation_model_destroy(model);
             return NULL;
         }
-        model->sigs[model->sig_count++] = sig;
     }
 
     /* 为图中的每个节点创建对应的 RelAtom */
@@ -551,7 +531,7 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
                 continue;
         }
 
-        RelSignature *sig = model->sigs[sig_idx];
+        RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, sig_idx);
 
         /* 扩容 atom 数组 */
         if (sig->atom_count >= sig->atom_capacity) {
@@ -592,30 +572,29 @@ void relation_model_destroy(RelModel *model) {
         return;
 
     /* 销毁所有签名 */
-    if (model->sigs) {
-        for (int si = 0; si < model->sig_count; si++) {
-            RelSignature *sig = model->sigs[si];
-            if (!sig)
-                continue;
-            if (sig->atoms) {
-                for (int ai = 0; ai < sig->atom_count; ai++) {
-                    RelAtom *atom = sig->atoms[ai];
-                    if (atom) {
-                        if (atom->label)
-                            lv_free((void **) &atom->label);
-                        lv_free((void **) &atom);
-                    }
+    for (int si = 0; si < model->sigs.count; si++) {
+        RelSignature **sig_p = (RelSignature **)lv_darray_get(&model->sigs, si);
+        RelSignature *sig = *sig_p;
+        if (!sig)
+            continue;
+        if (sig->atoms) {
+            for (int ai = 0; ai < sig->atom_count; ai++) {
+                RelAtom *atom = sig->atoms[ai];
+                if (atom) {
+                    if (atom->label)
+                        lv_free((void **) &atom->label);
+                    lv_free((void **) &atom);
                 }
-                lv_free((void **) &sig->atoms);
             }
-            if (sig->sub_sigs)
-                lv_free((void **) &sig->sub_sigs);
-            if (sig->name)
-                lv_free((void **) &sig->name);
-            lv_free((void **) &sig);
+            lv_free((void **) &sig->atoms);
         }
-        lv_free((void **) &model->sigs);
+        if (sig->sub_sigs)
+            lv_free((void **) &sig->sub_sigs);
+        if (sig->name)
+            lv_free((void **) &sig->name);
+        lv_free((void **) &sig);
     }
+    lv_darray_free(&model->sigs);
 
     /* 销毁所有关系 */
     if (model->relations) {
@@ -672,9 +651,10 @@ bool relation_check_satisfiability(RelModel *model, const SmallScopeConfig *scop
     /* 有限范围可满足性检查：枚举所有关系绑定组合 */
     /* 收集所有签名中的原子总数 */
     int total_atoms = 0;
-    for (int si = 0; si < model->sig_count; si++) {
-        if (model->sigs[si])
-            total_atoms += model->sigs[si]->atom_count;
+    for (int si = 0; si < model->sigs.count; si++) {
+        RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, si);
+        if (sig)
+            total_atoms += sig->atom_count;
     }
     if (total_atoms == 0)
         return false;
@@ -700,9 +680,10 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
 
     /* 收集所有原子 */
     int total_atoms = 0;
-    for (int si = 0; si < model->sig_count; si++) {
-        if (model->sigs[si]) {
-            total_atoms += model->sigs[si]->atom_count;
+    for (int si = 0; si < model->sigs.count; si++) {
+        RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, si);
+        if (sig) {
+            total_atoms += sig->atom_count;
         }
     }
 
@@ -712,8 +693,8 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
         return NULL;
     }
     inst->atom_count = 0;
-    for (int si = 0; si < model->sig_count; si++) {
-        RelSignature *sig = model->sigs[si];
+    for (int si = 0; si < model->sigs.count; si++) {
+        RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, si);
         if (!sig)
             continue;
         for (int ai = 0; ai < sig->atom_count; ai++) {
@@ -736,8 +717,8 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
                 Relation *src = model->relations[ri];
                 Relation *clone = rel_new(src->name ? src->name : "binding", src->arity);
                 if (clone) {
-                    for (int ti = 0; ti < src->tuple_count; ti++) {
-                        rel_add_tuple_inner(clone, src->tuples[ti]);
+                    for (int ti = 0; ti < src->tuples.count; ti++) {
+                        rel_add_tuple_inner(clone, *(int **)lv_darray_get(&src->tuples, ti));
                     }
                     /* 复制定义域签名引用 */
                     for (int di = 0; di < src->arity && di < 8; di++) {
@@ -796,8 +777,8 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                 Relation *result = rel_new("eval", expr->data.atomic.rel->arity);
                 if (!result)
                     return NULL;
-                for (int i = 0; i < expr->data.atomic.rel->tuple_count; i++) {
-                    if (!rel_add_tuple_inner(result, expr->data.atomic.rel->tuples[i])) {
+                for (int i = 0; i < expr->data.atomic.rel->tuples.count; i++) {
+                    if (!rel_add_tuple_inner(result, *(int **)lv_darray_get(&expr->data.atomic.rel->tuples, i))) {
                         rel_destroy(result);
                         return NULL;
                     }
@@ -854,8 +835,8 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                     result = rel_new("identity", 2);
                     if (result && model) {
                         /* 遍历模型中所有签名，收集原子生成对角元组 */
-                        for (int si = 0; si < model->sig_count; si++) {
-                            RelSignature *sig = model->sigs[si];
+                        for (int si = 0; si < model->sigs.count; si++) {
+                            RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, si);
                             if (!sig)
                                 continue;
                             for (int ai = 0; ai < sig->atom_count; ai++) {
@@ -932,18 +913,19 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                         result = rel_new("rdom", left_r->arity);
                         if (result) {
                             /* 收集右关系中所有第一元素作为允许集合 */
-                            for (int i = 0; i < left_r->tuple_count; i++) {
-                                int first_elem = left_r->tuples[i][0];
+                            for (int i = 0; i < left_r->tuples.count; i++) {
+                                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
+                                int first_elem = left_i[0];
                                 /* 检查 first_elem 是否在 right_r 的元组中 */
                                 bool allowed = false;
-                                for (int j = 0; j < right_r->tuple_count; j++) {
-                                    if (right_r->tuples[j][0] == first_elem) {
+                                for (int j = 0; j < right_r->tuples.count; j++) {
+                                    if ((*(int **)lv_darray_get(&right_r->tuples, j))[0] == first_elem) {
                                         allowed = true;
                                         break;
                                     }
                                 }
                                 if (allowed) {
-                                    rel_add_tuple_inner(result, left_r->tuples[i]);
+                                    rel_add_tuple_inner(result, left_i);
                                 }
                             }
                         }
@@ -954,19 +936,20 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                     if (left_r && right_r) {
                         result = rel_new("rrng", left_r->arity);
                         if (result) {
-                            for (int i = 0; i < left_r->tuple_count; i++) {
+                            for (int i = 0; i < left_r->tuples.count; i++) {
                                 if (left_r->arity < 2)
                                     continue;
-                                int last_elem = left_r->tuples[i][left_r->arity - 1];
+                                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
+                                int last_elem = left_i[left_r->arity - 1];
                                 bool allowed = false;
-                                for (int j = 0; j < right_r->tuple_count; j++) {
-                                    if (right_r->tuples[j][0] == last_elem) {
+                                for (int j = 0; j < right_r->tuples.count; j++) {
+                                    if ((*(int **)lv_darray_get(&right_r->tuples, j))[0] == last_elem) {
                                         allowed = true;
                                         break;
                                     }
                                 }
                                 if (allowed) {
-                                    rel_add_tuple_inner(result, left_r->tuples[i]);
+                                    rel_add_tuple_inner(result, left_i);
                                 }
                             }
                         }
@@ -978,15 +961,17 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                         result = rel_new("override", left_r->arity);
                         if (result) {
                             /* 先添加左关系中不被右关系覆盖的元组 */
-                            for (int i = 0; i < left_r->tuple_count; i++) {
+                            for (int i = 0; i < left_r->tuples.count; i++) {
                                 bool overridden = false;
+                                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
                                 if (right_r) {
-                                    for (int j = 0; j < right_r->tuple_count; j++) {
+                                    for (int j = 0; j < right_r->tuples.count; j++) {
                                         /* 比较除最后一列外的所有列（键匹配） */
                                         bool key_match = true;
                                         int key_len = (left_r->arity > 1) ? left_r->arity - 1 : 1;
+                                        int *right_j = *(int **)lv_darray_get(&right_r->tuples, j);
                                         for (int k = 0; k < key_len; k++) {
-                                            if (left_r->tuples[i][k] != right_r->tuples[j][k]) {
+                                            if (left_i[k] != right_j[k]) {
                                                 key_match = false;
                                                 break;
                                             }
@@ -998,13 +983,13 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                                     }
                                 }
                                 if (!overridden) {
-                                    rel_add_tuple_inner(result, left_r->tuples[i]);
+                                    rel_add_tuple_inner(result, left_i);
                                 }
                             }
                             /* 再添加右关系的所有元组 */
                             if (right_r) {
-                                for (int j = 0; j < right_r->tuple_count; j++) {
-                                    rel_add_tuple_inner(result, right_r->tuples[j]);
+                                for (int j = 0; j < right_r->tuples.count; j++) {
+                                    rel_add_tuple_inner(result, *(int **)lv_darray_get(&right_r->tuples, j));
                                 }
                             }
                         }
@@ -1044,7 +1029,7 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst, c
             /* 量词公式评估 */
             if (formula->expr) {
                 Relation *r = relation_evaluate_expr(model, inst, formula->expr);
-                int count = r ? r->tuple_count : 0;
+                int count = r ? r->tuples.count : 0;
                 rel_destroy(r);
 
                 switch (formula->type) {
@@ -1102,10 +1087,10 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst, c
             if (formula->type == REL_FORMULA_EQ) {
                 /* 关系相等：元组数相同且每个左元组都在右关系中 */
                 if (left_r && right_r) {
-                    if (left_r->tuple_count == right_r->tuple_count) {
+                    if (left_r->tuples.count == right_r->tuples.count) {
                         result = true;
-                        for (int i = 0; i < left_r->tuple_count && result; i++) {
-                            if (!rel_contains_tuple(right_r, left_r->tuples[i])) {
+                        for (int i = 0; i < left_r->tuples.count && result; i++) {
+                            if (!rel_contains_tuple(right_r, *(int **)lv_darray_get(&left_r->tuples, i))) {
                                 result = false;
                             }
                         }
@@ -1117,8 +1102,8 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst, c
                 /* REL_FORMULA_SUBSET：左关系的每个元组都在右关系中 */
                 if (left_r && right_r) {
                     result = true;
-                    for (int i = 0; i < left_r->tuple_count && result; i++) {
-                        if (!rel_contains_tuple(right_r, left_r->tuples[i])) {
+                    for (int i = 0; i < left_r->tuples.count && result; i++) {
+                        if (!rel_contains_tuple(right_r, *(int **)lv_darray_get(&left_r->tuples, i))) {
                             result = false;
                         }
                     }
@@ -1179,8 +1164,8 @@ char *relation_model_export_alloy(const RelModel *model) {
     int pos = 0;
 
     /* 导出签名声明 */
-    for (int si = 0; si < model->sig_count; si++) {
-        RelSignature *sig = model->sigs[si];
+    for (int si = 0; si < model->sigs.count; si++) {
+        RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, si);
         if (!sig)
             continue;
 

@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 #include "constraint_graph.h"
+#include "lv/lv_utils.h"
 #include "symbolic_coord.h"
 #ifdef __cplusplus
 extern "C" {
@@ -242,15 +243,9 @@ typedef struct EquivalenceProofChain {
 typedef struct EuclideanContext {
     EuclideanAxiomSystem active_axiom_system; /**< 当前活跃的公理体系 */
     /* 已注册的几何实体 */
-    int *registered_points;  /**< 已注册点 ID 数组 */
-    int point_count;         /**< 已注册点数量 */
-    int point_capacity;      /**< 点数组容量 */
-    int *registered_lines;   /**< 已注册线 ID 数组 */
-    int line_count;          /**< 已注册线数量 */
-    int line_capacity;       /**< 线数组容量 */
-    int *registered_circles; /**< 已注册圆 ID 数组 */
-    int circle_count;        /**< 已注册圆数量 */
-    int circle_capacity;     /**< 圆数组容量 */
+    lvDArray points_da;  /**< 已注册点 ID 动态数组（lvDArray<int>） */
+    lvDArray lines_da;   /**< 已注册线 ID 动态数组（lvDArray<int>） */
+    lvDArray circles_da; /**< 已注册圆 ID 动态数组（lvDArray<int>） */
     /* 约束图关联 */
     ConstraintGraph *constraint_graph; /**< 关联的约束图（借引用，不拥有所有权） */
     /* 公理启用位掩码：

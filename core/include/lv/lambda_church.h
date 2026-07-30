@@ -242,6 +242,32 @@ lv_PUBLIC_API LvLambdaTerm *lv_church_gt(void);
  */
 lv_PUBLIC_API LvLambdaTerm *lv_church_y_combinator(void);
 
+/* ── 扩展 Church 运算 ── */
+
+/**
+ * @brief Church 除法: Y (λf.λm.λn.if (leq n m) (succ (f (sub m n) n)) 0)
+ *
+ * 使用 Y 组合子实现递归除法。当除数大于被除数时返回 0。
+ * 注：除数为 0 时行为未定义（无限递归）。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_div(void);
+
+/**
+ * @brief Church 阶乘: Y (λf.λn.if (leq n 1) 1 (mul n (f (pred n))))
+ *
+ * 使用 Y 组合子实现递归阶乘计算。
+ * fact(0) = 1, fact(n) = n * fact(n-1)。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_factorial(void);
+
+/**
+ * @brief Church 斐波那契: Y (λf.λn.if (leq n 1) n (add (f (sub n 1)) (f (sub n 2))))
+ *
+ * 使用 Y 组合子实现递归斐波那契计算。
+ * fib(0) = 0, fib(1) = 1, fib(n) = fib(n-1) + fib(n-2)。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_fib(void);
+
 #ifdef __cplusplus
 }
 #endif
