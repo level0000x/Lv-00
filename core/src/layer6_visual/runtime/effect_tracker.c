@@ -2,15 +2,16 @@
 
 #include "lv/effect_system.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
 
 lvEffectTracker *lv_effect_tracker_create(void) {
     lvEffectTracker *tracker = lv_calloc(1, sizeof(lvEffectTracker));
     if (!tracker)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate effect tracker");
     lv_darray_init(&tracker->entries, sizeof(lvEffectLogEntry));
     if (!lv_darray_reserve(&tracker->entries, 64)) {
         lv_free((void **) &tracker);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to reserve effect tracker darray");
     }
     return tracker;
 }
@@ -83,7 +84,7 @@ lvEffectAnnotation *lv_effect_compose(const lvEffectAnnotation *a, const lvEffec
     result->effects = lv_calloc(count, sizeof(lvEffectType));
     if (!result->effects) {
         lv_free((void **) &result);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate composed effects");
     }
     result->effect_count = 0;
     if (a) {

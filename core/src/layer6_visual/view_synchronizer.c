@@ -14,6 +14,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
+#include "lv/lv_internal.h"
 
 /**
  * @brief 创建视图同步器
@@ -25,20 +26,20 @@
 lvViewSynchronizer *lv_view_sync_create(void) {
     lvViewSynchronizer *sync = lv_calloc(1, sizeof(lvViewSynchronizer));
     if (!sync)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate view synchronizer");
     sync->sync_enabled = 1;
     sync->dirty_capacity = 8;
     sync->dirty_views = lv_calloc(sync->dirty_capacity, sizeof(int));
     if (!sync->dirty_views) {
         lv_free((void **) &sync);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate dirty views array");
     }
     sync->pending_capacity = 8;
     sync->pending_changes = lv_calloc(sync->pending_capacity, sizeof(sync->pending_changes[0]));
     if (!sync->pending_changes) {
         lv_free((void **) &sync->dirty_views);
         lv_free((void **) &sync);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate pending changes array");
     }
     return sync;
 }
@@ -68,7 +69,7 @@ void lv_view_sync_destroy(lvViewSynchronizer *sync) {
  */
 int lv_view_sync_enable(lvViewSynchronizer *sync) {
     if (!sync)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL sync");
     sync->sync_enabled = 1;
     return 0;
 }
@@ -83,7 +84,7 @@ int lv_view_sync_enable(lvViewSynchronizer *sync) {
  */
 int lv_view_sync_disable(lvViewSynchronizer *sync) {
     if (!sync)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL sync");
     sync->sync_enabled = 0;
     return 0;
 }
@@ -111,7 +112,7 @@ int lv_view_sync_conflicts(const lvViewSynchronizer *sync) {
  */
 int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const char *change_type) {
     if (!sync || !change_type)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL sync or change_type");
     if (!sync->sync_enabled)
         return 0;
 
@@ -119,11 +120,11 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
     if (sync->pending_count >= sync->pending_capacity) {
         /* [安全] 防止 pending_capacity * 2 整数溢出 */
         if (sync->pending_capacity > INT_MAX / 2)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "pending capacity overflow");
         int new_cap = sync->pending_capacity * 2;
         void *new_arr = lv_realloc(sync->pending_changes, new_cap * sizeof(sync->pending_changes[0]));
         if (!new_arr)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc pending changes");
         sync->pending_changes = new_arr;
         sync->pending_capacity = new_cap;
     }
@@ -145,11 +146,11 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
         if (sync->dirty_count >= sync->dirty_capacity) {
             /* [安全] 防止 dirty_capacity * 2 整数溢出 */
             if (sync->dirty_capacity > INT_MAX / 2)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "dirty capacity overflow");
             int new_cap = sync->dirty_capacity * 2;
             void *new_arr = lv_realloc(sync->dirty_views, new_cap * sizeof(int));
             if (!new_arr)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc dirty views");
             sync->dirty_views = new_arr;
             sync->dirty_capacity = new_cap;
         }
@@ -170,7 +171,7 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
  */
 int lv_view_sync_flush(lvViewSynchronizer *sync) {
     if (!sync)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL sync");
     if (!sync->sync_enabled)
         return 0;
 

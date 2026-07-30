@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
 
 /* ================================================================
  *  Module-level state
@@ -72,7 +73,7 @@ static void coord_clear(Coord *c) {
 Coord *coord_create(const char *x_str, const char *y_str) {
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_create: malloc failed");
     c->id = native_id_alloc();
     coord_init(c, x_str, y_str);
     return c;
@@ -81,7 +82,7 @@ Coord *coord_create(const char *x_str, const char *y_str) {
 Coord *coord_create_si(long x_num, long y_num) {
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_create_si: malloc failed");
     c->id = native_id_alloc();
     coord_init_si(c, x_num, y_num);
     return c;
@@ -97,10 +98,10 @@ void coord_destroy(Coord *c) {
 
 Coord *coord_dup(const Coord *src) {
     if (!src)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_dup: NULL src");
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_dup: malloc failed");
     c->id = native_id_alloc();
     mpq_init(c->x);
     mpq_set(c->x, src->x);
@@ -111,10 +112,10 @@ Coord *coord_dup(const Coord *src) {
 
 Coord *coord_add(const Coord *a, const Coord *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_add: NULL input");
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_add: malloc failed");
     c->id = native_id_alloc();
     mpq_init(c->x);
     mpq_add(c->x, a->x, b->x); /* GMP 精确加法 */
@@ -125,10 +126,10 @@ Coord *coord_add(const Coord *a, const Coord *b) {
 
 Coord *coord_sub(const Coord *a, const Coord *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_sub: NULL input");
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_sub: malloc failed");
     c->id = native_id_alloc();
     mpq_init(c->x);
     mpq_sub(c->x, a->x, b->x); /* GMP 精确减法 */
@@ -139,10 +140,10 @@ Coord *coord_sub(const Coord *a, const Coord *b) {
 
 Coord *coord_mul(const Coord *a, const mpq_t scalar) {
     if (!a)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_mul: NULL input");
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_mul: malloc failed");
     c->id = native_id_alloc();
     mpq_init(c->x);
     mpq_mul(c->x, a->x, scalar); /* GMP 精确乘法 */
@@ -153,10 +154,10 @@ Coord *coord_mul(const Coord *a, const mpq_t scalar) {
 
 Coord *coord_div(const Coord *a, const mpq_t scalar) {
     if (!a || mpq_sgn(scalar) == 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "coord_div: NULL input or zero scalar");
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_div: malloc failed");
     c->id = native_id_alloc();
     mpq_init(c->x);
     mpq_div(c->x, a->x, scalar); /* GMP 精确除法 */
@@ -210,10 +211,10 @@ void coord_dist_sq(mpq_t result, const Coord *a, const Coord *b) {
 
 Coord *coord_midpoint(const Coord *a, const Coord *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_midpoint: NULL input");
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_midpoint: malloc failed");
     c->id = native_id_alloc();
     mpq_t two;
     mpq_init(two);
@@ -274,7 +275,7 @@ typedef struct {
 Rational *rational_create_str(const char *s) {
     Rational *r = (Rational *) lv_malloc(sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_create_str: malloc failed");
     r->id = native_id_alloc();
     mpq_init(r->val);
     mpq_set_str(r->val, s, 10); /* GMP 精确解析 "num/den" 或 "int" */
@@ -285,7 +286,7 @@ Rational *rational_create_str(const char *s) {
 Rational *rational_create_si(long num, unsigned long den) {
     Rational *r = (Rational *) lv_malloc(sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_create_si: malloc failed");
     r->id = native_id_alloc();
     mpq_init(r->val);
     mpq_set_si(r->val, num, den);
@@ -312,10 +313,10 @@ static void rational_destroy(Rational *r) {
  */
 static Rational *rational_add(const Rational *a, const Rational *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_add: NULL input");
     Rational *r = (Rational *) lv_malloc(sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_add: malloc failed");
     r->id = native_id_alloc();
     mpq_init(r->val);
     mpq_add(r->val, a->val, b->val); /* GMP 精确加法 */
@@ -324,10 +325,10 @@ static Rational *rational_add(const Rational *a, const Rational *b) {
 
 Rational *rational_sub(const Rational *a, const Rational *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_sub: NULL input");
     Rational *r = (Rational *) lv_malloc(sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_sub: malloc failed");
     r->id = native_id_alloc();
     mpq_init(r->val);
     mpq_sub(r->val, a->val, b->val); /* GMP 精确减法 */
@@ -336,10 +337,10 @@ Rational *rational_sub(const Rational *a, const Rational *b) {
 
 Rational *rational_mul(const Rational *a, const Rational *b) {
     if (!a || !b)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_mul: NULL input");
     Rational *r = (Rational *) lv_malloc(sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_mul: malloc failed");
     r->id = native_id_alloc();
     mpq_init(r->val);
     mpq_mul(r->val, a->val, b->val); /* GMP 精确乘法 */
@@ -348,10 +349,10 @@ Rational *rational_mul(const Rational *a, const Rational *b) {
 
 Rational *rational_div(const Rational *a, const Rational *b) {
     if (!a || !b || mpq_sgn(b->val) == 0)
-        return NULL; /* GMP 零检测 */
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "rational_div: NULL input or division by zero");
     Rational *r = (Rational *) lv_malloc(sizeof(Rational));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_div: malloc failed");
     r->id = native_id_alloc();
     mpq_init(r->val);
     mpq_div(r->val, a->val, b->val); /* GMP 精确除法 */
@@ -442,7 +443,7 @@ static void graph_edge_clear(GraphEdge *e) {
 static ConstraintGraph *graph_create(void) {
     ConstraintGraph *g = (ConstraintGraph *) lv_calloc(1, sizeof(ConstraintGraph));
     if (!g)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_create: calloc failed");
     g->id = native_id_alloc();
     g->node_cap = 16;
     g->edge_cap = 16;
@@ -468,15 +469,15 @@ static void graph_destroy(ConstraintGraph *g) {
 
 int64_t graph_add_node(ConstraintGraph *g, const mpq_t value, int pinned) {
     if (!g)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_add_node: NULL graph");
     if (g->node_count >= g->node_cap) {
         if (g->node_cap > INT_MAX / 2)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_add_node: node_cap overflow");
         int new_cap_int = g->node_cap * 2;
         size_t new_cap = (size_t) new_cap_int;
         GraphNode *tmp = (GraphNode *) lv_realloc(g->nodes, new_cap * sizeof(GraphNode));
         if (!tmp)
-            return -1; /* realloc 失败, 原内存保留, 安全返回 */
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "graph_add_node: realloc failed");
         g->node_cap = (int) new_cap_int;
         g->nodes = tmp;
     }
@@ -502,7 +503,7 @@ int64_t graph_add_node_si(ConstraintGraph *g, long num, long den, int pinned) {
  */
 static int graph_remove_node(ConstraintGraph *g, int64_t node_id) {
     if (!g)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_remove_node: NULL graph");
     for (int i = 0; i < g->node_count; i++) {
         if (g->nodes[i].id == node_id) {
             graph_node_clear(&g->nodes[i]);
@@ -511,21 +512,21 @@ static int graph_remove_node(ConstraintGraph *g, int64_t node_id) {
             return 0;
         }
     }
-    return -1;
+    return -1; /* 未找到 */
 }
 
 int64_t graph_add_edge(ConstraintGraph *g, int from_idx, int to_idx, const mpq_t weight) {
     if (!g || from_idx < 0 || to_idx < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "graph_add_edge: NULL graph or invalid index");
     if (from_idx >= g->node_count || to_idx >= g->node_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "graph_add_edge: index out of range");
     if (g->edge_count >= g->edge_cap) {
         if (g->edge_cap > SIZE_MAX / 2 / sizeof(GraphEdge))
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_add_edge: edge_cap overflow");
         size_t new_cap = (size_t) g->edge_cap * 2;
         GraphEdge *tmp = (GraphEdge *) lv_realloc(g->edges, new_cap * sizeof(GraphEdge));
         if (!tmp)
-            return -1; /* realloc 失败, 原内存保留, 安全返回 */
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "graph_add_edge: realloc failed");
         g->edge_cap = (int) new_cap;
         g->edges = tmp;
     }
@@ -549,7 +550,7 @@ int64_t graph_add_edge_si(ConstraintGraph *g, int from, int to, long wnum, long 
 
 int graph_remove_edge(ConstraintGraph *g, int64_t edge_id) {
     if (!g)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_remove_edge: NULL graph");
     for (int i = 0; i < g->edge_count; i++) {
         if (g->edges[i].id == edge_id) {
             graph_edge_clear(&g->edges[i]);
@@ -558,13 +559,13 @@ int graph_remove_edge(ConstraintGraph *g, int64_t edge_id) {
             return 0;
         }
     }
-    return -1;
+    return -1; /* 未找到 */
 }
 
 /**
  * @brief 按索引获取约束图节点
  */
-static const GraphNode *graph_get_node(const ConstraintGraph *g, int index) {
+const GraphNode *graph_get_node(const ConstraintGraph *g, int index) {
     if (!g || index < 0 || index >= g->node_count)
         return NULL;
     return &g->nodes[index];
@@ -627,10 +628,10 @@ static void graph_normalize(ConstraintGraph *g) {
 
 ConstraintGraph *graph_clone(const ConstraintGraph *g) {
     if (!g)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_clone: NULL graph");
     ConstraintGraph *ng = (ConstraintGraph *) lv_malloc(sizeof(ConstraintGraph));
     if (!ng)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_clone: malloc failed");
     ng->id = native_id_alloc();
     ng->node_count = g->node_count;
     ng->node_cap = g->node_cap;
@@ -721,7 +722,7 @@ typedef struct ExprNode {
 static Expr *expr_new_leaf(int kind) {
     Expr *e = (Expr *) lv_calloc(1, sizeof(Expr));
     if (!e)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "expr_new_leaf: calloc failed");
     mpq_init(e->val);
     e->kind = kind;
     return e;
@@ -730,7 +731,7 @@ static Expr *expr_new_leaf(int kind) {
 Expr *expr_create_const_si(long num, unsigned long den) {
     Expr *e = expr_new_leaf(0);
     if (!e)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "expr_create_const_si: alloc failed");
     mpq_set_si(e->val, num, den);
     return e;
 }
@@ -738,7 +739,7 @@ Expr *expr_create_const_si(long num, unsigned long den) {
 Expr *expr_create_var(const char *name) {
     Expr *e = expr_new_leaf(1);
     if (!e)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "expr_create_var: alloc failed");
     e->name = lv_strdup_safe(name);
     return e;
 }
@@ -746,7 +747,7 @@ Expr *expr_create_var(const char *name) {
 Expr *expr_create_binop(int kind, Expr *left, Expr *right) {
     Expr *e = expr_new_leaf(kind);
     if (!e)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "expr_create_binop: alloc failed");
     e->left = left;
     e->right = right;
     return e;
@@ -777,7 +778,7 @@ void expr_destroy(Expr *e) {
 /* expr_eval: 代入 env (var_name → mpq_t*) 计算精确有理数值 */
 int expr_eval(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
     if (!e)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "expr_eval: NULL expr");
     mpq_t l, r;
     switch (e->kind) {
         case 0: /* const */
@@ -827,7 +828,7 @@ int expr_eval(mpq_t result, Expr *e, const char **varnames, const mpq_t *values,
             return 0;
         case 6: /* pow */
             if (expr_eval(result, e->left, varnames, values, nvars) < 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "expr_eval: pow sub-eval failed");
             /* 精确有理数幂: result = result^exp */
             {
                 mpz_t num, den, base_num, base_den;
@@ -847,7 +848,7 @@ int expr_eval(mpq_t result, Expr *e, const char **varnames, const mpq_t *values,
             return 0;
         default:
             mpq_set_si(result, 0, 1);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "expr_eval: unknown expr kind %d", e->kind);
     }
 }
 
@@ -881,35 +882,35 @@ typedef struct {
 MemPool *pool_create(void) {
     MemPool *p = (MemPool *) lv_calloc(1, sizeof(MemPool));
     if (!p)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_create: calloc failed");
     p->id = native_id_alloc();
     p->head = (MemChunk *) lv_calloc(1, sizeof(MemChunk));
     if (!p->head) {
         lv_free((void **) &p);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_create: head calloc failed");
     }
     p->head->cap = 65536; /* 64KB chunk */
     p->head->data = (char *) lv_malloc(p->head->cap);
     if (!p->head->data) {
         lv_free((void **) &p->head);
         lv_free((void **) &p);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_create: head->data malloc failed");
     }
     return p;
 }
 
 void *pool_alloc(MemPool *p, size_t sz) {
     if (!p || !p->head)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "pool_alloc: NULL pool");
     if (p->head->used + sz > p->head->cap) {
         MemChunk *c = (MemChunk *) lv_calloc(1, sizeof(MemChunk));
         if (!c)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_alloc: chunk calloc failed");
         c->cap = sz > 65536 ? sz : 65536;
         c->data = (char *) lv_malloc(c->cap);
         if (!c->data) {
             lv_free((void **) &c);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_alloc: chunk->data malloc failed");
         }
         c->next = p->head;
         p->head = c;
@@ -1021,7 +1022,7 @@ int native_self_test(void) {
 
 Coord *coord_rotate(const Coord *c, double angle) {
     if (!c)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_rotate: NULL input");
     double cs = cos(angle), sn = sin(angle);
     mpq_t cs_q, sn_q;
     mpq_init(cs_q);
@@ -1031,7 +1032,7 @@ Coord *coord_rotate(const Coord *c, double angle) {
     Coord *r = (Coord *) lv_malloc(sizeof(Coord));
     if (!r) {
         mpq_clears(cs_q, sn_q, NULL);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_rotate: malloc failed");
     }
     r->id = native_id_alloc();
     mpq_init(r->x);
@@ -1060,7 +1061,7 @@ Coord *coord_from_polar(double r, double theta) {
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c) {
         mpq_clears(rq, cq, sq, NULL);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_from_polar: malloc failed");
     }
     c->id = native_id_alloc();
     mpq_init(c->x);

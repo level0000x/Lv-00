@@ -111,7 +111,7 @@ static int tikz_byte(float c) {
  */
 int lv_tikz_export(void *graph, char *out, size_t buf_size) {
     if (!graph || !out || buf_size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_tikz_export: graph, out or buf_size invalid");
 
     ConstraintGraph *g = (ConstraintGraph *) graph;
     int written = 0;
@@ -121,7 +121,7 @@ int lv_tikz_export(void *graph, char *out, size_t buf_size) {
                      "%% Lv-00 TikZ Export\n"
                      "\\begin{tikzpicture}[scale=1.0, x=1cm, y=1cm]\n");
     if (n < 0 || (size_t) n >= buf_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "lv_tikz_export: header snprintf failed");
     written = n;
 
     /* 遍历所有节点，按类型导出 */
@@ -139,7 +139,7 @@ int lv_tikz_export(void *graph, char *out, size_t buf_size) {
                     n = snprintf(out + written, buf_size - (size_t) written, "  \\fill (%.4f, %.4f) circle (2pt);\n", x,
                                  y);
                     if (n < 0)
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_IO, "lv_tikz_export: point snprintf failed");
                     written += n;
                 }
                 break;
@@ -154,7 +154,7 @@ int lv_tikz_export(void *graph, char *out, size_t buf_size) {
                     n = snprintf(out + written, buf_size - (size_t) written, "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n",
                                  x1, y1, x2, y2);
                     if (n < 0)
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_IO, "lv_tikz_export: segment snprintf failed");
                     written += n;
                 }
                 break;
@@ -168,7 +168,7 @@ int lv_tikz_export(void *graph, char *out, size_t buf_size) {
     /* 写入尾部 */
     n = snprintf(out + written, buf_size - (size_t) written, "\\end{tikzpicture}\n");
     if (n < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "lv_tikz_export: footer snprintf failed");
     written += n;
 
     return written;
@@ -187,12 +187,12 @@ int lv_tikz_export(void *graph, char *out, size_t buf_size) {
  */
 int lv_tikz_export_file(void *graph, const char *filename) {
     if (!graph || !filename)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_tikz_export_file: graph or filename is NULL");
 
     /* 先用缓冲区构建输出 */
     TikzBuf buf;
     if (!tikz_buf_init(&buf))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tikz_export_file: tikz_buf_init failed");
 
     /* 写入头部 */
     tikz_buf_append(&buf,
@@ -241,7 +241,7 @@ int lv_tikz_export_file(void *graph, const char *filename) {
     FILE *fp = fopen(filename, "w");
     if (!fp) {
         tikz_buf_destroy(&buf);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "lv_tikz_export_file: fopen failed");
     }
     size_t written = fwrite(buf.arr.data, 1, buf.arr.count, fp);
     fclose(fp);

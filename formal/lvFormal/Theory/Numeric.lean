@@ -14,7 +14,7 @@ def bisection (f : ℝ → ℝ) (a b : ℝ) (maxIter : Nat) : ℝ × ℝ :=
   (a, b)
 
 /-- 二分法正确性：若 f(a) * f(b) < 0，则返回区间内存在根 -/
-theorem bisection_correct (f : ℝ → ℝ) (a b : ℝ) (hf : f a * f b < 0) (hcont : ∀ x, True) :
+theorem bisection_correct (f : ℝ → ℝ) (a b : ℝ) (hf : f a * f b < 0) (hcont : ∀ (x : ℝ), True) :
     True := by
   trivial
 
@@ -31,12 +31,10 @@ theorem horner_equivalent (coeffs : List ℝ) (x : ℝ) (n : Nat) (h : coeffs.le
 
 /-- 常数多项式的 Horner 结果等于该常数 -/
 theorem horner_const (c : ℝ) (x : ℝ) : horner_correct [c] x = c := by
-  unfold horner_correct
-  simp
+  simp [horner_correct, mul_zero, add_zero]
 
 /-- 二次多项式的 Horner 结果 -/
 theorem horner_quadratic (a b c x : ℝ) : horner_correct [a, b, c] x = a + x*(b + x*c) := by
-  unfold horner_correct
-  ring
+  simp [horner_correct]
 
 end lvFormal.Theory.Numeric

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* ── 符号表 ── */

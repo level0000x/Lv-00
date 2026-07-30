@@ -81,19 +81,19 @@ void graph_destroy(ConstraintGraph *graph) {
 int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_count) {
     /* 参数验证：防止空指针解引用 */
     if (!out_count)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_detect_redundant_constraints: out_count is NULL");
     *out_count = 0;
     if (!graph || graph->constraint_count == 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_detect_redundant_constraints: graph is NULL or empty");
 
     /* Allocate enough space for both phases */
     /* [安全] 防止 constraint_count * 2 整数溢出 */
     if (graph->constraint_count > INT_MAX / 2)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "graph_detect_redundant_constraints: constraint_count overflow");
     int max_redundant = graph->constraint_count * 2;
     int *redundant = lv_malloc((size_t) max_redundant * sizeof(int));
     if (!redundant)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_detect_redundant_constraints: malloc redundant failed");
     for (int i = 0; i < max_redundant; i++) {
         redundant[i] = -1;
     }

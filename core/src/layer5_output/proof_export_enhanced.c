@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /* ================================================================
@@ -32,7 +33,7 @@
 static lvExportResult *make_error(const char *msg) {
     lvExportResult *r = (lvExportResult *) lv_calloc(1, sizeof(lvExportResult));
     if (!r)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "make_error: lv_calloc failed");
     const char *src = msg ? msg : "Unknown error";
     size_t len = strlen(src);
     r->success = false;
@@ -55,7 +56,7 @@ static lvExportResult *make_success(lvDStr *d) {
     lvExportResult *r = (lvExportResult *) lv_calloc(1, sizeof(lvExportResult));
     if (!r) {
         lv_dstr_free(d);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "make_success: lv_calloc failed");
     }
     r->success = true;
     r->output = d->data;
@@ -111,27 +112,27 @@ static int lv_dstr_append_json_string(lvDStr *d, const char *str) {
         return lv_dstr_append_fmt(d, "null");
     }
     if (lv_dstr_append_fmt(d, "\"") != 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append quote failed");
     for (const char *p = str; *p; p++) {
         if (*p == '\\') {
             if (lv_dstr_append_fmt(d, "\\\\") != 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append backslash failed");
         } else if (*p == '"') {
             if (lv_dstr_append_fmt(d, "\\\"") != 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append quote escaped failed");
         } else if (*p == '\n') {
             if (lv_dstr_append_fmt(d, "\\n") != 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append newline failed");
         } else if (*p == '\t') {
             if (lv_dstr_append_fmt(d, "\\t") != 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append tab failed");
         } else if (*p == '\r') {
             if (lv_dstr_append_fmt(d, "\\r") != 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append cr failed");
         } else {
             char tmp[2] = {*p, '\0'};
             if (lv_dstr_append_str(d, tmp) != 0)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append char failed");
         }
     }
     return lv_dstr_append_fmt(d, "\"");
@@ -144,7 +145,7 @@ static int lv_dstr_append_json_string(lvDStr *d, const char *str) {
 static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *config) {
     lvDStr d;
     if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "export_html: lv_dstr_init failed");
 
     const char *indent = config->pretty_print ? "\n" : "";
     const char *indent2 = config->pretty_print ? "  " : "";
@@ -217,7 +218,7 @@ static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *c
 static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *config) {
     lvDStr d;
     if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "export_latex: lv_dstr_init failed");
 
     const char *nl = config->pretty_print ? "\n" : "\n";
 
@@ -295,7 +296,7 @@ static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *
 static lvExportResult *export_coq(const lvProof *proof, const lvExportConfig *config) {
     lvDStr d;
     if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "export_coq: lv_dstr_init failed");
 
     (void) config;
 
@@ -326,7 +327,7 @@ static lvExportResult *export_coq(const lvProof *proof, const lvExportConfig *co
 static lvExportResult *export_lean4(const lvProof *proof, const lvExportConfig *config) {
     lvDStr d;
     if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "export_lean4: lv_dstr_init failed");
 
     (void) config;
 
@@ -357,7 +358,7 @@ static lvExportResult *export_lean4(const lvProof *proof, const lvExportConfig *
 static lvExportResult *export_json(const lvProof *proof, const lvExportConfig *config) {
     lvDStr d;
     if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "export_json: lv_dstr_init failed");
 
     const char *nl = config->pretty_print ? "\n" : "";
     const char *sp = config->pretty_print ? "  " : "";
@@ -405,7 +406,7 @@ static lvExportResult *export_json(const lvProof *proof, const lvExportConfig *c
 static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *config) {
     lvDStr d;
     if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "export_dot: lv_dstr_init failed");
 
     const char *nl = config->pretty_print ? "\n" : "";
     const char *sp = config->pretty_print ? "  " : "";

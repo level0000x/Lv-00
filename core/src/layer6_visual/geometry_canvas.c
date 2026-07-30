@@ -15,6 +15,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
+#include "lv/lv_internal.h"
 
 /* 几何画布视图 - 完整实现 */
 
@@ -86,20 +87,20 @@ typedef struct lvGeometryCanvas {
 lvGeometryCanvas *lv_geometry_canvas_create(void) {
     lvGeometryCanvas *canvas = lv_calloc(1, sizeof(lvGeometryCanvas));
     if (!canvas)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geometry canvas");
     canvas->view_type = lv_VIEW_GEOMETRY_CANVAS;
     canvas->entity_capacity = 16;
     canvas->entities = lv_calloc(canvas->entity_capacity, sizeof(lvGeomEntity));
     if (!canvas->entities) {
         lv_free((void **) &canvas);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate entities array");
     }
     canvas->constraint_capacity = 16;
     canvas->constraints = lv_calloc(canvas->constraint_capacity, sizeof(lvGeomConstraint));
     if (!canvas->constraints) {
         lv_free((void **) &canvas->entities);
         lv_free((void **) &canvas);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate constraints array");
     }
     canvas->next_entity_id = 1;
     canvas->next_constraint_id = 1;
@@ -141,17 +142,17 @@ void lv_geometry_canvas_destroy(lvGeometryCanvas *canvas) {
 int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char *label, const double *coords,
                                   int coord_count) {
     if (!canvas || !coords || coord_count <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas, coords, or invalid coord_count");
 
     /* 自动扩容 */
     if (canvas->entity_count >= canvas->entity_capacity) {
         /* [安全] 防止 entity_capacity * 2 整数溢出 */
         if (canvas->entity_capacity > INT_MAX / 2)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "entity capacity overflow");
         int new_cap = canvas->entity_capacity * 2;
         lvGeomEntity *new_arr = lv_realloc(canvas->entities, new_cap * sizeof(lvGeomEntity));
         if (!new_arr)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc entities");
         canvas->entities = new_arr;
         canvas->entity_capacity = new_cap;
     }
@@ -168,15 +169,15 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char
 
     /* 复制坐标 */
     if (coord_count < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "coord_count is negative");
     ent->coords = lv_calloc(coord_count, sizeof(double));
     if (!ent->coords) {
         /* calloc失败，清零该实体槽位防止半初始化数据残留 */
         memset(ent, 0, sizeof(lvGeomEntity));
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate entity coords");
     }
     if ((size_t) coord_count > SIZE_MAX / sizeof(double))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "coord_count overflow");
     memcpy(ent->coords, coords, (size_t) coord_count * sizeof(double));
     ent->coord_count = coord_count;
 
@@ -205,7 +206,7 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char
  */
 int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id) {
     if (!canvas || id <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or invalid entity id");
     int found = -1;
     for (int i = 0; i < canvas->entity_count; i++) {
         if (canvas->entities[i].id == id) {
@@ -214,7 +215,7 @@ int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id) {
         }
     }
     if (found < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "entity not found");
 
     /* 释放坐标 */
     lv_free((void **) &canvas->entities[found].coords);
@@ -251,17 +252,17 @@ int lv_geometry_canvas_remove_entity(lvGeometryCanvas *canvas, int id) {
  */
 int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas, int entity_a_id, int entity_b_id, const char *label) {
     if (!canvas || entity_a_id <= 0 || entity_b_id <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or invalid entity ids");
 
     /* 自动扩容 */
     if (canvas->constraint_count >= canvas->constraint_capacity) {
         /* [安全] 防止 constraint_capacity * 2 整数溢出 */
         if (canvas->constraint_capacity > INT_MAX / 2)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "constraint capacity overflow");
         int new_cap = canvas->constraint_capacity * 2;
         lvGeomConstraint *new_arr = lv_realloc(canvas->constraints, new_cap * sizeof(lvGeomConstraint));
         if (!new_arr)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc constraints");
         canvas->constraints = new_arr;
         canvas->constraint_capacity = new_cap;
     }
@@ -343,9 +344,11 @@ static void compute_bounds(lvGeometryCanvas *canvas) {
  */
 int lv_geometry_canvas_fit_view(lvGeometryCanvas *canvas) {
     if (!canvas)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas");
     compute_bounds(canvas);
-    return canvas->bounds.valid ? 0 : -1;
+    if (!canvas->bounds.valid)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "no entities to fit view");
+    return 0;
 }
 
 /**
@@ -407,7 +410,7 @@ static int find_entity_center(lvGeometryCanvas *canvas, int id, double *cx, doub
  */
 char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     if (!canvas)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "NULL canvas");
 
     /* 确保边界已计算 */
     if (!canvas->bounds.valid)
@@ -429,7 +432,7 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     int buf_size = (int) est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate SVG buffer");
 
     int pos = 0;
 /* 辅助宏：安全写入 snprintf 链，防止 pos 溢出 buf_size */

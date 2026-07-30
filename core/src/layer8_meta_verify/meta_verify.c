@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/proof.h"
@@ -494,7 +495,7 @@ static const check_func_t g_check_funcs[lv_CHECK_COUNT] = {
 lvMetaVerifier *lv_meta_verifier_create(void) {
     lvMetaVerifier *v = lv_calloc(1, sizeof(lvMetaVerifier));
     if (!v)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate meta verifier");
     v->check_mask = (1 << lv_CHECK_COUNT) - 1; /* All checks enabled */
     v->strict_mode = 0;
     return v;
@@ -855,6 +856,6 @@ const char *lv_verify_report_summary(const lvVerifyReport *report) {
  */
 const lvMetaVerifyResult *lv_verify_report_result(const lvVerifyReport *report, lvVerifyCheck check) {
     if (!report || check < 0 || check >= lv_CHECK_COUNT)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "NULL report or invalid check");
     return &report->results[check];
 }

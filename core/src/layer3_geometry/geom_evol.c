@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geom_evol.c
  * @brief 几何演化引擎 —— 自适应步长 ODE 求解器实现
  *
@@ -157,7 +157,7 @@ static double geoevol_error_estimate_rk4(lvGeomEvol *evol, const double *y_h, co
  */
 static int geoevol_rhs_eval(lvGeomEvol *evol, double t, const double *y, double *dy) {
     if (!evol || !evol->rhs_func || !y || !dy) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "geoevol_rhs_eval: NULL parameter");
     }
     evol->stats.num_rhs_evals++;
     return evol->rhs_func(t, y, dy, evol);
@@ -302,8 +302,7 @@ static int geoevol_step_rk4(lvGeomEvol *evol, double h, const double *y, double 
             lv_free((void **) &k4);
         if (tmp)
             lv_free((void **) &tmp);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "RK4临时空间分配失败，dim=%d", dim);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "RK4 temporary space allocation failed, dim=%d", dim);
     }
 
     /* k1 = f(t, y) */
@@ -446,8 +445,7 @@ static int geoevol_step_adams(lvGeomEvol *evol, double h, const double *y, doubl
             lv_free((void **) &f_predict);
         if (y_predict)
             lv_free((void **) &y_predict);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "Adams临时空间分配失败");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "Adams temporary space allocation failed");
     }
 
     /* ── 第一步：Adams-Bashforth 显式预测 ── */
@@ -599,8 +597,7 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
             lv_free((void **) &f_pert);
         if (rhs_sum)
             lv_free((void **) &rhs_sum);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "BDF临时空间分配失败");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "BDF temporary space allocation failed");
     }
 
     /* 计算历史项累加：sum_{j=1}^{order} gamma_j * y_{n+1-j} */
@@ -827,7 +824,9 @@ cleanup_bdf:
         lv_free((void **) &f_pert);
     if (rhs_sum)
         lv_free((void **) &rhs_sum);
-    return newton_converged ? 0 : -1;
+    if (!newton_converged)
+        lv_RETURN_ERROR(lv_ERROR_SOLVER_NOT_CONVERGED, "BDF Newton iteration did not converge");
+    return 0;
 }
 
 /* ========================================================================

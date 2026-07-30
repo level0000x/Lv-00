@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* ── 创建基础节点 ── */
@@ -34,7 +35,7 @@
 LvAstNode *lv_ast_create(LvAstNodeType type, LvSourceLoc loc) {
     LvAstNode *node = (LvAstNode *) lv_calloc(1, sizeof(LvAstNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create AST node");
     node->type = type;
     node->loc = loc;
     return node;
@@ -50,7 +51,7 @@ LvAstNode *lv_ast_create(LvAstNodeType type, LvSourceLoc loc) {
 LvAstNode *lv_ast_create_ident(LvSourceLoc loc, const char *name) {
     LvAstNode *node = lv_ast_create(LV_AST_IDENTIFIER_EXPR, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create ident node");
     node->data.ident.name = lv_strdup(name);
     return node;
 }
@@ -65,7 +66,7 @@ LvAstNode *lv_ast_create_ident(LvSourceLoc loc, const char *name) {
 LvAstNode *lv_ast_create_int(LvSourceLoc loc, long long value) {
     LvAstNode *node = lv_ast_create(LV_AST_INTEGER_LITERAL, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create int node");
     node->data.literal.integer_value = value;
     return node;
 }
@@ -97,7 +98,7 @@ LvAstNode *lv_ast_create_rational(LvSourceLoc loc, long long num, long long den)
 LvAstNode *lv_ast_create_decimal(LvSourceLoc loc, double value) {
     LvAstNode *node = lv_ast_create(LV_AST_DECIMAL_LITERAL, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create decimal node");
     node->data.literal.decimal_value = value;
     return node;
 }
@@ -112,7 +113,7 @@ LvAstNode *lv_ast_create_decimal(LvSourceLoc loc, double value) {
 LvAstNode *lv_ast_create_string(LvSourceLoc loc, const char *value) {
     LvAstNode *node = lv_ast_create(LV_AST_STRING_LITERAL, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create string node");
     node->data.literal.string_value = lv_strdup(value);
     return node;
 }
@@ -127,7 +128,7 @@ LvAstNode *lv_ast_create_string(LvSourceLoc loc, const char *value) {
 LvAstNode *lv_ast_create_bool(LvSourceLoc loc, int value) {
     LvAstNode *node = lv_ast_create(LV_AST_BOOL_LITERAL, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create bool node");
     node->data.literal.bool_value = value;
     return node;
 }
@@ -143,7 +144,7 @@ LvAstNode *lv_ast_create_bool(LvSourceLoc loc, int value) {
 LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode *args) {
     LvAstNode *node = lv_ast_create(LV_AST_FUNCTION_CALL, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create call node");
     node->data.call.func_name = lv_strdup(func_name);
     node->data.call.args = args;
     if (args) {
@@ -169,7 +170,7 @@ LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode 
 LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right) {
     LvAstNode *node = lv_ast_create(LV_AST_BINARY_OP, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create binary node");
     lv_strncpy(node->data.binary.op, op, sizeof(node->data.binary.op));
     node->data.binary.left = left;
     node->data.binary.right = right;
@@ -187,7 +188,7 @@ LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left
 LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *operand) {
     LvAstNode *node = lv_ast_create(LV_AST_UNARY_OP, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create unary node");
     lv_strncpy(node->data.unary.op, op, sizeof(node->data.unary.op));
     node->data.unary.operand = operand;
     return node;
@@ -205,7 +206,7 @@ LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *opera
 LvAstNode *lv_ast_create_compare(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right) {
     LvAstNode *node = lv_ast_create(LV_AST_COMPARE, loc);
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create compare node");
     lv_strncpy(node->data.compare.op, op, sizeof(node->data.compare.op));
     node->data.compare.left = left;
     node->data.compare.right = right;

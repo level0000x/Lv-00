@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* ── Parser 结构 ── */
@@ -1346,10 +1347,10 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
 
 LvParser *lv_parser_create(LvLexer *lexer) {
     if (!lexer)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lexer is NULL");
     LvParser *p = (LvParser *) lv_calloc(1, sizeof(LvParser));
     if (!p)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate parser");
     p->lexer = lexer;
     p->error_count = 0;
     /* 预读第一个 token */

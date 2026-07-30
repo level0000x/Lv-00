@@ -16,6 +16,7 @@
 
 #include "lv/block_scheduler.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
 
 /**
  * @brief 创建可视化编辑器实例
@@ -27,7 +28,7 @@
 lvVisualEditor *lv_visual_editor_create(void) {
     lvVisualEditor *editor = lv_calloc(1, sizeof(lvVisualEditor));
     if (!editor)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate visual editor");
     editor->layer_id = lv_LAYER_VISUAL;
     editor->active_view = lv_VIEW_NODE_GRAPH;
     editor->state = lv_EDITOR_IDLE;
@@ -58,7 +59,7 @@ void lv_visual_editor_destroy(lvVisualEditor *editor) {
  */
 int lv_visual_editor_reset(lvVisualEditor *editor) {
     if (!editor)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL editor");
     editor->state = lv_EDITOR_IDLE;
     editor->error_count = 0;
     memset(editor->last_error, 0, sizeof(editor->last_error));
@@ -74,9 +75,9 @@ int lv_visual_editor_reset(lvVisualEditor *editor) {
  */
 int lv_visual_editor_switch_view(lvVisualEditor *editor, lvViewType view) {
     if (!editor)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL editor");
     if (view < lv_VIEW_GEOMETRY_CANVAS || view > lv_VIEW_TEXT_CODE)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "invalid view type");
     editor->active_view = view;
     return 0;
 }
@@ -101,13 +102,13 @@ lvViewType lv_visual_editor_active_view(const lvVisualEditor *editor) {
  */
 int lv_visual_editor_execute(lvVisualEditor *editor) {
     if (!editor)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL editor");
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
         strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error));
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "no block graph loaded");
     }
 
     /* 设置编辑器状态为执行中 */
@@ -120,7 +121,7 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
         strncpy(editor->last_error, "failed to create scheduler", sizeof(editor->last_error));
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to create scheduler");
     }
 
     /* 设置全量执行策略 */
@@ -146,8 +147,9 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
 
     /* 销毁调度器 */
     lv_block_scheduler_destroy(sched);
-
-    return exec_result.success ? 0 : -1;
+    if (exec_result.success)
+        return 0;
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "execution failed");
 }
 
 /**
@@ -160,13 +162,13 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
  */
 int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
     if (!editor)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL editor");
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
         strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error));
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "no block graph loaded");
     }
 
     /* 设置编辑器状态为执行中 */
@@ -179,7 +181,7 @@ int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
         strncpy(editor->last_error, "failed to create scheduler", sizeof(editor->last_error));
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to create scheduler");
     }
 
     /* 设置增量执行策略 */
@@ -208,8 +210,9 @@ int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
 
     /* 销毁调度器 */
     lv_block_scheduler_destroy(sched);
-
-    return exec_result.success ? 0 : -1;
+    if (exec_result.success)
+        return 0;
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "incremental execution failed");
 }
 
 /**

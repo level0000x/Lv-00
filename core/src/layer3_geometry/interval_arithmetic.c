@@ -19,6 +19,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv_internal.h"
+
 /* ========================================================================
  * Internal helpers
  * ======================================================================== */
@@ -633,7 +635,7 @@ lvInterval interval_from_symbolic(const char *expr_str, const char **var_names, 
 
 int interval_to_symbolic(lvInterval a, char *buf, size_t buf_size) {
     if (!buf || buf_size == 0) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interval_to_symbolic: buf is NULL or buf_size is 0");
     }
     if (interval_is_empty(a)) {
         return snprintf(buf, buf_size, "[empty]");
@@ -650,7 +652,7 @@ int interval_to_symbolic(lvInterval a, char *buf, size_t buf_size) {
 
 int interval_verify_solution(lvInterval f_interval, double tolerance) {
     if (interval_is_empty(f_interval)) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "interval_verify_solution: empty interval");
     }
     /* Check if 0 is contained in the interval, considering tolerance */
     if (f_interval.lo <= tolerance && f_interval.hi >= -tolerance) {
@@ -662,7 +664,7 @@ int interval_verify_solution(lvInterval f_interval, double tolerance) {
 int interval_verify_adaptive(const char *expr_str, const char **var_names, lvInterval *var_intervals, int var_count,
                              int max_depth, double tolerance) {
     if (!expr_str || !var_names || !var_intervals || var_count <= 0) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interval_verify_adaptive: NULL parameter or invalid var_count");
     }
 
     /* Evaluate the expression on the current intervals */

@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 #ifndef lv_PUBLIC_API
@@ -90,7 +91,7 @@ static bool ensure_capacity(lvHeMesh *mesh) {
 lvHeMesh *lv_he_mesh_create(const lvHeMeshConfig *config) {
     lvHeMesh *mesh = (lvHeMesh *) lv_calloc(1, sizeof(lvHeMesh));
     if (!mesh)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_he_mesh_create: calloc mesh failed");
 
     if (config) {
         mesh->config = *config;
@@ -121,7 +122,7 @@ lvHeMesh *lv_he_mesh_create(const lvHeMeshConfig *config) {
     if (!mesh->vertex_data || !mesh->vertex_out_he || !mesh->he_twin || !mesh->he_next || !mesh->he_prev ||
         !mesh->he_face || !mesh->he_vertex || !mesh->edge_he || !mesh->face_he) {
         lv_he_mesh_destroy(mesh);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_he_mesh_create: malloc internal arrays failed");
     }
 
     /* 初始化为 INVALID */

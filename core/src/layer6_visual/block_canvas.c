@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/visual_editor.h"
+#include "lv/lv_internal.h"
 
 /* 块画布视图 - 完整实现 */
 
@@ -96,20 +97,20 @@ typedef struct lvBlockCanvasView {
 lvBlockCanvasView *lv_block_canvas_create(void) {
     lvBlockCanvasView *canvas = lv_calloc(1, sizeof(lvBlockCanvasView));
     if (!canvas)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block canvas");
     canvas->view_type = lv_VIEW_BLOCK_CANVAS;
     canvas->block_capacity = 16;
     canvas->blocks = lv_calloc(canvas->block_capacity, sizeof(lvVisualBlock));
     if (!canvas->blocks) {
         lv_free((void **) &canvas);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate blocks array");
     }
     canvas->connection_capacity = 16;
     canvas->connections = lv_calloc(canvas->connection_capacity, sizeof(lvBlockConnection));
     if (!canvas->connections) {
         lv_free((void **) &canvas->blocks);
         lv_free((void **) &canvas);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate connections array");
     }
     canvas->next_block_id = 1;
     canvas->next_port_id = 1;
@@ -155,17 +156,17 @@ void lv_block_canvas_destroy(lvBlockCanvasView *canvas) {
 int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, double x, double y, double width,
                               double height, int type, int input_count, int output_count) {
     if (!canvas || !label)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or label");
 
     /* 自动扩容 */
     if (canvas->block_count >= canvas->block_capacity) {
         /* [安全] 防止 block_capacity * 2 整数溢出 */
         if (canvas->block_capacity > INT_MAX / 2)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "block capacity overflow");
         int new_cap = canvas->block_capacity * 2;
         lvVisualBlock *new_arr = lv_realloc(canvas->blocks, new_cap * sizeof(lvVisualBlock));
         if (!new_arr)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc blocks");
         canvas->blocks = new_arr;
         canvas->block_capacity = new_cap;
     }
@@ -188,7 +189,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
     if (total_ports > 0) {
         block->ports = lv_calloc(total_ports, sizeof(lvBlockPort));
         if (!block->ports)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block ports");
 
         /* 输入端口在左侧均匀分布 */
         for (int i = 0; i < input_count; i++) {
@@ -228,7 +229,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
  */
 int lv_block_canvas_remove_block(lvBlockCanvasView *canvas, int block_id) {
     if (!canvas || block_id <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or invalid block_id");
     int found = -1;
     for (int i = 0; i < canvas->block_count; i++) {
         if (canvas->blocks[i].id == block_id) {
@@ -237,7 +238,7 @@ int lv_block_canvas_remove_block(lvBlockCanvasView *canvas, int block_id) {
         }
     }
     if (found < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "block not found");
 
     /* 释放端口 */
     lv_free((void **) &canvas->blocks[found].ports);
@@ -321,15 +322,15 @@ static int find_port_pos(lvBlockCanvasView *canvas, int block_id, int port_id, d
 int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id, int from_port_id, int to_block_id,
                                    int to_port_id) {
     if (!canvas || from_block_id <= 0 || to_block_id <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or invalid block id");
     if (from_block_id == to_block_id)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "self-connection not allowed");
 
     /* 验证端口存在 */
     lvVisualBlock *from_block = find_block(canvas, from_block_id);
     lvVisualBlock *to_block = find_block(canvas, to_block_id);
     if (!from_block || !to_block)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "source or target block not found");
 
     int from_found = 0, to_found = 0;
     for (int i = 0; i < from_block->port_count; i++) {
@@ -345,17 +346,17 @@ int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id,
         }
     }
     if (!from_found || !to_found)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "source or target port not found");
 
     /* 自动扩容 */
     if (canvas->connection_count >= canvas->connection_capacity) {
         /* [安全] 防止 connection_capacity * 2 整数溢出 */
         if (canvas->connection_capacity > INT_MAX / 2)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "connection capacity overflow");
         int new_cap = canvas->connection_capacity * 2;
         lvBlockConnection *new_arr = lv_realloc(canvas->connections, new_cap * sizeof(lvBlockConnection));
         if (!new_arr)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc connections");
         canvas->connections = new_arr;
         canvas->connection_capacity = new_cap;
     }
@@ -401,7 +402,7 @@ int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id,
  */
 char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
     if (!canvas)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "NULL canvas");
 
     /* 计算包围盒 */
     double min_x = 1e18, min_y = 1e18, max_x = -1e18, max_y = -1e18;
@@ -437,7 +438,7 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
     int buf_size = (int) est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate SVG buffer");
 
     int pos = 0;
 

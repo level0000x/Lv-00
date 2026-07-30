@@ -63,7 +63,7 @@ void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
 static void *graph_ensure_capacity(void *arr, int count, int *capacity, size_t elem_size, int min_growth) {
     void *arr_ptr = arr;
     if (!lv_ensure_capacity(&arr_ptr, count, capacity, elem_size, min_growth))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_ensure_capacity: lv_ensure_capacity failed");
     return arr_ptr;
 }
 

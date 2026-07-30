@@ -166,9 +166,9 @@ double lv_sparse_get(const lvSparseMatrix *m, int row, int col) {
  */
 int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
     if (!A || !b || !x)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_sparse_solve: NULL parameter");
     if (A->rows != A->cols)
-        return -2; /* 仅支持方阵 */
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_sparse_solve: non-square matrix");
 
     int n = A->rows;
 
@@ -178,7 +178,7 @@ int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
 
     double *x_next = lv_malloc(sizeof(double) * n);
     if (!x_next)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_sparse_solve: malloc x_next failed");
 
     /* 初始值 */
     for (int i = 0; i < n; i++)

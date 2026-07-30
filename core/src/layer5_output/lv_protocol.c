@@ -25,6 +25,7 @@
 
 #include "lv/lv.h"
 #include "lv/lv_config.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /* 运行时配置快捷方式
@@ -218,7 +219,7 @@ TrustColor lv_protocol_to_trust_color(lvTrustColor lv) {
 static int parse_sysinfo_counters(const char *info, uint64_t *nodes, uint64_t *constraints, uint64_t *solver_calls,
                                   uint64_t *rewrite_steps, uint64_t *unify_checks) {
     if (!info)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "parse_sysinfo_counters: info is NULL");
 
     /* "节点创建: N" */
     const char *p = strstr(info, "\347\273\223\347\202\271\345\210\233\345\273\272"); /* "节点创建" */
@@ -273,7 +274,7 @@ static int parse_sysinfo_counters(const char *info, uint64_t *nodes, uint64_t *c
  */
 static int parse_sysinfo_memory(const char *info, double *current_mb, double *peak_mb) {
     if (!info)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "parse_sysinfo_memory: info is NULL");
 
     if (current_mb) {
         const char *p = strstr(info, "\345\275\223\345\211\215\344\275\277\347\224\250"); /* "当前使用" */
@@ -319,7 +320,7 @@ static int parse_sysinfo_memory(const char *info, double *current_mb, double *pe
 int lv_proto_draw_commands(void *engine, double offset_x, double offset_y, double scale, double canvas_w,
                            double canvas_h, lvDrawCmdList *out) {
     if (!out)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_draw_commands: out is NULL");
     memset(out, 0, sizeof(*out));
 
     /* 获取系统信息 */
@@ -339,7 +340,7 @@ int lv_proto_draw_commands(void *engine, double offset_x, double offset_y, doubl
     int init_cap = 4;
     out->cmds = (lvDrawCmd *) lv_calloc((size_t) init_cap, sizeof(lvDrawCmd));
     if (!out->cmds)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_draw_commands: out->cmds calloc failed");
     out->capacity = init_cap;
     out->count = 0;
 
@@ -381,7 +382,7 @@ int lv_proto_draw_commands(void *engine, double offset_x, double offset_y, doubl
  */
 int lv_proto_table_rows(void *engine, lvTableRowList *out) {
     if (!out)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_table_rows: out is NULL");
     memset(out, 0, sizeof(*out));
 
     /* 获取系统信息 */
@@ -398,7 +399,7 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
     int max_rows = 5;
     out->rows = (lvTableRow *) lv_calloc((size_t) max_rows, sizeof(lvTableRow));
     if (!out->rows)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_table_rows: out->rows calloc failed");
     out->capacity = max_rows;
 
     /* 行 0: 整体健康状态 */
@@ -494,7 +495,7 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
  */
 int lv_proto_dsl_text(void *engine, char *out, size_t buf_size) {
     if (!out || buf_size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_dsl_text: out is NULL or buf_size is 0");
 
     char sys_info[2048] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
@@ -554,7 +555,7 @@ int lv_proto_dsl_text(void *engine, char *out, size_t buf_size) {
  */
 int lv_proto_tree(void *engine, lvTreeNode **out_root) {
     if (!out_root)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_tree: out_root is NULL");
 
     char sys_info[2048] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
@@ -563,7 +564,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
     /* 根节点 */
     lvTreeNode *root = (lvTreeNode *) lv_calloc(1, sizeof(lvTreeNode));
     if (!root)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_tree: root calloc failed");
 
     snprintf(root->id, sizeof(root->id), "root");
     snprintf(root->label, sizeof(root->label), "Lv-00 Engine v%s", lv_VERSION_STRING);
@@ -576,7 +577,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
     root->children = (lvTreeNode **) lv_calloc((size_t) max_children, sizeof(lvTreeNode *));
     if (!root->children) {
         lv_free((void **) &root);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_tree: root->children calloc failed");
     }
 
     /* 子节点 0: 健康状态 */
@@ -645,7 +646,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
  */
 int lv_proto_topology(void *engine, lvTopoGraph *out) {
     if (!out)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_topology: out is NULL");
     memset(out, 0, sizeof(*out));
 
     char sys_info[2048] = {0};
@@ -656,7 +657,7 @@ int lv_proto_topology(void *engine, lvTopoGraph *out) {
     int max_blocks = 3;
     out->blocks = (lvTopoBlock *) lv_calloc((size_t) max_blocks, sizeof(lvTopoBlock));
     if (!out->blocks)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_topology: out->blocks calloc failed");
 
     /* 块 0: Input */
     lvTopoBlock *block = &out->blocks[out->block_count++];
@@ -685,7 +686,7 @@ int lv_proto_topology(void *engine, lvTopoGraph *out) {
         lv_free((void **) &out->blocks);
         out->blocks = NULL;
         out->block_count = 0;
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_topology: out->edges calloc failed");
     }
 
     out->edges[0].from_block = 0;
@@ -718,7 +719,7 @@ int lv_proto_topology(void *engine, lvTopoGraph *out) {
  */
 int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
     if (!out)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_proof_navigator: out is NULL");
     memset(out, 0, sizeof(*out));
 
     char sys_info[2048] = {0};
@@ -734,7 +735,7 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
     int max_steps = 3;
     out->steps = (lvProofStep *) lv_calloc((size_t) max_steps, sizeof(lvProofStep));
     if (!out->steps)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_proof_navigator: out->steps calloc failed");
 
     /* 步骤 0: 系统初始化（公理） */
     lvProofStep *step = &out->steps[out->step_count++];
@@ -816,7 +817,7 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
  */
 int lv_proto_engine_status(void *engine, lvEngineStatus *out) {
     if (!out)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_engine_status: out is NULL");
     memset(out, 0, sizeof(*out));
 
     /* 获取系统信息 */
@@ -900,7 +901,7 @@ int lv_proto_completions(void *engine, const char *prefix, lvCompletionList *out
     (void) engine;
 
     if (!out) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_completions: out is NULL");
     }
 
     memset(out, 0, sizeof(*out));
@@ -924,7 +925,7 @@ int lv_proto_completions(void *engine, const char *prefix, lvCompletionList *out
 
     out->items = (lvCompletion *) lv_calloc((size_t) match_count, sizeof(lvCompletion));
     if (!out->items) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_completions: out->items calloc failed");
     }
 
     int idx = 0;
@@ -933,7 +934,7 @@ int lv_proto_completions(void *engine, const char *prefix, lvCompletionList *out
             out->items[idx].text = lv_strdup_safe(kBuiltinCommands[i]);
             if (!out->items[idx].text) {
                 lv_proto_free_completions(out);
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_completions: strdup failed");
             }
             idx++;
         }
@@ -958,7 +959,7 @@ int lv_proto_terminal_exec(void *engine, const char *command, lvTerminalResponse
     (void) engine;
 
     if (!out) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_terminal_exec: out is NULL");
     }
 
     memset(out, 0, sizeof(*out));

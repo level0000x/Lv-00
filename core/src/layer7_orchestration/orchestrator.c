@@ -67,7 +67,7 @@ lvSessionConfig lv_default_session_config(void) {
 lvSession *lv_session_create(const char *name) {
     lvSession *session = lv_calloc(1, sizeof(lvSession));
     if (!session)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate session");
     session->session_id = atomic_fetch_add(&session_counter, 1) + 1;
     if (name) {
         strncpy(session->session_name, name, sizeof(session->session_name));
@@ -101,7 +101,7 @@ void lv_session_destroy(lvSession *session) {
  */
 int lv_session_configure(lvSession *session, const lvSessionConfig *config) {
     if (!session || !config)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL session or config");
     session->config = *config;
     return 0;
 }
@@ -118,7 +118,7 @@ int lv_session_configure(lvSession *session, const lvSessionConfig *config) {
  */
 int lv_session_run(lvSession *session, const char *input) {
     if (!session || !input)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL session or input");
     session->success = 0;
 
     /* ── Stage 0: Parse ── 验证输入非空，模拟解析：统计行数/标记数 ── */
@@ -134,7 +134,7 @@ int lv_session_run(lvSession *session, const char *input) {
             strncpy(session->final_error, "Stage 0 (Parse) 失败: 输入为空", sizeof(session->final_error));
             session->final_error[sizeof(session->final_error) - 1] = '\0';
             session->success = 0;
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PARSE, "parse failed: empty input");
         }
 
         /* 模拟解析：遍历输入字符，统计行数和标记数（以空格/换行分隔的连续非空白字符序列计为一个标记） */
@@ -213,7 +213,7 @@ int lv_session_run(lvSession *session, const char *input) {
             strncpy(session->stages[lv_STAGE_GEOMETRY].error_msg, "几何阶段失败：前置解析阶段未完成",
                     sizeof(session->stages[lv_STAGE_GEOMETRY].error_msg) - 1);
             strncpy(session->final_error, "Stage 2 (Geometry) 失败: 前置阶段未完成", sizeof(session->final_error) - 1);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "geometry stage: parse stage not completed");
         }
 
         /*
@@ -258,7 +258,7 @@ int lv_session_run(lvSession *session, const char *input) {
             strncpy(session->stages[lv_STAGE_REASONING].error_msg, "推理阶段失败：前置几何阶段未完成",
                     sizeof(session->stages[lv_STAGE_REASONING].error_msg) - 1);
             strncpy(session->final_error, "Stage 3 (Reasoning) 失败: 前置阶段未完成", sizeof(session->final_error) - 1);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "reasoning stage: geometry stage not completed");
         }
 
         /*
@@ -337,7 +337,7 @@ int lv_session_run(lvSession *session, const char *input) {
             strncpy(session->final_error, "Stage 3 (Reasoning) 失败: 所有策略均未找到证明",
                     sizeof(session->final_error) - 1);
             session->success = 0;
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PROOF_INVALID, "reasoning stage: all strategies failed");
         }
     }
 
@@ -352,7 +352,7 @@ int lv_session_run(lvSession *session, const char *input) {
             strncpy(session->stages[lv_STAGE_OUTPUT].error_msg, "输出生成失败：前置推理阶段未完成",
                     sizeof(session->stages[lv_STAGE_OUTPUT].error_msg) - 1);
             strncpy(session->final_error, "Stage 4 (Output) 失败: 前置阶段未完成", sizeof(session->final_error) - 1);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "output stage: reasoning stage not completed");
         }
 
         /* 根据 output_format 选择不同的输出模板，不同格式的详细度各异 */
@@ -392,7 +392,7 @@ int lv_session_run(lvSession *session, const char *input) {
                         sizeof(session->stages[lv_STAGE_VISUAL].error_msg) - 1);
                 strncpy(session->final_error, "Stage 5 (Visual) 失败: 前置阶段未完成",
                         sizeof(session->final_error) - 1);
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "visual stage: output stage not completed");
             }
 
             /* 解析几何阶段消息中记录的对象数，用于计算画布布局 */
@@ -446,7 +446,7 @@ int lv_session_run(lvSession *session, const char *input) {
  */
 int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
     if (!session || stage < 0 || stage >= lv_STAGE_COUNT)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL session or invalid stage");
     session->stages[stage].status = lv_STAGE_RUNNING;
 
     /* 检查前置阶段是否已完成（除第一个阶段外） */
@@ -455,7 +455,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
             session->stages[stage].status = lv_STAGE_FAILED;
             snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
                      "前置阶段 %d 未完成，无法执行阶段 %d", stage - 1, stage);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "prerequisite stage %d not completed", stage - 1);
         }
     }
 
@@ -730,7 +730,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
  */
 int lv_session_run_from(lvSession *session, lvPipelineStage from_stage) {
     if (!session || from_stage < 0 || from_stage >= lv_STAGE_COUNT)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL session or invalid from_stage");
     /* 从指定阶段开始依次执行后续所有阶段，任一步失败即终止 */
     for (int i = from_stage; i < lv_STAGE_COUNT; i++) {
         int rc = lv_session_run_stage(session, (lvPipelineStage) i);

@@ -48,7 +48,7 @@ lvApplication *lv_app_create(const lvAppConfig *config) {
     /* 分配主结构体，用 calloc 确保所有字段初始为零 */
     lvApplication *app = lv_calloc(1, sizeof(lvApplication));
     if (!app)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate application");
     /* 使用传入配置或默认配置 */
     if (config)
         app->config = *config;
@@ -96,13 +96,13 @@ void lv_app_destroy(lvApplication *app) {
  */
 lvSession *lv_app_create_session(lvApplication *app, const char *name) {
     if (!app)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "NULL app");
     /* 创建新会话并注册到应用实例中（lvDArray 自动扩容） */
     lvSession *session = lv_session_create(name);
     if (session) {
         if (lv_darray_push(&app->sessions, &session) < 0) {
             lv_session_destroy(session);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to push session to array");
         }
     }
     return session;
@@ -121,7 +121,7 @@ lvSession *lv_app_create_session(lvApplication *app, const char *name) {
  */
 int lv_app_run_session(lvApplication *app, lvSession *session, const char *input) {
     if (!app || !session || !input)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL app, session or input");
     int rc = lv_session_run(session, input);
     app->total_sessions_run++;
     /* 会话运行成功时，若启用元验证则进一步校验结果合法性 */
@@ -152,7 +152,7 @@ int lv_app_run_session(lvApplication *app, lvSession *session, const char *input
  */
 int lv_app_remove_session(lvApplication *app, int session_id) {
     if (!app)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL app");
     for (int i = 0; i < app->sessions.count; i++) {
         lvSession **ps = (lvSession **) lv_darray_get(&app->sessions, i);
         if (ps && *ps && (*ps)->session_id == session_id) {
@@ -164,7 +164,7 @@ int lv_app_remove_session(lvApplication *app, int session_id) {
             return 0;
         }
     }
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "session %d not found", session_id);
 }
 
 /**
@@ -180,7 +180,7 @@ int lv_app_remove_session(lvApplication *app, int session_id) {
  */
 int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
     if (!app || !files || file_count <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL app/files or invalid file_count");
     int passed = 0;
     /* 遍历每个输入文件，为之创建独立会话并执行完整流水线 */
     for (int i = 0; i < file_count; i++) {
@@ -246,7 +246,7 @@ int lv_app_run_batch(lvApplication *app, const char **files, int file_count) {
  */
 int lv_app_run_repl(lvApplication *app) {
     if (!app)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL app");
 
     /* 交互式 REPL 循环 */
     char linebuf[4096];
@@ -321,7 +321,7 @@ int lv_app_run_repl(lvApplication *app) {
  */
 int lv_app_stats(const lvApplication *app, int *total, int *passed, int *failed) {
     if (!app)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL app");
     if (total)
         *total = app->total_sessions_run;
     if (passed)

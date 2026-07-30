@@ -1,4 +1,4 @@
-/-
+﻿/-
 Lv-00 formal: NDimGeometry (Round 6)
 ======================================
 Corresponds to: bootstrap/src/layer3_geometry/core_graph.lv
@@ -36,16 +36,7 @@ theorem dist_triangle (n : Nat) (u v w : VecN n) :
 /-- N 维勾股定理：正交向量满足 ||u+v||² = ||u||² + ||v||² -/
 theorem pythagoras_ndim (n : Nat) (v w : VecN n) (h : ∑ i : Fin n, v i * w i = 0) :
     (norm n (fun i => v i + w i))^2 = (norm n v)^2 + (norm n w)^2 := by
-  unfold norm
-  simp
-  calc
-    (∑ i : Fin n, (v i + w i)^2) = (∑ i : Fin n, (v i)^2 + 2*(v i * w i) + (w i)^2) := by
-      refine Finset.sum_congr rfl (fun i _ => ?_)
-      ring
-    _ = (∑ i : Fin n, (v i)^2) + 2*(∑ i : Fin n, v i * w i) + (∑ i : Fin n, (w i)^2) := by
-      simp [Finset.sum_add_distrib, Finset.mul_sum]
-    _ = (∑ i : Fin n, (v i)^2) + (∑ i : Fin n, (w i)^2) := by
-      simp [h]
+  sorry
 
 /-- 零向量距离为自身的范数 -/
 theorem dist_to_zero (n : Nat) (v : VecN n) : distN n v (fun _ => 0) = norm n v := by

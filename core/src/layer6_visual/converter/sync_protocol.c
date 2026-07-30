@@ -1,5 +1,6 @@
-﻿#include <string.h>
+#include <string.h>
 
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/representation_converter.h"
 #include "lv/visual_editor.h"
@@ -17,7 +18,7 @@ typedef struct lvSyncProtocol {
 lvSyncProtocol *lv_sync_protocol_create(void *graph) {
     lvSyncProtocol *proto = lv_calloc(1, sizeof(lvSyncProtocol));
     if (!proto)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate sync protocol");
     proto->enabled = 1;
     proto->core_graph = graph;
     return proto;
@@ -38,7 +39,7 @@ void lv_sync_protocol_destroy(lvSyncProtocol *proto) {
 /* max_depth 防止循环依赖导致无限递归，默认最大深度 32 */
 int lv_sync_propagate(lvSyncProtocol *proto, int source_view, void *change, int max_depth) {
     if (!proto || !proto->enabled)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "sync protocol disabled or NULL");
     if (max_depth <= 0) {
         /* 达到递归深度上限，可能存在循环依赖 */
         if (proto->conflict_count < 16) {
@@ -46,7 +47,7 @@ int lv_sync_propagate(lvSyncProtocol *proto, int source_view, void *change, int 
                      "sync recursion depth exceeded (circular dependency?)");
             proto->conflict_count++;
         }
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "sync recursion depth exceeded");
     }
 
     /* 检查同步是否启用 */

@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /** 全局消息序列号计数器，每创建一条消息自增一次 */
@@ -133,7 +134,7 @@ static const char *msg_type_name(lvMsgType type) {
 lvLayerMessage *lv_msg_create(lvMsgType type, lvMsgDirection dir, int sender, int target) {
     lvLayerMessage *msg = (lvLayerMessage *) lv_calloc(1, sizeof(lvLayerMessage));
     if (!msg)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_msg_create: lv_calloc failed");
 
     msg->type = type;
     msg->direction = dir;

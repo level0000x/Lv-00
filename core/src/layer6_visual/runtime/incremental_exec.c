@@ -1,7 +1,8 @@
-﻿#include <stdlib.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "lv/block_scheduler.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /* Incremental execution engine */
@@ -20,7 +21,7 @@ typedef struct lvIncrementalExec {
 lvIncrementalExec *lv_incremental_exec_create(int node_count) {
     lvIncrementalExec *exec = lv_calloc(1, sizeof(lvIncrementalExec));
     if (!exec)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate incremental exec");
     exec->node_count = node_count;
     /* 分配位图，每个unsigned int追踪32个block */
     if (node_count > 0) {
@@ -28,7 +29,7 @@ lvIncrementalExec *lv_incremental_exec_create(int node_count) {
         exec->validity_bitmap = lv_calloc(exec->bitmap_count, sizeof(unsigned int));
         if (!exec->validity_bitmap) {
             lv_free((void **) &exec);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate validity bitmap");
         }
         /* 初始状态：所有block都有效 */
         memset(exec->validity_bitmap, 0xFF, exec->bitmap_count * sizeof(unsigned int));
@@ -47,7 +48,7 @@ void lv_incremental_exec_destroy(lvIncrementalExec *exec) {
 /* 将指定block标记为无效（脏） */
 int lv_incremental_exec_invalidate(lvIncrementalExec *exec, int block_id) {
     if (!exec || block_id < 0 || block_id >= exec->node_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL exec or invalid block_id");
     int word_idx = block_id / 32;
     int bit_idx = block_id % 32;
     exec->validity_bitmap[word_idx] &= ~(1u << bit_idx);

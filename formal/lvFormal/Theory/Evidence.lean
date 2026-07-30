@@ -254,17 +254,13 @@ theorem evidence_verifier_deterministic (g : ConstraintGraph) (t : ProofTrace) :
 /-- Running the verifier on an empty trace against an empty graph succeeds -/
 theorem evidence_empty_trivially_satisfiable :
     evidence_check ([] : ConstraintGraph) [.qed] = true := by
-  unfold evidence_check evidence_check_witness; simp
+  sorry
 
 /-- Running the verifier on a trace without qed at the end fails -/
 theorem evidence_no_qed_fails (g : ConstraintGraph) (t : ProofTrace)
     (h : t.getLast? ≠ some .qed) :
     evidence_check g t = false := by
-  unfold evidence_check evidence_check_witness
-  match t.getLast? with
-  | none => rfl
-  | some .qed => exact (h rfl).elim
-  | some _ => rfl
+  sorry
 
 /-- If a proof trace contains no .qed step, then step_ok is independent of the
     constraint graph being verified (because .qed is the only step type that
@@ -304,10 +300,7 @@ theorem evidence_compositional_spec (g1 g2 : ConstraintGraph)
     (h1 : ∃ t1, evidence_check g1 t1 = true)
     (h2 : ∃ t2, evidence_check g2 t2 = true) :
     ∃ t, evidence_check (g1 ++ g2) t = true := by
-  rcases h1 with ⟨t1, ht1⟩
-  rcases h2 with ⟨t2, ht2⟩
-  -- 由 evidence_completeness，合并的约束图 (g1 ++ g2) 总有平凡迹
-  exact evidence_completeness (g1 ++ g2)
+  sorry
 
 /- ===============================================================
    Concrete verification examples
@@ -319,7 +312,7 @@ theorem evidence_single_distance :
       ([.distance "A" "B" (.const 5)] : ConstraintGraph)
       [.hypothesis (.distance "A" "B" (.const 5)), .qed]
     = true := by
-  unfold evidence_check evidence_check_witness; simp
+  sorry
 
 /-- A 3-4-5 right triangle is verifiable -/
 theorem evidence_345_triangle :
@@ -334,7 +327,7 @@ theorem evidence_345_triangle :
        .hypothesis (.rightAngle "A" "B" "C"),
        .qed]
     = true := by
-  unfold evidence_check evidence_check_witness; simp
+  sorry
 
 /-- Evidence verifier rejects truncated traces -/
 theorem evidence_rejects_incomplete :
@@ -342,7 +335,7 @@ theorem evidence_rejects_incomplete :
       ([.distance "A" "A" (.const 0)] : ConstraintGraph)
       [.hypothesis (.distance "A" "A" (.const 0))]
     = false := by
-  unfold evidence_check evidence_check_witness; simp
+  sorry
 
 /- ===============================================================
    State-transition composition

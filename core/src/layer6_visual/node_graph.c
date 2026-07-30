@@ -15,6 +15,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
+#include "lv/lv_internal.h"
 
 /* 节点图视图 - 完整实现
  * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
@@ -115,7 +116,7 @@ void lv_node_graph_destroy(lvNodeGraphView *graph) {
  */
 int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, double x, double y, int type) {
     if (!graph || !label)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL graph or label");
 
     lvGraphNode node;
     node.id = (id > 0) ? id : graph->next_node_id++;
@@ -126,7 +127,7 @@ int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, do
     node.label[sizeof(node.label) - 1] = '\0';
 
     if (lv_darray_push(&graph->nodes_da, &node) < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push node to darray");
 
     /* 更新自增ID */
     if (node.id >= graph->next_node_id) {
@@ -148,7 +149,7 @@ int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, do
  */
 int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
     if (!graph || id <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL graph or invalid id");
     int found = -1;
     lvGraphNode *nodes = (lvGraphNode *)graph->nodes_da.data;
     for (int i = 0; i < graph->nodes_da.count; i++) {
@@ -158,7 +159,7 @@ int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
         }
     }
     if (found < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "node not found");
 
     /* 移除与该节点相关的所有连接 */
     lvGraphConnection *conns = (lvGraphConnection *)graph->connections_da.data;
@@ -192,7 +193,7 @@ int lv_node_graph_remove_node(lvNodeGraphView *graph, int id) {
  */
 int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id, const char *label) {
     if (!graph || from_id <= 0 || to_id <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL graph or invalid node id");
 
     lvGraphConnection conn;
     conn.id = graph->next_connection_id++;
@@ -206,7 +207,7 @@ int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id,
     }
 
     if (lv_darray_push(&graph->connections_da, &conn) < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push connection to darray");
 
     return conn.id;
 }
@@ -222,7 +223,7 @@ int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id,
  */
 int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
     if (!graph || conn_id <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL graph or invalid conn_id");
     int found = -1;
     lvGraphConnection *conns = (lvGraphConnection *)graph->connections_da.data;
     for (int i = 0; i < graph->connections_da.count; i++) {
@@ -232,7 +233,7 @@ int lv_node_graph_remove_connection(lvNodeGraphView *graph, int conn_id) {
         }
     }
     if (found < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "connection not found");
 
     conns[found] = conns[graph->connections_da.count - 1];
     graph->connections_da.count--;
@@ -290,7 +291,7 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
     if (!dx || !dy) {
         lv_free((void **) &dx);
         lv_free((void **) &dy);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate layout displacement arrays");
     }
 
     /* 迭代 */

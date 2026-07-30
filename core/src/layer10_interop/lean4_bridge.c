@@ -70,7 +70,7 @@ typedef struct {
 /* Lean 4 proof export: 遍历 Lv-00 证明树并生成 Lean 4 tactic 脚本 */
 static int lean4_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL proof/output or invalid output_size");
 
     lvLean4Proof *p = (lvLean4Proof *) proof;
 
@@ -96,7 +96,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
     /* 计算可用空间 */
     int avail = output_size - header_len - footer_len - 1;
     if (avail < 64)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for header/footer");
 
     memcpy(output, header, header_len);
     int pos = header_len;
@@ -104,7 +104,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
     /* 写入定理名称 */
     int name_len = (int) strlen(p->theorem_name);
     if (pos + name_len + 32 >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for theorem name");
     memcpy(output + pos, p->theorem_name, name_len);
     pos += name_len;
 
@@ -127,7 +127,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
         /* 检查剩余空间 */
         int tac_len = (int) strlen(tac);
         if (pos + tac_len + 8 >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for tactic");
 
         /* 写入 tactic（缩进两格） */
         pos += snprintf(output + pos, output_size - pos, "  %s\n", tac);
@@ -135,7 +135,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
 
     /* 写入尾部 */
     if (pos + footer_len >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for footer");
     memcpy(output + pos, footer, footer_len + 1);
     return 0;
 }
@@ -145,7 +145,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
 /* 辅助：向证明结构体添加一个步骤，自动处理扩容 */
 static int lean4_add_step(lvLean4Proof *p, int step_type, const char *desc, int desc_len) {
     if (!p || step_type < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL proof or invalid step type");
     lvProofStep step;
     step.type = step_type;
     step.id = p->steps_da.count;
@@ -159,7 +159,7 @@ static int lean4_add_step(lvLean4Proof *p, int step_type, const char *desc, int 
         step.description[0] = '\0';
     }
     if (lv_darray_push(&p->steps_da, &step) < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push step");
     return 0;
 }
 
@@ -465,16 +465,16 @@ static void lean4_parse_tactics(const char *start, const char *end, lvLean4Proof
 
 static int lean4_import_proof(const char *input, void **proof) {
     if (!input || !proof)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL input or proof");
 
     /* 验证输入非空 */
     if (strlen(input) == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "empty input");
 
     /* 查找 theorem 关键字 */
     const char *theorem_kw = strstr(input, "theorem");
     if (!theorem_kw)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "missing 'theorem' keyword");
 
     /* 提取定理名（theorem 后的第一个标识符） */
     const char *name_start = theorem_kw + 7; /* 跳过 "theorem" */
@@ -485,12 +485,12 @@ static int lean4_import_proof(const char *input, void **proof) {
         name_end++;
 
     if (name_end == name_start)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "empty theorem name");
 
     /* 提取 tactic 脚本（":= by" 之后的内容） */
     const char *by_kw = strstr(input, ":= by");
     if (!by_kw)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "missing ':= by' keyword");
     const char *script_start = by_kw + 5; /* 跳过 ":= by" */
     while (*script_start && isspace((unsigned char) *script_start))
         script_start++;
@@ -498,7 +498,7 @@ static int lean4_import_proof(const char *input, void **proof) {
     /* 分配证明结构体 */
     lvLean4Proof *p = (lvLean4Proof *) lv_calloc(1, sizeof(lvLean4Proof));
     if (!p)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate lean4 proof");
 
     /* 保存定理名 */
     {
@@ -513,7 +513,7 @@ static int lean4_import_proof(const char *input, void **proof) {
     lv_darray_init(&p->steps_da, sizeof(lvProofStep));
     if (!lv_darray_reserve(&p->steps_da, 16)) {
         lv_free((void **) &(p));
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to reserve steps array");
     }
 
     /* 确定脚本结束位置（到下一个顶层关键字或文件末尾） */
@@ -594,7 +594,7 @@ static int lean4_validate(const char *input) {
 /* 注册 Lean 4 插件 */
 int lv_register_lean4_plugin(lvInteropManager *mgr) {
     if (!mgr)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL manager");
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "lean4", sizeof(plugin.name) - 1);

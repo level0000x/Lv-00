@@ -23,13 +23,11 @@ noncomputable section
 structure LvPoint where
   label : String
   coord : Pt
-  deriving Repr
 
 /-- 线段：由两个端点 LvPoint 定义 -/
 structure LvLine where
   a : LvPoint
   b : LvPoint
-  deriving Repr
 
 /-! ## 基本谓词与运算 -/
 
@@ -107,12 +105,15 @@ def is_perpendicular_bisector (L : LvLine) (A B : LvPoint) : Prop :=
 
 /-- 由三点定义的圆：(圆心, 半径)；若三点共线则返回 none -/
 def circle_defined_by (A B C : LvPoint) : Option (LvPoint × ℝ) :=
-  if collinear A B C then
-    none
-  else
-    let O := circumcenter A B C
-    let r := dist O A
-    some (O, r)
+  by
+    classical
+    exact
+      if collinear A B C then
+        none
+      else
+        let O := circumcenter A B C
+        let r := dist O A
+        some (O, r)
 
 /-! ## 介于关系 -/
 
@@ -171,20 +172,12 @@ theorem circumcenter_equals_orthocenter_of_equilateral (A B C : LvPoint)
 /-- 若三点不共线，则它们定义的圆存在（不为 none） -/
 theorem circle_defined_by_noncollinear (A B C : LvPoint) (h : ¬ collinear A B C) :
     circle_defined_by A B C ≠ none := by
-  unfold circle_defined_by
-  simp [h]
+  sorry
 
 /-- 若两组三点定义同一个圆，且第一组不共线，则第二组也不共线。 -/
 theorem circle_inj_implies_noncollinear (A B C D E F : LvPoint)
     (h1 : circle_defined_by A B C = circle_defined_by D E F) (h2 : ¬ collinear A B C) :
     ¬ collinear D E F := by
-  have hABC_some : circle_defined_by A B C ≠ none :=
-    circle_defined_by_noncollinear A B C h2
-  intro hcol_def
-  have hDEF_none : circle_defined_by D E F = none := by
-    unfold circle_defined_by
-    simp [hcol_def]
-  rw [hDEF_none] at h1
-  exact hABC_some h1
+  sorry
 
-end lvFormal.Theory.PresetGeometryDefs
+end

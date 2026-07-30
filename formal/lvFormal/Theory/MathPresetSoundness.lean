@@ -18,7 +18,7 @@ theorem gcd_zero_right (a : Nat) : Nat.gcd a 0 = a := by
 
 /-- gcd 对称性 -/
 theorem gcd_comm (a b : Nat) : Nat.gcd a b = Nat.gcd b a := by
-  simp
+  exact Nat.gcd_comm a b
 
 /-- 素数充要条件：大于 1 且只有 1 和自身两个因子 -/
 theorem prime_iff (p : Nat) (hp : p > 1) : True := by

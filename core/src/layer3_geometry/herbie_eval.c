@@ -141,19 +141,19 @@ static int contains_pattern(const char *expr, const char *pattern) {
  */
 static int add_entry(HerbieOptimizer *opt, const char *expr, double error, const char *desc) {
     if (!opt || !expr)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "add_entry: NULL opt or expr");
 
     OptimizedEntry e;
     e.expr = lv_strdup(expr);
     e.error_bound = error;
     e.description = lv_strdup(desc ? desc : "");
     if (!e.expr)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "add_entry: lv_strdup expr failed");
 
     if (lv_darray_push(&opt->entries, &e) < 0) {
         lv_free((void **) &e.expr);
         lv_free((void **) &e.description);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "add_entry: lv_darray_push failed");
     }
 
     /* 更新最优结果 */
@@ -296,7 +296,7 @@ static int parse_herbie_output(const char *herbie_output, HerbieOptimizer *opt) 
  */
 char *lv_herbie_optimize(const char *expression, double *out_value, double *out_error) {
     if (!expression)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_herbie_optimize: expression is NULL");
 
     HerbieOptimizer opt;
     memset(&opt, 0, sizeof(opt));

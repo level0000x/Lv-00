@@ -84,20 +84,20 @@ static void append_to_buffer(lvProofCompiler *compiler, const char *str) {
 lvProofObject *lv_proof_object_create(void) {
     lvProofObject *obj = (lvProofObject *) lv_calloc(1, sizeof(lvProofObject));
     if (!obj)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_create: calloc failed");
 
     obj->step_capacity = 64;
     obj->steps = (lvProofStepRecord **) lv_malloc(obj->step_capacity * sizeof(lvProofStepRecord *));
     if (!obj->steps) {
         lv_free((void **) &obj);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_create: steps malloc failed");
     }
 
     obj->axiom_ids = (int *) lv_malloc(32 * sizeof(int));
     if (!obj->axiom_ids) {
         lv_free((void **) &obj->steps);
         lv_free((void **) &obj);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_create: axiom_ids malloc failed");
     }
     obj->axiom_capacity = 32;
     obj->assumption_ids = (int *) lv_malloc(32 * sizeof(int));
@@ -105,7 +105,7 @@ lvProofObject *lv_proof_object_create(void) {
         lv_free((void **) &obj->axiom_ids);
         lv_free((void **) &obj->steps);
         lv_free((void **) &obj);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_create: assumption_ids malloc failed");
     }
     obj->assumption_capacity = 32;
 
@@ -144,12 +144,12 @@ void lv_proof_object_destroy(lvProofObject *obj) {
  */
 int lv_proof_object_add_step(lvProofObject *obj, lvProofStepRecord *step) {
     if (!obj || !step)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_proof_object_add_step: obj or step is NULL");
 
     /* 确保容量 */
     if (!lv_ensure_capacity((void **)&obj->steps, obj->step_count,
                             &obj->step_capacity, sizeof(lvProofStepRecord *), 1))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_add_step: ensure_capacity failed");
 
     step->step_id = obj->step_count;
     obj->steps[obj->step_count++] = step;
@@ -248,11 +248,11 @@ bool lv_proof_object_verify(const lvProofObject *obj) {
 lvProofStepRecord *lv_proof_step_record_create(void) {
     lvProofStepRecord *record = (lvProofStepRecord *) lv_calloc(1, sizeof(lvProofStepRecord));
     if (!record)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_step_record_create: calloc failed");
     record->premise_step_ids = (int *) lv_malloc(8 * sizeof(int));
     if (!record->premise_step_ids) {
         lv_free((void **) &record);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_step_record_create: premise_step_ids malloc failed");
     }
     record->premise_capacity = 8;
 
@@ -284,7 +284,7 @@ void lv_proof_step_record_destroy(lvProofStepRecord *record) {
 lvProofCompiler *lv_proof_compiler_create(const lvCompilerConfig *config) {
     lvProofCompiler *compiler = (lvProofCompiler *) lv_calloc(1, sizeof(lvProofCompiler));
     if (!compiler)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_create: calloc failed");
 
     if (config) {
         compiler->config = *config;
@@ -295,7 +295,7 @@ lvProofCompiler *lv_proof_compiler_create(const lvCompilerConfig *config) {
     compiler->output_buffer = (char *) lv_malloc(4096);
     if (!compiler->output_buffer) {
         lv_free((void **) &compiler);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_create: output_buffer malloc failed");
     }
     compiler->buffer_size = 4096;
     compiler->buffer_used = 0;
@@ -358,14 +358,14 @@ static const char *get_event_type_name(lvTraceEventType type) {
 char *lv_proof_compiler_to_json(const lvProofObject *proof, const lvProofTrace *trace) {
     lv_UNUSED(trace);
     if (!proof)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_json: proof is NULL");
 
     /* 动态缓冲区：初始 4096，溢出时翻倍 */
     size_t buffer_size = 4096;
     size_t offset = 0;
     char *buffer = (char *) lv_malloc(buffer_size);
     if (!buffer)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_json: malloc failed");
 
 /* 辅助宏：确保容量并写入 */
 #define JSON_ENSURE(needed)                                       \
@@ -375,7 +375,7 @@ char *lv_proof_compiler_to_json(const lvProofObject *proof, const lvProofTrace *
             char *_nb = (char *) lv_realloc(buffer, buffer_size); \
             if (!_nb) {                                           \
                 lv_free((void **) &buffer);                       \
-                return NULL;                                      \
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_json: realloc failed");          \
             }                                                     \
             buffer = _nb;                                         \
         }                                                         \
@@ -424,12 +424,12 @@ char *lv_proof_compiler_to_json(const lvProofObject *proof, const lvProofTrace *
  */
 char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *language) {
     if (!proof)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_latex: proof is NULL");
 
     size_t buffer_size = 16384;
     char *buffer = (char *) lv_malloc(buffer_size);
     if (!buffer)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_latex: malloc failed");
 
     size_t offset = 0;
 
@@ -441,7 +441,7 @@ char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *languag
             char *_nb = (char *) lv_realloc(buffer, buffer_size); \
             if (!_nb) {                                           \
                 lv_free((void **) &buffer);                       \
-                return NULL;                                      \
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_latex: realloc failed");         \
             }                                                     \
             buffer = _nb;                                         \
         }                                                         \
@@ -493,12 +493,12 @@ char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *languag
  */
 char *lv_proof_compiler_to_tikz(const lvProofObject *proof) {
     if (!proof)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_tikz: proof is NULL");
 
     size_t buffer_size = 16384;
     char *buffer = (char *) lv_malloc(buffer_size);
     if (!buffer)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_tikz: malloc failed");
 
     size_t offset = 0;
 
@@ -510,7 +510,7 @@ char *lv_proof_compiler_to_tikz(const lvProofObject *proof) {
             char *_nb = (char *) lv_realloc(buffer, buffer_size); \
             if (!_nb) {                                           \
                 lv_free((void **) &buffer);                       \
-                return NULL;                                      \
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_tikz: realloc failed");          \
             }                                                     \
             buffer = _nb;                                         \
         }                                                         \
@@ -555,12 +555,12 @@ char *lv_proof_compiler_to_tikz(const lvProofObject *proof) {
  */
 char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language) {
     if (!proof)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_text: proof is NULL");
 
     size_t buffer_size = 16384;
     char *buffer = (char *) lv_malloc(buffer_size);
     if (!buffer)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_text: malloc failed");
 
     size_t offset = 0;
 
@@ -572,7 +572,7 @@ char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language
             char *_nb = (char *) lv_realloc(buffer, buffer_size); \
             if (!_nb) {                                           \
                 lv_free((void **) &buffer);                       \
-                return NULL;                                      \
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_text: realloc failed");          \
             }                                                     \
             buffer = _nb;                                         \
         }                                                         \
@@ -647,12 +647,12 @@ char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language
 char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTrace *trace) {
     lv_UNUSED(trace);
     if (!proof)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_graphviz: proof is NULL");
 
     size_t buffer_size = 16384;
     char *buffer = (char *) lv_malloc(buffer_size);
     if (!buffer)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_graphviz: malloc failed");
 
     size_t offset = 0;
 
@@ -664,7 +664,7 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
             char *_nb = (char *) lv_realloc(buffer, buffer_size); \
             if (!_nb) {                                           \
                 lv_free((void **) &buffer);                       \
-                return NULL;                                      \
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_graphviz: realloc failed");      \
             }                                                     \
             buffer = _nb;                                         \
         }                                                         \
@@ -714,7 +714,7 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
  */
 char *lv_proof_compiler_compile(lvProofCompiler *compiler, const lvProofObject *proof, const lvProofTrace *trace) {
     if (!compiler || !proof)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_compile: compiler or proof is NULL");
 
     /* 清空缓冲区 */
     compiler->buffer_used = 0;
@@ -793,13 +793,14 @@ static void lv_trace_event_set_description(lvTraceEvent *ev, const char *desc) {
 
 lv_PUBLIC_API lvProofTrace *lv_proof_trace_create(void) {
     lvProofTrace *trace = (lvProofTrace *)lv_calloc(1, sizeof(lvProofTrace));
-    if (!trace) return NULL;
+    if (!trace)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_trace_create: calloc failed");
 
     trace->event_capacity = 64;
     trace->events = (lvTraceEvent **)lv_malloc((size_t)trace->event_capacity * sizeof(lvTraceEvent *));
     if (!trace->events) {
         lv_free((void **)&trace);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_trace_create: events malloc failed");
     }
     trace->event_count = 0;
     trace->total_steps = 0;
@@ -822,10 +823,11 @@ lv_PUBLIC_API void lv_proof_trace_destroy(lvProofTrace *trace) {
 }
 
 lv_PUBLIC_API int lv_proof_trace_add_event(lvProofTrace *trace, lvTraceEvent *event) {
-    if (!trace || !event) return -1;
+    if (!trace || !event)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_proof_trace_add_event: trace or event is NULL");
     if (!lv_ensure_capacity((void **)&trace->events, trace->event_count,
                             &trace->event_capacity, sizeof(lvTraceEvent *), 1))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proof_trace_add_event: ensure_capacity failed");
     trace->events[trace->event_count++] = event;
     return 0;
 }
@@ -910,7 +912,8 @@ lv_PUBLIC_API void lv_proof_trace_complete(lvProofTrace *trace, bool success) {
 
 lv_PUBLIC_API lvTraceEvent *lv_trace_event_create(lvTraceEventType type) {
     lvTraceEvent *ev = (lvTraceEvent *)lv_calloc(1, sizeof(lvTraceEvent));
-    if (!ev) return NULL;
+    if (!ev)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_trace_event_create: calloc failed");
     ev->type = type;
     ev->step_id = -1;
     ev->description = NULL;

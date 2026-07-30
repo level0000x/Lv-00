@@ -77,7 +77,7 @@ typedef struct {
  */
 static int coq_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL proof/output or invalid output_size");
 
     lvCoqProof *p = (lvCoqProof *) proof;
 
@@ -103,7 +103,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
 
     /* 检查基本空间 */
     if (header_len + footer_len + 64 >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for header/footer");
 
     memcpy(output, header, header_len);
     int pos = header_len;
@@ -111,7 +111,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
     /* 写入定理名称 */
     int name_len = (int) strlen(p->theorem_name);
     if (pos + name_len + 16 >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for theorem name");
     memcpy(output + pos, p->theorem_name, name_len);
     pos += name_len;
 
@@ -134,7 +134,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
         /* 检查剩余空间是否足够 */
         int tac_len = (int) strlen(tac);
         if (pos + tac_len + 8 >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for tactic");
 
         /* 写入 tactic，以 "." 结尾 */
         pos += snprintf(output + pos, output_size - pos, "  %s.\n", tac);
@@ -142,7 +142,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
 
     /* 写入尾部 */
     if (pos + footer_len + 1 >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for footer");
     memcpy(output + pos, footer, footer_len + 1);
     return 0;
 }
@@ -159,17 +159,17 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
  */
 static int coq_import_proof(const char *input, void **proof) {
     if (!input || !proof)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL input or proof");
     *proof = NULL;
 
     /* 检查输入非空 */
     if (strlen(input) == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "empty input");
 
     /* 查找 "Theorem" 关键字 */
     const char *theorem_kw = strstr(input, "Theorem");
     if (!theorem_kw)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "missing 'Theorem' keyword");
 
     /* 提取定理名（Theorem 后的第一个标识符） */
     const char *name_start = theorem_kw + 7; /* 跳过 "Theorem" */
@@ -179,12 +179,12 @@ static int coq_import_proof(const char *input, void **proof) {
     while (*name_end && !isspace((unsigned char) *name_end) && *name_end != ':')
         name_end++;
     if (name_end == name_start)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "empty theorem name");
 
     /* 查找 "Proof." 关键字，确定 tactic 脚本起始位置 */
     const char *proof_kw = strstr(input, "Proof.");
     if (!proof_kw)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "missing 'Proof.' keyword");
     const char *script_start = proof_kw + 6; /* 跳过 "Proof." */
     while (*script_start && isspace((unsigned char) *script_start))
         script_start++;
@@ -192,7 +192,7 @@ static int coq_import_proof(const char *input, void **proof) {
     /* 查找 "Qed." 关键字，确定 tactic 脚本结束位置 */
     const char *qed_kw = strstr(script_start, "Qed.");
     if (!qed_kw)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "missing 'Qed.' keyword");
 
     /* Coq tactic 到 Lv-00 步骤类型的反向映射 */
     static const struct {
@@ -207,7 +207,7 @@ static int coq_import_proof(const char *input, void **proof) {
     /* 分配证明结构体 */
     lvCoqProof *p = (lvCoqProof *) lv_calloc(1, sizeof(lvCoqProof));
     if (!p)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate coq proof");
 
     /* 保存定理名 */
     {
@@ -222,7 +222,7 @@ static int coq_import_proof(const char *input, void **proof) {
     lv_darray_init(&p->steps_da, sizeof(lvProofStep));
     if (!lv_darray_reserve(&p->steps_da, 16)) {
         lv_free((void **) &p);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to reserve steps array");
     }
 
     /* 逐行解析 tactic 脚本 */
@@ -274,7 +274,7 @@ static int coq_import_proof(const char *input, void **proof) {
                 if (lv_darray_push(&p->steps_da, &step) < 0) {
                     lv_darray_free(&p->steps_da);
                     lv_free((void **) &p);
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push step");
                 }
             }
         }
@@ -364,7 +364,7 @@ static int coq_validate(const char *input) {
  */
 int lv_register_coq_plugin(lvInteropManager *mgr) {
     if (!mgr)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL manager");
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "coq", sizeof(plugin.name) - 1);

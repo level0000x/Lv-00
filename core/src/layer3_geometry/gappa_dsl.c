@@ -22,6 +22,7 @@
 
 #include "lv/gappa_dsl.h"
 
+#include "lv/lv_internal.h"
 #include "lv/lv_platform.h"
 #include "lv/lv_utils.h"
 

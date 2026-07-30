@@ -81,7 +81,7 @@ static int bivariate_poly_init(BivariatePoly *bp, int deg_x) {
         bp->coeffs = lv_malloc((deg_x + 1) * sizeof(mpz_poly_t));
         if (!bp->coeffs) {
             bp->deg_x = -1;
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "bivariate_poly_init: malloc coeffs failed");
         }
         for (int i = 0; i <= deg_x; i++) {
             mpz_poly_init(&bp->coeffs[i]);

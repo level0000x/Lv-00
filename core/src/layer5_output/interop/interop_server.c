@@ -1031,10 +1031,10 @@ static int g_plugin_count = 0;
 
 int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin) {
     if (!plugin)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_interop_register_plugin: plugin is NULL");
     (void) mgr; /* 管理器参数保留供未来扩展 */
     if (g_plugin_count >= MAX_PLUGINS)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "lv_interop_register_plugin: plugin count exhausted");
     memcpy(&g_plugins[g_plugin_count], plugin, sizeof(lvPlugin));
     g_plugin_count++;
     return 0;

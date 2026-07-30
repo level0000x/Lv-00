@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/geo_visual.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 
@@ -65,7 +66,7 @@ static void set_default_style(lvVisualStyle *style) {
 lvVisualObject *lv_visual_point_create(float x, float y) {
     lvVisualObject *obj = (lvVisualObject *) lv_calloc(1, sizeof(lvVisualObject));
     if (obj == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_visual_point_create: lv_calloc failed");
 
     obj->type = lv_VISUAL_POINT;
     set_default_style(&obj->style);
@@ -87,7 +88,7 @@ lvVisualObject *lv_visual_point_create(float x, float y) {
 lvVisualObject *lv_visual_line_create(float x1, float y1, float x2, float y2) {
     lvVisualObject *obj = (lvVisualObject *) lv_calloc(1, sizeof(lvVisualObject));
     if (obj == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_visual_line_create: lv_calloc failed");
 
     obj->type = lv_VISUAL_SEGMENT;
     set_default_style(&obj->style);
@@ -111,7 +112,7 @@ lvVisualObject *lv_visual_line_create(float x1, float y1, float x2, float y2) {
 lvVisualObject *lv_visual_circle_create(float cx, float cy, float r) {
     lvVisualObject *obj = (lvVisualObject *) lv_calloc(1, sizeof(lvVisualObject));
     if (obj == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_visual_circle_create: lv_calloc failed");
 
     obj->type = lv_VISUAL_CIRCLE;
     set_default_style(&obj->style);
@@ -137,7 +138,7 @@ lvVisualObject *lv_visual_group_create(lvVisualObject **objs, size_t n) {
 
     lvVisualObject *obj = (lvVisualObject *) lv_calloc(1, sizeof(lvVisualObject));
     if (obj == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_visual_group_create: obj calloc failed");
 
     obj->type = lv_VISUAL_MOBJECT_GROUP;
     set_default_style(&obj->style);
@@ -146,7 +147,7 @@ lvVisualObject *lv_visual_group_create(lvVisualObject **objs, size_t n) {
     obj->children = (lvVisualObject **) lv_calloc(n, sizeof(lvVisualObject *));
     if (obj->children == NULL) {
         lv_free((void **) &obj);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_visual_group_create: children calloc failed");
     }
     memcpy(obj->children, objs, n * sizeof(lvVisualObject *));
     obj->children_count = n;
@@ -245,7 +246,7 @@ void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3]) {
 lvVisualScene *lv_visual_scene_create(void) {
     lvVisualScene *scene = (lvVisualScene *) lv_calloc(1, sizeof(lvVisualScene));
     if (scene == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_visual_scene_create: lv_calloc failed");
 
     scene->objects = NULL;
     scene->object_count = 0;
@@ -1059,7 +1060,7 @@ static void threejs_render_scene(FILE *fp, const lvVisualRenderer *renderer, con
 lvVisualRenderer *lv_visual_renderer_create(lvRenderBackend backend, int width, int height) {
     lvVisualRenderer *renderer = (lvVisualRenderer *) lv_calloc(1, sizeof(lvVisualRenderer));
     if (renderer == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_visual_renderer_create: lv_calloc failed");
 
     renderer->backend = backend;
     renderer->backend_ctx = NULL;

@@ -51,12 +51,12 @@ lvWidgetLayout *proof_widget_init(int layout_capacity) {
 
     lvWidgetLayout *layout = (lvWidgetLayout *) lv_calloc(1, sizeof(lvWidgetLayout));
     if (!layout)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_init: layout calloc failed");
 
     layout->widgets = (ProofWidgetState *) lv_calloc((size_t) layout_capacity, sizeof(ProofWidgetState));
     if (!layout->widgets) {
         lv_free_ptr(layout);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_init: widgets calloc failed");
     }
 
     layout->widget_count = 0;
@@ -106,17 +106,17 @@ void proof_widget_destroy(lvWidgetLayout *layout) {
  */
 int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type, const char *label, int bound_step) {
     if (!layout)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "proof_widget_register: layout is NULL");
 
     /* 容量不足时倍增扩容 */
     if (layout->widget_count >= layout->widget_capacity) {
         if (layout->widget_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "proof_widget_register: capacity overflow");
         int new_cap = layout->widget_capacity * lv_ARRAY_GROWTH_FACTOR;
         ProofWidgetState *new_arr =
             (ProofWidgetState *) lv_realloc(layout->widgets, (size_t) new_cap * sizeof(ProofWidgetState));
         if (!new_arr)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_register: realloc failed");
 
         /* 清零新增部分 */
         memset(new_arr + layout->widget_capacity, 0,
@@ -153,9 +153,9 @@ int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type, c
 int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active, bool is_enabled,
                         const char *display_label, int bound_step_id, const char *interaction_json) {
     if (!layout)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "proof_widget_update: layout is NULL");
     if (widget_id < 0 || widget_id >= layout->widget_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "proof_widget_update: invalid widget_id");
 
     ProofWidgetState *ws = &layout->widgets[widget_id];
     ws->is_active = is_active;
@@ -191,7 +191,7 @@ int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active, b
  */
 int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_goal) {
     if (!navigator || !out_goal)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "proof_widget_get_goal: navigator or out_goal is NULL");
 
     /* 初始化输出结构 */
     memset(out_goal, 0, sizeof(lvGoalDisplay));
@@ -202,7 +202,7 @@ int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_go
      * 此处分配默认文本作为桩实现 */
     out_goal->goal_text = lv_strdup("no goal available");
     if (!out_goal->goal_text)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_get_goal: strdup failed");
 
     return 0;
 }
@@ -216,7 +216,7 @@ int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_go
  */
 int proof_widget_get_hypotheses(const ProofNavigator *navigator, lvHypothesisEntry *out_hypotheses, int max_count) {
     if (!navigator || !out_hypotheses || max_count <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "proof_widget_get_hypotheses: invalid parameters");
 
     /* 清零输出数组 */
     memset(out_hypotheses, 0, (size_t) max_count * sizeof(lvHypothesisEntry));
@@ -284,7 +284,7 @@ void goal_display_free(lvGoalDisplay *goal) {
 int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_suggestions, double *out_confidences,
                                 int max_count) {
     if (!navigator || !out_suggestions || !out_confidences || max_count <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "proof_widget_suggest_tactic: invalid parameters");
 
     /* 初始化输出 */
     for (int i = 0; i < max_count; i++) {
@@ -320,7 +320,7 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_sugg
 int proof_widget_get_step_highlights(const ProofNavigator *navigator, lvProofStepHighlight *out_highlights,
                                      int max_count) {
     if (!navigator || !out_highlights || max_count <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "proof_widget_get_step_highlights: invalid parameters");
 
     /* 清零输出数组 */
     memset(out_highlights, 0, (size_t) max_count * sizeof(lvProofStepHighlight));
@@ -344,12 +344,12 @@ int proof_widget_get_step_highlights(const ProofNavigator *navigator, lvProofSte
  */
 char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
     if (!navigator)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "proof_widget_get_search_tree: navigator is NULL");
 
     size_t cap = JSON_BUF_INIT_SIZE;
     char *buf = (char *) lv_malloc(cap);
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_get_search_tree: malloc failed");
 
     int n = snprintf(buf, cap,
                      "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
@@ -359,7 +359,7 @@ char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
         char *nb = (char *) lv_realloc(buf, cap);
         if (!nb) {
             lv_free_ptr(buf);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_get_search_tree: realloc failed");
         }
         buf = nb;
         snprintf(buf, cap,
@@ -373,7 +373,7 @@ char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
 /* 获取依赖图的 JSON 表示（调用者负责释放返回的字符串） */
 char *proof_widget_get_dependency_graph(const ProofNavigator *navigator) {
     if (!navigator)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "proof_widget_get_dependency_graph: navigator is NULL");
 
     lvJsonBuf _jb;
     lv_json_buf_init(&_jb, 64);
@@ -392,13 +392,13 @@ char *proof_widget_get_dependency_graph(const ProofNavigator *navigator) {
  */
 char *proof_widget_export_layout(const lvWidgetLayout *layout) {
     if (!layout)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "proof_widget_export_layout: layout is NULL");
 
     /* 估算缓冲区：基础 JSON + 每个 widget 约 160 字节 */
     size_t cap = (size_t) (JSON_BUF_INIT_SIZE + layout->widget_count * 160);
     char *buf = (char *) lv_malloc(cap);
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_export_layout: malloc failed");
 
     size_t pos = 0;
     int written;
@@ -411,14 +411,14 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
                        layout->persistence_key ? layout->persistence_key : "");
     if (written < 0) {
         lv_free_ptr(buf);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "proof_widget_export_layout: snprintf failed");
     }
     if ((size_t) written >= cap - pos) {
         cap = pos + (size_t) written + 1;
         char *nb = (char *) lv_realloc(buf, cap);
         if (!nb) {
             lv_free_ptr(buf);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_export_layout: realloc failed");
         }
         buf = nb;
     }
@@ -434,7 +434,7 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
             char *nb = (char *) lv_realloc(buf, cap);
             if (!nb) {
                 lv_free_ptr(buf);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_export_layout: realloc in loop failed");
             }
             buf = nb;
         }
@@ -458,7 +458,7 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
         char *nb = (char *) lv_realloc(buf, cap);
         if (!nb) {
             lv_free_ptr(buf);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_export_layout: final realloc failed");
         }
         buf = nb;
     }
@@ -479,9 +479,9 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
 int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name, const char *tactic_args,
                               bool *out_success, char **out_feedback) {
     if (!navigator || !tactic_name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "proof_widget_apply_tactic: navigator or tactic_name is NULL");
     if (!out_success || !out_feedback)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "proof_widget_apply_tactic: out_success or out_feedback is NULL");
 
     *out_success = false;
     *out_feedback = NULL;
@@ -504,14 +504,18 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
         step_type = PROOF_STEP_NORMALIZATION;
     } else {
         *out_feedback = lv_strdup("unknown tactic");
-        return (*out_feedback) ? 0 : -1;
+        if (!*out_feedback)
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_apply_tactic: strdup failed");
+        return 0;
     }
 
     /* 创建证明步骤 */
     ProofStep *step = proof_step_create(step_type);
     if (!step) {
         *out_feedback = lv_strdup("failed to create proof step");
-        return (*out_feedback) ? 0 : -1;
+        if (!*out_feedback)
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_apply_tactic: strdup failed");
+        return 0;
     }
 
     /* 设置步骤备注 */
@@ -519,7 +523,9 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
         /* [安全] 计算备注缓冲区大小：确保 tactic_name 和 tactic_args 不超过 2^31-1 */
         if (strlen(tactic_name) > 0x3FFFFFFF || (tactic_args && strlen(tactic_args) > 0x3FFFFFFF)) {
             *out_feedback = lv_strdup("tactic name or args too long");
-            return (*out_feedback) ? 0 : -1;
+            if (!*out_feedback)
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_apply_tactic: strdup failed");
+            return 0;
         }
         int buf_size = (int) (strlen(tactic_name) + (tactic_args ? strlen(tactic_args) : 0) + 4);
         char *note = (char *) lv_malloc((size_t) buf_size);
@@ -536,12 +542,16 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
     if (!proof_navigator_add_step(navigator, step)) {
         proof_step_destroy(step);
         *out_feedback = lv_strdup("failed to add step to navigator");
-        return (*out_feedback) ? 0 : -1;
+        if (!*out_feedback)
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_apply_tactic: strdup failed");
+        return 0;
     }
 
     *out_success = true;
     *out_feedback = lv_strdup("tactic applied successfully");
-    return (*out_feedback) ? 0 : -1;
+    if (!*out_feedback)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_apply_tactic: strdup failed");
+    return 0;
 }
 
 /* ================================================================

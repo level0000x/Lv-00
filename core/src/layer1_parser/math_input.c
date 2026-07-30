@@ -32,7 +32,7 @@
  */
 int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
     if (!input || !normalized || buf_size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "invalid input params");
 
     /* 检测输入格式 */
     int format = lv_math_input_detect_format(input);

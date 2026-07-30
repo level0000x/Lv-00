@@ -713,71 +713,6 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
 }
 
 /* ============================================================================
- * Task 模块 — 内部结构体定义
- *
- * lvTaskGroup = lvWaitGroup（在 proof.h 中 typedef）
- * lvTask      = lvThreadTask（在 proof.h 中 typedef）
- *
- * 此处定义其实际结构体布局（与 thread_pool.c 保持一致）。
- * ============================================================================ */
-
-/* ---- 平台相关同步原语（与 thread_pool.c 保持一致） ---- */
-#ifdef _WIN32
-typedef CONDITION_VARIABLE lvCondVar;
-#else
-#include <pthread.h>
-typedef pthread_mutex_t lvMutex;
-typedef pthread_cond_t lvCondVar;
-#define MUTEX_INIT(m) pthread_mutex_init(&(m), NULL)
-#define MUTEX_LOCK(m) pthread_mutex_lock(&(m))
-#define MUTEX_UNLOCK(m) pthread_mutex_unlock(&(m))
-#define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
-#define COND_INIT(c) pthread_cond_init(&(c), NULL)
-#define COND_DESTROY(c) pthread_cond_destroy(&(c))
-#endif
-
-#ifndef lvMutex
-#ifdef _WIN32
-typedef CRITICAL_SECTION lvMutex;
-#define MUTEX_INIT(m) InitializeCriticalSection(&(m))
-#define MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
-#else
-typedef pthread_mutex_t lvMutex;
-#define MUTEX_INIT(m) pthread_mutex_init(&(m), NULL)
-#define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
-#endif
-#endif
-
-#ifndef MUTEX_LOCK
-#ifdef _WIN32
-#define MUTEX_LOCK(m) EnterCriticalSection(&(m))
-#define MUTEX_UNLOCK(m) LeaveCriticalSection(&(m))
-#endif
-#endif
-
-#ifndef COND_INIT
-#ifdef _WIN32
-#define COND_INIT(c) InitializeConditionVariable(&(c))
-#define COND_DESTROY(c) ((void) 0)
-#endif
-#endif
-
-/** @brief 等待组（与 thread_pool.c 保持一致） */
-struct lvWaitGroup {
-    int pending;
-    lvMutex mutex;
-    lvCondVar cond;
-};
-
-/** @brief 线程任务（与 thread_pool.c 保持一致） */
-struct lvThreadTask {
-    void (*func)(void *arg);
-    void *arg;
-    lvWaitGroup *group;
-    struct lvThreadTask *next;
-};
-
-/* ============================================================================
  * Task system functions — 实现
  * ============================================================================ */
 
@@ -786,8 +721,8 @@ lvTaskGroup *lv_task_group_create(const char *name) {
     lvTaskGroup *g = (lvTaskGroup *) lv_calloc(1, sizeof(lvTaskGroup));
     if (!g)
         return NULL;
-    MUTEX_INIT(g->mutex);
-    COND_INIT(g->cond);
+    lv_mutex_init(&g->mutex);
+    lv_cond_init(&g->cond);
     g->pending = 0;
     return g;
 }
@@ -807,17 +742,17 @@ lvTask *lv_task_create(int (*fn)(void *), void *arg, const char *name) {
 void lv_task_group_add(lvTaskGroup *group, lvTask *task) {
     if (!group || !task)
         return;
-    MUTEX_LOCK(group->mutex);
+    lv_mutex_lock(&group->mutex);
     group->pending++;
     task->group = group;
-    MUTEX_UNLOCK(group->mutex);
+    lv_mutex_unlock(&group->mutex);
 }
 
 void lv_task_group_destroy(lvTaskGroup *group) {
     if (!group)
         return;
-    MUTEX_DESTROY(group->mutex);
-    COND_DESTROY(group->cond);
+    lv_mutex_destroy(&group->mutex);
+    lv_cond_destroy(&group->cond);
     lv_free((void **) &group);
 }
 

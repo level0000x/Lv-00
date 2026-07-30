@@ -1,9 +1,10 @@
-﻿#include "lv/block_scheduler.h"
+#include "lv/block_scheduler.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "lv/func_block.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /* 块图视图结构（与 converter/block_to_text.c 保持一致） */
@@ -18,7 +19,7 @@ typedef struct {
 lvBlockScheduler *lv_block_scheduler_create(void *graph) {
     lvBlockScheduler *sched = lv_calloc(1, sizeof(lvBlockScheduler));
     if (!sched)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block scheduler");
     sched->graph = graph;
     sched->strategy = lv_SCHED_FULL;
     sched->effect_tracker = lv_effect_tracker_create();

@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* ============================================================
@@ -148,12 +149,12 @@ typedef struct lvParametricSurface {
 lvParametricCurve *lv_curve_create(double t_min, double t_max, lvCurveEvalFunc eval_func, lvCurveDerivFunc deriv_func,
                                    void *user_data, bool is_closed) {
     if (!eval_func || t_min >= t_max) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_curve_create: NULL eval_func or invalid domain");
     }
 
     lvParametricCurve *curve = (lvParametricCurve *) lv_malloc(sizeof(lvParametricCurve));
     if (!curve) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_curve_create: malloc curve failed");
     }
 
     curve->domain.t_min = t_min;
@@ -319,12 +320,12 @@ bool lv_curve_is_closed(const lvParametricCurve *curve) {
 lvParametricSurface *lv_surface_create(double u_min, double u_max, double v_min, double v_max,
                                        lvSurfaceEvalFunc eval_func, lvSurfaceDerivFunc deriv_func, void *user_data) {
     if (!eval_func || u_min >= u_max || v_min >= v_max) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_surface_create: NULL eval_func or invalid domain");
     }
 
     lvParametricSurface *surf = (lvParametricSurface *) lv_malloc(sizeof(lvParametricSurface));
     if (!surf) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_surface_create: malloc surf failed");
     }
 
     surf->domain.u_min = u_min;

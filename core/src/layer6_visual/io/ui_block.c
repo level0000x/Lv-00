@@ -10,6 +10,7 @@
  */
 
 #include "lv/io_blocks.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /**
@@ -24,7 +25,7 @@
 lvUIEventBlock *lv_ui_event_block_create(lvEffectType effect) {
     lvUIEventBlock *block = lv_calloc(1, sizeof(lvUIEventBlock));
     if (!block)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate UI event block");
     block->effect = effect;
     block->event_port = -1;
     block->action_port = -1;

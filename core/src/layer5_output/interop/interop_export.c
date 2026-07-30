@@ -1751,7 +1751,7 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
  */
 int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, size_t size) {
     if (!graph || !output || size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "interop_export_tikz_fragment: invalid parameters");
 
     /* ---- 流式事件：开始 TikZ 片段导出 ---- */
     if (interop_stream_ctx) {
@@ -1766,7 +1766,7 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
     do {                                                                   \
         int n = snprintf(output + total, (size_t) remaining, __VA_ARGS__); \
         if (n < 0)                                                         \
-            return -1;                                                     \
+            lv_RETURN_ERROR(lv_ERROR_IO, "tikz_fragment: snprintf failed");\
         if (n >= remaining) {                                              \
             total += remaining - 1;                                        \
             remaining = 1;                                                 \

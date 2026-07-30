@@ -28,22 +28,6 @@
 #define MAX_TASK_QUEUE 4096 /**< 最大任务队列长度 */
 #define DEFAULT_THREADS 4   /**< 默认工作线程数 */
 
-/** 任务节点（链表） */
-struct lvThreadTask {
-    void (*func)(void *arg);   /**< 任务函数 */
-    void *arg;                 /**< 任务参数 */
-    lvWaitGroup *group;        /**< 所属等待组（可为 NULL） */
-    struct lvThreadTask *next; /**< 下一个任务 */
-};
-
-/** 等待组 */
-struct lvWaitGroup {
-    int pending;         /**< 待完成任务数 */
-    int completed_count; /**< 已完成任务数（支持超时查询） */
-    lv_mutex_t mutex;       /**< 保护互斥锁 */
-    lv_cond_t cond;      /**< 等待条件变量 */
-};
-
 /** 线程池 */
 struct lvThreadPool {
     lv_thread_t *threads; /**< 工作线程句柄数组 */

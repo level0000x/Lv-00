@@ -696,6 +696,10 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/bootstrap_test.c
     # SHA-256 共享实现（从 axiom_pkg.c 提取）
     core/src/layer2_resource/sha256.c
+    # v1.1.0 线程池（原在 L3，v2.0.0 移入 L2 作为基础设施）
+    core/src/layer2_resource/thread_pool.c
+    # v1.1.0 SIMD 运算（原在 L4/unify，v2.0.0 移入 L2 作为基础设施）
+    core/src/layer2_resource/simd_ops.c
 )
 
 # ── Core: 核心便利层 (Core Convenience) ──
@@ -706,6 +710,11 @@ set(lv_CORE_SOURCES
     core/src/lv_impl_native.c
     # 上层接口实现
     core/src/lv_impl_upper.c
+    # 提取的预设实现（从 lv_impl_upper.c 拆分）
+    core/src/impl_preset_basic_geometry.c
+    core/src/impl_preset_transformations.c
+    core/src/impl_preset_measurements.c
+    core/src/impl_preset_polygons.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -737,8 +746,6 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/gappa_propagate.c
     core/src/layer3_geometry/fptaylor_eval.c
     core/src/layer3_geometry/herbie_eval.c
-    # v1.1.0 性能优化模块
-    core/src/layer3_geometry/thread_pool.c
     # v1.1.0 新增：几何拓扑
     core/src/layer3_geometry/geo_topology.c
     # v3.6.0 新增：WFC 范式 - 等价类管理器（Layer 3 约束拓扑规约）
@@ -1017,9 +1024,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/module/module_serialize.c
     # 多项式
     core/src/layer4_reasoning/numeric/mv_polynomial.c
-    # 统一子模块：SIMD 运算
-    core/src/layer4_reasoning/unify/simd_ops.c
-)
+    )
 
 # ── Layer 5: 结果输出层 (Output) ──
 # 职责：流式输出、TikZ 导出、证明可视化、模块、互操作

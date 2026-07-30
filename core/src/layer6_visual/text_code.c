@@ -14,6 +14,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
+#include "lv/lv_internal.h"
 
 /**
  * @brief 创建文本代码视图
@@ -25,13 +26,13 @@
 lvTextCodeView *lv_text_code_create(void) {
     lvTextCodeView *view = lv_calloc(1, sizeof(lvTextCodeView));
     if (!view)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate text code view");
     view->view_type = lv_VIEW_TEXT_CODE;
     view->buffer_size = 4096;
     view->code_buffer = lv_calloc(1, view->buffer_size);
     if (!view->code_buffer) {
         lv_free((void **) &view);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate code buffer");
     }
     return view;
 }
@@ -61,16 +62,16 @@ void lv_text_code_destroy(lvTextCodeView *view) {
  */
 int lv_text_code_set_text(lvTextCodeView *view, const char *text) {
     if (!view || !text)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL view or text");
     size_t len = strlen(text);
     if (len + 1 > (size_t) view->buffer_size) {
         /* [安全] 使用 size_t 计算扩展大小，防止整数溢出 */
         size_t new_size = ((len + 1 + 4095) / 4096) * 4096;
         if (new_size > 1024 * 1024 * 128)
-            return -1; /* 限制最大128MB */
+            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "text exceeds max buffer size 128MB");
         char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
         if (!new_buf)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc code buffer");
         view->code_buffer = new_buf;
         view->buffer_size = (int) new_size;
     }
@@ -103,7 +104,7 @@ const char *lv_text_code_get_text(const lvTextCodeView *view) {
  */
 int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text) {
     if (!view || !text)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL view or text");
     size_t text_len = strlen(text);
     size_t cur_len = view->code_buffer ? strlen(view->code_buffer) : 0;
     if (pos < 0)
@@ -115,10 +116,10 @@ int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text) {
     if (new_len + 1 > (size_t) view->buffer_size) {
         size_t new_size = ((new_len + 1 + 4095) / 4096) * 4096;
         if (new_size > 1024 * 1024 * 128)
-            return -1; /* 限制最大128MB */
+            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "insert text exceeds max buffer size 128MB");
         char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
         if (!new_buf)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc code buffer for insert");
         view->code_buffer = new_buf;
         view->buffer_size = (int) new_size;
     }
@@ -144,10 +145,10 @@ int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text) {
  */
 int lv_text_code_delete(lvTextCodeView *view, int pos, int len) {
     if (!view || pos < 0 || len <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL view or invalid pos/len");
     size_t cur_len = view->code_buffer ? strlen(view->code_buffer) : 0;
     if ((size_t) pos >= cur_len)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INDEX_OUT_OF_RANGE, "position out of range");
     size_t actual_len = (size_t) len;
     if ((size_t) (pos + actual_len) > cur_len)
         actual_len = cur_len - (size_t) pos;
@@ -170,7 +171,7 @@ int lv_text_code_delete(lvTextCodeView *view, int pos, int len) {
  */
 int lv_text_code_render(const lvTextCodeView *view, char *buffer, size_t size) {
     if (!view || !buffer || size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL view, buffer, or zero size");
     const char *src = view->code_buffer ? view->code_buffer : "";
     size_t len = strlen(src);
     if (len >= size)

@@ -25,6 +25,7 @@
 #include "lv/lv.h"
 #include "lv/lv_lexer.h"
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* ── 名称映射表：跟踪 AST 名称到引擎节点 ID 的映射 ── */
@@ -105,11 +106,11 @@ static int name_map_lookup(const char *name) {
  */
 static char *read_file(const char *filepath, size_t *out_len) {
     if (!filepath || !out_len)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "filepath or out_len is NULL");
 
     FILE *fp = fopen(filepath, "rb");
     if (!fp)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_IO, "failed to open file: %s", filepath);
 
     fseek(fp, 0, SEEK_END);
     long len = ftell(fp);
@@ -117,13 +118,13 @@ static char *read_file(const char *filepath, size_t *out_len) {
 
     if (len < 0) {
         fclose(fp);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_IO, "ftell failed for file: %s", filepath);
     }
 
     char *buf = (char *) lv_malloc((size_t) len + 1);
     if (!buf) {
         fclose(fp);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate buffer for file: %s", filepath);
     }
 
     size_t read = fread(buf, 1, (size_t) len, fp);

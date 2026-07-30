@@ -101,7 +101,7 @@ static bool safe_transition(lvContext *ctx, lvContextState new_state, const char
 int lv_prove(lvContext *ctx, const char *goal) {
     /* ---- 参数校验 ---- */
     if (!ctx) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL context in lv_prove");
     }
 
     /* 只有 IDLE 和 COMPLETE 状态允许开始新的证明 */
@@ -128,7 +128,7 @@ int lv_prove(lvContext *ctx, const char *goal) {
         dsl_compile_config_default(&cfg);
         if (!dsl_compile_and_load(goal, &cfg, ctx->main_graph)) {
             ctx->error_code = lv_ERROR_PARSE;
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PARSE, "parse failed in lv_prove");
         }
     }
 
@@ -182,7 +182,7 @@ int lv_prove(lvContext *ctx, const char *goal) {
 int lv_preset_load(lvContext *ctx, const char *name) {
     /* ---- 参数校验 ---- */
     if (!ctx || !name || name[0] == '\0') {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL ctx or name in lv_preset_load");
     }
 
     /* ---- 检查预设库状态 ---- */
@@ -235,7 +235,7 @@ int lv_preset_load(lvContext *ctx, const char *name) {
 int lv_preset_unload(lvContext *ctx, const char *name) {
     /* ---- 参数校验 ---- */
     if (!ctx || !name || name[0] == '\0') {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL ctx or name in lv_preset_unload");
     }
 
     /* ---- 在模块引用列表中查找匹配的预设 ---- */
@@ -288,7 +288,7 @@ int lv_preset_unload(lvContext *ctx, const char *name) {
 int lv_preset_apply(lvContext *ctx, const char *name) {
     /* ---- 参数校验 ---- */
     if (!ctx || !name || name[0] == '\0') {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL ctx or name in lv_preset_apply");
     }
 
     /* 仅允许在 IDLE 或 PARSING 状态下应用预设 */

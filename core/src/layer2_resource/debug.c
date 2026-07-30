@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file debug.c
  * @brief 调试工具实现
  * @details 实现日志系统、性能计数器、内存池、引用计数/GC、
@@ -90,6 +90,51 @@ lv_DECLARE_STREAM_CTX(debug);
  * 应该是全局共享的。关键是确保所有访问都在互斥锁保护下进行。
  */
 
+/** 紧急日志缓冲区大小 */
+#define lv_EMERGENCY_LOG_BUFFER_SIZE 256
+
+/**
+ * @brief 调试模块全局状态（替代原有的 17 个分散 static 变量）
+ *
+ * 将所有非线程局部全局变量归并到单一上下文结构体中，
+ * 降低模块耦合度，提高可维护性。
+ */
+typedef struct DebugState {
+    /* 日志文件状态 */
+    FILE *log_file;                                   /**< 日志文件句柄 */
+    char log_file_path[lv_LOG_PATH_MAX];              /**< 日志文件路径 */
+    char log_dir_path[lv_LOG_PATH_MAX];               /**< 日志目录路径 */
+    size_t current_log_size;                          /**< 当前日志文件大小 */
+    volatile bool initialized;                        /**< 初始化标志 */
+
+    /* 线程安全 */
+    lv_mutex_t log_mutex;                             /**< 日志互斥锁 */
+    lv_once_t log_once;                               /**< 日志一次初始化控制 */
+
+    /* 性能计数器 */
+    PerformanceCounters counters;                      /**< 性能计数器 */
+    lv_mutex_t counter_mutex;                         /**< 计数器互斥锁 */
+    lv_once_t counter_once;                           /**< 计数器一次初始化控制 */
+
+    /* 环形日志缓冲区 */
+    lvLogRingBuffer *log_ring_buffer;                 /**< 环形日志缓冲区指针 */
+    int log_ring_buffer_capacity;                     /**< 环形日志缓冲区容量 */
+
+    /* 紧急保存日志缓冲区 */
+    char *log_buffer[lv_EMERGENCY_LOG_BUFFER_SIZE];   /**< 紧急日志缓冲条目 */
+    int log_buffer_head;                              /**< 环形缓冲头部索引 */
+    int log_buffer_count;                             /**< 缓冲中条目数 */
+
+    /* 追踪会话 */
+    TraceSession *trace_session;                      /**< 追踪会话指针 */
+
+    /* 端口不变量描述（unused, retained for compatibility） */
+    const char *port_invariant_description;            /**< 端口不变量描述字符串 */
+} DebugState;
+
+/** 模块级唯一状态实例（替代原有的 17 个分散 static 变量） */
+static DebugState s_debug_state = {0};
+
 /*=== 内部状态 ===*/
 
 /* 全局日志级别（默认：普通模式下仅记录 INFO 及以上） */
@@ -98,46 +143,33 @@ static lv_THREAD_LOCAL LogLevel g_log_level = LOG_LEVEL_INFO;
 /* 调试模式标志（启用 DEBUG 级别日志） */
 static lv_THREAD_LOCAL bool g_debug_mode = false;
 
-/* 日志文件句柄（全局共享，所有线程写入同一日志文件，由 g_log_mutex 保护） */
-static FILE *g_log_file = NULL;
+/* 日志文件句柄（全局共享，所有线程写入同一日志文件，由 log_mutex 保护） */
 
-/* 日志文件路径（全局共享，由 g_log_mutex 保护） */
-static char g_log_file_path[lv_LOG_PATH_MAX] = {0};
+/* 日志文件路径（全局共享，由 log_mutex 保护） */
 
-/* 日志目录路径（全局共享，由 g_log_mutex 保护） */
-static char g_log_dir_path[lv_LOG_PATH_MAX] = {0};
+/* 日志目录路径（全局共享，由 log_mutex 保护） */
 
-/* 当前日志文件大小（全局共享，由 g_log_mutex 保护） */
-static size_t g_current_log_size = 0;
+/* 当前日志文件大小（全局共享，由 log_mutex 保护） */
 
-/* 初始化标志（全局共享，由 g_log_mutex 保护） */
-static volatile bool g_initialized = false;
+/* 初始化标志（全局共享，由 log_mutex 保护） */
 
-/* 线程安全互斥锁 */
-static lv_mutex_t g_log_mutex;
-static lv_once_t g_log_once = lv_ONCE_INIT;
-
+/* log_mutex 初始化函数 */
 static void log_mutex_init_func(void) {
-    lv_mutex_init(&g_log_mutex);
+    lv_mutex_init(&s_debug_state.log_mutex);
 }
 
-/* 性能计数器（全局共享，由 g_counter_mutex 保护） */
-static PerformanceCounters g_counters = {0};
+/* 性能计数器（全局共享，由 counter_mutex 保护） */
 
-static lv_mutex_t g_counter_mutex;
-static lv_once_t g_counter_once = lv_ONCE_INIT;
-
+/* counter_mutex 初始化函数 */
 static void counter_mutex_init_func(void) {
-    lv_mutex_init(&g_counter_mutex);
+    lv_mutex_init(&s_debug_state.counter_mutex);
 }
 
 /*=== 环形日志缓冲区（v3.3.0 新增）===*/
 
 /** 全局环形日志缓冲区（线程安全，前置声明以支持所有函数访问） */
-static lvLogRingBuffer *g_log_ring_buffer = NULL;
 
 /** 环形日志缓冲区容量（默认 256） */
-static int g_log_ring_buffer_capacity = lv_LOG_RING_BUFFER_DEFAULT_CAPACITY;
 
 /*=== 内部辅助函数 ===*/
 
@@ -152,26 +184,26 @@ static int g_log_ring_buffer_capacity = lv_LOG_RING_BUFFER_DEFAULT_CAPACITY;
 
 /* 日志加锁 */
 static void log_lock(void) {
-    lv_once(&g_log_once, log_mutex_init_func);
-    lv_mutex_lock(&g_log_mutex);
+    lv_once(&s_debug_state.log_once, log_mutex_init_func);
+    lv_mutex_lock(&s_debug_state.log_mutex);
 }
 
 static void log_unlock(void) {
-    lv_mutex_unlock(&g_log_mutex);
+    lv_mutex_unlock(&s_debug_state.log_mutex);
 }
 
 /* 性能计数器加锁 */
 static void counter_lock(void) {
-    lv_once(&g_counter_once, counter_mutex_init_func);
-    lv_mutex_lock(&g_counter_mutex);
+    lv_once(&s_debug_state.counter_once, counter_mutex_init_func);
+    lv_mutex_lock(&s_debug_state.counter_mutex);
 }
 
 static void counter_unlock(void) {
-    lv_mutex_unlock(&g_counter_mutex);
+    lv_mutex_unlock(&s_debug_state.counter_mutex);
 }
 
 /* 引用计数加锁/解锁（复用 counter_mutex） */
-lv_DEFINE_LOCK_FUNCS(debug_refcount, g_counter_mutex)
+lv_DEFINE_LOCK_FUNCS(debug_refcount, s_debug_state.counter_mutex)
 #define debug_lock_refcount debug_refcount_lock
 #define debug_unlock_refcount debug_refcount_unlock
 
@@ -272,7 +304,7 @@ static void rotate_logs(void) {
     int i;
 
     /* 如果存在则删除最旧的文件 */
-    snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
+    snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
              lv_LOG_MAX_FILES);
     if (lv_file_exists(old_path)) {
         remove(old_path);
@@ -280,8 +312,8 @@ static void rotate_logs(void) {
 
     /* 重命名现有文件: .4 -> .5, .3 -> .4, 依此类推 */
     for (i = lv_LOG_MAX_FILES - 1; i >= 1; i--) {
-        snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME, i);
-        snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
+        snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME, i);
+        snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.%d", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
                  i + 1);
         if (lv_file_exists(old_path)) {
             rename(old_path, new_path);
@@ -289,40 +321,40 @@ static void rotate_logs(void) {
     }
 
     /* 将当前日志重命名为 .1 */
-    if (g_log_file) {
-        fclose(g_log_file);
-        g_log_file = NULL;
+    if (s_debug_state.log_file) {
+        fclose(s_debug_state.log_file);
+        s_debug_state.log_file = NULL;
     }
 
     /* 重置日志大小计数器，因为旧文件已被关闭 */
-    g_current_log_size = 0;
+    s_debug_state.current_log_size = 0;
 
-    snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
-    snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.1", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
+    snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
+    snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.1", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
     if (lv_file_exists(old_path)) {
         rename(old_path, new_path);
     }
 
     /* 重新打开日志文件。
-     * 修复：如果 fopen 失败，需要记录错误日志，确保 g_log_file 保持为 NULL，
-     * 避免后续代码使用无效的文件指针。g_current_log_size 已在上面重置为 0。 */
-    g_log_file = fopen(old_path, "a");
-    if (!g_log_file) {
+     * 修复：如果 fopen 失败，需要记录错误日志，确保 log_file 保持为 NULL，
+     * 避免后续代码使用无效的文件指针。current_log_size 已在上面重置为 0。 */
+    s_debug_state.log_file = fopen(old_path, "a");
+    if (!s_debug_state.log_file) {
         /* fopen 失败：记录到 stderr（因为日志文件不可用），
-         * g_log_file 保持 NULL，后续 debug_log 会跳过文件写入 */
+         * log_file 保持 NULL，后续 debug_log 会跳过文件写入 */
         fprintf(stderr, "[DEBUG] rotate_logs: 无法重新打开日志文件: %s\n", old_path);
     }
 
     /* 获取当前文件大小（如果文件存在）。
      * 修复：显式检查 ftell 返回值是否为 -1L（表示错误），
      * 例如文件为管道或 fseek 失败时 ftell 会返回 -1L。 */
-    if (g_log_file) {
-        long pos = ftell(g_log_file);
+    if (s_debug_state.log_file) {
+        long pos = ftell(s_debug_state.log_file);
         if (pos > 0) {
-            g_current_log_size = (size_t) pos;
+            s_debug_state.current_log_size = (size_t) pos;
         }
-        /* pos == 0: 空文件或新建文件，g_current_log_size 保持 0，无需处理 */
-        /* pos == -1L: ftell 错误（如文件为管道），保持 g_current_log_size = 0，
+        /* pos == 0: 空文件或新建文件，current_log_size 保持 0，无需处理 */
+        /* pos == -1L: ftell 错误（如文件为管道），保持 current_log_size = 0，
          * 避免将 (size_t)-1 赋值导致变为极大值，从而触发不必要的轮转 */
     }
 }
@@ -333,7 +365,7 @@ static void rotate_logs(void) {
  *       将旧日志文件重命名并创建新的日志文件
  */
 static void check_rotation(void) {
-    if (g_current_log_size >= lv_LOG_MAX_SIZE) {
+    if (s_debug_state.current_log_size >= lv_LOG_MAX_SIZE) {
         rotate_logs();
     }
 }
@@ -367,8 +399,6 @@ void debug_context_destroy(DebugContext *ctx) {
 }
 
 /*=== 端口不变量断言 ===*/
-
-static const char *port_invariant_description = "端口不变量检查";
 
 int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx) {
     if (!ctx || !ctx->port_invariant_checks)
@@ -754,10 +784,6 @@ int ref_count_get(const void *obj) {
 static lv_THREAD_LOCAL EmergencySaveHandler g_emergency_handler = NULL;
 
 /* 日志缓冲区：保存最近的日志条目用于紧急保存 */
-#define lv_EMERGENCY_LOG_BUFFER_SIZE 256
-static char *g_log_buffer[lv_EMERGENCY_LOG_BUFFER_SIZE];
-static int g_log_buffer_head = 0;
-static int g_log_buffer_count = 0;
 
 /* 在 debug_log 中追加日志到缓冲区。
  * 注意：调用者（debug_log）在调用此函数前必须已持有 log_lock()，
@@ -772,14 +798,14 @@ static void log_buffer_append(const char *line) {
         return;
 
     /* 环形缓冲区：覆盖最旧的条目 */
-    if (g_log_buffer[g_log_buffer_head]) {
+    if (s_debug_state.log_buffer[s_debug_state.log_buffer_head]) {
         /* 修复：使用 lv_free 替代 free，统一内存释放 */
-        lv_free((void **) &g_log_buffer[g_log_buffer_head]);
+        lv_free((void **) &s_debug_state.log_buffer[s_debug_state.log_buffer_head]);
     }
-    g_log_buffer[g_log_buffer_head] = copy;
-    g_log_buffer_head = (g_log_buffer_head + 1) % lv_EMERGENCY_LOG_BUFFER_SIZE;
-    if (g_log_buffer_count < lv_EMERGENCY_LOG_BUFFER_SIZE) {
-        g_log_buffer_count++;
+    s_debug_state.log_buffer[s_debug_state.log_buffer_head] = copy;
+    s_debug_state.log_buffer_head = (s_debug_state.log_buffer_head + 1) % lv_EMERGENCY_LOG_BUFFER_SIZE;
+    if (s_debug_state.log_buffer_count < lv_EMERGENCY_LOG_BUFFER_SIZE) {
+        s_debug_state.log_buffer_count++;
     }
 }
 
@@ -831,14 +857,14 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
 
     /* 写入日志缓冲区（最近的 N 条日志） */
     if (config && config->include_log_buffer) {
-        fprintf(f, "[Recent Log Buffer (%d entries)]\n", g_log_buffer_count);
+        fprintf(f, "[Recent Log Buffer (%d entries)]\n", s_debug_state.log_buffer_count);
         /* 按时间顺序输出：从最旧到最新 */
         int start =
-            (g_log_buffer_head - g_log_buffer_count + lv_EMERGENCY_LOG_BUFFER_SIZE) % lv_EMERGENCY_LOG_BUFFER_SIZE;
-        for (int i = 0; i < g_log_buffer_count; i++) {
+            (s_debug_state.log_buffer_head - s_debug_state.log_buffer_count + lv_EMERGENCY_LOG_BUFFER_SIZE) % lv_EMERGENCY_LOG_BUFFER_SIZE;
+        for (int i = 0; i < s_debug_state.log_buffer_count; i++) {
             int idx = (start + i) % lv_EMERGENCY_LOG_BUFFER_SIZE;
-            if (g_log_buffer[idx]) {
-                fprintf(f, "%s", g_log_buffer[idx]);
+            if (s_debug_state.log_buffer[idx]) {
+                fprintf(f, "%s", s_debug_state.log_buffer[idx]);
             }
         }
         fprintf(f, "\n");
@@ -1065,7 +1091,6 @@ void debug_port_invariant_result_destroy(PortInvariantResult *result) {
 /* ================================================================== */
 
 /* 全局追踪会话 */
-static TraceSession *g_trace_session = NULL;
 
 static const char *trace_event_type_string(TraceEventType type) {
     switch (type) {
@@ -1363,10 +1388,10 @@ char *trace_session_export_json(const TraceSession *session) {
 }
 
 TraceSession *debug_get_trace_session(void) {
-    if (!g_trace_session) {
-        g_trace_session = trace_session_create();
+    if (!s_debug_state.trace_session) {
+        s_debug_state.trace_session = trace_session_create();
     }
-    return g_trace_session;
+    return s_debug_state.trace_session;
 }
 
 /*=== 遗留日志函数（向后兼容） ===*/
@@ -1388,15 +1413,15 @@ static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_lis
     printf("\n");
 
     /* 同时输出到日志文件（如果已初始化） */
-    if (g_log_file && g_initialized) {
+    if (s_debug_state.log_file && s_debug_state.initialized) {
         char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
         get_timestamp(timestamp, sizeof(timestamp));
-        fprintf(g_log_file, "[%s] [DEBUG] [%s] ", timestamp, subsystem);
+        fprintf(s_debug_state.log_file, "[%s] [DEBUG] [%s] ", timestamp, subsystem);
         va_copy(args_copy, args);
-        vfprintf(g_log_file, fmt, args_copy);
+        vfprintf(s_debug_state.log_file, fmt, args_copy);
         va_end(args_copy);
-        fprintf(g_log_file, "\n");
-        fflush(g_log_file);
+        fprintf(s_debug_state.log_file, "\n");
+        fflush(s_debug_state.log_file);
     }
 
     log_unlock();
@@ -1427,50 +1452,50 @@ void debug_log_solver(const char *fmt, ...) {
 
 int debug_log_init(void) {
     /* 使用 lv_once 确保互斥锁一次性初始化，lv_mutex_lock 保护初始化检查 */
-    lv_once(&g_log_once, log_mutex_init_func);
-    lv_mutex_lock(&g_log_mutex);
-    if (g_initialized) {
-        lv_mutex_unlock(&g_log_mutex);
+    lv_once(&s_debug_state.log_once, log_mutex_init_func);
+    lv_mutex_lock(&s_debug_state.log_mutex);
+    if (s_debug_state.initialized) {
+        lv_mutex_unlock(&s_debug_state.log_mutex);
         return 0; /* 已初始化 */
     }
 
     /* 构建日志目录路径: ~/.lv/logs
-     * 以下对 g_log_dir_path 和 g_log_file_path 的写入在 g_log_mutex 保护内，
+     * 以下对 log_dir_path 和 log_file_path 的写入在 log_mutex 保护内，
      * 防止与其他线程读取这些路径产生竞态条件 */
     const char *home = get_home_dir();
-    snprintf(g_log_dir_path, lv_LOG_PATH_MAX, "%s%c.lv%clogs", home, lv_PATH_SEPARATOR, lv_PATH_SEPARATOR);
+    snprintf(s_debug_state.log_dir_path, lv_LOG_PATH_MAX, "%s%c.lv%clogs", home, lv_PATH_SEPARATOR, lv_PATH_SEPARATOR);
 
     /* 创建日志目录 */
-    if (create_directory(g_log_dir_path) != 0) {
-        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not create log directory: %s", g_log_dir_path);
+    if (create_directory(s_debug_state.log_dir_path) != 0) {
+        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not create log directory: %s", s_debug_state.log_dir_path);
         /* 继续运行，不使用文件日志 */
     }
 
     /* 构建日志文件路径 */
-    snprintf(g_log_file_path, lv_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
+    snprintf(s_debug_state.log_file_path, lv_LOG_PATH_MAX, "%s%c%s", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
 
     /* 打开日志文件 */
-    g_log_file = fopen(g_log_file_path, "a");
-    if (!g_log_file) {
-        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not open log file: %s", g_log_file_path);
+    s_debug_state.log_file = fopen(s_debug_state.log_file_path, "a");
+    if (!s_debug_state.log_file) {
+        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not open log file: %s", s_debug_state.log_file_path);
         /* 继续运行，不使用文件日志 */
     } else {
         /* 获取当前文件大小 */
-        fseek(g_log_file, 0, SEEK_END);
-        long pos = ftell(g_log_file);
-        g_current_log_size = (pos > 0) ? (size_t) pos : 0;
+        fseek(s_debug_state.log_file, 0, SEEK_END);
+        long pos = ftell(s_debug_state.log_file);
+        s_debug_state.current_log_size = (pos > 0) ? (size_t) pos : 0;
     }
 
-    g_initialized = true;
+    s_debug_state.initialized = true;
 
-    lv_mutex_unlock(&g_log_mutex);
+    lv_mutex_unlock(&s_debug_state.log_mutex);
 
     /* 【v3.3.0】创建全局环形日志缓冲区 */
-    if (!g_log_ring_buffer) {
-        g_log_ring_buffer = lv_log_ring_buffer_create(g_log_ring_buffer_capacity);
-        if (g_log_ring_buffer) {
-            lv_log_ring_buffer_write(g_log_ring_buffer, LOG_LEVEL_INFO, "debug", "debug_log_init", __FILE__, __LINE__,
-                                     "环形日志缓冲区已创建（容量: %d）", g_log_ring_buffer_capacity);
+    if (!s_debug_state.log_ring_buffer) {
+        s_debug_state.log_ring_buffer = lv_log_ring_buffer_create(s_debug_state.log_ring_buffer_capacity);
+        if (s_debug_state.log_ring_buffer) {
+            lv_log_ring_buffer_write(s_debug_state.log_ring_buffer, LOG_LEVEL_INFO, "debug", "debug_log_init", __FILE__, __LINE__,
+                                     "环形日志缓冲区已创建（容量: %d）", s_debug_state.log_ring_buffer_capacity);
         }
     }
 
@@ -1483,48 +1508,48 @@ int debug_log_init(void) {
 }
 
 void debug_log_shutdown(void) {
-    /* 必须在锁内检查 g_initialized，防止与 debug_log_init() 产生竞态条件。
-     * 如果在锁外检查，可能出现：线程 A 检查 g_initialized 为 false 并返回，
-     * 同时线程 B 正在执行 debug_log_init() 并即将设置 g_initialized = true，
+    /* 必须在锁内检查 initialized，防止与 debug_log_init() 产生竞态条件。
+     * 如果在锁外检查，可能出现：线程 A 检查 initialized 为 false 并返回，
+     * 同时线程 B 正在执行 debug_log_init() 并即将设置 initialized = true，
      * 导致线程 A 错过关闭。 */
     log_lock();
 
-    if (!g_initialized) {
+    if (!s_debug_state.initialized) {
         log_unlock();
         return;
     }
 
     /* 记录关闭日志 */
-    if (g_log_file) {
+    if (s_debug_state.log_file) {
         char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
         get_timestamp(timestamp, sizeof(timestamp));
-        fprintf(g_log_file, "[%s] [INFO] [debug] === Logging System Shutdown ===\n", timestamp);
-        fclose(g_log_file);
-        g_log_file = NULL;
+        fprintf(s_debug_state.log_file, "[%s] [INFO] [debug] === Logging System Shutdown ===\n", timestamp);
+        fclose(s_debug_state.log_file);
+        s_debug_state.log_file = NULL;
     }
 
-    /* 先将 g_initialized 设为 false，阻止新日志进入。
+    /* 先将 initialized 设为 false，阻止新日志进入。
      * 此时仍持有 log_lock，确保后续的锁销毁操作安全。
      * 注意：此处不调用 log_unlock()，而是直接销毁锁，
      * 因为 shutdown 后不应再有其他线程尝试获取此锁。 */
-    g_initialized = false;
+    s_debug_state.initialized = false;
 
     /* 修复：销毁全局追踪会话，防止内存泄漏。
-     * g_trace_session 在 debug_get_trace_session 中惰性创建，
+     * trace_session 在 debug_get_trace_session 中惰性创建，
      * 但此前没有对应的销毁逻辑，导致程序退出时泄漏。 */
-    if (g_trace_session) {
-        trace_session_destroy(g_trace_session);
-        g_trace_session = NULL;
+    if (s_debug_state.trace_session) {
+        trace_session_destroy(s_debug_state.trace_session);
+        s_debug_state.trace_session = NULL;
     }
 
     /* 清理互斥锁 */
-    lv_mutex_destroy(&g_log_mutex);
-    lv_mutex_destroy(&g_counter_mutex);
+    lv_mutex_destroy(&s_debug_state.log_mutex);
+    lv_mutex_destroy(&s_debug_state.counter_mutex);
 
     /* 【v3.3.0】销毁全局环形日志缓冲区 */
-    if (g_log_ring_buffer) {
-        lv_log_ring_buffer_destroy(g_log_ring_buffer);
-        g_log_ring_buffer = NULL;
+    if (s_debug_state.log_ring_buffer) {
+        lv_log_ring_buffer_destroy(s_debug_state.log_ring_buffer);
+        s_debug_state.log_ring_buffer = NULL;
     }
 }
 
@@ -1600,10 +1625,10 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
     }
 
     /* 写入日志文件 */
-    if (g_log_file && g_initialized) {
-        fputs(log_line, g_log_file);
-        fflush(g_log_file);
-        g_current_log_size += (size_t) len;
+    if (s_debug_state.log_file && s_debug_state.initialized) {
+        fputs(log_line, s_debug_state.log_file);
+        fflush(s_debug_state.log_file);
+        s_debug_state.current_log_size += (size_t) len;
     }
 
     /* 追加到紧急保存日志缓冲区 */
@@ -1883,17 +1908,17 @@ void lv_log_with_context(struct lvContext *ctx, LogLevel level, const char *modu
     debug_log(level, module_name, "%s [%s:%d]", message, function_name, line_number);
 
     /* 3. 写入全局环形缓冲区 */
-    if (g_log_ring_buffer) {
-        lv_log_ring_buffer_write(g_log_ring_buffer, level, module_name, function_name, file_name, line_number, "%s",
+    if (s_debug_state.log_ring_buffer) {
+        lv_log_ring_buffer_write(s_debug_state.log_ring_buffer, level, module_name, function_name, file_name, line_number, "%s",
                                  message);
         /* 覆盖自动设置的 context_id 为实际的上下文 ID */
         log_lock();
-        if (g_log_ring_buffer->count > 0) {
+        if (s_debug_state.log_ring_buffer->count > 0) {
             /* 找到刚写入的条目（head - 1，处理绕回） */
-            int last_idx = (g_log_ring_buffer->head - 1 + g_log_ring_buffer->capacity) % g_log_ring_buffer->capacity;
+            int last_idx = (s_debug_state.log_ring_buffer->head - 1 + s_debug_state.log_ring_buffer->capacity) % s_debug_state.log_ring_buffer->capacity;
             /* 从上下文中获取 ID（如果可用） */
             if (ctx && ctx->context_id > 0) {
-                g_log_ring_buffer->entries[last_idx].context_id = ctx->context_id;
+                s_debug_state.log_ring_buffer->entries[last_idx].context_id = ctx->context_id;
             }
         }
         log_unlock();
@@ -1910,112 +1935,112 @@ void debug_get_counters(PerformanceCounters *counters) {
         return;
 
     counter_lock();
-    *counters = g_counters;
+    *counters = s_debug_state.counters;
 
     /* 计算平均求解器耗时 */
-    if (g_counters.solver_call_count > 0) {
-        counters->solver_avg_time_us = (double) g_counters.solver_total_time_us / (double) g_counters.solver_call_count;
+    if (s_debug_state.counters.solver_call_count > 0) {
+        counters->solver_avg_time_us = (double) s_debug_state.counters.solver_total_time_us / (double) s_debug_state.counters.solver_call_count;
     }
     counter_unlock();
 }
 
 void debug_reset_counters(void) {
     counter_lock();
-    memset(&g_counters, 0, sizeof(g_counters));
+    memset(&s_debug_state.counters, 0, sizeof(s_debug_state.counters));
     counter_unlock();
 }
 
 void debug_counter_node_created(void) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &g_counters.total_nodes_created);
-    InterlockedIncrement64((volatile LONG64 *) &g_counters.current_nodes_alive);
+    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.total_nodes_created);
+    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.current_nodes_alive);
 #else
-    __atomic_fetch_add(&g_counters.total_nodes_created, 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&g_counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.total_nodes_created, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
 #endif
 }
 
 void debug_counter_node_destroyed(void) {
 #ifdef _WIN32
-    InterlockedDecrement64((volatile LONG64 *) &g_counters.current_nodes_alive);
+    InterlockedDecrement64((volatile LONG64 *) &s_debug_state.counters.current_nodes_alive);
 #else
-    __atomic_fetch_sub(&g_counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_sub(&s_debug_state.counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
 #endif
 }
 
 void debug_counter_constraint_created(void) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &g_counters.total_constraints_created);
-    InterlockedIncrement64((volatile LONG64 *) &g_counters.current_constraints_alive);
+    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.total_constraints_created);
+    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.current_constraints_alive);
 #else
-    __atomic_fetch_add(&g_counters.total_constraints_created, 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&g_counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.total_constraints_created, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
 #endif
 }
 
 void debug_counter_constraint_destroyed(void) {
 #ifdef _WIN32
-    InterlockedDecrement64((volatile LONG64 *) &g_counters.current_constraints_alive);
+    InterlockedDecrement64((volatile LONG64 *) &s_debug_state.counters.current_constraints_alive);
 #else
-    __atomic_fetch_sub(&g_counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_sub(&s_debug_state.counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
 #endif
 }
 
 void debug_counter_solver_called(uint64_t time_us) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &g_counters.solver_call_count);
-    InterlockedExchangeAdd64((volatile LONG64 *) &g_counters.solver_total_time_us, (LONG64) time_us);
+    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.solver_call_count);
+    InterlockedExchangeAdd64((volatile LONG64 *) &s_debug_state.counters.solver_total_time_us, (LONG64) time_us);
 #else
-    __atomic_fetch_add(&g_counters.solver_call_count, 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&g_counters.solver_total_time_us, time_us, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.solver_call_count, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.solver_total_time_us, time_us, __ATOMIC_RELAXED);
 #endif
 }
 
 void debug_counter_rewrite_step(void) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &g_counters.rewrite_total_steps);
+    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.rewrite_total_steps);
 #else
-    __atomic_fetch_add(&g_counters.rewrite_total_steps, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.rewrite_total_steps, 1, __ATOMIC_RELAXED);
 #endif
 }
 
 void debug_counter_rule_applied(void) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &g_counters.rewrite_rule_applications);
+    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.rewrite_rule_applications);
 #else
-    __atomic_fetch_add(&g_counters.rewrite_rule_applications, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.rewrite_rule_applications, 1, __ATOMIC_RELAXED);
 #endif
 }
 
 void debug_counter_unify_called(bool success) {
 #ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &g_counters.unify_check_count);
+    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.unify_check_count);
     if (success) {
-        InterlockedIncrement64((volatile LONG64 *) &g_counters.unify_success_count);
+        InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.unify_success_count);
     }
 #else
-    __atomic_fetch_add(&g_counters.unify_check_count, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&s_debug_state.counters.unify_check_count, 1, __ATOMIC_RELAXED);
     if (success) {
-        __atomic_fetch_add(&g_counters.unify_success_count, 1, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&s_debug_state.counters.unify_success_count, 1, __ATOMIC_RELAXED);
     }
 #endif
 }
 
 void debug_counter_memory_update(uint64_t current_bytes) {
 #ifdef _WIN32
-    InterlockedExchange64((volatile LONG64 *) &g_counters.memory_current, (LONG64) current_bytes);
+    InterlockedExchange64((volatile LONG64 *) &s_debug_state.counters.memory_current, (LONG64) current_bytes);
     LONG64 old_peak;
     do {
-        old_peak = g_counters.memory_usage_peak;
+        old_peak = s_debug_state.counters.memory_usage_peak;
         if (current_bytes <= (uint64_t) old_peak)
             break;
-    } while (InterlockedCompareExchange64((volatile LONG64 *) &g_counters.memory_usage_peak, (LONG64) current_bytes,
+    } while (InterlockedCompareExchange64((volatile LONG64 *) &s_debug_state.counters.memory_usage_peak, (LONG64) current_bytes,
                                           old_peak) != old_peak);
 #else
-    __atomic_store_n(&g_counters.memory_current, current_bytes, __ATOMIC_RELAXED);
-    uint64_t old_peak = __atomic_load_n(&g_counters.memory_usage_peak, __ATOMIC_RELAXED);
+    __atomic_store_n(&s_debug_state.counters.memory_current, current_bytes, __ATOMIC_RELAXED);
+    uint64_t old_peak = __atomic_load_n(&s_debug_state.counters.memory_usage_peak, __ATOMIC_RELAXED);
     while (current_bytes > old_peak) {
-        if (__atomic_compare_exchange_n(&g_counters.memory_usage_peak, &old_peak, current_bytes, 0, __ATOMIC_RELAXED,
+        if (__atomic_compare_exchange_n(&s_debug_state.counters.memory_usage_peak, &old_peak, current_bytes, 0, __ATOMIC_RELAXED,
                                         __ATOMIC_RELAXED)) {
             break;
         }
@@ -2105,7 +2130,7 @@ int debug_get_log_path(char *buf, size_t size) {
 
     log_lock();
     /* 修复：使用 lv_strlcpy 替代 strncpy，自动保证零终止且更安全 */
-    lv_strlcpy(buf, g_log_file_path, size);
+    lv_strlcpy(buf, s_debug_state.log_file_path, size);
     log_unlock();
 
     return 0;

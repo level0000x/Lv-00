@@ -139,7 +139,7 @@ void formula_clear_var_map(void) {
  */
 SymbolicCoord *formula_number_to_coord(const FormulaNode *node) {
     if (!node || node->type != NODE_NUMBER) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "invalid node or not a number");
     }
 
     if (node->data.number.is_integer) {
@@ -176,7 +176,7 @@ SymbolicCoord **formula_coords_to_symbolic(const FormulaNode *coord_list, int *o
     if (!out_count || !coord_list || coord_list->type != NODE_COORDINATE_LIST) {
         if (out_count)
             *out_count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "invalid coord_list or out_count");
     }
 
     int count = coord_list->data.coord_list.coord_count;
@@ -274,7 +274,7 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
         }
         coords = (SymbolicCoord **) lv_calloc(2, sizeof(SymbolicCoord *));
         if (!coords) {
-            return -1; /* 内存分配失败 */
+            lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate default coords");
         }
         coords[0] = symbolic_coord_create_rational(0, 1);
         coords[1] = symbolic_coord_create_rational(0, 1);
@@ -1319,7 +1319,7 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
     FormulaToGraphResult *result =
         (FormulaToGraphResult *) lv_calloc(1, sizeof(FormulaToGraphResult)); /* 统一内存分配器 */
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate result");
     }
 
     if (!ast || !graph) {
@@ -1382,7 +1382,7 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
     GraphToFormulaResult *result =
         (GraphToFormulaResult *) lv_calloc(1, sizeof(GraphToFormulaResult)); /* 统一内存分配器 */
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate result");
     }
 
     if (!graph) {
@@ -1401,6 +1401,7 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
     result->dsl_output = (char *) lv_malloc(dsl_size);       /* 统一内存分配器 */
 
     if (!result->latex_output || !result->python_output || !result->dsl_output) {
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate output buffers");
         graph_to_formula_result_destroy(result);
         return NULL;
     }
@@ -2214,7 +2215,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
     EquationCurveResult *result =
         (EquationCurveResult *) lv_calloc(1, sizeof(EquationCurveResult)); /* 统一内存分配器 */
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate result");
     }
 
     /* 参数验证 */

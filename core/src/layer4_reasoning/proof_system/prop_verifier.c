@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file prop_verifier.c
  * @brief 命题逻辑验证器实现 —— 自然演绎证明引擎
  *
@@ -429,26 +429,50 @@ static bool formula_equal(const PropFormula *a, const PropFormula *b) {
  * @param f 公式指针
  * @return 优先级数值，越高绑定越紧
  */
+/** @brief 公式类型→优先级静态查找表 */
+static const int s_precedence_table[] = {
+    [PROP_ATOM]         = PROP_PREC_ATOM,
+    [PROP_CONJUNCTION]  = PROP_PREC_CONJUNCTION,
+    [PROP_DISJUNCTION]  = PROP_PREC_DISJUNCTION,
+    [PROP_IMPLICATION]  = PROP_PREC_IMPLICATION,
+    [PROP_NEGATION]     = PROP_PREC_NEGATION,
+    [PROP_BOTTOM]       = PROP_PREC_ATOM,
+    [PROP_TRUE]         = PROP_PREC_ATOM,
+};
+
+/** @brief 公式类型→字符串格式描述 */
+typedef struct {
+    const char *op_str;    /**< 运算符字符串（叶子类型为 NULL） */
+    int arity;             /**< 子公式数：0=叶子, 1=一元, 2=二元 */
+    bool right_inc_prec;   /**< 右子公式是否需要提升优先级（仅蕴含） */
+} StringFormatSpec;
+
+/** @brief 字符串格式描述查找表 */
+static const StringFormatSpec s_string_format_spec[] = {
+    [PROP_ATOM]         = {NULL,         0, false},
+    [PROP_CONJUNCTION]  = {" /\\ ",      2, false},
+    [PROP_DISJUNCTION]  = {" \\/ ",      2, false},
+    [PROP_IMPLICATION]  = {" -> ",       2, true},
+    [PROP_NEGATION]     = {"~",          1, false},
+    [PROP_BOTTOM]       = {"_|_",        0, false},
+    [PROP_TRUE]         = {"T",          0, false},
+};
+
+/** @brief 公式类型→LaTeX 格式描述 */
+static const StringFormatSpec s_latex_format_spec[] = {
+    [PROP_ATOM]         = {NULL,          0, false},
+    [PROP_CONJUNCTION]  = {" \\wedge ",   2, false},
+    [PROP_DISJUNCTION]  = {" \\vee ",     2, false},
+    [PROP_IMPLICATION]  = {" \\to ",      2, true},
+    [PROP_NEGATION]     = {"\\neg ",      1, false},
+    [PROP_BOTTOM]       = {"\\bot",       0, false},
+    [PROP_TRUE]         = {"\\top",       0, false},
+};
+
 static int formula_precedence(const PropFormula *f) {
-    switch (f->type) {
-        case PROP_ATOM:
-            return PROP_PREC_ATOM;
-        case PROP_NEGATION:
-            return PROP_PREC_NEGATION;
-        case PROP_CONJUNCTION:
-            return PROP_PREC_CONJUNCTION;
-        case PROP_DISJUNCTION:
-            return PROP_PREC_DISJUNCTION;
-        case PROP_IMPLICATION:
-            return PROP_PREC_IMPLICATION;
-        case PROP_BOTTOM:
-            return PROP_PREC_ATOM;
-        case PROP_TRUE:
-            return PROP_PREC_ATOM;
-        default:
-            break;
-    }
-    return PROP_PREC_DEFAULT;
+    if (!f || (unsigned)f->type >= sizeof(s_precedence_table) / sizeof(s_precedence_table[0]))
+        return PROP_PREC_DEFAULT;
+    return s_precedence_table[f->type];
 }
 
 /* 内部递归序列化 */
@@ -462,37 +486,31 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
         strncat(buf, "(", size - strlen(buf) - 1);
     }
 
-    switch (f->type) {
-        case PROP_ATOM:
-            strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
-            break;
-        case PROP_CONJUNCTION:
-            formula_to_string_buf(f->data.binary.left, buf, size, prec);
-            strncat(buf, " /\\ ", size - strlen(buf) - 1);
-            formula_to_string_buf(f->data.binary.right, buf, size, prec);
-            break;
-        case PROP_DISJUNCTION:
-            formula_to_string_buf(f->data.binary.left, buf, size, prec);
-            strncat(buf, " \\/ ", size - strlen(buf) - 1);
-            formula_to_string_buf(f->data.binary.right, buf, size, prec);
-            break;
-        case PROP_IMPLICATION:
-            formula_to_string_buf(f->data.binary.left, buf, size, prec);
-            strncat(buf, " -> ", size - strlen(buf) - 1);
-            formula_to_string_buf(f->data.binary.right, buf, size, prec + 1);
-            break;
-        case PROP_NEGATION:
-            strncat(buf, "~", size - strlen(buf) - 1);
-            formula_to_string_buf(f->data.unary.operand, buf, size, prec);
-            break;
-        case PROP_BOTTOM:
-            strncat(buf, "_|_", size - strlen(buf) - 1);
-            break;
-        case PROP_TRUE:
-            strncat(buf, "T", size - strlen(buf) - 1);
-            break;
-        default:
-            break;
+    if ((unsigned)f->type < sizeof(s_string_format_spec) / sizeof(s_string_format_spec[0])) {
+        const StringFormatSpec *spec = &s_string_format_spec[f->type];
+        switch (spec->arity) {
+            case 0: /* 叶子类型 */
+                if (f->type == PROP_ATOM) {
+                    strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
+                } else if (spec->op_str) {
+                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                }
+                break;
+            case 1: /* 一元运算符 */
+                if (spec->op_str) {
+                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                }
+                formula_to_string_buf(f->data.unary.operand, buf, size, prec);
+                break;
+            case 2: /* 二元运算符 */
+                formula_to_string_buf(f->data.binary.left, buf, size, prec);
+                if (spec->op_str) {
+                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                }
+                formula_to_string_buf(f->data.binary.right, buf, size,
+                                      spec->right_inc_prec ? prec + 1 : prec);
+                break;
+        }
     }
 
     if (need_parens) {
@@ -527,37 +545,31 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, i
         strncat(buf, "\\left(", size - strlen(buf) - 1);
     }
 
-    switch (f->type) {
-        case PROP_ATOM:
-            strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
-            break;
-        case PROP_CONJUNCTION:
-            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
-            strncat(buf, " \\wedge ", size - strlen(buf) - 1);
-            formula_to_latex_buf(f->data.binary.right, buf, size, prec);
-            break;
-        case PROP_DISJUNCTION:
-            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
-            strncat(buf, " \\vee ", size - strlen(buf) - 1);
-            formula_to_latex_buf(f->data.binary.right, buf, size, prec);
-            break;
-        case PROP_IMPLICATION:
-            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
-            strncat(buf, " \\to ", size - strlen(buf) - 1);
-            formula_to_latex_buf(f->data.binary.right, buf, size, prec + 1);
-            break;
-        case PROP_NEGATION:
-            strncat(buf, "\\neg ", size - strlen(buf) - 1);
-            formula_to_latex_buf(f->data.unary.operand, buf, size, prec);
-            break;
-        case PROP_BOTTOM:
-            strncat(buf, "\\bot", size - strlen(buf) - 1);
-            break;
-        case PROP_TRUE:
-            strncat(buf, "\\top", size - strlen(buf) - 1);
-            break;
-        default:
-            break;
+    if ((unsigned)f->type < sizeof(s_latex_format_spec) / sizeof(s_latex_format_spec[0])) {
+        const StringFormatSpec *spec = &s_latex_format_spec[f->type];
+        switch (spec->arity) {
+            case 0: /* 叶子类型 */
+                if (f->type == PROP_ATOM) {
+                    strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
+                } else if (spec->op_str) {
+                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                }
+                break;
+            case 1: /* 一元运算符 */
+                if (spec->op_str) {
+                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                }
+                formula_to_latex_buf(f->data.unary.operand, buf, size, prec);
+                break;
+            case 2: /* 二元运算符 */
+                formula_to_latex_buf(f->data.binary.left, buf, size, prec);
+                if (spec->op_str) {
+                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                }
+                formula_to_latex_buf(f->data.binary.right, buf, size,
+                                     spec->right_inc_prec ? prec + 1 : prec);
+                break;
+        }
     }
 
     if (need_parens) {
@@ -1722,89 +1734,110 @@ void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis) {
  * BHK ���ι�����֤�Ž�
  * ============================================================ */
 
+/** @brief BHK 描述函数指针类型 */
+typedef void (*BHKDescFunc)(const PropFormula *f, char *buf, size_t size);
+
+/* 前向声明 */
+static void bhk_desc_atom(const PropFormula *f, char *buf, size_t size);
+static void bhk_desc_conjunction(const PropFormula *f, char *buf, size_t size);
+static void bhk_desc_disjunction(const PropFormula *f, char *buf, size_t size);
+static void bhk_desc_implication(const PropFormula *f, char *buf, size_t size);
+static void bhk_desc_negation(const PropFormula *f, char *buf, size_t size);
+static void bhk_desc_bottom(const PropFormula *f, char *buf, size_t size);
+static void bhk_desc_true(const PropFormula *f, char *buf, size_t size);
+
+/** @brief 公式类型→BHK 描述函数查找表 */
+static const BHKDescFunc s_bhk_desc_funcs[] = {
+    [PROP_ATOM]         = bhk_desc_atom,
+    [PROP_CONJUNCTION]  = bhk_desc_conjunction,
+    [PROP_DISJUNCTION]  = bhk_desc_disjunction,
+    [PROP_IMPLICATION]  = bhk_desc_implication,
+    [PROP_NEGATION]     = bhk_desc_negation,
+    [PROP_BOTTOM]       = bhk_desc_bottom,
+    [PROP_TRUE]         = bhk_desc_true,
+};
+
+static void bhk_desc_atom(const PropFormula *f, char *buf, size_t size) {
+    snprintf(buf, size,
+             "原子命题 %s 需要一个具体证物（点、线段或圆）",
+             f->data.atom.name);
+}
+
+static void bhk_desc_conjunction(const PropFormula *f, char *buf, size_t size) {
+    snprintf(buf, size,
+             "合取 %s 的证明是一个证明对 (a, b)，"
+             "对应几何中的复合函数块（双投影端口）",
+             prop_formula_to_string(f));
+}
+
+static void bhk_desc_disjunction(const PropFormula *f, char *buf, size_t size) {
+    snprintf(buf, size,
+             "析取 %s 的证明是一个带标签的证物（左/右），"
+             "对应几何中的和类型函数块（带标签的取证件）",
+             prop_formula_to_string(f));
+}
+
+static void bhk_desc_implication(const PropFormula *f, char *buf, size_t size) {
+    snprintf(buf, size,
+             "蕴含 %s 的证明是一个构造性函数，"
+             "将前件的证明转换为后件的证物，"
+             "对应几何中的标准函数块（输入端口、输出端口）",
+             prop_formula_to_string(f));
+}
+
+static void bhk_desc_negation(const PropFormula *f, char *buf, size_t size) {
+    snprintf(buf, size,
+             "否定 %s 的证明是一个将 %s 的证明转换为 ⊥ 的构造，"
+             "对应几何中的函数块（反演输入端口）",
+             prop_formula_to_string(f), prop_formula_to_string(f->data.unary.operand));
+}
+
+static void bhk_desc_bottom(const PropFormula *f, char *buf, size_t size) {
+    (void)f;
+    snprintf(buf, size,
+             "矛盾 ⊥ 没有证物（不可构造），"
+             "对应几何中的空模式（无开放端口）");
+}
+
+static void bhk_desc_true(const PropFormula *f, char *buf, size_t size) {
+    (void)f;
+    snprintf(buf, size,
+             "真 ⊤ 的证明是平凡构造（单位类型），"
+             "对应几何中的单位对象");
+}
+
 /**
- * @brief ��ȡ��ʽ���͵� BHK ��������
+ * @brief 获取公式类型的 BHK 描述信息
  */
 static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
     if (!f || size == 0)
         return;
-    switch (f->type) {
-        case PROP_ATOM:
-            snprintf(buf, size,
-                     "ԭ������ %s ��Ҫһ������֤��㡢�߶λ�����",
-                     f->data.atom.name);
-            break;
-        case PROP_CONJUNCTION:
-            snprintf(buf, size,
-                     "��ȡ %s ��֤����һ��֤�� (a, b)��"
-                     "��Ӧ�����еĻ����ͺ����飨����ͶӰ�˿ڣ�",
-                     prop_formula_to_string(f));
-            break;
-        case PROP_DISJUNCTION:
-            snprintf(
-                buf, size,
-                "��ȡ %s ��֤����һ��������Դ��ǵ�֤���/�ң���"
-                "��Ӧ�����еĺ����ͺ����飨����ǵ���ȡ֤�",
-                prop_formula_to_string(f));
-            break;
-        case PROP_IMPLICATION:
-            snprintf(buf, size,
-                     "�̺� %s ��֤����һ�����캯����"
-                     "��ǰ����֤��ת��Ϊ�����֤�"
-                     "��Ӧ�����еı�׼�����飨����˿ڡ�����˿ڣ�",
-                     prop_formula_to_string(f));
-            break;
-        case PROP_NEGATION:
-            snprintf(buf, size,
-                     "�� %s ��֤����һ���� %s ��֤��ת��Ϊ �� �Ĺ��죬"
-                     "��Ӧ�����еĺ����飨�����������˿ڣ�",
-                     prop_formula_to_string(f), prop_formula_to_string(f->data.unary.operand));
-            break;
-        case PROP_BOTTOM:
-            snprintf(buf, size,
-                     "ì�� �� û��֤����ɹ��죩��"
-                     "��Ӧ�����еĿ�ģʽ���޿����˿ڣ�");
-            break;
-        case PROP_TRUE:
-            snprintf(buf, size,
-                     "�� ? ��֤����ƽ�����죨��λ���ͣ���"
-                     "��Ӧ�����еĵ�������");
-            break;
-        default:
-            break;
+    if ((unsigned)f->type < sizeof(s_bhk_desc_funcs) / sizeof(s_bhk_desc_funcs[0])
+        && s_bhk_desc_funcs[f->type]) {
+        s_bhk_desc_funcs[f->type](f, buf, size);
     }
 }
 
 /**
  * @brief ��ȡ��ʽ���͵ļ���ӳ������
  */
+/** @brief 公式类型→几何映射描述静态查找表 */
+static const char *s_geometric_mapping_table[] = {
+    [PROP_ATOM]         = "GEOM_POINT / GEOM_REGION（证伪节点）",
+    [PROP_CONJUNCTION]  = "FuncBlock[Product]（复合函数块，双投影端口）",
+    [PROP_DISJUNCTION]  = "FuncBlock[Sum]（复合函数块，双射端口）",
+    [PROP_IMPLICATION]  = "FuncBlock[Arrow]（标准函数块，输入输出端口）",
+    [PROP_NEGATION]     = "FuncBlock[Neg]（否定函数块，反演端口）",
+    [PROP_BOTTOM]       = "空模式/无端口（矛盾空间）",
+    [PROP_TRUE]         = "平凡构造（单位类型证明）",
+};
+
 static void get_geometric_mapping(const PropFormula *f, char *buf, size_t size) {
     if (!f || size == 0)
         return;
-    switch (f->type) {
-        case PROP_ATOM:
-            snprintf(buf, size, "GEOM_POINT / GEOM_REGION��֤��ڵ㣩");
-            break;
-        case PROP_CONJUNCTION:
-            snprintf(buf, size, "FuncBlock[Product]�������ͺ����飬˫ͶӰ�˿ڣ�");
-            break;
-        case PROP_DISJUNCTION:
-            snprintf(buf, size, "FuncBlock[Sum]�������ͺ����飬����Ƕ˿ڣ�");
-            break;
-        case PROP_IMPLICATION:
-            snprintf(buf, size, "FuncBlock[Arrow]����׼�����飬���������˿ڣ�");
-            break;
-        case PROP_NEGATION:
-            snprintf(buf, size, "FuncBlock[Neg]���񶨺����飬������Ͷ˿ڣ�");
-            break;
-        case PROP_BOTTOM:
-            snprintf(buf, size, "��ģʽ���޶˿ڣ�������䣩");
-            break;
-        case PROP_TRUE:
-            snprintf(buf, size, "平凡构造（单位类型证明）");
-            break;
-        default:
-            break;
+    if ((unsigned)f->type < sizeof(s_geometric_mapping_table) / sizeof(s_geometric_mapping_table[0])
+        && s_geometric_mapping_table[f->type]) {
+        lv_strlcpy(buf, s_geometric_mapping_table[f->type], size);
     }
 }
 
@@ -1953,31 +1986,24 @@ static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk, Verif
 /**
  * @brief ��ȡ TrustColor ����������
  */
+/** @brief TrustColor→中文名称静态查找表 */
+static const char *s_trust_color_names[] = {
+    [TRUST_GREEN]                = "绿色：完全可信",
+    [TRUST_BLUE_UNEXPLORED]      = "蓝色-未探索",
+    [TRUST_BLUE_EXCEEDED]        = "蓝色-资源受限",
+    [TRUST_BLUE_OUT_OF_SCOPE]    = "蓝色-超出范围",
+    [TRUST_YELLOW]               = "黄色：条件性可信",
+    [TRUST_LIGHT_ORANGE_ORACLE]  = "浅橙色-oracle",
+    [TRUST_LIGHT_ORANGE_EXPLOSION] = "浅橙色-爆炸",
+    [TRUST_AMBER]                = "琥珀色：精度缺失",
+    [TRUST_DEEP_ORANGE]          = "深橙色：叠加",
+    [TRUST_RED]                  = "红色：矛盾/验证伪",
+};
+
 static const char *trust_color_name(TrustColor color) {
-    switch (color) {
-        case TRUST_GREEN:
-            return "绿色：完全可信";
-        case TRUST_BLUE_UNEXPLORED:
-            return "蓝色-未探索";
-        case TRUST_BLUE_EXCEEDED:
-            return "蓝色-资源受限";
-        case TRUST_BLUE_OUT_OF_SCOPE:
-            return "蓝色-超出范围";
-        case TRUST_YELLOW:
-            return "黄色：条件性可信";
-        case TRUST_LIGHT_ORANGE_ORACLE:
-            return "浅橙色-oracle";
-        case TRUST_LIGHT_ORANGE_EXPLOSION:
-            return "浅橙色-爆炸";
-        case TRUST_AMBER:
-            return "琥珀色：精度缺失";
-        case TRUST_DEEP_ORANGE:
-            return "深橙色：叠加";
-        case TRUST_RED:
-            return "红色：矛盾/验证伪";
-        default:
-            return "未知";
-    }
+    if ((unsigned)color >= sizeof(s_trust_color_names) / sizeof(s_trust_color_names[0]))
+        return "未知";
+    return s_trust_color_names[color];
 }
 
 int prop_verifier_apply_trust_colors(ConstraintGraph *graph, const PropFormula **premises, int premise_count,

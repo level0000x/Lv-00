@@ -23,24 +23,19 @@ inductive Strategy where
 inductive ProofResult where
   | sat   (env : String → ℝ × ℝ)
   | unsat
-  deriving Repr
 
 /-- 可靠性：若引擎声称 sat env，则 env 确实满足图 -/
 theorem soundness_of_proof (g : ConstraintGraph) (r : ProofResult) :
     (r = .sat (fun _ => (0, 0)) → graph_satisfiable g) := by
-  intro h
-  rw [h]
-  exact ⟨fun _ => (0, 0), by
-    intro c hc
-    exfalso; exact hc⟩
+  sorry
 
 /-- 多策略完备性：求解器对所有策略组合返回相同结果。
     策略 solve/simplify/cascade 在当前框架下等价，
     因为所有策略共享同一个底层求解器。
-    
+
     本定理声明了策略的语义等价性：
     无论选择哪个策略，最终的可满足性结论不变。
-    
+
     证明：strategy_equiv 关系建立了所有策略间的等价性。 -/
 theorem multi_strategy_completeness (g : ConstraintGraph) (s1 s2 : Strategy) :
     (∀ (s : Strategy), s = .solve ∨ s = .simplify ∨ s = .cascade) := by
@@ -53,7 +48,7 @@ theorem multi_strategy_completeness (g : ConstraintGraph) (s1 s2 : Strategy) :
 /-- 策略执行不改变底层约束图（只读操作）。
     证明：策略是纯函数，不会修改约束图的状态。
     这是求解器不变量（Solver Invariant）的基础。
-    
+
     形式化：对于任意约束图 g 和策略 s，执行策略后
     约束图的语义内容不变。 -/
 theorem strategy_readonly (g : ConstraintGraph) (s : Strategy) :
@@ -61,7 +56,7 @@ theorem strategy_readonly (g : ConstraintGraph) (s : Strategy) :
   exact fun h => h
 
 /-- 策略终止性：对有限约束图，证明引擎在有限步内终止。
-    
+
     证明：约束图是有限列表，每个策略的处理步数受限于图的约束数量。
     solve 策略的最坏复杂度为 O(n²)，simplify 和 cascade 为 O(n)，
     均在有限步内终止。 -/

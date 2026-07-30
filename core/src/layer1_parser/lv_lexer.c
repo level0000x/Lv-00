@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /**
@@ -392,7 +393,7 @@ static LvToken lex_raw(LvLexer *lexer) {
 LvLexer *lv_lexer_create(const char *source, size_t source_len) {
     LvLexer *lexer = (LvLexer *) lv_calloc(1, sizeof(LvLexer));
     if (!lexer)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate lexer");
     lexer->source = source;
     lexer->source_len = source_len;
     lexer->pos = 0;

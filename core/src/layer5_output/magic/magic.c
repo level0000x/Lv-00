@@ -350,7 +350,7 @@ char *rune_serialize(const Rune *rune) {
 
     char *coord_str = symbolic_coord_serialize(rune->coord);
     if (!coord_str)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_serialize: coord_serialize failed");
 
     /* 使用 lv_asprintf 动态分配缓冲区，避免静态缓冲区的线程安全问题。
      * 不使用 static char buf[N] 模式，确保并发调用时不会互相覆盖。 */
@@ -375,12 +375,12 @@ char *rune_serialize(const Rune *rune) {
  */
 int rune_serialize_to_buffer(const Rune *rune, char *buf, int buf_size) {
     if (!rune || !buf || buf_size <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "rune_serialize_to_buffer: invalid parameters");
 
     /* 序列化符号坐标为 JSON 子串 */
     char *coord_str = symbolic_coord_serialize(rune->coord);
     if (!coord_str)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "rune_serialize_to_buffer: serialize failed");
 
     /* 将符文信息写入调用者提供的缓冲区 */
     int written = snprintf(buf, (size_t) buf_size, "{\"element\":%d,\"power\":%d,\"coord\":%s}", rune->element,
@@ -389,7 +389,7 @@ int rune_serialize_to_buffer(const Rune *rune, char *buf, int buf_size) {
     lv_free((void **) &coord_str);
 
     if (written < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "rune_serialize_to_buffer: snprintf failed");
     /* 返回实际写入的字符数（截断时返回 buf_size - 1） */
     return (written >= buf_size) ? (buf_size - 1) : written;
 }
@@ -724,13 +724,13 @@ struct MagicArray {
 MagicArray *magic_array_create(void) {
     MagicArray *array = (MagicArray *) lv_calloc(1, sizeof(MagicArray));
     if (!array)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_create: array calloc failed");
 
     /* 创建符文序列子组件 */
     array->runes = rune_sequence_create();
     if (!array->runes) {
         lv_free((void **) &array);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_create: runes create failed");
     }
 
     /* 创建底层约束图子组件 */
@@ -738,7 +738,7 @@ MagicArray *magic_array_create(void) {
     if (!array->graph) {
         rune_sequence_destroy(array->runes);
         lv_free((void **) &array);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_create: graph create failed");
     }
 
     /* 初始化约束类型动态数组 */
@@ -751,7 +751,7 @@ MagicArray *magic_array_create(void) {
         graph_destroy(array->graph);
         rune_sequence_destroy(array->runes);
         lv_free((void **) &array);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_create: constraints malloc failed");
     }
 
     return array;
@@ -794,7 +794,7 @@ void magic_array_destroy(MagicArray *array) {
  */
 int magic_array_add_rune(MagicArray *array, Rune *rune) {
     if (!array || !rune)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "magic_array_add_rune: array or rune is NULL");
 
     /* 将符文坐标添加到底层约束图中 */
     SymbolicCoord *coord = rune_get_value(rune);
@@ -802,7 +802,7 @@ int magic_array_add_rune(MagicArray *array, Rune *rune) {
 
     AddNodeResult result = graph_add_point(array->graph, coords, 1);
     if (result != ADD_NODE_OK) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "magic_array_add_rune: graph_add_point failed");
     }
 
     /* 获取新节点在约束图中的索引 */
@@ -812,14 +812,14 @@ int magic_array_add_rune(MagicArray *array, Rune *rune) {
     Rune *rune_clone = rune_copy(rune);
     if (!rune_clone) {
         graph_remove_node(array->graph, index);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "magic_array_add_rune: rune_copy failed");
     }
 
     /* 将符文副本追加到序列，失败时回滚图节点 */
     if (!rune_sequence_add(array->runes, rune_clone)) {
         graph_remove_node(array->graph, index);
         rune_destroy(rune_clone);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "magic_array_add_rune: rune_sequence_add failed");
     }
 
     return index;
@@ -895,16 +895,16 @@ int magic_array_get_rune_count(const MagicArray *array) {
  */
 int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int rune1_index, int rune2_index) {
     if (!array)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "magic_array_add_constraint: array is NULL");
     if (rune1_index < 0 || rune1_index >= array->runes->rune_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "magic_array_add_constraint: rune1_index out of range");
     if (rune2_index < 0 || rune2_index >= array->runes->rune_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "magic_array_add_constraint: rune2_index out of range");
 
     /* 约束数组容量不足时自动扩容 */
     if (!lv_ensure_capacity((void **)&array->constraints, array->constraint_count,
                             &array->constraint_capacity, sizeof(ArrayConstraintType), 1))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "magic_array_add_constraint: ensure_capacity failed");
 
     /* 将魔法阵约束类型映射为底层约束图内部类型 */
     ConstraintType graph_type;
@@ -946,7 +946,7 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
         return array->graph->next_constraint_id - 1;
     }
 
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "magic_array_add_constraint: graph_add_* failed");
 }
 
 /**
@@ -1093,23 +1093,23 @@ double array_calculate_stability(const MagicArray *array) {
  */
 MagicArray *magic_array_copy(const MagicArray *src) {
     if (!src)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "magic_array_copy: src is NULL");
 
     MagicArray *copy = magic_array_create();
     if (!copy)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_copy: create failed");
 
     /* 逐个深拷贝符文，同步更新约束图 */
     for (int i = 0; i < src->runes->rune_count; i++) {
         Rune *rune = rune_copy(src->runes->runes[i]);
         if (!rune) {
             magic_array_destroy(copy);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_copy: rune_copy failed");
         }
         if (!rune_sequence_add(copy->runes, rune)) {
             rune_destroy(rune);
             magic_array_destroy(copy);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_copy: rune_sequence_add failed");
         }
 
         /* 将符文坐标加入副本的约束图 */
@@ -1179,7 +1179,7 @@ char *magic_array_serialize(const MagicArray *array) {
 
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, MAGIC_SERIALIZE_JSON_BASE_SIZE + (size_t) rune_count * MAGIC_SERIALIZE_PER_RUNE_SIZE))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_serialize: json_buf_init failed");
 
     lv_json_buf_append_fmt(&buf, "{\"rune_count\":%d,\"constraint_count\":%d,\"runes\":[",
                            rune_count, constraint_count);
@@ -1284,7 +1284,7 @@ static const char *json_find_key_safe(const char *start, const char *key) {
  */
 static int json_decode_string(const char *src, char *dst, size_t dst_cap) {
     if (!src || !dst || dst_cap == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "json_decode_string: invalid parameters");
 
     size_t written = 0;
     const char *p = src;
@@ -1577,7 +1577,7 @@ struct Spell {
 Spell *spell_create(const char *name) {
     Spell *spell = (Spell *) lv_calloc(1, sizeof(Spell));
     if (!spell)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spell_create: spell calloc failed");
 
     /* 设置咒语名称（默认"Unnamed Spell"） */
     if (name) {
@@ -1589,7 +1589,7 @@ Spell *spell_create(const char *name) {
     /* 检查名称分配是否成功 */
     if (!spell->name) {
         lv_free((void **) &spell);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spell_create: name strdup failed");
     }
 
     /* 初始化描述为空字符串 */
@@ -1597,7 +1597,7 @@ Spell *spell_create(const char *name) {
     if (!spell->description) {
         lv_free((void **) &spell->name);
         lv_free((void **) &spell);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spell_create: description strdup failed");
     }
     /* 设置咒语默认参数：难度1、输出1、开模阶段、空闲状态 */
     spell->difficulty = MAGIC_SPELL_DIFFICULTY_DEFAULT;
@@ -2100,7 +2100,7 @@ struct SpellBook {
 SpellBook *spellbook_create(void) {
     SpellBook *book = (SpellBook *) lv_calloc(1, sizeof(SpellBook));
     if (!book)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spellbook_create: book calloc failed");
 
     /* 初始化动态咒语数组，预分配初始容量 */
     book->capacity = MAGIC_SPELLBOOK_INIT_CAP;
@@ -2109,7 +2109,7 @@ SpellBook *spellbook_create(void) {
 
     if (!book->spells) {
         lv_free((void **) &book);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spellbook_create: spells malloc failed");
     }
 
     return book;
@@ -2246,7 +2246,7 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
 
     if (!names) {
         *count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spellbook_list_spells: names malloc failed");
     }
 
     /* 逐个复制咒语名称到数组 */
@@ -2259,7 +2259,7 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
             }
             lv_free((void **) &names);
             *count = 0;
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spellbook_list_spells: strdup failed");
         }
     }
 
@@ -2440,13 +2440,13 @@ struct Domain {
 Domain *domain_create(const char *name, int range) {
     Domain *domain = (Domain *) lv_calloc(1, sizeof(Domain));
     if (!domain)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "domain_create: domain calloc failed");
 
     /* 分配领域名称，检查内存分配是否成功 */
     domain->name = name ? lv_strdup_safe(name) : lv_strdup_safe("Unnamed Domain");
     if (!domain->name) {
         lv_free((void **) &domain);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "domain_create: name strdup failed");
     }
 
     /* 初始化领域属性：范围、中心、激活状态、强度 */

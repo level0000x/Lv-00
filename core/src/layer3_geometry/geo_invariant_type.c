@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/lv_json.h"
+#include "lv_internal.h"
 #include "lv_utils.h"
 
 /* ========================================================================
@@ -122,7 +123,7 @@ GeoInvariant *geo_invariant_create(GeoInvariantKind kind, const char *name, doub
                                    const int *entity_ids, int entity_count) {
     GeoInvariant *inv = (GeoInvariant *) lv_malloc(sizeof(GeoInvariant));
     if (!inv)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "geo_invariant_create: malloc inv failed");
     memset(inv, 0, sizeof(GeoInvariant));
 
     inv->kind = kind;
@@ -203,21 +204,21 @@ bool geo_invariant_check_consistency(const GeoInvariant *inv) {
 
 int geo_invariant_attach_to_type(GeoInvariant *inv, int type_id, const char *region_name) {
     if (!inv || !region_name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "geo_invariant_attach_to_type: NULL inv or region_name");
     if (type_id < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "geo_invariant_attach_to_type: type_id < 0");
 
     /* Store the type attachment as JSON metadata using lvJsonBuf */
     size_t region_len = strlen(region_name);
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 128 + region_len))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "geo_invariant_attach_to_type: lv_json_buf_init failed");
 
     lv_json_buf_append_fmt(&buf, "{\"type_id\": %d, \"region\": \"%s\"}", type_id, region_name);
 
     char *meta = lv_json_buf_finalize(&buf);
     if (!meta)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "geo_invariant_attach_to_type: lv_json_buf_finalize failed");
 
     /* Free existing metadata if any */
     if (inv->metadata) {

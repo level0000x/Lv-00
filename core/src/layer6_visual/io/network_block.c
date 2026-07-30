@@ -14,6 +14,7 @@
 
 #include "lv/io_blocks.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
 
 /** @brief 网络块内部状态结构 */
 typedef struct {
@@ -32,7 +33,7 @@ typedef struct {
 lvNetworkBlock *lv_network_block_create(void) {
     lvNetworkBlock *block = lv_calloc(1, sizeof(lvNetworkBlock));
     if (!block)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate network block");
     block->effect = lv_EFFECT_NETWORK;
     block->url_port = -1;
     block->request_port = -1;
@@ -42,7 +43,7 @@ lvNetworkBlock *lv_network_block_create(void) {
     NetworkBlockState *state = lv_calloc(1, sizeof(NetworkBlockState));
     if (!state) {
         lv_free((void **) &block);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate network block state");
     }
     block->base = state;
     return block;
@@ -77,12 +78,12 @@ void lv_network_block_destroy(lvNetworkBlock *block) {
  */
 int lv_network_block_set_url(lvNetworkBlock *block, const char *url) {
     if (!block || !block->base || !url)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block, base, or url");
     NetworkBlockState *state = (NetworkBlockState *) block->base;
     lv_free((void **) &state->url);
     state->url = lv_strdup(url);
     if (!state->url)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to strdup url");
     return 0;
 }
 
@@ -110,14 +111,14 @@ const char *lv_network_block_get_url(const lvNetworkBlock *block) {
  */
 int lv_network_block_connect(lvNetworkBlock *block) {
     if (!block || !block->base)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block or base");
     NetworkBlockState *state = (NetworkBlockState *) block->base;
     if (!state->url)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "URL not set before connect");
 
     /* Validate URL format: must start with http:// or https:// */
     if (strncmp(state->url, "http://", 7) != 0 && strncmp(state->url, "https://", 8) != 0) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "invalid URL format, must start with http:// or https://");
     }
 
     /* Mark connection as established; actual socket I/O
@@ -138,10 +139,10 @@ int lv_network_block_connect(lvNetworkBlock *block) {
  */
 int lv_network_block_send(lvNetworkBlock *block, const void *data, size_t data_size) {
     if (!block || !block->base || !data || data_size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block, base, or data, or zero size");
     NetworkBlockState *state = (NetworkBlockState *) block->base;
     if (!state->connected)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "not connected");
 
     /* Data is staged in the request_port for the transport layer
        to transmit. Actual send is performed by the protocol handler. */
@@ -163,10 +164,10 @@ int lv_network_block_send(lvNetworkBlock *block, const void *data, size_t data_s
  */
 int lv_network_block_receive(lvNetworkBlock *block, void *buf, size_t buf_size, size_t *bytes_received) {
     if (!block || !block->base || !buf || buf_size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block, base, or buf, or zero size");
     NetworkBlockState *state = (NetworkBlockState *) block->base;
     if (!state->connected)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "not connected");
 
     /* Data is read from the response_port populated by the transport
        layer. Actual receive is performed by the protocol handler. */

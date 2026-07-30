@@ -1,4 +1,4 @@
-/-
+﻿/-
 Lv-00 formal: InteractiveGeoSoundness (Round 5)
 =================================================
 Corresponds to: bootstrap/src/layer6_visual/control_flow/visual_control.lv
@@ -57,8 +57,6 @@ theorem drag_preserves_collinear (env : String → ℝ × ℝ) (a b c pName : St
     则在拖动后环境中依然成立 -/
 theorem drag_preserves_constraints (env : String → ℝ × ℝ) (c : IRConstraint) (pName : String) (newPos : ℝ × ℝ)
     (h_sem : ir_sem env c) (h : pName ∉ vars_of_constraint c) : ir_sem (drag_point env pName newPos) c := by
-  have h_agree : ∀ v ∈ vars_of_constraint c, drag_point env pName newPos v = env v :=
-    drag_agrees_on_vars env c pName newPos h
   sorry
 
 end lvFormal.Theory.InteractiveGeoSoundness

@@ -433,7 +433,7 @@ static bool parser_expect(ParserCtx *ctx, DSLTokenType type, DslToken *out) {
 static DslAST *ast_alloc(DslASTType type, int line, int col) {
     DslAST *node = lv_calloc(1, sizeof(DslAST));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate AST node");
     node->type = type;
     node->line = line;
     node->col = col;
@@ -1028,7 +1028,7 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
  */
 static int ir_add_symbol(DslIR *ir, const char *name, int result_id) {
     if (!ir || !name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "IR or name is NULL");
 
     ENSURE_CAP(ir->symbols, ir->symbol_count, ir->symbol_capacity, sizeof(char *), -1);
     ENSURE_CAP(ir->symbol_to_ir_id, ir->symbol_count, ir->symbol_capacity, sizeof(int), -1);
@@ -1045,7 +1045,7 @@ static int ir_add_symbol(DslIR *ir, const char *name, int result_id) {
  */
 static int ir_find_symbol(const DslIR *ir, const char *name) {
     if (!ir || !name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "IR or name is NULL");
     for (int i = 0; i < ir->symbol_count; i++) {
         if (ir->symbols[i] && strcmp(ir->symbols[i], name) == 0)
             return ir->symbol_to_ir_id[i];
@@ -1059,7 +1059,7 @@ static int ir_find_symbol(const DslIR *ir, const char *name) {
 static int ir_add_op(DslIR *ir, DslIROp op, int result_id, const int *operands, int operand_count, const char *label,
                      int source_line) {
     if (!ir)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "IR is NULL");
 
     ENSURE_CAP(ir->operations, ir->op_count, ir->op_capacity, sizeof(DslIROperation), -1);
 
@@ -1073,7 +1073,7 @@ static int ir_add_op(DslIR *ir, DslIROp op, int result_id, const int *operands, 
     if (operand_count > 0 && operands) {
         op_entry->operands = lv_malloc(sizeof(int) * (size_t) operand_count);
         if (!op_entry->operands)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operands array");
         memcpy(op_entry->operands, operands, sizeof(int) * (size_t) operand_count);
         op_entry->operand_count = operand_count;
     } else {

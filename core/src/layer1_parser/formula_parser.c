@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_parser.c
  * @brief 公式解析器实现
  *
@@ -324,8 +324,7 @@ bool formula_is_digit(char c) {
  */
 FormulaNode *formula_parse(const char *input, const char *syntax) {
     if (!input) {
-        lv_set_error(lv_ERROR_NULL_POINTER, "Input is NULL");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "Input is NULL");
     }
 
     lv_clear_error();
@@ -335,7 +334,7 @@ FormulaNode *formula_parse(const char *input, const char *syntax) {
     lvErrorCode validate_err = lv_input_validate(input, input_len);
     if (validate_err != lv_OK) {
         /* lv_input_validate 已通过 lv_set_error 设置详细错误信息 */
-        return NULL;
+        lv_RETURN_ERROR_NULL(validate_err, "input validation failed");
     }
 
     if (formula_parser_stream_ctx) {

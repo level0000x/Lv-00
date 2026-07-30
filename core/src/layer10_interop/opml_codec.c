@@ -136,7 +136,7 @@ static const char *step_type_name(int type) {
  */
 static int opml_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL proof/output or invalid output_size");
 
     lvOpmlProof *p = (lvOpmlProof *) proof;
 
@@ -157,15 +157,15 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
                     "  },\n",
                     escaped_name);
     if (pos >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
 
     /* 生成 theory 段（包含公理） */
     if (strlen(p->axioms) > 0) {
         pos += snprintf(output + pos, output_size - pos,
-                        "  \"theory\": {\n"
-                        "    \"axioms\": [\n");
+                                "  \"theory\": {\n"
+                                "    \"axioms\": [\n");
         if (pos >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
 
         /* 逐个输出公理 */
         const char *ax = p->axioms;
@@ -185,14 +185,14 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
             if (ax_end > ax) {
                 if (!first_axiom) {
                     if (pos >= output_size)
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
                     pos += snprintf(output + pos, output_size - pos, ",\n");
                 }
                 first_axiom = 0;
 
                 /* 写入公理条目 */
                 if (pos >= output_size)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
                 pos += snprintf(output + pos, output_size - pos, "      { \"name\": \"");
                 int ax_len = (int) (ax_end - ax);
                 if (pos + ax_len + 32 < output_size) {
@@ -200,26 +200,26 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
                     pos += ax_len;
                 }
                 if (pos >= output_size)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
                 pos += snprintf(output + pos, output_size - pos, "\" }");
             }
             ax = ax_end;
         }
 
         if (pos >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
         pos += snprintf(output + pos, output_size - pos,
                         "\n    ]\n"
                         "  },\n");
     } else {
         if (pos >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
         pos += snprintf(output + pos, output_size - pos, "  \"theory\": {},\n");
     }
 
     /* 生成 proof 段（包含步骤数组） */
     if (pos >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
     pos += snprintf(output + pos, output_size - pos,
                     "  \"proof\": {\n"
                     "    \"method\": \"forward_chain\",\n"
@@ -231,12 +231,12 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
         if (i > 0) {
             if (pos >= output_size)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
             pos += snprintf(output + pos, output_size - pos, ",\n");
         }
 
         if (pos >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
         pos += snprintf(output + pos, output_size - pos,
                         "      {\n"
                         "        \"id\": %d,\n"
@@ -257,27 +257,27 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
         }
 
         if (pos >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
         pos += snprintf(output + pos, output_size - pos, "\",\n");
 
         /* 写入依赖列表 */
         if (pos >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
         pos += snprintf(output + pos, output_size - pos, "        \"dependencies\": [");
 
         for (int d = 0; d < step->dep_count; d++) {
             if (d > 0) {
                 if (pos >= output_size)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
                 pos += snprintf(output + pos, output_size - pos, ", ");
             }
             if (pos >= output_size)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
             pos += snprintf(output + pos, output_size - pos, "%d", step->dependencies[d]);
         }
 
         if (pos >= output_size)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
         pos += snprintf(output + pos, output_size - pos,
                         "]\n"
                         "      }");
@@ -285,7 +285,7 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
     /* 写入 proof 段尾部和 JSON 结尾 */
     if (pos >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
     pos += snprintf(output + pos, output_size - pos,
                     "\n    ]\n"
                     "  }\n"
@@ -293,7 +293,7 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
     /* 确保以 null 结尾 */
     if (pos >= output_size)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
     output[pos] = '\0';
     return 0;
 }
@@ -314,7 +314,7 @@ static const char *json_skip_ws(const char *p) {
  */
 static const char *json_extract_string(const char *p, char *buf, int buf_size) {
     if (!p || *p != '"')
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "expected JSON string");
     p++; /* 跳过开头 " */
     int i = 0;
     while (*p && *p != '"' && i < buf_size - 1) {
@@ -364,14 +364,14 @@ static const char *json_extract_string(const char *p, char *buf, int buf_size) {
  */
 static const char *json_find_key(const char *obj_start, const char *key) {
     if (!obj_start || !key)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "NULL obj_start or key");
     char search[256];
     snprintf(search, sizeof(search), "\"%s\"", key);
     const char *p = obj_start;
     while (p && *p) {
         p = strstr(p, search);
         if (!p)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "key \"%s\" not found", key);
         p += strlen(search);
         p = json_skip_ws(p);
         if (*p == ':') {
@@ -380,7 +380,7 @@ static const char *json_find_key(const char *obj_start, const char *key) {
             return p;
         }
     }
-    return NULL;
+    lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "key \"%s\" not found in object", key);
 }
 
 /**
@@ -532,11 +532,11 @@ static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int ma
  */
 static int opml_import_proof(const char *input, void **proof) {
     if (!input || !proof)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL input or proof");
 
     /* 验证输入包含 OPML 版本头 */
     if (!strstr(input, "opml_version")) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "missing opml_version in input");
     }
 
     /* 查找 theory 和 proof 段 */
@@ -546,14 +546,14 @@ static int opml_import_proof(const char *input, void **proof) {
     /* 分配 lvOpmlProof 结构体 */
     lvOpmlProof *p = (lvOpmlProof *) lv_calloc(1, sizeof(lvOpmlProof));
     if (!p)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate opml proof");
 
     /* 初始化步骤数组 */
     p->step_capacity = 64;
     p->steps = (lvProofStep *) lv_calloc(p->step_capacity, sizeof(lvProofStep));
     if (!p->steps) {
         lv_free((void **) &p);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate steps array");
     }
 
     /* 提取并解析 theory 段 */
@@ -667,7 +667,7 @@ static int opml_validate(const char *input) {
  */
 int lv_register_opml_plugin(lvInteropManager *mgr) {
     if (!mgr)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL manager");
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
     strncpy(plugin.name, "opml", sizeof(plugin.name) - 1);

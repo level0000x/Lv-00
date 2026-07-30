@@ -1,16 +1,17 @@
-﻿#include "lv/extended_types.h"
+#include "lv/extended_types.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "lv/lv_utils.h"
 #include "lv/type_system.h"
+#include "lv/lv_internal.h"
 
 lvListTypeRegion *lv_list_type_create(void *elem_type) {
     lvListTypeRegion *t = lv_calloc(1, sizeof(lvListTypeRegion));
     /* calloc returns NULL on failure; caller must check */
     if (!t)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate list type region");
     t->elem_type = elem_type;
     return t;
 }
@@ -23,7 +24,7 @@ lvMapTypeRegion *lv_map_type_create(void *key_type, void *value_type) {
     lvMapTypeRegion *t = lv_calloc(1, sizeof(lvMapTypeRegion));
     /* calloc returns NULL on failure; caller must check */
     if (!t)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate map type region");
     t->key_type = key_type;
     t->value_type = value_type;
     return t;
@@ -37,7 +38,7 @@ lvFunctionTypeRegion *lv_function_type_create(void *param, void *ret, int depend
     lvFunctionTypeRegion *t = lv_calloc(1, sizeof(lvFunctionTypeRegion));
     /* calloc returns NULL on failure; caller must check */
     if (!t)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate function type region");
     t->param_type = param;
     t->return_type = ret;
     t->is_dependent = dependent;
@@ -52,12 +53,12 @@ lvEffectTypeRegion *lv_effect_type_create(lvEffectType *effects, int count, void
     lvEffectTypeRegion *t = lv_calloc(1, sizeof(lvEffectTypeRegion));
     /* calloc returns NULL on failure; caller must check */
     if (!t)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate effect type region");
     if (count > 0 && effects) {
         t->effects = lv_calloc(count, sizeof(lvEffectType));
         if (!t->effects) {
             lv_free((void **) &t);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate effects array");
         }
         memcpy(t->effects, effects, count * sizeof(lvEffectType));
         t->effect_count = count;

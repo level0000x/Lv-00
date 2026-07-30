@@ -1,8 +1,9 @@
-﻿#include <stdlib.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "lv/extended_types.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
 
 /* Enhanced type inference for Layer 6 generic types */
 /* Infers type parameters for List<T>, Map<K,V>, etc. */
@@ -26,12 +27,12 @@ typedef struct lvTypeInference {
 lvTypeInference *lv_type_inference_create(void) {
     lvTypeInference *inf = lv_calloc(1, sizeof(lvTypeInference));
     if (!inf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate type inference");
     inf->rule_capacity = 8;
     inf->rules = lv_calloc(inf->rule_capacity, sizeof(lvTypeInferenceRule));
     if (!inf->rules) {
         lv_free((void **) &inf);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate rules array");
     }
     return inf;
 }
@@ -46,12 +47,12 @@ void lv_type_inference_destroy(lvTypeInference *inf) {
 /* 注册一条 pattern->type 推理规则 */
 int lv_type_inference_register_rule(lvTypeInference *inf, const char *pattern, const char *type) {
     if (!inf || !pattern || !type)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL inf, pattern, or type");
     if (inf->rule_count >= inf->rule_capacity) {
         int new_cap = inf->rule_capacity * 2;
         lvTypeInferenceRule *new_arr = lv_realloc(inf->rules, new_cap * sizeof(lvTypeInferenceRule));
         if (!new_arr)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc rules array");
         inf->rules = new_arr;
         inf->rule_capacity = new_cap;
     }
@@ -66,7 +67,7 @@ int lv_type_inference_register_rule(lvTypeInference *inf, const char *pattern, c
 /* 基于规则的简单类型推理 */
 int lv_type_inference_infer(lvTypeInference *inf, const char *expr, char *result_type, size_t size) {
     if (!inf || !expr || !result_type || size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL inf, expr, or result_type");
 
     /* 先检查自定义规则（后注册的优先） */
     for (int i = inf->rule_count - 1; i >= 0; i--) {

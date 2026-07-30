@@ -1,8 +1,9 @@
-﻿#include <stdbool.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "lv/control_flow_blocks.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
 
 /* Internal state for if-block condition management */
 typedef struct {
@@ -13,7 +14,7 @@ typedef struct {
 lvIfBlock *lv_if_block_create(void) {
     lvIfBlock *block = lv_calloc(1, sizeof(lvIfBlock));
     if (!block)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate if block");
     block->condition_port = -1;
     block->then_output = -1;
     block->else_output = -1;
@@ -22,7 +23,7 @@ lvIfBlock *lv_if_block_create(void) {
     IfBlockState *state = lv_calloc(1, sizeof(IfBlockState));
     if (!state) {
         lv_free((void **) &block);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate if block state");
     }
     block->base = state;
     return block;
@@ -39,7 +40,7 @@ void lv_if_block_destroy(lvIfBlock *block) {
 
 int lv_if_block_set_branches(lvIfBlock *block, void *then_branch, void *else_branch) {
     if (!block)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block");
     block->branches.then_branch = then_branch;
     block->branches.else_branch = else_branch;
     return 0;
@@ -47,7 +48,7 @@ int lv_if_block_set_branches(lvIfBlock *block, void *then_branch, void *else_bra
 
 int lv_if_block_set_condition(lvIfBlock *block, bool condition) {
     if (!block || !block->base)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block or base state");
     IfBlockState *state = (IfBlockState *) block->base;
     state->condition_value = condition;
     state->condition_set = true;
@@ -77,9 +78,9 @@ bool lv_if_block_evaluate(lvIfBlock *block) {
 
 int lv_if_block_execute_true_branch(lvIfBlock *block) {
     if (!block)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block");
     if (!block->branches.then_branch)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "then_branch is NULL");
 
     /* The true branch is dispatched to the runtime scheduler.
        The actual execution depends on the branch type (sub-graph,
@@ -89,9 +90,9 @@ int lv_if_block_execute_true_branch(lvIfBlock *block) {
 
 int lv_if_block_execute_false_branch(lvIfBlock *block) {
     if (!block)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block");
     if (!block->branches.else_branch)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "else_branch is NULL");
 
     /* The false branch is dispatched to the runtime scheduler.
        The actual execution depends on the branch type (sub-graph,

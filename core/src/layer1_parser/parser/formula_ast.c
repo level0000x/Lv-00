@@ -22,12 +22,11 @@
 
 FormulaNode *formula_create_number(int64_t numerator, uint64_t denominator) {
     if (denominator == 0) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "formula_create_number: denominator must not be zero");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "formula_create_number: denominator must not be zero");
     }
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate number node");
     node->type = NODE_NUMBER;
     node->line = 1;
     node->column = 1;
@@ -46,16 +45,17 @@ FormulaNode *formula_create_number(int64_t numerator, uint64_t denominator) {
  */
 FormulaNode *formula_create_variable(const char *name) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "name is NULL");
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate variable node");
     node->type = NODE_VARIABLE;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
     node->data.variable.name = lv_strdup_safe(name);
     if (!node->data.variable.name) {
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate variable name");
         lv_free((void **) &node);
         return NULL;
     }
@@ -97,7 +97,7 @@ FormulaNode *formula_create_identifier(const char *name) {
 FormulaNode *formula_create_binary_op(NodeType op_type, FormulaNode *left, FormulaNode *right) {
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate binary_op node");
     node->type = op_type;
     node->line = 1;
     node->column = 1;
@@ -120,7 +120,7 @@ FormulaNode *formula_create_binary_op(NodeType op_type, FormulaNode *left, Formu
 FormulaNode *formula_create_unary_op(NodeType op_type, FormulaNode *operand) {
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate unary_op node");
     node->type = op_type;
     node->line = 1;
     node->column = 1;
@@ -144,7 +144,7 @@ FormulaNode *formula_create_unary_op(NodeType op_type, FormulaNode *operand) {
 FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate equation node");
     node->type = NODE_EQUATION;
     node->line = 1;
     node->column = 1;
@@ -159,7 +159,7 @@ FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
 FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate coord_list node");
     node->type = NODE_COORDINATE_LIST;
     node->line = 1;
     node->column = 1;
@@ -167,6 +167,7 @@ FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
     if (count > 0 && coords) {
         node->data.coord_list.coords = lv_calloc(count, sizeof(FormulaNode *));
         if (!node->data.coord_list.coords) {
+            lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate coord_list array");
             lv_free((void **) &node);
             return NULL;
         }
@@ -181,16 +182,17 @@ FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
 
 FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "name is NULL");
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_point node");
     node->type = NODE_GEOM_POINT;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
     node->data.geom_point.name = lv_strdup_safe(name);
     if (!node->data.geom_point.name) {
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_point name");
         lv_free((void **) &node);
         return NULL;
     }
@@ -200,16 +202,17 @@ FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
 
 FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, FormulaNode *ep2) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "name is NULL");
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_segment node");
     node->type = NODE_GEOM_SEGMENT;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
     node->data.geom_segment.name = lv_strdup_safe(name);
     if (!node->data.geom_segment.name) {
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_segment name");
         lv_free((void **) &node);
         return NULL;
     }
@@ -220,10 +223,10 @@ FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, For
 
 FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, FormulaNode *radius) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "name is NULL");
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_circle node");
     node->type = NODE_GEOM_CIRCLE;
     node->line = 1;
     node->column = 1;
@@ -240,16 +243,17 @@ FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, F
 
 FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, FormulaNode *v2, FormulaNode *v3) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "name is NULL");
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_triangle node");
     node->type = NODE_GEOM_TRIANGLE;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
     node->data.geom_triangle.name = lv_strdup_safe(name);
     if (!node->data.geom_triangle.name) {
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_triangle name");
         lv_free((void **) &node);
         return NULL;
     }
@@ -261,22 +265,24 @@ FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, For
 
 FormulaNode *formula_create_geom_polygon(const char *name, FormulaNode **vertices, int vertex_count) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "name is NULL");
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_polygon node");
     node->type = NODE_GEOM_POLYGON;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
     node->data.geom_polygon.name = lv_strdup_safe(name);
     if (!node->data.geom_polygon.name) {
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_polygon name");
         lv_free((void **) &node);
         return NULL;
     }
     if (vertex_count > 0 && vertices) {
         node->data.geom_polygon.vertices = lv_calloc(vertex_count, sizeof(FormulaNode *));
         if (!node->data.geom_polygon.vertices) {
+            lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_polygon vertices array");
             lv_free((void **) &node->data.geom_polygon.name);
             lv_free((void **) &node);
             return NULL;
@@ -289,22 +295,24 @@ FormulaNode *formula_create_geom_polygon(const char *name, FormulaNode **vertice
 
 FormulaNode *formula_create_geom_region(const char *name, FormulaNode **segments, int segment_count) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "name is NULL");
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_region node");
     node->type = NODE_GEOM_REGION;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
     node->data.geom_region.name = lv_strdup_safe(name);
     if (!node->data.geom_region.name) {
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_region name");
         lv_free((void **) &node);
         return NULL;
     }
     if (segment_count > 0 && segments) {
         node->data.geom_region.boundary_segments = lv_calloc(segment_count, sizeof(FormulaNode *));
         if (!node->data.geom_region.boundary_segments) {
+            lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_region boundary_segments array");
             lv_free((void **) &node->data.geom_region.name);
             lv_free((void **) &node);
             return NULL;
@@ -318,16 +326,17 @@ FormulaNode *formula_create_geom_region(const char *name, FormulaNode **segments
 FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, FormulaNode *radius,
                                      FormulaNode *start_angle, FormulaNode *end_angle) {
     if (!name)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "name is NULL");
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_arc node");
     node->type = NODE_GEOM_ARC;
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
     node->data.geom_arc.name = lv_strdup_safe(name);
     if (!node->data.geom_arc.name) {
+        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geom_arc name");
         lv_free((void **) &node);
         return NULL;
     }
@@ -341,7 +350,7 @@ FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, Form
 FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **participants, int count) {
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate constraint node");
     node->type = constraint_type;
     node->line = 1;
     node->column = 1;
@@ -349,6 +358,7 @@ FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **p
     if (count > 0 && participants) {
         node->data.constraint.participants = lv_calloc(count, sizeof(FormulaNode *));
         if (!node->data.constraint.participants) {
+            lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate constraint participants array");
             lv_free((void **) &node);
             return NULL;
         }
@@ -361,7 +371,7 @@ FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **p
 FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
     FormulaNode *node = lv_calloc(1, sizeof(FormulaNode));
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate compound node");
     node->type = NODE_COMPOUND;
     node->line = 1;
     node->column = 1;
@@ -369,6 +379,7 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
     if (count > 0 && statements) {
         node->data.compound.statements = lv_calloc(count, sizeof(FormulaNode *));
         if (!node->data.compound.statements) {
+            lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "failed to allocate compound statements array");
             lv_free((void **) &node);
             return NULL;
         }
@@ -380,12 +391,12 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
 
 int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement) {
     if (!compound || compound->type != NODE_COMPOUND || !statement)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "invalid compound or statement");
 
     int new_count = compound->data.compound.statement_count + 1;
     FormulaNode **new_statements = lv_realloc(compound->data.compound.statements, sizeof(FormulaNode *) * new_count);
     if (!new_statements)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc statements array");
 
     compound->data.compound.statements = new_statements;
     compound->data.compound.statements[compound->data.compound.statement_count++] = statement;
@@ -570,11 +581,11 @@ void formula_node_destroy(FormulaNode *node) {
 
 FormulaNode *formula_node_copy(const FormulaNode *node) {
     if (!node)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "source node is NULL");
 
     FormulaNode *copy = lv_calloc(1, sizeof(FormulaNode));
     if (!copy)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate copy node");
 
     copy->type = node->type;
     copy->line = node->line;

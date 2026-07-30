@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "lv/data_structure_blocks.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /**
@@ -25,12 +26,12 @@
 lvRecordBlock *lv_record_block_create(int field_count) {
     lvRecordBlock *block = lv_calloc(1, sizeof(lvRecordBlock));
     if (!block)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate record block");
     if (field_count > 0) {
         block->fields = lv_calloc(field_count, sizeof(block->fields[0]));
         if (!block->fields) {
             lv_free((void **) &block);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate fields array");
         }
         block->field_count = field_count;
     }
@@ -67,7 +68,7 @@ void lv_record_block_destroy(lvRecordBlock *block) {
  */
 int lv_record_block_set_field(lvRecordBlock *block, int index, const char *name, void *type) {
     if (!block || index < 0 || index >= block->field_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "NULL block or invalid index");
     lv_free((void **) &block->fields[index].field_name);
     block->fields[index].field_name = name ? lv_strdup(name) : NULL;
     block->fields[index].field_type = type;

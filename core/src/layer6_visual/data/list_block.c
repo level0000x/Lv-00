@@ -10,6 +10,7 @@
  */
 
 #include "lv/data_structure_blocks.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /**
@@ -23,7 +24,7 @@
 lvListBlock *lv_list_block_create(lvListOp op) {
     lvListBlock *block = lv_calloc(1, sizeof(lvListBlock));
     if (!block)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate list block");
     block->operation = op;
     return block;
 }
