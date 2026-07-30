@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
 
@@ -541,138 +542,21 @@ void lv_config_reset(void) {
     g_config_applied = 1;
 }
 
-/* ---- minimal JSON parser ---- */
-
-/**
- * @brief 跳过空白字符
- * @param p 输入字符串指针
- * @return 指向第一个非空白字符的指针
- */
-static const char *json_skip_ws(const char *p) {
-    while (*p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
-        p++;
-    return p;
-}
-
-/**
- * @brief 解析 JSON 整数值（带负号支持）
- * @param p   输入指针（会更新为解析结束位置）
- * @param out 输出解析结果
- * @return 0 成功，-1 解析失败
- */
-static int json_parse_int(const char **p, int *out) {
-    *p = json_skip_ws(*p);
-    int sign = 1;
-    if (**p == '-') {
-        sign = -1;
-        (*p)++;
-    }
-    if (!isdigit((unsigned char) **p))
-        return -1;
-    int val = 0;
-    while (isdigit((unsigned char) **p)) {
-        /* 防止整数溢出：若 val 即将超过 INT_MAX/10，截断处理 */
-        if (val > INT_MAX / 10) {
-            val = INT_MAX / 10;
-        }
-        val = val * 10 + (**p - '0');
-        (*p)++;
-    }
-    *out = sign * val;
-    return 0;
-}
-
-/**
- * @brief 解析 JSON 浮点数值
- * @param p   输入指针（会更新为解析结束位置）
- * @param out 输出解析结果
- * @return 0 成功
- */
-static int json_parse_double(const char **p, double *out) {
-    *p = json_skip_ws(*p);
-    char buf[64];
-    int i = 0;
-    while (**p &&
-           (isdigit((unsigned char) **p) || **p == '.' || **p == '-' || **p == 'e' || **p == 'E' || **p == '+') &&
-           i < 63)
-        buf[i++] = *(*p)++;
-    buf[i] = '\0';
-    lv_parse_double(buf, out);
-    return 0;
-}
-
-/**
- * @brief 在 JSON 字符串中查找指定键，并返回键后的位置
- * @param p   JSON 字符串
- * @param key 要查找的键名
- * @return 键值对中冒号后的位置，未找到返回 NULL
- */
-static const char *json_find_key(const char *p, const char *key) {
-    while (*p) {
-        p = json_skip_ws(p);
-        if (*p == '}' || *p == '\0')
-            return NULL;
-        if (*p == ',')
-            p++;
-        p = json_skip_ws(p);
-        if (*p == '"') {
-            p++;
-            const char *ks = key;
-            while (*p && *p != '"' && *ks && *p == *ks) {
-                p++;
-                ks++;
-            }
-            if (*p == '"' && *ks == '\0') {
-                p++;
-                return json_skip_ws(p);
-            }
-            while (*p && *p != '"')
-                p++;
-            if (*p == '"')
-                p++;
-            p = json_skip_ws(p);
-            if (*p == ':') {
-                p++;
-                p = json_skip_ws(p);
-                if (*p == '{' || *p == '[') {
-                    int d = 1;
-                    p++;
-                    while (*p && d > 0) {
-                        if (*p == '{' || *p == '[')
-                            d++;
-                        else if (*p == '}' || *p == ']')
-                            d--;
-                        p++;
-                    }
-                } else if (*p == '"') {
-                    p++;
-                    while (*p && *p != '"')
-                        p++;
-                    if (*p == '"')
-                        p++;
-                } else {
-                    while (*p && *p != ',' && *p != '}')
-                        p++;
-                }
-            }
-        }
-    }
-    return NULL;
-}
+/* ---- JSON 配置加载辅助 —— 基于 lv_json.h ---- */
 
 /**
  * @brief 从 JSON 字符串中解析指定键的整数值
  * @param json JSON 字符串
  * @param key  键名
  * @param out  输出值
- * @return 0 成功，1 键未找到
  */
-static int json_config_int(const char *json, const char *key, int *out) {
-    const char *p = json_find_key(json, key);
-    if (!p || *p != ':')
-        return 0;
-    p++;
-    return json_parse_int(&p, out);
+static void json_config_int(const char *json, const char *key, int *out) {
+    const char *val = lv_json_find_key(json, key, strlen(key));
+    if (!val) return;
+    size_t remaining = strlen(val);
+    lvJsonParser p;
+    lv_json_parser_init(&p, val, remaining);
+    lv_json_parse_int(&p, out);
 }
 
 /**
@@ -680,14 +564,14 @@ static int json_config_int(const char *json, const char *key, int *out) {
  * @param json JSON 字符串
  * @param key  键名
  * @param out  输出值
- * @return 0 成功，1 键未找到
  */
-static int json_config_double(const char *json, const char *key, double *out) {
-    const char *p = json_find_key(json, key);
-    if (!p || *p != ':')
-        return 0;
-    p++;
-    return json_parse_double(&p, out);
+static void json_config_double(const char *json, const char *key, double *out) {
+    const char *val = lv_json_find_key(json, key, strlen(key));
+    if (!val) return;
+    size_t remaining = strlen(val);
+    lvJsonParser p;
+    lv_json_parser_init(&p, val, remaining);
+    lv_json_parse_double(&p, out);
 }
 
 #define JLD_INT(k, f) json_config_int(json_data, k, &cfg.f)

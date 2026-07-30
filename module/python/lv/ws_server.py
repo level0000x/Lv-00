@@ -375,26 +375,33 @@ class StreamBridgeServer:
             if queue in self._sse_clients:
                 self._sse_clients.remove(queue)
 
-    async def _create_sse_response(self, event_queue: asyncio.Queue) -> None:
+    async def _create_sse_response(self, event_queue: asyncio.Queue,
+                                    writer: asyncio.StreamWriter) -> None:
         """创建 SSE 响应生成器。
 
         从事件队列中持续读取消息，以 SSE 格式写入客户端连接。
         当队列收到 None 时表示连接应关闭。
 
         参数：
-            event_queue: SSE 客户端的事件队列
-
-        TODO: 此方法当前为空实现，SSE 响应逻辑已内联在 _handle_sse_client 中。
-              未来应将 SSE 数据发送循环重构到此方法中，以提高代码可维护性。
-              基本实现参考：
-                while True:
-                    message_json = await event_queue.get()
+            event_queue: 客户端事件队列
+            writer:      异步流写入器
+        """
+        try:
+            while self._running:
+                try:
+                    message_json = await asyncio.wait_for(
+                        event_queue.get(), timeout=30.0
+                    )
                     if message_json is None:
                         break
-                    writer.write(f"data: {message_json}\\n\\n".encode('utf-8'))
+                    writer.write(f"data: {message_json}\n\n".encode('utf-8'))
                     await writer.drain()
-        """
-        pass
+                except asyncio.TimeoutError:
+                    # 发送心跳注释以保持连接
+                    writer.write(b": heartbeat\n\n")
+                    await writer.drain()
+        except (ConnectionResetError, BrokenPipeError, asyncio.CancelledError):
+            pass
 
     async def _handle_sse_client(self, reader: asyncio.StreamReader,
                                   writer: asyncio.StreamWriter) -> None:
@@ -474,23 +481,8 @@ class StreamBridgeServer:
             writer.write(f"data: {connect_event}\n\n".encode('utf-8'))
             await writer.drain()
 
-            # 持续从队列读取事件并发送
-            try:
-                while self._running:
-                    try:
-                        message_json = await asyncio.wait_for(
-                            event_queue.get(), timeout=30.0
-                        )
-                        if message_json is None:
-                            break
-                        writer.write(f"data: {message_json}\n\n".encode('utf-8'))
-                        await writer.drain()
-                    except asyncio.TimeoutError:
-                        # 发送心跳注释以保持连接
-                        writer.write(b": heartbeat\n\n")
-                        await writer.drain()
-            except (ConnectionResetError, BrokenPipeError, asyncio.CancelledError):
-                pass
+            # 委托给独立方法处理 SSE 数据发送循环
+            await self._create_sse_response(event_queue, writer)
 
         except asyncio.TimeoutError:
             logger.debug(f"SSE 客户端 {peer} 请求超时")
