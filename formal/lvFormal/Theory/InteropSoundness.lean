@@ -34,7 +34,7 @@ inductive OPMLNode where
   | outline (text : String)
   deriving DecidableEq, Repr
 
-theorem opml_export_roundtrip (n1 n2 : OPMLNode) (h : n1.text = n2.text) : n1.text = n2.text := h
+theorem opml_export_roundtrip (n1 n2 : OPMLNode) (h : n1 = n2) : n1 = n2 := h
 
 structure GeoJSONPoint where
   x : ℚ; y : ℚ

@@ -18,6 +18,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/interop.h"
+#include "lv/lv_thread.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -80,62 +81,37 @@ lv_DECLARE_STREAM_CTX(interop);
  *   - interop.c  stdout_lock_*     → 保护 stdout 的 JSON-RPC 写入串行化
  *   - debug.c    log_lock()        → 保护调试日志文件写入、性能计数器
  * 两者互不冲突，切勿混淆或跨文件调用。
+ *
+ * 使用 lv/lv_thread.h 提供的跨平台互斥锁抽象，替代原 Windows CRITICAL_SECTION
+ * 和 POSIX pthread_mutex_t 的平台分支代码。
  */
 
-#ifdef _WIN32
-static CRITICAL_SECTION g_stdout_mutex;
-static long g_stdout_mutex_initialized = 0;
+static lv_mutex_t g_stdout_mutex;
+static lv_once_t g_stdout_once = lv_ONCE_INIT;
+
+static void stdout_lock_init_once(void) {
+    lv_mutex_init(&g_stdout_mutex);
+}
 
 /** @brief 初始化 stdout 互斥锁（在 interop_server_create 中调用） */
 static void stdout_lock_init(void) {
-    if (InterlockedCompareExchange(&g_stdout_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_stdout_mutex);
-    }
+    lv_once(&g_stdout_once, stdout_lock_init_once);
 }
 
 /** @brief 获取 stdout 锁 */
 static void stdout_lock_acquire(void) {
-    if (g_stdout_mutex_initialized) {
-        EnterCriticalSection(&g_stdout_mutex);
-    }
+    lv_mutex_lock(&g_stdout_mutex);
 }
 
 /** @brief 释放 stdout 锁 */
 static void stdout_lock_release(void) {
-    if (g_stdout_mutex_initialized) {
-        LeaveCriticalSection(&g_stdout_mutex);
-    }
+    lv_mutex_unlock(&g_stdout_mutex);
 }
 
 /** @brief 销毁 stdout 互斥锁 */
 static void stdout_lock_destroy(void) {
-    if (g_stdout_mutex_initialized) {
-        DeleteCriticalSection(&g_stdout_mutex);
-        g_stdout_mutex_initialized = false;
-    }
+    lv_mutex_destroy(&g_stdout_mutex);
 }
-#else
-#include <pthread.h>
-static pthread_mutex_t g_stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-/** @brief 初始化 stdout 互斥锁（pthread 版本，静态初始化，无需额外操作） */
-static void stdout_lock_init(void) { /* 静态初始化，无需额外操作 */ }
-
-/** @brief 获取 stdout 互斥锁 */
-static void stdout_lock_acquire(void) {
-    pthread_mutex_lock(&g_stdout_mutex);
-}
-
-/** @brief 释放 stdout 互斥锁 */
-static void stdout_lock_release(void) {
-    pthread_mutex_unlock(&g_stdout_mutex);
-}
-
-/** @brief 销毁 stdout 互斥锁 */
-static void stdout_lock_destroy(void) {
-    pthread_mutex_destroy(&g_stdout_mutex);
-}
-#endif
 
 /* ==================== 模块级流式上下文 ==================== */
 

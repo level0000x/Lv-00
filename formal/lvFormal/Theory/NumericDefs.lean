@@ -36,4 +36,4 @@ def IsEigenvalue {n : ℕ} (l : ℝ) (M : Matrix n n) : Prop :=
   ∃ (x : ℕ → ℝ), (∃ i, i < n ∧ x i ≠ 0) ∧
     ∀ i, i < n → (∑ j in Finset.range n, M i j * x j) = l * x i
 
-/-! ## GMR
+/-! ## GMR -/

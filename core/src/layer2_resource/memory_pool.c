@@ -73,20 +73,7 @@
 #define lv_SIZE_MUL_OVERFLOW(a, b) (((a) != 0 && (b) > SIZE_MAX / (a)))
 
 /* ============== 平台抽象层（线程安全） ============== */
-
-#ifdef _WIN32
-typedef CRITICAL_SECTION lvMutex;
-#define lv_MUTEX_INIT(m) InitializeCriticalSection(&(m))
-#define lv_MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
-#define lv_MUTEX_LOCK(m) EnterCriticalSection(&(m))
-#define lv_MUTEX_UNLOCK(m) LeaveCriticalSection(&(m))
-#else
-typedef pthread_mutex_t lvMutex;
-#define lv_MUTEX_INIT(m) pthread_mutex_init(&(m), NULL)
-#define lv_MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
-#define lv_MUTEX_LOCK(m) pthread_mutex_lock(&(m))
-#define lv_MUTEX_UNLOCK(m) pthread_mutex_unlock(&(m))
-#endif
+#include "lv/lv_thread.h"
 
 /* ============== 对象池实现 ============== */
 
@@ -123,7 +110,7 @@ struct lvObjectPool {
     size_t current_used;   /**< 当前使用数量 */
 
     /* 线程安全 */
-    lvMutex mutex; /**< 互斥锁 */
+    lv_mutex_t mutex; /**< 互斥锁 */
 };
 
 /* 对齐辅助函数 */
@@ -157,7 +144,7 @@ lvObjectPool *lv_pool_create(const lvPoolConfig *config) {
 
     /* 初始化线程锁 */
     if (pool->thread_safe) {
-        lv_MUTEX_INIT(pool->mutex);
+        lv_mutex_init(&pool->mutex);
     }
 
     /* 分配初始内存块数组 */

@@ -100,8 +100,8 @@ def compile_stmt (c : lvStmt) (ps : List lvPoint) : List IRConstraint :=
   | .prove => []
   | .normalize => []
 
-/-- compile_program 的辅助递归函数：累积已见点列表并进行编译。 -/
-def compile_program_go (pts : List lvPoint) (rest : lvProgram) : ConstraintGraph :=
+/-- compile_program 的辅助递归函数 -/
+def compile_program_go (pts : List lvPoint) (rest : lvProgram) : List IRConstraint :=
   match rest with
   | [] => []
   | st :: sts =>

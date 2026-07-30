@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_framework.c
  * @brief 增强单元测试框架实现
  *
@@ -37,13 +37,9 @@
 
 /* ============== 平台抽象层 ============== */
 
-#ifdef _WIN32
-typedef CRITICAL_SECTION lvTestMutex;
-#define MUTEX_INIT(m) InitializeCriticalSection(&(m))
-#define MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
-#define MUTEX_LOCK(m) EnterCriticalSection(&(m))
-#define MUTEX_UNLOCK(m) LeaveCriticalSection(&(m))
+#include "lv/lv_thread.h"
 
+#ifdef _WIN32
 static int64_t get_time_ns(void) {
     LARGE_INTEGER freq, count;
     QueryPerformanceFrequency(&freq);
@@ -51,12 +47,6 @@ static int64_t get_time_ns(void) {
     return (int64_t) ((double) count.QuadPart / (double) freq.QuadPart * 1e9);
 }
 #else
-typedef pthread_mutex_t lvTestMutex;
-#define MUTEX_INIT(m) pthread_mutex_init(&(m), NULL)
-#define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
-#define MUTEX_LOCK(m) pthread_mutex_lock(&(m))
-#define MUTEX_UNLOCK(m) pthread_mutex_unlock(&(m))
-
 static int64_t get_time_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -69,7 +59,7 @@ static int64_t get_time_ns(void) {
 static struct {
     lvTestSuite *suites[lv_TEST_MAX_SUITES];
     uint32_t suite_count;
-    lvTestMutex mutex;
+    lv_mutex_t mutex;
     bool initialized;
 
     /* 当前测试上下文 */
@@ -114,37 +104,26 @@ static lvTestSuite *find_or_create_suite(const char *name) {
     return suite;
 }
 
-static lvTestMutex g_test_init_mutex;
-static volatile int g_test_init_mutex_initialized = 0;
+static lv_mutex_t g_test_init_mutex;
+static lv_once_t g_test_init_once = lv_ONCE_INIT;
+
+static void test_init_mutex_func(void) {
+    lv_mutex_init(&g_test_init_mutex);
+}
 
 static void init_test_system(void) {
-#ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile *) &g_test_init_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_test_init_mutex);
-    }
-    EnterCriticalSection(&g_test_init_mutex);
-#else
-    static pthread_mutex_t g_test_init_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&g_test_init_mutex);
-#endif
+    lv_once(&g_test_init_once, test_init_mutex_func);
+    lv_mutex_lock(&g_test_init_mutex);
     if (g_test_system.initialized) {
-#ifdef _WIN32
-        LeaveCriticalSection(&g_test_init_mutex);
-#else
-        pthread_mutex_unlock(&g_test_init_mutex);
-#endif
+        lv_mutex_unlock(&g_test_init_mutex);
         return;
     }
 
     memset(&g_test_system, 0, sizeof(g_test_system));
-    MUTEX_INIT(g_test_system.mutex);
+    lv_mutex_init(&g_test_system.mutex);
     g_test_system.timeout_ms = 30000; /* 默认 30 秒超时 */
     g_test_system.initialized = true;
-#ifdef _WIN32
-    LeaveCriticalSection(&g_test_init_mutex);
-#else
-    pthread_mutex_unlock(&g_test_init_mutex);
-#endif
+    lv_mutex_unlock(&g_test_init_mutex);
 }
 
 /* ============== 测试注册实现 ============== */
@@ -161,18 +140,18 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
         return false;
     }
 
-    MUTEX_LOCK(g_test_system.mutex);
+    lv_mutex_lock(&g_test_system.mutex);
 
     lvTestSuite *suite = find_or_create_suite(suite_name);
     if (!suite) {
-        MUTEX_UNLOCK(g_test_system.mutex);
+        lv_mutex_unlock(&g_test_system.mutex);
         return false;
     }
 
     /* 检查是否已存在 */
     for (uint32_t i = 0; i < suite->case_count; i++) {
         if (strcmp(suite->cases[i].name, test_name) == 0) {
-            MUTEX_UNLOCK(g_test_system.mutex);
+            lv_mutex_unlock(&g_test_system.mutex);
             return false;
         }
     }
@@ -182,7 +161,7 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
         uint32_t new_cap = suite->case_capacity * 2;
         lvTestCase *new_cases = (lvTestCase *) lv_realloc(suite->cases, new_cap * sizeof(lvTestCase));
         if (!new_cases) {
-            MUTEX_UNLOCK(g_test_system.mutex);
+            lv_mutex_unlock(&g_test_system.mutex);
             return false;
         }
         suite->cases = new_cases;
@@ -200,7 +179,7 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
     test_case->teardown = teardown;
     test_case->status = TEST_STATUS_PENDING;
 
-    MUTEX_UNLOCK(g_test_system.mutex);
+    lv_mutex_unlock(&g_test_system.mutex);
     return true;
 }
 
@@ -211,18 +190,18 @@ bool lv_test_register_suite_fixture(const char *suite_name, lvTestSetupFunc setu
         return false;
     }
 
-    MUTEX_LOCK(g_test_system.mutex);
+    lv_mutex_lock(&g_test_system.mutex);
 
     lvTestSuite *suite = find_or_create_suite(suite_name);
     if (!suite) {
-        MUTEX_UNLOCK(g_test_system.mutex);
+        lv_mutex_unlock(&g_test_system.mutex);
         return false;
     }
 
     suite->suite_setup = setup;
     suite->suite_teardown = teardown;
 
-    MUTEX_UNLOCK(g_test_system.mutex);
+    lv_mutex_unlock(&g_test_system.mutex);
     return true;
 }
 
@@ -231,7 +210,7 @@ bool lv_test_add_tag(const char *suite_name, const char *test_name, const char *
         return false;
     }
 
-    MUTEX_LOCK(g_test_system.mutex);
+    lv_mutex_lock(&g_test_system.mutex);
 
     for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
         lvTestSuite *suite = g_test_system.suites[i];
@@ -251,14 +230,14 @@ bool lv_test_add_tag(const char *suite_name, const char *test_name, const char *
                             test_case->tag_count++;
                         }
                     }
-                    MUTEX_UNLOCK(g_test_system.mutex);
+                    lv_mutex_unlock(&g_test_system.mutex);
                     return true;
                 }
             }
         }
     }
 
-    MUTEX_UNLOCK(g_test_system.mutex);
+    lv_mutex_unlock(&g_test_system.mutex);
     return false;
 }
 
@@ -358,12 +337,12 @@ lvTestReport *lv_test_run_all(void) {
 
     report->start_time_ns = get_time_ns();
 
-    MUTEX_LOCK(g_test_system.mutex);
+    lv_mutex_lock(&g_test_system.mutex);
 
     /* 分配套件数组 */
     report->suites = (lvTestSuite *) lv_calloc(g_test_system.suite_count, sizeof(lvTestSuite));
     if (!report->suites) {
-        MUTEX_UNLOCK(g_test_system.mutex);
+        lv_mutex_unlock(&g_test_system.mutex);
         lv_free((void **) &report);
         return NULL;
     }
@@ -405,7 +384,7 @@ lvTestReport *lv_test_run_all(void) {
         report->skipped_count += suite->skipped_count;
     }
 
-    MUTEX_UNLOCK(g_test_system.mutex);
+    lv_mutex_unlock(&g_test_system.mutex);
 
     report->end_time_ns = get_time_ns();
     report->total_time_ns = report->end_time_ns - report->start_time_ns;
@@ -420,7 +399,7 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
         return NULL;
     }
 
-    MUTEX_LOCK(g_test_system.mutex);
+    lv_mutex_lock(&g_test_system.mutex);
 
     lvTestSuite *suite = NULL;
     for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
@@ -431,13 +410,13 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
     }
 
     if (!suite) {
-        MUTEX_UNLOCK(g_test_system.mutex);
+        lv_mutex_unlock(&g_test_system.mutex);
         return NULL;
     }
 
     lvTestReport *report = (lvTestReport *) lv_calloc(1, sizeof(lvTestReport));
     if (!report) {
-        MUTEX_UNLOCK(g_test_system.mutex);
+        lv_mutex_unlock(&g_test_system.mutex);
         return NULL;
     }
 
@@ -445,7 +424,7 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
     report->suites = (lvTestSuite *) lv_calloc(1, sizeof(lvTestSuite));
     if (!report->suites) {
         lv_free((void **) &report);
-        MUTEX_UNLOCK(g_test_system.mutex);
+        lv_mutex_unlock(&g_test_system.mutex);
         return NULL;
     }
     report->suite_count = 1;
@@ -479,7 +458,7 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
     report->failed_count = suite->failed_count;
     report->skipped_count = suite->skipped_count;
 
-    MUTEX_UNLOCK(g_test_system.mutex);
+    lv_mutex_unlock(&g_test_system.mutex);
 
     report->end_time_ns = get_time_ns();
     report->total_time_ns = report->end_time_ns - report->start_time_ns;
@@ -494,7 +473,7 @@ lvTestResult *lv_test_run_single(const char *suite_name, const char *test_name) 
         return NULL;
     }
 
-    MUTEX_LOCK(g_test_system.mutex);
+    lv_mutex_lock(&g_test_system.mutex);
 
     lvTestResult *result = NULL;
 
@@ -512,7 +491,7 @@ lvTestResult *lv_test_run_single(const char *suite_name, const char *test_name) 
         }
     }
 
-    MUTEX_UNLOCK(g_test_system.mutex);
+    lv_mutex_unlock(&g_test_system.mutex);
 
     return result;
 }
@@ -531,7 +510,7 @@ lvTestReport *lv_test_run_by_tag(const char *tag) {
 
     report->start_time_ns = get_time_ns();
 
-    MUTEX_LOCK(g_test_system.mutex);
+    lv_mutex_lock(&g_test_system.mutex);
 
     for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
         lvTestSuite *suite = g_test_system.suites[i];
@@ -560,7 +539,7 @@ lvTestReport *lv_test_run_by_tag(const char *tag) {
         }
     }
 
-    MUTEX_UNLOCK(g_test_system.mutex);
+    lv_mutex_unlock(&g_test_system.mutex);
 
     report->end_time_ns = get_time_ns();
     report->total_time_ns = report->end_time_ns - report->start_time_ns;
@@ -582,7 +561,7 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
 
     report->start_time_ns = get_time_ns();
 
-    MUTEX_LOCK(g_test_system.mutex);
+    lv_mutex_lock(&g_test_system.mutex);
 
     /* 简单的模式匹配（仅支持 * 通配符） */
     for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
@@ -619,7 +598,7 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
         }
     }
 
-    MUTEX_UNLOCK(g_test_system.mutex);
+    lv_mutex_unlock(&g_test_system.mutex);
 
     report->end_time_ns = get_time_ns();
     report->total_time_ns = report->end_time_ns - report->start_time_ns;
@@ -664,7 +643,7 @@ bool lv_test_register_parameterized(const char *suite_name, const char *test_nam
         }
 
         /* 存储数据索引 */
-        MUTEX_LOCK(g_test_system.mutex);
+        lv_mutex_lock(&g_test_system.mutex);
         for (uint32_t j = 0; j < g_test_system.suite_count; j++) {
             lvTestSuite *suite = g_test_system.suites[j];
             if (strcmp(suite->name, suite_name) == 0) {
@@ -676,7 +655,7 @@ bool lv_test_register_parameterized(const char *suite_name, const char *test_nam
                 break;
             }
         }
-        MUTEX_UNLOCK(g_test_system.mutex);
+        lv_mutex_unlock(&g_test_system.mutex);
     }
 
     return true;

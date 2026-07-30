@@ -107,7 +107,7 @@ theorem subset_preserves_solutions (domains domains' : List (String × Domain))
   intro v dom h_mem
   rcases h_sub v dom h_mem with ⟨dom0, h_mem0, h_sub_dom⟩
   have h_a_v : a v ∈ dom0 := h_sol v dom0 h_mem0
-  sorry
+  exact h_sub_dom h_a_v
 
 /-- AC-3 保持解：若从每个变量的域中移除值后得到子集，
     且原赋值仍满足子集，则该赋值也是缩减后的域的解。

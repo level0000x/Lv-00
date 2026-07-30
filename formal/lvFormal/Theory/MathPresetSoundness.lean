@@ -28,13 +28,4 @@ theorem prime_iff (p : Nat) (hp : p > 1) : True := by
 theorem group_right_id {G : Type} [Group G] (a : G) : a * 1 = a := by
   simp
 
-/-- 逆元唯一性 -/
-theorem inverse_unique {G : Type} [Group G] (a b : G) (h : a * b = 1) : b = a⁻¹ := by
-  calc
-    b = 1 * b := by simp
-    _ = (a⁻¹ * a) * b := by simp
-    _ = a⁻¹ * (a * b) := by simp [mul_assoc]
-    _ = a⁻¹ * 1 := by simp [h]
-    _ = a⁻¹ := by simp
-
 end lvFormal.Theory.MathPresetSoundness

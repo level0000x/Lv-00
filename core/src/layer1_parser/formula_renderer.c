@@ -30,14 +30,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <pthread.h>
-#endif
-
 #include "error_codes.h"
 #include "lv_internal.h"
+#include "lv/lv_thread.h"
 #include "lv_utils.h" /* lv_malloc / lv_realloc / lv_free —— 统一内存分配器 */
 
 /* ============================================================
@@ -86,43 +81,30 @@ typedef struct {
 /* ---------- 缓冲区池线程安全保护 ----------
  *
  * 缓冲区池是全局共享的静态数组，多线程并发渲染时存在竞态条件。
- * 使用互斥锁保护 formula_pool_alloc 和 formula_pool_free 中的
- * in_use 标志读写，与项目中其他模块（debug.c、memory_pool.c）保持一致。
+ * 使用 lv/lv_thread.h 提供的跨平台互斥锁保护 formula_pool_alloc 和
+ * formula_pool_free 中的 in_use 标志读写。
  *
- * 平台策略：
- * - Windows: CRITICAL_SECTION + InitOnceExecuteOnce 惰性初始化
- *            （消除 InterlockedCompareExchange 的 TOCTOU 竞态）
- * - POSIX:   pthread_mutex_t 静态初始化（PTHREAD_MUTEX_INITIALIZER）
+ * 线程安全的惰性初始化通过 lv_once() 实现，消除手动
+ * InterlockedCompareExchange / PTHREAD_MUTEX_INITIALIZER 的平台差异。
  */
 
-#ifdef _WIN32
-static CRITICAL_SECTION g_formula_pool_mutex;
-static INIT_ONCE g_formula_pool_init_once = INIT_ONCE_STATIC_INIT;
+static lv_mutex_t g_formula_pool_mutex;
+static lv_once_t g_formula_pool_once = lv_ONCE_INIT;
 
-/* InitOnceExecuteOnce 回调：执行 CRITICAL_SECTION 的一次性初始化 */
-static BOOL CALLBACK formula_pool_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
-    (void) once;
-    (void) param;
-    (void) context;
-    InitializeCriticalSection(&g_formula_pool_mutex);
-    return TRUE;
+static void formula_pool_mutex_init(void) {
+    lv_mutex_init(&g_formula_pool_mutex);
 }
 
-/* 线程安全地确保缓冲区池互斥锁已初始化（使用 InitOnceExecuteOnce 消除 TOCTOU） */
 static void formula_pool_ensure_mutex_init(void) {
-    InitOnceExecuteOnce(&g_formula_pool_init_once, formula_pool_init_callback, NULL, NULL);
+    lv_once(&g_formula_pool_once, formula_pool_mutex_init);
 }
+
 #define lv_FORMULA_POOL_LOCK()                       \
     do {                                             \
         formula_pool_ensure_mutex_init();            \
-        EnterCriticalSection(&g_formula_pool_mutex); \
+        lv_mutex_lock(&g_formula_pool_mutex);        \
     } while (0)
-#define lv_FORMULA_POOL_UNLOCK() LeaveCriticalSection(&g_formula_pool_mutex)
-#else
-static pthread_mutex_t g_formula_pool_mutex = PTHREAD_MUTEX_INITIALIZER;
-#define lv_FORMULA_POOL_LOCK() pthread_mutex_lock(&g_formula_pool_mutex)
-#define lv_FORMULA_POOL_UNLOCK() pthread_mutex_unlock(&g_formula_pool_mutex)
-#endif
+#define lv_FORMULA_POOL_UNLOCK() lv_mutex_unlock(&g_formula_pool_mutex)
 
 /** 文件级缓冲区池，所有内部渲染函数共用（由 g_formula_pool_mutex 保护） */
 static FormulaPoolSlot g_formula_buf_pool[lv_FORMULA_POOL_SLOTS] = {{NULL, false}};

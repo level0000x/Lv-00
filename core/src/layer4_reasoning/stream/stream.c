@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file stream.c
  * @brief 流式输出系统实现 —— 引擎事件回调与实时状态推送
  *
@@ -31,6 +31,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/lv_thread.h"
 #include "lv/stream.h"
 
 #include <stdarg.h>
@@ -49,20 +50,7 @@
 #endif
 
 /* ── 平台线程支持 ── */
-#ifdef _WIN32
-#include <process.h>
-#define lv_THREAD_HANDLE HANDLE
-#define lv_MUTEX HANDLE
-/* 注意：Windows 条件变量使用 CONDITION_VARIABLE 类型（栈分配），
- * 不需要 HANDLE 包装。此处保留宏仅为跨平台代码一致性。 */
-#define lv_CONDVAR CONDITION_VARIABLE
-/* Windows 线程函数返回 unsigned, 需要适配 */
-#else
-#include <pthread.h>
-#define lv_THREAD_HANDLE pthread_t
-#define lv_MUTEX pthread_mutex_t
-#define lv_CONDVAR pthread_cond_t
-#endif
+/* 使用统一的 lv/lv_thread.h 抽象 */
 
 /* ==================== 内部常量 ==================== */
 
@@ -92,99 +80,6 @@
 #define STREAM_COLOR_TEAL "#39d353"       /**< 青绿色：函数块系统 */
 #define STREAM_COLOR_CYAN "#56d4dd"       /**< 青色：递归系统 */
 #define STREAM_COLOR_PINK "#f778ba"       /**< 粉色：选择器分支 */
-
-/* ==================== 平台线程抽象 ==================== */
-
-static void *lv_mutex_create(void) {
-#ifdef _WIN32
-    CRITICAL_SECTION *cs = (CRITICAL_SECTION *) lv_calloc(1, sizeof(CRITICAL_SECTION));
-    if (cs)
-        InitializeCriticalSection(cs);
-    return cs;
-#else
-    pthread_mutex_t *m = (pthread_mutex_t *) lv_calloc(1, sizeof(pthread_mutex_t));
-    if (m)
-        pthread_mutex_init(m, NULL);
-    return m;
-#endif
-}
-
-static void lv_mutex_destroy(void *mutex) {
-    if (!mutex)
-        return;
-#ifdef _WIN32
-    DeleteCriticalSection((CRITICAL_SECTION *) mutex);
-#else
-    pthread_mutex_destroy((pthread_mutex_t *) mutex);
-#endif
-    lv_free((void **) &mutex);
-}
-
-static void lv_mutex_lock(void *mutex) {
-    if (!mutex)
-        return;
-#ifdef _WIN32
-    EnterCriticalSection((CRITICAL_SECTION *) mutex);
-#else
-    pthread_mutex_lock((pthread_mutex_t *) mutex);
-#endif
-}
-
-static void lv_mutex_unlock(void *mutex) {
-    if (!mutex)
-        return;
-#ifdef _WIN32
-    LeaveCriticalSection((CRITICAL_SECTION *) mutex);
-#else
-    pthread_mutex_unlock((pthread_mutex_t *) mutex);
-#endif
-}
-
-static void *lv_condvar_create(void) {
-#ifdef _WIN32
-    /* Windows CONDITION_VARIABLE 是栈分配的，用堆包装 */
-    CONDITION_VARIABLE *cv = (CONDITION_VARIABLE *) lv_calloc(1, sizeof(CONDITION_VARIABLE));
-    if (cv)
-        InitializeConditionVariable(cv);
-    return cv;
-#else
-    pthread_cond_t *cv = (pthread_cond_t *) lv_calloc(1, sizeof(pthread_cond_t));
-    if (cv)
-        pthread_cond_init(cv, NULL);
-    return cv;
-#endif
-}
-
-static void lv_condvar_destroy(void *cv) {
-    if (!cv)
-        return;
-#ifdef _WIN32
-    /* Windows CONDITION_VARIABLE 不需要销毁 */
-#else
-    pthread_cond_destroy((pthread_cond_t *) cv);
-#endif
-    lv_free((void **) &cv);
-}
-
-static void lv_condvar_signal(void *cv) {
-    if (!cv)
-        return;
-#ifdef _WIN32
-    WakeConditionVariable((CONDITION_VARIABLE *) cv);
-#else
-    pthread_cond_signal((pthread_cond_t *) cv);
-#endif
-}
-
-static void lv_condvar_wait(void *cv, void *mutex) {
-    if (!cv || !mutex)
-        return;
-#ifdef _WIN32
-    SleepConditionVariableCS((CONDITION_VARIABLE *) cv, (CRITICAL_SECTION *) mutex, INFINITE);
-#else
-    pthread_cond_wait((pthread_cond_t *) cv, (pthread_mutex_t *) mutex);
-#endif
-}
 
 /* ==================== 数据结构 ==================== */
 
@@ -245,10 +140,10 @@ struct StreamContext {
     /* ── 异步模式（多线程） ── */
     bool async_enabled;         /**< 是否启用了真正的异步模式 */
     bool async_running;         /**< 消费者线程运行标志 */
-    void *async_thread;         /**< 消费者线程句柄 (pthread_t / HANDLE) */
-    void *async_mutex;          /**< 保护环形缓冲区的互斥锁 */
-    void *async_cond_not_empty; /**< 条件变量：缓冲区非空时通知消费者 */
-    void *async_cond_flushed;   /**< 条件变量：队列排空时通知 flush 等待者 */
+    lv_thread_t async_thread;   /**< 消费者线程句柄 */
+    lv_mutex_t async_mutex;     /**< 保护环形缓冲区的互斥锁 */
+    lv_cond_t async_cond_not_empty; /**< 条件变量：缓冲区非空时通知消费者 */
+    lv_cond_t async_cond_flushed;   /**< 条件变量：队列排空时通知 flush 等待者 */
     int async_flush_waiters;    /**< 等待 flush 完成的线程数 */
 };
 
@@ -312,10 +207,10 @@ StreamContext *stream_context_create(void) {
     /* 初始化异步模式字段 */
     ctx->async_enabled = false;
     ctx->async_running = false;
-    ctx->async_thread = NULL;
-    ctx->async_mutex = NULL;
-    ctx->async_cond_not_empty = NULL;
-    ctx->async_cond_flushed = NULL;
+    memset(&ctx->async_thread, 0, sizeof(ctx->async_thread));
+    memset(&ctx->async_mutex, 0, sizeof(ctx->async_mutex));
+    memset(&ctx->async_cond_not_empty, 0, sizeof(ctx->async_cond_not_empty));
+    memset(&ctx->async_cond_flushed, 0, sizeof(ctx->async_cond_flushed));
     ctx->async_flush_waiters = 0;
 
     return ctx;
@@ -338,18 +233,9 @@ void stream_context_destroy(StreamContext *ctx) {
     }
 
     /* 清理异步同步原语（防御性清理） */
-    if (ctx->async_mutex) {
-        lv_mutex_destroy(ctx->async_mutex);
-        ctx->async_mutex = NULL;
-    }
-    if (ctx->async_cond_not_empty) {
-        lv_condvar_destroy(ctx->async_cond_not_empty);
-        ctx->async_cond_not_empty = NULL;
-    }
-    if (ctx->async_cond_flushed) {
-        lv_condvar_destroy(ctx->async_cond_flushed);
-        ctx->async_cond_flushed = NULL;
-    }
+    lv_mutex_destroy(&ctx->async_mutex);
+    lv_cond_destroy(&ctx->async_cond_not_empty);
+    lv_cond_destroy(&ctx->async_cond_flushed);
 
     /* 释放事件缓冲区 */
     if (ctx->buffer) {
@@ -676,7 +562,7 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event) {
 
     /* 异步模式：加锁入队 + 条件变量通知消费者 */
     if (ctx->async_enabled && ctx->async_running) {
-        lv_mutex_lock(ctx->async_mutex);
+        lv_mutex_lock(&ctx->async_mutex);
         if (ctx->buffer_count < ctx->buffer_capacity) {
             int write_pos = (ctx->buffer_head + ctx->buffer_count) % ctx->buffer_capacity;
             ctx->buffer[write_pos] = *event;
@@ -684,8 +570,8 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event) {
         } else {
             ctx->dropped_count++;
         }
-        lv_condvar_signal(ctx->async_cond_not_empty);
-        lv_mutex_unlock(ctx->async_mutex);
+        lv_cond_signal(&ctx->async_cond_not_empty);
+        lv_mutex_unlock(&ctx->async_mutex);
         return;
     }
 
@@ -1110,20 +996,15 @@ StreamEmitMode stream_get_emit_mode(const StreamContext *ctx) {
 
 /* ==================== 异步消费者线程 ==================== */
 
-#ifdef _WIN32
-static unsigned __stdcall async_consumer_thread(void *arg)
-#else
-static void *async_consumer_thread(void *arg)
-#endif
-{
+static void *async_consumer_thread(void *arg) {
     StreamContext *ctx = (StreamContext *) arg;
 
     while (true) {
-        lv_mutex_lock(ctx->async_mutex);
+        lv_mutex_lock(&ctx->async_mutex);
 
         /* 等待缓冲区非空或停止信号 */
         while (ctx->buffer_count == 0 && ctx->async_running) {
-            lv_condvar_wait(ctx->async_cond_not_empty, ctx->async_mutex);
+            lv_cond_wait(&ctx->async_cond_not_empty, &ctx->async_mutex);
         }
 
         /* 检查停止信号 */
@@ -1133,18 +1014,18 @@ static void *async_consumer_thread(void *arg)
                 StreamEvent ev = ctx->buffer[ctx->buffer_head];
                 ctx->buffer_head = (ctx->buffer_head + 1) % ctx->buffer_capacity;
                 ctx->buffer_count--;
-                lv_mutex_unlock(ctx->async_mutex);
+                lv_mutex_unlock(&ctx->async_mutex);
                 stream_dispatch(ctx, &ev);
-                lv_mutex_lock(ctx->async_mutex);
+                lv_mutex_lock(&ctx->async_mutex);
             }
             ctx->buffer_head = 0;
 
             /* 通知等待 flush 的线程 */
             if (ctx->async_flush_waiters > 0) {
-                lv_condvar_signal(ctx->async_cond_flushed);
+                lv_cond_signal(&ctx->async_cond_flushed);
             }
 
-            lv_mutex_unlock(ctx->async_mutex);
+            lv_mutex_unlock(&ctx->async_mutex);
             break;
         }
 
@@ -1155,20 +1036,16 @@ static void *async_consumer_thread(void *arg)
 
         /* 如果队列已空，通知等待 flush 的线程 */
         if (ctx->buffer_count == 0 && ctx->async_flush_waiters > 0) {
-            lv_condvar_signal(ctx->async_cond_flushed);
+            lv_cond_signal(&ctx->async_cond_flushed);
         }
 
-        lv_mutex_unlock(ctx->async_mutex);
+        lv_mutex_unlock(&ctx->async_mutex);
 
         /* 在锁外执行回调（避免死锁） */
         stream_dispatch(ctx, &ev);
     }
 
-#ifdef _WIN32
-    return 0;
-#else
     return NULL;
-#endif
 }
 
 /**
@@ -1209,68 +1086,22 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
             ctx->buffer_head = 0;
         }
 
-        /* 创建同步原语 */
-        if (!ctx->async_mutex) {
-            ctx->async_mutex = lv_mutex_create();
-            if (!ctx->async_mutex)
-                return false;
-        }
-        if (!ctx->async_cond_not_empty) {
-            ctx->async_cond_not_empty = lv_condvar_create();
-            if (!ctx->async_cond_not_empty) {
-                lv_mutex_destroy(ctx->async_mutex);
-                ctx->async_mutex = NULL;
-                return false;
-            }
-        }
-        if (!ctx->async_cond_flushed) {
-            ctx->async_cond_flushed = lv_condvar_create();
-            if (!ctx->async_cond_flushed) {
-                lv_condvar_destroy(ctx->async_cond_not_empty);
-                ctx->async_cond_not_empty = NULL;
-                lv_mutex_destroy(ctx->async_mutex);
-                ctx->async_mutex = NULL;
-                return false;
-            }
-        }
+        /* 创建同步原语（栈分配 + 初始化） */
+        lv_mutex_init(&ctx->async_mutex);
+        lv_cond_init(&ctx->async_cond_not_empty);
+        lv_cond_init(&ctx->async_cond_flushed);
 
         /* 启动消费者线程 */
         ctx->async_running = true;
         ctx->async_flush_waiters = 0;
 
-#ifdef _WIN32
-        HANDLE thread = (HANDLE) _beginthreadex(NULL, 0, async_consumer_thread, ctx, 0, NULL);
-        if (!thread) {
+        if (lv_thread_create(&ctx->async_thread, async_consumer_thread, ctx) != 0) {
             ctx->async_running = false;
-            lv_condvar_destroy(ctx->async_cond_flushed);
-            ctx->async_cond_flushed = NULL;
-            lv_condvar_destroy(ctx->async_cond_not_empty);
-            ctx->async_cond_not_empty = NULL;
-            lv_mutex_destroy(ctx->async_mutex);
-            ctx->async_mutex = NULL;
+            lv_cond_destroy(&ctx->async_cond_flushed);
+            lv_cond_destroy(&ctx->async_cond_not_empty);
+            lv_mutex_destroy(&ctx->async_mutex);
             return false;
         }
-        ctx->async_thread = (void *) thread;
-#else
-        pthread_t thread;
-        int ret = pthread_create(&thread, NULL, async_consumer_thread, ctx);
-        if (ret != 0) {
-            ctx->async_running = false;
-            lv_condvar_destroy(ctx->async_cond_flushed);
-            ctx->async_cond_flushed = NULL;
-            lv_condvar_destroy(ctx->async_cond_not_empty);
-            ctx->async_cond_not_empty = NULL;
-            lv_mutex_destroy(ctx->async_mutex);
-            ctx->async_mutex = NULL;
-            return false;
-        }
-        /* For pthread, store the thread in a heap-allocated buffer */
-        pthread_t *thread_ptr = (pthread_t *) lv_calloc(1, sizeof(pthread_t));
-        if (thread_ptr) {
-            *thread_ptr = thread;
-            ctx->async_thread = thread_ptr;
-        }
-#endif
 
         ctx->async_enabled = true;
         ctx->emit_mode = STREAM_EMIT_BUFFERED;
@@ -1282,33 +1113,18 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
             return true;
 
         /* 通知消费者线程停止 */
-        lv_mutex_lock(ctx->async_mutex);
+        lv_mutex_lock(&ctx->async_mutex);
         ctx->async_running = false;
-        lv_condvar_signal(ctx->async_cond_not_empty);
-        lv_mutex_unlock(ctx->async_mutex);
+        lv_cond_signal(&ctx->async_cond_not_empty);
+        lv_mutex_unlock(&ctx->async_mutex);
 
         /* 等待消费者线程退出 */
-#ifdef _WIN32
-        if (ctx->async_thread) {
-            WaitForSingleObject((HANDLE) ctx->async_thread, INFINITE);
-            CloseHandle((HANDLE) ctx->async_thread);
-        }
-#else
-        if (ctx->async_thread) {
-            pthread_t *thread_ptr = (pthread_t *) ctx->async_thread;
-            pthread_join(*thread_ptr, NULL);
-            lv_free((void **) &thread_ptr);
-        }
-#endif
-        ctx->async_thread = NULL;
+        lv_thread_join(ctx->async_thread);
 
         /* 销毁同步原语 */
-        lv_condvar_destroy(ctx->async_cond_flushed);
-        ctx->async_cond_flushed = NULL;
-        lv_condvar_destroy(ctx->async_cond_not_empty);
-        ctx->async_cond_not_empty = NULL;
-        lv_mutex_destroy(ctx->async_mutex);
-        ctx->async_mutex = NULL;
+        lv_cond_destroy(&ctx->async_cond_flushed);
+        lv_cond_destroy(&ctx->async_cond_not_empty);
+        lv_mutex_destroy(&ctx->async_mutex);
 
         ctx->async_enabled = false;
         ctx->async_running = false;
@@ -1334,13 +1150,13 @@ void stream_flush(StreamContext *ctx) {
 
     /* 异步模式：阻塞等待消费者线程排空队列 */
     if (ctx->async_enabled && ctx->async_running) {
-        lv_mutex_lock(ctx->async_mutex);
+        lv_mutex_lock(&ctx->async_mutex);
         ctx->async_flush_waiters++;
         while (ctx->buffer_count > 0 && ctx->async_running) {
-            lv_condvar_wait(ctx->async_cond_flushed, ctx->async_mutex);
+            lv_cond_wait(&ctx->async_cond_flushed, &ctx->async_mutex);
         }
         ctx->async_flush_waiters--;
-        lv_mutex_unlock(ctx->async_mutex);
+        lv_mutex_unlock(&ctx->async_mutex);
         return;
     }
 

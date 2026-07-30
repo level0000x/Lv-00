@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file runtime_monitor.c
  * @brief 运行时监控与日志系统实现
  *
@@ -49,13 +49,9 @@
 
 /* ============== 平台抽象层 ============== */
 
-#ifdef _WIN32
-typedef CRITICAL_SECTION lvMutex;
-#define MUTEX_INIT(m) InitializeCriticalSection(&(m))
-#define MUTEX_DESTROY(m) DeleteCriticalSection(&(m))
-#define MUTEX_LOCK(m) EnterCriticalSection(&(m))
-#define MUTEX_UNLOCK(m) LeaveCriticalSection(&(m))
+#include "lv/lv_thread.h"
 
+#ifdef _WIN32
 static int64_t get_time_ns(void) {
     LARGE_INTEGER freq, count;
     QueryPerformanceFrequency(&freq);
@@ -67,12 +63,6 @@ static int get_thread_id(void) {
     return (int) GetCurrentThreadId();
 }
 #else
-typedef pthread_mutex_t lvMutex;
-#define MUTEX_INIT(m) pthread_mutex_init(&(m), NULL)
-#define MUTEX_DESTROY(m) pthread_mutex_destroy(&(m))
-#define MUTEX_LOCK(m) pthread_mutex_lock(&(m))
-#define MUTEX_UNLOCK(m) pthread_mutex_unlock(&(m))
-
 static int64_t get_time_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -89,7 +79,7 @@ static int get_thread_id(void) {
 static struct {
     lvLogConfig config;
     FILE *log_file;
-    lvMutex mutex;
+    lv_mutex_t mutex;
     bool initialized;
     uint64_t current_file_size;
 } g_log_system = {0};
@@ -104,25 +94,18 @@ static const char *level_colors[] = {"\033[37m",   /* TRACE: 白色 */
                                      "\033[35;1m", /* FATAL: 紫色加粗 */
                                      ""};
 
-static lvMutex g_log_init_mutex;
-static volatile int g_log_init_mutex_initialized = 0;
+static lv_mutex_t g_log_init_mutex;
+static lv_once_t g_log_init_once = lv_ONCE_INIT;
+
+static void log_init_mutex_func(void) {
+    lv_mutex_init(&g_log_init_mutex);
+}
 
 bool lv_log_init(const lvLogConfig *config) {
-#ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile *) &g_log_init_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_log_init_mutex);
-    }
-    EnterCriticalSection(&g_log_init_mutex);
-#else
-    static pthread_mutex_t g_log_init_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&g_log_init_mutex);
-#endif
+    lv_once(&g_log_init_once, log_init_mutex_func);
+    lv_mutex_lock(&g_log_init_mutex);
     if (g_log_system.initialized) {
-#ifdef _WIN32
-        LeaveCriticalSection(&g_log_init_mutex);
-#else
-        pthread_mutex_unlock(&g_log_init_mutex);
-#endif
+        lv_mutex_unlock(&g_log_init_mutex);
         return true;
     }
 
@@ -142,7 +125,7 @@ bool lv_log_init(const lvLogConfig *config) {
         g_log_system.config.max_backup_files = 5;
     }
 
-    MUTEX_INIT(g_log_system.mutex);
+    lv_mutex_init(&g_log_system.mutex);
 
     /* 打开日志文件 */
     if ((g_log_system.config.targets & LOG_TARGET_FILE) && g_log_system.config.file_path[0]) {
@@ -153,11 +136,7 @@ bool lv_log_init(const lvLogConfig *config) {
     }
 
     g_log_system.initialized = true;
-#ifdef _WIN32
-    LeaveCriticalSection(&g_log_init_mutex);
-#else
-    pthread_mutex_unlock(&g_log_init_mutex);
-#endif
+    lv_mutex_unlock(&g_log_init_mutex);
     return true;
 }
 
@@ -171,23 +150,23 @@ void lv_log_shutdown(void) {
         g_log_system.log_file = NULL;
     }
 
-    MUTEX_DESTROY(g_log_system.mutex);
+    lv_mutex_destroy(&g_log_system.mutex);
     g_log_system.initialized = false;
 }
 
 void lv_log_set_level(lvLogLevel level) {
     if (level >= LOG_LEVEL_TRACE && level <= LOG_LEVEL_OFF) {
-        MUTEX_LOCK(g_log_system.mutex);
+        lv_mutex_lock(&g_log_system.mutex);
         g_log_system.config.min_level = level;
-        MUTEX_UNLOCK(g_log_system.mutex);
+        lv_mutex_unlock(&g_log_system.mutex);
     }
 }
 
 void lv_log_set_targets(lvLogTarget targets) {
     /* 线程安全：加锁保护全局日志目标的修改 */
-    MUTEX_LOCK(g_log_system.mutex);
+    lv_mutex_lock(&g_log_system.mutex);
     g_log_system.config.targets = targets;
-    MUTEX_UNLOCK(g_log_system.mutex);
+    lv_mutex_unlock(&g_log_system.mutex);
 }
 
 bool lv_log_set_file(const char *path) {
@@ -195,12 +174,12 @@ bool lv_log_set_file(const char *path) {
         return false;
     }
 
-    MUTEX_LOCK(g_log_system.mutex);
+    lv_mutex_lock(&g_log_system.mutex);
 
     /* 先打开新文件，确保成功后再关闭旧文件，避免 fopen 失败导致日志丢失 */
     FILE *new_file = fopen(path, "a");
     if (!new_file) {
-        MUTEX_UNLOCK(g_log_system.mutex);
+        lv_mutex_unlock(&g_log_system.mutex);
         return false;
     }
 
@@ -213,17 +192,17 @@ bool lv_log_set_file(const char *path) {
     g_log_system.log_file = new_file;
     g_log_system.current_file_size = 0;
 
-    MUTEX_UNLOCK(g_log_system.mutex);
+    lv_mutex_unlock(&g_log_system.mutex);
 
     return true;
 }
 
 void lv_log_set_callback(lvLogCallback callback, void *user_data) {
     /* 线程安全：加锁保护回调和用户数据的修改，防止与日志写入并发冲突 */
-    MUTEX_LOCK(g_log_system.mutex);
+    lv_mutex_lock(&g_log_system.mutex);
     g_log_system.config.callback = callback;
     g_log_system.config.callback_user_data = user_data;
-    MUTEX_UNLOCK(g_log_system.mutex);
+    lv_mutex_unlock(&g_log_system.mutex);
 }
 
 static void rotate_log_file(void) {
@@ -274,7 +253,7 @@ void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line,
         return;
     }
 
-    MUTEX_LOCK(g_log_system.mutex);
+    lv_mutex_lock(&g_log_system.mutex);
 
     /* 格式化消息 */
     char message[lv_LOG_MSG_MAX_LEN];
@@ -369,7 +348,7 @@ void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line,
         rotate_log_file();
     }
 
-    MUTEX_UNLOCK(g_log_system.mutex);
+    lv_mutex_unlock(&g_log_system.mutex);
 }
 
 /* ============== 性能监控实现 ============== */
@@ -379,40 +358,29 @@ static struct {
     uint32_t timer_count;
     lvPerfStats *stats[MAX_PERF_STATS];
     uint32_t stats_count;
-    lvMutex mutex;
+    lv_mutex_t mutex;
     bool initialized;
 } g_perf_system = {0};
 
-static lvMutex g_perf_init_mutex;
-static volatile int g_perf_init_mutex_initialized = 0;
+static lv_mutex_t g_perf_init_mutex;
+static lv_once_t g_perf_init_once = lv_ONCE_INIT;
+
+static void perf_init_mutex_func(void) {
+    lv_mutex_init(&g_perf_init_mutex);
+}
 
 bool lv_perf_init(void) {
-#ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile *) &g_perf_init_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_perf_init_mutex);
-    }
-    EnterCriticalSection(&g_perf_init_mutex);
-#else
-    static pthread_mutex_t g_perf_init_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&g_perf_init_mutex);
-#endif
+    lv_once(&g_perf_init_once, perf_init_mutex_func);
+    lv_mutex_lock(&g_perf_init_mutex);
     if (g_perf_system.initialized) {
-#ifdef _WIN32
-        LeaveCriticalSection(&g_perf_init_mutex);
-#else
-        pthread_mutex_unlock(&g_perf_init_mutex);
-#endif
+        lv_mutex_unlock(&g_perf_init_mutex);
         return true;
     }
 
     memset(&g_perf_system, 0, sizeof(g_perf_system));
-    MUTEX_INIT(g_perf_system.mutex);
+    lv_mutex_init(&g_perf_system.mutex);
     g_perf_system.initialized = true;
-#ifdef _WIN32
-    LeaveCriticalSection(&g_perf_init_mutex);
-#else
-    pthread_mutex_unlock(&g_perf_init_mutex);
-#endif
+    lv_mutex_unlock(&g_perf_init_mutex);
     return true;
 }
 
@@ -421,7 +389,7 @@ void lv_perf_shutdown(void) {
         return;
     }
 
-    MUTEX_LOCK(g_perf_system.mutex);
+    lv_mutex_lock(&g_perf_system.mutex);
 
     for (uint32_t i = 0; i < g_perf_system.timer_count; i++) {
         lv_free((void **) &g_perf_system.timers[i]);
@@ -430,8 +398,8 @@ void lv_perf_shutdown(void) {
         lv_free((void **) &g_perf_system.stats[i]);
     }
 
-    MUTEX_UNLOCK(g_perf_system.mutex);
-    MUTEX_DESTROY(g_perf_system.mutex);
+    lv_mutex_unlock(&g_perf_system.mutex);
+    lv_mutex_destroy(&g_perf_system.mutex);
     g_perf_system.initialized = false;
 }
 
@@ -450,9 +418,9 @@ lvTimer *lv_timer_create(const char *name) {
     }
     timer->state = TIMER_STOPPED;
 
-    MUTEX_LOCK(g_perf_system.mutex);
+    lv_mutex_lock(&g_perf_system.mutex);
     g_perf_system.timers[g_perf_system.timer_count++] = timer;
-    MUTEX_UNLOCK(g_perf_system.mutex);
+    lv_mutex_unlock(&g_perf_system.mutex);
 
     return timer;
 }
@@ -462,14 +430,14 @@ void lv_timer_destroy(lvTimer *timer) {
         return;
     }
 
-    MUTEX_LOCK(g_perf_system.mutex);
+    lv_mutex_lock(&g_perf_system.mutex);
     for (uint32_t i = 0; i < g_perf_system.timer_count; i++) {
         if (g_perf_system.timers[i] == timer) {
             g_perf_system.timers[i] = g_perf_system.timers[--g_perf_system.timer_count];
             break;
         }
     }
-    MUTEX_UNLOCK(g_perf_system.mutex);
+    lv_mutex_unlock(&g_perf_system.mutex);
 
     lv_free((void **) &timer);
 }
@@ -563,9 +531,9 @@ lvPerfStats *lv_perf_stats_create(const char *name) {
     stats->min_val = 1e308;
     stats->max_val = -1e308;
 
-    MUTEX_LOCK(g_perf_system.mutex);
+    lv_mutex_lock(&g_perf_system.mutex);
     g_perf_system.stats[g_perf_system.stats_count++] = stats;
-    MUTEX_UNLOCK(g_perf_system.mutex);
+    lv_mutex_unlock(&g_perf_system.mutex);
 
     return stats;
 }
@@ -575,14 +543,14 @@ void lv_perf_stats_destroy(lvPerfStats *stats) {
         return;
     }
 
-    MUTEX_LOCK(g_perf_system.mutex);
+    lv_mutex_lock(&g_perf_system.mutex);
     for (uint32_t i = 0; i < g_perf_system.stats_count; i++) {
         if (g_perf_system.stats[i] == stats) {
             g_perf_system.stats[i] = g_perf_system.stats[--g_perf_system.stats_count];
             break;
         }
     }
-    MUTEX_UNLOCK(g_perf_system.mutex);
+    lv_mutex_unlock(&g_perf_system.mutex);
 
     lv_free((void **) &stats);
 }
@@ -592,7 +560,7 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
         return;
     }
 
-    MUTEX_LOCK(g_perf_system.mutex);
+    lv_mutex_lock(&g_perf_system.mutex);
 
     /*
      * Welford 在线算法：避免朴素方差公式的灾难性抵消。
@@ -632,7 +600,7 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
         stats->variance = stats->m2 / (double) (stats->count - 1);
         stats->std_dev = sqrt(stats->variance);
     }
-    MUTEX_UNLOCK(g_perf_system.mutex);
+    lv_mutex_unlock(&g_perf_system.mutex);
 }
 
 void lv_perf_stats_reset(lvPerfStats *stats) {
@@ -653,34 +621,27 @@ static struct {
     double memory_critical_mb;
     double cpu_warning_percent;
     double cpu_critical_percent;
-    lvMutex mutex;
+    lv_mutex_t mutex;
     bool initialized;
 } g_health_system = {0};
 
-static lvMutex g_health_init_mutex;
-static volatile int g_health_init_mutex_initialized = 0;
+static lv_mutex_t g_health_init_mutex;
+static lv_once_t g_health_init_once = lv_ONCE_INIT;
+
+static void health_init_mutex_func(void) {
+    lv_mutex_init(&g_health_init_mutex);
+}
 
 bool lv_health_init(void) {
-#ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile *) &g_health_init_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_health_init_mutex);
-    }
-    EnterCriticalSection(&g_health_init_mutex);
-#else
-    static pthread_mutex_t g_health_init_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&g_health_init_mutex);
-#endif
+    lv_once(&g_health_init_once, health_init_mutex_func);
+    lv_mutex_lock(&g_health_init_mutex);
     if (g_health_system.initialized) {
-#ifdef _WIN32
-        LeaveCriticalSection(&g_health_init_mutex);
-#else
-        pthread_mutex_unlock(&g_health_init_mutex);
-#endif
+        lv_mutex_unlock(&g_health_init_mutex);
         return true;
     }
 
     memset(&g_health_system, 0, sizeof(g_health_system));
-    MUTEX_INIT(g_health_system.mutex);
+    lv_mutex_init(&g_health_system.mutex);
 
     /* 默认阈值 */
     g_health_system.memory_warning_mb = 1024;  /* 1 GB */
@@ -689,11 +650,7 @@ bool lv_health_init(void) {
     g_health_system.cpu_critical_percent = 95;
 
     g_health_system.initialized = true;
-#ifdef _WIN32
-    LeaveCriticalSection(&g_health_init_mutex);
-#else
-    pthread_mutex_unlock(&g_health_init_mutex);
-#endif
+    lv_mutex_unlock(&g_health_init_mutex);
     return true;
 }
 
@@ -702,22 +659,22 @@ void lv_health_shutdown(void) {
         return;
     }
 
-    MUTEX_DESTROY(g_health_system.mutex);
+    lv_mutex_destroy(&g_health_system.mutex);
     g_health_system.initialized = false;
 }
 
 void lv_health_set_memory_thresholds(double warning_mb, double critical_mb) {
-    MUTEX_LOCK(g_health_system.mutex);
+    lv_mutex_lock(&g_health_system.mutex);
     g_health_system.memory_warning_mb = warning_mb;
     g_health_system.memory_critical_mb = critical_mb;
-    MUTEX_UNLOCK(g_health_system.mutex);
+    lv_mutex_unlock(&g_health_system.mutex);
 }
 
 void lv_health_set_cpu_thresholds(double warning_percent, double critical_percent) {
-    MUTEX_LOCK(g_health_system.mutex);
+    lv_mutex_lock(&g_health_system.mutex);
     g_health_system.cpu_warning_percent = warning_percent;
     g_health_system.cpu_critical_percent = critical_percent;
-    MUTEX_UNLOCK(g_health_system.mutex);
+    lv_mutex_unlock(&g_health_system.mutex);
 }
 
 /* ============== 平台特定 CPU 使用率采样 ============== */
@@ -1080,29 +1037,22 @@ static struct {
     lvEventRecord *events;
     uint32_t max_events;
     uint32_t event_count;
-    lvMutex mutex;
+    lv_mutex_t mutex;
     bool initialized;
 } g_event_system = {0};
 
-static lvMutex g_event_init_mutex;
-static volatile int g_event_init_mutex_initialized = 0;
+static lv_mutex_t g_event_init_mutex;
+static lv_once_t g_event_init_once = lv_ONCE_INIT;
+
+static void event_init_mutex_func(void) {
+    lv_mutex_init(&g_event_init_mutex);
+}
 
 bool lv_event_trace_init(uint32_t max_events) {
-#ifdef _WIN32
-    if (InterlockedCompareExchange((LONG volatile *) &g_event_init_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_event_init_mutex);
-    }
-    EnterCriticalSection(&g_event_init_mutex);
-#else
-    static pthread_mutex_t g_event_init_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&g_event_init_mutex);
-#endif
+    lv_once(&g_event_init_once, event_init_mutex_func);
+    lv_mutex_lock(&g_event_init_mutex);
     if (g_event_system.initialized) {
-#ifdef _WIN32
-        LeaveCriticalSection(&g_event_init_mutex);
-#else
-        pthread_mutex_unlock(&g_event_init_mutex);
-#endif
+        lv_mutex_unlock(&g_event_init_mutex);
         return true;
     }
 
@@ -1112,21 +1062,13 @@ bool lv_event_trace_init(uint32_t max_events) {
     memset(&g_event_system, 0, sizeof(g_event_system));
     g_event_system.events = (lvEventRecord *) lv_calloc(actual_max, sizeof(lvEventRecord));
     if (!g_event_system.events) {
-#ifdef _WIN32
-        LeaveCriticalSection(&g_event_init_mutex);
-#else
-        pthread_mutex_unlock(&g_event_init_mutex);
-#endif
+        lv_mutex_unlock(&g_event_init_mutex);
         return false;
     }
     g_event_system.max_events = actual_max;
-    MUTEX_INIT(g_event_system.mutex);
+    lv_mutex_init(&g_event_system.mutex);
     g_event_system.initialized = true;
-#ifdef _WIN32
-    LeaveCriticalSection(&g_event_init_mutex);
-#else
-    pthread_mutex_unlock(&g_event_init_mutex);
-#endif
+    lv_mutex_unlock(&g_event_init_mutex);
     return true;
 }
 
@@ -1136,7 +1078,7 @@ void lv_event_trace_shutdown(void) {
     }
 
     lv_free((void **) &g_event_system.events);
-    MUTEX_DESTROY(g_event_system.mutex);
+    lv_mutex_destroy(&g_event_system.mutex);
     g_event_system.initialized = false;
 }
 
@@ -1145,7 +1087,7 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
         return;
     }
 
-    MUTEX_LOCK(g_event_system.mutex);
+    lv_mutex_lock(&g_event_system.mutex);
 
     lvEventRecord *event = &g_event_system.events[g_event_system.event_count++];
     event->type = type;
@@ -1160,7 +1102,7 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
         strncpy(event->data, data, sizeof(event->data) - 1);
     }
 
-    MUTEX_UNLOCK(g_event_system.mutex);
+    lv_mutex_unlock(&g_event_system.mutex);
 }
 
 int lv_event_trace_begin(lvEventType type, const char *name) {
@@ -1168,7 +1110,7 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
         return -1;
     }
 
-    MUTEX_LOCK(g_event_system.mutex);
+    lv_mutex_lock(&g_event_system.mutex);
 
     int id = (int) g_event_system.event_count;
     lvEventRecord *event = &g_event_system.events[g_event_system.event_count++];
@@ -1180,7 +1122,7 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
         strncpy(event->name, name, sizeof(event->name) - 1);
     }
 
-    MUTEX_UNLOCK(g_event_system.mutex);
+    lv_mutex_unlock(&g_event_system.mutex);
 
     return id;
 }
@@ -1190,7 +1132,7 @@ void lv_event_trace_end(int event_id, const char *data) {
         return;
     }
 
-    MUTEX_LOCK(g_event_system.mutex);
+    lv_mutex_lock(&g_event_system.mutex);
 
     lvEventRecord *event = &g_event_system.events[event_id];
     event->duration_ns = get_time_ns() - event->timestamp_ns;
@@ -1199,7 +1141,7 @@ void lv_event_trace_end(int event_id, const char *data) {
         strncpy(event->data, data, sizeof(event->data) - 1);
     }
 
-    MUTEX_UNLOCK(g_event_system.mutex);
+    lv_mutex_unlock(&g_event_system.mutex);
 }
 
 uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) {
@@ -1207,7 +1149,7 @@ uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) 
         return 0;
     }
 
-    MUTEX_LOCK(g_event_system.mutex);
+    lv_mutex_lock(&g_event_system.mutex);
 
     uint32_t count = g_event_system.event_count < max_count ? g_event_system.event_count : max_count;
     *out_events = (lvEventRecord *) lv_calloc((size_t) count, sizeof(lvEventRecord));
@@ -1215,7 +1157,7 @@ uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) 
         memcpy(*out_events, g_event_system.events, count * sizeof(lvEventRecord));
     }
 
-    MUTEX_UNLOCK(g_event_system.mutex);
+    lv_mutex_unlock(&g_event_system.mutex);
 
     return count;
 }
@@ -1225,9 +1167,9 @@ void lv_event_trace_clear(void) {
         return;
     }
 
-    MUTEX_LOCK(g_event_system.mutex);
+    lv_mutex_lock(&g_event_system.mutex);
     g_event_system.event_count = 0;
-    MUTEX_UNLOCK(g_event_system.mutex);
+    lv_mutex_unlock(&g_event_system.mutex);
 }
 
 bool lv_event_trace_export_chrome(const char *path) {
@@ -1242,7 +1184,7 @@ bool lv_event_trace_export_chrome(const char *path) {
 
     fprintf(fp, "[\n");
 
-    MUTEX_LOCK(g_event_system.mutex);
+    lv_mutex_lock(&g_event_system.mutex);
 
     for (uint32_t i = 0; i < g_event_system.event_count; i++) {
         lvEventRecord *event = &g_event_system.events[i];
@@ -1275,7 +1217,7 @@ bool lv_event_trace_export_chrome(const char *path) {
         }
     }
 
-    MUTEX_UNLOCK(g_event_system.mutex);
+    lv_mutex_unlock(&g_event_system.mutex);
 
     fprintf(fp, "]\n");
     fclose(fp);
