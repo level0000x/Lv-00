@@ -200,6 +200,49 @@ char *lv_json_buf_finalize(lvJsonBuf *buf);
  */
 void lv_json_buf_free(lvJsonBuf *buf);
 
+/* ===== JSON 便利查询函数 ===== */
+
+/**
+ * @brief 在 JSON 对象中按名称查找并解析字符串值
+ *
+ * 典型的顶层键值查找。在 json 字符串的顶层对象中查找 key，
+ * 将其值作为字符串解析并复制到 out 缓冲区。
+ *
+ * @param json    JSON 字符串
+ * @param key     要查找的键名
+ * @param out     输出缓冲区
+ * @param out_size 输出缓冲区大小
+ * @return true 查找并解析成功，false 键不存在或值不是字符串
+ */
+bool lv_json_get_string(const char *json, const char *key, char *out, size_t out_size);
+
+/**
+ * @brief 在 JSON 对象中按名称查找并解析整数值
+ * @param json JSON 字符串
+ * @param key  要查找的键名
+ * @param out  输出解析结果
+ * @return true 查找并解析成功
+ */
+bool lv_json_get_int(const char *json, const char *key, int *out);
+
+/**
+ * @brief 在 JSON 对象中按名称查找并解析浮点数值
+ * @param json JSON 字符串
+ * @param key  要查找的键名
+ * @param out  输出解析结果
+ * @return true 查找并解析成功
+ */
+bool lv_json_get_double(const char *json, const char *key, double *out);
+
+/**
+ * @brief 在 JSON 对象中按名称查找并解析布尔值
+ * @param json JSON 字符串
+ * @param key  要查找的键名
+ * @param out  输出解析结果
+ * @return true 查找并解析成功
+ */
+bool lv_json_get_bool(const char *json, const char *key, bool *out);
+
 #ifdef __cplusplus
 }
 #endif

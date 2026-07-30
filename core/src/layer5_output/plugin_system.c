@@ -34,19 +34,6 @@ typedef struct {
 
 /* ============ 辅助函数 ============ */
 
-/* 获取高精度时间戳（纳秒级） */
-static uint64_t get_timestamp(void) {
-#ifdef _WIN32
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    return ((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime;
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    return (uint64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
-#endif
-}
-
 /* 设置系统错误消息（支持 printf 风格格式化） */
 static void set_error(lvPluginSystem *system, const char *format, ...) {
     if (!system)
@@ -211,7 +198,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     plugin->path[sizeof(plugin->path) - 1] = '\0';
     plugin->handle = handle;
     plugin->state = lv_PLUGIN_STATE_LOADING;
-    plugin->load_time = get_timestamp();
+    plugin->load_time = lv_get_wallclock_ns();
 
     /* 获取入口函数 */
 #pragma GCC diagnostic push
@@ -263,7 +250,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
 
     /* 发送加载事件 */
     lvPluginEvent event = {
-        .type = lv_PLUGIN_EVENT_LOAD, .timestamp = get_timestamp(), .source = plugin, .target = NULL};
+        .type = lv_PLUGIN_EVENT_LOAD, .timestamp = lv_get_wallclock_ns(), .source = plugin, .target = NULL};
 
     if (system->event_handler) {
         system->event_handler(system, &event);
@@ -296,7 +283,7 @@ int lv_plugin_unload(lvPluginSystem *system, lvPlugin *plugin) {
 
     /* 发送卸载事件 */
     lvPluginEvent event = {
-        .type = lv_PLUGIN_EVENT_UNLOAD, .timestamp = get_timestamp(), .source = plugin, .target = NULL};
+        .type = lv_PLUGIN_EVENT_UNLOAD, .timestamp = lv_get_wallclock_ns(), .source = plugin, .target = NULL};
 
     if (system->event_handler) {
         system->event_handler(system, &event);
@@ -395,11 +382,11 @@ int lv_plugin_activate(lvPlugin *plugin) {
     }
 
     plugin->state = lv_PLUGIN_STATE_ACTIVE;
-    plugin->activate_time = get_timestamp();
+    plugin->activate_time = lv_get_wallclock_ns();
 
     /* 发送激活事件 */
     lvPluginEvent event = {
-        .type = lv_PLUGIN_EVENT_ACTIVATE, .timestamp = get_timestamp(), .source = plugin, .target = NULL};
+        .type = lv_PLUGIN_EVENT_ACTIVATE, .timestamp = lv_get_wallclock_ns(), .source = plugin, .target = NULL};
 
     if (plugin->context->system->event_handler) {
         plugin->context->system->event_handler(plugin->context->system, &event);
@@ -429,7 +416,7 @@ int lv_plugin_deactivate(lvPlugin *plugin) {
 
     /* 发送停用事件 */
     lvPluginEvent event = {
-        .type = lv_PLUGIN_EVENT_DEACTIVATE, .timestamp = get_timestamp(), .source = plugin, .target = NULL};
+        .type = lv_PLUGIN_EVENT_DEACTIVATE, .timestamp = lv_get_wallclock_ns(), .source = plugin, .target = NULL};
 
     if (plugin->context->system->event_handler) {
         plugin->context->system->event_handler(plugin->context->system, &event);
@@ -983,7 +970,7 @@ int lv_plugin_send_event(lvPlugin *plugin, lvPluginEventType type, void *data, s
     lv_CHECK_ARG(plugin->context != NULL, lv_ERROR_NULL_POINTER, "plugin context is NULL");
 
     lvPluginEvent event = {.type = type,
-                           .timestamp = get_timestamp(),
+                           .timestamp = lv_get_wallclock_ns(),
                            .source = plugin,
                            .data = data,
                            .data_size = data_size,
@@ -1008,7 +995,7 @@ int lv_plugin_broadcast_event(lvPluginSystem *system, lvPluginEventType type, vo
     lv_CHECK_NOT_NULL(system);
 
     lvPluginEvent event = {.type = type,
-                           .timestamp = get_timestamp(),
+                           .timestamp = lv_get_wallclock_ns(),
                            .source = NULL,
                            .data = data,
                            .data_size = data_size,

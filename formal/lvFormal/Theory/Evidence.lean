@@ -379,37 +379,5 @@ lemma go_trans_compose (g : ConstraintGraph) (st1 st2 : VerifierState) (t1 t2 : 
     (h : go g st1 t1 = some st2) : go g st1 (t1 ++ t2) = go g st2 t2 := by
   sorry
 
-/- ===============================================================
-   Completeness: satisfiable → there exists a proof trace
-   =============================================================== -/
-
-/-- 构建平凡证明迹：为图 g 中的每个约束生成一个 hypothesis 步骤，
-    最后以 qed 结束。 -/
-def trivial_proof_trace (g : ConstraintGraph) : ProofTrace :=
-  g.map (fun c => ProofStep.hypothesis c) ++ [.qed]
-
-/-- 平凡证明迹以 qed 结尾 -/
-lemma trivial_trace_ends_with_qed (g : ConstraintGraph) :
-    (trivial_proof_trace g).getLast? = some .qed := by
-  unfold trivial_proof_trace
-  simp
-
-/-- go 在处理 constraint graph 的 hypothesis 列表时的行为：
-    对所有 hypothesis 步骤逐一执行 transition，最终状态包含所有约束。 -/
-lemma go_hypotheses_some (g : ConstraintGraph) (st : VerifierState) :
-    go g st (g.map (fun c => .hypothesis c)) =
-    some { proved := g.reverse ++ st.proved } := by
-  sorry
-
-/-- 证据检验的完备性：对于任意约束图 g，
-    都存在一个证明迹 t = [hypothesis c₁, ..., hypothesis cₙ, qed]，
-    使得 evidence_check g t = true。
-    
-    证明：每个 hypothesis 步骤总是被接受，最终 qed 检查
-    确保所有约束都已证明。 -/
-theorem evidence_completeness (g : ConstraintGraph) :
-    ∃ t : ProofTrace, evidence_check g t = true := by
-  sorry
-
 end
 

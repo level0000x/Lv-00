@@ -74,6 +74,26 @@ void lv_strbuf_reset(lvStrBuf *sb);
  */
 void lv_strbuf_destroy(lvStrBuf *sb);
 
+/**
+ * @brief 将 lvStrBuf 转换为堆分配的字符串并清理
+ *
+ * 从 lvStrBuf 中提取字符串内容（堆分配），然后销毁缓冲区。
+ * 调用者负责使用 lv_free 释放返回的字符串。
+ * 适用于在 to_string 函数末尾使用，返回堆分配结果。
+ *
+ * @param sb lvStrBuf 指针
+ * @return 堆分配的 NUL 结尾字符串（调用者 lv_free），失败返回 NULL
+ */
+char *lv_strbuf_to_string(lvStrBuf *sb);
+
+/**
+ * @brief 重复追加字符 count 次
+ * @param sb    lvStrBuf 指针
+ * @param ch    要重复的字符
+ * @param count 重复次数
+ */
+void lv_strbuf_append_n(lvStrBuf *sb, char ch, size_t count);
+
 #ifdef __cplusplus
 }
 #endif

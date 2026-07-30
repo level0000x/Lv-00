@@ -1783,6 +1783,17 @@ uint64_t lv_get_time_us(void) {
     return (uint64_t) (count.QuadPart * (LONGLONG) lv_US_PER_S / freq.QuadPart);
 }
 
+uint64_t lv_get_wallclock_ns(void) {
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    ULARGE_INTEGER li;
+    li.LowPart = ft.dwLowDateTime;
+    li.HighPart = ft.dwHighDateTime;
+    /* FILETIME epoch is 1601-01-01, Unix epoch is 1970-01-01 */
+    const uint64_t EPOCH_DIFF = 116444736000000000ULL;
+    return (li.QuadPart - EPOCH_DIFF) * 100;
+}
+
 #else
 #include <sys/time.h>
 
@@ -1798,7 +1809,17 @@ uint64_t lv_get_time_us(void) {
     gettimeofday(&tv, NULL);
     return (uint64_t) tv.tv_sec * lv_US_PER_S + (uint64_t) tv.tv_usec;
 }
+
+uint64_t lv_get_wallclock_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (uint64_t)ts.tv_sec * lv_NS_PER_S + (uint64_t)ts.tv_nsec;
+}
 #endif
+
+uint64_t lv_get_wallclock_ms(void) {
+    return lv_get_wallclock_ns() / 1000000ULL;
+}
 
 uint64_t lv_get_time_ms(void) {
     return lv_get_time_us() / lv_US_PER_MS;

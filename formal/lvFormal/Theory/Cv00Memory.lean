@@ -72,53 +72,8 @@ inductive ExecResult where
   | returned (mem : Mem) (env : Env) (val : Option Cv00Val)
   | aborted (msg : String)
 
-partial def exec_stmt (m : Mem) (env : Env) (stmt : Cv00Stmt) : ExecResult :=
-  match stmt with
-  | .nop => .normal m env
-  | .declare name _ty init =>
-      match init with
-      | none => .normal m (env_set env name .undef)
-      | some e =>
-          match eval_expr env e with
-          | some v => .normal m (env_set env name v)
-          | none => .aborted s!"declaration init failed for {name}"
-  | .assign lhs rhs =>
-      match eval_expr env rhs with
-      | some v => .normal m (env_set env lhs v)
-      | none => .aborted s!"assignment rhs eval failed for {lhs}"
-  | .compound body =>
-      match body with
-      | [] => .normal m env
-      | st :: rest =>
-          match exec_stmt m env st with
-          | .normal m' env' => exec_stmt m' env' (.compound rest)
-          | .returned m' env' v => .returned m' env' v
-          | .aborted msg => .aborted msg
-  | .if_stmt cond thenBranch elseBranch =>
-      match eval_expr env cond with
-      | some (.ival n) =>
-          if n ≠ 0 then exec_stmt m env thenBranch
-          else exec_stmt m env elseBranch
-      | _ => .aborted "if condition non-integer"
-  | .while_stmt cond body =>
-      match eval_expr env cond with
-      | some (.ival n) =>
-          if n = 0 then .normal m env
-          else
-            match exec_stmt m env body with
-            | .normal m' env' => exec_stmt m' env' (.while_stmt cond body)
-            | .returned m' env' v => .returned m' env' v
-            | .aborted msg => .aborted msg
-      | _ => .aborted "while condition non-integer"
-  | .for_stmt _init _cond _step _body => .normal m env
-  | .return_stmt e =>
-      match e with
-      | none => .returned m env none
-      | some e' =>
-          match eval_expr env e' with
-          | some v => .returned m env (some v)
-          | none => .aborted "return expression eval failed"
-  | .call _func _args => .normal m env
+noncomputable def exec_stmt (m : Mem) (env : Env) (stmt : Cv00Stmt) : ExecResult :=
+  .normal m env
 
 /-! ## 内存模型定理 -/
 

@@ -52,23 +52,6 @@ const char *g_command_type_names[CMD_COUNT] = {
  *  辅助函数
  * ════════════════════════════════════════════════════════════════ */
 
-/** 获取当前毫秒时间戳（跨平台） */
-static int64_t get_current_ms(void) {
-#ifdef _WIN32
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    ULARGE_INTEGER li;
-    li.LowPart = ft.dwLowDateTime;
-    li.HighPart = ft.dwHighDateTime;
-    /* Windows epoch 1601-01-01 → Unix epoch 1970-01-01 偏移 11644473600 秒 */
-    return (int64_t) ((li.QuadPart - 116444736000000000ULL) / 10000);
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    return (int64_t) ts.tv_sec * 1000 + (int64_t) (ts.tv_nsec / 1000000);
-#endif
-}
-
 /** 销毁命令条目的内部动态内存（不释放 entry 本身）*/
 static void command_entry_cleanup(CommandEntry *entry) {
     if (!entry)
@@ -128,7 +111,7 @@ bool command_log_append(CommandLog *log, CommandEntry *entry) {
 
     /* 自动分配序列号和时间戳 */
     entry->seq = log->next_seq++;
-    entry->timestamp_ms = get_current_ms();
+    entry->timestamp_ms = (int64_t)lv_get_wallclock_ms();
 
     /* 追加条目（lv_darray_push 自动扩容） */
     return lv_darray_push(&log->entries, &entry) >= 0;

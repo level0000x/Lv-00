@@ -33,5 +33,5 @@ theorem euler_line (env : String → ℝ × ℝ) (a b c : String)
 
 /-- 两点距离为零当且仅当两点重合 -/
 theorem dist_eq_zero_iff_equal (env : String → ℝ × ℝ) (a b : String) :
-    dist (env a) (env b) = 0 ↔ env a = env b := by
+    IR.dist (env a) (env b) = 0 ↔ env a = env b := by
   sorry

@@ -428,6 +428,60 @@ void lv_json_skip_value(lvJsonParser *p) {
 }
 
 /* ==================================================================
+ * JSON 便利查询函数实现
+ * ================================================================== */
+
+bool lv_json_get_string(const char *json, const char *key, char *out, size_t out_size) {
+    if (!json || !key || !out || out_size == 0) return false;
+    const char *val = lv_json_find_key(json, key, strlen(key));
+    if (!val) return false;
+
+    lvJsonParser p;
+    lv_json_parser_init(&p, val, strlen(val));
+    lv_json_skip_ws(&p);
+    char *str = lv_json_parse_string(&p);
+    if (!str) return false;
+
+    size_t len = strlen(str);
+    bool ok = len < out_size;
+    if (ok) {
+        memcpy(out, str, len + 1);
+    }
+    lv_free(str);
+    return ok;
+}
+
+bool lv_json_get_int(const char *json, const char *key, int *out) {
+    if (!json || !key || !out) return false;
+    const char *val = lv_json_find_key(json, key, strlen(key));
+    if (!val) return false;
+
+    lvJsonParser p;
+    lv_json_parser_init(&p, val, strlen(val));
+    return lv_json_parse_int(&p, out);
+}
+
+bool lv_json_get_double(const char *json, const char *key, double *out) {
+    if (!json || !key || !out) return false;
+    const char *val = lv_json_find_key(json, key, strlen(key));
+    if (!val) return false;
+
+    lvJsonParser p;
+    lv_json_parser_init(&p, val, strlen(val));
+    return lv_json_parse_double(&p, out);
+}
+
+bool lv_json_get_bool(const char *json, const char *key, bool *out) {
+    if (!json || !key || !out) return false;
+    const char *val = lv_json_find_key(json, key, strlen(key));
+    if (!val) return false;
+
+    lvJsonParser p;
+    lv_json_parser_init(&p, val, strlen(val));
+    return lv_json_parse_bool(&p, out);
+}
+
+/* ==================================================================
  * JSON 写入器实现
  * ================================================================== */
 

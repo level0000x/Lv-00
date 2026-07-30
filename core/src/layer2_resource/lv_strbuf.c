@@ -55,3 +55,23 @@ void lv_strbuf_destroy(lvStrBuf *sb) {
     sb->len = 0;
     sb->cap = sizeof(sb->stack);
 }
+
+char *lv_strbuf_to_string(lvStrBuf *sb) {
+    if (!sb) return NULL;
+    char *result = (char *)lv_malloc(sb->len + 1);
+    if (result) {
+        if (sb->len > 0) {
+            memcpy(result, sb->data, sb->len);
+        }
+        result[sb->len] = '\0';
+    }
+    lv_strbuf_destroy(sb);
+    return result;
+}
+
+void lv_strbuf_append_n(lvStrBuf *sb, char ch, size_t count) {
+    if (!sb || count == 0) return;
+    for (size_t i = 0; i < count; i++) {
+        lv_strbuf_printf(sb, "%c", ch);
+    }
+}

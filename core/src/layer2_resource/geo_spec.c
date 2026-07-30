@@ -18,118 +18,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_internal.h"
-#include "lv/lv_strbuf.h"
-
-/* ================================================================
- *  内部辅助：简易 JSON 字段提取
- * ================================================================ */
-
-/**
- * @brief 从 JSON 字符串中提取 double 类型字段值
- *
- * 搜索 "field" : <number> 模式，使用 atof 解析数值。
- *
- * @param json   JSON 字符串（指针不动，仅读取）
- * @param field  字段名（如 "x"、"y"）
- * @param out    输出值
- * @return 0 成功，-1 未找到字段或参数无效
- */
-static int json_get_double(const char *json, const char *field, double *out) {
-    lvStrBuf sb = {0};
-    const char *pos;
-
-    if (!json || !field || !out)
-        lv_strbuf_destroy(&sb);
-        return -1;
-
-    /* 构造搜索模式 "field" */
-    lv_strbuf_printf(&sb, "\"%s\"", field);
-    pos = strstr(json, sb.data);
-    if (!pos)
-        return -1;
-
-    /* 跳过字段名和冒号 */
-    pos = strchr(pos, ':');
-    if (!pos)
-        return -1;
-    pos++;
-
-    /* 跳过空白 */
-    while (*pos == ' ' || *pos == '\t' || *pos == '\n' || *pos == '\r') {
-        pos++;
-    }
-
-    /* 安全解析数值 */
-    if (*pos == '\0' || *pos == '}' || *pos == ',') {
-        return -1;
-    }
-
-    lv_parse_double(pos, out);
-    return 0;
-}
-
-/**
- * @brief 从 JSON 字符串中提取 int 类型字段值
- *
- * @param json   JSON 字符串
- * @param field  字段名
- * @param out    输出值
- * @return 0 成功，-1 未找到字段或参数无效
- */
-static int json_get_int(const char *json, const char *field, int *out) {
-    lvStrBuf sb_2 = {0};
-    const char *pos;
-
-    if (!json || !field || !out)
-        lv_strbuf_destroy(&sb_2);
-        return -1;
-
-    lv_strbuf_printf(&sb_2, "\"%s\"", field);
-    pos = strstr(json, sb_2.data);
-    if (!pos)
-        return -1;
-
-    pos = strchr(pos, ':');
-    if (!pos)
-        return -1;
-    pos++;
-
-    while (*pos == ' ' || *pos == '\t' || *pos == '\n' || *pos == '\r') {
-        pos++;
-    }
-
-    if (*pos == '\0' || *pos == '}' || *pos == ',') {
-        return -1;
-    }
-
-    lv_parse_int(pos, out);
-    return 0;
-}
-
-/**
- * @brief 检测 JSON 中是否包含指定类型标识
- *
- * @param json      JSON 字符串
- * @param type_name 类型名称（如 "point"、"polygon"）
- * @return 包含返回 1，不包含返回 0
- */
-static int json_has_type(const char *json, const char *type_name) {
-    lvStrBuf sb_3 = {0};
-
-    if (!json || !type_name)
-        lv_strbuf_destroy(&sb_3);
-        return 0;
-
-    /* 搜索 "type" 字段 */
-    lv_strbuf_printf(&sb_3, "\"type\"");
-    if (!strstr(json, sb_3.data))
-        return 0;
-
-    lv_strbuf_printf(&sb_3, "\"%s\"", type_name);
-    return (strstr(json, sb_3.data) != NULL) ? 1 : 0;
-}
 
 /* ================================================================
  *  内部辅助：解析点和多边形
@@ -152,10 +43,10 @@ static lvGeoSpecPoint *parse_point(const char *json) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_point: calloc failed");
 
     /* 解析坐标，缺失时默认 (0, 0) */
-    if (json_get_double(json, "x", &pt->x) != 0) {
+    if (!lv_json_get_double(json, "x", &pt->x)) {
         pt->x = 0.0;
     }
-    if (json_get_double(json, "y", &pt->y) != 0) {
+    if (!lv_json_get_double(json, "y", &pt->y)) {
         pt->y = 0.0;
     }
 
@@ -181,7 +72,7 @@ static lvGeoSpecPolygon *parse_polygon(const char *json) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_polygon: calloc failed");
 
     /* 解析顶点数量，默认三角形 */
-    if (json_get_int(json, "count", &count) != 0 || count <= 0) {
+    if (!lv_json_get_int(json, "count", &count) || count <= 0) {
         count = 3;
     }
 
@@ -205,8 +96,8 @@ static lvGeoSpecPolygon *parse_polygon(const char *json) {
             pos = strchr(pos, '{');
             if (!pos)
                 break;
-            json_get_double(pos, "x", &poly->pts[i].x);
-            json_get_double(pos, "y", &poly->pts[i].y);
+            lv_json_get_double(pos, "x", &poly->pts[i].x);
+            lv_json_get_double(pos, "y", &poly->pts[i].y);
             pos++;
         }
     }
@@ -234,16 +125,35 @@ int lv_geo_spec_parse(const char *json, void *out) {
     }
 
     /* 检测点类型 */
-    if (json_has_type(json, "point") || strstr(json, "Point") != NULL) {
+    {
+        char type_buf[32];
+        if (lv_json_get_string(json, "type", type_buf, sizeof(type_buf))) {
+            if (strcmp(type_buf, "point") == 0 || strcmp(type_buf, "Point") == 0) {
+                lvGeoSpecPoint *pt = parse_point(json);
+                if (!pt)
+                    return -1;
+                *(lvGeoSpecPoint **) out = pt;
+                return 0;
+            }
+            if (strcmp(type_buf, "polygon") == 0 || strcmp(type_buf, "Polygon") == 0) {
+                lvGeoSpecPolygon *poly = parse_polygon(json);
+                if (!poly)
+                    return -1;
+                *(lvGeoSpecPolygon **) out = poly;
+                return 1;
+            }
+        }
+    }
+
+    /* 兼容旧格式：无 type 字段时退化到 strstr 匹配 */
+    if (strstr(json, "Point") != NULL) {
         lvGeoSpecPoint *pt = parse_point(json);
         if (!pt)
             return -1;
         *(lvGeoSpecPoint **) out = pt;
         return 0;
     }
-
-    /* 检测多边形类型 */
-    if (json_has_type(json, "polygon") || strstr(json, "Polygon") != NULL) {
+    if (strstr(json, "Polygon") != NULL) {
         lvGeoSpecPolygon *poly = parse_polygon(json);
         if (!poly)
             return -1;

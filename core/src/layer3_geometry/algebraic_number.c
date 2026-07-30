@@ -10,6 +10,7 @@
  */
 
 #include "lv/algebraic_number.h"
+#include "lv/lv_strbuf.h"
 
 #include <limits.h>
 #include <math.h>
@@ -478,10 +479,13 @@ lv_PUBLIC_API double alg_rational_to_double(const AlgRational *r) {
 }
 
 lv_PUBLIC_API int alg_rational_to_string(const AlgRational *r, char *buf, size_t size) {
+    int len;
     if (r->den == 1) {
-        return snprintf(buf, size, "%lld", (long long) r->num);
+        len = snprintf(buf, size, "%lld", (long long) r->num);
+    } else {
+        len = snprintf(buf, size, "%lld/%lld", (long long) r->num, (long long) r->den);
     }
-    return snprintf(buf, size, "%lld/%lld", (long long) r->num, (long long) r->den);
+    return len;
 }
 
 lv_PUBLIC_API bool alg_rational_is_zero(const AlgRational *r) {
@@ -788,53 +792,47 @@ lv_PUBLIC_API double alg_quadratic_to_double(const AlgQuadratic *x) {
 }
 
 lv_PUBLIC_API int alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size) {
-    int written = 0;
-    int n;
+    lvStrBuf sb = {0};
 
-    /* 有理部分 */
-    n = alg_rational_to_string(&x->a, buf, size);
-    written += n;
-    if (written < (int) size)
-        buf += n;
+    /* 有理部分 a */
+    lv_strbuf_printf(&sb, "%lld", (long long) x->a.num);
+    if (x->a.den != 1) {
+        lv_strbuf_printf(&sb, "/%lld", (long long) x->a.den);
+    }
 
     /* sqrt(d) 部分 */
     if (!alg_rational_is_zero(&x->b)) {
         if (alg_rational_is_positive(&x->b)) {
-            n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, " + ");
-            written += n;
-            if (written < (int) size)
-                buf += n;
+            lv_strbuf_printf(&sb, " + ");
         } else {
-            n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, " - ");
-            written += n;
-            if (written < (int) size)
-                buf += n;
+            lv_strbuf_printf(&sb, " - ");
         }
 
         /* 系数绝对值 */
         AlgRational abs_b = alg_rational_abs(&x->b);
         AlgRational _one = alg_rational_one();
         if (!alg_rational_eq(&abs_b, &_one)) {
-            n = alg_rational_to_string(&abs_b, buf, size > (size_t) written ? size - (size_t) written : 0);
-            written += n;
-            if (written < (int) size)
-                buf += n;
-            n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, "*");
-            written += n;
-            if (written < (int) size)
-                buf += n;
+            lv_strbuf_printf(&sb, "%lld", (long long) abs_b.num);
+            if (abs_b.den != 1) {
+                lv_strbuf_printf(&sb, "/%lld", (long long) abs_b.den);
+            }
+            lv_strbuf_printf(&sb, "*");
         }
 
         /* sqrt(d) */
-        if (x->d == 0) {
-            /* 退化为有理数 */
-        } else {
-            n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, "sqrt(%lld)", (long long) x->d);
-            written += n;
+        if (x->d != 0) {
+            lv_strbuf_printf(&sb, "sqrt(%lld)", (long long) x->d);
         }
     }
 
-    return written;
+    int len = (int) sb.len;
+    if (buf && size > 0) {
+        size_t copy = (sb.len < size - 1) ? sb.len : size - 1;
+        memcpy(buf, lv_strbuf_cstr(&sb), copy);
+        buf[copy] = '\0';
+    }
+    lv_strbuf_destroy(&sb);
+    return len;
 }
 
 lv_PUBLIC_API bool alg_quadratic_is_rational(const AlgQuadratic *x) {
@@ -1149,33 +1147,32 @@ lv_PUBLIC_API void alg_interval_bisect(const AlgInterval *x, AlgInterval *lower,
 }
 
 lv_PUBLIC_API int alg_interval_to_string(const AlgInterval *x, char *buf, size_t size) {
-    int written = 0;
-    int n;
+    lvStrBuf sb = {0};
 
-    n = snprintf(buf, size, "[");
-    written += n;
-    if (written < (int) size)
-        buf += n;
+    lv_strbuf_printf(&sb, "[");
 
-    n = alg_rational_to_string(&x->lo, buf, size > (size_t) written ? size - (size_t) written : 0);
-    written += n;
-    if (written < (int) size)
-        buf += n;
+    lv_strbuf_printf(&sb, "%lld", (long long) x->lo.num);
+    if (x->lo.den != 1) {
+        lv_strbuf_printf(&sb, "/%lld", (long long) x->lo.den);
+    }
 
-    n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, ", ");
-    written += n;
-    if (written < (int) size)
-        buf += n;
+    lv_strbuf_printf(&sb, ", ");
 
-    n = alg_rational_to_string(&x->hi, buf, size > (size_t) written ? size - (size_t) written : 0);
-    written += n;
-    if (written < (int) size)
-        buf += n;
+    lv_strbuf_printf(&sb, "%lld", (long long) x->hi.num);
+    if (x->hi.den != 1) {
+        lv_strbuf_printf(&sb, "/%lld", (long long) x->hi.den);
+    }
 
-    n = snprintf(buf, size > (size_t) written ? size - (size_t) written : 0, "]");
-    written += n;
+    lv_strbuf_printf(&sb, "]");
 
-    return written;
+    int len = (int) sb.len;
+    if (buf && size > 0) {
+        size_t copy = (sb.len < size - 1) ? sb.len : size - 1;
+        memcpy(buf, lv_strbuf_cstr(&sb), copy);
+        buf[copy] = '\0';
+    }
+    lv_strbuf_destroy(&sb);
+    return len;
 }
 
 lv_PUBLIC_API const char *alg_interval_error_string(AlgIntervalError err) {
@@ -1614,61 +1611,69 @@ lv_PUBLIC_API AlgPoly alg_poly_derivative(const AlgPoly *p, AlgPolyError *err) {
 
 lv_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size) {
     if (!p) {
-        return snprintf(buf, size, "(null)");
+        if (buf && size > 0) {
+            snprintf(buf, size, "(null)");
+        }
+        return 6; /* strlen("(null)") */
     }
 
-    int written = 0;
+    lvStrBuf sb = {0};
     bool first = true;
 
     for (int i = p->degree; i >= 0; i--) {
         if (p->coef[i] == 0)
             continue;
 
-        int n;
-        size_t remaining = (size > (size_t) written) ? size - (size_t) written : 0;
+        int64_t coef = p->coef[i];
 
-        if (!first && remaining > 0) {
-            if (p->coef[i] > 0) {
-                n = snprintf(buf, remaining, " + ");
+        if (!first) {
+            if (coef > 0) {
+                lv_strbuf_printf(&sb, " + ");
             } else {
-                n = snprintf(buf, remaining, " - ");
+                lv_strbuf_printf(&sb, " - ");
+                coef = -coef;
             }
-            written += n;
-            if (written < (int) size)
-                buf += n;
-            remaining = (size > (size_t) written) ? size - (size_t) written : 0;
+        } else if (coef < 0) {
+            lv_strbuf_printf(&sb, "-");
+            coef = -coef;
         }
 
-        int64_t coef = (p->coef[i] < 0 && !first) ? -p->coef[i] : p->coef[i];
-
         if (i == 0) {
-            n = snprintf(buf, remaining, "%lld", (long long) coef);
+            lv_strbuf_printf(&sb, "%lld", (long long) coef);
         } else if (i == 1) {
             if (coef == 1) {
-                n = snprintf(buf, remaining, "x");
+                lv_strbuf_printf(&sb, "x");
             } else {
-                n = snprintf(buf, remaining, "%lld*x", (long long) coef);
+                lv_strbuf_printf(&sb, "%lld*x", (long long) coef);
             }
         } else {
             if (coef == 1) {
-                n = snprintf(buf, remaining, "x^%d", i);
+                lv_strbuf_printf(&sb, "x^%d", i);
             } else {
-                n = snprintf(buf, remaining, "%lld*x^%d", (long long) coef, i);
+                lv_strbuf_printf(&sb, "%lld*x^%d", (long long) coef, i);
             }
         }
 
-        written += n;
-        if (written < (int) size)
-            buf += n;
         first = false;
     }
 
     if (first) {
         /* 零多项式 */
-        return snprintf(buf, size, "0");
+        int len = 1;
+        if (buf && size > 0) {
+            snprintf(buf, size, "0");
+        }
+        return len;
     }
 
-    return written;
+    int len = (int) sb.len;
+    if (buf && size > 0) {
+        size_t copy = (sb.len < size - 1) ? sb.len : size - 1;
+        memcpy(buf, lv_strbuf_cstr(&sb), copy);
+        buf[copy] = '\0';
+    }
+    lv_strbuf_destroy(&sb);
+    return len;
 }
 
 lv_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err) {

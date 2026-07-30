@@ -21,6 +21,7 @@
 #include "func_block_preset.h"
 #include "func_block_registry.h"
 #include "lv_internal.h"
+#include "lv/lv_json.h"
 #include "lv_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
@@ -1767,86 +1768,8 @@ error:
     return false;
 }
 
-/**
- * @brief 从 JSON 字符串中提取指定键的值
- *
- * 仅支持简单字符串值的提取。
- *
- * @param json JSON 字符串
- * @param key  键名（含引号，如 "\"name\""）
- * @param out_value 输出值（调用者需使用 lv_free 释放）
- * @return true 找到并成功提取
- */
-static bool json_extract_string(const char *json, const char *key, char **out_value) {
-    if (!json || !key || !out_value)
-        return false;
-
-    /* 查找键 */
-    const char *key_pos = strstr(json, key);
-    if (!key_pos)
-        return false;
-
-    /* 跳过键和冒号 */
-    const char *val_start = strchr(key_pos + strlen(key), ':');
-    if (!val_start)
-        return false;
-    val_start++;
-
-    /* 跳过空白 */
-    while (*val_start == ' ' || *val_start == '\t' || *val_start == '\n') {
-        val_start++;
-    }
-
-    /* 期望引号开始 */
-    if (*val_start != '"')
-        return false;
-    val_start++;
-
-    /* 查找结束引号 */
-    const char *val_end = strchr(val_start, '"');
-    if (!val_end)
-        return false;
-
-    size_t len = (size_t) (val_end - val_start);
-    char *value = (char *) lv_malloc(len + 1);
-    if (!value)
-        return false;
-
-    memcpy(value, val_start, len);
-    value[len] = '\0';
-
-    *out_value = value;
-    return true;
-}
-
-/**
- * @brief 从 JSON 字符串中提取整数键的值
- */
-static bool json_extract_int(const char *json, const char *key, int *out_value) {
-    if (!json || !key || !out_value)
-        return false;
-
-    const char *key_pos = strstr(json, key);
-    if (!key_pos)
-        return false;
-
-    const char *val_start = strchr(key_pos + strlen(key), ':');
-    if (!val_start)
-        return false;
-    val_start++;
-
-    while (*val_start == ' ' || *val_start == '\t' || *val_start == '\n') {
-        val_start++;
-    }
-
-    char *endptr = NULL;
-    long val = strtol(val_start, &endptr, 10);
-    if (endptr == val_start)
-        return false;
-
-    *out_value = (int) val;
-    return true;
-}
+/* json_extract_string / json_extract_int
+ * 已迁移至 lv/lv_json.h 的统一 API：lv_json_get_string / lv_json_get_int */
 
 /**
  * @brief 反序列化预设
@@ -1879,33 +1802,30 @@ bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out
     PresetMetadata meta;
     memset(&meta, 0, sizeof(PresetMetadata));
 
-    char *name = NULL;
-    char *desc = NULL;
-    char *math_def = NULL;
-    char *cat_str = NULL;
-    char *complexity_str = NULL;
+#define PRESET_JSON_BUF_SIZE 1024
+    char name_buf[PRESET_JSON_BUF_SIZE] = {0};
+    char desc_buf[PRESET_JSON_BUF_SIZE] = {0};
+    char math_buf[PRESET_JSON_BUF_SIZE] = {0};
+    char cat_buf[PRESET_JSON_BUF_SIZE] = {0};
 
     bool ok = true;
-    ok = ok && json_extract_string(json_copy, "\"name\"", &name);
-    ok = ok && json_extract_string(json_copy, "\"description\"", &desc);
-    ok = ok && json_extract_string(json_copy, "\"mathematical_def\"", &math_def);
-    ok = ok && json_extract_string(json_copy, "\"category\"", &cat_str);
-    ok = ok && json_extract_int(json_copy, "\"input_count\"", &meta.input_count);
-    ok = ok && json_extract_int(json_copy, "\"output_count\"", &meta.output_count);
+    ok = ok && lv_json_get_string(json_copy, "name", name_buf, sizeof(name_buf));
+    ok = ok && lv_json_get_string(json_copy, "description", desc_buf, sizeof(desc_buf));
+    ok = ok && lv_json_get_string(json_copy, "mathematical_def", math_buf, sizeof(math_buf));
+    ok = ok && lv_json_get_string(json_copy, "category", cat_buf, sizeof(cat_buf));
+    ok = ok && lv_json_get_int(json_copy, "input_count", &meta.input_count);
+    ok = ok && lv_json_get_int(json_copy, "output_count", &meta.output_count);
 
     if (!ok) {
-        if (name)
-            lv_free((void **) &name);
-        if (desc)
-            lv_free((void **) &desc);
-        if (math_def)
-            lv_free((void **) &math_def);
-        if (cat_str)
-            lv_free((void **) &cat_str);
         lv_free((void **) &json_copy);
         set_error("JSON 解析失败：缺少必要字段");
         return false;
     }
+
+    char *name = lv_strdup(name_buf);
+    char *desc = lv_strdup(desc_buf);
+    char *math_def = lv_strdup(math_buf);
+    char *cat_str = lv_strdup(cat_buf);
 
     meta.name = name;
     meta.description = desc;
@@ -1925,9 +1845,6 @@ bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out
 
     /* 复杂度解析 */
     meta.complexity = COMPLEXITY_O1;
-    if (complexity_str) {
-        /* 默认使用 O(1) */
-    }
 
     /* 版本号 */
     meta.version_major = 1;
@@ -1935,7 +1852,6 @@ bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out
     meta.version_patch = 0;
 
     lv_free((void **) &cat_str);
-    lv_free((void **) &complexity_str);
     lv_free((void **) &json_copy);
 
     /* 注册到库中 */

@@ -867,6 +867,16 @@ lv_PUBLIC_API uint64_t lv_get_time_us(void);
 lv_PUBLIC_API uint64_t lv_get_time_ms(void);
 
 /**
+ * @brief 获取墙钟时间（纳秒，CLOCK_REALTIME / GetSystemTimeAsFileTime）
+ */
+lv_PUBLIC_API uint64_t lv_get_wallclock_ns(void);
+
+/**
+ * @brief 获取墙钟时间（毫秒，Unix epoch）
+ */
+lv_PUBLIC_API uint64_t lv_get_wallclock_ms(void);
+
+/**
  * @brief 格式化时间戳为字符串
  * @param timestamp_us 微秒时间戳
  * @param buf 缓冲区

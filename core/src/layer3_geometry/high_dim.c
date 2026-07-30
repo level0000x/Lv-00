@@ -42,6 +42,7 @@
 #include <string.h>
 
 #include "lv/config.h"
+#include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 
 #include "debug.h" /* LOG_DEBUG, LOG_WARN, LOG_ERROR 等日志宏 */
@@ -1447,108 +1448,8 @@ static const char *hd_json_skip_value(const char *p) {
     return p;
 }
 
-/** 在 JSON 文本中查找 "key": 并提取其后的字符串值 */
-static bool hd_json_extract_string(const char *json, const char *key, char *buf, size_t buf_size) {
-    lvStrBuf sb = {0};
-    lv_strbuf_printf(&sb, "\"%s\"", key);
-    const char *pos = strstr(json, sb.data);
-    if (!pos) {
-        lv_strbuf_destroy(&sb);
-        return false;
-    }
-
-    pos += strlen(sb.data);
-    lv_strbuf_destroy(&sb);
-    pos = hd_json_skip_ws(pos);
-    if (*pos != ':')
-        return false;
-    pos++;
-    pos = hd_json_skip_ws(pos);
-    if (*pos != '"')
-        return false;
-    pos++;
-
-    size_t i = 0;
-    while (*pos && *pos != '"' && i < buf_size - 1) {
-        if (*pos == '\\' && *(pos + 1)) {
-            pos++;
-            switch (*pos) {
-                case 'n':
-                    buf[i++] = '\n';
-                    break;
-                case 't':
-                    buf[i++] = '\t';
-                    break;
-                case 'r':
-                    buf[i++] = '\r';
-                    break;
-                case '\\':
-                    buf[i++] = '\\';
-                    break;
-                case '"':
-                    buf[i++] = '"';
-                    break;
-                default:
-                    buf[i++] = *pos;
-                    break;
-            }
-        } else {
-            buf[i++] = *pos;
-        }
-        pos++;
-    }
-    buf[i] = '\0';
-    return true;
-}
-
-/** 在 JSON 文本中查找 "key": 并提取其后的整数值 */
-static bool hd_json_extract_int(const char *json, const char *key, int *out_val) {
-    lvStrBuf sb_2 = {0};
-    lv_strbuf_printf(&sb_2, "\"%s\"", key);
-    const char *pos = strstr(json, sb_2.data);
-    if (!pos) {
-        lv_strbuf_destroy(&sb_2);
-        return false;
-    }
-
-    pos += strlen(sb_2.data);
-    lv_strbuf_destroy(&sb_2);
-    pos = hd_json_skip_ws(pos);
-    if (*pos != ':')
-        return false;
-    pos++;
-    pos = hd_json_skip_ws(pos);
-    *out_val = 0;
-    lv_parse_int(pos, out_val);
-    return true;
-}
-
-/** 在 JSON 文本中查找 "key": 并提取其后的布尔值 */
-static bool hd_json_extract_bool(const char *json, const char *key, bool *out_val) {
-    lvStrBuf sb_3 = {0};
-    lv_strbuf_printf(&sb_3, "\"%s\"", key);
-    const char *pos = strstr(json, sb_3.data);
-    if (!pos) {
-        lv_strbuf_destroy(&sb_3);
-        return false;
-    }
-
-    pos += strlen(sb_3.data);
-    lv_strbuf_destroy(&sb_3);
-    pos = hd_json_skip_ws(pos);
-    if (*pos != ':')
-        return false;
-    pos++;
-    pos = hd_json_skip_ws(pos);
-    if (strncmp(pos, "true", 4) == 0) {
-        *out_val = true;
-        return true;
-    } else if (strncmp(pos, "false", 5) == 0) {
-        *out_val = false;
-        return true;
-    }
-    return false;
-}
+/* hd_json_extract_string / hd_json_extract_int / hd_json_extract_bool
+ * 已迁移至 lv/lv_json.h 的统一 API：lv_json_get_string / lv_json_get_int / lv_json_get_bool */
 
 int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *preset) {
     /*
@@ -1565,10 +1466,10 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
 
     /* ---- 提取顶层标量字段 ---- */
 
-    hd_json_extract_string(json, "name", preset->name, HIGH_DIM_PROJECTION_NAME_MAX);
-    hd_json_extract_int(json, "dimension_count", &preset->dimension_count);
-    hd_json_extract_int(json, "mapping_count", &preset->mapping_count);
-    hd_json_extract_bool(json, "is_default", &preset->is_default);
+    lv_json_get_string(json, "name", preset->name, HIGH_DIM_PROJECTION_NAME_MAX);
+    lv_json_get_int(json, "dimension_count", &preset->dimension_count);
+    lv_json_get_int(json, "mapping_count", &preset->mapping_count);
+    lv_json_get_bool(json, "is_default", &preset->is_default);
 
     /* ---- 解析 mappings 数组 ---- */
     {

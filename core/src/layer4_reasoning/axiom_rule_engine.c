@@ -643,33 +643,20 @@ lvRule *lv_rule_from_json(const char *json) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_from_json: NULL json");
 
     /* 解析基本 JSON 字段 */
-    const char *name_start = strstr(json, "\"name\":\"");
-    const char *type_start = strstr(json, "\"type\":");
-    const char *prio_start = strstr(json, "\"priority\":");
-
     lvRuleType rtype = RULE_TYPE_AXIOM;
     lvRulePriority prio = RULE_PRIORITY_NORMAL;
     char name_buf[lv_RULE_NAME_MAX_LEN] = "parsed_rule";
 
-    if (name_start) {
-        name_start += 8; /* skip "name":" */
-        int ni = 0;
-        while (*name_start && *name_start != '"' && ni < lv_RULE_NAME_MAX_LEN - 1) {
-            name_buf[ni++] = *name_start++;
-        }
-        name_buf[ni] = '\0';
-    }
+    lv_json_get_string(json, "name", name_buf, sizeof(name_buf));
 
-    if (type_start) {
-        type_start += 7; /* skip "type": */
-        int tv = atoi(type_start);
+    int tv;
+    if (lv_json_get_int(json, "type", &tv)) {
         if (tv >= RULE_TYPE_AXIOM && tv <= RULE_TYPE_DEFINITION)
             rtype = (lvRuleType)tv;
     }
 
-    if (prio_start) {
-        prio_start += 10; /* skip "priority": */
-        int pv = atoi(prio_start);
+    int pv;
+    if (lv_json_get_int(json, "priority", &pv)) {
         if (pv >= RULE_PRIORITY_LOWEST && pv <= RULE_PRIORITY_HIGHEST)
             prio = (lvRulePriority)pv;
     }
