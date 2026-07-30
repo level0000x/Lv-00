@@ -653,6 +653,7 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_utils.c
     core/src/layer2_resource/lv_numeric.c
     core/src/layer2_resource/lv_json.c
+    core/src/layer2_resource/lv_event_bus.c
     core/src/layer2_resource/lv_config.c
     core/src/layer2_resource/lv.c
     core/src/layer2_resource/context.c
