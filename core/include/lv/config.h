@@ -222,175 +222,331 @@ extern "C" {
 
 /* == 以下全部移入 lvConfig 运行时 == */
 
-typedef struct lvConfig {
-    /* ---- 求解器 ---- */
-    int solver_max_var_id;
-    int solver_max_iterations;
+/* ====================================================================
+ * 子系统级配置结构体
+ * ==================================================================== */
 
-    /* ---- 约束图 ---- */
-    int max_module_depth;
-    int graph_adj_max_per_node;
+/** @brief 求解器配置 */
+typedef struct lvCfgSolver {
+    int solver_max_var_id;           /**< 求解器最大变量 ID（默认 100000） */
+    int solver_max_iterations;       /**< 求解器最大迭代次数（默认 10000） */
+    int cdcl_max_steps;              /**< CDCL 最大步数（默认 1000） */
+    int cdcl_max_decisions;          /**< CDCL 最大决策数（默认 1000） */
+    int cdcl_max_restarts;           /**< CDCL 最大重启次数（默认 10） */
+} lvCfgSolver;
 
-    /* ---- 重写引擎 ---- */
-    int default_rewrite_limit;
-    int wl_iterations;
-    int wl_history_size;
-    int vf2_max_depth;
-    int buchberger_max_steps;
-    int groebner_reduce_max_steps;
+/** @brief 引擎配置（约束图 + 重写引擎） */
+typedef struct lvCfgEngine {
+    int max_module_depth;            /**< 最大模块深度（默认 32） */
+    int graph_adj_max_per_node;      /**< 约束图每节点最大邻接数（默认 256） */
+    int default_rewrite_limit;       /**< 默认重写限制（默认 1000） */
+    int wl_iterations;               /**< Weisfeiler-Lehman 迭代次数（默认 3） */
+    int wl_history_size;             /**< WL 历史大小（默认 64） */
+    int vf2_max_depth;               /**< VF2 最大深度（默认 100） */
+    int buchberger_max_steps;        /**< Buchberger 最大步数（默认 50000） */
+    int groebner_reduce_max_steps;   /**< Groebner 归约最大步数（默认 10000） */
+} lvCfgEngine;
 
-    /* ---- 流式输出 ---- */
-    int stream_async_queue_capacity;
-    int stream_initial_callbacks;
-    int stream_max_callbacks;
-    int stream_default_throttle_ms;
+/** @brief 解析器与类型系统配置 */
+typedef struct lvCfgParser {
+    int parser_max_input_length;     /**< 解析器最大输入长度（默认 1048576） */
+    int parser_max_tokens;           /**< 解析器最大 Token 数（默认 100000） */
+    int parser_max_ast_depth;        /**< 解析器最大 AST 深度（默认 256） */
+    int parser_max_ast_nodes;        /**< 解析器最大 AST 节点数（默认 500000） */
+    int parser_max_token_length;     /**< 解析器最大 Token 长度（默认 4096） */
+    int parser_max_coordinates;      /**< 解析器最大坐标数（默认 16） */
+    int parser_max_vertices;         /**< 解析器最大顶点数（默认 32） */
+    int parser_max_polygon_vertices; /**< 解析器最大多边形顶点数（默认 32） */
+    int parser_max_statements;       /**< 解析器最大语句数（默认 64） */
+    int parser_max_arguments;        /**< 解析器最大参数数（默认 16） */
+    int parser_max_participants;     /**< 解析器最大参与者数（默认 16） */
+    int type_infer_max_depth;        /**< 类型推断最大深度（默认 100） */
+    int type_equiv_max_depth;        /**< 类型等价最大深度（默认 16） */
+} lvCfgParser;
 
-    /* ---- 数值精度 ---- */
-    int bit_cutoff_threshold;
-    int max_precision_bits;
-    int continued_fraction_max_iter;
-    int max_subintervals;
+/** @brief 流式输出配置 */
+typedef struct lvCfgStream {
+    int stream_async_queue_capacity;     /**< 异步队列容量（默认 1024） */
+    int stream_initial_callbacks;        /**< 初始回调数（默认 16） */
+    int stream_max_callbacks;            /**< 最大回调数（默认 64） */
+    int stream_default_throttle_ms;      /**< 默认节流毫秒数（默认 50） */
+} lvCfgStream;
 
-    /* ---- MiniKernel ---- */
-    int mini_kernel_max_statements;
-    int mini_kernel_max_proof_depth;
-    int mini_kernel_verify_timeout_ms;
+/** @brief 数值精度配置 */
+typedef struct lvCfgPrecision {
+    int bit_cutoff_threshold;            /**< 位截断阈值（默认 1000000） */
+    int max_precision_bits;              /**< 最大精度位数（默认 100） */
+    int continued_fraction_max_iter;     /**< 连分数最大迭代（默认 1000） */
+    int max_subintervals;                /**< 最大子区间数（默认 4096） */
+} lvCfgPrecision;
 
-    /* ---- SAT 求解器 ---- */
-    int cdcl_max_steps;
-    int cdcl_max_decisions;
-    int cdcl_max_restarts;
+/** @brief MiniKernel 验证配置 */
+typedef struct lvCfgMiniKernel {
+    int mini_kernel_max_statements;      /**< MiniKernel 最大语句数（默认 10000） */
+    int mini_kernel_max_proof_depth;     /**< MiniKernel 最大证明深度（默认 1000） */
+    int mini_kernel_verify_timeout_ms;   /**< MiniKernel 验证超时毫秒（默认 30000） */
+} lvCfgMiniKernel;
 
-    /* ---- 压力测试 ---- */
-    int stress_test_default_chain;
-    int stress_test_max_poly_degree;
+/** @brief UI-Kernel 通信协议配置 */
+typedef struct lvCfgProtocol {
+    int proto_max_draw_cmds;             /**< 协议最大绘制命令数（默认 4096） */
+    int proto_max_table_rows;            /**< 协议最大表格行数（默认 512） */
+    int proto_max_tree_nodes;            /**< 协议最大树节点数（默认 256） */
+    int proto_max_topology;              /**< 协议最大拓扑数（默认 128） */
+    int proto_max_proof_steps;           /**< 协议最大证明步数（默认 512） */
+    int proto_max_completions;           /**< 协议最大补全数（默认 64） */
+    int proto_max_terminal_lines;        /**< 协议最大终端行数（默认 512） */
+} lvCfgProtocol;
 
-    /* ---- 解析器 ---- */
-    int parser_max_input_length;
-    int parser_max_tokens;
-    int parser_max_ast_depth;
-    int parser_max_ast_nodes;
-    int parser_max_token_length;
-    int parser_max_coordinates;
-    int parser_max_vertices;
-    int parser_max_polygon_vertices;
-    int parser_max_statements;
-    int parser_max_arguments;
-    int parser_max_participants;
+/** @brief 几何与 ODE 配置 */
+typedef struct lvCfgGeometry {
+    int geo_max_objects;                 /**< 交互几何最大对象数（默认 1024） */
+    int geo_max_constraints;             /**< 交互几何最大约束数（默认 2048） */
+    int geo_max_drag_chain;              /**< 交互几何最大拖拽链（默认 64） */
+    int geo_max_snapshots;               /**< 交互几何最大快照数（默认 32） */
+    double geo_min_zoom;                 /**< 交互几何最小缩放（默认 0.01） */
+    double geo_max_zoom;                 /**< 交互几何最大缩放（默认 100.0） */
+    int geoevol_max_param_dim;           /**< ODE 最大参数维度（默认 256） */
+    int geoevol_adams_max_order;         /**< ODE Adams 最大阶数（默认 12） */
+    int geoevol_max_rejections;          /**< ODE 最大拒绝次数（默认 20） */
+    double geoevol_min_step;             /**< ODE 最小步长（默认 1e-15） */
+    double geoevol_max_step;             /**< ODE 最大步长（默认 1e10） */
+    double geoevol_pi_smooth_factor;     /**< ODE PI 平滑因子（默认 0.25） */
+} lvCfgGeometry;
 
-    /* ---- 类型系统 ---- */
-    int type_infer_max_depth;
-    int type_equiv_max_depth;
+/** @brief 证明引擎配置 */
+typedef struct lvCfgProof {
+    int proof_max_depth;                 /**< 证明最大深度（默认 100） */
+    int proof_max_branches;              /**< 证明最大分支数（默认 64） */
+    int proof_max_strategies;            /**< 证明最大策略数（默认 16） */
+    int trace_tree_max_depth;            /**< 跟踪树最大深度（默认 50） */
+} lvCfgProof;
 
-    /* ---- 运行时防护 ---- */
-    int runtime_guard_max_recurse;
-    int runtime_guard_spin_attempts;
-    int runtime_guard_write_warn_us;
+/** @brief 上下文与运行时防护配置 */
+typedef struct lvCfgContext {
+    int max_recursion_depth;                      /**< 最大递归深度（默认 128） */
+    int context_default_max_depth;                /**< 上下文默认最大深度（默认 100） */
+    int context_max_recursion_depth;              /**< 上下文最大递归深度（默认 10000） */
+    int context_default_max_steps;                /**< 上下文默认最大步数（默认 1000000） */
+    int context_default_max_consecutive_errors;   /**< 上下文默认最大连续错误数（默认 10） */
+    int context_reasoning_stack_default_capacity; /**< 推理栈默认容量（默认 8） */
+    int context_reasoning_stack_max_depth;        /**< 推理栈最大深度（默认 1000） */
+    int context_timeout_ms;                       /**< 上下文默认超时毫秒（默认 30000） */
+    int context_cooldown_ms;                      /**< 上下文冷却时间毫秒（默认 5000） */
+} lvCfgContext;
 
-    /* ---- UI-Kernel 通信协议 ---- */
-    int proto_max_draw_cmds;
-    int proto_max_table_rows;
-    int proto_max_tree_nodes;
-    int proto_max_topology;
-    int proto_max_proof_steps;
-    int proto_max_completions;
-    int proto_max_terminal_lines;
+/** @brief 运行时防护配置 */
+typedef struct lvCfgRuntimeGuard {
+    int runtime_guard_max_recurse;     /**< 运行时防护最大递归（默认 128） */
+    int runtime_guard_spin_attempts;   /**< 运行时防护自旋尝试（默认 1024） */
+    int runtime_guard_write_warn_us;   /**< 运行时防护写入警告微秒（默认 10000） */
+} lvCfgRuntimeGuard;
 
-    /* ---- 交互几何 ---- */
-    int geo_max_objects;
-    int geo_max_constraints;
-    int geo_max_drag_chain;
-    int geo_max_snapshots;
-    double geo_min_zoom;
-    double geo_max_zoom;
+/** @brief 互操作 / 插件 / 后端集成配置 */
+typedef struct lvCfgIntegration {
+    int interop_max_params;            /**< 互操作最大参数数（默认 32） */
+    int interop_max_completions;       /**< 互操作最大补全数（默认 64） */
+    int interop_ws_default_port;       /**< 互操作 WebSocket 默认端口（默认 8765） */
+    int max_plugins;                   /**< 最大插件数（默认 256） */
+    int max_interfaces;                /**< 最大接口数（默认 128） */
+    int backend_step_limit;            /**< 数值后端步数上限（默认 1000） */
+    int backend_timeout_ms;            /**< 数值后端超时毫秒（默认 30000） */
+} lvCfgIntegration;
 
-    /* ---- 几何演化 (ODE) ---- */
-    int geoevol_max_param_dim;
-    int geoevol_adams_max_order;
-    int geoevol_max_rejections;
-    double geoevol_min_step;
-    double geoevol_max_step;
-    double geoevol_pi_smooth_factor;
+/** @brief 诊断与日志配置 */
+typedef struct lvCfgDiagnostics {
+    int log_max_files;                 /**< 日志最大文件数（默认 5） */
+    int log_max_size;                  /**< 日志最大大小（默认 10485760） */
+    int log_ring_buffer_capacity;      /**< 日志环形缓冲区容量（默认 256） */
+    int perf_sample_max_count;         /**< 性能采样最大计数（默认 10000） */
+    int timer_max_depth;               /**< 定时器最大深度（默认 32） */
+} lvCfgDiagnostics;
 
-    /* ---- 证明引擎 ---- */
-    int proof_max_depth;
-    int proof_max_branches;
-    int proof_max_strategies;
-    int trace_tree_max_depth;
+/** @brief 测试与压力测试配置 */
+typedef struct lvCfgTest {
+    int test_max_suites;               /**< 测试最大 Suite 数（默认 256） */
+    int test_max_cases;                /**< 测试最大 Case 数（默认 4096） */
+    int smoke_test_step_limit;         /**< 烟测独立步数上限（默认 1000） */
+    int smoke_test_timeout_ms;         /**< 烟测总时间上限毫秒（默认 30000） */
+    int stress_test_default_chain;     /**< 压力测试默认链长（默认 100） */
+    int stress_test_max_poly_degree;   /**< 压力测试最大多项式次数（默认 4） */
+} lvCfgTest;
 
-    /* ---- 递归 / 上下文 ---- */
-    int max_recursion_depth;
-    int context_default_max_depth;
-    int context_max_recursion_depth;
-    int context_default_max_steps;
-    int context_default_max_consecutive_errors;
-    int context_reasoning_stack_default_capacity;
-    int context_reasoning_stack_max_depth;
+/** @brief 健康与系统安全配置 */
+typedef struct lvCfgHealth {
+    int health_score_max;              /**< 健康分最大值（默认 100） */
+    double health_memory_usage_ratio;  /**< 健康内存使用率阈值（默认 0.8） */
+    int health_memory_warning_penalty; /**< 健康内存警告扣分（默认 10） */
+    double health_memory_leak_ratio;   /**< 健康内存泄漏比率阈值（默认 0.9） */
+    int health_memory_leak_penalty;    /**< 健康内存泄漏扣分（默认 20） */
+    int health_recent_error_penalty;   /**< 健康最近错误扣分（默认 5） */
+    int circuit_overflow_threshold;    /**< 熔断器溢出阈值（默认 3） */
+    int value_too_large;               /**< 代数值过大阈值（默认 1048576） */
+    int downgrade_denominator;         /**< 降级分母阈值（默认 100000） */
+    int default_memory_limit_mb;       /**< 默认内存限制 MB（默认 0=无限制） */
+} lvCfgHealth;
 
-    /* ---- 互操作 ---- */
-    int interop_max_params;
-    int interop_max_completions;
-    int interop_ws_default_port;
+/** @brief 传播引擎配置 */
+typedef struct lvCfgPropagation {
+    int prop_max_iterations;           /**< 传播引擎最大迭代次数（默认 10000） */
+    int prop_max_backtracks;           /**< 传播引擎最大回溯次数（默认 1000） */
+    int prop_max_collaboration_iters;  /**< WFC 协作最大迭代次数（默认 10000） */
+} lvCfgPropagation;
 
-    /* ---- 调试 / 日志 ---- */
-    int log_max_files;
-    int log_max_size;
-    int log_ring_buffer_capacity;
-
-    /* ---- 运行时监控 ---- */
-    int perf_sample_max_count;
-    int timer_max_depth;
-
-    /* ---- 插件系统 ---- */
-    int max_plugins;
-    int max_interfaces;
-
-    /* ---- 数值后端 ---- */
-    int backend_step_limit;
-    int backend_timeout_ms;
-
-    /* ---- 测试框架 ---- */
-    int test_max_suites;
-    int test_max_cases;
-
-    /* ---- 烟测保护 ---- */
-    int smoke_test_step_limit; /**< 烟测独立步数上限（默认=1000） */
-    int smoke_test_timeout_ms; /**< 烟测总时间上限毫秒（默认=30000） */
-
-    /* ---- 熔断器 ---- */
-    int circuit_overflow_threshold;
-
-    /* ---- 代数 ---- */
-    int value_too_large;
-    int downgrade_denominator;
-
-    /* ---- 内存 ---- */
-    int default_memory_limit_mb;
-
-    /* ---- 健康检查 ---- */
-    int health_score_max;
-    double health_memory_usage_ratio;
-    int health_memory_warning_penalty;
-    double health_memory_leak_ratio;
-    int health_memory_leak_penalty;
-    int health_recent_error_penalty;
-
-    /* ---- context timeout/cooldown ---- */
-    int context_timeout_ms;  /**< 上下文默认超时毫秒（默认 30000） */
-    int context_cooldown_ms; /**< 上下文冷却时间毫秒（默认 5000） */
-
-    /* ---- 传播引擎 ---- */
-    int prop_max_iterations;          /**< 传播引擎最大迭代次数（默认 10000） */
-    int prop_max_backtracks;          /**< 传播引擎最大回溯次数（默认 1000） */
-    int prop_max_collaboration_iters; /**< WFC 协作最大迭代次数（默认 10000） */
-
-    /* ---- 高维几何 ---- */
+/** @brief 高维几何配置 */
+typedef struct lvCfgHighDim {
     int high_dim_max_dimensions;                /**< 最大维度数（默认 32） */
     int high_dim_max_depth;                     /**< 语义缩放深度栈深度（默认 32） */
     int high_dim_max_projection_presets;        /**< 每块最大投影预设数（默认 64） */
     int high_dim_max_active_views;              /**< 多投影并排视图最大活跃数（默认 16） */
     double high_dim_default_fidelity_threshold; /**< 保真度默认警告阈值（默认 0.85） */
+} lvCfgHighDim;
+
+/* ====================================================================
+ * lvConfig —— 集中化运行时配置（嵌套子系统结构体）
+ * ==================================================================== */
+
+typedef struct lvConfig {
+    lvCfgSolver solver;
+    lvCfgEngine engine;
+    lvCfgParser parser;
+    lvCfgStream stream;
+    lvCfgPrecision precision;
+    lvCfgMiniKernel mini_kernel;
+    lvCfgProtocol protocol;
+    lvCfgGeometry geometry;
+    lvCfgProof proof;
+    lvCfgContext context;
+    lvCfgRuntimeGuard runtime_guard;
+    lvCfgIntegration integration;
+    lvCfgDiagnostics diagnostics;
+    lvCfgTest test;
+    lvCfgHealth health;
+    lvCfgPropagation propagation;
+    lvCfgHighDim high_dim;
 } lvConfig;
+
+/* ====================================================================
+ * 配置键 X-macro —— 用于生成 setter 分发 & JSON 加载
+ *
+ * 格式: X(JSON_KEY_STR, struct_path_member)
+ *
+ * 用法:
+ *   #define SET_IF(key, field) if (strcmp(k, key)==0) { c->field = val; return true; }
+ *   LV_CONFIG_INT_KEYS(SET_IF)
+ * ==================================================================== */
+
+#define LV_CONFIG_INT_KEYS(X) \
+    X("solver_max_var_id", solver.solver_max_var_id) \
+    X("solver_max_iterations", solver.solver_max_iterations) \
+    X("cdcl_max_steps", solver.cdcl_max_steps) \
+    X("cdcl_max_decisions", solver.cdcl_max_decisions) \
+    X("cdcl_max_restarts", solver.cdcl_max_restarts) \
+    X("max_module_depth", engine.max_module_depth) \
+    X("graph_adj_max_per_node", engine.graph_adj_max_per_node) \
+    X("default_rewrite_limit", engine.default_rewrite_limit) \
+    X("wl_iterations", engine.wl_iterations) \
+    X("wl_history_size", engine.wl_history_size) \
+    X("vf2_max_depth", engine.vf2_max_depth) \
+    X("buchberger_max_steps", engine.buchberger_max_steps) \
+    X("groebner_reduce_max_steps", engine.groebner_reduce_max_steps) \
+    X("stream_async_queue_capacity", stream.stream_async_queue_capacity) \
+    X("stream_initial_callbacks", stream.stream_initial_callbacks) \
+    X("stream_max_callbacks", stream.stream_max_callbacks) \
+    X("stream_default_throttle_ms", stream.stream_default_throttle_ms) \
+    X("bit_cutoff_threshold", precision.bit_cutoff_threshold) \
+    X("max_precision_bits", precision.max_precision_bits) \
+    X("continued_fraction_max_iter", precision.continued_fraction_max_iter) \
+    X("max_subintervals", precision.max_subintervals) \
+    X("mini_kernel_max_statements", mini_kernel.mini_kernel_max_statements) \
+    X("mini_kernel_max_proof_depth", mini_kernel.mini_kernel_max_proof_depth) \
+    X("mini_kernel_verify_timeout_ms", mini_kernel.mini_kernel_verify_timeout_ms) \
+    X("parser_max_input_length", parser.parser_max_input_length) \
+    X("parser_max_tokens", parser.parser_max_tokens) \
+    X("parser_max_ast_depth", parser.parser_max_ast_depth) \
+    X("parser_max_ast_nodes", parser.parser_max_ast_nodes) \
+    X("parser_max_token_length", parser.parser_max_token_length) \
+    X("parser_max_coordinates", parser.parser_max_coordinates) \
+    X("parser_max_vertices", parser.parser_max_vertices) \
+    X("parser_max_polygon_vertices", parser.parser_max_polygon_vertices) \
+    X("parser_max_statements", parser.parser_max_statements) \
+    X("parser_max_arguments", parser.parser_max_arguments) \
+    X("parser_max_participants", parser.parser_max_participants) \
+    X("type_infer_max_depth", parser.type_infer_max_depth) \
+    X("type_equiv_max_depth", parser.type_equiv_max_depth) \
+    X("runtime_guard_max_recurse", runtime_guard.runtime_guard_max_recurse) \
+    X("runtime_guard_spin_attempts", runtime_guard.runtime_guard_spin_attempts) \
+    X("runtime_guard_write_warn_us", runtime_guard.runtime_guard_write_warn_us) \
+    X("proto_max_draw_cmds", protocol.proto_max_draw_cmds) \
+    X("proto_max_table_rows", protocol.proto_max_table_rows) \
+    X("proto_max_tree_nodes", protocol.proto_max_tree_nodes) \
+    X("proto_max_topology", protocol.proto_max_topology) \
+    X("proto_max_proof_steps", protocol.proto_max_proof_steps) \
+    X("proto_max_completions", protocol.proto_max_completions) \
+    X("proto_max_terminal_lines", protocol.proto_max_terminal_lines) \
+    X("geo_max_objects", geometry.geo_max_objects) \
+    X("geo_max_constraints", geometry.geo_max_constraints) \
+    X("geo_max_drag_chain", geometry.geo_max_drag_chain) \
+    X("geo_max_snapshots", geometry.geo_max_snapshots) \
+    X("geoevol_max_param_dim", geometry.geoevol_max_param_dim) \
+    X("geoevol_adams_max_order", geometry.geoevol_adams_max_order) \
+    X("geoevol_max_rejections", geometry.geoevol_max_rejections) \
+    X("proof_max_depth", proof.proof_max_depth) \
+    X("proof_max_branches", proof.proof_max_branches) \
+    X("proof_max_strategies", proof.proof_max_strategies) \
+    X("trace_tree_max_depth", proof.trace_tree_max_depth) \
+    X("max_recursion_depth", context.max_recursion_depth) \
+    X("context_default_max_depth", context.context_default_max_depth) \
+    X("context_max_recursion_depth", context.context_max_recursion_depth) \
+    X("context_default_max_steps", context.context_default_max_steps) \
+    X("context_default_max_consecutive_errors", context.context_default_max_consecutive_errors) \
+    X("context_reasoning_stack_default_capacity", context.context_reasoning_stack_default_capacity) \
+    X("context_reasoning_stack_max_depth", context.context_reasoning_stack_max_depth) \
+    X("interop_max_params", integration.interop_max_params) \
+    X("interop_max_completions", integration.interop_max_completions) \
+    X("interop_ws_default_port", integration.interop_ws_default_port) \
+    X("log_max_files", diagnostics.log_max_files) \
+    X("log_max_size", diagnostics.log_max_size) \
+    X("log_ring_buffer_capacity", diagnostics.log_ring_buffer_capacity) \
+    X("perf_sample_max_count", diagnostics.perf_sample_max_count) \
+    X("timer_max_depth", diagnostics.timer_max_depth) \
+    X("max_plugins", integration.max_plugins) \
+    X("max_interfaces", integration.max_interfaces) \
+    X("backend_step_limit", integration.backend_step_limit) \
+    X("backend_timeout_ms", integration.backend_timeout_ms) \
+    X("test_max_suites", test.test_max_suites) \
+    X("test_max_cases", test.test_max_cases) \
+    X("smoke_test_step_limit", test.smoke_test_step_limit) \
+    X("smoke_test_timeout_ms", test.smoke_test_timeout_ms) \
+    X("stress_test_default_chain", test.stress_test_default_chain) \
+    X("stress_test_max_poly_degree", test.stress_test_max_poly_degree) \
+    X("circuit_overflow_threshold", health.circuit_overflow_threshold) \
+    X("value_too_large", health.value_too_large) \
+    X("downgrade_denominator", health.downgrade_denominator) \
+    X("default_memory_limit_mb", health.default_memory_limit_mb) \
+    X("health_score_max", health.health_score_max) \
+    X("health_memory_warning_penalty", health.health_memory_warning_penalty) \
+    X("health_memory_leak_penalty", health.health_memory_leak_penalty) \
+    X("health_recent_error_penalty", health.health_recent_error_penalty) \
+    X("context_timeout_ms", context.context_timeout_ms) \
+    X("context_cooldown_ms", context.context_cooldown_ms) \
+    X("prop_max_iterations", propagation.prop_max_iterations) \
+    X("prop_max_backtracks", propagation.prop_max_backtracks) \
+    X("prop_max_collaboration_iters", propagation.prop_max_collaboration_iters) \
+    X("high_dim_max_dimensions", high_dim.high_dim_max_dimensions) \
+    X("high_dim_max_depth", high_dim.high_dim_max_depth) \
+    X("high_dim_max_projection_presets", high_dim.high_dim_max_projection_presets) \
+    X("high_dim_max_active_views", high_dim.high_dim_max_active_views)
+
+#define LV_CONFIG_DOUBLE_KEYS(X) \
+    X("geo_min_zoom", geometry.geo_min_zoom) \
+    X("geo_max_zoom", geometry.geo_max_zoom) \
+    X("geoevol_min_step", geometry.geoevol_min_step) \
+    X("geoevol_max_step", geometry.geoevol_max_step) \
+    X("geoevol_pi_smooth_factor", geometry.geoevol_pi_smooth_factor) \
+    X("health_memory_usage_ratio", health.health_memory_usage_ratio) \
+    X("health_memory_leak_ratio", health.health_memory_leak_ratio) \
+    X("high_dim_default_fidelity_threshold", high_dim.high_dim_default_fidelity_threshold)
 
 /* ====================================================================
  * 运行时配置 API

@@ -12,6 +12,7 @@
 
 #include "lv/lv_registry.h"
 
+#include <stdlib.h>   /* qsort */
 #include <string.h>
 
 #include "lv/lv_utils.h"   /* lv_malloc, lv_calloc, lv_realloc, lv_free */
@@ -121,4 +122,83 @@ int lv_registry_find(const lvRegistry *reg, const char *name) {
         }
     }
     return -1;
+}
+
+/* ============================================================
+ * 模块生命周期管理实现
+ * ============================================================ */
+
+/** @brief 最大可注册模块数 */
+#define lv_MAX_MODULES 64
+
+/** @brief 模块注册表内部条目 */
+typedef struct {
+    const char *name;
+    lvModuleInitFunc init;
+    lvModuleCleanupFunc cleanup;
+    lvModulePriority priority;
+} ModuleEntry;
+
+/** @brief 模块注册表（静态全局，无需动态分配） */
+static ModuleEntry s_modules[lv_MAX_MODULES];
+static int s_module_count = 0;
+
+bool lv_module_register(const char *name, lvModuleInitFunc init_fn,
+                         lvModuleCleanupFunc cleanup_fn, lvModulePriority priority) {
+    if (!name || s_module_count >= lv_MAX_MODULES) {
+        return false;
+    }
+
+    /* 检查名称是否已存在 */
+    for (int i = 0; i < s_module_count; i++) {
+        if (strcmp(s_modules[i].name, name) == 0) {
+            return false; /* 不允许重复注册 */
+        }
+    }
+
+    s_modules[s_module_count].name = name;
+    s_modules[s_module_count].init = init_fn;
+    s_modules[s_module_count].cleanup = cleanup_fn;
+    s_modules[s_module_count].priority = priority;
+    s_module_count++;
+
+    return true;
+}
+
+/** @brief 按优先级排序的比较函数（升序：低数字优先） */
+static int module_compare(const void *a, const void *b) {
+    const ModuleEntry *ma = (const ModuleEntry *) a;
+    const ModuleEntry *mb = (const ModuleEntry *) b;
+    if (ma->priority < mb->priority) return -1;
+    if (ma->priority > mb->priority) return 1;
+    return 0;
+}
+
+bool lv_module_init_all(void) {
+    /* 按优先级排序 */
+    qsort(s_modules, (size_t) s_module_count, sizeof(ModuleEntry), module_compare);
+
+    /* 按顺序初始化 */
+    for (int i = 0; i < s_module_count; i++) {
+        if (s_modules[i].init) {
+            if (!s_modules[i].init()) {
+                return false; /* 初始化失败即停止 */
+            }
+        }
+    }
+
+    return true;
+}
+
+void lv_module_cleanup_all(void) {
+    /* 按反向优先级清理（高优先级先清理，核心最后清理） */
+    for (int i = s_module_count - 1; i >= 0; i--) {
+        if (s_modules[i].cleanup) {
+            s_modules[i].cleanup();
+        }
+    }
+}
+
+int lv_module_count(void) {
+    return s_module_count;
 }

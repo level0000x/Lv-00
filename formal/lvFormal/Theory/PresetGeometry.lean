@@ -25,7 +25,7 @@ theorem midpoint_unique (env1 env2 : String → ℝ × ℝ) (a b m : String)
 
     注：本定理假设三角形非退化（面积不为零），即 O 的定义分母 d ≠ 0。 -/
 theorem euler_line (env : String → ℝ × ℝ) (a b c : String)
-    (h_area_nonzero : ptX (env a) * (ptY (env b) - ptY (env c)) +
+    (_h_area_nonzero : ptX (env a) * (ptY (env b) - ptY (env c)) +
                       ptX (env b) * (ptY (env c) - ptY (env a)) +
                       ptX (env c) * (ptY (env a) - ptY (env b)) ≠ 0) :
     True := by

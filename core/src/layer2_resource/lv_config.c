@@ -50,142 +50,130 @@ const lvConfig *lv_config_default(void) {
     memset(&def, 0, sizeof(def));
 
     /* 求解器 */
-    def.solver_max_var_id = 100000;
-    def.solver_max_iterations = 10000;
-    /* 约束图 */
-    def.max_module_depth = 32;
-    def.graph_adj_max_per_node = 256;
-    /* 重写 */
-    def.default_rewrite_limit = 1000;
-    def.wl_iterations = 3;
-    def.wl_history_size = 64;
-    def.vf2_max_depth = 100;
-    def.buchberger_max_steps = 50000;
-    def.groebner_reduce_max_steps = 10000;
+    def.solver.solver_max_var_id = 100000;
+    def.solver.solver_max_iterations = 10000;
+    def.solver.cdcl_max_steps = 1000;
+    def.solver.cdcl_max_decisions = 1000;
+    def.solver.cdcl_max_restarts = 10;
+    /* 引擎（约束图 + 重写） */
+    def.engine.max_module_depth = 32;
+    def.engine.graph_adj_max_per_node = 256;
+    def.engine.default_rewrite_limit = 1000;
+    def.engine.wl_iterations = 3;
+    def.engine.wl_history_size = 64;
+    def.engine.vf2_max_depth = 100;
+    def.engine.buchberger_max_steps = 50000;
+    def.engine.groebner_reduce_max_steps = 10000;
     /* 流式 */
-    def.stream_async_queue_capacity = 1024;
-    def.stream_initial_callbacks = 16;
-    def.stream_max_callbacks = 64;
-    def.stream_default_throttle_ms = 50;
+    def.stream.stream_async_queue_capacity = 1024;
+    def.stream.stream_initial_callbacks = 16;
+    def.stream.stream_max_callbacks = 64;
+    def.stream.stream_default_throttle_ms = 50;
     /* 精度 */
-    def.bit_cutoff_threshold = 1000000;
-    def.max_precision_bits = 100;
-    def.continued_fraction_max_iter = 1000;
-    def.max_subintervals = 4096;
+    def.precision.bit_cutoff_threshold = 1000000;
+    def.precision.max_precision_bits = 100;
+    def.precision.continued_fraction_max_iter = 1000;
+    def.precision.max_subintervals = 4096;
     /* MiniKernel */
-    def.mini_kernel_max_statements = 10000;
-    def.mini_kernel_max_proof_depth = 1000;
-    def.mini_kernel_verify_timeout_ms = 30000;
-    /* SAT 求解器 */
-    def.cdcl_max_steps = 1000;
-    def.cdcl_max_decisions = 1000;
-    def.cdcl_max_restarts = 10;
-    /* 压力测试 */
-    def.stress_test_default_chain = 100;
-    def.stress_test_max_poly_degree = 4;
+    def.mini_kernel.mini_kernel_max_statements = 10000;
+    def.mini_kernel.mini_kernel_max_proof_depth = 1000;
+    def.mini_kernel.mini_kernel_verify_timeout_ms = 30000;
     /* 解析器 */
-    def.parser_max_input_length = 1048576;
-    def.parser_max_tokens = 100000;
-    def.parser_max_ast_depth = 256;
-    def.parser_max_ast_nodes = 500000;
-    def.parser_max_token_length = 4096;
-    def.parser_max_coordinates = 16;
-    def.parser_max_vertices = 32;
-    def.parser_max_polygon_vertices = 32;
-    def.parser_max_statements = 64;
-    def.parser_max_arguments = 16;
-    def.parser_max_participants = 16;
-    /* 类型系统 */
-    def.type_infer_max_depth = 100;
-    def.type_equiv_max_depth = 16;
+    def.parser.parser_max_input_length = 1048576;
+    def.parser.parser_max_tokens = 100000;
+    def.parser.parser_max_ast_depth = 256;
+    def.parser.parser_max_ast_nodes = 500000;
+    def.parser.parser_max_token_length = 4096;
+    def.parser.parser_max_coordinates = 16;
+    def.parser.parser_max_vertices = 32;
+    def.parser.parser_max_polygon_vertices = 32;
+    def.parser.parser_max_statements = 64;
+    def.parser.parser_max_arguments = 16;
+    def.parser.parser_max_participants = 16;
+    def.parser.type_infer_max_depth = 100;
+    def.parser.type_equiv_max_depth = 16;
     /* 防护 */
-    def.runtime_guard_max_recurse = 128;
-    def.runtime_guard_spin_attempts = 1024;
-    def.runtime_guard_write_warn_us = 10000;
+    def.runtime_guard.runtime_guard_max_recurse = 128;
+    def.runtime_guard.runtime_guard_spin_attempts = 1024;
+    def.runtime_guard.runtime_guard_write_warn_us = 10000;
     /* 协议 */
-    def.proto_max_draw_cmds = 4096;
-    def.proto_max_table_rows = 512;
-    def.proto_max_tree_nodes = 256;
-    def.proto_max_topology = 128;
-    def.proto_max_proof_steps = 512;
-    def.proto_max_completions = 64;
-    def.proto_max_terminal_lines = 512;
-    /* 交互几何 */
-    def.geo_max_objects = 1024;
-    def.geo_max_constraints = 2048;
-    def.geo_max_drag_chain = 64;
-    def.geo_max_snapshots = 32;
-    def.geo_min_zoom = 0.01;
-    def.geo_max_zoom = 100.0;
-    /* ODE */
-    def.geoevol_max_param_dim = 256;
-    def.geoevol_adams_max_order = 12;
-    def.geoevol_max_rejections = 20;
-    def.geoevol_min_step = 1e-15;
-    def.geoevol_max_step = 1e10;
-    def.geoevol_pi_smooth_factor = 0.25;
+    def.protocol.proto_max_draw_cmds = 4096;
+    def.protocol.proto_max_table_rows = 512;
+    def.protocol.proto_max_tree_nodes = 256;
+    def.protocol.proto_max_topology = 128;
+    def.protocol.proto_max_proof_steps = 512;
+    def.protocol.proto_max_completions = 64;
+    def.protocol.proto_max_terminal_lines = 512;
+    /* 几何（交互几何 + ODE） */
+    def.geometry.geo_max_objects = 1024;
+    def.geometry.geo_max_constraints = 2048;
+    def.geometry.geo_max_drag_chain = 64;
+    def.geometry.geo_max_snapshots = 32;
+    def.geometry.geo_min_zoom = 0.01;
+    def.geometry.geo_max_zoom = 100.0;
+    def.geometry.geoevol_max_param_dim = 256;
+    def.geometry.geoevol_adams_max_order = 12;
+    def.geometry.geoevol_max_rejections = 20;
+    def.geometry.geoevol_min_step = 1e-15;
+    def.geometry.geoevol_max_step = 1e10;
+    def.geometry.geoevol_pi_smooth_factor = 0.25;
     /* 证明 */
-    def.proof_max_depth = 100;
-    def.proof_max_branches = 64;
-    def.proof_max_strategies = 16;
-    def.trace_tree_max_depth = 50;
-    /* 递归/上下文 */
-    def.max_recursion_depth = 128;
-    def.context_default_max_depth = 100;
-    def.context_max_recursion_depth = 10000;
-    def.context_default_max_steps = 1000000;
-    def.context_default_max_consecutive_errors = 10;
-    def.context_reasoning_stack_default_capacity = 8;
-    def.context_reasoning_stack_max_depth = 1000;
-    /* 互操作 */
-    def.interop_max_params = 32;
-    def.interop_max_completions = 64;
-    def.interop_ws_default_port = 8765;
-    /* 日志 */
-    def.log_max_files = 5;
-    def.log_max_size = 10485760;
-    def.log_ring_buffer_capacity = 256;
-    /* 监控 */
-    def.perf_sample_max_count = 10000;
-    def.timer_max_depth = 32;
-    /* 插件 */
-    def.max_plugins = 256;
-    def.max_interfaces = 128;
-    /* 后端 */
-    def.backend_step_limit = 1000;
-    def.backend_timeout_ms = 30000;
-    /* 测试 */
-    def.test_max_suites = 256;
-    def.test_max_cases = 4096;
-    /* 烟测保护 */
-    def.smoke_test_step_limit = 1000;
-    def.smoke_test_timeout_ms = 30000;
-    /* 熔断 */
-    def.circuit_overflow_threshold = 3;
-    /* 代数 */
-    def.value_too_large = 1048576;
-    def.downgrade_denominator = 100000;
-    /* 内存 */
-    def.default_memory_limit_mb = 0;
-    /* 健康 */
-    def.health_score_max = 100;
-    def.health_memory_usage_ratio = 0.8;
-    def.health_memory_warning_penalty = 10;
-    def.health_memory_leak_ratio = 0.9;
-    def.health_memory_leak_penalty = 20;
-    def.health_recent_error_penalty = 5;
-    def.context_timeout_ms = 30000;
-    def.context_cooldown_ms = 5000;
-    def.prop_max_iterations = 10000;
-    def.prop_max_backtracks = 1000;
-    def.prop_max_collaboration_iters = 10000;
-
+    def.proof.proof_max_depth = 100;
+    def.proof.proof_max_branches = 64;
+    def.proof.proof_max_strategies = 16;
+    def.proof.trace_tree_max_depth = 50;
+    /* 上下文 */
+    def.context.max_recursion_depth = 128;
+    def.context.context_default_max_depth = 100;
+    def.context.context_max_recursion_depth = 10000;
+    def.context.context_default_max_steps = 1000000;
+    def.context.context_default_max_consecutive_errors = 10;
+    def.context.context_reasoning_stack_default_capacity = 8;
+    def.context.context_reasoning_stack_max_depth = 1000;
+    def.context.context_timeout_ms = 30000;
+    def.context.context_cooldown_ms = 5000;
+    /* 集成（互操作 + 插件 + 后端） */
+    def.integration.interop_max_params = 32;
+    def.integration.interop_max_completions = 64;
+    def.integration.interop_ws_default_port = 8765;
+    def.integration.max_plugins = 256;
+    def.integration.max_interfaces = 128;
+    def.integration.backend_step_limit = 1000;
+    def.integration.backend_timeout_ms = 30000;
+    /* 诊断（日志 + 监控） */
+    def.diagnostics.log_max_files = 5;
+    def.diagnostics.log_max_size = 10485760;
+    def.diagnostics.log_ring_buffer_capacity = 256;
+    def.diagnostics.perf_sample_max_count = 10000;
+    def.diagnostics.timer_max_depth = 32;
+    /* 测试 & 压力测试 */
+    def.test.test_max_suites = 256;
+    def.test.test_max_cases = 4096;
+    def.test.smoke_test_step_limit = 1000;
+    def.test.smoke_test_timeout_ms = 30000;
+    def.test.stress_test_default_chain = 100;
+    def.test.stress_test_max_poly_degree = 4;
+    /* 健康 & 安全 */
+    def.health.health_score_max = 100;
+    def.health.health_memory_usage_ratio = 0.8;
+    def.health.health_memory_warning_penalty = 10;
+    def.health.health_memory_leak_ratio = 0.9;
+    def.health.health_memory_leak_penalty = 20;
+    def.health.health_recent_error_penalty = 5;
+    def.health.circuit_overflow_threshold = 3;
+    def.health.value_too_large = 1048576;
+    def.health.downgrade_denominator = 100000;
+    def.health.default_memory_limit_mb = 0;
+    /* 传播引擎 */
+    def.propagation.prop_max_iterations = 10000;
+    def.propagation.prop_max_backtracks = 1000;
+    def.propagation.prop_max_collaboration_iters = 10000;
     /* 高维几何 */
-    def.high_dim_max_dimensions = 32;
-    def.high_dim_max_depth = 32;
-    def.high_dim_max_projection_presets = 64;
-    def.high_dim_max_active_views = 16;
-    def.high_dim_default_fidelity_threshold = 0.85;
+    def.high_dim.high_dim_max_dimensions = 32;
+    def.high_dim.high_dim_max_depth = 32;
+    def.high_dim.high_dim_max_projection_presets = 64;
+    def.high_dim.high_dim_max_active_views = 16;
+    def.high_dim.high_dim_default_fidelity_threshold = 0.85;
 
     return &def;
 }
@@ -234,164 +222,164 @@ static lvConfig *cfg_mut(void) {
  * @param val 新值
  */
 void lv_config_set_solver_max_var_id(int val) {
-    cfg_mut()->solver_max_var_id = val;
+    cfg_mut()->solver.solver_max_var_id = val;
 }
 /**
  * @brief 设置求解器最大迭代次数
  * @param val 新值
  */
 void lv_config_set_solver_max_iterations(int val) {
-    cfg_mut()->solver_max_iterations = val;
+    cfg_mut()->solver.solver_max_iterations = val;
 }
 /**
  * @brief 设置证明最大深度
  * @param val 新值
  */
 void lv_config_set_proof_max_depth(int val) {
-    cfg_mut()->proof_max_depth = val;
+    cfg_mut()->proof.proof_max_depth = val;
 }
 /**
  * @brief 设置证明最大分支数
  * @param val 新值
  */
 void lv_config_set_proof_max_branches(int val) {
-    cfg_mut()->proof_max_branches = val;
+    cfg_mut()->proof.proof_max_branches = val;
 }
 /**
  * @brief 设置协议最大绘制命令数
  * @param val 新值
  */
 void lv_config_set_proto_max_draw_cmds(int val) {
-    cfg_mut()->proto_max_draw_cmds = val;
+    cfg_mut()->protocol.proto_max_draw_cmds = val;
 }
 /**
  * @brief 设置协议最大证明步数
  * @param val 新值
  */
 void lv_config_set_proto_max_proof_steps(int val) {
-    cfg_mut()->proto_max_proof_steps = val;
+    cfg_mut()->protocol.proto_max_proof_steps = val;
 }
 /**
  * @brief 设置协议最大终端行数
  * @param val 新值
  */
 void lv_config_set_proto_max_terminal_lines(int val) {
-    cfg_mut()->proto_max_terminal_lines = val;
+    cfg_mut()->protocol.proto_max_terminal_lines = val;
 }
 /**
  * @brief 设置交互几何最大对象数
  * @param val 新值
  */
 void lv_config_set_geo_max_objects(int val) {
-    cfg_mut()->geo_max_objects = val;
+    cfg_mut()->geometry.geo_max_objects = val;
 }
 /**
  * @brief 设置交互几何最大约束数
  * @param val 新值
  */
 void lv_config_set_geo_max_constraints(int val) {
-    cfg_mut()->geo_max_constraints = val;
+    cfg_mut()->geometry.geo_max_constraints = val;
 }
 /**
  * @brief 设置交互几何最小缩放
  * @param val 新值
  */
 void lv_config_set_geo_min_zoom(double val) {
-    cfg_mut()->geo_min_zoom = val;
+    cfg_mut()->geometry.geo_min_zoom = val;
 }
 /**
  * @brief 设置交互几何最大缩放
  * @param val 新值
  */
 void lv_config_set_geo_max_zoom(double val) {
-    cfg_mut()->geo_max_zoom = val;
+    cfg_mut()->geometry.geo_max_zoom = val;
 }
 /**
  * @brief 设置解析器最大输入长度
  * @param val 新值
  */
 void lv_config_set_parser_max_input_length(int val) {
-    cfg_mut()->parser_max_input_length = val;
+    cfg_mut()->parser.parser_max_input_length = val;
 }
 /**
  * @brief 设置解析器最大 AST 节点数
  * @param val 新值
  */
 void lv_config_set_parser_max_ast_nodes(int val) {
-    cfg_mut()->parser_max_ast_nodes = val;
+    cfg_mut()->parser.parser_max_ast_nodes = val;
 }
 /**
  * @brief 设置最大递归深度
  * @param val 新值
  */
 void lv_config_set_max_recursion_depth(int val) {
-    cfg_mut()->max_recursion_depth = val;
+    cfg_mut()->context.max_recursion_depth = val;
 }
 /**
  * @brief 设置默认重写限制
  * @param val 新值
  */
 void lv_config_set_default_rewrite_limit(int val) {
-    cfg_mut()->default_rewrite_limit = val;
+    cfg_mut()->engine.default_rewrite_limit = val;
 }
 /**
  * @brief 设置 ODE 最大参数维度
  * @param val 新值
  */
 void lv_config_set_geoevol_max_param_dim(int val) {
-    cfg_mut()->geoevol_max_param_dim = val;
+    cfg_mut()->geometry.geoevol_max_param_dim = val;
 }
 /**
  * @brief 设置 ODE 最大拒绝次数
  * @param val 新值
  */
 void lv_config_set_geoevol_max_rejections(int val) {
-    cfg_mut()->geoevol_max_rejections = val;
+    cfg_mut()->geometry.geoevol_max_rejections = val;
 }
 /**
  * @brief 设置流式最大回调数
  * @param val 新值
  */
 void lv_config_set_stream_max_callbacks(int val) {
-    cfg_mut()->stream_max_callbacks = val;
+    cfg_mut()->stream.stream_max_callbacks = val;
 }
 /**
  * @brief 设置最大插件数
  * @param val 新值
  */
 void lv_config_set_max_plugins(int val) {
-    cfg_mut()->max_plugins = val;
+    cfg_mut()->integration.max_plugins = val;
 }
 void lv_config_set_context_timeout_ms(int val) {
-    cfg_mut()->context_timeout_ms = val;
+    cfg_mut()->context.context_timeout_ms = val;
 }
 void lv_config_set_context_cooldown_ms(int val) {
-    cfg_mut()->context_cooldown_ms = val;
+    cfg_mut()->context.context_cooldown_ms = val;
 }
 void lv_config_set_prop_max_iterations(int val) {
-    cfg_mut()->prop_max_iterations = val;
+    cfg_mut()->propagation.prop_max_iterations = val;
 }
 void lv_config_set_prop_max_backtracks(int val) {
-    cfg_mut()->prop_max_backtracks = val;
+    cfg_mut()->propagation.prop_max_backtracks = val;
 }
 void lv_config_set_prop_max_collaboration_iters(int val) {
-    cfg_mut()->prop_max_collaboration_iters = val;
+    cfg_mut()->propagation.prop_max_collaboration_iters = val;
 }
 
 void lv_config_set_high_dim_max_dimensions(int val) {
-    cfg_mut()->high_dim_max_dimensions = val;
+    cfg_mut()->high_dim.high_dim_max_dimensions = val;
 }
 void lv_config_set_high_dim_max_depth(int val) {
-    cfg_mut()->high_dim_max_depth = val;
+    cfg_mut()->high_dim.high_dim_max_depth = val;
 }
 void lv_config_set_high_dim_max_projection_presets(int val) {
-    cfg_mut()->high_dim_max_projection_presets = val;
+    cfg_mut()->high_dim.high_dim_max_projection_presets = val;
 }
 void lv_config_set_high_dim_max_active_views(int val) {
-    cfg_mut()->high_dim_max_active_views = val;
+    cfg_mut()->high_dim.high_dim_max_active_views = val;
 }
 void lv_config_set_high_dim_default_fidelity_threshold(double val) {
-    cfg_mut()->high_dim_default_fidelity_threshold = val;
+    cfg_mut()->high_dim.high_dim_default_fidelity_threshold = val;
 }
 
 /* ---- 通用 key-value setter ---- */
@@ -416,93 +404,7 @@ bool lv_config_set_int(const char *key, int val) {
         c->f = val;            \
         return true;           \
     }
-    SET_IF("solver_max_var_id", solver_max_var_id)
-    SET_IF("solver_max_iterations", solver_max_iterations)
-    SET_IF("default_rewrite_limit", default_rewrite_limit)
-    SET_IF("wl_iterations", wl_iterations)
-    SET_IF("wl_history_size", wl_history_size)
-    SET_IF("vf2_max_depth", vf2_max_depth)
-    SET_IF("buchberger_max_steps", buchberger_max_steps)
-    SET_IF("groebner_reduce_max_steps", groebner_reduce_max_steps)
-    SET_IF("stream_async_queue_capacity", stream_async_queue_capacity)
-    SET_IF("stream_initial_callbacks", stream_initial_callbacks)
-    SET_IF("stream_max_callbacks", stream_max_callbacks)
-    SET_IF("stream_default_throttle_ms", stream_default_throttle_ms)
-    SET_IF("bit_cutoff_threshold", bit_cutoff_threshold)
-    SET_IF("max_precision_bits", max_precision_bits)
-    SET_IF("continued_fraction_max_iter", continued_fraction_max_iter)
-    SET_IF("max_subintervals", max_subintervals)
-    SET_IF("mini_kernel_max_statements", mini_kernel_max_statements)
-    SET_IF("mini_kernel_max_proof_depth", mini_kernel_max_proof_depth)
-    SET_IF("mini_kernel_verify_timeout_ms", mini_kernel_verify_timeout_ms)
-    SET_IF("cdcl_max_steps", cdcl_max_steps)
-    SET_IF("cdcl_max_decisions", cdcl_max_decisions)
-    SET_IF("cdcl_max_restarts", cdcl_max_restarts)
-    SET_IF("parser_max_input_length", parser_max_input_length)
-    SET_IF("parser_max_tokens", parser_max_tokens)
-    SET_IF("parser_max_ast_depth", parser_max_ast_depth)
-    SET_IF("parser_max_ast_nodes", parser_max_ast_nodes)
-    SET_IF("parser_max_token_length", parser_max_token_length)
-    SET_IF("parser_max_coordinates", parser_max_coordinates)
-    SET_IF("parser_max_vertices", parser_max_vertices)
-    SET_IF("parser_max_statements", parser_max_statements)
-    SET_IF("parser_max_arguments", parser_max_arguments)
-    SET_IF("parser_max_participants", parser_max_participants)
-    SET_IF("type_infer_max_depth", type_infer_max_depth)
-    SET_IF("type_equiv_max_depth", type_equiv_max_depth)
-    SET_IF("runtime_guard_max_recurse", runtime_guard_max_recurse)
-    SET_IF("runtime_guard_spin_attempts", runtime_guard_spin_attempts)
-    SET_IF("proto_max_draw_cmds", proto_max_draw_cmds)
-    SET_IF("proto_max_table_rows", proto_max_table_rows)
-    SET_IF("proto_max_tree_nodes", proto_max_tree_nodes)
-    SET_IF("proto_max_topology", proto_max_topology)
-    SET_IF("proto_max_proof_steps", proto_max_proof_steps)
-    SET_IF("proto_max_completions", proto_max_completions)
-    SET_IF("proto_max_terminal_lines", proto_max_terminal_lines)
-    SET_IF("geo_max_objects", geo_max_objects)
-    SET_IF("geo_max_constraints", geo_max_constraints)
-    SET_IF("geo_max_drag_chain", geo_max_drag_chain)
-    SET_IF("geo_max_snapshots", geo_max_snapshots)
-    SET_IF("geoevol_max_param_dim", geoevol_max_param_dim)
-    SET_IF("geoevol_max_rejections", geoevol_max_rejections)
-    SET_IF("proof_max_depth", proof_max_depth)
-    SET_IF("proof_max_branches", proof_max_branches)
-    SET_IF("proof_max_strategies", proof_max_strategies)
-    SET_IF("trace_tree_max_depth", trace_tree_max_depth)
-    SET_IF("max_recursion_depth", max_recursion_depth)
-    SET_IF("context_default_max_depth", context_default_max_depth)
-    SET_IF("context_default_max_steps", context_default_max_steps)
-    SET_IF("context_default_max_consecutive_errors", context_default_max_consecutive_errors)
-    SET_IF("context_reasoning_stack_default_capacity", context_reasoning_stack_default_capacity)
-    SET_IF("interop_max_params", interop_max_params)
-    SET_IF("interop_max_completions", interop_max_completions)
-    SET_IF("interop_ws_default_port", interop_ws_default_port)
-    SET_IF("log_max_files", log_max_files)
-    SET_IF("log_max_size", log_max_size)
-    SET_IF("log_ring_buffer_capacity", log_ring_buffer_capacity)
-    SET_IF("perf_sample_max_count", perf_sample_max_count)
-    SET_IF("timer_max_depth", timer_max_depth)
-    SET_IF("max_plugins", max_plugins)
-    SET_IF("max_interfaces", max_interfaces)
-    SET_IF("backend_step_limit", backend_step_limit)
-    SET_IF("backend_timeout_ms", backend_timeout_ms)
-    SET_IF("test_max_suites", test_max_suites)
-    SET_IF("test_max_cases", test_max_cases)
-    SET_IF("smoke_test_step_limit", smoke_test_step_limit)
-    SET_IF("smoke_test_timeout_ms", smoke_test_timeout_ms)
-    SET_IF("circuit_overflow_threshold", circuit_overflow_threshold)
-    SET_IF("value_too_large", value_too_large)
-    SET_IF("downgrade_denominator", downgrade_denominator)
-    SET_IF("default_memory_limit_mb", default_memory_limit_mb)
-    SET_IF("context_timeout_ms", context_timeout_ms)
-    SET_IF("context_cooldown_ms", context_cooldown_ms)
-    SET_IF("prop_max_iterations", prop_max_iterations)
-    SET_IF("prop_max_backtracks", prop_max_backtracks)
-    SET_IF("prop_max_collaboration_iters", prop_max_collaboration_iters)
-    SET_IF("high_dim_max_dimensions", high_dim_max_dimensions)
-    SET_IF("high_dim_max_depth", high_dim_max_depth)
-    SET_IF("high_dim_max_projection_presets", high_dim_max_projection_presets)
-    SET_IF("high_dim_max_active_views", high_dim_max_active_views)
+    LV_CONFIG_INT_KEYS(SET_IF)
 #undef SET_IF
     return false;
 }
@@ -524,14 +426,7 @@ bool lv_config_set_double(const char *key, double val) {
         c->f = val;            \
         return true;           \
     }
-    SET_IF("geo_min_zoom", geo_min_zoom)
-    SET_IF("geo_max_zoom", geo_max_zoom)
-    SET_IF("geoevol_min_step", geoevol_min_step)
-    SET_IF("geoevol_max_step", geoevol_max_step)
-    SET_IF("geoevol_pi_smooth_factor", geoevol_pi_smooth_factor)
-    SET_IF("health_memory_usage_ratio", health_memory_usage_ratio)
-    SET_IF("health_memory_leak_ratio", health_memory_leak_ratio)
-    SET_IF("high_dim_default_fidelity_threshold", high_dim_default_fidelity_threshold)
+    LV_CONFIG_DOUBLE_KEYS(SET_IF)
 #undef SET_IF
     return false;
 }
@@ -578,8 +473,7 @@ static void json_config_double(const char *json, const char *key, double *out) {
     lv_json_parse_double(&p, out);
 }
 
-#define JLD_INT(k, f) json_config_int(json_data, k, &cfg.f)
-#define JLD_DBL(k, f) json_config_double(json_data, k, &cfg.f)
+/* JLD_INT / JLD_DBL 已迁移至 X-macro LV_CONFIG_INT_KEYS / LV_CONFIG_DOUBLE_KEYS */
 
 /**
  * @brief 从 JSON 文件加载配置
@@ -616,63 +510,13 @@ int lv_config_load_json(const char *json_path) {
     lvConfig cfg = *lv_config_default();
     const char *json_data = buf;
 
-    /* solver */ JLD_INT("solver_max_var_id", solver_max_var_id);
-    JLD_INT("solver_max_iterations", solver_max_iterations);
-    /* graph */ JLD_INT("max_module_depth", max_module_depth);
-    JLD_INT("graph_adj_max_per_node", graph_adj_max_per_node);
-    /* rewrite */ JLD_INT("default_rewrite_limit", default_rewrite_limit);
-    JLD_INT("vf2_max_depth", vf2_max_depth);
-    JLD_INT("buchberger_max_steps", buchberger_max_steps);
-    JLD_INT("groebner_reduce_max_steps", groebner_reduce_max_steps);
-    /* stream */ JLD_INT("stream_async_queue_capacity", stream_async_queue_capacity);
-    JLD_INT("stream_max_callbacks", stream_max_callbacks);
-    /* precision */ JLD_INT("max_precision_bits", max_precision_bits);
-    JLD_INT("bit_cutoff_threshold", bit_cutoff_threshold);
-    /* sat */ JLD_INT("cdcl_max_steps", cdcl_max_steps);
-    JLD_INT("cdcl_max_decisions", cdcl_max_decisions);
-    JLD_INT("cdcl_max_restarts", cdcl_max_restarts);
-    /* parser */ JLD_INT("parser_max_input_length", parser_max_input_length);
-    JLD_INT("parser_max_tokens", parser_max_tokens);
-    JLD_INT("parser_max_ast_depth", parser_max_ast_depth);
-    JLD_INT("parser_max_ast_nodes", parser_max_ast_nodes);
-    /* type */ JLD_INT("type_infer_max_depth", type_infer_max_depth);
-    JLD_INT("type_equiv_max_depth", type_equiv_max_depth);
-    /* guard */ JLD_INT("runtime_guard_max_recurse", runtime_guard_max_recurse);
-    /* proto */ JLD_INT("proto_max_draw_cmds", proto_max_draw_cmds);
-    JLD_INT("proto_max_table_rows", proto_max_table_rows);
-    JLD_INT("proto_max_tree_nodes", proto_max_tree_nodes);
-    JLD_INT("proto_max_topology", proto_max_topology);
-    JLD_INT("proto_max_proof_steps", proto_max_proof_steps);
-    JLD_INT("proto_max_completions", proto_max_completions);
-    JLD_INT("proto_max_terminal_lines", proto_max_terminal_lines);
-    /* geo */ JLD_INT("geo_max_objects", geo_max_objects);
-    JLD_INT("geo_max_constraints", geo_max_constraints);
-    JLD_INT("geo_max_drag_chain", geo_max_drag_chain);
-    JLD_INT("geo_max_snapshots", geo_max_snapshots);
-    JLD_DBL("geo_min_zoom", geo_min_zoom);
-    JLD_DBL("geo_max_zoom", geo_max_zoom);
-    /* ode */ JLD_INT("geoevol_max_param_dim", geoevol_max_param_dim);
-    JLD_INT("geoevol_max_rejections", geoevol_max_rejections);
-    /* proof */ JLD_INT("proof_max_depth", proof_max_depth);
-    JLD_INT("proof_max_branches", proof_max_branches);
-    JLD_INT("proof_max_strategies", proof_max_strategies);
-    /* recursive */ JLD_INT("max_recursion_depth", max_recursion_depth);
-    JLD_INT("context_default_max_depth", context_default_max_depth);
-    JLD_INT("context_default_max_steps", context_default_max_steps);
-    JLD_INT("context_default_max_consecutive_errors", context_default_max_consecutive_errors);
-    /* interop */ JLD_INT("interop_max_params", interop_max_params);
-    JLD_INT("interop_ws_default_port", interop_ws_default_port);
-    /* log */ JLD_INT("log_max_files", log_max_files);
-    JLD_INT("log_max_size", log_max_size);
-    JLD_INT("log_ring_buffer_capacity", log_ring_buffer_capacity);
-    /* perf */ JLD_INT("perf_sample_max_count", perf_sample_max_count);
-    /* plugin */ JLD_INT("max_plugins", max_plugins);
-    /* backend */ JLD_INT("backend_step_limit", backend_step_limit);
-    JLD_INT("backend_timeout_ms", backend_timeout_ms);
-    /* smoke test */ JLD_INT("smoke_test_step_limit", smoke_test_step_limit);
-    JLD_INT("smoke_test_timeout_ms", smoke_test_timeout_ms);
-    /* circuit */ JLD_INT("circuit_overflow_threshold", circuit_overflow_threshold);
-    /* memory */ JLD_INT("default_memory_limit_mb", default_memory_limit_mb);
+    /* 使用 X-macro 一次性展开所有整型 JSON 键 */
+#define JLD(key, field) json_config_int(json_data, key, &cfg.field);
+    LV_CONFIG_INT_KEYS(JLD)
+#undef JLD
+#define JLD(key, field) json_config_double(json_data, key, &cfg.field);
+    LV_CONFIG_DOUBLE_KEYS(JLD)
+#undef JLD
 
     lv_free((void **) &buf);
     return lv_config_apply(&cfg);
@@ -740,15 +584,24 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         "  \"high_dim_max_active_views\": %d,\n"
         "  \"high_dim_default_fidelity_threshold\": %.2f\n"
         "}\n",
-        c->solver_max_var_id, c->solver_max_iterations, c->default_rewrite_limit, c->stream_async_queue_capacity,
-        c->stream_max_callbacks, c->max_precision_bits, c->parser_max_input_length, c->parser_max_tokens,
-        c->parser_max_ast_depth, c->runtime_guard_max_recurse, c->proto_max_draw_cmds, c->proto_max_proof_steps,
-        c->geo_max_objects, c->geo_max_constraints, c->geo_min_zoom, c->geo_max_zoom, c->geoevol_max_param_dim,
-        c->proof_max_depth, c->max_recursion_depth, c->interop_ws_default_port, c->log_max_files, c->max_plugins,
-        c->backend_step_limit, c->default_memory_limit_mb, c->vf2_max_depth, c->buchberger_max_steps,
-        c->groebner_reduce_max_steps, c->cdcl_max_steps, c->cdcl_max_decisions, c->cdcl_max_restarts,
-        c->type_infer_max_depth, c->type_equiv_max_depth, c->circuit_overflow_threshold, c->smoke_test_step_limit,
-        c->smoke_test_timeout_ms, c->context_timeout_ms, c->context_cooldown_ms, c->prop_max_iterations,
-        c->prop_max_backtracks, c->prop_max_collaboration_iters, c->high_dim_max_dimensions, c->high_dim_max_depth,
-        c->high_dim_max_projection_presets, c->high_dim_max_active_views, c->high_dim_default_fidelity_threshold);
+        c->solver.solver_max_var_id, c->solver.solver_max_iterations, c->engine.default_rewrite_limit,
+        c->stream.stream_async_queue_capacity, c->stream.stream_max_callbacks, c->precision.max_precision_bits,
+        c->parser.parser_max_input_length, c->parser.parser_max_tokens,
+        c->parser.parser_max_ast_depth, c->runtime_guard.runtime_guard_max_recurse,
+        c->protocol.proto_max_draw_cmds, c->protocol.proto_max_proof_steps,
+        c->geometry.geo_max_objects, c->geometry.geo_max_constraints, c->geometry.geo_min_zoom,
+        c->geometry.geo_max_zoom, c->geometry.geoevol_max_param_dim,
+        c->proof.proof_max_depth, c->context.max_recursion_depth,
+        c->integration.interop_ws_default_port, c->diagnostics.log_max_files, c->integration.max_plugins,
+        c->integration.backend_step_limit, c->health.default_memory_limit_mb,
+        c->engine.vf2_max_depth, c->engine.buchberger_max_steps,
+        c->engine.groebner_reduce_max_steps, c->solver.cdcl_max_steps, c->solver.cdcl_max_decisions,
+        c->solver.cdcl_max_restarts,
+        c->parser.type_infer_max_depth, c->parser.type_equiv_max_depth,
+        c->health.circuit_overflow_threshold, c->test.smoke_test_step_limit,
+        c->test.smoke_test_timeout_ms, c->context.context_timeout_ms, c->context.context_cooldown_ms,
+        c->propagation.prop_max_iterations, c->propagation.prop_max_backtracks,
+        c->propagation.prop_max_collaboration_iters, c->high_dim.high_dim_max_dimensions,
+        c->high_dim.high_dim_max_depth, c->high_dim.high_dim_max_projection_presets,
+        c->high_dim.high_dim_max_active_views, c->high_dim.high_dim_default_fidelity_threshold);
 }

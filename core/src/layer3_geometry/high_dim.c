@@ -783,7 +783,7 @@ int high_dim_is_fidelity_below_threshold(const HighDimManager *manager, int bloc
 
 /* ── 保真度默认阈值 ── */
 double lv_high_dim_default_fidelity_threshold(void) {
-    return lv_config_current()->high_dim_default_fidelity_threshold;
+    return lv_config_current()->high_dim.high_dim_default_fidelity_threshold;
 }
 
 int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id, char *buffer, size_t buffer_size) {

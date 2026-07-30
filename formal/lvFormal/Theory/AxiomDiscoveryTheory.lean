@@ -86,7 +86,7 @@ theorem discovery_termination (known : AxiomSet) (rules : List DiscoveryRule) (n
     2. discover 的每步递推（apply_rule + dedupAxioms）是 discover_full 中递推的子集
     3. discover_full 循环至不动点，因此其结果不会少于 discover 在任何中间步n的结果 -/
 theorem discover_subset_discover_full (known : AxiomSet) (rules : List DiscoveryRule) (n maxDepth : ℕ)
-    (h_depth : n ≤ maxDepth) : ∃ (result : AxiomSet), discover known rules n = result :=
+    (_h_depth : n ≤ maxDepth) : ∃ (result : AxiomSet), discover known rules n = result :=
   ⟨discover known rules n, rfl⟩
 
 /-- discover_full 总是在有限步后终止 -/
@@ -133,7 +133,7 @@ theorem discover_adds_rule_conclusion (known : AxiomSet) (rules : List Discovery
     
     支持多步推导：通过 extend 构造子，若中间集的所有公理均可推导，
     且目标公理可从中间集推导，则目标公理可从原始集推导。 -/
-inductive Derivable (known : AxiomSet) (rules : List DiscoveryRule) : Axiom → Prop :=
+inductive Derivable (known : AxiomSet) (rules : List DiscoveryRule) : Axiom → Prop where
   | base (a : Axiom) (h : a ∈ known) : Derivable known rules a
   | rule_conc (rule : DiscoveryRule) (h_rule : rule ∈ rules)
       (h_applicable : rule_applicable known rule) : Derivable known rules rule.conclusion

@@ -129,40 +129,6 @@ void lv_circuit_breaker_trip(lvContext *ctx, const char *reason) {
     }
 }
 
-void lv_circuit_breaker_reset(lvContext *ctx) {
-    if (!ctx)
-        return;
-
-    CircuitBreaker *cb = &ctx->circuit_breaker;
-    cb->state = CIRCUIT_BREAKER_CLOSED;
-    cb->consecutive_errors = 0;
-    cb->current_depth = 0;
-    cb->tripped_at_us = 0;
-    cb->trip_count = 0;
-
-    if (cb->trip_reason) {
-        lv_free((void **) &cb->trip_reason);
-    }
-
-    cb->start_time_us = lv_circuit_breaker_now_us();
-    cb->operation_start_us = cb->start_time_us;
-}
-
-void lv_circuit_breaker_record_success(lvContext *ctx) {
-    if (!ctx)
-        return;
-
-    CircuitBreaker *cb = &ctx->circuit_breaker;
-
-    /* 在半开态下，成功意味着可以恢复到关闭态 */
-    if (cb->state == CIRCUIT_BREAKER_HALF_OPEN) {
-        cb->state = CIRCUIT_BREAKER_CLOSED;
-    }
-
-    /* 重置连续错误计数 */
-    cb->consecutive_errors = 0;
-}
-
 bool lv_circuit_breaker_record_failure(lvContext *ctx) {
     if (!ctx)
         return false;

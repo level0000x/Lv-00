@@ -59,6 +59,9 @@ extern "C" {
 /* 运行时配置 —— lv_config_current() 在此声明 */
 #include "config.h"
 
+/* 熔断器独立模块 —— 从 lvContext God Object 中提取的 CircuitBreaker 子系统 */
+#include "lv/lv_circuit_breaker.h"
+
 /* 前向声明 —— 避免循环依赖，具体类型在各模块头文件中定义 */
 struct ConstraintGraph;     /* constraint_graph.h */
 struct StreamContext;       /* stream.h */
@@ -263,85 +266,15 @@ typedef struct ReasoningStack {
  * ============================================================ */
 
 /**
- * @brief 熔断器状态
- */
-typedef enum {
-    CIRCUIT_BREAKER_CLOSED,    /**< 关闭态：正常工作 */
-    CIRCUIT_BREAKER_HALF_OPEN, /**< 半开态：冷却后试探性恢复 */
-    CIRCUIT_BREAKER_OPEN       /**< 打开态：熔断，拒绝执行 */
-} CircuitBreakerState;
-
-/**
- * @brief 熔断器 —— 多维熔断保护
+ * @brief 熔断器结构体和状态定义已移至 lv/lv_circuit_breaker.h
  *
- * 熔断器在每个 lvContext 中内建，监控关键资源指标。
- * 当任一指标超过阈值时，熔断器打开，上下文转入 ERROR 状态。
- * 熔断后需通过 lv_context_reset() 重置。
+ * 向后兼容别名：
+ *   - CircuitBreaker          ≡ lvCircuitBreaker
+ *   - CircuitBreakerState     ≡ lvCircuitBreakerState
+ *   - CIRCUIT_BREAKER_CLOSED  ≡ lv_CB_CLOSED
+ *   - CIRCUIT_BREAKER_HALF_OPEN ≡ lv_CB_HALF_OPEN
+ *   - CIRCUIT_BREAKER_OPEN    ≡ lv_CB_OPEN
  */
-typedef struct CircuitBreaker {
-    /** 熔断器当前状态 */
-    CircuitBreakerState state;
-
-    /* ── 时间熔断 ── */
-
-    /** 单次操作超时时间（毫秒）。0 表示不限制。 */
-    uint64_t timeout_ms;
-
-    /** 上下文创建至今的总运行时间（毫秒）。超时后熔断。 */
-    uint64_t total_timeout_ms;
-
-    /** 不可取消区域计数（> 0 表示在关键路径中，超时不触发熔断） */
-    int uncancellable_refcount;
-
-    /* ── 深度熔断 ── */
-
-    /** 当前递归/重写/推理的嵌套深度 */
-    int current_depth;
-
-    /** 最大允许深度（默认 lv_CONTEXT_DEFAULT_MAX_DEPTH） */
-    int max_depth;
-
-    /* ── 次数熔断 ── */
-
-    /** 已执行的推理步骤总数 */
-    int64_t total_steps;
-
-    /** 最大推理步骤数（0 表示不限制） */
-    int64_t max_steps;
-
-    /* ── 错误熔断 ── */
-
-    /** 连续错误计数（一次成功操作会清零） */
-    int consecutive_errors;
-
-    /** 连续错误上限（超过则熔断） */
-    int max_consecutive_errors;
-
-    /* ── 内存熔断 ── */
-
-    /** 内存使用上限（字节，0 表示不限制） */
-    size_t max_memory_bytes;
-
-    /* ── 时间测量 ── */
-
-    /** 上下文创建/最近一次 reset 的时间戳（微秒） */
-    uint64_t start_time_us;
-
-    /** 当前操作的开始时间（微秒，用于单次超时判断） */
-    uint64_t operation_start_us;
-
-    /** 冷却时间（毫秒，熔断后必须等待的最小时间） */
-    uint64_t cooldown_ms;
-
-    /** 熔断发生的时间戳（微秒） */
-    uint64_t tripped_at_us;
-
-    /** 上次熔断的触发原因（可读字符串，静态存储或动态分配） */
-    char *trip_reason;
-
-    /** 熔断次数（生命周期内累计） */
-    int trip_count;
-} CircuitBreaker;
 
 /* ============================================================
  * 第四部分：上下文主结构 —— lvContext
@@ -522,7 +455,7 @@ typedef struct lvContext {
      * 内建的多维资源保护机制。
      * 任何维度超限都会触发熔断，将上下文转入 ERROR 状态。
      * ================================================================== */
-    CircuitBreaker circuit_breaker;
+    lvCircuitBreaker circuit_breaker;
 
     /* ==================================================================
      * 8. 递归深度追踪
@@ -685,7 +618,7 @@ typedef struct lvContext {
  * 默认 30 秒，可根据问题复杂度调整。
  */
 #ifndef lv_CONTEXT_DEFAULT_TIMEOUT_MS
-#define lv_CONTEXT_DEFAULT_TIMEOUT_MS (lv_config_current()->context_timeout_ms)
+#define lv_CONTEXT_DEFAULT_TIMEOUT_MS (lv_config_current()->context.context_timeout_ms)
 #endif
 
 /**
@@ -729,7 +662,7 @@ typedef struct lvContext {
  * 熔断器打开后必须等待此时长才能进入半开态。
  */
 #ifndef lv_CONTEXT_DEFAULT_COOLDOWN_MS
-#define lv_CONTEXT_DEFAULT_COOLDOWN_MS (lv_config_current()->context_cooldown_ms)
+#define lv_CONTEXT_DEFAULT_COOLDOWN_MS (lv_config_current()->context.context_cooldown_ms)
 #endif
 
 /**

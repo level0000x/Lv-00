@@ -150,88 +150,162 @@ static inline int coords_equal_by_type(GeomNode *a, GeomNode *b) {
     return 1;
 }
 
+/* --- 节点坐标相等性比较：函数指针表 --- */
+typedef int (*CoordEqualFunc)(GeomNode *a, GeomNode *b);
+
+static int coord_equal_point_port_segment(GeomNode *a, GeomNode *b) {
+    return coords_equal_by_type(a, b);
+}
+
+static int coord_equal_region(GeomNode *a, GeomNode *b) {
+    if (a->data.region.segment_count != b->data.region.segment_count)
+        return 0;
+    if (a->data.region.segment_count == 0)
+        return 1;
+    for (int s = 0; s < a->data.region.segment_count; s++) {
+        GeomNode *seg_a = a->data.region.boundary_segments[s];
+        GeomNode *seg_b = b->data.region.boundary_segments[s];
+        if (!seg_a || !seg_b)
+            return 0;
+        if (seg_a->type != seg_b->type)
+            return 0;
+        if (!coords_equal_by_type(seg_a, seg_b))
+            return 0;
+    }
+    return 1;
+}
+
+static int coord_equal_circle(GeomNode *a, GeomNode *b) {
+    if (a->data.circle.center_node_id != b->data.circle.center_node_id)
+        return 0;
+    if (a->data.circle.radius_node_id != b->data.circle.radius_node_id)
+        return 0;
+    return 1;
+}
+
+static int coord_equal_func_block(GeomNode *a, GeomNode *b) {
+    int j;
+    if (a->data.func_block.internal_node_count != b->data.func_block.internal_node_count)
+        return 0;
+    if (a->data.func_block.input_count != b->data.func_block.input_count)
+        return 0;
+    if (a->data.func_block.output_count != b->data.func_block.output_count)
+        return 0;
+    if (a->data.func_block.determinism_state != b->data.func_block.determinism_state)
+        return 0;
+    for (int n = 0; n < a->data.func_block.internal_node_count; n++) {
+        GeomNode *na = a->data.func_block.internal_nodes[n];
+        GeomNode *nb = b->data.func_block.internal_nodes[n];
+        if (!na || !nb)
+            return 0;
+        if (!coords_equal_by_type(na, nb))
+            return 0;
+    }
+    for (j = 0; j < a->data.func_block.input_count; j++) {
+        if (a->data.func_block.input_port_ids[j] != b->data.func_block.input_port_ids[j])
+            return 0;
+    }
+    for (j = 0; j < a->data.func_block.output_count; j++) {
+        if (a->data.func_block.output_port_ids[j] != b->data.func_block.output_port_ids[j])
+            return 0;
+    }
+    return 1;
+}
+
+static CoordEqualFunc s_coord_equal_funcs[] = {
+    [GEOM_POINT] = coord_equal_point_port_segment,
+    [GEOM_LINE_SEGMENT] = coord_equal_point_port_segment,
+    [GEOM_REGION] = coord_equal_region,
+    [GEOM_CIRCLE] = coord_equal_circle,
+    [GEOM_PORT] = coord_equal_point_port_segment,
+    [GEOM_FUNCTION_BLOCK] = coord_equal_func_block,
+};
+static const int s_coord_equal_func_count = (int)(sizeof(s_coord_equal_funcs) / sizeof(s_coord_equal_funcs[0]));
+
 static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
     if (!a || !b)
         return 0;
     if (a->type != b->type)
         return 0;
-
-    switch (a->type) {
-        case GEOM_POINT:
-        case GEOM_PORT:
-        case GEOM_LINE_SEGMENT:
-            /* POINT / PORT / LINE_SEGMENT: 委托给内联辅助函数统一比较坐标 */
-            return coords_equal_by_type(a, b);
-
-        case GEOM_REGION:
-            /* REGION: 比较边界线段数量和每条线段的坐标哈希 */
-            if (a->data.region.segment_count != b->data.region.segment_count)
-                return 0;
-            if (a->data.region.segment_count == 0)
-                return 1; /* 两个空区域视为相等 */
-            goto geom_region_circle_compare;
-
-        case GEOM_CIRCLE:
-            /* CIRCLE: 比较圆心和半径端点 */
-            if (a->data.circle.center_node_id != b->data.circle.center_node_id)
-                return 0;
-            if (a->data.circle.radius_node_id != b->data.circle.radius_node_id)
-                return 0;
-            return 1;
-
-        geom_region_circle_compare:
-            /* 逐个比较边界线段 */
-            for (int s = 0; s < a->data.region.segment_count; s++) {
-                GeomNode *seg_a = a->data.region.boundary_segments[s];
-                GeomNode *seg_b = b->data.region.boundary_segments[s];
-                if (!seg_a || !seg_b)
-                    return 0;
-                if (seg_a->type != seg_b->type)
-                    return 0;
-                /* 比较线段的坐标：委托给内联辅助函数 */
-                if (!coords_equal_by_type(seg_a, seg_b))
-                    return 0;
-            }
-            return 1;
-
-        case GEOM_FUNCTION_BLOCK: {
-            int j;
-            /* 比较内部节点数量和端口数量 */
-            if (a->data.func_block.internal_node_count != b->data.func_block.internal_node_count)
-                return 0;
-            if (a->data.func_block.input_count != b->data.func_block.input_count)
-                return 0;
-            if (a->data.func_block.output_count != b->data.func_block.output_count)
-                return 0;
-            /* 比较确定性状态 */
-            if (a->data.func_block.determinism_state != b->data.func_block.determinism_state)
-                return 0;
-            /* 逐个比较内部节点的坐标 */
-            for (int n = 0; n < a->data.func_block.internal_node_count; n++) {
-                GeomNode *na = a->data.func_block.internal_nodes[n];
-                GeomNode *nb = b->data.func_block.internal_nodes[n];
-                if (!na || !nb)
-                    return 0;
-                if (!coords_equal_by_type(na, nb))
-                    return 0;
-            }
-            /* 比较输入端口 ID 数组 */
-            for (j = 0; j < a->data.func_block.input_count; j++) {
-                if (a->data.func_block.input_port_ids[j] != b->data.func_block.input_port_ids[j])
-                    return 0;
-            }
-            /* 比较输出端口 ID 数组 */
-            for (j = 0; j < a->data.func_block.output_count; j++) {
-                if (a->data.func_block.output_port_ids[j] != b->data.func_block.output_port_ids[j])
-                    return 0;
-            }
-            return 1;
-        }
-
-        default:
-            return 0;
+    if ((int)a->type >= 0 && a->type < s_coord_equal_func_count && s_coord_equal_funcs[a->type]) {
+        return s_coord_equal_funcs[a->type](a, b);
     }
+    return 0;
 }
+
+/* --- 节点坐标哈希：函数指针表 --- */
+static uint64_t coord_hash_point_port(GeomNode *node) {
+    uint64_t h = 0;
+    for (int c = 0; c < node->coord_count; c++) {
+        if (node->symbolic_coords[c]) {
+            h ^= (uint64_t)symbolic_coord_hash(node->symbolic_coords[c]);
+        }
+    }
+    return h;
+}
+
+static uint64_t coord_hash_line_segment(GeomNode *node) {
+    uint64_t h = 0;
+    h ^= (uint64_t)0x5E5E5E5E5E5E5E5EULL;
+    for (int c = 0; c < node->coord_count; c++) {
+        if (node->symbolic_coords[c]) {
+            h ^= (uint64_t)symbolic_coord_hash(node->symbolic_coords[c]);
+        }
+    }
+    return h;
+}
+
+static uint64_t coord_hash_region(GeomNode *node) {
+    uint64_t h = 0;
+    h ^= (uint64_t)0x3A3A3A3A3A3A3A3AULL;
+    for (int s = 0; s < node->data.region.segment_count; s++) {
+        GeomNode *seg = node->data.region.boundary_segments[s];
+        if (seg) {
+            for (int c = 0; c < seg->coord_count; c++) {
+                if (seg->symbolic_coords[c]) {
+                    h ^= (uint64_t)symbolic_coord_hash(seg->symbolic_coords[c]);
+                }
+            }
+            h ^= (uint64_t)(s + 1) * 0x9E3779B97F4A7C15ULL;
+        }
+    }
+    return h;
+}
+
+static uint64_t coord_hash_circle(GeomNode *node) {
+    uint64_t h = 0;
+    h ^= (uint64_t)0xC1C1C1C1C1C1C1C1ULL;
+    h ^= (uint64_t)node->data.circle.center_node_id * 0x9E3779B97F4A7C15ULL;
+    h ^= (uint64_t)node->data.circle.radius_node_id * 0x9E3779B97F4A7C16ULL;
+    return h;
+}
+
+static uint64_t coord_hash_func_block(GeomNode *node) {
+    uint64_t h = 0;
+    h ^= (uint64_t)0x7B7B7B7B7B7B7B7BULL;
+    for (int n = 0; n < node->data.func_block.internal_node_count; n++) {
+        GeomNode *inner = node->data.func_block.internal_nodes[n];
+        if (inner) {
+            for (int c = 0; c < inner->coord_count; c++) {
+                if (inner->symbolic_coords[c]) {
+                    h ^= (uint64_t)symbolic_coord_hash(inner->symbolic_coords[c]);
+                }
+            }
+            h ^= (uint64_t)(n + 1) * 0x9E3779B97F4A7C15ULL;
+        }
+    }
+    return h;
+}
+
+static uint64_t (*s_coord_hash_funcs[])(GeomNode *) = {
+    [GEOM_POINT] = coord_hash_point_port,
+    [GEOM_LINE_SEGMENT] = coord_hash_line_segment,
+    [GEOM_REGION] = coord_hash_region,
+    [GEOM_CIRCLE] = coord_hash_circle,
+    [GEOM_PORT] = coord_hash_point_port,
+    [GEOM_FUNCTION_BLOCK] = coord_hash_func_block,
+};
+static const int s_coord_hash_func_count = (int)(sizeof(s_coord_hash_funcs) / sizeof(s_coord_hash_funcs[0]));
 
 /**
  * @brief 计算节点的坐标哈希值（用于预过滤分组）
@@ -248,72 +322,10 @@ static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
 static uint64_t compute_node_coord_hash(GeomNode *node) {
     if (!node || node->coord_count == 0)
         return 0;
-
-    uint64_t h = 0;
-
-    switch (node->type) {
-        case GEOM_POINT:
-        case GEOM_PORT:
-            for (int c = 0; c < node->coord_count; c++) {
-                if (node->symbolic_coords[c]) {
-                    h ^= (uint64_t) symbolic_coord_hash(node->symbolic_coords[c]);
-                }
-            }
-            return h;
-
-        case GEOM_LINE_SEGMENT:
-            /* 混入类型标记以区分相同坐标但不同类型的节点 */
-            h ^= (uint64_t) 0x5E5E5E5E5E5E5E5EULL;
-            for (int c = 0; c < node->coord_count; c++) {
-                if (node->symbolic_coords[c]) {
-                    h ^= (uint64_t) symbolic_coord_hash(node->symbolic_coords[c]);
-                }
-            }
-            return h;
-
-        case GEOM_REGION:
-            /* 对所有边界线段的坐标计算哈希 */
-            h ^= (uint64_t) 0x3A3A3A3A3A3A3A3AULL;
-            for (int s = 0; s < node->data.region.segment_count; s++) {
-                GeomNode *seg = node->data.region.boundary_segments[s];
-                if (seg) {
-                    for (int c = 0; c < seg->coord_count; c++) {
-                        if (seg->symbolic_coords[c]) {
-                            h ^= (uint64_t) symbolic_coord_hash(seg->symbolic_coords[c]);
-                        }
-                    }
-                    /* 混入线段索引以区分不同线段 */
-                    h ^= (uint64_t) (s + 1) * 0x9E3779B97F4A7C15ULL;
-                }
-            }
-            return h;
-
-        case GEOM_CIRCLE:
-            /* 对圆的圆心和半径端点 ID 计算哈希 */
-            h ^= (uint64_t) 0xC1C1C1C1C1C1C1C1ULL;
-            h ^= (uint64_t) node->data.circle.center_node_id * 0x9E3779B97F4A7C15ULL;
-            h ^= (uint64_t) node->data.circle.radius_node_id * 0x9E3779B97F4A7C16ULL;
-            return h;
-
-        case GEOM_FUNCTION_BLOCK:
-            /* 对所有内部节点的坐标计算哈希 */
-            h ^= (uint64_t) 0x7B7B7B7B7B7B7B7BULL;
-            for (int n = 0; n < node->data.func_block.internal_node_count; n++) {
-                GeomNode *inner = node->data.func_block.internal_nodes[n];
-                if (inner) {
-                    for (int c = 0; c < inner->coord_count; c++) {
-                        if (inner->symbolic_coords[c]) {
-                            h ^= (uint64_t) symbolic_coord_hash(inner->symbolic_coords[c]);
-                        }
-                    }
-                    h ^= (uint64_t) (n + 1) * 0x9E3779B97F4A7C15ULL;
-                }
-            }
-            return h;
-
-        default:
-            return 0;
+    if ((int)node->type >= 0 && node->type < s_coord_hash_func_count && s_coord_hash_funcs[node->type]) {
+        return s_coord_hash_funcs[node->type](node);
     }
+    return 0;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1337,6 +1349,56 @@ static int id_mapping_find(const IdMappingTable *table, int old_id) {
  * @param src 源约束图
  * @return 深拷贝后的约束图，失败返回NULL
  */
+
+/* --- 约束拷贝：函数指针表 --- */
+typedef AddConstraintResult (*ConstraintCopyFunc)(ConstraintGraph *dst, int *participants, int count);
+
+static AddConstraintResult copy_incidence(ConstraintGraph *dst, int *p, int n) {
+    if (n >= 2)
+        return graph_add_incidence(dst, p[0], p[1]);
+    return ADD_CONSTRAINT_CONFLICT;
+}
+
+static AddConstraintResult copy_betweenness(ConstraintGraph *dst, int *p, int n) {
+    if (n >= 3)
+        return graph_add_betweenness(dst, p[0], p[1], p[2]);
+    return ADD_CONSTRAINT_CONFLICT;
+}
+
+static AddConstraintResult copy_intersection(ConstraintGraph *dst, int *p, int n) {
+    if (n >= 3)
+        return graph_add_intersection(dst, p[0], p[1], p[2]);
+    return ADD_CONSTRAINT_CONFLICT;
+}
+
+static AddConstraintResult copy_containment(ConstraintGraph *dst, int *p, int n) {
+    if (n >= 2)
+        return graph_add_containment(dst, p[0], p[1]);
+    return ADD_CONSTRAINT_CONFLICT;
+}
+
+static AddConstraintResult copy_angle(ConstraintGraph *dst, int *p, int n) {
+    if (n >= 2)
+        return graph_add_angle(dst, p[0], p[1], 0.0);
+    return ADD_CONSTRAINT_CONFLICT;
+}
+
+static AddConstraintResult copy_connection(ConstraintGraph *dst, int *p, int n) {
+    if (n >= 2)
+        return graph_add_connection(dst, p[0], p[1]);
+    return ADD_CONSTRAINT_CONFLICT;
+}
+
+static ConstraintCopyFunc s_constraint_copy_funcs[] = {
+    [INCIDENCE] = copy_incidence,
+    [BETWEENNESS] = copy_betweenness,
+    [INTERSECTION] = copy_intersection,
+    [CONTAINMENT] = copy_containment,
+    [CONNECTION] = copy_connection,
+    [ANGLE] = copy_angle,
+};
+static const int s_constraint_copy_func_count = (int)(sizeof(s_constraint_copy_funcs) / sizeof(s_constraint_copy_funcs[0]));
+
 static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
     if (!src)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "deep_copy_graph: src is NULL");
@@ -1660,53 +1722,10 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
             }
         }
 
-        switch (sc->type) {
-            case INCIDENCE:
-                if (new_participant_count >= 2) {
-                    r = graph_add_incidence(dst, new_participants[0], new_participants[1]);
-                } else {
-                    r = ADD_CONSTRAINT_CONFLICT;
-                }
-                break;
-            case BETWEENNESS:
-                if (new_participant_count >= 3) {
-                    r = graph_add_betweenness(dst, new_participants[0], new_participants[1], new_participants[2]);
-                } else {
-                    r = ADD_CONSTRAINT_CONFLICT;
-                }
-                break;
-            case INTERSECTION:
-                if (new_participant_count >= 3) {
-                    r = graph_add_intersection(dst, new_participants[0], new_participants[1], new_participants[2]);
-                } else {
-                    r = ADD_CONSTRAINT_CONFLICT;
-                }
-                break;
-            case CONTAINMENT:
-                if (new_participant_count >= 2) {
-                    r = graph_add_containment(dst, new_participants[0], new_participants[1]);
-                } else {
-                    r = ADD_CONSTRAINT_CONFLICT;
-                }
-                break;
-            case ANGLE:
-                if (new_participant_count >= 2) {
-                    /* 使用 numeric_value 传递角度值（角度值存放在构造图的约束中） */
-                    r = graph_add_angle(dst, new_participants[0], new_participants[1], 0.0);
-                } else {
-                    r = ADD_CONSTRAINT_CONFLICT;
-                }
-                break;
-            case CONNECTION:
-                if (new_participant_count >= 2) {
-                    r = graph_add_connection(dst, new_participants[0], new_participants[1]);
-                } else {
-                    r = ADD_CONSTRAINT_CONFLICT;
-                }
-                break;
-            default:
-                r = ADD_CONSTRAINT_CONFLICT;
-                break;
+        if (sc->type >= 0 && sc->type < s_constraint_copy_func_count && s_constraint_copy_funcs[sc->type]) {
+            r = s_constraint_copy_funcs[sc->type](dst, new_participants, new_participant_count);
+        } else {
+            r = ADD_CONSTRAINT_CONFLICT;
         }
         (void) r; /* 约束添加失败不视为致命错误 */
         lv_free((void **) &new_participants);

@@ -34,7 +34,7 @@ theorem event_causality {α β : Type} (f : α → β) (s : Stream α) (e1 e2 : 
 
 def within_capacity {α : Type} (s : Stream α) (cap : ℕ) : Prop := s.length ≤ cap
 
-theorem backpressure_bounded {α : Type} (s : Stream α) (cap : ℕ) (h : within_capacity s cap)
+theorem backpressure_bounded {α : Type} (s : Stream α) (cap : ℕ) (_h : within_capacity s cap)
     (e : Event α) (hsz : s.length < cap) : within_capacity (s ++ [e]) cap := by
   unfold within_capacity
   have hlen : (s ++ [e]).length = s.length + 1 := by simp

@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_xmacro.h"
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
@@ -86,6 +87,32 @@ static void set_serialize_error(ConstraintGraph *graph, const char *fmt, ...) {
 
 /* JSON 写入器辅助 —— 迁移至 lv_json.h/lv_json.c */
 
+/* ── 字符串↔枚举 X-macro 列表 ── */
+
+#define LV_GEOM_TYPE_X(x) \
+    x(GEOM_POINT, "POINT") \
+    x(GEOM_LINE_SEGMENT, "LINE_SEGMENT") \
+    x(GEOM_REGION, "REGION") \
+    x(GEOM_CIRCLE, "CIRCLE") \
+    x(GEOM_PORT, "PORT") \
+    x(GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK")
+
+#define LV_CONSTRAINT_TYPE_X(x) \
+    x(INCIDENCE, "INCIDENCE") \
+    x(BETWEENNESS, "BETWEENNESS") \
+    x(INTERSECTION, "INTERSECTION") \
+    x(CONTAINMENT, "CONTAINMENT") \
+    x(CONNECTION, "CONNECTION") \
+    x(ANGLE, "ANGLE")
+
+static const lvStrToEnumEntry geom_type_map[] = {
+    lv_XMACRO_TO_ENUM_TABLE(LV_GEOM_TYPE_X)
+};
+
+static const lvStrToEnumEntry constraint_type_map[] = {
+    lv_XMACRO_TO_ENUM_TABLE(LV_CONSTRAINT_TYPE_X)
+};
+
 /**
  * @brief 将几何节点类型枚举转换为字符串
  *
@@ -96,18 +123,7 @@ static void set_serialize_error(ConstraintGraph *graph, const char *fmt, ...) {
  */
 static const char *geom_type_to_string(GeomType type) {
     switch (type) {
-        case GEOM_POINT:
-            return "POINT";
-        case GEOM_LINE_SEGMENT:
-            return "LINE_SEGMENT";
-        case GEOM_REGION:
-            return "REGION";
-        case GEOM_CIRCLE:
-            return "CIRCLE";
-        case GEOM_PORT:
-            return "PORT";
-        case GEOM_FUNCTION_BLOCK:
-            return "FUNCTION_BLOCK";
+        lv_XMACRO_TO_STR(LV_GEOM_TYPE_X)
         default:
             return "UNKNOWN";
     }
@@ -123,18 +139,7 @@ static const char *geom_type_to_string(GeomType type) {
  */
 static const char *constraint_type_to_string(ConstraintType type) {
     switch (type) {
-        case INCIDENCE:
-            return "INCIDENCE";
-        case BETWEENNESS:
-            return "BETWEENNESS";
-        case INTERSECTION:
-            return "INTERSECTION";
-        case CONTAINMENT:
-            return "CONTAINMENT";
-        case CONNECTION:
-            return "CONNECTION";
-        case ANGLE:
-            return "ANGLE";
+        lv_XMACRO_TO_STR(LV_CONSTRAINT_TYPE_X)
         default:
             return "UNKNOWN";
     }
@@ -464,35 +469,11 @@ char *graph_serialize_to_json(const ConstraintGraph *graph) {
 
 /* 从字符串转换类型名称 */
 static GeomType string_to_geom_type(const char *str) {
-    if (strcmp(str, "POINT") == 0)
-        return GEOM_POINT;
-    if (strcmp(str, "LINE_SEGMENT") == 0)
-        return GEOM_LINE_SEGMENT;
-    if (strcmp(str, "REGION") == 0)
-        return GEOM_REGION;
-    if (strcmp(str, "CIRCLE") == 0)
-        return GEOM_CIRCLE;
-    if (strcmp(str, "PORT") == 0)
-        return GEOM_PORT;
-    if (strcmp(str, "FUNCTION_BLOCK") == 0)
-        return GEOM_FUNCTION_BLOCK;
-    return GEOM_POINT;
+    return (GeomType)lv_str_to_enum(geom_type_map, 6, str, GEOM_POINT);
 }
 
 static ConstraintType string_to_constraint_type(const char *str) {
-    if (strcmp(str, "INCIDENCE") == 0)
-        return INCIDENCE;
-    if (strcmp(str, "BETWEENNESS") == 0)
-        return BETWEENNESS;
-    if (strcmp(str, "INTERSECTION") == 0)
-        return INTERSECTION;
-    if (strcmp(str, "CONTAINMENT") == 0)
-        return CONTAINMENT;
-    if (strcmp(str, "CONNECTION") == 0)
-        return CONNECTION;
-    if (strcmp(str, "ANGLE") == 0)
-        return ANGLE;
-    return INCIDENCE;
+    return (ConstraintType)lv_str_to_enum(constraint_type_map, 6, str, INCIDENCE);
 }
 
 /* 解析数组中的整数列表 */

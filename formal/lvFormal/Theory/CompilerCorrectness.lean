@@ -52,15 +52,15 @@ theorem stmt_compiled_edge_correct_normalize (pts : List lvPoint) :
 /-- 编译桥接引理：若环境 env 满足源约束 c 的坐标条件（按新的 satisfiable 定义），
     则对任意编译结果 ir（即 compile_constraint pts c = some ir），ir_sem env ir 成立。 -/
 lemma compile_bridge_sem (c : lvConstraint) (pts : List lvPoint) (env : String → ℝ × ℝ) (ir : IRConstraint)
-    (h_compile : compile_constraint pts c = some ir)
-    (h_src : True) : ir_sem env ir := by
+    (_h_compile : compile_constraint pts c = some ir)
+    (_h_src : True) : ir_sem env ir := by
   sorry
 
 /-! ## 编译保持可满足性 -/
 
 /-- 从程序中提取所有约束 -/
 def constraints_of_program (prog : lvProgram) : List lvConstraint :=
-  prog.bind (fun st => match st with | .constraint c => [c] | _ => [])
+  prog.flatMap (fun st => match st with | .constraint c => [c] | _ => [])
 
 /-- 编译后的IR约束都来自源程序约束的编译 -/
 lemma compile_program_contains_compiled_constraints (prog : lvProgram) :
@@ -79,8 +79,8 @@ theorem compile_preserves_satisfiability (prog : lvProgram) :
 
 /-- 获取程序中所有引用到的变量名集合 -/
 def vars_of_program (prog : lvProgram) : List String :=
-  let point_names := prog.bind (fun st => match st with | .point p => [p.name] | _ => [])
-  let constraint_args := prog.bind (fun st => match st with | .constraint c => c.args | _ => [])
+  let point_names := prog.flatMap (fun st => match st with | .point p => [p.name] | _ => [])
+  let constraint_args := prog.flatMap (fun st => match st with | .constraint c => c.args | _ => [])
   point_names ++ constraint_args
 
 /-- 两个程序的变量集合不相交 -/

@@ -3,12 +3,13 @@
 
 /**
  * @file lv_xmacro.h
- * @brief X-macro 辅助宏，用于生成枚举→字符串映射
+ * @brief X-macro 辅助宏，用于生成枚举↔字符串双向映射
  *
  * 用法：
  *   1. 定义一个 X 列表宏（如 LV_MY_ENUM_X(x)）
  *   2. 用 lv_XMACRO_ENUM 生成枚举定义
  *   3. 用 lv_XMACRO_TO_STR 生成 switch 字符串函数
+ *   4. 用 lv_XMACRO_TO_ENUM_TABLE 和 lv_str_to_enum 实现字符串→枚举查找
  *
  * 示例：
  *   #define LV_COLORS_X(x) \
@@ -19,6 +20,11 @@
  *   const char *lv_color_to_str(enum lvColor c) {
  *       switch(c) { lv_XMACRO_TO_STR(LV_COLORS_X) default: return "?"; }
  *   }
+ *
+ *   static const lvStrToEnumEntry colors_map[] = {
+ *       lv_XMACRO_TO_ENUM_TABLE(LV_COLORS_X)
+ *   };
+ *   lvCol c = (lvCol)lv_str_to_enum(colors_map, 2, "red", 0);
  */
 
 /** @brief 从 X 列表生成枚举值 */
@@ -32,5 +38,38 @@
 /* 内部辅助宏 */
 #define LV_X_ENUM_ITEM(name, str) name,
 #define LV_X_TO_STR_CASE(name, str) case name: return str;
+
+#include <string.h>
+#include <stddef.h>
+
+/** @brief 字符串→枚举映射表条目 */
+typedef struct {
+    const char *name;
+    int value;
+} lvStrToEnumEntry;
+
+/** @brief 从 X 列表生成映射表初始化器 */
+#define lv_XMACRO_TO_ENUM_TABLE(X_LIST) \
+    X_LIST(LV_X_TO_ENUM_ENTRY)
+
+/* 内部辅助宏 */
+#define LV_X_TO_ENUM_ENTRY(name, str) { str, name },
+
+/**
+ * @brief 在映射表中查找字符串对应的枚举值
+ * @param table     映射表
+ * @param count     表大小
+ * @param str       要查找的字符串
+ * @param default_value 未找到时的默认返回值
+ * @return 枚举值（int），未找到返回 default_value
+ */
+static inline int lv_str_to_enum(const lvStrToEnumEntry *table, size_t count,
+                                  const char *str, int default_value) {
+    for (size_t i = 0; i < count; i++) {
+        if (strcmp(table[i].name, str) == 0)
+            return table[i].value;
+    }
+    return default_value;
+}
 
 #endif /* lv_XMACRO_H */

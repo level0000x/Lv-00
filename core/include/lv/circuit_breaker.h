@@ -1,10 +1,10 @@
 /**
  * @file circuit_breaker.h
- * @brief 熔断器模块 —— 独立于上下文的熔断器操作函数
+ * @brief 熔断器模块 —— 上下文级熔断器操作函数（向后兼容层）
  *
- * @details 提供熔断器的核心操作：检查、跳闸、重置，以及时间驱动的
- *          自动恢复机制。CircuitBreaker 结构体在 context.h 中定义，
- *          本模块提供其操作实现。
+ * @details 本文件是上下文级熔断器操作的向后兼容层。
+ *          CircuitBreaker 结构体已移至 lv/lv_circuit_breaker.h，
+ *          此文件提供使用 lvContext* 的便利包装函数。
  *
  *          熔断器状态机：
  *
@@ -20,8 +20,8 @@
  *          - 分布式系统中的 bulkhead 模式
  *
  * @author Lv-00 Project
- * @version 1.1.0
- * @date   2026-05-24
+ * @version 2.0.0
+ * @date   2026-07-31
  */
 #ifndef lv_CIRCUIT_BREAKER_H
 #define lv_CIRCUIT_BREAKER_H
@@ -29,13 +29,23 @@
 extern "C" {
 #endif
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
-/* 前向声明 —— CircuitBreaker 结构体在 context.h 中定义 */
-struct CircuitBreaker;
+
+/* CircuitBreaker 结构体及独立 API 定义在此 */
+#include "lv/lv_circuit_breaker.h"
+
+/* lvContext 前向声明 */
 struct lvContext;
+
 /* ============================================================
- * 核心熔断器 API
+ * 上下文级熔断器 API
+ *
+ * 这些函数接受 lvContext*，通过 ctx->circuit_breaker
+ * 字段间接操作熔断器。与 lv_circuit_breaker.h 中的独立 API
+ * 功能等价但设计为与现有调用代码兼容。
  * ============================================================ */
+
 /**
  * @brief 检查熔断器状态，判断是否可以执行操作
  *
@@ -52,6 +62,7 @@ struct lvContext;
  *         false 熔断器打开，拒绝执行
  */
 bool lv_circuit_breaker_check(struct lvContext *ctx);
+
 /**
  * @brief 触发熔断器跳闸
  *
@@ -63,26 +74,7 @@ bool lv_circuit_breaker_check(struct lvContext *ctx);
  * @param reason 跳闸原因的可读描述（内部复制，调用者可释放原字符串）
  */
 void lv_circuit_breaker_trip(struct lvContext *ctx, const char *reason);
-/**
- * @brief 重置熔断器到 CLOSED 状态
- *
- * 清除所有错误计数、跳闸原因和冷却计时。
- * 仅在以下场景谨慎使用：
- *   - 上下文完全重置时（lv_context_reset）
- *   - 确认问题已修复后的手动恢复
- *
- * @param ctx 上下文（非 NULL）
- */
-void lv_circuit_breaker_reset(struct lvContext *ctx);
-/**
- * @brief 记录一次成功操作
- *
- * 在 HALF_OPEN 态下的一次成功调用会将熔断器恢复到 CLOSED 态。
- * 在 CLOSED 态下，重置连续错误计数。
- *
- * @param ctx 上下文（非 NULL）
- */
-void lv_circuit_breaker_record_success(struct lvContext *ctx);
+
 /**
  * @brief 记录一次失败操作
  *
@@ -94,6 +86,7 @@ void lv_circuit_breaker_record_success(struct lvContext *ctx);
  *         false 熔断器已跳闸（错误次数超限）
  */
 bool lv_circuit_breaker_record_failure(struct lvContext *ctx);
+
 /**
  * @brief 获取熔断器当前状态的可读名称
  *
@@ -101,6 +94,7 @@ bool lv_circuit_breaker_record_failure(struct lvContext *ctx);
  * @return 状态的中文名称字符串（静态存储，无需释放）
  */
 const char *lv_circuit_breaker_state_name(struct lvContext *ctx);
+
 /**
  * @brief 获取熔断器的健康摘要
  *
@@ -112,13 +106,15 @@ const char *lv_circuit_breaker_state_name(struct lvContext *ctx);
  * @return 实际写入的字符数（不含终止符）
  */
 int lv_circuit_breaker_summary(struct lvContext *ctx, char *buf, size_t buf_size);
+
 /**
  * @brief 获取从创建/重置以来的运行时间（微秒）
  *
  * @param cb 熔断器指针（非 NULL）
  * @return 微秒数
  */
-uint64_t lv_circuit_breaker_uptime_us(const struct CircuitBreaker *cb);
+uint64_t lv_circuit_breaker_uptime_us(const lvCircuitBreaker *cb);
+
 /**
  * @brief 获取当前时间戳（微秒级）
  *
@@ -127,6 +123,7 @@ uint64_t lv_circuit_breaker_uptime_us(const struct CircuitBreaker *cb);
  * @return 单调递增的微秒时间戳
  */
 uint64_t lv_circuit_breaker_now_us(void);
+
 #ifdef __cplusplus
 }
 #endif

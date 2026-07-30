@@ -35,7 +35,7 @@ where
   scale_state (s : ℝ) (a : State) : State := (s * a.1, s * a.2.1, s * a.2.2)
 
 /-- 精确流 (Exact Flow)：ODE 的解析解 -/
-def exact_flow (f : ℝ → State → State) (h : ℝ) (t_n : ℝ) (y_n : State) : State :=
+def exact_flow (_f : ℝ → State → State) (h : ℝ) (t_n : ℝ) (y_n : State) : State :=
   (t_n + h, y_n.2.1, y_n.2.2)  -- 占位定义；实际应由解析解给出
 
 /-- RK4 方法的局部截断误差界 (O(h⁵)) -/

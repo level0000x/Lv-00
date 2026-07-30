@@ -8,6 +8,7 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 
 /**
  * @file opml_codec.c
@@ -471,6 +472,22 @@ static void parse_theory_section(const char *theory_json, char axioms[][256], in
     }
 }
 
+/* ── 步骤类型字符串↔枚举 X-macro 列表 ── */
+
+#define LV_STEP_TYPE_X(x) \
+    x(lv_STEP_ADD_NODE, "axiom") \
+    x(lv_STEP_ADD_CONSTRAINT, "definition") \
+    x(lv_STEP_REWRITE, "rewrite") \
+    x(lv_STEP_FUNCTION_APP, "apply") \
+    x(lv_STEP_EXACT, "exact") \
+    x(lv_STEP_HAVE, "have") \
+    x(lv_STEP_CALC, "calc") \
+    x(lv_STEP_NORMALIZATION, "normalization")
+
+static const lvStrToEnumEntry step_type_map[] = {
+    lv_XMACRO_TO_ENUM_TABLE(LV_STEP_TYPE_X)
+};
+
 /**
  * @brief 从 proof 段提取证明步骤
  */
@@ -507,24 +524,7 @@ static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int ma
             char type_name[64];
             json_extract_string(type_val, type_name, sizeof(type_name));
             /* 映射类型名到 lvProofStepType */
-            if (strcmp(type_name, "axiom") == 0)
-                step->type = lv_STEP_ADD_NODE;
-            else if (strcmp(type_name, "definition") == 0)
-                step->type = lv_STEP_ADD_CONSTRAINT;
-            else if (strcmp(type_name, "rewrite") == 0)
-                step->type = lv_STEP_REWRITE;
-            else if (strcmp(type_name, "apply") == 0)
-                step->type = lv_STEP_FUNCTION_APP;
-            else if (strcmp(type_name, "exact") == 0)
-                step->type = lv_STEP_EXACT;
-            else if (strcmp(type_name, "have") == 0)
-                step->type = lv_STEP_HAVE;
-            else if (strcmp(type_name, "calc") == 0)
-                step->type = lv_STEP_CALC;
-            else if (strcmp(type_name, "normalization") == 0)
-                step->type = lv_STEP_NORMALIZATION;
-            else
-                step->type = lv_STEP_ORACLE;
+            step->type = (int)lv_str_to_enum(step_type_map, 8, type_name, lv_STEP_ORACLE);
         }
 
         proof->step_count++;

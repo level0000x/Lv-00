@@ -17,10 +17,10 @@ open lvFormal.Theory.Evidence
    =============================================================== -/
 
 /-- Godel 编号：将 IR 约束映射为自然数 -/
-def godelNumber (c : IRConstraint) : Nat := 0
+def godelNumber (_c : IRConstraint) : Nat := 0
 
 /-- 自指公式：表示"本约束图不可满足" -/
-def selfRefUnsat (g : ConstraintGraph) : Prop := False
+def selfRefUnsat (_g : ConstraintGraph) : Prop := False
 
 /-- 自指引理：若 g 可满足，则 selfRefUnsat g 不成立 -/
 lemma self_ref_lemma (g : ConstraintGraph) (h_sat : graph_satisfiable g) : ¬ selfRefUnsat g := by

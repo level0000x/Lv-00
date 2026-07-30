@@ -1487,26 +1487,50 @@ int64_t upper_func_block_preset_exists(lvEngine *ctx, const char *name) {
     return (func_block_registry_find(name) != NULL) ? 1 : 0;
 }
 
+/* ---- 预设元数据字段访问器 ---- */
+typedef enum {
+    lv_PRESET_FIELD_INPUT_COUNT,
+    lv_PRESET_FIELD_OUTPUT_COUNT,
+    lv_PRESET_FIELD_PRECONDITION_COUNT,
+    lv_PRESET_FIELD_POSTCONDITION_COUNT,
+    lv_PRESET_FIELD_PROPERTIES,
+    lv_PRESET_FIELD_COMPLEXITY
+} lvPresetFieldId;
+
+/**
+ * @brief 通用预设元数据 int64_t 字段访问器
+ *
+ * 通过字段 ID 获取 PresetEntry->metadata 中的 int64_t 兼容字段。
+ * 如果 name 为 NULL 或预设不存在，返回 default_value。
+ */
+static int64_t preset_entry_get_field(lvEngine *ctx, const char *name, lvPresetFieldId field, int64_t default_value) {
+    (void) ctx;
+    if (!name) return default_value;
+    PresetEntry *entry = func_block_registry_find(name);
+    if (!entry) return default_value;
+    switch (field) {
+        case lv_PRESET_FIELD_INPUT_COUNT:         return (int64_t) entry->metadata.input_count;
+        case lv_PRESET_FIELD_OUTPUT_COUNT:        return (int64_t) entry->metadata.output_count;
+        case lv_PRESET_FIELD_PRECONDITION_COUNT:  return (int64_t) entry->metadata.precondition_count;
+        case lv_PRESET_FIELD_POSTCONDITION_COUNT: return (int64_t) entry->metadata.postcondition_count;
+        case lv_PRESET_FIELD_PROPERTIES:          return (int64_t) entry->metadata.properties;
+        case lv_PRESET_FIELD_COMPLEXITY:          return (int64_t) entry->metadata.complexity;
+        default:                                  return default_value;
+    }
+}
+
 /** 获取预设输入参数数量 -- 从注册表条目获取元数据 */
 int64_t func_block_preset_input_count(lvEngine *ctx, const char *name) {
-    (void) ctx;
     if (!name)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "func_block_preset_input_count: NULL name");
-    PresetEntry *entry = func_block_registry_find(name);
-    if (!entry)
-        return -1; /* 未找到 */
-    return (int64_t) entry->metadata.input_count;
+    return preset_entry_get_field(ctx, name, lv_PRESET_FIELD_INPUT_COUNT, -1);
 }
 
 /** 获取预设输出参数数量 -- 从注册表条目获取元数据 */
 int64_t func_block_preset_output_count(lvEngine *ctx, const char *name) {
-    (void) ctx;
     if (!name)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "func_block_preset_output_count: NULL name");
-    PresetEntry *entry = func_block_registry_find(name);
-    if (!entry)
-        return -1; /* 未找到 */
-    return (int64_t) entry->metadata.output_count;
+    return preset_entry_get_field(ctx, name, lv_PRESET_FIELD_OUTPUT_COUNT, -1);
 }
 
 /** 获取预设类别字符串 */
@@ -1621,24 +1645,12 @@ const char *func_block_preset_definition(lvEngine *ctx, const char *name) {
 
 /** 获取预设前置条件数量 -- 从 metadata 获取 */
 int64_t func_block_preset_precondition_count(lvEngine *ctx, const char *name) {
-    (void) ctx;
-    if (!name)
-        return 0;
-    PresetEntry *entry = func_block_registry_find(name);
-    if (!entry)
-        return 0;
-    return (int64_t) entry->metadata.precondition_count;
+    return preset_entry_get_field(ctx, name, lv_PRESET_FIELD_PRECONDITION_COUNT, 0);
 }
 
 /** 获取预设后置条件数量 -- 从 metadata 获取 */
 int64_t func_block_preset_postcondition_count(lvEngine *ctx, const char *name) {
-    (void) ctx;
-    if (!name)
-        return 0;
-    PresetEntry *entry = func_block_registry_find(name);
-    if (!entry)
-        return 0;
-    return (int64_t) entry->metadata.postcondition_count;
+    return preset_entry_get_field(ctx, name, lv_PRESET_FIELD_POSTCONDITION_COUNT, 0);
 }
 
 /** 获取预设关联的预设列表 -- 从 metadata 读取 related_presets 数组 */
@@ -1674,13 +1686,7 @@ int64_t func_block_preset_related(lvEngine *ctx, const char *name, char *buf, in
 
 /** 获取预设性质位掩码 -- 从 metadata 获取 */
 int64_t func_block_preset_properties(lvEngine *ctx, const char *name) {
-    (void) ctx;
-    if (!name)
-        return 0;
-    PresetEntry *entry = func_block_registry_find(name);
-    if (!entry)
-        return 0;
-    return (int64_t) entry->metadata.properties;
+    return preset_entry_get_field(ctx, name, lv_PRESET_FIELD_PROPERTIES, 0);
 }
 
 /** 判断预设是否具有指定性质 */
@@ -1725,13 +1731,7 @@ const char *func_block_preset_inverse_name(lvEngine *ctx, const char *name) {
 
 /** 获取预设的复杂度等级枚举值 -- 从 metadata 获取 */
 int64_t func_block_preset_complexity_enum(lvEngine *ctx, const char *name) {
-    (void) ctx;
-    if (!name)
-        return (int64_t) COMPLEXITY_UNKNOWN;
-    PresetEntry *entry = func_block_registry_find(name);
-    if (!entry)
-        return (int64_t) COMPLEXITY_UNKNOWN;
-    return (int64_t) entry->metadata.complexity;
+    return preset_entry_get_field(ctx, name, lv_PRESET_FIELD_COMPLEXITY, (int64_t) COMPLEXITY_UNKNOWN);
 }
 
 /** 获取预设参数是否为可选参数 -- 从 input_params 数组中按索引查询 */

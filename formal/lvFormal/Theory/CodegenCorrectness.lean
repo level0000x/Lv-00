@@ -75,21 +75,21 @@ theorem cgen_graph_never_aborts (g : ConstraintGraph) (m : Mem) (env : Env) :
    =============================================================== -/
 
 /-- The Cv00 evaluation of a safe expression agreeing with IR eval -/
-lemma eval_expr_matches (e : IRExpr) (env : Env) (pt_env : String → ℝ × ℝ)
-    (h_env : ∀ v, env (v ++ "_x") = some (.fval (0 : Float)) ∧ env (v ++ "_y") = some (.fval (0 : Float))) : True := by
+lemma eval_expr_matches (_e : IRExpr) (_env : Env) (_pt_env : String → ℝ × ℝ)
+    (_h_env : ∀ v, _env (v ++ "_x") = some (.fval (0 : Float)) ∧ _env (v ++ "_y") = some (.fval (0 : Float))) : True := by
   trivial
 
 /-- If a constraint is semantically true (ir_sem), the generated code
     does not abort for that constraint (returns nop). -/
-theorem cgen_constraint_sem_preserved (env : String → ℝ × ℝ) (c : IRConstraint)
-    (h_sat : ir_sem env c) (m : Mem) (env' : Env)
-    (h_env : ∀ v, env' (v ++ "_x") = some (.fval (0 : Float)) ∧ env' (v ++ "_y") = some (.fval (0 : Float))) : True := by
+theorem cgen_constraint_sem_preserved (_env : String → ℝ × ℝ) (_c : IRConstraint)
+    (_h_sat : ir_sem _env _c) (_m : Mem) (_env_ : Env)
+    (_h_env : ∀ v, _env_ (v ++ "_x") = some (.fval (0 : Float)) ∧ _env_ (v ++ "_y") = some (.fval (0 : Float))) : True := by
   trivial
 
 /-- Full graph preservation -/
-theorem cgen_graph_sem_preserved (g : ConstraintGraph) (env : String → ℝ × ℝ)
-    (h_sat : ∀ c ∈ g, ir_sem env c) (m : Mem) (env' : Env)
-    (h_env : ∀ v, env' (v ++ "_x") = some (.fval (0 : Float)) ∧ env' (v ++ "_y") = some (.fval (0 : Float))) : True := by
+theorem cgen_graph_sem_preserved (_g : ConstraintGraph) (_env : String → ℝ × ℝ)
+    (_h_sat : ∀ c ∈ _g, ir_sem _env c) (_m : Mem) (_env_ : Env)
+    (_h_env : ∀ v, _env_ (v ++ "_x") = some (.fval (0 : Float)) ∧ _env_ (v ++ "_y") = some (.fval (0 : Float))) : True := by
   trivial
 
 /- ===============================================================
@@ -97,8 +97,8 @@ theorem cgen_graph_sem_preserved (g : ConstraintGraph) (env : String → ℝ × 
    =============================================================== -/
 
 /-- Generated Cv00 code executes without abort if the IR semantics hold -/
-theorem codegen_sem_preserved (prog : lvProgram) (env : String → ℝ × ℝ)
-    (h_sat : graph_satisfiable ([] : ConstraintGraph)) : True := by
+theorem codegen_sem_preserved (_prog : lvProgram) (_env : String → ℝ × ℝ)
+    (_h_sat : graph_satisfiable ([] : ConstraintGraph)) : True := by
   trivial
 
 end lvFormal.Theory.CodegenCorrectness

@@ -1,6 +1,7 @@
 #include "lv/lv_platform.h"
 
 #include "lv/lv_sema.h"
+#include "lv/lv_xmacro.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -81,35 +82,31 @@ static LvSemanticType entity_to_semantic_type(LvEntityType etype) {
     }
 }
 
+/* ── 字符串↔枚举 X-macro 列表 ── */
+
+#define LV_SEMANTIC_TYPE_X(x) \
+    x(LV_TYPE_POINT, "Point") \
+    x(LV_TYPE_LINE, "Line") \
+    x(LV_TYPE_CIRCLE, "Circle") \
+    x(LV_TYPE_SEGMENT, "Segment") \
+    x(LV_TYPE_RAY, "Ray") \
+    x(LV_TYPE_ANGLE, "Angle") \
+    x(LV_TYPE_TRIANGLE, "Triangle") \
+    x(LV_TYPE_POLYGON, "Polygon") \
+    x(LV_TYPE_SCALAR, "Scalar") \
+    x(LV_TYPE_BOOL, "Bool") \
+    x(LV_TYPE_PROPOSITION, "Proposition") \
+    x(LV_TYPE_PROOF, "Proof")
+
+static const lvStrToEnumEntry sema_type_map[] = {
+    lv_XMACRO_TO_ENUM_TABLE(LV_SEMANTIC_TYPE_X)
+};
+
 /** 根据字符串名称查找语义类型 */
 static LvSemanticType type_name_to_type(const char *name) {
     if (!name)
         return LV_TYPE_UNKNOWN;
-    if (strcmp(name, "Point") == 0)
-        return LV_TYPE_POINT;
-    if (strcmp(name, "Line") == 0)
-        return LV_TYPE_LINE;
-    if (strcmp(name, "Circle") == 0)
-        return LV_TYPE_CIRCLE;
-    if (strcmp(name, "Segment") == 0)
-        return LV_TYPE_SEGMENT;
-    if (strcmp(name, "Ray") == 0)
-        return LV_TYPE_RAY;
-    if (strcmp(name, "Angle") == 0)
-        return LV_TYPE_ANGLE;
-    if (strcmp(name, "Triangle") == 0)
-        return LV_TYPE_TRIANGLE;
-    if (strcmp(name, "Polygon") == 0)
-        return LV_TYPE_POLYGON;
-    if (strcmp(name, "Scalar") == 0)
-        return LV_TYPE_SCALAR;
-    if (strcmp(name, "Bool") == 0)
-        return LV_TYPE_BOOL;
-    if (strcmp(name, "Proposition") == 0)
-        return LV_TYPE_PROPOSITION;
-    if (strcmp(name, "Proof") == 0)
-        return LV_TYPE_PROOF;
-    return LV_TYPE_UNKNOWN;
+    return (LvSemanticType)lv_str_to_enum(sema_type_map, 12, name, LV_TYPE_UNKNOWN);
 }
 
 /** 在符号表中查找标识符 */

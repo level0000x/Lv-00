@@ -7,7 +7,7 @@
  * 使用方式：
  *   #include "lv/lv_config.h"
  *   const lvConfig *cfg = lv_config_current();
- *   int limit = cfg->max_proof_depth;
+ *   int limit = cfg->proof.proof_max_depth;
  *
  * 注意：
  *   此头文件仅用于运行时配置查询。编译期常量（如 MAX_*) 应在

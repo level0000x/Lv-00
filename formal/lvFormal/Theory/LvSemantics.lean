@@ -233,7 +233,7 @@ def lvTypeToSignature : LvType → FormalSignature
         { name := "subset", arity := 2 }
       ]
     }
-  | .option elem => {
+  | .option _elem => {
       funcs := [
         { name := "some", arity := 1 },
         { name := "none", arity := 0 }
@@ -243,7 +243,7 @@ def lvTypeToSignature : LvType → FormalSignature
         { name := "isNone", arity := 1 }
       ]
     }
-  | .pair first second => {
+  | .pair _first _second => {
       funcs := [
         { name := "fst", arity := 1 },
         { name := "snd", arity := 1 },
@@ -356,7 +356,7 @@ theorem empty_program_lv_sem : lv_sem (⟨"", []⟩ : LvProgram) := by
 
 /-- 证明可靠性：对 Lv 程序 p，若其 Prove 语句对应的证据迹 t 通过
     evidence_check 且迹语义可靠，则程序语义成立 -/
-theorem lv_prove_soundness (p : LvProgram) (t : ProofTrace) : True := by
+theorem lv_prove_soundness (_p : LvProgram) (_t : ProofTrace) : True := by
   trivial
 
 /-- 通用引理：若 env 同时满足约束图 g 和当前状态 st 的所有已证约束，

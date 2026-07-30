@@ -78,6 +78,12 @@ typedef struct lvVectorOps lvVectorOps;
  */
 struct lvVectorOps {
     /**
+     * @brief 创建新向量（分配内存并初始化）
+     * @param[in] n  向量长度
+     * @return 新分配的向量，失败返回 NULL
+     */
+    lvVector *(*create)(int64_t n);
+    /**
      * @brief 深拷贝构造一个新的同类型向量
      * @param[in] v  源向量
      * @return 新分配的克隆向量，失败返回 NULL
@@ -211,6 +217,14 @@ typedef enum {
  */
 struct lvMatrixOps {
     /**
+     * @brief 创建新矩阵（分配内存并初始化）
+     * @param[in] rows   行数
+     * @param[in] cols   列数
+     * @param[in] sparse 是否稀疏矩阵
+     * @return 新分配的矩阵，失败返回 NULL
+     */
+    lvMatrix *(*create)(int64_t rows, int64_t cols, bool sparse);
+    /**
      * @brief 深拷贝构造一个新的同类型矩阵
      * @param[in] A  源矩阵
      * @return 新分配的克隆矩阵
@@ -312,6 +326,12 @@ typedef enum {
  */
 struct lvLinearSolverOps {
     /**
+     * @brief 创建新线性求解器
+     * @param[in] method 求解方法
+     * @return 新分配的求解器，失败返回 NULL
+     */
+    lvLinearSolver *(*create)(lvLinearSolverMethod method);
+    /**
      * @brief 设置线性求解器（初始化/重初始化）
      * @param[in,out] LS  线性求解器
      * @param[in]     A   矩阵（用作求解模板）
@@ -343,7 +363,23 @@ struct lvLinearSolver {
     void *backend_data;           /**< 后端私有不透明数据 */
     const lvLinearSolverOps *ops; /**< 操作表 */
 };
-/* ==================== 第四部分：工厂函数 ==================== */
+/* ==================== 第四部分：工厂函数和注册机制 ==================== */
+/**
+ * @brief 注册数值后端（向量/矩阵/求解器操作集）
+ *
+ * 在初始化时调用，将后端名称与其操作集关联。
+ * 之后 lv_vector_create/lv_matrix_create/lv_linsol_create
+ * 将通过查表找到对应的操作集，无需 #ifdef 编译时判断。
+ *
+ * @param backend_type 后端类型枚举值
+ * @param vector_ops   向量操作集指针
+ * @param matrix_ops   矩阵操作集指针
+ * @param linsol_ops   线性求解器操作集指针
+ */
+void lv_numerical_backend_register(lvBackendType backend_type,
+                                   const lvVectorOps *vector_ops,
+                                   const lvMatrixOps *matrix_ops,
+                                   const lvLinearSolverOps *linsol_ops);
 /**
  * @brief 创建向量（指定后端和长度）
  *

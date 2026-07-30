@@ -43,13 +43,13 @@
 
 /* ── 运行时配置默认值的边界函数 ── */
 int propagation_default_max_iterations(void) {
-    return (int) lv_config_current()->prop_max_iterations;
+    return (int) lv_config_current()->propagation.prop_max_iterations;
 }
 int propagation_default_max_backtracks(void) {
-    return (int) lv_config_current()->prop_max_backtracks;
+    return (int) lv_config_current()->propagation.prop_max_backtracks;
 }
 int propagation_wfc_max_collaboration_iterations(void) {
-    return (int) lv_config_current()->prop_max_collaboration_iters;
+    return (int) lv_config_current()->propagation.prop_max_collaboration_iters;
 }
 
 #define MAX_CONSTRAINTS_PER_NODE 128

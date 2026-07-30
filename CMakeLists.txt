@@ -493,6 +493,8 @@ set(lv_HEADERS
     core/include/lv/expr_canon.h
     core/include/lv/modal_operators.h
     core/include/lv/circuit_breaker.h
+    # v4.0.0 新增：熔断器独立模块头文件
+    core/include/lv/lv_circuit_breaker.h
     core/include/lv/axiom_grade.h
     core/include/lv/three_valued_logic.h
     core/include/lv/quantifier.h
@@ -662,6 +664,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_config.c
     core/src/layer2_resource/lv.c
     core/src/layer2_resource/context.c
+    # v4.0.0 新增：熔断器独立模块（从 lvContext God Object 提取）
+    core/src/layer2_resource/lv_circuit_breaker.c
     core/src/layer2_resource/error_codes.c
     core/src/layer2_resource/debug.c
     core/src/layer2_resource/node_deep_copy.c

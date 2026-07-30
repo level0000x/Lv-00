@@ -287,6 +287,7 @@ typedef struct CudaIterSolverData {
  * 前向声明
  * ======================================================================== */
 
+static lvVector *cuda_vector_create(int64_t n);
 static lvVector *cuda_vector_clone(const lvVector *v);
 static void cuda_vector_destroy(lvVector *v);
 static void cuda_vector_zero(lvVector *v);
@@ -304,6 +305,7 @@ static void cuda_vector_compare(lvVector *v, double c);
 static int64_t cuda_vector_length(const lvVector *v);
 static double *cuda_vector_data_ptr(lvVector *v);
 
+static lvMatrix *cuda_matrix_create(int64_t rows, int64_t cols, bool sparse);
 static lvMatrix *cuda_matrix_clone(const lvMatrix *A);
 static void cuda_matrix_destroy(lvMatrix *A);
 static void cuda_matrix_zero(lvMatrix *A);
@@ -316,6 +318,7 @@ static int cuda_matrix_factor(lvMatrix *A);
 static int cuda_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x);
 
 static int cuda_linsol_setup(lvLinearSolver *LS, const lvMatrix *A);
+static lvLinearSolver *cuda_linsol_create(lvLinearSolverMethod method);
 static int cuda_linsol_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static void cuda_linsol_destroy(lvLinearSolver *LS);
 
@@ -329,6 +332,7 @@ static int cuda_iter_setup(lvLinearSolver *LS, const lvMatrix *A);
 
 /** @brief CUDA 向量操作表 */
 static const lvVectorOps cuda_vector_ops = {
+    cuda_vector_create,
     cuda_vector_clone, cuda_vector_destroy,  cuda_vector_zero,       cuda_vector_const_set,
     cuda_vector_copy,  cuda_vector_scale,    cuda_vector_linear_sum, cuda_vector_dot,
     cuda_vector_norm,  cuda_vector_max_norm, cuda_vector_wrms_norm,  cuda_vector_abs,
@@ -337,6 +341,7 @@ static const lvVectorOps cuda_vector_ops = {
 
 /** @brief CUDA 稠密矩阵操作表 */
 static const lvMatrixOps cuda_dense_matrix_ops = {
+    cuda_matrix_create,
     cuda_matrix_clone,  cuda_matrix_destroy, cuda_matrix_zero,        cuda_matrix_copy,
     cuda_matrix_matvec, cuda_matrix_scale,   cuda_matrix_set_element, cuda_matrix_get_element,
     cuda_matrix_factor, cuda_matrix_solve,
@@ -344,6 +349,7 @@ static const lvMatrixOps cuda_dense_matrix_ops = {
 
 /** @brief CUDA 稠密 LU 求解器操作表 */
 static const lvLinearSolverOps cuda_dense_linsol_ops = {
+    cuda_linsol_create,
     cuda_linsol_setup,
     cuda_linsol_solve,
     cuda_linsol_destroy,
@@ -351,6 +357,7 @@ static const lvLinearSolverOps cuda_dense_linsol_ops = {
 
 /** @brief CUDA GMRES 求解器操作表 */
 static const lvLinearSolverOps cuda_gmres_linsol_ops = {
+    cuda_linsol_create,
     cuda_linsol_setup,
     cuda_gmres_solve,
     cuda_linsol_destroy,
@@ -358,6 +365,7 @@ static const lvLinearSolverOps cuda_gmres_linsol_ops = {
 
 /** @brief CUDA BiCGSTAB 求解器操作表 */
 static const lvLinearSolverOps cuda_bicgstab_linsol_ops = {
+    cuda_linsol_create,
     cuda_linsol_setup,
     cuda_bicgstab_solve,
     cuda_linsol_destroy,
@@ -1735,18 +1743,140 @@ static int cuda_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVe
 }
 
 /* ========================================================================
- * 第五部分：公共 API 实现
+ * 第五部分：CUDA 后端 create 函数实现
+ * ======================================================================== */
+
+/**
+ * @brief 创建 CUDA 后端向量
+ */
+static lvVector *cuda_vector_create(int64_t n) {
+    if (n <= 0) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "向量长度必须为正整数，当前 n=%lld", (long long) n);
+        return NULL;
+    }
+
+    lvVector *v = lv_calloc(1, sizeof(lvVector));
+    lv_CHECK_ALLOC(v, NULL);
+
+    v->length = n;
+    v->backend = lv_BACKEND_CUDA;
+    v->ops = &cuda_vector_ops;
+    v->data = NULL;
+
+    CudaVectorData *vd = lv_calloc(1, sizeof(CudaVectorData));
+    if (!vd) {
+        lv_free((void **) &v);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "CudaVectorData 分配失败");
+        return NULL;
+    }
+    vd->length = n;
+
+    cudaError_t err = cudaMalloc((void **) &vd->d_data, (size_t) n * sizeof(double));
+    if (err != cudaSuccess) {
+        lv_free((void **) &vd);
+        lv_free((void **) &v);
+        lv_ERROR_SET(lv_BACKEND_MEM_ERROR, "cudaMalloc(vector) 失败: %s", cudaGetErrorString(err));
+        return NULL;
+    }
+    cudaMemset(vd->d_data, 0, (size_t) n * sizeof(double));
+
+    v->backend_data = vd;
+    return v;
+}
+
+/**
+ * @brief 创建 CUDA 后端稠密矩阵
+ */
+static lvMatrix *cuda_matrix_create(int64_t rows, int64_t cols, bool sparse) {
+    if (rows <= 0 || cols <= 0) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "矩阵维度必须为正整数，当前 %lldx%lld",
+                     (long long) rows, (long long) cols);
+        return NULL;
+    }
+
+    lvMatrix *A = lv_calloc(1, sizeof(lvMatrix));
+    lv_CHECK_ALLOC(A, NULL);
+
+    A->rows = rows;
+    A->cols = cols;
+    A->sparse = sparse;
+    A->format = sparse ? lv_MATRIX_SPARSE_CSR : lv_MATRIX_DENSE;
+    A->backend = lv_BACKEND_CUDA;
+    A->ops = &cuda_dense_matrix_ops;
+    A->data = NULL;
+
+    CudaMatrixData *md = lv_calloc(1, sizeof(CudaMatrixData));
+    if (!md) {
+        lv_free((void **) &A);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "CudaMatrixData 分配失败");
+        return NULL;
+    }
+    md->rows = rows;
+    md->cols = cols;
+
+    size_t data_size = (size_t) (rows * cols) * sizeof(double);
+    cudaError_t err = cudaMalloc((void **) &md->d_data, data_size);
+    if (err != cudaSuccess) {
+        lv_free((void **) &md);
+        lv_free((void **) &A);
+        lv_ERROR_SET(lv_BACKEND_MEM_ERROR, "cudaMalloc(matrix) 失败: %s", cudaGetErrorString(err));
+        return NULL;
+    }
+    cudaMemset(md->d_data, 0, data_size);
+
+    A->backend_data = md;
+    return A;
+}
+
+/**
+ * @brief 创建 CUDA 后端线性求解器
+ */
+static lvLinearSolver *cuda_linsol_create(lvLinearSolverMethod method) {
+    lvLinearSolver *LS = lv_calloc(1, sizeof(lvLinearSolver));
+    lv_CHECK_ALLOC(LS, NULL);
+
+    LS->method = method;
+    LS->backend = lv_BACKEND_CUDA;
+    LS->solver_data = NULL;
+    LS->backend_data = NULL;
+
+    switch (method) {
+        case lv_LINSOL_DIRECT_DENSE:
+        case lv_LINSOL_DIRECT_BAND:
+        case lv_LINSOL_DIRECT_SPARSE:
+            LS->ops = &cuda_dense_linsol_ops;
+            break;
+        case lv_LINSOL_ITERATIVE_GMRES:
+            LS->ops = &cuda_gmres_linsol_ops;
+            break;
+        case lv_LINSOL_ITERATIVE_BICGSTAB:
+            LS->ops = &cuda_bicgstab_linsol_ops;
+            break;
+        default:
+            lv_free((void **) &LS);
+            lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "CUDA 后端不支持的求解方法: %s",
+                         lv_linsol_method_name(method));
+            return NULL;
+    }
+
+    return LS;
+}
+
+/* ========================================================================
+ * 第六部分：公共 API 实现
  * ======================================================================== */
 
 /**
  * @brief 注册 CUDA 后端操作表
  *
- * 当前将 CUDA 后端操作表注册到全局后端注册表中。
+ * 将 CUDA 向量/矩阵/求解器操作表注册到全局后端注册表中。
  * 返回 0 表示成功。
  */
 int lv_cuda_register_backend(void) {
-    /* CUDA 后端操作表已在本文件中定义（static const）。
-     * 注册到全局后端的逻辑由上层调用者通过 lvBackendType 分派。 */
+    lv_numerical_backend_register(lv_BACKEND_CUDA,
+                                   &cuda_vector_ops,
+                                   &cuda_dense_matrix_ops,
+                                   &cuda_dense_linsol_ops);
     return 0;
 }
 

@@ -46,7 +46,7 @@ theorem bootstrap_empty_correct :
 
 /-- 编译器语义保真：编译后的 IR 语义与源程序一致 -/
 theorem compiler_semantics_fidelity (prog : lvProgram)
-    (h : graph_satisfiable (compile_program prog)) : True := by
+    (_h : graph_satisfiable (compile_program prog)) : True := by
   trivial
 
 /-! ## 自举流程的元性质 -/

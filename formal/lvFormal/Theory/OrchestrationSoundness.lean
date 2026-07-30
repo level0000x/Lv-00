@@ -66,8 +66,8 @@ def cache_insert {α : Type} [DecidableEq α] (c : Cache α) (k v : α) : Cache 
   (k, v) :: c
 
 theorem cache_reuse {α : Type} [DecidableEq α] (c : Cache α) (k v : α)
-    (h : cache_lookup c k = some v) : cache_lookup (cache_insert c k v) k = some v := by
+    (_h : cache_lookup c k = some v) : cache_lookup (cache_insert c k v) k = some v := by
   unfold cache_lookup cache_insert
-  simp [h]
+  simp
 
 end lvFormal.Theory.OrchestrationSoundness

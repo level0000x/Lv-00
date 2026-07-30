@@ -658,6 +658,306 @@ lv_PUBLIC_API bool lv_geo_solver_remove_constraint(lvSolverSystem *sys, int id) 
  * 第七部分：约束残差计算（核心）
  * ======================================================================== */
 
+/* --- 约束求值：函数指针表 --- */
+typedef double (*ConstraintEvalFunc)(const lvSolverSystem *sys, const lvConstraint *c, double *error_val);
+
+static double eval_points_coincident(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 2;
+    }
+    double dx = ea->params[0] - eb->params[0];
+    double dy = ea->params[1] - eb->params[1];
+    double err = dx * dx + dy * dy;
+    if (error_val) *error_val = err;
+    return 2;
+}
+
+static double eval_pt_pt_distance(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double dx = ea->params[0] - eb->params[0];
+    double dy = ea->params[1] - eb->params[1];
+    double dist = sqrt(dx * dx + dy * dy);
+    double err = dist - c->value;
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_pt_on_line(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double px = ea->params[0], py = ea->params[1];
+    double ax = eb->params[0], ay = eb->params[1];
+    double bx = eb->params[2], by = eb->params[3];
+    double ldx = bx - ax, ldy = by - ay;
+    double len = sqrt(ldx * ldx + ldy * ldy);
+    if (len < lv_EPSILON_SUPERTINY) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double err = ((px - ax) * ldy - (py - ay) * ldx) / len;
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_pt_line_distance(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double px = ea->params[0], py = ea->params[1];
+    double ax = eb->params[0], ay = eb->params[1];
+    double bx = eb->params[2], by = eb->params[3];
+    double ldx = bx - ax, ldy = by - ay;
+    double len = sqrt(ldx * ldx + ldy * ldy);
+    if (len < lv_EPSILON_SUPERTINY) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double dist = fabs(((px - ax) * ldy - (py - ay) * ldx) / len);
+    double err = dist - c->value;
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_pt_on_segment(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double px = ea->params[0], py = ea->params[1];
+    double x1 = eb->params[0], y1 = eb->params[1];
+    double x2 = eb->params[2], y2 = eb->params[3];
+    double sdx = x2 - x1, sdy = y2 - y1;
+    double slen = sqrt(sdx * sdx + sdy * sdy);
+    if (slen < 1e-15) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double err = fabs(((px - x1) * sdy - (py - y1) * sdx) / slen);
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_pt_on_circle(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double dx = ea->params[0] - eb->params[0];
+    double dy = ea->params[1] - eb->params[1];
+    double dist = sqrt(dx * dx + dy * dy);
+    double err = dist - eb->params[2];
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_pt_pt_midpoint(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    lvEntity *ec = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_c);
+    if (!ea || !eb || !ec) {
+        if (error_val) *error_val = 0.0;
+        return 2;
+    }
+    double mx = (ea->params[0] + eb->params[0]) * 0.5;
+    double my = (ea->params[1] + eb->params[1]) * 0.5;
+    double err = (ec->params[0] - mx) * (ec->params[0] - mx) + (ec->params[1] - my) * (ec->params[1] - my);
+    if (error_val) *error_val = err;
+    return 2;
+}
+
+static double eval_parallel(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double dax = ea->params[2] - ea->params[0];
+    double day = ea->params[3] - ea->params[1];
+    double dbx = eb->params[2] - eb->params[0];
+    double dby = eb->params[3] - eb->params[1];
+    double err = dax * dby - day * dbx;
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_perpendicular(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double dax = ea->params[2] - ea->params[0];
+    double day = ea->params[3] - ea->params[1];
+    double dbx = eb->params[2] - eb->params[0];
+    double dby = eb->params[3] - eb->params[1];
+    double err = dax * dbx + day * dby;
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_angle(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double dax = ea->params[2] - ea->params[0];
+    double day = ea->params[3] - ea->params[1];
+    double dbx = eb->params[2] - eb->params[0];
+    double dby = eb->params[3] - eb->params[1];
+    double angle_a = (dax != 0.0 || day != 0.0) ? atan2(day, dax) : 0.0;
+    double angle_b = (dbx != 0.0 || dby != 0.0) ? atan2(dby, dbx) : 0.0;
+    double diff = angle_a - angle_b;
+    while (diff > M_PI) diff -= 2.0 * M_PI;
+    while (diff < -M_PI) diff += 2.0 * M_PI;
+    double err = diff - c->value;
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_equal_length(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double dax = ea->params[2] - ea->params[0];
+    double day = ea->params[3] - ea->params[1];
+    double dbx = eb->params[2] - eb->params[0];
+    double dby = eb->params[3] - eb->params[1];
+    double len_a = sqrt(dax * dax + day * day);
+    double len_b = sqrt(dbx * dbx + dby * dby);
+    double err = len_a - len_b;
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_equal_radius(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double err = ea->params[2] - eb->params[2];
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_concentric(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 2;
+    }
+    double dx = ea->params[0] - eb->params[0];
+    double dy = ea->params[1] - eb->params[1];
+    double err = dx * dx + dy * dy;
+    if (error_val) *error_val = err;
+    return 2;
+}
+
+static double eval_tangent(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+    if (!ea || !eb) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double ax = ea->params[0], ay = ea->params[1];
+    double bx = ea->params[2], by = ea->params[3];
+    double cx = eb->params[0], cy = eb->params[1];
+    double r = eb->params[2];
+    double ldx = bx - ax, ldy = by - ay;
+    double len = sqrt(ldx * ldx + ldy * ldy);
+    if (len < lv_EPSILON_SUPERTINY) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double dist = fabs(((cx - ax) * ldy - (cy - ay) * ldx) / len);
+    double err = dist - r;
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_fixed(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    if (!ea) {
+        if (error_val) *error_val = 0.0;
+        return 0;
+    }
+    int dof = lv_entity_dof(ea->type);
+    if (error_val) *error_val = 0.0;
+    return (double)dof;
+}
+
+static double eval_horizontal(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    if (!ea) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double err = ea->params[1] - ea->params[3];
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static double eval_vertical(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
+    lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+    if (!ea) {
+        if (error_val) *error_val = 0.0;
+        return 1;
+    }
+    double err = ea->params[0] - ea->params[2];
+    if (error_val) *error_val = err;
+    return 1;
+}
+
+static ConstraintEvalFunc s_constraint_eval_funcs[] = {
+    [lv_CONSTRAINT_POINTS_COINCIDENT] = eval_points_coincident,
+    [lv_CONSTRAINT_PT_PT_DISTANCE]    = eval_pt_pt_distance,
+    [lv_CONSTRAINT_PT_ON_LINE]        = eval_pt_on_line,
+    [lv_CONSTRAINT_PT_LINE_DISTANCE]  = eval_pt_line_distance,
+    [lv_CONSTRAINT_PT_ON_SEGMENT]     = eval_pt_on_segment,
+    [lv_CONSTRAINT_PT_ON_CIRCLE]      = eval_pt_on_circle,
+    [lv_CONSTRAINT_PT_PT_MIDPOINT]    = eval_pt_pt_midpoint,
+    [lv_CONSTRAINT_PARALLEL]          = eval_parallel,
+    [lv_CONSTRAINT_PERPENDICULAR]     = eval_perpendicular,
+    [lv_CONSTRAINT_ANGLE]             = eval_angle,
+    [lv_CONSTRAINT_EQUAL_LENGTH]      = eval_equal_length,
+    [lv_CONSTRAINT_EQUAL_RADIUS]      = eval_equal_radius,
+    [lv_CONSTRAINT_CONCENTRIC]        = eval_concentric,
+    [lv_CONSTRAINT_TANGENT]           = eval_tangent,
+    [lv_CONSTRAINT_FIXED]             = eval_fixed,
+    [lv_CONSTRAINT_HORIZONTAL]        = eval_horizontal,
+    [lv_CONSTRAINT_VERTICAL]          = eval_vertical,
+};
+static const int s_constraint_eval_func_count = (int)(sizeof(s_constraint_eval_funcs) / sizeof(s_constraint_eval_funcs[0]));
+
 /**
  * @brief 计算单个约束的残差
  *
@@ -669,367 +969,12 @@ lv_PUBLIC_API bool lv_geo_solver_remove_constraint(lvSolverSystem *sys, int id) 
  * @return 残差数量（1 或 2）
  */
 static double evaluate_constraint(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
-    double err = 0.0;
-
-    switch (c->type) {
-        /* ---- 两点重合 ---- */
-        case lv_CONSTRAINT_POINTS_COINCIDENT: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 2;
-            }
-            double dx = ea->params[0] - eb->params[0];
-            double dy = ea->params[1] - eb->params[1];
-            /* 返回 x 方向残差，y 方向作为第二个残差 */
-            err = dx * dx + dy * dy;
-            if (error_val)
-                *error_val = err;
-            return 2;
-        }
-
-        /* ---- 点点距离 ---- */
-        case lv_CONSTRAINT_PT_PT_DISTANCE: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double dx = ea->params[0] - eb->params[0];
-            double dy = ea->params[1] - eb->params[1];
-            double dist = sqrt(dx * dx + dy * dy);
-            err = dist - c->value;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 点在直线上 ---- */
-        case lv_CONSTRAINT_PT_ON_LINE: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            /* 点 (px, py) 到直线 (ax,ay)-(bx,by) 的距离 */
-            double px = ea->params[0], py = ea->params[1];
-            double ax = eb->params[0], ay = eb->params[1];
-            double bx = eb->params[2], by = eb->params[3];
-            double ldx = bx - ax, ldy = by - ay;
-            double len = sqrt(ldx * ldx + ldy * ldy);
-            if (len < lv_EPSILON_SUPERTINY) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            err = ((px - ax) * ldy - (py - ay) * ldx) / len;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 点线距离 ---- */
-        case lv_CONSTRAINT_PT_LINE_DISTANCE: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double px = ea->params[0], py = ea->params[1];
-            double ax = eb->params[0], ay = eb->params[1];
-            double bx = eb->params[2], by = eb->params[3];
-            double ldx = bx - ax, ldy = by - ay;
-            double len = sqrt(ldx * ldx + ldy * ldy);
-            if (len < lv_EPSILON_SUPERTINY) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double dist = fabs(((px - ax) * ldy - (py - ay) * ldx) / len);
-            err = dist - c->value;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 点在线段上 ---- */
-        case lv_CONSTRAINT_PT_ON_SEGMENT: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double px = ea->params[0], py = ea->params[1];
-            double x1 = eb->params[0], y1 = eb->params[1];
-            double x2 = eb->params[2], y2 = eb->params[3];
-            double sdx = x2 - x1, sdy = y2 - y1;
-            double slen = sqrt(sdx * sdx + sdy * sdy);
-            if (slen < 1e-15) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            /* 点到线段所在直线的距离 */
-            double dist = fabs(((px - x1) * sdy - (py - y1) * sdx) / slen);
-            err = dist;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 点在圆上 ---- */
-        case lv_CONSTRAINT_PT_ON_CIRCLE: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double dx = ea->params[0] - eb->params[0];
-            double dy = ea->params[1] - eb->params[1];
-            double dist = sqrt(dx * dx + dy * dy);
-            err = dist - eb->params[2]; /* params[2] = r */
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 第三点为前两点中点 ---- */
-        case lv_CONSTRAINT_PT_PT_MIDPOINT: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            lvEntity *ec = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_c);
-            if (!ea || !eb || !ec) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 2;
-            }
-            /* ec 应为 ea 和 eb 的中点 */
-            double mx = (ea->params[0] + eb->params[0]) * 0.5;
-            double my = (ea->params[1] + eb->params[1]) * 0.5;
-            err = (ec->params[0] - mx) * (ec->params[0] - mx) + (ec->params[1] - my) * (ec->params[1] - my);
-            if (error_val)
-                *error_val = err;
-            return 2;
-        }
-
-        /* ---- 两线平行 ---- */
-        case lv_CONSTRAINT_PARALLEL: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double dax = ea->params[2] - ea->params[0];
-            double day = ea->params[3] - ea->params[1];
-            double dbx = eb->params[2] - eb->params[0];
-            double dby = eb->params[3] - eb->params[1];
-            /* 叉积为零则平行 */
-            err = dax * dby - day * dbx;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 两线垂直 ---- */
-        case lv_CONSTRAINT_PERPENDICULAR: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double dax = ea->params[2] - ea->params[0];
-            double day = ea->params[3] - ea->params[1];
-            double dbx = eb->params[2] - eb->params[0];
-            double dby = eb->params[3] - eb->params[1];
-            /* 点积为零则垂直 */
-            err = dax * dbx + day * dby;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 两线角度 ---- */
-        case lv_CONSTRAINT_ANGLE: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double dax = ea->params[2] - ea->params[0];
-            double day = ea->params[3] - ea->params[1];
-            double dbx = eb->params[2] - eb->params[0];
-            double dby = eb->params[3] - eb->params[1];
-            /* 避免退化为点时 atan2(0,0) 返回 NaN */
-            double angle_a = (dax != 0.0 || day != 0.0) ? atan2(day, dax) : 0.0;
-            double angle_b = (dbx != 0.0 || dby != 0.0) ? atan2(dby, dbx) : 0.0;
-            double diff = angle_a - angle_b;
-            /* 归一化到 [-pi, pi] */
-            while (diff > M_PI)
-                diff -= 2.0 * M_PI;
-            while (diff < -M_PI)
-                diff += 2.0 * M_PI;
-            err = diff - c->value;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 两线段等长 ---- */
-        case lv_CONSTRAINT_EQUAL_LENGTH: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double dax = ea->params[2] - ea->params[0];
-            double day = ea->params[3] - ea->params[1];
-            double dbx = eb->params[2] - eb->params[0];
-            double dby = eb->params[3] - eb->params[1];
-            double len_a = sqrt(dax * dax + day * day);
-            double len_b = sqrt(dbx * dbx + dby * dby);
-            err = len_a - len_b;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 两圆等半径 ---- */
-        case lv_CONSTRAINT_EQUAL_RADIUS: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            err = ea->params[2] - eb->params[2];
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 两圆同心 ---- */
-        case lv_CONSTRAINT_CONCENTRIC: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 2;
-            }
-            double dx = ea->params[0] - eb->params[0];
-            double dy = ea->params[1] - eb->params[1];
-            err = dx * dx + dy * dy;
-            if (error_val)
-                *error_val = err;
-            return 2;
-        }
-
-        /* ---- 线与圆相切 ---- */
-        case lv_CONSTRAINT_TANGENT: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (!ea || !eb) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            /* 线 (ax,ay)-(bx,by) 到圆心 (cx,cy) 的距离应等于半径 r */
-            double ax = ea->params[0], ay = ea->params[1];
-            double bx = ea->params[2], by = ea->params[3];
-            double cx = eb->params[0], cy = eb->params[1];
-            double r = eb->params[2];
-            double ldx = bx - ax, ldy = by - ay;
-            double len = sqrt(ldx * ldx + ldy * ldy);
-            if (len < lv_EPSILON_SUPERTINY) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            double dist = fabs(((cx - ax) * ldy - (cy - ay) * ldx) / len);
-            err = dist - r;
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 固定实体 ---- */
-        case lv_CONSTRAINT_FIXED: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            if (!ea) {
-                if (error_val)
-                    *error_val = 0.0;
-                return ea ? ea->param_count : 0;
-            }
-            /*
-         * FIXED 约束：将实体锁定在当前位置。
-         * 残差始终为 0，因为固定实体不参与求解 —— 其参数在迭代过程中不更新。
-         * 约束求解器通过实体类型（lv_CONSTRAINT_FIXED）识别固定实体，
-         * 在构建雅可比矩阵时跳过对应的列（参数）。
-         */
-            int dof = lv_entity_dof(ea->type);
-            /* 固定实体的所有自由度残差均为零 */
-            err = 0.0;
-            if (error_val)
-                *error_val = err;
-            return dof;
-        }
-
-        /* ---- 线段水平 ---- */
-        case lv_CONSTRAINT_HORIZONTAL: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            if (!ea) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            /* y1 == y2 */
-            err = ea->params[1] - ea->params[3];
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        /* ---- 线段垂直 ---- */
-        case lv_CONSTRAINT_VERTICAL: {
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            if (!ea) {
-                if (error_val)
-                    *error_val = 0.0;
-                return 1;
-            }
-            /* x1 == x2 */
-            err = ea->params[0] - ea->params[2];
-            if (error_val)
-                *error_val = err;
-            return 1;
-        }
-
-        default:
-            if (error_val)
-                *error_val = 0.0;
-            return 0;
+    if (c->type >= 0 && c->type < s_constraint_eval_func_count && s_constraint_eval_funcs[c->type]) {
+        return s_constraint_eval_funcs[c->type](sys, c, error_val);
     }
+    if (error_val)
+        *error_val = 0.0;
+    return 0;
 }
 
 /* ========================================================================

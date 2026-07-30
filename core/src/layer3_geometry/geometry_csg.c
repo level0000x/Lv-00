@@ -357,82 +357,87 @@ void csg_node_destroy(CSGNode *node) {
  *
  * @param node  CSG 节点
  */
+/* --- 包围盒计算：函数指针表 --- */
+typedef void (*CSGBBoxFunc)(CSGNode *node);
+
+static void bbox_primitive(CSGNode *node) {
+    int ptype = node->data.prim.type;
+    double *p = node->data.prim.params;
+
+    switch (ptype) {
+        case 0: /* 球体：params = [radius] */
+            node->bbox_min[0] = node->bbox_min[1] = node->bbox_min[2] = -p[0];
+            node->bbox_max[0] = node->bbox_max[1] = node->bbox_max[2] = p[0];
+            break;
+        case 1: /* 立方体：params = [w, h, d] */
+            node->bbox_min[0] = -p[0] * 0.5;
+            node->bbox_min[1] = -p[1] * 0.5;
+            node->bbox_min[2] = -p[2] * 0.5;
+            node->bbox_max[0] = p[0] * 0.5;
+            node->bbox_max[1] = p[1] * 0.5;
+            node->bbox_max[2] = p[2] * 0.5;
+            break;
+        case 2: /* 圆柱体：params = [radius, height] */
+            node->bbox_min[0] = -p[0];
+            node->bbox_min[1] = -p[0];
+            node->bbox_min[2] = -p[1] * 0.5;
+            node->bbox_max[0] = p[0];
+            node->bbox_max[1] = p[0];
+            node->bbox_max[2] = p[1] * 0.5;
+            break;
+        default:
+            break;
+    }
+}
+
+static void bbox_merge_children(CSGNode *node) {
+    for (int i = 0; i < node->child_count; i++) {
+        csg_node_init_bbox(node->children[i]);
+    }
+    if (node->child_count > 0) {
+        CSGNode *first = node->children[0];
+        node->bbox_min[0] = first->bbox_min[0];
+        node->bbox_min[1] = first->bbox_min[1];
+        node->bbox_min[2] = first->bbox_min[2];
+        node->bbox_max[0] = first->bbox_max[0];
+        node->bbox_max[1] = first->bbox_max[1];
+        node->bbox_max[2] = first->bbox_max[2];
+    }
+    for (int i = 1; i < node->child_count; i++) {
+        CSGNode *ch = node->children[i];
+        if (ch->bbox_min[0] < node->bbox_min[0])
+            node->bbox_min[0] = ch->bbox_min[0];
+        if (ch->bbox_min[1] < node->bbox_min[1])
+            node->bbox_min[1] = ch->bbox_min[1];
+        if (ch->bbox_min[2] < node->bbox_min[2])
+            node->bbox_min[2] = ch->bbox_min[2];
+        if (ch->bbox_max[0] > node->bbox_max[0])
+            node->bbox_max[0] = ch->bbox_max[0];
+        if (ch->bbox_max[1] > node->bbox_max[1])
+            node->bbox_max[1] = ch->bbox_max[1];
+        if (ch->bbox_max[2] > node->bbox_max[2])
+            node->bbox_max[2] = ch->bbox_max[2];
+    }
+}
+
+static CSGBBoxFunc s_bbox_funcs[] = {
+    [CSG_NODE_PRIMITIVE] = bbox_primitive,
+    [CSG_NODE_UNION] = bbox_merge_children,
+    [CSG_NODE_DIFFERENCE] = bbox_merge_children,
+    [CSG_NODE_INTERSECTION] = bbox_merge_children,
+    [CSG_NODE_HULL] = bbox_merge_children,
+    [CSG_NODE_MINKOWSKI] = bbox_merge_children,
+    [CSG_NODE_TRANSFORM] = bbox_merge_children,
+    [CSG_NODE_EXTRUDE_LINEAR] = bbox_merge_children,
+    [CSG_NODE_EXTRUDE_ROTATE] = bbox_merge_children,
+};
+static const int s_bbox_func_count = (int)(sizeof(s_bbox_funcs) / sizeof(s_bbox_funcs[0]));
+
 void csg_node_init_bbox(CSGNode *node) {
     if (!node)
         return;
-
-    switch (node->kind) {
-        case CSG_NODE_PRIMITIVE: {
-            int ptype = node->data.prim.type;
-            double *p = node->data.prim.params;
-
-            switch (ptype) {
-                case 0: /* 球体：params = [radius] */
-                    node->bbox_min[0] = node->bbox_min[1] = node->bbox_min[2] = -p[0];
-                    node->bbox_max[0] = node->bbox_max[1] = node->bbox_max[2] = p[0];
-                    break;
-                case 1: /* 立方体：params = [w, h, d] */
-                    node->bbox_min[0] = -p[0] * 0.5;
-                    node->bbox_min[1] = -p[1] * 0.5;
-                    node->bbox_min[2] = -p[2] * 0.5;
-                    node->bbox_max[0] = p[0] * 0.5;
-                    node->bbox_max[1] = p[1] * 0.5;
-                    node->bbox_max[2] = p[2] * 0.5;
-                    break;
-                case 2: /* 圆柱体：params = [radius, height] */
-                    node->bbox_min[0] = -p[0];
-                    node->bbox_min[1] = -p[0];
-                    node->bbox_min[2] = -p[1] * 0.5;
-                    node->bbox_max[0] = p[0];
-                    node->bbox_max[1] = p[0];
-                    node->bbox_max[2] = p[1] * 0.5;
-                    break;
-                default:
-                    /* 未知图元：包围盒保持无效 */
-                    break;
-            }
-            break;
-        }
-
-        case CSG_NODE_UNION:
-        case CSG_NODE_DIFFERENCE:
-        case CSG_NODE_INTERSECTION:
-        case CSG_NODE_HULL:
-        case CSG_NODE_MINKOWSKI:
-        case CSG_NODE_TRANSFORM:
-        case CSG_NODE_EXTRUDE_LINEAR:
-        case CSG_NODE_EXTRUDE_ROTATE:
-            /* 先递归计算所有子节点的包围盒 */
-            for (int i = 0; i < node->child_count; i++) {
-                csg_node_init_bbox(node->children[i]);
-            }
-
-            /* 合并所有子节点的包围盒 */
-            if (node->child_count > 0) {
-                CSGNode *first = node->children[0];
-                node->bbox_min[0] = first->bbox_min[0];
-                node->bbox_min[1] = first->bbox_min[1];
-                node->bbox_min[2] = first->bbox_min[2];
-                node->bbox_max[0] = first->bbox_max[0];
-                node->bbox_max[1] = first->bbox_max[1];
-                node->bbox_max[2] = first->bbox_max[2];
-            }
-            for (int i = 1; i < node->child_count; i++) {
-                CSGNode *ch = node->children[i];
-                if (ch->bbox_min[0] < node->bbox_min[0])
-                    node->bbox_min[0] = ch->bbox_min[0];
-                if (ch->bbox_min[1] < node->bbox_min[1])
-                    node->bbox_min[1] = ch->bbox_min[1];
-                if (ch->bbox_min[2] < node->bbox_min[2])
-                    node->bbox_min[2] = ch->bbox_min[2];
-                if (ch->bbox_max[0] > node->bbox_max[0])
-                    node->bbox_max[0] = ch->bbox_max[0];
-                if (ch->bbox_max[1] > node->bbox_max[1])
-                    node->bbox_max[1] = ch->bbox_max[1];
-                if (ch->bbox_max[2] > node->bbox_max[2])
-                    node->bbox_max[2] = ch->bbox_max[2];
-            }
-            break;
+    if (node->kind >= 0 && node->kind < s_bbox_func_count && s_bbox_funcs[node->kind]) {
+        s_bbox_funcs[node->kind](node);
     }
 }
 
@@ -1535,348 +1540,251 @@ static void csg_extract_vertices(const CSGTriList *tris, CSGVec3 **out_verts, in
     *out_count = count;
 }
 
-/* ================================================================
- * CSG 树递归评估
- * ================================================================ */
+/* --- CSG 树评估：函数指针表 --- */
+typedef void (*CSGEvalFunc)(const CSGNode *node, CSGTriList *out);
 
-/**
- * @brief 递归评估 CSG 构造树，生成三角形面列表
- *
- * 遍历 CSG 树：
- *   - 叶子节点（PRIMITIVE）：直接生成三角形面。
- *   - 布尔节点（UNION/DIFFERENCE/INTERSECTION）：递归评估子节点，
- *     然后对两个子节点的面列表执行对应的 BSP 布尔运算。
- *   - TRANSFORM 节点：递归评估子节点后应用 4x4 齐次变换矩阵。
- *   - HULL 节点：收集所有子节点顶点，计算凸包。
- *   - MINKOWSKI 节点：计算两个子网格的 Minkowski 和。
- *   - EXTRUDE_LINEAR 节点：将 2D 截面沿指定方向拉伸为 3D 实体。
- *   - EXTRUDE_ROTATE 节点：将 2D 截面绕轴旋转生成旋转体。
- *
- * @param node  CSG 树节点
- * @param out   输出三角形面列表（调用者负责 csg_trilist_free）
- */
-void csg_evaluate(const CSGNode *node, CSGTriList *out) {
-    if (!node || !out)
+/* 前向声明：提取的函数需要递归调用 csg_evaluate */
+static void eval_csg_bool(const CSGNode *node, CSGTriList *out);
+static void eval_csg_transform(const CSGNode *node, CSGTriList *out);
+static void eval_csg_hull(const CSGNode *node, CSGTriList *out);
+static void eval_csg_minkowski(const CSGNode *node, CSGTriList *out);
+static void eval_csg_extrude_linear(const CSGNode *node, CSGTriList *out);
+static void eval_csg_extrude_rotate(const CSGNode *node, CSGTriList *out);
+
+/* csg_evaluate 前向声明（提取的函数递归调用它） */
+void csg_evaluate(const CSGNode *node, CSGTriList *out);
+
+static void eval_csg_primitive(const CSGNode *node, CSGTriList *out) {
+    csg_primitive_to_tris(node, out);
+}
+
+static void eval_csg_bool(const CSGNode *node, CSGTriList *out) {
+    if (node->child_count < 2) {
+        if (node->child_count == 1) {
+            csg_evaluate(node->children[0], out);
+        }
         return;
+    }
+
+    CSGTriList tris_a;
+    csg_trilist_init(&tris_a, CSG_MAX_TRI_BUFFER);
+    csg_evaluate(node->children[0], &tris_a);
+
+    CSGTriList tris_b;
+    csg_trilist_init(&tris_b, CSG_MAX_TRI_BUFFER);
+    csg_evaluate(node->children[1], &tris_b);
 
     switch (node->kind) {
-        case CSG_NODE_PRIMITIVE:
-            csg_primitive_to_tris(node, out);
-            break;
-
         case CSG_NODE_UNION:
+            csg_bsp_union_tri(&tris_a, &tris_b, out);
+            break;
         case CSG_NODE_DIFFERENCE:
-        case CSG_NODE_INTERSECTION: {
-            if (node->child_count < 2) {
-                /* 不足两个子节点：跳过布尔运算 */
-                if (node->child_count == 1) {
-                    csg_evaluate(node->children[0], out);
-                }
-                return;
-            }
-
-            /* 评估左子树 */
-            CSGTriList tris_a;
-            csg_trilist_init(&tris_a, CSG_MAX_TRI_BUFFER);
-            csg_evaluate(node->children[0], &tris_a);
-
-            /* 评估右子树 */
-            CSGTriList tris_b;
-            csg_trilist_init(&tris_b, CSG_MAX_TRI_BUFFER);
-            csg_evaluate(node->children[1], &tris_b);
-
-            /* 执行对应的 BSP 布尔运算 */
-            switch (node->kind) {
-                case CSG_NODE_UNION:
-                    csg_bsp_union_tri(&tris_a, &tris_b, out);
-                    break;
-                case CSG_NODE_DIFFERENCE:
-                    csg_bsp_difference_tri(&tris_a, &tris_b, out);
-                    break;
-                case CSG_NODE_INTERSECTION:
-                    csg_bsp_intersection_tri(&tris_a, &tris_b, out);
-                    break;
-                default:
-                    break;
-            }
-
-            csg_trilist_free(&tris_a);
-            csg_trilist_free(&tris_b);
+            csg_bsp_difference_tri(&tris_a, &tris_b, out);
             break;
-        }
-
-        case CSG_NODE_TRANSFORM: {
-            /* TRANSFORM 节点：递归评估子节点后应用 4x4 齐次变换矩阵 */
-            if (node->child_count < 1)
-                break;
-
-            /* 递归评估子节点，获取原始三角形面 */
-            CSGTriList child_tris;
-            csg_trilist_init(&child_tris, CSG_MAX_TRI_BUFFER);
-            csg_evaluate(node->children[0], &child_tris);
-
-            /* 提取 4x4 变换矩阵 */
-            const double (*M)[4] = node->transform;
-
-            /* 计算逆转置矩阵的 3x3 部分（用于法线变换） */
-            /* 先求 3x3 子矩阵的行列式 */
-            double m00 = M[0][0], m01 = M[0][1], m02 = M[0][2];
-            double m10 = M[1][0], m11 = M[1][1], m12 = M[1][2];
-            double m20 = M[2][0], m21 = M[2][1], m22 = M[2][2];
-
-            double det = m00 * (m11 * m22 - m12 * m21) - m01 * (m10 * m22 - m12 * m20) + m02 * (m10 * m21 - m11 * m20);
-
-            /* 相对容差奇异检测：行列式应相对于矩阵元素的量级进行判断。
-             * 当坐标值很大时（如 1e6），矩阵元素量级可达 1e6，
-             * 行列式的量级可达 1e18，绝对容差 1e-9 过于严格。
-             * 使用 max|element|^2 * EPSILON 作为相对容差。 */
-            double abs_m00 = fabs(m00), abs_m01 = fabs(m01), abs_m02 = fabs(m02);
-            double abs_m10 = fabs(m10), abs_m11 = fabs(m11), abs_m12 = fabs(m12);
-            double abs_m20 = fabs(m20), abs_m21 = fabs(m21), abs_m22 = fabs(m22);
-            double max_el = abs_m00;
-            if (abs_m01 > max_el)
-                max_el = abs_m01;
-            if (abs_m02 > max_el)
-                max_el = abs_m02;
-            if (abs_m10 > max_el)
-                max_el = abs_m10;
-            if (abs_m11 > max_el)
-                max_el = abs_m11;
-            if (abs_m12 > max_el)
-                max_el = abs_m12;
-            if (abs_m20 > max_el)
-                max_el = abs_m20;
-            if (abs_m21 > max_el)
-                max_el = abs_m21;
-            if (abs_m22 > max_el)
-                max_el = abs_m22;
-            double det_tol = CSG_BSP_EPSILON * fmax(1.0, max_el * max_el);
-
-            /* 逆转置 3x3 = (1/det) * adjugate(M)^T = (1/det) * cofactor(M) */
-            double inv_det;
-            double invT[3][3];
-            if (fabs(det) < det_tol) {
-                /* 奇异矩阵：行列式接近零，法线保持不变（使用单位矩阵） */
-                invT[0][0] = 1.0;
-                invT[0][1] = 0.0;
-                invT[0][2] = 0.0;
-                invT[1][0] = 0.0;
-                invT[1][1] = 1.0;
-                invT[1][2] = 0.0;
-                invT[2][0] = 0.0;
-                invT[2][1] = 0.0;
-                invT[2][2] = 1.0;
-            } else {
-                inv_det = 1.0 / det;
-                invT[0][0] = (m11 * m22 - m12 * m21) * inv_det;
-                invT[0][1] = (m02 * m21 - m01 * m22) * inv_det;
-                invT[0][2] = (m01 * m12 - m02 * m11) * inv_det;
-                invT[1][0] = (m12 * m20 - m10 * m22) * inv_det;
-                invT[1][1] = (m00 * m22 - m02 * m20) * inv_det;
-                invT[1][2] = (m02 * m10 - m00 * m12) * inv_det;
-                invT[2][0] = (m10 * m21 - m11 * m20) * inv_det;
-                invT[2][1] = (m01 * m20 - m00 * m21) * inv_det;
-                invT[2][2] = (m00 * m11 - m01 * m10) * inv_det;
-            }
-
-            /* 对每个三角形应用变换 */
-            for (int i = 0; i < child_tris.count; i++) {
-                CSGTriangle tri = child_tris.tris[i];
-
-                /* 变换三个顶点：v' = M * v（齐次坐标） */
-                for (int v = 0; v < 3; v++) {
-                    double x = tri.v[v].x;
-                    double y = tri.v[v].y;
-                    double z = tri.v[v].z;
-                    double w = M[3][0] * x + M[3][1] * y + M[3][2] * z + M[3][3];
-
-                    /* 透视除法（仅当 w != 1 时） */
-                    double inv_w = (fabs(w - 1.0) > CSG_BSP_EPSILON) ? 1.0 / w : 1.0;
-
-                    tri.v[v].x = (M[0][0] * x + M[0][1] * y + M[0][2] * z + M[0][3]) * inv_w;
-                    tri.v[v].y = (M[1][0] * x + M[1][1] * y + M[1][2] * z + M[1][3]) * inv_w;
-                    tri.v[v].z = (M[2][0] * x + M[2][1] * y + M[2][2] * z + M[2][3]) * inv_w;
-                }
-
-                /* 用逆转置矩阵变换法线：n' = (M^{-1})^T * n */
-                double nx = tri.normal.x;
-                double ny = tri.normal.y;
-                double nz = tri.normal.z;
-                tri.normal.x = invT[0][0] * nx + invT[0][1] * ny + invT[0][2] * nz;
-                tri.normal.y = invT[1][0] * nx + invT[1][1] * ny + invT[1][2] * nz;
-                tri.normal.z = invT[2][0] * nx + invT[2][1] * ny + invT[2][2] * nz;
-                tri.normal = csg_vec3_normalize(tri.normal);
-
-                tri.face_id = out->count;
-                csg_trilist_append(out, &tri);
-            }
-
-            csg_trilist_free(&child_tris);
+        case CSG_NODE_INTERSECTION:
+            csg_bsp_intersection_tri(&tris_a, &tris_b, out);
             break;
-        }
-
-        case CSG_NODE_HULL: {
-            /* HULL 节点：收集所有子节点的顶点，计算凸包 */
-            if (node->child_count < 1)
-                break;
-
-            /* 收集所有子节点的三角形面 */
-            CSGTriList all_tris;
-            csg_trilist_init(&all_tris, CSG_MAX_TRI_BUFFER * node->child_count);
-            for (int i = 0; i < node->child_count; i++) {
-                csg_evaluate(node->children[i], &all_tris);
-            }
-
-            /* 提取唯一顶点 */
-            CSGVec3 *hull_verts = NULL;
-            int hull_vert_count = 0;
-            csg_extract_vertices(&all_tris, &hull_verts, &hull_vert_count);
-
-            if (hull_verts && hull_vert_count >= 4) {
-                /* 计算凸包 */
-                csg_compute_convex_hull(hull_verts, hull_vert_count, out);
-            }
-
-            /* 清理 */
-            if (hull_verts) {
-                lv_free((void **) &hull_verts);
-            }
-            csg_trilist_free(&all_tris);
+        default:
             break;
+    }
+
+    csg_trilist_free(&tris_a);
+    csg_trilist_free(&tris_b);
+}
+
+static void eval_csg_transform(const CSGNode *node, CSGTriList *out) {
+    if (node->child_count < 1)
+        return;
+
+    CSGTriList child_tris;
+    csg_trilist_init(&child_tris, CSG_MAX_TRI_BUFFER);
+    csg_evaluate(node->children[0], &child_tris);
+
+    const double (*M)[4] = node->transform;
+
+    double m00 = M[0][0], m01 = M[0][1], m02 = M[0][2];
+    double m10 = M[1][0], m11 = M[1][1], m12 = M[1][2];
+    double m20 = M[2][0], m21 = M[2][1], m22 = M[2][2];
+
+    double det = m00 * (m11 * m22 - m12 * m21) - m01 * (m10 * m22 - m12 * m20) + m02 * (m10 * m21 - m11 * m20);
+
+    double abs_m00 = fabs(m00), abs_m01 = fabs(m01), abs_m02 = fabs(m02);
+    double abs_m10 = fabs(m10), abs_m11 = fabs(m11), abs_m12 = fabs(m12);
+    double abs_m20 = fabs(m20), abs_m21 = fabs(m21), abs_m22 = fabs(m22);
+    double max_el = abs_m00;
+    if (abs_m01 > max_el) max_el = abs_m01;
+    if (abs_m02 > max_el) max_el = abs_m02;
+    if (abs_m10 > max_el) max_el = abs_m10;
+    if (abs_m11 > max_el) max_el = abs_m11;
+    if (abs_m12 > max_el) max_el = abs_m12;
+    if (abs_m20 > max_el) max_el = abs_m20;
+    if (abs_m21 > max_el) max_el = abs_m21;
+    if (abs_m22 > max_el) max_el = abs_m22;
+    double det_tol = CSG_BSP_EPSILON * fmax(1.0, max_el * max_el);
+
+    double inv_det;
+    double invT[3][3];
+    if (fabs(det) < det_tol) {
+        invT[0][0] = 1.0; invT[0][1] = 0.0; invT[0][2] = 0.0;
+        invT[1][0] = 0.0; invT[1][1] = 1.0; invT[1][2] = 0.0;
+        invT[2][0] = 0.0; invT[2][1] = 0.0; invT[2][2] = 1.0;
+    } else {
+        inv_det = 1.0 / det;
+        invT[0][0] = (m11 * m22 - m12 * m21) * inv_det;
+        invT[0][1] = (m02 * m21 - m01 * m22) * inv_det;
+        invT[0][2] = (m01 * m12 - m02 * m11) * inv_det;
+        invT[1][0] = (m12 * m20 - m10 * m22) * inv_det;
+        invT[1][1] = (m00 * m22 - m02 * m20) * inv_det;
+        invT[1][2] = (m02 * m10 - m00 * m12) * inv_det;
+        invT[2][0] = (m10 * m21 - m11 * m20) * inv_det;
+        invT[2][1] = (m01 * m20 - m00 * m21) * inv_det;
+        invT[2][2] = (m00 * m11 - m01 * m10) * inv_det;
+    }
+
+    for (int i = 0; i < child_tris.count; i++) {
+        CSGTriangle tri = child_tris.tris[i];
+        for (int v = 0; v < 3; v++) {
+            double x = tri.v[v].x;
+            double y = tri.v[v].y;
+            double z = tri.v[v].z;
+            double w = M[3][0] * x + M[3][1] * y + M[3][2] * z + M[3][3];
+            double inv_w = (fabs(w - 1.0) > CSG_BSP_EPSILON) ? 1.0 / w : 1.0;
+            tri.v[v].x = (M[0][0] * x + M[0][1] * y + M[0][2] * z + M[0][3]) * inv_w;
+            tri.v[v].y = (M[1][0] * x + M[1][1] * y + M[1][2] * z + M[1][3]) * inv_w;
+            tri.v[v].z = (M[2][0] * x + M[2][1] * y + M[2][2] * z + M[2][3]) * inv_w;
         }
+        double nx = tri.normal.x, ny = tri.normal.y, nz = tri.normal.z;
+        tri.normal.x = invT[0][0] * nx + invT[0][1] * ny + invT[0][2] * nz;
+        tri.normal.y = invT[1][0] * nx + invT[1][1] * ny + invT[1][2] * nz;
+        tri.normal.z = invT[2][0] * nx + invT[2][1] * ny + invT[2][2] * nz;
+        tri.normal = csg_vec3_normalize(tri.normal);
+        tri.face_id = out->count;
+        csg_trilist_append(out, &tri);
+    }
+    csg_trilist_free(&child_tris);
+}
+static void eval_csg_hull(const CSGNode *node, CSGTriList *out) {
+    if (node->child_count < 1)
+        return;
 
-        case CSG_NODE_MINKOWSKI: {
-            /* MINKOWSKI 节点：计算两个子网格的 Minkowski 和 A ⊕ B */
-            if (node->child_count < 2)
-                break;
+    CSGTriList all_tris;
+    csg_trilist_init(&all_tris, CSG_MAX_TRI_BUFFER * node->child_count);
+    for (int i = 0; i < node->child_count; i++) {
+        csg_evaluate(node->children[i], &all_tris);
+    }
 
-            /* 评估两个子节点 */
-            CSGTriList tris_a, tris_b;
-            csg_trilist_init(&tris_a, CSG_MAX_TRI_BUFFER);
-            csg_trilist_init(&tris_b, CSG_MAX_TRI_BUFFER);
-            csg_evaluate(node->children[0], &tris_a);
-            csg_evaluate(node->children[1], &tris_b);
+    CSGVec3 *hull_verts = NULL;
+    int hull_vert_count = 0;
+    csg_extract_vertices(&all_tris, &hull_verts, &hull_vert_count);
 
-            /* 提取两个网格的唯一顶点 */
-            CSGVec3 *verts_a = NULL, *verts_b = NULL;
-            int count_a = 0, count_b = 0;
-            csg_extract_vertices(&tris_a, &verts_a, &count_a);
-            csg_extract_vertices(&tris_b, &verts_b, &count_b);
+    if (hull_verts && hull_vert_count >= 4) {
+        csg_compute_convex_hull(hull_verts, hull_vert_count, out);
+    }
 
-            if (verts_a && verts_b && count_a > 0 && count_b > 0) {
-                /* 计算所有顶点对之和：v_sum = v_a + v_b */
-                if (count_a <= INT_MAX / count_b) {
-                    int sum_count = count_a * count_b;
-                    CSGVec3 *sum_verts = (CSGVec3 *) lv_calloc((size_t) sum_count, sizeof(CSGVec3));
-                    if (sum_verts) {
-                        int idx = 0;
-                        for (int i = 0; i < count_a; i++) {
-                            for (int j = 0; j < count_b; j++) {
-                                sum_verts[idx] = csg_vec3_add(verts_a[i], verts_b[j]);
-                                idx++;
-                            }
-                        }
+    if (hull_verts) {
+        lv_free((void **) &hull_verts);
+    }
+    csg_trilist_free(&all_tris);
+}
 
-                        /* 对求和结果计算凸包，得到 Minkowski 和的近似 */
-                        csg_compute_convex_hull(sum_verts, sum_count, out);
+static void eval_csg_minkowski(const CSGNode *node, CSGTriList *out) {
+    if (node->child_count < 2)
+        return;
 
-                        lv_free((void **) &sum_verts);
+    CSGTriList tris_a, tris_b;
+    csg_trilist_init(&tris_a, CSG_MAX_TRI_BUFFER);
+    csg_trilist_init(&tris_b, CSG_MAX_TRI_BUFFER);
+    csg_evaluate(node->children[0], &tris_a);
+    csg_evaluate(node->children[1], &tris_b);
+
+    CSGVec3 *verts_a = NULL, *verts_b = NULL;
+    int count_a = 0, count_b = 0;
+    csg_extract_vertices(&tris_a, &verts_a, &count_a);
+    csg_extract_vertices(&tris_b, &verts_b, &count_b);
+
+    if (verts_a && verts_b && count_a > 0 && count_b > 0) {
+        if (count_a <= INT_MAX / count_b) {
+            int sum_count = count_a * count_b;
+            CSGVec3 *sum_verts = (CSGVec3 *) lv_calloc((size_t) sum_count, sizeof(CSGVec3));
+            if (sum_verts) {
+                int idx = 0;
+                for (int i = 0; i < count_a; i++) {
+                    for (int j = 0; j < count_b; j++) {
+                        sum_verts[idx] = csg_vec3_add(verts_a[i], verts_b[j]);
+                        idx++;
                     }
-                } /* end if (count_a <= INT_MAX / count_b) */
-            } /* end if (verts_a && verts_b) */
-
-            /* 清理 */
-            if (verts_a)
-                lv_free((void **) &verts_a);
-            if (verts_b)
-                lv_free((void **) &verts_b);
-            csg_trilist_free(&tris_a);
-            csg_trilist_free(&tris_b);
-            break;
+                }
+                csg_compute_convex_hull(sum_verts, sum_count, out);
+                lv_free((void **) &sum_verts);
+            }
         }
+    }
 
-        case CSG_NODE_EXTRUDE_LINEAR: {
-            /* EXTRUDE_LINEAR 节点：将 2D 截面沿指定方向拉伸为 3D 实体
-             *
-             * 使用 node->data.prim.params 存储拉伸参数：
-             *   params[0] = 拉伸高度（沿 Z 轴）
-             *   params[1] = 拉伸方向 X 分量（默认 0）
-             *   params[2] = 拉伸方向 Y 分量（默认 0）
-             *   params[3] = 拉伸方向 Z 分量（默认 1）
-             *   params[4] = 缩放因子（顶面，默认 1 = 无缩放）
-             */
-            if (node->child_count < 1)
-                break;
+    if (verts_a)
+        lv_free((void **) &verts_a);
+    if (verts_b)
+        lv_free((void **) &verts_b);
+    csg_trilist_free(&tris_a);
+    csg_trilist_free(&tris_b);
+}
 
-            /* 评估子节点获取 2D 截面三角形 */
-            CSGTriList section_tris;
-            csg_trilist_init(&section_tris, CSG_MAX_TRI_BUFFER);
-            csg_evaluate(node->children[0], &section_tris);
+static void eval_csg_extrude_linear(const CSGNode *node, CSGTriList *out) {
+    if (node->child_count < 1)
+        return;
 
-            /* 读取拉伸参数 */
-            double height = node->data.prim.params[0];
-            if (height <= 0.0)
-                height = 1.0;
+    CSGTriList section_tris;
+    csg_trilist_init(&section_tris, CSG_MAX_TRI_BUFFER);
+    csg_evaluate(node->children[0], &section_tris);
 
-            double dir_x = node->data.prim.params[1];
-            double dir_y = node->data.prim.params[2];
-            double dir_z = node->data.prim.params[3];
+    double height = node->data.prim.params[0];
+    if (height <= 0.0)
+        height = 1.0;
 
-            /* 归一化拉伸方向 */
-            CSGVec3 dir = {dir_x, dir_y, dir_z};
-            double dir_len = sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
-            if (dir_len < CSG_BSP_EPSILON) {
-                /* 默认沿 Z 轴拉伸 */
-                dir.x = 0.0;
-                dir.y = 0.0;
-                dir.z = 1.0;
-            } else {
-                dir.x /= dir_len;
-                dir.y /= dir_len;
-                dir.z /= dir_len;
-            }
+    double dir_x = node->data.prim.params[1];
+    double dir_y = node->data.prim.params[2];
+    double dir_z = node->data.prim.params[3];
 
-            CSGVec3 offset = csg_vec3_scale(dir, height);
+    CSGVec3 dir = {dir_x, dir_y, dir_z};
+    double dir_len = sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    if (dir_len < CSG_BSP_EPSILON) {
+        dir.x = 0.0; dir.y = 0.0; dir.z = 1.0;
+    } else {
+        dir.x /= dir_len; dir.y /= dir_len; dir.z /= dir_len;
+    }
 
-            /* 提取截面顶点（用于侧面连接） */
-            CSGVec3 *section_verts = NULL;
-            int section_vert_count = 0;
-            csg_extract_vertices(&section_tris, &section_verts, &section_vert_count);
+    CSGVec3 offset = csg_vec3_scale(dir, height);
 
-            /* 1) 前面（底面）：原始截面，法线朝 -dir */
-            for (int i = 0; i < section_tris.count; i++) {
-                CSGTriangle tri = section_tris.tris[i];
-                /* 翻转法线朝向 -dir 方向 */
-                CSGVec3 flip_n = csg_vec3_scale(tri.normal, -1.0);
-                if (csg_vec3_dot(flip_n, dir) < 0.0)
-                    flip_n = csg_vec3_scale(flip_n, -1.0);
-                tri.normal = csg_vec3_normalize(flip_n);
-                tri.face_id = out->count;
-                csg_trilist_append(out, &tri);
-            }
+    CSGVec3 *section_verts = NULL;
+    int section_vert_count = 0;
+    csg_extract_vertices(&section_tris, &section_verts, &section_vert_count);
 
-            /* 2) 后面（顶面）：平移后的截面，法线朝 +dir */
-            for (int i = 0; i < section_tris.count; i++) {
-                CSGTriangle tri = section_tris.tris[i];
-                tri.v[0] = csg_vec3_add(tri.v[0], offset);
-                tri.v[1] = csg_vec3_add(tri.v[1], offset);
-                tri.v[2] = csg_vec3_add(tri.v[2], offset);
-                /* 确保法线朝 +dir */
-                if (csg_vec3_dot(tri.normal, dir) < 0.0)
-                    tri.normal = csg_vec3_scale(tri.normal, -1.0);
-                tri.normal = csg_vec3_normalize(tri.normal);
-                tri.face_id = out->count;
-                csg_trilist_append(out, &tri);
-            }
+    for (int i = 0; i < section_tris.count; i++) {
+        CSGTriangle tri = section_tris.tris[i];
+        CSGVec3 flip_n = csg_vec3_scale(tri.normal, -1.0);
+        if (csg_vec3_dot(flip_n, dir) < 0.0)
+            flip_n = csg_vec3_scale(flip_n, -1.0);
+        tri.normal = csg_vec3_normalize(flip_n);
+        tri.face_id = out->count;
+        csg_trilist_append(out, &tri);
+    }
 
-            /* 3) 侧面：对截面中每条边，创建连接前后两个副本的四边形（2 个三角形）
-             *    遍历所有三角形的边，去重后生成侧面 */
-            if (section_verts && section_vert_count >= 2) {
-                /* 收集所有边（顶点索引对），去重 */
-                int edge_cap = section_tris.count * 3;
-                int *edge_a = (int *) lv_calloc((size_t) edge_cap, sizeof(int));
-                int *edge_b = (int *) lv_calloc((size_t) edge_cap, sizeof(int));
-                int edge_count = 0;
+    for (int i = 0; i < section_tris.count; i++) {
+        CSGTriangle tri = section_tris.tris[i];
+        tri.v[0] = csg_vec3_add(tri.v[0], offset);
+        tri.v[1] = csg_vec3_add(tri.v[1], offset);
+        tri.v[2] = csg_vec3_add(tri.v[2], offset);
+        if (csg_vec3_dot(tri.normal, dir) < 0.0)
+            tri.normal = csg_vec3_scale(tri.normal, -1.0);
+        tri.normal = csg_vec3_normalize(tri.normal);
+        tri.face_id = out->count;
+        csg_trilist_append(out, &tri);
+    }
+
+    if (section_verts && section_vert_count >= 2) {
+        int edge_cap = section_tris.count * 3;
+        int *edge_a = (int *) lv_calloc((size_t) edge_cap, sizeof(int));
+        int *edge_b = (int *) lv_calloc((size_t) edge_cap, sizeof(int));
+        int edge_count = 0;
 
                 if (edge_a && edge_b) {
                     for (int i = 0; i < section_tris.count; i++) {
@@ -1974,197 +1882,154 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                     lv_free((void **) &edge_a);
                 if (edge_b)
                     lv_free((void **) &edge_b);
-            }
+        }
+}
 
-            /* 清理 */
-            if (section_verts)
-                lv_free((void **) &section_verts);
-            csg_trilist_free(&section_tris);
-            break;
+static void eval_csg_extrude_rotate(const CSGNode *node, CSGTriList *out) {
+    if (node->child_count < 1)
+        return;
+
+    CSGTriList section_tris;
+    csg_trilist_init(&section_tris, CSG_MAX_TRI_BUFFER);
+    csg_evaluate(node->children[0], &section_tris);
+
+    double angle_deg = node->data.prim.params[0];
+    if (angle_deg <= 0.0) angle_deg = 360.0;
+    int segments = (int)node->data.prim.params[1];
+    if (segments <= 0) segments = 32;
+    if (segments > 128) segments = 128;
+
+    CSGVec3 axis = {node->data.prim.params[2], node->data.prim.params[3], node->data.prim.params[4]};
+    double axis_len = sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
+    if (axis_len < CSG_BSP_EPSILON) {
+        axis.x = 0.0; axis.y = 1.0; axis.z = 0.0;
+    } else {
+        axis.x /= axis_len; axis.y /= axis_len; axis.z /= axis_len;
+    }
+
+    double angle_rad = angle_deg * M_PI / 180.0;
+    double angle_step = angle_rad / (double)segments;
+
+    CSGVec3 *sec_verts = NULL;
+    int sec_count = 0;
+    csg_extract_vertices(&section_tris, &sec_verts, &sec_count);
+
+    if (!sec_verts || sec_count < 2) {
+        if (sec_verts) lv_free((void **)&sec_verts);
+        csg_trilist_free(&section_tris);
+        return;
+    }
+
+    for (int seg = 0; seg < segments; seg++) {
+        double theta1 = angle_step * (double)seg;
+        double theta2 = angle_step * (double)(seg + 1);
+        double cos1 = cos(theta1), sin1 = sin(theta1);
+        double cos2 = cos(theta2), sin2 = sin(theta2);
+
+        for (int i = 0; i < section_tris.count; i++) {
+            for (int e = 0; e < 3; e++) {
+                CSGVec3 va = section_tris.tris[i].v[e];
+                CSGVec3 vb = section_tris.tris[i].v[(e + 1) % 3];
+
+                CSGVec3 ediff = csg_vec3_sub(vb, va);
+                if (ediff.x * ediff.x + ediff.y * ediff.y + ediff.z * ediff.z < CSG_BSP_EPSILON * CSG_BSP_EPSILON)
+                    continue;
+
+                CSGVec3 va1, va2, vb1, vb2;
+                CSGVec3 kxva = csg_vec3_cross(axis, va);
+                double kdva = csg_vec3_dot(axis, va);
+                CSGVec3 kxvb = csg_vec3_cross(axis, vb);
+                double kdvb = csg_vec3_dot(axis, vb);
+
+                double c1_complement = 1.0 - cos1;
+                va1.x = va.x * cos1 + kxva.x * sin1 + axis.x * kdva * c1_complement;
+                va1.y = va.y * cos1 + kxva.y * sin1 + axis.y * kdva * c1_complement;
+                va1.z = va.z * cos1 + kxva.z * sin1 + axis.z * kdva * c1_complement;
+
+                double c2_complement = 1.0 - cos2;
+                va2.x = va.x * cos2 + kxva.x * sin2 + axis.x * kdva * c2_complement;
+                va2.y = va.y * cos2 + kxva.y * sin2 + axis.y * kdva * c2_complement;
+                va2.z = va.z * cos2 + kxva.z * sin2 + axis.z * kdva * c2_complement;
+
+                vb1.x = vb.x * cos1 + kxvb.x * sin1 + axis.x * kdvb * c1_complement;
+                vb1.y = vb.y * cos1 + kxvb.y * sin1 + axis.y * kdvb * c1_complement;
+                vb1.z = vb.z * cos1 + kxvb.z * sin1 + axis.z * kdvb * c1_complement;
+
+                vb2.x = vb.x * cos2 + kxvb.x * sin2 + axis.x * kdvb * c2_complement;
+                vb2.y = vb.y * cos2 + kxvb.y * sin2 + axis.y * kdvb * c2_complement;
+                vb2.z = vb.z * cos2 + kxvb.z * sin2 + axis.z * kdvb * c2_complement;
+
+                CSGTriangle tri;
+                tri.v[0] = va1; tri.v[1] = vb1; tri.v[2] = va2;
+                tri.normal = csg_tri_normal(&tri);
+                tri.face_id = out->count;
+                csg_trilist_append(out, &tri);
+
+                tri.v[0] = vb1; tri.v[1] = vb2; tri.v[2] = va2;
+                tri.normal = csg_tri_normal(&tri);
+                tri.face_id = out->count;
+                csg_trilist_append(out, &tri);
+            }
+        }
+    }
+
+    if (angle_deg < 360.0 - CSG_BSP_EPSILON) {
+        for (int i = 0; i < section_tris.count; i++) {
+            CSGTriangle tri = section_tris.tris[i];
+            CSGVec3 face_normal = csg_tri_normal(&tri);
+            if (csg_vec3_dot(face_normal, axis) < 0.0) {
+                face_normal = csg_vec3_scale(face_normal, -1.0);
+                CSGVec3 tmp = tri.v[1]; tri.v[1] = tri.v[2]; tri.v[2] = tmp;
+            }
+            tri.normal = csg_vec3_normalize(face_normal);
+            tri.face_id = out->count;
+            csg_trilist_append(out, &tri);
         }
 
-        case CSG_NODE_EXTRUDE_ROTATE: {
-            /* EXTRUDE_ROTATE 节点：将 2D 截面绕 Y 轴旋转生成旋转体
-             *
-             * 使用 node->data.prim.params 存储旋转参数：
-             *   params[0] = 旋转角度（度，默认 360）
-             *   params[1] = 分段数（默认 32）
-             *   params[2] = 旋转轴 X 分量（默认 0）
-             *   params[3] = 旋转轴 Y 分量（默认 1）
-             *   params[4] = 旋转轴 Z 分量（默认 0）
-             */
-            if (node->child_count < 1)
-                break;
-
-            /* 评估子节点获取 2D 截面 */
-            CSGTriList section_tris;
-            csg_trilist_init(&section_tris, CSG_MAX_TRI_BUFFER);
-            csg_evaluate(node->children[0], &section_tris);
-
-            /* 读取旋转参数 */
-            double angle_deg = node->data.prim.params[0];
-            if (angle_deg <= 0.0)
-                angle_deg = 360.0;
-            int segments = (int) node->data.prim.params[1];
-            if (segments <= 0)
-                segments = 32;
-            if (segments > 128)
-                segments = 128; /* 限制最大分段数 */
-
-            /* 旋转轴（默认 Y 轴） */
-            CSGVec3 axis = {node->data.prim.params[2], node->data.prim.params[3], node->data.prim.params[4]};
-            double axis_len = sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
-            if (axis_len < CSG_BSP_EPSILON) {
-                axis.x = 0.0;
-                axis.y = 1.0;
-                axis.z = 0.0;
-            } else {
-                axis.x /= axis_len;
-                axis.y /= axis_len;
-                axis.z /= axis_len;
+        double cos_end = cos(angle_rad), sin_end = sin(angle_rad);
+        for (int i = 0; i < section_tris.count; i++) {
+            CSGTriangle tri = section_tris.tris[i];
+            for (int v = 0; v < 3; v++) {
+                CSGVec3 p = tri.v[v];
+                CSGVec3 kxp = csg_vec3_cross(axis, p);
+                double kdp = csg_vec3_dot(axis, p);
+                tri.v[v].x = p.x * cos_end + kxp.x * sin_end + axis.x * kdp * (1.0 - cos_end);
+                tri.v[v].y = p.y * cos_end + kxp.y * sin_end + axis.y * kdp * (1.0 - cos_end);
+                tri.v[v].z = p.z * cos_end + kxp.z * sin_end + axis.z * kdp * (1.0 - cos_end);
             }
-
-            double angle_rad = angle_deg * M_PI / 180.0;
-            double angle_step = angle_rad / (double) segments;
-
-            /* 提取截面唯一顶点 */
-            CSGVec3 *sec_verts = NULL;
-            int sec_count = 0;
-            csg_extract_vertices(&section_tris, &sec_verts, &sec_count);
-
-            if (!sec_verts || sec_count < 2) {
-                if (sec_verts)
-                    lv_free((void **) &sec_verts);
-                csg_trilist_free(&section_tris);
-                break;
+            CSGVec3 face_normal = csg_tri_normal(&tri);
+            if (csg_vec3_dot(face_normal, axis) > 0.0) {
+                face_normal = csg_vec3_scale(face_normal, -1.0);
+                CSGVec3 tmp = tri.v[1]; tri.v[1] = tri.v[2]; tri.v[2] = tmp;
             }
-
-            /*
-             * 绕任意轴旋转的 Rodrigues 公式：
-             *   v' = v*cos(θ) + (k×v)*sin(θ) + k*(k·v)*(1-cos(θ))
-             * 其中 k 为单位旋转轴
-             */
-            /* 对每个分段，旋转截面顶点并生成侧面三角形条带 */
-            for (int seg = 0; seg < segments; seg++) {
-                double theta1 = angle_step * (double) seg;
-                double theta2 = angle_step * (double) (seg + 1);
-                double cos1 = cos(theta1), sin1 = sin(theta1);
-                double cos2 = cos(theta2), sin2 = sin(theta2);
-
-                /* 对每条截面边生成侧面四边形 */
-                for (int i = 0; i < section_tris.count; i++) {
-                    for (int e = 0; e < 3; e++) {
-                        CSGVec3 va = section_tris.tris[i].v[e];
-                        CSGVec3 vb = section_tris.tris[i].v[(e + 1) % 3];
-
-                        /* 跳过退化边 */
-                        CSGVec3 ediff = csg_vec3_sub(vb, va);
-                        if (ediff.x * ediff.x + ediff.y * ediff.y + ediff.z * ediff.z <
-                            CSG_BSP_EPSILON * CSG_BSP_EPSILON)
-                            continue;
-
-                        /* 旋转 va 和 vb 到 theta1 和 theta2 位置 */
-                        /* Rodrigues: v' = v*cos(θ) + (k×v)*sin(θ) + k*(k·v)*(1-cos(θ)) */
-                        CSGVec3 va1, va2, vb1, vb2;
-
-                        /* 预计算共享的叉积和点积，避免重复浮点运算 */
-                        CSGVec3 kxva = csg_vec3_cross(axis, va);
-                        double kdva = csg_vec3_dot(axis, va);
-                        CSGVec3 kxvb = csg_vec3_cross(axis, vb);
-                        double kdvb = csg_vec3_dot(axis, vb);
-
-                        /* va 在 theta1 */
-                        double c1_complement = 1.0 - cos1;
-                        va1.x = va.x * cos1 + kxva.x * sin1 + axis.x * kdva * c1_complement;
-                        va1.y = va.y * cos1 + kxva.y * sin1 + axis.y * kdva * c1_complement;
-                        va1.z = va.z * cos1 + kxva.z * sin1 + axis.z * kdva * c1_complement;
-
-                        /* va 在 theta2 */
-                        double c2_complement = 1.0 - cos2;
-                        va2.x = va.x * cos2 + kxva.x * sin2 + axis.x * kdva * c2_complement;
-                        va2.y = va.y * cos2 + kxva.y * sin2 + axis.y * kdva * c2_complement;
-                        va2.z = va.z * cos2 + kxva.z * sin2 + axis.z * kdva * c2_complement;
-
-                        /* vb 在 theta1 */
-                        vb1.x = vb.x * cos1 + kxvb.x * sin1 + axis.x * kdvb * c1_complement;
-                        vb1.y = vb.y * cos1 + kxvb.y * sin1 + axis.y * kdvb * c1_complement;
-                        vb1.z = vb.z * cos1 + kxvb.z * sin1 + axis.z * kdvb * c1_complement;
-
-                        /* vb 在 theta2 */
-                        vb2.x = vb.x * cos2 + kxvb.x * sin2 + axis.x * kdvb * c2_complement;
-                        vb2.y = vb.y * cos2 + kxvb.y * sin2 + axis.y * kdvb * c2_complement;
-                        vb2.z = vb.z * cos2 + kxvb.z * sin2 + axis.z * kdvb * c2_complement;
-
-                        /* 生成两个三角形组成侧面四边形 */
-                        CSGTriangle tri;
-                        tri.v[0] = va1;
-                        tri.v[1] = vb1;
-                        tri.v[2] = va2;
-                        tri.normal = csg_tri_normal(&tri);
-                        tri.face_id = out->count;
-                        csg_trilist_append(out, &tri);
-
-                        tri.v[0] = vb1;
-                        tri.v[1] = vb2;
-                        tri.v[2] = va2;
-                        tri.normal = csg_tri_normal(&tri);
-                        tri.face_id = out->count;
-                        csg_trilist_append(out, &tri);
-                    }
-                }
-            }
-
-            /* 添加起始端面和结束端面 */
-            if (angle_deg < 360.0 - CSG_BSP_EPSILON) {
-                /* 起始端面（theta=0）：原始截面 */
-                for (int i = 0; i < section_tris.count; i++) {
-                    CSGTriangle tri = section_tris.tris[i];
-                    /* 法线应朝 -旋转方向 */
-                    CSGVec3 face_normal = csg_tri_normal(&tri);
-                    if (csg_vec3_dot(face_normal, axis) < 0.0) {
-                        face_normal = csg_vec3_scale(face_normal, -1.0);
-                        CSGVec3 tmp = tri.v[1];
-                        tri.v[1] = tri.v[2];
-                        tri.v[2] = tmp;
-                    }
-                    tri.normal = csg_vec3_normalize(face_normal);
-                    tri.face_id = out->count;
-                    csg_trilist_append(out, &tri);
-                }
-
-                /* 结束端面（theta=angle）：旋转后的截面 */
-                double cos_end = cos(angle_rad), sin_end = sin(angle_rad);
-                for (int i = 0; i < section_tris.count; i++) {
-                    CSGTriangle tri = section_tris.tris[i];
-                    /* 旋转顶点到结束角度 */
-                    for (int v = 0; v < 3; v++) {
-                        CSGVec3 p = tri.v[v];
-                        CSGVec3 kxp = csg_vec3_cross(axis, p);
-                        double kdp = csg_vec3_dot(axis, p);
-                        tri.v[v].x = p.x * cos_end + kxp.x * sin_end + axis.x * kdp * (1.0 - cos_end);
-                        tri.v[v].y = p.y * cos_end + kxp.y * sin_end + axis.y * kdp * (1.0 - cos_end);
-                        tri.v[v].z = p.z * cos_end + kxp.z * sin_end + axis.z * kdp * (1.0 - cos_end);
-                    }
-                    /* 法线应朝 +旋转方向 */
-                    CSGVec3 face_normal = csg_tri_normal(&tri);
-                    if (csg_vec3_dot(face_normal, axis) > 0.0) {
-                        face_normal = csg_vec3_scale(face_normal, -1.0);
-                        CSGVec3 tmp = tri.v[1];
-                        tri.v[1] = tri.v[2];
-                        tri.v[2] = tmp;
-                    }
-                    tri.normal = csg_vec3_normalize(face_normal);
-                    tri.face_id = out->count;
-                    csg_trilist_append(out, &tri);
-                }
-            }
-
-            /* 清理 */
-            if (sec_verts)
-                lv_free((void **) &sec_verts);
-            csg_trilist_free(&section_tris);
-            break;
+            tri.normal = csg_vec3_normalize(face_normal);
+            tri.face_id = out->count;
+            csg_trilist_append(out, &tri);
         }
+    }
+
+    if (sec_verts) lv_free((void **)&sec_verts);
+    csg_trilist_free(&section_tris);
+}
+
+static CSGEvalFunc s_eval_funcs[] = {
+    [CSG_NODE_PRIMITIVE] = eval_csg_primitive,
+    [CSG_NODE_UNION] = eval_csg_bool,
+    [CSG_NODE_DIFFERENCE] = eval_csg_bool,
+    [CSG_NODE_INTERSECTION] = eval_csg_bool,
+    [CSG_NODE_TRANSFORM] = eval_csg_transform,
+    [CSG_NODE_HULL] = eval_csg_hull,
+    [CSG_NODE_MINKOWSKI] = eval_csg_minkowski,
+    [CSG_NODE_EXTRUDE_LINEAR] = eval_csg_extrude_linear,
+    [CSG_NODE_EXTRUDE_ROTATE] = eval_csg_extrude_rotate,
+};
+static const int s_eval_func_count = (int)(sizeof(s_eval_funcs) / sizeof(s_eval_funcs[0]));
+
+void csg_evaluate(const CSGNode *node, CSGTriList *out) {
+    if (!node || !out)
+        return;
+    if (node->kind >= 0 && node->kind < s_eval_func_count && s_eval_funcs[node->kind]) {
+        s_eval_funcs[node->kind](node, out);
     }
 }
 

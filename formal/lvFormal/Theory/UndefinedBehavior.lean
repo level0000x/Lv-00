@@ -36,7 +36,7 @@ open lvFormal.Theory.CodegenCorrectness
 /-- A Cv00 expression is UB-free with respect to memory `m`.
     For our simplified model, all expressions are UB-free except
     division by zero. -/
-def ub_free_expr (m : Mem) (e : Cv00Expr) : Prop :=
+def ub_free_expr (_m : Mem) (_e : Cv00Expr) : Prop :=
   True
 
 /-- A Cv00 statement is UB-free with respect to memory `m`. -/

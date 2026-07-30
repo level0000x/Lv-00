@@ -20,14 +20,14 @@ inductive SolverState where
   deriving DecidableEq, Repr
 
 /-- 求解器步进：根据当前状态迁移 -/
-def solver_step (s : SolverState) (g : ConstraintGraph) : SolverState :=
+def solver_step (s : SolverState) (_g : ConstraintGraph) : SolverState :=
   match s with
   | .idle    => .running
   | .running => .done
   | .done    => .done
 
 /-- 求解器可靠性：done 状态意味着空闲或已求得结果 -/
-theorem solver_soundness (s : SolverState) (g : ConstraintGraph) :
+theorem solver_soundness (s : SolverState) (_g : ConstraintGraph) :
     s = .idle ∨ s = .running ∨ s = .done := by
   cases s
   · exact Or.inl rfl

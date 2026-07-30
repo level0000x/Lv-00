@@ -36,7 +36,7 @@ def compile_points (ps : List lvPoint) : String → ℝ × ℝ :=
 /-! ## 约束编译 -/
 
 /-- 将 lvConstraint 编译为 IRConstraint（12 种 name-dispatch）-/
-def compile_constraint (ps : List lvPoint) (c : lvConstraint) : Option IRConstraint :=
+def compile_constraint (_ps : List lvPoint) (c : lvConstraint) : Option IRConstraint :=
   match c.kind with
   | .collinear =>
       match c.args with
@@ -158,7 +158,7 @@ theorem compile_prove_empty (ps : List lvPoint) :
 /-- 单独一个 point 语句编译为空 IR -/
 theorem compile_point_single (p : lvPoint) :
     compile_program [.point p] = ([] : ConstraintGraph) := by
-sorry
+  simp [compile_program, compile_program_go, compile_stmt, compile_point]
 
 /-- 单独一个 constraint 语句编译为单元素列表（成功编译时）-/
 theorem compile_constraint_single (c : lvConstraint) (ps : List lvPoint)

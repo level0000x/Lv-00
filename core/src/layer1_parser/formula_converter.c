@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_converter.c
  * @brief 公式转换器实现
  *
@@ -1193,6 +1193,9 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
  * @return true 表示成功处理了该语句类型，false 表示未处理（未知类型）
  */
 
+/* 函数指针类型：process_statement 分派 */
+typedef bool (*ProcessStmtFunc)(const FormulaNode *stmt, ConstraintGraph *graph, FormulaToGraphResult *result);
+
 /* 创建节点/约束的最大数量限制 */
 #define MAX_CREATED_NODES 256
 #define MAX_CREATED_CONSTRAINTS 64
@@ -1627,6 +1630,20 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
         }
     }
 
+    /* 约束名称/LaTeX 查找表 */
+    static const struct {
+        const char *name;
+        const char *latex;
+    } s_constraint_info[] = {
+        [INCIDENCE]    = {"incidence",    "\\text{incidence}"},
+        [BETWEENNESS]  = {"betweenness",  "\\text{betweenness}"},
+        [INTERSECTION] = {"intersection", "\\cap"},
+        [CONTAINMENT]  = {"containment",  "\\subset"},
+        [CONNECTION]   = {"connection",   "\\leftrightarrow"},
+        [ANGLE]        = {"angle",        "\\angle"},
+    };
+#define CONSTRAINT_INFO_COUNT (sizeof(s_constraint_info) / sizeof(s_constraint_info[0]))
+
     /* 遍历所有约束 */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *constraint = graph->constraints[i];
@@ -1636,35 +1653,12 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
         const char *constraint_name = NULL;
         const char *constraint_latex = NULL;
 
-        switch (constraint->type) {
-            case INCIDENCE:
-                constraint_name = "incidence";
-                constraint_latex = "\\text{incidence}";
-                break;
-            case BETWEENNESS:
-                constraint_name = "betweenness";
-                constraint_latex = "\\text{betweenness}";
-                break;
-            case INTERSECTION:
-                constraint_name = "intersection";
-                constraint_latex = "\\cap";
-                break;
-            case CONTAINMENT:
-                constraint_name = "containment";
-                constraint_latex = "\\subset";
-                break;
-            case CONNECTION:
-                constraint_name = "connection";
-                constraint_latex = "\\leftrightarrow";
-                break;
-            case ANGLE:
-                constraint_name = "angle";
-                constraint_latex = "\\angle";
-                break;
-            default:
-                constraint_name = "unknown";
-                constraint_latex = "\\text{unknown}";
-                break;
+        if ((unsigned)constraint->type < CONSTRAINT_INFO_COUNT) {
+            constraint_name = s_constraint_info[constraint->type].name;
+            constraint_latex = s_constraint_info[constraint->type].latex;
+        } else {
+            constraint_name = "unknown";
+            constraint_latex = "\\text{unknown}";
         }
 
         /* LaTeX */

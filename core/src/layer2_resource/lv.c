@@ -21,6 +21,7 @@
 #include <time.h>
 
 #include "lv/bit_burning.h"
+#include "lv/lv_registry.h"
 
 #include "func_block_registry.h"
 #include "lv_internal.h"
@@ -106,6 +107,79 @@ const char *lv_get_version_string(void) {
     return version_str;
 }
 
+/* ============================================================
+ * 模块生命周期包装函数
+ *
+ * 将各子系统的初始化/清理函数包装为 lvModuleInitFunc /
+ * lvModuleCleanupFunc 类型，然后通过模块注册表集中管理。
+ * ============================================================ */
+
+/** @brief 日志系统初始化包装 */
+static bool lv_module_init_log(void) {
+    if (debug_log_init() != 0) {
+        lv_WARN("[Lv-00] 警告: 日志系统初始化失败");
+        /* 不视为致命错误（与原始行为一致） */
+    }
+    return true;
+}
+
+/** @brief 错误码表验证包装（仅警告，不阻止启动） */
+static bool lv_module_init_error_table(void) {
+    if (!lv_error_table_validate()) {
+        LOG_WARN("lv", "错误码查找表排序自检失败，错误查找可能返回错误结果");
+    }
+    return true;
+}
+
+/** @brief 内存统计初始化包装 */
+static bool lv_module_init_memory(void) {
+    lv_reset_memory_stats();
+    return true;
+}
+
+/** @brief 随机数初始化包装 */
+static bool lv_module_init_random(void) {
+    lv_random_init((uint64_t) time(NULL));
+    return true;
+}
+
+/** @brief 配置管理器初始化包装 */
+static bool lv_module_init_config(void) {
+    s_lv_state.config = config_manager_create(NULL);
+    if (!s_lv_state.config) {
+        LOG_ERROR("lv", "配置管理器创建失败");
+        return false;
+    }
+
+    /* 设置默认配置值（魔术数字全部定义在 lv_internal.h 中） */
+    config_set_int(s_lv_state.config, "solver.max_iterations", lv_DEFAULT_MAX_ITERATIONS);
+    config_set_int(s_lv_state.config, "solver.precision_bits", lv_DEFAULT_PRECISION_BITS);
+    config_set_bool(s_lv_state.config, "debug.assertions_enabled", true);
+    config_set_bool(s_lv_state.config, "debug.trace_enabled", false);
+    config_set_int(s_lv_state.config, "rewrite.step_limit", lv_DEFAULT_REWRITE_STEP_LIMIT);
+    config_set_int(s_lv_state.config, "memory.limit_mb", lv_DEFAULT_MEMORY_LIMIT_MB);
+
+    /* 应用内存限制 */
+    int mem_limit_mb = config_get_int(s_lv_state.config, "memory.limit_mb", 0);
+    if (mem_limit_mb > 0) {
+        if ((size_t) mem_limit_mb <= SIZE_MAX / (1024 * 1024)) {
+            lv_set_memory_limit((size_t) mem_limit_mb * 1024 * 1024);
+        } else {
+            LOG_WARN("lv", "内存限制值 %d MB 过大，已忽略", mem_limit_mb);
+        }
+    }
+
+    return true;
+}
+
+/** @brief 配置管理器清理包装 */
+static void lv_module_cleanup_config(void) {
+    if (s_lv_state.config) {
+        config_manager_destroy(s_lv_state.config);
+        s_lv_state.config = NULL;
+    }
+}
+
 /** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
 bool lv_init(void) {
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
@@ -122,51 +196,20 @@ bool lv_init(void) {
 
     set_system_state(SYSTEM_STATE_INITIALIZING);
 
-    /* 初始化日志系统 */
-    if (debug_log_init() != 0) {
-        lv_WARN("[Lv-00] 警告: 日志系统初始化失败");
-        /* 继续，不视为致命错误 */
-    }
+    /* 注册核心模块 */
+    lv_module_register("log",   lv_module_init_log,         debug_log_shutdown,     lv_MODULE_PRIO_CORE);
+    lv_module_register("error_codes", lv_module_init_error_table, NULL,              lv_MODULE_PRIO_CORE);
+    lv_module_register("memory", lv_module_init_memory,     NULL,                   lv_MODULE_PRIO_CORE);
+    lv_module_register("random", lv_module_init_random,     NULL,                   lv_MODULE_PRIO_CORE);
+    lv_module_register("config", lv_module_init_config,     lv_module_cleanup_config, lv_MODULE_PRIO_RESOURCE);
 
     LOG_INFO("lv", "Lv-00 v%s 系统初始化开始", lv_VERSION_STRING);
 
-    /* 运行时验证错误码查找表排序正确性 */
-    if (!lv_error_table_validate()) {
-        LOG_WARN("lv", "错误码查找表排序自检失败，错误查找可能返回错误结果");
-        /* 这是警告而非致命错误——系统仍可运行，但错误信息可能不准确 */
-    }
-
-    /* 初始化内存统计 */
-    lv_reset_memory_stats();
-
-    /* 初始化随机数生成器 */
-    lv_random_init((uint64_t) time(NULL));
-
-    /* 加载默认配置 */
-    s_lv_state.config = config_manager_create(NULL);
-    if (!s_lv_state.config) {
-        LOG_ERROR("lv", "配置管理器创建失败");
+    /* 通过模块注册表一次性初始化所有已注册模块 */
+    if (!lv_module_init_all()) {
+        LOG_ERROR("lv", "模块初始化失败");
         set_system_state(SYSTEM_STATE_ERROR);
         return false;
-    }
-
-    /* 设置默认配置值（魔术数字全部定义在 lv_internal.h 中） */
-    config_set_int(s_lv_state.config, "solver.max_iterations", lv_DEFAULT_MAX_ITERATIONS);
-    config_set_int(s_lv_state.config, "solver.precision_bits", lv_DEFAULT_PRECISION_BITS);
-    config_set_bool(s_lv_state.config, "debug.assertions_enabled", true);
-    config_set_bool(s_lv_state.config, "debug.trace_enabled", false);
-    config_set_int(s_lv_state.config, "rewrite.step_limit", lv_DEFAULT_REWRITE_STEP_LIMIT);
-    config_set_int(s_lv_state.config, "memory.limit_mb", lv_DEFAULT_MEMORY_LIMIT_MB); /* 0 = 无限制 */
-
-    /* 应用内存限制 */
-    int mem_limit_mb = config_get_int(s_lv_state.config, "memory.limit_mb", 0);
-    if (mem_limit_mb > 0) {
-        /* 添加溢出检查：确保内存限制值不会溢出 size_t */
-        if ((size_t) mem_limit_mb <= SIZE_MAX / (1024 * 1024)) {
-            lv_set_memory_limit((size_t) mem_limit_mb * 1024 * 1024);
-        } else {
-            LOG_WARN("lv", "内存限制值 %d MB 过大，已忽略", mem_limit_mb);
-        }
     }
 
     s_lv_state.init_count = 1;
@@ -204,12 +247,6 @@ void lv_cleanup(void) {
         s_lv_state.global_engine = NULL;
     }
 
-    /* 清理配置管理器 */
-    if (s_lv_state.config) {
-        config_manager_destroy(s_lv_state.config);
-        s_lv_state.config = NULL;
-    }
-
     /* 清理函数块注册表 */
     func_block_registry_cleanup();
 
@@ -222,8 +259,8 @@ void lv_cleanup(void) {
     LOG_INFO("lv", "内存统计 - 总分配: %zu, 总释放: %zu, 峰值: %zu", stats.total_allocated, stats.total_freed,
              stats.peak_used);
 
-    /* 关闭日志系统 */
-    debug_log_shutdown();
+    /* 模块化清理：按反向优先级顺序清理所有已注册模块 */
+    lv_module_cleanup_all();
 
     s_lv_state.init_count = 0;
     set_system_state(SYSTEM_STATE_UNINITIALIZED);

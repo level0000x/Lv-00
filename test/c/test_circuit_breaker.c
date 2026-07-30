@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_circuit_breaker.c
  * @brief 熔断器模块单元测试
  *
@@ -183,7 +183,7 @@ static void test_circuit_breaker_reset(void) {
     TEST_ASSERT_MSG(cb_is_open(ctx), "circuit breaker should be OPEN after trip (before reset)");
 
     /* 重置熔断器 */
-    lv_circuit_breaker_reset(ctx);
+    lv_circuit_breaker_reset(&ctx->circuit_breaker);
 
     /* 验证恢复到 CLOSED 态 */
     TEST_ASSERT_MSG(cb_is_closed(ctx), "circuit breaker should be CLOSED after reset");
@@ -224,7 +224,7 @@ static void test_circuit_breaker_state_name(void) {
     TEST_ASSERT_MSG(strcmp(name_closed, name_open) != 0, "OPEN state name should differ from CLOSED state name");
 
     /* reset 后恢复 CLOSED，名称应与首次 CLOSED 一致 */
-    lv_circuit_breaker_reset(ctx);
+    lv_circuit_breaker_reset(&ctx->circuit_breaker);
     const char *name_closed2 = lv_circuit_breaker_state_name(ctx);
     TEST_ASSERT_NOT_NULL(name_closed2);
     TEST_ASSERT_MSG(strcmp(name_closed, name_closed2) == 0,
@@ -255,7 +255,7 @@ static void test_circuit_breaker_failure_count(void) {
     TEST_ASSERT_MSG(cb_get_failure_count(ctx) == 0, "consecutive error count should remain 0 after direct trip");
 
     /* reset 后仍为 0 */
-    lv_circuit_breaker_reset(ctx);
+    lv_circuit_breaker_reset(&ctx->circuit_breaker);
     TEST_ASSERT_MSG(cb_get_failure_count(ctx) == 0, "consecutive error count should be 0 after reset");
 
     lv_context_destroy(ctx);
@@ -288,7 +288,7 @@ static void test_circuit_breaker_context_lifecycle(void) {
     TEST_ASSERT_NOT_NULL(name);
 
     /* 正常使用：reset */
-    lv_circuit_breaker_reset(ctx);
+    lv_circuit_breaker_reset(&ctx->circuit_breaker);
     TEST_ASSERT_MSG(cb_is_closed(ctx), "circuit breaker should be CLOSED after reset in lifecycle test");
 
     /* 正常使用：summary */

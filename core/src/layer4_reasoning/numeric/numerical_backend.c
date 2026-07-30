@@ -55,6 +55,159 @@
 #endif
 
 /* ========================================================================
+ * 后端注册表（集中式后端分发机制）
+ *
+ * 取代之前的 #ifdef LV_HAS_CUDA / LV_HAS_HIP / LV_HAS_SINGULAR 编译时
+ * 三重分发模式。各后端在初始化时通过 lv_numerical_backend_register()
+ * 注册其操作表，工厂函数通过查表找到对应操作集。
+ * ======================================================================== */
+
+/** @brief 注册表最大容量 */
+#define lv_MAX_BACKENDS 8
+
+/**
+ * @brief 后端注册表条目
+ */
+typedef struct {
+    lvBackendType type;                    /**< 后端类型 */
+    const lvVectorOps *vector_ops;         /**< 向量操作表 */
+    const lvMatrixOps *matrix_ops;         /**< 矩阵操作表 */
+    const lvLinearSolverOps *linsol_ops;   /**< 线性求解器操作表 */
+} BackendEntry;
+
+/** @brief 全局注册表 */
+static BackendEntry g_backends[lv_MAX_BACKENDS];
+static int g_backend_count = 0;
+static lvMutex g_backend_mutex;
+static bool g_registry_initialized = false;
+
+/* 前向声明（用于下方 SERIAL 操作表） */
+static lvVector *serial_vector_create(int64_t n);
+static lvVector *serial_vector_clone(const lvVector *v);
+static void serial_vector_destroy(lvVector *v);
+static void serial_vector_zero(lvVector *v);
+static void serial_vector_const_set(lvVector *v, double c);
+static void serial_vector_copy(lvVector *dst, const lvVector *src);
+static void serial_vector_scale(lvVector *v, double c);
+static void serial_vector_linear_sum(double a, const lvVector *x, double b, const lvVector *y, lvVector *z);
+static double serial_vector_dot(const lvVector *x, const lvVector *y);
+static double serial_vector_norm(const lvVector *v);
+static double serial_vector_max_norm(const lvVector *v);
+static double serial_vector_wrms_norm(const lvVector *v, const lvVector *weights);
+static void serial_vector_abs(lvVector *v);
+static void serial_vector_inv(lvVector *v, const lvVector *d);
+static void serial_vector_compare(lvVector *v, double c);
+static int64_t serial_vector_length(const lvVector *v);
+static double *serial_vector_data_ptr(lvVector *v);
+
+static lvMatrix *serial_matrix_create(int64_t rows, int64_t cols, bool sparse);
+static lvMatrix *serial_matrix_clone(const lvMatrix *A);
+static void serial_matrix_destroy(lvMatrix *A);
+static void serial_matrix_zero(lvMatrix *A);
+static void serial_matrix_copy(lvMatrix *dst, const lvMatrix *src);
+static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *y);
+static void serial_matrix_scale(lvMatrix *A, double c);
+static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val);
+static double serial_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col);
+static int serial_matrix_factor(lvMatrix *A);
+static int serial_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x);
+
+static lvLinearSolver *serial_linsol_create(lvLinearSolverMethod method);
+static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A);
+static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+static void serial_linsol_destroy(lvLinearSolver *LS);
+
+static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+
+/**
+ * 静态操作表（SERIAL 后端）
+ */
+static const lvVectorOps serial_vector_ops = {
+    serial_vector_create,
+    serial_vector_clone, serial_vector_destroy,  serial_vector_zero,       serial_vector_const_set,
+    serial_vector_copy,  serial_vector_scale,    serial_vector_linear_sum, serial_vector_dot,
+    serial_vector_norm,  serial_vector_max_norm, serial_vector_wrms_norm,  serial_vector_abs,
+    serial_vector_inv,   serial_vector_compare,  serial_vector_length,     serial_vector_data_ptr,
+};
+
+static const lvMatrixOps serial_dense_matrix_ops = {
+    serial_matrix_create,
+    serial_matrix_clone,  serial_matrix_destroy, serial_matrix_zero,        serial_matrix_copy,
+    serial_matrix_matvec, serial_matrix_scale,   serial_matrix_set_element, serial_matrix_get_element,
+    serial_matrix_factor, serial_matrix_solve,
+};
+
+static const lvLinearSolverOps serial_dense_linsol_ops = {
+    serial_linsol_create,
+    serial_linsol_setup,
+    serial_linsol_solve,
+    serial_linsol_destroy,
+};
+
+/**
+ * @brief 初始化注册表并注册内置后端
+ */
+static void numerical_backend_init_registry(void) {
+    if (g_registry_initialized) return;
+    lv_MUTEX_INIT(&g_backend_mutex);
+    lv_numerical_backend_register(lv_BACKEND_SERIAL, &serial_vector_ops,
+                                   &serial_dense_matrix_ops, &serial_dense_linsol_ops);
+    lv_numerical_backend_register(lv_BACKEND_OPENMP, &serial_vector_ops,
+                                   &serial_dense_matrix_ops, &serial_dense_linsol_ops);
+    g_registry_initialized = true;
+}
+
+/**
+ * @brief 注册数值后端操作集
+ */
+void lv_numerical_backend_register(lvBackendType backend_type,
+                                   const lvVectorOps *vector_ops,
+                                   const lvMatrixOps *matrix_ops,
+                                   const lvLinearSolverOps *linsol_ops) {
+    lv_MUTEX_LOCK(&g_backend_mutex);
+    if (g_backend_count < lv_MAX_BACKENDS) {
+        g_backends[g_backend_count].type       = backend_type;
+        g_backends[g_backend_count].vector_ops = vector_ops;
+        g_backends[g_backend_count].matrix_ops = matrix_ops;
+        g_backends[g_backend_count].linsol_ops = linsol_ops;
+        g_backend_count++;
+    }
+    lv_MUTEX_UNLOCK(&g_backend_mutex);
+}
+
+/**
+ * @brief 查找指定后端的向量操作表
+ */
+static const lvVectorOps *find_vector_ops(lvBackendType type) {
+    for (int i = 0; i < g_backend_count; i++) {
+        if (g_backends[i].type == type) return g_backends[i].vector_ops;
+    }
+    return NULL;
+}
+
+/**
+ * @brief 查找指定后端的矩阵操作表
+ */
+static const lvMatrixOps *find_matrix_ops(lvBackendType type) {
+    for (int i = 0; i < g_backend_count; i++) {
+        if (g_backends[i].type == type) return g_backends[i].matrix_ops;
+    }
+    return NULL;
+}
+
+/**
+ * @brief 查找指定后端的线性求解器操作表
+ */
+static const lvLinearSolverOps *find_linsol_ops(lvBackendType type) {
+    for (int i = 0; i < g_backend_count; i++) {
+        if (g_backends[i].type == type) return g_backends[i].linsol_ops;
+    }
+    return NULL;
+}
+
+/* ========================================================================
  * 模块级常量定义
  * ======================================================================== */
 
@@ -108,34 +261,14 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lv
 static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 
-/* ========================================================================
- * 静态操作表（SERIAL 后端）
- * ======================================================================== */
-
-/** @brief SERIAL 向量操作表 */
-static const lvVectorOps serial_vector_ops = {
-    serial_vector_clone, serial_vector_destroy,  serial_vector_zero,       serial_vector_const_set,
-    serial_vector_copy,  serial_vector_scale,    serial_vector_linear_sum, serial_vector_dot,
-    serial_vector_norm,  serial_vector_max_norm, serial_vector_wrms_norm,  serial_vector_abs,
-    serial_vector_inv,   serial_vector_compare,  serial_vector_length,     serial_vector_data_ptr,
-};
-
-/** @brief SERIAL 稠密矩阵操作表 */
-static const lvMatrixOps serial_dense_matrix_ops = {
-    serial_matrix_clone,  serial_matrix_destroy, serial_matrix_zero,        serial_matrix_copy,
-    serial_matrix_matvec, serial_matrix_scale,   serial_matrix_set_element, serial_matrix_get_element,
-    serial_matrix_factor, serial_matrix_solve,
-};
-
-/** @brief SERIAL 稠密 LU 求解器操作表 */
-static const lvLinearSolverOps serial_dense_linsol_ops = {
-    serial_linsol_setup,
-    serial_linsol_solve,
-    serial_linsol_destroy,
-};
+/* SERIAL 后端 create 函数声明 */
+static lvVector *serial_vector_create(int64_t n);
+static lvMatrix *serial_matrix_create(int64_t rows, int64_t cols, bool sparse);
+static lvLinearSolver *serial_linsol_create(lvLinearSolverMethod method);
 
 /** @brief 迭代法 GMRES 求解器操作表 */
 static const lvLinearSolverOps serial_gmres_linsol_ops = {
+    serial_linsol_create,
     serial_linsol_setup,
     iterative_gmres_solve,
     serial_linsol_destroy,
@@ -143,6 +276,7 @@ static const lvLinearSolverOps serial_gmres_linsol_ops = {
 
 /** @brief 迭代法 BiCGSTAB 求解器操作表 */
 static const lvLinearSolverOps serial_bicgstab_linsol_ops = {
+    serial_linsol_create,
     serial_linsol_setup,
     iterative_bicgstab_solve,
     serial_linsol_destroy,
@@ -150,6 +284,7 @@ static const lvLinearSolverOps serial_bicgstab_linsol_ops = {
 
 /** @brief 迭代法 CG 求解器操作表 */
 static const lvLinearSolverOps serial_cg_linsol_ops = {
+    serial_linsol_create,
     serial_linsol_setup,
     iterative_cg_solve,
     serial_linsol_destroy,
@@ -1332,40 +1467,15 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVec
 }
 
 /* ========================================================================
- * 第五部分：工厂函数
+ * 第五部分：SERIAL 后端 create 函数实现
  * ======================================================================== */
 
 /**
- * @brief 创建向量（指定后端和长度）
+ * @brief 创建 SERIAL 后端向量
  */
-lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
+static lvVector *serial_vector_create(int64_t n) {
     if (n <= 0) {
         lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "向量长度必须为正整数，当前 n=%lld", (long long) n);
-        return NULL;
-    }
-
-    /*
-     * 多后端分派：SERIAL 和 OPENMP 后端完整可用。
-     * CUDA / HIP / Singular 后端由条件编译的独立实现提供。
-     */
-#ifdef LV_HAS_CUDA
-    if (backend == lv_BACKEND_CUDA) {
-        return cuda_vector_create(n);
-    }
-#endif
-#ifdef LV_HAS_HIP
-    if (backend == lv_BACKEND_HIP) {
-        return hip_vector_create(n);
-    }
-#endif
-#ifdef LV_HAS_SINGULAR
-    if (backend == lv_BACKEND_SINGULAR) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "Singular 后端不支持向量操作");
-        return NULL;
-    }
-#endif
-    if (backend != lv_BACKEND_SERIAL && backend != lv_BACKEND_OPENMP) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL/OPENMP 可用", lv_backend_name(backend));
         return NULL;
     }
 
@@ -1373,7 +1483,7 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
     lv_CHECK_ALLOC(v, NULL);
 
     v->length = n;
-    v->backend = backend;
+    v->backend = lv_BACKEND_SERIAL;
     v->ops = &serial_vector_ops;
     v->backend_data = NULL;
 
@@ -1389,38 +1499,12 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
 }
 
 /**
- * @brief 创建矩阵（指定后端、维度和格式）
+ * @brief 创建 SERIAL 后端矩阵
  */
-lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bool sparse) {
+static lvMatrix *serial_matrix_create(int64_t rows, int64_t cols, bool sparse) {
     if (rows <= 0 || cols <= 0) {
         lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "矩阵维度必须为正整数，当前 %lldx%lld", (long long) rows,
                      (long long) cols);
-        return NULL;
-    }
-
-    /*
-     * 多后端分派：SERIAL 和 OPENMP 后端完整可用。
-     * CUDA / HIP 后端由条件编译的独立实现提供。
-     * Singular 后端不支持矩阵操作。
-     */
-#ifdef LV_HAS_CUDA
-    if (backend == lv_BACKEND_CUDA) {
-        return cuda_matrix_create(rows, cols, sparse);
-    }
-#endif
-#ifdef LV_HAS_HIP
-    if (backend == lv_BACKEND_HIP) {
-        return hip_matrix_create(rows, cols, sparse);
-    }
-#endif
-#ifdef LV_HAS_SINGULAR
-    if (backend == lv_BACKEND_SINGULAR) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "Singular 后端不支持矩阵操作");
-        return NULL;
-    }
-#endif
-    if (backend != lv_BACKEND_SERIAL && backend != lv_BACKEND_OPENMP) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL/OPENMP 可用", lv_backend_name(backend));
         return NULL;
     }
 
@@ -1431,7 +1515,7 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bo
     A->cols = cols;
     A->sparse = sparse;
     A->format = sparse ? lv_MATRIX_SPARSE_CSR : lv_MATRIX_DENSE;
-    A->backend = backend;
+    A->backend = lv_BACKEND_SERIAL;
     A->ops = &serial_dense_matrix_ops;
     A->backend_data = NULL;
 
@@ -1448,40 +1532,14 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bo
 }
 
 /**
- * @brief 创建线性求解器（指定后端和求解方法）
+ * @brief 创建 SERIAL 后端线性求解器
  */
-lvLinearSolver *lv_linsol_create(lvBackendType backend, lvLinearSolverMethod method) {
-    /*
-     * 多后端分派：SERIAL 和 OPENMP 后端完整可用。
-     * CUDA / HIP 后端由条件编译的独立实现提供。
-     * Singular 后端不支持线性求解。
-     */
-#ifdef LV_HAS_CUDA
-    if (backend == lv_BACKEND_CUDA) {
-        return cuda_linsol_create(method);
-    }
-#endif
-#ifdef LV_HAS_HIP
-    if (backend == lv_BACKEND_HIP) {
-        return hip_linsol_create(method);
-    }
-#endif
-#ifdef LV_HAS_SINGULAR
-    if (backend == lv_BACKEND_SINGULAR) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "Singular 后端不支持线性求解器");
-        return NULL;
-    }
-#endif
-    if (backend != lv_BACKEND_SERIAL && backend != lv_BACKEND_OPENMP) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL/OPENMP 可用", lv_backend_name(backend));
-        return NULL;
-    }
-
+static lvLinearSolver *serial_linsol_create(lvLinearSolverMethod method) {
     lvLinearSolver *LS = lv_calloc(1, sizeof(lvLinearSolver));
     lv_CHECK_ALLOC(LS, NULL);
 
     LS->method = method;
-    LS->backend = backend;
+    LS->backend = lv_BACKEND_SERIAL;
     LS->solver_data = NULL;
     LS->backend_data = NULL;
 
@@ -1507,4 +1565,77 @@ lvLinearSolver *lv_linsol_create(lvBackendType backend, lvLinearSolverMethod met
     }
 
     return LS;
+}
+
+/* ========================================================================
+ * 第六部分：工厂函数（通过注册表分发）
+ * ======================================================================== */
+
+/**
+ * @brief 创建向量（指定后端和长度）
+ *
+ * 通过后端注册表查找对应后端的操作表，调用其 create 函数。
+ * 注册表由 lv_numerical_backend_register() 填充。
+ */
+lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
+    if (n <= 0) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "向量长度必须为正整数，当前 n=%lld", (long long) n);
+        return NULL;
+    }
+
+    /* 确保注册表已初始化（内置 SERIAL/OPENMP 后端已注册） */
+    numerical_backend_init_registry();
+
+    const lvVectorOps *ops = find_vector_ops(backend);
+    if (!ops || !ops->create) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未注册或不支持向量操作",
+                     lv_backend_name(backend));
+        return NULL;
+    }
+
+    return ops->create(n);
+}
+
+/**
+ * @brief 创建矩阵（指定后端、维度和格式）
+ *
+ * 通过后端注册表查找对应后端的操作表，调用其 create 函数。
+ */
+lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bool sparse) {
+    if (rows <= 0 || cols <= 0) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "矩阵维度必须为正整数，当前 %lldx%lld", (long long) rows,
+                     (long long) cols);
+        return NULL;
+    }
+
+    /* 确保注册表已初始化（内置 SERIAL/OPENMP 后端已注册） */
+    numerical_backend_init_registry();
+
+    const lvMatrixOps *ops = find_matrix_ops(backend);
+    if (!ops || !ops->create) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未注册或不支持矩阵操作",
+                     lv_backend_name(backend));
+        return NULL;
+    }
+
+    return ops->create(rows, cols, sparse);
+}
+
+/**
+ * @brief 创建线性求解器（指定后端和求解方法）
+ *
+ * 通过后端注册表查找对应后端的操作表，调用其 create 函数。
+ */
+lvLinearSolver *lv_linsol_create(lvBackendType backend, lvLinearSolverMethod method) {
+    /* 确保注册表已初始化（内置 SERIAL/OPENMP 后端已注册） */
+    numerical_backend_init_registry();
+
+    const lvLinearSolverOps *ops = find_linsol_ops(backend);
+    if (!ops || !ops->create) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未注册或不支持线性求解器",
+                     lv_backend_name(backend));
+        return NULL;
+    }
+
+    return ops->create(method);
 }

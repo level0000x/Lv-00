@@ -149,6 +149,8 @@ int lv_singular_register_backend(void) {
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "Singular 内核初始化失败");
     }
 
+    lv_numerical_backend_register(lv_BACKEND_SINGULAR, NULL, NULL, NULL);
+
     LOG_INFO("Singular", "后端注册成功（版本: %s）", g_singular_state.version_str);
     return 0;
 }

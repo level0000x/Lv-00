@@ -14,7 +14,11 @@ open IR
 theorem midpoint_distance (env : String → ℝ × ℝ) (a b m : String)
     (hm : ir_sem env (.midpoint m a b)) :
     IR.dist (env a) (env m) = IR.dist (env b) (env m) := by
-  sorry
+  rcases hm with ⟨hmx, hmy⟩
+  unfold IR.dist ptX ptY at *
+  rw [hmx, hmy]
+  congr 1
+  ring
 
 private def shoelace_expr (env : String → ℝ × ℝ) (a b c : String) : ℝ :=
   ptX (env a)*ptY (env b) + ptX (env b)*ptY (env c) + ptX (env c)*ptY (env a) -

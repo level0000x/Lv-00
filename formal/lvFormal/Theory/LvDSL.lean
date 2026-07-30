@@ -217,7 +217,7 @@ partial def lv_type_infer : LvExpr → Option LvType
     | some .int, some .int => some .int
     | some .real, some .real => some .real
     | _, _ => none
-  | .lambda _ t b => some (LvType.arrow t ((lv_type_infer b).getD LvType.real))
+  | .lambda _p t b => some (LvType.arrow t ((lv_type_infer b).getD LvType.real))
   | .forall _ _ _ => some .bool
   | .exists _ _ _ => some .bool
   | .listLit es =>
@@ -234,7 +234,7 @@ partial def lv_type_infer : LvExpr → Option LvType
     match lv_type_infer e1, lv_type_infer e2 with
     | some t1, some t2 => some (.pair t1 t2)
     | _, _ => none
-  | .app f a =>
+  | .app f _a =>
     match lv_type_infer f with
     | some (.arrow _ codom) => some codom
     | _ => none
@@ -255,7 +255,7 @@ partial def lv_type_check : LvExpr → LvType → Bool
   | .mul e1 e2, .int  => lv_type_check e1 .int  ∧ lv_type_check e2 .int
   | .div e1 e2, .real => lv_type_check e1 .real ∧ lv_type_check e2 .real
   | .div e1 e2, .int  => lv_type_check e1 .int  ∧ lv_type_check e2 .int
-  | .lambda p t b, .arrow dom codom =>
+  | .lambda _p t b, .arrow dom codom =>
     t = dom ∧ lv_type_check b codom
   | .lambda _ _ _, _ => false
   | .forall _ _ _, .bool => true

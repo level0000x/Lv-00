@@ -78,18 +78,18 @@ noncomputable def exec_stmt (m : Mem) (env : Env) (stmt : Cv00Stmt) : ExecResult
 /-! ## 内存模型定理 -/
 
 theorem free_null : free [] ({ base := 0, offset := 0 } : Ptr) = [] := by
-  sorry
+  rfl
 
 theorem load_freed : load (free [] ({ base := 0, offset := 0 } : Ptr)) ({ base := 0, offset := 0 } : Ptr) = none := by
-  sorry
+  unfold free load; simp
 
 theorem store_freed : store (free [] ({ base := 0, offset := 0 } : Ptr)) ({ base := 0, offset := 0 } : Ptr) .null = [] := by
-  sorry
+  unfold free store; simp
 
 /-! ## 语句执行定理 -/
 
 theorem exec_nop (m : Mem) (env : Env) : exec_stmt m env .nop = .normal m env := by
-  sorry
+  rfl
 
 theorem exec_assign (m : Mem) (env : Env) (x : String) (e : Cv00Expr) (v : Cv00Val) :
     eval_expr env e = some v →
