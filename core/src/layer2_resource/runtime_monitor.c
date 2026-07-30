@@ -6,8 +6,10 @@
  * @version 3.3.0
  */
 
-/* 确保 POSIX 时钟 + unistd 系统调用可用 */
-#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
+/* macOS 使用 _DARWIN_C_SOURCE（_POSIX_C_SOURCE 会隐藏 BSD 类型和 _SC_* 宏） */
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE
+#elif !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
 #define _POSIX_C_SOURCE 200112L
 #endif
 
