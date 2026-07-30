@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file runtime_guard.c
  * @brief 运行时数据保护实现 —— 守卫上下文的初始化、销毁、统计与完整性校验
  *
@@ -29,20 +29,8 @@
  * @return true 成功，false 失败
  */
 static bool guard_init_locks(lvGuardContext *guard) {
-#ifdef _WIN32
     lv_RWLOCK_INIT(&guard->ctx_rwlock);
-    InitializeCriticalSection(&guard->stat_mutex);
-#else
-    if (pthread_rwlock_init(&guard->ctx_rwlock.rwlock, NULL) != 0) {
-        return false;
-    }
-    guard->ctx_rwlock.write_flag = 0;
-    guard->ctx_rwlock.reader_count = 0;
-    if (pthread_mutex_init(&guard->stat_mutex, NULL) != 0) {
-        pthread_rwlock_destroy(&guard->ctx_rwlock.rwlock);
-        return false;
-    }
-#endif
+    lv_MUTEX_INIT(&guard->stat_mutex);
     return true;
 }
 
@@ -51,35 +39,19 @@ static bool guard_init_locks(lvGuardContext *guard) {
  * @param guard 守卫上下文指针（已验证非 NULL）
  */
 static void guard_destroy_locks(lvGuardContext *guard) {
-#ifdef _WIN32
     lv_RWLOCK_DESTROY(&guard->ctx_rwlock);
-    DeleteCriticalSection(&guard->stat_mutex);
-#else
-    lv_RWLOCK_DESTROY(&guard->ctx_rwlock);
-    pthread_mutex_destroy(&guard->stat_mutex);
-#endif
+    lv_MUTEX_DESTROY(&guard->stat_mutex);
 }
 
 /**
  * @brief 锁定统计互斥锁
  */
 static void guard_lock_stats(const lvGuardContext *guard) {
-#ifdef _WIN32
-    EnterCriticalSection((CRITICAL_SECTION *) &guard->stat_mutex);
-#else
-    pthread_mutex_lock((pthread_mutex_t *) &guard->stat_mutex);
-#endif
+    lv_MUTEX_LOCK((lvMutex *) &guard->stat_mutex);
 }
 
-/**
- * @brief 解锁统计互斥锁
- */
 static void guard_unlock_stats(const lvGuardContext *guard) {
-#ifdef _WIN32
-    LeaveCriticalSection((CRITICAL_SECTION *) &guard->stat_mutex);
-#else
-    pthread_mutex_unlock((pthread_mutex_t *) &guard->stat_mutex);
-#endif
+    lv_MUTEX_UNLOCK((lvMutex *) &guard->stat_mutex);
 }
 
 /* ========================================================================

@@ -27,11 +27,7 @@
 #include "preset_common.h"
 #include "preset_core.h"
 
-#ifdef _WIN32
 #include <windows.h>
-#else
-#include <pthread.h>
-#endif
 
 #ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wjump-misses-init"
@@ -83,13 +79,8 @@
         }                                       \
     } while (0)
 
-#ifdef _WIN32
-#define PRESET_ATOMIC_INC(counter) InterlockedIncrement(&(counter))
-#define PRESET_ATOMIC_DEC(counter) InterlockedDecrement(&(counter))
-#else
-#define PRESET_ATOMIC_INC(counter) __atomic_add_fetch(&(counter), 1, __ATOMIC_SEQ_CST)
-#define PRESET_ATOMIC_DEC(counter) __atomic_sub_fetch(&(counter), 1, __ATOMIC_SEQ_CST)
-#endif
+#define PRESET_ATOMIC_INC(counter) lv_ATOMIC_INC(&(counter))
+#define PRESET_ATOMIC_DEC(counter) lv_ATOMIC_DEC(&(counter))
 
 typedef enum {
     PRESET_COMPOSE_SEQUENCE,
@@ -207,11 +198,7 @@ typedef struct {
     int custom_count;                 /**< 自定义预设数量 */
     bool initialized;                 /**< 是否已初始化 */
 
-#ifdef _WIN32
-    CRITICAL_SECTION mutex; /**< Windows临界区 */
-#else
-    pthread_mutex_t mutex; /**< POSIX互斥锁 */
-#endif
+    lvMutex mutex; /**< 互斥锁 */
 
     PresetAtomicCounter next_id;         /**< 下一个预设ID */
     char last_error[PRESET_BUFFER_SIZE]; /**< 最后错误信息 */
@@ -2050,30 +2037,14 @@ static void lock_library(void) {
     /* 惰性初始化：静态库链接时 DllMain/constructor 不会被调用 */
     static volatile long g_mutex_initialized = 0;
     if (!g_mutex_initialized) {
-#ifdef _WIN32
-        InitializeCriticalSection(&g_library.mutex);
-#else
-        pthread_mutex_init(&g_library.mutex, NULL);
-#endif
-#ifdef _WIN32
-        InterlockedExchange(&g_mutex_initialized, 1);
-#else
-        __sync_lock_test_and_set(&g_mutex_initialized, 1);
-#endif
+        lv_MUTEX_INIT(&g_library.mutex);
+        lv_ATOMIC_EXCHANGE(&g_mutex_initialized, 1);
     }
-#ifdef _WIN32
-    EnterCriticalSection(&g_library.mutex);
-#else
-    pthread_mutex_lock(&g_library.mutex);
-#endif
+    lv_MUTEX_LOCK(&g_library.mutex);
 }
 
 static void unlock_library(void) {
-#ifdef _WIN32
-    LeaveCriticalSection(&g_library.mutex);
-#else
-    pthread_mutex_unlock(&g_library.mutex);
-#endif
+    lv_MUTEX_UNLOCK(&g_library.mutex);
 }
 
 /* ============================================================
@@ -2338,15 +2309,9 @@ bool preset_library_shutdown(void) {
 
 bool preset_library_is_initialized(void) {
     /* 使用 volatile 读取 + 编译器内存屏障确保线程间可见性 */
-#ifdef _WIN32
-    MemoryBarrier();
+    lv_ATOMIC_FENCE_ACQUIRE();
     bool init = g_library.initialized;
-    MemoryBarrier();
-#else
-    __atomic_thread_fence(__ATOMIC_ACQUIRE);
-    bool init = g_library.initialized;
-    __atomic_thread_fence(__ATOMIC_ACQUIRE);
-#endif
+    lv_ATOMIC_FENCE_ACQUIRE();
     return init;
 }
 
@@ -2706,16 +2671,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH:
-            /* 仅初始化临界区，不做其他复杂操作 */
-            InitializeCriticalSection(&g_library.mutex);
+            /* 仅初始化互斥锁，不做其他复杂操作 */
+            lv_MUTEX_INIT(&g_library.mutex);
             DisableThreadLibraryCalls(hModule);
             break;
 
         case DLL_PROCESS_DETACH:
-            /* 仅销毁临界区，不调用 preset_library_shutdown()
+            /* 仅销毁互斥锁，不调用 preset_library_shutdown()
          * 如果库仍处于初始化状态，由操作系统回收资源。
          * 用户应确保在卸载前已调用 preset_library_shutdown()。 */
-            DeleteCriticalSection(&g_library.mutex);
+            lv_MUTEX_DESTROY(&g_library.mutex);
             break;
 
         case DLL_THREAD_ATTACH:

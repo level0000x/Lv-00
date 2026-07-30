@@ -866,12 +866,30 @@ void lv_cache_get_stats(const lvObjectCache *cache, uint64_t *out_hits, uint64_t
 
 /* ============== 全局内存统计 ============== */
 
-static lvMemoryStats g_global_stats = {0};
-static lv_mutex_t g_stats_mutex;
-static lv_once_t g_stats_once = lv_ONCE_INIT;
+/**
+ * @brief 内存池模块全局状态
+ *
+ * 将所有模块级全局变量归并到单一上下文结构体中，
+ * 降低模块耦合度，提高可维护性。
+ */
+typedef struct MemoryPoolState {
+    /* 统计信息 */
+    lvMemoryStats global_stats;
+    lv_mutex_t stats_mutex;
+    lv_once_t stats_once;
+
+    /* 对象池 */
+    lvObjectPool *node_pool;
+    lvObjectPool *constraint_pool;
+    lvObjectPool *symbolic_coord_pool;
+    lvObjectPool *proof_step_pool;
+} MemoryPoolState;
+
+/** 模块级唯一状态实例 */
+static MemoryPoolState s_mem_state = {0};
 
 static void stats_mutex_init_func(void) {
-    lv_mutex_init(&g_stats_mutex);
+    lv_mutex_init(&s_mem_state.stats_mutex);
 }
 
 int lv_mem_register_type(const char *name) {
@@ -879,22 +897,22 @@ int lv_mem_register_type(const char *name) {
         return -1;
     }
 
-    lv_once(&g_stats_once, stats_mutex_init_func);
-    lv_mutex_lock(&g_stats_mutex);
+    lv_once(&s_mem_state.stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&s_mem_state.stats_mutex);
 
-    if (g_global_stats.type_count >= lv_MEM_STAT_MAX_TYPES) {
-        lv_mutex_unlock(&g_stats_mutex);
+    if (s_mem_state.global_stats.type_count >= lv_MEM_STAT_MAX_TYPES) {
+        lv_mutex_unlock(&s_mem_state.stats_mutex);
         return -1;
     }
 
-    int id = g_global_stats.type_count++;
-    g_global_stats.types[id].name = lv_strdup(name); /* 复制字符串，避免保存裸指针 */
-    g_global_stats.types[id].total_allocs = 0;
-    g_global_stats.types[id].total_frees = 0;
-    g_global_stats.types[id].current_bytes = 0;
-    g_global_stats.types[id].peak_bytes = 0;
+    int id = s_mem_state.global_stats.type_count++;
+    s_mem_state.global_stats.types[id].name = lv_strdup(name); /* 复制字符串，避免保存裸指针 */
+    s_mem_state.global_stats.types[id].total_allocs = 0;
+    s_mem_state.global_stats.types[id].total_frees = 0;
+    s_mem_state.global_stats.types[id].current_bytes = 0;
+    s_mem_state.global_stats.types[id].peak_bytes = 0;
 
-    lv_mutex_unlock(&g_stats_mutex);
+    lv_mutex_unlock(&s_mem_state.stats_mutex);
     return id;
 }
 
@@ -903,22 +921,22 @@ void lv_mem_record_alloc(int type_id, size_t size) {
         return;
     }
 
-    lv_once(&g_stats_once, stats_mutex_init_func);
-    lv_mutex_lock(&g_stats_mutex);
+    lv_once(&s_mem_state.stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&s_mem_state.stats_mutex);
 
-    if ((size_t) type_id < (size_t) g_global_stats.type_count) {
-        g_global_stats.types[type_id].total_allocs++;
-        g_global_stats.types[type_id].current_bytes += size;
-        if (g_global_stats.types[type_id].current_bytes > g_global_stats.types[type_id].peak_bytes) {
-            g_global_stats.types[type_id].peak_bytes = g_global_stats.types[type_id].current_bytes;
+    if ((size_t) type_id < (size_t) s_mem_state.global_stats.type_count) {
+        s_mem_state.global_stats.types[type_id].total_allocs++;
+        s_mem_state.global_stats.types[type_id].current_bytes += size;
+        if (s_mem_state.global_stats.types[type_id].current_bytes > s_mem_state.global_stats.types[type_id].peak_bytes) {
+            s_mem_state.global_stats.types[type_id].peak_bytes = s_mem_state.global_stats.types[type_id].current_bytes;
         }
     }
-    g_global_stats.total_bytes += size;
-    if (g_global_stats.total_bytes > g_global_stats.peak_bytes) {
-        g_global_stats.peak_bytes = g_global_stats.total_bytes;
+    s_mem_state.global_stats.total_bytes += size;
+    if (s_mem_state.global_stats.total_bytes > s_mem_state.global_stats.peak_bytes) {
+        s_mem_state.global_stats.peak_bytes = s_mem_state.global_stats.total_bytes;
     }
 
-    lv_mutex_unlock(&g_stats_mutex);
+    lv_mutex_unlock(&s_mem_state.stats_mutex);
 }
 
 void lv_mem_record_free(int type_id, size_t size) {
@@ -926,20 +944,20 @@ void lv_mem_record_free(int type_id, size_t size) {
         return;
     }
 
-    lv_once(&g_stats_once, stats_mutex_init_func);
-    lv_mutex_lock(&g_stats_mutex);
+    lv_once(&s_mem_state.stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&s_mem_state.stats_mutex);
 
-    if ((size_t) type_id < (size_t) g_global_stats.type_count) {
-        g_global_stats.types[type_id].total_frees++;
-        if (g_global_stats.types[type_id].current_bytes >= size) {
-            g_global_stats.types[type_id].current_bytes -= size;
+    if ((size_t) type_id < (size_t) s_mem_state.global_stats.type_count) {
+        s_mem_state.global_stats.types[type_id].total_frees++;
+        if (s_mem_state.global_stats.types[type_id].current_bytes >= size) {
+            s_mem_state.global_stats.types[type_id].current_bytes -= size;
         }
     }
-    if (g_global_stats.total_bytes >= size) {
-        g_global_stats.total_bytes -= size;
+    if (s_mem_state.global_stats.total_bytes >= size) {
+        s_mem_state.global_stats.total_bytes -= size;
     }
 
-    lv_mutex_unlock(&g_stats_mutex);
+    lv_mutex_unlock(&s_mem_state.stats_mutex);
 }
 
 void lv_mem_get_global_stats(lvMemoryStats *stats) {
@@ -947,23 +965,23 @@ void lv_mem_get_global_stats(lvMemoryStats *stats) {
         return;
     }
 
-    lv_once(&g_stats_once, stats_mutex_init_func);
-    lv_mutex_lock(&g_stats_mutex);
-    memcpy(stats, &g_global_stats, sizeof(lvMemoryStats));
-    lv_mutex_unlock(&g_stats_mutex);
+    lv_once(&s_mem_state.stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&s_mem_state.stats_mutex);
+    memcpy(stats, &s_mem_state.global_stats, sizeof(lvMemoryStats));
+    lv_mutex_unlock(&s_mem_state.stats_mutex);
 }
 
 void lv_mem_reset_stats(void) {
-    lv_once(&g_stats_once, stats_mutex_init_func);
-    lv_mutex_lock(&g_stats_mutex);
+    lv_once(&s_mem_state.stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&s_mem_state.stats_mutex);
     /* 释放已注册类型的名称字符串，防止内存泄漏 */
-    for (int i = 0; i < g_global_stats.type_count; i++) {
-        if (g_global_stats.types[i].name) {
-            lv_free((void **) &g_global_stats.types[i].name);
+    for (int i = 0; i < s_mem_state.global_stats.type_count; i++) {
+        if (s_mem_state.global_stats.types[i].name) {
+            lv_free((void **) &s_mem_state.global_stats.types[i].name);
         }
     }
-    memset(&g_global_stats, 0, sizeof(lvMemoryStats));
-    lv_mutex_unlock(&g_stats_mutex);
+    memset(&s_mem_state.global_stats, 0, sizeof(lvMemoryStats));
+    lv_mutex_unlock(&s_mem_state.stats_mutex);
 }
 
 void lv_mem_print_stats(void *stream) {
@@ -971,18 +989,18 @@ void lv_mem_print_stats(void *stream) {
         stream = stdout;
     }
 
-    lv_once(&g_stats_once, stats_mutex_init_func);
-    lv_mutex_lock(&g_stats_mutex);
+    lv_once(&s_mem_state.stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&s_mem_state.stats_mutex);
 
     fprintf((FILE *) stream, "\n========== Lv-00 内存统计 ==========\n");
-    fprintf((FILE *) stream, "总使用: %llu 字节, 峰值: %llu 字节\n", (unsigned long long) g_global_stats.total_bytes,
-            (unsigned long long) g_global_stats.peak_bytes);
+    fprintf((FILE *) stream, "总使用: %llu 字节, 峰值: %llu 字节\n", (unsigned long long) s_mem_state.global_stats.total_bytes,
+            (unsigned long long) s_mem_state.global_stats.peak_bytes);
     fprintf((FILE *) stream, "\n各类型统计:\n");
     fprintf((FILE *) stream, "%-24s %12s %12s %12s %12s\n", "类型", "分配次数", "释放次数", "当前字节", "峰值字节");
     fprintf((FILE *) stream, "------------------------------------------------------------\n");
 
-    for (int i = 0; i < g_global_stats.type_count; i++) {
-        lvMemTypeStat *s = &g_global_stats.types[i];
+    for (int i = 0; i < s_mem_state.global_stats.type_count; i++) {
+        lvMemTypeStat *s = &s_mem_state.global_stats.types[i];
         fprintf((FILE *) stream, "%-24s %12llu %12llu %12llu %12llu\n", s->name ? s->name : "(unnamed)",
                 (unsigned long long) s->total_allocs, (unsigned long long) s->total_frees,
                 (unsigned long long) s->current_bytes, (unsigned long long) s->peak_bytes);
@@ -990,7 +1008,7 @@ void lv_mem_print_stats(void *stream) {
 
     fprintf((FILE *) stream, "====================================\n\n");
 
-    lv_mutex_unlock(&g_stats_mutex);
+    lv_mutex_unlock(&s_mem_state.stats_mutex);
 }
 
 /* ============== 预定义对象池 ============== */
@@ -1001,16 +1019,10 @@ void lv_mem_print_stats(void *stream) {
 #define lv_SYMBOLIC_COORD_SIZE lv_CONFIG_POOL_SYMBOLIC_COORD_SIZE
 #define lv_PROOF_STEP_SIZE lv_CONFIG_POOL_PROOF_STEP_SIZE
 
-/* 全局对象池 */
-static lvObjectPool *g_node_pool = NULL;
-static lvObjectPool *g_constraint_pool = NULL;
-static lvObjectPool *g_symbolic_coord_pool = NULL;
-static lvObjectPool *g_proof_step_pool = NULL;
-
 bool lv_init_preset_pools(void) {
     /* 防御性检查：防止二次初始化导致旧池泄漏 */
-    if (g_node_pool != NULL || g_constraint_pool != NULL || g_symbolic_coord_pool != NULL ||
-        g_proof_step_pool != NULL) {
+    if (s_mem_state.node_pool != NULL || s_mem_state.constraint_pool != NULL || s_mem_state.symbolic_coord_pool != NULL ||
+        s_mem_state.proof_step_pool != NULL) {
         return true; /* 已经初始化 */
     }
 
@@ -1020,44 +1032,44 @@ bool lv_init_preset_pools(void) {
     /* ConstraintNode 池 */
     config.object_size = lv_CONSTRAINT_NODE_SIZE;
     config.name = "ConstraintNode";
-    g_node_pool = lv_pool_create(&config);
-    if (!g_node_pool) {
+    s_mem_state.node_pool = lv_pool_create(&config);
+    if (!s_mem_state.node_pool) {
         return false;
     }
 
     /* Constraint 池 */
     config.object_size = lv_CONSTRAINT_SIZE;
     config.name = "Constraint";
-    g_constraint_pool = lv_pool_create(&config);
-    if (!g_constraint_pool) {
-        lv_pool_destroy(g_node_pool);
-        g_node_pool = NULL;
+    s_mem_state.constraint_pool = lv_pool_create(&config);
+    if (!s_mem_state.constraint_pool) {
+        lv_pool_destroy(s_mem_state.node_pool);
+        s_mem_state.node_pool = NULL;
         return false;
     }
 
     /* SymbolicCoord 池 */
     config.object_size = lv_SYMBOLIC_COORD_SIZE;
     config.name = "SymbolicCoord";
-    g_symbolic_coord_pool = lv_pool_create(&config);
-    if (!g_symbolic_coord_pool) {
-        lv_pool_destroy(g_node_pool);
-        lv_pool_destroy(g_constraint_pool);
-        g_node_pool = NULL;
-        g_constraint_pool = NULL;
+    s_mem_state.symbolic_coord_pool = lv_pool_create(&config);
+    if (!s_mem_state.symbolic_coord_pool) {
+        lv_pool_destroy(s_mem_state.node_pool);
+        lv_pool_destroy(s_mem_state.constraint_pool);
+        s_mem_state.node_pool = NULL;
+        s_mem_state.constraint_pool = NULL;
         return false;
     }
 
     /* ProofStep 池 */
     config.object_size = lv_PROOF_STEP_SIZE;
     config.name = "ProofStep";
-    g_proof_step_pool = lv_pool_create(&config);
-    if (!g_proof_step_pool) {
-        lv_pool_destroy(g_node_pool);
-        lv_pool_destroy(g_constraint_pool);
-        lv_pool_destroy(g_symbolic_coord_pool);
-        g_node_pool = NULL;
-        g_constraint_pool = NULL;
-        g_symbolic_coord_pool = NULL;
+    s_mem_state.proof_step_pool = lv_pool_create(&config);
+    if (!s_mem_state.proof_step_pool) {
+        lv_pool_destroy(s_mem_state.node_pool);
+        lv_pool_destroy(s_mem_state.constraint_pool);
+        lv_pool_destroy(s_mem_state.symbolic_coord_pool);
+        s_mem_state.node_pool = NULL;
+        s_mem_state.constraint_pool = NULL;
+        s_mem_state.symbolic_coord_pool = NULL;
         return false;
     }
 
@@ -1065,36 +1077,36 @@ bool lv_init_preset_pools(void) {
 }
 
 void lv_cleanup_preset_pools(void) {
-    if (g_proof_step_pool) {
-        lv_pool_destroy(g_proof_step_pool);
-        g_proof_step_pool = NULL;
+    if (s_mem_state.proof_step_pool) {
+        lv_pool_destroy(s_mem_state.proof_step_pool);
+        s_mem_state.proof_step_pool = NULL;
     }
-    if (g_symbolic_coord_pool) {
-        lv_pool_destroy(g_symbolic_coord_pool);
-        g_symbolic_coord_pool = NULL;
+    if (s_mem_state.symbolic_coord_pool) {
+        lv_pool_destroy(s_mem_state.symbolic_coord_pool);
+        s_mem_state.symbolic_coord_pool = NULL;
     }
-    if (g_constraint_pool) {
-        lv_pool_destroy(g_constraint_pool);
-        g_constraint_pool = NULL;
+    if (s_mem_state.constraint_pool) {
+        lv_pool_destroy(s_mem_state.constraint_pool);
+        s_mem_state.constraint_pool = NULL;
     }
-    if (g_node_pool) {
-        lv_pool_destroy(g_node_pool);
-        g_node_pool = NULL;
+    if (s_mem_state.node_pool) {
+        lv_pool_destroy(s_mem_state.node_pool);
+        s_mem_state.node_pool = NULL;
     }
 }
 
 lvObjectPool *lv_get_node_pool(void) {
-    return g_node_pool;
+    return s_mem_state.node_pool;
 }
 
 lvObjectPool *lv_get_constraint_pool(void) {
-    return g_constraint_pool;
+    return s_mem_state.constraint_pool;
 }
 
 lvObjectPool *lv_get_symbolic_coord_pool(void) {
-    return g_symbolic_coord_pool;
+    return s_mem_state.symbolic_coord_pool;
 }
 
 lvObjectPool *lv_get_proof_step_pool(void) {
-    return g_proof_step_pool;
+    return s_mem_state.proof_step_pool;
 }

@@ -19,18 +19,15 @@ typedef struct lvTypeInference {
     int inference_depth;
 
     /* 自定义规则表 */
-    lvTypeInferenceRule *rules;
-    int rule_count;
-    int rule_capacity;
+    lvDArray rules;  /**< lvTypeInferenceRule 动态数组 */
 } lvTypeInference;
 
 lvTypeInference *lv_type_inference_create(void) {
     lvTypeInference *inf = lv_calloc(1, sizeof(lvTypeInference));
     if (!inf)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate type inference");
-    inf->rule_capacity = 8;
-    inf->rules = lv_calloc(inf->rule_capacity, sizeof(lvTypeInferenceRule));
-    if (!inf->rules) {
+    lv_darray_init(&inf->rules, sizeof(lvTypeInferenceRule));
+    if (!lv_darray_reserve(&inf->rules, 8)) {
         lv_free((void **) &inf);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate rules array");
     }
@@ -40,7 +37,7 @@ lvTypeInference *lv_type_inference_create(void) {
 void lv_type_inference_destroy(lvTypeInference *inf) {
     if (!inf)
         return;
-    lv_free((void **) &inf->rules);
+    lv_darray_free(&inf->rules);
     lv_free((void **) &inf);
 }
 
@@ -48,19 +45,14 @@ void lv_type_inference_destroy(lvTypeInference *inf) {
 int lv_type_inference_register_rule(lvTypeInference *inf, const char *pattern, const char *type) {
     if (!inf || !pattern || !type)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL inf, pattern, or type");
-    if (inf->rule_count >= inf->rule_capacity) {
-        int new_cap = inf->rule_capacity * 2;
-        lvTypeInferenceRule *new_arr = lv_realloc(inf->rules, new_cap * sizeof(lvTypeInferenceRule));
-        if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc rules array");
-        inf->rules = new_arr;
-        inf->rule_capacity = new_cap;
-    }
-    strncpy(inf->rules[inf->rule_count].pattern, pattern, sizeof(inf->rules[0].pattern) - 1);
-    inf->rules[inf->rule_count].pattern[sizeof(inf->rules[0].pattern) - 1] = '\0';
-    strncpy(inf->rules[inf->rule_count].type_name, type, sizeof(inf->rules[0].type_name) - 1);
-    inf->rules[inf->rule_count].type_name[sizeof(inf->rules[0].type_name) - 1] = '\0';
-    inf->rule_count++;
+    lvTypeInferenceRule rule;
+    strncpy(rule.pattern, pattern, sizeof(rule.pattern) - 1);
+    rule.pattern[sizeof(rule.pattern) - 1] = '\0';
+    strncpy(rule.type_name, type, sizeof(rule.type_name) - 1);
+    rule.type_name[sizeof(rule.type_name) - 1] = '\0';
+    int idx = lv_darray_push(&inf->rules, &rule);
+    if (idx < 0)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push rule");
     return 0;
 }
 
@@ -70,9 +62,10 @@ int lv_type_inference_infer(lvTypeInference *inf, const char *expr, char *result
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL inf, expr, or result_type");
 
     /* 先检查自定义规则（后注册的优先） */
-    for (int i = inf->rule_count - 1; i >= 0; i--) {
-        if (strstr(expr, inf->rules[i].pattern) != NULL) {
-            strncpy(result_type, inf->rules[i].type_name, size - 1);
+    for (int i = inf->rules.count - 1; i >= 0; i--) {
+        lvTypeInferenceRule *rule = (lvTypeInferenceRule *) lv_darray_get(&inf->rules, i);
+        if (strstr(expr, rule->pattern) != NULL) {
+            strncpy(result_type, rule->type_name, size - 1);
             result_type[size - 1] = '\0';
             return 0;
         }

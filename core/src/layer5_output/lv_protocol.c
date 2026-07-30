@@ -26,6 +26,7 @@
 #include "lv/lv.h"
 #include "lv/lv_config.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 /* 运行时配置快捷方式
@@ -910,11 +911,10 @@ int lv_proto_completions(void *engine, const char *prefix, lvCompletionList *out
         prefix = "";
     }
 
-    size_t prefix_len = strlen(prefix);
     int match_count = 0;
 
     for (size_t i = 0; i < BUILTIN_CMD_COUNT; i++) {
-        if (strncmp(kBuiltinCommands[i], prefix, prefix_len) == 0) {
+        if (lv_str_startswith(kBuiltinCommands[i], prefix)) {
             match_count++;
         }
     }
@@ -930,7 +930,7 @@ int lv_proto_completions(void *engine, const char *prefix, lvCompletionList *out
 
     int idx = 0;
     for (size_t i = 0; i < BUILTIN_CMD_COUNT; i++) {
-        if (strncmp(kBuiltinCommands[i], prefix, prefix_len) == 0) {
+        if (lv_str_startswith(kBuiltinCommands[i], prefix)) {
             out->items[idx].text = lv_strdup_safe(kBuiltinCommands[i]);
             if (!out->items[idx].text) {
                 lv_proto_free_completions(out);

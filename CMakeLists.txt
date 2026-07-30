@@ -411,6 +411,8 @@ set(lv_HEADERS
     core/include/lv/proof.h
     core/include/lv/recursion.h
     core/include/lv/lv_utils.h
+    core/include/lv/lv_hashtable.h
+    core/include/lv/lv_heap.h
     core/include/lv/high_dim.h
     core/include/lv/interop.h
     core/include/lv/formula_parser.h
@@ -669,6 +671,9 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/test_framework.c
     # 补全遗漏文件：缓存管理、全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息
     core/src/layer2_resource/cache_manager.c
+    # 泛型容器：哈希表和二叉堆
+    core/src/layer2_resource/lv_hashtable.c
+    core/src/layer2_resource/lv_heap.c
     core/src/layer2_resource/global_state.c
     core/src/layer2_resource/geometry_config.c
     core/src/layer2_resource/debug_trace.c
@@ -704,6 +709,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_log.c
     # v3.8.0 安全字符串构建器
     core/src/layer2_resource/lv_strbuf.c
+    # v3.8.0 统一字符串工具函数集
+    core/src/layer2_resource/lv_str_utils.c
     # v3.8.0 统一文件 I/O 抽象层
     core/src/layer2_resource/lv_file.c
 )

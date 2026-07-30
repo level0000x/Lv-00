@@ -51,6 +51,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 /* ============== 内部常量与宏 ============== */
 
@@ -143,100 +144,7 @@ static void safe_strncpy(char *dest, const char *src, size_t max_len) {
     dest[max_len - 1] = '\0';
 }
 
-/**
- * @brief 动态字符串缓冲区结构
- */
-typedef struct {
-    char *data;      /**< 缓冲区数据 */
-    size_t length;   /**< 当前长度 */
-    size_t capacity; /**< 缓冲区容量 */
-} StringBuffer;
-
-/**
- * @brief 创建字符串缓冲区
- * @return 新缓冲区，失败返回 NULL
- */
-static StringBuffer *string_buffer_create(void) {
-    StringBuffer *buf = (StringBuffer *) lv_calloc(1, sizeof(StringBuffer));
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "string_buffer_create: calloc failed");
-    buf->capacity = EXPORT_BUFFER_INITIAL_SIZE;
-    buf->data = (char *) lv_malloc(buf->capacity);
-    if (!buf->data) {
-        lv_free((void **) &buf);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "string_buffer_create: malloc failed");
-    }
-    buf->data[0] = '\0';
-    buf->length = 0;
-    return buf;
-}
-
-/**
- * @brief 向字符串缓冲区追加内容
- * @param buf 缓冲区
- * @param fmt 格式化字符串
- * @return 是否成功
- */
-static bool string_buffer_append(StringBuffer *buf, const char *fmt, ...) {
-    if (!buf || !fmt)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "string_buffer_append: buf or fmt is NULL");
-
-    va_list args;
-    va_start(args, fmt);
-    int needed = vsnprintf(NULL, 0, fmt, args);
-    va_end(args);
-
-    if (needed < 0)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_INTERNAL, "string_buffer_append: vsnprintf failed");
-
-    /* 确保有足够空间 */
-    while (buf->length + (size_t) needed + 1 >= buf->capacity) {
-        if (buf->capacity >= EXPORT_BUFFER_MAX_SIZE)
-            lv_RETURN_ERROR_BOOL(lv_ERROR_RESOURCE_EXHAUSTED, "string_buffer_append: buffer capacity exceeded max size");
-        size_t new_cap = buf->capacity * 2;
-        if (new_cap > EXPORT_BUFFER_MAX_SIZE)
-            new_cap = EXPORT_BUFFER_MAX_SIZE;
-        char *new_data = (char *) lv_realloc(buf->data, new_cap);
-        if (!new_data)
-            lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "string_buffer_append: realloc failed");
-        buf->data = new_data;
-        buf->capacity = new_cap;
-    }
-
-    va_start(args, fmt);
-    vsnprintf(buf->data + buf->length, buf->capacity - buf->length, fmt, args);
-    va_end(args);
-    buf->length += (size_t) needed;
-
-    return true;
-}
-
-/**
- * @brief 销毁字符串缓冲区
- * @param buf 缓冲区指针
- */
-static void string_buffer_destroy(StringBuffer *buf) {
-    if (!buf)
-        return;
-    if (buf->data) {
-        lv_free((void **) &buf->data);
-    }
-    lv_free((void **) &buf);
-}
-
-/**
- * @brief 获取缓冲区数据并释放缓冲区结构（调用者负责释放返回的字符串）
- * @param buf 缓冲区
- * @return 数据字符串
- */
-static char *string_buffer_detach(StringBuffer *buf) {
-    if (!buf)
-        return NULL;
-    char *data = buf->data;
-    buf->data = NULL;
-    string_buffer_destroy(buf);
-    return data;
-}
+/* StringBuffer 已迁移至 lvStrBuf（lv/lv_strbuf.h） */
 
 /* ============== 溯源树节点操作 ============== */
 
@@ -799,38 +707,36 @@ char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_trace_tree_to_json: tree is NULL");
     }
 
-    StringBuffer *buf = string_buffer_create();
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_trace_tree_to_json: string_buffer_create failed");
+    lvStrBuf buf = {0};
 
-    string_buffer_append(buf, "{\n");
-    string_buffer_append(buf, "  \"is_complete\": %s,\n", tree->is_complete ? "true" : "false");
-    string_buffer_append(buf, "  \"node_count\": %d,\n", tree->all_nodes.count);
-    string_buffer_append(buf, "  \"proved_count\": %u,\n", tree->proved_count);
-    string_buffer_append(buf, "  \"disproved_count\": %u,\n", tree->disproved_count);
-    string_buffer_append(buf, "  \"max_depth\": %u,\n", tree->max_depth);
-    string_buffer_append(buf, "  \"nodes\": [\n");
+    lv_strbuf_printf(&buf, "{\n");
+    lv_strbuf_printf(&buf, "  \"is_complete\": %s,\n", tree->is_complete ? "true" : "false");
+    lv_strbuf_printf(&buf, "  \"node_count\": %d,\n", tree->all_nodes.count);
+    lv_strbuf_printf(&buf, "  \"proved_count\": %u,\n", tree->proved_count);
+    lv_strbuf_printf(&buf, "  \"disproved_count\": %u,\n", tree->disproved_count);
+    lv_strbuf_printf(&buf, "  \"max_depth\": %u,\n", tree->max_depth);
+    lv_strbuf_printf(&buf, "  \"nodes\": [\n");
 
     for (int i = 0; i < tree->all_nodes.count; i++) {
         lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&tree->all_nodes, i);
         lvProofTraceNode *node = *node_p;
 
-        string_buffer_append(buf, "    {\n");
-        string_buffer_append(buf, "      \"id\": %u,\n", node->id);
-        string_buffer_append(buf, "      \"type\": %d,\n", (int) node->type);
-        string_buffer_append(buf, "      \"status\": %d,\n", (int) node->status);
-        string_buffer_append(buf, "      \"label\": \"%s\",\n", node->label);
-        string_buffer_append(buf, "      \"description\": \"%s\",\n", node->description);
-        string_buffer_append(buf, "      \"depth\": %d,\n", node->depth);
-        string_buffer_append(buf, "      \"child_count\": %d,\n", node->children.count);
-        string_buffer_append(buf, "      \"elapsed_ms\": %.3f\n", node->elapsed_ms);
-        string_buffer_append(buf, "    }%s\n", (i + 1 < tree->all_nodes.count) ? "," : "");
+        lv_strbuf_printf(&buf, "    {\n");
+        lv_strbuf_printf(&buf, "      \"id\": %u,\n", node->id);
+        lv_strbuf_printf(&buf, "      \"type\": %d,\n", (int) node->type);
+        lv_strbuf_printf(&buf, "      \"status\": %d,\n", (int) node->status);
+        lv_strbuf_printf(&buf, "      \"label\": \"%s\",\n", node->label);
+        lv_strbuf_printf(&buf, "      \"description\": \"%s\",\n", node->description);
+        lv_strbuf_printf(&buf, "      \"depth\": %d,\n", node->depth);
+        lv_strbuf_printf(&buf, "      \"child_count\": %d,\n", node->children.count);
+        lv_strbuf_printf(&buf, "      \"elapsed_ms\": %.3f\n", node->elapsed_ms);
+        lv_strbuf_printf(&buf, "    }%s\n", (i + 1 < tree->all_nodes.count) ? "," : "");
     }
 
-    string_buffer_append(buf, "  ]\n");
-    string_buffer_append(buf, "}\n");
+    lv_strbuf_printf(&buf, "  ]\n");
+    lv_strbuf_printf(&buf, "}\n");
 
-    return string_buffer_detach(buf);
+    return lv_strbuf_to_string(&buf);
 }
 
 /* ============== 反证法路径操作 ============== */
@@ -2679,16 +2585,14 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace, ProofNaturalLa
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_to_natural_language: trace is NULL");
     }
 
-    StringBuffer *buf = string_buffer_create();
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_proof_to_natural_language: string_buffer_create failed");
+    lvStrBuf buf = {0};
 
     const char *proof_str = (lang == PROOF_NL_LANG_ZH_CN) ? "证明" : "Proof";
     const char *begin_str =
         (lang == PROOF_NL_LANG_ZH_CN) ? "以下是该命题的证明过程：" : "Below is the proof of this proposition:";
 
-    string_buffer_append(buf, "%s\n", proof_str);
-    string_buffer_append(buf, "%s\n\n", begin_str);
+    lv_strbuf_printf(&buf, "%s\n", proof_str);
+    lv_strbuf_printf(&buf, "%s\n\n", begin_str);
 
     /* 遍历溯源树生成自然语言 */
     for (int i = 0; i < trace->all_nodes.count; i++) {
@@ -2747,54 +2651,54 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace, ProofNaturalLa
         }
 
         if (lang == PROOF_NL_LANG_ZH_CN) {
-            string_buffer_append(buf, "步骤 %u: [%s] %s %s", i + 1, type_str, node->label, status_str);
+            lv_strbuf_printf(&buf, "步骤 %u: [%s] %s %s", i + 1, type_str, node->label, status_str);
 
             if (node->description[0] != '\0') {
-                string_buffer_append(buf, "\n  说明: %s", node->description);
+                lv_strbuf_printf(&buf, "\n  说明: %s", node->description);
             }
 
             if (node->rule && node->rule->name[0] != '\0') {
-                string_buffer_append(buf, "\n  应用规则: %s", node->rule->name);
+                lv_strbuf_printf(&buf, "\n  应用规则: %s", node->rule->name);
             }
 
             if (node->elapsed_ms > 0) {
-                string_buffer_append(buf, "\n  耗时: %.2f ms", node->elapsed_ms);
+                lv_strbuf_printf(&buf, "\n  耗时: %.2f ms", node->elapsed_ms);
             }
         } else {
-            string_buffer_append(buf, "Step %u: [%s] %s %s", i + 1, type_str, node->label, status_str);
+            lv_strbuf_printf(&buf, "Step %u: [%s] %s %s", i + 1, type_str, node->label, status_str);
 
             if (node->description[0] != '\0') {
-                string_buffer_append(buf, "\n  Description: %s", node->description);
+                lv_strbuf_printf(&buf, "\n  Description: %s", node->description);
             }
 
             if (node->rule && node->rule->name[0] != '\0') {
-                string_buffer_append(buf, "\n  Applied rule: %s", node->rule->name);
+                lv_strbuf_printf(&buf, "\n  Applied rule: %s", node->rule->name);
             }
 
             if (node->elapsed_ms > 0) {
-                string_buffer_append(buf, "\n  Time: %.2f ms", node->elapsed_ms);
+                lv_strbuf_printf(&buf, "\n  Time: %.2f ms", node->elapsed_ms);
             }
         }
 
-        string_buffer_append(buf, "\n\n");
+        lv_strbuf_printf(&buf, "\n\n");
     }
 
     /* 结论 */
     if (trace->is_complete) {
         if (lang == PROOF_NL_LANG_ZH_CN) {
-            string_buffer_append(buf, "证毕。\\qed\n");
+            lv_strbuf_printf(&buf, "证毕。\\qed\n");
         } else {
-            string_buffer_append(buf, "Q.E.D.\\qed\n");
+            lv_strbuf_printf(&buf, "Q.E.D.\\qed\n");
         }
     } else {
         if (lang == PROOF_NL_LANG_ZH_CN) {
-            string_buffer_append(buf, "证明未完成。\n");
+            lv_strbuf_printf(&buf, "证明未完成。\n");
         } else {
-            string_buffer_append(buf, "Proof incomplete.\n");
+            lv_strbuf_printf(&buf, "Proof incomplete.\n");
         }
     }
 
-    return string_buffer_detach(buf);
+    return lv_strbuf_to_string(&buf);
 }
 
 /**
@@ -2814,16 +2718,14 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_to_latex: trace is NULL");
     }
 
-    StringBuffer *buf = string_buffer_create();
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_proof_to_latex: string_buffer_create failed");
+    lvStrBuf buf = {0};
 
     /* LaTeX 文档头 */
-    string_buffer_append(buf, "\\begin{proof}\n");
+    lv_strbuf_printf(&buf, "\\begin{proof}\n");
 
     /* 根节点描述 */
     if (trace->root && trace->root->description[0] != '\0') {
-        string_buffer_append(buf, "  \\textit{%s}\n\n", trace->root->description);
+        lv_strbuf_printf(&buf, "  \\textit{%s}\n\n", trace->root->description);
     }
 
     /* 信任颜色映射到 LaTeX 颜色 */
@@ -2884,30 +2786,30 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
         if (color_idx < 0 || color_idx >= color_map_count)
             color_idx = 0;
 
-        string_buffer_append(buf, "  \\noindent %s[%s] %s%s}\n", type_label, node->label, color_map[color_idx],
+        lv_strbuf_printf(&buf, "  \\noindent %s[%s] %s%s}\n", type_label, node->label, color_map[color_idx],
                              node->label);
 
         if (node->description[0] != '\0') {
-            string_buffer_append(buf, "  \\\\ \\quad %s\n", node->description);
+            lv_strbuf_printf(&buf, "  \\\\ \\quad %s\n", node->description);
         }
 
         if (node->rule && node->rule->name[0] != '\0') {
-            string_buffer_append(buf, "  \\\\ \\quad \\textit{by} \\texttt{%s}\n", node->rule->name);
+            lv_strbuf_printf(&buf, "  \\\\ \\quad \\textit{by} \\texttt{%s}\n", node->rule->name);
         }
 
-        string_buffer_append(buf, "\n");
+        lv_strbuf_printf(&buf, "\n");
     }
 
     /* 结论 */
     if (trace->is_complete) {
-        string_buffer_append(buf, "  \\hfill $\\qed$\n");
+        lv_strbuf_printf(&buf, "  \\hfill $\\qed$\n");
     } else {
-        string_buffer_append(buf, "  \\textcolor{red}{\\textit{Proof incomplete.}}\n");
+        lv_strbuf_printf(&buf, "  \\textcolor{red}{\\textit{Proof incomplete.}}\n");
     }
 
-    string_buffer_append(buf, "\\end{proof}\n");
+    lv_strbuf_printf(&buf, "\\end{proof}\n");
 
-    return string_buffer_detach(buf);
+    return lv_strbuf_to_string(&buf);
 }
 
 /**
@@ -2927,9 +2829,7 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_to_coq: trace is NULL");
     }
 
-    StringBuffer *buf = string_buffer_create();
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_proof_to_coq: string_buffer_create failed");
+    lvStrBuf buf = {0};
 
     /* 定理声明 */
     const char *theorem_name = "theorem_result";
@@ -2937,8 +2837,8 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
         theorem_name = trace->root->label;
     }
 
-    string_buffer_append(buf, "Theorem %s : Prop.\n", theorem_name);
-    string_buffer_append(buf, "Proof.\n");
+    lv_strbuf_printf(&buf, "Theorem %s : Prop.\n", theorem_name);
+    lv_strbuf_printf(&buf, "Proof.\n");
 
     /* 遍历节点生成 Coq tactic */
     for (int i = 0; i < trace->all_nodes.count; i++) {
@@ -2949,66 +2849,66 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
 
         switch (node->type) {
             case TRACE_NODE_AXIOM:
-                string_buffer_append(buf, "  (* Axiom: %s *)\n", node->label);
-                string_buffer_append(buf, "  apply %s_axiom.\n", node->label);
+                lv_strbuf_printf(&buf, "  (* Axiom: %s *)\n", node->label);
+                lv_strbuf_printf(&buf, "  apply %s_axiom.\n", node->label);
                 break;
 
             case TRACE_NODE_HYPOTHESIS:
-                string_buffer_append(buf, "  (* Hypothesis: %s *)\n", node->label);
-                string_buffer_append(buf, "  intro H%s.\n", node->label);
+                lv_strbuf_printf(&buf, "  (* Hypothesis: %s *)\n", node->label);
+                lv_strbuf_printf(&buf, "  intro H%s.\n", node->label);
                 break;
 
             case TRACE_NODE_DERIVATION:
                 if (node->rule && node->rule->name[0] != '\0') {
-                    string_buffer_append(buf, "  (* Apply rule: %s *)\n", node->rule->name);
-                    string_buffer_append(buf, "  apply %s.\n", node->rule->name);
+                    lv_strbuf_printf(&buf, "  (* Apply rule: %s *)\n", node->rule->name);
+                    lv_strbuf_printf(&buf, "  apply %s.\n", node->rule->name);
                 } else {
-                    string_buffer_append(buf, "  (* Derivation: %s *)\n", node->label);
-                    string_buffer_append(buf, "  assert (H%d : Prop).\n", node->id);
-                    string_buffer_append(buf, "  { %s. }\n", node->description);
+                    lv_strbuf_printf(&buf, "  (* Derivation: %s *)\n", node->label);
+                    lv_strbuf_printf(&buf, "  assert (H%d : Prop).\n", node->id);
+                    lv_strbuf_printf(&buf, "  { %s. }\n", node->description);
                 }
                 break;
 
             case TRACE_NODE_CONTRADICTION:
-                string_buffer_append(buf, "  (* Contradiction: %s *)\n", node->description);
-                string_buffer_append(buf, "  contradiction.\n");
+                lv_strbuf_printf(&buf, "  (* Contradiction: %s *)\n", node->description);
+                lv_strbuf_printf(&buf, "  contradiction.\n");
                 break;
 
             case TRACE_NODE_GOAL:
-                string_buffer_append(buf, "  (* Sub-goal: %s *)\n", node->label);
+                lv_strbuf_printf(&buf, "  (* Sub-goal: %s *)\n", node->label);
                 break;
 
             case TRACE_NODE_THEOREM:
-                string_buffer_append(buf, "  (* Apply theorem: %s *)\n", node->label);
-                string_buffer_append(buf, "  apply %s.\n", node->label);
+                lv_strbuf_printf(&buf, "  (* Apply theorem: %s *)\n", node->label);
+                lv_strbuf_printf(&buf, "  apply %s.\n", node->label);
                 break;
 
             case TRACE_NODE_LEMMA:
-                string_buffer_append(buf, "  (* Apply lemma: %s *)\n", node->label);
-                string_buffer_append(buf, "  apply %s_lemma.\n", node->label);
+                lv_strbuf_printf(&buf, "  (* Apply lemma: %s *)\n", node->label);
+                lv_strbuf_printf(&buf, "  apply %s_lemma.\n", node->label);
                 break;
 
             case TRACE_NODE_DEFINITION:
-                string_buffer_append(buf, "  (* Unfold definition: %s *)\n", node->label);
-                string_buffer_append(buf, "  unfold %s.\n", node->label);
+                lv_strbuf_printf(&buf, "  (* Unfold definition: %s *)\n", node->label);
+                lv_strbuf_printf(&buf, "  unfold %s.\n", node->label);
                 break;
 
             default:
-                string_buffer_append(buf, "  (* Step: %s *)\n", node->label);
-                string_buffer_append(buf, "  admit.\n");
+                lv_strbuf_printf(&buf, "  (* Step: %s *)\n", node->label);
+                lv_strbuf_printf(&buf, "  admit.\n");
                 break;
         }
     }
 
     /* 结束证明 */
     if (trace->is_complete) {
-        string_buffer_append(buf, "Qed.\n");
+        lv_strbuf_printf(&buf, "Qed.\n");
     } else {
-        string_buffer_append(buf, "  (* Proof incomplete *)\n");
-        string_buffer_append(buf, "Admitted.\n");
+        lv_strbuf_printf(&buf, "  (* Proof incomplete *)\n");
+        lv_strbuf_printf(&buf, "Admitted.\n");
     }
 
-    return string_buffer_detach(buf);
+    return lv_strbuf_to_string(&buf);
 }
 
 /**
@@ -3028,9 +2928,7 @@ char *lv_proof_to_isar(const lvProofTraceTree *trace) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_to_isar: trace is NULL");
     }
 
-    StringBuffer *buf = string_buffer_create();
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_proof_to_isar: string_buffer_create failed");
+    lvStrBuf buf = {0};
 
     /* 定理声明 */
     const char *theorem_name = "theorem_result";
@@ -3038,12 +2936,12 @@ char *lv_proof_to_isar(const lvProofTraceTree *trace) {
         theorem_name = trace->root->label;
     }
 
-    string_buffer_append(buf, "theorem %s\n", theorem_name);
+    lv_strbuf_printf(&buf, "theorem %s\n", theorem_name);
     if (trace->root && trace->root->description[0] != '\0') {
-        string_buffer_append(buf, "  -- \"%s\"\n", trace->root->description);
+        lv_strbuf_printf(&buf, "  -- \"%s\"\n", trace->root->description);
     }
-    string_buffer_append(buf, "where\n");
-    string_buffer_append(buf, "proof -\n");
+    lv_strbuf_printf(&buf, "where\n");
+    lv_strbuf_printf(&buf, "proof -\n");
 
     /* 遍历节点生成 Isar */
     for (int i = 0; i < trace->all_nodes.count; i++) {
@@ -3054,69 +2952,69 @@ char *lv_proof_to_isar(const lvProofTraceTree *trace) {
 
         switch (node->type) {
             case TRACE_NODE_AXIOM:
-                string_buffer_append(buf, "  -- Axiom: %s\n", node->label);
-                string_buffer_append(buf, "  have \"%s\" by auto\n", node->label);
+                lv_strbuf_printf(&buf, "  -- Axiom: %s\n", node->label);
+                lv_strbuf_printf(&buf, "  have \"%s\" by auto\n", node->label);
                 break;
 
             case TRACE_NODE_HYPOTHESIS:
-                string_buffer_append(buf, "  -- Hypothesis: %s\n", node->label);
-                string_buffer_append(buf, "  assume \"%s\"\n", node->label);
+                lv_strbuf_printf(&buf, "  -- Hypothesis: %s\n", node->label);
+                lv_strbuf_printf(&buf, "  assume \"%s\"\n", node->label);
                 break;
 
             case TRACE_NODE_DERIVATION:
                 if (node->rule && node->rule->name[0] != '\0') {
-                    string_buffer_append(buf, "  -- Apply rule: %s\n", node->rule->name);
-                    string_buffer_append(buf, "  then have \"%s\" using %s\n", node->label, node->rule->name);
+                    lv_strbuf_printf(&buf, "  -- Apply rule: %s\n", node->rule->name);
+                    lv_strbuf_printf(&buf, "  then have \"%s\" using %s\n", node->label, node->rule->name);
                 } else {
-                    string_buffer_append(buf, "  -- Derivation: %s\n", node->label);
-                    string_buffer_append(buf, "  have \"%s\"\n", node->label);
+                    lv_strbuf_printf(&buf, "  -- Derivation: %s\n", node->label);
+                    lv_strbuf_printf(&buf, "  have \"%s\"\n", node->label);
                     if (node->description[0] != '\0') {
-                        string_buffer_append(buf, "    -- \"%s\"\n", node->description);
+                        lv_strbuf_printf(&buf, "    -- \"%s\"\n", node->description);
                     }
-                    string_buffer_append(buf, "    sorry\n");
+                    lv_strbuf_printf(&buf, "    sorry\n");
                 }
                 break;
 
             case TRACE_NODE_CONTRADICTION:
-                string_buffer_append(buf, "  -- Contradiction: %s\n", node->description);
-                string_buffer_append(buf, "  then show False\n");
-                string_buffer_append(buf, "    contradiction\n");
+                lv_strbuf_printf(&buf, "  -- Contradiction: %s\n", node->description);
+                lv_strbuf_printf(&buf, "  then show False\n");
+                lv_strbuf_printf(&buf, "    contradiction\n");
                 break;
 
             case TRACE_NODE_GOAL:
-                string_buffer_append(buf, "  -- Sub-goal: %s\n", node->label);
-                string_buffer_append(buf, "  moreover have \"%s\"\n", node->label);
+                lv_strbuf_printf(&buf, "  -- Sub-goal: %s\n", node->label);
+                lv_strbuf_printf(&buf, "  moreover have \"%s\"\n", node->label);
                 break;
 
             case TRACE_NODE_THEOREM:
-                string_buffer_append(buf, "  -- Theorem: %s\n", node->label);
-                string_buffer_append(buf, "  from `%s` have \"%s\" .\n", node->label, node->label);
+                lv_strbuf_printf(&buf, "  -- Theorem: %s\n", node->label);
+                lv_strbuf_printf(&buf, "  from `%s` have \"%s\" .\n", node->label, node->label);
                 break;
 
             case TRACE_NODE_LEMMA:
-                string_buffer_append(buf, "  -- Lemma: %s\n", node->label);
-                string_buffer_append(buf, "  using `%s_lemma`\n", node->label);
+                lv_strbuf_printf(&buf, "  -- Lemma: %s\n", node->label);
+                lv_strbuf_printf(&buf, "  using `%s_lemma`\n", node->label);
                 break;
 
             case TRACE_NODE_DEFINITION:
-                string_buffer_append(buf, "  -- Unfold: %s\n", node->label);
-                string_buffer_append(buf, "  unfolding %s_def\n", node->label);
+                lv_strbuf_printf(&buf, "  -- Unfold: %s\n", node->label);
+                lv_strbuf_printf(&buf, "  unfolding %s_def\n", node->label);
                 break;
 
             default:
-                string_buffer_append(buf, "  -- Step: %s\n", node->label);
-                string_buffer_append(buf, "  sorry\n");
+                lv_strbuf_printf(&buf, "  -- Step: %s\n", node->label);
+                lv_strbuf_printf(&buf, "  sorry\n");
                 break;
         }
     }
 
     /* 结束证明 */
     if (trace->is_complete) {
-        string_buffer_append(buf, "qed\n");
+        lv_strbuf_printf(&buf, "qed\n");
     } else {
-        string_buffer_append(buf, "  -- Proof incomplete\n");
-        string_buffer_append(buf, "sorry\n");
+        lv_strbuf_printf(&buf, "  -- Proof incomplete\n");
+        lv_strbuf_printf(&buf, "sorry\n");
     }
 
-    return string_buffer_detach(buf);
+    return lv_strbuf_to_string(&buf);
 }

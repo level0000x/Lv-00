@@ -77,12 +77,8 @@ static const char *block_type_colors[] = {
 typedef struct lvBlockCanvasView {
     int view_type;                  /**< 视图类型标识 */
     void *library;                  /**< 库引用（保留扩展） */
-    lvVisualBlock *blocks;          /**< 块数组 */
-    int block_count;                /**< 块数量 */
-    int block_capacity;             /**< 块数组容量 */
-    lvBlockConnection *connections; /**< 连接数组 */
-    int connection_count;           /**< 连接数量 */
-    int connection_capacity;        /**< 连接数组容量 */
+    lvDArray blocks;                /**< lvVisualBlock 动态数组 */
+    lvDArray connections;           /**< lvBlockConnection 动态数组 */
     int next_block_id;              /**< 下一个块ID */
     int next_port_id;               /**< 下一个端口ID */
     int next_connection_id;         /**< 下一个连接ID */
@@ -100,18 +96,13 @@ lvBlockCanvasView *lv_block_canvas_create(void) {
     if (!canvas)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block canvas");
     canvas->view_type = lv_VIEW_BLOCK_CANVAS;
-    canvas->block_capacity = 16;
-    canvas->blocks = lv_calloc(canvas->block_capacity, sizeof(lvVisualBlock));
-    if (!canvas->blocks) {
+    lv_darray_init(&canvas->blocks, sizeof(lvVisualBlock));
+    lv_darray_init(&canvas->connections, sizeof(lvBlockConnection));
+    if (!lv_darray_reserve(&canvas->blocks, 16) || !lv_darray_reserve(&canvas->connections, 16)) {
+        lv_darray_free(&canvas->blocks);
+        lv_darray_free(&canvas->connections);
         lv_free((void **) &canvas);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate blocks array");
-    }
-    canvas->connection_capacity = 16;
-    canvas->connections = lv_calloc(canvas->connection_capacity, sizeof(lvBlockConnection));
-    if (!canvas->connections) {
-        lv_free((void **) &canvas->blocks);
-        lv_free((void **) &canvas);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate connections array");
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block canvas arrays");
     }
     canvas->next_block_id = 1;
     canvas->next_port_id = 1;
@@ -129,11 +120,12 @@ lvBlockCanvasView *lv_block_canvas_create(void) {
 void lv_block_canvas_destroy(lvBlockCanvasView *canvas) {
     if (!canvas)
         return;
-    for (int i = 0; i < canvas->block_count; i++) {
-        lv_free((void **) &canvas->blocks[i].ports);
+    for (int i = 0; i < canvas->blocks.count; i++) {
+        lvVisualBlock *b = (lvVisualBlock *) lv_darray_get(&canvas->blocks, i);
+        lv_free((void **) &b->ports);
     }
-    lv_free((void **) &canvas->blocks);
-    lv_free((void **) &canvas->connections);
+    lv_darray_free(&canvas->blocks);
+    lv_darray_free(&canvas->connections);
     lv_free((void **) &canvas);
 }
 
@@ -159,63 +151,55 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
     lv_CHECK_NOT_NULL(canvas);
     lv_CHECK_NOT_NULL(label);
 
-    /* 自动扩容 */
-    if (canvas->block_count >= canvas->block_capacity) {
-        /* [安全] 防止 block_capacity * 2 整数溢出 */
-        if (canvas->block_capacity > INT_MAX / 2)
-            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "block capacity overflow");
-        int new_cap = canvas->block_capacity * 2;
-        lvVisualBlock *new_arr = lv_realloc(canvas->blocks, new_cap * sizeof(lvVisualBlock));
-        if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc blocks");
-        canvas->blocks = new_arr;
-        canvas->block_capacity = new_cap;
-    }
-
-    lvVisualBlock *block = &canvas->blocks[canvas->block_count];
-    block->id = canvas->next_block_id++;
-    strncpy(block->label, label, sizeof(block->label) - 1);
-    block->label[sizeof(block->label) - 1] = '\0';
-    block->x = x;
-    block->y = y;
-    block->width = (width > 0) ? width : 120.0;
-    block->height = (height > 0) ? height : 60.0;
-    block->type = (lvBlockType) type;
+    lvVisualBlock block;
+    memset(&block, 0, sizeof(block));
+    block.id = canvas->next_block_id++;
+    strncpy(block.label, label, sizeof(block.label) - 1);
+    block.label[sizeof(block.label) - 1] = '\0';
+    block.x = x;
+    block.y = y;
+    block.width = (width > 0) ? width : 120.0;
+    block.height = (height > 0) ? height : 60.0;
+    block.type = (lvBlockType) type;
 
     /* 创建端口 */
     int total_ports = input_count + output_count;
-    block->input_port_count = input_count;
-    block->output_port_count = output_count;
-    block->port_count = total_ports;
+    block.input_port_count = input_count;
+    block.output_port_count = output_count;
+    block.port_count = total_ports;
     if (total_ports > 0) {
-        block->ports = lv_calloc(total_ports, sizeof(lvBlockPort));
-        if (!block->ports)
+        block.ports = lv_calloc(total_ports, sizeof(lvBlockPort));
+        if (!block.ports)
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block ports");
 
         /* 输入端口在左侧均匀分布 */
         for (int i = 0; i < input_count; i++) {
-            lvBlockPort *p = &block->ports[i];
+            lvBlockPort *p = &block.ports[i];
             p->id = canvas->next_port_id++;
             p->is_input = 1;
             p->index = i;
             snprintf(p->name, sizeof(p->name), "in_%d", i);
             p->rel_x = 0.0;
-            p->rel_y = block->height * (i + 1) / (input_count + 1);
+            p->rel_y = block.height * (i + 1) / (input_count + 1);
         }
         /* 输出端口在右侧均匀分布 */
         for (int i = 0; i < output_count; i++) {
-            lvBlockPort *p = &block->ports[input_count + i];
+            lvBlockPort *p = &block.ports[input_count + i];
             p->id = canvas->next_port_id++;
             p->is_input = 0;
             p->index = i;
             snprintf(p->name, sizeof(p->name), "out_%d", i);
-            p->rel_x = block->width;
-            p->rel_y = block->height * (i + 1) / (output_count + 1);
+            p->rel_x = block.width;
+            p->rel_y = block.height * (i + 1) / (output_count + 1);
         }
     }
 
-    canvas->block_count++;
-    return block->id;
+    int idx = lv_darray_push(&canvas->blocks, &block);
+    if (idx < 0) {
+        lv_free((void **) &block.ports);
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push block");
+    }
+    return block.id;
 }
 
 /**
@@ -232,8 +216,9 @@ int lv_block_canvas_remove_block(lvBlockCanvasView *canvas, int block_id) {
     lv_CHECK_NOT_NULL(canvas);
     lv_CHECK_ARG(block_id > 0, lv_ERROR_INVALID_PARAM, "invalid block_id %d", block_id);
     int found = -1;
-    for (int i = 0; i < canvas->block_count; i++) {
-        if (canvas->blocks[i].id == block_id) {
+    for (int i = 0; i < canvas->blocks.count; i++) {
+        lvVisualBlock *b = (lvVisualBlock *) lv_darray_get(&canvas->blocks, i);
+        if (b->id == block_id) {
             found = i;
             break;
         }
@@ -242,23 +227,31 @@ int lv_block_canvas_remove_block(lvBlockCanvasView *canvas, int block_id) {
         lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "block not found");
 
     /* 释放端口 */
-    lv_free((void **) &canvas->blocks[found].ports);
+    {
+        lvVisualBlock *b = (lvVisualBlock *) lv_darray_get(&canvas->blocks, found);
+        lv_free((void **) &b->ports);
+    }
 
-    /* 移除相关连接 */
+    /* 移除相关连接（原地压缩） */
     int new_c = 0;
-    for (int i = 0; i < canvas->connection_count; i++) {
-        if (canvas->connections[i].from_block_id != block_id && canvas->connections[i].to_block_id != block_id) {
+    for (int i = 0; i < canvas->connections.count; i++) {
+        lvBlockConnection *conn = (lvBlockConnection *) lv_darray_get(&canvas->connections, i);
+        if (conn->from_block_id != block_id && conn->to_block_id != block_id) {
             if (new_c != i) {
-                canvas->connections[new_c] = canvas->connections[i];
+                lvBlockConnection *dest = (lvBlockConnection *) lv_darray_get(&canvas->connections, new_c);
+                *dest = *conn;
             }
             new_c++;
         }
     }
-    canvas->connection_count = new_c;
+    canvas->connections.count = new_c;
 
     /* 用最后一个元素填充空位 */
-    canvas->blocks[found] = canvas->blocks[canvas->block_count - 1];
-    canvas->block_count--;
+    {
+        lvVisualBlock *arr = (lvVisualBlock *) canvas->blocks.data;
+        arr[found] = arr[canvas->blocks.count - 1];
+    }
+    lv_darray_pop(&canvas->blocks);
     return 0;
 }
 
@@ -274,9 +267,10 @@ int lv_block_canvas_remove_block(lvBlockCanvasView *canvas, int block_id) {
 static lvVisualBlock *find_block(lvBlockCanvasView *canvas, int block_id) {
     if (!canvas || block_id <= 0)
         return NULL;
-    for (int i = 0; i < canvas->block_count; i++) {
-        if (canvas->blocks[i].id == block_id)
-            return &canvas->blocks[i];
+    for (int i = 0; i < canvas->blocks.count; i++) {
+        lvVisualBlock *b = (lvVisualBlock *) lv_darray_get(&canvas->blocks, i);
+        if (b->id == block_id)
+            return b;
     }
     return NULL;
 }
@@ -350,28 +344,17 @@ int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id,
     if (!from_found || !to_found)
         lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "source or target port not found");
 
-    /* 自动扩容 */
-    if (canvas->connection_count >= canvas->connection_capacity) {
-        /* [安全] 防止 connection_capacity * 2 整数溢出 */
-        if (canvas->connection_capacity > INT_MAX / 2)
-            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "connection capacity overflow");
-        int new_cap = canvas->connection_capacity * 2;
-        lvBlockConnection *new_arr = lv_realloc(canvas->connections, new_cap * sizeof(lvBlockConnection));
-        if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc connections");
-        canvas->connections = new_arr;
-        canvas->connection_capacity = new_cap;
-    }
+    lvBlockConnection conn;
+    conn.id = canvas->next_connection_id++;
+    conn.from_block_id = from_block_id;
+    conn.from_port_id = from_port_id;
+    conn.to_block_id = to_block_id;
+    conn.to_port_id = to_port_id;
 
-    lvBlockConnection *conn = &canvas->connections[canvas->connection_count];
-    conn->id = canvas->next_connection_id++;
-    conn->from_block_id = from_block_id;
-    conn->from_port_id = from_port_id;
-    conn->to_block_id = to_block_id;
-    conn->to_port_id = to_port_id;
-
-    canvas->connection_count++;
-    return conn->id;
+    int idx = lv_darray_push(&canvas->connections, &conn);
+    if (idx < 0)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push connection");
+    return conn.id;
 }
 
 /**
@@ -408,8 +391,8 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
 
     /* 计算包围盒 */
     double min_x = 1e18, min_y = 1e18, max_x = -1e18, max_y = -1e18;
-    for (int i = 0; i < canvas->block_count; i++) {
-        lvVisualBlock *b = &canvas->blocks[i];
+    for (int i = 0; i < canvas->blocks.count; i++) {
+        lvVisualBlock *b = (lvVisualBlock *) lv_darray_get(&canvas->blocks, i);
         if (b->x < min_x)
             min_x = b->x;
         if (b->y < min_y)
@@ -434,7 +417,7 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
     }
 
     /* [安全] 估算缓冲区大小，防止整数溢出 */
-    size_t est_size = (size_t) canvas->block_count * 1024 + (size_t) canvas->connection_count * 512 + 4096;
+    size_t est_size = (size_t) canvas->blocks.count * 1024 + (size_t) canvas->connections.count * 512 + 4096;
     if (est_size > 1024 * 1024 * 16)
         est_size = 1024 * 1024 * 16;
     int buf_size = (int) est_size;
@@ -451,8 +434,8 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
                       min_x, min_y, max_x - min_x, max_y - min_y);
 
     /* 绘制连接（贝塞尔曲线） */
-    for (int i = 0; i < canvas->connection_count; i++) {
-        lvBlockConnection *c = &canvas->connections[i];
+    for (int i = 0; i < canvas->connections.count; i++) {
+        lvBlockConnection *c = (lvBlockConnection *) lv_darray_get(&canvas->connections, i);
         double x1, y1, x2, y2;
         if (find_port_pos(canvas, c->from_block_id, c->from_port_id, &x1, &y1) != 0)
             continue;
@@ -475,8 +458,8 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
     }
 
     /* 绘制块 */
-    for (int i = 0; i < canvas->block_count; i++) {
-        lvVisualBlock *b = &canvas->blocks[i];
+    for (int i = 0; i < canvas->blocks.count; i++) {
+        lvVisualBlock *b = (lvVisualBlock *) lv_darray_get(&canvas->blocks, i);
         const char *color = (b->type >= 0 && b->type <= lv_BLOCK_TYPE_LOOP) ? block_type_colors[b->type] : "#999999";
 
         /* 圆角矩形 */

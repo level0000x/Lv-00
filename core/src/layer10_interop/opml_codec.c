@@ -5,6 +5,7 @@
 #include "lv/interop.h"
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 
@@ -657,7 +658,7 @@ static int opml_validate(const char *input) {
     if (!input)
         return 0;
     /* 检查 OPML 版本头 */
-    return strstr(input, "opml_version") != NULL;
+    return lv_str_contains(input, "opml_version");
 }
 
 /**

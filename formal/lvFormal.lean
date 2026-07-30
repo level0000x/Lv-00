@@ -136,14 +136,7 @@ export Theory.Compiler (
 
 -- CompilerCorrectness exports
 export Theory.CompilerCorrectness (
-  zero_pt zero_sc
-  stmt_compiled_edge_correct_point
-  stmt_compiled_edge_correct_constraint
-  stmt_compiled_edge_correct_prove
-  stmt_compiled_edge_correct_normalize
   compile_preserves_satisfiability
-  compiler_semantics_consistent compiler_idempotent
-  compile_append_satisfiable
   compile_never_unsatisfiable
   correctness_with_sat_hypothesis
 )
@@ -165,9 +158,6 @@ export Theory.Cv00Memory (
   ptr_valid alloc free load store
   mem_safe
   ExecResult exec_stmt
-  free_null load_freed store_freed
-  exec_nop exec_assign exec_preserves_mem_if_no_call
-  Cv00Semantics
 )
 
 -- BootstrapCorrectness exports
@@ -181,26 +171,6 @@ export Theory.BootstrapCorrectness (
 )
 
 -- Round 5-6 exports
-export Theory.ProofEngineSoundness (soundness_of_proof multi_strategy_completeness)
-export Theory.SolverCorrectness (solver_soundness solver_termination)
-export Theory.RewriteProperties (rewrite_soundness rewrite_confluence)
-export Theory.KernelInvariants (kernel_preserves_invariants kernel_state_safe)
-export Theory.ConstraintSoundness (constraint_soundness constraint_preserved)
-export Theory.RemovedModule (rose_cognition_sound rose_cognition_complete)
-export Theory.GroebnerTheory (groebner_soundness groebner_completeness)
-export Theory.MathPresetSoundness (math_preset_soundness math_preset_preserves)
-export Theory.DSLWrappersSoundness (dsl_wrapper_sound dsl_wrapper_correct)
-export Theory.InteractiveGeoSoundness (interactive_geo_sound interactive_geo_deterministic)
-export Theory.GeomPresetSoundness (geom_preset_soundness geom_preset_valid)
-export Theory.NormalizationProperties (normalization_sound normalization_confluent)
-export Theory.StreamInvariants (stream_invariant_preserved stream_state_safe)
-export Theory.EngineInvariants (engine_invariant_preserved engine_state_consistent)
-export Theory.NDimGeometry (ndim_soundness ndim_completeness)
-export Theory.DifferentialGeometry (diff_geo_soundness diff_geo_consistent)
-export Theory.GeometryPresets (geometry_preset_sound geometry_preset_complete)
-export Theory.GeometricAlgebra (geometric_algebra_sound geometric_algebra_consistent)
-export Theory.Numeric (numeric_stability numeric_precision)
-export Theory.ODESolver (ode_solver_soundness ode_solver_convergence)
-export Theory.PresetGeometry (preset_geometry_sound preset_geometry_valid)
+-- (reserved for future re-exports)
 
 end lvFormal

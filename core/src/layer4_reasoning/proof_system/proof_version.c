@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_version.c
  * @brief Implementation of the proof version control system.
  *
@@ -27,6 +27,7 @@
 #include "proof_version.h"
 
 #include "lv/lv_file.h"
+#include "lv/lv_platform.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -35,19 +36,6 @@
 
 
 #include "lv_utils.h"
-
-
-#ifdef _WIN32
-#include <direct.h>
-#include <windows.h>
-
-#define lv_MKDIR(path) _mkdir(path)
-#else
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#define lv_MKDIR(path) mkdir(path, 0755)
-#endif
 
 /* ============================================================
  * Minimal SHA-256 implementation
@@ -304,16 +292,16 @@ static bool create_repo_dirs(const char *repo_path) {
     char path[1024];
 
     repo_dir_path(repo_path, repo_dir, sizeof(repo_dir));
-    lv_MKDIR(repo_dir);
+    lv_mkdir(repo_dir);
 
     build_path(repo_dir, "commits", path, sizeof(path));
-    lv_MKDIR(path);
+    lv_mkdir(path);
 
     build_path(repo_dir, "objects", path, sizeof(path));
-    lv_MKDIR(path);
+    lv_mkdir(path);
 
     build_path(repo_dir, "branches", path, sizeof(path));
-    lv_MKDIR(path);
+    lv_mkdir(path);
 
     return true;
 }

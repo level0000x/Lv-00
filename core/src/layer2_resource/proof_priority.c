@@ -5,6 +5,8 @@
 
 #include "lv/lv.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_hashtable.h"
+#include "lv/lv_heap.h"
 #include "lv/lv_internal.h"
 
 struct lvProofPriority {

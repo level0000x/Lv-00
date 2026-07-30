@@ -39,6 +39,7 @@
 
 
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 
 
@@ -794,16 +795,16 @@ static ATPResult atp_parse_szs_status(const char *output) {
         status++;
 
     /* 匹配结果 */
-    if (strncmp(status, "Theorem", 7) == 0 || strncmp(status, "Unsatisfiable", 13) == 0)
+    if (lv_str_startswith(status, "Theorem") || lv_str_startswith(status, "Unsatisfiable"))
         return ATP_RESULT_UNSAT;
 
-    if (strncmp(status, "Satisfiable", 11) == 0 || strncmp(status, "CounterSatisfiable", 18) == 0)
+    if (lv_str_startswith(status, "Satisfiable") || lv_str_startswith(status, "CounterSatisfiable"))
         return ATP_RESULT_SAT;
 
-    if (strncmp(status, "Timeout", 7) == 0 || strncmp(status, "ResourceOut", 11) == 0)
+    if (lv_str_startswith(status, "Timeout") || lv_str_startswith(status, "ResourceOut"))
         return ATP_RESULT_UNKNOWN;
 
-    if (strncmp(status, "Error", 5) == 0)
+    if (lv_str_startswith(status, "Error"))
         return ATP_RESULT_ERROR;
 
     return ATP_RESULT_UNKNOWN;

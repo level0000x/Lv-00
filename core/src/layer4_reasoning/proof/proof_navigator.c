@@ -14,10 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
+#include "lv/lv_platform.h"
+#include "lv/lv_strbuf.h"
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
@@ -31,7 +29,6 @@
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
-#include "lv/lv_strbuf.h"
 
 /* 流式上下文声明 */
 /* 证明树 API 占位（与 proof.c 保持一致） */
@@ -812,38 +809,25 @@ typedef struct {
 typedef struct ProofNavigatorState {
     ProofBreakpointSnapshot breakpoint_store[MAX_BREAKPOINT_SNAPSHOTS];
     bool axiom_locked;                              /**< 公理库锁定标记 */
-#ifdef _WIN32
-    volatile LONG breakpoint_store_count;           /**< 已存储断点数量 */
-    CRITICAL_SECTION breakpoint_cs;                 /**< 断点存储临界区 */
-    volatile LONG breakpoint_cs_initialized;        /**< 临界区初始化标记 */
-#else
-    volatile int breakpoint_store_count;
-    pthread_mutex_t breakpoint_mutex;               /**< 断点存储互斥锁 */
-#endif
+    volatile int breakpoint_store_count;             /**< 已存储断点数量 */
+    lvMutex breakpoint_mutex;                       /**< 断点存储互斥锁 */
 } ProofNavigatorState;
 
 /** 模块级唯一状态实例（替代原有的 6 个分散 static 变量） */
-static ProofNavigatorState s_proof_state = {
-#if !defined(_WIN32)
-    .breakpoint_mutex = PTHREAD_MUTEX_INITIALIZER
-#endif
-};
+static ProofNavigatorState s_proof_state = {0};
 
-#ifdef _WIN32
-#define BREAKPOINT_LOCK()                                                   \
-    do {                                                                    \
-        if (!s_proof_state.breakpoint_cs_initialized) {                     \
-            InterlockedCompareExchange(&s_proof_state.breakpoint_cs_initialized, 1, 0); \
-            if (s_proof_state.breakpoint_cs_initialized)                    \
-                InitializeCriticalSection(&s_proof_state.breakpoint_cs);    \
-        }                                                                   \
-        EnterCriticalSection(&s_proof_state.breakpoint_cs);                 \
+/** 互斥锁惰性初始化标记 */
+static volatile int g_breakpoint_mutex_inited = 0;
+
+#define BREAKPOINT_LOCK()                                                         \
+    do {                                                                          \
+        if (!g_breakpoint_mutex_inited) {                                         \
+            lv_MUTEX_INIT(&s_proof_state.breakpoint_mutex);                       \
+            lv_ATOMIC_EXCHANGE(&g_breakpoint_mutex_inited, 1);                    \
+        }                                                                         \
+        lv_MUTEX_LOCK(&s_proof_state.breakpoint_mutex);                           \
     } while (0)
-#define BREAKPOINT_UNLOCK() LeaveCriticalSection(&s_proof_state.breakpoint_cs)
-#else
-#define BREAKPOINT_LOCK()   pthread_mutex_lock(&s_proof_state.breakpoint_mutex)
-#define BREAKPOINT_UNLOCK() pthread_mutex_unlock(&s_proof_state.breakpoint_mutex)
-#endif
+#define BREAKPOINT_UNLOCK() lv_MUTEX_UNLOCK(&s_proof_state.breakpoint_mutex)
 
 bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     if (!nav)
@@ -872,11 +856,7 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
             return false; /* 存储已满 */
         }
         slot = current_count;
-#ifdef _WIN32
-        InterlockedIncrement(&s_proof_state.breakpoint_store_count);
-#else
-        __atomic_fetch_add(&s_proof_state.breakpoint_store_count, 1, __ATOMIC_RELAXED);
-#endif
+        lv_ATOMIC_INC(&s_proof_state.breakpoint_store_count);
     }
     s_proof_state.breakpoint_store[slot].breakpoint_id = breakpoint_id;
     s_proof_state.breakpoint_store[slot].current_step = nav->current_step;
@@ -962,11 +942,7 @@ void proof_breakpoint_storage_init(void) {
     BREAKPOINT_LOCK();
     if (s_proof_state.breakpoint_store_count == 0 && s_proof_state.breakpoint_store[0].breakpoint_id == 0) {
         /* 重置计数器 */
-#ifdef _WIN32
-        InterlockedExchange(&s_proof_state.breakpoint_store_count, 0);
-#else
-        __atomic_store_n(&s_proof_state.breakpoint_store_count, 0, __ATOMIC_RELAXED);
-#endif
+        lv_ATOMIC_EXCHANGE(&s_proof_state.breakpoint_store_count, 0);
         /* 清空存储 */
         memset(s_proof_state.breakpoint_store, 0, sizeof(s_proof_state.breakpoint_store));
     }
@@ -986,11 +962,7 @@ void proof_breakpoint_storage_reset(void) {
     BREAKPOINT_LOCK();
     /* 清空所有快照 */
     memset(s_proof_state.breakpoint_store, 0, sizeof(s_proof_state.breakpoint_store));
-#ifdef _WIN32
-    InterlockedExchange(&s_proof_state.breakpoint_store_count, 0);
-#else
-    __atomic_store_n(&s_proof_state.breakpoint_store_count, 0, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_EXCHANGE(&s_proof_state.breakpoint_store_count, 0);
     BREAKPOINT_UNLOCK();
 
     /* 流式事件 */
@@ -1035,11 +1007,7 @@ bool proof_breakpoint_delete(int breakpoint_id) {
     if (slot < s_proof_state.breakpoint_store_count - 1) {
         s_proof_state.breakpoint_store[slot] = s_proof_state.breakpoint_store[s_proof_state.breakpoint_store_count - 1];
     }
-#ifdef _WIN32
-    InterlockedDecrement(&s_proof_state.breakpoint_store_count);
-#else
-    __atomic_fetch_sub(&s_proof_state.breakpoint_store_count, 1, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_DEC(&s_proof_state.breakpoint_store_count);
 
     BREAKPOINT_UNLOCK();
 

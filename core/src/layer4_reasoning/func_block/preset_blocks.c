@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_blocks.c
  * @brief 预设函数块扩展系统 - 实现
  *
@@ -163,47 +163,27 @@ static ExtendedPresetRegistry g_preset_registry = {
  * 锁的初始化在 preset_blocks_init() 中提前完成，
  * LOCK() 宏不再执行惰性初始化，避免多线程竞态。
  */
-#ifdef _WIN32
-#include <windows.h>
-static CRITICAL_SECTION g_preset_registry_lock;
-static volatile long g_preset_registry_lock_initialized = 0;
+#include "lv/lv_platform.h"
 
-/** 
+static lvMutex g_preset_registry_lock;
+static volatile int g_preset_registry_lock_initialized = 0;
+
+/**
  * @brief 初始化预设注册表锁（线程安全，仅执行一次）
- *
- * 使用 InterlockedCompareExchange 原子操作确保
- * 多线程环境下仅初始化一次临界区，消除 TOCTOU 竞态条件。
  */
 static void preset_registry_lock_init_once(void) {
-    if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) == 0) {
-        /* volatile 重读，避免编译器优化消除检查 */
-        long expected = 0;
-        if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 1, 0) == 0) {
-            InitializeCriticalSection(&g_preset_registry_lock);
-            /* 内存屏障：确保临界区初始化对后续所有线程可见 */
-            MemoryBarrier();
-            InterlockedExchange(&g_preset_registry_lock_initialized, 2);
-        } else {
-            /* 其他线程正在初始化，自旋等待完成 */
-            while (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) != 2) {
-                Sleep(0); /* 让出时间片 */
-            }
-        }
+    if (!g_preset_registry_lock_initialized) {
+        lv_MUTEX_INIT(&g_preset_registry_lock);
+        lv_ATOMIC_EXCHANGE(&g_preset_registry_lock_initialized, 1);
     }
 }
 
 #define PRESET_REGISTRY_LOCK()                         \
     do {                                               \
         preset_registry_lock_init_once();              \
-        EnterCriticalSection(&g_preset_registry_lock); \
+        lv_MUTEX_LOCK(&g_preset_registry_lock);        \
     } while (0)
-#define PRESET_REGISTRY_UNLOCK() LeaveCriticalSection(&g_preset_registry_lock)
-#else
-#include <pthread.h>
-static pthread_mutex_t g_preset_registry_lock = PTHREAD_MUTEX_INITIALIZER;
-#define PRESET_REGISTRY_LOCK() pthread_mutex_lock(&g_preset_registry_lock)
-#define PRESET_REGISTRY_UNLOCK() pthread_mutex_unlock(&g_preset_registry_lock)
-#endif
+#define PRESET_REGISTRY_UNLOCK() lv_MUTEX_UNLOCK(&g_preset_registry_lock)
 
 /* ==================== 内部辅助函数 ==================== */
 
@@ -686,13 +666,11 @@ void preset_blocks_cleanup(void) {
 
     PRESET_REGISTRY_UNLOCK();
 
-#ifdef _WIN32
-    /* 检查锁是否已初始化（原子标志值 2 表示完全初始化完成） */
-    if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) != 0) {
-        DeleteCriticalSection(&g_preset_registry_lock);
-        InterlockedExchange(&g_preset_registry_lock_initialized, 0);
+    /* 检查锁是否已初始化，若是则销毁 */
+    if (g_preset_registry_lock_initialized) {
+        lv_MUTEX_DESTROY(&g_preset_registry_lock);
+        lv_ATOMIC_EXCHANGE(&g_preset_registry_lock_initialized, 0);
     }
-#endif
 }
 
 PresetBlockMetadata *preset_blocks_get_metadata(const char *name) {

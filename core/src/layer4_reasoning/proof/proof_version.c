@@ -23,10 +23,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 
-#ifdef _WIN32
-#include <windows.h>
 #include "lv/lv_strbuf.h"
-#endif
 
 /**
  * 将证明步骤格式化为自然语言文本。
@@ -378,21 +375,12 @@ static volatile long g_ghost_table_initialized = 0;
 static void ghost_table_init(void) {
     if (g_ghost_table_initialized)
         return;
-#ifdef _WIN32
-    if (InterlockedCompareExchange(&g_ghost_table_initialized, 1, 0) == 0) {
-        for (int i = 0; i < MAX_GHOST_STEPS; i++) {
-            g_ghost_table[i] = PROOF_QTT_UNRESTRICTED; /* 默认非擦除 */
-        }
-    }
-#else
     int expected = 0;
-    if (__atomic_compare_exchange_n((volatile int *) &g_ghost_table_initialized, &expected, 1, 0, __ATOMIC_ACQ_REL,
-                                    __ATOMIC_ACQUIRE)) {
+    if (lv_ATOMIC_CAS_BOOL(&g_ghost_table_initialized, 1, &expected)) {
         for (int i = 0; i < MAX_GHOST_STEPS; i++) {
             g_ghost_table[i] = PROOF_QTT_UNRESTRICTED; /* 默认非擦除 */
         }
     }
-#endif
     /* 等待其他线程完成初始化 */
     while (!g_ghost_table_initialized) { /* spin */
     }

@@ -109,11 +109,8 @@ double lv_timer_elapsed_sec(const lvTimer *timer) {
 
 struct lvBenchSuite {
     char name[64];
-    lvBenchCase *cases;
-    int case_count;
-    int case_capacity;
-    lvBenchResult *results;
-    int result_count;
+    lvDArray cases;    /**< lvBenchCase 动态数组 */
+    lvDArray results;  /**< lvBenchResult 动态数组 */
 };
 
 /**
@@ -128,15 +125,15 @@ lvBenchSuite *lv_bench_suite_create(const char *name) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "suite calloc failed");
     if (name)
         lv_strlcpy(suite->name, name, sizeof(suite->name));
-    suite->cases = lv_calloc(SUITE_INIT_CAPACITY, sizeof(lvBenchCase));
-    suite->results = lv_calloc(SUITE_INIT_CAPACITY, sizeof(lvBenchResult));
-    if (!suite->cases || !suite->results) {
-        lv_free((void **) &suite->cases);
-        lv_free((void **) &suite->results);
+    lv_darray_init(&suite->cases, sizeof(lvBenchCase));
+    lv_darray_init(&suite->results, sizeof(lvBenchResult));
+    if (!lv_darray_reserve(&suite->cases, SUITE_INIT_CAPACITY) ||
+        !lv_darray_reserve(&suite->results, SUITE_INIT_CAPACITY)) {
+        lv_darray_free(&suite->cases);
+        lv_darray_free(&suite->results);
         lv_free((void **) &suite);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "cases or results calloc failed");
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "cases or results reserve failed");
     }
-    suite->case_capacity = SUITE_INIT_CAPACITY;
     return suite;
 }
 
@@ -148,8 +145,8 @@ lvBenchSuite *lv_bench_suite_create(const char *name) {
 void lv_bench_suite_destroy(lvBenchSuite *suite) {
     if (!suite)
         return;
-    lv_free((void **) &suite->cases);
-    lv_free((void **) &suite->results);
+    lv_darray_free(&suite->cases);
+    lv_darray_free(&suite->results);
     lv_free((void **) &suite);
 }
 
@@ -163,17 +160,9 @@ void lv_bench_suite_destroy(lvBenchSuite *suite) {
 int lv_bench_suite_add(lvBenchSuite *suite, const lvBenchCase *case_) {
     if (!suite || !case_)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "suite or case_ is NULL");
-    if (suite->case_count >= suite->case_capacity) {
-        if (suite->case_capacity > INT_MAX / 2)
-            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "case_capacity overflow");
-        int new_cap = suite->case_capacity * 2;
-        void *p = lv_realloc(suite->cases, (size_t) new_cap * sizeof(lvBenchCase));
-        if (!p)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "realloc failed");
-        suite->cases = p;
-        suite->case_capacity = new_cap;
-    }
-    suite->cases[suite->case_count++] = *case_;
+    int idx = lv_darray_push(&suite->cases, case_);
+    if (idx < 0)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_darray_push failed");
     return 0;
 }
 
@@ -184,7 +173,7 @@ int lv_bench_suite_add(lvBenchSuite *suite, const lvBenchCase *case_) {
  * @return 结果数量，如果 suite 为 NULL 返回 0
  */
 int lv_bench_suite_result_count(const lvBenchSuite *suite) {
-    return suite ? suite->result_count : 0;
+    return suite ? suite->results.count : 0;
 }
 
 /**
@@ -195,9 +184,9 @@ int lv_bench_suite_result_count(const lvBenchSuite *suite) {
  * @return 成功返回结果指针，失败（越界或 suite 为 NULL）返回 NULL
  */
 const lvBenchResult *lv_bench_suite_get_result(const lvBenchSuite *suite, int index) {
-    if (!suite || index < 0 || index >= suite->result_count)
+    if (!suite)
         return NULL;
-    return &suite->results[index];
+    return (const lvBenchResult *) lv_darray_get(&suite->results, index);
 }
 
 /* ============ 单次基准测试 ============ */
@@ -299,14 +288,13 @@ lvBenchResult lv_benchmark_run_full(const lvBenchCase *case_) {
 int lv_bench_suite_run(lvBenchSuite *suite) {
     if (!suite)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "suite is NULL");
-    suite->result_count = 0;
-    for (int i = 0; i < suite->case_count; i++) {
-        lvBenchResult r = lv_benchmark_run_full(&suite->cases[i]);
-        if (suite->result_count < suite->case_capacity) {
-            suite->results[suite->result_count++] = r;
-        }
+    lv_darray_clear(&suite->results);
+    for (int i = 0; i < suite->cases.count; i++) {
+        lvBenchCase *case_ptr = (lvBenchCase *) lv_darray_get(&suite->cases, i);
+        lvBenchResult r = lv_benchmark_run_full(case_ptr);
+        lv_darray_push(&suite->results, &r);
     }
-    return suite->result_count;
+    return suite->results.count;
 }
 
 /* ============ 结果比较 ============ */
@@ -1016,8 +1004,8 @@ void lv_bench_suite_print_report(const lvBenchSuite *suite, void *stream) {
     fprintf(fp, "========================================\n");
     fprintf(fp, "%-32s %10s %12s %12s %14s\n", "测试项", "迭代次数", "平均(μs)", "标准差", "吞吐量(ops/s)");
     fprintf(fp, "----------------------------------------------------------------\n");
-    for (int i = 0; i < suite->result_count; i++) {
-        const lvBenchResult *r = &suite->results[i];
+    for (int i = 0; i < suite->results.count; i++) {
+        const lvBenchResult *r = (const lvBenchResult *) lv_darray_get(&suite->results, i);
         fprintf(fp, "%-32s %10d %12.3f %12.3f %14.1f\n",
                 r->name[0] ? r->name : "(未命名)",
                 r->iterations,
@@ -1036,14 +1024,14 @@ char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
     }
 
     lvJsonBuf buf;
-    if (!lv_json_buf_init(&buf, (size_t) suite->result_count * 256 + 256))
+    if (!lv_json_buf_init(&buf, (size_t) suite->results.count * 256 + 256))
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json_buf_init failed");
 
     lv_json_buf_append_raw(&buf, "{\n");
     lv_json_buf_append_fmt(&buf, "  \"name\": \"%s\",\n", suite->name);
     lv_json_buf_append_raw(&buf, "  \"results\": [\n");
-    for (int i = 0; i < suite->result_count; i++) {
-        const lvBenchResult *r = &suite->results[i];
+    for (int i = 0; i < suite->results.count; i++) {
+        const lvBenchResult *r = (const lvBenchResult *) lv_darray_get(&suite->results, i);
         lv_json_buf_append_fmt(&buf,
                      "    {\n"
                      "      \"name\": \"%s\",\n"
@@ -1065,7 +1053,7 @@ char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
                      r->ops_per_sec,
                      (unsigned long long) r->total_time_us,
                      r->success ? "true" : "false",
-                     (i < suite->result_count - 1) ? "," : "");
+                     (i < suite->results.count - 1) ? "," : "");
     }
     lv_json_buf_append_raw(&buf, "  ]\n}\n");
 
@@ -1081,8 +1069,8 @@ char *lv_bench_suite_to_markdown(const lvBenchSuite *suite) {
 
     /* 第一遍：计算大小 */
     int size = 512;
-    for (int i = 0; i < suite->result_count; i++) {
-        const lvBenchResult *r = &suite->results[i];
+    for (int i = 0; i < suite->results.count; i++) {
+        const lvBenchResult *r = (const lvBenchResult *) lv_darray_get(&suite->results, i);
         size += 128 + (int) strlen(r->name);
     }
 
@@ -1094,8 +1082,8 @@ char *lv_bench_suite_to_markdown(const lvBenchSuite *suite) {
     p += sprintf(p, "# 基准测试报告: %s\n\n", suite->name);
     p += sprintf(p, "| 测试项 | 迭代次数 | 平均(μs) | 标准差 | 吞吐量(ops/s) |\n");
     p += sprintf(p, "|-------|---------|---------|-------|-------------|\n");
-    for (int i = 0; i < suite->result_count; i++) {
-        const lvBenchResult *r = &suite->results[i];
+    for (int i = 0; i < suite->results.count; i++) {
+        const lvBenchResult *r = (const lvBenchResult *) lv_darray_get(&suite->results, i);
         p += sprintf(p, "| %s | %d | %.3f | %.3f | %.1f |\n",
                      r->name, r->iterations, r->mean_us, r->std_dev_us, r->ops_per_sec);
     }

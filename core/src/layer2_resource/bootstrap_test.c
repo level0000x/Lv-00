@@ -73,14 +73,18 @@ static inline AddConstraintResult graph_add_distance_constraint(ConstraintGraph 
 
 /* ============== 内部状态 ============== */
 
-/** 框架是否已初始化 */
-static bool g_initialized = false;
-/** 总测试计数 */
-static uint64_t g_test_count = 0;
-/** 通过测试计数 */
-static uint64_t g_pass_count = 0;
-/** 失败测试计数 */
-static uint64_t g_fail_count = 0;
+/**
+ * @brief 自举测试框架全局状态
+ */
+typedef struct BootstrapTestState {
+    bool initialized;              /**< 框架是否已初始化 */
+    uint64_t test_count;           /**< 总测试计数 */
+    uint64_t pass_count;           /**< 通过测试计数 */
+    uint64_t fail_count;           /**< 失败测试计数 */
+} BootstrapTestState;
+
+/** 模块级唯一状态实例 */
+static BootstrapTestState s_test_state = {0};
 
 /* ============== 框架初始化 ============== */
 
@@ -93,7 +97,7 @@ static uint64_t g_fail_count = 0;
  * @return true 初始化成功，false 失败
  */
 bool bootstrap_test_framework_init(void) {
-    if (g_initialized) {
+    if (s_test_state.initialized) {
         return true;
     }
 
@@ -110,10 +114,10 @@ bool bootstrap_test_framework_init(void) {
         return false;
     }
 
-    g_initialized = true;
-    g_test_count = 0;
-    g_pass_count = 0;
-    g_fail_count = 0;
+    s_test_state.initialized = true;
+    s_test_state.test_count = 0;
+    s_test_state.pass_count = 0;
+    s_test_state.fail_count = 0;
 
     lv_INFO("[BootstrapTest] Framework initialized successfully");
     return true;
@@ -126,14 +130,14 @@ bool bootstrap_test_framework_init(void) {
  * 幂等函数，多次调用安全。
  */
 void bootstrap_test_framework_cleanup(void) {
-    if (!g_initialized) {
+    if (!s_test_state.initialized) {
         return;
     }
 
     primitive_wrapper_cleanup();
     lv_cleanup();
 
-    g_initialized = false;
+    s_test_state.initialized = false;
     lv_INFO("[BootstrapTest] Framework cleaned up");
 }
 
@@ -143,7 +147,7 @@ void bootstrap_test_framework_cleanup(void) {
  * @return true 已初始化，false 未初始化
  */
 bool bootstrap_test_framework_is_initialized(void) {
-    return g_initialized;
+    return s_test_state.initialized;
 }
 
 /* ============== 差分测试 ============== */
@@ -205,7 +209,7 @@ void bootstrap_diff_test_destroy(BootstrapDiffTest *test) {
  * @return 测试结果指针（调用者须通过 bootstrap_diff_test_result_destroy 释放），失败返回 NULL
  */
 BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test) {
-    if (!test || !g_initialized) {
+    if (!test || !s_test_state.initialized) {
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "bootstrap_diff_test_run: test is NULL or framework not initialized");
     }
 
@@ -232,21 +236,21 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test) {
         if (strcmp(result->c_api_output, result->geo_layer_output) == 0) {
             result->comparison = DIFF_RESULT_EQUAL;
             result->passed = true;
-            g_pass_count++;
+            s_test_state.pass_count++;
         } else {
             result->comparison = DIFF_RESULT_DIFFERENT;
             result->passed = false;
             result->diff_description = lv_strdup_safe("C API and geometry layer outputs differ");
-            g_fail_count++;
+            s_test_state.fail_count++;
         }
     } else {
         result->comparison = DIFF_RESULT_ERROR;
         result->passed = false;
         result->error_message = lv_strdup_safe("Incomplete differential test: missing output");
-        g_fail_count++;
+        s_test_state.fail_count++;
     }
 
-    g_test_count++;
+    s_test_state.test_count++;
 
     return result;
 }
@@ -280,7 +284,7 @@ void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result) {
  */
 uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests, uint32_t count,
                                        BootstrapDiffTestResult **out_results) {
-    if (!tests || !out_results || !g_initialized) {
+    if (!tests || !out_results || !s_test_state.initialized) {
         return 0;
     }
 
@@ -1148,7 +1152,7 @@ bool primitive_wrapper_register(const char *name, void *c_api_func, const char *
  */
 PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
     lv_UNUSED(params);
-    if (!name || !g_initialized) {
+    if (!name || !s_test_state.initialized) {
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "primitive_wrapper_test: name is NULL or framework not initialized");
     }
 
@@ -1233,14 +1237,14 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
                     result->comparison = DIFF_RESULT_EQUAL;
                     result->passed = true;
                     g_primitives[i].pass_count++;
-                    g_pass_count++;
+                    s_test_state.pass_count++;
                 } else {
                     result->c_api_result = lv_strdup_safe("executed");
                     result->comparison = DIFF_RESULT_ERROR;
                     result->passed = false;
                     result->error_message = lv_strdup_safe(basic_error);
                     g_primitives[i].fail_count++;
-                    g_fail_count++;
+                    s_test_state.fail_count++;
                 }
             } else {
                 if (basic_test_ok) {
@@ -1248,17 +1252,17 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
                     result->comparison = DIFF_RESULT_EQUAL;
                     result->passed = true;
                     g_primitives[i].pass_count++;
-                    g_pass_count++;
+                    s_test_state.pass_count++;
                 } else {
                     result->c_api_result = lv_strdup_safe("skipped: no C API bound");
                     result->comparison = DIFF_RESULT_ERROR;
                     result->passed = false;
                     result->error_message = lv_strdup_safe(basic_error);
                     g_primitives[i].fail_count++;
-                    g_fail_count++;
+                    s_test_state.fail_count++;
                 }
             }
-            g_test_count++;
+            s_test_state.test_count++;
             return result;
         }
     }
@@ -1291,7 +1295,7 @@ void primitive_test_result_destroy(PrimitiveTestResult *result) {
  * @return 实际测试的原语数量
  */
 uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results, uint32_t max_count) {
-    if (!out_results || !g_initialized) {
+    if (!out_results || !s_test_state.initialized) {
         return 0;
     }
 

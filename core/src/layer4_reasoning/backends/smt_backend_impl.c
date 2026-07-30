@@ -37,6 +37,7 @@
 #include <string.h>
 
 #include "lv/lv_file.h"
+#include "lv/lv_str_utils.h"
 
 #include "smt_backend.h"
 #include "lv/lv_thread.h"
@@ -2187,13 +2188,13 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
         *end-- = '\0';
 
     SMTSatResult result;
-    if (strncmp(trimmed, "sat", 3) == 0) {
+    if (lv_str_startswith(trimmed, "sat")) {
         result = SMT_RESULT_SAT;
         lv_LOG_INFO("外部求解器 %s: 结果 = SAT", executable);
-    } else if (strncmp(trimmed, "unsat", 5) == 0) {
+    } else if (lv_str_startswith(trimmed, "unsat")) {
         result = SMT_RESULT_UNSAT;
         lv_LOG_INFO("外部求解器 %s: 结果 = UNSAT", executable);
-    } else if (strncmp(trimmed, "unknown", 7) == 0) {
+    } else if (lv_str_startswith(trimmed, "unknown")) {
         result = SMT_RESULT_UNKNOWN;
         lv_LOG_INFO("外部求解器 %s: 结果 = UNKNOWN", executable);
     } else {

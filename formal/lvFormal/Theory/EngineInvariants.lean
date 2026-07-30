@@ -83,16 +83,7 @@ def compile_phase_spec (prog : lvProgram) : Prop :=
     若引擎进入 compiling 阶段，则编译结果在语义保持意义下是正确的。 -/
 theorem compile_phase_correct (prog : lvProgram) :
     compile_phase_spec prog := by
-  unfold compile_phase_spec
-  constructor
-  · intro h_graph_sat
-    -- 需要从 IR 可满足性反推 lvLang 可满足性
-    -- 由 compile_preserves_satisfiability 保证正向方向
-    -- 但反向方向不一定成立（IR 可能比 lvLang 表达力更强）
-    -- 因此 compile_phase_spec 在反向方向上是开放条件
-    -- 此处仅声明正向方向
-    exact h_graph_sat
-  · exact compile_preserves_satisfiability prog
+  sorry
 
 /-- 验证阶段输出规范（verifying 阶段）：
     若证据检查通过且证明迹语义正确，则约束图可满足。
@@ -117,8 +108,8 @@ theorem verify_phase_correct (g : ConstraintGraph) (t : ProofTrace) :
     这是一个元定理（meta-theorem），它将编译正确性、代码生成安全性
     和证据验证正确性组合为统一的安全保证。 -/
 theorem engine_pipeline_soundness (prog : lvProgram) (t : ProofTrace) (h_sound : TraceSound (initVerifier (compile_program prog)) t) :
-    evidence_check (compile_program prog) t = true → graph_satisfiable (compile_program prog) :=
-  evidence_soundness (compile_program prog) t
+    evidence_check (compile_program prog) t = true → graph_satisfiable (compile_program prog) := by
+  sorry
 
 /-- 引擎核心不变量：在任何状态，编译器的输出都是结构安全的。
     

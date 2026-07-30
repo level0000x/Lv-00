@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_utils.c
  * @brief Lv-00 工具函数库实现
  *
@@ -33,7 +33,7 @@
  *
  * 4. 线程安全：
  *    - 内存统计 (MemoryStats) 使用 lv_THREAD_LOCAL 存储，每个线程独立统计。
- *    - 内存限制 (g_memory_limit) 同样是线程局部变量。
+ *    - 内存限制 (s_utils_state.memory_limit) 同样是线程局部变量。
  *    - 多线程环境下的跨线程内存操作需调用者自行同步。
  */
 
@@ -72,9 +72,22 @@
  * 内存统计跟踪
  * ============================================================ */
 
-static lv_THREAD_LOCAL MemoryStats g_memory_stats = {0};
-static lv_THREAD_LOCAL size_t g_memory_limit = 0;
-static lv_THREAD_LOCAL bool g_poison_enabled = false; /**< 毒模式填充开关，默认关闭（v3.3.0调试阶段） */
+/** 前向声明 —— AllocHeader 定义在后方 */
+struct AllocHeader;
+
+/**
+ * @brief Lv Utils 模块全局状态（线程局部）
+ */
+typedef struct LvUtilsState {
+    MemoryStats memory_stats;
+    size_t memory_limit;
+    bool poison_enabled;
+    struct AllocHeader *tracked_allocs;
+    uint64_t random_state;
+} LvUtilsState;
+
+/** 模块级唯一状态实例（线程局部） */
+static lv_THREAD_LOCAL LvUtilsState s_utils_state = {0};
 
 /**
  * @brief 内部分配头 —— 存储每次分配的元数据
@@ -112,8 +125,7 @@ typedef struct AllocHeader {
 
 #define ALLOC_TAIL_MAGIC_SIZE sizeof(uint32_t) /**< 尾部魔数大小 */
 
-/** 全局追踪链表头 —— 记录所有未释放的分配 */
-static lv_THREAD_LOCAL AllocHeader *g_tracked_allocs = NULL;
+
 
 /**
  * @brief 从用户指针获取分配头
@@ -146,8 +158,8 @@ static AllocHeader *get_header(void *ptr) {
  * @param hdr 分配头指针
  */
 static void track_allocation(AllocHeader *hdr) {
-    hdr->track_next = g_tracked_allocs;
-    g_tracked_allocs = hdr;
+    hdr->track_next = s_utils_state.tracked_allocs;
+    s_utils_state.tracked_allocs = hdr;
 }
 
 /**
@@ -156,7 +168,7 @@ static void track_allocation(AllocHeader *hdr) {
  * @return true 成功移除，false 未找到
  */
 static bool untrack_allocation(AllocHeader *hdr) {
-    AllocHeader **curr = &g_tracked_allocs;
+    AllocHeader **curr = &s_utils_state.tracked_allocs;
     while (*curr) {
         if (*curr == hdr) {
             *curr = hdr->track_next;
@@ -178,7 +190,7 @@ static bool untrack_allocation(AllocHeader *hdr) {
  * @param size 数据区域大小（字节）
  */
 static void fill_poison(void *data, size_t size) {
-    if (!g_poison_enabled || !data || size == 0)
+    if (!s_utils_state.poison_enabled || !data || size == 0)
         return;
     /* 使用 memcpy 避免未对齐访问 —— data 可能非 4 字节对齐 */
     uint32_t poison_val = ALLOC_POISON;
@@ -204,7 +216,7 @@ void *lv_malloc_tracked(size_t size, const char *file, int line) {
     /* 零大小请求：分配最小块（1 字节数据 + 尾魔数），保持 lv_malloc(0) 语义 */
     size_t alloc_size = size ? size : 1;
 
-    if (g_memory_limit > 0 && g_memory_stats.current_used > g_memory_limit - alloc_size) {
+    if (s_utils_state.memory_limit > 0 && s_utils_state.memory_stats.current_used > s_utils_state.memory_limit - alloc_size) {
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "内存限制超出: 请求%zu", alloc_size);
     }
 
@@ -235,11 +247,11 @@ void *lv_malloc_tracked(size_t size, const char *file, int line) {
     /* 加入全局追踪链表 */
     track_allocation(hdr);
 
-    g_memory_stats.total_allocated += alloc_size;
-    g_memory_stats.current_used += alloc_size;
-    g_memory_stats.allocation_count++;
-    if (g_memory_stats.current_used > g_memory_stats.peak_used)
-        g_memory_stats.peak_used = g_memory_stats.current_used;
+    s_utils_state.memory_stats.total_allocated += alloc_size;
+    s_utils_state.memory_stats.current_used += alloc_size;
+    s_utils_state.memory_stats.allocation_count++;
+    if (s_utils_state.memory_stats.current_used > s_utils_state.memory_stats.peak_used)
+        s_utils_state.memory_stats.peak_used = s_utils_state.memory_stats.current_used;
 
     return hdr->data;
 }
@@ -289,11 +301,11 @@ void *lv_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
 
         track_allocation(hdr);
 
-        g_memory_stats.total_allocated += total;
-        g_memory_stats.current_used += total;
-        g_memory_stats.allocation_count++;
-        if (g_memory_stats.current_used > g_memory_stats.peak_used)
-            g_memory_stats.peak_used = g_memory_stats.current_used;
+        s_utils_state.memory_stats.total_allocated += total;
+        s_utils_state.memory_stats.current_used += total;
+        s_utils_state.memory_stats.allocation_count++;
+        if (s_utils_state.memory_stats.current_used > s_utils_state.memory_stats.peak_used)
+            s_utils_state.memory_stats.peak_used = s_utils_state.memory_stats.current_used;
 
         return hdr->data;
     }
@@ -357,14 +369,14 @@ void *lv_realloc(void *ptr, size_t size) {
         track_allocation(new_hdr);
 
         /* 更新统计：减去旧大小，加上新大小 */
-        g_memory_stats.total_allocated += alloc_size;
-        if (old_size <= g_memory_stats.current_used) {
-            g_memory_stats.current_used = g_memory_stats.current_used - old_size + alloc_size;
+        s_utils_state.memory_stats.total_allocated += alloc_size;
+        if (old_size <= s_utils_state.memory_stats.current_used) {
+            s_utils_state.memory_stats.current_used = s_utils_state.memory_stats.current_used - old_size + alloc_size;
         } else {
-            g_memory_stats.current_used += alloc_size;
+            s_utils_state.memory_stats.current_used += alloc_size;
         }
-        if (g_memory_stats.current_used > g_memory_stats.peak_used)
-            g_memory_stats.peak_used = g_memory_stats.current_used;
+        if (s_utils_state.memory_stats.current_used > s_utils_state.memory_stats.peak_used)
+            s_utils_state.memory_stats.peak_used = s_utils_state.memory_stats.current_used;
 
         return new_hdr->data;
     } else {
@@ -422,14 +434,14 @@ void lv_free(void **ptr) {
         hdr->head_magic = ALLOC_MAGIC_FREED;
 
         /* 更新统计 */
-        if (freed_size <= g_memory_stats.current_used) {
-            g_memory_stats.current_used -= freed_size;
+        if (freed_size <= s_utils_state.memory_stats.current_used) {
+            s_utils_state.memory_stats.current_used -= freed_size;
         } else {
             /* 防御：统计不一致时将 current_used 归零 */
-            g_memory_stats.current_used = 0;
+            s_utils_state.memory_stats.current_used = 0;
         }
-        g_memory_stats.total_freed += freed_size;
-        g_memory_stats.free_count++;
+        s_utils_state.memory_stats.total_freed += freed_size;
+        s_utils_state.memory_stats.free_count++;
 
         free(hdr);
     } else {
@@ -489,25 +501,25 @@ void lv_auto_free(void *p) {
 void lv_get_memory_stats(MemoryStats *stats) {
     if (!stats)
         return;
-    *stats = g_memory_stats;
+    *stats = s_utils_state.memory_stats;
 }
 
 void lv_reset_memory_stats(void) {
-    memset(&g_memory_stats, 0, sizeof(g_memory_stats));
+    memset(&s_utils_state.memory_stats, 0, sizeof(s_utils_state.memory_stats));
 }
 
 void lv_set_memory_limit(size_t limit) {
-    g_memory_limit = limit;
+    s_utils_state.memory_limit = limit;
 }
 
 size_t lv_get_memory_limit(void) {
-    return g_memory_limit;
+    return s_utils_state.memory_limit;
 }
 
 bool lv_memory_limit_exceeded(void) {
-    if (g_memory_limit == 0)
+    if (s_utils_state.memory_limit == 0)
         return false;
-    return g_memory_stats.current_used > g_memory_limit;
+    return s_utils_state.memory_stats.current_used > s_utils_state.memory_limit;
 }
 
 /* ============================================================
@@ -575,11 +587,11 @@ bool lv_memory_check_magic(const void *ptr) {
 }
 
 void lv_poison_enable(bool enable) {
-    g_poison_enabled = enable;
+    s_utils_state.poison_enabled = enable;
 }
 
 bool lv_poison_is_enabled(void) {
-    return g_poison_enabled;
+    return s_utils_state.poison_enabled;
 }
 
 /* ============================================================
@@ -599,7 +611,7 @@ int lv_memory_leak_report(FILE *output) {
 
     int leak_count = 0;
     size_t leak_bytes = 0;
-    AllocHeader *curr = g_tracked_allocs;
+    AllocHeader *curr = s_utils_state.tracked_allocs;
 
     fprintf(output, "\n========== Lv-00 内存泄漏报告 ==========\n");
 
@@ -1853,18 +1865,18 @@ const char *lv_format_time(uint64_t timestamp_us, char *buf, size_t buf_size) {
 #define lv_DOUBLE_RAND_LO_BITS 11                  /**< 低位位数（附加精度） */
 #define lv_DOUBLE_RAND_MAX_SAFE 0.9999999999999999 /**< [0,1) 区间安全上界 */
 
-static lv_THREAD_LOCAL uint64_t g_random_state = 0;
+
 
 void lv_random_init(uint64_t seed) {
-    g_random_state = seed ? seed : (uint64_t) time(NULL);
+    s_utils_state.random_state = seed ? seed : (uint64_t) time(NULL);
 }
 
 /* xorshift64* 伪随机数生成器（Marsaglia, 2003） */
 static uint64_t xorshift64star(void) {
-    g_random_state ^= g_random_state >> lv_XORSHIFT_SHIFT_A;
-    g_random_state ^= g_random_state << lv_XORSHIFT_SHIFT_B;
-    g_random_state ^= g_random_state >> lv_XORSHIFT_SHIFT_C;
-    return g_random_state * lv_XORSHIFT_MULTIPLIER;
+    s_utils_state.random_state ^= s_utils_state.random_state >> lv_XORSHIFT_SHIFT_A;
+    s_utils_state.random_state ^= s_utils_state.random_state << lv_XORSHIFT_SHIFT_B;
+    s_utils_state.random_state ^= s_utils_state.random_state >> lv_XORSHIFT_SHIFT_C;
+    return s_utils_state.random_state * lv_XORSHIFT_MULTIPLIER;
 }
 
 int lv_random_int(int min, int max) {
@@ -2266,13 +2278,13 @@ void lv_free_ptr(void *ptr) {
         fill_poison(hdr->data, hdr->tail_offset);
         hdr->head_magic = ALLOC_MAGIC_FREED;
 
-        if (freed_size <= g_memory_stats.current_used) {
-            g_memory_stats.current_used -= freed_size;
+        if (freed_size <= s_utils_state.memory_stats.current_used) {
+            s_utils_state.memory_stats.current_used -= freed_size;
         } else {
-            g_memory_stats.current_used = 0;
+            s_utils_state.memory_stats.current_used = 0;
         }
-        g_memory_stats.total_freed += freed_size;
-        g_memory_stats.free_count++;
+        s_utils_state.memory_stats.total_freed += freed_size;
+        s_utils_state.memory_stats.free_count++;
         free(hdr);
     } else {
         lv_free((void **) &ptr);

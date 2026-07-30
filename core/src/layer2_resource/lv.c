@@ -41,57 +41,19 @@ typedef enum {
 } SystemState;
 
 /**
- * @brief 全局系统状态（线程局部）
- *
- * 【线程安全设计说明】
- * 使用 lv_THREAD_LOCAL 宏将系统状态声明为线程局部存储（TLS），
- * 意味着每个线程拥有独立的 g_system_state 副本，互不干扰。
- *
- * 设计意图：
- * - 支持多线程并行求解：每个线程可独立初始化引擎、执行求解，无需加锁
- * - 避免全局状态的竞态条件：不同线程的初始化/清理不会相互影响
- * - 嵌套调用安全：同一线程内的嵌套初始化通过 g_init_count 计数器管理
- *
- * 注意事项：
- * - 跨线程传递几何对象时，需确保对象本身是线程安全的（如引用计数正确）
- * - TLS 变量在主线程退出时自动销毁，但建议显式调用 lv_cleanup()
+ * @brief Lv 系统模块全局状态（线程局部）
  */
-static lv_THREAD_LOCAL SystemState g_system_state = SYSTEM_STATE_UNINITIALIZED;
+typedef struct LvState {
+    SystemState system_state;
+    int init_count;
+    ConfigManager *config;
+    lvEngine *global_engine;
+    int log_level;
+    bool assertions_enabled;
+} LvState;
 
-/**
- * @brief 初始化计数器（支持嵌套初始化和清理）
- */
-static lv_THREAD_LOCAL int g_init_count = 0;
-
-/**
- * @brief 系统配置
- */
-static lv_THREAD_LOCAL ConfigManager *g_config = NULL;
-
-/**
- * @brief 全局引擎实例（可选的单例模式）
- */
-static lv_THREAD_LOCAL lvEngine *g_global_engine = NULL;
-
-/**
- * @brief 日志级别（默认：信息级别）
- */
-static lv_THREAD_LOCAL int g_log_level = lv_LOG_LEVEL_INFO;
-
-/**
- * @brief 断言启用状态
- *
- * 【线程安全性说明】
- *   g_assertions_enabled 使用 lv_THREAD_LOCAL 宏声明为线程局部存储。
- *   每个操作系统线程拥有独立的副本，因此：
- *   - 不同线程可以独立设置和读取自己的断言启用状态，不会产生数据竞争。
- *   - 同一线程内的读写是顺序一致的。
- *   - 如果需要全局统一的断言控制（所有线程共享同一开关），
- *     应考虑使用 C11 的 atomic_bool 或互斥锁保护的全局变量。
- *     当前设计选择线程局部存储，是因为断言检查通常与特定线程的
- *     调试上下文相关，不同线程可能有不同的调试需求。
- */
-static lv_THREAD_LOCAL bool g_assertions_enabled = true;
+/** 模块级唯一状态实例（线程局部） */
+static lv_THREAD_LOCAL LvState s_lv_state = {0};
 
 /* ============================================================
  * 内部辅助函数
@@ -104,7 +66,7 @@ static lv_THREAD_LOCAL bool g_assertions_enabled = true;
  * @note 仅供内部使用，直接修改全局系统状态变量
  */
 static void set_system_state(SystemState state) {
-    g_system_state = state;
+    s_lv_state.system_state = state;
 }
 
 /**
@@ -114,7 +76,7 @@ static void set_system_state(SystemState state) {
  * @note 仅供内部使用，读取全局系统状态变量
  */
 static SystemState get_system_state(void) {
-    return g_system_state;
+    return s_lv_state.system_state;
 }
 
 /**
@@ -125,7 +87,7 @@ static SystemState get_system_state(void) {
  * @note 通过比较全局状态是否等于 SYSTEM_STATE_INITIALIZED 来判断
  */
 static bool is_system_initialized(void) {
-    return g_system_state == SYSTEM_STATE_INITIALIZED;
+    return s_lv_state.system_state == SYSTEM_STATE_INITIALIZED;
 }
 
 /* ============================================================
@@ -147,13 +109,13 @@ const char *lv_get_version_string(void) {
 /** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
 bool lv_init(void) {
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
-    if (g_system_state == SYSTEM_STATE_INITIALIZED) {
-        g_init_count++;
+    if (s_lv_state.system_state == SYSTEM_STATE_INITIALIZED) {
+        s_lv_state.init_count++;
         return true;
     }
 
     /* 检查状态：防止在初始化过程中重复调用 */
-    if (g_system_state == SYSTEM_STATE_INITIALIZING) {
+    if (s_lv_state.system_state == SYSTEM_STATE_INITIALIZING) {
         lv_set_error(lv_ERROR_INVALID_STATE, "系统正在初始化中");
         return false;
     }
@@ -181,23 +143,23 @@ bool lv_init(void) {
     lv_random_init((uint64_t) time(NULL));
 
     /* 加载默认配置 */
-    g_config = config_manager_create(NULL);
-    if (!g_config) {
+    s_lv_state.config = config_manager_create(NULL);
+    if (!s_lv_state.config) {
         LOG_ERROR("lv", "配置管理器创建失败");
         set_system_state(SYSTEM_STATE_ERROR);
         return false;
     }
 
     /* 设置默认配置值（魔术数字全部定义在 lv_internal.h 中） */
-    config_set_int(g_config, "solver.max_iterations", lv_DEFAULT_MAX_ITERATIONS);
-    config_set_int(g_config, "solver.precision_bits", lv_DEFAULT_PRECISION_BITS);
-    config_set_bool(g_config, "debug.assertions_enabled", true);
-    config_set_bool(g_config, "debug.trace_enabled", false);
-    config_set_int(g_config, "rewrite.step_limit", lv_DEFAULT_REWRITE_STEP_LIMIT);
-    config_set_int(g_config, "memory.limit_mb", lv_DEFAULT_MEMORY_LIMIT_MB); /* 0 = 无限制 */
+    config_set_int(s_lv_state.config, "solver.max_iterations", lv_DEFAULT_MAX_ITERATIONS);
+    config_set_int(s_lv_state.config, "solver.precision_bits", lv_DEFAULT_PRECISION_BITS);
+    config_set_bool(s_lv_state.config, "debug.assertions_enabled", true);
+    config_set_bool(s_lv_state.config, "debug.trace_enabled", false);
+    config_set_int(s_lv_state.config, "rewrite.step_limit", lv_DEFAULT_REWRITE_STEP_LIMIT);
+    config_set_int(s_lv_state.config, "memory.limit_mb", lv_DEFAULT_MEMORY_LIMIT_MB); /* 0 = 无限制 */
 
     /* 应用内存限制 */
-    int mem_limit_mb = config_get_int(g_config, "memory.limit_mb", 0);
+    int mem_limit_mb = config_get_int(s_lv_state.config, "memory.limit_mb", 0);
     if (mem_limit_mb > 0) {
         /* 添加溢出检查：确保内存限制值不会溢出 size_t */
         if ((size_t) mem_limit_mb <= SIZE_MAX / (1024 * 1024)) {
@@ -207,7 +169,7 @@ bool lv_init(void) {
         }
     }
 
-    g_init_count = 1;
+    s_lv_state.init_count = 1;
     set_system_state(SYSTEM_STATE_INITIALIZED);
 
     LOG_INFO("lv", "Lv-00 v%s 系统初始化完成", lv_VERSION_STRING);
@@ -218,17 +180,17 @@ bool lv_init(void) {
 /** @brief 系统清理函数 @details 释放所有全局资源，重置初始化状态。 */
 void lv_cleanup(void) {
     /* 检查嵌套计数 */
-    if (g_init_count > 1) {
-        g_init_count--;
+    if (s_lv_state.init_count > 1) {
+        s_lv_state.init_count--;
         return;
     }
 
-    if (g_init_count == 0) {
+    if (s_lv_state.init_count == 0) {
         /* 未初始化或已清理 */
         return;
     }
 
-    if (g_system_state != SYSTEM_STATE_INITIALIZED) {
+    if (s_lv_state.system_state != SYSTEM_STATE_INITIALIZED) {
         return;
     }
 
@@ -237,15 +199,15 @@ void lv_cleanup(void) {
     LOG_INFO("lv", "Lv-00 系统清理开始");
 
     /* 清理全局引擎 */
-    if (g_global_engine) {
-        engine_destroy(g_global_engine);
-        g_global_engine = NULL;
+    if (s_lv_state.global_engine) {
+        engine_destroy(s_lv_state.global_engine);
+        s_lv_state.global_engine = NULL;
     }
 
     /* 清理配置管理器 */
-    if (g_config) {
-        config_manager_destroy(g_config);
-        g_config = NULL;
+    if (s_lv_state.config) {
+        config_manager_destroy(s_lv_state.config);
+        s_lv_state.config = NULL;
     }
 
     /* 清理函数块注册表 */
@@ -263,7 +225,7 @@ void lv_cleanup(void) {
     /* 关闭日志系统 */
     debug_log_shutdown();
 
-    g_init_count = 0;
+    s_lv_state.init_count = 0;
     set_system_state(SYSTEM_STATE_UNINITIALIZED);
 }
 
@@ -318,7 +280,7 @@ int lv_get_system_info(char *info, size_t size) {
         "  重写步数: %" PRIu64
         "\n"
         "  合一检查: %" PRIu64 "\n",
-        lv_VERSION_STRING, is_system_initialized() ? "已初始化" : "未初始化", g_init_count,
+        lv_VERSION_STRING, is_system_initialized() ? "已初始化" : "未初始化", s_lv_state.init_count,
         (double) mem_stats.current_used / (1024.0 * 1024.0), (double) mem_stats.peak_used / (1024.0 * 1024.0),
         (double) mem_stats.total_allocated / (1024.0 * 1024.0), (double) mem_stats.total_freed / (1024.0 * 1024.0),
         mem_stats.allocation_count, (uint64_t) perf.total_nodes_created, (uint64_t) perf.total_constraints_created,
@@ -494,48 +456,48 @@ EngineSolveResult lv_solve(lvEngine *engine) {
  * @brief 获取配置值（便捷函数）
  */
 int lv_config_get_int(const char *key, int default_val) {
-    if (!g_config)
+    if (!s_lv_state.config)
         return default_val;
-    return config_get_int(g_config, key, default_val);
+    return config_get_int(s_lv_state.config, key, default_val);
 }
 
 /** @brief 获取布尔配置项 @param key 配置键名 @param default_val 默认值 @return 配置值 */
 bool lv_config_get_bool(const char *key, bool default_val) {
-    if (!g_config)
+    if (!s_lv_state.config)
         return default_val;
-    return config_get_bool(g_config, key, default_val);
+    return config_get_bool(s_lv_state.config, key, default_val);
 }
 
 /** @brief 获取双精度浮点配置项 @param key 配置键名 @param default_val 默认值 @return 配置值 */
 double lv_config_get_double(const char *key, double default_val) {
-    if (!g_config)
+    if (!s_lv_state.config)
         return default_val;
-    return config_get_double(g_config, key, default_val);
+    return config_get_double(s_lv_state.config, key, default_val);
 }
 
 /** @brief 获取字符串配置项 @param key 配置键名 @param default_val 默认值 @return 配置值（可能为 NULL） */
 const char *lv_config_get_string(const char *key, const char *default_val) {
-    if (!g_config)
+    if (!s_lv_state.config)
         return default_val;
-    return config_get_string(g_config, key, default_val);
+    return config_get_string(s_lv_state.config, key, default_val);
 }
 
 /* lv_config_set_int / lv_config_set_double → 已迁移至 lv_config.c */
 
 /** @brief 设置布尔配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
 bool lv_config_set_bool(const char *key, bool value) {
-    if (!g_config)
+    if (!s_lv_state.config)
         return false;
-    return config_set_bool(g_config, key, value);
+    return config_set_bool(s_lv_state.config, key, value);
 }
 
 /* lv_config_set_double → 已迁移至 lv_config.c */
 
 /** @brief 设置字符串配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
 bool lv_config_set_string(const char *key, const char *value) {
-    if (!g_config)
+    if (!s_lv_state.config)
         return false;
-    return config_set_string(g_config, key, value);
+    return config_set_string(s_lv_state.config, key, value);
 }
 
 /* ============================================================
@@ -648,28 +610,28 @@ lv_DEPRECATED("use lv_get_memory_limit instead") size_t lv_get_memory_limit_ex(v
 
 /** @brief 设置日志级别 @param level 日志级别（0=关闭, 1=错误, 2=警告, 3=信息, 4=调试） */
 void lv_set_log_level(int level) {
-    g_log_level = level;
-    if (g_config) {
-        config_set_int(g_config, "debug.log_level", level);
+    s_lv_state.log_level = level;
+    if (s_lv_state.config) {
+        config_set_int(s_lv_state.config, "debug.log_level", level);
     }
 }
 
 /** @brief 获取当前日志级别 @return 日志级别 */
 int lv_get_log_level(void) {
-    return g_log_level;
+    return s_lv_state.log_level;
 }
 
 /** @brief 启用或禁用运行时断言 @param enabled true 启用，false 禁用 */
 void lv_set_assertions_enabled(bool enabled) {
-    g_assertions_enabled = enabled;
-    if (g_config) {
-        config_set_bool(g_config, "debug.assertions_enabled", enabled);
+    s_lv_state.assertions_enabled = enabled;
+    if (s_lv_state.config) {
+        config_set_bool(s_lv_state.config, "debug.assertions_enabled", enabled);
     }
 }
 
 /** @brief 查询运行时断言是否启用 @return true 启用，false 禁用 */
 bool lv_are_assertions_enabled(void) {
-    return g_assertions_enabled;
+    return s_lv_state.assertions_enabled;
 }
 
 /* ============================================================

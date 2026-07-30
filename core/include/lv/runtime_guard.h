@@ -346,6 +346,7 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
  * @param var 要递增的变量（左值，int 兼容类型）
  * @return 递增后的值
  */
+#ifndef lv_ATOMIC_INC
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
 #define lv_ATOMIC_INC(var) atomic_fetch_add((_Atomic int *) &(var), 1) + 1
 #define lv_ATOMIC_DEC(var) atomic_fetch_sub((_Atomic int *) &(var), 1) - 1
@@ -387,7 +388,9 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
 #define lv_ATOMIC_CAS(var, expected, desired) \
     (((var) == (expected)) ? ((var) = (desired), true) : ((expected) = (var), false))
 #endif
+#endif /* lv_ATOMIC_INC */
 
+#ifndef lv_ATOMIC_INC64
 /**
  * @brief 原子递增 64 位计数器
  * @param var int64_t 兼容变量
@@ -405,6 +408,7 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
 #define lv_ATOMIC_INC64(var) (++(var))
 #define lv_ATOMIC_ADD64(var, n) ((var) += (n))
 #endif
+#endif /* lv_ATOMIC_INC64 */
 
 /* ============================================================
  * 数据完整性校验
@@ -441,6 +445,7 @@ lv_PUBLIC_API bool lv_verify_data_integrity(struct lvContext *ctx);
 #define lv_WRITE_GUARD(ctx) ((void) 0)
 #define lv_WRITE_UNGUARD(ctx) ((void) 0)
 
+#ifndef lv_ATOMIC_INC
 /* 回退到普通操作（非原子的，但已是全局/线程局部即可） */
 #define lv_ATOMIC_INC(var) (++(var))
 #define lv_ATOMIC_DEC(var) (--(var))
@@ -449,9 +454,12 @@ lv_PUBLIC_API bool lv_verify_data_integrity(struct lvContext *ctx);
 #define lv_ATOMIC_STORE(var, n) ((var) = (n))
 #define lv_ATOMIC_CAS(var, expected, desired) \
     (((var) == (expected)) ? ((var) = (desired), true) : ((expected) = (var), false))
+#endif
 
+#ifndef lv_ATOMIC_INC64
 #define lv_ATOMIC_INC64(var) (++(var))
 #define lv_ATOMIC_ADD64(var, n) ((var) += (n))
+#endif
 
 /**
  * @brief 运行时保护禁用时的数据完整性校验 —— 始终返回 true

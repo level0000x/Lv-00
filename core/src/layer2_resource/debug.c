@@ -1953,101 +1953,51 @@ void debug_reset_counters(void) {
 }
 
 void debug_counter_node_created(void) {
-#ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.total_nodes_created);
-    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.current_nodes_alive);
-#else
-    __atomic_fetch_add(&s_debug_state.counters.total_nodes_created, 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&s_debug_state.counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_INC64(&s_debug_state.counters.total_nodes_created);
+    lv_ATOMIC_INC64(&s_debug_state.counters.current_nodes_alive);
 }
 
 void debug_counter_node_destroyed(void) {
-#ifdef _WIN32
-    InterlockedDecrement64((volatile LONG64 *) &s_debug_state.counters.current_nodes_alive);
-#else
-    __atomic_fetch_sub(&s_debug_state.counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_DEC64(&s_debug_state.counters.current_nodes_alive);
 }
 
 void debug_counter_constraint_created(void) {
-#ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.total_constraints_created);
-    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.current_constraints_alive);
-#else
-    __atomic_fetch_add(&s_debug_state.counters.total_constraints_created, 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&s_debug_state.counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_INC64(&s_debug_state.counters.total_constraints_created);
+    lv_ATOMIC_INC64(&s_debug_state.counters.current_constraints_alive);
 }
 
 void debug_counter_constraint_destroyed(void) {
-#ifdef _WIN32
-    InterlockedDecrement64((volatile LONG64 *) &s_debug_state.counters.current_constraints_alive);
-#else
-    __atomic_fetch_sub(&s_debug_state.counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_DEC64(&s_debug_state.counters.current_constraints_alive);
 }
 
 void debug_counter_solver_called(uint64_t time_us) {
-#ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.solver_call_count);
-    InterlockedExchangeAdd64((volatile LONG64 *) &s_debug_state.counters.solver_total_time_us, (LONG64) time_us);
-#else
-    __atomic_fetch_add(&s_debug_state.counters.solver_call_count, 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&s_debug_state.counters.solver_total_time_us, time_us, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_INC64(&s_debug_state.counters.solver_call_count);
+    lv_ATOMIC_ADD64(&s_debug_state.counters.solver_total_time_us, time_us);
 }
 
 void debug_counter_rewrite_step(void) {
-#ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.rewrite_total_steps);
-#else
-    __atomic_fetch_add(&s_debug_state.counters.rewrite_total_steps, 1, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_INC64(&s_debug_state.counters.rewrite_total_steps);
 }
 
 void debug_counter_rule_applied(void) {
-#ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.rewrite_rule_applications);
-#else
-    __atomic_fetch_add(&s_debug_state.counters.rewrite_rule_applications, 1, __ATOMIC_RELAXED);
-#endif
+    lv_ATOMIC_INC64(&s_debug_state.counters.rewrite_rule_applications);
 }
 
 void debug_counter_unify_called(bool success) {
-#ifdef _WIN32
-    InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.unify_check_count);
+    lv_ATOMIC_INC64(&s_debug_state.counters.unify_check_count);
     if (success) {
-        InterlockedIncrement64((volatile LONG64 *) &s_debug_state.counters.unify_success_count);
+        lv_ATOMIC_INC64(&s_debug_state.counters.unify_success_count);
     }
-#else
-    __atomic_fetch_add(&s_debug_state.counters.unify_check_count, 1, __ATOMIC_RELAXED);
-    if (success) {
-        __atomic_fetch_add(&s_debug_state.counters.unify_success_count, 1, __ATOMIC_RELAXED);
-    }
-#endif
 }
 
 void debug_counter_memory_update(uint64_t current_bytes) {
-#ifdef _WIN32
-    InterlockedExchange64((volatile LONG64 *) &s_debug_state.counters.memory_current, (LONG64) current_bytes);
-    LONG64 old_peak;
-    do {
-        old_peak = s_debug_state.counters.memory_usage_peak;
-        if (current_bytes <= (uint64_t) old_peak)
-            break;
-    } while (InterlockedCompareExchange64((volatile LONG64 *) &s_debug_state.counters.memory_usage_peak, (LONG64) current_bytes,
-                                          old_peak) != old_peak);
-#else
-    __atomic_store_n(&s_debug_state.counters.memory_current, current_bytes, __ATOMIC_RELAXED);
-    uint64_t old_peak = __atomic_load_n(&s_debug_state.counters.memory_usage_peak, __ATOMIC_RELAXED);
+    lv_ATOMIC_STORE(&s_debug_state.counters.memory_current, current_bytes);
+    uint64_t old_peak = s_debug_state.counters.memory_usage_peak;
     while (current_bytes > old_peak) {
-        if (__atomic_compare_exchange_n(&s_debug_state.counters.memory_usage_peak, &old_peak, current_bytes, 0, __ATOMIC_RELAXED,
-                                        __ATOMIC_RELAXED)) {
+        if (lv_ATOMIC_CAS_BOOL(&s_debug_state.counters.memory_usage_peak, current_bytes, &old_peak)) {
             break;
         }
     }
-#endif
 }
 
 /*=== 工具函数 ===*/
