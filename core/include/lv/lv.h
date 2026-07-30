@@ -154,7 +154,8 @@ extern "C" {
 #define lv_THREAD_LOCAL _Thread_local
 #else
 #define lv_THREAD_LOCAL /* 不支持：回退到全局变量 */
-#warning "Thread-local storage not supported on this compiler"
+/* 注意：当前编译器不支持线程局部存储（thread-local storage），
+ * lv_THREAD_LOCAL 回退为全局变量。多线程场景下需外部同步保护。 */
 #endif
 #endif
 

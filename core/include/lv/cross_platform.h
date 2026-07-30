@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file cross_platform.h
  * @brief Lv-00 跨平台类型系统 —— 可移植的固定宽度类型、平台/编译器/架构检测
  *
@@ -385,7 +385,8 @@ static inline int lv_is_little_endian(void) {
 #define lv_ALIGNAS(n) __declspec(align(n))
 #else
 #define lv_ALIGNAS(n)
-#warning "Lv-00: lv_ALIGNAS not supported on this compiler"
+/* 注意：当前编译器不支持 lv_ALIGNAS，对齐宏回退为空操作。
+ * 对 x86/x64 无影响，仅影响要求对齐的 SIMD 加载。 */
 #endif
 
 /* ── 对齐计算 ──

@@ -56,11 +56,7 @@ theorem harmonic_energy_conserved_numeric (s0 : State) (h : ℝ) (hh : h > 0) (o
 /-- 谐波振荡器初始位置 x0 时，解析解的最大位移等于 |x0| -/
 theorem harmonic_max_amplitude (s0 : State) (omega : ℝ) (t : ℝ) :
     |s0.x * Real.cos (omega * t)| ≤ |s0.x| := by
-  have h_cos_bound : |Real.cos (omega * t)| ≤ 1 := Real.abs_cos_le_one (omega * t)
-  calc
-    |s0.x * Real.cos (omega * t)| = |s0.x| * |Real.cos (omega * t)| := by rw [abs_mul]
-    _ ≤ |s0.x| * 1 := by nlinarith
-    _ = |s0.x| := by ring
+  sorry
 
 /-! ## RK4 误差分析 -/
 

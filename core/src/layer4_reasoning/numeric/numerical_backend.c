@@ -225,6 +225,9 @@ static void serial_vector_scale(lvVector *v, double c) {
     if (!v || !v->data) {
         return;
     }
+#ifdef _OPENMP
+    #pragma omp parallel for
+#endif
     for (int64_t i = 0; i < v->length; ++i) {
         v->data[i] *= c;
     }
@@ -243,6 +246,9 @@ static void serial_vector_linear_sum(double a, const lvVector *x, double b, cons
         n = y->length;
     if (z->length < n)
         n = z->length;
+#ifdef _OPENMP
+    #pragma omp parallel for
+#endif
     for (int64_t i = 0; i < n; ++i) {
         z->data[i] = a * x->data[i] + b * y->data[i];
     }
@@ -259,6 +265,9 @@ static double serial_vector_dot(const lvVector *x, const lvVector *y) {
     int64_t n = x->length;
     if (y->length < n)
         n = y->length;
+#ifdef _OPENMP
+    #pragma omp parallel for reduction(+:sum)
+#endif
     for (int64_t i = 0; i < n; ++i) {
         sum += x->data[i] * y->data[i];
     }
@@ -479,18 +488,18 @@ static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *
     int64_t rows = A->rows;
     int64_t cols = A->cols;
 
-    /* 置零输出向量 */
-    memset(y->data, 0, (size_t) rows * sizeof(double));
-
-    for (int64_t j = 0; j < cols; ++j) {
-        double xj = x->data[j];
-        if (fabs(xj) < lv_NUM_EPSILON) {
-            continue;
+#ifdef _OPENMP
+    #pragma omp parallel for
+#endif
+    for (int64_t i = 0; i < rows; ++i) {
+        double sum = 0.0;
+        for (int64_t j = 0; j < cols; ++j) {
+            double xj = x->data[j];
+            if (fabs(xj) < lv_NUM_EPSILON)
+                continue;
+            sum += data[j * rows + i] * xj;
         }
-        double *col_j = data + j * rows;
-        for (int64_t i = 0; i < rows; ++i) {
-            y->data[i] += col_j[i] * xj;
-        }
+        y->data[i] = sum;
     }
 
     return lv_BACKEND_OK;
@@ -1323,11 +1332,11 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
     }
 
     /*
-     * 多后端分派：当前仅 SERIAL 后端有完整实现。
-     * OpenMP / CUDA / HIP / SINGULAR 后端可后续添加。
+     * 多后端分派：SERIAL 和 OPENMP 后端完整可用。
+     * CUDA / HIP / SINGULAR 后端可后续添加。
      */
-    if (backend != lv_BACKEND_SERIAL) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL 可用", lv_backend_name(backend));
+    if (backend != lv_BACKEND_SERIAL && backend != lv_BACKEND_OPENMP) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL/OPENMP 可用", lv_backend_name(backend));
         return NULL;
     }
 

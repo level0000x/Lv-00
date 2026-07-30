@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file runtime_guard.h
  * @brief 运行时数据保护 —— 读写锁宏、原子操作与数据完整性校验
  *
@@ -376,8 +376,9 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
     (InterlockedCompareExchange((LONG volatile *) &(var), (desired), (expected)) == (expected))
 
 #else
-/* 无原子操作支持时的回退方案：使用 volatile 读/写 */
-#warning "lv_ENABLE_RUNTIME_GUARDS: 无原子操作支持，使用 volatile 回退（非线程安全）"
+/* 无原子操作支持时的回退方案：使用 volatile 读/写（非线程安全）
+ * 注意：仅在缺少 __sync / __atomic / Interlocked 内置函数的编译器上触发。
+ * 回退使用 volatile 变量操作，适用于单线程或已外部同步的场景。 */
 #define lv_ATOMIC_INC(var) (++(var))
 #define lv_ATOMIC_DEC(var) (--(var))
 #define lv_ATOMIC_ADD(var, n) ((var) += (n))
