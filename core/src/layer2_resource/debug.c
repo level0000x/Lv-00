@@ -5,9 +5,9 @@
  *          紧急保存和追踪会话等调试功能。
  */
 
-/* 确保 POSIX 时钟可用（Linux 上 clock_gettime(CLOCK_MONOTONIC) 需要） */
-#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 199309L
-#define _POSIX_C_SOURCE 199309L
+/* 确保 POSIX 时钟 + snprintf 可用（clock_gettime 需要 >=199309，snprintf 需要 >=200112） */
+#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
+#define _POSIX_C_SOURCE 200112L
 #endif
 
 #include <errno.h>

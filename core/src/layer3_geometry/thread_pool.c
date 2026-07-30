@@ -10,11 +10,16 @@
  * @author Lv-00 Project
  */
 
+#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 199309L
+#define _POSIX_C_SOURCE 199309L
+#endif
+
 #define lv_THREAD_POOL_IMPL
 #include "lv/thread_pool.h"
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 /* ========================================================================
  * 平台相关线程抽象
