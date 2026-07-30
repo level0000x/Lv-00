@@ -28,6 +28,7 @@
  * @version 3.3.0
  */
 
+#include <errno.h>
 #include <float.h>
 #define _USE_MATH_DEFINES
 #include <math.h>

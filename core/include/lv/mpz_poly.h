@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mpz_poly.h
  * @brief 多精度整数多项式 —— 初始化、四则运算、结式计算
  *
@@ -12,6 +12,11 @@
 
 #ifndef lv_MPZ_POLY_H
 #define lv_MPZ_POLY_H
+
+/* 确保 POSIX.1-2008（strdup 等）可用 */
+#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200809L
+#define _POSIX_C_SOURCE 200809L
+#endif
 
 #ifdef __cplusplus
 extern "C" {
