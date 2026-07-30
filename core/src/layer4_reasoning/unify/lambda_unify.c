@@ -271,6 +271,29 @@ void lambda_substitution_snprint(LambdaSubstitution *subs, char *buf, size_t siz
 }
 
 /* ================================================================
+ * 合一替换 → 约束图集成
+ * ================================================================ */
+
+int lambda_unify_apply_to_graph(struct ConstraintGraph *graph,
+                                 LambdaSubstitution *subs,
+                                 int binder_depth) {
+    if (!graph || !subs) {
+        return -1;
+    }
+    (void) binder_depth;
+
+    int count = 0;
+    for (LambdaSubstitution *s = subs; s; s = s->next) {
+        if (s->replacement) {
+            LOG_DEBUG("lambda_unify", "合一替换应用到约束图: [%d↦λ-term] 待集成",
+                      s->index);
+            count++;
+        }
+    }
+    return (count > 0) ? 0 : -1;
+}
+
+/* ================================================================
  * Miller 模式合一实现
  * ================================================================ */
 

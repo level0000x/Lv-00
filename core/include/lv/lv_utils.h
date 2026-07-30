@@ -1093,6 +1093,70 @@ lv_PUBLIC_API int lv_dstr_append_raw(lvDStr *d, const char *s, size_t n);
 lv_PUBLIC_API int lv_dstr_append_str(lvDStr *d, const char *s);
 lv_PUBLIC_API void lv_dstr_free(lvDStr *d);
 
+/* ============================================================
+ * lvDArray —— 泛型动态数组容器
+ *
+ * 使用 lv_ensure_capacity 做底层扩容，提供类型安全的
+ * 元素追加/获取/清空操作。所有元素按 elem_size 字节 memcpy，
+ * 适合存储基本类型和小型结构体。
+ *
+ * 使用示例：
+ *   lvDArray arr;
+ *   lv_darray_init(&arr, sizeof(int));
+ *   int val = 42;
+ *   lv_darray_push(&arr, &val);    // 自动扩容
+ *   int *got = (int *)lv_darray_get(&arr, 0);
+ *   lv_darray_free(&arr);
+ * ============================================================ */
+
+/** 动态数组状态 */
+typedef struct {
+    void *data;       /**< 数据缓冲区（通过 lv_realloc 管理） */
+    int count;        /**< 当前元素数量 */
+    int capacity;     /**< 当前缓冲区容量（元素个数） */
+    size_t elem_size; /**< 每个元素的字节大小 */
+} lvDArray;
+
+/**
+ * @brief 初始化动态数组
+ * @param arr       数组指针
+ * @param elem_size 每个元素的字节大小
+ */
+lv_PUBLIC_API void lv_darray_init(lvDArray *arr, size_t elem_size);
+
+/**
+ * @brief 释放动态数组内部缓冲区，重置为零
+ */
+lv_PUBLIC_API void lv_darray_free(lvDArray *arr);
+
+/**
+ * @brief 确保数组至少有 count 个元素的容量
+ * @return true 成功，false 内存不足
+ */
+lv_PUBLIC_API bool lv_darray_reserve(lvDArray *arr, int count);
+
+/**
+ * @brief 向末尾追加一个元素（memcpy 复制内容）
+ * @return 元素索引（arr->count - 1），失败返回 -1
+ */
+lv_PUBLIC_API int lv_darray_push(lvDArray *arr, const void *elem);
+
+/**
+ * @brief 弹出末尾元素（仅递减 count，不释放内存）
+ */
+lv_PUBLIC_API void lv_darray_pop(lvDArray *arr);
+
+/**
+ * @brief 获取元素指针
+ * @return 第 index 个元素的指针，越界返回 NULL
+ */
+lv_PUBLIC_API void *lv_darray_get(const lvDArray *arr, int index);
+
+/**
+ * @brief 清空数组（count 归零，保留缓冲区）
+ */
+lv_PUBLIC_API void lv_darray_clear(lvDArray *arr);
+
 #ifdef __cplusplus
 }
 #endif

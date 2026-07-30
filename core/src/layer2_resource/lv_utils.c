@@ -2355,3 +2355,54 @@ void lv_dstr_free(lvDStr *d) {
     d->len = 0;
     d->cap = 0;
 }
+
+/* ============================================================
+ * lvDArray —— 泛型动态数组容器
+ * ============================================================ */
+
+void lv_darray_init(lvDArray *arr, size_t elem_size) {
+    arr->data = NULL;
+    arr->count = 0;
+    arr->capacity = 0;
+    arr->elem_size = elem_size;
+}
+
+void lv_darray_free(lvDArray *arr) {
+    if (arr->data) {
+        lv_free((void **) &(arr->data));
+        arr->data = NULL;
+    }
+    arr->count = 0;
+    arr->capacity = 0;
+    arr->elem_size = 0;
+}
+
+bool lv_darray_reserve(lvDArray *arr, int count) {
+    if (count <= arr->capacity)
+        return true;
+    int target = count;
+    return lv_ensure_capacity(&arr->data, target, &arr->capacity, arr->elem_size, 0);
+}
+
+int lv_darray_push(lvDArray *arr, const void *elem) {
+    if (!lv_darray_reserve(arr, arr->count + 1))
+        return -1;
+    char *ptr = (char *)arr->data + (size_t)arr->count * arr->elem_size;
+    memcpy(ptr, elem, arr->elem_size);
+    return arr->count++;
+}
+
+void lv_darray_pop(lvDArray *arr) {
+    if (arr->count > 0)
+        arr->count--;
+}
+
+void *lv_darray_get(const lvDArray *arr, int index) {
+    if (index < 0 || index >= arr->count || !arr->data)
+        return NULL;
+    return (char *)arr->data + (size_t)index * arr->elem_size;
+}
+
+void lv_darray_clear(lvDArray *arr) {
+    arr->count = 0;
+}

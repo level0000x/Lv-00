@@ -1239,6 +1239,7 @@ typedef enum {
     PROOF_STRATEGY_DEDUCTIVE_DATABASE,  /**< 演绎数据库法：前向链推理 */
     PROOF_STRATEGY_COORDINATE,          /**< 坐标法：解析几何坐标计算 */
     PROOF_STRATEGY_LAMBDA_CALCULUS,     /**< λ-演算归约法：β-归约化简 λ-项 */
+    PROOF_STRATEGY_LAMBDA_UNIFY,        /**< λ-演算合一法：λ-项模式合一与变量实例化 */
     PROOF_STRATEGY_ORACLE,              /**< Oracle 法：外部求解器辅助（不可构造性） */
     PROOF_STRATEGY_COUNT                /**< 策略总数（用于数组大小） */
 } ProofStrategyType;

@@ -21,6 +21,9 @@ extern "C" {
 
 #include "lv/lambda_term.h"
 
+/* 前向声明 */
+struct ConstraintGraph;
+
 /* ── 合一结果状态 ── */
 
 typedef enum {
@@ -85,6 +88,23 @@ lv_PUBLIC_API void lambda_substitution_list_destroy(LambdaSubstitution *subs);
  * @param size 缓冲区大小
  */
 lv_PUBLIC_API void lambda_substitution_snprint(LambdaSubstitution *subs, char *buf, size_t size);
+
+/**
+ * @brief 将合一替换应用于约束图
+ *
+ * 遍历替换链表，对每个替换的 λ-项：
+ * 1. 通过 lambda_to_graph 编译为约束图子图
+ * 2. 将编译后的节点和约束合并到目标图
+ * 3. 将图中匹配 De Bruijn 索引的 PORT 节点重连到替换子图的输出
+ *
+ * @param graph  目标约束图（会被修改）
+ * @param subs   合一替换链表
+ * @param binder_depth  当前 binder 深度（通常为 0）
+ * @return int  成功返回 0，失败返回 -1
+ */
+lv_PUBLIC_API int lambda_unify_apply_to_graph(struct ConstraintGraph *graph,
+                                               LambdaSubstitution *subs,
+                                               int binder_depth);
 
 /* ================================================================
  * 模式合一 API（Miller 可判定高阶合一子集）

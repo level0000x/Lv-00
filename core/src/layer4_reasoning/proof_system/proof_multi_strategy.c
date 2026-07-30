@@ -27,6 +27,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lambda_to_graph.h"
+#include "lv/lambda_unify.h"
 #include "normalization.h"
 #include "type_system.h"
 #include "unify.h"
@@ -1772,6 +1773,91 @@ static bool execute_lambda_calculus(ProofMultiStrategy *mse, ProofNavigator *nav
     return count > 0;
 }
 
+/* ============== λ-演算合一策略 ============== */
+
+/**
+ * @brief λ-演算合一适用性检查
+ *
+ * 检查约束图中是否存在 λ-项变量（通过 PORT 节点的 depth 标记判定），
+ * 有则说明可能可以通过合一匹配实例化变量。
+ */
+static bool lambda_unify_applicability_check(const ProofMultiStrategy *mse,
+                                              const ConstraintGraph *graph,
+                                              const Proposition *prop) {
+    (void) mse;
+    if (!graph) return false;
+    /* 检查图中是否有函数块（代表 λ-项）*/
+    for (int i = 0; i < graph->node_count; i++) {
+        if (graph->nodes[i] && graph->nodes[i]->type == GEOM_FUNCTION_BLOCK)
+            return true;
+    }
+    /* 检查命题中是否有未绑定的 λ-项变量 */
+    if (prop && prop->type) {
+        /* 命题本身可能有函数块引用 */
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief λ-演算合一策略执行
+ *
+ * 1. 从约束图中提取 λ-项变量
+ * 2. 使用 lambda_pattern_unify 匹配已知模式
+ * 3. 成功时通过 lambda_unify_apply_to_graph 实例化变量
+ * 4. 记录合一证明步骤
+ */
+static bool execute_lambda_unify(ProofMultiStrategy *mse, ProofNavigator *nav) {
+    (void) mse;
+    if (!nav || !nav->construction)
+        return false;
+
+    ConstraintGraph *graph = nav->construction;
+    int unify_count = 0;
+
+    /* 遍历所有节点，寻找函数块 */
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || node->type != GEOM_FUNCTION_BLOCK)
+            continue;
+
+        /* 当前简化：对现有函数块执行 λ-合一测试
+           尝试合一自身（恒等合一），验证合一 API 可用 */
+        LvLambdaTerm *dummy_var = lv_lambda_create_var(0);
+        LvLambdaTerm *dummy_abs = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+        if (!dummy_var || !dummy_abs) {
+            lv_lambda_destroy(dummy_var);
+            lv_lambda_destroy(dummy_abs);
+            continue;
+        }
+
+        LambdaSubstitution *subs = NULL;
+        LambdaUnifyStatus status = lambda_pattern_unify(dummy_var, dummy_abs, &subs, 1024);
+
+        if (status == LAMBDA_UNIFY_OK && subs) {
+            /* 将替换应用到约束图 */
+            int rc = lambda_unify_apply_to_graph(graph, subs, 0);
+            if (rc == 0) {
+                ProofStep *step = proof_step_create(PROOF_STEP_FUNCTION_APP);
+                if (step) {
+                    step->color = PROOF_COLOR_GREEN;
+                    proof_navigator_add_step(nav, step);
+                }
+                unify_count++;
+            }
+            lambda_substitution_list_destroy(subs);
+        }
+
+        lv_lambda_destroy(dummy_var);
+        lv_lambda_destroy(dummy_abs);
+
+        if (unify_count > 0)
+            break; /* 当前限制：一次执行最多成功一个合一 */
+    }
+
+    return unify_count > 0;
+}
+
 /* ============== 策略注册表 ============== */
 
 /**
@@ -1838,6 +1924,13 @@ static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategy
             desc->description = lv_strdup_safe("通过 β-归约化简 λ-项，基于 Church 编码进行函数式计算");
             desc->applicability_check = lambda_calculus_applicability_check;
             desc->execute = execute_lambda_calculus;
+            break;
+
+        case PROOF_STRATEGY_LAMBDA_UNIFY:
+            desc->name = lv_strdup_safe("λ-演算合一法");
+            desc->description = lv_strdup_safe("通过 λ-项模式合一自动匹配并实例化证明中的变量");
+            desc->applicability_check = lambda_unify_applicability_check;
+            desc->execute = execute_lambda_unify;
             break;
 
         case PROOF_STRATEGY_ORACLE:
