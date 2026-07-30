@@ -70,20 +70,21 @@ jobs:
           cmake --build build --parallel
 
   # ── Lean 4 类型检查 (formal/) ──────────────────────────────
+  # 注：leanprover/lean4-action 仓库已不可访问，改用 elan 手动安装
   lean-typecheck-formal:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Lean 4
-        uses: leanprover/lean4-action@v2
-        with:
-          toolchain: 'v4.14.0'
+      - name: Setup Lean 4 (elan)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain v4.14.0
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
       - name: Lake build (formal/)
         run: |
           cd formal
-          lake build
+          ~/.elan/bin/lake build
 
   # ── Lean 4 类型检查 (lv-formal/) ───────────────────────────
   lean-typecheck-lv-formal:
@@ -91,15 +92,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Lean 4
-        uses: leanprover/lean4-action@v2
-        with:
-          toolchain: 'v4.33.0-rc1'
+      - name: Setup Lean 4 (elan)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain v4.33.0-rc1
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
       - name: Lake build (lv-formal/)
         run: |
           cd lv-formal
-          lake build
+          ~/.elan/bin/lake build
 
   # ── Python 语法检查 ────────────────────────────────────────
   python-syntax:

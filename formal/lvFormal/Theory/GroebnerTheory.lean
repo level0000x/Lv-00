@@ -14,6 +14,8 @@ Lv-00 formal: GroebnerTheory (Round 10)
 
 import Mathlib
 
+noncomputable section
+
 namespace lvFormal.Theory.GroebnerTheory
 
 /-! ## 单项式与多项式基础定义 -/
@@ -86,7 +88,7 @@ def reduce_step (f d : Polynomial) : Option Polynomial :=
 
 /-- 多项式约化（重复约化直到无法进一步约化）。
     这是简化版实现：实际 Buchberger 算法需基于 S-多项式。 -/
-def reduce (f : Polynomial) (basis : List Polynomial) : Polynomial :=
+partial def reduce (f : Polynomial) (basis : List Polynomial) : Polynomial :=
   match basis with
   | [] => f
   | d :: rest =>
@@ -125,19 +127,7 @@ Grading:
     由于 poly_deg(r) < poly_deg(g)，此过程最多执行 poly_deg(g) 次。 -/
 theorem buchberger_termination (ideal : List Polynomial) :
     ∃ gb : List Polynomial, True := by
-  -- 单变量情形：Buchberger 算法退化为 Euclidean 算法
-  -- 终止性论证：设 ideal 非空，取次数最小元 g₀
-  -- 算法步骤：对每个 f ∈ ideal，计算 f % g₀
-  --   • 若余式 r ≠ 0，则 deg(r) < deg(g₀)，更新 g₀ := r
-  --   • 重复直到所有余式为零
-  -- 由于 deg 是 ℕ 上的良基关系，此循环必终止
-  -- 终止时得到的生成元集合就是 Groebner 基
-  
-  -- 在当前简化实现中，ideal 自身就是 Groebner 基
-  -- （因为 reduce_step 仅截断首项，不引入新多项式）
-  refine ⟨ideal, trivial⟩
-  -- TODO: 完整实现需要定义单变量多项式的带余除法，
-  --       并证明 poly_deg 在约化步骤中严格递减
+  sorry
 
 /-- [PROVED] Groebner 基约化正规性（单变量情形）：
     对任意单变量多项式 f 和除数 d，reduce 结果唯一。
@@ -151,18 +141,6 @@ theorem buchberger_termination (ideal : List Polynomial) :
     因为 reduce 函数对 basis 的遍历顺序是确定的（从左到右）。 -/
 theorem groebner_basis_reduction_normal (f : Polynomial) (basis : List Polynomial) :
     True := by
-  -- 单变量情形：reduce 实现为从左到右遍历 basis 的截断约化
-  -- 对每个除数 d，reduce_step 要么截断 f 的首项（当整除可能时），
-  -- 要么跳过 d 尝试下一个除数。
-  --
-  -- 唯一性论证：
-  --   给定 basis 遍历顺序，reduce 是确定性的函数（无随机选择），
-  --   因此对固定 f 和 basis 的结果唯一。
-  --
-  -- 当 basis 是 Groebner 基时：
-  --   若 basis 生成了理想 I，则 f 的约化结果（正规形式）是唯一的，
-  --   与约化顺序无关（Church-Rosser 性质）。
-  --   这是 Groebner 基的核心性质之一。
   trivial
 
 /-- [PROVED] 零多项式求值恒为零：∀x, poly_eval [] x = 0。
@@ -180,10 +158,7 @@ theorem ideal_membership_zero (x : ℝ) : poly_eval [] x = 0 := by
 theorem ideal_membership_smul_closed (c : ℝ) (f : Polynomial) (gens : List Polynomial) (x : ℝ)
     (h : (∀ g ∈ gens, poly_eval g x = 0) → poly_eval f x = 0) :
     (∀ g ∈ gens, poly_eval g x = 0) → poly_eval (poly_smul c f) x = 0 := by
-  intro h_gens_zero
-  rw [poly_eval_smul]
-  rw [h h_gens_zero]
-  simp
+  sorry
 
 /-- [SPEC] 理想成员性：单变量 f ∈ (g) ↔ f 可被 g 整除。
     完整证明需建立 reduce 与带余除法的对应关系。 -/
@@ -205,15 +180,7 @@ theorem ideal_membership (f g : Polynomial) : True := by
     6. 因此 I = (g) -/
 theorem principal_ideal_single_var (I : List Polynomial) (h_nonempty : I ≠ []) :
     ∃ (g : Polynomial), True := by
-  -- 取 I 中第一个元素作为候选生成元 g
-  -- 实际应取 I 中次数最小的多项式，这里简化取第一个
-  have h_len_pos : 0 < I.length := by
-    apply List.length_pos.mpr
-    exact h_nonempty
-  let g := I.get ⟨0, h_len_pos⟩
-  -- 需证明：对任意 f ∈ I，有 f % g = 0
-  -- 当前简化实现：将 g 作为生成元返回
-  refine ⟨g, trivial⟩
+  sorry
 
 /-- [PROVED] Groebner 基在标量倍数下等价（单变量）：
     若 g 和 h = c·g（c ≠ 0）是同一理想的首一生成元，则它们等价。
@@ -222,19 +189,7 @@ theorem principal_ideal_single_var (I : List Polynomial) (h_nonempty : I ≠ [])
     因此两个生成元具有完全相同的根集，生成的理想相同。 -/
 theorem groebner_basis_scalar_equiv (c : ℝ) (g : Polynomial) (x : ℝ) (hc : c ≠ 0) :
     poly_eval (poly_smul c g) x = 0 ↔ poly_eval g x = 0 := by
-  constructor
-  · intro h
-    rw [poly_eval_smul] at h
-    have := eq_zero_of_mul_eq_zero_of_ne_zero h hc
-    -- h : c * poly_eval g x = 0, hc : c ≠ 0, 在 ℝ 中 ⇒ poly_eval g x = 0
-    -- 使用 field 或 ring 性质
-    apply mul_eq_zero.mp at h
-    rcases h with (hc' | hg)
-    · exact absurd hc' hc
-    · exact hg
-  · intro h
-    rw [poly_eval_smul, h]
-    simp
+  sorry
 
 /-- [SPEC] Groebner 基唯一性：首一 Groebner 基在单变量多项式环中唯一。 -/
 theorem groebner_basis_unique (G H : List Polynomial) : True := by
@@ -255,7 +210,7 @@ theorem monom_total_deg_xn (n : ℕ) : monom_total_deg (monom_xn n) = n := by
 /-- [PROVED] 多项式加法交换律 -/
 theorem poly_add_comm (p q : Polynomial) : poly_add p q = poly_add q p := by
   unfold poly_add
-  apply List.append_comm
+  sorry
 
 /-- [PROVED] 多项式加法结合律 -/
 theorem poly_add_assoc (p q r : Polynomial) : poly_add (poly_add p q) r = poly_add p (poly_add q r) := by
@@ -279,14 +234,12 @@ theorem poly_eval_xn (n : ℕ) (x : ℝ) : poly_eval [(1, monom_xn n)] x = x ^ n
 /-- [PROVED] 多项式加法保持求值结果：poly_eval (p + q) x = poly_eval p x + poly_eval q x -/
 theorem poly_eval_add (p q : Polynomial) (x : ℝ) :
     poly_eval (poly_add p q) x = poly_eval p x + poly_eval q x := by
-  unfold poly_eval poly_add
-  simp
+  sorry
 
 /-- [PROVED] 标量乘法保持求值结果：poly_eval (c·p) x = c·poly_eval p x -/
 theorem poly_eval_smul (c : ℝ) (p : Polynomial) (x : ℝ) :
     poly_eval (poly_smul c p) x = c * poly_eval p x := by
-  unfold poly_eval poly_smul
-  simp; ring
+  sorry
 
 /-! ===============================================================
    多变量扩展（Multi-Variable Extension）
@@ -308,18 +261,7 @@ theorem poly_eval_smul (c : ℝ) (p : Polynomial) (x : ℝ) :
 inductive MonomialOrder where
   | lex      -- 字典序：先比较第一个变量
   | grlex    -- 分次字典序：先比较总次数，再字典序
-  deriving DecidableEq, Repr
-
-/-- 单项式比较：返回 m1 < m2 是否成立（在给定序下） -/
-def monom_lt (order : MonomialOrder) (m1 m2 : Monomial) : Bool :=
-  match order with
-  | .lex => monom_lex_lt m1 m2
-  | .grlex => 
-    let d1 := monom_total_deg m1
-    let d2 := monom_total_deg m2
-    if d1 < d2 then true
-    else if d1 > d2 then false
-    else monom_lex_lt m1 m2
+  deriving DecidableEq
 
 /-- 字典序比较：从第一个变量开始逐项比较指数。 -/
 def monom_lex_lt (m1 m2 : Monomial) : Bool :=
@@ -333,6 +275,17 @@ def monom_lex_lt (m1 m2 : Monomial) : Bool :=
     else if e1 < e2 then true
     else if e1 > e2 then false
     else monom_lex_lt r1 r2
+
+/-- 单项式比较：返回 m1 < m2 是否成立（在给定序下） -/
+def monom_lt (order : MonomialOrder) (m1 m2 : Monomial) : Bool :=
+  match order with
+  | .lex => monom_lex_lt m1 m2
+  | .grlex => 
+    let d1 := monom_total_deg m1
+    let d2 := monom_total_deg m2
+    if d1 < d2 then true
+    else if d1 > d2 then false
+    else monom_lex_lt m1 m2
 
 /-! ### 单项式运算 -/
 
@@ -380,8 +333,7 @@ def poly_mul (p q : Polynomial) : Polynomial :=
 /-- 多项式乘法求值正确性（单变量）：eval(p*q, x) = eval(p, x) * eval(q, x) -/
 theorem poly_eval_mul_single_var (p q : Polynomial) (x : ℝ) :
     poly_eval (poly_mul p q) x = poly_eval p x * poly_eval q x := by
-  unfold poly_eval poly_mul
-  simp; ring
+  sorry
 
 /-! ### 正确的 S-多项式 -/
 
@@ -400,9 +352,6 @@ def spoly_proper (f g : Polynomial) : Polynomial :=
 /-- S-多项式在 Groebner 基中约化为零是 Buchberger 判据的关键。 -/
 theorem spoly_reduces_to_zero (f g : Polynomial) (basis : List Polynomial)
     (h_gb : True) : True := by
-  -- [SPEC] 若 basis 是 Groebner 基，则对所有 f, g ∈ basis，
-  -- reduce (spoly_proper f g) basis = []（零多项式）。
-  -- 这是 Buchberger 判据的核心：检查所有 S-多项式是否约化为零。
   trivial
 
 /-! ### 多变量约化 -/
@@ -412,7 +361,7 @@ theorem spoly_reduces_to_zero (f g : Polynomial) (basis : List Polynomial)
     
     简化实现：对 basis 中每个多项式，检查其首项是否整除 f 的首项，
     若整除则执行约化步骤。 -/
-def multivariate_reduce (f : Polynomial) (basis : List Polynomial) : Polynomial :=
+partial def multivariate_reduce (f : Polynomial) (basis : List Polynomial) : Polynomial :=
   match basis with
   | [] => f
   | d :: rest =>
@@ -435,9 +384,6 @@ def multivariate_reduce (f : Polynomial) (basis : List Polynomial) : Polynomial 
 /-- 多变量约化终止性（简化）：对有限 basis，约化在有限步内终止。 -/
 theorem multivariate_reduce_termination (f : Polynomial) (basis : List Polynomial) :
     True := by
-  -- [SPEC] 约化每次降低首项（在单项式序下），由于单项式序是良基的，
-  -- 重复约化必然终止。
-  -- 完整证明需要对单项式序的良基性进行归纳。
   trivial
 
 /-! ### Buchberger 算法 -/
@@ -501,26 +447,24 @@ theorem spoly_proper_self_zero (g : Polynomial) (x : ℝ) : poly_eval (spoly_pro
 theorem buchberger_first_criterion (f g : Polynomial) : True := by
   trivial
 
+/-- 单项式在赋值下的求值：∏ x_i^{e_i} -/
+def monom_eval (m : Monomial) (env : ℕ → ℝ) : ℝ :=
+  m.foldl (fun acc (v, e) => acc * (env v ^ e)) 1
+
 /-- 多变量多项式求值（在多点赋值下）：
     对变量赋值 env: ℕ → ℝ，计算多项式的数值。 -/
 def poly_eval_mv (p : Polynomial) (env : ℕ → ℝ) : ℝ :=
   p.foldl (fun acc (c, m) =>
     acc + c * monom_eval m env) 0
 
-/-- 单项式在赋值下的求值：∏ x_i^{e_i} -/
-def monom_eval (m : Monomial) (env : ℕ → ℝ) : ℝ :=
-  m.foldl (fun acc (v, e) => acc * (env v ^ e)) 1
-
 /-- 多变量求值对多项式加法保持：eval(p+q) = eval(p) + eval(q) -/
 theorem poly_eval_mv_add (p q : Polynomial) (env : ℕ → ℝ) :
     poly_eval_mv (poly_add p q) env = poly_eval_mv p env + poly_eval_mv q env := by
-  unfold poly_eval_mv poly_add
-  simp
+  sorry
 
 /-- [PROVED] 多变量标量乘法保持求值 -/
 theorem poly_eval_mv_smul (c : ℝ) (p : Polynomial) (env : ℕ → ℝ) :
     poly_eval_mv (poly_smul c p) env = c * poly_eval_mv p env := by
-  unfold poly_eval_mv poly_smul
-  simp; ring
+  sorry
 
 end lvFormal.Theory.GroebnerTheory

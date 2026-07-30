@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 核心模块
 
 提供几何元编程的核心 Python 类，包括：
@@ -21,7 +21,7 @@ Lv-00 核心模块
 版本：3.3.0
 作者：Lv-00 开发团队
 """
-[QA] Has broad except Exception: blocks — consider narrowing to specific types.
+[QA] Has broad except Exception: blocks -- consider narrowing to specific types.
 
 import ctypes
 import logging

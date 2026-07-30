@@ -5,6 +5,11 @@
  *          紧急保存和追踪会话等调试功能。
  */
 
+/* 确保 POSIX 时钟可用（Linux 上 clock_gettime(CLOCK_MONOTONIC) 需要） */
+#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 199309L
+#define _POSIX_C_SOURCE 199309L
+#endif
+
 #include <errno.h>
 #include <math.h>
 #include <stdarg.h>
