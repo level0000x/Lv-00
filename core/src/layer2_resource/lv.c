@@ -383,7 +383,7 @@ int lv_health_check(void) {
 lvEngine *lv_engine_create(void) {
     if (!is_system_initialized()) {
         if (!lv_init()) {
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_engine_create: lv_init() failed");
         }
     }
     return engine_create();
@@ -403,26 +403,21 @@ void lv_engine_destroy(lvEngine *engine) {
  */
 int lv_add_point(lvEngine *engine, int64_t x_num, uint64_t x_den, int64_t y_num, uint64_t y_den) {
     if (!engine || !engine->main_graph) {
-        lv_set_error(lv_ERROR_NULL_POINTER, "lv_add_point: engine 或 main_graph 为 NULL");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_add_point: engine 或 main_graph 为 NULL");
     }
     /* 参数校验：分母不能为零 */
     if (x_den == 0 || y_den == 0) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "lv_add_point: 分母不能为零 (x_den=%" PRIu64 ", y_den=%" PRIu64 ")",
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_add_point: 分母不能为零 (x_den=%" PRIu64 ", y_den=%" PRIu64 ")",
                      (uint64_t) x_den, (uint64_t) y_den);
-        return -1;
     }
 
     SymbolicCoord *x = symbolic_coord_create_rational(x_num, x_den);
     SymbolicCoord *y = symbolic_coord_create_rational(y_num, y_den);
 
     if (!x || !y) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "lv_add_point: 创建符号坐标失败");
-        if (x)
-            symbolic_coord_destroy(x);
-        if (y)
-            symbolic_coord_destroy(y);
-        return -1;
+        if (x) symbolic_coord_destroy(x);
+        if (y) symbolic_coord_destroy(y);
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_add_point: 创建符号坐标失败");
     }
 
     /* 二维坐标维度常量 */
@@ -434,8 +429,7 @@ int lv_add_point(lvEngine *engine, int64_t x_num, uint64_t x_den, int64_t y_num,
     symbolic_coord_destroy(y);
 
     if (result != ADD_NODE_OK) {
-        lv_set_error(lv_ERROR_NODE_CONFLICT, "lv_add_point: 添加点到图失败 (result=%d)", (int) result);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "lv_add_point: 添加点到图失败 (result=%d)", (int) result);
     }
 
     return engine->main_graph->next_node_id - 1;
@@ -446,15 +440,13 @@ int lv_add_point(lvEngine *engine, int64_t x_num, uint64_t x_den, int64_t y_num,
  */
 int lv_add_line_segment(lvEngine *engine, int point1_id, int point2_id) {
     if (!engine || !engine->main_graph) {
-        lv_set_error(lv_ERROR_NULL_POINTER, "lv_add_line_segment: engine 或 main_graph 为 NULL");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_add_line_segment: engine 或 main_graph 为 NULL");
     }
 
     AddNodeResult result = graph_add_line_segment(engine->main_graph, point1_id, point2_id);
     if (result != ADD_NODE_OK) {
-        lv_set_error(lv_ERROR_NODE_CONFLICT, "lv_add_line_segment: 添加线段失败 (point1=%d, point2=%d, result=%d)",
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "lv_add_line_segment: 添加线段失败 (point1=%d, point2=%d, result=%d)",
                      point1_id, point2_id, (int) result);
-        return -1;
     }
 
     return engine->main_graph->next_node_id - 1;
@@ -484,7 +476,7 @@ bool lv_add_constraint_incidence(lvEngine *engine, int point_id, int line_id) {
  */
 NormalizationResult *lv_normalize(lvEngine *engine, bool scope_aware) {
     if (!engine || !engine->main_graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_normalize: engine or main_graph is NULL");
     return graph_normalize(engine->main_graph, scope_aware);
 }
 
@@ -699,14 +691,12 @@ bool lv_are_assertions_enabled(void) {
 int lv_set_numeric_assumption(lvEngine *engine, int node_id, double precision, const char *declaration) {
     /* 参数有效性检查 */
     if (!engine || !engine->main_graph) {
-        lv_set_error(lv_ERROR_NULL_POINTER, "lv_set_numeric_assumption: engine 或 main_graph 为 NULL");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_set_numeric_assumption: engine 或 main_graph 为 NULL");
     }
 
     /* 委托给 bit_burning_downgrade_to_amber 执行降级操作 */
     if (!bit_burning_downgrade_to_amber(engine->main_graph, node_id, precision, declaration)) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "lv_set_numeric_assumption: 节点 %d 不存在或降级失败", node_id);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_set_numeric_assumption: 节点 %d 不存在或降级失败", node_id);
     }
 
     return 0; /* lv_OK */

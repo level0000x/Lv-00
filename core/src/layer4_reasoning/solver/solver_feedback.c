@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
+#include "lv/solver_types.h"
 #include "lv/stream.h"
 
 #include "debug.h"
@@ -24,41 +25,11 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
-
-/* 前向声明：solver_coord_extract 和 solver_symbolic 模块中的函数 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
-void equation_system_clear(EquationSystem *sys);
 int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_ids);
 void groebner_result_destroy(GroebnerResult *result);
 GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirty_var_ids, int n_dirty_vars);
 
-lv_DECLARE_STREAM_CTX(solver);
+
 
 /* ================================================================== */
 /*  Solvespace 风格交互式求解反馈                                        */
@@ -70,7 +41,7 @@ lv_DECLARE_STREAM_CTX(solver);
 SolverFeedback *solver_feedback_create(SolverFeedbackType type, const char *message) {
     SolverFeedback *fb = lv_calloc(1, sizeof(SolverFeedback));
     if (!fb)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "solver_feedback_create: lv_calloc for SolverFeedback failed");
 
     fb->type = type;
     fb->affected_var_id = -1;
@@ -82,7 +53,7 @@ SolverFeedback *solver_feedback_create(SolverFeedbackType type, const char *mess
         fb->message = lv_malloc(strlen(message) + 1);
         if (!fb->message) {
             lv_free((void **) &fb);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "solver_feedback_create: lv_malloc for message failed");
         }
         /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
         lv_strlcpy(fb->message, message, strlen(message) + 1);
@@ -108,13 +79,13 @@ void solver_feedback_destroy(SolverFeedback *feedback) {
  */
 SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_vars, int dirty_count) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "solver_feedback_solve: graph is NULL");
 
     SolverFeedback *fb = solver_feedback_create(SOLVER_FEEDBACK_TYPE_CONSTRAINT_ADDED,
                                                 dirty_count > 0 ? "约束已添加，增量求解开始" : "执行全量求解");
 
     if (!fb)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "solver_feedback_solve: solver_feedback_create failed");
 
     /* Step 1: 执行增量求解 */
     GroebnerResult *result = solver_incremental_solve(graph, dirty_vars, dirty_count);

@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/lv_json.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
 
@@ -56,7 +57,7 @@ bool lv_json_expect(lvJsonParser *p, char c) {
 
 char *lv_json_parse_string(lvJsonParser *p) {
     if (!lv_json_expect(p, '"'))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "lv_json_parse_string: expected opening '\"'");
 
     const char *start = p->data + p->pos;
     size_t len = 0;
@@ -94,13 +95,13 @@ char *lv_json_parse_string(lvJsonParser *p) {
     }
 
     if (p->pos >= p->size)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "lv_json_parse_string: unterminated string");
     p->pos++; /* skip end quote */
 
     /* 分配结果缓冲区 */
     char *result = lv_malloc(len + 1);
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_json_parse_string: buffer allocation failed");
 
     /* 第二遍：解码转义序列 */
     const char *src = start;
@@ -272,7 +273,7 @@ bool lv_json_parse_bool(lvJsonParser *p, bool *out) {
 
 const char *lv_json_find_key(const char *json, const char *key, size_t key_len) {
     if (!json || !key || key_len == 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_json_find_key: NULL json/key or zero key_len");
 
     const char *p = json;
     const char *end = p + strlen(p);

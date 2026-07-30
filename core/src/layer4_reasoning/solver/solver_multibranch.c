@@ -17,6 +17,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
+#include "lv/solver_types.h"
 #include "lv/stream.h"
 
 #include "debug.h"
@@ -25,44 +26,13 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
-
-/* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
-void equation_system_clear(EquationSystem *sys);
 SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value);
 void symbolic_coord_destroy(SymbolicCoord *coord);
 bool coord_to_double(const SymbolicCoord *c, double *out);
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t den);
 char *symbolic_coord_serialize(const SymbolicCoord *coord);
 
-/* 流式上下文（在 solver.c 中定义） */
-lv_DECLARE_STREAM_CTX(solver);
+/* 流式上下文（定义在 solver_engine.c，通过 solver_types.h 的 extern 引用） */
 
 /* ================================================================== */
 /*  PUBLIC API: solver_handle_multiple_solutions                       */
@@ -98,7 +68,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     *out_branch_count = 0;
 
     /* No system means no branches to handle */
-    if (!system || system->count == 0) {
+    if (!system || system->eqs.count == 0) {
         return SOLVER_STATUS_UNIQUE;
     }
 
@@ -115,7 +85,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         bool valid;      /* has two distinct real roots */
     };
 
-    int max_branch_vars = system->count;
+    int max_branch_vars = system->eqs.count;
     struct BranchVariable *branch_vars = lv_calloc((size_t) max_branch_vars, sizeof(struct BranchVariable));
     if (!branch_vars)
         return SOLVER_STATUS_TIMEOUT;
@@ -123,14 +93,15 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     int branch_count = 0;
     int64_t scale_factor = lv_SOLVER_SCALE_FACTOR;
 
-    for (int i = 0; i < system->count; i++) {
-        if (system->eqs[i].poly.degree != 2)
+    for (int i = 0; i < system->eqs.count; i++) {
+        PolyEquation *pe = ((PolyEquation *)lv_darray_get(&system->eqs, i));
+        if (pe->poly.degree != 2)
             continue;
 
         /* Extract coefficients from GMP scaled integers */
-        double a = mpz_get_d(system->eqs[i].poly.coeffs[2]) / scale_factor;
-        double b = mpz_get_d(system->eqs[i].poly.coeffs[1]) / scale_factor;
-        double c = mpz_get_d(system->eqs[i].poly.coeffs[0]) / scale_factor;
+        double a = mpz_get_d(pe->poly.coeffs[2]) / scale_factor;
+        double b = mpz_get_d(pe->poly.coeffs[1]) / scale_factor;
+        double c = mpz_get_d(pe->poly.coeffs[0]) / scale_factor;
 
         if (fabs(a) < lv_EPSILON_DOUBLE)
             continue;
@@ -144,8 +115,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         double root2 = (-b - sqrt_D) / (2.0 * a);
 
         /* Store as distinct roots */
-        branch_vars[branch_count].var_node_id = system->eqs[i].var_node_id;
-        branch_vars[branch_count].coord_index = system->eqs[i].coord_index;
+        branch_vars[branch_count].var_node_id = pe->var_node_id;
+        branch_vars[branch_count].coord_index = pe->coord_index;
         branch_vars[branch_count].eq_index = i;
         branch_vars[branch_count].root1 = root1;
         branch_vars[branch_count].root2 = root2;
@@ -164,7 +135,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             int _snw_bv;
             lv_SAFE_SNPRINTF(_snw_bv, detail, sizeof(detail),
                              "{\"var_id\":%d,\"coord_index\":%d,\"root1\":%.6f,\"root2\":%.6f}",
-                             system->eqs[i].var_node_id, system->eqs[i].coord_index, root1, root2);
+                             pe->var_node_id, pe->coord_index, root1, root2);
             lv_UNUSED(_snw_bv);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
@@ -238,7 +209,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
 
         /* Check each non-quadratic equation in the system:
          * substitute the branch's values and verify the equation holds */
-        for (int eq = 0; eq < system->count; eq++) {
+        for (int eq = 0; eq < system->eqs.count; eq++) {
             /* Skip the quadratic equations themselves */
             bool is_branch_eq = false;
             for (int v = 0; v < branch_count; v++) {
@@ -253,9 +224,10 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             /* For linear equations (degree=1): check if the branch value
              * satisfies the equation. For now we do a simple linear check:
              * a*x + c = 0 => x ≈ -c/a */
-            if (system->eqs[eq].poly.degree == 1) {
+            PolyEquation *pe_eq = ((PolyEquation *)lv_darray_get(&system->eqs, eq));
+            if (pe_eq->poly.degree == 1) {
                 /* Check if this equation constrains the same variable */
-                if (system->eqs[eq].poly.degree < 0) {
+                if (pe_eq->poly.degree < 0) {
                 /* 跳过未初始化的方程槽位（poly.degree < 0 表示该槽位未被
                  * 实际约束填充或已无效化）。占位符通常出现在方程系统被清空
                  * 后重新填充的过程中，不影响求解正确性。 */
@@ -281,8 +253,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                     break;
                 }
                 for (int v = 0; v < branch_count; v++) {
-                    if (branch_vars[v].var_node_id == system->eqs[eq].var_node_id &&
-                        branch_vars[v].coord_index == system->eqs[eq].coord_index) {
+                    if (branch_vars[v].var_node_id == pe_eq->var_node_id &&
+                        branch_vars[v].coord_index == pe_eq->coord_index) {
                         branch_val = (b & (1u << v)) ? branch_vars[v].root2 : branch_vars[v].root1;
                         found = true;
                         break;
@@ -300,12 +272,12 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                 if (branch_coords && branch_count > 0) {
                     /* 找到该分支中对应变量的符号坐标 */
                     for (int v = 0; v < branch_count; v++) {
-                        if (branch_vars[v].var_node_id == system->eqs[eq].var_node_id &&
-                            branch_vars[v].coord_index == system->eqs[eq].coord_index) {
+                        if (branch_vars[v].var_node_id == pe_eq->var_node_id &&
+                            branch_vars[v].coord_index == pe_eq->coord_index) {
                             SymbolicCoord *branch_coord = branch_coords[b * branch_count + v];
                             if (branch_coord) {
                                 /* 用符号坐标在多项式上求值 */
-                                SymbolicCoord *poly_val = poly_eval_symbolic(&system->eqs[eq].poly, branch_coord);
+                                SymbolicCoord *poly_val = poly_eval_symbolic(&pe_eq->poly, branch_coord);
                                 if (poly_val) {
                                     /* 检查求值结果是否为零 */
                                     double eval_d = 0.0;
@@ -322,8 +294,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
 
                 /* 回退到 double 近似验证 */
                 if (!equation_satisfied) {
-                    double a_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR;
-                    double c_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
+                    double a_coeff = mpz_get_d(pe_eq->poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR;
+                    double c_coeff = mpz_get_d(pe_eq->poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
                     double lhs = a_coeff * branch_val + c_coeff;
                     equation_satisfied = (fabs(lhs) < 1e-6);
                 }
@@ -335,8 +307,9 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                 }
             }
             /* For degree 0: check constant = 0 (contradiction if non-zero) */
-            if (system->eqs[eq].poly.degree == 0) {
-                double const_val = mpz_get_d(system->eqs[eq].poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
+            PolyEquation *pe_eq0 = ((PolyEquation *)lv_darray_get(&system->eqs, eq));
+            if (pe_eq0->poly.degree == 0) {
+                double const_val = mpz_get_d(pe_eq0->poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
                 if (fabs(const_val) > lv_EPSILON_DOUBLE) {
                     valid = false;
                     break;

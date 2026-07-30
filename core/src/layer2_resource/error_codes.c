@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file error_codes.c
  * @brief Lv-00 统一错误码系统实现
  *
@@ -189,7 +189,7 @@ static const ErrorInfo *find_error_info(lvErrorCode code) {
             right = mid - 1;
         }
     }
-    return NULL;
+    lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "error code %d not found in table", code);
 }
 
 /* ============================================================
@@ -275,7 +275,7 @@ const char *lv_get_last_error_message(void) {
 
 int lv_get_error_description(char *buf, size_t buf_size) {
     if (!buf || buf_size == 0) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "buf is NULL or buf_size is 0");
     }
 
     const char *name = lv_error_name(g_last_error_code);

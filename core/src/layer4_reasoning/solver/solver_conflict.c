@@ -17,6 +17,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
 #include "lv/stream.h"
+#include "lv/solver_types.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -24,28 +25,8 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
-
 /* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-void equation_system_clear(EquationSystem *sys);
+
 void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
 bool check_incompatible_distances(const ConstraintGraph *graph);
 int constraint_weight(const Constraint *c);
@@ -82,10 +63,12 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
     EquationSystem sys;
     equation_system_init(&sys);
     extract_equations_from_constraints(graph, &sys);
+    PolyEquation *const eqs_arr = (PolyEquation *)sys.eqs.data;
+    const int eqs_count = sys.eqs.count;
 
     /* Check for 0 = nonzero (constant contradictions) */
-    for (int i = 0; i < sys.count; i++) {
-        mpz_poly_t *p = &sys.eqs[i].poly;
+    for (int i = 0; i < eqs_count; i++) {
+        mpz_poly_t *p = &eqs_arr[i].poly;
         if (p->degree == 0 && mpz_cmp_si(p->coeffs[0], 0) != 0) {
             equation_system_clear(&sys);
             return true;
@@ -93,8 +76,8 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
     }
 
     /* Check 3: Leading coefficient zero contradiction for degree-1 equations */
-    for (int i = 0; i < sys.count; i++) {
-        mpz_poly_t *p = &sys.eqs[i].poly;
+    for (int i = 0; i < eqs_count; i++) {
+        mpz_poly_t *p = &eqs_arr[i].poly;
         if (p->degree == 1 && mpz_cmp_si(p->coeffs[1], 0) == 0 && mpz_cmp_si(p->coeffs[0], 0) != 0) {
             equation_system_clear(&sys);
             return true;
@@ -102,8 +85,8 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
     }
 
     /* Check 4: Quadratic equation with negative discriminant => no real solution */
-    for (int i = 0; i < sys.count; i++) {
-        mpz_poly_t *p = &sys.eqs[i].poly;
+    for (int i = 0; i < eqs_count; i++) {
+        mpz_poly_t *p = &eqs_arr[i].poly;
         if (p->degree == 2) {
             /* Using mpz arithmetic for discriminant: D = b^2 - 4*a*c */
             mpz_t disc;
@@ -140,10 +123,10 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
             equation_system_clear(&sys);
             return false;
         }
-        for (int i = 0; i < sys.count; i++) {
-            int vid = sys.eqs[i].var_node_id;
+        for (int i = 0; i < eqs_count; i++) {
+            int vid = eqs_arr[i].var_node_id;
             if (vid >= 0 && vid <= max_id) {
-                if (sys.eqs[i].poly.degree >= 0) {
+                if (eqs_arr[i].poly.degree >= 0) {
                     eq_count_per_point[vid]++;
                 }
             }

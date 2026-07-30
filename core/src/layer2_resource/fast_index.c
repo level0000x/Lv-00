@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_internal.h"
 
 /* ============== 内部常量 ============== */
 
@@ -126,7 +127,7 @@ static int grid_coord(double val, double cell_size) {
 lvFastIndex *lv_fast_index_create(int capacity) {
     lvFastIndex *idx = (lvFastIndex *) lv_calloc(1, sizeof(lvFastIndex));
     if (!idx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate lvFastIndex");
 
     idx->capacity = (capacity > 0) ? capacity : INITIAL_BUCKET_COUNT;
     idx->count = 0;
@@ -136,7 +137,7 @@ lvFastIndex *lv_fast_index_create(int capacity) {
     idx->cells = (GridCell *) lv_calloc((size_t) idx->capacity, sizeof(GridCell));
     if (!idx->cells) {
         lv_free((void **) &idx);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate grid cells");
     }
 
     return idx;

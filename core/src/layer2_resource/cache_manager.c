@@ -19,6 +19,7 @@
  */
 
 #include "lv/cache_manager.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 #include <stdio.h>
@@ -130,7 +131,7 @@ static void evict_lru(lvCacheManager *mgr) {
 lvCacheManager *lv_cache_manager_create(const lvCacheConfig *config) {
     lvCacheManager *mgr = (lvCacheManager *) lv_calloc(1, sizeof(lvCacheManager));
     if (mgr == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_cache_manager_create: calloc failed for manager");
 
     mgr->magic = lv_CACHE_MAGIC;
     mgr->is_running = true;
@@ -150,7 +151,7 @@ lvCacheManager *lv_cache_manager_create(const lvCacheConfig *config) {
     mgr->buckets = (lvCacheEntry **) lv_calloc((size_t) mgr->bucket_count, sizeof(lvCacheEntry *));
     if (mgr->buckets == NULL) {
         lv_free((void **) &mgr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_cache_manager_create: calloc failed for buckets");
     }
 
     /* 上下文数组 */
@@ -159,7 +160,7 @@ lvCacheManager *lv_cache_manager_create(const lvCacheConfig *config) {
     if (mgr->contexts == NULL) {
         lv_free((void **) &(mgr->buckets));
         lv_free((void **) &mgr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_cache_manager_create: calloc failed for contexts");
     }
 
     /* 创建默认上下文 */

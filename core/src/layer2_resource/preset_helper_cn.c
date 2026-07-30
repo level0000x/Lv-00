@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_helper_cn.c
  * @brief 预设辅助函数（中文版）
  *
@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_internal.h"
 
 /* ========================================================================
  * 预设几何名称表
@@ -82,7 +83,7 @@ const char *lv_preset_get_desc_cn(int preset_id) {
  */
 int lv_preset_find_by_name_cn(const char *name_cn) {
     if (name_cn == NULL)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "name_cn is NULL");
 
     for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
         if (strcmp(g_preset_names[i].name_cn, name_cn) == 0) {
@@ -104,7 +105,7 @@ int lv_preset_find_by_name_cn(const char *name_cn) {
  */
 int lv_preset_format_cn(int preset_id, char *buf, size_t buf_size) {
     if (buf == NULL || buf_size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "buf is NULL or buf_size is 0");
 
     const char *name = lv_preset_get_name_cn(preset_id);
     const char *desc = lv_preset_get_desc_cn(preset_id);

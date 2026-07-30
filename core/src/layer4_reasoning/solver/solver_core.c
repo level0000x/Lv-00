@@ -205,7 +205,7 @@ lvSolver *lv_solver_create_with_config(const lvSolverConfig *config) {
     s->values = (int *) lv_malloc((size_t) DEFAULT_VAR_CAPACITY * sizeof(int));
     if (!s->values) {
         lv_free((void **) &s);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_solver_create_with_config: values lv_malloc failed");
     }
     memset(s->values, 0, (size_t) DEFAULT_VAR_CAPACITY * sizeof(int));
     s->var_capacity = DEFAULT_VAR_CAPACITY;
@@ -222,7 +222,7 @@ lvSolver *lv_solver_create_with_config(const lvSolverConfig *config) {
         if (s->clause_sizes)
             lv_free((void **) &s->clause_sizes);
         lv_free((void **) &s);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_solver_create_with_config: clauses/clause_sizes lv_malloc failed");
     }
     s->clause_capacity = DEFAULT_CLAUSE_CAPACITY;
     s->clause_count = 0;
@@ -280,8 +280,7 @@ lvSolverVar lv_solver_new_var(lvSolver *solver) {
 lvSolverVar lv_solver_new_vars(lvSolver *solver, int count) {
     lv_CHECK_NULL(solver, -1);
     if (count <= 0) {
-        lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__, "变量数量必须 >= 1, 实际=%d", count);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_solver_new_vars: 变量数量必须 >= 1, 实际=%d", count);
     }
 
     int first_id = solver->next_var_id;
@@ -290,14 +289,12 @@ lvSolverVar lv_solver_new_vars(lvSolver *solver, int count) {
     while (solver->var_count + count > solver->var_capacity) {
         /* 整数溢出检查：确保扩容不会超过 INT_MAX */
         if (solver->var_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_set_error_ctx(lv_ERROR_OVERFLOW, __FILE__, __LINE__, __func__, "变量容量溢出: current=%d",
-                             solver->var_capacity);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "lv_solver_new_vars: 变量容量溢出: current=%d", solver->var_capacity);
         }
         int new_cap = solver->var_capacity * lv_ARRAY_GROWTH_FACTOR;
         int *new_v = (int *) lv_realloc(solver->values, (size_t) new_cap * sizeof(int));
         if (!new_v)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_solver_new_vars: values realloc failed");
         memset(new_v + solver->var_capacity, 0, (size_t) (new_cap - solver->var_capacity) * sizeof(int));
         solver->values = new_v;
         solver->var_capacity = new_cap;
@@ -1490,7 +1487,7 @@ lvSolver *lv_solver_clone(const lvSolver *solver) {
 
     lvSolver *clone = lv_solver_create_with_config(&solver->config);
     if (!clone)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_solver_clone: lv_solver_create_with_config failed");
 
     /* 复制变量状态 */
     if (clone->var_capacity >= solver->var_count) {
@@ -1505,12 +1502,12 @@ lvSolver *lv_solver_clone(const lvSolver *solver) {
         int size = solver->clause_sizes[i];
         if (!ensure_clause_cap(clone)) {
             lv_solver_destroy(clone);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_solver_clone: ensure_clause_cap failed");
         }
         clone->clauses[i] = (int *) lv_malloc((size_t) (size + 1) * sizeof(int));
         if (!clone->clauses[i]) {
             lv_solver_destroy(clone);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_solver_clone: clause malloc failed");
         }
         memcpy(clone->clauses[i], solver->clauses[i], (size_t) (size + 1) * sizeof(int));
         clone->clause_sizes[i] = size;

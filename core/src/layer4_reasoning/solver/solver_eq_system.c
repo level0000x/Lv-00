@@ -24,11 +24,6 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
 #ifndef EQUATION_PUSH_OR_GOTO
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \
@@ -52,7 +47,7 @@ typedef struct EquationSystem {
 } EquationSystem;
 
 
-lv_DECLARE_STREAM_CTX(solver);
+
 
 /**
  * @brief 初始化方程系统
@@ -96,8 +91,7 @@ void equation_system_init(EquationSystem *sys) {
 int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
     /* 确保容量：lv_darray_reserve 内部通过 lv_ensure_capacity 管理 */
     if (!lv_darray_reserve(&sys->eqs, sys->eqs.count + 1)) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: 扩容失败");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: 扩容失败");
     }
     /* 在数组末尾就地构造 PolyEquation（避免 memcpy GMP 内部指针） */
     PolyEquation *slot = (PolyEquation *)((char *)sys->eqs.data + (size_t)sys->eqs.count * sizeof(PolyEquation));
@@ -106,8 +100,7 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
     mpz_poly_init(&slot->poly);
     if (!mpz_poly_set(&slot->poly, &poly)) {
         mpz_poly_clear(&slot->poly);
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: mpz_poly_set 失败");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: mpz_poly_set 失败");
     }
     sys->eqs.count++;
     return 0;
@@ -143,7 +136,7 @@ void equation_system_clear(EquationSystem *sys) {
 EquationSystem *equation_system_create(void) {
     EquationSystem *sys = lv_calloc(1, sizeof(EquationSystem));
     if (!sys)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "equation_system_create: lv_calloc 分配失败");
     equation_system_init(sys);
     return sys;
 }
@@ -173,10 +166,14 @@ int equation_system_count(const EquationSystem *sys) {
 }
 
 const mpz_poly_t *equation_system_get_poly(const EquationSystem *sys, int index) {
-    if (!sys || index < 0 || index >= sys->eqs.count)
-        return NULL;
+    if (!sys)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "equation_system_get_poly: sys 为 NULL");
+    if (index < 0 || index >= sys->eqs.count)
+        lv_RETURN_ERROR_NULL(lv_ERROR_INDEX_OUT_OF_RANGE, "equation_system_get_poly: index=%d 越界 (count=%d)", index, sys->eqs.count);
     PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, index);
-    return eq ? &eq->poly : NULL;
+    if (!eq)
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "equation_system_get_poly: lv_darray_get 返回 NULL (index=%d)", index);
+    return &eq->poly;
 }
 
 int equation_system_get_var_id(const EquationSystem *sys, int index) {

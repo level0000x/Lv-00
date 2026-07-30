@@ -5,6 +5,7 @@
 
 #include "lv/lv.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
 
 struct lvProofPriority {
     int capacity;
@@ -86,14 +87,14 @@ static int ensure_capacity(lvProofPriority *pq) {
         return 0;
     int new_cap = pq->capacity * 2;
     if (new_cap <= pq->capacity)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "ensure_capacity: integer overflow, new_cap=%d", new_cap);
 
     int *new_ids = (int *) lv_realloc(pq->node_ids,
                                        (size_t) new_cap * sizeof(int));
     double *new_sc = (double *) lv_realloc(pq->scores,
                                             (size_t) new_cap * sizeof(double));
     if (!new_ids || !new_sc)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity: lv_realloc failed for new_cap=%d", new_cap);
 
     pq->node_ids = new_ids;
     pq->scores = new_sc;
@@ -104,9 +105,9 @@ static int ensure_capacity(lvProofPriority *pq) {
 /** @brief 向优先级队列中压入一个证明节点（最大堆插入） */
 int lv_proof_priority_push(lvProofPriority *pq, int node_id, double score) {
     if (!pq)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_proof_priority_push: pq is NULL");
     if (ensure_capacity(pq) != 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_proof_priority_push: ensure_capacity failed");
 
     int pos = pq->count++;
     pq->node_ids[pos] = node_id;
@@ -118,9 +119,9 @@ int lv_proof_priority_push(lvProofPriority *pq, int node_id, double score) {
 /** @brief 从优先级队列中弹出最高优先级的节点（最大堆提取） */
 int lv_proof_priority_pop(lvProofPriority *pq, int *node_id, double *score) {
     if (!pq || pq->count == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proof_priority_pop: pq is NULL or empty");
     if (!node_id || !score)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_proof_priority_pop: node_id or score is NULL");
 
     *node_id = pq->node_ids[0];
     *score = pq->scores[0];

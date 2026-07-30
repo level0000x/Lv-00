@@ -29,6 +29,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/lv_mempool.h" /* v3.3.0 内存池公共 API */
 
 #include <float.h>
 #include <stdint.h>
@@ -44,6 +45,58 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
+
+/* ── 多项式系数内存池集成（试用）──
+ * 将频繁的 poly.coeffs 分配从 lv_malloc 改为 lv_mempool，
+ * 减少 malloc 调用次数。
+ *
+ * 设计说明：
+ *   g_coeff_pool 是静态全局的内存池，在首次使用时延迟初始化。
+ *   block_size = sizeof(mpz_t) * 8，覆盖典型系数数组（degree ≤ 7）。
+ *   当池内空闲块耗尽时，lv_mempool_alloc 返回 NULL；此时回退到
+ *   lv_malloc 分配。释放端统一使用 coeff_pool_clear()，它对池内指针
+ *   正确归还，对回退指针因 mem_pool_free 的越界检查而安全跳过。
+ */
+static lvMemPool *g_coeff_pool = NULL;
+
+/** @brief 延迟初始化多项式系数内存池 */
+static inline int coeff_pool_init(void) {
+    if (!g_coeff_pool) {
+        g_coeff_pool = lv_mempool_create(sizeof(mpz_t) * 8, 256);
+        if (!g_coeff_pool) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "coeff_pool_init: lv_mempool_create failed");
+    }
+    return 0;
+}
+
+/**
+ * @brief 从内存池分配多项式系数数组（含回退）
+ * @param count 需要的 mpz_t 元素个数
+ * @return mpz_t 数组指针，失败返回 NULL
+ */
+static inline mpz_t *coeff_pool_alloc(int count) {
+    if (!g_coeff_pool && coeff_pool_init() != 0)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_INITIALIZED, "coeff_pool_alloc: coefficient pool not initialized");
+    mpz_t *c = (mpz_t *)lv_mempool_alloc(g_coeff_pool);
+    if (!c) {
+        /* 池满回退到 lv_malloc */
+        c = (mpz_t *)lv_malloc((size_t)count * sizeof(mpz_t));
+    }
+    return c;
+}
+
+/**
+ * @brief 释放多项式系数数组（兼容池分配和 lv_malloc 回退）
+ */
+static inline void coeff_pool_clear(mpz_poly_t *p) {
+    if (p->coeffs) {
+        for (int i = 0; i <= p->degree; i++) {
+            mpz_clear(p->coeffs[i]);
+        }
+        lv_mempool_free(g_coeff_pool, p->coeffs);
+    }
+    p->coeffs = NULL;
+    p->degree = -1;
+}
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6
@@ -2049,9 +2102,9 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             /* P(-x): negate odd-degree coefficients */
             if (a->minimal_poly.degree >= 0) {
                 neg_poly.degree = a->minimal_poly.degree;
-                neg_poly.coeffs = lv_malloc((neg_poly.degree + 1) * sizeof(mpz_t));
+                neg_poly.coeffs = coeff_pool_alloc(neg_poly.degree + 1);
                 if (!neg_poly.coeffs) {
-                    mpz_poly_clear(&neg_poly);
+                    coeff_pool_clear(&neg_poly);
                     return NULL;
                 }
                 for (int i = 0; i <= neg_poly.degree; i++) {
@@ -2068,7 +2121,7 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             double new_right = -a->left_bound;
 
             SymbolicCoord *result = symbolic_coord_create_algebraic(&neg_poly, new_left, new_right);
-            mpz_poly_clear(&neg_poly);
+            coeff_pool_clear(&neg_poly);
             if (result)
                 result->trust = coord->trust;
             return result;
@@ -2426,7 +2479,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                     mpz_poly_t sq_poly;
                     mpz_poly_init(&sq_poly);
                     sq_poly.degree = 2;
-                    sq_poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
+                    sq_poly.coeffs = coeff_pool_alloc(3);
                     if (sq_poly.coeffs) {
                         mpz_init(sq_poly.coeffs[0]); /* c0^2 */
                         mpz_init(sq_poly.coeffs[1]); /* c1^2 - 2*c0*c2 */
@@ -2442,7 +2495,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
 
                         SymbolicCoord *result =
                             symbolic_coord_create_algebraic(&sq_poly, result_val - margin, result_val + margin);
-                        mpz_poly_clear(&sq_poly);
+                        coeff_pool_clear(&sq_poly);
                         if (result) {
                             result->trust = base->trust;
                             /* Try to rationalize: sqrt(2)^2 = 2 should be detected */
@@ -2463,7 +2516,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                             }
                         }
                     } else {
-                        mpz_poly_clear(&sq_poly);
+                        coeff_pool_clear(&sq_poly);
                     }
                     mpz_clear(c2_sq);
                     mpz_clear(c1_sq);
@@ -2497,7 +2550,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                     mpz_poly_t check_poly;
                     mpz_poly_init(&check_poly);
                     check_poly.degree = 1;
-                    check_poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                    check_poly.coeffs = coeff_pool_alloc(2);
                     if (check_poly.coeffs) {
                         mpz_init(check_poly.coeffs[0]);
                         mpz_init(check_poly.coeffs[1]);
@@ -2510,7 +2563,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
 
                         SymbolicCoord *result = symbolic_coord_create_algebraic(&check_poly, result_val - tight_margin,
                                                                                 result_val + tight_margin);
-                        mpz_poly_clear(&check_poly);
+                        coeff_pool_clear(&check_poly);
                         if (result) {
                             result->trust = base->trust;
                             /* Try to rationalize */
@@ -2531,7 +2584,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                             return result;
                         }
                     }
-                    mpz_poly_clear(&check_poly);
+                    coeff_pool_clear(&check_poly);
                 }
                 mpq_clear(approx);
             }
@@ -2544,9 +2597,9 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
             mpz_poly_t poly;
             mpz_poly_init(&poly);
             poly.degree = 1;
-            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+            poly.coeffs = coeff_pool_alloc(2);
             if (!poly.coeffs) {
-                mpz_poly_clear(&poly);
+                coeff_pool_clear(&poly);
                 return NULL;
             }
             mpz_init(poly.coeffs[0]);
@@ -2560,7 +2613,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
             mpq_clear(approx);
 
             SymbolicCoord *result = symbolic_coord_create_algebraic(&poly, result_val - margin, result_val + margin);
-            mpz_poly_clear(&poly);
+            coeff_pool_clear(&poly);
             if (result)
                 result->trust = base->trust;
             return result;
@@ -2579,9 +2632,9 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 1;
-                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                poly.coeffs = coeff_pool_alloc(2);
                 if (!poly.coeffs) {
-                    mpz_poly_clear(&poly);
+                    coeff_pool_clear(&poly);
                     return NULL;
                 }
                 mpz_init(poly.coeffs[0]);
@@ -2600,7 +2653,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
 
                 SymbolicCoord *result =
                     symbolic_coord_create_algebraic(&poly, result_val - margin, result_val + margin);
-                mpz_poly_clear(&poly);
+                coeff_pool_clear(&poly);
                 if (result)
                     result->trust = TRUST_AMBER;
                 return result;
@@ -2943,9 +2996,9 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 4;
-                poly.coeffs = lv_malloc(5 * sizeof(mpz_t));
+                poly.coeffs = coeff_pool_alloc(5);
                 if (!poly.coeffs) {
-                    mpz_poly_clear(&poly);
+                    coeff_pool_clear(&poly);
                     return NULL;
                 }
 
@@ -3007,7 +3060,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
 
                 SymbolicCoord *result =
                     symbolic_coord_create_algebraic(&poly, result_val - margin, result_val + margin);
-                mpz_poly_clear(&poly);
+                coeff_pool_clear(&poly);
                 if (result)
                     result->trust = coord->trust;
                 return result;
@@ -3061,9 +3114,9 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             mpz_poly_t sqrt_poly;
             mpz_poly_init(&sqrt_poly);
             sqrt_poly.degree = new_deg;
-            sqrt_poly.coeffs = lv_malloc((new_deg + 1) * sizeof(mpz_t));
+            sqrt_poly.coeffs = coeff_pool_alloc(new_deg + 1);
             if (!sqrt_poly.coeffs) {
-                mpz_poly_clear(&sqrt_poly);
+                coeff_pool_clear(&sqrt_poly);
                 return NULL;
             }
 
@@ -3089,7 +3142,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 margin = lv_EPSILON_NEWTON;
 
             SymbolicCoord *result = symbolic_coord_create_algebraic(&sqrt_poly, sqrt_val - margin, sqrt_val + margin);
-            mpz_poly_clear(&sqrt_poly);
+            coeff_pool_clear(&sqrt_poly);
             if (result)
                 result->trust = coord->trust;
             return result;
@@ -3110,9 +3163,9 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 1;
-                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                poly.coeffs = coeff_pool_alloc(2);
                 if (!poly.coeffs) {
-                    mpz_poly_clear(&poly);
+                    coeff_pool_clear(&poly);
                     return NULL;
                 }
                 mpz_init(poly.coeffs[0]);
@@ -3130,7 +3183,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                     margin = lv_EPSILON_NEWTON;
 
                 SymbolicCoord *result = symbolic_coord_create_algebraic(&poly, sqrt_val - margin, sqrt_val + margin);
-                mpz_poly_clear(&poly);
+                coeff_pool_clear(&poly);
                 if (result)
                     result->trust = TRUST_AMBER;
                 return result;

@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
+#include "lv/solver_types.h"
 #include "lv/stream.h"
 
 #include "debug.h"
@@ -24,42 +25,10 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
-/* 共享宏 */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_ZERO_EPSILON 1e-12
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    lvDArray eqs; /**< PolyEquation 数组 */
-} EquationSystem;
-
 /* 脏变量集合结构体 */
 typedef struct {
     lvDArray dirty_ids; /**< 脏变量 ID 数组（lvDArray of int） */
 } DirtyVariableSet;
-
-/* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
-void equation_system_clear(EquationSystem *sys);
-void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
-void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count, int *multiple_solutions,
-                          bool *no_solution, bool do_substitute);
-void cleanup_groebner_result(GroebnerResult *result);
-SolverStatus groebner_basis_compute(EquationSystem *system);
 static void dirty_set_init(DirtyVariableSet *ds);
 static bool dirty_set_contains(DirtyVariableSet *ds, int var_id);
 static void dirty_set_add(DirtyVariableSet *ds, int var_id);
@@ -67,7 +36,13 @@ static void dirty_set_clear(DirtyVariableSet *ds);
 static void dirty_set_free(DirtyVariableSet *ds);
 static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered);
 
-lv_DECLARE_STREAM_CTX(solver);
+
+
+/* 前向声明（实现在其他 solver 子模块中） */
+void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
+void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count, int *multiple_solutions,
+                          bool *no_solution, bool do_substitute);
+void cleanup_groebner_result(GroebnerResult *result);
 
 /* ================================================================== */
 /*  脏变量集合（内联实现，因仅在增量模块中使用）                         */
@@ -222,7 +197,7 @@ static void propagate_dependency(const ConstraintGraph *graph, int var_id, bool 
 
 GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirty_var_ids, int n_dirty_vars) {
     if (!graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph is NULL");
 
     if (solver_stream_ctx) {
         StreamEvent ev;
@@ -349,7 +324,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
 
     GroebnerResult *result = lv_calloc(1, sizeof(GroebnerResult));
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "result allocation failed");
     result->solutions = NULL;
     result->solution_count = 0;
     result->unique = false;

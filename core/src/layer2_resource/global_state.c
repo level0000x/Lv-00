@@ -33,6 +33,7 @@
 /* ── 线程安全 ─────────────────────────────────────────────────────── */
 
 #include "lv/lv_thread.h"
+#include "lv_internal.h"
 
 static lv_mutex_t g_state_mutex;
 static lv_once_t g_state_once = lv_ONCE_INIT;
@@ -101,12 +102,12 @@ static lvGlobalState g_state = {0};
  */
 static int find_param_index(const char *key) {
     if (!key)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "key is NULL");
     for (int i = 0; i < g_state.param_count; i++) {
         if (strcmp(g_state.params[i].key, key) == 0)
             return i;
     }
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "param key not found");
 }
 
 /**
@@ -118,12 +119,12 @@ static int find_param_index(const char *key) {
  */
 static int find_or_create_param(const char *key, lvGsParamType type) {
     if (!key)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "key is NULL");
     int idx = find_param_index(key);
     if (idx >= 0)
         return idx;
     if (g_state.param_count >= lv_GS_MAX_PARAMS)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "param registry full (max %d)", lv_GS_MAX_PARAMS);
     idx = g_state.param_count++;
     memset(&g_state.params[idx], 0, sizeof(lvGsParam));
     strncpy(g_state.params[idx].key, key, lv_GS_MAX_KEY_LEN - 1);
@@ -190,12 +191,12 @@ bool lv_global_state_is_initialized(void) {
  */
 int lv_global_state_set_int(const char *key, int value) {
     if (!g_state.initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "global state not initialized");
     GS_LOCK();
     int idx = find_or_create_param(key, lv_GS_TYPE_INT);
     if (idx < 0) {
         GS_UNLOCK();
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to find or create param '%s'", key);
     }
     g_state.params[idx].value.int_val = value;
     g_state.params[idx].is_set = true;
@@ -239,12 +240,12 @@ int lv_global_state_get_int(const char *key, int default_val) {
  */
 int lv_global_state_set_double(const char *key, double value) {
     if (!g_state.initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "global state not initialized");
     GS_LOCK();
     int idx = find_or_create_param(key, lv_GS_TYPE_DOUBLE);
     if (idx < 0) {
         GS_UNLOCK();
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to find or create param '%s'", key);
     }
     g_state.params[idx].value.dbl_val = value;
     g_state.params[idx].is_set = true;
@@ -288,12 +289,12 @@ double lv_global_state_get_double(const char *key, double default_val) {
  */
 int lv_global_state_set_string(const char *key, const char *value) {
     if (!g_state.initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "global state not initialized");
     GS_LOCK();
     int idx = find_or_create_param(key, lv_GS_TYPE_STRING);
     if (idx < 0) {
         GS_UNLOCK();
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to find or create param '%s'", key);
     }
     if (value) {
         strncpy(g_state.params[idx].value.str_val, value, lv_GS_MAX_VALUE_LEN - 1);
@@ -342,12 +343,12 @@ const char *lv_global_state_get_string(const char *key, const char *default_val)
  */
 int lv_global_state_set_bool(const char *key, bool value) {
     if (!g_state.initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "global state not initialized");
     GS_LOCK();
     int idx = find_or_create_param(key, lv_GS_TYPE_BOOL);
     if (idx < 0) {
         GS_UNLOCK();
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to find or create param '%s'", key);
     }
     g_state.params[idx].value.bool_val = value;
     g_state.params[idx].is_set = true;
@@ -389,7 +390,7 @@ bool lv_global_state_get_bool(const char *key, bool default_val) {
  */
 int lv_global_state_reset(void) {
     if (!g_state.initialized)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "global state not initialized");
     GS_LOCK();
     g_state.param_count = 0;
     GS_UNLOCK();

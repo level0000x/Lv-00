@@ -18,6 +18,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
+#include "lv/solver_types.h"
 #include "lv/stream.h"
 
 #include "debug.h"
@@ -26,35 +27,8 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
-
 /* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+
 bool coord_to_double(const SymbolicCoord *c, double *out);
 void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
 bool point_coord(const GeomNode *pt, int idx, double *out);
@@ -427,7 +401,7 @@ int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
     }
     return added;
 push_error:
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "equation system push failed (OOM)");
 }
 
 /* ================================================================== */

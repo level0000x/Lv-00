@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_equation_extract.c
  * @brief 从约束图提取代数方程的增强版本
  *
@@ -18,38 +18,12 @@
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
 #include "lv/stream.h"
+#include "lv/solver_types.h"
 
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
-#include "stream_context_util.h"
-
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
 
 /* ── 直线方程结构体 ── */
 typedef struct {
@@ -57,16 +31,12 @@ typedef struct {
 } LineEquation;
 
 /* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+
 bool coord_to_double(const SymbolicCoord *c, double *out);
 bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale);
 void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
 bool point_coord(const GeomNode *pt, int idx, double *out);
 bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out);
-
-/* 流式上下文 */
-lv_DECLARE_STREAM_CTX(solver);
 
 /* ================================================================== */
 /*  PUBLIC API: solver_extract_equations_full                          */
@@ -74,7 +44,7 @@ lv_DECLARE_STREAM_CTX(solver);
 
 int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *out_system) {
     if (!graph || !out_system)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "solver_extract_equations_full: graph or out_system is NULL");
 
     int count = 0;
 
@@ -716,5 +686,5 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
 
     return count;
 push_error:
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "solver_extract_equations_full: push failed");
 }

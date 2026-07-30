@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_spec.c
  * @brief 几何规范描述解析与释放 —— Layer2 资源管理层
  *
@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_internal.h"
 
 /* ================================================================
  *  内部辅助：简易 JSON 字段提取
@@ -140,11 +141,11 @@ static lvGeoSpecPoint *parse_point(const char *json) {
     lvGeoSpecPoint *pt;
 
     if (!json)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "parse_point: json is NULL");
 
     pt = (lvGeoSpecPoint *) calloc(1, sizeof(lvGeoSpecPoint));
     if (!pt)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_point: calloc failed");
 
     /* 解析坐标，缺失时默认 (0, 0) */
     if (json_get_double(json, "x", &pt->x) != 0) {
@@ -169,11 +170,11 @@ static lvGeoSpecPolygon *parse_polygon(const char *json) {
     const char *pos;
 
     if (!json)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "parse_polygon: json is NULL");
 
     poly = (lvGeoSpecPolygon *) calloc(1, sizeof(lvGeoSpecPolygon));
     if (!poly)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_polygon: calloc failed");
 
     /* 解析顶点数量，默认三角形 */
     if (json_get_int(json, "count", &count) != 0 || count <= 0) {
@@ -189,7 +190,7 @@ static lvGeoSpecPolygon *parse_polygon(const char *json) {
     poly->pts = (lvGeoSpecPoint *) calloc((size_t) count, sizeof(lvGeoSpecPoint));
     if (!poly->pts) {
         free(poly);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_polygon: pts calloc failed");
     }
 
     /* 解析每个点坐标（从 "points" 数组顺序读取） */

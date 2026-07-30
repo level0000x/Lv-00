@@ -31,6 +31,7 @@
 #include "lv/lv.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
+#include "lv/lv_internal.h"
 
 /* ============== 兼容定义 ============== */
 
@@ -162,7 +163,7 @@ struct BootstrapDiffTest {
 BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name, const char *dsl_source) {
     BootstrapDiffTest *test = lv_calloc(1, sizeof(BootstrapDiffTest));
     if (!test) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bootstrap_diff_test_create: calloc failed");
     }
 
     test->test_name = lv_strdup_safe(test_name ? test_name : "unnamed");
@@ -200,12 +201,12 @@ void bootstrap_diff_test_destroy(BootstrapDiffTest *test) {
  */
 BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test) {
     if (!test || !g_initialized) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "bootstrap_diff_test_run: test is NULL or framework not initialized");
     }
 
     BootstrapDiffTestResult *result = lv_calloc(1, sizeof(BootstrapDiffTestResult));
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bootstrap_diff_test_run: calloc failed");
     }
 
     /* 差分测试逻辑：解析 DSL、通过 C API 执行、比较结果 */
@@ -339,7 +340,7 @@ RandomGeneratorConfig random_generator_default_config(void) {
 RandomGenerator *random_generator_create(const RandomGeneratorConfig *config) {
     RandomGenerator *gen = lv_calloc(1, sizeof(RandomGenerator));
     if (!gen) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "random_generator_create: calloc failed");
     }
 
     if (config) {
@@ -373,13 +374,13 @@ void random_generator_destroy(RandomGenerator *gen) {
  */
 void *random_generator_generate_graph(RandomGenerator *gen) {
     if (!gen) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "random_generator_generate_graph: gen is NULL");
     }
 
     /* 随机图生成：创建随机几何实体和约束 */
     ConstraintGraph *graph = graph_create();
     if (!graph) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "random_generator_generate_graph: graph_create failed");
     }
 
     /* 确定实体数量 */
@@ -431,7 +432,7 @@ void *random_generator_generate_graph(RandomGenerator *gen) {
  */
 char *random_generator_generate_dsl(RandomGenerator *gen) {
     if (!gen) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "random_generator_generate_dsl: gen is NULL");
     }
 
     /* 随机 DSL 生成：根据配置生成几何构造 DSL */
@@ -447,14 +448,14 @@ char *random_generator_generate_dsl(RandomGenerator *gen) {
 
     char *buf = (char *) lv_malloc(max_buf_size);
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "random_generator_generate_dsl: malloc failed");
     size_t remaining = max_buf_size;
     int pos = 0;
 
     int written = snprintf(buf + pos, remaining, "#version 5.0.0\n");
     if (written < 0 || (size_t) written >= remaining) {
         lv_free((void **) &buf);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "random_generator_generate_dsl: snprintf failed for version header");
     }
     pos += written;
     remaining -= (size_t) written;
@@ -466,7 +467,7 @@ char *random_generator_generate_dsl(RandomGenerator *gen) {
         written = snprintf(buf + pos, remaining, "Point P%u = (%.2f, %.2f);\n", i, x, y);
         if (written < 0 || (size_t) written >= remaining) {
             lv_free((void **) &buf);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "random_generator_generate_dsl: snprintf failed for point declaration");
         }
         pos += written;
         remaining -= (size_t) written;
@@ -484,7 +485,7 @@ char *random_generator_generate_dsl(RandomGenerator *gen) {
         written = snprintf(buf + pos, remaining, "Constraint %s(P%u, P%u);\n", constraint_types[type_idx], a, b);
         if (written < 0 || (size_t) written >= remaining) {
             lv_free((void **) &buf);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "random_generator_generate_dsl: snprintf failed for constraint");
         }
         pos += written;
         remaining -= (size_t) written;
@@ -493,7 +494,7 @@ char *random_generator_generate_dsl(RandomGenerator *gen) {
     written = snprintf(buf + pos, remaining, "Prove;\n");
     if (written < 0 || (size_t) written >= remaining) {
         lv_free((void **) &buf);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "random_generator_generate_dsl: snprintf failed for Prove directive");
     }
 
     return buf;
@@ -557,7 +558,7 @@ struct GraphIsomorphismComparator {
 GraphIsomorphismComparator *graph_isomorphism_create(void) {
     GraphIsomorphismComparator *comp = lv_calloc(1, sizeof(GraphIsomorphismComparator));
     if (!comp) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_isomorphism_create: calloc failed");
     }
 
     comp->ignore_ids = true;
@@ -1143,12 +1144,12 @@ bool primitive_wrapper_register(const char *name, void *c_api_func, const char *
 PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
     lv_UNUSED(params);
     if (!name || !g_initialized) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "primitive_wrapper_test: name is NULL or framework not initialized");
     }
 
     PrimitiveTestResult *result = lv_calloc(1, sizeof(PrimitiveTestResult));
     if (!result) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "primitive_wrapper_test: calloc failed");
     }
 
     result->primitive_name = name;
@@ -1258,7 +1259,7 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
     }
 
     lv_free((void **) &result);
-    return NULL;
+    lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "primitive_wrapper_test: primitive '%s' not found", name);
 }
 
 /**
@@ -1343,7 +1344,7 @@ struct TestOracle {
 TestOracle *test_oracle_create(void) {
     TestOracle *oracle = lv_calloc(1, sizeof(TestOracle));
     if (!oracle) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "test_oracle_create: calloc failed");
     }
 
     oracle->strict_mode = true;
@@ -1530,7 +1531,7 @@ bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle, const void *grap
  */
 char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t count, const char *format) {
     if (!results || count == 0) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "bootstrap_test_generate_report: results is NULL or count is 0");
     }
 
     /* 判断输出格式 */
@@ -1554,7 +1555,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
         size_t buf_size = 1024 + (size_t) count * 256;
         char *report = (char *) lv_malloc(buf_size);
         if (!report)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bootstrap_test_generate_report: malloc for JSON report failed");
 
         int pos = 0;
         pos += snprintf(report + pos, buf_size - (size_t) pos,
@@ -1612,7 +1613,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
     size_t buf_size = 1024 + (size_t) count * 128;
     char *report = (char *) lv_malloc(buf_size);
     if (!report)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bootstrap_test_generate_report: malloc for text report failed");
 
     int pos = 0;
     pos += snprintf(report + pos, buf_size - (size_t) pos,

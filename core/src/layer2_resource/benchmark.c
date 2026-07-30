@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 #include "lv/simd_ops.h"
@@ -124,7 +125,7 @@ struct lvBenchSuite {
 lvBenchSuite *lv_bench_suite_create(const char *name) {
     lvBenchSuite *suite = lv_calloc(1, sizeof(lvBenchSuite));
     if (!suite)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "suite calloc failed");
     if (name)
         lv_strlcpy(suite->name, name, sizeof(suite->name));
     suite->cases = lv_calloc(SUITE_INIT_CAPACITY, sizeof(lvBenchCase));
@@ -133,7 +134,7 @@ lvBenchSuite *lv_bench_suite_create(const char *name) {
         lv_free((void **) &suite->cases);
         lv_free((void **) &suite->results);
         lv_free((void **) &suite);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "cases or results calloc failed");
     }
     suite->case_capacity = SUITE_INIT_CAPACITY;
     return suite;
@@ -161,14 +162,14 @@ void lv_bench_suite_destroy(lvBenchSuite *suite) {
  */
 int lv_bench_suite_add(lvBenchSuite *suite, const lvBenchCase *case_) {
     if (!suite || !case_)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "suite or case_ is NULL");
     if (suite->case_count >= suite->case_capacity) {
         if (suite->case_capacity > INT_MAX / 2)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "case_capacity overflow");
         int new_cap = suite->case_capacity * 2;
         void *p = lv_realloc(suite->cases, (size_t) new_cap * sizeof(lvBenchCase));
         if (!p)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "realloc failed");
         suite->cases = p;
         suite->case_capacity = new_cap;
     }
@@ -297,7 +298,7 @@ lvBenchResult lv_benchmark_run_full(const lvBenchCase *case_) {
  */
 int lv_bench_suite_run(lvBenchSuite *suite) {
     if (!suite)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "suite is NULL");
     suite->result_count = 0;
     for (int i = 0; i < suite->case_count; i++) {
         lvBenchResult r = lv_benchmark_run_full(&suite->cases[i]);
@@ -527,8 +528,7 @@ static uint64_t bench_core_memory_pool(int iterations, void *user_data) {
 lvBenchSuite *lv_bench_run_core_tests(void) {
     lvBenchSuite *suite = lv_bench_suite_create("core");
     if (!suite)
-        return NULL;
-
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bench_suite_create failed");
     lvBenchCase cases[] = {
         {"symbolic_coord_create_destroy", bench_core_symbolic_coord, NULL, NULL, NULL, lv_BENCH_MIN_ITERATIONS,
          lv_BENCH_MAX_ITERATIONS, lv_BENCH_TARGET_TIME_SEC},
@@ -634,7 +634,7 @@ static uint64_t bench_memory_alloc_free_stress(int iterations, void *user_data) 
 lvBenchSuite *lv_bench_run_memory_tests(void) {
     lvBenchSuite *suite = lv_bench_suite_create("memory");
     if (!suite)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bench_suite_create failed");
 
     lvBenchCase cases[] = {
         {"lv_malloc_small", bench_memory_malloc_small, NULL, NULL, NULL, lv_BENCH_MIN_ITERATIONS,
@@ -807,7 +807,7 @@ static uint64_t bench_simd_matrix_vector(int iterations, void *user_data) {
 lvBenchSuite *lv_bench_run_simd_tests(void) {
     lvBenchSuite *suite = lv_bench_suite_create("simd");
     if (!suite)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bench_suite_create failed");
 
     lvBenchCase cases[] = {
         {"simd_vector_dot", bench_simd_vector_dot, NULL, NULL, NULL, lv_BENCH_MIN_ITERATIONS, lv_BENCH_MAX_ITERATIONS,
@@ -983,7 +983,7 @@ static uint64_t bench_thread_create_destroy(int iterations, void *user_data) {
 lvBenchSuite *lv_bench_run_thread_tests(void) {
     lvBenchSuite *suite = lv_bench_suite_create("thread");
     if (!suite)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bench_suite_create failed");
 
     lvBenchCase cases[] = {
         {"thread_pool_submit", bench_thread_submit, NULL, NULL, NULL, lv_BENCH_MIN_ITERATIONS, lv_BENCH_MAX_ITERATIONS,
@@ -1037,7 +1037,7 @@ char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
 
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, (size_t) suite->result_count * 256 + 256))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json_buf_init failed");
 
     lv_json_buf_append_raw(&buf, "{\n");
     lv_json_buf_append_fmt(&buf, "  \"name\": \"%s\",\n", suite->name);
@@ -1088,7 +1088,7 @@ char *lv_bench_suite_to_markdown(const lvBenchSuite *suite) {
 
     char *buf = (char *) lv_malloc((size_t) size);
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "malloc for markdown buf failed");
 
     char *p = buf;
     p += sprintf(p, "# 基准测试报告: %s\n\n", suite->name);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file gc_language.c
  * @brief GC（几何构造）语言解析模块 —— Layer2 资源管理层
  *
@@ -14,6 +14,8 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "lv/lv_internal.h"
 
 /* ================================================================
  *  内部状态（线程安全：使用线程局部存储）
@@ -79,7 +81,7 @@ static void gc_set_error(const char *msg) {
  */
 static const char *gc_skip_whitespace(const char *p) {
     if (!p)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "input pointer is NULL");
     while (*p && isspace((unsigned char) *p)) {
         p++;
     }
@@ -107,7 +109,7 @@ static int gc_is_ident_char(char c) {
  */
 static const char *gc_skip_line_comment(const char *p) {
     if (!p)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "input pointer is NULL");
     while (*p && *p != '\n') {
         p++;
     }
@@ -126,11 +128,11 @@ static const char *gc_parse_identifier(const char *p, char *buf, int bufsz) {
     int len = 0;
 
     if (!p || !buf || bufsz <= 0) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "invalid parameters (p=%p, buf=%p, bufsz=%d)", (const void *)p, (const void *)buf, bufsz);
     }
 
     if (!gc_is_ident_start(*p)) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "not an identifier start character: '%c'", *p);
     }
 
     while (*p && gc_is_ident_char(*p) && len < bufsz - 1) {
@@ -163,7 +165,7 @@ int lv_gc_parse(const char *source, void *engine) {
 
     if (!source) {
         gc_set_error("source is NULL");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "source is NULL");
     }
 
     /* 重置状态 */
@@ -194,7 +196,7 @@ int lv_gc_parse(const char *source, void *engine) {
             const char *next = gc_parse_identifier(p, ident, (int) sizeof(ident));
             if (!next) {
                 gc_set_error("failed to parse identifier");
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_PARSE, "failed to parse identifier");
             }
             /* 检查是否为已知关键字 */
             {
@@ -252,7 +254,7 @@ int lv_gc_parse(const char *source, void *engine) {
             char err_msg[64];
             snprintf(err_msg, sizeof(err_msg), "unexpected character '%c' (0x%02X)", *p, (unsigned char) *p);
             gc_set_error(err_msg);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PARSE, "unexpected character '%c' (0x%02X)", *p, (unsigned char) *p);
         }
     }
 

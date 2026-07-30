@@ -1,5 +1,6 @@
 #include "lv/lv_event_bus.h"
 #include "lv/lv_utils.h"
+#include "lv_internal.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,14 +27,14 @@ void lv_event_bus_cleanup(lvEventBus *bus) {
 
 int lv_event_subscribe(lvEventBus *bus, int event_type, lvEventCallbackFn callback, void *user_data) {
     if (!bus || !callback)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "bus or callback is NULL");
     if (bus->config.max_callbacks > 0 && bus->subscription_count >= bus->config.max_callbacks)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "max callbacks reached");
 
     int idx = bus->subscription_count;
     if (!lv_ensure_capacity((void **)&bus->subscriptions, idx + 1, &bus->subscription_capacity,
                             sizeof(lvEventSubscription), 1))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate subscription array");
 
     bus->subscriptions[idx].id = bus->next_id++;
     bus->subscriptions[idx].callback = callback;

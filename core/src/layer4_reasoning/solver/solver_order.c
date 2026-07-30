@@ -17,41 +17,15 @@
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
 #include "lv/stream.h"
+#include "lv/solver_types.h"
 
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
-#include "stream_context_util.h"
-
-/* 共享宏 */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
 
 /* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+
 
 /* ================================================================== */
 /*  内部: 基于约束图拓扑排序的变量消元顺序                               */
@@ -61,11 +35,11 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
                                           const int *dirty_var_ids, int dirty_count, int *out_count) {
     *out_count = 0;
     if (!graph || var_count == 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "order_variables_by_dependency: NULL graph or empty var_count");
 
     int *id_to_idx = lv_calloc((size_t) var_count, sizeof(int));
     if (!id_to_idx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "order_variables_by_dependency: lv_calloc for id_to_idx failed (count=%d)", var_count);
     for (int i = 0; i < var_count; i++)
         id_to_idx[i] = -1;
     for (int i = 0; i < var_count; i++) {
@@ -157,7 +131,7 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
         lv_free((void **) &in_degree);
         lv_free((void **) &in_subset);
         lv_free((void **) &id_to_idx);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "order_variables_by_dependency: lv_calloc for order failed (count=%d)", var_count);
     }
     int order_count = 0;
     bool *visited = lv_calloc((size_t) var_count, sizeof(bool));
@@ -228,11 +202,11 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     *out_order_count = 0;
 
     if (!graph || !sys)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "compute_elimination_order: NULL graph or sys");
 
     int *var_ids = lv_calloc((size_t) sys->count, sizeof(int));
     if (!var_ids)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "compute_elimination_order: lv_calloc for var_ids failed (count=%d)", sys->count);
     int var_count = 0;
 
     for (int i = 0; i < sys->count; i++) {
@@ -252,7 +226,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
 
     if (var_count == 0) {
         lv_free((void **) &var_ids);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "compute_elimination_order: no valid variables in equation system");
     }
 
     int *eq_count = lv_calloc((size_t) var_count, sizeof(int));
@@ -286,7 +260,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
         lv_free((void **) &var_ids);
         lv_free((void **) &eq_count);
         lv_free((void **) &constraint_count);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "compute_elimination_order: lv_calloc for weight failed (count=%d)", var_count);
     }
     for (int i = 0; i < var_count; i++) {
         weight[i] = eq_count[i] * 2 + constraint_count[i];
@@ -339,7 +313,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
         lv_free((void **) &weight);
         lv_free((void **) &in_degree);
         lv_free((void **) &var_ids);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "compute_elimination_order: lv_calloc for order failed (count=%d)", var_count);
     }
     int order_count = 0;
     bool *visited = lv_calloc((size_t) var_count, sizeof(bool));

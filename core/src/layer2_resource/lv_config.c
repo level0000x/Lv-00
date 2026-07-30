@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
@@ -211,7 +212,7 @@ const lvConfig *lv_config_current(void) {
  */
 int lv_config_apply(const lvConfig *cfg) {
     if (!cfg)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "cfg is NULL");
     g_active_config = *cfg;
     g_config_applied = 1;
     return 0;
@@ -589,21 +590,21 @@ static void json_config_double(const char *json, const char *key, double *out) {
  */
 int lv_config_load_json(const char *json_path) {
     if (!json_path)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "json_path is NULL");
     FILE *f = fopen(json_path, "rb");
     if (!f)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "failed to open config file");
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (sz <= 0 || sz > (1024 * 1024)) {
         fclose(f);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "invalid config file size");
     }
     char *buf = (char *) lv_malloc((size_t) sz + 1);
     if (!buf) {
         fclose(f);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate JSON buffer");
     }
     size_t n = fread(buf, 1, (size_t) sz, f);
     fclose(f);
@@ -682,8 +683,10 @@ int lv_config_load_json(const char *json_path) {
  * @return 写入的字符数（不含结尾 null），失败返回 -1
  */
 int lv_config_to_json(char *buf, size_t buf_size) {
-    if (!buf || buf_size < 64)
-        return -1;
+    if (!buf)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "buf is NULL");
+    if (buf_size < 64)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "buf_size < 64");
     const lvConfig *c = lv_config_current();
     return snprintf(
         buf, buf_size,

@@ -18,6 +18,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
 #include "lv/stream.h"
+#include "lv/solver_types.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -25,36 +26,8 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
-
 /* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
-void equation_system_clear(EquationSystem *sys);
+
 void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
 bool solve_linear(const mpz_poly_t *poly, double *x_out);
 void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, double value);
@@ -70,9 +43,6 @@ int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys);
 int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys);
 int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys);
 
-/* 流式上下文 */
-lv_DECLARE_STREAM_CTX(solver);
-
 /* ================================================================== */
 /*  PUBLIC API: eliminate_geometry                                     */
 /* ================================================================== */
@@ -85,10 +55,12 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
     EquationSystem sys;
     equation_system_init(&sys);
     extract_equations_from_constraints(graph, &sys);
+    PolyEquation *const eqs_arr = (PolyEquation *)sys.eqs.data;
+    const int eqs_count = sys.eqs.count;
 
-    bool *is_linear = lv_calloc((size_t) sys.count, sizeof(bool));
-    for (int i = 0; i < sys.count; i++) {
-        is_linear[i] = (sys.eqs[i].poly.degree <= 1);
+    bool *is_linear = lv_calloc((size_t) eqs_count, sizeof(bool));
+    for (int i = 0; i < eqs_count; i++) {
+        is_linear[i] = (eqs_arr[i].poly.degree <= 1);
     }
 
     bool any_eliminated = false;
@@ -98,35 +70,35 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
         int eid = eliminate_ids[e];
         bool found_linear = false;
 
-        for (int i = 0; i < sys.count; i++) {
-            if (sys.eqs[i].var_node_id != eid)
+        for (int i = 0; i < eqs_count; i++) {
+            if (eqs_arr[i].var_node_id != eid)
                 continue;
             if (!is_linear[i]) {
-                if (sys.eqs[i].poly.degree > 2)
+                if (eqs_arr[i].poly.degree > 2)
                     out_of_scope_found = true;
                 continue;
             }
 
             double val;
-            if (solve_linear(&sys.eqs[i].poly, &val)) {
-                substitute_solved(&sys, eid, sys.eqs[i].coord_index, val);
+            if (solve_linear(&eqs_arr[i].poly, &val)) {
+                substitute_solved(&sys, eid, eqs_arr[i].coord_index, val);
                 GeomNode *node = graph_get_node(graph, eid);
-                if (node && node->coord_count > sys.eqs[i].coord_index) {
+                if (node && node->coord_count > eqs_arr[i].coord_index) {
                     if (fabs(val) > 9.2e12) {
                         LOG_WARN("solver", "数值过大 (%.2f > 9.2e12)，使用近似有理数", val);
                         /* 降级：使用近似值创建坐标 */
                         SymbolicCoord *approx = symbolic_coord_create_rational(
                             (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
                         if (approx) {
-                            symbolic_coord_destroy(node->symbolic_coords[sys.eqs[i].coord_index]);
-                            node->symbolic_coords[sys.eqs[i].coord_index] = approx;
+                            symbolic_coord_destroy(node->symbolic_coords[eqs_arr[i].coord_index]);
+                            node->symbolic_coords[eqs_arr[i].coord_index] = approx;
                         }
                     } else {
                         SymbolicCoord *new_coord = symbolic_coord_create_rational(
                             (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
                         if (new_coord) {
-                            symbolic_coord_destroy(node->symbolic_coords[sys.eqs[i].coord_index]);
-                            node->symbolic_coords[sys.eqs[i].coord_index] = new_coord;
+                            symbolic_coord_destroy(node->symbolic_coords[eqs_arr[i].coord_index]);
+                            node->symbolic_coords[eqs_arr[i].coord_index] = new_coord;
                         }
                     }
                 }
@@ -181,26 +153,28 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
         tmpl_added += template_parallel_cut(graph, &tmpl_sys);
 
         if (tmpl_added > 0) {
+            PolyEquation *const tmpl_eqs = (PolyEquation *)tmpl_sys.eqs.data;
+            const int tmpl_eqs_count = tmpl_sys.eqs.count;
             for (int e = 0; e < elim_count; e++) {
                 int eid = eliminate_ids[e];
-                for (int i = 0; i < tmpl_sys.count; i++) {
-                    if (tmpl_sys.eqs[i].var_node_id != eid)
+                for (int i = 0; i < tmpl_eqs_count; i++) {
+                    if (tmpl_eqs[i].var_node_id != eid)
                         continue;
-                    if (tmpl_sys.eqs[i].poly.degree != 1)
+                    if (tmpl_eqs[i].poly.degree != 1)
                         continue;
 
                     double val;
-                    if (solve_linear(&tmpl_sys.eqs[i].poly, &val)) {
+                    if (solve_linear(&tmpl_eqs[i].poly, &val)) {
                         GeomNode *node = graph_get_node(graph, eid);
-                        if (node && node->coord_count > tmpl_sys.eqs[i].coord_index) {
+                        if (node && node->coord_count > tmpl_eqs[i].coord_index) {
                             if (fabs(val) > 9.2e12) {
                                 LOG_WARN("solver", "数值过大 (%.2f > 9.2e12)，使用近似有理数", val);
                                 /* 降级：使用近似值创建坐标 */
                                 SymbolicCoord *approx = symbolic_coord_create_rational(
                                     (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
                                 if (approx) {
-                                    symbolic_coord_destroy(node->symbolic_coords[tmpl_sys.eqs[i].coord_index]);
-                                    node->symbolic_coords[tmpl_sys.eqs[i].coord_index] = approx;
+                                    symbolic_coord_destroy(node->symbolic_coords[tmpl_eqs[i].coord_index]);
+                                    node->symbolic_coords[tmpl_eqs[i].coord_index] = approx;
                                     any_eliminated = true;
                                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,
                                                        "变量解得 (几何模板)", eid);
@@ -209,8 +183,8 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                                 SymbolicCoord *new_coord = symbolic_coord_create_rational(
                                     (int64_t) (val * lv_SOLVER_SCALE_FACTOR), lv_SOLVER_SCALE_FACTOR);
                                 if (new_coord) {
-                                    symbolic_coord_destroy(node->symbolic_coords[tmpl_sys.eqs[i].coord_index]);
-                                    node->symbolic_coords[tmpl_sys.eqs[i].coord_index] = new_coord;
+                                    symbolic_coord_destroy(node->symbolic_coords[tmpl_eqs[i].coord_index]);
+                                    node->symbolic_coords[tmpl_eqs[i].coord_index] = new_coord;
                                     any_eliminated = true;
                                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,
                                                        "变量解得 (几何模板)", eid);
@@ -259,22 +233,24 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
     EquationSystem sys;
     equation_system_init(&sys);
     extract_equations_from_constraints(graph, &sys);
+    PolyEquation *const eqs_arr = (PolyEquation *)sys.eqs.data;
+    const int eqs_count = sys.eqs.count;
 
     if (solver_stream_ctx) {
         StreamEvent ev;
         memset(&ev, 0, sizeof(ev));
         ev.type = STREAM_EVENT_SOLVE_EQUATION_EXTRACTED;
         ev.timestamp_ms = stream_timestamp_ms();
-        ev.step_number = sys.count;
+        ev.step_number = eqs_count;
         ev.var_id = var_id;
         ev.description = "方程系统已提取，开始诊断";
         stream_emit(solver_stream_ctx, &ev);
     }
 
     mpz_poly_t *target_poly = NULL;
-    for (int i = 0; i < sys.count; i++) {
-        if (sys.eqs[i].var_node_id == var_id && sys.eqs[i].poly.degree > 3) {
-            target_poly = &sys.eqs[i].poly;
+    for (int i = 0; i < eqs_count; i++) {
+        if (eqs_arr[i].var_node_id == var_id && eqs_arr[i].poly.degree > 3) {
+            target_poly = &eqs_arr[i].poly;
             break;
         }
     }

@@ -11,6 +11,7 @@
  */
 
 #include "lv/math_protocol.h"
+#include "lv/lv_internal.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -45,7 +46,7 @@ static char *proto_append(char *out, const char *buf_end, const char *fmt, ...) 
     int written;
 
     if (!out || !buf_end || out >= buf_end) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "proto_append: 无效参数 (out=%p, buf_end=%p)", out, buf_end);
     }
 
     va_start(args, fmt);
@@ -53,7 +54,7 @@ static char *proto_append(char *out, const char *buf_end, const char *fmt, ...) 
     va_end(args);
 
     if (written < 0 || (size_t) written >= (size_t) (buf_end - out)) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_BUFFER_TOO_SMALL, "proto_append: 缓冲区空间不足");
     }
     return out + written;
 }
@@ -65,7 +66,7 @@ static char *proto_append(char *out, const char *buf_end, const char *fmt, ...) 
  */
 static const char *proto_skip_ws(const char *p) {
     if (!p)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "proto_skip_ws: 输入指针为 NULL");
     while (*p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')) {
         p++;
     }
@@ -84,7 +85,7 @@ static const char *proto_parse_string(const char *p, char *buf, int bufsz) {
     int len = 0;
 
     if (!p || !buf || bufsz <= 0) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "proto_parse_string: 无效参数 (p=%p, buf=%p, bufsz=%d)", p, buf, bufsz);
     }
 
     while (*p && *p != '"' && len < bufsz - 1) {
@@ -121,7 +122,7 @@ static const char *proto_parse_string(const char *p, char *buf, int bufsz) {
     if (*p == '"') {
         return p + 1; /* 跳过闭合引号 */
     }
-    return NULL; /* 未找到闭合引号 */
+    lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "proto_parse_string: 未找到闭合引号");
 }
 
 /**
@@ -162,14 +163,14 @@ static int proto_escaped_length(const char *str) {
  */
 static char *proto_write_escaped_string(char *out, const char *buf_end, const char *str) {
     if (!out || !buf_end || out >= buf_end)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "proto_write_escaped_string: 无效参数 (out=%p, buf_end=%p)", out, buf_end);
     if (!str)
         str = "";
 
     /* 写入开头引号 */
     *out++ = '"';
     if (out >= buf_end)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_BUFFER_TOO_SMALL, "proto_write_escaped_string: 写入开头引号后缓冲区不足");
 
     while (*str && out < buf_end - 1) {
         switch (*str) {
@@ -202,7 +203,7 @@ static char *proto_write_escaped_string(char *out, const char *buf_end, const ch
 
     /* 写入闭合引号 */
     if (out >= buf_end)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_BUFFER_TOO_SMALL, "proto_write_escaped_string: 写入闭合引号前缓冲区不足");
     *out++ = '"';
     return out;
 }
@@ -274,7 +275,7 @@ int lv_math_protocol_encode(void *data, char *out, size_t buf_size) {
     int first_item;
 
     if (!out || buf_size < 16) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "encode: 输出缓冲区无效 (out=%p, buf_size=%zu)", out, buf_size);
     }
 
     buf_end = out + buf_size;
@@ -283,12 +284,12 @@ int lv_math_protocol_encode(void *data, char *out, size_t buf_size) {
     /* 写入协议头 */
     p = proto_append(p, buf_end, "{\"_v\":%d", MATH_PROTO_VERSION);
     if (!p)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入协议头版本号时缓冲区不足");
 
     /* 写入数据类型标记 */
     p = proto_append(p, buf_end, ",\"_type\":\"%s\"", MATH_PROTO_TYPE_OBJECT);
     if (!p)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入类型标记时缓冲区不足");
 
     if (data) {
         ConstraintGraph *graph = (ConstraintGraph *) data;
@@ -296,17 +297,17 @@ int lv_math_protocol_encode(void *data, char *out, size_t buf_size) {
         /* 编码基本统计信息 */
         p = proto_append(p, buf_end, ",\"node_count\":%d", graph->node_count);
         if (!p)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入 node_count 时缓冲区不足");
         p = proto_append(p, buf_end, ",\"constraint_count\":%d", graph->constraint_count);
         if (!p)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入 constraint_count 时缓冲区不足");
 
         /* ================================================
          *  编码节点数组
          * ================================================ */
         p = proto_append(p, buf_end, ",\"nodes\":[");
         if (!p)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入节点数组起始时缓冲区不足");
 
         first_item = 1;
         for (i = 0; i < graph->node_count; i++) {
@@ -317,14 +318,14 @@ int lv_math_protocol_encode(void *data, char *out, size_t buf_size) {
             if (!first_item) {
                 p = proto_append(p, buf_end, ",");
                 if (!p)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入节点分隔符时缓冲区不足");
             }
             first_item = 0;
 
             p = proto_append(p, buf_end, "{\"id\":%d,\"type\":\"%s\",\"coord_count\":%d", node->id,
                              geom_type_name(node->type), node->coord_count);
             if (!p)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入节点基本信息时缓冲区不足");
 
             /* 函数块额外信息 */
             if (node->type == GEOM_FUNCTION_BLOCK) {
@@ -332,7 +333,7 @@ int lv_math_protocol_encode(void *data, char *out, size_t buf_size) {
                                  node->data.func_block.internal_node_count, node->data.func_block.input_count,
                                  node->data.func_block.output_count);
                 if (!p)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入函数块信息时缓冲区不足");
             }
 
             /* 端口额外信息 */
@@ -340,24 +341,24 @@ int lv_math_protocol_encode(void *data, char *out, size_t buf_size) {
                 p = proto_append(p, buf_end, ",\"port_type\":%d,\"parent_block_id\":%d", node->data.port->type,
                                  node->data.port->parent_block_id);
                 if (!p)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入端口信息时缓冲区不足");
             }
 
             p = proto_append(p, buf_end, "}");
             if (!p)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入节点闭合时缓冲区不足");
         }
 
         p = proto_append(p, buf_end, "]");
         if (!p)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入节点数组结束时缓冲区不足");
 
         /* ================================================
          *  编码约束数组
          * ================================================ */
         p = proto_append(p, buf_end, ",\"constraints\":[");
         if (!p)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入约束数组起始时缓冲区不足");
 
         first_item = 1;
         for (i = 0; i < graph->constraint_count; i++) {
@@ -370,46 +371,46 @@ int lv_math_protocol_encode(void *data, char *out, size_t buf_size) {
             if (!first_item) {
                 p = proto_append(p, buf_end, ",");
                 if (!p)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入约束分隔符时缓冲区不足");
             }
             first_item = 0;
 
             p = proto_append(p, buf_end, "{\"id\":%d,\"ctype\":\"%s\",\"participants\":[", con->id,
                              constraint_type_name(con->type));
             if (!p)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入约束基本信息时缓冲区不足");
 
             for (j = 0; j < con->participant_count; j++) {
                 if (j > 0) {
                     p = proto_append(p, buf_end, ",");
                     if (!p)
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入参与者分隔符时缓冲区不足");
                 }
                 p = proto_append(p, buf_end, "%d", con->participants[j]);
                 if (!p)
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入参与者 ID 时缓冲区不足");
             }
 
             p = proto_append(p, buf_end, "]}");
             if (!p)
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入约束对象结束时缓冲区不足");
         }
 
         p = proto_append(p, buf_end, "]");
         if (!p)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入约束数组结束时缓冲区不足");
 
         p = proto_append(p, buf_end, ",\"status\":\"ok\"");
     } else {
         p = proto_append(p, buf_end, ",\"status\":\"ok\",\"data\":null");
     }
     if (!p)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入状态字段时缓冲区不足");
 
     /* 闭合 JSON 对象 */
     p = proto_append(p, buf_end, "}");
     if (!p)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "encode: 写入 JSON 闭合时缓冲区不足");
 
     return (int) (p - out);
 }
@@ -445,11 +446,11 @@ static const char *proto_parse_int(const char *p, int *out_val) {
     int val = 0;
 
     if (!p || !out_val)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "proto_parse_int: 无效参数 (p=%p, out_val=%p)", p, out_val);
 
     p = proto_skip_ws(p);
     if (!p)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "proto_parse_int: 跳过空白后指针为 NULL");
 
     if (*p == '-') {
         sign = -1;
@@ -457,7 +458,7 @@ static const char *proto_parse_int(const char *p, int *out_val) {
     }
 
     if (*p < '0' || *p > '9')
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "proto_parse_int: 非数字字符 '%c'", *p);
 
     while (*p >= '0' && *p <= '9') {
         val = val * 10 + (*p - '0');
@@ -490,21 +491,21 @@ int lv_math_protocol_decode(const char *in, void *out) {
     ConstraintGraph *graph = NULL;
 
     if (!in) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "decode: 输入字符串为 NULL");
     }
 
     /* 如果 out 非 NULL，预创建约束图 */
     if (out_graph) {
         graph = graph_create();
         if (!graph)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "decode: graph_create() 分配失败");
     }
 
     p = proto_skip_ws(in);
     if (!p || *p != '{') {
         if (graph)
             graph_destroy(graph);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: JSON 首字符不是 '{'");
     }
     p++;
 
@@ -514,7 +515,7 @@ int lv_math_protocol_decode(const char *in, void *out) {
         if (!p) {
             if (graph)
                 graph_destroy(graph);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: 跳过空白后指针为 NULL");
         }
 
         /* 对象结束 */
@@ -522,7 +523,7 @@ int lv_math_protocol_decode(const char *in, void *out) {
             if (!found_version) {
                 if (graph)
                     graph_destroy(graph);
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: JSON 对象缺少版本号字段 '_v'");
             }
             if (out_graph && graph) {
                 *out_graph = graph;
@@ -540,13 +541,13 @@ int lv_math_protocol_decode(const char *in, void *out) {
         if (*p != '"') {
             if (graph)
                 graph_destroy(graph);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: 键名不以引号开头 (字符 '%c')", *p);
         }
         p = proto_parse_string(p + 1, key, (int) sizeof(key));
         if (!p) {
             if (graph)
                 graph_destroy(graph);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: 解析键名字符串失败");
         }
 
         /* 解析冒号 */
@@ -554,14 +555,14 @@ int lv_math_protocol_decode(const char *in, void *out) {
         if (!p || *p != ':') {
             if (graph)
                 graph_destroy(graph);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: 键名后缺少冒号");
         }
         p++;
         p = proto_skip_ws(p);
         if (!p) {
             if (graph)
                 graph_destroy(graph);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: 冒号后跳过空白时指针为 NULL");
         }
 
         /* 解析值 */
@@ -571,7 +572,7 @@ int lv_math_protocol_decode(const char *in, void *out) {
             if (!p) {
                 if (graph)
                     graph_destroy(graph);
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: 解析字符串值失败");
             }
         } else if (*p == '{' || *p == '[') {
             /* 嵌套结构：跳过（简单实现） */
@@ -589,7 +590,7 @@ int lv_math_protocol_decode(const char *in, void *out) {
             if (depth != 0) {
                 if (graph)
                     graph_destroy(graph);
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: 嵌套结构未正确闭合");
             }
         } else {
             /* 数值：解析并记录统计字段 */
@@ -618,5 +619,5 @@ int lv_math_protocol_decode(const char *in, void *out) {
 
     if (graph)
         graph_destroy(graph);
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_PARSE, "decode: JSON 输入意外结束，未找到闭合 '}'");
 }

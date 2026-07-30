@@ -17,6 +17,7 @@
 #include "lv/debug.h"
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
 
 /* ========================================================================
  * 追踪会话管理
@@ -51,13 +52,13 @@ static DebugTraceState g_trace_state = {0};
 TraceSession *trace_session_create(void) {
     TraceSession *session = (TraceSession *) lv_calloc(1, sizeof(TraceSession));
     if (session == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "session calloc failed");
 
     session->capacity = INITIAL_EVENT_CAPACITY;
     session->events = (TraceEvent *) lv_calloc((size_t) session->capacity, sizeof(TraceEvent));
     if (session->events == NULL) {
         lv_free((void **) &session);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "events calloc failed");
     }
 
     session->event_count = 0;
@@ -110,7 +111,7 @@ void trace_record_event(TraceSession *session, TraceEventType type, int step, co
 int debug_trace_add_breakpoint(TraceEventType type, int step_number) {
     DebugTraceState *state = &g_trace_state;
     if (state->breakpoint_count >= MAX_BREAKPOINTS)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "breakpoint limit reached");
 
     TraceBreakpoint *bp = &state->breakpoints[state->breakpoint_count++];
     bp->type = type;
@@ -158,11 +159,11 @@ int debug_trace_check_breakpoint(TraceEventType type, int step) {
 /** @brief 将追踪会话导出为 JSON 字符串 */
 char *trace_session_export_json(const TraceSession *session) {
     if (session == NULL)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "session is NULL");
 
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, (size_t) session->event_count * 256 + 256))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json buffer init failed");
 
     lv_json_buf_append_fmt(&buf, "{\"event_count\":%d,\"events\":[\n", session->event_count);
 

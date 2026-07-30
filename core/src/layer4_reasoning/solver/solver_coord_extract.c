@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_coord_extract.c
  * @brief 坐标提取与方程提取
  *
@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
+#include "lv/solver_types.h"
 #include "lv/stream.h"
 
 #include "debug.h"
@@ -47,7 +48,7 @@ static inline int coeff_pool_init(void) {
         /* block_size = sizeof(mpz_t) * 8，覆盖 degree≤2 的系数数组；
            初始 256 块，典型单次提取调用不会超限。 */
         g_coeff_pool = lv_mempool_create(sizeof(mpz_t) * 8, 256);
-        if (!g_coeff_pool) return -1;
+        if (!g_coeff_pool) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "coeff_pool_init: lv_mempool_create failed");
     }
     return 0;
 }
@@ -59,7 +60,7 @@ static inline int coeff_pool_init(void) {
  */
 static inline mpz_t *coeff_pool_alloc(int count) {
     if (!g_coeff_pool && coeff_pool_init() != 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_INITIALIZED, "coeff_pool_alloc: coefficient pool not initialized");
     mpz_t *c = (mpz_t *)lv_mempool_alloc(g_coeff_pool);
     if (!c) {
         /* 池满回退到 lv_malloc */
@@ -85,29 +86,10 @@ static inline void coeff_pool_clear(mpz_poly_t *p) {
     p->degree = -1;
 }
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
-
-/* --- 方程系统类型定义（与其他 solver 子模块保持一致）--- */
-typedef struct PolyEquation {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    lvDArray eqs; /**< PolyEquation 数组 */
-} EquationSystem;
-
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
-
-/** @brief 添加方程到方程系统 */
+/** @brief 添加方程到方程系统（声明在 solver_types.h 中） */
 static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
     if (!lv_darray_reserve(&sys->eqs, sys->eqs.count + 1))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "equation_system_push_impl: lv_darray_reserve failed (count=%d)", sys->eqs.count + 1);
     PolyEquation *slot = (PolyEquation *)((char *)sys->eqs.data + (size_t)sys->eqs.count * sizeof(PolyEquation));
     slot->var_node_id = var_node_id;
     slot->coord_index = coord_index;
@@ -117,33 +99,9 @@ static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int v
     return 0;
 }
 
-/* equation_system_push 实现在 solver_eq_system.c 中，通过前向声明可见 */
+/* equation_system_push/clear 实现在 solver_eq_system.c 中，由 solver_types.h 声明 */
 
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── 坐标提取与方程提取 ── */
-
-/**
- * 清除方程系统并释放所有资源。
- *
- * @param sys 方程系统指针
- */
-static void equation_system_clear(EquationSystem *sys) {
-    if (!sys)
-        return;
-    for (int i = 0; i < sys->eqs.count; i++) {
-        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
-        if (eq)
-            mpz_poly_clear(&eq->poly);
-    }
-    lv_darray_free(&sys->eqs);
-}
+/* ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ */
 /*  内部：从 SymbolicCoord 提取数值的辅助函数                          */
@@ -1455,7 +1413,7 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
     /* 收集所有不重复的变量节点 id */
     int *var_ids = lv_malloc((size_t) sys->eqs.count * sizeof(int));
     if (!var_ids)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_var_info: lv_malloc for var_ids failed (count=%d)", sys->eqs.count);
     int var_count = 0;
     for (int i = 0; i < sys->eqs.count; i++) {
         PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
@@ -1476,7 +1434,7 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
     if (var_count == 0) {
         lv_free((void **) &var_ids);
         *out_var_count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "build_var_info: no variables found in equation system (eqs.count=%d)", sys->eqs.count);
     }
 
     VarInfo *info = lv_calloc((size_t) var_count, sizeof(VarInfo));

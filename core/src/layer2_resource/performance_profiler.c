@@ -16,6 +16,7 @@
 #include "lv/lv_platform.h"
 
 #include "lv/performance_profiler.h"
+#include "lv/lv_internal.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -90,13 +91,13 @@ struct lvPerfSession {
  */
 static int find_region(const lvPerfSession *session, const char *name) {
     if (!session || !name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "session or name is NULL");
     for (int i = 0; i < session->region_count; i++) {
         if (strcmp(session->regions[i].name, name) == 0) {
             return i;
         }
     }
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "region not found");
 }
 
 /**
@@ -105,12 +106,12 @@ static int find_region(const lvPerfSession *session, const char *name) {
  */
 static int get_or_create_region(lvPerfSession *session, const char *name) {
     if (!session || !name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "session or name is NULL");
     int idx = find_region(session, name);
     if (idx >= 0)
         return idx;
     if (session->region_count >= MAX_REGIONS)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "region capacity exhausted");
     idx = session->region_count++;
     session->regions[idx].name = lv_strdup_safe(name);
     session->regions[idx].count = 0;
@@ -128,13 +129,13 @@ static int get_or_create_region(lvPerfSession *session, const char *name) {
  */
 static int find_mem_stat(const lvPerfSession *session, const char *type_name) {
     if (!session || !type_name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "session or type_name is NULL");
     for (int i = 0; i < session->mem_count; i++) {
         if (strcmp(session->mem_stats[i].type_name, type_name) == 0) {
             return i;
         }
     }
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "mem stat not found");
 }
 
 /**
@@ -143,12 +144,12 @@ static int find_mem_stat(const lvPerfSession *session, const char *type_name) {
  */
 static int get_or_create_mem_stat(lvPerfSession *session, const char *type_name) {
     if (!session || !type_name)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "session or type_name is NULL");
     int idx = find_mem_stat(session, type_name);
     if (idx >= 0)
         return idx;
     if (session->mem_count >= MAX_MEM_TYPES)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "mem stat capacity exhausted");
     idx = session->mem_count++;
     session->mem_stats[idx].type_name = lv_strdup_safe(type_name);
     session->mem_stats[idx].total_alloc_bytes = 0;
@@ -166,7 +167,7 @@ int lv_perf_benchmark_run(const char *name, void (*fn)(void), void *setup_fn, lv
     (void) setup_fn; /* 当前未使用 */
 
     if (!fn || !result)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "fn or result is NULL");
 
     /* ---- 预热阶段 ---- */
     for (int i = 0; i < WARMUP_ITERS; i++) {
@@ -372,7 +373,7 @@ void lv_perf_report_print(const lvPerfSession *session, FILE *out) {
 
 int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t buffer_size) {
     if (!session || !buffer || buffer_size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "session, buffer or buffer_size is invalid");
 
     int written = 0;
     const char *fmt;
@@ -382,14 +383,14 @@ int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t bu
     fmt = "{\"name\":\"%s\"";
     ret = snprintf(buffer + written, buffer_size - (size_t) written, fmt, session->name);
     if (ret < 0 || (size_t) ret >= buffer_size - (size_t) written)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to write JSON header");
     written += ret;
 
     /* ---- 区域数组 ---- */
     fmt = ",\"regions\":[";
     ret = snprintf(buffer + written, buffer_size - (size_t) written, "%s", fmt);
     if (ret < 0 || (size_t) ret >= buffer_size - (size_t) written)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to write JSON regions array header");
     written += ret;
 
     for (int i = 0; i < session->region_count; i++) {
@@ -399,21 +400,21 @@ int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t bu
         ret = snprintf(buffer + written, buffer_size - (size_t) written, fmt, r->name, r->count,
                        (unsigned long long) r->total_ns);
         if (ret < 0 || (size_t) ret >= buffer_size - (size_t) written)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to write JSON region entry");
         written += ret;
     }
 
     fmt = "]";
     ret = snprintf(buffer + written, buffer_size - (size_t) written, "%s", fmt);
     if (ret < 0 || (size_t) ret >= buffer_size - (size_t) written)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to write JSON regions array trailer");
     written += ret;
 
     /* ---- 内存数组 ---- */
     fmt = ",\"memory\":[";
     ret = snprintf(buffer + written, buffer_size - (size_t) written, "%s", fmt);
     if (ret < 0 || (size_t) ret >= buffer_size - (size_t) written)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to write JSON memory array header");
     written += ret;
 
     for (int i = 0; i < session->mem_count; i++) {
@@ -423,21 +424,21 @@ int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t bu
         ret = snprintf(buffer + written, buffer_size - (size_t) written, fmt, m->type_name, m->total_alloc_bytes,
                        m->total_free_bytes, (ptrdiff_t) (m->total_alloc_bytes - m->total_free_bytes));
         if (ret < 0 || (size_t) ret >= buffer_size - (size_t) written)
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to write JSON memory entry");
         written += ret;
     }
 
     fmt = "]";
     ret = snprintf(buffer + written, buffer_size - (size_t) written, "%s", fmt);
     if (ret < 0 || (size_t) ret >= buffer_size - (size_t) written)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to write JSON memory array trailer");
     written += ret;
 
     /* ---- 收尾 ---- */
     fmt = "}";
     ret = snprintf(buffer + written, buffer_size - (size_t) written, "%s", fmt);
     if (ret < 0 || (size_t) ret >= buffer_size - (size_t) written)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to write JSON footer");
     written += ret;
 
     return written; /* 不含末尾 '\0' */

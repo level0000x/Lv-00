@@ -1586,20 +1586,20 @@ static bool execute_hol_light(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 int dep_id = step->dependency_step_ids[d];
                 if (dep_id >= 0 && dep_id < step_count) {
                     const ProofStep *dep = nav->steps[dep_id];
-                    if (dep && dep->conclusion)
-                        premises[premise_count++] = dep->conclusion;
+                    if (dep && dep->ext && dep->ext->conclusion)
+                        premises[premise_count++] = dep->ext->conclusion;
                 }
             }
         }
         premises[premise_count] = NULL;
 
         /* 检查步骤是否有结论 */
-        if (!step->conclusion)
+        if (!step->ext || !step->ext->conclusion)
             continue;
 
         /* 执行 HOL Light 验证 */
         char *trace = NULL;
-        VerifyResult result = proof_minimal_verify(rule, premises, step->conclusion, &trace);
+        VerifyResult result = proof_minimal_verify(rule, premises, step->ext->conclusion, &trace);
 
         if (result != VERIFY_VALID) {
             all_valid = false;
@@ -1954,94 +1954,81 @@ static bool execute_lambda_unify(ProofMultiStrategy *mse, ProofNavigator *nav) {
 /* ============== 策略注册表 ============== */
 
 /**
- * @brief 获取默认策略描述符
+ * @brief 策略注册项：用于定义默认策略表，消除 fill_default_descriptor 的巨量 switch
+ */
+typedef struct {
+    ProofStrategyType type;
+    const char *name;
+    const char *description;
+    bool (*applicability_check)(const struct ProofMultiStrategy *, const ConstraintGraph *, const Proposition *);
+    bool (*execute)(struct ProofMultiStrategy *, ProofNavigator *);
+} StrategyRegistration;
+
+/** @brief 默认策略注册表（新增策略只需在这里添加一条记录） */
+static const StrategyRegistration default_strategy_table[] = {
+    {PROOF_STRATEGY_DIRECT_CONSTRUCTION, "直接构造法",
+     "通过几何构造直接满足命题模式，构造即证明",
+     default_applicability_check, execute_direct_construction},
+
+    {PROOF_STRATEGY_AREA_METHOD, "面积法",
+     "利用面积关系和消点法进行几何推理（借鉴JGEX面积法）",
+     area_method_applicability_check, execute_area_method},
+
+    {PROOF_STRATEGY_GROEBNER_BASIS, "Groebner基法",
+     "将几何约束转化为多项式方程组，使用Buchberger算法求解",
+     groebner_applicability_check, execute_groebner_basis},
+
+    {PROOF_STRATEGY_VECTOR_METHOD, "向量法",
+     "使用矢量代数进行几何关系推导",
+     default_applicability_check, execute_vector_method},
+
+    {PROOF_STRATEGY_FULL_ANGLE_METHOD, "全角法",
+     "利用全角关系进行角度推理和消点（借鉴JGEX全角法）",
+     default_applicability_check, execute_full_angle_method},
+
+    {PROOF_STRATEGY_DEDUCTIVE_DATABASE, "演绎数据库法",
+     "前向链推理，从已知条件逐步演绎新事实",
+     default_applicability_check, execute_deductive_database},
+
+    {PROOF_STRATEGY_COORDINATE, "坐标法",
+     "建立坐标系，使用解析几何方法进行计算和验证",
+     default_applicability_check, execute_coordinate},
+
+    {PROOF_STRATEGY_LAMBDA_CALCULUS, "λ-演算归约法",
+     "通过 β-归约化简 λ-项，基于 Church 编码进行函数式计算",
+     lambda_calculus_applicability_check, execute_lambda_calculus},
+
+    {PROOF_STRATEGY_LAMBDA_UNIFY, "λ-演算合一法",
+     "通过 λ-项模式合一自动匹配并实例化证明中的变量",
+     lambda_unify_applicability_check, execute_lambda_unify},
+
+    {PROOF_STRATEGY_HOL_LIGHT, "HOL Light 微内核验证",
+     "使用 10 条基本推理规则验证证明步骤的形式化正确性",
+     default_applicability_check, execute_hol_light},
+
+    {PROOF_STRATEGY_ORACLE, "Oracle法",
+     "调用外部求解器辅助验证非构造性命題",
+     NULL, execute_oracle},
+};
+
+/**
+ * @brief 获取默认策略描述符 — 从策略注册表填充
  *
  * 为每种策略类型预填充名称、描述、适用性检查和执行函数。
+ * 新增策略只需在 default_strategy_table 中添加一条记录。
  */
 static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategyType type) {
     memset(desc, 0, sizeof(*desc));
     desc->type = type;
 
-    switch (type) {
-        case PROOF_STRATEGY_DIRECT_CONSTRUCTION:
-            desc->name = lv_strdup_safe("直接构造法");
-            desc->description = lv_strdup_safe("通过几何构造直接满足命题模式，构造即证明");
-            desc->applicability_check = default_applicability_check;
-            desc->execute = execute_direct_construction;
+    for (size_t i = 0; i < sizeof(default_strategy_table) / sizeof(default_strategy_table[0]); i++) {
+        if (default_strategy_table[i].type == type) {
+            desc->name = lv_strdup_safe(default_strategy_table[i].name);
+            desc->description = lv_strdup_safe(default_strategy_table[i].description);
+            desc->applicability_check = default_strategy_table[i].applicability_check;
+            desc->execute = default_strategy_table[i].execute;
             break;
-
-        case PROOF_STRATEGY_AREA_METHOD:
-            desc->name = lv_strdup_safe("面积法");
-            desc->description = lv_strdup_safe("利用面积关系和消点法进行几何推理（借鉴JGEX面积法）");
-            desc->applicability_check = area_method_applicability_check;
-            desc->execute = execute_area_method;
-            break;
-
-        case PROOF_STRATEGY_GROEBNER_BASIS:
-            desc->name = lv_strdup_safe("Groebner基法");
-            desc->description = lv_strdup_safe("将几何约束转化为多项式方程组，使用Buchberger算法求解");
-            desc->applicability_check = groebner_applicability_check;
-            desc->execute = execute_groebner_basis;
-            break;
-
-        case PROOF_STRATEGY_VECTOR_METHOD:
-            desc->name = lv_strdup_safe("向量法");
-            desc->description = lv_strdup_safe("使用矢量代数进行几何关系推导");
-            desc->applicability_check = default_applicability_check;
-            desc->execute = execute_vector_method;
-            break;
-
-        case PROOF_STRATEGY_FULL_ANGLE_METHOD:
-            desc->name = lv_strdup_safe("全角法");
-            desc->description = lv_strdup_safe("利用全角关系进行角度推理和消点（借鉴JGEX全角法）");
-            desc->applicability_check = default_applicability_check;
-            desc->execute = execute_full_angle_method;
-            break;
-
-        case PROOF_STRATEGY_DEDUCTIVE_DATABASE:
-            desc->name = lv_strdup_safe("演绎数据库法");
-            desc->description = lv_strdup_safe("前向链推理，从已知条件逐步演绎新事实");
-            desc->applicability_check = default_applicability_check;
-            desc->execute = execute_deductive_database;
-            break;
-
-        case PROOF_STRATEGY_COORDINATE:
-            desc->name = lv_strdup_safe("坐标法");
-            desc->description = lv_strdup_safe("建立坐标系，使用解析几何方法进行计算和验证");
-            desc->applicability_check = default_applicability_check;
-            desc->execute = execute_coordinate;
-            break;
-
-        case PROOF_STRATEGY_LAMBDA_CALCULUS:
-            desc->name = lv_strdup_safe("λ-演算归约法");
-            desc->description = lv_strdup_safe("通过 β-归约化简 λ-项，基于 Church 编码进行函数式计算");
-            desc->applicability_check = lambda_calculus_applicability_check;
-            desc->execute = execute_lambda_calculus;
-            break;
-
-        case PROOF_STRATEGY_LAMBDA_UNIFY:
-            desc->name = lv_strdup_safe("λ-演算合一法");
-            desc->description = lv_strdup_safe("通过 λ-项模式合一自动匹配并实例化证明中的变量");
-            desc->applicability_check = lambda_unify_applicability_check;
-            desc->execute = execute_lambda_unify;
-            break;
-
-        case PROOF_STRATEGY_HOL_LIGHT:
-            desc->name = lv_strdup_safe("HOL Light 微内核验证");
-            desc->description = lv_strdup_safe("使用 10 条基本推理规则验证证明步骤的形式化正确性");
-            desc->applicability_check = default_applicability_check;
-            desc->execute = execute_hol_light;
-            break;
-
-        case PROOF_STRATEGY_ORACLE:
-            desc->name = lv_strdup_safe("Oracle法");
-            desc->description = lv_strdup_safe("调用外部求解器辅助验证非构造性命題");
-            desc->applicability_check = NULL; /* 默认不可用，需手动注册 */
-            desc->execute = execute_oracle;
-            break;
-
-        default:
-            break;
+        }
     }
 
     desc->status = PROOF_STRATEGY_AVAILABLE;

@@ -18,6 +18,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
+#include "lv/solver_types.h"
 #include "lv/stream.h"
 #include "lv/symbolic_coord.h"
 
@@ -26,24 +27,6 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 #include "stream_context_util.h"
-
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_ZERO_EPSILON 1e-12
-
-/* ── PolyEquation + EquationSystem (required by solver_symbolic) ── */
-
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
 
 /* ── 符号求解器桩实现 ── */
 
@@ -119,11 +102,11 @@ void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
  */
 SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value) {
     if (!poly || !value || poly->degree < 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "poly_eval_symbolic: 输入参数为 NULL 或多项式次数小于 0");
 
     SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "poly_eval_symbolic: 创建初始有理数结果失败");
 
     for (int i = 0; i <= poly->degree; i++) {
         if (mpz_cmp_si(poly->coeffs[i], 0) == 0)
@@ -133,14 +116,14 @@ SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *v
         SymbolicCoord *coeff = symbolic_coord_create_rational(mpz_get_si(poly->coeffs[i]), 1);
         if (!coeff) {
             symbolic_coord_destroy(result);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "poly_eval_symbolic: 创建系数符号坐标失败");
         }
 
         SymbolicCoord *power = symbolic_coord_pow(value, (unsigned int) i);
         if (!power) {
             symbolic_coord_destroy(coeff);
             symbolic_coord_destroy(result);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_SYMBOLIC_EVAL_FAILED, "poly_eval_symbolic: 符号幂运算失败");
         }
 
         SymbolicCoord *term = symbolic_coord_multiply(coeff, power);
@@ -148,14 +131,14 @@ SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *v
         symbolic_coord_destroy(power);
         if (!term) {
             symbolic_coord_destroy(result);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_SYMBOLIC_EVAL_FAILED, "poly_eval_symbolic: 符号乘法运算失败");
         }
 
         SymbolicCoord *new_result = symbolic_coord_add(result, term);
         symbolic_coord_destroy(term);
         if (!new_result) {
             symbolic_coord_destroy(result);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_SYMBOLIC_EVAL_FAILED, "poly_eval_symbolic: 符号加法运算失败");
         }
 
         symbolic_coord_destroy(result);
@@ -188,17 +171,18 @@ bool compute_algebraic_resultant(const mpz_poly_t *p, const mpz_poly_t *q, Algeb
  * @param value        已知数值
  */
 void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, double value) {
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].var_node_id == var_node_id && sys->eqs[i].coord_index == coord_index) {
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *pe = ((PolyEquation *)lv_darray_get(&sys->eqs, i));
+        if (pe->var_node_id == var_node_id && pe->coord_index == coord_index) {
             double val = 0.0;
-            mpz_poly_t *p = &sys->eqs[i].poly;
+            mpz_poly_t *p = &pe->poly;
             for (int d = 0; d <= p->degree; d++) {
                 double coeff = mpz_get_d(p->coeffs[d]);
                 val += coeff * pow(value, d);
             }
             if (fabs(val) < 1e-6 * (fabs(value) + 1.0)) {
-                mpz_poly_clear(&sys->eqs[i].poly);
-                mpz_poly_init(&sys->eqs[i].poly);
+                mpz_poly_clear(&pe->poly);
+                mpz_poly_init(&pe->poly);
             }
         }
     }
@@ -502,8 +486,9 @@ bool check_incompatible_distances(const ConstraintGraph *graph) {
  * @return true 表示检测到矛盾
  */
 bool check_contradiction_after_substitution(EquationSystem *sys) {
-    for (int i = 0; i < sys->count; i++) {
-        mpz_poly_t *p = &sys->eqs[i].poly;
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *pe = ((PolyEquation *)lv_darray_get(&sys->eqs, i));
+        mpz_poly_t *p = &pe->poly;
         if (p->degree < 0)
             continue;
         if (p->degree == 0) {
@@ -576,13 +561,12 @@ int count_point_variables(const ConstraintGraph *graph, int **out_ids) {
  */
 static int append_solution(GroebnerResult *result, SymbolicCoord *sol) {
     if (!result || !sol)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "append_solution: 输入参数 result 或 sol 为 NULL");
     SymbolicCoord **new_arr =
         lv_realloc(result->solutions, (size_t) (result->solution_count + 1) * sizeof(SymbolicCoord *));
     if (!new_arr) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "append_solution: 扩容失败");
         symbolic_coord_destroy(sol);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "append_solution: 扩容失败");
     }
     result->solutions = new_arr;
     result->solutions[result->solution_count++] = sol;
@@ -595,7 +579,7 @@ static int append_solution(GroebnerResult *result, SymbolicCoord *sol) {
  */
 static SymbolicCoord *solve_linear_exact(const mpz_poly_t *poly) {
     if (!poly || poly->degree != 1)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "solve_linear_exact: 输入参数无效或多项式的次数不为 1");
 
     mpz_t a_mpz, b_mpz;
     mpz_init_set(a_mpz, poly->coeffs[1]);
@@ -604,7 +588,7 @@ static SymbolicCoord *solve_linear_exact(const mpz_poly_t *poly) {
     if (mpz_cmp_si(a_mpz, 0) == 0) {
         mpz_clear(a_mpz);
         mpz_clear(b_mpz);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_SOLVER_NO_SOLUTION, "solve_linear_exact: 一次项系数为零，无法求解线性方程");
     }
 
     /* x = -b / a, convert to int64_t/uint64_t for symbolic_coord_create_rational */
@@ -650,15 +634,16 @@ static SymbolicCoord *solve_linear_exact(const mpz_poly_t *poly) {
  */
 static void substitute_solved_symbolic(EquationSystem *sys, int var_node_id, int coord_index,
                                        const SymbolicCoord *value) {
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].var_node_id == var_node_id && sys->eqs[i].coord_index == coord_index) {
-            SymbolicCoord *eval_result = poly_eval_symbolic(&sys->eqs[i].poly, value);
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *pe = ((PolyEquation *)lv_darray_get(&sys->eqs, i));
+        if (pe->var_node_id == var_node_id && pe->coord_index == coord_index) {
+            SymbolicCoord *eval_result = poly_eval_symbolic(&pe->poly, value);
             if (eval_result) {
                 double d;
                 if (coord_to_double(eval_result, &d)) {
                     if (fabs(d) < 1e-6 * (fabs(d) + 1.0)) {
-                        mpz_poly_clear(&sys->eqs[i].poly);
-                        mpz_poly_init(&sys->eqs[i].poly);
+                        mpz_poly_clear(&pe->poly);
+                        mpz_poly_init(&pe->poly);
                     }
                 }
                 symbolic_coord_destroy(eval_result);
@@ -685,8 +670,9 @@ void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solv
 
     /* Pass 0: linear, Pass 1: quadratic, Pass 2: cubic */
     for (int pass = 0; pass < 3; pass++) {
-        for (int i = 0; i < sys->count; i++) {
-            mpz_poly_t *p = &sys->eqs[i].poly;
+        for (int i = 0; i < sys->eqs.count; i++) {
+            PolyEquation *pe = ((PolyEquation *)lv_darray_get(&sys->eqs, i));
+            mpz_poly_t *p = &pe->poly;
             if (p->degree < 0)
                 continue;
             if (pass == 0 && p->degree != 1)
@@ -704,7 +690,7 @@ void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solv
                             (*solved_count)++;
                     }
                     if (do_substitute && sol) {
-                        substitute_solved_symbolic(sys, sys->eqs[i].var_node_id, sys->eqs[i].coord_index, sol);
+                        substitute_solved_symbolic(sys, pe->var_node_id, pe->coord_index, sol);
                     }
                 } else {
                     if (mpz_cmp_si(p->coeffs[1], 0) == 0 && mpz_cmp_si(p->coeffs[0], 0) != 0) {
@@ -727,7 +713,7 @@ void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solv
                                 (*solved_count)++;
                         }
                         if (do_substitute && exact_solutions[r]) {
-                            substitute_solved_symbolic(sys, sys->eqs[i].var_node_id, sys->eqs[i].coord_index,
+                            substitute_solved_symbolic(sys, pe->var_node_id, pe->coord_index,
                                                        exact_solutions[r]);
                         }
                     }
@@ -747,7 +733,7 @@ void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solv
                                 (*solved_count)++;
                         }
                         if (do_substitute && cubic_solutions[r]) {
-                            substitute_solved_symbolic(sys, sys->eqs[i].var_node_id, sys->eqs[i].coord_index,
+                            substitute_solved_symbolic(sys, pe->var_node_id, pe->coord_index,
                                                        cubic_solutions[r]);
                         }
                     }

@@ -26,11 +26,6 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \

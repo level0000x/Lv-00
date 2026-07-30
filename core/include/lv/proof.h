@@ -157,6 +157,16 @@ typedef enum {
     PROOF_STEP_ORACLE          /* Oracle依赖 */
 } ProofStepType;
 
+/**
+ * @brief 证明步骤扩展数据（用于策略特定数据，如 HOL Light 验证）
+ *
+ * 可选的扩展数据指针，仅当需要时才分配。当前用于：
+ * - HOL Light 微内核验证：存储步骤的结论字符串
+ */
+typedef struct ProofStepExt {
+    char *conclusion; /**< 步骤结论字符串（用于 HOL Light 验证） */
+} ProofStepExt;
+
 /* ============== 证明步骤 ============== */
 struct ProofStep {
     int id;             /* 步骤ID */
@@ -189,8 +199,8 @@ struct ProofStep {
     int parent_step_id; /* 父步骤ID（-1 表示根步骤） */
     int depth;          /* 步骤在证明树中的深度 */
 
-    /* HOL Light 微内核验证数据 */
-    char *conclusion; /* 步骤的结论字符串（用于 HOL Light 验证） */
+    /* HOL Light 扩展数据 */
+    struct ProofStepExt *ext; /* 可选扩展数据（HOL Light 验证等） */
 
     /* 时间戳 */
     int64_t timestamp; /* 步骤时间戳 */

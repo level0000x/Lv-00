@@ -46,7 +46,7 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
     if (!graph) {
         if (out_free_var_ids)
             *out_free_var_ids = NULL;
-        return -1; /* 返回 -1 明确表示参数错误，区别于 0 自由度 */
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "count_degrees_of_freedom: graph is NULL");
     }
 
     /* Count point variables */
@@ -154,7 +154,7 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
         lv_free((void **) &pt_ids);
         lv_free((void **) &eq_per_point);
         lv_free((void **) &point_has_quadratic);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "count_degrees_of_freedom: free_ids lv_calloc failed");
     }
     int free_count = 0;
     for (int i = 0; i < pt_count && free_count < dof; i++) {

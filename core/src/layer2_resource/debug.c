@@ -236,7 +236,7 @@ static int create_directory(const char *path) {
             /* 直接尝试创建目录，处理 EEXIST（目录已存在）而非预先检查，
              * 避免 TOCTOU（检查时间-使用时间）竞争条件 */
             if (lv_mkdir(tmp) != 0 && errno != EEXIST) {
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "创建目录失败");
             }
             *p = lv_PATH_SEPARATOR;
         }
@@ -244,7 +244,7 @@ static int create_directory(const char *path) {
 
     /* 创建路径最后一个组件 */
     if (lv_mkdir(tmp) != 0 && errno != EEXIST) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "创建目录失败");
     }
 
     return 0;
@@ -348,7 +348,7 @@ static void check_rotation(void) {
 DebugContext *debug_context_create(void) {
     DebugContext *ctx = lv_calloc(1, sizeof(DebugContext));
     if (!ctx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配 DebugContext 失败");
     ctx->normalization_assertions = false;
     ctx->port_invariant_checks = false;
     ctx->rewrite_trace = false;
@@ -490,11 +490,11 @@ typedef struct lvMemPool lvMemPool;
  */
 MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     if (block_size == 0 || initial_blocks <= 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "内存池参数无效");
 
     MemPool *pool = (MemPool *) lv_calloc(1, sizeof(MemPool));
     if (!pool)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配 MemPool 失败");
 
     pool->block_size = block_size;
     pool->total_count = initial_blocks;
@@ -504,7 +504,7 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     pool->blocks = (uint8_t *) lv_calloc((size_t) initial_blocks, block_size);
     if (!pool->blocks) {
         lv_free((void **) &pool);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配内存池块失败");
     }
 
     /* 分配空闲块索引栈 */
@@ -512,7 +512,7 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     if (!pool->free_list) {
         lv_free((void **) &pool->blocks);
         lv_free((void **) &pool);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配空闲列表失败");
     }
 
     /* 初始化空闲列表：所有块初始都是空闲的 */
@@ -526,7 +526,7 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
         lv_free((void **) &pool->free_list);
         lv_free((void **) &pool->blocks);
         lv_free((void **) &pool);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配使用标志位失败");
     }
 
     return pool;
@@ -543,7 +543,7 @@ void *mem_pool_alloc(MemPool *pool) {
         if (debug_stream_ctx && pool && pool->free_count <= 0) {
             stream_emit_warning(debug_stream_ctx, "内存池分配失败：空闲块已耗尽", 0);
         }
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "内存池无效或已耗尽");
     }
 
     pool->free_count--;
@@ -557,7 +557,7 @@ void *mem_pool_alloc(MemPool *pool) {
         if (debug_stream_ctx) {
             stream_emit_warning(debug_stream_ctx, "内存池分配失败：空闲列表索引越界", 0);
         }
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INDEX_OUT_OF_RANGE, "空闲列表索引越界");
     }
 
     pool->used[idx] = 1; /* 标记为已使用 */
@@ -885,16 +885,16 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
 static int check_port_type_deep_compatible(const ConstraintGraph *graph, int port_node_id, int connected_node_id,
                                            TypeSystem *ts) {
     if (!graph)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph 为空");
 
     GeomNode *port_node = graph_get_node((ConstraintGraph *) graph, port_node_id);
     if (!port_node || port_node->type != GEOM_PORT || !port_node->data.port) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "端口节点无效");
     }
 
     GeomNode *connected_node = graph_get_node((ConstraintGraph *) graph, connected_node_id);
     if (!connected_node) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "连接节点为空");
     }
 
     Port *port = port_node->data.port;
@@ -930,14 +930,14 @@ static int check_port_type_deep_compatible(const ConstraintGraph *graph, int por
             return 0; /* 无法证明不兼容，视为兼容 */
         case TYPE_EQUIV_ERROR:
         default:
-            return -1; /* 错误 */
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "类型等价检查出错");
     }
 }
 
 PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
     PortInvariantResult *result = (PortInvariantResult *) lv_calloc(1, sizeof(PortInvariantResult));
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配 PortInvariantResult 失败");
 
     if (!graph) {
         result->all_valid = true;
@@ -963,7 +963,7 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
         lv_free((void **) &result->invalid_port_ids);
         lv_free((void **) &result->error_messages);
         lv_free((void **) &result);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配不变量数组失败");
     }
 
     /* 第二遍：检查每个端口的不变量 */
@@ -1088,13 +1088,13 @@ static const char *trace_event_type_string(TraceEventType type) {
 TraceSession *trace_session_create(void) {
     TraceSession *session = (TraceSession *) lv_calloc(1, sizeof(TraceSession));
     if (!session)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配 TraceSession 失败");
 
     session->capacity = lv_DEBUG_TRACE_INITIAL_CAPACITY; /* 初始容量 */
     session->events = (TraceEvent *) lv_calloc((size_t) session->capacity, sizeof(TraceEvent));
     if (!session->events) {
         lv_free((void **) &session);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配追踪事件数组失败");
     }
 
     session->event_count = 0;
@@ -1284,7 +1284,7 @@ char *trace_session_export_json(const TraceSession *session) {
     if (!session) {
         lvJsonBuf buf;
         if (!lv_json_buf_init(&buf, lv_DEBUG_EMPTY_JSON_BUF_SIZE))
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "初始化 JSON 缓冲区失败");
         lv_json_buf_append_raw(&buf, "{\"event_count\":0,\"active\":false}");
         return lv_json_buf_finalize(&buf);
     }
@@ -1294,7 +1294,7 @@ char *trace_session_export_json(const TraceSession *session) {
     size_t pos = 0;
     char *json = lv_malloc(capacity);
     if (!json)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配 JSON 缓冲区失败");
 
 /* 辅助宏：格式化写入并检查返回值。
      * 保留为宏是因为使用了 snprintf 的可变参数（__VA_ARGS__），
@@ -1304,16 +1304,16 @@ char *trace_session_export_json(const TraceSession *session) {
         int w = snprintf(json + pos, capacity - pos, fmt, ##__VA_ARGS__);    \
         if (w < 0) {                                                         \
             lv_free((void **) &json);                                        \
-            return NULL;                                                     \
+            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "JSON 格式化写入失败");  \
         }                                                                    \
         if ((size_t) w >= capacity - pos) {                                  \
             pos += (capacity - pos - 1);                                     \
             if (!trace_ensure_space(&json, &capacity, &pos, (size_t) w + 1)) \
-                return NULL;                                                 \
+                lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "JSON 缓冲区扩展失败"); \
             w = snprintf(json + pos, capacity - pos, fmt, ##__VA_ARGS__);    \
             if (w < 0) {                                                     \
                 lv_free((void **) &json);                                    \
-                return NULL;                                                 \
+                lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "JSON 格式化写入失败"); \
             }                                                                \
         }                                                                    \
         pos += (size_t) w;                                                   \
@@ -1343,14 +1343,14 @@ char *trace_session_export_json(const TraceSession *session) {
         /* 写入转义后的 description（使用辅助函数消除重复代码） */
         if (ev->description) {
             if (!trace_json_escape_string(&json, &capacity, &pos, ev->description)) {
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "JSON 转义 description 失败");
             }
         }
 
         /* 写入转义后的 details（使用辅助函数消除重复代码） */
         if (ev->details) {
             if (!trace_json_escape_string(&json, &capacity, &pos, ev->details)) {
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "JSON 转义 details 失败");
             }
         }
     }
@@ -1647,13 +1647,13 @@ lvLogRingBuffer *lv_log_ring_buffer_create(int capacity) {
 
     lvLogRingBuffer *rb = lv_calloc(1, sizeof(lvLogRingBuffer));
     if (!rb) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配环形缓冲区失败");
     }
 
     rb->entries = lv_calloc((size_t) capacity, sizeof(lvLogEntry));
     if (!rb->entries) {
         lv_free((void **) &rb);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配日志条目数组失败");
     }
 
 
@@ -1739,7 +1739,7 @@ lvLogEntry *lv_log_ring_buffer_export(const lvLogRingBuffer *rb, int *out_count)
     if (!rb || !out_count) {
         if (out_count)
             *out_count = 0;
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "环形缓冲区或输出参数为空");
     }
 
     log_lock();
@@ -1754,7 +1754,7 @@ lvLogEntry *lv_log_ring_buffer_export(const lvLogRingBuffer *rb, int *out_count)
     if (!exported) {
         *out_count = 0;
         log_unlock();
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配导出缓冲区失败");
     }
 
     /* 计算起始位置：如果已填满（wrapped），起始位置 = head（最旧的条目） */
@@ -2073,12 +2073,12 @@ char *debug_counters_report(void) {
         (double) counters.memory_current / (1024.0 * 1024.0), (double) counters.memory_usage_peak / (1024.0 * 1024.0));
 
     if (needed < 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "计算报告大小失败");
 
     /* 分配精确大小的缓冲区（+1 用于终止符） */
     char *report = lv_malloc(needed + 1);
     if (!report)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配报告缓冲区失败");
 
     /* 使用安全的 snprintf 替代裸 snprintf */
     {
@@ -2101,7 +2101,7 @@ char *debug_counters_report(void) {
 
 int debug_get_log_path(char *buf, size_t size) {
     if (!buf || size == 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "缓冲区参数无效");
 
     log_lock();
     /* 修复：使用 lv_strlcpy 替代 strncpy，自动保证零终止且更安全 */

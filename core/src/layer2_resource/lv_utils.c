@@ -198,24 +198,22 @@ void *lv_malloc_tracked(size_t size, const char *file, int line) {
     size_t alloc_size = size ? size : 1;
 
     if (g_memory_limit > 0 && g_memory_stats.current_used > g_memory_limit - alloc_size) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存限制超出: 请求%zu", alloc_size);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "内存限制超出: 请求%zu", alloc_size);
     }
 
     /* 检查溢出：头部大小 + 用户请求大小 + 尾部魔数大小 */
     AllocHeader *hdr = NULL;
     size_t total = ALLOC_HEADER_SIZE;
     if (total > SIZE_MAX - alloc_size || total + alloc_size > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) {
-        lv_set_error(lv_ERROR_OVERFLOW, "malloc 溢出: header=%zu + size=%zu + tail=%zu", (size_t) ALLOC_HEADER_SIZE,
+        lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "malloc 溢出: header=%zu + size=%zu + tail=%zu", (size_t) ALLOC_HEADER_SIZE,
                      alloc_size, (size_t) ALLOC_TAIL_MAGIC_SIZE);
-        return NULL;
     }
     total += alloc_size;
     total += ALLOC_TAIL_MAGIC_SIZE;
 
     hdr = (AllocHeader *) malloc(total);
     if (!hdr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "malloc 分配失败");
 
     hdr->head_magic = ALLOC_HEAD_MAGIC;
     hdr->tail_offset = (uint32_t) alloc_size;
@@ -252,8 +250,7 @@ void *lv_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
 
     /* 检查溢出 */
     if (nmemb > SIZE_MAX / size) {
-        lv_set_error(lv_ERROR_OVERFLOW, "calloc 溢出: %zu * %zu", nmemb, size);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "calloc 溢出: %zu * %zu", nmemb, size);
     }
 
     size_t total = nmemb * size;
@@ -270,7 +267,7 @@ void *lv_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
 
         AllocHeader *hdr = (AllocHeader *) malloc(full);
         if (!hdr)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "calloc malloc 失败");
         memset(hdr, 0, full);
 
         hdr->head_magic = ALLOC_HEAD_MAGIC;
@@ -295,9 +292,8 @@ void *lv_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
     }
 
 overflow:
-    lv_set_error(lv_ERROR_OVERFLOW, "calloc 溢出: header=%zu + total=%zu + tail=%zu", (size_t) ALLOC_HEADER_SIZE, total,
+    lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "calloc 溢出: header=%zu + total=%zu + tail=%zu", (size_t) ALLOC_HEADER_SIZE, total,
                  (size_t) ALLOC_TAIL_MAGIC_SIZE);
-    return NULL;
 }
 
 /**
@@ -339,7 +335,7 @@ void *lv_realloc(void *ptr, size_t size) {
         if (!new_hdr) {
             /* realloc 失败：旧分配仍然有效，重新加入追踪链表 */
             track_allocation(old_hdr);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "realloc 重新分配失败");
         }
 
         new_hdr->head_magic = ALLOC_HEAD_MAGIC;
@@ -371,7 +367,7 @@ void *lv_realloc(void *ptr, size_t size) {
          * [Bug修复] 原代码未复制旧数据，导致 realloc 语义不正确。 */
         void *new_ptr = lv_malloc(alloc_size);
         if (!new_ptr)
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "realloc 外部指针 malloc 失败");
 
         /* 尝试获取旧分配的实际可用大小 */
         size_t old_usable_size = 0;
@@ -397,8 +393,7 @@ void *lv_realloc(void *ptr, size_t size) {
     }
 
 realloc_overflow:
-    lv_set_error(lv_ERROR_OVERFLOW, "realloc 溢出");
-    return NULL;
+    lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "realloc 溢出");
 }
 
 void lv_free(void **ptr) {
@@ -586,8 +581,7 @@ bool lv_poison_is_enabled(void) {
 
 void *lv_malloc_bounded(size_t size, size_t max_size) {
     if (size > max_size) {
-        lv_set_error(lv_ERROR_OVERFLOW, "malloc_bounded: 请求大小 %zu 超过上限 %zu", size, max_size);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "malloc_bounded: 请求大小 %zu 超过上限 %zu", size, max_size);
     }
     return lv_malloc(size);
 }
@@ -702,11 +696,11 @@ char *lv_asprintf(const char *fmt, ...) {
     va_end(args);
 
     if (len < 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "asprintf vsnprintf 返回负值");
 
     char *buf = lv_malloc((size_t) len + 1);
     if (!buf)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "asprintf malloc 失败");
 
     va_start(args, fmt);
     vsnprintf(buf, (size_t) len + 1, fmt, args);
@@ -785,7 +779,7 @@ char *lv_str_trim(char *str) {
  */
 char *lv_strncpy(char *dest, const char *src, size_t dest_size) {
     if (!dest || !src || dest_size == 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "strncpy 参数无效");
 
     size_t i;
     for (i = 0; i < dest_size - 1 && src[i] != '\0'; i++) {
@@ -808,7 +802,7 @@ char *lv_strncpy(char *dest, const char *src, size_t dest_size) {
  */
 char *lv_strncat(char *dest, const char *src, size_t dest_size) {
     if (!dest || !src || dest_size == 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "strncat 参数无效");
 
     /* 查找 dest 当前字符串的末尾 */
     size_t dest_len = 0;
@@ -845,7 +839,7 @@ char *lv_strncat(char *dest, const char *src, size_t dest_size) {
  */
 int lv_snprintf(char *buf, size_t size, const char *fmt, ...) {
     if (!buf || size == 0 || !fmt)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "snprintf 参数无效");
 
     va_list args;
     va_start(args, fmt);
@@ -855,7 +849,7 @@ int lv_snprintf(char *buf, size_t size, const char *fmt, ...) {
     /* 确保 \0 终止（防御 vsnprintf 的某些非标准实现） */
     if (written < 0) {
         buf[0] = '\0';
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "snprintf vsnprintf 返回负值");
     }
     if ((size_t) written >= size) {
         buf[size - 1] = '\0';
@@ -871,11 +865,11 @@ int lv_snprintf(char *buf, size_t size, const char *fmt, ...) {
 lvArray *lv_array_create(size_t initial_capacity, size_t elem_size) {
     /* 修复：验证 elem_size，避免后续操作中出现除零或无意义的零大小元素 */
     if (elem_size == 0)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "array_create elem_size 为 0");
 
     lvArray *arr = lv_calloc(1, sizeof(lvArray));
     if (!arr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "array_create calloc 失败");
 
     arr->count = 0;
     arr->capacity = initial_capacity > 0 ? initial_capacity : lv_INITIAL_ARRAY_CAPACITY;
@@ -886,7 +880,7 @@ lvArray *lv_array_create(size_t initial_capacity, size_t elem_size) {
     if (!arr->data) {
         /* 修复：lv_calloc 失败时释放已分配的 arr，防止资源泄漏 */
         lv_free((void **) &arr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "array_create data calloc 失败");
     }
 
     return arr;
@@ -910,7 +904,7 @@ void lv_array_destroy(lvArray *arr, bool free_elements) {
 
 static bool lv_array_ensure_capacity(lvArray *arr, size_t min_capacity) {
     if (!arr)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "ensure_capacity arr 为 NULL");
     /* 输入验证：容量为0时按最小默认容量处理，避免死循环 */
     if (min_capacity == 0)
         min_capacity = 1;
@@ -923,18 +917,18 @@ static bool lv_array_ensure_capacity(lvArray *arr, size_t min_capacity) {
          * 1. new_capacity * lv_ARRAY_GROWTH_FACTOR 不能超过 SIZE_MAX
          * 2. new_capacity * sizeof(void*) 不能超过 SIZE_MAX（分配时使用） */
         if (new_capacity > SIZE_MAX / lv_ARRAY_GROWTH_FACTOR)
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity 溢出");
         new_capacity *= lv_ARRAY_GROWTH_FACTOR;
     }
 
     /* 修复：检查 new_capacity * sizeof(void*) 是否溢出 */
     if (new_capacity > SIZE_MAX / sizeof(void *))
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity 分配大小溢出");
     size_t alloc_size = new_capacity * sizeof(void *);
 
     void **new_data = lv_realloc(arr->data, alloc_size);
     if (!new_data)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity realloc 失败");
 
     /* 清零新分配的部分 */
     memset(new_data + arr->capacity, 0, (new_capacity - arr->capacity) * sizeof(void *));
@@ -946,10 +940,10 @@ static bool lv_array_ensure_capacity(lvArray *arr, size_t min_capacity) {
 
 bool lv_array_push(lvArray *arr, void *elem) {
     if (!arr)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "array_push arr 为 NULL");
 
     if (!lv_array_ensure_capacity(arr, arr->count + 1)) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "array_push 扩容失败");
     }
 
     arr->data[arr->count++] = elem;
@@ -957,8 +951,10 @@ bool lv_array_push(lvArray *arr, void *elem) {
 }
 
 bool lv_array_remove(lvArray *arr, size_t index, bool free_elem) {
-    if (!arr || index >= arr->count)
-        return false;
+    if (!arr)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "array_remove arr 为 NULL");
+    if (index >= arr->count)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INDEX_OUT_OF_RANGE, "array_remove 索引越界");
 
     if (free_elem && arr->data[index]) {
         lv_free((void **) &arr->data[index]);
@@ -981,8 +977,10 @@ void *lv_array_get(const lvArray *arr, size_t index) {
 }
 
 bool lv_array_set(lvArray *arr, size_t index, void *elem) {
-    if (!arr || index >= arr->count)
-        return false;
+    if (!arr)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "array_set arr 为 NULL");
+    if (index >= arr->count)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INDEX_OUT_OF_RANGE, "array_set 索引越界");
     arr->data[index] = elem;
     return true;
 }
@@ -1026,7 +1024,7 @@ int lv_array_find(const lvArray *arr, const void *elem) {
 IntArray *int_array_create(size_t initial_capacity) {
     IntArray *arr = lv_calloc(1, sizeof(IntArray));
     if (!arr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "int_array_create calloc 失败");
 
     arr->count = 0;
     arr->capacity = initial_capacity > 0 ? initial_capacity : lv_INITIAL_ARRAY_CAPACITY;
@@ -1034,7 +1032,7 @@ IntArray *int_array_create(size_t initial_capacity) {
 
     if (!arr->data) {
         lv_free((void **) &arr);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "int_array_create data calloc 失败");
     }
 
     return arr;
@@ -1049,7 +1047,7 @@ void int_array_destroy(IntArray *arr) {
 
 static bool int_array_ensure_capacity(IntArray *arr, size_t min_capacity) {
     if (!arr)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "int_array_ensure_capacity arr 为 NULL");
     /* 输入验证：容量为0时按最小默认容量处理，避免死循环 */
     if (min_capacity == 0)
         min_capacity = 1;
@@ -1060,18 +1058,18 @@ static bool int_array_ensure_capacity(IntArray *arr, size_t min_capacity) {
     while (new_capacity < min_capacity) {
         /* 修复：检查两步溢出（与 lv_array_ensure_capacity 相同） */
         if (new_capacity > SIZE_MAX / lv_ARRAY_GROWTH_FACTOR)
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "int_array_ensure_capacity 溢出");
         new_capacity *= lv_ARRAY_GROWTH_FACTOR;
     }
 
     /* 修复：检查 new_capacity * sizeof(int) 是否溢出 */
     if (new_capacity > SIZE_MAX / sizeof(int))
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "int_array_ensure_capacity 分配大小溢出");
     size_t alloc_size = new_capacity * sizeof(int);
 
     int *new_data = lv_realloc(arr->data, alloc_size);
     if (!new_data)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "int_array_ensure_capacity realloc 失败");
 
     arr->data = new_data;
     arr->capacity = new_capacity;
@@ -1080,9 +1078,9 @@ static bool int_array_ensure_capacity(IntArray *arr, size_t min_capacity) {
 
 bool int_array_push(IntArray *arr, int value) {
     if (!arr)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "int_array_push arr 为 NULL");
     if (!int_array_ensure_capacity(arr, arr->count + 1))
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "int_array_push 扩容失败");
 
     arr->data[arr->count++] = value;
     return true;
@@ -1101,10 +1099,12 @@ bool int_array_push(IntArray *arr, int value) {
  *         false 参数无效或内存扩容失败。
  */
 bool int_array_push_many(IntArray *arr, const int *values, size_t count) {
-    if (!arr || !values)
-        return false;
+    if (!arr)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "int_array_push_many arr 为 NULL");
+    if (!values)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "int_array_push_many values 为 NULL");
     if (!int_array_ensure_capacity(arr, arr->count + count))
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "int_array_push_many 扩容失败");
 
     memcpy(arr->data + arr->count, values, count * sizeof(int));
     arr->count += count;
@@ -1167,7 +1167,7 @@ int int_array_index_of(const IntArray *arr, int value) {
  */
 bool int_array_remove(IntArray *arr, int value) {
     if (!arr)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "int_array_remove arr 为 NULL");
     int idx = int_array_index_of(arr, value);
     if (idx < 0)
         return false;
@@ -1221,10 +1221,10 @@ IntArray *int_array_copy(const IntArray *arr) {
 
 IntArray *int_array_from_carray(const int *data, size_t count) {
     if (!data)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "int_array_from_carray data 为 NULL");
     IntArray *arr = int_array_create(count);
     if (!arr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "int_array_from_carray 创建失败");
 
     memcpy(arr->data, data, count * sizeof(int));
     arr->count = count;
@@ -1241,12 +1241,12 @@ IntArray *int_array_from_carray(const int *data, size_t count) {
 static ConfigItem *config_item_create(const char *key, ConfigType type) {
     ConfigItem *item = lv_calloc(1, sizeof(ConfigItem));
     if (!item)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "config_item_create calloc 失败");
 
     item->key = lv_strdup_safe(key);
     if (!item->key) {
         lv_free((void **) &item);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "config_item_create strdup 失败");
     }
     item->type = type;
     return item;
@@ -1278,7 +1278,7 @@ static void config_item_destroy(ConfigItem *item) {
 ConfigManager *config_manager_create(const char *config_file) {
     ConfigManager *mgr = lv_calloc(1, sizeof(ConfigManager));
     if (!mgr)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "config_manager_create calloc 失败");
 
     if (config_file) {
         mgr->config_file = lv_strdup_safe(config_file);
@@ -1344,7 +1344,7 @@ static ConfigItem *config_find_item(const ConfigManager *mgr, const char *key) {
 #define DEFINE_CONFIG_SET_SCALAR(func_name, cfg_type, val_type, val_member) \
     bool func_name(ConfigManager *mgr, const char *key, val_type value) {   \
         if (!mgr || !key)                                                   \
-            return false;                                                   \
+            lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, #func_name " 参数无效"); \
                                                                             \
         ConfigItem *item = config_find_item(mgr, key);                      \
         if (item) {                                                         \
@@ -1353,7 +1353,7 @@ static ConfigItem *config_find_item(const ConfigManager *mgr, const char *key) {
         } else {                                                            \
             item = config_item_create(key, cfg_type);                       \
             if (!item)                                                      \
-                return false;                                               \
+                lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, #func_name " 创建项失败"); \
             item->value.val_member = value;                                 \
             item->next = mgr->items;                                        \
             mgr->items = item;                                              \
@@ -1371,7 +1371,7 @@ DEFINE_CONFIG_SET_SCALAR(config_set_double, CONFIG_TYPE_DOUBLE, double, double_v
 
 bool config_set_string(ConfigManager *mgr, const char *key, const char *value) {
     if (!mgr || !key)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_set_string 参数无效");
 
     ConfigItem *item = config_find_item(mgr, key);
     if (item) {
@@ -1383,7 +1383,7 @@ bool config_set_string(ConfigManager *mgr, const char *key, const char *value) {
     } else {
         item = config_item_create(key, CONFIG_TYPE_STRING);
         if (!item)
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_set_string 创建项失败");
         item->value.string_val = lv_strdup_safe(value);
         item->next = mgr->items;
         mgr->items = item;
@@ -1440,7 +1440,7 @@ bool config_has_key(const ConfigManager *mgr, const char *key) {
 
 bool config_remove(ConfigManager *mgr, const char *key) {
     if (!mgr || !key)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_remove 参数无效");
 
     ConfigItem **current = &mgr->items;
     while (*current) {
@@ -1454,7 +1454,7 @@ bool config_remove(ConfigManager *mgr, const char *key) {
         }
         current = &(*current)->next;
     }
-    return false;
+    lv_RETURN_ERROR_BOOL(lv_ERROR_NOT_FOUND, "config_remove 未找到 key");
 }
 
 /* 配置文件格式支持：
@@ -1466,11 +1466,11 @@ bool config_remove(ConfigManager *mgr, const char *key) {
  */
 bool config_load(ConfigManager *mgr) {
     if (!mgr || !mgr->config_file)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_load 参数无效");
 
     FILE *f = fopen(mgr->config_file, "r");
     if (!f)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_load 打开文件失败");
 
     char current_section[256];
     current_section[0] = '\0';
@@ -1543,11 +1543,11 @@ bool config_load(ConfigManager *mgr) {
 
 bool config_save(const ConfigManager *mgr) {
     if (!mgr || !mgr->config_file)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_save 参数无效");
 
     FILE *f = fopen(mgr->config_file, "w");
     if (!f)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_save 打开文件失败");
 
     fprintf(f, "# Lv-00 Configuration File\n");
     fprintf(f, "# Auto-generated\n\n");
@@ -1625,17 +1625,17 @@ bool config_save(const ConfigManager *mgr) {
 
 lvVersion *version_parse(const char *version_str) {
     if (!version_str)
-        return NULL;
+        return NULL; /* NULL 字符串无法解析，合法哨兵 */
 
     lvVersion *ver = lv_calloc(1, sizeof(lvVersion));
     if (!ver)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "version_parse calloc 失败");
 
     /* 解析主版本.次版本.修订版本 */
     int parsed = sscanf(version_str, "%d.%d.%d", &ver->major, &ver->minor, &ver->patch);
     if (parsed < 2) {
         lv_free((void **) &ver);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "version_parse 解析版本号失败");
     }
     if (parsed == 2)
         ver->patch = 0;
@@ -1716,7 +1716,7 @@ int version_compare(const lvVersion *v1, const lvVersion *v2) {
 
 bool version_compatible(const lvVersion *required, const lvVersion *actual) {
     if (!required || !actual)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "version_compatible 参数为空");
 
     /* 主版本必须相同 */
     if (required->major != actual->major)
@@ -1729,7 +1729,7 @@ bool version_compatible(const lvVersion *required, const lvVersion *actual) {
 bool lv_check_version(const char *min_version) {
     lvVersion *min = version_parse(min_version);
     if (!min)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "lv_check_version 解析版本号失败");
 
     lvVersion current;
     current.major = lv_VERSION_MAJOR;
@@ -2001,7 +2001,7 @@ uint64_t lv_hash_int(int value) {
  */
 bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, int min_growth) {
     if (!arr || !capacity || elem_size == 0)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "ensure_capacity 参数无效");
 
     /* 无需扩容 */
     if (count < *capacity)
@@ -2009,30 +2009,30 @@ bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, 
 
     /* 溢出检查 */
     if (count < 0 || *capacity < 0)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity count/capacity 为负");
 
     /* 计算最小需求容量 */
     int min_required = count + min_growth;
     if (min_required < count) /* 溢出检测 */
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity min_required 溢出");
 
     /* 计算新容量 */
     if (*capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity 容量溢出");
     int new_cap = (*capacity == 0) ? lv_INITIAL_ARRAY_CAPACITY : *capacity * lv_ARRAY_GROWTH_FACTOR;
     if (new_cap < min_required) {
         if (min_required > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity min_required 容量溢出");
         new_cap = min_required * lv_ARRAY_GROWTH_FACTOR;
     }
 
     /* 分配前检查 size_t 溢出 */
     if ((size_t) new_cap > SIZE_MAX / elem_size)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity size_t 溢出");
 
     void *new_arr = lv_realloc(*arr, (size_t) new_cap * elem_size);
     if (!new_arr)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity realloc 失败");
 
     *arr = new_arr;
     *capacity = new_cap;
@@ -2146,7 +2146,7 @@ bool lv_resource_track(ResourceTracker *rt, void *resource, lvResourceDestroyFun
 
 bool lv_resource_untrack(ResourceTracker *rt, void *resource) {
     if (!rt || !resource)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "resource_untrack 参数无效");
 
     TrackedResource *node = rt->head;
     while (node) {
@@ -2170,7 +2170,7 @@ bool lv_resource_untrack(ResourceTracker *rt, void *resource) {
         node = node->next;
     }
 
-    return false;
+    lv_RETURN_ERROR_BOOL(lv_ERROR_NOT_FOUND, "resource_untrack 未找到 resource");
 }
 
 void lv_resource_tracker_cleanup(ResourceTracker *rt) {
@@ -2262,7 +2262,7 @@ void lv_free_ptr(void *ptr) {
 int lv_dstr_init(lvDStr *d, size_t cap) {
     d->data = (char *) lv_malloc(cap);
     if (!d->data)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "dstr_init malloc 失败");
     d->data[0] = '\0';
     d->len = 0;
     d->cap = cap;
@@ -2284,7 +2284,7 @@ int lv_dstr_grow(lvDStr *d, size_t extra) {
         new_cap *= 2;
     char *nd = (char *) lv_realloc(d->data, new_cap);
     if (!nd)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "dstr_grow realloc 失败");
     d->data = nd;
     d->cap = new_cap;
     return 0;
@@ -2303,9 +2303,9 @@ int lv_dstr_append_fmt(lvDStr *d, const char *fmt, ...) {
     int needed = vsnprintf(NULL, 0, fmt, ap);
     va_end(ap);
     if (needed < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "dstr_append_fmt vsnprintf 失败");
     if (lv_dstr_grow(d, (size_t) needed) != 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "dstr_append_fmt grow 失败");
     va_start(ap, fmt);
     vsnprintf(d->data + d->len, d->cap - d->len, fmt, ap);
     va_end(ap);
@@ -2324,7 +2324,7 @@ int lv_dstr_append_raw(lvDStr *d, const char *s, size_t n) {
     if (!s || n == 0)
         return 0;
     if (lv_dstr_grow(d, n) != 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "dstr_append_raw grow 失败");
     memcpy(d->data + d->len, s, n);
     d->len += n;
     d->data[d->len] = '\0';
@@ -2386,7 +2386,7 @@ bool lv_darray_reserve(lvDArray *arr, int count) {
 
 int lv_darray_push(lvDArray *arr, const void *elem) {
     if (!lv_darray_reserve(arr, arr->count + 1))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "darray_push reserve 失败");
     char *ptr = (char *)arr->data + (size_t)arr->count * arr->elem_size;
     memcpy(ptr, elem, arr->elem_size);
     return arr->count++;

@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "lv/func_block.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /* ============ 转换器创建与销毁 ============ */
@@ -198,7 +199,7 @@ int lv_converter_verify_roundtrip(lvRepresentationConverter *conv, void *origina
             return 1;
         default:
             /* 其他视图类型的往返验证暂不实现 */
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "roundtrip not supported for this view type");
     }
 }
 

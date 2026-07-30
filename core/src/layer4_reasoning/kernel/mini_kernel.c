@@ -297,19 +297,16 @@ static int mini_internal_add_statement(MiniKernel *kernel, MiniStmtType type, co
     lv_CHECK_NULL(formula, -1);
 
     if (kernel->is_sealed && type == MINI_STMT_AXIOM) {
-        lv_set_error_ctx(lv_ERROR_INVALID_STATE, __FILE__, __LINE__, __func__, "内核已封存，不可添加新公理");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "内核已封存，不可添加新公理");
     }
 
     if (kernel->config.max_statements > 0 && kernel->statement_count >= kernel->config.max_statements) {
-        lv_set_error_ctx(lv_ERROR_RESOURCE_EXHAUSTED, __FILE__, __LINE__, __func__, "已达最大语句数限制: %d",
-                         kernel->config.max_statements);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "已达最大语句数限制: %d", kernel->config.max_statements);
     }
 
     if (kernel->statement_count >= kernel->statement_capacity) {
         if (!mini_stmt_array_grow(kernel)) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "语句数组扩容失败");
         }
     }
 
@@ -350,7 +347,7 @@ int mini_kernel_add_theorem(MiniKernel *kernel, const char *label, const char *f
                             int ref_count) {
     int id = mini_internal_add_statement(kernel, MINI_STMT_THEOREM, label, formula);
     if (id < 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "添加定理失败");
 
     MiniStatement *stmt = kernel->statements[id];
     stmt->ref_count = (ref_count > 64) ? 64 : ref_count;
@@ -394,7 +391,7 @@ static int mini_register_symbol(MiniKernel *kernel, const char *name, int stmt_i
     /* 扩容 */
     if (kernel->symbol_count >= kernel->symbol_capacity) {
         if (!mini_symbol_table_grow(kernel))
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "符号表扩容失败");
     }
 
     int idx = kernel->symbol_count;
@@ -702,7 +699,7 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath) {
     char *content = NULL;
     size_t content_len = 0;
     if (!mini_read_file_content(filepath, &content, &content_len)) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_IO, "读取Metamath文件失败");
     }
 
     int import_count = 0;

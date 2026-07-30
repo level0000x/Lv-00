@@ -18,6 +18,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
+#include "lv/solver_types.h"
 #include "lv/stream.h"
 
 #include "debug.h"
@@ -25,30 +26,6 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 #include "stream_context_util.h"
-
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-#define lv_SOLVER_LINEAR_COEFF_COUNT 2
-#define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    lvDArray eqs; /**< PolyEquation 数组 */
-} EquationSystem;
 
 /* ── 多变量多项式 ── */
 typedef struct {
@@ -61,13 +38,7 @@ typedef struct {
     int var_count;
 } MVPolynomial;
 
-/* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
-void equation_system_clear(EquationSystem *sys);
-
-/* 流式上下文（在 solver.c 中定义） */
-lv_DECLARE_STREAM_CTX(solver);
+/* 流式上下文（定义在 solver_engine.c，通过 solver_types.h 的 extern 引用） */
 
 /* ================================================================== */
 /*  内部: 多变量单项式表示 (用于 Groebner 基计算)                      */

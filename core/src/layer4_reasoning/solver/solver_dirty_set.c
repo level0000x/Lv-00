@@ -13,35 +13,16 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
+#include "lv/solver_types.h"
 
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
-/* --- 共享宏 --- */
-#define lv_SOLVER_DYNARRAY_INIT_CAP 16
-
-/* ── PolyEquation + EquationSystem ── */
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
-} EquationSystem;
-
 /* 脏变量集合结构体 */
 typedef struct {
     lvDArray dirty_ids; /* dirty variable IDs (lvDArray of int) */
 } DirtyVariableSet;
-
-/* 前向声明 */
-void equation_system_init(EquationSystem *sys);
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
 
 /* 初始化脏变量集合 */
 static void dirty_set_init(DirtyVariableSet *ds) {
@@ -95,12 +76,12 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
         return;
 
     /* 第一遍: 直接筛选涉及脏变量的方程 */
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0)
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *pe = ((PolyEquation *)lv_darray_get(&sys->eqs, i));
+        if (pe->poly.degree < 0)
             continue;
-        if (dirty_set_contains(ds, sys->eqs[i].var_node_id)) {
-            if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index) !=
-                0) {
+        if (dirty_set_contains(ds, pe->var_node_id)) {
+            if (equation_system_push(filtered, pe->poly, pe->var_node_id, pe->coord_index) != 0) {
                 lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 return;
             }
@@ -110,28 +91,31 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
     /* 第二遍: 传播 - 收集过滤后方程涉及的所有变量 */
     DirtyVariableSet related;
     dirty_set_init(&related);
-    for (int i = 0; i < filtered->count; i++) {
-        dirty_set_add(&related, filtered->eqs[i].var_node_id);
+    for (int i = 0; i < filtered->eqs.count; i++) {
+        PolyEquation *pe = ((PolyEquation *)lv_darray_get(&filtered->eqs, i));
+        dirty_set_add(&related, pe->var_node_id);
     }
 
     /* 第三遍: 添加与相关变量共享同一节点的方程
      * (同一节点的 x 和 y 坐标是耦合的) */
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0)
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *pe = ((PolyEquation *)lv_darray_get(&sys->eqs, i));
+        if (pe->poly.degree < 0)
             continue;
-        if (dirty_set_contains(&related, sys->eqs[i].var_node_id)) {
+        if (dirty_set_contains(&related, pe->var_node_id)) {
             /* 检查是否已在 filtered 中 */
             bool found = false;
-            for (int j = 0; j < filtered->count; j++) {
-                if (filtered->eqs[j].var_node_id == sys->eqs[i].var_node_id &&
-                    filtered->eqs[j].coord_index == sys->eqs[i].coord_index) {
+            for (int j = 0; j < filtered->eqs.count; j++) {
+                PolyEquation *fj = ((PolyEquation *)lv_darray_get(&filtered->eqs, j));
+                if (fj->var_node_id == pe->var_node_id &&
+                    fj->coord_index == pe->coord_index) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id,
-                                         sys->eqs[i].coord_index) != 0) {
+                if (equation_system_push(filtered, pe->poly, pe->var_node_id,
+                                         pe->coord_index) != 0) {
                     lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     dirty_set_free(&related);
                     return;
