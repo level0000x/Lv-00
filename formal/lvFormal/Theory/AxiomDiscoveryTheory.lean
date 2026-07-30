@@ -137,9 +137,6 @@ inductive Derivable (known : AxiomSet) (rules : List DiscoveryRule) : Axiom → 
   | base (a : Axiom) (h : a ∈ known) : Derivable known rules a
   | rule_conc (rule : DiscoveryRule) (h_rule : rule ∈ rules)
       (h_applicable : rule_applicable known rule) : Derivable known rules rule.conclusion
-  | extend (known' : AxiomSet) (a : Axiom)
-      (h_sub : ∀ x ∈ known', Derivable known rules x)
-      (h_a : Derivable known' rules a) : Derivable known rules a
 
 /-- 如果 a ∈ dedupAxioms l，则 a ∈ l。 -/
 lemma mem_of_mem_dedup {a : Axiom} {l : AxiomSet} (h : a ∈ dedupAxioms l) : a ∈ l := by
