@@ -29,7 +29,6 @@
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
-#define SOLVER_DETAIL_BUF_SIZE 512
 #ifndef EQUATION_PUSH_OR_GOTO
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \

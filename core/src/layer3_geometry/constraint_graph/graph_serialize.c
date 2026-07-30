@@ -690,11 +690,11 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                             /* 计数 */
                             int temp_count = 0;
                             lvJsonParser temp_p = p;
-                            while (temp_p.pos < temp_p.data + temp_p.size && *temp_p.pos != ']') {
-                                if (*temp_p.pos == ',') {
+                            while (temp_p.pos < temp_p.size && temp_p.data[temp_p.pos] != ']') {
+                                if (temp_p.data[temp_p.pos] == ',') {
                                     temp_count++;
                                     temp_p.pos++;
-                                } else if (*temp_p.pos != ' ' && *temp_p.pos != '\t') {
+                                } else if (temp_p.data[temp_p.pos] != ' ' && temp_p.data[temp_p.pos] != '\t') {
                                     temp_count++;
                                 }
                                 lv_json_skip_value(&temp_p);

@@ -44,7 +44,7 @@ static char *str_dup(const char *src) {
     if (!src)
         return NULL;
     size_t len = strlen(src);
-    char *dst = (char *) malloc(len + 1);
+    char *dst = (char *) lv_malloc(len + 1);
     if (dst) {
         memcpy(dst, src, len + 1);
     }
@@ -123,7 +123,7 @@ static char *apply_substitution(const char *text, const char *pattern, const cha
     size_t suffix_len = strlen(match + plen);
     size_t new_len = prefix_len + rlen + suffix_len;
 
-    char *result = (char *) malloc(new_len + 1);
+    char *result = (char *) lv_malloc(new_len + 1);
     if (!result)
         return NULL;
 
@@ -162,7 +162,7 @@ static char *apply_single_rule(const char *term, const lvRewriteRuleEx *rule, bo
     size_t suffix_len = strlen(match + plen);
     size_t new_len = prefix_len + rlen + suffix_len;
 
-    char *result = (char *) malloc(new_len + 1);
+    char *result = (char *) lv_malloc(new_len + 1);
     if (!result)
         return NULL;
 
@@ -205,7 +205,7 @@ static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules
                     if (strcmp(next, current) != 0) {
                         changed = true;
                     }
-                    free(current);
+                    lv_FREE_AND_NULL(current);
                     current = next;
                 }
             }
@@ -248,14 +248,14 @@ typedef struct {
  * @brief Create an e-graph with the given initial capacity.
  */
 static Egraph *egraph_create(size_t capacity) {
-    Egraph *g = (Egraph *) malloc(sizeof(Egraph));
+    Egraph *g = (Egraph *) lv_malloc(sizeof(Egraph));
     if (!g)
         return NULL;
     g->capacity = (capacity < 64) ? 64 : capacity;
     g->count = 0;
-    g->entries = (EgraphEntry *) calloc(g->capacity, sizeof(EgraphEntry));
+    g->entries = (EgraphEntry *) lv_calloc(g->capacity, sizeof(EgraphEntry));
     if (!g->entries) {
-        free(g);
+        lv_FREE_AND_NULL(g);
         return NULL;
     }
     return g;
@@ -268,10 +268,10 @@ static void egraph_destroy(Egraph *g) {
     if (!g)
         return;
     for (size_t i = 0; i < g->capacity; i++) {
-        free(g->entries[i].expr);
+        lv_FREE_AND_NULL(g->entries[i].expr);
     }
-    free(g->entries);
-    free(g);
+    lv_FREE_AND_NULL(g->entries);
+    lv_FREE_AND_NULL(g);
 }
 
 /**
@@ -392,7 +392,7 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
 
     /* Worklist: indices of newly discovered expressions to process */
     size_t worklist_cap = 1024;
-    size_t *worklist = (size_t *) malloc(worklist_cap * sizeof(size_t));
+    size_t *worklist = (size_t *) lv_malloc(worklist_cap * sizeof(size_t));
     if (!worklist) {
         egraph_destroy(g);
         return str_dup(term);
@@ -421,7 +421,7 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
                 if (!result)
                     continue;
                 if (strcmp(result, current_expr) == 0) {
-                    free(result);
+                    lv_FREE_AND_NULL(result);
                     continue;
                 }
 
@@ -436,21 +436,21 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
                 if (result_new) {
                     if (work_count >= worklist_cap) {
                         worklist_cap *= 2;
-                        size_t *new_wl = (size_t *) realloc(worklist, worklist_cap * sizeof(size_t));
+                        size_t *new_wl = (size_t *) lv_realloc(worklist, worklist_cap * sizeof(size_t));
                         if (!new_wl) {
-                            free(result);
+                            lv_FREE_AND_NULL(result);
                             break;
                         }
                         worklist = new_wl;
                     }
                     worklist[work_count++] = result_idx;
                 }
-                free(result);
+                lv_FREE_AND_NULL(result);
             }
         }
     }
 
-    free(worklist);
+    lv_FREE_AND_NULL(worklist);
 
     /* Retrieve the best (lexicographically smallest) expression from the
      * same e-class as the input term */
@@ -482,13 +482,13 @@ static void sort_rules_by_priority(lvRewriteRuleEx *rules, size_t count) {
  * ============================================================ */
 
 lvRewriteEngineEx *rewrite_engine_ex_create(lvRewriteStrategyEx strategy, int max_iterations) {
-    lvRewriteEngineEx *engine = (lvRewriteEngineEx *) malloc(sizeof(lvRewriteEngineEx));
+    lvRewriteEngineEx *engine = (lvRewriteEngineEx *) lv_malloc(sizeof(lvRewriteEngineEx));
     if (!engine)
         return NULL;
 
-    engine->rules = (lvRewriteRuleEx *) malloc(INITIAL_RULE_CAPACITY * sizeof(lvRewriteRuleEx));
+    engine->rules = (lvRewriteRuleEx *) lv_malloc(INITIAL_RULE_CAPACITY * sizeof(lvRewriteRuleEx));
     if (!engine->rules) {
-        free(engine);
+        lv_FREE_AND_NULL(engine);
         return NULL;
     }
 
@@ -506,13 +506,13 @@ void rewrite_engine_ex_destroy(lvRewriteEngineEx *engine) {
 
     /* Free each rule's owned strings */
     for (size_t i = 0; i < engine->rule_count; i++) {
-        free((char *) engine->rules[i].name);
-        free((char *) engine->rules[i].pattern);
-        free((char *) engine->rules[i].replacement);
+        lv_free_ptr((void *) engine->rules[i].name);
+        lv_free_ptr((void *) engine->rules[i].pattern);
+        lv_free_ptr((void *) engine->rules[i].replacement);
     }
 
-    free(engine->rules);
-    free(engine);
+    lv_FREE_AND_NULL(engine->rules);
+    lv_FREE_AND_NULL(engine);
 }
 
 /* ============================================================
@@ -542,9 +542,9 @@ bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine, const char *name, con
     rule->condition_fn = condition;
 
     if (!rule->name || !rule->pattern || !rule->replacement) {
-        free((char *) rule->name);
-        free((char *) rule->pattern);
-        free((char *) rule->replacement);
+        lv_free_ptr((void *) rule->name);
+        lv_free_ptr((void *) rule->pattern);
+        lv_free_ptr((void *) rule->replacement);
         return false;
     }
 
@@ -591,11 +591,11 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRew
                     if (next) {
                         if (strcmp(next, current) != 0) {
                             any_applied = true;
-                            free(current);
+                            lv_FREE_AND_NULL(current);
                             current = next;
                             break; /* Restart from highest priority rule */
                         }
-                        free(next);
+                        lv_FREE_AND_NULL(next);
                     }
                 }
                 result->iterations = i + 1;
@@ -623,11 +623,11 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRew
                     if (next) {
                         if (strcmp(next, current) != 0) {
                             any_applied = true;
-                            free(current);
+                            lv_FREE_AND_NULL(current);
                             current = next;
                             break; /* Restart from highest priority rule */
                         }
-                        free(next);
+                        lv_FREE_AND_NULL(next);
                     }
                 }
                 result->iterations = i + 1;
@@ -656,12 +656,12 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRew
                     break;
                 }
                 if (strcmp(next, current) == 0) {
-                    free(next);
+                    lv_FREE_AND_NULL(next);
                     result->iterations = i + 1;
                     result->converged = true;
                     break;
                 }
-                free(current);
+                lv_FREE_AND_NULL(current);
                 current = next;
                 result->iterations = i + 1;
             }
@@ -690,8 +690,7 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRew
 void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result) {
     if (!result)
         return;
-    free(result->output);
-    result->output = NULL;
+    lv_FREE_AND_NULL(result->output);
 }
 
 /* ============================================================

@@ -144,20 +144,6 @@ static int compile_lambda(LvLambdaTerm *term, ConstraintGraph *graph) {
     return ok ? root_id : -1;
 }
 
-/* ── 辅助：反复 β-归约至不动点，返回归约步数 ── */
-
-static int beta_reduce_fully(ConstraintGraph *graph) {
-    int steps = 0;
-    while (beta_reduce(graph)) {
-        steps++;
-        if (steps > 5000) { /* 安全边界 */
-            fprintf(stderr, "beta_reduce_fully: 超过 5000 步，疑似无限循环\n");
-            break;
-        }
-    }
-    return steps;
-}
-
 /* ── 辅助：编译预期结果作为参考图 ── */
 
 static ConstraintGraph *compile_reference(LvLambdaTerm *term) {

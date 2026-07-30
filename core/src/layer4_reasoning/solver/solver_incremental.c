@@ -27,7 +27,6 @@
 /* 共享宏 */
 #define lv_SOLVER_DYNARRAY_INIT_CAP 16
 #define lv_ZERO_EPSILON 1e-12
-#define SOLVER_DETAIL_BUF_SIZE 512
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
@@ -246,7 +245,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.timestamp_ms = stream_timestamp_ms();
         ev.step_number = n_dirty_vars;
         ev.description = "增量求解开始";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc;
         lv_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail), "{\"phase\":\"incremental\",\"dirty_count\":%d}",
                          n_dirty_vars);
@@ -289,7 +288,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.progress = 0.20;
         ev.step_number = affected_count;
         ev.description = "依赖传播完成";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_dep;
         lv_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail), "{\"phase\":\"dependency_propagation\",\"affected\":%d}",
                          affected_count);
@@ -354,7 +353,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.progress = 0.40;
         ev.step_number = filtered_sys.count;
         ev.description = "增量求解方程过滤完成";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_filt;
         lv_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}",
                          filtered_sys.count);
@@ -428,7 +427,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.description = multiple_solutions > 0 ? "增量求解完成: 多解"
                          : solved_count > 0     ? "增量求解完成: 唯一解"
                                                 : "增量求解完成: 部分求解";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc_done;
         lv_SAFE_SNPRINTF(_snw_inc_done, detail, sizeof(detail),
                          "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}", solved_count,

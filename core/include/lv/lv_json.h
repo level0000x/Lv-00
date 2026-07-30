@@ -30,7 +30,7 @@ extern "C" {
  */
 typedef struct {
     const char *data;  /* 输入数据起始位置 */
-    const char *pos;   /* 当前解析位置 */
+    size_t pos;        /* 当前解析位置 */
     size_t size;       /* 总数据长度 */
 } lvJsonParser;
 

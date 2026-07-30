@@ -9,6 +9,7 @@
  */
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,12 +25,12 @@
 void lv_json_parser_init(lvJsonParser *p, const char *data, size_t size) {
     p->data = data;
     p->size = size;
-    p->pos = data;
+    p->pos = 0;
 }
 
 void lv_json_skip_ws(lvJsonParser *p) {
-    while (p->pos < p->data + p->size) {
-        char c = *p->pos;
+    while (p->pos < p->size) {
+        char c = p->data[p->pos];
         if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
             p->pos++;
         } else {
@@ -40,12 +41,12 @@ void lv_json_skip_ws(lvJsonParser *p) {
 
 char lv_json_peek(lvJsonParser *p) {
     lv_json_skip_ws(p);
-    return p->pos < p->data + p->size ? *p->pos : '\0';
+    return p->pos < p->size ? p->data[p->pos] : '\0';
 }
 
 char lv_json_next(lvJsonParser *p) {
     lv_json_skip_ws(p);
-    return p->pos < p->data + p->size ? *p->pos++ : '\0';
+    return p->pos < p->size ? p->data[p->pos++] : '\0';
 }
 
 bool lv_json_expect(lvJsonParser *p, char c) {
@@ -57,13 +58,13 @@ char *lv_json_parse_string(lvJsonParser *p) {
     if (!lv_json_expect(p, '"'))
         return NULL;
 
-    const char *start = p->pos;
+    const char *start = p->data + p->pos;
     size_t len = 0;
 
     /* 第一遍：计算转义后的字符串长度 */
-    while (p->pos < p->data + p->size && *p->pos != '"') {
-        if (*p->pos == '\\' && p->pos + 1 < p->data + p->size) {
-            switch (*(p->pos + 1)) {
+    while (p->pos < p->size && p->data[p->pos] != '"') {
+        if (p->data[p->pos] == '\\' && p->pos + 1 < p->size) {
+            switch (p->data[p->pos + 1]) {
                 case '"':
                 case '\\':
                 case '/':
@@ -92,7 +93,7 @@ char *lv_json_parse_string(lvJsonParser *p) {
         }
     }
 
-    if (p->pos >= p->data + p->size)
+    if (p->pos >= p->size)
         return NULL;
     p->pos++; /* skip end quote */
 
@@ -181,19 +182,19 @@ char *lv_json_parse_string(lvJsonParser *p) {
 
 bool lv_json_parse_int(lvJsonParser *p, int *out) {
     lv_json_skip_ws(p);
-    const char *start = p->pos;
+    size_t start = p->pos;
     bool negative = false;
 
-    if (p->pos < p->data + p->size && *p->pos == '-') {
+    if (p->pos < p->size && p->data[p->pos] == '-') {
         negative = true;
         p->pos++;
     }
 
-    if (p->pos >= p->data + p->size || *p->pos < '0' || *p->pos > '9') {
+    if (p->pos >= p->size || p->data[p->pos] < '0' || p->data[p->pos] > '9') {
         return false;
     }
 
-    while (p->pos < p->data + p->size && *p->pos >= '0' && *p->pos <= '9') {
+    while (p->pos < p->size && p->data[p->pos] >= '0' && p->data[p->pos] <= '9') {
         p->pos++;
     }
 
@@ -201,7 +202,7 @@ bool lv_json_parse_int(lvJsonParser *p, int *out) {
         return false;
 
     long long val = 0;
-    for (const char *s = start + (negative ? 1 : 0); s < p->pos; s++) {
+    for (const char *s = p->data + start + (negative ? 1 : 0); s < p->data + p->pos; s++) {
         val = val * 10 + (*s - '0');
     }
     *out = negative ? (int)(-val) : (int)val;
@@ -210,20 +211,20 @@ bool lv_json_parse_int(lvJsonParser *p, int *out) {
 
 bool lv_json_parse_double(lvJsonParser *p, double *out) {
     lv_json_skip_ws(p);
-    const char *start = p->pos;
+    const char *start = p->data + p->pos;
 
     /* 收集完整的 JSON 数字标记 */
     char buf[128];
     int i = 0;
 
-    if (p->pos < p->data + p->size && (*p->pos == '-' || *p->pos == '+')) {
+    if (p->pos < p->size && (p->data[p->pos] == '-' || p->data[p->pos] == '+')) {
         if (i < 127)
-            buf[i++] = *p->pos;
+            buf[i++] = p->data[p->pos];
         p->pos++;
     }
 
-    while (p->pos < p->data + p->size && i < 127) {
-        char c = *p->pos;
+    while (p->pos < p->size && i < 127) {
+        char c = p->data[p->pos];
         if (c >= '0' && c <= '9') {
             buf[i++] = c;
             p->pos++;
@@ -240,7 +241,7 @@ bool lv_json_parse_double(lvJsonParser *p, double *out) {
     }
 
     if (i == 0 || (i == 1 && (buf[0] == '-' || buf[0] == '+'))) {
-        p->pos = start;
+        p->pos = (size_t)(start - p->data);
         return false;
     }
 
@@ -248,7 +249,7 @@ bool lv_json_parse_double(lvJsonParser *p, double *out) {
 
     /* 使用 lv_parse_double 安全解析 */
     if (lv_parse_double(buf, out) != 0) {
-        p->pos = start;
+        p->pos = (size_t)(start - p->data);
         return false;
     }
     return true;
@@ -256,12 +257,12 @@ bool lv_json_parse_double(lvJsonParser *p, double *out) {
 
 bool lv_json_parse_bool(lvJsonParser *p, bool *out) {
     lv_json_skip_ws(p);
-    if (p->pos + 4 <= p->data + p->size && strncmp(p->pos, "true", 4) == 0) {
+    if (p->pos + 4 <= p->size && strncmp(p->data + p->pos, "true", 4) == 0) {
         p->pos += 4;
         *out = true;
         return true;
     }
-    if (p->pos + 5 <= p->data + p->size && strncmp(p->pos, "false", 5) == 0) {
+    if (p->pos + 5 <= p->size && strncmp(p->data + p->pos, "false", 5) == 0) {
         p->pos += 5;
         *out = false;
         return true;
@@ -363,63 +364,63 @@ const char *lv_json_find_key(const char *json, const char *key, size_t key_len) 
 
 void lv_json_skip_value(lvJsonParser *p) {
     lv_json_skip_ws(p);
-    if (p->pos >= p->data + p->size)
+    if (p->pos >= p->size)
         return;
 
-    char c = *p->pos;
+    char c = p->data[p->pos];
     if (c == '"') {
         /* string */
         p->pos++;
-        while (p->pos < p->data + p->size && *p->pos != '"') {
-            if (*p->pos == '\\')
+        while (p->pos < p->size && p->data[p->pos] != '"') {
+            if (p->data[p->pos] == '\\')
                 p->pos++;
             p->pos++;
         }
-        if (p->pos < p->data + p->size)
+        if (p->pos < p->size)
             p->pos++;
     } else if (c == '{') {
         /* object */
         p->pos++;
-        while (p->pos < p->data + p->size && *p->pos != '}') {
-            if (*p->pos == '"') {
+        while (p->pos < p->size && p->data[p->pos] != '}') {
+            if (p->data[p->pos] == '"') {
                 lv_json_skip_value(p);
                 lv_json_skip_ws(p);
-                if (p->pos < p->data + p->size && *p->pos == ':')
+                if (p->pos < p->size && p->data[p->pos] == ':')
                     p->pos++;
                 lv_json_skip_value(p);
-            } else if (*p->pos == '}') {
+            } else if (p->data[p->pos] == '}') {
                 break;
             } else {
                 p->pos++;
             }
         }
-        if (p->pos < p->data + p->size)
+        if (p->pos < p->size)
             p->pos++;
     } else if (c == '[') {
         /* array */
         p->pos++;
-        while (p->pos < p->data + p->size && *p->pos != ']') {
+        while (p->pos < p->size && p->data[p->pos] != ']') {
             lv_json_skip_value(p);
             lv_json_skip_ws(p);
-            if (p->pos < p->data + p->size && *p->pos == ',')
+            if (p->pos < p->size && p->data[p->pos] == ',')
                 p->pos++;
         }
-        if (p->pos < p->data + p->size)
+        if (p->pos < p->size)
             p->pos++;
-    } else if (c == 't' && p->pos + 4 <= p->data + p->size &&
-               strncmp(p->pos, "true", 4) == 0) {
+    } else if (c == 't' && p->pos + 4 <= p->size &&
+               strncmp(p->data + p->pos, "true", 4) == 0) {
         p->pos += 4;
-    } else if (c == 'f' && p->pos + 5 <= p->data + p->size &&
-               strncmp(p->pos, "false", 5) == 0) {
+    } else if (c == 'f' && p->pos + 5 <= p->size &&
+               strncmp(p->data + p->pos, "false", 5) == 0) {
         p->pos += 5;
-    } else if (c == 'n' && p->pos + 4 <= p->data + p->size &&
-               strncmp(p->pos, "null", 4) == 0) {
+    } else if (c == 'n' && p->pos + 4 <= p->size &&
+               strncmp(p->data + p->pos, "null", 4) == 0) {
         p->pos += 4;
     } else {
         /* number or unknown literal */
-        while (p->pos < p->data + p->size &&
-               *p->pos != ',' && *p->pos != '}' && *p->pos != ']' &&
-               *p->pos != ' ' && *p->pos != '\n' && *p->pos != '\t' && *p->pos != '\r') {
+        while (p->pos < p->size &&
+               p->data[p->pos] != ',' && p->data[p->pos] != '}' && p->data[p->pos] != ']' &&
+               p->data[p->pos] != ' ' && p->data[p->pos] != '\n' && p->data[p->pos] != '\t' && p->data[p->pos] != '\r') {
             p->pos++;
         }
     }

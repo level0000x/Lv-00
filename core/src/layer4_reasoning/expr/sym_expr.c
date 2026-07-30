@@ -13,6 +13,7 @@
  */
 
 #include "sym_expr.h"
+#include "lv/lv_utils.h"
 
 #include <math.h>
 #include <stdio.h>

@@ -29,7 +29,6 @@
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
-#define SOLVER_DETAIL_BUF_SIZE 512
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
@@ -173,7 +172,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         }
     } else if (dof > 0) {
         fb->type = SOLVER_FEEDBACK_TYPE_DOF_CHANGED;
-        char buf[SOLVER_DETAIL_BUF_SIZE];
+        char buf[lv_SOLVER_DETAIL_BUF_SIZE];
         snprintf(buf, sizeof(buf), "当前仍有 %d 个自由度", dof);
         lv_free((void **) &fb->message);
         fb->message = lv_malloc(strlen(buf) + 1);
@@ -193,7 +192,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         ev.timestamp_ms = stream_timestamp_ms();
         ev.var_id = fb->affected_var_id;
         ev.description = fb->message ? fb->message : "";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_fb;
         lv_SAFE_SNPRINTF(_snw_fb, detail, sizeof(detail),
                          "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",

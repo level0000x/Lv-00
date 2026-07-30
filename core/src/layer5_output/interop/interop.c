@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop.c
  * @brief 外部互操作模块实现
  *
@@ -38,7 +38,6 @@
 #include "symbolic_coord.h"
 
 #define MAX_RELATED_CONSTRAINTS 256
-#define MAX_CONSTRAINT_INDICES 64
 
 /* ==================== 安全整数解析辅助 ==================== */
 

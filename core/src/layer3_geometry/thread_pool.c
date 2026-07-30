@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file thread_pool.c
  * @brief 线程池实现
  *
@@ -75,7 +75,7 @@ static void *worker_func(void *arg)
 
         /* 等待队列非空或关闭信号 */
         while (pool->queue_size == 0 && !pool->shutdown) {
-            lv_cond_wait(&pool->not_empty, pool->mutex);
+            lv_cond_wait(&pool->not_empty, &pool->mutex);
         }
 
         if (pool->shutdown && pool->queue_size == 0) {
@@ -258,7 +258,7 @@ void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeo
     if (timeout_ms < 0) {
         /* 无限等待，直到所有任务完成 */
         while (group->pending > 0) {
-            lv_cond_wait(&group->cond, group->mutex);
+            lv_cond_wait(&group->cond, &group->mutex);
         }
         lv_mutex_unlock(&group->mutex);
         lv_mutex_destroy(&group->mutex);

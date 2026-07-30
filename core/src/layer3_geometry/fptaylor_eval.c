@@ -32,24 +32,24 @@
 
 /** 表达式求值中的词法 token 类型 */
 typedef enum {
-    TOK_END,     /**< 输入结束 */
-    TOK_NUMBER,  /**< 数值常量 */
-    TOK_VARIABLE,/**< 变量 x0, x1, ... */
-    TOK_PLUS,    /**< + */
-    TOK_MINUS,   /**< - */
-    TOK_MUL,     /**< * */
-    TOK_DIV,     /**< / */
-    TOK_LPAREN,  /**< ( */
-    TOK_RPAREN,  /**< ) */
-    TOK_ERROR    /**< 词法错误 */
-} TokenType;
+    FP_TOKEN_END,     /**< 输入结束 */
+    FP_TOKEN_NUMBER,  /**< 数值常量 */
+    FP_TOKEN_VARIABLE,/**< 变量 x0, x1, ... */
+    FP_TOKEN_PLUS,    /**< + */
+    FP_TOKEN_MINUS,   /**< - */
+    FP_TOKEN_MUL,     /**< * */
+    FP_TOKEN_DIV,     /**< / */
+    FP_TOKEN_LPAREN,  /**< ( */
+    FP_TOKEN_RPAREN,  /**< ) */
+    FP_TOKEN_ERROR    /**< 词法错误 */
+} FpTokenType;
 
 /** 词法分析器上下文 */
 typedef struct {
     const char *p;         /**< 当前解析位置 */
-    TokenType tok;         /**< 当前 token 类型 */
-    double num_val;        /**< 当前 token 的数值（TOK_NUMBER 时） */
-    int var_idx;           /**< 当前 token 的变量索引（TOK_VARIABLE 时） */
+    FpTokenType tok;         /**< 当前 token 类型 */
+    double num_val;        /**< 当前 token 的数值（FP_TOKEN_NUMBER 时） */
+    int var_idx;           /**< 当前 token 的变量索引（FP_TOKEN_VARIABLE 时） */
     const double *var_vals;/**< 变量值数组 */
     int var_count;         /**< 变量数量 */
 } Lexer;
@@ -63,18 +63,18 @@ static void lex_advance(Lexer *lex) {
 
     char c = *(lex->p);
     if (c == '\0') {
-        lex->tok = TOK_END;
+        lex->tok = FP_TOKEN_END;
         return;
     }
 
     /* 单字符运算符 */
     switch (c) {
-        case '+': lex->tok = TOK_PLUS;   lex->p++; return;
-        case '-': lex->tok = TOK_MINUS;  lex->p++; return;
-        case '*': lex->tok = TOK_MUL;    lex->p++; return;
-        case '/': lex->tok = TOK_DIV;    lex->p++; return;
-        case '(': lex->tok = TOK_LPAREN; lex->p++; return;
-        case ')': lex->tok = TOK_RPAREN; lex->p++; return;
+        case '+': lex->tok = FP_TOKEN_PLUS;   lex->p++; return;
+        case '-': lex->tok = FP_TOKEN_MINUS;  lex->p++; return;
+        case '*': lex->tok = FP_TOKEN_MUL;    lex->p++; return;
+        case '/': lex->tok = FP_TOKEN_DIV;    lex->p++; return;
+        case '(': lex->tok = FP_TOKEN_LPAREN; lex->p++; return;
+        case ')': lex->tok = FP_TOKEN_RPAREN; lex->p++; return;
         default: break;
     }
 
@@ -83,10 +83,10 @@ static void lex_advance(Lexer *lex) {
         char *end = NULL;
         double val = strtod(lex->p, &end);
         if (end == lex->p) {
-            lex->tok = TOK_ERROR;
+            lex->tok = FP_TOKEN_ERROR;
             return;
         }
-        lex->tok = TOK_NUMBER;
+        lex->tok = FP_TOKEN_NUMBER;
         lex->num_val = val;
         lex->p = end;
         return;
@@ -96,22 +96,22 @@ static void lex_advance(Lexer *lex) {
     if (c == 'x' || c == 'X') {
         const char *digits = lex->p + 1;
         if (*digits < '0' || *digits > '9') {
-            lex->tok = TOK_ERROR;
+            lex->tok = FP_TOKEN_ERROR;
             return;
         }
         char *end = NULL;
         long idx = strtol(digits, &end, 10);
         if (idx < 0 || idx >= lex->var_count || end == digits) {
-            lex->tok = TOK_ERROR;
+            lex->tok = FP_TOKEN_ERROR;
             return;
         }
-        lex->tok = TOK_VARIABLE;
+        lex->tok = FP_TOKEN_VARIABLE;
         lex->var_idx = (int) idx;
         lex->p = end;
         return;
     }
 
-    lex->tok = TOK_ERROR;
+    lex->tok = FP_TOKEN_ERROR;
 }
 
 /* 前向声明 */
@@ -119,32 +119,32 @@ static double parse_expr(Lexer *lex);
 
 /** 解析基本因子：number | variable | '(' expr ')' */
 static double parse_primary(Lexer *lex) {
-    if (lex->tok == TOK_NUMBER) {
+    if (lex->tok == FP_TOKEN_NUMBER) {
         double v = lex->num_val;
         lex_advance(lex);
         return v;
     }
-    if (lex->tok == TOK_VARIABLE) {
+    if (lex->tok == FP_TOKEN_VARIABLE) {
         double v = lex->var_vals[lex->var_idx];
         lex_advance(lex);
         return v;
     }
-    if (lex->tok == TOK_LPAREN) {
+    if (lex->tok == FP_TOKEN_LPAREN) {
         lex_advance(lex);
         double v = parse_expr(lex);
-        if (lex->tok != TOK_RPAREN) {
+        if (lex->tok != FP_TOKEN_RPAREN) {
             return NAN;
         }
         lex_advance(lex);
         return v;
     }
     /* 一元负号 */
-    if (lex->tok == TOK_MINUS) {
+    if (lex->tok == FP_TOKEN_MINUS) {
         lex_advance(lex);
         return -parse_primary(lex);
     }
     /* 一元正号 */
-    if (lex->tok == TOK_PLUS) {
+    if (lex->tok == FP_TOKEN_PLUS) {
         lex_advance(lex);
         return parse_primary(lex);
     }
@@ -156,12 +156,12 @@ static double parse_term(Lexer *lex) {
     double v = parse_primary(lex);
     if (isnan(v)) return NAN;
 
-    while (lex->tok == TOK_MUL || lex->tok == TOK_DIV) {
-        TokenType op = lex->tok;
+    while (lex->tok == FP_TOKEN_MUL || lex->tok == FP_TOKEN_DIV) {
+        FpTokenType op = lex->tok;
         lex_advance(lex);
         double rhs = parse_primary(lex);
         if (isnan(rhs)) return NAN;
-        if (op == TOK_MUL) {
+        if (op == FP_TOKEN_MUL) {
             v *= rhs;
         } else {
             if (fabs(rhs) < 1e-308) return NAN;
@@ -176,12 +176,12 @@ static double parse_expr(Lexer *lex) {
     double v = parse_term(lex);
     if (isnan(v)) return NAN;
 
-    while (lex->tok == TOK_PLUS || lex->tok == TOK_MINUS) {
-        TokenType op = lex->tok;
+    while (lex->tok == FP_TOKEN_PLUS || lex->tok == FP_TOKEN_MINUS) {
+        FpTokenType op = lex->tok;
         lex_advance(lex);
         double rhs = parse_term(lex);
         if (isnan(rhs)) return NAN;
-        if (op == TOK_PLUS) {
+        if (op == FP_TOKEN_PLUS) {
             v += rhs;
         } else {
             v -= rhs;
@@ -217,7 +217,7 @@ static double eval_simple_expr(const char *expr, const double *var_values, int v
     lex_advance(&lex);
 
     double result = parse_expr(&lex);
-    if (lex.tok != TOK_END) {
+    if (lex.tok != FP_TOKEN_END) {
         return NAN;
     }
     return result;

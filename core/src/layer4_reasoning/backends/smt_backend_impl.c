@@ -37,6 +37,7 @@
 #include <string.h>
 
 #include "smt_backend.h"
+#include "lv/lv_thread.h"
 
 #ifdef _WIN32
 #include <io.h>

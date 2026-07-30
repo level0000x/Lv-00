@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver.h
  * @brief 代数求解器 —— Groebner 基、方程提取与冲突检测
  * @details 提供基于 Groebner 基方法的代数约束求解、全类型约束方程提取、
@@ -27,7 +27,15 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+
+/* ============================================================
+ * 公共常量
+ * ============================================================ */
+
+/** 求解器详情缓冲区大小（统一管理，避免 15 个文件重复定义） */
+#define lv_SOLVER_DETAIL_BUF_SIZE 512
 
 #include "constraint_graph.h"
 #include "mpz_poly.h"

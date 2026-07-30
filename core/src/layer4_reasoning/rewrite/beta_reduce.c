@@ -753,3 +753,35 @@ bool beta_reduce(ConstraintGraph *graph) {
 
     return beta_reduce_apply(graph, func_block_id, arg_node_id, output_port_id);
 }
+
+/* ===========================================================================
+ * beta_reduce_n / beta_reduce_fully：多步 β-归约 API
+ * =========================================================================== */
+
+int beta_reduce_n(ConstraintGraph *graph, int n) {
+    if (!graph || n <= 0)
+        return 0;
+
+    int steps = 0;
+    for (int i = 0; i < n; i++) {
+        if (!beta_reduce(graph))
+            break;
+        steps++;
+    }
+    return steps;
+}
+
+int beta_reduce_fully(ConstraintGraph *graph) {
+    if (!graph)
+        return 0;
+
+    int steps = 0;
+    while (beta_reduce(graph)) {
+        steps++;
+        if (steps > 5000) {
+            LOG_ERROR("beta_reduce", "beta_reduce_fully: 超过 5000 步，疑似无限循环");
+            break;
+        }
+    }
+    return steps;
+}

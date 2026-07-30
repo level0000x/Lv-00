@@ -30,7 +30,6 @@
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
-#define SOLVER_DETAIL_BUF_SIZE 512
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
@@ -154,7 +153,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                             GeomNode *target = graph_get_node(graph, eid);
                             if (target) {
                                 lv_free((void **) &target->numeric_assumption_declaration);
-                                char buf[SOLVER_DETAIL_BUF_SIZE];
+                                char buf[lv_SOLVER_DETAIL_BUF_SIZE];
                                 int _snw;
                                 lv_SAFE_SNPRINTF(_snw, buf, sizeof(buf), "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
                                                  x1, y1, x3, y3);
@@ -248,7 +247,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.timestamp_ms = stream_timestamp_ms();
         ev.var_id = var_id;
         ev.description = "开始超出代数范围分析";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_diag;
         lv_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail), "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}",
                          var_id);
@@ -308,7 +307,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.timestamp_ms = stream_timestamp_ms();
         ev.var_id = var_id;
         ev.description = "发现高次方程，尝试因式分解";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_found;
         lv_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail), "{\"degree\":%d,\"var_id\":%d}", target_poly->degree,
                          var_id);
@@ -349,7 +348,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             ev.timestamp_ms = stream_timestamp_ms();
             ev.var_id = var_id;
             ev.description = "因式分解成功，可通过拆分求解";
-            char detail[SOLVER_DETAIL_BUF_SIZE];
+            char detail[lv_SOLVER_DETAIL_BUF_SIZE];
             int _snw_fact;
             lv_SAFE_SNPRINTF(_snw_fact, detail, sizeof(detail),
                              "{\"diagnosis\":\"factorable\",\"resolvable\":true,\"factor1\":\"%s\",\"factor2\":\"%s\"}",
@@ -422,7 +421,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.timestamp_ms = stream_timestamp_ms();
         ev.var_id = var_id;
         ev.description = "不可约高次多项式，超出二次可构造范围";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_irr;
         lv_SAFE_SNPRINTF(
             _snw_irr, detail, sizeof(detail),

@@ -485,18 +485,18 @@ ConstraintTemplate *axiom_package_get_template(AxiomPackage *pkg, const char *na
 /* ============== 解析器 ============== */
 
 typedef enum {
-    TOK_EOF,
-    TOK_LBRACE,     /* { */
-    TOK_RBRACE,     /* } */
-    TOK_STRING,     /* "..." */
-    TOK_NUMBER,     /* 整数 */
-    TOK_IDENTIFIER, /* 标识符 */
-    TOK_BOOLEAN,    /* true/false */
-    TOK_ERROR
-} TokenType;
+    PKG_EOF,
+    PKG_LBRACE,     /* { */
+    PKG_RBRACE,     /* } */
+    PKG_STRING,     /* "..." */
+    PKG_NUMBER,     /* 整数 */
+    PKG_IDENTIFIER, /* 标识符 */
+    PKG_BOOLEAN,    /* true/false */
+    PKG_ERROR
+} PkgTokenType;
 
 typedef struct {
-    TokenType type;
+    PkgTokenType type;
     char *str_value;
     int int_value;
     bool bool_value;
@@ -523,20 +523,20 @@ static Token lexer_next_token(Lexer *lex) {
     lexer_skip_whitespace_and_comments(lex);
 
     if (!*lex->pos) {
-        tok.type = TOK_EOF;
+        tok.type = PKG_EOF;
         return tok;
     }
 
     /* 大括号 */
     if (*lex->pos == '{') {
-        tok.type = TOK_LBRACE;
+        tok.type = PKG_LBRACE;
         lex->pos++;
         lex->col++;
         return tok;
     }
 
     if (*lex->pos == '}') {
-        tok.type = TOK_RBRACE;
+        tok.type = PKG_RBRACE;
         lex->pos++;
         lex->col++;
         return tok;
@@ -549,11 +549,11 @@ static Token lexer_next_token(Lexer *lex) {
 
         tok.str_value = lv_lexer_extract_string(lex);
         if (!tok.str_value) {
-            tok.type = TOK_ERROR;
+            tok.type = PKG_ERROR;
             return tok;
         }
 
-        tok.type = TOK_STRING;
+        tok.type = PKG_STRING;
         return tok;
     }
 
@@ -584,13 +584,13 @@ static Token lexer_next_token(Lexer *lex) {
 
         if (overflow) {
             /* 溢出时设置错误标记，使用 INT_MAX 作为安全回退值 */
-            tok.type = TOK_NUMBER;
+            tok.type = PKG_NUMBER;
             tok.int_value = sign == 1 ? INT_MAX : INT_MIN;
             lex->error_msg = "数字字面量超出整数范围";
             return tok;
         }
 
-        tok.type = TOK_NUMBER;
+        tok.type = PKG_NUMBER;
         tok.int_value = sign * value;
         return tok;
     }
@@ -607,7 +607,7 @@ static Token lexer_next_token(Lexer *lex) {
         size_t len = lex->pos - start;
         tok.str_value = lv_malloc(len + 1);
         if (!tok.str_value) {
-            tok.type = TOK_ERROR;
+            tok.type = PKG_ERROR;
             return tok;
         }
 
@@ -616,24 +616,24 @@ static Token lexer_next_token(Lexer *lex) {
 
         /* 检查关键字 */
         if (strcmp(tok.str_value, "true") == 0) {
-            tok.type = TOK_BOOLEAN;
+            tok.type = PKG_BOOLEAN;
             tok.bool_value = true;
             lv_free((void **) &tok.str_value);
             tok.str_value = NULL;
         } else if (strcmp(tok.str_value, "false") == 0) {
-            tok.type = TOK_BOOLEAN;
+            tok.type = PKG_BOOLEAN;
             tok.bool_value = false;
             lv_free((void **) &tok.str_value);
             tok.str_value = NULL;
         } else {
-            tok.type = TOK_IDENTIFIER;
+            tok.type = PKG_IDENTIFIER;
         }
 
         return tok;
     }
 
     /* 未知字符 */
-    tok.type = TOK_ERROR;
+    tok.type = PKG_ERROR;
     lex->error_msg = "意外的字符";
     lex->pos++;
     lex->col++;
@@ -666,7 +666,7 @@ static void parser_advance(Parser *p) {
     p->current = lexer_next_token(&p->lexer);
 }
 
-static bool parser_expect(Parser *p, TokenType type) {
+static bool parser_expect(Parser *p, PkgTokenType type) {
     if (p->current.type != type) {
         lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 %d, 得到 %d", p->current.line, p->current.col, type,
                      p->current.type);
@@ -677,7 +677,7 @@ static bool parser_expect(Parser *p, TokenType type) {
 }
 
 static bool parser_expect_identifier(Parser *p, const char *name) {
-    if (p->current.type != TOK_IDENTIFIER || strcmp(p->current.str_value, name) != 0) {
+    if (p->current.type != PKG_IDENTIFIER || strcmp(p->current.str_value, name) != 0) {
         lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'", p->current.line, p->current.col, name);
         p->has_error = true;
         return false;
@@ -713,7 +713,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     parser_advance(p); /* 跳过 'unconstructible' */
 
     /* 期望字符串 (问题名称) */
-    if (!parser_expect(p, TOK_STRING))
+    if (!parser_expect(p, PKG_STRING))
         return false;
 
     KnownUnconstructible uc = {0};
@@ -723,15 +723,15 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     parser_advance(p);
 
     /* 期望左大括号 */
-    if (!parser_expect(p, TOK_LBRACE)) {
+    if (!parser_expect(p, PKG_LBRACE)) {
         lv_free((void **) &uc.name);
         return false;
     }
     parser_advance(p);
 
     /* 解析内容直到右大括号 */
-    while (p->current.type != TOK_RBRACE && p->current.type != TOK_EOF && !p->has_error) {
-        if (p->current.type != TOK_IDENTIFIER) {
+    while (p->current.type != PKG_RBRACE && p->current.type != PKG_EOF && !p->has_error) {
+        if (p->current.type != PKG_IDENTIFIER) {
             lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望属性名", p->current.line);
             p->has_error = true;
             break;
@@ -741,7 +741,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
         parser_advance(p);
 
         if (strcmp(prop, "reduces_to") == 0) {
-            if (!parser_expect(p, TOK_STRING)) {
+            if (!parser_expect(p, PKG_STRING)) {
                 lv_free((void **) &prop);
                 p->has_error = true;
                 break;
@@ -749,7 +749,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             uc.reduces_to = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         } else if (strcmp(prop, "dependency") == 0) {
-            if (!parser_expect(p, TOK_STRING)) {
+            if (!parser_expect(p, PKG_STRING)) {
                 lv_free((void **) &prop);
                 p->has_error = true;
                 break;
@@ -764,7 +764,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             }
             parser_advance(p);
         } else if (strcmp(prop, "external_ref") == 0) {
-            if (!parser_expect(p, TOK_STRING)) {
+            if (!parser_expect(p, PKG_STRING)) {
                 lv_free((void **) &prop);
                 p->has_error = true;
                 break;
@@ -772,7 +772,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             uc.external_ref = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         } else if (strcmp(prop, "green_verified") == 0) {
-            if (!parser_expect(p, TOK_BOOLEAN)) {
+            if (!parser_expect(p, PKG_BOOLEAN)) {
                 lv_free((void **) &prop);
                 p->has_error = true;
                 break;
@@ -794,7 +794,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
     }
 
     /* 期望右大括号 */
-    if (!parser_expect(p, TOK_RBRACE)) {
+    if (!parser_expect(p, PKG_RBRACE)) {
         unconstructible_desc_cleanup(&uc);
         return false;
     }
@@ -815,7 +815,7 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
     parser_advance(p); /* 跳过 'template' */
 
     /* 期望字符串 (模板名称) */
-    if (!parser_expect(p, TOK_STRING))
+    if (!parser_expect(p, PKG_STRING))
         return false;
 
     ConstraintTemplate tmpl = {0};
@@ -825,7 +825,7 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
     parser_advance(p);
 
     /* 期望参数数量 (数字) */
-    if (!parser_expect(p, TOK_NUMBER)) {
+    if (!parser_expect(p, PKG_NUMBER)) {
         lv_free((void **) &tmpl.name);
         return false;
     }
@@ -845,8 +845,8 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
 
 /* 解析包体 */
 static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
-    while (p->current.type != TOK_RBRACE && p->current.type != TOK_EOF && !p->has_error) {
-        if (p->current.type != TOK_IDENTIFIER) {
+    while (p->current.type != PKG_RBRACE && p->current.type != PKG_EOF && !p->has_error) {
+        if (p->current.type != PKG_IDENTIFIER) {
             lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望声明", p->current.line);
             p->has_error = true;
             break;
@@ -866,7 +866,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
             }
         } else if (strcmp(keyword, "bottom_geometry") == 0) {
             parser_advance(p);
-            if (!parser_expect(p, TOK_STRING)) {
+            if (!parser_expect(p, PKG_STRING)) {
                 p->has_error = true;
                 break;
             }
@@ -875,7 +875,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
             parser_advance(p);
         } else if (strcmp(keyword, "negation_encoding") == 0) {
             parser_advance(p);
-            if (!parser_expect(p, TOK_STRING)) {
+            if (!parser_expect(p, PKG_STRING)) {
                 p->has_error = true;
                 break;
             }
@@ -884,7 +884,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
             parser_advance(p);
         } else if (strcmp(keyword, "contradiction_behavior") == 0) {
             parser_advance(p);
-            if (!parser_expect(p, TOK_STRING)) {
+            if (!parser_expect(p, PKG_STRING)) {
                 p->has_error = true;
                 break;
             }
@@ -1014,7 +1014,7 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     parser_advance(&parser);
 
     /* 期望包名 (字符串) */
-    if (!parser_expect(&parser, TOK_STRING)) {
+    if (!parser_expect(&parser, PKG_STRING)) {
         lv_free((void **) &buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
@@ -1023,7 +1023,7 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     parser_advance(&parser);
 
     /* 期望版本 (字符串) */
-    if (!parser_expect(&parser, TOK_STRING)) {
+    if (!parser_expect(&parser, PKG_STRING)) {
         lv_free((void **) &buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
@@ -1032,7 +1032,7 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     parser_advance(&parser);
 
     /* 期望左大括号 */
-    if (!parser_expect(&parser, TOK_LBRACE)) {
+    if (!parser_expect(&parser, PKG_LBRACE)) {
         lv_free((void **) &buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }
@@ -1045,7 +1045,7 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     }
 
     /* 期望右大括号 */
-    if (!parser_expect(&parser, TOK_RBRACE)) {
+    if (!parser_expect(&parser, PKG_RBRACE)) {
         lv_free((void **) &buf);
         return AXIOM_LOAD_PARSE_ERROR;
     }

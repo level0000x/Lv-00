@@ -25,10 +25,7 @@
 
 lv_DECLARE_STREAM_CTX(interop);
 
-/** @brief 单个约束节点涉及的最大约束数量 */
-#ifndef MAX_CONSTRAINT_INDICES
-#define MAX_CONSTRAINT_INDICES 32
-#endif
+/** @brief 单个约束节点涉及的最大约束数量（统一在 interop.h 中定义） */
 
 /* ── 导出模块 ── */
 
@@ -2371,8 +2368,8 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
             continue;
 
         /* 查找与线段关联的 INCIDENCE 约束以获取端点 */
-        int constraint_indices[MAX_CONSTRAINT_INDICES];
-        int c_count = graph_find_constraints_involving(graph, node->id, constraint_indices, MAX_CONSTRAINT_INDICES);
+        int constraint_indices[lv_MAX_CONSTRAINT_INDICES];
+        int c_count = graph_find_constraints_involving(graph, node->id, constraint_indices, lv_MAX_CONSTRAINT_INDICES);
 
         /* 收集端点坐标 */
         double endpoints[4]; /* x1, y1, x2, y2 */

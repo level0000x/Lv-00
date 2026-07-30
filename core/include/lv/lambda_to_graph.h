@@ -58,6 +58,29 @@ lv_PUBLIC_API LvLambdaTerm *graph_to_lambda(ConstraintGraph *graph, int node_id)
  */
 lv_PUBLIC_API bool beta_reduce(ConstraintGraph *graph);
 
+/**
+ * @brief 在约束图上执行最多 n 步 β-归约
+ *
+ * 重复调用 beta_reduce，最多执行 n 步。
+ * 适用于有上限约束的迭代归约场景。
+ *
+ * @param graph 约束图
+ * @param n     最大归约步数（<=0 时立即返回 0）
+ * @return 实际执行的归约步数（0 表示无可归约模式）
+ */
+lv_PUBLIC_API int beta_reduce_n(ConstraintGraph *graph, int n);
+
+/**
+ * @brief 在约束图上反复 β-归约至不动点
+ *
+ * 持续调用 beta_reduce 直到无可归约模式。
+ * 内置 5000 步安全边界防止无限循环。
+ *
+ * @param graph 约束图
+ * @return 实际执行的归约步数
+ */
+lv_PUBLIC_API int beta_reduce_fully(ConstraintGraph *graph);
+
 #ifdef __cplusplus
 }
 #endif

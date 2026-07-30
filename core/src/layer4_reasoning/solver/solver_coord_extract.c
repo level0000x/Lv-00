@@ -29,7 +29,6 @@
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
-#define SOLVER_DETAIL_BUF_SIZE 512
 
 /* --- 方程系统类型定义（与其他 solver 子模块保持一致）--- */
 typedef struct PolyEquation {

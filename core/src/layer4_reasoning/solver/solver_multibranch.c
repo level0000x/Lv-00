@@ -30,7 +30,6 @@
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
-#define SOLVER_DETAIL_BUF_SIZE 512
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
@@ -161,7 +160,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.timestamp_ms = stream_timestamp_ms();
             ev.step_number = branch_count;
             ev.description = "发现二次方程根对";
-            char detail[SOLVER_DETAIL_BUF_SIZE];
+            char detail[lv_SOLVER_DETAIL_BUF_SIZE];
             int _snw_bv;
             lv_SAFE_SNPRINTF(_snw_bv, detail, sizeof(detail),
                              "{\"var_id\":%d,\"coord_index\":%d,\"root1\":%.6f,\"root2\":%.6f}",
@@ -357,7 +356,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.timestamp_ms = stream_timestamp_ms();
             ev.progress = (double) (b + 1) / (double) total_branches;
             ev.description = "多解分支验证中";
-            char detail[SOLVER_DETAIL_BUF_SIZE];
+            char detail[lv_SOLVER_DETAIL_BUF_SIZE];
             int _snw4;
             lv_SAFE_SNPRINTF(_snw4, detail, sizeof(detail), "{\"checked\":%d,\"total\":%d,\"valid\":%d}", b + 1,
                              total_branches, valid_branches);
@@ -402,7 +401,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.timestamp_ms = stream_timestamp_ms();
             ev.step_number = out_idx;
             ev.description = "有效多解分支";
-            char detail[SOLVER_DETAIL_BUF_SIZE];
+            char detail[lv_SOLVER_DETAIL_BUF_SIZE];
             int pos;
             lv_SAFE_SNPRINTF(pos, detail, sizeof(detail), "{\"branch\":%d,\"valid\":true,\"values\":[", out_idx);
             for (int v = 0; v < branch_count && pos < (int) sizeof(detail) - 30; v++) {

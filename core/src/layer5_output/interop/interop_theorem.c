@@ -496,7 +496,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
     *out_count = 0;
 
     int capacity = INTEROP_MAX_COMPLETIONS;
-    char **result = (char **) calloc((size_t) capacity, sizeof(char *));
+    char **result = (char **) lv_calloc((size_t) capacity, sizeof(char *));
     if (!result)
         return NULL;
 
@@ -553,7 +553,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
     }
 
     if (count == 0) {
-        free(result);
+        lv_free((void **) &result);
         *out_count = 0;
         return NULL;
     }

@@ -31,7 +31,6 @@
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
-#define SOLVER_DETAIL_BUF_SIZE 512
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
@@ -131,7 +130,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         ev.step_number = sys.count;
         ev.total_steps = -1;
         ev.description = "方程提取完成";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_eq;
         lv_SAFE_SNPRINTF(_snw_eq, detail, sizeof(detail), "{\"equation_count\":%d,\"phase\":\"extraction\"}",
                          sys.count);
@@ -219,7 +218,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 ev.timestamp_ms = stream_timestamp_ms();
                 ev.progress = 0.15;
                 ev.description = "开始变量依赖拓扑排序";
-                char detail[SOLVER_DETAIL_BUF_SIZE];
+                char detail[lv_SOLVER_DETAIL_BUF_SIZE];
                 int _snw_ts;
                 lv_SAFE_SNPRINTF(_snw_ts, detail, sizeof(detail), "{\"phase\":\"topology_sort\",\"var_count\":%d}",
                                  all_var_count);
@@ -323,7 +322,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 ev.progress = 0.55;
                 ev.step_number = remaining_before_gb;
                 ev.description = "逐方程消元完成，仍有剩余方程，进入Gröbner基计算";
-                char detail[SOLVER_DETAIL_BUF_SIZE];
+                char detail[lv_SOLVER_DETAIL_BUF_SIZE];
                 int _snw_gb_prog;
                 lv_SAFE_SNPRINTF(_snw_gb_prog, detail, sizeof(detail),
                                  "{\"phase\":\"groebner_entry\",\"remaining\":%d,\"solved\":%d}", remaining_before_gb,
@@ -409,7 +408,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         ev.step_number = solved_count;
         ev.total_steps = solved_count + remaining;
         ev.description = "代数求解总结";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_sum;
         lv_SAFE_SNPRINTF(_snw_sum, detail, sizeof(detail),
                          "{\"phase\":\"solve_summary\","

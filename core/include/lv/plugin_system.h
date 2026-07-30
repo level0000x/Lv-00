@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file plugin_system.h
  * @brief LV-00 模块化插件系统
  *
@@ -359,7 +359,7 @@ lvPlugin **lv_plugin_get_by_state(lvPluginSystem *system, lvPluginState state, s
  * @param interface 指向待注册接口的指针
  * @return 成功返回 0，失败返回非零错误码
  */
-int lv_plugin_register_interface(lvPlugin *plugin, lvPluginInterface *interface);
+int lv_plugin_register_interface(lvPlugin *plugin, lvPluginInterface *iface);
 
 /**
  * @brief 从插件注销指定名称的接口

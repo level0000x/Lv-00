@@ -31,7 +31,6 @@
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
 #define lv_ZERO_EPSILON 1e-12
-#define SOLVER_DETAIL_BUF_SIZE 512
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \
         if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
@@ -547,7 +546,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         ev.total_steps = (total_pairs > INT_MAX) ? INT_MAX : (int) total_pairs;
                         ev.progress = (total_pairs > 0) ? (double) steps / (double) total_pairs : 0.0;
                         ev.description = "Buchberger S-多项式约化";
-                        char detail[SOLVER_DETAIL_BUF_SIZE];
+                        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
                         int _snw_gb;
                         lv_SAFE_SNPRINTF(_snw_gb, detail, sizeof(detail),
                                          "{\"phase\":\"s_polynomial\",\"pair\":[%d,%d],"
@@ -757,7 +756,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             ev.timestamp_ms = stream_timestamp_ms();
             ev.step_number = steps;
             ev.description = "Gröbner 基自约化完成";
-            char detail[SOLVER_DETAIL_BUF_SIZE];
+            char detail[lv_SOLVER_DETAIL_BUF_SIZE];
             int _snw_ar;
             lv_SAFE_SNPRINTF(_snw_ar, detail, sizeof(detail),
                              "{\"phase\":\"auto_reduction\",\"reduced_count\":%d,"
@@ -952,7 +951,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         ev.timestamp_ms = stream_timestamp_ms();
         ev.step_number = 0;
         ev.description = "Groebner 基计算完成";
-        char detail[SOLVER_DETAIL_BUF_SIZE];
+        char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_gc;
         lv_SAFE_SNPRINTF(_snw_gc, detail, sizeof(detail),
                          "{\"phase\":\"groebner_complete\",\"status\":\"%s\","
