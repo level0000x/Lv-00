@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file numerical_backend.h
  * @brief 多后端数值抽象层 —— 借鉴 SUNDIALS N_Vector/SUNMatrix/SUNLinearSolver 架构
  *
@@ -392,6 +392,8 @@ static inline const char *lv_backend_name(lvBackendType backend) {
             return "CUDA";
         case lv_BACKEND_HIP:
             return "HIP";
+        case lv_BACKEND_SINGULAR:
+            return "Singular";
         case lv_BACKEND_CUSTOM:
             return "CUSTOM";
         default:

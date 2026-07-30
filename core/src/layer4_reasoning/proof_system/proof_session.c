@@ -37,15 +37,6 @@ static void generate_session_id(char *buf, size_t buf_size) {
 }
 
 /**
- * @brief Safe string duplication
- */
-static char *safe_strdup(const char *s) {
-    if (!s)
-        return NULL;
-    return lv_strdup(s);
-}
-
-/**
  * @brief Escape a string for JSON output
  *
  * Writes the escaped version of src into dst. Ensures dst is null-terminated.
@@ -128,7 +119,7 @@ lvProofSession *proof_session_create_with_id(const char *session_id, const char 
     session->created_at = (uint64_t) time(NULL);
 
     /* Set target proposition */
-    session->target_proposition = safe_strdup(target_proposition);
+    session->target_proposition = lv_strdup_safe(target_proposition);
     if (!session->target_proposition) {
         lv_free((void **) &session);
         return NULL;

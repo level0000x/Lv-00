@@ -601,17 +601,9 @@ bool rune_sequence_add(RuneSequence *seq, Rune *rune) {
     if (!seq || !rune)
         return false;
 
-    /* 容量不足时自动扩容（翻倍策略） */
-    if (seq->rune_count >= seq->capacity) {
-        if (seq->capacity > INT_MAX / MAGIC_RUNE_SEQUENCE_GROWTH)
-            return false;
-        int new_capacity = seq->capacity * MAGIC_RUNE_SEQUENCE_GROWTH;
-        Rune **new_runes = (Rune **) lv_realloc(seq->runes, new_capacity * sizeof(Rune *));
-        if (!new_runes)
-            return false;
-        seq->runes = new_runes;
-        seq->capacity = new_capacity;
-    }
+    /* 容量不足时自动扩容 */
+    if (!lv_ensure_capacity((void **)&seq->runes, seq->rune_count, &seq->capacity, sizeof(Rune *), 1))
+        return false;
 
     /* 追加符文到序列尾部 */
     seq->runes[seq->rune_count++] = rune;
@@ -909,15 +901,9 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
         return -1;
 
     /* 约束数组容量不足时自动扩容 */
-    if (array->constraint_count >= array->constraint_capacity) {
-        int new_capacity = array->constraint_capacity * MAGIC_ARRAY_CONSTRAINT_GROWTH;
-        ArrayConstraintType *new_constraints =
-            (ArrayConstraintType *) lv_realloc(array->constraints, new_capacity * sizeof(ArrayConstraintType));
-        if (!new_constraints)
-            return -1;
-        array->constraints = new_constraints;
-        array->constraint_capacity = new_capacity;
-    }
+    if (!lv_ensure_capacity((void **)&array->constraints, array->constraint_count,
+                            &array->constraint_capacity, sizeof(ArrayConstraintType), 1))
+        return -1;
 
     /* 将魔法阵约束类型映射为底层约束图内部类型 */
     ConstraintType graph_type;

@@ -50,21 +50,6 @@
 
 #include "lv/lv_thread.h"
 
-#ifdef _WIN32
-static int64_t get_time_ns(void) {
-    LARGE_INTEGER freq, count;
-    QueryPerformanceFrequency(&freq);
-    QueryPerformanceCounter(&count);
-    return (int64_t)((double)count.QuadPart / (double)freq.QuadPart * 1e9);
-}
-#else
-static int64_t get_time_ns(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
-}
-#endif
-
 /* ============== 日志系统实现 ============== */
 
 static struct {
@@ -257,7 +242,7 @@ void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line,
     lvLogRecord record;
     record.level = level;
     record.line = line;
-    record.timestamp_ms = get_time_ns() / 1000000;
+    record.timestamp_ms = lv_get_time_ns() / 1000000;
     record.thread_id = (int)lv_thread_id();
 
     if (tag) {
@@ -438,7 +423,7 @@ void lv_timer_start(lvTimer *timer) {
         return;
     }
 
-    timer->start_time_ns = get_time_ns();
+    timer->start_time_ns = lv_get_time_ns();
     timer->state = TIMER_RUNNING;
     timer->call_count++;
 }
@@ -448,7 +433,7 @@ int64_t lv_timer_stop(lvTimer *timer) {
         return 0;
     }
 
-    timer->elapsed_ns = get_time_ns() - timer->start_time_ns;
+    timer->elapsed_ns = lv_get_time_ns() - timer->start_time_ns;
     timer->total_ns += timer->elapsed_ns;
     timer->state = TIMER_STOPPED;
 
@@ -460,7 +445,7 @@ void lv_timer_pause(lvTimer *timer) {
         return;
     }
 
-    timer->elapsed_ns += get_time_ns() - timer->start_time_ns;
+    timer->elapsed_ns += lv_get_time_ns() - timer->start_time_ns;
     timer->state = TIMER_PAUSED;
 }
 
@@ -469,7 +454,7 @@ void lv_timer_resume(lvTimer *timer) {
         return;
     }
 
-    timer->start_time_ns = get_time_ns();
+    timer->start_time_ns = lv_get_time_ns();
     timer->state = TIMER_RUNNING;
 }
 
@@ -490,7 +475,7 @@ int64_t lv_timer_elapsed_ms(const lvTimer *timer) {
     }
 
     if (timer->state == TIMER_RUNNING) {
-        return (get_time_ns() - timer->start_time_ns) / 1000000;
+        return (lv_get_time_ns() - timer->start_time_ns) / 1000000;
     }
     return timer->elapsed_ns / 1000000;
 }
@@ -501,7 +486,7 @@ int64_t lv_timer_elapsed_ns(const lvTimer *timer) {
     }
 
     if (timer->state == TIMER_RUNNING) {
-        return get_time_ns() - timer->start_time_ns;
+        return lv_get_time_ns() - timer->start_time_ns;
     }
     return timer->elapsed_ns;
 }
@@ -577,7 +562,7 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
     stats->sum += value;
     stats->sum_sq += value * value;
     stats->last_val = value;
-    stats->last_time_ns = get_time_ns();
+    stats->last_time_ns = lv_get_time_ns();
 
     if (value < stats->min_val) {
         stats->min_val = value;
@@ -765,7 +750,7 @@ lvHealthReport *lv_runtime_health_check(void) {
         return NULL;
     }
 
-    report->timestamp_ms = get_time_ns() / 1000000;
+    report->timestamp_ms = lv_get_time_ns() / 1000000;
     report->overall = HEALTH_OK;
 
     /* 内存检查 */
@@ -885,7 +870,7 @@ lvDiagnostics *lv_diagnostics_generate(void) {
     /* 基本信息 */
     strncpy(diag->version, "3.3.0", sizeof(diag->version) - 1);
     strncpy(diag->build_date, __DATE__ " " __TIME__, sizeof(diag->build_date) - 1);
-    diag->uptime_ms = get_time_ns() / 1000000;
+    diag->uptime_ms = lv_get_time_ns() / 1000000;
 
     /* 内存统计 - 从 lv 内存管理器获取实际数据 */
     {
@@ -1082,7 +1067,7 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
 
     lvEventRecord *event = &g_event_system.events[g_event_system.event_count++];
     event->type = type;
-    event->timestamp_ns = get_time_ns();
+    event->timestamp_ns = lv_get_time_ns();
     event->duration_ns = 0;
     event->thread_id = (int)lv_thread_id();
 
@@ -1106,7 +1091,7 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
     int id = (int) g_event_system.event_count;
     lvEventRecord *event = &g_event_system.events[g_event_system.event_count++];
     event->type = type;
-    event->timestamp_ns = get_time_ns();
+    event->timestamp_ns = lv_get_time_ns();
     event->thread_id = (int)lv_thread_id();
 
     if (name) {
@@ -1126,7 +1111,7 @@ void lv_event_trace_end(int event_id, const char *data) {
     lv_mutex_lock(&g_event_system.mutex);
 
     lvEventRecord *event = &g_event_system.events[event_id];
-    event->duration_ns = get_time_ns() - event->timestamp_ns;
+    event->duration_ns = lv_get_time_ns() - event->timestamp_ns;
 
     if (data) {
         strncpy(event->data, data, sizeof(event->data) - 1);

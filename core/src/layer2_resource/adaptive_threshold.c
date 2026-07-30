@@ -279,19 +279,11 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
     c->algo = algo;
 
     /* 捕获开始时间 */
-#ifdef __APPLE__
-    clock_gettime(CLOCK_MONOTONIC, &c->start_time);
-#elif defined(_WIN32)
     {
-        LARGE_INTEGER freq, count;
-        QueryPerformanceFrequency(&freq);
-        QueryPerformanceCounter(&count);
-        c->start_time.tv_sec = (time_t) (count.QuadPart / freq.QuadPart);
-        c->start_time.tv_nsec = (long) ((count.QuadPart % freq.QuadPart) * 1000000000LL / freq.QuadPart);
+        uint64_t ns = lv_get_time_ns();
+        c->start_time.tv_sec = (time_t)(ns / 1000000000ULL);
+        c->start_time.tv_nsec = (long)(ns % 1000000000ULL);
     }
-#else
-    clock_gettime(CLOCK_MONOTONIC, &c->start_time);
-#endif
 
     /* 分析复杂度 */
     lvError err = lv_compute_complexity(graph, &c->complexity);
@@ -369,22 +361,12 @@ void lv_adaptive_threshold_should_prune(lvAdaptiveThresholdCtx *ctx, bool *shoul
     /* 基于时间的剪枝 */
     if (ctx->config.enable_time_based) {
         double elapsed_ms = 0.0;
-#ifdef __APPLE__
-        struct timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-#elif defined(_WIN32)
         struct timespec now;
         {
-            LARGE_INTEGER freq, count;
-            QueryPerformanceFrequency(&freq);
-            QueryPerformanceCounter(&count);
-            now.tv_sec = (time_t) (count.QuadPart / freq.QuadPart);
-            now.tv_nsec = (long) ((count.QuadPart % freq.QuadPart) * 1000000000LL / freq.QuadPart);
+            uint64_t ns = lv_get_time_ns();
+            now.tv_sec = (time_t)(ns / 1000000000ULL);
+            now.tv_nsec = (long)(ns % 1000000000ULL);
         }
-#else
-        struct timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-#endif
         elapsed_ms = (double) (now.tv_sec - ctx->start_time.tv_sec) * 1000.0 +
                      (double) (now.tv_nsec - ctx->start_time.tv_nsec) / 1000000.0;
         if (elapsed_ms > ctx->config.time_budget_ms) {

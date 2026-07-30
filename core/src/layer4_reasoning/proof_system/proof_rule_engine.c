@@ -43,14 +43,7 @@ static bool is_search_timed_out(const lvRuleEngine *engine, uint64_t start_time_
     return elapsed_us >= (uint64_t) engine->timeout_ms * 1000ULL;
 }
 
-/**
- * @brief Safe string duplication using lv_strdup
- */
-static char *safe_strdup(const char *s) {
-    if (!s)
-        return NULL;
-    return lv_strdup(s);
-}
+
 
 /**
  * @brief Sort rules by weight in descending order (insertion sort)
@@ -381,7 +374,7 @@ static lvProofState *proof_state_clone(const lvProofState *src) {
     /* 复制目标栈 */
     for (i = 0; i <= src->goal_stack_top && i < lv_GOAL_STACK_MAX; i++) {
         if (src->goal_stack[i]) {
-            dst->goal_stack[i] = safe_strdup(src->goal_stack[i]);
+            dst->goal_stack[i] = lv_strdup_safe(src->goal_stack[i]);
         }
     }
     dst->goal_stack_top = src->goal_stack_top;
@@ -392,7 +385,7 @@ static lvProofState *proof_state_clone(const lvProofState *src) {
     /* 复制假设 */
     for (i = 0; i < src->hypothesis_count && i < lv_HYPOTHESIS_MAX; i++) {
         if (src->hypotheses[i]) {
-            dst->hypotheses[i] = safe_strdup(src->hypotheses[i]);
+            dst->hypotheses[i] = lv_strdup_safe(src->hypotheses[i]);
         }
     }
     dst->hypothesis_count = src->hypothesis_count;
@@ -400,7 +393,7 @@ static lvProofState *proof_state_clone(const lvProofState *src) {
     /* 复制已应用规则历史 */
     for (i = 0; i < src->applied_rule_count && i < lv_APPLIED_RULES_MAX; i++) {
         if (src->applied_rules[i]) {
-            dst->applied_rules[i] = safe_strdup(src->applied_rules[i]);
+            dst->applied_rules[i] = lv_strdup_safe(src->applied_rules[i]);
         }
     }
     dst->applied_rule_count = src->applied_rule_count;
@@ -481,7 +474,7 @@ static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine, lvProofSt
             /* 从成功状态复制数据到初始状态 */
             for (int g = 0; g <= current_state->goal_stack_top && g < lv_GOAL_STACK_MAX; g++) {
                 if (current_state->goal_stack[g]) {
-                    initial_state->goal_stack[g] = safe_strdup(current_state->goal_stack[g]);
+                    initial_state->goal_stack[g] = lv_strdup_safe(current_state->goal_stack[g]);
                 }
             }
             initial_state->goal_stack_top = current_state->goal_stack_top;
@@ -492,13 +485,13 @@ static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine, lvProofSt
             }
             for (int h = 0; h < current_state->hypothesis_count && h < lv_HYPOTHESIS_MAX; h++) {
                 if (current_state->hypotheses[h]) {
-                    initial_state->hypotheses[h] = safe_strdup(current_state->hypotheses[h]);
+                    initial_state->hypotheses[h] = lv_strdup_safe(current_state->hypotheses[h]);
                 }
             }
             initial_state->hypothesis_count = current_state->hypothesis_count;
             for (int r = 0; r < current_state->applied_rule_count && r < lv_APPLIED_RULES_MAX; r++) {
                 if (current_state->applied_rules[r]) {
-                    initial_state->applied_rules[r] = safe_strdup(current_state->applied_rules[r]);
+                    initial_state->applied_rules[r] = lv_strdup_safe(current_state->applied_rules[r]);
                 }
             }
             initial_state->applied_rule_count = current_state->applied_rule_count;
@@ -768,7 +761,7 @@ bool proof_state_push_goal(lvProofState *state, const char *goal) {
         return false;
 
     state->goal_stack_top++;
-    state->goal_stack[state->goal_stack_top] = safe_strdup(goal);
+    state->goal_stack[state->goal_stack_top] = lv_strdup_safe(goal);
     state->current_goal = state->goal_stack[state->goal_stack_top];
 
     return state->goal_stack[state->goal_stack_top] != NULL;
@@ -802,7 +795,7 @@ bool proof_state_add_hypothesis(lvProofState *state, const char *hypothesis) {
     if (state->hypothesis_count >= lv_HYPOTHESIS_MAX)
         return false;
 
-    state->hypotheses[state->hypothesis_count] = safe_strdup(hypothesis);
+    state->hypotheses[state->hypothesis_count] = lv_strdup_safe(hypothesis);
     if (!state->hypotheses[state->hypothesis_count])
         return false;
 
@@ -816,7 +809,7 @@ bool proof_state_record_rule(lvProofState *state, const char *name) {
     if (state->applied_rule_count >= lv_APPLIED_RULES_MAX)
         return false;
 
-    state->applied_rules[state->applied_rule_count] = safe_strdup(name);
+    state->applied_rules[state->applied_rule_count] = lv_strdup_safe(name);
     if (!state->applied_rules[state->applied_rule_count])
         return false;
 

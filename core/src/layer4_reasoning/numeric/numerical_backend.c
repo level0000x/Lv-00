@@ -7,7 +7,9 @@
  *          的三层抽象设计，每个结构体绑定自己的操作表。
  *
  *          当前实现完整覆盖 SERIAL 后端与 OpenMP 后端。
- *          CUDA / HIP 后端需要对应 SDK 编译，当前返回 lv_BACKEND_UNSUPPORTED。
+ *          CUDA / HIP / Singular 后端通过单独编译单元实现，
+ *          由 CMake SDK 检测（lv_ENABLE_CUDA / lv_ENABLE_HIP / lv_ENABLE_SINGULAR）
+ *          条件编译，SDK 未安装时优雅降级返回 lv_BACKEND_UNSUPPORTED。
  *
  * @author Lv-00 Project
  * @version v3.3.0
@@ -36,6 +38,17 @@
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+
+/* 多后端支持（条件编译，由 CMake SDK 检测控制） */
+#ifdef LV_HAS_CUDA
+#include "lv/backends/cuda_backend.h"
+#endif
+#ifdef LV_HAS_HIP
+#include "lv/backends/hip_backend.h"
+#endif
+#ifdef LV_HAS_SINGULAR
+#include "lv/backends/singular_backend.h"
+#endif
 
 #ifndef lv_NUM_EPSILON
 #define lv_NUM_EPSILON lv_EPSILON_MEDIUM
@@ -1333,8 +1346,24 @@ lvVector *lv_vector_create(lvBackendType backend, int64_t n) {
 
     /*
      * 多后端分派：SERIAL 和 OPENMP 后端完整可用。
-     * CUDA / HIP / SINGULAR 后端可后续添加。
+     * CUDA / HIP / Singular 后端由条件编译的独立实现提供。
      */
+#ifdef LV_HAS_CUDA
+    if (backend == lv_BACKEND_CUDA) {
+        return cuda_vector_create(n);
+    }
+#endif
+#ifdef LV_HAS_HIP
+    if (backend == lv_BACKEND_HIP) {
+        return hip_vector_create(n);
+    }
+#endif
+#ifdef LV_HAS_SINGULAR
+    if (backend == lv_BACKEND_SINGULAR) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "Singular 后端不支持向量操作");
+        return NULL;
+    }
+#endif
     if (backend != lv_BACKEND_SERIAL && backend != lv_BACKEND_OPENMP) {
         lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL/OPENMP 可用", lv_backend_name(backend));
         return NULL;
@@ -1370,11 +1399,28 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bo
     }
 
     /*
-     * 多后端分派：当前仅 SERIAL 后端有完整实现。
-     * OpenMP / CUDA / HIP / SINGULAR 后端可后续添加。
+     * 多后端分派：SERIAL 和 OPENMP 后端完整可用。
+     * CUDA / HIP 后端由条件编译的独立实现提供。
+     * Singular 后端不支持矩阵操作。
      */
-    if (backend != lv_BACKEND_SERIAL) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL 可用", lv_backend_name(backend));
+#ifdef LV_HAS_CUDA
+    if (backend == lv_BACKEND_CUDA) {
+        return cuda_matrix_create(rows, cols, sparse);
+    }
+#endif
+#ifdef LV_HAS_HIP
+    if (backend == lv_BACKEND_HIP) {
+        return hip_matrix_create(rows, cols, sparse);
+    }
+#endif
+#ifdef LV_HAS_SINGULAR
+    if (backend == lv_BACKEND_SINGULAR) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "Singular 后端不支持矩阵操作");
+        return NULL;
+    }
+#endif
+    if (backend != lv_BACKEND_SERIAL && backend != lv_BACKEND_OPENMP) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL/OPENMP 可用", lv_backend_name(backend));
         return NULL;
     }
 
@@ -1406,11 +1452,28 @@ lvMatrix *lv_matrix_create(lvBackendType backend, int64_t rows, int64_t cols, bo
  */
 lvLinearSolver *lv_linsol_create(lvBackendType backend, lvLinearSolverMethod method) {
     /*
-     * 多后端分派：当前仅 SERIAL 后端有完整实现。
-     * OpenMP / CUDA / HIP / SINGULAR 后端可后续添加。
+     * 多后端分派：SERIAL 和 OPENMP 后端完整可用。
+     * CUDA / HIP 后端由条件编译的独立实现提供。
+     * Singular 后端不支持线性求解。
      */
-    if (backend != lv_BACKEND_SERIAL) {
-        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL 可用", lv_backend_name(backend));
+#ifdef LV_HAS_CUDA
+    if (backend == lv_BACKEND_CUDA) {
+        return cuda_linsol_create(method);
+    }
+#endif
+#ifdef LV_HAS_HIP
+    if (backend == lv_BACKEND_HIP) {
+        return hip_linsol_create(method);
+    }
+#endif
+#ifdef LV_HAS_SINGULAR
+    if (backend == lv_BACKEND_SINGULAR) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "Singular 后端不支持线性求解器");
+        return NULL;
+    }
+#endif
+    if (backend != lv_BACKEND_SERIAL && backend != lv_BACKEND_OPENMP) {
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "后端 %s 尚未实现，当前仅 SERIAL/OPENMP 可用", lv_backend_name(backend));
         return NULL;
     }
 

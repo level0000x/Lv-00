@@ -15,79 +15,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <time.h>
-#endif
+#include "lv_utils.h"
 
 /* ========================================================================
  * 时间戳实现
  * ======================================================================== */
 
-#ifdef _WIN32
-/* Windows: QPC 高精度单调时钟的静态状态和初始化回调 */
-static LARGE_INTEGER s_qpc_freq = {0};
-static INIT_ONCE s_qpc_init_once = INIT_ONCE_STATIC_INIT;
-
-/**
- * @brief QPC 一次性初始化回调
- * @note 由 InitOnceExecuteOnce 保证仅执行一次，消除竞态条件
- */
-static BOOL CALLBACK qpc_init_callback(PINIT_ONCE init_once, PVOID param, PVOID *context) {
-    (void) init_once;
-    (void) param;
-    (void) context;
-    return QueryPerformanceFrequency(&s_qpc_freq);
-}
-#endif
-
 lvTimestamp lv_timestamp_now(void) {
     lvTimestamp ts;
-    ts.seconds = 0;
-    ts.nanoseconds = 0;
-
-#ifdef _WIN32
-    InitOnceExecuteOnce(&s_qpc_init_once, qpc_init_callback, NULL, NULL);
-
-    LARGE_INTEGER counter;
-    if (s_qpc_freq.QuadPart > 0 && QueryPerformanceCounter(&counter)) {
-        ts.seconds = counter.QuadPart / s_qpc_freq.QuadPart;
-        int64_t remainder = counter.QuadPart % s_qpc_freq.QuadPart;
-        /* 将余数转换为纳秒 */
-        ts.nanoseconds = (remainder * 1000000000LL) / s_qpc_freq.QuadPart;
-    } else {
-        /* 回退: 使用 GetSystemTimePreciseAsFileTime */
-        FILETIME ft;
-        GetSystemTimePreciseAsFileTime(&ft);
-        ULARGE_INTEGER uli;
-        uli.LowPart = ft.dwLowDateTime;
-        uli.HighPart = ft.dwHighDateTime;
-        /* FILETIME 表示自 1601-01-01 以来的 100ns 间隔 */
-        ts.seconds = (int64_t) (uli.QuadPart / 10000000ULL);
-        ts.nanoseconds = (int64_t) ((uli.QuadPart % 10000000ULL) * 100ULL);
-    }
-#else
-    /* POSIX: 使用 clock_gettime(CLOCK_MONOTONIC) */
-    struct timespec tp;
-    if (clock_gettime(CLOCK_MONOTONIC, &tp) == 0) {
-        ts.seconds = (int64_t) tp.tv_sec;
-        ts.nanoseconds = (int64_t) tp.tv_nsec;
-    }
-#endif
-
-    /* 规范化纳秒（使用除法/取模，避免极端值时循环过多） */
-    if (ts.nanoseconds >= 1000000000 || ts.nanoseconds < 0) {
-        int64_t extra_secs = ts.nanoseconds / 1000000000;
-        ts.seconds += extra_secs;
-        ts.nanoseconds -= extra_secs * 1000000000;
-        /* 处理负数取模的余数修正 */
-        if (ts.nanoseconds < 0) {
-            ts.nanoseconds += 1000000000;
-            ts.seconds -= 1;
-        }
-    }
-
+    uint64_t ns = lv_get_time_ns();
+    ts.seconds = (int64_t) (ns / 1000000000ULL);
+    ts.nanoseconds = (int64_t) (ns % 1000000000ULL);
     return ts;
 }
 

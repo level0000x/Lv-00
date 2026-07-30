@@ -1286,14 +1286,9 @@ static bool id_mapping_add(IdMappingTable *table, int old_id, int new_id) {
     /* 检查表是否已初始化（init 失败时 entries 为 NULL） */
     if (!table->entries)
         return false;
-    if (table->count >= table->capacity) {
-        int new_capacity = table->capacity * 2;
-        IdMappingEntry *new_entries = lv_realloc(table->entries, new_capacity * sizeof(IdMappingEntry));
-        if (!new_entries)
-            return false;
-        table->entries = new_entries;
-        table->capacity = new_capacity;
-    }
+    if (!lv_ensure_capacity((void **)&table->entries, table->count,
+                            &table->capacity, sizeof(IdMappingEntry), 1))
+        return false;
 
     table->entries[table->count].old_id = old_id;
     table->entries[table->count].new_id = new_id;

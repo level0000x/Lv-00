@@ -23,12 +23,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
-
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <time.h>
-#endif
+#include "lv_utils.h"
 
 /* ============== 辅助：图结构比对 ============== */
 
@@ -76,13 +71,7 @@ static bool graph_structure_match(const ConstraintGraph *a, const ConstraintGrap
  * 用于烟测超时检测。
  */
 static uint64_t get_current_time_ms(void) {
-#ifdef _WIN32
-    return (uint64_t) GetTickCount64();
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t) ts.tv_sec * 1000 + (uint64_t) ts.tv_nsec / 1000000;
-#endif
+    return lv_get_time_ns() / 1000000;
 }
 
 /* ============== 模板测试执行器 ============== */

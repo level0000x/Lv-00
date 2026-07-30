@@ -18,6 +18,7 @@
 
 #include "circuit_breaker.h"
 #include "lv.h"
+#include "lv_utils.h"
 
 /* ============== 内部辅助函数 ============== */
 
@@ -146,17 +147,9 @@ int lv_proof_object_add_step(lvProofObject *obj, lvProofStepRecord *step) {
         return -1;
 
     /* 确保容量 */
-    if (obj->step_count >= obj->step_capacity) {
-        if (obj->step_capacity > INT_MAX / 2)
-            return -1;
-        int new_capacity = obj->step_capacity * 2;
-        lvProofStepRecord **new_steps =
-            (lvProofStepRecord **) lv_realloc(obj->steps, new_capacity * sizeof(lvProofStepRecord *));
-        if (!new_steps)
-            return -1;
-        obj->steps = new_steps;
-        obj->step_capacity = new_capacity;
-    }
+    if (!lv_ensure_capacity((void **)&obj->steps, obj->step_count,
+                            &obj->step_capacity, sizeof(lvProofStepRecord *), 1))
+        return -1;
 
     step->step_id = obj->step_count;
     obj->steps[obj->step_count++] = step;
@@ -174,18 +167,9 @@ int lv_proof_object_add_step(lvProofObject *obj, lvProofStepRecord *step) {
 bool lv_proof_object_add_axiom(lvProofObject *obj, int axiom_id) {
     if (!obj)
         return false;
-    if (obj->axiom_count >= obj->axiom_capacity) {
-        if (obj->axiom_capacity > INT_MAX / 2)
-            return false;
-        int new_capacity = obj->axiom_capacity * 2;
-        if ((size_t) new_capacity > SIZE_MAX / sizeof(int))
-            return false;
-        int *new_ids = (int *) lv_realloc(obj->axiom_ids, (size_t) new_capacity * sizeof(int));
-        if (!new_ids)
-            return false;
-        obj->axiom_ids = new_ids;
-        obj->axiom_capacity = new_capacity;
-    }
+    if (!lv_ensure_capacity((void **)&obj->axiom_ids, obj->axiom_count,
+                            &obj->axiom_capacity, sizeof(int), 1))
+        return false;
     obj->axiom_ids[obj->axiom_count++] = axiom_id;
     return true;
 }
@@ -196,18 +180,9 @@ bool lv_proof_object_add_axiom(lvProofObject *obj, int axiom_id) {
 bool lv_proof_object_add_assumption(lvProofObject *obj, int assumption_id) {
     if (!obj)
         return false;
-    if (obj->assumption_count >= obj->assumption_capacity) {
-        if (obj->assumption_capacity > INT_MAX / 2)
-            return false;
-        int new_capacity = obj->assumption_capacity * 2;
-        if ((size_t) new_capacity > SIZE_MAX / sizeof(int))
-            return false;
-        int *new_ids = (int *) lv_realloc(obj->assumption_ids, (size_t) new_capacity * sizeof(int));
-        if (!new_ids)
-            return false;
-        obj->assumption_ids = new_ids;
-        obj->assumption_capacity = new_capacity;
-    }
+    if (!lv_ensure_capacity((void **)&obj->assumption_ids, obj->assumption_count,
+                            &obj->assumption_capacity, sizeof(int), 1))
+        return false;
     obj->assumption_ids[obj->assumption_count++] = assumption_id;
     return true;
 }
@@ -848,15 +823,9 @@ lv_PUBLIC_API void lv_proof_trace_destroy(lvProofTrace *trace) {
 
 lv_PUBLIC_API int lv_proof_trace_add_event(lvProofTrace *trace, lvTraceEvent *event) {
     if (!trace || !event) return -1;
-    if (trace->event_count >= trace->event_capacity) {
-        if (trace->event_capacity > INT_MAX / 2) return -1;
-        int new_cap = trace->event_capacity * 2;
-        lvTraceEvent **new_events = (lvTraceEvent **)lv_realloc(trace->events,
-                                    (size_t)new_cap * sizeof(lvTraceEvent *));
-        if (!new_events) return -1;
-        trace->events = new_events;
-        trace->event_capacity = new_cap;
-    }
+    if (!lv_ensure_capacity((void **)&trace->events, trace->event_count,
+                            &trace->event_capacity, sizeof(lvTraceEvent *), 1))
+        return -1;
     trace->events[trace->event_count++] = event;
     return 0;
 }

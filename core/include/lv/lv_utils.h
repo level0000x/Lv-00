@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_utils.h
  * @brief Lv-00 工具函数库 - 提供通用辅助功能和便捷API
  *
@@ -849,6 +849,14 @@ lv_PUBLIC_API int lv_memory_leak_report(FILE *output);
  * ============================================================ */
 
 /**
+ * @brief 获取当前时间戳（纳秒）
+ *
+ * 高精度计时器，适用于性能分析。不保证挂钟时间精度。
+ * Windows: QueryPerformanceCounter, POSIX: clock_gettime(CLOCK_MONOTONIC)
+ */
+lv_PUBLIC_API uint64_t lv_get_time_ns(void);
+
+/**
  * @brief 获取当前时间戳（微秒）
  */
 lv_PUBLIC_API uint64_t lv_get_time_us(void);
@@ -1060,6 +1068,30 @@ lv_PUBLIC_API int lv_resource_tracker_count(const ResourceTracker *rt);
 #ifndef lv_EPSILON_SEGMENT_INTERIOR
 #define lv_EPSILON_SEGMENT_INTERIOR 1e-9
 #endif
+
+/* ============================================================
+ * 动态字符串（lv_dstr）—— 统一的可变长度字符串构建器
+ *
+ * 支持按需扩容（倍增策略）、printf 风格格式化追加、
+ * 原始字节追加和 C 字符串追加。
+ * ============================================================ */
+
+/** 动态字符串构建器 */
+typedef struct {
+    char *data;   /**< 缓冲区 */
+    size_t len;   /**< 当前长度（不含终止符） */
+    size_t cap;   /**< 缓冲区总容量 */
+} lvDStr;
+
+/** 动态字符串默认初始容量 */
+#define lv_DSTR_INIT_CAP 4096
+
+lv_PUBLIC_API int lv_dstr_init(lvDStr *d, size_t cap);
+lv_PUBLIC_API int lv_dstr_grow(lvDStr *d, size_t extra);
+lv_PUBLIC_API int lv_dstr_append_fmt(lvDStr *d, const char *fmt, ...);
+lv_PUBLIC_API int lv_dstr_append_raw(lvDStr *d, const char *s, size_t n);
+lv_PUBLIC_API int lv_dstr_append_str(lvDStr *d, const char *s);
+lv_PUBLIC_API void lv_dstr_free(lvDStr *d);
 
 #ifdef __cplusplus
 }

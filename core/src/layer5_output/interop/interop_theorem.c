@@ -508,7 +508,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
         if (count >= capacity - 1)
             break;
         if (str_prefix_match(BUILTIN_COMMANDS[i], p)) {
-            result[count] = strdup(BUILTIN_COMMANDS[i]);
+            result[count] = lv_strdup_safe(BUILTIN_COMMANDS[i]);
             if (result[count])
                 count++;
         }
@@ -529,7 +529,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
             snprintf(node_name, sizeof(node_name), "%s_%d",
                      interop_geom_type_name(node->type), node->id);
             if (str_prefix_match(node_name, p)) {
-                result[count] = strdup(node_name);
+                result[count] = lv_strdup_safe(node_name);
                 if (result[count])
                     count++;
             }
@@ -545,7 +545,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
             snprintf(con_name, sizeof(con_name), "%s_%d",
                      interop_constraint_type_name(con->type), con->id);
             if (str_prefix_match(con_name, p)) {
-                result[count] = strdup(con_name);
+                result[count] = lv_strdup_safe(con_name);
                 if (result[count])
                     count++;
             }

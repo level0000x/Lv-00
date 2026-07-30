@@ -21,20 +21,9 @@
 
 #include "lv/lv_thread.h"
 
-#ifdef _WIN32
 static int64_t get_time_ns(void) {
-    LARGE_INTEGER freq, count;
-    QueryPerformanceFrequency(&freq);
-    QueryPerformanceCounter(&count);
-    return (int64_t) ((double) count.QuadPart / (double) freq.QuadPart * 1e9);
+    return (int64_t) lv_get_time_ns();
 }
-#else
-static int64_t get_time_ns(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
-}
-#endif
 
 /* ============== 内部常量 ============== */
 

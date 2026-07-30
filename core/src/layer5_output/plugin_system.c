@@ -21,7 +21,6 @@
 #include <windows.h>
 #else
 #include <dirent.h>
-#include <dlfcn.h>
 #endif
 
 /* ============ 内部数据结构 ============ */
@@ -43,40 +42,6 @@ static uint64_t get_timestamp(void) {
     clock_gettime(CLOCK_REALTIME, &ts);
     return (uint64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
 #endif
-}
-
-/* 加载动态链接库 */
-static void *load_library(const char *path) {
-#ifdef _WIN32
-    return LoadLibraryA(path);
-#else
-    return dlopen(path, RTLD_LAZY);
-#endif
-}
-
-/* 卸载动态链接库 */
-static void unload_library(void *handle) {
-    if (!handle)
-        return;
-#ifdef _WIN32
-    FreeLibrary((HMODULE) handle);
-#else
-    dlclose(handle);
-#endif
-}
-
-/* 从动态库中查找符号地址 */
-static void *get_symbol(void *handle, const char *name) {
-    if (!handle || !name)
-        return NULL;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#ifdef _WIN32
-    return (void *) GetProcAddress((HMODULE) handle, name);
-#else
-    return dlsym(handle, name);
-#endif
-#pragma GCC diagnostic pop
 }
 
 /* 设置系统错误消息（支持 printf 风格格式化） */
@@ -229,7 +194,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     }
 
     /* 加载动态库 */
-    void *handle = load_library(path);
+    void *handle = lv_dlopen(path);
     if (!handle) {
         set_error(system, "Failed to load library: %s", path);
         return NULL;
@@ -238,7 +203,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     /* 创建插件对象 */
     lvPlugin *plugin = (lvPlugin *) lv_calloc(1, sizeof(lvPlugin));
     if (!plugin) {
-        unload_library(handle);
+        lv_dlclose(handle);
         return NULL;
     }
     strncpy(plugin->path, path, sizeof(plugin->path));
@@ -251,12 +216,12 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
     typedef int (*PluginEntryFunc)(lvPluginContext *ctx);
-    PluginEntryFunc entry = (PluginEntryFunc) get_symbol(handle, "lv_plugin_load_entry");
+    PluginEntryFunc entry = (PluginEntryFunc) lv_dlsym(handle, "lv_plugin_load_entry");
 #pragma GCC diagnostic pop
 
     if (!entry) {
         set_error(system, "Plugin entry point not found: %s", path);
-        unload_library(handle);
+        lv_dlclose(handle);
         lv_free((void **) &plugin);
         return NULL;
     }
@@ -264,7 +229,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     /* 创建插件上下文 */
     plugin->context = (lvPluginContext *) lv_calloc(1, sizeof(lvPluginContext));
     if (!plugin->context) {
-        unload_library(handle);
+        lv_dlclose(handle);
         lv_free((void **) &plugin);
         return NULL;
     }
@@ -276,7 +241,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     if (entry(plugin->context) != 0) {
         set_error(system, "Plugin entry function failed: %s", path);
         lv_free((void **) &plugin->context);
-        unload_library(handle);
+        lv_dlclose(handle);
         lv_free((void **) &plugin);
         return NULL;
     }
@@ -286,7 +251,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
         if (plugin->on_load(plugin->context) != 0) {
             set_error(system, "Plugin on_load failed: %s", path);
             lv_free((void **) &plugin->context);
-            unload_library(handle);
+            lv_dlclose(handle);
             lv_free((void **) &plugin);
             return NULL;
         }
@@ -369,7 +334,7 @@ int lv_plugin_unload(lvPluginSystem *system, lvPlugin *plugin) {
 
     /* 卸载动态库 */
     if (plugin->handle) {
-        unload_library(plugin->handle);
+        lv_dlclose(plugin->handle);
     }
 
     lv_free((void **) &plugin);

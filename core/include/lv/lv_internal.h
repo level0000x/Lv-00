@@ -125,6 +125,9 @@ extern void lv_log_message(int level, const char *file, int line, const char *fm
 #ifndef lv_LOG_WARNING
 #define lv_LOG_WARNING(fmt, ...) lv_log_message(lv_LOG_LEVEL_WARNING, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
 #endif
+#ifndef lv_LOG_WARN
+#define lv_LOG_WARN(fmt, ...) lv_log_message(lv_LOG_LEVEL_WARNING, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#endif
 #ifndef lv_LOG_ERROR
 #define lv_LOG_ERROR(fmt, ...) lv_log_message(lv_LOG_LEVEL_ERROR, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
 #endif

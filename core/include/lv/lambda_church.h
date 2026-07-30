@@ -88,6 +88,36 @@ lv_PUBLIC_API LvLambdaTerm *lv_church_if(void);
  */
 lv_PUBLIC_API LvLambdaTerm *lv_church_iszero(void);
 
+/* ── Church 布尔运算 ── */
+
+/**
+ * @brief Church not (逻辑非): λp.λa.λb.p b a
+ *
+ * 翻转条件分支：若 p 为 true 返回 a，否则返回 b（即选择第二个参数）。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_not(void);
+
+/**
+ * @brief Church and (逻辑与): λp.λq.p q p
+ *
+ * 若 p 为 true 则返回 q，否则返回 false。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_and(void);
+
+/**
+ * @brief Church or (逻辑或): λp.λq.p p q
+ *
+ * 若 p 为 true 则返回 true，否则返回 q。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_or(void);
+
+/**
+ * @brief Church xor (逻辑异或): λp.λq.p (not q) q
+ *
+ * 若 p 为 true 则返回 not q，否则返回 q。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_xor(void);
+
 /* ── Church 算术运算 ── */
 
 /**
@@ -145,6 +175,65 @@ lv_PUBLIC_API LvLambdaTerm *lv_church_nil(void);
  * 将元素 h 添加到列表 t 的头部。
  */
 lv_PUBLIC_API LvLambdaTerm *lv_church_cons(void);
+
+/**
+ * @brief 检查列表是否为空: λl.l (λh.λt.λx.false) true
+ *
+ * 若列表为空返回 true，否则返回 false。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_isnil(void);
+
+/**
+ * @brief 取列表头部: λl.l (λh.λt.h) (error)
+ *
+ * 返回列表的第一个元素。空列表上调用返回 error 项。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_head(void);
+
+/**
+ * @brief Church 右折叠 (foldr): λf.λz.λl.l f z
+ *
+ * 从右向左折叠列表：foldr f z [x1,x2,...,xn] = f x1 (f x2 (... (f xn z)...))
+ * 利用 Church 列表的编码本身实现折叠。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_foldr(void);
+
+/**
+ * @brief Church 求列表长度: λl.l (λh.λt.succ t) zero
+ *
+ * 计算 Church 编码列表的长度。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_length(void);
+
+/**
+ * @brief Church 列表拼接: λl1.λl2.l1 cons l2
+ *
+ * 将两个 Church 列表拼接为一个。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_append(void);
+
+/* ── Church 比较运算 ── */
+
+/**
+ * @brief Church 小于等于: λm.λn.iszero (sub m n)
+ *
+ * 判断 m ≤ n。利用减法后检查是否为零实现。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_leq(void);
+
+/**
+ * @brief Church 相等: λm.λn.and (iszero (sub m n)) (iszero (sub n m))
+ *
+ * 判断两个 Church 数字相等。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_eq(void);
+
+/**
+ * @brief Church 大于: λm.λn.not (leq m n)
+ *
+ * 判断 m > n。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_gt(void);
 
 /* ── 不动点组合子 ── */
 

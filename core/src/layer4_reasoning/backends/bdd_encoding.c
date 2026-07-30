@@ -244,19 +244,18 @@ void bdd_manager_destroy(BDDManager *mgr) {
 int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
     if (!mgr)
         return -1;
-    /* 检查 var_order 数组容量，不足时扩容（2 倍增长） */
+    /* 检查 var_order 数组容量，不足时扩容 */
     if (mgr->var_count >= mgr->var_capacity) {
         if (mgr->var_capacity > 0 && mgr->var_capacity > INT_MAX / 2)
             return -1;
-        int new_capacity = (mgr->var_capacity > 0) ? mgr->var_capacity * 2 : 16;
-        int *new_order = (int *) lv_realloc(mgr->var_order, (size_t) new_capacity * sizeof(int));
-        if (!new_order)
+        int old_capacity = mgr->var_capacity;
+        if (!lv_ensure_capacity((void **)&mgr->var_order, mgr->var_count,
+                                &mgr->var_capacity, sizeof(int), 1))
             return -1;
-        mgr->var_order = new_order;
 
-        /* 同步扩容 var_names 和 var_types 数组 */
-        char **new_names = (char **) lv_realloc(mgr->var_names, (size_t) new_capacity * sizeof(char *));
-        BDDVarType *new_types = (BDDVarType *) lv_realloc(mgr->var_types, (size_t) new_capacity * sizeof(BDDVarType));
+        /* 同步扩容 var_names 和 var_types 数组（共享同一容量） */
+        char **new_names = (char **) lv_realloc(mgr->var_names, (size_t) mgr->var_capacity * sizeof(char *));
+        BDDVarType *new_types = (BDDVarType *) lv_realloc(mgr->var_types, (size_t) mgr->var_capacity * sizeof(BDDVarType));
         if (!new_names || !new_types) {
             lv_free((void **) &new_names);
             lv_free((void **) &new_types);
@@ -265,11 +264,10 @@ int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
         mgr->var_names = new_names;
         mgr->var_types = new_types;
         /* 初始化新增的槽位 */
-        for (int i = mgr->var_capacity; i < new_capacity; i++) {
+        for (int i = old_capacity; i < mgr->var_capacity; i++) {
             mgr->var_names[i] = NULL;
             mgr->var_types[i] = BDD_BOOLEAN;
         }
-        mgr->var_capacity = new_capacity;
     }
     int id = mgr->var_count;
     mgr->var_order[id] = id;

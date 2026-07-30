@@ -38,6 +38,43 @@ if(lv_ENABLE_OPENMP)
         message(WARNING "lv_ENABLE_OPENMP is ON but OpenMP was not found. Compiling without OpenMP.")
     endif()
 endif()
+# v1.2.0: CUDA SDK 检测（可选，GPU 后端）
+option(lv_ENABLE_CUDA "Enable CUDA GPU backend" OFF)
+if(lv_ENABLE_CUDA)
+    enable_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
+        add_compile_definitions(LV_HAS_CUDA)
+        message(STATUS "CUDA enabled: ${CMAKE_CUDA_COMPILER}")
+    else()
+        message(WARNING "lv_ENABLE_CUDA is ON but CUDA compiler not found.")
+    endif()
+endif()
+
+# v1.2.0: HIP SDK 检测（可选，AMD GPU 后端）
+option(lv_ENABLE_HIP "Enable AMD HIP GPU backend" OFF)
+if(lv_ENABLE_HIP)
+    find_package(HIP QUIET)
+    if(HIP_FOUND)
+        add_compile_definitions(LV_HAS_HIP)
+        message(STATUS "HIP enabled: ${HIP_VERSION}")
+    else()
+        message(WARNING "lv_ENABLE_HIP is ON but HIP not found.")
+    endif()
+endif()
+
+# v1.2.0: Singular SDK 检测（可选，计算机代数后端）
+option(lv_ENABLE_SINGULAR "Enable Singular computer algebra backend" OFF)
+if(lv_ENABLE_SINGULAR)
+    find_path(SINGULAR_INCLUDE_DIR singular/singular.h)
+    find_library(SINGULAR_LIBRARY Singular)
+    if(SINGULAR_INCLUDE_DIR AND SINGULAR_LIBRARY)
+        add_compile_definitions(LV_HAS_SINGULAR)
+        include_directories(${SINGULAR_INCLUDE_DIR})
+        message(STATUS "Singular enabled: ${SINGULAR_LIBRARY}")
+    else()
+        message(WARNING "lv_ENABLE_SINGULAR is ON but Singular not found.")
+    endif()
+endif()
 # v1.1.0: 层级验证开关（启用后在编译时检查跨层依赖违规）
 option(ENABLE_LAYER_VALIDATION "Enable compile-time layer boundary checks" OFF)
 
@@ -781,6 +818,9 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/model/relation_model.c
     core/src/layer4_reasoning/model/algebra_mode.c
     core/src/layer4_reasoning/numeric/numerical_backend.c
+    core/src/layer4_reasoning/numeric/backends/cuda_backend.c
+    core/src/layer4_reasoning/numeric/backends/hip_backend.c
+    core/src/layer4_reasoning/numeric/backends/singular_backend.c
     # 内核与协议
     core/src/layer4_reasoning/module.c
     core/src/layer4_reasoning/kernel/mini_kernel.c

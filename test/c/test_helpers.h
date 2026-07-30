@@ -1,8 +1,12 @@
-﻿/**
+/**
  * @file test_helpers.h
  * @brief Lv-00 测试套件公共辅助函数与宏
  *
  * 集中定义各测试文件重复使用的辅助函数和测试宏，避免代码重复，确保API调用一致性。
+ *
+ * 【v3.5.0 统一】现在包含 test_framework.h，因此所有测试文件均可使用
+ * lv_test_run_all() / lv_test_report_print() 等结构化报告 API，
+ * 以及 lv_ASSERT_* / lv_TEST 宏作为替代断言选项。
  *
  * 使用方法：
  *   1. 在测试文件中 #include "test_helpers.h"
@@ -10,6 +14,9 @@
  *   3. 使用 TEST_SUITE_BEGIN / TEST_SUITE_END 包裹测试函数
  *   4. 使用 TEST_RUN 运行每个测试函数
  *   5. 使用 TEST_SUMMARY 打印汇总
+ *
+ * 要使用新的结构化框架，将 test_helpers.h 替换为 test_framework.h，
+ * 并使用 lv_TEST / lv_ASSERT_* 宏代替。参见 test_new_modules.c 示例。
  */
 
 #ifndef lv_TEST_HELPERS_H
@@ -20,6 +27,7 @@
 #include <string.h>
 
 #include "lv.h"
+#include "test_framework.h"
 
 /**
  * @brief 相等断言宏（带消息） - 比较两个值是否相等并显示自定义消息

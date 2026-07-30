@@ -58,6 +58,7 @@
 
 #include "error_codes.h"
 #include "lv.h"
+#include "debug.h"
 #include "lv_internal.h"
 
 /* ============================================================
@@ -1750,9 +1751,22 @@ bool lv_check_version(const char *min_version) {
 #define lv_US_PER_MS 1000   /**< 微秒转毫秒 */
 #define lv_MS_PER_S 1000    /**< 毫秒转秒 */
 #define lv_US_PER_S 1000000 /**< 微秒转秒 */
+#define lv_NS_PER_S 1000000000ULL /**< 纳秒转秒 */
 
 #ifdef _WIN32
 #include <windows.h>
+
+uint64_t lv_get_time_ns(void) {
+    static double ns_per_count = 0.0;
+    if (ns_per_count == 0.0) {
+        LARGE_INTEGER freq;
+        QueryPerformanceFrequency(&freq);
+        ns_per_count = 1e9 / (double)freq.QuadPart;
+    }
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    return (uint64_t)((double)counter.QuadPart * ns_per_count);
+}
 
 uint64_t lv_get_time_us(void) {
     LARGE_INTEGER freq, count;
@@ -1763,6 +1777,12 @@ uint64_t lv_get_time_us(void) {
 
 #else
 #include <sys/time.h>
+
+uint64_t lv_get_time_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * lv_NS_PER_S + (uint64_t)ts.tv_nsec;
+}
 
 uint64_t lv_get_time_us(void) {
     struct timeval tv;
@@ -1883,83 +1903,61 @@ uint64_t lv_hash_string(const char *str) {
  * ============================================================ */
 
 /* ============================================================
- * 日志系统（运行时级别过滤 + 时间戳 + 可选文件输出）
+ * 日志系统（统一委托给 debug.h 的 debug_log()）
+ *
+ * lv_LOG_* 宏（定义在 lv_internal.h）通过 lv_log_message()
+ * 委托到 debug.h 的 debug_log()，实现统一的日志管道。
+ * 所有日志级别过滤、格式化、文件输出、环形缓冲区等
+ * 均由 debug.c 中的 debug_log() 统一处理。
  * ============================================================ */
 
-/** 当前运行时日志级别（默认 INFO，即 3） */
-static int g_log_level = lv_LOG_LEVEL_INFO;
-
-/** 可选日志文件句柄（NULL 表示仅输出到 stderr） */
-static FILE *g_log_file = NULL;
-
 /**
- * @brief 日志级别名称映射
+ * @brief 将 lv_LOG_LEVEL_* 映射为 debug.h 的 LogLevel 枚举
+ *
+ * 注意：两套级别的语义是相反的：
+ *   - lv_LOG_LEVEL_*：数值越大越详细（DEBUG=4 > ERROR=1）
+ *   - LogLevel：数值越大越严重（FATAL=4 > TRACE=-1）
  */
-static const char *log_level_name(int level) {
+static LogLevel lv_log_map_level(int level) {
     switch (level) {
-        case lv_LOG_LEVEL_ERROR:
-            return "ERROR";
-        case lv_LOG_LEVEL_WARNING:
-            return "WARN ";
-        case lv_LOG_LEVEL_INFO:
-            return "INFO ";
-        case lv_LOG_LEVEL_DEBUG:
-            return "DEBUG";
-        default:
-            return "TRACE";
+        case lv_LOG_LEVEL_ERROR:   return LOG_LEVEL_ERROR;
+        case lv_LOG_LEVEL_WARNING: return LOG_LEVEL_WARN;
+        case lv_LOG_LEVEL_INFO:    return LOG_LEVEL_INFO;
+        case lv_LOG_LEVEL_DEBUG:   return LOG_LEVEL_DEBUG;
+        default:                   return LOG_LEVEL_INFO;
     }
 }
 
 /**
- * @brief 输出日志消息（带级别过滤、时间戳、可选文件输出）
+ * @brief 输出日志消息 —— 委托给 debug_log()
  *
  * 由 lv_LOG_INFO / lv_LOG_WARNING / lv_LOG_ERROR / lv_LOG_DEBUG
- * 系列宏间接调用。实现功能：
- * - 运行时日志级别过滤（低于 g_log_level 的消息被丢弃）
- * - 自动添加时间戳 [YYYY-MM-DD HH:MM:SS]
- * - 格式：[TIMESTAMP] [LEVEL] [file:line] message
- * - 默认输出到 stderr，可配置同时写入日志文件
+ * 系列宏间接调用。所有日志最终通过 debug_log() 统一管道输出，
+ * 享受线程安全、日志轮转、环形缓冲区和编译期过滤等功能。
  *
- * @param level 日志级别（lv_LOG_LEVEL_DEBUG / INFO / WARNING / ERROR）
+ * @param level 日志级别（lv_LOG_LEVEL_*）
  * @param file  源文件名（__FILE__）
  * @param line  源文件行号（__LINE__）
  * @param fmt   printf 风格格式字符串
  * @param ...   可变参数
  */
 void lv_log_message(int level, const char *file, int line, const char *fmt, ...) {
-    /* 运行时级别过滤：低于当前级别的日志直接丢弃 */
-    if (level > g_log_level)
-        return;
+    /* 提取模块名（文件名不含路径作为模块标识） */
+    const char *module = "unknown";
+    if (file) {
+        const char *base = strrchr(file, '/');
+        if (!base) base = strrchr(file, '\\');
+        module = base ? base + 1 : file;
+    }
 
-    /* 生成时间戳 */
-    time_t now = time(NULL);
-    struct tm tm_buf;
-    lv_LOCALTIME(&now, &tm_buf);
-    char timestamp[32];
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &tm_buf);
-
-    /* 格式化级别名称 */
-    const char *level_str = log_level_name(level);
-
-    /* 输出到 stderr */
-    fprintf(stderr, "[%s] [%s] [%s:%d] ", timestamp, level_str, file ? file : "?", line);
+    /* 格式化消息并附加 [file:line] 前缀以保留调用位置信息 */
+    char buf[4096];
     va_list args;
     va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
+    vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
-    fprintf(stderr, "\n");
-    fflush(stderr);
 
-    /* 可选：同时写入日志文件 */
-    if (g_log_file) {
-        fprintf(g_log_file, "[%s] [%s] [%s:%d] ", timestamp, level_str, file ? file : "?", line);
-        va_list args2;
-        va_start(args2, fmt);
-        vfprintf(g_log_file, fmt, args2);
-        va_end(args2);
-        fprintf(g_log_file, "\n");
-        fflush(g_log_file);
-    }
+    debug_log(lv_log_map_level(level), module, "[%s:%d] %s", file ? file : "?", line, buf);
 }
 
 uint64_t lv_hash_bytes(const void *data, size_t len) {
@@ -2249,4 +2247,111 @@ void lv_free_ptr(void *ptr) {
     } else {
         lv_free((void **) &ptr);
     }
+}
+
+/* ============================================================
+ * 动态字符串（lv_dstr）
+ * ============================================================ */
+
+/**
+ * @brief 初始化动态字符串构建器
+ * @param d   字符串构建器指针
+ * @param cap 初始容量
+ * @return 0 成功，-1 内存分配失败
+ */
+int lv_dstr_init(lvDStr *d, size_t cap) {
+    d->data = (char *) lv_malloc(cap);
+    if (!d->data)
+        return -1;
+    d->data[0] = '\0';
+    d->len = 0;
+    d->cap = cap;
+    return 0;
+}
+
+/**
+ * @brief 确保缓冲区有足够的空间容纳额外内容
+ * @param d     字符串构建器指针
+ * @param extra 需要的额外字节数
+ * @return 0 成功，-1 内存分配失败
+ */
+int lv_dstr_grow(lvDStr *d, size_t extra) {
+    size_t needed = d->len + extra + 1;
+    if (needed <= d->cap)
+        return 0;
+    size_t new_cap = d->cap * 2;
+    while (new_cap < needed)
+        new_cap *= 2;
+    char *nd = (char *) lv_realloc(d->data, new_cap);
+    if (!nd)
+        return -1;
+    d->data = nd;
+    d->cap = new_cap;
+    return 0;
+}
+
+/**
+ * @brief 向动态字符串追加格式化内容（printf 风格）
+ * @param d   字符串构建器指针
+ * @param fmt printf 格式字符串
+ * @param ... 格式化参数
+ * @return 0 成功，-1 失败
+ */
+int lv_dstr_append_fmt(lvDStr *d, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int needed = vsnprintf(NULL, 0, fmt, ap);
+    va_end(ap);
+    if (needed < 0)
+        return -1;
+    if (lv_dstr_grow(d, (size_t) needed) != 0)
+        return -1;
+    va_start(ap, fmt);
+    vsnprintf(d->data + d->len, d->cap - d->len, fmt, ap);
+    va_end(ap);
+    d->len += (size_t) needed;
+    return 0;
+}
+
+/**
+ * @brief 向动态字符串追加原始字节数据
+ * @param d 字符串构建器指针
+ * @param s 数据源指针
+ * @param n 字节数
+ * @return 0 成功，-1 失败
+ */
+int lv_dstr_append_raw(lvDStr *d, const char *s, size_t n) {
+    if (!s || n == 0)
+        return 0;
+    if (lv_dstr_grow(d, n) != 0)
+        return -1;
+    memcpy(d->data + d->len, s, n);
+    d->len += n;
+    d->data[d->len] = '\0';
+    return 0;
+}
+
+/**
+ * @brief 向动态字符串追加 C 字符串
+ * @param d 字符串构建器指针
+ * @param s 要追加的字符串（可为 NULL）
+ * @return 0 成功，-1 失败
+ */
+int lv_dstr_append_str(lvDStr *d, const char *s) {
+    if (!s)
+        return 0;
+    return lv_dstr_append_raw(d, s, strlen(s));
+}
+
+/**
+ * @brief 释放动态字符串构建器的内部缓冲区
+ * @param d 字符串构建器指针
+ */
+void lv_dstr_free(lvDStr *d) {
+    if (d->data) {
+        lv_free((void **) &(d->data));
+        d->data = NULL;
+    }
+    d->len = 0;
+    d->cap = 0;
 }

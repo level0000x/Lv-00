@@ -1,6 +1,6 @@
 /**
  * @file lv_platform.h
- * @brief 跨平台编译兼容层 —— POSIX 特性宏、系统头文件、函数映射
+ * @brief 跨平台编译兼容层 —— POSIX 特性宏、系统头文件、函数映射、I/O 抽象
  *
  * @details 集中处理所有平台相关的功能测试宏、缺失头文件和函数映射，
  *          避免在每个源文件中重复分散的 #ifdef 兼容代码。
@@ -10,6 +10,7 @@
  *          - Linux 上 clock_gettime/strtok_r/strdup/snprintf 需要正确的 _POSIX_C_SOURCE
  *          - Windows 上 M_PI 需要 _USE_MATH_DEFINES
  *          - strtok_s (MSVC) → strtok_r (POSIX) 映射
+ *          - 动态库加载 (LoadLibrary/dlopen)、文件存在性检查、目录创建
  *
  * 使用方式：
  *   在需要 POSIX 功能的 .c / .h 文件最开头添加：
@@ -26,8 +27,10 @@
  *   - 固定宽度整数类型 → cross_platform.h (lv_i32 / lv_u64 等)
  *   - 原子操作          → runtime_guard.h (lv_ATOMIC_STORE / lv_ATOMIC_INC 等)
  *   - 平台/编译器/架构检测 → cross_platform.h (lv_PLATFORM_WINDOWS 等)
+ *   - 高精度计时器      → lv_utils.h (lv_get_time_ns/us/ms)
+ *   - 线程同步          → lv_thread.h (lv_mutex_t 等)
  *
- * @version 1.0.0
+ * @version 2.0.0
  * @date   2026-07-30
  */
 
@@ -119,6 +122,57 @@ extern "C" {
  * 因此直接映射即可。 */
 #ifndef _WIN32
   #define strtok_s  strtok_r
+#endif
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 第 5 节：文件系统操作抽象
+ * ═══════════════════════════════════════════════════════════════════ */
+
+#include <sys/stat.h>
+
+#ifdef _WIN32
+  #include <direct.h>
+  #include <io.h>
+  #define lv_mkdir(path)     _mkdir(path)
+  #define lv_access(path, m) _access(path, 0)
+#else
+  #include <unistd.h>
+  #define lv_mkdir(path)     mkdir(path, 0755)
+  #define lv_access(path, m) access(path, F_OK)
+#endif
+
+/** 检查文件是否存在。返回非零值表示存在，0 表示不存在。 */
+#define lv_file_exists(path) (lv_access(path, 0) == 0)
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 第 6 节：动态库加载抽象
+ *
+ * 将 LoadLibrary / dlopen 等平台 API 统一为 lv_dlopen 系列函数。
+ * 使用 static inline 实现零开销的编译期内联。
+ * ═══════════════════════════════════════════════════════════════════ */
+
+#ifdef _WIN32
+  #include <windows.h>
+  static inline void *lv_dlopen(const char *path) {
+      return (void *)LoadLibraryA(path);
+  }
+  static inline void *lv_dlsym(void *handle, const char *name) {
+      return (void *)GetProcAddress((HMODULE)handle, name);
+  }
+  static inline void lv_dlclose(void *handle) {
+      if (handle) FreeLibrary((HMODULE)handle);
+  }
+#else
+  #include <dlfcn.h>
+  static inline void *lv_dlopen(const char *path) {
+      return dlopen(path, RTLD_LAZY);
+  }
+  static inline void *lv_dlsym(void *handle, const char *name) {
+      return dlsym(handle, name);
+  }
+  static inline void lv_dlclose(void *handle) {
+      if (handle) dlclose(handle);
+  }
 #endif
 
 #ifdef __cplusplus

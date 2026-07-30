@@ -203,6 +203,212 @@ LvLambdaTerm *lv_church_cons(void) {
 }
 
 /* ================================================================
+ *  Church 布尔运算
+ * ================================================================ */
+
+/**
+ * not: λp.λa.λb.p b a
+ * De Bruijn: p=2, a=1, b=0
+ */
+LvLambdaTerm *lv_church_not(void) {
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(2), lv_lambda_create_var(0)),
+        lv_lambda_create_var(1));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
+}
+
+/**
+ * and: λp.λq.p q p
+ * De Bruijn: p=1, q=0
+ */
+LvLambdaTerm *lv_church_and(void) {
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(1), lv_lambda_create_var(0)),
+        lv_lambda_create_var(1));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/**
+ * or: λp.λq.p p q
+ * De Bruijn: p=1, q=0
+ */
+LvLambdaTerm *lv_church_or(void) {
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(1), lv_lambda_create_var(1)),
+        lv_lambda_create_var(0));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/**
+ * xor: λp.λq.p (not q) q
+ * De Bruijn: p=1, q=0
+ * 使用 lv_church_not() 构造 not q，然后应用 p。
+ */
+LvLambdaTerm *lv_church_xor(void) {
+    LvLambdaTerm *not_term = lv_church_not();
+    LvLambdaTerm *not_q = lv_lambda_create_app(not_term, lv_lambda_create_var(0));
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(1), not_q),
+        lv_lambda_create_var(0));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/* ================================================================
+ *  Church 列表操作
+ * ================================================================ */
+
+/**
+ * isnil: λl.l (λh.λt.λx.false) true
+ * De Bruijn: l=0, h=2, t=1, x=0
+ * 应用列表到 (\h.\t.\x.false) 和 true：
+ *   - nil 返回 true（选择了第二个参数）
+ *   - cons h t 返回 (\h.\t.\x.false) h t = \x.false，应用任意参数得 false
+ */
+LvLambdaTerm *lv_church_isnil(void) {
+    LvLambdaTerm *false_term = lv_church_false();
+    LvLambdaTerm *true_term = lv_church_true();
+    /* λh.λt.λx.false */
+    LvLambdaTerm *step = lv_lambda_create_abs(
+        0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, false_term)));
+    /* l step true */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), step), true_term);
+    return lv_lambda_create_abs(0, body);
+}
+
+/**
+ * head: λl.l (λh.λt.h) (error)
+ * De Bruijn: l=0, h=1, t=0
+ * 应用列表到 (\h.\t.h) 和 error 项：
+ *   - nil 返回 error（空列表无头部）
+ *   - cons h t 返回 λh.λt.h 应用到 h 和 t，结果为 h
+ */
+LvLambdaTerm *lv_church_head(void) {
+    /* λh.λt.h */
+    LvLambdaTerm *step = lv_lambda_create_abs(
+        0, lv_lambda_create_abs(0, lv_lambda_create_var(1)));
+    /* 使用 id 函数作为 error 占位 */
+    LvLambdaTerm *error_term = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    /* l step error */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), step), error_term);
+    return lv_lambda_create_abs(0, body);
+}
+
+/**
+ * foldr: λf.λz.λl.l f z
+ * De Bruijn: f=2, z=1, l=0
+ * 利用 Church 列表编码自身实现折叠：
+ *   foldr f z nil = nil f z = z
+ *   foldr f z (cons h t) = cons f z = f h (t f z) = f h (foldr f z t)
+ */
+LvLambdaTerm *lv_church_foldr(void) {
+    /* l f z */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), lv_lambda_create_var(2)),
+        lv_lambda_create_var(1));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
+}
+
+/**
+ * length: λl.l (λh.λt.succ t) zero
+ * De Bruijn: l=0, h=1, t=0
+ * 从右向左遍历，每一步将 succ 应用于累加器：
+ *   length nil = nil succ zero = zero
+ *   length (cons h t) = cons succ zero = succ (t succ zero) = succ (length t)
+ */
+LvLambdaTerm *lv_church_length(void) {
+    LvLambdaTerm *zero_term = lv_church_0();
+    LvLambdaTerm *succ_term = lv_church_succ();
+    /* λh.λt.succ t：忽略元素 h，对累加器 t 应用 succ */
+    LvLambdaTerm *step = lv_lambda_create_abs(
+        0, lv_lambda_create_abs(0, lv_lambda_create_app(succ_term, lv_lambda_create_var(0))));
+    /* l step zero */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), step), zero_term);
+    return lv_lambda_create_abs(0, body);
+}
+
+/**
+ * append: λl1.λl2.l1 cons l2
+ * De Bruijn: l1=1, l2=0
+ * 在 l1 后拼接 l2：将 cons 作为折叠函数应用于 l1，以 l2 为初始累加器。
+ *   append nil l2 = nil cons l2 = l2
+ *   append (cons h t) l2 = cons h (t cons l2) = cons h (append t l2)
+ */
+LvLambdaTerm *lv_church_append(void) {
+    LvLambdaTerm *cons_term = lv_church_cons();
+    /* l1 cons l2 */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(1), cons_term),
+        lv_lambda_create_var(0));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/* ================================================================
+ *  Church 比较运算
+ * ================================================================ */
+
+/**
+ * leq: λm.λn.iszero (sub m n)
+ * De Bruijn: m=1, n=0
+ * 若 m ≤ n 则 sub m n = 0（或 0 裁剪），iszero 返回 true。
+ */
+LvLambdaTerm *lv_church_leq(void) {
+    LvLambdaTerm *sub_term = lv_church_sub();
+    LvLambdaTerm *iszero_term = lv_church_iszero();
+    /* sub m n */
+    LvLambdaTerm *sub_mn = lv_lambda_create_app(
+        lv_lambda_create_app(sub_term, lv_lambda_create_var(1)),
+        lv_lambda_create_var(0));
+    /* iszero (sub m n) */
+    LvLambdaTerm *body = lv_lambda_create_app(iszero_term, sub_mn);
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/**
+ * eq: λm.λn.and (iszero (sub m n)) (iszero (sub n m))
+ * De Bruijn: m=1, n=0
+ * 双向减法均为零则两数相等。
+ */
+LvLambdaTerm *lv_church_eq(void) {
+    LvLambdaTerm *sub_term = lv_church_sub();
+    LvLambdaTerm *iszero_term = lv_church_iszero();
+    LvLambdaTerm *and_term = lv_church_and();
+    /* iszero (sub m n) */
+    LvLambdaTerm *sub_mn = lv_lambda_create_app(
+        lv_lambda_create_app(sub_term, lv_lambda_create_var(1)),
+        lv_lambda_create_var(0));
+    LvLambdaTerm *iszero_mn = lv_lambda_create_app(iszero_term, sub_mn);
+    /* iszero (sub n m) */
+    LvLambdaTerm *sub_nm = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_copy(sub_term), lv_lambda_create_var(0)),
+        lv_lambda_create_var(1));
+    LvLambdaTerm *iszero_nm = lv_lambda_create_app(iszero_term, sub_nm);
+    /* and */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(and_term, iszero_mn), iszero_nm);
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/**
+ * gt: λm.λn.not (leq m n)
+ * De Bruijn: m=1, n=0
+ * m > n 当且仅当 ¬(m ≤ n)。
+ */
+LvLambdaTerm *lv_church_gt(void) {
+    LvLambdaTerm *leq_term = lv_church_leq();
+    LvLambdaTerm *not_term = lv_church_not();
+    /* leq m n */
+    LvLambdaTerm *leq_mn = lv_lambda_create_app(
+        lv_lambda_create_app(leq_term, lv_lambda_create_var(1)),
+        lv_lambda_create_var(0));
+    /* not (leq m n) */
+    LvLambdaTerm *body = lv_lambda_create_app(not_term, leq_mn);
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/* ================================================================
  *  不动点组合子
  * ================================================================ */
 

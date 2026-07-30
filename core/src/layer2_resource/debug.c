@@ -16,19 +16,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#ifdef _WIN32
-#include <direct.h>
-#include <io.h>
-#include <windows.h>
-#define mkdir(path, mode) _mkdir(path)
-#define access _access
-#define lv_DEBUG_F_OK 0
-#else
-#include <sys/types.h>
-#include <unistd.h>
-#define lv_DEBUG_F_OK F_OK
-#endif
-
 #include "lv/engine.h"
 
 #include "context.h" /* v3.3.0: 结构化日志需要 lvContext */
@@ -247,7 +234,7 @@ static int create_directory(const char *path) {
             *p = '\0';
             /* 直接尝试创建目录，处理 EEXIST（目录已存在）而非预先检查，
              * 避免 TOCTOU（检查时间-使用时间）竞争条件 */
-            if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+            if (lv_mkdir(tmp) != 0 && errno != EEXIST) {
                 return -1;
             }
             *p = lv_PATH_SEPARATOR;
@@ -255,7 +242,7 @@ static int create_directory(const char *path) {
     }
 
     /* 创建路径最后一个组件 */
-    if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+    if (lv_mkdir(tmp) != 0 && errno != EEXIST) {
         return -1;
     }
 
@@ -286,7 +273,7 @@ static void rotate_logs(void) {
     /* 如果存在则删除最旧的文件 */
     snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
              lv_LOG_MAX_FILES);
-    if (access(old_path, lv_DEBUG_F_OK) == 0) {
+    if (lv_file_exists(old_path)) {
         remove(old_path);
     }
 
@@ -295,7 +282,7 @@ static void rotate_logs(void) {
         snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME, i);
         snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
                  i + 1);
-        if (access(old_path, lv_DEBUG_F_OK) == 0) {
+        if (lv_file_exists(old_path)) {
             rename(old_path, new_path);
         }
     }
@@ -311,7 +298,7 @@ static void rotate_logs(void) {
 
     snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
     snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.1", g_log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
-    if (access(old_path, lv_DEBUG_F_OK) == 0) {
+    if (lv_file_exists(old_path)) {
         rename(old_path, new_path);
     }
 
@@ -1133,18 +1120,8 @@ void trace_session_destroy(TraceSession *session) {
 }
 
 static void trace_session_ensure_capacity(TraceSession *session) {
-    if (session->event_count >= session->capacity) {
-        if (session->capacity > INT_MAX / 2)
-            return; /* 防止溢出 */
-        int new_capacity = session->capacity * 2;
-        TraceEvent *new_events = (TraceEvent *) lv_realloc(session->events, sizeof(TraceEvent) * (size_t) new_capacity);
-        if (new_events) {
-            /* 初始化新增部分为零 */
-            memset(new_events + session->capacity, 0, sizeof(TraceEvent) * (size_t) (new_capacity - session->capacity));
-            session->events = new_events;
-            session->capacity = new_capacity;
-        }
-    }
+    lv_ensure_capacity((void **)&session->events, session->event_count,
+                       &session->capacity, sizeof(TraceEvent), 1);
 }
 
 /**
@@ -1189,13 +1166,12 @@ void trace_record_event(TraceSession *session, TraceEventType type, int step, co
  */
 static bool trace_ensure_space(char **json, size_t *capacity, size_t *pos, size_t needed) {
     while (*pos + needed >= *capacity) {
-        *capacity *= 2;
-        char *new_json = lv_realloc(*json, *capacity);
-        if (!new_json) {
+        int cap = (int)*capacity;
+        if (!lv_ensure_capacity((void **)json, cap, &cap, 1, 1)) {
             lv_free((void **) json);
             return false;
         }
-        *json = new_json;
+        *capacity = (size_t)cap;
     }
     return true;
 }
@@ -1648,32 +1624,10 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
     }
 }
 
-/**
- * @brief 高精度时间戳（微秒级）
- *
- * 在 Windows 上使用 QueryPerformanceCounter，
- * 在 POSIX 上使用 clock_gettime(CLOCK_MONOTONIC)。
- *
- * @return 单调递增的微秒时间戳
- */
-static uint64_t get_timestamp_us(void) {
-#ifdef _WIN32
-    LARGE_INTEGER freq, counter;
-    static LARGE_INTEGER freq_cached = {0};
-    if (freq_cached.QuadPart == 0) {
-        QueryPerformanceFrequency(&freq_cached);
-    }
-    QueryPerformanceCounter(&counter);
-    return (uint64_t) ((counter.QuadPart * 1000000ULL) / freq_cached.QuadPart);
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t) ts.tv_sec * 1000000ULL + (uint64_t) ts.tv_nsec / 1000ULL;
-#endif
-}
-
 /* ============================================================
  * 环形日志缓冲区实现
+ *
+ * 时间戳通过 lv_get_time_us() 获取（平台无关，定义在 lv_utils.h）。
  * ============================================================ */
 
 /**
@@ -1746,7 +1700,7 @@ void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level, const char *m
 
     /* 填充结构化字段 */
     entry->level = level;
-    entry->timestamp_us = get_timestamp_us();
+    entry->timestamp_us = lv_get_time_us();
     entry->module_name = module_name;
     entry->function_name = function_name;
     entry->file_name = file_name;

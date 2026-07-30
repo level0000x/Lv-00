@@ -52,7 +52,7 @@ static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
     copy->value = expr->value;
 
     if (expr->var_name) {
-        copy->var_name = strdup(expr->var_name);
+        copy->var_name = lv_strdup_safe(expr->var_name);
         if (!copy->var_name) {
             free(copy);
             return NULL;
@@ -126,7 +126,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_create_var(const char *var_name) {
     if (!expr)
         return NULL;
 
-    expr->var_name = strdup(var_name);
+    expr->var_name = lv_strdup_safe(var_name);
     if (!expr->var_name) {
         free(expr);
         return NULL;

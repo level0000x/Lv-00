@@ -49,10 +49,6 @@
 #include "lv.h" /* lv_THREAD_LOCAL 宏定义 */
 #include "three_valued_logic.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include "lv_utils.h"
 
 /* ============== 内部常量与宏 ============== */
@@ -120,17 +116,7 @@ static inline bool _visit_check(uint32_t *visited_map, uint32_t map_size, uint32
  * @return 当前时间戳
  */
 static int64_t get_time_ns(void) {
-    /* 平台无关的时间获取 */
-#ifdef _WIN32
-    LARGE_INTEGER freq, count;
-    QueryPerformanceFrequency(&freq);
-    QueryPerformanceCounter(&count);
-    return (int64_t) ((count.QuadPart * 1000000000ULL) / freq.QuadPart);
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
-#endif
+    return (int64_t) lv_get_time_ns();
 }
 
 /**

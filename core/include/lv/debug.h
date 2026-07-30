@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file debug.h
  * @brief 调试子系统 —— 日志、性能计数器、断言、内存池与追踪
  * @details 提供分级日志系统（DEBUG/INFO/WARN/ERROR）、全局性能计数器、
@@ -60,11 +60,9 @@ typedef struct ConstraintGraph ConstraintGraph;
 
 /* 日志级别: TRACE < DEBUG < INFO < WARN < ERROR < FATAL
  *
- * 注意：lv_internal.h 中定义了另一套日志级别宏（lv_LOG_LEVEL_*），
- * 用于内部日志函数 lv_log_message()。该套宏为项目级权威定义。
- * 此处 LogLevel 枚举专用于 debug.h 的日志子系统 API
- *（debug_log / debug_set_log_level 等），两套系统相互独立。
- * 若需修改日志级别语义，请同步检查 lv_internal.h 中的定义。
+ * 【v3.5.0 统一】lv_internal.h 的 lv_LOG_* 宏通过 lv_log_message()
+ * 委托到 debug_log()，所有日志最终汇入本模块的统一管道。
+ * lv_LOG_LEVEL_* 常量与 LogLevel 枚举通过 lv_log_map_level() 映射。
  *
  * 【v3.3.0 增强】新增 TRACE 和 FATAL 级别：
  *   TRACE — 最细粒度，记录函数进入/退出、参数值、循环迭代（极大量）

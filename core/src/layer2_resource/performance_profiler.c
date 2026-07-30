@@ -41,34 +41,6 @@
 #define CALIB_TARGET_NS 100000000ULL /**< 校准目标时间：100ms */
 
 /* ================================================================
- * 高精度计时（纳秒）
- * ================================================================ */
-
-/**
- * @brief 获取当前时间戳（纳秒）
- *
- * Windows 使用 QueryPerformanceCounter，
- * POSIX 使用 clock_gettime(CLOCK_MONOTONIC)。
- */
-static uint64_t get_time_ns(void) {
-#ifdef _WIN32
-    static double ns_per_count = 0.0;
-    if (ns_per_count == 0.0) {
-        LARGE_INTEGER freq;
-        QueryPerformanceFrequency(&freq);
-        ns_per_count = 1e9 / (double) freq.QuadPart;
-    }
-    LARGE_INTEGER counter;
-    QueryPerformanceCounter(&counter);
-    return (uint64_t) ((double) counter.QuadPart * ns_per_count);
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t) ts.tv_sec * 1000000000ULL + (uint64_t) ts.tv_nsec;
-#endif
-}
-
-/* ================================================================
  * 内部数据结构
  * ================================================================ */
 
@@ -202,13 +174,13 @@ int lv_perf_benchmark_run(const char *name, void (*fn)(void), void *setup_fn, lv
     }
 
     /* ---- 校准阶段：运行约 100ms 以确定每次调用耗时 ---- */
-    uint64_t calib_start = get_time_ns();
+    uint64_t calib_start = lv_get_time_ns();
     int calib_count = 0;
-    while ((get_time_ns() - calib_start) < CALIB_TARGET_NS) {
+    while ((lv_get_time_ns() - calib_start) < CALIB_TARGET_NS) {
         fn();
         calib_count++;
     }
-    uint64_t calib_elapsed = get_time_ns() - calib_start;
+    uint64_t calib_elapsed = lv_get_time_ns() - calib_start;
 
     /* 计算为达到 ~1 秒所需的迭代次数 */
     double ns_per_iter;
@@ -231,9 +203,9 @@ int lv_perf_benchmark_run(const char *name, void (*fn)(void), void *setup_fn, lv
     double max_val = 0.0;
 
     for (int i = 0; i < iterations; i++) {
-        uint64_t t0 = get_time_ns();
+        uint64_t t0 = lv_get_time_ns();
         fn();
-        uint64_t t1 = get_time_ns();
+        uint64_t t1 = lv_get_time_ns();
         double elapsed = (double) (t1 - t0);
 
         /* Welford 在线算法更新 */
@@ -295,7 +267,7 @@ lvPerfSession *lv_perf_session_create(const char *name) {
         return NULL;
     }
 
-    session->start_time_ns = get_time_ns();
+    session->start_time_ns = lv_get_time_ns();
     return session;
 }
 
@@ -307,7 +279,7 @@ void lv_perf_begin(lvPerfSession *session, const char *region_name) {
     if (idx < 0)
         return;
 
-    session->regions[idx].start_ns = get_time_ns();
+    session->regions[idx].start_ns = lv_get_time_ns();
     session->regions[idx].active = 1;
 }
 
@@ -321,7 +293,7 @@ void lv_perf_end(lvPerfSession *session, const char *region_name) {
     if (!session->regions[idx].active)
         return;
 
-    uint64_t now = get_time_ns();
+    uint64_t now = lv_get_time_ns();
     uint64_t elapsed = now - session->regions[idx].start_ns;
 
     session->regions[idx].total_ns += elapsed;
@@ -488,7 +460,7 @@ void lv_perf_session_reset(lvPerfSession *session) {
     session->mem_count = 0;
 
     /* 重置时钟 */
-    session->start_time_ns = get_time_ns();
+    session->start_time_ns = lv_get_time_ns();
 }
 
 void lv_perf_session_destroy(lvPerfSession *session) {

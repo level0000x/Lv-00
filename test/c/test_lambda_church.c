@@ -774,6 +774,96 @@ static void test_church_cons_compile(void) {
         FAIL("Church cons 编译失败");
 }
 
+/* ── Church 布尔运算测试 ── */
+
+static void test_church_not_compile(void) {
+    LvLambdaTerm *t = lv_church_not();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("not 编译失败");
+}
+
+static void test_church_and_compile(void) {
+    LvLambdaTerm *t = lv_church_and();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("and 编译失败");
+}
+
+static void test_church_or_compile(void) {
+    LvLambdaTerm *t = lv_church_or();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("or 编译失败");
+}
+
+static void test_church_xor_compile(void) {
+    LvLambdaTerm *t = lv_church_xor();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("xor 编译失败");
+}
+
+/* ── Church 列表操作测试 ── */
+
+static void test_church_isnil_compile(void) {
+    LvLambdaTerm *t = lv_church_isnil();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("isnil 编译失败");
+}
+
+static void test_church_head_compile(void) {
+    LvLambdaTerm *t = lv_church_head();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("head 编译失败");
+}
+
+static void test_church_foldr_compile(void) {
+    LvLambdaTerm *t = lv_church_foldr();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("foldr 编译失败");
+}
+
+static void test_church_length_compile(void) {
+    LvLambdaTerm *t = lv_church_length();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("length 编译失败");
+}
+
+static void test_church_append_compile(void) {
+    LvLambdaTerm *t = lv_church_append();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("append 编译失败");
+}
+
+/* ── Church 比较运算测试 ── */
+
+static void test_church_leq_compile(void) {
+    LvLambdaTerm *t = lv_church_leq();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("leq 编译失败");
+}
+
+static void test_church_eq_compile(void) {
+    LvLambdaTerm *t = lv_church_eq();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("eq 编译失败");
+}
+
+static void test_church_gt_compile(void) {
+    LvLambdaTerm *t = lv_church_gt();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("gt 编译失败");
+}
+
 /* ====================================================================
  * main
  * ==================================================================== */
@@ -794,6 +884,24 @@ int main(void) {
     test_church_nil_compile();
     TEST("cons 编译");
     test_church_cons_compile();
+
+    printf("\n[Church 布尔运算]\n");
+    TEST("not 编译");     test_church_not_compile();
+    TEST("and 编译");     test_church_and_compile();
+    TEST("or 编译");      test_church_or_compile();
+    TEST("xor 编译");     test_church_xor_compile();
+
+    printf("\n[Church 列表操作]\n");
+    TEST("isnil 编译");   test_church_isnil_compile();
+    TEST("head 编译");    test_church_head_compile();
+    TEST("foldr 编译");   test_church_foldr_compile();
+    TEST("length 编译");  test_church_length_compile();
+    TEST("append 编译");  test_church_append_compile();
+
+    printf("\n[Church 比较运算]\n");
+    TEST("leq 编译");     test_church_leq_compile();
+    TEST("eq 编译");      test_church_eq_compile();
+    TEST("gt 编译");      test_church_gt_compile();
 
     printf("\n[Church 数字编译与还原]\n");
     TEST("Church 0: λf.λx.x");

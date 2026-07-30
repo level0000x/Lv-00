@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file simd_ops.c
  * @brief SIMD向量运算库实现
  *
@@ -9,6 +9,8 @@
  */
 
 #include "simd_ops.h"
+
+#include "lv_utils.h"
 
 #include <math.h>
 #include <stdatomic.h>
@@ -172,20 +174,6 @@ void lv_simd_print_diag(void *stream) {
 }
 
 /* ============== 标量实现（回退） ============== */
-
-/* 内联辅助：获取时间 */
-static inline uint64_t get_time_us(void) {
-#ifdef _WIN32
-    LARGE_INTEGER freq, counter;
-    QueryPerformanceFrequency(&freq);
-    QueryPerformanceCounter(&counter);
-    return (uint64_t) ((counter.QuadPart * 1000000ULL) / freq.QuadPart);
-#else
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (uint64_t) tv.tv_sec * 1000000ULL + (uint64_t) tv.tv_usec;
-#endif
-}
 
 /* ============== 4x double 向量操作 ============== */
 

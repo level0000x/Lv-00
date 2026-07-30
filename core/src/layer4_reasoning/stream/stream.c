@@ -46,7 +46,6 @@
 #define strcasecmp _stricmp
 #else
 #include <strings.h>  /* strcasecmp：不区分大小写的字符串比较 */
-#include <sys/time.h> /* gettimeofday：高精度墙上时钟（非处理器时间） */
 #endif
 
 /* ── 平台线程支持 ── */
@@ -1554,25 +1553,7 @@ long stream_get_dropped_count(const StreamContext *ctx) {
  * @return 毫秒级时间戳
  */
 long stream_timestamp_ms(void) {
-    /* 使用平台最优时钟获取墙上时钟时间（非处理器时间）：
-     * - Windows: QueryPerformanceCounter 高精度墙上时钟
-     * - 其他平台：gettimeofday 微秒精度墙上时钟
-     *
-     * 避免使用 clock()，因为它在多线程环境下测量的是处理器时间
-     * 而非墙上时钟时间，导致时间戳不准确。 */
-#ifdef _WIN32
-    LARGE_INTEGER freq, counter;
-    if (QueryPerformanceFrequency(&freq) && QueryPerformanceCounter(&counter)) {
-        return (long) ((counter.QuadPart * 1000) / freq.QuadPart);
-    }
-#else
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL) == 0) {
-        return (long) (tv.tv_sec * 1000 + tv.tv_usec / 1000);
-    }
-#endif
-    /* 终极回退：使用 time(NULL) */
-    return (long) (time(NULL) * 1000);
+    return (long) (lv_get_time_ns() / 1000000);
 }
 
 /**

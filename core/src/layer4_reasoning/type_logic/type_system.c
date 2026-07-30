@@ -306,21 +306,13 @@ static TypeRegion *type_region_create(TypeSystem *ts, TypeKind kind) {
         lv_free((void **) &tr);
         return NULL;
     }
-    /* 指数扩容策略：避免 O(n²) 的逐次 realloc */
-    int new_capacity =
-        ts->type_region_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY : ts->type_region_capacity * lv_ARRAY_GROWTH_FACTOR;
-    if (new_capacity <= ts->type_region_count) {
-        new_capacity = ts->type_region_count + 1; /* 防止容量不足 */
-    }
-    TypeRegion **new_arr = (TypeRegion **) lv_realloc(ts->type_regions, (size_t) new_capacity * sizeof(TypeRegion *));
-    if (!new_arr) {
-        lv_free((void **) &tr);
+    /* 确保容量 */
+    if (!lv_ensure_capacity((void **)&ts->type_regions, ts->type_region_count,
+                            &ts->type_region_capacity, sizeof(TypeRegion *), 1)) {
+        lv_free((void **)&tr);
         return NULL;
     }
-    ts->type_regions = new_arr;
-    ts->type_region_capacity = new_capacity;
-    ts->type_region_count++;
-    ts->type_regions[ts->type_region_count - 1] = tr;
+    ts->type_regions[ts->type_region_count++] = tr;
 
     tr->id = ts->type_region_count;
     return tr;
@@ -2106,18 +2098,9 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
     }
 
     /* 需要扩容 */
-    if (ts->node_type_mapping_count >= ts->node_type_mapping_capacity) {
-        int new_capacity = ts->node_type_mapping_capacity == 0 ? NODE_TYPE_MAPPING_INITIAL_CAPACITY
-                                                               : ts->node_type_mapping_capacity * 2;
-        if (ts->node_type_mapping_capacity > 0 && ts->node_type_mapping_capacity > INT_MAX / 2)
-            return false;
-        NodeTypeMapping *new_mappings =
-            (NodeTypeMapping *) lv_realloc(ts->node_type_mappings, new_capacity * sizeof(NodeTypeMapping));
-        if (!new_mappings)
-            return false;
-        ts->node_type_mappings = new_mappings;
-        ts->node_type_mapping_capacity = new_capacity;
-    }
+    if (!lv_ensure_capacity((void **)&ts->node_type_mappings, ts->node_type_mapping_count,
+                            &ts->node_type_mapping_capacity, sizeof(NodeTypeMapping), 1))
+        return false;
 
     /* 添加新映射 */
     ts->node_type_mappings[ts->node_type_mapping_count].node_id = node_id;
@@ -2509,17 +2492,9 @@ void type_rewrite_path_record(TypeRewritePath *path, const char *rule_name, cons
         return;
 
     /* 检查是否需要扩容 */
-    if (path->step_count >= path->capacity) {
-        if (path->capacity > INT_MAX / 2)
-            return; /* 防止溢出 */
-        int new_capacity = path->capacity * 2;
-        TypeRewriteStep *new_steps =
-            (TypeRewriteStep *) lv_realloc(path->steps, new_capacity * sizeof(TypeRewriteStep));
-        if (!new_steps)
-            return;
-        path->steps = new_steps;
-        path->capacity = new_capacity;
-    }
+    if (!lv_ensure_capacity((void **)&path->steps, path->step_count,
+                            &path->capacity, sizeof(TypeRewriteStep), 1))
+        return;
 
     /* 记录新步骤 */
     TypeRewriteStep *step = &path->steps[path->step_count];
@@ -2623,18 +2598,9 @@ int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, in
         return -1;
 
     /* 需要扩容 */
-    if (ts->inference_rule_count >= ts->inference_rule_capacity) {
-        if (ts->inference_rule_capacity > 0 && ts->inference_rule_capacity > INT_MAX / 2)
-            return -1;
-        int new_capacity =
-            ts->inference_rule_capacity == 0 ? INFERENCE_RULE_INITIAL_CAPACITY : ts->inference_rule_capacity * 2;
-        TypeInferenceRule *new_arr =
-            (TypeInferenceRule *) lv_realloc(ts->inference_rules, new_capacity * sizeof(TypeInferenceRule));
-        if (!new_arr)
-            return -1;
-        ts->inference_rules = new_arr;
-        ts->inference_rule_capacity = new_capacity;
-    }
+    if (!lv_ensure_capacity((void **)&ts->inference_rules, ts->inference_rule_count,
+                            &ts->inference_rule_capacity, sizeof(TypeInferenceRule), 1))
+        return -1;
 
     /* 添加新规则 */
     TypeInferenceRule *rule = &ts->inference_rules[ts->inference_rule_count];

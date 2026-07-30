@@ -102,7 +102,7 @@ AlgebraicGeom *algebra_create(lvPlane plane, const char *name) {
     geom->has_transform = false;
 
     if (name) {
-        geom->name = strdup(name);
+        geom->name = lv_strdup_safe(name);
     }
 
     return geom;
@@ -499,7 +499,7 @@ lvSelector *algebra_selector_create(lvSelectorType type, const char *expr) {
 
     sel->type = type;
     if (expr) {
-        sel->expr = strdup(expr);
+        sel->expr = lv_strdup_safe(expr);
     }
 
     /* 解析方向操作符 */
@@ -729,7 +729,7 @@ int algebra_snapshot(AlgebraicGeom *geom) {
 
     /* 对拥有所有权的字段做深拷贝 */
     if (geom->name)
-        copy->name = strdup(geom->name);
+        copy->name = lv_strdup_safe(geom->name);
 
     if (geom->history_count > 0) {
         copy->history = (int *) malloc((size_t) geom->history_count * sizeof(int));

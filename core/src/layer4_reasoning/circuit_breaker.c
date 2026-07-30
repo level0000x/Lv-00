@@ -25,32 +25,12 @@
 #include "lv/lv_utils.h"
 #include "lv/recursion.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <time.h>
-#endif
-
 /* ============================================================
  * 时间工具
  * ============================================================ */
 
 uint64_t lv_circuit_breaker_now_us(void) {
-#ifdef _WIN32
-    /* Windows: 使用 QueryPerformanceCounter */
-    static LARGE_INTEGER freq = {0};
-    LARGE_INTEGER counter;
-    if (freq.QuadPart == 0) {
-        QueryPerformanceFrequency(&freq);
-    }
-    QueryPerformanceCounter(&counter);
-    return (uint64_t) (counter.QuadPart * 1000000ULL / freq.QuadPart);
-#else
-    /* POSIX: 使用 clock_gettime */
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t) ts.tv_sec * 1000000ULL + (uint64_t) ts.tv_nsec / 1000ULL;
-#endif
+    return lv_get_time_ns() / 1000;
 }
 
 uint64_t lv_circuit_breaker_uptime_us(const CircuitBreaker *cb) {
