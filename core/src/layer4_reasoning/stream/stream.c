@@ -30,6 +30,7 @@
  *       类 Unix: sys/time.h/strings.h/pthread.h）。异步模式使用平台原生线程原语。
  */
 
+#include "lv/lv_platform.h"
 #include "lv/stream.h"
 
 #include <stdarg.h>
@@ -42,7 +43,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #define strcasecmp _stricmp
-#define strtok_r strtok_s
 #else
 #include <strings.h>  /* strcasecmp：不区分大小写的字符串比较 */
 #include <sys/time.h> /* gettimeofday：高精度墙上时钟（非处理器时间） */

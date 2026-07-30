@@ -1,19 +1,13 @@
-﻿#ifndef lv_GEO_EVENT_DETECT_H
+#ifndef lv_GEO_EVENT_DETECT_H
 #define lv_GEO_EVENT_DETECT_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define _USE_MATH_DEFINES
-#include <math.h>
+#include "lv/lv_platform.h"
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 /* ── Constants ── */
 #define GEO_EVENT_MAX_EVENTS 128

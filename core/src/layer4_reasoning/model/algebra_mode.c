@@ -7,6 +7,7 @@
  * 快照恢复和约束证明功能。
  */
 
+#include "lv/lv_platform.h"
 #include "lv/algebra_mode.h"
 
 #include <math.h>
@@ -16,10 +17,6 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_internal.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 /* ================================================================
  * 内部辅助

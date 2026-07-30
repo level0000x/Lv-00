@@ -15,6 +15,7 @@
  *   - lv_utils.h        : 统一内存分配器和工具函数
  */
 
+#include "lv/lv_platform.h"
 #include "formula_converter.h"
 
 #include <math.h>
@@ -27,10 +28,6 @@
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 /* ============================================================
  * 内部常量和宏

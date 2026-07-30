@@ -5,10 +5,10 @@
  * 本示例演示如何使用高维模块进行四维及以上几何对象的投影。
  */
 
+#include "lv/lv_platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define _USE_MATH_DEFINES
 #include <math.h>
 
 #include "high_dim.h"

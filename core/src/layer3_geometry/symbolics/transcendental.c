@@ -22,14 +22,11 @@
  * @version 3.3.0
  */
 
+#include "lv/lv_platform.h"
 #include <errno.h>
 #include <float.h>
-#define _USE_MATH_DEFINES
 #include <math.h>
 
-#ifndef M_E
-#define M_E 2.71828182845904523536
-#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,10 +39,6 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6

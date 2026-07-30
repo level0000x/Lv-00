@@ -5,12 +5,10 @@
 extern "C" {
 #endif
 
+#include "lv/lv_platform.h"
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-#define _USE_MATH_DEFINES
 #include <gmp.h>
-#include <math.h>
 
 #include "mpz_poly.h" /* mpz_poly_t, AlgebraicOp */
 

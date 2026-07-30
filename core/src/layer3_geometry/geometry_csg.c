@@ -27,7 +27,7 @@
  * @version 1.0.0
  */
 
-#define _USE_MATH_DEFINES
+#include "lv/lv_platform.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

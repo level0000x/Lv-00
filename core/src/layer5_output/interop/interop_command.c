@@ -7,6 +7,7 @@
  * @version 3.3.0
  */
 
+#include "lv/lv_platform.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>

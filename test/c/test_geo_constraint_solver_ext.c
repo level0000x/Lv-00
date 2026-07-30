@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_geo_constraint_solver_ext.c
  * @brief 几何约束求解器扩展测试 —— 覆盖缺失的约束类型
  *
@@ -6,7 +6,7 @@
  * 现有覆盖：POINTS_COINCIDENT(DOF)、PT_PT_DISTANCE、FIXED、HORIZONTAL
  * 新增覆盖：PARALLEL、PERPENDICULAR、ANGLE、EQUAL_LENGTH、VERTICAL、ON_CIRCLE
  */
-#define _USE_MATH_DEFINES
+#include "lv/lv_platform.h"
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>

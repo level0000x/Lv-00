@@ -22,19 +22,15 @@
 
 #include "lv/gappa_dsl.h"
 
+#include "lv/lv_platform.h"
 #include "lv/lv_utils.h"
 
-#define _USE_MATH_DEFINES
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 /** @brief 可移植的 strtok_r 实现 */
 static char *lv_strtok_r(char *str, const char *delim, char **saveptr) {

@@ -31,7 +31,7 @@
  *   - constraint_graph.h   : 约束图接口（通过 lv_internal.h 间接引用）
  */
 
-#define _USE_MATH_DEFINES
+#include "lv/lv_platform.h"
 #include "recursion.h"
 
 #include <math.h>
@@ -43,10 +43,6 @@
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 lv_DECLARE_STREAM_CTX(recursion);
 

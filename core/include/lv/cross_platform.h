@@ -29,8 +29,7 @@
 extern "C" {
 #endif
 
-#include <limits.h> /* CHAR_BIT, UINT_MAX, ULONG_MAX */
-#include <stddef.h> /* size_t, NULL */
+#include "lv/lv_platform.h"
 #include <stdint.h> /* int32_t, uint32_t, int64_t, uint64_t */
 
 /* ====================================================================

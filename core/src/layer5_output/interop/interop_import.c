@@ -7,6 +7,7 @@
  * @version 3.3.0
  */
 
+#include "lv/lv_platform.h"
 #include <errno.h>
 #include <float.h>
 #include <math.h>
@@ -24,10 +25,6 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 /* ── GeoGebra ZIP 解析常量 ── */
 

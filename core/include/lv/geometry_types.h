@@ -1,13 +1,12 @@
-﻿#ifndef lv_GEOMETRY_TYPES_H
+#ifndef lv_GEOMETRY_TYPES_H
 #define lv_GEOMETRY_TYPES_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "lv/lv_platform.h"
 #include <stdbool.h>
-#define _USE_MATH_DEFINES
-#include <math.h>
 
 /* ── CSG 图元参数数据结构 ── */
 typedef struct {

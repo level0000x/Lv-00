@@ -15,6 +15,7 @@
 
 #include "lv/gappa_propagate.h"
 
+#include "lv/lv_platform.h"
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
@@ -27,9 +28,7 @@
 
 #include "lv_utils.h"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+
 
 /* ============================================================
  * 内部区间类型

@@ -11,6 +11,7 @@
  * @date 2026-06-04
  */
 
+#include "lv/lv_platform.h"
 #include "probabilistic_constraint.h"
 
 #include <math.h>
@@ -27,10 +28,7 @@
 /** 默认采样数量（用于 Monte Carlo 估算）*/
 #define DEFAULT_N_SAMPLES 1000
 
-/** pi 常量 */
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+/** pi 常量 (由 lv_platform.h 提供) */
 
 /** 状态数上限 */
 #define PCTL_MAX_STATE_LIMIT 65536

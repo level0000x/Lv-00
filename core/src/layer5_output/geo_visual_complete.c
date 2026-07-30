@@ -9,6 +9,7 @@
  * @author Lv-00 Project
  */
 
+#include "lv/lv_platform.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,9 +18,7 @@
 #include "lv/geo_visual.h"
 #include "lv/lv_utils.h"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+
 
 /* ========================================================================
  * 内部辅助函数

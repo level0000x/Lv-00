@@ -9,6 +9,7 @@
  * @version 3.4.0
  */
 
+#include "lv/lv_platform.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -25,10 +26,6 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 #include "stream_context_util.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 /* --- 共享宏 --- */
 #define lv_SOLVER_DYNARRAY_INIT_CAP 16

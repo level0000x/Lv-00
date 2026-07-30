@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_common.c
  * @brief 预设函数块系统 - 公共工具实现
  *
@@ -14,6 +14,7 @@
  * @author Lv-00 Project
  */
 
+#include "lv/lv_platform.h"
 #include "preset_common.h"
 
 #include <ctype.h>
@@ -410,14 +411,8 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
         return false;
     }
 
-    /* 跨平台字符串分割：Windows 使用 strtok_s，POSIX 使用 strtok_r */
-#ifdef _WIN32
     char *context = NULL;
     char *token = strtok_s(copy, "|,& ", &context);
-#else
-    char *saveptr = NULL;
-    char *token = strtok_r(copy, "|,& ", &saveptr);
-#endif
 
     while (token != NULL) {
         bool found = false;
@@ -434,11 +429,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
             return false;
         }
 
-#ifdef _WIN32
         token = strtok_s(NULL, "|,& ", &context);
-#else
-        token = strtok_r(NULL, "|,& ", &saveptr);
-#endif
     }
 
     lv_free((void **) &copy);
