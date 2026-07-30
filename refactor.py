@@ -1,13 +1,9 @@
 ﻿import re, os
-
 FILE = 'core/src/layer1_parser/formula_converter.c'
 with open(FILE, 'r', encoding='utf-8') as f:
     L = f.readlines()
 print(f'Read {len(L)} lines')
 
-# ============================================================
-# Helper functions
-# ============================================================
 def find_cases(sidx):
     depth = 0; end = None
     for i in range(sidx, len(L)):
@@ -31,50 +27,61 @@ def mkname(prefix, cname):
     c = c.replace('NODE_GEOM_','g_').replace('GEOM_','g_').replace('NODE_','')
     return prefix + c.lower()
 
-def case_body(cs, ce):
-    return ''.join(L[cs+1:ce+1])
-
-# Find all switches
 s1e, s1c = find_cases(1399)
 s2e, s2c = find_cases(1733)
 s3e, s3c = find_cases(1992)
 s4e, s4c = find_cases(2349)
 print(f'Switches: S1={len(s1c)} S2={len(s2c)} S3={len(s3c)} S4={len(s4c)}')
 # ============================================================
-# Generate Switch 1 helpers (graph_to_formula)
+# Improved case body extraction with fixes
 # ============================================================
-s1_helper_lines = []
-s1_helper_lines.append('/* 图节点渲染函数指针类型 */')
-s1_helper_lines.append('typedef void (*GraphNodeRenderFunc)(const GeomNode *node, const char *name,')
-s1_helper_lines.append('                                     char *out_latex, size_t *latex_len, size_t latex_size,')
-s1_helper_lines.append('                                     char *out_python, size_t *python_len, size_t python_size,')
-s1_helper_lines.append('                                     char *out_dsl, size_t *dsl_len, size_t dsl_size);')
+def extract_body(cs, ce, has_case_braces, remove_break=False):
+    """Extract case body.
+    has_case_braces: True if case has '{' after the label (Style A)
+    remove_break: True if trailing break; should be removed
+    """
+    body = ''.join(L[cs+1:ce+1])
+    if remove_break:
+        # Remove trailing 'break;' lines (possibly with leading whitespace)
+        body = re.sub(r'\n[ \t]*break;\s*$', '', body)
+        # Also handle '} break;' pattern (Switch 1)
+        body = re.sub(r'\}[ \t]*break;\s*$', '}', body)
+    return body, has_case_braces
+
+# ============================================================
+# Generate Switch 1 helpers (graph_to_formula)
+# Style: case GEOM_POINT: { ... } break; - has braces, has break
+# ============================================================
+s1_h = []
+s1_h.append('/* \u56fe\u8282\u70b9\u6e32\u67d3\u51fd\u6570\u6307\u9488\u7c7b\u578b */')
+s1_h.append('typedef void (*GraphNodeRenderFunc)(const GeomNode *node, const char *name,')
+s1_h.append('                                     char *out_latex, size_t *latex_len, size_t latex_size,')
+s1_h.append('                                     char *out_python, size_t *python_len, size_t python_size,')
+s1_h.append('                                     char *out_dsl, size_t *dsl_len, size_t dsl_size);')
 for cname, cs, ce in s1c:
     if cname == 'default': continue
     fn = mkname('render_', cname)
-    body = case_body(cs, ce)
+    body, _ = extract_body(cs, ce, True, True)
     body = body.replace('result->latex_output', 'out_latex')
     body = body.replace('result->python_output', 'out_python')
     body = body.replace('result->dsl_output', 'out_dsl')
     body = re.sub(r'([^a-zA-Z_])latex_len([^a-zA-Z_])', r'\1(*latex_len)\2', body)
     body = re.sub(r'([^a-zA-Z_])python_len([^a-zA-Z_])', r'\1(*python_len)\2', body)
     body = re.sub(r'([^a-zA-Z_])dsl_len([^a-zA-Z_])', r'\1(*dsl_len)\2', body)
-    s1_helper_lines.append(f'static void {fn}(const GeomNode *node, const char *name,')
-    s1_helper_lines.append(f'                        char *out_latex, size_t *latex_len, size_t latex_size,')
-    s1_helper_lines.append(f'                        char *out_python, size_t *python_len, size_t python_size,')
-    s1_helper_lines.append(f'                        char *out_dsl, size_t *dsl_len, size_t dsl_size) {{')
-    s1_helper_lines.append('    char latex_buf[FORMULA_LATEX_BUF_SIZE];')
-    s1_helper_lines.append('    char python_buf[FORMULA_PYTHON_BUF_SIZE];')
-    s1_helper_lines.append('    char dsl_buf[FORMULA_DSL_BUF_SIZE];')
-    s1_helper_lines.append(body)
+    s1_h.append(f'static void {fn}(const GeomNode *node, const char *name,')
+    s1_h.append(f'                        char *out_latex, size_t *latex_len, size_t latex_size,')
+    s1_h.append(f'                        char *out_python, size_t *python_len, size_t python_size,')
+    s1_h.append(f'                        char *out_dsl, size_t *dsl_len, size_t dsl_size) {{')
+    s1_h.append('    char latex_buf[FORMULA_LATEX_BUF_SIZE];')
+    s1_h.append('    char python_buf[FORMULA_PYTHON_BUF_SIZE];')
+    s1_h.append('    char dsl_buf[FORMULA_DSL_BUF_SIZE];')
+    s1_h.append(body)
     if not body.rstrip().endswith('}'):
-        s1_helper_lines.append('    }')
+        s1_h.append('    }')
+s1_helpers = '\n'.join(s1_h)
 
-s1_helpers = '\n'.join(s1_helper_lines)
-
-# Table
 s1_table = []
-s1_table.append('        /* 使用函数指针表分发 */')
+s1_table.append('        /* \u4f7f\u7528\u51fd\u6570\u6307\u9488\u8868\u5206\u53d1 */')
 s1_table.append('        static const GraphNodeRenderFunc s_render_funcs[] = {')
 for cname, cs, ce in s1c:
     if cname == 'default': continue
@@ -91,20 +98,24 @@ s1_table.append('        }')
 s1_table_code = '\n'.join(s1_table)
 # ============================================================
 # Generate Switch 2 helpers (eval_node)
+# Style: case NODE_NUMBER: (no case braces, no break, uses return)
 # ============================================================
-s2_helpers = []
-s2_helpers.append('/* 公式节点求值函数指针类型 */')
-s2_helpers.append('typedef double (*EvalNodeFunc)(const FormulaNode *node, double x, double y);')
+s2_h = []
+s2_h.append('/* \u516c\u5f0f\u8282\u70b9\u6c42\u503c\u51fd\u6570\u6307\u9488\u7c7b\u578b */')
+s2_h.append('typedef double (*EvalNodeFunc)(const FormulaNode *node, double x, double y);')
 for cname, cs, ce in s2c:
     if cname == 'default': continue
     fn = mkname('eval_', cname)
-    body = case_body(cs, ce)
-    s2_helpers.append(f'static double {fn}(const FormulaNode *node, double x, double y) {{')
-    s2_helpers.append(body)
-    if not body.rstrip().endswith('}'):
-        s2_helpers.append('}')
-s2_helpers_code = '\n'.join(s2_helpers)
-s2_table_code = '''    /* 使用函数指针表分发 */
+    body, _ = extract_body(cs, ce, False, False)
+    s2_h.append(f'static double {fn}(const FormulaNode *node, double x, double y) {{')
+    # Style B: no case braces, so the body has no wrapping brace - need to add one
+    # But the body already has inner braces (if/else blocks). Need to add outer brace.
+    s2_h.append(body)
+    # Style B always needs an explicit closing brace for the function
+    s2_h.append('}')
+s2_helpers = '\n'.join(s2_h)
+
+s2_table_code = '''    /* \u4f7f\u7528\u51fd\u6570\u6307\u9488\u8868\u5206\u53d1 */
     static const EvalNodeFunc s_eval_funcs[] = {
         [NODE_NUMBER] = eval_number,
         [NODE_VARIABLE] = eval_variable,
@@ -138,29 +149,31 @@ s2_table_code = '''    /* 使用函数指针表分发 */
 
 # ============================================================
 # Generate Switch 3 helpers (node_to_string)
+# Style: case NODE_NUMBER: (no case braces, has break)
 # ============================================================
-s3_helpers = []
-s3_helpers.append('/* 节点转字符串函数指针类型 */')
-s3_helpers.append('typedef void (*NodeToStringFunc)(const FormulaNode *node, char *buf, size_t buf_size);')
+s3_h = []
+s3_h.append('/* \u8282\u70b9\u8f6c\u5b57\u7b26\u4e32\u51fd\u6570\u6307\u9488\u7c7b\u578b */')
+s3_h.append('typedef void (*NodeToStringFunc)(const FormulaNode *node, char *buf, size_t buf_size);')
 for cname, cs, ce in s3c:
     if cname == 'default': continue
     fn = mkname('str_', cname)
-    body = case_body(cs, ce)
-    s3_helpers.append(f'static void {fn}(const FormulaNode *node, char *buf, size_t buf_size) {{')
-    s3_helpers.append(body)
-    if not body.rstrip().endswith('}'):
-        s3_helpers.append('}')
+    body, _ = extract_body(cs, ce, False, True)
+    s3_h.append(f'static void {fn}(const FormulaNode *node, char *buf, size_t buf_size) {{')
+    s3_h.append(body)
+    s3_h.append('}')
+# Default case
 for cname, cs, ce in s3c:
     if cname == 'default':
-        s3_helpers.append('static void str_default(const FormulaNode *node, char *buf, size_t buf_size) {')
-        s3_helpers.append(case_body(cs, ce))
-        if not s3_helpers[-1].rstrip().endswith('}'):
-            s3_helpers.append('}')
+        s3_h.append('')
+        s3_h.append('static void str_default(const FormulaNode *node, char *buf, size_t buf_size) {')
+        body, _ = extract_body(cs, ce, False, True)
+        s3_h.append(body)
+        s3_h.append('}')
         break
-s3_helpers_code = '\n'.join(s3_helpers)
+s3_helpers = '\n'.join(s3_h)
 
 s3_table = []
-s3_table.append('    /* 使用函数指针表分发 */')
+s3_table.append('    /* \u4f7f\u7528\u51fd\u6570\u6307\u9488\u8868\u5206\u53d1 */')
 s3_table.append('    static const NodeToStringFunc s_str_funcs[] = {')
 for cname, cs, ce in s3c:
     if cname == 'default': continue
@@ -174,35 +187,35 @@ s3_table.append('    } else {')
 s3_table.append('        str_default(node, buf, buf_size);')
 s3_table.append('    }')
 s3_table_code = '\n'.join(s3_table)
-
 # ============================================================
 # Generate Switch 4 helpers (flatten_to_polynomial)
+# Style: case NODE_NUMBER: { ... } - has case braces, no break
 # ============================================================
-s4_helpers = []
-s4_helpers.append('/* 多项式扁平化函数指针类型 */')
-s4_helpers.append('typedef bool (*FlattenFunc)(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg);')
+s4_h = []
+s4_h.append('/* \u591a\u9879\u5f0f\u6241\u5e73\u5316\u51fd\u6570\u6307\u9488\u7c7b\u578b */')
+s4_h.append('typedef bool (*FlattenFunc)(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg);')
 for cname, cs, ce in s4c:
     if cname == 'default': continue
     fn = mkname('flatten_', cname)
-    body = case_body(cs, ce)
-    # Add local tmp/lhs/rhs declarations for cases that use them
-    needs_locals = False
-    for kw in ['tmp[IMPLICIT_COEFFS_SIZE]', 'lhs[IMPLICIT_COEFFS_SIZE]', 'rhs[IMPLICIT_COEFFS_SIZE]']:
-        if kw.replace(' ', '') in body.replace(' ', ''):
-            needs_locals = True
+    body, _ = extract_body(cs, ce, True, False)
+    # Check if case uses the shared tmp/lhs/rhs arrays
+    uses_locals = False
+    for kw in ['lhs[', 'rhs[', 'tmp[']:
+        if kw in body:
+            uses_locals = True
             break
-    s4_helpers.append(f'static bool {fn}(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {{')
-    if needs_locals:
-        s4_helpers.append('    double tmp[IMPLICIT_COEFFS_SIZE];')
-        s4_helpers.append('    double lhs[IMPLICIT_COEFFS_SIZE];')
-        s4_helpers.append('    double rhs[IMPLICIT_COEFFS_SIZE];')
-    s4_helpers.append(body)
+    s4_h.append(f'static bool {fn}(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {{')
+    if uses_locals:
+        s4_h.append('    double tmp[IMPLICIT_COEFFS_SIZE];')
+        s4_h.append('    double lhs[IMPLICIT_COEFFS_SIZE];')
+        s4_h.append('    double rhs[IMPLICIT_COEFFS_SIZE];')
+    s4_h.append(body)
     if not body.rstrip().endswith('}'):
-        s4_helpers.append('}')
-s4_helpers_code = '\n'.join(s4_helpers)
+        s4_h.append('}')
+s4_helpers = '\n'.join(s4_h)
 
 s4_table = []
-s4_table.append('    /* 使用函数指针表分发 */')
+s4_table.append('    /* \u4f7f\u7528\u51fd\u6570\u6307\u9488\u8868\u5206\u53d1 */')
 s4_table.append('    static const FlattenFunc s_flatten_funcs[] = {')
 for cname, cs, ce in s4c:
     if cname == 'default': continue
@@ -216,27 +229,15 @@ s4_table.append('    }')
 s4_table.append('    return false;')
 s4_table_code = '\n'.join(s4_table)
 
-print(f'Generated: s1={len(s1_helpers)}/{len(s1_table_code)}, s2={len(s2_helpers_code)}/{len(s2_table_code)}, s3={len(s3_helpers_code)}/{len(s3_table_code)}, s4={len(s4_helpers_code)}/{len(s4_table_code)}')
+print(f'Generated: s1={len(s1_helpers)}/{len(s1_table_code)}, s2={len(s2_helpers)}/{len(s2_table_code)}, s3={len(s3_helpers)}/{len(s3_table_code)}, s4={len(s4_helpers)}/{len(s4_table_code)}')
 # ============================================================
-# Build the output file
+# Build the modified file
 # ============================================================
 print('Building output file...')
 
-# Exact known line indices (0-based):
-# Section header: 1337-1339
-# Insert s1 helpers after index 1339
-# Switch 1: 1399-1602 (replace with table)
-# Forward decl eval_node: 1724
-# Insert s2 helpers after index 1724 (after the forward decl line)
-# Switch 2: 1733-1980 (replace), function closes at 1981
-# Insert s3 helpers before index 1986 (node_to_string function start)
-# Switch 3: 1992-2164 (replace)
-# Insert s4 helpers before index 2312 (flatten_to_polynomial function start)
-# Switch 4: 2349-2663 (replace), function closes at 2664
-
 result_parts = []
 
-# Part 0: File start up to section header (0..1339)
+# Part 0: File start up to section header (0..1339, line 1340 is blank)
 result_parts.append(''.join(L[0:1339]))
 
 # Insert s1 helpers
@@ -244,94 +245,71 @@ result_parts.append('\n')
 result_parts.append(s1_helpers)
 result_parts.append('\n')
 
-# Part 1: From after section header to before switch 1 (1340..1398)
-result_parts.append(''.join(L[1340:1398]))
+# Part 1: blank line + doc comment + graph_to_formula function up to switch (1339..1398)
+result_parts.append(''.join(L[1339:1398]))
 
-# Part 2: The old function content before switch (lines 1398-1399)
-# Line 1398 is blank, 1399 is the 'switch (node->type) {' line
-# Actually the switch starts at 1399, so we replace 1399..1602
-# But wait, we need to insert the table in place of the switch
-# The text from 1340 to 1398 includes everything after s1 helpers
-# up to the line before the switch keyword
-
-# Actually let me be more precise. The for loop is:
-# Line 1397:         formula_node_to_name(node, name, sizeof(name));
-# Line 1398: (blank)
-# Line 1399:         switch (node->type) {
-# So I need to keep lines 1340..1398 and add my table, then continue
-
-# Keep the loop setup (lines before switch)
-result_parts.append(''.join(L[1398:1399]))  # just the blank line before switch
+# Part 2: the blank line before switch, then table replacement
+result_parts.append(L[1398])  # blank line before switch
 result_parts.append(s1_table_code)
 result_parts.append('\n')
 
-# Part 3: After switch 1 end (line 1603) up to forward decl (line 1724)
-result_parts.append(''.join(L[1603:1724]))  # end of switch to before forward decl
-result_parts.append(L[1724])  # forward declaration line
+# Part 3: after switch 1 (from 1603 line) to forward decl
+result_parts.append(''.join(L[1603:1724]))
+
+# Forward declaration
+result_parts.append(L[1724])  # forward decl
 result_parts.append('\n')
 
 # Insert s2 helpers
-result_parts.append(s2_helpers_code)
+result_parts.append(s2_helpers)
 result_parts.append('\n')
 
-# Part 4: eval_node function - from function header to before switch
-# Function starts at line 1729 (static double eval_node...)
-# Comment: lines 1726-1728 (/* ... */)
-# Blank: blank lines
-# Let me include from line 1726 (comment start) to line 1732 (if(!node) check)
-result_parts.append(''.join(L[1726:1733]))  # function header + if guard
+# Part 4: eval_node function header + if guard (1725..1732)
+result_parts.append(''.join(L[1725:1733]))  # comment + empty + header + if guard
 result_parts.append(s2_table_code)
 result_parts.append('\n')
 
-# Part 5: After eval_node switch (line 1981 is closing })
-result_parts.append(L[1981])  # closing brace of eval_node function
+# Part 5: closing brace of eval_node function
+result_parts.append(L[1981])
 
-# Part 6: Between eval_node and node_to_string
-# Lines 1982-1985 (blank + comment block)
+# Part 6: between eval_node end and node_to_string (1982..1985)
 result_parts.append(''.join(L[1982:1986]))
 
 # Insert s3 helpers
-result_parts.append(s3_helpers_code)
+result_parts.append(s3_helpers)
 result_parts.append('\n')
 
-# Part 7: node_to_string function header + body before switch
-# Lines 1986-1991 (another comment + blank + function header)
-result_parts.append(''.join(L[1986:1992]))  # function header
+# Part 7: node_to_string function header (1986..1991)
+result_parts.append(''.join(L[1986:1992]))
 result_parts.append(s3_table_code)
 result_parts.append('\n')
 
-# Part 8: After switch 3 end + up to flatten_to_polynomial
-# Line 2165 is the closing brace of node_to_string
-result_parts.append(''.join(L[2165:2312]))  # after node_to_string to before flatten_to_polynomial
+# Part 8: closing brace of node_to_string (line 2165) and up to flatten_to_polynomial
+result_parts.append(''.join(L[2165:2312]))
 
 # Insert s4 helpers
-result_parts.append(s4_helpers_code)
+result_parts.append(s4_helpers)
 result_parts.append('\n')
 
-# Part 9: flatten_to_polynomial function header + body before switch
-# Line 2312 is the function start
-result_parts.append(''.join(L[2312:2349]))  # function header + local vars
+# Part 9: flatten_to_polynomial function header + local vars (2312..2349)
+result_parts.append(''.join(L[2312:2349]))
 result_parts.append(s4_table_code)
 result_parts.append('\n')
 
-# Part 10: After switch 4 end to end of file
-# Switch closes at 2663, function at 2664, rest of file follows
+# Part 10: rest of file from 2664 onwards
 result_parts.append(''.join(L[2664:]))
 
 # Write output
 output = ''.join(result_parts)
-
-# Verify we have the right number of lines
 orig_lines = len(L)
 new_lines = output.count('\n')
 print(f'Original: {orig_lines} lines, New: {new_lines} lines (+{new_lines-orig_lines})')
 
-# Write to file
-backup = FILE + '.bak'
-os.rename(FILE, backup)
+backup = FILE + '.bak2'
+import shutil
+shutil.copy2(FILE, backup)
 print(f'Backup saved: {backup}')
 
 with open(FILE, 'w', encoding='utf-8') as f:
     f.write(output)
-print(f'Written: {FILE}')
-print('DONE!')
+print('Written! DONE!')

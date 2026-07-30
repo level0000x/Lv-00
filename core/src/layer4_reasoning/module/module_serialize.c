@@ -820,21 +820,20 @@ int module_compare_versions(const char *v1, const char *v2) {
     if (!v1 || !v2)
         return 0;
 
-    int major1 = 0, minor1 = 0, patch1 = 0;
-    int major2 = 0, minor2 = 0, patch2 = 0;
+    /* 复用 lv_utils 中的 lvVersion 统一版本比较 */
+    lvVersion *ver1 = version_parse(v1);
+    lvVersion *ver2 = version_parse(v2);
 
-    if (sscanf(v1, "%d.%d.%d", &major1, &minor1, &patch1) < 1) {
-        major1 = minor1 = patch1 = 0;
-    }
-    if (sscanf(v2, "%d.%d.%d", &major2, &minor2, &patch2) < 1) {
-        major2 = minor2 = patch2 = 0;
+    if (!ver1 || !ver2) {
+        version_destroy(ver1);
+        version_destroy(ver2);
+        return 0;
     }
 
-    if (major1 != major2)
-        return major1 - major2;
-    if (minor1 != minor2)
-        return minor1 - minor2;
-    return patch1 - patch2;
+    int result = version_compare(ver1, ver2);
+    version_destroy(ver1);
+    version_destroy(ver2);
+    return result;
 }
 
 /**
@@ -867,14 +866,18 @@ bool module_parse_version_constraint(const char *constraint, const char *version
         const char *base = constraint + 1;
         if (module_compare_versions(version, base) < 0)
             return false;
-        /* Check major version match: extract major from base */
-        int base_major = 0;
-        if (sscanf(base, "%d", &base_major) < 1)
-            base_major = 0;
-        int ver_major = 0;
-        if (sscanf(version, "%d", &ver_major) < 1)
+        /* 使用 lvVersion 统一比较主版本号是否一致 */
+        lvVersion *base_ver = version_parse(base);
+        lvVersion *ver = version_parse(version);
+        if (!base_ver || !ver) {
+            version_destroy(base_ver);
+            version_destroy(ver);
             return false;
-        return ver_major == base_major;
+        }
+        bool result = (ver->major == base_ver->major);
+        version_destroy(base_ver);
+        version_destroy(ver);
+        return result;
     }
 
     /* 波浪号："~1.0.0" 表示 >=1.0.0 且 <1.1.0 */
@@ -882,15 +885,18 @@ bool module_parse_version_constraint(const char *constraint, const char *version
         const char *base = constraint + 1;
         if (module_compare_versions(version, base) < 0)
             return false;
-        /* Check major.minor match */
-        int base_major = 0, base_minor = 0;
-        if (sscanf(base, "%d.%d", &base_major, &base_minor) < 1) {
-            base_major = base_minor = 0;
-        }
-        int ver_major = 0, ver_minor = 0;
-        if (sscanf(version, "%d.%d", &ver_major, &ver_minor) < 1)
+        /* 使用 lvVersion 统一检查 major.minor 是否一致 */
+        lvVersion *base_ver = version_parse(base);
+        lvVersion *ver = version_parse(version);
+        if (!base_ver || !ver) {
+            version_destroy(base_ver);
+            version_destroy(ver);
             return false;
-        return ver_major == base_major && ver_minor == base_minor;
+        }
+        bool result = (ver->major == base_ver->major && ver->minor == base_ver->minor);
+        version_destroy(base_ver);
+        version_destroy(ver);
+        return result;
     }
 
     /* Range: "1.0.0 - 2.0.0" */

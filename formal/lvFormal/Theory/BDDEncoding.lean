@@ -79,9 +79,9 @@ def bdd_manager_create (var_count unique_table_size : ℕ) : BDDManager :=
     (var_id, low_ptr, high_ptr) → 哈希槽索引
     对应 C 中 bdd_unique_hash 的开放寻址哈希 -/
 def bdd_unique_hash (var_id : BDDVarId) (low high : BDDNode) (table_size : ℕ) : ℕ :=
-  let h := ((var_id.natAbs) % 100003) * 31 +
-           ((low.var_id.natAbs + low.is_true.natAbs) % 100003) * 31 +
-           ((high.var_id.natAbs + high.is_true.natAbs) % 100003)
+  let h := ((Int.natAbs var_id) % 100003) * 31 +
+           ((Int.natAbs low.var_id + (if low.is_true then 1 else 0)) % 100003) * 31 +
+           ((Int.natAbs high.var_id + (if high.is_true then 1 else 0)) % 100003)
   h % table_size
 
 /-- 唯一表查找或插入：

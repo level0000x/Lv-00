@@ -148,6 +148,14 @@ theorem tptp_encoding_well_formed (graph : ConstraintGraphTPTP) (format : ATPInp
    第三部分：SZS 状态解析
    =============================================================== -/
 
+/-- 检查字符串 s 是否包含子串 sub -/
+def containsSubstring (s sub : String) : Bool :=
+  let rec loop (i : ℕ) : Bool :=
+    if i + sub.length > s.length then false
+    else if s.startsWith sub i then true
+    else loop (i + 1)
+  loop 0
+
 /-- SZS 状态行格式：SZS status: <result>
     
     常见结果：
@@ -158,21 +166,16 @@ theorem tptp_encoding_well_formed (graph : ConstraintGraphTPTP) (format : ATPInp
     
     对应 C 中 atp_parse_szs_status。 -/
 def parse_szs_status (output : String) : ATPResult :=
-  let szs_prefix := "SZS status:"
-  match output.find szs_prefix with
-  | none => .unknown
-  | some pos =>
-    let rest := output.drop (pos + szs_prefix.length) |>.trimLeft
-    if rest.startsWith "Theorem" ∨ rest.startsWith "Unsatisfiable" then
-      .unsat
-    else if rest.startsWith "Satisfiable" ∨ rest.startsWith "CounterSatisfiable" then
-      .sat
-    else if rest.startsWith "Timeout" ∨ rest.startsWith "ResourceOut" then
-      .unknown
-    else if rest.startsWith "Error" then
-      .error
-    else
-      .unknown
+  if containsSubstring output "Theorem" ∨ containsSubstring output "Unsatisfiable" then
+    .unsat
+  else if containsSubstring output "Satisfiable" ∨ containsSubstring output "CounterSatisfiable" then
+    .sat
+  else if containsSubstring output "Timeout" ∨ containsSubstring output "ResourceOut" then
+    .unknown
+  else if containsSubstring output "Error" then
+    .error
+  else
+    .unknown
 
 /-- SZS 解析正确性定理：
     解析结果与 ATP 输出的语义一致。
@@ -196,6 +199,8 @@ structure ATPBackendEntry where
   priority     : ℕ
   description  : String
 
+instance : Inhabited ATPBackendEntry where
+  default := { backendType := .vampire, available := false, priority := 0, description := "" }
 
 /-- ATP 求解器状态。
     对应 C 中 ATPBackendSolver 的不透明结构。 -/
@@ -405,13 +410,12 @@ theorem backend_discovery_complete (reg : ATPBackendRegistry) (entry : ATPBacken
     对应 C 中 atp_auto_solve。 -/
 def auto_select_backend (graph : ConstraintGraphTPTP) (reg : ATPBackendRegistry)
     : Option ATPBackendType :=
-  -- 检查是否有非线性算术约束
-  -- 若有 → 优先 SMT（Vampire 也支持算术，但 SMT 更专业）
-  -- 否则 → 选择优先级最高的可用 ATP
-  reg.entries
-    |>.filter (fun e => e.available)
-    |>.argmin (fun e => e.priority)
-    |>.map (fun e => e.backendType)
+  let available := reg.entries.filter (fun e => e.available)
+  match available with
+  | [] => none
+  | e :: es =>
+    let best := es.foldl (fun best e' => if e'.priority < best.priority then e' else best) e
+    some best.backendType
 
 /-- 自动选择策略最优性定理：
     选择的 ATP 后端是当前约束图特征下最优的可用后端。
