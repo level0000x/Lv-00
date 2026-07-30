@@ -13,8 +13,11 @@
 #ifndef lv_MPZ_POLY_H
 #define lv_MPZ_POLY_H
 
-/* 确保 POSIX.1-2008（strdup 等）可用 */
-#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200809L
+/* 确保 POSIX.1-2008（strdup 等）可用；macOS 额外需要 _DARWIN_C_SOURCE */
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+#define _DARWIN_C_SOURCE
+#endif
+#if !defined(__APPLE__) && (!defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200809L)
 #define _POSIX_C_SOURCE 200809L
 #endif
 

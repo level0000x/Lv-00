@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file circuit_breaker.h
  * @brief 熔断器模块 —— 独立于上下文的熔断器操作函数
  *
@@ -29,6 +29,7 @@
 extern "C" {
 #endif
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 /* 前向声明 —— CircuitBreaker 结构体在 context.h 中定义 */
 struct CircuitBreaker;

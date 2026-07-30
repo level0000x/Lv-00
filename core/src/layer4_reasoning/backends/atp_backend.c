@@ -43,9 +43,11 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <pthread.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#define strtok_s strtok_r
 #endif
 
 #include "error_codes.h"

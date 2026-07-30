@@ -2139,7 +2139,11 @@ static void lock_library(void) {
 #else
         pthread_mutex_init(&g_library.mutex, NULL);
 #endif
+#ifdef _WIN32
         InterlockedExchange(&g_mutex_initialized, 1);
+#else
+        __sync_lock_test_and_set(&g_mutex_initialized, 1);
+#endif
     }
 #ifdef _WIN32
     EnterCriticalSection(&g_library.mutex);
