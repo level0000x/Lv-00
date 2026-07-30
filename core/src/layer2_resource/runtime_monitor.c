@@ -25,7 +25,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <pthread.h>
 #include <sys/time.h>
 #include <unistd.h>
 #ifdef __APPLE__
@@ -56,21 +55,13 @@ static int64_t get_time_ns(void) {
     LARGE_INTEGER freq, count;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&count);
-    return (int64_t) ((double) count.QuadPart / (double) freq.QuadPart * 1e9);
-}
-
-static int get_thread_id(void) {
-    return (int) GetCurrentThreadId();
+    return (int64_t)((double)count.QuadPart / (double)freq.QuadPart * 1e9);
 }
 #else
 static int64_t get_time_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
-}
-
-static int get_thread_id(void) {
-    return (int) pthread_self();
+    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 #endif
 
@@ -267,7 +258,7 @@ void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line,
     record.level = level;
     record.line = line;
     record.timestamp_ms = get_time_ns() / 1000000;
-    record.thread_id = get_thread_id();
+    record.thread_id = (int)lv_thread_id();
 
     if (tag) {
         strncpy(record.tag, tag, sizeof(record.tag) - 1);
@@ -1093,7 +1084,7 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
     event->type = type;
     event->timestamp_ns = get_time_ns();
     event->duration_ns = 0;
-    event->thread_id = get_thread_id();
+    event->thread_id = (int)lv_thread_id();
 
     if (name) {
         strncpy(event->name, name, sizeof(event->name) - 1);
@@ -1116,7 +1107,7 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
     lvEventRecord *event = &g_event_system.events[g_event_system.event_count++];
     event->type = type;
     event->timestamp_ns = get_time_ns();
-    event->thread_id = get_thread_id();
+    event->thread_id = (int)lv_thread_id();
 
     if (name) {
         strncpy(event->name, name, sizeof(event->name) - 1);

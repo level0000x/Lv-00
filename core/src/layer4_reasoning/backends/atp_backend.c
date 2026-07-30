@@ -35,6 +35,7 @@
 #include <time.h>
 
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_thread.h"
 
 #ifdef _WIN32
 #include <io.h>
@@ -44,7 +45,6 @@
 #else
 #include <fcntl.h>
 #include <poll.h>
-#include <pthread.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -94,24 +94,18 @@ struct ATPBackendSolver {
 static ATPBackendRegistry g_atp_registry;
 static bool g_atp_registry_initialized = false;
 
-#ifdef _WIN32
-static CRITICAL_SECTION g_atp_registry_cs = {0};
-static volatile LONG g_atp_cs_initialized = 0;
-#define ATP_REGISTRY_LOCK()                                          \
-    do {                                                             \
-        if (!g_atp_cs_initialized) {                                 \
-            InterlockedCompareExchange(&g_atp_cs_initialized, 1, 0); \
-            if (g_atp_cs_initialized)                                \
-                InitializeCriticalSection(&g_atp_registry_cs);       \
-        }                                                            \
-        EnterCriticalSection(&g_atp_registry_cs);                    \
-    } while (0)
-#define ATP_REGISTRY_UNLOCK() LeaveCriticalSection(&g_atp_registry_cs)
-#else
-static pthread_mutex_t g_atp_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
-#define ATP_REGISTRY_LOCK() pthread_mutex_lock(&g_atp_registry_mutex)
-#define ATP_REGISTRY_UNLOCK() pthread_mutex_unlock(&g_atp_registry_mutex)
-#endif
+static lv_mutex_t g_atp_registry_mutex;
+static lv_once_t g_atp_registry_once = lv_ONCE_INIT;
+
+static void atp_registry_mutex_init_func(void) {
+    lv_mutex_init(&g_atp_registry_mutex);
+}
+
+#define ATP_REGISTRY_LOCK() do { \
+    lv_once(&g_atp_registry_once, atp_registry_mutex_init_func); \
+    lv_mutex_lock(&g_atp_registry_mutex); \
+} while (0)
+#define ATP_REGISTRY_UNLOCK() lv_mutex_unlock(&g_atp_registry_mutex)
 
 /* ============================================================
  * 默认配置

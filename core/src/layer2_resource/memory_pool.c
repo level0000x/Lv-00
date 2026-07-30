@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file memory_pool.c
  * @brief 内存池系统实现
  *
@@ -51,8 +51,6 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#else
-#include <pthread.h>
 #endif
 
 #include "lv_internal.h" /* lv_FNV64_* 哈希常量 */
@@ -159,7 +157,7 @@ lvObjectPool *lv_pool_create(const lvPoolConfig *config) {
     pool->block_capacities = (size_t *) malloc(pool->block_capacity * sizeof(size_t));
     if (!pool->block_capacities) {
         if (pool->thread_safe) {
-            lv_MUTEX_DESTROY(pool->mutex);
+            lv_mutex_destroy(&pool->mutex);
         }
         lv_free((void **) &pool->blocks);
         lv_free((void **) &pool);
@@ -170,7 +168,7 @@ lvObjectPool *lv_pool_create(const lvPoolConfig *config) {
     void *block = malloc(pool->object_size * pool->capacity);
     if (!block) {
         if (pool->thread_safe) {
-            lv_MUTEX_DESTROY(pool->mutex);
+            lv_mutex_destroy(&pool->mutex);
         }
         lv_free((void **) &pool->block_capacities);
         lv_free((void **) &pool->blocks);
@@ -207,7 +205,7 @@ void lv_pool_destroy(lvObjectPool *pool) {
 
     /* 销毁线程锁 */
     if (pool->thread_safe) {
-        lv_MUTEX_DESTROY(pool->mutex);
+        lv_mutex_destroy(&pool->mutex);
     }
 
     lv_free((void **) &pool);
@@ -219,14 +217,14 @@ void *lv_pool_alloc(lvObjectPool *pool) {
     }
 
     if (pool->thread_safe) {
-        lv_MUTEX_LOCK(pool->mutex);
+        lv_mutex_lock(&pool->mutex);
     }
 
     /* 空闲链表为空，需要扩展 */
     if (!pool->free_list) {
         if (!pool->auto_grow) {
             if (pool->thread_safe) {
-                lv_MUTEX_UNLOCK(pool->mutex);
+                lv_mutex_unlock(&pool->mutex);
             }
             return NULL;
         }
@@ -236,7 +234,7 @@ void *lv_pool_alloc(lvObjectPool *pool) {
             /* [Bug修复] 溢出检查：确保 block_capacity * GROWTH_FACTOR 不会溢出 */
             if (lv_SIZE_MUL_OVERFLOW(pool->block_capacity, lv_POOL_GROWTH_FACTOR)) {
                 if (pool->thread_safe) {
-                    lv_MUTEX_UNLOCK(pool->mutex);
+                    lv_mutex_unlock(&pool->mutex);
                 }
                 return NULL;
             }
@@ -245,14 +243,14 @@ void *lv_pool_alloc(lvObjectPool *pool) {
             /* [Bug修复] 溢出检查：确保 new_cap * sizeof(void*) 不会溢出 */
             if (lv_SIZE_MUL_OVERFLOW(new_cap, sizeof(void *))) {
                 if (pool->thread_safe) {
-                    lv_MUTEX_UNLOCK(pool->mutex);
+                    lv_mutex_unlock(&pool->mutex);
                 }
                 return NULL;
             }
             void **new_blocks = (void **) lv_realloc(pool->blocks, new_cap * sizeof(void *));
             if (!new_blocks) {
                 if (pool->thread_safe) {
-                    lv_MUTEX_UNLOCK(pool->mutex);
+                    lv_mutex_unlock(&pool->mutex);
                 }
                 return NULL;
             }
@@ -268,7 +266,7 @@ void *lv_pool_alloc(lvObjectPool *pool) {
                 }
                 /* pool->blocks 始终有效（要么是 shrunk，要么是 new_blocks） */
                 if (pool->thread_safe) {
-                    lv_MUTEX_UNLOCK(pool->mutex);
+                    lv_mutex_unlock(&pool->mutex);
                 }
                 return NULL;
             }
@@ -280,7 +278,7 @@ void *lv_pool_alloc(lvObjectPool *pool) {
         /* [Bug修复] 溢出检查：确保 capacity * GROWTH_FACTOR 不会溢出 */
         if (lv_SIZE_MUL_OVERFLOW(pool->capacity, lv_POOL_GROWTH_FACTOR)) {
             if (pool->thread_safe) {
-                lv_MUTEX_UNLOCK(pool->mutex);
+                lv_mutex_unlock(&pool->mutex);
             }
             return NULL;
         }
@@ -289,7 +287,7 @@ void *lv_pool_alloc(lvObjectPool *pool) {
         /* [Bug修复] 溢出检查：确保 object_size * new_capacity 不会溢出 */
         if (lv_SIZE_MUL_OVERFLOW(pool->object_size, new_capacity)) {
             if (pool->thread_safe) {
-                lv_MUTEX_UNLOCK(pool->mutex);
+                lv_mutex_unlock(&pool->mutex);
             }
             return NULL;
         }
@@ -297,7 +295,7 @@ void *lv_pool_alloc(lvObjectPool *pool) {
         void *block = malloc(pool->object_size * new_capacity);
         if (!block) {
             if (pool->thread_safe) {
-                lv_MUTEX_UNLOCK(pool->mutex);
+                lv_mutex_unlock(&pool->mutex);
             }
             return NULL;
         }
@@ -322,7 +320,7 @@ void *lv_pool_alloc(lvObjectPool *pool) {
     pool->current_used++;
 
     if (pool->thread_safe) {
-        lv_MUTEX_UNLOCK(pool->mutex);
+        lv_mutex_unlock(&pool->mutex);
     }
 
     /* 清零对象 */
@@ -336,7 +334,7 @@ bool lv_pool_free(lvObjectPool *pool, void *obj) {
     }
 
     if (pool->thread_safe) {
-        lv_MUTEX_LOCK(pool->mutex);
+        lv_mutex_lock(&pool->mutex);
     }
 
     /* 添加到空闲链表 */
@@ -348,7 +346,7 @@ bool lv_pool_free(lvObjectPool *pool, void *obj) {
         pool->current_used--;
 
     if (pool->thread_safe) {
-        lv_MUTEX_UNLOCK(pool->mutex);
+        lv_mutex_unlock(&pool->mutex);
     }
 
     return true;
@@ -361,7 +359,7 @@ void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t 
     }
 
     if (pool->thread_safe) {
-        lv_MUTEX_LOCK(pool->mutex);
+        lv_mutex_lock(&pool->mutex);
     }
 
     if (out_total_allocs)
@@ -372,7 +370,7 @@ void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t 
         *out_current_used = pool->current_used;
 
     if (pool->thread_safe) {
-        lv_MUTEX_UNLOCK(pool->mutex);
+        lv_mutex_unlock(&pool->mutex);
     }
 }
 
@@ -382,7 +380,7 @@ void lv_pool_clear(lvObjectPool *pool) {
     }
 
     if (pool->thread_safe) {
-        lv_MUTEX_LOCK(pool->mutex);
+        lv_mutex_lock(&pool->mutex);
     }
 
     /* [Bug修复] 使用 block_capacities 记录的实际容量重建空闲链表，
@@ -400,7 +398,7 @@ void lv_pool_clear(lvObjectPool *pool) {
     pool->current_used = 0;
 
     if (pool->thread_safe) {
-        lv_MUTEX_UNLOCK(pool->mutex);
+        lv_mutex_unlock(&pool->mutex);
     }
 }
 
@@ -869,29 +867,11 @@ void lv_cache_get_stats(const lvObjectCache *cache, uint64_t *out_hits, uint64_t
 /* ============== 全局内存统计 ============== */
 
 static lvMemoryStats g_global_stats = {0};
-static lvMutex g_stats_mutex;
-static volatile long g_stats_initialized = 0; /* 原子标志，用于线程安全的一次性初始化 */
+static lv_mutex_t g_stats_mutex;
+static lv_once_t g_stats_once = lv_ONCE_INIT;
 
-/**
- * @brief 线程安全地确保全局统计互斥锁已初始化
- *
- * 使用 InterlockedCompareExchange（Windows）或 __atomic（POSIX/GCC）保证
- * 只有一个线程执行初始化，避免 ensure_stats_init() 的竞态条件。
- */
-static void ensure_stats_init(void) {
-#ifdef _WIN32
-    if (InterlockedCompareExchange(&g_stats_initialized, 1, 0) == 0) {
-        /* 首次调用：执行初始化 */
-        lv_MUTEX_INIT(g_stats_mutex);
-    }
-    /* 后续调用：g_stats_initialized 已为 1，直接返回 */
-#else
-    /* 使用 __atomic 内建保证原子比较-交换 */
-    if (__atomic_exchange_n(&g_stats_initialized, 1, __ATOMIC_ACQ_REL) == 0) {
-        /* 首次调用：执行初始化 */
-        lv_MUTEX_INIT(g_stats_mutex);
-    }
-#endif
+static void stats_mutex_init_func(void) {
+    lv_mutex_init(&g_stats_mutex);
 }
 
 int lv_mem_register_type(const char *name) {
@@ -899,11 +879,11 @@ int lv_mem_register_type(const char *name) {
         return -1;
     }
 
-    ensure_stats_init();
-    lv_MUTEX_LOCK(g_stats_mutex);
+    lv_once(&g_stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&g_stats_mutex);
 
     if (g_global_stats.type_count >= lv_MEM_STAT_MAX_TYPES) {
-        lv_MUTEX_UNLOCK(g_stats_mutex);
+        lv_mutex_unlock(&g_stats_mutex);
         return -1;
     }
 
@@ -914,7 +894,7 @@ int lv_mem_register_type(const char *name) {
     g_global_stats.types[id].current_bytes = 0;
     g_global_stats.types[id].peak_bytes = 0;
 
-    lv_MUTEX_UNLOCK(g_stats_mutex);
+    lv_mutex_unlock(&g_stats_mutex);
     return id;
 }
 
@@ -923,8 +903,8 @@ void lv_mem_record_alloc(int type_id, size_t size) {
         return;
     }
 
-    ensure_stats_init();
-    lv_MUTEX_LOCK(g_stats_mutex);
+    lv_once(&g_stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&g_stats_mutex);
 
     if ((size_t) type_id < (size_t) g_global_stats.type_count) {
         g_global_stats.types[type_id].total_allocs++;
@@ -938,7 +918,7 @@ void lv_mem_record_alloc(int type_id, size_t size) {
         g_global_stats.peak_bytes = g_global_stats.total_bytes;
     }
 
-    lv_MUTEX_UNLOCK(g_stats_mutex);
+    lv_mutex_unlock(&g_stats_mutex);
 }
 
 void lv_mem_record_free(int type_id, size_t size) {
@@ -946,8 +926,8 @@ void lv_mem_record_free(int type_id, size_t size) {
         return;
     }
 
-    ensure_stats_init();
-    lv_MUTEX_LOCK(g_stats_mutex);
+    lv_once(&g_stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&g_stats_mutex);
 
     if ((size_t) type_id < (size_t) g_global_stats.type_count) {
         g_global_stats.types[type_id].total_frees++;
@@ -959,7 +939,7 @@ void lv_mem_record_free(int type_id, size_t size) {
         g_global_stats.total_bytes -= size;
     }
 
-    lv_MUTEX_UNLOCK(g_stats_mutex);
+    lv_mutex_unlock(&g_stats_mutex);
 }
 
 void lv_mem_get_global_stats(lvMemoryStats *stats) {
@@ -967,15 +947,15 @@ void lv_mem_get_global_stats(lvMemoryStats *stats) {
         return;
     }
 
-    ensure_stats_init();
-    lv_MUTEX_LOCK(g_stats_mutex);
+    lv_once(&g_stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&g_stats_mutex);
     memcpy(stats, &g_global_stats, sizeof(lvMemoryStats));
-    lv_MUTEX_UNLOCK(g_stats_mutex);
+    lv_mutex_unlock(&g_stats_mutex);
 }
 
 void lv_mem_reset_stats(void) {
-    ensure_stats_init();
-    lv_MUTEX_LOCK(g_stats_mutex);
+    lv_once(&g_stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&g_stats_mutex);
     /* 释放已注册类型的名称字符串，防止内存泄漏 */
     for (int i = 0; i < g_global_stats.type_count; i++) {
         if (g_global_stats.types[i].name) {
@@ -983,7 +963,7 @@ void lv_mem_reset_stats(void) {
         }
     }
     memset(&g_global_stats, 0, sizeof(lvMemoryStats));
-    lv_MUTEX_UNLOCK(g_stats_mutex);
+    lv_mutex_unlock(&g_stats_mutex);
 }
 
 void lv_mem_print_stats(void *stream) {
@@ -991,8 +971,8 @@ void lv_mem_print_stats(void *stream) {
         stream = stdout;
     }
 
-    ensure_stats_init();
-    lv_MUTEX_LOCK(g_stats_mutex);
+    lv_once(&g_stats_once, stats_mutex_init_func);
+    lv_mutex_lock(&g_stats_mutex);
 
     fprintf((FILE *) stream, "\n========== Lv-00 内存统计 ==========\n");
     fprintf((FILE *) stream, "总使用: %llu 字节, 峰值: %llu 字节\n", (unsigned long long) g_global_stats.total_bytes,
@@ -1010,7 +990,7 @@ void lv_mem_print_stats(void *stream) {
 
     fprintf((FILE *) stream, "====================================\n\n");
 
-    lv_MUTEX_UNLOCK(g_stats_mutex);
+    lv_mutex_unlock(&g_stats_mutex);
 }
 
 /* ============== 预定义对象池 ============== */

@@ -259,6 +259,18 @@ static inline int lv_thread_detach(lv_thread_t thread) {
 }
 
 /**
+ * @brief 获取当前线程 ID（用于日志和调试）
+ * @return 线程 ID（平台相关类型转为 unsigned long）
+ */
+static inline unsigned long lv_thread_id(void) {
+#ifdef _WIN32
+    return (unsigned long)GetCurrentThreadId();
+#else
+    return (unsigned long)pthread_self();
+#endif
+}
+
+/**
  * @brief 线程休眠（毫秒）
  * @param ms 休眠毫秒数
  */

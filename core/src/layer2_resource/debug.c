@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file debug.c
  * @brief 调试工具实现
  * @details 实现日志系统、性能计数器、内存池、引用计数/GC、
@@ -6,6 +6,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/lv_thread.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -23,7 +24,6 @@
 #define access _access
 #define lv_DEBUG_F_OK 0
 #else
-#include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
 #define lv_DEBUG_F_OK F_OK
@@ -126,46 +126,22 @@ static size_t g_current_log_size = 0;
 static volatile bool g_initialized = false;
 
 /* 线程安全互斥锁 */
-#ifdef _WIN32
-static CRITICAL_SECTION g_log_mutex;
-static INIT_ONCE g_log_init_once = INIT_ONCE_STATIC_INIT;
+static lv_mutex_t g_log_mutex;
+static lv_once_t g_log_once = lv_ONCE_INIT;
 
-static BOOL CALLBACK log_mutex_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
-    (void) once;
-    (void) param;
-    (void) context;
-    InitializeCriticalSection(&g_log_mutex);
-    return TRUE;
+static void log_mutex_init_func(void) {
+    lv_mutex_init(&g_log_mutex);
 }
-
-static void log_ensure_mutex_init(void) {
-    InitOnceExecuteOnce(&g_log_init_once, log_mutex_init_callback, NULL, NULL);
-}
-#else
-static pthread_mutex_t g_log_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 /* 性能计数器（全局共享，由 g_counter_mutex 保护） */
 static PerformanceCounters g_counters = {0};
 
-#ifdef _WIN32
-static CRITICAL_SECTION g_counter_mutex;
-static INIT_ONCE g_counter_init_once = INIT_ONCE_STATIC_INIT;
+static lv_mutex_t g_counter_mutex;
+static lv_once_t g_counter_once = lv_ONCE_INIT;
 
-static BOOL CALLBACK counter_mutex_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
-    (void) once;
-    (void) param;
-    (void) context;
-    InitializeCriticalSection(&g_counter_mutex);
-    return TRUE;
+static void counter_mutex_init_func(void) {
+    lv_mutex_init(&g_counter_mutex);
 }
-
-static void counter_ensure_mutex_init(void) {
-    InitOnceExecuteOnce(&g_counter_init_once, counter_mutex_init_callback, NULL, NULL);
-}
-#else
-static pthread_mutex_t g_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 /*=== 环形日志缓冲区（v3.3.0 新增）===*/
 
@@ -177,63 +153,33 @@ static int g_log_ring_buffer_capacity = lv_LOG_RING_BUFFER_DEFAULT_CAPACITY;
 
 /*=== 内部辅助函数 ===*/
 
-#ifdef _WIN32
-/** @brief 通用互斥锁加锁宏（Windows 下使用 InitOnceExecuteOnce 确保线程安全惰性初始化） */
-#define lv_MUTEX_LOCK(mutex)            \
-    do {                                \
-        EnterCriticalSection(&(mutex)); \
-    } while (0)
-
-/** @brief 通用互斥锁解锁宏 */
-#define lv_MUTEX_UNLOCK(mutex)          \
-    do {                                \
-        LeaveCriticalSection(&(mutex)); \
-    } while (0)
-#else
-/** @brief 通用互斥锁加锁宏（POSIX 版本） */
-#define lv_MUTEX_LOCK(mutex)          \
-    do {                              \
-        pthread_mutex_lock(&(mutex)); \
-    } while (0)
-
-/** @brief 通用互斥锁解锁宏（POSIX 版本） */
-#define lv_MUTEX_UNLOCK(mutex)          \
-    do {                                \
-        pthread_mutex_unlock(&(mutex)); \
-    } while (0)
-#endif
-
 /* 锁函数生成宏：消除 6 个锁函数的重复代码 */
 #define lv_DEFINE_LOCK_FUNCS(name, mutex_var) \
     static void name##_lock(void) {           \
-        lv_MUTEX_LOCK(mutex_var);             \
+        lv_mutex_lock(&(mutex_var));          \
     }                                         \
     static void name##_unlock(void) {         \
-        lv_MUTEX_UNLOCK(mutex_var);           \
+        lv_mutex_unlock(&(mutex_var));        \
     }
 
-/* 日志加锁（使用 InitOnceExecuteOnce 确保互斥锁初始化） */
+/* 日志加锁 */
 static void log_lock(void) {
-#ifdef _WIN32
-    log_ensure_mutex_init();
-#endif
-    lv_MUTEX_LOCK(g_log_mutex);
+    lv_once(&g_log_once, log_mutex_init_func);
+    lv_mutex_lock(&g_log_mutex);
 }
 
 static void log_unlock(void) {
-    lv_MUTEX_UNLOCK(g_log_mutex);
+    lv_mutex_unlock(&g_log_mutex);
 }
 
-/* 性能计数器加锁（使用 InitOnceExecuteOnce 确保互斥锁初始化） */
+/* 性能计数器加锁 */
 static void counter_lock(void) {
-#ifdef _WIN32
-    counter_ensure_mutex_init();
-#endif
-    lv_MUTEX_LOCK(g_counter_mutex);
+    lv_once(&g_counter_once, counter_mutex_init_func);
+    lv_mutex_lock(&g_counter_mutex);
 }
 
 static void counter_unlock(void) {
-    lv_MUTEX_UNLOCK(g_counter_mutex);
+    lv_mutex_unlock(&g_counter_mutex);
 }
 
 /* 引用计数加锁/解锁（复用 counter_mutex） */
@@ -1503,41 +1449,13 @@ void debug_log_solver(const char *fmt, ...) {
 /*=== 新日志系统实现 ===*/
 
 int debug_log_init(void) {
-    /* 使用互斥锁保护初始化检查，防止多线程竞态条件。
-     * POSIX 上 g_log_mutex 已通过 PTHREAD_MUTEX_INITIALIZER 静态初始化，
-     * 可直接使用；Windows 上在初始化前使用原子操作保护。
-     *
-     * 线程安全说明：
-     * - Windows: 使用 InterlockedCompareExchange 确保只有一个线程进入初始化路径，
-     *   其他线程通过自旋等待 g_initialized 变为 true。
-     *   进入初始化路径后，先初始化 CRITICAL_SECTION，再获取锁保护全局路径写入。
-     * - POSIX: 直接使用 pthread_mutex_lock 保护整个初始化过程。 */
-#ifdef _WIN32
-    static volatile long s_init_guard = 0;
-    if (InterlockedCompareExchange(&s_init_guard, 1, 0) != 0) {
-        /* 另一个线程正在初始化或已完成初始化，等待完成 */
-        while (!g_initialized) {
-            Sleep(1);
-        }
-        return 0;
-    }
-    /* 首次进入的线程：先初始化互斥锁 */
-    log_ensure_mutex_init();
-    counter_ensure_mutex_init();
-    /* 获取日志互斥锁，保护后续对 g_log_dir_path、g_log_file_path 等全局变量的写入 */
-    EnterCriticalSection(&g_log_mutex);
+    /* 使用 lv_once 确保互斥锁一次性初始化，lv_mutex_lock 保护初始化检查 */
+    lv_once(&g_log_once, log_mutex_init_func);
+    lv_mutex_lock(&g_log_mutex);
     if (g_initialized) {
-        LeaveCriticalSection(&g_log_mutex);
-        InterlockedExchange(&s_init_guard, 2);
+        lv_mutex_unlock(&g_log_mutex);
         return 0; /* 已初始化 */
     }
-#else
-    pthread_mutex_lock(&g_log_mutex);
-    if (g_initialized) {
-        pthread_mutex_unlock(&g_log_mutex);
-        return 0; /* 已初始化 */
-    }
-#endif
 
     /* 构建日志目录路径: ~/.lv/logs
      * 以下对 g_log_dir_path 和 g_log_file_path 的写入在 g_log_mutex 保护内，
@@ -1568,13 +1486,7 @@ int debug_log_init(void) {
 
     g_initialized = true;
 
-#ifdef _WIN32
-    LeaveCriticalSection(&g_log_mutex);
-    /* 初始化完成，释放等待的线程 */
-    InterlockedExchange(&s_init_guard, 2);
-#else
-    pthread_mutex_unlock(&g_log_mutex);
-#endif
+    lv_mutex_unlock(&g_log_mutex);
 
     /* 【v3.3.0】创建全局环形日志缓冲区 */
     if (!g_log_ring_buffer) {
@@ -1628,23 +1540,9 @@ void debug_log_shutdown(void) {
         g_trace_session = NULL;
     }
 
-    /* 清理互斥锁。
-     * 在 Windows 上，DeleteCriticalSection 会释放锁并允许其他等待线程继续。
-     * 在 POSIX 上，pthread_mutex_destroy 要求锁未被持有；
-     * 因此先解锁再销毁。
-     *
-     * 注意：g_initialized 已在上面设为 false，但其他线程可能仍在持有或等待锁。
-     * 使用标志位 g_mutex_initialized/g_counter_mutex_initialized 防止
-     * log_lock/log_unlock 在销毁后继续操作。 */
-#ifdef _WIN32
-    DeleteCriticalSection(&g_log_mutex);
-    DeleteCriticalSection(&g_counter_mutex);
-#else
-    pthread_mutex_unlock(&g_log_mutex);
-    pthread_mutex_destroy(&g_log_mutex);
-    pthread_mutex_unlock(&g_counter_mutex);
-    pthread_mutex_destroy(&g_counter_mutex);
-#endif
+    /* 清理互斥锁 */
+    lv_mutex_destroy(&g_log_mutex);
+    lv_mutex_destroy(&g_counter_mutex);
 
     /* 【v3.3.0】销毁全局环形日志缓冲区 */
     if (g_log_ring_buffer) {

@@ -32,21 +32,22 @@
 
 /* ── 线程安全 ─────────────────────────────────────────────────────── */
 
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-#define GS_LOCK() EnterCriticalSection(&g_state_mutex)
-#define GS_UNLOCK() LeaveCriticalSection(&g_state_mutex)
-#define GS_INIT_LOCK() InitializeCriticalSection(&g_state_mutex)
-#define GS_DESTROY_LOCK() DeleteCriticalSection(&g_state_mutex)
-static CRITICAL_SECTION g_state_mutex;
-#else
-#include <pthread.h>
-#define GS_LOCK() pthread_mutex_lock(&g_state_mutex)
-#define GS_UNLOCK() pthread_mutex_unlock(&g_state_mutex)
-#define GS_INIT_LOCK() pthread_mutex_init(&g_state_mutex, NULL)
-#define GS_DESTROY_LOCK() pthread_mutex_destroy(&g_state_mutex)
-static pthread_mutex_t g_state_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
+#include "lv/lv_thread.h"
+
+static lv_mutex_t g_state_mutex;
+static lv_once_t g_state_once = lv_ONCE_INIT;
+
+static void state_mutex_init_func(void) {
+    lv_mutex_init(&g_state_mutex);
+}
+
+#define GS_LOCK() do { \
+    lv_once(&g_state_once, state_mutex_init_func); \
+    lv_mutex_lock(&g_state_mutex); \
+} while (0)
+#define GS_UNLOCK() lv_mutex_unlock(&g_state_mutex)
+#define GS_INIT_LOCK() lv_once(&g_state_once, state_mutex_init_func)
+#define GS_DESTROY_LOCK() lv_mutex_destroy(&g_state_mutex)
 
 /* ── 常量 ─────────────────────────────────────────────────────────── */
 

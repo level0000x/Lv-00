@@ -19,24 +19,6 @@
 
 #include "lv_utils.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <pthread.h>
-#include <sys/time.h>
-#include <unistd.h>
-#endif
-
-/* ============== 内部常量 ============== */
-
-/** 初始测试套件容量 */
-#define TEST_SUITE_INIT_CAPACITY 16
-
-/** 初始测试用例容量 */
-#define TEST_CASE_INIT_CAPACITY 64
-
-/* ============== 平台抽象层 ============== */
-
 #include "lv/lv_thread.h"
 
 #ifdef _WIN32
@@ -53,6 +35,14 @@ static int64_t get_time_ns(void) {
     return (int64_t) ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 #endif
+
+/* ============== 内部常量 ============== */
+
+/** 初始测试套件容量 */
+#define TEST_SUITE_INIT_CAPACITY 16
+
+/** 初始测试用例容量 */
+#define TEST_CASE_INIT_CAPACITY 64
 
 /* ============== 全局状态 ============== */
 

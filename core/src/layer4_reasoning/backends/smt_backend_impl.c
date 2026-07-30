@@ -110,31 +110,19 @@ struct SMTSolver {
 static SMTBackendRegistry g_smt_registry;
 static bool g_smt_registry_initialized = false;
 
-#ifdef _WIN32
-static CRITICAL_SECTION g_smt_registry_cs = {0};
-static volatile LONG g_smt_cs_initialized = 0;
-static volatile LONG g_smt_cs_ready = 0;
-#define SMT_REGISTRY_LOCK()                                                     \
-    do {                                                                        \
-        if (!g_smt_cs_ready) {                                                  \
-            if (InterlockedCompareExchange(&g_smt_cs_initialized, 1, 0) == 0) { \
-                InitializeCriticalSection(&g_smt_registry_cs);                  \
-                g_smt_cs_ready = 1; /* 初始化完成后才标记为就绪 */              \
-            } else {                                                            \
-                /* 另一个线程正在初始化，等待完成 */                            \
-                while (!g_smt_cs_ready) {                                       \
-                    Sleep(0);                                                   \
-                }                                                               \
-            }                                                                   \
-        }                                                                       \
-        EnterCriticalSection(&g_smt_registry_cs);                               \
+static lv_mutex_t g_smt_registry_mutex;
+static lv_once_t g_smt_once = lv_ONCE_INIT;
+
+static void smt_registry_mutex_init_func(void) {
+    lv_mutex_init(&g_smt_registry_mutex);
+}
+
+#define SMT_REGISTRY_LOCK()   \
+    do {                      \
+        lv_once(&g_smt_once, smt_registry_mutex_init_func); \
+        lv_mutex_lock(&g_smt_registry_mutex); \
     } while (0)
-#define SMT_REGISTRY_UNLOCK() LeaveCriticalSection(&g_smt_registry_cs)
-#else
-static pthread_mutex_t g_smt_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
-#define SMT_REGISTRY_LOCK() pthread_mutex_lock(&g_smt_registry_mutex)
-#define SMT_REGISTRY_UNLOCK() pthread_mutex_unlock(&g_smt_registry_mutex)
-#endif
+#define SMT_REGISTRY_UNLOCK() lv_mutex_unlock(&g_smt_registry_mutex)
 
 /* ============================================================
  * 前向声明 —— 内部辅助函数
