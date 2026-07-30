@@ -73,18 +73,44 @@ static const char *level_colors[] = {"\033[37m",   /* TRACE: 白色 */
                                      "\033[35;1m", /* FATAL: 紫色加粗 */
                                      ""};
 
-static lv_mutex_t g_log_init_mutex;
-static lv_once_t g_log_init_once = lv_ONCE_INIT;
+/**
+ * @brief 运行时监控模块全局状态（替代原有的 10 个分散 static 变量）
+ *
+ * 将 4 个子系统（日志、性能、健康、事件总线）的初始化锁和状态
+ * 归并到单一上下文结构体中，降低模块耦合度。
+ */
+typedef struct RuntimeMonitorState {
+    /* 日志子系统 */
+    lv_mutex_t log_init_mutex;
+    lv_once_t log_init_once;
+
+    /* 性能子系统 */
+    lv_mutex_t perf_init_mutex;
+    lv_once_t perf_init_once;
+
+    /* 健康子系统 */
+    lv_mutex_t health_init_mutex;
+    lv_once_t health_init_once;
+
+    /* 事件总线 */
+    lv_mutex_t event_init_mutex;
+    lv_once_t event_init_once;
+    lvEventBus event_bus;
+    lv_once_t event_bus_once;
+} RuntimeMonitorState;
+
+/** 模块级唯一状态实例（替代原有的 10 个分散 static 变量） */
+static RuntimeMonitorState s_runtime_state = {0};
 
 static void log_init_mutex_func(void) {
-    lv_mutex_init(&g_log_init_mutex);
+    lv_mutex_init(&s_runtime_state.log_init_mutex);
 }
 
 bool lv_log_init(const lvLogConfig *config) {
-    lv_once(&g_log_init_once, log_init_mutex_func);
-    lv_mutex_lock(&g_log_init_mutex);
+    lv_once(&s_runtime_state.log_init_once, log_init_mutex_func);
+    lv_mutex_lock(&s_runtime_state.log_init_mutex);
     if (g_log_system.initialized) {
-        lv_mutex_unlock(&g_log_init_mutex);
+        lv_mutex_unlock(&s_runtime_state.log_init_mutex);
         return true;
     }
 
@@ -115,7 +141,7 @@ bool lv_log_init(const lvLogConfig *config) {
     }
 
     g_log_system.initialized = true;
-    lv_mutex_unlock(&g_log_init_mutex);
+    lv_mutex_unlock(&s_runtime_state.log_init_mutex);
     return true;
 }
 
@@ -341,25 +367,22 @@ static struct {
     bool initialized;
 } g_perf_system = {0};
 
-static lv_mutex_t g_perf_init_mutex;
-static lv_once_t g_perf_init_once = lv_ONCE_INIT;
-
 static void perf_init_mutex_func(void) {
-    lv_mutex_init(&g_perf_init_mutex);
+    lv_mutex_init(&s_runtime_state.perf_init_mutex);
 }
 
 bool lv_perf_init(void) {
-    lv_once(&g_perf_init_once, perf_init_mutex_func);
-    lv_mutex_lock(&g_perf_init_mutex);
+    lv_once(&s_runtime_state.perf_init_once, perf_init_mutex_func);
+    lv_mutex_lock(&s_runtime_state.perf_init_mutex);
     if (g_perf_system.initialized) {
-        lv_mutex_unlock(&g_perf_init_mutex);
+        lv_mutex_unlock(&s_runtime_state.perf_init_mutex);
         return true;
     }
 
     memset(&g_perf_system, 0, sizeof(g_perf_system));
     lv_mutex_init(&g_perf_system.mutex);
     g_perf_system.initialized = true;
-    lv_mutex_unlock(&g_perf_init_mutex);
+    lv_mutex_unlock(&s_runtime_state.perf_init_mutex);
     return true;
 }
 
@@ -604,18 +627,15 @@ static struct {
     bool initialized;
 } g_health_system = {0};
 
-static lv_mutex_t g_health_init_mutex;
-static lv_once_t g_health_init_once = lv_ONCE_INIT;
-
 static void health_init_mutex_func(void) {
-    lv_mutex_init(&g_health_init_mutex);
+    lv_mutex_init(&s_runtime_state.health_init_mutex);
 }
 
 bool lv_health_init(void) {
-    lv_once(&g_health_init_once, health_init_mutex_func);
-    lv_mutex_lock(&g_health_init_mutex);
+    lv_once(&s_runtime_state.health_init_once, health_init_mutex_func);
+    lv_mutex_lock(&s_runtime_state.health_init_mutex);
     if (g_health_system.initialized) {
-        lv_mutex_unlock(&g_health_init_mutex);
+        lv_mutex_unlock(&s_runtime_state.health_init_mutex);
         return true;
     }
 
@@ -629,7 +649,7 @@ bool lv_health_init(void) {
     g_health_system.cpu_critical_percent = 95;
 
     g_health_system.initialized = true;
-    lv_mutex_unlock(&g_health_init_mutex);
+    lv_mutex_unlock(&s_runtime_state.health_init_mutex);
     return true;
 }
 
@@ -1011,25 +1031,19 @@ static struct {
     bool initialized;
 } g_event_system = {0};
 
-static lv_mutex_t g_event_init_mutex;
-static lv_once_t g_event_init_once = lv_ONCE_INIT;
-
-static lvEventBus g_event_bus;
-static lv_once_t g_event_bus_once = lv_ONCE_INIT;
-
 static void event_init_mutex_func(void) {
-    lv_mutex_init(&g_event_init_mutex);
+    lv_mutex_init(&s_runtime_state.event_init_mutex);
 }
 
 static void event_bus_init_func(void) {
-    lv_event_bus_init(&g_event_bus, NULL);
+    lv_event_bus_init(&s_runtime_state.event_bus, NULL);
 }
 
 bool lv_event_trace_init(uint32_t max_events) {
-    lv_once(&g_event_init_once, event_init_mutex_func);
-    lv_mutex_lock(&g_event_init_mutex);
+    lv_once(&s_runtime_state.event_init_once, event_init_mutex_func);
+    lv_mutex_lock(&s_runtime_state.event_init_mutex);
     if (g_event_system.initialized) {
-        lv_mutex_unlock(&g_event_init_mutex);
+        lv_mutex_unlock(&s_runtime_state.event_init_mutex);
         return true;
     }
 
@@ -1039,13 +1053,13 @@ bool lv_event_trace_init(uint32_t max_events) {
     memset(&g_event_system, 0, sizeof(g_event_system));
     g_event_system.events = (lvEventRecord *) lv_calloc(actual_max, sizeof(lvEventRecord));
     if (!g_event_system.events) {
-        lv_mutex_unlock(&g_event_init_mutex);
+        lv_mutex_unlock(&s_runtime_state.event_init_mutex);
         lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lv_event_trace_init: calloc events failed");
     }
     g_event_system.max_events = actual_max;
     lv_mutex_init(&g_event_system.mutex);
     g_event_system.initialized = true;
-    lv_mutex_unlock(&g_event_init_mutex);
+    lv_mutex_unlock(&s_runtime_state.event_init_mutex);
     return true;
 }
 
@@ -1055,7 +1069,7 @@ void lv_event_trace_shutdown(void) {
     }
 
     lv_free((void **) &g_event_system.events);
-    lv_event_bus_cleanup(&g_event_bus);
+    lv_event_bus_cleanup(&s_runtime_state.event_bus);
     lv_mutex_destroy(&g_event_system.mutex);
     g_event_system.initialized = false;
 }
@@ -1082,8 +1096,8 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
 
     lv_mutex_unlock(&g_event_system.mutex);
 
-    lv_once(&g_event_bus_once, event_bus_init_func);
-    lv_event_emit(&g_event_bus, (int)type, (void*)(intptr_t)event->duration_ns);
+    lv_once(&s_runtime_state.event_bus_once, event_bus_init_func);
+    lv_event_emit(&s_runtime_state.event_bus, (int)type, (void*)(intptr_t)event->duration_ns);
 }
 
 int lv_event_trace_begin(lvEventType type, const char *name) {
@@ -1105,8 +1119,8 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
 
     lv_mutex_unlock(&g_event_system.mutex);
 
-    lv_once(&g_event_bus_once, event_bus_init_func);
-    lv_event_emit(&g_event_bus, (int)type, (void*)(intptr_t)0);
+    lv_once(&s_runtime_state.event_bus_once, event_bus_init_func);
+    lv_event_emit(&s_runtime_state.event_bus, (int)type, (void*)(intptr_t)0);
 
     return id;
 }
@@ -1127,8 +1141,8 @@ void lv_event_trace_end(int event_id, const char *data) {
 
     lv_mutex_unlock(&g_event_system.mutex);
 
-    lv_once(&g_event_bus_once, event_bus_init_func);
-    lv_event_emit(&g_event_bus, (int)event->type, (void*)(intptr_t)event->duration_ns);
+    lv_once(&s_runtime_state.event_bus_once, event_bus_init_func);
+    lv_event_emit(&s_runtime_state.event_bus, (int)event->type, (void*)(intptr_t)event->duration_ns);
 }
 
 uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) {

@@ -700,6 +700,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/thread_pool.c
     # v1.1.0 SIMD 运算（原在 L4/unify，v2.0.0 移入 L2 作为基础设施）
     core/src/layer2_resource/simd_ops.c
+    # v3.8.0 统一日志抽象层
+    core/src/layer2_resource/lv_log.c
 )
 
 # ── Core: 核心便利层 (Core Convenience) ──
