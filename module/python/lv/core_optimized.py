@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 核心模块 (优化版 v3.5.1)
 ==========================
 
@@ -56,8 +56,8 @@ Lv-00 核心模块 (优化版 v3.5.1)
 
 版本：3.5.1 (优化版)
 作者：Lv-00 开发团队
+# [QA] Has broad except Exception: blocks -- consider narrowing to specific types.
 """
-[QA] Has broad except Exception: blocks — consider narrowing to specific types.
 
 from __future__ import annotations
 
