@@ -74,7 +74,7 @@ extern "C" {
  * 必须同步更新此宏的值，否则位掩码过滤和事件统计将出现偏差。
  * 建议在 CI 中使用 static_assert 校验一致性。
  */
-#define STREAM_EVENT_TYPE_COUNT 47
+#define STREAM_EVENT_TYPE_COUNT 48
 
 /** 全部事件掩码（接收所有事件） */
 #define STREAM_FILTER_ALL ((uint64_t) 0xFFFFFFFFFFFFFFFFULL)
@@ -172,6 +172,9 @@ typedef enum {
     STREAM_EVENT_INFO,           /* 一般信息 */
     STREAM_EVENT_PROGRESS,       /* 进度更新（百分比） */
     STREAM_EVENT_GRAPH_SNAPSHOT, /* 图快照（用于前端同步） */
+
+    /* ---- 事件总线桥接 ---- */
+    STREAM_EVENT_BUS_EVENT,      /* lvEventBus 通用事件（详见 rule_id 中的原始 event_type） */
 } StreamEventType;
 
 /*
@@ -179,7 +182,7 @@ typedef enum {
  * 使用枚举末尾值 + 1 而非硬编码数字，这样在新增事件类型时，
  * 若忘记同步更新宏值，编译器会立即报错。
  */
-_Static_assert(STREAM_EVENT_TYPE_COUNT == STREAM_EVENT_GRAPH_SNAPSHOT + 1,
+_Static_assert(STREAM_EVENT_TYPE_COUNT == STREAM_EVENT_BUS_EVENT + 1,
                "STREAM_EVENT_TYPE_COUNT 与 StreamEventType 枚举值数量不一致，请同步更新");
 
 /* ============== 流式事件数据 ============== */

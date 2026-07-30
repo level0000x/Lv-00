@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_adaptive_threshold.c
  * @brief 自适应阈值框架单元测试
  * 
@@ -14,7 +14,7 @@
 #include "lv/adaptive_threshold.h"
 #include "lv/constraint_graph.h"
 
-#include "test_helpers.h"
+#include "test_unified.h"
 
 #ifdef _WIN32
 #include <windows.h>

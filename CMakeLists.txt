@@ -628,6 +628,10 @@ set(lv_HEADERS
     core/include/lv/lv_registry.h
     # v4.0.0 新增：推理分支栈独立模块头文件
     core/include/lv/lv_reasoning_stack.h
+    # v4.0.0 新增：流式输出上下文独立模块头文件
+    core/include/lv/lv_stream_context.h
+    # 泛型环形缓冲区（从 debug.c 提取）
+    core/include/lv/lv_ringbuf.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -670,6 +674,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_circuit_breaker.c
     # v4.0.0 新增：推理分支栈独立模块（从 lvContext God Object 提取）
     core/src/layer2_resource/lv_reasoning_stack.c
+    # v4.0.0 新增：流式输出上下文独立模块（从 lvContext God Object 提取）
+    core/src/layer2_resource/lv_stream_context.c
     core/src/layer2_resource/error_codes.c
     core/src/layer2_resource/debug.c
     core/src/layer2_resource/node_deep_copy.c
@@ -721,6 +727,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_log.c
     # v3.8.0 安全字符串构建器
     core/src/layer2_resource/lv_strbuf.c
+    # 泛型环形缓冲区（从 debug.c 提取）
+    core/src/layer2_resource/lv_ringbuf.c
     # v3.8.0 统一字符串工具函数集
     core/src/layer2_resource/lv_str_utils.c
     # v3.8.0 统一文件 I/O 抽象层
@@ -802,6 +810,10 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/symbolics/quadratic.c
     core/src/layer3_geometry/symbolics/rational.c
     core/src/layer3_geometry/symbolics/symbolic_coord_ops.c
+    core/src/layer3_geometry/symbolics/symbolic_coord_lifecycle.c
+    core/src/layer3_geometry/symbolics/symbolic_coord_compare.c
+    core/src/layer3_geometry/symbolics/symbolic_coord_transform.c
+    core/src/layer3_geometry/symbolics/symbolic_coord_trust.c
     core/src/layer3_geometry/symbolics/transcendental.c
     # 稀疏线性代数
     core/src/layer3_geometry/sparse_linear_algebra.c
@@ -841,6 +853,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/model/recursion.c
     # 类型与属性
     core/src/layer4_reasoning/type_logic/type_system.c
+    core/src/layer4_reasoning/type_logic/type_check.c
+    core/src/layer4_reasoning/type_logic/type_infer.c
     core/src/layer4_reasoning/type_logic/type_path_explorer.c
     core/src/layer4_reasoning/type_logic/type_equiv_explorer.c
     core/src/layer4_reasoning/proof_system/prop_verifier.c

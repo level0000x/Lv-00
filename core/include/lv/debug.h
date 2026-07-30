@@ -30,6 +30,8 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "lv/lv_ringbuf.h"
+
 /* [C5 修复] 使用前向声明替代完整包含 engine.h，
  * 减少编译依赖链。仅需要 lvEngine 和 ConstraintGraph 指针类型。 */
 struct lvEngine;
@@ -307,13 +309,12 @@ typedef struct lvLogEntry {
  * - 崩溃后通过 emergency_save 导出最近日志
  * - 调试时查询最近操作序列
  * - 性能敏感场景下的轻量级日志存储
+ *
+ * @note 底层使用泛型 lvRingBuf 实现。
+ *       lvLogRingBuffer 是围绕 lvRingBuf 的日志专用薄封装。
  */
 typedef struct lvLogRingBuffer {
-    lvLogEntry *entries; /**< 环形缓冲区条目数组 */
-    int capacity;        /**< 缓冲区容量（最大条目数） */
-    int head;            /**< 写入位置（下一条新日志将写入此位置） */
-    int count;           /**< 当前缓冲区中的日志数量（<= capacity） */
-    bool wrapped;        /**< 是否已经至少绕回一次 */
+    lvRingBuf base; /**< 泛型环形缓冲区基类 */
 } lvLogRingBuffer;
 
 /**

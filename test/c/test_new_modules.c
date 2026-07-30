@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_new_modules.c
  * @brief 新模块集成测试
  *
@@ -19,7 +19,7 @@
 #include "geometry_transform.h"
 #include "memory_pool.h"
 #include "runtime_monitor.h"
-#include "test_framework.h"
+#include "test_unified.h"
 
 /* ============== 内存池测试 ============== */
 

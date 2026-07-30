@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_type_equiv_explorer.c
  * @brief 交互式类型等价探索器测试（简化版）
  *
@@ -15,8 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "lv.h"
-#include "test_helpers.h"
+#include "test_unified.h"
 
 int g_pass_count = 0;
 int g_fail_count = 0;

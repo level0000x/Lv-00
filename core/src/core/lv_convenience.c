@@ -342,14 +342,17 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
     }
 
     /* 将实例化的输出记录到流（如果可用） */
-    if (fb && ctx->stream_ctx) {
-        int fb_id = 0;
-        if (ctx->main_graph && ctx->main_graph->node_count > 0) {
-            GeomNode *last = ctx->main_graph->nodes[ctx->main_graph->node_count - 1];
-            if (last)
-                fb_id = last->id;
+    if (fb) {
+        struct StreamContext *sc = lv_context_get_stream(ctx);
+        if (sc) {
+            int fb_id = 0;
+            if (ctx->main_graph && ctx->main_graph->node_count > 0) {
+                GeomNode *last = ctx->main_graph->nodes[ctx->main_graph->node_count - 1];
+                if (last)
+                    fb_id = last->id;
+            }
+            stream_emit_preset_instantiate(sc, name, fb_id, ctx->rewrite_step_limit);
         }
-        stream_emit_preset_instantiate(ctx->stream_ctx, name, fb_id, ctx->rewrite_step_limit);
     }
 
     ctx->error_code = lv_OK;

@@ -65,6 +65,9 @@ extern "C" {
 /* 推理分支栈独立模块 —— 从 lvContext God Object 中提取的 ReasoningStack 子系统 */
 #include "lv/lv_reasoning_stack.h"
 
+/* 流式输出上下文独立模块 —— 从 lvContext God Object 中提取的 StreamContext 管理子系统 */
+#include "lv/lv_stream_context.h"
+
 /* 前向声明 —— 避免循环依赖，具体类型在各模块头文件中定义 */
 struct ConstraintGraph;     /* constraint_graph.h */
 struct StreamContext;       /* stream.h */
@@ -1013,31 +1016,6 @@ lv_PUBLIC_API lvErrorCode lv_context_get_error_code(const lvContext *ctx);
  * @return 错误消息字符串（内部存储，勿释放。ctx 为 NULL 时返回 "null context"）
  */
 lv_PUBLIC_API const char *lv_context_get_error_message(const lvContext *ctx);
-
-/* ============================================================
- * 第十三部分：流式输出 API
- * ============================================================ */
-
-/**
- * @brief 获取上下文的流式输出上下文
- * @param ctx 上下文（非 NULL）
- * @return 流式上下文指针
- */
-lv_PUBLIC_API struct StreamContext *lv_context_get_stream(lvContext *ctx);
-
-/**
- * @brief 设置流式输出的启用状态
- * @param ctx     上下文（非 NULL）
- * @param enabled true 启用，false 禁用
- */
-lv_PUBLIC_API void lv_context_set_streaming_enabled(lvContext *ctx, bool enabled);
-
-/**
- * @brief 检查流式输出是否启用
- * @param ctx 上下文（可为 NULL，返回 false）
- * @return true 启用
- */
-lv_PUBLIC_API bool lv_context_is_streaming_enabled(const lvContext *ctx);
 
 /* ============================================================
  * 第十四部分：统计与调试 API

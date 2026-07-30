@@ -43,7 +43,7 @@ structure BDDNode where
   is_true      : Bool
   /-- 是否为终端 False 节点 -/
   is_false     : Bool
-  deriving Repr
+  deriving DecidableEq, Repr
 
 /-- BDD 管理器：持有终端节点、唯一表和变量序 -/
 structure BDDManager where
@@ -79,9 +79,9 @@ def bdd_manager_create (var_count unique_table_size : ℕ) : BDDManager :=
     (var_id, low_ptr, high_ptr) → 哈希槽索引
     对应 C 中 bdd_unique_hash 的开放寻址哈希 -/
 def bdd_unique_hash (var_id : BDDVarId) (low high : BDDNode) (table_size : ℕ) : ℕ :=
-  let h := ((var_id.natAbs.toNat) % 100003) * 31 +
-           ((low.var_id.natAbs.toNat + low.is_true.toNat) % 100003) * 31 +
-           ((high.var_id.natAbs.toNat + high.is_true.toNat) % 100003)
+  let h := ((var_id.natAbs) % 100003) * 31 +
+           ((low.var_id.natAbs + low.is_true.natAbs) % 100003) * 31 +
+           ((high.var_id.natAbs + high.is_true.natAbs) % 100003)
   h % table_size
 
 /-- 唯一表查找或插入：

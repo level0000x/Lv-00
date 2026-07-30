@@ -1338,6 +1338,259 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
  * 图 → 公式 主转换函数
  * ============================================================ */
 
+/* 图节点渲染函数指针类型 */
+typedef void (*GraphNodeRenderFunc)(const GeomNode *node, const char *name,
+                                     char *out_latex, size_t *latex_len, size_t latex_size,
+                                     char *out_python, size_t *python_len, size_t python_size,
+                                     char *out_dsl, size_t *dsl_len, size_t dsl_size);
+static void render_g_point(const GeomNode *node, const char *name,
+                        char *out_latex, size_t *latex_len, size_t latex_size,
+                        char *out_python, size_t *python_len, size_t python_size,
+                        char *out_dsl, size_t *dsl_len, size_t dsl_size) {
+    char latex_buf[FORMULA_LATEX_BUF_SIZE];
+    char python_buf[FORMULA_PYTHON_BUF_SIZE];
+    char dsl_buf[FORMULA_DSL_BUF_SIZE];
+                /* 获取坐标 */
+                double x = 0, y = 0;
+                if (node->symbolic_coords && node->coord_count >= 2) {
+                    x = symbolic_coord_to_double(node->symbolic_coords[0]);
+                    y = symbolic_coord_to_double(node->symbolic_coords[1]);
+                }
+
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf), "%s = \\left(%.2f, %.2f\\right)\\\\\n", name, x, y);
+                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
+                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
+                    (*latex_len) += (size_t) n;
+                    out_latex[(*latex_len)] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Point(%.2f, %.2f)\n", name, x, y);
+                if (n > 0 && (*python_len) + (size_t) n < python_size) {
+                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
+                    (*python_len) += (size_t) n;
+                    out_python[(*python_len)] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "point %s(%.2f, %.2f); ", name, x, y);
+                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
+                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
+                    (*dsl_len) += (size_t) n;
+                    out_dsl[(*dsl_len)] = '\0';
+                }
+            } break;
+
+
+    }
+static void render_g_line_segment(const GeomNode *node, const char *name,
+                        char *out_latex, size_t *latex_len, size_t latex_size,
+                        char *out_python, size_t *python_len, size_t python_size,
+                        char *out_dsl, size_t *dsl_len, size_t dsl_size) {
+    char latex_buf[FORMULA_LATEX_BUF_SIZE];
+    char python_buf[FORMULA_PYTHON_BUF_SIZE];
+    char dsl_buf[FORMULA_DSL_BUF_SIZE];
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf), "\\overline{%s}\\\\\n", name);
+                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
+                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
+                    (*latex_len) += (size_t) n;
+                    out_latex[(*latex_len)] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Segment()\n", name);
+                if (n > 0 && (*python_len) + (size_t) n < python_size) {
+                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
+                    (*python_len) += (size_t) n;
+                    out_python[(*python_len)] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "segment %s(); ", name);
+                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
+                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
+                    (*dsl_len) += (size_t) n;
+                    out_dsl[(*dsl_len)] = '\0';
+                }
+            } break;
+
+
+    }
+static void render_g_region(const GeomNode *node, const char *name,
+                        char *out_latex, size_t *latex_len, size_t latex_size,
+                        char *out_python, size_t *python_len, size_t python_size,
+                        char *out_dsl, size_t *dsl_len, size_t dsl_size) {
+    char latex_buf[FORMULA_LATEX_BUF_SIZE];
+    char python_buf[FORMULA_PYTHON_BUF_SIZE];
+    char dsl_buf[FORMULA_DSL_BUF_SIZE];
+                /* 获取边界线段信息 */
+                int seg_count = node->data.region.segment_count;
+                char seg_list[FORMULA_SEG_LIST_SIZE] = "";
+                size_t seg_list_len = 0;
+                for (int j = 0; j < seg_count && j < 10; j++) {
+                    char seg_name[FORMULA_SEG_NAME_SIZE];
+                    if (node->data.region.boundary_segments && node->data.region.boundary_segments[j]) {
+                        formula_node_to_name(node->data.region.boundary_segments[j], seg_name, sizeof(seg_name));
+                    } else {
+                        snprintf(seg_name, sizeof(seg_name), "S?");
+                    }
+                    /* 修复：使用偏移量替代 strncat + strlen */
+                    if (j > 0 && seg_list_len + 2 < sizeof(seg_list)) {
+                        memcpy(seg_list + seg_list_len, ", ", 2);
+                        seg_list_len += 2;
+                    }
+                    size_t sn_len = strlen(seg_name);
+                    if (seg_list_len + sn_len < sizeof(seg_list)) {
+                        memcpy(seg_list + seg_list_len, seg_name, sn_len);
+                        seg_list_len += sn_len;
+                    }
+                }
+                seg_list[seg_list_len] = '\0';
+
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{region } %s(\\{%s\\})\\\\\n", name, seg_list);
+                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
+                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
+                    (*latex_len) += (size_t) n;
+                    out_latex[(*latex_len)] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Region([%s])\n", name, seg_list);
+                if (n > 0 && (*python_len) + (size_t) n < python_size) {
+                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
+                    (*python_len) += (size_t) n;
+                    out_python[(*python_len)] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "region %s(%s); ", name, seg_list);
+                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
+                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
+                    (*dsl_len) += (size_t) n;
+                    out_dsl[(*dsl_len)] = '\0';
+                }
+            } break;
+
+
+    }
+static void render_g_circle(const GeomNode *node, const char *name,
+                        char *out_latex, size_t *latex_len, size_t latex_size,
+                        char *out_python, size_t *python_len, size_t python_size,
+                        char *out_dsl, size_t *dsl_len, size_t dsl_size) {
+    char latex_buf[FORMULA_LATEX_BUF_SIZE];
+    char python_buf[FORMULA_PYTHON_BUF_SIZE];
+    char dsl_buf[FORMULA_DSL_BUF_SIZE];
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{circle } %s\\\\\n", name);
+                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
+                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
+                    (*latex_len) += (size_t) n;
+                    out_latex[(*latex_len)] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Circle()\n", name);
+                if (n > 0 && (*python_len) + (size_t) n < python_size) {
+                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
+                    (*python_len) += (size_t) n;
+                    out_python[(*python_len)] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "circle %s(); ", name);
+                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
+                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
+                    (*dsl_len) += (size_t) n;
+                    out_dsl[(*dsl_len)] = '\0';
+                }
+            } break;
+
+
+    }
+static void render_g_port(const GeomNode *node, const char *name,
+                        char *out_latex, size_t *latex_len, size_t latex_size,
+                        char *out_python, size_t *python_len, size_t python_size,
+                        char *out_dsl, size_t *dsl_len, size_t dsl_size) {
+    char latex_buf[FORMULA_LATEX_BUF_SIZE];
+    char python_buf[FORMULA_PYTHON_BUF_SIZE];
+    char dsl_buf[FORMULA_DSL_BUF_SIZE];
+                const char *port_type_str = "unknown";
+                if (node->data.port) {
+                    port_type_str = (node->data.port->type == PORT_INPUT) ? "input" : "output";
+                }
+
+                /* LaTeX */
+                int n =
+                    snprintf(latex_buf, sizeof(latex_buf), "\\text{port } %s(\\text{%s})\\\\\n", name, port_type_str);
+                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
+                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
+                    (*latex_len) += (size_t) n;
+                    out_latex[(*latex_len)] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Port('%s')\n", name, port_type_str);
+                if (n > 0 && (*python_len) + (size_t) n < python_size) {
+                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
+                    (*python_len) += (size_t) n;
+                    out_python[(*python_len)] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "port %s(%s); ", name, port_type_str);
+                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
+                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
+                    (*dsl_len) += (size_t) n;
+                    out_dsl[(*dsl_len)] = '\0';
+                }
+            } break;
+
+
+    }
+static void render_g_function_block(const GeomNode *node, const char *name,
+                        char *out_latex, size_t *latex_len, size_t latex_size,
+                        char *out_python, size_t *python_len, size_t python_size,
+                        char *out_dsl, size_t *dsl_len, size_t dsl_size) {
+    char latex_buf[FORMULA_LATEX_BUF_SIZE];
+    char python_buf[FORMULA_PYTHON_BUF_SIZE];
+    char dsl_buf[FORMULA_DSL_BUF_SIZE];
+                /* 获取函数块信息 */
+                int in_count = node->data.func_block.input_count;
+                int out_count = node->data.func_block.output_count;
+
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf),
+                                 "\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n", name, in_count,
+                                 out_count);
+                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
+                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
+                    (*latex_len) += (size_t) n;
+                    out_latex[(*latex_len)] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = FuncBlock(inputs=%d, outputs=%d)\n", name, in_count,
+                             out_count);
+                if (n > 0 && (*python_len) + (size_t) n < python_size) {
+                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
+                    (*python_len) += (size_t) n;
+                    out_python[(*python_len)] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "func_block %s(in=%d, out=%d); ", name, in_count, out_count);
+                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
+                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
+                    (*dsl_len) += (size_t) n;
+                    out_dsl[(*dsl_len)] = '\0';
+                }
+            } break;
+
+
+    }
 /**
  * @brief 将约束图转换为公式 AST（主入口函数）
  *
@@ -1397,209 +1650,20 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
         char name[MAX_NAME_LENGTH];
         formula_node_to_name(node, name, sizeof(name));
 
-        switch (node->type) {
-            case GEOM_POINT: {
-                /* 获取坐标 */
-                double x = 0, y = 0;
-                if (node->symbolic_coords && node->coord_count >= 2) {
-                    x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                    y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                }
-
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf), "%s = \\left(%.2f, %.2f\\right)\\\\\n", name, x, y);
-                if (n > 0 && latex_len + (size_t) n < latex_size) {
-                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
-                    latex_len += (size_t) n;
-                    result->latex_output[latex_len] = '\0';
-                }
-
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Point(%.2f, %.2f)\n", name, x, y);
-                if (n > 0 && python_len + (size_t) n < python_size) {
-                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
-                    python_len += (size_t) n;
-                    result->python_output[python_len] = '\0';
-                }
-
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "point %s(%.2f, %.2f); ", name, x, y);
-                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
-                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
-                    dsl_len += (size_t) n;
-                    result->dsl_output[dsl_len] = '\0';
-                }
-            } break;
-
-            case GEOM_LINE_SEGMENT: {
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf), "\\overline{%s}\\\\\n", name);
-                if (n > 0 && latex_len + (size_t) n < latex_size) {
-                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
-                    latex_len += (size_t) n;
-                    result->latex_output[latex_len] = '\0';
-                }
-
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Segment()\n", name);
-                if (n > 0 && python_len + (size_t) n < python_size) {
-                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
-                    python_len += (size_t) n;
-                    result->python_output[python_len] = '\0';
-                }
-
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "segment %s(); ", name);
-                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
-                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
-                    dsl_len += (size_t) n;
-                    result->dsl_output[dsl_len] = '\0';
-                }
-            } break;
-
-            case GEOM_REGION: {
-                /* 获取边界线段信息 */
-                int seg_count = node->data.region.segment_count;
-                char seg_list[FORMULA_SEG_LIST_SIZE] = "";
-                size_t seg_list_len = 0;
-                for (int j = 0; j < seg_count && j < 10; j++) {
-                    char seg_name[FORMULA_SEG_NAME_SIZE];
-                    if (node->data.region.boundary_segments && node->data.region.boundary_segments[j]) {
-                        formula_node_to_name(node->data.region.boundary_segments[j], seg_name, sizeof(seg_name));
-                    } else {
-                        snprintf(seg_name, sizeof(seg_name), "S?");
-                    }
-                    /* 修复：使用偏移量替代 strncat + strlen */
-                    if (j > 0 && seg_list_len + 2 < sizeof(seg_list)) {
-                        memcpy(seg_list + seg_list_len, ", ", 2);
-                        seg_list_len += 2;
-                    }
-                    size_t sn_len = strlen(seg_name);
-                    if (seg_list_len + sn_len < sizeof(seg_list)) {
-                        memcpy(seg_list + seg_list_len, seg_name, sn_len);
-                        seg_list_len += sn_len;
-                    }
-                }
-                seg_list[seg_list_len] = '\0';
-
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{region } %s(\\{%s\\})\\\\\n", name, seg_list);
-                if (n > 0 && latex_len + (size_t) n < latex_size) {
-                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
-                    latex_len += (size_t) n;
-                    result->latex_output[latex_len] = '\0';
-                }
-
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Region([%s])\n", name, seg_list);
-                if (n > 0 && python_len + (size_t) n < python_size) {
-                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
-                    python_len += (size_t) n;
-                    result->python_output[python_len] = '\0';
-                }
-
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "region %s(%s); ", name, seg_list);
-                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
-                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
-                    dsl_len += (size_t) n;
-                    result->dsl_output[dsl_len] = '\0';
-                }
-            } break;
-
-            case GEOM_CIRCLE: {
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{circle } %s\\\\\n", name);
-                if (n > 0 && latex_len + (size_t) n < latex_size) {
-                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
-                    latex_len += (size_t) n;
-                    result->latex_output[latex_len] = '\0';
-                }
-
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Circle()\n", name);
-                if (n > 0 && python_len + (size_t) n < python_size) {
-                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
-                    python_len += (size_t) n;
-                    result->python_output[python_len] = '\0';
-                }
-
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "circle %s(); ", name);
-                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
-                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
-                    dsl_len += (size_t) n;
-                    result->dsl_output[dsl_len] = '\0';
-                }
-            } break;
-
-            case GEOM_PORT: {
-                const char *port_type_str = "unknown";
-                if (node->data.port) {
-                    port_type_str = (node->data.port->type == PORT_INPUT) ? "input" : "output";
-                }
-
-                /* LaTeX */
-                int n =
-                    snprintf(latex_buf, sizeof(latex_buf), "\\text{port } %s(\\text{%s})\\\\\n", name, port_type_str);
-                if (n > 0 && latex_len + (size_t) n < latex_size) {
-                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
-                    latex_len += (size_t) n;
-                    result->latex_output[latex_len] = '\0';
-                }
-
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Port('%s')\n", name, port_type_str);
-                if (n > 0 && python_len + (size_t) n < python_size) {
-                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
-                    python_len += (size_t) n;
-                    result->python_output[python_len] = '\0';
-                }
-
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "port %s(%s); ", name, port_type_str);
-                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
-                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
-                    dsl_len += (size_t) n;
-                    result->dsl_output[dsl_len] = '\0';
-                }
-            } break;
-
-            case GEOM_FUNCTION_BLOCK: {
-                /* 获取函数块信息 */
-                int in_count = node->data.func_block.input_count;
-                int out_count = node->data.func_block.output_count;
-
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf),
-                                 "\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n", name, in_count,
-                                 out_count);
-                if (n > 0 && latex_len + (size_t) n < latex_size) {
-                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
-                    latex_len += (size_t) n;
-                    result->latex_output[latex_len] = '\0';
-                }
-
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = FuncBlock(inputs=%d, outputs=%d)\n", name, in_count,
-                             out_count);
-                if (n > 0 && python_len + (size_t) n < python_size) {
-                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
-                    python_len += (size_t) n;
-                    result->python_output[python_len] = '\0';
-                }
-
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "func_block %s(in=%d, out=%d); ", name, in_count, out_count);
-                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
-                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
-                    dsl_len += (size_t) n;
-                    result->dsl_output[dsl_len] = '\0';
-                }
-            } break;
-
-            default:
-                break;
+        /* 使用函数指针表分发 */
+        static const GraphNodeRenderFunc s_render_funcs[] = {
+            [GEOM_POINT] = render_g_point,
+            [GEOM_LINE_SEGMENT] = render_g_line_segment,
+            [GEOM_REGION] = render_g_region,
+            [GEOM_CIRCLE] = render_g_circle,
+            [GEOM_PORT] = render_g_port,
+            [GEOM_FUNCTION_BLOCK] = render_g_function_block,
+        };
+        if ((unsigned)node->type < sizeof(s_render_funcs)/sizeof(s_render_funcs[0]) && s_render_funcs[node->type]) {
+            s_render_funcs[node->type](node, name,
+                result->latex_output, &latex_len, latex_size,
+                result->python_output, &python_len, python_size,
+                result->dsl_output, &dsl_len, dsl_size);
         }
     }
 
@@ -1724,15 +1788,9 @@ void equation_curve_result_destroy(EquationCurveResult *result) {
  */
 static double eval_node(const FormulaNode *node, double x, double y);
 
-/**
- * 评估公式节点在特定点的值
- */
-static double eval_node(const FormulaNode *node, double x, double y) {
-    if (!node)
-        return 0.0;
-
-    switch (node->type) {
-        case NODE_NUMBER:
+/* 公式节点求值函数指针类型 */
+typedef double (*EvalNodeFunc)(const FormulaNode *node, double x, double y);
+static double eval_number(const FormulaNode *node, double x, double y) {
             if (node->data.number.is_integer) {
                 return (double) node->data.number.numerator;
             } else {
@@ -1741,7 +1799,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
                 return (double) node->data.number.numerator / (double) node->data.number.denominator;
             }
 
-        case NODE_VARIABLE: {
+
+static double eval_variable(const FormulaNode *node, double x, double y) {
             /* 变量名可能是 'x' 或 'y' */
             if (node->data.variable.name) {
                 if (strcmp(node->data.variable.name, "x") == 0) {
@@ -1753,7 +1812,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return 0.0;
         }
 
-        case NODE_IDENTIFIER: {
+
+static double eval_identifier(const FormulaNode *node, double x, double y) {
             /* 标识符作为变量处理 */
             if (node->data.identifier.name) {
                 if (strcmp(node->data.identifier.name, "x") == 0) {
@@ -1765,32 +1825,37 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return 0.0;
         }
 
-        case NODE_BINARY_OP_ADD: {
+
+static double eval_b_add(const FormulaNode *node, double x, double y) {
             double l = eval_node(node->data.binary_op.left, x, y);
             double r = eval_node(node->data.binary_op.right, x, y);
             return l + r;
         }
 
-        case NODE_BINARY_OP_SUB: {
+
+static double eval_b_sub(const FormulaNode *node, double x, double y) {
             double l = eval_node(node->data.binary_op.left, x, y);
             double r = eval_node(node->data.binary_op.right, x, y);
             return l - r;
         }
 
-        case NODE_BINARY_OP_MUL: {
+
+static double eval_b_mul(const FormulaNode *node, double x, double y) {
             double l = eval_node(node->data.binary_op.left, x, y);
             double r = eval_node(node->data.binary_op.right, x, y);
             return l * r;
         }
 
-        case NODE_BINARY_OP_DIV: {
+
+static double eval_b_div(const FormulaNode *node, double x, double y) {
             double l = eval_node(node->data.binary_op.left, x, y);
             double r = eval_node(node->data.binary_op.right, x, y);
             /* 使用容差检查代替精确零比较，防止次正规数除法溢出 */
             return (fabs(r) > 1e-15) ? l / r : 0.0;
         }
 
-        case NODE_BINARY_OP_POW: {
+
+static double eval_b_pow(const FormulaNode *node, double x, double y) {
             double l = eval_node(node->data.binary_op.left, x, y);
             double r = eval_node(node->data.binary_op.right, x, y);
             /* Guard: pow(negative, non-integer) is undefined in reals.
@@ -1800,27 +1865,32 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return pow(l, r);
         }
 
-        case NODE_UNARY_OP_NEG: {
+
+static double eval_u_neg(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             return -v;
         }
 
-        case NODE_UNARY_OP_SQRT: {
+
+static double eval_u_sqrt(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             return (v >= 0) ? sqrt(v) : 0.0;
         }
 
-        case NODE_UNARY_OP_SIN: {
+
+static double eval_u_sin(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             return sin(v);
         }
 
-        case NODE_UNARY_OP_COS: {
+
+static double eval_u_cos(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             return cos(v);
         }
 
-        case NODE_UNARY_OP_TAN: {
+
+static double eval_u_tan(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             /* tan(x) 在 x ≈ π/2 + nπ 处发散为 HUGE_VAL，使用容差避开奇点 */
             double rem = fmod(v + M_PI_2, M_PI);
@@ -1830,29 +1900,34 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return tan(v);
         }
 
-        case NODE_UNARY_OP_ABS: {
+
+static double eval_u_abs(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             return fabs(v);
         }
 
-        case NODE_UNARY_OP_LN: {
+
+static double eval_u_ln(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             return (v > 0) ? log(v) : 0.0;
         }
 
-        case NODE_UNARY_OP_LOG: {
+
+static double eval_u_log(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             return (v > 0) ? log10(v) : 0.0;
         }
 
-        case NODE_EQUATION: {
+
+static double eval_equation(const FormulaNode *node, double x, double y) {
             /* 方程: 返回 lhs - rhs 的值 (零值表示在曲线上) */
             double l = eval_node(node->data.equation.lhs, x, y);
             double r = eval_node(node->data.equation.rhs, x, y);
             return l - r;
         }
 
-        case NODE_GEOM_POINT: {
+
+static double eval_g_point(const FormulaNode *node, double x, double y) {
             /* 点: 返回坐标值的组合 (x + y) */
             double px = 0.0, py = 0.0;
             if (node->data.geom_point.coords && node->data.geom_point.coords->type == NODE_COORDINATE_LIST &&
@@ -1863,7 +1938,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return px + py;
         }
 
-        case NODE_GEOM_SEGMENT: {
+
+static double eval_g_segment(const FormulaNode *node, double x, double y) {
             /* 线段: 返回长度 */
             double x1 = 0.0, y1 = 0.0, x2 = 0.0, y2 = 0.0;
             if (node->data.geom_segment.endpoint1 && node->data.geom_segment.endpoint1->type == NODE_GEOM_POINT) {
@@ -1883,7 +1959,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
         }
 
-        case NODE_GEOM_CIRCLE: {
+
+static double eval_g_circle(const FormulaNode *node, double x, double y) {
             /* 圆: 返回半径 */
             if (node->data.geom_circle.radius) {
                 return eval_node(node->data.geom_circle.radius, x, y);
@@ -1891,7 +1968,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return 0.0;
         }
 
-        case NODE_GEOM_TRIANGLE: {
+
+static double eval_g_triangle(const FormulaNode *node, double x, double y) {
             /* 三角形: 返回面积 (使用海伦公式) */
             double x1 = 0.0, y1 = 0.0, x2 = 0.0, y2 = 0.0, x3 = 0.0, y3 = 0.0;
             if (node->data.geom_triangle.vertex1 && node->data.geom_triangle.vertex1->type == NODE_GEOM_POINT) {
@@ -1919,7 +1997,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return 0.5 * fabs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
         }
 
-        case NODE_GEOM_POLYGON: {
+
+static double eval_g_polygon(const FormulaNode *node, double x, double y) {
             /* 多边形: 返回面积 (使用鞋带公式) */
             double area = 0.0;
             int n = node->data.geom_polygon.vertex_count;
@@ -1948,7 +2027,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return 0.5 * fabs(area);
         }
 
-        case NODE_GEOM_REGION: {
+
+static double eval_g_region(const FormulaNode *node, double x, double y) {
             /* 区域: 返回边界总长度 */
             double perimeter = 0.0;
             int n = node->data.geom_region.segment_count;
@@ -1961,7 +2041,8 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return perimeter;
         }
 
-        case NODE_GEOM_ARC: {
+
+static double eval_g_arc(const FormulaNode *node, double x, double y) {
             /* 弧: 返回弧长 = r * |theta2 - theta1| */
             double r = 0.0, theta1 = 0.0, theta2 = 0.0;
             if (node->data.geom_arc.radius) {
@@ -1976,22 +2057,53 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             return r * fabs(theta2 - theta1);
         }
 
-        default:
-            return 0.0;
+
+/**
+ * 评估公式节点在特定点的值
+ */
+static double eval_node(const FormulaNode *node, double x, double y) {
+    if (!node)
+        return 0.0;
+
+    /* 使用函数指针表分发 */
+    static const EvalNodeFunc s_eval_funcs[] = {
+        [NODE_NUMBER] = eval_number,
+        [NODE_VARIABLE] = eval_variable,
+        [NODE_IDENTIFIER] = eval_identifier,
+        [NODE_BINARY_OP_ADD] = eval_b_add,
+        [NODE_BINARY_OP_SUB] = eval_b_sub,
+        [NODE_BINARY_OP_MUL] = eval_b_mul,
+        [NODE_BINARY_OP_DIV] = eval_b_div,
+        [NODE_BINARY_OP_POW] = eval_b_pow,
+        [NODE_UNARY_OP_NEG] = eval_u_neg,
+        [NODE_UNARY_OP_SQRT] = eval_u_sqrt,
+        [NODE_UNARY_OP_SIN] = eval_u_sin,
+        [NODE_UNARY_OP_COS] = eval_u_cos,
+        [NODE_UNARY_OP_TAN] = eval_u_tan,
+        [NODE_UNARY_OP_ABS] = eval_u_abs,
+        [NODE_UNARY_OP_LN] = eval_u_ln,
+        [NODE_UNARY_OP_LOG] = eval_u_log,
+        [NODE_EQUATION] = eval_equation,
+        [NODE_GEOM_POINT] = eval_g_point,
+        [NODE_GEOM_SEGMENT] = eval_g_segment,
+        [NODE_GEOM_CIRCLE] = eval_g_circle,
+        [NODE_GEOM_TRIANGLE] = eval_g_triangle,
+        [NODE_GEOM_POLYGON] = eval_g_polygon,
+        [NODE_GEOM_REGION] = eval_g_region,
+        [NODE_GEOM_ARC] = eval_g_arc,
+    };
+    if ((unsigned)node->type < sizeof(s_eval_funcs)/sizeof(s_eval_funcs[0]) && s_eval_funcs[node->type]) {
+        return s_eval_funcs[node->type](node, x, y);
     }
+    return 0.0;
 }
 
 /**
  * 将公式节点渲染为字符串（简化版）
  */
-static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) {
-    if (!node || !buf || buf_size == 0)
-        return;
-
-    buf[0] = '\0';
-
-    switch (node->type) {
-        case NODE_NUMBER:
+/* 节点转字符串函数指针类型 */
+typedef void (*NodeToStringFunc)(const FormulaNode *node, char *buf, size_t buf_size);
+static void str_number(const FormulaNode *node, char *buf, size_t buf_size) {
             if (node->data.number.is_integer) {
                 snprintf(buf, buf_size, "%lld", (long long) node->data.number.numerator);
             } else {
@@ -2000,21 +2112,27 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             }
             break;
 
-        case NODE_VARIABLE:
+
+}
+static void str_variable(const FormulaNode *node, char *buf, size_t buf_size) {
             if (node->data.variable.name) {
                 /* 使用 lv_strlcpy 替代不安全的 strncpy */
                 lv_strlcpy(buf, node->data.variable.name, buf_size);
             }
             break;
 
-        case NODE_IDENTIFIER:
+
+}
+static void str_identifier(const FormulaNode *node, char *buf, size_t buf_size) {
             if (node->data.identifier.name) {
                 /* 使用 lv_strlcpy 替代不安全的 strncpy */
                 lv_strlcpy(buf, node->data.identifier.name, buf_size);
             }
             break;
 
-        case NODE_BINARY_OP_ADD: {
+
+}
+static void str_b_add(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
@@ -2026,7 +2144,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_BINARY_OP_SUB: {
+
+static void str_b_sub(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
@@ -2037,7 +2156,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_BINARY_OP_MUL: {
+
+static void str_b_mul(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
@@ -2048,7 +2168,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_BINARY_OP_DIV: {
+
+static void str_b_div(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
@@ -2059,7 +2180,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_BINARY_OP_POW: {
+
+static void str_b_pow(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
@@ -2070,7 +2192,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_EQUATION: {
+
+static void str_equation(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.equation.lhs, left, sizeof(left));
             node_to_string(node->data.equation.rhs, right, sizeof(right));
@@ -2081,7 +2204,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_GEOM_POINT: {
+
+static void str_g_point(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_point.name ? node->data.geom_point.name : "?";
             int n = snprintf(buf, buf_size, "point(%s)", name);
             if (n < 0 || (size_t) n >= buf_size) {
@@ -2090,7 +2214,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_GEOM_SEGMENT: {
+
+static void str_g_segment(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_segment.name ? node->data.geom_segment.name : "?";
             int n = snprintf(buf, buf_size, "segment(%s)", name);
             if (n < 0 || (size_t) n >= buf_size) {
@@ -2099,7 +2224,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_GEOM_CIRCLE: {
+
+static void str_g_circle(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_circle.name ? node->data.geom_circle.name : "?";
             char r[FORMULA_RESULT_BUF_SIZE] = "?";
             if (node->data.geom_circle.radius) {
@@ -2112,7 +2238,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_GEOM_TRIANGLE: {
+
+static void str_g_triangle(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_triangle.name ? node->data.geom_triangle.name : "?";
             int n = snprintf(buf, buf_size, "triangle(%s)", name);
             if (n < 0 || (size_t) n >= buf_size) {
@@ -2121,7 +2248,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_GEOM_POLYGON: {
+
+static void str_g_polygon(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_polygon.name ? node->data.geom_polygon.name : "?";
             int n = snprintf(buf, buf_size, "polygon(%s, %d vertices)", name, node->data.geom_polygon.vertex_count);
             if (n < 0 || (size_t) n >= buf_size) {
@@ -2130,7 +2258,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_GEOM_REGION: {
+
+static void str_g_region(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_region.name ? node->data.geom_region.name : "?";
             int n = snprintf(buf, buf_size, "region(%s, %d segments)", name, node->data.geom_region.segment_count);
             if (n < 0 || (size_t) n >= buf_size) {
@@ -2139,7 +2268,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        case NODE_GEOM_ARC: {
+
+static void str_g_arc(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_arc.name ? node->data.geom_arc.name : "?";
             char r[FORMULA_RESULT_BUF_SIZE] = "?", t1[FORMULA_RESULT_BUF_SIZE] = "?", t2[FORMULA_RESULT_BUF_SIZE] = "?";
             if (node->data.geom_arc.radius) {
@@ -2158,10 +2288,42 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             break;
         }
 
-        default:
+
+static void str_default(const FormulaNode *node, char *buf, size_t buf_size) {
             /* 使用 lv_strlcpy 替代不安全的 strncpy */
             lv_strlcpy(buf, "?", buf_size);
             break;
+
+}
+static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) {
+    if (!node || !buf || buf_size == 0)
+        return;
+
+    buf[0] = '\0';
+
+    /* 使用函数指针表分发 */
+    static const NodeToStringFunc s_str_funcs[] = {
+        [NODE_NUMBER] = str_number,
+        [NODE_VARIABLE] = str_variable,
+        [NODE_IDENTIFIER] = str_identifier,
+        [NODE_BINARY_OP_ADD] = str_b_add,
+        [NODE_BINARY_OP_SUB] = str_b_sub,
+        [NODE_BINARY_OP_MUL] = str_b_mul,
+        [NODE_BINARY_OP_DIV] = str_b_div,
+        [NODE_BINARY_OP_POW] = str_b_pow,
+        [NODE_EQUATION] = str_equation,
+        [NODE_GEOM_POINT] = str_g_point,
+        [NODE_GEOM_SEGMENT] = str_g_segment,
+        [NODE_GEOM_CIRCLE] = str_g_circle,
+        [NODE_GEOM_TRIANGLE] = str_g_triangle,
+        [NODE_GEOM_POLYGON] = str_g_polygon,
+        [NODE_GEOM_REGION] = str_g_region,
+        [NODE_GEOM_ARC] = str_g_arc,
+    };
+    if ((unsigned)node->type < sizeof(s_str_funcs)/sizeof(s_str_funcs[0]) && s_str_funcs[node->type]) {
+        s_str_funcs[node->type](node, buf, buf_size);
+    } else {
+        str_default(node, buf, buf_size);
     }
 }
 
@@ -2310,45 +2472,9 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
 #define IMPLICIT_MAX_DEG 4
 #define IMPLICIT_COEFFS_SIZE (IMPLICIT_MAX_DEG * IMPLICIT_MAX_DEG)
 
-static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
-    if (!node)
-        return false;
-
-    memset(coeffs, 0, sizeof(double) * coeffs_size);
-
-    /*
-     * 递归求值辅助：将 AST 节点视为多项式并累加到 coeffs 中。
-     * 使用简单的递归下降方法处理 +, -, *, ^ 等运算。
-     *
-     * 返回值含义：
-     *   0 = 成功
-     *  -1 = 遇到无法识别的节点类型
-     */
-    /* 使用栈式迭代避免深层递归 */
-    /* 这里采用递归实现，方程深度通常有限 */
-
-    /* 辅助：将一个单项式 c * x^a * y^b 累加到 coeffs */
-    /* 辅助：从 AST 节点提取多项式系数 */
-
-    /*
-     * 简化的多项式提取：
-     * 只处理常见模式：
-     *   - 数字常量 -> c * x^0 * y^0
-     *   - 变量 x -> 1 * x^1 * y^0
-     *   - 变量 y -> 1 * x^0 * y^1
-     *   - a + b -> 合并
-     *   - a - b -> 合并
-     *   - a * b -> 卷积
-     *   - a^n -> 重复卷积
-     */
-
-    /* 临时缓冲区用于中间计算 */
-    double tmp[IMPLICIT_COEFFS_SIZE];
-    double lhs[IMPLICIT_COEFFS_SIZE];
-    double rhs[IMPLICIT_COEFFS_SIZE];
-
-    switch (node->type) {
-        case NODE_NUMBER: {
+/* 多项式扁平化函数指针类型 */
+typedef bool (*FlattenFunc)(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg);
+static bool flatten_number(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             double val;
             if (node->data.number.is_integer) {
                 val = (double) node->data.number.numerator;
@@ -2361,7 +2487,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return true;
         }
 
-        case NODE_VARIABLE: {
+
+static bool flatten_variable(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             if (node->data.variable.name) {
                 if (strcmp(node->data.variable.name, "x") == 0) {
                     if (max_deg >= 1)
@@ -2377,7 +2504,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return false;
         }
 
-        case NODE_BINARY_OP_ADD: {
+
+static bool flatten_b_add(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
                 return false;
             if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
@@ -2387,7 +2515,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return true;
         }
 
-        case NODE_BINARY_OP_SUB: {
+
+static bool flatten_b_sub(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
                 return false;
             if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
@@ -2397,7 +2526,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return true;
         }
 
-        case NODE_BINARY_OP_MUL: {
+
+static bool flatten_b_mul(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
                 return false;
             if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
@@ -2421,7 +2551,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return true;
         }
 
-        case NODE_BINARY_OP_POW: {
+
+static bool flatten_b_pow(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
                 return false;
             /* 指数必须为非负整数 */
@@ -2459,7 +2590,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return true;
         }
 
-        case NODE_UNARY_OP_NEG: {
+
+static bool flatten_u_neg(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             if (!flatten_to_polynomial(node->data.unary_op.operand, coeffs, coeffs_size, max_deg))
                 return false;
             for (int i = 0; i < coeffs_size; i++)
@@ -2467,7 +2599,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return true;
         }
 
-        case NODE_UNARY_OP_SIN: {
+
+static bool flatten_u_sin(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             /* 泰勒展开 sin(x) ≈ x - x^3/3! + x^5/5!
          * 先递归展开操作数为多项式 P(x)，然后计算 P - P^3/6 + P^5/120
          * 注意：这是近似多项式，仅在小范围 |x| < pi/2 内有效 */
@@ -2566,7 +2699,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return true;
         }
 
-        case NODE_UNARY_OP_COS: {
+
+static bool flatten_u_cos(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             /* 泰勒展开 cos(x) ≈ 1 - x^2/2! + x^4/4!
          * 先递归展开操作数为多项式 P(x)，然后计算 1 - P^2/2 + P^4/24 */
             if (!flatten_to_polynomial(node->data.unary_op.operand, lhs, coeffs_size, max_deg))
@@ -2637,7 +2771,8 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return true;
         }
 
-        case NODE_UNARY_OP_SQRT: {
+
+static bool flatten_u_sqrt(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             /* 如果参数是常数，直接计算平方根 */
             const FormulaNode *operand = node->data.unary_op.operand;
             if (operand && operand->type == NODE_NUMBER) {
@@ -2659,9 +2794,61 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
             return false;
         }
 
-        default:
-            return false;
+
+static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
+    if (!node)
+        return false;
+
+    memset(coeffs, 0, sizeof(double) * coeffs_size);
+
+    /*
+     * 递归求值辅助：将 AST 节点视为多项式并累加到 coeffs 中。
+     * 使用简单的递归下降方法处理 +, -, *, ^ 等运算。
+     *
+     * 返回值含义：
+     *   0 = 成功
+     *  -1 = 遇到无法识别的节点类型
+     */
+    /* 使用栈式迭代避免深层递归 */
+    /* 这里采用递归实现，方程深度通常有限 */
+
+    /* 辅助：将一个单项式 c * x^a * y^b 累加到 coeffs */
+    /* 辅助：从 AST 节点提取多项式系数 */
+
+    /*
+     * 简化的多项式提取：
+     * 只处理常见模式：
+     *   - 数字常量 -> c * x^0 * y^0
+     *   - 变量 x -> 1 * x^1 * y^0
+     *   - 变量 y -> 1 * x^0 * y^1
+     *   - a + b -> 合并
+     *   - a - b -> 合并
+     *   - a * b -> 卷积
+     *   - a^n -> 重复卷积
+     */
+
+    /* 临时缓冲区用于中间计算 */
+    double tmp[IMPLICIT_COEFFS_SIZE];
+    double lhs[IMPLICIT_COEFFS_SIZE];
+    double rhs[IMPLICIT_COEFFS_SIZE];
+
+    /* 使用函数指针表分发 */
+    static const FlattenFunc s_flatten_funcs[] = {
+        [NODE_NUMBER] = flatten_number,
+        [NODE_VARIABLE] = flatten_variable,
+        [NODE_BINARY_OP_ADD] = flatten_b_add,
+        [NODE_BINARY_OP_SUB] = flatten_b_sub,
+        [NODE_BINARY_OP_MUL] = flatten_b_mul,
+        [NODE_BINARY_OP_POW] = flatten_b_pow,
+        [NODE_UNARY_OP_NEG] = flatten_u_neg,
+        [NODE_UNARY_OP_SIN] = flatten_u_sin,
+        [NODE_UNARY_OP_COS] = flatten_u_cos,
+        [NODE_UNARY_OP_SQRT] = flatten_u_sqrt,
+    };
+    if ((unsigned)node->type < sizeof(s_flatten_funcs)/sizeof(s_flatten_funcs[0]) && s_flatten_funcs[node->type]) {
+        return s_flatten_funcs[node->type](node, coeffs, coeffs_size, max_deg);
     }
+    return false;
 }
 
 /**

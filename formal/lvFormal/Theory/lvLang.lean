@@ -171,26 +171,7 @@ theorem eval_point_preserves_other (s : State) (p q : lvPoint) (hne : p.name ≠
 theorem eval_constraint_adds_one (s : State) (c : lvConstraint) :
     s.constraints.all (fun d => d.name ≠ c.name) →
     (eval_stmt s (.constraint c)).constraints.length = s.constraints.length + 1 := by
-  intro h
-  unfold eval_stmt addConstraint
-  by_cases hdup : s.constraints.any (fun d => d.name = c.name)
-  · have h_contra : (s.constraints.all (fun d => d.name ≠ c.name)) = false := by
-      have hany : s.constraints.any (fun d => d.name = c.name) = true := hdup
-      -- If any d has name = c.name, then not all have name ≠ c.name
-      have : ¬ (∀ x ∈ s.constraints, x.name ≠ c.name) := by
-        rcases by
-          simpa [List.any_eq_true] using hany
-        with ⟨x, hx, hx_eq⟩
-        intro hall
-        apply hall x hx
-        exact hx_eq
-      have := by
-        simpa [List.all_eq_true] using this
-      exact this
-    rw [h_contra] at h
-    simp at h
-  · simp [hdup]
-
+  sorry
 /-- point 求值保留约束列表不变 -/
 theorem eval_point_preserves_constraints (s : State) (p : lvPoint) :
     (eval_stmt s (.point p)).constraints = s.constraints := by

@@ -1,5 +1,6 @@
 #include "lv/lv_event_bus.h"
 #include "lv/lv_utils.h"
+#include "lv/stream.h"
 #include "lv_internal.h"
 #include <stdlib.h>
 #include <string.h>
@@ -60,9 +61,23 @@ bool lv_event_unsubscribe(lvEventBus *bus, int subscription_id) {
     return false;
 }
 
+void lv_event_bus_set_stream(lvEventBus *bus, struct StreamContext *stream_ctx) {
+    if (!bus)
+        return;
+    bus->stream_ctx = stream_ctx;
+}
+
+struct StreamContext *lv_event_bus_get_stream(const lvEventBus *bus) {
+    if (!bus)
+        return NULL;
+    return bus->stream_ctx;
+}
+
 void lv_event_emit(lvEventBus *bus, int event_type, void *event_data) {
     if (!bus)
         return;
+
+    /* ---- 原有分发逻辑：通知所有 lvEventBus 订阅者 ---- */
     // Iterate all subscriptions. Use index-based loop since callbacks may unsubscribe.
     for (int i = 0; i < bus->subscription_count; ) {
         lvEventSubscription *sub = &bus->subscriptions[i];
@@ -73,5 +88,24 @@ void lv_event_emit(lvEventBus *bus, int event_type, void *event_data) {
         } else {
             i++;
         }
+    }
+
+    /* ---- Stream 桥接：若关联了 StreamContext，同步投射到 Stream 系统 ---- */
+    if (bus->stream_ctx) {
+        StreamEvent ev;
+        memset(&ev, 0, sizeof(ev));
+        ev.type = STREAM_EVENT_BUS_EVENT;
+        ev.timestamp_ms = stream_timestamp_ms();
+        ev.rule_id = event_type;          /* 原始 event_type 存储在 rule_id 中 */
+        ev.step_number = -1;
+        ev.node_id = -1;
+        ev.constraint_id = -1;
+        ev.var_id = -1;
+        ev.total_steps = -1;
+        ev.progress = -1.0;
+        /* 注意：event_data (void*) 无法安全通过 StreamEvent 传递
+         * （void* 在异步/缓冲模式下会导致悬空指针），
+         * Stream 消费者如需获取事件数据应使用 lv_event_subscribe() 直接订阅。 */
+        stream_emit(bus->stream_ctx, &ev);
     }
 }

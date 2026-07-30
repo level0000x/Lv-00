@@ -37,7 +37,8 @@ inductive ATPBackendType where
   | eprover
   | iprover
   | custom
-  deriving DecidableEq, Repr
+  deriving DecidableEq
+
 
 /-- TPTP 输入格式。
     对应 C 中 ATPInputFormat 枚举。 -/
@@ -46,7 +47,7 @@ inductive ATPInputFormat where
   | tptpCnf   -- 合取范式（CNF）
   | tptpTff   -- 类型化一阶公式（TFF）
   | smtlib2   -- SMT-LIB 2 格式
-  deriving DecidableEq, Repr
+
 
 /-- ATP 求解结果。
     对应 C 中 ATPResult 枚举。 -/
@@ -55,7 +56,7 @@ inductive ATPResult where
   | unsat      -- 不可满足（定理得证）
   | unknown    -- 未知
   | error      -- 错误
-  deriving DecidableEq, Repr
+
 
 /-- ATP 配置。
     对应 C 中 ATPConfig 结构体。 -/
@@ -66,7 +67,7 @@ structure ATPConfig where
   autoStrategy     : Bool
   produceProof     : Bool
   produceUnsatCore : Bool
-  deriving DecidableEq, Repr
+
 
 /-- 默认 ATP 配置：TPTP FOF 格式、30 秒超时、自动策略、生成证明 -/
 def atpConfigDefault : ATPConfig :=
@@ -86,7 +87,7 @@ def atpConfigDefault : ATPConfig :=
 structure GeomNode where
   id   : ℕ
   name : String
-  deriving DecidableEq, Repr
+
 
 /-- 几何约束类型（适配 TPTP 谓词） -/
 inductive GeomConstraintTPTP where
@@ -95,13 +96,13 @@ inductive GeomConstraintTPTP where
   | intersection  (l1 l2 point : ℕ)
   | containment   (region point : ℕ)
   | connection    (a b : ℕ)
-  deriving DecidableEq, Repr
+
 
 /-- 约束图：节点 + 活跃约束集合 -/
 structure ConstraintGraphTPTP where
   nodes      : List GeomNode
   constraints : List GeomConstraintTPTP
-  deriving DecidableEq, Repr
+
 
 /-- TPTP 编码：将约束图编码为 TPTP 文本。
     
@@ -194,7 +195,7 @@ structure ATPBackendEntry where
   available    : Bool
   priority     : ℕ
   description  : String
-  deriving DecidableEq, Repr
+
 
 /-- ATP 求解器状态。
     对应 C 中 ATPBackendSolver 的不透明结构。 -/
@@ -204,7 +205,7 @@ structure ATPSolverState where
   tptpCode   : Option String
   isInitialized : Bool
   hasProblem : Bool
-  deriving DecidableEq, Repr
+
 
 /-- 创建 ATP 求解器：
     分配并初始化求解器句柄。
@@ -233,7 +234,7 @@ structure ATPResultInfo where
   solveTimeSeconds : ℝ
   proofSteps       : List String
   errorMessage     : String
-  deriving DecidableEq, Repr
+
 
 /-! ===============================================================
    第五部分：ATP → Lv-00 证明转换
@@ -247,7 +248,7 @@ inductive Lv00ProofStepType where
   | addConstraint
   | resolve
   | superposition
-  deriving DecidableEq, Repr
+
 
 /-- 证明步骤：推理步的最小单元。 -/
 structure Lv00ProofStep where
@@ -256,7 +257,7 @@ structure Lv00ProofStep where
   parentIds   : List ℕ
   clause      : String
   derivation  : Option String
-  deriving DecidableEq, Repr
+
 
 /-- ATP 证明步骤 → Lv-00 证明步骤的映射
     
@@ -362,7 +363,7 @@ structure ATPBackendRegistry where
   entries : List ATPBackendEntry
   /-- 注册表容量上限 -/
   maxEntries : ℕ
-  deriving DecidableEq, Repr
+
 
 /-- 初始化后端注册表 -/
 def atp_registry_init : ATPBackendRegistry :=

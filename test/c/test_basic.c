@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_basic.c
  * @brief Lv-00 基础模块测试 - 有理数、约束图、归一化、模块系统、公理包、统一化、引擎
  *
@@ -16,8 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
-#include "test_helpers.h"
+#include "test_unified.h"
 
 /* 全局测试计数器 */
 int g_pass_count = 0;

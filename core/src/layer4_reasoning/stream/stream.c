@@ -1620,6 +1620,7 @@ static const StreamEventTypeEntry s_event_type_table[STREAM_EVENT_TYPE_COUNT] = 
     {STREAM_EVENT_INFO,                      "信息",           "INFO",                      STREAM_COLOR_GRAY},
     {STREAM_EVENT_PROGRESS,                  "进度",           "PROGRESS",                  STREAM_COLOR_BLUE},
     {STREAM_EVENT_GRAPH_SNAPSHOT,            "图快照",         "GRAPH_SNAPSHOT",            STREAM_COLOR_LIGHT_GRAY},
+    {STREAM_EVENT_BUS_EVENT,                 "事件总线",       "BUS_EVENT",                 STREAM_COLOR_GRAY},
 };
 
 /**

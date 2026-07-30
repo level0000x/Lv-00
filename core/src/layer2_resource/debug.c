@@ -1661,7 +1661,7 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
 /**
  * @brief 创建环形日志缓冲区
  *
- * 分配 entries 数组并初始化所有控制字段。
+ * 分配 lvLogRingBuffer 并通过泛型 lvRingBuf 初始化。
  * capacity 必须 >= 1。
  *
  * @param capacity 缓冲区容量（条目数）
@@ -1672,22 +1672,15 @@ lvLogRingBuffer *lv_log_ring_buffer_create(int capacity) {
         capacity = lv_LOG_RING_BUFFER_DEFAULT_CAPACITY;
     }
 
-    lvLogRingBuffer *rb = lv_calloc(1, sizeof(lvLogRingBuffer));
+    lvLogRingBuffer *rb = (lvLogRingBuffer *) lv_calloc(1, sizeof(lvLogRingBuffer));
     if (!rb) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配环形缓冲区失败");
     }
 
-    rb->entries = lv_calloc((size_t) capacity, sizeof(lvLogEntry));
-    if (!rb->entries) {
+    if (!lv_ringbuf_init(&rb->base, sizeof(lvLogEntry), capacity)) {
         lv_free((void **) &rb);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配日志条目数组失败");
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "初始化环形缓冲区失败");
     }
-
-
-    rb->capacity = capacity;
-    rb->head = 0;
-    rb->count = 0;
-    rb->wrapped = false;
 
     return rb;
 }
@@ -1700,7 +1693,7 @@ void lv_log_ring_buffer_destroy(lvLogRingBuffer *rb) {
     if (!rb) {
         return;
     }
-    lv_free((void **) &rb->entries);
+    lv_ringbuf_destroy(&rb->base);
     lv_free((void **) &rb);
 }
 
@@ -1716,39 +1709,28 @@ void lv_log_ring_buffer_destroy(lvLogRingBuffer *rb) {
  */
 void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level, const char *module_name, const char *function_name,
                               const char *file_name, int line_number, const char *fmt, ...) {
-    if (!rb || rb->capacity < 1) {
+    if (!rb) {
         return;
     }
 
-    log_lock();
-
-    /* 获取写入位置 */
-    int idx = rb->head;
-    lvLogEntry *entry = &rb->entries[idx];
-
-    /* 填充结构化字段 */
-    entry->level = level;
-    entry->timestamp_us = lv_get_time_us();
-    entry->module_name = module_name;
-    entry->function_name = function_name;
-    entry->file_name = file_name;
-    entry->line_number = line_number;
-    entry->context_id = 0; /* 默认全局日志，lv_log_with_context 会覆盖 */
+    /* 在栈上构造 lvLogEntry */
+    lvLogEntry entry;
+    entry.level = level;
+    entry.timestamp_us = lv_get_time_us();
+    entry.module_name = module_name;
+    entry.function_name = function_name;
+    entry.file_name = file_name;
+    entry.line_number = line_number;
+    entry.context_id = 0; /* 默认全局日志，lv_log_with_context 会覆盖 */
 
     /* 格式化消息（定长缓冲区，防止 OOM） */
     va_list args;
     va_start(args, fmt);
-    vsnprintf(entry->message, sizeof(entry->message), fmt, args);
+    vsnprintf(entry.message, sizeof(entry.message), fmt, args);
     va_end(args);
 
-    /* 推进写入位置 */
-    rb->head = (rb->head + 1) % rb->capacity;
-    if (rb->count < rb->capacity) {
-        rb->count++;
-    } else {
-        rb->wrapped = true;
-    }
-
+    log_lock();
+    lv_ringbuf_write(&rb->base, &entry);
     log_unlock();
 }
 
@@ -1771,28 +1753,25 @@ lvLogEntry *lv_log_ring_buffer_export(const lvLogRingBuffer *rb, int *out_count)
 
     log_lock();
 
-    if (rb->count == 0) {
+    int cnt = lv_ringbuf_count(&rb->base);
+    if (cnt == 0) {
         *out_count = 0;
         log_unlock();
         return NULL;
     }
 
-    lvLogEntry *exported = lv_calloc((size_t) rb->count, sizeof(lvLogEntry));
+    lvLogEntry *exported = (lvLogEntry *) lv_calloc((size_t) cnt, sizeof(lvLogEntry));
     if (!exported) {
         *out_count = 0;
         log_unlock();
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配导出缓冲区失败");
     }
 
-    /* 计算起始位置：如果已填满（wrapped），起始位置 = head（最旧的条目） */
-    int start = rb->wrapped ? rb->head : 0;
-
-    for (int i = 0; i < rb->count; i++) {
-        int src_idx = (start + i) % rb->capacity;
-        memcpy(&exported[i], &rb->entries[src_idx], sizeof(lvLogEntry));
+    for (int i = 0; i < cnt; i++) {
+        lv_ringbuf_read(&rb->base, i, &exported[i]);
     }
 
-    *out_count = rb->count;
+    *out_count = cnt;
     log_unlock();
     return exported;
 }
@@ -1806,17 +1785,14 @@ void lv_log_ring_buffer_clear(lvLogRingBuffer *rb) {
         return;
     }
     log_lock();
-    rb->head = 0;
-    rb->count = 0;
-    rb->wrapped = false;
-    memset(rb->entries, 0, (size_t) rb->capacity * sizeof(lvLogEntry));
+    lv_ringbuf_clear(&rb->base);
     log_unlock();
 }
 
 /**
  * @brief 调整环形缓冲区容量
  *
- * 分配新的 entries 数组，复制最多 new_capacity 条最新日志。
+ * 分配新的缓冲区，复制最多 new_capacity 条最新日志。
  * 如果 new_capacity < 当前条目数，最旧的多余条目将被丢弃。
  *
  * @param rb       环形缓冲区（非 NULL）
@@ -1827,49 +1803,11 @@ bool lv_log_ring_buffer_resize(lvLogRingBuffer *rb, int capacity) {
     if (!rb || capacity < 1) {
         return false;
     }
-    if (capacity == rb->capacity) {
-        return true; /* 无需改变 */
-    }
 
     log_lock();
-
-    lvLogEntry *new_entries = lv_calloc((size_t) capacity, sizeof(lvLogEntry));
-    if (!new_entries) {
-        log_unlock();
-        return false;
-    }
-
-    /* 计算要保留的条目数量（保留最新的） */
-    int keep_count = (rb->count < capacity) ? rb->count : capacity;
-    if (keep_count > 0) {
-        /* 从旧缓冲区中导出最新的 keep_count 条记录。
-         * 如果 wrapped，最旧的在 head 位置；否则在位置 0。 */
-        int start = rb->wrapped ? rb->head : 0;
-        /* 计算最新 keep_count 条记录的起始位置 */
-        if (rb->count > keep_count) {
-            /* 跳过最旧的 (rb->count - keep_count) 条记录 */
-            start = (start + (rb->count - keep_count)) % rb->capacity;
-            if (rb->capacity > 0) {
-                start = start % rb->capacity;
-            }
-        }
-
-        for (int i = 0; i < keep_count; i++) {
-            int src_idx = (start + i) % rb->capacity;
-            memcpy(&new_entries[i], &rb->entries[src_idx], sizeof(lvLogEntry));
-        }
-    }
-
-    /* 替换旧的缓冲区 */
-    lv_free((void **) &rb->entries);
-    rb->entries = new_entries;
-    rb->capacity = capacity;
-    rb->head = keep_count % capacity;
-    rb->count = keep_count;
-    rb->wrapped = (keep_count >= capacity);
-
+    bool ok = lv_ringbuf_resize(&rb->base, capacity);
     log_unlock();
-    return true;
+    return ok;
 }
 
 /* ============================================================
@@ -1915,12 +1853,12 @@ void lv_log_with_context(struct lvContext *ctx, LogLevel level, const char *modu
                                  message);
         /* 覆盖自动设置的 context_id 为实际的上下文 ID */
         log_lock();
-        if (s_debug_state.log_ring_buffer->count > 0) {
-            /* 找到刚写入的条目（head - 1，处理绕回） */
-            int last_idx = (s_debug_state.log_ring_buffer->head - 1 + s_debug_state.log_ring_buffer->capacity) % s_debug_state.log_ring_buffer->capacity;
-            /* 从上下文中获取 ID（如果可用） */
-            if (ctx && ctx->context_id > 0) {
-                s_debug_state.log_ring_buffer->entries[last_idx].context_id = ctx->context_id;
+        if (lv_ringbuf_count(&s_debug_state.log_ring_buffer->base) > 0) {
+            /* 获取刚写入的条目（最新的，索引 count-1）并更新 context_id */
+            int last_idx = lv_ringbuf_count(&s_debug_state.log_ring_buffer->base) - 1;
+            lvLogEntry *last_entry = (lvLogEntry *) lv_ringbuf_get(&s_debug_state.log_ring_buffer->base, last_idx);
+            if (last_entry && ctx && ctx->context_id > 0) {
+                last_entry->context_id = ctx->context_id;
             }
         }
         log_unlock();

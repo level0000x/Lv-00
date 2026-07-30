@@ -9,6 +9,9 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 
+/* 前向声明 —— 用于 StreamContext 桥接 */
+struct StreamContext;
+
 /**
  * @brief 事件订阅者回调函数类型
  * @param event_type  事件类型标识符（由调用方定义）
@@ -43,6 +46,9 @@ typedef struct lvEventBus {
     int subscription_capacity;
     int next_id;
     lvEventBusConfig config;
+
+    /** 关联的 StreamContext（可选，非 NULL 时事件同时桥接到 Stream 系统） */
+    struct StreamContext *stream_ctx;
 } lvEventBus;
 
 /**
@@ -80,6 +86,26 @@ bool lv_event_unsubscribe(lvEventBus *bus, int subscription_id);
  * @param event_data 事件数据指针（透传给回调）
  */
 void lv_event_emit(lvEventBus *bus, int event_type, void *event_data);
+
+/**
+ * @brief 关联 StreamContext（可选）
+ *
+ * 设置后，所有 lv_event_emit() 发出的事件会自动以 STREAM_EVENT_BUS_EVENT
+ * 类型投射到 Stream 系统，原始 event_type 存储在 StreamEvent.rule_id 中。
+ * 传入 NULL 可解除关联。
+ *
+ * @param bus        事件总线
+ * @param stream_ctx StreamContext 指针（或 NULL）
+ */
+void lv_event_bus_set_stream(lvEventBus *bus, struct StreamContext *stream_ctx);
+
+/**
+ * @brief 获取关联的 StreamContext
+ *
+ * @param bus 事件总线
+ * @return 关联的 StreamContext 指针，未关联时返回 NULL
+ */
+struct StreamContext *lv_event_bus_get_stream(const lvEventBus *bus);
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,6 @@
+tree a7834b1b44f0b024314d6e77dd03ac259e676b28
+parent 138e871233a11bc21e11e32a1f0ea48ef9c6fe20
+author Lv-00 Project <lv00@project.local> 1782587120 +0800
+committer Lv-00 Project <lv00@project.local> 1782587120 +0800
+
+refactor: UI rebuild + kernel decoupling — update headers, source files, UI components, and new type definitions
