@@ -19,7 +19,6 @@ import lvFormal.Theory.SolverCorrectness
 import lvFormal.Theory.RewriteProperties
 import lvFormal.Theory.KernelInvariants
 import lvFormal.Theory.ConstraintSoundness
-import lvFormal.Theory.RemovedModule
 import lvFormal.Theory.GroebnerTheory
 import lvFormal.Theory.MathPresetSoundness
 import lvFormal.Theory.DSLWrappersSoundness
@@ -74,10 +73,6 @@ theorem kernel_invariants_test : True := by
 /- ConstraintSoundness -/
 theorem constraint_soundness_test : True := by
   have _ := ConstraintSoundness.constraint_sound []; trivial
-
-/- RemovedModule -/
-theorem rose_cognition_test : True := by
-  have _ := RemovedModule.cognition_correct []; trivial
 
 /- GroebnerTheory -/
 theorem groebner_theory_test : True := by

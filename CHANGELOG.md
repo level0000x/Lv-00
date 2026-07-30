@@ -140,7 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 新增 (Added)
 - **lv_impl_native.c**: 统一实现替代 17 个 C 桩
 - **lv_impl_upper.c**: L3-L10 全部 C API 实现
-- **166 个 .lv 语义规格**: 10 层 + preset + ROSE + spec 目录
+- **166 个 .lv 语义规格**: 10 层 + preset + spec 目录
 - **57 个 Lean4 形式化定理文件**
 - **test_runner.py + 5 份新测试**
 - **7 份新文档**: 快速开始/架构/配置/测试/构建/API/形式化

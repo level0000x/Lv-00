@@ -48,7 +48,6 @@
 | **元验证** | MetaVerificationTheory.lean, TheoryHierarchy.lean, EndToEndCorrectness.lean, AxiomDiscoveryTheory.lean | 元验证框架、公理发现 |
 | **可视化** | VisualLayerSoundness.lean | 可视化层正确性 |
 | **协调层** | OrchestrationSoundness.lean | 编排层语义 |
-| **认知** | RemovedModule.lean | 非开源模块（已移除） |
 | **预设** | MathPresetSoundness.lean, GeomPresetSoundness.lean | 数学预设、几何预设 |
 | **内核** | KernelInvariants.lean | 微内核不变量 |
 
