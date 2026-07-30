@@ -27,14 +27,14 @@
 Module *module_create(const char *name, const char *version) {
     Module *mod = lv_calloc(1, sizeof(Module));
     if (!mod)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "module_create: lv_calloc failed");
     mod->name = lv_strdup_safe(name ? name : "unnamed_module");
     mod->version = lv_strdup_safe(version ? version : "0.0.0");
     if (!mod->name || !mod->version) {
         lv_free((void **) &mod->name);
         lv_free((void **) &mod->version);
         lv_free((void **) &mod);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "module_create: strdup failed");
     }
     mod->dependencies = NULL;
     mod->dependency_count = 0;
@@ -43,7 +43,7 @@ Module *module_create(const char *name, const char *version) {
         lv_free((void **) &mod->name);
         lv_free((void **) &mod->version);
         lv_free((void **) &mod);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "module_create: exports calloc failed");
     }
     mod->exports->function_block_ids = NULL;
     mod->exports->type_region_ids = NULL;
@@ -82,7 +82,7 @@ void module_destroy(Module *mod) {
 
 bool module_add_dependency(Module *mod, const char *dep_name, const char *version_constraint) {
     if (!mod)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_add_dependency: mod is NULL");
     if (mod->dependency_count == 0) {
         mod->dependencies = lv_calloc(1, sizeof(ModuleDependency));
     } else {
@@ -131,7 +131,7 @@ bool module_add_axiom_package(Module *mod, AxiomPackage *pkg) {
 
 bool module_export_function_block(Module *mod, int func_block_id) {
     if (!mod)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_export_function_block: mod is NULL");
     if (!mod->exports)
         return false;
     if (mod->exports->function_count == 0) {
@@ -629,6 +629,7 @@ char *module_compute_version_hash(const Module *mod) {
 }
 
 bool module_validate_dependency_chain(Module *mod, Module **all_modules, int module_count) {
+    if (!mod) return false;
     for (int i = 0; i < mod->dependency_count; i++) {
         bool found = false;
         for (int j = 0; j < module_count; j++) {
@@ -747,8 +748,10 @@ static bool dfs_detect_cycle(Module *mod, Module **modules, int count, DFSColor 
  * @return true 检测到循环依赖，false 无循环
  */
 bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *out_path_len) {
-    if (!modules || count <= 0)
-        return false;
+    if (!modules)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_full_cycle_detect: modules is NULL");
+    if (count <= 0)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "module_full_cycle_detect: count <= 0");
 
     DFSColor *color_map = (DFSColor *) lv_calloc((size_t) count, sizeof(DFSColor));
     if (!color_map)
@@ -845,8 +848,10 @@ int module_compare_versions(const char *v1, const char *v2) {
  * @return true if version satisfies constraint
  */
 bool module_parse_version_constraint(const char *constraint, const char *version) {
-    if (!constraint || !version)
-        return false;
+    if (!constraint)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_parse_version_constraint: constraint is NULL");
+    if (!version)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_parse_version_constraint: version is NULL");
 
     /* Exact match: "1.0.0" */
     if (strncmp(constraint, ">=", 2) == 0) {
@@ -1919,11 +1924,11 @@ void json_writer_destroy(JsonWriter *w) {
 
 char *module_serialize_to_json(const Module *mod) {
     if (!mod)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "module_serialize_to_json: mod is NULL");
 
     JsonWriter w;
     if (!json_writer_init(&w, 2048))
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "module_serialize_to_json: json_writer_init failed");
 
     json_writer_putc(&w, '{');
 
@@ -2019,17 +2024,21 @@ char *module_serialize_to_json(const Module *mod) {
 /* ---------- 图序列化支持函数 ---------- */
 
 char *module_serialize_graph_to_json(const Module *mod) {
-    if (!mod || !mod->graph) {
-        lv_set_error(lv_ERROR_NULL_POINTER, "module_serialize_graph_to_json: 模块或图为空");
-        return NULL;
+    if (!mod) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "module_serialize_graph_to_json: mod is NULL");
+    }
+    if (!mod->graph) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "module_serialize_graph_to_json: mod->graph is NULL");
     }
     return graph_serialize_to_json(mod->graph);
 }
 
 bool module_deserialize_graph_from_json(Module *mod, const char *json) {
-    if (!mod || !json) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "module_deserialize_graph_from_json: 无效参数");
-        return false;
+    if (!mod) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_deserialize_graph_from_json: mod is NULL");
+    }
+    if (!json) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_deserialize_graph_from_json: json is NULL");
     }
 
     /* 销毁现有的图 */
@@ -2580,7 +2589,7 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
 
 char *module_compute_content_hash(const Module *mod) {
     if (!mod)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "module_compute_content_hash: mod is NULL");
 
     lvSha256Context ctx;
     lv_sha256_init(&ctx);

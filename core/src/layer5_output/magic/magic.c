@@ -150,13 +150,13 @@
 Rune *rune_create_rational(int64_t num, uint64_t denom, MagicElement element) {
     Rune *rune = (Rune *) lv_calloc(1, sizeof(Rune));
     if (!rune)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_create_rational: lv_calloc failed");
 
     /* 创建有理数类型的符号坐标 */
     rune->coord = symbolic_coord_create_rational(num, denom);
     if (!rune->coord) {
         lv_free((void **) &rune);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_create_rational: symbolic_coord_create_rational failed");
     }
 
     /* 初始化符文属性：元素类型、名称、符号和威力等级 */
@@ -182,7 +182,7 @@ Rune *rune_create_rational(int64_t num, uint64_t denom, MagicElement element) {
 Rune *rune_create_algebraic(double value, MagicElement element) {
     Rune *rune = (Rune *) lv_calloc(1, sizeof(Rune));
     if (!rune)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_create_algebraic: lv_calloc failed");
 
     /* 使用连分数近似创建代数数 */
     mpz_poly_t poly;
@@ -190,7 +190,7 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
     poly.coeffs = (mpz_t *) lv_malloc(MAGIC_POLY_COEFF_COUNT * sizeof(mpz_t));
     if (!poly.coeffs) {
         lv_free((void **) &rune);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_create_algebraic: poly.coeffs malloc failed");
     }
 
     /* 必须先初始化所有 mpz_t 元素，再设置值，避免 GMP 内部状态未定义 */
@@ -214,7 +214,7 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
         }
         lv_free((void **) &poly.coeffs);
         lv_free((void **) &rune);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_create_algebraic: symbolic_coord_create_algebraic failed");
     }
 
     /* 成功路径：同样需要先清理 mpz_t 内部状态 */
@@ -243,13 +243,13 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
 Rune *rune_create_transcendental(const char *name, MagicElement element) {
     Rune *rune = (Rune *) lv_calloc(1, sizeof(Rune));
     if (!rune)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_create_transcendental: lv_calloc failed");
 
     /* 创建超越数类型的符号坐标（如 pi, e 等） */
     rune->coord = symbolic_coord_create_transcendental(name);
     if (!rune->coord) {
         lv_free((void **) &rune);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_create_transcendental: symbolic_coord_create_transcendental failed");
     }
 
     /* 初始化符文属性 */
@@ -272,17 +272,17 @@ Rune *rune_create_transcendental(const char *name, MagicElement element) {
  */
 Rune *rune_copy(const Rune *src) {
     if (!src)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rune_copy: src is NULL");
 
     Rune *rune = (Rune *) lv_malloc(sizeof(Rune));
     if (!rune)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_copy: lv_malloc failed");
 
     /* 深拷贝符号坐标 */
     rune->coord = symbolic_coord_copy(src->coord);
     if (!rune->coord) {
         lv_free((void **) &rune);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_copy: symbolic_coord_copy failed");
     }
     /* 拷贝标量属性 */
     rune->element = src->element;
@@ -573,7 +573,7 @@ void rune_set_power(Rune *rune, int power) {
 RuneSequence *rune_sequence_create(void) {
     RuneSequence *seq = (RuneSequence *) lv_malloc(sizeof(RuneSequence));
     if (!seq)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_sequence_create: lv_malloc failed");
 
     /* 初始化动态数组，预分配初始容量 */
     seq->capacity = MAGIC_RUNE_SEQUENCE_INIT_CAP;
@@ -582,7 +582,7 @@ RuneSequence *rune_sequence_create(void) {
 
     if (!seq->runes) {
         lv_free((void **) &seq);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_sequence_create: runes malloc failed");
     }
 
     return seq;
@@ -1648,7 +1648,7 @@ void spell_destroy(Spell *spell) {
  */
 bool spell_set_input_count(Spell *spell, int count) {
     if (!spell)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spell_set_input_count: spell is NULL");
     spell->input_count = count;
     return true;
 }
@@ -1661,8 +1661,10 @@ bool spell_set_input_count(Spell *spell, int count) {
  * @return 设置成功返回 true，spell 为 NULL 返回 false
  */
 bool spell_set_output_count(Spell *spell, int count) {
-    if (!spell || count < 0)
-        return false;
+    if (!spell)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spell_set_output_count: spell is NULL");
+    if (count < 0)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "spell_set_output_count: count < 0");
     spell->output_count = count;
     return true;
 }
@@ -1695,7 +1697,7 @@ bool spell_set_description(Spell *spell, const char *desc) {
  */
 bool spell_set_difficulty(Spell *spell, int difficulty) {
     if (!spell)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spell_set_difficulty: spell is NULL");
     spell->difficulty = difficulty > MAGIC_SPELL_DIFFICULTY_MAX
                             ? MAGIC_SPELL_DIFFICULTY_MAX
                             : (difficulty < MAGIC_SPELL_DIFFICULTY_MIN ? MAGIC_SPELL_DIFFICULTY_MIN : difficulty);
@@ -1713,8 +1715,10 @@ bool spell_set_difficulty(Spell *spell, int difficulty) {
  * @return 配置成功返回 true，参数无效或内存不足返回 false
  */
 bool spell_configure_molding(Spell *spell, const RuneSequence *seq) {
-    if (!spell || !seq)
-        return false;
+    if (!spell)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spell_configure_molding: spell is NULL");
+    if (!seq)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spell_configure_molding: seq is NULL");
 
     /* 替换旧的符文序列 */
     if (spell->molding) {
@@ -1785,7 +1789,7 @@ bool spell_configure_infusing(Spell *spell, int threshold_level) {
  */
 bool spell_configure_releasing(Spell *spell, int range, int damage) {
     if (!spell)
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spell_configure_releasing: spell is NULL");
     spell->releasing_range = range;
     spell->releasing_damage = damage;
     return true;
@@ -2143,8 +2147,10 @@ void spellbook_destroy(SpellBook *book) {
  * @return 添加成功返回 true，参数无效或内存不足返回 false
  */
 bool spellbook_add_spell(SpellBook *book, Spell *spell) {
-    if (!book || !spell)
-        return false;
+    if (!book)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spellbook_add_spell: book is NULL");
+    if (!spell)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spellbook_add_spell: spell is NULL");
 
     /* 容量不足时自动扩容（翻倍策略） */
     if (book->spell_count >= book->capacity) {

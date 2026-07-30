@@ -725,6 +725,25 @@ void lv_config_reset(void);
 #define lv_DEFAULT_MEMORY_LIMIT_MB 0
 #endif
 
+/* ---- 超时与步数上限（编译期默认值） ---- */
+#ifndef lv_DEFAULT_TIMEOUT_MS
+#define lv_DEFAULT_TIMEOUT_MS 30000
+#endif
+#ifndef lv_DEFAULT_MAX_STEPS
+#define lv_DEFAULT_MAX_STEPS 10000
+#endif
+
+/* ---- 通用缓冲区大小（编译期，用于 char buf[N] 声明） ---- */
+#ifndef lv_DETAIL_BUF_SIZE
+#define lv_DETAIL_BUF_SIZE 512
+#endif
+#ifndef lv_MSG_BUF_SIZE
+#define lv_MSG_BUF_SIZE 256
+#endif
+#ifndef lv_LARGE_BUF_SIZE
+#define lv_LARGE_BUF_SIZE 4096
+#endif
+
 /* 内存池短别名 */
 #ifndef lv_CONSTRAINT_NODE_SIZE
 #define lv_CONSTRAINT_NODE_SIZE lv_CONFIG_POOL_CONSTRAINT_NODE_SIZE

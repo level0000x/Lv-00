@@ -538,8 +538,63 @@ static void test_engine_lambda_integration(void) {
 }
 
 /**
- * @brief 验证证明多策略系统已注册 λ-演算策略
+ * @brief 验证证明多策略系统已注册 HOL Light 策略
  */
+static void test_proof_strategy_hol_light(void) {
+    Proposition *prop = proposition_create(0, PROPOSITION_TYPE_ATOMIC);
+    ProofMultiStrategy *mse = proof_multi_strategy_create(NULL);
+    if (!mse) {
+        proposition_unref(prop);
+        FAIL("mse create");
+        return;
+    }
+
+    /* 检查 HOL Light 策略描述符已注册 */
+    const ProofStrategyDescriptor *desc = &mse->strategies[PROOF_STRATEGY_HOL_LIGHT];
+    if (desc->type != PROOF_STRATEGY_HOL_LIGHT || !desc->name || !desc->execute) {
+        proof_multi_strategy_destroy(mse);
+        proposition_unref(prop);
+        FAIL("HOL Light strategy descriptor");
+        return;
+    }
+
+    /* 验证 HOL Light 在默认回退顺序中 */
+    bool found = false;
+    for (int i = 0; i < mse->fallback_count; i++) {
+        if (mse->fallback_order[i] == PROOF_STRATEGY_HOL_LIGHT) {
+            found = true;
+            break;
+        }
+    }
+    proof_multi_strategy_destroy(mse);
+    proposition_unref(prop);
+
+    if (!found) {
+        FAIL("HOL Light not in fallback order");
+        return;
+    }
+    PASS();
+}
+
+/** @brief 验证 HOL Light 验证函数可通过公共 API 调用 */
+static void test_hol_light_verify_api(void) {
+    /* 测试 proof_minimal_verify 的基本调用 */
+    const char *premises[] = {"x=y", "y=z", NULL};
+    const char *conclusion = "x=z";
+    char *trace = NULL;
+    VerifyResult result = proof_minimal_verify(VERIFY_TRANS, premises, conclusion, &trace);
+    if (result == VERIFY_VALID) {
+        if (trace) lv_free((void **)&trace);
+        PASS();
+    } else {
+        if (trace) {
+            FAIL(trace);
+            lv_free((void **)&trace);
+        } else {
+            FAIL("VERIFY_TRANS unexpected result");
+        }
+    }
+}
 static void test_proof_strategy_lambda(void) {
     Proposition *prop = proposition_create(0, PROPOSITION_TYPE_ATOMIC);
     ProofMultiStrategy *mse = proof_multi_strategy_create(NULL);
@@ -746,6 +801,37 @@ static void test_church_pair_compile(void) {
         FAIL("Church pair 编译失败");
 }
 
+/** 测试 Church 减法: sub 5 2 → 3 的 roundtrip */
+static void test_church_sub_roundtrip(void) {
+    LvLambdaTerm *sub = lv_church_sub();
+    LvLambdaTerm *c5 = lv_church_n(5);
+    LvLambdaTerm *c2 = lv_church_2();
+
+    /* sub 5 2 */
+    LvLambdaTerm *sub52 = lv_lambda_create_app(lv_lambda_create_app(sub, c5), c2);
+    int rc = compile_and_check_roundtrip(sub52);
+    lv_lambda_destroy(sub52);
+    if (rc == 0)
+        PASS();
+    else
+        FAIL("Church sub 5 2 roundtrip 失败");
+}
+
+/** 测试 Church 前驱: pred 3 → 2 的 roundtrip */
+static void test_church_pred_roundtrip(void) {
+    LvLambdaTerm *pred = lv_church_pred();
+    LvLambdaTerm *c3 = lv_church_n(3);
+
+    /* pred 3 */
+    LvLambdaTerm *pred3 = lv_lambda_create_app(pred, c3);
+    int rc = compile_and_check_roundtrip(pred3);
+    lv_lambda_destroy(pred3);
+    if (rc == 0)
+        PASS();
+    else
+        FAIL("Church pred 3 roundtrip 失败");
+}
+
 /** 测试 nil 编译 */
 static void test_church_nil_compile(void) {
     LvLambdaTerm *nil = lv_church_nil();
@@ -858,6 +944,29 @@ static void test_church_gt_compile(void) {
     if (rc == 0) PASS(); else FAIL("gt 编译失败");
 }
 
+/* ── Church 扩展运算测试（Y 组合子递归）── */
+
+static void test_church_div_compile(void) {
+    LvLambdaTerm *t = lv_church_div();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("div 编译失败");
+}
+
+static void test_church_factorial_direct_compile(void) {
+    LvLambdaTerm *t = lv_church_factorial();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("factorial 编译失败");
+}
+
+static void test_church_fib_compile(void) {
+    LvLambdaTerm *t = lv_church_fib();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("fib 编译失败");
+}
+
 /* ====================================================================
  * main
  * ==================================================================== */
@@ -872,6 +981,10 @@ int main(void) {
     printf("\n[Church 编码扩展]\n");
     TEST("add 2 3 roundtrip");
     test_church_add_roundtrip();
+    TEST("sub 5 2 roundtrip");
+    test_church_sub_roundtrip();
+    TEST("pred 3 roundtrip");
+    test_church_pred_roundtrip();
     TEST("pair 编译");
     test_church_pair_compile();
     TEST("nil 编译");
@@ -927,13 +1040,25 @@ int main(void) {
     TEST("Y 组合子阶乘编译");
     test_y_combinator_factorial();
 
+    printf("\n[Church 扩展运算]\n");
+    TEST("div 编译");
+    test_church_div_compile();
+    TEST("factorial 编译");
+    test_church_factorial_direct_compile();
+    TEST("fib 编译");
+    test_church_fib_compile();
+
     printf("\n[集成测试]\n");
     TEST("beta_reduce 公共 API");
     test_beta_reduce_public_api();
     TEST("引擎管线集成");
     test_engine_lambda_integration();
-    TEST("证明策略注册");
+    TEST("λ-演算策略注册");
     test_proof_strategy_lambda();
+    TEST("HOL Light 策略注册");
+    test_proof_strategy_hol_light();
+    TEST("HOL Light verify API");
+    test_hol_light_verify_api();
 
     printf("\n[λ-项类型检查]\n");
     TEST("λx.x 类型推断");

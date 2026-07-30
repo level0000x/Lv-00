@@ -57,6 +57,8 @@
 #include "lv/preset_transformations.h"
 #include "lv/visual_editor.h"
 
+#include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
+
 /** 全局唯一 ID 计数器 -- 从一百万起步,避免与内部 ID 冲突 */
 static int64_t g_upper_id = 1000000;
 
@@ -3987,7 +3989,7 @@ lvOrchestrator *lv_orchestrator_create(lvEngine *ctx) {
     (void) ctx;
     lvOrchestrator *orch = lv_calloc(1, sizeof(lvOrchestrator));
     if (!orch)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_orchestrator_create: calloc orch failed");
     orch->orch_id = g_upper_id++;
     orch->current_stage = 0;
     orch->status = 0;
@@ -3995,7 +3997,7 @@ lvOrchestrator *lv_orchestrator_create(lvEngine *ctx) {
     orch->stage_status = lv_calloc((size_t) orch->stage_count, sizeof(int64_t));
     if (!orch->stage_status) {
         lv_free((void **) &orch);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_orchestrator_create: calloc stage_status failed");
     }
     return orch;
 }
@@ -4006,12 +4008,12 @@ static const char *g_stage_names[] = {"PARSE", "RESOURCE", "GEOMETRY", "REASONIN
 /** 运行编排管线 */
 int64_t lv_orchestrator_run(lvOrchestrator *orch, lvEngine *ctx, const char *input) {
     if (!orch || !input)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_orchestrator_run: NULL orch or input");
     /* 深拷贝输入 */
     lv_free((void **) &orch->input_data);
     orch->input_data = lv_strdup_safe(input);
     if (!orch->input_data)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_orchestrator_run: strdup input failed");
 
     orch->status = 1; /* 运行中 */
 
@@ -4066,18 +4068,22 @@ int64_t lv_orchestrator_run(lvOrchestrator *orch, lvEngine *ctx, const char *inp
 
 /** 获取当前阶段 */
 int64_t lv_orchestrator_get_stage(const lvOrchestrator *orch) {
-    return orch ? orch->current_stage : -1;
+    if (!orch)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_orchestrator_get_stage: NULL orchestrator");
+    return orch->current_stage;
 }
 
 /** 获取整体状态 */
 int64_t lv_orchestrator_get_status(const lvOrchestrator *orch) {
-    return orch ? orch->status : -1;
+    if (!orch)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_orchestrator_get_status: NULL orchestrator");
+    return orch->status;
 }
 
 /** 获取阶段报告(格式化为字符串) */
 int64_t lv_orchestrator_get_report(const lvOrchestrator *orch, char *buf, int64_t buf_size) {
     if (!orch || !buf || buf_size <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_orchestrator_get_report: NULL orch/buf or small buf_size");
     return (int64_t) snprintf(buf, (size_t) buf_size, "Orch#%lld stage=%lld status=%lld", (long long) orch->orch_id,
                               (long long) orch->current_stage, (long long) orch->status);
 }
@@ -4192,12 +4198,12 @@ lvApplication *lv_application_run(lvEngine *ctx, const char *app_name) {
     (void) ctx;
     lvApplication *app = lv_calloc(1, sizeof(lvApplication));
     if (!app)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_application_run: calloc app failed");
     app->app_id = g_upper_id++;
     app->app_name = lv_strdup_safe(app_name ? app_name : "default");
     if (!app->app_name) {
         lv_free((void **) &app);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_application_run: strdup app_name failed");
     }
     app->session_count = 0;
     app->engine = ctx;
@@ -4206,7 +4212,7 @@ lvApplication *lv_application_run(lvEngine *ctx, const char *app_name) {
     if (!app->orch) {
         lv_free((void **) &app->app_name);
         lv_free((void **) &app);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_application_run: orchestrator_create failed");
     }
     return app;
 }
@@ -4215,7 +4221,7 @@ lvApplication *lv_application_run(lvEngine *ctx, const char *app_name) {
 int64_t lv_application_quick_verify(lvEngine *ctx, const char *input) {
     (void) ctx;
     if (!input || input[0] == '\0')
-        return -1; /* 空输入非法 */
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_application_quick_verify: empty input");
     return 0;      /* 0=合法 */
 }
 
@@ -5232,7 +5238,7 @@ int64_t lv_upper_get_id_counter(lvEngine *ctx) {
  */
 int64_t lv_upper_full_verify(lvEngine *ctx) {
     if (!ctx || !ctx->main_graph)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_upper_full_verify: NULL ctx or main_graph");
     ConstraintGraph *graph = ctx->main_graph;
     int64_t c = meta_verify_consistency(ctx);
     int64_t m = meta_verify_completeness(graph);

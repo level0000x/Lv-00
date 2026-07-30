@@ -493,13 +493,13 @@ static int str_prefix_match(const char *str, const char *prefix) {
 
 char **interop_get_command_completions(lvEngine *engine, const char *prefix, int *out_count) {
     if (!out_count)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "interop_get_command_completions: out_count is NULL");
     *out_count = 0;
 
     int capacity = INTEROP_MAX_COMPLETIONS;
     char **result = (char **) lv_calloc((size_t) capacity, sizeof(char *));
     if (!result)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "interop_get_command_completions: lv_calloc(%d) failed", capacity);
 
     int count = 0;
     const char *p = prefix ? prefix : "";

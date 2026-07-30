@@ -97,7 +97,7 @@ static char *safe_lv_strdup_safe(const char *s) {
 AxiomPackage *axiom_package_create(const char *name, const char *version) {
     AxiomPackage *pkg = lv_calloc(1, sizeof(AxiomPackage));
     if (!pkg)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "axiom_package_create: lv_calloc failed");
 
     pkg->name = safe_lv_strdup_safe(name);
     pkg->version = safe_lv_strdup_safe(version);
@@ -185,8 +185,10 @@ void axiom_package_destroy(AxiomPackage *pkg) {
 /* ============== 不可构造问题管理 ============== */
 
 bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructible *item) {
-    if (!pkg || !item)
-        return false;
+    if (!pkg)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "axiom_package_add_known_unconstructible: pkg is NULL");
+    if (!item)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "axiom_package_add_known_unconstructible: item is NULL");
 
     KnownUnconstructible target_item;
     memset(&target_item, 0, sizeof(KnownUnconstructible));
@@ -248,8 +250,14 @@ KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, co
 
 int axiom_package_add_unconstructible_template(AxiomPackage *pkg, const char *target_name, const char *known_name,
                                                ConstraintGraph *construction, const char *description) {
-    if (!pkg || !target_name || !known_name || !construction)
-        return -1;
+    if (!pkg)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "axiom_package_add_unconstructible_template: pkg is NULL");
+    if (!target_name)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "axiom_package_add_unconstructible_template: target_name is NULL");
+    if (!known_name)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "axiom_package_add_unconstructible_template: known_name is NULL");
+    if (!construction)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "axiom_package_add_unconstructible_template: construction is NULL");
 
     UnconstructibleTemplate tmpl;
     memset(&tmpl, 0, sizeof(UnconstructibleTemplate));
@@ -426,8 +434,10 @@ bool axiom_package_verify_unconstructible(ConstraintGraph *graph, int target_nod
 /* ============== 模板管理 ============== */
 
 bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl) {
-    if (!pkg || !tmpl)
-        return false;
+    if (!pkg)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "axiom_package_register_template: pkg is NULL");
+    if (!tmpl)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "axiom_package_register_template: tmpl is NULL");
 
     ConstraintTemplate slot = *tmpl;
     /* 深拷贝 name（调用者可能释放原始字符串） */
@@ -458,8 +468,10 @@ bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl
 }
 
 ConstraintTemplate *axiom_package_get_template(AxiomPackage *pkg, const char *name) {
-    if (!pkg || !name)
-        return NULL;
+    if (!pkg)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "axiom_package_get_template: pkg is NULL");
+    if (!name)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "axiom_package_get_template: name is NULL");
 
     for (int i = 0; i < pkg->templates.count; i++) {
         ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
@@ -1129,7 +1141,7 @@ AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const char *filepath
 
 char *axiom_package_compute_content_hash(AxiomPackage *pkg) {
     if (!pkg)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "axiom_package_compute_content_hash: pkg is NULL");
 
     lvSha256Context ctx;
     lv_sha256_init(&ctx);
@@ -1387,8 +1399,10 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
 bool axiom_template_validate_normal_form(const ConstraintTemplate *tmpl, const ConstraintGraph *expanded_graph,
                                          const char *canonical_form) {
     (void) tmpl;
-    if (!expanded_graph || !canonical_form)
-        return false;
+    if (!expanded_graph)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "axiom_template_validate_normal_form: expanded_graph is NULL");
+    if (!canonical_form)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "axiom_template_validate_normal_form: canonical_form is NULL");
 
     /* 解析规范形式以提取期望的约束类型和参与者节点类型
      * 格式："CONSTRAINT_TYPE(NODE_TYPE,NODE_TYPE,...)+" */
@@ -1629,8 +1643,10 @@ static uint64_t compute_param_hash(SymbolicCoord **params, int param_count) {
  */
 ConstraintGraph *axiom_package_lookup_expansion_cache(AxiomPackage *pkg, const char *template_name,
                                                       SymbolicCoord **params, int param_count) {
-    if (!pkg || !template_name)
-        return NULL;
+    if (!pkg)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "axiom_package_lookup_expansion_cache: pkg is NULL");
+    if (!template_name)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "axiom_package_lookup_expansion_cache: template_name is NULL");
 
     uint64_t target_hash = compute_param_hash(params, param_count);
 
@@ -1693,8 +1709,12 @@ void axiom_package_clear_expansion_cache(AxiomPackage *pkg) {
  */
 int axiom_package_register_dependency_ref(AxiomPackage *pkg, const char *ref_id, const char *content_hash,
                                           int dependent_node_id) {
-    if (!pkg || !ref_id || !content_hash)
-        return -1;
+    if (!pkg)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "axiom_package_register_dependency_ref: pkg is NULL");
+    if (!ref_id)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "axiom_package_register_dependency_ref: ref_id is NULL");
+    if (!content_hash)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "axiom_package_register_dependency_ref: content_hash is NULL");
 
     DependencyRef ref;
     memset(&ref, 0, sizeof(DependencyRef));
@@ -2141,8 +2161,10 @@ void axiom_template_set_level(ConstraintTemplate *tmpl, TemplateLevel level) {
 
 ConstraintGraph *axiom_template_expand_lazy(AxiomPackage *pkg, const char *template_name, SymbolicCoord **params,
                                             int param_count) {
-    if (!pkg || !template_name)
-        return NULL;
+    if (!pkg)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "axiom_template_expand_lazy: pkg is NULL");
+    if (!template_name)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "axiom_template_expand_lazy: template_name is NULL");
 
     ConstraintTemplate *tmpl = axiom_package_get_template(pkg, template_name);
     if (!tmpl)

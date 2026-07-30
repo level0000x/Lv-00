@@ -43,16 +43,12 @@ typedef struct {
 } PolyEquation;
 
 typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
+    lvDArray eqs; /**< PolyEquation 数组 */
 } EquationSystem;
 
 /* 脏变量集合结构体 */
 typedef struct {
-    int *dirty_ids;
-    int dirty_count;
-    int capacity;
+    lvDArray dirty_ids; /**< 脏变量 ID 数组（lvDArray of int） */
 } DirtyVariableSet;
 
 /* 前向声明 */
@@ -78,14 +74,13 @@ lv_DECLARE_STREAM_CTX(solver);
 /* ================================================================== */
 
 static void dirty_set_init(DirtyVariableSet *ds) {
-    ds->dirty_ids = NULL;
-    ds->dirty_count = 0;
-    ds->capacity = 0;
+    lv_darray_init(&ds->dirty_ids, sizeof(int));
 }
 
 static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
-    for (int i = 0; i < ds->dirty_count; i++) {
-        if (ds->dirty_ids[i] == var_id)
+    for (int i = 0; i < ds->dirty_ids.count; i++) {
+        int *p = (int *)lv_darray_get(&ds->dirty_ids, i);
+        if (p && *p == var_id)
             return true;
     }
     return false;
@@ -94,66 +89,57 @@ static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
 static void dirty_set_add(DirtyVariableSet *ds, int var_id) {
     if (dirty_set_contains(ds, var_id))
         return;
-    if (ds->dirty_count >= ds->capacity) {
-        int new_cap = ds->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : ds->capacity * 2;
-        if (new_cap > 0 && new_cap > INT_MAX / 2)
-            return;
-        new_cap = ds->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : ds->capacity * 2;
-        ds->capacity = new_cap;
-        int *new_ids = lv_realloc(ds->dirty_ids, (size_t) ds->capacity * sizeof(int));
-        if (!new_ids)
-            return;
-        ds->dirty_ids = new_ids;
-    }
-    ds->dirty_ids[ds->dirty_count++] = var_id;
+    lv_darray_push(&ds->dirty_ids, &var_id);
 }
 
 static void dirty_set_clear(DirtyVariableSet *ds) {
-    ds->dirty_count = 0;
+    lv_darray_clear(&ds->dirty_ids);
 }
 
 static void dirty_set_free(DirtyVariableSet *ds) {
-    lv_free((void **) &ds->dirty_ids);
-    ds->dirty_ids = NULL;
-    ds->dirty_count = 0;
-    ds->capacity = 0;
+    lv_darray_free(&ds->dirty_ids);
 }
 
 static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered) {
     equation_system_init(filtered);
-    if (!sys || !ds || ds->dirty_count == 0)
+    if (!sys || !ds || ds->dirty_ids.count == 0)
         return;
 
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0)
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (!eq || eq->poly.degree < 0)
             continue;
-        if (dirty_set_contains(ds, sys->eqs[i].var_node_id)) {
-            if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index) != 0)
+        if (dirty_set_contains(ds, eq->var_node_id)) {
+            if (equation_system_push(filtered, eq->poly, eq->var_node_id, eq->coord_index) != 0)
                 return;
         }
     }
 
     DirtyVariableSet related;
     dirty_set_init(&related);
-    for (int i = 0; i < filtered->count; i++) {
-        dirty_set_add(&related, filtered->eqs[i].var_node_id);
+    for (int i = 0; i < filtered->eqs.count; i++) {
+        PolyEquation *feq = (PolyEquation *)lv_darray_get(&filtered->eqs, i);
+        if (feq)
+            dirty_set_add(&related, feq->var_node_id);
     }
 
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0)
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (!eq || eq->poly.degree < 0)
             continue;
-        if (dirty_set_contains(&related, sys->eqs[i].var_node_id)) {
+        if (dirty_set_contains(&related, eq->var_node_id)) {
             bool found = false;
-            for (int j = 0; j < filtered->count; j++) {
-                if (filtered->eqs[j].var_node_id == sys->eqs[i].var_node_id &&
-                    filtered->eqs[j].coord_index == sys->eqs[i].coord_index) {
+            for (int j = 0; j < filtered->eqs.count; j++) {
+                PolyEquation *feq = (PolyEquation *)lv_darray_get(&filtered->eqs, j);
+                if (feq && feq->var_node_id == eq->var_node_id &&
+                    feq->coord_index == eq->coord_index) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                if (equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id,
-                                         sys->eqs[i].coord_index) != 0) {
+                if (equation_system_push(filtered, eq->poly, eq->var_node_id,
+                                         eq->coord_index) != 0) {
                     dirty_set_free(&related);
                     return;
                 }
@@ -267,17 +253,16 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         propagate_dependency(graph, dirty_var_ids[i], affected);
     }
 
-    int *affected_ids = NULL;
-    int affected_count = 0;
+    lvDArray affected_ids_arr;
+    lv_darray_init(&affected_ids_arr, sizeof(int));
     for (int i = 0; i < graph->node_count; i++) {
         if (affected[i]) {
-            int *new_ids = lv_realloc(affected_ids, (size_t) (affected_count + 1) * sizeof(int));
-            if (new_ids) {
-                affected_ids = new_ids;
-                affected_ids[affected_count++] = graph->nodes[i]->id;
-            }
+            int id = graph->nodes[i]->id;
+            lv_darray_push(&affected_ids_arr, &id);
         }
     }
+    int *affected_ids = (int *)affected_ids_arr.data;
+    int affected_count = affected_ids_arr.count;
     lv_free((void **) &affected);
 
     if (solver_stream_ctx) {
@@ -298,7 +283,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     }
 
     if (affected_count == 0 || !affected_ids) {
-        lv_free((void **) &affected_ids);
+        lv_darray_free(&affected_ids_arr);
         GroebnerResult *result = lv_calloc(1, sizeof(GroebnerResult));
         return result;
     }
@@ -343,7 +328,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     dirty_set_free(&ds);
     dirty_set_free(&expanded);
     equation_system_clear(&full_sys);
-    lv_free((void **) &affected_ids);
+    lv_darray_free(&affected_ids_arr);
 
     if (solver_stream_ctx) {
         StreamEvent ev;
@@ -351,12 +336,12 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.type = STREAM_EVENT_PROGRESS;
         ev.timestamp_ms = stream_timestamp_ms();
         ev.progress = 0.40;
-        ev.step_number = filtered_sys.count;
+        ev.step_number = filtered_sys.eqs.count;
         ev.description = "增量求解方程过滤完成";
         char detail[lv_SOLVER_DETAIL_BUF_SIZE];
         int _snw_filt;
         lv_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}",
-                         filtered_sys.count);
+                         filtered_sys.eqs.count);
         lv_UNUSED(_snw_filt);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -370,14 +355,15 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     result->unique = false;
     result->overdetermined = false;
 
-    if (filtered_sys.count == 0) {
+    if (filtered_sys.eqs.count == 0) {
         equation_system_clear(&filtered_sys);
         return result;
     }
 
     bool has_oos = false;
-    for (int i = 0; i < filtered_sys.count; i++) {
-        if (filtered_sys.eqs[i].poly.degree > 2) {
+    for (int i = 0; i < filtered_sys.eqs.count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&filtered_sys.eqs, i);
+        if (eq && eq->poly.degree > 2) {
             has_oos = true;
             break;
         }
@@ -397,8 +383,9 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
 
     if (!no_solution && !has_oos) {
         int remaining = 0;
-        for (int i = 0; i < filtered_sys.count; i++) {
-            if (filtered_sys.eqs[i].poly.degree >= 0)
+        for (int i = 0; i < filtered_sys.eqs.count; i++) {
+            PolyEquation *eq = (PolyEquation *)lv_darray_get(&filtered_sys.eqs, i);
+            if (eq && eq->poly.degree >= 0)
                 remaining++;
         }
 

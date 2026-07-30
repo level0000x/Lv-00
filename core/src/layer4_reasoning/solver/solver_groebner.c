@@ -47,9 +47,7 @@ typedef struct {
 } PolyEquation;
 
 typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
+    lvDArray eqs; /**< PolyEquation 数组 */
 } EquationSystem;
 
 /* ── 多变量多项式 ── */
@@ -59,9 +57,7 @@ typedef struct {
 } MVMonomial;
 
 typedef struct {
-    MVMonomial *terms;
-    int term_count;
-    int capacity;
+    lvDArray terms; /**< MVMonomial 数组 */
     int var_count;
 } MVPolynomial;
 
@@ -79,22 +75,20 @@ lv_DECLARE_STREAM_CTX(solver);
 
 /* 初始化多变量多项式 */
 static void mv_poly_init(MVPolynomial *p, int var_count) {
-    p->terms = NULL;
-    p->term_count = 0;
-    p->capacity = 0;
+    lv_darray_init(&p->terms, sizeof(MVMonomial));
     p->var_count = var_count;
 }
 
 /* 清理多变量多项式 */
 static void mv_poly_clear(MVPolynomial *p) {
-    for (int i = 0; i < p->term_count; i++) {
-        lv_free((void **) &p->terms[i].exponents);
-        mpz_clear(p->terms[i].coeff);
+    for (int i = 0; i < p->terms.count; i++) {
+        MVMonomial *m = (MVMonomial *)lv_darray_get(&p->terms, i);
+        if (m) {
+            lv_free((void **) &m->exponents);
+            mpz_clear(m->coeff);
+        }
     }
-    lv_free((void **) &p->terms);
-    p->terms = NULL;
-    p->term_count = 0;
-    p->capacity = 0;
+    lv_darray_free(&p->terms);
 }
 
 /* 添加一个单项式到多变量多项式 (合并同类项) */
@@ -102,42 +96,43 @@ static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expon
     if (mpz_cmp_si(coeff, 0) == 0)
         return 0;
 
-    for (int i = 0; i < p->term_count; i++) {
+    for (int i = 0; i < p->terms.count; i++) {
+        MVMonomial *mt = (MVMonomial *)lv_darray_get(&p->terms, i);
+        if (!mt) continue;
         bool same = true;
         for (int v = 0; v < p->var_count; v++) {
-            if (p->terms[i].exponents[v] != exponents[v]) {
+            if (mt->exponents[v] != exponents[v]) {
                 same = false;
                 break;
             }
         }
         if (same) {
-            mpz_add(p->terms[i].coeff, p->terms[i].coeff, coeff);
-            if (mpz_cmp_si(p->terms[i].coeff, 0) == 0) {
-                mpz_clear(p->terms[i].coeff);
-                int last = p->term_count - 1;
+            mpz_add(mt->coeff, mt->coeff, coeff);
+            if (mpz_cmp_si(mt->coeff, 0) == 0) {
+                mpz_clear(mt->coeff);
+                int last = p->terms.count - 1;
                 if (i < last) {
-                    p->terms[i] = p->terms[last];
+                    MVMonomial *last_m = (MVMonomial *)lv_darray_get(&p->terms, last);
+                    if (last_m) {
+                        lv_free((void **) &mt->exponents);
+                        mt->exponents = last_m->exponents;
+                        mpz_set(mt->coeff, last_m->coeff);
+                        mpz_clear(last_m->coeff);
+                        last_m->exponents = NULL;
+                    }
+                } else {
+                    lv_free((void **) &mt->exponents);
                 }
-                p->term_count--;
+                p->terms.count--;
             }
             return 0;
         }
     }
 
-    if (p->term_count >= p->capacity) {
-        int new_cap = p->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
-        if (new_cap > 0 && new_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
-        }
-        new_cap = new_cap == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : new_cap * lv_ARRAY_GROWTH_FACTOR;
-        p->capacity = new_cap;
-        MVMonomial *new_terms = lv_realloc(p->terms, p->capacity * sizeof(MVMonomial));
-        if (!new_terms) {
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
-        }
-        p->terms = new_terms;
+    if (!lv_darray_reserve(&p->terms, p->terms.count + 1)) {
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
     }
-    MVMonomial *m = &p->terms[p->term_count];
+    MVMonomial *m = (MVMonomial *)((char *)p->terms.data + (size_t)p->terms.count * sizeof(MVMonomial));
     m->exponents = lv_calloc((size_t) p->var_count, sizeof(int));
     if (!m->exponents) {
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
@@ -146,7 +141,7 @@ static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expon
         m->exponents[v] = exponents[v];
     }
     mpz_init_set(m->coeff, coeff);
-    p->term_count++;
+    p->terms.count++;
     return 0;
 }
 
@@ -175,38 +170,60 @@ static int mv_monomial_compare_grlex(const MVMonomial *a, const MVMonomial *b, i
 
 /* 对多项式的单项式按 grlex 序排序 */
 static void mv_poly_sort(MVPolynomial *p) {
-    for (int i = 1; i < p->term_count; i++) {
-        MVMonomial key = p->terms[i];
+    for (int i = 1; i < p->terms.count; i++) {
+        MVMonomial *key_p = (MVMonomial *)lv_darray_get(&p->terms, i);
+        MVMonomial key;
+        if (key_p) {
+            key = *key_p;
+        } else {
+            break;
+        }
         int j = i - 1;
-        while (j >= 0 && mv_monomial_compare_grlex(&p->terms[j], &key, p->var_count) > 0) {
-            p->terms[j + 1] = p->terms[j];
+        while (j >= 0) {
+            MVMonomial *tj = (MVMonomial *)lv_darray_get(&p->terms, j);
+            if (!tj || mv_monomial_compare_grlex(tj, &key, p->var_count) <= 0)
+                break;
+            MVMonomial *tj1 = (MVMonomial *)lv_darray_get(&p->terms, j + 1);
+            if (tj1) *tj1 = *tj;
             j--;
         }
-        p->terms[j + 1] = key;
+        MVMonomial *tj1 = (MVMonomial *)lv_darray_get(&p->terms, j + 1);
+        if (tj1) *tj1 = key;
     }
 }
 
 /* 移除系数为零的单项式 */
 static void mv_poly_remove_zeros(MVPolynomial *p) {
     int write = 0;
-    for (int i = 0; i < p->term_count; i++) {
-        if (mpz_cmp_si(p->terms[i].coeff, 0) != 0) {
-            if (write != i)
-                p->terms[write] = p->terms[i];
+    for (int i = 0; i < p->terms.count; i++) {
+        MVMonomial *mi = (MVMonomial *)lv_darray_get(&p->terms, i);
+        if (!mi) continue;
+        if (mpz_cmp_si(mi->coeff, 0) != 0) {
+            if (write != i) {
+                MVMonomial *mw = (MVMonomial *)lv_darray_get(&p->terms, write);
+                if (mw) {
+                    lv_free((void **) &mw->exponents);
+                    mpz_clear(mw->coeff);
+                    mw->exponents = mi->exponents;
+                    mpz_set(mw->coeff, mi->coeff);
+                    mpz_clear(mi->coeff);
+                    mi->exponents = NULL;
+                }
+            }
             write++;
         } else {
-            lv_free((void **) &p->terms[i].exponents);
-            mpz_clear(p->terms[i].coeff);
+            lv_free((void **) &mi->exponents);
+            mpz_clear(mi->coeff);
         }
     }
-    p->term_count = write;
+    p->terms.count = write;
 }
 
 /* 获取多项式的首项 (leading term, grlex序下最大的单项式) */
 static const MVMonomial *mv_poly_leading_term(const MVPolynomial *p) {
-    if (p->term_count == 0)
+    if (p->terms.count == 0)
         return NULL;
-    return &p->terms[0];
+    return (const MVMonomial *)lv_darray_get(&p->terms, 0);
 }
 
 /* 获取首项的首单项式指数 (LCM of leading monomials) */
@@ -239,10 +256,12 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, co
                                  const mpz_t mono_coeff, int var_count) {
     mv_poly_clear(result);
     mv_poly_init(result, var_count);
-    for (int i = 0; i < p->term_count; i++) {
+    for (int i = 0; i < p->terms.count; i++) {
+        const MVMonomial *mt = (const MVMonomial *)lv_darray_get(&p->terms, i);
+        if (!mt) continue;
         mpz_t new_coeff;
         mpz_init(new_coeff);
-        mpz_mul(new_coeff, p->terms[i].coeff, mono_coeff);
+        mpz_mul(new_coeff, mt->coeff, mono_coeff);
 
         int *new_exp = lv_calloc((size_t) var_count, sizeof(int));
         if (!new_exp) {
@@ -250,7 +269,7 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, co
             continue;
         }
         for (int v = 0; v < var_count; v++) {
-            new_exp[v] = p->terms[i].exponents[v] + mono_exp[v];
+            new_exp[v] = mt->exponents[v] + mono_exp[v];
         }
         mv_poly_add_term(result, new_coeff, new_exp);
         mpz_clear(new_coeff);
@@ -263,14 +282,17 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, co
 static void mv_poly_sub(MVPolynomial *result, const MVPolynomial *a, const MVPolynomial *b) {
     mv_poly_clear(result);
     mv_poly_init(result, a->var_count);
-    for (int i = 0; i < a->term_count; i++) {
-        mv_poly_add_term(result, a->terms[i].coeff, a->terms[i].exponents);
+    for (int i = 0; i < a->terms.count; i++) {
+        const MVMonomial *ma = (const MVMonomial *)lv_darray_get(&a->terms, i);
+        if (ma) mv_poly_add_term(result, ma->coeff, ma->exponents);
     }
-    for (int i = 0; i < b->term_count; i++) {
+    for (int i = 0; i < b->terms.count; i++) {
+        const MVMonomial *mb = (const MVMonomial *)lv_darray_get(&b->terms, i);
+        if (!mb) continue;
         mpz_t neg_coeff;
         mpz_init(neg_coeff);
-        mpz_neg(neg_coeff, b->terms[i].coeff);
-        mv_poly_add_term(result, neg_coeff, b->terms[i].exponents);
+        mpz_neg(neg_coeff, mb->coeff);
+        mv_poly_add_term(result, neg_coeff, mb->exponents);
         mpz_clear(neg_coeff);
     }
     mv_poly_sort(result);
@@ -281,14 +303,15 @@ static void mv_poly_sub(MVPolynomial *result, const MVPolynomial *a, const MVPol
 static void mv_poly_copy(MVPolynomial *dst, const MVPolynomial *src) {
     mv_poly_clear(dst);
     mv_poly_init(dst, src->var_count);
-    for (int i = 0; i < src->term_count; i++) {
-        mv_poly_add_term(dst, src->terms[i].coeff, src->terms[i].exponents);
+    for (int i = 0; i < src->terms.count; i++) {
+        const MVMonomial *ms = (const MVMonomial *)lv_darray_get(&src->terms, i);
+        if (ms) mv_poly_add_term(dst, ms->coeff, ms->exponents);
     }
 }
 
 /* 检查多变量多项式是否为零 */
 static bool mv_poly_is_zero(const MVPolynomial *p) {
-    return p->term_count == 0;
+    return p->terms.count == 0;
 }
 
 /* ================================================================== */
@@ -354,7 +377,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
 
     int stalled_rounds = 0;
     const int max_stalled_rounds = 10;
-    long double prev_term_count = (long double) remainder->term_count;
+    long double prev_term_count = (long double) remainder->terms.count;
     int term_oscillation = 0;
 
     while (changed && safety < max_iterations) {
@@ -370,8 +393,10 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                 continue;
 
             bool reduced = false;
-            for (int j = 0; j < remainder->term_count && !reduced; j++) {
-                if (mv_monomial_divisible(&remainder->terms[j], lt_g, remainder->var_count)) {
+            for (int j = 0; j < remainder->terms.count && !reduced; j++) {
+                MVMonomial *rj = (MVMonomial *)lv_darray_get(&remainder->terms, j);
+                if (!rj) continue;
+                if (mv_monomial_divisible(rj, lt_g, remainder->var_count)) {
                     int *quo_exp = lv_calloc((size_t) remainder->var_count, sizeof(int));
                     if (!quo_exp) {
                         reduced = true;
@@ -379,28 +404,32 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                         break;
                     }
                     for (int v = 0; v < remainder->var_count; v++) {
-                        quo_exp[v] = remainder->terms[j].exponents[v] - lt_g->exponents[v];
+                        quo_exp[v] = rj->exponents[v] - lt_g->exponents[v];
                     }
 
                     MVPolynomial sub_term;
                     mv_poly_init(&sub_term, G[i]->var_count);
-                    mv_poly_mul_monomial(&sub_term, G[i], quo_exp, remainder->terms[j].coeff, remainder->var_count);
+                    mv_poly_mul_monomial(&sub_term, G[i], quo_exp, rj->coeff, remainder->var_count);
 
                     MVPolynomial new_remainder;
                     mv_poly_init(&new_remainder, remainder->var_count);
 
-                    for (int k = 0; k < remainder->term_count; k++) {
+                    for (int k = 0; k < remainder->terms.count; k++) {
+                        MVMonomial *rk = (MVMonomial *)lv_darray_get(&remainder->terms, k);
+                        if (!rk) continue;
                         mpz_t scaled;
                         mpz_init(scaled);
-                        mpz_mul(scaled, remainder->terms[k].coeff, lt_g->coeff);
-                        mv_poly_add_term(&new_remainder, scaled, remainder->terms[k].exponents);
+                        mpz_mul(scaled, rk->coeff, lt_g->coeff);
+                        mv_poly_add_term(&new_remainder, scaled, rk->exponents);
                         mpz_clear(scaled);
                     }
-                    for (int k = 0; k < sub_term.term_count; k++) {
+                    for (int k = 0; k < sub_term.terms.count; k++) {
+                        MVMonomial *sk = (MVMonomial *)lv_darray_get(&sub_term.terms, k);
+                        if (!sk) continue;
                         mpz_t neg;
                         mpz_init(neg);
-                        mpz_neg(neg, sub_term.terms[k].coeff);
-                        mv_poly_add_term(&new_remainder, neg, sub_term.terms[k].exponents);
+                        mpz_neg(neg, sk->coeff);
+                        mv_poly_add_term(&new_remainder, neg, sk->exponents);
                         mpz_clear(neg);
                     }
 
@@ -424,7 +453,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
         }
 
         if (changed) {
-            long double curr_term_count = (long double) remainder->term_count;
+            long double curr_term_count = (long double) remainder->terms.count;
             long double diff = curr_term_count - prev_term_count;
             if (fabsl(diff) < 1.0L && diff != 0.0L) {
                 term_oscillation++;
@@ -460,8 +489,9 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     int var_count = F[0]->var_count;
 
     for (int i = 0; i < f_count; i++) {
-        for (int j = 0; j < F[i]->term_count; j++) {
-            if (mv_monomial_total_degree(&F[i]->terms[j], var_count) > 4) {
+        for (int j = 0; j < F[i]->terms.count; j++) {
+            const MVMonomial *mfj = (const MVMonomial *)lv_darray_get(&F[i]->terms, j);
+            if (mfj && mv_monomial_total_degree(mfj, var_count) > 4) {
                 *out_G = NULL;
                 *out_g_count = 0;
                 return SOLVER_STATUS_OUT_OF_SCOPE;
@@ -521,7 +551,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     int prev_g_count = g_count;
     long double prev_total_terms = 0;
     for (int ti = 0; ti < g_count; ti++) {
-        prev_total_terms += (long double) G[ti]->term_count;
+        prev_total_terms += (long double) G[ti]->terms.count;
     }
 
     bool changed = true;
@@ -615,13 +645,15 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 
                 if (!mv_poly_is_zero(&remainder)) {
                     bool within_limit = true;
-                    for (int k = 0; k < remainder.term_count; k++) {
-                        int td = mv_monomial_total_degree(&remainder.terms[k], var_count);
+                    for (int k = 0; k < remainder.terms.count; k++) {
+                        MVMonomial *rmk = (MVMonomial *)lv_darray_get(&remainder.terms, k);
+                        if (!rmk) continue;
+                        int td = mv_monomial_total_degree(rmk, var_count);
                         if (td > 4) {
                             int max_single_var_deg = 0;
                             for (int v = 0; v < var_count; v++) {
-                                if (remainder.terms[k].exponents[v] > max_single_var_deg) {
-                                    max_single_var_deg = remainder.terms[k].exponents[v];
+                                if (rmk->exponents[v] > max_single_var_deg) {
+                                    max_single_var_deg = rmk->exponents[v];
                                 }
                             }
                             if (max_single_var_deg > 4) {
@@ -691,7 +723,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             gb_stalled_count = 0;
             long double curr_total_terms = 0;
             for (int ti = 0; ti < g_count; ti++) {
-                curr_total_terms += (long double) G[ti]->term_count;
+                curr_total_terms += (long double) G[ti]->terms.count;
             }
             long double term_diff = curr_total_terms - prev_total_terms;
             if (fabsl(term_diff) < 1.0L && term_diff != 0.0L && g_count == prev_g_count) {
@@ -796,21 +828,23 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 
 static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map, int **out_coord_map,
                                           int *out_var_count) {
-    int *vids = lv_calloc((size_t) sys->count * 2, sizeof(int));
+    int eq_count = sys->eqs.count;
+    int *vids = lv_calloc((size_t) eq_count * 2, sizeof(int));
     if (!vids)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for vids failed (count=%d)", sys->count);
-    int *cids = lv_calloc((size_t) sys->count * 2, sizeof(int));
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for vids failed (count=%d)", eq_count);
+    int *cids = lv_calloc((size_t) eq_count * 2, sizeof(int));
     if (!cids) {
         lv_free((void **) &vids);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for cids failed (count=%d)", sys->count);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for cids failed (count=%d)", eq_count);
     }
     int vcount = 0;
 
-    for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0)
+    for (int i = 0; i < eq_count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (!eq || eq->poly.degree < 0)
             continue;
-        int vid = sys->eqs[i].var_node_id;
-        int cid = sys->eqs[i].coord_index;
+        int vid = eq->var_node_id;
+        int cid = eq->coord_index;
         bool found = false;
         for (int j = 0; j < vcount; j++) {
             if (vids[j] == vid && cids[j] == cid) {
@@ -829,21 +863,22 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
     *out_coord_map = cids;
     *out_var_count = vcount;
 
-    MVPolynomial *polys = lv_calloc((size_t) sys->count, sizeof(MVPolynomial));
+    MVPolynomial *polys = lv_calloc((size_t) eq_count, sizeof(MVPolynomial));
     if (!polys) {
         lv_free((void **) &vids);
         lv_free((void **) &cids);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for polys failed (count=%d)", sys->count);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for polys failed (count=%d)", eq_count);
     }
-    for (int i = 0; i < sys->count; i++) {
+    for (int i = 0; i < eq_count; i++) {
         mv_poly_init(&polys[i], vcount);
 
-        if (sys->eqs[i].poly.degree < 0)
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (!eq || eq->poly.degree < 0)
             continue;
 
         int var_idx = -1;
         for (int j = 0; j < vcount; j++) {
-            if (vids[j] == sys->eqs[i].var_node_id && cids[j] == sys->eqs[i].coord_index) {
+            if (vids[j] == eq->var_node_id && cids[j] == eq->coord_index) {
                 var_idx = j;
                 break;
             }
@@ -851,14 +886,14 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
         if (var_idx < 0)
             continue;
 
-        mpz_poly_t *p = &sys->eqs[i].poly;
+        mpz_poly_t *p = &eq->poly;
         for (int d = 0; d <= p->degree; d++) {
             int *exponents = lv_calloc((size_t) vcount, sizeof(int));
             if (!exponents) {
                 for (int k = 0; k < i; k++) {
                     mv_poly_clear(&polys[k]);
                 }
-                for (int k = i; k < sys->count; k++) {
+                for (int k = i; k < eq_count; k++) {
                     memset(&polys[k], 0, sizeof(mpz_poly_t));
                 }
                 lv_free((void **) &polys);
@@ -880,12 +915,13 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
 /* ================================================================== */
 
 SolverStatus groebner_basis_compute(EquationSystem *system) {
-    if (!system || system->count == 0)
+    if (!system || system->eqs.count == 0)
         return SOLVER_STATUS_OK;
 
     /* Step 1: Check degree limit first (fast path) */
-    for (int i = 0; i < system->count; i++) {
-        if (system->eqs[i].poly.degree > 4) {
+    for (int i = 0; i < system->eqs.count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&system->eqs, i);
+        if (eq && eq->poly.degree > 4) {
             return SOLVER_STATUS_OUT_OF_SCOPE;
         }
     }
@@ -904,14 +940,14 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
 
     /* Step 3: Filter out zero polynomials and collect non-trivial ones */
     int active_count = 0;
-    for (int i = 0; i < system->count; i++) {
+    for (int i = 0; i < system->eqs.count; i++) {
         if (!mv_poly_is_zero(&mv_polys[i])) {
             active_count++;
         }
     }
 
     if (active_count == 0) {
-        for (int i = 0; i < system->count; i++) {
+        for (int i = 0; i < system->eqs.count; i++) {
             mv_poly_clear(&mv_polys[i]);
         }
         lv_free((void **) &mv_polys);
@@ -922,7 +958,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
 
     MVPolynomial **active = lv_calloc((size_t) active_count, sizeof(MVPolynomial *));
     if (!active) {
-        for (int i = 0; i < system->count; i++)
+        for (int i = 0; i < system->eqs.count; i++)
             mv_poly_clear(&mv_polys[i]);
         lv_free((void **) &mv_polys);
         lv_free((void **) &var_id_map);
@@ -930,7 +966,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         return SOLVER_STATUS_TIMEOUT;
     }
     int idx = 0;
-    for (int i = 0; i < system->count; i++) {
+    for (int i = 0; i < system->eqs.count; i++) {
         if (!mv_poly_is_zero(&mv_polys[i])) {
             active[idx++] = &mv_polys[i];
         }
@@ -957,7 +993,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
                          (status == SOLVER_STATUS_OK)             ? "ok"
                          : (status == SOLVER_STATUS_OUT_OF_SCOPE) ? "out_of_scope"
                                                                   : "timeout",
-                         system->count, active_count, g_count, var_count);
+                         system->eqs.count, active_count, g_count, var_count);
         lv_UNUSED(_snw_gc);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -966,7 +1002,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     lv_free((void **) &active);
 
     if (status == SOLVER_STATUS_OUT_OF_SCOPE) {
-        for (int i = 0; i < system->count; i++) {
+        for (int i = 0; i < system->eqs.count; i++) {
             mv_poly_clear(&mv_polys[i]);
         }
         lv_free((void **) &mv_polys);
@@ -975,7 +1011,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 
-    int original_eq_count = system->count;
+    int original_eq_count = system->eqs.count;
 
     equation_system_clear(system);
     equation_system_init(system);
@@ -990,9 +1026,10 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
 
             for (int v = 0; v < var_count; v++) {
                 int max_deg_v = 0;
-                for (int t = 0; t < G[i]->term_count; t++) {
-                    if (G[i]->terms[t].exponents[v] > max_deg_v) {
-                        max_deg_v = G[i]->terms[t].exponents[v];
+                for (int t = 0; t < G[i]->terms.count; t++) {
+                    const MVMonomial *mt = (const MVMonomial *)lv_darray_get(&G[i]->terms, t);
+                    if (mt && mt->exponents[v] > max_deg_v) {
+                        max_deg_v = mt->exponents[v];
                     }
                 }
                 if (max_deg_v > best_degree) {
@@ -1016,10 +1053,12 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
                 mpz_init_set_si(poly.coeffs[d], 0);
             }
 
-            for (int t = 0; t < G[i]->term_count; t++) {
-                int power = G[i]->terms[t].exponents[best_var];
+            for (int t = 0; t < G[i]->terms.count; t++) {
+                const MVMonomial *mt = (const MVMonomial *)lv_darray_get(&G[i]->terms, t);
+                if (!mt) continue;
+                int power = mt->exponents[best_var];
                 if (power <= best_degree) {
-                    mpz_add(poly.coeffs[power], poly.coeffs[power], G[i]->terms[t].coeff);
+                    mpz_add(poly.coeffs[power], poly.coeffs[power], mt->coeff);
                 }
             }
 

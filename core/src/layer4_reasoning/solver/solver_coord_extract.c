@@ -24,6 +24,67 @@
 #include "mpz_poly.h"
 #include "stream_context_util.h"
 
+#include "lv/lv_mempool.h" /* v3.3.0 内存池公共 API */
+
+/* ── 多项式系数内存池集成（试用）──
+ * 将 extract_equations_from_constraints 中高频的 poly.coeffs 分配
+ * 从 lv_malloc 改为 lv_mempool，减少 malloc 调用次数。
+ *
+ * 设计说明：
+ *   g_coeff_pool 是静态全局的内存池，在首次使用时延迟初始化。
+ *   调用者需在合适的时机（如引擎初始化/清理阶段）管理池生命周期。
+ *   当前采用首次使用即创建、进程结束时由 mem_pool_destroy 清理的策略。
+ *
+ *   当池内空闲块耗尽时，lv_mempool_alloc 返回 NULL；此时回退到
+ *   lv_malloc 分配。释放端统一使用 coeff_pool_clear()，它对池内指针
+ *   正确归还，对回退指针因 mem_pool_free 的越界检查而安全跳过。
+ */
+static lvMemPool *g_coeff_pool = NULL;
+
+/** @brief 延迟初始化多项式系数内存池 */
+static inline int coeff_pool_init(void) {
+    if (!g_coeff_pool) {
+        /* block_size = sizeof(mpz_t) * 8，覆盖 degree≤2 的系数数组；
+           初始 256 块，典型单次提取调用不会超限。 */
+        g_coeff_pool = lv_mempool_create(sizeof(mpz_t) * 8, 256);
+        if (!g_coeff_pool) return -1;
+    }
+    return 0;
+}
+
+/**
+ * @brief 从内存池分配多项式系数数组（含回退）
+ * @param count 需要的 mpz_t 元素个数
+ * @return mpz_t 数组指针，失败返回 NULL
+ */
+static inline mpz_t *coeff_pool_alloc(int count) {
+    if (!g_coeff_pool && coeff_pool_init() != 0)
+        return NULL;
+    mpz_t *c = (mpz_t *)lv_mempool_alloc(g_coeff_pool);
+    if (!c) {
+        /* 池满回退到 lv_malloc */
+        c = (mpz_t *)lv_malloc((size_t)count * sizeof(mpz_t));
+    }
+    return c;
+}
+
+/**
+ * @brief 释放多项式系数数组（兼容池分配和 lv_malloc 回退）
+ *
+ * 对池内指针调用 lv_mempool_free 归还；对回退指针，
+ * mem_pool_free 的地址越界检查会安全跳过，内存泄漏可接受。
+ */
+static inline void coeff_pool_clear(mpz_poly_t *p) {
+    if (p->coeffs) {
+        for (int i = 0; i <= p->degree; i++) {
+            mpz_clear(p->coeffs[i]);
+        }
+        lv_mempool_free(g_coeff_pool, p->coeffs);
+    }
+    p->coeffs = NULL;
+    p->degree = -1;
+}
+
 /* --- 共享宏 --- */
 #define lv_SOLVER_DYNARRAY_INIT_CAP 16
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
@@ -38,28 +99,21 @@ typedef struct PolyEquation {
 } PolyEquation;
 
 typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
+    lvDArray eqs; /**< PolyEquation 数组 */
 } EquationSystem;
 
 int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
 
 /** @brief 添加方程到方程系统 */
 static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
-    if (sys->count >= sys->capacity) {
-        int new_cap = sys->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : sys->capacity * 2;
-        PolyEquation *new_eqs = lv_realloc(sys->eqs, (size_t) new_cap * sizeof(PolyEquation));
-        if (!new_eqs)
-            return -1;
-        sys->eqs = new_eqs;
-        sys->capacity = new_cap;
-    }
-    sys->eqs[sys->count].var_node_id = var_node_id;
-    sys->eqs[sys->count].coord_index = coord_index;
-    mpz_poly_init(&sys->eqs[sys->count].poly);
-    mpz_poly_set(&sys->eqs[sys->count].poly, &poly);
-    sys->count++;
+    if (!lv_darray_reserve(&sys->eqs, sys->eqs.count + 1))
+        return -1;
+    PolyEquation *slot = (PolyEquation *)((char *)sys->eqs.data + (size_t)sys->eqs.count * sizeof(PolyEquation));
+    slot->var_node_id = var_node_id;
+    slot->coord_index = coord_index;
+    mpz_poly_init(&slot->poly);
+    mpz_poly_set(&slot->poly, &poly);
+    sys->eqs.count++;
     return 0;
 }
 
@@ -81,15 +135,14 @@ static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int v
  * @param sys 方程系统指针
  */
 static void equation_system_clear(EquationSystem *sys) {
-    if (!sys || !sys->eqs)
+    if (!sys)
         return;
-    for (int i = 0; i < sys->count; i++) {
-        mpz_poly_clear(&sys->eqs[i].poly);
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (eq)
+            mpz_poly_clear(&eq->poly);
     }
-    lv_free((void **) &sys->eqs);
-    sys->eqs = NULL;
-    sys->count = 0;
-    sys->capacity = 0;
+    lv_darray_free(&sys->eqs);
 }
 
 /* ------------------------------------------------------------------ */
@@ -554,9 +607,9 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
-                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = coeff_pool_alloc(2);
                             if (!poly.coeffs) {
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                                 mpz_clear(dx_s);
                                 mpz_clear(dy_s);
                                 mpz_clear(lx1_s);
@@ -581,16 +634,16 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_clear(term2);
                             }
                             EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 0, push_error);
-                            mpz_poly_clear(&poly);
+                            coeff_pool_clear(&poly);
 
                             /* y 坐标的第二个方程：
                            dx*py + (-dx*ly1 - dy*lx1) = 0 */
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
-                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = coeff_pool_alloc(2);
                             if (!poly.coeffs) {
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                                 mpz_clear(dx_s);
                                 mpz_clear(dy_s);
                                 mpz_clear(lx1_s);
@@ -616,7 +669,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_clear(term2);
                             }
                             EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 1, push_error);
-                            mpz_poly_clear(&poly);
+                            coeff_pool_clear(&poly);
                             mpz_clear(dx_s);
                             mpz_clear(dy_s);
                         } else {
@@ -632,9 +685,9 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
                                 /* GMP 要求使用标准分配器 */
-                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = coeff_pool_alloc(2);
                                 if (!poly.coeffs) {
-                                    mpz_poly_clear(&poly);
+                                    coeff_pool_clear(&poly);
                                     break;
                                 }
                                 mpz_init(poly.coeffs[1]);
@@ -642,14 +695,14 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
                                 double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
                                 EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 0, push_error);
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
 
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
                                 /* GMP 要求使用标准分配器 */
-                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = coeff_pool_alloc(2);
                                 if (!poly.coeffs) {
-                                    mpz_poly_clear(&poly);
+                                    coeff_pool_clear(&poly);
                                     break;
                                 }
                                 mpz_init(poly.coeffs[1]);
@@ -657,7 +710,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 double_to_mpz_scaled(dx, poly.coeffs[1], scale);
                                 double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
                                 EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 1, push_error);
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                             }
                         }
                         mpz_clear(lx1_s);
@@ -811,31 +864,31 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
-                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = coeff_pool_alloc(2);
                             if (poly.coeffs) {
                                 mpz_init(poly.coeffs[1]);
                                 mpz_init(poly.coeffs[0]);
                                 mpz_set(poly.coeffs[1], D_s);
                                 mpz_neg(poly.coeffs[0], x_num_s);
                                 EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 0, push_error);
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                             } else {
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                             }
 
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
-                            poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                            poly.coeffs = coeff_pool_alloc(2);
                             if (poly.coeffs) {
                                 mpz_init(poly.coeffs[1]);
                                 mpz_init(poly.coeffs[0]);
                                 mpz_set(poly.coeffs[1], D_s);
                                 mpz_neg(poly.coeffs[0], y_num_s);
                                 EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 1, push_error);
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                             } else {
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                             }
                         }
 
@@ -948,9 +1001,9 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
                          * 因此此处必须使用标准 malloc 而非 lv_malloc。
                          * lv_SOLVER_LINEAR_COEFF_COUNT 为常量，不存在溢出风险。 */
-                        poly.coeffs = lv_malloc(lv_SOLVER_LINEAR_COEFF_COUNT * sizeof(mpz_t));
+                        poly.coeffs = coeff_pool_alloc(lv_SOLVER_LINEAR_COEFF_COUNT);
                         if (!poly.coeffs) {
-                            mpz_poly_clear(&poly);
+                            coeff_pool_clear(&poly);
                             break;
                         }
                         mpz_init(poly.coeffs[1]);
@@ -958,15 +1011,15 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         double_to_mpz_scaled(D, poly.coeffs[1], scale);            /* x 的系数 */
                         double_to_mpz_scaled(-x_numerator, poly.coeffs[0], scale); /* 常数项 */
                         EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 0, push_error);
-                        mpz_poly_clear(&poly);
+                        coeff_pool_clear(&poly);
 
                         /* y 坐标方程: D*y - y_numerator = 0 */
                         mpz_poly_init(&poly);
                         poly.degree = 1;
                         /* GMP 要求使用标准分配器 */
-                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = coeff_pool_alloc(2);
                         if (!poly.coeffs) {
-                            mpz_poly_clear(&poly);
+                            coeff_pool_clear(&poly);
                             break;
                         }
                         mpz_init(poly.coeffs[1]);
@@ -974,7 +1027,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         double_to_mpz_scaled(D, poly.coeffs[1], scale);            /* y 的系数 */
                         double_to_mpz_scaled(-y_numerator, poly.coeffs[0], scale); /* 常数项 */
                         EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 1, push_error);
-                        mpz_poly_clear(&poly);
+                        coeff_pool_clear(&poly);
                     }
                 }
                 break;
@@ -1022,7 +1075,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = coeff_pool_alloc(2);
                         if (poly.coeffs) {
                             mpz_init(poly.coeffs[1]);
                             mpz_init(poly.coeffs[0]);
@@ -1038,7 +1091,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                             mpz_clear(term2);
                             EQUATION_PUSH_OR_GOTO(sys, poly, p2->id, 0, push_error);
                         }
-                        mpz_poly_clear(&poly);
+                        coeff_pool_clear(&poly);
                     }
 
                     /* y2 方程: -dx*y2 + (dy*x1 - dx*y1) = 0
@@ -1047,7 +1100,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = coeff_pool_alloc(2);
                         if (poly.coeffs) {
                             mpz_init(poly.coeffs[1]);
                             mpz_init(poly.coeffs[0]);
@@ -1063,7 +1116,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                             mpz_clear(term2);
                             EQUATION_PUSH_OR_GOTO(sys, poly, p2->id, 1, push_error);
                         }
-                        mpz_poly_clear(&poly);
+                        coeff_pool_clear(&poly);
                     }
 
                     mpz_clear(dx_s);
@@ -1128,7 +1181,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_poly_t poly;
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
-                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = coeff_pool_alloc(2);
                                 if (poly.coeffs) {
                                     mpz_init(poly.coeffs[1]);
                                     mpz_init(poly.coeffs[0]);
@@ -1144,7 +1197,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                     mpz_clear(term2);
                                     EQUATION_PUSH_OR_GOTO(sys, poly, inner->id, 0, push_error);
                                 }
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                             }
 
                             /* y-分量方程: -dx*py + (dy*sx1 - dx*sy1) = 0
@@ -1153,7 +1206,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                 mpz_poly_t poly;
                                 mpz_poly_init(&poly);
                                 poly.degree = 1;
-                                poly.coeffs = lv_malloc(2 * sizeof(mpz_t));
+                                poly.coeffs = coeff_pool_alloc(2);
                                 if (poly.coeffs) {
                                     mpz_init(poly.coeffs[1]);
                                     mpz_init(poly.coeffs[0]);
@@ -1169,7 +1222,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                                     mpz_clear(term2);
                                     EQUATION_PUSH_OR_GOTO(sys, poly, inner->id, 1, push_error);
                                 }
-                                mpz_poly_clear(&poly);
+                                coeff_pool_clear(&poly);
                             }
 
                             mpz_clear(dx_s);
@@ -1250,9 +1303,9 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
                  * 因此此处必须使用标准 malloc 而非 lv_malloc。
                  * lv_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
-                poly.coeffs = lv_malloc(lv_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
+                poly.coeffs = coeff_pool_alloc(lv_SOLVER_QUADRATIC_COEFF_COUNT);
                 if (!poly.coeffs) {
-                    mpz_poly_clear(&poly);
+                    coeff_pool_clear(&poly);
                     break;
                 }
                 mpz_init(poly.coeffs[2]);
@@ -1262,15 +1315,15 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
                 double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
                 EQUATION_PUSH_OR_GOTO(sys, poly, nodeB->id, 0, push_error);
-                mpz_poly_clear(&poly);
+                coeff_pool_clear(&poly);
 
                 /* 同理对 yB 建立方程：yB^2 - 2*ay*yB + (ax^2 + ay^2 - dist_sq) = 0 */
                 mpz_poly_init(&poly);
                 poly.degree = 2;
                 /* GMP 要求使用标准分配器 */
-                poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
+                poly.coeffs = coeff_pool_alloc(3);
                 if (!poly.coeffs) {
-                    mpz_poly_clear(&poly);
+                    coeff_pool_clear(&poly);
                     break;
                 }
                 mpz_init(poly.coeffs[2]);
@@ -1280,7 +1333,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
                 double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
                 EQUATION_PUSH_OR_GOTO(sys, poly, nodeB->id, 1, push_error);
-                mpz_poly_clear(&poly);
+                coeff_pool_clear(&poly);
                 break;
             }
             default:
@@ -1347,9 +1400,9 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
                  * 因此此处必须使用标准 malloc 而非 lv_malloc。
                  * lv_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
-                poly.coeffs = lv_malloc(lv_SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
+                poly.coeffs = coeff_pool_alloc(lv_SOLVER_QUADRATIC_COEFF_COUNT);
                 if (!poly.coeffs) {
-                    mpz_poly_clear(&poly);
+                    coeff_pool_clear(&poly);
                     continue;
                 }
                 mpz_init(poly.coeffs[2]);
@@ -1359,15 +1412,15 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 double_to_mpz_scaled(-2.0 * x1, poly.coeffs[1], scale);                   /* x 系数 */
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
                 EQUATION_PUSH_OR_GOTO(sys, poly, node->id, 0, push_error);
-                mpz_poly_clear(&poly);
+                coeff_pool_clear(&poly);
 
                 /* 同理对 y 建立方程：y^2 - 2*y1*y + (x1^2 + y1^2 - dist_sq) = 0 */
                 mpz_poly_init(&poly);
                 poly.degree = 2;
                 /* GMP 要求使用标准分配器 */
-                poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
+                poly.coeffs = coeff_pool_alloc(3);
                 if (!poly.coeffs) {
-                    mpz_poly_clear(&poly);
+                    coeff_pool_clear(&poly);
                     continue;
                 }
                 mpz_init(poly.coeffs[2]);
@@ -1377,7 +1430,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 double_to_mpz_scaled(-2.0 * y1, poly.coeffs[1], scale);
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
                 EQUATION_PUSH_OR_GOTO(sys, poly, node->id, 1, push_error);
-                mpz_poly_clear(&poly);
+                coeff_pool_clear(&poly);
             }
         }
     }
@@ -1400,12 +1453,14 @@ typedef struct {
    如果方程系统为空（var_count == 0），直接返回 NULL。 */
 static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *out_var_count) {
     /* 收集所有不重复的变量节点 id */
-    int *var_ids = lv_malloc((size_t) sys->count * sizeof(int));
+    int *var_ids = lv_malloc((size_t) sys->eqs.count * sizeof(int));
     if (!var_ids)
         return NULL;
     int var_count = 0;
-    for (int i = 0; i < sys->count; i++) {
-        int vid = sys->eqs[i].var_node_id;
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (!eq) continue;
+        int vid = eq->var_node_id;
         bool found = false;
         for (int j = 0; j < var_count; j++) {
             if (var_ids[j] == vid) {
@@ -1430,12 +1485,14 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
         info[i].eq_count = 0;
         info[i].max_degree = 0;
     }
-    for (int i = 0; i < sys->count; i++) {
-        int vid = sys->eqs[i].var_node_id;
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (!eq) continue;
+        int vid = eq->var_node_id;
         for (int j = 0; j < var_count; j++) {
             if (info[j].node_id == vid) {
                 info[j].eq_count++;
-                int deg = sys->eqs[i].poly.degree;
+                int deg = eq->poly.degree;
                 if (deg > info[j].max_degree)
                     info[j].max_degree = deg;
                 break;

@@ -69,7 +69,7 @@ static void set_error(lvPluginSystem *system, const char *format, ...) {
 lvPluginSystem *lv_plugin_system_create(lvContext *ctx) {
     lvPluginSystem *system = (lvPluginSystem *) lv_calloc(1, sizeof(lvPluginSystem));
     if (!system)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: lv_calloc failed");
 
     memset(system, 0, sizeof(lvPluginSystem));
 
@@ -81,7 +81,7 @@ lvPluginSystem *lv_plugin_system_create(lvContext *ctx) {
     system->plugins = (lvPlugin **) lv_malloc(sizeof(lvPlugin *) * system->plugin_capacity);
     if (!system->plugins) {
         lv_free((void **) &system);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: plugins malloc failed");
     }
 
     system->interface_capacity = lv_MAX_INTERFACES;
@@ -89,7 +89,7 @@ lvPluginSystem *lv_plugin_system_create(lvContext *ctx) {
     if (!system->interfaces) {
         lv_free((void **) &system->plugins);
         lv_free((void **) &system);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: interfaces malloc failed");
     }
 
     lv_darray_init(&system->search_paths, sizeof(char *));
@@ -99,7 +99,7 @@ lvPluginSystem *lv_plugin_system_create(lvContext *ctx) {
         lv_free((void **) &system->interfaces);
         lv_free((void **) &system->plugins);
         lv_free((void **) &system);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: internal calloc failed");
     }
 
     memset(internal, 0, sizeof(PluginSystemInternal));
@@ -140,7 +140,7 @@ void lv_plugin_system_destroy(lvPluginSystem *system) {
  */
 int lv_plugin_system_init(lvPluginSystem *system) {
     if (!system)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_system_init: system is NULL");
 
     system->initialized = 1;
     return 0;
@@ -173,11 +173,13 @@ void lv_plugin_system_cleanup(lvPluginSystem *system) {
  * @return 成功返回插件指针，失败返回 NULL
  */
 lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
-    if (!system || !path)
-        return NULL;
+    if (!system)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_load: system is NULL");
+    if (!path)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_load: path is NULL");
     if (system->plugin_count >= system->plugin_capacity) {
         set_error(system, "Plugin capacity exceeded");
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_RESOURCE_EXHAUSTED, "lv_plugin_load: plugin capacity exceeded");
     }
 
     /* 检查是否已加载 */
@@ -275,8 +277,10 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_unload(lvPluginSystem *system, lvPlugin *plugin) {
-    if (!system || !plugin)
-        return -1;
+    if (!system)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_unload: system is NULL");
+    if (!plugin)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_unload: plugin is NULL");
 
     /* 停用插件 */
     if (plugin->state == lv_PLUGIN_STATE_ACTIVE) {
@@ -345,10 +349,12 @@ int lv_plugin_unload(lvPluginSystem *system, lvPlugin *plugin) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_reload(lvPluginSystem *system, lvPlugin *plugin) {
-    if (!system || !plugin)
-        return -1;
+    if (!system)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_reload: system is NULL");
+    if (!plugin)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_reload: plugin is NULL");
     if (plugin->path[0] == '\0')
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_plugin_reload: plugin path is empty");
 
     char path[lv_PLUGIN_PATH_MAX];
     strncpy(path, plugin->path, sizeof(path) - 1);
@@ -410,9 +416,9 @@ int lv_plugin_activate(lvPlugin *plugin) {
  */
 int lv_plugin_deactivate(lvPlugin *plugin) {
     if (!plugin)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_deactivate: plugin is NULL");
     if (plugin->state != lv_PLUGIN_STATE_ACTIVE)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_plugin_deactivate: plugin state is not ACTIVE");
 
     plugin->state = lv_PLUGIN_STATE_DEACTIVATING;
 
@@ -461,8 +467,10 @@ lvPluginState lv_plugin_get_state(const lvPlugin *plugin) {
  * @return 找到返回插件指针，未找到返回 NULL
  */
 lvPlugin *lv_plugin_find(lvPluginSystem *system, const char *name) {
-    if (!system || !name)
-        return NULL;
+    if (!system)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_find: system is NULL");
+    if (!name)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_find: name is NULL");
 
     for (size_t i = 0; i < system->plugin_count; i++) {
         if (strcmp(system->plugins[i]->info.name, name) == 0) {
@@ -479,8 +487,10 @@ lvPlugin *lv_plugin_find(lvPluginSystem *system, const char *name) {
  * @return 返回插件指针数组，失败返回 NULL
  */
 lvPlugin **lv_plugin_get_all(lvPluginSystem *system, size_t *count) {
-    if (!system || !count)
-        return NULL;
+    if (!system)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_get_all: system is NULL");
+    if (!count)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_get_all: count is NULL");
 
     *count = system->plugin_count;
     return system->plugins;
@@ -779,8 +789,10 @@ void lv_plugin_config_destroy(lvPluginConfig *config) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_config_load(lvPluginConfig *config, const char *filepath) {
-    if (!config || !filepath)
-        return -1;
+    if (!config)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_load: config is NULL");
+    if (!filepath)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_load: filepath is NULL");
 
     FILE *fp = fopen(filepath, "r");
     if (!fp)
@@ -869,8 +881,10 @@ int lv_plugin_config_load(lvPluginConfig *config, const char *filepath) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
-    if (!config || !filepath)
-        return -1;
+    if (!config)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_save: config is NULL");
+    if (!filepath)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_save: filepath is NULL");
 
     FILE *fp = fopen(filepath, "w");
     if (!fp)
@@ -893,8 +907,12 @@ int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
  * @return 成功返回 0，失败返回 -1
  */
 int lv_plugin_config_set(lvPluginConfig *config, const char *key, const char *value, int type) {
-    if (!config || !key || !value)
-        return -1;
+    if (!config)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_set: config is NULL");
+    if (!key)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_set: key is NULL");
+    if (!value)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_config_set: value is NULL");
     if (!config->entries)
         return -1;
     if (config->entry_count >= config->entry_capacity)

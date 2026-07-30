@@ -68,9 +68,9 @@ static bool tuple_equals(int arity, const int *a, const int *b) {
  * @return 变量 ID（>= 1），未找到返回 -1
  */
 static int find_var_entry(const SatEncoding *enc, int arity, const int *atom_ids) {
-    for (int i = 0; i < enc->var_count; i++) {
-        const SatVarEntry *entry = &enc->var_map[i];
-        if (entry->arity == arity && tuple_equals(arity, entry->atom_ids, atom_ids)) {
+    for (int i = 0; i < enc->var_map.count; i++) {
+        const SatVarEntry *entry = (const SatVarEntry *)lv_darray_get(&enc->var_map, i);
+        if (entry && entry->arity == arity && tuple_equals(arity, entry->atom_ids, atom_ids)) {
             return entry->var_id;
         }
     }
@@ -107,19 +107,7 @@ static bool ensure_clause_capacity(SatEncoding *enc) {
  * @brief 确保变量映射表有足够容量
  */
 static bool ensure_var_capacity(SatEncoding *enc) {
-    if (enc->var_count >= enc->var_capacity) {
-        int new_cap = (enc->var_capacity == 0) ? VAR_MAP_INITIAL_CAP : enc->var_capacity * lv_ARRAY_GROWTH_FACTOR;
-        /* 整数溢出检查 */
-        if (new_cap <= 0 || new_cap < enc->var_capacity) {
-            return false;
-        }
-        SatVarEntry *new_map = (SatVarEntry *) lv_realloc(enc->var_map, (size_t) new_cap * sizeof(SatVarEntry));
-        if (!new_map)
-            return false;
-        enc->var_map = new_map;
-        enc->var_capacity = new_cap;
-    }
-    return true;
+    return lv_darray_reserve(&enc->var_map, enc->var_map.count + 1);
 }
 
 /* ========================================================================
@@ -135,13 +123,11 @@ SatEncoding *sat_encoding_create(int initial_var_capacity, int initial_clause_ca
     SatEncoding *enc = (SatEncoding *) lv_calloc(1, sizeof(SatEncoding));
     lv_CHECK_ALLOC(enc, NULL);
 
-    enc->var_map = (SatVarEntry *) lv_malloc((size_t) initial_var_capacity * sizeof(SatVarEntry));
-    if (!enc->var_map) {
+    lv_darray_init(&enc->var_map, sizeof(SatVarEntry));
+    if (!lv_darray_reserve(&enc->var_map, initial_var_capacity)) {
         lv_free((void **) &enc);
         return NULL;
     }
-    enc->var_capacity = initial_var_capacity;
-    enc->var_count = 0;
     enc->next_var_id = 1;
 
     enc->clauses = (int **) lv_malloc((size_t) initial_clause_capacity * sizeof(int *));
@@ -171,7 +157,7 @@ void sat_encoding_destroy(SatEncoding *enc) {
     if (!enc)
         return;
 
-    lv_free((void **) &enc->var_map);
+    lv_darray_free(&enc->var_map);
     for (int i = 0; i < enc->clause_count; i++) {
         lv_free((void **) &enc->clauses[i]);
     }
@@ -197,18 +183,17 @@ int sat_encoding_register_var(SatEncoding *enc, int arity, const int *atom_ids) 
     if (existing >= 1)
         return existing;
 
-    /* 创建新映射 */
-    if (!ensure_var_capacity(enc))
+    /* 创建新映射，使用 lvDArray 就地构造 */
+    if (!lv_darray_reserve(&enc->var_map, enc->var_map.count + 1))
         return -1;
-
-    SatVarEntry *entry = &enc->var_map[enc->var_count];
+    SatVarEntry *entry = (SatVarEntry *)((char *)enc->var_map.data + (size_t)enc->var_map.count * sizeof(SatVarEntry));
     entry->var_id = enc->next_var_id++;
     entry->arity = arity;
     memset(entry->atom_ids, 0, sizeof(entry->atom_ids));
     for (int i = 0; i < arity; i++) {
         entry->atom_ids[i] = atom_ids[i];
     }
-    enc->var_count++;
+    enc->var_map.count++;
     enc->total_vars++;
 
     return entry->var_id;
@@ -1095,8 +1080,10 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
             for (int vi = 0; vi < model->true_count; vi++) {
                 int var_id = model->true_vars[vi];
                 /* 在 var_map 中查找该变量对应的元组 */
-                for (int ei = 0; ei < enc->var_count; ei++) {
-                    if (enc->var_map[ei].var_id == var_id) {
+                for (int ei = 0; ei < enc->var_map.count; ei++) {
+                        SatVarEntry *ve = (SatVarEntry *)lv_darray_get(&enc->var_map, ei);
+                        if (!ve || ve->var_id != var_id)
+                            continue;
                         if (true_atom_count >= true_atom_cap) {
                             int new_cap = true_atom_cap * lv_ARRAY_GROWTH_FACTOR;
                             int **new_ids = (int **) lv_realloc(true_atom_ids, (size_t) new_cap * sizeof(int *));
@@ -1109,18 +1096,17 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                             true_atom_arities = new_ar;
                             true_atom_cap = new_cap;
                         }
-                        int *ids_copy = (int *) lv_malloc((size_t) enc->var_map[ei].arity * sizeof(int));
+                        int *ids_copy = (int *) lv_malloc((size_t) ve->arity * sizeof(int));
                         if (ids_copy) {
-                            for (int k = 0; k < enc->var_map[ei].arity; k++) {
-                                ids_copy[k] = enc->var_map[ei].atom_ids[k];
+                            for (int k = 0; k < ve->arity; k++) {
+                                ids_copy[k] = ve->atom_ids[k];
                             }
                             true_atom_ids[true_atom_count] = ids_copy;
-                            true_atom_arities[true_atom_count] = enc->var_map[ei].arity;
+                            true_atom_arities[true_atom_count] = ve->arity;
                             true_atom_count++;
                         }
                         break;
                     }
-                }
             }
 
             /* 为关系模型中的每个关系创建绑定 */

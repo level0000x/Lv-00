@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：模态逻辑扩展 (modal_operators)
  * 功能概述：为 Lv-00 几何证明系统引入基本模态逻辑。提供必然算子（□）
  *          和可能算子（◇），基于 Kripke 语义的几何约束可达关系框架。
@@ -35,6 +35,7 @@
 
 #include "proof.h"
 #include "three_valued_logic.h"
+#include "lv/lv_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -92,9 +93,7 @@ struct lvModalWorld {
     int id;                         /**< 世界ID */
     char *world_name;               /**< 世界名称（如 "原始配置", "经平移后的配置"） */
     ConstraintGraph *configuration; /**< 该世界的几何构造图（所有权） */
-    Proposition **true_props;       /**< 在该世界中成立的命题数组 */
-    int true_prop_count;            /**< 成立命题数量 */
-    int true_prop_capacity;         /**< 命题数组容量 */
+    lvDArray true_props;            /**< 在该世界中成立的命题数组（lvDArray of Proposition*） */
 };
 
 /* ============== 模态框架 ============== */
@@ -106,9 +105,7 @@ struct lvModalWorld {
  * R: 世界间的可达关系
  */
 struct lvModalFrame {
-    lvModalWorld **worlds; /**< 世界数组 */
-    int world_count;       /**< 世界数量 */
-    int world_capacity;    /**< 世界数组容量 */
+    lvDArray worlds; /**< 世界数组（lvDArray of lvModalWorld*） */
     int current_world_id;  /**< 当前世界ID（1-based） */
 
     /* 可达关系：reachability[w_from][w_to] */

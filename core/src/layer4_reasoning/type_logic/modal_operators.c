@@ -29,11 +29,11 @@
  * @return 索引 (0-based)，未找到返回 -1
  */
 static int modal_find_world_index(const lvModalFrame *frame, int world_id) {
-    int i;
     if (!frame)
         return -1;
-    for (i = 0; i < frame->world_count; i++) {
-        if (frame->worlds[i] && frame->worlds[i]->id == world_id) {
+    for (int i = 0; i < frame->worlds.count; i++) {
+        lvModalWorld **wp = (lvModalWorld **)lv_darray_get(&frame->worlds, i);
+        if (wp && *wp && (*wp)->id == world_id) {
             return i;
         }
     }
@@ -108,12 +108,10 @@ static int modal_ensure_reach_matrix(lvModalFrame *frame, int needed_dim) {
  */
 static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvModalFormula *formula, int world_id,
                                             int *out_witness_id) {
-    int from_idx, i;
-
     if (!frame || !formula)
         return lv_UNKNOWN;
 
-    from_idx = modal_find_world_index(frame, world_id);
+    int from_idx = modal_find_world_index(frame, world_id);
     if (from_idx < 0)
         return lv_UNKNOWN;
 
@@ -124,22 +122,21 @@ static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvM
     if (formula->op == lv_MODALOP_NECESSARY) {
         /* □P: 在所有可达世界中 P 为真 */
         lvTruthValue result = lv_TRUE;
-        for (i = 0; i < frame->world_count; i++) {
-            int to_id;
-            lvTruthValue w_truth;
-
-            if (!frame->worlds[i])
+        for (int i = 0; i < frame->worlds.count; i++) {
+            lvModalWorld **wp = (lvModalWorld **)lv_darray_get(&frame->worlds, i);
+            if (!wp || !*wp)
                 continue;
-            to_id = frame->worlds[i]->id;
+            int to_id = (*wp)->id;
             if (from_idx < frame->reach_dimension && i < frame->reach_dimension) {
                 if (frame->reach_matrix[from_idx][i] == 0 && from_idx != i)
                     continue;
             }
 
+            lvTruthValue w_truth;
             if (formula->sub) {
                 w_truth = modal_evaluate_internal(frame, formula->sub, to_id, NULL);
-            } else if (formula->inner_prop && frame->worlds[i]) {
-                w_truth = lv_modal_world_holds(frame->worlds[i], formula->inner_prop);
+            } else if (formula->inner_prop) {
+                w_truth = lv_modal_world_holds(*wp, formula->inner_prop);
             } else {
                 w_truth = lv_UNKNOWN;
             }
@@ -156,22 +153,21 @@ static lvTruthValue modal_evaluate_internal(const lvModalFrame *frame, const lvM
     } else {
         /* ◇P: 在某个可达世界中 P 为真 */
         lvTruthValue result = lv_FALSE;
-        for (i = 0; i < frame->world_count; i++) {
-            int to_id;
-            lvTruthValue w_truth;
-
-            if (!frame->worlds[i])
+        for (int i = 0; i < frame->worlds.count; i++) {
+            lvModalWorld **wp = (lvModalWorld **)lv_darray_get(&frame->worlds, i);
+            if (!wp || !*wp)
                 continue;
-            to_id = frame->worlds[i]->id;
+            int to_id = (*wp)->id;
             if (from_idx < frame->reach_dimension && i < frame->reach_dimension) {
                 if (frame->reach_matrix[from_idx][i] == 0 && from_idx != i)
                     continue;
             }
 
+            lvTruthValue w_truth;
             if (formula->sub) {
                 w_truth = modal_evaluate_internal(frame, formula->sub, to_id, NULL);
-            } else if (formula->inner_prop && frame->worlds[i]) {
-                w_truth = lv_modal_world_holds(frame->worlds[i], formula->inner_prop);
+            } else if (formula->inner_prop) {
+                w_truth = lv_modal_world_holds(*wp, formula->inner_prop);
             } else {
                 w_truth = lv_UNKNOWN;
             }
@@ -201,9 +197,7 @@ lvModalWorld *lv_modal_world_create(int id, const char *world_name, ConstraintGr
         w->world_name = strdup(world_name);
     }
     w->configuration = configuration;
-    w->true_props = NULL;
-    w->true_prop_count = 0;
-    w->true_prop_capacity = 0;
+    lv_darray_init(&w->true_props, sizeof(Proposition *));
     return w;
 }
 
@@ -212,7 +206,7 @@ void lv_modal_world_destroy(lvModalWorld *world) {
         return;
     lv_free((void **) &world->world_name);
     /* 注意：configuration 所有权由调用者管理 */
-    lv_free((void **) &world->true_props);
+    lv_darray_free(&world->true_props);
     lv_free((void **) &world);
 }
 
@@ -220,26 +214,17 @@ bool lv_modal_world_assert(lvModalWorld *world, Proposition *prop) {
     if (!world || !prop)
         return false;
 
-    /* 扩容 */
-    if (world->true_prop_count >= world->true_prop_capacity) {
-        int new_cap = world->true_prop_capacity > 0 ? world->true_prop_capacity * 2 : 8;
-        Proposition **new_arr =
-            (Proposition **) lv_realloc(world->true_props, (size_t) new_cap * sizeof(Proposition *));
-        if (!new_arr)
-            return false;
-        world->true_props = new_arr;
-        world->true_prop_capacity = new_cap;
-    }
-    world->true_props[world->true_prop_count++] = prop;
+    if (lv_darray_push(&world->true_props, &prop) < 0)
+        return false;
     return true;
 }
 
 lvTruthValue lv_modal_world_holds(const lvModalWorld *world, const Proposition *prop) {
-    int i;
     if (!world || !prop)
         return lv_UNKNOWN;
-    for (i = 0; i < world->true_prop_count; i++) {
-        if (world->true_props[i] == prop) {
+    for (int i = 0; i < world->true_props.count; i++) {
+        Proposition **pp = (Proposition **)lv_darray_get(&world->true_props, i);
+        if (pp && *pp == prop) {
             return lv_TRUE;
         }
     }
@@ -254,9 +239,7 @@ lvModalFrame *lv_modal_frame_create(void) {
     lvModalFrame *f = (lvModalFrame *) lv_calloc(1, sizeof(lvModalFrame));
     if (!f)
         return NULL;
-    f->worlds = NULL;
-    f->world_count = 0;
-    f->world_capacity = 0;
+    lv_darray_init(&f->worlds, sizeof(lvModalWorld *));
     f->current_world_id = 1;
     f->reach_matrix = NULL;
     f->reach_dimension = 0;
@@ -264,14 +247,15 @@ lvModalFrame *lv_modal_frame_create(void) {
 }
 
 void lv_modal_frame_destroy(lvModalFrame *frame) {
-    int i;
     if (!frame)
         return;
-    for (i = 0; i < frame->world_count; i++) {
-        lv_modal_world_destroy(frame->worlds[i]);
+    for (int i = 0; i < frame->worlds.count; i++) {
+        lvModalWorld **wp = (lvModalWorld **)lv_darray_get(&frame->worlds, i);
+        if (wp && *wp)
+            lv_modal_world_destroy(*wp);
     }
-    lv_free((void **) &frame->worlds);
-    for (i = 0; i < frame->reach_dimension; i++) {
+    lv_darray_free(&frame->worlds);
+    for (int i = 0; i < frame->reach_dimension; i++) {
         lv_free((void **) &frame->reach_matrix[i]);
     }
     lv_free((void **) &frame->reach_matrix);
@@ -282,15 +266,8 @@ bool lv_modal_frame_add_world(lvModalFrame *frame, lvModalWorld *world) {
     if (!frame || !world)
         return false;
 
-    if (frame->world_count >= frame->world_capacity) {
-        int new_cap = frame->world_capacity > 0 ? frame->world_capacity * 2 : MODAL_INITIAL_CAPACITY;
-        lvModalWorld **new_arr = (lvModalWorld **) lv_realloc(frame->worlds, (size_t) new_cap * sizeof(lvModalWorld *));
-        if (!new_arr)
-            return false;
-        frame->worlds = new_arr;
-        frame->world_capacity = new_cap;
-    }
-    frame->worlds[frame->world_count++] = world;
+    if (lv_darray_push(&frame->worlds, &world) < 0)
+        return false;
     return true;
 }
 
@@ -331,27 +308,26 @@ bool lv_modal_frame_is_reachable(const lvModalFrame *frame, int from_world_id, i
 }
 
 bool lv_modal_frame_get_reachable_worlds(const lvModalFrame *frame, int world_id, int **out_ids, int *out_count) {
-    int from_idx, i, count;
-    int *ids;
-
     if (!frame || !out_ids || !out_count)
         return false;
 
-    from_idx = modal_find_world_index(frame, world_id);
+    int from_idx = modal_find_world_index(frame, world_id);
     if (from_idx < 0)
         return false;
 
-    count = 0;
-    ids = (int *) lv_malloc((size_t) frame->world_count * sizeof(int));
+    int count = 0;
+    int *ids = (int *) lv_malloc((size_t) frame->worlds.count * sizeof(int));
     if (!ids)
         return false;
 
-    for (i = 0; i < frame->world_count; i++) {
+    for (int i = 0; i < frame->worlds.count; i++) {
         if (i == from_idx)
             continue;
         if (from_idx < frame->reach_dimension && i < frame->reach_dimension) {
             if (frame->reach_matrix[from_idx][i] != 0) {
-                ids[count++] = frame->worlds[i]->id;
+                lvModalWorld **wp = (lvModalWorld **)lv_darray_get(&frame->worlds, i);
+                if (wp && *wp)
+                    ids[count++] = (*wp)->id;
             }
         }
     }
@@ -439,15 +415,15 @@ int lv_modal_evaluate(const lvModalFrame *frame, const lvModalFormula *formula, 
 }
 
 lvTruthValue lv_modal_check_validity(const lvModalFrame *frame, const lvModalFormula *formula) {
-    int i;
     if (!frame || !formula)
         return lv_UNKNOWN;
 
-    for (i = 0; i < frame->world_count; i++) {
-        lvModalEvalResult result;
-        if (!frame->worlds[i])
+    for (int i = 0; i < frame->worlds.count; i++) {
+        lvModalWorld **wp = (lvModalWorld **)lv_darray_get(&frame->worlds, i);
+        if (!wp || !*wp)
             continue;
-        if (lv_modal_evaluate(frame, formula, frame->worlds[i]->id, &result) != 0) {
+        lvModalEvalResult result;
+        if (lv_modal_evaluate(frame, formula, (*wp)->id, &result) != 0) {
             return lv_UNKNOWN;
         }
         if (result.truth_value != lv_TRUE) {

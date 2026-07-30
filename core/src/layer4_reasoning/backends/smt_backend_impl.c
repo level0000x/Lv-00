@@ -165,7 +165,7 @@ const SMTSolverConfig *smtsolver_default_config(SolverBackendType type) {
 
     if (!initialized) {
         for (int i = 0; i < COUNT; i++) {
-            defaults[i].timeout_ms = SMT_DEFAULT_TIMEOUT_MS;
+            defaults[i].timeout_ms = lv_DEFAULT_TIMEOUT_MS;
             defaults[i].memory_limit_mb = SMT_DEFAULT_MEMORY_MB;
             defaults[i].logic = SMT_LOGIC_AUTO;
             defaults[i].produce_models = true;

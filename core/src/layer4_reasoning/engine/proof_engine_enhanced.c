@@ -1406,7 +1406,7 @@ lvProofEngine *lv_proof_engine_create(const lvProofEngineConfig *config) {
     } else {
         engine->config.max_depth = DEFAULT_MAX_DEPTH;
         engine->config.max_branches = DEFAULT_MAX_BRANCHES;
-        engine->config.timeout_ms = DEFAULT_TIMEOUT_MS;
+        engine->config.timeout_ms = lv_DEFAULT_TIMEOUT_MS;
         engine->config.enable_parallel = false;
         engine->config.enable_cache = true;
         engine->config.verify_proofs = true;

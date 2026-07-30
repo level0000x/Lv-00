@@ -306,15 +306,15 @@ static double transcendental_expr_to_double(const Transcendental *t) {
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
     SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
     if (!coord)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_create_rational: lv_calloc failed");
     coord->type = RATIONAL;
     coord->trust = TRUST_GREEN;
     coord->cache_valid = false;
     coord->cached_value = 0.0;
     coord->data.rational = rational_create(num, denom);
     if (!coord->data.rational) {
-        lv_free((void **) &coord); /* lv_malloc分配 */
-        return NULL;
+        lv_free((void **) &coord);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_create_rational: rational_create failed");
     }
     return coord;
 }
@@ -330,15 +330,15 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
 SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, double right) {
     SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
     if (!coord)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_create_algebraic: lv_calloc failed");
     coord->type = ALGEBRAIC;
     coord->trust = TRUST_GREEN;
     coord->cache_valid = false;
     coord->cached_value = 0.0;
     coord->data.algebraic = algebraic_create(poly, left, right);
     if (!coord->data.algebraic) {
-        lv_free((void **) &coord); /* lv_malloc分配 */
-        return NULL;
+        lv_free((void **) &coord);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_create_algebraic: algebraic_create failed");
     }
     return coord;
 }
@@ -354,15 +354,15 @@ SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, do
 SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigned int n) {
     SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
     if (!coord)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_create_quadratic: lv_calloc failed");
     coord->type = QUADRATIC;
     coord->trust = TRUST_GREEN;
     coord->cache_valid = false;
     coord->cached_value = 0.0;
     coord->data.quadratic = quadratic_create(a, b, n);
     if (!coord->data.quadratic) {
-        lv_free((void **) &coord); /* lv_malloc分配 */
-        return NULL;
+        lv_free((void **) &coord);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_create_quadratic: quadratic_create failed");
     }
     return coord;
 }
@@ -370,15 +370,15 @@ SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigne
 SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
     SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
     if (!coord)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_create_transcendental: lv_calloc failed");
     coord->type = TRANSCENDENTAL;
     coord->trust = TRUST_BLUE_UNEXPLORED;
     coord->cache_valid = false;
     coord->cached_value = 0.0;
     coord->data.transcendental = transcendental_create(name);
     if (!coord->data.transcendental) {
-        lv_free((void **) &coord); /* lv_malloc分配 */
-        return NULL;
+        lv_free((void **) &coord);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_create_transcendental: transcendental_create failed");
     }
     return coord;
 }
@@ -727,7 +727,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             /* Transcendental + Rational -> TRANS_EXPR_ADD_RATIONAL */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
             if (!t)
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: transcendental_create failed");
 
             TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
             if (!expr) {
@@ -826,7 +826,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                     if (!expr->rational_operand) {
                         lv_free((void **) &expr);
                         transcendental_destroy(t);
-                        return NULL;
+                        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_subtract: rational_operand allocation failed");
                     }
                 } else {
                     /* 至少有一个是 ADD 形式：无法简化，超出作用域 */
@@ -861,11 +861,11 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             case RATIONAL: {
                 Rational *r = rational_add(a->data.rational, b->data.rational);
                 if (!r)
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: rational_add failed");
                 SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                 if (!result) {
                     rational_destroy(r);
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: result allocation failed");
                 }
                 rational_destroy(result->data.rational);
                 result->data.rational = r;
@@ -878,7 +878,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             case ALGEBRAIC: {
                 Algebraic *alg = algebraic_add(a->data.algebraic, b->data.algebraic);
                 if (!alg)
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: algebraic_add failed");
                 SymbolicCoord *result =
                     symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
                 algebraic_destroy(alg);
@@ -1120,7 +1120,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                     if (!expr->rational_operand) {
                         lv_free((void **) &expr);
                         transcendental_destroy(t);
-                        return NULL;
+                        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: rational_operand allocation failed");
                     }
                 } else {
                     /* At least one has ADD form: cannot simplify, out_of_scope */
@@ -1155,11 +1155,11 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             case RATIONAL: {
                 Rational *r = rational_subtract(a->data.rational, b->data.rational);
                 if (!r)
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_subtract: rational_subtract failed");
                 SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                 if (!result) {
                     rational_destroy(r);
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_subtract: result allocation failed");
                 }
                 rational_destroy(result->data.rational);
                 result->data.rational = r;
@@ -1378,11 +1378,11 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             case RATIONAL: {
                 Rational *r = rational_multiply(a->data.rational, b->data.rational);
                 if (!r)
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: rational_multiply failed");
                 SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                 if (!result) {
                     rational_destroy(r);
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: result allocation failed");
                 }
                 rational_destroy(result->data.rational);
                 result->data.rational = r;
@@ -1395,7 +1395,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             case ALGEBRAIC: {
                 Algebraic *alg = algebraic_multiply(a->data.algebraic, b->data.algebraic);
                 if (!alg)
-                    return NULL;
+                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: algebraic_multiply failed");
                 SymbolicCoord *result =
                     symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
                 algebraic_destroy(alg);

@@ -36,9 +36,7 @@
 lv_DECLARE_STREAM_CTX(proof);
 
 /* 证明树 API 占位（与 proof.c 保持一致） */
-#ifndef lv_DEFAULT_MAX_STEPS
-#define lv_DEFAULT_MAX_STEPS 10000
-#endif
+/* lv_DEFAULT_MAX_STEPS 已迁移至 config.h */
 
 /* lv_proof_tree_* 函数实现在 proof_tree.c 中，通过链接解析 */
 

@@ -1,4 +1,4 @@
-﻿#ifndef lv_SAT_ENCODING_H
+#ifndef lv_SAT_ENCODING_H
 #define lv_SAT_ENCODING_H
 
 #ifdef __cplusplus
@@ -9,6 +9,7 @@ extern "C" {
 #include <stddef.h>
 
 #include "constraint_graph.h"
+#include "lv/lv_utils.h"
 
 /* ── SAT Literal ── */
 typedef int SatLiteral;
@@ -174,9 +175,7 @@ struct SmallScopeConfig {
 /* ── SAT Encoding ── */
 struct SatEncoding {
     /* Var map */
-    SatVarEntry *var_map;
-    int var_count;
-    int var_capacity;
+    lvDArray var_map; /**< lvDArray of SatVarEntry */
     int next_var_id;
     /* Clauses */
     int **clauses;

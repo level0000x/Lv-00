@@ -404,6 +404,7 @@ set(lv_HEADERS
     core/include/lv/module.h
     core/include/lv/engine.h
     core/include/lv/debug.h
+    core/include/lv/lv_mempool.h
     core/include/lv/mpz_poly.h
     core/include/lv/func_block.h
     core/include/lv/type_system.h
@@ -662,6 +663,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/node_deep_copy.c
     # v1.1.0 新增：内存池、运行时监控、测试框架
     core/src/layer2_resource/memory_pool.c
+    # v3.3.0 新增：内存池公共 API 包装
+    core/src/layer2_resource/lv_mempool.c
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
     # 补全遗漏文件：缓存管理、全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息

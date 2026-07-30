@@ -133,7 +133,7 @@ static const char *euclidean_axiom_group_names[] = {"Incidence", "Order", "Congr
 EuclideanContext *euclidean_init(ConstraintGraph *graph) {
     EuclideanContext *ctx = lv_calloc(1, sizeof(EuclideanContext));
     if (!ctx) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "euclidean_init: lv_calloc failed");
     }
 
     /* 默认使用 Hilbert 公理体系 */
@@ -201,7 +201,7 @@ void euclidean_destroy(EuclideanContext *ctx) {
  */
 bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem system) {
     if (!ctx) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "euclidean_set_axiom_system: ctx is NULL");
     }
 
     if (ctx->active_axiom_system == system) {
@@ -314,7 +314,7 @@ static bool euclidean_toggle_axiom(EuclideanContext *ctx, int group, int axiom_i
  */
 int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoord *y, const char *name) {
     if (!ctx) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "euclidean_declare_point: ctx is NULL");
     }
 
     lv_UNUSED(name);
@@ -359,7 +359,7 @@ int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoo
  */
 int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id) {
     if (!ctx) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "euclidean_declare_line: ctx is NULL");
     }
 
     if (p1_id == p2_id) {
@@ -464,8 +464,14 @@ int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord
  * @return true 断言成功且一致，false 冲突
  */
 bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int count) {
-    if (!ctx || !point_ids || count < 3) {
-        return false;
+    if (!ctx) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "euclidean_assert_collinear: ctx is NULL");
+    }
+    if (!point_ids) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "euclidean_assert_collinear: point_ids is NULL");
+    }
+    if (count < 3) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "euclidean_assert_collinear: count < 3");
     }
 
     for (int i = 0; i < count; i++) {
@@ -509,7 +515,7 @@ bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int
  */
 bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_id) {
     if (!ctx) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "euclidean_assert_between: ctx is NULL");
     }
 
     if (a_id == b_id || b_id == c_id || a_id == c_id) {
@@ -548,7 +554,7 @@ bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_i
  */
 bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id) {
     if (!ctx) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "euclidean_assert_congruent: ctx is NULL");
     }
 
     if (a1_id == a2_id || b1_id == b2_id) {
@@ -631,7 +637,7 @@ static bool euclidean_verify_theorem(EuclideanContext *ctx, const void *proposit
  */
 bool euclidean_check_consistency(EuclideanContext *ctx) {
     if (!ctx) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "euclidean_check_consistency: ctx is NULL");
     }
 
     euclidean_clear_inconsistency(ctx);
@@ -695,11 +701,11 @@ bool euclidean_check_consistency(EuclideanContext *ctx) {
  */
 ConstraintGraph *euclidean_export_birkhoff(const EuclideanContext *ctx) {
     if (!ctx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "euclidean_export_birkhoff: ctx is NULL");
 
     ConstraintGraph *export_graph = graph_create();
     if (!export_graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "euclidean_export_birkhoff: graph_create failed");
 
     for (int i = 0; i < (int)ctx->points_da.count; i++) {
         int *pp = (int *)lv_darray_get(&ctx->points_da, i);
@@ -730,11 +736,11 @@ ConstraintGraph *euclidean_export_birkhoff(const EuclideanContext *ctx) {
  */
 ConstraintGraph *euclidean_export_tarski(const EuclideanContext *ctx) {
     if (!ctx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "euclidean_export_tarski: ctx is NULL");
 
     ConstraintGraph *export_graph = graph_create();
     if (!export_graph)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "euclidean_export_tarski: graph_create failed");
 
     for (int i = 0; i < (int)ctx->points_da.count; i++) {
         int *pp = (int *)lv_darray_get(&ctx->points_da, i);
@@ -774,7 +780,7 @@ ConstraintGraph *euclidean_export_tarski(const EuclideanContext *ctx) {
  */
 EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx) {
     if (!ctx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "euclidean_create_equivalence_chain: ctx is NULL");
 
     /* 如果已有等价性证明链，先销毁 */
     if (ctx->equivalence_chain) {
@@ -784,7 +790,7 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
 
     EquivalenceProofChain *chain = lv_calloc(1, sizeof(EquivalenceProofChain));
     if (!chain)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "euclidean_create_equivalence_chain: chain calloc failed");
 
     chain->source_system = EUCLID_BIRKHOFF;
     chain->target_system = EUCLID_TARSKI;
@@ -794,7 +800,7 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
     chain->axiom_translation_map = lv_malloc((size_t) EUCLID_EQUIV_TRANSLATION_CAPACITY * sizeof(int));
     if (!chain->axiom_translation_map) {
         lv_free((void **) &chain);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "euclidean_create_equivalence_chain: axiom_translation_map malloc failed");
     }
     for (int i = 0; i < EUCLID_EQUIV_TRANSLATION_CAPACITY; i++) {
         chain->axiom_translation_map[i] = -1;
@@ -804,7 +810,7 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
     if (!chain->lemma_ids) {
         lv_free((void **) &chain->axiom_translation_map);
         lv_free((void **) &chain);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "euclidean_create_equivalence_chain: lemma_ids malloc failed");
     }
     chain->lemma_count = 0;
     memset(chain->lemma_ids, -1, (size_t) EUCLID_EQUIV_TRANSLATION_CAPACITY * sizeof(int));
@@ -817,7 +823,7 @@ EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx)
         lv_free((void **) &chain->lemma_ids);
         lv_free((void **) &chain->axiom_translation_map);
         lv_free((void **) &chain);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "euclidean_create_equivalence_chain: verification_graph create failed");
     }
 
     if (!euclidean_build_birkhoff_to_tarski_map(chain) || !euclidean_build_tarski_to_birkhoff_map(chain)) {

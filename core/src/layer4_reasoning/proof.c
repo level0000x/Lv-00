@@ -80,7 +80,7 @@ void proof_set_stream_context(StreamContext *ctx) {
 
 /* 证明树 API 的完整实现在 proof/proof_tree.c 中；
  * proof_trace.h 中提供了 lvProofTree / lvProofTreeNode 的完整定义 */
-#define lv_DEFAULT_MAX_STEPS 10000
+/* lv_DEFAULT_MAX_STEPS 已迁移至 config.h */
 
 /** 命题销毁时迭代栈的初始容量 */
 #define PROOF_DESTROY_STACK_INITIAL_CAPACITY 128

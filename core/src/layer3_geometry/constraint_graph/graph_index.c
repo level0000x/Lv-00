@@ -77,22 +77,19 @@ static bool validate_cross_boundary_refs(GeomNode *func_block, int *internal_ids
         if (external_namespace == block_namespace && external_parent != block_parent) {
             /* 相同深度但不同父块 - 兄弟块引用 */
             lv_free((void **) &internal_ids);
-            lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references sibling block's private node");
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "Cross-boundary constraint references sibling block's private node");
         }
 
         /* 引用更深命名空间的节点是无效的 */
         if (external_namespace > block_namespace) {
             lv_free((void **) &internal_ids);
-            lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references node from deeper namespace");
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "Cross-boundary constraint references node from deeper namespace");
         }
 
         /* 命名空间深度差异 > 1 是无效的 */
         if (block_namespace - external_namespace > 1) {
             lv_free((void **) &internal_ids);
-            lv_set_error(lv_ERROR_UNKNOWN, "%s", "Cross-boundary constraint spans more than one namespace level");
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "Cross-boundary constraint spans more than one namespace level");
         }
     }
 
