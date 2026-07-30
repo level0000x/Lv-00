@@ -325,7 +325,7 @@ int lv_proto_draw_commands(void *engine, double offset_x, double offset_y, doubl
     memset(out, 0, sizeof(*out));
 
     /* 获取系统信息 */
-    char sys_info[2048] = {0};
+    char sys_info[lv_MEDIUM_BUF_SIZE] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
     int health = lv_health_check();
 
@@ -387,7 +387,7 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
     memset(out, 0, sizeof(*out));
 
     /* 获取系统信息 */
-    char sys_info[2048] = {0};
+    char sys_info[lv_MEDIUM_BUF_SIZE] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
     int health = lv_health_check();
 
@@ -498,7 +498,7 @@ int lv_proto_dsl_text(void *engine, char *out, size_t buf_size) {
     if (!out || buf_size == 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_dsl_text: out is NULL or buf_size is 0");
 
-    char sys_info[2048] = {0};
+    char sys_info[lv_MEDIUM_BUF_SIZE] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
     int health = lv_health_check();
 
@@ -558,7 +558,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
     if (!out_root)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_tree: out_root is NULL");
 
-    char sys_info[2048] = {0};
+    char sys_info[lv_MEDIUM_BUF_SIZE] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
     int health = lv_health_check();
 
@@ -650,7 +650,7 @@ int lv_proto_topology(void *engine, lvTopoGraph *out) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_topology: out is NULL");
     memset(out, 0, sizeof(*out));
 
-    char sys_info[2048] = {0};
+    char sys_info[lv_MEDIUM_BUF_SIZE] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
     (void) lv_health_check(); /* 保留调用以维持一致性 */
 
@@ -723,7 +723,7 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proto_proof_navigator: out is NULL");
     memset(out, 0, sizeof(*out));
 
-    char sys_info[2048] = {0};
+    char sys_info[lv_MEDIUM_BUF_SIZE] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
     int health = lv_health_check();
 
@@ -822,7 +822,7 @@ int lv_proto_engine_status(void *engine, lvEngineStatus *out) {
     memset(out, 0, sizeof(*out));
 
     /* 获取系统信息 */
-    char sys_info[2048] = {0};
+    char sys_info[lv_MEDIUM_BUF_SIZE] = {0};
     lv_get_system_info(sys_info, sizeof(sys_info));
     int health = lv_health_check();
 

@@ -147,8 +147,8 @@ AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z) 
         return NULL;
     (void) z; /* 二维模式下忽略 z */
 
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational((int) (x * 1000), 1000),
-                                symbolic_coord_create_rational((int) (y * 1000), 1000)};
+    SymbolicCoord *coords[2] = {symbolic_coord_create_rational((int) (x * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW),
+                                symbolic_coord_create_rational((int) (y * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW)};
 
     AddNodeResult res = graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
     if (res != ADD_NODE_OK) {
@@ -255,7 +255,7 @@ AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double 
         return NULL;
 
     /* 圆：通过圆心和半径上的点构造 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational((int) (radius * 1000), 1000),
+    SymbolicCoord *coords[2] = {symbolic_coord_create_rational((int) (radius * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW),
                                 symbolic_coord_create_rational(0, 1)};
     graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
     int radius_point = graph_get_last_added_node_id(geom->graph);

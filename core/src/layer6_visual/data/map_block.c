@@ -12,6 +12,7 @@
 #include "lv/data_structure_blocks.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_block_utils.h"
 
 /**
  * @brief 创建映射块
@@ -21,13 +22,9 @@
  * @param op 映射操作类型（如合并、过滤、转换等）
  * @return 成功返回映射块指针，失败返回NULL
  */
-lvMapBlock *lv_map_block_create(lvMapOp op) {
-    lvMapBlock *block = lv_calloc(1, sizeof(lvMapBlock));
-    if (!block)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate map block");
+LV_SIMPLE_BLOCK_PARAM(lvMapBlock, lv_map_block, (lvMapOp op), ({
     block->operation = op;
-    return block;
-}
+}))
 
 /**
  * @brief 销毁映射块
@@ -36,6 +33,4 @@ lvMapBlock *lv_map_block_create(lvMapOp op) {
  *
  * @param block 映射块指针
  */
-void lv_map_block_destroy(lvMapBlock *block) {
-    lv_free((void **) &block);
-}
+/* destroy 由 LV_SIMPLE_BLOCK_PARAM 宏自动生成 */

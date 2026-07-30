@@ -98,6 +98,22 @@ extern "C" {
 #define lv_CONFIG_DEFAULT_PRECISION_BITS 52
 #define lv_CONFIG_ROOT_EPSILON 1e-12
 
+/* ---- 有理数缩放因子 ---- */
+/** @brief 默认有理数缩放因子（1000000 = 6位小数精度） */
+#ifndef lv_RATIONAL_SCALE_DEFAULT
+#define lv_RATIONAL_SCALE_DEFAULT 1000000
+#endif
+
+/** @brief 低精度有理数缩放因子（1000 = 3位小数精度） */
+#ifndef lv_RATIONAL_SCALE_LOW
+#define lv_RATIONAL_SCALE_LOW 1000
+#endif
+
+/** @brief 浮点近似缩放默认精度 */
+#ifndef lv_FLOAT_APPROX_SCALE
+#define lv_FLOAT_APPROX_SCALE 1000
+#endif
+
 /* ---- 数值精度常量（浮点数比较容差） ---- */
 /* 通用高精度容差 */
 #ifndef lv_EPSILON_SUPERTINY
@@ -898,6 +914,12 @@ void lv_config_reset(void);
 #endif
 #ifndef lv_LARGE_BUF_SIZE
 #define lv_LARGE_BUF_SIZE 4096
+#endif
+#ifndef lv_MEDIUM_BUF_SIZE
+#define lv_MEDIUM_BUF_SIZE 2048
+#endif
+#ifndef lv_PATH_BUF_SIZE
+#define lv_PATH_BUF_SIZE 1024
 #endif
 
 /* 内存池短别名 */

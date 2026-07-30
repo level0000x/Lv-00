@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_pkg.c
  * @brief 公理系统包实现
  * @details 实现公理包的加载、验证和展开功能。支持约束模板、
@@ -121,6 +121,22 @@ AxiomPackage *axiom_package_create(const char *name, const char *version) {
     }
 
     return pkg;
+}
+
+int axiom_package_get_template_count(const AxiomPackage *pkg) {
+    if (!pkg) return 0;
+    return (int)pkg->templates.count;
+}
+
+int axiom_package_get_unconstructible_count(const AxiomPackage *pkg) {
+    if (!pkg) return 0;
+    return (int)pkg->known_unconstructibles.count;
+}
+
+const KnownUnconstructible *axiom_package_get_unconstructible(const AxiomPackage *pkg, int index) {
+    if (!pkg || index < 0 || index >= (int)pkg->known_unconstructibles.count) return NULL;
+    lvDArray *arr = (lvDArray *)&pkg->known_unconstructibles;
+    return (const KnownUnconstructible *)lv_darray_get(arr, index);
 }
 
 void axiom_package_destroy(AxiomPackage *pkg) {

@@ -7,18 +7,7 @@
  * @version 3.3.0
  */
 
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv/constraint_graph.h"
-#include "lv/solver.h"
-
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "solver_common.h"
 
 /* 前向声明：constraint_weight, count_point_variables 的实现在 solver_symbolic.c 中 */
 int constraint_weight(const Constraint *c);

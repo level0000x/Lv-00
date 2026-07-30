@@ -95,8 +95,8 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count >= 50, "should have at least 50 constraint templates");
-    printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
+    TEST_ASSERT(axiom_package_get_template_count(pkg) >= 50, "should have at least 50 constraint templates");
+    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
 
     const char *expected_templates[] = {
         /* Group I: Kolmogorov Axioms */
@@ -157,8 +157,8 @@ static void test_unconstructibles(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count >= 5, "should have at least 5 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) >= 5, "should have at least 5 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     const char *expected_unconstructibles[] = {
         "non_measurable_set_existence",  "vitali_set_non_measurable",
@@ -238,12 +238,12 @@ static void test_round_trip(void) {
 
     TEST_ASSERT(strcmp(pkg1->name, pkg2->name) == 0, "names should match after round-trip");
     TEST_ASSERT(strcmp(pkg1->version, pkg2->version) == 0, "versions should match after round-trip");
-    TEST_ASSERT(pkg1->template_count == pkg2->template_count, "template counts should match after round-trip");
-    TEST_ASSERT(pkg1->unconstructible_count == pkg2->unconstructible_count,
+    TEST_ASSERT(pkg1->template_count == axiom_package_get_template_count(pkg2), "template counts should match after round-trip");
+    TEST_ASSERT(pkg1->unconstructible_count == axiom_package_get_unconstructible_count(pkg2),
                 "unconstructible counts should match after round-trip");
 
     printf("  Round-trip: '%s' v%s, %d templates, %d unconstructibles\n", pkg2->name, pkg2->version,
-           pkg2->template_count, pkg2->unconstructible_count);
+           axiom_package_get_template_count(pkg2), axiom_package_get_unconstructible_count(pkg2));
 
     axiom_package_destroy(pkg1);
     axiom_package_destroy(pkg2);

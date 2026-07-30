@@ -97,8 +97,8 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 49 constraint templates");
-    printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
+    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 49 constraint templates");
+    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
 
     /* Verify specific templates from each group by lookup and param count */
 
@@ -198,8 +198,8 @@ static void test_unconstructible_problems(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 8 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 8 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     /* Verify each unconstructible exists */
     const char *expected_uc[] = {
@@ -318,7 +318,7 @@ static void test_round_trip(void) {
                 "reloaded package version should be '1.0.0'");
 
     /* Verify template count survived */
-    TEST_ASSERT(pkg2->template_count == EXPECTED_TEMPLATE_COUNT, "reloaded template count should match");
+    TEST_ASSERT(axiom_package_get_template_count(pkg2) == EXPECTED_TEMPLATE_COUNT, "reloaded template count should match");
 
     /* Compute reloaded hash */
     char *hash2 = axiom_package_compute_content_hash(pkg2);

@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv.h"
 #include "lv/lv_parse_utils.h"
 
 #include "lv_utils.h"
@@ -38,6 +39,9 @@
 
 /** 数值精度阈值 */
 #define PCTL_EPSILON 1e-12
+
+/** Gamma 采样接受-拒绝法最大重试次数 */
+#define GAMMA_SAMPLE_MAX_RETRIES 10000
 
 /* ---- 内部：简单随机数生成器（线性同余发生器）---- */
 
@@ -589,7 +593,7 @@ static double pctl_compute_until(const SimpleDTMC *mc, const char *phi_predicate
         return 0.0;
 
     int n = mc->state_count;
-    int max_iter = 1000;
+    int max_iter = lv_config_get_int("pctl_value_iter_max", 1000);
     double convergence_threshold = 1e-9;
 
     /* prob[i] = 从状态 i 满足 phi U psi 的概率 */
@@ -903,7 +907,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     double c = 1.0 / sqrt(9.0 * d);
                     int _try = 0;
                     for (;;) {
-                        if (++_try > 10000) {
+                        if (++_try > GAMMA_SAMPLE_MAX_RETRIES) {
                             x_gamma = 1.0;
                             break;
                         }
@@ -926,7 +930,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     double am = 0.0;
                     int _try2 = 0;
                     for (;;) {
-                        if (++_try2 > 10000) {
+                        if (++_try2 > GAMMA_SAMPLE_MAX_RETRIES) {
                             x_gamma = 1.0;
                             break;
                         }
@@ -947,7 +951,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     double c = 1.0 / sqrt(9.0 * d);
                     int _try3 = 0;
                     for (;;) {
-                        if (++_try3 > 10000) {
+                        if (++_try3 > GAMMA_SAMPLE_MAX_RETRIES) {
                             y_gamma = 1.0;
                             break;
                         }
@@ -969,7 +973,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     double bm = 0.0;
                     int _try4 = 0;
                     for (;;) {
-                        if (++_try4 > 10000) {
+                        if (++_try4 > GAMMA_SAMPLE_MAX_RETRIES) {
                             y_gamma = 1.0;
                             break;
                         }
@@ -1147,7 +1151,7 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
                         pi[i] = 1.0 / (double) n;
 
                     const double convergence_threshold = 1e-12;
-                    const int max_iter = 10000;
+                    const int max_iter = lv_config_get_int("pctl_power_iter_max", 10000);
                     bool converged = false;
 
                     /* 幂迭代 */

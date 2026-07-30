@@ -54,8 +54,8 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 51 constraint templates");
-    printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
+    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 51 constraint templates");
+    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
 
     /* All 51 templates in declaration order from the .lvz file */
     const char *expected[] = {
@@ -164,8 +164,8 @@ static void test_unconstructible_problems(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 6 unconstructible problems");
-    printf("  Count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 6 unconstructible problems");
+    printf("  Count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     struct {
         const char *name;
@@ -251,8 +251,8 @@ static void test_round_trip(void) {
     AxiomPackage *pkg2 = axiom_package_create("pl", "0.0.0");
     TEST_ASSERT(axiom_package_load(pkg2, SAVE_TEST_PATH) == AXIOM_LOAD_OK, "reload should succeed");
 
-    TEST_ASSERT(pkg2->template_count == pkg1->template_count, "tpl count match");
-    TEST_ASSERT(pkg2->unconstructible_count == pkg1->unconstructible_count, "uc count match");
+    TEST_ASSERT(axiom_package_get_template_count(pkg2) == pkg1->template_count, "tpl count match");
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == pkg1->unconstructible_count, "uc count match");
     TEST_ASSERT(strcmp(pkg2->name, pkg1->name) == 0, "name match");
     TEST_ASSERT(strcmp(pkg2->version, pkg1->version) == 0, "version match");
     TEST_ASSERT(
@@ -266,8 +266,8 @@ static void test_round_trip(void) {
     char *h1 = axiom_package_compute_content_hash(pkg1);
     char *h2 = axiom_package_compute_content_hash(pkg2);
     TEST_ASSERT(h1 && h2 && strcmp(h1, h2) == 0, "hash match after round-trip");
-    printf("  Round-trip: templates=%d unconstructibles=%d hash_match=%s\n", pkg2->template_count,
-           pkg2->unconstructible_count, (h1 && h2 && strcmp(h1, h2) == 0) ? "YES" : "NO");
+    printf("  Round-trip: templates=%d unconstructibles=%d hash_match=%s\n", axiom_package_get_template_count(pkg2),
+           axiom_package_get_unconstructible_count(pkg2), (h1 && h2 && strcmp(h1, h2) == 0) ? "YES" : "NO");
     lv_free((void **) &h1);
     lv_free((void **) &h2);
     axiom_package_destroy(pkg1);
@@ -356,8 +356,8 @@ static void test_external_references(void) {
     AxiomPackage *pkg = axiom_package_create("pl", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+    for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
         TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 5,
                     "every unconstructible should have an external_ref");
         if (uc->external_ref) {
@@ -367,7 +367,7 @@ static void test_external_references(void) {
                 uc->name);
         }
     }
-    printf("  External references: OK for all %d problems\n", pkg->unconstructible_count);
+    printf("  External references: OK for all %d problems\n", axiom_package_get_unconstructible_count(pkg));
     axiom_package_destroy(pkg);
 }
 

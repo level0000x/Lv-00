@@ -63,8 +63,8 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 33 constraint templates");
-    printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
+    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 33 constraint templates");
+    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
 
     /* Check representative templates from each group */
     struct {
@@ -146,8 +146,8 @@ static void test_unconstructibles(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 4 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 4 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     /* Verify each expected unconstructible */
     struct {
@@ -261,8 +261,8 @@ static void test_save_load_roundtrip(void) {
     /* Verify name and version */
     TEST_ASSERT(strcmp(pkg->name, pkg2->name) == 0, "name should be preserved");
     TEST_ASSERT(strcmp(pkg->version, pkg2->version) == 0, "version should be preserved");
-    TEST_ASSERT(pkg->template_count == pkg2->template_count, "template count should match");
-    TEST_ASSERT(pkg->unconstructible_count == pkg2->unconstructible_count, "unconstructible count should match");
+    TEST_ASSERT(axiom_package_get_template_count(pkg) == axiom_package_get_template_count(pkg2), "template count should match");
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == axiom_package_get_unconstructible_count(pkg2), "unconstructible count should match");
 
     axiom_package_destroy(pkg);
     axiom_package_destroy(pkg2);

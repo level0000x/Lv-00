@@ -8,23 +8,7 @@
  * @version 3.3.0
  */
 
-#include <float.h>
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv/constraint_graph.h"
-#include "lv/solver.h"
-#include "lv/solver_types.h"
-#include "lv/stream.h"
-
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
-#include "stream_context_util.h"
+#include "solver_common.h"
 
 SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value);
 void symbolic_coord_destroy(SymbolicCoord *coord);

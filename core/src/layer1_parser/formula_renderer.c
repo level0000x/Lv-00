@@ -451,7 +451,6 @@ static int render_latex_internal_binary_op_add(const FormulaNode *node, char *bu
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -486,7 +485,6 @@ static int render_latex_internal_binary_op_sub(const FormulaNode *node, char *bu
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -520,7 +518,6 @@ static int render_latex_internal_binary_op_mul(const FormulaNode *node, char *bu
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -549,7 +546,6 @@ static int render_latex_internal_binary_op_div(const FormulaNode *node, char *bu
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -584,7 +580,6 @@ static int render_latex_internal_binary_op_pow(const FormulaNode *node, char *bu
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -611,7 +606,6 @@ static int render_latex_internal_unary_op_neg(const FormulaNode *node, char *buf
     }
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -632,7 +626,6 @@ static int render_latex_internal_unary_op_sqrt(const FormulaNode *node, char *bu
     written = snprintf(buffer, size, "\\sqrt{%s}", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -666,7 +659,6 @@ static int render_latex_internal_unary_op_tan(const FormulaNode *node, char *buf
     written = snprintf(buffer, size, "%s\\left(%s\\right)", func_names[idx], operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -687,7 +679,6 @@ static int render_latex_internal_unary_op_abs(const FormulaNode *node, char *buf
     written = snprintf(buffer, size, "\\left|%s\\right|", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -708,7 +699,6 @@ static int render_latex_internal_unary_op_ln(const FormulaNode *node, char *buff
     written = snprintf(buffer, size, "\\ln\\left(%s\\right)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -729,7 +719,6 @@ static int render_latex_internal_unary_op_log(const FormulaNode *node, char *buf
     written = snprintf(buffer, size, "\\log\\left(%s\\right)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -757,7 +746,6 @@ static int render_latex_internal_equation(const FormulaNode *node, char *buffer,
     
     formula_pool_free(lhs_buf);
     formula_pool_free(rhs_buf);
-    } break;
     return written;
 }
 
@@ -786,7 +774,6 @@ static int render_latex_internal_geom_point(const FormulaNode *node, char *buffe
     }
     
     lv_free((void **) &coords_buf);
-    } break;
     return written;
 }
 
@@ -813,7 +800,6 @@ static int render_latex_internal_geom_segment(const FormulaNode *node, char *buf
     }
     written = snprintf(buffer, size, "\\overline{%s%s}", ep1_buf, ep2_buf);
     }
-    } break;
     return written;
 }
 
@@ -844,7 +830,6 @@ static int render_latex_internal_geom_circle(const FormulaNode *node, char *buff
     
     written = snprintf(buffer, size, "\\text{circle } %s \\text{ with center } %s \\text{ and radius } %s",
     node->data.geom_circle.name ? node->data.geom_circle.name : "O", center_buf, radius_buf);
-    } break;
     return written;
 }
 
@@ -856,7 +841,6 @@ static int render_latex_internal_geom_triangle(const FormulaNode *node, char *bu
     } else {
     written = snprintf(buffer, size, "\\triangle");
     }
-    } break;
     return written;
 }
 
@@ -882,7 +866,6 @@ static int render_latex_internal_coordinate_list(const FormulaNode *node, char *
     total += w;
     }
     written = total;
-    } break;
     return written;
 }
 
@@ -903,7 +886,6 @@ static int render_latex_internal_constraint_perpendicular(const FormulaNode *nod
     lv_RETURN_ERROR(lv_ERROR_INTERNAL, "participant render failed");
     written = snprintf(buffer, size, "%s \\perp %s%s", p1_buf, p2_buf, p3_buf);
     }
-    } break;
     return written;
 }
 
@@ -921,7 +903,6 @@ static int render_latex_internal_constraint_parallel(const FormulaNode *node, ch
     lv_RETURN_ERROR(lv_ERROR_INTERNAL, "line render failed");
     written = snprintf(buffer, size, "%s \\parallel %s", l1_buf, l2_buf);
     }
-    } break;
     return written;
 }
 
@@ -1015,7 +996,6 @@ static int render_latex_internal_constraint_angle(const FormulaNode *node, char 
     lv_RETURN_ERROR(lv_ERROR_INTERNAL, "angle participant sub-render failed");
     written = snprintf(buffer, size, "\\angle %s %s %s", p1_buf, p2_buf, p3_buf);
     }
-    } break;
     return written;
 }
 
@@ -1048,7 +1028,6 @@ static int render_latex_internal_compound(const FormulaNode *node, char *buffer,
     total += w;
     }
     written = total;
-    } break;
     return written;
 }
 
@@ -1166,7 +1145,6 @@ static int render_python_internal_binary_op_add(const FormulaNode *node, char *b
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1189,7 +1167,6 @@ static int render_python_internal_binary_op_sub(const FormulaNode *node, char *b
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1212,7 +1189,6 @@ static int render_python_internal_binary_op_mul(const FormulaNode *node, char *b
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1235,7 +1211,6 @@ static int render_python_internal_binary_op_div(const FormulaNode *node, char *b
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1258,7 +1233,6 @@ static int render_python_internal_binary_op_pow(const FormulaNode *node, char *b
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1274,7 +1248,6 @@ static int render_python_internal_unary_op_neg(const FormulaNode *node, char *bu
     written = snprintf(buffer, size, "(-%s)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1290,7 +1263,6 @@ static int render_python_internal_unary_op_sqrt(const FormulaNode *node, char *b
     written = snprintf(buffer, size, "sqrt(%s)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1319,7 +1291,6 @@ static int render_python_internal_unary_op_tan(const FormulaNode *node, char *bu
     written = snprintf(buffer, size, "%s(%s)", func_names[idx], operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1335,7 +1306,6 @@ static int render_python_internal_unary_op_abs(const FormulaNode *node, char *bu
     written = snprintf(buffer, size, "abs(%s)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1351,7 +1321,6 @@ static int render_python_internal_unary_op_ln(const FormulaNode *node, char *buf
     written = snprintf(buffer, size, "log(%s)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1367,7 +1336,6 @@ static int render_python_internal_unary_op_log(const FormulaNode *node, char *bu
     written = snprintf(buffer, size, "log10(%s)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1391,7 +1359,6 @@ static int render_python_internal_equation(const FormulaNode *node, char *buffer
     
     formula_pool_free(lhs_buf);
     formula_pool_free(rhs_buf);
-    } break;
     return written;
 }
 
@@ -1415,7 +1382,6 @@ static int render_python_internal_geom_point(const FormulaNode *node, char *buff
     }
     
     lv_free((void **) &coords_buf);
-    } break;
     return written;
 }
 
@@ -1434,7 +1400,6 @@ static int render_python_internal_geom_segment(const FormulaNode *node, char *bu
     }
     
     written = snprintf(buffer, size, "Segment(%s, %s)", ep1_buf, ep2_buf);
-    } break;
     return written;
 }
 
@@ -1453,7 +1418,6 @@ static int render_python_internal_geom_circle(const FormulaNode *node, char *buf
     }
     
     written = snprintf(buffer, size, "Circle(%s, %s)", center_buf, radius_buf);
-    } break;
     return written;
 }
 
@@ -1475,7 +1439,6 @@ static int render_python_internal_geom_triangle(const FormulaNode *node, char *b
     }
     
     written = snprintf(buffer, size, "Triangle(%s, %s, %s)", v1_buf, v2_buf, v3_buf);
-    } break;
     return written;
 }
 
@@ -1498,7 +1461,6 @@ static int render_python_internal_coordinate_list(const FormulaNode *node, char 
     total += w;
     }
     written = total;
-    } break;
     return written;
 }
 
@@ -1514,7 +1476,6 @@ static int render_python_internal_constraint_perpendicular(const FormulaNode *no
     render_python_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
     written = snprintf(buffer, size, "perpendicular(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
-    } break;
     return written;
 }
 
@@ -1528,7 +1489,6 @@ static int render_python_internal_constraint_parallel(const FormulaNode *node, c
     render_python_internal(node->data.constraint.participants[1], l2_buf, sizeof(l2_buf), options);
     written = snprintf(buffer, size, "parallel(%s, %s)", l1_buf, l2_buf);
     }
-    } break;
     return written;
 }
 
@@ -1602,7 +1562,6 @@ static int render_python_internal_constraint_angle(const FormulaNode *node, char
     render_python_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
     written = snprintf(buffer, size, "angle(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
-    } break;
     return written;
 }
 
@@ -1629,7 +1588,6 @@ static int render_python_internal_compound(const FormulaNode *node, char *buffer
     total += w;
     }
     written = total;
-    } break;
     return written;
 }
 
@@ -1738,7 +1696,6 @@ static int render_dsl_internal_binary_op_add(const FormulaNode *node, char *buff
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1761,7 +1718,6 @@ static int render_dsl_internal_binary_op_sub(const FormulaNode *node, char *buff
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1784,7 +1740,6 @@ static int render_dsl_internal_binary_op_mul(const FormulaNode *node, char *buff
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1807,7 +1762,6 @@ static int render_dsl_internal_binary_op_div(const FormulaNode *node, char *buff
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1830,7 +1784,6 @@ static int render_dsl_internal_binary_op_pow(const FormulaNode *node, char *buff
     
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
-    } break;
     return written;
 }
 
@@ -1846,7 +1799,6 @@ static int render_dsl_internal_unary_op_neg(const FormulaNode *node, char *buffe
     written = snprintf(buffer, size, "-%s", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1862,7 +1814,6 @@ static int render_dsl_internal_unary_op_sqrt(const FormulaNode *node, char *buff
     written = snprintf(buffer, size, "sqrt(%s)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1891,7 +1842,6 @@ static int render_dsl_internal_unary_op_tan(const FormulaNode *node, char *buffe
     written = snprintf(buffer, size, "%s(%s)", func_names[idx], operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1907,7 +1857,6 @@ static int render_dsl_internal_unary_op_abs(const FormulaNode *node, char *buffe
     written = snprintf(buffer, size, "abs(%s)", operand_buf);
     
     formula_pool_free(operand_buf);
-    } break;
     return written;
 }
 
@@ -1930,7 +1879,6 @@ static int render_dsl_internal_equation(const FormulaNode *node, char *buffer, s
     
     formula_pool_free(lhs_buf);
     formula_pool_free(rhs_buf);
-    } break;
     return written;
 }
 
@@ -1951,7 +1899,6 @@ static int render_dsl_internal_geom_point(const FormulaNode *node, char *buffer,
     node->data.geom_point.name ? node->data.geom_point.name : "P", coords_buf);
     
     lv_free((void **) &coords_buf);
-    } break;
     return written;
 }
 
@@ -1971,7 +1918,6 @@ static int render_dsl_internal_geom_segment(const FormulaNode *node, char *buffe
     
     written = snprintf(buffer, size, "segment %s(%s, %s)",
     node->data.geom_segment.name ? node->data.geom_segment.name : "AB", ep1_buf, ep2_buf);
-    } break;
     return written;
 }
 
@@ -1991,7 +1937,6 @@ static int render_dsl_internal_geom_circle(const FormulaNode *node, char *buffer
     
     written = snprintf(buffer, size, "circle %s(%s, %s)",
     node->data.geom_circle.name ? node->data.geom_circle.name : "O", center_buf, radius_buf);
-    } break;
     return written;
 }
 
@@ -2015,7 +1960,6 @@ static int render_dsl_internal_geom_triangle(const FormulaNode *node, char *buff
     written =
     snprintf(buffer, size, "triangle %s(%s, %s, %s)",
     node->data.geom_triangle.name ? node->data.geom_triangle.name : "ABC", v1_buf, v2_buf, v3_buf);
-    } break;
     return written;
 }
 
@@ -2038,7 +1982,6 @@ static int render_dsl_internal_coordinate_list(const FormulaNode *node, char *bu
     total += w;
     }
     written = total;
-    } break;
     return written;
 }
 
@@ -2054,7 +1997,6 @@ static int render_dsl_internal_constraint_perpendicular(const FormulaNode *node,
     render_dsl_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
     written = snprintf(buffer, size, "perpendicular(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
-    } break;
     return written;
 }
 
@@ -2068,7 +2010,6 @@ static int render_dsl_internal_constraint_parallel(const FormulaNode *node, char
     render_dsl_internal(node->data.constraint.participants[1], l2_buf, sizeof(l2_buf), options);
     written = snprintf(buffer, size, "parallel(%s, %s)", l1_buf, l2_buf);
     }
-    } break;
     return written;
 }
 
@@ -2142,7 +2083,6 @@ static int render_dsl_internal_constraint_angle(const FormulaNode *node, char *b
     render_dsl_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
     written = snprintf(buffer, size, "angle(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
-    } break;
     return written;
 }
 
@@ -2169,7 +2109,6 @@ static int render_dsl_internal_compound(const FormulaNode *node, char *buffer, s
     total += w;
     }
     written = total;
-    } break;
     return written;
 }
 

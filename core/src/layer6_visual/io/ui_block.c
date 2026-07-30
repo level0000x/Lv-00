@@ -12,6 +12,7 @@
 #include "lv/io_blocks.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_block_utils.h"
 
 /**
  * @brief 创建 UI 事件块
@@ -22,15 +23,11 @@
  * @param effect 效果类型
  * @return 成功返回 UI 事件块指针，失败返回NULL
  */
-lvUIEventBlock *lv_ui_event_block_create(lvEffectType effect) {
-    lvUIEventBlock *block = lv_calloc(1, sizeof(lvUIEventBlock));
-    if (!block)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate UI event block");
+LV_SIMPLE_BLOCK_PARAM(lvUIEventBlock, lv_ui_event_block, (lvEffectType effect), ({
     block->effect = effect;
     block->event_port = -1;
     block->action_port = -1;
-    return block;
-}
+}))
 
 /**
  * @brief 销毁 UI 事件块
@@ -39,6 +36,4 @@ lvUIEventBlock *lv_ui_event_block_create(lvEffectType effect) {
  *
  * @param block UI 事件块指针
  */
-void lv_ui_event_block_destroy(lvUIEventBlock *block) {
-    lv_free((void **) &block);
-}
+/* destroy 由 LV_SIMPLE_BLOCK_PARAM 宏自动生成 */

@@ -19,6 +19,8 @@ Lv-00 formal: AutoDiffTheory — 自动微分理论 (v1.3 R1)
 
 import Mathlib
 
+noncomputable section
+
 namespace lvFormal.Theory.AutoDiffTheory
 
 /-! ===============================================================
@@ -37,7 +39,6 @@ structure Dual where
   primal : ℝ
   /-- 导数值（tangent） -/
   tangent : ℝ
-  deriving DecidableEq, Repr
 
 /-- 常数 → 双数：原值 + 0·ε -/
 def dual_const (a : ℝ) : Dual := { primal := a, tangent := 0 }
@@ -104,19 +105,19 @@ def dual_ln (d : Dual) : Dual :=
 
 /-- 双数加法的交换律 -/
 theorem dual_add_comm (x y : Dual) : dual_add x y = dual_add y x := by
-  ext <;> simp [dual_add] <;> ring
+  cases x; cases y; unfold dual_add; congr 1 <;> ring
 
 /-- 双数加法的结合律 -/
 theorem dual_add_assoc (x y z : Dual) : dual_add (dual_add x y) z = dual_add x (dual_add y z) := by
-  ext <;> simp [dual_add] <;> ring
+  cases x; cases y; cases z; unfold dual_add; congr 1 <;> ring
 
 /-- 双数乘法的交换律 -/
 theorem dual_mul_comm (x y : Dual) : dual_mul x y = dual_mul y x := by
-  ext <;> simp [dual_mul] <;> ring
+  cases x; cases y; unfold dual_mul; congr 1 <;> ring
 
 /-- 双数乘法的结合律 -/
 theorem dual_mul_assoc (x y z : Dual) : dual_mul (dual_mul x y) z = dual_mul x (dual_mul y z) := by
-  ext <;> simp [dual_mul] <;> ring
+  cases x; cases y; cases z; unfold dual_mul; congr 1 <;> ring
 
 /-- 双数 ε² = 0 性质
     若 d 的 primal 为 0（即 d = a'·ε 纯虚部），
@@ -164,13 +165,12 @@ inductive ADNode where
   | cos    (arg : ADNode)
   | exp    (arg : ADNode)
   | ln     (arg : ADNode)
-  deriving DecidableEq, Repr
 
 /-- 前向模式求值：
     对每个节点，同时计算原值和对指定第 seed_var 个变量的导数。
     
     对应 C 中 forward_mode_eval。 -/
-def forward_eval (expr : ADNode) (seed_var : ℕ) (x : ℕ → ℝ) : ℝ × ℝ :=
+partial def forward_eval (expr : ADNode) (seed_var : ℕ) (x : ℕ → ℝ) : ℝ × ℝ :=
   match expr with
   | .const v       => (v, 0)
   | .var i         => (x i, if i = seed_var then 1 else 0)
@@ -235,9 +235,9 @@ theorem forward_mode_correctness (expr : ADNode) (seed_var : ℕ) (x : ℕ → �
     
     对应 C 中 reverse_mode_eval。 -/
 
-/-- 简单标量 → 标量函数的梯度计算：
-    对单输出函数 f: ℝⁿ → ℝ，反向模式一次求导
-    计算所有偏导数 ∂f/∂x₁, ..., ∂f/∂xₙ。 -/
+--- 简单标量 → 标量函数的梯度计算：
+--- 对单输出函数 f: ℝⁿ → ℝ，反向模式一次求导
+--- 计算所有偏导数 ∂f/∂x₁, ..., ∂f/∂xₙ。
 
 /-- 反向模式正确性定理：
     

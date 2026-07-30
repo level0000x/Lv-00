@@ -955,7 +955,7 @@ void debug_trace(const char *fmt, ...) {
         return;
     va_list ap;
     va_start(ap, fmt);
-    char _dbg_buf[4096];
+    char _dbg_buf[lv_LARGE_BUF_SIZE];
     vsnprintf(_dbg_buf, sizeof(_dbg_buf), fmt, ap);
     va_end(ap);
     lv_DEBUG("%s", _dbg_buf);

@@ -1,4 +1,4 @@
-﻿#ifndef lv_PRESET_COMMON_H
+#ifndef lv_PRESET_COMMON_H
 #define lv_PRESET_COMMON_H
 #include <stdbool.h>
 #include <stdint.h>
@@ -85,6 +85,48 @@ extern "C" {
 
 #define COMMON_PRESET_COUNT 1
 bool preset_common_register(void);
+
+/**
+ * @brief 声明预设注册辅助函数（消除每个 preset 文件头部的重复实现）
+ *
+ * 用法：在 preset_xxx.c 文件头部使用：
+ *   LV_DECLARE_PRESET_REGISTER(PRESET_CATEGORY_XXX)
+ *
+ * 这会生成一个 static helper 函数，用于向 preset_blocks_register_simple 注册预设。
+ */
+#define LV_DECLARE_PRESET_REGISTER(category)                                                          \
+    static bool lv_preset_register_helper(const char *name, const char *desc,                         \
+                                          const PresetType *in, int in_cnt, PresetType out,           \
+                                          const char *math, const char *comp, bool cons, bool rev) {  \
+        return preset_blocks_register_simple(name, desc, (category), in, in_cnt, out, math, comp,     \
+                                             cons, rev);                                              \
+    }
+
+/**
+ * @brief 单个预设注册块（消除每个注册块的重复结构）
+ *
+ * 用法：在 xxx_register() 函数内部使用：
+ *   LV_PRESET_REGISTER(success, "name", "desc", (TYPE_A, TYPE_B), 2, TYPE_C, "math", "comp", true, false);
+ *
+ * @param success_counter 成功计数器（递增的变量名）
+ * @param name_      预设名称字符串
+ * @param desc_      预设描述字符串
+ * @param inputs_    输入类型列表（逗号分隔，无括号）
+ * @param in_cnt_    输入数量
+ * @param output_    输出类型
+ * @param math_def_  数学定义字符串
+ * @param comp_      复杂度字符串
+ * @param cons_      bool 是否构造性
+ * @param rev_       bool 是否可逆
+ */
+#define LV_PRESET_REGISTER(success_counter, name_, desc_, inputs_, in_cnt_, output_, math_def_, comp_, cons_, rev_, ...) \
+    do {                                                                                                            \
+        static const PresetType _inputs[] = { inputs_ };                                                            \
+        if (lv_preset_register_helper((name_), (desc_), _inputs, (in_cnt_), (output_), (math_def_), (comp_),        \
+                                      (cons_), (rev_))) {                                                          \
+            (success_counter)++;                                                                                    \
+        }                                                                                                           \
+    } while (0)
 
 size_t lv_safe_strncpy(char *dest, const char *src, size_t dest_size);
 size_t lv_safe_strncat(char *dest, const char *src, size_t dest_size);

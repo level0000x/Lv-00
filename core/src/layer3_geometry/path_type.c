@@ -355,12 +355,12 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "path_to_equality: graph_create failed");
 
     /* 使用端点 ID 创建区分性的符号坐标 */
-    SymbolicCoord *coord_a_x = symbolic_coord_create_rational(path->endpoint_a * 1000 + 1, 1000);
-    SymbolicCoord *coord_a_y = symbolic_coord_create_rational(path->endpoint_a * 1000 + 2, 1000);
+    SymbolicCoord *coord_a_x = symbolic_coord_create_rational(path->endpoint_a * lv_RATIONAL_SCALE_LOW + 1, lv_RATIONAL_SCALE_LOW);
+    SymbolicCoord *coord_a_y = symbolic_coord_create_rational(path->endpoint_a * lv_RATIONAL_SCALE_LOW + 2, lv_RATIONAL_SCALE_LOW);
     SymbolicCoord *coords_a[2] = {coord_a_x, coord_a_y};
 
-    SymbolicCoord *coord_b_x = symbolic_coord_create_rational(path->endpoint_b * 1000 + 3, 1000);
-    SymbolicCoord *coord_b_y = symbolic_coord_create_rational(path->endpoint_b * 1000 + 4, 1000);
+    SymbolicCoord *coord_b_x = symbolic_coord_create_rational(path->endpoint_b * lv_RATIONAL_SCALE_LOW + 3, lv_RATIONAL_SCALE_LOW);
+    SymbolicCoord *coord_b_y = symbolic_coord_create_rational(path->endpoint_b * lv_RATIONAL_SCALE_LOW + 4, lv_RATIONAL_SCALE_LOW);
     SymbolicCoord *coords_b[2] = {coord_b_x, coord_b_y};
 
     /* 添加路径端点作为图中的点节点 */

@@ -525,7 +525,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
 
     /* 读取管道中的所有输出（进程已终止或已完成） */
     DWORD bytes_read;
-    char buffer[4096];
+    char buffer[lv_LARGE_BUF_SIZE];
     while (ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytes_read, NULL) && bytes_read > 0) {
         buffer[bytes_read] = '\0';
         size_t chunk_len = strlen(buffer);
@@ -660,7 +660,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
 
         /* 如果已超时终止，做最终读取 */
         if (timed_out) {
-            char buf[4096];
+            char buf[lv_LARGE_BUF_SIZE];
             ssize_t n;
             while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
                 while (out_len + (size_t) n + 1 >= out_size) {
@@ -689,7 +689,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
             process_exited = true;
             exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
             /* 读取剩余管道数据 */
-            char buf[4096];
+            char buf[lv_LARGE_BUF_SIZE];
             ssize_t n;
             while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
                 while (out_len + (size_t) n + 1 >= out_size) {
@@ -712,7 +712,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
         /* 使用 poll 等待管道数据就绪（100ms 超时） */
         int poll_ret = poll(&pfd, 1, 100);
         if (poll_ret > 0 && (pfd.revents & POLLIN)) {
-            char buf[4096];
+            char buf[lv_LARGE_BUF_SIZE];
             ssize_t nread = read(pipefd[0], buf, sizeof(buf));
             if (nread > 0) {
                 while (out_len + (size_t) nread + 1 >= out_size) {

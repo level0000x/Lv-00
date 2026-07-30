@@ -13,18 +13,9 @@
  */
 
 #include "solver_core.h"
-
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv/constraint_graph.h"
+#include "solver_common.h"
 #include "lv/groebner_parallel.h"
 #include "lv/lv.h"
-
-#include "lv_internal.h"
-#include "lv_utils.h"
 
 /* ========================================================================
  * 内部常量

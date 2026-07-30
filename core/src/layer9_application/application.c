@@ -254,7 +254,7 @@ int lv_app_run_repl(lvApplication *app) {
     lv_CHECK_NOT_NULL(app);
 
     /* 交互式 REPL 循环 */
-    char linebuf[4096];
+    char linebuf[lv_LARGE_BUF_SIZE];
     printf("Lv-00 交互式证明系统 v1.0.0\n");
     printf("输入 \"quit\"、\"exit\" 或 \"q\" 退出\n\n");
 

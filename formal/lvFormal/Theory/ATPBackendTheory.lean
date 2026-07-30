@@ -150,11 +150,13 @@ theorem tptp_encoding_well_formed (graph : ConstraintGraphTPTP) (format : ATPInp
 
 /-- 检查字符串 s 是否包含子串 sub -/
 def containsSubstring (s sub : String) : Bool :=
-  let rec loop (i : ℕ) : Bool :=
-    if i + sub.length > s.length then false
-    else if s.startsWith sub i then true
-    else loop (i + 1)
-  loop 0
+  go 0
+where
+  go (i : ℕ) : Bool :=
+    if h : i + sub.length ≤ s.length then
+      if s.extract i (i + sub.length) = sub then true
+      else go (i + 1)
+    else false
 
 /-- SZS 状态行格式：SZS status: <result>
     

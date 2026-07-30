@@ -44,7 +44,7 @@ typedef struct {
 } LinearEntity;
 
 static inline SymbolicCoord *symbolic_coord_from_double(double val) {
-    return symbolic_coord_create_rational((int64_t) (val * 1000000), 1000000);
+    return symbolic_coord_create_rational((int64_t) (val * lv_RATIONAL_SCALE_DEFAULT), lv_RATIONAL_SCALE_DEFAULT);
 }
 
 static inline PointEntity *point_entity_create(SymbolicCoord *x, SymbolicCoord *y) {

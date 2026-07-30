@@ -7,22 +7,7 @@
  * @version 3.3.0
  */
 
-#include <float.h>
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv/constraint_graph.h"
-#include "lv/solver.h"
-#include "lv/stream.h"
-
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
-#include "stream_context_util.h"
+#include "solver_common.h"
 
 #define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
     do {                                                               \

@@ -48,8 +48,8 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 32 constraint templates");
-    printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
+    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 32 constraint templates");
+    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
 
     const char *expected_templates[] = {
         /* Group I: Classical Propositional Foundation */
@@ -177,8 +177,8 @@ static void test_unconstructible_problems(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 7 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 7 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     struct {
         const char *name;
@@ -317,8 +317,8 @@ static void test_roundtrip_save_load(void) {
     /* Verify basic properties preserved */
     TEST_ASSERT(strcmp(pkg1->name, pkg2->name) == 0, "package name should be preserved");
     TEST_ASSERT(strcmp(pkg1->version, pkg2->version) == 0, "package version should be preserved");
-    TEST_ASSERT(pkg1->template_count == pkg2->template_count, "template count should be preserved");
-    TEST_ASSERT(pkg1->unconstructible_count == pkg2->unconstructible_count,
+    TEST_ASSERT(pkg1->template_count == axiom_package_get_template_count(pkg2), "template count should be preserved");
+    TEST_ASSERT(pkg1->unconstructible_count == axiom_package_get_unconstructible_count(pkg2),
                 "unconstructible count should be preserved");
 
     lv_free((void **) &hash1);
@@ -369,8 +369,8 @@ static void test_external_refs(void) {
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
     int valid_url_count = 0;
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+    for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
         if (uc->external_ref) {
             /* Check if it looks like a valid URL */
             bool is_valid = false;
@@ -385,7 +385,7 @@ static void test_external_refs(void) {
     }
 
     TEST_ASSERT(valid_url_count > 0, "at least some unconstructible problems should have valid URLs");
-    printf("  Valid external references: %d/%d\n", valid_url_count, pkg->unconstructible_count);
+    printf("  Valid external references: %d/%d\n", valid_url_count, axiom_package_get_unconstructible_count(pkg));
 
     axiom_package_destroy(pkg);
 }

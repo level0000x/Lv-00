@@ -87,24 +87,24 @@ ModuleSaveStatus module_autosave(const Module *mod) {
 
     /* 轮转备份：删除最旧的备份 */
     if (config->max_backups > 0) {
-        char oldest_path[1024];
+        char oldest_path[lv_PATH_BUF_SIZE];
         make_backup_filepath(oldest_path, sizeof(oldest_path), config->backup_directory, mod->name,
                              config->max_backups - 1);
         remove(oldest_path);
 
-        char oldest_binpath[1024];
+        char oldest_binpath[lv_PATH_BUF_SIZE];
         make_backup_binpath(oldest_binpath, sizeof(oldest_binpath), config->backup_directory, mod->name,
                             config->max_backups - 1);
         remove(oldest_binpath);
 
         /* 将备份文件向后移动 */
         for (int i = config->max_backups - 2; i >= 0; i--) {
-            char old_path[1024], new_path[1024];
+            char old_path[lv_PATH_BUF_SIZE], new_path[lv_PATH_BUF_SIZE];
             make_backup_filepath(old_path, sizeof(old_path), config->backup_directory, mod->name, i);
             make_backup_filepath(new_path, sizeof(new_path), config->backup_directory, mod->name, i + 1);
             rename(old_path, new_path);
 
-            char old_binpath[1024], new_binpath[1024];
+            char old_binpath[lv_PATH_BUF_SIZE], new_binpath[lv_PATH_BUF_SIZE];
             make_backup_binpath(old_binpath, sizeof(old_binpath), config->backup_directory, mod->name, i);
             make_backup_binpath(new_binpath, sizeof(new_binpath), config->backup_directory, mod->name, i + 1);
             rename(old_binpath, new_binpath);
@@ -112,7 +112,7 @@ ModuleSaveStatus module_autosave(const Module *mod) {
     }
 
     /* 保存文本格式备份 */
-    char backup_path[1024];
+    char backup_path[lv_PATH_BUF_SIZE];
     make_backup_filepath(backup_path, sizeof(backup_path), config->backup_directory, mod->name, 0);
 
     ModuleSaveStatus status = module_save(mod, backup_path);
@@ -126,7 +126,7 @@ ModuleSaveStatus module_autosave(const Module *mod) {
     size_t bin_size = 0;
     status = module_save_to_binary(mod, &bin_data, &bin_size);
     if (status == MODULE_SAVE_OK && bin_data) {
-        char bin_path[1024];
+        char bin_path[lv_PATH_BUF_SIZE];
         make_backup_binpath(bin_path, sizeof(bin_path), config->backup_directory, mod->name, 0);
 
         FILE *f = fopen(bin_path, "wb");
@@ -155,7 +155,7 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
 
     for (int i = 0; i < max_attempts; i++) {
         /* 优先尝试二进制格式 */
-        char bin_path[1024];
+        char bin_path[lv_PATH_BUF_SIZE];
         make_backup_binpath(bin_path, sizeof(bin_path), config ? config->backup_directory : NULL, module_name, i);
 
         FILE *f = fopen(bin_path, "rb");
@@ -184,7 +184,7 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
         }
 
         /* 尝试文本格式 */
-        char txt_path[1024];
+        char txt_path[lv_PATH_BUF_SIZE];
         make_backup_filepath(txt_path, sizeof(txt_path), config ? config->backup_directory : NULL, module_name, i);
 
         f = fopen(txt_path, "r");

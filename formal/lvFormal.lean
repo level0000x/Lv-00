@@ -39,3 +39,13 @@ import lvFormal.Theory.Cv00Memory
 import lvFormal.Theory.UndefinedBehavior
 import lvFormal.Theory.Evidence
 import lvFormal.Theory.InteropSoundness
+import lvFormal.Theory.ApplicationLayer
+import lvFormal.Theory.ATPBackendTheory
+import lvFormal.Theory.AutoDiffTheory
+import lvFormal.Theory.AxiomDiscoveryTheory
+import lvFormal.Theory.BDDEncoding
+import lvFormal.Theory.BootstrapCorrectness
+import lvFormal.Theory.EndToEndCorrectness
+import lvFormal.Theory.MetaVerificationTheory
+import lvFormal.Theory.OrchestrationSoundness
+import lvFormal.Theory.StreamingTheory

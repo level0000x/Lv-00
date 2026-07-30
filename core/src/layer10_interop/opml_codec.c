@@ -93,7 +93,7 @@ typedef struct {
     int step_count;         /* 步骤数量 */
     int step_capacity;      /* 步骤容量 */
     lvProofStep *steps;     /* 步骤数组 */
-    char axioms[1024];      /* 公理列表（逗号分隔） */
+    char axioms[lv_PATH_BUF_SIZE];      /* 公理列表（逗号分隔） */
 } lvOpmlProof;
 
 /**
@@ -148,7 +148,7 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
     int pos = 0;
 
     /* 转义定理名称，防止 JSON 注入 */
-    char escaped_name[1024];
+    char escaped_name[lv_PATH_BUF_SIZE];
     json_escape_string(p->theorem_name, escaped_name, (int) sizeof(escaped_name));
 
     /* 写入 JSON 头部 */

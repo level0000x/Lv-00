@@ -12,6 +12,7 @@
 #include "lv/data_structure_blocks.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_block_utils.h"
 
 /**
  * @brief 创建列表块
@@ -21,13 +22,9 @@
  * @param op 列表操作类型（如映射、过滤、归约等）
  * @return 成功返回列表块指针，失败返回NULL
  */
-lvListBlock *lv_list_block_create(lvListOp op) {
-    lvListBlock *block = lv_calloc(1, sizeof(lvListBlock));
-    if (!block)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate list block");
+LV_SIMPLE_BLOCK_PARAM(lvListBlock, lv_list_block, (lvListOp op), ({
     block->operation = op;
-    return block;
-}
+}))
 
 /**
  * @brief 销毁列表块
@@ -36,6 +33,4 @@ lvListBlock *lv_list_block_create(lvListOp op) {
  *
  * @param block 列表块指针
  */
-void lv_list_block_destroy(lvListBlock *block) {
-    lv_free((void **) &block);
-}
+/* destroy 由 LV_SIMPLE_BLOCK_PARAM 宏自动生成 */

@@ -7,24 +7,7 @@
  * @version 3.3.0
  */
 
-#include <float.h>
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv/constraint_graph.h"
-#include "lv/solver.h"
-#include "lv/solver_types.h"
-#include "lv/stream.h"
-
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
-#include "stream_context_util.h"
-
+#include "solver_common.h"
 #include "lv/lv_mempool_utils.h" /* v3.3.0 内存池公共 API + 静态单例工具 */
 
 /* ── 多项式系数内存池集成（试用）──

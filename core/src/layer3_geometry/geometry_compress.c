@@ -466,7 +466,7 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
 
     /* Huffman encode residual data (quantize double residuals to int16) */
     if (residual_count > 0) {
-        double quant_factor = 1000.0;
+        double quant_factor = (double) lv_FLOAT_APPROX_SCALE;
         int16_t *quantized = (int16_t *) lv_malloc(residual_count * sizeof(int16_t));
         if (quantized) {
             for (int i = 0; i < residual_count; i++) {
@@ -698,13 +698,13 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
             double residual_val = actual - pred_coords[d];
 
             /* Replace coordinate with residual as rational */
-            double scaled_val = residual_val * 1000.0;
+            double scaled_val = residual_val * (double) lv_RATIONAL_SCALE_LOW;
             /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
             if (scaled_val > 9223372036854774784.0)
                 scaled_val = 9223372036854774784.0;
             if (scaled_val < -9223372036854774784.0)
                 scaled_val = -9223372036854774784.0;
-            SymbolicCoord *residual = symbolic_coord_create_rational((int64_t) scaled_val, 1000);
+            SymbolicCoord *residual = symbolic_coord_create_rational((int64_t) scaled_val, lv_RATIONAL_SCALE_LOW);
             if (residual) {
                 symbolic_coord_destroy(node_target->symbolic_coords[d]);
                 node_target->symbolic_coords[d] = residual;
@@ -2164,12 +2164,12 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
                 double val;
                 memcpy(&val, ptr, sizeof(double));
                 ptr += sizeof(double);
-                double scaled_val = val * 1000000.0;
+                double scaled_val = val * (double) lv_RATIONAL_SCALE_DEFAULT;
                 if (scaled_val > 9223372036854774784.0)
                     scaled_val = 9223372036854774784.0;
                 if (scaled_val < -9223372036854774784.0)
                     scaled_val = -9223372036854774784.0;
-                coords[d] = symbolic_coord_create_rational((int64_t) scaled_val, 1000000);
+                coords[d] = symbolic_coord_create_rational((int64_t) scaled_val, lv_RATIONAL_SCALE_DEFAULT);
                 if (!coords[d]) {
                     ok = false;
                     break;

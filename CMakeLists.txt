@@ -483,6 +483,7 @@ set(lv_HEADERS
     core/include/lv/magic.h
     # 内部/实现头文件（用于 IDE 索引和 OBJECT 库关联）
     core/include/lv/lv_internal.h
+    core/include/lv/lv_block_utils.h
     core/include/lv/config.h
     core/include/lv/context.h
     core/include/lv/geometry_types.h
@@ -673,7 +674,7 @@ set(lv_LAYER2_SOURCES
     # v4.0.0 新增：熔断器独立模块（从 lvContext God Object 提取）
     core/src/layer2_resource/lv_circuit_breaker.c
     # v4.0.0 新增：推理分支栈独立模块（从 lvContext God Object 提取）
-    core/src/layer2_resource/lv_reasoning_stack.c
+    # lv_reasoning_stack.c 已移至 L3（依赖 ConstraintGraph 类型）
     # v4.0.0 新增：流式输出上下文独立模块（从 lvContext God Object 提取）
     core/src/layer2_resource/lv_stream_context.c
     core/src/layer2_resource/error_codes.c
@@ -716,7 +717,7 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/adaptive_threshold.c
     core/src/layer2_resource/meta_repr.c
     # 补全遗漏文件：引导测试
-    core/src/layer2_resource/bootstrap_test.c
+    # bootstrap_test.c 已移至 L4（依赖 L3+L4 类型）
     # SHA-256 共享实现（从 axiom_pkg.c 提取）
     core/src/layer2_resource/sha256.c
     # v1.1.0 线程池（原在 L3，v2.0.0 移入 L2 作为基础设施）
@@ -799,6 +800,8 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/geometric_primitives.c
     core/src/layer3_geometry/parametric_curves.c
     core/src/layer3_geometry/path_type.c
+    # v2.0.0 推理栈模块（原在 L2，使用 ConstraintGraph 类型，故归位 L3）
+    core/src/layer3_geometry/lv_reasoning_stack.c
     # 约束图子模块：冲突检测、索引、内存、节点、序列化
     core/src/layer3_geometry/constraint_graph/graph_conflict.c
     core/src/layer3_geometry/constraint_graph/graph_index.c
@@ -1059,6 +1062,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/kernel/meta_proof.c
     # 推理缓存
     core/src/layer4_reasoning/model/reasoning_cache.c
+    # v2.0.0 自举差分测试（原在 L2，依赖 L3+L4 类型，故归位 L4）
+    core/src/layer4_reasoning/bootstrap_test.c
     # 模块子模块：增量、LVZ、序列化
     core/src/layer4_reasoning/module/module_delta.c
     core/src/layer4_reasoning/module/module_lvz.c

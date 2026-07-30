@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_field_theory.c
  * @brief 域论预设函数块模块 - 实现（v2统一宏模式）
  *
@@ -26,58 +26,7 @@
 
 /* ==================== 内部辅助函数 ==================== */
 
-/**
- * @brief 注册单个域论预设
- *
- * 辅助函数，简化预设注册过程。
- * 所有域论预设都属于 PRESET_CATEGORY_ALGEBRAIC 类别。
- *
- * @param name 预设名称
- * @param description 中文描述
- * @param input_types 输入类型数组
- * @param input_count 输入数量
- * @param output_type 输出类型
- * @param math_def 数学定义（LaTeX格式）
- * @param complexity 时间复杂度
- * @param is_constructive 是否构造性
- * @param is_reversible 是否可逆
- * @return true 注册成功
- * @return false 注册失败
- */
-static bool register_field_theory_preset(const char *name, const char *description, const PresetType *input_types,
-                                         int input_count, PresetType output_type, const char *math_def,
-                                         const char *complexity, bool is_constructive, bool is_reversible) {
-    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ALGEBRAIC, input_types, input_count,
-                                         output_type, math_def, complexity, is_constructive, is_reversible);
-}
-
-/* ==================== v2统一注册宏 ==================== */
-
-/**
- * @brief 域论预设统一注册宏
- *
- * 使用do-while(0)包装，确保宏展开后在语法上等价于单条语句。
- * 注册成功时递增success_count，失败时输出错误日志。
- *
- * @param name       预设名称
- * @param desc       中文描述
- * @param inputs     输入类型数组
- * @param in_count   输入数量
- * @param output     输出类型
- * @param math       数学定义（LaTeX格式字符串）
- * @param comp       时间复杂度
- * @param cons       是否构造性
- * @param rev        是否可逆
- */
-#define REGISTER_FIELD(name, desc, inputs, in_count, output, math, comp, cons, rev)                              \
-    do {                                                                                                         \
-        if (register_field_theory_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), \
-                                         (rev))) {                                                               \
-            success_count++;                                                                                     \
-        } else {                                                                                                 \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                  \
-        }                                                                                                        \
-    } while (0)
+LV_DECLARE_PRESET_REGISTER(PRESET_CATEGORY_ALGEBRAIC)
 
 /* ==================== 模块注册实现 ==================== */
 
@@ -102,11 +51,9 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible true（减法为其逆运算）
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD("field_add", "域加法：计算域F中两个元素的和 a + b", inputs, 2, PRESET_TYPE_FIELD,
+    LV_PRESET_REGISTER(success, "field_add", "域加法：计算域F中两个元素的和 a + b",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2, PRESET_TYPE_FIELD,
                        "(a, b) \\mapsto a + b \\in F", "O(1)", true, true);
-    }
 
     /**
      * @brief field_multiply - 域乘法
@@ -122,11 +69,9 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible true（非零元素可逆）
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_FIELD_MULTIPLY, "域乘法：计算域F中两个元素的积 a * b", inputs, 2, PRESET_TYPE_FIELD,
+    LV_PRESET_REGISTER(success, PRESET_FIELD_MULTIPLY, "域乘法：计算域F中两个元素的积 a * b",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2, PRESET_TYPE_FIELD,
                        "(a, b) \\mapsto a \\cdot b \\in F", "O(1)", true, true);
-    }
 
     /**
      * @brief field_inverse - 乘法逆元
@@ -141,12 +86,9 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible true（逆元的逆元为自身）
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD};
-        REGISTER_FIELD("field_inverse", "乘法逆元：计算域中非零元素的乘法逆元 a^{-1}，满足 a * a^{-1} = 1", inputs, 1,
-                       PRESET_TYPE_FIELD, "a \\mapsto a^{-1}, \\quad a \\cdot a^{-1} = 1_F, \\; a \\neq 0", "O(1)",
+    LV_PRESET_REGISTER(success, "field_inverse", "乘法逆元：计算域中非零元素的乘法逆元 a^{-1}，满足 a * a^{-1} = 1",
+                       PRESET_TYPE_FIELD, 1, PRESET_TYPE_FIELD, "a \\mapsto a^{-1}, \\quad a \\cdot a^{-1} = 1_F, \\; a \\neq 0", "O(1)",
                        true, true);
-    }
 
     /**
      * @brief field_divide - 域除法
@@ -161,12 +103,10 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible true（乘法为其逆运算）
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_FIELD_DIVIDE, "域除法：计算域F中两个元素的商 a / b（b != 0）", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_FIELD_DIVIDE, "域除法：计算域F中两个元素的商 a / b（b != 0）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_FIELD, "(a, b) \\mapsto a \\cdot b^{-1} \\in F, \\quad b \\neq 0", "O(1)", true,
                        true);
-    }
 
     /**
      * @brief field_characteristic - 域特征
@@ -182,15 +122,13 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_FIELD_CHARACTERISTIC,
-                       "域特征：计算域F的特征 char(F)，即满足 n*1=0 的最小正整数n（若不存在则为0）", inputs, 1,
+    LV_PRESET_REGISTER(success, PRESET_FIELD_CHARACTERISTIC,
+                       "域特征：计算域F的特征 char(F)，即满足 n*1=0 的最小正整数n（若不存在则为0）",
+                       PRESET_TYPE_FIELD, 1,
                        PRESET_TYPE_INTEGER,
                        "\\text{char}(F) = \\min\\{n > 0 : n \\cdot 1_F = 0\\}, \\quad \\text{char}(F) \\in \\{0, p \\; "
                        "| \\; p \\text{ 是素数}\\}",
                        "O(1)", false, false);
-    }
 
     /**
      * @brief field_subfield_check - 子域判定
@@ -206,14 +144,11 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_SET};
-        REGISTER_FIELD(PRESET_FIELD_SUBFIELD_CHECK, "子域判定：判定域F的子集K是否构成子域（含0,1，四则运算封闭）",
-                       inputs, 2, PRESET_TYPE_BOOLEAN,
+    LV_PRESET_REGISTER(success, PRESET_FIELD_SUBFIELD_CHECK, "子域判定：判定域F的子集K是否构成子域（含0,1，四则运算封闭）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_SET), 2, PRESET_TYPE_BOOLEAN,
                        "K \\le F \\Leftrightarrow 0, 1 \\in K \\land (\\forall a,b \\in K: a \\pm b, ab \\in K) \\land "
                        "(\\forall a \\neq 0 \\in K: a^{-1} \\in K)",
                        "O(n^2)", false, false);
-    }
 
     /**
      * @brief field_extension_check - 域扩张判定
@@ -229,11 +164,9 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_FIELD_EXTENSION_CHECK, "域扩张判定：判定E是否为F的域扩张 E/F（F是E的子域）", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_FIELD_EXTENSION_CHECK, "域扩张判定：判定E是否为F的域扩张 E/F（F是E的子域）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_BOOLEAN, "E/F \\text{ 是域扩张} \\Leftrightarrow F \\le E", "O(n^2)", false, false);
-    }
 
     /**
      * @brief field_prime_subfield - 素子域
@@ -249,14 +182,12 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_FIELD_PRIME_SUBFIELD, "素子域：获取域F的素子域（char=p时为F_p，char=0时为Q）", inputs, 1,
+    LV_PRESET_REGISTER(success, PRESET_FIELD_PRIME_SUBFIELD, "素子域：获取域F的素子域（char=p时为F_p，char=0时为Q）",
+                       PRESET_TYPE_FIELD, 1,
                        PRESET_TYPE_FIELD,
                        "\\text{PrimeSubfield}(F) = \\begin{cases} \\mathbb{F}_p & \\text{char}(F) = p \\neq 0 \\\\ "
                        "\\mathbb{Q} & \\text{char}(F) = 0 \\end{cases}",
                        "O(1)", true, false);
-    }
 
     /* ============================================================
      * 第二部分：域扩张（10个）
@@ -276,11 +207,8 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_EXTENSION_DEGREE, "扩张次数：计算域扩张 E/F 的次数 [E:F]（E作为F上向量空间的维数）",
-                       inputs, 2, PRESET_TYPE_INTEGER, "[E : F] = \\dim_F(E)", "O(n)", false, false);
-    }
+    LV_PRESET_REGISTER(success, PRESET_EXTENSION_DEGREE, "扩张次数：计算域扩张 E/F 的次数 [E:F]（E作为F上向量空间的维数）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2, PRESET_TYPE_INTEGER, "[E : F] = \\dim_F(E)", "O(n)", false, false);
 
     /**
      * @brief simple_extension - 单扩张
@@ -296,12 +224,10 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_SIMPLE_EXTENSION, "简单扩张：由域F和元素alpha构造简单扩张 F(alpha)", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_SIMPLE_EXTENSION, "简单扩张：由域F和元素alpha构造简单扩张 F(alpha)",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_FIELD, "F(\\alpha) = F[\\alpha] \\text{（当 } \\alpha \\text{ 是代数元时）}", "O(n)",
                        true, false);
-    }
 
     /**
      * @brief algebraic_extension - 代数扩张
@@ -317,15 +243,13 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD("algebraic_extension",
-                       "代数扩张判定：判定域扩张 E/F 是否为代数扩张（E中每个元素都是F上的代数元）", inputs, 2,
+    LV_PRESET_REGISTER(success, "algebraic_extension",
+                       "代数扩张判定：判定域扩张 E/F 是否为代数扩张（E中每个元素都是F上的代数元）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_BOOLEAN,
                        "E/F \\text{ 是代数扩张} \\Leftrightarrow \\forall \\alpha \\in E, \\; \\exists f \\in F[x]: "
                        "f(\\alpha) = 0",
                        "O(n^2)", false, false);
-    }
 
     /**
      * @brief transcendental_extension - 超越扩张
@@ -341,15 +265,13 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_TRANSCENDENTAL_EXTENSION,
-                       "超越扩张判定：判定域扩张 E/F 是否为超越扩张（E中存在F上的超越元）", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_TRANSCENDENTAL_EXTENSION,
+                       "超越扩张判定：判定域扩张 E/F 是否为超越扩张（E中存在F上的超越元）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_BOOLEAN,
                        "E/F \\text{ 是超越扩张} \\Leftrightarrow \\exists \\alpha \\in E, \\; \\forall f \\in F[x] "
                        "\\setminus \\{0\\}: f(\\alpha) \\neq 0",
                        "O(n^2)", false, false);
-    }
 
     /**
      * @brief finite_extension - 有限扩张
@@ -365,12 +287,9 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_FINITE_EXTENSION, "有限扩张判定：判定域扩张 E/F 是否为有限扩张（[E:F] < infinity）",
-                       inputs, 2, PRESET_TYPE_BOOLEAN, "E/F \\text{ 是有限扩张} \\Leftrightarrow [E : F] < \\infty",
+    LV_PRESET_REGISTER(success, PRESET_FINITE_EXTENSION, "有限扩张判定：判定域扩张 E/F 是否为有限扩张（[E:F] < infinity）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2, PRESET_TYPE_BOOLEAN, "E/F \\text{ 是有限扩张} \\Leftrightarrow [E : F] < \\infty",
                        "O(n)", false, false);
-    }
 
     /**
      * @brief algebraic_element_check - 代数元判定
@@ -386,14 +305,12 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(
-            PRESET_ALGEBRAIC_ELEMENT_CHECK, "代数元判定：判定域扩张中的元素alpha是否为F上的代数元", inputs, 2,
+    LV_PRESET_REGISTER(success,
+            PRESET_ALGEBRAIC_ELEMENT_CHECK, "代数元判定：判定域扩张中的元素alpha是否为F上的代数元",
+            (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
             PRESET_TYPE_BOOLEAN,
             "\\alpha \\text{ 是代数元} \\Leftrightarrow \\exists f \\in F[x] \\setminus \\{0\\}: f(\\alpha) = 0",
             "O(n^2)", false, false);
-    }
 
     /**
      * @brief minimal_polynomial - 极小多项式
@@ -409,14 +326,12 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_MINIMAL_POLYNOMIAL,
-                       "极小多项式：计算代数元alpha在F上的极小多项式（首一最低次零化多项式）", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_MINIMAL_POLYNOMIAL,
+                       "极小多项式：计算代数元alpha在F上的极小多项式（首一最低次零化多项式）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_POLYNOMIAL,
                        "\\text{minpoly}_F(\\alpha) = \\text{F[x]中首一的最低次多项式 } f, \\; f(\\alpha) = 0", "O(n^2)",
                        true, false);
-    }
 
     /**
      * @brief field_tower - 域塔定理
@@ -434,11 +349,8 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_FIELD_TOWER, "域塔定理：验证域塔 F subset K subset E 的次数关系 [E:F] = [E:K]*[K:F]",
-                       inputs, 3, PRESET_TYPE_INTEGER, "[E : F] = [E : K] \\cdot [K : F]", "O(n)", true, false);
-    }
+    LV_PRESET_REGISTER(success, PRESET_FIELD_TOWER, "域塔定理：验证域塔 F subset K subset E 的次数关系 [E:F] = [E:K]*[K:F]",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 3, PRESET_TYPE_INTEGER, "[E : F] = [E : K] \\cdot [K : F]", "O(n)", true, false);
 
     /**
      * @brief primitive_element - 本原元定理
@@ -455,12 +367,9 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_PRIMITIVE_ELEMENT, "本原元定理：对有限可分扩张 E/F 构造本原元 theta 使得 E = F(theta)",
-                       inputs, 2, PRESET_TYPE_FIELD, "E = F(\\theta), \\quad \\text{当 } E/F \\text{ 是有限可分扩张时}",
+    LV_PRESET_REGISTER(success, PRESET_PRIMITIVE_ELEMENT, "本原元定理：对有限可分扩张 E/F 构造本原元 theta 使得 E = F(theta)",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2, PRESET_TYPE_FIELD, "E = F(\\theta), \\quad \\text{当 } E/F \\text{ 是有限可分扩张时}",
                        "O(n^2)", true, false);
-    }
 
     /**
      * @brief normal_extension - 正规扩张
@@ -477,13 +386,10 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_NORMAL_EXTENSION, "正规扩张判定：判定域扩张 E/F 是否为正规扩张（某个多项式族的分裂域）",
-                       inputs, 2, PRESET_TYPE_BOOLEAN,
+    LV_PRESET_REGISTER(success, PRESET_NORMAL_EXTENSION, "正规扩张判定：判定域扩张 E/F 是否为正规扩张（某个多项式族的分裂域）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2, PRESET_TYPE_BOOLEAN,
                        "E/F \\text{ 是正规扩张} \\Leftrightarrow E \\text{ 是 } F[x] \\text{ 中某个多项式集合的分裂域}",
                        "O(n^3)", false, false);
-    }
 
     /* ============================================================
      * 第三部分：伽罗瓦理论（12个）
@@ -503,13 +409,10 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_GALOIS_GROUP, "伽罗瓦群：计算域扩张 E/F 的伽罗瓦群 Gal(E/F)（所有F-自同构组成的群）",
-                       inputs, 2, PRESET_TYPE_GROUP,
+    LV_PRESET_REGISTER(success, PRESET_GALOIS_GROUP, "伽罗瓦群：计算域扩张 E/F 的伽罗瓦群 Gal(E/F)（所有F-自同构组成的群）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2, PRESET_TYPE_GROUP,
                        "\\text{Gal}(E/F) = \\{\\sigma : E \\to E \\; | \\; \\sigma|_F = \\text{id}_F\\}", "O(n!)", true,
                        false);
-    }
 
     /**
      * @brief galois_group_order - 伽罗瓦群阶
@@ -525,13 +428,11 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_GALOIS_GROUP_ORDER, "伽罗瓦群阶：计算伽罗瓦群 Gal(E/F) 的阶 |Gal(E/F)|", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_GALOIS_GROUP_ORDER, "伽罗瓦群阶：计算伽罗瓦群 Gal(E/F) 的阶 |Gal(E/F)|",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_INTEGER,
                        "|\\text{Gal}(E/F)| \\le [E : F], \\quad \\text{等号成立当且仅当 } E/F \\text{ 是伽罗瓦扩张}",
                        "O(n!)", false, false);
-    }
 
     /**
      * @brief fixed_field - 不动域
@@ -547,13 +448,11 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_GROUP};
-        REGISTER_FIELD(PRESET_FIXED_FIELD,
-                       "不动域：计算伽罗瓦群G的不动域 E^G = {x in E | sigma(x)=x, 对所有sigma in G}", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_FIXED_FIELD,
+                       "不动域：计算伽罗瓦群G的不动域 E^G = {x in E | sigma(x)=x, 对所有sigma in G}",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_GROUP), 2,
                        PRESET_TYPE_FIELD, "E^G = \\{x \\in E : \\sigma(x) = x, \\; \\forall \\sigma \\in G\\}",
                        "O(n^2)", true, false);
-    }
 
     /**
      * @brief galois_correspondence - 伽罗瓦对应
@@ -569,14 +468,11 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_GALOIS_CORRESPONDENCE, "伽罗瓦对应：建立伽罗瓦群的子群与中间域之间的双射对应关系", inputs,
-                       2, PRESET_TYPE_BOOLEAN,
+    LV_PRESET_REGISTER(success, PRESET_GALOIS_CORRESPONDENCE, "伽罗瓦对应：建立伽罗瓦群的子群与中间域之间的双射对应关系",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2, PRESET_TYPE_BOOLEAN,
                        "\\{\\text{Gal}(E/F) \\text{ 的子群}\\} \\xleftrightarrow{1-1} \\{F \\subseteq K \\subseteq E "
                        "\\text{ 的中间域}\\}",
                        "O(n!)", false, false);
-    }
 
     /**
      * @brief galois_check - 伽罗瓦扩张判定
@@ -593,14 +489,12 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_GALOIS_CHECK, "伽罗瓦扩张判定：判定 E/F 是否为伽罗瓦扩张（正规且可分）", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_GALOIS_CHECK, "伽罗瓦扩张判定：判定 E/F 是否为伽罗瓦扩张（正规且可分）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_BOOLEAN,
                        "E/F \\text{ 是伽罗瓦扩张} \\Leftrightarrow E/F \\text{ 正规且可分} \\Leftrightarrow "
                        "|\\text{Gal}(E/F)| = [E:F]",
                        "O(n^3)", false, false);
-    }
 
     /**
      * @brief separable_extension - 可分扩张
@@ -617,15 +511,13 @@ bool preset_field_theory_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_SEPARABLE_EXTENSION,
-                       "可分扩张判定：判定域扩张 E/F 是否为可分扩张（每个元素的最小多项式无重根）", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_SEPARABLE_EXTENSION,
+                       "可分扩张判定：判定域扩张 E/F 是否为可分扩张（每个元素的最小多项式无重根）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_BOOLEAN,
                        "E/F \\text{ 是可分扩张} \\Leftrightarrow \\forall \\alpha \\in E, \\; "
                        "\\text{minpoly}_F(\\alpha) \\text{ 无重根}",
                        "O(n^2)", false, false);
-    }
 
     /**
      * @brief splitting_field - 分裂域
@@ -641,14 +533,11 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_POLYNOMIAL};
-        REGISTER_FIELD(
-            PRESET_SPLITTING_FIELD, "分裂域构造：构造多项式 f(x) 在域F上的分裂域（包含f(x)所有根的最小扩域）", inputs,
-            2, PRESET_TYPE_FIELD,
+    LV_PRESET_REGISTER(success,
+            PRESET_SPLITTING_FIELD, "分裂域构造：构造多项式 f(x) 在域F上的分裂域（包含f(x)所有根的最小扩域）",
+            (PRESET_TYPE_FIELD, PRESET_TYPE_POLYNOMIAL), 2, PRESET_TYPE_FIELD,
             "E = F(\\alpha_1, \\ldots, \\alpha_n), \\quad f(x) = (x - \\alpha_1) \\cdots (x - \\alpha_n) \\in E[x]",
             "O(n!)", true, false);
-    }
 
     /**
      * @brief cyclotomic_field - 分圆域
@@ -664,13 +553,11 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        REGISTER_FIELD(PRESET_CYCLOTOMIC_FIELD, "分圆域：构造n次分圆域 Q(zeta_n)，即添加n次本原单位根的扩域", inputs, 1,
+    LV_PRESET_REGISTER(success, PRESET_CYCLOTOMIC_FIELD, "分圆域：构造n次分圆域 Q(zeta_n)，即添加n次本原单位根的扩域",
+                       PRESET_TYPE_INTEGER, 1,
                        PRESET_TYPE_FIELD,
                        "\\mathbb{Q}(\\zeta_n) \\text{，其中 } \\zeta_n = e^{2\\pi i / n}, \\; \\zeta_n^n = 1",
                        "O(n \\log n)", true, false);
-    }
 
     /**
      * @brief finite_field_construct - 有限域构造
@@ -686,14 +573,11 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_FIELD(PRESET_FINITE_FIELD_CONSTRUCT, "有限域构造：构造有限域 GF(p^n)，其中p为素数，n为正整数", inputs,
-                       2, PRESET_TYPE_FIELD,
+    LV_PRESET_REGISTER(success, PRESET_FINITE_FIELD_CONSTRUCT, "有限域构造：构造有限域 GF(p^n)，其中p为素数，n为正整数",
+                       (PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER), 2, PRESET_TYPE_FIELD,
                        "\\text{GF}(p^n) = \\mathbb{F}_p[x] / \\langle f(x) \\rangle, \\quad f \\text{ 是 } "
                        "\\mathbb{F}_p \\text{ 上 } n \\text{ 次不可约多项式}",
                        "O(n \\log p)", true, false);
-    }
 
     /**
      * @brief frobenius_automorphism - Frobenius自同构
@@ -710,13 +594,10 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible true（Frobenius自同构是双射）
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_INTEGER};
-        REGISTER_FIELD(PRESET_FROBENIUS_AUTOMORPHISM, "Frobenius自同构：计算有限域上的Frobenius映射 x -> x^p", inputs,
-                       2, PRESET_TYPE_FIELD,
+    LV_PRESET_REGISTER(success, PRESET_FROBENIUS_AUTOMORPHISM, "Frobenius自同构：计算有限域上的Frobenius映射 x -> x^p",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_INTEGER), 2, PRESET_TYPE_FIELD,
                        "\\varphi_p(x) = x^p, \\quad \\varphi_p \\in \\text{Gal}(\\mathbb{F}_{p^n}/\\mathbb{F}_p)",
                        "O(\\log p)", true, true);
-    }
 
     /**
      * @brief field_embedding - 域嵌入
@@ -733,13 +614,11 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD, PRESET_TYPE_FIELD};
-        REGISTER_FIELD(PRESET_FIELD_EMBEDDING, "域嵌入：构造域扩张 E/F 的F-嵌入（保持F不动的域同态）", inputs, 2,
+    LV_PRESET_REGISTER(success, PRESET_FIELD_EMBEDDING, "域嵌入：构造域扩张 E/F 的F-嵌入（保持F不动的域同态）",
+                       (PRESET_TYPE_FIELD, PRESET_TYPE_FIELD), 2,
                        PRESET_TYPE_LIST,
                        "\\text{Hom}_F(E, L) = \\{\\sigma : E \\to L \\; | \\; \\sigma|_F = \\text{id}_F\\}", "O(n^2)",
                        true, false);
-    }
 
     /**
      * @brief algebraic_closure - 代数闭包
@@ -755,14 +634,12 @@ bool preset_field_theory_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_FIELD};
-        REGISTER_FIELD(
-            PRESET_ALGEBRAIC_CLOSURE, "代数闭包：构造域F的代数闭包（F的代数扩张且是代数闭域）", inputs, 1,
+    LV_PRESET_REGISTER(success,
+            PRESET_ALGEBRAIC_CLOSURE, "代数闭包：构造域F的代数闭包（F的代数扩张且是代数闭域）",
+            PRESET_TYPE_FIELD, 1,
             PRESET_TYPE_FIELD,
             "\\overline{F} \\text{ 满足：} \\overline{F}/F \\text{ 是代数扩张，且 } \\overline{F} \\text{ 是代数闭域}",
             "O(n!)", true, false);
-    }
 
     /* 返回是否所有预设都注册成功 */
     return success_count == FIELD_THEORY_PRESET_COUNT;

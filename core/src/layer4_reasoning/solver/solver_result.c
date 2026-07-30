@@ -7,13 +7,8 @@
  * @version 3.3.0
  */
 
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv/solver.h"
+#include "solver_common.h"
 #include "lv/symbolic_coord.h"
-
-#include "lv_utils.h"
 
 /**
  * @brief 销毁 GroebnerResult 并释放所有资源

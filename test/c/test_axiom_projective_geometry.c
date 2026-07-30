@@ -69,8 +69,8 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 38 constraint templates");
-    printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
+    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 38 constraint templates");
+    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
 
     /* All 42 expected template names */
     const char *expected_templates[] = {
@@ -174,8 +174,8 @@ static void test_unconstructible_problems(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 7 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 7 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     struct {
         const char *name;
@@ -289,8 +289,8 @@ static void test_round_trip_save_load(void) {
     }
 
     /* Verify key properties match */
-    TEST_ASSERT(pkg2->template_count == pkg->template_count, "template count should match after round-trip");
-    TEST_ASSERT(pkg2->unconstructible_count == pkg->unconstructible_count,
+    TEST_ASSERT(axiom_package_get_template_count(pkg2) == axiom_package_get_template_count(pkg), "template count should match after round-trip");
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == axiom_package_get_unconstructible_count(pkg),
                 "unconstructible count should match after round-trip");
     TEST_ASSERT(strcmp(pkg2->name, pkg->name) == 0, "package name should match after round-trip");
     TEST_ASSERT(strcmp(pkg2->version, pkg->version) == 0, "package version should match after round-trip");
@@ -301,7 +301,7 @@ static void test_round_trip_save_load(void) {
     TEST_ASSERT(pkg2->contradiction_behavior == pkg->contradiction_behavior,
                 "contradiction_behavior should match after round-trip");
 
-    printf("  Round-trip: templates=%d, unconstructibles=%d\n", pkg2->template_count, pkg2->unconstructible_count);
+    printf("  Round-trip: templates=%d, unconstructibles=%d\n", axiom_package_get_template_count(pkg2), axiom_package_get_unconstructible_count(pkg2));
 
     /* Verify content hashes match */
     char *hash1 = axiom_package_compute_content_hash(pkg);
@@ -384,8 +384,8 @@ static void test_external_refs(void) {
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
     int valid_ref_count = 0;
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
+    for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
         if (uc->external_ref && strlen(uc->external_ref) > 0) {
             /* Check it starts with https:// */
             bool is_https = strncmp(uc->external_ref, "https://", 8) == 0;

@@ -212,6 +212,13 @@ lv_PUBLIC_API void axiom_template_set_level(ConstraintTemplate *tmpl, TemplateLe
  * @param param_count   参数数量
  * @return 展开后的约束图（缓存中查找或新展开）
  */
+/** 获取可构造模板数量 */
+lv_PUBLIC_API int axiom_package_get_template_count(const AxiomPackage *pkg);
+/** 获取不可构造问题数量 */
+lv_PUBLIC_API int axiom_package_get_unconstructible_count(const AxiomPackage *pkg);
+/** 按索引获取不可构造问题 */
+lv_PUBLIC_API const KnownUnconstructible *axiom_package_get_unconstructible(const AxiomPackage *pkg, int index);
+
 lv_PUBLIC_API ConstraintGraph *axiom_template_expand_lazy(AxiomPackage *pkg, const char *template_name,
                                                           SymbolicCoord **params, int param_count);
 

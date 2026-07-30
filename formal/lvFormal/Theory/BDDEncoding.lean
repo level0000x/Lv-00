@@ -23,6 +23,8 @@ Lv-00 formal: BDDEncoding — 二元决策图编码理论 (v1.3 R1)
 
 import Mathlib
 
+noncomputable section
+
 namespace lvFormal.Theory.BDDEncoding
 
 /-! ===============================================================
@@ -43,7 +45,11 @@ structure BDDNode where
   is_true      : Bool
   /-- 是否为终端 False 节点 -/
   is_false     : Bool
-  deriving DecidableEq, Repr
+  deriving Repr
+
+instance : DecidableEq BDDNode := by
+  classical
+  exact inferInstance
 
 /-- BDD 管理器：持有终端节点、唯一表和变量序 -/
 structure BDDManager where
@@ -114,11 +120,11 @@ theorem unique_table_no_duplicate (mgr : BDDManager) (n1 n2 : BDDNode)
     (h_in' : (n2.var_id, n2.low.getD mgr.false_node, n2.high.getD mgr.false_node, n2) ∈ mgr.unique_table)
     (h_same : n1.var_id = n2.var_id ∧ n1.low = n2.low ∧ n1.high = n2.high) :
     n1 = n2 := by
-  rcases h_same with ⟨⟨h_v⟩, ⟨h_l⟩, ⟨h_h⟩⟩
-  -- 唯一表通过三元组去重：若 var/lo/hi 均相同，则返回同一节点
-  -- 新节点仅在三元组不匹配时才创建（bdd_unique_lookup 的 none 分支）
-  -- 因此语义等价的节点在唯一表中是同一引用
-  exact rfl
+  rcases h_same with ⟨h_v, h_l, h_h⟩
+  -- With the new classical DecidableEq, we can use cases + subst
+  cases n1; cases n2
+  subst h_v; subst h_l; subst h_h
+  rfl
 
 /-! ===============================================================
    第三部分：BDD 文字与布尔运算
@@ -356,7 +362,7 @@ inductive GeomConstraintBDD where
   | intersection   (l1 l2 point : GraphNodeId)
   | containment    (region point : GraphNodeId)
   | connection     (a b : GraphNodeId)
-  deriving DecidableEq, Repr
+  deriving Repr
 
 /-- 约束图到 BDD 的编码：
     1. 为每个节点的每个坐标位分配 BDD 变量（bit-blasting）
@@ -417,7 +423,6 @@ structure ADDNode where
   constant  : ℝ
   /-- 是否为终端常数节点 -/
   is_const  : Bool
-  deriving Repr
 
 /-- ADD 管理器：持有零、一节点和唯一表 -/
 structure ADDManager where
@@ -426,7 +431,6 @@ structure ADDManager where
   unique_table : List (BDDVarId × ADDNode × ADDNode × ADDNode)
   var_order  : List BDDVarId
   var_count  : ℕ
-  deriving Repr
 
 /-- 创建 ADD 常数节点 -/
 def add_constant (mgr : ADDManager) (value : ℝ) : ADDNode :=

@@ -59,7 +59,7 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
+    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
 
     /* Core templates to verify */
     struct {
@@ -183,7 +183,7 @@ static void test_unconstructible_problems(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    printf("  Unconstructible count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     struct {
         const char *name;
@@ -299,11 +299,11 @@ static void test_round_trip_save_load(void) {
     /* Compare */
     TEST_ASSERT(strcmp(pkg1->name, pkg2->name) == 0, "names should match");
     TEST_ASSERT(strcmp(pkg1->version, pkg2->version) == 0, "versions should match");
-    TEST_ASSERT(pkg1->template_count == pkg2->template_count, "template counts should match");
-    TEST_ASSERT(pkg1->unconstructible_count == pkg2->unconstructible_count, "unconstructible counts should match");
+    TEST_ASSERT(pkg1->template_count == axiom_package_get_template_count(pkg2), "template counts should match");
+    TEST_ASSERT(pkg1->unconstructible_count == axiom_package_get_unconstructible_count(pkg2), "unconstructible counts should match");
 
-    printf("  Round-trip: OK (templates: %d, unconstructibles: %d)\n", pkg2->template_count,
-           pkg2->unconstructible_count);
+    printf("  Round-trip: OK (templates: %d, unconstructibles: %d)\n", axiom_package_get_template_count(pkg2),
+           axiom_package_get_unconstructible_count(pkg2));
 
     axiom_package_destroy(pkg1);
     axiom_package_destroy(pkg2);

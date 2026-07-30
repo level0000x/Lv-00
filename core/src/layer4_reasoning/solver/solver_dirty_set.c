@@ -7,17 +7,7 @@
  * @version 3.3.0
  */
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv/constraint_graph.h"
-#include "lv/solver.h"
-#include "lv/solver_types.h"
-
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
+#include "solver_common.h"
 
 /* 脏变量集合结构体 */
 typedef struct {

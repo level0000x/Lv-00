@@ -21,6 +21,7 @@
 
 #include "lv/conflict_detector.h"
 #include "lv/constraint_graph.h"
+#include "lv/lv.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/propagation.h"
@@ -208,7 +209,7 @@ MetaProofContext *meta_proof_context_create(ConstraintGraph *graph, PropagationC
 
     /* 默认配置 */
     ctx->max_propagation_steps = 100;
-    ctx->timeout_ms = 5000; /* 5 秒 */
+    ctx->timeout_ms = lv_config_get_int("meta_proof_timeout_ms", 5000); /* 5 秒 */
     ctx->enable_l1 = true;
     ctx->enable_l2 = true;
     ctx->enable_l3 = true;
