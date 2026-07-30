@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file circuit_breaker.c
  * @brief 熔断器模块实现
  *
@@ -12,6 +12,9 @@
  *
  * @version 5.0.0
  */
+
+/* 确保 POSIX 时钟可用（Linux 上 clock_gettime(CLOCK_MONOTONIC) 需要） */
+#define _POSIX_C_SOURCE 199309L
 
 #include "lv/circuit_breaker.h"
 

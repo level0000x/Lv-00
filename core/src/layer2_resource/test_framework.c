@@ -6,6 +6,9 @@
  * @version 3.3.0
  */
 
+/* 确保 POSIX 时钟可用（Linux 上 clock_gettime(CLOCK_MONOTONIC) 需要） */
+#define _POSIX_C_SOURCE 199309L
+
 #include "test_framework.h"
 
 #include <math.h>

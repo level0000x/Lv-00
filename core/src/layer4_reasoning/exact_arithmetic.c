@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file exact_arithmetic.c
  * @brief 精确算术基础设施实现 —— 时间戳、安全幂运算
  *
@@ -6,6 +6,9 @@
  * @version v1.0.0
  * @date 2026-05-24
  */
+
+/* 确保 POSIX 时钟可用（Linux 上 clock_gettime(CLOCK_MONOTONIC) 需要） */
+#define _POSIX_C_SOURCE 199309L
 
 #include "exact_arithmetic.h"
 
