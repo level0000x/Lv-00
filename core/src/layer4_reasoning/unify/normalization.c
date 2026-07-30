@@ -401,10 +401,8 @@ NormalizationLog *normalization_log_create(int initial_capacity) {
     NormalizationLog *log = lv_calloc(1, sizeof(NormalizationLog));
     if (!log)
         return NULL;
-    log->capacity = initial_capacity > 0 ? initial_capacity : NORM_DEFAULT_CAPACITY;
-    log->count = 0;
-    log->entries = lv_calloc((size_t) log->capacity, sizeof(NormalizationLogEntry));
-    if (!log->entries) {
+    lv_darray_init(&log->entries, sizeof(NormalizationLogEntry));
+    if (!lv_darray_reserve(&log->entries, initial_capacity > 0 ? initial_capacity : NORM_DEFAULT_CAPACITY)) {
         lv_free((void **) &log);
         return NULL;
     }
@@ -413,7 +411,7 @@ NormalizationLog *normalization_log_create(int initial_capacity) {
 
 void normalization_log_destroy(NormalizationLog *log) {
     if (log) {
-        lv_free((void **) &log->entries);
+        lv_darray_free(&log->entries);
         lv_free((void **) &log);
     }
 }
@@ -421,20 +419,11 @@ void normalization_log_destroy(NormalizationLog *log) {
 void normalization_log_record(NormalizationLog *log, int old_id, int new_id, bool auto_merged) {
     if (!log)
         return;
-    if (log->count >= log->capacity) {
-        if (log->capacity > INT_MAX / 2)
-            return;
-        int new_cap = log->capacity * 2;
-        NormalizationLogEntry *new_entries = lv_realloc(log->entries, (size_t) new_cap * sizeof(NormalizationLogEntry));
-        if (!new_entries)
-            return;
-        log->entries = new_entries;
-        log->capacity = new_cap;
-    }
-    log->entries[log->count].old_id = old_id;
-    log->entries[log->count].new_id = new_id;
-    log->entries[log->count].auto_merged = auto_merged;
-    log->count++;
+    NormalizationLogEntry entry;
+    entry.old_id = old_id;
+    entry.new_id = new_id;
+    entry.auto_merged = auto_merged;
+    lv_darray_push(&log->entries, &entry);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1268,12 +1257,13 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
     /* 将阶段2的合并记录到结果数组中 */
     if (phase2 > 0 && result->log) {
         /* 阶段2的日志条目从阶段1条目之后开始 */
-        int log_start = result->log->count - phase2;
+        int log_start = result->log->entries.count - phase2;
         /* 防御性检查：确保 log_start 非负，防止因日志计数不一致导致负数索引越界 */
         if (log_start < 0)
             log_start = 0;
-        for (int i = log_start; i < result->log->count; i++) {
-            record_merge(result, result->log->entries[i].old_id, result->log->entries[i].new_id);
+        for (int i = log_start; i < result->log->entries.count; i++) {
+            NormalizationLogEntry *e = (NormalizationLogEntry *)lv_darray_get(&result->log->entries, i);
+            record_merge(result, e->old_id, e->new_id);
         }
     }
 
@@ -1283,12 +1273,13 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
     int phase3 = merge_regions(graph, result->log);
     /* 将阶段3的合并记录到结果数组中 */
     if (phase3 > 0 && result->log) {
-        int log_start = result->log->count - phase3;
+        int log_start = result->log->entries.count - phase3;
         /* 防御性检查：确保 log_start 非负，防止因日志计数不一致导致负数索引越界 */
         if (log_start < 0)
             log_start = 0;
-        for (int i = log_start; i < result->log->count; i++) {
-            record_merge(result, result->log->entries[i].old_id, result->log->entries[i].new_id);
+        for (int i = log_start; i < result->log->entries.count; i++) {
+            NormalizationLogEntry *e = (NormalizationLogEntry *)lv_darray_get(&result->log->entries, i);
+            record_merge(result, e->old_id, e->new_id);
         }
     }
 

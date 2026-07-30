@@ -2200,12 +2200,12 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
     if (nav->engine && nav->engine->axiom_package_count > 0) {
         for (int i = 0; i < nav->engine->axiom_package_count; i++) {
             AxiomPackage *pkg = nav->engine->axiom_packages[i];
-            if (!pkg || pkg->unconstructible_count <= 0)
+            if (!pkg || pkg->known_unconstructibles.count <= 0)
                 continue;
 
             /* 遍历此公理包中的所有已知不可构造问题 */
-            for (int j = 0; j < pkg->unconstructible_count; j++) {
-                KnownUnconstructible *ku = &pkg->known_unconstructibles[j];
+            for (int j = 0; j < pkg->known_unconstructibles.count; j++) {
+                KnownUnconstructible *ku = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, j);
                 if (!ku || !ku->name)
                     continue;
 

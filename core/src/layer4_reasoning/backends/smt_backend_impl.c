@@ -936,7 +936,8 @@ int smtsolver_encode(SMTSolver *solver, const char *smtlib2, int len) {
  */
 static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph) {
     if (!solver || !graph)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "groebner_backend_init: solver=%p, graph=%p",
+                        (const void *)solver, (const void *)graph);
 
     /* 如果已经初始化过，先清理旧数据 */
     groebner_backend_cleanup(solver);
@@ -957,45 +958,39 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
     }
 
     if (point_count == 0) {
-        /* 没有点节点，无法建立多项式系统 */
-        lv_set_error(lv_ERROR_SOLVER_NO_SOLUTION, "Groebner 后端初始化失败：约束图中无点节点");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_SOLVER_NO_SOLUTION, "Groebner 后端初始化失败：约束图中无点节点");
     }
 
     /* 步骤 2：创建环注册表 */
     solver->groebner_registry = ring_registry_create(4);
     if (!solver->groebner_registry) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "Groebner 后端初始化失败：无法创建环注册表");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "Groebner 后端初始化失败：无法创建环注册表");
     }
 
     /* 步骤 3：声明变量名（p0_x, p0_y, p1_x, p1_y, ...） */
     int var_count = point_count * 2;
     char **var_names = (char **) lv_calloc((size_t) var_count, sizeof(char *));
     if (!var_names) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "Groebner 后端初始化失败：无法分配变量名数组");
         groebner_backend_cleanup(solver);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "Groebner 后端初始化失败：无法分配变量名数组");
     }
 
     /* 建立节点 ID -> 变量索引的映射表 */
     if (max_node_id == INT_MAX) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "Groebner 后端初始化失败：节点 ID 溢出");
         for (int i = 0; i < var_count; i++)
             lv_free((void **) &var_names[i]);
         lv_free((void **) &var_names);
         groebner_backend_cleanup(solver);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "Groebner 后端初始化失败：节点 ID 溢出");
     }
     int map_size = max_node_id + 1;
     int *node_var_map = (int *) lv_calloc((size_t) map_size, sizeof(int));
     if (!node_var_map) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "Groebner 后端初始化失败：无法分配节点映射表");
         for (int i = 0; i < var_count; i++)
             lv_free((void **) &var_names[i]);
         lv_free((void **) &var_names);
         groebner_backend_cleanup(solver);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "Groebner 后端初始化失败：无法分配节点映射表");
     }
 
     /* 初始化映射表为 -1（无效） */
@@ -1737,13 +1732,13 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
     int max_assignments = solver->groebner_var_count; /* 最多 var_count 个赋值 */
 
     if (max_assignments <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "groebner_backend_decode: groebner_var_count=%d <= 0",
+                        solver->groebner_var_count);
 
     SMTVariableAssignment *assignments =
         (SMTVariableAssignment *) lv_calloc((size_t) max_assignments, sizeof(SMTVariableAssignment));
     if (!assignments) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "Groebner 结果解码失败：无法分配赋值数组");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "Groebner 结果解码失败：无法分配赋值数组 (max=%d)", max_assignments);
     }
 
     /* 从代数簇中读取第一个解点的坐标值 */
@@ -1962,7 +1957,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverRe
     lv_CHECK_NULL(graph, -1);
 
     if (!out_result) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "smtsolver_solve: out_result is NULL");
     }
 
     smtsolver_result_init(out_result);

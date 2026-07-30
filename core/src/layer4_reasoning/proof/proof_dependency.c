@@ -294,12 +294,12 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
         /* 遍历所有已加载的公理包 */
         for (int pkg_idx = 0; pkg_idx < nav->engine->axiom_package_count; pkg_idx++) {
             AxiomPackage *pkg = nav->engine->axiom_packages[pkg_idx];
-            if (!pkg || pkg->unconstructible_count <= 0)
+            if (!pkg || pkg->known_unconstructibles.count <= 0)
                 continue;
 
             /* 遍历每个已知不可构造问题，尝试归约 */
-            for (int ku_idx = 0; ku_idx < pkg->unconstructible_count; ku_idx++) {
-                KnownUnconstructible *ku = &pkg->known_unconstructibles[ku_idx];
+            for (int ku_idx = 0; ku_idx < pkg->known_unconstructibles.count; ku_idx++) {
+                KnownUnconstructible *ku = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, ku_idx);
                 if (!ku || !ku->name)
                     continue;
 
@@ -347,10 +347,11 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                 }
 
                 /* 检查依赖链 */
-                if (ku->dependency_count > 0 && ku->dependency_chain) {
+                if (ku->dependency_chain.count > 0) {
                     /* 检查构造是否涉及依赖链中的任何元素 */
-                    for (int dep_idx = 0; dep_idx < ku->dependency_count; dep_idx++) {
-                        if (!ku->dependency_chain[dep_idx])
+                    for (int dep_idx = 0; dep_idx < ku->dependency_chain.count; dep_idx++) {
+                        char *dep = *(char **)lv_darray_get(&ku->dependency_chain, dep_idx);
+                        if (!dep)
                             continue;
                         /* 当前检查：依赖链中的名称是否与构造特征匹配 */
                         /* 完整实现可能需要更复杂的图匹配 */

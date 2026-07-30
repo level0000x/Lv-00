@@ -104,7 +104,7 @@ Proposition *proposition_create(int id, PropositionType type) {
 
     Proposition *prop = lv_calloc(1, sizeof(Proposition));
     if (!prop)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proposition_create: lv_calloc(%zu) failed", sizeof(Proposition));
 
     prop->id = id;
     prop->type = type;

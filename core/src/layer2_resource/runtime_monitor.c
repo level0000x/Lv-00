@@ -20,6 +20,7 @@
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 #include "lv_internal.h"
+#include "lv/lv_event_bus.h"
 
 #include "config.h" /* lv_LOCALTIME */
 #include "lv_utils.h"
@@ -1013,8 +1014,15 @@ static struct {
 static lv_mutex_t g_event_init_mutex;
 static lv_once_t g_event_init_once = lv_ONCE_INIT;
 
+static lvEventBus g_event_bus;
+static lv_once_t g_event_bus_once = lv_ONCE_INIT;
+
 static void event_init_mutex_func(void) {
     lv_mutex_init(&g_event_init_mutex);
+}
+
+static void event_bus_init_func(void) {
+    lv_event_bus_init(&g_event_bus, NULL);
 }
 
 bool lv_event_trace_init(uint32_t max_events) {
@@ -1047,6 +1055,7 @@ void lv_event_trace_shutdown(void) {
     }
 
     lv_free((void **) &g_event_system.events);
+    lv_event_bus_cleanup(&g_event_bus);
     lv_mutex_destroy(&g_event_system.mutex);
     g_event_system.initialized = false;
 }
@@ -1072,6 +1081,9 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
     }
 
     lv_mutex_unlock(&g_event_system.mutex);
+
+    lv_once(&g_event_bus_once, event_bus_init_func);
+    lv_event_emit(&g_event_bus, (int)type, (void*)(intptr_t)event->duration_ns);
 }
 
 int lv_event_trace_begin(lvEventType type, const char *name) {
@@ -1093,6 +1105,9 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
 
     lv_mutex_unlock(&g_event_system.mutex);
 
+    lv_once(&g_event_bus_once, event_bus_init_func);
+    lv_event_emit(&g_event_bus, (int)type, (void*)(intptr_t)0);
+
     return id;
 }
 
@@ -1111,6 +1126,9 @@ void lv_event_trace_end(int event_id, const char *data) {
     }
 
     lv_mutex_unlock(&g_event_system.mutex);
+
+    lv_once(&g_event_bus_once, event_bus_init_func);
+    lv_event_emit(&g_event_bus, (int)event->type, (void*)(intptr_t)event->duration_ns);
 }
 
 uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) {

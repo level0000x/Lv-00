@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file normalization.h
  * @brief 归一化引擎 —— 节点合并、冗余消除与拓扑排序
  * @details 提供约束图的归一化流程，包括共线线段合并、重叠区域合并、
@@ -16,6 +16,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "constraint_graph.h"
+#include "lv/lv_utils.h"
 #include "graph_hash.h"
 #include "stream.h"
 #include "symbolic_coord.h"
@@ -79,9 +80,7 @@ typedef struct NormalizationLogEntry {
  * 记录归一化过程中执行的所有合并操作。
  */
 typedef struct NormalizationLog {
-    NormalizationLogEntry *entries; /**< 日志条目数组 */
-    int count;                      /**< 条目数量 */
-    int capacity;                   /**< 数组容量 */
+    lvDArray entries; /**< 日志条目数组（lvDArray） */
 } NormalizationLog;
 
 /**

@@ -127,23 +127,20 @@ static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expon
     if (p->term_count >= p->capacity) {
         int new_cap = p->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
         if (new_cap > 0 && new_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
         }
         new_cap = new_cap == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : new_cap * lv_ARRAY_GROWTH_FACTOR;
         p->capacity = new_cap;
         MVMonomial *new_terms = lv_realloc(p->terms, p->capacity * sizeof(MVMonomial));
         if (!new_terms) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
         }
         p->terms = new_terms;
     }
     MVMonomial *m = &p->terms[p->term_count];
     m->exponents = lv_calloc((size_t) p->var_count, sizeof(int));
     if (!m->exponents) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
     }
     for (int v = 0; v < p->var_count; v++) {
         m->exponents[v] = exponents[v];
@@ -801,11 +798,11 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
                                           int *out_var_count) {
     int *vids = lv_calloc((size_t) sys->count * 2, sizeof(int));
     if (!vids)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for vids failed (count=%d)", sys->count);
     int *cids = lv_calloc((size_t) sys->count * 2, sizeof(int));
     if (!cids) {
         lv_free((void **) &vids);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for cids failed (count=%d)", sys->count);
     }
     int vcount = 0;
 
@@ -836,7 +833,7 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
     if (!polys) {
         lv_free((void **) &vids);
         lv_free((void **) &cids);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for polys failed (count=%d)", sys->count);
     }
     for (int i = 0; i < sys->count; i++) {
         mv_poly_init(&polys[i], vcount);
@@ -865,7 +862,7 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
                     memset(&polys[k], 0, sizeof(mpz_poly_t));
                 }
                 lv_free((void **) &polys);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "build_mv_polynomials: lv_calloc for exponents failed (vcount=%d)", vcount);
             }
             memset(exponents, 0, (size_t) vcount * sizeof(int));
             exponents[var_idx] = d;

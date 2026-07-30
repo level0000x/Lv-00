@@ -465,7 +465,7 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
     int max_depth = lv_config_get_int("vf2_max_depth", 64);
     if (depth > max_depth) {
         LOG_WARN("rewrite", "VF2: max recursion depth (%d) exceeded", max_depth);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "VF2: max recursion depth (%d) exceeded", max_depth);
     }
 
     /* 基准情况：所有模式节点都已匹配 */
@@ -525,7 +525,8 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
     if (!candidates || !cand_scores) {
         lv_free((void **) &candidates);
         lv_free((void **) &cand_scores);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "VF2: lv_malloc for candidates array failed (size=%d)",
+                             state->target_size);
     }
 
     for (int t = 0; t < state->target_size; t++) {
@@ -604,7 +605,7 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
                 state->core_count--;
                 lv_free((void **) &candidates);
                 lv_free((void **) &cand_scores);
-                return false;
+                lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "VF2: in_set capacity overflow (cap=%d)", state->in_capacity);
             }
             int new_cap = state->in_capacity * 2;
             int *new_in = lv_realloc(state->in_set, (size_t) new_cap * sizeof(int));
@@ -648,7 +649,7 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
                 LOG_WARN("rewrite", "VF2: out_set capacity overflow");
                 lv_free((void **) &candidates);
                 lv_free((void **) &cand_scores);
-                return false;
+                lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "VF2: out_set capacity overflow (cap=%d)", state->out_capacity);
             }
             int new_cap = state->out_capacity * 2;
             int *new_out = lv_realloc(state->out_set, (size_t) new_cap * sizeof(int));
@@ -736,7 +737,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
     int *var_id_to_idx = lv_malloc((size_t) pattern->var_count * sizeof(int));
     if (!var_id_to_idx) {
         graph_destroy(pattern_graph);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_malloc for var_id_to_idx failed");
     }
     for (int i = 0; i < pattern->var_count; i++) {
         var_id_to_idx[i] = -1;
@@ -761,7 +762,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
         if (!mapped_participants) {
             lv_free((void **) &var_id_to_idx);
             graph_destroy(pattern_graph);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_malloc for mapped_participants failed");
         }
 
         bool all_mapped = true;
@@ -791,7 +792,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
                 lv_free((void **) &mapped_participants);
                 lv_free((void **) &var_id_to_idx);
                 graph_destroy(pattern_graph);
-                return NULL;
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_calloc for new_con failed");
             }
             new_con->id = pattern_graph->next_constraint_id++;
             new_con->type = pc->type;
@@ -823,7 +824,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
         if (!match) {
             vf2_state_destroy(&state);
             graph_destroy(pattern_graph);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_calloc for RewriteMatch failed");
         }
 
         match->node_bindings = lv_malloc((size_t) pattern->var_count * 2 * sizeof(int));
@@ -831,7 +832,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
             lv_free((void **) &match);
             vf2_state_destroy(&state);
             graph_destroy(pattern_graph);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_malloc for node_bindings failed");
         }
 
         match->constraint_bindings = lv_malloc((size_t) pattern->pattern_constraint_count * sizeof(int));
@@ -840,7 +841,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
             lv_free((void **) &match);
             vf2_state_destroy(&state);
             graph_destroy(pattern_graph);
-            return NULL;
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_malloc for constraint_bindings failed");
         }
 
         /* 填充节点绑定：

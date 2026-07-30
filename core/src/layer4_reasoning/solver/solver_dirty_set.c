@@ -36,9 +36,7 @@ typedef struct EquationSystem {
 
 /* 脏变量集合结构体 */
 typedef struct {
-    int *dirty_ids;  /* dirty variable IDs */
-    int dirty_count; /* number of dirty variables */
-    int capacity;    /* allocated capacity */
+    lvDArray dirty_ids; /* dirty variable IDs (lvDArray of int) */
 } DirtyVariableSet;
 
 /* 前向声明 */
@@ -47,15 +45,14 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
 
 /* 初始化脏变量集合 */
 static void dirty_set_init(DirtyVariableSet *ds) {
-    ds->dirty_ids = NULL;
-    ds->dirty_count = 0;
-    ds->capacity = 0;
+    lv_darray_init(&ds->dirty_ids, sizeof(int));
 }
 
 /* 检查变量 ID 是否在脏集合中 */
 static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
-    for (int i = 0; i < ds->dirty_count; i++) {
-        if (ds->dirty_ids[i] == var_id)
+    for (int i = 0; i < ds->dirty_ids.count; i++) {
+        int *p = (int *)lv_darray_get(&ds->dirty_ids, i);
+        if (p && *p == var_id)
             return true;
     }
     return false;
@@ -65,29 +62,18 @@ static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
 static void dirty_set_add(DirtyVariableSet *ds, int var_id) {
     if (dirty_set_contains(ds, var_id))
         return;
-    if (ds->dirty_count >= ds->capacity) {
-        int new_cap = ds->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : ds->capacity * 2;
-        int *new_ids = lv_realloc(ds->dirty_ids, (size_t) new_cap * sizeof(int));
-        if (!new_ids)
-            return; /* allocation failed, skip */
-        ds->dirty_ids = new_ids;
-        ds->capacity = new_cap;
-    }
-    ds->dirty_ids[ds->dirty_count++] = var_id;
+    lv_darray_push(&ds->dirty_ids, &var_id);
 }
 
 /* 清空脏变量集合 */
 static void dirty_set_clear(DirtyVariableSet *ds) {
-    ds->dirty_count = 0;
+    lv_darray_clear(&ds->dirty_ids);
     /* 不释放内存, 保留容量以供复用 */
 }
 
 /* 释放脏变量集合资源 */
 static void dirty_set_free(DirtyVariableSet *ds) {
-    lv_free((void **) &ds->dirty_ids);
-    ds->dirty_ids = NULL;
-    ds->dirty_count = 0;
-    ds->capacity = 0;
+    lv_darray_free(&ds->dirty_ids);
 }
 
 /* ================================================================== */
@@ -105,7 +91,7 @@ static void dirty_set_free(DirtyVariableSet *ds) {
 static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered) {
     equation_system_init(filtered);
 
-    if (!sys || !ds || ds->dirty_count == 0)
+    if (!sys || !ds || ds->dirty_ids.count == 0)
         return;
 
     /* 第一遍: 直接筛选涉及脏变量的方程 */

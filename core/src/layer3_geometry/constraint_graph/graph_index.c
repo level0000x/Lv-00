@@ -708,7 +708,8 @@ int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, 
  */
 int graph_detect_redundancy(const ConstraintGraph *graph, ConstraintType type, const int *participants, int n_parts) {
     if (!graph || !participants || n_parts <= 0)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "graph_detect_redundancy: invalid params (graph=%p, participants=%p, n_parts=%d)",
+                        (const void *)graph, (const void *)participants, n_parts);
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (!c->is_active) /* v3.5.0: 跳过不活跃约束 */
@@ -840,11 +841,10 @@ ConstraintGraph *graph_create(void) {
     graph->error_buffer = lv_malloc(256);
     graph->serialize_buffer = lv_malloc(256);
     if (!graph->error_buffer || !graph->serialize_buffer) {
-        /* 缓冲区分配失败：清理已分配资源，返回 NULL */
         lv_free((void **) &graph->error_buffer);
         lv_free((void **) &graph->serialize_buffer);
         lv_free((void **) &graph);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_create: buffer allocation failed");
     }
     graph->error_buffer[0] = '\0';
     graph->serialize_buffer[0] = '\0';

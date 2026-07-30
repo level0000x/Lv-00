@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file inequality_reasoning.h
  * @brief 不等式推理系统 —— 纯符号不等式证明
  *
@@ -31,6 +31,7 @@ extern "C" {
 
 #include "expr_canonical.h"
 #include "symbolic_coord.h"
+#include "lv/lv_utils.h"
 
 /* ============== 前向声明 ============== */
 
@@ -120,11 +121,9 @@ struct lvInequalityProof {
  * @brief 不等式系统
  */
 struct lvInequalitySystem {
-    lvInequality **inequalities; /**< 不等式数组 */
-    uint32_t count;              /**< 不等式数量 */
-    uint32_t capacity;           /**< 数组容量 */
-    lvExpr **variables;          /**< 变量数组 */
-    uint32_t var_count;          /**< 变量数量 */
+    lvDArray inequalities; /**< 不等式数组（lvDArray of lvInequality*） */
+    lvExpr **variables;    /**< 变量数组 */
+    uint32_t var_count;    /**< 变量数量 */
 };
 
 /* ============== 不等式创建/销毁 ============== */

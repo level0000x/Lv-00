@@ -657,14 +657,15 @@ static PropagationResult propagation_run_with_assignment(PropagationContext *ctx
     space->is_collapsed = true;
     space->collapsed_value = symbolic_coord_copy(coord);
 
-    /* 清空可能的坐标列表（已坍缩，不需要候选集） */
-    for (int i = 0; i < space->coord_count; i++) {
-        symbolic_coord_destroy(space->possible_coords[i]);
+    /* 清空候选坐标列表（已坍缩，不需要候选集） */
+    if (space->candidates_da.data && space->candidates_da.count > 0) {
+        CoordCandidate *cand = (CoordCandidate *)space->candidates_da.data;
+        for (int i = 0; i < space->candidates_da.count; i++) {
+            if (cand[i].coord)
+                symbolic_coord_destroy(cand[i].coord);
+        }
     }
-    lv_free((void **)&space->possible_coords);
-    space->possible_coords = NULL;
-    space->coord_count = 0;
-    space->capacity = 0;
+    lv_darray_free(&space->candidates_da);
     space->is_unbounded = false;
 
     /* 运行约束传播 */

@@ -1022,7 +1022,7 @@ RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern, Rewr
                                  int measure) {
     RewriteRule *rule = lv_calloc(1, sizeof(RewriteRule));
     if (!rule)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rewrite_rule_create: lv_calloc(%zu) failed", sizeof(RewriteRule));
     /* 【内存管理策略】strdup 为 rule->name 分配独立副本。
      * 若分配失败，需回滚已分配的 rule 结构体。
      * 注意：pattern 和 replacement 的所有权不属于 rule，
@@ -1030,7 +1030,7 @@ RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern, Rewr
     rule->name = lv_strdup_safe(name);
     if (!rule->name) {
         lv_free((void **) &rule);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rewrite_rule_create: lv_strdup_safe failed for name");
     }
     rule->pattern = pattern;
     rule->replacement = replacement;
@@ -1399,7 +1399,9 @@ static void add_match_to_used(const RewriteMatch *match, int **used_ids, int *us
 int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, const int *used_node_ids,
                                      int used_count, RewriteMatch ***out_matches, int *out_match_count) {
     if (!graph || !rule || !rule->pattern || !out_matches || !out_match_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM,
+                        "find_all_non_overlapping_matches: null param (graph=%p, rule=%p, out_matches=%p, out_match_count=%p)",
+                        (const void *)graph, (const void *)rule, (const void *)out_matches, (const void *)out_match_count);
 
     *out_matches = NULL;
     *out_match_count = 0;
@@ -1412,7 +1414,8 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
     int local_used_capacity = used_count > 0 ? used_count + 16 : 16;
     int *local_used = lv_malloc((size_t) local_used_capacity * sizeof(int));
     if (!local_used)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "find_all_non_overlapping_matches: lv_malloc for local_used failed (cap=%d)",
+                        local_used_capacity);
     int local_used_count = 0;
 
     /* 复制外部传入的已使用节点 */
@@ -1422,7 +1425,8 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
             int *new_arr = lv_realloc(local_used, (size_t) new_cap * sizeof(int));
             if (!new_arr) {
                 lv_free((void **) &local_used);
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY,
+                                "find_all_non_overlapping_matches: lv_realloc for local_used failed (new_cap=%d)", new_cap);
             }
             local_used = new_arr;
             local_used_capacity = new_cap;
@@ -1434,7 +1438,7 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
     GraphSnapshot *snapshot = graph_snapshot_create(graph);
     if (!snapshot) {
         lv_free((void **) &local_used);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "find_all_non_overlapping_matches: graph_snapshot_create failed");
     }
 
     /* 匹配结果数组 */
@@ -1443,7 +1447,8 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
     if (!matches) {
         graph_snapshot_destroy(snapshot);
         lv_free((void **) &local_used);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY,
+                        "find_all_non_overlapping_matches: lv_malloc for matches failed (cap=%d)", match_capacity);
     }
     int match_count = 0;
 
@@ -1528,7 +1533,7 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
         lv_free((void **) &local_used);
         *out_matches = NULL;
         *out_match_count = 0;
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "find_all_non_overlapping_matches: graph snapshot restore failed");
     }
     graph_snapshot_destroy(snapshot);
 
@@ -1558,7 +1563,10 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
 int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *matches, int match_count,
                               int *out_applied_count) {
     if (!graph || !rule || !matches || match_count <= 0 || !out_applied_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM,
+                        "rewrite_apply_all_matches: invalid params (graph=%p, rule=%p, matches=%p, count=%d, out=%p)",
+                        (const void *)graph, (const void *)rule, (const void *)matches, match_count,
+                        (const void *)out_applied_count);
 
     *out_applied_count = 0;
 
@@ -1566,7 +1574,8 @@ int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, Rewrite
     int modified_capacity = 64;
     int *modified_node_ids = lv_malloc((size_t) modified_capacity * sizeof(int));
     if (!modified_node_ids)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY,
+                        "rewrite_apply_all_matches: lv_malloc for modified_node_ids failed (cap=%d)", modified_capacity);
     int modified_count = 0;
 
     int applied = 0;

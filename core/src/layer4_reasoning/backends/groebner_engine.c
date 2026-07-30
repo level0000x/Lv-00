@@ -2080,13 +2080,13 @@ lvRingRegistry *ring_registry_create(int capacity) {
 
     lvRingRegistry *registry = (lvRingRegistry *) lv_calloc(1, sizeof(lvRingRegistry));
     if (!registry) {
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "ring_registry_create: lv_calloc(%zu) failed", sizeof(lvRingRegistry));
     }
 
     registry->rings = (lvPolynomialRing **) lv_calloc((size_t) capacity, sizeof(lvPolynomialRing *));
     if (!registry->rings) {
         lv_free((void **) &registry);
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "ring_registry_create: lv_calloc for rings failed (cap=%d)", capacity);
     }
     registry->ring_capacity = capacity;
     registry->ring_count = 0;
@@ -2189,7 +2189,8 @@ void ring_registry_destroy(lvRingRegistry *registry) {
 int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count, lvRingFieldType field,
                 lvMonomialOrder order, const char *label) {
     if (!registry || !var_names || var_count < 1) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "ring_create: invalid params (registry=%p, var_names=%p, var_count=%d)",
+                        (const void *)registry, (const void *)var_names, var_count);
     }
 
     if (registry->ring_count >= registry->ring_capacity) {
@@ -2197,7 +2198,7 @@ int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count
         lvPolynomialRing **new_rings =
             (lvPolynomialRing **) lv_realloc(registry->rings, (size_t) new_cap * sizeof(lvPolynomialRing *));
         if (!new_rings) {
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ring_create: lv_realloc for rings failed (cap=%d)", new_cap);
         }
         registry->rings = new_rings;
         registry->ring_capacity = new_cap;
@@ -2205,13 +2206,13 @@ int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count
 
     lvPolynomialRing *ring = (lvPolynomialRing *) lv_calloc(1, sizeof(lvPolynomialRing));
     if (!ring) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ring_create: lv_calloc(%zu) failed", sizeof(lvPolynomialRing));
     }
 
     ring->var_names = (char **) lv_calloc((size_t) var_count, sizeof(char *));
     if (!ring->var_names) {
         lv_free((void **) &ring);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ring_create: lv_calloc for var_names failed (count=%d)", var_count);
     }
     for (int i = 0; i < var_count; i++) {
         ring->var_names[i] = groebner_strdup_safe(var_names[i]);
@@ -2307,7 +2308,8 @@ lvPolynomialRing *ring_find(const lvRingRegistry *registry, int ring_id) {
  */
 int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char *label) {
     if (!registry || ring_id < 0 || ring_id >= registry->ring_count) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "poly_create: invalid params (registry=%p, ring_id=%d)",
+                        (const void *)registry, ring_id);
     }
 
     lvRingRegistry *r = registry;
@@ -2315,12 +2317,12 @@ int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char 
 
     lvPolynomialRing *ring = registry->rings[ring_id];
     if (!ring) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "poly_create: ring not found (ring_id=%d)", ring_id);
     }
 
     lvPolynomial *poly = poly_internal_create(ring, capacity, label);
     if (!poly) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "poly_create: poly_internal_create failed");
     }
 
     lv_mutex_lock(&g_data_mutex);
@@ -2328,7 +2330,7 @@ int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char 
     if (!data) {
         lv_mutex_unlock(&g_data_mutex);
         poly_internal_destroy(poly);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "poly_create: registry_data_ensure failed");
     }
 
     int result = poly_internal_store(data, poly);
@@ -2534,19 +2536,20 @@ const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id) {
  */
 int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
     if (!registry || ring_id < 0 || ring_id >= registry->ring_count) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "ideal_create: invalid params (registry=%p, ring_id=%d)",
+                        (const void *)registry, ring_id);
     }
 
     lvIdeal *ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
     if (!ideal) {
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ideal_create: lv_calloc(%zu) failed", sizeof(lvIdeal));
     }
 
     ideal->ring_id = ring_id;
     ideal->generators = (lvPolynomial **) lv_calloc((size_t) GROEBNER_IDEAL_INIT_GEN_CAPACITY, sizeof(lvPolynomial *));
     if (!ideal->generators) {
         lv_free((void **) &ideal);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ideal_create: lv_calloc for generators failed");
     }
     ideal->generator_capacity = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
     ideal->generator_count = 0;
@@ -2561,7 +2564,7 @@ int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
         lv_free((void **) &ideal->generators);
         lv_free((void **) &ideal->label);
         lv_free((void **) &ideal);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "ideal_create: registry_data_ensure failed");
     }
 
     int result = ideal_internal_store(data, ideal);
@@ -3518,9 +3521,11 @@ static void poly_internal_add_term(lvPolynomial *poly, const lvPolynomialRing *r
 int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
                               const char *result_label) {
     if (!registry || !graph)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "constraint_graph_to_ideal: registry=%p, graph=%p",
+                        (const void *)registry, (const void *)graph);
     if (ring_id < 0 || ring_id >= registry->ring_count)
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "constraint_graph_to_ideal: ring_id=%d (max=%d)",
+                        ring_id, registry->ring_count);
 
     lv_mutex_lock(&g_data_mutex);
 

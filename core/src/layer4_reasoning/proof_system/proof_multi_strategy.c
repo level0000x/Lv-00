@@ -862,7 +862,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
 
     char **facts = (char **) lv_calloc(DEDUCT_MAX_FACTS, sizeof(char *));
     if (!facts) {
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "deductive_method: lv_calloc for facts failed (max=%d)", DEDUCT_MAX_FACTS);
     }
     int fact_count = 0;
     bool verified = false;

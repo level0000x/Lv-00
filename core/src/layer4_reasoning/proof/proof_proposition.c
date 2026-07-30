@@ -774,9 +774,10 @@ void proof_navigator_destroy(ProofNavigator *nav) {
     lv_free((void **) &nav->breakpoint_indices);
 
     /* 释放等价命题表 */
-    for (int i = 0; i < nav->equivalence_count; i++) {
-        if (nav->equivalences[i].transformation) {
-            graph_destroy(nav->equivalences[i].transformation);
+    for (int i = 0; i < nav->equivalences.count; i++) {
+        PropositionEquivalence *eq = (PropositionEquivalence *)lv_darray_get(&nav->equivalences, i);
+        if (eq->transformation) {
+            graph_destroy(eq->transformation);
         }
     }
     lv_free((void **) &nav->equivalences);

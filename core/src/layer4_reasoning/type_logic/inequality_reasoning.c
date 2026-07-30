@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file inequality_reasoning.c
  * @brief 不等式推理系统 - 真实实现
  *
@@ -180,17 +180,20 @@ lvInequality *lv_ineq_copy(const lvInequality *ineq) {
 
 lvInequalitySystem *lv_ineq_system_create(void) {
     lvInequalitySystem *sys = (lvInequalitySystem *) lv_calloc(1, sizeof(lvInequalitySystem));
+    if (sys)
+        lv_darray_init(&sys->inequalities, sizeof(lvInequality *));
     return sys;
 }
 
 void lv_ineq_system_destroy(lvInequalitySystem *sys) {
     if (!sys)
         return;
-    for (uint32_t i = 0; i < sys->count; i++) {
-        if (sys->inequalities[i])
-            lv_ineq_destroy(sys->inequalities[i]);
+    for (int i = 0; i < sys->inequalities.count; i++) {
+        lvInequality **p = (lvInequality **)lv_darray_get(&sys->inequalities, i);
+        if (p && *p)
+            lv_ineq_destroy(*p);
     }
-    lv_free((void **) &sys->inequalities);
+    lv_darray_free(&sys->inequalities);
     lv_free((void **) &sys->variables);
     lv_free((void **) &sys);
 }
@@ -199,18 +202,8 @@ bool lv_ineq_system_add(lvInequalitySystem *sys, lvInequality *ineq) {
     if (!sys || !ineq)
         return false;
 
-    /* 扩容 */
-    if (sys->count >= sys->capacity) {
-        uint32_t new_cap = (sys->capacity > 0) ? sys->capacity * 2 : 8;
-        lvInequality **new_arr =
-            (lvInequality **) lv_realloc(sys->inequalities, (size_t) new_cap * sizeof(lvInequality *));
-        if (!new_arr)
-            return false;
-        sys->inequalities = new_arr;
-        sys->capacity = new_cap;
-    }
-
-    sys->inequalities[sys->count++] = ineq;
+    if (lv_darray_push(&sys->inequalities, &ineq) < 0)
+        return false;
     return true;
 }
 
@@ -260,8 +253,9 @@ lvInequalityStatus lv_ineq_prove(lvInequality *ineq, const lvInequalitySystem *s
 
     /* 情况 2: 系统中有直接匹配的约束 */
     if (sys) {
-        for (uint32_t i = 0; i < sys->count; i++) {
-            lvInequality *c = sys->inequalities[i];
+        for (int i = 0; i < sys->inequalities.count; i++) {
+            lvInequality **pp = (lvInequality **)lv_darray_get(&sys->inequalities, i);
+            lvInequality *c = pp ? *pp : NULL;
             if (!c)
                 continue;
             if (c->left == ineq->left && c->right == ineq->right) {
@@ -317,11 +311,12 @@ lvInequalityStatus lv_ineq_prove_with_method(lvInequality *ineq, lvInequalityMet
         *proof = NULL;
 
     /* 使用 sys 验证：检查目标不等式是否与系统中的已知约束一致 */
-    if (sys && sys->count > 0) {
+    if (sys && sys->inequalities.count > 0) {
         /* 验证目标不等式的变量是否在系统变量范围内 */
         bool found_in_system = false;
-        for (uint32_t i = 0; i < sys->count && !found_in_system; i++) {
-            if (sys->inequalities[i] && lv_expr_structurally_equal(sys->inequalities[i]->left, ineq->left)) {
+        for (int i = 0; i < sys->inequalities.count && !found_in_system; i++) {
+            lvInequality **pp = (lvInequality **)lv_darray_get(&sys->inequalities, i);
+            if (pp && *pp && lv_expr_structurally_equal((*pp)->left, ineq->left)) {
                 found_in_system = true;
             }
         }
@@ -509,12 +504,13 @@ lvInequalityStatus lv_ineq_prove_with_method(lvInequality *ineq, lvInequalityMet
 
         case INEQ_METHOD_CONTRADICTION: {
             /* 反证法：假设目标不等式不成立，检查是否与系统矛盾 */
-            if (sys && sys->count > 0) {
+            if (sys && sys->inequalities.count > 0) {
                 /* 简化：如果系统非空，尝试否定目标看是否矛盾 */
                 lvInequalityType neg = ineq_negate_type(ineq->type);
                 /* 如果否定后与系统中某个约束直接矛盾 */
-                for (uint32_t i = 0; i < sys->count; i++) {
-                    lvInequality *c = sys->inequalities[i];
+                for (int i = 0; i < sys->inequalities.count; i++) {
+                    lvInequality **pp = (lvInequality **)lv_darray_get(&sys->inequalities, i);
+                    lvInequality *c = pp ? *pp : NULL;
                     if (!c)
                         continue;
                     if (c->left == ineq->left && c->right == ineq->right && c->type == neg) {
@@ -1339,8 +1335,9 @@ lvSign lv_expr_sign(lvExpr *expr, const lvInequalitySystem *sys) {
 
     /* 遍历系统约束查找变量的符号信息 */
     if (sys) {
-        for (uint32_t i = 0; i < sys->count; i++) {
-            lvInequality *c = sys->inequalities[i];
+        for (int i = 0; i < sys->inequalities.count; i++) {
+            lvInequality **pp = (lvInequality **)lv_darray_get(&sys->inequalities, i);
+            lvInequality *c = pp ? *pp : NULL;
             if (!c)
                 continue;
 

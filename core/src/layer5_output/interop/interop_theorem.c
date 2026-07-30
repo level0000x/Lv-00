@@ -31,7 +31,8 @@ lv_DECLARE_STREAM_CTX(interop);
 InteropTheoremContext *interop_theorem_context_create(const char *trust_base_name, const char *trust_base_version) {
     InteropTheoremContext *ctx = (InteropTheoremContext *) lv_calloc(1, sizeof(InteropTheoremContext));
     if (!ctx)
-        return NULL;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "interop_theorem_context_create: lv_calloc(%zu) failed",
+                             sizeof(InteropTheoremContext));
 
     lv_strlcpy(ctx->trust_base_name, trust_base_name ? trust_base_name : "lv", sizeof(ctx->trust_base_name));
     lv_strlcpy(ctx->trust_base_version, trust_base_version ? trust_base_version : "3.0.0",

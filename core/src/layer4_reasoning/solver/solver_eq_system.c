@@ -48,9 +48,7 @@ typedef struct {
 } PolyEquation;
 
 typedef struct EquationSystem {
-    PolyEquation *eqs;
-    int count;
-    int capacity;
+    lvDArray eqs; /**< PolyEquation 数组 */
 } EquationSystem;
 
 
@@ -64,9 +62,7 @@ lv_DECLARE_STREAM_CTX(solver);
  * @param sys 方程系统指针（必须非空）
  */
 void equation_system_init(EquationSystem *sys) {
-    sys->eqs = NULL;
-    sys->count = 0;
-    sys->capacity = 0;
+    lv_darray_init(&sys->eqs, sizeof(PolyEquation));
 }
 
 /**
@@ -98,35 +94,22 @@ void equation_system_init(EquationSystem *sys) {
  * @return 0 表示成功，-1 表示失败（内存不足或容量溢出）
  */
 int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
-    if (sys->count >= sys->capacity) {
-        if (sys->capacity > INT_MAX / 2)
-            return -1;
-        /* 使用临时变量计算新容量，避免 realloc 失败时 capacity 已被修改 */
-        int new_capacity = sys->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : sys->capacity * lv_ARRAY_GROWTH_FACTOR;
-        /* 溢出检查：确保 new_capacity * sizeof(PolyEquation) 不超过 SIZE_MAX */
-        if ((size_t) new_capacity > SIZE_MAX / sizeof(PolyEquation)) {
-            return -1;
-        }
-        PolyEquation *new_eqs = lv_realloc(sys->eqs, (size_t) new_capacity * sizeof(PolyEquation));
-        if (!new_eqs) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: 扩容失败");
-            /* 注意：poly 按值传入（结构体副本，内部 coeffs 指针与调用者共享），
-             * 不能在此处调用 mpz_poly_clear(&poly)，否则会导致调用者的
-             * poly.coeffs 变成悬空指针。poly 的资源由调用者负责清理。 */
-            return -1;
-        }
-        sys->eqs = new_eqs;
-        sys->capacity = new_capacity; /* 仅在 realloc 成功后才更新容量 */
+    /* 确保容量：lv_darray_reserve 内部通过 lv_ensure_capacity 管理 */
+    if (!lv_darray_reserve(&sys->eqs, sys->eqs.count + 1)) {
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: 扩容失败");
+        return -1;
     }
-    sys->eqs[sys->count].var_node_id = var_node_id;
-    sys->eqs[sys->count].coord_index = coord_index;
-    mpz_poly_init(&sys->eqs[sys->count].poly);
-    if (!mpz_poly_set(&sys->eqs[sys->count].poly, &poly)) {
-        mpz_poly_clear(&sys->eqs[sys->count].poly);
+    /* 在数组末尾就地构造 PolyEquation（避免 memcpy GMP 内部指针） */
+    PolyEquation *slot = (PolyEquation *)((char *)sys->eqs.data + (size_t)sys->eqs.count * sizeof(PolyEquation));
+    slot->var_node_id = var_node_id;
+    slot->coord_index = coord_index;
+    mpz_poly_init(&slot->poly);
+    if (!mpz_poly_set(&slot->poly, &poly)) {
+        mpz_poly_clear(&slot->poly);
         lv_set_error(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: mpz_poly_set 失败");
         return -1;
     }
-    sys->count++;
+    sys->eqs.count++;
     return 0;
 }
 
@@ -140,13 +123,12 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
 void equation_system_clear(EquationSystem *sys) {
     if (!sys)
         return;
-    for (int i = 0; i < sys->count; i++) {
-        mpz_poly_clear(&sys->eqs[i].poly);
+    for (int i = 0; i < sys->eqs.count; i++) {
+        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (eq)
+            mpz_poly_clear(&eq->poly);
     }
-    lv_free((void **) &sys->eqs);
-    sys->eqs = NULL;
-    sys->count = 0;
-    sys->capacity = 0;
+    lv_darray_free(&sys->eqs);
 }
 
 /* ================================================================== */
@@ -187,23 +169,26 @@ void equation_system_destroy(EquationSystem *sys) {
 int equation_system_count(const EquationSystem *sys) {
     if (!sys)
         return 0;
-    return sys->count;
+    return sys->eqs.count;
 }
 
 const mpz_poly_t *equation_system_get_poly(const EquationSystem *sys, int index) {
-    if (!sys || index < 0 || index >= sys->count)
+    if (!sys || index < 0 || index >= sys->eqs.count)
         return NULL;
-    return &sys->eqs[index].poly;
+    PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, index);
+    return eq ? &eq->poly : NULL;
 }
 
 int equation_system_get_var_id(const EquationSystem *sys, int index) {
-    if (!sys || index < 0 || index >= sys->count)
+    if (!sys || index < 0 || index >= sys->eqs.count)
         return -1;
-    return sys->eqs[index].var_node_id;
+    PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, index);
+    return eq ? eq->var_node_id : -1;
 }
 
 int equation_system_get_coord_index(const EquationSystem *sys, int index) {
-    if (!sys || index < 0 || index >= sys->count)
+    if (!sys || index < 0 || index >= sys->eqs.count)
         return -1;
-    return sys->eqs[index].coord_index;
+    PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, index);
+    return eq ? eq->coord_index : -1;
 }

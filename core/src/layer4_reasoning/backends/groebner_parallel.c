@@ -166,7 +166,7 @@ static int simple_poly_add_term(SimplePoly *p, double coeff, const int *exponent
 
 /** 判断多项式是否为零 */
 static int simple_poly_is_zero(const SimplePoly *p) {
-    return p == NULL || p->term_count == 0;
+    return p == NULL || p->terms.count == 0;
 }
 
 /* ========================================================================
@@ -198,13 +198,14 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     /* 如果任一多项式为空或首项系数为零，S-多项式为零 */
     if (simple_poly_is_zero(gi) || simple_poly_is_zero(gj))
         return result;
-    if (fabs(gi->terms[0].coeff) < lv_EPSILON_DOUBLE || fabs(gj->terms[0].coeff) < lv_EPSILON_DOUBLE)
+    if (fabs(((PolyTerm *)lv_darray_get(&gi->terms, 0))->coeff) < lv_EPSILON_DOUBLE ||
+        fabs(((PolyTerm *)lv_darray_get(&gj->terms, 0))->coeff) < lv_EPSILON_DOUBLE)
         return result;
 
     /* 计算 LCM(leading terms) */
-    int var_count = gi->terms[0].var_count;
+    int var_count = ((PolyTerm *)lv_darray_get(&gi->terms, 0))->var_count;
     if (var_count == 0)
-        var_count = gj->terms[0].var_count;
+        var_count = ((PolyTerm *)lv_darray_get(&gj->terms, 0))->var_count;
 
     int *lcm_exp = NULL;
     if (var_count > 0) {
@@ -213,8 +214,8 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
             return result;
 
         for (int v = 0; v < var_count; v++) {
-            int ei = (v < gi->terms[0].var_count) ? gi->terms[0].exponents[v] : 0;
-            int ej = (v < gj->terms[0].var_count) ? gj->terms[0].exponents[v] : 0;
+            int ei = (v < ((PolyTerm *)lv_darray_get(&gi->terms, 0))->var_count) ? ((PolyTerm *)lv_darray_get(&gi->terms, 0))->exponents[v] : 0;
+            int ej = (v < ((PolyTerm *)lv_darray_get(&gj->terms, 0))->var_count) ? ((PolyTerm *)lv_darray_get(&gj->terms, 0))->exponents[v] : 0;
             lcm_exp[v] = (ei > ej) ? ei : ej;
         }
     }
@@ -228,7 +229,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
             return result;
         }
         for (int v = 0; v < var_count; v++) {
-            int ei = (v < gi->terms[0].var_count) ? gi->terms[0].exponents[v] : 0;
+            int ei = (v < ((PolyTerm *)lv_darray_get(&gi->terms, 0))->var_count) ? ((PolyTerm *)lv_darray_get(&gi->terms, 0))->exponents[v] : 0;
             mult_i_exp[v] = lcm_exp[v] - ei;
         }
     }
@@ -243,63 +244,59 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
             return result;
         }
         for (int v = 0; v < var_count; v++) {
-            int ej = (v < gj->terms[0].var_count) ? gj->terms[0].exponents[v] : 0;
+            int ej = (v < ((PolyTerm *)lv_darray_get(&gj->terms, 0))->var_count) ? ((PolyTerm *)lv_darray_get(&gj->terms, 0))->exponents[v] : 0;
             mult_j_exp[v] = lcm_exp[v] - ej;
         }
     }
 
     /* S = (1/LC(gi)) * mult_i * gi - (1/LC(gj)) * mult_j * gj
      * 完整实现：对所有项（不仅是首项）乘以系数后相减 */
-    double scale_i = 1.0 / gi->terms[0].coeff;
-    double scale_j = 1.0 / gj->terms[0].coeff;
+    double scale_i = 1.0 / ((PolyTerm *)lv_darray_get(&gi->terms, 0))->coeff;
+    double scale_j = 1.0 / ((PolyTerm *)lv_darray_get(&gj->terms, 0))->coeff;
 
     /* 将 mult_i * gi 的项加入结果 */
-    for (int t = 0; t < gi->term_count; t++) {
+    for (int t = 0; t < gi->terms.count; t++) {
         int *new_exp = NULL;
         if (var_count > 0) {
             new_exp = (int *) lv_calloc((size_t) var_count, sizeof(int));
             if (!new_exp)
                 break;
             for (int v = 0; v < var_count; v++) {
-                int et = (v < gi->terms[t].var_count) ? gi->terms[t].exponents[v] : 0;
+                int et = (v < ((PolyTerm *)lv_darray_get(&gi->terms, t))->var_count) ? ((PolyTerm *)lv_darray_get(&gi->terms, t))->exponents[v] : 0;
                 new_exp[v] = mult_i_exp[v] + et;
             }
         }
-        if (simple_poly_add_term(&result, scale_i * gi->terms[t].coeff, new_exp, var_count) != 0) {
+        if (simple_poly_add_term(&result, scale_i * ((PolyTerm *)lv_darray_get(&gi->terms, t))->coeff, new_exp, var_count) != 0) {
             lv_free((void **) &new_exp);
             lv_free((void **) &lcm_exp);
             lv_free((void **) &mult_i_exp);
             lv_free((void **) &mult_j_exp);
             simple_poly_destroy(&result);
-            result.term_count = 0;
-            result.terms = NULL;
-            result.term_capacity = 0;
+            lv_darray_init(&result.terms, sizeof(PolyTerm));
             return result;
         }
         lv_free((void **) &new_exp);
     }
 
     /* 减去 mult_j * gj 的项 */
-    for (int t = 0; t < gj->term_count; t++) {
+    for (int t = 0; t < gj->terms.count; t++) {
         int *new_exp = NULL;
         if (var_count > 0) {
             new_exp = (int *) lv_calloc((size_t) var_count, sizeof(int));
             if (!new_exp)
                 break;
             for (int v = 0; v < var_count; v++) {
-                int et = (v < gj->terms[t].var_count) ? gj->terms[t].exponents[v] : 0;
+                int et = (v < ((PolyTerm *)lv_darray_get(&gj->terms, t))->var_count) ? ((PolyTerm *)lv_darray_get(&gj->terms, t))->exponents[v] : 0;
                 new_exp[v] = mult_j_exp[v] + et;
             }
         }
-        if (simple_poly_add_term(&result, -scale_j * gj->terms[t].coeff, new_exp, var_count) != 0) {
+        if (simple_poly_add_term(&result, -scale_j * ((PolyTerm *)lv_darray_get(&gj->terms, t))->coeff, new_exp, var_count) != 0) {
             lv_free((void **) &new_exp);
             lv_free((void **) &lcm_exp);
             lv_free((void **) &mult_i_exp);
             lv_free((void **) &mult_j_exp);
             simple_poly_destroy(&result);
-            result.term_count = 0;
-            result.terms = NULL;
-            result.term_capacity = 0;
+            lv_darray_init(&result.terms, sizeof(PolyTerm));
             return result;
         }
         lv_free((void **) &new_exp);
@@ -332,29 +329,29 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
 
     int max_steps = reduce_max;
 
-    while (f.term_count > 0 && step < max_steps) {
+    while (f.terms.count > 0 && step < max_steps) {
         step++;
         int reduced = 0;
 
         for (int b = 0; b < basis_size; b++) {
             if (simple_poly_is_zero(&basis[b]))
                 continue;
-            if (basis[b].term_count == 0)
+            if (basis[b].terms.count == 0)
                 continue;
 
             /* 检查基多项式 b 的首项是否能整除 f 的首项 */
-            int f_vars = f.terms[0].var_count;
-            int b_vars = basis[b].terms[0].var_count;
+            int f_vars = ((PolyTerm *)lv_darray_get(&f.terms, 0))->var_count;
+            int b_vars = ((PolyTerm *)lv_darray_get(&basis[b].terms, 0))->var_count;
             int vars = (f_vars > b_vars) ? f_vars : b_vars;
 
             /* 首项系数为零则跳过 */
-            if (fabs(basis[b].terms[0].coeff) < lv_EPSILON_DOUBLE)
+            if (fabs(((PolyTerm *)lv_darray_get(&basis[b].terms, 0))->coeff) < lv_EPSILON_DOUBLE)
                 continue;
 
             int divisible = 1;
             for (int v = 0; v < vars && divisible; v++) {
-                int fe = (v < f_vars) ? f.terms[0].exponents[v] : 0;
-                int be = (v < b_vars) ? basis[b].terms[0].exponents[v] : 0;
+                int fe = (v < f_vars) ? ((PolyTerm *)lv_darray_get(&f.terms, 0))->exponents[v] : 0;
+                int be = (v < b_vars) ? ((PolyTerm *)lv_darray_get(&basis[b].terms, 0))->exponents[v] : 0;
                 if (fe < be)
                     divisible = 0;
             }
@@ -363,53 +360,57 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
                 continue;
 
             /* 执行约化：f = f - (LT(f)/LT(g)) * g */
-            double ratio = f.terms[0].coeff / basis[b].terms[0].coeff;
+            double ratio = ((PolyTerm *)lv_darray_get(&f.terms, 0))->coeff / ((PolyTerm *)lv_darray_get(&basis[b].terms, 0))->coeff;
 
             /* 构造 (LT(f)/LT(g)) * g 并从 f 中减去 */
-            for (int t = 0; t < basis[b].term_count; t++) {
+            for (int t = 0; t < basis[b].terms.count; t++) {
                 int *new_exp = NULL;
                 if (vars > 0) {
                     new_exp = (int *) lv_calloc((size_t) vars, sizeof(int));
                     if (!new_exp)
                         break;
                     for (int v = 0; v < vars; v++) {
-                        int fe = (v < f_vars) ? f.terms[0].exponents[v] : 0;
-                        int be = (v < b_vars && v < basis[b].terms[t].var_count) ? basis[b].terms[t].exponents[v] : 0;
+                        int fe = (v < f_vars) ? ((PolyTerm *)lv_darray_get(&f.terms, 0))->exponents[v] : 0;
+                        int be = (v < b_vars && v < ((PolyTerm *)lv_darray_get(&basis[b].terms, t))->var_count) ? ((PolyTerm *)lv_darray_get(&basis[b].terms, t))->exponents[v] : 0;
                         new_exp[v] = fe - be;
                     }
                 }
                 /* 查找 f 中匹配的项并减去 */
                 int found = 0;
-                for (int k = 0; k < f.term_count; k++) {
-                    if (f.terms[k].var_count == vars && f.terms[k].exponents) {
+                for (int k = 0; k < f.terms.count; k++) {
+                    PolyTerm *fk = (PolyTerm *)lv_darray_get(&f.terms, k);
+                    if (fk->var_count == vars && fk->exponents) {
                         int match = 1;
                         for (int v = 0; v < vars && match; v++) {
-                            if (f.terms[k].exponents[v] != new_exp[v])
+                            if (fk->exponents[v] != new_exp[v])
                                 match = 0;
                         }
                         if (match) {
-                            f.terms[k].coeff -= ratio * basis[b].terms[t].coeff;
+                            fk->coeff -= ratio * ((PolyTerm *)lv_darray_get(&basis[b].terms, t))->coeff;
                             found = 1;
                             break;
                         }
                     }
                 }
                 if (!found && vars > 0) {
-                    simple_poly_add_term(&f, -ratio * basis[b].terms[t].coeff, new_exp, vars);
+                    simple_poly_add_term(&f, -ratio * ((PolyTerm *)lv_darray_get(&basis[b].terms, t))->coeff, new_exp, vars);
                 }
                 lv_free((void **) &new_exp);
             }
 
             /* 移除系数接近零的项 */
-            for (int k = f.term_count - 1; k >= 0; k--) {
-                if (fabs(f.terms[k].coeff) < lv_EPSILON_DOUBLE) {
-                    lv_free((void **) &f.terms[k].exponents);
-                    f.terms[k].exponents = NULL;
+            for (int k = f.terms.count - 1; k >= 0; k--) {
+                PolyTerm *fk = (PolyTerm *)lv_darray_get(&f.terms, k);
+                if (fabs(fk->coeff) < lv_EPSILON_DOUBLE) {
+                    lv_free((void **) &fk->exponents);
+                    fk->exponents = NULL;
                     /* 将末尾项移到当前位置 */
-                    if (k < f.term_count - 1) {
-                        f.terms[k] = f.terms[f.term_count - 1];
+                    if (k < f.terms.count - 1) {
+                        PolyTerm *dst = (PolyTerm *)lv_darray_get(&f.terms, k);
+                        PolyTerm *src = (PolyTerm *)lv_darray_get(&f.terms, f.terms.count - 1);
+                        memcpy(dst, src, sizeof(PolyTerm));
                     }
-                    f.term_count--;
+                    f.terms.count--;
                 }
             }
 
@@ -436,13 +437,13 @@ static int coprime_leading_terms(const SimplePoly *f, int fi, int fj, int basis_
     if (simple_poly_is_zero(&f[fi]) || simple_poly_is_zero(&f[fj]))
         return 0;
 
-    int vars_i = f[fi].terms[0].var_count;
-    int vars_j = f[fj].terms[0].var_count;
+    int vars_i = ((PolyTerm *)lv_darray_get(&f[fi].terms, 0))->var_count;
+    int vars_j = ((PolyTerm *)lv_darray_get(&f[fj].terms, 0))->var_count;
     int vars = (vars_i > vars_j) ? vars_i : vars_j;
 
     for (int v = 0; v < vars; v++) {
-        int ei = (v < vars_i) ? f[fi].terms[0].exponents[v] : 0;
-        int ej = (v < vars_j) ? f[fj].terms[0].exponents[v] : 0;
+        int ei = (v < vars_i) ? ((PolyTerm *)lv_darray_get(&f[fi].terms, 0))->exponents[v] : 0;
+        int ej = (v < vars_j) ? ((PolyTerm *)lv_darray_get(&f[fj].terms, 0))->exponents[v] : 0;
         if (ei > 0 && ej > 0)
             return 0; /* 有公共变量，不互素 */
     }
@@ -795,13 +796,14 @@ bool lv_groebner_poly_is_nonzero_constant(void *poly) {
     if (!poly)
         return false;
     SimplePoly *p = (SimplePoly *) poly;
-    if (p->term_count != 1)
+    if (p->terms.count != 1)
         return false;
-    if (fabs(p->terms[0].coeff) < lv_EPSILON_DOUBLE)
+    PolyTerm *pt0 = (PolyTerm *)lv_darray_get(&p->terms, 0);
+    if (fabs(pt0->coeff) < lv_EPSILON_DOUBLE)
         return false;
-    if (p->terms[0].var_count > 0 && p->terms[0].exponents) {
-        for (int i = 0; i < p->terms[0].var_count; i++) {
-            if (p->terms[0].exponents[i] != 0)
+    if (pt0->var_count > 0 && pt0->exponents) {
+        for (int i = 0; i < pt0->var_count; i++) {
+            if (pt0->exponents[i] != 0)
                 return false;
         }
     }
