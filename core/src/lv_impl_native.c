@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv/lv_log.h"
 #include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
 
 /* ================================================================
@@ -954,8 +955,10 @@ void debug_trace(const char *fmt, ...) {
         return;
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
+    char _dbg_buf[4096];
+    vsnprintf(_dbg_buf, sizeof(_dbg_buf), fmt, ap);
     va_end(ap);
+    lv_DEBUG("%s", _dbg_buf);
 }
 
 void debug_set_level(int lvl) {
@@ -966,11 +969,11 @@ int debug_get_level(void) {
 }
 
 void debug_breakpoint(void) {
-    fprintf(stderr, "[lv] breakpoint (g_native_id=%lld)\n", (long long) g_native_id);
+    lv_DEBUG("breakpoint (g_native_id=%lld)", (long long) g_native_id);
 }
 
 void debug_dump(const char *label, const void *ptr, size_t sz) {
-    fprintf(stderr, "[%s] %zu bytes at %p\n", label ? label : "dump", sz, ptr);
+    lv_DEBUG("%s: %zu bytes at %p", label ? label : "dump", sz, ptr);
 }
 
 /* ================================================================

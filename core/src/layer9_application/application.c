@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_log.h"
 #include "lv/lv_utils.h"
 #include "lv/orchestrator.h"
 
@@ -281,7 +282,7 @@ int lv_app_run_repl(lvApplication *app) {
         /* 为每次输入创建临时会话以隔离执行上下文 */
         lvSession *session = lv_app_create_session(app, "repl");
         if (!session) {
-            fprintf(stderr, "错误：无法创建会话\n");
+            lv_ERROR("无法创建会话");
             continue;
         }
 

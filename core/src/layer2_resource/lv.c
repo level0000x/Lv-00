@@ -12,6 +12,7 @@
  */
 
 #include "lv.h"
+#include "lv/lv_log.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -161,7 +162,7 @@ bool lv_init(void) {
 
     /* 初始化日志系统 */
     if (debug_log_init() != 0) {
-        fprintf(stderr, "[Lv-00] 警告: 日志系统初始化失败\n");
+        lv_WARN("[Lv-00] 警告: 日志系统初始化失败");
         /* 继续，不视为致命错误 */
     }
 

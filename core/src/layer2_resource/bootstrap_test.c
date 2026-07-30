@@ -19,6 +19,7 @@
  */
 
 #include "lv/bootstrap_test.h"
+#include "lv/lv_log.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,13 +95,13 @@ bool bootstrap_test_framework_init(void) {
 
     /* 初始化 Lv-00 核心系统 */
     if (!lv_init()) {
-        fprintf(stderr, "[BootstrapTest] Failed to initialize Lv-00 core\n");
+        lv_ERROR("[BootstrapTest] Failed to initialize Lv-00 core");
         return false;
     }
 
     /* 初始化原语包装器 */
     if (!primitive_wrapper_init()) {
-        fprintf(stderr, "[BootstrapTest] Failed to initialize primitive wrapper\n");
+        lv_ERROR("[BootstrapTest] Failed to initialize primitive wrapper");
         lv_cleanup();
         return false;
     }
@@ -110,7 +111,7 @@ bool bootstrap_test_framework_init(void) {
     g_pass_count = 0;
     g_fail_count = 0;
 
-    printf("[BootstrapTest] Framework initialized successfully\n");
+    lv_INFO("[BootstrapTest] Framework initialized successfully");
     return true;
 }
 
@@ -129,7 +130,7 @@ void bootstrap_test_framework_cleanup(void) {
     lv_cleanup();
 
     g_initialized = false;
-    printf("[BootstrapTest] Framework cleaned up\n");
+    lv_INFO("[BootstrapTest] Framework cleaned up");
 }
 
 /**

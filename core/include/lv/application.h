@@ -4,18 +4,17 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "lv/lv_utils.h"
+#include "lv/lv_log.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* ========================================================================
- * 应用模式与日志级别枚举
+ * 应用模式枚举
  * ======================================================================== */
 
 typedef enum { lv_APP_REPL = 0, lv_APP_BATCH, lv_APP_SERVER, lv_APP_GUI } lvAppMode;
-
-typedef enum { lv_LOG_DEBUG = 0, lv_LOG_INFO, lv_LOG_WARN, lv_LOG_ERROR, lv_LOG_FATAL } lvLogLevel;
 
 /* ========================================================================
  * 应用配置结构体

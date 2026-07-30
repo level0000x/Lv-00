@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv/lv_log.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -312,16 +313,6 @@ void lv_ast_destroy(LvAstNode *node) {
 /* ── 打印 AST 树 ── */
 
 /**
- * @brief 打印缩进空格
- *
- * @param indent 缩进层级（每级缩进 2 个空格）
- */
-static void print_indent(int indent) {
-    for (int i = 0; i < indent; i++)
-        fputs("  ", stdout);
-}
-
-/**
  * @brief 获取 AST 节点类型的字符串名称
  *
  * @param type 节点类型枚举值
@@ -358,75 +349,97 @@ static const char *ast_type_name(LvAstNodeType type) {
 void lv_ast_print(const LvAstNode *node, int indent) {
     if (!node)
         return;
-    print_indent(indent);
-    printf("%s", ast_type_name(node->type));
+
+    char buf[1536];
+    int off = 0;
+
+    /* 缩进 */
+    for (int i = 0; i < indent && off < (int) sizeof(buf) - 2; i++) {
+        buf[off++] = ' ';
+        buf[off++] = ' ';
+    }
+
+    off += snprintf(buf + off, sizeof(buf) - (size_t) off, "%s", ast_type_name(node->type));
 
     switch (node->type) {
         case LV_AST_DECLARATION:
-            printf(" [entity=%s, names=%s]", lv_entity_type_name((LvEntityType) node->data.decl.entity_type),
-                   node->data.decl.names ? node->data.decl.names : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [entity=%s, names=%s]",
+                            lv_entity_type_name((LvEntityType) node->data.decl.entity_type),
+                            node->data.decl.names ? node->data.decl.names : "");
             break;
         case LV_AST_LET:
-            printf(" [name=%s, type=%s]", node->data.let_def.name ? node->data.let_def.name : "",
-                   node->data.let_def.type_name ? node->data.let_def.type_name : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [name=%s, type=%s]",
+                            node->data.let_def.name ? node->data.let_def.name : "",
+                            node->data.let_def.type_name ? node->data.let_def.type_name : "");
             break;
         case LV_AST_IDENTIFIER_EXPR:
-            printf(" [%s]", node->data.ident.name ? node->data.ident.name : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
+                            node->data.ident.name ? node->data.ident.name : "");
             break;
         case LV_AST_INTEGER_LITERAL:
-            printf(" [%lld]", node->data.literal.integer_value);
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%lld]", node->data.literal.integer_value);
             break;
         case LV_AST_RATIONAL_LITERAL:
-            printf(" [%lld/%lld]", node->data.literal.rational_value.num, node->data.literal.rational_value.den);
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%lld/%lld]",
+                            node->data.literal.rational_value.num, node->data.literal.rational_value.den);
             break;
         case LV_AST_DECIMAL_LITERAL:
-            printf(" [%g]", node->data.literal.decimal_value);
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%g]", node->data.literal.decimal_value);
             break;
         case LV_AST_STRING_LITERAL:
-            printf(" [\"%s\"]", node->data.literal.string_value ? node->data.literal.string_value : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [\"%s\"]",
+                            node->data.literal.string_value ? node->data.literal.string_value : "");
             break;
         case LV_AST_BOOL_LITERAL:
-            printf(" [%s]", node->data.literal.bool_value ? "true" : "false");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
+                            node->data.literal.bool_value ? "true" : "false");
             break;
         case LV_AST_BINARY_OP:
-            printf(" [%s]", node->data.binary.op);
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]", node->data.binary.op);
             break;
         case LV_AST_UNARY_OP:
-            printf(" [%s]", node->data.unary.op);
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]", node->data.unary.op);
             break;
         case LV_AST_COMPARE:
-            printf(" [%s]", node->data.compare.op);
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]", node->data.compare.op);
             break;
         case LV_AST_FUNCTION_CALL:
         case LV_AST_RELATION:
         case LV_AST_MEASURE:
         case LV_AST_GEOMETRY_EXPR:
-            printf(" [%s]", node->data.call.func_name ? node->data.call.func_name : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
+                            node->data.call.func_name ? node->data.call.func_name : "");
             break;
         case LV_AST_LOGIC_FORALL:
         case LV_AST_LOGIC_EXISTS:
-            printf(" [%s: %s]", node->data.quantifier.var_name ? node->data.quantifier.var_name : "",
-                   node->data.quantifier.var_type ? node->data.quantifier.var_type : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s: %s]",
+                            node->data.quantifier.var_name ? node->data.quantifier.var_name : "",
+                            node->data.quantifier.var_type ? node->data.quantifier.var_type : "");
             break;
         case LV_AST_EXPORT_STMT:
-            printf(" [target=%s, format=%s]", node->data.export_stmt.target ? node->data.export_stmt.target : "",
-                   node->data.export_stmt.format ? node->data.export_stmt.format : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [target=%s, format=%s]",
+                            node->data.export_stmt.target ? node->data.export_stmt.target : "",
+                            node->data.export_stmt.format ? node->data.export_stmt.format : "");
             break;
         case LV_AST_MODULE_DECL:
         case LV_AST_IMPORT_DECL:
-            printf(" [%s]", node->data.module_import.qualified_name ? node->data.module_import.qualified_name : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
+                            node->data.module_import.qualified_name ? node->data.module_import.qualified_name : "");
             break;
         case LV_AST_THEOREM_STMT:
-            printf(" [%s]", node->data.theorem.name ? node->data.theorem.name : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
+                            node->data.theorem.name ? node->data.theorem.name : "");
             break;
         case LV_AST_NORMALIZE_STMT:
-            printf(" [%s]", node->data.normalize.target ? node->data.normalize.target : "");
+            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
+                            node->data.normalize.target ? node->data.normalize.target : "");
             break;
         default:
             break;
     }
 
-    putchar('\n');
+    if (off > 0)
+        lv_INFO("%s", buf);
 
     /* 递归打印子节点 */
     if (node->child) {

@@ -363,7 +363,10 @@ int lv_plugin_reload(lvPluginSystem *system, lvPlugin *plugin) {
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_plugin_reload: unload failed");
     }
 
-    return lv_plugin_load(system, path) ? 0 : lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_plugin_reload: load failed");
+    if (!lv_plugin_load(system, path)) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_plugin_reload: load failed");
+    }
+    return 0;
 }
 
 /* ============ 插件激活与停用 ============ */
