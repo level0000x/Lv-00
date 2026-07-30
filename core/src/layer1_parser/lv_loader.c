@@ -14,9 +14,7 @@
  * @author Lv-00 Project
  */
 
-#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200809L
-#define _POSIX_C_SOURCE 200809L
-#endif
+#include "lv/lv_platform.h"
 
 #include "lv/lv_loader.h"
 

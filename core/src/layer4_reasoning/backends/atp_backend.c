@@ -25,6 +25,8 @@
  * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
  */
 
+#include "lv/lv_platform.h"
+
 #include "atp_backend.h"
 
 #include <stdio.h>
@@ -43,11 +45,9 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <pthread.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#define strtok_s strtok_r
 #endif
 
 #include "error_codes.h"

@@ -10,9 +10,7 @@
  * @author Lv-00 Project
  */
 
-#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 199309L
-#define _POSIX_C_SOURCE 199309L
-#endif
+#include "lv/lv_platform.h"
 
 #define lv_THREAD_POOL_IMPL
 #include "lv/thread_pool.h"

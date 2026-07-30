@@ -14,11 +14,7 @@
  * @version 3.3.0
  */
 
-#define _USE_MATH_DEFINES
-#include <math.h>
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include "lv/lv_platform.h"
 
 #include "geometry_transform.h"
 

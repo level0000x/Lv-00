@@ -9,7 +9,8 @@
  * @version 1.0.0
  */
 
-#include <limits.h>
+#include "lv/lv_platform.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

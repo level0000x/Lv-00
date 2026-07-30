@@ -6,12 +6,7 @@
  * @version 3.3.0
  */
 
-/* macOS 使用 _DARWIN_C_SOURCE（_POSIX_C_SOURCE 会隐藏 BSD 类型和 _SC_* 宏） */
-#if defined(__APPLE__)
-#define _DARWIN_C_SOURCE
-#elif !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
-#define _POSIX_C_SOURCE 200112L
-#endif
+#include "lv/lv_platform.h"
 
 #include "runtime_monitor.h"
 
