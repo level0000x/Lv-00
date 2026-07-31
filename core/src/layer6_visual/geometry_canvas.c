@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geometry_canvas.c
  * @brief 几何画布视图实现
  *
@@ -88,20 +88,20 @@ typedef struct lvGeometryCanvas {
 lvGeometryCanvas *lv_geometry_canvas_create(void) {
     lvGeometryCanvas *canvas = lv_calloc(1, sizeof(lvGeometryCanvas));
     if (!canvas)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate geometry canvas");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate geometry canvas");
     canvas->view_type = lv_VIEW_GEOMETRY_CANVAS;
     canvas->entity_capacity = 16;
     canvas->entities = lv_calloc(canvas->entity_capacity, sizeof(lvGeomEntity));
     if (!canvas->entities) {
         lv_free((void **) &canvas);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate entities array");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate entities array");
     }
     canvas->constraint_capacity = 16;
     canvas->constraints = lv_calloc(canvas->constraint_capacity, sizeof(lvGeomConstraint));
     if (!canvas->constraints) {
         lv_free((void **) &canvas->entities);
         lv_free((void **) &canvas);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate constraints array");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate constraints array");
     }
     canvas->next_entity_id = 1;
     canvas->next_constraint_id = 1;
@@ -153,7 +153,7 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char
         int new_cap = canvas->entity_capacity * 2;
         lvGeomEntity *new_arr = lv_realloc(canvas->entities, new_cap * sizeof(lvGeomEntity));
         if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc entities");
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc entities");
         canvas->entities = new_arr;
         canvas->entity_capacity = new_cap;
     }
@@ -175,7 +175,7 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char
     if (!ent->coords) {
         /* calloc失败，清零该实体槽位防止半初始化数据残留 */
         memset(ent, 0, sizeof(lvGeomEntity));
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate entity coords");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to allocate entity coords");
     }
     if ((size_t) coord_count > SIZE_MAX / sizeof(double))
         lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "coord_count overflow");
@@ -263,7 +263,7 @@ int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas, int entity_a_id,
         int new_cap = canvas->constraint_capacity * 2;
         lvGeomConstraint *new_arr = lv_realloc(canvas->constraints, new_cap * sizeof(lvGeomConstraint));
         if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc constraints");
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc constraints");
         canvas->constraints = new_arr;
         canvas->constraint_capacity = new_cap;
     }
@@ -432,7 +432,7 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     int buf_size = (int) est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate SVG buffer");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate SVG buffer");
 
     int pos = 0;
 /* 辅助宏：安全写入 snprintf 链，防止 pos 溢出 buf_size */

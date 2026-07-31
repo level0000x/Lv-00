@@ -16,6 +16,14 @@
 #include "lv.h"
 #include "test_helpers.h"
 
+/* 兼容宏：本文件使用 ASSERT / TEST_PASS 简写 */
+#ifndef ASSERT
+#define ASSERT(cond) TEST_ASSERT(cond, #cond)
+#endif
+#ifndef TEST_PASS
+#define TEST_PASS() do { g_pass_count++; } while (0)
+#endif
+
 int g_pass_count = 0;
 int g_fail_count = 0;
 

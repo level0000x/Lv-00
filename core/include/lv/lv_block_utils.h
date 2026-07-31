@@ -35,7 +35,7 @@ extern "C" {
     type *prefix##_create(void) { \
         type *block = lv_calloc(1, sizeof(type)); \
         if (!block) \
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate " #type); \
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate " #type); \
         do { init_body; } while(0); \
         return block; \
     } \
@@ -62,7 +62,7 @@ extern "C" {
     type *prefix##_create params { \
         type *block = lv_calloc(1, sizeof(type)); \
         if (!block) \
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate " #type); \
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate " #type); \
         do { init_body; } while(0); \
         return block; \
     } \

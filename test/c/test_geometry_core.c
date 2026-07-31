@@ -315,9 +315,9 @@ void test_euclidean_init_destroy(void) {
     EuclideanContext *ctx = euclidean_init(NULL);
     TEST_ASSERT_NOT_NULL(ctx);
     TEST_ASSERT(ctx->active_axiom_system == EUCLID_HILBERT, "default system is HILBERT");
-    TEST_ASSERT(ctx->point_count == 0, "no points initially");
-    TEST_ASSERT(ctx->line_count == 0, "no lines initially");
-    TEST_ASSERT(ctx->circle_count == 0, "no circles initially");
+    TEST_ASSERT(ctx->points_da.count == 0, "no points initially");
+    TEST_ASSERT(ctx->lines_da.count == 0, "no lines initially");
+    TEST_ASSERT(ctx->circles_da.count == 0, "no circles initially");
     TEST_ASSERT(ctx->is_consistent == true, "initially consistent");
 
     euclidean_destroy(ctx);
@@ -409,11 +409,11 @@ void test_euclidean_declare_point(void) {
 
     int p1 = euclidean_declare_point(ctx, x, y, "A");
     TEST_ASSERT(p1 >= 0, "point A declared");
-    TEST_ASSERT(ctx->point_count == 1, "one point registered");
+    TEST_ASSERT(ctx->points_da.count == 1, "one point registered");
 
     int p2 = euclidean_declare_point(ctx, NULL, NULL, "B");
     TEST_ASSERT(p2 >= 0, "point B with NULL coords");
-    TEST_ASSERT(ctx->point_count == 2, "two points registered");
+    TEST_ASSERT(ctx->points_da.count == 2, "two points registered");
 
     /* NULL 上下文 */
     TEST_ASSERT(euclidean_declare_point(NULL, x, y, "C") == -1, "NULL context returns -1");
@@ -440,7 +440,7 @@ void test_euclidean_declare_line(void) {
 
     int line = euclidean_declare_line(ctx, p1, p2);
     TEST_ASSERT(line >= 0, "line declared");
-    TEST_ASSERT(ctx->line_count == 1, "one line registered");
+    TEST_ASSERT(ctx->lines_da.count == 1, "one line registered");
 
     /* 相同点应失败 */
     int bad_line = euclidean_declare_line(ctx, p1, p1);
@@ -474,7 +474,7 @@ void test_euclidean_declare_circle(void) {
     int center = euclidean_declare_point(ctx, x, y, "Center");
     int circle = euclidean_declare_circle(ctx, center, radius);
     TEST_ASSERT(circle >= 0, "circle declared");
-    TEST_ASSERT(ctx->circle_count == 1, "one circle registered");
+    TEST_ASSERT(ctx->circles_da.count == 1, "one circle registered");
 
     /* NULL radius 应失败 */
     int bad = euclidean_declare_circle(ctx, center, NULL);

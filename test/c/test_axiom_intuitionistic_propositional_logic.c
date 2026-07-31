@@ -186,10 +186,10 @@ static void test_unconstructible_problems(void) {
         TEST_ASSERT(uc != NULL, exp[i].name);
         if (uc) {
             TEST_ASSERT(uc->reduces_to && strcmp(uc->reduces_to, exp[i].reduces_to) == 0, exp[i].name);
-            TEST_ASSERT(uc->dependency_count == exp[i].deps, exp[i].name);
+            TEST_ASSERT(uc->dependency_chain.count == exp[i].deps, exp[i].name);
             TEST_ASSERT(uc->green_verified == exp[i].verified, exp[i].name);
             TEST_ASSERT(uc->external_ref && strlen(uc->external_ref) > 0, "should have external_ref");
-            printf("  [%d] %s -> %s deps=%d ok\n", i, uc->name, uc->reduces_to, uc->dependency_count);
+            printf("  [%d] %s -> %s deps=%d ok\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count);
         }
     }
 
@@ -251,8 +251,8 @@ static void test_round_trip(void) {
     AxiomPackage *pkg2 = axiom_package_create("pl", "0.0.0");
     TEST_ASSERT(axiom_package_load(pkg2, SAVE_TEST_PATH) == AXIOM_LOAD_OK, "reload should succeed");
 
-    TEST_ASSERT(axiom_package_get_template_count(pkg2) == pkg1->template_count, "tpl count match");
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == pkg1->unconstructible_count, "uc count match");
+    TEST_ASSERT(axiom_package_get_template_count(pkg2) == axiom_package_get_template_count(pkg1), "tpl count match");
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == axiom_package_get_unconstructible_count(pkg1), "uc count match");
     TEST_ASSERT(strcmp(pkg2->name, pkg1->name) == 0, "name match");
     TEST_ASSERT(strcmp(pkg2->version, pkg1->version) == 0, "version match");
     TEST_ASSERT(
@@ -357,7 +357,7 @@ static void test_external_references(void) {
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 5,
                     "every unconstructible should have an external_ref");
         if (uc->external_ref) {

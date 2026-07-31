@@ -199,10 +199,10 @@ static void test_unconstructible_problems(void) {
         if (uc) {
             TEST_ASSERT(uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0,
                         expected[i].name);
-            TEST_ASSERT(uc->dependency_count == expected[i].dep_count, expected[i].name);
+            TEST_ASSERT(uc->dependency_chain.count == expected[i].dep_count, expected[i].name);
             TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);
             TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
-            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_count,
+            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
                    uc->green_verified ? "true" : "false");
         }
     }
@@ -385,7 +385,7 @@ static void test_external_refs(void) {
 
     int valid_ref_count = 0;
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         if (uc->external_ref && strlen(uc->external_ref) > 0) {
             /* Check it starts with https:// */
             bool is_https = strncmp(uc->external_ref, "https://", 8) == 0;

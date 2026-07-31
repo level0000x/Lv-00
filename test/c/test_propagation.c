@@ -246,7 +246,7 @@ void test_prop_entropy(void) {
     /* 2 个候选 → entropy = log2(2) = 1.0 */
     NodeStateSpace two_candidates;
     memset(&two_candidates, 0, sizeof(two_candidates));
-    two_candidates.coord_count = 2;
+    two_candidates.candidates_da.count = 2;
 
     double e2 = propagation_compute_entropy(&two_candidates);
     TEST_ASSERT(fabs(e2 - 1.0) < 1e-12, "2 candidates => entropy == 1.0");

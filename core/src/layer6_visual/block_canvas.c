@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file block_canvas.c
  * @brief 块画布视图实现
  *
@@ -94,7 +94,7 @@ typedef struct lvBlockCanvasView {
 lvBlockCanvasView *lv_block_canvas_create(void) {
     lvBlockCanvasView *canvas = lv_calloc(1, sizeof(lvBlockCanvasView));
     if (!canvas)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block canvas");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate block canvas");
     canvas->view_type = lv_VIEW_BLOCK_CANVAS;
     lv_darray_init(&canvas->blocks, sizeof(lvVisualBlock));
     lv_darray_init(&canvas->connections, sizeof(lvBlockConnection));
@@ -102,7 +102,7 @@ lvBlockCanvasView *lv_block_canvas_create(void) {
         lv_darray_free(&canvas->blocks);
         lv_darray_free(&canvas->connections);
         lv_free((void **) &canvas);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block canvas arrays");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate block canvas arrays");
     }
     canvas->next_block_id = 1;
     canvas->next_port_id = 1;
@@ -170,7 +170,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
     if (total_ports > 0) {
         block.ports = lv_calloc(total_ports, sizeof(lvBlockPort));
         if (!block.ports)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block ports");
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to allocate block ports");
 
         /* 输入端口在左侧均匀分布 */
         for (int i = 0; i < input_count; i++) {
@@ -197,7 +197,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
     int idx = lv_darray_push(&canvas->blocks, &block);
     if (idx < 0) {
         lv_free((void **) &block.ports);
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push block");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push block");
     }
     return block.id;
 }
@@ -353,7 +353,7 @@ int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id,
 
     int idx = lv_darray_push(&canvas->connections, &conn);
     if (idx < 0)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push connection");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push connection");
     return conn.id;
 }
 
@@ -423,7 +423,7 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
     int buf_size = (int) est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate SVG buffer");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate SVG buffer");
 
     int pos = 0;
 

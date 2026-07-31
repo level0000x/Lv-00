@@ -70,29 +70,22 @@ typedef struct ConstraintGraph ConstraintGraph;
  *   TRACE — 最细粒度，记录函数进入/退出、参数值、循环迭代（极大量）
  *   FATAL — 不可恢复错误，记录后触发 emergency_save 和可能的 abort
  */
+/* 若 runtime_monitor.h 已定义 lvLogLevel 枚举（其哨兵宏 lv_RUNTIME_MONITOR_LOGLEVEL_SEEN 已定义），
+ * 则 LogLevel 直接复用 lvLogLevel，避免枚举成员与 LOG_LEVEL_* 宏冲突。 */
+#ifndef lv_RUNTIME_MONITOR_LOGLEVEL_SEEN
 typedef enum {
-#ifndef LOG_LEVEL_TRACE
     LOG_LEVEL_TRACE = -1, /**< 追踪级别：最详细的逐步骤日志（函数进入/退出、参数转储） */
-#endif
-#ifndef LOG_LEVEL_DEBUG
     LOG_LEVEL_DEBUG = 0, /**< 调试级别：开发调试信息 */
-#endif
-#ifndef LOG_LEVEL_INFO
     LOG_LEVEL_INFO = 1, /**< 信息级别：常规运行时信息 */
-#endif
-#ifndef LOG_LEVEL_WARN
     LOG_LEVEL_WARN = 2, /**< 警告级别：潜在问题，不影响当前操作 */
-#endif
-#ifndef LOG_LEVEL_ERROR
     LOG_LEVEL_ERROR = 3, /**< 错误级别：操作失败，但引擎可继续 */
-#endif
-#ifndef LOG_LEVEL_FATAL
     LOG_LEVEL_FATAL = 4, /**< 致命级别：不可恢复错误，记录后触发保护性动作 */
-#endif
-#ifndef LOG_LEVEL_NONE
     LOG_LEVEL_NONE = 5 /**< 禁用所有日志 */
-#endif
 } LogLevel;
+#define lv_LOGLEVEL_DEFINED 1
+#else
+typedef lvLogLevel LogLevel;
+#endif
 
 /**
  * @brief 编译期日志级别过滤 —— 零运行时开销

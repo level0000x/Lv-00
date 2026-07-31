@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_minimal_parse.c
  * @brief 公理包最小化解析测试 - 验证 .lvz 文件加载
  *
@@ -59,15 +59,15 @@ int main(void) {
         return 1;
     }
 
-    printf("Load: %d, Tmpl: %d, UC: %d, Bottom: %s\n", (int) s, pkg->template_count, pkg->unconstructible_count,
+    printf("Load: %d, Tmpl: %d, UC: %d, Bottom: %s\n", (int) s, axiom_package_get_template_count(pkg), axiom_package_get_unconstructible_count(pkg),
            pkg->bottom_geometry ? pkg->bottom_geometry : "(null)");
     const char *err = axiom_package_get_last_error();
     if (err)
         printf("Error: %s\n", err);
 
-    for (int i = 0; i < pkg->unconstructible_count; i++) {
-        KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
-        printf("  UC[%d]: %s -> %s (deps=%d, verified=%d)\n", i, uc->name, uc->reduces_to, uc->dependency_count,
+    for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
+        printf("  UC[%d]: %s -> %s (deps=%d, verified=%d)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
                uc->green_verified);
     }
     axiom_package_destroy(pkg);

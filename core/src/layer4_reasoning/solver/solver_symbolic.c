@@ -14,69 +14,6 @@
 #include "lv/symbolic_coord.h"
 #include "solver_common.h"
 
-/* ── 符号求解器桩实现 ── */
-
-int coord_to_double(const SymbolicCoord *c, double *out) {
-    if (!c || !out)
-        return 0;
-    switch (c->type) {
-        case RATIONAL:
-            *out = mpq_get_d(c->data.rational->value);
-            return 1;
-        case ALGEBRAIC:
-            *out = algebraic_to_double(c->data.algebraic);
-            return 1;
-        case QUADRATIC:
-            *out = quadratic_to_double(c->data.quadratic);
-            return 1;
-        case TRANSCENDENTAL:
-            *out = transcendental_to_double(c->data.transcendental);
-            return 1;
-        default:
-            return 0;
-    }
-}
-
-/**
- * @brief 将 double 值按 scale 缩放后精确转换为 mpz_t 整数
- *
- * @details 使用 mpq_t 中间类型进行缩放计算，避免 double * int64 相乘后
- *          mpz_set_d 截断（向零舍入）导致的精度损失。
- *
- *          计算过程：
- *          1. val → mpq_t（精确的 double→有理数转换）
- *          2. mpq_numref(q) * scale → 缩放后的分子
- *          3. floor(分子 / 分母) → mpz_t 结果
- *
- *          举例：val = 1.0/3.0 ≈ 0.333..., scale = 1000
- *          旧版本：0.333... * 1000 ≈ 333.33..., mpz_set_d → 333（截断，错误）
- *          新版本：6004799503160661/18014398509481984 * 1000 → 精确 floor → 333
- *
- * @param val    输入浮点数值
- * @param result 输出 mpz_t 整数（floor(val * scale)）
- * @param scale  缩放因子（正数）
- */
-void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
-    /* NaN/INFINITY 防护：mpq_set_d 对非有限值行为未定义，直接返回 0 */
-    if (isnan(val) || isinf(val)) {
-        mpz_set_si(result, 0);
-        return;
-    }
-
-    mpq_t q;
-    mpq_init(q);
-    mpq_set_d(q, val); /* val → 精确有理数 */
-
-    /* 使用 mpz_t 中间值避免 int64_t → long 截断（Windows long=32位） */
-    mpz_t scale_mpz;
-    mpz_init_set_si(scale_mpz, scale);
-    mpz_mul(mpq_numref(q), mpq_numref(q), scale_mpz); /* 分子 * scale */
-    mpz_clear(scale_mpz);
-
-    mpz_fdiv_q(result, mpq_numref(q), mpq_denref(q)); /* floor(分子/分母) */
-    mpq_clear(q);
-}
-
 /**
  * @brief 在符号坐标上求值多项式
  * @details 将多项式系数在 SymbolicCoord 值上逐项求值并累加。

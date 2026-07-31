@@ -108,7 +108,7 @@ static bool coord_to_double_via_serialize(const SymbolicCoord *c, double *out) {
     return (endptr != str);
 }
 
-static bool coord_to_double(const SymbolicCoord *c, double *out) {
+int coord_to_double(const SymbolicCoord *c, double *out) {
     if (!c)
         return false;
     switch (c->type) {
@@ -239,7 +239,7 @@ bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale) {
 
 /* 前向声明：coord_to_mpz_scaled_exact 在 double_to_mpz_scaled 之后定义，
    但 coord_to_mpz_scaled 的回退路径需要引用 double_to_mpz_scaled */
-static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
+void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
 
 /**
  * 将符号坐标精确转换为缩放整数系数。
@@ -312,7 +312,7 @@ static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, 
  * 先从 double 构造 mpq，再乘以 scale 得到缩放后的整数。
  * 当 scaled_num 不能被 den 整除时，使用四舍五入取整。
  */
-static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
+void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
     /* 防御特殊浮点值 */
     if (!isfinite(val)) {
         mpz_set_ui(result, 0);

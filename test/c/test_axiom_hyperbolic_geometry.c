@@ -304,7 +304,7 @@ static void test_external_references(void) {
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         TEST_ASSERT(uc->external_ref != NULL, "each unconstructible should have an external_ref");
 
         /* Verify it's a valid HTTPS URL */

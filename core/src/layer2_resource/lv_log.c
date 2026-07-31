@@ -66,10 +66,6 @@ void lv_log(lvLogLevel level, const char *fmt, ...) {
     fflush(fp);
 }
 
-void lv_log_set_level(lvLogLevel level) {
-    g_min_level = level;
-}
-
 lvLogLevel lv_log_get_level(void) {
     return g_min_level;
 }

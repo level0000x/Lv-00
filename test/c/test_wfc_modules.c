@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_wfc_modules.c
  * @brief WFC 范式三模块集成测试
  *
@@ -521,7 +521,7 @@ void test_meta_proof_record(void) {
 
     const PruningRecord *rec = meta_proof_get_record(ctx);
     TEST_ASSERT(rec != NULL, "剪枝记录存在");
-    TEST_ASSERT(rec->operation_count == 1, "记录了 1 次剪枝");
+    TEST_ASSERT(rec->operations.count == 1, "记录了 1 次剪枝");
     TEST_ASSERT(rec->total_states_removed == 2, "移除了 2 个状态");
 
     meta_proof_context_destroy(ctx);

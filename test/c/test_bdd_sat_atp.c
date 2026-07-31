@@ -457,9 +457,9 @@ static void test_add_operations(void) {
 static void test_sat_encoding_create_destroy(void) {
     SatEncoding *enc = sat_encoding_create(64, 128);
     TEST_ASSERT_NOT_NULL(enc);
-    TEST_ASSERT(enc->var_capacity >= 64, "var capacity should be at least 64");
+    TEST_ASSERT(enc->var_map.capacity >= 64, "var capacity should be at least 64");
     TEST_ASSERT(enc->clause_capacity >= 128, "clause capacity should be at least 128");
-    TEST_ASSERT_EQ(enc->var_count, 0);
+    TEST_ASSERT_EQ(enc->var_map.count, 0);
     TEST_ASSERT_EQ(enc->clause_count, 0);
     sat_encoding_destroy(enc);
 

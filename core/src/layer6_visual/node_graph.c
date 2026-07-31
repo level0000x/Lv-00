@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file node_graph.c
  * @brief 节点图视图实现
  *
@@ -128,7 +128,7 @@ int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, do
     node.label[sizeof(node.label) - 1] = '\0';
 
     if (lv_darray_push(&graph->nodes_da, &node) < 0)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push node to darray");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push node to darray");
 
     /* 更新自增ID */
     if (node.id >= graph->next_node_id) {
@@ -209,7 +209,7 @@ int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id,
     }
 
     if (lv_darray_push(&graph->connections_da, &conn) < 0)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push connection to darray");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push connection to darray");
 
     return conn.id;
 }
@@ -293,7 +293,7 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
     if (!dx || !dy) {
         lv_free((void **) &dx);
         lv_free((void **) &dy);
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate layout displacement arrays");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to allocate layout displacement arrays");
     }
 
     /* 迭代 */

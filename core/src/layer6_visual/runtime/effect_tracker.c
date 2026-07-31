@@ -1,4 +1,4 @@
-#include <string.h>
+﻿#include <string.h>
 
 #include "lv/effect_system.h"
 #include "lv/lv_utils.h"
@@ -7,11 +7,11 @@
 lvEffectTracker *lv_effect_tracker_create(void) {
     lvEffectTracker *tracker = lv_calloc(1, sizeof(lvEffectTracker));
     if (!tracker)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate effect tracker");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate effect tracker");
     lv_darray_init(&tracker->entries, sizeof(lvEffectLogEntry));
     if (!lv_darray_reserve(&tracker->entries, 64)) {
         lv_free((void **) &tracker);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to reserve effect tracker darray");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to reserve effect tracker darray");
     }
     return tracker;
 }
@@ -84,7 +84,7 @@ lvEffectAnnotation *lv_effect_compose(const lvEffectAnnotation *a, const lvEffec
     result->effects = lv_calloc(count, sizeof(lvEffectType));
     if (!result->effects) {
         lv_free((void **) &result);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate composed effects");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate composed effects");
     }
     result->effect_count = 0;
     if (a) {

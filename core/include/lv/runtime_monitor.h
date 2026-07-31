@@ -47,7 +47,11 @@ extern "C" {
 
 /**
  * @brief 日志级别（与 debug.h LogLevel 保持一致）
+ *
+ * 若 debug.h 已先被包含（哨兵宏 lv_LOGLEVEL_DEFINED 已定义），
+ * 则复用其 LogLevel 枚举，避免枚举成员重复定义。
  */
+#ifndef lv_LOGLEVEL_DEFINED
 typedef enum {
 #ifndef LOG_LEVEL_TRACE
     LOG_LEVEL_TRACE = -1, /**< 最详细跟踪 */
@@ -68,9 +72,13 @@ typedef enum {
     LOG_LEVEL_FATAL = 4, /**< 致命错误 */
 #endif
 #ifndef LOG_LEVEL_OFF
-    LOG_LEVEL_OFF = 5 /**< 关闭日志 */
+    LOG_LEVEL_OFF = 5, /**< 关闭日志 */
 #endif
+    LOG_LEVEL_ENUM_GUARD = 6 /**< 占位成员：当级别常量已由其他头文件定义时保证枚举非空 */
 } lvLogLevel;
+#else
+typedef LogLevel lvLogLevel;
+#endif
 
 /* 与 debug.h 兼容（debug.h 是主定义源，运行时监控借用其级别） */
 #define LOG_LEVEL_TRACE -1

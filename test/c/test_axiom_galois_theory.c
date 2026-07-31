@@ -307,8 +307,8 @@ static void test_round_trip_save_load(void) {
     /* Compare key properties */
     ASSERT_STR_EQ(pkg1->name, pkg2->name);
     ASSERT_STR_EQ(pkg1->version, pkg2->version);
-    ASSERT_EQ(pkg1->template_count, axiom_package_get_template_count(pkg2));
-    ASSERT_EQ(pkg1->unconstructible_count, axiom_package_get_unconstructible_count(pkg2));
+    ASSERT_EQ(axiom_package_get_template_count(pkg1), axiom_package_get_template_count(pkg2));
+    ASSERT_EQ(axiom_package_get_unconstructible_count(pkg1), axiom_package_get_unconstructible_count(pkg2));
     ASSERT_STR_EQ(pkg1->bottom_geometry, pkg2->bottom_geometry);
     ASSERT_STR_EQ(pkg1->negation_encoding, pkg2->negation_encoding);
     ASSERT_EQ(pkg1->contradiction_behavior, pkg2->contradiction_behavior);
@@ -381,7 +381,7 @@ static void test_external_references(void) {
 
     int valid_count = 0;
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         if (uc->external_ref != NULL) {
             /* Check for valid URL format */
             bool is_url =

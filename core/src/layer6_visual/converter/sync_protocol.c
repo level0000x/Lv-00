@@ -1,4 +1,4 @@
-#include <string.h>
+﻿#include <string.h>
 
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -18,7 +18,7 @@ typedef struct lvSyncProtocol {
 lvSyncProtocol *lv_sync_protocol_create(void *graph) {
     lvSyncProtocol *proto = lv_calloc(1, sizeof(lvSyncProtocol));
     if (!proto)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate sync protocol");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate sync protocol");
     proto->enabled = 1;
     proto->core_graph = graph;
     return proto;

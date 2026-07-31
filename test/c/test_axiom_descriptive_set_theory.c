@@ -186,7 +186,7 @@ static void test_unconstructibles(void) {
         }
         TEST_ASSERT(uc->reduces_to && strcmp(uc->reduces_to, expected_uc[i].reduces_to) == 0,
                     "unconstructible reduces_to mismatch");
-        TEST_ASSERT(uc->dependency_count >= expected_uc[i].min_deps,
+        TEST_ASSERT(uc->dependency_chain.count >= expected_uc[i].min_deps,
                     "unconstructible should have minimum dependency count");
         TEST_ASSERT(expected_uc[i].has_ref ? (uc->external_ref != NULL) : 1,
                     "unconstructible should have external_ref");
@@ -328,7 +328,7 @@ static void test_external_references(void) {
 
     /* All unconstructible problems should have external references */
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         TEST_ASSERT(uc->external_ref != NULL && uc->external_ref[0] != '\0',
                     "every unconstructible should have an external reference");
         /* Verify it starts with https:// */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file record_block.c
  * @brief 记录块数据实现
  *
@@ -26,12 +26,12 @@
 lvRecordBlock *lv_record_block_create(int field_count) {
     lvRecordBlock *block = lv_calloc(1, sizeof(lvRecordBlock));
     if (!block)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate record block");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate record block");
     if (field_count > 0) {
         block->fields = lv_calloc(field_count, sizeof(block->fields[0]));
         if (!block->fields) {
             lv_free((void **) &block);
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate fields array");
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate fields array");
         }
         block->field_count = field_count;
     }

@@ -114,7 +114,7 @@ void solver_set_stream_context(StreamContext *ctx) {
 /* ------------------------------------------------------------------ */
 
 /* solver_coord_extract.c */
-bool coord_to_double(const SymbolicCoord *c, double *out);
+int coord_to_double(const SymbolicCoord *c, double *out);
 bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale);
 void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
 bool point_coord(const GeomNode *pt, int idx, double *out);

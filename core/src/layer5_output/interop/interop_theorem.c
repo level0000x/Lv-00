@@ -19,6 +19,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/interop.h"
+#include "lv/lv_builtin_commands.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -478,13 +479,8 @@ const char *interop_get_file_extension(const char *path) {
 
 /* ---- 命令补全 ---- */
 
-static const char *BUILTIN_COMMANDS[] = {"add point",   "add segment",  "add constraint", "add region",
-                                         "move point",  "remove point", "remove segment", "normalize",
-                                         "undo",        "redo",         "snapshot",       "restore",
-                                         "solve",       "rewrite",      "unify",          "pack function",
-                                         "instantiate", "get graph",    "export graph",   "get status",
-                                         "history",     "help",         "clear",          "cls",
-                                         "ping",        "stream start", "stream stop",    NULL};
+/* 内置命令列表已统一到 lv_builtin_commands（见 lv_builtin_commands.h，
+   定义于 lv_protocol.c），与 lv_proto_completions 共用一份。 */
 
 static int str_prefix_match(const char *str, const char *prefix) {
     size_t plen = strlen(prefix);
@@ -507,11 +503,11 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
     const char *p = prefix ? prefix : "";
 
     /* 内置命令补全 */
-    for (int i = 0; BUILTIN_COMMANDS[i] != NULL; i++) {
+    for (int i = 0; lv_builtin_commands[i] != NULL; i++) {
         if (count >= capacity - 1)
             break;
-        if (str_prefix_match(BUILTIN_COMMANDS[i], p)) {
-            result[count] = lv_strdup_safe(BUILTIN_COMMANDS[i]);
+        if (str_prefix_match(lv_builtin_commands[i], p)) {
+            result[count] = lv_strdup_safe(lv_builtin_commands[i]);
             if (result[count])
                 count++;
         }

@@ -317,7 +317,7 @@ static void test_external_refs(void) {
 
     /* All unconstructible problems should have valid external refs */
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         TEST_ASSERT(uc->external_ref != NULL, "external_ref should not be NULL");
         TEST_ASSERT(strncmp(uc->external_ref, "https://", 8) == 0, "external_ref should be a valid HTTPS URL");
     }
@@ -339,22 +339,22 @@ static void test_unconstructible_dependencies(void) {
     /* graph_3_coloring should depend on vertex_coloring, chromatic_number */
     uc = axiom_package_lookup_unconstructible(pkg, "graph_3_coloring");
     TEST_ASSERT(uc != NULL, "graph_3_coloring should exist");
-    TEST_ASSERT(uc->dependency_count >= 3, "graph_3_coloring should have at least 3 dependencies");
+    TEST_ASSERT(uc->dependency_chain.count >= 3, "graph_3_coloring should have at least 3 dependencies");
 
     /* hamiltonian_cycle should depend on cycle, hamiltonian, path */
     uc = axiom_package_lookup_unconstructible(pkg, "hamiltonian_cycle");
     TEST_ASSERT(uc != NULL, "hamiltonian_cycle should exist");
-    TEST_ASSERT(uc->dependency_count >= 3, "hamiltonian_cycle should have at least 3 dependencies");
+    TEST_ASSERT(uc->dependency_chain.count >= 3, "hamiltonian_cycle should have at least 3 dependencies");
 
     /* maximum_clique should depend on clique, complement, independent_set */
     uc = axiom_package_lookup_unconstructible(pkg, "maximum_clique");
     TEST_ASSERT(uc != NULL, "maximum_clique should exist");
-    TEST_ASSERT(uc->dependency_count >= 3, "maximum_clique should have at least 3 dependencies");
+    TEST_ASSERT(uc->dependency_chain.count >= 3, "maximum_clique should have at least 3 dependencies");
 
     /* feedback_vertex_set should depend on acyclic, cycle, vertex_deletion */
     uc = axiom_package_lookup_unconstructible(pkg, "feedback_vertex_set");
     TEST_ASSERT(uc != NULL, "feedback_vertex_set should exist");
-    TEST_ASSERT(uc->dependency_count >= 3, "feedback_vertex_set should have at least 3 dependencies");
+    TEST_ASSERT(uc->dependency_chain.count >= 3, "feedback_vertex_set should have at least 3 dependencies");
 
     axiom_package_destroy(pkg);
 }

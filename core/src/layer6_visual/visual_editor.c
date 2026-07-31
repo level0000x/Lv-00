@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file visual_editor.c
  * @brief 可视化编辑器实现
  *
@@ -29,7 +29,7 @@
 lvVisualEditor *lv_visual_editor_create(void) {
     lvVisualEditor *editor = lv_calloc(1, sizeof(lvVisualEditor));
     if (!editor)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate visual editor");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate visual editor");
     editor->layer_id = lv_LAYER_VISUAL;
     editor->active_view = lv_VIEW_NODE_GRAPH;
     editor->state = lv_EDITOR_IDLE;
@@ -119,7 +119,7 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
         strncpy(editor->last_error, "failed to create scheduler", sizeof(editor->last_error));
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to create scheduler");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to create scheduler");
     }
 
     /* 设置全量执行策略 */
@@ -178,7 +178,7 @@ int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
         strncpy(editor->last_error, "failed to create scheduler", sizeof(editor->last_error));
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to create scheduler");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to create scheduler");
     }
 
     /* 设置增量执行策略 */

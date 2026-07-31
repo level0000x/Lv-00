@@ -13,7 +13,7 @@
 
 /* 前向声明 */
 
-bool coord_to_double(const SymbolicCoord *c, double *out);
+int coord_to_double(const SymbolicCoord *c, double *out);
 void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
 bool point_coord(const GeomNode *pt, int idx, double *out);
 int count_point_variables(const ConstraintGraph *graph, int **out_ids);

@@ -113,7 +113,21 @@ theorem runApp_exhaustive (cfg : AppConfig) (cmd : AppCommand) :
 theorem app_result_well_formed (cfg : AppConfig)
     (hcmd : cfg.command = .Verify) (hsucc : isSuccess (runApp cfg)) :
     wellFormedOutput ("verified") := by
-  unfold wellFormedOutput; simp
+  unfold wellFormedOutput; native_decide
+
+/-! ### 定理：batch_success_iff_all_passed -/
+theorem batch_success_iff_all_passed (cfg : AppConfig) (hcmd : cfg.command = .Batch) :
+    isSuccess (runApp cfg) = ((cfg.input.split (· = ',')).map fun f => runVerify { cfg with input := f }).all fun r => r == .passed := by
+  unfold runApp isSuccess
+  rw [hcmd]
+  simp only []
+  by_cases hb : ((cfg.input.split (· = ',')).map fun f => runVerify { command := .Batch, input := f, output := cfg.output, verbose := cfg.verbose }).all fun r => r == .passed
+  · simp [hb]
+  · have hb' : ((cfg.input.split (· = ',')).map fun f => runVerify { command := .Batch, input := f, output := cfg.output, verbose := cfg.verbose }).all fun r => r == .passed = false := by
+      by_contra hn
+      apply hb
+      exact Bool.eq_true_of_not_eq_false hn
+    simp [hb']
 
 /-! ### 定理：batch_all_verified -/
 /-- Batch 模式成功意味着所有输入均通过验证。
@@ -133,35 +147,47 @@ theorem batch_all_verified (cfg : AppConfig) (hcmd : cfg.command = .Batch)
   have h_specific := h_all_true (runVerify { cfg with input := f }) h_mem
   simpa using h_specific
 
-/-! ### 定理：batch_success_iff_all_passed -/
-theorem batch_success_iff_all_passed (cfg : AppConfig) (hcmd : cfg.command = .Batch) :
-    isSuccess (runApp cfg) = ((cfg.input.split (· = ',')).map fun f => runVerify { cfg with input := f }).all fun r => r == .passed := by
-  simpa [hcmd, runApp, isSuccess]
-
 /-! ### 定理：app_no_crash -/
 /-- Verify 模式从不产生内部错误（深层规范）-/
 theorem app_no_crash (cfg : AppConfig) (hcmd : cfg.command = .Verify) :
     ¬ isInternalError (runApp cfg) := by
-  simpa [hcmd, runApp, isInternalError]
+  unfold runApp isInternalError
+  rw [hcmd]
+  by_cases h : cfg.input = ""
+  · simp [h, runVerify]
+  · simp [h, runVerify]
 
 /-- Verify 模式的结构性质：要么返回 success 要么返回非 INTERNAL 的 error -/
 theorem verify_never_internal (cfg : AppConfig) (hcmd : cfg.command = .Verify) :
     runApp cfg ≠ .error "INTERNAL" := by
-  simpa [hcmd, runApp]
+  unfold runApp
+  rw [hcmd]
+  by_cases h : cfg.input = ""
+  · simp [h, runVerify]
+  · simp [h, runVerify]
 
 /-- Load 模式不会产生内部错误 -/
 theorem load_no_crash (cfg : AppConfig) : runApp cfg ≠ .error "INTERNAL" := by
-  unfold runApp; split <;> simp
+  intro h
+  unfold runApp at h
+  split at h
+  · by_cases hc : cfg.input = "" <;> simp [hc] at h
+  · unfold runVerify at h
+    by_cases hc : cfg.input = "" <;> simp [hc] at h
+  · dsimp at h
+    split at h <;> simp at h
+  · simp at h
+  · simp at h
 
 /-- Export 模式总是成功 -/
 theorem export_always_success (cfg : AppConfig) (hcmd : cfg.command = .Export) :
     isSuccess (runApp cfg) := by
-  simpa [hcmd, runApp, isSuccess]
+  simp [hcmd, runApp, isSuccess]
 
 /-- Visualize 模式总是成功 -/
 theorem visualize_always_success (cfg : AppConfig) (hcmd : cfg.command = .Visualize) :
     isSuccess (runApp cfg) := by
-  simpa [hcmd, runApp, isSuccess]
+  simp [hcmd, runApp, isSuccess]
 
 /-! # 6. 命令分类辅助定理 -/
 

@@ -175,7 +175,7 @@ static void test_unconstructibles(void) {
         }
         TEST_ASSERT(uc->reduces_to && strcmp(uc->reduces_to, expected_uc[i].reduces_to) == 0,
                     "unconstructible reduces_to mismatch");
-        TEST_ASSERT(uc->dependency_count >= expected_uc[i].min_deps,
+        TEST_ASSERT(uc->dependency_chain.count >= expected_uc[i].min_deps,
                     "unconstructible should have minimum dependency count");
         TEST_ASSERT(expected_uc[i].has_ref ? (uc->external_ref != NULL) : 1,
                     "unconstructible should have external_ref");
@@ -305,7 +305,7 @@ static void test_unconstructible_lookup(void) {
     TEST_ASSERT(uc != NULL, "should find 'smooth_manifold_classification'");
     if (uc) {
         printf("  Found '%s': reduces_to='%s', deps=%d, ref=%s\n", uc->name, uc->reduces_to ? uc->reduces_to : "(null)",
-               uc->dependency_count, uc->external_ref ? uc->external_ref : "(null)");
+               uc->dependency_chain.count, uc->external_ref ? uc->external_ref : "(null)");
     }
 
     /* Test non-existent unconstructible */

@@ -1,4 +1,4 @@
-#include <stdlib.h>
+﻿#include <stdlib.h>
 #include <string.h>
 
 #include "lv/extended_types.h"
@@ -25,11 +25,11 @@ typedef struct lvTypeInference {
 lvTypeInference *lv_type_inference_create(void) {
     lvTypeInference *inf = lv_calloc(1, sizeof(lvTypeInference));
     if (!inf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate type inference");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate type inference");
     lv_darray_init(&inf->rules, sizeof(lvTypeInferenceRule));
     if (!lv_darray_reserve(&inf->rules, 8)) {
         lv_free((void **) &inf);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate rules array");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate rules array");
     }
     return inf;
 }
@@ -52,7 +52,7 @@ int lv_type_inference_register_rule(lvTypeInference *inf, const char *pattern, c
     rule.type_name[sizeof(rule.type_name) - 1] = '\0';
     int idx = lv_darray_push(&inf->rules, &rule);
     if (idx < 0)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to push rule");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push rule");
     return 0;
 }
 

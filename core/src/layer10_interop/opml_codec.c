@@ -34,35 +34,17 @@
  * @return 写入目标缓冲区的字符数（不含 null 终止符）
  */
 static int json_escape_string(const char *src, char *dst, int dst_size) {
-    int pos = 0;
     if (!src || !dst || dst_size <= 0)
         return 0;
-    while (*src && pos < dst_size - 6) { /* 保留空间用于 \uXXXX */
-        unsigned char c = (unsigned char) *src;
-        if (c == '"') {
-            dst[pos++] = '\\';
-            dst[pos++] = '"';
-        } else if (c == '\\') {
-            dst[pos++] = '\\';
-            dst[pos++] = '\\';
-        } else if (c == '\n') {
-            dst[pos++] = '\\';
-            dst[pos++] = 'n';
-        } else if (c == '\r') {
-            dst[pos++] = '\\';
-            dst[pos++] = 'r';
-        } else if (c == '\t') {
-            dst[pos++] = '\\';
-            dst[pos++] = 't';
-        } else if (c < 0x20) {
-            pos += snprintf(dst + pos, dst_size - pos, "\\u%04x", c);
-        } else {
-            dst[pos++] = c;
-        }
-        src++;
-    }
-    dst[pos] = '\0';
-    return pos;
+    lvStrBuf sb = {0};
+    lv_str_escape_json(&sb, src, strlen(src));
+    size_t n = sb.len;
+    if (n >= (size_t) dst_size)
+        n = (size_t) dst_size - 1;
+    memcpy(dst, lv_strbuf_cstr(&sb), n);
+    dst[n] = '\0';
+    lv_strbuf_destroy(&sb);
+    return (int) n;
 }
 
 /* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */

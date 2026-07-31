@@ -20,6 +20,7 @@
 #include "lv/geo_visual.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_render_visitor.h"
 
 
 
@@ -1269,7 +1270,16 @@ void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const ch
             threejs_render_scene(fp, renderer, scene);
             break;
         case lv_RENDER_TIKZ:
-            tikz_render_scene(fp, renderer, scene);
+            /* 使用基于 visitor 的 TikZ 后端（POC） */
+            lv_file_close(fp);
+            {
+                lvRenderVisitor visitor;
+                if (lv_render_visitor_tikz_create(output_path, &visitor)) {
+                    lv_render_scene(&visitor, scene);
+                    lv_render_visitor_tikz_destroy(&visitor);
+                }
+            }
+            fp = NULL;
             break;
         case lv_RENDER_PNG: {
             /* PNG 使用二进制模式，关闭文本模式 fp */

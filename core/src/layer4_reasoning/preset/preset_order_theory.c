@@ -52,14 +52,10 @@ bool preset_order_theory_register(void) {
      * 偏序关系需满足自反性、反对称性和传递性。
      * 若 R 不满足偏序条件，返回失败。
      */
-    LV_PRESET_REGISTER(success, "partial_order_relation",
-                       "偏序关系构造：验证二元关系 R 是否构成偏序（自反 ∧ 反对称 ∧ 传递），构造偏序集 (P, ≤)",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "\\le \\text{ 是偏序} \\Leftrightarrow "
+    LV_PRESET_REGISTER(success_count, "partial_order_relation", "偏序关系构造：验证二元关系 R 是否构成偏序（自反 ∧ 反对称 ∧ 传递），构造偏序集 (P, ≤)", 2, PRESET_TYPE_SET, "\\le \\text{ 是偏序} \\Leftrightarrow "
                        "\\text{自反}(\\forall a, a \\le a) \\land "
                        "\\text{反对称}(a \\le b \\land b \\le a \\Rightarrow a = b) \\land "
-                       "\\text{传递}(a \\le b \\land b \\le c \\Rightarrow a \\le c)",
-                       "O(|P|^2 \\cdot |R|)", true, false);
+                       "\\text{传递}(a \\le b \\land b \\le c \\Rightarrow a \\le c)", "O(|P|^2 \\cdot |R|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 2. 格的上确界（join/并） -------------------- */
     /**
@@ -71,11 +67,8 @@ bool preset_order_theory_register(void) {
      *   - 对任意 c，若 a ≤ c 且 b ≤ c，则 a ∨ b ≤ c
      * join 运算满足交换律、结合律、幂等律和吸收律。
      */
-    LV_PRESET_REGISTER(success, "lattice_join", "格的上确界（join/并）：a ∨ b，a 和 b 的最小上界",
-                       PRESET_TYPE_SET, PRESET_TYPE_ANY, PRESET_TYPE_ANY, 3, PRESET_TYPE_ANY,
-                       "a \\vee b = \\min\\{c \\in L : a \\le c \\land b \\le c\\}, "
-                       "\\quad a \\vee a = a, \\; a \\vee b = b \\vee a",
-                       "O(|L|^2)", true, false);
+    LV_PRESET_REGISTER(success_count, "lattice_join", "格的上确界（join/并）：a ∨ b，a 和 b 的最小上界", 3, PRESET_TYPE_ANY, "a \\vee b = \\min\\{c \\in L : a \\le c \\land b \\le c\\}, "
+                       "\\quad a \\vee a = a, \\; a \\vee b = b \\vee a", "O(|L|^2)", true, false, PRESET_TYPE_SET, PRESET_TYPE_ANY, PRESET_TYPE_ANY);
 
     /* -------------------- 3. 格的下确界（meet/交） -------------------- */
     /**
@@ -87,11 +80,8 @@ bool preset_order_theory_register(void) {
      *   - 对任意 c，若 c ≤ a 且 c ≤ b，则 c ≤ a ∧ b
      * meet 运算满足交换律、结合律、幂等律和吸收律。
      */
-    LV_PRESET_REGISTER(success, "lattice_meet", "格的下确界（meet/交）：a ∧ b，a 和 b 的最大下界",
-                       (PRESET_TYPE_SET, PRESET_TYPE_ANY, PRESET_TYPE_ANY), 3, PRESET_TYPE_ANY,
-                       "a \\wedge b = \\max\\{c \\in L : c \\le a \\land c \\le b\\}, "
-                       "\\quad a \\wedge a = a, \\; a \\wedge b = b \\wedge a",
-                       "O(|L|^2)", true, false);
+    LV_PRESET_REGISTER(success_count, "lattice_meet", "格的下确界（meet/交）：a ∧ b，a 和 b 的最大下界", 3, PRESET_TYPE_ANY, "a \\wedge b = \\max\\{c \\in L : c \\le a \\land c \\le b\\}, "
+                       "\\quad a \\wedge a = a, \\; a \\wedge b = b \\wedge a", "O(|L|^2)", true, false, PRESET_TYPE_SET, PRESET_TYPE_ANY, PRESET_TYPE_ANY);
 
     /* ============================================================
      * 第二部分：分解与选择公理（2个）
@@ -106,12 +96,8 @@ bool preset_order_theory_register(void) {
      * 即 width(P) = 最小链划分数。
      * 链是完全有序的子集，反链是两两不可比的子集。
      */
-    LV_PRESET_REGISTER(success, "chain_decomposition",
-                       "链分解（Dilworth定理）：将有限偏序集分解为不相交链的最小划分，链数 = 最大反链大小",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "\\text{Dilworth: } \\min\\{\\text{链划分数}\\} = "
-                       "\\max\\{\\text{反链大小}\\} = \\text{width}(P)",
-                       "O(|P|^3)", false, false);
+    LV_PRESET_REGISTER(success_count, "chain_decomposition", "链分解（Dilworth定理）：将有限偏序集分解为不相交链的最小划分，链数 = 最大反链大小", 2, PRESET_TYPE_SET, "\\text{Dilworth: } \\min\\{\\text{链划分数}\\} = "
+                       "\\max\\{\\text{反链大小}\\} = \\text{width}(P)", "O(|P|^3)", false, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 5. Zorn引理应用 -------------------- */
     /**
@@ -123,13 +109,9 @@ bool preset_order_theory_register(void) {
      * Zorn引理与选择公理、良序定理三者等价。
      * 注意：Zorn引理的证明是非构造性的。
      */
-    LV_PRESET_REGISTER(success, "zorn_lemma_application",
-                       "Zorn引理应用：若非空偏序集的每条链都有上界，则存在极大元（与选择公理等价）",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_BOOLEAN,
-                       "(\\forall C \\subseteq P, C \\text{ 是链} \\Rightarrow "
+    LV_PRESET_REGISTER(success_count, "zorn_lemma_application", "Zorn引理应用：若非空偏序集的每条链都有上界，则存在极大元（与选择公理等价）", 2, PRESET_TYPE_BOOLEAN, "(\\forall C \\subseteq P, C \\text{ 是链} \\Rightarrow "
                        "\\exists u \\in P, \\forall c \\in C, c \\le u) "
-                       "\\Rightarrow \\exists m \\in P, \\forall x \\in P, m \\le x \\Rightarrow m = x",
-                       "不可判定（依赖选择公理）", false, false);
+                       "\\Rightarrow \\exists m \\in P, \\forall x \\in P, m \\le x \\Rightarrow m = x", "不可判定（依赖选择公理）", false, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* ============================================================
      * 第三部分：不动点理论（1个）
@@ -145,12 +127,9 @@ bool preset_order_theory_register(void) {
      * 最大不动点为 ∨{x ∈ L : x ≤ f(x)}。
      * 此定理在程序语义（最小/最大不动点语义）中有重要应用。
      */
-    LV_PRESET_REGISTER(success, "fixed_point_theorem", "不动点定理（Tarski/Knaster）：完备格上保序映射的不动点集构成非空完备格",
-                       PRESET_TYPE_SET, PRESET_TYPE_FUNCTION, 2, PRESET_TYPE_SET,
-                       "\\text{Fix}(f) = \\{x \\in L : f(x) = x\\} \\text{ 构成完备格}, \\quad "
+    LV_PRESET_REGISTER(success_count, "fixed_point_theorem", "不动点定理（Tarski/Knaster）：完备格上保序映射的不动点集构成非空完备格", 2, PRESET_TYPE_SET, "\\text{Fix}(f) = \\{x \\in L : f(x) = x\\} \\text{ 构成完备格}, \\quad "
                        "\\mu f = \\bigwedge\\{x : f(x) \\le x\\}, \\; "
-                       "\\nu f = \\bigvee\\{x : x \\le f(x)\\}",
-                       "O(|L|^2)", true, false);
+                       "\\nu f = \\bigvee\\{x : x \\le f(x)\\}", "O(|L|^2)", true, false, PRESET_TYPE_SET, PRESET_TYPE_FUNCTION);
 
     /* ============================================================
      * 第四部分：Galois连接与完备化（2个）
@@ -167,13 +146,8 @@ bool preset_order_theory_register(void) {
      * 其中 f 称为 g 的左伴随（下伴随），g 称为 f 的右伴随（上伴随）。
      * Galois连接保持上确界和下确界：f 保 ∧，g 保 ∨。
      */
-    LV_PRESET_REGISTER(success, "galois_connection",
-                       "Galois连接：验证 (f, g) 是否构成偏序集间的Galois连接（伴随对），f(a) ≤ b ⟺ a ≤ g(b)",
-                       (PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION), 4,
-                       PRESET_TYPE_BOOLEAN,
-                       "f \\dashv g \\Leftrightarrow \\forall a \\in A, \\forall b \\in B: "
-                       "f(a) \\le_B b \\Leftrightarrow a \\le_A g(b)",
-                       "O(|A| \\cdot |B|)", true, false);
+    LV_PRESET_REGISTER(success_count, "galois_connection", "Galois连接：验证 (f, g) 是否构成偏序集间的Galois连接（伴随对），f(a) ≤ b ⟺ a ≤ g(b)", 4, PRESET_TYPE_BOOLEAN, "f \\dashv g \\Leftrightarrow \\forall a \\in A, \\forall b \\in B: "
+                       "f(a) \\le_B b \\Leftrightarrow a \\le_A g(b)", "O(|A| \\cdot |B|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION);
 
     /* -------------------- 8. 完备化 -------------------- */
     /**
@@ -185,11 +159,8 @@ bool preset_order_theory_register(void) {
      * 嵌入映射 a ↦ ↓a 保持 P 中的所有上确界和下确界。
      * Dedekind-MacNeille完备化是最小的完备化，优于一般的理想完备化。
      */
-    LV_PRESET_REGISTER(success, "complete_lattice_completion", "完备化（Dedekind-MacNeille）：将偏序集嵌入到其最小完备格中",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "DM(P) = \\{S \\subseteq P : S^{ul} = S\\}, "
-                       "\\quad \\iota: P \\hookrightarrow DM(P), \\; a \\mapsto \\downarrow a",
-                       "O(2^{|P|})", true, false);
+    LV_PRESET_REGISTER(success_count, "complete_lattice_completion", "完备化（Dedekind-MacNeille）：将偏序集嵌入到其最小完备格中", 2, PRESET_TYPE_SET, "DM(P) = \\{S \\subseteq P : S^{ul} = S\\}, "
+                       "\\quad \\iota: P \\hookrightarrow DM(P), \\; a \\mapsto \\downarrow a", "O(2^{|P|})", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* 返回是否所有预设都注册成功 */
     return success_count == ORDER_THEORY_PRESET_COUNT;

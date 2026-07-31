@@ -214,6 +214,8 @@ lv_PUBLIC_API void axiom_template_set_level(ConstraintTemplate *tmpl, TemplateLe
  */
 /** 获取可构造模板数量 */
 lv_PUBLIC_API int axiom_package_get_template_count(const AxiomPackage *pkg);
+/** 按索引获取可构造模板 */
+lv_PUBLIC_API const ConstraintTemplate *axiom_package_get_template_by_index(const AxiomPackage *pkg, int index);
 /** 获取不可构造问题数量 */
 lv_PUBLIC_API int axiom_package_get_unconstructible_count(const AxiomPackage *pkg);
 /** 按索引获取不可构造问题 */

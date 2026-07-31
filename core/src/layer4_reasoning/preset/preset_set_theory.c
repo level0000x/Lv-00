@@ -55,9 +55,7 @@ bool preset_set_theory_register(void) {
      * 计算两个集合的并集。A ∪ B 包含所有属于 A 或属于 B 的元素。
      * 并集运算满足交换律、结合律，以空集为单位元。
      */
-    LV_PRESET_REGISTER(success, "set_union", "并集：A ∪ B = {x : x ∈ A ∨ x ∈ B}",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "A \\cup B = \\{x : x \\in A \\lor x \\in B\\}", "O(|A| + |B|)", true, false);
+    LV_PRESET_REGISTER(success_count, "set_union", "并集：A ∪ B = {x : x ∈ A ∨ x ∈ B}", 2, PRESET_TYPE_SET, "A \\cup B = \\{x : x \\in A \\lor x \\in B\\}", "O(|A| + |B|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 2. 交集：A ∩ B -------------------- */
     /**
@@ -66,9 +64,7 @@ bool preset_set_theory_register(void) {
      * 计算两个集合的交集。A ∩ B 包含所有同时属于 A 和 B 的元素。
      * 交集运算满足交换律、结合律，以全集为单位元。
      */
-    LV_PRESET_REGISTER(success, "set_intersection", "交集：A ∩ B = {x : x ∈ A ∧ x ∈ B}",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "A \\cap B = \\{x : x \\in A \\land x \\in B\\}", "O(min(|A|, |B|))", true, false);
+    LV_PRESET_REGISTER(success_count, "set_intersection", "交集：A ∩ B = {x : x ∈ A ∧ x ∈ B}", 2, PRESET_TYPE_SET, "A \\cap B = \\{x : x \\in A \\land x \\in B\\}", "O(min(|A|, |B|))", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 3. 差集：A \ B -------------------- */
     /**
@@ -77,9 +73,7 @@ bool preset_set_theory_register(void) {
      * 计算两个集合的差集（相对补集）。A \ B 包含所有属于 A 但不属于 B 的元素。
      * 差集运算不满足交换律，A \ B ≠ B \ A（一般情况）。
      */
-    LV_PRESET_REGISTER(success, "set_difference", "差集：A \\ B = {x : x ∈ A ∧ x ∉ B}",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "A \\setminus B = \\{x : x \\in A \\land x \\notin B\\}", "O(|A|)", true, false);
+    LV_PRESET_REGISTER(success_count, "set_difference", "差集：A \\ B = {x : x ∈ A ∧ x ∉ B}", 2, PRESET_TYPE_SET, "A \\setminus B = \\{x : x \\in A \\land x \\notin B\\}", "O(|A|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 4. 补集：A^c -------------------- */
     /**
@@ -89,9 +83,7 @@ bool preset_set_theory_register(void) {
      * 包含全集中不属于 A 的所有元素。
      * 补集运算是自逆的：(A^c)^c = A。
      */
-    LV_PRESET_REGISTER(success, "set_complement", "补集：A^c = U \\ A = {x ∈ U : x ∉ A}，相对于全集 U",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "A^c = U \\setminus A = \\{x \\in U : x \\notin A\\}", "O(|U|)", true, true);
+    LV_PRESET_REGISTER(success_count, "set_complement", "补集：A^c = U \\ A = {x ∈ U : x ∉ A}，相对于全集 U", 2, PRESET_TYPE_SET, "A^c = U \\setminus A = \\{x \\in U : x \\notin A\\}", "O(|U|)", true, true, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 5. 对称差：A △ B -------------------- */
     /**
@@ -101,9 +93,7 @@ bool preset_set_theory_register(void) {
      * 包含恰好属于 A 或 B 中一个集合的元素。
      * 对称差满足交换律和结合律，以空集为单位元，每个集合是自身的逆元。
      */
-    LV_PRESET_REGISTER(success, "set_symmetric_difference", "对称差：A △ B = (A \\ B) ∪ (B \\ A)",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "A \\triangle B = (A \\setminus B) \\cup (B \\setminus A)", "O(|A| + |B|)", true, true);
+    LV_PRESET_REGISTER(success_count, "set_symmetric_difference", "对称差：A △ B = (A \\ B) ∪ (B \\ A)", 2, PRESET_TYPE_SET, "A \\triangle B = (A \\setminus B) \\cup (B \\setminus A)", "O(|A| + |B|)", true, true, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 6. 笛卡尔积：A × B -------------------- */
     /**
@@ -113,9 +103,7 @@ bool preset_set_theory_register(void) {
      * 是所有有序对 (a, b) 的集合，其中 a 取自 A，b 取自 B。
      * 笛卡尔积不满足交换律：A × B ≠ B × A（一般情况）。
      */
-    LV_PRESET_REGISTER(success, "set_cartesian_product", "笛卡尔积：A × B = {(a, b) : a ∈ A, b ∈ B}",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "A \\times B = \\{(a, b) : a \\in A, b \\in B\\}", "O(|A| \\cdot |B|)", true, false);
+    LV_PRESET_REGISTER(success_count, "set_cartesian_product", "笛卡尔积：A × B = {(a, b) : a ∈ A, b ∈ B}", 2, PRESET_TYPE_SET, "A \\times B = \\{(a, b) : a \\in A, b \\in B\\}", "O(|A| \\cdot |B|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 7. 幂集：P(A) -------------------- */
     /**
@@ -126,10 +114,7 @@ bool preset_set_theory_register(void) {
      * 若 |A| = n，则 |P(A)| = 2^n。
      * 幂集上的包含关系构成布尔代数。
      */
-    LV_PRESET_REGISTER(success, "set_power_set", "幂集：P(A) = {S : S ⊆ A}，A 的所有子集构成的集合",
-                       PRESET_TYPE_SET, 1, PRESET_TYPE_SET,
-                       "\\mathcal{P}(A) = \\{S : S \\subseteq A\\}, \\quad |\\mathcal{P}(A)| = 2^{|A|}", "O(2^{|A|})",
-                       true, false);
+    LV_PRESET_REGISTER(success_count, "set_power_set", "幂集：P(A) = {S : S ⊆ A}，A 的所有子集构成的集合", 1, PRESET_TYPE_SET, "\\mathcal{P}(A) = \\{S : S \\subseteq A\\}, \\quad |\\mathcal{P}(A)| = 2^{|A|}", "O(2^{|A|})", true, false, PRESET_TYPE_SET);
 
     /* -------------------- 8. 子集判定：A ⊆ B -------------------- */
     /**
@@ -139,10 +124,7 @@ bool preset_set_theory_register(void) {
      * A ⊆ B 当且仅当 A 中的每个元素都属于 B。
      * 子集关系是自反的、反对称的和传递的，构成偏序关系。
      */
-    LV_PRESET_REGISTER(success, "set_subset_check", "子集判定：A ⊆ B，判定 A 中每个元素是否都属于 B",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2,
-                       PRESET_TYPE_BOOLEAN, "A \\subseteq B \\Leftrightarrow \\forall x \\in A, x \\in B", "O(|A|)", true,
-                       false);
+    LV_PRESET_REGISTER(success_count, "set_subset_check", "子集判定：A ⊆ B，判定 A 中每个元素是否都属于 B", 2, PRESET_TYPE_BOOLEAN, "A \\subseteq B \\Leftrightarrow \\forall x \\in A, x \\in B", "O(|A|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 9. 集合相等判定 -------------------- */
     /**
@@ -152,13 +134,7 @@ bool preset_set_theory_register(void) {
      * A = B 当且仅当 A ⊆ B 且 B ⊆ A（外延公理）。
      * 集合相等由外延性公理定义：两个集合具有相同的元素当且仅当它们相等。
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_SET("set_equality_check", "集合相等判定：A = B 当且仅当 A ⊆ B 且 B ⊆ A（外延公理）", inputs, 2,
-                     PRESET_TYPE_BOOLEAN,
-                     "A = B \\Leftrightarrow A \\subseteq B \\land B \\subseteq A \\quad \\text{（外延公理）}",
-                     "O(|A| + |B|)", true, true);
-    }
+    LV_PRESET_REGISTER(success_count, "set_equality_check", "集合相等判定：A = B 当且仅当 A ⊆ B 且 B ⊆ A（外延公理）", 2, PRESET_TYPE_BOOLEAN, "A = B \\Leftrightarrow A \\subseteq B \\land B \\subseteq A \\quad \\text{（外延公理）}", "O(|A| + |B|)", true, true, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 10. 空集判定 -------------------- */
     /**
@@ -168,9 +144,7 @@ bool preset_set_theory_register(void) {
      * 空集是唯一不含任何元素的集合，是任何集合的子集。
      * 空集在集合运算中充当并集的单位元和交集的零元。
      */
-    LV_PRESET_REGISTER(success, "set_empty_check", "空集判定：A = ∅，判定集合是否不含任何元素",
-                       PRESET_TYPE_SET, 1, PRESET_TYPE_BOOLEAN,
-                       "A = \\emptyset \\Leftrightarrow \\lnot \\exists x: x \\in A", "O(1)", true, false);
+    LV_PRESET_REGISTER(success_count, "set_empty_check", "空集判定：A = ∅，判定集合是否不含任何元素", 1, PRESET_TYPE_BOOLEAN, "A = \\emptyset \\Leftrightarrow \\lnot \\exists x: x \\in A", "O(1)", true, false, PRESET_TYPE_SET);
 
     /* ============================================================
      * 第二部分：关系与函数（8个）
@@ -184,10 +158,7 @@ bool preset_set_theory_register(void) {
      * 注意复合的顺序：先应用 S，再应用 R。
      * 关系复合满足结合律：(R ∘ S) ∘ T = R ∘ (S ∘ T)。
      */
-    LV_PRESET_REGISTER(success, "relation_compose", "关系复合：R ∘ S = {(a, c) : ∃b, (a,b)∈S ∧ (b,c)∈R}",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2,
-                       PRESET_TYPE_SET, "R \\circ S = \\{(a, c) : \\exists b, (a,b) \\in S \\land (b,c) \\in R\\}",
-                       "O(|S| \\cdot |R|)", true, false);
+    LV_PRESET_REGISTER(success_count, "relation_compose", "关系复合：R ∘ S = {(a, c) : ∃b, (a,b)∈S ∧ (b,c)∈R}", 2, PRESET_TYPE_SET, "R \\circ S = \\{(a, c) : \\exists b, (a,b) \\in S \\land (b,c) \\in R\\}", "O(|S| \\cdot |R|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 12. 逆关系 -------------------- */
     /**
@@ -197,9 +168,7 @@ bool preset_set_theory_register(void) {
      * 逆关系运算是对合的：(R^{-1})^{-1} = R。
      * 逆关系满足：(R ∘ S)^{-1} = S^{-1} ∘ R^{-1}。
      */
-    LV_PRESET_REGISTER(success, "relation_inverse", "逆关系：R^{-1} = {(b, a) : (a, b) ∈ R}",
-                       PRESET_TYPE_SET, 1, PRESET_TYPE_SET,
-                       "R^{-1} = \\{(b, a) : (a, b) \\in R\\}", "O(|R|)", true, true);
+    LV_PRESET_REGISTER(success_count, "relation_inverse", "逆关系：R^{-1} = {(b, a) : (a, b) ∈ R}", 1, PRESET_TYPE_SET, "R^{-1} = \\{(b, a) : (a, b) \\in R\\}", "O(|R|)", true, true, PRESET_TYPE_SET);
 
     /* -------------------- 13. 自反性判定 -------------------- */
     /**
@@ -209,10 +178,7 @@ bool preset_set_theory_register(void) {
      * R 是自反的当且仅当对所有 a ∈ A，(a, a) ∈ R。
      * 自反性要求 A 中每个元素都与自身相关。
      */
-    LV_PRESET_REGISTER(success, "relation_reflexive_check", "自反性判定：R 是自反的当且仅当 ∀a ∈ A, (a, a) ∈ R",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2,
-                       PRESET_TYPE_BOOLEAN, "R \\text{ 自反} \\Leftrightarrow \\forall a \\in A, (a, a) \\in R", "O(|A|)",
-                       true, false);
+    LV_PRESET_REGISTER(success_count, "relation_reflexive_check", "自反性判定：R 是自反的当且仅当 ∀a ∈ A, (a, a) ∈ R", 2, PRESET_TYPE_BOOLEAN, "R \\text{ 自反} \\Leftrightarrow \\forall a \\in A, (a, a) \\in R", "O(|A|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 14. 对称性判定 -------------------- */
     /**
@@ -221,11 +187,7 @@ bool preset_set_theory_register(void) {
      * 判定集合 A 上的二元关系 R 是否为对称关系。
      * R 是对称的当且仅当对所有 a, b ∈ A，(a,b) ∈ R 蕴涵 (b,a) ∈ R。
      */
-    LV_PRESET_REGISTER(success, "relation_symmetric_check", "对称性判定：R 是对称的当且仅当 (a,b) ∈ R ⇒ (b,a) ∈ R",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2,
-                       PRESET_TYPE_BOOLEAN,
-                       "R \\text{ 对称} \\Leftrightarrow \\forall a, b \\in A, (a,b) \\in R \\Rightarrow (b,a) \\in R",
-                       "O(|R|)", true, false);
+    LV_PRESET_REGISTER(success_count, "relation_symmetric_check", "对称性判定：R 是对称的当且仅当 (a,b) ∈ R ⇒ (b,a) ∈ R", 2, PRESET_TYPE_BOOLEAN, "R \\text{ 对称} \\Leftrightarrow \\forall a, b \\in A, (a,b) \\in R \\Rightarrow (b,a) \\in R", "O(|R|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 15. 传递性判定 -------------------- */
     /**
@@ -235,11 +197,8 @@ bool preset_set_theory_register(void) {
      * R 是传递的当且仅当对所有 a, b, c ∈ A，
      * (a,b) ∈ R 且 (b,c) ∈ R 蕴涵 (a,c) ∈ R。
      */
-    LV_PRESET_REGISTER(success, "relation_transitive_check", "传递性判定：R 是传递的当且仅当 (a,b)∈R ∧ (b,c)∈R ⇒ (a,c)∈R",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_BOOLEAN,
-                       "R \\text{ 传递} \\Leftrightarrow \\forall a, b, c: (a,b) \\in R \\land (b,c) \\in R \\Rightarrow "
-                       "(a,c) \\in R",
-                       "O(|R|^2)", true, false);
+    LV_PRESET_REGISTER(success_count, "relation_transitive_check", "传递性判定：R 是传递的当且仅当 (a,b)∈R ∧ (b,c)∈R ⇒ (a,c)∈R", 2, PRESET_TYPE_BOOLEAN, "R \\text{ 传递} \\Leftrightarrow \\forall a, b, c: (a,b) \\in R \\land (b,c) \\in R \\Rightarrow "
+                       "(a,c) \\in R", "O(|R|^2)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 16. 等价关系判定 -------------------- */
     /**
@@ -249,12 +208,7 @@ bool preset_set_theory_register(void) {
      * R 是等价关系当且仅当 R 同时满足自反性、对称性和传递性。
      * 等价关系将集合划分为不相交的等价类。
      */
-    LV_PRESET_REGISTER(success,
-            "relation_equivalence_check", "等价关系判定：R 是等价关系当且仅当自反 ∧ 对称 ∧ 传递",
-            PRESET_TYPE_SET, PRESET_TYPE_SET, 2,
-            PRESET_TYPE_BOOLEAN,
-            "R \\text{ 是等价关系} \\Leftrightarrow \\text{自反}(R) \\land \\text{对称}(R) \\land \\text{传递}(R)",
-            "O(|A|^2 \\cdot |R|)", true, false);
+    LV_PRESET_REGISTER(success_count, "relation_equivalence_check", "等价关系判定：R 是等价关系当且仅当自反 ∧ 对称 ∧ 传递", 2, PRESET_TYPE_BOOLEAN, "R \\text{ 是等价关系} \\Leftrightarrow \\text{自反}(R) \\land \\text{对称}(R) \\land \\text{传递}(R)", "O(|A|^2 \\cdot |R|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 17. 等价类 -------------------- */
     /**
@@ -265,9 +219,7 @@ bool preset_set_theory_register(void) {
      * 等价类具有性质：若 b ∈ [a]_R，则 [a]_R = [b]_R。
      * 不同等价类两两不交，其并集等于 A。
      */
-    LV_PRESET_REGISTER(success, "equivalence_class", "等价类：[a]_R = {x ∈ A : (a, x) ∈ R}",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_ANY, 3, PRESET_TYPE_SET,
-                       "[a]_R = \\{x \\in A : (a, x) \\in R\\}", "O(|A|)", true, false);
+    LV_PRESET_REGISTER(success_count, "equivalence_class", "等价类：[a]_R = {x ∈ A : (a, x) ∈ R}", 3, PRESET_TYPE_SET, "[a]_R = \\{x \\in A : (a, x) \\in R\\}", "O(|A|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_ANY);
 
     /* -------------------- 18. 商集 -------------------- */
     /**
@@ -278,10 +230,7 @@ bool preset_set_theory_register(void) {
      * 商集是 A 的一个划分，每个等价类是划分的一个块。
      * 自然映射 π: A → A/R, a ↦ [a]_R 是满射。
      */
-    LV_PRESET_REGISTER(success, "quotient_set", "商集：A/R = {[a]_R : a ∈ A}，所有等价类构成的集合",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "A/R = \\{[a]_R : a \\in A\\}, \\quad \\pi: A \\to A/R, \\; a \\mapsto [a]_R", "O(|A|)", true,
-                       false);
+    LV_PRESET_REGISTER(success_count, "quotient_set", "商集：A/R = {[a]_R : a ∈ A}，所有等价类构成的集合", 2, PRESET_TYPE_SET, "A/R = \\{[a]_R : a \\in A\\}, \\quad \\pi: A \\to A/R, \\; a \\mapsto [a]_R", "O(|A|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* ============================================================
      * 第三部分：映射理论（8个）
@@ -296,10 +245,7 @@ bool preset_set_theory_register(void) {
      * 函数复合满足结合律：(h ∘ g) ∘ f = h ∘ (g ∘ f)，
      * 但一般不满足交换律。
      */
-    LV_PRESET_REGISTER(success, "function_compose", "函数复合：g ∘ f，(g ∘ f)(x) = g(f(x))",
-                       PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION, 2, PRESET_TYPE_FUNCTION,
-                       "(g \\circ f)(x) = g(f(x)), \\quad \\text{要求 } \\text{cod}(f) = \\text{dom}(g)",
-                       "O(n)，n 为定义域大小", true, false);
+    LV_PRESET_REGISTER(success_count, "function_compose", "函数复合：g ∘ f，(g ∘ f)(x) = g(f(x))", 2, PRESET_TYPE_FUNCTION, "(g \\circ f)(x) = g(f(x)), \\quad \\text{要求 } \\text{cod}(f) = \\text{dom}(g)", "O(n)，n 为定义域大小", true, false, PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION);
 
     /* -------------------- 20. 逆函数判定 -------------------- */
     /**
@@ -309,11 +255,7 @@ bool preset_set_theory_register(void) {
      * f 存在逆函数当且仅当 f 是双射（既单又满）。
      * 逆函数满足 f ∘ f^{-1} = id_B 且 f^{-1} ∘ f = id_A。
      */
-    LV_PRESET_REGISTER(success, "function_inverse_check", "逆函数判定：f 存在逆函数当且仅当 f 是双射",
-                       PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET, 3,
-                       PRESET_TYPE_BOOLEAN,
-                       "f^{-1} \\text{ 存在} \\Leftrightarrow f \\text{ 是双射}, \\quad f \\circ f^{-1} = \\text{id}_B",
-                       "O(|A| + |B|)", true, false);
+    LV_PRESET_REGISTER(success_count, "function_inverse_check", "逆函数判定：f 存在逆函数当且仅当 f 是双射", 3, PRESET_TYPE_BOOLEAN, "f^{-1} \\text{ 存在} \\Leftrightarrow f \\text{ 是双射}, \\quad f \\circ f^{-1} = \\text{id}_B", "O(|A| + |B|)", true, false, PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 21. 单射判定 -------------------- */
     /**
@@ -324,12 +266,7 @@ bool preset_set_theory_register(void) {
      * f(a1) = f(a2) 蕴涵 a1 = a2。
      * 等价条件：不同元素映射到不同像。
      */
-    LV_PRESET_REGISTER(success,
-            "function_injective_check", "单射判定：f 是单射当且仅当 f(a1) = f(a2) ⇒ a1 = a2",
-            PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET, 3,
-            PRESET_TYPE_BOOLEAN,
-            "f \\text{ 单射} \\Leftrightarrow \\forall a_1, a_2 \\in A, f(a_1) = f(a_2) \\Rightarrow a_1 = a_2",
-            "O(|A| \\log |A|)", true, false);
+    LV_PRESET_REGISTER(success_count, "function_injective_check", "单射判定：f 是单射当且仅当 f(a1) = f(a2) ⇒ a1 = a2", 3, PRESET_TYPE_BOOLEAN, "f \\text{ 单射} \\Leftrightarrow \\forall a_1, a_2 \\in A, f(a_1) = f(a_2) \\Rightarrow a_1 = a_2", "O(|A| \\log |A|)", true, false, PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 22. 满射判定 -------------------- */
     /**
@@ -339,12 +276,7 @@ bool preset_set_theory_register(void) {
      * f 是满射当且仅当对所有 b ∈ B，存在 a ∈ A 使得 f(a) = b。
      * 等价条件：f 的像等于陪域 B。
      */
-    LV_PRESET_REGISTER(success,
-            "function_surjective_check", "满射判定：f 是满射当且仅当 ∀b ∈ B, ∃a ∈ A, f(a) = b",
-            PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET, 3,
-            PRESET_TYPE_BOOLEAN,
-            "f \\text{ 满射} \\Leftrightarrow \\forall b \\in B, \\exists a \\in A, f(a) = b \\Leftrightarrow f(A) = B",
-            "O(|A| + |B|)", true, false);
+    LV_PRESET_REGISTER(success_count, "function_surjective_check", "满射判定：f 是满射当且仅当 ∀b ∈ B, ∃a ∈ A, f(a) = b", 3, PRESET_TYPE_BOOLEAN, "f \\text{ 满射} \\Leftrightarrow \\forall b \\in B, \\exists a \\in A, f(a) = b \\Leftrightarrow f(A) = B", "O(|A| + |B|)", true, false, PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 23. 双射判定 -------------------- */
     /**
@@ -355,10 +287,7 @@ bool preset_set_theory_register(void) {
      * 双射是集合之间建立一一对应关系的函数，
      * 是定义集合基数相等的基础。
      */
-    LV_PRESET_REGISTER(success, "function_bijective_check", "双射判定：f 是双射当且仅当 f 既是单射又是满射",
-                       PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET, 3,
-                       PRESET_TYPE_BOOLEAN, "f \\text{ 双射} \\Leftrightarrow f \\text{ 单射} \\land f \\text{ 满射}",
-                       "O(|A| \\log |A| + |B|)", true, false);
+    LV_PRESET_REGISTER(success_count, "function_bijective_check", "双射判定：f 是双射当且仅当 f 既是单射又是满射", 3, PRESET_TYPE_BOOLEAN, "f \\text{ 双射} \\Leftrightarrow f \\text{ 单射} \\land f \\text{ 满射}", "O(|A| \\log |A| + |B|)", true, false, PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 24. 像：f(A) -------------------- */
     /**
@@ -368,9 +297,7 @@ bool preset_set_theory_register(void) {
      * 像满足单调性：S1 ⊆ S2 蕴涵 f(S1) ⊆ f(S2)。
      * 对并集保持：f(S1 ∪ S2) = f(S1) ∪ f(S2)。
      */
-    LV_PRESET_REGISTER(success, "function_image", "像：f(S) = {f(x) : x ∈ S}，S 为定义域的子集",
-                       PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET, 3, PRESET_TYPE_SET,
-                       "f(S) = \\{f(x) : x \\in S \\subseteq A\\}", "O(|S|)", true, false);
+    LV_PRESET_REGISTER(success_count, "function_image", "像：f(S) = {f(x) : x ∈ S}，S 为定义域的子集", 3, PRESET_TYPE_SET, "f(S) = \\{f(x) : x \\in S \\subseteq A\\}", "O(|S|)", true, false, PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 25. 原像：f^(-1)(B) -------------------- */
     /**
@@ -382,9 +309,7 @@ bool preset_set_theory_register(void) {
      *   f^{-1}(T1 ∩ T2) = f^{-1}(T1) ∩ f^{-1}(T2)
      *   f^{-1}(T^c) = (f^{-1}(T))^c
      */
-    LV_PRESET_REGISTER(success, "function_preimage", "原像：f^{-1}(T) = {x ∈ A : f(x) ∈ T}，T 为陪域的子集",
-                       PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET, 3,
-                       PRESET_TYPE_SET, "f^{-1}(T) = \\{x \\in A : f(x) \\in T \\subseteq B\\}", "O(|A|)", true, false);
+    LV_PRESET_REGISTER(success_count, "function_preimage", "原像：f^{-1}(T) = {x ∈ A : f(x) ∈ T}，T 为陪域的子集", 3, PRESET_TYPE_SET, "f^{-1}(T) = \\{x \\in A : f(x) \\in T \\subseteq B\\}", "O(|A|)", true, false, PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 26. 不动点 -------------------- */
     /**
@@ -395,9 +320,7 @@ bool preset_set_theory_register(void) {
      * 根据Brouwer不动点定理，从闭球到自身的连续映射至少有一个不动点。
      * 根据Banach不动点定理，完备度量空间上的压缩映射有唯一不动点。
      */
-    LV_PRESET_REGISTER(success, "function_fixpoint", "不动点：计算函数 f 的不动点集合 {x ∈ A : f(x) = x}",
-                       PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, 2,
-                       PRESET_TYPE_SET, "\\text{Fix}(f) = \\{x \\in A : f(x) = x\\}", "O(|A|)", true, false);
+    LV_PRESET_REGISTER(success_count, "function_fixpoint", "不动点：计算函数 f 的不动点集合 {x ∈ A : f(x) = x}", 2, PRESET_TYPE_SET, "\\text{Fix}(f) = \\{x \\in A : f(x) = x\\}", "O(|A|)", true, false, PRESET_TYPE_FUNCTION, PRESET_TYPE_SET);
 
     /* ============================================================
      * 第四部分：序理论（5个）
@@ -414,11 +337,7 @@ bool preset_set_theory_register(void) {
      *   - 传递性：a ≤ b ∧ b ≤ c ⇒ a ≤ c
      * 常见偏序例子：集合包含关系 ⊆、整数上的 ≤、整除关系 |。
      */
-    LV_PRESET_REGISTER(success, "order_check", "偏序关系判定：≤ 是偏序当且仅当自反 ∧ 反对称 ∧ 传递",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2,
-                       PRESET_TYPE_BOOLEAN,
-                       "\\le \\text{ 是偏序} \\Leftrightarrow \\text{自反} \\land \\text{反对称} \\land \\text{传递}",
-                       "O(|A|^2 \\cdot |R|)", true, false);
+    LV_PRESET_REGISTER(success_count, "order_check", "偏序关系判定：≤ 是偏序当且仅当自反 ∧ 反对称 ∧ 传递", 2, PRESET_TYPE_BOOLEAN, "\\le \\text{ 是偏序} \\Leftrightarrow \\text{自反} \\land \\text{反对称} \\land \\text{传递}", "O(|A|^2 \\cdot |R|)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 28. 最小元 -------------------- */
     /**
@@ -429,10 +348,7 @@ bool preset_set_theory_register(void) {
      * 使得对所有 x ∈ S，m ≤ x。
      * 最小元如果存在则唯一，但未必存在。
      */
-    LV_PRESET_REGISTER(success, "order_min", "最小元：在偏序集子集 S 中查找最小元 m（∀x ∈ S, m ≤ x）",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET, 3, PRESET_TYPE_ANY,
-                       "\\min S = m \\Leftrightarrow m \\in S \\land \\forall x \\in S, m \\le x", "O(|S|^2)", true,
-                       false);
+    LV_PRESET_REGISTER(success_count, "order_min", "最小元：在偏序集子集 S 中查找最小元 m（∀x ∈ S, m ≤ x）", 3, PRESET_TYPE_ANY, "\\min S = m \\Leftrightarrow m \\in S \\land \\forall x \\in S, m \\le x", "O(|S|^2)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 29. 最大元 -------------------- */
     /**
@@ -443,10 +359,7 @@ bool preset_set_theory_register(void) {
      * 使得对所有 x ∈ S，x ≤ M。
      * 最大元如果存在则唯一，但未必存在。
      */
-    LV_PRESET_REGISTER(success, "order_max", "最大元：在偏序集子集 S 中查找最大元 M（∀x ∈ S, x ≤ M）",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET, 3, PRESET_TYPE_ANY,
-                       "\\max S = M \\Leftrightarrow M \\in S \\land \\forall x \\in S, x \\le M", "O(|S|^2)", true,
-                       false);
+    LV_PRESET_REGISTER(success_count, "order_max", "最大元：在偏序集子集 S 中查找最大元 M（∀x ∈ S, x ≤ M）", 3, PRESET_TYPE_ANY, "\\max S = M \\Leftrightarrow M \\in S \\land \\forall x \\in S, x \\le M", "O(|S|^2)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 30. 上确界 -------------------- */
     /**
@@ -457,9 +370,7 @@ bool preset_set_theory_register(void) {
      * 上确界如果存在则唯一。
      * 在格中，任意两个元素的上确界记为 a ∨ b（join）。
      */
-    LV_PRESET_REGISTER(success, "order_supremum", "上确界（最小上界）：sup(S)，S 的最小上界",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET, 3, PRESET_TYPE_ANY,
-                       "\\sup S = \\min\\{u \\in A : \\forall x \\in S, x \\le u\\}", "O(|S|^2)", true, false);
+    LV_PRESET_REGISTER(success_count, "order_supremum", "上确界（最小上界）：sup(S)，S 的最小上界", 3, PRESET_TYPE_ANY, "\\sup S = \\min\\{u \\in A : \\forall x \\in S, x \\le u\\}", "O(|S|^2)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 31. 下确界 -------------------- */
     /**
@@ -470,9 +381,7 @@ bool preset_set_theory_register(void) {
      * 下确界如果存在则唯一。
      * 在格中，任意两个元素的下确界记为 a ∧ b（meet）。
      */
-    LV_PRESET_REGISTER(success, "order_infimum", "下确界（最大下界）：inf(S)，S 的最大下界",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET, 3, PRESET_TYPE_ANY,
-                       "\\inf S = \\max\\{l \\in A : \\forall x \\in S, l \\le x\\}", "O(|S|^2)", true, false);
+    LV_PRESET_REGISTER(success_count, "order_infimum", "下确界（最大下界）：inf(S)，S 的最大下界", 3, PRESET_TYPE_ANY, "\\inf S = \\max\\{l \\in A : \\forall x \\in S, l \\le x\\}", "O(|S|^2)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* ============================================================
      * 第五部分：公理集合论（4个）
@@ -487,10 +396,7 @@ bool preset_set_theory_register(void) {
      * 配对公理保证了无序对的存在性。
      * 由配对公理可推导单元素集 {a} = {a, a} 的存在性。
      */
-    LV_PRESET_REGISTER(success, "zfc_pairing", "ZFC配对公理：对任意集合 a, b，存在集合 {a, b}",
-                       PRESET_TYPE_SET, PRESET_TYPE_SET, 2, PRESET_TYPE_SET,
-                       "\\forall a, \\forall b, \\exists c, \\forall x: x \\in c \\Leftrightarrow x = a \\lor x = b",
-                       "O(1)", true, false);
+    LV_PRESET_REGISTER(success_count, "zfc_pairing", "ZFC配对公理：对任意集合 a, b，存在集合 {a, b}", 2, PRESET_TYPE_SET, "\\forall a, \\forall b, \\exists c, \\forall x: x \\in c \\Leftrightarrow x = a \\lor x = b", "O(1)", true, false, PRESET_TYPE_SET, PRESET_TYPE_SET);
 
     /* -------------------- 33. ZFC并集公理 -------------------- */
     /**
@@ -501,11 +407,7 @@ bool preset_set_theory_register(void) {
      * ∪A 是 A 中所有元素（它们本身是集合）的并集。
      * 注意与二元并集 A ∪ B 的区别：此处是对集合族取并。
      */
-    LV_PRESET_REGISTER(success, "zfc_union", "ZFC并集公理：对任意集合族 A，存在集合 ∪A = {x : ∃Y ∈ A, x ∈ Y}",
-                       PRESET_TYPE_SET, 1,
-                       PRESET_TYPE_SET,
-                       "\\forall A, \\exists B, \\forall x: x \\in B \\Leftrightarrow \\exists Y \\in A, x \\in Y",
-                       "O(|A| \\cdot \\max|Y|)", true, false);
+    LV_PRESET_REGISTER(success_count, "zfc_union", "ZFC并集公理：对任意集合族 A，存在集合 ∪A = {x : ∃Y ∈ A, x ∈ Y}", 1, PRESET_TYPE_SET, "\\forall A, \\exists B, \\forall x: x \\in B \\Leftrightarrow \\exists Y \\in A, x \\in Y", "O(|A| \\cdot \\max|Y|)", true, false, PRESET_TYPE_SET);
 
     /* -------------------- 34. ZFC幂集公理 -------------------- */
     /**
@@ -516,10 +418,7 @@ bool preset_set_theory_register(void) {
      * 幂集公理保证了集合的所有子集构成一个集合。
      * 由Cantor定理，|P(A)| > |A|（不存在最大基数）。
      */
-    LV_PRESET_REGISTER(success, "zfc_power_set", "ZFC幂集公理：对任意集合 A，存在集合 P(A) = {S : S ⊆ A}",
-                       PRESET_TYPE_SET, 1,
-                       PRESET_TYPE_SET, "\\forall A, \\exists B, \\forall S: S \\in B \\Leftrightarrow S \\subseteq A",
-                       "O(2^{|A|})", true, false);
+    LV_PRESET_REGISTER(success_count, "zfc_power_set", "ZFC幂集公理：对任意集合 A，存在集合 P(A) = {S : S ⊆ A}", 1, PRESET_TYPE_SET, "\\forall A, \\exists B, \\forall S: S \\in B \\Leftrightarrow S \\subseteq A", "O(2^{|A|})", true, false, PRESET_TYPE_SET);
 
     /* -------------------- 35. ZFC替换公理 -------------------- */
     /**
@@ -531,11 +430,8 @@ bool preset_set_theory_register(void) {
      * 替换公理模式实际上是无穷多条公理的统称（每种公式 φ 对应一条）。
      * 替换公理蕴含分离公理模式，是ZFC中最强的公理之一。
      */
-    LV_PRESET_REGISTER(success, "zfc_replacement", "ZFC替换公理模式：若 φ(x,y) 是函数性质，则 {y : ∃x ∈ A, φ(x,y)} 是集合",
-                       PRESET_TYPE_SET, PRESET_TYPE_EXPRESSION, 2, PRESET_TYPE_SET,
-                       "(\\forall x \\exists! y \\, \\varphi(x,y)) \\Rightarrow \\forall A \\exists B \\forall y (y \\in "
-                       "B \\Leftrightarrow \\exists x \\in A \\, \\varphi(x,y))",
-                       "O(|A|)", false, false);
+    LV_PRESET_REGISTER(success_count, "zfc_replacement", "ZFC替换公理模式：若 φ(x,y) 是函数性质，则 {y : ∃x ∈ A, φ(x,y)} 是集合", 2, PRESET_TYPE_SET, "(\\forall x \\exists! y \\, \\varphi(x,y)) \\Rightarrow \\forall A \\exists B \\forall y (y \\in "
+                       "B \\Leftrightarrow \\exists x \\in A \\, \\varphi(x,y))", "O(|A|)", false, false, PRESET_TYPE_SET, PRESET_TYPE_EXPRESSION);
 
     /* 返回是否所有预设都注册成功 */
     /* lv_log_info("集合论预设注册完成，共 %d 个预设", success_count) */

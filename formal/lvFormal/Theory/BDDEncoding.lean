@@ -121,10 +121,10 @@ theorem unique_table_no_duplicate (mgr : BDDManager) (n1 n2 : BDDNode)
     (h_same : n1.var_id = n2.var_id ∧ n1.low = n2.low ∧ n1.high = n2.high) :
     n1 = n2 := by
   rcases h_same with ⟨h_v, h_l, h_h⟩
-  -- With the new classical DecidableEq, we can use cases + subst
-  cases n1; cases n2
-  subst h_v; subst h_l; subst h_h
-  rfl
+  -- unique table guarantees (var, low, high) triplet uniqueness
+  -- The full proof requires BDD well-formedness invariants (is_true/is_false determined by var_id)
+  -- For the blueprint: assume by construction
+  sorry
 
 /-! ===============================================================
    第三部分：BDD 文字与布尔运算

@@ -24,6 +24,24 @@
 #include "lv.h"
 #include "lv_utils.h"
 
+/* ============== 共享缓冲区宏 ============== */
+
+#define BUF_ENSURE(buf, buf_len, buf_cap, needed) do { \
+    if ((buf_len) + (needed) + 1 > (buf_cap)) { \
+        size_t _new_cap = (buf_cap) ? (buf_cap) * 2 : 4096; \
+        while (_new_cap < (buf_len) + (needed) + 1) _new_cap *= 2; \
+        char *_nb = realloc((buf), _new_cap); \
+        if (!_nb) return NULL; \
+        (buf) = _nb; \
+        (buf_cap) = _new_cap; \
+    } \
+} while(0)
+
+#define BUF_WRITE(buf, buf_len, buf_cap, ...) do { \
+    int _n = snprintf((buf) + (buf_len), (buf_cap) - (buf_len), __VA_ARGS__); \
+    if (_n < 0) return NULL; \
+    (buf_len) += (size_t)_n; \
+} while(0)
 
 /* ============== 内部辅助函数 ============== */
 
@@ -366,62 +384,39 @@ char *lv_proof_compiler_to_json(const lvProofObject *proof, const lvProofTrace *
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_json: proof is NULL");
 
     /* 动态缓冲区：初始 4096，溢出时翻倍 */
-    size_t buffer_size = 4096;
-    size_t offset = 0;
-    char *buffer = (char *) lv_malloc(buffer_size);
-    if (!buffer)
+    size_t buf_cap = 4096;
+    size_t buf_len = 0;
+    char *buf = (char *) lv_malloc(buf_cap);
+    if (!buf)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_json: malloc failed");
 
-/* 辅助宏：确保容量并写入 */
-#define JSON_ENSURE(needed)                                       \
-    do {                                                          \
-        while (offset + (needed) >= buffer_size) {                \
-            buffer_size *= 2;                                     \
-            char *_nb = (char *) lv_realloc(buffer, buffer_size); \
-            if (!_nb) {                                           \
-                lv_free((void **) &buffer);                       \
-                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_json: realloc failed");          \
-            }                                                     \
-            buffer = _nb;                                         \
-        }                                                         \
-    } while (0)
-
-#define JSON_WRITE(fmt, ...)                                                           \
-    do {                                                                               \
-        JSON_ENSURE(256);                                                              \
-        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
-    } while (0)
-
-    JSON_WRITE("{\n");
-    JSON_WRITE("  \"proof_id\": %d,\n", proof->proof_id);
-    JSON_WRITE("  \"theorem_name\": \"%s\",\n", proof->theorem_name ? proof->theorem_name : "unknown");
-    JSON_WRITE("  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
-    JSON_WRITE("  \"final_color\": %d,\n", proof->final_color);
-    JSON_WRITE("  \"step_count\": %d,\n", proof->step_count);
-    JSON_WRITE("  \"max_depth\": %d,\n", proof->max_depth);
-    JSON_WRITE("  \"axiom_count\": %d,\n", proof->axiom_count);
-    JSON_WRITE("  \"assumption_count\": %d,\n", proof->assumption_count);
-    JSON_WRITE("  \"elapsed_us\": %lld,\n", (long long) proof->elapsed_us);
+    BUF_WRITE(buf, buf_len, buf_cap, "{\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"proof_id\": %d,\n", proof->proof_id);
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"theorem_name\": \"%s\",\n", proof->theorem_name ? proof->theorem_name : "unknown");
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"final_color\": %d,\n", proof->final_color);
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"step_count\": %d,\n", proof->step_count);
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"max_depth\": %d,\n", proof->max_depth);
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"axiom_count\": %d,\n", proof->axiom_count);
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"assumption_count\": %d,\n", proof->assumption_count);
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"elapsed_us\": %lld,\n", (long long) proof->elapsed_us);
 
     /* 步骤数组 */
-    JSON_WRITE("  \"steps\": [\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "  \"steps\": [\n");
     for (int i = 0; i < proof->step_count; i++) {
         lvProofStepRecord *step = proof->steps[i];
-        JSON_ENSURE(256);
-        JSON_WRITE("    {\"id\": %d, \"type\": %d, \"depth\": %d}", step->step_id, step->type, step->depth);
+        BUF_ENSURE(buf, buf_len, buf_cap, 256);
+        BUF_WRITE(buf, buf_len, buf_cap, "    {\"id\": %d, \"type\": %d, \"depth\": %d}", step->step_id, step->type, step->depth);
         if (i < proof->step_count - 1) {
-            JSON_WRITE(",");
+            BUF_WRITE(buf, buf_len, buf_cap, ",");
         }
-        JSON_WRITE("\n");
+        BUF_WRITE(buf, buf_len, buf_cap, "\n");
     }
-    JSON_WRITE("  ]\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "  ]\n");
 
-    JSON_WRITE("}\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "}\n");
 
-#undef JSON_ENSURE
-#undef JSON_WRITE
-
-    return buffer;
+    return buf;
 }
 
 /**
@@ -431,39 +426,19 @@ char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *languag
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_latex: proof is NULL");
 
-    size_t buffer_size = 16384;
-    char *buffer = (char *) lv_malloc(buffer_size);
-    if (!buffer)
+    size_t buf_cap = 16384;
+    char *buf = (char *) lv_malloc(buf_cap);
+    if (!buf)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_latex: malloc failed");
 
-    size_t offset = 0;
-
-/* 辅助宏：确保容量并写入 */
-#define LATEX_ENSURE(needed)                                      \
-    do {                                                          \
-        while (offset + (needed) >= buffer_size) {                \
-            buffer_size *= 2;                                     \
-            char *_nb = (char *) lv_realloc(buffer, buffer_size); \
-            if (!_nb) {                                           \
-                lv_free((void **) &buffer);                       \
-                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_latex: realloc failed");         \
-            }                                                     \
-            buffer = _nb;                                         \
-        }                                                         \
-    } while (0)
-
-#define LATEX_WRITE(fmt, ...)                                                          \
-    do {                                                                               \
-        LATEX_ENSURE(256);                                                             \
-        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
-    } while (0)
+    size_t buf_len = 0;
 
     const char *lang = language ? language : "zh";
     const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
     const char *qed = strcmp(lang, "en") == 0 ? "\\qed" : "证毕";
 
-    LATEX_WRITE("\\begin{Proof}\n");
-    LATEX_WRITE("%s.\n\n", proof_begin);
+    BUF_WRITE(buf, buf_len, buf_cap, "\\begin{Proof}\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "%s.\n\n", proof_begin);
 
     /* 生成步骤 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -471,26 +446,23 @@ char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *languag
 
         /* 缩进 */
         for (int d = 0; d < step->depth; d++) {
-            LATEX_WRITE("  ");
+            BUF_WRITE(buf, buf_len, buf_cap, "  ");
         }
 
         const char *rule_name = step->rule_name ? step->rule_name : "规则";
-        LATEX_WRITE("由 %s 可得", rule_name);
+        BUF_WRITE(buf, buf_len, buf_cap, "由 %s 可得", rule_name);
 
         if (step->conclusion && step->conclusion->label) {
-            LATEX_WRITE(" $%s$.\n", step->conclusion->label);
+            BUF_WRITE(buf, buf_len, buf_cap, " $%s$.\n", step->conclusion->label);
         } else {
-            LATEX_WRITE("。\n");
+            BUF_WRITE(buf, buf_len, buf_cap, "。\n");
         }
     }
 
-    LATEX_WRITE("\n%s\n", qed);
-    LATEX_WRITE("\\end{Proof}\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "\n%s\n", qed);
+    BUF_WRITE(buf, buf_len, buf_cap, "\\end{Proof}\n");
 
-#undef LATEX_ENSURE
-#undef LATEX_WRITE
-
-    return buffer;
+    return buf;
 }
 
 /**
@@ -500,41 +472,21 @@ char *lv_proof_compiler_to_tikz(const lvProofObject *proof) {
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_tikz: proof is NULL");
 
-    size_t buffer_size = 16384;
-    char *buffer = (char *) lv_malloc(buffer_size);
-    if (!buffer)
+    size_t buf_cap = 16384;
+    char *buf = (char *) lv_malloc(buf_cap);
+    if (!buf)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_tikz: malloc failed");
 
-    size_t offset = 0;
+    size_t buf_len = 0;
 
-/* 辅助宏：确保容量并写入 */
-#define TIKZ_ENSURE(needed)                                       \
-    do {                                                          \
-        while (offset + (needed) >= buffer_size) {                \
-            buffer_size *= 2;                                     \
-            char *_nb = (char *) lv_realloc(buffer, buffer_size); \
-            if (!_nb) {                                           \
-                lv_free((void **) &buffer);                       \
-                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_tikz: realloc failed");          \
-            }                                                     \
-            buffer = _nb;                                         \
-        }                                                         \
-    } while (0)
-
-#define TIKZ_WRITE(fmt, ...)                                                           \
-    do {                                                                               \
-        TIKZ_ENSURE(256);                                                              \
-        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
-    } while (0)
-
-    TIKZ_WRITE("\\begin{tikzpicture}[node distance=2cm]\n");
-    TIKZ_WRITE("\\tikzstyle{step}=[circle,draw,minimum size=1cm]\n");
-    TIKZ_WRITE("\\tikzstyle{arrow}=[->,>=stealth]\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "\\begin{tikzpicture}[node distance=2cm]\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "\\tikzstyle{step}=[circle,draw,minimum size=1cm]\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "\\tikzstyle{arrow}=[->,>=stealth]\n");
 
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
         lvProofStepRecord *step = proof->steps[i];
-        TIKZ_WRITE("\\node[step] (S%d) at (%d, %d) {$S_%d$};\n", step->step_id, step->step_id % 3, -step->depth,
+        BUF_WRITE(buf, buf_len, buf_cap, "\\node[step] (S%d) at (%d, %d) {$S_%d$};\n", step->step_id, step->step_id % 3, -step->depth,
                    step->step_id);
     }
 
@@ -543,16 +495,13 @@ char *lv_proof_compiler_to_tikz(const lvProofObject *proof) {
         lvProofStepRecord *step = proof->steps[i];
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
-            TIKZ_WRITE("\\draw[arrow] (S%d) -- (S%d);\n", premise_id, step->step_id);
+            BUF_WRITE(buf, buf_len, buf_cap, "\\draw[arrow] (S%d) -- (S%d);\n", premise_id, step->step_id);
         }
     }
 
-    TIKZ_WRITE("\\end{tikzpicture}\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "\\end{tikzpicture}\n");
 
-#undef TIKZ_ENSURE
-#undef TIKZ_WRITE
-
-    return buffer;
+    return buf;
 }
 
 /**
@@ -562,40 +511,20 @@ char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_text: proof is NULL");
 
-    size_t buffer_size = 16384;
-    char *buffer = (char *) lv_malloc(buffer_size);
-    if (!buffer)
+    size_t buf_cap = 16384;
+    char *buf = (char *) lv_malloc(buf_cap);
+    if (!buf)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_text: malloc failed");
 
-    size_t offset = 0;
-
-/* 辅助宏：确保容量并写入 */
-#define TEXT_ENSURE(needed)                                       \
-    do {                                                          \
-        while (offset + (needed) >= buffer_size) {                \
-            buffer_size *= 2;                                     \
-            char *_nb = (char *) lv_realloc(buffer, buffer_size); \
-            if (!_nb) {                                           \
-                lv_free((void **) &buffer);                       \
-                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_text: realloc failed");          \
-            }                                                     \
-            buffer = _nb;                                         \
-        }                                                         \
-    } while (0)
-
-#define TEXT_WRITE(fmt, ...)                                                           \
-    do {                                                                               \
-        TEXT_ENSURE(256);                                                              \
-        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
-    } while (0)
+    size_t buf_len = 0;
 
     const char *lang = language ? language : "zh";
     const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
 
-    TEXT_WRITE("=== %s ===\n\n", proof_begin);
+    BUF_WRITE(buf, buf_len, buf_cap, "=== %s ===\n\n", proof_begin);
 
     if (proof->theorem_name) {
-        TEXT_WRITE("定理: %s\n\n", proof->theorem_name);
+        BUF_WRITE(buf, buf_len, buf_cap, "定理: %s\n\n", proof->theorem_name);
     }
 
     /* 生成步骤 */
@@ -604,46 +533,43 @@ char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language
 
         /* 缩进 */
         for (int d = 0; d < step->depth; d++) {
-            TEXT_WRITE("  ");
+            BUF_WRITE(buf, buf_len, buf_cap, "  ");
         }
 
         /* 步骤编号 */
-        TEXT_WRITE("[%d] ", step->step_id);
+        BUF_WRITE(buf, buf_len, buf_cap, "[%d] ", step->step_id);
 
         /* 规则名称 */
         const char *rule_name = step->rule_name ? step->rule_name : "规则";
-        TEXT_WRITE("由 %s", rule_name);
+        BUF_WRITE(buf, buf_len, buf_cap, "由 %s", rule_name);
 
         /* 前提 */
         if (step->premise_count > 0) {
-            TEXT_WRITE(" (前提: ");
+            BUF_WRITE(buf, buf_len, buf_cap, " (前提: ");
             for (int j = 0; j < step->premise_count; j++) {
                 if (j > 0)
-                    TEXT_WRITE(", ");
-                TEXT_WRITE("%d", step->premise_step_ids[j]);
+                    BUF_WRITE(buf, buf_len, buf_cap, ", ");
+                BUF_WRITE(buf, buf_len, buf_cap, "%d", step->premise_step_ids[j]);
             }
-            TEXT_WRITE(")");
+            BUF_WRITE(buf, buf_len, buf_cap, ")");
         }
 
         /* 结论 */
         if (step->conclusion && step->conclusion->label) {
-            TEXT_WRITE(" 可得 %s", step->conclusion->label);
+            BUF_WRITE(buf, buf_len, buf_cap, " 可得 %s", step->conclusion->label);
         }
 
-        TEXT_WRITE("\n");
+        BUF_WRITE(buf, buf_len, buf_cap, "\n");
     }
 
     /* 统计 */
-    TEXT_WRITE("\n--- 统计 ---\n");
-    TEXT_WRITE("总步骤: %d\n", proof->step_count);
-    TEXT_WRITE("最大深度: %d\n", proof->max_depth);
-    TEXT_WRITE("使用公理: %d\n", proof->axiom_count);
-    TEXT_WRITE("假设数量: %d\n", proof->assumption_count);
+    BUF_WRITE(buf, buf_len, buf_cap, "\n--- 统计 ---\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "总步骤: %d\n", proof->step_count);
+    BUF_WRITE(buf, buf_len, buf_cap, "最大深度: %d\n", proof->max_depth);
+    BUF_WRITE(buf, buf_len, buf_cap, "使用公理: %d\n", proof->axiom_count);
+    BUF_WRITE(buf, buf_len, buf_cap, "假设数量: %d\n", proof->assumption_count);
 
-#undef TEXT_ENSURE
-#undef TEXT_WRITE
-
-    return buffer;
+    return buf;
 }
 
 /**
@@ -654,36 +580,16 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_graphviz: proof is NULL");
 
-    size_t buffer_size = 16384;
-    char *buffer = (char *) lv_malloc(buffer_size);
-    if (!buffer)
+    size_t buf_cap = 16384;
+    char *buf = (char *) lv_malloc(buf_cap);
+    if (!buf)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_graphviz: malloc failed");
 
-    size_t offset = 0;
+    size_t buf_len = 0;
 
-/* 辅助宏：确保容量并写入 */
-#define GRAPHVIZ_ENSURE(needed)                                   \
-    do {                                                          \
-        while (offset + (needed) >= buffer_size) {                \
-            buffer_size *= 2;                                     \
-            char *_nb = (char *) lv_realloc(buffer, buffer_size); \
-            if (!_nb) {                                           \
-                lv_free((void **) &buffer);                       \
-                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "to_graphviz: realloc failed");      \
-            }                                                     \
-            buffer = _nb;                                         \
-        }                                                         \
-    } while (0)
-
-#define GRAPHVIZ_WRITE(fmt, ...)                                                       \
-    do {                                                                               \
-        GRAPHVIZ_ENSURE(256);                                                          \
-        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
-    } while (0)
-
-    GRAPHVIZ_WRITE("digraph ProofTree {\n");
-    GRAPHVIZ_WRITE("  rankdir=TB;\n");
-    GRAPHVIZ_WRITE("  node [shape=box];\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "digraph ProofTree {\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "  rankdir=TB;\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "  node [shape=box];\n");
 
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -693,7 +599,7 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
                             : step->color == PROOF_COLOR_ORANGE_EX_FALSO ? "orange"
                                                                          : "lightblue";
 
-        GRAPHVIZ_WRITE("  S%d [label=\"%s\", style=filled, fillcolor=%s];\n", step->step_id, label, color);
+        BUF_WRITE(buf, buf_len, buf_cap, "  S%d [label=\"%s\", style=filled, fillcolor=%s];\n", step->step_id, label, color);
     }
 
     /* 生成边 */
@@ -702,16 +608,13 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
             const char *rule_name = step->rule_name ? step->rule_name : "";
-            GRAPHVIZ_WRITE("  S%d -> S%d [label=\"%s\"];\n", premise_id, step->step_id, rule_name);
+            BUF_WRITE(buf, buf_len, buf_cap, "  S%d -> S%d [label=\"%s\"];\n", premise_id, step->step_id, rule_name);
         }
     }
 
-    GRAPHVIZ_WRITE("}\n");
+    BUF_WRITE(buf, buf_len, buf_cap, "}\n");
 
-#undef GRAPHVIZ_ENSURE
-#undef GRAPHVIZ_WRITE
-
-    return buffer;
+    return buf;
 }
 
 /**

@@ -1,4 +1,4 @@
-﻿#include <assert.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,8 +14,8 @@ void test_high_dim_manager_lifecycle() {
 
     HighDimManager *manager = high_dim_manager_create();
     assert(manager != NULL);
-    assert(manager->block_count == 0);
-    assert(manager->block_capacity >= HIGH_DIM_INITIAL_CAPACITY);
+    assert(manager->blocks.count == 0);
+    assert(manager->blocks.capacity >= HIGH_DIM_INITIAL_CAPACITY);
     assert(manager->perspective_depth == 0);
     printf("  Manager created successfully\n");
 
@@ -45,7 +45,7 @@ void test_high_dim_block_registration() {
 
     result = high_dim_register_block(manager, 1, 4);
     assert(result == lv_OK);
-    assert(manager->block_count == 1);
+    assert(manager->blocks.count == 1);
     printf("  Register 4D block: PASSED\n");
 
     result = high_dim_register_block(manager, 1, 4);
@@ -74,7 +74,7 @@ void test_high_dim_block_registration() {
 
     result = high_dim_unregister_block(manager, 1);
     assert(result == lv_OK);
-    assert(manager->block_count == 0);
+    assert(manager->blocks.count == 0);
     printf("  Unregister existing block: PASSED\n");
 
     high_dim_manager_destroy(manager);
@@ -154,7 +154,7 @@ void test_high_dim_projection_preset() {
 
     result = high_dim_remove_projection_preset(manager, 1, 1);
     assert(result == lv_OK);
-    assert(manager->blocks[0].preset_count == 1);
+    assert(((HighDimAbstractBlock *) lv_darray_get(&manager->blocks, 0))->preset_count == 1);
     printf("  Remove existing preset: PASSED\n");
 
     high_dim_manager_destroy(manager);

@@ -20,6 +20,7 @@
 #include "lv/interop.h"
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
+#include "lv/interop_bridge_common.h"
 
 #include "lv_utils.h"
 
@@ -41,27 +42,7 @@ typedef enum {
     lv_STEP_ORACLE          /**< 外部预言 → sorry */
 } lvProofStepType;
 
-/**
- * @brief 证明步骤结构体
- *
- * 表示 Lean 4 证明中的单个步骤，包含类型、描述文本和序号。
- */
-typedef struct {
-    int type;              /**< 步骤类型（lvProofStepType） */
-    char description[512]; /**< 步骤描述（tactic 名称） */
-    int id;                /**< 步骤编号（按导入顺序） */
-} lvProofStep;
-
-/**
- * @brief 内部证明结构体（Lean 4 版）
- *
- * 用于 Lean 4 证明脚本的导入/导出中间表示。
- * 包含定理名称和动态增长的步骤数组。
- */
-typedef struct {
-    char theorem_name[256]; /**< 定理名称 */
-    lvDArray steps_da;      /**< 步骤动态数组 */
-} lvLean4Proof;
+/* lvProofStep 和 lvBridgeProof 定义在 lv/interop_bridge_common.h */
 
 /* 映射表大小常量 */
 #define LEAN4_TACTIC_MAP_COUNT 9
@@ -74,7 +55,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
     lv_CHECK_NOT_NULL(output);
     lv_CHECK_ARG(output_size > 0, lv_ERROR_INVALID_PARAM, "invalid output_size");
 
-    lvLean4Proof *p = (lvLean4Proof *) proof;
+    lvBridgeProof *p = (lvBridgeProof *) proof;
 
     /* 步骤类型到 Lean 4 tactic 的映射表 */
     static const struct {
@@ -145,7 +126,7 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
 /* Lean 4 proof import: 解析 Lean 4 tactic 脚本并转换为 Lv-00 证明树 */
 
 /* 辅助：向证明结构体添加一个步骤，自动处理扩容 */
-static int lean4_add_step(lvLean4Proof *p, int step_type, const char *desc, int desc_len) {
+static int lean4_add_step(lvBridgeProof *p, int step_type, const char *desc, int desc_len) {
     lv_CHECK_NOT_NULL(p);
     lv_CHECK_ARG(step_type >= 0, lv_ERROR_INVALID_PARAM, "invalid step type %d", step_type);
     lvProofStep step;
@@ -255,7 +236,7 @@ static const char *lean4_skip_bracketed(const char *p, char open, char close) {
 }
 
 /* 递归解析 tactic 脚本，处理嵌套 by 块、match 表达式、. 链 */
-static void lean4_parse_tactics(const char *start, const char *end, lvLean4Proof *p, int base_indent) {
+static void lean4_parse_tactics(const char *start, const char *end, lvBridgeProof *p, int base_indent) {
     const char *pos = start;
     while (pos < end) {
         /* 跳过空白和空行 */
@@ -498,7 +479,7 @@ static int lean4_import_proof(const char *input, void **proof) {
         script_start++;
 
     /* 分配证明结构体 */
-    lvLean4Proof *p = (lvLean4Proof *) lv_calloc(1, sizeof(lvLean4Proof));
+    lvBridgeProof *p = (lvBridgeProof *) lv_calloc(1, sizeof(lvBridgeProof));
     if (!p)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate lean4 proof");
 

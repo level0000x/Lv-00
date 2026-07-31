@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_proof_trace.c
  * @brief lvProofTree 模块单元测试
  *
@@ -45,7 +45,7 @@ static void test_proof_tree_create_destroy(void) {
     TEST_ASSERT_NOT_NULL(tree->root);
     TEST_ASSERT_EQ(tree->root->id, 0);
     TEST_ASSERT_EQ(tree->root->depth, 0);
-    TEST_ASSERT_EQ(tree->node_count, 1);
+    TEST_ASSERT_EQ(tree->all_nodes.count, 1);
     TEST_ASSERT_EQ(tree->total_steps, 0);
 
     /* 销毁证明树 */
@@ -68,8 +68,8 @@ static void test_proof_tree_create_node(void) {
     TEST_ASSERT_EQ(node->depth, 1);
     TEST_ASSERT_EQ(node->step_index, 0);
     TEST_ASSERT_EQ(node->id, 1);
-    TEST_ASSERT_EQ(node->child_count, 0);
-    TEST_ASSERT_EQ(node->premise_count, 0);
+    TEST_ASSERT_EQ(node->children.count, 0);
+    TEST_ASSERT_EQ(node->premises.count, 0);
 
     /* 验证 axiom_used 和 conclusion 已被正确复制 */
     TEST_ASSERT_NOT_NULL(node->axiom_used);
@@ -82,7 +82,7 @@ static void test_proof_tree_create_node(void) {
     /* 验证树的统计信息已更新 */
     TEST_ASSERT_EQ(tree->total_steps, 1);
     TEST_ASSERT_EQ(tree->max_depth, 1);
-    TEST_ASSERT_EQ(tree->node_count, 2);
+    TEST_ASSERT_EQ(tree->all_nodes.count, 2);
 
     lv_proof_tree_destroy(tree);
 }
@@ -102,17 +102,17 @@ static void test_proof_tree_set_root(void) {
     TEST_ASSERT_EQ(root->step_index, -1);
     TEST_ASSERT_NULL(root->axiom_used);
     TEST_ASSERT_NULL(root->parent);
-    TEST_ASSERT_EQ(root->child_count, 0);
-    TEST_ASSERT_EQ(root->premise_count, 0);
+    TEST_ASSERT_EQ(root->children.count, 0);
+    TEST_ASSERT_EQ(root->premises.count, 0);
 
     /* root 节点的 conclusion 应该存储定理名称 */
     TEST_ASSERT_NOT_NULL(root->conclusion);
 
     /* 验证 all_nodes 数组中包含根节点 */
-    TEST_ASSERT_EQ(tree->node_count, 1);
-    TEST_ASSERT_NOT_NULL(tree->all_nodes);
-    TEST_ASSERT_NOT_NULL(tree->all_nodes[0]);
-    TEST_ASSERT_EQ((intptr_t) tree->all_nodes[0], (intptr_t) root);
+    TEST_ASSERT_EQ(tree->all_nodes.count, 1);
+    TEST_ASSERT_NOT_NULL(tree->all_nodes.data);
+    TEST_ASSERT_NOT_NULL(*(lvProofTreeNode **) lv_darray_get(&tree->all_nodes, 0));
+    TEST_ASSERT_EQ((intptr_t) *(lvProofTreeNode **) lv_darray_get(&tree->all_nodes, 0), (intptr_t) root);
 
     /* 验证树元数据 */
     TEST_ASSERT_NOT_NULL(tree->theorem_name);
@@ -130,23 +130,23 @@ static void test_proof_tree_node_add_premise(void) {
 
     lvProofTreeNode *node = lv_proof_tree_add_step(tree, NULL, NULL, "Some Conclusion", 0);
     TEST_ASSERT_NOT_NULL(node);
-    TEST_ASSERT_EQ(node->premise_count, 0);
+    TEST_ASSERT_EQ(node->premises.count, 0);
 
     /* 添加一个公理性前提 */
     lv_proof_tree_add_premise(node, 100, "Through any two points there is exactly one line", true);
-    TEST_ASSERT_EQ(node->premise_count, 1);
+    TEST_ASSERT_EQ(node->premises.count, 1);
 
     /* 验证前提字段 */
-    TEST_ASSERT_EQ(node->premises[0].premise_id, 100);
-    TEST_ASSERT_NOT_NULL(node->premises[0].description);
-    TEST_ASSERT_EQ(node->premises[0].is_axiom, (intptr_t) true);
+    TEST_ASSERT_EQ(((lvProofPremise *) lv_darray_get(&node->premises, 0))->premise_id, 100);
+    TEST_ASSERT_NOT_NULL(((lvProofPremise *) lv_darray_get(&node->premises, 0))->description);
+    TEST_ASSERT_EQ(((lvProofPremise *) lv_darray_get(&node->premises, 0))->is_axiom, (intptr_t) true);
 
     /* 添加第二个前提（非公理，如已证定理） */
     lv_proof_tree_add_premise(node, 101, "Triangle ABC is isosceles", false);
-    TEST_ASSERT_EQ(node->premise_count, 2);
-    TEST_ASSERT_EQ(node->premises[1].premise_id, 101);
-    TEST_ASSERT_NOT_NULL(node->premises[1].description);
-    TEST_ASSERT_EQ(node->premises[1].is_axiom, (intptr_t) false);
+    TEST_ASSERT_EQ(node->premises.count, 2);
+    TEST_ASSERT_EQ(((lvProofPremise *) lv_darray_get(&node->premises, 1))->premise_id, 101);
+    TEST_ASSERT_NOT_NULL(((lvProofPremise *) lv_darray_get(&node->premises, 1))->description);
+    TEST_ASSERT_EQ(((lvProofPremise *) lv_darray_get(&node->premises, 1))->is_axiom, (intptr_t) false);
 
     lv_proof_tree_destroy(tree);
 }
@@ -208,25 +208,25 @@ static void test_proof_tree_node_add_child(void) {
     /* 创建父节点 */
     lvProofTreeNode *parent = lv_proof_tree_add_step(tree, NULL, "Parent Axiom", "Parent Conclusion", 0);
     TEST_ASSERT_NOT_NULL(parent);
-    TEST_ASSERT_EQ(parent->child_count, 0);
+    TEST_ASSERT_EQ(parent->children.count, 0);
 
     /* 添加第一个子节点 */
     lvProofTreeNode *child1 = lv_proof_tree_add_step(tree, parent, "Child Axiom 1", "Child Conclusion 1", 1);
     TEST_ASSERT_NOT_NULL(child1);
-    TEST_ASSERT_EQ(parent->child_count, 1);
+    TEST_ASSERT_EQ(parent->children.count, 1);
     TEST_ASSERT_EQ(child1->depth, 2);
     TEST_ASSERT_EQ((intptr_t) child1->parent, (intptr_t) parent);
 
     /* 添加第二个子节点 */
     lvProofTreeNode *child2 = lv_proof_tree_add_step(tree, parent, "Child Axiom 2", "Child Conclusion 2", 2);
     TEST_ASSERT_NOT_NULL(child2);
-    TEST_ASSERT_EQ(parent->child_count, 2);
+    TEST_ASSERT_EQ(parent->children.count, 2);
     TEST_ASSERT_EQ(child2->depth, 2);
 
     /* 验证 children 数组 */
-    TEST_ASSERT_NOT_NULL(parent->children);
-    TEST_ASSERT_EQ((intptr_t) parent->children[0], (intptr_t) child1);
-    TEST_ASSERT_EQ((intptr_t) parent->children[1], (intptr_t) child2);
+    TEST_ASSERT_NOT_NULL(parent->children.data);
+    TEST_ASSERT_EQ((intptr_t) *(lvProofTreeNode **) lv_darray_get(&parent->children, 0), (intptr_t) child1);
+    TEST_ASSERT_EQ((intptr_t) *(lvProofTreeNode **) lv_darray_get(&parent->children, 1), (intptr_t) child2);
 
     /* 验证每个子节点的 id 互不相同 */
     TEST_ASSERT_NE(child1->id, child2->id);
@@ -348,17 +348,17 @@ static void test_proof_tree_multi_level(void) {
     /* 验证树统计信息 */
     TEST_ASSERT_EQ(tree->total_steps, 4);
     TEST_ASSERT_EQ(tree->max_depth, 3);
-    TEST_ASSERT_EQ(tree->node_count, 5); /* root + 4 steps */
+    TEST_ASSERT_EQ(tree->all_nodes.count, 5); /* root + 4 steps */
 
     /* 验证兄弟关系不影响各自深度 */
-    TEST_ASSERT_EQ(level1->child_count, 2);
+    TEST_ASSERT_EQ(level1->children.count, 2);
     TEST_ASSERT_EQ(level2->depth, sibling->depth);
     TEST_ASSERT_EQ(level2->depth, 2);
     TEST_ASSERT_EQ(sibling->depth, 2);
 
     /* 验证 leaf 节点没有子节点 */
-    TEST_ASSERT_EQ(level3->child_count, 0);
-    TEST_ASSERT_EQ(sibling->child_count, 0);
+    TEST_ASSERT_EQ(level3->children.count, 0);
+    TEST_ASSERT_EQ(sibling->children.count, 0);
 
     lv_proof_tree_destroy(tree);
 }

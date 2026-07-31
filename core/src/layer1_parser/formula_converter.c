@@ -2233,9 +2233,10 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
     };
     if ((unsigned)node->type < sizeof(s_funcs)/sizeof(s_funcs[0]) && s_funcs[node->type]) {
         s_funcs[node->type](node, buf, buf_size);
+    } else {
+        str_default(node, buf, buf_size);
     }
-    str_default(node, buf, buf_size);
-    }
+}
 
 /**
  * 使用行进正方形算法（Marching Squares）采样隐式曲线

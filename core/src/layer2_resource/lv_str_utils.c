@@ -163,3 +163,63 @@ char *lv_str_join(const char **items, size_t count, const char *separator) {
     }
     return lv_strbuf_to_string(&sb);
 }
+
+/* ===== 字符串转义 ===== */
+
+void lv_str_escape_json(lvStrBuf *sb, const char *str, size_t len) {
+    if (!sb || !str) return;
+    for (size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char) str[i];
+        switch (c) {
+            case '"':
+                lv_strbuf_printf(sb, "\\\"");
+                break;
+            case '\\':
+                lv_strbuf_printf(sb, "\\\\");
+                break;
+            case '\n':
+                lv_strbuf_printf(sb, "\\n");
+                break;
+            case '\r':
+                lv_strbuf_printf(sb, "\\r");
+                break;
+            case '\t':
+                lv_strbuf_printf(sb, "\\t");
+                break;
+            default:
+                if (c < 0x20) {
+                    lv_strbuf_printf(sb, "\\u%04x", c);
+                } else {
+                    lv_strbuf_append_n(sb, (char) c, 1);
+                }
+                break;
+        }
+    }
+}
+
+void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len) {
+    if (!sb || !str) return;
+    for (size_t i = 0; i < len; i++) {
+        char c = str[i];
+        switch (c) {
+            case '&':
+                lv_strbuf_printf(sb, "&amp;");
+                break;
+            case '<':
+                lv_strbuf_printf(sb, "&lt;");
+                break;
+            case '>':
+                lv_strbuf_printf(sb, "&gt;");
+                break;
+            case '"':
+                lv_strbuf_printf(sb, "&quot;");
+                break;
+            case '\'':
+                lv_strbuf_printf(sb, "&apos;");
+                break;
+            default:
+                lv_strbuf_append_n(sb, c, 1);
+                break;
+        }
+    }
+}

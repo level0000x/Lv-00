@@ -446,6 +446,7 @@ set(lv_HEADERS
     core/include/lv/geom_evol.h
     core/include/lv/geo_event_detect.h
     core/include/lv/geo_visual.h
+    core/include/lv/lv_render_visitor.h
     core/include/lv/lv_numeric.h
     core/include/lv/probabilistic_constraint.h
     # v1.1.0 新增模块头文件（第三轮：几何构造与交互模块）
@@ -1083,6 +1084,10 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/magic/magic.c
     # 几何可视化（完整版）
     core/src/layer5_output/geo_visual_complete.c
+    # 渲染访问器（多后端统一遍历抽象）
+    core/src/layer5_output/lv_render_visitor.c
+    # TikZ 渲染后端（基于 visitor 接口）
+    core/src/layer5_output/lv_render_visitor_tikz.c
     # UI-Kernel 通信协议
     core/src/layer5_output/lv_protocol.c
     # 层间通信消息
@@ -1286,6 +1291,10 @@ target_include_directories(lv_static PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(lv_static ${GMP_LIBRARIES} Threads::Threads)
+if(WIN32)
+    # interop_server.c 使用 winsock API，静态库需传递 ws2_32 依赖
+    target_link_libraries(lv_static ws2_32)
+endif()
 set_target_properties(lv_static PROPERTIES OUTPUT_NAME lv)
 
 # preset_differential_geometry, preset_functional_analysis 已修复，预设计数已同步
@@ -1572,6 +1581,9 @@ if(BUILD_TESTS)
     add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/layer4_reasoning/proof_system/prop_verifier.c)
     target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv)
     target_link_libraries(test_prop_verifier lv ${GMP_LIBRARIES})
+    if(WIN32)
+        target_link_libraries(test_prop_verifier ws2_32)
+    endif()
     add_test(NAME prop_verifier_test COMMAND test_prop_verifier
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 

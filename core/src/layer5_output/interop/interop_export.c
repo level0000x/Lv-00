@@ -24,6 +24,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 
 /** @brief 单个约束节点涉及的最大约束数量（统一在 interop.h 中定义） */
 
@@ -100,35 +101,16 @@ static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, do
  * @param dst_size 输出缓冲区大小（字节）
  */
 static void svg_escape_string(const char *src, char *dst, size_t dst_size) {
-    size_t j = 0;
-    for (size_t i = 0; src[i] && j < dst_size - 6; i++) {
-        switch (src[i]) {
-            case '&':
-                memcpy(dst + j, "&amp;", 5);
-                j += 5;
-                break;
-            case '<':
-                memcpy(dst + j, "&lt;", 4);
-                j += 4;
-                break;
-            case '>':
-                memcpy(dst + j, "&gt;", 4);
-                j += 4;
-                break;
-            case '"':
-                memcpy(dst + j, "&quot;", 6);
-                j += 6;
-                break;
-            case '\'':
-                memcpy(dst + j, "&apos;", 6);
-                j += 6;
-                break;
-            default:
-                dst[j++] = src[i];
-                break;
-        }
-    }
-    dst[j] = '\0';
+    if (!src || !dst || dst_size == 0)
+        return;
+    lvStrBuf sb = {0};
+    lv_str_escape_xml(&sb, src, strlen(src));
+    size_t n = sb.len;
+    if (n >= dst_size)
+        n = dst_size - 1;
+    memcpy(dst, lv_strbuf_cstr(&sb), n);
+    dst[n] = '\0';
+    lv_strbuf_destroy(&sb);
 }
 
 /**
@@ -1194,82 +1176,6 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
  * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
  */
 int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig *config) {
-    /*
-     * @brief 将约束图导出为LaTeX TikZ代码
-     *
-     * 【已实现功能】
-     *   本函数已完成TikZ导出的核心渲染管线，生成可独立编译的LaTeX文档：
-     *   1. LaTeX文档框架 —— 生成完整的 standalone 文档类，包含必要的
-     *      TikZ库引用（arrows.meta, shapes.geometric, positioning, calc）
-     *   2. 样式定义（TikZ style） —— 定义以下样式类别：
-     *      - point: 小圆点（填充，inner sep=1.5pt）
-     *      - line: 粗线（thick）
-     *      - region: 半透明填充区域（fill opacity=0.3）
-     *      - constraint: 灰色虚线（dashed, thin, gray）
-     *      - block: 圆角矩形（rounded corners, 最小2cm x 1cm）
-     *      - port: 白色填充小圆圈（draw, inner sep=2pt, fill=white）
-     *      - label: 小号字体标签（font=\small）
-     *      - connection: 橙色箭头连接线（-Stealth, thick, orange）
-     *   3. 区域（Region）渲染 —— 使用 \draw[region] 绘制半透明多边形，
-     *      遍历所有边界线段端点构建闭合路径（-- cycle）
-     *   4. 函数块（Function Block）渲染 —— 使用 \node[block] 绘制
-     *      圆角矩形节点，居中显示FB_<id>标签
-     *   5. 线段（Line Segment）渲染 —— 使用 \draw[line] 绘制线段，
-     *      中点上方显示 seg_<id> 标签
-     *   6. 端口（Port）渲染 —— 使用 \node[port] 绘制小圆圈，
-     *      标注 in/out_<id> 类型标签
-     *   7. 点（Point）渲染 —— 使用 \node[point] 绘制填充圆点，
-     *      上方标注P<id>
-     *   8. 约束关系渲染 —— 支持五种约束类型的TikZ可视化：
-     *      - 关联约束（INCIDENCE）：灰色虚线
-     *      - 之间约束（BETWEENNESS）：紫色斜体标签标注
-     *      - 相交约束（INTERSECTION）：紫色虚线 + 圆圈标记
-     *      - 包含约束（CONTAINMENT）：青色密集点线（densely dotted）
-     *      - 连接约束（CONNECTION）：橙色Stealth箭头
-     *   9. 信任颜色映射 —— 根据TrustColor使用对应的TikZ颜色名：
-     *      绿色(green!60!black)、灰色(gray)、红色(red!70!black)
-     *
-     * 【简化实现的部分（完整功能需要额外依赖或后续版本）】
-     *   1. 曲线几何体渲染 —— 当前仅处理直线段端点；
-     *      完整实现需要解析曲线参数并生成 plot/smooth/curve 等TikZ曲线命令。
-     *   2. 区域的曲线边界 —— 当前区域边界使用直线段连接；
-     *      完整实现需要生成 TikZ 的 plot[smooth] 或 curve 命令。
-     *   3. 节点定位优化 —— 当前所有节点使用绝对坐标 at (x,y)；
-     *      完整实现需要使用 TikZ positioning 库进行相对定位和自动布局。
-     *   4. 约束的精确交点计算 —— 当前约束线端点为参与者节点坐标；
-     *      完整实现需要调用几何求解器计算实际的几何交点位置。
-     *   5. 三维投影支持 —— 当前仅支持二维平面渲染；
-     *      完整实现需要 tikz-3dplot 库进行三维投影。
-     *   6. 颜色渐变和阴影 —— 当前为纯色填充无渐变；
-     *      完整实现需要 TikZ 的 shading 和 shadow 特性。
-     *   7. 图例（Legend）—— 当前不包含图例；
-     *      完整实现需要使用 TikZ legend 样式或手动绘制图例框。
-     *   8. 外部化/缓存 —— 当前为单文件输出；
-     *      完整实现需要生成 TikZ externalize 所需的多文件结构。
-     *
-     * 【外部依赖说明】
-     *   本函数仅生成纯文本的.tex文件，不依赖任何外部C库。生成的TikZ代码
-     *   需要以下LaTeX环境来编译：
-     *   1. LaTeX发行版（TeX Live / MiKTeX）
-     *   2. TikZ/PGF包（通常随LaTeX发行版自动安装）
-     *   3. standalone 文档类
-     *
-     * 【使用示例】
-     *   InteropExportConfig cfg;
-     *   lv_strlcpy(cfg.output_path, "output.tex", sizeof(cfg.output_path));
-     *   int ret = interop_export_tikz(graph, &cfg);
-     *   // 然后使用: pdflatex output.tex 编译为PDF
-     *
-     * 【与 interop_export_pdf 的关系】
-     *   如果用户需要PDF输出但不想安装LaTeX，建议使用 interop_export_pdf
-     *   函数直接生成PDF。本TikZ函数适合需要嵌入学术论文的场景。
-     *
-     * @param graph 约束图指针（包含所有节点和约束关系）
-     * @param config 导出配置（output_path 指定 .tex 文件路径）
-     * @return lv_OK 成功导出
-     *         lv_ERROR_INVALID_PARAM 参数无效（graph或config为NULL）
-     *         lv_ERROR_IO 文件无法创建或写入
-     */
     if (!graph || !config)
         return lv_ERROR_INVALID_PARAM;
 
@@ -1278,459 +1184,42 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
         stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "开始 LaTeX/TikZ 导出", 0);
     }
 
-    FILE *fp = fopen(config->output_path, "w");
-    if (!fp)
-        return lv_ERROR_IO;
+    /* 调用 tikz_fragment 生成 tikzpicture 内容，消除重复渲染循环 */
+    size_t buf_size = 1024 * 1024; /* 1MB 缓冲区，足够容纳典型图形 */
+    char *fragment_buf = (char *) lv_malloc(buf_size);
+    if (!fragment_buf)
+        return lv_ERROR_OUT_OF_MEMORY;
 
-    /* LaTeX文档头部 */
+    int fragment_len = interop_export_tikz_fragment(graph, fragment_buf, buf_size);
+    if (fragment_len < 0) {
+        lv_free((void **) &fragment_buf);
+        return fragment_len;
+    }
+
+    /* 打开输出文件 */
+    FILE *fp = fopen(config->output_path, "w");
+    if (!fp) {
+        lv_free((void **) &fragment_buf);
+        return lv_ERROR_IO;
+    }
+
+    /* LaTeX 文档头部 */
     (void) fprintf(fp, "%% Generated by Lv-00 v%s\n", lv_VERSION_STRING);
     (void) fprintf(fp, "%% TikZ geometry export\n\n");
     (void) fprintf(fp, "\\documentclass[tikz,border=10pt]{standalone}\n");
     (void) fprintf(fp, "\\usepackage{tikz}\n");
     (void) fprintf(fp, "\\usetikzlibrary{arrows.meta,shapes.geometric,positioning,calc}\n\n");
     (void) fprintf(fp, "\\begin{document}\n\n");
-    (void) fprintf(fp, "\\begin{tikzpicture}[\n");
-    (void) fprintf(fp, "    point/.style={circle, fill, inner sep=1.5pt},\n");
-    (void) fprintf(fp, "    line/.style={thick},\n");
-    (void) fprintf(fp, "    region/.style={fill opacity=0.3, thick},\n");
-    (void) fprintf(fp, "    constraint/.style={dashed, thin, gray},\n");
-    (void) fprintf(fp, "    block/.style={draw, rounded corners, minimum width=2cm, minimum height=1cm, thick},\n");
-    (void) fprintf(fp, "    port/.style={circle, draw, inner sep=2pt, fill=white},\n");
-    (void) fprintf(fp, "    label/.style={font=\\small},\n");
-    (void) fprintf(fp, "    connection/.style={-{Stealth[length=5pt]}, thick, orange}\n");
-    (void) fprintf(fp, "]\n\n");
 
-    /* ---- 渲染区域（底层） ---- */
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_REGION)
-            continue;
-        if (node->data.region.segment_count < 3)
-            continue;
+    /* 写入 tikzpicture 片段（含样式定义、所有渲染和图例） */
+    fwrite(fragment_buf, 1, (size_t) fragment_len, fp);
+    fprintf(fp, "\n\n");
 
-        const char *color = trust_color_to_tikz(node->trust);
-
-        fprintf(fp, "    %% Region id=%d\n", node->id);
-
-        /* 颜色渐变：使用 TikZ shading 为区域添加渐变效果 */
-        fprintf(fp, "    \\shade[top color=%s, bottom color=%s!30] ", color, color);
-
-        /* 收集区域边界顶点 */
-        int first_point = 1;
-        for (int s = 0; s < node->data.region.segment_count; s++) {
-            GeomNode *seg = node->data.region.boundary_segments[s];
-            if (seg && seg->type == GEOM_LINE_SEGMENT && seg->coord_count >= 4) {
-                double sx1 = symbolic_coord_to_double(seg->symbolic_coords[0]);
-                double sy1 = symbolic_coord_to_double(seg->symbolic_coords[1]);
-                if (first_point) {
-                    fprintf(fp, "(%.2f, %.2f)", sx1, sy1);
-                    first_point = 0;
-                } else {
-                    fprintf(fp, " -- (%.2f, %.2f)", sx1, sy1);
-                }
-            }
-        }
-        fprintf(fp, " -- cycle;\n");
-
-        /* 同时添加描边轮廓 */
-        fprintf(fp, "    \\draw[region, %s] ", color);
-        first_point = 1;
-        for (int s = 0; s < node->data.region.segment_count; s++) {
-            GeomNode *seg = node->data.region.boundary_segments[s];
-            if (seg && seg->type == GEOM_LINE_SEGMENT && seg->coord_count >= 4) {
-                double sx1 = symbolic_coord_to_double(seg->symbolic_coords[0]);
-                double sy1 = symbolic_coord_to_double(seg->symbolic_coords[1]);
-                if (first_point) {
-                    fprintf(fp, "(%.2f, %.2f)", sx1, sy1);
-                    first_point = 0;
-                } else {
-                    fprintf(fp, " -- (%.2f, %.2f)", sx1, sy1);
-                }
-            }
-        }
-        fprintf(fp, " -- cycle;\n");
-    }
-
-    /* ---- 渲染函数块 ---- */
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_FUNCTION_BLOCK)
-            continue;
-        if (node->coord_count < 2)
-            continue;
-
-        double bx = symbolic_coord_to_double(node->symbolic_coords[0]);
-        double by = symbolic_coord_to_double(node->symbolic_coords[1]);
-
-        const char *color = trust_color_to_tikz(node->trust);
-
-        fprintf(fp, "    %% Function Block id=%d\n", node->id);
-        fprintf(fp,
-                "    \\node[block, draw=%s, fill=%s, fill opacity=0.15] "
-                "at (%.2f, %.2f) {FB\\_%d};\n",
-                color, color, bx, by, node->id);
-    }
-
-    /* ---- 渲染线段 ---- */
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_LINE_SEGMENT)
-            continue;
-        if (node->coord_count < 4)
-            continue;
-
-        double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
-        double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
-        double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
-
-        const char *color = trust_color_to_tikz(node->trust);
-
-        fprintf(fp, "    %% Line Segment id=%d\n", node->id);
-
-        /* 曲线几何体渲染：如果线段有 3 个以上坐标对，使用 plot[smooth] */
-        if (node->coord_count >= 6) {
-            int total_pairs = node->coord_count / 2;
-            fprintf(fp, "    \\draw[line, %s] plot[smooth] coordinates {", color);
-            for (int p = 0; p < total_pairs; p++) {
-                double sx = symbolic_coord_to_double(node->symbolic_coords[p * 2]);
-                double sy = symbolic_coord_to_double(node->symbolic_coords[p * 2 + 1]);
-                if (p > 0)
-                    fprintf(fp, " ");
-                fprintf(fp, "(%.2f,%.2f)", sx, sy);
-            }
-            fprintf(fp, "};\n");
-        } else {
-            fprintf(fp,
-                    "    \\draw[line, %s] (%.2f, %.2f) -- (%.2f, %.2f) "
-                    "node[midway, above, label] {seg\\_%d};\n",
-                    color, x1, y1, x2, y2, node->id);
-        }
-    }
-
-    /* ---- 渲染端口 ---- */
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_PORT)
-            continue;
-        if (node->coord_count < 2)
-            continue;
-
-        double px = symbolic_coord_to_double(node->symbolic_coords[0]);
-        double py = symbolic_coord_to_double(node->symbolic_coords[1]);
-
-        const char *color = trust_color_to_tikz(node->trust);
-        const char *port_type_str = (node->data.port && node->data.port->type == PORT_INPUT) ? "in" : "out";
-
-        fprintf(fp, "    %% Port id=%d type=%s\n", node->id, port_type_str);
-        fprintf(fp, "    \\node[port, draw=%s] (port%d) at (%.2f, %.2f) {};\n", color, node->id, px, py);
-        fprintf(fp,
-                "    \\node[label, %s, font=\\tiny] at (%.2f, %.2f) "
-                "{%s\\_%d};\n",
-                color, px, py + 0.3, port_type_str, node->id);
-    }
-
-    /* ---- 渲染点 ---- */
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_POINT)
-            continue;
-        if (node->coord_count < 2)
-            continue;
-
-        double px = symbolic_coord_to_double(node->symbolic_coords[0]);
-        double py = symbolic_coord_to_double(node->symbolic_coords[1]);
-
-        const char *color = trust_color_to_tikz(node->trust);
-
-        fprintf(fp, "    %% Point id=%d\n", node->id);
-        fprintf(fp, "    \\node[point, %s] (P%d) at (%.2f, %.2f) {};\n", color, node->id, px, py);
-
-        /* 使用符号坐标序列化作为标签（如果坐标可用） */
-        if (node->symbolic_coords && node->symbolic_coords[0] && node->symbolic_coords[1]) {
-            char *sx = symbolic_coord_serialize(node->symbolic_coords[0]);
-            char *sy = symbolic_coord_serialize(node->symbolic_coords[1]);
-            if (sx && sy) {
-                fprintf(fp,
-                        "    \\node[label, above=2pt of P%d] "
-                        "{$P_{%d}\\!\\left(%s,\\, %s\\right)$};\n",
-                        node->id, node->id, sx, sy);
-            } else {
-                fprintf(fp, "    \\node[label, above=2pt of P%d] {$P_{%d}$};\n", node->id, node->id);
-            }
-            lv_free((void **) &sx);
-            lv_free((void **) &sy);
-        } else {
-            fprintf(fp, "    \\node[label, above=2pt of P%d] {$P_{%d}$};\n", node->id, node->id);
-        }
-    }
-
-    /* ---- 渲染约束 ---- */
-    for (int i = 0; i < graph->constraint_count; i++) {
-        Constraint *c = graph->constraints[i];
-        if (!c || c->participant_count < 2)
-            continue;
-
-        fprintf(fp, "    %% Constraint id=%d type=%s\n", c->id, constraint_type_name(c->type));
-
-        GeomNode *p0 = graph_get_node_by_id(graph, c->participants[0]);
-        GeomNode *p1 = graph_get_node_by_id(graph, c->participants[1]);
-        if (!p0 || !p1)
-            continue;
-        if (p0->coord_count < 2 || p1->coord_count < 2)
-            continue;
-
-        double x0 = symbolic_coord_to_double(p0->symbolic_coords[0]);
-        double y0 = symbolic_coord_to_double(p0->symbolic_coords[1]);
-        double x1 = symbolic_coord_to_double(p1->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(p1->symbolic_coords[1]);
-
-        switch (c->type) {
-            case INCIDENCE:
-                fprintf(fp, "    \\draw[constraint] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
-                break;
-
-            case BETWEENNESS: {
-                double mx = (x0 + x1) / 2.0;
-                double my = (y0 + y1) / 2.0;
-                fprintf(fp,
-                        "    \\node[label, purple, font=\\itshape] at (%.2f, %.2f) "
-                        "{B(%d, %d",
-                        mx, my, c->participants[0], c->participants[1]);
-                if (c->participant_count >= 3) {
-                    fprintf(fp, ", %d", c->participants[2]);
-                }
-                fprintf(fp, ")};\n");
-                break;
-            }
-
-            case INTERSECTION: {
-                /* 相交约束：使用 TikZ intersection 库计算精确交点 */
-                double ix = x0, iy = y0;
-                double a1x = x0, a1y = y0, b1x = x1, b1y = y1;
-                bool has_precise = false;
-
-                if (p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 && p1->type == GEOM_LINE_SEGMENT &&
-                    p1->coord_count >= 4) {
-                    double a2x = symbolic_coord_to_double(p0->symbolic_coords[2]);
-                    double a2y = symbolic_coord_to_double(p0->symbolic_coords[3]);
-                    double b2x = symbolic_coord_to_double(p1->symbolic_coords[2]);
-                    double b2y = symbolic_coord_to_double(p1->symbolic_coords[3]);
-
-                    double d1x = a2x - a1x, d1y = a2y - a1y;
-                    double d2x = b2x - b1x, d2y = b2y - b1y;
-                    double cross = d1x * d2y - d1y * d2x;
-
-                    if (fabs(cross) > 1e-10) {
-                        double dx0 = b1x - a1x, dy0 = b1y - a1y;
-                        double t = (dx0 * d2y - dy0 * d2x) / cross;
-                        if (t >= -0.05 && t <= 1.05) {
-                            ix = a1x + t * d1x;
-                            iy = a1y + t * d1y;
-                            has_precise = true;
-                        }
-                    }
-                }
-
-                /* 输出 TikZ intersection 标记 */
-                if (has_precise) {
-                    fprintf(fp, "    %% 精确交点计算 (t=parametric)\n");
-                    fprintf(fp, "    \\fill[red] (%.2f, %.2f) circle (2pt);\n", ix, iy);
-                    fprintf(fp,
-                            "    \\node[label, red, font=\\tiny] at (%.2f, %.2f) "
-                            "{intersection};\n",
-                            ix + 0.3, iy + 0.3);
-                } else {
-                    fprintf(fp, "    \\draw[constraint, purple] (%.2f, %.2f) -- (%.2f, %.2f);\n", a1x, a1y, b1x, b1y);
-                    fprintf(fp, "    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n", x0, y0);
-                }
-                break;
-            }
-
-            case CONTAINMENT:
-                fprintf(fp,
-                        "    \\draw[constraint, teal, densely dotted] "
-                        "(%.2f, %.2f) -- (%.2f, %.2f);\n",
-                        x0, y0, x1, y1);
-                break;
-
-            case ANGLE:
-                /* 角度约束：purple dashed */
-                fprintf(fp,
-                        "    \\draw[constraint, purple, densely dashed] "
-                        "(%.2f, %.2f) -- (%.2f, %.2f);\n",
-                        x0, y0, x1, y1);
-                break;
-
-            case CONNECTION:
-                fprintf(fp, "    \\draw[connection] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    /* ---- 图例（Legend） ---- */
-    {
-        /* 收集图中实际出现的节点类型和约束类型 */
-        bool has_point = false, has_line = false, has_region = false;
-        bool has_block = false, has_port = false;
-        bool has_incidence = false, has_betweenness = false;
-        bool has_intersection = false, has_containment = false, has_angle = false;
-        bool has_connection = false;
-
-        for (int i = 0; i < graph->node_count; i++) {
-            GeomNode *n = graph->nodes[i];
-            if (!n)
-                continue;
-            switch (n->type) {
-                case GEOM_POINT:
-                    has_point = true;
-                    break;
-                case GEOM_LINE_SEGMENT:
-                    has_line = true;
-                    break;
-                case GEOM_REGION:
-                    has_region = true;
-                    break;
-                case GEOM_CIRCLE:
-                    has_region = true;
-                    break;
-                case GEOM_FUNCTION_BLOCK:
-                    has_block = true;
-                    break;
-                case GEOM_PORT:
-                    has_port = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-        for (int i = 0; i < graph->constraint_count; i++) {
-            Constraint *c = graph->constraints[i];
-            if (!c)
-                continue;
-            switch (c->type) {
-                case INCIDENCE:
-                    has_incidence = true;
-                    break;
-                case BETWEENNESS:
-                    has_betweenness = true;
-                    break;
-                case INTERSECTION:
-                    has_intersection = true;
-                    break;
-                case CONTAINMENT:
-                    has_containment = true;
-                    break;
-                case ANGLE:
-                    has_angle = true;
-                    break;
-                case CONNECTION:
-                    has_connection = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        int legend_rows = 0;
-        if (has_point)
-            legend_rows++;
-        if (has_line)
-            legend_rows++;
-        if (has_region)
-            legend_rows++;
-        if (has_block)
-            legend_rows++;
-        if (has_port)
-            legend_rows++;
-        if (has_incidence)
-            legend_rows++;
-        if (has_betweenness)
-            legend_rows++;
-        if (has_intersection)
-            legend_rows++;
-        if (has_containment)
-            legend_rows++;
-        if (has_connection)
-            legend_rows++;
-
-        if (legend_rows > 0) {
-            fprintf(fp, "\n    %% Legend\n");
-            fprintf(fp,
-                    "    \\matrix[draw, fill=white, fill opacity=0.85, "
-                    "anchor=south east, column sep=4pt, row sep=2pt, "
-                    "font=\\scriptsize, inner sep=4pt]\n");
-            fprintf(fp, "    at (current bounding box.south east) {\n");
-
-            int row = 0;
-            if (has_point) {
-                fprintf(fp, "        \\node[point] {}; & \\node {Point}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_line) {
-                fprintf(fp, "        \\draw[line] (0,0) -- (0.5,0); & \\node {Line Segment}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_region) {
-                fprintf(fp, "        \\draw[region, fill=blue!20] (0,0) rectangle (0.5,0.3); & \\node {Region}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_block) {
-                fprintf(
-                    fp,
-                    "        \\node[block, minimum width=0.5cm, minimum height=0.3cm] {}; & \\node {Function Block}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_port) {
-                fprintf(fp, "        \\node[port] {}; & \\node {Port}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_incidence) {
-                fprintf(fp, "        \\draw[constraint] (0,0) -- (0.5,0); & \\node {Incidence}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_betweenness) {
-                fprintf(fp, "        \\node[purple, font=\\itshape] {B}; & \\node {Betweenness}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_intersection) {
-                fprintf(fp,
-                        "        \\draw[constraint, purple] (0,0) -- (0.5,0); "
-                        "\\node[circle, draw=purple, inner sep=0.5pt] at (0.25,0) {}; "
-                        "& \\node {Intersection}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_containment) {
-                fprintf(fp,
-                        "        \\draw[constraint, teal, densely dotted] (0,0) -- (0.5,0); & \\node {Containment}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-            if (has_connection) {
-                fprintf(fp, "        \\draw[connection] (0,0) -- (0.5,0); & \\node {Connection}; ");
-                if (++row < legend_rows)
-                    fprintf(fp, "\\\\\n");
-            }
-
-            fprintf(fp, "    };\n");
-        }
-    }
-
-    fprintf(fp, "\n\\end{tikzpicture}\n\n");
-    fprintf(fp, "\\end{document}\n");
+    /* 文档尾部 */
+    (void) fprintf(fp, "\\end{document}\n");
 
     fclose(fp);
+    lv_free((void **) &fragment_buf);
 
     /* ---- 流式事件：LaTeX/TikZ 导出完成 ---- */
     if (interop_stream_ctx) {

@@ -139,6 +139,12 @@ const KnownUnconstructible *axiom_package_get_unconstructible(const AxiomPackage
     return (const KnownUnconstructible *)lv_darray_get(arr, index);
 }
 
+const ConstraintTemplate *axiom_package_get_template_by_index(const AxiomPackage *pkg, int index) {
+    if (!pkg || index < 0 || index >= (int)pkg->templates.count) return NULL;
+    lvDArray *arr = (lvDArray *)&pkg->templates;
+    return (const ConstraintTemplate *)lv_darray_get(arr, index);
+}
+
 void axiom_package_destroy(AxiomPackage *pkg) {
     if (!pkg)
         return;

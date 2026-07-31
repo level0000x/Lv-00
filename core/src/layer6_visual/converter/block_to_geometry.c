@@ -1,4 +1,4 @@
-#include <math.h>
+﻿#include <math.h>
 #include <string.h>
 
 #include "lv/func_block.h"
@@ -50,7 +50,7 @@ static inline SymbolicCoord *symbolic_coord_from_double(double val) {
 static inline PointEntity *point_entity_create(SymbolicCoord *x, SymbolicCoord *y) {
     PointEntity *p = (PointEntity *) lv_calloc(1, sizeof(PointEntity));
     if (!p)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate point entity");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate point entity");
     p->x = x;
     p->y = y;
     return p;
@@ -59,7 +59,7 @@ static inline PointEntity *point_entity_create(SymbolicCoord *x, SymbolicCoord *
 static inline PolygonEntity *polygon_entity_create(PointEntity **corners, int count) {
     PolygonEntity *poly = (PolygonEntity *) lv_calloc(1, sizeof(PolygonEntity));
     if (!poly)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate polygon entity");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate polygon entity");
     poly->vertex_count = count;
     (void) corners;
     return poly;
@@ -68,7 +68,7 @@ static inline PolygonEntity *polygon_entity_create(PointEntity **corners, int co
 static inline LinearEntity *linear_entity_create_segment(PointEntity *p1, PointEntity *p2) {
     LinearEntity *line = (LinearEntity *) lv_malloc(sizeof(LinearEntity));
     if (!line)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate linear entity");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate linear entity");
     memset(line, 0, sizeof(LinearEntity));
     line->start = p1;
     line->end = p2;

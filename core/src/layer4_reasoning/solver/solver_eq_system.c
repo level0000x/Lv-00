@@ -19,17 +19,7 @@
     } while (0)
 #endif
 
-/* ── PolyEquation + EquationSystem ── */
-
-typedef struct {
-    mpz_poly_t poly;
-    int var_node_id;
-    int coord_index;
-} PolyEquation;
-
-typedef struct EquationSystem {
-    lvDArray eqs; /**< PolyEquation 数组 */
-} EquationSystem;
+/* ── PolyEquation + EquationSystem（类型定义见 solver_types.h）── */
 
 
 

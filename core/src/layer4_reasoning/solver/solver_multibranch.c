@@ -12,7 +12,7 @@
 
 SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value);
 void symbolic_coord_destroy(SymbolicCoord *coord);
-bool coord_to_double(const SymbolicCoord *c, double *out);
+int coord_to_double(const SymbolicCoord *c, double *out);
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t den);
 char *symbolic_coord_serialize(const SymbolicCoord *coord);
 

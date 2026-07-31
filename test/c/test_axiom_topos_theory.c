@@ -299,8 +299,8 @@ static void test_round_trip_save_load(void) {
     /* Compare */
     TEST_ASSERT(strcmp(pkg1->name, pkg2->name) == 0, "names should match");
     TEST_ASSERT(strcmp(pkg1->version, pkg2->version) == 0, "versions should match");
-    TEST_ASSERT(pkg1->template_count == axiom_package_get_template_count(pkg2), "template counts should match");
-    TEST_ASSERT(pkg1->unconstructible_count == axiom_package_get_unconstructible_count(pkg2), "unconstructible counts should match");
+    TEST_ASSERT(axiom_package_get_template_count(pkg1) == axiom_package_get_template_count(pkg2), "template counts should match");
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg1) == axiom_package_get_unconstructible_count(pkg2), "unconstructible counts should match");
 
     printf("  Round-trip: OK (templates: %d, unconstructibles: %d)\n", axiom_package_get_template_count(pkg2),
            axiom_package_get_unconstructible_count(pkg2));

@@ -3,6 +3,7 @@
 
 #include "lv/func_block.h"
 #include "lv/type_system.h"
+#include "lv/lv_view.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,8 +12,7 @@ extern "C" {
 /* Layer 6 identifier */
 #define lv_LAYER_VISUAL 6
 
-/* View types */
-typedef enum { lv_VIEW_GEOMETRY_CANVAS, lv_VIEW_NODE_GRAPH, lv_VIEW_BLOCK_CANVAS, lv_VIEW_TEXT_CODE } lvViewType;
+/* lvViewType is now defined in lv/lv_view.h (includes lv_VIEW_COUNT) */
 
 /* Editor state */
 typedef enum { lv_EDITOR_IDLE, lv_EDITOR_EDITING, lv_EDITOR_EXECUTING, lv_EDITOR_ERROR } lvEditorState;
@@ -52,10 +52,9 @@ struct lvViewSynchronizer {
 
 /* Text code view - bidirectional sync with function block graph */
 struct lvTextCodeView {
-    /* Unique view ID for external API tracking */
-    int view_id;
+    lvView base;        /* 视图基类（必须为第一个字段） */
+    int view_id;        /* Unique view ID for external API tracking */
 
-    int view_type;
     char *code_buffer;
     int buffer_size;
     int cursor_pos;

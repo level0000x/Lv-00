@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file view_synchronizer.c
  * @brief 视图同步器实现
  *
@@ -27,20 +27,20 @@
 lvViewSynchronizer *lv_view_sync_create(void) {
     lvViewSynchronizer *sync = lv_calloc(1, sizeof(lvViewSynchronizer));
     if (!sync)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate view synchronizer");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate view synchronizer");
     sync->sync_enabled = 1;
     sync->dirty_capacity = 8;
     sync->dirty_views = lv_calloc(sync->dirty_capacity, sizeof(int));
     if (!sync->dirty_views) {
         lv_free((void **) &sync);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate dirty views array");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate dirty views array");
     }
     sync->pending_capacity = 8;
     sync->pending_changes = lv_calloc(sync->pending_capacity, sizeof(sync->pending_changes[0]));
     if (!sync->pending_changes) {
         lv_free((void **) &sync->dirty_views);
         lv_free((void **) &sync);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate pending changes array");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate pending changes array");
     }
     return sync;
 }
@@ -123,7 +123,7 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
         int new_cap = sync->pending_capacity * 2;
         void *new_arr = lv_realloc(sync->pending_changes, new_cap * sizeof(sync->pending_changes[0]));
         if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc pending changes");
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc pending changes");
         sync->pending_changes = new_arr;
         sync->pending_capacity = new_cap;
     }
@@ -149,7 +149,7 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
             int new_cap = sync->dirty_capacity * 2;
             void *new_arr = lv_realloc(sync->dirty_views, new_cap * sizeof(int));
             if (!new_arr)
-                lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc dirty views");
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc dirty views");
             sync->dirty_views = new_arr;
             sync->dirty_capacity = new_cap;
         }

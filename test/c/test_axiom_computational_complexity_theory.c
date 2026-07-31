@@ -196,10 +196,10 @@ static void test_unconstructible_problems(void) {
                                   ? (uc->reduces_to == NULL)
                                   : (uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0);
             TEST_ASSERT(reduces_ok, expected[i].name);
-            TEST_ASSERT(uc->dependency_count == expected[i].dep_count, expected[i].name);
+            TEST_ASSERT(uc->dependency_chain.count == expected[i].dep_count, expected[i].name);
             TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);
             TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
-            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_count,
+            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
                    uc->green_verified ? "true" : "false");
         }
     }
@@ -259,8 +259,8 @@ static void test_round_trip(void) {
     AxiomLoadStatus load_status = axiom_package_load(pkg2, SAVE_TEST_PATH);
     TEST_ASSERT(load_status == AXIOM_LOAD_OK, "re-load from saved file should succeed");
 
-    TEST_ASSERT(axiom_package_get_template_count(pkg2) == pkg1->template_count, "template count should match after round-trip");
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == pkg1->unconstructible_count,
+    TEST_ASSERT(axiom_package_get_template_count(pkg2) == axiom_package_get_template_count(pkg1), "template count should match after round-trip");
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == axiom_package_get_unconstructible_count(pkg1),
                 "unconstructible count should match after round-trip");
     TEST_ASSERT(strcmp(pkg2->name, pkg1->name) == 0, "name should match after round-trip");
     TEST_ASSERT(strcmp(pkg2->version, pkg1->version) == 0, "version should match after round-trip");

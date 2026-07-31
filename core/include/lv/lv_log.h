@@ -30,12 +30,6 @@ typedef enum {
 void lv_log(lvLogLevel level, const char *fmt, ...);
 
 /**
- * @brief 设置日志输出级别（低于此级别的日志将被过滤）
- * @param level  最低输出级别，默认 lv_LOG_INFO
- */
-void lv_log_set_level(lvLogLevel level);
-
-/**
  * @brief 获取当前日志级别
  * @return 当前日志级别
  */

@@ -1,4 +1,4 @@
-#include "lv/block_scheduler.h"
+﻿#include "lv/block_scheduler.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +19,7 @@ typedef struct {
 lvBlockScheduler *lv_block_scheduler_create(void *graph) {
     lvBlockScheduler *sched = lv_calloc(1, sizeof(lvBlockScheduler));
     if (!sched)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate block scheduler");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate block scheduler");
     sched->graph = graph;
     sched->strategy = lv_SCHED_FULL;
     sched->effect_tracker = lv_effect_tracker_create();

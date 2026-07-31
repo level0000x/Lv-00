@@ -317,8 +317,8 @@ static void test_roundtrip_save_load(void) {
     /* Verify basic properties preserved */
     TEST_ASSERT(strcmp(pkg1->name, pkg2->name) == 0, "package name should be preserved");
     TEST_ASSERT(strcmp(pkg1->version, pkg2->version) == 0, "package version should be preserved");
-    TEST_ASSERT(pkg1->template_count == axiom_package_get_template_count(pkg2), "template count should be preserved");
-    TEST_ASSERT(pkg1->unconstructible_count == axiom_package_get_unconstructible_count(pkg2),
+    TEST_ASSERT(axiom_package_get_template_count(pkg1) == axiom_package_get_template_count(pkg2), "template count should be preserved");
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg1) == axiom_package_get_unconstructible_count(pkg2),
                 "unconstructible count should be preserved");
 
     lv_free((void **) &hash1);
@@ -370,7 +370,7 @@ static void test_external_refs(void) {
 
     int valid_url_count = 0;
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         if (uc->external_ref) {
             /* Check if it looks like a valid URL */
             bool is_valid = false;

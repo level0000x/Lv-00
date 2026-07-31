@@ -1,4 +1,4 @@
-#include <stdbool.h>
+﻿#include <stdbool.h>
 #include <string.h>
 
 #include "lv/control_flow_blocks.h"
@@ -14,7 +14,7 @@ typedef struct {
 lvIfBlock *lv_if_block_create(void) {
     lvIfBlock *block = lv_calloc(1, sizeof(lvIfBlock));
     if (!block)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate if block");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate if block");
     block->condition_port = -1;
     block->then_output = -1;
     block->else_output = -1;
@@ -23,7 +23,7 @@ lvIfBlock *lv_if_block_create(void) {
     IfBlockState *state = lv_calloc(1, sizeof(IfBlockState));
     if (!state) {
         lv_free((void **) &block);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate if block state");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate if block state");
     }
     block->base = state;
     return block;

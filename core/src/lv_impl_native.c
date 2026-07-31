@@ -563,15 +563,6 @@ int graph_remove_edge(ConstraintGraph *g, int64_t edge_id) {
     return -1; /* 未找到 */
 }
 
-/**
- * @brief 按索引获取约束图节点
- */
-const GraphNode *graph_get_node(const ConstraintGraph *g, int index) {
-    if (!g || index < 0 || index >= g->node_count)
-        return NULL;
-    return &g->nodes[index];
-}
-
 const GraphEdge *graph_get_edge(const ConstraintGraph *g, int index) {
     if (!g || index < 0 || index >= g->edge_count)
         return NULL;

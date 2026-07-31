@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_builtin_commands.h"
 #include "lv/lv_config.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
@@ -874,17 +875,19 @@ int lv_proto_engine_status(void *engine, lvEngineStatus *out) {
  * 三、内置命令补全
  * ================================================================ */
 
-/** 内置终端命令列表，用于命令补全 */
-static const char *kBuiltinCommands[] = {
+/** 内置终端命令列表（共享，NULL 结尾），用于命令补全 */
+const char *const lv_builtin_commands[] = {
     "add point",      "add segment",  "add constraint", "add region",    "move point",  "remove point",
     "remove segment", "normalize",    "undo",           "redo",          "snapshot",    "restore",
     "solve",          "rewrite",      "unify",          "pack function", "instantiate", "get graph",
     "export graph",   "get status",   "history",        "help",          "clear",       "cls",
     "ping",           "stream start", "stream stop",
+    NULL,
 };
 
-/** 内置命令总数 */
-#define BUILTIN_CMD_COUNT (sizeof(kBuiltinCommands) / sizeof(kBuiltinCommands[0]))
+/** 内置命令总数（不含 NULL 结尾符） */
+const size_t lv_builtin_command_count =
+    sizeof(lv_builtin_commands) / sizeof(lv_builtin_commands[0]) - 1;
 
 /**
  * @brief 基于输入前缀生成命令补全列表
@@ -913,8 +916,8 @@ int lv_proto_completions(void *engine, const char *prefix, lvCompletionList *out
 
     int match_count = 0;
 
-    for (size_t i = 0; i < BUILTIN_CMD_COUNT; i++) {
-        if (lv_str_startswith(kBuiltinCommands[i], prefix)) {
+    for (size_t i = 0; i < lv_builtin_command_count; i++) {
+        if (lv_str_startswith(lv_builtin_commands[i], prefix)) {
             match_count++;
         }
     }
@@ -929,9 +932,9 @@ int lv_proto_completions(void *engine, const char *prefix, lvCompletionList *out
     }
 
     int idx = 0;
-    for (size_t i = 0; i < BUILTIN_CMD_COUNT; i++) {
-        if (lv_str_startswith(kBuiltinCommands[i], prefix)) {
-            out->items[idx].text = lv_strdup_safe(kBuiltinCommands[i]);
+    for (size_t i = 0; i < lv_builtin_command_count; i++) {
+        if (lv_str_startswith(lv_builtin_commands[i], prefix)) {
+            out->items[idx].text = lv_strdup_safe(lv_builtin_commands[i]);
             if (!out->items[idx].text) {
                 lv_proto_free_completions(out);
                 lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_completions: strdup failed");

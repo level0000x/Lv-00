@@ -140,7 +140,7 @@ static void test_unconstructibles(void) {
     TEST_ASSERT(uc->green_verified == true, "LEM unprovability in IPL should be green_verified");
     TEST_ASSERT(uc->external_ref != NULL && strstr(uc->external_ref, "wikipedia.org") != NULL,
                 "LEM should have Wikipedia external_ref");
-    TEST_ASSERT(uc->dependency_count >= 1, "LEM should have at least 1 dependency");
+    TEST_ASSERT(uc->dependency_chain.count >= 1, "LEM should have at least 1 dependency");
 
     uc = axiom_package_lookup_unconstructible(pkg, "double_negation_elim_unconstructible");
     TEST_ASSERT(uc != NULL, "DNE unconstructible should exist");
@@ -334,7 +334,7 @@ static void test_external_references(void) {
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         TEST_ASSERT(uc->external_ref != NULL, "every unconstructible should have an external_ref");
         TEST_ASSERT(uc->external_ref[0] != '\0', "external_ref should be non-empty");
         TEST_ASSERT(strstr(uc->external_ref, "https://") == uc->external_ref,

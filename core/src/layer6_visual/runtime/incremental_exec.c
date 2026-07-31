@@ -1,4 +1,4 @@
-#include <stdlib.h>
+﻿#include <stdlib.h>
 #include <string.h>
 
 #include "lv/block_scheduler.h"
@@ -21,7 +21,7 @@ typedef struct lvIncrementalExec {
 lvIncrementalExec *lv_incremental_exec_create(int node_count) {
     lvIncrementalExec *exec = lv_calloc(1, sizeof(lvIncrementalExec));
     if (!exec)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate incremental exec");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate incremental exec");
     exec->node_count = node_count;
     /* 分配位图，每个unsigned int追踪32个block */
     if (node_count > 0) {
@@ -29,7 +29,7 @@ lvIncrementalExec *lv_incremental_exec_create(int node_count) {
         exec->validity_bitmap = lv_calloc(exec->bitmap_count, sizeof(unsigned int));
         if (!exec->validity_bitmap) {
             lv_free((void **) &exec);
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate validity bitmap");
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate validity bitmap");
         }
         /* 初始状态：所有block都有效 */
         memset(exec->validity_bitmap, 0xFF, exec->bitmap_count * sizeof(unsigned int));

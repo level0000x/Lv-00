@@ -26,13 +26,13 @@
 lvTextCodeView *lv_text_code_create(void) {
     lvTextCodeView *view = lv_calloc(1, sizeof(lvTextCodeView));
     if (!view)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate text code view");
-    view->view_type = lv_VIEW_TEXT_CODE;
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate text code view");
+    view->base.type = lv_VIEW_TEXT_CODE;
     view->buffer_size = 4096;
     view->code_buffer = lv_calloc(1, view->buffer_size);
     if (!view->code_buffer) {
         lv_free((void **) &view);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate code buffer");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate code buffer");
     }
     return view;
 }
@@ -71,7 +71,7 @@ int lv_text_code_set_text(lvTextCodeView *view, const char *text) {
             lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "text exceeds max buffer size 128MB");
         char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
         if (!new_buf)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc code buffer");
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc code buffer");
         view->code_buffer = new_buf;
         view->buffer_size = (int) new_size;
     }
@@ -119,7 +119,7 @@ int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text) {
             lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "insert text exceeds max buffer size 128MB");
         char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
         if (!new_buf)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc code buffer for insert");
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc code buffer for insert");
         view->code_buffer = new_buf;
         view->buffer_size = (int) new_size;
     }

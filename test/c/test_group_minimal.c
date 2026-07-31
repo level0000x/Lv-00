@@ -1,4 +1,4 @@
-﻿#include <stdio.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "lv.h"
@@ -19,8 +19,8 @@ int main(void) {
         return 1;
     }
 
-    printf("  name='%s', templates=%d, unconstructibles=%d\n", pkg->name, pkg->template_count,
-           pkg->unconstructible_count);
+    printf("  name='%s', templates=%d, unconstructibles=%d\n", pkg->name, axiom_package_get_template_count(pkg),
+           axiom_package_get_unconstructible_count(pkg));
     fflush(stdout);
 
     printf("Step 3: Looking up unconstructibles...\n");
@@ -29,7 +29,7 @@ int main(void) {
     printf("  word_problem: %p\n", (void *) uc);
     fflush(stdout);
     if (uc) {
-        printf("    reduces_to='%s', deps=%d\n", uc->reduces_to, uc->dependency_count);
+        printf("    reduces_to='%s', deps=%d\n", uc->reduces_to, uc->dependency_chain.count);
         fflush(stdout);
     }
 

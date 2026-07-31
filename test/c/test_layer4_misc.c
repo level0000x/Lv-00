@@ -549,8 +549,8 @@ static void test_relation_model_from_graph(void) {
     /* 从图构建关系模型 */
     RelModel *model = relation_model_from_graph(graph);
     TEST_ASSERT_NOT_NULL(model);
-    TEST_ASSERT(model->sig_count > 0, "应有签名");
-    TEST_ASSERT_NOT_NULL(model->sigs);
+    TEST_ASSERT(model->sigs.count > 0, "应有签名");
+    TEST_ASSERT_NOT_NULL(model->sigs.data);
 
     /* NULL参数 */
     TEST_ASSERT_NULL(relation_model_from_graph(NULL));

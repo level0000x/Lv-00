@@ -14,16 +14,11 @@
 
 #include "lv/lv_file.h"
 
+#include "lv/io_block.h"
 #include "lv/io_blocks.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
 
-
-/** @brief 文件块内部状态结构 */
-typedef struct {
-    char *path;   /**< 文件路径 */
-    bool is_open; /**< 文件是否已打开（状态标记） */
-} FileBlockState;
 
 /**
  * @brief 创建文件块
@@ -37,17 +32,17 @@ typedef struct {
 lvFileBlock *lv_file_block_create(lvEffectType effect) {
     lvFileBlock *block = lv_calloc(1, sizeof(lvFileBlock));
     if (!block)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate file block");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate file block");
     block->effect = effect;
     block->path_port = -1;
     block->data_port = -1;
     block->result_port = -1;
     block->status_port = -1;
 
-    FileBlockState *state = lv_calloc(1, sizeof(FileBlockState));
+    lvIOBlockState *state = lv_calloc(1, sizeof(lvIOBlockState));
     if (!state) {
         lv_free((void **) &block);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate file block state");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate file block state");
     }
     block->base = state;
     return block;
@@ -64,8 +59,8 @@ void lv_file_block_destroy(lvFileBlock *block) {
     if (!block)
         return;
     if (block->base) {
-        FileBlockState *state = (FileBlockState *) block->base;
-        lv_free((void **) &state->path);
+        lvIOBlockState *state = (lvIOBlockState *) block->base;
+        lv_free((void **) &state->target);
         lv_free((void **) &state);
     }
     lv_free((void **) &block);
@@ -83,11 +78,11 @@ void lv_file_block_destroy(lvFileBlock *block) {
 int lv_file_block_set_path(lvFileBlock *block, const char *path) {
     if (!block || !block->base || !path)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block, base, or path");
-    FileBlockState *state = (FileBlockState *) block->base;
-    lv_free((void **) &state->path);
-    state->path = lv_strdup(path);
-    if (!state->path)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to strdup path");
+    lvIOBlockState *state = (lvIOBlockState *) block->base;
+    lv_free((void **) &state->target);
+    state->target = lv_strdup(path);
+    if (!state->target)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to strdup path");
     return 0;
 }
 
@@ -100,8 +95,8 @@ int lv_file_block_set_path(lvFileBlock *block, const char *path) {
 const char *lv_file_block_get_path(const lvFileBlock *block) {
     if (!block || !block->base)
         return NULL;
-    FileBlockState *state = (FileBlockState *) block->base;
-    return state->path;
+    lvIOBlockState *state = (lvIOBlockState *) block->base;
+    return state->target;
 }
 
 /**
@@ -118,11 +113,11 @@ const char *lv_file_block_get_path(const lvFileBlock *block) {
 int lv_file_block_read(lvFileBlock *block, void *buf, size_t buf_size, size_t *bytes_read) {
     if (!block || !block->base || !buf || buf_size == 0)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block, base, or buf, or zero size");
-    FileBlockState *state = (FileBlockState *) block->base;
-    if (!state->path)
+    lvIOBlockState *state = (lvIOBlockState *) block->base;
+    if (!state->target)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "file path not set");
 
-    FILE *f = lv_file_open(state->path, "rb");
+    FILE *f = lv_file_open(state->target, "rb");
     if (!f) {
         if (bytes_read)
             *bytes_read = 0;
@@ -133,7 +128,7 @@ int lv_file_block_read(lvFileBlock *block, void *buf, size_t buf_size, size_t *b
 
     if (bytes_read)
         *bytes_read = n;
-    state->is_open = false;
+    state->active = false;
     if (n > 0)
         return 0;
     lv_RETURN_ERROR(lv_ERROR_IO, "no bytes read from file");
@@ -152,17 +147,17 @@ int lv_file_block_read(lvFileBlock *block, void *buf, size_t buf_size, size_t *b
 int lv_file_block_write(lvFileBlock *block, const void *data, size_t data_size) {
     if (!block || !block->base || !data)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL block, base, or data");
-    FileBlockState *state = (FileBlockState *) block->base;
-    if (!state->path)
+    lvIOBlockState *state = (lvIOBlockState *) block->base;
+    if (!state->target)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "file path not set for write");
 
-    FILE *f = lv_file_open(state->path, "wb");
+    FILE *f = lv_file_open(state->target, "wb");
     if (!f)
         lv_RETURN_ERROR(lv_ERROR_IO, "failed to open file for writing");
     size_t n = fwrite(data, 1, data_size, f);
     lv_file_close(f);
 
-    state->is_open = false;
+    state->active = false;
     if (n == data_size)
         return 0;
     lv_RETURN_ERROR(lv_ERROR_IO, "incomplete file write");
@@ -177,6 +172,6 @@ int lv_file_block_write(lvFileBlock *block, const void *data, size_t data_size) 
 bool lv_file_block_is_open(const lvFileBlock *block) {
     if (!block || !block->base)
         return false;
-    FileBlockState *state = (FileBlockState *) block->base;
-    return state->is_open;
+    lvIOBlockState *state = (lvIOBlockState *) block->base;
+    return state->active;
 }

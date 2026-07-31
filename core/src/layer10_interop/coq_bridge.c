@@ -21,6 +21,7 @@
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/interop_bridge_common.h"
 
 /**
  * @brief Lv-00 证明步骤类型枚举（Coq 映射版）
@@ -39,26 +40,7 @@ typedef enum {
     lv_STEP_ORACLE          /**< 外部预言 → admit (* oracle *) */
 } lvProofStepType;
 
-/**
- * @brief 证明步骤结构体
- *
- * 表示 Coq 证明中的单个步骤，包含类型、描述文本和序号。
- */
-typedef struct {
-    int type;              /**< 步骤类型（lvProofStepType） */
-    char description[512]; /**< 步骤描述（tactic 名称） */
-    int id;                /**< 步骤编号（按导入顺序） */
-} lvProofStep;
-
-/**
- * @brief 内部证明结构体（Coq 版）
- *
- * 用于 Coq 证明脚本的导入/导出中间表示。包含定理名称和步骤数组。
- */
-typedef struct {
-    char theorem_name[256]; /**< 定理名称 */
-    lvDArray steps_da;      /**< 步骤动态数组 */
-} lvCoqProof;
+/* lvProofStep 和 lvBridgeProof 定义在 lv/interop_bridge_common.h */
 
 /* 映射表大小常量 */
 #define COQ_TACTIC_MAP_COUNT 8
@@ -68,7 +50,7 @@ typedef struct {
 /**
  * @brief 将内部证明树导出为 Coq .v 脚本格式
  *
- * 遍历 lvCoqProof 的步骤数组，将每一步骤类型通过 tactic_map 映射为
+ * 遍历 lvBridgeProof 的步骤数组，将每一步骤类型通过 tactic_map 映射为
  * Coq tactic 名称，生成符合 Coq 8.18 语法的完整 .v 文件内容。
  *
  * @param proof      lvCoqProof 指针（内部证明结构体）
@@ -81,7 +63,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
     lv_CHECK_NOT_NULL(output);
     lv_CHECK_ARG(output_size > 0, lv_ERROR_INVALID_PARAM, "invalid output_size");
 
-    lvCoqProof *p = (lvCoqProof *) proof;
+    lvBridgeProof *p = (lvBridgeProof *) proof;
 
     /* 步骤类型到 Coq tactic 的映射表 */
     static const struct {
@@ -156,7 +138,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
  * 之间的 tactic 行，通过 reverse_map 反向映射为 Lv-00 步骤类型。
  *
  * @param input  Coq .v 脚本内容（以 null 结尾的字符串）
- * @param proof  输出参数：成功时指向新分配的 lvCoqProof 结构体
+ * @param proof  输出参数：成功时指向新分配的 lvBridgeProof 结构体
  * @return 成功返回 0，输入无效或解析失败返回 -1
  */
 static int coq_import_proof(const char *input, void **proof) {
@@ -207,7 +189,7 @@ static int coq_import_proof(const char *input, void **proof) {
     int reverse_count = COQ_REVERSE_MAP_COUNT;
 
     /* 分配证明结构体 */
-    lvCoqProof *p = (lvCoqProof *) lv_calloc(1, sizeof(lvCoqProof));
+    lvBridgeProof *p = (lvBridgeProof *) lv_calloc(1, sizeof(lvBridgeProof));
     if (!p)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate coq proof");
 

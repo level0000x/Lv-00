@@ -106,22 +106,22 @@ bool preset_common_register(void);
  * @brief 单个预设注册块（消除每个注册块的重复结构）
  *
  * 用法：在 xxx_register() 函数内部使用：
- *   LV_PRESET_REGISTER(success, "name", "desc", (TYPE_A, TYPE_B), 2, TYPE_C, "math", "comp", true, false);
+ *   LV_PRESET_REGISTER(success, "name", "desc", 2, TYPE_C, "math", "comp", true, false, TYPE_A, TYPE_B);
  *
  * @param success_counter 成功计数器（递增的变量名）
  * @param name_      预设名称字符串
  * @param desc_      预设描述字符串
- * @param inputs_    输入类型列表（逗号分隔，无括号）
  * @param in_cnt_    输入数量
  * @param output_    输出类型
  * @param math_def_  数学定义字符串
  * @param comp_      复杂度字符串
  * @param cons_      bool 是否构造性
  * @param rev_       bool 是否可逆
+ * @param ...        输入类型列表（可变参数，1 个或多个 PresetType 枚举）
  */
-#define LV_PRESET_REGISTER(success_counter, name_, desc_, inputs_, in_cnt_, output_, math_def_, comp_, cons_, rev_, ...) \
+#define LV_PRESET_REGISTER(success_counter, name_, desc_, in_cnt_, output_, math_def_, comp_, cons_, rev_, ...) \
     do {                                                                                                            \
-        static const PresetType _inputs[] = { inputs_ };                                                            \
+        static const PresetType _inputs[] = { __VA_ARGS__ };                                                        \
         if (lv_preset_register_helper((name_), (desc_), _inputs, (in_cnt_), (output_), (math_def_), (comp_),        \
                                       (cons_), (rev_))) {                                                          \
             (success_counter)++;                                                                                    \

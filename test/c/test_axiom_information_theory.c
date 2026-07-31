@@ -391,7 +391,7 @@ static void test_external_refs(void) {
 
     int ref_count = 0;
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
-        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, `i);
+        KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         if (uc->external_ref && strlen(uc->external_ref) > 0) {
             TEST_ASSERT(strncmp(uc->external_ref, "https://", 8) == 0, uc->name);
             ref_count++;

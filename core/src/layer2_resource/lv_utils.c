@@ -750,40 +750,6 @@ bool lv_str_is_blank(const char *str) {
 }
 
 /**
- * @brief 原地去除字符串首尾空白字符
- *
- * 修改传入的字符串，去除其前导和尾部的空白字符（空格、制表符、换行符等）。
- * 通过在尾部空白处写入 '\0' 来截断字符串，并返回指向去除前导空白后
- * 第一个非空白字符的指针。
- *
- * @param str 待修剪的字符串指针，允许为 NULL。
- * @return 指向去除前导空白后的字符串起始位置的指针。
- *         若 str 为 NULL，返回 NULL。
- * @note 返回值可能与传入的 str 不同（当字符串有前导空白时）。
- *       此函数会原地修改字符串内容，调用者应使用返回值而非原始指针。
- *       若字符串全部为空白字符，返回指向末尾 '\0' 的指针。
- */
-char *lv_str_trim(char *str) {
-    if (!str)
-        return NULL;
-
-    /* 去除前导空白 */
-    while (isspace((unsigned char) *str))
-        str++;
-
-    if (*str == '\0')
-        return str;
-
-    /* 去除尾部空白 */
-    char *end = str + strlen(str) - 1;
-    while (end > str && isspace((unsigned char) *end))
-        end--;
-    end[1] = '\0';
-
-    return str;
-}
-
-/**
  * @brief 安全字符串复制 —— 保证 \0 终止并全面检查参数有效性
  *
  * 与 lv_strlcpy 不同：
