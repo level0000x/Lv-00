@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_preset.c
  * @brief 预设函数块系统实现
  *
@@ -12,6 +12,7 @@
  */
 
 #include "func_block_preset.h"
+#include "lv/lv_xmacro.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -1242,100 +1243,76 @@ bool func_block_preset_exists(const char *preset_name) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} fb_preset_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *fb_preset_name_lookup(const fb_preset_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief func_block_preset_category_string 名称表（按枚举值升序） */
-static const fb_preset_NameEntry s_func_block_preset_category_string_entries[] = {
-    {PRESET_CATEGORY_CONSTRUCTION, "几何构造"},
-    {PRESET_CATEGORY_MEASUREMENT, "度量计算"},
-    {PRESET_CATEGORY_TRANSFORMATION, "几何变换"},
-    {PRESET_CATEGORY_ALGEBRAIC, "代数运算"},
-    {PRESET_CATEGORY_LOGIC, "逻辑推导"},
-    {PRESET_CATEGORY_ANALYSIS, "数学分析"},
-    {PRESET_CATEGORY_COMPLEX_ANALYSIS, "复分析"},
-    {PRESET_CATEGORY_NUMBER_THEORY, "数论"},
-    {PRESET_CATEGORY_GROUP_THEORY, "群论"},
-    {PRESET_CATEGORY_RING_THEORY, "环论"},
-    {PRESET_CATEGORY_FIELD_THEORY, "域论"},
-    {PRESET_CATEGORY_TOPOLOGY, "拓扑学"},
-    {PRESET_CATEGORY_GEOMETRY, "几何学"},
-    {PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY, "微分几何"},
-    {PRESET_CATEGORY_LINEAR_ALGEBRA, "线性代数"},
-    {PRESET_CATEGORY_ALGEBRA, "代数学"},
-    {PRESET_CATEGORY_COMBINATORICS, "组合数学"},
-    {PRESET_CATEGORY_PROBABILITY, "概率统计"},
-    {PRESET_CATEGORY_CATEGORY_THEORY, "范畴论"},
-    {PRESET_CATEGORY_SET_THEORY, "集合论"},
-    {PRESET_CATEGORY_GRAPH_THEORY, "图论"},
-    {PRESET_CATEGORY_NUMERICAL, "数值分析"},
-    {PRESET_CATEGORY_OPTIMIZATION, "优化理论"},
-    {PRESET_CATEGORY_MATH_LOGIC, "数理逻辑"},
-    {PRESET_CATEGORY_CUSTOM, "自定义"},
+static const lvStrToEnumEntry s_func_block_preset_category_string_entries[] = {
+    {"几何构造", PRESET_CATEGORY_CONSTRUCTION},
+    {"度量计算", PRESET_CATEGORY_MEASUREMENT},
+    {"几何变换", PRESET_CATEGORY_TRANSFORMATION},
+    {"代数运算", PRESET_CATEGORY_ALGEBRAIC},
+    {"逻辑推导", PRESET_CATEGORY_LOGIC},
+    {"数学分析", PRESET_CATEGORY_ANALYSIS},
+    {"数论", PRESET_CATEGORY_NUMBER_THEORY},
+    {"群论", PRESET_CATEGORY_GROUP_THEORY},
+    {"环论", PRESET_CATEGORY_RING_THEORY},
+    {"域论", PRESET_CATEGORY_FIELD_THEORY},
+    {"拓扑学", PRESET_CATEGORY_TOPOLOGY},
+    {"线性代数", PRESET_CATEGORY_LINEAR_ALGEBRA},
+    {"组合数学", PRESET_CATEGORY_COMBINATORICS},
+    {"复分析", PRESET_CATEGORY_COMPLEX_ANALYSIS},
+    {"概率统计", PRESET_CATEGORY_PROBABILITY},
+    {"几何学", PRESET_CATEGORY_GEOMETRY},
+    {"代数学", PRESET_CATEGORY_ALGEBRA},
+    {"范畴论", PRESET_CATEGORY_CATEGORY_THEORY},
+    {"集合论", PRESET_CATEGORY_SET_THEORY},
+    {"自定义", PRESET_CATEGORY_CUSTOM},
+    {"图论", PRESET_CATEGORY_GRAPH_THEORY},
+    {"微分几何", PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY},
+    {"数值分析", PRESET_CATEGORY_NUMERICAL},
+    {"优化理论", PRESET_CATEGORY_OPTIMIZATION},
+    {"数理逻辑", PRESET_CATEGORY_MATH_LOGIC},
 };
 
 const char *func_block_preset_category_string(PresetCategory category) {
-    const char *name = fb_preset_name_lookup(s_func_block_preset_category_string_entries, lv_ARRAY_SIZE(s_func_block_preset_category_string_entries), (int) category);
-    return name ? name : "未知类别";
+    return lv_enum_to_str(s_func_block_preset_category_string_entries, lv_ARRAY_SIZE(s_func_block_preset_category_string_entries), (int) category, "未知类别");
 }
 
 /** @brief func_block_preset_param_type_string 名称表（按枚举值升序） */
-static const fb_preset_NameEntry s_func_block_preset_param_type_string_entries[] = {
-    {PARAM_TYPE_POINT, "点"},
-    {PARAM_TYPE_LINE, "直线"},
-    {PARAM_TYPE_SEGMENT, "线段"},
-    {PARAM_TYPE_RAY, "射线"},
-    {PARAM_TYPE_CIRCLE, "圆"},
-    {PARAM_TYPE_ARC, "圆弧"},
-    {PARAM_TYPE_POLYGON, "多边形"},
-    {PARAM_TYPE_REGION, "区域"},
-    {PARAM_TYPE_ANGLE, "角度"},
-    {PARAM_TYPE_VECTOR, "向量"},
-    {PARAM_TYPE_SCALAR, "标量"},
-    {PARAM_TYPE_BOOLEAN, "布尔值"},
-    {PARAM_TYPE_CURVE, "曲线"},
-    {PARAM_TYPE_SURFACE, "曲面"},
-    {PARAM_TYPE_ANY, "任意类型"},
-    {PARAM_TYPE_VARIADIC, "可变参数"},
+static const lvStrToEnumEntry s_func_block_preset_param_type_string_entries[] = {
+    {"点", PARAM_TYPE_POINT},
+    {"直线", PARAM_TYPE_LINE},
+    {"线段", PARAM_TYPE_SEGMENT},
+    {"射线", PARAM_TYPE_RAY},
+    {"圆", PARAM_TYPE_CIRCLE},
+    {"圆弧", PARAM_TYPE_ARC},
+    {"多边形", PARAM_TYPE_POLYGON},
+    {"区域", PARAM_TYPE_REGION},
+    {"角度", PARAM_TYPE_ANGLE},
+    {"向量", PARAM_TYPE_VECTOR},
+    {"标量", PARAM_TYPE_SCALAR},
+    {"布尔值", PARAM_TYPE_BOOLEAN},
+    {"曲线", PARAM_TYPE_CURVE},
+    {"曲面", PARAM_TYPE_SURFACE},
+    {"任意类型", PARAM_TYPE_ANY},
+    {"可变参数", PARAM_TYPE_VARIADIC},
 };
 
 const char *func_block_preset_param_type_string(PresetParamType type) {
-    const char *name = fb_preset_name_lookup(s_func_block_preset_param_type_string_entries, lv_ARRAY_SIZE(s_func_block_preset_param_type_string_entries), (int) type);
-    return name ? name : "未知类型";
+    return lv_enum_to_str(s_func_block_preset_param_type_string_entries, lv_ARRAY_SIZE(s_func_block_preset_param_type_string_entries), (int) type, "未知类型");
 }
 
 /** @brief func_block_preset_complexity_string 名称表（按枚举值升序） */
-static const fb_preset_NameEntry s_func_block_preset_complexity_string_entries[] = {
-    {COMPLEXITY_O1, "O(1) - 常数时间"},
-    {COMPLEXITY_OLOGN, "O(log n) - 对数时间"},
-    {COMPLEXITY_ON, "O(n) - 线性时间"},
-    {COMPLEXITY_ONLOGN, "O(n log n) - 线性对数"},
-    {COMPLEXITY_ON2, "O(n²) - 平方时间"},
-    {COMPLEXITY_ON3, "O(n³) - 立方时间"},
-    {COMPLEXITY_UNKNOWN, "未知"},
+static const lvStrToEnumEntry s_func_block_preset_complexity_string_entries[] = {
+    {"O(1) - 常数时间", COMPLEXITY_O1},
+    {"O(log n) - 对数时间", COMPLEXITY_OLOGN},
+    {"O(n) - 线性时间", COMPLEXITY_ON},
+    {"O(n log n) - 线性对数", COMPLEXITY_ONLOGN},
+    {"O(n²) - 平方时间", COMPLEXITY_ON2},
+    {"O(n³) - 立方时间", COMPLEXITY_ON3},
+    {"未知", COMPLEXITY_UNKNOWN},
 };
 
 const char *func_block_preset_complexity_string(PresetComplexity complexity) {
-    const char *name = fb_preset_name_lookup(s_func_block_preset_complexity_string_entries, lv_ARRAY_SIZE(s_func_block_preset_complexity_string_entries), (int) complexity);
-    return name ? name : "未知";
+    return lv_enum_to_str(s_func_block_preset_complexity_string_entries, lv_ARRAY_SIZE(s_func_block_preset_complexity_string_entries), (int) complexity, "未知");
 }
 
 int func_block_preset_properties_string(PresetProperty properties, char *out_buffer, size_t buffer_size) {

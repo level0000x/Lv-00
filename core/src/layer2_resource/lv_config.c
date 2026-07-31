@@ -27,26 +27,18 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_thread.h"
 #include "lv/lv_utils.h"
 
 
 static lvConfig g_active_config;
 static int g_config_applied = 0;
 
-/**
- * @brief 获取默认配置
- *
- * 返回静态默认配置结构体。所有字段预置为安全的默认值。
- * 函数内部使用 static initialized 标志实现线程安全的一次性初始化。
- *
- * @return 指向默认配置的常量指针
- */
-const lvConfig *lv_config_default(void) {
-    static lvConfig def;
-    static int initialized = 0;
-    if (initialized)
-        return &def;
-    initialized = 1;
+static lvConfig def;
+static lv_once_t g_default_config_once = lv_ONCE_INIT;
+
+/** @brief 初始化默认配置（仅执行一次，由 lv_once 保证线程安全） */
+static void lv_config_default_init(void) {
     memset(&def, 0, sizeof(def));
 
     /* 求解器 */
@@ -174,7 +166,18 @@ const lvConfig *lv_config_default(void) {
     def.high_dim.high_dim_max_projection_presets = 64;
     def.high_dim.high_dim_max_active_views = 16;
     def.high_dim.high_dim_default_fidelity_threshold = 0.85;
+}
 
+/**
+ * @brief 获取默认配置
+ *
+ * 返回静态默认配置结构体。所有字段预置为安全的默认值。
+ * 首次调用通过 lv_once 完成一次性初始化（线程安全）。
+ *
+ * @return 指向默认配置的常量指针
+ */
+const lvConfig *lv_config_default(void) {
+    lv_once(&g_default_config_once, lv_config_default_init);
     return &def;
 }
 

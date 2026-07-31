@@ -72,6 +72,27 @@ static SMTRegistryState s_smt_registry_state = {0};
  * 默认配置
  * ============================================================ */
 
+static SMTSolverConfig g_default_configs[COUNT];
+static lv_once_t g_default_config_once = lv_ONCE_INIT;
+
+/** @brief 初始化全部后端的默认求解器配置（仅执行一次，由 lv_once 保证线程安全） */
+static void smtsolver_default_config_init(void) {
+    for (int i = 0; i < COUNT; i++) {
+        g_default_configs[i].timeout_ms = lv_DEFAULT_TIMEOUT_MS;
+        g_default_configs[i].memory_limit_mb = SMT_DEFAULT_MEMORY_MB;
+        g_default_configs[i].logic = SMT_LOGIC_AUTO;
+        g_default_configs[i].produce_models = true;
+        g_default_configs[i].produce_unsat_cores = false;
+        g_default_configs[i].produce_proofs = false;
+        g_default_configs[i].incremental = false;
+        g_default_configs[i].random_seed = -1;
+        g_default_configs[i].verbosity = 0;
+        g_default_configs[i].custom_config = NULL;
+    }
+    /* Groebner 后端使用非线性实数算术（几何约束含距离平方等二次项） */
+    g_default_configs[GROEBNER].logic = SMT_LOGIC_QF_NRA;
+}
+
 /**
  * @brief 创建并返回默认的求解器配置
  *
@@ -81,31 +102,12 @@ static SMTRegistryState s_smt_registry_state = {0};
  * 通常涉及距离平方等二次多项式。
  */
 const SMTSolverConfig *smtsolver_default_config(SolverBackendType type) {
-    static SMTSolverConfig defaults[COUNT];
-    static bool initialized = false;
-
-    if (!initialized) {
-        for (int i = 0; i < COUNT; i++) {
-            defaults[i].timeout_ms = lv_DEFAULT_TIMEOUT_MS;
-            defaults[i].memory_limit_mb = SMT_DEFAULT_MEMORY_MB;
-            defaults[i].logic = SMT_LOGIC_AUTO;
-            defaults[i].produce_models = true;
-            defaults[i].produce_unsat_cores = false;
-            defaults[i].produce_proofs = false;
-            defaults[i].incremental = false;
-            defaults[i].random_seed = -1;
-            defaults[i].verbosity = 0;
-            defaults[i].custom_config = NULL;
-        }
-        /* Groebner 后端使用非线性实数算术（几何约束含距离平方等二次项） */
-        defaults[GROEBNER].logic = SMT_LOGIC_QF_NRA;
-        initialized = true;
-    }
+    lv_once(&g_default_config_once, smtsolver_default_config_init);
 
     if (type >= COUNT) {
-        return &defaults[GROEBNER];
+        return &g_default_configs[GROEBNER];
     }
-    return &defaults[type];
+    return &g_default_configs[type];
 }
 
 /* ============================================================

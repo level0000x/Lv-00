@@ -169,44 +169,22 @@ static void json_buf_append_coord(lvJsonBuf *buf, const SymbolicCoord *coord) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} graph_ser_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *graph_ser_name_lookup(const graph_ser_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief trust_color_to_string 名称表（按枚举值升序） */
-static const graph_ser_NameEntry s_trust_color_to_string_entries[] = {
-    {TRUST_GREEN, "GREEN"},
-    {TRUST_BLUE_UNEXPLORED, "BLUE_UNEXPLORED"},
-    {TRUST_BLUE_EXCEEDED, "BLUE_EXCEEDED"},
-    {TRUST_BLUE_OUT_OF_SCOPE, "BLUE_OUT_OF_SCOPE"},
-    {TRUST_YELLOW, "YELLOW"},
-    {TRUST_LIGHT_ORANGE_ORACLE, "LIGHT_ORANGE_ORACLE"},
-    {TRUST_LIGHT_ORANGE_EXPLOSION, "LIGHT_ORANGE_EXPLOSION"},
-    {TRUST_AMBER, "AMBER"},
-    {TRUST_DEEP_ORANGE, "DEEP_ORANGE"},
-    {TRUST_RED, "RED"},
+static const lvStrToEnumEntry s_trust_color_to_string_entries[] = {
+    {"GREEN", TRUST_GREEN},
+    {"BLUE_UNEXPLORED", TRUST_BLUE_UNEXPLORED},
+    {"BLUE_EXCEEDED", TRUST_BLUE_EXCEEDED},
+    {"BLUE_OUT_OF_SCOPE", TRUST_BLUE_OUT_OF_SCOPE},
+    {"YELLOW", TRUST_YELLOW},
+    {"LIGHT_ORANGE_ORACLE", TRUST_LIGHT_ORANGE_ORACLE},
+    {"LIGHT_ORANGE_EXPLOSION", TRUST_LIGHT_ORANGE_EXPLOSION},
+    {"AMBER", TRUST_AMBER},
+    {"DEEP_ORANGE", TRUST_DEEP_ORANGE},
+    {"RED", TRUST_RED},
 };
 
 static const char *trust_color_to_string(TrustColor trust) {
-    const char *name = graph_ser_name_lookup(s_trust_color_to_string_entries, lv_ARRAY_SIZE(s_trust_color_to_string_entries), (int) trust);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_trust_color_to_string_entries, lv_ARRAY_SIZE(s_trust_color_to_string_entries), (int) trust, "UNKNOWN");
 }
 
 /* 序列化单个节点 */

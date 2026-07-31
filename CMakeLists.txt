@@ -697,6 +697,15 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_stream_context.c
     core/src/layer2_resource/error_codes.c
     core/src/layer2_resource/debug.c
+    core/src/layer2_resource/debug_state.c
+    core/src/layer2_resource/debug_mempool.c
+    core/src/layer2_resource/debug_refcount.c
+    core/src/layer2_resource/debug_emergency.c
+    core/src/layer2_resource/debug_invariants.c
+    core/src/layer2_resource/debug_trace_session.c
+    core/src/layer2_resource/debug_ringbuf.c
+    core/src/layer2_resource/debug_log_ctx.c
+    core/src/layer2_resource/debug_normalize_assert.c
     core/src/layer2_resource/node_deep_copy.c
     # v1.1.0 新增：内存池、运行时监控、测试框架
     core/src/layer2_resource/memory_pool.c
@@ -908,10 +917,26 @@ set(lv_LAYER4_SOURCES
     # 重写与合一
     core/src/layer4_reasoning/rewrite.c
     core/src/layer4_reasoning/unify/unify.c
+    core/src/layer4_reasoning/unify/unify_basic.c
+    core/src/layer4_reasoning/unify/unify_equivalence.c
+    core/src/layer4_reasoning/unify/unify_fine.c
+    core/src/layer4_reasoning/unify/unify_hash.c
+    core/src/layer4_reasoning/unify/unify_helpers.c
+    core/src/layer4_reasoning/unify/unify_instantiate.c
+    core/src/layer4_reasoning/unify/unify_report.c
+    core/src/layer4_reasoning/unify/unify_simplify.c
     core/src/layer4_reasoning/unify/normalization.c
     core/src/layer4_reasoning/unify/graph_hash.c
     core/src/layer4_reasoning/unify/lambda_unify.c
     core/src/layer4_reasoning/model/recursion.c
+    core/src/layer4_reasoning/model/recursion_context.c
+    core/src/layer4_reasoning/model/recursion_measure.c
+    core/src/layer4_reasoning/model/recursion_mutual.c
+    core/src/layer4_reasoning/model/recursion_selector.c
+    core/src/layer4_reasoning/model/recursion_symbolic_measure.c
+    core/src/layer4_reasoning/model/recursion_test.c
+    core/src/layer4_reasoning/model/recursion_utils.c
+    core/src/layer4_reasoning/model/recursion_validation.c
     core/src/layer4_reasoning/model/recursion_test_suite.c
     # 类型与属性
     core/src/layer4_reasoning/type_logic/type_system.c

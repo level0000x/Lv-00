@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_registry.c
  * @brief 预设函数块注册系统实现
  *
@@ -13,6 +13,7 @@
  */
 
 #include "func_block_registry.h"
+#include "lv/lv_xmacro.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -681,49 +682,27 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} fb_registry_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *fb_registry_name_lookup(const fb_registry_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief preset_category_to_string 名称表（按枚举值升序） */
-static const fb_registry_NameEntry s_preset_category_to_string_entries[] = {
-    {PRESET_CATEGORY_CONSTRUCTION, "几何构造"},
-    {PRESET_CATEGORY_MEASUREMENT, "度量计算"},
-    {PRESET_CATEGORY_TRANSFORMATION, "几何变换"},
-    {PRESET_CATEGORY_ALGEBRAIC, "代数运算"},
-    {PRESET_CATEGORY_LOGIC, "逻辑推导"},
-    {PRESET_CATEGORY_ANALYSIS, "分析运算"},
-    {PRESET_CATEGORY_NUMBER_THEORY, "数论运算"},
-    {PRESET_CATEGORY_GROUP_THEORY, "群论运算"},
-    {PRESET_CATEGORY_RING_THEORY, "环论运算"},
-    {PRESET_CATEGORY_FIELD_THEORY, "域论运算"},
-    {PRESET_CATEGORY_TOPOLOGY, "拓扑构造"},
-    {PRESET_CATEGORY_LINEAR_ALGEBRA, "线性代数"},
-    {PRESET_CATEGORY_COMBINATORICS, "组合数学"},
-    {PRESET_CATEGORY_COMPLEX_ANALYSIS, "复分析"},
-    {PRESET_CATEGORY_PROBABILITY, "概率统计"},
+static const lvStrToEnumEntry s_preset_category_to_string_entries[] = {
+    {"几何构造", PRESET_CATEGORY_CONSTRUCTION},
+    {"度量计算", PRESET_CATEGORY_MEASUREMENT},
+    {"几何变换", PRESET_CATEGORY_TRANSFORMATION},
+    {"代数运算", PRESET_CATEGORY_ALGEBRAIC},
+    {"逻辑推导", PRESET_CATEGORY_LOGIC},
+    {"分析运算", PRESET_CATEGORY_ANALYSIS},
+    {"数论运算", PRESET_CATEGORY_NUMBER_THEORY},
+    {"群论运算", PRESET_CATEGORY_GROUP_THEORY},
+    {"环论运算", PRESET_CATEGORY_RING_THEORY},
+    {"域论运算", PRESET_CATEGORY_FIELD_THEORY},
+    {"拓扑构造", PRESET_CATEGORY_TOPOLOGY},
+    {"线性代数", PRESET_CATEGORY_LINEAR_ALGEBRA},
+    {"组合数学", PRESET_CATEGORY_COMBINATORICS},
+    {"复分析", PRESET_CATEGORY_COMPLEX_ANALYSIS},
+    {"概率统计", PRESET_CATEGORY_PROBABILITY},
 };
 
 const char *preset_category_to_string(PresetCategory cat) {
-    const char *name = fb_registry_name_lookup(s_preset_category_to_string_entries, lv_ARRAY_SIZE(s_preset_category_to_string_entries), (int) cat);
-    return name ? name : "未知类别";
+    return lv_enum_to_str(s_preset_category_to_string_entries, lv_ARRAY_SIZE(s_preset_category_to_string_entries), (int) cat, "未知类别");
 }
 
 /**

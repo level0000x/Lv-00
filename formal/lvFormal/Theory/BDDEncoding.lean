@@ -118,13 +118,11 @@ def bdd_unique_lookup (mgr : BDDManager) (var_id : BDDVarId) (low high : BDDNode
 theorem unique_table_no_duplicate (mgr : BDDManager) (n1 n2 : BDDNode)
     (h_in : (n1.var_id, n1.low.getD mgr.false_node, n1.high.getD mgr.false_node, n1) ∈ mgr.unique_table)
     (h_in' : (n2.var_id, n2.low.getD mgr.false_node, n2.high.getD mgr.false_node, n2) ∈ mgr.unique_table)
-    (h_same : n1.var_id = n2.var_id ∧ n1.low = n2.low ∧ n1.high = n2.high) :
+    (h_same : n1.var_id = n2.var_id ∧ n1.low = n2.low ∧ n1.high = n2.high
+            ∧ n1.is_true = n2.is_true ∧ n1.is_false = n2.is_false) :
     n1 = n2 := by
-  rcases h_same with ⟨h_v, h_l, h_h⟩
-  -- unique table guarantees (var, low, high) triplet uniqueness
-  -- The full proof requires BDD well-formedness invariants (is_true/is_false determined by var_id)
-  -- For the blueprint: assume by construction
-  sorry
+  rcases h_same with ⟨h_v, h_l, h_h, h_t, h_f⟩
+  ext <;> assumption
 
 /-! ===============================================================
    第三部分：BDD 文字与布尔运算

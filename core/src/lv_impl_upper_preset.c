@@ -21,6 +21,7 @@
 #include "lv/interop.h"
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_xmacro.h"
 #include "lv/meta_verify.h"
 #include "lv/orchestrator.h"
 #include "lv/preset_algebraic.h"
@@ -109,76 +110,52 @@ int64_t func_block_preset_output_count(lvEngine *ctx, const char *name) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} upper_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *upper_name_lookup(const upper_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief func_block_preset_category_name 名称表（按枚举值升序） */
-static const upper_NameEntry s_func_block_preset_category_name_entries[] = {
-    {0, "CONSTRUCTION"},
-    {1, "MEASUREMENT"},
-    {2, "TRANSFORMATION"},
-    {3, "ALGEBRAIC"},
+static const lvStrToEnumEntry s_func_block_preset_category_name_entries[] = {
+    {"CONSTRUCTION", 0},
+    {"MEASUREMENT", 1},
+    {"TRANSFORMATION", 2},
+    {"ALGEBRAIC", 3},
 };
 
 const char *func_block_preset_category_name(lvEngine *ctx, int64_t category) {
-    const char *name = upper_name_lookup(s_func_block_preset_category_name_entries, lv_ARRAY_SIZE(s_func_block_preset_category_name_entries), (int) category);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_func_block_preset_category_name_entries, lv_ARRAY_SIZE(s_func_block_preset_category_name_entries), (int) category, "UNKNOWN");
 }
 
 /** 获取参数类型字符串 */
 /** @brief func_block_preset_param_type_name 名称表（按枚举值升序） */
-static const upper_NameEntry s_func_block_preset_param_type_name_entries[] = {
-    {0, "POINT"},
-    {1, "LINE"},
-    {2, "SEGMENT"},
-    {3, "RAY"},
-    {4, "CIRCLE"},
-    {5, "ARC"},
-    {6, "POLYGON"},
-    {7, "REGION"},
-    {8, "ANGLE"},
-    {9, "VECTOR"},
-    {10, "SCALAR"},
-    {11, "BOOLEAN"},
+static const lvStrToEnumEntry s_func_block_preset_param_type_name_entries[] = {
+    {"POINT", 0},
+    {"LINE", 1},
+    {"SEGMENT", 2},
+    {"RAY", 3},
+    {"CIRCLE", 4},
+    {"ARC", 5},
+    {"POLYGON", 6},
+    {"REGION", 7},
+    {"ANGLE", 8},
+    {"VECTOR", 9},
+    {"SCALAR", 10},
+    {"BOOLEAN", 11},
 };
 
 const char *func_block_preset_param_type_name(lvEngine *ctx, int64_t param_type) {
-    const char *name = upper_name_lookup(s_func_block_preset_param_type_name_entries, lv_ARRAY_SIZE(s_func_block_preset_param_type_name_entries), (int) param_type);
-    return name ? name : "ANY";
+    return lv_enum_to_str(s_func_block_preset_param_type_name_entries, lv_ARRAY_SIZE(s_func_block_preset_param_type_name_entries), (int) param_type, "ANY");
 }
 
 /** 获取复杂度字符串 */
 /** @brief func_block_preset_complexity_name 名称表（按枚举值升序） */
-static const upper_NameEntry s_func_block_preset_complexity_name_entries[] = {
-    {0, "O(1)"},
-    {1, "O(log n)"},
-    {2, "O(n)"},
-    {3, "O(n log n)"},
-    {4, "O(n^2)"},
-    {5, "O(n^3)"},
+static const lvStrToEnumEntry s_func_block_preset_complexity_name_entries[] = {
+    {"O(1)", 0},
+    {"O(log n)", 1},
+    {"O(n)", 2},
+    {"O(n log n)", 3},
+    {"O(n^2)", 4},
+    {"O(n^3)", 5},
 };
 
 const char *func_block_preset_complexity_name(lvEngine *ctx, int64_t complexity) {
-    const char *name = upper_name_lookup(s_func_block_preset_complexity_name_entries, lv_ARRAY_SIZE(s_func_block_preset_complexity_name_entries), (int) complexity);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_func_block_preset_complexity_name_entries, lv_ARRAY_SIZE(s_func_block_preset_complexity_name_entries), (int) complexity, "UNKNOWN");
 }
 
 /** 获取预设的版本信息(从 metadata 组装版本字符串) */

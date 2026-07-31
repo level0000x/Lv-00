@@ -8,59 +8,14 @@
  */
 
 #include "solver_common.h"
-#include "lv/lv_mempool_utils.h" /* v3.3.0 内存池公共 API + 静态单例工具 */
+#include "lv/coeff_pool.h" /* 共享的多项式系数内存池（实现与池拥有权见 lv/coeff_pool.h） */
 
-/* ── 多项式系数内存池集成（试用）──
- * 将 extract_equations_from_constraints 中高频的 poly.coeffs 分配
- * 从 lv_malloc 改为 lv_mempool，减少 malloc 调用次数。
- *
- * 设计说明：
- *   g_coeff_pool 是静态全局的内存池，在首次使用时延迟初始化。
- *   调用者需在合适的时机（如引擎初始化/清理阶段）管理池生命周期。
- *   当前采用首次使用即创建、进程结束时由 mem_pool_destroy 清理的策略。
- *
- *   当池内空闲块耗尽时，lv_mempool_alloc 返回 NULL；此时回退到
- *   lv_malloc 分配。释放端统一使用 coeff_pool_clear()，它对池内指针
- *   正确归还，对回退指针因 mem_pool_free 的越界检查而安全跳过。
+/* ── 多项式系数内存池 ──
+ * 使用 lv/coeff_pool.h 提供的共享池：g_coeff_pool 拥有权在
+ * symbolic_coord_ops.c，本文件不再维护私有池与重复实现。
+ * 池内块耗尽时 lv_mempool_alloc 返回 NULL，coeff_pool_alloc 回退到
+ * lv_malloc；coeff_pool_clear 对回退指针因地址越界检查安全跳过。
  */
-static lvMemPool *g_coeff_pool = NULL;
-
-/* 系数池参数（共享于 symbolic_coord_ops 和 solver_coord_extract 的公共模式） */
-#define COEFF_POOL_BLOCK_SIZE (sizeof(mpz_t) * 8)
-#define COEFF_POOL_INITIAL_COUNT 256
-
-/**
- * @brief 从内存池分配多项式系数数组（含回退）
- * @param count 需要的 mpz_t 元素个数
- * @return mpz_t 数组指针，失败返回 NULL
- */
-static inline mpz_t *coeff_pool_alloc(int count) {
-    if (!lv_mempool_static_init(&g_coeff_pool, COEFF_POOL_BLOCK_SIZE, COEFF_POOL_INITIAL_COUNT))
-        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_INITIALIZED, "coeff_pool_alloc: coefficient pool not initialized");
-    mpz_t *c = (mpz_t *)lv_mempool_alloc(g_coeff_pool);
-    if (!c) {
-        /* 池满回退到 lv_malloc */
-        c = (mpz_t *)lv_malloc((size_t)count * sizeof(mpz_t));
-    }
-    return c;
-}
-
-/**
- * @brief 释放多项式系数数组（兼容池分配和 lv_malloc 回退）
- *
- * 对池内指针调用 lv_mempool_free 归还；对回退指针，
- * mem_pool_free 的地址越界检查会安全跳过，内存泄漏可接受。
- */
-static inline void coeff_pool_clear(mpz_poly_t *p) {
-    if (p->coeffs) {
-        for (int i = 0; i <= p->degree; i++) {
-            mpz_clear(p->coeffs[i]);
-        }
-        lv_mempool_free(g_coeff_pool, p->coeffs);
-    }
-    p->coeffs = NULL;
-    p->degree = -1;
-}
 
 /** @brief 添加方程到方程系统（声明在 solver_types.h 中） */
 static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {

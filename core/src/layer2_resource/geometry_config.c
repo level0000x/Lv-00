@@ -1,6 +1,8 @@
-﻿#include "lv/geometry_config.h"
+#include "lv/geometry_config.h"
 
 #include <string.h>
+
+#include "lv/lv_thread.h"
 
 static lvGeometryConfig g_geometry_config;
 
@@ -18,12 +20,14 @@ lvGeometryConfig lv_geometry_config_default(void) {
     return cfg;
 }
 
+static lv_once_t g_geometry_config_once = lv_ONCE_INIT;
+
+static void lv_geometry_config_init(void) {
+    g_geometry_config = lv_geometry_config_default();
+}
+
 const lvGeometryConfig *lv_geometry_get_config(void) {
-    static int initialized = 0;
-    if (!initialized) {
-        g_geometry_config = lv_geometry_config_default();
-        initialized = 1;
-    }
+    lv_once(&g_geometry_config_once, lv_geometry_config_init);
     return &g_geometry_config;
 }
 

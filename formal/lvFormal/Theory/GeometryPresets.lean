@@ -24,10 +24,13 @@ noncomputable def shoelace_formula (vertices : List (ℝ × ℝ)) : ℝ :=
       let pairs := List.zip ps (ps.tail ++ [ps.head?].filterMap id)
       (pairs.map (fun ((x1, y1), (x2, y2)) => x1*y2 - x2*y1)).sum / 2
 
-/-- Shoelace 对三角形给出标准面积公式 -/
+/-- Shoelace 对三角形给出有向面积公式 -/
 theorem shoelace_triangle (x1 y1 x2 y2 x3 y3 : ℝ) :
-    shoelace_formula [(x1,y1), (x2,y2), (x3,y3)] = |x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2)| / 2 := by
-  sorry
+    shoelace_formula [(x1,y1), (x2,y2), (x3,y3)] =
+      (x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2)) / 2 := by
+  unfold shoelace_formula
+  simp
+  ring
 
 /-- Shoelace 对退化共线多边形返回 0 -/
 theorem shoelace_collinear_zero (x1 y1 x2 y2 x3 y3 t : ℝ)

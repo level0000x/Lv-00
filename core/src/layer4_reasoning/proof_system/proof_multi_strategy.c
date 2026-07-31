@@ -22,6 +22,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/proof.h"
 #include "lv/solver.h"
+#include "lv/lv_xmacro.h"
 
 #include "atp_backend.h"
 #include "lv_internal.h"
@@ -564,59 +565,36 @@ void proof_multi_strategy_get_stats(const ProofMultiStrategy *mse, int *out_tota
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} multi_strat_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *multi_strat_name_lookup(const multi_strat_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief proof_strategy_type_to_string 名称表（按枚举值升序） */
-static const multi_strat_NameEntry s_proof_strategy_type_to_string_entries[] = {
-    {PROOF_STRATEGY_DIRECT_CONSTRUCTION, "直接构造法"},
-    {PROOF_STRATEGY_AREA_METHOD, "面积法"},
-    {PROOF_STRATEGY_GROEBNER_BASIS, "Groebner基法"},
-    {PROOF_STRATEGY_VECTOR_METHOD, "向量法"},
-    {PROOF_STRATEGY_FULL_ANGLE_METHOD, "全角法"},
-    {PROOF_STRATEGY_DEDUCTIVE_DATABASE, "演绎数据库法"},
-    {PROOF_STRATEGY_COORDINATE, "坐标法"},
-    {PROOF_STRATEGY_LAMBDA_CALCULUS, "λ-演算归约法"},
-    {PROOF_STRATEGY_LAMBDA_UNIFY, "λ-演算合一法"},
-    {PROOF_STRATEGY_HOL_LIGHT, "HOL Light 微内核验证"},
-    {PROOF_STRATEGY_ORACLE, "Oracle法"},
+static const lvStrToEnumEntry s_proof_strategy_type_to_string_entries[] = {
+    {"直接构造法", PROOF_STRATEGY_DIRECT_CONSTRUCTION},
+    {"面积法", PROOF_STRATEGY_AREA_METHOD},
+    {"Groebner基法", PROOF_STRATEGY_GROEBNER_BASIS},
+    {"向量法", PROOF_STRATEGY_VECTOR_METHOD},
+    {"全角法", PROOF_STRATEGY_FULL_ANGLE_METHOD},
+    {"演绎数据库法", PROOF_STRATEGY_DEDUCTIVE_DATABASE},
+    {"坐标法", PROOF_STRATEGY_COORDINATE},
+    {"λ-演算归约法", PROOF_STRATEGY_LAMBDA_CALCULUS},
+    {"λ-演算合一法", PROOF_STRATEGY_LAMBDA_UNIFY},
+    {"HOL Light 微内核验证", PROOF_STRATEGY_HOL_LIGHT},
+    {"Oracle法", PROOF_STRATEGY_ORACLE},
 };
 
 const char *proof_strategy_type_to_string(ProofStrategyType type) {
-    const char *name = multi_strat_name_lookup(s_proof_strategy_type_to_string_entries, lv_ARRAY_SIZE(s_proof_strategy_type_to_string_entries), (int) type);
-    return name ? name : "未知策略";
+    return lv_enum_to_str(s_proof_strategy_type_to_string_entries, lv_ARRAY_SIZE(s_proof_strategy_type_to_string_entries), (int) type, "未知策略");
 }
 
 /** @brief proof_strategy_status_to_string 名称表（按枚举值升序） */
-static const multi_strat_NameEntry s_proof_strategy_status_to_string_entries[] = {
-    {PROOF_STRATEGY_AVAILABLE, "可用"},
-    {PROOF_STRATEGY_UNAVAILABLE, "不可用"},
-    {PROOF_STRATEGY_ACTIVE, "已激活"},
-    {PROOF_STRATEGY_COMPLETED, "已完成"},
-    {PROOF_STRATEGY_FAILED, "失败"},
+static const lvStrToEnumEntry s_proof_strategy_status_to_string_entries[] = {
+    {"可用", PROOF_STRATEGY_AVAILABLE},
+    {"不可用", PROOF_STRATEGY_UNAVAILABLE},
+    {"已激活", PROOF_STRATEGY_ACTIVE},
+    {"已完成", PROOF_STRATEGY_COMPLETED},
+    {"失败", PROOF_STRATEGY_FAILED},
 };
 
 const char *proof_strategy_status_to_string(ProofStrategyStatus status) {
-    const char *name = multi_strat_name_lookup(s_proof_strategy_status_to_string_entries, lv_ARRAY_SIZE(s_proof_strategy_status_to_string_entries), (int) status);
-    return name ? name : "未知";
+    return lv_enum_to_str(s_proof_strategy_status_to_string_entries, lv_ARRAY_SIZE(s_proof_strategy_status_to_string_entries), (int) status, "未知");
 }
 
 /* ========================================================================
@@ -636,23 +614,22 @@ const char *proof_strategy_status_to_string(ProofStrategyStatus status) {
  * @return 策略名称字符串
  */
 /** @brief proof_strategy_type_to_string_en 名称表（按枚举值升序） */
-static const multi_strat_NameEntry s_proof_strategy_type_to_string_en_entries[] = {
-    {PROOF_STRATEGY_DIRECT_CONSTRUCTION, "direct_construction"},
-    {PROOF_STRATEGY_AREA_METHOD, "area_method"},
-    {PROOF_STRATEGY_GROEBNER_BASIS, "groebner_basis"},
-    {PROOF_STRATEGY_VECTOR_METHOD, "vector_method"},
-    {PROOF_STRATEGY_FULL_ANGLE_METHOD, "full_angle_method"},
-    {PROOF_STRATEGY_DEDUCTIVE_DATABASE, "deductive_database"},
-    {PROOF_STRATEGY_COORDINATE, "coordinate"},
-    {PROOF_STRATEGY_LAMBDA_CALCULUS, "lambda_calculus"},
-    {PROOF_STRATEGY_LAMBDA_UNIFY, "lambda_unify"},
-    {PROOF_STRATEGY_HOL_LIGHT, "hol_light"},
-    {PROOF_STRATEGY_ORACLE, "oracle"},
+static const lvStrToEnumEntry s_proof_strategy_type_to_string_en_entries[] = {
+    {"direct_construction", PROOF_STRATEGY_DIRECT_CONSTRUCTION},
+    {"area_method", PROOF_STRATEGY_AREA_METHOD},
+    {"groebner_basis", PROOF_STRATEGY_GROEBNER_BASIS},
+    {"vector_method", PROOF_STRATEGY_VECTOR_METHOD},
+    {"full_angle_method", PROOF_STRATEGY_FULL_ANGLE_METHOD},
+    {"deductive_database", PROOF_STRATEGY_DEDUCTIVE_DATABASE},
+    {"coordinate", PROOF_STRATEGY_COORDINATE},
+    {"lambda_calculus", PROOF_STRATEGY_LAMBDA_CALCULUS},
+    {"lambda_unify", PROOF_STRATEGY_LAMBDA_UNIFY},
+    {"hol_light", PROOF_STRATEGY_HOL_LIGHT},
+    {"oracle", PROOF_STRATEGY_ORACLE},
 };
 
 const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {
-    const char *name = multi_strat_name_lookup(s_proof_strategy_type_to_string_en_entries, lv_ARRAY_SIZE(s_proof_strategy_type_to_string_en_entries), (int) strategy);
-    return name ? name : "unknown";
+    return lv_enum_to_str(s_proof_strategy_type_to_string_en_entries, lv_ARRAY_SIZE(s_proof_strategy_type_to_string_en_entries), (int) strategy, "unknown");
 }
 
 /* ============== 公共简化API ============== */

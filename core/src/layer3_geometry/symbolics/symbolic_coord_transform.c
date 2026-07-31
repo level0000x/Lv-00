@@ -28,39 +28,8 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
-/* ── 多项式系数内存池集成 ── */
-extern lvMemPool *g_coeff_pool;
-
-/* 系数池参数 */
-#define COEFF_POOL_BLOCK_SIZE (sizeof(mpz_t) * 8)
-#define COEFF_POOL_INITIAL_COUNT 256
-
-/**
- * @brief 从内存池分配多项式系数数组（含回退）
- */
-static inline mpz_t *coeff_pool_alloc(int count) {
-    if (!lv_mempool_static_init(&g_coeff_pool, COEFF_POOL_BLOCK_SIZE, COEFF_POOL_INITIAL_COUNT))
-        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_INITIALIZED, "coeff_pool_alloc: coefficient pool not initialized");
-    mpz_t *c = (mpz_t *)lv_mempool_alloc(g_coeff_pool);
-    if (!c) {
-        c = (mpz_t *)lv_malloc((size_t)count * sizeof(mpz_t));
-    }
-    return c;
-}
-
-/**
- * @brief 释放多项式系数数组（兼容池分配和 lv_malloc 回退）
- */
-static inline void coeff_pool_clear(mpz_poly_t *p) {
-    if (p->coeffs) {
-        for (int i = 0; i <= p->degree; i++) {
-            mpz_clear(p->coeffs[i]);
-        }
-        lv_mempool_free(g_coeff_pool, p->coeffs);
-    }
-    p->coeffs = NULL;
-    p->degree = -1;
-}
+/* ── 多项式系数内存池（共享实现，见 lv/coeff_pool.h）── */
+#include "lv/coeff_pool.h"
 
 /* ── 前向声明（来自 symbolics 子目录其他模块）── */
 void refine_algebraic_bounds(Algebraic *a, int iterations);

@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_xmacro.h"
 
 #include "debug.h"
 /* geometry_config.h 已合并到 constraint_graph.h，无需单独包含 */
@@ -180,48 +181,26 @@ static bool conflict_report_add(ConflictReport *report, ConflictType type, Confl
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} conflict_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *conflict_name_lookup(const conflict_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief lv_conflict_type_name 名称表（按枚举值升序） */
-static const conflict_NameEntry s_lv_conflict_type_name_entries[] = {
-    {CONFLICT_POINT_POSITION, "PointPositionConflict"},
-    {CONFLICT_DISTANCE_MISMATCH, "DistanceMismatch"},
-    {CONFLICT_ANGLE_MISMATCH, "AngleMismatch"},
-    {CONFLICT_COLLINEAR_VS_ANGLE, "CollinearVsAngle"},
-    {CONFLICT_PERPENDICULAR_VS_PARALLEL, "PerpendicularVsParallel"},
-    {CONFLICT_CONTAINMENT_VS_SEPARATION, "ContainmentVsSeparation"},
-    {CONFLICT_INTERSECTION_VS_PARALLEL, "IntersectionVsParallel"},
-    {CONFLICT_TRANSITIVE_EQUALITY, "TransitiveEquality"},
-    {CONFLICT_TRANSITIVE_ORDER, "TransitiveOrder"},
-    {CONFLICT_CYCLIC_DEPENDENCY, "CyclicDependency"},
-    {CONFLICT_ALGEBRAIC_NO_SOLUTION, "AlgebraicNoSolution"},
-    {CONFLICT_ALGEBRAIC_OVERCONSTRAINED, "AlgebraicOverconstrained"},
-    {CONFLICT_ALGEBRAIC_SINGULAR, "AlgebraicSingular"},
-    {CONFLICT_UNKNOWN, "Unknown"},
+static const lvStrToEnumEntry s_lv_conflict_type_name_entries[] = {
+    {"PointPositionConflict", CONFLICT_POINT_POSITION},
+    {"DistanceMismatch", CONFLICT_DISTANCE_MISMATCH},
+    {"AngleMismatch", CONFLICT_ANGLE_MISMATCH},
+    {"CollinearVsAngle", CONFLICT_COLLINEAR_VS_ANGLE},
+    {"PerpendicularVsParallel", CONFLICT_PERPENDICULAR_VS_PARALLEL},
+    {"ContainmentVsSeparation", CONFLICT_CONTAINMENT_VS_SEPARATION},
+    {"IntersectionVsParallel", CONFLICT_INTERSECTION_VS_PARALLEL},
+    {"TransitiveEquality", CONFLICT_TRANSITIVE_EQUALITY},
+    {"TransitiveOrder", CONFLICT_TRANSITIVE_ORDER},
+    {"CyclicDependency", CONFLICT_CYCLIC_DEPENDENCY},
+    {"AlgebraicNoSolution", CONFLICT_ALGEBRAIC_NO_SOLUTION},
+    {"AlgebraicOverconstrained", CONFLICT_ALGEBRAIC_OVERCONSTRAINED},
+    {"AlgebraicSingular", CONFLICT_ALGEBRAIC_SINGULAR},
+    {"Unknown", CONFLICT_UNKNOWN},
 };
 
 const char *lv_conflict_type_name(ConflictType type) {
-    const char *name = conflict_name_lookup(s_lv_conflict_type_name_entries, lv_ARRAY_SIZE(s_lv_conflict_type_name_entries), (int) type);
-    return name ? name : "Invalid";
+    return lv_enum_to_str(s_lv_conflict_type_name_entries, lv_ARRAY_SIZE(s_lv_conflict_type_name_entries), (int) type, "Invalid");
 }
 
 const char *lv_conflict_severity_name(ConflictSeverity severity) {
