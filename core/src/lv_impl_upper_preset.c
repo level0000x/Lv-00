@@ -791,6 +791,6 @@ int64_t func_block_preset_initialized(lvEngine *ctx) {
 /** 清理预设库并释放资源 -- 委托注册表清理 */
 int64_t func_block_preset_cleanup(lvEngine *ctx) {
     (void) ctx;
-    func_block_registry_cleanup();
+    lv_func_block_registry_cleanup();
     return 0;
 }

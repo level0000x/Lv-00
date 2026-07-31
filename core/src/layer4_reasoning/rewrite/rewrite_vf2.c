@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/rewrite.h"
+#include "lv/adaptive_threshold.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -25,7 +26,7 @@
 /* ── 前向声明 ── */
 uint32_t compute_graph_hash(ConstraintGraph *graph);
 
-/* include for lv_config_get_int */
+/* 聚合公共 API 头 */
 #include "lv/lv.h"
 
 /**
@@ -460,9 +461,8 @@ static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *patter
  */
 static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph, ConstraintGraph *target_graph,
                                 bool local_equivalence_tolerant, RewriteMatch *best_match, int *best_match_size,
-                                int depth) {
+                                int depth, int max_depth) {
     /* 递归深度保护：超过限制则立即返回失败，防止栈溢出 */
-    int max_depth = lv_config_get_int("vf2_max_depth", 64);
     if (depth > max_depth) {
         LOG_WARN("rewrite", "VF2: max recursion depth (%d) exceeded", max_depth);
         lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "VF2: max recursion depth (%d) exceeded", max_depth);
@@ -625,7 +625,7 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
         int saved_out_count = state->out_count;
 
         if (vf2_match_recursive(state, pattern_graph, target_graph, local_equivalence_tolerant, best_match,
-                                best_match_size, depth + 1)) {
+                                best_match_size, depth + 1, max_depth)) {
             lv_free((void **) &candidates);
             lv_free((void **) &cand_scores);
             return true;
@@ -813,8 +813,12 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
     VF2State state;
     vf2_state_init(&state, pattern_graph->node_count, target_graph->node_count);
 
-    /* 使用模式图和目标图进行 VF2 子图同构匹配 */
-    bool found = vf2_match_recursive(&state, pattern_graph, target_graph, local_equivalence_tolerant, NULL, NULL, 0);
+    /* 使用模式图和目标图进行 VF2 子图同构匹配。
+     * 递归深度上限统一通过自适应阈值函数获取（单一通道，不再使用配置键），
+     * 在入口计算一次后沿递归传递，避免每次递归重建阈值上下文。 */
+    int vf2_max_depth = (int) lv_get_vf2_max_depth(pattern_graph);
+    bool found = vf2_match_recursive(&state, pattern_graph, target_graph, local_equivalence_tolerant, NULL, NULL, 0,
+                                     vf2_max_depth);
 
     RewriteMatch *match = NULL;
 

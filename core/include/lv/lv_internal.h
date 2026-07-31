@@ -241,6 +241,20 @@ extern void lv_log_message(int level, const char *file, int line, const char *fm
      : ((a) < 0 && (b) < 0 && (a) < INT_MIN - (b)) ? (overflow_val) \
                                                    : (int) ((a) + (b)))
 
+/* ================================================================
+ * 规范错误表查询（内部）
+ * ================================================================ */
+
+/**
+ * @brief 获取规范错误信息表（error_codes.c 中的 g_error_table）的条目数量
+ *
+ * 供同库内需要报告错误码映射规模的模块（如 status_codes、error_messages_cn）
+ * 使用，避免维护重复的错误码 → 文本映射表。
+ *
+ * @return 错误信息表条目数量
+ */
+int lv_error_table_size(void);
+
 #ifdef __cplusplus
 }
 #endif

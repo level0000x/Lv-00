@@ -10,6 +10,11 @@
 
 #include "runtime_monitor.h"
 
+/* lv_log_shutdown 的声明已集中到 lv/lv_log.h；
+ * 但 lv_log.h 与本头文件各自定义 lvLogLevel 类型，不能同时包含，
+ * 故在此给出前置声明，保证本文件中定义的函数原型可见。 */
+void lv_log_shutdown(void);
+
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>

@@ -94,45 +94,6 @@
 /** 紧急日志缓冲区大小 */
 #define lv_EMERGENCY_LOG_BUFFER_SIZE 256
 
-/**
- * @brief 调试模块全局状态（替代原有的 17 个分散 static 变量）
- *
- * 将所有非线程局部全局变量归并到单一上下文结构体中，
- * 降低模块耦合度，提高可维护性。
- */
-typedef struct DebugState {
-    /* 日志文件状态 */
-    FILE *log_file;                                   /**< 日志文件句柄 */
-    char log_file_path[lv_LOG_PATH_MAX];              /**< 日志文件路径 */
-    char log_dir_path[lv_LOG_PATH_MAX];               /**< 日志目录路径 */
-    size_t current_log_size;                          /**< 当前日志文件大小 */
-    volatile bool initialized;                        /**< 初始化标志 */
-
-    /* 线程安全 */
-    lv_mutex_t log_mutex;                             /**< 日志互斥锁 */
-    lv_once_t log_once;                               /**< 日志一次初始化控制 */
-
-    /* 性能计数器 */
-    PerformanceCounters counters;                      /**< 性能计数器 */
-    lv_mutex_t counter_mutex;                         /**< 计数器互斥锁 */
-    lv_once_t counter_once;                           /**< 计数器一次初始化控制 */
-
-    /* 环形日志缓冲区 */
-    lvLogRingBuffer *log_ring_buffer;                 /**< 环形日志缓冲区指针 */
-    int log_ring_buffer_capacity;                     /**< 环形日志缓冲区容量 */
-
-    /* 紧急保存日志缓冲区 */
-    char *log_buffer[lv_EMERGENCY_LOG_BUFFER_SIZE];   /**< 紧急日志缓冲条目 */
-    int log_buffer_head;                              /**< 环形缓冲头部索引 */
-    int log_buffer_count;                             /**< 缓冲中条目数 */
-
-    /* 追踪会话 */
-    TraceSession *trace_session;                      /**< 追踪会话指针 */
-
-    /* 端口不变量描述（unused, retained for compatibility） */
-    const char *port_invariant_description;            /**< 端口不变量描述字符串 */
-} DebugState;
-
 /** 模块级唯一状态实例（替代原有的 17 个分散 static 变量） */
 DebugState s_debug_state = {0};
 

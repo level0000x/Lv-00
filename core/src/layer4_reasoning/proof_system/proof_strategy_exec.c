@@ -19,6 +19,7 @@
 #include "lv/solver.h"
 
 #include "atp_backend.h"
+#include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lambda_to_graph.h"

@@ -129,12 +129,12 @@ bool bootstrap_test_framework_init(void) {
  * 清理原语包装器和 Lv-00 核心系统。
  * 幂等函数，多次调用安全。
  */
-void bootstrap_test_framework_cleanup(void) {
+void lv_bootstrap_test_framework_cleanup(void) {
     if (!s_test_state.initialized) {
         return;
     }
 
-    primitive_wrapper_cleanup();
+    lv_primitive_wrapper_cleanup();
     lv_cleanup();
 
     s_test_state.initialized = false;
@@ -1106,7 +1106,7 @@ bool primitive_wrapper_init(void) {
 /**
  * @brief 清理原语包装器（重置注册表）
  */
-void primitive_wrapper_cleanup(void) {
+void lv_primitive_wrapper_cleanup(void) {
     g_primitive_count = 0;
 }
 

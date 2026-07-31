@@ -249,7 +249,7 @@ void lv_cleanup(void) {
     }
 
     /* 清理函数块注册表 */
-    func_block_registry_cleanup();
+    lv_func_block_registry_cleanup();
 
     /* 输出内存统计 */
     MemoryStats stats;

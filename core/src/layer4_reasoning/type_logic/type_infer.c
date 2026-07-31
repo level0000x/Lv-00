@@ -90,7 +90,7 @@ static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int
 
     /* 递归深度限制检查。
      * 超过最大深度时返回 false，避免在循环依赖的约束图中无限递归。 */
-    int infer_max = lv_config_get_int("type_infer_max_depth", 100);
+    int infer_max = lv_config_get_int(LV_CFG_TYPE_INFER_MAX_DEPTH, 100);
     if (depth >= infer_max) {
         return false;
     }

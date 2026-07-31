@@ -12,6 +12,7 @@
  */
 
 #include "func_block_preset.h"
+#include "lv/func_block_internal.h"
 #include "lv/lv_xmacro.h"
 
 #include <math.h>

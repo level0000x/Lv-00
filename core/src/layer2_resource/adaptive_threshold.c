@@ -10,6 +10,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/config.h"
 
 #include "lv/adaptive_threshold.h"
 #include "lv/lv.h"
@@ -188,7 +189,7 @@ lvError lv_adaptive_threshold_init(void) {
                 case lv_ALGO_BUCHBERGER:
                     cfg->base_threshold = BUCHBERGER_BASE_THRESHOLD;
                     cfg->scale_factor = BUCHBERGER_SCALE_FACTOR;
-                    cfg->time_budget_ms = lv_config_get_double("buchberger_time_budget_ms", 5000.0);
+                    cfg->time_budget_ms = lv_config_get_double(LV_CFG_BUCHBERGER_TIME_BUDGET_MS, 5000.0);
                     cfg->min_threshold = BUCHBERGER_MIN_THRESHOLD;
                     cfg->max_threshold = BUCHBERGER_MAX_THRESHOLD;
                     cfg->enable_time_based = true;

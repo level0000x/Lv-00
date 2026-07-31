@@ -1,197 +1,274 @@
 /**
- * @file debug_trace.c
- * @brief 调试追踪实现
- *
- * 记录执行步骤、设置断点、管理追踪信息。
- * 基于 debug.h 中定义的 TraceSession / TraceEvent 结构，
- * 提供追踪会话的创建、事件记录、断点管理和导出功能。
- *
- * @version 1.0.0
+ * @file debug_trace_session.c
+ * @brief trace session and log pipeline
+ * @details Split from debug.c. Contains the unified log pipeline
+ *          (debug_log and friends) plus trace session helpers.
  */
 
+#include "lv/lv_file.h"
+#include "lv/lv_platform.h"
+#include "lv/lv_thread.h"
+
+#include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 
-#include "lv/debug.h"
+#include "lv/engine.h"
 #include "lv/lv_json.h"
-#include "lv/lv_utils.h"
-#include "lv/lv_internal.h"
 
-/* ========================================================================
- * 追踪会话管理
- * ======================================================================== */
+#include "context.h"
+#include "debug.h"
+#include "lv_internal.h"
+#include "lv_utils.h"
+#include "stream.h"
+#include "stream_context_util.h"
+#include "type_system.h"
+#include "lv/lv_xmacro.h"
+#include "lv/lv_strbuf.h"
+#include "debug_internal.h"
 
-#define INITIAL_EVENT_CAPACITY 64
-#define MAX_BREAKPOINTS 32
+/* ============== 遗留日志函数（向后兼容） ============== */
 
-/** 断点描述 */
-typedef struct {
-    TraceEventType type; /**< 断点关联的事件类型 */
-    int step_number;     /**< 断点触发的步骤号（-1 表示任意步骤） */
-    int hit_count;       /**< 命中次数 */
-    int enabled;         /**< 是否启用 */
-} TraceBreakpoint;
+/**
+ * @brief 遗留日志实现：直接输出到控制台和日志文件
+ *
+ * 不经过级别过滤，始终以 DEBUG 语义输出。
+ * 由 debug_log_normalization / debug_log_rewrite / debug_log_solver 调用。
+ */
+static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_list args) {
+    log_lock();
 
-/** 调试追踪器（全局单例） */
-typedef struct {
-    TraceSession session;                         /**< 追踪会话 */
-    TraceBreakpoint breakpoints[MAX_BREAKPOINTS]; /**< 断点数组 */
-    int breakpoint_count;                         /**< 断点数量 */
-    int paused;                                   /**< 是否因断点暂停 */
-} DebugTraceState;
+    /* 输出到控制台 */
+    va_list args_copy;
+    va_copy(args_copy, args);
+    vprintf(fmt, args_copy);
+    va_end(args_copy);
+    printf("\n");
 
-static DebugTraceState g_trace_state = {0};
-
-/* ========================================================================
- * 追踪会话 API
- * ======================================================================== */
-
-/** @brief 创建追踪会话 */
-TraceSession *trace_session_create(void) {
-    TraceSession *session = (TraceSession *) lv_calloc(1, sizeof(TraceSession));
-    if (session == NULL)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "session calloc failed");
-
-    session->capacity = INITIAL_EVENT_CAPACITY;
-    session->events = (TraceEvent *) lv_calloc((size_t) session->capacity, sizeof(TraceEvent));
-    if (session->events == NULL) {
-        lv_free((void **) &session);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "events calloc failed");
+    /* 同时输出到日志文件（如果已初始化） */
+    if (s_debug_state.log_file && s_debug_state.initialized) {
+        char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
+        get_timestamp(timestamp, sizeof(timestamp));
+        fprintf(s_debug_state.log_file, "[%s] [DEBUG] [%s] ", timestamp, subsystem);
+        va_copy(args_copy, args);
+        vfprintf(s_debug_state.log_file, fmt, args_copy);
+        va_end(args_copy);
+        fprintf(s_debug_state.log_file, "\n");
+        fflush(s_debug_state.log_file);
     }
 
-    session->event_count = 0;
-    session->active = 1;
-    return session;
+    log_unlock();
 }
 
-/** @brief 销毁追踪会话，释放所有关联资源 */
-void trace_session_destroy(TraceSession *session) {
-    if (session == NULL)
+void debug_log_normalization(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    debug_log_legacy_impl("normalization", fmt, args);
+    va_end(args);
+}
+
+void debug_log_rewrite(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    debug_log_legacy_impl("rewrite", fmt, args);
+    va_end(args);
+}
+
+void debug_log_solver(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    debug_log_legacy_impl("solver", fmt, args);
+    va_end(args);
+}
+
+/*=== 新日志系统实现 ===*/
+
+int debug_log_init(void) {
+    /* log_lock() 内部通过 lv_once 保证互斥锁只初始化一次 */
+    log_lock();
+    if (s_debug_state.initialized) {
+        log_unlock();
+        return 0; /* 已初始化 */
+    }
+
+    /* 构建日志目录路径: ~/.lv/logs */
+    const char *home = get_home_dir();
+    snprintf(s_debug_state.log_dir_path, lv_LOG_PATH_MAX, "%s%c.lv%clogs", home, lv_PATH_SEPARATOR,
+             lv_PATH_SEPARATOR);
+
+    /* 创建日志目录 */
+    if (create_directory(s_debug_state.log_dir_path) != 0) {
+        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not create log directory: %s", s_debug_state.log_dir_path);
+        /* 继续运行，不使用文件日志 */
+    }
+
+    /* 构建日志文件路径 */
+    snprintf(s_debug_state.log_file_path, lv_LOG_PATH_MAX, "%s%c%s", s_debug_state.log_dir_path, lv_PATH_SEPARATOR,
+             lv_DEBUG_LOG_BASENAME);
+
+    /* 打开日志文件 */
+    s_debug_state.log_file = fopen(s_debug_state.log_file_path, "a");
+    if (!s_debug_state.log_file) {
+        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not open log file: %s", s_debug_state.log_file_path);
+        /* 继续运行，不使用文件日志 */
+    } else {
+        /* 获取当前文件大小 */
+        fseek(s_debug_state.log_file, 0, SEEK_END);
+        long pos = ftell(s_debug_state.log_file);
+        s_debug_state.current_log_size = (pos > 0) ? (size_t) pos : 0;
+    }
+
+    s_debug_state.initialized = true;
+    log_unlock();
+
+    /* 【v3.3.0】创建全局环形日志缓冲区 */
+    if (!s_debug_state.log_ring_buffer) {
+        s_debug_state.log_ring_buffer = lv_log_ring_buffer_create(s_debug_state.log_ring_buffer_capacity);
+        if (s_debug_state.log_ring_buffer) {
+            lv_log_ring_buffer_write(s_debug_state.log_ring_buffer, LOG_LEVEL_INFO, "debug", "debug_log_init",
+                                     __FILE__, __LINE__, "环形日志缓冲区已创建（容量: %d）",
+                                     s_debug_state.log_ring_buffer_capacity);
+        }
+    }
+
+    /* 记录初始化日志 */
+    LOG_INFO("debug", "=== Lv-00 v%s Logging System Initialized ===", lv_VERSION_STRING);
+
+    return 0;
+}
+
+void debug_log_shutdown(void) {
+    /* 必须在锁内检查 initialized，防止与 debug_log_init() 产生竞态条件 */
+    log_lock();
+    if (!s_debug_state.initialized) {
+        log_unlock();
         return;
-
-    for (int i = 0; i < session->event_count; i++) {
-        lv_free((void **) &session->events[i].description);
-        lv_free((void **) &session->events[i].details);
     }
-    lv_free((void **) &session->events);
-    lv_free((void **) &session);
+
+    /* 记录关闭日志 */
+    if (s_debug_state.log_file) {
+        char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
+        get_timestamp(timestamp, sizeof(timestamp));
+        fprintf(s_debug_state.log_file, "[%s] [INFO] [debug] === Logging System Shutdown ===\n", timestamp);
+        fclose(s_debug_state.log_file);
+        s_debug_state.log_file = NULL;
+    }
+
+    /* 先将 initialized 设为 false，阻止新日志进入 */
+    s_debug_state.initialized = false;
+
+    /* 销毁全局追踪会话，防止内存泄漏 */
+    if (s_debug_state.trace_session) {
+        trace_session_destroy(s_debug_state.trace_session);
+        s_debug_state.trace_session = NULL;
+    }
+
+    log_unlock();
+
+    /* 【v3.3.0】销毁全局环形日志缓冲区 */
+    if (s_debug_state.log_ring_buffer) {
+        lv_log_ring_buffer_destroy(s_debug_state.log_ring_buffer);
+        s_debug_state.log_ring_buffer = NULL;
+    }
 }
 
-/** @brief 向追踪会话中记录一个事件 */
-void trace_record_event(TraceSession *session, TraceEventType type, int step, const char *description,
-                        const char *details) {
-    if (session == NULL || !session->active)
+void debug_log_cleanup(void) {
+    /* 委托给 debug_log_shutdown 处理实际清理 */
+    debug_log_shutdown();
+}
+
+void debug_set_log_level(LogLevel level) {
+    log_lock();
+    g_log_level = level;
+    log_unlock();
+}
+
+LogLevel debug_get_log_level(void) {
+    log_lock();
+    LogLevel level = g_log_level;
+    log_unlock();
+    return level;
+}
+
+void debug_set_mode(bool debug_mode) {
+    log_lock();
+    g_debug_mode = debug_mode;
+    if (debug_mode) {
+        g_log_level = LOG_LEVEL_DEBUG;
+    } else {
+        g_log_level = LOG_LEVEL_WARN;
+    }
+    log_unlock();
+}
+
+bool debug_is_debug_mode(void) {
+    log_lock();
+    bool mode = g_debug_mode;
+    log_unlock();
+    return mode;
+}
+
+void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
+    log_lock();
+
+    /* 检查该日志级别是否需要记录（在锁内检查，防止与 debug_set_log_level 并发修改竞争） */
+    if (level < g_log_level) {
+        log_unlock();
         return;
-
-    /* 容量检查，必要时扩容 */
-    if (session->event_count >= session->capacity) {
-        int new_cap = session->capacity * 2;
-        TraceEvent *new_events = (TraceEvent *) lv_realloc(session->events, (size_t) new_cap * sizeof(TraceEvent));
-        if (new_events == NULL)
-            return;
-        session->events = new_events;
-        session->capacity = new_cap;
     }
 
-    TraceEvent *evt = &session->events[session->event_count++];
-    evt->type = type;
-    evt->step_number = step;
-    evt->timestamp = lv_clock_elapsed_sec((clock_t) 0);
-    evt->description = (description != NULL) ? lv_strdup_safe(description) : NULL;
-    evt->details = (details != NULL) ? lv_strdup_safe(details) : NULL;
-}
+    /* 检查是否需要轮转 */
+    check_rotation();
 
-/* ========================================================================
- * 断点管理
- * ======================================================================== */
+    /* 格式化消息 */
+    char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
+    get_timestamp(timestamp, sizeof(timestamp));
 
-/** @brief 添加一个调试断点 */
-int debug_trace_add_breakpoint(TraceEventType type, int step_number) {
-    DebugTraceState *state = &g_trace_state;
-    if (state->breakpoint_count >= MAX_BREAKPOINTS)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "breakpoint limit reached");
+    /* 格式化可变参数 */
+    char message[lv_DEBUG_LOG_MESSAGE_BUF_SIZE];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(message, sizeof(message), fmt, args);
+    va_end(args);
 
-    TraceBreakpoint *bp = &state->breakpoints[state->breakpoint_count++];
-    bp->type = type;
-    bp->step_number = step_number;
-    bp->hit_count = 0;
-    bp->enabled = 1;
-    return state->breakpoint_count - 1;
-}
+    /* 构建日志行 */
+    char log_line[lv_DEBUG_LOG_LINE_BUF_SIZE];
+    int len = snprintf(log_line, sizeof(log_line), "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
+                       module ? module : "unknown", message);
 
-/** @brief 移除指定索引的断点 */
-void debug_trace_remove_breakpoint(int index) {
-    DebugTraceState *state = &g_trace_state;
-    if (index < 0 || index >= state->breakpoint_count)
-        return;
-
-    /* 移除断点：将后续元素前移 */
-    for (int i = index; i < state->breakpoint_count - 1; i++) {
-        state->breakpoints[i] = state->breakpoints[i + 1];
-    }
-    state->breakpoint_count--;
-}
-
-/** @brief 检查是否命中断点 */
-int debug_trace_check_breakpoint(TraceEventType type, int step) {
-    DebugTraceState *state = &g_trace_state;
-    for (int i = 0; i < state->breakpoint_count; i++) {
-        TraceBreakpoint *bp = &state->breakpoints[i];
-        if (!bp->enabled)
-            continue;
-        if (bp->type != type)
-            continue;
-        if (bp->step_number >= 0 && bp->step_number != step)
-            continue;
-        bp->hit_count++;
-        state->paused = 1;
-        return i; /* 返回命中的断点索引 */
-    }
-    return -1; /* 未命中 */
-}
-
-/* ========================================================================
- * 导出
- * ======================================================================== */
-
-/** @brief 将追踪会话导出为 JSON 字符串 */
-char *trace_session_export_json(const TraceSession *session) {
-    if (session == NULL)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "session is NULL");
-
-    lvJsonBuf buf;
-    if (!lv_json_buf_init(&buf, (size_t) session->event_count * 256 + 256))
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json buffer init failed");
-
-    lv_json_buf_append_fmt(&buf, "{\"event_count\":%d,\"events\":[\n", session->event_count);
-
-    for (int i = 0; i < session->event_count; i++) {
-        const TraceEvent *evt = &session->events[i];
-        const char *type_str = "unknown";
-        if (evt->type == TRACE_NORMALIZATION)
-            type_str = "normalization";
-        else if (evt->type == TRACE_REWRITE)
-            type_str = "rewrite";
-        else if (evt->type == TRACE_SOLVER)
-            type_str = "solver";
-
-        lv_json_buf_append_raw(&buf, "  {\"type\":\"");
-        lv_json_buf_append_string(&buf, type_str);
-        lv_json_buf_append_fmt(&buf, "\",\"step\":%d,\"time\":%.6f,\"desc\":\"", evt->step_number, evt->timestamp);
-        lv_json_buf_append_string(&buf, evt->description ? evt->description : "");
-        lv_json_buf_append_raw(&buf, "\"}");
-        if (i < session->event_count - 1)
-            lv_json_buf_append_raw(&buf, ",");
-        lv_json_buf_append_raw(&buf, "\n");
+    /* ERROR 和 WARN 输出到 stderr，其余输出到 stdout */
+    if (level >= LOG_LEVEL_WARN) {
+        fputs(log_line, stderr);
+    } else {
+        fputs(log_line, stdout);
     }
 
-    lv_json_buf_append_raw(&buf, "]}\n");
-    return lv_json_buf_finalize(&buf);
-}
+    /* 写入日志文件 */
+    if (s_debug_state.log_file && s_debug_state.initialized) {
+        fputs(log_line, s_debug_state.log_file);
+        fflush(s_debug_state.log_file);
+        s_debug_state.current_log_size += (size_t) len;
+    }
 
-/** @brief 获取全局调试追踪会话 */
-TraceSession *debug_get_trace_session(void) {
-    return &g_trace_state.session;
+    /* 追加到紧急保存日志缓冲区 */
+    log_buffer_append(log_line);
+
+    log_unlock();
+
+    /* 【v3.3.0】FATAL 级别额外处理：触发紧急保存 */
+    if (level == LOG_LEVEL_FATAL) {
+        /* FATAL 不在此处加锁/解锁，因为 emergency_save 会在内部自行加锁 */
+        EmergencySaveConfig cfg;
+        memset(&cfg, 0, sizeof(cfg));
+        cfg.filepath = "lv_emergency_save.log"; /* 使用默认路径 */
+        cfg.include_graph = true;               /* 包含约束图快照 */
+        cfg.include_counters = true;            /* 包含性能计数器 */
+        cfg.include_log_buffer = true;          /* 包含日志缓冲区 */
+        cfg.include_memory_map = false;
+        debug_emergency_save(NULL, &cfg);
+    }
 }

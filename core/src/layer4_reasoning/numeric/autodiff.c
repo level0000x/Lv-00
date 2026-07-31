@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_utils.h" /* lv_calloc / lv_malloc / lv_free */
+
 /* ============================================================
  * Internal helpers
  * ============================================================ */
@@ -367,7 +369,7 @@ static void store_values(lvADExpr *expr, const double *var_values, size_t var_co
  * API implementation: Engine lifecycle
  * ============================================================ */
 
-lvADEngine *ad_engine_create(lvADMode mode) {
+lvADEngine *lv_ad_engine_create(lvADMode mode) {
     lvADEngine *engine = (lvADEngine *) lv_malloc(sizeof(lvADEngine));
     if (engine) {
         engine->mode = mode;
@@ -375,7 +377,7 @@ lvADEngine *ad_engine_create(lvADMode mode) {
     return engine;
 }
 
-void ad_engine_destroy(lvADEngine *engine) {
+void lv_ad_engine_destroy(lvADEngine *engine) {
     lv_free((void **)&(engine));
 }
 
@@ -383,7 +385,7 @@ void ad_engine_destroy(lvADEngine *engine) {
  * API implementation: Expression construction
  * ============================================================ */
 
-lvADExpr *ad_expr_create_const(double value) {
+lvADExpr *lv_ad_expr_create_const(double value) {
     lvADExpr *expr = expr_alloc(AD_CONST);
     if (expr) {
         expr->value = value;
@@ -391,7 +393,7 @@ lvADExpr *ad_expr_create_const(double value) {
     return expr;
 }
 
-lvADExpr *ad_expr_create_var(int var_index) {
+lvADExpr *lv_ad_expr_create_var(int var_index) {
     lvADExpr *expr = expr_alloc(AD_VAR);
     if (expr) {
         expr->var_index = var_index;
@@ -399,7 +401,7 @@ lvADExpr *ad_expr_create_var(int var_index) {
     return expr;
 }
 
-lvADExpr *ad_expr_add(lvADExpr *a, lvADExpr *b) {
+lvADExpr *lv_ad_expr_add(lvADExpr *a, lvADExpr *b) {
     if (!a || !b)
         return NULL;
     lvADExpr *expr = expr_alloc(AD_ADD);
@@ -412,7 +414,7 @@ lvADExpr *ad_expr_add(lvADExpr *a, lvADExpr *b) {
     return expr;
 }
 
-lvADExpr *ad_expr_mul(lvADExpr *a, lvADExpr *b) {
+lvADExpr *lv_ad_expr_mul(lvADExpr *a, lvADExpr *b) {
     if (!a || !b)
         return NULL;
     lvADExpr *expr = expr_alloc(AD_MUL);
@@ -425,7 +427,7 @@ lvADExpr *ad_expr_mul(lvADExpr *a, lvADExpr *b) {
     return expr;
 }
 
-lvADExpr *ad_expr_sin(lvADExpr *x) {
+lvADExpr *lv_ad_expr_sin(lvADExpr *x) {
     if (!x)
         return NULL;
     lvADExpr *expr = expr_alloc(AD_SIN);
@@ -438,7 +440,7 @@ lvADExpr *ad_expr_sin(lvADExpr *x) {
     return expr;
 }
 
-lvADExpr *ad_expr_cos(lvADExpr *x) {
+lvADExpr *lv_ad_expr_cos(lvADExpr *x) {
     if (!x)
         return NULL;
     lvADExpr *expr = expr_alloc(AD_COS);
@@ -451,7 +453,7 @@ lvADExpr *ad_expr_cos(lvADExpr *x) {
     return expr;
 }
 
-lvADExpr *ad_expr_pow(lvADExpr *base, lvADExpr *exponent) {
+lvADExpr *lv_ad_expr_pow(lvADExpr *base, lvADExpr *exponent) {
     if (!base || !exponent)
         return NULL;
     lvADExpr *expr = expr_alloc(AD_POW);
@@ -464,7 +466,7 @@ lvADExpr *ad_expr_pow(lvADExpr *base, lvADExpr *exponent) {
     return expr;
 }
 
-void ad_expr_destroy(lvADExpr *expr) {
+void lv_ad_expr_destroy(lvADExpr *expr) {
     if (!expr)
         return;
 
@@ -487,7 +489,7 @@ void ad_expr_destroy(lvADExpr *expr) {
             }
         }
         if (!duplicate) {
-            ad_expr_destroy(saved[i]);
+            lv_ad_expr_destroy(saved[i]);
         }
     }
 
@@ -499,7 +501,7 @@ void ad_expr_destroy(lvADExpr *expr) {
  * API implementation: Differentiation
  * ============================================================ */
 
-bool ad_forward_diff(lvADExpr *expr, int var_index, double var_value, double *value, double *derivative) {
+bool lv_ad_forward_diff(lvADExpr *expr, int var_index, double var_value, double *value, double *derivative) {
     if (!expr || !value || !derivative)
         return false;
 
@@ -546,7 +548,7 @@ static void collect_gradients(const lvADExpr *expr, double *gradients, size_t va
     }
 }
 
-bool ad_reverse_diff(lvADExpr *expr, const double *var_values, size_t var_count, double *value, double *gradients) {
+bool lv_ad_reverse_diff(lvADExpr *expr, const double *var_values, size_t var_count, double *value, double *gradients) {
     if (!expr || !var_values || !value || !gradients)
         return false;
 
@@ -573,14 +575,14 @@ bool ad_reverse_diff(lvADExpr *expr, const double *var_values, size_t var_count,
  * API implementation: Evaluation and gradient query
  * ============================================================ */
 
-bool ad_eval(lvADExpr *expr, const double *var_values, size_t var_count, double *result) {
+bool lv_ad_eval(lvADExpr *expr, const double *var_values, size_t var_count, double *result) {
     if (!expr || !var_values || !result)
         return false;
     *result = reverse_forward_pass(expr, var_values, var_count);
     return true;
 }
 
-double ad_grad(lvADExpr *expr, int var_index) {
+double lv_ad_grad(lvADExpr *expr, int var_index) {
     if (!expr)
         return 0.0;
 
@@ -607,7 +609,7 @@ double ad_grad(lvADExpr *expr, int var_index) {
             }
         }
         if (!already_visited) {
-            total += ad_grad(expr->children[i], var_index);
+            total += lv_ad_grad(expr->children[i], var_index);
         }
     }
 

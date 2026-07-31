@@ -325,7 +325,7 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
     if (simple_poly_is_zero(&f) || basis_size == 0)
         return f;
 
-    int reduce_max = lv_config_get_int("groebner_reduce_max_steps", 10000);
+    int reduce_max = lv_config_get_int(LV_CFG_GROEBNER_REDUCE_MAX_STEPS, 10000);
     int step = 0;
 
     int max_steps = reduce_max;

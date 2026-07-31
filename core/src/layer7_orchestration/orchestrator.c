@@ -50,7 +50,7 @@ lvSessionConfig lv_default_session_config(void) {
     cfg.max_reasoning_depth = 100;
     cfg.timeout_ms = lv_DEFAULT_TIMEOUT_MS;
     cfg.enable_visualization = 0;
-    strncpy(cfg.input_format, "lv-dsl", sizeof(cfg.input_format));
+    strncpy(cfg.input_format, "lv-dsl", sizeof(cfg.input_format) - 1);
     cfg.input_format[sizeof(cfg.input_format) - 1] = '\0';
     strncpy(cfg.output_format, "proof", sizeof(cfg.output_format));
     cfg.output_format[sizeof(cfg.output_format) - 1] = '\0';

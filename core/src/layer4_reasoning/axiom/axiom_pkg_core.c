@@ -27,10 +27,10 @@
 
 /* ============== 创建和销毁 ============== */
 
-AxiomPackage *axiom_package_create(const char *name, const char *version) {
+AxiomPackage *lv_axiom_package_create(const char *name, const char *version) {
     AxiomPackage *pkg = lv_calloc(1, sizeof(AxiomPackage));
     if (!pkg)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "axiom_package_create: lv_calloc failed");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_axiom_package_create: lv_calloc failed");
 
     pkg->name = safe_lv_strdup_safe(name);
     pkg->version = safe_lv_strdup_safe(version);

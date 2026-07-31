@@ -648,7 +648,7 @@ bool preset_blocks_init(void) {
     return true;
 }
 
-void preset_blocks_cleanup(void) {
+void lv_preset_blocks_cleanup(void) {
     PRESET_REGISTRY_LOCK();
 
     /* 释放所有条目的资源 */

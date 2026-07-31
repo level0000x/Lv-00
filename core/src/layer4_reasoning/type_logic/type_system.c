@@ -73,8 +73,8 @@ void type_system_set_stream_context(StreamContext *ctx) {
 
 /**
  * 类型推断与等价检查的递归深度限制已迁移至 lvConfig 运行时系统。
- * 通过 lv_config_get_int("type_infer_max_depth", 100) 和
- * lv_config_get_int("type_equiv_max_depth", 16) 读取。
+ * 通过 lv_config_get_int(LV_CFG_TYPE_INFER_MAX_DEPTH, 100) 和
+ * lv_config_get_int(LV_CFG_TYPE_EQUIV_MAX_DEPTH, 16) 读取。
  */
 
 /* ============== 类型系统管理API ============== */

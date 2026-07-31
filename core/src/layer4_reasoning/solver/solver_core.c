@@ -970,7 +970,7 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
         return CDCL_SATISFIED;
 
     /* 资源耗尽检查 */
-    int max_decisions = lv_config_get_int("cdcl_max_decisions", 1000);
+    int max_decisions = lv_config_get_int(LV_CFG_CDCL_MAX_DECISIONS, 1000);
     if (ctx->decisions > max_decisions) {
         return CDCL_IDLE;
     }
@@ -1056,7 +1056,7 @@ static CDCLState cdcl_run(lvSolver *solver) {
         ctx->state = CDCL_PROPAGATING;
     }
 
-    int max_steps = lv_config_get_int("cdcl_max_steps", 1000);
+    int max_steps = lv_config_get_int(LV_CFG_CDCL_MAX_STEPS, 1000);
     int step = 0;
 
     while (step < max_steps) {
@@ -1095,7 +1095,7 @@ static CDCLState cdcl_run(lvSolver *solver) {
                 ctx->state = cdcl_step_learn(ctx);
                 /* 检查是否需要重启 */
                 if (ctx->state == CDCL_DECIDING && solver->config.enable_restarts) {
-                    int max_restarts = lv_config_get_int("cdcl_max_restarts", 10);
+                    int max_restarts = lv_config_get_int(LV_CFG_CDCL_MAX_RESTARTS, 10);
                     if (ctx->restarts < max_restarts && ctx->conflicts > 0 &&
                         ctx->conflicts % (int64_t) solver->config.restart_interval == 0) {
                         ctx->state = CDCL_RESTARTING;

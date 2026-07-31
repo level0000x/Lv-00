@@ -167,14 +167,27 @@ lv_PUBLIC_API void debug_log_solver(const char *fmt, ...);
 lv_PUBLIC_API int debug_log_init(void);
 
 /**
- * @brief 清理日志系统。
- * 重置日志系统状态变量到零值。
+ * @brief 清理日志系统（轻量重置）。
+ * 重置日志系统状态变量到零值，但不关闭日志文件、不释放已打开的资源。
+ * 适用于需要在日志系统保持可用的情况下清空状态的场景。
+ *
+ * @note 与 debug_log_shutdown() 的区别：
+ *       - debug_log_cleanup()  仅重置内部状态变量（不关闭文件/释放资源）；
+ *       - debug_log_shutdown() 完整关闭日志系统（关闭文件并释放资源）。
+ *       两者是不同粒度的收尾操作，可独立调用；完整退出时应使用
+ *       debug_log_shutdown()（该函数已被 lv_init/lv_cleanup 的模块
+ *       生命周期管理注册为日志模块的关闭回调）。
  */
 lv_PUBLIC_API void debug_log_cleanup(void);
 
 /**
- * @brief 关闭日志系统。
- * 关闭日志文件并释放资源。
+ * @brief 关闭日志系统（完整关闭）。
+ * 关闭日志文件并释放资源，日志系统在调用后不再可用（需重新 init）。
+ *
+ * @note 与 debug_log_cleanup() 的区别见 debug_log_cleanup() 的文档说明。
+ *       模块生命周期：lv_init() 通过 lv_module_register("log", ...,
+ *       debug_log_shutdown, ...) 将其注册为日志模块的关闭回调，
+ *       lv_cleanup() 会经模块注册表统一调用本函数。
  */
 lv_PUBLIC_API void debug_log_shutdown(void);
 

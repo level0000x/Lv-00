@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file node_deep_copy.h
  * @brief 几何节点深拷贝公共接口
  * @details 提供统一的节点和端口深拷贝函数，消除 engine.c、proof.c、
@@ -11,7 +11,8 @@
  */
 #ifndef lv_NODE_DEEP_COPY_H
 #define lv_NODE_DEEP_COPY_H
-#include "lv.h"
+#include "constraint_graph.h" /* Port, GeomNode */
+#include "symbolic_coord.h"   /* SymbolicCoord */
 #ifdef __cplusplus
 extern "C" {
 #endif

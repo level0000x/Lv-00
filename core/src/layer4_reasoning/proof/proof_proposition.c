@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/node_deep_copy.h"
+#include "lv/normalization.h" /* graph_normalize / NormalizationResult */
 #include "lv/proof.h"
 
 #include "debug.h"

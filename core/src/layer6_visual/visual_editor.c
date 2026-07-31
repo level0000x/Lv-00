@@ -103,7 +103,7 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
     lv_CHECK_NOT_NULL(editor);
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
-        strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error));
+        strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error) - 1);
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "no block graph loaded");
@@ -162,7 +162,7 @@ int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
     lv_CHECK_NOT_NULL(editor);
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
-        strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error));
+        strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error) - 1);
         editor->last_error[sizeof(editor->last_error) - 1] = '\0';
         editor->error_count++;
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "no block graph loaded");

@@ -380,6 +380,35 @@ lv_PUBLIC_API lvErrorCode lv_error_code_from_string(const char *name);
         }                                                                                                         \
     } while (0)
 
+/* ============================================================
+ * 便捷错误返回宏（lv_ERROR_RETURN 及其便捷别名）
+ *
+ * 将 lv_set_error_ctx 和 return 合并为一步，减少遗漏 return 的风险。
+ * 适用于函数错误路径中的快速退出。
+ * - lv_ERROR_RETURN:    设置错误并返回指定值
+ * - lv_RETURN_ERROR:    返回 -1（int 函数常用）
+ * - lv_RETURN_ERROR_NULL: 返回 NULL（指针函数常用）
+ * - lv_RETURN_ERROR_BOOL: 返回 false（bool 函数常用）
+ * - lv_RETURN_ERROR_VAL:  返回任意值
+ * ============================================================ */
+#define lv_ERROR_RETURN(err_code, ret_val, fmt, ...)                                      \
+    do {                                                                                  \
+        lv_set_error_ctx((err_code), __FILE__, __LINE__, __func__, (fmt), ##__VA_ARGS__); \
+        return (ret_val);                                                                 \
+    } while (0)
+
+#define lv_RETURN_ERROR(code, fmt, ...) \
+    lv_ERROR_RETURN((code), -1, (fmt), ##__VA_ARGS__)
+
+#define lv_RETURN_ERROR_NULL(code, fmt, ...) \
+    lv_ERROR_RETURN((code), NULL, (fmt), ##__VA_ARGS__)
+
+#define lv_RETURN_ERROR_BOOL(code, fmt, ...) \
+    lv_ERROR_RETURN((code), false, (fmt), ##__VA_ARGS__)
+
+#define lv_RETURN_ERROR_VAL(code, val, fmt, ...) \
+    lv_ERROR_RETURN((code), (val), (fmt), ##__VA_ARGS__)
+
 #ifdef __cplusplus
 }
 #endif

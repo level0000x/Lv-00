@@ -40,8 +40,8 @@
  */
 static int uf_create(EquivClassManager *mgr, int capacity) {
     mgr->uf_capacity = capacity;
-    mgr->uf_parent = (int *) calloc((size_t) capacity, sizeof(int));
-    mgr->uf_rank = (int *) calloc((size_t) capacity, sizeof(int));
+    mgr->uf_parent = (int *) lv_calloc((size_t) capacity, sizeof(int));
+    mgr->uf_rank = (int *) lv_calloc((size_t) capacity, sizeof(int));
     if (!mgr->uf_parent || !mgr->uf_rank) {
         lv_free((void **) &mgr->uf_parent);
         lv_free((void **) &mgr->uf_rank);
@@ -231,7 +231,7 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     if (!graph)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "equiv_manager_create: graph is NULL");
 
-    EquivClassManager *mgr = (EquivClassManager *) calloc(1, sizeof(EquivClassManager));
+    EquivClassManager *mgr = (EquivClassManager *) lv_calloc(1, sizeof(EquivClassManager));
     if (!mgr)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "equiv_manager_create: calloc mgr failed");
 
@@ -246,7 +246,7 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
 
     /* 初始化节点映射 */
     mgr->node_to_class_capacity = capacity;
-    mgr->node_to_class = (int *) calloc((size_t) capacity, sizeof(int));
+    mgr->node_to_class = (int *) lv_calloc((size_t) capacity, sizeof(int));
     if (!mgr->node_to_class) {
         uf_destroy(mgr);
         lv_free((void **) &mgr);

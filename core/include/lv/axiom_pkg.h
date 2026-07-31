@@ -42,7 +42,7 @@ typedef struct KnownUnconstructible {
     bool green_verified;     /* 是否已验证 */
 } KnownUnconstructible;
 
-lv_PUBLIC_API AxiomPackage *axiom_package_create(const char *name, const char *version);
+lv_PUBLIC_API AxiomPackage *lv_axiom_package_create(const char *name, const char *version);
 lv_PUBLIC_API void axiom_package_destroy(AxiomPackage *pkg);
 
 /* 流式上下文设置（由 lv_DECLARE_STREAM_CTX(axiom) 宏生成） */
@@ -580,4 +580,8 @@ lv_PUBLIC_API int axiom_package_mark_lemma_stale(AxiomPackage *pkg, const char *
 }
 #endif
 
+/* ============================================================
+ * 向后兼容别名（旧名称 → lv_ 前缀新名称）
+ * ============================================================ */
+#define axiom_package_create lv_axiom_package_create
 #endif /* lv_AXIOM_PKG_H */

@@ -53,9 +53,16 @@ structure StreamContext (α : Type) where
 def restore_context {α : Type} (ctx : StreamContext α) (s : Stream α) : Stream α :=
   List.take ctx.offset s ++ ctx.buffer
 
-theorem context_restore_idempotent {α : Type} (ctx : StreamContext α) (s : Stream α) :
+theorem context_restore_idempotent {α : Type} (ctx : StreamContext α) (s : Stream α)
+    (h : ctx.offset ≤ s.length) :
     restore_context ctx (restore_context ctx s) = restore_context ctx s := by
   unfold restore_context
-  sorry
+  have htake : List.take ctx.offset (List.take ctx.offset s ++ ctx.buffer) = List.take ctx.offset s := by
+    rw [List.take_append_eq_append_take]
+    have hlen : (List.take ctx.offset s).length = ctx.offset := by
+      rw [List.length_take]
+      simp [Nat.min_eq_left h]
+    simp [hlen, List.take_take]
+  rw [htake]
 
 end lvFormal.Theory.StreamingTheory

@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "geometry_transform.h"
+#include "lv/lv_log.h"
 #include "memory_pool.h"
 #include "runtime_monitor.h"
 #include "test_unified.h"

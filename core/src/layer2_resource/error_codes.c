@@ -381,3 +381,15 @@ lvErrorCode lv_error_code_from_string(const char *name) {
     }
     return lv_ERROR_UNKNOWN;
 }
+
+/**
+ * @brief 获取规范错误信息表的条目数量
+ *
+ * 供同库内其他模块（如 status_codes、error_messages_cn）查询
+ * 统一错误表的大小，避免各自维护重复的错误码映射表。
+ *
+ * @return 错误信息表条目数量
+ */
+int lv_error_table_size(void) {
+    return (int) ERROR_TABLE_SIZE;
+}

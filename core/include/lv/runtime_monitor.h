@@ -51,7 +51,9 @@ extern "C" {
  * 若 debug.h 已先被包含（哨兵宏 lv_LOGLEVEL_DEFINED 已定义），
  * 则复用其 LogLevel 枚举，避免枚举成员重复定义。
  */
-#ifndef lv_LOGLEVEL_DEFINED
+#if defined(lv_LOG_H_LOGLEVEL_DEFINED)
+/* lvLogLevel 已由 lv_log.h 定义，直接复用 */
+#elif !defined(lv_LOGLEVEL_DEFINED)
 typedef enum {
 #ifndef LOG_LEVEL_TRACE
     LOG_LEVEL_TRACE = -1, /**< 最详细跟踪 */
@@ -147,10 +149,6 @@ typedef struct {
  */
 bool lv_log_init(const lvLogConfig *config);
 
-/**
- * @brief 关闭日志系统
- */
-void lv_log_shutdown(void);
 
 /**
  * @brief 设置日志级别

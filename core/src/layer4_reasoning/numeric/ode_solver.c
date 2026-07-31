@@ -32,6 +32,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv_utils.h" /* lv_calloc / lv_malloc / lv_free */
+
 /* ============================================================
  * ODE 右端函数适配器（lvODERhsFn(void 返回) -> lvOdeDerivFn(int 返回)）
  * ============================================================ */

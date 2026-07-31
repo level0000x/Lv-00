@@ -558,7 +558,7 @@ bool func_block_registry_init(void) {
     /* 注册所有内置预设 */
     if (!register_builtin_presets()) {
         /* 内置预设注册失败，清理已注册的部分 */
-        func_block_registry_cleanup();
+        lv_func_block_registry_cleanup();
         return false;
     }
 
@@ -566,7 +566,7 @@ bool func_block_registry_init(void) {
     return true;
 }
 
-void func_block_registry_cleanup(void) {
+void lv_func_block_registry_cleanup(void) {
     /* 释放所有条目的资源 */
     for (int i = 0; i < g_registry.count; i++) {
         free_preset_entry(&g_registry.entries[i]);

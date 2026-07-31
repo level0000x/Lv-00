@@ -603,6 +603,7 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
     memset(&report, 0, sizeof(report));
     if (!verifier) {
         strncpy(report.summary, "Invalid verifier", sizeof(report.summary) - 1);
+        report.summary[sizeof(report.summary) - 1] = '\0';
         return report;
     }
 

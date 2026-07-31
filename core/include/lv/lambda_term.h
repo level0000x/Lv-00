@@ -18,7 +18,9 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 
-#include "lv/lv_internal.h"
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
+#endif
 
 /**
  * @brief λ-项节点类型枚举

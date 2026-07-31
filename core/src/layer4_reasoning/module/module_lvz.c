@@ -374,7 +374,7 @@ static bool lvz_parse_axioms_section(LvzParser *p, Module *mod) {
             return false;
 
         /* 创建公理包并加载 */
-        AxiomPackage *pkg = axiom_package_create(p->current.str_value, "0.0.0");
+        AxiomPackage *pkg = lv_axiom_package_create(p->current.str_value, "0.0.0");
         if (pkg) {
             module_add_axiom_package(mod, pkg);
         }

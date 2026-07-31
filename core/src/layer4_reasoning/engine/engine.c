@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file engine.c
  * @brief 主引擎实现
  * @details 实现工作流编排，协调规范化、重写、求解和冲突检查。
@@ -39,11 +39,16 @@
 #include <string.h>
 
 #include "lv/bit_burning.h"
+#include "lv/func_block.h"
 #include "lv/lambda_to_graph.h"
+#include "lv/lv.h"
 #include "lv/lv_config.h"
+#include "lv/normalization.h"
+#include "lv/solver.h"
 #include "lv/stream.h"
 #include "lv/trust_color.h"
 
+#include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "node_deep_copy.h"
@@ -365,7 +370,7 @@ ModuleLoadStatus engine_load_module(lvEngine *engine, const char *filepath) {
 AxiomLoadStatus engine_load_axiom_package(lvEngine *engine, const char *filepath) {
     if (!engine || !filepath)
         return AXIOM_LOAD_NULL_POINTER;
-    AxiomPackage *pkg = axiom_package_create("temp", "0.0.0");
+    AxiomPackage *pkg = lv_axiom_package_create("temp", "0.0.0");
     if (!pkg) {
         engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
         snprintf(engine->last_error, sizeof(engine->last_error), "公理包创建失败");
@@ -1161,7 +1166,7 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
         int overflow = circuit_get_overflow_count();
 
         /* 步骤2：若 overflow_count >= 阈值，建议永久降级 */
-        int threshold = lv_config_get_int("circuit_overflow_threshold", 3);
+        int threshold = lv_config_get_int(LV_CFG_CIRCUIT_OVERFLOW_THRESHOLD, 3);
         if (overflow >= threshold) {
             snprintf(engine->last_error, sizeof(engine->last_error),
                      "engine_handle_circuit_trip: 溢出计数 %d >= %d，"
@@ -1182,7 +1187,7 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
 
     /* 步骤3：无冻结点，仅报告警告 */
     int overflow = circuit_get_overflow_count();
-    int threshold = lv_config_get_int("circuit_overflow_threshold", 3);
+    int threshold = lv_config_get_int(LV_CFG_CIRCUIT_OVERFLOW_THRESHOLD, 3);
     if (overflow >= threshold) {
         /* 即使没有冻结点，反复溢出也建议降级 */
         snprintf(engine->last_error, sizeof(engine->last_error),

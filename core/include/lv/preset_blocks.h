@@ -221,7 +221,7 @@ bool preset_blocks_init(void);
  *
  * 释放所有扩展预设占用的资源。
  */
-void preset_blocks_cleanup(void);
+void lv_preset_blocks_cleanup(void);
 
 /**
  * @brief 获取预设的详细元数据
@@ -725,4 +725,8 @@ void preset_blocks_print_stats(void);
 }
 #endif
 
+/* ============================================================
+ * 向后兼容别名（旧名称 → lv_ 前缀新名称）
+ * ============================================================ */
+#define preset_blocks_cleanup lv_preset_blocks_cleanup
 #endif /* lv_PRESET_BLOCKS_H */

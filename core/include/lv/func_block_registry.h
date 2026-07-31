@@ -254,7 +254,7 @@ lv_PUBLIC_API bool func_block_registry_init(void);
  * 销毁全局注册表中的所有条目，释放模板函数块和字符串内存。
  * 调用后需重新 init 才能使用注册表。
  */
-lv_PUBLIC_API void func_block_registry_cleanup(void);
+lv_PUBLIC_API void lv_func_block_registry_cleanup(void);
 
 /* ============== 注册与查找 ============== */
 
@@ -357,4 +357,8 @@ lv_PUBLIC_API int func_block_registry_unregister(const char *name);
 }
 #endif
 
+/* ============================================================
+ * 向后兼容别名（旧名称 → lv_ 前缀新名称）
+ * ============================================================ */
+#define func_block_registry_cleanup lv_func_block_registry_cleanup
 #endif /* lv_FUNC_BLOCK_REGISTRY_H */

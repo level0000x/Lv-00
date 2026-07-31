@@ -87,8 +87,8 @@ int axiom_template_test_run(AxiomPackage *pkg, TemplateTestCase **test_cases, in
     *out_failures = NULL;
 
     /* 读取烟测保护配置 */
-    int step_limit = lv_config_get_int("smoke_test_step_limit", 1000);
-    int timeout_ms = lv_config_get_int("smoke_test_timeout_ms", 30000);
+    int step_limit = lv_config_get_int(LV_CFG_SMOKE_TEST_STEP_LIMIT, 1000);
+    int timeout_ms = lv_config_get_int(LV_CFG_SMOKE_TEST_TIMEOUT_MS, 30000);
     uint64_t start_time = get_current_time_ms();
 
     /* 分配失败消息数组 */

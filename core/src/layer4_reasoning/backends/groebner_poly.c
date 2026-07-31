@@ -827,7 +827,7 @@ lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **basis, 
     double *rem_coeffs = (double *) remainder->coeffs;
     int step_count = 0;
 
-    int reduce_max = lv_config_get_int("groebner_reduce_max_steps", 10000);
+    int reduce_max = lv_config_get_int(LV_CFG_GROEBNER_REDUCE_MAX_STEPS, 10000);
     bool changed = true;
     while (changed && step_count < reduce_max) {
         changed = false;

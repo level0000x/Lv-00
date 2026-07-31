@@ -122,7 +122,12 @@ theorem unique_table_no_duplicate (mgr : BDDManager) (n1 n2 : BDDNode)
             ∧ n1.is_true = n2.is_true ∧ n1.is_false = n2.is_false) :
     n1 = n2 := by
   rcases h_same with ⟨h_v, h_l, h_h, h_t, h_f⟩
-  ext <;> assumption
+  cases n1 with
+  | mk v1 l1 h1 t1 f1 =>
+      cases n2 with
+      | mk v2 l2 h2 t2 f2 =>
+          simp only [] at h_v h_l h_h h_t h_f
+          simp only [h_v, h_l, h_h, h_t, h_f]
 
 /-! ===============================================================
    第三部分：BDD 文字与布尔运算

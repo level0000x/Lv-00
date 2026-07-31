@@ -114,7 +114,7 @@ bool bootstrap_test_framework_init(void);
 /**
  * @brief 清理自举测试框架
  */
-void bootstrap_test_framework_cleanup(void);
+void lv_bootstrap_test_framework_cleanup(void);
 /**
  * @brief 检查框架是否已初始化
  * @return 是否已初始化
@@ -250,7 +250,7 @@ bool primitive_wrapper_init(void);
 /**
  * @brief 清理原语包装器
  */
-void primitive_wrapper_cleanup(void);
+void lv_primitive_wrapper_cleanup(void);
 /**
  * @brief 注册原语
  * @param name 原语名称
@@ -354,4 +354,9 @@ bool bootstrap_test_write_report(BootstrapDiffTestResult **results, uint32_t cou
 #ifdef __cplusplus
 }
 #endif
+/* ============================================================
+ * 向后兼容别名（旧名称 → lv_ 前缀新名称）
+ * ============================================================ */
+#define bootstrap_test_framework_cleanup lv_bootstrap_test_framework_cleanup
+#define primitive_wrapper_cleanup lv_primitive_wrapper_cleanup
 #endif /* lv_BOOTSTRAP_TEST_H */

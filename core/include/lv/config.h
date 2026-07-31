@@ -1011,6 +1011,31 @@ void lv_config_reset(void);
 #endif
 #endif
 
+/* ====================================================================
+ * 字符串键注册表 —— lv_config_get_* / lv_config_set_* 使用的键名
+ *
+ * 集中定义所有运行时字符串配置键，使用处一律引用宏而非裸字符串字面量，
+ * 以获得编译期拼写检查（LV_CFG_* 前缀，区别于 lv_CONFIG_* 编译期常量
+ * 与 LV_CONFIG_INT_KEYS / LV_CONFIG_DOUBLE_KEYS 的 JSON 键 X-macro）。
+ * 其中与 lvConfig 结构体系统同名的键（如 cdcl_max_steps）两侧命名一致，
+ * 但分属不同的配置存储，勿混淆。
+ * ==================================================================== */
+#define LV_CFG_META_PROOF_TIMEOUT_MS       "meta_proof_timeout_ms"
+#define LV_CFG_TYPE_INFER_MAX_DEPTH        "type_infer_max_depth"
+#define LV_CFG_TYPE_EQUIV_MAX_DEPTH        "type_equiv_max_depth"
+#define LV_CFG_CIRCUIT_OVERFLOW_THRESHOLD  "circuit_overflow_threshold"
+#define LV_CFG_CDCL_MAX_STEPS              "cdcl_max_steps"
+#define LV_CFG_CDCL_MAX_DECISIONS          "cdcl_max_decisions"
+#define LV_CFG_CDCL_MAX_RESTARTS           "cdcl_max_restarts"
+#define LV_CFG_SMT_SOLVER_TIMEOUT_MS       "smt_solver_timeout_ms"
+#define LV_CFG_SMOKE_TEST_STEP_LIMIT       "smoke_test_step_limit"
+#define LV_CFG_SMOKE_TEST_TIMEOUT_MS       "smoke_test_timeout_ms"
+#define LV_CFG_BUCHBERGER_TIME_BUDGET_MS   "buchberger_time_budget_ms"
+#define LV_CFG_BUCHBERGER_MAX_STEPS        "buchberger_max_steps"
+#define LV_CFG_GROEBNER_REDUCE_MAX_STEPS   "groebner_reduce_max_steps"
+#define LV_CFG_PCTL_VALUE_ITER_MAX         "pctl_value_iter_max"
+#define LV_CFG_PCTL_POWER_ITER_MAX         "pctl_power_iter_max"
+
 /* 路径分隔符 */
 #ifndef lv_PATH_SEPARATOR
 #ifdef _WIN32

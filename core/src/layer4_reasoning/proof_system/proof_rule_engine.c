@@ -19,6 +19,7 @@
  */
 
 #include "proof_rule_engine.h"
+#include "proof_rule_engine_internal.h"
 #include "lv/lv_xmacro.h"
 
 #include <stdlib.h>

@@ -307,7 +307,7 @@ static lvGroebnerBasis *groebner_internal_extend_basis(const lvPolynomialRing *r
     new_indices[0] = old_count;
 
     /* 增量 Buchberger 核心：只处理涉及新增基元的对 */
-    int buchberger_max = lv_config_get_int("buchberger_max_steps", 50000);
+    int buchberger_max = lv_config_get_int(LV_CFG_BUCHBERGER_MAX_STEPS, 50000);
     int step = 0;
     int new_i = 0;
 

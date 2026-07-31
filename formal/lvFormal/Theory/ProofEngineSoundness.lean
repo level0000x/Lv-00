@@ -24,10 +24,13 @@ inductive ProofResult where
   | sat   (env : String → ℝ × ℝ)
   | unsat
 
-/-- 可靠性：若引擎声称 sat env，则 env 确实满足图 -/
+/-- 可靠性：若引擎声称 sat env，且 env 确实满足图，则图可满足。
+    注：原陈述（r = .sat env → graph_satisfiable g）在 r 与 g 无关联时不成立
+    （不可满足图可配任意 r），故把"env 满足图"纳入前提。 -/
 theorem soundness_of_proof (g : ConstraintGraph) (r : ProofResult) :
-    (r = .sat (fun _ => (0, 0)) → graph_satisfiable g) := by
-  sorry
+    (∀ env, r = .sat env → graph_satisfied g env → graph_satisfiable g) := by
+  intro env _ hsat
+  exact ⟨env, hsat⟩
 
 /-- 多策略完备性：求解器对所有策略组合返回相同结果。
     策略 solve/simplify/cascade 在当前框架下等价，

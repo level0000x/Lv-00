@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file nt_number_theory.h
  * @brief Number theory algorithms -- modular arithmetic, primality testing, factorization
  *
@@ -16,7 +16,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "lv.h"
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif

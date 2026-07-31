@@ -167,7 +167,7 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
         return TYPE_EQUIV_ERROR;
 
     /* 递归深度限制检查 */
-    int equiv_max = lv_config_get_int("type_equiv_max_depth", 16);
+    int equiv_max = lv_config_get_int(LV_CFG_TYPE_EQUIV_MAX_DEPTH, 16);
     if (depth >= equiv_max) {
         return TYPE_EQUIV_UNKNOWN;
     }

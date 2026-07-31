@@ -20,6 +20,15 @@ extern "C" {
 extern lv_THREAD_LOCAL StreamContext *debug_stream_ctx;
 
 /* ---- shared constants (moved from debug.c header) ---- */
+#define lv_DEBUG_MSG_BUF_SIZE 512
+#define lv_DEBUG_TIMESTAMP_BUF_SIZE 32
+#define lv_DEBUG_GC_BLOCK_SIZE 2048
+#define lv_DEBUG_LOG_BASENAME "lv.log"
+#define lv_DEBUG_LOG_MESSAGE_BUF_SIZE 4096
+#define lv_DEBUG_LOG_LINE_BUF_SIZE 8192
+#define lv_DEBUG_TRACE_INITIAL_CAPACITY 64
+#define lv_DEBUG_EMPTY_JSON_BUF_SIZE 32
+#define lv_DEBUG_JSON_INITIAL_CAPACITY 1024
 #define lv_EMERGENCY_LOG_BUFFER_SIZE 256
 
 /* ---- shared global state ---- */

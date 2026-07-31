@@ -1,4 +1,4 @@
-﻿#ifndef lv_PROOF_SESSION_INTERNAL_H
+#ifndef lv_PROOF_SESSION_INTERNAL_H
 #define lv_PROOF_SESSION_INTERNAL_H
 
 #ifdef __cplusplus
@@ -10,7 +10,6 @@ extern "C" {
 #include <stdint.h>
 
 #include "proof_rule_engine_internal.h"
-#include "proof_session.h"
 
 /* ============== 常量定义 ============== */
 #ifndef lv_SESSION_ID_MAX

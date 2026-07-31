@@ -599,7 +599,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                     }
                     char *pkg_name = json_reader_read_string(&r);
                     if (mod && pkg_name) {
-                        AxiomPackage *pkg = axiom_package_create(pkg_name, "0.0.0");
+                        AxiomPackage *pkg = lv_axiom_package_create(pkg_name, "0.0.0");
                         if (pkg) {
                             module_add_axiom_package(mod, pkg);
                         }

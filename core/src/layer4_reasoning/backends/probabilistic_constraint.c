@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/config.h"
 #include "lv/lv_parse_utils.h"
 
 #include "lv_utils.h"
@@ -593,7 +594,7 @@ static double pctl_compute_until(const SimpleDTMC *mc, const char *phi_predicate
         return 0.0;
 
     int n = mc->state_count;
-    int max_iter = lv_config_get_int("pctl_value_iter_max", 1000);
+    int max_iter = lv_config_get_int(LV_CFG_PCTL_VALUE_ITER_MAX, 1000);
     double convergence_threshold = 1e-9;
 
     /* prob[i] = 从状态 i 满足 phi U psi 的概率 */
@@ -1151,7 +1152,7 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
                         pi[i] = 1.0 / (double) n;
 
                     const double convergence_threshold = 1e-12;
-                    const int max_iter = lv_config_get_int("pctl_power_iter_max", 10000);
+                    const int max_iter = lv_config_get_int(LV_CFG_PCTL_POWER_ITER_MAX, 10000);
                     bool converged = false;
 
                     /* 幂迭代 */

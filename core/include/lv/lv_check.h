@@ -7,7 +7,6 @@ extern "C" {
 
 #include "lv/lv_log.h"
 #include "lv/error_codes.h"
-#include "lv/lv_internal.h"
 
 /**
  * @file lv_check.h

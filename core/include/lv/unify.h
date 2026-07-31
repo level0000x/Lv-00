@@ -293,7 +293,7 @@ lv_PUBLIC_API void unify_equivalence_storage_init(void);
  *
  * 线程安全：每个线程有独立的存储实例。
  */
-lv_PUBLIC_API void unify_equivalence_storage_cleanup(void);
+lv_PUBLIC_API void lv_unify_equivalence_storage_cleanup(void);
 
 /**
  * @brief 获取当前等价声明数量
@@ -352,4 +352,8 @@ lv_PUBLIC_API void simple_proof_normalize(SimpleProof *proof);
 }
 #endif
 
+/* ============================================================
+ * 向后兼容别名（旧名称 → lv_ 前缀新名称）
+ * ============================================================ */
+#define unify_equivalence_storage_cleanup lv_unify_equivalence_storage_cleanup
 #endif /* lv_UNIFY_H */

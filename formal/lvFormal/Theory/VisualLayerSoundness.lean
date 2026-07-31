@@ -46,11 +46,15 @@ def geom_canvas_inverse (gps : List GeomPoint) : List (String × ℚ × ℚ) :=
 
 theorem geom_canvas_faithful (pts : List (String × ℚ × ℚ)) :
     geom_canvas_inverse (geom_canvas_project pts) = pts := by
-  induction pts with
-  | nil => simp [geom_canvas_inverse, geom_canvas_project]
-  | cons t ts ih =>
-      rcases t with ⟨n, x, y⟩
-      simp [geom_canvas_inverse, geom_canvas_project, ih]
+  unfold geom_canvas_inverse geom_canvas_project
+  rw [List.map_map]
+  conv =>
+    rhs
+    rw [← (List.map_id pts)]
+  apply List.map_congr_left
+  intro p hp
+  rcases p with ⟨n, x, y⟩
+  simp
 
 structure EditorState where
   points : List (String × ℚ × ℚ)

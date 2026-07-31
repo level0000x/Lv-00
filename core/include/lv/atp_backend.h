@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file atp_backend.h
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层
  *
@@ -21,7 +21,6 @@
 #ifndef lv_ATP_BACKEND_H
 #define lv_ATP_BACKEND_H
 #include "constraint_graph.h"
-#include "lv.h"
 #include "proof.h"
 #ifdef __cplusplus
 extern "C" {

@@ -169,7 +169,7 @@ void proof_breakpoint_storage_init(void) {
     BREAKPOINT_UNLOCK();
 }
 
-void proof_breakpoint_storage_cleanup(void) {
+void lv_proof_breakpoint_storage_cleanup(void) {
     proof_breakpoint_storage_reset();
 }
 

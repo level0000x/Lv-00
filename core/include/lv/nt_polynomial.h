@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file nt_polynomial.h
  * @brief Polynomial arithmetic with arbitrary-precision integer coefficients
  *
@@ -17,7 +17,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "lv.h"
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif

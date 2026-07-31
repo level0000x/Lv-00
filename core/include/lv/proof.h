@@ -759,7 +759,7 @@ lv_PUBLIC_API void proof_breakpoint_storage_init(void);
  * @note 线程安全：仅清理当前线程的存储实例。
  *       不会影响其他线程的断点存储。
  */
-lv_PUBLIC_API void proof_breakpoint_storage_cleanup(void);
+lv_PUBLIC_API void lv_proof_breakpoint_storage_cleanup(void);
 
 /**
  * @brief 重置断点存储系统
@@ -1663,4 +1663,8 @@ lv_PUBLIC_API void refinement_check_report_destroy(RefinementCheckReport *report
 }
 #endif
 
+/* ============================================================
+ * 向后兼容别名（旧名称 → lv_ 前缀新名称）
+ * ============================================================ */
+#define proof_breakpoint_storage_cleanup lv_proof_breakpoint_storage_cleanup
 #endif /* lv_PROOF_H */

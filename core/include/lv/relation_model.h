@@ -19,7 +19,6 @@
 #ifndef lv_RELATION_MODEL_H
 #define lv_RELATION_MODEL_H
 
-#include "lv.h"
 #include "lv/lv_utils.h"
 
 #ifdef __cplusplus

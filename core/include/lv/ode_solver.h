@@ -27,7 +27,9 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-#include "lv.h"
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
+#endif
 /* ============================================================
  * ODE method enumeration
  * ============================================================ */

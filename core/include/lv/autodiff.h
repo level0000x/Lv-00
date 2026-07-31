@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file autodiff.h
  * @brief Automatic differentiation engine (forward and reverse mode)
  *
@@ -30,7 +30,9 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-#include "lv.h"
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
+#endif
 /* ============================================================
  * AD mode enumeration
  * ============================================================ */
@@ -101,13 +103,13 @@ typedef struct lvADEngine {
  * @param mode  The differentiation mode (AD_FORWARD or AD_REVERSE)
  * @return Pointer to the new engine, or NULL on failure
  */
-lv_PUBLIC_API lvADEngine *ad_engine_create(lvADMode mode);
+lv_PUBLIC_API lvADEngine *lv_ad_engine_create(lvADMode mode);
 /**
  * @brief Destroy an AD engine.
  *
  * @param engine  The engine to destroy (may be NULL)
  */
-lv_PUBLIC_API void ad_engine_destroy(lvADEngine *engine);
+lv_PUBLIC_API void lv_ad_engine_destroy(lvADEngine *engine);
 /* ============================================================
  * API: Expression construction
  * ============================================================ */
@@ -117,14 +119,14 @@ lv_PUBLIC_API void ad_engine_destroy(lvADEngine *engine);
  * @param value  The constant value
  * @return Pointer to the new expression node, or NULL on failure
  */
-lv_PUBLIC_API lvADExpr *ad_expr_create_const(double value);
+lv_PUBLIC_API lvADExpr *lv_ad_expr_create_const(double value);
 /**
  * @brief Create a variable expression node.
  *
  * @param var_index  The variable index (0-based)
  * @return Pointer to the new expression node, or NULL on failure
  */
-lv_PUBLIC_API lvADExpr *ad_expr_create_var(int var_index);
+lv_PUBLIC_API lvADExpr *lv_ad_expr_create_var(int var_index);
 /**
  * @brief Create an addition expression: a + b.
  *
@@ -132,7 +134,7 @@ lv_PUBLIC_API lvADExpr *ad_expr_create_var(int var_index);
  * @param b  Right operand
  * @return Pointer to the new expression node, or NULL on failure
  */
-lv_PUBLIC_API lvADExpr *ad_expr_add(lvADExpr *a, lvADExpr *b);
+lv_PUBLIC_API lvADExpr *lv_ad_expr_add(lvADExpr *a, lvADExpr *b);
 /**
  * @brief Create a multiplication expression: a * b.
  *
@@ -140,21 +142,21 @@ lv_PUBLIC_API lvADExpr *ad_expr_add(lvADExpr *a, lvADExpr *b);
  * @param b  Right operand
  * @return Pointer to the new expression node, or NULL on failure
  */
-lv_PUBLIC_API lvADExpr *ad_expr_mul(lvADExpr *a, lvADExpr *b);
+lv_PUBLIC_API lvADExpr *lv_ad_expr_mul(lvADExpr *a, lvADExpr *b);
 /**
  * @brief Create a sine expression: sin(x).
  *
  * @param x  The operand
  * @return Pointer to the new expression node, or NULL on failure
  */
-lv_PUBLIC_API lvADExpr *ad_expr_sin(lvADExpr *x);
+lv_PUBLIC_API lvADExpr *lv_ad_expr_sin(lvADExpr *x);
 /**
  * @brief Create a cosine expression: cos(x).
  *
  * @param x  The operand
  * @return Pointer to the new expression node, or NULL on failure
  */
-lv_PUBLIC_API lvADExpr *ad_expr_cos(lvADExpr *x);
+lv_PUBLIC_API lvADExpr *lv_ad_expr_cos(lvADExpr *x);
 /**
  * @brief Create a power expression: base ^ exponent.
  *
@@ -162,13 +164,13 @@ lv_PUBLIC_API lvADExpr *ad_expr_cos(lvADExpr *x);
  * @param exponent  The exponent
  * @return Pointer to the new expression node, or NULL on failure
  */
-lv_PUBLIC_API lvADExpr *ad_expr_pow(lvADExpr *base, lvADExpr *exponent);
+lv_PUBLIC_API lvADExpr *lv_ad_expr_pow(lvADExpr *base, lvADExpr *exponent);
 /**
  * @brief Destroy an expression node and all its children (recursive).
  *
  * @param expr  The expression to destroy (may be NULL)
  */
-lv_PUBLIC_API void ad_expr_destroy(lvADExpr *expr);
+lv_PUBLIC_API void lv_ad_expr_destroy(lvADExpr *expr);
 /* ============================================================
  * API: Differentiation
  * ============================================================ */
@@ -185,7 +187,7 @@ lv_PUBLIC_API void ad_expr_destroy(lvADExpr *expr);
  * @param[out] derivative The computed derivative
  * @return true on success, false on failure
  */
-lv_PUBLIC_API bool ad_forward_diff(lvADExpr *expr, int var_index, double var_value, double *value, double *derivative);
+lv_PUBLIC_API bool lv_ad_forward_diff(lvADExpr *expr, int var_index, double var_value, double *value, double *derivative);
 /**
  * @brief Compute gradients using reverse mode (backpropagation).
  *
@@ -199,7 +201,7 @@ lv_PUBLIC_API bool ad_forward_diff(lvADExpr *expr, int var_index, double var_val
  * @param[out] gradients Array of gradients (caller-allocated, size >= var_count)
  * @return true on success, false on failure
  */
-lv_PUBLIC_API bool ad_reverse_diff(lvADExpr *expr, const double *var_values, size_t var_count, double *value,
+lv_PUBLIC_API bool lv_ad_reverse_diff(lvADExpr *expr, const double *var_values, size_t var_count, double *value,
                                    double *gradients);
 /* ============================================================
  * API: Evaluation and gradient query
@@ -213,17 +215,38 @@ lv_PUBLIC_API bool ad_reverse_diff(lvADExpr *expr, const double *var_values, siz
  * @param[out] result  The evaluated result
  * @return true on success, false on failure
  */
-lv_PUBLIC_API bool ad_eval(lvADExpr *expr, const double *var_values, size_t var_count, double *result);
+lv_PUBLIC_API bool lv_ad_eval(lvADExpr *expr, const double *var_values, size_t var_count, double *result);
 /**
  * @brief Get the gradient of a specific variable after reverse differentiation.
  *
- * Must be called after ad_reverse_diff().
+ * Must be called after lv_ad_reverse_diff().
  *
  * @param expr       The expression node
  * @param var_index  The variable index to query
  * @return The gradient value, or 0.0 if not found
  */
-lv_PUBLIC_API double ad_grad(lvADExpr *expr, int var_index);
+lv_PUBLIC_API double lv_ad_grad(lvADExpr *expr, int var_index);
+/* ============================================================
+ * 向后兼容别名（旧名称 → lv_ 前缀新名称）
+ *
+ * v3.5.0 起公共符号统一使用 lv_ 前缀（lv_ad_*）。
+ * 以下 #define 仅为既有外部代码提供向后兼容，新代码请直接使用 lv_ad_*。
+ * ============================================================ */
+#define ad_engine_create lv_ad_engine_create
+#define ad_engine_destroy lv_ad_engine_destroy
+#define ad_expr_create_const lv_ad_expr_create_const
+#define ad_expr_create_var lv_ad_expr_create_var
+#define ad_expr_add lv_ad_expr_add
+#define ad_expr_mul lv_ad_expr_mul
+#define ad_expr_sin lv_ad_expr_sin
+#define ad_expr_cos lv_ad_expr_cos
+#define ad_expr_pow lv_ad_expr_pow
+#define ad_expr_destroy lv_ad_expr_destroy
+#define ad_forward_diff lv_ad_forward_diff
+#define ad_reverse_diff lv_ad_reverse_diff
+#define ad_eval lv_ad_eval
+#define ad_grad lv_ad_grad
+
 #ifdef __cplusplus
 }
 #endif

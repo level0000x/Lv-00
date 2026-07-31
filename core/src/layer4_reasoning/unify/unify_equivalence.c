@@ -86,6 +86,6 @@ void unify_clear_equivalences(void) {
     g_equivalence_count = 0;
 }
 
-void unify_equivalence_storage_cleanup(void) {
+void lv_unify_equivalence_storage_cleanup(void) {
     unify_clear_equivalences();
 }

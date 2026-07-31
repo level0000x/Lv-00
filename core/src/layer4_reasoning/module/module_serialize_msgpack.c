@@ -920,7 +920,7 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
             for (uint16_t j = 0; j < pkg_count; j++) {
                 char *pkg_name = NULL;
                 if (mp_decoder_read_str(&dec, &pkg_name) && mod && pkg_name) {
-                    AxiomPackage *pkg = axiom_package_create(pkg_name, "0.0.0");
+                    AxiomPackage *pkg = lv_axiom_package_create(pkg_name, "0.0.0");
                     if (pkg) {
                         module_add_axiom_package(mod, pkg);
                     }

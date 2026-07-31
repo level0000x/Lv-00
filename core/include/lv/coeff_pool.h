@@ -18,7 +18,8 @@
 
 #include "lv/lv_mempool_utils.h"
 #include "lv/mpz_poly.h"
-#include "lv/lv_internal.h"
+#include "lv/error_codes.h"
+#include "lv/lv_utils.h"
 
 #ifdef __cplusplus
 extern "C" {

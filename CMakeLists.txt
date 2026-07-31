@@ -729,8 +729,7 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/result_messages_cn.c
     # v3.5.0 stub→real: 8 new resource modules
     core/src/layer2_resource/fast_index.c
-    core/src/layer2_resource/geo_spec.c
-    core/src/layer2_resource/math_input.c
+    # geo_spec.c / math_input.c 与上层重复，规范实现位于 layer3_geometry / layer1_parser
     core/src/layer2_resource/math_protocol.c
     core/src/layer2_resource/proof_priority.c
     core/src/layer2_resource/proof_score.c

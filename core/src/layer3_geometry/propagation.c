@@ -61,7 +61,7 @@ int propagation_wfc_max_collaboration_iterations(void) {
 
 /** @brief 创建一个节点状态空间 */
 static NodeStateSpace *state_create(int node_id) {
-    NodeStateSpace *s = (NodeStateSpace *) calloc(1, sizeof(NodeStateSpace));
+    NodeStateSpace *s = (NodeStateSpace *) lv_calloc(1, sizeof(NodeStateSpace));
     if (!s)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "state_create: calloc failed");
     s->node_id = node_id;
@@ -97,7 +97,7 @@ static void state_destroy(NodeStateSpace *s) {
 static NodeStateSpace *state_deep_copy(const NodeStateSpace *src) {
     if (!src)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "state_deep_copy: src is NULL");
-    NodeStateSpace *dst = (NodeStateSpace *) calloc(1, sizeof(NodeStateSpace));
+    NodeStateSpace *dst = (NodeStateSpace *) lv_calloc(1, sizeof(NodeStateSpace));
     if (!dst)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "state_deep_copy: calloc failed");
 
@@ -178,7 +178,7 @@ static bool state_contains(const NodeStateSpace *state, const SymbolicCoord *coo
 
 static bool queue_init(PropagationContext *ctx) {
     ctx->queue_capacity = PROP_DEFAULT_QUEUE_CAPACITY;
-    ctx->propagation_queue = (int *) calloc((size_t) ctx->queue_capacity, sizeof(int));
+    ctx->propagation_queue = (int *) lv_calloc((size_t) ctx->queue_capacity, sizeof(int));
     if (!ctx->propagation_queue)
         return false;
     ctx->queue_head = 0;
@@ -783,7 +783,7 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
         case PROP_COLLAPSE_WEIGHTED: {
             /* 基于约束兼容性的加权随机选择 */
             /* 计算每个候选坐标的兼容性权重：与邻域约束兼容的数量 */
-            double *weights = (double *) calloc((size_t) ss->candidates_da.count, sizeof(double));
+            double *weights = (double *) lv_calloc((size_t) ss->candidates_da.count, sizeof(double));
             if (weights && ss->candidates_da.count > 0) {
                 int cids[128];
                 int nc = graph_find_constraints_involving(ctx->graph, node_id, cids, 128);
@@ -921,12 +921,12 @@ PropagationSnapshot *propagation_snapshot_save(PropagationContext *ctx) {
     if (!ctx)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "propagation_snapshot_save: ctx is NULL");
 
-    PropagationSnapshot *snap = (PropagationSnapshot *) calloc(1, sizeof(PropagationSnapshot));
+    PropagationSnapshot *snap = (PropagationSnapshot *) lv_calloc(1, sizeof(PropagationSnapshot));
     if (!snap)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "propagation_snapshot_save: snap calloc failed");
 
     snap->state_count = ctx->state_count;
-    snap->states = (NodeStateSpace *) calloc((size_t) snap->state_count, sizeof(NodeStateSpace));
+    snap->states = (NodeStateSpace *) lv_calloc((size_t) snap->state_count, sizeof(NodeStateSpace));
     if (!snap->states) {
         lv_free((void **) &snap);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "propagation_snapshot_save: states calloc failed");

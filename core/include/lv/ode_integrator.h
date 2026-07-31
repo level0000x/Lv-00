@@ -21,7 +21,9 @@ extern "C" {
 #endif
 #include <stddef.h>
 
-#include "lv.h"
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
+#endif
 
 /* ============================================================
  * ODE 右端函数回调
