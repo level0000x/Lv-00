@@ -35,6 +35,7 @@ def lvExprToIR : LvExpr → IRExpr
   | .div e1 e2  => .div (lvExprToIR e1) (lvExprToIR e2)
   | .some e     => lvExprToIR e
   | .pair e1 e2 => .add (lvExprToIR e1) (lvExprToIR e2)
+  | .app f a    => .add (lvExprToIR f) (lvExprToIR a)
   | _           => .const 0
 
 /-- lv_expr_eval 与 eval_expr 通过 lvExprToIR 等价 -/

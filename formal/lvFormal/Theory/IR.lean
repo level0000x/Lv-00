@@ -53,7 +53,7 @@ inductive IRExpr where
   deriving DecidableEq
 
 /-- 表达式求值（在给定环境下） -/
-partial def eval_expr (env : String → ℝ × ℝ) : IRExpr → ℝ
+def eval_expr (env : String → ℝ × ℝ) : IRExpr → ℝ
   | .var n      => ptX (env n)
   | .const v    => v
   | .add e1 e2  => eval_expr env e1 + eval_expr env e2

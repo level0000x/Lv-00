@@ -679,6 +679,10 @@ set(lv_LAYER1_SOURCES
 # 依赖：GMP，C 标准库（仅 Layer 2 能直接依赖 GMP 链接）
 set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_utils.c
+    core/src/layer2_resource/lv_utils_str.c
+    core/src/layer2_resource/lv_utils_array.c
+    core/src/layer2_resource/lv_utils_config.c
+    core/src/layer2_resource/lv_utils_misc.c
     core/src/layer2_resource/lv_numeric.c
     core/src/layer2_resource/lv_json.c
     core/src/layer2_resource/lv_event_bus.c
@@ -889,6 +893,9 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/backends/groebner_mono.c
     core/src/layer4_reasoning/backends/groebner_poly.c
     core/src/layer4_reasoning/backends/smt_backend_impl.c
+    core/src/layer4_reasoning/backends/smt_backend_impl_smtlib2.c
+    core/src/layer4_reasoning/backends/smt_backend_impl_groebner.c
+    core/src/layer4_reasoning/backends/smt_backend_impl_external.c
     core/src/layer4_reasoning/backends/atp_backend.c
     core/src/layer4_reasoning/backends/sat_encoding.c
     core/src/layer4_reasoning/backends/bdd_encoding.c

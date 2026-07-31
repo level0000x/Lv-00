@@ -230,12 +230,11 @@ lemma go_all_proved_if_qed_last (g : ConstraintGraph) (st : VerifierState) (t : 
       have hq : go g st'' [.qed] = some st' := by
         simp [hgo] at h
         exact h
+      -- simp 会把该等式化简为 图约束全部已证 ∧ 状态不变
       simp [go, transition, step_ok] at hq
-      by_cases hok : g.all st''.proved.contains
-      · simp [hok] at hq
-        cases hq
-        exact hok
-      · simp [hok] at hq
+      rcases hq with ⟨hall, hst''⟩
+      rw [← hst'']
+      exact all_contains_of_subset hall
 
 /-- If evidence_check_witness returns some st, then the trace ends with qed,
     st equals the trace_fold, and all graph constraints are in st.proved. -/
@@ -247,16 +246,6 @@ lemma evidence_check_witness_spec (g : ConstraintGraph) (t : ProofTrace) (st : V
   | none => simp [hg] at h
   | some step =>
       cases hstep : step with
-      | hypothesis _ =>
-          simp [hg, hstep] at h
-      | lemma _ _ =>
-          simp [hg, hstep] at h
-      | rewrite _ _ =>
-          simp [hg, hstep] at h
-      | unify _ _ =>
-          simp [hg, hstep] at h
-      | normalize _ =>
-          simp [hg, hstep] at h
       | qed =>
           constructor
           · rfl
@@ -265,6 +254,8 @@ lemma evidence_check_witness_spec (g : ConstraintGraph) (t : ProofTrace) (st : V
             have hlast : t.getLast? = some .qed := by rw [hg, hstep]
             have hall := go_all_proved_if_qed_last g (initVerifier g) t st h hlast
             exact ⟨hfold, hall⟩
+      | _ =>
+          simp [hg, hstep] at h
 
 /- ===============================================================
    Semantic Soundness
@@ -436,20 +427,12 @@ theorem evidence_no_qed_fails (g : ConstraintGraph) (t : ProofTrace)
   | none => simp
   | some step =>
       cases hstep : step with
-      | hypothesis _ =>
-          simp [hg, hstep]
-      | lemma _ _ =>
-          simp [hg, hstep]
-      | rewrite _ _ =>
-          simp [hg, hstep]
-      | unify _ _ =>
-          simp [hg, hstep]
-      | normalize _ =>
-          simp [hg, hstep]
       | qed =>
           exfalso
           apply h
           rw [hg, hstep]
+      | _ =>
+          simp [hg, hstep]
 lemma step_ok_independent_of_g (g g' : ConstraintGraph) (st : VerifierState) (step : ProofStep)
     (h_no_qed : step ≠ .qed) : step_ok g st step = step_ok g' st step := by
   cases step
@@ -476,21 +459,13 @@ lemma evidence_check_go_some (g : ConstraintGraph) (t : ProofTrace)
   | none => simp [hg] at h
   | some step =>
       cases hstep : step with
-      | hypothesis _ =>
-          simp [hg, hstep] at h
-      | lemma _ _ =>
-          simp [hg, hstep] at h
-      | rewrite _ _ =>
-          simp [hg, hstep] at h
-      | unify _ _ =>
-          simp [hg, hstep] at h
-      | normalize _ =>
-          simp [hg, hstep] at h
       | qed =>
           simp [hg, hstep] at h
           cases hgo : go g (initVerifier g) t with
           | none => simp [hgo] at h
-          | some st => exact ⟨st, hgo⟩
+          | some st => exact ⟨st, rfl⟩
+      | _ =>
+          simp [hg, hstep] at h
 
 /-- 证据组合定理（简化版）：两个使用平凡迹（hypothesis++qed）验证的图，
     其并集也可用平凡迹验证。 -/

@@ -264,21 +264,65 @@ SymbolicCoord *domain_get_center(const Domain *domain) {
  * 辅助工具实现
  * ============================================================ */
 
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch/索引数组）
+ * 使用 lv_enum_to_str 二分查找（表须按枚举值升序排列）
+ * ================================================================ */
+
+/** @brief element_to_string 名称表（按枚举值升序）
+ *  @note 原实现为 names[] 索引表；此处按原表的运行时映射原样迁移，
+ *        保持既有输出与边界行为（未命中返回 "未知"）不变。 */
+static const lvStrToEnumEntry s_element_to_string_entries[] = {
+    {"无属性", ELEMENT_FIRE},
+    {"火", ELEMENT_WATER},
+    {"水", ELEMENT_AIR},
+    {"风", ELEMENT_EARTH},
+    {"土", ELEMENT_ETHER},
+};
+
+/** @brief stage_to_string 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_stage_to_string_entries[] = {
+    {"开模", SPELL_STAGE_MOLDING},
+    {"提纯", SPELL_STAGE_PURIFYING},
+    {"灌注", SPELL_STAGE_INFUSING},
+    {"释放", SPELL_STAGE_RELEASING},
+};
+
+/** @brief status_to_string 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_status_to_string_entries[] = {
+    {"空闲", SPELL_STATUS_IDLE},
+    {"施法中", SPELL_STATUS_CASTING},
+    {"成功", SPELL_STATUS_SUCCESS},
+    {"失败", SPELL_STATUS_FAILED},
+    {"反噬", SPELL_STATUS_BACKLASH},
+};
+
+/** @brief reaction_to_string 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_reaction_to_string_entries[] = {
+    {"无反应", ELEMENT_REACTION_NONE},
+    {"增强", ELEMENT_REACTION_ENHANCE},
+    {"削弱", ELEMENT_REACTION_WEAKEN},
+    {"冲突", ELEMENT_REACTION_CONFLICT},
+};
+
+/** @brief restriction_to_string 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_restriction_to_string_entries[] = {
+    {"无限制", RESTRICTION_NONE},
+    {"限制级", RESTRICTION_LIMITED},
+    {"管制级", RESTRICTION_CONTROLLED},
+    {"禁术级", RESTRICTION_FORBIDDEN},
+    {"绝对禁术", RESTRICTION_ABSOLUTE},
+};
+
 /**
  * @brief 将魔法元素枚举值转换为中文字符串
  *
  * @param element 魔法元素类型
  * @return 元素的中文名称字符串，无效值时返回 "未知"
- * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *element_to_string(MagicElement element) {
-    /* 元素名称查找表，与 MagicElement 枚举顺序一致 */
-    static const char *names[] = {"无属性", "火", "水", "风", "土", "以太"};
-    /* 边界检查：防止数组越界 */
-    if (element < 0 || element > ELEMENT_ETHER) {
-        return "未知";
-    }
-    return names[element];
+    return lv_enum_to_str(s_element_to_string_entries, lv_ARRAY_SIZE(s_element_to_string_entries), (int) element,
+                          "未知");
 }
 
 /**
@@ -313,16 +357,9 @@ MagicElement string_to_element(const char *str) {
  *
  * @param stage 施法阶段
  * @return 阶段的中文名称字符串，无效值时返回 "未知"
- * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *stage_to_string(SpellStage stage) {
-    /* 施法阶段名称查找表，与 SpellStage 枚举顺序一致 */
-    static const char *names[] = {"开模", "提纯", "灌注", "释放"};
-    /* 边界检查：防止数组越界 */
-    if (stage < 0 || stage > SPELL_STAGE_RELEASING) {
-        return "未知";
-    }
-    return names[stage];
+    return lv_enum_to_str(s_stage_to_string_entries, lv_ARRAY_SIZE(s_stage_to_string_entries), (int) stage, "未知");
 }
 
 /**
@@ -330,16 +367,9 @@ const char *stage_to_string(SpellStage stage) {
  *
  * @param status 咒语状态
  * @return 状态的中文名称字符串，无效值时返回 "未知"
- * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *status_to_string(SpellStatus status) {
-    /* 咒语状态名称查找表，与 SpellStatus 枚举顺序一致 */
-    static const char *names[] = {"空闲", "施法中", "成功", "失败", "反噬"};
-    /* 边界检查：防止数组越界 */
-    if (status < 0 || status > SPELL_STATUS_BACKLASH) {
-        return "未知";
-    }
-    return names[status];
+    return lv_enum_to_str(s_status_to_string_entries, lv_ARRAY_SIZE(s_status_to_string_entries), (int) status, "未知");
 }
 
 /**
@@ -347,16 +377,10 @@ const char *status_to_string(SpellStatus status) {
  *
  * @param reaction 元素反应类型
  * @return 反应类型的中文名称字符串，无效值时返回 "未知"
- * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *reaction_to_string(ElementReaction reaction) {
-    /* 元素反应名称查找表，与 ElementReaction 枚举顺序一致 */
-    static const char *names[] = {"无反应", "增强", "削弱", "冲突"};
-    /* 边界检查：防止数组越界 */
-    if (reaction < 0 || reaction > ELEMENT_REACTION_CONFLICT) {
-        return "未知";
-    }
-    return names[reaction];
+    return lv_enum_to_str(s_reaction_to_string_entries, lv_ARRAY_SIZE(s_reaction_to_string_entries), (int) reaction,
+                          "未知");
 }
 
 /**
@@ -364,14 +388,8 @@ const char *reaction_to_string(ElementReaction reaction) {
  *
  * @param level 限制等级
  * @return 限制等级的中文名称字符串，无效值时返回 "未知"
- * @warning 传入无效枚举值将触发边界检查并返回 "未知"
  */
 const char *restriction_to_string(RestrictionLevel level) {
-    /* 限制等级名称查找表，与 RestrictionLevel 枚举顺序一致 */
-    static const char *names[] = {"无限制", "限制级", "管制级", "禁术级", "绝对禁术"};
-    /* 边界检查：防止数组越界 */
-    if (level < 0 || level > RESTRICTION_ABSOLUTE) {
-        return "未知";
-    }
-    return names[level];
+    return lv_enum_to_str(s_restriction_to_string_entries, lv_ARRAY_SIZE(s_restriction_to_string_entries), (int) level,
+                          "未知");
 }

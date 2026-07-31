@@ -168,7 +168,7 @@ def findProveStmt (p : LvProgram) : Option LvStmt :=
     | _ => false
 
 /-- Lv 表达式求值：将表达式映射到 ℝ（用于数值约束） -/
-partial def lv_expr_eval (env : String → ℝ × ℝ) : LvExpr → ℝ
+def lv_expr_eval (env : String → ℝ × ℝ) : LvExpr → ℝ
   | .var n      => (env n).1
   | .intLit v   => (v : ℝ)
   | .floatLit v => v
