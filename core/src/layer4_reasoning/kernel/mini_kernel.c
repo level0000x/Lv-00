@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mini_kernel.c
  * @brief 极简验证内核实现 —— 借鉴 mm0/Metamath 的超小型可信计算基（TCB）
  *
@@ -54,6 +54,7 @@
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 
 
 /* ========================================================================

@@ -812,6 +812,14 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/geo_event_detect.c
     core/src/layer3_geometry/geo_spec.c
     core/src/layer3_geometry/geometry_csg.c
+    core/src/layer3_geometry/geometry_csg_node.c
+    core/src/layer3_geometry/geometry_csg_bbox.c
+    core/src/layer3_geometry/geometry_csg_primitive.c
+    core/src/layer3_geometry/geometry_csg_mesh.c
+    core/src/layer3_geometry/geometry_csg_bsp.c
+    core/src/layer3_geometry/geometry_csg_hull.c
+    core/src/layer3_geometry/geometry_csg_eval.c
+    core/src/layer3_geometry/geometry_csg_export.c
     core/src/layer3_geometry/geom_evol.c
     core/src/layer3_geometry/float_error.c
     core/src/layer3_geometry/mpz_poly_resultant.c

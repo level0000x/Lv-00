@@ -25,6 +25,7 @@
 #include "lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 
 /**
  * @brief 将 src 中的特殊 JSON 字符转义后写入 dst

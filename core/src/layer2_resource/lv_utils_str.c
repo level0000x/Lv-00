@@ -9,6 +9,7 @@
  */
 
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 
 #include "lv/lv_file.h"
 

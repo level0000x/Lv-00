@@ -31,15 +31,16 @@ inductive Cv00Type where
   | struct (fields : List Cv00Type)
   deriving Repr
 
-/-- sizeof 计算（简化）-/
-partial def sizeof : Cv00Type → Nat
+/-- sizeof 计算（简化，纯结构递归：struct 直接递归等价于 map+sum） -/
+def sizeof : Cv00Type → Nat
   | .void          => 0
   | .int32         => 4
   | .int64         => 8
   | .float64       => 8
   | .pointer _     => 8
   | .array t n     => sizeof t * n
-  | .struct fs     => (fs.map sizeof).sum
+  | .struct []     => 0
+  | .struct (f :: fs) => sizeof f + sizeof (.struct fs)
 
 /-- 非退化类型归纳谓词：sizeof 严格为正 -/
 inductive Nondegenerate : Cv00Type → Prop
@@ -52,7 +53,17 @@ inductive Nondegenerate : Cv00Type → Prop
 
 /-- 非退化类型的 sizeof 严格为正（替代原公理，杜绝零长数组 / 空结构体反例） -/
 theorem sizeof_positive (t : Cv00Type) (h : Nondegenerate t) : sizeof t > 0 := by
-  sorry
+  induction h with
+  | int32 => decide
+  | int64 => decide
+  | float64 => decide
+  | pointer _ => decide
+  | array elem len _hlen hlen ih =>
+      change 0 < sizeof elem * len
+      exact Nat.mul_pos ih hlen
+  | struct_cons f fs _hf ih =>
+      change 0 < sizeof f + sizeof (.struct fs)
+      exact Nat.add_pos_left ih
 
 /-! ## C 值 -/
 

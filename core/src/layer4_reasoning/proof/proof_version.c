@@ -23,6 +23,7 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 
 #include "lv/lv_strbuf.h"
 

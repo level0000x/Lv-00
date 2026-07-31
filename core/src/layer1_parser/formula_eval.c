@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_numeric.h"
 #include "lv_utils.h"
 
 double eval_node(const FormulaNode *node, double x, double y);
@@ -112,7 +113,7 @@ static double eval_u_tan(const FormulaNode *node, double x, double y) {
             double v = eval_node(node->data.unary_op.operand, x, y);
             /* tan(x) 在 x ≈ π/2 + nπ 处发散为 HUGE_VAL，使用容差避开奇点 */
             double rem = fmod(v + M_PI_2, M_PI);
-            if (fabs(rem) < 1e-12 || fabs(rem - M_PI) < 1e-12) {
+            if (lv_is_zero(rem, lv_EPSILON_DOUBLE) || lv_is_equal(rem, M_PI, lv_EPSILON_DOUBLE)) {
                 return 0.0;
             }
             return tan(v);

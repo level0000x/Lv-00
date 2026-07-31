@@ -19,6 +19,7 @@
 #include "lv/lv_json.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 
 /* ============================================================
@@ -298,7 +299,7 @@ int rune_serialize_to_buffer(const Rune *rune, char *buf, int buf_size) {
  * @return 解析成功返回新创建的符文，失败返回 NULL
  */
 Rune *rune_parse(const char *str) {
-    if (!str || str[0] == '\0') {
+    if (lv_str_is_empty(str)) {
         lv_LOG_WARNING("rune_parse: 输入字符串为空");
         return NULL;
     }

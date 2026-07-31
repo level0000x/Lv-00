@@ -26,6 +26,7 @@
  * ======================================================================== */
 
 #include "lv/backends/hip_backend.h"
+#include "lv/lv_str_utils.h"
 
 #include <math.h>
 #include <string.h>

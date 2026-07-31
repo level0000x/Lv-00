@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_numeric.h"
 #include "lv/lv_utils.h"
 
 #include "lv_internal.h"
@@ -401,7 +402,7 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
             /* 移除系数接近零的项 */
             for (int k = f.terms.count - 1; k >= 0; k--) {
                 PolyTerm *fk = (PolyTerm *)lv_darray_get(&f.terms, k);
-                if (fabs(fk->coeff) < lv_EPSILON_DOUBLE) {
+                if (lv_is_zero(fk->coeff, lv_EPSILON_DOUBLE)) {
                     lv_free((void **) &fk->exponents);
                     fk->exponents = NULL;
                     /* 将末尾项移到当前位置 */
@@ -799,7 +800,7 @@ bool lv_groebner_poly_is_nonzero_constant(void *poly) {
     if (p->terms.count != 1)
         return false;
     PolyTerm *pt0 = (PolyTerm *)lv_darray_get(&p->terms, 0);
-    if (fabs(pt0->coeff) < lv_EPSILON_DOUBLE)
+    if (lv_is_zero(pt0->coeff, lv_EPSILON_DOUBLE))
         return false;
     if (pt0->var_count > 0 && pt0->exponents) {
         for (int i = 0; i < pt0->var_count; i++) {
