@@ -75,6 +75,24 @@ def assignment_in_domain (a : Assignment) (domains : List (String × Domain)) : 
 def remove_value (dom : Domain) (v : ℕ) : Domain :=
   dom.erase v
 
+/-- List.erase 保持非目标元素的成员性 -/
+lemma erase_mem_of_ne {x a : ℕ} {l : List ℕ} :
+    x ∈ l → x ≠ a → x ∈ l.erase a := by
+  induction l with
+  | nil => intro hx; simp at hx
+  | cons y ys ih =>
+      intro hx hne
+      by_cases h : (y == a) = true
+      · have hy : y = a := (beq_iff_eq.mp h)
+        simp [List.erase_cons, h]
+        cases hx with
+        | head => exfalso; exact hne hy
+        | tail x hx' => exact hx'
+      · simp [List.erase_cons, h]
+        cases hx with
+        | head => simp
+        | tail x hx' => simp [ih hx' hne]
+
 /-- 域缩减保持解的正确版本：
     若 a 满足 domains，且 a(v) ≠ val，
     则 a 也满足从 v 的域中移除 val 后的新 domains。 -/
@@ -82,15 +100,31 @@ theorem remove_keeps_solution_if_differs (domains : List (String × Domain)) (v 
     (a : Assignment) (h_sol : assignment_in_domain a domains) (h_diff : a v ≠ val) :
     assignment_in_domain a (domains.map (fun (n, dom) =>
       if n = v then (n, dom.erase val) else (n, dom))) := by
-  sorry
+  intro w dom hmem
+  rcases List.mem_map.mp hmem with ⟨p, hp, hpp⟩
+  rcases p with ⟨n, d⟩
+  by_cases h : n = v
+  · simp [h] at hpp
+    rcases hpp with ⟨hw, hdom⟩
+    subst w
+    subst dom
+    exact erase_mem_of_ne (x := a v) (a := val) (by simpa [h] using h_sol n d hp) h_diff
+  · simp [h] at hpp
+    rcases hpp with ⟨hw, hdom⟩
+    subst w
+    subst dom
+    exact h_sol n d hp
 
 /-- 域的单调缩减保持可满足性（通用版本）：
-    若 domains' 中每个变量的域都是 domains 中对应变量域的子集，
+    若 domains' 中每个变量的域都是 domains 中对应变量域的超集
+    （domains ⊆ domains'，即缩减方向为 domains' 更窄），
     则任何满足 domains 的赋值也满足 domains'。 -/
 theorem subset_preserves_solutions (domains domains' : List (String × Domain))
-    (a : Assignment) (h_sub : ∀ v dom, (v, dom) ∈ domains' → ∃ dom0, (v, dom0) ∈ domains ∧ dom ⊆ dom0)
+    (a : Assignment) (h_sub : ∀ v dom, (v, dom) ∈ domains' → ∃ dom0, (v, dom0) ∈ domains ∧ dom0 ⊆ dom)
     (h_sol : assignment_in_domain a domains) : assignment_in_domain a domains' := by
-  sorry
+  intro w dom hmem
+  rcases h_sub w dom hmem with ⟨dom0, hdom0, hsub⟩
+  exact hsub (h_sol w dom0 hdom0)
 
 /-- AC-3 保持解：若从每个变量的域中移除值后得到子集，
     且原赋值仍满足子集，则该赋值也是缩减后的域的解。
@@ -99,7 +133,7 @@ theorem subset_preserves_solutions (domains domains' : List (String × Domain))
     因此理论上移除后解集不变。本定理的简化版本仅断言
     子集保持性——这是 AC-3 正确性的核心。 -/
 theorem ac3_preserves_solutions (domains domains' : List (String × Domain))
-    (a : Assignment) (h_sub : ∀ n d, (n, d) ∈ domains' → ∃ d0, (n, d0) ∈ domains ∧ d ⊆ d0)
+    (a : Assignment) (h_sub : ∀ n d, (n, d) ∈ domains' → ∃ d0, (n, d0) ∈ domains ∧ d0 ⊆ d)
     (h_sol : assignment_in_domain a domains) : assignment_in_domain a domains' :=
   subset_preserves_solutions domains domains' a h_sub h_sol
 

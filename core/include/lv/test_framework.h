@@ -1,4 +1,4 @@
-﻿#ifndef lv_TEST_FRAMEWORK_H
+#ifndef lv_TEST_FRAMEWORK_H
 #define lv_TEST_FRAMEWORK_H
 
 #ifdef __GNUC__
@@ -115,9 +115,6 @@ struct lvBenchmark {
 };
 
 /* ── API ── */
-lvTestSuite *lv_test_suite_create(const char *name);
-void lv_test_suite_destroy(lvTestSuite *suite);
-
 bool lv_test_register(const char *suite_name, const char *test_name, lvTestFunc func);
 bool lv_test_register_with_fixture(const char *suite_name, const char *test_name, lvTestFunc func,
                                    lvTestSetupFunc setup, lvTestTeardownFunc teardown);

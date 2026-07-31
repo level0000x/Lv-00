@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file function_composition.c
  * @brief 完整示例：函数块组合与类型系统
  *
@@ -14,29 +14,7 @@
 #include <string.h>
 
 #include "lv.h"
-
-/**
- * 辅助函数：添加一个点
- */
-static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
-    SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
-    SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
-    if (!cx || !cy) {
-        if (cx)
-            symbolic_coord_destroy(cx);
-        if (cy)
-            symbolic_coord_destroy(cy);
-        return -1;
-    }
-    SymbolicCoord *coords[] = {cx, cy};
-    AddNodeResult res = graph_add_point(g, coords, 2);
-    if (res != ADD_NODE_OK) {
-        symbolic_coord_destroy(cx);
-        symbolic_coord_destroy(cy);
-        return -1;
-    }
-    return g->next_node_id - 1;
-}
+#include "examples_common.h"
 
 /**
  * 创建一个简单的"中点"函数块

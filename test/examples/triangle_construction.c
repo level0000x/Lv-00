@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file triangle_construction.c
  * @brief 完整示例：三角形构造与证明
  *
@@ -15,30 +15,7 @@
 #include <string.h>
 
 #include "lv.h"
-
-/**
- * 辅助函数：添加一个点
- * 使用有理数坐标创建点，返回新节点的ID
- */
-static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
-    if (!g || xd == 0 || yd == 0) {
-        fprintf(stderr, "add_point: 无效参数\n");
-        return -1;
-    }
-    SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
-    SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
-    if (!cx || !cy) {
-        fprintf(stderr, "add_point: 坐标创建失败\n");
-        return -1;
-    }
-    SymbolicCoord *coords[] = {cx, cy};
-    AddNodeResult res = graph_add_point(g, coords, 2);
-    if (res != ADD_NODE_OK) {
-        fprintf(stderr, "add_point: 添加节点失败 (错误码=%d)\n", res);
-        return -1;
-    }
-    return g->next_node_id - 1;
-}
+#include "examples_common.h"
 
 /**
  * 步骤1: 构造三角形

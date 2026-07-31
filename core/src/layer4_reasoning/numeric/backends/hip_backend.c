@@ -33,6 +33,7 @@
 #include <stdio.h>
 
 #include "lv/bicgstab_shared.h"
+#include "lv/gmres_shared.h"
 #include "lv/lv_utils.h"
 #include "debug.h"
 #include "lv/lv_internal.h"
@@ -418,6 +419,11 @@ static void hip_dense_linsol_destroy(lvLinearSolver *LS);
 static int hip_iter_linsol_setup(lvLinearSolver *LS, const lvMatrix *A);
 static int hip_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static int hip_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+
+/* HIP 共享迭代内核算子声明（GMRES 复用 BiCGSTAB 算子，见下方实现） */
+static double hip_bicgstab_dot(void *ctx, const double *a, const double *b, int64_t n);
+static double hip_bicgstab_norm(void *ctx, const double *v, int64_t n);
+static void hip_bicgstab_matvec(void *ctx, const lvMatrix *A, const double *x, double *y, int64_t n);
 static void hip_iter_linsol_destroy(lvLinearSolver *LS);
 
 /* ========================================================================
@@ -1334,8 +1340,14 @@ static double hip_norm_host_vector(const double *h_v, int64_t n) {
 /**
  * @brief HIP GMRES 求解器
  *
- * 在主机端执行 Arnoldi 过程（利用 HIP 加速 matvec 和点积），
- * 保持正交化和回代在主机端。
+ * 利用 HIP 加速 matvec、点积和范数，Arnoldi 过程与回代在主机端执行。
+ * 算法主体委托给共享内核 lv_gmres_solve()（gmres_shared.c），
+ * 此处仅提供 HIP 算子表（点积/范数/矩阵向量乘，复用 BiCGSTAB 算子）
+ * 并在求解前后回读/写回 GPU 数据。
+ *
+ * @note 有意的缺陷修复：原实现把 breakdown 阈值硬编码为 1e-14，与 SERIAL/CUDA
+ *       的 lv_EPSILON_DOUBLE (1e-12) 不一致；共享内核统一为 lv_EPSILON_DOUBLE，
+ *       解更新分量跳过阈值统一为 lv_NUM_EPSILON（详见 gmres_shared.c）。
  */
 static int hip_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
                             const lvVector *b, lvVector *x) {
@@ -1352,172 +1364,40 @@ static int hip_gmres_solve(lvLinearSolver *LS, const lvMatrix *A,
     }
 
     int64_t n = A->rows;
-    int max_iter = is->max_iters;
-    double tol = is->tol;
-    int m = 30; /* 重启周期 */
 
-    /* 主机端向量 */
-    double *h_x = (double *)lv_calloc((size_t)n, sizeof(double));
+    /* 主机端 b/x 缓冲 */
     double *h_b = (double *)lv_calloc((size_t)n, sizeof(double));
-    double *h_r = (double *)lv_calloc((size_t)n, sizeof(double));
-    if (!h_x || !h_b || !h_r) {
-        if (h_x) lv_free((void **)&h_x);
+    double *h_x = (double *)lv_calloc((size_t)n, sizeof(double));
+    if (!h_b || !h_x) {
         if (h_b) lv_free((void **)&h_b);
-        if (h_r) lv_free((void **)&h_r);
+        if (h_x) lv_free((void **)&h_x);
         return lv_BACKEND_MEM_ERROR;
     }
 
     /* 拷贝 b 到主机 */
-    HipVectorData *bd = (HipVectorData *)b->backend_data;
-    hipMemcpy(h_b, bd->d_data, (size_t)n * sizeof(double), hipMemcpyDeviceToHost);
-
-    /* 分配 GMRES 工作区 */
-    double *V = lv_calloc((size_t)(m + 1) * (size_t)n, sizeof(double));
-    double *H = lv_calloc((size_t)(m + 1) * (size_t)m, sizeof(double));
-    double *cs = lv_calloc((size_t)m, sizeof(double));
-    double *sn = lv_calloc((size_t)m, sizeof(double));
-    double *rhs = lv_calloc((size_t)(m + 1), sizeof(double));
-    double *y = lv_calloc((size_t)m, sizeof(double));
-
-    if (!V || !H || !cs || !sn || !rhs || !y) {
-        if (V) lv_free((void **)&V);
-        if (H) lv_free((void **)&H);
-        if (cs) lv_free((void **)&cs);
-        if (sn) lv_free((void **)&sn);
-        if (rhs) lv_free((void **)&rhs);
-        if (y) lv_free((void **)&y);
-        lv_free((void **)&h_x);
-        lv_free((void **)&h_b);
-        lv_free((void **)&h_r);
-        return lv_BACKEND_MEM_ERROR;
-    }
-
-    double b_norm = hip_norm_host_vector(h_b, n);
-    if (b_norm < 1e-14) {
-        memset(h_x, 0, (size_t)n * sizeof(double));
-        HipVectorData *xd = (HipVectorData *)x->backend_data;
-        hipMemcpy(xd->d_data, h_x, (size_t)n * sizeof(double), hipMemcpyHostToDevice);
-        goto gmres_cleanup;
-    }
-
-    int total_iters = 0;
-    int converged = 0;
-
-    while (total_iters < max_iter && !converged) {
-        int k_max = (max_iter - total_iters) < m ? (max_iter - total_iters) : m;
-
-        /* r0 = b - A * x0 */
-        hip_matvec_host_vectors(A, h_x, h_r, n);
-        for (int64_t i = 0; i < n; ++i) h_r[i] = h_b[i] - h_r[i];
-
-        double r0_norm = hip_norm_host_vector(h_r, n);
-        if (r0_norm < tol * b_norm || r0_norm < 1e-14) {
-            converged = 1;
-            break;
-        }
-
-        /* V[0] = r0 / ||r0|| */
-        double inv_r0 = 1.0 / r0_norm;
-        for (int64_t i = 0; i < n; ++i) V[i] = h_r[i] * inv_r0;
-
-        memset(rhs, 0, (size_t)(m + 1) * sizeof(double));
-        rhs[0] = r0_norm;
-        memset(H, 0, (size_t)(m + 1) * (size_t)m * sizeof(double));
-
-        int k;
-        for (k = 0; k < k_max; ++k) {
-            /* w = A * V[k] */
-            double *vk = V + (int64_t)k * n;
-            double *w = V + (int64_t)(k + 1) * n;
-            hip_matvec_host_vectors(A, vk, w, n);
-
-            /* MGS 正交化 */
-            for (int jj = 0; jj <= k; ++jj) {
-                double *vj = V + (int64_t)jj * n;
-                double dot = hip_dot_host_vectors(w, vj, n);
-                H[jj * m + k] = dot;
-                for (int64_t i = 0; i < n; ++i) w[i] -= dot * vj[i];
-            }
-
-            double h_next = hip_norm_host_vector(w, n);
-            H[(k + 1) * m + k] = h_next;
-            if (h_next < 1e-14) {
-                k_max = k + 1;
-                break;
-            }
-
-            double inv_h = 1.0 / h_next;
-            for (int64_t i = 0; i < n; ++i) w[i] *= inv_h;
-
-            /* 应用 Givens 旋转 */
-            for (int jj = 0; jj < k; ++jj) {
-                double tmp = cs[jj] * H[jj * m + k] + sn[jj] * H[(jj + 1) * m + k];
-                H[(jj + 1) * m + k] = -sn[jj] * H[jj * m + k] + cs[jj] * H[(jj + 1) * m + k];
-                H[jj * m + k] = tmp;
-            }
-
-            double h_kk = H[k * m + k];
-            double h_k1k = H[(k + 1) * m + k];
-            double h_norm = sqrt(h_kk * h_kk + h_k1k * h_k1k);
-            if (h_norm < 1e-14) {
-                cs[k] = 1.0;
-                sn[k] = 0.0;
-            } else {
-                cs[k] = h_kk / h_norm;
-                sn[k] = h_k1k / h_norm;
-            }
-            H[k * m + k] = h_norm;
-            H[(k + 1) * m + k] = 0.0;
-
-            rhs[k + 1] = -sn[k] * rhs[k];
-            rhs[k] = cs[k] * rhs[k];
-
-            double res = fabs(rhs[k + 1]);
-            if (res < tol * b_norm) {
-                k_max = k + 1;
-                converged = 1;
-                break;
-            }
-        }
-
-        /* 回代 */
-        for (int i = k_max - 1; i >= 0; --i) {
-            double sum = rhs[i];
-            for (int j = i + 1; j < k_max; ++j) sum -= H[i * m + j] * y[j];
-            double diag = H[i * m + i];
-            if (fabs(diag) < 1e-14) { converged = 0; break; }
-            y[i] = sum / diag;
-        }
-
-        /* x += V * y */
-        for (int j = 0; j < k_max; ++j) {
-            double yj = y[j];
-            if (fabs(yj) < 1e-14) continue;
-            double *vj = V + (int64_t)j * n;
-            for (int64_t i = 0; i < n; ++i) h_x[i] += yj * vj[i];
-        }
-
-        total_iters += k_max;
-    }
-
-    /* 写回结果 */
     {
+        HipVectorData *bd = (HipVectorData *)b->backend_data;
+        hipMemcpy(h_b, bd->d_data, (size_t)n * sizeof(double), hipMemcpyDeviceToHost);
+    }
+
+    lvGmresOps ops;
+    ops.ctx = NULL;
+    ops.vector_dot = hip_bicgstab_dot;
+    ops.vector_norm = hip_bicgstab_norm;
+    ops.matvec = hip_bicgstab_matvec;
+
+    int ret = lv_gmres_solve(&ops, A, h_b, h_x, n,
+                             is->max_iters, is->tol, lv_EPSILON_DOUBLE, 30);
+
+    if (ret == lv_BACKEND_OK) {
+        /* 写回结果 */
         HipVectorData *xd = (HipVectorData *)x->backend_data;
         hipMemcpy(xd->d_data, h_x, (size_t)n * sizeof(double), hipMemcpyHostToDevice);
     }
 
-gmres_cleanup:
-    lv_free((void **)&V);
-    lv_free((void **)&H);
-    lv_free((void **)&cs);
-    lv_free((void **)&sn);
-    lv_free((void **)&rhs);
-    lv_free((void **)&y);
-    lv_free((void **)&h_x);
     lv_free((void **)&h_b);
-    lv_free((void **)&h_r);
-
-    return lv_BACKEND_OK;
+    lv_free((void **)&h_x);
+    return ret;
 }
 
 /* ========================================================================

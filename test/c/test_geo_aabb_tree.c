@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_geo_aabb_tree.c
  * @brief AABB 树空间索引模块测试（第十三梯队 CGAL + Boost.Geometry 落地验证）
  */
@@ -8,10 +8,7 @@
 #include <stdio.h>
 
 #include "lv/geo_aabb_tree.h"
-
-#define TEST(name) printf("  [TEST] %s ... ", name)
-#define PASS() printf("PASS\n")
-#define FAIL(msg) printf("FAIL: %s\n", msg)
+#include "test_helpers.h"
 
 static int tests_passed = 0;
 static int tests_failed = 0;

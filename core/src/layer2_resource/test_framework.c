@@ -227,6 +227,10 @@ bool lv_test_add_tag(const char *suite_name, const char *test_name, const char *
     return false;
 }
 
+bool lv_test_register_tag(const char *suite_name, const char *test_name, const char *tag) {
+    return lv_test_add_tag(suite_name, test_name, tag);
+}
+
 /* ============== 断言实现 ============== */
 
 void lv_assert_fail(const char *expr, const char *file, int line, const char *fmt, ...) {
@@ -645,6 +649,14 @@ bool lv_test_register_parameterized(const char *suite_name, const char *test_nam
     }
 
     return true;
+}
+
+bool lv_test_register_data_driven(const char *suite_name, const char *test_name, lvTestFunc func,
+                                  lvTestDataGenerator generator, int data_count) {
+    if (data_count < 0) {
+        return false;
+    }
+    return lv_test_register_parameterized(suite_name, test_name, func, generator, (uint32_t) data_count);
 }
 
 /* ============== 性能基准测试实现 ============== */

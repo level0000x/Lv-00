@@ -13,19 +13,12 @@
 #include "lv/engine_scheduler.h"
 
 #include "lv.h"
-#include "test_helpers.h"
 
-#define TEST(n) printf("  [TEST] %s ... ", n)
-#define PASS()            \
-    do {                  \
-        printf("PASS\n"); \
-        P++;              \
-    } while (0)
-#define FAIL(m)                  \
-    do {                         \
-        printf("FAIL: %s\n", m); \
-        F++;                     \
-    } while (0)
+/* 使用共享 TEST/PASS/FAIL 宏；计数挂钩保持原有 P/F 计数行为 */
+#define TEST_PASS_STATEMENT P++
+#define TEST_FAIL_STATEMENT F++
+
+#include "test_helpers.h"
 
 static int P = 0, F = 0;
 

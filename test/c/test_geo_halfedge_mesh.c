@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_geo_halfedge_mesh.c
  * @brief Halfedge 网格拓扑模块测试（第十三梯队 geometry-central 落地验证）
  */
@@ -7,10 +7,7 @@
 #include <stdio.h>
 
 #include "lv/geo_halfedge_mesh.h"
-
-#define TEST(name) printf("  [TEST] %s ... ", name)
-#define PASS() printf("PASS\n")
-#define FAIL(msg) printf("FAIL: %s\n", msg)
+#include "test_helpers.h"
 
 #define EPSILON 1e-10
 

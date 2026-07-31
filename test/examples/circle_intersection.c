@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file circle_intersection.c
  * @brief 完整示例：圆与线段的相交构造
  *
@@ -20,32 +20,7 @@
 #include <string.h>
 
 #include "lv.h"
-
-/**
- * @brief 辅助函数：添加一个有理数坐标点
- *
- * 使用有理数坐标（分子/分母形式）创建二维几何点，并添加到约束图中。
- *
- * @param g  约束图指针，不允许为 NULL
- * @param xn x 坐标分子
- * @param xd x 坐标分母，不允许为 0
- * @param yn y 坐标分子
- * @param yd y 坐标分母，不允许为 0
- * @return 成功返回新节点的 ID（>= 0），失败返回 -1
- */
-static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
-    if (!g || xd == 0 || yd == 0)
-        return -1;
-    SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
-    SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
-    if (!cx || !cy)
-        return -1;
-    SymbolicCoord *coords[] = {cx, cy};
-    AddNodeResult res = graph_add_point(g, coords, 2);
-    if (res != ADD_NODE_OK)
-        return -1;
-    return g->next_node_id - 1;
-}
+#include "examples_common.h"
 
 /**
  * 构造圆与线段的相交

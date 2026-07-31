@@ -29,6 +29,7 @@
 #include "numerical_backend.h"
 
 #include "lv/bicgstab_shared.h"
+#include "lv/gmres_shared.h"
 #include "lv/default_host_ops.h"
 
 #include <math.h>
@@ -230,6 +231,11 @@ static void serial_linsol_destroy(lvLinearSolver *LS);
 static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+
+/* SERIAL 共享迭代内核算子声明（GMRES 复用 BiCGSTAB 算子，见下方实现） */
+static double serial_bicgstab_dot(void *ctx, const double *a, const double *b, int64_t n);
+static double serial_bicgstab_norm(void *ctx, const double *v, int64_t n);
+static void serial_bicgstab_matvec(void *ctx, const lvMatrix *A, const double *x, double *y, int64_t n);
 
 /* SERIAL 后端 create 函数声明 */
 static lvVector *serial_vector_create(int64_t n);
@@ -703,6 +709,9 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
  *
  * @details 使用 Modified Gram-Schmidt 正交化的 Arnoldi 过程构建上 Hessenberg 矩阵，
  *          通过 Givens 旋转求解最小二乘问题，每 m=30 步重启一次。
+ *          算法主体委托给共享内核 lv_gmres_solve()（gmres_shared.c），
+ *          此处仅提供 SERIAL 算子表（点积/范数/矩阵向量乘，复用下方
+ *          BiCGSTAB 共享内核的 SERIAL 算子）。
  */
 static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
@@ -718,220 +727,14 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lv
         is = (IterSolverData *) LS->solver_data;
     }
 
-    int64_t n = A->rows;
-    int max_iter = is->max_iters;
-    double tol = is->tol;
-    double *a_data = (double *) is->clone->data;
-    int64_t m = 30; /* 重启周期 */
+    lvGmresOps ops;
+    ops.ctx = is;
+    ops.vector_dot = serial_bicgstab_dot;
+    ops.vector_norm = serial_bicgstab_norm;
+    ops.matvec = serial_bicgstab_matvec;
 
-    /* ---- 分配 GMRES 专用工作区 ---- */
-    /* V: 正交基，(m+1) 列，每列 n 个元素 */
-    double *V = lv_calloc((size_t) (m + 1) * (size_t) n, sizeof(double));
-    /* H: 上 Hessenberg 矩阵，(m+1) x m，按列存储 */
-    double *H = lv_calloc((size_t) (m + 1) * (size_t) m, sizeof(double));
-    /* Givens 旋转参数 */
-    double *cs = lv_calloc((size_t) m, sizeof(double));
-    double *sn = lv_calloc((size_t) m, sizeof(double));
-    /* 最小二乘右端项及解向量 */
-    double *rhs = lv_calloc((size_t) (m + 1), sizeof(double));
-    double *y = lv_calloc((size_t) m, sizeof(double));
-
-    if (!V || !H || !cs || !sn || !rhs || !y) {
-        if (V)
-            lv_free((void **) &V);
-        if (H)
-            lv_free((void **) &H);
-        if (cs)
-            lv_free((void **) &cs);
-        if (sn)
-            lv_free((void **) &sn);
-        if (rhs)
-            lv_free((void **) &rhs);
-        if (y)
-            lv_free((void **) &y);
-        return lv_BACKEND_MEM_ERROR;
-    }
-
-    /* 计算 ||b|| 用于相对收敛判据 */
-    double b_norm = 0.0;
-    for (int64_t i = 0; i < n; ++i)
-        b_norm += b->data[i] * b->data[i];
-    b_norm = sqrt(b_norm);
-    if (b_norm < lv_EPSILON_DOUBLE) {
-        /* b ≈ 0，直接返回零解 */
-        memset(x->data, 0, (size_t) n * sizeof(double));
-        lv_free((void **) &V);
-        lv_free((void **) &H);
-        lv_free((void **) &cs);
-        lv_free((void **) &sn);
-        lv_free((void **) &rhs);
-        lv_free((void **) &y);
-        return lv_BACKEND_OK;
-    }
-
-    int total_iters = 0;
-    int converged = 0;
-
-    while (total_iters < max_iter && !converged) {
-        int k_max = (int) ((max_iter - total_iters) < m ? (max_iter - total_iters) : m);
-
-        /* ---- 计算初始残差 r0 = b - A*x ---- */
-        double *r0 = is->r;
-        memset(r0, 0, (size_t) n * sizeof(double));
-        for (int64_t j = 0; j < A->cols; ++j) {
-            double xj = x->data[j];
-            if (fabs(xj) < lv_NUM_EPSILON)
-                continue;
-            double *col_j = a_data + j * n;
-            for (int64_t i = 0; i < n; ++i)
-                r0[i] += col_j[i] * xj;
-        }
-        for (int64_t i = 0; i < n; ++i)
-            r0[i] = b->data[i] - r0[i];
-
-        double r0_norm = 0.0;
-        for (int64_t i = 0; i < n; ++i)
-            r0_norm += r0[i] * r0[i];
-        r0_norm = sqrt(r0_norm);
-
-        if (r0_norm < lv_EPSILON_DOUBLE) {
-            converged = 1;
-            break;
-        }
-        if (r0_norm < tol * b_norm) {
-            converged = 1;
-            break;
-        }
-
-        /* V[0] = r0 / ||r0|| */
-        double inv_r0 = 1.0 / r0_norm;
-        for (int64_t i = 0; i < n; ++i)
-            V[i] = r0[i] * inv_r0;
-
-        /* rhs = e1 * ||r0|| */
-        memset(rhs, 0, (size_t) (m + 1) * sizeof(double));
-        rhs[0] = r0_norm;
-        memset(H, 0, (size_t) (m + 1) * (size_t) m * sizeof(double));
-
-        /* ---- Arnoldi 过程 ---- */
-        int k;
-        for (k = 0; k < k_max; ++k) {
-            /* w = A * V[k] */
-            double *vk = V + (int64_t) k * n;
-            double *w = V + (int64_t) (k + 1) * n;
-            memset(w, 0, (size_t) n * sizeof(double));
-            for (int64_t j = 0; j < A->cols; ++j) {
-                double vkj = vk[j];
-                if (fabs(vkj) < lv_NUM_EPSILON)
-                    continue;
-                double *col_j = a_data + j * n;
-                for (int64_t i = 0; i < n; ++i)
-                    w[i] += col_j[i] * vkj;
-            }
-
-            /* Modified Gram-Schmidt 正交化 */
-            for (int jj = 0; jj <= k; ++jj) {
-                double *vj = V + (int64_t) jj * n;
-                double dot = 0.0;
-                for (int64_t i = 0; i < n; ++i)
-                    dot += w[i] * vj[i];
-                H[jj * m + k] = dot;
-                for (int64_t i = 0; i < n; ++i)
-                    w[i] -= dot * vj[i];
-            }
-
-            /* h_{k+1,k} = ||w|| */
-            double h_next = 0.0;
-            for (int64_t i = 0; i < n; ++i)
-                h_next += w[i] * w[i];
-            h_next = sqrt(h_next);
-            H[(k + 1) * m + k] = h_next;
-
-            /* 防止 happy breakdown */
-            if (h_next < lv_EPSILON_DOUBLE) {
-                k_max = k + 1;
-                break;
-            }
-
-            /* 归一化 w -> V[k+1] */
-            double inv_h = 1.0 / h_next;
-            for (int64_t i = 0; i < n; ++i)
-                w[i] *= inv_h;
-
-            /* ---- 应用之前的 Givens 旋转到 H 的第 k 列 ---- */
-            for (int jj = 0; jj < k; ++jj) {
-                double tmp = cs[jj] * H[jj * m + k] + sn[jj] * H[(jj + 1) * m + k];
-                H[(jj + 1) * m + k] = -sn[jj] * H[jj * m + k] + cs[jj] * H[(jj + 1) * m + k];
-                H[jj * m + k] = tmp;
-            }
-
-            /* ---- 计算新的 Givens 旋转 ---- */
-            double h_kk = H[k * m + k];
-            double h_k1k = H[(k + 1) * m + k];
-            double h_norm = sqrt(h_kk * h_kk + h_k1k * h_k1k);
-            if (h_norm < lv_EPSILON_DOUBLE) {
-                cs[k] = 1.0;
-                sn[k] = 0.0;
-            } else {
-                cs[k] = h_kk / h_norm;
-                sn[k] = h_k1k / h_norm;
-            }
-            H[k * m + k] = h_norm;
-            H[(k + 1) * m + k] = 0.0;
-
-            /* 更新 rhs */
-            rhs[k + 1] = -sn[k] * rhs[k];
-            rhs[k] = cs[k] * rhs[k];
-
-            /* 收敛检查 */
-            double res = fabs(rhs[k + 1]);
-            if (res < tol * b_norm) {
-                k_max = k + 1;
-                converged = 1;
-                break;
-            }
-        }
-
-        /* ---- 回代求解上三角系统 H[0..k-1, 0..k-1] * y = rhs[0..k-1] ---- */
-        if (k_max <= 0) {
-            converged = 0;
-        } else {
-            for (int i = k_max - 1; i >= 0; --i) {
-                double sum = rhs[i];
-                for (int j = i + 1; j < k_max; ++j)
-                    sum -= H[i * m + j] * y[j];
-                /* 保护：H 对角线在 Givens 旋转后应非零，数值误差可能导致接近零 */
-                double diag = H[i * m + i];
-                if (fabs(diag) < lv_EPSILON_DOUBLE) {
-                    converged = 0;
-                    break;
-                }
-                y[i] = sum / diag;
-            }
-        }
-
-        /* ---- 更新解 x = x + V * y ---- */
-        for (int j = 0; j < k_max; ++j) {
-            double yj = y[j];
-            if (fabs(yj) < lv_NUM_EPSILON)
-                continue;
-            double *vj = V + (int64_t) j * n;
-            for (int64_t i = 0; i < n; ++i)
-                x->data[i] += yj * vj[i];
-        }
-
-        total_iters += k_max;
-    }
-
-    /* 释放 GMRES 专用工作区 */
-    lv_free((void **) &V);
-    lv_free((void **) &H);
-    lv_free((void **) &cs);
-    lv_free((void **) &sn);
-    lv_free((void **) &rhs);
-    lv_free((void **) &y);
-
-    return lv_BACKEND_OK;
+    return lv_gmres_solve(&ops, A, b->data, x->data, A->rows,
+                          is->max_iters, is->tol, lv_EPSILON_DOUBLE, 30);
 }
 
 /* ========================================================================

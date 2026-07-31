@@ -45,17 +45,11 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
  * ============================================================ */
 static int g_pass = 0, g_fail = 0;
 
-#define TEST(n) printf("  [TEST] %s ... ", n)
-#define PASS()            \
-    do {                  \
-        printf("PASS\n"); \
-        g_pass++;         \
-    } while (0)
-#define FAIL(m)                  \
-    do {                         \
-        printf("FAIL: %s\n", m); \
-        g_fail++;                \
-    } while (0)
+/* 使用共享 TEST/PASS/FAIL 宏；计数挂钩保持原有 g_pass/g_fail 计数行为 */
+#define TEST_PASS_STATEMENT g_pass++
+#define TEST_FAIL_STATEMENT g_fail++
+
+#include "test_helpers.h"
 
 /* ============================================================
  * 测试 1: preset_translate —— 平移变换

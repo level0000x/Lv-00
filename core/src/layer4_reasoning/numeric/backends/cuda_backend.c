@@ -29,6 +29,7 @@
 #include <stdio.h>
 
 #include "lv/bicgstab_shared.h"
+#include "lv/gmres_shared.h"
 #include "lv/lv_utils.h"
 #include "debug.h"
 #include "lv/lv_internal.h"
@@ -323,6 +324,11 @@ static void cuda_linsol_destroy(lvLinearSolver *LS);
 
 static int cuda_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static int cuda_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+
+/* CUDA 共享迭代内核算子声明（GMRES 复用 BiCGSTAB 算子，见下方实现） */
+static double cuda_bicgstab_dot(void *ctx, const double *a, const double *b, int64_t n);
+static double cuda_bicgstab_norm(void *ctx, const double *v, int64_t n);
+static void cuda_bicgstab_matvec(void *ctx, const lvMatrix *A, const double *x, double *y, int64_t n);
 static int cuda_iter_setup(lvLinearSolver *LS, const lvMatrix *A);
 
 /* ========================================================================
@@ -1362,232 +1368,40 @@ static int cuda_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVecto
     }
 
     int64_t n = A->rows;
-    int max_iter = is->max_iters;
-    double tol = is->tol;
-    int64_t m = 30;
-
-    /* CPU 端工作区 */
-    double *V = lv_calloc((size_t) (m + 1) * (size_t) n, sizeof(double));
-    double *H = lv_calloc((size_t) (m + 1) * (size_t) m, sizeof(double));
-    double *cs = lv_calloc((size_t) m, sizeof(double));
-    double *sn = lv_calloc((size_t) m, sizeof(double));
-    double *rhs = lv_calloc((size_t) (m + 1), sizeof(double));
-    double *y = lv_calloc((size_t) m, sizeof(double));
-    double *r0 = lv_calloc((size_t) n, sizeof(double));
-
-    if (!V || !H || !cs || !sn || !rhs || !y || !r0) {
-        if (V)  lv_free((void **) &V);
-        if (H)  lv_free((void **) &H);
-        if (cs) lv_free((void **) &cs);
-        if (sn) lv_free((void **) &sn);
-        if (rhs) lv_free((void **) &rhs);
-        if (y)  lv_free((void **) &y);
-        if (r0) lv_free((void **) &r0);
-        return lv_BACKEND_MEM_ERROR;
-    }
-
-    /* 获取 GPU 数据指针 */
-    CudaMatrixData *amd = (CudaMatrixData *) A->backend_data;
     CudaVectorData *bvd = (CudaVectorData *) b->backend_data;
     CudaVectorData *xvd = (CudaVectorData *) x->backend_data;
 
-    /* 将 b 和 x 回读 CPU */
-    cuda_safe_memcpy(r0, bvd->d_data, (size_t) n * sizeof(double), cudaMemcpyDeviceToHost, "gmres b");
-
-    /* 初始 x=0，r0=b */
+    /* 主机端 b/x 缓冲 */
+    double *h_b = lv_calloc((size_t) n, sizeof(double));
     double *h_x = lv_calloc((size_t) n, sizeof(double));
-    if (!h_x) {
-        lv_free((void **) &V); lv_free((void **) &H); lv_free((void **) &cs);
-        lv_free((void **) &sn); lv_free((void **) &rhs); lv_free((void **) &y);
-        lv_free((void **) &r0);
+    if (!h_b || !h_x) {
+        if (h_b) lv_free((void **) &h_b);
+        if (h_x) lv_free((void **) &h_x);
         return lv_BACKEND_MEM_ERROR;
     }
 
-    double b_norm = 0.0;
-    for (int64_t i = 0; i < n; ++i) b_norm += r0[i] * r0[i];
-    b_norm = sqrt(b_norm);
+    /* b 回读 */
+    cuda_safe_memcpy(h_b, bvd->d_data, (size_t) n * sizeof(double),
+                      cudaMemcpyDeviceToHost, "gmres b");
 
-    if (b_norm < lv_EPSILON_DOUBLE) {
-        memset(h_x, 0, (size_t) n * sizeof(double));
+    lvGmresOps ops;
+    ops.ctx = is;
+    ops.vector_dot = cuda_bicgstab_dot;
+    ops.vector_norm = cuda_bicgstab_norm;
+    ops.matvec = cuda_bicgstab_matvec;
+
+    int ret = lv_gmres_solve(&ops, A, h_b, h_x, n,
+                             is->max_iters, is->tol, lv_EPSILON_DOUBLE, 30);
+
+    if (ret == lv_BACKEND_OK) {
+        /* 结果传回 GPU */
         cuda_safe_memcpy(xvd->d_data, h_x, (size_t) n * sizeof(double),
-                          cudaMemcpyHostToDevice, "gmres x");
-        lv_free((void **) &V); lv_free((void **) &H); lv_free((void **) &cs);
-        lv_free((void **) &sn); lv_free((void **) &rhs); lv_free((void **) &y);
-        lv_free((void **) &r0); lv_free((void **) &h_x);
-        return lv_BACKEND_OK;
+                          cudaMemcpyHostToDevice, "gmres final x");
     }
 
-    /* GPU 端工作向量 */
-    double *d_w = is->d_work;
-    double *d_b = bvd->d_data;
-
-    int total_iters = 0;
-    int converged = 0;
-
-    while (total_iters < max_iter && !converged) {
-        int k_max = (int) ((max_iter - total_iters) < m ? (max_iter - total_iters) : m);
-
-        /* r0 = b - A*x */
-        /* 先将 x 传到 GPU */
-        cuda_safe_memcpy(xvd->d_data, h_x, (size_t) n * sizeof(double),
-                          cudaMemcpyHostToDevice, "gmres x copy");
-        /* 计算 A*x -> 用 matvec_kernel，但需要结果在 CPU */
-        cudaMemset(is->d_ap, 0, (size_t) n * sizeof(double));
-        {
-            int blocks, threads;
-            cuda_grid_config(A->rows, &blocks, &threads);
-            matvec_kernel<<<blocks, threads>>>(amd->d_data, A->rows, A->cols,
-                                                xvd->d_data, is->d_ap);
-            cudaDeviceSynchronize();
-        }
-        /* 回读 A*x 结果 */
-        cuda_safe_memcpy(r0, is->d_ap, (size_t) n * sizeof(double),
-                          cudaMemcpyDeviceToHost, "gmres Ax");
-        /* r0 = b - A*x */
-        {
-            double *h_b = (double *) lv_malloc((size_t) n * sizeof(double));
-            if (!h_b) {
-                lv_free((void **) &V); lv_free((void **) &H); lv_free((void **) &cs);
-                lv_free((void **) &sn); lv_free((void **) &rhs); lv_free((void **) &y);
-                lv_free((void **) &r0); lv_free((void **) &h_x);
-                return lv_BACKEND_MEM_ERROR;
-            }
-            cuda_safe_memcpy(h_b, d_b, (size_t) n * sizeof(double),
-                              cudaMemcpyDeviceToHost, "gmres b copy");
-            for (int64_t i = 0; i < n; ++i) r0[i] = h_b[i] - r0[i];
-            lv_free((void **) &h_b);
-        }
-
-        double r0_norm = 0.0;
-        for (int64_t i = 0; i < n; ++i) r0_norm += r0[i] * r0[i];
-        r0_norm = sqrt(r0_norm);
-
-        if (r0_norm < lv_EPSILON_DOUBLE) {
-            converged = 1;
-            break;
-        }
-        if (r0_norm < tol * b_norm) {
-            converged = 1;
-            break;
-        }
-
-        /* V[0] = r0 / ||r0|| */
-        double inv_r0 = 1.0 / r0_norm;
-        for (int64_t i = 0; i < n; ++i) V[i] = r0[i] * inv_r0;
-
-        memset(rhs, 0, (size_t) (m + 1) * sizeof(double));
-        rhs[0] = r0_norm;
-        memset(H, 0, (size_t) (m + 1) * (size_t) m * sizeof(double));
-
-        /* ---- Arnoldi 过程 ---- */
-        int k;
-        for (k = 0; k < k_max; ++k) {
-            double *vk = V + (int64_t) k * n;
-            double *w = V + (int64_t) (k + 1) * n;
-
-            /* w = A * V[k] 使用 GPU matvec */
-            cudaMemset(d_w, 0, (size_t) n * sizeof(double));
-            {
-                /* 将 vk 拷贝到 GPU */
-                cuda_safe_memcpy(is->d_work, vk, (size_t) n * sizeof(double),
-                                  cudaMemcpyHostToDevice, "gmres vk");
-                int blk, thd;
-                cuda_grid_config(A->rows, &blk, &thd);
-                matvec_kernel<<<blk, thd>>>(amd->d_data, A->rows, A->cols,
-                                            is->d_work, d_w);
-                cudaDeviceSynchronize();
-            }
-            /* 回读 w */
-            cuda_safe_memcpy(w, d_w, (size_t) n * sizeof(double),
-                              cudaMemcpyDeviceToHost, "gmres w");
-
-            /* Modified Gram-Schmidt 正交化 */
-            for (int jj = 0; jj <= k; ++jj) {
-                double *vj = V + (int64_t) jj * n;
-                double dot = 0.0;
-                for (int64_t i = 0; i < n; ++i) dot += w[i] * vj[i];
-                H[jj * m + k] = dot;
-                for (int64_t i = 0; i < n; ++i) w[i] -= dot * vj[i];
-            }
-
-            double h_next = 0.0;
-            for (int64_t i = 0; i < n; ++i) h_next += w[i] * w[i];
-            h_next = sqrt(h_next);
-            H[(k + 1) * m + k] = h_next;
-
-            if (h_next < lv_EPSILON_DOUBLE) {
-                k_max = k + 1;
-                break;
-            }
-
-            double inv_h = 1.0 / h_next;
-            for (int64_t i = 0; i < n; ++i) w[i] *= inv_h;
-
-            /* 应用 Givens 旋转 */
-            for (int jj = 0; jj < k; ++jj) {
-                double tmp = cs[jj] * H[jj * m + k] + sn[jj] * H[(jj + 1) * m + k];
-                H[(jj + 1) * m + k] = -sn[jj] * H[jj * m + k] + cs[jj] * H[(jj + 1) * m + k];
-                H[jj * m + k] = tmp;
-            }
-
-            double h_kk = H[k * m + k];
-            double h_k1k = H[(k + 1) * m + k];
-            double h_norm = sqrt(h_kk * h_kk + h_k1k * h_k1k);
-            if (h_norm < lv_EPSILON_DOUBLE) {
-                cs[k] = 1.0; sn[k] = 0.0;
-            } else {
-                cs[k] = h_kk / h_norm;
-                sn[k] = h_k1k / h_norm;
-            }
-            H[k * m + k] = h_norm;
-            H[(k + 1) * m + k] = 0.0;
-
-            rhs[k + 1] = -sn[k] * rhs[k];
-            rhs[k] = cs[k] * rhs[k];
-
-            double res = fabs(rhs[k + 1]);
-            if (res < tol * b_norm) {
-                k_max = k + 1;
-                converged = 1;
-                break;
-            }
-        }
-
-        /* 回代求解 */
-        if (k_max > 0) {
-            for (int i = k_max - 1; i >= 0; --i) {
-                double sum = rhs[i];
-                for (int j = i + 1; j < k_max; ++j) sum -= H[i * m + j] * y[j];
-                double diag = H[i * m + i];
-                if (fabs(diag) < lv_EPSILON_DOUBLE) {
-                    converged = 0;
-                    break;
-                }
-                y[i] = sum / diag;
-            }
-        } else {
-            converged = 0;
-        }
-
-        /* 更新解 x = x + V * y */
-        for (int j = 0; j < k_max; ++j) {
-            double yj = y[j];
-            if (fabs(yj) < lv_NUM_EPSILON) continue;
-            double *vj = V + (int64_t) j * n;
-            for (int64_t i = 0; i < n; ++i) h_x[i] += yj * vj[i];
-        }
-
-        total_iters += k_max;
-    }
-
-    /* 最终解传回 GPU */
-    cuda_safe_memcpy(xvd->d_data, h_x, (size_t) n * sizeof(double),
-                      cudaMemcpyHostToDevice, "gmres final x");
-
-    lv_free((void **) &V); lv_free((void **) &H); lv_free((void **) &cs);
-    lv_free((void **) &sn); lv_free((void **) &rhs); lv_free((void **) &y);
-    lv_free((void **) &r0); lv_free((void **) &h_x);
-    return lv_BACKEND_OK;
+    lv_free((void **) &h_b);
+    lv_free((void **) &h_x);
+    return ret;
 }
 
 /* ========================================================================

@@ -311,4 +311,52 @@ static inline int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t
         TEST_SUMMARY();                                         \
     } while (0)
 
+/* ============================================================
+ * 传统 TEST/PASS/FAIL 输出宏（旧式测试文件兼容层）
+ * ============================================================
+ * 早期测试文件各自定义了私有的 TEST/PASS/FAIL 宏（打印
+ * "  [TEST] <名称> ... "、"PASS\n" / "FAIL: <消息>"，部分文件
+ * 同时递增私有计数器）。这里提供统一的兼容实现，替换各文件
+ * 中的私有定义，保持原有输出与计数行为：
+ *
+ *   - TEST(n)        打印 "  [TEST] %s ... "（n 为测试名称）
+ *   - PASS()         打印 "PASS\n"，随后执行 TEST_PASS_STATEMENT
+ *   - FAIL(m)        打印 "FAIL: %s\n"，随后执行 TEST_FAIL_STATEMENT
+ *
+ * 需要计数递增的旧文件，在包含本头文件之前定义挂钩，例如：
+ *   #define TEST_PASS_STATEMENT P++
+ *   #define TEST_FAIL_STATEMENT F++
+ * 纯输出风格（计数器在调用处自行递增）的文件无需定义任何挂钩。
+ *
+ * 若某文件在包含本头文件之前已自定义同名宏，则保留其自定义版本
+ * （#ifndef 保护）。
+ */
+#ifndef TEST
+#define TEST(n) printf("  [TEST] %s ... ", n)
+#endif
+
+#ifndef TEST_PASS_STATEMENT
+#define TEST_PASS_STATEMENT ((void) 0)
+#endif
+
+#ifndef TEST_FAIL_STATEMENT
+#define TEST_FAIL_STATEMENT ((void) 0)
+#endif
+
+#ifndef PASS
+#define PASS()               \
+    do {                     \
+        printf("PASS\n");    \
+        TEST_PASS_STATEMENT; \
+    } while (0)
+#endif
+
+#ifndef FAIL
+#define FAIL(m)                  \
+    do {                         \
+        printf("FAIL: %s\n", m); \
+        TEST_FAIL_STATEMENT;     \
+    } while (0)
+#endif
+
 #endif /* lv_TEST_HELPERS_H */

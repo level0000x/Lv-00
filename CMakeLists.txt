@@ -854,6 +854,13 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/algebraic_number.c
     core/src/layer3_geometry/geo_halfedge_mesh.c
     core/src/layer3_geometry/geo_constraint_solver.c
+    core/src/layer3_geometry/geo_constraint_solver_hash.c
+    core/src/layer3_geometry/geo_constraint_solver_dof.c
+    core/src/layer3_geometry/geo_constraint_solver_system.c
+    core/src/layer3_geometry/geo_constraint_solver_residual.c
+    core/src/layer3_geometry/geo_constraint_solver_linear.c
+    core/src/layer3_geometry/geo_constraint_solver_newton.c
+    core/src/layer3_geometry/geo_constraint_solver_fast.c
     core/src/layer3_geometry/geo_utils.c
     core/src/layer3_geometry/geo_dynamic.c
     core/src/layer3_geometry/geo_aabb_tree.c
@@ -902,7 +909,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_system/proof_strategy_exec.c
     core/src/layer4_reasoning/proof_trace.c
     core/src/layer4_reasoning/proof/proof_tree.c
-    core/src/layer4_reasoning/proof_system/proof_priority.c
     core/src/layer4_reasoning/proof_system/logic_check.c
     core/src/layer4_reasoning/circuit_breaker.c
     # 三值逻辑、模态算子、量词系统
@@ -987,6 +993,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/numeric/numerical_backend.c
     # BiCGSTAB 共享迭代内核（SERIAL/CUDA/HIP 三个后端复用）
     core/src/layer4_reasoning/numeric/bicgstab_shared.c
+    # GMRES(m) 共享迭代内核（SERIAL/CUDA/HIP 三个后端复用）
+    core/src/layer4_reasoning/numeric/gmres_shared.c
     # 主机端通用 ops 默认实现（消除后端重复的数据搬移实现）
     core/src/layer4_reasoning/numeric/backends/default_host_ops.c
     core/src/layer4_reasoning/numeric/backends/cuda_backend.c
@@ -997,9 +1005,17 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/kernel/mini_kernel.c
     core/src/layer4_reasoning/kernel/gc_language.c
     core/src/layer4_reasoning/kernel/ecosystem.c
-    core/src/layer4_reasoning/kernel/math_protocol.c
     core/src/layer4_reasoning/stream/stream.c
+    core/src/layer4_reasoning/stream/stream_async.c
+    core/src/layer4_reasoning/stream/stream_buffer.c
+    core/src/layer4_reasoning/stream/stream_context.c
     core/src/layer4_reasoning/stream/stream_context_util.c
+    core/src/layer4_reasoning/stream/stream_emit.c
+    core/src/layer4_reasoning/stream/stream_filter.c
+    core/src/layer4_reasoning/stream/stream_json.c
+    core/src/layer4_reasoning/stream/stream_lazy.c
+    core/src/layer4_reasoning/stream/stream_stats.c
+    core/src/layer4_reasoning/stream/stream_utils.c
     # SMT/SAT 后端（从 Layer 3 迁移）
     core/src/layer4_reasoning/backends/smt_theory_combiner.c
     core/src/layer4_reasoning/backends/smt_bitvector.c
@@ -1024,6 +1040,13 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/numeric/bit_burning.c
     # v1.1.0 新增：不等式推理系统（桩实现）
     core/src/layer4_reasoning/type_logic/inequality_reasoning.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_core.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_prove.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_classic.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_transform.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_sign.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_geo.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_serialize.c
     # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
     core/src/layer4_reasoning/engine/adaptive_pruning.c
     # v5.0.0 新增：并行 Groebner 引擎（并发优化）
@@ -1169,9 +1192,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof/proof_version.c
     core/src/layer4_reasoning/proof/trust_color.c
     core/src/layer4_reasoning/proof/meta_verify.c
-    # 证明系统子模块：矛盾、追踪
-    core/src/layer4_reasoning/proof_system/proof_contradiction.c
-    core/src/layer4_reasoning/proof_system/proof_trace.c
     # 重写子模块：应用、匹配、VF2、WL
     core/src/layer4_reasoning/rewrite/rewrite_apply.c
     core/src/layer4_reasoning/rewrite/rewrite_match.c
@@ -1193,9 +1213,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/backends/approx_counter.c
     # 命令日志系统
     core/src/layer4_reasoning/command_log.c
-    # 内核子模块：熔断器、元证明
-    core/src/layer4_reasoning/kernel/circuit_breaker.c
-    core/src/layer4_reasoning/kernel/meta_proof.c
     # 推理缓存
     core/src/layer4_reasoning/model/reasoning_cache.c
     # v2.0.0 自举差分测试（原在 L2，依赖 L3+L4 类型，故归位 L4）
@@ -1240,7 +1257,14 @@ set(lv_LAYER5_SOURCES
     # 互操作子模块：命令、导出、导入、服务器、定理
     core/src/layer5_output/interop/interop_command.c
     core/src/layer5_output/interop/interop_export.c
+    core/src/layer5_output/interop/interop_export_canonical.c
+    core/src/layer5_output/interop/interop_export_coq.c
+    core/src/layer5_output/interop/interop_export_geojson.c
+    core/src/layer5_output/interop/interop_export_html.c
+    core/src/layer5_output/interop/interop_export_lean.c
     core/src/layer5_output/interop/interop_export_pdf.c
+    core/src/layer5_output/interop/interop_export_svg.c
+    core/src/layer5_output/interop/interop_export_tikz.c
     core/src/layer5_output/interop/interop_import.c
     core/src/layer5_output/interop/interop_server.c
     core/src/layer5_output/interop/interop_theorem.c
