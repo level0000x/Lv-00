@@ -20,6 +20,7 @@
 #include "lv/interop.h"
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/interop_bridge_common.h"
 
@@ -286,28 +287,11 @@ static int coq_validate(const char *input) {
         return 0;
 
     /* 检查花括号平衡 */
-    int brace_depth = 0;
+    if (!lv_str_check_balanced(input, '{', '}'))
+        return 0; /* 花括号不匹配 */
     /* 检查圆括号平衡 */
-    int paren_depth = 0;
-    for (const char *p = input; *p; p++) {
-        if (*p == '{')
-            brace_depth++;
-        else if (*p == '}') {
-            brace_depth--;
-            if (brace_depth < 0)
-                return 0; /* 花括号不匹配 */
-        } else if (*p == '(')
-            paren_depth++;
-        else if (*p == ')') {
-            paren_depth--;
-            if (paren_depth < 0)
-                return 0; /* 圆括号不匹配 */
-        }
-    }
-    if (brace_depth != 0)
-        return 0; /* 花括号不平衡 */
-    if (paren_depth != 0)
-        return 0; /* 圆括号不平衡 */
+    if (!lv_str_check_balanced(input, '(', ')'))
+        return 0; /* 圆括号不匹配 */
 
     /* 检查是否包含 "Theorem" 或 "Lemma" 关键字 */
     int has_theorem = (strstr(input, "Theorem") != NULL);

@@ -1920,71 +1920,97 @@ void dsl_ir_dump(const DslIR *ir, void *fd) {
  * @param op IR 操作符枚举值
  * @return 操作符名称字符串（静态存储，无需释放）
  */
-const char *dsl_ir_op_name(DslIROp op) {
-    switch (op) {
-        case IR_CREATE_POINT:
-            return "CREATE_POINT";
-        case IR_CREATE_POINT_FIXED:
-            return "CREATE_POINT_FIXED";
-        case IR_CREATE_LINE:
-            return "CREATE_LINE";
-        case IR_CREATE_CIRCLE:
-            return "CREATE_CIRCLE";
-        case IR_CREATE_SEGMENT:
-            return "CREATE_SEGMENT";
-        case IR_CREATE_RAY:
-            return "CREATE_RAY";
-        case IR_CREATE_POLYGON:
-            return "CREATE_POLYGON";
-        case IR_CREATE_TRIANGLE:
-            return "CREATE_TRIANGLE";
-        case IR_INTERSECT:
-            return "INTERSECT";
-        case IR_PARALLEL_THROUGH:
-            return "PARALLEL_THROUGH";
-        case IR_PERPENDICULAR_THROUGH:
-            return "PERPENDICULAR_THROUGH";
-        case IR_MIDPOINT_OF:
-            return "MIDPOINT_OF";
-        case IR_CIRCUMCENTER_OF:
-            return "CIRCUMCENTER_OF";
-        case IR_ORTHOCENTER_OF:
-            return "ORTHOCENTER_OF";
-        case IR_CENTROID_OF:
-            return "CENTROID_OF";
-        case IR_INCENTER_OF:
-            return "INCENTER_OF";
-        case IR_BISECTOR_OF:
-            return "BISECTOR_OF";
-        case IR_ANGLE_BISECTOR:
-            return "ANGLE_BISECTOR";
-        case IR_ADD_CONSTRAINT:
-            return "ADD_CONSTRAINT";
-        case IR_REMOVE_CONSTRAINT:
-            return "REMOVE_CONSTRAINT";
-        case IR_CONSTRAIN_EQUAL:
-            return "CONSTRAIN_EQUAL";
-        case IR_CONSTRAIN_PARALLEL:
-            return "CONSTRAIN_PARALLEL";
-        case IR_CONSTRAIN_PERPENDICULAR:
-            return "CONSTRAIN_PERPENDICULAR";
-        case IR_CONSTRAIN_COLLINEAR:
-            return "CONSTRAIN_COLLINEAR";
-        case IR_CONSTRAIN_CONCYCLIC:
-            return "CONSTRAIN_CONCYCLIC";
-        case IR_LOAD_AXIOM:
-            return "LOAD_AXIOM";
-        case IR_PROVE:
-            return "PROVE";
-        case IR_CHECK_SAT:
-            return "CHECK_SAT";
-        case IR_LABEL:
-            return "LABEL";
-        case IR_NOOP:
-            return "NOOP";
-        default:
-            return "UNKNOWN";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} DslEnumNameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *dsl_enum_name_lookup(const DslEnumNameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief IR 操作码名称表（按枚举值升序） */
+static const DslEnumNameEntry s_ir_op_names[] = {
+    {IR_CREATE_POINT, "CREATE_POINT"},
+    {IR_CREATE_POINT_FIXED, "CREATE_POINT_FIXED"},
+    {IR_CREATE_LINE, "CREATE_LINE"},
+    {IR_CREATE_CIRCLE, "CREATE_CIRCLE"},
+    {IR_CREATE_SEGMENT, "CREATE_SEGMENT"},
+    {IR_CREATE_RAY, "CREATE_RAY"},
+    {IR_CREATE_POLYGON, "CREATE_POLYGON"},
+    {IR_CREATE_TRIANGLE, "CREATE_TRIANGLE"},
+    {IR_INTERSECT, "INTERSECT"},
+    {IR_PARALLEL_THROUGH, "PARALLEL_THROUGH"},
+    {IR_PERPENDICULAR_THROUGH, "PERPENDICULAR_THROUGH"},
+    {IR_MIDPOINT_OF, "MIDPOINT_OF"},
+    {IR_CIRCUMCENTER_OF, "CIRCUMCENTER_OF"},
+    {IR_ORTHOCENTER_OF, "ORTHOCENTER_OF"},
+    {IR_CENTROID_OF, "CENTROID_OF"},
+    {IR_INCENTER_OF, "INCENTER_OF"},
+    {IR_BISECTOR_OF, "BISECTOR_OF"},
+    {IR_ANGLE_BISECTOR, "ANGLE_BISECTOR"},
+    {IR_ADD_CONSTRAINT, "ADD_CONSTRAINT"},
+    {IR_REMOVE_CONSTRAINT, "REMOVE_CONSTRAINT"},
+    {IR_CONSTRAIN_EQUAL, "CONSTRAIN_EQUAL"},
+    {IR_CONSTRAIN_PARALLEL, "CONSTRAIN_PARALLEL"},
+    {IR_CONSTRAIN_PERPENDICULAR, "CONSTRAIN_PERPENDICULAR"},
+    {IR_CONSTRAIN_COLLINEAR, "CONSTRAIN_COLLINEAR"},
+    {IR_CONSTRAIN_CONCYCLIC, "CONSTRAIN_CONCYCLIC"},
+    {IR_LOAD_AXIOM, "LOAD_AXIOM"},
+    {IR_PROVE, "PROVE"},
+    {IR_CHECK_SAT, "CHECK_SAT"},
+    {IR_LABEL, "LABEL"},
+    {IR_NOOP, "NOOP"},
+};
+
+/** @brief DSL AST 节点类型名称表（按枚举值升序） */
+static const DslEnumNameEntry s_ast_type_names[] = {
+    {DSL_AST_PROGRAM, "PROGRAM"},
+    {DSL_AST_POINT_DECL, "POINT_DECL"},
+    {DSL_AST_LINE_DECL, "LINE_DECL"},
+    {DSL_AST_CIRCLE_DECL, "CIRCLE_DECL"},
+    {DSL_AST_SEGMENT_DECL, "SEGMENT_DECL"},
+    {DSL_AST_RAY_DECL, "RAY_DECL"},
+    {DSL_AST_POLYGON_DECL, "POLYGON_DECL"},
+    {DSL_AST_TRIANGLE_DECL, "TRIANGLE_DECL"},
+    {DSL_AST_INTERSECT, "INTERSECT"},
+    {DSL_AST_PARALLEL, "PARALLEL"},
+    {DSL_AST_PERPENDICULAR, "PERPENDICULAR"},
+    {DSL_AST_MIDPOINT, "MIDPOINT"},
+    {DSL_AST_CIRCUMCENTER, "CIRCUMCENTER"},
+    {DSL_AST_ORTHOCENTER, "ORTHOCENTER"},
+    {DSL_AST_CENTROID, "CENTROID"},
+    {DSL_AST_INCENTER, "INCENTER"},
+    {DSL_AST_BISECTOR, "BISECTOR"},
+    {DSL_AST_CONSTRAINT, "CONSTRAINT"},
+    {DSL_AST_PROVE, "PROVE"},
+    {DSL_AST_LOAD, "LOAD"},
+    {DSL_AST_FIX_POINT, "FIX_POINT"},
+    {DSL_AST_FREE_POINT, "FREE_POINT"},
+    {DSL_AST_BLOCK, "BLOCK"},
+    {DSL_AST_IDENT, "IDENT"},
+    {DSL_AST_NUMBER, "NUMBER"},
+};
+
+const char *dsl_ir_op_name(DslIROp op) {
+    const char *name = dsl_enum_name_lookup(s_ir_op_names, lv_ARRAY_SIZE(s_ir_op_names), (int) op);
+    return name ? name : "UNKNOWN";
 }
 
 /**
@@ -1994,58 +2020,6 @@ const char *dsl_ir_op_name(DslIROp op) {
  * @return 类型名称字符串（静态存储，无需释放）
  */
 const char *dsl_ast_type_name(DslASTType type) {
-    switch (type) {
-        case DSL_AST_PROGRAM:
-            return "PROGRAM";
-        case DSL_AST_POINT_DECL:
-            return "POINT_DECL";
-        case DSL_AST_LINE_DECL:
-            return "LINE_DECL";
-        case DSL_AST_CIRCLE_DECL:
-            return "CIRCLE_DECL";
-        case DSL_AST_SEGMENT_DECL:
-            return "SEGMENT_DECL";
-        case DSL_AST_RAY_DECL:
-            return "RAY_DECL";
-        case DSL_AST_POLYGON_DECL:
-            return "POLYGON_DECL";
-        case DSL_AST_TRIANGLE_DECL:
-            return "TRIANGLE_DECL";
-        case DSL_AST_INTERSECT:
-            return "INTERSECT";
-        case DSL_AST_PARALLEL:
-            return "PARALLEL";
-        case DSL_AST_PERPENDICULAR:
-            return "PERPENDICULAR";
-        case DSL_AST_MIDPOINT:
-            return "MIDPOINT";
-        case DSL_AST_CIRCUMCENTER:
-            return "CIRCUMCENTER";
-        case DSL_AST_ORTHOCENTER:
-            return "ORTHOCENTER";
-        case DSL_AST_CENTROID:
-            return "CENTROID";
-        case DSL_AST_INCENTER:
-            return "INCENTER";
-        case DSL_AST_BISECTOR:
-            return "BISECTOR";
-        case DSL_AST_CONSTRAINT:
-            return "CONSTRAINT";
-        case DSL_AST_PROVE:
-            return "PROVE";
-        case DSL_AST_LOAD:
-            return "LOAD";
-        case DSL_AST_FIX_POINT:
-            return "FIX_POINT";
-        case DSL_AST_FREE_POINT:
-            return "FREE_POINT";
-        case DSL_AST_BLOCK:
-            return "BLOCK";
-        case DSL_AST_IDENT:
-            return "IDENT";
-        case DSL_AST_NUMBER:
-            return "NUMBER";
-        default:
-            return "UNKNOWN";
-    }
+    const char *name = dsl_enum_name_lookup(s_ast_type_names, lv_ARRAY_SIZE(s_ast_type_names), (int) type);
+    return name ? name : "UNKNOWN";
 }

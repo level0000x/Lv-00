@@ -31,9 +31,15 @@ typedef struct {
  *  模块全局状态
  * ================================================================ */
 
-static int g_ecosystem_initialized = 0;                           /**< 初始化标志 */
-static int g_ecosystem_count = 0;                                 /**< 已注册模块数量 */
-static EcosystemEntry g_ecosystem_modules[ECOSYSTEM_MAX_MODULES]; /**< 模块注册表 */
+/** @brief 插件生态系统全局状态 */
+typedef struct {
+    int initialized;                               /**< 初始化标志 */
+    int count;                                     /**< 已注册模块数量 */
+    EcosystemEntry modules[ECOSYSTEM_MAX_MODULES]; /**< 模块注册表 */
+} EcosystemState;
+
+/** @brief 插件生态系统全局单例 */
+static EcosystemState s_ecosystem_state = {0};
 
 /* ================================================================
  *  公共 API 实现
@@ -48,12 +54,12 @@ static EcosystemEntry g_ecosystem_modules[ECOSYSTEM_MAX_MODULES]; /**< 模块注
  * @return 0 成功
  */
 int lv_ecosystem_init(void) {
-    if (g_ecosystem_initialized) {
+    if (s_ecosystem_state.initialized) {
         return 0; /* 已初始化，幂等返回 */
     }
-    memset(g_ecosystem_modules, 0, sizeof(g_ecosystem_modules));
-    g_ecosystem_count = 0;
-    g_ecosystem_initialized = 1;
+    memset(s_ecosystem_state.modules, 0, sizeof(s_ecosystem_state.modules));
+    s_ecosystem_state.count = 0;
+    s_ecosystem_state.initialized = 1;
     return 0;
 }
 
@@ -64,11 +70,11 @@ int lv_ecosystem_init(void) {
  */
 void lv_ecosystem_shutdown(void) {
     int i;
-    for (i = 0; i < g_ecosystem_count; i++) {
-        g_ecosystem_modules[i].active = 0;
+    for (i = 0; i < s_ecosystem_state.count; i++) {
+        s_ecosystem_state.modules[i].active = 0;
     }
-    g_ecosystem_count = 0;
-    g_ecosystem_initialized = 0;
+    s_ecosystem_state.count = 0;
+    s_ecosystem_state.initialized = 0;
 }
 
 /**
@@ -81,10 +87,10 @@ void lv_ecosystem_shutdown(void) {
 int lv_ecosystem_register_module(const char *name, int layer) {
     EcosystemEntry *entry;
 
-    if (!name || !g_ecosystem_initialized) {
+    if (!name || !s_ecosystem_state.initialized) {
         return -1;
     }
-    if (g_ecosystem_count >= ECOSYSTEM_MAX_MODULES) {
+    if (s_ecosystem_state.count >= ECOSYSTEM_MAX_MODULES) {
         return -1;
     }
     if (layer < 1 || layer > 10) {
@@ -94,19 +100,19 @@ int lv_ecosystem_register_module(const char *name, int layer) {
     /* 检查是否已存在同名模块 */
     {
         int i;
-        for (i = 0; i < g_ecosystem_count; i++) {
-            if (strcmp(g_ecosystem_modules[i].name, name) == 0) {
+        for (i = 0; i < s_ecosystem_state.count; i++) {
+            if (strcmp(s_ecosystem_state.modules[i].name, name) == 0) {
                 return -1; /* 重复注册 */
             }
         }
     }
 
-    entry = &g_ecosystem_modules[g_ecosystem_count];
+    entry = &s_ecosystem_state.modules[s_ecosystem_state.count];
     strncpy(entry->name, name, ECOSYSTEM_NAME_MAX_LEN - 1);
     entry->name[ECOSYSTEM_NAME_MAX_LEN - 1] = '\0';
     entry->layer = layer;
     entry->active = 1;
-    g_ecosystem_count++;
+    s_ecosystem_state.count++;
 
     return 0;
 }
@@ -117,7 +123,7 @@ int lv_ecosystem_register_module(const char *name, int layer) {
  * @return 已注册模块数量
  */
 int lv_ecosystem_module_count(void) {
-    return g_ecosystem_count;
+    return s_ecosystem_state.count;
 }
 
 /**
@@ -127,8 +133,8 @@ int lv_ecosystem_module_count(void) {
  * @return 模块名称字符串（内部存储，勿释放），无效索引返回 NULL
  */
 const char *lv_ecosystem_module_name(int idx) {
-    if (idx < 0 || idx >= g_ecosystem_count) {
+    if (idx < 0 || idx >= s_ecosystem_state.count) {
         return NULL;
     }
-    return g_ecosystem_modules[idx].name;
+    return s_ecosystem_state.modules[idx].name;
 }

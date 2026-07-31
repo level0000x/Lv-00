@@ -378,31 +378,11 @@ static const char *json_find_key(const char *obj_start, const char *key) {
  * 返回匹配的 '}' 之后的位置。
  *
  * @param p 指向 '{' 的指针
- * @return 匹配的 '}' 之后的位置指针
+ * @return 匹配的 '}' 之后的位置指针；不平衡返回 NULL
  */
 static const char *json_skip_object(const char *p) {
-    if (!p || *p != '{')
-        return p;
-    int depth = 0;
-    for (; *p; p++) {
-        if (*p == '{')
-            depth++;
-        else if (*p == '}') {
-            depth--;
-            if (depth == 0) {
-                p++;
-                break;
-            }
-        } else if (*p == '"') {
-            p++; /* 跳过字符串内容 */
-            while (*p && *p != '"') {
-                if (*p == '\\' && *(p + 1))
-                    p++;
-                p++;
-            }
-        }
-    }
-    return p;
+    /* 复用统一深度扫描（字符串感知，含转义引号） */
+    return lv_str_skip_balanced(p, '{', '}');
 }
 
 /**
@@ -547,18 +527,9 @@ static int opml_import_proof(const char *input, void **proof) {
     if (theory_start) {
         const char *brace = strchr(theory_start, '{');
         if (brace) {
-            int depth = 0;
-            const char *end = brace;
-            for (; *end; end++) {
-                if (*end == '{')
-                    depth++;
-                else if (*end == '}')
-                    depth--;
-                if (depth == 0) {
-                    end++;
-                    break;
-                }
-            }
+            const char *end = lv_str_skip_balanced(brace, '{', '}');
+            if (!end)
+                end = brace + strlen(brace); /* 不平衡：取到字符串末尾 */
             size_t len = (size_t) (end - brace);
             char *theory_buf = (char *) lv_calloc(1, len + 1);
             if (theory_buf) {
@@ -595,18 +566,9 @@ static int opml_import_proof(const char *input, void **proof) {
     if (proof_start) {
         const char *brace = strchr(proof_start, '{');
         if (brace) {
-            int depth = 0;
-            const char *end = brace;
-            for (; *end; end++) {
-                if (*end == '{')
-                    depth++;
-                else if (*end == '}')
-                    depth--;
-                if (depth == 0) {
-                    end++;
-                    break;
-                }
-            }
+            const char *end = lv_str_skip_balanced(brace, '{', '}');
+            if (!end)
+                end = brace + strlen(brace); /* 不平衡：取到字符串末尾 */
             size_t len = (size_t) (end - brace);
             char *proof_buf = (char *) lv_calloc(1, len + 1);
             if (proof_buf) {

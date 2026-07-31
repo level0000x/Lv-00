@@ -121,6 +121,67 @@ void lv_str_split_free(lvStrSplitResult *result) {
     result->count = 0;
 }
 
+char *lv_strtok_r(char *str, const char *delim, char **saveptr) {
+    if (!delim || !saveptr) return NULL;
+#ifdef _MSC_VER
+    return strtok_s(str, delim, saveptr);
+#else
+    return strtok_r(str, delim, saveptr);
+#endif
+}
+
+/* ===== 定界符扫描 ===== */
+
+const char *lv_str_skip_balanced(const char *p, char open, char close) {
+    if (!p || *p != open)
+        return p;
+    int depth = 0;
+    for (; *p; p++) {
+        if (*p == open) {
+            depth++;
+        } else if (*p == close) {
+            depth--;
+            if (depth == 0) {
+                p++;
+                return p;
+            }
+        } else if (*p == '"') {
+            /* 跳过字符串字面量（含转义引号） */
+            p++;
+            while (*p && *p != '"') {
+                if (*p == '\\' && *(p + 1))
+                    p++;
+                p++;
+            }
+        }
+    }
+    return NULL; /* 不平衡 */
+}
+
+bool lv_str_check_balanced(const char *p, char open, char close) {
+    if (!p)
+        return false;
+    int depth = 0;
+    for (; *p; p++) {
+        if (*p == open) {
+            depth++;
+        } else if (*p == close) {
+            depth--;
+            if (depth < 0)
+                return false;
+        } else if (*p == '"') {
+            /* 跳过字符串字面量（含转义引号） */
+            p++;
+            while (*p && *p != '"') {
+                if (*p == '\\' && *(p + 1))
+                    p++;
+                p++;
+            }
+        }
+    }
+    return depth == 0;
+}
+
 /* ===== 字符串替换 ===== */
 
 char *lv_str_replace(const char *str, const char *old_str, const char *new_str) {
@@ -221,5 +282,24 @@ void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len) {
                 lv_strbuf_append_n(sb, c, 1);
                 break;
         }
+    }
+}
+
+/* ===== 报告表格辅助 ===== */
+
+void lv_strbuf_append_sep(lvStrBuf *sb, char ch, size_t count) {
+    if (!sb) return;
+    lv_strbuf_append_n(sb, ch, count);
+}
+
+void lv_strbuf_append_cell(lvStrBuf *sb, const char *text, size_t width) {
+    if (!sb) return;
+    size_t len = 0;
+    if (text) {
+        len = strlen(text);
+        lv_strbuf_printf(sb, "%s", text);
+    }
+    if (len < width) {
+        lv_strbuf_append_n(sb, ' ', width - len);
     }
 }

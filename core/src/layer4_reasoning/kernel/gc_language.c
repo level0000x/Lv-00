@@ -15,9 +15,15 @@
  *  内部状态
  * ================================================================ */
 
-static char g_gc_error_buf[256]; /**< 最近一次解析错误信息 */
-static int g_gc_has_error = 0;   /**< 是否存在未清除的错误 */
-static int g_gc_cmd_count = 0;   /**< 已解析的命令计数 */
+/** @brief GC 语言解析器全局状态 */
+typedef struct {
+    char error_buf[256]; /**< 最近一次解析错误信息 */
+    int has_error;       /**< 是否存在未清除的错误 */
+    int cmd_count;       /**< 已解析的命令计数 */
+} GcLanguageState;
+
+/** @brief GC 语言解析器全局单例 */
+static GcLanguageState s_gc_language = {0};
 
 /* ================================================================
  *  关键字定义
@@ -39,12 +45,12 @@ static const char *gc_keywords[] = {"point",    "line",          "circle",    "s
  */
 static void gc_set_error(const char *msg) {
     if (msg) {
-        strncpy(g_gc_error_buf, msg, sizeof(g_gc_error_buf) - 1);
-        g_gc_error_buf[sizeof(g_gc_error_buf) - 1] = '\0';
+        strncpy(s_gc_language.error_buf, msg, sizeof(s_gc_language.error_buf) - 1);
+        s_gc_language.error_buf[sizeof(s_gc_language.error_buf) - 1] = '\0';
     } else {
-        g_gc_error_buf[0] = '\0';
+        s_gc_language.error_buf[0] = '\0';
     }
-    g_gc_has_error = 1;
+    s_gc_language.has_error = 1;
 }
 
 /**
@@ -128,9 +134,9 @@ int lv_gc_parse(const char *source, void *engine) {
     }
 
     /* 重置状态 */
-    g_gc_has_error = 0;
-    g_gc_cmd_count = 0;
-    g_gc_error_buf[0] = '\0';
+    s_gc_language.has_error = 0;
+    s_gc_language.cmd_count = 0;
+    s_gc_language.error_buf[0] = '\0';
 
     p = source;
     while (*p) {
@@ -168,7 +174,7 @@ int lv_gc_parse(const char *source, void *engine) {
                     }
                 }
                 if (is_keyword) {
-                    g_gc_cmd_count++;
+                    s_gc_language.cmd_count++;
                 }
             }
             p = next;
@@ -213,8 +219,8 @@ int lv_gc_parse(const char *source, void *engine) {
  * @return 错误信息字符串（内部存储，勿释放），无错误返回 NULL
  */
 const char *lv_gc_error(void) {
-    if (g_gc_has_error) {
-        return g_gc_error_buf;
+    if (s_gc_language.has_error) {
+        return s_gc_language.error_buf;
     }
     return NULL;
 }
@@ -225,5 +231,5 @@ const char *lv_gc_error(void) {
  * @return 命令计数
  */
 int lv_gc_command_count(void) {
-    return g_gc_cmd_count;
+    return s_gc_language.cmd_count;
 }

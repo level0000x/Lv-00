@@ -634,6 +634,8 @@ set(lv_HEADERS
     core/include/lv/lv_stream_context.h
     # 泛型环形缓冲区（从 debug.c 提取）
     core/include/lv/lv_ringbuf.h
+    # 脏变量追踪（增量求解支持，从 solver.c 提取）
+    core/include/lv/solver_dirty_set.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -703,7 +705,6 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/result_messages_cn.c
     # v3.5.0 stub→real: 8 new resource modules
     core/src/layer2_resource/fast_index.c
-    core/src/layer2_resource/gc_language.c
     core/src/layer2_resource/geo_spec.c
     core/src/layer2_resource/math_input.c
     core/src/layer2_resource/math_protocol.c
@@ -878,6 +879,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/model/relation_model.c
     core/src/layer4_reasoning/model/algebra_mode.c
     core/src/layer4_reasoning/numeric/numerical_backend.c
+    # 主机端通用 ops 默认实现（消除后端重复的数据搬移实现）
+    core/src/layer4_reasoning/numeric/backends/default_host_ops.c
     core/src/layer4_reasoning/numeric/backends/cuda_backend.c
     core/src/layer4_reasoning/numeric/backends/hip_backend.c
     core/src/layer4_reasoning/numeric/backends/singular_backend.c

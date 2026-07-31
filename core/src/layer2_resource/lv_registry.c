@@ -139,28 +139,33 @@ typedef struct {
     lvModulePriority priority;
 } ModuleEntry;
 
-/** @brief 模块注册表（静态全局，无需动态分配） */
-static ModuleEntry s_modules[lv_MAX_MODULES];
-static int s_module_count = 0;
+/** @brief 模块注册表单例状态 */
+typedef struct {
+    ModuleEntry entries[lv_MAX_MODULES]; /**< 模块注册表 */
+    int count;                           /**< 已注册模块数量 */
+} ModuleRegistryState;
+
+/** @brief 模块注册表全局单例 */
+static ModuleRegistryState s_module_registry = {0};
 
 bool lv_module_register(const char *name, lvModuleInitFunc init_fn,
                          lvModuleCleanupFunc cleanup_fn, lvModulePriority priority) {
-    if (!name || s_module_count >= lv_MAX_MODULES) {
+    if (!name || s_module_registry.count >= lv_MAX_MODULES) {
         return false;
     }
 
     /* 检查名称是否已存在 */
-    for (int i = 0; i < s_module_count; i++) {
-        if (strcmp(s_modules[i].name, name) == 0) {
+    for (int i = 0; i < s_module_registry.count; i++) {
+        if (strcmp(s_module_registry.entries[i].name, name) == 0) {
             return false; /* 不允许重复注册 */
         }
     }
 
-    s_modules[s_module_count].name = name;
-    s_modules[s_module_count].init = init_fn;
-    s_modules[s_module_count].cleanup = cleanup_fn;
-    s_modules[s_module_count].priority = priority;
-    s_module_count++;
+    s_module_registry.entries[s_module_registry.count].name = name;
+    s_module_registry.entries[s_module_registry.count].init = init_fn;
+    s_module_registry.entries[s_module_registry.count].cleanup = cleanup_fn;
+    s_module_registry.entries[s_module_registry.count].priority = priority;
+    s_module_registry.count++;
 
     return true;
 }
@@ -176,12 +181,12 @@ static int module_compare(const void *a, const void *b) {
 
 bool lv_module_init_all(void) {
     /* 按优先级排序 */
-    qsort(s_modules, (size_t) s_module_count, sizeof(ModuleEntry), module_compare);
+    qsort(s_module_registry.entries, (size_t) s_module_registry.count, sizeof(ModuleEntry), module_compare);
 
     /* 按顺序初始化 */
-    for (int i = 0; i < s_module_count; i++) {
-        if (s_modules[i].init) {
-            if (!s_modules[i].init()) {
+    for (int i = 0; i < s_module_registry.count; i++) {
+        if (s_module_registry.entries[i].init) {
+            if (!s_module_registry.entries[i].init()) {
                 return false; /* 初始化失败即停止 */
             }
         }
@@ -192,13 +197,13 @@ bool lv_module_init_all(void) {
 
 void lv_module_cleanup_all(void) {
     /* 按反向优先级清理（高优先级先清理，核心最后清理） */
-    for (int i = s_module_count - 1; i >= 0; i--) {
-        if (s_modules[i].cleanup) {
-            s_modules[i].cleanup();
+    for (int i = s_module_registry.count - 1; i >= 0; i--) {
+        if (s_module_registry.entries[i].cleanup) {
+            s_module_registry.entries[i].cleanup();
         }
     }
 }
 
 int lv_module_count(void) {
-    return s_module_count;
+    return s_module_registry.count;
 }

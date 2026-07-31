@@ -1,4 +1,4 @@
-﻿/-  HilbertAxioms: 整合五组 Hilbert 几何公理
+/-  HilbertAxioms: 整合五组 Hilbert 几何公理
    (1) 关联公理 (Incidence)
    (2) 序公理 (Betweenness + Order)
    (3) 合同公理 (HCongruence)
@@ -24,11 +24,11 @@ namespace lv.HilbertAxioms
    - Order 内含 Betweenness 序公理
    - HCongruence 合同公理
    - Continuity 连续性公理 -/
-structure HilbertPlane (Point Line : Type) extends
-  MetricSpace Point,
-  Order Point,
-  HCongruence Point,
-  Parallel Point Line,
-  Continuity Point
+class HilbertPlane (Point Line : Type) extends
+  lv.Basic.MetricSpace Point,
+  lv.Order.Order Point,
+  lv.Congruence.HCongruence Point,
+  lv.Parallel.Parallel Point Line,
+  lv.Continuity.Continuity Point
 
 end lv.HilbertAxioms

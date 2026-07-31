@@ -145,7 +145,7 @@ abbrev ConstraintGraph := List IRConstraint
 
 /-- 约束图在环境 env 下被满足 -/
 def graph_satisfied (g : ConstraintGraph) (env : String → ℝ × ℝ) : Prop :=
-  sorry
+  ∀ c ∈ g, ir_sem env c
 
 /-- 约束图可满足：存在一个环境使其所有约束成立 -/
 def graph_satisfiable (g : ConstraintGraph) : Prop :=
@@ -155,21 +155,30 @@ def graph_satisfiable (g : ConstraintGraph) : Prop :=
 
 /-- 空约束图总是可满足的 -/
 theorem empty_graph_satisfiable : graph_satisfiable [] := by
-  sorry
+  refine ⟨fun _ => (0, 0), ?_⟩
+  intro c hc
+  exfalso
+  exact hc
 
 /-- 距离的对称性 -/
 theorem dist_symm (env : String → ℝ × ℝ) (a b : String) :
     dist (env a) (env b) = dist (env b) (env a) := by
-  sorry
+  unfold dist
+  congr 1
+  ring
 
 /-- 点到自身的距离为零 -/
 theorem dist_self (env : String → ℝ × ℝ) (a : String) :
     dist (env a) (env a) = 0 := by
-  sorry
+  unfold dist
+  simp
 
 /-- 共线性的对称性：若 A,B,C 共线则 A,C,B 也共线 -/
 theorem collinear_symm (env : String → ℝ × ℝ) (a b c : String) :
     ir_sem env (.collinear a b c) → ir_sem env (.collinear a c b) := by
+  -- 注意：在当前 collinear 语义下该定理不总成立（反例：A=C≠B）。
+  -- 若需确立对称性，应将语义改为 cross 积形式：
+  --   cross (env a - env b) (env c - env b) = 0
   sorry
 
 end lvFormal.Theory.IR

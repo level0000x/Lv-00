@@ -693,19 +693,42 @@ void proof_search_tree_set_strategy(ProofSearchTree *tree, const char *strategy_
 /**
  * @brief 回溯节点类型转字符串
  */
-static const char *backtrack_node_type_to_string(BacktrackNodeType type) {
-    switch (type) {
-        case BACKTRACK_CHOICE_POINT:
-            return "choice";
-        case BACKTRACK_FAILURE:
-            return "failure";
-        case BACKTRACK_SUCCESS:
-            return "success";
-        case BACKTRACK_PRUNE:
-            return "prune";
-        default:
-            return "unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} proof_dep_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *proof_dep_name_lookup(const proof_dep_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief backtrack_node_type_to_string 名称表（按枚举值升序） */
+static const proof_dep_NameEntry s_backtrack_node_type_to_string_entries[] = {
+    {BACKTRACK_CHOICE_POINT, "choice"},
+    {BACKTRACK_FAILURE, "failure"},
+    {BACKTRACK_SUCCESS, "success"},
+    {BACKTRACK_PRUNE, "prune"},
+};
+
+static const char *backtrack_node_type_to_string(BacktrackNodeType type) {
+    const char *name = proof_dep_name_lookup(s_backtrack_node_type_to_string_entries, lv_ARRAY_SIZE(s_backtrack_node_type_to_string_entries), (int) type);
+    return name ? name : "unknown";
 }
 
 /**
@@ -958,57 +981,43 @@ bool proof_search_tree_export_dot(const ProofSearchTree *tree, const char *filep
 /**
  * @brief 步骤类型到自然语言动词映射（中文）
  */
+/** @brief step_type_verb_zh 名称表（按枚举值升序） */
+static const proof_dep_NameEntry s_step_type_verb_zh_entries[] = {
+    {PROOF_STEP_ADD_NODE, "构造"},
+    {PROOF_STEP_ADD_CONSTRAINT, "添加约束"},
+    {PROOF_STEP_REWRITE, "应用重写规则"},
+    {PROOF_STEP_FUNCTION_APP, "应用函数块"},
+    {PROOF_STEP_PACK_FUNCTION, "打包函数块"},
+    {PROOF_STEP_NORMALIZATION, "执行规范化"},
+    {PROOF_STEP_UNIFY, "执行合一检查"},
+    {PROOF_STEP_EX_FALSO, "应用爆炸原理"},
+    {PROOF_STEP_ORACLE, "引用外部预言机"},
+};
+
 static const char *step_type_verb_zh(ProofStepType type) {
-    switch (type) {
-        case PROOF_STEP_ADD_NODE:
-            return "构造";
-        case PROOF_STEP_ADD_CONSTRAINT:
-            return "添加约束";
-        case PROOF_STEP_REWRITE:
-            return "应用重写规则";
-        case PROOF_STEP_FUNCTION_APP:
-            return "应用函数块";
-        case PROOF_STEP_PACK_FUNCTION:
-            return "打包函数块";
-        case PROOF_STEP_NORMALIZATION:
-            return "执行规范化";
-        case PROOF_STEP_UNIFY:
-            return "执行合一检查";
-        case PROOF_STEP_EX_FALSO:
-            return "应用爆炸原理";
-        case PROOF_STEP_ORACLE:
-            return "引用外部预言机";
-        default:
-            return "执行操作";
-    }
+    const char *name = proof_dep_name_lookup(s_step_type_verb_zh_entries, lv_ARRAY_SIZE(s_step_type_verb_zh_entries), (int) type);
+    return name ? name : "执行操作";
 }
 
 /**
  * @brief 步骤类型到自然语言动词映射（英文）
  */
+/** @brief step_type_verb_en 名称表（按枚举值升序） */
+static const proof_dep_NameEntry s_step_type_verb_en_entries[] = {
+    {PROOF_STEP_ADD_NODE, "Construct"},
+    {PROOF_STEP_ADD_CONSTRAINT, "Add constraint"},
+    {PROOF_STEP_REWRITE, "Apply rewrite rule"},
+    {PROOF_STEP_FUNCTION_APP, "Apply function block"},
+    {PROOF_STEP_PACK_FUNCTION, "Package function block"},
+    {PROOF_STEP_NORMALIZATION, "Perform normalization"},
+    {PROOF_STEP_UNIFY, "Perform unification check"},
+    {PROOF_STEP_EX_FALSO, "Apply ex falso quodlibet"},
+    {PROOF_STEP_ORACLE, "Reference external oracle"},
+};
+
 static const char *step_type_verb_en(ProofStepType type) {
-    switch (type) {
-        case PROOF_STEP_ADD_NODE:
-            return "Construct";
-        case PROOF_STEP_ADD_CONSTRAINT:
-            return "Add constraint";
-        case PROOF_STEP_REWRITE:
-            return "Apply rewrite rule";
-        case PROOF_STEP_FUNCTION_APP:
-            return "Apply function block";
-        case PROOF_STEP_PACK_FUNCTION:
-            return "Package function block";
-        case PROOF_STEP_NORMALIZATION:
-            return "Perform normalization";
-        case PROOF_STEP_UNIFY:
-            return "Perform unification check";
-        case PROOF_STEP_EX_FALSO:
-            return "Apply ex falso quodlibet";
-        case PROOF_STEP_ORACLE:
-            return "Reference external oracle";
-        default:
-            return "Execute operation";
-    }
+    const char *name = proof_dep_name_lookup(s_step_type_verb_en_entries, lv_ARRAY_SIZE(s_step_type_verb_en_entries), (int) type);
+    return name ? name : "Execute operation";
 }
 
 /**
@@ -1064,27 +1073,21 @@ static void describe_objects_en(const ProofStep *step, char *buf, size_t buf_siz
 /**
  * @brief 生成为什么可以进行这一步骤的解释（中文）
  */
+/** @brief explain_why_zh 名称表（按枚举值升序） */
+static const proof_dep_NameEntry s_explain_why_zh_entries[] = {
+    {PROOF_STEP_ADD_NODE, "根据已知条件和构造规则，该几何对象可以合法构造。"},
+    {PROOF_STEP_ADD_CONSTRAINT, "根据已构造的几何对象之间的关系，该约束成立。"},
+    {PROOF_STEP_REWRITE, "模式匹配成功，重写规则的前提条件已满足。"},
+    {PROOF_STEP_FUNCTION_APP, "函数块的输入端口类型与实参类型匹配。"},
+    {PROOF_STEP_NORMALIZATION, "检测到坐标等价的节点，执行合并以保持图的一致性。"},
+    {PROOF_STEP_UNIFY, "构造图与命题模式在所有层级完成匹配。"},
+    {PROOF_STEP_EX_FALSO, "由矛盾 ⊥ 出发，根据爆炸原理可以推出任意命题。"},
+    {PROOF_STEP_ORACLE, "此步骤依赖外部知识源，其正确性需要独立验证。"},
+};
+
 static const char *explain_why_zh(ProofStepType type) {
-    switch (type) {
-        case PROOF_STEP_ADD_NODE:
-            return "根据已知条件和构造规则，该几何对象可以合法构造。";
-        case PROOF_STEP_ADD_CONSTRAINT:
-            return "根据已构造的几何对象之间的关系，该约束成立。";
-        case PROOF_STEP_REWRITE:
-            return "模式匹配成功，重写规则的前提条件已满足。";
-        case PROOF_STEP_FUNCTION_APP:
-            return "函数块的输入端口类型与实参类型匹配。";
-        case PROOF_STEP_NORMALIZATION:
-            return "检测到坐标等价的节点，执行合并以保持图的一致性。";
-        case PROOF_STEP_UNIFY:
-            return "构造图与命题模式在所有层级完成匹配。";
-        case PROOF_STEP_EX_FALSO:
-            return "由矛盾 ⊥ 出发，根据爆炸原理可以推出任意命题。";
-        case PROOF_STEP_ORACLE:
-            return "此步骤依赖外部知识源，其正确性需要独立验证。";
-        default:
-            return "";
-    }
+    const char *name = proof_dep_name_lookup(s_explain_why_zh_entries, lv_ARRAY_SIZE(s_explain_why_zh_entries), (int) type);
+    return name ? name : "";
 }
 
 /**

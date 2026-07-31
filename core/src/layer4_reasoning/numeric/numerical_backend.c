@@ -28,6 +28,8 @@
 
 #include "numerical_backend.h"
 
+#include "lv/default_host_ops.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,40 +77,30 @@ typedef struct {
     const lvLinearSolverOps *linsol_ops;   /**< 线性求解器操作表 */
 } BackendEntry;
 
-/** @brief 全局注册表 */
-static BackendEntry g_backends[lv_MAX_BACKENDS];
-static int g_backend_count = 0;
-static lvMutex g_backend_mutex;
-static bool g_registry_initialized = false;
+/** @brief 数值后端注册表单例状态 */
+typedef struct {
+    BackendEntry entries[lv_MAX_BACKENDS]; /**< 后端注册表 */
+    int count;                             /**< 已注册后端数量 */
+    lvMutex mutex;                         /**< 注册表互斥锁 */
+    bool initialized;                      /**< 注册表是否已初始化 */
+} NumericBackendState;
 
-/* 前向声明（用于下方 SERIAL 操作表） */
+/** @brief 数值后端注册表全局单例 */
+static NumericBackendState s_numeric_state = {0};
+
+/* 前向声明（用于下方 SERIAL 操作表）
+ * 主机端数据搬移 ops 由 default_host_ops.c 提供（default_*），
+ * 此处仅声明 SERIAL 特有的 create 与计算型 ops。 */
 static lvVector *serial_vector_create(int64_t n);
-static lvVector *serial_vector_clone(const lvVector *v);
-static void serial_vector_destroy(lvVector *v);
-static void serial_vector_zero(lvVector *v);
-static void serial_vector_const_set(lvVector *v, double c);
-static void serial_vector_copy(lvVector *dst, const lvVector *src);
 static void serial_vector_scale(lvVector *v, double c);
 static void serial_vector_linear_sum(double a, const lvVector *x, double b, const lvVector *y, lvVector *z);
 static double serial_vector_dot(const lvVector *x, const lvVector *y);
 static double serial_vector_norm(const lvVector *v);
 static double serial_vector_max_norm(const lvVector *v);
 static double serial_vector_wrms_norm(const lvVector *v, const lvVector *weights);
-static void serial_vector_abs(lvVector *v);
-static void serial_vector_inv(lvVector *v, const lvVector *d);
-static void serial_vector_compare(lvVector *v, double c);
-static int64_t serial_vector_length(const lvVector *v);
-static double *serial_vector_data_ptr(lvVector *v);
 
 static lvMatrix *serial_matrix_create(int64_t rows, int64_t cols, bool sparse);
-static lvMatrix *serial_matrix_clone(const lvMatrix *A);
-static void serial_matrix_destroy(lvMatrix *A);
-static void serial_matrix_zero(lvMatrix *A);
-static void serial_matrix_copy(lvMatrix *dst, const lvMatrix *src);
 static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *y);
-static void serial_matrix_scale(lvMatrix *A, double c);
-static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val);
-static double serial_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col);
 static int serial_matrix_factor(lvMatrix *A);
 static int serial_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x);
 
@@ -126,16 +118,16 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVec
  */
 static const lvVectorOps serial_vector_ops = {
     serial_vector_create,
-    serial_vector_clone, serial_vector_destroy,  serial_vector_zero,       serial_vector_const_set,
-    serial_vector_copy,  serial_vector_scale,    serial_vector_linear_sum, serial_vector_dot,
-    serial_vector_norm,  serial_vector_max_norm, serial_vector_wrms_norm,  serial_vector_abs,
-    serial_vector_inv,   serial_vector_compare,  serial_vector_length,     serial_vector_data_ptr,
+    default_vector_clone, default_vector_destroy,  default_vector_zero,       default_vector_const_set,
+    default_vector_copy,  serial_vector_scale,    serial_vector_linear_sum, serial_vector_dot,
+    serial_vector_norm,  serial_vector_max_norm, serial_vector_wrms_norm,  default_vector_abs,
+    default_vector_inv,   default_vector_compare,  default_vector_length,     default_vector_data_ptr,
 };
 
 static const lvMatrixOps serial_dense_matrix_ops = {
     serial_matrix_create,
-    serial_matrix_clone,  serial_matrix_destroy, serial_matrix_zero,        serial_matrix_copy,
-    serial_matrix_matvec, serial_matrix_scale,   serial_matrix_set_element, serial_matrix_get_element,
+    default_matrix_clone,  default_matrix_destroy, default_matrix_zero,        default_matrix_copy,
+    serial_matrix_matvec, default_matrix_scale,   default_matrix_set_element, default_matrix_get_element,
     serial_matrix_factor, serial_matrix_solve,
 };
 
@@ -150,13 +142,13 @@ static const lvLinearSolverOps serial_dense_linsol_ops = {
  * @brief 初始化注册表并注册内置后端
  */
 static void numerical_backend_init_registry(void) {
-    if (g_registry_initialized) return;
-    lv_MUTEX_INIT(&g_backend_mutex);
+    if (s_numeric_state.initialized) return;
+    lv_MUTEX_INIT(&s_numeric_state.mutex);
     lv_numerical_backend_register(lv_BACKEND_SERIAL, &serial_vector_ops,
                                    &serial_dense_matrix_ops, &serial_dense_linsol_ops);
     lv_numerical_backend_register(lv_BACKEND_OPENMP, &serial_vector_ops,
                                    &serial_dense_matrix_ops, &serial_dense_linsol_ops);
-    g_registry_initialized = true;
+    s_numeric_state.initialized = true;
 }
 
 /**
@@ -166,23 +158,23 @@ void lv_numerical_backend_register(lvBackendType backend_type,
                                    const lvVectorOps *vector_ops,
                                    const lvMatrixOps *matrix_ops,
                                    const lvLinearSolverOps *linsol_ops) {
-    lv_MUTEX_LOCK(&g_backend_mutex);
-    if (g_backend_count < lv_MAX_BACKENDS) {
-        g_backends[g_backend_count].type       = backend_type;
-        g_backends[g_backend_count].vector_ops = vector_ops;
-        g_backends[g_backend_count].matrix_ops = matrix_ops;
-        g_backends[g_backend_count].linsol_ops = linsol_ops;
-        g_backend_count++;
+    lv_MUTEX_LOCK(&s_numeric_state.mutex);
+    if (s_numeric_state.count < lv_MAX_BACKENDS) {
+        s_numeric_state.entries[s_numeric_state.count].type       = backend_type;
+        s_numeric_state.entries[s_numeric_state.count].vector_ops = vector_ops;
+        s_numeric_state.entries[s_numeric_state.count].matrix_ops = matrix_ops;
+        s_numeric_state.entries[s_numeric_state.count].linsol_ops = linsol_ops;
+        s_numeric_state.count++;
     }
-    lv_MUTEX_UNLOCK(&g_backend_mutex);
+    lv_MUTEX_UNLOCK(&s_numeric_state.mutex);
 }
 
 /**
  * @brief 查找指定后端的向量操作表
  */
 static const lvVectorOps *find_vector_ops(lvBackendType type) {
-    for (int i = 0; i < g_backend_count; i++) {
-        if (g_backends[i].type == type) return g_backends[i].vector_ops;
+    for (int i = 0; i < s_numeric_state.count; i++) {
+        if (s_numeric_state.entries[i].type == type) return s_numeric_state.entries[i].vector_ops;
     }
     return NULL;
 }
@@ -191,8 +183,8 @@ static const lvVectorOps *find_vector_ops(lvBackendType type) {
  * @brief 查找指定后端的矩阵操作表
  */
 static const lvMatrixOps *find_matrix_ops(lvBackendType type) {
-    for (int i = 0; i < g_backend_count; i++) {
-        if (g_backends[i].type == type) return g_backends[i].matrix_ops;
+    for (int i = 0; i < s_numeric_state.count; i++) {
+        if (s_numeric_state.entries[i].type == type) return s_numeric_state.entries[i].matrix_ops;
     }
     return NULL;
 }
@@ -201,8 +193,8 @@ static const lvMatrixOps *find_matrix_ops(lvBackendType type) {
  * @brief 查找指定后端的线性求解器操作表
  */
 static const lvLinearSolverOps *find_linsol_ops(lvBackendType type) {
-    for (int i = 0; i < g_backend_count; i++) {
-        if (g_backends[i].type == type) return g_backends[i].linsol_ops;
+    for (int i = 0; i < s_numeric_state.count; i++) {
+        if (s_numeric_state.entries[i].type == type) return s_numeric_state.entries[i].linsol_ops;
     }
     return NULL;
 }
@@ -224,31 +216,14 @@ static const lvLinearSolverOps *find_linsol_ops(lvBackendType type) {
  * 静态辅助函数的前向声明
  * ======================================================================== */
 
-static lvVector *serial_vector_clone(const lvVector *v);
-static void serial_vector_destroy(lvVector *v);
-static void serial_vector_zero(lvVector *v);
-static void serial_vector_const_set(lvVector *v, double c);
-static void serial_vector_copy(lvVector *dst, const lvVector *src);
 static void serial_vector_scale(lvVector *v, double c);
 static void serial_vector_linear_sum(double a, const lvVector *x, double b, const lvVector *y, lvVector *z);
 static double serial_vector_dot(const lvVector *x, const lvVector *y);
 static double serial_vector_norm(const lvVector *v);
 static double serial_vector_max_norm(const lvVector *v);
 static double serial_vector_wrms_norm(const lvVector *v, const lvVector *weights);
-static void serial_vector_abs(lvVector *v);
-static void serial_vector_inv(lvVector *v, const lvVector *d);
-static void serial_vector_compare(lvVector *v, double c);
-static int64_t serial_vector_length(const lvVector *v);
-static double *serial_vector_data_ptr(lvVector *v);
 
-static lvMatrix *serial_matrix_clone(const lvMatrix *A);
-static void serial_matrix_destroy(lvMatrix *A);
-static void serial_matrix_zero(lvMatrix *A);
-static void serial_matrix_copy(lvMatrix *dst, const lvMatrix *src);
 static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *y);
-static void serial_matrix_scale(lvMatrix *A, double c);
-static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val);
-static double serial_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col);
 static int serial_matrix_factor(lvMatrix *A);
 static int serial_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x);
 
@@ -293,78 +268,6 @@ static const lvLinearSolverOps serial_cg_linsol_ops = {
 /* ========================================================================
  * 第一部分：向量操作实现（SERIAL）
  * ======================================================================== */
-
-/**
- * @brief 深拷贝向量
- */
-static lvVector *serial_vector_clone(const lvVector *v) {
-    lv_CHECK_NULL(v, NULL);
-
-    int64_t n = v->length;
-    lvVector *clone = lv_calloc(1, sizeof(lvVector));
-    lv_CHECK_ALLOC(clone, NULL);
-
-    clone->length = n;
-    clone->backend = lv_BACKEND_SERIAL;
-    clone->ops = &serial_vector_ops;
-    clone->backend_data = NULL;
-
-    clone->data = lv_calloc((size_t) n, sizeof(double));
-    if (!clone->data) {
-        lv_free((void **) &clone);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "向量数据分配失败，长度=%lld", (long long) n);
-        return NULL;
-    }
-    memcpy(clone->data, v->data, (size_t) n * sizeof(double));
-
-    return clone;
-}
-
-/**
- * @brief 销毁向量
- */
-static void serial_vector_destroy(lvVector *v) {
-    if (!v) {
-        return;
-    }
-    if (v->data) {
-        lv_free((void **) &v->data);
-    }
-    lv_free((void **) &v);
-}
-
-/**
- * @brief 置零
- */
-static void serial_vector_zero(lvVector *v) {
-    if (!v || !v->data) {
-        return;
-    }
-    memset(v->data, 0, (size_t) v->length * sizeof(double));
-}
-
-/**
- * @brief 设为常量 c
- */
-static void serial_vector_const_set(lvVector *v, double c) {
-    if (!v || !v->data) {
-        return;
-    }
-    for (int64_t i = 0; i < v->length; ++i) {
-        v->data[i] = c;
-    }
-}
-
-/**
- * @brief 深拷贝：dst = src
- */
-static void serial_vector_copy(lvVector *dst, const lvVector *src) {
-    if (!dst || !src || !dst->data || !src->data) {
-        return;
-    }
-    int64_t n = (dst->length < src->length) ? dst->length : src->length;
-    memcpy(dst->data, src->data, (size_t) n * sizeof(double));
-}
 
 /**
  * @brief 标量乘法：v = c * v
@@ -443,14 +346,7 @@ static double serial_vector_max_norm(const lvVector *v) {
     if (!v || !v->data || v->length == 0) {
         return 0.0;
     }
-    double max_val = fabs(v->data[0]);
-    for (int64_t i = 1; i < v->length; ++i) {
-        double abs_val = fabs(v->data[i]);
-        if (abs_val > max_val) {
-            max_val = abs_val;
-        }
-    }
-    return max_val;
+    return lv_max_abs(v->data, v->length);
 }
 
 /**
@@ -473,145 +369,9 @@ static double serial_vector_wrms_norm(const lvVector *v, const lvVector *weights
     return sqrt(sum_sq / (double) n);
 }
 
-/**
- * @brief 逐元素绝对值：v_i = |v_i|
- */
-static void serial_vector_abs(lvVector *v) {
-    if (!v || !v->data) {
-        return;
-    }
-    for (int64_t i = 0; i < v->length; ++i) {
-        v->data[i] = fabs(v->data[i]);
-    }
-}
-
-/**
- * @brief 逐元素除法：v_i = v_i / d_i
- */
-static void serial_vector_inv(lvVector *v, const lvVector *d) {
-    if (!v || !d || !v->data || !d->data) {
-        return;
-    }
-    int64_t n = v->length;
-    for (int64_t i = 0; i < n; ++i) {
-        if (fabs(d->data[i]) > lv_EPSILON_DOUBLE) {
-            v->data[i] /= d->data[i];
-        } else {
-            /* 避免除零：设为大值 */
-            v->data[i] = 1e30;
-        }
-    }
-}
-
-/**
- * @brief 逐元素最大值：v_i = max(v_i, c)
- */
-static void serial_vector_compare(lvVector *v, double c) {
-    if (!v || !v->data) {
-        return;
-    }
-    for (int64_t i = 0; i < v->length; ++i) {
-        if (v->data[i] < c) {
-            v->data[i] = c;
-        }
-    }
-}
-
-/**
- * @brief 获取向量长度
- */
-static int64_t serial_vector_length(const lvVector *v) {
-    if (!v) {
-        return 0;
-    }
-    return v->length;
-}
-
-/**
- * @brief 获取底层原始数据指针
- */
-static double *serial_vector_data_ptr(lvVector *v) {
-    if (!v) {
-        return NULL;
-    }
-    return v->data;
-}
-
 /* ========================================================================
  * 第二部分：矩阵操作实现（SERIAL 稠密）
  * ======================================================================== */
-
-/**
- * @brief 深拷贝矩阵
- */
-static lvMatrix *serial_matrix_clone(const lvMatrix *A) {
-    lv_CHECK_NULL(A, NULL);
-
-    int64_t rows = A->rows;
-    int64_t cols = A->cols;
-    size_t data_size = (size_t) (rows * cols) * sizeof(double);
-
-    lvMatrix *clone = lv_calloc(1, sizeof(lvMatrix));
-    lv_CHECK_ALLOC(clone, NULL);
-
-    clone->rows = rows;
-    clone->cols = cols;
-    clone->sparse = A->sparse;
-    clone->format = A->format;
-    clone->backend = lv_BACKEND_SERIAL;
-    clone->ops = A->ops;
-    clone->backend_data = NULL;
-
-    clone->data = lv_malloc(data_size);
-    if (!clone->data) {
-        lv_free((void **) &clone);
-        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "矩阵数据分配失败 %lldx%lld", (long long) rows, (long long) cols);
-        return NULL;
-    }
-    if (A->data) {
-        memcpy(clone->data, A->data, data_size);
-    } else {
-        memset(clone->data, 0, data_size);
-    }
-
-    return clone;
-}
-
-/**
- * @brief 销毁矩阵
- */
-static void serial_matrix_destroy(lvMatrix *A) {
-    if (!A) {
-        return;
-    }
-    if (A->data) {
-        lv_free((void **) &A->data);
-    }
-    lv_free((void **) &A);
-}
-
-/**
- * @brief 置零
- */
-static void serial_matrix_zero(lvMatrix *A) {
-    if (!A || !A->data) {
-        return;
-    }
-    memset(A->data, 0, (size_t) (A->rows * A->cols) * sizeof(double));
-}
-
-/**
- * @brief 深拷贝：dst = src
- */
-static void serial_matrix_copy(lvMatrix *dst, const lvMatrix *src) {
-    if (!dst || !src || !dst->data || !src->data) {
-        return;
-    }
-    int64_t elems = dst->rows * dst->cols;
-    int64_t src_elems = src->rows * src->cols;
-    int64_t n = (elems < src_elems) ? elems : src_elems;
-    memcpy(dst->data, src->data, (size_t) n * sizeof(double));
-}
 
 /**
  * @brief 矩阵-向量乘法：y = A * x（列主序稠密）
@@ -651,42 +411,6 @@ static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *
     }
 
     return lv_BACKEND_OK;
-}
-
-/**
- * @brief 矩阵-标量乘法：A = c * A
- */
-static void serial_matrix_scale(lvMatrix *A, double c) {
-    if (!A || !A->data) {
-        return;
-    }
-    int64_t elems = A->rows * A->cols;
-    double *data = (double *) A->data;
-    for (int64_t i = 0; i < elems; ++i) {
-        data[i] *= c;
-    }
-}
-
-/**
- * @brief 设置单个元素值（列主序）
- */
-static void serial_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) {
-        return;
-    }
-    double *data = (double *) A->data;
-    data[col * A->rows + row] = val;
-}
-
-/**
- * @brief 获取单个元素值（列主序）
- */
-static double serial_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) {
-        return 0.0;
-    }
-    double *data = (double *) A->data;
-    return data[col * A->rows + row];
 }
 
 /**
@@ -821,7 +545,7 @@ static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
     DenseLUData *lu = lv_calloc(1, sizeof(DenseLUData));
     lv_CHECK_ALLOC(lu, lv_BACKEND_MEM_ERROR);
 
-    lu->clone = serial_matrix_clone(A);
+    lu->clone = default_matrix_clone(A);
     if (!lu->clone) {
         lv_free((void **) &lu);
         return lv_BACKEND_MEM_ERROR;
@@ -932,7 +656,7 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
     is->max_iters = NBLINSOL_DEFAULT_MAX_ITERS;
     is->tol = NBLINSOL_DEFAULT_TOL;
 
-    is->clone = serial_matrix_clone(A);
+    is->clone = default_matrix_clone(A);
     if (!is->clone) {
         lv_free((void **) &is);
         return lv_BACKEND_MEM_ERROR;

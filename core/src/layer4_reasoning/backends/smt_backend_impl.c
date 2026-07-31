@@ -115,13 +115,16 @@ struct SMTSolver {
  * 全局后端注册表（单例）
  * ============================================================ */
 
-/** @brief 全局注册表（使用 lvRegistry 统一管理互斥锁） */
-static lvRegistry g_smt_registry_lock;
-static bool g_smt_registry_inited = false;
+/** @brief SMT 后端注册表单例状态 */
+typedef struct {
+    lvRegistry lock;                  /**< 注册表互斥锁（lvRegistry 统一管理） */
+    bool lock_inited;                 /**< 锁是否已初始化 */
+    SMTBackendRegistry registry;      /**< 后端完整元数据（兼容 SMTBackendRegistry 结构） */
+    bool registry_inited;             /**< 注册表数据是否已初始化 */
+} SMTRegistryState;
 
-/** @brief SMT 后端完整元数据（保持向后兼容的 SMTBackendRegistry 结构） */
-static SMTBackendRegistry g_smt_registry;
-static bool g_smt_registry_initialized = false;
+/** @brief SMT 后端注册表全局单例 */
+static SMTRegistryState s_smt_registry_state = {0};
 
 /* ============================================================
  * 前向声明 —— 内部辅助函数
@@ -2295,19 +2298,42 @@ bool smtsolver_is_backend_available(SolverBackendType type) {
 /**
  * @brief 获取后端名称字符串
  */
-const char *smtsolver_backend_type_name(SolverBackendType type) {
-    switch (type) {
-        case GROEBNER:
-            return "Groebner";
-        case SMT_Z3:
-            return "Z3";
-        case SMT_CVC5:
-            return "cvc5";
-        case SMT_SINGULAR:
-            return "Singular";
-        default:
-            return "Unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} smt_impl_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *smt_impl_name_lookup(const smt_impl_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief smtsolver_backend_type_name 名称表（按枚举值升序） */
+static const smt_impl_NameEntry s_smtsolver_backend_type_name_entries[] = {
+    {GROEBNER, "Groebner"},
+    {SMT_Z3, "Z3"},
+    {SMT_CVC5, "cvc5"},
+    {SMT_SINGULAR, "Singular"},
+};
+
+const char *smtsolver_backend_type_name(SolverBackendType type) {
+    const char *name = smt_impl_name_lookup(s_smtsolver_backend_type_name_entries, lv_ARRAY_SIZE(s_smtsolver_backend_type_name_entries), (int) type);
+    return name ? name : "Unknown";
 }
 
 /**
@@ -2337,73 +2363,58 @@ SolverBackendType smtsolver_backend_type_from_name(const char *name) {
 /**
  * @brief 获取 SMT 逻辑的名称字符串
  */
+/** @brief smtsolver_logic_name 名称表（按枚举值升序） */
+static const smt_impl_NameEntry s_smtsolver_logic_name_entries[] = {
+    {SMT_LOGIC_QF_NRA, "QF_NRA"},
+    {SMT_LOGIC_QF_LRA, "QF_LRA"},
+    {SMT_LOGIC_QF_NIA, "QF_NIA"},
+    {SMT_LOGIC_QF_LIA, "QF_LIA"},
+    {SMT_LOGIC_QF_UFLRA, "QF_UFLRA"},
+    {SMT_LOGIC_QF_UFNRA, "QF_UFNRA"},
+    {SMT_LOGIC_QF_BV, "QF_BV"},
+    {SMT_LOGIC_AUTO, "AUTO"},
+};
+
 const char *smtsolver_logic_name(SMTLogic logic) {
-    switch (logic) {
-        case SMT_LOGIC_QF_NRA:
-            return "QF_NRA";
-        case SMT_LOGIC_QF_LRA:
-            return "QF_LRA";
-        case SMT_LOGIC_QF_NIA:
-            return "QF_NIA";
-        case SMT_LOGIC_QF_LIA:
-            return "QF_LIA";
-        case SMT_LOGIC_QF_UFLRA:
-            return "QF_UFLRA";
-        case SMT_LOGIC_QF_UFNRA:
-            return "QF_UFNRA";
-        case SMT_LOGIC_QF_BV:
-            return "QF_BV";
-        case SMT_LOGIC_AUTO:
-            return "AUTO";
-        default:
-            return "UNKNOWN";
-    }
+    const char *name = smt_impl_name_lookup(s_smtsolver_logic_name_entries, lv_ARRAY_SIZE(s_smtsolver_logic_name_entries), (int) logic);
+    return name ? name : "UNKNOWN";
 }
 
 /**
  * @brief 获取 SMT 可满足性结果的名称字符串
  */
+/** @brief smtsolver_sat_result_name 名称表（按枚举值升序） */
+static const smt_impl_NameEntry s_smtsolver_sat_result_name_entries[] = {
+    {SMT_RESULT_SAT, "SAT"},
+    {SMT_RESULT_UNSAT, "UNSAT"},
+    {SMT_RESULT_UNKNOWN, "UNKNOWN"},
+    {SMT_RESULT_ERROR, "ERROR"},
+};
+
 const char *smtsolver_sat_result_name(SMTSatResult result) {
-    switch (result) {
-        case SMT_RESULT_SAT:
-            return "SAT";
-        case SMT_RESULT_UNSAT:
-            return "UNSAT";
-        case SMT_RESULT_UNKNOWN:
-            return "UNKNOWN";
-        case SMT_RESULT_ERROR:
-            return "ERROR";
-        default:
-            return "INVALID";
-    }
+    const char *name = smt_impl_name_lookup(s_smtsolver_sat_result_name_entries, lv_ARRAY_SIZE(s_smtsolver_sat_result_name_entries), (int) result);
+    return name ? name : "INVALID";
 }
 
 /**
  * @brief 获取 SMT 错误码描述字符串
  */
+/** @brief smtsolver_error_string 名称表（按枚举值升序） */
+static const smt_impl_NameEntry s_smtsolver_error_string_entries[] = {
+    {SMT_ERROR_NONE, "No error"},
+    {SMT_ERROR_BACKEND_UNAVAILABLE, "Backend unavailable"},
+    {SMT_ERROR_ENCODING_FAILED, "Encoding failed"},
+    {SMT_ERROR_PARSE_FAILED, "Parse failed"},
+    {SMT_ERROR_SOLVER_CRASHED, "Solver crashed"},
+    {SMT_ERROR_MEMORY_EXHAUSTED, "Memory exhausted"},
+    {SMT_ERROR_TIMEOUT_REACHED, "Timeout reached"},
+    {SMT_ERROR_UNSUPPORTED_THEORY, "Unsupported theory"},
+    {SMT_ERROR_INVALID_MODEL, "Invalid model"},
+};
+
 const char *smtsolver_error_string(SMTErrorCode code) {
-    switch (code) {
-        case SMT_ERROR_NONE:
-            return "No error";
-        case SMT_ERROR_BACKEND_UNAVAILABLE:
-            return "Backend unavailable";
-        case SMT_ERROR_ENCODING_FAILED:
-            return "Encoding failed";
-        case SMT_ERROR_PARSE_FAILED:
-            return "Parse failed";
-        case SMT_ERROR_SOLVER_CRASHED:
-            return "Solver crashed";
-        case SMT_ERROR_MEMORY_EXHAUSTED:
-            return "Memory exhausted";
-        case SMT_ERROR_TIMEOUT_REACHED:
-            return "Timeout reached";
-        case SMT_ERROR_UNSUPPORTED_THEORY:
-            return "Unsupported theory";
-        case SMT_ERROR_INVALID_MODEL:
-            return "Invalid model";
-        default:
-            return "Unknown error";
-    }
+    const char *name = smt_impl_name_lookup(s_smtsolver_error_string_entries, lv_ARRAY_SIZE(s_smtsolver_error_string_entries), (int) code);
+    return name ? name : "Unknown error";
 }
 
 /* ============================================================
@@ -2414,16 +2425,16 @@ const char *smtsolver_error_string(SMTErrorCode code) {
  * @brief 获取全局后端注册表（惰性初始化）
  */
 SMTBackendRegistry *smtsolver_get_registry(void) {
-    if (!g_smt_registry_inited) {
-        lv_registry_init(&g_smt_registry_lock, 0);
-        g_smt_registry_inited = true;
+    if (!s_smt_registry_state.lock_inited) {
+        lv_registry_init(&s_smt_registry_state.lock, 0);
+        s_smt_registry_state.lock_inited = true;
     }
-    if (!g_smt_registry_initialized) {
-        memset(&g_smt_registry, 0, sizeof(g_smt_registry));
-        g_smt_registry.count = 0;
-        g_smt_registry_initialized = true;
+    if (!s_smt_registry_state.registry_inited) {
+        memset(&s_smt_registry_state.registry, 0, sizeof(s_smt_registry_state.registry));
+        s_smt_registry_state.registry.count = 0;
+        s_smt_registry_state.registry_inited = true;
     }
-    return &g_smt_registry;
+    return &s_smt_registry_state.registry;
 }
 
 /**
@@ -2433,23 +2444,23 @@ int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEnt
     lv_CHECK_NULL(registry, -1);
     lv_CHECK_NULL(entry, -1);
 
-    if (!g_smt_registry_inited) {
-        lv_registry_init(&g_smt_registry_lock, 0);
-        g_smt_registry_inited = true;
+    if (!s_smt_registry_state.lock_inited) {
+        lv_registry_init(&s_smt_registry_state.lock, 0);
+        s_smt_registry_state.lock_inited = true;
     }
 
     /* 使用 lvRegistry 的互斥锁保护临界区 */
-    lv_MUTEX_LOCK(&g_smt_registry_lock.mutex);
+    lv_MUTEX_LOCK(&s_smt_registry_state.lock.mutex);
 
     if (registry->count >= SMT_BACKEND_REGISTRY_CAPACITY) {
-        lv_MUTEX_UNLOCK(&g_smt_registry_lock.mutex);
+        lv_MUTEX_UNLOCK(&s_smt_registry_state.lock.mutex);
         return -1;
     }
 
     registry->entries[registry->count] = *entry;
     registry->count++;
 
-    lv_MUTEX_UNLOCK(&g_smt_registry_lock.mutex);
+    lv_MUTEX_UNLOCK(&s_smt_registry_state.lock.mutex);
     return 0;
 }
 

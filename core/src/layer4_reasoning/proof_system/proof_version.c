@@ -30,6 +30,7 @@
 #include "lv/lv_config.h"
 #include "lv/lv_file.h"
 #include "lv/lv_platform.h"
+#include "lv/lv_str_utils.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -429,7 +430,8 @@ static bool read_commit_file(const char *path, lvProofCommit *commit) {
 
     memset(commit, 0, sizeof(lvProofCommit));
 
-    char *line = strtok(content, "\n");
+    char *saveptr = NULL;
+    char *line = lv_strtok_r(content, "\n", &saveptr);
     while (line) {
         if (strncmp(line, "oid: ", 5) == 0) {
             safe_strncpy(commit->oid, line + 5, lv_OID_LENGTH);
@@ -440,7 +442,7 @@ static bool read_commit_file(const char *path, lvProofCommit *commit) {
         } else if (strncmp(line, "timestamp: ", 11) == 0) {
             commit->timestamp = strtoll(line + 11, NULL, 10);
         }
-        line = strtok(NULL, "\n");
+        line = lv_strtok_r(NULL, "\n", &saveptr);
     }
 
     lv_free((void **) &content);

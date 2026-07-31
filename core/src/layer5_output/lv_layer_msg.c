@@ -30,103 +30,84 @@ static uint32_t g_msg_sequence = 0;
  * @param type 消息类型枚举值
  * @return 类型名称字符串（如 "PARSE_TEXT"、"GRAPH_ADD_NODE"），未知类型返回 "UNKNOWN"
  */
-static const char *msg_type_name(lvMsgType type) {
-    switch (type) {
-        case lv_MSG_NONE:
-            return "NONE";
-        case lv_MSG_ERROR:
-            return "ERROR";
-        case lv_MSG_HEARTBEAT:
-            return "HEARTBEAT";
-        case lv_MSG_PARSE_TEXT:
-            return "PARSE_TEXT";
-        case lv_MSG_PARSE_DSL:
-            return "PARSE_DSL";
-        case lv_MSG_PARSE_FORMULA:
-            return "PARSE_FORMULA";
-        case lv_MSG_PARSE_RESULT:
-            return "PARSE_RESULT";
-        case lv_MSG_RESOURCE_ALLOC:
-            return "RESOURCE_ALLOC";
-        case lv_MSG_RESOURCE_FREE:
-            return "RESOURCE_FREE";
-        case lv_MSG_CONFIG_GET:
-            return "CONFIG_GET";
-        case lv_MSG_CONFIG_SET:
-            return "CONFIG_SET";
-        case lv_MSG_GRAPH_ADD_NODE:
-            return "GRAPH_ADD_NODE";
-        case lv_MSG_GRAPH_REMOVE_NODE:
-            return "GRAPH_REMOVE_NODE";
-        case lv_MSG_GRAPH_ADD_CONSTRAINT:
-            return "GRAPH_ADD_CONSTRAINT";
-        case lv_MSG_GRAPH_SERIALIZE:
-            return "GRAPH_SERIALIZE";
-        case lv_MSG_GRAPH_QUERY:
-            return "GRAPH_QUERY";
-        case lv_MSG_GRAPH_SOLVED:
-            return "GRAPH_SOLVED";
-        case lv_MSG_PROOF_ADD_STEP:
-            return "PROOF_ADD_STEP";
-        case lv_MSG_PROOF_REMOVE_STEP:
-            return "PROOF_REMOVE_STEP";
-        case lv_MSG_PROOF_QUERY:
-            return "PROOF_QUERY";
-        case lv_MSG_PROOF_COMPLETED:
-            return "PROOF_COMPLETED";
-        case lv_MSG_PROOF_FAILED:
-            return "PROOF_FAILED";
-        case lv_MSG_SOLVER_RUN:
-            return "SOLVER_RUN";
-        case lv_MSG_SOLVER_RESULT:
-            return "SOLVER_RESULT";
-        case lv_MSG_REWRITE_APPLY:
-            return "REWRITE_APPLY";
-        case lv_MSG_REWRITE_RESULT:
-            return "REWRITE_RESULT";
-        case lv_MSG_UNIFY_CHECK:
-            return "UNIFY_CHECK";
-        case lv_MSG_UNIFY_RESULT:
-            return "UNIFY_RESULT";
-        case lv_MSG_TYPE_CHECK:
-            return "TYPE_CHECK";
-        case lv_MSG_TYPE_RESULT:
-            return "TYPE_RESULT";
-        case lv_MSG_EXPORT_GEOJSON:
-            return "EXPORT_GEOJSON";
-        case lv_MSG_EXPORT_TIKZ:
-            return "EXPORT_TIKZ";
-        case lv_MSG_EXPORT_COQ:
-            return "EXPORT_COQ";
-        case lv_MSG_EXPORT_LEAN:
-            return "EXPORT_LEAN";
-        case lv_MSG_VISUAL_RENDER:
-            return "VISUAL_RENDER";
-        case lv_MSG_VISUAL_QUERY:
-            return "VISUAL_QUERY";
-        case lv_MSG_ORCHESTRATE:
-            return "ORCHESTRATE";
-        case lv_MSG_ORCHESTRATE_RESULT:
-            return "ORCHESTRATE_RESULT";
-        case lv_MSG_META_VERIFY:
-            return "META_VERIFY";
-        case lv_MSG_META_RESULT:
-            return "META_RESULT";
-        case lv_MSG_APP_INIT:
-            return "APP_INIT";
-        case lv_MSG_APP_SHUTDOWN:
-            return "APP_SHUTDOWN";
-        case lv_MSG_APP_QUERY:
-            return "APP_QUERY";
-        case lv_MSG_INTEROP_EXPORT:
-            return "INTEROP_EXPORT";
-        case lv_MSG_INTEROP_IMPORT:
-            return "INTEROP_IMPORT";
-        case lv_MSG_INTEROP_RESULT:
-            return "INTEROP_RESULT";
-        default:
-            return "UNKNOWN";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} lv_msg_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *lv_msg_name_lookup(const lv_msg_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief msg_type_name 名称表（按枚举值升序） */
+static const lv_msg_NameEntry s_msg_type_name_entries[] = {
+    {lv_MSG_NONE, "NONE"},
+    {lv_MSG_ERROR, "ERROR"},
+    {lv_MSG_HEARTBEAT, "HEARTBEAT"},
+    {lv_MSG_PARSE_TEXT, "PARSE_TEXT"},
+    {lv_MSG_PARSE_DSL, "PARSE_DSL"},
+    {lv_MSG_PARSE_FORMULA, "PARSE_FORMULA"},
+    {lv_MSG_PARSE_RESULT, "PARSE_RESULT"},
+    {lv_MSG_RESOURCE_ALLOC, "RESOURCE_ALLOC"},
+    {lv_MSG_RESOURCE_FREE, "RESOURCE_FREE"},
+    {lv_MSG_CONFIG_GET, "CONFIG_GET"},
+    {lv_MSG_CONFIG_SET, "CONFIG_SET"},
+    {lv_MSG_GRAPH_ADD_NODE, "GRAPH_ADD_NODE"},
+    {lv_MSG_GRAPH_REMOVE_NODE, "GRAPH_REMOVE_NODE"},
+    {lv_MSG_GRAPH_ADD_CONSTRAINT, "GRAPH_ADD_CONSTRAINT"},
+    {lv_MSG_GRAPH_SERIALIZE, "GRAPH_SERIALIZE"},
+    {lv_MSG_GRAPH_QUERY, "GRAPH_QUERY"},
+    {lv_MSG_GRAPH_SOLVED, "GRAPH_SOLVED"},
+    {lv_MSG_PROOF_ADD_STEP, "PROOF_ADD_STEP"},
+    {lv_MSG_PROOF_REMOVE_STEP, "PROOF_REMOVE_STEP"},
+    {lv_MSG_PROOF_QUERY, "PROOF_QUERY"},
+    {lv_MSG_PROOF_COMPLETED, "PROOF_COMPLETED"},
+    {lv_MSG_PROOF_FAILED, "PROOF_FAILED"},
+    {lv_MSG_SOLVER_RUN, "SOLVER_RUN"},
+    {lv_MSG_SOLVER_RESULT, "SOLVER_RESULT"},
+    {lv_MSG_REWRITE_APPLY, "REWRITE_APPLY"},
+    {lv_MSG_REWRITE_RESULT, "REWRITE_RESULT"},
+    {lv_MSG_UNIFY_CHECK, "UNIFY_CHECK"},
+    {lv_MSG_UNIFY_RESULT, "UNIFY_RESULT"},
+    {lv_MSG_TYPE_CHECK, "TYPE_CHECK"},
+    {lv_MSG_TYPE_RESULT, "TYPE_RESULT"},
+    {lv_MSG_EXPORT_GEOJSON, "EXPORT_GEOJSON"},
+    {lv_MSG_EXPORT_TIKZ, "EXPORT_TIKZ"},
+    {lv_MSG_EXPORT_COQ, "EXPORT_COQ"},
+    {lv_MSG_EXPORT_LEAN, "EXPORT_LEAN"},
+    {lv_MSG_VISUAL_RENDER, "VISUAL_RENDER"},
+    {lv_MSG_VISUAL_QUERY, "VISUAL_QUERY"},
+    {lv_MSG_ORCHESTRATE, "ORCHESTRATE"},
+    {lv_MSG_ORCHESTRATE_RESULT, "ORCHESTRATE_RESULT"},
+    {lv_MSG_META_VERIFY, "META_VERIFY"},
+    {lv_MSG_META_RESULT, "META_RESULT"},
+    {lv_MSG_APP_INIT, "APP_INIT"},
+    {lv_MSG_APP_SHUTDOWN, "APP_SHUTDOWN"},
+    {lv_MSG_APP_QUERY, "APP_QUERY"},
+    {lv_MSG_INTEROP_EXPORT, "INTEROP_EXPORT"},
+    {lv_MSG_INTEROP_IMPORT, "INTEROP_IMPORT"},
+    {lv_MSG_INTEROP_RESULT, "INTEROP_RESULT"},
+};
+
+static const char *msg_type_name(lvMsgType type) {
+    const char *name = lv_msg_name_lookup(s_msg_type_name_entries, lv_ARRAY_SIZE(s_msg_type_name_entries), (int) type);
+    return name ? name : "UNKNOWN";
 }
 
 /* ---- 生命周期 ---- */

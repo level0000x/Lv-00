@@ -80,39 +80,52 @@ static void get_invariant_range(GeoInvariantKind kind, double *out_min, double *
 /**
  * @brief Get a human-readable name for an invariant kind
  */
-static const char *kind_default_name(GeoInvariantKind kind) {
-    switch (kind) {
-        case GEO_INV_DISTANCE:
-            return "distance";
-        case GEO_INV_ANGLE:
-            return "angle";
-        case GEO_INV_AREA:
-            return "area";
-        case GEO_INV_VOLUME:
-            return "volume";
-        case GEO_INV_CROSS_RATIO:
-            return "cross_ratio";
-        case GEO_INV_CURVATURE:
-            return "curvature";
-        case GEO_INV_TORSION:
-            return "torsion";
-        case GEO_INV_PERIMETER:
-            return "perimeter";
-        case GEO_INV_DIHEDRAL_ANGLE:
-            return "dihedral_angle";
-        case GEO_INV_SOLID_ANGLE:
-            return "solid_angle";
-        case GEO_INV_BARYCENTER:
-            return "barycenter";
-        case GEO_INV_MOMENT_OF_INERTIA:
-            return "moment_of_inertia";
-        case GEO_INV_PARALLELISM:
-            return "parallelism";
-        case GEO_INV_ORTHOGONALITY:
-            return "orthogonality";
-        default:
-            return "unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} geo_inv_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *geo_inv_name_lookup(const geo_inv_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief kind_default_name 名称表（按枚举值升序） */
+static const geo_inv_NameEntry s_kind_default_name_entries[] = {
+    {GEO_INV_DISTANCE, "distance"},
+    {GEO_INV_ANGLE, "angle"},
+    {GEO_INV_AREA, "area"},
+    {GEO_INV_VOLUME, "volume"},
+    {GEO_INV_CROSS_RATIO, "cross_ratio"},
+    {GEO_INV_CURVATURE, "curvature"},
+    {GEO_INV_TORSION, "torsion"},
+    {GEO_INV_PERIMETER, "perimeter"},
+    {GEO_INV_DIHEDRAL_ANGLE, "dihedral_angle"},
+    {GEO_INV_SOLID_ANGLE, "solid_angle"},
+    {GEO_INV_BARYCENTER, "barycenter"},
+    {GEO_INV_MOMENT_OF_INERTIA, "moment_of_inertia"},
+    {GEO_INV_PARALLELISM, "parallelism"},
+    {GEO_INV_ORTHOGONALITY, "orthogonality"},
+};
+
+static const char *kind_default_name(GeoInvariantKind kind) {
+    const char *name = geo_inv_name_lookup(s_kind_default_name_entries, lv_ARRAY_SIZE(s_kind_default_name_entries), (int) kind);
+    return name ? name : "unknown";
 }
 
 /* ========================================================================

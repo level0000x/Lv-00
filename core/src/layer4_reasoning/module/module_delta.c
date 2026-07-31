@@ -315,13 +315,19 @@ typedef struct {
     uint64_t *graph_node_coord_hashes; /* 每个节点的坐标哈希，用于检测修改 */
 } DeltaBaseline;
 
-static DeltaBaseline g_delta_baselines[MAX_DELTA_BASELINES];
-static int g_delta_baseline_count = 0;
+/** @brief Delta 基线表单例状态 */
+typedef struct {
+    DeltaBaseline entries[MAX_DELTA_BASELINES]; /**< Delta 基线表 */
+    int count;                                  /**< 已存储基线数量 */
+} DeltaBaselineState;
+
+/** @brief Delta 基线表全局单例 */
+static DeltaBaselineState s_delta_baseline_state = {0};
 
 static DeltaBaseline *find_delta_baseline(const char *module_name) {
-    for (int i = 0; i < g_delta_baseline_count; i++) {
-        if (strcmp(g_delta_baselines[i].module_name, module_name) == 0) {
-            return &g_delta_baselines[i];
+    for (int i = 0; i < s_delta_baseline_state.count; i++) {
+        if (strcmp(s_delta_baseline_state.entries[i].module_name, module_name) == 0) {
+            return &s_delta_baseline_state.entries[i];
         }
     }
     return NULL;
@@ -354,14 +360,14 @@ static void store_baseline(const Module *mod, uint64_t hash) {
     /* 查找或创建基线条目 */
     DeltaBaseline *bl = find_delta_baseline(mod->name);
     if (!bl) {
-        if (g_delta_baseline_count >= MAX_DELTA_BASELINES) {
+        if (s_delta_baseline_state.count >= MAX_DELTA_BASELINES) {
             /* 回收最旧的条目 */
-            free_delta_baseline(&g_delta_baselines[0]);
+            free_delta_baseline(&s_delta_baseline_state.entries[0]);
             /* 移动其他条目 */
-            memmove(&g_delta_baselines[0], &g_delta_baselines[1], (g_delta_baseline_count - 1) * sizeof(DeltaBaseline));
-            g_delta_baseline_count--;
+            memmove(&s_delta_baseline_state.entries[0], &s_delta_baseline_state.entries[1], (s_delta_baseline_state.count - 1) * sizeof(DeltaBaseline));
+            s_delta_baseline_state.count--;
         }
-        bl = &g_delta_baselines[g_delta_baseline_count++];
+        bl = &s_delta_baseline_state.entries[s_delta_baseline_state.count++];
     } else {
         free_delta_baseline(bl);
     }

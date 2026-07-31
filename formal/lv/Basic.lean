@@ -1,4 +1,4 @@
-﻿/-  Lv-00 经典几何公理化框架：基础类型定义
+/-  Lv-00 经典几何公理化框架：基础类型定义
    定义 Point、Line、Plane、MetricSpace、Congruence 等数学对象的类 -/
 
 -- [QA] Parallel Hilbert formalization. lv-formal/Classical/Hilbert/ provides

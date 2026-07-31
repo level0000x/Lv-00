@@ -41,6 +41,7 @@
 
 #include "lv.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 #ifdef _WIN32
 #include <windows.h>
 #define strcasecmp _stricmp
@@ -1794,19 +1795,19 @@ uint64_t stream_parse_filter_mask(const char *str) {
 
     /* 按逗号分词 */
     char *saveptr = NULL;
-    char *token = strtok_r(buf, ",", &saveptr);
+    char *token = lv_strtok_r(buf, ",", &saveptr);
 
     while (token) {
         /* 去除 token 首尾空白 */
         while (*token == ' ' || *token == '\t')
             token++;
         if (*token == '\0') {
-            token = strtok_r(NULL, ",", &saveptr);
+            token = lv_strtok_r(NULL, ",", &saveptr);
             continue; /* 空 token，跳过 */
         }
         size_t tok_len = strlen(token);
         if (tok_len == 0) {
-            token = strtok_r(NULL, ",", &saveptr);
+            token = lv_strtok_r(NULL, ",", &saveptr);
             continue;
         }
         char *end = token + tok_len - 1;
@@ -1830,7 +1831,7 @@ uint64_t stream_parse_filter_mask(const char *str) {
             }
         }
 
-        token = strtok_r(NULL, ",", &saveptr);
+        token = lv_strtok_r(NULL, ",", &saveptr);
     }
 
     lv_free((void **) &buf);

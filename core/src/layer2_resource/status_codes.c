@@ -26,176 +26,185 @@ int lv_status_is_error(int code) {
 
 /* ==================== 状态码描述映射 ==================== */
 
-const char *lv_status_message(int code) {
-    switch (code) {
-        /* --- 成功 --- */
-        case 0:
-            return "操作成功";
+/* ==================== 状态码描述映射 ==================== */
 
-        /* --- 通用系统错误 (1-99) --- */
-        case 1:
-            return "未知错误";
-        case 2:
-            return "无效参数";
-        case 3:
-            return "空指针";
-        case 4:
-            return "未初始化";
-        case 5:
-            return "已存在";
-        case 6:
-            return "未找到";
-        case 7:
-            return "不支持的操作";
-        case 8:
-            return "数值溢出";
-        case 9:
-            return "数值下溢";
-        case 10:
-            return "操作超时";
-        case 11:
-            return "操作被取消";
-        case 12:
-            return "IO错误";
-        case 13:
-            return "解析错误";
-        case 14:
-            return "无效状态";
-        case 15:
-            return "无效参数（已废弃，请使用错误码2）";
-        case 17:
-            return "索引越界";
-        case 18:
-            return "数值越界";
-        case 70:
-            return "内部错误";
+/** 状态码 → 文本 映射表项 */
+typedef struct {
+    int code;
+    const char *text;
+} StatusCodeText;
 
-        /* --- 解析器安全错误 (130-139) --- */
-        case 130:
-            return "解析器输入为NULL";
-        case 131:
-            return "解析器输入为空字符串";
-        case 132:
-            return "解析器输入长度超限";
-        case 133:
-            return "输入含非法控制字符或null字节";
-        case 134:
-            return "token数量超限";
-        case 135:
-            return "AST深度超限";
-        case 136:
-            return "AST节点数超限";
-        case 137:
-            return "token长度超限";
-        case 138:
-            return "内存池耗尽";
-
-        /* --- 内存与资源错误 (100-199) --- */
-        case 100:
-            return "内存不足";
-        case 101:
-            return "内存分配失败";
-        case 102:
-            return "资源耗尽";
-        case 103:
-            return "缓冲区太小";
-
-        /* --- 约束图错误 (200-299) --- */
-        case 200:
-            return "节点冲突";
-        case 201:
-            return "节点未找到";
-        case 202:
-            return "约束冲突";
-        case 203:
-            return "重复约束";
-        case 204:
-            return "无效区域";
-        case 205:
-            return "无效几何类型";
-        case 206:
-            return "循环依赖";
-        case 207:
-            return "图结构损坏";
-
-        /* --- 符号坐标错误 (300-399) --- */
-        case 300:
-            return "无效坐标";
-        case 301:
-            return "坐标溢出";
-        case 302:
-            return "精度丢失";
-        case 303:
-            return "符号求值失败";
-
-        /* --- 求解器错误 (400-499) --- */
-        case 400:
-            return "无解";
-        case 401:
-            return "无穷多解";
-        case 402:
-            return "数值计算错误";
-        case 403:
-            return "奇异矩阵";
-        case 404:
-            return "未收敛";
-        case 405:
-            return "Groebner基计算失败";
-
-        /* --- 重写引擎错误 (500-599) --- */
-        case 500:
-            return "无匹配规则";
-        case 501:
-            return "重写循环";
-        case 502:
-            return "重写深度超限";
-
-        /* --- 合一检查错误 (600-699) --- */
-        case 600:
-            return "合一失败";
-        case 601:
-            return "发生检查失败";
-        case 602:
-            return "类型不匹配";
-
-        /* --- 函数块错误 (700-799) --- */
-        case 700:
-            return "无效函数块";
-        case 701:
-            return "非确定性函数块";
-        case 702:
-            return "循环函数块";
-        case 703:
-            return "函数块类型错误";
-
-        /* --- 预设系统错误 (750-799) --- */
-        case 750:
-            return "预设注册失败";
-        case 751:
-            return "预设实例化失败";
-
-        /* --- 类型系统错误 (800-899) --- */
-        case 800:
-            return "类型不匹配";
-        case 801:
-            return "类型推断失败";
-        case 802:
-            return "宇宙层级不一致";
-
-        /* --- 证明系统错误 (900-999) --- */
-        case 900:
-            return "无效证明";
-        case 901:
-            return "证明不完整";
-        case 902:
-            return "证明验证失败";
-        case 903:
-            return "熔断器已跳闸（OPEN态）";
-
-        default:
-            return "未知状态码";
+/**
+ * @brief 在升序映射表中二分查找状态码
+ *
+ * @param table 映射表（按 code 升序）
+ * @param count 表项数量
+ * @param code  状态码
+ * @return 命中返回文本指针，未命中返回 NULL
+ */
+static const char *status_text_lookup(const StatusCodeText *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].text;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
 }
+
+static const StatusCodeText s_status_messages[] = {
+    {0, "操作成功"},
+    {1, "未知错误"},
+    {2, "无效参数"},
+    {3, "空指针"},
+    {4, "未初始化"},
+    {5, "已存在"},
+    {6, "未找到"},
+    {7, "不支持的操作"},
+    {8, "数值溢出"},
+    {9, "数值下溢"},
+    {10, "操作超时"},
+    {11, "操作被取消"},
+    {12, "IO错误"},
+    {13, "解析错误"},
+    {14, "无效状态"},
+    {15, "无效参数（已废弃，请使用错误码2）"},
+    {17, "索引越界"},
+    {18, "数值越界"},
+    {70, "内部错误"},
+    {100, "内存不足"},
+    {101, "内存分配失败"},
+    {102, "资源耗尽"},
+    {103, "缓冲区太小"},
+    {130, "解析器输入为NULL"},
+    {131, "解析器输入为空字符串"},
+    {132, "解析器输入长度超限"},
+    {133, "输入含非法控制字符或null字节"},
+    {134, "token数量超限"},
+    {135, "AST深度超限"},
+    {136, "AST节点数超限"},
+    {137, "token长度超限"},
+    {138, "内存池耗尽"},
+    {200, "节点冲突"},
+    {201, "节点未找到"},
+    {202, "约束冲突"},
+    {203, "重复约束"},
+    {204, "无效区域"},
+    {205, "无效几何类型"},
+    {206, "循环依赖"},
+    {207, "图结构损坏"},
+    {300, "无效坐标"},
+    {301, "坐标溢出"},
+    {302, "精度丢失"},
+    {303, "符号求值失败"},
+    {400, "无解"},
+    {401, "无穷多解"},
+    {402, "数值计算错误"},
+    {403, "奇异矩阵"},
+    {404, "未收敛"},
+    {405, "Groebner基计算失败"},
+    {500, "无匹配规则"},
+    {501, "重写循环"},
+    {502, "重写深度超限"},
+    {600, "合一失败"},
+    {601, "发生检查失败"},
+    {602, "类型不匹配"},
+    {700, "无效函数块"},
+    {701, "非确定性函数块"},
+    {702, "循环函数块"},
+    {703, "函数块类型错误"},
+    {750, "预设注册失败"},
+    {751, "预设实例化失败"},
+    {800, "类型不匹配"},
+    {801, "类型推断失败"},
+    {802, "宇宙层级不一致"},
+    {900, "无效证明"},
+    {901, "证明不完整"},
+    {902, "证明验证失败"},
+    {903, "熔断器已跳闸（OPEN态）"},
+};
+
+static const StatusCodeText s_status_names[] = {
+    {0, "lv_OK"},
+    {1, "lv_ERROR_UNKNOWN"},
+    {2, "lv_ERROR_INVALID_PARAM"},
+    {3, "lv_ERROR_NULL_POINTER"},
+    {4, "lv_ERROR_NOT_INITIALIZED"},
+    {5, "lv_ERROR_ALREADY_EXISTS"},
+    {6, "lv_ERROR_NOT_FOUND"},
+    {7, "lv_ERROR_UNSUPPORTED"},
+    {8, "lv_ERROR_OVERFLOW"},
+    {9, "lv_ERROR_UNDERFLOW"},
+    {10, "lv_ERROR_TIMEOUT"},
+    {11, "lv_ERROR_CANCELLED"},
+    {12, "lv_ERROR_IO"},
+    {13, "lv_ERROR_PARSE"},
+    {14, "lv_ERROR_INVALID_STATE"},
+    {15, "lv_ERROR_INVALID_ARGUMENT"},
+    {17, "lv_ERROR_INDEX_OUT_OF_RANGE"},
+    {18, "lv_ERROR_VALUE_OUT_OF_RANGE"},
+    {70, "lv_ERROR_INTERNAL"},
+    {100, "lv_ERROR_OUT_OF_MEMORY"},
+    {101, "lv_ERROR_ALLOCATION_FAILED"},
+    {102, "lv_ERROR_RESOURCE_EXHAUSTED"},
+    {103, "lv_ERROR_BUFFER_TOO_SMALL"},
+    {130, "lv_ERROR_PARSER_NULL_INPUT"},
+    {131, "lv_ERROR_PARSER_EMPTY_INPUT"},
+    {132, "lv_ERROR_PARSER_INPUT_TOO_LONG"},
+    {133, "lv_ERROR_PARSER_ILLEGAL_CHARS"},
+    {134, "lv_ERROR_PARSER_TOO_MANY_TOKENS"},
+    {135, "lv_ERROR_PARSER_DEPTH_EXCEEDED"},
+    {136, "lv_ERROR_PARSER_NODE_LIMIT"},
+    {137, "lv_ERROR_PARSER_TOKEN_TOO_LONG"},
+    {138, "lv_ERROR_PARSER_POOL_EXHAUSTED"},
+    {200, "lv_ERROR_NODE_CONFLICT"},
+    {201, "lv_ERROR_NODE_NOT_FOUND"},
+    {202, "lv_ERROR_CONSTRAINT_CONFLICT"},
+    {203, "lv_ERROR_CONSTRAINT_DUPLICATE"},
+    {204, "lv_ERROR_INVALID_REGION"},
+    {205, "lv_ERROR_INVALID_GEOM_TYPE"},
+    {206, "lv_ERROR_CYCLIC_DEPENDENCY"},
+    {207, "lv_ERROR_GRAPH_CORRUPTED"},
+    {300, "lv_ERROR_COORD_INVALID"},
+    {301, "lv_ERROR_COORD_OVERFLOW"},
+    {302, "lv_ERROR_PRECISION_LOSS"},
+    {303, "lv_ERROR_SYMBOLIC_EVAL_FAILED"},
+    {400, "lv_ERROR_SOLVER_NO_SOLUTION"},
+    {401, "lv_ERROR_SOLVER_INFINITE"},
+    {402, "lv_ERROR_SOLVER_NUMERIC"},
+    {403, "lv_ERROR_SOLVER_SINGULAR"},
+    {404, "lv_ERROR_SOLVER_NOT_CONVERGED"},
+    {405, "lv_ERROR_GROEBNER_FAILED"},
+    {500, "lv_ERROR_REWRITE_NO_MATCH"},
+    {501, "lv_ERROR_REWRITE_CYCLE"},
+    {502, "lv_ERROR_REWRITE_DEPTH"},
+    {600, "lv_ERROR_UNIFY_FAILED"},
+    {601, "lv_ERROR_UNIFY_OCCUR_CHECK"},
+    {602, "lv_ERROR_UNIFY_TYPE_MISMATCH"},
+    {700, "lv_ERROR_FUNC_BLOCK_INVALID"},
+    {701, "lv_ERROR_FUNC_BLOCK_NON_DETERMINISTIC"},
+    {702, "lv_ERROR_FUNC_BLOCK_CIRCULAR"},
+    {703, "lv_ERROR_FUNC_BLOCK_TYPE_ERROR"},
+    {750, "lv_ERROR_PRESET_REGISTRATION_FAILED"},
+    {751, "lv_ERROR_PRESET_INSTANTIATION_FAILED"},
+    {800, "lv_ERROR_TYPE_MISMATCH"},
+    {801, "lv_ERROR_TYPE_INFERENCE_FAILED"},
+    {802, "lv_ERROR_UNIVERSE_INCONSISTENT"},
+    {900, "lv_ERROR_PROOF_INVALID"},
+    {901, "lv_ERROR_PROOF_INCOMPLETE"},
+    {902, "lv_ERROR_PROOF_VERIFICATION_FAILED"},
+    {903, "lv_ERROR_CIRCUIT_OPEN"},
+};
+
+const char *lv_status_message(int code) {
+    const char *msg = status_text_lookup(s_status_messages, lv_ARRAY_SIZE(s_status_messages), code);
+    return msg ? msg : "未知状态码";
+}
+
 
 /* ==================== 辅助函数 ==================== */
 
@@ -249,6 +258,7 @@ const char *lv_status_category(int code) {
     return "未分类";
 }
 
+
 /**
  * @brief 获取状态码的简短名称
  *
@@ -256,146 +266,6 @@ const char *lv_status_category(int code) {
  * @return 状态码名称字符串（如 "lv_OK"，静态存储，无需释放）
  */
 const char *lv_status_name(int code) {
-    switch (code) {
-        case 0:
-            return "lv_OK";
-        case 1:
-            return "lv_ERROR_UNKNOWN";
-        case 2:
-            return "lv_ERROR_INVALID_PARAM";
-        case 3:
-            return "lv_ERROR_NULL_POINTER";
-        case 4:
-            return "lv_ERROR_NOT_INITIALIZED";
-        case 5:
-            return "lv_ERROR_ALREADY_EXISTS";
-        case 6:
-            return "lv_ERROR_NOT_FOUND";
-        case 7:
-            return "lv_ERROR_UNSUPPORTED";
-        case 8:
-            return "lv_ERROR_OVERFLOW";
-        case 9:
-            return "lv_ERROR_UNDERFLOW";
-        case 10:
-            return "lv_ERROR_TIMEOUT";
-        case 11:
-            return "lv_ERROR_CANCELLED";
-        case 12:
-            return "lv_ERROR_IO";
-        case 13:
-            return "lv_ERROR_PARSE";
-        case 14:
-            return "lv_ERROR_INVALID_STATE";
-        case 15:
-            return "lv_ERROR_INVALID_ARGUMENT";
-        case 17:
-            return "lv_ERROR_INDEX_OUT_OF_RANGE";
-        case 18:
-            return "lv_ERROR_VALUE_OUT_OF_RANGE";
-        case 70:
-            return "lv_ERROR_INTERNAL";
-        case 100:
-            return "lv_ERROR_OUT_OF_MEMORY";
-        case 101:
-            return "lv_ERROR_ALLOCATION_FAILED";
-        case 102:
-            return "lv_ERROR_RESOURCE_EXHAUSTED";
-        case 103:
-            return "lv_ERROR_BUFFER_TOO_SMALL";
-        case 130:
-            return "lv_ERROR_PARSER_NULL_INPUT";
-        case 131:
-            return "lv_ERROR_PARSER_EMPTY_INPUT";
-        case 132:
-            return "lv_ERROR_PARSER_INPUT_TOO_LONG";
-        case 133:
-            return "lv_ERROR_PARSER_ILLEGAL_CHARS";
-        case 134:
-            return "lv_ERROR_PARSER_TOO_MANY_TOKENS";
-        case 135:
-            return "lv_ERROR_PARSER_DEPTH_EXCEEDED";
-        case 136:
-            return "lv_ERROR_PARSER_NODE_LIMIT";
-        case 137:
-            return "lv_ERROR_PARSER_TOKEN_TOO_LONG";
-        case 138:
-            return "lv_ERROR_PARSER_POOL_EXHAUSTED";
-        case 200:
-            return "lv_ERROR_NODE_CONFLICT";
-        case 201:
-            return "lv_ERROR_NODE_NOT_FOUND";
-        case 202:
-            return "lv_ERROR_CONSTRAINT_CONFLICT";
-        case 203:
-            return "lv_ERROR_CONSTRAINT_DUPLICATE";
-        case 204:
-            return "lv_ERROR_INVALID_REGION";
-        case 205:
-            return "lv_ERROR_INVALID_GEOM_TYPE";
-        case 206:
-            return "lv_ERROR_CYCLIC_DEPENDENCY";
-        case 207:
-            return "lv_ERROR_GRAPH_CORRUPTED";
-        case 300:
-            return "lv_ERROR_COORD_INVALID";
-        case 301:
-            return "lv_ERROR_COORD_OVERFLOW";
-        case 302:
-            return "lv_ERROR_PRECISION_LOSS";
-        case 303:
-            return "lv_ERROR_SYMBOLIC_EVAL_FAILED";
-        case 400:
-            return "lv_ERROR_SOLVER_NO_SOLUTION";
-        case 401:
-            return "lv_ERROR_SOLVER_INFINITE";
-        case 402:
-            return "lv_ERROR_SOLVER_NUMERIC";
-        case 403:
-            return "lv_ERROR_SOLVER_SINGULAR";
-        case 404:
-            return "lv_ERROR_SOLVER_NOT_CONVERGED";
-        case 405:
-            return "lv_ERROR_GROEBNER_FAILED";
-        case 500:
-            return "lv_ERROR_REWRITE_NO_MATCH";
-        case 501:
-            return "lv_ERROR_REWRITE_CYCLE";
-        case 502:
-            return "lv_ERROR_REWRITE_DEPTH";
-        case 600:
-            return "lv_ERROR_UNIFY_FAILED";
-        case 601:
-            return "lv_ERROR_UNIFY_OCCUR_CHECK";
-        case 602:
-            return "lv_ERROR_UNIFY_TYPE_MISMATCH";
-        case 700:
-            return "lv_ERROR_FUNC_BLOCK_INVALID";
-        case 701:
-            return "lv_ERROR_FUNC_BLOCK_NON_DETERMINISTIC";
-        case 702:
-            return "lv_ERROR_FUNC_BLOCK_CIRCULAR";
-        case 703:
-            return "lv_ERROR_FUNC_BLOCK_TYPE_ERROR";
-        case 750:
-            return "lv_ERROR_PRESET_REGISTRATION_FAILED";
-        case 751:
-            return "lv_ERROR_PRESET_INSTANTIATION_FAILED";
-        case 800:
-            return "lv_ERROR_TYPE_MISMATCH";
-        case 801:
-            return "lv_ERROR_TYPE_INFERENCE_FAILED";
-        case 802:
-            return "lv_ERROR_UNIVERSE_INCONSISTENT";
-        case 900:
-            return "lv_ERROR_PROOF_INVALID";
-        case 901:
-            return "lv_ERROR_PROOF_INCOMPLETE";
-        case 902:
-            return "lv_ERROR_PROOF_VERIFICATION_FAILED";
-        case 903:
-            return "lv_ERROR_CIRCUIT_OPEN";
-        default:
-            return "lv_UNKNOWN";
-    }
+    const char *name = status_text_lookup(s_status_names, lv_ARRAY_SIZE(s_status_names), code);
+    return name ? name : "lv_UNKNOWN";
 }

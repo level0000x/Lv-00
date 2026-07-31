@@ -68,6 +68,31 @@ lvStrSplitResult lv_str_split(const char *str, const char *delim);
 /** @brief 释放分割结果 */
 void lv_str_split_free(lvStrSplitResult *result);
 
+/**
+ * @brief strtok_r 的可移植封装（MSVC 下回退到 strtok_s）
+ * @param str     要分割的字符串（首次调用传入，后续传 NULL）
+ * @param delim   分隔符字符串
+ * @param saveptr 保存分割位置的指针
+ * @return 下一个 token，无更多 token 时返回 NULL
+ */
+char *lv_strtok_r(char *str, const char *delim, char **saveptr);
+
+/* ===== 定界符扫描 ===== */
+
+/**
+ * @brief 从 p 处扫描，跳过一对匹配的定界符（含字符串字面量感知）
+ * @param p       指向左定界符
+ * @param open    左定界符字符
+ * @param close   右定界符字符
+ * @return 匹配的右定界符之后的位置；不平衡则返回 NULL
+ */
+const char *lv_str_skip_balanced(const char *p, char open, char close);
+
+/**
+ * @brief 校验字符串中 open/close 是否平衡
+ */
+bool lv_str_check_balanced(const char *p, char open, char close);
+
 /* ===== 字符串替换 ===== */
 
 /**
@@ -107,6 +132,24 @@ void lv_str_escape_json(lvStrBuf *sb, const char *str, size_t len);
  * @param len 源字符串长度
  */
 void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len);
+
+/* ===== 报告表格辅助 ===== */
+
+/**
+ * @brief 向 lvStrBuf 追加一条分隔线（等号/短横线）
+ * @param sb    目标 lvStrBuf（追加模式）
+ * @param ch    分隔线字符（如 '=' 或 '-'）
+ * @param count 分隔线字符数量
+ */
+void lv_strbuf_append_sep(lvStrBuf *sb, char ch, size_t count);
+
+/**
+ * @brief 向 lvStrBuf 追加一个按列宽左对齐的单元格
+ * @param sb    目标 lvStrBuf（追加模式）
+ * @param text  单元格文本（可为 NULL，按空串处理）
+ * @param width 列宽（文本不足时以空格补齐；为 0 时不补齐）
+ */
+void lv_strbuf_append_cell(lvStrBuf *sb, const char *text, size_t width);
 
 #ifdef __cplusplus
 }

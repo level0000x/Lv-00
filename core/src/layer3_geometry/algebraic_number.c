@@ -500,21 +500,43 @@ lv_PUBLIC_API bool alg_rational_is_negative(const AlgRational *r) {
     return r->num < 0;
 }
 
-lv_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err) {
-    switch (err) {
-        case ALG_RATIONAL_OK:
-            return "成功";
-        case ALG_RATIONAL_ERR_ZERO_DEN:
-            return "分母为零";
-        case ALG_RATIONAL_ERR_OVERFLOW:
-            return "整数溢出";
-        case ALG_RATIONAL_ERR_NULL:
-            return "空指针";
-        case ALG_RATIONAL_ERR_INVALID:
-            return "无效参数";
-        default:
-            return "未知错误";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} alg_num_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *alg_num_name_lookup(const alg_num_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief alg_rational_error_string 名称表（按枚举值升序） */
+static const alg_num_NameEntry s_alg_rational_error_string_entries[] = {
+    {ALG_RATIONAL_OK, "成功"},
+    {ALG_RATIONAL_ERR_ZERO_DEN, "分母为零"},
+    {ALG_RATIONAL_ERR_OVERFLOW, "整数溢出"},
+    {ALG_RATIONAL_ERR_NULL, "空指针"},
+    {ALG_RATIONAL_ERR_INVALID, "无效参数"},
+};
+
+lv_PUBLIC_API const char *alg_rational_error_string(AlgRationalError err) {
+    const char *name = alg_num_name_lookup(s_alg_rational_error_string_entries, lv_ARRAY_SIZE(s_alg_rational_error_string_entries), (int) err);
+    return name ? name : "未知错误";
 }
 
 /* ============================================================
@@ -843,21 +865,18 @@ lv_PUBLIC_API AlgRational alg_quadratic_rational_part(const AlgQuadratic *x) {
     return x->a;
 }
 
+/** @brief alg_quadratic_error_string 名称表（按枚举值升序） */
+static const alg_num_NameEntry s_alg_quadratic_error_string_entries[] = {
+    {ALG_QUADRATIC_OK, "成功"},
+    {ALG_QUADRATIC_ERR_DOMAIN, "域不匹配（d 不同）"},
+    {ALG_QUADRATIC_ERR_OVERFLOW, "整数溢出"},
+    {ALG_QUADRATIC_ERR_NULL, "空指针"},
+    {ALG_QUADRATIC_ERR_INVALID, "无效参数"},
+};
+
 lv_PUBLIC_API const char *alg_quadratic_error_string(AlgQuadraticError err) {
-    switch (err) {
-        case ALG_QUADRATIC_OK:
-            return "成功";
-        case ALG_QUADRATIC_ERR_DOMAIN:
-            return "域不匹配（d 不同）";
-        case ALG_QUADRATIC_ERR_OVERFLOW:
-            return "整数溢出";
-        case ALG_QUADRATIC_ERR_NULL:
-            return "空指针";
-        case ALG_QUADRATIC_ERR_INVALID:
-            return "无效参数";
-        default:
-            return "未知错误";
-    }
+    const char *name = alg_num_name_lookup(s_alg_quadratic_error_string_entries, lv_ARRAY_SIZE(s_alg_quadratic_error_string_entries), (int) err);
+    return name ? name : "未知错误";
 }
 
 /* ============================================================
@@ -1175,23 +1194,19 @@ lv_PUBLIC_API int alg_interval_to_string(const AlgInterval *x, char *buf, size_t
     return len;
 }
 
+/** @brief alg_interval_error_string 名称表（按枚举值升序） */
+static const alg_num_NameEntry s_alg_interval_error_string_entries[] = {
+    {ALG_INTERVAL_OK, "成功"},
+    {ALG_INTERVAL_ERR_EMPTY, "空区间"},
+    {ALG_INTERVAL_ERR_OVERFLOW, "整数溢出"},
+    {ALG_INTERVAL_ERR_NULL, "空指针"},
+    {ALG_INTERVAL_ERR_INVALID, "无效参数（lo > hi）"},
+    {ALG_INTERVAL_ERR_DIV_BY_ZERO, "除以包含零的区间"},
+};
+
 lv_PUBLIC_API const char *alg_interval_error_string(AlgIntervalError err) {
-    switch (err) {
-        case ALG_INTERVAL_OK:
-            return "成功";
-        case ALG_INTERVAL_ERR_EMPTY:
-            return "空区间";
-        case ALG_INTERVAL_ERR_OVERFLOW:
-            return "整数溢出";
-        case ALG_INTERVAL_ERR_NULL:
-            return "空指针";
-        case ALG_INTERVAL_ERR_INVALID:
-            return "无效参数（lo > hi）";
-        case ALG_INTERVAL_ERR_DIV_BY_ZERO:
-            return "除以包含零的区间";
-        default:
-            return "未知错误";
-    }
+    const char *name = alg_num_name_lookup(s_alg_interval_error_string_entries, lv_ARRAY_SIZE(s_alg_interval_error_string_entries), (int) err);
+    return name ? name : "未知错误";
 }
 
 /* ============================================================
@@ -1676,23 +1691,19 @@ lv_PUBLIC_API int alg_poly_to_string(const AlgPoly *p, char *buf, size_t size) {
     return len;
 }
 
+/** @brief alg_poly_error_string 名称表（按枚举值升序） */
+static const alg_num_NameEntry s_alg_poly_error_string_entries[] = {
+    {ALG_POLY_OK, "成功"},
+    {ALG_POLY_ERR_DEGREE, "次数超限"},
+    {ALG_POLY_ERR_OVERFLOW, "整数溢出"},
+    {ALG_POLY_ERR_NULL, "空指针"},
+    {ALG_POLY_ERR_INVALID, "无效参数"},
+    {ALG_POLY_ERR_DIV_BY_ZERO, "除以零多项式"},
+};
+
 lv_PUBLIC_API const char *alg_poly_error_string(AlgPolyError err) {
-    switch (err) {
-        case ALG_POLY_OK:
-            return "成功";
-        case ALG_POLY_ERR_DEGREE:
-            return "次数超限";
-        case ALG_POLY_ERR_OVERFLOW:
-            return "整数溢出";
-        case ALG_POLY_ERR_NULL:
-            return "空指针";
-        case ALG_POLY_ERR_INVALID:
-            return "无效参数";
-        case ALG_POLY_ERR_DIV_BY_ZERO:
-            return "除以零多项式";
-        default:
-            return "未知错误";
-    }
+    const char *name = alg_num_name_lookup(s_alg_poly_error_string_entries, lv_ARRAY_SIZE(s_alg_poly_error_string_entries), (int) err);
+    return name ? name : "未知错误";
 }
 
 /* ============================================================

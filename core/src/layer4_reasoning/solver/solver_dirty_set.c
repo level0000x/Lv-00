@@ -3,24 +3,26 @@
  * @brief 脏变量追踪（增量求解支持）
  *
  * @details 从 solver.c 拆分出的子模块（Lv-00 项目 v3.3.0+）。
+ *          本文件为 DirtyVariableSet 与 filter_equations_for_dirty 的唯一实现，
+ *          solver_incremental.c 通过 lv/solver_dirty_set.h 共享。
  * @author Lv-00 Project
  * @version 3.3.0
  */
 
 #include "solver_common.h"
+#include "lv/solver_dirty_set.h"
 
-/* 脏变量集合结构体 */
-typedef struct {
-    lvDArray dirty_ids; /* dirty variable IDs (lvDArray of int) */
-} DirtyVariableSet;
+/* ================================================================== */
+/*  脏变量集合（共享实现，供增量求解模块使用）                          */
+/* ================================================================== */
 
 /* 初始化脏变量集合 */
-static void dirty_set_init(DirtyVariableSet *ds) {
+void dirty_set_init(DirtyVariableSet *ds) {
     lv_darray_init(&ds->dirty_ids, sizeof(int));
 }
 
 /* 检查变量 ID 是否在脏集合中 */
-static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
+bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
     for (int i = 0; i < ds->dirty_ids.count; i++) {
         int *p = (int *)lv_darray_get(&ds->dirty_ids, i);
         if (p && *p == var_id)
@@ -30,21 +32,26 @@ static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
 }
 
 /* 向脏集合中添加变量 ID */
-static void dirty_set_add(DirtyVariableSet *ds, int var_id) {
+void dirty_set_add(DirtyVariableSet *ds, int var_id) {
     if (dirty_set_contains(ds, var_id))
         return;
     lv_darray_push(&ds->dirty_ids, &var_id);
 }
 
 /* 清空脏变量集合 */
-static void dirty_set_clear(DirtyVariableSet *ds) {
+void dirty_set_clear(DirtyVariableSet *ds) {
     lv_darray_clear(&ds->dirty_ids);
     /* 不释放内存, 保留容量以供复用 */
 }
 
 /* 释放脏变量集合资源 */
-static void dirty_set_free(DirtyVariableSet *ds) {
+void dirty_set_free(DirtyVariableSet *ds) {
     lv_darray_free(&ds->dirty_ids);
+}
+
+/* 判断两个 (var_node_id, coord_index) 键是否相同 */
+bool poly_eq_same_key(int a_var, int a_coord, int b_var, int b_coord) {
+    return a_var == b_var && a_coord == b_coord;
 }
 
 /* ================================================================== */
@@ -59,7 +66,7 @@ static void dirty_set_free(DirtyVariableSet *ds) {
  * 传播规则: 如果一个方程涉及的变量与脏变量共享约束,
  * 则该方程也间接相关。
  */
-static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered) {
+void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered) {
     equation_system_init(filtered);
 
     if (!sys || !ds || ds->dirty_ids.count == 0)
@@ -97,8 +104,8 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
             bool found = false;
             for (int j = 0; j < filtered->eqs.count; j++) {
                 PolyEquation *fj = ((PolyEquation *)lv_darray_get(&filtered->eqs, j));
-                if (fj->var_node_id == pe->var_node_id &&
-                    fj->coord_index == pe->coord_index) {
+                if (poly_eq_same_key(fj->var_node_id, fj->coord_index,
+                                     pe->var_node_id, pe->coord_index)) {
                     found = true;
                     break;
                 }

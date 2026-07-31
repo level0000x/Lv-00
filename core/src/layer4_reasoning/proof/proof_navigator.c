@@ -1040,35 +1040,102 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
 /**
  * @brief 辅助函数：将 ProofColor 转换为 HTML 十六进制颜色字符串
  */
-static const char *proof_color_to_html_hex(ProofColor c) {
-    switch (c) {
-        case PROOF_COLOR_GREEN:
-            return "#4CAF50";             /* 绿色：全构造 */
-        case PROOF_COLOR_BLUE_UNEXPLORED:
-            return "#2196F3";             /* 蓝色（未探索） */
-        case PROOF_COLOR_BLUE_RESOURCE:
-            return "#1976D2";             /* 蓝色（资源受限） */
-        case PROOF_COLOR_BLUE_OUT_OF_RANGE:
-            return "#0D47A1";             /* 蓝色（超出范围） */
-        case PROOF_COLOR_GREEN_VERIFIED:
-            return "#2E7D32";             /* 绿色实框：已证不可构造 */
-        case PROOF_COLOR_YELLOW:
-            return "#FFC107";             /* 黄色虚线框：条件性不可构造 */
-        case PROOF_COLOR_ORANGE_ORACLE:
-            return "#FF9800";             /* 浅橙色实心端口：依赖非构造性 oracle */
-        case PROOF_COLOR_ORANGE_EX_FALSO:
-            return "#F57C00";             /* 浅橙色虚线箭头：爆炸原理步骤 */
-        case PROOF_COLOR_AMBER:
-            return "#FFB300";             /* 橙黄色：含数值假设 */
-        case PROOF_COLOR_DARK_ORANGE:
-            return "#E65100";             /* 深橙色：非构造性依赖与数值假设叠加 */
-        case PROOF_COLOR_GREEN_COMPLETE:
-            return "#1B5E20";             /* 绿色：证明完成 */
-        case PROOF_COLOR_RED_CONFLICT:
-            return "#D32F2F";             /* 红色：冲突/矛盾 */
-        default:
-            return "#78909C";             /* 灰色：未知颜色 */
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} ProofEnumNameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *proof_enum_name_lookup(const ProofEnumNameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief proof_color_to_html_hex 名称表（按枚举值升序） */
+static const ProofEnumNameEntry s_proof_color_html_names[] = {
+    {PROOF_COLOR_GREEN, "#4CAF50"},
+    {PROOF_COLOR_BLUE_UNEXPLORED, "#2196F3"},
+    {PROOF_COLOR_BLUE_RESOURCE, "#1976D2"},
+    {PROOF_COLOR_BLUE_OUT_OF_RANGE, "#0D47A1"},
+    {PROOF_COLOR_GREEN_VERIFIED, "#2E7D32"},
+    {PROOF_COLOR_YELLOW, "#FFC107"},
+    {PROOF_COLOR_ORANGE_ORACLE, "#FF9800"},
+    {PROOF_COLOR_ORANGE_EX_FALSO, "#F57C00"},
+    {PROOF_COLOR_AMBER, "#FFB300"},
+    {PROOF_COLOR_DARK_ORANGE, "#E65100"},
+    {PROOF_COLOR_GREEN_COMPLETE, "#1B5E20"},
+    {PROOF_COLOR_RED_CONFLICT, "#D32F2F"},
+};
+
+/** @brief proof_color_to_string 名称表（按枚举值升序） */
+static const ProofEnumNameEntry s_proof_color_to_string_names[] = {
+    {PROOF_COLOR_GREEN, "Green"},
+    {PROOF_COLOR_BLUE_UNEXPLORED, "Blue (unexplored)"},
+    {PROOF_COLOR_BLUE_RESOURCE, "Blue (resource)"},
+    {PROOF_COLOR_BLUE_OUT_OF_RANGE, "Blue (out of range)"},
+    {PROOF_COLOR_GREEN_VERIFIED, "Green (verified)"},
+    {PROOF_COLOR_YELLOW, "Yellow"},
+    {PROOF_COLOR_ORANGE_ORACLE, "Orange (oracle)"},
+    {PROOF_COLOR_ORANGE_EX_FALSO, "Orange (ex falso)"},
+    {PROOF_COLOR_AMBER, "Amber"},
+    {PROOF_COLOR_DARK_ORANGE, "Dark orange"},
+    {PROOF_COLOR_GREEN_COMPLETE, "Green (complete)"},
+    {PROOF_COLOR_RED_CONFLICT, "Red (conflict)"},
+};
+
+/** @brief proposition_type_to_string 名称表（按枚举值升序） */
+static const ProofEnumNameEntry s_proposition_type_to_string_names[] = {
+    {PROPOSITION_TYPE_ATOMIC, "Atomic"},
+    {PROPOSITION_TYPE_CONJUNCTION, "Conjunction"},
+    {PROPOSITION_TYPE_DISJUNCTION, "Disjunction"},
+    {PROPOSITION_TYPE_IMPLICATION, "Implication"},
+    {PROPOSITION_TYPE_NEGATION, "Negation"},
+    {PROPOSITION_TYPE_UNIVERSAL, "Universal"},
+    {PROPOSITION_TYPE_EXISTENTIAL, "Existential"},
+    {PROPOSITION_TYPE_BOTTOM, "Bottom"},
+};
+
+/** @brief proof_step_type_to_string 名称表（按枚举值升序） */
+static const ProofEnumNameEntry s_proof_step_type_to_string_names[] = {
+    {PROOF_STEP_ADD_NODE, "Add Node"},
+    {PROOF_STEP_ADD_CONSTRAINT, "Add Constraint"},
+    {PROOF_STEP_REWRITE, "Rewrite"},
+    {PROOF_STEP_FUNCTION_APP, "Function Application"},
+    {PROOF_STEP_PACK_FUNCTION, "Pack Function"},
+    {PROOF_STEP_NORMALIZATION, "Normalization"},
+    {PROOF_STEP_UNIFY, "Unify"},
+    {PROOF_STEP_EX_FALSO, "Ex Falso"},
+    {PROOF_STEP_ORACLE, "Oracle"},
+};
+
+/** @brief unify_result_to_string 名称表（按枚举值升序） */
+static const ProofEnumNameEntry s_unify_result_to_string_names[] = {
+    {UNIFY_STATUS_OK, "OK"},
+    {UNIFY_STATUS_PORT_TYPE_MISMATCH, "Port Mismatch"},
+    {UNIFY_STATUS_CONSTRAINT_MISMATCH, "Constraint Mismatch"},
+    {UNIFY_STATUS_COORD_MISMATCH, "Coordinate Mismatch"},
+    {UNIFY_STATUS_STRUCTURE_MISMATCH, "Structure Mismatch"},
+    {UNIFY_STATUS_SCOPE_MISMATCH, "Scope Mismatch"},
+    {UNIFY_STATUS_FAILED, "Error"},
+};
+
+static const char *proof_color_to_html_hex(ProofColor c) {
+    const char *name = proof_enum_name_lookup(s_proof_color_html_names, lv_ARRAY_SIZE(s_proof_color_html_names), (int) c);
+    return name ? name : "#78909C";
 }
 
 
@@ -1717,103 +1784,23 @@ const char *html_escape(const char *s) {
 }
 
 const char *proof_color_to_string(ProofColor color) {
-    switch (color) {
-        case PROOF_COLOR_GREEN:
-            return "Green";
-        case PROOF_COLOR_BLUE_UNEXPLORED:
-            return "Blue (unexplored)";
-        case PROOF_COLOR_BLUE_RESOURCE:
-            return "Blue (resource)";
-        case PROOF_COLOR_BLUE_OUT_OF_RANGE:
-            return "Blue (out of range)";
-        case PROOF_COLOR_GREEN_VERIFIED:
-            return "Green (verified)";
-        case PROOF_COLOR_YELLOW:
-            return "Yellow";
-        case PROOF_COLOR_ORANGE_ORACLE:
-            return "Orange (oracle)";
-        case PROOF_COLOR_ORANGE_EX_FALSO:
-            return "Orange (ex falso)";
-        case PROOF_COLOR_AMBER:
-            return "Amber";
-        case PROOF_COLOR_DARK_ORANGE:
-            return "Dark orange";
-        case PROOF_COLOR_GREEN_COMPLETE:
-            return "Green (complete)";
-        case PROOF_COLOR_RED_CONFLICT:
-            return "Red (conflict)";
-        default:
-            return "Unknown";
-    }
+    const char *name = proof_enum_name_lookup(s_proof_color_to_string_names, lv_ARRAY_SIZE(s_proof_color_to_string_names), (int) color);
+    return name ? name : "Unknown";
 }
 
 const char *proposition_type_to_string(PropositionType type) {
-    switch (type) {
-        case PROPOSITION_TYPE_ATOMIC:
-            return "Atomic";
-        case PROPOSITION_TYPE_CONJUNCTION:
-            return "Conjunction";
-        case PROPOSITION_TYPE_DISJUNCTION:
-            return "Disjunction";
-        case PROPOSITION_TYPE_IMPLICATION:
-            return "Implication";
-        case PROPOSITION_TYPE_NEGATION:
-            return "Negation";
-        case PROPOSITION_TYPE_UNIVERSAL:
-            return "Universal";
-        case PROPOSITION_TYPE_EXISTENTIAL:
-            return "Existential";
-        case PROPOSITION_TYPE_BOTTOM:
-            return "Bottom";
-        default:
-            return "Unknown";
-    }
+    const char *name = proof_enum_name_lookup(s_proposition_type_to_string_names, lv_ARRAY_SIZE(s_proposition_type_to_string_names), (int) type);
+    return name ? name : "Unknown";
 }
 
 const char *proof_step_type_to_string(ProofStepType type) {
-    switch (type) {
-        case PROOF_STEP_ADD_NODE:
-            return "Add Node";
-        case PROOF_STEP_ADD_CONSTRAINT:
-            return "Add Constraint";
-        case PROOF_STEP_REWRITE:
-            return "Rewrite";
-        case PROOF_STEP_FUNCTION_APP:
-            return "Function Application";
-        case PROOF_STEP_PACK_FUNCTION:
-            return "Pack Function";
-        case PROOF_STEP_NORMALIZATION:
-            return "Normalization";
-        case PROOF_STEP_UNIFY:
-            return "Unify";
-        case PROOF_STEP_EX_FALSO:
-            return "Ex Falso";
-        case PROOF_STEP_ORACLE:
-            return "Oracle";
-        default:
-            return "Unknown";
-    }
+    const char *name = proof_enum_name_lookup(s_proof_step_type_to_string_names, lv_ARRAY_SIZE(s_proof_step_type_to_string_names), (int) type);
+    return name ? name : "Unknown";
 }
 
 const char *unify_result_to_string(UnifyStatus result) {
-    switch (result) {
-        case UNIFY_STATUS_OK:
-            return "OK";
-        case UNIFY_STATUS_PORT_TYPE_MISMATCH:
-            return "Port Mismatch";
-        case UNIFY_STATUS_CONSTRAINT_MISMATCH:
-            return "Constraint Mismatch";
-        case UNIFY_STATUS_COORD_MISMATCH:
-            return "Coordinate Mismatch";
-        case UNIFY_STATUS_STRUCTURE_MISMATCH:
-            return "Structure Mismatch";
-        case UNIFY_STATUS_SCOPE_MISMATCH:
-            return "Scope Mismatch";
-        case UNIFY_STATUS_FAILED:
-            return "Error";
-        default:
-            return "Unknown";
-    }
+    const char *name = proof_enum_name_lookup(s_unify_result_to_string_names, lv_ARRAY_SIZE(s_unify_result_to_string_names), (int) result);
+    return name ? name : "Unknown";
 }
 
 /* ============== 命题实例化 ============== */

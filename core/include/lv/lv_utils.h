@@ -933,6 +933,26 @@ lv_PUBLIC_API bool lv_ensure_capacity(void **arr, int count, int *capacity, size
 lv_PUBLIC_API uint64_t lv_fnv1a_hash(const void *data, size_t len);
 
 /* ============================================================
+ * 数值数组聚合
+ * ============================================================ */
+
+/**
+ * @brief 返回数组绝对值的最大值（空数组返回 0）
+ * @param arr 输入数组（可为 NULL）
+ * @param n   元素个数
+ * @return 绝对值的最大值；arr 为 NULL 或 n <= 0 时返回 0
+ */
+lv_PUBLIC_API double lv_max_abs(const double *arr, int64_t n);
+
+/**
+ * @brief 返回 double 数组最大值
+ * @param arr 输入数组（可为 NULL）
+ * @param n   元素个数
+ * @return 最大值；arr 为 NULL 或 n <= 0 时返回 0
+ */
+lv_PUBLIC_API double lv_max_d(const double *arr, int64_t n);
+
+/* ============================================================
  * 哈希函数
  * ============================================================ */
 

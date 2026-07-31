@@ -15,6 +15,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/simd_ops.h"
 #include "lv/symbolic_coord.h"
@@ -992,28 +993,73 @@ lvBenchSuite *lv_bench_run_thread_tests(void) {
 
 /* ============ 报告导出 ============ */
 
+/* 共享表定义：文本报告与 Markdown 报告复用同一套列名与列宽，
+ * 避免同一张表格的结构在两处手工重复维护 */
+static const char *const kBenchColumns[] = {"测试项", "迭代次数", "平均(μs)", "标准差", "吞吐量(ops/s)"};
+static const int kBenchColWidths[] = {32, 10, 12, 12, 14};
+/* Markdown 分隔行中每列的短横线数量（保持与原输出一致的视觉宽度） */
+static const int kBenchMdSepWidths[] = {7, 9, 9, 7, 13};
+#define kBENCH_COL_COUNT (sizeof(kBenchColumns) / sizeof(kBenchColumns[0]))
+
+/**
+ * @brief 向 sb 追加表头行（文本或 Markdown 格式）
+ */
+static void bench_append_header(lvStrBuf *sb, bool markdown) {
+    if (markdown) {
+        lv_strbuf_printf(sb, "|");
+        for (size_t i = 0; i < kBENCH_COL_COUNT; i++) {
+            lv_strbuf_printf(sb, " %s |", kBenchColumns[i]);
+        }
+        lv_strbuf_printf(sb, "\n|");
+        for (size_t i = 0; i < kBENCH_COL_COUNT; i++) {
+            lv_strbuf_append_sep(sb, '-', (size_t) kBenchMdSepWidths[i]);
+            lv_strbuf_printf(sb, "|");
+        }
+        lv_strbuf_printf(sb, "\n");
+    } else {
+        lv_strbuf_append_cell(sb, kBenchColumns[0], (size_t) kBenchColWidths[0]);
+        for (size_t i = 1; i < kBENCH_COL_COUNT; i++) {
+            lv_strbuf_printf(sb, " %*s", kBenchColWidths[i], kBenchColumns[i]);
+        }
+        lv_strbuf_printf(sb, "\n");
+    }
+}
+
+/**
+ * @brief 向 sb 追加一行基准结果（文本或 Markdown 格式）
+ */
+static void bench_append_row(lvStrBuf *sb, const lvBenchResult *r, bool markdown) {
+    if (markdown) {
+        lv_strbuf_printf(sb, "| %s | %d | %.3f | %.3f | %.1f |\n",
+                         r->name, r->iterations, r->mean_us, r->std_dev_us, r->ops_per_sec);
+    } else {
+        lv_strbuf_append_cell(sb, r->name[0] ? r->name : "(未命名)", (size_t) kBenchColWidths[0]);
+        lv_strbuf_printf(sb, " %10d %12.3f %12.3f %14.1f\n",
+                         r->iterations, r->mean_us, r->std_dev_us, r->ops_per_sec);
+    }
+}
+
 void lv_bench_suite_print_report(const lvBenchSuite *suite, void *stream) {
     FILE *fp = stream ? (FILE *) stream : stdout;
     if (!suite) {
         fprintf(fp, "错误：套件为空\n");
         return;
     }
-    fprintf(fp, "========================================\n");
-    fprintf(fp, "  基准测试报告: %s\n", suite->name);
-    fprintf(fp, "  日期: %s %s\n", __DATE__, __TIME__);
-    fprintf(fp, "========================================\n");
-    fprintf(fp, "%-32s %10s %12s %12s %14s\n", "测试项", "迭代次数", "平均(μs)", "标准差", "吞吐量(ops/s)");
-    fprintf(fp, "----------------------------------------------------------------\n");
+
+    lvStrBuf sb = {0};
+    lv_strbuf_append_sep(&sb, '=', 40);
+    lv_strbuf_printf(&sb, "  基准测试报告: %s\n", suite->name);
+    lv_strbuf_printf(&sb, "  日期: %s %s\n", __DATE__, __TIME__);
+    lv_strbuf_append_sep(&sb, '=', 40);
+    bench_append_header(&sb, false);
+    lv_strbuf_append_sep(&sb, '-', 64);
     for (int i = 0; i < suite->results.count; i++) {
         const lvBenchResult *r = (const lvBenchResult *) lv_darray_get(&suite->results, i);
-        fprintf(fp, "%-32s %10d %12.3f %12.3f %14.1f\n",
-                r->name[0] ? r->name : "(未命名)",
-                r->iterations,
-                r->mean_us,
-                r->std_dev_us,
-                r->ops_per_sec);
+        bench_append_row(&sb, r, false);
     }
-    fprintf(fp, "========================================\n");
+    lv_strbuf_append_sep(&sb, '=', 40);
+    fputs(lv_strbuf_cstr(&sb), fp);
+    lv_strbuf_destroy(&sb);
 }
 
 char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
@@ -1067,28 +1113,14 @@ char *lv_bench_suite_to_markdown(const lvBenchSuite *suite) {
         return buf;
     }
 
-    /* 第一遍：计算大小 */
-    int size = 512;
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "# 基准测试报告: %s\n\n", suite->name);
+    bench_append_header(&sb, true);
     for (int i = 0; i < suite->results.count; i++) {
         const lvBenchResult *r = (const lvBenchResult *) lv_darray_get(&suite->results, i);
-        size += 128 + (int) strlen(r->name);
+        bench_append_row(&sb, r, true);
     }
-
-    char *buf = (char *) lv_malloc((size_t) size);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "malloc for markdown buf failed");
-
-    char *p = buf;
-    p += sprintf(p, "# 基准测试报告: %s\n\n", suite->name);
-    p += sprintf(p, "| 测试项 | 迭代次数 | 平均(μs) | 标准差 | 吞吐量(ops/s) |\n");
-    p += sprintf(p, "|-------|---------|---------|-------|-------------|\n");
-    for (int i = 0; i < suite->results.count; i++) {
-        const lvBenchResult *r = (const lvBenchResult *) lv_darray_get(&suite->results, i);
-        p += sprintf(p, "| %s | %d | %.3f | %.3f | %.1f |\n",
-                     r->name, r->iterations, r->mean_us, r->std_dev_us, r->ops_per_sec);
-    }
-
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 void lv_perf_print_report(const lvPerfMonitor *monitor, void *stream) {

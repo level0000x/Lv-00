@@ -1608,18 +1608,11 @@ static void eval_csg_transform(const CSGNode *node, CSGTriList *out) {
 
     double det = m00 * (m11 * m22 - m12 * m21) - m01 * (m10 * m22 - m12 * m20) + m02 * (m10 * m21 - m11 * m20);
 
-    double abs_m00 = fabs(m00), abs_m01 = fabs(m01), abs_m02 = fabs(m02);
-    double abs_m10 = fabs(m10), abs_m11 = fabs(m11), abs_m12 = fabs(m12);
-    double abs_m20 = fabs(m20), abs_m21 = fabs(m21), abs_m22 = fabs(m22);
-    double max_el = abs_m00;
-    if (abs_m01 > max_el) max_el = abs_m01;
-    if (abs_m02 > max_el) max_el = abs_m02;
-    if (abs_m10 > max_el) max_el = abs_m10;
-    if (abs_m11 > max_el) max_el = abs_m11;
-    if (abs_m12 > max_el) max_el = abs_m12;
-    if (abs_m20 > max_el) max_el = abs_m20;
-    if (abs_m21 > max_el) max_el = abs_m21;
-    if (abs_m22 > max_el) max_el = abs_m22;
+    /* 计算矩阵元素绝对值的最大值（用于行列式容差缩放） */
+    const double m_els[9] = {m00, m01, m02,
+                             m10, m11, m12,
+                             m20, m21, m22};
+    double max_el = lv_max_abs(m_els, 9);
     double det_tol = CSG_BSP_EPSILON * fmax(1.0, max_el * max_el);
 
     double inv_det;

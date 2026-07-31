@@ -831,63 +831,75 @@ const char *proof_state_current_goal(const lvProofState *state) {
 
 /* ============== Utility Functions ============== */
 
-const char *proof_rule_type_to_string(lvProofRuleType type) {
-    switch (type) {
-        case RULE_INTRO:
-            return "INTRO";
-        case RULE_ELIM:
-            return "ELIM";
-        case RULE_REWRITE:
-            return "REWRITE";
-        case RULE_INDUCTION:
-            return "INDUCTION";
-        case RULE_CONTRADICTION:
-            return "CONTRADICTION";
-        case RULE_CASE_SPLIT:
-            return "CASE_SPLIT";
-        case RULE_GENERALIZE:
-            return "GENERALIZE";
-        case RULE_SPECIALIZE:
-            return "SPECIALIZE";
-        case RULE_NEURAL_SUGGEST:
-            return "NEURAL_SUGGEST";
-        case RULE_AUX_CONSTRUCT:
-            return "AUX_CONSTRUCT";
-        default:
-            return "UNKNOWN";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} rule_engine_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *rule_engine_name_lookup(const rule_engine_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
 }
+
+/** @brief proof_rule_type_to_string 名称表（按枚举值升序） */
+static const rule_engine_NameEntry s_proof_rule_type_to_string_entries[] = {
+    {RULE_INTRO, "INTRO"},
+    {RULE_ELIM, "ELIM"},
+    {RULE_REWRITE, "REWRITE"},
+    {RULE_INDUCTION, "INDUCTION"},
+    {RULE_CONTRADICTION, "CONTRADICTION"},
+    {RULE_CASE_SPLIT, "CASE_SPLIT"},
+    {RULE_GENERALIZE, "GENERALIZE"},
+    {RULE_SPECIALIZE, "SPECIALIZE"},
+    {RULE_NEURAL_SUGGEST, "NEURAL_SUGGEST"},
+    {RULE_AUX_CONSTRUCT, "AUX_CONSTRUCT"},
+};
+
+const char *proof_rule_type_to_string(lvProofRuleType type) {
+    const char *name = rule_engine_name_lookup(s_proof_rule_type_to_string_entries, lv_ARRAY_SIZE(s_proof_rule_type_to_string_entries), (int) type);
+    return name ? name : "UNKNOWN";
+}
+
+/** @brief search_strategy_to_string 名称表（按枚举值升序） */
+static const rule_engine_NameEntry s_search_strategy_to_string_entries[] = {
+    {SEARCH_BEST_FIRST, "BEST_FIRST"},
+    {SEARCH_DEPTH_FIRST, "DEPTH_FIRST"},
+    {SEARCH_BREADTH_FIRST, "BREADTH_FIRST"},
+    {SEARCH_ITERATIVE_DEEPENING, "ITERATIVE_DEEPENING"},
+};
 
 const char *search_strategy_to_string(lvSearchStrategy strategy) {
-    switch (strategy) {
-        case SEARCH_BEST_FIRST:
-            return "BEST_FIRST";
-        case SEARCH_DEPTH_FIRST:
-            return "DEPTH_FIRST";
-        case SEARCH_BREADTH_FIRST:
-            return "BREADTH_FIRST";
-        case SEARCH_ITERATIVE_DEEPENING:
-            return "ITERATIVE_DEEPENING";
-        default:
-            return "UNKNOWN";
-    }
+    const char *name = rule_engine_name_lookup(s_search_strategy_to_string_entries, lv_ARRAY_SIZE(s_search_strategy_to_string_entries), (int) strategy);
+    return name ? name : "UNKNOWN";
 }
 
+/** @brief search_result_status_to_string 名称表（按枚举值升序） */
+static const rule_engine_NameEntry s_search_result_status_to_string_entries[] = {
+    {SEARCH_RESULT_FOUND, "FOUND"},
+    {SEARCH_RESULT_TIMEOUT, "TIMEOUT"},
+    {SEARCH_RESULT_DEPTH_LIMIT, "DEPTH_LIMIT"},
+    {SEARCH_RESULT_EXHAUSTED, "EXHAUSTED"},
+    {SEARCH_RESULT_ERROR, "ERROR"},
+};
+
 const char *search_result_status_to_string(lvSearchResultStatus status) {
-    switch (status) {
-        case SEARCH_RESULT_FOUND:
-            return "FOUND";
-        case SEARCH_RESULT_TIMEOUT:
-            return "TIMEOUT";
-        case SEARCH_RESULT_DEPTH_LIMIT:
-            return "DEPTH_LIMIT";
-        case SEARCH_RESULT_EXHAUSTED:
-            return "EXHAUSTED";
-        case SEARCH_RESULT_ERROR:
-            return "ERROR";
-        default:
-            return "UNKNOWN";
-    }
+    const char *name = rule_engine_name_lookup(s_search_result_status_to_string_entries, lv_ARRAY_SIZE(s_search_result_status_to_string_entries), (int) status);
+    return name ? name : "UNKNOWN";
 }
 
 /* ============================================================

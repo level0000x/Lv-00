@@ -1078,9 +1078,14 @@ lvVisualRenderer *lv_visual_renderer_create(lvRenderBackend backend, int width, 
 
 /* ── 最小 PNG 编码器（无需外部库，输出有效 PNG） ── */
 
-/** CRC-32 表（用于计算 PNG chunk CRC） */
-static uint32_t png_crc_table[256];
-static bool png_crc_initialized = false;
+/** @brief PNG CRC 编码器状态 */
+typedef struct {
+    uint32_t table[256]; /**< CRC-32 查找表 */
+    bool initialized;    /**< 表是否已初始化 */
+} PngCrcState;
+
+/** @brief PNG CRC 编码器全局单例 */
+static PngCrcState s_png_crc = {0};
 
 static void png_init_crc(void) {
     for (uint32_t i = 0; i < 256; i++) {
@@ -1091,17 +1096,17 @@ static void png_init_crc(void) {
             else
                 c >>= 1;
         }
-        png_crc_table[i] = c;
+        s_png_crc.table[i] = c;
     }
-    png_crc_initialized = true;
+    s_png_crc.initialized = true;
 }
 
 static uint32_t png_crc(const uint8_t *data, size_t len) {
-    if (!png_crc_initialized)
+    if (!s_png_crc.initialized)
         png_init_crc();
     uint32_t c = 0xFFFFFFFFU;
     for (size_t i = 0; i < len; i++)
-        c = png_crc_table[(c ^ data[i]) & 0xFF] ^ (c >> 8);
+        c = s_png_crc.table[(c ^ data[i]) & 0xFF] ^ (c >> 8);
     return c ^ 0xFFFFFFFFU;
 }
 

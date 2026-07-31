@@ -25,6 +25,7 @@
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_platform.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 #include <ctype.h>
@@ -33,25 +34,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/** @brief 可移植的 strtok_r 实现 */
-static char *lv_strtok_r(char *str, const char *delim, char **saveptr) {
-    if (!str)
-        str = *saveptr;
-    str += strspn(str, delim);
-    if (*str == '\0') {
-        *saveptr = str;
-        return NULL;
-    }
-    char *end = str + strcspn(str, delim);
-    if (*end != '\0') {
-        *end = '\0';
-        *saveptr = end + 1;
-    } else {
-        *saveptr = end;
-    }
-    return str;
-}
 
 /* ── Expression tree types for full interval propagation ── */
 

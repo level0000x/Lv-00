@@ -677,41 +677,53 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
  * @param cat 预设类别枚举值
  * @return 类别的中文可读字符串，未知类别返回 "未知类别"
  */
-const char *preset_category_to_string(PresetCategory cat) {
-    switch (cat) {
-        case PRESET_CATEGORY_CONSTRUCTION:
-            return "几何构造";
-        case PRESET_CATEGORY_MEASUREMENT:
-            return "度量计算";
-        case PRESET_CATEGORY_TRANSFORMATION:
-            return "几何变换";
-        case PRESET_CATEGORY_ALGEBRAIC:
-            return "代数运算";
-        case PRESET_CATEGORY_LOGIC:
-            return "逻辑推导";
-        case PRESET_CATEGORY_ANALYSIS:
-            return "分析运算";
-        case PRESET_CATEGORY_NUMBER_THEORY:
-            return "数论运算";
-        case PRESET_CATEGORY_GROUP_THEORY:
-            return "群论运算";
-        case PRESET_CATEGORY_RING_THEORY:
-            return "环论运算";
-        case PRESET_CATEGORY_FIELD_THEORY:
-            return "域论运算";
-        case PRESET_CATEGORY_TOPOLOGY:
-            return "拓扑构造";
-        case PRESET_CATEGORY_LINEAR_ALGEBRA:
-            return "线性代数";
-        case PRESET_CATEGORY_COMBINATORICS:
-            return "组合数学";
-        case PRESET_CATEGORY_COMPLEX_ANALYSIS:
-            return "复分析";
-        case PRESET_CATEGORY_PROBABILITY:
-            return "概率统计";
-        default:
-            return "未知类别";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} fb_registry_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *fb_registry_name_lookup(const fb_registry_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief preset_category_to_string 名称表（按枚举值升序） */
+static const fb_registry_NameEntry s_preset_category_to_string_entries[] = {
+    {PRESET_CATEGORY_CONSTRUCTION, "几何构造"},
+    {PRESET_CATEGORY_MEASUREMENT, "度量计算"},
+    {PRESET_CATEGORY_TRANSFORMATION, "几何变换"},
+    {PRESET_CATEGORY_ALGEBRAIC, "代数运算"},
+    {PRESET_CATEGORY_LOGIC, "逻辑推导"},
+    {PRESET_CATEGORY_ANALYSIS, "分析运算"},
+    {PRESET_CATEGORY_NUMBER_THEORY, "数论运算"},
+    {PRESET_CATEGORY_GROUP_THEORY, "群论运算"},
+    {PRESET_CATEGORY_RING_THEORY, "环论运算"},
+    {PRESET_CATEGORY_FIELD_THEORY, "域论运算"},
+    {PRESET_CATEGORY_TOPOLOGY, "拓扑构造"},
+    {PRESET_CATEGORY_LINEAR_ALGEBRA, "线性代数"},
+    {PRESET_CATEGORY_COMBINATORICS, "组合数学"},
+    {PRESET_CATEGORY_COMPLEX_ANALYSIS, "复分析"},
+    {PRESET_CATEGORY_PROBABILITY, "概率统计"},
+};
+
+const char *preset_category_to_string(PresetCategory cat) {
+    const char *name = fb_registry_name_lookup(s_preset_category_to_string_entries, lv_ARRAY_SIZE(s_preset_category_to_string_entries), (int) cat);
+    return name ? name : "未知类别";
 }
 
 /**

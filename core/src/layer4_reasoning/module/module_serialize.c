@@ -360,43 +360,60 @@ ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_
 /* ============== 图数据序列化辅助函数 ============== */
 
 /* 将几何类型转换为字符串 */
-static const char *geom_type_to_string(GeomType type) {
-    switch (type) {
-        case GEOM_POINT:
-            return "POINT";
-        case GEOM_LINE_SEGMENT:
-            return "LINE_SEGMENT";
-        case GEOM_REGION:
-            return "REGION";
-        case GEOM_CIRCLE:
-            return "CIRCLE";
-        case GEOM_PORT:
-            return "PORT";
-        case GEOM_FUNCTION_BLOCK:
-            return "FUNCTION_BLOCK";
-        default:
-            return "UNKNOWN";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} mod_serialize_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *mod_serialize_name_lookup(const mod_serialize_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief geom_type_to_string 名称表（按枚举值升序） */
+static const mod_serialize_NameEntry s_geom_type_to_string_entries[] = {
+    {GEOM_POINT, "POINT"},
+    {GEOM_LINE_SEGMENT, "LINE_SEGMENT"},
+    {GEOM_REGION, "REGION"},
+    {GEOM_CIRCLE, "CIRCLE"},
+    {GEOM_PORT, "PORT"},
+    {GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK"},
+};
+
+static const char *geom_type_to_string(GeomType type) {
+    const char *name = mod_serialize_name_lookup(s_geom_type_to_string_entries, lv_ARRAY_SIZE(s_geom_type_to_string_entries), (int) type);
+    return name ? name : "UNKNOWN";
 }
 
 /* 将约束类型转换为字符串 */
+/** @brief constraint_type_to_string 名称表（按枚举值升序） */
+static const mod_serialize_NameEntry s_constraint_type_to_string_entries[] = {
+    {INCIDENCE, "INCIDENCE"},
+    {BETWEENNESS, "BETWEENNESS"},
+    {INTERSECTION, "INTERSECTION"},
+    {CONTAINMENT, "CONTAINMENT"},
+    {ANGLE, "ANGLE"},
+    {CONNECTION, "CONNECTION"},
+};
+
 static const char *constraint_type_to_string(ConstraintType type) {
-    switch (type) {
-        case INCIDENCE:
-            return "INCIDENCE";
-        case BETWEENNESS:
-            return "BETWEENNESS";
-        case INTERSECTION:
-            return "INTERSECTION";
-        case CONTAINMENT:
-            return "CONTAINMENT";
-        case ANGLE:
-            return "ANGLE";
-        case CONNECTION:
-            return "CONNECTION";
-        default:
-            return "UNKNOWN";
-    }
+    const char *name = mod_serialize_name_lookup(s_constraint_type_to_string_entries, lv_ARRAY_SIZE(s_constraint_type_to_string_entries), (int) type);
+    return name ? name : "UNKNOWN";
 }
 
 /* 将符号坐标序列化为字符串（调用者需释放返回的字符串） */
@@ -2564,13 +2581,19 @@ typedef struct {
     AutoSaveConfig config;
 } AutoSaveEntry;
 
-static AutoSaveEntry g_autosave_entries[MAX_AUTOSAVE_ENTRIES];
-static int g_autosave_entry_count = 0;
+/** @brief 自动保存表单例状态 */
+typedef struct {
+    AutoSaveEntry entries[MAX_AUTOSAVE_ENTRIES]; /**< 自动保存配置表 */
+    int count;                                   /**< 已注册自动保存配置数量 */
+} AutoSaveState;
+
+/** @brief 自动保存表全局单例 */
+static AutoSaveState s_autosave_state = {0};
 
 AutoSaveConfig *find_autosave_config(const char *module_name) {
-    for (int i = 0; i < g_autosave_entry_count; i++) {
-        if (strcmp(g_autosave_entries[i].module_name, module_name) == 0) {
-            return &g_autosave_entries[i].config;
+    for (int i = 0; i < s_autosave_state.count; i++) {
+        if (strcmp(s_autosave_state.entries[i].module_name, module_name) == 0) {
+            return &s_autosave_state.entries[i].config;
         }
     }
     return NULL;
@@ -2581,16 +2604,16 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
     if (existing)
         return existing;
 
-    if (g_autosave_entry_count >= MAX_AUTOSAVE_ENTRIES)
+    if (s_autosave_state.count >= MAX_AUTOSAVE_ENTRIES)
         return NULL;
 
-    g_autosave_entries[g_autosave_entry_count].module_name = lv_strdup_safe(module_name);
-    g_autosave_entries[g_autosave_entry_count].config.enabled = false;
-    g_autosave_entries[g_autosave_entry_count].config.interval_seconds = 60;
-    g_autosave_entries[g_autosave_entry_count].config.backup_directory = NULL;
-    g_autosave_entries[g_autosave_entry_count].config.max_backups = 5;
-    g_autosave_entry_count++;
-    return &g_autosave_entries[g_autosave_entry_count - 1].config;
+    s_autosave_state.entries[s_autosave_state.count].module_name = lv_strdup_safe(module_name);
+    s_autosave_state.entries[s_autosave_state.count].config.enabled = false;
+    s_autosave_state.entries[s_autosave_state.count].config.interval_seconds = 60;
+    s_autosave_state.entries[s_autosave_state.count].config.backup_directory = NULL;
+    s_autosave_state.entries[s_autosave_state.count].config.max_backups = 5;
+    s_autosave_state.count++;
+    return &s_autosave_state.entries[s_autosave_state.count - 1].config;
 }
 
 /* module_set_autosave_config 已在 module_delta.c 中实现 */

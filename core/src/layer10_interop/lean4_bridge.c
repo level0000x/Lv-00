@@ -20,6 +20,7 @@
 #include "lv/interop.h"
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/interop_bridge_common.h"
 
 #include "lv_utils.h"
@@ -211,28 +212,8 @@ static const char *lean4_extract_ident(const char *p, const char **ident_start, 
 
 /* 辅助：跳过括号内的内容（包括嵌套），返回结束位置 */
 static const char *lean4_skip_bracketed(const char *p, char open, char close) {
-    if (!p || *p != open)
-        return p;
-    int depth = 0;
-    for (; *p; p++) {
-        if (*p == open)
-            depth++;
-        else if (*p == close) {
-            depth--;
-            if (depth == 0) {
-                p++;
-                break;
-            }
-        } else if (*p == '"') {
-            p++;
-            while (*p && *p != '"') {
-                if (*p == '\\' && *(p + 1))
-                    p++;
-                p++;
-            }
-        }
-    }
-    return p;
+    /* 复用统一深度扫描（字符串感知，含转义引号） */
+    return lv_str_skip_balanced(p, open, close);
 }
 
 /* 递归解析 tactic 脚本，处理嵌套 by 块、match 表达式、. 链 */
@@ -421,10 +402,13 @@ static void lean4_parse_tactics(const char *start, const char *end, lvBridgeProo
                 break;
             if (*pos == '(') {
                 pos = lean4_skip_bracketed(pos, '(', ')');
+                if (!pos) pos = end; /* 不平衡：终止解析 */
             } else if (*pos == '[') {
                 pos = lean4_skip_bracketed(pos, '[', ']');
+                if (!pos) pos = end;
             } else if (*pos == '{') {
                 pos = lean4_skip_bracketed(pos, '{', '}');
+                if (!pos) pos = end;
             } else if (*pos == '.' && *(pos + 1) != '.') {
                 /* tactic 链分隔符：跳过 . 后解析下一个 tactic */
                 pos++;
@@ -519,17 +503,7 @@ static int lean4_validate(const char *input) {
         return 0;
 
     /* 检查花括号平衡 */
-    int brace_depth = 0;
-    for (const char *p = input; *p; p++) {
-        if (*p == '{')
-            brace_depth++;
-        else if (*p == '}') {
-            brace_depth--;
-            if (brace_depth < 0)
-                return 0; /* 花括号不匹配 */
-        }
-    }
-    if (brace_depth != 0)
+    if (!lv_str_check_balanced(input, '{', '}'))
         return 0; /* 花括号不平衡 */
 
     /* 检查是否包含 theorem 关键字 */

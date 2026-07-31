@@ -97,13 +97,16 @@ struct ATPBackendSolver {
  * 全局后端注册表（单例）
  * ============================================================ */
 
-/** @brief 全局注册表（单例） */
-static lvRegistry g_atp_registry;
-static bool g_atp_registry_inited = false;
+/** @brief ATP 后端注册表单例状态 */
+typedef struct {
+    lvRegistry registry;                           /**< 全局注册表（单例） */
+    bool registry_inited;                          /**< 注册表是否已初始化 */
+    ATPBackendEntry entries[ATP_BACKEND_COUNT];    /**< 后端附加元数据（与 lvRegistry 配合使用） */
+    int entry_count;                               /**< 已注册后端数量 */
+} ATPRegistryState;
 
-/** @brief ATP 后端附加元数据（与 lvRegistry 配合使用） */
-static ATPBackendEntry g_atp_backend_entries[ATP_BACKEND_COUNT];
-static int g_atp_backend_entry_count = 0;
+/** @brief ATP 后端注册表全局单例 */
+static ATPRegistryState s_atp_registry_state = {0};
 
 /* ============================================================
  * 默认配置
@@ -1284,9 +1287,9 @@ int atp_proof_to_lv(const ATPResultInfo *result, Proof *proof, int *step_count) 
  *       实际注册表数据通过 atp_find_backend / atp_backend_type_name 访问。
  */
 const ATPBackendRegistry *atp_get_registry(void) {
-    if (!g_atp_registry_inited) {
-        lv_registry_init(&g_atp_registry, ATP_BACKEND_COUNT);
-        g_atp_registry_inited = true;
+    if (!s_atp_registry_state.registry_inited) {
+        lv_registry_init(&s_atp_registry_state.registry, ATP_BACKEND_COUNT);
+        s_atp_registry_state.registry_inited = true;
     }
     return NULL; /* 向后兼容：调用者不再直接访问 ATPBackendRegistry 内部 */
 }
@@ -1297,9 +1300,9 @@ const ATPBackendRegistry *atp_get_registry(void) {
 int atp_register_backend(const ATPBackendEntry *entry) {
     lv_CHECK_NULL(entry, (int) lv_ERROR_NULL_POINTER);
 
-    if (!g_atp_registry_inited) {
-        lv_registry_init(&g_atp_registry, ATP_BACKEND_COUNT);
-        g_atp_registry_inited = true;
+    if (!s_atp_registry_state.registry_inited) {
+        lv_registry_init(&s_atp_registry_state.registry, ATP_BACKEND_COUNT);
+        s_atp_registry_state.registry_inited = true;
     }
 
     /* 使用 atp_backend_type_name 获取后端名称 */
@@ -1309,15 +1312,15 @@ int atp_register_backend(const ATPBackendEntry *entry) {
     }
 
     /* 注册到通用注册表（名称 + 工厂函数），检查重复 */
-    if (!lv_registry_register(&g_atp_registry, name, (void *(*)(void)) entry->create)) {
+    if (!lv_registry_register(&s_atp_registry_state.registry, name, (void *(*)(void)) entry->create)) {
         /* 名称已存在 */
         return (int) lv_ERROR_ALREADY_EXISTS;
     }
 
     /* 保存完整元数据到并行数组 */
-    if (g_atp_backend_entry_count < ATP_BACKEND_COUNT) {
-        g_atp_backend_entries[g_atp_backend_entry_count] = *entry;
-        g_atp_backend_entry_count++;
+    if (s_atp_registry_state.entry_count < ATP_BACKEND_COUNT) {
+        s_atp_registry_state.entries[s_atp_registry_state.entry_count] = *entry;
+        s_atp_registry_state.entry_count++;
     }
 
     return (int) lv_OK;
@@ -1339,13 +1342,13 @@ bool atp_is_backend_available(ATPBackendType type) {
  * @brief 查找后端条目
  */
 const ATPBackendEntry *atp_find_backend(ATPBackendType type) {
-    if (!g_atp_registry_inited) {
+    if (!s_atp_registry_state.registry_inited) {
         return NULL;
     }
 
-    for (int i = 0; i < g_atp_backend_entry_count; i++) {
-        if (g_atp_backend_entries[i].type == type) {
-            return &g_atp_backend_entries[i];
+    for (int i = 0; i < s_atp_registry_state.entry_count; i++) {
+        if (s_atp_registry_state.entries[i].type == type) {
+            return &s_atp_registry_state.entries[i];
         }
     }
     return NULL;

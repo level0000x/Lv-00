@@ -60,9 +60,6 @@
 #include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
 #include "lv/lv_strbuf.h"
 
-/** 全局唯一 ID 计数器 -- 从一百万起步,避免与内部 ID 冲突 */
-static int64_t g_upper_id = 1000000;
-
 /** 前向声明 -- 本文件内部使用的轻量级编配器 */
 typedef struct lvOrchestrator lvOrchestrator;
 
@@ -77,8 +74,6 @@ typedef struct {
 } EvolEntry;
 
 #define MAX_EVOL_TABLE 256
-static EvolEntry g_evol_table[MAX_EVOL_TABLE];
-static int g_evol_count = 0;
 
 /** ATP 后端求解器表条目 */
 typedef struct {
@@ -87,39 +82,50 @@ typedef struct {
 } ATPBackendSlot;
 
 #define MAX_ATP_BACKEND_TABLE 256
-static ATPBackendSlot g_atp_backend_table[MAX_ATP_BACKEND_TABLE];
-static int g_atp_backend_count = 0;
 
 /** ATP 任务跟踪结构 */
 typedef struct {
     int64_t task_id;           /**< 任务唯一 ID */
-    int64_t backend_id;        /**< 关联的后端 ID(在 g_atp_backend_table 中的索引) */
+    int64_t backend_id;        /**< 关联的后端 ID(在 s_upper_state.atp_backend_table 中的索引) */
     ATPResultInfo result_info; /**< 求解结果 */
     int8_t completed;          /**< 0=待处理, 1=已完成 */
 } ATPTask;
 
 /** ATP 任务表 */
 #define MAX_ATP_TASK_TABLE 512
-static ATPTask g_atp_task_table[MAX_ATP_TASK_TABLE];
-static int g_atp_task_count = 0;
 
 /** 可视化编辑器表 */
 #define MAX_VISUAL_EDITOR_TABLE 64
-static lvVisualEditor *g_visual_editor_table[MAX_VISUAL_EDITOR_TABLE];
-static int g_visual_editor_count = 0;
 
 /** 视图同步器表 */
 #define MAX_VIEW_SYNC_TABLE 64
-static lvViewSynchronizer *g_view_sync_table[MAX_VIEW_SYNC_TABLE];
-static int g_view_sync_count = 0;
 
 /** 文本代码视图表 */
 #define MAX_TEXT_CODE_TABLE 64
-static lvTextCodeView *g_text_code_table[MAX_TEXT_CODE_TABLE];
-static int g_text_code_count = 0;
 
-/** 元验证器单例（全局共享） */
-static lvMetaVerifier *g_meta_verifier = NULL;
+
+/* ============================================================
+ * 文件级状态：统一管理 ID 计数器与各注册表，避免散落全局变量
+ * ============================================================ */
+typedef struct {
+    int64_t upper_id;                          /**< 全局唯一 ID 计数器 */
+    EvolEntry evol_table[MAX_EVOL_TABLE];      /**< 几何演化引擎表 */
+    int evol_count;
+    ATPBackendSlot atp_backend_table[MAX_ATP_BACKEND_TABLE]; /**< ATP 后端求解器表 */
+    int atp_backend_count;
+    ATPTask atp_task_table[MAX_ATP_TASK_TABLE];              /**< ATP 任务表 */
+    int atp_task_count;
+    lvVisualEditor *visual_editor_table[MAX_VISUAL_EDITOR_TABLE]; /**< 可视化编辑器表 */
+    int visual_editor_count;
+    lvViewSynchronizer *view_sync_table[MAX_VIEW_SYNC_TABLE];    /**< 视图同步器表 */
+    int view_sync_count;
+    lvTextCodeView *text_code_table[MAX_TEXT_CODE_TABLE];        /**< 文本代码视图表 */
+    int text_code_count;
+    lvMetaVerifier *meta_verifier;               /**< 元验证器单例 */
+} UpperState;
+
+static UpperState s_upper_state = {0};
+
 
 /* ============================================================
  * 第2部分:L3 几何扩展(geom_evol / atp_backend / proof_tptp)
@@ -132,7 +138,7 @@ int64_t geom_evol_create(lvEngine *ctx, int64_t dim) {
     (void) ctx;
     if (dim <= 0 || dim > GEOEVOL_MAX_PARAM_DIM)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "geom_evol_create: invalid dim");
-    if (g_evol_count >= MAX_EVOL_TABLE)
+    if (s_upper_state.evol_count >= MAX_EVOL_TABLE)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "geom_evol_create: evol table full");
 
     /* 使用默认 RHS 函数创建演化引擎(调用方需后续设置实际 RHS) */
@@ -140,16 +146,16 @@ int64_t geom_evol_create(lvEngine *ctx, int64_t dim) {
     if (!evol)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "geom_evol_create: geoevol_create failed");
 
-    int64_t id = g_upper_id++;
+    int64_t id = s_upper_state.upper_id++;
     int slot = 0;
     /* 查找空闲槽位 */
     for (; slot < MAX_EVOL_TABLE; slot++) {
-        if (!g_evol_table[slot].evol)
+        if (!s_upper_state.evol_table[slot].evol)
             break;
     }
-    g_evol_table[slot].evol = evol;
-    g_evol_table[slot].id = id;
-    g_evol_count++;
+    s_upper_state.evol_table[slot].evol = evol;
+    s_upper_state.evol_table[slot].id = id;
+    s_upper_state.evol_count++;
     return id;
 }
 
@@ -159,8 +165,8 @@ int64_t geom_evol_step(lvEngine *ctx, int64_t evol_id, int64_t steps) {
     /* 在内部表中查找对应的演化引擎 */
     lvGeomEvol *evol = NULL;
     for (int i = 0; i < MAX_EVOL_TABLE; i++) {
-        if (g_evol_table[i].evol && g_evol_table[i].id == evol_id) {
-            evol = g_evol_table[i].evol;
+        if (s_upper_state.evol_table[i].evol && s_upper_state.evol_table[i].id == evol_id) {
+            evol = s_upper_state.evol_table[i].evol;
             break;
         }
     }
@@ -186,11 +192,11 @@ int64_t geom_evol_destroy(lvEngine *ctx, int64_t evol_id) {
     (void) ctx;
     /* 查找并销毁对应 ID 的演化引擎 */
     for (int i = 0; i < MAX_EVOL_TABLE; i++) {
-        if (g_evol_table[i].evol && g_evol_table[i].id == evol_id) {
-            geoevol_destroy(g_evol_table[i].evol);
-            g_evol_table[i].evol = NULL;
-            g_evol_table[i].id = 0;
-            g_evol_count--;
+        if (s_upper_state.evol_table[i].evol && s_upper_state.evol_table[i].id == evol_id) {
+            geoevol_destroy(s_upper_state.evol_table[i].evol);
+            s_upper_state.evol_table[i].evol = NULL;
+            s_upper_state.evol_table[i].id = 0;
+            s_upper_state.evol_count--;
             return 0;
         }
     }
@@ -215,7 +221,7 @@ static ATPBackendType atp_parse_solver_name(const char *solver_name) {
 /** 创建ATP后端,返回后端句柄ID */
 int64_t atp_backend_create(lvEngine *ctx, const char *solver_name) {
     (void) ctx;
-    if (g_atp_backend_count >= MAX_ATP_BACKEND_TABLE)
+    if (s_upper_state.atp_backend_count >= MAX_ATP_BACKEND_TABLE)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "atp_backend_create: ATP backend table full");
 
     ATPBackendType type = atp_parse_solver_name(solver_name);
@@ -227,17 +233,17 @@ int64_t atp_backend_create(lvEngine *ctx, const char *solver_name) {
     /* 查找空闲槽位 */
     int slot = 0;
     for (; slot < MAX_ATP_BACKEND_TABLE; slot++) {
-        if (!g_atp_backend_table[slot].solver)
+        if (!s_upper_state.atp_backend_table[slot].solver)
             break;
     }
     if (slot >= MAX_ATP_BACKEND_TABLE) {
         atp_solver_destroy(solver);
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "atp_backend_create: no free slot");
     }
-    g_atp_backend_table[slot].solver = solver;
-    g_atp_backend_table[slot].id = g_upper_id++;
-    g_atp_backend_count++;
-    return g_atp_backend_table[slot].id;
+    s_upper_state.atp_backend_table[slot].solver = solver;
+    s_upper_state.atp_backend_table[slot].id = s_upper_state.upper_id++;
+    s_upper_state.atp_backend_count++;
+    return s_upper_state.atp_backend_table[slot].id;
 }
 
 /** 向ATP后端提交证明任务,返回任务ID */
@@ -245,14 +251,14 @@ int64_t atp_backend_submit(lvEngine *ctx, int64_t backend_id, const char *conjec
     (void) ctx;
     if (!conjecture || conjecture[0] == '\0')
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "atp_backend_submit: NULL/empty conjecture");
-    if (g_atp_task_count >= MAX_ATP_TASK_TABLE)
+    if (s_upper_state.atp_task_count >= MAX_ATP_TASK_TABLE)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "atp_backend_submit: task table full");
 
     /* 查找后端求解器 */
     ATPBackendSolver *solver = NULL;
     for (int i = 0; i < MAX_ATP_BACKEND_TABLE; i++) {
-        if (g_atp_backend_table[i].solver && g_atp_backend_table[i].id == backend_id) {
-            solver = g_atp_backend_table[i].solver;
+        if (s_upper_state.atp_backend_table[i].solver && s_upper_state.atp_backend_table[i].id == backend_id) {
+            solver = s_upper_state.atp_backend_table[i].solver;
             break;
         }
     }
@@ -260,32 +266,32 @@ int64_t atp_backend_submit(lvEngine *ctx, int64_t backend_id, const char *conjec
         lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "atp_backend_submit: solver not found");
 
     /* 创建任务 */
-    int task_slot = g_atp_task_count++;
-    int64_t task_id = g_upper_id++;
-    g_atp_task_table[task_slot].task_id = task_id;
-    g_atp_task_table[task_slot].backend_id = backend_id;
-    g_atp_task_table[task_slot].completed = 0;
+    int task_slot = s_upper_state.atp_task_count++;
+    int64_t task_id = s_upper_state.upper_id++;
+    s_upper_state.atp_task_table[task_slot].task_id = task_id;
+    s_upper_state.atp_task_table[task_slot].backend_id = backend_id;
+    s_upper_state.atp_task_table[task_slot].completed = 0;
 
     /* 初始化结果 */
-    atp_result_init(&g_atp_task_table[task_slot].result_info);
+    atp_result_init(&s_upper_state.atp_task_table[task_slot].result_info);
 
     /* 加载并求解 */
     int load_ret = atp_solver_load(solver, conjecture);
     if (load_ret == 0) {
-        atp_solver_solve(solver, &g_atp_task_table[task_slot].result_info);
+        atp_solver_solve(solver, &s_upper_state.atp_task_table[task_slot].result_info);
     }
-    g_atp_task_table[task_slot].completed = 1;
+    s_upper_state.atp_task_table[task_slot].completed = 1;
     return task_id;
 }
 
 /** 获取ATP任务结果:0=待处理, 1=已证明, -1=反例, -2=超时 */
 int64_t atp_backend_result(lvEngine *ctx, int64_t task_id) {
     (void) ctx;
-    for (int i = 0; i < g_atp_task_count; i++) {
-        if (g_atp_task_table[i].task_id == task_id) {
-            if (!g_atp_task_table[i].completed)
+    for (int i = 0; i < s_upper_state.atp_task_count; i++) {
+        if (s_upper_state.atp_task_table[i].task_id == task_id) {
+            if (!s_upper_state.atp_task_table[i].completed)
                 return 0; /* 待处理 */
-            switch (g_atp_task_table[i].result_info.result) {
+            switch (s_upper_state.atp_task_table[i].result_info.result) {
                 case ATP_RESULT_UNSAT:
                     return 1; /* 已证明 */
                 case ATP_RESULT_SAT:
@@ -304,11 +310,11 @@ int64_t atp_backend_result(lvEngine *ctx, int64_t task_id) {
 int64_t atp_backend_destroy(lvEngine *ctx, int64_t backend_id) {
     (void) ctx;
     for (int i = 0; i < MAX_ATP_BACKEND_TABLE; i++) {
-        if (g_atp_backend_table[i].solver && g_atp_backend_table[i].id == backend_id) {
-            atp_solver_destroy(g_atp_backend_table[i].solver);
-            g_atp_backend_table[i].solver = NULL;
-            g_atp_backend_table[i].id = 0;
-            g_atp_backend_count--;
+        if (s_upper_state.atp_backend_table[i].solver && s_upper_state.atp_backend_table[i].id == backend_id) {
+            atp_solver_destroy(s_upper_state.atp_backend_table[i].solver);
+            s_upper_state.atp_backend_table[i].solver = NULL;
+            s_upper_state.atp_backend_table[i].id = 0;
+            s_upper_state.atp_backend_count--;
             return 0;
         }
     }
@@ -366,15 +372,15 @@ int64_t proof_tptp_verify(lvEngine *ctx, const char *tptp_input) {
     atp_solver_destroy(solver);
 
     /* 返回验证报告 ID(存储结果供后续查询) */
-    int64_t report_id = g_upper_id++;
+    int64_t report_id = s_upper_state.upper_id++;
 
     /* 将验证结果存入任务表作为记录 */
-    if (g_atp_task_count < MAX_ATP_TASK_TABLE) {
-        int slot = g_atp_task_count++;
-        g_atp_task_table[slot].task_id = report_id;
-        g_atp_task_table[slot].backend_id = -1;
-        g_atp_task_table[slot].result_info = result;
-        g_atp_task_table[slot].completed = 1;
+    if (s_upper_state.atp_task_count < MAX_ATP_TASK_TABLE) {
+        int slot = s_upper_state.atp_task_count++;
+        s_upper_state.atp_task_table[slot].task_id = report_id;
+        s_upper_state.atp_task_table[slot].backend_id = -1;
+        s_upper_state.atp_task_table[slot].result_info = result;
+        s_upper_state.atp_task_table[slot].completed = 1;
     } else {
         atp_result_destroy(&result);
     }
@@ -398,12 +404,12 @@ int64_t proof_tptp_verify(lvEngine *ctx, const char *tptp_input) {
 int64_t preset_polynomial_create(lvEngine *ctx, int64_t *coeffs, int64_t degree) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph || !coeffs || degree < 0 || degree > INT_MAX - 1)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     int coord_count = (int) degree + 1;
     SymbolicCoord **coords = lv_calloc((size_t) coord_count, sizeof(SymbolicCoord *));
     if (!coords)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* coord[0] = degree, coord[1..degree] = coeffs */
     coords[0] = symbolic_coord_create_rational(degree, 1);
@@ -419,7 +425,7 @@ int64_t preset_polynomial_create(lvEngine *ctx, int64_t *coeffs, int64_t degree)
     lv_free((void **) &coords);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -427,21 +433,21 @@ int64_t preset_polynomial_create(lvEngine *ctx, int64_t *coeffs, int64_t degree)
 int64_t preset_polynomial_evaluate(lvEngine *ctx, int64_t poly_id, int64_t x_num, int64_t x_den) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 查找输入多项式节点 */
     GeomNode *poly_node = graph_get_node(graph, (int) poly_id);
     if (!poly_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建计算点坐标:x = x_num / x_den,以及占位结果坐标 */
     SymbolicCoord *point_coord = symbolic_coord_create_rational(x_num, (uint64_t) (x_den ? x_den : 1));
     if (!point_coord)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     SymbolicCoord *result_coord = symbolic_coord_create_rational(0, 1);
     if (!result_coord) {
         symbolic_coord_destroy(point_coord);
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     }
 
     SymbolicCoord *coords[2] = {point_coord, result_coord};
@@ -452,7 +458,7 @@ int64_t preset_polynomial_evaluate(lvEngine *ctx, int64_t poly_id, int64_t x_num
     symbolic_coord_destroy(result_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -460,16 +466,16 @@ int64_t preset_polynomial_evaluate(lvEngine *ctx, int64_t poly_id, int64_t x_num
 int64_t preset_polynomial_roots(lvEngine *ctx, int64_t poly_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *poly_node = graph_get_node(graph, (int) poly_id);
     if (!poly_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建结果节点表示求根操作 */
     SymbolicCoord *root_coord = symbolic_coord_create_rational(0, 1);
     if (!root_coord)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     AddNodeResult add_res = graph_add_point(graph, &root_coord, 1);
     int result_id = graph_get_last_added_node_id(graph);
@@ -477,7 +483,7 @@ int64_t preset_polynomial_roots(lvEngine *ctx, int64_t poly_id) {
     symbolic_coord_destroy(root_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -485,12 +491,12 @@ int64_t preset_polynomial_roots(lvEngine *ctx, int64_t poly_id) {
 int64_t preset_polynomial_add(lvEngine *ctx, int64_t p1_id, int64_t p2_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *p1_node = graph_get_node(graph, (int) p1_id);
     GeomNode *p2_node = graph_get_node(graph, (int) p2_id);
     if (!p1_node || !p2_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建结果节点:coord[0]=p1_id标记, coord[1]=p2_id标记 */
     SymbolicCoord *op1 = symbolic_coord_create_rational(p1_id, 1);
@@ -500,7 +506,7 @@ int64_t preset_polynomial_add(lvEngine *ctx, int64_t p1_id, int64_t p2_id) {
             symbolic_coord_destroy(op1);
         if (op2)
             symbolic_coord_destroy(op2);
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     }
 
     SymbolicCoord *coords[2] = {op1, op2};
@@ -511,7 +517,7 @@ int64_t preset_polynomial_add(lvEngine *ctx, int64_t p1_id, int64_t p2_id) {
     symbolic_coord_destroy(op2);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -519,12 +525,12 @@ int64_t preset_polynomial_add(lvEngine *ctx, int64_t p1_id, int64_t p2_id) {
 int64_t preset_polynomial_mul(lvEngine *ctx, int64_t p1_id, int64_t p2_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *p1_node = graph_get_node(graph, (int) p1_id);
     GeomNode *p2_node = graph_get_node(graph, (int) p2_id);
     if (!p1_node || !p2_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建结果节点:coord[0]=p1_id标记, coord[1]=p2_id标记 */
     SymbolicCoord *op1 = symbolic_coord_create_rational(p1_id, 1);
@@ -534,7 +540,7 @@ int64_t preset_polynomial_mul(lvEngine *ctx, int64_t p1_id, int64_t p2_id) {
             symbolic_coord_destroy(op1);
         if (op2)
             symbolic_coord_destroy(op2);
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     }
 
     SymbolicCoord *coords[2] = {op1, op2};
@@ -545,7 +551,7 @@ int64_t preset_polynomial_mul(lvEngine *ctx, int64_t p1_id, int64_t p2_id) {
     symbolic_coord_destroy(op2);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -553,16 +559,16 @@ int64_t preset_polynomial_mul(lvEngine *ctx, int64_t p1_id, int64_t p2_id) {
 int64_t preset_equation_solve(lvEngine *ctx, int64_t equation_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *eq_node = graph_get_node(graph, (int) equation_id);
     if (!eq_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建结果节点表示方程的解 */
     SymbolicCoord *sol_coord = symbolic_coord_create_rational(0, 1);
     if (!sol_coord)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     AddNodeResult add_res = graph_add_point(graph, &sol_coord, 1);
     int result_id = graph_get_last_added_node_id(graph);
@@ -570,7 +576,7 @@ int64_t preset_equation_solve(lvEngine *ctx, int64_t equation_id) {
     symbolic_coord_destroy(sol_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -603,18 +609,18 @@ int64_t preset_inequality_check(lvEngine *ctx, int64_t expr_id) {
 int64_t preset_groebner_basis(lvEngine *ctx, int64_t *poly_ids, int64_t count) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph || !poly_ids || count <= 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 验证所有输入多项式节点存在 */
     for (int64_t i = 0; i < count; i++) {
         if (!graph_get_node(graph, (int) poly_ids[i]))
-            return g_upper_id++;
+            return s_upper_state.upper_id++;
     }
 
     /* 创建结果节点:coord[0]=count标记 */
     SymbolicCoord *cnt_coord = symbolic_coord_create_rational(count, 1);
     if (!cnt_coord)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     AddNodeResult add_res = graph_add_point(graph, &cnt_coord, 1);
     int result_id = graph_get_last_added_node_id(graph);
@@ -622,7 +628,7 @@ int64_t preset_groebner_basis(lvEngine *ctx, int64_t *poly_ids, int64_t count) {
     symbolic_coord_destroy(cnt_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -630,11 +636,11 @@ int64_t preset_groebner_basis(lvEngine *ctx, int64_t *poly_ids, int64_t count) {
 int64_t preset_polynomial_degree(lvEngine *ctx, int64_t poly_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *poly_node = graph_get_node(graph, (int) poly_id);
     if (!poly_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 查找节点坐标获取度数:若节点有coord_count,则度数为coord_count-1 */
     int degree = (poly_node->coord_count > 1) ? (poly_node->coord_count - 1) : 0;
@@ -642,7 +648,7 @@ int64_t preset_polynomial_degree(lvEngine *ctx, int64_t poly_id) {
     /* 创建结果节点存储度数值 */
     SymbolicCoord *deg_coord = symbolic_coord_create_rational((int64_t) degree, 1);
     if (!deg_coord)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     AddNodeResult add_res = graph_add_point(graph, &deg_coord, 1);
     int result_id = graph_get_last_added_node_id(graph);
@@ -650,7 +656,7 @@ int64_t preset_polynomial_degree(lvEngine *ctx, int64_t poly_id) {
     symbolic_coord_destroy(deg_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -658,11 +664,11 @@ int64_t preset_polynomial_degree(lvEngine *ctx, int64_t poly_id) {
 int64_t preset_polynomial_derivative(lvEngine *ctx, int64_t poly_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *poly_node = graph_get_node(graph, (int) poly_id);
     if (!poly_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建导数节点:coord[0]=原多项式ID标记, coord[1]=导数标记(-1) */
     SymbolicCoord *src_coord = symbolic_coord_create_rational(poly_id, 1);
@@ -672,7 +678,7 @@ int64_t preset_polynomial_derivative(lvEngine *ctx, int64_t poly_id) {
             symbolic_coord_destroy(src_coord);
         if (op_coord)
             symbolic_coord_destroy(op_coord);
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     }
 
     SymbolicCoord *coords[2] = {src_coord, op_coord};
@@ -683,7 +689,7 @@ int64_t preset_polynomial_derivative(lvEngine *ctx, int64_t poly_id) {
     symbolic_coord_destroy(op_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -691,11 +697,11 @@ int64_t preset_polynomial_derivative(lvEngine *ctx, int64_t poly_id) {
 int64_t preset_polynomial_integral(lvEngine *ctx, int64_t poly_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *poly_node = graph_get_node(graph, (int) poly_id);
     if (!poly_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建积分节点:coord[0]=原多项式ID标记, coord[1]=积分标记(+1) */
     SymbolicCoord *src_coord = symbolic_coord_create_rational(poly_id, 1);
@@ -705,7 +711,7 @@ int64_t preset_polynomial_integral(lvEngine *ctx, int64_t poly_id) {
             symbolic_coord_destroy(src_coord);
         if (op_coord)
             symbolic_coord_destroy(op_coord);
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     }
 
     SymbolicCoord *coords[2] = {src_coord, op_coord};
@@ -716,7 +722,7 @@ int64_t preset_polynomial_integral(lvEngine *ctx, int64_t poly_id) {
     symbolic_coord_destroy(op_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -724,18 +730,18 @@ int64_t preset_polynomial_integral(lvEngine *ctx, int64_t poly_id) {
 int64_t preset_system_solve(lvEngine *ctx, int64_t *equation_ids, int64_t count) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph || !equation_ids || count <= 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 验证所有方程节点存在 */
     for (int64_t i = 0; i < count; i++) {
         if (!graph_get_node(graph, (int) equation_ids[i]))
-            return g_upper_id++;
+            return s_upper_state.upper_id++;
     }
 
     /* 创建结果节点:coord[0]=方程组数量标记 */
     SymbolicCoord *cnt_coord = symbolic_coord_create_rational(count, 1);
     if (!cnt_coord)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     AddNodeResult add_res = graph_add_point(graph, &cnt_coord, 1);
     int result_id = graph_get_last_added_node_id(graph);
@@ -743,7 +749,7 @@ int64_t preset_system_solve(lvEngine *ctx, int64_t *equation_ids, int64_t count)
     symbolic_coord_destroy(cnt_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -751,16 +757,16 @@ int64_t preset_system_solve(lvEngine *ctx, int64_t *equation_ids, int64_t count)
 int64_t preset_rational_simplify(lvEngine *ctx, int64_t expr_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *expr_node = graph_get_node(graph, (int) expr_id);
     if (!expr_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建化简结果节点:coord[0]=原表达式ID,实际化简由求解器完成 */
     SymbolicCoord *result_coord = symbolic_coord_create_rational(expr_id, 1);
     if (!result_coord)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     AddNodeResult add_res = graph_add_point(graph, &result_coord, 1);
     int result_id = graph_get_last_added_node_id(graph);
@@ -768,7 +774,7 @@ int64_t preset_rational_simplify(lvEngine *ctx, int64_t expr_id) {
     symbolic_coord_destroy(result_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -776,16 +782,16 @@ int64_t preset_rational_simplify(lvEngine *ctx, int64_t expr_id) {
 int64_t preset_expression_simplify(lvEngine *ctx, int64_t expr_id) {
     ConstraintGraph *graph = ctx ? ctx->main_graph : NULL;
     if (!graph)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     GeomNode *expr_node = graph_get_node(graph, (int) expr_id);
     if (!expr_node)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     /* 创建化简结果节点:coord[0]=原表达式ID,实际化简由求解器完成 */
     SymbolicCoord *result_coord = symbolic_coord_create_rational(expr_id, 1);
     if (!result_coord)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
 
     AddNodeResult add_res = graph_add_point(graph, &result_coord, 1);
     int result_id = graph_get_last_added_node_id(graph);
@@ -793,7 +799,7 @@ int64_t preset_expression_simplify(lvEngine *ctx, int64_t expr_id) {
     symbolic_coord_destroy(result_coord);
 
     if (add_res != ADD_NODE_OK || result_id < 0)
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     return (int64_t) result_id;
 }
 
@@ -806,20 +812,20 @@ int64_t preset_expression_simplify(lvEngine *ctx, int64_t expr_id) {
 /** 创建可视化编辑器实例 */
 int64_t visual_editor_create(lvEngine *ctx) {
     (void) ctx;
-    if (g_visual_editor_count >= MAX_VISUAL_EDITOR_TABLE)
+    if (s_upper_state.visual_editor_count >= MAX_VISUAL_EDITOR_TABLE)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "visual_editor_create: editor table full");
     lvVisualEditor *editor = lv_visual_editor_create();
     if (!editor)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "visual_editor_create: lv_visual_editor_create failed");
     int slot = 0;
     for (; slot < MAX_VISUAL_EDITOR_TABLE; slot++) {
-        if (!g_visual_editor_table[slot])
+        if (!s_upper_state.visual_editor_table[slot])
             break;
     }
-    editor->editor_id = (int) g_upper_id;
-    g_visual_editor_table[slot] = editor;
-    g_visual_editor_count++;
-    return g_upper_id++;
+    editor->editor_id = (int) s_upper_state.upper_id;
+    s_upper_state.visual_editor_table[slot] = editor;
+    s_upper_state.visual_editor_count++;
+    return s_upper_state.upper_id++;
 }
 
 /** 渲染当前约束图到画布（执行可视化编辑器） */
@@ -829,8 +835,8 @@ int64_t visual_editor_render(lvEngine *ctx, int64_t editor_id) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "visual_editor_render: invalid editor_id");
     lvVisualEditor *editor = NULL;
     for (int i = 0; i < MAX_VISUAL_EDITOR_TABLE; i++) {
-        if (g_visual_editor_table[i] && g_visual_editor_table[i]->editor_id == (int) editor_id) {
-            editor = g_visual_editor_table[i];
+        if (s_upper_state.visual_editor_table[i] && s_upper_state.visual_editor_table[i]->editor_id == (int) editor_id) {
+            editor = s_upper_state.visual_editor_table[i];
             break;
         }
     }
@@ -846,8 +852,8 @@ int64_t visual_editor_update(lvEngine *ctx, int64_t editor_id, int64_t node_id, 
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "visual_editor_update: invalid editor_id");
     lvVisualEditor *editor = NULL;
     for (int i = 0; i < MAX_VISUAL_EDITOR_TABLE; i++) {
-        if (g_visual_editor_table[i] && g_visual_editor_table[i]->editor_id == (int) editor_id) {
-            editor = g_visual_editor_table[i];
+        if (s_upper_state.visual_editor_table[i] && s_upper_state.visual_editor_table[i]->editor_id == (int) editor_id) {
+            editor = s_upper_state.visual_editor_table[i];
             break;
         }
     }
@@ -867,8 +873,8 @@ int64_t visual_editor_zoom(lvEngine *ctx, int64_t editor_id, int64_t zoom_level)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "visual_editor_zoom: invalid editor_id");
     lvVisualEditor *editor = NULL;
     for (int i = 0; i < MAX_VISUAL_EDITOR_TABLE; i++) {
-        if (g_visual_editor_table[i] && g_visual_editor_table[i]->editor_id == (int) editor_id) {
-            editor = g_visual_editor_table[i];
+        if (s_upper_state.visual_editor_table[i] && s_upper_state.visual_editor_table[i]->editor_id == (int) editor_id) {
+            editor = s_upper_state.visual_editor_table[i];
             break;
         }
     }
@@ -891,11 +897,11 @@ int64_t visual_editor_destroy(lvEngine *ctx, int64_t editor_id) {
     if (editor_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "visual_editor_destroy: invalid editor_id");
     for (int i = 0; i < MAX_VISUAL_EDITOR_TABLE; i++) {
-        lvVisualEditor *editor = g_visual_editor_table[i];
+        lvVisualEditor *editor = s_upper_state.visual_editor_table[i];
         if (editor && editor->editor_id == (int) editor_id) {
             lv_visual_editor_destroy(editor);
-            g_visual_editor_table[i] = NULL;
-            g_visual_editor_count--;
+            s_upper_state.visual_editor_table[i] = NULL;
+            s_upper_state.visual_editor_count--;
             return 0;
         }
     }
@@ -907,20 +913,20 @@ int64_t visual_editor_destroy(lvEngine *ctx, int64_t editor_id) {
 /** 创建视图同步器 */
 int64_t view_synchronizer_create(lvEngine *ctx) {
     (void) ctx;
-    if (g_view_sync_count >= MAX_VIEW_SYNC_TABLE)
+    if (s_upper_state.view_sync_count >= MAX_VIEW_SYNC_TABLE)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "view_synchronizer_create: sync table full");
     lvViewSynchronizer *sync = lv_view_sync_create();
     if (!sync)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "view_synchronizer_create: lv_view_sync_create failed");
     int slot = 0;
     for (; slot < MAX_VIEW_SYNC_TABLE; slot++) {
-        if (!g_view_sync_table[slot])
+        if (!s_upper_state.view_sync_table[slot])
             break;
     }
-    sync->sync_id = (int) g_upper_id;
-    g_view_sync_table[slot] = sync;
-    g_view_sync_count++;
-    return g_upper_id++;
+    sync->sync_id = (int) s_upper_state.upper_id;
+    s_upper_state.view_sync_table[slot] = sync;
+    s_upper_state.view_sync_count++;
+    return s_upper_state.upper_id++;
 }
 
 /** 同步两个视图(如文本视图与图形视图) */
@@ -929,9 +935,9 @@ int64_t view_synchronizer_sync(lvEngine *ctx, int64_t sync_id, int64_t src_view,
     if (sync_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "view_synchronizer_sync: invalid sync_id");
     for (int i = 0; i < MAX_VIEW_SYNC_TABLE; i++) {
-        if (g_view_sync_table[i] && g_view_sync_table[i]->sync_id == (int) sync_id) {
-            lv_view_sync_propagate(g_view_sync_table[i], (int) src_view, "sync_update");
-            lv_view_sync_flush(g_view_sync_table[i]);
+        if (s_upper_state.view_sync_table[i] && s_upper_state.view_sync_table[i]->sync_id == (int) sync_id) {
+            lv_view_sync_propagate(s_upper_state.view_sync_table[i], (int) src_view, "sync_update");
+            lv_view_sync_flush(s_upper_state.view_sync_table[i]);
             return 0;
         }
     }
@@ -944,11 +950,11 @@ int64_t view_synchronizer_destroy(lvEngine *ctx, int64_t sync_id) {
     if (sync_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "view_synchronizer_destroy: invalid sync_id");
     for (int i = 0; i < MAX_VIEW_SYNC_TABLE; i++) {
-        lvViewSynchronizer *sync = g_view_sync_table[i];
+        lvViewSynchronizer *sync = s_upper_state.view_sync_table[i];
         if (sync && sync->sync_id == (int) sync_id) {
             lv_view_sync_destroy(sync);
-            g_view_sync_table[i] = NULL;
-            g_view_sync_count--;
+            s_upper_state.view_sync_table[i] = NULL;
+            s_upper_state.view_sync_count--;
             return 0;
         }
     }
@@ -960,20 +966,20 @@ int64_t view_synchronizer_destroy(lvEngine *ctx, int64_t sync_id) {
 /** 创建文本代码视图 */
 int64_t text_code_create(lvEngine *ctx) {
     (void) ctx;
-    if (g_text_code_count >= MAX_TEXT_CODE_TABLE)
+    if (s_upper_state.text_code_count >= MAX_TEXT_CODE_TABLE)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "text_code_create: text code table full");
     lvTextCodeView *view = lv_text_code_create();
     if (!view)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "text_code_create: lv_text_code_create failed");
     int slot = 0;
     for (; slot < MAX_TEXT_CODE_TABLE; slot++) {
-        if (!g_text_code_table[slot])
+        if (!s_upper_state.text_code_table[slot])
             break;
     }
-    view->view_id = (int) g_upper_id;
-    g_text_code_table[slot] = view;
-    g_text_code_count++;
-    return g_upper_id++;
+    view->view_id = (int) s_upper_state.upper_id;
+    s_upper_state.text_code_table[slot] = view;
+    s_upper_state.text_code_count++;
+    return s_upper_state.upper_id++;
 }
 
 /** 设置文本代码视图内容 */
@@ -982,8 +988,8 @@ int64_t text_code_set_text(lvEngine *ctx, int64_t view_id, const char *text) {
     if (view_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "text_code_set_text: invalid view_id");
     for (int i = 0; i < MAX_TEXT_CODE_TABLE; i++) {
-        if (g_text_code_table[i] && g_text_code_table[i]->view_id == (int) view_id) {
-            return lv_text_code_set_text(g_text_code_table[i], text);
+        if (s_upper_state.text_code_table[i] && s_upper_state.text_code_table[i]->view_id == (int) view_id) {
+            return lv_text_code_set_text(s_upper_state.text_code_table[i], text);
         }
     }
     lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "text_code_set_text: view_id not found");
@@ -995,8 +1001,8 @@ const char *text_code_get_text(lvEngine *ctx, int64_t view_id) {
     if (view_id < 0)
         return "";
     for (int i = 0; i < MAX_TEXT_CODE_TABLE; i++) {
-        if (g_text_code_table[i] && g_text_code_table[i]->view_id == (int) view_id) {
-            return lv_text_code_get_text(g_text_code_table[i]);
+        if (s_upper_state.text_code_table[i] && s_upper_state.text_code_table[i]->view_id == (int) view_id) {
+            return lv_text_code_get_text(s_upper_state.text_code_table[i]);
         }
     }
     return "";
@@ -1022,7 +1028,7 @@ lvOrchestrator *lv_orchestrator_create(lvEngine *ctx) {
     lvOrchestrator *orch = lv_calloc(1, sizeof(lvOrchestrator));
     if (!orch)
         lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_orchestrator_create: calloc orch failed");
-    orch->orch_id = g_upper_id++;
+    orch->orch_id = s_upper_state.upper_id++;
     orch->current_stage = 0;
     orch->status = 0;
     orch->stage_count = 6;
@@ -1187,31 +1193,31 @@ int64_t meta_verify_report(lvEngine *ctx, int64_t *out_overall_pass) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "meta_verify_report: NULL ctx");
     }
     /* 初始化验证器并运行全过程检查 */
-    if (!g_meta_verifier) {
-        g_meta_verifier = lv_meta_verifier_create();
-        if (!g_meta_verifier) {
+    if (!s_upper_state.meta_verifier) {
+        s_upper_state.meta_verifier = lv_meta_verifier_create();
+        if (!s_upper_state.meta_verifier) {
             if (out_overall_pass)
                 *out_overall_pass = 0;
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "meta_verify_report: lv_meta_verifier_create failed");
         }
-        lv_meta_verifier_enable_check(g_meta_verifier, lv_CHECK_STRUCTURAL);
-        lv_meta_verifier_enable_check(g_meta_verifier, lv_CHECK_SOUND);
-        lv_meta_verifier_enable_check(g_meta_verifier, lv_CHECK_COMPLETE);
-        lv_meta_verifier_enable_check(g_meta_verifier, lv_CHECK_NONTRIVIAL);
+        lv_meta_verifier_enable_check(s_upper_state.meta_verifier, lv_CHECK_STRUCTURAL);
+        lv_meta_verifier_enable_check(s_upper_state.meta_verifier, lv_CHECK_SOUND);
+        lv_meta_verifier_enable_check(s_upper_state.meta_verifier, lv_CHECK_COMPLETE);
+        lv_meta_verifier_enable_check(s_upper_state.meta_verifier, lv_CHECK_NONTRIVIAL);
     }
     /* 基于图进行元验证（轻量：无 session 时的退化行为） */
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) {
         if (out_overall_pass)
             *out_overall_pass = 1;
-        return g_upper_id++;
+        return s_upper_state.upper_id++;
     }
     int passed = 1;
     if (lv_conflict_detect_quick(graph))
         passed = 0;
     if (out_overall_pass)
         *out_overall_pass = (int64_t) passed;
-    return g_upper_id++;
+    return s_upper_state.upper_id++;
 }
 
 /* ============================================================
@@ -1233,7 +1239,7 @@ lvApplication *lv_application_run(lvEngine *ctx, const char *app_name) {
     lvApplication *app = lv_calloc(1, sizeof(lvApplication));
     if (!app)
         lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_application_run: calloc app failed");
-    app->app_id = g_upper_id++;
+    app->app_id = s_upper_state.upper_id++;
     app->app_name = lv_strdup_safe(app_name ? app_name : "default");
     if (!app->app_name) {
         lv_free((void **) &app);
@@ -1468,7 +1474,7 @@ int64_t upper_interop_export_tikz(lvEngine *ctx, int64_t graph_id, char *buf, in
  *
  * 分为 24 个元数据/属性函数 + 16 个操作函数。
  * 所有函数使用 lvEngine* 上下文,通过 func_block_registry_*
- * API 与注册表交互,或通过 g_upper_id++ 生成ID。
+ * API 与注册表交互,或通过 s_upper_state.upper_id++ 生成ID。
  * ============================================================ */
 
 /* ---- 13a. 元数据与属性函数(24个)---- */
@@ -1534,74 +1540,80 @@ int64_t func_block_preset_output_count(lvEngine *ctx, const char *name) {
 }
 
 /** 获取预设类别字符串 */
-const char *func_block_preset_category_name(lvEngine *ctx, int64_t category) {
-    (void) ctx;
-    switch (category) {
-        case 0:
-            return "CONSTRUCTION";
-        case 1:
-            return "MEASUREMENT";
-        case 2:
-            return "TRANSFORMATION";
-        case 3:
-            return "ALGEBRAIC";
-        default:
-            return "UNKNOWN";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} upper_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *upper_name_lookup(const upper_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief func_block_preset_category_name 名称表（按枚举值升序） */
+static const upper_NameEntry s_func_block_preset_category_name_entries[] = {
+    {0, "CONSTRUCTION"},
+    {1, "MEASUREMENT"},
+    {2, "TRANSFORMATION"},
+    {3, "ALGEBRAIC"},
+};
+
+const char *func_block_preset_category_name(lvEngine *ctx, int64_t category) {
+    const char *name = upper_name_lookup(s_func_block_preset_category_name_entries, lv_ARRAY_SIZE(s_func_block_preset_category_name_entries), (int) category);
+    return name ? name : "UNKNOWN";
 }
 
 /** 获取参数类型字符串 */
+/** @brief func_block_preset_param_type_name 名称表（按枚举值升序） */
+static const upper_NameEntry s_func_block_preset_param_type_name_entries[] = {
+    {0, "POINT"},
+    {1, "LINE"},
+    {2, "SEGMENT"},
+    {3, "RAY"},
+    {4, "CIRCLE"},
+    {5, "ARC"},
+    {6, "POLYGON"},
+    {7, "REGION"},
+    {8, "ANGLE"},
+    {9, "VECTOR"},
+    {10, "SCALAR"},
+    {11, "BOOLEAN"},
+};
+
 const char *func_block_preset_param_type_name(lvEngine *ctx, int64_t param_type) {
-    (void) ctx;
-    switch (param_type) {
-        case 0:
-            return "POINT";
-        case 1:
-            return "LINE";
-        case 2:
-            return "SEGMENT";
-        case 3:
-            return "RAY";
-        case 4:
-            return "CIRCLE";
-        case 5:
-            return "ARC";
-        case 6:
-            return "POLYGON";
-        case 7:
-            return "REGION";
-        case 8:
-            return "ANGLE";
-        case 9:
-            return "VECTOR";
-        case 10:
-            return "SCALAR";
-        case 11:
-            return "BOOLEAN";
-        default:
-            return "ANY";
-    }
+    const char *name = upper_name_lookup(s_func_block_preset_param_type_name_entries, lv_ARRAY_SIZE(s_func_block_preset_param_type_name_entries), (int) param_type);
+    return name ? name : "ANY";
 }
 
 /** 获取复杂度字符串 */
+/** @brief func_block_preset_complexity_name 名称表（按枚举值升序） */
+static const upper_NameEntry s_func_block_preset_complexity_name_entries[] = {
+    {0, "O(1)"},
+    {1, "O(log n)"},
+    {2, "O(n)"},
+    {3, "O(n log n)"},
+    {4, "O(n^2)"},
+    {5, "O(n^3)"},
+};
+
 const char *func_block_preset_complexity_name(lvEngine *ctx, int64_t complexity) {
-    (void) ctx;
-    switch (complexity) {
-        case 0:
-            return "O(1)";
-        case 1:
-            return "O(log n)";
-        case 2:
-            return "O(n)";
-        case 3:
-            return "O(n log n)";
-        case 4:
-            return "O(n^2)";
-        case 5:
-            return "O(n^3)";
-        default:
-            return "UNKNOWN";
-    }
+    const char *name = upper_name_lookup(s_func_block_preset_complexity_name_entries, lv_ARRAY_SIZE(s_func_block_preset_complexity_name_entries), (int) complexity);
+    return name ? name : "UNKNOWN";
 }
 
 /** 获取预设的版本信息(从 metadata 组装版本字符串) */
@@ -1876,7 +1888,7 @@ int64_t upper_func_block_preset_instantiate(lvEngine *ctx, const char *name, int
         lv_free((void **) &input_ids_int);
     if (result != lv_INSTANTIATE_OK || !fb)
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "upper_func_block_preset_instantiate: instantiate failed");
-    int64_t instance_id = g_upper_id++;
+    int64_t instance_id = s_upper_state.upper_id++;
     fb->id = (int) instance_id;
     func_block_destroy(fb);
     return instance_id;
@@ -1926,7 +1938,7 @@ int64_t upper_func_block_preset_compose(lvEngine *ctx, const char *name_a, const
     if (!func_block_preset_compose(name_a, name_b, compose_name))
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "upper_func_block_preset_compose: compose failed");
     PresetEntry *new_entry = func_block_registry_find(compose_name);
-    return new_entry ? (int64_t) g_upper_id++ : -1;
+    return new_entry ? (int64_t) s_upper_state.upper_id++ : -1;
 }
 
 /** 生成预设文档 -- 从 metadata 生成 Markdown 格式文档 */
@@ -1994,7 +2006,7 @@ int64_t func_block_preset_chain(lvEngine *ctx, const char **names, int64_t count
             continue;
         FuncBlock *fb = func_block_registry_lookup(names[i]);
         if (fb) {
-            last_id = g_upper_id++;
+            last_id = s_upper_state.upper_id++;
             fb->id = (int) last_id;
         }
     }
@@ -2014,7 +2026,7 @@ int64_t func_block_preset_batch(lvEngine *ctx, const char **names, int64_t count
         }
         PresetEntry *entry = func_block_registry_find(names[i]);
         if (entry) {
-            out_ids[i] = g_upper_id++;
+            out_ids[i] = s_upper_state.upper_id++;
             valid++;
         } else {
             out_ids[i] = -1;
@@ -2193,7 +2205,7 @@ int64_t func_block_preset_recursive(lvEngine *ctx, int64_t preset_id, int64_t de
         InstantiateResult result = func_block_preset_instantiate(preset_name, &input_id, 1, graph, &fb);
         if (result != lv_INSTANTIATE_OK || !fb)
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "func_block_preset_recursive: instantiate failed");
-        current_leaf_id = g_upper_id++;
+        current_leaf_id = s_upper_state.upper_id++;
         fb->id = (int) current_leaf_id;
         func_block_destroy(fb);
     }
@@ -2213,7 +2225,7 @@ int64_t func_block_preset_register(lvEngine *ctx, const char *name, int64_t inpu
     (void) ctx;
     if (!name)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "func_block_preset_register: NULL name");
-    int new_id = (int) g_upper_id++;
+    int new_id = (int) s_upper_state.upper_id++;
     FuncBlock *fb = func_block_create(new_id);
     if (!fb)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_register: func_block_create failed");
@@ -2248,12 +2260,12 @@ int64_t func_block_preset_cleanup(lvEngine *ctx) {
 /**
  * @brief 从引擎获取全局唯一ID
  *
- * 每次调用递增 g_upper_id,返回新ID。
+ * 每次调用递增 s_upper_state.upper_id,返回新ID。
  * 供所有需要唯一标识的上层API使用。
  */
 int64_t lv_upper_alloc_id(lvEngine *ctx) {
     (void) ctx;
-    return g_upper_id++;
+    return s_upper_state.upper_id++;
 }
 
 /**
@@ -2261,7 +2273,7 @@ int64_t lv_upper_alloc_id(lvEngine *ctx) {
  */
 int64_t lv_upper_get_id_counter(lvEngine *ctx) {
     (void) ctx;
-    return g_upper_id;
+    return s_upper_state.upper_id;
 }
 
 /**

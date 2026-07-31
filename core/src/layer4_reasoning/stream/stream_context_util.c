@@ -44,11 +44,14 @@
 /** @brief 注册表最大容量，预留足够空间供未来扩展 */
 #define MAX_REGISTERED_SETTERS 32
 
-/** @brief 已注册的 setter 回调数组 */
-static StreamContextSetter registered_setters[MAX_REGISTERED_SETTERS];
+/** @brief setter 注册表单例状态 */
+typedef struct {
+    StreamContextSetter setters[MAX_REGISTERED_SETTERS]; /**< 已注册的 setter 回调数组 */
+    int count;                                           /**< 当前已注册的 setter 数量 */
+} SetterRegistryState;
 
-/** @brief 当前已注册的 setter 数量 */
-static int registered_count = 0;
+/** @brief setter 注册表全局单例 */
+static SetterRegistryState s_setter_registry = {0};
 
 /* ================================================================
  * 公开 API 实现
@@ -60,26 +63,26 @@ void stream_context_register_setter(StreamContextSetter setter) {
         return;
 
     /* 去重检查：避免重复注册同一个 setter */
-    for (int i = 0; i < registered_count; i++) {
-        if (registered_setters[i] == setter) {
+    for (int i = 0; i < s_setter_registry.count; i++) {
+        if (s_setter_registry.setters[i] == setter) {
             return; /* 已注册，跳过 */
         }
     }
 
     /* 容量检查：防止越界 */
-    if (registered_count >= MAX_REGISTERED_SETTERS) {
+    if (s_setter_registry.count >= MAX_REGISTERED_SETTERS) {
         return; /* 注册表已满，静默丢弃（实际场景不会达到上限） */
     }
 
     /* 追加到注册表末尾 */
-    registered_setters[registered_count++] = setter;
+    s_setter_registry.setters[s_setter_registry.count++] = setter;
 }
 
 void stream_context_dispatch_all(StreamContext *ctx) {
     /* 遍历已注册的 setter 数组，依次调用 */
-    for (int i = 0; i < registered_count; i++) {
-        if (registered_setters[i]) {
-            registered_setters[i](ctx);
+    for (int i = 0; i < s_setter_registry.count; i++) {
+        if (s_setter_registry.setters[i]) {
+            s_setter_registry.setters[i](ctx);
         }
     }
 }
@@ -93,9 +96,9 @@ void stream_context_dispatch_all(StreamContext *ctx) {
  * 已释放的内存，后续使用会导致堆损坏或访问违例。
  */
 void stream_context_clear_all(void) {
-    for (int i = 0; i < registered_count; i++) {
-        if (registered_setters[i]) {
-            registered_setters[i](NULL);
+    for (int i = 0; i < s_setter_registry.count; i++) {
+        if (s_setter_registry.setters[i]) {
+            s_setter_registry.setters[i](NULL);
         }
     }
 }

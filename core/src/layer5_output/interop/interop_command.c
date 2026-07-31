@@ -893,31 +893,48 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
  * @param trust 信任颜色枚举值
  * @return 对应的 SVG 颜色字符串（如 "#22c55e"），未知颜色返回 "#9ca3af"
  */
-const char *interop_trust_color_to_svg(TrustColor trust) {
-    switch (trust) {
-        case TRUST_GREEN:
-            return "#22c55e";
-        case TRUST_BLUE_UNEXPLORED:
-            return "#3b82f6";
-        case TRUST_BLUE_EXCEEDED:
-            return "#6366f1";
-        case TRUST_BLUE_OUT_OF_SCOPE:
-            return "#93c5fd";
-        case TRUST_YELLOW:
-            return "#eab308";
-        case TRUST_LIGHT_ORANGE_ORACLE:
-            return "#fb923c";
-        case TRUST_LIGHT_ORANGE_EXPLOSION:
-            return "#f97316";
-        case TRUST_AMBER:
-            return "#f59e0b";
-        case TRUST_DEEP_ORANGE:
-            return "#ea580c";
-        case TRUST_RED:
-            return "#ef4444";
-        default:
-            return "#9ca3af";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} interop_cmd_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *interop_cmd_name_lookup(const interop_cmd_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief interop_trust_color_to_svg 名称表（按枚举值升序） */
+static const interop_cmd_NameEntry s_interop_trust_color_to_svg_entries[] = {
+    {TRUST_GREEN, "#22c55e"},
+    {TRUST_BLUE_UNEXPLORED, "#3b82f6"},
+    {TRUST_BLUE_EXCEEDED, "#6366f1"},
+    {TRUST_BLUE_OUT_OF_SCOPE, "#93c5fd"},
+    {TRUST_YELLOW, "#eab308"},
+    {TRUST_LIGHT_ORANGE_ORACLE, "#fb923c"},
+    {TRUST_LIGHT_ORANGE_EXPLOSION, "#f97316"},
+    {TRUST_AMBER, "#f59e0b"},
+    {TRUST_DEEP_ORANGE, "#ea580c"},
+    {TRUST_RED, "#ef4444"},
+};
+
+const char *interop_trust_color_to_svg(TrustColor trust) {
+    const char *name = interop_cmd_name_lookup(s_interop_trust_color_to_svg_entries, lv_ARRAY_SIZE(s_interop_trust_color_to_svg_entries), (int) trust);
+    return name ? name : "#9ca3af";
 }
 
 /**
@@ -928,31 +945,23 @@ const char *interop_trust_color_to_svg(TrustColor trust) {
  * @param trust 信任颜色枚举值
  * @return 对应的 TikZ 颜色字符串（如 "green!70!black"），未知颜色返回 "gray"
  */
+/** @brief interop_trust_color_to_tikz 名称表（按枚举值升序） */
+static const interop_cmd_NameEntry s_interop_trust_color_to_tikz_entries[] = {
+    {TRUST_GREEN, "green!70!black"},
+    {TRUST_BLUE_UNEXPLORED, "blue!70!black"},
+    {TRUST_BLUE_EXCEEDED, "blue!50!black"},
+    {TRUST_BLUE_OUT_OF_SCOPE, "blue!30!black"},
+    {TRUST_YELLOW, "yellow!70!black"},
+    {TRUST_LIGHT_ORANGE_ORACLE, "orange!40!black"},
+    {TRUST_LIGHT_ORANGE_EXPLOSION, "orange!60!black"},
+    {TRUST_AMBER, "orange!80!black"},
+    {TRUST_DEEP_ORANGE, "red!70!black"},
+    {TRUST_RED, "red!80!black"},
+};
+
 const char *interop_trust_color_to_tikz(TrustColor trust) {
-    switch (trust) {
-        case TRUST_GREEN:
-            return "green!70!black";
-        case TRUST_BLUE_UNEXPLORED:
-            return "blue!70!black";
-        case TRUST_BLUE_EXCEEDED:
-            return "blue!50!black";
-        case TRUST_BLUE_OUT_OF_SCOPE:
-            return "blue!30!black";
-        case TRUST_YELLOW:
-            return "yellow!70!black";
-        case TRUST_LIGHT_ORANGE_ORACLE:
-            return "orange!40!black";
-        case TRUST_LIGHT_ORANGE_EXPLOSION:
-            return "orange!60!black";
-        case TRUST_AMBER:
-            return "orange!80!black";
-        case TRUST_DEEP_ORANGE:
-            return "red!70!black";
-        case TRUST_RED:
-            return "red!80!black";
-        default:
-            return "gray";
-    }
+    const char *name = interop_cmd_name_lookup(s_interop_trust_color_to_tikz_entries, lv_ARRAY_SIZE(s_interop_trust_color_to_tikz_entries), (int) trust);
+    return name ? name : "gray";
 }
 
 /**
@@ -963,23 +972,19 @@ const char *interop_trust_color_to_tikz(TrustColor trust) {
  * @param type 几何类型枚举值
  * @return 对应的类型名称字符串（如 "point"、"line_segment"），未知类型返回 "unknown"
  */
+/** @brief interop_geom_type_name 名称表（按枚举值升序） */
+static const interop_cmd_NameEntry s_interop_geom_type_name_entries[] = {
+    {GEOM_POINT, "point"},
+    {GEOM_LINE_SEGMENT, "line_segment"},
+    {GEOM_REGION, "region"},
+    {GEOM_CIRCLE, "circle"},
+    {GEOM_PORT, "port"},
+    {GEOM_FUNCTION_BLOCK, "function_block"},
+};
+
 const char *interop_geom_type_name(GeomType type) {
-    switch (type) {
-        case GEOM_POINT:
-            return "point";
-        case GEOM_LINE_SEGMENT:
-            return "line_segment";
-        case GEOM_REGION:
-            return "region";
-        case GEOM_CIRCLE:
-            return "circle";
-        case GEOM_PORT:
-            return "port";
-        case GEOM_FUNCTION_BLOCK:
-            return "function_block";
-        default:
-            return "unknown";
-    }
+    const char *name = interop_cmd_name_lookup(s_interop_geom_type_name_entries, lv_ARRAY_SIZE(s_interop_geom_type_name_entries), (int) type);
+    return name ? name : "unknown";
 }
 
 /**
@@ -990,23 +995,19 @@ const char *interop_geom_type_name(GeomType type) {
  * @param type 约束类型枚举值
  * @return 对应的类型名称字符串（如 "incidence"、"betweenness"），未知类型返回 "unknown"
  */
+/** @brief interop_constraint_type_name 名称表（按枚举值升序） */
+static const interop_cmd_NameEntry s_interop_constraint_type_name_entries[] = {
+    {INCIDENCE, "incidence"},
+    {BETWEENNESS, "betweenness"},
+    {INTERSECTION, "intersection"},
+    {CONTAINMENT, "containment"},
+    {ANGLE, "angle"},
+    {CONNECTION, "connection"},
+};
+
 const char *interop_constraint_type_name(ConstraintType type) {
-    switch (type) {
-        case INCIDENCE:
-            return "incidence";
-        case BETWEENNESS:
-            return "betweenness";
-        case INTERSECTION:
-            return "intersection";
-        case CONTAINMENT:
-            return "containment";
-        case ANGLE:
-            return "angle";
-        case CONNECTION:
-            return "connection";
-        default:
-            return "unknown";
-    }
+    const char *name = interop_cmd_name_lookup(s_interop_constraint_type_name_entries, lv_ARRAY_SIZE(s_interop_constraint_type_name_entries), (int) type);
+    return name ? name : "unknown";
 }
 
 /**

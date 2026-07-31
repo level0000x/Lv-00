@@ -2010,55 +2010,71 @@ const char *measure_type_to_string(MeasureType type) {
     }
 }
 
-const char *measure_compare_result_to_string(MeasureCompareResult result) {
-    switch (result) {
-        case MEASURE_LESS:
-            return "Less";
-        case MEASURE_EQUAL:
-            return "Equal";
-        case MEASURE_GREATER:
-            return "Greater";
-        case MEASURE_UNKNOWN:
-            return "Unknown";
-        case MEASURE_ERROR:
-            return "Error";
-        default:
-            return "Unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} recursion_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *recursion_name_lookup(const recursion_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
 }
+
+/** @brief measure_compare_result_to_string 名称表（按枚举值升序） */
+static const recursion_NameEntry s_measure_compare_result_to_string_entries[] = {
+    {MEASURE_LESS, "Less"},
+    {MEASURE_EQUAL, "Equal"},
+    {MEASURE_GREATER, "Greater"},
+    {MEASURE_UNKNOWN, "Unknown"},
+    {MEASURE_ERROR, "Error"},
+};
+
+const char *measure_compare_result_to_string(MeasureCompareResult result) {
+    const char *name = recursion_name_lookup(s_measure_compare_result_to_string_entries, lv_ARRAY_SIZE(s_measure_compare_result_to_string_entries), (int) result);
+    return name ? name : "Unknown";
+}
+
+/** @brief recursion_check_result_to_string 名称表（按枚举值升序） */
+static const recursion_NameEntry s_recursion_check_result_to_string_entries[] = {
+    {RECURSION_OK, "OK"},
+    {RECURSION_NOT_DECREASING, "Not Decreasing"},
+    {RECURSION_DEPTH_EXCEEDED, "Depth Exceeded"},
+    {RECURSION_CYCLE_DETECTED, "Cycle Detected"},
+    {RECURSION_MEASURE_UNKNOWN, "Measure Unknown"},
+    {RECURSION_ERROR, "Error"},
+};
 
 const char *recursion_check_result_to_string(RecursionCheckResult result) {
-    switch (result) {
-        case RECURSION_OK:
-            return "OK";
-        case RECURSION_NOT_DECREASING:
-            return "Not Decreasing";
-        case RECURSION_DEPTH_EXCEEDED:
-            return "Depth Exceeded";
-        case RECURSION_CYCLE_DETECTED:
-            return "Cycle Detected";
-        case RECURSION_MEASURE_UNKNOWN:
-            return "Measure Unknown";
-        case RECURSION_ERROR:
-            return "Error";
-        default:
-            return "Unknown";
-    }
+    const char *name = recursion_name_lookup(s_recursion_check_result_to_string_entries, lv_ARRAY_SIZE(s_recursion_check_result_to_string_entries), (int) result);
+    return name ? name : "Unknown";
 }
 
+/** @brief branch_state_to_string 名称表（按枚举值升序） */
+static const recursion_NameEntry s_branch_state_to_string_entries[] = {
+    {BRANCH_INACTIVE, "Inactive"},
+    {BRANCH_ACTIVE, "Active"},
+    {BRANCH_PENDING, "Pending"},
+    {BRANCH_SHADOWED, "Shadowed"},
+};
+
 const char *branch_state_to_string(BranchState state) {
-    switch (state) {
-        case BRANCH_INACTIVE:
-            return "Inactive";
-        case BRANCH_ACTIVE:
-            return "Active";
-        case BRANCH_PENDING:
-            return "Pending";
-        case BRANCH_SHADOWED:
-            return "Shadowed";
-        default:
-            return "Unknown";
-    }
+    const char *name = recursion_name_lookup(s_branch_state_to_string_entries, lv_ARRAY_SIZE(s_branch_state_to_string_entries), (int) state);
+    return name ? name : "Unknown";
 }
 
 /* ============== Feature 1: 内置测试套件 ============== */

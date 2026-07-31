@@ -2414,3 +2414,30 @@ void *lv_darray_get(const lvDArray *arr, int index) {
 void lv_darray_clear(lvDArray *arr) {
     arr->count = 0;
 }
+
+/* ============================================================
+ * 数值数组聚合
+ * ============================================================ */
+
+double lv_max_abs(const double *arr, int64_t n) {
+    if (!arr || n <= 0)
+        return 0.0;
+    double max_val = fabs(arr[0]);
+    for (int64_t i = 1; i < n; ++i) {
+        double abs_val = fabs(arr[i]);
+        if (abs_val > max_val)
+            max_val = abs_val;
+    }
+    return max_val;
+}
+
+double lv_max_d(const double *arr, int64_t n) {
+    if (!arr || n <= 0)
+        return 0.0;
+    double max_val = arr[0];
+    for (int64_t i = 1; i < n; ++i) {
+        if (arr[i] > max_val)
+            max_val = arr[i];
+    }
+    return max_val;
+}

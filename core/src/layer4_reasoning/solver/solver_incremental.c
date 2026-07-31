@@ -8,105 +8,13 @@
  */
 
 #include "solver_common.h"
-
-/* 脏变量集合结构体 */
-typedef struct {
-    lvDArray dirty_ids; /**< 脏变量 ID 数组（lvDArray of int） */
-} DirtyVariableSet;
-static void dirty_set_init(DirtyVariableSet *ds);
-static bool dirty_set_contains(DirtyVariableSet *ds, int var_id);
-static void dirty_set_add(DirtyVariableSet *ds, int var_id);
-static void dirty_set_clear(DirtyVariableSet *ds);
-static void dirty_set_free(DirtyVariableSet *ds);
-static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered);
-
-
+#include "lv/solver_dirty_set.h"
 
 /* 前向声明（实现在其他 solver 子模块中） */
 void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
 void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count, int *multiple_solutions,
                           bool *no_solution, bool do_substitute);
 void cleanup_groebner_result(GroebnerResult *result);
-
-/* ================================================================== */
-/*  脏变量集合（内联实现，因仅在增量模块中使用）                         */
-/* ================================================================== */
-
-static void dirty_set_init(DirtyVariableSet *ds) {
-    lv_darray_init(&ds->dirty_ids, sizeof(int));
-}
-
-static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
-    for (int i = 0; i < ds->dirty_ids.count; i++) {
-        int *p = (int *)lv_darray_get(&ds->dirty_ids, i);
-        if (p && *p == var_id)
-            return true;
-    }
-    return false;
-}
-
-static void dirty_set_add(DirtyVariableSet *ds, int var_id) {
-    if (dirty_set_contains(ds, var_id))
-        return;
-    lv_darray_push(&ds->dirty_ids, &var_id);
-}
-
-static void dirty_set_clear(DirtyVariableSet *ds) {
-    lv_darray_clear(&ds->dirty_ids);
-}
-
-static void dirty_set_free(DirtyVariableSet *ds) {
-    lv_darray_free(&ds->dirty_ids);
-}
-
-static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered) {
-    equation_system_init(filtered);
-    if (!sys || !ds || ds->dirty_ids.count == 0)
-        return;
-
-    for (int i = 0; i < sys->eqs.count; i++) {
-        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
-        if (!eq || eq->poly.degree < 0)
-            continue;
-        if (dirty_set_contains(ds, eq->var_node_id)) {
-            if (equation_system_push(filtered, eq->poly, eq->var_node_id, eq->coord_index) != 0)
-                return;
-        }
-    }
-
-    DirtyVariableSet related;
-    dirty_set_init(&related);
-    for (int i = 0; i < filtered->eqs.count; i++) {
-        PolyEquation *feq = (PolyEquation *)lv_darray_get(&filtered->eqs, i);
-        if (feq)
-            dirty_set_add(&related, feq->var_node_id);
-    }
-
-    for (int i = 0; i < sys->eqs.count; i++) {
-        PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
-        if (!eq || eq->poly.degree < 0)
-            continue;
-        if (dirty_set_contains(&related, eq->var_node_id)) {
-            bool found = false;
-            for (int j = 0; j < filtered->eqs.count; j++) {
-                PolyEquation *feq = (PolyEquation *)lv_darray_get(&filtered->eqs, j);
-                if (feq && feq->var_node_id == eq->var_node_id &&
-                    feq->coord_index == eq->coord_index) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                if (equation_system_push(filtered, eq->poly, eq->var_node_id,
-                                         eq->coord_index) != 0) {
-                    dirty_set_free(&related);
-                    return;
-                }
-            }
-        }
-    }
-    dirty_set_free(&related);
-}
 
 /* ================================================================== */
 /*  内部: 依赖传播 (增量求解支持)                                       */

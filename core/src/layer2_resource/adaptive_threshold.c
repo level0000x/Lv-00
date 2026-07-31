@@ -55,13 +55,17 @@
  * 模块级全局状态
  * ================================================================ */
 
-static lvThresholdConfig g_global_configs[3]; /* VF2, Buchberger, Rewrite */
-static bool g_global_configs_set[3] = {false, false, false};
-static bool g_initialized = false;
+/** @brief 自适应阈值模块全局状态 */
+typedef struct {
+    lvThresholdConfig configs[3]; /**< 各算法配置（VF2, Buchberger, Rewrite） */
+    bool configs_set[3];          /**< 各算法配置是否已设置 */
+    bool initialized;             /**< 是否已初始化 */
+    double threshold;             /**< 旧版 API 兼容：默认阈值 */
+    int is_adaptive;              /**< 旧版 API 兼容：是否自适应 */
+} ThresholdState;
 
-/* 保留旧版 API 兼容 */
-static double s_threshold = 0.5;
-static int s_is_adaptive = 0;
+/** @brief 自适应阈值模块全局单例 */
+static ThresholdState s_threshold_state = {0};
 
 /* ================================================================
  * 内部辅助函数
@@ -168,13 +172,13 @@ static int count_connected_components(const ConstraintGraph *graph) {
  * ================================================================ */
 
 lvError lv_adaptive_threshold_init(void) {
-    if (g_initialized)
+    if (s_threshold_state.initialized)
         return lv_OK;
 
     /* 初始化全局默认配置 */
     for (int i = 0; i < 3; i++) {
-        if (!g_global_configs_set[i]) {
-            lvThresholdConfig *cfg = &g_global_configs[i];
+        if (!s_threshold_state.configs_set[i]) {
+            lvThresholdConfig *cfg = &s_threshold_state.configs[i];
             switch ((lvAlgorithmType) i) {
                 case lv_ALGO_VF2_MATCH:
                     cfg->base_threshold = VF2_BASE_THRESHOLD;
@@ -209,15 +213,15 @@ lvError lv_adaptive_threshold_init(void) {
         }
     }
 
-    g_initialized = true;
+    s_threshold_state.initialized = true;
     return lv_OK;
 }
 
 void lv_adaptive_threshold_cleanup(void) {
     for (int i = 0; i < 3; i++) {
-        g_global_configs_set[i] = false;
+        s_threshold_state.configs_set[i] = false;
     }
-    g_initialized = false;
+    s_threshold_state.initialized = false;
 }
 
 lvError lv_compute_complexity(const lvConstraintGraph *graph, lvProblemComplexity *complexity) {
@@ -296,7 +300,7 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
     if (config) {
         c->config = *config;
     } else {
-        c->config = g_global_configs[idx];
+        c->config = s_threshold_state.configs[idx];
     }
 
     c->initialized = true;
@@ -331,7 +335,7 @@ lvError lv_adaptive_threshold_default_config(lvAlgorithmType algo, lvThresholdCo
 
     lv_adaptive_threshold_init();
 
-    *config = g_global_configs[idx];
+    *config = s_threshold_state.configs[idx];
     return lv_OK;
 }
 
@@ -386,8 +390,8 @@ lvError lv_adaptive_threshold_set_global_config(lvAlgorithmType algo, const lvTh
     int idx = algo_index(algo);
     if (idx < 0 || !config)
         return lv_ERROR_INVALID_PARAM;
-    g_global_configs[idx] = *config;
-    g_global_configs_set[idx] = true;
+    s_threshold_state.configs[idx] = *config;
+    s_threshold_state.configs_set[idx] = true;
     return lv_OK;
 }
 
@@ -429,7 +433,7 @@ size_t lv_get_rewrite_solve_max_iterations(const lvConstraintGraph *graph) {
  * ================================================================ */
 
 int lv_threshold_is_adaptive(void) {
-    return s_is_adaptive;
+    return s_threshold_state.is_adaptive;
 }
 
 void lv_set_adaptive_threshold(double value) {
@@ -437,10 +441,10 @@ void lv_set_adaptive_threshold(double value) {
         value = 0.0;
     if (value > 1.0)
         value = 1.0;
-    s_threshold = value;
-    s_is_adaptive = 1;
+    s_threshold_state.threshold = value;
+    s_threshold_state.is_adaptive = 1;
 }
 
 double lv_get_adaptive_threshold(void) {
-    return s_threshold;
+    return s_threshold_state.threshold;
 }

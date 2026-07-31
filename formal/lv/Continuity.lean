@@ -1,4 +1,4 @@
-﻿/-  连续性公理：Archimedes 公理与 Dedekind 公理 -/
+/-  连续性公理：Archimedes 公理与 Dedekind 公理 -/
 
 import Mathlib
 

@@ -678,13 +678,7 @@ static double cuda_vector_max_norm(const lvVector *v) {
     }
     cuda_safe_memcpy(h_data, cvd->d_data, (size_t) v->length * sizeof(double),
                       cudaMemcpyDeviceToHost, "max_norm");
-    double max_val = fabs(h_data[0]);
-    for (int64_t i = 1; i < v->length; ++i) {
-        double abs_val = fabs(h_data[i]);
-        if (abs_val > max_val) {
-            max_val = abs_val;
-        }
-    }
+    double max_val = lv_max_abs(h_data, v->length);
     lv_free((void **) &h_data);
     return max_val;
 }

@@ -1065,12 +1065,7 @@ static double vec_norm(const double *v, int n) {
     if (n <= 0 || !v)
         return 0.0;
     /* 找到最大绝对值，用于缩放以避免平方和溢出到 Inf */
-    double max_abs = 0.0;
-    for (int i = 0; i < n; i++) {
-        double abs_val = fabs(v[i]);
-        if (abs_val > max_abs)
-            max_abs = abs_val;
-    }
+    double max_abs = lv_max_abs(v, (int64_t) n);
     if (max_abs == 0.0)
         return 0.0;
     /* 缩放后计算平方和：sqrt(sum((v[i]/scale)^2)) * scale */

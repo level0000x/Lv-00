@@ -10,6 +10,7 @@
  */
 
 #include "solver_common.h"
+#include "lv/solver_dirty_set.h"
 
 /* ── 多变量多项式 ── */
 typedef struct {
@@ -833,7 +834,7 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
 
         int var_idx = -1;
         for (int j = 0; j < vcount; j++) {
-            if (vids[j] == eq->var_node_id && cids[j] == eq->coord_index) {
+            if (poly_eq_same_key(vids[j], cids[j], eq->var_node_id, eq->coord_index)) {
                 var_idx = j;
                 break;
             }

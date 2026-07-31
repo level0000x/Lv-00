@@ -17,6 +17,7 @@
 #include "lv/lv_platform.h"
 #include "lv/lv_loader.h"
 #include "lv/lv_file.h"
+#include "lv/lv_str_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,18 +46,22 @@ typedef struct {
 /** @brief 名称映射表最大容量 */
 #define LV_MAX_NAMED_ENTITIES 256
 
-/** @brief 全局名称映射表 */
-static LvNameMap name_map[LV_MAX_NAMED_ENTITIES];
-/** @brief 当前已注册的名称数量 */
-static int name_map_count = 0;
+/** @brief 名称映射表单例状态 */
+typedef struct {
+    LvNameMap entries[LV_MAX_NAMED_ENTITIES]; /**< 名称映射表 */
+    int count;                                /**< 当前已注册的名称数量 */
+} LoaderNameState;
+
+/** @brief 名称映射表全局单例 */
+static LoaderNameState s_loader_names = {0};
 
 /**
  * @brief 清空名称映射表
  *
  * 重置映射表计数器，清除所有已注册的名称映射。
  */
-static void name_map_clear(void) {
-    name_map_count = 0;
+static void loader_names_clear(void) {
+    s_loader_names.count = 0;
 }
 
 /**
@@ -65,10 +70,10 @@ static void name_map_clear(void) {
  * @param name    实体名称
  * @param node_id 引擎节点 ID
  */
-static void name_map_add(const char *name, int node_id) {
-    if (name_map_count >= LV_MAX_NAMED_ENTITIES)
+static void loader_names_add(const char *name, int node_id) {
+    if (s_loader_names.count >= LV_MAX_NAMED_ENTITIES)
         return;
-    LvNameMap *entry = &name_map[name_map_count++];
+    LvNameMap *entry = &s_loader_names.entries[s_loader_names.count++];
     lv_strncpy(entry->name, name, sizeof(entry->name));
     entry->node_id = node_id;
 }
@@ -81,12 +86,12 @@ static void name_map_add(const char *name, int node_id) {
  * @param name 实体名称（允许为 NULL，返回 -1）
  * @return 引擎节点 ID，未找到或 name 为 NULL 返回 -1
  */
-static int name_map_lookup(const char *name) {
+static int loader_names_lookup(const char *name) {
     if (!name)
         return -1;
-    for (int i = 0; i < name_map_count; i++) {
-        if (strcmp(name_map[i].name, name) == 0)
-            return name_map[i].node_id;
+    for (int i = 0; i < s_loader_names.count; i++) {
+        if (strcmp(s_loader_names.entries[i].name, name) == 0)
+            return s_loader_names.entries[i].node_id;
     }
     return -1;
 }
@@ -162,19 +167,14 @@ static void process_declaration(lvEngine *engine, LvAstNode *node) {
 
     /* 拆分逗号分隔的名称列表 */
     char *save;
-    char *tok;
-#ifdef _MSC_VER
-    tok = strtok_s(buf, ",", &save);
-#else
-    tok = strtok_r(buf, ",", &save);
-#endif
+    char *tok = lv_strtok_r(buf, ",", &save);
     while (tok) {
         switch (etype) {
             case LV_ENTITY_POINT: {
                 /* 使用默认坐标 (0,1,0,1) 即 (0,0) */
                 int id = lv_add_point(engine, 0, 1, 0, 1);
                 if (id >= 0) {
-                    name_map_add(tok, id);
+                    loader_names_add(tok, id);
                 }
                 break;
             }
@@ -182,20 +182,16 @@ static void process_declaration(lvEngine *engine, LvAstNode *node) {
             case LV_ENTITY_SEGMENT: {
                 /* Line/Segment: 暂存名称，等待端点声明后处理 */
                 /* 使用 -1 表示尚未关联端点 */
-                name_map_add(tok, -1);
+                loader_names_add(tok, -1);
                 break;
             }
             default:
                 /* Circle, Ray, Triangle, Polygon, Scalar, Bool, Proposition, Proof */
                 /* 暂不处理 */
-                name_map_add(tok, -1);
+                loader_names_add(tok, -1);
                 break;
         }
-#ifdef _MSC_VER
-        tok = strtok_s(NULL, ",", &save);
-#else
-        tok = strtok_r(NULL, ",", &save);
-#endif
+        tok = lv_strtok_r(NULL, ",", &save);
     }
 }
 
@@ -275,7 +271,7 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
     if (!engine || !result || !result->ast)
         return false;
 
-    name_map_clear();
+    loader_names_clear();
 
     /* 使用 sema 进行语义验证 */
     if (sema) {
@@ -317,7 +313,7 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
                 int arg_count = 0;
                 for (LvAstNode *a = expr->data.call.args; a && arg_count < 8; a = a->next) {
                     if (a->type == LV_AST_IDENTIFIER_EXPR) {
-                        int id = name_map_lookup(a->data.ident.name);
+                        int id = loader_names_lookup(a->data.ident.name);
                         if (id >= 0) {
                             arg_ids[arg_count++] = id;
                         }

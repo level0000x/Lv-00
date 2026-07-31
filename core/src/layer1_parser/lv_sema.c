@@ -1,6 +1,7 @@
 #include "lv/lv_platform.h"
 
 #include "lv/lv_sema.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
 
 #include <stdarg.h>
@@ -39,15 +40,6 @@ static void sema_error(LvSemaContext *ctx, LvSourceLoc loc, const char *fmt, ...
     vsnprintf(buf + n, (size_t) (256 - n), fmt, args);
     va_end(args);
     ctx->error_count++;
-}
-
-/* 跨平台 strtok（避免 MSVC 缺少 strtok_r）*/
-static char *sema_strtok(char *str, const char *delim, char **save) {
-#ifdef _MSC_VER
-    return strtok_s(str, delim, save);
-#else
-    return strtok_r(str, delim, save);
-#endif
 }
 
 /** 将 LvEntityType 映射为 LvSemanticType */
@@ -152,10 +144,10 @@ static void check_declaration(LvSemaContext *ctx, LvAstNode *node) {
     lv_strncpy(buf, names, sizeof(buf));
 
     char *save;
-    char *tok = sema_strtok(buf, ",", &save);
+    char *tok = lv_strtok_r(buf, ",", &save);
     while (tok) {
         add_symbol(ctx, tok, stype, node->loc);
-        tok = sema_strtok(NULL, ",", &save);
+        tok = lv_strtok_r(NULL, ",", &save);
     }
 }
 

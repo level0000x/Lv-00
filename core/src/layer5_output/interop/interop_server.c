@@ -1029,16 +1029,22 @@ int interop_server_run(InteropServer *server) {
 
 #define MAX_PLUGINS 32
 
-static lvPlugin g_plugins[MAX_PLUGINS];
-static int g_plugin_count = 0;
+/** @brief 插件表单例状态 */
+typedef struct {
+    lvPlugin plugins[MAX_PLUGINS]; /**< 插件注册表 */
+    int count;                     /**< 已注册插件数量 */
+} PluginState;
+
+/** @brief 插件表全局单例 */
+static PluginState s_plugin_state = {0};
 
 int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin) {
     if (!plugin)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_interop_register_plugin: plugin is NULL");
     (void) mgr; /* 管理器参数保留供未来扩展 */
-    if (g_plugin_count >= MAX_PLUGINS)
+    if (s_plugin_state.count >= MAX_PLUGINS)
         lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "lv_interop_register_plugin: plugin count exhausted");
-    memcpy(&g_plugins[g_plugin_count], plugin, sizeof(lvPlugin));
-    g_plugin_count++;
+    memcpy(&s_plugin_state.plugins[s_plugin_state.count], plugin, sizeof(lvPlugin));
+    s_plugin_state.count++;
     return 0;
 }
