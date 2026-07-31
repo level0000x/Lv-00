@@ -6,6 +6,7 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
+#include <ctype.h>
 #include <string.h>
 
 /* ===== 字符串检查 ===== */
@@ -29,6 +30,35 @@ bool lv_str_endswith(const char *str, const char *suffix) {
 bool lv_str_contains(const char *str, const char *substr) {
     if (!str || !substr) return false;
     return strstr(str, substr) != NULL;
+}
+
+/* ===== 关键字表匹配 ===== */
+
+int lv_str_match_any(const char *input, const char *const *keywords) {
+    if (!input || !keywords)
+        return -1;
+    for (int i = 0; keywords[i] != NULL; i++) {
+        if (strstr(input, keywords[i]) != NULL) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int lv_str_match_delimited(const char *input, const char *const *keywords) {
+    if (!input || !keywords)
+        return -1;
+    for (int i = 0; keywords[i] != NULL; i++) {
+        const char *found = strstr(input, keywords[i]);
+        if (!found)
+            continue;
+        /* 命中后必须为分隔符结尾：'\0'、空白、'(' 或 '{' */
+        char next = found[strlen(keywords[i])];
+        if (next == '\0' || isspace((unsigned char) next) || next == '(' || next == '{') {
+            return i;
+        }
+    }
+    return -1;
 }
 
 /* ===== 字符串裁剪 ===== */

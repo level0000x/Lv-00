@@ -29,6 +29,22 @@ bool lv_str_endswith(const char *str, const char *suffix);
 /** @brief 检查字符串是否包含 substr */
 bool lv_str_contains(const char *str, const char *substr);
 
+/**
+ * @brief 在关键字表中查找第一个 strstr 命中的索引
+ * @param input    输入字符串
+ * @param keywords NULL 结尾的关键字数组
+ * @return 命中的索引；未命中返回 -1
+ */
+int lv_str_match_any(const char *input, const char *const *keywords);
+
+/**
+ * @brief 带边界校验的关键字匹配（命中后必须为分隔符结尾）
+ * @param input    输入字符串
+ * @param keywords NULL 结尾的关键字数组
+ * @return 命中的索引；未命中返回 -1
+ */
+int lv_str_match_delimited(const char *input, const char *const *keywords);
+
 /* ===== 字符串裁剪 ===== */
 
 /**

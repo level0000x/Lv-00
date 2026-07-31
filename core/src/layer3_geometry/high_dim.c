@@ -53,6 +53,7 @@
 #include "stream.h"
 #include "stream_context_util.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 
 /* ==================== 内部常量 ==================== */
 
@@ -2275,38 +2276,16 @@ int high_dim_validate_mapping(int dimension_count, const HighDimAxisMapping *map
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} high_dim_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *high_dim_name_lookup(const high_dim_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief high_dim_mapping_type_to_string 名称表（按枚举值升序） */
-static const high_dim_NameEntry s_high_dim_mapping_type_to_string_entries[] = {
-    {HIGH_DIM_MAP_TO_X, "x"},
-    {HIGH_DIM_MAP_TO_Y, "y"},
-    {HIGH_DIM_MAP_FOLD, "fold"},
-    {HIGH_DIM_MAP_DISCARD, "discard"},
+static const lvStrToEnumEntry s_high_dim_mapping_type_to_string_entries[] = {
+    {"x", HIGH_DIM_MAP_TO_X},
+    {"y", HIGH_DIM_MAP_TO_Y},
+    {"fold", HIGH_DIM_MAP_FOLD},
+    {"discard", HIGH_DIM_MAP_DISCARD},
 };
 
 const char *high_dim_mapping_type_to_string(HighDimMappingType mapping_type) {
-    const char *name = high_dim_name_lookup(s_high_dim_mapping_type_to_string_entries, lv_ARRAY_SIZE(s_high_dim_mapping_type_to_string_entries), (int) mapping_type);
-    return name ? name : "unknown";
+    return lv_enum_to_str(s_high_dim_mapping_type_to_string_entries, lv_ARRAY_SIZE(s_high_dim_mapping_type_to_string_entries), (int) mapping_type, "unknown");
 }
 
 HighDimMappingType high_dim_mapping_type_from_string(const char *str) {

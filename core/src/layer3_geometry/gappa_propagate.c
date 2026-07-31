@@ -526,6 +526,209 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx, const char *lh
     }
 }
 
+/* ============================================================
+ * 推导规则表 + 统一 fixpoint 驱动
+ *
+ * 原实现中 6 处 "saved_count 快照迭代" 结构相同：
+ *   快照当前谓词数 → 遍历旧谓词（二元取对 / 一元取单）→
+ *   类型过滤 → 区间运算 → 格式化 expr_lhs → 去重加入集合。
+ * 此处收敛为规则表 + gappa_apply_rules() 统一驱动。
+ * ============================================================ */
+
+/** @brief 规则区间运算：a/b 为操作数（一元规则忽略 b），skip 置 true 表示跳过该产出 */
+typedef PropInterval (*GappaRuleOp)(const lvGappaPredicate *a, const lvGappaPredicate *b, bool *skip);
+
+/** @brief 谓词推导规则 */
+typedef struct {
+    const char *fmt;      /**< 结果表达式格式串（一元 1 个 %s，二元 2 个 %s） */
+    int arity;            /**< 1 = 一元规则，2 = 二元规则 */
+    int src_type;         /**< 源谓词类型过滤（lv_PRED_BND / lv_PRED_ABS） */
+    bool ordered_pairs;   /**< 二元：true = 遍历全部 i != j 对；false = 仅 i < j 对 */
+    bool swap_operands;   /**< 二元：true = 以 (b, a) 顺序格式化与运算（如 y - x） */
+    GappaRuleOp op;       /**< 区间运算 */
+} GappaRule;
+
+/** @brief 区间加法 */
+static PropInterval gappa_op_add(const lvGappaPredicate *a, const lvGappaPredicate *b, bool *skip) {
+    *skip = false;
+    PropInterval ia = {a->bound_lo, a->bound_hi};
+    PropInterval ib = {b->bound_lo, b->bound_hi};
+    return ia_add(ia, ib);
+}
+
+/** @brief 区间减法 [a.lo-b.hi, a.hi-b.lo] */
+static PropInterval gappa_op_sub(const lvGappaPredicate *a, const lvGappaPredicate *b, bool *skip) {
+    *skip = false;
+    PropInterval ia = {a->bound_lo, a->bound_hi};
+    PropInterval ib = {b->bound_lo, b->bound_hi};
+    return ia_sub(ia, ib);
+}
+
+/** @brief 区间乘法 */
+static PropInterval gappa_op_mul(const lvGappaPredicate *a, const lvGappaPredicate *b, bool *skip) {
+    *skip = false;
+    PropInterval ia = {a->bound_lo, a->bound_hi};
+    PropInterval ib = {b->bound_lo, b->bound_hi};
+    return ia_mul(ia, ib);
+}
+
+/** @brief 区间除法：分母跨零或结果无穷时跳过（与原实现语义一致） */
+static PropInterval gappa_op_div(const lvGappaPredicate *a, const lvGappaPredicate *b, bool *skip) {
+    *skip = false;
+    PropInterval ia = {a->bound_lo, a->bound_hi};
+    PropInterval ib = {b->bound_lo, b->bound_hi};
+    /* 跳过分母包含零的情况 */
+    if (ib.lo <= 0.0 && ib.hi >= 0.0) {
+        *skip = true;
+        PropInterval r = {0.0, 0.0};
+        return r;
+    }
+    PropInterval r = ia_div(ia, ib);
+    if (isinf(r.lo) || isinf(r.hi)) {
+        *skip = true;
+        PropInterval z = {0.0, 0.0};
+        return z;
+    }
+    return r;
+}
+
+/** @brief 平方：利用 x² 在 (-∞,0] 递减、[0,+∞) 递增的单调性精确计算 */
+static PropInterval gappa_op_square(const lvGappaPredicate *a, const lvGappaPredicate *b, bool *skip) {
+    (void) b;
+    *skip = false;
+    double x_lo = a->bound_lo;
+    double x_hi = a->bound_hi;
+    double sq_lo, sq_hi;
+    if (x_lo >= 0.0) {
+        sq_lo = x_lo * x_lo;
+        sq_hi = x_hi * x_hi;
+    } else if (x_hi <= 0.0) {
+        sq_lo = x_hi * x_hi;
+        sq_hi = x_lo * x_lo;
+    } else {
+        sq_lo = 0.0;
+        double abs_lo = -x_lo;
+        sq_hi = (abs_lo > x_hi) ? (abs_lo * abs_lo) : (x_hi * x_hi);
+    }
+    PropInterval r = {sq_lo, sq_hi};
+    return r;
+}
+
+/** @brief ABS → BND：|x - c| ≤ eps → x ∈ [c - eps, c + eps] */
+static PropInterval gappa_op_abs_to_bnd(const lvGappaPredicate *a, const lvGappaPredicate *b, bool *skip) {
+    (void) b;
+    *skip = false;
+    char *end = NULL;
+    errno = 0;
+    double center = strtod(a->expr_rhs, &end);
+    if (errno != 0 || end == a->expr_rhs)
+        center = 0.0;
+    double eps = a->bound_abs;
+    PropInterval r = {center - eps, center + eps};
+    return r;
+}
+
+/**
+ * @brief 对谓词集应用一组推导规则（统一 fixpoint 驱动）
+ *
+ * 规则组共享同一个入口快照（等价于原实现中一次 saved_count 捕获），
+ * 组内新加入的谓词不会作为本组规则的迭代输入。
+ *
+ * @param output     谓词集（会被追加新推导的谓词）
+ * @param rules      规则数组
+ * @param rule_count 规则数量
+ * @param derived    累计成功推导数（可 NULL）
+ * @param changed    置 true 表示本轮有新谓词加入（可 NULL）
+ */
+static void gappa_apply_rules(lvGappaPredSet *output, const GappaRule *rules, size_t rule_count, int *derived,
+                              bool *changed) {
+    /* 快照：所有规则共享同一迭代边界，避免集合增长导致迭代器失效 */
+    int saved_count = output->count;
+
+    for (size_t r = 0; r < rule_count; r++) {
+        const GappaRule *rule = &rules[r];
+
+        if (rule->arity == 2) {
+            for (int i = 0; i < saved_count; i++) {
+                if (output->preds[i].type != rule->src_type)
+                    continue;
+                for (int j = 0; j < saved_count; j++) {
+                    /* 无序遍历（i<j）或有序遍历（i!=j） */
+                    if (rule->ordered_pairs ? (j == i) : (j <= i))
+                        continue;
+                    if (output->preds[j].type != rule->src_type)
+                        continue;
+
+                    const lvGappaPredicate *pa = rule->swap_operands ? &output->preds[j] : &output->preds[i];
+                    const lvGappaPredicate *pb = rule->swap_operands ? &output->preds[i] : &output->preds[j];
+
+                    bool skip = false;
+                    PropInterval iv = rule->op(pa, pb, &skip);
+                    if (skip)
+                        continue;
+
+                    lvGappaPredicate np;
+                    memset(&np, 0, sizeof(np));
+                    np.type = lv_PRED_BND;
+                    snprintf(np.expr_lhs, sizeof(np.expr_lhs), rule->fmt, pa->expr_lhs, pb->expr_lhs);
+                    np.bound_lo = iv.lo;
+                    np.bound_hi = iv.hi;
+                    np.is_hypothesis = pa->is_hypothesis;
+                    if (lv_gappa_pred_set_add(output, &np)) {
+                        if (derived)
+                            (*derived)++;
+                        if (changed)
+                            *changed = true;
+                    }
+                }
+            }
+        } else {
+            for (int i = 0; i < saved_count; i++) {
+                if (output->preds[i].type != rule->src_type)
+                    continue;
+
+                bool skip = false;
+                PropInterval iv = rule->op(&output->preds[i], &output->preds[i], &skip);
+                if (skip)
+                    continue;
+
+                lvGappaPredicate np;
+                memset(&np, 0, sizeof(np));
+                np.type = lv_PRED_BND;
+                snprintf(np.expr_lhs, sizeof(np.expr_lhs), rule->fmt, output->preds[i].expr_lhs);
+                np.bound_lo = iv.lo;
+                np.bound_hi = iv.hi;
+                np.is_hypothesis = output->preds[i].is_hypothesis;
+                if (lv_gappa_pred_set_add(output, &np)) {
+                    if (derived)
+                        (*derived)++;
+                    if (changed)
+                        *changed = true;
+                }
+            }
+        }
+    }
+}
+
+/* 前向规则 阶段 1：和/差（x+y、x-y、y-x） */
+static const GappaRule k_rules_sum_diff[] = {
+    {"%s + %s", 2, lv_PRED_BND, false, false, gappa_op_add},
+    {"%s - %s", 2, lv_PRED_BND, false, false, gappa_op_sub},
+    {"%s - %s", 2, lv_PRED_BND, false, true, gappa_op_sub}, /* y - x */
+};
+
+/* 前向规则 阶段 2：乘/除/平方（共享同一快照，与原实现一致） */
+static const GappaRule k_rules_mul_div_square[] = {
+    {"%s * %s", 2, lv_PRED_BND, false, false, gappa_op_mul},
+    {"%s / %s", 2, lv_PRED_BND, true, false, gappa_op_div},
+    {"(%s)^2", 1, lv_PRED_BND, false, false, gappa_op_square},
+};
+
+/* 后向规则：ABS → BND */
+static const GappaRule k_rules_abs_to_bnd[] = {
+    {"%s", 1, lv_PRED_ABS, false, false, gappa_op_abs_to_bnd},
+};
+
 int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, const lvGappaPropagateConfig *cfg) {
     if (!input || !output)
         return 0;
@@ -548,163 +751,26 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
         bool changed = false;
 
         /* ============================================================
-         * 前向传播：推导新谓词
+         * 前向传播：推导新谓词（规则表 + 统一 fixpoint 驱动）
          * ============================================================ */
 
-        /* 对每对 BND 谓词，推导其和与差 */
-        int saved_count = output->count;
-        for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND)
-                continue;
-            for (int j = i + 1; j < saved_count; j++) {
-                if (output->preds[j].type != lv_PRED_BND)
-                    continue;
+        /* 阶段 1：和/差（x+y、x-y、y-x），快照在驱动内部按组捕获 */
+        gappa_apply_rules(output, k_rules_sum_diff, sizeof(k_rules_sum_diff) / sizeof(k_rules_sum_diff[0]),
+                          &derived, &changed);
 
-                /* 推导和: x + y in [lo_x + lo_y, hi_x + hi_y] */
-                lvGappaPredicate sum_pred;
-                memset(&sum_pred, 0, sizeof(sum_pred));
-                sum_pred.type = lv_PRED_BND;
-                snprintf(sum_pred.expr_lhs, sizeof(sum_pred.expr_lhs), "%s + %s", output->preds[i].expr_lhs,
-                         output->preds[j].expr_lhs);
-                sum_pred.bound_lo = output->preds[i].bound_lo + output->preds[j].bound_lo;
-                sum_pred.bound_hi = output->preds[i].bound_hi + output->preds[j].bound_hi;
-                sum_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &sum_pred)) {
-                    derived++;
-                    changed = true;
-                }
-
-                /* 推导差: x - y in [lo_x - hi_y, hi_x - lo_y] */
-                lvGappaPredicate diff_pred;
-                memset(&diff_pred, 0, sizeof(diff_pred));
-                diff_pred.type = lv_PRED_BND;
-                snprintf(diff_pred.expr_lhs, sizeof(diff_pred.expr_lhs), "%s - %s", output->preds[i].expr_lhs,
-                         output->preds[j].expr_lhs);
-                diff_pred.bound_lo = output->preds[i].bound_lo - output->preds[j].bound_hi;
-                diff_pred.bound_hi = output->preds[i].bound_hi - output->preds[j].bound_lo;
-                diff_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &diff_pred)) {
-                    derived++;
-                    changed = true;
-                }
-
-                /* 推导差: y - x in [lo_y - hi_x, hi_y - lo_x] */
-                lvGappaPredicate diff_pred2;
-                memset(&diff_pred2, 0, sizeof(diff_pred2));
-                diff_pred2.type = lv_PRED_BND;
-                snprintf(diff_pred2.expr_lhs, sizeof(diff_pred2.expr_lhs), "%s - %s", output->preds[j].expr_lhs,
-                         output->preds[i].expr_lhs);
-                diff_pred2.bound_lo = output->preds[j].bound_lo - output->preds[i].bound_hi;
-                diff_pred2.bound_hi = output->preds[j].bound_hi - output->preds[i].bound_lo;
-                diff_pred2.is_hypothesis = output->preds[j].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &diff_pred2)) {
-                    derived++;
-                    changed = true;
-                }
-            }
-        }
-
-        /* 乘法推导：x * y，取四个角点的 min/max */
-        saved_count = output->count;
-        for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND)
-                continue;
-            for (int j = i + 1; j < saved_count; j++) {
-                if (output->preds[j].type != lv_PRED_BND)
-                    continue;
-
-                PropInterval a = {output->preds[i].bound_lo, output->preds[i].bound_hi};
-                PropInterval b = {output->preds[j].bound_lo, output->preds[j].bound_hi};
-                PropInterval r = ia_mul(a, b);
-
-                lvGappaPredicate mul_pred;
-                memset(&mul_pred, 0, sizeof(mul_pred));
-                mul_pred.type = lv_PRED_BND;
-                snprintf(mul_pred.expr_lhs, sizeof(mul_pred.expr_lhs), "%s * %s", output->preds[i].expr_lhs,
-                         output->preds[j].expr_lhs);
-                mul_pred.bound_lo = r.lo;
-                mul_pred.bound_hi = r.hi;
-                mul_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &mul_pred)) {
-                    derived++;
-                    changed = true;
-                }
-            }
-        }
-
-        /* 除法推导：x / y，处理分母跨零（返回无穷区间则跳过） */
-        for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND)
-                continue;
-            for (int j = 0; j < saved_count; j++) {
-                if (i == j || output->preds[j].type != lv_PRED_BND)
-                    continue;
-
-                PropInterval a = {output->preds[i].bound_lo, output->preds[i].bound_hi};
-                PropInterval b = {output->preds[j].bound_lo, output->preds[j].bound_hi};
-
-                /* 跳过分母包含零的情况 */
-                if (b.lo <= 0.0 && b.hi >= 0.0)
-                    continue;
-
-                PropInterval r = ia_div(a, b);
-                if (isinf(r.lo) || isinf(r.hi))
-                    continue;
-
-                lvGappaPredicate div_pred;
-                memset(&div_pred, 0, sizeof(div_pred));
-                div_pred.type = lv_PRED_BND;
-                snprintf(div_pred.expr_lhs, sizeof(div_pred.expr_lhs), "%s / %s", output->preds[i].expr_lhs,
-                         output->preds[j].expr_lhs);
-                div_pred.bound_lo = r.lo;
-                div_pred.bound_hi = r.hi;
-                div_pred.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &div_pred)) {
-                    derived++;
-                    changed = true;
-                }
-            }
-        }
-
-        /* 平方推导：x²，利用单调性精确计算 */
-        for (int i = 0; i < saved_count; i++) {
-            if (output->preds[i].type != lv_PRED_BND)
-                continue;
-
-            double x_lo = output->preds[i].bound_lo;
-            double x_hi = output->preds[i].bound_hi;
-            double sq_lo, sq_hi;
-
-            /* x² 在 (-∞,0] 递减、[0,+∞) 递增 */
-            if (x_lo >= 0.0) {
-                sq_lo = x_lo * x_lo;
-                sq_hi = x_hi * x_hi;
-            } else if (x_hi <= 0.0) {
-                sq_lo = x_hi * x_hi;
-                sq_hi = x_lo * x_lo;
-            } else {
-                sq_lo = 0.0;
-                double abs_lo = -x_lo;
-                sq_hi = (abs_lo > x_hi) ? (abs_lo * abs_lo) : (x_hi * x_hi);
-            }
-
-            lvGappaPredicate sq_pred;
-            memset(&sq_pred, 0, sizeof(sq_pred));
-            sq_pred.type = lv_PRED_BND;
-            snprintf(sq_pred.expr_lhs, sizeof(sq_pred.expr_lhs), "(%s)^2", output->preds[i].expr_lhs);
-            sq_pred.bound_lo = sq_lo;
-            sq_pred.bound_hi = sq_hi;
-            sq_pred.is_hypothesis = output->preds[i].is_hypothesis;
-            if (lv_gappa_pred_set_add(output, &sq_pred)) {
-                derived++;
-                changed = true;
-            }
-        }
+        /*
+         * 阶段 2：乘/除/平方。
+         * 原实现中 refinement pass 的快照取在乘除平方之前（和差阶段之后），
+         * 此处显式保存该边界供下方 refinement 使用，语义与原实现完全一致。
+         */
+        int refine_count = output->count;
+        gappa_apply_rules(output, k_rules_mul_div_square,
+                          sizeof(k_rules_mul_div_square) / sizeof(k_rules_mul_div_square[0]), &derived, &changed);
 
         /* ============================================================
          * Refinement pass：利用 sum/diff 关系收紧已有边界
          * ============================================================ */
-        for (int i = 0; i < saved_count; i++) {
+        for (int i = 0; i < refine_count; i++) {
             if (output->preds[i].type != lv_PRED_BND)
                 continue;
             backward_refine_pred(output, i, output->preds[i].expr_lhs, precision, &changed);
@@ -715,30 +781,9 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
          * ============================================================ */
         if (do_backward) {
             int bw_count = output->count;
-            /* ABS → BND 转换：|x - c| ≤ eps → x ∈ [c - eps, c + eps] */
-            for (int i = 0; i < bw_count; i++) {
-                if (output->preds[i].type != lv_PRED_ABS)
-                    continue;
-
-                char *end = NULL;
-                errno = 0;
-                double center = strtod(output->preds[i].expr_rhs, &end);
-                if (errno != 0 || end == output->preds[i].expr_rhs)
-                    center = 0.0;
-                double eps = output->preds[i].bound_abs;
-
-                lvGappaPredicate bnd;
-                memset(&bnd, 0, sizeof(bnd));
-                bnd.type = lv_PRED_BND;
-                strncpy(bnd.expr_lhs, output->preds[i].expr_lhs, sizeof(bnd.expr_lhs) - 1);
-                bnd.bound_lo = center - eps;
-                bnd.bound_hi = center + eps;
-                bnd.is_hypothesis = output->preds[i].is_hypothesis;
-                if (lv_gappa_pred_set_add(output, &bnd)) {
-                    derived++;
-                    changed = true;
-                }
-            }
+            /* ABS → BND 转换：|x - c| ≤ eps → x ∈ [c - eps, c + eps]（规则驱动） */
+            gappa_apply_rules(output, k_rules_abs_to_bnd, sizeof(k_rules_abs_to_bnd) / sizeof(k_rules_abs_to_bnd[0]),
+                              &derived, &changed);
 
             /* 利用 ABS 谓词的约束能力：对刚转换出的 BND 再跑一次 refinement */
             for (int i = 0; i < bw_count; i++) {

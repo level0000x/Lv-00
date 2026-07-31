@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -52,6 +53,14 @@ void lv_strbuf_init(lvStrBuf *sb);
  * @param ... 可变参数
  */
 void lv_strbuf_printf(lvStrBuf *sb, const char *fmt, ...);
+
+/**
+ * @brief 追加格式化字符串（va_list 版本）
+ * @param sb   构建器指针
+ * @param fmt  printf 风格格式
+ * @param args 可变参数列表（由调用方负责 va_start/va_end）
+ */
+void lv_strbuf_vprintf(lvStrBuf *sb, const char *fmt, va_list args);
 
 /**
  * @brief 获取 C 字符串（始终 NUL 结尾）

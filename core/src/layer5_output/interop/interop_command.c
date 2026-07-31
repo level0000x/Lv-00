@@ -21,6 +21,7 @@
 #include "lv/interop.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_xmacro.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -897,44 +898,22 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} interop_cmd_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *interop_cmd_name_lookup(const interop_cmd_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief interop_trust_color_to_svg 名称表（按枚举值升序） */
-static const interop_cmd_NameEntry s_interop_trust_color_to_svg_entries[] = {
-    {TRUST_GREEN, "#22c55e"},
-    {TRUST_BLUE_UNEXPLORED, "#3b82f6"},
-    {TRUST_BLUE_EXCEEDED, "#6366f1"},
-    {TRUST_BLUE_OUT_OF_SCOPE, "#93c5fd"},
-    {TRUST_YELLOW, "#eab308"},
-    {TRUST_LIGHT_ORANGE_ORACLE, "#fb923c"},
-    {TRUST_LIGHT_ORANGE_EXPLOSION, "#f97316"},
-    {TRUST_AMBER, "#f59e0b"},
-    {TRUST_DEEP_ORANGE, "#ea580c"},
-    {TRUST_RED, "#ef4444"},
+static const lvStrToEnumEntry s_interop_trust_color_to_svg_entries[] = {
+    {"#22c55e", TRUST_GREEN},
+    {"#3b82f6", TRUST_BLUE_UNEXPLORED},
+    {"#6366f1", TRUST_BLUE_EXCEEDED},
+    {"#93c5fd", TRUST_BLUE_OUT_OF_SCOPE},
+    {"#eab308", TRUST_YELLOW},
+    {"#fb923c", TRUST_LIGHT_ORANGE_ORACLE},
+    {"#f97316", TRUST_LIGHT_ORANGE_EXPLOSION},
+    {"#f59e0b", TRUST_AMBER},
+    {"#ea580c", TRUST_DEEP_ORANGE},
+    {"#ef4444", TRUST_RED},
 };
 
 const char *interop_trust_color_to_svg(TrustColor trust) {
-    const char *name = interop_cmd_name_lookup(s_interop_trust_color_to_svg_entries, lv_ARRAY_SIZE(s_interop_trust_color_to_svg_entries), (int) trust);
-    return name ? name : "#9ca3af";
+    return lv_enum_to_str(s_interop_trust_color_to_svg_entries, lv_ARRAY_SIZE(s_interop_trust_color_to_svg_entries), (int) trust, "#9ca3af");
 }
 
 /**
@@ -946,22 +925,21 @@ const char *interop_trust_color_to_svg(TrustColor trust) {
  * @return 对应的 TikZ 颜色字符串（如 "green!70!black"），未知颜色返回 "gray"
  */
 /** @brief interop_trust_color_to_tikz 名称表（按枚举值升序） */
-static const interop_cmd_NameEntry s_interop_trust_color_to_tikz_entries[] = {
-    {TRUST_GREEN, "green!70!black"},
-    {TRUST_BLUE_UNEXPLORED, "blue!70!black"},
-    {TRUST_BLUE_EXCEEDED, "blue!50!black"},
-    {TRUST_BLUE_OUT_OF_SCOPE, "blue!30!black"},
-    {TRUST_YELLOW, "yellow!70!black"},
-    {TRUST_LIGHT_ORANGE_ORACLE, "orange!40!black"},
-    {TRUST_LIGHT_ORANGE_EXPLOSION, "orange!60!black"},
-    {TRUST_AMBER, "orange!80!black"},
-    {TRUST_DEEP_ORANGE, "red!70!black"},
-    {TRUST_RED, "red!80!black"},
+static const lvStrToEnumEntry s_interop_trust_color_to_tikz_entries[] = {
+    {"green!70!black", TRUST_GREEN},
+    {"blue!70!black", TRUST_BLUE_UNEXPLORED},
+    {"blue!50!black", TRUST_BLUE_EXCEEDED},
+    {"blue!30!black", TRUST_BLUE_OUT_OF_SCOPE},
+    {"yellow!70!black", TRUST_YELLOW},
+    {"orange!40!black", TRUST_LIGHT_ORANGE_ORACLE},
+    {"orange!60!black", TRUST_LIGHT_ORANGE_EXPLOSION},
+    {"orange!80!black", TRUST_AMBER},
+    {"red!70!black", TRUST_DEEP_ORANGE},
+    {"red!80!black", TRUST_RED},
 };
 
 const char *interop_trust_color_to_tikz(TrustColor trust) {
-    const char *name = interop_cmd_name_lookup(s_interop_trust_color_to_tikz_entries, lv_ARRAY_SIZE(s_interop_trust_color_to_tikz_entries), (int) trust);
-    return name ? name : "gray";
+    return lv_enum_to_str(s_interop_trust_color_to_tikz_entries, lv_ARRAY_SIZE(s_interop_trust_color_to_tikz_entries), (int) trust, "gray");
 }
 
 /**
@@ -973,18 +951,17 @@ const char *interop_trust_color_to_tikz(TrustColor trust) {
  * @return 对应的类型名称字符串（如 "point"、"line_segment"），未知类型返回 "unknown"
  */
 /** @brief interop_geom_type_name 名称表（按枚举值升序） */
-static const interop_cmd_NameEntry s_interop_geom_type_name_entries[] = {
-    {GEOM_POINT, "point"},
-    {GEOM_LINE_SEGMENT, "line_segment"},
-    {GEOM_REGION, "region"},
-    {GEOM_CIRCLE, "circle"},
-    {GEOM_PORT, "port"},
-    {GEOM_FUNCTION_BLOCK, "function_block"},
+static const lvStrToEnumEntry s_interop_geom_type_name_entries[] = {
+    {"point", GEOM_POINT},
+    {"line_segment", GEOM_LINE_SEGMENT},
+    {"region", GEOM_REGION},
+    {"circle", GEOM_CIRCLE},
+    {"port", GEOM_PORT},
+    {"function_block", GEOM_FUNCTION_BLOCK},
 };
 
 const char *interop_geom_type_name(GeomType type) {
-    const char *name = interop_cmd_name_lookup(s_interop_geom_type_name_entries, lv_ARRAY_SIZE(s_interop_geom_type_name_entries), (int) type);
-    return name ? name : "unknown";
+    return lv_enum_to_str(s_interop_geom_type_name_entries, lv_ARRAY_SIZE(s_interop_geom_type_name_entries), (int) type, "unknown");
 }
 
 /**
@@ -996,18 +973,17 @@ const char *interop_geom_type_name(GeomType type) {
  * @return 对应的类型名称字符串（如 "incidence"、"betweenness"），未知类型返回 "unknown"
  */
 /** @brief interop_constraint_type_name 名称表（按枚举值升序） */
-static const interop_cmd_NameEntry s_interop_constraint_type_name_entries[] = {
-    {INCIDENCE, "incidence"},
-    {BETWEENNESS, "betweenness"},
-    {INTERSECTION, "intersection"},
-    {CONTAINMENT, "containment"},
-    {ANGLE, "angle"},
-    {CONNECTION, "connection"},
+static const lvStrToEnumEntry s_interop_constraint_type_name_entries[] = {
+    {"incidence", INCIDENCE},
+    {"betweenness", BETWEENNESS},
+    {"intersection", INTERSECTION},
+    {"containment", CONTAINMENT},
+    {"connection", CONNECTION},
+    {"angle", ANGLE},
 };
 
 const char *interop_constraint_type_name(ConstraintType type) {
-    const char *name = interop_cmd_name_lookup(s_interop_constraint_type_name_entries, lv_ARRAY_SIZE(s_interop_constraint_type_name_entries), (int) type);
-    return name ? name : "unknown";
+    return lv_enum_to_str(s_interop_constraint_type_name_entries, lv_ARRAY_SIZE(s_interop_constraint_type_name_entries), (int) type, "unknown");
 }
 
 /**

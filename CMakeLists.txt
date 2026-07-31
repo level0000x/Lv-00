@@ -644,6 +644,8 @@ set(lv_HEADERS
 set(lv_LAYER1_SOURCES
     core/src/layer1_parser/formula_parser.c
     core/src/layer1_parser/formula_converter.c
+    core/src/layer1_parser/formula_eval.c
+    core/src/layer1_parser/formula_string.c
     core/src/layer1_parser/formula_renderer.c
     core/src/layer1_parser/lexer_shared.c
     core/src/layer1_parser/parser_safety.c
@@ -839,6 +841,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof.c
     core/src/layer4_reasoning/proof_system/proof_optimize.c
     core/src/layer4_reasoning/proof_system/proof_multi_strategy.c
+    core/src/layer4_reasoning/proof_system/proof_search_algo.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_exec.c
     core/src/layer4_reasoning/proof_trace.c
     core/src/layer4_reasoning/proof/proof_tree.c
     core/src/layer4_reasoning/proof_system/proof_priority.c
@@ -850,6 +854,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/type_logic/quantifier.c
     # 增强证明引擎
     core/src/layer4_reasoning/engine/proof_engine_enhanced.c
+    core/src/layer4_reasoning/engine/proof_trace_tree.c
     # 重写与合一
     core/src/layer4_reasoning/rewrite.c
     core/src/layer4_reasoning/unify/unify.c
@@ -857,6 +862,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/unify/graph_hash.c
     core/src/layer4_reasoning/unify/lambda_unify.c
     core/src/layer4_reasoning/model/recursion.c
+    core/src/layer4_reasoning/model/recursion_test_suite.c
     # 类型与属性
     core/src/layer4_reasoning/type_logic/type_system.c
     core/src/layer4_reasoning/type_logic/type_check.c

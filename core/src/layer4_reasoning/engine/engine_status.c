@@ -12,6 +12,7 @@
  */
 
 #include "lv/engine.h"
+#include "lv/lv_xmacro.h"
 
 /* ============================================================
  *  引擎状态码 → 字符串映射
@@ -21,57 +22,34 @@
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} engine_status_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *engine_status_name_lookup(const engine_status_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief engine_status_to_string 名称表（按枚举值升序） */
-static const engine_status_NameEntry s_engine_status_to_string_entries[] = {
-    {ENGINE_STATUS_OK, "成功"},
-    {ENGINE_STATUS_OUT_OF_MEMORY, "内存不足"},
-    {ENGINE_STATUS_INVALID_ARGUMENT, "无效参数"},
-    {ENGINE_STATUS_INVALID_STATE, "无效状态"},
-    {ENGINE_STATUS_ERROR_INTERNAL, "内部错误"},
-    {ENGINE_STATUS_CONSTRAINT_CONFLICT, "约束冲突"},
-    {ENGINE_STATUS_MODULE_ERROR, "模块错误"},
+static const lvStrToEnumEntry s_engine_status_to_string_entries[] = {
+    {"成功", ENGINE_STATUS_OK},
+    {"内存不足", ENGINE_STATUS_OUT_OF_MEMORY},
+    {"无效状态", ENGINE_STATUS_INVALID_STATE},
+    {"无效参数", ENGINE_STATUS_INVALID_ARGUMENT},
+    {"约束冲突", ENGINE_STATUS_CONSTRAINT_CONFLICT},
+    {"模块错误", ENGINE_STATUS_MODULE_ERROR},
+    {"内部错误", ENGINE_STATUS_ERROR_INTERNAL},
 };
 
 const char *engine_status_to_string(EngineStatus status) {
-    const char *name = engine_status_name_lookup(s_engine_status_to_string_entries, lv_ARRAY_SIZE(s_engine_status_to_string_entries), (int) status);
-    return name ? name : "未知错误";
+    return lv_enum_to_str(s_engine_status_to_string_entries, lv_ARRAY_SIZE(s_engine_status_to_string_entries), (int) status, "未知错误");
 }
 
 /** @brief engine_status_to_identifier 名称表（按枚举值升序） */
-static const engine_status_NameEntry s_engine_status_to_identifier_entries[] = {
-    {ENGINE_STATUS_OK, "ENGINE_STATUS_OK"},
-    {ENGINE_STATUS_OUT_OF_MEMORY, "ENGINE_STATUS_OUT_OF_MEMORY"},
-    {ENGINE_STATUS_INVALID_ARGUMENT, "ENGINE_STATUS_INVALID_ARGUMENT"},
-    {ENGINE_STATUS_INVALID_STATE, "ENGINE_STATUS_INVALID_STATE"},
-    {ENGINE_STATUS_ERROR_INTERNAL, "ENGINE_STATUS_ERROR_INTERNAL"},
-    {ENGINE_STATUS_CONSTRAINT_CONFLICT, "ENGINE_STATUS_CONSTRAINT_CONFLICT"},
-    {ENGINE_STATUS_MODULE_ERROR, "ENGINE_STATUS_MODULE_ERROR"},
+static const lvStrToEnumEntry s_engine_status_to_identifier_entries[] = {
+    {"ENGINE_STATUS_OK", ENGINE_STATUS_OK},
+    {"ENGINE_STATUS_OUT_OF_MEMORY", ENGINE_STATUS_OUT_OF_MEMORY},
+    {"ENGINE_STATUS_INVALID_STATE", ENGINE_STATUS_INVALID_STATE},
+    {"ENGINE_STATUS_INVALID_ARGUMENT", ENGINE_STATUS_INVALID_ARGUMENT},
+    {"ENGINE_STATUS_CONSTRAINT_CONFLICT", ENGINE_STATUS_CONSTRAINT_CONFLICT},
+    {"ENGINE_STATUS_MODULE_ERROR", ENGINE_STATUS_MODULE_ERROR},
+    {"ENGINE_STATUS_ERROR_INTERNAL", ENGINE_STATUS_ERROR_INTERNAL},
 };
 
 const char *engine_status_to_identifier(EngineStatus status) {
-    const char *name = engine_status_name_lookup(s_engine_status_to_identifier_entries, lv_ARRAY_SIZE(s_engine_status_to_identifier_entries), (int) status);
-    return name ? name : "ENGINE_STATUS_UNKNOWN";
+    return lv_enum_to_str(s_engine_status_to_identifier_entries, lv_ARRAY_SIZE(s_engine_status_to_identifier_entries), (int) status, "ENGINE_STATUS_UNKNOWN");
 }
 
 const char *engine_status_get_description(EngineStatus status) {

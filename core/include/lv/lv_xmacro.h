@@ -72,4 +72,27 @@ static inline int lv_str_to_enum(const lvStrToEnumEntry *table, size_t count,
     return default_value;
 }
 
+/**
+ * @brief 在映射表中按枚举值（value）二分查找对应字符串（反向的 lv_str_to_enum）
+ * @param table       映射表（lvStrToEnumEntry 数组，须按 value 即枚举值升序排列）
+ * @param count       表大小
+ * @param code        要查找的枚举值
+ * @param default_str 未命中时返回的默认字符串（可为 NULL）
+ * @return 匹配的名称字符串；未命中返回 default_str
+ */
+static inline const char *lv_enum_to_str(const lvStrToEnumEntry *table, size_t count,
+                                         int code, const char *default_str) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].value == code)
+            return table[mid].name;
+        if (table[mid].value < code)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    return default_str;
+}
+
 #endif /* lv_XMACRO_H */

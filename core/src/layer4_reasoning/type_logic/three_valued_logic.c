@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file three_valued_logic.c
  * @brief 三值逻辑系统实现（子目录版本）
  *
@@ -14,6 +14,7 @@
 
 #include "lv/three_valued_logic.h"
 #include "lv_utils.h"
+#include "lv/lv_xmacro.h"
 
 #include <stddef.h>
 
@@ -193,50 +194,27 @@ lvTruthValue lv_tvl_or_all(const lvTruthValue *values, int count) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} tvl_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *tvl_name_lookup(const tvl_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief lv_tvl_to_string 名称表（按枚举值升序） */
-static const tvl_NameEntry s_lv_tvl_to_string_entries[] = {
-    {lv_TRUE, "TRUE"},
-    {lv_FALSE, "FALSE"},
-    {lv_UNKNOWN, "UNKNOWN"},
+static const lvStrToEnumEntry s_lv_tvl_to_string_entries[] = {
+    {"TRUE", lv_TRUE},
+    {"FALSE", lv_FALSE},
+    {"UNKNOWN", lv_UNKNOWN},
 };
 
 const char *lv_tvl_to_string(lvTruthValue v) {
-    const char *name = tvl_name_lookup(s_lv_tvl_to_string_entries, lv_ARRAY_SIZE(s_lv_tvl_to_string_entries), (int) v);
-    return name ? name : "INVALID";
+    return lv_enum_to_str(s_lv_tvl_to_string_entries, lv_ARRAY_SIZE(s_lv_tvl_to_string_entries), (int) v, "INVALID");
 }
 
 /**
  * @brief 将三值真值转换为中文字符串
  */
 /** @brief lv_tvl_to_string_zh 名称表（按枚举值升序） */
-static const tvl_NameEntry s_lv_tvl_to_string_zh_entries[] = {
-    {lv_TRUE, "\xe7\x9c\x9f"},
-    {lv_FALSE, "\xe4\xbc\xaa"},
-    {lv_UNKNOWN, "\xe6\x9c\xaa\xe7\x9f\xa5"},
+static const lvStrToEnumEntry s_lv_tvl_to_string_zh_entries[] = {
+    {"\xe7\x9c\x9f", lv_TRUE},
+    {"\xe4\xbc\xaa", lv_FALSE},
+    {"\xe6\x9c\xaa\xe7\x9f\xa5", lv_UNKNOWN},
 };
 
 const char *lv_tvl_to_string_zh(lvTruthValue v) {
-    const char *name = tvl_name_lookup(s_lv_tvl_to_string_zh_entries, lv_ARRAY_SIZE(s_lv_tvl_to_string_zh_entries), (int) v);
-    return name ? name : "\xe6\x97\xa0\xe6\x95\x88";
+    return lv_enum_to_str(s_lv_tvl_to_string_zh_entries, lv_ARRAY_SIZE(s_lv_tvl_to_string_zh_entries), (int) v, "\xe6\x97\xa0\xe6\x95\x88");
 }

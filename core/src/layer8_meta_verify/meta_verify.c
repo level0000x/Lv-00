@@ -18,6 +18,7 @@
 
 #include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/proof.h"
 #include "lv/proof_compiler.h"
@@ -78,12 +79,8 @@ static int check_type_consistency(const lvSession *session, char *desc, int desc
     /* 检查推理结果是否包含"已证明"或"成功"等正向类型标记 */
     int has_proof_result = 0;
     const char *positive_markers[] = {"已证明", "成功", "proved", "success", "completed", "完成"};
-    int marker_count = (int) (sizeof(positive_markers) / sizeof(positive_markers[0]));
-    for (int i = 0; i < marker_count; i++) {
-        if (strstr(reasoning_msg, positive_markers[i]) != NULL) {
-            has_proof_result = 1;
-            break;
-        }
+    if (lv_str_match_any(reasoning_msg, positive_markers) >= 0) {
+        has_proof_result = 1;
     }
 
     if (!has_proof_result) {
@@ -224,12 +221,10 @@ static int check_soundness(const lvSession *session, char *desc, int desc_size) 
     if (reasoning_msg) {
         /* 检查推理消息中是否包含矛盾标记 */
         const char *contradiction_markers[] = {"矛盾", "contradiction", "CONTRADICTORY", "不一致"};
-        int marker_count = (int) (sizeof(contradiction_markers) / sizeof(contradiction_markers[0]));
-        for (int i = 0; i < marker_count; i++) {
-            if (strstr(reasoning_msg, contradiction_markers[i]) != NULL) {
-                snprintf(desc, desc_size, "可靠性失败：推理阶段包含矛盾标记 '%s'", contradiction_markers[i]);
-                return 0;
-            }
+        int marker_idx = lv_str_match_any(reasoning_msg, contradiction_markers);
+        if (marker_idx >= 0) {
+            snprintf(desc, desc_size, "可靠性失败：推理阶段包含矛盾标记 '%s'", contradiction_markers[marker_idx]);
+            return 0;
         }
     }
 
@@ -291,12 +286,10 @@ static int check_nontriviality(const lvSession *session, char *desc, int desc_si
 
     /* 检查是否为平凡证明（仅 "trivial" 或 "rfl"） */
     const char *trivial_markers[] = {"trivial", "rfl", "平凡", "axiom", "假设即结论"};
-    int marker_count = (int) (sizeof(trivial_markers) / sizeof(trivial_markers[0]));
-    for (int i = 0; i < marker_count; i++) {
-        if (strstr(reasoning_msg, trivial_markers[i]) != NULL) {
-            snprintf(desc, desc_size, "非平凡性失败：证明仅包含平凡标记 '%s'", trivial_markers[i]);
-            return 0;
-        }
+    int marker_idx = lv_str_match_any(reasoning_msg, trivial_markers);
+    if (marker_idx >= 0) {
+        snprintf(desc, desc_size, "非平凡性失败：证明仅包含平凡标记 '%s'", trivial_markers[marker_idx]);
+        return 0;
     }
 
     /* 检查推理深度：从推理阶段消息中提取策略尝试数 */

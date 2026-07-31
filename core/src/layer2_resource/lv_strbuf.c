@@ -24,19 +24,25 @@ static void lv_strbuf_grow(lvStrBuf *sb, size_t needed) {
     sb->cap  = new_cap;
 }
 
+void lv_strbuf_vprintf(lvStrBuf *sb, const char *fmt, va_list args) {
+    if (!sb || !fmt) return;
+    va_list probe;
+    va_copy(probe, args);
+    int needed = vsnprintf(NULL, 0, fmt, probe);
+    va_end(probe);
+    if (needed < 0) return;
+    size_t required = sb->len + (size_t)needed + 1;
+    lv_strbuf_grow(sb, required);
+    vsnprintf(sb->data + sb->len, sb->cap - sb->len, fmt, args);
+    sb->len += (size_t)needed;
+}
+
 void lv_strbuf_printf(lvStrBuf *sb, const char *fmt, ...) {
     if (!sb || !fmt) return;
     va_list args;
     va_start(args, fmt);
-    int needed = vsnprintf(NULL, 0, fmt, args);
+    lv_strbuf_vprintf(sb, fmt, args);
     va_end(args);
-    if (needed < 0) return;
-    size_t required = sb->len + (size_t)needed + 1;
-    lv_strbuf_grow(sb, required);
-    va_start(args, fmt);
-    vsnprintf(sb->data + sb->len, sb->cap - sb->len, fmt, args);
-    va_end(args);
-    sb->len += (size_t)needed;
 }
 
 void lv_strbuf_reset(lvStrBuf *sb) {

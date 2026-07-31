@@ -46,7 +46,6 @@ typedef enum {
 /* 映射表大小常量 */
 #define COQ_TACTIC_MAP_COUNT 8
 #define COQ_REVERSE_MAP_COUNT 8
-#define COQ_VALID_TACTICS_COUNT 35
 
 /**
  * @brief 将内部证明树导出为 Coq .v 脚本格式
@@ -306,16 +305,9 @@ static int coq_validate(const char *input) {
         "right",        "assumption", "auto",      "trivial",      "omega",      "ring",        "field",
         "lia",          "nia",        "tauto",     "unfold",       "fold",       "change",      "replace",
         "set",          "pose",       "assert",    "generalize",   "specialize", "inversion",   "injection",
-        "discriminate", "subst",      "symmetry",  "transitivity", "f_equal",    "congruence"};
-    int valid_count = COQ_VALID_TACTICS_COUNT;
+        "discriminate", "subst",      "symmetry",  "transitivity", "f_equal",    "congruence", NULL};
 
-    int found_tactic = 0;
-    for (int i = 0; i < valid_count; i++) {
-        if (strstr(input, valid_tactics[i])) {
-            found_tactic = 1;
-            break;
-        }
-    }
+    int found_tactic = (lv_str_match_any(input, valid_tactics) >= 0) ? 1 : 0;
     /* 如果有 Proof 段但未找到已知 tactic，仍然通过（可能是自定义 tactic） */
 
     return found_tactic ? 1 : 0;

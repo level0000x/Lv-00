@@ -19,6 +19,7 @@
 
 #include "geometry_transform.h"
 
+#include "lv/lv_strbuf.h"
 #include "lv_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -1093,22 +1094,11 @@ char *lv_transform_to_string(const lvTransform *t) {
     const char *type_str = (t->type >= 0 && t->type < (int)(sizeof(s_transform_type_names)/sizeof(s_transform_type_names[0])))
                            ? s_transform_type_names[t->type].display : "Unknown";
 
-    /* 动态计算字符串长度并分配缓冲区，避免固定缓冲区溢出 */
-    int needed = snprintf(NULL, 0, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]", type_str, t->matrix.a, t->matrix.b,
-                          t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty);
-    if (needed < 0)
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_transform_to_string: snprintf failed");
-    size_t size = (size_t) needed + 1;
-
-    char *result = (char *) lv_malloc(size);
-    if (!result) {
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_to_string: lv_malloc failed");
-    }
-
-    snprintf(result, size, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]", type_str, t->matrix.a, t->matrix.b, t->matrix.tx,
-             t->matrix.c, t->matrix.d, t->matrix.ty);
-
-    return result;
+    /* 用 lvStrBuf 统一构建，避免两遍 snprintf 重复格式串 */
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]", type_str, t->matrix.a, t->matrix.b,
+                     t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty);
+    return lv_strbuf_to_string(&sb);
 }
 
 char *lv_transform_to_json(const lvTransform *t) {
@@ -1119,30 +1109,15 @@ char *lv_transform_to_json(const lvTransform *t) {
     const char *type_str = (t->type >= 0 && t->type < (int)(sizeof(s_transform_type_names)/sizeof(s_transform_type_names[0])))
                            ? s_transform_type_names[t->type].json : "unknown";
 
-    /* 动态计算字符串长度并分配缓冲区，避免固定缓冲区溢出 */
-    int needed = snprintf(NULL, 0,
-                          "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":"
-                          "\"%Qd\",\"ty\":\"%Qd\"},"
-                          "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",
-                          type_str, t->matrix.a, t->matrix.b, t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty,
-                          t->is_isometry ? "true" : "false", t->is_orientation_preserving ? "true" : "false");
-    if (needed < 0)
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_transform_to_json: snprintf failed");
-    size_t size = (size_t) needed + 1;
-
-    char *result = (char *) lv_malloc(size);
-    if (!result) {
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_to_json: lv_malloc failed");
-    }
-
-    snprintf(result, size,
-             "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":\"%Qd\","
-             "\"ty\":\"%Qd\"},"
-             "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",
-             type_str, t->matrix.a, t->matrix.b, t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty,
-             t->is_isometry ? "true" : "false", t->is_orientation_preserving ? "true" : "false");
-
-    return result;
+    /* 用 lvStrBuf 统一构建，避免两遍 snprintf 重复格式串 */
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb,
+                     "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":"
+                     "\"%Qd\",\"ty\":\"%Qd\"},"
+                     "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",
+                     type_str, t->matrix.a, t->matrix.b, t->matrix.tx, t->matrix.c, t->matrix.d, t->matrix.ty,
+                     t->is_isometry ? "true" : "false", t->is_orientation_preserving ? "true" : "false");
+    return lv_strbuf_to_string(&sb);
 }
 
 /* ============== 变换群实现 ============== */
