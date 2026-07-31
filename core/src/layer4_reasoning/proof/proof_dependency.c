@@ -303,7 +303,7 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                     continue;
 
                 /* 检查是否有归约链 */
-                if (ku->reduces_to && strlen(ku->reduces_to) > 0) {
+                if (lv_str_nonempty(ku->reduces_to)) {
                     /* 这是一个归约问题，检查当前构造是否可以归约到它 */
                     /* 检查构造特征与归约目标的兼容性 */
                     bool can_reduce = false;

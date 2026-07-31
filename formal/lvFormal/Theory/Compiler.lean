@@ -137,12 +137,25 @@ lemma compile_stmt_ps_irrelevant (ps1 ps2 : List lvPoint) (st : lvStmt) :
 /-- compile_program_go 的结果不依赖于初始点列表参数 -/
 lemma compile_program_go_ps_irrelevant (ps1 ps2 : List lvPoint) (prog : lvProgram) :
     compile_program_go ps1 prog = compile_program_go ps2 prog := by
-  sorry
+  induction prog generalizing ps1 ps2 with
+  | nil => rfl
+  | cons st sts ih =>
+      simp [compile_program_go]
+      congr 1
+      exact ih (match st with | .point p => p :: ps1 | _ => ps1)
+            (match st with | .point p => p :: ps2 | _ => ps2)
 
 /-- compile_program_go 对程序拼接的分配律 -/
 lemma compile_program_go_append (ps : List lvPoint) (p1 p2 : lvProgram) :
     compile_program_go ps (p1 ++ p2) = compile_program_go ps p1 ++ compile_program_go ps p2 := by
-  sorry
+  induction p1 generalizing ps with
+  | nil => simp [compile_program_go]
+  | cons st rest ih =>
+      simp [compile_program_go]
+      rw [ih]
+      congr 1
+      exact compile_program_go_ps_irrelevant
+        (match st with | .point p => p :: ps | _ => ps) ps p2
 
 /-! ## 编译器元理论性质 -/
 
@@ -170,4 +183,5 @@ theorem compile_constraint_single (c : lvConstraint) (ps : List lvPoint)
 /-- 程序拼接的编译等于各自编译结果的拼接： -/
 theorem compile_program_append (p1 p2 : lvProgram) :
     compile_program (p1 ++ p2) = compile_program p1 ++ compile_program p2 := by
-  sorry
+  unfold compile_program
+  exact compile_program_go_append [] p1 p2

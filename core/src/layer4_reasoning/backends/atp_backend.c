@@ -1010,8 +1010,7 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
     clock_t start_clock = clock();
     int rc = atp_run_subprocess(exe_name, solver->tptp_code, solver->config.timeout_seconds, extra_args, &raw_output,
                                 &exit_code);
-    clock_t end_clock = clock();
-    double elapsed_seconds = (double) (end_clock - start_clock) / (double) CLOCKS_PER_SEC;
+    double elapsed_seconds = lv_clock_elapsed_sec(start_clock);
 
     if (rc != (int) lv_OK) {
         result->result = ATP_RESULT_ERROR;

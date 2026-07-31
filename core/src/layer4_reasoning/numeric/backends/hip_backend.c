@@ -1787,7 +1787,7 @@ int lv_hip_device_count(void) {
  */
 const char *lv_hip_backend_version(void) {
     static char version_str[128] = {0};
-    if (version_str[0] == '\0') {
+    if (lv_str_is_empty(version_str)) {
         int hip_version = 0;
         hipError_t err = hipRuntimeGetVersion(&hip_version);
         if (err == hipSuccess) {

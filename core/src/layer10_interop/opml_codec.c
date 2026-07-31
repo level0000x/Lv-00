@@ -143,7 +143,7 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
         lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
 
     /* 生成 theory 段（包含公理） */
-    if (strlen(p->axioms) > 0) {
+    if (lv_str_nonempty(p->axioms)) {
         pos += snprintf(output + pos, output_size - pos,
                                 "  \"theory\": {\n"
                                 "    \"axioms\": [\n");

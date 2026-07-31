@@ -24,6 +24,7 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 
@@ -215,7 +216,7 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
             /* 每行格式: theorem_name;param1;param2;...; */
             char *field_ctx = NULL;
             char *name = strtok_s(line, ";", &field_ctx);
-            if (name && strlen(name) > 0) {
+            if (lv_str_nonempty(name)) {
                 /* 生成 apply 语句 */
                 written = snprintf(output + offset, output_size - offset, "%s%s", apply_prefix, name);
                 if (written < 0) {
@@ -342,7 +343,7 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
     }
 
     /* ---- 描述记录 ---- */
-    if (description && strlen(description) > 0) {
+    if (lv_str_nonempty(description)) {
         lvStrBuf sb_3 = {0};
         StreamContext *sctx = engine_get_stream_context(engine);
         lv_strbuf_printf(&sb_3, "外部定理\"%s\"（哈希=%s）描述：%s", trust_base_name, content_hash, description);

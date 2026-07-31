@@ -29,6 +29,12 @@ bool lv_str_endswith(const char *str, const char *suffix);
 /** @brief 检查字符串是否包含 substr */
 bool lv_str_contains(const char *str, const char *substr);
 
+/** @brief 字符串是否为空（NULL 或空串均视为空） */
+bool lv_str_is_empty(const char *s);
+
+/** @brief 字符串是否非空 */
+bool lv_str_nonempty(const char *s);
+
 /**
  * @brief 在关键字表中查找第一个 strstr 命中的索引
  * @param input    输入字符串

@@ -358,7 +358,7 @@ int interactive_geo_randomized_check(lvInteractiveGeo *g, int samples, double to
     res->passed_samples = passed;
     res->failed_samples = failed;
     res->confidence_level = (double) passed / (double) samples;
-    res->elapsed_time_ms = (double) (clock() - t0) / CLOCKS_PER_SEC * 1000.0;
+    res->elapsed_time_ms = lv_clock_elapsed_ms(t0);
 
     if (failed == 0) {
         res->is_probabilistically_true = true;

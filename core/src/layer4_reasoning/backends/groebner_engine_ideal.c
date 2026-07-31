@@ -200,8 +200,7 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
         return 0;
     }
 
-    uint64_t start_us = 0;
-    start_us = (uint64_t) clock(); /* 简单计时 */
+    clock_t start_clock = clock(); /* 简单计时 */
 
     lvGroebnerBasis *basis = groebner_internal_compute(ring, ideal->generators, ideal->generator_count, algorithm);
     if (!basis) {
@@ -209,8 +208,7 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
         return -1;
     }
 
-    uint64_t elapsed = (uint64_t) clock() - start_us;
-    basis->computation_time_us = (int64_t) (elapsed * 1000000 / CLOCKS_PER_SEC);
+    basis->computation_time_us = (int64_t) lv_clock_elapsed_us(start_clock);
 
     /* 释放旧缓存 */
     if (ideal->cached_basis) {

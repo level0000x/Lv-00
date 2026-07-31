@@ -29,6 +29,7 @@
 #include "func_block_preset.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "preset_core.h"
 
 /* ── 错误码兼容：未在 error_codes.h 中定义的便捷 API 专用码 ── */
@@ -122,7 +123,7 @@ int lv_prove(lvContext *ctx, const char *goal) {
     }
 
     /* goal 非空时，解析目标字符串为约束图 */
-    if (goal != NULL && strlen(goal) > 0 && ctx->main_graph != NULL) {
+    if (lv_str_nonempty(goal) && ctx->main_graph != NULL) {
         DslCompileConfig cfg;
         dsl_compile_config_default(&cfg);
         if (!dsl_compile_and_load(goal, &cfg, ctx->main_graph)) {

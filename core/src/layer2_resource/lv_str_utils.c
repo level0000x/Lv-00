@@ -32,6 +32,14 @@ bool lv_str_contains(const char *str, const char *substr) {
     return strstr(str, substr) != NULL;
 }
 
+bool lv_str_is_empty(const char *s) {
+    return !s || s[0] == '\0';
+}
+
+bool lv_str_nonempty(const char *s) {
+    return s && s[0] != '\0';
+}
+
 /* ===== 关键字表匹配 ===== */
 
 int lv_str_match_any(const char *input, const char *const *keywords) {

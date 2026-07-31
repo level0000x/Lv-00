@@ -25,6 +25,7 @@
 
 #include "func_block_registry.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 
 /* ============================================================
  * 全局状态管理
@@ -101,7 +102,7 @@ static bool is_system_initialized(void) {
  */
 const char *lv_get_version_string(void) {
     static lv_THREAD_LOCAL char version_str[32] = {0};
-    if (version_str[0] == '\0') {
+    if (lv_str_is_empty(version_str)) {
         snprintf(version_str, sizeof(version_str), "%d.%d.%d", lv_VERSION_MAJOR, lv_VERSION_MINOR, lv_VERSION_PATCH);
     }
     return version_str;

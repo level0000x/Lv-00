@@ -797,6 +797,18 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/high_dim_serialize.c
     core/src/layer3_geometry/high_dim_utils.c
     core/src/layer3_geometry/geometry_compress.c
+    core/src/layer3_geometry/geometry_compress_triangle.c
+    core/src/layer3_geometry/geometry_compress_predict.c
+    core/src/layer3_geometry/geometry_compress_coords.c
+    core/src/layer3_geometry/geometry_compress_edgebreaker.c
+    core/src/layer3_geometry/geometry_compress_bitio.c
+    core/src/layer3_geometry/geometry_compress_huffman.c
+    core/src/layer3_geometry/geometry_compress_rle.c
+    core/src/layer3_geometry/geometry_compress_entropy.c
+    core/src/layer3_geometry/geometry_compress_clone.c
+    core/src/layer3_geometry/geometry_compress_main.c
+    core/src/layer3_geometry/geometry_compress_decompress.c
+    core/src/layer3_geometry/geometry_compress_io.c
     core/src/layer3_geometry/geo_event_detect.c
     core/src/layer3_geometry/geo_spec.c
     core/src/layer3_geometry/geometry_csg.c
@@ -900,6 +912,21 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/type_logic/type_path_explorer.c
     core/src/layer4_reasoning/type_logic/type_equiv_explorer.c
     core/src/layer4_reasoning/proof_system/prop_verifier.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_formula.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_compare.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_serialize.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_context.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_hash.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_memo.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_premises.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_forward.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_engine.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_api.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_checks.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_analysis.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_bhk.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_trust.c
+    core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c
     # 后端求解引擎
     core/src/layer4_reasoning/backends/groebner_engine.c
     core/src/layer4_reasoning/backends/groebner_engine_core.c
@@ -1661,7 +1688,23 @@ if(BUILD_TESTS)
         test/c/test_autodiff.c test_autodiff)
     # prop_verifier 测试：链接 lv 库以获取 lv_malloc/lv_free 等工具函数
     # [QA] Also listed in lv_LAYER4_SOURCES; test target requires separate compilation
-    add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/layer4_reasoning/proof_system/prop_verifier.c)
+    add_executable(test_prop_verifier test/c/test_prop_verifier.c
+        core/src/layer4_reasoning/proof_system/prop_verifier.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_formula.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_compare.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_serialize.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_context.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_hash.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_memo.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_premises.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_forward.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_engine.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_api.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_checks.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_analysis.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_bhk.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_trust.c
+        core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c)
     target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv)
     target_link_libraries(test_prop_verifier lv ${GMP_LIBRARIES})
     if(WIN32)

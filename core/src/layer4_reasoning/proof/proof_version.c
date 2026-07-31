@@ -596,8 +596,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
                     report->result_count++;
                 }
 
-                clock_t total_end_a = clock();
-                report->total_time_sec = ((double) (total_end_a - total_start_a)) / CLOCKS_PER_SEC;
+                report->total_time_sec = lv_clock_elapsed_sec(total_start_a);
                 report->best_index = best_index_a;
 
                 lv_task_group_destroy(group);
@@ -634,8 +633,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
 
         /* 超时检查（仅 SLEDGE_TIMEOUT 模式） */
         if (mode == SLEDGE_TIMEOUT && timeout_ms > 0) {
-            clock_t elapsed = clock() - total_start;
-            double elapsed_ms = ((double) elapsed / CLOCKS_PER_SEC) * 1000.0;
+            double elapsed_ms = lv_clock_elapsed_ms(total_start);
             if (elapsed_ms >= (double) timeout_ms) {
                 break;
             }
@@ -651,8 +649,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
         bool success = proof_multi_strategy_execute(mse);
 
         /* 记录结束时间 */
-        clock_t strategy_end = clock();
-        double elapsed = ((double) (strategy_end - strategy_start) / CLOCKS_PER_SEC);
+        double elapsed = lv_clock_elapsed_sec(strategy_start);
 
         report->results[idx].strategy = strategy_type;
         report->results[idx].success = success;
@@ -678,8 +675,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
         report->result_count++;
     }
 
-    clock_t total_end = clock();
-    report->total_time_sec = ((double) (total_end - total_start)) / CLOCKS_PER_SEC;
+    report->total_time_sec = lv_clock_elapsed_sec(total_start);
     report->best_index = best_index;
 
     return report;
@@ -1393,7 +1389,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                     return VERIFY_VALID;
                 }
                 /* 结论可能不含显式 INST_TYPE 标记但结构相似 */
-                if (strlen(conclusion) > 0 && strstr(conclusion, ":") != NULL) {
+                if (lv_str_nonempty(conclusion) && strstr(conclusion, ":") != NULL) {
                     if (out_trace)
                         *out_trace = make_trace("VERIFY_UNDECIDED [INST_TYPE]: 结论 \"%s\" 含类型标注但无显式标记",
                                                 conclusion, NULL, NULL);
@@ -1589,8 +1585,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
         }
 
         /* 步骤 3：合并结果 */
-        clock_t entry_end = clock();
-        entry->elapsed_sec = ((double) (entry_end - entry_start)) / CLOCKS_PER_SEC;
+        entry->elapsed_sec = lv_clock_elapsed_sec(entry_start);
 
         if (!smt_ok) {
             entry->result = REFINE_SMT_UNSAT;

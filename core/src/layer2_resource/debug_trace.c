@@ -98,7 +98,7 @@ void trace_record_event(TraceSession *session, TraceEventType type, int step, co
     TraceEvent *evt = &session->events[session->event_count++];
     evt->type = type;
     evt->step_number = step;
-    evt->timestamp = (double) clock() / CLOCKS_PER_SEC;
+    evt->timestamp = lv_clock_elapsed_sec((clock_t) 0);
     evt->description = (description != NULL) ? lv_strdup_safe(description) : NULL;
     evt->details = (details != NULL) ? lv_strdup_safe(details) : NULL;
 }
