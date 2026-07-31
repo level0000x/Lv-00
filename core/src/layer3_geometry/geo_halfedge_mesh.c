@@ -422,7 +422,8 @@ static lvHalfedge add_halfedge_pair(lvHeMesh *mesh, lvVertex v1, lvVertex v2) {
 
         if (!new_twin || !new_next || !new_prev || !new_face || !new_vertex) {
             /* [安全] 任一失败：释放已分配的内存（原有旧指针仍有效，未被覆盖） */
-            lv_free_many(&new_twin, &new_next, &new_prev, &new_face, &new_vertex, NULL);
+            lv_free_many((void **) &new_twin, (void **) &new_next, (void **) &new_prev, (void **) &new_face,
+                         (void **) &new_vertex, NULL);
             mesh->edge_count--;
             return lv_HE_INVALID;
         }

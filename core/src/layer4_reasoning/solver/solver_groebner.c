@@ -32,8 +32,8 @@ static const MVMonomial *groebner_leading_term(const MVPolynomial *p) {
 static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g, int var_count, MVPolynomial *result) {
     mv_poly_init(result, var_count);
 
-    const MVMonomial *lt_f = mv_poly_leading_term(f);
-    const MVMonomial *lt_g = mv_poly_leading_term(g);
+    const MVMonomial *lt_f = groebner_leading_term(f);
+    const MVMonomial *lt_g = groebner_leading_term(g);
     if (!lt_f || !lt_g)
         return;
 
@@ -88,7 +88,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
 
     int stalled_rounds = 0;
     const int max_stalled_rounds = 10;
-    long double prev_term_count = (long double) remainder->terms.count;
+    long double prev_term_count = (long double) remainder->term_count;
     int term_oscillation = 0;
 
     while (changed && safety < max_iterations) {
@@ -99,13 +99,13 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
             if (mv_poly_is_zero(G[i]))
                 continue;
 
-            const MVMonomial *lt_g = mv_poly_leading_term(G[i]);
+            const MVMonomial *lt_g = groebner_leading_term(G[i]);
             if (!lt_g)
                 continue;
 
             bool reduced = false;
-            for (int j = 0; j < remainder->terms.count && !reduced; j++) {
-                MVMonomial *rj = (MVMonomial *)lv_darray_get(&remainder->terms, j);
+            for (int j = 0; j < remainder->term_count && !reduced; j++) {
+                MVMonomial *rj = &remainder->terms[j];
                 if (!rj) continue;
                 if (mv_monomial_divisible(rj, lt_g, remainder->var_count)) {
                     int *quo_exp = lv_calloc((size_t) remainder->var_count, sizeof(int));
@@ -125,8 +125,8 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                     MVPolynomial new_remainder;
                     mv_poly_init(&new_remainder, remainder->var_count);
 
-                    for (int k = 0; k < remainder->terms.count; k++) {
-                        MVMonomial *rk = (MVMonomial *)lv_darray_get(&remainder->terms, k);
+                    for (int k = 0; k < remainder->term_count; k++) {
+                        MVMonomial *rk = &remainder->terms[k];
                         if (!rk) continue;
                         mpz_t scaled;
                         mpz_init(scaled);
@@ -134,8 +134,8 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                         mv_poly_add_term(&new_remainder, scaled, rk->exponents);
                         mpz_clear(scaled);
                     }
-                    for (int k = 0; k < sub_term.terms.count; k++) {
-                        MVMonomial *sk = (MVMonomial *)lv_darray_get(&sub_term.terms, k);
+                    for (int k = 0; k < sub_term.term_count; k++) {
+                        MVMonomial *sk = &sub_term.terms[k];
                         if (!sk) continue;
                         mpz_t neg;
                         mpz_init(neg);
@@ -164,7 +164,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
         }
 
         if (changed) {
-            long double curr_term_count = (long double) remainder->terms.count;
+            long double curr_term_count = (long double) remainder->term_count;
             long double diff = curr_term_count - prev_term_count;
             if (fabsl(diff) < 1.0L && diff != 0.0L) {
                 term_oscillation++;
@@ -200,8 +200,8 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     int var_count = F[0]->var_count;
 
     for (int i = 0; i < f_count; i++) {
-        for (int j = 0; j < F[i]->terms.count; j++) {
-            const MVMonomial *mfj = (const MVMonomial *)lv_darray_get(&F[i]->terms, j);
+        for (int j = 0; j < F[i]->term_count; j++) {
+            const MVMonomial *mfj = &F[i]->terms[j];
             if (mfj && mv_monomial_total_degree(mfj, var_count) > 4) {
                 *out_G = NULL;
                 *out_g_count = 0;
@@ -262,7 +262,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     int prev_g_count = g_count;
     long double prev_total_terms = 0;
     for (int ti = 0; ti < g_count; ti++) {
-        prev_total_terms += (long double) G[ti]->terms.count;
+        prev_total_terms += (long double) G[ti]->term_count;
     }
 
     bool changed = true;
@@ -296,8 +296,8 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                     }
                 }
 
-                const MVMonomial *lt_i = mv_poly_leading_term(G[i]);
-                const MVMonomial *lt_j = mv_poly_leading_term(G[j]);
+                const MVMonomial *lt_i = groebner_leading_term(G[i]);
+                const MVMonomial *lt_j = groebner_leading_term(G[j]);
                 if (!lt_i || !lt_j)
                     continue;
 
@@ -322,7 +322,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                 for (int k = 0; k < g_count && k < i && !skip_by_chain; k++) {
                     if (!pair_data[k * g_capacity + i] || !pair_data[k * g_capacity + j])
                         continue;
-                    const MVMonomial *lt_k = mv_poly_leading_term(G[k]);
+                    const MVMonomial *lt_k = groebner_leading_term(G[k]);
                     if (!lt_k)
                         continue;
                     int *lcm_chain = lv_calloc((size_t) var_count, sizeof(int));
@@ -356,8 +356,8 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 
                 if (!mv_poly_is_zero(&remainder)) {
                     bool within_limit = true;
-                    for (int k = 0; k < remainder.terms.count; k++) {
-                        MVMonomial *rmk = (MVMonomial *)lv_darray_get(&remainder.terms, k);
+                    for (int k = 0; k < remainder.term_count; k++) {
+                        MVMonomial *rmk = &remainder.terms[k];
                         if (!rmk) continue;
                         int td = mv_monomial_total_degree(rmk, var_count);
                         if (td > 4) {
@@ -434,7 +434,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             gb_stalled_count = 0;
             long double curr_total_terms = 0;
             for (int ti = 0; ti < g_count; ti++) {
-                curr_total_terms += (long double) G[ti]->terms.count;
+                curr_total_terms += (long double) G[ti]->term_count;
             }
             long double term_diff = curr_total_terms - prev_total_terms;
             if (fabsl(term_diff) < 1.0L && term_diff != 0.0L && g_count == prev_g_count) {
@@ -737,8 +737,8 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
 
             for (int v = 0; v < var_count; v++) {
                 int max_deg_v = 0;
-                for (int t = 0; t < G[i]->terms.count; t++) {
-                    const MVMonomial *mt = (const MVMonomial *)lv_darray_get(&G[i]->terms, t);
+                for (int t = 0; t < G[i]->term_count; t++) {
+                    const MVMonomial *mt = &G[i]->terms[t];
                     if (mt && mt->exponents[v] > max_deg_v) {
                         max_deg_v = mt->exponents[v];
                     }
@@ -764,8 +764,8 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
                 mpz_init_set_si(poly.coeffs[d], 0);
             }
 
-            for (int t = 0; t < G[i]->terms.count; t++) {
-                const MVMonomial *mt = (const MVMonomial *)lv_darray_get(&G[i]->terms, t);
+            for (int t = 0; t < G[i]->term_count; t++) {
+                const MVMonomial *mt = &G[i]->terms[t];
                 if (!mt) continue;
                 int power = mt->exponents[best_var];
                 if (power <= best_degree) {

@@ -3,26 +3,31 @@ import Mathlib
 structure VS where
   proved : List Nat
 
-def upd (st : VS) (step : Nat) : VS :=
-  { st with proved := step :: st.proved }
-
 def stepok4 (st : VS) (step : Nat) : Bool := true
 
-def go4 (st : VS) : List Nat → Option VS
+-- 忠实镜像 go_hypotheses_some：step 即数据，proved 添加 step
+def go6 (st : VS) : List Nat → Option VS
   | [] => some st
   | step :: rest =>
-    if stepok4 st step then go4 (upd st step) rest else none
+    if stepok4 st step then go6 { st with proved := step :: st.proved } rest else none
 
--- 测试 4：go_hypotheses_some 模式（非恒等 map + reverse）
 example (st : VS) (g : List Nat) :
-    go4 st (g.map (fun c => c + 1)) = some { proved := g.reverse ++ st.proved } := by
+    go6 st g = some { proved := g.reverse ++ st.proved } := by
   induction g generalizing st with
-  | nil => simp [go4]
+  | nil => simp [go6]
   | cons c rest ih =>
-      simp [go4, upd, stepok4]
+      simp [go6, stepok4]
       rw [ih]
       simp [List.reverse_cons]
 
--- 测试 5：Option.ite_none_right_eq_some 的化简形态
-example (b : Bool) (x y : Nat) : (if b then some x else none) = some y ↔ b = true ∧ x = y := by
-  simp
+-- go_qed_some 模式
+example (g : List Nat) (st : VS) (h : g.all st.proved.contains = true) :
+    go6 st [0] = some st := by
+  simp [go6, stepok4, h]
+
+-- contains → mem 模式（最终确认）
+example {c : Nat} {l : List Nat} (h : l.contains c = true) : c ∈ l := by
+  rcases List.contains_iff_exists_mem_beq.mp h with ⟨a, ha, hbeq⟩
+  have hca : c = a := (beq_iff_eq.mp hbeq)
+  rw [hca]
+  exact ha

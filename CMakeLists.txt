@@ -1094,8 +1094,11 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/proof_widget.c
     core/src/layer5_output/proof_export_enhanced.c
     core/src/layer5_output/interop/interop.c
-    # Magic 模拟器模块
-    core/src/layer5_output/magic/magic.c
+    # Magic 模拟器模块（从 magic.c 拆分）
+    core/src/layer5_output/magic/magic_rune.c
+    core/src/layer5_output/magic/magic_array.c
+    core/src/layer5_output/magic/magic_spell.c
+    core/src/layer5_output/magic/magic_domain.c
     # 几何可视化（完整版）
     core/src/layer5_output/geo_visual_complete.c
     # 渲染访问器（多后端统一遍历抽象）
