@@ -2523,3 +2523,47 @@ double lv_max_d(const double *arr, int64_t n) {
     }
     return max_val;
 }
+
+/* ============================================================
+ * 字节序工具（显式大端/小端读写）
+ * ============================================================ */
+
+void lv_store_be16(uint8_t *dst, uint16_t v) {
+    dst[0] = (uint8_t) ((v >> 8) & 0xFF);
+    dst[1] = (uint8_t) (v & 0xFF);
+}
+
+void lv_store_be32(uint8_t *dst, uint32_t v) {
+    dst[0] = (uint8_t) ((v >> 24) & 0xFF);
+    dst[1] = (uint8_t) ((v >> 16) & 0xFF);
+    dst[2] = (uint8_t) ((v >> 8) & 0xFF);
+    dst[3] = (uint8_t) (v & 0xFF);
+}
+
+uint16_t lv_load_be16(const uint8_t *src) {
+    return (uint16_t) ((((uint16_t) src[0]) << 8) | (uint16_t) src[1]);
+}
+
+uint32_t lv_load_be32(const uint8_t *src) {
+    return ((uint32_t) src[0] << 24) | ((uint32_t) src[1] << 16) | ((uint32_t) src[2] << 8) | (uint32_t) src[3];
+}
+
+void lv_store_le16(uint8_t *dst, uint16_t v) {
+    dst[0] = (uint8_t) (v & 0xFF);
+    dst[1] = (uint8_t) ((v >> 8) & 0xFF);
+}
+
+void lv_store_le32(uint8_t *dst, uint32_t v) {
+    dst[0] = (uint8_t) (v & 0xFF);
+    dst[1] = (uint8_t) ((v >> 8) & 0xFF);
+    dst[2] = (uint8_t) ((v >> 16) & 0xFF);
+    dst[3] = (uint8_t) ((v >> 24) & 0xFF);
+}
+
+uint16_t lv_load_le16(const uint8_t *src) {
+    return (uint16_t) ((uint16_t) src[0] | (((uint16_t) src[1]) << 8));
+}
+
+uint32_t lv_load_le32(const uint8_t *src) {
+    return ((uint32_t) src[0]) | ((uint32_t) src[1] << 8) | ((uint32_t) src[2] << 16) | ((uint32_t) src[3] << 24);
+}

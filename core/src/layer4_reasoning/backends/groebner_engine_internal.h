@@ -12,6 +12,7 @@
 #include <stdbool.h>
 
 #include "groebner_engine.h"
+#include "lv/lv_thread.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,6 +65,74 @@ int poly_leading_term(const lvPolynomial *poly, const lvPolynomialRing *ring, in
  *  通用辅助
  * ================================================================ */
 char *groebner_strdup_safe(const char *src);
+
+/* ================================================================
+ *  引擎内部常量（从 groebner_engine.c 段1 迁移，供拆分文件共享）
+ * ================================================================ */
+#define GROEBNER_IDEAL_INIT_GEN_CAPACITY 8
+#define GROEBNER_BASIS_INIT_CAPACITY 16
+#define GROEBNER_VARIETY_INIT_SOL_CAPACITY 32
+#define GROEBNER_SOLVE_MAX_ITER 200
+#define GROEBNER_NEWTON_TOL 1e-12
+#define GROEBNER_NEWTON_MAX_ITER 50
+#define GROEBNER_ROOT_SEARCH_SEGMENTS 1000
+#define GROEBNER_STR_MAX 256
+
+/* ================================================================
+ *  注册表内部扩展数据（从 groebner_engine.c 迁移）
+ * ================================================================ */
+typedef struct {
+    /** 多项式池 —— 按 poly_id 索引 */
+    lvPolynomial **polys;
+    int poly_count;    /* 当前多项式数量 */
+    int poly_capacity; /* 多项式池容量 */
+    int next_poly_id;  /* 下一个多项式 ID */
+
+    /* 理想池 —— 按 ideal_id 索引 */
+    lvIdeal **ideals;
+    int ideal_count;
+    int ideal_capacity;
+    int next_ideal_id;
+
+    /* Groebner 基池 —— 按基索引（不直接暴露 ID） */
+    lvGroebnerBasis **bases;
+    int bases_count;
+    int bases_capacity;
+
+    /* 代数簇池 —— 按 variety_id 索引 */
+    lvVariety **varieties;
+    int variety_count;
+    int variety_capacity;
+    int next_variety_id;
+} lvRegistryData;
+
+/* ================================================================
+ *  注册中心全局状态（groebner_engine.c 定义，拆分文件共享）
+ * ================================================================ */
+extern lvRegistryData *g_data;
+extern lv_mutex_t g_data_mutex;
+extern int g_data_mutex_initialized;
+
+/* ================================================================
+ *  注册存储与查询（groebner_engine.c 实现）
+ * ================================================================ */
+lvRegistryData *registry_data_ensure(void);
+int poly_internal_store(lvRegistryData *data, lvPolynomial *poly);
+int ideal_internal_store(lvRegistryData *data, lvIdeal *ideal);
+int variety_internal_store(lvRegistryData *data, lvVariety *variety);
+
+/* ================================================================
+ *  Buchberger 核心（groebner_engine_core.c 实现）
+ * ================================================================ */
+lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolynomial **generators,
+                                           int gen_count, lvGroebnerAlgorithm algorithm);
+lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, const lvPolynomialRing *ring);
+
+/* ================================================================
+ *  数值求解（groebner_engine_variety.c 实现）
+ * ================================================================ */
+lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis, const lvPolynomialRing *ring,
+                                       int *solution_count);
 
 #ifdef __cplusplus
 }

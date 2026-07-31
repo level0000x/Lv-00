@@ -1030,17 +1030,17 @@ static void describe_objects_zh(const ProofStep *step, char *buf, size_t buf_siz
     }
     if (step->constraint_id >= 0) {
         if (buf[0] != '\0')
-            strncat(buf, "，", buf_size - strlen(buf) - 1);
+            lv_strncat(buf, "，", buf_size);
         snprintf(buf + strlen(buf), buf_size - strlen(buf), "约束 %d", step->constraint_id);
     }
     if (step->rule_id >= 0) {
         if (buf[0] != '\0')
-            strncat(buf, "，", buf_size - strlen(buf) - 1);
+            lv_strncat(buf, "，", buf_size);
         snprintf(buf + strlen(buf), buf_size - strlen(buf), "规则 %d", step->rule_id);
     }
     if (step->func_block_id >= 0) {
         if (buf[0] != '\0')
-            strncat(buf, "，", buf_size - strlen(buf) - 1);
+            lv_strncat(buf, "，", buf_size);
         snprintf(buf + strlen(buf), buf_size - strlen(buf), "函数块 %d", step->func_block_id);
     }
 }
@@ -1055,17 +1055,17 @@ static void describe_objects_en(const ProofStep *step, char *buf, size_t buf_siz
     }
     if (step->constraint_id >= 0) {
         if (buf[0] != '\0')
-            strncat(buf, ", ", buf_size - strlen(buf) - 1);
+            lv_strncat(buf, ", ", buf_size);
         snprintf(buf + strlen(buf), buf_size - strlen(buf), "constraint %d", step->constraint_id);
     }
     if (step->rule_id >= 0) {
         if (buf[0] != '\0')
-            strncat(buf, ", ", buf_size - strlen(buf) - 1);
+            lv_strncat(buf, ", ", buf_size);
         snprintf(buf + strlen(buf), buf_size - strlen(buf), "rule %d", step->rule_id);
     }
     if (step->func_block_id >= 0) {
         if (buf[0] != '\0')
-            strncat(buf, ", ", buf_size - strlen(buf) - 1);
+            lv_strncat(buf, ", ", buf_size);
         snprintf(buf + strlen(buf), buf_size - strlen(buf), "function block %d", step->func_block_id);
     }
 }

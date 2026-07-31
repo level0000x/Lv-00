@@ -33,6 +33,7 @@
 #include <string.h>
 
 #include "lv/config.h"
+#include "lv/ode_integrator.h"
 
 #include "error_codes.h"
 #include "lv_internal.h"
@@ -163,6 +164,16 @@ static int geoevol_rhs_eval(lvGeomEvol *evol, double t, const double *y, double 
     return evol->rhs_func(t, y, dy, evol);
 }
 
+/**
+ * @brief 共享积分器回调适配器：将 (t, y, dydt, ctx) 映射到 geoevol_rhs_eval
+ *
+ * ctx 为 lvGeomEvol 指针；错误码与 RHS 求值计数由 geoevol_rhs_eval 维护。
+ */
+static int geoevol_rhs_adapter(double t, const double *y, double *dydt, void *ctx) {
+    lvGeomEvol *evol = (lvGeomEvol *) ctx;
+    return geoevol_rhs_eval(evol, t, y, dydt);
+}
+
 /* ========================================================================
  * 多步法历史缓冲区管理
  * ======================================================================== */
@@ -255,17 +266,8 @@ static double geoevol_ms_hist_t(const lvGeomEvol *evol, int offset) {
  * y_{n+1} = y_n + h * f(t_n, y_n)
  */
 static int geoevol_step_euler(lvGeomEvol *evol, double h, const double *y, double *y_out) {
-    int dim = evol->dim;
-    int ret = geoevol_rhs_eval(evol, evol->t, y, evol->dparam);
-    if (ret != 0) {
-        return ret;
-    }
-
-    for (int i = 0; i < dim; ++i) {
-        y_out[i] = y[i] + h * evol->dparam[i];
-    }
-
-    return 0;
+    /* 复用共享积分器 lv_ode_euler_step（与 ode_solver.c 共用同一实现） */
+    return lv_ode_euler_step(evol->t, y, (size_t) evol->dim, h, y_out, geoevol_rhs_adapter, evol);
 }
 
 /* ========================================================================
@@ -282,77 +284,9 @@ static int geoevol_step_euler(lvGeomEvol *evol, double h, const double *y, doubl
  * y_{n+1} = y_n + h/6 * (k1 + 2*k2 + 2*k3 + k4)
  */
 static int geoevol_step_rk4(lvGeomEvol *evol, double h, const double *y, double *y_out) {
-    int dim = evol->dim;
-    double half_h = 0.5 * h;
-    double sixth_h = h / 6.0;
-    double *k1 = evol->dparam;
-
-    /* 需要临时空间存放 k2/k3/k4 和中间值（复用 param 空间不安全） */
-    double *k2 = lv_malloc((size_t) dim * sizeof(double));
-    double *k3 = lv_malloc((size_t) dim * sizeof(double));
-    double *k4 = lv_malloc((size_t) dim * sizeof(double));
-    double *tmp = lv_malloc((size_t) dim * sizeof(double));
-
-    if (!k2 || !k3 || !k4 || !tmp) {
-        if (k2)
-            lv_free((void **) &k2);
-        if (k3)
-            lv_free((void **) &k3);
-        if (k4)
-            lv_free((void **) &k4);
-        if (tmp)
-            lv_free((void **) &tmp);
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "RK4 temporary space allocation failed, dim=%d", dim);
-    }
-
-    /* k1 = f(t, y) */
-    int ret = geoevol_rhs_eval(evol, evol->t, y, k1);
-    if (ret != 0) {
-        goto cleanup_rk4;
-    }
-
-    /* tmp = y + h/2 * k1, k2 = f(t + h/2, tmp) */
-    for (int i = 0; i < dim; ++i) {
-        tmp[i] = y[i] + half_h * k1[i];
-    }
-    ret = geoevol_rhs_eval(evol, evol->t + half_h, tmp, k2);
-    if (ret != 0) {
-        goto cleanup_rk4;
-    }
-
-    /* tmp = y + h/2 * k2, k3 = f(t + h/2, tmp) */
-    for (int i = 0; i < dim; ++i) {
-        tmp[i] = y[i] + half_h * k2[i];
-    }
-    ret = geoevol_rhs_eval(evol, evol->t + half_h, tmp, k3);
-    if (ret != 0) {
-        goto cleanup_rk4;
-    }
-
-    /* tmp = y + h * k3, k4 = f(t + h, tmp) */
-    for (int i = 0; i < dim; ++i) {
-        tmp[i] = y[i] + h * k3[i];
-    }
-    ret = geoevol_rhs_eval(evol, evol->t + h, tmp, k4);
-    if (ret != 0) {
-        goto cleanup_rk4;
-    }
-
-    /* y_{n+1} = y_n + h/6 * (k1 + 2*k2 + 2*k3 + k4) */
-    for (int i = 0; i < dim; ++i) {
-        y_out[i] = y[i] + sixth_h * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
-    }
-
-cleanup_rk4:
-    if (k2)
-        lv_free((void **) &k2);
-    if (k3)
-        lv_free((void **) &k3);
-    if (k4)
-        lv_free((void **) &k4);
-    if (tmp)
-        lv_free((void **) &tmp);
-    return ret;
+    /* 复用共享积分器 lv_ode_rk4_step（与 ode_solver.c 共用同一实现，
+     * k1-k4 计算顺序逐位一致；evol->t 由调用方在必要时临时调整） */
+    return lv_ode_rk4_step(evol->t, y, (size_t) evol->dim, h, y_out, geoevol_rhs_adapter, evol);
 }
 
 /* ========================================================================
@@ -389,13 +323,15 @@ static int geoevol_step_adams(lvGeomEvol *evol, double h, const double *y, doubl
     int dim = evol->dim;
     int max_ord = GEOEVOL_ADAMS_MAX_ORDER;
 
-    /* Adams-Bashforth 系数表（阶 1~5） */
+    /* Adams-Bashforth 系数表（阶 1~5）。
+     * 阶 4 行（AB4）与共享系数表 lv_ode_ab4_coeffs 完全一致，
+     * 使用处统一复用 lv_ode_ab4_coeffs，避免重复定义。 */
     static const double ab_coeffs[5][5] = {
-        {1.0, 0.0, 0.0, 0.0, 0.0},                                                        /* AB1 */
-        {1.5, -0.5, 0.0, 0.0, 0.0},                                                       /* AB2 */
-        {23.0 / 12.0, -16.0 / 12.0, 5.0 / 12.0, 0.0, 0.0},                                /* AB3 */
-        {55.0 / 24.0, -59.0 / 24.0, 37.0 / 24.0, -9.0 / 24.0, 0.0},                       /* AB4 */
-        {1901.0 / 720.0, -2774.0 / 720.0, 2616.0 / 720.0, -1274.0 / 720.0, 251.0 / 720.0} /* AB5 */
+        [0] = {1.0, 0.0, 0.0, 0.0, 0.0},                                                        /* AB1 */
+        [1] = {1.5, -0.5, 0.0, 0.0, 0.0},                                                       /* AB2 */
+        [2] = {23.0 / 12.0, -16.0 / 12.0, 5.0 / 12.0, 0.0, 0.0},                                /* AB3 */
+        /* [3] 占位（AB4）：复用共享 lv_ode_ab4_coeffs */
+        [4] = {1901.0 / 720.0, -2774.0 / 720.0, 2616.0 / 720.0, -1274.0 / 720.0, 251.0 / 720.0} /* AB5 */
     };
 
     /* Adams-Moulton 系数表（阶 1~5） */
@@ -451,7 +387,8 @@ static int geoevol_step_adams(lvGeomEvol *evol, double h, const double *y, doubl
     /* ── 第一步：Adams-Bashforth 显式预测 ── */
     /* y_predict = y_n + h * sum_{j=0}^{order-1} beta_j * f_{n-j} */
     /* 注意：y_n 就是 y（当前传入的参数），f_{n-j} 是历史中偏移 j 的 RHS */
-    const double *ab = ab_coeffs[order - 1];
+    /* 阶 4（AB4）使用共享系数表，其余阶使用本地表 */
+    const double *ab = (order == 4) ? lv_ode_ab4_coeffs : ab_coeffs[order - 1];
     for (int i = 0; i < dim; ++i) {
         double sum = 0.0;
         for (int j = 0; j < order; ++j) {

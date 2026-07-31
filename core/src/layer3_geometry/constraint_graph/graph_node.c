@@ -50,6 +50,8 @@
 void graph_node_index_insert(ConstraintGraph *graph, GeomNode *node);
 void node_index_remove(ConstraintGraph *graph, int node_id);
 void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
+/* graph_index.c 中定义：为已分配的约束填充参与者数组（malloc + 复制），供本文件反序列化复用 */
+bool graph_constraint_assign_participants(Constraint *con, const int *participants, int count);
 
 /**
  * @brief 安全数组扩容辅助函数（委托给统一的 lv_ensure_capacity）
@@ -274,13 +276,11 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
     con->id = constraint_id;
     con->type = type;
     con->is_active = true; /* v3.5.0: 新约束默认活跃 */
-    con->participant_count = participant_count;
-    con->participants = lv_malloc((size_t) participant_count * sizeof(int));
-    if (!con->participants) {
+    /* 复用共享的参与者分配器（graph_index.c）：malloc + 复制 + 设置 participant_count */
+    if (!graph_constraint_assign_participants(con, participants, participant_count)) {
         lv_free((void **) &con);
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: malloc participants failed");
     }
-    memcpy(con->participants, participants, participant_count * sizeof(int));
 
     /* 扩展数组 */
     if (graph->constraint_count >= graph->constraint_capacity) {

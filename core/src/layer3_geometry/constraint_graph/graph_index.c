@@ -97,6 +97,58 @@ static bool validate_cross_boundary_refs(GeomNode *func_block, int *internal_ids
 }
 
 /**
+ * 内部：为已分配的约束填充参与者数组（malloc + 复制）。
+ *
+ * 供 typed add_* 的共享分配器与反序列化（graph_add_constraint_with_id）复用。
+ * 失败时返回 false 且 con->participants 保持 NULL，由调用方负责回滚约束本体
+ * （typed 路径需同时回滚图计数与索引，with-id 路径仅释放约束）。
+ *
+ * @param con          已分配的约束指针（不得为 NULL）
+ * @param participants 参与者节点 ID 数组
+ * @param count        参与者数量
+ * @return true 成功，false 分配失败
+ */
+bool graph_constraint_assign_participants(Constraint *con, const int *participants, int count) {
+    con->participants = lv_malloc((size_t) count * sizeof(int));
+    if (!con->participants)
+        return false;
+    memcpy(con->participants, participants, (size_t) count * sizeof(int));
+    con->participant_count = count;
+    return true;
+}
+
+/**
+ * 内部：按类型分配约束并填充参与者（含查重与失败回滚），供 typed add_* 复用。
+ *
+ * 流程：constraint_exists 查重 → graph_alloc_constraint 分配 →
+ * 参与者数组 malloc；分配参与者失败时回滚约束（撤销计数与索引注册）并返回冲突。
+ *
+ * @param graph        约束图指针
+ * @param type         约束类型
+ * @param participants 参与者节点 ID 数组
+ * @param count        参与者数量
+ * @param out_con      成功时输出新分配的约束指针，失败时置 NULL
+ * @return 添加结果状态码（ADD_CONSTRAINT_OK / DUPLICATE / CONFLICT）
+ */
+static AddConstraintResult graph_add_constraint_typed(ConstraintGraph *graph, ConstraintType type,
+                                                      const int *participants, int count, Constraint **out_con) {
+    *out_con = NULL;
+    if (constraint_exists(graph, type, participants, count))
+        return ADD_CONSTRAINT_DUPLICATE;
+    Constraint *con = graph_alloc_constraint(graph, type);
+    if (!con)
+        return ADD_CONSTRAINT_CONFLICT;
+    if (!graph_constraint_assign_participants(con, participants, count)) {
+        graph->constraint_count--;
+        constraint_index_remove(graph, con->id);
+        lv_free((void **) &con);
+        return ADD_CONSTRAINT_CONFLICT;
+    }
+    *out_con = con;
+    return ADD_CONSTRAINT_OK;
+}
+
+/**
  * 在约束图中添加关联约束（点在线/区域上）。
  *
  * @param graph           约束图指针
@@ -114,21 +166,10 @@ AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, in
     if (target->type != GEOM_LINE_SEGMENT && target->type != GEOM_REGION && target->type != GEOM_CIRCLE)
         return ADD_CONSTRAINT_CONFLICT;
     int participants[2] = {point_id, line_or_region_id};
-    if (constraint_exists(graph, INCIDENCE, participants, 2))
-        return ADD_CONSTRAINT_DUPLICATE;
-    Constraint *con = graph_alloc_constraint(graph, INCIDENCE);
-    if (!con)
-        return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv_malloc(2 * sizeof(int));
-    if (!con->participants) {
-        graph->constraint_count--;
-        constraint_index_remove(graph, con->id);
-        lv_free((void **) &con);
-        return ADD_CONSTRAINT_CONFLICT;
-    }
-    con->participants[0] = point_id;
-    con->participants[1] = line_or_region_id;
-    con->participant_count = 2;
+    Constraint *con = NULL;
+    AddConstraintResult result = graph_add_constraint_typed(graph, INCIDENCE, participants, 2, &con);
+    if (result != ADD_CONSTRAINT_OK)
+        return result;
     /* 增量代数冲突检查 */
     if (check_incremental_conflict(graph, con)) {
         LOG_WARN("constraint_graph",
@@ -165,21 +206,10 @@ AddConstraintResult graph_add_angle(ConstraintGraph *graph, int line1_id, int li
     if (l1->type != GEOM_LINE_SEGMENT || l2->type != GEOM_LINE_SEGMENT)
         return ADD_CONSTRAINT_CONFLICT;
     int participants[2] = {line1_id, line2_id};
-    if (constraint_exists(graph, ANGLE, participants, 2))
-        return ADD_CONSTRAINT_DUPLICATE;
-    Constraint *con = graph_alloc_constraint(graph, ANGLE);
-    if (!con)
-        return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv_malloc(2 * sizeof(int));
-    if (!con->participants) {
-        graph->constraint_count--;
-        constraint_index_remove(graph, con->id);
-        lv_free((void **) &con);
-        return ADD_CONSTRAINT_CONFLICT;
-    }
-    con->participants[0] = line1_id;
-    con->participants[1] = line2_id;
-    con->participant_count = 2;
+    Constraint *con = NULL;
+    AddConstraintResult result = graph_add_constraint_typed(graph, ANGLE, participants, 2, &con);
+    if (result != ADD_CONSTRAINT_OK)
+        return result;
     con->numeric_value = angle_degrees;
     graph->dirty = true;
     return ADD_CONSTRAINT_OK;
@@ -206,20 +236,10 @@ AddConstraintResult graph_add_betweenness(ConstraintGraph *graph, int p1_id, int
         return ADD_CONSTRAINT_CONFLICT;
     }
     int participants[3] = {p1_id, p2_id, p3_id};
-    if (constraint_exists(graph, BETWEENNESS, participants, 3))
-        return ADD_CONSTRAINT_DUPLICATE;
-    Constraint *con = graph_alloc_constraint(graph, BETWEENNESS);
-    if (!con)
-        return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv_malloc(3 * sizeof(int));
-    if (!con->participants) {
-        graph->constraint_count--;
-        constraint_index_remove(graph, con->id);
-        lv_free((void **) &con);
-        return ADD_CONSTRAINT_CONFLICT;
-    }
-    memcpy(con->participants, participants, 3 * sizeof(int));
-    con->participant_count = 3;
+    Constraint *con = NULL;
+    AddConstraintResult result = graph_add_constraint_typed(graph, BETWEENNESS, participants, 3, &con);
+    if (result != ADD_CONSTRAINT_OK)
+        return result;
     /* 增量代数冲突检查 */
     if (check_incremental_conflict(graph, con)) {
         LOG_WARN("constraint_graph",
@@ -253,20 +273,10 @@ AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id,
     if (pt->type != GEOM_POINT)
         return ADD_CONSTRAINT_CONFLICT;
     int participants[3] = {line1_id, line2_id, result_point_id};
-    if (constraint_exists(graph, INTERSECTION, participants, 3))
-        return ADD_CONSTRAINT_DUPLICATE;
-    Constraint *con = graph_alloc_constraint(graph, INTERSECTION);
-    if (!con)
-        return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv_malloc(3 * sizeof(int));
-    if (!con->participants) {
-        graph->constraint_count--;
-        constraint_index_remove(graph, con->id);
-        lv_free((void **) &con);
-        return ADD_CONSTRAINT_CONFLICT;
-    }
-    memcpy(con->participants, participants, 3 * sizeof(int));
-    con->participant_count = 3;
+    Constraint *con = NULL;
+    AddConstraintResult result = graph_add_constraint_typed(graph, INTERSECTION, participants, 3, &con);
+    if (result != ADD_CONSTRAINT_OK)
+        return result;
     /* 增量代数冲突检查 */
     if (check_incremental_conflict(graph, con)) {
         LOG_WARN("constraint_graph",
@@ -308,21 +318,10 @@ AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, 
     }
 
     int participants[2] = {inner_id, outer_id};
-    if (constraint_exists(graph, CONTAINMENT, participants, 2))
-        return ADD_CONSTRAINT_DUPLICATE;
-    Constraint *con = graph_alloc_constraint(graph, CONTAINMENT);
-    if (!con)
-        return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv_malloc(2 * sizeof(int));
-    if (!con->participants) {
-        graph->constraint_count--;
-        constraint_index_remove(graph, con->id);
-        lv_free((void **) &con);
-        return ADD_CONSTRAINT_CONFLICT;
-    }
-    con->participants[0] = inner_id;
-    con->participants[1] = outer_id;
-    con->participant_count = 2;
+    Constraint *con = NULL;
+    AddConstraintResult result = graph_add_constraint_typed(graph, CONTAINMENT, participants, 2, &con);
+    if (result != ADD_CONSTRAINT_OK)
+        return result;
     graph->dirty = true; /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
@@ -354,21 +353,10 @@ AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id
         return ADD_CONSTRAINT_CONFLICT;
     }
     int participants[2] = {src_port_id, dst_port_id};
-    if (constraint_exists(graph, CONNECTION, participants, 2))
-        return ADD_CONSTRAINT_DUPLICATE;
-    Constraint *con = graph_alloc_constraint(graph, CONNECTION);
-    if (!con)
-        return ADD_CONSTRAINT_CONFLICT;
-    con->participants = lv_malloc(2 * sizeof(int));
-    if (!con->participants) {
-        graph->constraint_count--;
-        constraint_index_remove(graph, con->id);
-        lv_free((void **) &con);
-        return ADD_CONSTRAINT_CONFLICT;
-    }
-    con->participants[0] = src_port_id;
-    con->participants[1] = dst_port_id;
-    con->participant_count = 2;
+    Constraint *con = NULL;
+    AddConstraintResult result = graph_add_constraint_typed(graph, CONNECTION, participants, 2, &con);
+    if (result != ADD_CONSTRAINT_OK)
+        return result;
     /* 建立双向连接关系 */
     dst_port->connected_to = src;
     src_port->connected_to = dst;

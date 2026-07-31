@@ -1228,11 +1228,12 @@ static bool write_png_rgb(const char *path, int width, int height, const uint8_t
         }
         bool is_last = (raw_remaining <= 65535);
         idat_buf[idat_pos++] = is_last ? 0x01 : 0x00;
-        idat_buf[idat_pos++] = (uint8_t) (blk_len & 0xFF);
-        idat_buf[idat_pos++] = (uint8_t) ((blk_len >> 8) & 0xFF);
+        /* zlib 块头为小端序 16 位长度字段 */
+        lv_store_le16(idat_buf + idat_pos, (uint16_t) blk_len);
+        idat_pos += 2;
         uint16_t nlen = (uint16_t) (~blk_len);
-        idat_buf[idat_pos++] = (uint8_t) (nlen & 0xFF);
-        idat_buf[idat_pos++] = (uint8_t) ((nlen >> 8) & 0xFF);
+        lv_store_le16(idat_buf + idat_pos, nlen);
+        idat_pos += 2;
         memcpy(idat_buf + idat_pos, raw + (raw_size - raw_remaining), blk_len);
         idat_pos += blk_len;
         raw_remaining -= blk_len;

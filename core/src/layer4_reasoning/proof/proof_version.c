@@ -68,7 +68,7 @@ static char *format_proof_step_nl(ProofStep *step, ProofNaturalLanguage lang) {
         for (int d = 0; d < step->dependency_count && d < 8; d++) {
             len = strlen(result);
             if (d > 0) {
-                strncat(result, ", ", sizeof(result) - len - 1);
+                lv_strncat(result, ", ", sizeof(result));
                 len = strlen(result);
             }
             snprintf(result + len, sizeof(result) - len, "Step %d", step->dependency_step_ids[d]);

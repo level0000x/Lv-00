@@ -482,9 +482,9 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
         if (i > 0) {
             /* hash_buf already has separator space from memset */
         }
-        strncat(hash_buf, hash, lv_OID_LENGTH - 1);
+        lv_strncat(hash_buf, hash, file_count * (lv_OID_LENGTH + 1));
         if (i + 1 < file_count) {
-            strncat(hash_buf, " ", lv_OID_LENGTH - 1 - strlen(hash_buf));
+            lv_strncat(hash_buf, " ", file_count * (lv_OID_LENGTH + 1));
         }
     }
 

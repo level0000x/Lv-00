@@ -26,10 +26,28 @@
  */
 
 #include "lv/ode_solver.h"
+#include "lv/ode_integrator.h"
 
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* ============================================================
+ * ODE 右端函数适配器（lvODERhsFn(void 返回) -> lvOdeDerivFn(int 返回)）
+ * ============================================================ */
+
+/** @brief 适配器上下文：携带 RHS 函数与用户参数 */
+typedef struct {
+    lvODERhsFn rhs;
+    void *params;
+} lvOdeRhsCtx;
+
+/** @brief 将 void 返回的 lvODERhsFn 包装为 int 返回的 lvOdeDerivFn */
+static int ode_solver_rhs_adapter(double t, const double *y, double *dydt, void *ctx) {
+    lvOdeRhsCtx *c = (lvOdeRhsCtx *) ctx;
+    c->rhs(t, y, c->params, dydt);
+    return 0;
+}
 
 /* ============================================================
  * Internal helpers
@@ -57,78 +75,23 @@ static size_t compute_num_steps(const lvODEProblem *problem, const lvODEConfig *
 
 /**
  * @brief Perform one step of the explicit Euler method.
+ *
+ * 复用共享积分器 lv_ode_euler_step（与 geom_evol.c 共用同一实现）。
  */
 static void euler_step(lvODERhsFn rhs, double t, const double *y, double dt, size_t dim, void *params, double *y_next) {
-    double *dydt = (double *) lv_calloc(dim, sizeof(double));
-    if (!dydt) {
-        /* 分配失败：清零输出并返回 */
-        if (y_next)
-            memset(y_next, 0, dim * sizeof(double));
-        return;
-    }
-
-    rhs(t, y, params, dydt);
-
-    for (size_t i = 0; i < dim; i++) {
-        y_next[i] = y[i] + dt * dydt[i];
-    }
-
-    lv_free((void **) &dydt);
+    lvOdeRhsCtx ctx = {rhs, params};
+    lv_ode_euler_step(t, y, dim, dt, y_next, ode_solver_rhs_adapter, &ctx);
 }
 
 /**
  * @brief Perform one step of the classical RK4 method.
+ *
+ * 复用共享积分器 lv_ode_rk4_step（与 geom_evol.c 共用同一实现，
+ * k1-k4 计算顺序逐位一致）。
  */
 static void rk4_step(lvODERhsFn rhs, double t, const double *y, double dt, size_t dim, void *params, double *y_next) {
-    double *k1 = (double *) lv_calloc(dim, sizeof(double));
-    double *k2 = (double *) lv_calloc(dim, sizeof(double));
-    double *k3 = (double *) lv_calloc(dim, sizeof(double));
-    double *k4 = (double *) lv_calloc(dim, sizeof(double));
-    double *ytmp = (double *) lv_calloc(dim, sizeof(double));
-
-    if (!k1 || !k2 || !k3 || !k4 || !ytmp) {
-        /* Allocation failure: zero out y_next and clean up */
-        if (y_next)
-            memset(y_next, 0, dim * sizeof(double));
-        lv_free((void **) &k1);
-        lv_free((void **) &k2);
-        lv_free((void **) &k3);
-        lv_free((void **) &k4);
-        lv_free((void **) &ytmp);
-        return;
-    }
-
-    /* k1 = f(t, y) */
-    rhs(t, y, params, k1);
-
-    /* k2 = f(t + dt/2, y + dt/2 * k1) */
-    for (size_t i = 0; i < dim; i++) {
-        ytmp[i] = y[i] + 0.5 * dt * k1[i];
-    }
-    rhs(t + 0.5 * dt, ytmp, params, k2);
-
-    /* k3 = f(t + dt/2, y + dt/2 * k2) */
-    for (size_t i = 0; i < dim; i++) {
-        ytmp[i] = y[i] + 0.5 * dt * k2[i];
-    }
-    rhs(t + 0.5 * dt, ytmp, params, k3);
-
-    /* k4 = f(t + dt, y + dt * k3) */
-    for (size_t i = 0; i < dim; i++) {
-        ytmp[i] = y[i] + dt * k3[i];
-    }
-    rhs(t + dt, ytmp, params, k4);
-
-    /* y_next = y + dt/6 * (k1 + 2*k2 + 2*k3 + k4) */
-    for (size_t i = 0; i < dim; i++) {
-        y_next[i] = y[i] + (dt / 6.0) * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
-    }
-
-    lv_free((void **) &k1);
-    lv_free((void **) &k2);
-    lv_free((void **) &k3);
-    lv_free((void **) &k4);
-    lv_free((void **) &ytmp);
+    lvOdeRhsCtx ctx = {rhs, params};
+    lv_ode_rk4_step(t, y, dim, dt, y_next, ode_solver_rhs_adapter, &ctx);
 }
 
 /**
@@ -159,7 +122,7 @@ static void ab4_step(lvODERhsFn rhs, double t, const double *y, double dt, size_
     rhs(t, y, params, f_n);
 
     /* Compute y_{n+1} = y_n + dt * sum(beta_i * f_{n-i}) */
-    static const double beta[4] = {55.0 / 24.0, -59.0 / 24.0, 37.0 / 24.0, -9.0 / 24.0};
+    const double *beta = lv_ode_ab4_coeffs;
     size_t hist_idx[4];
     hist_idx[0] = history_idx;
     hist_idx[1] = (history_idx == 0) ? 3 : history_idx - 1;

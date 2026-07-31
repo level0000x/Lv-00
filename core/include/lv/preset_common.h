@@ -129,7 +129,6 @@ bool preset_common_register(void);
     } while (0)
 
 size_t lv_safe_strncpy(char *dest, const char *src, size_t dest_size);
-size_t lv_safe_strncat(char *dest, const char *src, size_t dest_size);
 int lv_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...);
 int preset_properties_to_string(PresetProperty properties, char *buffer, size_t buffer_size);
 bool preset_properties_from_string(const char *str, PresetProperty *properties);

@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "lv/lv_json.h"
+#include "lv/lv_xmacro.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"

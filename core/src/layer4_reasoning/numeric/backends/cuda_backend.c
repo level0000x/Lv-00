@@ -28,6 +28,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "lv/bicgstab_shared.h"
 #include "lv/lv_utils.h"
 #include "debug.h"
 #include "lv/lv_internal.h"
@@ -52,8 +53,6 @@
 #define lv_NUM_EPSILON lv_EPSILON_MEDIUM
 #endif
 
-#define CUDA_DEFAULT_MAX_ITERS 200
-#define CUDA_DEFAULT_TOL       lv_EPSILON_HIGH
 #define CUDA_MAT_WORK_BLOCK_SIZE 64
 
 /* ========================================================================
@@ -1288,8 +1287,7 @@ static int cuda_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
 
     CudaIterSolverData *is = lv_calloc(1, sizeof(CudaIterSolverData));
     lv_CHECK_ALLOC(is, lv_BACKEND_MEM_ERROR);
-    is->max_iters = CUDA_DEFAULT_MAX_ITERS;
-    is->tol = CUDA_DEFAULT_TOL;
+    lv_linsol_default_params(&is->max_iters, &is->tol);
     is->n = A->rows;
 
     /* 在 GPU 上创建矩阵副本 */
@@ -1592,10 +1590,50 @@ static int cuda_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVecto
     return lv_BACKEND_OK;
 }
 
+/* ========================================================================
+ * BiCGSTAB 共享内核的 CUDA 算子（GPU matvec + 主机端点积/范数）
+ * ======================================================================== */
+
+/** @brief CUDA 主机端点积：<a, b>（与原实现内联求和顺序一致） */
+static double cuda_bicgstab_dot(void *ctx, const double *a, const double *b, int64_t n) {
+    (void) ctx;
+    double sum = 0.0;
+    for (int64_t i = 0; i < n; ++i) sum += a[i] * b[i];
+    return sum;
+}
+
+/** @brief CUDA 主机端 L2 范数：||v||_2 */
+static double cuda_bicgstab_norm(void *ctx, const double *v, int64_t n) {
+    (void) ctx;
+    double sum = 0.0;
+    for (int64_t i = 0; i < n; ++i) sum += v[i] * v[i];
+    return sqrt(sum);
+}
+
+/** @brief CUDA 矩阵向量乘：y = A*x（GPU 内核，经 is->d_work / is->d_ap 中转） */
+static void cuda_bicgstab_matvec(void *ctx, const lvMatrix *A, const double *x, double *y, int64_t n) {
+    CudaIterSolverData *is = (CudaIterSolverData *) ctx;
+    CudaMatrixData *amd = (CudaMatrixData *) A->backend_data;
+    cuda_safe_memcpy(is->d_work, x, (size_t) n * sizeof(double),
+                      cudaMemcpyHostToDevice, "bicgstab p");
+    cudaMemset(is->d_ap, 0, (size_t) n * sizeof(double));
+    {
+        int blocks, threads;
+        cuda_grid_config(A->rows, &blocks, &threads);
+        matvec_kernel<<<blocks, threads>>>(amd->d_data, A->rows, A->cols,
+                                            is->d_work, is->d_ap);
+        cudaDeviceSynchronize();
+    }
+    cuda_safe_memcpy(y, is->d_ap, (size_t) n * sizeof(double),
+                      cudaMemcpyDeviceToHost, "bicgstab v");
+}
+
 /**
  * @brief CUDA BiCGSTAB 求解器
  *
  * GPU 加速矩阵-向量乘法，CPU 端执行向量操作与收敛判断。
+ * 算法主体委托给共享内核 lv_bicgstab_solve()（bicgstab_shared.c），
+ * 此处仅提供 CUDA 算子表并在求解前后回读/写回 GPU 数据。
  */
 static int cuda_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
@@ -1611,129 +1649,40 @@ static int cuda_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVe
     }
 
     int64_t n = A->rows;
-    int max_iter = is->max_iters;
-    double tol = is->tol;
-
-    CudaMatrixData *amd = (CudaMatrixData *) A->backend_data;
     CudaVectorData *bvd = (CudaVectorData *) b->backend_data;
     CudaVectorData *xvd = (CudaVectorData *) x->backend_data;
 
-    /* CPU 端工作区 */
-    double *h_r  = lv_calloc((size_t) n, sizeof(double));
-    double *h_r0 = lv_calloc((size_t) n, sizeof(double));
-    double *h_p  = lv_calloc((size_t) n, sizeof(double));
-    double *h_v  = lv_calloc((size_t) n, sizeof(double));
-    double *h_s  = lv_calloc((size_t) n, sizeof(double));
-    double *h_t  = lv_calloc((size_t) n, sizeof(double));
-    double *h_x  = lv_calloc((size_t) n, sizeof(double));
-
-    if (!h_r || !h_r0 || !h_p || !h_v || !h_s || !h_t || !h_x) {
-        if (h_r)  lv_free((void **) &h_r);
-        if (h_r0) lv_free((void **) &h_r0);
-        if (h_p)  lv_free((void **) &h_p);
-        if (h_v)  lv_free((void **) &h_v);
-        if (h_s)  lv_free((void **) &h_s);
-        if (h_t)  lv_free((void **) &h_t);
-        if (h_x)  lv_free((void **) &h_x);
+    /* 主机端 b/x 缓冲 */
+    double *h_b = lv_calloc((size_t) n, sizeof(double));
+    double *h_x = lv_calloc((size_t) n, sizeof(double));
+    if (!h_b || !h_x) {
+        if (h_b) lv_free((void **) &h_b);
+        if (h_x) lv_free((void **) &h_x);
         return lv_BACKEND_MEM_ERROR;
     }
 
     /* b 回读 */
-    cuda_safe_memcpy(h_r, bvd->d_data, (size_t) n * sizeof(double),
+    cuda_safe_memcpy(h_b, bvd->d_data, (size_t) n * sizeof(double),
                       cudaMemcpyDeviceToHost, "bicgstab b");
 
-    double b_norm = 0.0;
-    for (int64_t i = 0; i < n; ++i) b_norm += h_r[i] * h_r[i];
-    b_norm = sqrt(b_norm);
+    lvBicgstabOps ops;
+    ops.ctx = is;
+    ops.vector_dot = cuda_bicgstab_dot;
+    ops.vector_norm = cuda_bicgstab_norm;
+    ops.matvec = cuda_bicgstab_matvec;
 
-    /* 初始 r0 = b, x = 0 */
-    memcpy(h_r0, h_r, (size_t) n * sizeof(double));
-    memset(h_x, 0, (size_t) n * sizeof(double));
+    int ret = lv_bicgstab_solve(&ops, A, h_b, h_x, n,
+                                is->max_iters, is->tol, lv_EPSILON_DOUBLE);
 
-    double rho = 1.0, alpha = 1.0, omega = 1.0;
-    memset(h_p, 0, (size_t) n * sizeof(double));
-    memset(h_v, 0, (size_t) n * sizeof(double));
-
-    for (int iter = 0; iter < max_iter; ++iter) {
-        double rho_new = 0.0;
-        for (int64_t i = 0; i < n; ++i) rho_new += h_r0[i] * h_r[i];
-
-        if (fabs(rho_new) < lv_EPSILON_DOUBLE) break;
-
-        double safe_rho   = (fabs(rho)   < lv_EPSILON_DOUBLE) ? 1.0 : rho;
-        double safe_omega = (fabs(omega) < lv_EPSILON_DOUBLE) ? 1.0 : omega;
-        double beta = (rho_new / safe_rho) * (alpha / safe_omega);
-
-        for (int64_t i = 0; i < n; ++i) h_p[i] = h_r[i] + beta * (h_p[i] - omega * h_v[i]);
-
-        /* v = A * p (GPU matvec) */
-        cuda_safe_memcpy(is->d_work, h_p, (size_t) n * sizeof(double),
-                          cudaMemcpyHostToDevice, "bicgstab p");
-        cudaMemset(is->d_ap, 0, (size_t) n * sizeof(double));
-        {
-            int blocks, threads;
-            cuda_grid_config(A->rows, &blocks, &threads);
-            matvec_kernel<<<blocks, threads>>>(amd->d_data, A->rows, A->cols,
-                                                is->d_work, is->d_ap);
-            cudaDeviceSynchronize();
-        }
-        cuda_safe_memcpy(h_v, is->d_ap, (size_t) n * sizeof(double),
-                          cudaMemcpyDeviceToHost, "bicgstab v");
-
-        double r0v = 0.0;
-        for (int64_t i = 0; i < n; ++i) r0v += h_r0[i] * h_v[i];
-        if (fabs(r0v) < lv_EPSILON_DOUBLE) break;
-        alpha = rho_new / r0v;
-
-        for (int64_t i = 0; i < n; ++i) h_s[i] = h_r[i] - alpha * h_v[i];
-
-        /* t = A * s (GPU matvec) */
-        cuda_safe_memcpy(is->d_work, h_s, (size_t) n * sizeof(double),
-                          cudaMemcpyHostToDevice, "bicgstab s");
-        cudaMemset(is->d_ap, 0, (size_t) n * sizeof(double));
-        {
-            int blocks, threads;
-            cuda_grid_config(A->rows, &blocks, &threads);
-            matvec_kernel<<<blocks, threads>>>(amd->d_data, A->rows, A->cols,
-                                                is->d_work, is->d_ap);
-            cudaDeviceSynchronize();
-        }
-        cuda_safe_memcpy(h_t, is->d_ap, (size_t) n * sizeof(double),
-                          cudaMemcpyDeviceToHost, "bicgstab t");
-
-        double ts = 0.0, tt = 0.0;
-        for (int64_t i = 0; i < n; ++i) {
-            ts += h_t[i] * h_s[i];
-            tt += h_t[i] * h_t[i];
-        }
-        if (fabs(tt) < lv_EPSILON_DOUBLE) {
-            for (int64_t i = 0; i < n; ++i) h_x[i] += alpha * h_p[i];
-            break;
-        }
-        omega = ts / tt;
-
-        for (int64_t i = 0; i < n; ++i) h_x[i] += alpha * h_p[i] + omega * h_s[i];
-        for (int64_t i = 0; i < n; ++i) h_r[i] = h_s[i] - omega * h_t[i];
-
-        rho = rho_new;
-
-        double r_norm = 0.0;
-        for (int64_t i = 0; i < n; ++i) r_norm += h_r[i] * h_r[i];
-        r_norm = sqrt(r_norm);
-
-        double threshold = (b_norm > lv_EPSILON_DOUBLE) ? tol * b_norm : tol;
-        if (r_norm < threshold) break;
+    if (ret == lv_BACKEND_OK) {
+        /* 结果传回 GPU */
+        cuda_safe_memcpy(xvd->d_data, h_x, (size_t) n * sizeof(double),
+                          cudaMemcpyHostToDevice, "bicgstab final x");
     }
 
-    /* 结果传回 GPU */
-    cuda_safe_memcpy(xvd->d_data, h_x, (size_t) n * sizeof(double),
-                      cudaMemcpyHostToDevice, "bicgstab final x");
-
-    lv_free((void **) &h_r);  lv_free((void **) &h_r0);
-    lv_free((void **) &h_p);  lv_free((void **) &h_v);
-    lv_free((void **) &h_s);  lv_free((void **) &h_t);
+    lv_free((void **) &h_b);
     lv_free((void **) &h_x);
-    return lv_BACKEND_OK;
+    return ret;
 }
 
 /* ========================================================================

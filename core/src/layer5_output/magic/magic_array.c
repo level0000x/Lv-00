@@ -68,15 +68,6 @@ ElementReaction array_check_element_reaction(MagicElement e1, MagicElement e2) {
  * ============================================================ */
 
 /** 魔法阵结构体：由符文序列、约束图和约束列表组成 */
-struct MagicArray {
-    char *name;                       /* 魔法阵名称 */
-    RuneSequence *runes;              /* 符文序列 */
-    ConstraintGraph *graph;           /* 底层约束图 */
-    ArrayConstraintType *constraints; /* 约束类型数组 */
-    int constraint_count;             /* 当前约束数量 */
-    int constraint_capacity;          /* 约束数组容量 */
-};
-
 /**
  * @brief 创建空的魔法阵
  *

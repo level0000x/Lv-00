@@ -1302,19 +1302,13 @@ static bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uin
     /* Write frequency table (256 x int32_t, little-endian) */
     for (int i = 0; i < 256; i++) {
         uint32_t f = freq[i];
-        output[i * 4 + 0] = (uint8_t) (f & 0xFF);
-        output[i * 4 + 1] = (uint8_t) ((f >> 8) & 0xFF);
-        output[i * 4 + 2] = (uint8_t) ((f >> 16) & 0xFF);
-        output[i * 4 + 3] = (uint8_t) ((f >> 24) & 0xFF);
+        lv_store_le32(output + i * 4, f);
     }
 
     /* Write original size */
     size_t offset = 256 * sizeof(uint32_t);
     uint32_t raw_sz = (uint32_t) raw_size;
-    output[offset + 0] = (uint8_t) (raw_sz & 0xFF);
-    output[offset + 1] = (uint8_t) ((raw_sz >> 8) & 0xFF);
-    output[offset + 2] = (uint8_t) ((raw_sz >> 16) & 0xFF);
-    output[offset + 3] = (uint8_t) ((raw_sz >> 24) & 0xFF);
+    lv_store_le32(output + offset, raw_sz);
     offset += sizeof(uint32_t);
 
     /* Use bit writer to encode data */
@@ -1651,24 +1645,15 @@ static bool entropy_encode_real(const uint8_t *raw_data, size_t raw_size, uint8_
     }
 
     /* Write magic bytes */
-    output[0] = (uint8_t) (LVZD_COMPRESS_MAGIC & 0xFF);
-    output[1] = (uint8_t) ((LVZD_COMPRESS_MAGIC >> 8) & 0xFF);
-    output[2] = (uint8_t) ((LVZD_COMPRESS_MAGIC >> 16) & 0xFF);
-    output[3] = (uint8_t) ((LVZD_COMPRESS_MAGIC >> 24) & 0xFF);
+    lv_store_le32(output, (uint32_t) LVZD_COMPRESS_MAGIC);
 
     /* Write original size */
     uint32_t orig_sz = (uint32_t) raw_size;
-    output[4] = (uint8_t) (orig_sz & 0xFF);
-    output[5] = (uint8_t) ((orig_sz >> 8) & 0xFF);
-    output[6] = (uint8_t) ((orig_sz >> 16) & 0xFF);
-    output[7] = (uint8_t) ((orig_sz >> 24) & 0xFF);
+    lv_store_le32(output + 4, orig_sz);
 
     /* Write RLE size */
     uint32_t rle_sz = (uint32_t) rle_size;
-    output[8] = (uint8_t) (rle_sz & 0xFF);
-    output[9] = (uint8_t) ((rle_sz >> 8) & 0xFF);
-    output[10] = (uint8_t) ((rle_sz >> 16) & 0xFF);
-    output[11] = (uint8_t) ((rle_sz >> 24) & 0xFF);
+    lv_store_le32(output + 8, rle_sz);
 
     /* Copy Huffman data */
     memcpy(output + header_size, huffman_data, huffman_size);
@@ -1986,10 +1971,7 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
 
     /* Write CLERS section size */
     uint32_t csz = (uint32_t) clers_serial_size;
-    combined[0] = (uint8_t) (csz & 0xFF);
-    combined[1] = (uint8_t) ((csz >> 8) & 0xFF);
-    combined[2] = (uint8_t) ((csz >> 16) & 0xFF);
-    combined[3] = (uint8_t) ((csz >> 24) & 0xFF);
+    lv_store_le32(combined, csz);
 
     /* Copy CLERS data */
     if (clers_serial && clers_serial_size > 0) {
@@ -2217,10 +2199,7 @@ bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out
  * ======================================================================== */
 
 static void write_uint32_le(uint8_t *buf, uint32_t val) {
-    buf[0] = (uint8_t) (val & 0xFF);
-    buf[1] = (uint8_t) ((val >> 8) & 0xFF);
-    buf[2] = (uint8_t) ((val >> 16) & 0xFF);
-    buf[3] = (uint8_t) ((val >> 24) & 0xFF);
+    lv_store_le32(buf, val);
 }
 
 static void write_uint64_le(uint8_t *buf, uint64_t val) {

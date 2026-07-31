@@ -486,7 +486,7 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel, const Substi
             size_t var_len = strlen(var);
             while (*pos) {
                 if (strncmp(pos, var, var_len) == 0) {
-                    strncat(tmp, repl, buflen - strlen(tmp) - 1);
+                    lv_strncat(tmp, repl, buflen);
                     pos += var_len;
                 } else {
                     size_t cur = strlen(tmp);

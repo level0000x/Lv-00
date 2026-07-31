@@ -53,37 +53,6 @@ error:
     return 0;
 }
 
-size_t lv_safe_strncat(char *dest, const char *src, size_t dest_size) {
-    PRESET_CHECK_NULL(dest, error);
-    PRESET_CHECK_NULL(src, error);
-
-    if (dest_size == 0) {
-        return 0;
-    }
-
-    /* 找到 dest 的末尾 */
-    size_t dest_len = 0;
-    while (dest_len < dest_size && dest[dest_len] != '\0') {
-        dest_len++;
-    }
-
-    if (dest_len >= dest_size - 1) {
-        return dest_len; /* 缓冲区已满 */
-    }
-
-    /* 追加 src */
-    size_t i;
-    for (i = 0; dest_len + i < dest_size - 1 && src[i] != '\0'; i++) {
-        dest[dest_len + i] = src[i];
-    }
-    dest[dest_len + i] = '\0';
-
-    return dest_len + i;
-
-error:
-    return 0;
-}
-
 int lv_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(fmt, error);

@@ -648,6 +648,13 @@ set(lv_LAYER1_SOURCES
     core/src/layer1_parser/formula_string.c
     core/src/layer1_parser/formula_curve.c
     core/src/layer1_parser/formula_renderer.c
+    core/src/layer1_parser/formula_renderer_internal.c
+    core/src/layer1_parser/formula_renderer_latex.c
+    core/src/layer1_parser/formula_renderer_python.c
+    core/src/layer1_parser/formula_renderer_dsl.c
+    core/src/layer1_parser/formula_renderer_mathml.c
+    core/src/layer1_parser/formula_renderer_ascii.c
+    core/src/layer1_parser/formula_renderer_html.c
     core/src/layer1_parser/lexer_shared.c
     core/src/layer1_parser/parser_safety.c
     core/src/layer1_parser/dsl_compiler.c
@@ -874,6 +881,11 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_system/prop_verifier.c
     # 后端求解引擎
     core/src/layer4_reasoning/backends/groebner_engine.c
+    core/src/layer4_reasoning/backends/groebner_engine_core.c
+    core/src/layer4_reasoning/backends/groebner_engine_ring.c
+    core/src/layer4_reasoning/backends/groebner_engine_poly.c
+    core/src/layer4_reasoning/backends/groebner_engine_ideal.c
+    core/src/layer4_reasoning/backends/groebner_engine_variety.c
     core/src/layer4_reasoning/backends/groebner_mono.c
     core/src/layer4_reasoning/backends/groebner_poly.c
     core/src/layer4_reasoning/backends/smt_backend_impl.c
@@ -890,6 +902,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/model/relation_model.c
     core/src/layer4_reasoning/model/algebra_mode.c
     core/src/layer4_reasoning/numeric/numerical_backend.c
+    # BiCGSTAB 共享迭代内核（SERIAL/CUDA/HIP 三个后端复用）
+    core/src/layer4_reasoning/numeric/bicgstab_shared.c
     # 主机端通用 ops 默认实现（消除后端重复的数据搬移实现）
     core/src/layer4_reasoning/numeric/backends/default_host_ops.c
     core/src/layer4_reasoning/numeric/backends/cuda_backend.c
@@ -922,6 +936,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/numeric/autodiff.c
     # ODE 求解器（从 Layer 3 迁移）
     core/src/layer4_reasoning/numeric/ode_solver.c
+    core/src/layer4_reasoning/numeric/ode_integrator.c
     # 位数熔断系统
     core/src/layer4_reasoning/numeric/bit_burning.c
     # v1.1.0 新增：不等式推理系统（桩实现）
@@ -950,6 +965,12 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/func_block/preset_calculus.c
     core/src/layer4_reasoning/func_block/preset_common.c
     core/src/layer4_reasoning/func_block/preset_manager.c
+    core/src/layer4_reasoning/func_block/preset_manager_register.c
+    core/src/layer4_reasoning/func_block/preset_manager_query.c
+    core/src/layer4_reasoning/func_block/preset_manager_instantiate.c
+    core/src/layer4_reasoning/func_block/preset_manager_compose.c
+    core/src/layer4_reasoning/func_block/preset_manager_doc.c
+    core/src/layer4_reasoning/func_block/preset_manager_serialize.c
     # 数学理论预设 (55 个文件)
     core/src/layer4_reasoning/preset/preset_advanced_geometry.c
     core/src/layer4_reasoning/preset/preset_algebraic.c
@@ -1083,6 +1104,9 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/module/module_delta.c
     core/src/layer4_reasoning/module/module_lvz.c
     core/src/layer4_reasoning/module/module_serialize.c
+    core/src/layer4_reasoning/module/module_serialize_msgpack.c
+    core/src/layer4_reasoning/module/module_serialize_json.c
+    core/src/layer4_reasoning/module/module_serialize_autosave.c
     # 多项式
     core/src/layer4_reasoning/numeric/mv_polynomial.c
     )

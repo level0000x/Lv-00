@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "lv/bicgstab_shared.h"
 #include "lv/lv_utils.h"
 #include "debug.h"
 #include "lv/lv_internal.h"
@@ -1158,8 +1159,7 @@ static int hip_iter_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
     HipIterSolverData *is = lv_calloc(1, sizeof(HipIterSolverData));
     lv_CHECK_ALLOC(is, lv_BACKEND_MEM_ERROR);
 
-    is->max_iters = 200;
-    is->tol = 1e-10;
+    lv_linsol_default_params(&is->max_iters, &is->tol);
 
     is->clone = hip_matrix_clone(A);
     if (!is->clone) {
@@ -1519,10 +1519,34 @@ gmres_cleanup:
     return lv_BACKEND_OK;
 }
 
+/* ========================================================================
+ * BiCGSTAB 共享内核的 HIP 算子（GPU matvec/点积/范数 + 主机端递推）
+ * ======================================================================== */
+
+/** @brief HIP 点积（GPU 归约） */
+static double hip_bicgstab_dot(void *ctx, const double *a, const double *b, int64_t n) {
+    (void) ctx;
+    return hip_dot_host_vectors(a, b, n);
+}
+
+/** @brief HIP L2 范数（GPU 归约） */
+static double hip_bicgstab_norm(void *ctx, const double *v, int64_t n) {
+    (void) ctx;
+    return hip_norm_host_vector(v, n);
+}
+
+/** @brief HIP 矩阵向量乘：y = A*x（GPU 内核） */
+static void hip_bicgstab_matvec(void *ctx, const lvMatrix *A, const double *x, double *y, int64_t n) {
+    (void) ctx;
+    hip_matvec_host_vectors(A, x, y, n);
+}
+
 /**
  * @brief HIP BiCGSTAB 求解器
  *
- * 利用 HIP 加速 matvec 和点积，正交化和递推在主机端执行。
+ * 利用 HIP 加速 matvec、点积和范数，递推在主机端执行。
+ * 算法主体委托给共享内核 lv_bicgstab_solve()（bicgstab_shared.c），
+ * 此处仅提供 HIP 算子表并在求解前后回读/写回 GPU 数据。
  */
 static int hip_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
                                const lvVector *b, lvVector *x) {
@@ -1539,28 +1563,13 @@ static int hip_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
     }
 
     int64_t n = A->rows;
-    int max_iter = is->max_iters;
-    double tol = is->tol;
 
-    /* 主机端向量 */
-    double *h_x = (double *)lv_calloc((size_t)n, sizeof(double));
+    /* 主机端 b/x 缓冲 */
     double *h_b = (double *)lv_calloc((size_t)n, sizeof(double));
-    double *h_r = (double *)lv_calloc((size_t)n, sizeof(double));
-    double *h_r0 = (double *)lv_calloc((size_t)n, sizeof(double));
-    double *h_p = (double *)lv_calloc((size_t)n, sizeof(double));
-    double *h_v = (double *)lv_calloc((size_t)n, sizeof(double));
-    double *h_s = (double *)lv_calloc((size_t)n, sizeof(double));
-    double *h_t = (double *)lv_calloc((size_t)n, sizeof(double));
-
-    if (!h_x || !h_b || !h_r || !h_r0 || !h_p || !h_v || !h_s || !h_t) {
-        if (h_x) lv_free((void **)&h_x);
+    double *h_x = (double *)lv_calloc((size_t)n, sizeof(double));
+    if (!h_b || !h_x) {
         if (h_b) lv_free((void **)&h_b);
-        if (h_r) lv_free((void **)&h_r);
-        if (h_r0) lv_free((void **)&h_r0);
-        if (h_p) lv_free((void **)&h_p);
-        if (h_v) lv_free((void **)&h_v);
-        if (h_s) lv_free((void **)&h_s);
-        if (h_t) lv_free((void **)&h_t);
+        if (h_x) lv_free((void **)&h_x);
         return lv_BACKEND_MEM_ERROR;
     }
 
@@ -1570,85 +1579,24 @@ static int hip_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
         hipMemcpy(h_b, bd->d_data, (size_t)n * sizeof(double), hipMemcpyDeviceToHost);
     }
 
-    double b_norm = hip_norm_host_vector(h_b, n);
+    lvBicgstabOps ops;
+    ops.ctx = NULL;
+    ops.vector_dot = hip_bicgstab_dot;
+    ops.vector_norm = hip_bicgstab_norm;
+    ops.matvec = hip_bicgstab_matvec;
 
-    /* 初始猜测 x0 = 0, r0 = b, r0_shadow = b */
-    memset(h_x, 0, (size_t)n * sizeof(double));
-    memcpy(h_r, h_b, (size_t)n * sizeof(double));
-    memcpy(h_r0, h_b, (size_t)n * sizeof(double));
+    int ret = lv_bicgstab_solve(&ops, A, h_b, h_x, n,
+                                is->max_iters, is->tol, 1e-14);
 
-    double rho = 1.0;
-    double alpha = 1.0;
-    double omega = 1.0;
-    memset(h_v, 0, (size_t)n * sizeof(double));
-    memset(h_p, 0, (size_t)n * sizeof(double));
-
-    for (int iter = 0; iter < max_iter; ++iter) {
-        /* rho = <r0, r> */
-        double rho_new = hip_dot_host_vectors(h_r0, h_r, n);
-        if (fabs(rho_new) < 1e-14) break;
-
-        double safe_rho = (fabs(rho) < 1e-14) ? 1.0 : rho;
-        double safe_omega = (fabs(omega) < 1e-14) ? 1.0 : omega;
-        double beta = (rho_new / safe_rho) * (alpha / safe_omega);
-
-        /* p = r + beta * (p - omega * v) */
-        for (int64_t i = 0; i < n; ++i)
-            h_p[i] = h_r[i] + beta * (h_p[i] - omega * h_v[i]);
-
-        /* v = A * p */
-        hip_matvec_host_vectors(A, h_p, h_v, n);
-
-        /* alpha = rho / <r0, v> */
-        double r0v = hip_dot_host_vectors(h_r0, h_v, n);
-        if (fabs(r0v) < 1e-14) break;
-        alpha = rho_new / r0v;
-
-        /* s = r - alpha * v */
-        for (int64_t i = 0; i < n; ++i) h_s[i] = h_r[i] - alpha * h_v[i];
-
-        /* t = A * s */
-        hip_matvec_host_vectors(A, h_s, h_t, n);
-
-        /* omega = <t, s> / <t, t> */
-        double ts = hip_dot_host_vectors(h_t, h_s, n);
-        double tt = hip_dot_host_vectors(h_t, h_t, n);
-        if (fabs(tt) < 1e-14) {
-            for (int64_t i = 0; i < n; ++i) h_x[i] += alpha * h_p[i];
-            break;
-        }
-        omega = ts / tt;
-
-        /* x = x + alpha * p + omega * s */
-        for (int64_t i = 0; i < n; ++i)
-            h_x[i] += alpha * h_p[i] + omega * h_s[i];
-
-        /* r = s - omega * t */
-        for (int64_t i = 0; i < n; ++i) h_r[i] = h_s[i] - omega * h_t[i];
-
-        rho = rho_new;
-
-        /* 收敛检查 */
-        double r_norm = hip_norm_host_vector(h_r, n);
-        double threshold = (b_norm > 1e-14) ? tol * b_norm : tol;
-        if (r_norm < threshold) break;
-    }
-
-    /* 写回结果 */
-    {
+    if (ret == lv_BACKEND_OK) {
+        /* 写回结果 */
         HipVectorData *xd = (HipVectorData *)x->backend_data;
         hipMemcpy(xd->d_data, h_x, (size_t)n * sizeof(double), hipMemcpyHostToDevice);
     }
 
-    lv_free((void **)&h_x);
     lv_free((void **)&h_b);
-    lv_free((void **)&h_r);
-    lv_free((void **)&h_r0);
-    lv_free((void **)&h_p);
-    lv_free((void **)&h_v);
-    lv_free((void **)&h_s);
-    lv_free((void **)&h_t);
-    return lv_BACKEND_OK;
+    lv_free((void **)&h_x);
+    return ret;
 }
 
 /* ========================================================================

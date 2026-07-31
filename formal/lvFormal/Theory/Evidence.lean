@@ -126,7 +126,7 @@ def step_ok (g : ConstraintGraph) (st : VerifierState) (step : ProofStep) : Bool
     Recursively processes each step: checks the condition via step_ok,
     and if it passes, transitions to the next state.
     Returns `some finalState` if all steps pass, `none` otherwise. -/
-partial def go (g : ConstraintGraph) (st : VerifierState) : ProofTrace → Option VerifierState
+def go (g : ConstraintGraph) (st : VerifierState) : ProofTrace → Option VerifierState
   | [] => some st
   | step :: rest =>
     if step_ok g st step then
@@ -161,28 +161,110 @@ def evidence_check (g : ConstraintGraph) (t : ProofTrace) : Bool :=
 
 /-- Compute the final verifier state after processing a trace from a given start.
     This is the pure state-transition version (without verification checks). -/
-partial def trace_fold (st : VerifierState) (t : ProofTrace) : VerifierState :=
+def trace_fold (st : VerifierState) (t : ProofTrace) : VerifierState :=
   match t with
   | [] => st
   | step :: rest => trace_fold (transition st step) rest
 
+/-! ### contains 辅助引理 -/
+
+/-- contains 为真蕴含成员关系 -/
+lemma contains_true_mem {l : List IRConstraint} {c : IRConstraint} (h : l.contains c = true) : c ∈ l := by
+  rcases List.contains_iff_exists_mem_beq.mp h with ⟨a, ha, hbeq⟩
+  have hca : c = a := (beq_iff_eq.mp hbeq)
+  rw [hca]
+  exact ha
+
+/-- 子集蕴含 all.contains 为真 -/
+lemma all_contains_of_subset {l l' : List IRConstraint} (h : ∀ x ∈ l, x ∈ l') :
+    l.all l'.contains = true := by
+  apply List.all_eq_true.mpr
+  intro x hx
+  exact List.contains_iff_exists_mem_beq.mpr ⟨x, h x hx, by simp⟩
+
+/-- 列表对其反转为真（reverse 保持成员关系） -/
+lemma all_reverse_contains (g : ConstraintGraph) : g.all g.reverse.contains = true := by
+  exact all_contains_of_subset (fun x hx => List.mem_reverse.mpr hx)
+
+/-- qed 步骤不修改状态：若图约束均已证明则成功 -/
+lemma go_qed_some (g : ConstraintGraph) (st : VerifierState) (h : g.all st.proved.contains = true) :
+    go g st [.qed] = some st := by
+  simp [go, transition, step_ok, h]
+
+/-- `go` is compositional with respect to trace concatenation:
+    go g st (t1 ++ t2) = (go g st t1).bind (go g · t2). -/
+lemma go_append (g : ConstraintGraph) (st : VerifierState) (t1 t2 : ProofTrace) :
+    go g st (t1 ++ t2) = (go g st t1).bind (go g · t2) := by
+  induction t1 generalizing st with
+  | nil => simp [go]
+  | cons step rest ih =>
+      simp [go]
+      by_cases hok : step_ok g st step
+      · simp [hok]
+        exact ih (transition st step)
+      · simp [hok]
+
 /-- If go returns some state, that state equals the trace_fold from the same start. -/
 lemma go_some_eq_trace_fold (g : ConstraintGraph) (st : VerifierState) (t : ProofTrace) (st' : VerifierState)
     (h : go g st t = some st') : st' = trace_fold st t := by
-  sorry
+  induction t generalizing st with
+  | nil =>
+      simp [go, trace_fold] at h
+      exact h.symm
+  | cons step rest ih =>
+      simp [go, trace_fold] at h
+      by_cases hok : step_ok g st step
+      · simp [hok] at h
+        simpa [trace_fold] using ih (transition st step) h
+      · simp [hok] at h
 
 /-- If go returns some state and the trace ends with qed, then all original
     graph constraints are in the final proved set. -/
 lemma go_all_proved_if_qed_last (g : ConstraintGraph) (st : VerifierState) (t : ProofTrace) (st' : VerifierState)
     (h : go g st t = some st') (h_last : t.getLast? = some .qed) : g.all st'.proved.contains := by
-  sorry
+  rcases List.getLast?_eq_some_iff.mp h_last with ⟨t', rfl⟩
+  rw [go_append] at h
+  cases hgo : go g st t' with
+  | none => simp [hgo] at h
+  | some st'' =>
+      have hq : go g st'' [.qed] = some st' := by
+        simp [hgo] at h
+        exact h
+      simp [go, transition, step_ok] at hq
+      by_cases hok : g.all st''.proved.contains
+      · simp [hok] at hq
+        cases hq
+        exact hok
+      · simp [hok] at hq
 
 /-- If evidence_check_witness returns some st, then the trace ends with qed,
     st equals the trace_fold, and all graph constraints are in st.proved. -/
 lemma evidence_check_witness_spec (g : ConstraintGraph) (t : ProofTrace) (st : VerifierState)
     (h : evidence_check_witness g t = some st) :
     t.getLast? = some .qed ∧ st = trace_fold (initVerifier g) t ∧ g.all st.proved.contains := by
-  sorry
+  unfold evidence_check_witness at h
+  cases hg : t.getLast? with
+  | none => simp [hg] at h
+  | some step =>
+      cases hstep : step with
+      | hypothesis _ =>
+          simp [hg, hstep] at h
+      | lemma _ _ =>
+          simp [hg, hstep] at h
+      | rewrite _ _ =>
+          simp [hg, hstep] at h
+      | unify _ _ =>
+          simp [hg, hstep] at h
+      | normalize _ =>
+          simp [hg, hstep] at h
+      | qed =>
+          constructor
+          · rfl
+          · simp [hg, hstep] at h
+            have hfold := go_some_eq_trace_fold g (initVerifier g) t st h
+            have hlast : t.getLast? = some .qed := by rw [hg, hstep]
+            have hall := go_all_proved_if_qed_last g (initVerifier g) t st h hlast
+            exact ⟨hfold, hall⟩
 
 /- ===============================================================
    Semantic Soundness
@@ -218,7 +300,14 @@ lemma trace_sound_invariant (st : VerifierState) (t : ProofTrace)
     (h_sound : TraceSound st t)
     (h_init : ∃ env : String → ℝ × ℝ, ∀ c ∈ st.proved, ir_sem env c) :
     ∃ env : String → ℝ × ℝ, ∀ c ∈ (trace_fold st t).proved, ir_sem env c := by
-  sorry
+  induction h_sound with
+  | nil =>
+      simp [trace_fold]
+      exact h_init
+  | cons st step rest h_step h_rest ih =>
+      simp [trace_fold]
+      apply ih
+      exact h_step h_init
 
 /- ===============================================================
    Soundness: evidence implies truth
@@ -240,7 +329,31 @@ theorem evidence_soundness (g : ConstraintGraph) (t : ProofTrace)
     (h_check : evidence_check g t = true)
     (h_sound : TraceSound (initVerifier g) t) :
     graph_satisfiable g := by
-  sorry
+  unfold graph_satisfiable
+  unfold evidence_check at h_check
+  cases hw : evidence_check_witness g t with
+  | none => simp [hw] at h_check
+  | some st =>
+      have hspec := evidence_check_witness_spec g t st hw
+      rcases hspec with ⟨hlast, hst, hall⟩
+      -- 满足性不变量：从初始空状态沿 sound 轨迹传播
+      have hsat : ∃ env : String → ℝ × ℝ, ∀ c ∈ st.proved, ir_sem env c := by
+        have hinit : ∃ env : String → ℝ × ℝ, ∀ c ∈ (initVerifier g).proved, ir_sem env c := by
+          exact ⟨fun _ => (0, 0), by simp [initVerifier]⟩
+        have hiv := trace_sound_invariant (initVerifier g) t h_sound hinit
+        rcases hiv with ⟨env, henv⟩
+        refine ⟨env, ?_⟩
+        intro c hc
+        have hc' : c ∈ (trace_fold (initVerifier g) t).proved := by
+          rw [← hst]
+          exact hc
+        exact henv c hc'
+      -- 图约束 ⊆ 已证明集，故均被 env 满足
+      rcases hsat with ⟨env, henv⟩
+      refine ⟨env, ?_⟩
+      intro c hc
+      have hmem : c ∈ st.proved := contains_true_mem (List.all_eq_true.mp hall c hc)
+      exact henv c hmem
 
 /- ===============================================================
    Completeness: satisfiable → there exists a proof trace
@@ -262,7 +375,32 @@ lemma trivial_trace_ends_with_qed (g : ConstraintGraph) :
 lemma go_hypotheses_some (g : ConstraintGraph) (st : VerifierState) :
     go g st (g.map (fun c => .hypothesis c)) =
     some { proved := g.reverse ++ st.proved } := by
-  sorry
+  -- 归纳于 g 时，递归调用保持图参数为 c :: rest 不变，
+  -- 因此需要先证明更强版本：图参数与列表参数分离。
+  have hgeneral : ∀ (g' : ConstraintGraph),
+      go g' st (g.map (fun c => .hypothesis c)) =
+      some { proved := g.reverse ++ st.proved } := by
+    induction g generalizing st with
+    | nil =>
+        intro g'
+        simp [go]
+    | cons c rest ih =>
+        intro g'
+        simp [go, transition, step_ok]
+        exact ih { proved := c :: st.proved } g'
+  exact hgeneral g
+
+/-- 平凡证明迹（hypothesis++qed）总能使证据检查通过 -/
+lemma evidence_trivial_trace_ok (g : ConstraintGraph) :
+    evidence_check g (trivial_proof_trace g) = true := by
+  unfold evidence_check evidence_check_witness
+  simp [trivial_trace_ends_with_qed]
+  unfold trivial_proof_trace
+  rw [go_append]
+  rw [go_hypotheses_some]
+  simp [initVerifier]
+  rw [go_qed_some g { proved := g.reverse } (all_reverse_contains g)]
+  simp
 
 /-- 证据检验的完备性：对于任意约束图 g，
     都存在一个证明迹 t = [hypothesis c₁, ..., hypothesis cₙ, qed]，
@@ -272,7 +410,8 @@ lemma go_hypotheses_some (g : ConstraintGraph) (st : VerifierState) :
     确保所有约束都已证明。 -/
 theorem evidence_completeness (g : ConstraintGraph) :
     ∃ t : ProofTrace, evidence_check g t = true := by
-  sorry
+  refine ⟨trivial_proof_trace g, ?_⟩
+  exact evidence_trivial_trace_ok g
 
 /- ===============================================================
    Verifier properties
@@ -286,13 +425,31 @@ theorem evidence_verifier_deterministic (g : ConstraintGraph) (t : ProofTrace) :
 /-- Running the verifier on an empty trace against an empty graph succeeds -/
 theorem evidence_empty_trivially_satisfiable :
     evidence_check ([] : ConstraintGraph) [.qed] = true := by
-  sorry
+  simpa [trivial_proof_trace] using evidence_trivial_trace_ok ([] : ConstraintGraph)
 
 /-- Running the verifier on a trace without qed at the end fails -/
 theorem evidence_no_qed_fails (g : ConstraintGraph) (t : ProofTrace)
     (h : t.getLast? ≠ some .qed) :
     evidence_check g t = false := by
-  sorry
+  unfold evidence_check evidence_check_witness
+  cases hg : t.getLast? with
+  | none => simp
+  | some step =>
+      cases hstep : step with
+      | hypothesis _ =>
+          simp [hg, hstep]
+      | lemma _ _ =>
+          simp [hg, hstep]
+      | rewrite _ _ =>
+          simp [hg, hstep]
+      | unify _ _ =>
+          simp [hg, hstep]
+      | normalize _ =>
+          simp [hg, hstep]
+      | qed =>
+          exfalso
+          apply h
+          rw [hg, hstep]
 lemma step_ok_independent_of_g (g g' : ConstraintGraph) (st : VerifierState) (step : ProofStep)
     (h_no_qed : step ≠ .qed) : step_ok g st step = step_ok g' st step := by
   cases step
@@ -303,24 +460,43 @@ lemma step_ok_independent_of_g (g g' : ConstraintGraph) (st : VerifierState) (st
   · rfl  -- .normalize
   · exfalso; exact h_no_qed rfl
 
-/-- `go` is compositional with respect to trace concatenation:
-    go g st (t1 ++ t2) = (go g st t1).bind (go g · t2). -/
-lemma go_append (g : ConstraintGraph) (st : VerifierState) (t1 t2 : ProofTrace) :
-    go g st (t1 ++ t2) = (go g st t1).bind (go g · t2) := by
-  sorry
+/-
+`go` is compositional with respect to trace concatenation:
+    go g st (t1 ++ t2) = (go g st t1).bind (go g · t2).
+    该引理已在上方"Core lemmas"部分证明，此处不再重复定义。
+-/
 
 /-- From evidence_check g t = true, we get that go g (initVerifier g) t returns
     some final verifier state. -/
 lemma evidence_check_go_some (g : ConstraintGraph) (t : ProofTrace)
     (h : evidence_check g t = true) :
     ∃ st : VerifierState, go g (initVerifier g) t = some st := by
-  sorry
+  unfold evidence_check evidence_check_witness at h
+  cases hg : t.getLast? with
+  | none => simp [hg] at h
+  | some step =>
+      cases hstep : step with
+      | hypothesis _ =>
+          simp [hg, hstep] at h
+      | lemma _ _ =>
+          simp [hg, hstep] at h
+      | rewrite _ _ =>
+          simp [hg, hstep] at h
+      | unify _ _ =>
+          simp [hg, hstep] at h
+      | normalize _ =>
+          simp [hg, hstep] at h
+      | qed =>
+          simp [hg, hstep] at h
+          cases hgo : go g (initVerifier g) t with
+          | none => simp [hgo] at h
+          | some st => exact ⟨st, hgo⟩
 
 /-- 证据组合定理（简化版）：两个使用平凡迹（hypothesis++qed）验证的图，
     其并集也可用平凡迹验证。 -/
 theorem evidence_compositional_trivial (g1 g2 : ConstraintGraph) :
     evidence_check (g1 ++ g2) (trivial_proof_trace (g1 ++ g2)) = true := by
-  sorry
+  exact evidence_trivial_trace_ok (g1 ++ g2)
 
 /-- 证据组合定理（通用版规格声明）：
     若 g1 和 g2 都能通过证据检查，则 g1 ++ g2 也能。 -/
@@ -328,7 +504,7 @@ theorem evidence_compositional_spec (g1 g2 : ConstraintGraph)
     (h1 : ∃ t1, evidence_check g1 t1 = true)
     (h2 : ∃ t2, evidence_check g2 t2 = true) :
     ∃ t, evidence_check (g1 ++ g2) t = true := by
-  sorry
+  exact ⟨trivial_proof_trace (g1 ++ g2), evidence_compositional_trivial g1 g2⟩
 
 /- ===============================================================
    Concrete verification examples
@@ -340,7 +516,8 @@ theorem evidence_single_distance :
       ([.distance "A" "B" (.const 5)] : ConstraintGraph)
       [.hypothesis (.distance "A" "B" (.const 5)), .qed]
     = true := by
-  sorry
+  simpa [trivial_proof_trace] using
+    evidence_trivial_trace_ok ([.distance "A" "B" (.const 5)] : ConstraintGraph)
 theorem evidence_345_triangle :
     evidence_check
       ([.distance "A" "B" (.const 3),
@@ -353,13 +530,19 @@ theorem evidence_345_triangle :
        .hypothesis (.rightAngle "A" "B" "C"),
        .qed]
     = true := by
-  sorry
+  simpa [trivial_proof_trace] using
+    evidence_trivial_trace_ok
+      ([.distance "A" "B" (.const 3),
+        .distance "B" "C" (.const 4),
+        .distance "A" "C" (.const 5),
+        .rightAngle "A" "B" "C"] : ConstraintGraph)
 theorem evidence_rejects_incomplete :
     evidence_check
       ([.distance "A" "A" (.const 0)] : ConstraintGraph)
       [.hypothesis (.distance "A" "A" (.const 0))]
     = false := by
-  sorry
+  unfold evidence_check evidence_check_witness
+  simp [List.getLast?_cons]
 /- ===============================================================
    State-transition composition
    =============================================================== -/
@@ -368,6 +551,8 @@ theorem evidence_rejects_incomplete :
     then processing t1 ++ t2 from st1 is equivalent to processing t2 from st2. -/
 lemma go_trans_compose (g : ConstraintGraph) (st1 st2 : VerifierState) (t1 t2 : ProofTrace)
     (h : go g st1 t1 = some st2) : go g st1 (t1 ++ t2) = go g st2 t2 := by
-  sorry
+  rw [go_append]
+  rw [h]
+  simp
 
 end

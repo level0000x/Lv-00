@@ -28,6 +28,7 @@
 
 #include "numerical_backend.h"
 
+#include "lv/bicgstab_shared.h"
 #include "lv/default_host_ops.h"
 
 #include <math.h>
@@ -202,12 +203,6 @@ static const lvLinearSolverOps *find_linsol_ops(lvBackendType type) {
 /* ========================================================================
  * 模块级常量定义
  * ======================================================================== */
-
-/** @brief 迭代法默认最大迭代次数 */
-#define NBLINSOL_DEFAULT_MAX_ITERS 200
-
-/** @brief 迭代法默认收敛容差 */
-#define NBLINSOL_DEFAULT_TOL lv_EPSILON_HIGH
 
 /** @brief 小型行/列块大小（用于 LU 分解的临时工作区） */
 #define NBMAT_WORK_BLOCK_SIZE 64
@@ -653,8 +648,7 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
 
     IterSolverData *is = lv_calloc(1, sizeof(IterSolverData));
     lv_CHECK_ALLOC(is, lv_BACKEND_MEM_ERROR);
-    is->max_iters = NBLINSOL_DEFAULT_MAX_ITERS;
-    is->tol = NBLINSOL_DEFAULT_TOL;
+    lv_linsol_default_params(&is->max_iters, &is->tol);
 
     is->clone = default_matrix_clone(A);
     if (!is->clone) {
@@ -940,12 +934,49 @@ static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lv
     return lv_BACKEND_OK;
 }
 
+/* ========================================================================
+ * BiCGSTAB 共享内核的 SERIAL 算子
+ * ======================================================================== */
+
+/** @brief SERIAL 点积：<a, b>（与原实现内联求和顺序一致） */
+static double serial_bicgstab_dot(void *ctx, const double *a, const double *b, int64_t n) {
+    (void) ctx;
+    double sum = 0.0;
+    for (int64_t i = 0; i < n; ++i)
+        sum += a[i] * b[i];
+    return sum;
+}
+
+/** @brief SERIAL L2 范数：||v||_2 */
+static double serial_bicgstab_norm(void *ctx, const double *v, int64_t n) {
+    (void) ctx;
+    double sum = 0.0;
+    for (int64_t i = 0; i < n; ++i)
+        sum += v[i] * v[i];
+    return sqrt(sum);
+}
+
+/** @brief SERIAL 矩阵向量乘：y = A*x（列主序，跳过微小分量，与原实现一致） */
+static void serial_bicgstab_matvec(void *ctx, const lvMatrix *A, const double *x, double *y, int64_t n) {
+    double *a_data = (double *) ((IterSolverData *) ctx)->clone->data;
+    memset(y, 0, (size_t) n * sizeof(double));
+    for (int64_t j = 0; j < A->cols; ++j) {
+        double xj = x[j];
+        if (fabs(xj) < lv_NUM_EPSILON)
+            continue;
+        double *col_j = a_data + j * n;
+        for (int64_t i = 0; i < n; ++i)
+            y[i] += col_j[i] * xj;
+    }
+}
+
 /**
  * @brief BiCGSTAB 求解器 —— 稳定双共轭梯度法 (van der Vorst 1992)
  *
  * @details 标准 BiCGSTAB 算法，使用两组递推关系计算影子残差，
  *          相比 BiCG 具有更平滑的收敛行为。
- *          工作向量分配：r=is->r, p=is->p, v=is->ap, s=is->work, t=额外分配
+ *          算法主体委托给共享内核 lv_bicgstab_solve()（bicgstab_shared.c），
+ *          此处仅提供 SERIAL 算子表（点积/范数/矩阵向量乘）。
  */
 static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x) {
     lv_CHECK_NULL(LS, lv_BACKEND_MEM_ERROR);
@@ -961,136 +992,14 @@ static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const
         is = (IterSolverData *) LS->solver_data;
     }
 
-    int64_t n = A->rows;
-    int max_iter = is->max_iters;
-    double tol = is->tol;
-    double *a_data = (double *) is->clone->data;
+    lvBicgstabOps ops;
+    ops.ctx = is;
+    ops.vector_dot = serial_bicgstab_dot;
+    ops.vector_norm = serial_bicgstab_norm;
+    ops.matvec = serial_bicgstab_matvec;
 
-    /* 分配额外工作向量：r0_shadow 和 t */
-    double *r0 = lv_calloc((size_t) n, sizeof(double));
-    double *t = lv_calloc((size_t) n, sizeof(double));
-    if (!r0 || !t) {
-        if (r0)
-            lv_free((void **) &r0);
-        if (t)
-            lv_free((void **) &t);
-        return lv_BACKEND_MEM_ERROR;
-    }
-
-    /* 工作向量别名 */
-    double *r = is->r;    /* 残差 */
-    double *p = is->p;    /* 搜索方向 */
-    double *v = is->ap;   /* A*p */
-    double *s = is->work; /* 中间残差 */
-
-    /* 计算 ||b|| 用于相对收敛判据 */
-    double b_norm = 0.0;
-    for (int64_t i = 0; i < n; ++i)
-        b_norm += b->data[i] * b->data[i];
-    b_norm = sqrt(b_norm);
-
-    /* 初始猜测 x0 = 0 */
-    memset(x->data, 0, (size_t) n * sizeof(double));
-    memcpy(r, b->data, (size_t) n * sizeof(double));
-    memcpy(r0, b->data, (size_t) n * sizeof(double));
-
-    double rho = 1.0;
-    double alpha = 1.0;
-    double omega = 1.0;
-
-    memset(v, 0, (size_t) n * sizeof(double));
-    memset(p, 0, (size_t) n * sizeof(double));
-
-    for (int iter = 0; iter < max_iter; ++iter) {
-        /* rho = <r0, r> */
-        double rho_new = 0.0;
-        for (int64_t i = 0; i < n; ++i)
-            rho_new += r0[i] * r[i];
-
-        /* 处理 rho=0 的 breakdown */
-        if (fabs(rho_new) < lv_EPSILON_DOUBLE)
-            break;
-        /* 防止除零：rho 和 omega 在后续迭代中可能为零 */
-        double safe_rho = (fabs(rho) < lv_EPSILON_DOUBLE) ? 1.0 : rho;
-        double safe_omega = (fabs(omega) < lv_EPSILON_DOUBLE) ? 1.0 : omega;
-        double beta = (rho_new / safe_rho) * (alpha / safe_omega);
-
-        /* p = r + beta * (p - omega * v) */
-        for (int64_t i = 0; i < n; ++i)
-            p[i] = r[i] + beta * (p[i] - omega * v[i]);
-
-        /* v = A * p */
-        memset(v, 0, (size_t) n * sizeof(double));
-        for (int64_t j = 0; j < A->cols; ++j) {
-            double pj = p[j];
-            if (fabs(pj) < lv_NUM_EPSILON)
-                continue;
-            double *col_j = a_data + j * n;
-            for (int64_t i = 0; i < n; ++i)
-                v[i] += col_j[i] * pj;
-        }
-
-        /* alpha = rho / <r0, v> */
-        double r0v = 0.0;
-        for (int64_t i = 0; i < n; ++i)
-            r0v += r0[i] * v[i];
-        if (fabs(r0v) < lv_EPSILON_DOUBLE)
-            break;
-        alpha = rho_new / r0v;
-
-        /* s = r - alpha * v */
-        for (int64_t i = 0; i < n; ++i)
-            s[i] = r[i] - alpha * v[i];
-
-        /* t = A * s */
-        memset(t, 0, (size_t) n * sizeof(double));
-        for (int64_t j = 0; j < A->cols; ++j) {
-            double sj = s[j];
-            if (fabs(sj) < lv_NUM_EPSILON)
-                continue;
-            double *col_j = a_data + j * n;
-            for (int64_t i = 0; i < n; ++i)
-                t[i] += col_j[i] * sj;
-        }
-
-        /* omega = <t, s> / <t, t> */
-        double ts = 0.0, tt = 0.0;
-        for (int64_t i = 0; i < n; ++i) {
-            ts += t[i] * s[i];
-            tt += t[i] * t[i];
-        }
-        if (fabs(tt) < lv_EPSILON_DOUBLE) {
-            /* omega breakdown，用当前 alpha 更新后退出 */
-            for (int64_t i = 0; i < n; ++i)
-                x->data[i] += alpha * p[i];
-            break;
-        }
-        omega = ts / tt;
-
-        /* x = x + alpha * p + omega * s */
-        for (int64_t i = 0; i < n; ++i)
-            x->data[i] += alpha * p[i] + omega * s[i];
-
-        /* r = s - omega * t */
-        for (int64_t i = 0; i < n; ++i)
-            r[i] = s[i] - omega * t[i];
-
-        rho = rho_new;
-
-        /* 收敛检查：||r|| < tol * ||b|| */
-        double r_norm = 0.0;
-        for (int64_t i = 0; i < n; ++i)
-            r_norm += r[i] * r[i];
-        r_norm = sqrt(r_norm);
-
-        double threshold = (b_norm > lv_EPSILON_DOUBLE) ? tol * b_norm : tol;
-        if (r_norm < threshold)
-            break;
-    }
-
-    lv_free((void **) &r0);
-    lv_free((void **) &t);
-    return lv_BACKEND_OK;
+    return lv_bicgstab_solve(&ops, A, b->data, x->data, A->rows,
+                             is->max_iters, is->tol, lv_EPSILON_DOUBLE);
 }
 
 /**

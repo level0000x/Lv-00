@@ -1,0 +1,708 @@
+/**
+ * @file formula_renderer_latex.c
+ * @brief LaTeX 渲染后端
+ *
+ * @details 从 formula_renderer.c 拆分的子模块（Lv-00 项目 v3.3.0+）。
+ *
+ * @author Lv-00 Project
+ * @version 3.3.0
+ */
+
+#include "formula_renderer.h"
+#include "formula_renderer_internal.h"
+
+#include <math.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "error_codes.h"
+#include "lv_internal.h"
+#include "lv/lv_str_utils.h"
+#include "lv/lv_thread.h"
+#include "lv_utils.h"
+
+/* ============================================================
+ * 渲染分发函数指针表
+ * ============================================================ */
+
+typedef int (*RenderNodeFunc)(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);
+
+/* ============================================================
+ * LaTeX 渲染
+ * ============================================================ */
+
+/**
+ * @brief LaTeX 格式内部渲染器（递归）
+ *
+ * 所有 >256 字节的子表达式缓冲区均从池或堆获取，
+ * 避免递归调用时的栈溢出风险。
+ */
+int render_latex_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);
+
+static int helper_latex_number(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    if (node->data.number.is_integer) {
+        /* STACK_SAFE: snprintf 直接写入输出 buffer，无中间缓冲区 */
+        written = snprintf(buffer, size, "%lld", (long long) node->data.number.numerator);
+    } else {
+        /* 分数渲染为 \frac{a}{b} */
+        written = snprintf(buffer, size, "\\frac{%lld}{%llu}", (long long) node->data.number.numerator,
+                           (unsigned long long) node->data.number.denominator);
+    }
+    return written;
+}
+
+static int helper_latex_variable(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    if (is_greek_letter(node->data.variable.name)) {
+        written = snprintf(buffer, size, "%s", formula_latex_greek_name(node->data.variable.name));
+    } else {
+        written = snprintf(buffer, size, "%s", node->data.variable.name);
+    }
+    return written;
+}
+
+static int helper_latex_identifier(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    written = snprintf(buffer, size, "%s", node->data.identifier.name);
+    return written;
+}
+
+static int helper_latex_binary_add(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
+    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!left_buf || !right_buf) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate sub-expression buffers");
+    }
+
+    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
+    if (left_ret < 0 || right_ret < 0) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "sub-expression render failed");
+    }
+
+    written = snprintf(buffer, size, "%s + %s", left_buf, right_buf);
+
+    formula_pool_free(left_buf);
+    formula_pool_free(right_buf);
+    return written;
+}
+
+static int helper_latex_binary_sub(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
+    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!left_buf || !right_buf) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        return -1;
+    }
+
+    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
+    if (left_ret < 0 || right_ret < 0) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        return -1;
+    }
+
+    /* 检查右侧是否需要括号 */
+    bool need_paren = needs_parentheses(node->data.binary_op.right, NODE_BINARY_OP_SUB, true);
+
+    if (need_paren) {
+        written = snprintf(buffer, size, "%s - \\left(%s\\right)", left_buf, right_buf);
+    } else {
+        written = snprintf(buffer, size, "%s - %s", left_buf, right_buf);
+    }
+
+    formula_pool_free(left_buf);
+    formula_pool_free(right_buf);
+    return written;
+}
+
+static int helper_latex_binary_mul(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
+    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!left_buf || !right_buf) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        return -1;
+    }
+
+    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
+    if (left_ret < 0 || right_ret < 0) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        return -1;
+    }
+
+    if (options && options->implicit_multiplication) {
+        /* 隐式乘法: ab */
+        written = snprintf(buffer, size, "%s %s", left_buf, right_buf);
+    } else {
+        /* 显式乘法: a \cdot b */
+        written = snprintf(buffer, size, "%s \\cdot %s", left_buf, right_buf);
+    }
+
+    formula_pool_free(left_buf);
+    formula_pool_free(right_buf);
+    return written;
+}
+
+static int helper_latex_binary_div(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
+    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!left_buf || !right_buf) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        return -1;
+    }
+
+    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
+    if (left_ret < 0 || right_ret < 0) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        return -1;
+    }
+
+    /* 分数形式 */
+    written = snprintf(buffer, size, "\\frac{%s}{%s}", left_buf, right_buf);
+
+    formula_pool_free(left_buf);
+    formula_pool_free(right_buf);
+    return written;
+}
+
+static int helper_latex_binary_pow(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
+    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!left_buf || !right_buf) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        return -1;
+    }
+
+    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
+    if (left_ret < 0 || right_ret < 0) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        return -1;
+    }
+
+    /* 检查底数是否需要括号 */
+    bool need_paren = needs_parentheses(node->data.binary_op.left, NODE_BINARY_OP_POW, false);
+
+    if (need_paren) {
+        written = snprintf(buffer, size, "\\left(%s\\right)^{%s}", left_buf, right_buf);
+    } else {
+        written = snprintf(buffer, size, "%s^{%s}", left_buf, right_buf);
+    }
+
+    formula_pool_free(left_buf);
+    formula_pool_free(right_buf);
+    return written;
+}
+
+static int helper_latex_unary_neg(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
+    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!operand_buf)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
+
+    int operand_ret =
+        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+    if (operand_ret < 0) {
+        formula_pool_free(operand_buf);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
+    }
+
+    bool need_paren = needs_parentheses(node->data.unary_op.operand, NODE_UNARY_OP_NEG, false);
+    if (need_paren) {
+        written = snprintf(buffer, size, "-\\left(%s\\right)", operand_buf);
+    } else {
+        written = snprintf(buffer, size, "-%s", operand_buf);
+    }
+
+    formula_pool_free(operand_buf);
+    return written;
+}
+
+static int helper_latex_unary_sqrt(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
+    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!operand_buf)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
+
+    int operand_ret =
+        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+    if (operand_ret < 0) {
+        formula_pool_free(operand_buf);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
+    }
+    written = snprintf(buffer, size, "\\sqrt{%s}", operand_buf);
+
+    formula_pool_free(operand_buf);
+    return written;
+}
+
+static int helper_latex_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    const char *func_names[] = {[NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "\\sin",
+                                [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "\\cos",
+                                [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "\\tan"};
+    int idx = node->type - NODE_UNARY_OP_NEG;
+
+    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
+    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!operand_buf)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
+
+    int operand_ret =
+        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+    if (operand_ret < 0) {
+        formula_pool_free(operand_buf);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
+    }
+    written = snprintf(buffer, size, "%s\\left(%s\\right)", func_names[idx], operand_buf);
+
+    formula_pool_free(operand_buf);
+    return written;
+}
+
+static int helper_latex_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
+    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!operand_buf)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
+
+    int operand_ret =
+        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+    if (operand_ret < 0) {
+        formula_pool_free(operand_buf);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
+    }
+    written = snprintf(buffer, size, "\\left|%s\\right|", operand_buf);
+
+    formula_pool_free(operand_buf);
+    return written;
+}
+
+static int helper_latex_unary_ln(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
+    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!operand_buf)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
+
+    int operand_ret =
+        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+    if (operand_ret < 0) {
+        formula_pool_free(operand_buf);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
+    }
+    written = snprintf(buffer, size, "\\ln\\left(%s\\right)", operand_buf);
+
+    formula_pool_free(operand_buf);
+    return written;
+}
+
+static int helper_latex_unary_log(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
+    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!operand_buf)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
+
+    int operand_ret =
+        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+    if (operand_ret < 0) {
+        formula_pool_free(operand_buf);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
+    }
+    written = snprintf(buffer, size, "\\log\\left(%s\\right)", operand_buf);
+
+    formula_pool_free(operand_buf);
+    return written;
+}
+
+static int helper_latex_equation(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
+    char *lhs_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    char *rhs_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!lhs_buf || !rhs_buf) {
+        formula_pool_free(lhs_buf);
+        formula_pool_free(rhs_buf);
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate equation buffers");
+    }
+
+    int lhs_ret = render_latex_internal(node->data.equation.lhs, lhs_buf, lv_FORMULA_BUF_SIZE, options);
+    int rhs_ret = render_latex_internal(node->data.equation.rhs, rhs_buf, lv_FORMULA_BUF_SIZE, options);
+    if (lhs_ret < 0 || rhs_ret < 0) {
+        formula_pool_free(lhs_buf);
+        formula_pool_free(rhs_buf);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "equation sub-render failed");
+    }
+
+    written = snprintf(buffer, size, "%s = %s", lhs_buf, rhs_buf);
+
+    formula_pool_free(lhs_buf);
+    formula_pool_free(rhs_buf);
+    return written;
+}
+
+static int helper_latex_geom_point(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* HEAP_ALLOCATED: 大型坐标缓冲区使用直接 malloc */
+    char *coords_buf = (char *) lv_malloc(lv_FORMULA_BUF_LARGE);
+    if (!coords_buf)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate coords buffer");
+    memset(coords_buf, 0, lv_FORMULA_BUF_LARGE);
+
+    if (node->data.geom_point.coords) {
+        int coords_ret =
+            render_latex_internal(node->data.geom_point.coords, coords_buf, lv_FORMULA_BUF_LARGE, options);
+        if (coords_ret < 0) {
+            lv_free((void **) &coords_buf);
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "coords sub-render failed");
+        }
+    }
+
+    if (node->data.geom_point.name) {
+        written = snprintf(buffer, size, "%s = \\left(%s\\right)", node->data.geom_point.name, coords_buf);
+    } else {
+        written = snprintf(buffer, size, "\\left(%s\\right)", coords_buf);
+    }
+
+    lv_free((void **) &coords_buf);
+    return written;
+}
+
+static int helper_latex_geom_segment(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    if (node->data.geom_segment.name) {
+        written = snprintf(buffer, size, "\\overline{%s}", node->data.geom_segment.name);
+    } else {
+        /* STACK_SAFE: 端点名缓冲区 ≤64 字节，使用 snprintf 边界检查 */
+        char ep1_buf[lv_FORMULA_BUF_SMALL] = {0};
+        char ep2_buf[lv_FORMULA_BUF_SMALL] = {0};
+        if (node->data.geom_segment.endpoint1) {
+            int ep_ret =
+                render_latex_internal(node->data.geom_segment.endpoint1, ep1_buf, sizeof(ep1_buf), options);
+            if (ep_ret < 0)
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "endpoint1 sub-render failed");
+        }
+        if (node->data.geom_segment.endpoint2) {
+            int ep_ret =
+                render_latex_internal(node->data.geom_segment.endpoint2, ep2_buf, sizeof(ep2_buf), options);
+            if (ep_ret < 0)
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "endpoint2 sub-render failed");
+        }
+        written = snprintf(buffer, size, "\\overline{%s%s}", ep1_buf, ep2_buf);
+    }
+    return written;
+}
+
+static int helper_latex_geom_circle(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 小型缓冲区 ≤256 字节，使用 snprintf 边界检查 */
+    char center_buf[lv_FORMULA_BUF_SMALL] = {0};
+    char radius_buf[lv_FORMULA_BUF_MEDIUM] = {0};
+
+    if (node->data.geom_circle.center) {
+        if (node->data.geom_circle.center->type == NODE_IDENTIFIER) {
+            snprintf(center_buf, sizeof(center_buf), "%s", node->data.geom_circle.center->data.identifier.name);
+        } else {
+            int center_ret =
+                render_latex_internal(node->data.geom_circle.center, center_buf, sizeof(center_buf), options);
+            if (center_ret < 0)
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "center sub-render failed");
+        }
+    }
+
+    if (node->data.geom_circle.radius) {
+        int radius_ret =
+            render_latex_internal(node->data.geom_circle.radius, radius_buf, sizeof(radius_buf), options);
+        if (radius_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "radius sub-render failed");
+    }
+
+    written = snprintf(buffer, size, "\\text{circle } %s \\text{ with center } %s \\text{ and radius } %s",
+                       node->data.geom_circle.name ? node->data.geom_circle.name : "O", center_buf, radius_buf);
+    return written;
+}
+
+static int helper_latex_geom_triangle(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    if (node->data.geom_triangle.name) {
+        written = snprintf(buffer, size, "\\triangle %s", node->data.geom_triangle.name);
+    } else {
+        written = snprintf(buffer, size, "\\triangle");
+    }
+    return written;
+}
+
+static int helper_latex_coord_list(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    size_t pos = 0;
+
+    for (int i = 0; i < node->data.coord_list.coord_count; i++) {
+        /* STACK_SAFE: 坐标缓冲区 ≤256 字节 */
+        char coord_buf[lv_FORMULA_BUF_MEDIUM] = {0};
+        int coord_ret =
+            render_latex_internal(node->data.coord_list.coords[i], coord_buf, sizeof(coord_buf), options);
+        if (coord_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "coord sub-render failed");
+
+        if (!lv_str_append_sep(buffer, size, &pos, ", ", coord_buf))
+            break;
+    }
+    return (int) pos;
+}
+
+static int helper_latex_constraint_perpendicular(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 约束参与者名 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
+         p3_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        int p1_ret =
+            render_latex_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+        int p2_ret =
+            render_latex_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+        int p3_ret =
+            render_latex_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+        if (p1_ret < 0 || p2_ret < 0 || p3_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "participant render failed");
+        written = snprintf(buffer, size, "%s \\perp %s%s", p1_buf, p2_buf, p3_buf);
+    }
+    return written;
+}
+
+static int helper_latex_constraint_parallel(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 线名缓冲区 ≤64 字节 */
+    char l1_buf[lv_FORMULA_BUF_SMALL] = {0}, l2_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 2) {
+        int l1_ret =
+            render_latex_internal(node->data.constraint.participants[0], l1_buf, sizeof(l1_buf), options);
+        int l2_ret =
+            render_latex_internal(node->data.constraint.participants[1], l2_buf, sizeof(l2_buf), options);
+        if (l1_ret < 0 || l2_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "line render failed");
+        written = snprintf(buffer, size, "%s \\parallel %s", l1_buf, l2_buf);
+    }
+    return written;
+}
+
+static int helper_latex_constraint_midpoint(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 点名缓冲区 ≤64 字节 */
+    char m_buf[lv_FORMULA_BUF_SMALL] = {0}, a_buf[lv_FORMULA_BUF_SMALL] = {0},
+         b_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        int m_ret = render_latex_internal(node->data.constraint.participants[0], m_buf, sizeof(m_buf), options);
+        int a_ret = render_latex_internal(node->data.constraint.participants[1], a_buf, sizeof(a_buf), options);
+        int b_ret = render_latex_internal(node->data.constraint.participants[2], b_buf, sizeof(b_buf), options);
+        if (m_ret < 0 || a_ret < 0 || b_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "midpoint participant render failed");
+        written = snprintf(buffer, size, "%s = \\text{midpoint}(%s, %s)", m_buf, a_buf, b_buf);
+    }
+    return written;
+}
+
+/* NODE_GEOM_REGION 区域渲染 */
+static int helper_latex_geom_region(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    const char *name = node->data.geom_region.name ? node->data.geom_region.name : "R";
+    written = snprintf(buffer, size, "\\text{region } %s", name);
+    return written;
+}
+
+/* NODE_GEOM_ARC 弧渲染 */
+static int helper_latex_geom_arc(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 名称/角度缓冲区 ≤64，半径缓冲区 ≤256 */
+    char center_buf[lv_FORMULA_BUF_SMALL] = {0}, radius_buf[lv_FORMULA_BUF_MEDIUM] = {0};
+    char start_buf[lv_FORMULA_BUF_SMALL] = {0}, end_buf[lv_FORMULA_BUF_SMALL] = {0};
+
+    if (node->data.geom_arc.center) {
+        int center_ret =
+            render_latex_internal(node->data.geom_arc.center, center_buf, sizeof(center_buf), options);
+        if (center_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "center render failed");
+    }
+    if (node->data.geom_arc.radius) {
+        int radius_ret =
+            render_latex_internal(node->data.geom_arc.radius, radius_buf, sizeof(radius_buf), options);
+        if (radius_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "arc radius sub-render failed");
+    }
+    if (node->data.geom_arc.start_angle) {
+        int start_ret =
+            render_latex_internal(node->data.geom_arc.start_angle, start_buf, sizeof(start_buf), options);
+        if (start_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "arc start_angle sub-render failed");
+    }
+    if (node->data.geom_arc.end_angle) {
+        int end_ret = render_latex_internal(node->data.geom_arc.end_angle, end_buf, sizeof(end_buf), options);
+        if (end_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "arc end_angle sub-render failed");
+    }
+
+    written = snprintf(buffer, size,
+                       "\\overset{\\frown}{%s} \\text{ with center } %s, \\text{ radius } %s, \\text{ from } "
+                       "%s \\text{ to } %s",
+                       node->data.geom_arc.name ? node->data.geom_arc.name : "AB", center_buf, radius_buf,
+                       start_buf, end_buf);
+    return written;
+}
+
+/* NODE_CONSTRAINT_ANGLE 角度约束渲染 */
+static int helper_latex_constraint_angle(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 点名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
+         p3_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        int p1_ret =
+            render_latex_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+        int p2_ret =
+            render_latex_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+        int p3_ret =
+            render_latex_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+        if (p1_ret < 0 || p2_ret < 0 || p3_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "angle participant sub-render failed");
+        written = snprintf(buffer, size, "\\angle %s %s %s", p1_buf, p2_buf, p3_buf);
+    }
+    return written;
+}
+
+static int helper_latex_compound(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    char *ptr = buffer;
+    size_t remaining = size;
+    int total = 0;
+
+    for (int i = 0; i < node->data.compound.statement_count; i++) {
+        /* HEAP_ALLOCATED: 池分配语句缓冲区 */
+        char *stmt_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+        if (!stmt_buf)
+            break;
+
+        int stmt_ret =
+            render_latex_internal(node->data.compound.statements[i], stmt_buf, lv_FORMULA_BUF_SIZE, options);
+        if (stmt_ret < 0) {
+            formula_pool_free(stmt_buf);
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "compound sub-render failed");
+        }
+
+        int w = snprintf(ptr, remaining, "%s%s\\\\\n", stmt_buf,
+                         (i < node->data.compound.statement_count - 1) ? "" : "");
+        formula_pool_free(stmt_buf);
+
+        if (w < 0 || (size_t) w >= remaining)
+            break;
+        ptr += w;
+        remaining -= w;
+        total += w;
+    }
+    written = total;
+    return written;
+}
+
+static const RenderNodeFunc s_render_latex_funcs[] = {
+    [NODE_NUMBER] = helper_latex_number,
+    [NODE_VARIABLE] = helper_latex_variable,
+    [NODE_IDENTIFIER] = helper_latex_identifier,
+    [NODE_BINARY_OP_ADD] = helper_latex_binary_add,
+    [NODE_BINARY_OP_SUB] = helper_latex_binary_sub,
+    [NODE_BINARY_OP_MUL] = helper_latex_binary_mul,
+    [NODE_BINARY_OP_DIV] = helper_latex_binary_div,
+    [NODE_BINARY_OP_POW] = helper_latex_binary_pow,
+    [NODE_UNARY_OP_NEG] = helper_latex_unary_neg,
+    [NODE_UNARY_OP_SQRT] = helper_latex_unary_sqrt,
+    [NODE_UNARY_OP_SIN] = helper_latex_unary_sin_cos_tan,
+    [NODE_UNARY_OP_COS] = helper_latex_unary_sin_cos_tan,
+    [NODE_UNARY_OP_TAN] = helper_latex_unary_sin_cos_tan,
+    [NODE_UNARY_OP_ABS] = helper_latex_unary_abs,
+    [NODE_UNARY_OP_LN] = helper_latex_unary_ln,
+    [NODE_UNARY_OP_LOG] = helper_latex_unary_log,
+    [NODE_EQUATION] = helper_latex_equation,
+    [NODE_GEOM_POINT] = helper_latex_geom_point,
+    [NODE_GEOM_SEGMENT] = helper_latex_geom_segment,
+    [NODE_GEOM_CIRCLE] = helper_latex_geom_circle,
+    [NODE_GEOM_TRIANGLE] = helper_latex_geom_triangle,
+    [NODE_COORDINATE_LIST] = helper_latex_coord_list,
+    [NODE_CONSTRAINT_PERPENDICULAR] = helper_latex_constraint_perpendicular,
+    [NODE_CONSTRAINT_PARALLEL] = helper_latex_constraint_parallel,
+    [NODE_CONSTRAINT_MIDPOINT] = helper_latex_constraint_midpoint,
+    [NODE_GEOM_REGION] = helper_latex_geom_region,
+    [NODE_GEOM_ARC] = helper_latex_geom_arc,
+    [NODE_CONSTRAINT_ANGLE] = helper_latex_constraint_angle,
+    [NODE_COMPOUND] = helper_latex_compound,
+};
+
+int render_latex_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
+    if (!node) {
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "node is NULL");
+    }
+
+
+
+    if ((unsigned)node->type < lv_ARRAY_SIZE(s_render_latex_funcs)
+        && s_render_latex_funcs[node->type]) {
+        return s_render_latex_funcs[node->type](node, buffer, size, options);
+    }
+
+    /* fallback for unhandled node types */
+    return snprintf(buffer, size, "\\text{<unknown>}");
+}
+

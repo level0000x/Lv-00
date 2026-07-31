@@ -1,33 +1,39 @@
 import Mathlib
 
-structure VS where
+structure VS2 where
   proved : List Nat
 
-def stepok4 (st : VS) (step : Nat) : Bool := true
-
--- 忠实镜像 go_hypotheses_some：step 即数据，proved 添加 step
-def go6 (st : VS) : List Nat → Option VS
+def goN (g : List Nat) (st : VS2) : List Nat → Option VS2
   | [] => some st
   | step :: rest =>
-    if stepok4 st step then go6 { st with proved := step :: st.proved } rest else none
+    if g.all st.proved.contains then goN g st rest else none
 
-example (st : VS) (g : List Nat) :
-    go6 st g = some { proved := g.reverse ++ st.proved } := by
-  induction g generalizing st with
-  | nil => simp [go6]
-  | cons c rest ih =>
-      simp [go6, stepok4]
-      rw [ih]
-      simp [List.reverse_cons]
+-- 方案 A：rw [hok] at h
+example (g : List Nat) (st st' : VS2) (h : goN g st [0] = some st') :
+    g.all st'.proved.contains := by
+  simp [goN] at h
+  by_cases hok : g.all st.proved.contains
+  · rw [hok] at h
+    simp at h
+    cases h
+    exact hok
+  · rw [hok] at h
 
--- go_qed_some 模式
-example (g : List Nat) (st : VS) (h : g.all st.proved.contains = true) :
-    go6 st [0] = some st := by
-  simp [go6, stepok4, h]
+-- 方案 B：simp only [hok] at h
+example (g : List Nat) (st st' : VS2) (h : goN g st [0] = some st') :
+    g.all st'.proved.contains := by
+  simp [goN] at h
+  by_cases hok : g.all st.proved.contains
+  · simp only [hok] at h
+    simp at h
+    cases h
+    exact hok
+  · simp only [hok] at h
 
--- contains → mem 模式（最终确认）
-example {c : Nat} {l : List Nat} (h : l.contains c = true) : c ∈ l := by
-  rcases List.contains_iff_exists_mem_beq.mp h with ⟨a, ha, hbeq⟩
-  have hca : c = a := (beq_iff_eq.mp hbeq)
-  rw [hca]
-  exact ha
+-- 方案 C：直接 cases hok 后用 simp at h 全部归约
+example (g : List Nat) (st st' : VS2) (h : goN g st [0] = some st') :
+    g.all st'.proved.contains := by
+  simp [goN] at h
+  by_cases hok : g.all st.proved.contains
+  · simp [hok] at h ⊢
+  · simp [hok] at h ⊢

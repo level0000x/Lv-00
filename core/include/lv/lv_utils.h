@@ -1013,6 +1013,66 @@ lv_PUBLIC_API uint64_t lv_fnv1a_hash_str(const char *s);
 lv_PUBLIC_API uint64_t lv_fnv1a_hash_int(uint64_t hash, uint64_t v);
 
 /* ============================================================
+ * 字节序工具（显式大端/小端读写，不依赖主机字节序）
+ * ============================================================ */
+
+/**
+ * @brief 按大端序写入 16 位整数
+ * @param dst 目标缓冲区（至少 2 字节）
+ * @param v   要写入的值
+ */
+lv_PUBLIC_API void lv_store_be16(uint8_t *dst, uint16_t v);
+
+/**
+ * @brief 按大端序写入 32 位整数
+ * @param dst 目标缓冲区（至少 4 字节）
+ * @param v   要写入的值
+ */
+lv_PUBLIC_API void lv_store_be32(uint8_t *dst, uint32_t v);
+
+/**
+ * @brief 按大端序读取 16 位整数
+ * @param src 源缓冲区（至少 2 字节）
+ * @return 读取的值
+ */
+lv_PUBLIC_API uint16_t lv_load_be16(const uint8_t *src);
+
+/**
+ * @brief 按大端序读取 32 位整数
+ * @param src 源缓冲区（至少 4 字节）
+ * @return 读取的值
+ */
+lv_PUBLIC_API uint32_t lv_load_be32(const uint8_t *src);
+
+/**
+ * @brief 按小端序写入 16 位整数
+ * @param dst 目标缓冲区（至少 2 字节）
+ * @param v   要写入的值
+ */
+lv_PUBLIC_API void lv_store_le16(uint8_t *dst, uint16_t v);
+
+/**
+ * @brief 按小端序写入 32 位整数
+ * @param dst 目标缓冲区（至少 4 字节）
+ * @param v   要写入的值
+ */
+lv_PUBLIC_API void lv_store_le32(uint8_t *dst, uint32_t v);
+
+/**
+ * @brief 按小端序读取 16 位整数
+ * @param src 源缓冲区（至少 2 字节）
+ * @return 读取的值
+ */
+lv_PUBLIC_API uint16_t lv_load_le16(const uint8_t *src);
+
+/**
+ * @brief 按小端序读取 32 位整数
+ * @param src 源缓冲区（至少 4 字节）
+ * @return 读取的值
+ */
+lv_PUBLIC_API uint32_t lv_load_le32(const uint8_t *src);
+
+/* ============================================================
  * qsort 比较器
  * ============================================================ */
 

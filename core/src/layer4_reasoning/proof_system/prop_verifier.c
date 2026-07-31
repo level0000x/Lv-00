@@ -483,7 +483,7 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
     bool need_parens = (parent_prec > prec);
 
     if (need_parens) {
-        strncat(buf, "(", size - strlen(buf) - 1);
+        lv_strncat(buf, "(", size);
     }
 
     if ((unsigned)f->type < sizeof(s_string_format_spec) / sizeof(s_string_format_spec[0])) {
@@ -491,21 +491,21 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
         switch (spec->arity) {
             case 0: /* 叶子类型 */
                 if (f->type == PROP_ATOM) {
-                    strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
+                    lv_strncat(buf, f->data.atom.name, size);
                 } else if (spec->op_str) {
-                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                    lv_strncat(buf, spec->op_str, size);
                 }
                 break;
             case 1: /* 一元运算符 */
                 if (spec->op_str) {
-                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                    lv_strncat(buf, spec->op_str, size);
                 }
                 formula_to_string_buf(f->data.unary.operand, buf, size, prec);
                 break;
             case 2: /* 二元运算符 */
                 formula_to_string_buf(f->data.binary.left, buf, size, prec);
                 if (spec->op_str) {
-                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                    lv_strncat(buf, spec->op_str, size);
                 }
                 formula_to_string_buf(f->data.binary.right, buf, size,
                                       spec->right_inc_prec ? prec + 1 : prec);
@@ -514,7 +514,7 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
     }
 
     if (need_parens) {
-        strncat(buf, ")", size - strlen(buf) - 1);
+        lv_strncat(buf, ")", size);
     }
 }
 
@@ -542,7 +542,7 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, i
     bool need_parens = (parent_prec > prec);
 
     if (need_parens) {
-        strncat(buf, "\\left(", size - strlen(buf) - 1);
+        lv_strncat(buf, "\\left(", size);
     }
 
     if ((unsigned)f->type < sizeof(s_latex_format_spec) / sizeof(s_latex_format_spec[0])) {
@@ -550,21 +550,21 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, i
         switch (spec->arity) {
             case 0: /* 叶子类型 */
                 if (f->type == PROP_ATOM) {
-                    strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
+                    lv_strncat(buf, f->data.atom.name, size);
                 } else if (spec->op_str) {
-                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                    lv_strncat(buf, spec->op_str, size);
                 }
                 break;
             case 1: /* 一元运算符 */
                 if (spec->op_str) {
-                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                    lv_strncat(buf, spec->op_str, size);
                 }
                 formula_to_latex_buf(f->data.unary.operand, buf, size, prec);
                 break;
             case 2: /* 二元运算符 */
                 formula_to_latex_buf(f->data.binary.left, buf, size, prec);
                 if (spec->op_str) {
-                    strncat(buf, spec->op_str, size - strlen(buf) - 1);
+                    lv_strncat(buf, spec->op_str, size);
                 }
                 formula_to_latex_buf(f->data.binary.right, buf, size,
                                      spec->right_inc_prec ? prec + 1 : prec);
@@ -573,7 +573,7 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, i
     }
 
     if (need_parens) {
-        strncat(buf, "\\right)", size - strlen(buf) - 1);
+        lv_strncat(buf, "\\right)", size);
     }
 }
 
@@ -1679,7 +1679,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
             if (!found) {
                 lvStrBuf sb = {0};
                 lv_strbuf_printf(&sb, "%s%s", missing_count > 0 ? ", " : "", goal_atoms[i]);
-                strncat(missing, sb.data, sizeof(missing) - strlen(missing) - 1);
+                lv_strncat(missing, sb.data, sizeof(missing));
                 missing_count++;
                 lv_strbuf_destroy(&sb);
             }
