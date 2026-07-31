@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module.c
  * @brief 模块系统实现
  * @details 实现模块的加载、保存和依赖管理。支持 MessagePack 序列化、
@@ -69,11 +69,11 @@ const char *module_get_version(const Module *mod) {
 }
 
 int module_get_dependency_count(const Module *mod) {
-    return mod ? mod->dependency_count : 0;
+    return mod ? mod->dependencies.count : 0;
 }
 
 int module_get_axiom_package_count(const Module *mod) {
-    return mod ? mod->axiom_package_count : 0;
+    return mod ? mod->axiom_packages.count : 0;
 }
 
 const ConstraintGraph *module_get_graph(const Module *mod) {

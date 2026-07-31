@@ -234,9 +234,7 @@ bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstruct
         char *s = safe_lv_strdup_safe(*(char **)lv_darray_get(&item->dependency_chain, i));
         if (lv_darray_push(&target_item.dependency_chain, &s) < 0) {
             /* 分配失败时回滚已拷贝的字段 */
-            lv_free((void **) &target_item.name);
-            lv_free((void **) &target_item.reduces_to);
-            lv_free((void **) &target_item.external_ref);
+            lv_free_many(&target_item.name, &target_item.reduces_to, &target_item.external_ref, NULL);
             lv_darray_free(&target_item.dependency_chain);
             memset(&target_item, 0, sizeof(KnownUnconstructible));
             return false;
@@ -245,9 +243,7 @@ bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstruct
 
     /* 推入包数组 */
     if (lv_darray_push(&pkg->known_unconstructibles, &target_item) < 0) {
-        lv_free((void **) &target_item.name);
-        lv_free((void **) &target_item.reduces_to);
-        lv_free((void **) &target_item.external_ref);
+        lv_free_many(&target_item.name, &target_item.reduces_to, &target_item.external_ref, NULL);
         lv_darray_free(&target_item.dependency_chain);
         memset(&target_item, 0, sizeof(KnownUnconstructible));
         return false;

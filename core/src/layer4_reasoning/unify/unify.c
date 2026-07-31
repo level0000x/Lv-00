@@ -980,18 +980,16 @@ static void failure_info_set(UnifyFailureInfo *info, UnifyStatus status, int con
         lv_free((void **) &info->description);
     }
     if (fmt) {
+        /* 用 lvStrBuf 一次性格式化，替代两遍 vsnprintf */
+        lvStrBuf sb = {0};
         va_list args;
         va_start(args, fmt);
-        int len = vsnprintf(NULL, 0, fmt, args);
+        lv_strbuf_vprintf(&sb, fmt, args);
         va_end(args);
-        if (len > 0) {
-            info->description = lv_malloc((size_t) len + 1);
-            if (info->description) {
-                va_start(args, fmt);
-                vsnprintf(info->description, (size_t) len + 1, fmt, args);
-                va_end(args);
-            }
-        }
+        if (sb.len > 0)
+            info->description = lv_strbuf_to_string(&sb);
+        else
+            lv_strbuf_destroy(&sb);
     }
 }
 

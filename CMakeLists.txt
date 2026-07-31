@@ -646,6 +646,7 @@ set(lv_LAYER1_SOURCES
     core/src/layer1_parser/formula_converter.c
     core/src/layer1_parser/formula_eval.c
     core/src/layer1_parser/formula_string.c
+    core/src/layer1_parser/formula_curve.c
     core/src/layer1_parser/formula_renderer.c
     core/src/layer1_parser/lexer_shared.c
     core/src/layer1_parser/parser_safety.c
@@ -855,6 +856,7 @@ set(lv_LAYER4_SOURCES
     # 增强证明引擎
     core/src/layer4_reasoning/engine/proof_engine_enhanced.c
     core/src/layer4_reasoning/engine/proof_trace_tree.c
+    core/src/layer4_reasoning/engine/proof_contradiction.c
     # 重写与合一
     core/src/layer4_reasoning/rewrite.c
     core/src/layer4_reasoning/unify/unify.c
@@ -1111,6 +1113,7 @@ set(lv_LAYER5_SOURCES
     # 互操作子模块：命令、导出、导入、服务器、定理
     core/src/layer5_output/interop/interop_command.c
     core/src/layer5_output/interop/interop_export.c
+    core/src/layer5_output/interop/interop_export_pdf.c
     core/src/layer5_output/interop/interop_import.c
     core/src/layer5_output/interop/interop_server.c
     core/src/layer5_output/interop/interop_theorem.c

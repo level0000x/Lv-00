@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module_serialize.c
  * @brief 模块序列化（MsgPack/JSON）
  *
@@ -40,8 +40,12 @@ Module *module_create(const char *name, const char *version) {
         lv_free((void **) &mod);
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "module_create: strdup failed");
     }
-    mod->dependencies = NULL;
-    mod->dependency_count = 0;
+    mod->exports = NULL;
+    mod->graph = NULL;
+
+    lv_darray_init(&mod->dependencies, sizeof(ModuleDependency));
+    lv_darray_init(&mod->axiom_packages, sizeof(AxiomPackage *));
+
     mod->exports = lv_calloc(1, sizeof(ModuleExport));
     if (!mod->exports) {
         lv_free((void **) &mod->name);
@@ -49,13 +53,8 @@ Module *module_create(const char *name, const char *version) {
         lv_free((void **) &mod);
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "module_create: exports calloc failed");
     }
-    mod->exports->function_block_ids = NULL;
-    mod->exports->type_region_ids = NULL;
-    mod->exports->function_count = 0;
-    mod->exports->type_count = 0;
-    mod->axiom_packages = NULL;
-    mod->axiom_package_count = 0;
-    mod->graph = NULL;
+    lv_darray_init(&mod->exports->function_block_ids, sizeof(int));
+    lv_darray_init(&mod->exports->type_region_ids, sizeof(int));
     if (module_stream_ctx) {
         stream_emit_simple(module_stream_ctx, STREAM_EVENT_INFO, "模块创建成功", 0);
     }
@@ -66,18 +65,24 @@ void module_destroy(Module *mod) {
     if (mod) {
         lv_free((void **) &mod->name);
         lv_free((void **) &mod->version);
-        for (int i = 0; i < mod->dependency_count; i++) {
-            lv_free((void **) &mod->dependencies[i].name);
-            lv_free((void **) &mod->dependencies[i].version_constraint);
+        for (int i = 0; i < mod->dependencies.count; i++) {
+            ModuleDependency *dep = (ModuleDependency *) lv_darray_get(&mod->dependencies, i);
+            if (dep) {
+                lv_free((void **) &dep->name);
+                lv_free((void **) &dep->version_constraint);
+            }
         }
-        lv_free((void **) &mod->dependencies);
-        lv_free((void **) &mod->exports->function_block_ids);
-        lv_free((void **) &mod->exports->type_region_ids);
+        lv_darray_free(&mod->dependencies);
+        lv_darray_free(&mod->exports->function_block_ids);
+        lv_darray_free(&mod->exports->type_region_ids);
         lv_free((void **) &mod->exports);
-        for (int i = 0; i < mod->axiom_package_count; i++) {
-            axiom_package_destroy(mod->axiom_packages[i]);
+        for (int i = 0; i < mod->axiom_packages.count; i++) {
+            AxiomPackage **slot = (AxiomPackage **) lv_darray_get(&mod->axiom_packages, i);
+            if (slot && *slot) {
+                axiom_package_destroy(*slot);
+            }
         }
-        lv_free((void **) &mod->axiom_packages);
+        lv_darray_free(&mod->axiom_packages);
         if (mod->graph)
             graph_destroy(mod->graph);
         lv_free((void **) &mod);
@@ -87,16 +92,6 @@ void module_destroy(Module *mod) {
 bool module_add_dependency(Module *mod, const char *dep_name, const char *version_constraint) {
     if (!mod)
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_add_dependency: mod is NULL");
-    if (mod->dependency_count == 0) {
-        mod->dependencies = lv_calloc(1, sizeof(ModuleDependency));
-    } else {
-        void *tmp = lv_realloc(mod->dependencies, (mod->dependency_count + 1) * sizeof(ModuleDependency));
-        if (!tmp)
-            return false;
-        mod->dependencies = tmp;
-    }
-    if (!mod->dependencies)
-        return false;
 
     /* 安全复制依赖名称，检查 strdup 是否成功 */
     char *name_copy = lv_strdup_safe(dep_name);
@@ -109,27 +104,23 @@ bool module_add_dependency(Module *mod, const char *dep_name, const char *versio
         return false;
     }
 
-    mod->dependencies[mod->dependency_count].name = name_copy;
-    mod->dependencies[mod->dependency_count].version_constraint = version_copy;
-    mod->dependencies[mod->dependency_count].module = NULL;
-    mod->dependency_count++;
+    ModuleDependency dep;
+    dep.name = name_copy;
+    dep.version_constraint = version_copy;
+    dep.module = NULL;
+    if (lv_darray_push(&mod->dependencies, &dep) < 0) {
+        lv_free((void **) &name_copy);
+        lv_free((void **) &version_copy);
+        return false;
+    }
     return true;
 }
 
 bool module_add_axiom_package(Module *mod, AxiomPackage *pkg) {
     if (!mod)
         return false;
-    if (mod->axiom_package_count == 0) {
-        mod->axiom_packages = lv_calloc(1, sizeof(AxiomPackage *));
-    } else {
-        void *tmp = lv_realloc(mod->axiom_packages, (mod->axiom_package_count + 1) * sizeof(AxiomPackage *));
-        if (!tmp)
-            return false;
-        mod->axiom_packages = tmp;
-    }
-    if (!mod->axiom_packages)
+    if (lv_darray_push(&mod->axiom_packages, &pkg) < 0)
         return false;
-    mod->axiom_packages[mod->axiom_package_count++] = pkg;
     return true;
 }
 
@@ -138,34 +129,16 @@ bool module_export_function_block(Module *mod, int func_block_id) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_export_function_block: mod is NULL");
     if (!mod->exports)
         return false;
-    if (mod->exports->function_count == 0) {
-        mod->exports->function_block_ids = lv_calloc(1, sizeof(int));
-    } else {
-        void *tmp = lv_realloc(mod->exports->function_block_ids, (mod->exports->function_count + 1) * sizeof(int));
-        if (!tmp)
-            return false;
-        mod->exports->function_block_ids = tmp;
-    }
-    if (!mod->exports->function_block_ids)
+    if (lv_darray_push(&mod->exports->function_block_ids, &func_block_id) < 0)
         return false;
-    mod->exports->function_block_ids[mod->exports->function_count++] = func_block_id;
     return true;
 }
 
 bool module_export_type_region(Module *mod, int type_region_id) {
     if (!mod)
         return false;
-    if (mod->exports->type_count == 0) {
-        mod->exports->type_region_ids = lv_calloc(1, sizeof(int));
-    } else {
-        void *tmp = lv_realloc(mod->exports->type_region_ids, (mod->exports->type_count + 1) * sizeof(int));
-        if (!tmp)
-            return false;
-        mod->exports->type_region_ids = tmp;
-    }
-    if (!mod->exports->type_region_ids)
+    if (lv_darray_push(&mod->exports->type_region_ids, &type_region_id) < 0)
         return false;
-    mod->exports->type_region_ids[mod->exports->type_count++] = type_region_id;
     return true;
 }
 
@@ -250,8 +223,8 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     }
 
     /* 递归加载依赖模块 */
-    for (int i = 0; i < mod->dependency_count; i++) {
-        ModuleDependency *dep = &mod->dependencies[i];
+    for (int i = 0; i < mod->dependencies.count; i++) {
+        ModuleDependency *dep = (ModuleDependency *) lv_darray_get(&mod->dependencies, i);
 
         /* 检查依赖是否已经在已加载列表中 */
         bool dep_loaded = false;
@@ -547,20 +520,22 @@ ModuleSaveStatus module_save(const Module *mod, const char *filepath) {
 
     fprintf(f, "lvz 1.0\n");
     fprintf(f, "module \"%s\" \"%s\"\n", mod->name, mod->version);
-    fprintf(f, "deps %d\n", mod->dependency_count);
-    for (int i = 0; i < mod->dependency_count; i++) {
-        fprintf(f, "  dep \"%s\" \"%s\"\n", mod->dependencies[i].name, mod->dependencies[i].version_constraint);
+    fprintf(f, "deps %d\n", mod->dependencies.count);
+    for (int i = 0; i < mod->dependencies.count; i++) {
+        ModuleDependency *dep = (ModuleDependency *) lv_darray_get(&mod->dependencies, i);
+        fprintf(f, "  dep \"%s\" \"%s\"\n", dep->name, dep->version_constraint);
     }
-    fprintf(f, "exports %d %d\n", mod->exports->function_count, mod->exports->type_count);
-    for (int i = 0; i < mod->exports->function_count; i++) {
-        fprintf(f, "  func_block %d\n", mod->exports->function_block_ids[i]);
+    fprintf(f, "exports %d %d\n", mod->exports->function_block_ids.count, mod->exports->type_region_ids.count);
+    for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
+        fprintf(f, "  func_block %d\n", *(int *) lv_darray_get(&mod->exports->function_block_ids, i));
     }
-    for (int i = 0; i < mod->exports->type_count; i++) {
-        fprintf(f, "  type_region %d\n", mod->exports->type_region_ids[i]);
+    for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
+        fprintf(f, "  type_region %d\n", *(int *) lv_darray_get(&mod->exports->type_region_ids, i));
     }
-    fprintf(f, "axioms %d\n", mod->axiom_package_count);
-    for (int i = 0; i < mod->axiom_package_count; i++) {
-        fprintf(f, "  axiom \"%s\"\n", mod->axiom_packages[i]->name);
+    fprintf(f, "axioms %d\n", mod->axiom_packages.count);
+    for (int i = 0; i < mod->axiom_packages.count; i++) {
+        AxiomPackage **pkg = (AxiomPackage **) lv_darray_get(&mod->axiom_packages, i);
+        fprintf(f, "  axiom \"%s\"\n", (*pkg)->name);
     }
 
     /* 序列化约束图数据 */
@@ -599,30 +574,30 @@ char *module_compute_version_hash(const Module *mod) {
     fnv1a_hash_string(&hash, mod->version);
 
     /* 哈希依赖信息 */
-    fnv1a_hash_int(&hash, mod->dependency_count);
-    for (int i = 0; i < mod->dependency_count; i++) {
-        fnv1a_hash_string(&hash, mod->dependencies[i].name);
-        fnv1a_hash_string(&hash, mod->dependencies[i].version_constraint);
+    fnv1a_hash_int(&hash, mod->dependencies.count);
+    for (int i = 0; i < mod->dependencies.count; i++) {
+        fnv1a_hash_string(&hash, ((ModuleDependency *) mod->dependencies.data)[i].name);
+        fnv1a_hash_string(&hash, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
     }
 
     /* 哈希导出信息 */
-    fnv1a_hash_int(&hash, mod->exports->function_count);
-    fnv1a_hash_int(&hash, mod->exports->type_count);
+    fnv1a_hash_int(&hash, mod->exports->function_block_ids.count);
+    fnv1a_hash_int(&hash, mod->exports->type_region_ids.count);
 
-    for (int i = 0; i < mod->exports->function_count; i++) {
-        fnv1a_hash_int(&hash, mod->exports->function_block_ids[i]);
+    for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
+        fnv1a_hash_int(&hash, ((int *) mod->exports->function_block_ids.data)[i]);
     }
 
-    for (int i = 0; i < mod->exports->type_count; i++) {
-        fnv1a_hash_int(&hash, mod->exports->type_region_ids[i]);
+    for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
+        fnv1a_hash_int(&hash, ((int *) mod->exports->type_region_ids.data)[i]);
     }
 
     /* 哈希公理包信息 */
-    fnv1a_hash_int(&hash, mod->axiom_package_count);
-    for (int i = 0; i < mod->axiom_package_count; i++) {
-        if (mod->axiom_packages[i]) {
-            fnv1a_hash_string(&hash, mod->axiom_packages[i]->name);
-            fnv1a_hash_string(&hash, mod->axiom_packages[i]->version);
+    fnv1a_hash_int(&hash, mod->axiom_packages.count);
+    for (int i = 0; i < mod->axiom_packages.count; i++) {
+        if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
+            fnv1a_hash_string(&hash, ((AxiomPackage **) mod->axiom_packages.data)[i]->name);
+            fnv1a_hash_string(&hash, ((AxiomPackage **) mod->axiom_packages.data)[i]->version);
         }
     }
 
@@ -637,10 +612,10 @@ char *module_compute_version_hash(const Module *mod) {
 
 bool module_validate_dependency_chain(Module *mod, Module **all_modules, int module_count) {
     if (!mod) return false;
-    for (int i = 0; i < mod->dependency_count; i++) {
+    for (int i = 0; i < mod->dependencies.count; i++) {
         bool found = false;
         for (int j = 0; j < module_count; j++) {
-            if (strcmp(all_modules[j]->name, mod->dependencies[i].name) == 0) {
+            if (strcmp(all_modules[j]->name, ((ModuleDependency *) mod->dependencies.data)[i].name) == 0) {
                 found = true;
                 break;
             }
@@ -724,8 +699,8 @@ static bool dfs_detect_cycle(Module *mod, Module **modules, int count, DFSColor 
     }
 
     /* 遍历依赖 */
-    for (int i = 0; i < mod->dependency_count; i++) {
-        Module *dep = mod->dependencies[i].module;
+    for (int i = 0; i < mod->dependencies.count; i++) {
+        Module *dep = ((ModuleDependency *) mod->dependencies.data)[i].module;
         if (dep) {
             if (dfs_detect_cycle(dep, modules, count, color_map, path_stack, path_stack_len, out_path, out_path_len)) {
                 return true;
@@ -1576,14 +1551,14 @@ ModuleSaveStatus module_save_to_binary(const Module *mod, uint8_t **out_data, si
 
     /* "dependencies" */
     mp_encoder_write_str(&enc, "dependencies");
-    mp_encoder_write_array_header(&enc, (uint16_t) mod->dependency_count);
-    for (int i = 0; i < mod->dependency_count; i++) {
+    mp_encoder_write_array_header(&enc, (uint16_t) mod->dependencies.count);
+    for (int i = 0; i < mod->dependencies.count; i++) {
         mp_encoder_write_map_header(&enc, 2);
         mp_encoder_write_str(&enc, "name");
-        mp_encoder_write_str(&enc, mod->dependencies[i].name ? mod->dependencies[i].name : "");
+        mp_encoder_write_str(&enc, ((ModuleDependency *) mod->dependencies.data)[i].name ? ((ModuleDependency *) mod->dependencies.data)[i].name : "");
         mp_encoder_write_str(&enc, "version_constraint");
         mp_encoder_write_str(&enc,
-                             mod->dependencies[i].version_constraint ? mod->dependencies[i].version_constraint : "");
+                             ((ModuleDependency *) mod->dependencies.data)[i].version_constraint ? ((ModuleDependency *) mod->dependencies.data)[i].version_constraint : "");
     }
 
     /* "exports" */
@@ -1591,27 +1566,27 @@ ModuleSaveStatus module_save_to_binary(const Module *mod, uint8_t **out_data, si
     mp_encoder_write_map_header(&enc, 2);
     /* function_blocks */
     mp_encoder_write_str(&enc, "function_blocks");
-    mp_encoder_write_array_header(&enc, (uint16_t) (mod->exports ? mod->exports->function_count : 0));
+    mp_encoder_write_array_header(&enc, (uint16_t) (mod->exports ? mod->exports->function_block_ids.count : 0));
     if (mod->exports) {
-        for (int i = 0; i < mod->exports->function_count; i++) {
-            mp_encoder_write_int(&enc, (int64_t) mod->exports->function_block_ids[i]);
+        for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
+            mp_encoder_write_int(&enc, (int64_t) ((int *) mod->exports->function_block_ids.data)[i]);
         }
     }
     /* type_regions */
     mp_encoder_write_str(&enc, "type_regions");
-    mp_encoder_write_array_header(&enc, (uint16_t) (mod->exports ? mod->exports->type_count : 0));
+    mp_encoder_write_array_header(&enc, (uint16_t) (mod->exports ? mod->exports->type_region_ids.count : 0));
     if (mod->exports) {
-        for (int i = 0; i < mod->exports->type_count; i++) {
-            mp_encoder_write_int(&enc, (int64_t) mod->exports->type_region_ids[i]);
+        for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
+            mp_encoder_write_int(&enc, (int64_t) ((int *) mod->exports->type_region_ids.data)[i]);
         }
     }
 
     /* "axiom_packages" - 存储公理包名称列表 */
     mp_encoder_write_str(&enc, "axiom_packages");
-    mp_encoder_write_array_header(&enc, (uint16_t) mod->axiom_package_count);
-    for (int i = 0; i < mod->axiom_package_count; i++) {
-        if (mod->axiom_packages[i]) {
-            mp_encoder_write_str(&enc, mod->axiom_packages[i]->name ? mod->axiom_packages[i]->name : "");
+    mp_encoder_write_array_header(&enc, (uint16_t) mod->axiom_packages.count);
+    for (int i = 0; i < mod->axiom_packages.count; i++) {
+        if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
+            mp_encoder_write_str(&enc, ((AxiomPackage **) mod->axiom_packages.data)[i]->name ? ((AxiomPackage **) mod->axiom_packages.data)[i]->name : "");
         } else {
             mp_encoder_write_str(&enc, "");
         }
@@ -1957,15 +1932,15 @@ char *module_serialize_to_json(const Module *mod) {
 
     /* dependencies */
     json_writer_puts(&w, "\"dependencies\":[");
-    for (int i = 0; i < mod->dependency_count; i++) {
+    for (int i = 0; i < mod->dependencies.count; i++) {
         if (i > 0)
             json_writer_putc(&w, ',');
         json_writer_putc(&w, '{');
         json_writer_puts(&w, "\"name\":");
-        json_writer_write_escaped_str(&w, mod->dependencies[i].name);
+        json_writer_write_escaped_str(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
         json_writer_putc(&w, ',');
         json_writer_puts(&w, "\"version_constraint\":");
-        json_writer_write_escaped_str(&w, mod->dependencies[i].version_constraint);
+        json_writer_write_escaped_str(&w, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
         json_writer_putc(&w, '}');
     }
     json_writer_puts(&w, "],");
@@ -1976,11 +1951,11 @@ char *module_serialize_to_json(const Module *mod) {
     /* function_blocks */
     json_writer_puts(&w, "\"function_blocks\":[");
     if (mod->exports) {
-        for (int i = 0; i < mod->exports->function_count; i++) {
+        for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
             if (i > 0)
                 json_writer_putc(&w, ',');
             char buf[32];
-            snprintf(buf, sizeof(buf), "%d", mod->exports->function_block_ids[i]);
+            snprintf(buf, sizeof(buf), "%d", ((int *) mod->exports->function_block_ids.data)[i]);
             json_writer_puts(&w, buf);
         }
     }
@@ -1989,11 +1964,11 @@ char *module_serialize_to_json(const Module *mod) {
     /* type_regions */
     json_writer_puts(&w, "\"type_regions\":[");
     if (mod->exports) {
-        for (int i = 0; i < mod->exports->type_count; i++) {
+        for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
             if (i > 0)
                 json_writer_putc(&w, ',');
             char buf[32];
-            snprintf(buf, sizeof(buf), "%d", mod->exports->type_region_ids[i]);
+            snprintf(buf, sizeof(buf), "%d", ((int *) mod->exports->type_region_ids.data)[i]);
             json_writer_puts(&w, buf);
         }
     }
@@ -2003,11 +1978,11 @@ char *module_serialize_to_json(const Module *mod) {
 
     /* axiom_packages */
     json_writer_puts(&w, ",\"axiom_packages\":[");
-    for (int i = 0; i < mod->axiom_package_count; i++) {
+    for (int i = 0; i < mod->axiom_packages.count; i++) {
         if (i > 0)
             json_writer_putc(&w, ',');
-        if (mod->axiom_packages[i]) {
-            json_writer_write_escaped_str(&w, mod->axiom_packages[i]->name);
+        if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
+            json_writer_write_escaped_str(&w, ((AxiomPackage **) mod->axiom_packages.data)[i]->name);
         } else {
             json_writer_puts(&w, "null");
         }
@@ -2626,16 +2601,16 @@ char *module_compute_content_hash(const Module *mod) {
     }
 
     /* 哈希依赖信息 */
-    lv_sha256_update(&ctx, (const uint8_t *) &mod->dependency_count, sizeof(mod->dependency_count));
-    for (int i = 0; i < mod->dependency_count; i++) {
-        if (mod->dependencies[i].name) {
-            lv_sha256_update(&ctx, (const uint8_t *) mod->dependencies[i].name, strlen(mod->dependencies[i].name));
+    lv_sha256_update(&ctx, (const uint8_t *) &mod->dependencies.count, sizeof(mod->dependencies.count));
+    for (int i = 0; i < mod->dependencies.count; i++) {
+        if (((ModuleDependency *) mod->dependencies.data)[i].name) {
+            lv_sha256_update(&ctx, (const uint8_t *) ((ModuleDependency *) mod->dependencies.data)[i].name, strlen(((ModuleDependency *) mod->dependencies.data)[i].name));
         } else {
             lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
         }
-        if (mod->dependencies[i].version_constraint) {
-            lv_sha256_update(&ctx, (const uint8_t *) mod->dependencies[i].version_constraint,
-                             strlen(mod->dependencies[i].version_constraint));
+        if (((ModuleDependency *) mod->dependencies.data)[i].version_constraint) {
+            lv_sha256_update(&ctx, (const uint8_t *) ((ModuleDependency *) mod->dependencies.data)[i].version_constraint,
+                             strlen(((ModuleDependency *) mod->dependencies.data)[i].version_constraint));
         } else {
             lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
         }
@@ -2643,13 +2618,13 @@ char *module_compute_content_hash(const Module *mod) {
 
     /* 哈希导出信息 */
     if (mod->exports) {
-        lv_sha256_update(&ctx, (const uint8_t *) &mod->exports->function_count, sizeof(mod->exports->function_count));
-        for (int i = 0; i < mod->exports->function_count; i++) {
-            lv_sha256_update(&ctx, (const uint8_t *) &mod->exports->function_block_ids[i], sizeof(int));
+        lv_sha256_update(&ctx, (const uint8_t *) &mod->exports->function_block_ids.count, sizeof(mod->exports->function_block_ids.count));
+        for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
+            lv_sha256_update(&ctx, (const uint8_t *) &((int *) mod->exports->function_block_ids.data)[i], sizeof(int));
         }
-        lv_sha256_update(&ctx, (const uint8_t *) &mod->exports->type_count, sizeof(mod->exports->type_count));
-        for (int i = 0; i < mod->exports->type_count; i++) {
-            lv_sha256_update(&ctx, (const uint8_t *) &mod->exports->type_region_ids[i], sizeof(int));
+        lv_sha256_update(&ctx, (const uint8_t *) &mod->exports->type_region_ids.count, sizeof(mod->exports->type_region_ids.count));
+        for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
+            lv_sha256_update(&ctx, (const uint8_t *) &((int *) mod->exports->type_region_ids.data)[i], sizeof(int));
         }
     } else {
         int zero = 0;
@@ -2658,18 +2633,18 @@ char *module_compute_content_hash(const Module *mod) {
     }
 
     /* 哈希公理包信息 */
-    lv_sha256_update(&ctx, (const uint8_t *) &mod->axiom_package_count, sizeof(mod->axiom_package_count));
-    for (int i = 0; i < mod->axiom_package_count; i++) {
-        if (mod->axiom_packages[i]) {
-            if (mod->axiom_packages[i]->name) {
-                lv_sha256_update(&ctx, (const uint8_t *) mod->axiom_packages[i]->name,
-                                 strlen(mod->axiom_packages[i]->name));
+    lv_sha256_update(&ctx, (const uint8_t *) &mod->axiom_packages.count, sizeof(mod->axiom_packages.count));
+    for (int i = 0; i < mod->axiom_packages.count; i++) {
+        if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
+            if (((AxiomPackage **) mod->axiom_packages.data)[i]->name) {
+                lv_sha256_update(&ctx, (const uint8_t *) ((AxiomPackage **) mod->axiom_packages.data)[i]->name,
+                                 strlen(((AxiomPackage **) mod->axiom_packages.data)[i]->name));
             } else {
                 lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
             }
-            if (mod->axiom_packages[i]->version) {
-                lv_sha256_update(&ctx, (const uint8_t *) mod->axiom_packages[i]->version,
-                                 strlen(mod->axiom_packages[i]->version));
+            if (((AxiomPackage **) mod->axiom_packages.data)[i]->version) {
+                lv_sha256_update(&ctx, (const uint8_t *) ((AxiomPackage **) mod->axiom_packages.data)[i]->version,
+                                 strlen(((AxiomPackage **) mod->axiom_packages.data)[i]->version));
             } else {
                 lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
             }

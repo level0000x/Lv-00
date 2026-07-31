@@ -1,38 +1,28 @@
 import Mathlib
 
-inductive PStep where
-  | h
-  | l (n : Nat)
-  | qed
-  deriving DecidableEq, Repr
+structure VS where
+  proved : List Nat
 
-def foo (o : Option PStep) : Option Nat :=
-  match o with
-  | some .qed => some 7
-  | _ => none
+def upd (st : VS) (step : Nat) : VS :=
+  { st with proved := step :: st.proved }
 
--- 测试 1：split 生成的假设形式
-example (o : Option PStep) (h : foo o = some 7) : o = some .qed := by
-  unfold foo at h
-  split at h
-  · rename_i hq
-    exact hq
-  · cases h
+def stepok4 (st : VS) (step : Nat) : Bool := true
 
--- 测试 2：cases hg : o 后 match 归约（some step 情形）
-example (o : Option PStep) (h : foo o = some 7) : o = some .qed := by
-  unfold foo at h
-  cases hg : o with
-  | none => simp [hg] at h
-  | some step =>
-      cases hstep : step with
-      | qed =>
-          have hq : o = some .qed := by
-            rw [hg, hstep]
-          exact hq
-      | h =>
-          simp [hg, hstep] at h
-          cases h
-      | l _ =>
-          simp [hg, hstep] at h
-          cases h
+def go4 (st : VS) : List Nat → Option VS
+  | [] => some st
+  | step :: rest =>
+    if stepok4 st step then go4 (upd st step) rest else none
+
+-- 测试 4：go_hypotheses_some 模式（非恒等 map + reverse）
+example (st : VS) (g : List Nat) :
+    go4 st (g.map (fun c => c + 1)) = some { proved := g.reverse ++ st.proved } := by
+  induction g generalizing st with
+  | nil => simp [go4]
+  | cons c rest ih =>
+      simp [go4, upd, stepok4]
+      rw [ih]
+      simp [List.reverse_cons]
+
+-- 测试 5：Option.ite_none_right_eq_some 的化简形态
+example (b : Bool) (x y : Nat) : (if b then some x else none) = some y ↔ b = true ∧ x = y := by
+  simp

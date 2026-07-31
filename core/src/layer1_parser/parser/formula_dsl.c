@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_dsl.c
  * @brief DSL 语法解析器
  *
@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/formula_parser.h"
+#include "lv/lv_str_utils.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -374,13 +375,11 @@ const char *formula_detect_syntax(const char *input) {
     }
 
     /* 检测 LaTeX 命令 */
-    for (int i = 0; LATEX_COMMANDS[i] != NULL; i++) {
-        if (strstr(input, LATEX_COMMANDS[i]) != NULL) {
-            return "latex";
-        }
+    if (lv_str_match_any(input, LATEX_COMMANDS) >= 0) {
+        return "latex";
     }
 
-    /* 检测 DSL 关键字 */
+    /* 检测 DSL 关键字（逐词扫描 + 边界校验） */
     const char *p = input;
     while (*p) {
         /* 跳过空白 */
@@ -389,16 +388,9 @@ const char *formula_detect_syntax(const char *input) {
         if (!*p)
             break;
 
-        /* 检查是否为关键字 */
-        for (int i = 0; DSL_KEYWORDS[i] != NULL; i++) {
-            size_t kwlen = strlen(DSL_KEYWORDS[i]);
-            if (strncmp(p, DSL_KEYWORDS[i], kwlen) == 0) {
-                /* 确保关键字后是空白或分隔符 */
-                char next = p[kwlen];
-                if (next == '\0' || isspace((unsigned char) next) || next == '(' || next == '{') {
-                    return "dsl";
-                }
-            }
+        /* 检查是否为关键字（命中后必须为空白或分隔符） */
+        if (lv_str_match_delimited(p, DSL_KEYWORDS) >= 0) {
+            return "dsl";
         }
 
         /* 移动到下一个单词 */
@@ -407,10 +399,8 @@ const char *formula_detect_syntax(const char *input) {
     }
 
     /* 检测 Python 特征 */
-    for (int i = 0; PYTHON_FEATURES[i] != NULL; i++) {
-        if (strstr(input, PYTHON_FEATURES[i]) != NULL) {
-            return "python";
-        }
+    if (lv_str_match_any(input, PYTHON_FEATURES) >= 0) {
+        return "python";
     }
 
     /* 默认返回 DSL */

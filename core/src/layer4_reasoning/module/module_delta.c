@@ -378,27 +378,27 @@ static void store_baseline(const Module *mod, uint64_t hash) {
     bl->version = lv_strdup_safe(mod->version);
 
     /* 复制依赖 */
-    bl->dep_count = mod->dependency_count;
+    bl->dep_count = mod->dependencies.count;
     if (bl->dep_count > 0) {
         bl->dep_names = (char **) lv_malloc(sizeof(char *) * bl->dep_count);
         bl->dep_versions = (char **) lv_malloc(sizeof(char *) * bl->dep_count);
         for (int i = 0; i < bl->dep_count; i++) {
-            bl->dep_names[i] = lv_strdup_safe(mod->dependencies[i].name);
-            bl->dep_versions[i] = lv_strdup_safe(mod->dependencies[i].version_constraint);
+            bl->dep_names[i] = lv_strdup_safe(((ModuleDependency *) mod->dependencies.data)[i].name);
+            bl->dep_versions[i] = lv_strdup_safe(((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
         }
     }
 
     /* 复制导出 */
-    bl->func_count = mod->exports ? mod->exports->function_count : 0;
+    bl->func_count = mod->exports ? mod->exports->function_block_ids.count : 0;
     if (bl->func_count > 0) {
         bl->func_block_ids = (int *) lv_malloc(sizeof(int) * bl->func_count);
-        memcpy(bl->func_block_ids, mod->exports->function_block_ids, sizeof(int) * bl->func_count);
+        memcpy(bl->func_block_ids, (int *) mod->exports->function_block_ids.data, sizeof(int) * bl->func_count);
     }
 
-    bl->type_count = mod->exports ? mod->exports->type_count : 0;
+    bl->type_count = mod->exports ? mod->exports->type_region_ids.count : 0;
     if (bl->type_count > 0) {
         bl->type_region_ids = (int *) lv_malloc(sizeof(int) * bl->type_count);
-        memcpy(bl->type_region_ids, mod->exports->type_region_ids, sizeof(int) * bl->type_count);
+        memcpy(bl->type_region_ids, (int *) mod->exports->type_region_ids.data, sizeof(int) * bl->type_count);
     }
 
     /* 复制图快照 */
@@ -523,8 +523,8 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
         bool first = true;
         for (int i = 0; i < bl->dep_count; i++) {
             bool found = false;
-            for (int j = 0; j < mod->dependency_count; j++) {
-                if (strcmp(bl->dep_names[i], mod->dependencies[j].name) == 0) {
+            for (int j = 0; j < mod->dependencies.count; j++) {
+                if (strcmp(bl->dep_names[i], ((ModuleDependency *) mod->dependencies.data)[j].name) == 0) {
                     found = true;
                     break;
                 }
@@ -542,10 +542,10 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
         /* 找出新增的依赖 */
         json_writer_puts(&w, "\"dependencies_added\":[");
         first = true;
-        for (int i = 0; i < mod->dependency_count; i++) {
+        for (int i = 0; i < mod->dependencies.count; i++) {
             bool found = false;
             for (int j = 0; j < bl->dep_count; j++) {
-                if (strcmp(mod->dependencies[i].name, bl->dep_names[j]) == 0) {
+                if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, bl->dep_names[j]) == 0) {
                     found = true;
                     break;
                 }
@@ -555,9 +555,9 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
                     json_writer_putc(&w, ',');
                 json_writer_putc(&w, '{');
                 json_writer_puts(&w, "\"name\":");
-                json_writer_write_escaped_str(&w, mod->dependencies[i].name);
+                json_writer_write_escaped_str(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
                 json_writer_puts(&w, ",\"version_constraint\":");
-                json_writer_write_escaped_str(&w, mod->dependencies[i].version_constraint);
+                json_writer_write_escaped_str(&w, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
                 json_writer_putc(&w, '}');
                 first = false;
                 has_changes = true;
@@ -568,19 +568,19 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
         /* 找出版本约束变化的依赖 */
         json_writer_puts(&w, "\"dependencies_modified\":[");
         first = true;
-        for (int i = 0; i < mod->dependency_count; i++) {
+        for (int i = 0; i < mod->dependencies.count; i++) {
             for (int j = 0; j < bl->dep_count; j++) {
-                if (strcmp(mod->dependencies[i].name, bl->dep_names[j]) == 0 &&
-                    strcmp(mod->dependencies[i].version_constraint, bl->dep_versions[j]) != 0) {
+                if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, bl->dep_names[j]) == 0 &&
+                    strcmp(((ModuleDependency *) mod->dependencies.data)[i].version_constraint, bl->dep_versions[j]) != 0) {
                     if (!first)
                         json_writer_putc(&w, ',');
                     json_writer_putc(&w, '{');
                     json_writer_puts(&w, "\"name\":");
-                    json_writer_write_escaped_str(&w, mod->dependencies[i].name);
+                    json_writer_write_escaped_str(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
                     json_writer_puts(&w, ",\"old_version_constraint\":");
                     json_writer_write_escaped_str(&w, bl->dep_versions[j]);
                     json_writer_puts(&w, ",\"new_version_constraint\":");
-                    json_writer_write_escaped_str(&w, mod->dependencies[i].version_constraint);
+                    json_writer_write_escaped_str(&w, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
                     json_writer_putc(&w, '}');
                     first = false;
                     has_changes = true;
@@ -944,15 +944,15 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             char *dep_name = json_reader_read_string(&r);
                             if (dep_name) {
                                 /* 查找并移除依赖 */
-                                for (int i = 0; i < mod->dependency_count; i++) {
-                                    if (strcmp(mod->dependencies[i].name, dep_name) == 0) {
-                                        lv_free((void **) &mod->dependencies[i].name);
-                                        lv_free((void **) &mod->dependencies[i].version_constraint);
+                                for (int i = 0; i < mod->dependencies.count; i++) {
+                                    if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, dep_name) == 0) {
+                                        lv_free((void **) &((ModuleDependency *) mod->dependencies.data)[i].name);
+                                        lv_free((void **) &((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
                                         /* 将最后一个元素移到当前位置 */
-                                        if (i < mod->dependency_count - 1) {
-                                            mod->dependencies[i] = mod->dependencies[mod->dependency_count - 1];
+                                        if (i < mod->dependencies.count - 1) {
+                                            ((ModuleDependency *) mod->dependencies.data)[i] = ((ModuleDependency *) mod->dependencies.data)[mod->dependencies.count - 1];
                                         }
-                                        mod->dependency_count--;
+                                        mod->dependencies.count--;
                                         break;
                                     }
                                 }
@@ -997,10 +997,10 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                 if (json_reader_peek(&r) == '}')
                                     r.pos++;
                                 if (dn && nv) {
-                                    for (int i = 0; i < mod->dependency_count; i++) {
-                                        if (strcmp(mod->dependencies[i].name, dn) == 0) {
-                                            lv_free((void **) &mod->dependencies[i].version_constraint);
-                                            mod->dependencies[i].version_constraint = lv_strdup_safe(nv);
+                                    for (int i = 0; i < mod->dependencies.count; i++) {
+                                        if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, dn) == 0) {
+                                            lv_free((void **) &((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
+                                            ((ModuleDependency *) mod->dependencies.data)[i].version_constraint = lv_strdup_safe(nv);
                                             break;
                                         }
                                     }

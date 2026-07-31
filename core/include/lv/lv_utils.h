@@ -747,6 +747,62 @@ static inline size_t lv_max_z(size_t a, size_t b) {
     } while (0)
 
 /* ============================================================
+ * 作用域退出清理（defer）
+ * ============================================================ */
+
+/** @brief 作用域退出清理回调类型 */
+typedef void (*lvDeferFn)(void *arg);
+
+/** @brief defer 槽位：注册的清理回调与其参数 */
+typedef struct {
+    lvDeferFn fn;
+    void *arg;
+} lvDeferSlot;
+
+/** @brief cleanup 属性回调：槽位变量离开作用域时执行注册的清理 */
+static inline void lv_defer_slot_cleanup(void *p) {
+    lvDeferSlot *slot = (lvDeferSlot *) p;
+    if (slot && slot->fn)
+        slot->fn(slot->arg);
+}
+
+/**
+ * @brief 作用域退出时执行清理（类似 C 的 defer）
+ *
+ * 用法：
+ * @code
+ *   char *buf = lv_malloc(100);
+ *   LV_DEFER(lv_defer_free_ptr, &buf);
+ *   if (cond)
+ *       return NULL;   // buf 在返回时自动释放
+ *   ...
+ * @endcode
+ *
+ * 清理注册顺序与执行顺序相反（后注册的先执行）。
+ * 注意：同一作用域内只能注册一个 LV_DEFER。
+ *
+ * @note 基于 GCC/Clang 的 __attribute__((cleanup)) 实现，
+ *       槽位变量离开作用域（含任何 return）时自动执行 fn(arg)。
+ * @warning MSVC 不支持 cleanup 属性：在 MSVC 下该宏展开为空操作
+ *          （不执行任何清理），需手动清理或使用 goto cleanup 模式。
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define LV_DEFER(fn, arg) \
+    lvDeferSlot _lv_defer_slot_ __attribute__((cleanup(lv_defer_slot_cleanup))) = {(fn), (arg)}
+#else
+#define LV_DEFER(fn, arg) ((void) (fn), (void) (arg))
+#endif
+
+/** @brief 常用清理回调：释放一个指针变量（配合 LV_DEFER(lv_defer_free_ptr, &ptr) 使用） */
+static inline void lv_defer_free_ptr(void *arg) {
+    if (!arg)
+        return;
+    void **pp = (void **) arg;
+    if (*pp)
+        lv_free(pp);
+}
+
+/* ============================================================
  * 内存使用统计
  * ============================================================ */
 

@@ -620,7 +620,8 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
 
     /* 解析假设：按 ";" 分割，每条 "var in [lo, hi]" */
     int h_count = 0;
-    lvGappaPredicate *h_arr = NULL;
+    lvDArray h_arr;
+    lv_darray_init(&h_arr, sizeof(lvGappaPredicate));
     {
         char buf[1024] = {0};
         strncpy(buf, hyp_part, sizeof(buf));
@@ -636,18 +637,14 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
                 double lo = 0.0, hi = 0.0;
                 if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
                     sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
-                    lvGappaPredicate *tmp = NULL;
-                    if ((size_t) (h_count + 1) <= SIZE_MAX / sizeof(lvGappaPredicate)) {
-                        tmp = (lvGappaPredicate *) lv_realloc(h_arr, (size_t) (h_count + 1) * sizeof(lvGappaPredicate));
-                    }
-                    if (tmp) {
-                        h_arr = tmp;
-                        memset(&h_arr[h_count], 0, sizeof(lvGappaPredicate));
-                        h_arr[h_count].type = lv_PRED_BND;
-                        strncpy(h_arr[h_count].expr_lhs, varname, sizeof(h_arr[h_count].expr_lhs) - 1);
-                        h_arr[h_count].bound_lo = lo;
-                        h_arr[h_count].bound_hi = hi;
-                        h_arr[h_count].is_hypothesis = true;
+                    lvGappaPredicate item;
+                    memset(&item, 0, sizeof(item));
+                    item.type = lv_PRED_BND;
+                    strncpy(item.expr_lhs, varname, sizeof(item.expr_lhs) - 1);
+                    item.bound_lo = lo;
+                    item.bound_hi = hi;
+                    item.is_hypothesis = true;
+                    if (lv_darray_push(&h_arr, &item) >= 0) {
                         h_count++;
                     }
                 }
@@ -658,7 +655,8 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
 
     /* 解析目标：按 ";" 分割，每条 "|expr| <= bound" */
     int g_count = 0;
-    lvGappaProofGoal *g_arr = NULL;
+    lvDArray g_arr;
+    lv_darray_init(&g_arr, sizeof(lvGappaProofGoal));
     if (goal_part[0]) {
         char buf[1024];
         strncpy(buf, goal_part, sizeof(buf) - 1);
@@ -684,19 +682,15 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
                     if (expr_len < sizeof(inner_expr)) {
                         memcpy(inner_expr, abs_start + 1, expr_len);
                     }
-                    lvGappaProofGoal *tmp = NULL;
-                    if ((size_t) (g_count + 1) <= SIZE_MAX / sizeof(lvGappaProofGoal)) {
-                        tmp = (lvGappaProofGoal *) lv_realloc(g_arr, (size_t) (g_count + 1) * sizeof(lvGappaProofGoal));
-                    }
-                    if (tmp) {
-                        g_arr = tmp;
-                        memset(&g_arr[g_count], 0, sizeof(lvGappaProofGoal));
-                        g_arr[g_count].predicate.type = lv_PRED_ABS;
-                        strncpy(g_arr[g_count].predicate.expr_lhs, inner_expr,
-                                sizeof(g_arr[g_count].predicate.expr_lhs));
-                        g_arr[g_count].predicate.expr_lhs[sizeof(g_arr[g_count].predicate.expr_lhs) - 1] = '\0';
-                        g_arr[g_count].predicate.bound_abs = bound;
-                        g_arr[g_count].predicate.is_hypothesis = false;
+                    lvGappaProofGoal item;
+                    memset(&item, 0, sizeof(item));
+                    item.predicate.type = lv_PRED_ABS;
+                    strncpy(item.predicate.expr_lhs, inner_expr,
+                            sizeof(item.predicate.expr_lhs));
+                    item.predicate.expr_lhs[sizeof(item.predicate.expr_lhs) - 1] = '\0';
+                    item.predicate.bound_abs = bound;
+                    item.predicate.is_hypothesis = false;
+                    if (lv_darray_push(&g_arr, &item) >= 0) {
                         g_count++;
                     }
                 } else {
@@ -705,21 +699,16 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
                     double lo = 0.0, hi = 0.0;
                     if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
                         sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
-                        lvGappaProofGoal *tmp = NULL;
-                        if ((size_t) (g_count + 1) <= SIZE_MAX / sizeof(lvGappaProofGoal)) {
-                            tmp = (lvGappaProofGoal *) lv_realloc(g_arr,
-                                                                  (size_t) (g_count + 1) * sizeof(lvGappaProofGoal));
-                        }
-                        if (tmp) {
-                            g_arr = tmp;
-                            memset(&g_arr[g_count], 0, sizeof(lvGappaProofGoal));
-                            g_arr[g_count].predicate.type = lv_PRED_BND;
-                            strncpy(g_arr[g_count].predicate.expr_lhs, varname,
-                                    sizeof(g_arr[g_count].predicate.expr_lhs));
-                            g_arr[g_count].predicate.expr_lhs[sizeof(g_arr[g_count].predicate.expr_lhs) - 1] = '\0';
-                            g_arr[g_count].predicate.bound_lo = lo;
-                            g_arr[g_count].predicate.bound_hi = hi;
-                            g_arr[g_count].predicate.is_hypothesis = false;
+                        lvGappaProofGoal item;
+                        memset(&item, 0, sizeof(item));
+                        item.predicate.type = lv_PRED_BND;
+                        strncpy(item.predicate.expr_lhs, varname,
+                                sizeof(item.predicate.expr_lhs));
+                        item.predicate.expr_lhs[sizeof(item.predicate.expr_lhs) - 1] = '\0';
+                        item.predicate.bound_lo = lo;
+                        item.predicate.bound_hi = hi;
+                        item.predicate.is_hypothesis = false;
+                        if (lv_darray_push(&g_arr, &item) >= 0) {
                             g_count++;
                         }
                     }
@@ -730,11 +719,11 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
     }
 
     if (hyp)
-        *hyp = h_arr;
+        *hyp = (lvGappaPredicate *) h_arr.data;
     if (hyp_count)
         *hyp_count = h_count;
     if (goals)
-        *goals = g_arr;
+        *goals = (lvGappaProofGoal *) g_arr.data;
     if (goal_count)
         *goal_count = g_count;
     return true;

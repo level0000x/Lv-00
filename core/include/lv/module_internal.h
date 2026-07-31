@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module_internal.h
  * @brief 模块系统内部头文件 —— struct Module 完整定义及内部辅助函数声明
  *
@@ -21,11 +21,9 @@ extern "C" {
 struct Module {
     char *name;
     char *version;
-    ModuleDependency *dependencies;
-    int dependency_count;
+    lvDArray dependencies;   /**< 依赖数组（ModuleDependency 元素） */
+    lvDArray axiom_packages; /**< 公理包指针数组（AxiomPackage* 元素） */
     ModuleExport *exports;
-    AxiomPackage **axiom_packages;
-    int axiom_package_count;
     ConstraintGraph *graph;
 };
 

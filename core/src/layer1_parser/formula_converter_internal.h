@@ -12,7 +12,9 @@
 
 /* 表达式/结果缓冲区大小（formula_string.c 与 formula_converter.c 共享） */
 #define FORMULA_EXPR_BUF_SIZE 128
+#define FORMULA_BUF_SIZE 256
 #define FORMULA_RESULT_BUF_SIZE 64
+#define FORMULA_LARGE_BUF_SIZE 1024
 
 #ifdef __cplusplus
 extern "C" {

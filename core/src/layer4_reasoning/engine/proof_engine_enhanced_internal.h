@@ -12,6 +12,9 @@
 
 #include "lv/proof_engine_enhanced.h"
 
+/** @brief 矛盾路径初始容量 */
+#define CONTRADICTION_PATH_INITIAL_CAPACITY 32
+
 #ifdef __cplusplus
 extern "C" {
 #endif

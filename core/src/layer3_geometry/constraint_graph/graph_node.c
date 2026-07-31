@@ -884,6 +884,23 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
 }
 
 /**
+ * @brief 回滚 graph_alloc_node 之后尚未完成的点节点添加
+ *
+ * 递减节点计数、从节点索引表中移除并释放节点自身。
+ * 注意：调用前需自行清理 node->symbolic_coords 的内容。
+ *
+ * @param graph 约束图指针
+ * @param node  待回滚的节点
+ */
+static void graph_rollback_point(ConstraintGraph *graph, GeomNode *node) {
+    if (!graph || !node)
+        return;
+    graph->node_count--;
+    node_index_remove(graph, node->id);
+    lv_free((void **) &node);
+}
+
+/**
  * 在约束图中添加点节点。
  *
  * @param graph       约束图指针
@@ -899,9 +916,7 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coor
         return ADD_NODE_CONFLICT;
     node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
     if (!node->symbolic_coords) {
-        graph->node_count--;
-        node_index_remove(graph, node->id);
-        lv_free((void **) &node);
+        graph_rollback_point(graph, node);
         return ADD_NODE_CONFLICT;
     }
     /* 深拷贝坐标，使节点拥有这些坐标 */
@@ -915,9 +930,7 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coor
             lv_free((void **) &node->symbolic_coords);
             node->symbolic_coords = NULL;
             node->coord_count = 0;
-            graph->node_count--;
-            node_index_remove(graph, node->id);
-            lv_free((void **) &node);
+            graph_rollback_point(graph, node);
             return ADD_NODE_CONFLICT;
         }
     }

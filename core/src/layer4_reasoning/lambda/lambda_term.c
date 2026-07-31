@@ -8,6 +8,7 @@
 
 #include "lv/lambda_term.h"
 
+#include "lv/lv_strbuf.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -144,29 +145,18 @@ static char *lambda_to_string_internal(const LvLambdaTerm *term, size_t *out_len
         return NULL;
     }
 
-    char buf[256];
     char *result = NULL;
     size_t len = 0;
 
     switch (term->type) {
         case LV_LAMBDA_VAR: {
-            int n = snprintf(buf, sizeof(buf), "#%d", term->data.var.index);
-            if (n < 0 || (size_t) n >= sizeof(buf)) {
-                /* 输出截断，动态分配 */
-                int needed = snprintf(NULL, 0, "#%d", term->data.var.index);
-                if (needed < 0)
-                    return NULL;
-                result = lv_malloc((size_t) needed + 1);
-                if (!result)
-                    return NULL;
-                snprintf(result, (size_t) needed + 1, "#%d", term->data.var.index);
-                len = (size_t) needed;
-            } else {
-                result = lv_strdup(buf);
-                if (!result)
-                    return NULL;
-                len = (size_t) n;
-            }
+            /* 用 lvStrBuf 构建，替代固定缓冲区 + 两遍 snprintf */
+            lvStrBuf sb = {0};
+            lv_strbuf_printf(&sb, "#%d", term->data.var.index);
+            result = lv_strbuf_to_string(&sb);
+            if (!result)
+                return NULL;
+            len = strlen(result);
             break;
         }
 

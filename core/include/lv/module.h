@@ -38,6 +38,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "axiom_pkg.h"
+#include "lv_utils.h"
 
 /* MAX_MODULE_DEPTH —— 权威定义在 symbolic_coord.h 中
  * 此处使用 #ifndef 守卫防止重复定义。若需修改此值，请修改
@@ -57,10 +58,8 @@ typedef struct ModuleDependency {
 } ModuleDependency;
 
 typedef struct ModuleExport {
-    int *function_block_ids;
-    int *type_region_ids;
-    int function_count;
-    int type_count;
+    lvDArray function_block_ids; /**< 函数块 ID 数组（int 元素），count 即导出数量 */
+    lvDArray type_region_ids;    /**< 类型区域 ID 数组（int 元素），count 即导出数量 */
 } ModuleExport;
 
 typedef enum {

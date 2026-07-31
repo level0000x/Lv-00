@@ -48,7 +48,6 @@ typedef enum {
 /* 映射表大小常量 */
 #define LEAN4_TACTIC_MAP_COUNT 9
 #define LEAN4_REVERSE_MAP_COUNT 35
-#define LEAN4_VALID_TACTICS_COUNT 31
 
 /* Lean 4 proof export: 遍历 Lv-00 证明树并生成 Lean 4 tactic 脚本 */
 static int lean4_export_proof(void *proof, char *output, int output_size) {
@@ -526,22 +525,13 @@ static int lean4_validate(const char *input) {
                                           "calc",  "simp",        "cases",    "induction", "refl",  "rfl",   "trivial",
                                           "sorry", "assumption",  "exact",    "by",        "fun",   "let",   "show",
                                           "from",  "obtain",      "suffices", "at",        "left",  "right", "split",
-                                          "first", "skip",        "done"};
-    int valid_count = LEAN4_VALID_TACTICS_COUNT;
+                                          "first", "skip",        "done",     NULL};
 
     /* 如果包含 ":= by"，检查 by 后是否有已知 tactic */
     const char *by_kw = strstr(input, ":= by");
     if (by_kw) {
         const char *script = by_kw + 5;
-        int found_valid = 0;
-        for (int i = 0; i < valid_count; i++) {
-            if (strstr(script, valid_tactics[i])) {
-                found_valid = 1;
-                break;
-            }
-        }
-        /* 如果 tactic 块非空但未找到已知 tactic，仍然通过（可能是自定义 tactic） */
-        if (!found_valid)
+        if (lv_str_match_any(script, valid_tactics) < 0)
             return 0;
     }
 
