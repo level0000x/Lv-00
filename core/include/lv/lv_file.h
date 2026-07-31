@@ -54,6 +54,13 @@ int lv_file_write_all(const char *path, const void *data, size_t len);
  * @param fp  已打开的文件指针
  * @return    文件大小（字节），失败返回 0
  */
+/**
+ * @brief 检查文件是否存在
+ * @param path 文件路径
+ * @return true 存在，false 不存在（含 NULL 参数）
+ */
+bool lv_file_exists(const char *path);
+
 size_t lv_file_size(FILE *fp);
 
 #ifdef __cplusplus

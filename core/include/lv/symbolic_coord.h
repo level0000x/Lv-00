@@ -232,6 +232,22 @@ double transcendental_to_double(const Transcendental *t);
 /* ── SymbolicCoord core ── */
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom);
 SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigned int n);
+
+/**
+ * @brief 从 double 创建有理数坐标，按指定比例缩放
+ * @param val   double 值
+ * @param scale 缩放比例（分母）
+ * @return 新建的 SymbolicCoord（有理数类型），失败返回 NULL
+ */
+SymbolicCoord *symbolic_coord_from_double_scaled(double val, int64_t scale);
+
+/**
+ * @brief 从 double 创建有理数坐标，先四舍五入再按指定比例缩放
+ * @param val   double 值
+ * @param scale 缩放比例（分母）
+ * @return 新建的 SymbolicCoord（有理数类型），失败返回 NULL
+ */
+SymbolicCoord *symbolic_coord_from_double_rounded(double val, int64_t scale);
 SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, double right);
 SymbolicCoord *symbolic_coord_create_transcendental(const char *name);
 SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *c);

@@ -1691,12 +1691,12 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
  * @brief 将字符串转义为安全的 JSON 字符串字面量
  *
  * 转义双引号、反斜杠、换行符、回车符、制表符等 JSON 特殊字符。
- * 返回静态缓冲区（非线程安全），每次调用覆盖前一次结果。
+ * 返回线程局部缓冲区，每次调用覆盖前一次结果。
  */
 static const char *json_escape(const char *s) {
     if (!s)
         return "";
-    static char buf[4096];
+    static lv_THREAD_LOCAL char buf[4096];
     size_t j = 0;
     for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
         switch (s[i]) {
@@ -1745,12 +1745,12 @@ static const char *json_escape(const char *s) {
  * @brief 将字符串转义为安全的 HTML 文本
  *
  * 转义 <, >, &, ", ' 等 HTML 特殊字符。
- * 返回静态缓冲区（非线程安全），每次调用覆盖前一次结果。
+ * 返回线程局部缓冲区，每次调用覆盖前一次结果。
  */
 const char *html_escape(const char *s) {
     if (!s)
         return "";
-    static char buf[4096];
+    static lv_THREAD_LOCAL char buf[4096];
     size_t j = 0;
     for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
         switch (s[i]) {
@@ -2307,12 +2307,11 @@ void *proof_navigator_search(void *nav) {
  *
  * @param solver    约束求解器指针（未使用，保留为 API 兼容）
  * @param geom_obj  几何对象名（const char * 类型）
- * @return 命题字符串描述（指向内部静态缓冲区，调用者不可释放），
+ * @return 命题字符串描述（指向线程局部 scratch 缓冲区，调用者不可释放），
  *         参数无效时返回 NULL
  */
 const char *constraint_solver_get_proposition(void *solver, void *geom_obj) {
     const char *obj_name;
-    static char buf[128];
 
     (void) solver;
 
@@ -2324,6 +2323,7 @@ const char *constraint_solver_get_proposition(void *solver, void *geom_obj) {
         return NULL;
 
     /* 根据对象名生成命题描述 */
-    lv_snprintf(buf, sizeof(buf), "type(%s, object)", obj_name);
+    char *buf = lv_scratch_buf(128);
+    lv_snprintf(buf, 128, "type(%s, object)", obj_name);
     return buf;
 }

@@ -33,6 +33,32 @@ extern "C" {
 #include <stdint.h> /* int32_t, uint32_t, int64_t, uint64_t */
 
 /* ====================================================================
+ * 1.5 平台头文件选择（Platform Header Selection）
+ *
+ * Windows 的 <windows.h>/<io.h> 与 POSIX 的 <unistd.h>/<sys/stat.h>
+ * 已由 lv_platform.h 提供；此处仅补充其余 POSIX 头文件。
+ * ==================================================================== */
+
+/* ---- 平台头文件选择 ---- */
+#if defined(_WIN32) || defined(_WIN64)
+/* <windows.h> / <io.h> 已由 lv_platform.h 提供 */
+#else
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#endif
+
+/* ---- popen/pclose 平台兼容 ---- */
+#if defined(_WIN32) || defined(_WIN64)
+#define lv_popen _popen
+#define lv_pclose _pclose
+#else
+#define lv_popen popen
+#define lv_pclose pclose
+#endif
+
+/* ====================================================================
  * 1. 固定宽度整数类型别名（Fixed-width Integer Types）
  *
  * 使用 stdint.h 作为底层实现，通过 typedef 统一命名为 lv_* 前缀，

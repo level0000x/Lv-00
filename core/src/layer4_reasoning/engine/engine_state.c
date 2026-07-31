@@ -10,6 +10,7 @@
  */
 
 #include "lv/engine.h"
+#include "lv_utils.h"
 
 /**
  * @brief 引擎状态转移表
@@ -43,21 +44,43 @@ bool engine_is_valid_transition(EngineState from, EngineState to) {
     return engine_transition_table[from][to];
 }
 
-const char *engine_state_name(EngineState state) {
-    switch (state) {
-        case ENGINE_STATE_IDLE:
-            return "空闲"; /* IDLE: 等待输入 */
-        case ENGINE_STATE_PARSING:
-            return "解析中"; /* PARSING: 解析输入文本 */
-        case ENGINE_STATE_REASONING:
-            return "推理中"; /* REASONING: 执行重写/求解/证明 */
-        case ENGINE_STATE_ERROR:
-            return "错误"; /* ERROR: 发生不可恢复错误 */
-        case ENGINE_STATE_COMPLETE:
-            return "完成"; /* COMPLETE: 推理成功完成 */
-        default:
-            return "未知状态";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} engine_state_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *engine_state_name_lookup(const engine_state_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief engine_state_name 名称表（按枚举值升序） */
+static const engine_state_NameEntry s_engine_state_name_entries[] = {
+    {ENGINE_STATE_IDLE, "空闲"},
+    {ENGINE_STATE_PARSING, "解析中"},
+    {ENGINE_STATE_REASONING, "推理中"},
+    {ENGINE_STATE_ERROR, "错误"},
+    {ENGINE_STATE_COMPLETE, "完成"},
+};
+
+const char *engine_state_name(EngineState state) {
+    const char *name = engine_state_name_lookup(s_engine_state_name_entries, lv_ARRAY_SIZE(s_engine_state_name_entries), (int) state);
+    return name ? name : "未知状态";
 }
 
 EngineState engine_get_state(const lvEngine *engine) {

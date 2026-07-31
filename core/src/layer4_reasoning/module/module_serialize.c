@@ -576,37 +576,23 @@ ModuleSaveStatus module_save(const Module *mod, const char *filepath) {
     return MODULE_SAVE_OK;
 }
 
-/* ============== FNV-1a 哈希实现 ============== */
+/* ============== FNV-1a 哈希（统一委托 lv_utils.h 公共 API） ============== */
 
-/* FNV-1a constants for 64-bit hash */
-#define FNV_PRIME 0x100000001b3ULL
-#define FNV_OFFSET_BASIS 0xcbf29ce484222325ULL
-
-static void fnv1a_hash_update(uint64_t *hash, const void *data, size_t len) {
-    const unsigned char *bytes = (const unsigned char *) data;
-    for (size_t i = 0; i < len; i++) {
-        *hash ^= bytes[i];
-        *hash *= FNV_PRIME;
-    }
-}
-
+/** 字符串混入：NULL 混入 "(null)"（保持原有语义） */
 static void fnv1a_hash_string(uint64_t *hash, const char *str) {
-    if (str) {
-        fnv1a_hash_update(hash, str, strlen(str));
-    } else {
-        fnv1a_hash_update(hash, "(null)", 6);
-    }
+    *hash = lv_fnv1a_update(*hash, str ? str : "(null)", str ? strlen(str) : 6);
 }
 
+/** int 混入：按 sizeof(int) 字节混入（保持原有语义） */
 static void fnv1a_hash_int(uint64_t *hash, int value) {
-    fnv1a_hash_update(hash, &value, sizeof(int));
+    *hash = lv_fnv1a_update(*hash, &value, sizeof(int));
 }
 
 char *module_compute_version_hash(const Module *mod) {
     if (!mod)
         return NULL;
 
-    uint64_t hash = FNV_OFFSET_BASIS;
+    uint64_t hash = lv_FNV64_OFFSET_BASIS;
 
     /* 哈希模块名和版本 */
     fnv1a_hash_string(&hash, mod->name);

@@ -932,6 +932,69 @@ lv_PUBLIC_API bool lv_ensure_capacity(void **arr, int count, int *capacity, size
  */
 lv_PUBLIC_API uint64_t lv_fnv1a_hash(const void *data, size_t len);
 
+/**
+ * @brief FNV-1a 增量哈希：给定已有哈希值，混入 data/len，返回新哈希值
+ * @param hash 已有哈希值（增量起点通常为 lv_FNV64_OFFSET_BASIS）
+ * @param data 待混入的数据（可为 NULL，此时原样返回 hash）
+ * @param len  数据长度（字节数）
+ * @return 混入后的新哈希值
+ */
+lv_PUBLIC_API uint64_t lv_fnv1a_update(uint64_t hash, const void *data, size_t len);
+
+/**
+ * @brief FNV-1a 字符串哈希（增量起点）
+ * @param s 输入字符串（可为 NULL，等价于空字符串，返回偏移基值）
+ * @return 64位哈希值
+ */
+lv_PUBLIC_API uint64_t lv_fnv1a_hash_str(const char *s);
+
+/**
+ * @brief FNV-1a 整数增量哈希
+ * @param hash 已有哈希值
+ * @param v    待混入的 64 位整数（按 sizeof(uint64_t) 字节混入）
+ * @return 混入后的新哈希值
+ */
+lv_PUBLIC_API uint64_t lv_fnv1a_hash_int(uint64_t hash, uint64_t v);
+
+/* ============================================================
+ * qsort 比较器
+ * ============================================================ */
+
+/**
+ * @brief qsort 用 int 比较器（返回值 -(a<b) + (a>b)，无溢出）
+ * @param a 指向第一个 int 的指针
+ * @param b 指向第二个 int 的指针
+ * @return 负数（a < b）、零（a == b）、正数（a > b）
+ */
+lv_PUBLIC_API int lv_cmp_int(const void *a, const void *b);
+
+/**
+ * @brief qsort 用 uint64_t 比较器
+ * @param a 指向第一个 uint64_t 的指针
+ * @param b 指向第二个 uint64_t 的指针
+ * @return 负数（a < b）、零（a == b）、正数（a > b）
+ */
+lv_PUBLIC_API int lv_cmp_uint64(const void *a, const void *b);
+
+/* ============================================================
+ * 线程局部临时缓冲区（scratch）
+ * ============================================================ */
+
+/**
+ * @brief 获取线程局部临时字符串缓冲区（scratch 语义，勿跨调用保存）
+ * @param min_size 所需最小字节数
+ * @return 指向 TLS 缓冲区的指针（至少 min_size 字节，可重复调用）
+ */
+lv_PUBLIC_API char *lv_scratch_buf(size_t min_size);
+
+/**
+ * @brief 线程局部临时格式化：结果写入 TLS 缓冲区
+ * @param fmt printf 风格格式字符串
+ * @param ... 可变参数
+ * @return 指向 TLS 缓冲区的格式化字符串（scratch 语义，勿跨调用保存）
+ */
+lv_PUBLIC_API char *lv_fmt_tmp(const char *fmt, ...);
+
 /* ============================================================
  * 数值数组聚合
  * ============================================================ */

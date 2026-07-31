@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module_lvz.c
  * @brief .lvz 词法/语法解析器
  *
@@ -431,8 +431,8 @@ static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
                 lvz_parser_advance(p);
             }
             /* 创建点节点 (简化实现 - 使用有理数坐标) */
-            SymbolicCoord *sx = symbolic_coord_create_rational((int64_t) round(x * 10000), 10000);
-            SymbolicCoord *sy = symbolic_coord_create_rational((int64_t) round(y * 10000), 10000);
+            SymbolicCoord *sx = symbolic_coord_from_double_rounded(x, 10000);
+            SymbolicCoord *sy = symbolic_coord_from_double_rounded(y, 10000);
             SymbolicCoord *coords[2] = {sx, sy};
             if (sx && sy) {
                 graph_add_point(mod->graph, coords, 2);

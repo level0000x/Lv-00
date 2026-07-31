@@ -110,13 +110,6 @@ static inline TypeEquivResult check_binary_type_equiv(TypeSystem *ts, TypeRegion
     return type_check_equivalence_internal(ts, sub2, other2, use_rw, d + 1);
 }
 
-/* qsort 比较函数：按 int 升序排列 */
-static int compare_ints(const void *a, const void *b) {
-    int ia = *(const int *) a;
-    int ib = *(const int *) b;
-    return (ia > ib) - (ia < ib);
-}
-
 /* ============== 谓词子类型检查 ============== */
 
 bool type_check_predicate_subtype_value(TypeSystem *ts, TypeRegion *subtype, int node_id) {
@@ -315,8 +308,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                     }
                     memcpy(sorted1, type1->contained_node_ids, count * sizeof(int));
                     memcpy(sorted2, type2->contained_node_ids, count * sizeof(int));
-                    qsort(sorted1, count, sizeof(int), compare_ints);
-                    qsort(sorted2, count, sizeof(int), compare_ints);
+                    qsort(sorted1, count, sizeof(int), lv_cmp_int);
+                    qsort(sorted2, count, sizeof(int), lv_cmp_int);
 
                     /* 双指针线性扫描 */
                     bool equiv = true;
@@ -359,8 +352,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                     }
                     memcpy(sorted1, type1->constraint_ids, count * sizeof(int));
                     memcpy(sorted2, type2->constraint_ids, count * sizeof(int));
-                    qsort(sorted1, count, sizeof(int), compare_ints);
-                    qsort(sorted2, count, sizeof(int), compare_ints);
+                    qsort(sorted1, count, sizeof(int), lv_cmp_int);
+                    qsort(sorted2, count, sizeof(int), lv_cmp_int);
 
                     /* 双指针线性扫描 */
                     bool equiv = true;

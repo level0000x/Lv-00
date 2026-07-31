@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 模块名称：几何数据压缩引擎 (geometry_compress)
  *
  * 功能概述：
@@ -17,7 +17,7 @@
  *
  * 数据结构：
  *   - TriangleFace                    三角面片（从约束图中提取 3-participant 约束）
- *   - HuffmanNode/MinHeap/HuffmanCode  Huffman 编码基础设施
+ *   - HuffmanNode/HuffmanCode  Huffman 编码基础设施
  *   - BitWriter/BitReader             位级 I/O 工具
  *
  * 设计文档参考：Section 3.5 几何内核 · 网格压缩
@@ -35,6 +35,7 @@
 
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_heap.h"
 
 
 #include "lv_internal.h"
@@ -105,14 +106,23 @@ typedef struct {
 } HuffmanNode;
 
 /**
- * @brief Min-heap structure (for building Huffman tree)
+ * @brief Huffman 堆元素：节点索引 + 频率快照（供 lv_heap 间接比较）
+ *
+ * 节点频率在压入堆后不再变化，因此快照频率与实时读取 hnodes[].freq 等价。
  */
 typedef struct {
-    int *nodes;          /**< Heap-stored Huffman node indices */
-    int size;            /**< Current heap size */
-    int capacity;        /**< Heap capacity */
-    HuffmanNode *hnodes; /**< Pointer to Huffman node array (for frequency comparison) */
-} MinHeap;
+    int node_index; /**< Huffman 节点索引 */
+    uint32_t freq;  /**< 频率快照（压入时确定） */
+} HuffHeapElem;
+
+/**
+ * @brief Huffman 堆元素比较函数（按频率升序，最小堆）
+ */
+static int huff_heap_compare(const void *a, const void *b) {
+    const HuffHeapElem *ea = (const HuffHeapElem *) a;
+    const HuffHeapElem *eb = (const HuffHeapElem *) b;
+    return (ea->freq > eb->freq) - (ea->freq < eb->freq);
+}
 
 /**
  * @brief Huffman encoding lookup table entry
@@ -123,11 +133,6 @@ typedef struct {
 } HuffmanCode;
 
 /* Forward declarations for Huffman functions */
-static void heap_swap(MinHeap *h, int i, int j);
-static void heap_sift_up(MinHeap *h, int idx);
-static void heap_sift_down(MinHeap *h, int idx);
-static bool heap_push(MinHeap *h, int node_idx);
-static int heap_pop(MinHeap *h);
 static void huffman_generate_codes(const HuffmanNode *hnodes, int root, HuffmanCode *codes);
 
 /* ========================================================================
@@ -515,36 +520,43 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
             }
 
             if (hnode_count >= 2) {
-                int heap_nodes[HUFFMAN_MAX_NODES];
-                MinHeap heap;
-                heap.nodes = heap_nodes;
-                heap.size = 0;
-                heap.capacity = HUFFMAN_MAX_NODES;
-                heap.hnodes = hnodes;
+                lvHeap heap;
+                if (!lv_heap_init(&heap, sizeof(HuffHeapElem), lv_MIN_HEAP, huff_heap_compare, HUFFMAN_MAX_NODES)) {
+                    /* 堆初始化失败（内存不足），跳过 Huffman 编码 */
+                } else {
+                    for (int i = 0; i < hnode_count; i++) {
+                        HuffHeapElem e = {i, hnodes[i].freq};
+                        lv_heap_push(&heap, &e);
+                    }
 
-                for (int i = 0; i < hnode_count; i++) {
-                    heap_push(&heap, i);
+                    while (lv_heap_size(&heap) > 1) {
+                        HuffHeapElem le, re;
+                        lv_heap_pop(&heap, &le);
+                        lv_heap_pop(&heap, &re);
+                        int left = le.node_index;
+                        int right = re.node_index;
+                        hnodes[hnode_count].left = left;
+                        hnodes[hnode_count].right = right;
+                        hnodes[hnode_count].parent = -1;
+                        hnodes[hnode_count].freq = hnodes[left].freq + hnodes[right].freq;
+                        hnodes[hnode_count].byte_val = 0;
+                        hnodes[left].parent = hnode_count;
+                        hnodes[right].parent = hnode_count;
+                        HuffHeapElem ne = {hnode_count, hnodes[hnode_count].freq};
+                        lv_heap_push(&heap, &ne);
+                        hnode_count++;
+                    }
+
+                    HuffHeapElem root_elem;
+                    lv_heap_pop(&heap, &root_elem);
+                    int root = root_elem.node_index;
+                    lv_heap_destroy(&heap);
+
+                    HuffmanCode codes[256];
+                    memset(codes, 0, sizeof(codes));
+                    huffman_generate_codes(hnodes, root, codes);
+                    (void) codes; /* Encoding table stored for subsequent use */
                 }
-
-                while (heap.size > 1) {
-                    int left = heap_pop(&heap);
-                    int right = heap_pop(&heap);
-                    hnodes[hnode_count].left = left;
-                    hnodes[hnode_count].right = right;
-                    hnodes[hnode_count].parent = -1;
-                    hnodes[hnode_count].freq = hnodes[left].freq + hnodes[right].freq;
-                    hnodes[hnode_count].byte_val = 0;
-                    hnodes[left].parent = hnode_count;
-                    hnodes[right].parent = hnode_count;
-                    heap_push(&heap, hnode_count);
-                    hnode_count++;
-                }
-
-                int root = heap_pop(&heap);
-                HuffmanCode codes[256];
-                memset(codes, 0, sizeof(codes));
-                huffman_generate_codes(hnodes, root, codes);
-                (void) codes; /* Encoding table stored for subsequent use */
             }
 
             lv_free((void **) &quantized);
@@ -698,13 +710,7 @@ static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
             double residual_val = actual - pred_coords[d];
 
             /* Replace coordinate with residual as rational */
-            double scaled_val = residual_val * (double) lv_RATIONAL_SCALE_LOW;
-            /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
-            if (scaled_val > 9223372036854774784.0)
-                scaled_val = 9223372036854774784.0;
-            if (scaled_val < -9223372036854774784.0)
-                scaled_val = -9223372036854774784.0;
-            SymbolicCoord *residual = symbolic_coord_create_rational((int64_t) scaled_val, lv_RATIONAL_SCALE_LOW);
+            SymbolicCoord *residual = symbolic_coord_from_double_scaled(residual_val, lv_RATIONAL_SCALE_LOW);
             if (residual) {
                 symbolic_coord_destroy(node_target->symbolic_coords[d]);
                 node_target->symbolic_coords[d] = residual;
@@ -1141,66 +1147,6 @@ static int bitreader_read_bit(BitReader *br) {
 }
 
 /* ========================================================================
- * Min-heap operations (for building Huffman tree)
- * ======================================================================== */
-
-static void heap_swap(MinHeap *h, int i, int j) {
-    int tmp = h->nodes[i];
-    h->nodes[i] = h->nodes[j];
-    h->nodes[j] = tmp;
-}
-
-static void heap_sift_up(MinHeap *h, int idx) {
-    while (idx > 0) {
-        int parent = (idx - 1) / 2;
-        if (h->hnodes[h->nodes[idx]].freq < h->hnodes[h->nodes[parent]].freq) {
-            heap_swap(h, idx, parent);
-            idx = parent;
-        } else {
-            break;
-        }
-    }
-}
-
-static void heap_sift_down(MinHeap *h, int idx) {
-    int size = h->size;
-    while (1) {
-        int smallest = idx;
-        int left = 2 * idx + 1;
-        int right = 2 * idx + 2;
-        if (left < size && h->hnodes[h->nodes[left]].freq < h->hnodes[h->nodes[smallest]].freq)
-            smallest = left;
-        if (right < size && h->hnodes[h->nodes[right]].freq < h->hnodes[h->nodes[smallest]].freq)
-            smallest = right;
-        if (smallest == idx)
-            break;
-        heap_swap(h, idx, smallest);
-        idx = smallest;
-    }
-}
-
-static bool heap_push(MinHeap *h, int node_idx) {
-    if (h->size >= h->capacity)
-        return false;
-    h->nodes[h->size] = node_idx;
-    heap_sift_up(h, h->size);
-    h->size++;
-    return true;
-}
-
-static int heap_pop(MinHeap *h) {
-    if (h->size <= 0)
-        return -1;
-    int result = h->nodes[0];
-    h->size--;
-    if (h->size > 0) {
-        h->nodes[0] = h->nodes[h->size];
-        heap_sift_down(h, 0);
-    }
-    return result;
-}
-
-/* ========================================================================
  * Huffman encoding table generation
  * ======================================================================== */
 
@@ -1305,20 +1251,21 @@ static bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uin
         node_count++;
     }
 
-    int heap_nodes[HUFFMAN_MAX_NODES];
-    MinHeap heap;
-    heap.nodes = heap_nodes;
-    heap.size = 0;
-    heap.capacity = HUFFMAN_MAX_NODES;
-    heap.hnodes = hnodes;
+    lvHeap heap;
+    if (!lv_heap_init(&heap, sizeof(HuffHeapElem), lv_MIN_HEAP, huff_heap_compare, HUFFMAN_MAX_NODES))
+        return false;
 
     for (int i = 0; i < node_count; i++) {
-        heap_push(&heap, i);
+        HuffHeapElem e = {i, hnodes[i].freq};
+        lv_heap_push(&heap, &e);
     }
 
-    while (heap.size > 1) {
-        int left = heap_pop(&heap);
-        int right = heap_pop(&heap);
+    while (lv_heap_size(&heap) > 1) {
+        HuffHeapElem le, re;
+        lv_heap_pop(&heap, &le);
+        lv_heap_pop(&heap, &re);
+        int left = le.node_index;
+        int right = re.node_index;
 
         hnodes[node_count].left = left;
         hnodes[node_count].right = right;
@@ -1328,11 +1275,15 @@ static bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uin
         hnodes[left].parent = node_count;
         hnodes[right].parent = node_count;
 
-        heap_push(&heap, node_count);
+        HuffHeapElem ne = {node_count, hnodes[node_count].freq};
+        lv_heap_push(&heap, &ne);
         node_count++;
     }
 
-    int root = heap_pop(&heap);
+    HuffHeapElem root_elem;
+    lv_heap_pop(&heap, &root_elem);
+    int root = root_elem.node_index;
+    lv_heap_destroy(&heap);
 
     /* Step 3: Generate Huffman encoding table */
     HuffmanCode codes[256];
@@ -1470,20 +1421,23 @@ static bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **o
         node_count++;
     }
 
-    int heap_nodes[HUFFMAN_MAX_NODES];
-    MinHeap heap;
-    heap.nodes = heap_nodes;
-    heap.size = 0;
-    heap.capacity = HUFFMAN_MAX_NODES;
-    heap.hnodes = hnodes;
-
-    for (int i = 0; i < node_count; i++) {
-        heap_push(&heap, i);
+    lvHeap heap;
+    if (!lv_heap_init(&heap, sizeof(HuffHeapElem), lv_MIN_HEAP, huff_heap_compare, HUFFMAN_MAX_NODES)) {
+        lv_free((void **) &output);
+        return false;
     }
 
-    while (heap.size > 1) {
-        int left = heap_pop(&heap);
-        int right = heap_pop(&heap);
+    for (int i = 0; i < node_count; i++) {
+        HuffHeapElem e = {i, hnodes[i].freq};
+        lv_heap_push(&heap, &e);
+    }
+
+    while (lv_heap_size(&heap) > 1) {
+        HuffHeapElem le, re;
+        lv_heap_pop(&heap, &le);
+        lv_heap_pop(&heap, &re);
+        int left = le.node_index;
+        int right = re.node_index;
         hnodes[node_count].left = left;
         hnodes[node_count].right = right;
         hnodes[node_count].parent = -1;
@@ -1491,11 +1445,15 @@ static bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **o
         hnodes[node_count].byte_val = 0;
         hnodes[left].parent = node_count;
         hnodes[right].parent = node_count;
-        heap_push(&heap, node_count);
+        HuffHeapElem ne = {node_count, hnodes[node_count].freq};
+        lv_heap_push(&heap, &ne);
         node_count++;
     }
 
-    int root = heap_pop(&heap);
+    HuffHeapElem root_elem;
+    lv_heap_pop(&heap, &root_elem);
+    int root = root_elem.node_index;
+    lv_heap_destroy(&heap);
 
     /* Step 2: Bit-by-bit decode */
     BitReader br;
@@ -2164,12 +2122,7 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
                 double val;
                 memcpy(&val, ptr, sizeof(double));
                 ptr += sizeof(double);
-                double scaled_val = val * (double) lv_RATIONAL_SCALE_DEFAULT;
-                if (scaled_val > 9223372036854774784.0)
-                    scaled_val = 9223372036854774784.0;
-                if (scaled_val < -9223372036854774784.0)
-                    scaled_val = -9223372036854774784.0;
-                coords[d] = symbolic_coord_create_rational((int64_t) scaled_val, lv_RATIONAL_SCALE_DEFAULT);
+                coords[d] = symbolic_coord_from_double_scaled(val, lv_RATIONAL_SCALE_DEFAULT);
                 if (!coords[d]) {
                     ok = false;
                     break;

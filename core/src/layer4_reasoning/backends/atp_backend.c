@@ -43,22 +43,6 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 
-
-#ifdef _WIN32
-#include <io.h>
-#include <windows.h>
-
-#define popen _popen
-#define pclose _pclose
-#else
-#include <fcntl.h>
-#include <poll.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-#endif
-
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -374,7 +358,7 @@ static bool atp_check_executable(const char *name) {
     snprintf(cmd, sizeof(cmd), "command -v %s 2>/dev/null", name);
 #endif
 
-    FILE *fp = popen(cmd, "r");
+    FILE *fp = lv_popen(cmd, "r");
     if (!fp)
         return false;
 
@@ -384,7 +368,7 @@ static bool atp_check_executable(const char *name) {
         /* 如果命令找到了文件，输出包含路径 */
         found = (buffer[0] != '\0' && buffer[0] != '\n');
     }
-    pclose(fp);
+    lv_pclose(fp);
     return found;
 }
 
@@ -1357,19 +1341,42 @@ const ATPBackendEntry *atp_find_backend(ATPBackendType type) {
 /**
  * @brief 获取后端类型名称
  */
-const char *atp_backend_type_name(ATPBackendType type) {
-    switch (type) {
-        case ATP_BACKEND_VAMPIRE:
-            return "Vampire";
-        case ATP_BACKEND_EPROVER:
-            return "E Prover";
-        case ATP_BACKEND_IPROVER:
-            return "iProver";
-        case ATP_BACKEND_CUSTOM:
-            return "Custom";
-        default:
-            return "Unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} atp_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *atp_name_lookup(const atp_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief atp_backend_type_name 名称表（按枚举值升序） */
+static const atp_NameEntry s_atp_backend_type_name_entries[] = {
+    {ATP_BACKEND_VAMPIRE, "Vampire"},
+    {ATP_BACKEND_EPROVER, "E Prover"},
+    {ATP_BACKEND_IPROVER, "iProver"},
+    {ATP_BACKEND_CUSTOM, "Custom"},
+};
+
+const char *atp_backend_type_name(ATPBackendType type) {
+    const char *name = atp_name_lookup(s_atp_backend_type_name_entries, lv_ARRAY_SIZE(s_atp_backend_type_name_entries), (int) type);
+    return name ? name : "Unknown";
 }
 
 /**
@@ -1487,35 +1494,31 @@ int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config, ATPRes
 /**
  * @brief 获取结果类型名称
  */
+/** @brief atp_result_name 名称表（按枚举值升序） */
+static const atp_NameEntry s_atp_result_name_entries[] = {
+    {ATP_RESULT_SAT, "SAT"},
+    {ATP_RESULT_UNSAT, "UNSAT"},
+    {ATP_RESULT_UNKNOWN, "UNKNOWN"},
+    {ATP_RESULT_ERROR, "ERROR"},
+};
+
 const char *atp_result_name(ATPResult result) {
-    switch (result) {
-        case ATP_RESULT_SAT:
-            return "SAT";
-        case ATP_RESULT_UNSAT:
-            return "UNSAT";
-        case ATP_RESULT_UNKNOWN:
-            return "UNKNOWN";
-        case ATP_RESULT_ERROR:
-            return "ERROR";
-        default:
-            return "INVALID";
-    }
+    const char *name = atp_name_lookup(s_atp_result_name_entries, lv_ARRAY_SIZE(s_atp_result_name_entries), (int) result);
+    return name ? name : "INVALID";
 }
 
 /**
  * @brief 获取输入格式名称
  */
+/** @brief atp_format_name 名称表（按枚举值升序） */
+static const atp_NameEntry s_atp_format_name_entries[] = {
+    {ATP_FORMAT_TPTP_FOF, "TPTP FOF"},
+    {ATP_FORMAT_TPTP_CNF, "TPTP CNF"},
+    {ATP_FORMAT_TPTP_TFF, "TPTP TFF"},
+    {ATP_FORMAT_SMTLIB2, "SMT-LIB2"},
+};
+
 const char *atp_format_name(ATPInputFormat format) {
-    switch (format) {
-        case ATP_FORMAT_TPTP_FOF:
-            return "TPTP FOF";
-        case ATP_FORMAT_TPTP_CNF:
-            return "TPTP CNF";
-        case ATP_FORMAT_TPTP_TFF:
-            return "TPTP TFF";
-        case ATP_FORMAT_SMTLIB2:
-            return "SMT-LIB2";
-        default:
-            return "UNKNOWN";
-    }
+    const char *name = atp_name_lookup(s_atp_format_name_entries, lv_ARRAY_SIZE(s_atp_format_name_entries), (int) format);
+    return name ? name : "UNKNOWN";
 }

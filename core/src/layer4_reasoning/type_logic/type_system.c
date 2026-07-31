@@ -843,19 +843,15 @@ const char *type_kind_to_string(TypeKind kind) {
 /**
  * Convert a UniverseLevel to its string representation.
  *
- * NOTE: This function is NOT thread-safe because it uses a static
- * internal buffer.  Callers must not rely on the returned pointer
- * remaining valid after a subsequent call from another thread.
+ * NOTE: 使用线程局部 scratch 缓冲区（lv_utils.h 的 lv_fmt_tmp）。
+ * 调用者不得在后续调用后继续使用返回的指针（scratch 语义）。
  */
 const char *universe_level_to_string(UniverseLevel level) {
-    /* 由于层级现在是任意整数，使用静态缓冲区格式化 */
-    static __thread char buf[32];
     if (level == UNIVERSE_BASE)
         return "Base";
     if (level == UNIVERSE_TYPE_1)
         return "Type1";
-    snprintf(buf, sizeof(buf), "Type%d", level);
-    return buf;
+    return lv_fmt_tmp("Type%d", level);
 }
 
 static const char *s_equiv_result_names[] = {

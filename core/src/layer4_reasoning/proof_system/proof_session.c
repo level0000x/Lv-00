@@ -362,34 +362,54 @@ bool proof_session_reset(lvProofSession *session) {
 
 /* ============== Utility Functions ============== */
 
-const char *session_status_to_string(lvSessionStatus status) {
-    switch (status) {
-        case SESSION_STATUS_ACTIVE:
-            return "ACTIVE";
-        case SESSION_STATUS_COMPLETE:
-            return "COMPLETE";
-        case SESSION_STATUS_ABANDONED:
-            return "ABANDONED";
-        case SESSION_STATUS_ERROR:
-            return "ERROR";
-        default:
-            return "UNKNOWN";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} session_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *session_name_lookup(const session_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
 }
 
+/** @brief session_status_to_string 名称表（按枚举值升序） */
+static const session_NameEntry s_session_status_to_string_entries[] = {
+    {SESSION_STATUS_ACTIVE, "ACTIVE"},
+    {SESSION_STATUS_COMPLETE, "COMPLETE"},
+    {SESSION_STATUS_ABANDONED, "ABANDONED"},
+    {SESSION_STATUS_ERROR, "ERROR"},
+};
+
+const char *session_status_to_string(lvSessionStatus status) {
+    const char *name = session_name_lookup(s_session_status_to_string_entries, lv_ARRAY_SIZE(s_session_status_to_string_entries), (int) status);
+    return name ? name : "UNKNOWN";
+}
+
+/** @brief step_result_to_string 名称表（按枚举值升序） */
+static const session_NameEntry s_step_result_to_string_entries[] = {
+    {STEP_RESULT_ACCEPTED, "ACCEPTED"},
+    {STEP_RESULT_REJECTED, "REJECTED"},
+    {STEP_RESULT_GOAL_CHANGED, "GOAL_CHANGED"},
+    {STEP_RESULT_PROVED, "PROVED"},
+    {STEP_RESULT_ERROR, "ERROR"},
+};
+
 const char *step_result_to_string(lvStepResult result) {
-    switch (result) {
-        case STEP_RESULT_ACCEPTED:
-            return "ACCEPTED";
-        case STEP_RESULT_REJECTED:
-            return "REJECTED";
-        case STEP_RESULT_GOAL_CHANGED:
-            return "GOAL_CHANGED";
-        case STEP_RESULT_PROVED:
-            return "PROVED";
-        case STEP_RESULT_ERROR:
-            return "ERROR";
-        default:
-            return "UNKNOWN";
-    }
+    const char *name = session_name_lookup(s_step_result_to_string_entries, lv_ARRAY_SIZE(s_step_result_to_string_entries), (int) result);
+    return name ? name : "UNKNOWN";
 }

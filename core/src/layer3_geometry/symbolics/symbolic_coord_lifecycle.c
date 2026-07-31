@@ -58,6 +58,26 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
     return coord;
 }
 
+SymbolicCoord *symbolic_coord_from_double_scaled(double val, int64_t scale) {
+    double scaled_val = val * (double) scale;
+    /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
+    if (scaled_val > 9223372036854774784.0)
+        scaled_val = 9223372036854774784.0;
+    if (scaled_val < -9223372036854774784.0)
+        scaled_val = -9223372036854774784.0;
+    return symbolic_coord_create_rational((int64_t) scaled_val, (uint64_t) scale);
+}
+
+SymbolicCoord *symbolic_coord_from_double_rounded(double val, int64_t scale) {
+    double scaled_val = round(val * (double) scale);
+    /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
+    if (scaled_val > 9223372036854774784.0)
+        scaled_val = 9223372036854774784.0;
+    if (scaled_val < -9223372036854774784.0)
+        scaled_val = -9223372036854774784.0;
+    return symbolic_coord_create_rational((int64_t) scaled_val, (uint64_t) scale);
+}
+
 /**
  * 创建代数数类型的符号坐标。
  *

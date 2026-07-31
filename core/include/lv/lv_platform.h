@@ -134,15 +134,11 @@ extern "C" {
   #include <direct.h>
   #include <io.h>
   #define lv_mkdir(path)     _mkdir(path)
-  #define lv_access(path, m) _access(path, 0)
 #else
   #include <unistd.h>
   #define lv_mkdir(path)     mkdir(path, 0755)
-  #define lv_access(path, m) access(path, F_OK)
 #endif
 
-/** 检查文件是否存在。返回非零值表示存在，0 表示不存在。 */
-#define lv_file_exists(path) (lv_access(path, 0) == 0)
 
 /* ═══════════════════════════════════════════════════════════════════
  * 第 6 节：动态库加载抽象

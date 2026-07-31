@@ -21,6 +21,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "union_find_util.h"
 
 /* ============================================================
  * Internal helpers
@@ -90,34 +91,7 @@ static bool triangle_exists(const lvTriangle *triangles, size_t n_triangles, int
 /**
  * @brief Find the root of a set with path compression.
  */
-static int uf_find(int *parent, int x) {
-    while (parent[x] != x) {
-        parent[x] = parent[parent[x]]; /* Path compression */
-        x = parent[x];
-    }
-    return x;
-}
 
-/**
- * @brief Union two sets.
- */
-static void uf_union(int *parent, int *rank, int x, int y) {
-    int rx = uf_find(parent, x);
-    int ry = uf_find(parent, y);
-
-    if (rx == ry)
-        return;
-
-    /* Union by rank */
-    if (rank[rx] < rank[ry]) {
-        parent[rx] = ry;
-    } else if (rank[rx] > rank[ry]) {
-        parent[ry] = rx;
-    } else {
-        parent[ry] = rx;
-        rank[rx]++;
-    }
-}
 
 /* ============================================================
  * API: Create

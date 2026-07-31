@@ -165,13 +165,29 @@ theorem eval_point_defines_var (s : State) (p : lvPoint) :
 /-- point 求值保持其他点不变 -/
 theorem eval_point_preserves_other (s : State) (p q : lvPoint) (hne : p.name ≠ q.name) :
     (eval_stmt s (.point p)).points.any (fun r => r = q) ↔ s.points.any (fun r => r = q) := by
-  sorry
+  unfold eval_stmt addPoint
+  by_cases hdup : s.points.any (fun q => q.name = p.name)
+  · simp [hdup]
+  · have hpq : p ≠ q := by
+      intro h
+      exact hne (congrArg lvPoint.name h)
+    have hdec : decide (p = q) = false := by
+      simpa using hpq
+    simp [hdup, hdec]
 
 /-- 求值 constraint 语句的约束数增加一个（除非重名） -/
 theorem eval_constraint_adds_one (s : State) (c : lvConstraint) :
     s.constraints.all (fun d => d.name ≠ c.name) →
     (eval_stmt s (.constraint c)).constraints.length = s.constraints.length + 1 := by
-  sorry
+  intro h
+  unfold eval_stmt addConstraint
+  by_cases hdup : s.constraints.any (fun d => d.name = c.name)
+  · exfalso
+    rcases List.any_eq_true.mp hdup with ⟨x, hxmem, hxeq⟩
+    have hxeq' : x.name = c.name := by simpa using hxeq
+    have hxne : x.name ≠ c.name := by simpa using (List.all_eq_true.mp h) x hxmem
+    exact hxne hxeq'
+  · simp [hdup]
 /-- point 求值保留约束列表不变 -/
 theorem eval_point_preserves_constraints (s : State) (p : lvPoint) :
     (eval_stmt s (.point p)).constraints = s.constraints := by
@@ -190,12 +206,18 @@ theorem eval_constraint_preserves_points (s : State) (c : lvConstraint) :
 
 /-- prove 幂等：两次 prove 将产生错误 -/
 theorem prove_idempotent (s : State) :
-    (eval_stmt (eval_stmt s .normalize) .prove).errors ≠ [] := by
-  sorry
+    (eval_stmt (eval_stmt s .prove) .prove).errors ≠ [] := by
+  unfold eval_stmt setProve
+  by_cases hp : s.proveFlag
+  · simp [hp]
+  · simp [hp]
 
 /-- normalize 幂等：两次 normalize 将产生错误 -/
 theorem normalize_idempotent (s : State) :
-    (eval_stmt (eval_stmt s .prove) .normalize).errors ≠ [] := by
-  sorry
+    (eval_stmt (eval_stmt s .normalize) .normalize).errors ≠ [] := by
+  unfold eval_stmt setNormalize
+  by_cases hn : s.normalizeFlag
+  · simp [hn]
+  · simp [hn]
 
 end lvFormal.Theory.lvLang

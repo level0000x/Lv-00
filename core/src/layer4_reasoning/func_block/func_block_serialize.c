@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_serialize.c
  * @brief 函数块序列化/反序列化模块
  * @details 实现函数块状态的序列化（保存为文本格式）和反序列化（从文本格式恢复）。
@@ -16,6 +16,7 @@
 
 #include "func_block.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 
 /* ==================== 命名常量 ==================== */
@@ -31,19 +32,42 @@
  * @param type 端口依赖类型枚举值
  * @return 对应的字符串表示
  */
-static const char *port_dep_type_to_string(PortDependencyType type) {
-    switch (type) {
-        case PORT_DEP_INCIDENCE:
-            return "INCIDENCE";
-        case PORT_DEP_BETWEENNESS:
-            return "BETWEENNESS";
-        case PORT_DEP_CONTAINMENT:
-            return "CONTAINMENT";
-        case PORT_DEP_INTERSECTION:
-            return "INTERSECTION";
-        default:
-            return "UNKNOWN";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} fb_ser_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *fb_ser_name_lookup(const fb_ser_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief port_dep_type_to_string 名称表（按枚举值升序） */
+static const fb_ser_NameEntry s_port_dep_type_to_string_entries[] = {
+    {PORT_DEP_INCIDENCE, "INCIDENCE"},
+    {PORT_DEP_BETWEENNESS, "BETWEENNESS"},
+    {PORT_DEP_CONTAINMENT, "CONTAINMENT"},
+    {PORT_DEP_INTERSECTION, "INTERSECTION"},
+};
+
+static const char *port_dep_type_to_string(PortDependencyType type) {
+    const char *name = fb_ser_name_lookup(s_port_dep_type_to_string_entries, lv_ARRAY_SIZE(s_port_dep_type_to_string_entries), (int) type);
+    return name ? name : "UNKNOWN";
 }
 
 /**
@@ -136,21 +160,48 @@ char *func_block_serialize_state(const FuncBlock *fb) {
     /* 内部节点 */
     WRITE_FMT("  internal_nodes = [");
     for (int i = 0; i < fb->internal_node_count; i++) {
-        WRITE_FMT("%s%d", i > 0 ? ", " : "", fb->internal_node_ids[i]);
+        char id_buf[32];
+        int id_w = snprintf(id_buf, sizeof(id_buf), "%d", fb->internal_node_ids[i]);
+        if (id_w < 0 || (size_t) id_w >= sizeof(id_buf)) {
+            pos = buf_size - 1;
+            goto done;
+        }
+        if (!lv_str_append_sep(buf, buf_size, &pos, (i > 0) ? ", " : "", id_buf)) {
+            pos = buf_size - 1;
+            goto done;
+        }
     }
     WRITE_FMT("]\n");
 
     /* 输入端口 */
     WRITE_FMT("  input_ports = [");
     for (int i = 0; i < fb->input_count; i++) {
-        WRITE_FMT("%s%d", i > 0 ? ", " : "", fb->input_port_ids[i]);
+        char id_buf[32];
+        int id_w = snprintf(id_buf, sizeof(id_buf), "%d", fb->input_port_ids[i]);
+        if (id_w < 0 || (size_t) id_w >= sizeof(id_buf)) {
+            pos = buf_size - 1;
+            goto done;
+        }
+        if (!lv_str_append_sep(buf, buf_size, &pos, (i > 0) ? ", " : "", id_buf)) {
+            pos = buf_size - 1;
+            goto done;
+        }
     }
     WRITE_FMT("]\n");
 
     /* 输出端口 */
     WRITE_FMT("  output_ports = [");
     for (int i = 0; i < fb->output_count; i++) {
-        WRITE_FMT("%s%d", i > 0 ? ", " : "", fb->output_port_ids[i]);
+        char id_buf[32];
+        int id_w = snprintf(id_buf, sizeof(id_buf), "%d", fb->output_port_ids[i]);
+        if (id_w < 0 || (size_t) id_w >= sizeof(id_buf)) {
+            pos = buf_size - 1;
+            goto done;
+        }
+        if (!lv_str_append_sep(buf, buf_size, &pos, (i > 0) ? ", " : "", id_buf)) {
+            pos = buf_size - 1;
+            goto done;
+        }
     }
     WRITE_FMT("]\n");
 
@@ -177,7 +228,16 @@ char *func_block_serialize_state(const FuncBlock *fb) {
     if (fb->precondition_count > 0) {
         WRITE_FMT("  preconditions = [");
         for (int i = 0; i < fb->precondition_count; i++) {
-            WRITE_FMT("%s%d", i > 0 ? ", " : "", fb->precondition_region_ids[i]);
+            char id_buf[32];
+            int id_w = snprintf(id_buf, sizeof(id_buf), "%d", fb->precondition_region_ids[i]);
+            if (id_w < 0 || (size_t) id_w >= sizeof(id_buf)) {
+                pos = buf_size - 1;
+                goto done;
+            }
+            if (!lv_str_append_sep(buf, buf_size, &pos, (i > 0) ? ", " : "", id_buf)) {
+                pos = buf_size - 1;
+                goto done;
+            }
         }
         WRITE_FMT("]\n");
     }

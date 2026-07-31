@@ -32,6 +32,7 @@
 
 #include "error_codes.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 #include "lv_utils.h" /* lv_malloc / lv_realloc / lv_free —— 统一内存分配器 */
 
@@ -839,10 +840,7 @@ static int helper_latex_geom_triangle(const FormulaNode *node, char *buffer, siz
 
 static int helper_latex_coord_list(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    char *ptr = buffer;
-    size_t remaining = size;
-    int total = 0;
+    size_t pos = 0;
 
     for (int i = 0; i < node->data.coord_list.coord_count; i++) {
         /* STACK_SAFE: 坐标缓冲区 ≤256 字节 */
@@ -852,15 +850,10 @@ static int helper_latex_coord_list(const FormulaNode *node, char *buffer, size_t
         if (coord_ret < 0)
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "coord sub-render failed");
 
-        int w = snprintf(ptr, remaining, "%s%s", (i > 0) ? ", " : "", coord_buf);
-        if (w < 0 || (size_t) w >= remaining)
+        if (!lv_str_append_sep(buffer, size, &pos, ", ", coord_buf))
             break;
-        ptr += w;
-        remaining -= w;
-        total += w;
     }
-    written = total;
-    return written;
+    return (int) pos;
 }
 
 static int helper_latex_constraint_perpendicular(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -1425,25 +1418,17 @@ static int helper_python_geom_triangle(const FormulaNode *node, char *buffer, si
 
 static int helper_python_coord_list(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    char *ptr = buffer;
-    size_t remaining = size;
-    int total = 0;
+    size_t pos = 0;
 
     for (int i = 0; i < node->data.coord_list.coord_count; i++) {
         /* STACK_SAFE: 坐标缓冲区 ≤256 字节 */
         char coord_buf[lv_FORMULA_BUF_MEDIUM] = {0};
         render_python_internal(node->data.coord_list.coords[i], coord_buf, sizeof(coord_buf), options);
 
-        int w = snprintf(ptr, remaining, "%s%s", (i > 0) ? ", " : "", coord_buf);
-        if (w < 0 || (size_t) w >= remaining)
+        if (!lv_str_append_sep(buffer, size, &pos, ", ", coord_buf))
             break;
-        ptr += w;
-        remaining -= w;
-        total += w;
     }
-    written = total;
-    return written;
+    return (int) pos;
 }
 
 static int helper_python_constraint_perpendicular(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -1934,25 +1919,17 @@ static int helper_dsl_geom_triangle(const FormulaNode *node, char *buffer, size_
 
 static int helper_dsl_coord_list(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    char *ptr = buffer;
-    size_t remaining = size;
-    int total = 0;
+    size_t pos = 0;
 
     for (int i = 0; i < node->data.coord_list.coord_count; i++) {
         /* STACK_SAFE: 坐标缓冲区 ≤256 字节 */
         char coord_buf[lv_FORMULA_BUF_MEDIUM] = {0};
         render_dsl_internal(node->data.coord_list.coords[i], coord_buf, sizeof(coord_buf), options);
 
-        int w = snprintf(ptr, remaining, "%s%s", (i > 0) ? ", " : "", coord_buf);
-        if (w < 0 || (size_t) w >= remaining)
+        if (!lv_str_append_sep(buffer, size, &pos, ", ", coord_buf))
             break;
-        ptr += w;
-        remaining -= w;
-        total += w;
     }
-    written = total;
-    return written;
+    return (int) pos;
 }
 
 static int helper_dsl_constraint_perpendicular(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -2545,19 +2522,15 @@ char *formula_render_point_latex(const char *name, const FormulaNode **coords, i
     if (!coords_buf)
         return NULL;
 
-    char *ptr = coords_buf;
-    size_t remaining = lv_FORMULA_BUF_SIZE;
+    size_t pos = 0;
 
     for (int i = 0; i < coord_count; i++) {
         /* STACK_SAFE: 单个坐标缓冲区 ≤256 字节 */
         char coord_buf[lv_FORMULA_BUF_MEDIUM] = {0};
         formula_render_to_buffer(coords[i], OUTPUT_LATEX, coord_buf, sizeof(coord_buf));
 
-        int w = snprintf(ptr, remaining, "%s%s", (i > 0) ? ", " : "", coord_buf);
-        if (w < 0 || (size_t) w >= remaining)
+        if (!lv_str_append_sep(coords_buf, lv_FORMULA_BUF_SIZE, &pos, ", ", coord_buf))
             break;
-        ptr += w;
-        remaining -= w;
     }
 
     /* HEAP_ALLOCATED: 结果字符串 */

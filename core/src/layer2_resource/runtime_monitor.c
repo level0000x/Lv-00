@@ -25,16 +25,6 @@
 #include "config.h" /* lv_LOCALTIME */
 #include "lv_utils.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <sys/time.h>
-#include <unistd.h>
-#ifdef __APPLE__
-#include <sys/sysctl.h>
-#endif
-#endif
-
 /* ============== 内部常量 ============== */
 
 /** 日志缓冲区大小 */

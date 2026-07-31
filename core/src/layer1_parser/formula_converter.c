@@ -427,7 +427,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
 
     /* 创建圆周上的一个点（用于表示半径） */
     SymbolicCoord *radius_coords[2];
-    radius_coords[0] = symbolic_coord_create_rational((int64_t) (radius * 1000), 1000); /* 圆心 x + radius */
+    radius_coords[0] = symbolic_coord_from_double_scaled(radius, 1000); /* 圆心 x + radius */
     radius_coords[1] = symbolic_coord_create_rational(0, 1);                            /* 圆心 y */
 
     AddNodeResult result = graph_add_point(graph, radius_coords, 2);
@@ -810,8 +810,8 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
     double rx = radius * cos(start_angle);
     double ry = radius * sin(start_angle);
     SymbolicCoord *radius_coords[2];
-    radius_coords[0] = symbolic_coord_create_rational((int64_t) (rx * 1000), 1000);
-    radius_coords[1] = symbolic_coord_create_rational((int64_t) (ry * 1000), 1000);
+    radius_coords[0] = symbolic_coord_from_double_scaled(rx, 1000);
+    radius_coords[1] = symbolic_coord_from_double_scaled(ry, 1000);
 
     AddNodeResult r = graph_add_point(graph, radius_coords, 2);
     symbolic_coord_destroy(radius_coords[0]);
@@ -1147,8 +1147,8 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
 
         /* 使用两个坐标存储 cos(θ) 和 sin(θ) */
         SymbolicCoord *angle_coords[2];
-        angle_coords[0] = symbolic_coord_create_rational((int64_t) (cos_theta * 1000000), 1000000);
-        angle_coords[1] = symbolic_coord_create_rational((int64_t) (sin_theta * 1000000), 1000000);
+        angle_coords[0] = symbolic_coord_from_double_scaled(cos_theta, lv_RATIONAL_SCALE_DEFAULT);
+        angle_coords[1] = symbolic_coord_from_double_scaled(sin_theta, lv_RATIONAL_SCALE_DEFAULT);
 
         AddNodeResult add_result = graph_add_point(graph, angle_coords, 2);
         symbolic_coord_destroy(angle_coords[0]);
@@ -2916,8 +2916,8 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
         if (identify_circle(coeffs, &cx, &cy, &r)) {
             /* 创建圆心点 (cx, cy) */
             SymbolicCoord *center_coords[2];
-            center_coords[0] = symbolic_coord_create_rational((int64_t) (cx * 1000), 1000);
-            center_coords[1] = symbolic_coord_create_rational((int64_t) (cy * 1000), 1000);
+            center_coords[0] = symbolic_coord_from_double_scaled(cx, 1000);
+            center_coords[1] = symbolic_coord_from_double_scaled(cy, 1000);
 
             AddNodeResult add_result = graph_add_point(graph, center_coords, 2);
             symbolic_coord_destroy(center_coords[0]);
@@ -2931,8 +2931,8 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
 
             /* 创建圆周上的一个点表示半径 */
             SymbolicCoord *radius_coords[2];
-            radius_coords[0] = symbolic_coord_create_rational((int64_t) ((cx + r) * 1000), 1000);
-            radius_coords[1] = symbolic_coord_create_rational((int64_t) (cy * 1000), 1000);
+            radius_coords[0] = symbolic_coord_from_double_scaled(cx + r, 1000);
+            radius_coords[1] = symbolic_coord_from_double_scaled(cy, 1000);
 
             add_result = graph_add_point(graph, radius_coords, 2);
             symbolic_coord_destroy(radius_coords[0]);
@@ -2974,15 +2974,15 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
                 double y0 = -c / b;
                 double y1 = -(a + c) / b;
                 p1_coords[0] = symbolic_coord_create_rational(0, 1);
-                p1_coords[1] = symbolic_coord_create_rational((int64_t) (y0 * 1000), 1000);
+                p1_coords[1] = symbolic_coord_from_double_scaled(y0, 1000);
                 p2_coords[0] = symbolic_coord_create_rational(1000, 1000);
-                p2_coords[1] = symbolic_coord_create_rational((int64_t) (y1 * 1000), 1000);
+                p2_coords[1] = symbolic_coord_from_double_scaled(y1, 1000);
             } else {
                 /* 垂直线 x = -C/A，取 y=0 和 y=1 */
                 double x0 = -c / a;
-                p1_coords[0] = symbolic_coord_create_rational((int64_t) (x0 * 1000), 1000);
+                p1_coords[0] = symbolic_coord_from_double_scaled(x0, 1000);
                 p1_coords[1] = symbolic_coord_create_rational(0, 1);
-                p2_coords[0] = symbolic_coord_create_rational((int64_t) (x0 * 1000), 1000);
+                p2_coords[0] = symbolic_coord_from_double_scaled(x0, 1000);
                 p2_coords[1] = symbolic_coord_create_rational(1000, 1000);
             }
 

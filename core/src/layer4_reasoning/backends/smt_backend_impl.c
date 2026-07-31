@@ -43,16 +43,6 @@
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
 
-
-#ifdef _WIN32
-#include <io.h>
-#include <windows.h>
-
-#else
-#include <pthread.h>
-
-#endif
-
 #include "error_codes.h"
 #include "groebner_engine.h"
 #include "lv_internal.h"
@@ -305,13 +295,11 @@ const char *smtsolver_get_last_error_message(const SMTSolver *solver) {
  *
  * @param node_id   节点 ID
  * @param coord_idx 坐标索引（0=x, 1=y）
- * @return 变量名字符串（静态存储）
+ * @return 变量名字符串（线程局部 scratch 缓冲区，勿跨调用保存）
  */
 static const char *smtlib2_coord_var_name(int node_id, int coord_idx) {
-    static __thread char buf[128];
     const char *suffix = (coord_idx == 0) ? "x" : "y";
-    snprintf(buf, sizeof(buf), "p%d_%s", node_id, suffix);
-    return buf;
+    return lv_fmt_tmp("p%d_%s", node_id, suffix);
 }
 
 /**
@@ -2027,16 +2015,6 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverRe
  * 外部求解器子进程辅助函数
  * ============================================================ */
 
-#ifdef _WIN32
-#include <windows.h>
-
-#define popen _popen
-#define pclose _pclose
-#else
-#include <unistd.h>
-
-#endif
-
 /**
  * @brief 通过子进程调用外部 SMT 求解器
  *
@@ -2123,7 +2101,7 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
     lv_LOG_INFO("外部求解器 %s: 启动子进程: %s", executable, cmd);
 
     /* 通过 popen 启动子进程 */
-    FILE *pipe = popen(cmd, "r");
+    FILE *pipe = lv_popen(cmd, "r");
     if (!pipe) {
         lv_LOG_WARNING("外部求解器 %s: popen 失败（求解器可能未安装），回退到 UNKNOWN", executable);
 #ifdef _WIN32
@@ -2143,7 +2121,7 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
     }
     output_buf[total_read] = '\0';
 
-    int status = pclose(pipe);
+    int status = lv_pclose(pipe);
 
 #ifdef _WIN32
     _unlink(tmp_path);

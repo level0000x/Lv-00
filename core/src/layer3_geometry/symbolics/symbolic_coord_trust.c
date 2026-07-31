@@ -121,15 +121,6 @@ TrustColor trust_color_combine(TrustColor a, TrustColor b) {
  * Hash Function for Normalization Grouping
  * ============================================================ */
 
-/* FNV-1a hash */
-static uint64_t fnv1a_update(uint64_t hash, const char *data, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        hash ^= (uint64_t) (unsigned char) data[i];
-        hash *= lv_FNV64_PRIME;
-    }
-    return hash;
-}
-
 uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
     if (!coord)
         return 0;
@@ -137,13 +128,13 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
     uint64_t hash = lv_FNV64_OFFSET_BASIS;
 
     /* Hash the type */
-    hash = fnv1a_update(hash, (const char *) &coord->type, sizeof(coord->type));
+    hash = lv_fnv1a_update(hash, (const char *) &coord->type, sizeof(coord->type));
 
     switch (coord->type) {
         case RATIONAL: {
             char *ser = rational_serialize(coord->data.rational);
             if (ser) {
-                hash = fnv1a_update(hash, ser, strlen(ser));
+                hash = lv_fnv1a_update(hash, ser, strlen(ser));
                 lv_free((void **) &ser);
             }
             break;
@@ -153,12 +144,12 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
             for (int i = 0; i <= a->minimal_poly.degree; i++) {
                 char *coeff_str = mpz_get_str(NULL, 16, a->minimal_poly.coeffs[i]);
                 if (coeff_str) {
-                    hash = fnv1a_update(hash, coeff_str, strlen(coeff_str));
+                    hash = lv_fnv1a_update(hash, coeff_str, strlen(coeff_str));
                     lv_free_external((void **) &coeff_str);
                 }
             }
-            hash = fnv1a_update(hash, (const char *) &a->left_bound, sizeof(double));
-            hash = fnv1a_update(hash, (const char *) &a->right_bound, sizeof(double));
+            hash = lv_fnv1a_update(hash, (const char *) &a->left_bound, sizeof(double));
+            hash = lv_fnv1a_update(hash, (const char *) &a->right_bound, sizeof(double));
             break;
         }
         case QUADRATIC: {
@@ -166,18 +157,18 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
             char *a_ser = rational_serialize(q->a);
             char *b_ser = rational_serialize(q->b);
             if (a_ser) {
-                hash = fnv1a_update(hash, a_ser, strlen(a_ser));
+                hash = lv_fnv1a_update(hash, a_ser, strlen(a_ser));
                 lv_free((void **) &a_ser);
             }
             if (b_ser) {
-                hash = fnv1a_update(hash, b_ser, strlen(b_ser));
+                hash = lv_fnv1a_update(hash, b_ser, strlen(b_ser));
                 lv_free((void **) &b_ser);
             }
-            hash = fnv1a_update(hash, (const char *) &q->n, sizeof(q->n));
+            hash = lv_fnv1a_update(hash, (const char *) &q->n, sizeof(q->n));
             break;
         }
         case TRANSCENDENTAL: {
-            hash = fnv1a_update(hash, coord->data.transcendental->name, strlen(coord->data.transcendental->name));
+            hash = lv_fnv1a_update(hash, coord->data.transcendental->name, strlen(coord->data.transcendental->name));
             break;
         }
     }

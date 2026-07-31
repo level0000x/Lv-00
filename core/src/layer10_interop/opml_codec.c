@@ -84,29 +84,47 @@ typedef struct {
  * @param type 步骤类型值（lvProofStepType 枚举）
  * @return 对应的字符串名称，未知类型返回 "unknown"
  */
-static const char *step_type_name(int type) {
-    switch (type) {
-        case lv_STEP_ADD_NODE:
-            return "add_node";
-        case lv_STEP_ADD_CONSTRAINT:
-            return "add_constraint";
-        case lv_STEP_REWRITE:
-            return "rewrite";
-        case lv_STEP_FUNCTION_APP:
-            return "function_app";
-        case lv_STEP_EXACT:
-            return "exact";
-        case lv_STEP_HAVE:
-            return "have";
-        case lv_STEP_CALC:
-            return "calc";
-        case lv_STEP_NORMALIZATION:
-            return "normalization";
-        case lv_STEP_ORACLE:
-            return "oracle";
-        default:
-            return "unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} opml_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *opml_name_lookup(const opml_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief step_type_name 名称表（按枚举值升序） */
+static const opml_NameEntry s_step_type_name_entries[] = {
+    {lv_STEP_ADD_NODE, "add_node"},
+    {lv_STEP_ADD_CONSTRAINT, "add_constraint"},
+    {lv_STEP_REWRITE, "rewrite"},
+    {lv_STEP_FUNCTION_APP, "function_app"},
+    {lv_STEP_EXACT, "exact"},
+    {lv_STEP_HAVE, "have"},
+    {lv_STEP_CALC, "calc"},
+    {lv_STEP_NORMALIZATION, "normalization"},
+    {lv_STEP_ORACLE, "oracle"},
+};
+
+static const char *step_type_name(int type) {
+    const char *name = opml_name_lookup(s_step_type_name_entries, lv_ARRAY_SIZE(s_step_type_name_entries), (int) type);
+    return name ? name : "unknown";
 }
 
 /**

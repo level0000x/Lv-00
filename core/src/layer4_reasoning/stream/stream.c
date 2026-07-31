@@ -776,13 +776,11 @@ void stream_emit_merge(StreamContext *ctx, int from_id, int to_id, int step_numb
     event.node_id = to_id;
     event.constraint_id = from_id; /* 复用字段存储 from_id */
 
-    /* 构建描述字符串（使用线程局部静态缓冲区，避免堆分配导致悬空指针风险）
+    /* 构建描述字符串（使用线程局部 scratch 缓冲区，避免堆分配导致悬空指针风险）
      * 注意：之前使用 lv_malloc 分配堆内存，在 BUFFERED/THROTTLED/LAZY 模式下
      *       stream_emit 会缓冲事件引用，释放 desc_buf 后 description 变为悬空指针。
-     *       改用线程局部静态缓冲区（128字节足够描述合并信息），彻底消除此风险。 */
-    static __thread char desc_buf[128];
-    snprintf(desc_buf, 128, "节点合并: %d → %d", from_id, to_id);
-    event.description = desc_buf;
+     *       改用 lv_fmt_tmp（lv_utils.h 的 TLS scratch 缓冲区），彻底消除此风险。 */
+    event.description = lv_fmt_tmp("节点合并: %d → %d", from_id, to_id);
 
     stream_emit(ctx, &event);
 }
@@ -866,10 +864,8 @@ void stream_emit_preset_register(StreamContext *ctx, const char *name, bool succ
     ev.timestamp_ms = stream_timestamp_ms();
     ev.step_number = step_number;
 
-    /* 构造描述文本：使用线程局部静态缓冲区，避免局部数组在 BUFFERED/THROTTLED/LAZY 模式下悬空 */
-    static lv_THREAD_LOCAL char desc[512];
-    snprintf(desc, sizeof(desc), "预设 '%s' 注册%s", name, success ? "成功" : "失败");
-    ev.description = desc;
+    /* 构造描述文本：使用线程局部 scratch 缓冲区，避免局部数组在 BUFFERED/THROTTLED/LAZY 模式下悬空 */
+    ev.description = lv_fmt_tmp("预设 '%s' 注册%s", name, success ? "成功" : "失败");
 
     stream_emit(ctx, &ev);
 }
@@ -890,9 +886,7 @@ void stream_emit_preset_instantiate(StreamContext *ctx, const char *name, int in
     ev.step_number = step_number;
     ev.node_id = instance_id; /* 复用 node_id 字段存储实例 ID */
 
-    static __thread char desc[512];
-    snprintf(desc, sizeof(desc), "预设 '%s' 实例化 (ID=%d)", name, instance_id);
-    ev.description = desc;
+    ev.description = lv_fmt_tmp("预设 '%s' 实例化 (ID=%d)", name, instance_id);
 
     stream_emit(ctx, &ev);
 }
@@ -914,9 +908,7 @@ void stream_emit_preset_validate(StreamContext *ctx, const char *name, bool is_v
     ev.step_number = step_number;
     ev.detail_json = detail; /* 复用 detail_json 字段存储验证详情 */
 
-    static __thread char desc[512];
-    snprintf(desc, sizeof(desc), "预设 '%s' 验证%s", name, is_valid ? "通过" : "失败");
-    ev.description = desc;
+    ev.description = lv_fmt_tmp("预设 '%s' 验证%s", name, is_valid ? "通过" : "失败");
 
     stream_emit(ctx, &ev);
 }
@@ -937,9 +929,7 @@ void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_nam
     ev.step_number = step_number;
     ev.numeric_value = (double) count; /* 复用 numeric_value 存储注册数量 */
 
-    static __thread char desc[512];
-    snprintf(desc, sizeof(desc), "模块 '%s' 加载完成，共 %d 个预设", module_name, count);
-    ev.description = desc;
+    ev.description = lv_fmt_tmp("模块 '%s' 加载完成，共 %d 个预设", module_name, count);
 
     stream_emit(ctx, &ev);
 }

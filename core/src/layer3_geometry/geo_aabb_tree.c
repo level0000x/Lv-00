@@ -393,17 +393,6 @@ static int aabb3d_node_alloc(lvAABBTree3D *tree) {
     return idx;
 }
 
-/* -----------------------------------------------------------------------
- * 2D 整数比较函数（用于 qsort）
- * ----------------------------------------------------------------------- */
-
-/** 比较两个 int 值（升序） */
-static int int_compare_asc(const void *a, const void *b) {
-    int ia = *(const int *) a;
-    int ib = *(const int *) b;
-    return (ia > ib) - (ia < ib);
-}
-
 /**
  * @brief 将 2D 几何体索引数组按指定轴的中心坐标排序
  */

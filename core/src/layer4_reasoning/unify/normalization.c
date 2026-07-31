@@ -43,6 +43,7 @@
 #include "lv/graph_hash.h"
 
 #include "lv_internal.h"
+#include "union_find_util.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include "lv/lv_strbuf.h"
@@ -79,21 +80,6 @@ typedef struct {
     uint64_t hash;
     int idx;
 } HashIdx;
-
-/**
- * @brief 整数升序比较函数（用于 qsort）
- *
- * 使用分支比较替代 (a>b)-(a<b) 模式，避免 INT_MIN/INT_MAX 时溢出。
- */
-static int int_compare_asc(const void *a, const void *b) {
-    int ia = *(const int *) a;
-    int ib = *(const int *) b;
-    if (ia < ib)
-        return -1;
-    if (ia > ib)
-        return 1;
-    return 0;
-}
 
 /** HashIdx 按 hash 升序比较函数（用于 qsort）
  *  使用分支比较替代 (a>b)-(a<b) 避免溢出
@@ -197,63 +183,6 @@ static int cmp_seg_hash(const void *a, const void *b) {
 /* Union-Find -------------------------------------------------------- */
 
 /**
- * @brief 创建并查集（含 parent 和 rank 数组）
- *
- * 分配并初始化大小为 n 的并查集结构。每个元素初始为独立集合。
- *
- * @param n     元素个数
- * @param[out] out_rank  输出 rank 数组指针
- * @return parent 数组指针，失败返回 NULL（调用者需用 uf_destroy 释放）
- */
-static int *uf_create(int n, int **out_rank) {
-    int *parent = lv_calloc((size_t) n, sizeof(int));
-    int *rank = lv_calloc((size_t) n, sizeof(int));
-    if (!parent || !rank) {
-        lv_free((void **) &parent);
-        lv_free((void **) &rank);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "uf_create: calloc failed for %d elements", n);
-    }
-    for (int i = 0; i < n; i++)
-        parent[i] = i;
-    *out_rank = rank;
-    return parent;
-}
-
-/**
- * @brief 销毁并查集
- *
- * 释放由 uf_create 创建的 parent 和 rank 数组。
- *
- * @param parent  parent 数组指针（可为 NULL）
- * @param rank    rank 数组指针（可为 NULL）
- */
-static void uf_destroy(int *parent, int *rank) {
-    lv_free((void **) &parent);
-    lv_free((void **) &rank);
-}
-
-static int uf_find(int *parent, int x) {
-    while (parent[x] != x) {
-        parent[x] = parent[parent[x]]; /* path splitting */
-        x = parent[x];
-    }
-    return x;
-}
-
-static void uf_union(int *parent, int *rank, int x, int y) {
-    int rx = uf_find(parent, x);
-    int ry = uf_find(parent, y);
-    if (rx == ry)
-        return;
-    if (rank[rx] < rank[ry]) {
-        parent[rx] = ry;
-    } else if (rank[rx] > rank[ry]) {
-        parent[ry] = rx;
-    } else {
-        parent[ry] = rx;
-        rank[rx]++;
-    }
-}
 
 /**
  * @brief 将并查集每个元素重定向到其集合中最小 ID 的代表节点
@@ -881,8 +810,8 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
                 ids_a[k] = ni->data.region.boundary_segments[k]->id;
                 ids_b[k] = nj->data.region.boundary_segments[k]->id;
             }
-            qsort(ids_a, seg_count, sizeof(int), int_compare_asc);
-            qsort(ids_b, seg_count, sizeof(int), int_compare_asc);
+            qsort(ids_a, seg_count, sizeof(int), lv_cmp_int);
+            qsort(ids_b, seg_count, sizeof(int), lv_cmp_int);
             bool same = true;
             for (int k = 0; k < seg_count; k++) {
                 if (ids_a[k] != ids_b[k]) {

@@ -648,6 +648,7 @@ set(lv_LAYER1_SOURCES
     core/src/layer1_parser/lexer_shared.c
     core/src/layer1_parser/parser_safety.c
     core/src/layer1_parser/dsl_compiler.c
+    core/src/layer1_parser/dsl_lexer.c
     core/src/layer1_parser/math_input.c
     # parser 子目录：公式 AST、DSL、LaTeX、Python 表达式
     core/src/layer1_parser/parser/formula_ast.c
@@ -865,6 +866,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_system/prop_verifier.c
     # 后端求解引擎
     core/src/layer4_reasoning/backends/groebner_engine.c
+    core/src/layer4_reasoning/backends/groebner_mono.c
+    core/src/layer4_reasoning/backends/groebner_poly.c
     core/src/layer4_reasoning/backends/smt_backend_impl.c
     core/src/layer4_reasoning/backends/atp_backend.c
     core/src/layer4_reasoning/backends/sat_encoding.c

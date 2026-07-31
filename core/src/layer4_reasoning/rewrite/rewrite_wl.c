@@ -144,23 +144,6 @@ void wl_history_init(WLHashHistory *hist) {
 }
 
 /**
- * @brief uint64_t 比较函数（供 qsort 使用）
- *
- * @param a 指向第一个 uint64_t 的指针
- * @param b 指向第二个 uint64_t 的指针
- * @return -1（a < b）、0（a == b）、1（a > b）
- */
-static int uint64_compare(const void *a, const void *b) {
-    uint64_t va = *(const uint64_t *) a;
-    uint64_t vb = *(const uint64_t *) b;
-    if (va < vb)
-        return -1;
-    if (va > vb)
-        return 1;
-    return 0;
-}
-
-/**
  * @brief 销毁 WL 哈希历史，释放内存
  *
  * 释放 hash_history 和 light_hash_history 缓冲区，并将所有字段归零。
@@ -394,7 +377,7 @@ static uint64_t *wl_refine_labels(ConstraintGraph *graph, uint64_t *labels, int 
         }
 
         /* 使用标准 qsort 对邻居标签排序以确保确定性 */
-        qsort(neighbor_labels, neighbor_count, sizeof(uint64_t), (int (*)(const void *, const void *)) uint64_compare);
+        qsort(neighbor_labels, neighbor_count, sizeof(uint64_t), lv_cmp_uint64);
 
         /* 将邻居标签混入精化标签 */
         for (int n = 0; n < neighbor_count; n++) {

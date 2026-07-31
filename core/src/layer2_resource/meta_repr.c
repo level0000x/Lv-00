@@ -170,8 +170,8 @@ ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder, const Constrai
         double y_val = base_y + (double) src_node->type * type_spacing;
 
         SymbolicCoord *coords[2];
-        coords[0] = symbolic_coord_create_rational((int64_t) x_val, 1);
-        coords[1] = symbolic_coord_create_rational((int64_t) y_val, 1);
+        coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
+        coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
         if (!coords[0] || !coords[1]) {
             if (coords[0])
                 symbolic_coord_destroy(coords[0]);
@@ -242,8 +242,8 @@ GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder, const GeomNode *node) 
         lv_free((void **) &encoded);
         return NULL;
     }
-    coords[0] = symbolic_coord_create_rational((int64_t) x_val, 1);
-    coords[1] = symbolic_coord_create_rational((int64_t) y_val, 1);
+    coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
+    coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
     if (!coords[0] || !coords[1]) {
         if (coords[0])
             symbolic_coord_destroy(coords[0]);
@@ -299,8 +299,8 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder, const FuncBlock 
         lv_free((void **) &encoded_region);
         return NULL;
     }
-    coords[0] = symbolic_coord_create_rational((int64_t) x_val, 1);
-    coords[1] = symbolic_coord_create_rational((int64_t) y_val, 1);
+    coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
+    coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
 
     encoded_region->id = block->id;
     encoded_region->type = GEOM_REGION;
@@ -324,8 +324,8 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder, const FuncBlock 
                 SymbolicCoord **pcoords = (SymbolicCoord **) lv_calloc(2, sizeof(SymbolicCoord *));
                 if (!pcoords)
                     continue;
-                pcoords[0] = symbolic_coord_create_rational((int64_t) px, 1);
-                pcoords[1] = symbolic_coord_create_rational((int64_t) py, 1);
+                pcoords[0] = symbolic_coord_from_double_scaled(px, 1);
+                pcoords[1] = symbolic_coord_from_double_scaled(py, 1);
                 if (!pcoords[0] || !pcoords[1]) {
                     if (pcoords[0])
                         symbolic_coord_destroy(pcoords[0]);
@@ -354,8 +354,8 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder, const FuncBlock 
                 SymbolicCoord **pcoords = (SymbolicCoord **) lv_calloc(2, sizeof(SymbolicCoord *));
                 if (!pcoords)
                     continue;
-                pcoords[0] = symbolic_coord_create_rational((int64_t) px, 1);
-                pcoords[1] = symbolic_coord_create_rational((int64_t) py, 1);
+                pcoords[0] = symbolic_coord_from_double_scaled(px, 1);
+                pcoords[1] = symbolic_coord_from_double_scaled(py, 1);
                 if (!pcoords[0] || !pcoords[1]) {
                     if (pcoords[0])
                         symbolic_coord_destroy(pcoords[0]);
@@ -416,8 +416,8 @@ GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder, const TypeRegio
         lv_free((void **) &encoded_region);
         return NULL;
     }
-    coords[0] = symbolic_coord_create_rational((int64_t) x_val, 1);
-    coords[1] = symbolic_coord_create_rational((int64_t) y_val, 1);
+    coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
+    coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
     if (!coords[0] || !coords[1]) {
         if (coords[0])
             symbolic_coord_destroy(coords[0]);
@@ -469,8 +469,8 @@ GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder, const Propositi
         lv_free((void **) &encoded_node);
         return NULL;
     }
-    coords[0] = symbolic_coord_create_rational((int64_t) x_val, 1);
-    coords[1] = symbolic_coord_create_rational((int64_t) y_val, 1);
+    coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
+    coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
     if (!coords[0] || !coords[1]) {
         if (coords[0])
             symbolic_coord_destroy(coords[0]);

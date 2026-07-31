@@ -11,6 +11,7 @@
  */
 
 #include "lv/math_protocol.h"
+#include "lv_utils.h"
 #include "lv/lv_internal.h"
 
 #include <stdarg.h>
@@ -215,45 +216,62 @@ static char *proto_write_escaped_string(char *out, const char *buf_end, const ch
 /**
  * @brief 将几何节点类型转换为字符串名称
  */
-static const char *geom_type_name(GeomType type) {
-    switch (type) {
-        case GEOM_POINT:
-            return "point";
-        case GEOM_LINE_SEGMENT:
-            return "line_segment";
-        case GEOM_REGION:
-            return "region";
-        case GEOM_CIRCLE:
-            return "circle";
-        case GEOM_PORT:
-            return "port";
-        case GEOM_FUNCTION_BLOCK:
-            return "function_block";
-        default:
-            return "unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} math_proto_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *math_proto_name_lookup(const math_proto_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief geom_type_name 名称表（按枚举值升序） */
+static const math_proto_NameEntry s_geom_type_name_entries[] = {
+    {GEOM_POINT, "point"},
+    {GEOM_LINE_SEGMENT, "line_segment"},
+    {GEOM_REGION, "region"},
+    {GEOM_CIRCLE, "circle"},
+    {GEOM_PORT, "port"},
+    {GEOM_FUNCTION_BLOCK, "function_block"},
+};
+
+static const char *geom_type_name(GeomType type) {
+    const char *name = math_proto_name_lookup(s_geom_type_name_entries, lv_ARRAY_SIZE(s_geom_type_name_entries), (int) type);
+    return name ? name : "unknown";
 }
 
 /**
  * @brief 将约束类型转换为字符串名称
  */
+/** @brief constraint_type_name 名称表（按枚举值升序） */
+static const math_proto_NameEntry s_constraint_type_name_entries[] = {
+    {INCIDENCE, "incidence"},
+    {BETWEENNESS, "betweenness"},
+    {INTERSECTION, "intersection"},
+    {CONTAINMENT, "containment"},
+    {CONNECTION, "connection"},
+    {ANGLE, "angle"},
+};
+
 static const char *constraint_type_name(ConstraintType type) {
-    switch (type) {
-        case INCIDENCE:
-            return "incidence";
-        case BETWEENNESS:
-            return "betweenness";
-        case INTERSECTION:
-            return "intersection";
-        case CONTAINMENT:
-            return "containment";
-        case CONNECTION:
-            return "connection";
-        case ANGLE:
-            return "angle";
-        default:
-            return "unknown";
-    }
+    const char *name = math_proto_name_lookup(s_constraint_type_name_entries, lv_ARRAY_SIZE(s_constraint_type_name_entries), (int) type);
+    return name ? name : "unknown";
 }
 
 /**

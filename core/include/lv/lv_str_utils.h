@@ -115,6 +115,19 @@ char *lv_str_replace(const char *str, const char *old_str, const char *new_str);
  */
 char *lv_str_join(const char **items, size_t count, const char *separator);
 
+/* ===== 游标式缓冲追加 ===== */
+
+/**
+ * @brief 向游标式缓冲区追加带分隔符的项（首项自动省略分隔符）
+ * @param dst  目标缓冲区
+ * @param size 缓冲区容量
+ * @param pos  当前写入位置（in/out）
+ * @param sep  分隔符字符串（如 ", "）
+ * @param item 要追加的项
+ * @return 是否成功（空间不足返回 false）
+ */
+bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, const char *item);
+
 /* ===== 字符串转义 ===== */
 
 /**

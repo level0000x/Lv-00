@@ -157,8 +157,7 @@ def graph_satisfiable (g : ConstraintGraph) : Prop :=
 theorem empty_graph_satisfiable : graph_satisfiable [] := by
   refine ⟨fun _ => (0, 0), ?_⟩
   intro c hc
-  exfalso
-  exact hc
+  simp at hc
 
 /-- 距离的对称性 -/
 theorem dist_symm (env : String → ℝ × ℝ) (a b : String) :

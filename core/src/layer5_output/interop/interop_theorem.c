@@ -376,40 +376,58 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
 
 /* ==================== 工具函数 ==================== */
 
-const char *interop_export_format_name(InteropExportFormat format) {
-    switch (format) {
-        case INTEROP_EXPORT_COQ:
-            return "coq";
-        case INTEROP_EXPORT_LEAN:
-            return "lean";
-        case INTEROP_EXPORT_HTML:
-            return "html";
-        case INTEROP_EXPORT_SVG:
-            return "svg";
-        case INTEROP_EXPORT_PDF:
-            return "pdf";
-        case INTEROP_EXPORT_TIKZ:
-            return "tikz";
-        case INTEROP_EXPORT_GEOJSON:
-            return "geojson";
-        case INTEROP_EXPORT_CANONICAL:
-            return "canonical";
-        default:
-            return "unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} itheorem_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *itheorem_name_lookup(const itheorem_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
 }
 
+/** @brief interop_export_format_name 名称表（按枚举值升序） */
+static const itheorem_NameEntry s_interop_export_format_name_entries[] = {
+    {INTEROP_EXPORT_COQ, "coq"},
+    {INTEROP_EXPORT_LEAN, "lean"},
+    {INTEROP_EXPORT_HTML, "html"},
+    {INTEROP_EXPORT_SVG, "svg"},
+    {INTEROP_EXPORT_PDF, "pdf"},
+    {INTEROP_EXPORT_TIKZ, "tikz"},
+    {INTEROP_EXPORT_GEOJSON, "geojson"},
+    {INTEROP_EXPORT_CANONICAL, "canonical"},
+};
+
+const char *interop_export_format_name(InteropExportFormat format) {
+    const char *name = itheorem_name_lookup(s_interop_export_format_name_entries, lv_ARRAY_SIZE(s_interop_export_format_name_entries), (int) format);
+    return name ? name : "unknown";
+}
+
+/** @brief interop_import_format_name 名称表（按枚举值升序） */
+static const itheorem_NameEntry s_interop_import_format_name_entries[] = {
+    {INTEROP_IMPORT_GEOGEBRA, "geogebra"},
+    {INTEROP_IMPORT_GEOJSON, "geojson"},
+    {INTEROP_IMPORT_SVG, "svg"},
+};
+
 const char *interop_import_format_name(InteropImportFormat format) {
-    switch (format) {
-        case INTEROP_IMPORT_GEOGEBRA:
-            return "geogebra";
-        case INTEROP_IMPORT_GEOJSON:
-            return "geojson";
-        case INTEROP_IMPORT_SVG:
-            return "svg";
-        default:
-            return "unknown";
-    }
+    const char *name = itheorem_name_lookup(s_interop_import_format_name_entries, lv_ARRAY_SIZE(s_interop_import_format_name_entries), (int) format);
+    return name ? name : "unknown";
 }
 
 InteropExportFormat interop_parse_export_format(const char *str) {

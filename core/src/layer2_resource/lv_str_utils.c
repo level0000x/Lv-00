@@ -225,6 +225,25 @@ char *lv_str_join(const char **items, size_t count, const char *separator) {
     return lv_strbuf_to_string(&sb);
 }
 
+/* ===== 游标式缓冲追加 ===== */
+
+bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, const char *item) {
+    if (!dst || !pos || !item || *pos >= size)
+        return false;
+    const char *prefix = (*pos > 0) ? (sep ? sep : "") : "";
+    size_t prefix_len = strlen(prefix);
+    size_t item_len = strlen(item);
+    /* 需要 prefix + item + '\0' 全部放下 */
+    if (prefix_len + item_len + 1 > size - *pos)
+        return false;
+    if (prefix_len > 0)
+        memcpy(dst + *pos, prefix, prefix_len);
+    memcpy(dst + *pos + prefix_len, item, item_len);
+    dst[*pos + prefix_len + item_len] = '\0';
+    *pos += prefix_len + item_len;
+    return true;
+}
+
 /* ===== 字符串转义 ===== */
 
 void lv_str_escape_json(lvStrBuf *sb, const char *str, size_t len) {

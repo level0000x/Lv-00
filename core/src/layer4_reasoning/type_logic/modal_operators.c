@@ -8,6 +8,7 @@
  */
 
 #include "lv/modal_operators.h"
+#include "lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -536,25 +537,45 @@ const char *lv_modal_op_to_string(lvModalOperator op) {
     }
 }
 
-const char *lv_reachability_type_to_string(lvReachabilityType type) {
-    switch (type) {
-        case lv_REACH_GEOMETRIC_IDENTITY:
-            return "identity";
-        case lv_REACH_RIGID_TRANSFORM:
-            return "rigid";
-        case lv_REACH_SIMILARITY_TRANSFORM:
-            return "similarity";
-        case lv_REACH_AFFINE_TRANSFORM:
-            return "affine";
-        case lv_REACH_PROJECTIVE_TRANSFORM:
-            return "projective";
-        case lv_REACH_CONSTRAINT_INHERIT:
-            return "inherit";
-        case lv_REACH_CUSTOM:
-            return "custom";
-        default:
-            return "unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} modal_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *modal_name_lookup(const modal_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief lv_reachability_type_to_string 名称表（按枚举值升序） */
+static const modal_NameEntry s_lv_reachability_type_to_string_entries[] = {
+    {lv_REACH_GEOMETRIC_IDENTITY, "identity"},
+    {lv_REACH_RIGID_TRANSFORM, "rigid"},
+    {lv_REACH_SIMILARITY_TRANSFORM, "similarity"},
+    {lv_REACH_AFFINE_TRANSFORM, "affine"},
+    {lv_REACH_PROJECTIVE_TRANSFORM, "projective"},
+    {lv_REACH_CONSTRAINT_INHERIT, "inherit"},
+    {lv_REACH_CUSTOM, "custom"},
+};
+
+const char *lv_reachability_type_to_string(lvReachabilityType type) {
+    const char *name = modal_name_lookup(s_lv_reachability_type_to_string_entries, lv_ARRAY_SIZE(s_lv_reachability_type_to_string_entries), (int) type);
+    return name ? name : "unknown";
 }
 
 char *lv_modal_formula_to_string(const lvModalFormula *formula) {

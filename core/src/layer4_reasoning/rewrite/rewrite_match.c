@@ -33,26 +33,6 @@ uint32_t compute_graph_hash(ConstraintGraph *graph);
 extern bool evaluate_precondition(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *match);
 
 /**
- * @brief FNV-1a 64位哈希混合（与项目统一的 64 位哈希体系一致）
- *
- * 对输入数据逐字节进行 FNV-1a 哈希混合：hash ^= byte; hash *= FNV_prime。
- * 使用 64 位哈希替代原先的 32 位版本，降低碰撞概率。
- *
- * @param hash 当前哈希值（64位）
- * @param data 待混合的数据指针
- * @param len  数据长度（字节数）
- * @return 混合后的新哈希值（64位）
- */
-static uint64_t fnv1a_mix(uint64_t hash, const void *data, size_t len) {
-    const uint8_t *p = (const uint8_t *) data;
-    for (size_t i = 0; i < len; i++) {
-        hash ^= p[i];
-        hash *= lv_FNV64_PRIME; /* 使用 64 位 FNV 质数，与项目统一 */
-    }
-    return hash;
-}
-
-/**
  * @brief 从匹配绑定表中解析模式变量对应的实际图节点 ID
  *
  * 模式变量（负 ID）通过匹配绑定表映射到约束图中的实际节点。
@@ -986,16 +966,16 @@ uint32_t compute_graph_hash(ConstraintGraph *graph) {
     /* 哈希节点类型和 POINT 节点的符号坐标 */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *n = graph->nodes[i];
-        h = fnv1a_mix(h, &n->id, sizeof(n->id));
+        h = lv_fnv1a_update(h, &n->id, sizeof(n->id));
         int type_val = (int) n->type;
-        h = fnv1a_mix(h, &type_val, sizeof(type_val));
+        h = lv_fnv1a_update(h, &type_val, sizeof(type_val));
 
         if (n->type == GEOM_POINT && n->coord_count > 0 && n->symbolic_coords) {
             for (int c = 0; c < n->coord_count; c++) {
                 if (n->symbolic_coords[c]) {
                     char *ser = symbolic_coord_serialize(n->symbolic_coords[c]);
                     if (ser) {
-                        h = fnv1a_mix(h, ser, strlen(ser));
+                        h = lv_fnv1a_update(h, ser, strlen(ser));
                         lv_free((void **) &ser);
                     }
                 }
@@ -1007,8 +987,8 @@ uint32_t compute_graph_hash(ConstraintGraph *graph) {
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         int type_val = (int) c->type;
-        h = fnv1a_mix(h, &type_val, sizeof(type_val));
-        h = fnv1a_mix(h, c->participants, c->participant_count * sizeof(int));
+        h = lv_fnv1a_update(h, &type_val, sizeof(type_val));
+        h = lv_fnv1a_update(h, c->participants, c->participant_count * sizeof(int));
     }
 
     return (int) h;

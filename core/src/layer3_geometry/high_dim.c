@@ -48,6 +48,7 @@
 #include "debug.h" /* LOG_DEBUG, LOG_WARN, LOG_ERROR 等日志宏 */
 #include "error_codes.h"
 #include "lv_internal.h" /* M_PI, lv_SAFE_SNPRINTF 等内部宏 */
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
@@ -500,6 +501,7 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id, const Sy
 
     /* 收集折叠维度的信息 */
     char folded_dims[256] = "";
+    size_t folded_pos = 0;
     int folded_count = 0;
 
     /* 应用维度映射 */
@@ -525,9 +527,8 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id, const Sy
             case HIGH_DIM_MAP_DISCARD:
                 if (folded_count < 3) {
                     char dim_info[32];
-                    high_dim_snprintf(dim_info, sizeof(dim_info), "%s%d:%.2f", folded_count > 0 ? ", " : "",
-                                      mapping->axis_index, coord_value);
-                    lv_strlcat(folded_dims, dim_info, sizeof(folded_dims));
+                    high_dim_snprintf(dim_info, sizeof(dim_info), "%d:%.2f", mapping->axis_index, coord_value);
+                    lv_str_append_sep(folded_dims, sizeof(folded_dims), &folded_pos, ", ", dim_info);
                 }
                 folded_count++;
                 break;
@@ -2270,19 +2271,42 @@ int high_dim_validate_mapping(int dimension_count, const HighDimAxisMapping *map
     return (has_x && has_y) ? 1 : 0;
 }
 
-const char *high_dim_mapping_type_to_string(HighDimMappingType mapping_type) {
-    switch (mapping_type) {
-        case HIGH_DIM_MAP_TO_X:
-            return "x";
-        case HIGH_DIM_MAP_TO_Y:
-            return "y";
-        case HIGH_DIM_MAP_FOLD:
-            return "fold";
-        case HIGH_DIM_MAP_DISCARD:
-            return "discard";
-        default:
-            return "unknown";
+/* ================================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
+typedef struct {
+    int code;         /**< 枚举值 */
+    const char *name; /**< 名称字符串 */
+} high_dim_NameEntry;
+
+/** @brief 二分查找枚举名称（表需按 code 升序） */
+static const char *high_dim_name_lookup(const high_dim_NameEntry *table, size_t count, int code) {
+    size_t lo = 0, hi = count;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (table[mid].code == code)
+            return table[mid].name;
+        if (table[mid].code < code)
+            lo = mid + 1;
+        else
+            hi = mid;
     }
+    return NULL;
+}
+
+/** @brief high_dim_mapping_type_to_string 名称表（按枚举值升序） */
+static const high_dim_NameEntry s_high_dim_mapping_type_to_string_entries[] = {
+    {HIGH_DIM_MAP_TO_X, "x"},
+    {HIGH_DIM_MAP_TO_Y, "y"},
+    {HIGH_DIM_MAP_FOLD, "fold"},
+    {HIGH_DIM_MAP_DISCARD, "discard"},
+};
+
+const char *high_dim_mapping_type_to_string(HighDimMappingType mapping_type) {
+    const char *name = high_dim_name_lookup(s_high_dim_mapping_type_to_string_entries, lv_ARRAY_SIZE(s_high_dim_mapping_type_to_string_entries), (int) mapping_type);
+    return name ? name : "unknown";
 }
 
 HighDimMappingType high_dim_mapping_type_from_string(const char *str) {

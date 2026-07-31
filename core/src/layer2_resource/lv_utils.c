@@ -1175,7 +1175,7 @@ bool int_array_remove(IntArray *arr, int value) {
  * @param b 指向第二个 int 的指针
  * @return 负数（a < b）、零（a == b）、正数（a > b）
  */
-static int compare_int(const void *a, const void *b) {
+int lv_cmp_int(const void *a, const void *b) {
     int ia = *(const int *) a;
     int ib = *(const int *) b;
     /* 使用分支而非算术运算，避免有符号整数溢出风险 */
@@ -1186,10 +1186,27 @@ static int compare_int(const void *a, const void *b) {
     return 0;
 }
 
+/**
+ * @brief uint64_t 三向比较函数（用于 qsort 排序）
+ *
+ * @param a 指向第一个 uint64_t 的指针
+ * @param b 指向第二个 uint64_t 的指针
+ * @return 负数（a < b）、零（a == b）、正数（a > b）
+ */
+int lv_cmp_uint64(const void *a, const void *b) {
+    uint64_t va = *(const uint64_t *) a;
+    uint64_t vb = *(const uint64_t *) b;
+    if (va < vb)
+        return -1;
+    if (va > vb)
+        return 1;
+    return 0;
+}
+
 void int_array_sort(IntArray *arr) {
     if (!arr || arr->count < 2)
         return;
-    qsort(arr->data, arr->count, sizeof(int), compare_int);
+    qsort(arr->data, arr->count, sizeof(int), lv_cmp_int);
 }
 
 IntArray *int_array_copy(const IntArray *arr) {
@@ -1739,8 +1756,6 @@ bool lv_check_version(const char *min_version) {
 #define lv_NS_PER_S 1000000000ULL /**< 纳秒转秒 */
 
 #ifdef _WIN32
-#include <windows.h>
-
 
 uint64_t lv_get_time_ns(void) {
     static double ns_per_count = 0.0;
@@ -2067,6 +2082,73 @@ uint64_t lv_fnv1a_hash(const void *data, size_t len) {
         hash *= lv_FNV64_PRIME;
     }
     return hash;
+}
+
+uint64_t lv_fnv1a_update(uint64_t hash, const void *data, size_t len) {
+    if (!data || len == 0)
+        return hash;
+    const uint8_t *p = (const uint8_t *) data;
+    for (size_t i = 0; i < len; i++) {
+        hash ^= p[i];
+        hash *= lv_FNV64_PRIME;
+    }
+    return hash;
+}
+
+uint64_t lv_fnv1a_hash_str(const char *s) {
+    if (!s)
+        return lv_FNV64_OFFSET_BASIS;
+    return lv_fnv1a_update(lv_FNV64_OFFSET_BASIS, s, strlen(s));
+}
+
+uint64_t lv_fnv1a_hash_int(uint64_t hash, uint64_t v) {
+    return lv_fnv1a_update(hash, &v, sizeof(v));
+}
+
+/* ============================================================
+ * 线程局部临时缓冲区（scratch）
+ * ============================================================ */
+
+/** 线程局部 scratch 缓冲区（按需增长，最小分配 256 字节） */
+static lv_THREAD_LOCAL char *s_lv_scratch_buf = NULL;
+static lv_THREAD_LOCAL size_t s_lv_scratch_cap = 0;
+
+char *lv_scratch_buf(size_t min_size) {
+    if (min_size < 256)
+        min_size = 256;
+    if (s_lv_scratch_cap < min_size) {
+        char *nb = (char *) lv_realloc(s_lv_scratch_buf, min_size);
+        if (!nb)
+            return s_lv_scratch_buf; /* 分配失败：返回旧缓冲区（尽力而为） */
+        s_lv_scratch_buf = nb;
+        s_lv_scratch_cap = min_size;
+    }
+    return s_lv_scratch_buf;
+}
+
+char *lv_fmt_tmp(const char *fmt, ...) {
+    if (!fmt)
+        return NULL;
+
+    va_list args;
+    va_start(args, fmt);
+    va_list copy;
+    va_copy(copy, args);
+    int need = vsnprintf(NULL, 0, fmt, copy);
+    va_end(copy);
+    if (need < 0) {
+        va_end(args);
+        return NULL;
+    }
+
+    char *buf = lv_scratch_buf((size_t) need + 1);
+    if (s_lv_scratch_cap < (size_t) need + 1) {
+        va_end(args);
+        return NULL; /* 扩容失败，无法容纳结果 */
+    }
+    vsnprintf(buf, (size_t) need + 1, fmt, args);
+    va_end(args);
+    return buf;
 }
 
 /* ============================================================

@@ -33,16 +33,10 @@
 
 /** 计算项的哈希值 */
 static uint64_t term_hash(const int *exponents, int var_count) {
-    uint64_t h = 0x811c9dc5; /* FNV-1a offset basis (32-bit truncated) */
+    uint64_t h = lv_FNV64_OFFSET_BASIS;
     for (int i = 0; i < var_count; i++) {
-        h ^= (uint64_t) (exponents[i] & 0xFF);
-        h *= 0x01000193; /* FNV-1a prime (64-bit) */
-        h ^= (uint64_t) ((exponents[i] >> 8) & 0xFF);
-        h *= 0x01000193;
-        h ^= (uint64_t) ((exponents[i] >> 16) & 0xFF);
-        h *= 0x01000193;
-        h ^= (uint64_t) ((exponents[i] >> 24) & 0xFF);
-        h *= 0x01000193;
+        uint32_t e = (uint32_t) exponents[i];
+        h = lv_fnv1a_update(h, &e, sizeof(e));
     }
     return h;
 }

@@ -19,10 +19,10 @@ struct LvParser {
 
 /* ── 辅助函数 ── */
 
-/** 获取 token 的文本到静态缓冲区 */
+/** 获取 token 的文本到线程局部 scratch 缓冲区 */
 static const char *token_text(const LvToken *tok) {
-    static char buf[128];
-    lv_token_text(tok, buf, sizeof(buf));
+    char *buf = lv_scratch_buf(128);
+    lv_token_text(tok, buf, 128);
     return buf;
 }
 

@@ -32,27 +32,6 @@
 /** 约束描述缓冲区大小 —— 用于 snprintf 构造 "C:id:type" 字符串 */
 #define GRAPH_HASH_CONSTRAINT_DESC 64
 
-/* ==================== 局部工具函数 ==================== */
-
-/**
- * @brief FNV-1a 哈希函数
- *
- * 对输入字符串计算 64 位 FNV-1a 哈希值。
- * 输入为 NULL 或空字符串时返回偏移基值。
- *
- * @param s 输入字符串（允许 NULL）
- * @return uint64_t 64 位哈希值
- */
-static uint64_t fnv1a_hash(const char *s) {
-    uint64_t hash = lv_FNV64_OFFSET_BASIS;
-    while (s && *s) {
-        hash ^= (uint8_t) (*s);
-        hash *= lv_FNV64_PRIME;
-        s++;
-    }
-    return hash;
-}
-
 /* ==================== 公共 API 实现 ==================== */
 
 GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
@@ -112,7 +91,7 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
             }
         }
 
-        gh->node_hashes[i] = fnv1a_hash(desc);
+        gh->node_hashes[i] = lv_fnv1a_hash_str(desc);
         lv_free((void **) &desc);
     }
 
@@ -128,7 +107,7 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
         Constraint *c = graph->constraints[i];
         char desc[GRAPH_HASH_CONSTRAINT_DESC];
         snprintf(desc, GRAPH_HASH_CONSTRAINT_DESC, "C:%d:%d", c->id, (int) c->type);
-        uint64_t chash = fnv1a_hash(desc);
+        uint64_t chash = lv_fnv1a_hash_str(desc);
         gh->hash ^= chash;
         gh->hash *= lv_FNV64_PRIME;
     }
@@ -193,7 +172,7 @@ uint64_t compute_quick_graph_hash(const ConstraintGraph *graph) {
         if (node->type == GEOM_POINT && node->coord_count > 0 && node->symbolic_coords) {
             char *coord_str = symbolic_coord_serialize(node->symbolic_coords[0]);
             if (coord_str) {
-                uint64_t ch = fnv1a_hash(coord_str);
+                uint64_t ch = lv_fnv1a_hash_str(coord_str);
                 hash ^= ch;
                 hash *= lv_FNV64_PRIME;
                 lv_free((void **) &coord_str);

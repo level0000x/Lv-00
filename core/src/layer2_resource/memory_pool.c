@@ -49,10 +49,6 @@
 
 #include "config.h" /* lv_FNV64_*, lv_CONFIG_POOL_* macros */
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include "lv_internal.h" /* lv_FNV64_* 哈希常量 */
 #include "lv_utils.h"    /* lv_strdup, lv_malloc, lv_free */
 
