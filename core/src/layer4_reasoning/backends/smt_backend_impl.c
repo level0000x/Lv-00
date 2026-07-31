@@ -38,6 +38,7 @@
 
 #include "lv/lv_file.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_xmacro.h"
 
 #include "smt_backend.h"
 #include "smt_backend_internal.h"
@@ -379,38 +380,16 @@ bool smtsolver_is_backend_available(SolverBackendType type) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} smt_impl_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *smt_impl_name_lookup(const smt_impl_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief smtsolver_backend_type_name 名称表（按枚举值升序） */
-static const smt_impl_NameEntry s_smtsolver_backend_type_name_entries[] = {
-    {GROEBNER, "Groebner"},
-    {SMT_Z3, "Z3"},
-    {SMT_CVC5, "cvc5"},
-    {SMT_SINGULAR, "Singular"},
+static const lvStrToEnumEntry s_smtsolver_backend_type_name_entries[] = {
+    {"Groebner", GROEBNER},
+    {"Z3", SMT_Z3},
+    {"cvc5", SMT_CVC5},
+    {"Singular", SMT_SINGULAR},
 };
 
 const char *smtsolver_backend_type_name(SolverBackendType type) {
-    const char *name = smt_impl_name_lookup(s_smtsolver_backend_type_name_entries, lv_ARRAY_SIZE(s_smtsolver_backend_type_name_entries), (int) type);
-    return name ? name : "Unknown";
+    return lv_enum_to_str(s_smtsolver_backend_type_name_entries, lv_ARRAY_SIZE(s_smtsolver_backend_type_name_entries), (int) type, "Unknown");
 }
 
 /**
@@ -441,57 +420,54 @@ SolverBackendType smtsolver_backend_type_from_name(const char *name) {
  * @brief 获取 SMT 逻辑的名称字符串
  */
 /** @brief smtsolver_logic_name 名称表（按枚举值升序） */
-static const smt_impl_NameEntry s_smtsolver_logic_name_entries[] = {
-    {SMT_LOGIC_QF_NRA, "QF_NRA"},
-    {SMT_LOGIC_QF_LRA, "QF_LRA"},
-    {SMT_LOGIC_QF_NIA, "QF_NIA"},
-    {SMT_LOGIC_QF_LIA, "QF_LIA"},
-    {SMT_LOGIC_QF_UFLRA, "QF_UFLRA"},
-    {SMT_LOGIC_QF_UFNRA, "QF_UFNRA"},
-    {SMT_LOGIC_QF_BV, "QF_BV"},
-    {SMT_LOGIC_AUTO, "AUTO"},
+static const lvStrToEnumEntry s_smtsolver_logic_name_entries[] = {
+    {"QF_NRA", SMT_LOGIC_QF_NRA},
+    {"QF_LRA", SMT_LOGIC_QF_LRA},
+    {"QF_NIA", SMT_LOGIC_QF_NIA},
+    {"QF_LIA", SMT_LOGIC_QF_LIA},
+    {"QF_UFLRA", SMT_LOGIC_QF_UFLRA},
+    {"QF_UFNRA", SMT_LOGIC_QF_UFNRA},
+    {"QF_BV", SMT_LOGIC_QF_BV},
+    {"AUTO", SMT_LOGIC_AUTO},
 };
 
 const char *smtsolver_logic_name(SMTLogic logic) {
-    const char *name = smt_impl_name_lookup(s_smtsolver_logic_name_entries, lv_ARRAY_SIZE(s_smtsolver_logic_name_entries), (int) logic);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_smtsolver_logic_name_entries, lv_ARRAY_SIZE(s_smtsolver_logic_name_entries), (int) logic, "UNKNOWN");
 }
 
 /**
  * @brief 获取 SMT 可满足性结果的名称字符串
  */
 /** @brief smtsolver_sat_result_name 名称表（按枚举值升序） */
-static const smt_impl_NameEntry s_smtsolver_sat_result_name_entries[] = {
-    {SMT_RESULT_SAT, "SAT"},
-    {SMT_RESULT_UNSAT, "UNSAT"},
-    {SMT_RESULT_UNKNOWN, "UNKNOWN"},
-    {SMT_RESULT_ERROR, "ERROR"},
+static const lvStrToEnumEntry s_smtsolver_sat_result_name_entries[] = {
+    {"SAT", SMT_RESULT_SAT},
+    {"UNSAT", SMT_RESULT_UNSAT},
+    {"UNKNOWN", SMT_RESULT_UNKNOWN},
+    {"ERROR", SMT_RESULT_ERROR},
 };
 
 const char *smtsolver_sat_result_name(SMTSatResult result) {
-    const char *name = smt_impl_name_lookup(s_smtsolver_sat_result_name_entries, lv_ARRAY_SIZE(s_smtsolver_sat_result_name_entries), (int) result);
-    return name ? name : "INVALID";
+    return lv_enum_to_str(s_smtsolver_sat_result_name_entries, lv_ARRAY_SIZE(s_smtsolver_sat_result_name_entries), (int) result, "INVALID");
 }
 
 /**
  * @brief 获取 SMT 错误码描述字符串
  */
 /** @brief smtsolver_error_string 名称表（按枚举值升序） */
-static const smt_impl_NameEntry s_smtsolver_error_string_entries[] = {
-    {SMT_ERROR_NONE, "No error"},
-    {SMT_ERROR_BACKEND_UNAVAILABLE, "Backend unavailable"},
-    {SMT_ERROR_ENCODING_FAILED, "Encoding failed"},
-    {SMT_ERROR_PARSE_FAILED, "Parse failed"},
-    {SMT_ERROR_SOLVER_CRASHED, "Solver crashed"},
-    {SMT_ERROR_MEMORY_EXHAUSTED, "Memory exhausted"},
-    {SMT_ERROR_TIMEOUT_REACHED, "Timeout reached"},
-    {SMT_ERROR_UNSUPPORTED_THEORY, "Unsupported theory"},
-    {SMT_ERROR_INVALID_MODEL, "Invalid model"},
+static const lvStrToEnumEntry s_smtsolver_error_string_entries[] = {
+    {"No error", SMT_ERROR_NONE},
+    {"Backend unavailable", SMT_ERROR_BACKEND_UNAVAILABLE},
+    {"Encoding failed", SMT_ERROR_ENCODING_FAILED},
+    {"Parse failed", SMT_ERROR_PARSE_FAILED},
+    {"Solver crashed", SMT_ERROR_SOLVER_CRASHED},
+    {"Memory exhausted", SMT_ERROR_MEMORY_EXHAUSTED},
+    {"Timeout reached", SMT_ERROR_TIMEOUT_REACHED},
+    {"Unsupported theory", SMT_ERROR_UNSUPPORTED_THEORY},
+    {"Invalid model", SMT_ERROR_INVALID_MODEL},
 };
 
 const char *smtsolver_error_string(SMTErrorCode code) {
-    const char *name = smt_impl_name_lookup(s_smtsolver_error_string_entries, lv_ARRAY_SIZE(s_smtsolver_error_string_entries), (int) code);
-    return name ? name : "Unknown error";
+    return lv_enum_to_str(s_smtsolver_error_string_entries, lv_ARRAY_SIZE(s_smtsolver_error_string_entries), (int) code, "Unknown error");
 }
 
 /* ============================================================

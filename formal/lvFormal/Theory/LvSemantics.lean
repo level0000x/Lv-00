@@ -38,10 +38,42 @@ def lvExprToIR : LvExpr → IRExpr
   | .app f a    => .add (lvExprToIR f) (lvExprToIR a)
   | _           => .const 0
 
-/-- lv_expr_eval 与 eval_expr 通过 lvExprToIR 等价 -/
-lemma lv_expr_eval_eq (env : String → ℝ × ℝ) (e : LvExpr) :
-    lv_expr_eval env e = eval_expr env (lvExprToIR e) := by
-  sorry
+/-- lv_expr_eval 与 eval_expr 通过 lvExprToIR 等价。
+    注：LvExpr 是嵌套归纳类型（listLit/setLit 含 List LvExpr），
+    标准 induction 不可用，故用结构递归 def 证明。 -/
+def lv_expr_eval_eq (env : String → ℝ × ℝ) (e : LvExpr) :
+    lv_expr_eval env e = eval_expr env (lvExprToIR e) :=
+  match e with
+  | .var n => by simp [lv_expr_eval, lvExprToIR, eval_expr, ptX]
+  | .intLit v => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .floatLit v => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .strLit v => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .boolLit v => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .add e1 e2 => by
+      simp [lv_expr_eval, lvExprToIR, eval_expr,
+        lv_expr_eval_eq env e1, lv_expr_eval_eq env e2]
+  | .sub e1 e2 => by
+      simp [lv_expr_eval, lvExprToIR, eval_expr,
+        lv_expr_eval_eq env e1, lv_expr_eval_eq env e2]
+  | .mul e1 e2 => by
+      simp [lv_expr_eval, lvExprToIR, eval_expr,
+        lv_expr_eval_eq env e1, lv_expr_eval_eq env e2]
+  | .div e1 e2 => by
+      simp [lv_expr_eval, lvExprToIR, eval_expr,
+        lv_expr_eval_eq env e1, lv_expr_eval_eq env e2]
+  | .lambda _ _ _ => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .forall _ _ _ => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .exists _ _ _ => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .listLit _ => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .setLit _ => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .some e => by simp [lv_expr_eval, lvExprToIR, eval_expr, lv_expr_eval_eq env e]
+  | .none _ => by simp [lv_expr_eval, lvExprToIR, eval_expr]
+  | .pair e1 e2 => by
+      simp [lv_expr_eval, lvExprToIR, eval_expr,
+        lv_expr_eval_eq env e1, lv_expr_eval_eq env e2]
+  | .app f a => by
+      simp [lv_expr_eval, lvExprToIR, eval_expr,
+        lv_expr_eval_eq env f, lv_expr_eval_eq env a]
 
 /-! ===============================================================
    第二部分：Lv 约束语义 (lv_constraint_sem)
@@ -318,10 +350,11 @@ def mkProgramProofTrace (p : LvProgram) : Option ProofTrace :=
   | _ => none
 
 /-- 若程序有 Prove 语句，则 mkProgramProofTrace 返回的迹能通过证据检查 -/
-lemma mkProgramProofTrace_passes_check (p : LvProgram) (h_prove : findProveStmt p ≠ none) :
+lemma mkProgramProofTrace_passes_check (p : LvProgram) (_h_prove : findProveStmt p ≠ none) :
     evidence_check (lvProgramToConstraintGraph p) 
       (mkTrivialProofTrace p) = true := by
-  sorry
+  simpa [mkTrivialProofTrace, lvProgramToConstraintGraph, trivial_proof_trace, List.map_map] using
+    evidence_trivial_trace_ok (lvProgramToConstraintGraph p)
 
 /-! ===============================================================
    第八部分：核心等价引理
@@ -331,7 +364,7 @@ lemma mkProgramProofTrace_passes_check (p : LvProgram) (h_prove : findProveStmt 
 /-- 核心引理：Lv 约束的语义与对应 IR 约束的语义完全等价 -/
 lemma lv_constraint_sem_iff (env : String → ℝ × ℝ) (c : LvConstraint) :
     lv_constraint_sem env c ↔ ir_sem env (lvConstraintToIR c) := by
-  sorry
+  cases c <;> simp [lv_constraint_sem, lvConstraintToIR, ir_sem, lv_expr_eval_eq]
 
 /-! ===============================================================
    第九部分：正确性定理
@@ -340,16 +373,36 @@ lemma lv_constraint_sem_iff (env : String → ℝ × ℝ) (c : LvConstraint) :
 /-- 正确性定理：Lv 程序转换后的约束图可满足 ⟺ 原 Lv 程序语义成立 -/
 theorem lv_to_ir_correctness (p : LvProgram) :
     graph_satisfiable (lvProgramToConstraintGraph p) ↔ lv_sem p := by
-  sorry
+  unfold graph_satisfiable graph_satisfied lv_sem lvProgramToConstraintGraph
+  constructor
+  · intro h
+    rcases h with ⟨env, henv⟩
+    refine ⟨env, ?_⟩
+    intro c hc
+    have hm : lvConstraintToIR c ∈ (getConstraints p).map lvConstraintToIR := by
+      exact List.mem_map.mpr ⟨c, hc, rfl⟩
+    exact (lv_constraint_sem_iff env c).mpr (henv (lvConstraintToIR c) hm)
+  · intro h
+    rcases h with ⟨env, henv⟩
+    refine ⟨env, ?_⟩
+    intro c' hc'
+    rcases List.mem_map.mp hc' with ⟨c, hc, hfc⟩
+    have hsem : lv_constraint_sem env c := henv c hc
+    rw [← hfc]
+    exact (lv_constraint_sem_iff env c).mp hsem
 
 /-- 推论：空程序的约束图总是可满足的 -/
 theorem empty_program_satisfiable :
     graph_satisfiable (lvProgramToConstraintGraph (⟨"", []⟩ : LvProgram)) := by
-  sorry
+  simpa [lvProgramToConstraintGraph, getConstraints] using
+    (empty_graph_satisfiable : graph_satisfiable [])
 
 /-- 推论：空程序在 Lv 语义下成立 -/
 theorem empty_program_lv_sem : lv_sem (⟨"", []⟩ : LvProgram) := by
-  sorry
+  unfold lv_sem
+  refine ⟨fun _ => (0, 0), ?_⟩
+  intro c hc
+  simp [getConstraints] at hc
 
 /-! ===============================================================
    第十部分：证明可靠性定理
@@ -366,16 +419,44 @@ lemma hypotheses_trace_sound_gen (g : ConstraintGraph) (env : String → ℝ × 
     (h_env_g : ∀ c ∈ g, ir_sem env c)
     (h_env_st : ∀ c ∈ st.proved, ir_sem env c) :
     TraceSound st (g.map (fun c => .hypothesis c)) := by
-  sorry
+  induction g generalizing st with
+  | nil =>
+      exact TraceSound.nil st
+  | cons c rest ih =>
+      -- 当前步骤：.hypothesis c 把 c 加入 proved，env 同时满足旧状态与 c
+      have h_step : step_sound st (.hypothesis c) := by
+        intro h_sat
+        rcases h_sat with ⟨_env', _henv'⟩
+        refine ⟨env, ?_⟩
+        intro c' hc'
+        simp [transition] at hc'
+        rcases hc' with rfl | hmem
+        · exact h_env_g c' (by simp)
+        · exact h_env_st c' hmem
+      have h_rest : TraceSound { st with proved := c :: st.proved }
+          (rest.map (fun c => .hypothesis c)) := by
+        apply ih
+        · intro c' hc'
+          exact h_env_g c' (List.mem_cons.mpr (Or.inr hc'))
+        · intro c' hc'
+          simp at hc'
+          rcases hc' with rfl | hmem
+          · exact h_env_g c' (by simp)
+          · exact h_env_st c' hmem
+      exact TraceSound.cons st (.hypothesis c) (rest.map (fun c => .hypothesis c)) h_step h_rest
 
 /-- 当约束图 g 可满足时，从初始状态开始的 hypothesis 列表迹是语义可靠的。 -/
 lemma hypotheses_trace_sound_from_init (g : ConstraintGraph) (h_sat : graph_satisfiable g) :
     TraceSound (initVerifier g) (g.map (fun c => .hypothesis c)) := by
-  sorry
+  rcases h_sat with ⟨env, henv⟩
+  exact hypotheses_trace_sound_gen g env (initVerifier g) henv (by simp [initVerifier])
 
 /-- 空约束图上的平凡证明迹 [qed] 是语义可靠的 -/
 lemma qed_trace_sound (g : ConstraintGraph) : TraceSound (initVerifier g) [.qed] := by
-  sorry
+  constructor
+  · intro h_sat
+    exact h_sat
+  · exact TraceSound.nil (transition (initVerifier g) .qed)
 
 /-- TraceSound 的组合性引理：若 t₁ 从状态 st 是语义可靠的，
     且 t₂ 从 trace_fold st t₁（即 t₁ 处理后的状态）也是语义可靠的，
@@ -386,13 +467,23 @@ lemma qed_trace_sound (g : ConstraintGraph) : TraceSound (initVerifier g) [.qed]
 lemma trace_sound_append (st : VerifierState) (t1 t2 : ProofTrace)
     (h1 : TraceSound st t1) (h2 : TraceSound (trace_fold st t1) t2) :
     TraceSound st (t1 ++ t2) := by
-  sorry
+  induction h1 generalizing t2 with
+  | nil =>
+      simpa using h2
+  | cons _st step rest h_step h_rest ih =>
+      constructor
+      · exact h_step
+      · apply ih
+        simpa [trace_fold] using h2
 
 /-- qed 步骤从任意状态都是可靠的（只要状态已满足原图约束）。
     transition st .qed = st，故 step_sound 退化为恒等映射。 -/
-lemma qed_sound_at_state (g : ConstraintGraph) (st : VerifierState) :
+lemma qed_sound_at_state (_g : ConstraintGraph) (st : VerifierState) :
     TraceSound st [.qed] := by
-  sorry
+  constructor
+  · intro h_sat
+    exact h_sat
+  · exact TraceSound.nil (transition st .qed)
 
 /-- 程序级证明迹的可靠性：若约束图可满足，则 mkTrivialProofTrace 对应的迹语义可靠。
     
@@ -404,19 +495,35 @@ lemma qed_sound_at_state (g : ConstraintGraph) (st : VerifierState) :
     4. 由 trace_sound_append 组合二者。 -/
 lemma program_trace_sound (p : LvProgram) (h_sat : graph_satisfiable (lvProgramToConstraintGraph p)) :
     TraceSound (initVerifier (lvProgramToConstraintGraph p)) (mkTrivialProofTrace p) := by
-  sorry
+  unfold mkTrivialProofTrace lvProgramToConstraintGraph
+  have h1 : TraceSound (initVerifier ((getConstraints p).map lvConstraintToIR))
+      ((getConstraints p).map (fun c => ProofStep.hypothesis (lvConstraintToIR c))) := by
+    simpa [List.map_map] using
+      hypotheses_trace_sound_from_init ((getConstraints p).map lvConstraintToIR) h_sat
+  apply trace_sound_append
+  · exact h1
+  · exact qed_sound_at_state ((getConstraints p).map lvConstraintToIR)
+      (trace_fold (initVerifier ((getConstraints p).map lvConstraintToIR))
+        ((getConstraints p).map (fun c => ProofStep.hypothesis (lvConstraintToIR c))))
 
 /-- 简化版可靠性：对任意 Lv 程序 p，若其约束图为空，则平凡证明迹通过检查 -/
 theorem lv_empty_trivial_prove_soundness (p : LvProgram)
     (h_empty : getConstraints p = []) :
     evidence_check (lvProgramToConstraintGraph p) (mkTrivialProofTrace p) = true := by
-  sorry
+  unfold lvProgramToConstraintGraph mkTrivialProofTrace
+  rw [h_empty]
+  simp
+  exact evidence_empty_trivially_satisfiable
 
 /-- 可靠性 Corollary：若 Lv 程序 p 的约束图为空，则 p 语义成立 -/
 theorem lv_empty_program_sound (p : LvProgram)
     (h_empty : getConstraints p = []) :
     lv_sem p := by
-  sorry
+  unfold lv_sem
+  rw [h_empty]
+  refine ⟨fun _ => (0, 0), ?_⟩
+  intro c hc
+  simp at hc
 
 /-! ===============================================================
    第十一部分：示例

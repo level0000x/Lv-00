@@ -763,6 +763,15 @@ set(lv_CORE_SOURCES
     core/src/lv_impl_native.c
     # 上层接口实现
     core/src/lv_impl_upper.c
+    core/src/lv_impl_upper_geom.c
+    core/src/lv_impl_upper_algebra.c
+    core/src/lv_impl_upper_visual.c
+    core/src/lv_impl_upper_orchestrator.c
+    core/src/lv_impl_upper_meta.c
+    core/src/lv_impl_upper_app.c
+    core/src/lv_impl_upper_interop.c
+    core/src/lv_impl_upper_preset.c
+    core/src/lv_impl_upper_utils.c
     # 提取的预设实现（从 lv_impl_upper.c 拆分）
     core/src/impl_preset_basic_geometry.c
     core/src/impl_preset_transformations.c
@@ -779,6 +788,14 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/euclidean_geometry.c
     core/src/layer3_geometry/interactive_geo.c
     core/src/layer3_geometry/high_dim.c
+    core/src/layer3_geometry/high_dim_core.c
+    core/src/layer3_geometry/high_dim_preset.c
+    core/src/layer3_geometry/high_dim_project.c
+    core/src/layer3_geometry/high_dim_fidelity.c
+    core/src/layer3_geometry/high_dim_zoom.c
+    core/src/layer3_geometry/high_dim_view.c
+    core/src/layer3_geometry/high_dim_serialize.c
+    core/src/layer3_geometry/high_dim_utils.c
     core/src/layer3_geometry/geometry_compress.c
     core/src/layer3_geometry/geo_event_detect.c
     core/src/layer3_geometry/geo_spec.c
@@ -954,6 +971,12 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/backends/groebner_parallel.c
     # 公理包
     core/src/layer4_reasoning/axiom/axiom_pkg.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_core.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_parser.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_serialize.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_verify.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_expand.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_depref.c
     core/src/layer4_reasoning/axiom/axiom_grade.c
     core/src/layer4_reasoning/axiom/axiom_template_test.c
     # func_block 函数块系统
@@ -1072,6 +1095,17 @@ set(lv_LAYER4_SOURCES
     # 证明子模块：依赖、导航、命题、版本、信任颜色
     core/src/layer4_reasoning/proof/proof_dependency.c
     core/src/layer4_reasoning/proof/proof_navigator.c
+    core/src/layer4_reasoning/proof/proof_navigator_dependency.c
+    core/src/layer4_reasoning/proof/proof_navigator_exfalso.c
+    core/src/layer4_reasoning/proof/proof_navigator_contradiction.c
+    core/src/layer4_reasoning/proof/proof_navigator_interactive.c
+    core/src/layer4_reasoning/proof/proof_navigator_breakpoint.c
+    core/src/layer4_reasoning/proof/proof_navigator_export.c
+    core/src/layer4_reasoning/proof/proof_navigator_equivalence.c
+    core/src/layer4_reasoning/proof/proof_navigator_degrade.c
+    core/src/layer4_reasoning/proof/proof_navigator_misc.c
+    core/src/layer4_reasoning/proof/proof_navigator_utils.c
+    core/src/layer4_reasoning/proof/proof_navigator_instantiate.c
     core/src/layer4_reasoning/proof/proof_proposition.c
     core/src/layer4_reasoning/proof/proof_version.c
     core/src/layer4_reasoning/proof/trust_color.c

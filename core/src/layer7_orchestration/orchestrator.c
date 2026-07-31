@@ -162,8 +162,7 @@ int lv_session_run(lvSession *session, const char *input) {
          */
         clock_t t0 = clock();
         /* 实际解析工作位置：验证输入格式标记（占位） */
-        clock_t t1 = clock();
-        double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+        double elapsed = lv_clock_elapsed_ms(t0);
         if (elapsed < 0.1)
             elapsed = 0.1 + input_len * 0.001; /* 保证最小耗时 */
 
@@ -191,8 +190,7 @@ int lv_session_run(lvSession *session, const char *input) {
             resource_count += 1; /* 通用解析器 */
 
         /* 模拟资源分配耗时 */
-        clock_t t1 = clock();
-        double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+        double elapsed = lv_clock_elapsed_ms(t0);
         if (elapsed < 0.05)
             elapsed = 0.5;
 
@@ -237,8 +235,7 @@ int lv_session_run(lvSession *session, const char *input) {
         if (geo_obj_count == 0)
             geo_obj_count = 1; /* 至少一个隐含对象 */
 
-        clock_t t1 = clock();
-        double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+        double elapsed = lv_clock_elapsed_ms(t0);
         if (elapsed < 0.1)
             elapsed = 1.0 + geo_obj_count * 0.1;
 
@@ -280,8 +277,7 @@ int lv_session_run(lvSession *session, const char *input) {
                     int total_attempts = 0, success_count = 0;
                     proof_multi_strategy_get_stats(mse, &total_attempts, &success_count);
 
-                    clock_t t1 = clock();
-                    double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+                    double elapsed = lv_clock_elapsed_ms(t0);
                     if (elapsed < 1.0)
                         elapsed = 5.0 + total_attempts * 2.0;
 
@@ -294,8 +290,7 @@ int lv_session_run(lvSession *session, const char *input) {
                     proof_multi_strategy_destroy(mse);
                 } else {
                     /* 多策略引擎创建失败 — 通常是内存不足或导航器状态异常 */
-                    clock_t t1 = clock();
-                    double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+                    double elapsed = lv_clock_elapsed_ms(t0);
                     if (elapsed < 1.0)
                         elapsed = 10.0;
                     reasoning_ok = 0;
@@ -307,8 +302,7 @@ int lv_session_run(lvSession *session, const char *input) {
                 proof_navigator_destroy(nav);
             } else {
                 /* 导航器创建失败 — 目标命题可能不合法 */
-                clock_t t1 = clock();
-                double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+                double elapsed = lv_clock_elapsed_ms(t0);
                 if (elapsed < 1.0)
                     elapsed = 10.0;
                 reasoning_ok = 0;
@@ -320,8 +314,7 @@ int lv_session_run(lvSession *session, const char *input) {
             proposition_destroy(target);
         } else {
             /* 命题创建失败 — 参数无效或内存不足 */
-            clock_t t1 = clock();
-            double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+            double elapsed = lv_clock_elapsed_ms(t0);
             if (elapsed < 1.0)
                 elapsed = 10.0;
             reasoning_ok = 0;
@@ -369,8 +362,7 @@ int lv_session_run(lvSession *session, const char *input) {
             output_len = ORCH_OUTPUT_BASE_DEFAULT;
         }
 
-        clock_t t1 = clock();
-        double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+        double elapsed = lv_clock_elapsed_ms(t0);
         if (elapsed < 0.05)
             elapsed = 1.0 + output_len * 0.001;
 
@@ -417,8 +409,7 @@ int lv_session_run(lvSession *session, const char *input) {
             if (obj_count <= 0)
                 obj_count = 1;
 
-            clock_t t1 = clock();
-            double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+            double elapsed = lv_clock_elapsed_ms(t0);
             if (elapsed < 0.1)
                 elapsed = 3.0 + obj_count * 0.5;
 
@@ -495,8 +486,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
                 simulated_tokens = 1;
             }
 
-            clock_t t1 = clock();
-            double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+            double elapsed = lv_clock_elapsed_ms(t0);
             if (elapsed < 0.1)
                 elapsed = 0.5 + simulated_tokens * 0.01;
 
@@ -516,8 +506,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
             if (strcmp(session->config.input_format, "lv-dsl") == 0)
                 resource_count += 2;
 
-            clock_t t1 = clock();
-            double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+            double elapsed = lv_clock_elapsed_ms(t0);
             if (elapsed < 0.05)
                 elapsed = 0.5;
 
@@ -553,8 +542,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
             if (geo_obj_count == 0)
                 geo_obj_count = 1;
 
-            clock_t t1 = clock();
-            double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+            double elapsed = lv_clock_elapsed_ms(t0);
             if (elapsed < 0.1)
                 elapsed = 1.0 + geo_obj_count * 0.1;
 
@@ -586,8 +574,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
                         int total_attempts = 0, success_count = 0;
                         proof_multi_strategy_get_stats(mse, &total_attempts, &success_count);
 
-                        clock_t t1 = clock();
-                        double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+                        double elapsed = lv_clock_elapsed_ms(t0);
                         if (elapsed < 1.0)
                             elapsed = 5.0 + total_attempts * 2.0;
 
@@ -599,8 +586,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
                         proof_multi_strategy_destroy(mse);
                     } else {
                         /* 多策略引擎创建失败，降级为模拟模式 */
-                        clock_t t1 = clock();
-                        double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+                        double elapsed = lv_clock_elapsed_ms(t0);
                         if (elapsed < 1.0)
                             elapsed = 10.0;
                         reasoning_ok = 1;
@@ -611,8 +597,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
                     proof_navigator_destroy(nav);
                 } else {
                     /* 导航器创建失败，降级为模拟模式 */
-                    clock_t t1 = clock();
-                    double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+                    double elapsed = lv_clock_elapsed_ms(t0);
                     if (elapsed < 1.0)
                         elapsed = 10.0;
                     reasoning_ok = 1;
@@ -623,8 +608,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
                 proposition_destroy(target);
             } else {
                 /* 命题创建失败，降级为模拟模式 */
-                clock_t t1 = clock();
-                double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+                double elapsed = lv_clock_elapsed_ms(t0);
                 if (elapsed < 1.0)
                     elapsed = 10.0;
                 reasoning_ok = 1;
@@ -659,8 +643,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
             else
                 output_len = ORCH_OUTPUT_BASE_DEFAULT;
 
-            clock_t t1 = clock();
-            double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+            double elapsed = lv_clock_elapsed_ms(t0);
             if (elapsed < 0.05)
                 elapsed = 1.0 + output_len * 0.001;
 
@@ -692,8 +675,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
                 if (obj_count <= 0)
                     obj_count = 1;
 
-                clock_t t1 = clock();
-                double elapsed = (double) (t1 - t0) / CLOCKS_PER_SEC * 1000.0;
+                double elapsed = lv_clock_elapsed_ms(t0);
                 if (elapsed < 0.1)
                     elapsed = 3.0 + obj_count * 0.5;
 

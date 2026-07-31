@@ -40,6 +40,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_xmacro.h"
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
@@ -2014,67 +2015,43 @@ const char *measure_type_to_string(MeasureType type) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} recursion_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *recursion_name_lookup(const recursion_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief measure_compare_result_to_string 名称表（按枚举值升序） */
-static const recursion_NameEntry s_measure_compare_result_to_string_entries[] = {
-    {MEASURE_LESS, "Less"},
-    {MEASURE_EQUAL, "Equal"},
-    {MEASURE_GREATER, "Greater"},
-    {MEASURE_UNKNOWN, "Unknown"},
-    {MEASURE_ERROR, "Error"},
+static const lvStrToEnumEntry s_measure_compare_result_to_string_entries[] = {
+    {"Less", MEASURE_LESS},
+    {"Equal", MEASURE_EQUAL},
+    {"Greater", MEASURE_GREATER},
+    {"Unknown", MEASURE_UNKNOWN},
+    {"Error", MEASURE_ERROR},
 };
 
 const char *measure_compare_result_to_string(MeasureCompareResult result) {
-    const char *name = recursion_name_lookup(s_measure_compare_result_to_string_entries, lv_ARRAY_SIZE(s_measure_compare_result_to_string_entries), (int) result);
-    return name ? name : "Unknown";
+    return lv_enum_to_str(s_measure_compare_result_to_string_entries, lv_ARRAY_SIZE(s_measure_compare_result_to_string_entries), (int) result, "Unknown");
 }
 
 /** @brief recursion_check_result_to_string 名称表（按枚举值升序） */
-static const recursion_NameEntry s_recursion_check_result_to_string_entries[] = {
-    {RECURSION_OK, "OK"},
-    {RECURSION_NOT_DECREASING, "Not Decreasing"},
-    {RECURSION_DEPTH_EXCEEDED, "Depth Exceeded"},
-    {RECURSION_CYCLE_DETECTED, "Cycle Detected"},
-    {RECURSION_MEASURE_UNKNOWN, "Measure Unknown"},
-    {RECURSION_ERROR, "Error"},
+static const lvStrToEnumEntry s_recursion_check_result_to_string_entries[] = {
+    {"OK", RECURSION_OK},
+    {"Not Decreasing", RECURSION_NOT_DECREASING},
+    {"Depth Exceeded", RECURSION_DEPTH_EXCEEDED},
+    {"Cycle Detected", RECURSION_CYCLE_DETECTED},
+    {"Measure Unknown", RECURSION_MEASURE_UNKNOWN},
+    {"Error", RECURSION_ERROR},
 };
 
 const char *recursion_check_result_to_string(RecursionCheckResult result) {
-    const char *name = recursion_name_lookup(s_recursion_check_result_to_string_entries, lv_ARRAY_SIZE(s_recursion_check_result_to_string_entries), (int) result);
-    return name ? name : "Unknown";
+    return lv_enum_to_str(s_recursion_check_result_to_string_entries, lv_ARRAY_SIZE(s_recursion_check_result_to_string_entries), (int) result, "Unknown");
 }
 
 /** @brief branch_state_to_string 名称表（按枚举值升序） */
-static const recursion_NameEntry s_branch_state_to_string_entries[] = {
-    {BRANCH_INACTIVE, "Inactive"},
-    {BRANCH_ACTIVE, "Active"},
-    {BRANCH_PENDING, "Pending"},
-    {BRANCH_SHADOWED, "Shadowed"},
+static const lvStrToEnumEntry s_branch_state_to_string_entries[] = {
+    {"Inactive", BRANCH_INACTIVE},
+    {"Active", BRANCH_ACTIVE},
+    {"Pending", BRANCH_PENDING},
+    {"Shadowed", BRANCH_SHADOWED},
 };
 
 const char *branch_state_to_string(BranchState state) {
-    const char *name = recursion_name_lookup(s_branch_state_to_string_entries, lv_ARRAY_SIZE(s_branch_state_to_string_entries), (int) state);
-    return name ? name : "Unknown";
+    return lv_enum_to_str(s_branch_state_to_string_entries, lv_ARRAY_SIZE(s_branch_state_to_string_entries), (int) state, "Unknown");
 }
 
 /* ============== Feature 2: 非符号测度模板展开集成 ============== */

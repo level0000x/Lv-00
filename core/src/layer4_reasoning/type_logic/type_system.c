@@ -1063,18 +1063,20 @@ const TypeRewritePath *type_system_get_rewrite_path(const TypeSystem *ts) {
 /* ============== 规则表驱动的类型推断 ============== */
 
 /**
+ * @brief 按优先级升序比较两条推断规则（数值越小越优先）
+ */
+static int cmp_inference_rule_priority(const void *a, const void *b, void *ctx) {
+    (void) ctx;
+    const TypeInferenceRule *ra = (const TypeInferenceRule *) a;
+    const TypeInferenceRule *rb = (const TypeInferenceRule *) b;
+    return (ra->priority > rb->priority) - (ra->priority < rb->priority);
+}
+
+/**
  * 内部辅助：对推断规则数组按优先级升序排序（插入排序，规则数量通常很少）
  */
 static void inference_rules_sort_by_priority(TypeInferenceRule *rules, int count) {
-    for (int i = 1; i < count; i++) {
-        TypeInferenceRule key = rules[i];
-        int j = i - 1;
-        while (j >= 0 && rules[j].priority > key.priority) {
-            rules[j + 1] = rules[j];
-            j--;
-        }
-        rules[j + 1] = key;
-    }
+    lv_insertion_sort(rules, (size_t) count, sizeof(TypeInferenceRule), cmp_inference_rule_priority, NULL);
 }
 
 /**

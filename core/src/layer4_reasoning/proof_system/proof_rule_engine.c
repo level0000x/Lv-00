@@ -19,6 +19,7 @@
  */
 
 #include "proof_rule_engine.h"
+#include "lv/lv_xmacro.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -46,21 +47,26 @@ static bool is_search_timed_out(const lvRuleEngine *engine, uint64_t start_time_
 
 
 /**
+ * @brief 按权重降序比较两条规则（大权重优先）
+ */
+static int cmp_rule_weight_desc(const void *a, const void *b, void *ctx) {
+    (void) ctx;
+    const lvProofRule *ra = *(const lvProofRule *const *) a;
+    const lvProofRule *rb = *(const lvProofRule *const *) b;
+    if (ra->weight > rb->weight)
+        return -1;
+    if (ra->weight < rb->weight)
+        return 1;
+    return 0;
+}
+
+/**
  * @brief Sort rules by weight in descending order (insertion sort)
  *
  * Uses insertion sort since the rule set is typically small.
  */
 static void sort_rules_by_weight(lvProofRule **rules, int count) {
-    int i, j;
-    for (i = 1; i < count; i++) {
-        lvProofRule *key = rules[i];
-        j = i - 1;
-        while (j >= 0 && rules[j]->weight < key->weight) {
-            rules[j + 1] = rules[j];
-            j--;
-        }
-        rules[j + 1] = key;
-    }
+    lv_insertion_sort(rules, (size_t) count, sizeof(lvProofRule *), cmp_rule_weight_desc, NULL);
 }
 
 /**
@@ -835,71 +841,47 @@ const char *proof_state_current_goal(const lvProofState *state) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} rule_engine_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *rule_engine_name_lookup(const rule_engine_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief proof_rule_type_to_string 名称表（按枚举值升序） */
-static const rule_engine_NameEntry s_proof_rule_type_to_string_entries[] = {
-    {RULE_INTRO, "INTRO"},
-    {RULE_ELIM, "ELIM"},
-    {RULE_REWRITE, "REWRITE"},
-    {RULE_INDUCTION, "INDUCTION"},
-    {RULE_CONTRADICTION, "CONTRADICTION"},
-    {RULE_CASE_SPLIT, "CASE_SPLIT"},
-    {RULE_GENERALIZE, "GENERALIZE"},
-    {RULE_SPECIALIZE, "SPECIALIZE"},
-    {RULE_NEURAL_SUGGEST, "NEURAL_SUGGEST"},
-    {RULE_AUX_CONSTRUCT, "AUX_CONSTRUCT"},
+static const lvStrToEnumEntry s_proof_rule_type_to_string_entries[] = {
+    {"INTRO", RULE_INTRO},
+    {"ELIM", RULE_ELIM},
+    {"REWRITE", RULE_REWRITE},
+    {"INDUCTION", RULE_INDUCTION},
+    {"CONTRADICTION", RULE_CONTRADICTION},
+    {"CASE_SPLIT", RULE_CASE_SPLIT},
+    {"GENERALIZE", RULE_GENERALIZE},
+    {"SPECIALIZE", RULE_SPECIALIZE},
+    {"NEURAL_SUGGEST", RULE_NEURAL_SUGGEST},
+    {"AUX_CONSTRUCT", RULE_AUX_CONSTRUCT},
 };
 
 const char *proof_rule_type_to_string(lvProofRuleType type) {
-    const char *name = rule_engine_name_lookup(s_proof_rule_type_to_string_entries, lv_ARRAY_SIZE(s_proof_rule_type_to_string_entries), (int) type);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_proof_rule_type_to_string_entries, lv_ARRAY_SIZE(s_proof_rule_type_to_string_entries), (int) type, "UNKNOWN");
 }
 
 /** @brief search_strategy_to_string 名称表（按枚举值升序） */
-static const rule_engine_NameEntry s_search_strategy_to_string_entries[] = {
-    {SEARCH_BEST_FIRST, "BEST_FIRST"},
-    {SEARCH_DEPTH_FIRST, "DEPTH_FIRST"},
-    {SEARCH_BREADTH_FIRST, "BREADTH_FIRST"},
-    {SEARCH_ITERATIVE_DEEPENING, "ITERATIVE_DEEPENING"},
+static const lvStrToEnumEntry s_search_strategy_to_string_entries[] = {
+    {"BEST_FIRST", SEARCH_BEST_FIRST},
+    {"DEPTH_FIRST", SEARCH_DEPTH_FIRST},
+    {"BREADTH_FIRST", SEARCH_BREADTH_FIRST},
+    {"ITERATIVE_DEEPENING", SEARCH_ITERATIVE_DEEPENING},
 };
 
 const char *search_strategy_to_string(lvSearchStrategy strategy) {
-    const char *name = rule_engine_name_lookup(s_search_strategy_to_string_entries, lv_ARRAY_SIZE(s_search_strategy_to_string_entries), (int) strategy);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_search_strategy_to_string_entries, lv_ARRAY_SIZE(s_search_strategy_to_string_entries), (int) strategy, "UNKNOWN");
 }
 
 /** @brief search_result_status_to_string 名称表（按枚举值升序） */
-static const rule_engine_NameEntry s_search_result_status_to_string_entries[] = {
-    {SEARCH_RESULT_FOUND, "FOUND"},
-    {SEARCH_RESULT_TIMEOUT, "TIMEOUT"},
-    {SEARCH_RESULT_DEPTH_LIMIT, "DEPTH_LIMIT"},
-    {SEARCH_RESULT_EXHAUSTED, "EXHAUSTED"},
-    {SEARCH_RESULT_ERROR, "ERROR"},
+static const lvStrToEnumEntry s_search_result_status_to_string_entries[] = {
+    {"FOUND", SEARCH_RESULT_FOUND},
+    {"TIMEOUT", SEARCH_RESULT_TIMEOUT},
+    {"DEPTH_LIMIT", SEARCH_RESULT_DEPTH_LIMIT},
+    {"EXHAUSTED", SEARCH_RESULT_EXHAUSTED},
+    {"ERROR", SEARCH_RESULT_ERROR},
 };
 
 const char *search_result_status_to_string(lvSearchResultStatus status) {
-    const char *name = rule_engine_name_lookup(s_search_result_status_to_string_entries, lv_ARRAY_SIZE(s_search_result_status_to_string_entries), (int) status);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_search_result_status_to_string_entries, lv_ARRAY_SIZE(s_search_result_status_to_string_entries), (int) status, "UNKNOWN");
 }
 
 /* ============================================================

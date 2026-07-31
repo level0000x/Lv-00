@@ -24,6 +24,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+#include "lv/lv_xmacro.h"
 
 #include "lv_internal.h"
 
@@ -1590,93 +1591,71 @@ void dsl_ir_dump(const DslIR *ir, void *fd) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} DslEnumNameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *dsl_enum_name_lookup(const DslEnumNameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief IR 操作码名称表（按枚举值升序） */
-static const DslEnumNameEntry s_ir_op_names[] = {
-    {IR_CREATE_POINT, "CREATE_POINT"},
-    {IR_CREATE_POINT_FIXED, "CREATE_POINT_FIXED"},
-    {IR_CREATE_LINE, "CREATE_LINE"},
-    {IR_CREATE_CIRCLE, "CREATE_CIRCLE"},
-    {IR_CREATE_SEGMENT, "CREATE_SEGMENT"},
-    {IR_CREATE_RAY, "CREATE_RAY"},
-    {IR_CREATE_POLYGON, "CREATE_POLYGON"},
-    {IR_CREATE_TRIANGLE, "CREATE_TRIANGLE"},
-    {IR_INTERSECT, "INTERSECT"},
-    {IR_PARALLEL_THROUGH, "PARALLEL_THROUGH"},
-    {IR_PERPENDICULAR_THROUGH, "PERPENDICULAR_THROUGH"},
-    {IR_MIDPOINT_OF, "MIDPOINT_OF"},
-    {IR_CIRCUMCENTER_OF, "CIRCUMCENTER_OF"},
-    {IR_ORTHOCENTER_OF, "ORTHOCENTER_OF"},
-    {IR_CENTROID_OF, "CENTROID_OF"},
-    {IR_INCENTER_OF, "INCENTER_OF"},
-    {IR_BISECTOR_OF, "BISECTOR_OF"},
-    {IR_ANGLE_BISECTOR, "ANGLE_BISECTOR"},
-    {IR_ADD_CONSTRAINT, "ADD_CONSTRAINT"},
-    {IR_REMOVE_CONSTRAINT, "REMOVE_CONSTRAINT"},
-    {IR_CONSTRAIN_EQUAL, "CONSTRAIN_EQUAL"},
-    {IR_CONSTRAIN_PARALLEL, "CONSTRAIN_PARALLEL"},
-    {IR_CONSTRAIN_PERPENDICULAR, "CONSTRAIN_PERPENDICULAR"},
-    {IR_CONSTRAIN_COLLINEAR, "CONSTRAIN_COLLINEAR"},
-    {IR_CONSTRAIN_CONCYCLIC, "CONSTRAIN_CONCYCLIC"},
-    {IR_LOAD_AXIOM, "LOAD_AXIOM"},
-    {IR_PROVE, "PROVE"},
-    {IR_CHECK_SAT, "CHECK_SAT"},
-    {IR_LABEL, "LABEL"},
-    {IR_NOOP, "NOOP"},
+static const lvStrToEnumEntry s_ir_op_names[] = {
+    {"CREATE_POINT", IR_CREATE_POINT},
+    {"CREATE_POINT_FIXED", IR_CREATE_POINT_FIXED},
+    {"CREATE_LINE", IR_CREATE_LINE},
+    {"CREATE_CIRCLE", IR_CREATE_CIRCLE},
+    {"CREATE_SEGMENT", IR_CREATE_SEGMENT},
+    {"CREATE_RAY", IR_CREATE_RAY},
+    {"CREATE_POLYGON", IR_CREATE_POLYGON},
+    {"CREATE_TRIANGLE", IR_CREATE_TRIANGLE},
+    {"INTERSECT", IR_INTERSECT},
+    {"PARALLEL_THROUGH", IR_PARALLEL_THROUGH},
+    {"PERPENDICULAR_THROUGH", IR_PERPENDICULAR_THROUGH},
+    {"MIDPOINT_OF", IR_MIDPOINT_OF},
+    {"CIRCUMCENTER_OF", IR_CIRCUMCENTER_OF},
+    {"ORTHOCENTER_OF", IR_ORTHOCENTER_OF},
+    {"CENTROID_OF", IR_CENTROID_OF},
+    {"INCENTER_OF", IR_INCENTER_OF},
+    {"BISECTOR_OF", IR_BISECTOR_OF},
+    {"ANGLE_BISECTOR", IR_ANGLE_BISECTOR},
+    {"ADD_CONSTRAINT", IR_ADD_CONSTRAINT},
+    {"REMOVE_CONSTRAINT", IR_REMOVE_CONSTRAINT},
+    {"CONSTRAIN_EQUAL", IR_CONSTRAIN_EQUAL},
+    {"CONSTRAIN_PARALLEL", IR_CONSTRAIN_PARALLEL},
+    {"CONSTRAIN_PERPENDICULAR", IR_CONSTRAIN_PERPENDICULAR},
+    {"CONSTRAIN_COLLINEAR", IR_CONSTRAIN_COLLINEAR},
+    {"CONSTRAIN_CONCYCLIC", IR_CONSTRAIN_CONCYCLIC},
+    {"LOAD_AXIOM", IR_LOAD_AXIOM},
+    {"PROVE", IR_PROVE},
+    {"CHECK_SAT", IR_CHECK_SAT},
+    {"LABEL", IR_LABEL},
+    {"NOOP", IR_NOOP},
 };
 
 /** @brief DSL AST 节点类型名称表（按枚举值升序） */
-static const DslEnumNameEntry s_ast_type_names[] = {
-    {DSL_AST_PROGRAM, "PROGRAM"},
-    {DSL_AST_POINT_DECL, "POINT_DECL"},
-    {DSL_AST_LINE_DECL, "LINE_DECL"},
-    {DSL_AST_CIRCLE_DECL, "CIRCLE_DECL"},
-    {DSL_AST_SEGMENT_DECL, "SEGMENT_DECL"},
-    {DSL_AST_RAY_DECL, "RAY_DECL"},
-    {DSL_AST_POLYGON_DECL, "POLYGON_DECL"},
-    {DSL_AST_TRIANGLE_DECL, "TRIANGLE_DECL"},
-    {DSL_AST_INTERSECT, "INTERSECT"},
-    {DSL_AST_PARALLEL, "PARALLEL"},
-    {DSL_AST_PERPENDICULAR, "PERPENDICULAR"},
-    {DSL_AST_MIDPOINT, "MIDPOINT"},
-    {DSL_AST_CIRCUMCENTER, "CIRCUMCENTER"},
-    {DSL_AST_ORTHOCENTER, "ORTHOCENTER"},
-    {DSL_AST_CENTROID, "CENTROID"},
-    {DSL_AST_INCENTER, "INCENTER"},
-    {DSL_AST_BISECTOR, "BISECTOR"},
-    {DSL_AST_CONSTRAINT, "CONSTRAINT"},
-    {DSL_AST_PROVE, "PROVE"},
-    {DSL_AST_LOAD, "LOAD"},
-    {DSL_AST_FIX_POINT, "FIX_POINT"},
-    {DSL_AST_FREE_POINT, "FREE_POINT"},
-    {DSL_AST_BLOCK, "BLOCK"},
-    {DSL_AST_IDENT, "IDENT"},
-    {DSL_AST_NUMBER, "NUMBER"},
+static const lvStrToEnumEntry s_ast_type_names[] = {
+    {"PROGRAM", DSL_AST_PROGRAM},
+    {"POINT_DECL", DSL_AST_POINT_DECL},
+    {"LINE_DECL", DSL_AST_LINE_DECL},
+    {"CIRCLE_DECL", DSL_AST_CIRCLE_DECL},
+    {"SEGMENT_DECL", DSL_AST_SEGMENT_DECL},
+    {"RAY_DECL", DSL_AST_RAY_DECL},
+    {"POLYGON_DECL", DSL_AST_POLYGON_DECL},
+    {"TRIANGLE_DECL", DSL_AST_TRIANGLE_DECL},
+    {"INTERSECT", DSL_AST_INTERSECT},
+    {"PARALLEL", DSL_AST_PARALLEL},
+    {"PERPENDICULAR", DSL_AST_PERPENDICULAR},
+    {"MIDPOINT", DSL_AST_MIDPOINT},
+    {"CIRCUMCENTER", DSL_AST_CIRCUMCENTER},
+    {"ORTHOCENTER", DSL_AST_ORTHOCENTER},
+    {"CENTROID", DSL_AST_CENTROID},
+    {"INCENTER", DSL_AST_INCENTER},
+    {"BISECTOR", DSL_AST_BISECTOR},
+    {"CONSTRAINT", DSL_AST_CONSTRAINT},
+    {"PROVE", DSL_AST_PROVE},
+    {"LOAD", DSL_AST_LOAD},
+    {"FIX_POINT", DSL_AST_FIX_POINT},
+    {"FREE_POINT", DSL_AST_FREE_POINT},
+    {"BLOCK", DSL_AST_BLOCK},
+    {"IDENT", DSL_AST_IDENT},
+    {"NUMBER", DSL_AST_NUMBER},
 };
 
 const char *dsl_ir_op_name(DslIROp op) {
-    const char *name = dsl_enum_name_lookup(s_ir_op_names, lv_ARRAY_SIZE(s_ir_op_names), (int) op);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_ir_op_names, lv_ARRAY_SIZE(s_ir_op_names), (int) op, "UNKNOWN");
 }
 
 /**
@@ -1686,6 +1665,5 @@ const char *dsl_ir_op_name(DslIROp op) {
  * @return 类型名称字符串（静态存储，无需释放）
  */
 const char *dsl_ast_type_name(DslASTType type) {
-    const char *name = dsl_enum_name_lookup(s_ast_type_names, lv_ARRAY_SIZE(s_ast_type_names), (int) type);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_ast_type_names, lv_ARRAY_SIZE(s_ast_type_names), (int) type, "UNKNOWN");
 }

@@ -22,6 +22,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "error_codes.h"
 
@@ -335,6 +336,17 @@ lv_PUBLIC_API void lv_array_clear(lvArray *arr, bool free_elements);
  * @brief 数组排序
  */
 void lv_array_sort(lvArray *arr, int (*cmp)(const void *, const void *));
+
+/**
+ * @brief 通用插入排序（小数组，n 通常很小）
+ * @param base 数组起始地址
+ * @param n    元素个数
+ * @param elem_size 元素字节大小
+ * @param cmp  比较回调（同 qsort 语义：<0 表示 a 在前）
+ * @param ctx  透传给 cmp 的上下文（可为 NULL）
+ */
+void lv_insertion_sort(void *base, size_t n, size_t elem_size,
+                       int (*cmp)(const void *a, const void *b, void *ctx), void *ctx);
 
 /**
  * @brief 在数组中查找元素
@@ -940,6 +952,33 @@ lv_PUBLIC_API uint64_t lv_get_wallclock_ms(void);
  * @return 格式化后的字符串
  */
 lv_PUBLIC_API const char *lv_format_time(uint64_t timestamp_us, char *buf, size_t buf_size);
+
+/**
+ * @brief clock() 起点到当前经过的秒数（CPU 时间）
+ * @param start clock() 起点
+ * @return 经过的秒数
+ */
+static inline double lv_clock_elapsed_sec(clock_t start) {
+    return (double) (clock() - start) / CLOCKS_PER_SEC;
+}
+
+/**
+ * @brief clock() 起点到当前经过的毫秒数
+ * @param start clock() 起点
+ * @return 经过的毫秒数
+ */
+static inline double lv_clock_elapsed_ms(clock_t start) {
+    return (double) (clock() - start) / CLOCKS_PER_SEC * 1000.0;
+}
+
+/**
+ * @brief clock() 起点到当前经过的微秒数
+ * @param start clock() 起点
+ * @return 经过的微秒数
+ */
+static inline double lv_clock_elapsed_us(clock_t start) {
+    return (double) (clock() - start) / CLOCKS_PER_SEC * 1000000.0;
+}
 
 /* ============================================================
  * 随机数生成

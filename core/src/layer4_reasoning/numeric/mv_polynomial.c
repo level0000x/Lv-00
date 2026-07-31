@@ -123,17 +123,16 @@ int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
     return 0;
 }
 
+/* 按 grlex 字典序比较单项式（ctx 指向变量数 int） */
+static int cmp_mv_monomial_grlex(const void *a, const void *b, void *ctx) {
+    int var_count = *(const int *) ctx;
+    return mv_monomial_compare_grlex((const MVMonomial *) a, (const MVMonomial *) b, var_count);
+}
+
 void mv_poly_sort(MVPolynomial *p) {
     /* 简单插入排序 (单项式数量通常不大) */
-    for (int i = 1; i < p->term_count; i++) {
-        MVMonomial key = p->terms[i];
-        int j = i - 1;
-        while (j >= 0 && mv_monomial_compare_grlex(&p->terms[j], &key, p->var_count) > 0) {
-            p->terms[j + 1] = p->terms[j];
-            j--;
-        }
-        p->terms[j + 1] = key;
-    }
+    lv_insertion_sort(p->terms, (size_t) p->term_count, sizeof(MVMonomial), cmp_mv_monomial_grlex,
+                      &p->var_count);
 }
 
 void mv_poly_remove_zeros(MVPolynomial *p) {

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_grade.c
  * @brief 公理分级系统实现 —— 难度过滤器、风格筛选与级进解锁
  *
@@ -17,6 +17,7 @@
  */
 
 #include "axiom_grade.h"
+#include "lv/lv_xmacro.h"
 
 #include <string.h>
 
@@ -161,38 +162,16 @@ bool lv_axiom_grade_check(const lvAxiomGradeMeta *meta) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} axiom_grade_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *axiom_grade_name_lookup(const axiom_grade_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief lv_axiom_grade_to_string 名称表（按枚举值升序） */
-static const axiom_grade_NameEntry s_lv_axiom_grade_to_string_entries[] = {
-    {GRADE_BASIC, "基础级"},
-    {GRADE_INTERMEDIATE, "中级"},
-    {GRADE_ADVANCED, "高级"},
-    {GRADE_EXPERT, "专家级"},
+static const lvStrToEnumEntry s_lv_axiom_grade_to_string_entries[] = {
+    {"基础级", GRADE_BASIC},
+    {"中级", GRADE_INTERMEDIATE},
+    {"高级", GRADE_ADVANCED},
+    {"专家级", GRADE_EXPERT},
 };
 
 const char *lv_axiom_grade_to_string(lvAxiomGrade grade) {
-    const char *name = axiom_grade_name_lookup(s_lv_axiom_grade_to_string_entries, lv_ARRAY_SIZE(s_lv_axiom_grade_to_string_entries), (int) grade);
-    return name ? name : "未知等级";
+    return lv_enum_to_str(s_lv_axiom_grade_to_string_entries, lv_ARRAY_SIZE(s_lv_axiom_grade_to_string_entries), (int) grade, "未知等级");
 }
 
 /**
@@ -202,16 +181,15 @@ const char *lv_axiom_grade_to_string(lvAxiomGrade grade) {
  * @return 中文描述字符串（静态内存）
  */
 /** @brief lv_proof_style_to_string 名称表（按枚举值升序） */
-static const axiom_grade_NameEntry s_lv_proof_style_to_string_entries[] = {
-    {STYLE_FORWARD, "正向推理"},
-    {STYLE_BACKWARD, "反向推理"},
-    {STYLE_CONTRADICTION, "反证法（归谬法）"},
-    {STYLE_INDUCTION, "归纳法"},
+static const lvStrToEnumEntry s_lv_proof_style_to_string_entries[] = {
+    {"正向推理", STYLE_FORWARD},
+    {"反向推理", STYLE_BACKWARD},
+    {"反证法（归谬法）", STYLE_CONTRADICTION},
+    {"归纳法", STYLE_INDUCTION},
 };
 
 const char *lv_proof_style_to_string(lvProofStyle style) {
-    const char *name = axiom_grade_name_lookup(s_lv_proof_style_to_string_entries, lv_ARRAY_SIZE(s_lv_proof_style_to_string_entries), (int) style);
-    return name ? name : "未知风格";
+    return lv_enum_to_str(s_lv_proof_style_to_string_entries, lv_ARRAY_SIZE(s_lv_proof_style_to_string_entries), (int) style, "未知风格");
 }
 
 /* ============== 级进解锁 ============== */

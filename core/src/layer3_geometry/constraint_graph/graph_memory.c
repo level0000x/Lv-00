@@ -35,6 +35,24 @@
 /* ── 前向声明（graph_index.c 中定义） ── */
 void node_destroy(GeomNode *node);
 
+/* 冗余约束检测用的哈希排序辅助结构 */
+typedef struct {
+    int constraint_idx;
+    unsigned long hash;
+} ConstraintHashEntry;
+
+/* 按 hash 升序比较（插入排序使用） */
+static int cmp_constraint_hash(const void *a, const void *b, void *ctx) {
+    (void) ctx;
+    const ConstraintHashEntry *ea = (const ConstraintHashEntry *) a;
+    const ConstraintHashEntry *eb = (const ConstraintHashEntry *) b;
+    if (ea->hash < eb->hash)
+        return -1;
+    if (ea->hash > eb->hash)
+        return 1;
+    return 0;
+}
+
 /**
  * @brief 销毁约束图并释放所有资源
  *
@@ -104,12 +122,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
      * Only compare constraints within the same hash group.
      */
 
-    /* Helper struct for sorting */
-    typedef struct {
-        int constraint_idx;
-        unsigned long hash;
-    } ConstraintHashEntry;
-
+    /* Helper struct for sorting — ConstraintHashEntry 已移至文件作用域 */
     int n = graph->constraint_count;
     if (n > 1) {
         ConstraintHashEntry *entries = lv_malloc((size_t) n * sizeof(ConstraintHashEntry));
@@ -126,15 +139,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
             }
 
             /* Sort by hash (simple insertion sort for small arrays, qsort for large) */
-            for (int i = 1; i < n; i++) {
-                ConstraintHashEntry tmp = entries[i];
-                int j = i - 1;
-                while (j >= 0 && entries[j].hash > tmp.hash) {
-                    entries[j + 1] = entries[j];
-                    j--;
-                }
-                entries[j + 1] = tmp;
-            }
+            lv_insertion_sort(entries, (size_t) n, sizeof(ConstraintHashEntry), cmp_constraint_hash, NULL);
 
             /* Compare constraints with same hash */
             int i = 0;

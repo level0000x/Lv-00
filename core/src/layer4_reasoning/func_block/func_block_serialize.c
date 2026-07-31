@@ -17,6 +17,7 @@
 #include "func_block.h"
 #include "lv_internal.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_xmacro.h"
 #include "lv_utils.h"
 
 /* ==================== 命名常量 ==================== */
@@ -36,38 +37,16 @@
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} fb_ser_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *fb_ser_name_lookup(const fb_ser_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief port_dep_type_to_string 名称表（按枚举值升序） */
-static const fb_ser_NameEntry s_port_dep_type_to_string_entries[] = {
-    {PORT_DEP_INCIDENCE, "INCIDENCE"},
-    {PORT_DEP_BETWEENNESS, "BETWEENNESS"},
-    {PORT_DEP_CONTAINMENT, "CONTAINMENT"},
-    {PORT_DEP_INTERSECTION, "INTERSECTION"},
+static const lvStrToEnumEntry s_port_dep_type_to_string_entries[] = {
+    {"INCIDENCE", PORT_DEP_INCIDENCE},
+    {"BETWEENNESS", PORT_DEP_BETWEENNESS},
+    {"CONTAINMENT", PORT_DEP_CONTAINMENT},
+    {"INTERSECTION", PORT_DEP_INTERSECTION},
 };
 
 static const char *port_dep_type_to_string(PortDependencyType type) {
-    const char *name = fb_ser_name_lookup(s_port_dep_type_to_string_entries, lv_ARRAY_SIZE(s_port_dep_type_to_string_entries), (int) type);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_port_dep_type_to_string_entries, lv_ARRAY_SIZE(s_port_dep_type_to_string_entries), (int) type, "UNKNOWN");
 }
 
 /**

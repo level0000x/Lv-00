@@ -15,6 +15,7 @@
  */
 
 #include "func_block.h"
+#include "lv/lv_xmacro.h"
 
 #include <limits.h>
 #include <stdbool.h>
@@ -974,38 +975,16 @@ pack_cleanup:
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} fb_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *fb_name_lookup(const fb_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief determinism_state_to_string 名称表（按枚举值升序） */
-static const fb_NameEntry s_determinism_state_to_string_entries[] = {
-    {DETERMINISM_STATE_UNVERIFIED, "UNVERIFIED"},
-    {DETERMINISM_STATE_VERIFIED, "VERIFIED"},
-    {DETERMINISM_STATE_NON_DETERMINISTIC, "NON_DETERMINISTIC"},
-    {DETERMINISM_STATE_PARTIALLY_VERIFIED, "PARTIALLY_VERIFIED"},
+static const lvStrToEnumEntry s_determinism_state_to_string_entries[] = {
+    {"UNVERIFIED", DETERMINISM_STATE_UNVERIFIED},
+    {"VERIFIED", DETERMINISM_STATE_VERIFIED},
+    {"NON_DETERMINISTIC", DETERMINISM_STATE_NON_DETERMINISTIC},
+    {"PARTIALLY_VERIFIED", DETERMINISM_STATE_PARTIALLY_VERIFIED},
 };
 
 const char *determinism_state_to_string(DeterminismState state) {
-    const char *name = fb_name_lookup(s_determinism_state_to_string_entries, lv_ARRAY_SIZE(s_determinism_state_to_string_entries), (int) state);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_determinism_state_to_string_entries, lv_ARRAY_SIZE(s_determinism_state_to_string_entries), (int) state, "UNKNOWN");
 }
 
 /**
@@ -1015,18 +994,17 @@ const char *determinism_state_to_string(DeterminismState state) {
  * @return 对应的字符串表示
  */
 /** @brief pack_result_to_string 名称表（按枚举值升序） */
-static const fb_NameEntry s_pack_result_to_string_entries[] = {
-    {PACK_RESULT_OK, "OK"},
-    {PACK_RESULT_CROSS_BOUNDARY_CONFLICT, "CROSS_BOUNDARY_CONFLICT"},
-    {PACK_RESULT_INVALID_NODES, "INVALID_NODES"},
-    {PACK_RESULT_INVALID_PORTS, "INVALID_PORTS"},
-    {PACK_RESULT_OUT_OF_MEMORY, "OUT_OF_MEMORY"},
-    {PACK_RESULT_CANCELLED, "CANCELLED"},
+static const lvStrToEnumEntry s_pack_result_to_string_entries[] = {
+    {"OK", PACK_RESULT_OK},
+    {"CROSS_BOUNDARY_CONFLICT", PACK_RESULT_CROSS_BOUNDARY_CONFLICT},
+    {"INVALID_NODES", PACK_RESULT_INVALID_NODES},
+    {"INVALID_PORTS", PACK_RESULT_INVALID_PORTS},
+    {"OUT_OF_MEMORY", PACK_RESULT_OUT_OF_MEMORY},
+    {"CANCELLED", PACK_RESULT_CANCELLED},
 };
 
 const char *pack_result_to_string(PackResult result) {
-    const char *name = fb_name_lookup(s_pack_result_to_string_entries, lv_ARRAY_SIZE(s_pack_result_to_string_entries), (int) result);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_pack_result_to_string_entries, lv_ARRAY_SIZE(s_pack_result_to_string_entries), (int) result, "UNKNOWN");
 }
 
 /**
@@ -1036,18 +1014,17 @@ const char *pack_result_to_string(PackResult result) {
  * @return 对应的字符串表示
  */
 /** @brief instantiate_result_to_string 名称表（按枚举值升序） */
-static const fb_NameEntry s_instantiate_result_to_string_entries[] = {
-    {INSTANTIATE_OK, "OK"},
-    {INSTANTIATE_NO_SOLUTION, "NO_SOLUTION"},
-    {INSTANTIATE_MULTIPLE_SOLUTIONS, "MULTIPLE_SOLUTIONS"},
-    {INSTANTIATE_SELECTOR_NEEDED, "SELECTOR_NEEDED"},
-    {INSTANTIATE_PRECONDITION_FAILED, "PRECONDITION_FAILED"},
-    {INSTANTIATE_OUT_OF_MEMORY, "OUT_OF_MEMORY"},
+static const lvStrToEnumEntry s_instantiate_result_to_string_entries[] = {
+    {"OK", INSTANTIATE_OK},
+    {"NO_SOLUTION", INSTANTIATE_NO_SOLUTION},
+    {"MULTIPLE_SOLUTIONS", INSTANTIATE_MULTIPLE_SOLUTIONS},
+    {"SELECTOR_NEEDED", INSTANTIATE_SELECTOR_NEEDED},
+    {"PRECONDITION_FAILED", INSTANTIATE_PRECONDITION_FAILED},
+    {"OUT_OF_MEMORY", INSTANTIATE_OUT_OF_MEMORY},
 };
 
 const char *instantiate_result_to_string(InstantiateResult result) {
-    const char *name = fb_name_lookup(s_instantiate_result_to_string_entries, lv_ARRAY_SIZE(s_instantiate_result_to_string_entries), (int) result);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_instantiate_result_to_string_entries, lv_ARRAY_SIZE(s_instantiate_result_to_string_entries), (int) result, "UNKNOWN");
 }
 
 /* ============== 视图折叠/展开 ============== */

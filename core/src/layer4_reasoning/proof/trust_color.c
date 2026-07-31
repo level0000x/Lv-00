@@ -11,6 +11,7 @@
  * @author Lv-00 Project
  */
 #include "lv/trust_color.h"
+#include "lv/lv_xmacro.h"
 
 /* ================================================================
  * 映射函数：TrustColor ↔ ProofColor
@@ -86,65 +87,42 @@ TrustColor proof_color_to_trust(ProofColor pc) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} trust_color_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *trust_color_name_lookup(const trust_color_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief trust_color_name 名称表（按枚举值升序） */
-static const trust_color_NameEntry s_trust_color_name_entries[] = {
-    {TRUST_GREEN, "Green"},
-    {TRUST_BLUE_UNEXPLORED, "Blue (unexplored)"},
-    {TRUST_BLUE_EXCEEDED, "Blue (exceeded)"},
-    {TRUST_BLUE_OUT_OF_SCOPE, "Blue (out of scope)"},
-    {TRUST_YELLOW, "Yellow"},
-    {TRUST_LIGHT_ORANGE_ORACLE, "Light orange (oracle)"},
-    {TRUST_LIGHT_ORANGE_EXPLOSION, "Light orange (ex falso)"},
-    {TRUST_AMBER, "Amber"},
-    {TRUST_DEEP_ORANGE, "Deep orange"},
-    {TRUST_RED, "Red"},
+static const lvStrToEnumEntry s_trust_color_name_entries[] = {
+    {"Green", TRUST_GREEN},
+    {"Blue (unexplored)", TRUST_BLUE_UNEXPLORED},
+    {"Blue (exceeded)", TRUST_BLUE_EXCEEDED},
+    {"Blue (out of scope)", TRUST_BLUE_OUT_OF_SCOPE},
+    {"Yellow", TRUST_YELLOW},
+    {"Light orange (oracle)", TRUST_LIGHT_ORANGE_ORACLE},
+    {"Light orange (ex falso)", TRUST_LIGHT_ORANGE_EXPLOSION},
+    {"Amber", TRUST_AMBER},
+    {"Deep orange", TRUST_DEEP_ORANGE},
+    {"Red", TRUST_RED},
 };
 
 const char *trust_color_name(TrustColor tc) {
-    const char *name = trust_color_name_lookup(s_trust_color_name_entries, lv_ARRAY_SIZE(s_trust_color_name_entries), (int) tc);
-    return name ? name : "Unknown";
+    return lv_enum_to_str(s_trust_color_name_entries, lv_ARRAY_SIZE(s_trust_color_name_entries), (int) tc, "Unknown");
 }
 
 /** @brief proof_color_name 名称表（按枚举值升序） */
-static const trust_color_NameEntry s_proof_color_name_entries[] = {
-    {PROOF_COLOR_GREEN, "Green (fully constructed)"},
-    {PROOF_COLOR_BLUE_UNEXPLORED, "Blue (unexplored)"},
-    {PROOF_COLOR_BLUE_RESOURCE, "Blue (resource limited)"},
-    {PROOF_COLOR_BLUE_OUT_OF_RANGE, "Blue (out of range)"},
-    {PROOF_COLOR_GREEN_VERIFIED, "Green (verified unconstructible)"},
-    {PROOF_COLOR_YELLOW, "Yellow"},
-    {PROOF_COLOR_ORANGE_ORACLE, "Orange (oracle)"},
-    {PROOF_COLOR_ORANGE_EX_FALSO, "Orange (ex falso)"},
-    {PROOF_COLOR_AMBER, "Amber"},
-    {PROOF_COLOR_DARK_ORANGE, "Dark orange"},
-    {PROOF_COLOR_GREEN_COMPLETE, "Green (complete)"},
-    {PROOF_COLOR_RED_CONFLICT, "Red (conflict)"},
+static const lvStrToEnumEntry s_proof_color_name_entries[] = {
+    {"Green (fully constructed)", PROOF_COLOR_GREEN},
+    {"Blue (unexplored)", PROOF_COLOR_BLUE_UNEXPLORED},
+    {"Blue (resource limited)", PROOF_COLOR_BLUE_RESOURCE},
+    {"Blue (out of range)", PROOF_COLOR_BLUE_OUT_OF_RANGE},
+    {"Green (verified unconstructible)", PROOF_COLOR_GREEN_VERIFIED},
+    {"Yellow", PROOF_COLOR_YELLOW},
+    {"Orange (oracle)", PROOF_COLOR_ORANGE_ORACLE},
+    {"Orange (ex falso)", PROOF_COLOR_ORANGE_EX_FALSO},
+    {"Amber", PROOF_COLOR_AMBER},
+    {"Dark orange", PROOF_COLOR_DARK_ORANGE},
+    {"Green (complete)", PROOF_COLOR_GREEN_COMPLETE},
+    {"Red (conflict)", PROOF_COLOR_RED_CONFLICT},
 };
 
 const char *proof_color_name(ProofColor pc) {
-    const char *name = trust_color_name_lookup(s_proof_color_name_entries, lv_ARRAY_SIZE(s_proof_color_name_entries), (int) pc);
-    return name ? name : "Unknown";
+    return lv_enum_to_str(s_proof_color_name_entries, lv_ARRAY_SIZE(s_proof_color_name_entries), (int) pc, "Unknown");
 }
 
 /* ================================================================

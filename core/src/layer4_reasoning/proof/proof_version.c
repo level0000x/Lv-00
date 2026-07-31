@@ -465,8 +465,7 @@ static int sledgehammer_async_task_execute(void *user_data) {
     proof_multi_strategy_activate(td->mse, td->strategy_type);
     bool success = proof_multi_strategy_execute(td->mse);
 
-    clock_t end = clock();
-    td->elapsed_sec = ((double) (end - start)) / CLOCKS_PER_SEC;
+    td->elapsed_sec = lv_clock_elapsed_sec(start);
     td->success = success;
 
     /* 生成 Isar 证明脚本 */

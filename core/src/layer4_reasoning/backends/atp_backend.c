@@ -31,6 +31,7 @@
 
 #include "atp_backend.h"
 #include "lv/lv_registry.h"
+#include "lv/lv_xmacro.h"
 
 
 #include <stdio.h>
@@ -1345,38 +1346,16 @@ const ATPBackendEntry *atp_find_backend(ATPBackendType type) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} atp_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *atp_name_lookup(const atp_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief atp_backend_type_name 名称表（按枚举值升序） */
-static const atp_NameEntry s_atp_backend_type_name_entries[] = {
-    {ATP_BACKEND_VAMPIRE, "Vampire"},
-    {ATP_BACKEND_EPROVER, "E Prover"},
-    {ATP_BACKEND_IPROVER, "iProver"},
-    {ATP_BACKEND_CUSTOM, "Custom"},
+static const lvStrToEnumEntry s_atp_backend_type_name_entries[] = {
+    {"Vampire", ATP_BACKEND_VAMPIRE},
+    {"E Prover", ATP_BACKEND_EPROVER},
+    {"iProver", ATP_BACKEND_IPROVER},
+    {"Custom", ATP_BACKEND_CUSTOM},
 };
 
 const char *atp_backend_type_name(ATPBackendType type) {
-    const char *name = atp_name_lookup(s_atp_backend_type_name_entries, lv_ARRAY_SIZE(s_atp_backend_type_name_entries), (int) type);
-    return name ? name : "Unknown";
+    return lv_enum_to_str(s_atp_backend_type_name_entries, lv_ARRAY_SIZE(s_atp_backend_type_name_entries), (int) type, "Unknown");
 }
 
 /**
@@ -1495,30 +1474,28 @@ int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config, ATPRes
  * @brief 获取结果类型名称
  */
 /** @brief atp_result_name 名称表（按枚举值升序） */
-static const atp_NameEntry s_atp_result_name_entries[] = {
-    {ATP_RESULT_SAT, "SAT"},
-    {ATP_RESULT_UNSAT, "UNSAT"},
-    {ATP_RESULT_UNKNOWN, "UNKNOWN"},
-    {ATP_RESULT_ERROR, "ERROR"},
+static const lvStrToEnumEntry s_atp_result_name_entries[] = {
+    {"SAT", ATP_RESULT_SAT},
+    {"UNSAT", ATP_RESULT_UNSAT},
+    {"UNKNOWN", ATP_RESULT_UNKNOWN},
+    {"ERROR", ATP_RESULT_ERROR},
 };
 
 const char *atp_result_name(ATPResult result) {
-    const char *name = atp_name_lookup(s_atp_result_name_entries, lv_ARRAY_SIZE(s_atp_result_name_entries), (int) result);
-    return name ? name : "INVALID";
+    return lv_enum_to_str(s_atp_result_name_entries, lv_ARRAY_SIZE(s_atp_result_name_entries), (int) result, "INVALID");
 }
 
 /**
  * @brief 获取输入格式名称
  */
 /** @brief atp_format_name 名称表（按枚举值升序） */
-static const atp_NameEntry s_atp_format_name_entries[] = {
-    {ATP_FORMAT_TPTP_FOF, "TPTP FOF"},
-    {ATP_FORMAT_TPTP_CNF, "TPTP CNF"},
-    {ATP_FORMAT_TPTP_TFF, "TPTP TFF"},
-    {ATP_FORMAT_SMTLIB2, "SMT-LIB2"},
+static const lvStrToEnumEntry s_atp_format_name_entries[] = {
+    {"TPTP FOF", ATP_FORMAT_TPTP_FOF},
+    {"TPTP CNF", ATP_FORMAT_TPTP_CNF},
+    {"TPTP TFF", ATP_FORMAT_TPTP_TFF},
+    {"SMT-LIB2", ATP_FORMAT_SMTLIB2},
 };
 
 const char *atp_format_name(ATPInputFormat format) {
-    const char *name = atp_name_lookup(s_atp_format_name_entries, lv_ARRAY_SIZE(s_atp_format_name_entries), (int) format);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_atp_format_name_entries, lv_ARRAY_SIZE(s_atp_format_name_entries), (int) format, "UNKNOWN");
 }

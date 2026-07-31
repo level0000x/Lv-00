@@ -462,21 +462,23 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
 }
 
 /**
+ * @brief 按优先级升序比较两条规则（数值越小越优先）
+ */
+static int cmp_rewrite_rule_priority(const void *a, const void *b, void *ctx) {
+    (void) ctx;
+    const lvRewriteRuleEx *ra = (const lvRewriteRuleEx *) a;
+    const lvRewriteRuleEx *rb = (const lvRewriteRuleEx *) b;
+    return (ra->priority > rb->priority) - (ra->priority < rb->priority);
+}
+
+/**
  * @brief Sort rules by priority (ascending: lower priority value = higher precedence).
  *
  * @param rules  Array of rules
  * @param count  Number of rules
  */
 static void sort_rules_by_priority(lvRewriteRuleEx *rules, size_t count) {
-    for (size_t i = 1; i < count; i++) {
-        lvRewriteRuleEx key = rules[i];
-        size_t j = i;
-        while (j > 0 && rules[j - 1].priority > key.priority) {
-            rules[j] = rules[j - 1];
-            j--;
-        }
-        rules[j] = key;
-    }
+    lv_insertion_sort(rules, count, sizeof(lvRewriteRuleEx), cmp_rewrite_rule_priority, NULL);
 }
 
 /* ============================================================

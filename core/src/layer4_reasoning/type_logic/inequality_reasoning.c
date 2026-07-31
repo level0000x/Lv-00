@@ -11,6 +11,7 @@
  */
 
 #include "inequality_reasoning.h"
+#include "lv/lv_xmacro.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -1862,39 +1863,17 @@ bool lv_ineq_erdos_mordell(lvExpr *pa, lvExpr *pb, lvExpr *pc, lvExpr *p, lvExpr
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} ineq_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *ineq_name_lookup(const ineq_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief ineq_type_str 名称表（按枚举值升序） */
-static const ineq_NameEntry s_ineq_type_str_entries[] = {
-    {INEQ_LESS_THAN, "<"},
-    {INEQ_LESS_EQUAL, "<="},
-    {INEQ_GREATER_THAN, ">"},
-    {INEQ_GREATER_EQUAL, ">="},
-    {INEQ_NOT_EQUAL, "!="},
+static const lvStrToEnumEntry s_ineq_type_str_entries[] = {
+    {"<", INEQ_LESS_THAN},
+    {"<=", INEQ_LESS_EQUAL},
+    {">", INEQ_GREATER_THAN},
+    {">=", INEQ_GREATER_EQUAL},
+    {"!=", INEQ_NOT_EQUAL},
 };
 
 static const char *ineq_type_str(lvInequalityType type) {
-    const char *name = ineq_name_lookup(s_ineq_type_str_entries, lv_ARRAY_SIZE(s_ineq_type_str_entries), (int) type);
-    return name ? name : "?";
+    return lv_enum_to_str(s_ineq_type_str_entries, lv_ARRAY_SIZE(s_ineq_type_str_entries), (int) type, "?");
 }
 
 char *lv_ineq_to_string(const lvInequality *ineq) {

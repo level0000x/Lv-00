@@ -25,6 +25,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 
 /* ── 定理系统 ── */
 
@@ -380,54 +381,31 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} itheorem_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *itheorem_name_lookup(const itheorem_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief interop_export_format_name 名称表（按枚举值升序） */
-static const itheorem_NameEntry s_interop_export_format_name_entries[] = {
-    {INTEROP_EXPORT_COQ, "coq"},
-    {INTEROP_EXPORT_LEAN, "lean"},
-    {INTEROP_EXPORT_HTML, "html"},
-    {INTEROP_EXPORT_SVG, "svg"},
-    {INTEROP_EXPORT_PDF, "pdf"},
-    {INTEROP_EXPORT_TIKZ, "tikz"},
-    {INTEROP_EXPORT_GEOJSON, "geojson"},
-    {INTEROP_EXPORT_CANONICAL, "canonical"},
+static const lvStrToEnumEntry s_interop_export_format_name_entries[] = {
+    {"coq", INTEROP_EXPORT_COQ},
+    {"lean", INTEROP_EXPORT_LEAN},
+    {"html", INTEROP_EXPORT_HTML},
+    {"svg", INTEROP_EXPORT_SVG},
+    {"pdf", INTEROP_EXPORT_PDF},
+    {"tikz", INTEROP_EXPORT_TIKZ},
+    {"geojson", INTEROP_EXPORT_GEOJSON},
+    {"canonical", INTEROP_EXPORT_CANONICAL},
 };
 
 const char *interop_export_format_name(InteropExportFormat format) {
-    const char *name = itheorem_name_lookup(s_interop_export_format_name_entries, lv_ARRAY_SIZE(s_interop_export_format_name_entries), (int) format);
-    return name ? name : "unknown";
+    return lv_enum_to_str(s_interop_export_format_name_entries, lv_ARRAY_SIZE(s_interop_export_format_name_entries), (int) format, "unknown");
 }
 
 /** @brief interop_import_format_name 名称表（按枚举值升序） */
-static const itheorem_NameEntry s_interop_import_format_name_entries[] = {
-    {INTEROP_IMPORT_GEOGEBRA, "geogebra"},
-    {INTEROP_IMPORT_GEOJSON, "geojson"},
-    {INTEROP_IMPORT_SVG, "svg"},
+static const lvStrToEnumEntry s_interop_import_format_name_entries[] = {
+    {"geogebra", INTEROP_IMPORT_GEOGEBRA},
+    {"geojson", INTEROP_IMPORT_GEOJSON},
+    {"svg", INTEROP_IMPORT_SVG},
 };
 
 const char *interop_import_format_name(InteropImportFormat format) {
-    const char *name = itheorem_name_lookup(s_interop_import_format_name_entries, lv_ARRAY_SIZE(s_interop_import_format_name_entries), (int) format);
-    return name ? name : "unknown";
+    return lv_enum_to_str(s_interop_import_format_name_entries, lv_ARRAY_SIZE(s_interop_import_format_name_entries), (int) format, "unknown");
 }
 
 InteropExportFormat interop_parse_export_format(const char *str) {

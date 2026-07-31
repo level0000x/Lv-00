@@ -23,6 +23,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
+#include "lv/lv_xmacro.h"
 #include "lv_utils.h"
 #include "module_helpers.h"
 
@@ -337,56 +338,33 @@ ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 枚举值 -> 名称 映射项（表必须按 code 升序排列） */
-typedef struct {
-    int code;         /**< 枚举值 */
-    const char *name; /**< 名称字符串 */
-} mod_serialize_NameEntry;
-
-/** @brief 二分查找枚举名称（表需按 code 升序） */
-static const char *mod_serialize_name_lookup(const mod_serialize_NameEntry *table, size_t count, int code) {
-    size_t lo = 0, hi = count;
-    while (lo < hi) {
-        size_t mid = lo + (hi - lo) / 2;
-        if (table[mid].code == code)
-            return table[mid].name;
-        if (table[mid].code < code)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
-}
-
 /** @brief geom_type_to_string 名称表（按枚举值升序） */
-static const mod_serialize_NameEntry s_geom_type_to_string_entries[] = {
-    {GEOM_POINT, "POINT"},
-    {GEOM_LINE_SEGMENT, "LINE_SEGMENT"},
-    {GEOM_REGION, "REGION"},
-    {GEOM_CIRCLE, "CIRCLE"},
-    {GEOM_PORT, "PORT"},
-    {GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK"},
+static const lvStrToEnumEntry s_geom_type_to_string_entries[] = {
+    {"POINT", GEOM_POINT},
+    {"LINE_SEGMENT", GEOM_LINE_SEGMENT},
+    {"REGION", GEOM_REGION},
+    {"CIRCLE", GEOM_CIRCLE},
+    {"PORT", GEOM_PORT},
+    {"FUNCTION_BLOCK", GEOM_FUNCTION_BLOCK},
 };
 
 static const char *geom_type_to_string(GeomType type) {
-    const char *name = mod_serialize_name_lookup(s_geom_type_to_string_entries, lv_ARRAY_SIZE(s_geom_type_to_string_entries), (int) type);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_geom_type_to_string_entries, lv_ARRAY_SIZE(s_geom_type_to_string_entries), (int) type, "UNKNOWN");
 }
 
 /* 将约束类型转换为字符串 */
 /** @brief constraint_type_to_string 名称表（按枚举值升序） */
-static const mod_serialize_NameEntry s_constraint_type_to_string_entries[] = {
-    {INCIDENCE, "INCIDENCE"},
-    {BETWEENNESS, "BETWEENNESS"},
-    {INTERSECTION, "INTERSECTION"},
-    {CONTAINMENT, "CONTAINMENT"},
-    {ANGLE, "ANGLE"},
-    {CONNECTION, "CONNECTION"},
+static const lvStrToEnumEntry s_constraint_type_to_string_entries[] = {
+    {"INCIDENCE", INCIDENCE},
+    {"BETWEENNESS", BETWEENNESS},
+    {"INTERSECTION", INTERSECTION},
+    {"CONTAINMENT", CONTAINMENT},
+    {"CONNECTION", CONNECTION},
+    {"ANGLE", ANGLE},
 };
 
 static const char *constraint_type_to_string(ConstraintType type) {
-    const char *name = mod_serialize_name_lookup(s_constraint_type_to_string_entries, lv_ARRAY_SIZE(s_constraint_type_to_string_entries), (int) type);
-    return name ? name : "UNKNOWN";
+    return lv_enum_to_str(s_constraint_type_to_string_entries, lv_ARRAY_SIZE(s_constraint_type_to_string_entries), (int) type, "UNKNOWN");
 }
 
 /* 将符号坐标序列化为字符串（调用者需释放返回的字符串） */

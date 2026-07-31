@@ -174,6 +174,36 @@ void lv_array_sort(lvArray *arr, int (*cmp)(const void *, const void *)) {
     qsort(arr->data, arr->count, sizeof(void *), cmp);
 }
 
+void lv_insertion_sort(void *base, size_t n, size_t elem_size,
+                       int (*cmp)(const void *a, const void *b, void *ctx), void *ctx) {
+    if (!base || n < 2 || elem_size == 0 || !cmp)
+        return;
+
+    unsigned char stack_tmp[64];
+    unsigned char *tmp = stack_tmp;
+    unsigned char *heap_tmp = NULL;
+    if (elem_size > sizeof(stack_tmp)) {
+        heap_tmp = (unsigned char *) lv_malloc(elem_size);
+        if (!heap_tmp)
+            return;
+        tmp = heap_tmp;
+    }
+
+    unsigned char *p = (unsigned char *) base;
+    for (size_t i = 1; i < n; i++) {
+        memcpy(tmp, p + i * elem_size, elem_size);
+        size_t j = i;
+        while (j > 0 && cmp(p + (j - 1) * elem_size, tmp, ctx) > 0) {
+            memcpy(p + j * elem_size, p + (j - 1) * elem_size, elem_size);
+            j--;
+        }
+        memcpy(p + j * elem_size, tmp, elem_size);
+    }
+
+    if (heap_tmp)
+        lv_free((void **) &heap_tmp);
+}
+
 int lv_array_find(const lvArray *arr, const void *elem) {
     if (!arr)
         return -1;
