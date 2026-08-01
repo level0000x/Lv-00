@@ -13,17 +13,9 @@
 
 #include "lv/geo_constraint_solver.h"
 
-#define TEST(name) printf("  [TEST] %s ... ", name)
-#define PASS()            \
-    do {                  \
-        printf("PASS\n"); \
-        tests_passed++;   \
-    } while (0)
-#define FAIL(msg)                  \
-    do {                           \
-        printf("FAIL: %s\n", msg); \
-        tests_failed++;            \
-    } while (0)
+#define TEST_PASS_STATEMENT tests_passed++
+#define TEST_FAIL_STATEMENT tests_failed++
+#include "test_helpers.h"
 #define ASSERT_NEAR(a, b, eps)                                                                             \
     do {                                                                                                   \
         double _diff = fabs((double) (a) - (double) (b));                                                  \

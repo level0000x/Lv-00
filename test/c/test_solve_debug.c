@@ -12,6 +12,10 @@
 #include "engine.h"
 #include "lv.h"
 
+#define TEST_PASS_STATEMENT P++
+#define TEST_FAIL_STATEMENT F++
+#include "test_helpers.h"
+
 static int P = 0, F = 0;
 
 /* 超时信号处理 */

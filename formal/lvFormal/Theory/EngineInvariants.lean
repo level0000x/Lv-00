@@ -109,7 +109,8 @@ theorem verify_phase_correct (g : ConstraintGraph) (t : ProofTrace) :
     和证据验证正确性组合为统一的安全保证。 -/
 theorem engine_pipeline_soundness (prog : lvProgram) (t : ProofTrace) (h_sound : TraceSound (initVerifier (compile_program prog)) t) :
     evidence_check (compile_program prog) t = true → graph_satisfiable (compile_program prog) := by
-  sorry
+  intro h_check
+  exact evidence_soundness (compile_program prog) t h_check h_sound
 
 /-- 引擎核心不变量：在任何状态，编译器的输出都是结构安全的。
     

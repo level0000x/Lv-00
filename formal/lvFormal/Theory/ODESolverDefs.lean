@@ -90,7 +90,30 @@ def lorenz_lyapunov_bound : ℝ := 28
 /-- 谐波振荡器是保守系统：能量在精确流下不变 -/
 theorem harmonic_is_conservative (s0 : State) (omega : ℝ) (hω : omega > 0) (t : ℝ) :
   harmonic_energy omega (harmonic_exact_flow omega t 0 s0) = harmonic_energy omega s0 := by
-  sorry
+  unfold harmonic_energy harmonic_exact_flow
+  simp
+  have hω_ne_zero : omega ≠ 0 := by linarith
+  set a := s0.2.1 with ha
+  set b := s0.2.2 with hb
+  set θ := omega * t with hθ
+  have hcalc : (a * Real.cos θ + (b / omega) * Real.sin θ) ^ 2 +
+    (-a * Real.sin θ + (b / omega) * Real.cos θ) ^ 2 = a ^ 2 + (b / omega) ^ 2 := by
+    calc
+      (a * Real.cos θ + (b / omega) * Real.sin θ) ^ 2 +
+        (-a * Real.sin θ + (b / omega) * Real.cos θ) ^ 2
+          = a^2 * (Real.cos θ)^2 + 2*a*(b/omega)*Real.cos θ*Real.sin θ + (b/omega)^2*(Real.sin θ)^2
+          + a^2*(Real.sin θ)^2 - 2*a*(b/omega)*Real.sin θ*Real.cos θ + (b/omega)^2*(Real.cos θ)^2 := by ring
+      _ = a^2 * ((Real.cos θ)^2 + (Real.sin θ)^2) + (b/omega)^2 * ((Real.sin θ)^2 + (Real.cos θ)^2) := by ring
+      _ = a^2 * 1 + (b/omega)^2 * 1 := by rw [Real.cos_sq_add_sin_sq θ]
+      _ = a ^ 2 + (b / omega) ^ 2 := by ring
+  calc
+    (a * Real.cos θ + (b / omega) * Real.sin θ) ^ 2 +
+      ((-(a * omega) * Real.sin θ + b * Real.cos θ) / omega) ^ 2
+        = (a * Real.cos θ + (b / omega) * Real.sin θ) ^ 2 +
+          (-a * Real.sin θ + (b / omega) * Real.cos θ) ^ 2 := by
+            field_simp [hω_ne_zero]
+            ring
+    _ = a ^ 2 + (b / omega) ^ 2 := hcalc
 
 /-- 中心力场下角动量守恒 -/
 -- [数学基础定理] 角动量守恒依赖中心力场的对称性，需微分几何证明

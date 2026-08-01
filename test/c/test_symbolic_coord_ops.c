@@ -22,12 +22,9 @@
 #include "lv/algebraic_number.h"
 #include "lv/symbolic_coord.h"
 
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
-
-#define PASS()            \
-    do {                  \
-        printf("PASS\n"); \
-    } while (0)
 
 int g_pass_count = 0;
 int g_fail_count = 0;
