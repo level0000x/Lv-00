@@ -34,8 +34,13 @@ theorem triangle_area_nonnegative (env : String → ℝ × ℝ) (a b c : String)
 theorem midpoint_collinear (env : String → ℝ × ℝ) (a b m : String)
     (hm : ir_sem env (.midpoint m a b)) : ir_sem env (.collinear a b m) := by
   rcases hm with ⟨hmx, hmy⟩
-  refine ⟨0.5, ?_, ?_⟩
-  · nlinarith
-  · nlinarith
+  unfold ir_sem cross
+  simp [ptX, ptY]
+  have hmx' : (env m).1 - (env b).1 = ((env a).1 - (env b).1)/2 := by
+    unfold ptX at hmx; linarith
+  have hmy' : (env m).2 - (env b).2 = ((env a).2 - (env b).2)/2 := by
+    unfold ptY at hmy; linarith
+  rw [hmx', hmy']
+  ring
 
 end lvFormal.Theory.GeomPresetSoundness

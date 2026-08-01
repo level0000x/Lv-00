@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_sym_expr.c
  * @brief Test suite for the symbolic expression module
  *
@@ -29,13 +29,6 @@ int g_pass_count = 0;
 int g_fail_count = 0;
 
 /* ============================================================
- * Helper: approximate equality for doubles
- * ============================================================ */
-static int approx_eq(double a, double b, double eps) {
-    return fabs(a - b) < eps;
-}
-
-/* ============================================================
  * Test: create constant
  * ============================================================ */
 
@@ -43,7 +36,7 @@ static void test_create_const(void) {
     lvSymExpr *expr = sym_expr_create_const(3.14);
     TEST_ASSERT_NOT_NULL(expr);
     TEST_ASSERT_MSG(expr->kind == lv_SYM_CONST, "kind should be SYM_CONST");
-    TEST_ASSERT_MSG(approx_eq(expr->value, 3.14, 1e-15), "value should be 3.14");
+    TEST_ASSERT_MSG(approx_eq_eps(expr->value, 3.14, 1e-15), "value should be 3.14");
     sym_expr_destroy(expr);
 }
 
@@ -87,7 +80,7 @@ static void test_add(void) {
     const char *names[] = {"x"};
     double vals[] = {0.0};
     double result = sym_expr_eval_double(sum, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 5.0, 1e-15), "2 + 3 should be 5");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 5.0, 1e-15), "2 + 3 should be 5");
 
     sym_expr_destroy(sum);
 }
@@ -101,7 +94,7 @@ static void test_mul(void) {
     const char *names[] = {"x"};
     double vals[] = {0.0};
     double result = sym_expr_eval_double(prod, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 20.0, 1e-15), "4 * 5 should be 20");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 20.0, 1e-15), "4 * 5 should be 20");
 
     sym_expr_destroy(prod);
 }
@@ -115,7 +108,7 @@ static void test_pow(void) {
     const char *names[] = {"x"};
     double vals[] = {0.0};
     double result = sym_expr_eval_double(p, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 1024.0, 1e-10), "2^10 should be 1024");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 1024.0, 1e-10), "2^10 should be 1024");
 
     sym_expr_destroy(p);
 }
@@ -128,7 +121,7 @@ static void test_unary_neg(void) {
     const char *names[] = {"x"};
     double vals[] = {0.0};
     double result = sym_expr_eval_double(neg, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, -7.0, 1e-15), "neg(7) should be -7");
+    TEST_ASSERT_MSG(approx_eq_eps(result, -7.0, 1e-15), "neg(7) should be -7");
 
     sym_expr_destroy(neg);
 }
@@ -141,7 +134,7 @@ static void test_unary_sin(void) {
     const char *names[] = {"x"};
     double vals[] = {0.0};
     double result = sym_expr_eval_double(s, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 0.0, 1e-15), "sin(0) should be 0");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 0.0, 1e-15), "sin(0) should be 0");
 
     sym_expr_destroy(s);
 }
@@ -158,7 +151,7 @@ static void test_simplify_const_add(void) {
     lvSymExpr *s = sym_expr_simplify(sum);
     TEST_ASSERT_NOT_NULL(s);
     TEST_ASSERT_MSG(s->kind == lv_SYM_CONST, "simplified 2+3 should be const");
-    TEST_ASSERT_MSG(approx_eq(s->value, 5.0, 1e-15), "simplified 2+3 should be 5");
+    TEST_ASSERT_MSG(approx_eq_eps(s->value, 5.0, 1e-15), "simplified 2+3 should be 5");
     sym_expr_destroy(sum);
     sym_expr_destroy(s);
 }
@@ -223,7 +216,7 @@ static void test_simplify_pow_zero_exp(void) {
     lvSymExpr *s = sym_expr_simplify(p);
     TEST_ASSERT_NOT_NULL(s);
     TEST_ASSERT_MSG(s->kind == lv_SYM_CONST, "simplified x^0 should be const");
-    TEST_ASSERT_MSG(approx_eq(s->value, 1.0, 1e-15), "simplified x^0 should be 1");
+    TEST_ASSERT_MSG(approx_eq_eps(s->value, 1.0, 1e-15), "simplified x^0 should be 1");
     sym_expr_destroy(p);
     sym_expr_destroy(s);
 }
@@ -235,7 +228,7 @@ static void test_simplify_sin_const(void) {
     lvSymExpr *simp = sym_expr_simplify(s);
     TEST_ASSERT_NOT_NULL(simp);
     TEST_ASSERT_MSG(simp->kind == lv_SYM_CONST, "simplified sin(0) should be const");
-    TEST_ASSERT_MSG(approx_eq(simp->value, 0.0, 1e-15), "simplified sin(0) should be 0");
+    TEST_ASSERT_MSG(approx_eq_eps(simp->value, 0.0, 1e-15), "simplified sin(0) should be 0");
     sym_expr_destroy(s);
     sym_expr_destroy(simp);
 }
@@ -255,12 +248,12 @@ static void test_eval(void) {
     const char *names[] = {"x"};
     double vals[] = {5.0};
     double result = sym_expr_eval_double(expr, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 13.0, 1e-15), "2*5 + 3 should be 13");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 13.0, 1e-15), "2*5 + 3 should be 13");
 
     /* Test with different value */
     vals[0] = 0.0;
     result = sym_expr_eval_double(expr, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 3.0, 1e-15), "2*0 + 3 should be 3");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 3.0, 1e-15), "2*0 + 3 should be 3");
 
     sym_expr_destroy(expr);
 }
@@ -311,7 +304,7 @@ static void test_diff_const(void) {
     lvSymExpr *d = sym_expr_diff(c, "x");
     TEST_ASSERT_NOT_NULL(d);
     TEST_ASSERT_MSG(d->kind == lv_SYM_CONST, "d/dx(5) should be const");
-    TEST_ASSERT_MSG(approx_eq(d->value, 0.0, 1e-15), "d/dx(5) should be 0");
+    TEST_ASSERT_MSG(approx_eq_eps(d->value, 0.0, 1e-15), "d/dx(5) should be 0");
     sym_expr_destroy(c);
     sym_expr_destroy(d);
 }
@@ -322,7 +315,7 @@ static void test_diff_var(void) {
     lvSymExpr *d = sym_expr_diff(x, "x");
     TEST_ASSERT_NOT_NULL(d);
     TEST_ASSERT_MSG(d->kind == lv_SYM_CONST, "d/dx(x) should be const");
-    TEST_ASSERT_MSG(approx_eq(d->value, 1.0, 1e-15), "d/dx(x) should be 1");
+    TEST_ASSERT_MSG(approx_eq_eps(d->value, 1.0, 1e-15), "d/dx(x) should be 1");
     sym_expr_destroy(x);
     sym_expr_destroy(d);
 }
@@ -333,7 +326,7 @@ static void test_diff_var_other(void) {
     lvSymExpr *d = sym_expr_diff(y, "x");
     TEST_ASSERT_NOT_NULL(d);
     TEST_ASSERT_MSG(d->kind == lv_SYM_CONST, "d/dx(y) should be const");
-    TEST_ASSERT_MSG(approx_eq(d->value, 0.0, 1e-15), "d/dx(y) should be 0");
+    TEST_ASSERT_MSG(approx_eq_eps(d->value, 0.0, 1e-15), "d/dx(y) should be 0");
     sym_expr_destroy(y);
     sym_expr_destroy(d);
 }
@@ -349,7 +342,7 @@ static void test_diff_add(void) {
     const char *names[] = {"x"};
     double vals[] = {1.0};
     double result = sym_expr_eval_double(d, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 2.0, 1e-10), "d/dx(x + x) should be 2");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 2.0, 1e-10), "d/dx(x + x) should be 2");
 
     sym_expr_destroy(sum);
     sym_expr_destroy(d);
@@ -367,7 +360,7 @@ static void test_diff_x_squared(void) {
     const char *names[] = {"x"};
     double vals[] = {3.0};
     double result = sym_expr_eval_double(d, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 6.0, 1e-8), "d/dx(x^2) at x=3 should be 6");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 6.0, 1e-8), "d/dx(x^2) at x=3 should be 6");
 
     sym_expr_destroy(xsq);
     sym_expr_destroy(d);
@@ -384,7 +377,7 @@ static void test_diff_sin(void) {
     const char *names[] = {"x"};
     double vals[] = {0.0};
     double result = sym_expr_eval_double(d, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 1.0, 1e-10), "d/dx(sin(x)) at x=0 should be 1");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 1.0, 1e-10), "d/dx(sin(x)) at x=0 should be 1");
 
     sym_expr_destroy(sinx);
     sym_expr_destroy(d);
@@ -407,7 +400,7 @@ static void test_substitute(void) {
     const char *names[] = {"x"};
     double vals[] = {0.0};
     double result = sym_expr_eval_double(sub, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 4.0, 1e-15), "substitute x=3 in x+1 should give 4");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 4.0, 1e-15), "substitute x=3 in x+1 should give 4");
 
     sym_expr_destroy(expr);
     sym_expr_destroy(three);
@@ -427,7 +420,7 @@ static void test_substitute_no_match(void) {
     const char *names[] = {"x"};
     double vals[] = {10.0};
     double result = sym_expr_eval_double(sub, names, vals, 1);
-    TEST_ASSERT_MSG(approx_eq(result, 11.0, 1e-15), "substitute y=5 in x+1 should not change x");
+    TEST_ASSERT_MSG(approx_eq_eps(result, 11.0, 1e-15), "substitute y=5 in x+1 should not change x");
 
     sym_expr_destroy(expr);
     sym_expr_destroy(five);

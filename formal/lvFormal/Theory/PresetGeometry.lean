@@ -59,4 +59,4 @@ theorem dist_eq_zero_iff_equal (env : String → ℝ × ℝ) (a b : String) :
     ext <;> assumption
   · intro h
     rw [h]
-    exact IR.dist_self env a
+    exact IR.dist_self env b

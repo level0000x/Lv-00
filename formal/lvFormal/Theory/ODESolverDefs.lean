@@ -91,7 +91,7 @@ def lorenz_lyapunov_bound : ℝ := 28
 theorem harmonic_is_conservative (s0 : State) (omega : ℝ) (hω : omega > 0) (t : ℝ) :
   harmonic_energy omega (harmonic_exact_flow omega t 0 s0) = harmonic_energy omega s0 := by
   unfold harmonic_energy harmonic_exact_flow
-  simp
+  dsimp
   have hω_ne_zero : omega ≠ 0 := by linarith
   set a := s0.2.1 with ha
   set b := s0.2.2 with hb
@@ -104,11 +104,15 @@ theorem harmonic_is_conservative (s0 : State) (omega : ℝ) (hω : omega > 0) (t
           = a^2 * (Real.cos θ)^2 + 2*a*(b/omega)*Real.cos θ*Real.sin θ + (b/omega)^2*(Real.sin θ)^2
           + a^2*(Real.sin θ)^2 - 2*a*(b/omega)*Real.sin θ*Real.cos θ + (b/omega)^2*(Real.cos θ)^2 := by ring
       _ = a^2 * ((Real.cos θ)^2 + (Real.sin θ)^2) + (b/omega)^2 * ((Real.sin θ)^2 + (Real.cos θ)^2) := by ring
-      _ = a^2 * 1 + (b/omega)^2 * 1 := by rw [Real.cos_sq_add_sin_sq θ]
+      _ = a^2 * 1 + (b/omega)^2 * ((Real.sin θ)^2 + (Real.cos θ)^2) := by rw [Real.cos_sq_add_sin_sq θ]
+      _ = a^2 * 1 + (b/omega)^2 * 1 := by
+        have h : sin θ ^ 2 + cos θ ^ 2 = 1 := by
+          simpa [add_comm] using Real.cos_sq_add_sin_sq θ
+        rw [h]
       _ = a ^ 2 + (b / omega) ^ 2 := by ring
   calc
     (a * Real.cos θ + (b / omega) * Real.sin θ) ^ 2 +
-      ((-(a * omega) * Real.sin θ + b * Real.cos θ) / omega) ^ 2
+      ((-a * omega * Real.sin θ + b * Real.cos θ) / omega) ^ 2
         = (a * Real.cos θ + (b / omega) * Real.sin θ) ^ 2 +
           (-a * Real.sin θ + (b / omega) * Real.cos θ) ^ 2 := by
             field_simp [hω_ne_zero]

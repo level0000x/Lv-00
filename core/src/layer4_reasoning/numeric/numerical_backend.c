@@ -31,6 +31,7 @@
 #include "lv/bicgstab_shared.h"
 #include "lv/gmres_shared.h"
 #include "lv/default_host_ops.h"
+#include "lv/host_linalg.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -110,6 +111,7 @@ static lvLinearSolver *serial_linsol_create(lvLinearSolverMethod method);
 static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A);
 static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static void serial_linsol_destroy(lvLinearSolver *LS);
+static void serial_iter_linsol_destroy(lvLinearSolver *LS);
 
 static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
@@ -247,7 +249,7 @@ static const lvLinearSolverOps serial_gmres_linsol_ops = {
     serial_linsol_create,
     serial_linsol_setup,
     iterative_gmres_solve,
-    serial_linsol_destroy,
+    serial_iter_linsol_destroy,
 };
 
 /** @brief 迭代法 BiCGSTAB 求解器操作表 */
@@ -255,7 +257,7 @@ static const lvLinearSolverOps serial_bicgstab_linsol_ops = {
     serial_linsol_create,
     serial_linsol_setup,
     iterative_bicgstab_solve,
-    serial_linsol_destroy,
+    serial_iter_linsol_destroy,
 };
 
 /** @brief 迭代法 CG 求解器操作表 */
@@ -263,7 +265,7 @@ static const lvLinearSolverOps serial_cg_linsol_ops = {
     serial_linsol_create,
     serial_linsol_setup,
     iterative_cg_solve,
-    serial_linsol_destroy,
+    serial_iter_linsol_destroy,
 };
 
 /* ========================================================================
@@ -420,7 +422,7 @@ static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *
  * 将矩阵 A 覆盖为包含 L 和 U 的紧凑形式。
  * 对角线元素属于 U（L 的对角线为 1，隐式不存储）。
  *
- * @return 成功返回 lv_BACKEND_OK，奇异矩阵返回 lv_BACKEND_LINSOL_FAILED
+ * @return 成功返回 lv_BACKEND_OK，奇异矩阵返回 lv_BACKEND_SINGULAR
  */
 static int serial_matrix_factor(lvMatrix *A) {
     lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
@@ -432,47 +434,7 @@ static int serial_matrix_factor(lvMatrix *A) {
         return lv_BACKEND_INVALID_ARGS;
     }
 
-    double *data = (double *) A->data;
-    int64_t n = A->rows;
-
-    for (int64_t k = 0; k < n; ++k) {
-        /* 部分选主元 */
-        double pivot = fabs(data[k * n + k]);
-        int64_t pivot_row = k;
-        for (int64_t i = k + 1; i < n; ++i) {
-            double abs_val = fabs(data[k * n + i]);
-            if (abs_val > pivot) {
-                pivot = abs_val;
-                pivot_row = i;
-            }
-        }
-
-        if (pivot < lv_EPSILON_DOUBLE) {
-            lv_ERROR_SET(lv_BACKEND_LINSOL_FAILED, "LU分解遇到奇异矩阵，pivot≈0 at col=%lld", (long long) k);
-            return lv_BACKEND_LINSOL_FAILED;
-        }
-
-        /* 交换行 */
-        if (pivot_row != k) {
-            for (int64_t j = 0; j < n; ++j) {
-                double tmp = data[j * n + k];
-                data[j * n + k] = data[j * n + pivot_row];
-                data[j * n + pivot_row] = tmp;
-            }
-        }
-
-        /* 消元 */
-        double inv_pivot = 1.0 / data[k * n + k];
-        for (int64_t i = k + 1; i < n; ++i) {
-            double factor = data[k * n + i] * inv_pivot;
-            data[k * n + i] = factor; /* 存储 L 因子 */
-            for (int64_t j = k + 1; j < n; ++j) {
-                data[j * n + i] -= factor * data[j * n + k];
-            }
-        }
-    }
-
-    return lv_BACKEND_OK;
+    return host_lu_factor((double *) A->data, A->rows, lv_EPSILON_DOUBLE);
 }
 
 /**
@@ -494,32 +456,7 @@ static int serial_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x
         return lv_BACKEND_INVALID_ARGS;
     }
 
-    double *data = (double *) A->data;
-    int64_t n = A->rows;
-
-    /* 复制 b 到 x 作为工作区 */
-    memcpy(x->data, b->data, (size_t) n * sizeof(double));
-
-    /* 前代消去（解 L*y = x） */
-    for (int64_t k = 0; k < n; ++k) {
-        for (int64_t i = k + 1; i < n; ++i) {
-            x->data[i] -= data[k * n + i] * x->data[k];
-        }
-    }
-
-    /* 回代（解 U*x = y） */
-    for (int64_t k = n - 1; k >= 0; --k) {
-        double diag = data[k * n + k];
-        if (fabs(diag) < lv_EPSILON_DOUBLE) {
-            return lv_BACKEND_SINGULAR;
-        }
-        x->data[k] /= diag;
-        for (int64_t i = 0; i < k; ++i) {
-            x->data[i] -= data[k * n + i] * x->data[k];
-        }
-    }
-
-    return lv_BACKEND_OK;
+    return host_lu_solve((const double *) A->data, A->rows, (const double *) b->data, (double *) x->data);
 }
 
 /* ========================================================================
@@ -644,6 +581,24 @@ typedef struct IterSolverData {
     double *ap;      /**< A*p 向量 */
     double *work;    /**< 通用工作向量 */
 } IterSolverData;
+
+static void serial_iter_linsol_destroy(lvLinearSolver *LS) {
+    if (!LS) {
+        return;
+    }
+    if (LS->solver_data) {
+        IterSolverData *is = (IterSolverData *) LS->solver_data;
+        if (is->clone) {
+            is->clone->ops->destroy(is->clone);
+        }
+        if (is->r) lv_free((void **) &is->r);
+        if (is->p) lv_free((void **) &is->p);
+        if (is->ap) lv_free((void **) &is->ap);
+        if (is->work) lv_free((void **) &is->work);
+        lv_free((void **) &LS->solver_data);
+    }
+    lv_free((void **) &LS);
+}
 
 /**
  * @brief 设置迭代求解器

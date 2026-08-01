@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_ode_solver.c
  * @brief Tests for the ODE solver module.
  *
@@ -30,25 +30,6 @@ int g_fail_count = 0;
 
 /** Tolerance for floating-point comparisons */
 #define ODE_TOLERANCE 1e-6
-
-/**
- * @brief Assert that two doubles are approximately equal.
- */
-#define TEST_ASSERT_NEAR(actual, expected, tol, msg)                                                              \
-    do {                                                                                                          \
-        double _ode_actual = (double) (actual);                                                                   \
-        double _ode_expected = (double) (expected);                                                               \
-        double _ode_diff = _ode_actual - _ode_expected;                                                           \
-        if (_ode_diff < 0.0)                                                                                      \
-            _ode_diff = -_ode_diff;                                                                               \
-        if (_ode_diff > (tol)) {                                                                                  \
-            fprintf(stderr, "  FAIL [%s:%d] %s (actual=%.12f, expected=%.12f, diff=%.12e)\n", __FILE__, __LINE__, \
-                    (msg), _ode_actual, _ode_expected, _ode_diff);                                                \
-            g_fail_count++;                                                                                       \
-            return;                                                                                               \
-        }                                                                                                         \
-        g_pass_count++;                                                                                           \
-    } while (0)
 
 /* ============================================================
  * RHS functions for test problems

@@ -35,6 +35,7 @@
 #include "lv/bicgstab_shared.h"
 #include "lv/gmres_shared.h"
 #include "lv/lv_utils.h"
+#include "lv/host_linalg.h"
 #include "debug.h"
 #include "lv/lv_internal.h"
 
@@ -963,37 +964,10 @@ static int hip_matrix_factor(lvMatrix *A) {
     hipMemcpy(h_data, md->d_data, data_size, hipMemcpyDeviceToHost);
 
     /* 主机端 LU 分解 */
-    for (int64_t k = 0; k < n; ++k) {
-        double pivot = fabs(h_data[k * n + k]);
-        int64_t pivot_row = k;
-        for (int64_t i = k + 1; i < n; ++i) {
-            double abs_val = fabs(h_data[k * n + i]);
-            if (abs_val > pivot) {
-                pivot = abs_val;
-                pivot_row = i;
-            }
-        }
-        if (pivot < 1e-12) {
-            lv_free((void **)&h_data);
-            lv_ERROR_SET(lv_BACKEND_LINSOL_FAILED,
-                         "HIP LU分解遇到奇异矩阵，pivot≈0 at col=%lld", (long long)k);
-            return lv_BACKEND_LINSOL_FAILED;
-        }
-        if (pivot_row != k) {
-            for (int64_t j = 0; j < n; ++j) {
-                double tmp = h_data[j * n + k];
-                h_data[j * n + k] = h_data[j * n + pivot_row];
-                h_data[j * n + pivot_row] = tmp;
-            }
-        }
-        double inv_pivot = 1.0 / h_data[k * n + k];
-        for (int64_t i = k + 1; i < n; ++i) {
-            double factor = h_data[k * n + i] * inv_pivot;
-            h_data[k * n + i] = factor;
-            for (int64_t j = k + 1; j < n; ++j) {
-                h_data[j * n + i] -= factor * h_data[j * n + k];
-            }
-        }
+    int ret = host_lu_factor(h_data, n, lv_EPSILON_DOUBLE);
+    if (ret != lv_BACKEND_OK) {
+        lv_free((void **)&h_data);
+        return ret;
     }
 
     /* 写回设备 */
@@ -1039,27 +1013,13 @@ static int hip_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x) {
     hipMemcpy(h_data, md->d_data, data_size, hipMemcpyDeviceToHost);
     hipMemcpy(h_b, bd->d_data, (size_t)n * sizeof(double), hipMemcpyDeviceToHost);
 
-    /* 前代消去（解 L*y = x） */
-    memcpy(h_x, h_b, (size_t)n * sizeof(double));
-    for (int64_t k = 0; k < n; ++k) {
-        for (int64_t i = k + 1; i < n; ++i) {
-            h_x[i] -= h_data[k * n + i] * h_x[k];
-        }
-    }
-
-    /* 回代（解 U*x = y） */
-    for (int64_t k = n - 1; k >= 0; --k) {
-        double diag = h_data[k * n + k];
-        if (fabs(diag) < 1e-12) {
-            lv_free((void **)&h_data);
-            lv_free((void **)&h_b);
-            lv_free((void **)&h_x);
-            return lv_BACKEND_LINSOL_FAILED;
-        }
-        h_x[k] /= diag;
-        for (int64_t i = 0; i < k; ++i) {
-            h_x[i] -= h_data[k * n + i] * h_x[k];
-        }
+    /* 前代消去 + 回代 */
+    int ret = host_lu_solve(h_data, n, h_b, h_x);
+    if (ret != lv_BACKEND_OK) {
+        lv_free((void **)&h_data);
+        lv_free((void **)&h_b);
+        lv_free((void **)&h_x);
+        return ret;
     }
 
     /* 写回设备 */
@@ -1467,7 +1427,7 @@ static int hip_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A,
     ops.matvec = hip_bicgstab_matvec;
 
     int ret = lv_bicgstab_solve(&ops, A, h_b, h_x, n,
-                                is->max_iters, is->tol, 1e-14);
+                                is->max_iters, is->tol, lv_EPSILON_DOUBLE);
 
     if (ret == lv_BACKEND_OK) {
         /* 写回结果 */

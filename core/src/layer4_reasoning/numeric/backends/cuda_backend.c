@@ -31,6 +31,7 @@
 #include "lv/bicgstab_shared.h"
 #include "lv/gmres_shared.h"
 #include "lv/lv_utils.h"
+#include "lv/host_linalg.h"
 #include "debug.h"
 #include "lv/lv_internal.h"
 
@@ -365,7 +366,7 @@ static const lvLinearSolverOps cuda_gmres_linsol_ops = {
     cuda_linsol_create,
     cuda_linsol_setup,
     cuda_gmres_solve,
-    cuda_linsol_destroy,
+    cuda_iter_linsol_destroy,
 };
 
 /** @brief CUDA BiCGSTAB 求解器操作表 */
@@ -373,7 +374,7 @@ static const lvLinearSolverOps cuda_bicgstab_linsol_ops = {
     cuda_linsol_create,
     cuda_linsol_setup,
     cuda_bicgstab_solve,
-    cuda_linsol_destroy,
+    cuda_iter_linsol_destroy,
 };
 
 /* ========================================================================
@@ -1042,36 +1043,10 @@ static int cuda_matrix_factor(lvMatrix *A) {
     }
 
     /* CPU 端 LU 分解 */
-    for (int64_t k = 0; k < n; ++k) {
-        double pivot = fabs(h_data[k * n + k]);
-        int64_t pivot_row = k;
-        for (int64_t i = k + 1; i < n; ++i) {
-            double abs_val = fabs(h_data[k * n + i]);
-            if (abs_val > pivot) {
-                pivot = abs_val;
-                pivot_row = i;
-            }
-        }
-        if (pivot < lv_EPSILON_DOUBLE) {
-            lv_free((void **) &h_data);
-            lv_ERROR_SET(lv_BACKEND_LINSOL_FAILED, "LU分解遇到奇异矩阵 at col=%lld", (long long) k);
-            return lv_BACKEND_LINSOL_FAILED;
-        }
-        if (pivot_row != k) {
-            for (int64_t j = 0; j < n; ++j) {
-                double tmp = h_data[j * n + k];
-                h_data[j * n + k] = h_data[j * n + pivot_row];
-                h_data[j * n + pivot_row] = tmp;
-            }
-        }
-        double inv_pivot = 1.0 / h_data[k * n + k];
-        for (int64_t i = k + 1; i < n; ++i) {
-            double factor = h_data[k * n + i] * inv_pivot;
-            h_data[k * n + i] = factor;
-            for (int64_t j = k + 1; j < n; ++j) {
-                h_data[j * n + i] -= factor * h_data[j * n + k];
-            }
-        }
+    int ret = host_lu_factor(h_data, n, lv_EPSILON_DOUBLE);
+    if (ret != lv_BACKEND_OK) {
+        lv_free((void **) &h_data);
+        return ret;
     }
 
     /* 将分解后的数据传回 GPU */
@@ -1124,24 +1099,12 @@ static int cuda_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x) 
                       cudaMemcpyDeviceToHost, "solve b");
 
     /* CPU 端前代 + 回代 */
-    memcpy(h_x, h_b, (size_t) n * sizeof(double));
-    for (int64_t k = 0; k < n; ++k) {
-        for (int64_t i = k + 1; i < n; ++i) {
-            h_x[i] -= h_data[k * n + i] * h_x[k];
-        }
-    }
-    for (int64_t k = n - 1; k >= 0; --k) {
-        double diag = h_data[k * n + k];
-        if (fabs(diag) < lv_EPSILON_DOUBLE) {
-            lv_free((void **) &h_data);
-            lv_free((void **) &h_b);
-            lv_free((void **) &h_x);
-            return lv_BACKEND_SINGULAR;
-        }
-        h_x[k] /= diag;
-        for (int64_t i = 0; i < k; ++i) {
-            h_x[i] -= h_data[k * n + i] * h_x[k];
-        }
+    int ret = host_lu_solve(h_data, n, h_b, h_x);
+    if (ret != lv_BACKEND_OK) {
+        lv_free((void **) &h_data);
+        lv_free((void **) &h_b);
+        lv_free((void **) &h_x);
+        return ret;
     }
 
     /* 结果传回 GPU */
@@ -1275,6 +1238,26 @@ static void cuda_linsol_destroy(lvLinearSolver *LS) {
         if (lu->d_work) cudaFree(lu->d_work);
         if (lu->d_pivot) cudaFree(lu->d_pivot);
         if (lu->h_pivot) lv_free((void **) &lu->h_pivot);
+        lv_free((void **) &LS->solver_data);
+    }
+    lv_free((void **) &LS);
+}
+
+static void cuda_iter_linsol_destroy(lvLinearSolver *LS) {
+    if (!LS) {
+        return;
+    }
+    if (LS->solver_data) {
+        CudaIterSolverData *is = (CudaIterSolverData *) LS->solver_data;
+        if (is->clone) {
+            if (is->clone->d_data) cudaFree(is->clone->d_data);
+            lv_free((void **) &is->clone);
+        }
+        if (is->d_r) cudaFree(is->d_r);
+        if (is->d_p) cudaFree(is->d_p);
+        if (is->d_ap) cudaFree(is->d_ap);
+        if (is->d_work) cudaFree(is->d_work);
+        if (is->h_work) lv_free((void **) &is->h_work);
         lv_free((void **) &LS->solver_data);
     }
     lv_free((void **) &LS);

@@ -897,8 +897,16 @@ set(lv_LAYER3_SOURCES
 set(lv_LAYER4_SOURCES
     # 核心引擎与求解
     core/src/layer4_reasoning/engine/engine.c
+    core/src/layer4_reasoning/engine/engine_circuit.c
+    core/src/layer4_reasoning/engine/engine_error.c
+    core/src/layer4_reasoning/engine/engine_frozen.c
+    core/src/layer4_reasoning/engine/engine_function.c
+    core/src/layer4_reasoning/engine/engine_lifecycle.c
+    core/src/layer4_reasoning/engine/engine_resource.c
+    core/src/layer4_reasoning/engine/engine_solve.c
     core/src/layer4_reasoning/engine/engine_state.c
     core/src/layer4_reasoning/engine/engine_status.c
+    core/src/layer4_reasoning/engine/engine_stream.c
     core/src/layer4_reasoning/solver.c
     core/src/layer4_reasoning/solver/solver_core.c
     # 证明系统
@@ -917,6 +925,11 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/type_logic/quantifier.c
     # 增强证明引擎
     core/src/layer4_reasoning/engine/proof_engine_enhanced.c
+    core/src/layer4_reasoning/engine/proof_engine.c
+    core/src/layer4_reasoning/engine/proof_strategy.c
+    core/src/layer4_reasoning/engine/proof_verify.c
+    core/src/layer4_reasoning/engine/proof_optimize.c
+    core/src/layer4_reasoning/engine/proof_export.c
     core/src/layer4_reasoning/engine/proof_trace_tree.c
     core/src/layer4_reasoning/engine/proof_contradiction.c
     # 重写与合一
@@ -995,6 +1008,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/numeric/bicgstab_shared.c
     # GMRES(m) 共享迭代内核（SERIAL/CUDA/HIP 三个后端复用）
     core/src/layer4_reasoning/numeric/gmres_shared.c
+    core/src/layer4_reasoning/numeric/host_linalg.c
     # 主机端通用 ops 默认实现（消除后端重复的数据搬移实现）
     core/src/layer4_reasoning/numeric/backends/default_host_ops.c
     core/src/layer4_reasoning/numeric/backends/cuda_backend.c

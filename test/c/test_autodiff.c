@@ -34,25 +34,6 @@ int g_fail_count = 0;
 /** Tolerance for floating-point comparisons */
 #define AD_TOLERANCE 1e-9
 
-/**
- * @brief Assert that two doubles are approximately equal.
- */
-#define TEST_ASSERT_NEAR(actual, expected, tol, msg)                                                              \
-    do {                                                                                                          \
-        double _ad_actual = (double) (actual);                                                                    \
-        double _ad_expected = (double) (expected);                                                                \
-        double _ad_diff = _ad_actual - _ad_expected;                                                              \
-        if (_ad_diff < 0.0)                                                                                       \
-            _ad_diff = -_ad_diff;                                                                                 \
-        if (_ad_diff > (tol)) {                                                                                   \
-            fprintf(stderr, "  FAIL [%s:%d] %s (actual=%.12f, expected=%.12f, diff=%.12e)\n", __FILE__, __LINE__, \
-                    (msg), _ad_actual, _ad_expected, _ad_diff);                                                   \
-            g_fail_count++;                                                                                       \
-            return;                                                                                               \
-        }                                                                                                         \
-        g_pass_count++;                                                                                           \
-    } while (0)
-
 /* ============================================================
  * Test: Engine lifecycle
  * ============================================================ */

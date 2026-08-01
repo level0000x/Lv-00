@@ -84,9 +84,7 @@ def lv_expr_eval_eq (env : String → ℝ × ℝ) (e : LvExpr) :
 def lv_constraint_sem (env : String → ℝ × ℝ) : LvConstraint → Prop
   | .distance a b d      => IR.dist (env a) (env b) = lv_expr_eval env d
   | .collinear a b c     =>
-    ∃ (t : ℝ),
-      (ptX (env a) - ptX (env b)) * t = ptX (env c) - ptX (env b) ∧
-      (ptY (env a) - ptY (env b)) * t = ptY (env c) - ptY (env b)
+    cross (env a - env b) (env c - env b) = 0
   | .perpendicular a b c d =>
     let v1 := (ptX (env a) - ptX (env b), ptY (env a) - ptY (env b))
     let v2 := (ptX (env c) - ptX (env d), ptY (env c) - ptY (env d))

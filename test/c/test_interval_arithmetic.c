@@ -30,29 +30,22 @@ int g_pass_count = 0;
 int g_fail_count = 0;
 
 /* ============================================================
- * Helper: check approximate equality of doubles
- * ============================================================ */
-static int approx_eq(double a, double b, double eps) {
-    return fabs(a - b) < eps;
-}
-
-/* ============================================================
  * Test: interval creation
  * ============================================================ */
 
 static void test_interval_create(void) {
     lvInterval iv = interval_create(1.0, 5.0, 0);
     TEST_ASSERT_MSG(!interval_is_empty(iv), "interval [1,5] should not be empty");
-    TEST_ASSERT_MSG(approx_eq(iv.lo, 1.0, 1e-15), "lo should be 1.0");
-    TEST_ASSERT_MSG(approx_eq(iv.hi, 5.0, 1e-15), "hi should be 5.0");
+    TEST_ASSERT_MSG(approx_eq_eps(iv.lo, 1.0, 1e-15), "lo should be 1.0");
+    TEST_ASSERT_MSG(approx_eq_eps(iv.hi, 5.0, 1e-15), "hi should be 5.0");
     TEST_ASSERT_MSG(iv.is_exact == 0, "should not be exact");
 }
 
 static void test_interval_point(void) {
     lvInterval iv = interval_point(3.0);
     TEST_ASSERT_MSG(!interval_is_empty(iv), "point interval should not be empty");
-    TEST_ASSERT_MSG(approx_eq(iv.lo, 3.0, 1e-15), "lo should be 3.0");
-    TEST_ASSERT_MSG(approx_eq(iv.hi, 3.0, 1e-15), "hi should be 3.0");
+    TEST_ASSERT_MSG(approx_eq_eps(iv.lo, 3.0, 1e-15), "lo should be 3.0");
+    TEST_ASSERT_MSG(approx_eq_eps(iv.hi, 3.0, 1e-15), "hi should be 3.0");
     TEST_ASSERT_MSG(iv.is_exact == 1, "point interval should be exact");
 }
 
@@ -77,8 +70,8 @@ static void test_interval_add(void) {
     lvInterval a = interval_create(1.0, 2.0, 0);
     lvInterval b = interval_create(3.0, 4.0, 0);
     lvInterval r = interval_add(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 4.0, 1e-15), "[1,2]+[3,4] lo should be 4");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 6.0, 1e-15), "[1,2]+[3,4] hi should be 6");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 4.0, 1e-15), "[1,2]+[3,4] lo should be 4");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 6.0, 1e-15), "[1,2]+[3,4] hi should be 6");
 }
 
 static void test_interval_sub(void) {
@@ -86,8 +79,8 @@ static void test_interval_sub(void) {
     lvInterval a = interval_create(5.0, 8.0, 0);
     lvInterval b = interval_create(2.0, 3.0, 0);
     lvInterval r = interval_sub(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 2.0, 1e-15), "[5,8]-[2,3] lo should be 2");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 6.0, 1e-15), "[5,8]-[2,3] hi should be 6");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 2.0, 1e-15), "[5,8]-[2,3] lo should be 2");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 6.0, 1e-15), "[5,8]-[2,3] hi should be 6");
 }
 
 static void test_interval_mul(void) {
@@ -95,8 +88,8 @@ static void test_interval_mul(void) {
     lvInterval a = interval_create(-1.0, 2.0, 0);
     lvInterval b = interval_create(3.0, 4.0, 0);
     lvInterval r = interval_mul(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, -4.0, 2e-15), "[-1,2]*[3,4] lo should be -4");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 8.0, 2e-15), "[-1,2]*[3,4] hi should be 8");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, -4.0, 2e-15), "[-1,2]*[3,4] lo should be -4");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 8.0, 2e-15), "[-1,2]*[3,4] hi should be 8");
 }
 
 static void test_interval_mul_positive(void) {
@@ -104,8 +97,8 @@ static void test_interval_mul_positive(void) {
     lvInterval a = interval_create(2.0, 3.0, 0);
     lvInterval b = interval_create(4.0, 5.0, 0);
     lvInterval r = interval_mul(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 8.0, 2e-15), "[2,3]*[4,5] lo should be 8");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 15.0, 2e-15), "[2,3]*[4,5] hi should be 15");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 8.0, 2e-15), "[2,3]*[4,5] lo should be 8");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 15.0, 2e-15), "[2,3]*[4,5] hi should be 15");
 }
 
 static void test_interval_div(void) {
@@ -113,8 +106,8 @@ static void test_interval_div(void) {
     lvInterval a = interval_create(6.0, 12.0, 0);
     lvInterval b = interval_create(2.0, 3.0, 0);
     lvInterval r = interval_div(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 2.0, 1e-14), "[6,12]/[2,3] lo should be 2");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 6.0, 1e-14), "[6,12]/[2,3] hi should be 6");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 2.0, 1e-14), "[6,12]/[2,3] lo should be 2");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 6.0, 1e-14), "[6,12]/[2,3] hi should be 6");
 }
 
 static void test_interval_div_by_zero(void) {
@@ -130,16 +123,16 @@ static void test_interval_div_negative(void) {
     lvInterval a = interval_create(6.0, 12.0, 0);
     lvInterval b = interval_create(-3.0, -2.0, 0);
     lvInterval r = interval_div(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, -6.0, 1e-14), "[6,12]/[-3,-2] lo should be -6");
-    TEST_ASSERT_MSG(approx_eq(r.hi, -2.0, 1e-14), "[6,12]/[-3,-2] hi should be -2");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, -6.0, 1e-14), "[6,12]/[-3,-2] lo should be -6");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, -2.0, 1e-14), "[6,12]/[-3,-2] hi should be -2");
 }
 
 static void test_interval_sqrt(void) {
     /* sqrt([4,9]) = [2,3] */
     lvInterval a = interval_create(4.0, 9.0, 0);
     lvInterval r = interval_sqrt(a);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 2.0, 1e-15), "sqrt([4,9]) lo should be 2");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 3.0, 1e-15), "sqrt([4,9]) hi should be 3");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 2.0, 1e-15), "sqrt([4,9]) lo should be 2");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 3.0, 1e-15), "sqrt([4,9]) hi should be 3");
 }
 
 static void test_interval_sqrt_negative(void) {
@@ -154,31 +147,31 @@ static void test_interval_sin(void) {
     lvInterval a = interval_create(0.0, M_PI / 2.0, 0);
     lvInterval r = interval_sin(a);
     TEST_ASSERT_MSG(r.lo >= -1e-15, "sin([0,pi/2]) lo should be ~0");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 1.0, 1e-15), "sin([0,pi/2]) hi should be 1");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 1.0, 1e-15), "sin([0,pi/2]) hi should be 1");
 }
 
 static void test_interval_cos(void) {
     /* cos([0, pi]) should be [-1, 1] */
     lvInterval a = interval_create(0.0, M_PI, 0);
     lvInterval r = interval_cos(a);
-    TEST_ASSERT_MSG(approx_eq(r.lo, -1.0, 1e-15), "cos([0,pi]) lo should be -1");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 1.0, 1e-15), "cos([0,pi]) hi should be 1");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, -1.0, 1e-15), "cos([0,pi]) lo should be -1");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 1.0, 1e-15), "cos([0,pi]) hi should be 1");
 }
 
 static void test_interval_exp(void) {
     /* exp([0, 1]) should be [1, e] */
     lvInterval a = interval_create(0.0, 1.0, 0);
     lvInterval r = interval_exp(a);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 1.0, 1e-15), "exp([0,1]) lo should be 1");
-    TEST_ASSERT_MSG(approx_eq(r.hi, M_E, 1e-14), "exp([0,1]) hi should be e");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 1.0, 1e-15), "exp([0,1]) lo should be 1");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, M_E, 1e-14), "exp([0,1]) hi should be e");
 }
 
 static void test_interval_log(void) {
     /* log([1, e]) should be [0, 1] */
     lvInterval a = interval_create(1.0, M_E, 0);
     lvInterval r = interval_log(a);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 0.0, 1e-15), "log([1,e]) lo should be 0");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 1.0, 1e-14), "log([1,e]) hi should be 1");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 0.0, 1e-15), "log([1,e]) lo should be 0");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 1.0, 1e-14), "log([1,e]) hi should be 1");
 }
 
 static void test_interval_log_negative(void) {
@@ -192,16 +185,16 @@ static void test_interval_abs(void) {
     /* abs([-3, 2]) = [0, 3] */
     lvInterval a = interval_create(-3.0, 2.0, 0);
     lvInterval r = interval_abs(a);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 0.0, 1e-15), "abs([-3,2]) lo should be 0");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 3.0, 1e-15), "abs([-3,2]) hi should be 3");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 0.0, 1e-15), "abs([-3,2]) lo should be 0");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 3.0, 1e-15), "abs([-3,2]) hi should be 3");
 }
 
 static void test_interval_neg(void) {
     /* neg([1, 3]) = [-3, -1] */
     lvInterval a = interval_create(1.0, 3.0, 0);
     lvInterval r = interval_neg(a);
-    TEST_ASSERT_MSG(approx_eq(r.lo, -3.0, 1e-15), "neg([1,3]) lo should be -3");
-    TEST_ASSERT_MSG(approx_eq(r.hi, -1.0, 1e-15), "neg([1,3]) hi should be -1");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, -3.0, 1e-15), "neg([1,3]) lo should be -3");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, -1.0, 1e-15), "neg([1,3]) hi should be -1");
 }
 
 /* ============================================================
@@ -210,12 +203,12 @@ static void test_interval_neg(void) {
 
 static void test_interval_diam(void) {
     lvInterval iv = interval_create(2.0, 7.0, 0);
-    TEST_ASSERT_MSG(approx_eq(interval_diam(iv), 5.0, 1e-15), "diam([2,7]) should be 5");
+    TEST_ASSERT_MSG(approx_eq_eps(interval_diam(iv), 5.0, 1e-15), "diam([2,7]) should be 5");
 }
 
 static void test_interval_mid(void) {
     lvInterval iv = interval_create(2.0, 8.0, 0);
-    TEST_ASSERT_MSG(approx_eq(interval_mid(iv), 5.0, 1e-15), "mid([2,8]) should be 5");
+    TEST_ASSERT_MSG(approx_eq_eps(interval_mid(iv), 5.0, 1e-15), "mid([2,8]) should be 5");
 }
 
 static void test_interval_contains(void) {
@@ -252,8 +245,8 @@ static void test_interval_intersect(void) {
     lvInterval a = interval_create(1.0, 5.0, 0);
     lvInterval b = interval_create(3.0, 8.0, 0);
     lvInterval r = interval_intersect(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 3.0, 1e-15), "intersect lo should be 3");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 5.0, 1e-15), "intersect hi should be 5");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 3.0, 1e-15), "intersect lo should be 3");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 5.0, 1e-15), "intersect hi should be 5");
 }
 
 static void test_interval_intersect_disjoint(void) {
@@ -269,8 +262,8 @@ static void test_interval_union(void) {
     lvInterval a = interval_create(1.0, 3.0, 0);
     lvInterval b = interval_create(5.0, 8.0, 0);
     lvInterval r = interval_union(a, b);
-    TEST_ASSERT_MSG(approx_eq(r.lo, 1.0, 1e-15), "union lo should be 1");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 8.0, 1e-15), "union hi should be 8");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 1.0, 1e-15), "union lo should be 1");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 8.0, 1e-15), "union hi should be 8");
 }
 
 /* ============================================================
@@ -284,8 +277,8 @@ static void test_interval_from_symbolic(void) {
     /* x + y with x in [1,2], y in [3,4] => [4,6] */
     lvInterval r = interval_from_symbolic("x + y", names, bounds, 2);
     TEST_ASSERT_MSG(!interval_is_empty(r), "symbolic eval should not be empty");
-    TEST_ASSERT_MSG(approx_eq(r.lo, 4.0, 1e-14), "x+y lo should be 4");
-    TEST_ASSERT_MSG(approx_eq(r.hi, 6.0, 1e-14), "x+y hi should be 6");
+    TEST_ASSERT_MSG(approx_eq_eps(r.lo, 4.0, 1e-14), "x+y lo should be 4");
+    TEST_ASSERT_MSG(approx_eq_eps(r.hi, 6.0, 1e-14), "x+y hi should be 6");
 }
 
 static void test_interval_to_symbolic(void) {

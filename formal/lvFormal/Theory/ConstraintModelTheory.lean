@@ -746,12 +746,12 @@ theorem ir_sem_embedding (env : String → ℝ × ℝ) (c : IRConstraint) :
       rw [h_ir]
       -- 需要 eval_expr env d = (term_eval M v (irExprToTerm d)).1
       symm; exact term_eval_irExpr env d
-    · -- collinear: 行列式形式 ↔ 存在 t 形式
+    · -- collinear: cross 积形式 → 行列式形式
       unfold satisfies constraintToFormula ir_sem at *
       unfold standardGeometricModel at *
       simp
-      have h := collinear_det_iff_exists (env a) (env b) (env c)
-      exact h.mp h_ir
+      unfold cross at h_ir
+      nlinarith
     · -- perpendicular
       unfold satisfies constraintToFormula ir_sem at *
       unfold standardGeometricModel at *
@@ -873,8 +873,8 @@ theorem ir_sem_embedding (env : String → ℝ × ℝ) (c : IRConstraint) :
       unfold satisfies constraintToFormula ir_sem at *
       unfold standardGeometricModel at *
       simp at h_mdl
-      have h := collinear_det_iff_exists (env a) (env b) (env c)
-      exact h.mpr h_mdl
+      unfold cross
+      nlinarith
     · -- perpendicular 反向
       unfold satisfies constraintToFormula ir_sem at *
       unfold standardGeometricModel at *

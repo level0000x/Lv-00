@@ -90,9 +90,7 @@ def ir_sem (env : String → ℝ × ℝ) : IRConstraint → Prop
   | .distance a b d =>
       dist (env a) (env b) = eval_expr env d
   | .collinear a b c =>
-      ∃ (t : ℝ),
-        (ptX (env a) - ptX (env b)) * t = ptX (env c) - ptX (env b) ∧
-        (ptY (env a) - ptY (env b)) * t = ptY (env c) - ptY (env b)
+      cross (env a - env b) (env c - env b) = 0
   | .perpendicular a b c d =>
       let v1 := (ptX (env a) - ptX (env b), ptY (env a) - ptY (env b))
       let v2 := (ptX (env c) - ptX (env d), ptY (env c) - ptY (env d))
@@ -175,9 +173,15 @@ theorem dist_self (env : String → ℝ × ℝ) (a : String) :
 /-- 共线性的对称性：若 A,B,C 共线则 A,C,B 也共线 -/
 theorem collinear_symm (env : String → ℝ × ℝ) (a b c : String) :
     ir_sem env (.collinear a b c) → ir_sem env (.collinear a c b) := by
-  -- 注意：在当前 collinear 语义下该定理不总成立（反例：A=C≠B）。
-  -- 若需确立对称性，应将语义改为 cross 积形式：
-  --   cross (env a - env b) (env c - env b) = 0
-  sorry
+  intro h
+  have hcross : cross (env a - env b) (env c - env b) = 0 := by
+    simpa [ir_sem] using h
+  have h_eq : cross (env a - env c) (env b - env c) = -cross (env a - env b) (env c - env b) := by
+    unfold cross
+    simp
+    ring
+  have hgoal : cross (env a - env c) (env b - env c) = 0 := by
+    rw [h_eq, hcross, neg_zero]
+  simpa [ir_sem] using hgoal
 
 end lvFormal.Theory.IR

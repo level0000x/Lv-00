@@ -22,6 +22,7 @@
 #ifndef lv_TEST_HELPERS_H
 #define lv_TEST_HELPERS_H
 
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -129,6 +130,9 @@ static inline int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t
     return g->next_node_id - 1;
 }
 
+static inline int approx_eq(double a, double b) { return fabs(a - b) < 1e-10; }
+static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a - b) < (eps); }
+
 /* ============================================================
  * 测试断言宏
  * ============================================================ */
@@ -213,6 +217,22 @@ static inline int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t
             return;                                                                                         \
         }                                                                                                   \
         g_pass_count++;                                                                                     \
+    } while (0)
+
+#define TEST_ASSERT_NEAR(actual, expected, tol, msg)                                                              \
+    do {                                                                                                          \
+        double _ta_actual = (double) (actual);                                                                    \
+        double _ta_expected = (double) (expected);                                                                \
+        double _ta_diff = _ta_actual - _ta_expected;                                                              \
+        if (_ta_diff < 0.0)                                                                                       \
+            _ta_diff = -_ta_diff;                                                                                 \
+        if (_ta_diff > (tol)) {                                                                                   \
+            fprintf(stderr, "  FAIL [%s:%d] %s (actual=%.12f, expected=%.12f, diff=%.12e)\n", __FILE__, __LINE__, \
+                    (msg), _ta_actual, _ta_expected, _ta_diff);                                                   \
+            g_fail_count++;                                                                                       \
+            return;                                                                                               \
+        }                                                                                                         \
+        g_pass_count++;                                                                                           \
     } while (0)
 
 /**
