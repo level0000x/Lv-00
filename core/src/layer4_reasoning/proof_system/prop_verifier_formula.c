@@ -28,13 +28,20 @@
  * @param name 原子命题名称
  * @return 新分配的公式指针，失败返回 NULL
  */
-PropFormula *prop_formula_create_atom(const char *name) {
-    if (!name)
-        return NULL;
+static PropFormula *formula_alloc(PropFormulaType type) {
     PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
     if (!f)
         return NULL;
-    f->type = PROP_ATOM;
+    f->type = type;
+    return f;
+}
+
+PropFormula *prop_formula_create_atom(const char *name) {
+    if (!name)
+        return NULL;
+    PropFormula *f = formula_alloc(PROP_ATOM);
+    if (!f)
+        return NULL;
     snprintf(f->data.atom.name, sizeof(f->data.atom.name), "%s", name);
     return f;
 }
@@ -49,10 +56,9 @@ PropFormula *prop_formula_create_atom(const char *name) {
 PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *right) {
     if (!left || !right)
         return NULL;
-    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    PropFormula *f = formula_alloc(PROP_CONJUNCTION);
     if (!f)
         return NULL;
-    f->type = PROP_CONJUNCTION;
     f->data.binary.left = left;
     f->data.binary.right = right;
     return f;
@@ -68,10 +74,9 @@ PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *rig
 PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *right) {
     if (!left || !right)
         return NULL;
-    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    PropFormula *f = formula_alloc(PROP_DISJUNCTION);
     if (!f)
         return NULL;
-    f->type = PROP_DISJUNCTION;
     f->data.binary.left = left;
     f->data.binary.right = right;
     return f;
@@ -87,10 +92,9 @@ PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *rig
 PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *right) {
     if (!left || !right)
         return NULL;
-    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    PropFormula *f = formula_alloc(PROP_IMPLICATION);
     if (!f)
         return NULL;
-    f->type = PROP_IMPLICATION;
     f->data.binary.left = left;
     f->data.binary.right = right;
     return f;
@@ -105,10 +109,9 @@ PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *rig
 PropFormula *prop_formula_create_negation(PropFormula *operand) {
     if (!operand)
         return NULL;
-    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    PropFormula *f = formula_alloc(PROP_NEGATION);
     if (!f)
         return NULL;
-    f->type = PROP_NEGATION;
     f->data.unary.operand = operand;
     return f;
 }
@@ -119,11 +122,7 @@ PropFormula *prop_formula_create_negation(PropFormula *operand) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_bottom(void) {
-    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
-    if (!f)
-        return NULL;
-    f->type = PROP_BOTTOM;
-    return f;
+    return formula_alloc(PROP_BOTTOM);
 }
 
 /**
@@ -132,11 +131,7 @@ PropFormula *prop_formula_create_bottom(void) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_true(void) {
-    PropFormula *f = (PropFormula *) lv_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
-    if (!f)
-        return NULL;
-    f->type = PROP_TRUE;
-    return f;
+    return formula_alloc(PROP_TRUE);
 }
 
 /* 内部前置声明（static 函数使用前置声明） */

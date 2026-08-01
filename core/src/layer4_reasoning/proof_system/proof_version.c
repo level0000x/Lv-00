@@ -41,31 +41,13 @@
 
 #include "lv_utils.h"
 
+void safe_strncpy(char *dest, const char *src, size_t max_len);
+
 
 
 /* ============================================================
  * Internal helpers
  * ============================================================ */
-
-/**
- * @brief Safe string copy that guarantees null-termination.
- *
- * Unlike strncpy, this always null-terminates the destination buffer
- * even when the source string length >= n.
- *
- * @param dest  Destination buffer
- * @param src   Source string
- * @param n     Size of destination buffer
- * @return Number of characters copied (excluding null terminator), or 0 on error
- */
-static size_t safe_strncpy(char *dest, const char *src, size_t n) {
-    if (n == 0 || dest == NULL || src == NULL) {
-        return 0;
-    }
-    strncpy(dest, src, n - 1);
-    dest[n - 1] = '\0';
-    return strlen(dest);
-}
 
 /** 最大路径长度（包含 null 终止符） */
 #define MAX_PATH_LEN 4096

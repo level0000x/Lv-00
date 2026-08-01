@@ -15,6 +15,53 @@
  * ======================================================================== */
 
 /**
+ * @brief 计算残差向量（遍历所有活动约束，跳过 FIXED 约束）
+ *
+ * @param sys   求解系统
+ * @param out   输出残差数组
+ * @param nrows 残差数组容量
+ * @return 填充的行数
+ */
+static int compute_residuals(const lvSolverSystem *sys, double *out, int nrows) {
+    int row = 0;
+
+    for (int ci = 0; ci < sys->constraint_count; ci++) {
+        const lvConstraint *c = &sys->constraints[ci];
+        if (!c->is_active)
+            continue;
+        if (c->type == lv_CONSTRAINT_FIXED)
+            continue;
+
+        int n_eq = evaluate_constraint(sys, c, NULL);
+
+        if (n_eq == 2) {
+            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
+            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
+            if (ea && eb) {
+                out[row] = ea->params[0] - eb->params[0];
+                row++;
+                out[row] = ea->params[1] - eb->params[1];
+                row++;
+            } else {
+                out[row] = 0.0;
+                row++;
+                if (row < nrows) {
+                    out[row] = 0.0;
+                    row++;
+                }
+            }
+        } else {
+            double err = 0.0;
+            evaluate_constraint(sys, c, &err);
+            out[row] = err;
+            row++;
+        }
+    }
+
+    return row;
+}
+
+/**
  * @brief 构建雅可比矩阵 J 和残差向量 F
  *
  * 使用数值差分（中心差分）计算雅可比矩阵的每个元素：
@@ -31,43 +78,8 @@
  */
 static void build_jacobian_and_residual(const lvSolverSystem *sys, double *J, double *F, int nrows, int ncols,
                                         const int *param_map, const int *free_entities, int free_count) {
-    int row = 0;
-
     /* 计算残差向量 F */
-    for (int ci = 0; ci < sys->constraint_count; ci++) {
-        const lvConstraint *c = &sys->constraints[ci];
-        if (!c->is_active)
-            continue;
-        if (c->type == lv_CONSTRAINT_FIXED)
-            continue; /* FIXED 实体已通过 is_fixed 排除 */
-
-        int n_eq = evaluate_constraint(sys, c, NULL);
-
-        /* 对于多方程约束（如 COINCIDENT 返回 2），分别计算 */
-        if (n_eq == 2) {
-            /* 第一个方程：x 方向 */
-            lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-            lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-            if (ea && eb) {
-                F[row] = ea->params[0] - eb->params[0];
-                row++;
-                F[row] = ea->params[1] - eb->params[1];
-                row++;
-            } else {
-                F[row] = 0.0;
-                row++;
-                if (row < nrows) {
-                    F[row] = 0.0;
-                    row++;
-                }
-            }
-        } else {
-            double err = 0.0;
-            evaluate_constraint(sys, c, &err);
-            F[row] = err;
-            row++;
-        }
-    }
+    compute_residuals(sys, F, nrows);
 
     /* 使用数值差分计算雅可比矩阵 */
     double eps = NUMERICAL_DIFF_EPSILON;
@@ -102,70 +114,14 @@ static void build_jacobian_and_residual(const lvSolverSystem *sys, double *J, do
         double h = eps * fmax(1.0, fabs(orig));
         sys->entities[ent_idx].params[param_offset] = orig + h;
 
-        row = 0;
-        double *F_plus = (double *) lv_malloc(nrows * sizeof(double));
-        for (int ci = 0; ci < sys->constraint_count; ci++) {
-            const lvConstraint *c = &sys->constraints[ci];
-            if (!c->is_active)
-                continue;
-            int n_eq = evaluate_constraint(sys, c, NULL);
-            if (n_eq == 2) {
-                lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-                lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-                if (ea && eb) {
-                    F_plus[row] = ea->params[0] - eb->params[0];
-                    row++;
-                    F_plus[row] = ea->params[1] - eb->params[1];
-                    row++;
-                } else {
-                    F_plus[row] = 0.0;
-                    row++;
-                    if (row < nrows) {
-                        F_plus[row] = 0.0;
-                        row++;
-                    }
-                }
-            } else {
-                double err = 0.0;
-                evaluate_constraint(sys, c, &err);
-                F_plus[row] = err;
-                row++;
-            }
-        }
+        double *F_plus = (double *) lv_calloc(nrows, sizeof(double));
+        compute_residuals(sys, F_plus, nrows);
 
         /* 负向扰动 */
         sys->entities[ent_idx].params[param_offset] = orig - h;
 
-        row = 0;
-        double *F_minus = (double *) lv_malloc(nrows * sizeof(double));
-        for (int ci = 0; ci < sys->constraint_count; ci++) {
-            const lvConstraint *c = &sys->constraints[ci];
-            if (!c->is_active)
-                continue;
-            int n_eq = evaluate_constraint(sys, c, NULL);
-            if (n_eq == 2) {
-                lvEntity *ea = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_a);
-                lvEntity *eb = lv_solver_get_entity((lvSolverSystem *) sys, c->entity_b);
-                if (ea && eb) {
-                    F_minus[row] = ea->params[0] - eb->params[0];
-                    row++;
-                    F_minus[row] = ea->params[1] - eb->params[1];
-                    row++;
-                } else {
-                    F_minus[row] = 0.0;
-                    row++;
-                    if (row < nrows) {
-                        F_minus[row] = 0.0;
-                        row++;
-                    }
-                }
-            } else {
-                double err = 0.0;
-                evaluate_constraint(sys, c, &err);
-                F_minus[row] = err;
-                row++;
-            }
-        }
+        double *F_minus = (double *) lv_calloc(nrows, sizeof(double));
+        compute_residuals(sys, F_minus, nrows);
 
         /* 恢复原始值 */
         sys->entities[ent_idx].params[param_offset] = orig;

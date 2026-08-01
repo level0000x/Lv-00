@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_compiler.h
  * @brief 证明编译层
  *
@@ -176,11 +176,6 @@ typedef struct lvCompilerConfig {
  */
 struct lvProofCompiler {
     lvCompilerConfig config; /**< 编译配置 */
-
-    /* 输出缓冲区 */
-    char *output_buffer; /**< 输出缓冲区 */
-    size_t buffer_size;  /**< 缓冲区大小 */
-    size_t buffer_used;  /**< 已使用大小 */
 };
 /* ============== API 函数声明 ============== */
 /* ---- Proof Object API ---- */

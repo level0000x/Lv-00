@@ -483,6 +483,40 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z
 }
 
 /**
+ * @brief 判定点相对于有向直线/线段的位置（内部实现）
+ *
+ * @param px, py 查询点坐标
+ * @param x1, y1 直线/线段第一点
+ * @param x2, y2 直线/线段第二点
+ * @param mode   精度模式
+ * @return lvLineSide 点侧枚举（LEFT / RIGHT / ON / DEGENERATE）
+ */
+static lvLineSide side_of_line_impl(double px, double py, double x1, double y1, double x2, double y2,
+                                    lvPredicateMode mode) {
+    /* 检查退化情况：定义直线/线段的两个点重合 */
+    const lvGeometryConfig *cfg = lv_geometry_get_config();
+    double eps = cfg ? cfg->distance_epsilon : lv_GEO_COLLINEAR_EPSILON;
+
+    double d_sq = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+    if (d_sq < eps * eps) {
+        return lv_LINE_SIDE_DEGENERATE;
+    }
+
+    lvOrientation orient = lv_orientation_2d(x1, y1, x2, y2, px, py, mode);
+
+    switch (orient) {
+        case lv_ORIENTATION_LEFT:
+            return lv_LINE_SIDE_LEFT;
+        case lv_ORIENTATION_RIGHT:
+            return lv_LINE_SIDE_RIGHT;
+        case lv_ORIENTATION_COLLINEAR:
+            return lv_LINE_SIDE_ON;
+        default:
+            return lv_LINE_SIDE_DEGENERATE;
+    }
+}
+
+/**
  * @brief 判定点相对于直线的位置
  *
  * 委托给 lv_orientation_2d，将直线方向映射为 lvLineSide。
@@ -495,27 +529,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z
  */
 lv_PUBLIC_API lvLineSide lv_line_side(double px, double py, double lx1, double ly1, double lx2, double ly2,
                                       lvPredicateMode mode) {
-    /* 检查退化情况：直线的两个定义点重合 */
-    const lvGeometryConfig *cfg = lv_geometry_get_config();
-    double eps = cfg ? cfg->distance_epsilon : lv_GEO_COLLINEAR_EPSILON;
-
-    double d_sq = (lx2 - lx1) * (lx2 - lx1) + (ly2 - ly1) * (ly2 - ly1);
-    if (d_sq < eps * eps) {
-        return lv_LINE_SIDE_DEGENERATE;
-    }
-
-    lvOrientation orient = lv_orientation_2d(lx1, ly1, lx2, ly2, px, py, mode);
-
-    switch (orient) {
-        case lv_ORIENTATION_LEFT:
-            return lv_LINE_SIDE_LEFT;
-        case lv_ORIENTATION_RIGHT:
-            return lv_LINE_SIDE_RIGHT;
-        case lv_ORIENTATION_COLLINEAR:
-            return lv_LINE_SIDE_ON;
-        default:
-            return lv_LINE_SIDE_DEGENERATE;
-    }
+    return side_of_line_impl(px, py, lx1, ly1, lx2, ly2, mode);
 }
 
 /**
@@ -531,27 +545,7 @@ lv_PUBLIC_API lvLineSide lv_line_side(double px, double py, double lx1, double l
  */
 lv_PUBLIC_API lvLineSide lv_segment_side(double px, double py, double sx1, double sy1, double sx2, double sy2,
                                          lvPredicateMode mode) {
-    /* 检查退化情况：线段长度为零 */
-    const lvGeometryConfig *cfg = lv_geometry_get_config();
-    double eps = cfg ? cfg->distance_epsilon : lv_GEO_COLLINEAR_EPSILON;
-
-    double d_sq = (sx2 - sx1) * (sx2 - sx1) + (sy2 - sy1) * (sy2 - sy1);
-    if (d_sq < eps * eps) {
-        return lv_LINE_SIDE_DEGENERATE;
-    }
-
-    lvOrientation orient = lv_orientation_2d(sx1, sy1, sx2, sy2, px, py, mode);
-
-    switch (orient) {
-        case lv_ORIENTATION_LEFT:
-            return lv_LINE_SIDE_LEFT;
-        case lv_ORIENTATION_RIGHT:
-            return lv_LINE_SIDE_RIGHT;
-        case lv_ORIENTATION_COLLINEAR:
-            return lv_LINE_SIDE_ON;
-        default:
-            return lv_LINE_SIDE_DEGENERATE;
-    }
+    return side_of_line_impl(px, py, sx1, sy1, sx2, sy2, mode);
 }
 
 /**

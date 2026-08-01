@@ -55,8 +55,9 @@ def compile_constraint (_ps : List lvPoint) (c : lvConstraint) : Option IRConstr
       | [a, b] => some (.distance a b (.const 0))
       | _ => none
   | .angle =>
+      -- 源约束不含角度值，编译为恒真占位（等价于不施加额外 IR 约束）
       match c.args with
-      | [a, b, c', d] => some (.angle a b c' d (.const 0))
+      | [_a, _b, _c', _d] => some (.eq_expr (.const 0) (.const 0))
       | _ => none
   | .midpoint =>
       match c.args with

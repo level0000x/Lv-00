@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file tikz_export.c
  * @brief TikZ/LaTeX 导出 —— 将约束图导出为 TikZ 绘图代码
  *
@@ -6,7 +6,7 @@
  *          提供两种导出方式：
  *          - lv_tikz_export：导出到内存缓冲区
  *          - lv_tikz_export_file：导出到文件
- *          内部使用动态字符串构建器（TikzBuf）管理输出缓冲区。
+ *          内部使用动态字符串构建器（lvStrBuf）管理输出缓冲区。
  *
  * @author Lv-00 Project
  * @version 1.1.0
@@ -25,59 +25,6 @@
 
 #include "lv_internal.h"
 #include "lv/lv_strbuf.h"
-
-/** 输出缓冲区初始容量（64 KB） */
-#define TIKZ_BUF_INIT_CAP (64 * 1024)
-
-/* ── 动态字符串构建器 ── */
-
-/**
- * @brief TikZ 输出动态字符串缓冲区
- *
- * 用于在内存中逐步构建 TikZ 代码，避免频繁的 snprintf 边界检查。
- */
-typedef struct {
-    lvDArray arr; /**< 动态字符数组（lvDArray<char>） */
-} TikzBuf;
-
-/**
- * @brief 初始化 TikZ 输出缓冲区
- *
- * @param b 缓冲区指针
- * @return true 成功，false 内存分配失败
- */
-static bool tikz_buf_init(TikzBuf *b) {
-    lv_darray_init(&b->arr, 1);
-    return lv_darray_reserve(&b->arr, TIKZ_BUF_INIT_CAP);
-}
-
-/**
- * @brief 销毁 TikZ 输出缓冲区，释放内存
- *
- * @param b 缓冲区指针
- */
-static void tikz_buf_destroy(TikzBuf *b) {
-    if (b)
-        lv_darray_free(&b->arr);
-}
-
-/**
- * @brief 向 TikZ 输出缓冲区追加字符串
- *
- * @details 当缓冲区容量不足时自动扩容（倍增），含溢出检测。
- *
- * @param b 缓冲区指针
- * @param s 要追加的字符串
- * @return true 成功，false 扩容失败或内存不足
- */
-static bool tikz_buf_append(TikzBuf *b, const char *s) {
-    size_t slen = strlen(s);
-    if (!lv_darray_reserve(&b->arr, b->arr.count + (int)slen + 1))
-        return false;
-    memcpy((char *)b->arr.data + b->arr.count, s, slen + 1);
-    b->arr.count += (int)slen;
-    return true;
-}
 
 /* ── 颜色转换：将 [0,1] 浮点转为 TikZ 的 0-255 整数 ── */
 
@@ -180,7 +127,7 @@ int lv_tikz_export(void *graph, char *out, size_t buf_size) {
 /**
  * @brief 将约束图导出为 TikZ 代码到文件
  *
- * @details 使用内部缓冲区（TikzBuf）在内存中构建完整的 TikZ 代码，
+ * @details 使用内部缓冲区（lvStrBuf）在内存中构建完整的 TikZ 代码，
  *          然后一次性写入文件。相比 lv_tikz_export，此函数自动管理
  *          缓冲区大小，适合大型约束图导出。
  *
@@ -193,14 +140,14 @@ int lv_tikz_export_file(void *graph, const char *filename) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_tikz_export_file: graph or filename is NULL");
 
     /* 先用缓冲区构建输出 */
-    TikzBuf buf;
-    if (!tikz_buf_init(&buf))
-        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tikz_export_file: tikz_buf_init failed");
+    lvStrBuf buf;
+    lv_strbuf_init(&buf);
 
     /* 写入头部 */
-    tikz_buf_append(&buf,
-                    "% Lv-00 TikZ Export\n"
-                    "\\begin{tikzpicture}[scale=1.0, x=1cm, y=1cm]\n");
+    lv_strbuf_printf(&buf,
+                     "%s",
+                     "% Lv-00 TikZ Export\n"
+                     "\\begin{tikzpicture}[scale=1.0, x=1cm, y=1cm]\n");
 
     ConstraintGraph *g = (ConstraintGraph *) graph;
     for (int i = 0; i < g->node_count; i++) {
@@ -214,10 +161,7 @@ int lv_tikz_export_file(void *graph, const char *filename) {
                     node->symbolic_coords[1]) {
                     double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                     double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                    lvStrBuf sb = {0};
-                    lv_strbuf_printf(&sb, "  \\fill (%.4f, %.4f) circle (2pt);\n", x, y);
-                    tikz_buf_append(&buf, sb.data);
-                    lv_strbuf_destroy(&sb);
+                    lv_strbuf_printf(&buf, "  \\fill (%.4f, %.4f) circle (2pt);\n", x, y);
                 }
                 break;
             }
@@ -228,10 +172,7 @@ int lv_tikz_export_file(void *graph, const char *filename) {
                     double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
                     double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
                     double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
-                    lvStrBuf sb_2 = {0};
-                    lv_strbuf_printf(&sb_2, "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
-                    tikz_buf_append(&buf, sb_2.data);
-                    lv_strbuf_destroy(&sb_2);
+                    lv_strbuf_printf(&buf, "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
                 }
                 break;
             }
@@ -240,16 +181,16 @@ int lv_tikz_export_file(void *graph, const char *filename) {
         }
     }
 
-    tikz_buf_append(&buf, "\\end{tikzpicture}\n");
+    lv_strbuf_printf(&buf, "\\end{tikzpicture}\n");
 
     /* 写入文件 */
     FILE *fp = fopen(filename, "w");
     if (!fp) {
-        tikz_buf_destroy(&buf);
+        lv_strbuf_destroy(&buf);
         lv_RETURN_ERROR(lv_ERROR_IO, "lv_tikz_export_file: fopen failed");
     }
-    size_t written = fwrite(buf.arr.data, 1, buf.arr.count, fp);
+    size_t written = fwrite(buf.data, 1, buf.len, fp);
     fclose(fp);
-    tikz_buf_destroy(&buf);
+    lv_strbuf_destroy(&buf);
     return (int) written;
 }

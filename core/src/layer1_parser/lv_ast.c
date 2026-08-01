@@ -42,6 +42,13 @@ LvAstNode *lv_ast_create(LvAstNodeType type, LvSourceLoc loc) {
     return node;
 }
 
+static LvAstNode *ast_alloc(LvAstNodeType type, LvSourceLoc loc, const char *err_msg) {
+    LvAstNode *node = lv_ast_create(type, loc);
+    if (!node)
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, err_msg);
+    return node;
+}
+
 /**
  * @brief 创建标识符表达式节点
  *
@@ -50,9 +57,7 @@ LvAstNode *lv_ast_create(LvAstNodeType type, LvSourceLoc loc) {
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_ident(LvSourceLoc loc, const char *name) {
-    LvAstNode *node = lv_ast_create(LV_AST_IDENTIFIER_EXPR, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create ident node");
+    LvAstNode *node = ast_alloc(LV_AST_IDENTIFIER_EXPR, loc, "failed to create ident node");
     node->data.ident.name = lv_strdup(name);
     return node;
 }
@@ -65,9 +70,7 @@ LvAstNode *lv_ast_create_ident(LvSourceLoc loc, const char *name) {
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_int(LvSourceLoc loc, long long value) {
-    LvAstNode *node = lv_ast_create(LV_AST_INTEGER_LITERAL, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create int node");
+    LvAstNode *node = ast_alloc(LV_AST_INTEGER_LITERAL, loc, "failed to create int node");
     node->data.literal.integer_value = value;
     return node;
 }
@@ -81,9 +84,7 @@ LvAstNode *lv_ast_create_int(LvSourceLoc loc, long long value) {
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_rational(LvSourceLoc loc, long long num, long long den) {
-    LvAstNode *node = lv_ast_create(LV_AST_RATIONAL_LITERAL, loc);
-    if (!node)
-        return NULL;
+    LvAstNode *node = ast_alloc(LV_AST_RATIONAL_LITERAL, loc, "failed to create rational node");
     node->data.literal.rational_value.num = num;
     node->data.literal.rational_value.den = den;
     return node;
@@ -97,9 +98,7 @@ LvAstNode *lv_ast_create_rational(LvSourceLoc loc, long long num, long long den)
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_decimal(LvSourceLoc loc, double value) {
-    LvAstNode *node = lv_ast_create(LV_AST_DECIMAL_LITERAL, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create decimal node");
+    LvAstNode *node = ast_alloc(LV_AST_DECIMAL_LITERAL, loc, "failed to create decimal node");
     node->data.literal.decimal_value = value;
     return node;
 }
@@ -112,9 +111,7 @@ LvAstNode *lv_ast_create_decimal(LvSourceLoc loc, double value) {
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_string(LvSourceLoc loc, const char *value) {
-    LvAstNode *node = lv_ast_create(LV_AST_STRING_LITERAL, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create string node");
+    LvAstNode *node = ast_alloc(LV_AST_STRING_LITERAL, loc, "failed to create string node");
     node->data.literal.string_value = lv_strdup(value);
     return node;
 }
@@ -127,9 +124,7 @@ LvAstNode *lv_ast_create_string(LvSourceLoc loc, const char *value) {
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_bool(LvSourceLoc loc, int value) {
-    LvAstNode *node = lv_ast_create(LV_AST_BOOL_LITERAL, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create bool node");
+    LvAstNode *node = ast_alloc(LV_AST_BOOL_LITERAL, loc, "failed to create bool node");
     node->data.literal.bool_value = value;
     return node;
 }
@@ -143,9 +138,7 @@ LvAstNode *lv_ast_create_bool(LvSourceLoc loc, int value) {
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode *args) {
-    LvAstNode *node = lv_ast_create(LV_AST_FUNCTION_CALL, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create call node");
+    LvAstNode *node = ast_alloc(LV_AST_FUNCTION_CALL, loc, "failed to create call node");
     node->data.call.func_name = lv_strdup(func_name);
     node->data.call.args = args;
     if (args) {
@@ -169,9 +162,7 @@ LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode 
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right) {
-    LvAstNode *node = lv_ast_create(LV_AST_BINARY_OP, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create binary node");
+    LvAstNode *node = ast_alloc(LV_AST_BINARY_OP, loc, "failed to create binary node");
     lv_strncpy(node->data.binary.op, op, sizeof(node->data.binary.op));
     node->data.binary.left = left;
     node->data.binary.right = right;
@@ -187,9 +178,7 @@ LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *operand) {
-    LvAstNode *node = lv_ast_create(LV_AST_UNARY_OP, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create unary node");
+    LvAstNode *node = ast_alloc(LV_AST_UNARY_OP, loc, "failed to create unary node");
     lv_strncpy(node->data.unary.op, op, sizeof(node->data.unary.op));
     node->data.unary.operand = operand;
     return node;
@@ -205,9 +194,7 @@ LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *opera
  * @return 节点指针，失败返回 NULL
  */
 LvAstNode *lv_ast_create_compare(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right) {
-    LvAstNode *node = lv_ast_create(LV_AST_COMPARE, loc);
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to create compare node");
+    LvAstNode *node = ast_alloc(LV_AST_COMPARE, loc, "failed to create compare node");
     lv_strncpy(node->data.compare.op, op, sizeof(node->data.compare.op));
     node->data.compare.left = left;
     node->data.compare.right = right;

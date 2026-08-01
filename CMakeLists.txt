@@ -864,6 +864,10 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/geo_utils.c
     core/src/layer3_geometry/geo_dynamic.c
     core/src/layer3_geometry/geo_aabb_tree.c
+    core/src/layer3_geometry/aabb_box.c
+    core/src/layer3_geometry/aabb_common.c
+    core/src/layer3_geometry/aabb_tree_2d.c
+    core/src/layer3_geometry/aabb_tree_3d.c
     core/src/layer3_geometry/geo_predicate.c
     # v1.1.0 补全遗漏：几何原语、参数曲线、路径类型
     core/src/layer3_geometry/geometric_primitives.c
@@ -1209,6 +1213,11 @@ set(lv_LAYER4_SOURCES
     # 重写子模块：应用、匹配、VF2、WL
     core/src/layer4_reasoning/rewrite/rewrite_apply.c
     core/src/layer4_reasoning/rewrite/rewrite_match.c
+    core/src/layer4_reasoning/rewrite/rewrite_binding.c
+    core/src/layer4_reasoning/rewrite/rewrite_snapshot.c
+    core/src/layer4_reasoning/rewrite/rewrite_hash.c
+    core/src/layer4_reasoning/rewrite/rewrite_rule.c
+    core/src/layer4_reasoning/rewrite/rewrite_match_search.c
     core/src/layer4_reasoning/rewrite/rewrite_vf2.c
     core/src/layer4_reasoning/rewrite/rewrite_wl.c
     core/src/layer4_reasoning/rewrite/critical_pair.c

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_compiler.c
  * @brief 证明编译层实现
  *
@@ -19,86 +19,12 @@
 
 
 #include "lv/lv_internal.h"
+#include "lv/lv_strbuf.h"
 
 
 #include "circuit_breaker.h"
 #include "lv.h"
 #include "lv_utils.h"
-
-/* ============== 共享缓冲区宏 ============== */
-
-#define BUF_ENSURE(buf, buf_len, buf_cap, needed) do { \
-    if ((buf_len) + (needed) + 1 > (buf_cap)) { \
-        size_t _new_cap = (buf_cap) ? (buf_cap) * 2 : 4096; \
-        while (_new_cap < (buf_len) + (needed) + 1) _new_cap *= 2; \
-        char *_nb = realloc((buf), _new_cap); \
-        if (!_nb) return NULL; \
-        (buf) = _nb; \
-        (buf_cap) = _new_cap; \
-    } \
-} while(0)
-
-#define BUF_WRITE(buf, buf_len, buf_cap, ...) do { \
-    int _n = snprintf((buf) + (buf_len), (buf_cap) - (buf_len), __VA_ARGS__); \
-    if (_n < 0) return NULL; \
-    (buf_len) += (size_t)_n; \
-} while(0)
-
-/* ============== 内部辅助函数 ============== */
-
-/**
- * @brief 确保缓冲区容量
- */
-static bool ensure_buffer_capacity(lvProofCompiler *compiler, size_t needed) {
-    if (!compiler)
-        return false;
-
-    /* 溢出检查：buffer_used + needed 不能超过 SIZE_MAX */
-    if (needed > 0 && compiler->buffer_used > SIZE_MAX - needed) {
-        return false;
-    }
-
-    if (compiler->buffer_used + needed <= compiler->buffer_size) {
-        return true;
-    }
-
-    size_t new_size = compiler->buffer_size == 0 ? 4096 : compiler->buffer_size * 2;
-    /* 防止 new_size *= 2 无限循环或溢出 */
-    while (new_size < compiler->buffer_used + needed) {
-        if (new_size > SIZE_MAX / 2) {
-            /* 再翻倍会溢出，直接使用最大值 */
-            new_size = SIZE_MAX;
-            break;
-        }
-        new_size *= 2;
-    }
-
-    if (new_size < compiler->buffer_used + needed) {
-        return false;
-    }
-
-    char *new_buffer = (char *) lv_realloc(compiler->output_buffer, new_size);
-    if (!new_buffer)
-        return false;
-
-    compiler->output_buffer = new_buffer;
-    compiler->buffer_size = new_size;
-    return true;
-}
-
-/**
- * @brief 添加到缓冲区
- */
-static void append_to_buffer(lvProofCompiler *compiler, const char *str) {
-    if (!compiler || !str)
-        return;
-    size_t len = strlen(str);
-    if (ensure_buffer_capacity(compiler, len + 1)) {
-        snprintf(compiler->output_buffer + compiler->buffer_used, compiler->buffer_size - compiler->buffer_used, "%s",
-                 str);
-        compiler->buffer_used += len;
-    }
-}
 
 /* ============== Proof Object 实现 ============== */
 
@@ -316,15 +242,6 @@ lvProofCompiler *lv_proof_compiler_create(const lvCompilerConfig *config) {
         compiler->config = lv_compiler_config_default();
     }
 
-    compiler->output_buffer = (char *) lv_malloc(4096);
-    if (!compiler->output_buffer) {
-        lv_free((void **) &compiler);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_create: output_buffer malloc failed");
-    }
-    compiler->buffer_size = 4096;
-    compiler->buffer_used = 0;
-    compiler->output_buffer[0] = '\0';
-
     return compiler;
 }
 
@@ -334,8 +251,6 @@ lvProofCompiler *lv_proof_compiler_create(const lvCompilerConfig *config) {
 void lv_proof_compiler_destroy(lvProofCompiler *compiler) {
     if (!compiler)
         return;
-    if (compiler->output_buffer)
-        lv_free((void **) &compiler->output_buffer);
     lv_free((void **) &compiler);
 }
 
@@ -380,40 +295,35 @@ char *lv_proof_compiler_to_json(const lvProofObject *proof, const lvProofTrace *
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_json: proof is NULL");
 
-    /* 动态缓冲区：初始 4096，溢出时翻倍 */
-    size_t buf_cap = 4096;
-    size_t buf_len = 0;
-    char *buf = (char *) lv_malloc(buf_cap);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_json: malloc failed");
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    BUF_WRITE(buf, buf_len, buf_cap, "{\n");
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"proof_id\": %d,\n", proof->proof_id);
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"theorem_name\": \"%s\",\n", proof->theorem_name ? proof->theorem_name : "unknown");
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"final_color\": %d,\n", proof->final_color);
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"step_count\": %d,\n", proof->step_count);
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"max_depth\": %d,\n", proof->max_depth);
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"axiom_count\": %d,\n", proof->axiom_count);
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"assumption_count\": %d,\n", proof->assumption_count);
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"elapsed_us\": %lld,\n", (long long) proof->elapsed_us);
+    lv_strbuf_printf(&sb, "{\n");
+    lv_strbuf_printf(&sb, "  \"proof_id\": %d,\n", proof->proof_id);
+    lv_strbuf_printf(&sb, "  \"theorem_name\": \"%s\",\n", proof->theorem_name ? proof->theorem_name : "unknown");
+    lv_strbuf_printf(&sb, "  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
+    lv_strbuf_printf(&sb, "  \"final_color\": %d,\n", proof->final_color);
+    lv_strbuf_printf(&sb, "  \"step_count\": %d,\n", proof->step_count);
+    lv_strbuf_printf(&sb, "  \"max_depth\": %d,\n", proof->max_depth);
+    lv_strbuf_printf(&sb, "  \"axiom_count\": %d,\n", proof->axiom_count);
+    lv_strbuf_printf(&sb, "  \"assumption_count\": %d,\n", proof->assumption_count);
+    lv_strbuf_printf(&sb, "  \"elapsed_us\": %lld,\n", (long long) proof->elapsed_us);
 
     /* 步骤数组 */
-    BUF_WRITE(buf, buf_len, buf_cap, "  \"steps\": [\n");
+    lv_strbuf_printf(&sb, "  \"steps\": [\n");
     for (int i = 0; i < proof->step_count; i++) {
         lvProofStepRecord *step = proof->steps[i];
-        BUF_ENSURE(buf, buf_len, buf_cap, 256);
-        BUF_WRITE(buf, buf_len, buf_cap, "    {\"id\": %d, \"type\": %d, \"depth\": %d}", step->step_id, step->type, step->depth);
+        lv_strbuf_printf(&sb, "    {\"id\": %d, \"type\": %d, \"depth\": %d}", step->step_id, step->type, step->depth);
         if (i < proof->step_count - 1) {
-            BUF_WRITE(buf, buf_len, buf_cap, ",");
+            lv_strbuf_printf(&sb, ",");
         }
-        BUF_WRITE(buf, buf_len, buf_cap, "\n");
+        lv_strbuf_printf(&sb, "\n");
     }
-    BUF_WRITE(buf, buf_len, buf_cap, "  ]\n");
+    lv_strbuf_printf(&sb, "  ]\n");
 
-    BUF_WRITE(buf, buf_len, buf_cap, "}\n");
+    lv_strbuf_printf(&sb, "}\n");
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**
@@ -423,43 +333,39 @@ char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *languag
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_latex: proof is NULL");
 
-    size_t buf_cap = 16384;
-    char *buf = (char *) lv_malloc(buf_cap);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_latex: malloc failed");
-
-    size_t buf_len = 0;
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
     const char *lang = language ? language : "zh";
     const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
     const char *qed = strcmp(lang, "en") == 0 ? "\\qed" : "证毕";
 
-    BUF_WRITE(buf, buf_len, buf_cap, "\\begin{Proof}\n");
-    BUF_WRITE(buf, buf_len, buf_cap, "%s.\n\n", proof_begin);
+    lv_strbuf_printf(&sb, "\\begin{Proof}\n");
+    lv_strbuf_printf(&sb, "%s.\n\n", proof_begin);
 
     /* 生成步骤 */
     for (int i = 0; i < proof->step_count; i++) {
         lvProofStepRecord *step = proof->steps[i];
 
         /* 缩进 */
-        for (int d = 0; d < step->depth; d++) {
-            BUF_WRITE(buf, buf_len, buf_cap, "  ");
+        if (step->depth > 0) {
+            lv_strbuf_append_n(&sb, ' ', (size_t) step->depth * 2);
         }
 
         const char *rule_name = step->rule_name ? step->rule_name : "规则";
-        BUF_WRITE(buf, buf_len, buf_cap, "由 %s 可得", rule_name);
+        lv_strbuf_printf(&sb, "由 %s 可得", rule_name);
 
         if (step->conclusion && step->conclusion->label) {
-            BUF_WRITE(buf, buf_len, buf_cap, " $%s$.\n", step->conclusion->label);
+            lv_strbuf_printf(&sb, " $%s$.\n", step->conclusion->label);
         } else {
-            BUF_WRITE(buf, buf_len, buf_cap, "。\n");
+            lv_strbuf_printf(&sb, "。\n");
         }
     }
 
-    BUF_WRITE(buf, buf_len, buf_cap, "\n%s\n", qed);
-    BUF_WRITE(buf, buf_len, buf_cap, "\\end{Proof}\n");
+    lv_strbuf_printf(&sb, "\n%s\n", qed);
+    lv_strbuf_printf(&sb, "\\end{Proof}\n");
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**
@@ -469,22 +375,18 @@ char *lv_proof_compiler_to_tikz(const lvProofObject *proof) {
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_tikz: proof is NULL");
 
-    size_t buf_cap = 16384;
-    char *buf = (char *) lv_malloc(buf_cap);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_tikz: malloc failed");
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    size_t buf_len = 0;
-
-    BUF_WRITE(buf, buf_len, buf_cap, "\\begin{tikzpicture}[node distance=2cm]\n");
-    BUF_WRITE(buf, buf_len, buf_cap, "\\tikzstyle{step}=[circle,draw,minimum size=1cm]\n");
-    BUF_WRITE(buf, buf_len, buf_cap, "\\tikzstyle{arrow}=[->,>=stealth]\n");
+    lv_strbuf_printf(&sb, "\\begin{tikzpicture}[node distance=2cm]\n");
+    lv_strbuf_printf(&sb, "\\tikzstyle{step}=[circle,draw,minimum size=1cm]\n");
+    lv_strbuf_printf(&sb, "\\tikzstyle{arrow}=[->,>=stealth]\n");
 
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
         lvProofStepRecord *step = proof->steps[i];
-        BUF_WRITE(buf, buf_len, buf_cap, "\\node[step] (S%d) at (%d, %d) {$S_%d$};\n", step->step_id, step->step_id % 3, -step->depth,
-                   step->step_id);
+        lv_strbuf_printf(&sb, "\\node[step] (S%d) at (%d, %d) {$S_%d$};\n", step->step_id, step->step_id % 3, -step->depth,
+                         step->step_id);
     }
 
     /* 生成边 */
@@ -492,13 +394,13 @@ char *lv_proof_compiler_to_tikz(const lvProofObject *proof) {
         lvProofStepRecord *step = proof->steps[i];
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
-            BUF_WRITE(buf, buf_len, buf_cap, "\\draw[arrow] (S%d) -- (S%d);\n", premise_id, step->step_id);
+            lv_strbuf_printf(&sb, "\\draw[arrow] (S%d) -- (S%d);\n", premise_id, step->step_id);
         }
     }
 
-    BUF_WRITE(buf, buf_len, buf_cap, "\\end{tikzpicture}\n");
+    lv_strbuf_printf(&sb, "\\end{tikzpicture}\n");
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**
@@ -508,20 +410,16 @@ char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_text: proof is NULL");
 
-    size_t buf_cap = 16384;
-    char *buf = (char *) lv_malloc(buf_cap);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_text: malloc failed");
-
-    size_t buf_len = 0;
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
     const char *lang = language ? language : "zh";
     const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
 
-    BUF_WRITE(buf, buf_len, buf_cap, "=== %s ===\n\n", proof_begin);
+    lv_strbuf_printf(&sb, "=== %s ===\n\n", proof_begin);
 
     if (proof->theorem_name) {
-        BUF_WRITE(buf, buf_len, buf_cap, "定理: %s\n\n", proof->theorem_name);
+        lv_strbuf_printf(&sb, "定理: %s\n\n", proof->theorem_name);
     }
 
     /* 生成步骤 */
@@ -529,44 +427,44 @@ char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language
         lvProofStepRecord *step = proof->steps[i];
 
         /* 缩进 */
-        for (int d = 0; d < step->depth; d++) {
-            BUF_WRITE(buf, buf_len, buf_cap, "  ");
+        if (step->depth > 0) {
+            lv_strbuf_append_n(&sb, ' ', (size_t) step->depth * 2);
         }
 
         /* 步骤编号 */
-        BUF_WRITE(buf, buf_len, buf_cap, "[%d] ", step->step_id);
+        lv_strbuf_printf(&sb, "[%d] ", step->step_id);
 
         /* 规则名称 */
         const char *rule_name = step->rule_name ? step->rule_name : "规则";
-        BUF_WRITE(buf, buf_len, buf_cap, "由 %s", rule_name);
+        lv_strbuf_printf(&sb, "由 %s", rule_name);
 
         /* 前提 */
         if (step->premise_count > 0) {
-            BUF_WRITE(buf, buf_len, buf_cap, " (前提: ");
+            lv_strbuf_printf(&sb, " (前提: ");
             for (int j = 0; j < step->premise_count; j++) {
                 if (j > 0)
-                    BUF_WRITE(buf, buf_len, buf_cap, ", ");
-                BUF_WRITE(buf, buf_len, buf_cap, "%d", step->premise_step_ids[j]);
+                    lv_strbuf_printf(&sb, ", ");
+                lv_strbuf_printf(&sb, "%d", step->premise_step_ids[j]);
             }
-            BUF_WRITE(buf, buf_len, buf_cap, ")");
+            lv_strbuf_printf(&sb, ")");
         }
 
         /* 结论 */
         if (step->conclusion && step->conclusion->label) {
-            BUF_WRITE(buf, buf_len, buf_cap, " 可得 %s", step->conclusion->label);
+            lv_strbuf_printf(&sb, " 可得 %s", step->conclusion->label);
         }
 
-        BUF_WRITE(buf, buf_len, buf_cap, "\n");
+        lv_strbuf_printf(&sb, "\n");
     }
 
     /* 统计 */
-    BUF_WRITE(buf, buf_len, buf_cap, "\n--- 统计 ---\n");
-    BUF_WRITE(buf, buf_len, buf_cap, "总步骤: %d\n", proof->step_count);
-    BUF_WRITE(buf, buf_len, buf_cap, "最大深度: %d\n", proof->max_depth);
-    BUF_WRITE(buf, buf_len, buf_cap, "使用公理: %d\n", proof->axiom_count);
-    BUF_WRITE(buf, buf_len, buf_cap, "假设数量: %d\n", proof->assumption_count);
+    lv_strbuf_printf(&sb, "\n--- 统计 ---\n");
+    lv_strbuf_printf(&sb, "总步骤: %d\n", proof->step_count);
+    lv_strbuf_printf(&sb, "最大深度: %d\n", proof->max_depth);
+    lv_strbuf_printf(&sb, "使用公理: %d\n", proof->axiom_count);
+    lv_strbuf_printf(&sb, "假设数量: %d\n", proof->assumption_count);
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**
@@ -577,16 +475,12 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
     if (!proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_to_graphviz: proof is NULL");
 
-    size_t buf_cap = 16384;
-    char *buf = (char *) lv_malloc(buf_cap);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_graphviz: malloc failed");
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    size_t buf_len = 0;
-
-    BUF_WRITE(buf, buf_len, buf_cap, "digraph ProofTree {\n");
-    BUF_WRITE(buf, buf_len, buf_cap, "  rankdir=TB;\n");
-    BUF_WRITE(buf, buf_len, buf_cap, "  node [shape=box];\n");
+    lv_strbuf_printf(&sb, "digraph ProofTree {\n");
+    lv_strbuf_printf(&sb, "  rankdir=TB;\n");
+    lv_strbuf_printf(&sb, "  node [shape=box];\n");
 
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -596,7 +490,7 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
                             : step->color == PROOF_COLOR_ORANGE_EX_FALSO ? "orange"
                                                                          : "lightblue";
 
-        BUF_WRITE(buf, buf_len, buf_cap, "  S%d [label=\"%s\", style=filled, fillcolor=%s];\n", step->step_id, label, color);
+        lv_strbuf_printf(&sb, "  S%d [label=\"%s\", style=filled, fillcolor=%s];\n", step->step_id, label, color);
     }
 
     /* 生成边 */
@@ -605,13 +499,13 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
             const char *rule_name = step->rule_name ? step->rule_name : "";
-            BUF_WRITE(buf, buf_len, buf_cap, "  S%d -> S%d [label=\"%s\"];\n", premise_id, step->step_id, rule_name);
+            lv_strbuf_printf(&sb, "  S%d -> S%d [label=\"%s\"];\n", premise_id, step->step_id, rule_name);
         }
     }
 
-    BUF_WRITE(buf, buf_len, buf_cap, "}\n");
+    lv_strbuf_printf(&sb, "}\n");
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**
@@ -620,9 +514,6 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
 char *lv_proof_compiler_compile(lvProofCompiler *compiler, const lvProofObject *proof, const lvProofTrace *trace) {
     if (!compiler || !proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_compile: compiler or proof is NULL");
-
-    /* 清空缓冲区 */
-    compiler->buffer_used = 0;
 
     switch (compiler->config.format) {
         case OUTPUT_FORMAT_JSON:
