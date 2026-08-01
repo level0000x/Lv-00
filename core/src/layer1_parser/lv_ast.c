@@ -153,6 +153,40 @@ LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode 
 }
 
 /**
+ * @brief 创建带节点类型的函数/关系/度量/几何调用节点
+ *
+ * @param type      节点类型（LV_AST_FUNCTION_CALL / LV_AST_RELATION /
+ *                  LV_AST_MEASURE / LV_AST_GEOMETRY_EXPR）
+ * @param loc       源代码位置
+ * @param func_name 函数名称（会被复制到节点内部存储）
+ * @param args      参数指针数组（数组内节点会按顺序链接为参数链表）
+ * @param arg_count 参数个数
+ * @return 节点指针，失败返回 NULL
+ */
+LvAstNode *lv_ast_create_call_typed(LvAstNodeType type, LvSourceLoc loc, const char *func_name,
+                                    LvAstNode *const *args, int arg_count) {
+    LvAstNode *node = ast_alloc(type, loc, "failed to create call node");
+    if (!node)
+        return NULL;
+    node->data.call.func_name = lv_strdup(func_name);
+    LvAstNode *head = NULL;
+    LvAstNode *tail = NULL;
+    for (int i = 0; i < arg_count; i++) {
+        if (head)
+            tail->next = args[i];
+        else
+            head = args[i];
+        tail = args[i];
+    }
+    if (tail)
+        tail->next = NULL;
+    node->data.call.args = head;
+    node->child = head;
+    node->child_count = arg_count;
+    return node;
+}
+
+/**
  * @brief 创建二元运算表达式节点
  *
  * @param loc   源代码位置
@@ -198,6 +232,28 @@ LvAstNode *lv_ast_create_compare(LvSourceLoc loc, const char *op, LvAstNode *lef
     lv_strncpy(node->data.compare.op, op, sizeof(node->data.compare.op));
     node->data.compare.left = left;
     node->data.compare.right = right;
+    return node;
+}
+
+/**
+ * @brief 创建逻辑二元运算节点
+ *
+ * @param type  节点类型（LV_AST_LOGIC_AND / LV_AST_LOGIC_OR /
+ *              LV_AST_LOGIC_IMPLIES / LV_AST_LOGIC_IFF）
+ * @param loc   源代码位置
+ * @param op    运算符字符串（如 "and", "or", "->", "iff"）
+ * @param left  左操作数
+ * @param right 右操作数
+ * @return 节点指针，失败返回 NULL
+ */
+LvAstNode *lv_ast_create_logic_binary(LvAstNodeType type, LvSourceLoc loc, const char *op,
+                                      LvAstNode *left, LvAstNode *right) {
+    LvAstNode *node = ast_alloc(type, loc, "failed to create logic binary node");
+    if (!node)
+        return NULL;
+    lv_strncpy(node->data.binary.op, op, sizeof(node->data.binary.op));
+    node->data.binary.left = left;
+    node->data.binary.right = right;
     return node;
 }
 

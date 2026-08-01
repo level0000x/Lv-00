@@ -919,6 +919,12 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_system/proof_multi_strategy.c
     core/src/layer4_reasoning/proof_system/proof_search_algo.c
     core/src/layer4_reasoning/proof_system/proof_strategy_exec.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_core.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_vector.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_angle.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_deductive.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_coordinate.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_hol_oracle.c
     core/src/layer4_reasoning/proof_trace.c
     core/src/layer4_reasoning/proof/proof_tree.c
     core/src/layer4_reasoning/proof_system/logic_check.c
@@ -1085,7 +1091,12 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/func_block/func_block_determinism.c
     core/src/layer4_reasoning/func_block/func_block_instantiate.c
     core/src/layer4_reasoning/func_block/func_block_preset.c
+    core/src/layer4_reasoning/func_block/func_block_preset_advanced.c
+    core/src/layer4_reasoning/func_block/func_block_preset_data.c
+    core/src/layer4_reasoning/func_block/func_block_preset_doc.c
+    core/src/layer4_reasoning/func_block/func_block_preset_internal.c
     core/src/layer4_reasoning/func_block/func_block_preset_ops.c
+    core/src/layer4_reasoning/func_block/func_block_preset_query.c
     core/src/layer4_reasoning/func_block/func_block_registry.c
     core/src/layer4_reasoning/func_block/func_block_selector.c
     core/src/layer4_reasoning/func_block/func_block_serialize.c

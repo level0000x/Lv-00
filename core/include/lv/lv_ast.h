@@ -209,6 +209,10 @@ LvAstNode *lv_ast_create_bool(LvSourceLoc loc, int value);
 /** 创建函数/关系调用节点 */
 LvAstNode *lv_ast_create_call(LvSourceLoc loc, const char *func_name, LvAstNode *args);
 
+/** 创建带节点类型的函数/关系/度量/几何调用节点 */
+LvAstNode *lv_ast_create_call_typed(LvAstNodeType type, LvSourceLoc loc, const char *func_name,
+                                    LvAstNode *const *args, int arg_count);
+
 /** 创建二元运算节点 */
 LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right);
 
@@ -217,6 +221,10 @@ LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *opera
 
 /** 创建比较运算节点 */
 LvAstNode *lv_ast_create_compare(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right);
+
+/** 创建逻辑二元运算节点（iff/implies/or/and） */
+LvAstNode *lv_ast_create_logic_binary(LvAstNodeType type, LvSourceLoc loc, const char *op,
+                                      LvAstNode *left, LvAstNode *right);
 
 /** 追加子节点到链表末尾 */
 void lv_ast_append_child(LvAstNode *parent, LvAstNode *child);

@@ -290,7 +290,7 @@ static void test_to_string(void) {
     TEST_ASSERT_MSG(strstr(s, "x") != NULL, "should contain 'x'");
     TEST_ASSERT_MSG(strstr(s, "3") != NULL, "should contain '3'");
 
-    free(s);
+    lv_free(&s);
     sym_expr_destroy(expr);
 }
 

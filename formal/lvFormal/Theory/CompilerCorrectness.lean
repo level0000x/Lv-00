@@ -210,28 +210,7 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
                 simp [ir_sem, ptX, ptY, eval_expr]
                 use 0
                 simp
-            | c' :: rest' => simp [compile_constraint] at h                  simp [ir_sem, dist, ptX, ptY]
-                  use 0
-                  simp
-              | cons c' l5 => simp [compile_constraint, hk] at h
-  | ratioDivision =>
-      cases c.args with
-      | nil => simp [compile_constraint, hk] at h
-      | cons p l1 =>
-        cases l1 with
-        | nil => simp [compile_constraint, hk] at h
-        | cons a l2 =>
-          cases l2 with
-          | nil => simp [compile_constraint, hk] at h
-          | cons b l3 =>
-            cases l3 with
-            | nil =>
-                simp [compile_constraint, hk] at h
-                injection h; subst ir
-                simp [ir_sem, ptX, ptY, eval_expr]
-                use 0
-                simp
-            | cons c' l4 => simp [compile_constraint, hk] at h
+            | c' :: rest' => simp [compile_constraint] at h
 
 /-- 编译桥接引理：若 compile_constraint pts c = some ir，
     则编译产物 ir 在退化环境下成立（编译总是产生可满足的约束）。 -/
@@ -262,16 +241,11 @@ lemma compile_program_go_contains (pts : List lvPoint) (prog : lvProgram) :
       cases st with
       | point p =>
           simp [compile_program_go, compile_stmt] at hir
-          rw [List.mem_append] at hir
-          rcases hir with (hir | hir)
-          · simp at hir
-          · rcases ih (p :: pts) ir hir with ⟨c, hc, hcc⟩
-            refine ⟨c, ?_, hcc⟩
-            simp [constraints_of_program, List.mem_append]
-            exact hc
+          rcases ih (p :: pts) ir hir with ⟨c, hc, hcc⟩
+          refine ⟨c, ?_, hcc⟩
+          simpa [constraints_of_program] using hc
       | constraint c =>
           simp [compile_program_go, compile_stmt] at hir
-          rw [List.mem_append] at hir
           rcases hir with (hir | hir)
           · cases hc0 : compile_constraint pts c with
             | none => simp [hc0] at hir
@@ -283,26 +257,18 @@ lemma compile_program_go_contains (pts : List lvPoint) (prog : lvProgram) :
                 · rw [compile_constraint_ps_irrelevant [] pts, hc0]
           · rcases ih pts ir hir with ⟨c', hc', hcc'⟩
             refine ⟨c', ?_, hcc'⟩
-            simp [constraints_of_program, List.mem_append]
-            exact hc'
+            right
+            simpa [constraints_of_program] using hc'
       | prove =>
           simp [compile_program_go, compile_stmt] at hir
-          rw [List.mem_append] at hir
-          rcases hir with (hir | hir)
-          · simp at hir
-          · rcases ih pts ir hir with ⟨c, hc, hcc⟩
-            refine ⟨c, ?_, hcc⟩
-            simp [constraints_of_program, List.mem_append]
-            exact hc
+          rcases ih pts ir hir with ⟨c, hc, hcc⟩
+          refine ⟨c, ?_, hcc⟩
+          simpa [constraints_of_program] using hc
       | normalize =>
           simp [compile_program_go, compile_stmt] at hir
-          rw [List.mem_append] at hir
-          rcases hir with (hir | hir)
-          · simp at hir
-          · rcases ih pts ir hir with ⟨c, hc, hcc⟩
-            refine ⟨c, ?_, hcc⟩
-            simp [constraints_of_program, List.mem_append]
-            exact hc
+          rcases ih pts ir hir with ⟨c, hc, hcc⟩
+          refine ⟨c, ?_, hcc⟩
+          simpa [constraints_of_program] using hc
 
 /-- 编译后的IR约束都来自源程序约束的编译 -/
 lemma compile_program_contains_compiled_constraints (prog : lvProgram) :
@@ -407,57 +373,97 @@ lemma ir_sem_depends_on_vars (ir : IRConstraint) (env1 env2 : String → ℝ × 
     (h : ∀ v, v ∈ ir_vars ir → env1 v = env2 v) : ir_sem env1 ir ↔ ir_sem env2 ir := by
   induction ir with
   | distance a b d =>
-      rw [ir_sem]
-      rw [h a (by simp [ir_vars]), h b (by simp [ir_vars])]
-      rw [eval_expr_depends_on_vars d env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hd : eval_expr env1 d = eval_expr env2 d :=
+        eval_expr_depends_on_vars d env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      simp [ir_sem, ha, hb, hd]
   | collinear a b c =>
-      rw [ir_sem]
-      rw [h a (by simp [ir_vars]), h b (by simp [ir_vars]), h c (by simp [ir_vars])]
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hc : env1 c = env2 c := h c (by simp [ir_vars])
+      simp [ir_sem, ha, hb, hc]
   | perpendicular a b c d =>
-      rw [ir_sem]
-      rw [h a (by simp [ir_vars]), h b (by simp [ir_vars]), h c (by simp [ir_vars]), h d (by simp [ir_vars])]
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hc : env1 c = env2 c := h c (by simp [ir_vars])
+      have hd : env1 d = env2 d := h d (by simp [ir_vars])
+      simp [ir_sem, ha, hb, hc, hd]
   | parallel a b c d =>
-      rw [ir_sem]
-      rw [h a (by simp [ir_vars]), h b (by simp [ir_vars]), h c (by simp [ir_vars]), h d (by simp [ir_vars])]
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hc : env1 c = env2 c := h c (by simp [ir_vars])
+      have hd : env1 d = env2 d := h d (by simp [ir_vars])
+      simp [ir_sem, ha, hb, hc, hd]
   | angle a b c d theta =>
-      rw [ir_sem]
-      rw [h a (by simp [ir_vars]), h b (by simp [ir_vars]), h c (by simp [ir_vars]), h d (by simp [ir_vars])]
-      rw [eval_expr_depends_on_vars theta env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hc : env1 c = env2 c := h c (by simp [ir_vars])
+      have hd : env1 d = env2 d := h d (by simp [ir_vars])
+      have htheta : eval_expr env1 theta = eval_expr env2 theta :=
+        eval_expr_depends_on_vars theta env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      simp [ir_sem, ha, hb, hc, hd, htheta]
   | eq_expr e1 e2 =>
-      rw [ir_sem]
-      rw [eval_expr_depends_on_vars e1 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
-      rw [eval_expr_depends_on_vars e2 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
+      have h1 : eval_expr env1 e1 = eval_expr env2 e1 :=
+        eval_expr_depends_on_vars e1 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      have h2 : eval_expr env1 e2 = eval_expr env2 e2 :=
+        eval_expr_depends_on_vars e2 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      simp [ir_sem, h1, h2]
   | lt_expr e1 e2 =>
-      rw [ir_sem]
-      rw [eval_expr_depends_on_vars e1 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
-      rw [eval_expr_depends_on_vars e2 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
+      have h1 : eval_expr env1 e1 = eval_expr env2 e1 :=
+        eval_expr_depends_on_vars e1 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      have h2 : eval_expr env1 e2 = eval_expr env2 e2 :=
+        eval_expr_depends_on_vars e2 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      simp [ir_sem, h1, h2]
   | gt_expr e1 e2 =>
-      rw [ir_sem]
-      rw [eval_expr_depends_on_vars e1 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
-      rw [eval_expr_depends_on_vars e2 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
+      have h1 : eval_expr env1 e1 = eval_expr env2 e1 :=
+        eval_expr_depends_on_vars e1 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      have h2 : eval_expr env1 e2 = eval_expr env2 e2 :=
+        eval_expr_depends_on_vars e2 env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      simp [ir_sem, h1, h2]
   | radius c a r =>
-      rw [ir_sem]
-      rw [h c (by simp [ir_vars]), h a (by simp [ir_vars])]
-      rw [eval_expr_depends_on_vars r env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
+      have hc : env1 c = env2 c := h c (by simp [ir_vars])
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hr : eval_expr env1 r = eval_expr env2 r :=
+        eval_expr_depends_on_vars r env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      simp [ir_sem, hc, ha, hr]
   | tangent ctr pt la lb =>
-      rw [ir_sem]
-      rw [h ctr (by simp [ir_vars]), h pt (by simp [ir_vars]), h la (by simp [ir_vars]), h lb (by simp [ir_vars])]
+      have hctr : env1 ctr = env2 ctr := h ctr (by simp [ir_vars])
+      have hpt : env1 pt = env2 pt := h pt (by simp [ir_vars])
+      have hla : env1 la = env2 la := h la (by simp [ir_vars])
+      have hlb : env1 lb = env2 lb := h lb (by simp [ir_vars])
+      simp [ir_sem, hctr, hpt, hla, hlb]
   | midpoint m a b =>
-      rw [ir_sem]
-      rw [h m (by simp [ir_vars]), h a (by simp [ir_vars]), h b (by simp [ir_vars])]
+      have hm : env1 m = env2 m := h m (by simp [ir_vars])
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      simp [ir_sem, hm, ha, hb]
   | rightAngle a b c =>
-      rw [ir_sem]
-      rw [h a (by simp [ir_vars]), h b (by simp [ir_vars]), h c (by simp [ir_vars])]
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hc : env1 c = env2 c := h c (by simp [ir_vars])
+      simp [ir_sem, ha, hb, hc]
   | equalLength a b c d =>
-      rw [ir_sem]
-      rw [h a (by simp [ir_vars]), h b (by simp [ir_vars]), h c (by simp [ir_vars]), h d (by simp [ir_vars])]
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hc : env1 c = env2 c := h c (by simp [ir_vars])
+      have hd : env1 d = env2 d := h d (by simp [ir_vars])
+      simp [ir_sem, ha, hb, hc, hd]
   | equalAngle a b c d e f =>
-      rw [ir_sem]
-      rw [h a (by simp [ir_vars]), h b (by simp [ir_vars]), h c (by simp [ir_vars]), h d (by simp [ir_vars]), h e (by simp [ir_vars]), h f (by simp [ir_vars])]
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hc : env1 c = env2 c := h c (by simp [ir_vars])
+      have hd : env1 d = env2 d := h d (by simp [ir_vars])
+      have he : env1 e = env2 e := h e (by simp [ir_vars])
+      have hf : env1 f = env2 f := h f (by simp [ir_vars])
+      simp [ir_sem, ha, hb, hc, hd, he, hf]
   | ratioDivision p a b r =>
-      rw [ir_sem]
-      rw [h p (by simp [ir_vars]), h a (by simp [ir_vars]), h b (by simp [ir_vars])]
-      rw [eval_expr_depends_on_vars r env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))]
+      have hp : env1 p = env2 p := h p (by simp [ir_vars])
+      have ha : env1 a = env2 a := h a (by simp [ir_vars])
+      have hb : env1 b = env2 b := h b (by simp [ir_vars])
+      have hr : eval_expr env1 r = eval_expr env2 r :=
+        eval_expr_depends_on_vars r env1 env2 (fun v hv => h v (by simp [ir_vars, hv]))
+      simp [ir_sem, hp, ha, hb, hr]
 
 /-- 编译产物的变量都来自源约束的 args -/
 lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
@@ -465,8 +471,8 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
     v ∈ c.args := by
   cases c with
   | mk _ kind args =>
-    cases kind with
-    | collinear =>
+    match kind with
+    | .collinear =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -482,7 +488,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                   injection h; subst ir
                   simpa [ir_vars] using hv
               | cons d l4 => simp [compile_constraint] at h
-    | parallel =>
+    | .parallel =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -501,7 +507,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                     injection h; subst ir
                     simpa [ir_vars] using hv
                 | cons e l5 => simp [compile_constraint] at h
-    | perpendicular =>
+    | .perpendicular =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -520,7 +526,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                     injection h; subst ir
                     simpa [ir_vars] using hv
                 | cons e l5 => simp [compile_constraint] at h
-  | distance =>
+  | .distance =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -533,7 +539,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                 injection h; subst ir
                 simpa [ir_vars, ir_expr_vars] using hv
             | cons c' l3 => simp [compile_constraint] at h
-    | angle =>
+    | .angle =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -553,7 +559,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                     simp [ir_vars, ir_expr_vars] at hv
                     cases hv
                 | cons e l5 => simp [compile_constraint] at h
-  | midpoint =>
+  | .midpoint =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons m l1 =>
@@ -569,7 +575,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                   injection h; subst ir
                   simpa [ir_vars] using hv
               | cons c' l4 => simp [compile_constraint] at h
-    | rightAngle =>
+    | .rightAngle =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -585,7 +591,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                   injection h; subst ir
                   simpa [ir_vars] using hv
               | cons d l4 => simp [compile_constraint] at h
-    | equalLength =>
+    | .equalLength =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -604,7 +610,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                     injection h; subst ir
                     simpa [ir_vars] using hv
                 | cons e l5 => simp [compile_constraint] at h
-  | equalAngle =>
+  | .equalAngle =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -629,7 +635,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                         injection h; subst ir
                         simpa [ir_vars] using hv
                     | cons g l7 => simp [compile_constraint] at h
-  | radius =>
+  | .radius =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons c' l1 =>
@@ -642,7 +648,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                 injection h; subst ir
                 simpa [ir_vars, ir_expr_vars] using hv
             | cons b l3 => simp [compile_constraint] at h
-    | tangent =>
+    | .tangent =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons c_ctr l1 =>
@@ -661,7 +667,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                     injection h; subst ir
                     simpa [ir_vars] using hv
                 | cons c' l5 => simp [compile_constraint] at h
-    | ratioDivision =>
+    | .ratioDivision =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons p l1 =>

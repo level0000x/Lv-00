@@ -14,12 +14,16 @@ void lv_strbuf_init(lvStrBuf *sb) {
 
 static void lv_strbuf_grow(lvStrBuf *sb, size_t needed) {
     if (needed < sb->cap) return;
-    size_t new_cap = sb->cap * 2;
+    size_t new_cap = sb->cap ? sb->cap * 2 : lv_STRBUF_SSO_SIZE;
     while (new_cap < needed) new_cap *= 2;
     char *new_data = (char *)lv_malloc(new_cap);
     if (!new_data) return;
-    memcpy(new_data, sb->data, sb->len + 1);
-    if (sb->data != sb->stack) lv_free((void **)&sb->data);
+    if (sb->len > 0 && sb->data) {
+        memcpy(new_data, sb->data, sb->len + 1);
+    } else {
+        new_data[0] = '\0';
+    }
+    if (sb->data && sb->data != sb->stack) lv_free((void **)&sb->data);
     sb->data = new_data;
     sb->cap  = new_cap;
 }

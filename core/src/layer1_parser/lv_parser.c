@@ -9,6 +9,9 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 
+/* 函数/关系/度量/几何调用参数个数上限 */
+#define LV_MAX_CALL_ARGS 32
+
 /* ── Parser 结构 ── */
 struct LvParser {
     LvLexer *lexer;
@@ -266,64 +269,39 @@ static LvAstNode *parse_let_stmt(LvParser *p) {
     return node;
 }
 
-/** ConstraintStmt ::= "Constraint" LogicExpr ";" */
-static LvAstNode *parse_constraint_stmt(LvParser *p) {
+/** 单表达式语句共同实现：ConstraintStmt / ProveStmt / AssumeStmt / AssertStmt / ComputeStmt */
+static LvAstNode *parse_simple_stmt(LvParser *p, LvTokenType kw, LvAstNodeType node_type) {
     LvSourceLoc loc = p->current.loc;
-    advance(p); /* Constraint */
+    advance(p); /* 关键字 */
     LvAstNode *expr = parse_logic_expr(p);
     if (!match(p, LV_TOKEN_SEMICOLON)) {
-        expect(p, LV_TOKEN_SEMICOLON, "expected ';' after Constraint");
+        expect(p, LV_TOKEN_SEMICOLON, "expected ';' after statement");
         synchronize(p);
     }
-    LvAstNode *node = lv_ast_create(LV_AST_CONSTRAINT_STMT, loc);
+    LvAstNode *node = lv_ast_create(node_type, loc);
     if (node)
         node->data.stmt.expr = expr;
     return node;
+}
+
+/** ConstraintStmt ::= "Constraint" LogicExpr ";" */
+static LvAstNode *parse_constraint_stmt(LvParser *p) {
+    return parse_simple_stmt(p, LV_TOKEN_KW_CONSTRAINT, LV_AST_CONSTRAINT_STMT);
 }
 
 /** ProveStmt ::= "Prove" LogicExpr ";" */
 static LvAstNode *parse_prove_stmt(LvParser *p) {
-    LvSourceLoc loc = p->current.loc;
-    advance(p); /* Prove */
-    LvAstNode *expr = parse_logic_expr(p);
-    if (!match(p, LV_TOKEN_SEMICOLON)) {
-        expect(p, LV_TOKEN_SEMICOLON, "expected ';' after Prove");
-        synchronize(p);
-    }
-    LvAstNode *node = lv_ast_create(LV_AST_PROVE_STMT, loc);
-    if (node)
-        node->data.stmt.expr = expr;
-    return node;
+    return parse_simple_stmt(p, LV_TOKEN_KW_PROVE, LV_AST_PROVE_STMT);
 }
 
 /** AssumeStmt ::= "Assume" LogicExpr ";" */
 static LvAstNode *parse_assume_stmt(LvParser *p) {
-    LvSourceLoc loc = p->current.loc;
-    advance(p); /* Assume */
-    LvAstNode *expr = parse_logic_expr(p);
-    if (!match(p, LV_TOKEN_SEMICOLON)) {
-        expect(p, LV_TOKEN_SEMICOLON, "expected ';' after Assume");
-        synchronize(p);
-    }
-    LvAstNode *node = lv_ast_create(LV_AST_ASSUME_STMT, loc);
-    if (node)
-        node->data.stmt.expr = expr;
-    return node;
+    return parse_simple_stmt(p, LV_TOKEN_KW_ASSUME, LV_AST_ASSUME_STMT);
 }
 
 /** AssertStmt ::= "Assert" LogicExpr ";" */
 static LvAstNode *parse_assert_stmt(LvParser *p) {
-    LvSourceLoc loc = p->current.loc;
-    advance(p); /* Assert */
-    LvAstNode *expr = parse_logic_expr(p);
-    if (!match(p, LV_TOKEN_SEMICOLON)) {
-        expect(p, LV_TOKEN_SEMICOLON, "expected ';' after Assert");
-        synchronize(p);
-    }
-    LvAstNode *node = lv_ast_create(LV_AST_ASSERT_STMT, loc);
-    if (node)
-        node->data.stmt.expr = expr;
-    return node;
+    return parse_simple_stmt(p, LV_TOKEN_KW_ASSERT, LV_AST_ASSERT_STMT);
 }
 
 /** AxiomStmt ::= "Axiom" Identifier ":" LogicExpr ";" */
@@ -459,17 +437,7 @@ static LvAstNode *parse_normalize_stmt(LvParser *p) {
 
 /** ComputeStmt ::= "Compute" Expr ";" */
 static LvAstNode *parse_compute_stmt(LvParser *p) {
-    LvSourceLoc loc = p->current.loc;
-    advance(p); /* Compute */
-    LvAstNode *expr = parse_logic_expr(p);
-    if (!match(p, LV_TOKEN_SEMICOLON)) {
-        expect(p, LV_TOKEN_SEMICOLON, "expected ';' after Compute");
-        synchronize(p);
-    }
-    LvAstNode *node = lv_ast_create(LV_AST_COMPUTE_STMT, loc);
-    if (node)
-        node->data.stmt.expr = expr;
-    return node;
+    return parse_simple_stmt(p, LV_TOKEN_KW_COMPUTE, LV_AST_COMPUTE_STMT);
 }
 
 /** ExportStmt ::= "Export" ExportTarget "as" ExportFormat String? ";" */
@@ -699,13 +667,7 @@ static LvAstNode *parse_iff_expr(LvParser *p) {
         if (!right)
             break;
 
-        LvAstNode *node = lv_ast_create(LV_AST_LOGIC_IFF, left->loc);
-        if (node) {
-            node->data.binary.left = left;
-            node->data.binary.right = right;
-            lv_strncpy(node->data.binary.op, "iff", sizeof(node->data.binary.op));
-        }
-        left = node;
+        left = lv_ast_create_logic_binary(LV_AST_LOGIC_IFF, left->loc, "iff", left, right);
     }
 
     return left;
@@ -739,13 +701,7 @@ static LvAstNode *parse_implies_expr(LvParser *p) {
         if (!right)
             break;
 
-        LvAstNode *node = lv_ast_create(LV_AST_LOGIC_IMPLIES, left->loc);
-        if (node) {
-            node->data.binary.left = left;
-            node->data.binary.right = right;
-            lv_strncpy(node->data.binary.op, "->", sizeof(node->data.binary.op));
-        }
-        left = node;
+        left = lv_ast_create_logic_binary(LV_AST_LOGIC_IMPLIES, left->loc, "->", left, right);
     }
 
     return left;
@@ -772,13 +728,7 @@ static LvAstNode *parse_or_expr(LvParser *p) {
         if (!right)
             break;
 
-        LvAstNode *node = lv_ast_create(LV_AST_LOGIC_OR, left->loc);
-        if (node) {
-            node->data.binary.left = left;
-            node->data.binary.right = right;
-            lv_strncpy(node->data.binary.op, "or", sizeof(node->data.binary.op));
-        }
-        left = node;
+        left = lv_ast_create_logic_binary(LV_AST_LOGIC_OR, left->loc, "or", left, right);
     }
 
     return left;
@@ -804,13 +754,7 @@ static LvAstNode *parse_and_expr(LvParser *p) {
         if (!right)
             break;
 
-        LvAstNode *node = lv_ast_create(LV_AST_LOGIC_AND, left->loc);
-        if (node) {
-            node->data.binary.left = left;
-            node->data.binary.right = right;
-            lv_strncpy(node->data.binary.op, "and", sizeof(node->data.binary.op));
-        }
-        left = node;
+        left = lv_ast_create_logic_binary(LV_AST_LOGIC_AND, left->loc, "and", left, right);
     }
 
     return left;
@@ -1195,19 +1139,11 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
                 call_type = LV_AST_GEOMETRY_EXPR;
             }
 
-            LvAstNode *node = lv_ast_create(call_type, ident_loc);
-            if (node) {
-                node->data.call.func_name = lv_strdup(name);
-                node->data.call.args = args;
-                node->child = args;
-                if (args) {
-                    int count = 0;
-                    for (LvAstNode *c = args; c; c = c->next)
-                        count++;
-                    node->child_count = count;
-                }
-            }
-            return node;
+            LvAstNode *args_arr[LV_MAX_CALL_ARGS];
+            int arg_count = 0;
+            for (LvAstNode *c = args; c && arg_count < LV_MAX_CALL_ARGS; c = c->next)
+                args_arr[arg_count++] = c;
+            return lv_ast_create_call_typed(call_type, ident_loc, name, args_arr, arg_count);
         }
 
         /* 单纯的标识符 */
@@ -1227,19 +1163,11 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
 
         if (p->current.type == LV_TOKEN_LPAREN) {
             LvAstNode *args = parse_arg_list(p);
-            LvAstNode *node = lv_ast_create(LV_AST_MEASURE, kw_loc);
-            if (node) {
-                node->data.call.func_name = lv_strdup(func_name);
-                node->data.call.args = args;
-                node->child = args;
-                if (args) {
-                    int count = 0;
-                    for (LvAstNode *c = args; c; c = c->next)
-                        count++;
-                    node->child_count = count;
-                }
-            }
-            return node;
+            LvAstNode *args_arr[LV_MAX_CALL_ARGS];
+            int arg_count = 0;
+            for (LvAstNode *c = args; c && arg_count < LV_MAX_CALL_ARGS; c = c->next)
+                args_arr[arg_count++] = c;
+            return lv_ast_create_call_typed(LV_AST_MEASURE, kw_loc, func_name, args_arr, arg_count);
         }
 
         /* Just an identifier-like usage */
@@ -1254,19 +1182,11 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
 
         if (p->current.type == LV_TOKEN_LPAREN) {
             LvAstNode *args = parse_arg_list(p);
-            LvAstNode *node = lv_ast_create(LV_AST_MEASURE, kw_loc);
-            if (node) {
-                node->data.call.func_name = lv_strdup("angle");
-                node->data.call.args = args;
-                node->child = args;
-                if (args) {
-                    int count = 0;
-                    for (LvAstNode *c = args; c; c = c->next)
-                        count++;
-                    node->child_count = count;
-                }
-            }
-            return node;
+            LvAstNode *args_arr[LV_MAX_CALL_ARGS];
+            int arg_count = 0;
+            for (LvAstNode *c = args; c && arg_count < LV_MAX_CALL_ARGS; c = c->next)
+                args_arr[arg_count++] = c;
+            return lv_ast_create_call_typed(LV_AST_MEASURE, kw_loc, "angle", args_arr, arg_count);
         }
         return lv_ast_create_ident(kw_loc, "Angle");
     }
@@ -1279,19 +1199,11 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
         if (p->current.type == LV_TOKEN_LPAREN) {
             args = parse_arg_list(p);
         }
-        LvAstNode *node = lv_ast_create(LV_AST_RELATION, kw_loc);
-        if (node) {
-            node->data.call.func_name = lv_strdup("collinear");
-            node->data.call.args = args;
-            node->child = args;
-            if (args) {
-                int count = 0;
-                for (LvAstNode *c = args; c; c = c->next)
-                    count++;
-                node->child_count = count;
-            }
-        }
-        return node;
+        LvAstNode *args_arr[LV_MAX_CALL_ARGS];
+        int arg_count = 0;
+        for (LvAstNode *c = args; c && arg_count < LV_MAX_CALL_ARGS; c = c->next)
+            args_arr[arg_count++] = c;
+        return lv_ast_create_call_typed(LV_AST_RELATION, kw_loc, "collinear", args_arr, arg_count);
     }
 
     /* Handle "parallel", "perpendicular", "congruent", "tangent" as keywords */
@@ -1320,19 +1232,11 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
         if (p->current.type == LV_TOKEN_LPAREN) {
             args = parse_arg_list(p);
         }
-        LvAstNode *node = lv_ast_create(LV_AST_RELATION, kw_loc);
-        if (node) {
-            node->data.call.func_name = lv_strdup(name);
-            node->data.call.args = args;
-            node->child = args;
-            if (args) {
-                int count = 0;
-                for (LvAstNode *c = args; c; c = c->next)
-                    count++;
-                node->child_count = count;
-            }
-        }
-        return node;
+        LvAstNode *args_arr[LV_MAX_CALL_ARGS];
+        int arg_count = 0;
+        for (LvAstNode *c = args; c && arg_count < LV_MAX_CALL_ARGS; c = c->next)
+            args_arr[arg_count++] = c;
+        return lv_ast_create_call_typed(LV_AST_RELATION, kw_loc, name, args_arr, arg_count);
     }
 
     /* 无法识别的 token — 尝试忽略并前进 */
