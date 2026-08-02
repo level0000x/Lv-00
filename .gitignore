@@ -148,3 +148,6 @@ module/branches/
 # 已废弃/断裂的幽灵目录（目录存在但 Git 无法遍历 — 已清空无内容）
 lv-ui/
 web/
+
+# filter-repo 临时目录
+.git-rewrite/
