@@ -136,16 +136,48 @@ def triangle_similarity (A B C D E F : Pt) : Prop :=
 
 /-! ## 公理 / 定理 -/
 
+/-- 辅助引理：shoelace_sum (a :: b :: tail) = (a.x*b.y - a.y*b.x) + shoelace_sum (b :: tail) -/
+lemma shoelace_sum_cons_cons (a b : Pt) (tail : List Pt) :
+    shoelace_sum (a :: b :: tail) = (a.x * b.y - a.y * b.x) + shoelace_sum (b :: tail) := by
+  unfold shoelace_sum
+  simp
+
 /-- Shoelace 公式的三角剖分：多边形面积 = 首三角形面积 + 剩余多边形面积 -/
 theorem shoelace_triangulate (P0 P1 P2 : Pt) (tail : List Pt) :
   shoelace_sum (P0 :: P1 :: P2 :: tail) =
     shoelace_sum [P0, P1, P2] + shoelace_sum (P0 :: P2 :: tail) := by
-  sorry
+  induction tail with
+  | nil =>
+    unfold shoelace_sum
+    simp
+    ring
+  | cons h t ih =>
+    calc
+      shoelace_sum (P0 :: P1 :: P2 :: h :: t)
+          = (P0.x * P1.y - P0.y * P1.x) + (P1.x * P2.y - P1.y * P2.x) + (P2.x * h.y - P2.y * h.x) + shoelace_sum (h :: t) := by
+            repeat rw [shoelace_sum_cons_cons]
+            ring
+      _ = ((P0.x * P1.y - P0.y * P1.x) + (P1.x * P2.y - P1.y * P2.x) + (P2.x * P0.y - P2.y * P0.x)) +
+          ((P0.x * P2.y - P0.y * P2.x) + (P2.x * h.y - P2.y * h.x) + shoelace_sum (h :: t)) := by ring
+      _ = shoelace_sum [P0, P1, P2] + shoelace_sum (P0 :: P2 :: h :: t) := by
+        repeat rw [shoelace_sum_cons_cons]
+        simp
+        ring
 
 /-- Heron 公式标准形式与三角形面积 SSS 等价 -/
 theorem heron_formula_standard_valid (a b c : ℝ) (h : a + b > c ∧ b + c > a ∧ c + a > b) :
   heron_formula_standard a b c = triangle_area_sss a b c := by
-  sorry
+  rcases h with ⟨h1, h2, h3⟩
+  unfold heron_formula_standard triangle_area_sss
+  have hpos : 0 ≤ (a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c) := by positivity
+  have hpos_inner : 0 ≤ ((a + b + c) / 2) * (((a + b + c) / 2) - a) * (((a + b + c) / 2) - b) * (((a + b + c) / 2) - c) := by positivity
+  have h_sq_eq : ((1/4 : ℝ) * Real.sqrt ((a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c)))^2 =
+      (Real.sqrt (((a + b + c) / 2) * (((a + b + c) / 2) - a) * (((a + b + c) / 2) - b) * (((a + b + c) / 2) - c)))^2 := by
+    rw [Real.sq_sqrt hpos, Real.sq_sqrt hpos_inner]
+    ring
+  have h_nonneg : 0 ≤ (1/4 : ℝ) * Real.sqrt ((a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c)) := by positivity
+  have h_nonneg' : 0 ≤ Real.sqrt (((a + b + c) / 2) * (((a + b + c) / 2) - a) * (((a + b + c) / 2) - b) * (((a + b + c) / 2) - c)) := by positivity
+  nlinarith
 
 /-- 相似变换下向量点积缩放：v_ED · v_EF = s² · v_BA · v_BC -/
 lemma dot_product_scales (A B C D E F : Pt) (s θ tx ty : ℝ) (hs_pos : s > 0)
@@ -153,19 +185,38 @@ lemma dot_product_scales (A B C D E F : Pt) (s θ tx ty : ℝ) (hs_pos : s > 0)
     (hE : E = translate (scale_rotate B A s θ) tx ty)
     (hF : F = translate (scale_rotate C A s θ) tx ty) :
     (D.x - E.x) * (F.x - E.x) + (D.y - E.y) * (F.y - E.y) = s^2 * ((A.x - B.x) * (C.x - B.x) + (A.y - B.y) * (C.y - B.y)) := by
-  sorry
+  subst hD hE hF
+  unfold translate scale_rotate
+  simp
+  ring
 
 /-- 相似变换下向量模长缩放：|v_ED| = s · |v_BA| -/
 lemma norm_sq_scales (A B X Y : Pt) (s θ tx ty : ℝ) (hs_pos : s > 0)
     (hX : X = translate (scale_rotate A A s θ) tx ty)
     (hY : Y = translate (scale_rotate B A s θ) tx ty) :
     (X.x - Y.x)^2 + (X.y - Y.y)^2 = s^2 * ((A.x - B.x)^2 + (A.y - B.y)^2) := by
-  sorry
+  subst hX hY
+  unfold translate scale_rotate
+  simp
+  ring
 
 /-- 相似变换下角度保持不变 -/
 theorem angle_invariant_under_similarity (A B C D E F : Pt)
   (h_sim : triangle_similarity A B C D E F) :
   angle A B C = angle D E F := by
-  sorry
+  rcases h_sim with ⟨s, θ, tx, ty, hs_pos, hD, hE, hF⟩
+  subst hD hE hF
+  unfold angle translate scale_rotate
+  simp
+  have hs_nonneg : 0 ≤ s := by linarith
+  have h_nonneg1 : 0 ≤ (A.x - B.x)^2 + (A.y - B.y)^2 := by positivity
+  have h_nonneg2 : 0 ≤ (C.x - B.x)^2 + (C.y - B.y)^2 := by positivity
+  by_cases hz1 : Real.sqrt ((A.x - B.x)^2 + (A.y - B.y)^2) = 0
+  · simp [hz1]
+  · by_cases hz2 : Real.sqrt ((C.x - B.x)^2 + (C.y - B.y)^2) = 0
+    · simp [hz2]
+    · simp [hz1, hz2, hs_nonneg, h_nonneg1, h_nonneg2]
+      field_simp [hz1, hz2, hs_pos.ne']
+      ring
 
 end lvFormal.Theory.GeometryPresetDefs

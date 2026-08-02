@@ -95,12 +95,8 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     }
 
     /* 流式事件：断点保存 */
-    if (proof_stream_ctx != NULL) {
-        lvStrBuf sb_11 = {0};
-        lv_strbuf_printf(&sb_11, "断点保存: breakpoint_id=%d, step=%d", breakpoint_id, nav->current_step);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_11.data, 0);
-        lv_strbuf_destroy(&sb_11);
-    }
+    nav_emit(proof_stream_ctx, STREAM_EVENT_INFO, "断点保存: breakpoint_id=%d, step=%d", breakpoint_id,
+             nav->current_step);
 
     return true;
 }
@@ -140,12 +136,8 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     }
 
     /* 流式事件：断点恢复 */
-    if (proof_stream_ctx != NULL) {
-        lvStrBuf sb_12 = {0};
-        lv_strbuf_printf(&sb_12, "断点恢复: breakpoint_id=%d, step=%d", breakpoint_id, nav->current_step);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_12.data, 0);
-        lv_strbuf_destroy(&sb_12);
-    }
+    nav_emit(proof_stream_ctx, STREAM_EVENT_INFO, "断点恢复: breakpoint_id=%d, step=%d", breakpoint_id,
+             nav->current_step);
 
     return true;
 }
@@ -232,12 +224,7 @@ bool proof_breakpoint_delete(int breakpoint_id) {
     BREAKPOINT_UNLOCK();
 
     /* 流式事件 */
-    if (proof_stream_ctx != NULL) {
-        lvStrBuf sb_13 = {0};
-        lv_strbuf_printf(&sb_13, "断点已删除: breakpoint_id=%d", breakpoint_id);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_13.data, 0);
-        lv_strbuf_destroy(&sb_13);
-    }
+    nav_emit(proof_stream_ctx, STREAM_EVENT_INFO, "断点已删除: breakpoint_id=%d", breakpoint_id);
 
     return true;
 }

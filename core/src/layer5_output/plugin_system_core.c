@@ -1,0 +1,154 @@
+/**
+ * @file plugin_system_core.c
+ * @brief LV-00 模块化插件系统 —— 内部数据结构、辅助函数与生命周期管理
+ *
+ * @details 由 plugin_system.c 按功能域拆分而来。
+ *          共享内部数据结构与辅助函数见 plugin_system_internal.h。
+ *
+ * @author Lv-00 Project
+ * @version 1.0
+ */
+
+#include "lv/plugin_system.h"
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "lv/lv_check.h"
+#include "lv/lv_strbuf.h"
+#include "lv/lv_utils.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dirent.h>
+#include "lv/lv_strbuf.h"
+#endif
+
+#include "plugin_system_internal.h"
+
+/* ============ 内部数据结构（typedef 见 plugin_system_internal.h） ============ */
+
+/* ============ 辅助函数 ============ */
+
+/* 设置系统错误消息（支持 printf 风格格式化） */
+void set_error(lvPluginSystem *system, const char *format, ...) {
+    if (!system)
+        return;
+
+    PluginSystemInternal *internal = (PluginSystemInternal *) system->mutex;
+    if (!internal)
+        return;
+
+    va_list args;
+    va_start(args, format);
+    vsnprintf(internal->last_error, sizeof(internal->last_error), format, args);
+    va_end(args);
+}
+
+/* ============ 生命周期管理 ============ */
+
+/**
+ * @brief 创建插件系统实例
+ * @param ctx LV-00 上下文指针
+ * @return 成功返回插件系统指针，失败返回 NULL
+ */
+lvPluginSystem *lv_plugin_system_create(lvContext *ctx) {
+    lvPluginSystem *system = (lvPluginSystem *) lv_calloc(1, sizeof(lvPluginSystem));
+    if (!system)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: lv_calloc failed");
+
+    memset(system, 0, sizeof(lvPluginSystem));
+
+    system->lv_context = ctx;
+    system->version =
+        (lv_PLUGIN_SYSTEM_VERSION_MAJOR << 16) | (lv_PLUGIN_SYSTEM_VERSION_MINOR << 8) | lv_PLUGIN_SYSTEM_VERSION_PATCH;
+
+    system->plugin_capacity = lv_MAX_PLUGINS;
+    system->plugins = (lvPlugin **) lv_malloc(sizeof(lvPlugin *) * system->plugin_capacity);
+    if (!system->plugins) {
+        lv_free((void **) &system);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: plugins malloc failed");
+    }
+
+    system->interface_capacity = lv_MAX_INTERFACES;
+    system->interfaces = (lvPluginInterface **) lv_malloc(sizeof(lvPluginInterface *) * system->interface_capacity);
+    if (!system->interfaces) {
+        lv_free((void **) &system->plugins);
+        lv_free((void **) &system);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: interfaces malloc failed");
+    }
+
+    lv_darray_init(&system->search_paths, sizeof(char *));
+
+    PluginSystemInternal *internal = (PluginSystemInternal *) lv_calloc(1, sizeof(PluginSystemInternal));
+    if (!internal) {
+        lv_free((void **) &system->interfaces);
+        lv_free((void **) &system->plugins);
+        lv_free((void **) &system);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: internal calloc failed");
+    }
+
+    memset(internal, 0, sizeof(PluginSystemInternal));
+    system->mutex = internal;
+
+    return system;
+}
+
+/**
+ * @brief 销毁插件系统实例，释放所有相关资源
+ * @param system 插件系统指针
+ */
+void lv_plugin_system_destroy(lvPluginSystem *system) {
+    if (!system)
+        return;
+
+    lv_plugin_system_cleanup(system);
+
+    if (system->plugins)
+        lv_free((void **) &system->plugins);
+    if (system->interfaces)
+        lv_free((void **) &system->interfaces);
+
+    for (int i = 0; i < system->search_paths.count; i++) {
+        lv_free((void **) lv_darray_get(&system->search_paths, i));
+    }
+    lv_darray_free(&system->search_paths);
+
+    if (system->mutex)
+        lv_free((void **) &system->mutex);
+    lv_free((void **) &system);
+}
+
+/**
+ * @brief 初始化插件系统
+ * @param system 插件系统指针
+ * @return 成功返回 0，失败返回 -1
+ */
+int lv_plugin_system_init(lvPluginSystem *system) {
+    lv_CHECK_NOT_NULL(system);
+
+    system->initialized = 1;
+    return 0;
+}
+
+/**
+ * @brief 清理插件系统，卸载所有已加载的插件
+ * @param system 插件系统指针
+ */
+void lv_plugin_system_cleanup(lvPluginSystem *system) {
+    if (!system)
+        return;
+    if (!system->plugins || system->plugin_count <= 0)
+        return;
+
+    /* 卸载所有插件 */
+    while (system->plugin_count > 0) {
+        lv_plugin_unload(system, system->plugins[0]);
+    }
+
+    system->initialized = 0;
+}
+

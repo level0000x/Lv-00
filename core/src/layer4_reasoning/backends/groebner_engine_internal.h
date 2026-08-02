@@ -122,6 +122,13 @@ int ideal_internal_store(lvRegistryData *data, lvIdeal *ideal);
 int variety_internal_store(lvRegistryData *data, lvVariety *variety);
 
 /* ================================================================
+ *  理想 / Gröbner 基内部辅助（groebner_engine_ideal.c 实现）
+ * ================================================================ */
+lvGroebnerBasis *basis_alloc(int capacity);
+void basis_destroy(lvGroebnerBasis *basis);
+void ideal_clear_cached_basis(lvIdeal *ideal);
+
+/* ================================================================
  *  Buchberger 核心（groebner_engine_core.c 实现）
  * ================================================================ */
 lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolynomial **generators,

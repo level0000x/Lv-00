@@ -346,12 +346,13 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "constraint_graph_to_ideal: ring_id=%d (max=%d)",
                         ring_id, registry->ring_count);
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    int ret = -1;
 
     lvPolynomialRing *ring = registry->rings[ring_id];
     if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     /* 第一遍：统计 POINT 节点数，建立 ID → 变量索引映射 */
@@ -367,10 +368,9 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     /* 验证环的变量数足够：需要 2 * point_count */
     int needed_vars = 2 * point_count;
     if (ring->var_count < needed_vars) {
-        lv_mutex_unlock(&g_data_mutex);
         LOG_ERROR("groebner", "constraint_graph_to_ideal: 环变量数 %d 不足，需要至少 %d",
                   ring->var_count, needed_vars);
-        return -1;
+        goto cleanup;
     }
 
     /* 构建节点 ID → 变量索引映射（线性扫描，节点数通常不大） */
@@ -382,8 +382,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     if (!var_x || !var_y) {
         lv_free((void **)&var_x);
         lv_free((void **)&var_y);
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     memset(var_x, -1, (size_t)map_size * sizeof(int));
     memset(var_y, -1, (size_t)map_size * sizeof(int));
@@ -405,8 +404,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     if (!ideal) {
         lv_free((void **)&var_x);
         lv_free((void **)&var_y);
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     ideal->ring_id = ring_id;
     int init_cap = point_count * 2 + graph->constraint_count;
@@ -417,8 +415,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         lv_free((void **)&var_x);
         lv_free((void **)&var_y);
         lv_free((void **)&ideal);
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     ideal->generator_capacity = init_cap;
     ideal->generator_count = 0;
@@ -535,9 +532,8 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     lv_free((void **)&var_x);
     lv_free((void **)&var_y);
 
-    int result = ideal_internal_store(g_data, ideal);
-    lv_mutex_unlock(&g_data_mutex);
-    return result;
+    ret = ideal_internal_store(g_data, ideal);
+    goto cleanup;
 
 gen_fail:
     lv_free((void **)&var_x);
@@ -548,7 +544,10 @@ gen_fail:
     }
     lv_free((void **)&ideal->generators);
     lv_free((void **)&ideal);
-    lv_mutex_unlock(&g_data_mutex);
-    return -1;
+    goto cleanup;
 #undef ADD_GENERATOR_LOCKED
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ret;
 }

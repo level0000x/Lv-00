@@ -96,26 +96,30 @@ def is_rotor (a : Multivector n) : Prop :=
 
 /-- 几何积的 blade 结合律：任意 three blades 的几何积可结合 -/
 theorem gp_blade_assoc (a b c : Multivector n) : gp (gp a b) c = gp a (gp b c) := by
-  sorry
+  ext <;> simp [gp, dot, cross] <;> ring
 
 /-- 纯向量的几何积等于其内积（标量）：v^2 = v·v -/
 theorem vector_gp_square (a : Multivector n) (h : is_vector a) :
   gp a a = scalar_mv (a.vector.1^2 + a.vector.2.1^2 + a.vector.2.2^2) := by
-  sorry
+  rcases h with ⟨hs, hb⟩
+  ext <;> simp [gp, scalar_mv, dot, cross, hs, hb] <;> ring
 
 /-- 标量部分与几何积可交换 -/
 theorem gp_commute_scalar_part (a b : Multivector n) :
   scalar_part (gp a b) = scalar_part (gp b a) := by
-  sorry
+  unfold scalar_part gp dot
+  ring
 
 /-- 标量 1 多向量是几何积的单位元 -/
 theorem gp_scalar_one (a : Multivector n) : gp a (scalar_mv 1) = a := by
-  sorry
+  ext <;> simp [gp, scalar_mv, dot, cross] <;> ring
 
 /-- 纯向量之间的外积反交换：u∧v = -v∧u -/
 theorem outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector v) :
   outer u v = scale (-1) (outer v u) := by
-  sorry
+  rcases hu with ⟨hus, hub⟩
+  rcases hv with ⟨hvs, hvb⟩
+  ext <;> simp [outer, scale, dot, cross, hus, hub, hvs, hvb] <;> ring
 
 /-- 几何积右逆存在性（纯标量特例）：
     若 a 为纯标量（vector = 0 且 bivector = 0）且 a.scalar ≠ 0，
@@ -123,7 +127,8 @@ theorem outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector 
 theorem gp_inverse_right_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
     (h_vec : a.vector = (0, 0, 0)) (h_biv : a.bivector = (0, 0, 0)) :
   ∃ b : Multivector n, gp a b = scalar_mv 1 := by
-  sorry
+  use scalar_mv (1 / a.scalar)
+  ext <;> simp [gp, scalar_mv, dot, cross, h_vec] <;> field_simp [h_scalar] <;> ring
 
 /-- 几何积左逆存在性（纯标量特例）：
     若 a 为纯标量（vector = 0 且 bivector = 0）且 a.scalar ≠ 0，
@@ -131,7 +136,8 @@ theorem gp_inverse_right_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
 theorem gp_inverse_left_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
     (h_vec : a.vector = (0, 0, 0)) (h_biv : a.bivector = (0, 0, 0)) :
   ∃ b : Multivector n, gp b a = scalar_mv 1 := by
-  sorry
+  use scalar_mv (1 / a.scalar)
+  ext <;> simp [gp, scalar_mv, dot, cross, h_vec] <;> field_simp [h_scalar] <;> ring
 
 /- Note: Full inverse for general multivectors requires stronger conditions. -/
 

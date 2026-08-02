@@ -118,22 +118,22 @@ theorem opml_export_roundtrip (g : ConstraintGraph) :
 /-- Coq export always produces a valid Coq source file -/
 theorem coq_export_is_valid_coq (g : ConstraintGraph) :
   (export_coq g).coq_source ≠ "" := by
-  sorry
+  unfold export_coq; simp
 
 /-- Lean4 export always produces a valid Lean source file -/
 theorem lean4_export_is_valid_lean (g : ConstraintGraph) :
   (export_lean4 g).lean_source ≠ "" := by
-  sorry
+  unfold export_lean4; simp
 
 /-- SVG export always produces a non-empty SVG document -/
 theorem svg_export_nonempty (g : ConstraintGraph) :
   (export_svg g).svg_source ≠ "" := by
-  sorry
+  unfold export_svg; simp
 
 /-- GeoJSON export is always renderable (non-empty) -/
 theorem geojson_export_nonempty (g : ConstraintGraph) :
   (export_geojson g).geojson_source ≠ "" := by
-  sorry
+  unfold export_geojson; simp
 
 /-- Exporting the empty graph produces a minimal output -/
 theorem empty_graph_export_minimal :
@@ -155,7 +155,7 @@ theorem all_exports_non_trivial (g : ConstraintGraph) (h : g ≠ []) :
   (export_opml g).opml_source ≠ "" ∧
   (export_geojson g).geojson_source ≠ "" ∧
   (export_svg g).svg_source ≠ "" := by
-  sorry
+  simp [export_coq, export_lean4, export_opml, export_geojson, export_svg]
 
 /- ===============================================================
    Evidence bridge — zero trust across formats
@@ -232,6 +232,6 @@ theorem full_interop_coherence (g : ConstraintGraph) :
   (export_opml g).opml_source ≠ "" ∧
   (export_geojson g).geojson_source ≠ "" ∧
   (export_svg g).svg_source ≠ "" := by
-  sorry
+  simp [export_coq, export_lean4, export_opml, export_geojson, export_svg]
 
 end lvFormal.Theory.InteropCorrectness

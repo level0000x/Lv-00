@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_representation_theory.c
  * @brief 表示论预设函数块 - 实现
  *
@@ -50,7 +50,8 @@
 #define REGISTER_RT(preset_name, desc, n_inputs, output, math, comp, constructive, reversible, ...)               \
     do {                                                                                                          \
         PresetType _in[] = {__VA_ARGS__};                                                                         \
-        if (register_rt_preset(preset_name, desc, _in, n_inputs, output, math, comp, constructive, reversible)) { \
+        if (lv_preset_register_helper(preset_name, desc, _in, n_inputs, output, math, comp, constructive,        \
+                                      reversible)) {                                                              \
             success_count++;                                                                                      \
         }                                                                                                         \
     } while (0)
@@ -72,12 +73,7 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_rt_preset(const char *name, const char *description, const PresetType *input_types,
-                               int input_count, PresetType output_type, const char *math_def, const char *complexity,
-                               bool is_constructive, bool is_reversible) {
-    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_GROUP_THEORY, input_types, input_count,
-                                         output_type, math_def, complexity, is_constructive, is_reversible);
-}
+LV_DECLARE_PRESET_REGISTER(PRESET_CATEGORY_GROUP_THEORY)
 
 /* ==================== 模块注册实现 ==================== */
 

@@ -141,34 +141,31 @@ static double eval_equation(const FormulaNode *node, double x, double y) {
             return l - r;
         }
 
+/** 从点节点提取坐标；若节点不是合法点或坐标不足，则输出保持 0.0 */
+static void eval_point_xy(const FormulaNode *point, double x, double y, double *ox, double *oy) {
+            *ox = 0.0;
+            *oy = 0.0;
+            if (point && point->type == NODE_GEOM_POINT) {
+                const FormulaNode *coords = point->data.geom_point.coords;
+                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
+                    *ox = eval_node(coords->data.coord_list.coords[0], x, y);
+                    *oy = eval_node(coords->data.coord_list.coords[1], x, y);
+                }
+            }
+        }
+
 static double eval_g_point(const FormulaNode *node, double x, double y) {
             /* 点: 返回坐标值的组合 (x + y) */
-            double px = 0.0, py = 0.0;
-            if (node->data.geom_point.coords && node->data.geom_point.coords->type == NODE_COORDINATE_LIST &&
-                node->data.geom_point.coords->data.coord_list.coord_count >= 2) {
-                px = eval_node(node->data.geom_point.coords->data.coord_list.coords[0], x, y);
-                py = eval_node(node->data.geom_point.coords->data.coord_list.coords[1], x, y);
-            }
+            double px, py;
+            eval_point_xy(node, x, y, &px, &py);
             return px + py;
         }
 
 static double eval_g_segment(const FormulaNode *node, double x, double y) {
             /* 线段: 返回长度 */
-            double x1 = 0.0, y1 = 0.0, x2 = 0.0, y2 = 0.0;
-            if (node->data.geom_segment.endpoint1 && node->data.geom_segment.endpoint1->type == NODE_GEOM_POINT) {
-                FormulaNode *coords = node->data.geom_segment.endpoint1->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
-                    x1 = eval_node(coords->data.coord_list.coords[0], x, y);
-                    y1 = eval_node(coords->data.coord_list.coords[1], x, y);
-                }
-            }
-            if (node->data.geom_segment.endpoint2 && node->data.geom_segment.endpoint2->type == NODE_GEOM_POINT) {
-                FormulaNode *coords = node->data.geom_segment.endpoint2->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
-                    x2 = eval_node(coords->data.coord_list.coords[0], x, y);
-                    y2 = eval_node(coords->data.coord_list.coords[1], x, y);
-                }
-            }
+            double x1, y1, x2, y2;
+            eval_point_xy(node->data.geom_segment.endpoint1, x, y, &x1, &y1);
+            eval_point_xy(node->data.geom_segment.endpoint2, x, y, &x2, &y2);
             return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
         }
 
@@ -182,28 +179,10 @@ static double eval_g_circle(const FormulaNode *node, double x, double y) {
 
 static double eval_g_triangle(const FormulaNode *node, double x, double y) {
             /* 三角形: 返回面积 (使用海伦公式) */
-            double x1 = 0.0, y1 = 0.0, x2 = 0.0, y2 = 0.0, x3 = 0.0, y3 = 0.0;
-            if (node->data.geom_triangle.vertex1 && node->data.geom_triangle.vertex1->type == NODE_GEOM_POINT) {
-                FormulaNode *coords = node->data.geom_triangle.vertex1->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
-                    x1 = eval_node(coords->data.coord_list.coords[0], x, y);
-                    y1 = eval_node(coords->data.coord_list.coords[1], x, y);
-                }
-            }
-            if (node->data.geom_triangle.vertex2 && node->data.geom_triangle.vertex2->type == NODE_GEOM_POINT) {
-                FormulaNode *coords = node->data.geom_triangle.vertex2->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
-                    x2 = eval_node(coords->data.coord_list.coords[0], x, y);
-                    y2 = eval_node(coords->data.coord_list.coords[1], x, y);
-                }
-            }
-            if (node->data.geom_triangle.vertex3 && node->data.geom_triangle.vertex3->type == NODE_GEOM_POINT) {
-                FormulaNode *coords = node->data.geom_triangle.vertex3->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
-                    x3 = eval_node(coords->data.coord_list.coords[0], x, y);
-                    y3 = eval_node(coords->data.coord_list.coords[1], x, y);
-                }
-            }
+            double x1, y1, x2, y2, x3, y3;
+            eval_point_xy(node->data.geom_triangle.vertex1, x, y, &x1, &y1);
+            eval_point_xy(node->data.geom_triangle.vertex2, x, y, &x2, &y2);
+            eval_point_xy(node->data.geom_triangle.vertex3, x, y, &x3, &y3);
             /* 使用叉积公式计算面积: 0.5 * |x1(y2-y3) + x2(y3-y1) + x3(y1-y2)| */
             return 0.5 * fabs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
         }
@@ -217,21 +196,9 @@ static double eval_g_polygon(const FormulaNode *node, double x, double y) {
             for (int i = 0; i < n; i++) {
                 FormulaNode *vi = node->data.geom_polygon.vertices[i];
                 FormulaNode *vj = node->data.geom_polygon.vertices[(i + 1) % n];
-                double xi = 0.0, yi = 0.0, xj = 0.0, yj = 0.0;
-                if (vi && vi->type == NODE_GEOM_POINT) {
-                    FormulaNode *coords = vi->data.geom_point.coords;
-                    if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
-                        xi = eval_node(coords->data.coord_list.coords[0], x, y);
-                        yi = eval_node(coords->data.coord_list.coords[1], x, y);
-                    }
-                }
-                if (vj && vj->type == NODE_GEOM_POINT) {
-                    FormulaNode *coords = vj->data.geom_point.coords;
-                    if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
-                        xj = eval_node(coords->data.coord_list.coords[0], x, y);
-                        yj = eval_node(coords->data.coord_list.coords[1], x, y);
-                    }
-                }
+                double xi, yi, xj, yj;
+                eval_point_xy(vi, x, y, &xi, &yi);
+                eval_point_xy(vj, x, y, &xj, &yj);
                 area += xi * yj - xj * yi;
             }
             return 0.5 * fabs(area);

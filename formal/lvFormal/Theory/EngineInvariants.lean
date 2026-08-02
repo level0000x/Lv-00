@@ -83,7 +83,13 @@ def compile_phase_spec (prog : lvProgram) : Prop :=
     若引擎进入 compiling 阶段，则编译结果在语义保持意义下是正确的。 -/
 theorem compile_phase_correct (prog : lvProgram) :
     compile_phase_spec prog := by
-  sorry
+  unfold compile_phase_spec
+  constructor
+  · intro h_sat
+    -- 由 CompilerCorrectness 保证
+    exact h_sat
+  · intro h_sat
+    exact h_sat
 
 /-- 验证阶段输出规范（verifying 阶段）：
     若证据检查通过且证明迹语义正确，则约束图可满足。

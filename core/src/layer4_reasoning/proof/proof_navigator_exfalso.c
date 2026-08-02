@@ -94,12 +94,7 @@ bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id) {
     }
 
     /* 流式事件：爆炸原理块创建 */
-    if (proof_stream_ctx != NULL) {
-        lvStrBuf sb_3 = {0};
-        lv_strbuf_printf(&sb_3, "爆炸原理函数块创建: block_id=%d", *out_block_id);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_3.data, 0);
-        lv_strbuf_destroy(&sb_3);
-    }
+    nav_emit(proof_stream_ctx, STREAM_EVENT_INFO, "爆炸原理函数块创建: block_id=%d", *out_block_id);
 
     return true;
 }

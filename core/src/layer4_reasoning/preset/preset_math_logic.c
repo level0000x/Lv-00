@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_math_logic.c
  * @brief 数理逻辑预设函数块 - 实现
  *
@@ -46,12 +46,7 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_logic_preset(const char *name, const char *description, const PresetType *input_types,
-                                  int input_count, PresetType output_type, const char *math_def, const char *complexity,
-                                  bool is_constructive, bool is_reversible) {
-    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_MATH_LOGIC, input_types, input_count,
-                                         output_type, math_def, complexity, is_constructive, is_reversible);
-}
+LV_DECLARE_PRESET_REGISTER(PRESET_CATEGORY_MATH_LOGIC)
 
 /* ==================== 模块注册实现 ==================== */
 
@@ -65,7 +60,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 合取 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        if (register_logic_preset(PRESET_LOGIC_CONJUNCTION, "命题合取：P ∧ Q，当且仅当 P 和 Q 均为真时结果为真", inputs,
+        if (lv_preset_register_helper(PRESET_LOGIC_CONJUNCTION, "命题合取：P ∧ Q，当且仅当 P 和 Q 均为真时结果为真", inputs,
                                   2, PRESET_TYPE_BOOLEAN, "P \\land Q", "O(1)", true, false)) {
             success_count++;
         }
@@ -74,7 +69,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 析取 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        if (register_logic_preset(PRESET_LOGIC_DISJUNCTION, "命题析取：P ∨ Q，当且仅当 P 或 Q 至少一个为真时结果为真",
+        if (lv_preset_register_helper(PRESET_LOGIC_DISJUNCTION, "命题析取：P ∨ Q，当且仅当 P 或 Q 至少一个为真时结果为真",
                                   inputs, 2, PRESET_TYPE_BOOLEAN, "P \\lor Q", "O(1)", true, false)) {
             success_count++;
         }
@@ -83,7 +78,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 否定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN};
-        if (register_logic_preset(PRESET_LOGIC_NEGATION, "命题否定：¬P，当 P 为真时结果为假，反之亦然", inputs, 1,
+        if (lv_preset_register_helper(PRESET_LOGIC_NEGATION, "命题否定：¬P，当 P 为真时结果为假，反之亦然", inputs, 1,
                                   PRESET_TYPE_BOOLEAN, "\\lnot P", "O(1)", true, true)) {
             success_count++;
         }
@@ -92,7 +87,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 蕴含 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        if (register_logic_preset(PRESET_LOGIC_IMPLICATION, "命题蕴含：P → Q，等价于 ¬P ∨ Q", inputs, 2,
+        if (lv_preset_register_helper(PRESET_LOGIC_IMPLICATION, "命题蕴含：P → Q，等价于 ¬P ∨ Q", inputs, 2,
                                   PRESET_TYPE_BOOLEAN, "P \\to Q \\equiv \\lnot P \\lor Q", "O(1)", true, false)) {
             success_count++;
         }
@@ -101,7 +96,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 等价 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        if (register_logic_preset(PRESET_LOGIC_BICONDITIONAL, "命题等价：P ↔ Q，当 P 和 Q 真值相同时结果为真", inputs,
+        if (lv_preset_register_helper(PRESET_LOGIC_BICONDITIONAL, "命题等价：P ↔ Q，当 P 和 Q 真值相同时结果为真", inputs,
                                   2, PRESET_TYPE_BOOLEAN, "P \\leftrightarrow Q \\equiv (P \\to Q) \\land (Q \\to P)",
                                   "O(1)", true, true)) {
             success_count++;
@@ -111,7 +106,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 永真式判定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA};
-        if (register_logic_preset(PRESET_LOGIC_TAUTOLOGY_TEST, "判定命题公式是否为永真式（对所有真值指派均为真）",
+        if (lv_preset_register_helper(PRESET_LOGIC_TAUTOLOGY_TEST, "判定命题公式是否为永真式（对所有真值指派均为真）",
                                   inputs, 1, PRESET_TYPE_BOOLEAN,
                                   "\\varphi \\text{ 是永真式} \\Leftrightarrow \\forall v: v(\\varphi) = \\text{T}",
                                   "O(2^n)，n 为命题变元数", true, false)) {
@@ -122,7 +117,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 可满足性判定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA};
-        if (register_logic_preset(PRESET_LOGIC_SATISFIABILITY_TEST, "判定命题公式是否可满足（存在使其为真的真值指派）",
+        if (lv_preset_register_helper(PRESET_LOGIC_SATISFIABILITY_TEST, "判定命题公式是否可满足（存在使其为真的真值指派）",
                                   inputs, 1, PRESET_TYPE_BOOLEAN,
                                   "\\varphi \\text{ 可满足} \\Leftrightarrow \\exists v: v(\\varphi) = \\text{T}",
                                   "O(2^n)，n 为命题变元数", true, false)) {
@@ -137,7 +132,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 全称实例化 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA, PRESET_TYPE_ANY};
-        if (register_logic_preset(PRESET_LOGIC_UNIVERSAL_INSTANTIATION,
+        if (lv_preset_register_helper(PRESET_LOGIC_UNIVERSAL_INSTANTIATION,
                                   "全称实例化：从 ∀x P(x) 推出 P(c)，c 为论域中任意元素", inputs, 2,
                                   PRESET_TYPE_FORMULA, "\\forall x \\, P(x) \\vdash P(c)", "O(1)", true, false)) {
             success_count++;
@@ -147,7 +142,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 存在泛化 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA, PRESET_TYPE_ANY};
-        if (register_logic_preset(PRESET_LOGIC_EXISTENTIAL_GENERALIZATION,
+        if (lv_preset_register_helper(PRESET_LOGIC_EXISTENTIAL_GENERALIZATION,
                                   "存在泛化：从 P(c) 推出 ∃x P(x)，c 为论域中某个元素", inputs, 2, PRESET_TYPE_FORMULA,
                                   "P(c) \\vdash \\exists x \\, P(x)", "O(1)", true, false)) {
             success_count++;
@@ -157,7 +152,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 全称泛化 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA, PRESET_TYPE_ANY};
-        if (register_logic_preset(PRESET_LOGIC_UNIVERSAL_GENERALIZATION,
+        if (lv_preset_register_helper(PRESET_LOGIC_UNIVERSAL_GENERALIZATION,
                                   "全称泛化：从 P(c) 推出 ∀x P(x)，要求 c 为任意常量且未被特殊假定", inputs, 2,
                                   PRESET_TYPE_FORMULA, "P(c) \\vdash \\forall x \\, P(x), \\quad c \\text{ 为任意常量}",
                                   "O(1)", true, false)) {
@@ -168,7 +163,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 存在实例化 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA, PRESET_TYPE_ANY};
-        if (register_logic_preset(PRESET_LOGIC_EXISTENTIAL_INSTANTIATION,
+        if (lv_preset_register_helper(PRESET_LOGIC_EXISTENTIAL_INSTANTIATION,
                                   "存在实例化：从 ∃x P(x) 引入 P(c)，c 为此前未出现的新常量", inputs, 2,
                                   PRESET_TYPE_FORMULA, "\\exists x \\, P(x) \\vdash P(c), \\quad c \\text{ 为新常量}",
                                   "O(1)", true, false)) {
@@ -183,7 +178,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 自然演绎 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA, PRESET_TYPE_SEQUENCE};
-        if (register_logic_preset(
+        if (lv_preset_register_helper(
                 PRESET_LOGIC_NATURAL_DEDUCTION,
                 "自然演绎系统：基于引入规则（∧I, ∨I, →I, ∀I, ∃I）和消去规则（∧E, ∨E, →E, ∀E, ∃E）的证明", inputs, 2,
                 PRESET_TYPE_BOOLEAN, "\\Gamma \\vdash_{\\text{ND}} \\varphi", "O(2^{|\\Gamma|})", true, false)) {
@@ -194,7 +189,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 归结原理 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE};
-        if (register_logic_preset(
+        if (lv_preset_register_helper(
                 PRESET_LOGIC_RESOLUTION, "归结原理：将公式集转化为子句集，通过归结消解推导空子句以证明不可满足性",
                 inputs, 1, PRESET_TYPE_BOOLEAN, "S \\vdash_{\\text{Res}} \\Box \\Leftrightarrow S \\text{ 不可满足}",
                 "O(n^k)，n 为子句数", true, false)) {
@@ -205,7 +200,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 表方法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA};
-        if (register_logic_preset(
+        if (lv_preset_register_helper(
                 PRESET_LOGIC_TABLEAU_METHOD, "语义表方法：通过系统性地分解公式构建反证树，判定公式的可满足性", inputs,
                 1, PRESET_TYPE_BOOLEAN, "\\lnot \\varphi \\text{ 的表封闭} \\Leftrightarrow \\varphi \\text{ 有效}",
                 "O(2^n)，n 为子公式数", true, false)) {
@@ -220,7 +215,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 模型判定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_STRUCTURE, PRESET_TYPE_SEQUENCE};
-        if (register_logic_preset(
+        if (lv_preset_register_helper(
                 PRESET_LOGIC_MODEL_CHECK, "模型判定：判定结构 M 是否为公式集 Γ 的模型（M ⊨ Γ）", inputs, 2,
                 PRESET_TYPE_BOOLEAN,
                 "M \\models \\Gamma \\Leftrightarrow \\forall \\varphi \\in \\Gamma, M \\models \\varphi",
@@ -232,7 +227,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 有效式判定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FORMULA};
-        if (register_logic_preset(PRESET_LOGIC_VALIDITY_TEST, "有效式判定：判定一阶公式是否在所有结构中都为真（⊨ φ）",
+        if (lv_preset_register_helper(PRESET_LOGIC_VALIDITY_TEST, "有效式判定：判定一阶公式是否在所有结构中都为真（⊨ φ）",
                                   inputs, 1, PRESET_TYPE_BOOLEAN,
                                   "\\models \\varphi \\Leftrightarrow \\forall M, M \\models \\varphi",
                                   "不可判定（半可判定）", false, false)) {
@@ -243,7 +238,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 模型论可满足性 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE};
-        if (register_logic_preset(PRESET_LOGIC_MODEL_SATISFIABILITY,
+        if (lv_preset_register_helper(PRESET_LOGIC_MODEL_SATISFIABILITY,
                                   "模型论可满足性：判定一阶公式集 Γ 是否存在一致的模型（Γ 有模型）", inputs, 1,
                                   PRESET_TYPE_BOOLEAN,
                                   "\\Gamma \\text{ 可满足} \\Leftrightarrow \\exists M: M \\models \\Gamma",
@@ -259,7 +254,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 图灵机判定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_STRING};
-        if (register_logic_preset(
+        if (lv_preset_register_helper(
                 PRESET_LOGIC_TURING_MACHINE_CHECK,
                 "判定给定描述是否定义了一台合法的图灵机（状态集、字母表、转移函数完备性检验）", inputs, 1,
                 PRESET_TYPE_BOOLEAN,
@@ -272,7 +267,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 递归函数判定 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
-        if (register_logic_preset(PRESET_LOGIC_RECURSIVE_CHECK, "判定给定函数是否为递归函数（可通过图灵机计算）",
+        if (lv_preset_register_helper(PRESET_LOGIC_RECURSIVE_CHECK, "判定给定函数是否为递归函数（可通过图灵机计算）",
                                   inputs, 1, PRESET_TYPE_BOOLEAN,
                                   "f \\text{ 是递归函数} \\Leftrightarrow \\exists T_M: T_M(x) = f(x)", "不可判定",
                                   false, false)) {
@@ -283,7 +278,7 @@ bool preset_math_logic_register(void) {
     /* -------------------- 停机问题 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_STRING, PRESET_TYPE_STRING};
-        if (register_logic_preset(
+        if (lv_preset_register_helper(
                 PRESET_LOGIC_HALTING_PROBLEM, "停机问题：判定图灵机 M 在输入 w 上是否最终停机（经典不可判定问题）",
                 inputs, 2, PRESET_TYPE_BOOLEAN,
                 "H(M, w) = \\begin{cases} 1 & M \\text{ 在 } w \\text{ 上停机} \\\\ 0 & \\text{否则} \\end{cases}",

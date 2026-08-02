@@ -53,9 +53,10 @@ lvRingRegistry *ring_registry_create(int capacity) {
     registry->is_initialized = true;
 
     /* 初始化全局注册数据（加锁保护） */
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
     registry_data_ensure();
-    lv_mutex_unlock(&g_data_mutex);
+    lv_lock_guard_destroy(&_lg);
 
     return registry;
 }
@@ -69,7 +70,9 @@ void ring_registry_destroy(lvRingRegistry *registry) {
     }
 
     /* 加锁保护全局池数据的释放 */
-    lv_mutex_lock(&g_data_mutex);
+    {
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
 
     /* 释放全局池数据 */
     if (g_data) {
@@ -82,13 +85,7 @@ void ring_registry_destroy(lvRingRegistry *registry) {
         if (g_data->ideals) {
             for (int i = 0; i < g_data->ideal_count; i++) {
                 if (g_data->ideals[i]) {
-                    if (g_data->ideals[i]->cached_basis) {
-                        for (int j = 0; j < g_data->ideals[i]->cached_basis->bases_count; j++) {
-                            poly_internal_destroy(g_data->ideals[i]->cached_basis->basis_polys[j]);
-                        }
-                        lv_free((void **) &g_data->ideals[i]->cached_basis->basis_polys);
-                        lv_free((void **) &g_data->ideals[i]->cached_basis);
-                    }
+                    ideal_clear_cached_basis(g_data->ideals[i]);
                     lv_free((void **) &g_data->ideals[i]->label);
                     lv_free((void **) &g_data->ideals[i]);
                 }
@@ -117,8 +114,8 @@ void ring_registry_destroy(lvRingRegistry *registry) {
         g_data = NULL;
     }
 
-    /* 释放互斥锁 */
-    lv_mutex_unlock(&g_data_mutex);
+    lv_lock_guard_destroy(&_lg);
+    }
     if (g_data_mutex_initialized) {
         lv_mutex_destroy(&g_data_mutex);
         g_data_mutex_initialized = 0;

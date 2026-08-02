@@ -51,17 +51,21 @@ int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char 
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "poly_create: poly_internal_create failed");
     }
 
-    lv_mutex_lock(&g_data_mutex);
+    int ret = -1;
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
-        lv_mutex_unlock(&g_data_mutex);
         poly_internal_destroy(poly);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "poly_create: registry_data_ensure failed");
+        lv_set_error_ctx(lv_ERROR_INTERNAL, __FILE__, __LINE__, __func__,
+                         "poly_create: registry_data_ensure failed");
+        goto cleanup;
     }
 
-    int result = poly_internal_store(data, poly);
-    lv_mutex_unlock(&g_data_mutex);
-    return result;
+    ret = poly_internal_store(data, poly);
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ret;
 }
 
 /**
@@ -69,17 +73,18 @@ int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char 
  */
 void poly_destroy(lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
-    lv_mutex_lock(&g_data_mutex);
-    if (!g_data || poly_id < 0 || poly_id >= g_data->poly_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return;
-    }
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    if (!g_data || poly_id < 0 || poly_id >= g_data->poly_count)
+        goto cleanup;
 
     if (g_data->polys[poly_id]) {
         poly_internal_destroy(g_data->polys[poly_id]);
         g_data->polys[poly_id] = NULL;
     }
-    lv_mutex_unlock(&g_data_mutex);
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return;
 }
 
 /**
@@ -89,48 +94,37 @@ int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char 
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
-    if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
-    if (poly_id_f < 0 || poly_id_g < 0) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
-    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    int ret = -1;
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    if (!g_data)
+        goto cleanup;
+    if (poly_id_f < 0 || poly_id_g < 0)
+        goto cleanup;
+    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count)
+        goto cleanup;
 
     lvPolynomial *f = g_data->polys[poly_id_f];
     lvPolynomial *g = g_data->polys[poly_id_g];
-    if (!f || !g) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!f || !g)
+        goto cleanup;
 
-    if (f->ring_id != g->ring_id) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (f->ring_id != g->ring_id)
+        goto cleanup;
     lvPolynomialRing *ring = registry->rings[f->ring_id];
-    if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!ring)
+        goto cleanup;
 
     lvPolynomial *result = poly_internal_add(f, g, ring);
-    if (!result) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!result)
+        goto cleanup;
 
     lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
-    int ret = poly_internal_store(g_data, result);
-    lv_mutex_unlock(&g_data_mutex);
+    ret = poly_internal_store(g_data, result);
+cleanup:
+    lv_lock_guard_destroy(&_lg);
     return ret;
 }
 
@@ -141,48 +135,37 @@ int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const 
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
-    if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
-    if (poly_id_f < 0 || poly_id_g < 0) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
-    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    int ret = -1;
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    if (!g_data)
+        goto cleanup;
+    if (poly_id_f < 0 || poly_id_g < 0)
+        goto cleanup;
+    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count)
+        goto cleanup;
 
     lvPolynomial *f = g_data->polys[poly_id_f];
     lvPolynomial *g = g_data->polys[poly_id_g];
-    if (!f || !g) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!f || !g)
+        goto cleanup;
 
-    if (f->ring_id != g->ring_id) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (f->ring_id != g->ring_id)
+        goto cleanup;
     lvPolynomialRing *ring = registry->rings[f->ring_id];
-    if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!ring)
+        goto cleanup;
 
     lvPolynomial *result = poly_internal_multiply(f, g, ring);
-    if (!result) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!result)
+        goto cleanup;
 
     lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
-    int ret = poly_internal_store(g_data, result);
-    lv_mutex_unlock(&g_data_mutex);
+    ret = poly_internal_store(g_data, result);
+cleanup:
+    lv_lock_guard_destroy(&_lg);
     return ret;
 }
 
@@ -193,48 +176,37 @@ int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int su
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
-    if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
-    if (poly_id < 0 || subst_poly_id < 0) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
-    if (poly_id >= g_data->poly_count || subst_poly_id >= g_data->poly_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    int ret = -1;
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    if (!g_data)
+        goto cleanup;
+    if (poly_id < 0 || subst_poly_id < 0)
+        goto cleanup;
+    if (poly_id >= g_data->poly_count || subst_poly_id >= g_data->poly_count)
+        goto cleanup;
 
     lvPolynomial *f = g_data->polys[poly_id];
     lvPolynomial *subst = g_data->polys[subst_poly_id];
-    if (!f || !subst) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!f || !subst)
+        goto cleanup;
 
-    if (f->ring_id != subst->ring_id) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (f->ring_id != subst->ring_id)
+        goto cleanup;
     lvPolynomialRing *ring = registry->rings[f->ring_id];
-    if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!ring)
+        goto cleanup;
 
     lvPolynomial *result = poly_internal_substitute(f, var_index, subst, ring);
-    if (!result) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
+    if (!result)
+        goto cleanup;
 
     lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
-    int ret = poly_internal_store(g_data, result);
-    lv_mutex_unlock(&g_data_mutex);
+    ret = poly_internal_store(g_data, result);
+cleanup:
+    lv_lock_guard_destroy(&_lg);
     return ret;
 }
 
@@ -243,13 +215,14 @@ int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int su
  */
 const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
-    lv_mutex_lock(&g_data_mutex);
-    if (!g_data || poly_id < 0 || poly_id >= g_data->poly_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return NULL;
-    }
-    const lvPolynomial *p = g_data->polys[poly_id];
-    lv_mutex_unlock(&g_data_mutex);
+    const lvPolynomial *p = NULL;
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    if (!g_data || poly_id < 0 || poly_id >= g_data->poly_count)
+        goto cleanup;
+    p = g_data->polys[poly_id];
+cleanup:
+    lv_lock_guard_destroy(&_lg);
     return p;
 }
 

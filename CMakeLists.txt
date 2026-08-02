@@ -644,6 +644,12 @@ set(lv_HEADERS
 set(lv_LAYER1_SOURCES
     core/src/layer1_parser/formula_parser.c
     core/src/layer1_parser/formula_converter.c
+    core/src/layer1_parser/formula_converter_util.c
+    core/src/layer1_parser/formula_converter_geom.c
+    core/src/layer1_parser/formula_converter_complex.c
+    core/src/layer1_parser/formula_converter_constraint.c
+    core/src/layer1_parser/formula_converter_stmt.c
+    core/src/layer1_parser/formula_converter_export.c
     core/src/layer1_parser/formula_eval.c
     core/src/layer1_parser/formula_string.c
     core/src/layer1_parser/formula_curve.c
@@ -658,6 +664,9 @@ set(lv_LAYER1_SOURCES
     core/src/layer1_parser/lexer_shared.c
     core/src/layer1_parser/parser_safety.c
     core/src/layer1_parser/dsl_compiler.c
+    core/src/layer1_parser/dsl_compiler_parse.c
+    core/src/layer1_parser/dsl_compiler_ir.c
+    core/src/layer1_parser/dsl_compiler_load.c
     core/src/layer1_parser/dsl_lexer.c
     core/src/layer1_parser/math_input.c
     # parser 子目录：公式 AST、DSL、LaTeX、Python 表达式
@@ -794,6 +803,14 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph.c
     core/src/layer3_geometry/symbolic_coord.c
     core/src/layer3_geometry/euclidean_geometry.c
+    core/src/layer3_geometry/euclidean_geometry_context.c
+    core/src/layer3_geometry/euclidean_geometry_axiom.c
+    core/src/layer3_geometry/euclidean_geometry_declare.c
+    core/src/layer3_geometry/euclidean_geometry_predicate.c
+    core/src/layer3_geometry/euclidean_geometry_consistency.c
+    core/src/layer3_geometry/euclidean_geometry_export.c
+    core/src/layer3_geometry/euclidean_geometry_equivalence.c
+    core/src/layer3_geometry/euclidean_geometry_helpers.c
     core/src/layer3_geometry/interactive_geo.c
     core/src/layer3_geometry/high_dim.c
     core/src/layer3_geometry/high_dim_core.c
@@ -852,6 +869,12 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/propagation.c
     # 补全遗漏文件：代数数、半边网格、约束求解器、几何工具、动态几何、AABB树、几何谓词
     core/src/layer3_geometry/algebraic_number.c
+    core/src/layer3_geometry/algebraic_number_util.c
+    core/src/layer3_geometry/algebraic_number_rational.c
+    core/src/layer3_geometry/algebraic_number_quadratic.c
+    core/src/layer3_geometry/algebraic_number_interval.c
+    core/src/layer3_geometry/algebraic_number_poly.c
+    core/src/layer3_geometry/algebraic_number_io.c
     core/src/layer3_geometry/geo_halfedge_mesh.c
     core/src/layer3_geometry/geo_constraint_solver.c
     core/src/layer3_geometry/geo_constraint_solver_hash.c
@@ -880,6 +903,10 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph/graph_index.c
     core/src/layer3_geometry/constraint_graph/graph_memory.c
     core/src/layer3_geometry/constraint_graph/graph_node.c
+    core/src/layer3_geometry/constraint_graph/graph_node_alloc.c
+    core/src/layer3_geometry/constraint_graph/graph_node_hash.c
+    core/src/layer3_geometry/constraint_graph/graph_node_conflict.c
+    core/src/layer3_geometry/constraint_graph/graph_node_stub.c
     core/src/layer3_geometry/constraint_graph/graph_serialize.c
     # 符号计算子模块：代数、二次、有理、坐标运算、超越函数
     core/src/layer3_geometry/symbolics/algebraic.c
@@ -1219,6 +1246,12 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof/proof_navigator_instantiate.c
     core/src/layer4_reasoning/proof/proof_proposition.c
     core/src/layer4_reasoning/proof/proof_version.c
+    core/src/layer4_reasoning/proof/proof_version_nl.c
+    core/src/layer4_reasoning/proof/proof_version_ghost.c
+    core/src/layer4_reasoning/proof/proof_version_sledge.c
+    core/src/layer4_reasoning/proof/proof_version_task.c
+    core/src/layer4_reasoning/proof/proof_version_isar.c
+    core/src/layer4_reasoning/proof/proof_version_refine.c
     core/src/layer4_reasoning/proof/trust_color.c
     core/src/layer4_reasoning/proof/meta_verify.c
     # 重写子模块：应用、匹配、VF2、WL
@@ -1251,6 +1284,13 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/model/reasoning_cache.c
     # v2.0.0 自举差分测试（原在 L2，依赖 L3+L4 类型，故归位 L4）
     core/src/layer4_reasoning/bootstrap_test.c
+    core/src/layer4_reasoning/bootstrap_test_init.c
+    core/src/layer4_reasoning/bootstrap_test_diff.c
+    core/src/layer4_reasoning/bootstrap_test_random.c
+    core/src/layer4_reasoning/bootstrap_test_iso.c
+    core/src/layer4_reasoning/bootstrap_test_primitive.c
+    core/src/layer4_reasoning/bootstrap_test_oracle.c
+    core/src/layer4_reasoning/bootstrap_test_report.c
     # 模块子模块：增量、LVZ、序列化
     core/src/layer4_reasoning/module/module_delta.c
     core/src/layer4_reasoning/module/module_lvz.c
@@ -1286,6 +1326,16 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/lv_layer_msg.c
     # v1.1.0 补全遗漏：插件系统、证明编译器
     core/src/layer5_output/plugin_system.c
+    core/src/layer5_output/plugin_system_core.c
+    core/src/layer5_output/plugin_system_load.c
+    core/src/layer5_output/plugin_system_state.c
+    core/src/layer5_output/plugin_system_query.c
+    core/src/layer5_output/plugin_system_interface.c
+    core/src/layer5_output/plugin_system_config.c
+    core/src/layer5_output/plugin_system_event.c
+    core/src/layer5_output/plugin_system_deps.c
+    core/src/layer5_output/plugin_system_autoload.c
+    core/src/layer5_output/plugin_system_version.c
     core/src/layer5_output/proof_compiler.c
     core/src/layer5_output/tikz_export.c
     # 互操作子模块：命令、导出、导入、服务器、定理

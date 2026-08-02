@@ -45,12 +45,7 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_lattice_theory_preset(const char *name, const char *description, const PresetType *input_types,
-                                           int input_count, PresetType output_type, const char *math_def,
-                                           const char *complexity, bool is_constructive, bool is_reversible) {
-    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ALGEBRAIC, input_types, input_count,
-                                         output_type, math_def, complexity, is_constructive, is_reversible);
-}
+LV_DECLARE_PRESET_REGISTER(PRESET_CATEGORY_ALGEBRAIC)
 
 /* ==================== v2统一注册宏 ==================== */
 
@@ -72,8 +67,8 @@ static bool register_lattice_theory_preset(const char *name, const char *descrip
  */
 #define REGISTER_LATTICE(name, desc, inputs, in_count, output, math, comp, cons, rev)                              \
     do {                                                                                                           \
-        if (register_lattice_theory_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), \
-                                           (rev))) {                                                               \
+        if (lv_preset_register_helper((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons),      \
+                                      (rev))) {                                                                    \
             success_count++;                                                                                       \
         } else {                                                                                                   \
             /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                    \

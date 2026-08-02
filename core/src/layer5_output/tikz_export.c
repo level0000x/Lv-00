@@ -26,23 +26,6 @@
 #include "lv_internal.h"
 #include "lv/lv_strbuf.h"
 
-/* ── 颜色转换：将 [0,1] 浮点转为 TikZ 的 0-255 整数 ── */
-
-/**
- * @brief 将 [0,1] 范围的浮点颜色值转换为 [0,255] 范围的整数字节值
- *
- * @param c 浮点颜色值（范围 [0,1]）
- * @return 整数字节值（范围 [0,255]），自动钳位边界
- */
-static int tikz_byte(float c) {
-    int v = (int) (c * 255.0f + 0.5f);
-    if (v < 0)
-        return 0;
-    if (v > 255)
-        return 255;
-    return v;
-}
-
 /* ── 核心导出 ── */
 
 /**

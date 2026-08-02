@@ -261,61 +261,49 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    int ret = -1;
+
     if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     if (!ideal) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     /* 确保 Groebner 基已计算（直接调用内部函数，已持有锁） */
     if (!ideal->basis_valid || !ideal->cached_basis) {
         lvPolynomialRing *ring_for_basis = registry->rings[ideal->ring_id];
         if (!ring_for_basis) {
-            lv_mutex_unlock(&g_data_mutex);
-            return -1;
+            goto cleanup;
         }
 
         lvGroebnerBasis *basis =
             groebner_internal_compute(ring_for_basis, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
         if (!basis) {
-            lv_mutex_unlock(&g_data_mutex);
-            return -1;
+            goto cleanup;
         }
 
         /* 释放旧缓存 */
-        if (ideal->cached_basis) {
-            if (ideal->cached_basis->basis_polys) {
-                for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
-                    poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
-                }
-                lv_free((void **) &ideal->cached_basis->basis_polys);
-            }
-            lv_free((void **) &ideal->cached_basis);
-        }
+        ideal_clear_cached_basis(ideal);
         ideal->cached_basis = basis;
         ideal->basis_valid = true;
     }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvVariety *variety = (lvVariety *) lv_calloc(1, sizeof(lvVariety));
     if (!variety) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     variety->ideal_id = ideal_id;
@@ -359,15 +347,16 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
 
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
-        lv_mutex_unlock(&g_data_mutex);
         lv_free((void **) &variety->label);
         lv_free((void **) &variety);
-        return -1;
+        goto cleanup;
     }
 
-    int result = variety_internal_store(data, variety);
-    lv_mutex_unlock(&g_data_mutex);
-    return result;
+    ret = variety_internal_store(data, variety);
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ret;
 }
 
 /**
@@ -375,15 +364,19 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
  */
 int variety_dimension(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    int ret = -1;
+
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
-    int dim = v ? v->variety_dimension : -1;
-    lv_mutex_unlock(&g_data_mutex);
-    return dim;
+    ret = v ? v->variety_dimension : -1;
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ret;
 }
 
 /**
@@ -391,15 +384,19 @@ int variety_dimension(lvRingRegistry *registry, int variety_id) {
  */
 bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    bool ok = false;
+
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
-    bool result = v ? v->is_zero_dimensional : false;
-    lv_mutex_unlock(&g_data_mutex);
-    return result;
+    ok = v ? v->is_zero_dimensional : false;
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ok;
 }
 
 /**
@@ -411,26 +408,28 @@ bool variety_get_solution_point(lvRingRegistry *registry, int variety_id, int po
     if (!out_coords || coord_count <= 0)
         return false;
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    bool ok = false;
+
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
     if (!v || !v->solution_points || !v->is_zero_dimensional || point_idx < 0 || point_idx >= v->solution_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
     double *src = v->solution_points[point_idx];
     if (!src) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
     /* 复制坐标值到输出缓冲区 */
     for (int i = 0; i < coord_count; i++) {
         out_coords[i] = src[i];
     }
-    lv_mutex_unlock(&g_data_mutex);
-    return true;
-}
+    ok = true;
 
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ok;
+}

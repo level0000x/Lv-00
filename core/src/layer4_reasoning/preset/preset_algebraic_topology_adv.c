@@ -44,39 +44,9 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_at_adv_preset(const char *name, const char *description, const PresetType *input_types,
-                                   int input_count, PresetType output_type, const char *math_def,
-                                   const char *complexity, bool is_constructive, bool is_reversible) {
-    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_TOPOLOGY, input_types, input_count,
-                                         output_type, math_def, complexity, is_constructive, is_reversible);
-}
+LV_DECLARE_PRESET_REGISTER(PRESET_CATEGORY_TOPOLOGY)
 
-/* ==================== v2统一注册宏 ==================== */
-
-/**
- * @brief 代数拓扑进阶预设统一注册宏
- *
- * 使用do-while(0)包装，确保宏展开后在语法上等价于单条语句。
- * 注册成功时递增success_count，失败时输出错误日志。
- *
- * @param name       预设名称
- * @param desc       中文描述
- * @param inputs     输入类型数组
- * @param in_count   输入数量
- * @param output     输出类型
- * @param math       数学定义（LaTeX格式字符串）
- * @param comp       时间复杂度
- * @param cons       是否构造性
- * @param rev        是否可逆
- */
-#define REGISTER_AT_ADV(name, desc, inputs, in_count, output, math, comp, cons, rev)                                 \
-    do {                                                                                                             \
-        if (register_at_adv_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), (rev))) { \
-            success_count++;                                                                                         \
-        } else {                                                                                                     \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                      \
-        }                                                                                                            \
-    } while (0)
+/* ==================== 模块注册实现 ==================== */
 
 /* ==================== 模块注册实现 ==================== */
 
@@ -103,15 +73,11 @@ bool preset_algebraic_topology_adv_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_POINT};
-        REGISTER_AT_ADV(
-            PRESET_AT_FUNDAMENTAL_GROUP,
-            "基本群 π₁(X, x₀)：计算拓扑空间X在基点x₀处的基本群，由闭路径同伦类构成，反映空间的一维洞结构", inputs, 2,
+    LV_PRESET_REGISTER(success_count, PRESET_AT_FUNDAMENTAL_GROUP,
+            "基本群 π₁(X, x₀)：计算拓扑空间X在基点x₀处的基本群，由闭路径同伦类构成，反映空间的一维洞结构", 2,
             PRESET_TYPE_GROUP,
             "\\pi_1(X, x_0) = \\{ [\\gamma] : \\gamma: [0,1] \\to X, \\gamma(0) = \\gamma(1) = x_0 \\} / \\sim", "O(∞)",
-            false, false);
-    }
+            false, false, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_POINT);
 
     /**
      * @brief covering_space - 覆盖空间
@@ -129,14 +95,11 @@ bool preset_algebraic_topology_adv_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY};
-        REGISTER_AT_ADV(PRESET_AT_COVERING_SPACE, "覆盖空间：验证覆盖映射 p: Ỹ → Y，局部同胚且满足离散纤维条件", inputs,
+    LV_PRESET_REGISTER(success_count, PRESET_AT_COVERING_SPACE, "覆盖空间：验证覆盖映射 p: Ỹ → Y，局部同胚且满足离散纤维条件",
                         2, PRESET_TYPE_BOOLEAN,
                         "p: \\tilde{Y} \\to Y, \\quad \\forall y \\in Y, \\exists U \\ni y: p^{-1}(U) = "
                         "\\bigsqcup_{\\alpha} V_\\alpha, V_\\alpha \\cong U",
-                        "O(∞)", false, false);
-    }
+                        "O(∞)", false, false, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY);
 
     /**
      * @brief universal_covering - 万有覆盖空间
@@ -154,14 +117,11 @@ bool preset_algebraic_topology_adv_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_TOPOLOGY};
-        REGISTER_AT_ADV(
+    LV_PRESET_REGISTER(success_count,
             PRESET_AT_UNIVERSAL_COVERING, "万有覆盖空间：构造拓扑空间X的万有覆盖空间，单连通且覆盖变换群同构于基本群",
-            inputs, 1, PRESET_TYPE_TOPOLOGY,
+            1, PRESET_TYPE_TOPOLOGY,
             "\\tilde{X} \\to X, \\quad \\pi_1(\\tilde{X}) = 0, \\quad \\text{Aut}(\\tilde{X}/X) \\cong \\pi_1(X)",
-            "O(∞)", true, false);
-    }
+            "O(∞)", true, false, PRESET_TYPE_TOPOLOGY);
 
     /* ============================================================
      * 第二部分：同调理论（3个）
@@ -183,12 +143,9 @@ bool preset_algebraic_topology_adv_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER};
-        REGISTER_AT_ADV(PRESET_AT_HOMOLOGY_GROUP, "同调群 Hₙ(X)：计算拓扑空间X的第n维奇异同调群，反映n维洞结构", inputs,
+    LV_PRESET_REGISTER(success_count, PRESET_AT_HOMOLOGY_GROUP, "同调群 Hₙ(X)：计算拓扑空间X的第n维奇异同调群，反映n维洞结构",
                         2, PRESET_TYPE_GROUP, "H_n(X) = \\ker(\\partial_n) / \\operatorname{im}(\\partial_{n+1})",
-                        "O(∞)", true, false);
-    }
+                        "O(∞)", true, false, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER);
 
     /**
      * @brief cohomology_group - 上同调群 Hⁿ(X)
@@ -206,14 +163,11 @@ bool preset_algebraic_topology_adv_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER};
-        REGISTER_AT_ADV(
-            PRESET_AT_COHOMOLOGY_GROUP, "上同调群 Hⁿ(X)：计算拓扑空间X的上同调群，对偶于同调群，具有杯积环结构", inputs,
+    LV_PRESET_REGISTER(success_count,
+            PRESET_AT_COHOMOLOGY_GROUP, "上同调群 Hⁿ(X)：计算拓扑空间X的上同调群，对偶于同调群，具有杯积环结构",
             2, PRESET_TYPE_GROUP,
             "H^n(X) = \\ker(\\delta^n) / \\operatorname{im}(\\delta^{n-1}), \\quad \\delta^n: C^n(X) \\to C^{n+1}(X)",
-            "O(∞)", true, false);
-    }
+            "O(∞)", true, false, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER);
 
     /**
      * @brief mayer_vietoris_sequence - Mayer-Vietoris序列
@@ -232,14 +186,11 @@ bool preset_algebraic_topology_adv_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY};
-        REGISTER_AT_ADV(
+    LV_PRESET_REGISTER(success_count,
             PRESET_AT_MAYER_VIETORIS_SEQUENCE, "Mayer-Vietoris序列：利用空间分解 X = A ∪ B 导出同调群的长正合序列",
-            inputs, 3, PRESET_TYPE_SEQUENCE,
+            3, PRESET_TYPE_SEQUENCE,
             "\\cdots \\to H_n(A \\cap B) \\to H_n(A) \\oplus H_n(B) \\to H_n(X) \\to H_{n-1}(A \\cap B) \\to \\cdots",
-            "O(∞)", true, false);
-    }
+            "O(∞)", true, false, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY);
 
     /* ============================================================
      * 第三部分：序列与结构（2个）
@@ -261,12 +212,9 @@ bool preset_algebraic_topology_adv_register(void) {
      * @constructive false
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_SEQUENCE};
-        REGISTER_AT_ADV(PRESET_AT_EXACT_SEQUENCE, "正合序列：验证群同态序列是否满足 im(f_i) = ker(f_{i+1}) 的正合条件",
-                        inputs, 1, PRESET_TYPE_BOOLEAN, "\\operatorname{im}(f_i) = \\ker(f_{i+1}), \\quad \\forall i",
-                        "O(∞)", false, false);
-    }
+    LV_PRESET_REGISTER(success_count, PRESET_AT_EXACT_SEQUENCE, "正合序列：验证群同态序列是否满足 im(f_i) = ker(f_{i+1}) 的正合条件",
+                        1, PRESET_TYPE_BOOLEAN, "\\operatorname{im}(f_i) = \\ker(f_{i+1}), \\quad \\forall i",
+                        "O(∞)", false, false, PRESET_TYPE_SEQUENCE);
 
     /**
      * @brief euler_characteristic - Euler特征数 χ(X)
@@ -284,13 +232,10 @@ bool preset_algebraic_topology_adv_register(void) {
      * @constructive true
      * @reversible false
      */
-    {
-        PresetType inputs[] = {PRESET_TYPE_TOPOLOGY};
-        REGISTER_AT_ADV(PRESET_AT_EULER_CHARACTERISTIC,
-                        "Euler特征数 χ(X)：计算拓扑空间X的Euler特征数，各维Betti数的交错和", inputs, 1,
+    LV_PRESET_REGISTER(success_count, PRESET_AT_EULER_CHARACTERISTIC,
+                        "Euler特征数 χ(X)：计算拓扑空间X的Euler特征数，各维Betti数的交错和", 1,
                         PRESET_TYPE_INTEGER, "\\chi(X) = \\sum_{n=0}^{\\infty} (-1)^n \\operatorname{rk}(H_n(X))",
-                        "O(∞)", true, false);
-    }
+                        "O(∞)", true, false, PRESET_TYPE_TOPOLOGY);
 
     /* 返回是否所有预设都注册成功 */
     return success_count == ALGEBRAIC_TOPOLOGY_ADV_PRESET_COUNT;

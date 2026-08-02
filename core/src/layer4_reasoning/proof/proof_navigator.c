@@ -131,12 +131,8 @@ ProofColor proof_navigator_compute_final_color(ProofNavigator *nav) {
     nav->final_color = final_color;
 
     /* 流式输出：最终颜色计算 */
-    if (proof_stream_ctx) {
-        lvStrBuf sb = {0};
-        lv_strbuf_printf(&sb, "最终颜色计算: %s", proof_color_to_string(final_color));
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, sb.data, 0);
-        lv_strbuf_destroy(&sb);
-    }
+    nav_emit(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, "最终颜色计算: %s",
+             proof_color_to_string(final_color));
 
     return final_color;
 }

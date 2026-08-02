@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv_thread.h
  * @brief 跨平台线程抽象层 —— 互斥锁、条件变量、线程创建、一次性初始化
  *
@@ -101,6 +101,40 @@ static inline void lv_mutex_unlock(lv_mutex_t *m) {
 #else
     pthread_mutex_unlock(m);
 #endif
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 第 2b 节：锁守卫（Lock Guard）
+ *
+ * 提供 RAII 风格的锁管理，通过 goto cleanup 模式确保所有退出路径
+ * 都会释放锁，避免遗漏 lv_mutex_unlock 调用。
+ *
+ * 使用方式：
+ *   lvLockGuard _lg;
+ *   lv_lock_guard_init(&_lg, &g_data_mutex);
+ *   if (error)
+ *       goto cleanup;
+ *   // work
+ * cleanup:
+ *   lv_lock_guard_destroy(&_lg);
+ *   return result;
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/** @brief 锁守卫结构体 */
+typedef struct { lv_mutex_t *mutex; } lvLockGuard;
+
+/** @brief 初始化锁守卫（自动加锁） */
+static inline void lv_lock_guard_init(lvLockGuard *g, lv_mutex_t *m) {
+    g->mutex = m;
+    lv_mutex_lock(m);
+}
+
+/** @brief 销毁锁守卫（自动解锁） */
+static inline void lv_lock_guard_destroy(lvLockGuard *g) {
+    if (g->mutex) {
+        lv_mutex_unlock(g->mutex);
+        g->mutex = NULL;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_differential_geometry.c
  * @brief 微分几何预设函数块 - 实现
  *
@@ -29,54 +29,12 @@
 /** 微分几何模块预设函数块总数（与头文件中 DIFFERENTIAL_GEOMETRY_PRESET_COUNT 一致） */
 #define DG_PRESET_COUNT DIFFERENTIAL_GEOMETRY_PRESET_COUNT
 
-/* ==================== REGISTER_DG 宏定义 ==================== */
-
-/**
- * @brief 注册单个微分几何预设的便捷宏
- *
- * 封装 preset_blocks_register_simple 调用，简化注册代码。
- * 所有微分几何预设使用 PRESET_CATEGORY_ANALYSIS 类别。
- *
- * @param preset_name   预设名称常量（头文件中定义的宏）
- * @param desc          中文描述
- * @param inputs        输入类型数组（PresetType 复合字面量）
- * @param n_inputs      输入数量
- * @param output        输出类型
- * @param math          数学定义（LaTeX 格式）
- * @param comp          时间复杂度
- * @param constructive  是否构造性
- * @param reversible    是否可逆
- */
-#define REGISTER_DG(preset_name, desc, n_inputs, output, math, comp, constructive, reversible, ...)               \
-    do {                                                                                                          \
-        PresetType _in[] = {__VA_ARGS__};                                                                         \
-        if (register_dg_preset(preset_name, desc, _in, n_inputs, output, math, comp, constructive, reversible)) { \
-            success_count++;                                                                                      \
-        }                                                                                                         \
-    } while (0)
 /* ==================== 内部辅助函数 ==================== */
 
 /**
  * @brief 注册单个微分几何预设
- *
- * @param name 预设名称
- * @param description 中文描述
- * @param input_types 输入类型数组
- * @param input_count 输入数量
- * @param output_type 输出类型
- * @param math_def 数学定义（LaTeX格式）
- * @param complexity 时间复杂度
- * @param is_constructive 是否构造性
- * @param is_reversible 是否可逆
- * @return true 注册成功
- * @return false 注册失败
  */
-static bool register_dg_preset(const char *name, const char *description, const PresetType *input_types,
-                               int input_count, PresetType output_type, const char *math_def, const char *complexity,
-                               bool is_constructive, bool is_reversible) {
-    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ANALYSIS, input_types, input_count,
-                                         output_type, math_def, complexity, is_constructive, is_reversible);
-}
+LV_DECLARE_PRESET_REGISTER(PRESET_CATEGORY_ANALYSIS)
 
 /* ==================== 模块注册实现 ==================== */
 
@@ -100,7 +58,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_ARC_LENGTH_PARAM,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_ARC_LENGTH_PARAM,
                 "弧长参数化：将参数曲线 gamma(t) 转化为弧长参数化 gamma(s)，满足 |gamma'(s)| = 1", 1, PRESET_TYPE_PATH,
                 "s = \\int_{t_0}^t |\\gamma'(\\tau)|\\,d\\tau, \\quad |\\gamma'(s)| = 1", "O(n)", true, false,
                 PRESET_TYPE_PATH);
@@ -118,7 +76,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_FRENET_FRAME, "Frenet标架：计算空间曲线在给定参数处的Frenet标架(T, N, B)，构成右手正交标架",
+    LV_PRESET_REGISTER(success_count, PRESET_DG_FRENET_FRAME, "Frenet标架：计算空间曲线在给定参数处的Frenet标架(T, N, B)，构成右手正交标架",
                 2, PRESET_TYPE_TUPLE,
                 "T = \\frac{\\gamma'}{|\\gamma'|}, \\quad "
                 "N = \\frac{T'}{|T'|}, \\quad "
@@ -137,7 +95,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_CURVATURE, "曲率计算：计算空间曲线在给定参数处的曲率 kappa = |gamma' × gamma''| / |gamma'|^3",
+    LV_PRESET_REGISTER(success_count, PRESET_DG_CURVATURE, "曲率计算：计算空间曲线在给定参数处的曲率 kappa = |gamma' × gamma''| / |gamma'|^3",
                 2, PRESET_TYPE_SCALAR, "\\kappa(t) = \\frac{|\\gamma'(t) \\times \\gamma''(t)|}{|\\gamma'(t)|^3}",
                 "O(1)", true, false, PRESET_TYPE_PATH, PRESET_TYPE_SCALAR);
 
@@ -154,7 +112,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_TORSION,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_TORSION,
                 "挠率计算：计算空间曲线在给定参数处的挠率 tau = (gamma' × gamma'') · gamma''' / |gamma' × gamma''|^2",
                 2, PRESET_TYPE_SCALAR,
                 "\\tau(t) = \\frac{(\\gamma' \\times \\gamma'') \\cdot \\gamma'''}{|\\gamma' \\times \\gamma''|^2}",
@@ -174,7 +132,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 否
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_BERTRAND_CURVE, "Bertrand曲线：判定两条空间曲线是否构成Bertrand曲线对（具有共同主法线）", 2,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_BERTRAND_CURVE, "Bertrand曲线：判定两条空间曲线是否构成Bertrand曲线对（具有共同主法线）", 2,
                 PRESET_TYPE_BOOLEAN, "\\exists \\lambda, \\mu \\in \\mathbb{R}: \\lambda\\kappa(t) + \\mu\\tau(t) = 1",
                 "O(n)", false, false, PRESET_TYPE_PATH, PRESET_TYPE_PATH);
 
@@ -195,7 +153,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_FIRST_FUNDAMENTAL_FORM, "第一基本形式：计算曲面的第一基本形式系数(E, F, G)，刻画内蕴度量", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_FIRST_FUNDAMENTAL_FORM, "第一基本形式：计算曲面的第一基本形式系数(E, F, G)，刻画内蕴度量", 1,
                 PRESET_TYPE_TUPLE,
                 "I = E\\,du^2 + 2F\\,du\\,dv + G\\,dv^2, \\quad "
                 "E = \\mathbf{r}_u\\cdot\\mathbf{r}_u, \\quad "
@@ -216,7 +174,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_SECOND_FUNDAMENTAL_FORM, "第二基本形式：计算曲面的第二基本形式系数(L, M, N)，刻画外蕴弯曲", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_SECOND_FUNDAMENTAL_FORM, "第二基本形式：计算曲面的第二基本形式系数(L, M, N)，刻画外蕴弯曲", 1,
                 PRESET_TYPE_TUPLE,
                 "II = L\\,du^2 + 2M\\,du\\,dv + N\\,dv^2, \\quad "
                 "L = \\mathbf{r}_{uu}\\cdot\\mathbf{n}, \\quad "
@@ -237,7 +195,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_GAUSS_CURVATURE, "Gauss曲率：计算曲面在给定点处的Gauss曲率 K = (LN - M^2)/(EG - F^2)", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_GAUSS_CURVATURE, "Gauss曲率：计算曲面在给定点处的Gauss曲率 K = (LN - M^2)/(EG - F^2)", 1,
                 PRESET_TYPE_SCALAR, "K = \\frac{LN - M^2}{EG - F^2} = \\kappa_1 \\kappa_2", "O(1)", true, false,
                 PRESET_TYPE_SURFACE);
 
@@ -254,7 +212,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_MEAN_CURVATURE, "平均曲率：计算曲面在给定点处的平均曲率 H = (kappa1 + kappa2)/2", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_MEAN_CURVATURE, "平均曲率：计算曲面在给定点处的平均曲率 H = (kappa1 + kappa2)/2", 1,
                 PRESET_TYPE_SCALAR, "H = \\frac{EN - 2FM + GL}{2(EG - F^2)} = \\frac{\\kappa_1 + \\kappa_2}{2}", "O(1)",
                 true, false, PRESET_TYPE_SURFACE);
 
@@ -271,7 +229,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_PRINCIPAL_CURVATURES, "主曲率：计算曲面在给定点处的主曲率对 (k1, k2)，即法曲率的极值", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_PRINCIPAL_CURVATURES, "主曲率：计算曲面在给定点处的主曲率对 (k1, k2)，即法曲率的极值", 1,
                 PRESET_TYPE_TUPLE, "\\kappa_{1,2} = H \\pm \\sqrt{H^2 - K}", "O(1)", true, false, PRESET_TYPE_SURFACE);
 
     /**
@@ -287,7 +245,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_WEINGARTEN_MAP, "Weingarten映射：计算曲面的形状算子 S = I^{-1}·II，特征值为主曲率", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_WEINGARTEN_MAP, "Weingarten映射：计算曲面的形状算子 S = I^{-1}·II，特征值为主曲率", 1,
                 PRESET_TYPE_MATRIX,
                 "S = \\begin{pmatrix} E & F \\\\ F & G \\end{pmatrix}^{-1}"
                 "\\begin{pmatrix} L & M \\\\ M & N \\end{pmatrix}",
@@ -310,7 +268,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_LEVI_CIVITA_CONNECTION, "Levi-Civita联络：从度量张量构造无挠且与度量相容的唯一联络", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_LEVI_CIVITA_CONNECTION, "Levi-Civita联络：从度量张量构造无挠且与度量相容的唯一联络", 1,
                 PRESET_TYPE_MATRIX,
                 "\\Gamma_{ij}^k = \\frac{1}{2}g^{kl}"
                 "(\\partial_i g_{lj} + \\partial_j g_{li} - \\partial_l g_{ij})",
@@ -329,7 +287,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_RIEMANN_CURVATURE, "Riemann曲率张量：从Christoffel符号计算Riemann曲率张量 R^{i}_{jkl}", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_RIEMANN_CURVATURE, "Riemann曲率张量：从Christoffel符号计算Riemann曲率张量 R^{i}_{jkl}", 1,
                 PRESET_TYPE_MATRIX,
                 "R^{i}_{jkl} = \\partial_k \\Gamma^{i}_{jl} - "
                 "\\partial_l \\Gamma^{i}_{jk} + "
@@ -350,7 +308,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_RICCI_CURVATURE, "Ricci曲率：由Riemann曲率张量缩并得到Ricci曲率张量 R_{ij} = R^{k}_{ikj}", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_RICCI_CURVATURE, "Ricci曲率：由Riemann曲率张量缩并得到Ricci曲率张量 R_{ij} = R^{k}_{ikj}", 1,
                 PRESET_TYPE_MATRIX, "R_{ij} = R^{k}_{ikj}", "O(n^3)", true, false, PRESET_TYPE_MATRIX);
 
     /**
@@ -366,7 +324,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_SECTIONAL_CURVATURE, "截面曲率：计算流形在给定二维截面方向(X, Y)的截面曲率 K(X,Y)", 3,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_SECTIONAL_CURVATURE, "截面曲率：计算流形在给定二维截面方向(X, Y)的截面曲率 K(X,Y)", 3,
                 PRESET_TYPE_SCALAR, "K(X, Y) = \\frac{R(X,Y,Y,X)}{|X|^2|Y|^2 - \\langle X,Y \\rangle^2}", "O(n^3)",
                 true, false, PRESET_TYPE_MATRIX, PRESET_TYPE_VECTOR, PRESET_TYPE_VECTOR);
 
@@ -383,7 +341,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_SCALAR_CURVATURE, "标量曲率：计算标量曲率 R = g^{ij} R_{ij}（Ricci曲率的迹）", 2,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_SCALAR_CURVATURE, "标量曲率：计算标量曲率 R = g^{ij} R_{ij}（Ricci曲率的迹）", 2,
                 PRESET_TYPE_SCALAR, "R = g^{ij} R_{ij}", "O(n^2)", true, false, PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX);
 
     /* ============================================================
@@ -403,7 +361,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_GEODESIC_EQUATION, "测地线方程：建立并求解曲面上给定初值条件的测地线微分方程", 3,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_GEODESIC_EQUATION, "测地线方程：建立并求解曲面上给定初值条件的测地线微分方程", 3,
                 PRESET_TYPE_PATH,
                 "\\frac{d^2 u^k}{dt^2} + "
                 "\\Gamma_{ij}^k \\frac{du^i}{dt}\\frac{du^j}{dt} = 0",
@@ -423,7 +381,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_EXPONENTIAL_MAP, "指数映射：计算切向量 v 在指数映射 exp_p(v) 下的像点", 2, PRESET_TYPE_POINT,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_EXPONENTIAL_MAP, "指数映射：计算切向量 v 在指数映射 exp_p(v) 下的像点", 2, PRESET_TYPE_POINT,
                 "\\exp_p(v) = \\gamma_v(1), \\quad "
                 "\\gamma_v(0) = p, \\quad \\gamma_v'(0) = v",
                 "O(n^2)", true, false, PRESET_TYPE_POINT, PRESET_TYPE_VECTOR);
@@ -441,7 +399,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_JACOBI_FIELD,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_JACOBI_FIELD,
                 "Jacobi场：计算沿测地线的Jacobi向量场，满足 Jacobi 方程 D^2J/dt^2 + R(J,dot(gamma))dot(gamma) = 0", 2,
                 PRESET_TYPE_VECTOR, "\\frac{D^2 J}{dt^2} + R(J, \\dot{\\gamma})\\dot{\\gamma} = 0", "O(n^2)", true,
                 false, PRESET_TYPE_PATH, PRESET_TYPE_VECTOR);
@@ -459,7 +417,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 否
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_CONJUGATE_POINTS, "共轭点：计算沿测地线的共轭点位置（使Jacobi场首次消失的参数值）", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_CONJUGATE_POINTS, "共轭点：计算沿测地线的共轭点位置（使Jacobi场首次消失的参数值）", 1,
                 PRESET_TYPE_SCALAR, "\\exists J \\neq 0: J(0) = 0, \\; J(t_0) = 0", "O(n^2)", false, false,
                 PRESET_TYPE_PATH);
 
@@ -480,7 +438,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_TENSOR_PRODUCT, "张量积：计算两个张量的张量积 T ⊗ S，构造高阶张量", 2, PRESET_TYPE_MATRIX,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_TENSOR_PRODUCT, "张量积：计算两个张量的张量积 T ⊗ S，构造高阶张量", 2, PRESET_TYPE_MATRIX,
                 "(T \\otimes S)^{i_1\\ldots i_p j_1\\ldots j_q}_{k_1\\ldots k_r l_1\\ldots l_s} = "
                 "T^{i_1\\ldots i_p}_{k_1\\ldots k_r} S^{j_1\\ldots j_q}_{l_1\\ldots l_s}",
                 "O(n^4)", true, false, PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX);
@@ -498,7 +456,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_COVARIANT_DERIVATIVE, "协变导数：计算张量场的协变导数 ∇_k T，联络修正偏导数", 2,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_COVARIANT_DERIVATIVE, "协变导数：计算张量场的协变导数 ∇_k T，联络修正偏导数", 2,
                 PRESET_TYPE_MATRIX,
                 "\\nabla_k T^{i}_{j} = \\partial_k T^{i}_{j} + \\Gamma^{i}_{kl}T^{l}_{j} - \\Gamma^{l}_{kj}T^{i}_{l}",
                 "O(n^3)", true, false, PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX);
@@ -516,7 +474,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_LIE_DERIVATIVE, "Lie导数：计算张量场沿向量场X的Lie导数 L_X T，度量无穷小变化率", 2,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_LIE_DERIVATIVE, "Lie导数：计算张量场沿向量场X的Lie导数 L_X T，度量无穷小变化率", 2,
                 PRESET_TYPE_MATRIX, "\\mathcal{L}_X T = \\lim_{t\\to 0}\\frac{\\phi_t^* T - T}{t}", "O(n^2)", true,
                 false, PRESET_TYPE_MATRIX, PRESET_TYPE_VECTOR);
 
@@ -533,7 +491,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 否
      */
-    REGISTER_DG(PRESET_DG_EXTERIOR_DERIVATIVE, "外微分：计算微分形式的外微分 dω，满足 d² = 0", 1, PRESET_TYPE_MATRIX,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_EXTERIOR_DERIVATIVE, "外微分：计算微分形式的外微分 dω，满足 d² = 0", 1, PRESET_TYPE_MATRIX,
                 "d\\omega = \\sum \\frac{\\partial \\omega_{i_1\\ldots i_k}}{\\partial x^j} "
                 "dx^j \\wedge dx^{i_1} \\wedge \\cdots \\wedge dx^{i_k}",
                 "O(n^2)", true, false, PRESET_TYPE_MATRIX);
@@ -551,7 +509,7 @@ bool preset_differential_geometry_register(void) {
      * @constructive 是
      * @reversible 是
      */
-    REGISTER_DG(PRESET_DG_HODGE_STAR, "Hodge星算子：计算微分形式的Hodge对偶 *ω，将k-形式映射为(n-k)-形式", 1,
+    LV_PRESET_REGISTER(success_count, PRESET_DG_HODGE_STAR, "Hodge星算子：计算微分形式的Hodge对偶 *ω，将k-形式映射为(n-k)-形式", 1,
                 PRESET_TYPE_MATRIX,
                 "*\\omega = \\frac{\\sqrt{|\\det g|}}{k!(n-k)!} "
                 "\\varepsilon_{i_1\\ldots i_n} "

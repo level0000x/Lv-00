@@ -32,7 +32,6 @@
  *
  * 所有 >256 字节的子表达式缓冲区均从池或堆获取。
  */
-int render_python_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);
 
 static int helper_python_number(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
@@ -71,207 +70,63 @@ static int helper_python_identifier(const FormulaNode *node, char *buffer, size_
 
 static int helper_python_binary_add(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    render_python_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    render_python_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-
-    written = snprintf(buffer, size, "(%s + %s)", left_buf, right_buf);
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    return render_binary_via(node, "(%s + %s)", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_binary_sub(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    render_python_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    render_python_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-
-    written = snprintf(buffer, size, "(%s - %s)", left_buf, right_buf);
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    return render_binary_via(node, "(%s - %s)", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_binary_mul(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    render_python_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    render_python_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-
-    written = snprintf(buffer, size, "(%s * %s)", left_buf, right_buf);
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    return render_binary_via(node, "(%s * %s)", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_binary_div(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    render_python_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    render_python_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-
-    written = snprintf(buffer, size, "(%s / %s)", left_buf, right_buf);
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    return render_binary_via(node, "(%s / %s)", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_binary_pow(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    render_python_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    render_python_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-
-    written = snprintf(buffer, size, "(%s ** %s)", left_buf, right_buf);
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    return render_binary_via(node, "(%s ** %s)", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_unary_neg(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        return -1;
-
-    render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    written = snprintf(buffer, size, "(-%s)", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "(-", ")", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_unary_sqrt(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        return -1;
-
-    render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    written = snprintf(buffer, size, "sqrt(%s)", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "sqrt(", ")", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    const char *func_names[] = {[NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "sin",
-                                [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "cos",
-                                [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "tan"};
-    int idx = node->type - NODE_UNARY_OP_NEG;
-
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        return -1;
-
-    render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    written = snprintf(buffer, size, "%s(%s)", func_names[idx], operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    static const char *const prefixes[] = {
+        [NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "sin(",
+        [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "cos(",
+        [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "tan(",
+    };
+    return render_unary_via(node, formula_render_trig_name(node, prefixes, lv_ARRAY_SIZE(prefixes)), ")", 0, buffer,
+                            size, options, render_python_internal);
 }
 
 static int helper_python_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        return -1;
-
-    render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    written = snprintf(buffer, size, "abs(%s)", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "abs(", ")", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_unary_ln(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        return -1;
-
-    render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    written = snprintf(buffer, size, "log(%s)", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "log(", ")", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_unary_log(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        return -1;
-
-    render_python_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    written = snprintf(buffer, size, "log10(%s)", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "log10(", ")", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_equation(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -547,19 +402,13 @@ static const RenderNodeFunc s_render_python_funcs[] = {
     [NODE_COMPOUND] = helper_python_compound,
 };
 
-int render_python_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
-    if (!node) {
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "node is NULL");
-    }
-
-
-
-    if ((unsigned)node->type < lv_ARRAY_SIZE(s_render_python_funcs)
-        && s_render_python_funcs[node->type]) {
-        return s_render_python_funcs[node->type](node, buffer, size, options);
-    }
-
-    /* fallback for unhandled node types */
+static int helper_python_unknown(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
     return snprintf(buffer, size, "# <unknown>");
+}
+
+int render_python_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
+    return dispatch_via(node, buffer, size, options, s_render_python_funcs, lv_ARRAY_SIZE(s_render_python_funcs),
+                        helper_python_unknown);
 }
 

@@ -23,6 +23,86 @@
 #include "symbolic_coord.h"
 
 /* ========================================================================
+ * Huffman tree building (shared kernel from 3 copies)
+ * ======================================================================== */
+
+/**
+ * @brief Build Huffman tree from frequency table
+ *
+ * Shared kernel converging 3 copies in entropy_encode_huffman,
+ * entropy_decode_huffman, and predictive_encode_parallelogram.
+ *
+ * @param[in]  freq   256-element frequency table
+ * @param[out] hnodes Pre-allocated HUFFMAN_MAX_NODES array (filled with tree)
+ * @return root node index on success, -1 on failure (no symbols or OOM)
+ */
+int huffman_tree_build(const uint32_t freq[256], HuffmanNode hnodes[HUFFMAN_MAX_NODES]) {
+    memset(hnodes, 0, HUFFMAN_MAX_NODES * sizeof(HuffmanNode));
+    int node_count = 0;
+
+    /* Initialize leaf nodes from frequency table */
+    for (int i = 0; i < 256; i++) {
+        if (freq[i] > 0) {
+            hnodes[node_count].left = -1;
+            hnodes[node_count].right = -1;
+            hnodes[node_count].parent = -1;
+            hnodes[node_count].freq = freq[i];
+            hnodes[node_count].byte_val = (uint8_t) i;
+            node_count++;
+        }
+    }
+
+    /* Single-symbol case: create a dummy parent */
+    if (node_count == 1) {
+        hnodes[node_count].left = 0;
+        hnodes[node_count].right = -1;
+        hnodes[node_count].parent = -1;
+        hnodes[node_count].freq = hnodes[0].freq;
+        hnodes[node_count].byte_val = 0;
+        hnodes[0].parent = node_count;
+        node_count++;
+    }
+
+    if (node_count < 2)
+        return -1;
+
+    /* Build min-heap and combine lowest-frequency nodes */
+    lvHeap heap;
+    if (!lv_heap_init(&heap, sizeof(HuffHeapElem), lv_MIN_HEAP, huff_heap_compare, HUFFMAN_MAX_NODES))
+        return -1;
+
+    for (int i = 0; i < node_count; i++) {
+        HuffHeapElem e = {i, hnodes[i].freq};
+        lv_heap_push(&heap, &e);
+    }
+
+    while (lv_heap_size(&heap) > 1) {
+        HuffHeapElem le, re;
+        lv_heap_pop(&heap, &le);
+        lv_heap_pop(&heap, &re);
+        int left = le.node_index;
+        int right = re.node_index;
+
+        hnodes[node_count].left = left;
+        hnodes[node_count].right = right;
+        hnodes[node_count].parent = -1;
+        hnodes[node_count].freq = hnodes[left].freq + hnodes[right].freq;
+        hnodes[node_count].byte_val = 0;
+        hnodes[left].parent = node_count;
+        hnodes[right].parent = node_count;
+
+        HuffHeapElem ne = {node_count, hnodes[node_count].freq};
+        lv_heap_push(&heap, &ne);
+        node_count++;
+    }
+
+    HuffHeapElem root_elem;
+    lv_heap_pop(&heap, &root_elem);
+    lv_heap_destroy(&heap);
+    return root_elem.node_index;
+}
+
+/* ========================================================================
  * Huffman encoding table generation
  * ======================================================================== */
 
@@ -103,63 +183,9 @@ bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uint8_t **
 
     /* Step 2: Build Huffman tree */
     HuffmanNode hnodes[HUFFMAN_MAX_NODES];
-    memset(hnodes, 0, sizeof(hnodes));
-    int node_count = 0;
-
-    for (int i = 0; i < 256; i++) {
-        if (freq[i] > 0) {
-            hnodes[node_count].left = -1;
-            hnodes[node_count].right = -1;
-            hnodes[node_count].parent = -1;
-            hnodes[node_count].freq = freq[i];
-            hnodes[node_count].byte_val = (uint8_t) i;
-            node_count++;
-        }
-    }
-
-    if (node_count == 1) {
-        hnodes[node_count].left = 0;
-        hnodes[node_count].right = -1;
-        hnodes[node_count].parent = -1;
-        hnodes[node_count].freq = hnodes[0].freq;
-        hnodes[node_count].byte_val = 0;
-        hnodes[0].parent = node_count;
-        node_count++;
-    }
-
-    lvHeap heap;
-    if (!lv_heap_init(&heap, sizeof(HuffHeapElem), lv_MIN_HEAP, huff_heap_compare, HUFFMAN_MAX_NODES))
+    int root = huffman_tree_build(freq, hnodes);
+    if (root < 0)
         return false;
-
-    for (int i = 0; i < node_count; i++) {
-        HuffHeapElem e = {i, hnodes[i].freq};
-        lv_heap_push(&heap, &e);
-    }
-
-    while (lv_heap_size(&heap) > 1) {
-        HuffHeapElem le, re;
-        lv_heap_pop(&heap, &le);
-        lv_heap_pop(&heap, &re);
-        int left = le.node_index;
-        int right = re.node_index;
-
-        hnodes[node_count].left = left;
-        hnodes[node_count].right = right;
-        hnodes[node_count].parent = -1;
-        hnodes[node_count].freq = hnodes[left].freq + hnodes[right].freq;
-        hnodes[node_count].byte_val = 0;
-        hnodes[left].parent = node_count;
-        hnodes[right].parent = node_count;
-
-        HuffHeapElem ne = {node_count, hnodes[node_count].freq};
-        lv_heap_push(&heap, &ne);
-        node_count++;
-    }
-
-    HuffHeapElem root_elem;
-    lv_heap_pop(&heap, &root_elem);
-    int root = root_elem.node_index;
-    lv_heap_destroy(&heap);
 
     /* Step 3: Generate Huffman encoding table */
     HuffmanCode codes[256];
@@ -187,9 +213,11 @@ bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uint8_t **
     lv_store_le32(output + offset, raw_sz);
     offset += sizeof(uint32_t);
 
-    /* Use bit writer to encode data */
+    /* Use a separate buffer for bit writer to avoid realloc on interior pointer */
+    uint8_t *bw_buf = (uint8_t *)lv_malloc(bitstream_capacity);
+    if (!bw_buf) { lv_free((void**)&output); return false; }
     BitWriter bw;
-    bw.buf = output + offset;
+    bw.buf = bw_buf;
     bw.capacity = bitstream_capacity;
     bw.byte_pos = 0;
     bw.bit_pos = 7;
@@ -200,15 +228,19 @@ bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uint8_t **
         HuffmanCode *hc = &codes[byte_val];
         if (hc->length == 0) {
             lv_free((void **) &output);
+            lv_free((void **) &bw_buf);
             return false;
         }
         if (!bitwriter_write_bits(&bw, hc->code, hc->length)) {
             lv_free((void **) &output);
+            lv_free((void **) &bw_buf);
             return false;
         }
     }
 
     size_t bitstream_bytes = bitwriter_flush(&bw);
+    memcpy(output + offset, bw_buf, bitstream_bytes);
+    lv_free((void **) &bw_buf);
     *out_data = output;
     *out_size = offset + bitstream_bytes;
     return true;
@@ -267,63 +299,11 @@ bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **out_data
 
     /* Rebuild Huffman tree */
     HuffmanNode hnodes[HUFFMAN_MAX_NODES];
-    memset(hnodes, 0, sizeof(hnodes));
-    int node_count = 0;
-
-    for (int i = 0; i < 256; i++) {
-        if (freq[i] > 0) {
-            hnodes[node_count].left = -1;
-            hnodes[node_count].right = -1;
-            hnodes[node_count].parent = -1;
-            hnodes[node_count].freq = freq[i];
-            hnodes[node_count].byte_val = (uint8_t) i;
-            node_count++;
-        }
-    }
-
-    if (node_count == 1) {
-        hnodes[node_count].left = 0;
-        hnodes[node_count].right = -1;
-        hnodes[node_count].parent = -1;
-        hnodes[node_count].freq = hnodes[0].freq;
-        hnodes[node_count].byte_val = 0;
-        hnodes[0].parent = node_count;
-        node_count++;
-    }
-
-    lvHeap heap;
-    if (!lv_heap_init(&heap, sizeof(HuffHeapElem), lv_MIN_HEAP, huff_heap_compare, HUFFMAN_MAX_NODES)) {
+    int root = huffman_tree_build(freq, hnodes);
+    if (root < 0) {
         lv_free((void **) &output);
         return false;
     }
-
-    for (int i = 0; i < node_count; i++) {
-        HuffHeapElem e = {i, hnodes[i].freq};
-        lv_heap_push(&heap, &e);
-    }
-
-    while (lv_heap_size(&heap) > 1) {
-        HuffHeapElem le, re;
-        lv_heap_pop(&heap, &le);
-        lv_heap_pop(&heap, &re);
-        int left = le.node_index;
-        int right = re.node_index;
-        hnodes[node_count].left = left;
-        hnodes[node_count].right = right;
-        hnodes[node_count].parent = -1;
-        hnodes[node_count].freq = hnodes[left].freq + hnodes[right].freq;
-        hnodes[node_count].byte_val = 0;
-        hnodes[left].parent = node_count;
-        hnodes[right].parent = node_count;
-        HuffHeapElem ne = {node_count, hnodes[node_count].freq};
-        lv_heap_push(&heap, &ne);
-        node_count++;
-    }
-
-    HuffHeapElem root_elem;
-    lv_heap_pop(&heap, &root_elem);
-    int root = root_elem.node_index;
-    lv_heap_destroy(&heap);
 
     /* Step 2: Bit-by-bit decode */
     BitReader br;
@@ -331,7 +311,7 @@ bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **out_data
 
     size_t decoded = 0;
 
-    if (node_count == 2 && hnodes[root].right < 0) {
+    if (hnodes[root].right < 0) {
         uint8_t byte_val = hnodes[hnodes[root].left].byte_val;
         for (size_t i = 0; i < raw_sz; i++) {
             output[i] = byte_val;

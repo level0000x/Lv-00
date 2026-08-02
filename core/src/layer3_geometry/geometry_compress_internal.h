@@ -104,6 +104,7 @@ ConstraintGraph *graph_clone(const ConstraintGraph *graph);
 /* ---- cross-section helpers (defined in geometry_compress.c) ---- */
 int huff_heap_compare(const void *a, const void *b);
 CompressConfig compress_config_default(void);
+int huffman_tree_build(const uint32_t freq[256], HuffmanNode hnodes[HUFFMAN_MAX_NODES]);
 void huffman_generate_codes(const HuffmanNode *hnodes, int root, HuffmanCode *codes);
 
 #ifdef __cplusplus

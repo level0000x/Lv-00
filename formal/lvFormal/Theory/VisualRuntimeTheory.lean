@@ -1,4 +1,4 @@
-/-
+﻿/-
 Lv-00 formal: VisualRuntimeTheory (Round 1)
 ==============================================
 Corresponds to: core/src/layer6_visual/ C files (runtime, control_flow, io, events)
@@ -762,7 +762,12 @@ theorem runtime_invariant_init : RuntimeInvariant initRuntimeState := by
     This proof case-analyses each ExecutionStep and uses the invariant hypotheses. -/
 theorem step_preserves_invariant (state : VisualRuntimeState) (step : ExecutionStep)
     (h : RuntimeInvariant state) : RuntimeInvariant (stepExecution step state).1 := by
-  sorry
+  rcases h with ⟨h_blocks, ⟨h_w, h_h⟩, h_queue, h_dedup, h_opacity⟩
+  cases step <;> unfold stepExecution RuntimeInvariant
+  · simp [h_blocks, h_w, h_h, h_queue, h_dedup, h_opacity]
+  · simp [h_blocks, h_w, h_h, h_queue, h_dedup, h_opacity]
+  · simp [h_w, h_h, h_queue, h_dedup, h_opacity]
+  · simp [h_blocks, h_w, h_h, h_queue, h_dedup, h_opacity]
 
 -- ──────────────────────────────────────────────
 -- Theorem 3: render_pipeline_sound
@@ -772,7 +777,14 @@ theorem step_preserves_invariant (state : VisualRuntimeState) (step : ExecutionS
     whose pixel data is within bounds. -/
 theorem render_pipeline_sound (p : RenderPipeline) (fb : FrameBuffer)
     (hfb : FrameBuffer.wellFormed fb) : (executeRenderPipeline p fb).allPixelsInBounds := by
-  sorry
+  induction' p.commands with cmd cmds ih generalizing fb
+  · exact hfb.2.2
+  · have hfb' : FrameBuffer.wellFormed (executeRenderCommand cmd fb) := by
+      rcases hfb with ⟨hw, hh, hb⟩
+      unfold FrameBuffer.wellFormed executeRenderCommand
+      cases cmd <;> simp [hw, hh, hb]
+    apply ih
+    exact hfb'
 
 -- ──────────────────────────────────────────────
 -- Theorem 4: event_processing_deterministic
@@ -896,11 +908,23 @@ theorem flatten_sequential (steps : List ControlFlow) :
     `l.foldl (fun acc s => acc + g s) a = a + l.foldl (fun acc s => acc + g s) 0` -/
 lemma foldl_add_distrib (g : ControlFlow → Nat) (a : Nat) (l : List ControlFlow) :
     l.foldl (fun acc s => acc + g s) a = a + l.foldl (fun acc s => acc + g s) 0 := by
-  sorry
+  induction' l with x xs ih generalizing a
+  · rfl
+  · simp [ih]
 
 /-- The size of a control-flow tree is the number of execute_block leaves. -/
 theorem control_flow_size_eq_flatten_length (cf : ControlFlow) :
     controlFlowSize cf = (flattenControlFlow cf).length := by
-  sorry
+  induction cf with
+  | sequential steps ih =>
+    simp [controlFlowSize, flattenControlFlow, ih, foldl_add_distrib]
+  | parallel branches ih =>
+    simp [controlFlowSize, flattenControlFlow, ih, foldl_add_distrib]
+  | conditional _ t e ih_t ih_e =>
+    simp [controlFlowSize, flattenControlFlow, ih_t, ih_e]
+  | execute_block _ =>
+    rfl
 
 end lvFormal.Theory.VisualRuntimeTheory
+
+

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * @file geometry_compress_decompress.c
  * @brief Geometry compression engine - decompress pipeline
  * @details Split from geometry_compress.c
@@ -42,8 +42,7 @@ static bool deserialize_clers(const uint8_t *data, size_t size, EdgebreakerMode 
     if (!data || size < sizeof(int32_t) || !seq || !seq_len || !consumed)
         return false;
 
-    int32_t len;
-    memcpy(&len, data, sizeof(int32_t));
+    int32_t len = (int32_t)lv_load_le32(data);
     *consumed = sizeof(int32_t);
 
     if (len <= 0 || (size_t) len > size - sizeof(int32_t)) {
@@ -81,16 +80,13 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
     const uint8_t *ptr = data;
     const uint8_t *end = data + size;
 
-    int32_t node_count;
-    memcpy(&node_count, ptr, sizeof(int32_t));
+    int32_t node_count = (int32_t)lv_load_le32(ptr);
     ptr += sizeof(int32_t);
 
     for (int i = 0; i < node_count && ptr + 2 * sizeof(int32_t) <= end; i++) {
-        int32_t nid;
-        int32_t cc;
-        memcpy(&nid, ptr, sizeof(int32_t));
+        int32_t nid = (int32_t)lv_load_le32(ptr);
         ptr += sizeof(int32_t);
-        memcpy(&cc, ptr, sizeof(int32_t));
+        int32_t cc = (int32_t)lv_load_le32(ptr);
         ptr += sizeof(int32_t);
 
         if (cc < 0 || cc > 100) /* Sanity check */

@@ -32,7 +32,22 @@ theorem empty_stream_ordered {α : Type} : is_ordered ([] : EventStream α) := b
 /-- 附加有序事件到有序流的尾部保持有序 -/
 theorem event_ordering_append {α : Type} (s : EventStream α) (e : Event α) (h : is_ordered s)
     (hlast : s.all (fun ev => ev.timestamp ≤ e.timestamp)) : is_ordered (s ++ [e]) := by
-  sorry
+  induction s generalizing e with
+  | nil => exact True.intro
+  | cons hd tl ih =>
+    unfold is_ordered
+    match tl with
+    | [] => simp
+    | hd2 :: tl2 =>
+      unfold is_ordered at h
+      rcases h with ⟨h_ord, h_rest⟩
+      have h_tl_all : (hd2 :: tl2).all (fun ev => ev.timestamp ≤ e.timestamp) := by
+        intro x hx
+        apply hlast
+        exact List.mem_cons_of_mem hd hx
+      have h_tl_append_ord : is_ordered ((hd2 :: tl2) ++ [e]) := ih h_rest h_tl_all
+      refine ⟨h_ord, ?_⟩
+      simpa using h_tl_append_ord
 
 /-- 背压容量：队列长度不超过 capacity -/
 def backpressure_capacity {α : Type} (s : EventStream α) (capacity : Nat) : Prop :=
@@ -46,6 +61,9 @@ theorem empty_stream_capacity {α : Type} (c : Nat) : backpressure_capacity ([] 
 theorem capacity_preserved {α : Type} (s : EventStream α) (e : Event α) (c : Nat)
     (h : backpressure_capacity s c) (hlt : s.length < c) :
     backpressure_capacity (s ++ [e]) c := by
-  sorry
+  unfold backpressure_capacity at h ⊢
+  have h_len : (s ++ [e]).length = s.length + 1 := by simp
+  rw [h_len]
+  omega
 
 end lvFormal.Theory.StreamInvariants

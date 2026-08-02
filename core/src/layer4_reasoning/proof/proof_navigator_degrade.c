@@ -121,11 +121,9 @@ int proof_validate_dependencies(ProofNavigator *nav, DependencyUpdateResult *res
     }
 
     /* 流式事件：依赖验证结果 */
-    if (proof_stream_ctx != NULL && update_count > 0) {
-        lvStrBuf sb = {0};
-        lv_strbuf_printf(&sb, "依赖验证完成: %d 个依赖需要更新", update_count);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_DEPENDENCY_CHANGE, sb.data, 0);
-        lv_strbuf_destroy(&sb);
+    if (update_count > 0) {
+        nav_emit(proof_stream_ctx, STREAM_EVENT_PROOF_DEPENDENCY_CHANGE, "依赖验证完成: %d 个依赖需要更新",
+                 update_count);
     }
 
     return update_count;

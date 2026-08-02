@@ -29,6 +29,70 @@
  *  第三部分：公共 API —— 理想与 Groebner 基
  * ================================================================ */
 
+/* ================================================================
+ *  内部辅助 —— 理想 / Gröbner 基构造与释放
+ * ================================================================ */
+
+lvGroebnerBasis *basis_alloc(int capacity) {
+    lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
+    if (!basis) {
+        return NULL;
+    }
+    if (capacity > 0) {
+        basis->basis_polys = (lvPolynomial **) lv_calloc((size_t) capacity, sizeof(lvPolynomial *));
+        if (!basis->basis_polys) {
+            lv_free((void **) &basis);
+            return NULL;
+        }
+    }
+    basis->bases_capacity = capacity;
+    basis->bases_count = 0;
+    return basis;
+}
+
+void basis_destroy(lvGroebnerBasis *basis) {
+    if (!basis) {
+        return;
+    }
+    if (basis->basis_polys) {
+        for (int i = 0; i < basis->bases_count; i++) {
+            poly_internal_destroy(basis->basis_polys[i]);
+        }
+        lv_free((void **) &basis->basis_polys);
+    }
+    lv_free((void **) &basis);
+}
+
+void ideal_clear_cached_basis(lvIdeal *ideal) {
+    if (!ideal || !ideal->cached_basis) {
+        return;
+    }
+    basis_destroy(ideal->cached_basis);
+    ideal->cached_basis = NULL;
+}
+
+static lvIdeal *ideal_alloc_locked(int ring_id, int capacity, const char *label) {
+    if (capacity < GROEBNER_IDEAL_INIT_GEN_CAPACITY) {
+        capacity = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
+    }
+    lvIdeal *ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
+    if (!ideal) {
+        return NULL;
+    }
+    ideal->ring_id = ring_id;
+    ideal->generators = (lvPolynomial **) lv_calloc((size_t) capacity, sizeof(lvPolynomial *));
+    if (!ideal->generators) {
+        lv_free((void **) &ideal);
+        return NULL;
+    }
+    ideal->generator_capacity = capacity;
+    ideal->generator_count = 0;
+    ideal->cached_basis = NULL;
+    ideal->basis_valid = false;
+    ideal->label = groebner_strdup_safe(label);
+    return ideal;
+}
+
 /**
  * @brief 创建理想
  */
@@ -38,36 +102,30 @@ int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
                         (const void *)registry, ring_id);
     }
 
-    lvIdeal *ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
+    lvIdeal *ideal = ideal_alloc_locked(ring_id, GROEBNER_IDEAL_INIT_GEN_CAPACITY, label);
     if (!ideal) {
-        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ideal_create: lv_calloc(%zu) failed", sizeof(lvIdeal));
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ideal_create: ideal_alloc_locked failed");
     }
 
-    ideal->ring_id = ring_id;
-    ideal->generators = (lvPolynomial **) lv_calloc((size_t) GROEBNER_IDEAL_INIT_GEN_CAPACITY, sizeof(lvPolynomial *));
-    if (!ideal->generators) {
-        lv_free((void **) &ideal);
-        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ideal_create: lv_calloc for generators failed");
-    }
-    ideal->generator_capacity = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
-    ideal->generator_count = 0;
-    ideal->cached_basis = NULL;
-    ideal->basis_valid = false;
-    ideal->label = groebner_strdup_safe(label);
-
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
-        lv_mutex_unlock(&g_data_mutex);
-        lv_free((void **) &ideal->generators);
-        lv_free((void **) &ideal->label);
-        lv_free((void **) &ideal);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "ideal_create: registry_data_ensure failed");
+        lv_set_error_ctx(lv_ERROR_INTERNAL, __FILE__, __LINE__, __func__,
+                         "ideal_create: registry_data_ensure failed");
+        goto cleanup;
     }
 
     int result = ideal_internal_store(data, ideal);
-    lv_mutex_unlock(&g_data_mutex);
+    lv_lock_guard_destroy(&_lg);
     return result;
+
+cleanup:
+    lv_free((void **) &ideal->generators);
+    lv_free((void **) &ideal->label);
+    lv_free((void **) &ideal);
+    lv_lock_guard_destroy(&_lg);
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "ideal_create: registry_data_ensure failed");
 }
 
 /**
@@ -75,32 +133,25 @@ int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
  */
 void ideal_destroy(lvRingRegistry *registry, int ideal_id) {
     lv_UNUSED(registry);
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
     if (!g_data || ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return;
+        goto cleanup;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     if (!ideal) {
-        lv_mutex_unlock(&g_data_mutex);
-        return;
+        goto cleanup;
     }
 
-    if (ideal->cached_basis) {
-        if (ideal->cached_basis->basis_polys) {
-            for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
-                poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
-            }
-            lv_free((void **) &ideal->cached_basis->basis_polys);
-        }
-        lv_free((void **) &ideal->cached_basis);
-    }
+    ideal_clear_cached_basis(ideal);
     lv_free((void **) &ideal->generators);
     lv_free((void **) &ideal->label);
     lv_free((void **) &ideal);
     g_data->ideals[ideal_id] = NULL;
-    lv_mutex_unlock(&g_data_mutex);
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
 }
 
 /**
@@ -110,30 +161,26 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
     if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (poly_id < 0 || poly_id >= g_data->poly_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *poly = g_data->polys[poly_id];
     if (!ideal || !poly) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     if (ideal->ring_id != poly->ring_id) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     if (ideal->generator_count >= ideal->generator_capacity) {
@@ -141,8 +188,7 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
         lvPolynomial **new_gens =
             (lvPolynomial **) lv_realloc(ideal->generators, (size_t) new_cap * sizeof(lvPolynomial *));
         if (!new_gens) {
-            lv_mutex_unlock(&g_data_mutex);
-            return -1;
+            goto cleanup;
         }
         ideal->generators = new_gens;
         ideal->generator_capacity = new_cap;
@@ -151,8 +197,12 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
     ideal->generators[ideal->generator_count++] = poly;
     ideal->basis_valid = false; /* 缓存失效 */
 
-    lv_mutex_unlock(&g_data_mutex);
+    lv_lock_guard_destroy(&_lg);
     return 0;
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return -1;
 }
 
 /**
@@ -162,69 +212,61 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    int ret = -1;
+
     if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     if (!ideal) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     if (ideal->generator_count == 0) {
         /* 零理想 */
-        lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
+        lvGroebnerBasis *basis = basis_alloc(0);
         if (!basis) {
-            lv_mutex_unlock(&g_data_mutex);
-            return -1;
+            goto cleanup;
         }
         basis->is_minimal = true;
         basis->is_reduced = true;
         basis->algorithm_used = GROEBNER_BUCHBERGER;
         ideal->cached_basis = basis;
         ideal->basis_valid = true;
-        lv_mutex_unlock(&g_data_mutex);
-        return 0;
+        ret = 0;
+        goto cleanup;
     }
 
     clock_t start_clock = clock(); /* 简单计时 */
 
     lvGroebnerBasis *basis = groebner_internal_compute(ring, ideal->generators, ideal->generator_count, algorithm);
     if (!basis) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     basis->computation_time_us = (int64_t) lv_clock_elapsed_us(start_clock);
 
     /* 释放旧缓存 */
-    if (ideal->cached_basis) {
-        if (ideal->cached_basis->basis_polys) {
-            for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
-                poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
-            }
-            lv_free((void **) &ideal->cached_basis->basis_polys);
-        }
-        lv_free((void **) &ideal->cached_basis);
-    }
+    ideal_clear_cached_basis(ideal);
 
     ideal->cached_basis = basis;
     ideal->basis_valid = true;
-    lv_mutex_unlock(&g_data_mutex);
-    return 0;
+    ret = 0;
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ret;
 }
 
 /**
@@ -254,19 +296,13 @@ static lvGroebnerBasis *groebner_internal_extend_basis(const lvPolynomialRing *r
         /* 新多项式已是理想的元素，返回旧基的副本 */
         if (reduced)
             poly_internal_destroy(reduced);
-        lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
+        lvGroebnerBasis *basis = basis_alloc(old_count + 1);
         if (!basis)
             return NULL;
-        basis->basis_polys = (lvPolynomial **) lv_calloc((size_t)(old_count + 1), sizeof(lvPolynomial *));
-        if (!basis->basis_polys) {
-            lv_free((void **) &basis);
-            return NULL;
-        }
         for (int i = 0; i < old_count; i++) {
             basis->basis_polys[i] = poly_internal_copy(old_basis->basis_polys[i], ring);
         }
         basis->bases_count = old_count;
-        basis->bases_capacity = old_count + 1;
         basis->is_minimal = old_basis->is_minimal;
         basis->is_reduced = old_basis->is_reduced;
         basis->reducing_degree = old_basis->reducing_degree;
@@ -275,18 +311,11 @@ static lvGroebnerBasis *groebner_internal_extend_basis(const lvPolynomialRing *r
 
     /* 新多项式约化后非零，建立新基：先复制旧基，再加入约化后的新多项式 */
     int new_capacity = old_count + 16;
-    lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
+    lvGroebnerBasis *basis = basis_alloc(new_capacity);
     if (!basis) {
         poly_internal_destroy(reduced);
         return NULL;
     }
-    basis->basis_polys = (lvPolynomial **) lv_calloc((size_t) new_capacity, sizeof(lvPolynomial *));
-    if (!basis->basis_polys) {
-        lv_free((void **) &basis);
-        poly_internal_destroy(reduced);
-        return NULL;
-    }
-    basis->bases_capacity = new_capacity;
 
     for (int i = 0; i < old_count; i++) {
         basis->basis_polys[i] = poly_internal_copy(old_basis->basis_polys[i], ring);
@@ -407,29 +436,27 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    int ret = -1;
+
     if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (new_poly_id < 0 || new_poly_id >= g_data->poly_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *new_poly = g_data->polys[new_poly_id];
     if (!ideal || !new_poly) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal->ring_id != new_poly->ring_id) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     /* 将新多项式添加到生成元列表 */
@@ -438,8 +465,7 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
         lvPolynomial **new_gens =
             (lvPolynomial **) lv_realloc(ideal->generators, (size_t) new_cap * sizeof(lvPolynomial *));
         if (!new_gens) {
-            lv_mutex_unlock(&g_data_mutex);
-            return -1;
+            goto cleanup;
         }
         ideal->generators = new_gens;
         ideal->generator_capacity = new_cap;
@@ -449,8 +475,7 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvGroebnerBasis *basis = NULL;
@@ -463,31 +488,25 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
     /* 若增量扩展失败或无缓存基，回退到完全重算 */
     if (!basis) {
         if (ideal->generator_count == 0) {
-            lv_mutex_unlock(&g_data_mutex);
-            return 0;
+            ret = 0;
+            goto cleanup;
         }
         basis = groebner_internal_compute(ring, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
         if (!basis) {
-            lv_mutex_unlock(&g_data_mutex);
-            return -1;
+            goto cleanup;
         }
     }
 
     /* 释放旧缓存 */
-    if (ideal->cached_basis) {
-        if (ideal->cached_basis->basis_polys) {
-            for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
-                poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
-            }
-            lv_free((void **) &ideal->cached_basis->basis_polys);
-        }
-        lv_free((void **) &ideal->cached_basis);
-    }
+    ideal_clear_cached_basis(ideal);
 
     ideal->cached_basis = basis;
     ideal->basis_valid = true;
-    lv_mutex_unlock(&g_data_mutex);
-    return 0;
+    ret = 0;
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ret;
 }
 
 /**
@@ -497,36 +516,33 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
     if (!registry)
         return false;
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    bool result = false;
+
     if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
     if (poly_id < 0 || poly_id >= g_data->poly_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *poly = g_data->polys[poly_id];
     if (!ideal || !poly) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
 
     if (ideal->ring_id != poly->ring_id) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
 
     /* 确保 Groebner 基已计算（直接调用内部函数，已持有锁） */
@@ -534,19 +550,10 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
         lvGroebnerBasis *basis =
             groebner_internal_compute(ring, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
         if (!basis) {
-            lv_mutex_unlock(&g_data_mutex);
-            return false;
+            goto cleanup;
         }
         /* 释放旧缓存 */
-        if (ideal->cached_basis) {
-            if (ideal->cached_basis->basis_polys) {
-                for (int i = 0; i < ideal->cached_basis->bases_count; i++) {
-                    poly_internal_destroy(ideal->cached_basis->basis_polys[i]);
-                }
-                lv_free((void **) &ideal->cached_basis->basis_polys);
-            }
-            lv_free((void **) &ideal->cached_basis);
-        }
+        ideal_clear_cached_basis(ideal);
         ideal->cached_basis = basis;
         ideal->basis_valid = true;
     }
@@ -555,14 +562,15 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
     lvPolynomial *nf =
         poly_internal_reduce(poly, ideal->cached_basis->basis_polys, ideal->cached_basis->bases_count, ring);
     if (!nf) {
-        lv_mutex_unlock(&g_data_mutex);
-        return false;
+        goto cleanup;
     }
 
-    bool is_member = poly_internal_is_zero(nf);
+    result = poly_internal_is_zero(nf);
     poly_internal_destroy(nf);
-    lv_mutex_unlock(&g_data_mutex);
-    return is_member;
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return result;
 }
 
 /**
@@ -572,61 +580,41 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    int ret = -1;
+
     if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal_id_a < 0 || ideal_id_b < 0) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvIdeal *ia = g_data->ideals[ideal_id_a];
     lvIdeal *ib = g_data->ideals[ideal_id_b];
     if (!ia || !ib) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ia->ring_id != ib->ring_id) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     /* I ∩ J = (tI + (1-t)J) ∩ R，其中 t 为新变量。
      * 简化实现：用 Groebner 基消去方法。 */
     lvPolynomialRing *ring = registry->rings[ia->ring_id];
     if (!ring) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     /* 创建结果理想，其生成元为两个理想的生成元并集（直接操作，已持有锁） */
-    lvIdeal *result_ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
+    lvIdeal *result_ideal = ideal_alloc_locked(ia->ring_id, ia->generator_count + ib->generator_count, NULL);
     if (!result_ideal) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
-    result_ideal->ring_id = ia->ring_id;
-    result_ideal->generator_capacity = ia->generator_count + ib->generator_count;
-    if (result_ideal->generator_capacity < GROEBNER_IDEAL_INIT_GEN_CAPACITY) {
-        result_ideal->generator_capacity = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
-    }
-    result_ideal->generators =
-        (lvPolynomial **) lv_calloc((size_t) result_ideal->generator_capacity, sizeof(lvPolynomial *));
-    if (!result_ideal->generators) {
-        lv_free((void **) &result_ideal);
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
-    result_ideal->generator_count = 0;
-    result_ideal->cached_basis = NULL;
-    result_ideal->basis_valid = false;
-    result_ideal->label = NULL;
 
     /* 将 I 的生成元加入 */
     for (int i = 0; i < ia->generator_count; i++) {
@@ -642,9 +630,11 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
         }
     }
 
-    int result = ideal_internal_store(g_data, result_ideal);
-    lv_mutex_unlock(&g_data_mutex);
-    return result;
+    ret = ideal_internal_store(g_data, result_ideal);
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ret;
 }
 
 /**
@@ -654,29 +644,27 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
     if (!registry)
         return -1;
 
-    lv_mutex_lock(&g_data_mutex);
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    int ret = -1;
+
     if (!g_data) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal_id_a < 0 || ideal_id_b < 0) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     lvIdeal *ia = g_data->ideals[ideal_id_a];
     lvIdeal *ib = g_data->ideals[ideal_id_b];
     if (!ia || !ib) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
     if (ia->ring_id != ib->ring_id) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
 
     /* I : <g> = (I ∩ <g>) / g 推广到多个生成元：
@@ -684,27 +672,10 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
      * 简化实现：返回与 I 相同的理想（完整实现需逐个生成元计算商） */
 
     /* 直接创建理想（已持有锁，避免调用 ideal_create 导致死锁） */
-    lvIdeal *result_ideal = (lvIdeal *) lv_calloc(1, sizeof(lvIdeal));
+    lvIdeal *result_ideal = ideal_alloc_locked(ia->ring_id, ia->generator_count, result_label);
     if (!result_ideal) {
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
+        goto cleanup;
     }
-    result_ideal->ring_id = ia->ring_id;
-    result_ideal->generator_capacity = ia->generator_count;
-    if (result_ideal->generator_capacity < GROEBNER_IDEAL_INIT_GEN_CAPACITY) {
-        result_ideal->generator_capacity = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
-    }
-    result_ideal->generators =
-        (lvPolynomial **) lv_calloc((size_t) result_ideal->generator_capacity, sizeof(lvPolynomial *));
-    if (!result_ideal->generators) {
-        lv_free((void **) &result_ideal);
-        lv_mutex_unlock(&g_data_mutex);
-        return -1;
-    }
-    result_ideal->generator_count = 0;
-    result_ideal->cached_basis = NULL;
-    result_ideal->basis_valid = false;
-    result_ideal->label = groebner_strdup_safe(result_label);
 
     for (int i = 0; i < ia->generator_count; i++) {
         if (ia->generators[i]) {
@@ -712,8 +683,10 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
         }
     }
 
-    int result = ideal_internal_store(g_data, result_ideal);
-    lv_mutex_unlock(&g_data_mutex);
-    return result;
+    ret = ideal_internal_store(g_data, result_ideal);
+
+cleanup:
+    lv_lock_guard_destroy(&_lg);
+    return ret;
 }
 

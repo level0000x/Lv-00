@@ -59,12 +59,7 @@ void proof_declare_proposition_equivalence(ProofNavigator *nav, int prop_a_id, i
     lv_darray_push(&nav->equivalences, &eq);
 
     /* 流式事件：等价声明 */
-    if (proof_stream_ctx != NULL) {
-        lvStrBuf sb = {0};
-        lv_strbuf_printf(&sb, "命题等价声明: prop_%d <-> prop_%d", prop_a_id, prop_b_id);
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb.data, 0);
-        lv_strbuf_destroy(&sb);
-    }
+    nav_emit(proof_stream_ctx, STREAM_EVENT_INFO, "命题等价声明: prop_%d <-> prop_%d", prop_a_id, prop_b_id);
 }
 
 int proof_find_equivalent_proposition(const ProofNavigator *nav, int prop_id, int *equivalent_ids, int max_count) {

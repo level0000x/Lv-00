@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_mathematical_logic.c
  * @brief 数理逻辑预设函数块模块 - 实现
  *
@@ -60,12 +60,7 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_logic_preset(const char *name, const char *description, const PresetType *input_types,
-                                  int input_count, PresetType output_type, const char *math_def, const char *complexity,
-                                  bool is_constructive, bool is_reversible) {
-    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_LOGIC, input_types, input_count,
-                                         output_type, math_def, complexity, is_constructive, is_reversible);
-}
+LV_DECLARE_PRESET_REGISTER(PRESET_CATEGORY_LOGIC)
 
 /**
  * @brief 简化预设注册的宏
@@ -75,7 +70,8 @@ static bool register_logic_preset(const char *name, const char *description, con
  */
 #define REGISTER_LOGIC(name, desc, inputs, in_count, output, math, comp, cons, rev)                                 \
     do {                                                                                                            \
-        if (register_logic_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), (rev))) { \
+        if (lv_preset_register_helper((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons),      \
+                                      (rev))) {                                                                    \
             success_count++;                                                                                        \
         } else {                                                                                                    \
             /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                     \

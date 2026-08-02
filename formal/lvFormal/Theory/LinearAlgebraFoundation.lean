@@ -71,23 +71,23 @@ def Vector.zero (α : Type) [AddCommMonoid α] [Mul α] (n : ℕ) : Vector α :=
 /-- 向量的加法：对应分量相加。 -/
 def Vector.add (v w : Vector ℝ) : Vector ℝ :=
   {
-    dim := v.dim
+    dim := min v.dim w.dim
     components := List.zipWith (· + ·) v.components w.components
     h_length := by
       have hv := v.h_length
       have hw := w.h_length
-      sorry
+      simp [hv, hw, List.length_zipWith]
   }
 
 /-- 向量的减法：对应分量相减。 -/
 def Vector.sub (v w : Vector ℝ) : Vector ℝ :=
   {
-    dim := v.dim
+    dim := min v.dim w.dim
     components := List.zipWith (· - ·) v.components w.components
     h_length := by
       have hv := v.h_length
       have hw := w.h_length
-      sorry
+      simp [hv, hw, List.length_zipWith]
   }
 
 /-- 向量的数乘：标量乘以每个分量。 -/
@@ -156,8 +156,7 @@ def Matrix.ofList (α : Type) [AddCommMonoid α] [Mul α] (ll : List (List α)) 
     h_rows_len := rfl
     h_cols_len := by
       intro row hrow
-      -- 无法证明所有行具有相同长度，需要外部良构性假设
-      sorry
+      simp
   }
 
 /-- m×n 零矩阵。 -/
@@ -194,13 +193,22 @@ def Matrix.add (A B : Matrix ℝ) : Matrix ℝ :=
     h_rows_len := by
       have hA := A.h_rows_len
       have hB := B.h_rows_len
-      sorry
+      simp [hA, hB, List.length_zipWith]
     h_cols_len := by
       intro row hrow
       have hA := A.h_rows_len
       have hB := B.h_rows_len
-      -- 需要 A 和 B 具有兼容维度才能证明，此处接受
-      sorry
+      have h_entries_len : (List.zipWith (List.zipWith (· + ·)) A.entries B.entries).length = min A.rows B.rows := by
+        simp [hA, hB, List.length_zipWith]
+      have hrow_min : row < min A.rows B.rows := by
+        simpa [h_entries_len] using hrow
+      have hrow_A : row < A.entries.length := by
+        rw [hA]
+        exact Nat.lt_of_lt_of_le hrow_min (Nat.min_le_left _ _)
+      have hrow_B : row < B.entries.length := by
+        rw [hB]
+        exact Nat.lt_of_lt_of_le hrow_min (Nat.min_le_right _ _)
+      simp [hA, hB, A.h_cols_len row hrow_A, B.h_cols_len row hrow_B, List.length_zipWith]
   }
 
 /-- 矩阵乘法：C = A * B。 -/
@@ -212,9 +220,11 @@ def Matrix.mul (A B : Matrix ℝ) : Matrix ℝ :=
       List.ofFn (fun (j : Fin B.cols) =>
         List.sum (List.zipWith (· * ·)
           (A.entries.get ⟨i.1, by rw [A.h_rows_len]; exact i.2⟩)
-      (B.entries.map (fun row => row.get ⟨j.1, by
-        have hlen := B.h_rows_len
-        sorry⟩)))))
+      (List.ofFn (fun (k : Fin B.rows) =>
+        (B.entries.get ⟨k.1, by rw [B.h_rows_len]; exact k.2⟩).get ⟨j.1, by
+          have hrow_len := B.h_cols_len k.1 (by rw [B.h_rows_len]; exact k.2)
+          rw [hrow_len]
+          exact j.2⟩))))
     h_rows_len := by simp
     h_cols_len := by
       intro row hrow
@@ -228,7 +238,10 @@ def Matrix.transpose (A : Matrix ℝ) : Matrix ℝ :=
     cols := A.rows
     entries := List.ofFn (fun (i : Fin A.cols) =>
       List.ofFn (fun (j : Fin A.rows) =>
-        (A.entries.get ⟨j.1, by rw [A.h_rows_len]; exact j.2⟩).get ⟨i.1, by sorry⟩))
+        (A.entries.get ⟨j.1, by rw [A.h_rows_len]; exact j.2⟩).get ⟨i.1, by
+          have hrow := A.h_cols_len j.1 (by rw [A.h_rows_len]; exact j.2)
+          rw [hrow]
+          exact i.2⟩))
     h_rows_len := by simp
     h_cols_len := by
       intro row hrow
@@ -322,14 +335,11 @@ def gaussian_elimination (sys : LinearSystem) : Matrix ℝ :=
   sys.A
 
 /-- 回代法（从行阶梯形求解）。 -/
-def back_substitution (U : Matrix ℝ) (b : Vector ℝ) : LinearSystem :=
+def back_substitution (U : Matrix ℝ) (b : Vector ℝ) (hUrows : U.rows = b.dim) : LinearSystem :=
   {
     A := U
     b := b
-    h_A_rows := by
-      have hU := U.h_rows_len
-      have hb := b.h_length
-      sorry
+    h_A_rows := hUrows
   }
 
 /-- 求解线性系统 Ax = b，返回 SLE_Result。 -/
@@ -508,7 +518,11 @@ def svd_factorize (A : Matrix ℝ) : SVDecomposition :=
     h_U_orthogonal := trivial
     h_V_orthogonal := trivial
     h_S_diagonal := trivial
-    h_singular_values_nonneg := by intro σ hσ; sorry
+    h_singular_values_nonneg := by
+      intro σ hσ
+      have hσ' : σ = 0 := by simpa using hσ
+      subst hσ'
+      norm_num
     h_sorted_descending := trivial
     h_factorization := trivial
   }
@@ -698,13 +712,11 @@ structure GramSchmidt where
     u₂ = v₂ - proj_{u₁}(v₂)
     u₃ = v₃ - proj_{u₁}(v₃) - proj_{u₂}(v₃)
     ... -/
-def gram_schmidt_process (vs : List (Vector ℝ)) : GramSchmidt :=
+def gram_schmidt_process (vs : List (Vector ℝ)) (h_same_dim : ∀ v ∈ vs, ∀ u ∈ vs, v.dim = u.dim) : GramSchmidt :=
   {
     original_vectors := vs
     orthogonal_vectors := vs
-    h_same_dim := by
-      intro v hv u hu
-      sorry
+    h_same_dim := h_same_dim
     h_orthogonal := by trivial
     h_span_equal := by trivial
   }

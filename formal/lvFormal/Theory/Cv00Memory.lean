@@ -73,7 +73,13 @@ inductive ExecResult where
   | aborted (msg : String)
 
 noncomputable def exec_stmt (m : Mem) (env : Env) (stmt : Cv00Stmt) : ExecResult :=
-  .normal m env
+  match stmt with
+  | .nop => .normal m env
+  | .assign lhs rhs =>
+    match eval_expr env rhs with
+    | some v => .normal m (env_set env lhs v)
+    | none => .aborted "eval failed"
+  | _ => .normal m env
 
 /-! ## 内存模型定理 -/
 
@@ -94,14 +100,17 @@ theorem exec_nop (m : Mem) (env : Env) : exec_stmt m env .nop = .normal m env :=
 theorem exec_assign (m : Mem) (env : Env) (x : String) (e : Cv00Expr) (v : Cv00Val) :
     eval_expr env e = some v →
     exec_stmt m env (.assign x e) = .normal m (env_set env x v) := by
-  sorry
+  intro h
+  unfold exec_stmt
+  simp [h]
 
 theorem exec_preserves_mem_if_no_call (m : Mem) (env : Env) (st : Cv00Stmt) :
     (match exec_stmt m env st with
      | .normal m' _ => m' = m
      | .returned m' _ _ => m' = m
      | .aborted _ => True) := by
-  sorry
+  unfold exec_stmt
+  cases st <;> simp
 
 /-! ## Cv00 语义桥接 -/
 
@@ -119,25 +128,48 @@ def lift_satisfiable_to_cv00 (s : State) : Option ExecResult :=
 
 theorem points_to_env_correct_x (pts : List lvPoint) (p : lvPoint) (h : p ∈ pts) :
     (points_to_env pts) (p.name ++ "_x") = some (.fval (0 : Float)) := by
-  sorry
+  induction h with
+  | head =>
+    unfold points_to_env; simp
+  | tail _ h ih =>
+    unfold points_to_env; simp [ih]
 
 theorem points_to_env_correct_y (pts : List lvPoint) (p : lvPoint) (h : p ∈ pts) :
     (points_to_env pts) (p.name ++ "_y") = some (.fval (0 : Float)) := by
-  sorry
+  induction h with
+  | head =>
+    unfold points_to_env; simp
+  | tail _ h ih =>
+    unfold points_to_env; simp [ih]
 
 theorem lift_on_satisfiable_state (s : State) (hs : satisfiable s) :
     ∃ res, lift_satisfiable_to_cv00 s = some (.normal emptyMem res) := by
-  sorry
+  unfold lift_satisfiable_to_cv00; simp
 
 theorem satisfiable_bridge_to_cv00 (s : State) (hs : satisfiable s) :
     ∃ (env : Env), lift_satisfiable_to_cv00 s = some (.normal emptyMem env) ∧
     ∀ (p : lvPoint), p ∈ s.points → env (p.name ++ "_x") = some (.fval (0 : Float)) ∧
                                       env (p.name ++ "_y") = some (.fval (0 : Float)) := by
-  sorry
+  unfold lift_satisfiable_to_cv00
+  refine ⟨points_to_env s.points, ?_, ?_⟩
+  · rfl
+  · intro p hp
+    constructor
+    · exact points_to_env_correct_x s.points p hp
+    · exact points_to_env_correct_y s.points p hp
 
 theorem points_to_env_defined_only (pts : List lvPoint) (name : String) :
     (∀ p ∈ pts, p.name ++ "_x" ≠ name ∧ p.name ++ "_y" ≠ name) →
     (points_to_env pts) name = none := by
-  sorry
+  intro h
+  induction pts with
+  | nil => rfl
+  | cons q qs ih =>
+    unfold points_to_env
+    have hq := h q (by simp)
+    rcases hq with ⟨hx, hy⟩
+    simp [hx, hy, ih (fun p hp => h p (by
+      simpa using List.mem_cons_of_mem q hp
+    ))]
 
 end lvFormal.Theory.Cv00Memory

@@ -58,6 +58,12 @@ typedef struct {
 /* ---------- 渲染节点函数签名 ---------- */
 typedef int (*RenderNodeFunc)(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);
 
+/* ---------- 共享遍历器标志 ---------- */
+enum {
+    RENDER_VIA_CHECK_RET = 1u << 0, /**< 子渲染返回 <0 时传播错误（返回 -1） */
+    RENDER_VIA_ERROR_CTX = 1u << 1, /**< 失败时通过 lv_RETURN_ERROR 记录错误上下文 */
+};
+
 /* ---------- 缓冲区池（在 formula_renderer_internal.c 实现） ---------- */
 char *formula_pool_alloc(size_t size);
 void formula_pool_free(char *ptr);
@@ -66,6 +72,15 @@ void formula_pool_free(char *ptr);
 bool needs_parentheses(const FormulaNode *node, NodeType parent_op, bool is_right);
 const char *get_trig_latex(const char *name);
 bool is_greek_letter(const char *name);
+
+/* ---------- 共享遍历器（在 formula_renderer_internal.c 实现） ---------- */
+int render_binary_via(const FormulaNode *node, const char *fmt, unsigned flags, char *buffer, size_t size,
+                      const RenderOptions *options, RenderNodeFunc dispatch);
+int render_unary_via(const FormulaNode *node, const char *prefix, const char *suffix, unsigned flags,
+                     char *buffer, size_t size, const RenderOptions *options, RenderNodeFunc dispatch);
+int dispatch_via(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options,
+                 const RenderNodeFunc *table, size_t table_count, RenderNodeFunc fallback);
+const char *formula_render_trig_name(const FormulaNode *node, const char *const *names, size_t count);
 
 /* ---------- 各后端内部渲染入口（在对应 *_backend.c 实现） ---------- */
 int render_latex_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);

@@ -351,3 +351,86 @@ bool needs_parentheses(const FormulaNode *node, NodeType parent_op, bool is_righ
     return false;
 }
 
+/* ============================================================
+ * 共享遍历器（binary / unary / dispatch 骨架去重）
+ * ============================================================ */
+
+int render_binary_via(const FormulaNode *node, const char *fmt, unsigned flags, char *buffer, size_t size,
+                      const RenderOptions *options, RenderNodeFunc dispatch) {
+    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!left_buf || !right_buf) {
+        formula_pool_free(left_buf);
+        formula_pool_free(right_buf);
+        if (flags & RENDER_VIA_ERROR_CTX)
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate sub-expression buffers");
+        return -1;
+    }
+
+    int left_ret = dispatch(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
+    int right_ret = dispatch(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
+    if (flags & RENDER_VIA_CHECK_RET) {
+        if (left_ret < 0 || right_ret < 0) {
+            formula_pool_free(left_buf);
+            formula_pool_free(right_buf);
+            if (flags & RENDER_VIA_ERROR_CTX)
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "sub-expression render failed");
+            return -1;
+        }
+    }
+
+    int written = snprintf(buffer, size, fmt, left_buf, right_buf);
+
+    formula_pool_free(left_buf);
+    formula_pool_free(right_buf);
+    return written;
+}
+
+int render_unary_via(const FormulaNode *node, const char *prefix, const char *suffix, unsigned flags,
+                     char *buffer, size_t size, const RenderOptions *options, RenderNodeFunc dispatch) {
+    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
+    if (!operand_buf) {
+        if (flags & RENDER_VIA_ERROR_CTX)
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
+        return -1;
+    }
+
+    int operand_ret = dispatch(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
+    if (flags & RENDER_VIA_CHECK_RET) {
+        if (operand_ret < 0) {
+            formula_pool_free(operand_buf);
+            if (flags & RENDER_VIA_ERROR_CTX)
+                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
+            return -1;
+        }
+    }
+
+    int written = snprintf(buffer, size, "%s%s%s", prefix, operand_buf, suffix);
+
+    formula_pool_free(operand_buf);
+    return written;
+}
+
+int dispatch_via(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options,
+                 const RenderNodeFunc *table, size_t table_count, RenderNodeFunc fallback) {
+    if (!node) {
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "node is NULL");
+    }
+
+    if ((unsigned)node->type < table_count && table[node->type]) {
+        return table[node->type](node, buffer, size, options);
+    }
+
+    if (fallback) {
+        return fallback(node, buffer, size, options);
+    }
+    return snprintf(buffer, size, "<unknown>");
+}
+
+const char *formula_render_trig_name(const FormulaNode *node, const char *const *names, size_t count) {
+    int idx = node->type - NODE_UNARY_OP_NEG;
+    if (idx < 0 || (size_t) idx >= count)
+        return NULL;
+    return names[idx];
+}
+

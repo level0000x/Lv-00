@@ -24,7 +24,7 @@ def selfRefUnsat (_g : ConstraintGraph) : Prop := False
 
 /-- 自指引理：若 g 可满足，则 selfRefUnsat g 不成立 -/
 lemma self_ref_lemma (g : ConstraintGraph) (h_sat : graph_satisfiable g) : ¬ selfRefUnsat g := by
-  sorry
+  unfold selfRefUnsat; intro h; exact h
 
 /- ===============================================================
    第二部分：证明检查器的形式化
@@ -57,12 +57,15 @@ theorem meta_verifier_complete (g : ConstraintGraph) (t : ProofTrace)
 /-- 反射原理 -/
 theorem reflection_principle (g : ConstraintGraph) (t : ProofTrace)
     (h : metaVerifier g t = true) : ∃ t', evidence_check g t' = true := by
-  sorry
+  refine' ⟨t, _⟩
+  have h1 : metaVerifier g t = evidence_check g t := meta_verifier_agrees g t
+  rw [h1] at h
+  exact h
 
 /-- 自反性 -/
 theorem verifier_reflexive :
     evidence_check ([] : ConstraintGraph) ([.qed] : ProofTrace) = true := by
-  sorry
+  rfl
 
 /- ===============================================================
    第四部分：元正确性定理
@@ -72,16 +75,57 @@ theorem verifier_reflexive :
 theorem meta_correctness (g : ConstraintGraph) (t : ProofTrace)
     (h_check : evidence_check g t = true)
     (h_sound : TraceSound (initVerifier g) t) : graph_satisfiable g := by
-  sorry
+  exact lvFormal.Theory.Evidence.evidence_soundness g t h_check h_sound
 
 /-- 元验证的完备性 -/
 theorem meta_completeness (g : ConstraintGraph) (h_sat : graph_satisfiable g) :
     ∃ t : ProofTrace, evidence_check g t = true ∧ TraceSound (initVerifier g) t := by
-  sorry
+  classical
+  rcases h_sat with ⟨env, henv⟩
+  let t := g.map ProofStep.hypothesis ++ [ProofStep.qed]
+  refine' ⟨t, _⟩
+  constructor
+  · unfold evidence_check evidence_check_witness
+    simp [t]
+    unfold go
+    simp [step_ok, initVerifier, List.all]
+    <;> exact henv
+  · unfold t
+    have h_main : ∀ (st : VerifierState), (∀ c ∈ st.proved, ir_sem env c) →
+        TraceSound st (g.map ProofStep.hypothesis ++ [ProofStep.qed]) := by
+      intro st hst
+      have h1 : TraceSound st (g.map ProofStep.hypothesis ++ [ProofStep.qed]) := by
+        have h_ind1 : ∀ (cs : List IRConstraint) (st : VerifierState),
+            (∀ c ∈ st.proved, ir_sem env c) →
+            TraceSound st (cs.map ProofStep.hypothesis) := by
+          intro cs st hst
+          induction cs with
+          | nil => exact TraceSound.nil st
+          | cons c cs ih =>
+            have h_step : step_sound st (ProofStep.hypothesis c) := by
+              unfold step_sound transition
+              intro h_exists
+              exact h_exists
+            exact TraceSound.cons st (ProofStep.hypothesis c) (cs.map ProofStep.hypothesis) h_step (ih (transition st (ProofStep.hypothesis c)) (by
+              unfold transition
+              simpa using fun d hd => by
+                simp at hd
+                rcases hd with (rfl | hdd)
+                · exact henv c (by simp)
+                · exact hst d hdd))
+        have h1' : TraceSound st (g.map ProofStep.hypothesis) := h_ind1 g st hst
+        have h_qed_step : step_sound (trace_fold st (g.map ProofStep.hypothesis)) ProofStep.qed := by
+          unfold step_sound transition
+          intro h
+          exact h
+        simpa [trace_fold] using TraceSound.cons _ _ _ h_qed_step (TraceSound.nil _)
+    exact h_main (initVerifier g) (by simp [initVerifier])
 
 /-- 自指完备性 -/
 theorem self_ref_completeness (g : ConstraintGraph) (h_unsat : ¬ graph_satisfiable g) :
     ∃ t : ProofTrace, evidence_check g t = false := by
-  sorry
+  refine' ⟨[], _⟩
+  unfold evidence_check evidence_check_witness
+  simp
 
 end lvFormal.Theory.MetaVerificationTheory

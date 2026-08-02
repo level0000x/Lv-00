@@ -24,12 +24,6 @@
 #include "lv_utils.h"
 
 /* ============================================================
- * 渲染分发函数指针表
- * ============================================================ */
-
-typedef int (*RenderNodeFunc)(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);
-
-/* ============================================================
  * LaTeX 渲染
  * ============================================================ */
 
@@ -75,289 +69,80 @@ static int helper_latex_identifier(const FormulaNode *node, char *buffer, size_t
 
 static int helper_latex_binary_add(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate sub-expression buffers");
-    }
-
-    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-    if (left_ret < 0 || right_ret < 0) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "sub-expression render failed");
-    }
-
-    written = snprintf(buffer, size, "%s + %s", left_buf, right_buf);
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    return render_binary_via(node, "%s + %s", RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer, size, options,
+                             render_latex_internal);
 }
 
 static int helper_latex_binary_sub(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-    if (left_ret < 0 || right_ret < 0) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    /* 检查右侧是否需要括号 */
-    bool need_paren = needs_parentheses(node->data.binary_op.right, NODE_BINARY_OP_SUB, true);
-
-    if (need_paren) {
-        written = snprintf(buffer, size, "%s - \\left(%s\\right)", left_buf, right_buf);
-    } else {
-        written = snprintf(buffer, size, "%s - %s", left_buf, right_buf);
-    }
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    const char *fmt = needs_parentheses(node->data.binary_op.right, NODE_BINARY_OP_SUB, true)
+                          ? "%s - \\left(%s\\right)"
+                          : "%s - %s";
+    return render_binary_via(node, fmt, RENDER_VIA_CHECK_RET, buffer, size, options, render_latex_internal);
 }
 
 static int helper_latex_binary_mul(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-    if (left_ret < 0 || right_ret < 0) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    if (options && options->implicit_multiplication) {
-        /* 隐式乘法: ab */
-        written = snprintf(buffer, size, "%s %s", left_buf, right_buf);
-    } else {
-        /* 显式乘法: a \cdot b */
-        written = snprintf(buffer, size, "%s \\cdot %s", left_buf, right_buf);
-    }
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    const char *fmt = (options && options->implicit_multiplication) ? "%s %s" : "%s \\cdot %s";
+    return render_binary_via(node, fmt, RENDER_VIA_CHECK_RET, buffer, size, options, render_latex_internal);
 }
 
 static int helper_latex_binary_div(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-    if (left_ret < 0 || right_ret < 0) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    /* 分数形式 */
-    written = snprintf(buffer, size, "\\frac{%s}{%s}", left_buf, right_buf);
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    return render_binary_via(node, "\\frac{%s}{%s}", RENDER_VIA_CHECK_RET, buffer, size, options,
+                             render_latex_internal);
 }
 
 static int helper_latex_binary_pow(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配子表达式缓冲区 */
-    char *left_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    char *right_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!left_buf || !right_buf) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    int left_ret = render_latex_internal(node->data.binary_op.left, left_buf, lv_FORMULA_BUF_SIZE, options);
-    int right_ret = render_latex_internal(node->data.binary_op.right, right_buf, lv_FORMULA_BUF_SIZE, options);
-    if (left_ret < 0 || right_ret < 0) {
-        formula_pool_free(left_buf);
-        formula_pool_free(right_buf);
-        return -1;
-    }
-
-    /* 检查底数是否需要括号 */
-    bool need_paren = needs_parentheses(node->data.binary_op.left, NODE_BINARY_OP_POW, false);
-
-    if (need_paren) {
-        written = snprintf(buffer, size, "\\left(%s\\right)^{%s}", left_buf, right_buf);
-    } else {
-        written = snprintf(buffer, size, "%s^{%s}", left_buf, right_buf);
-    }
-
-    formula_pool_free(left_buf);
-    formula_pool_free(right_buf);
-    return written;
+    const char *fmt = needs_parentheses(node->data.binary_op.left, NODE_BINARY_OP_POW, false)
+                          ? "\\left(%s\\right)^{%s}"
+                          : "%s^{%s}";
+    return render_binary_via(node, fmt, RENDER_VIA_CHECK_RET, buffer, size, options, render_latex_internal);
 }
 
 static int helper_latex_unary_neg(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
-
-    int operand_ret =
-        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    if (operand_ret < 0) {
-        formula_pool_free(operand_buf);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
-    }
-
     bool need_paren = needs_parentheses(node->data.unary_op.operand, NODE_UNARY_OP_NEG, false);
-    if (need_paren) {
-        written = snprintf(buffer, size, "-\\left(%s\\right)", operand_buf);
-    } else {
-        written = snprintf(buffer, size, "-%s", operand_buf);
-    }
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, need_paren ? "-\\left(" : "-", need_paren ? "\\right)" : "",
+                            RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer, size, options,
+                            render_latex_internal);
 }
 
 static int helper_latex_unary_sqrt(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
-
-    int operand_ret =
-        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    if (operand_ret < 0) {
-        formula_pool_free(operand_buf);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
-    }
-    written = snprintf(buffer, size, "\\sqrt{%s}", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "\\sqrt{", "}", RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer, size, options,
+                            render_latex_internal);
 }
 
 static int helper_latex_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    const char *func_names[] = {[NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "\\sin",
-                                [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "\\cos",
-                                [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "\\tan"};
-    int idx = node->type - NODE_UNARY_OP_NEG;
-
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
-
-    int operand_ret =
-        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    if (operand_ret < 0) {
-        formula_pool_free(operand_buf);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
-    }
-    written = snprintf(buffer, size, "%s\\left(%s\\right)", func_names[idx], operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    static const char *const prefixes[] = {
+        [NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "\\sin\\left(",
+        [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "\\cos\\left(",
+        [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "\\tan\\left(",
+    };
+    return render_unary_via(node, formula_render_trig_name(node, prefixes, lv_ARRAY_SIZE(prefixes)), "\\right)",
+                            RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer, size, options,
+                            render_latex_internal);
 }
 
 static int helper_latex_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
-
-    int operand_ret =
-        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    if (operand_ret < 0) {
-        formula_pool_free(operand_buf);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
-    }
-    written = snprintf(buffer, size, "\\left|%s\\right|", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "\\left|", "\\right|", RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer, size,
+                            options, render_latex_internal);
 }
 
 static int helper_latex_unary_ln(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
-
-    int operand_ret =
-        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    if (operand_ret < 0) {
-        formula_pool_free(operand_buf);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
-    }
-    written = snprintf(buffer, size, "\\ln\\left(%s\\right)", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "\\ln\\left(", "\\right)", RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer,
+                            size, options, render_latex_internal);
 }
 
 static int helper_latex_unary_log(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    int written = 0;
-    /* HEAP_ALLOCATED: 池分配操作数缓冲区 */
-    char *operand_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-    if (!operand_buf)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate operand buffer");
-
-    int operand_ret =
-        render_latex_internal(node->data.unary_op.operand, operand_buf, lv_FORMULA_BUF_SIZE, options);
-    if (operand_ret < 0) {
-        formula_pool_free(operand_buf);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "operand sub-render failed");
-    }
-    written = snprintf(buffer, size, "\\log\\left(%s\\right)", operand_buf);
-
-    formula_pool_free(operand_buf);
-    return written;
+    return render_unary_via(node, "\\log\\left(", "\\right)", RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer,
+                            size, options, render_latex_internal);
 }
 
 static int helper_latex_equation(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -690,19 +475,13 @@ static const RenderNodeFunc s_render_latex_funcs[] = {
     [NODE_COMPOUND] = helper_latex_compound,
 };
 
-int render_latex_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
-    if (!node) {
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "node is NULL");
-    }
-
-
-
-    if ((unsigned)node->type < lv_ARRAY_SIZE(s_render_latex_funcs)
-        && s_render_latex_funcs[node->type]) {
-        return s_render_latex_funcs[node->type](node, buffer, size, options);
-    }
-
-    /* fallback for unhandled node types */
+static int helper_latex_unknown(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
     return snprintf(buffer, size, "\\text{<unknown>}");
+}
+
+int render_latex_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
+    return dispatch_via(node, buffer, size, options, s_render_latex_funcs, lv_ARRAY_SIZE(s_render_latex_funcs),
+                        helper_latex_unknown);
 }
 

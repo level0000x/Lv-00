@@ -120,11 +120,9 @@ ProofColor proof_dependency_compute_color(ProofDependency *dep) {
     dep->color = color;
 
     /* 流式事件：依赖颜色计算（仅在颜色变化时发出） */
-    if (proof_stream_ctx != NULL && color != old_color) {
-        lvStrBuf sb_2 = {0};
-        lv_strbuf_printf(&sb_2, "依赖颜色更新: dep_id=%d -> %s", dep->id, proof_color_to_string(color));
-        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, sb_2.data, 0);
-        lv_strbuf_destroy(&sb_2);
+    if (color != old_color) {
+        nav_emit(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, "依赖颜色更新: dep_id=%d -> %s", dep->id,
+                 proof_color_to_string(color));
     }
 
     return color;

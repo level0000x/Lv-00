@@ -9,6 +9,7 @@
  */
 
 #include "lv/lv_render_visitor.h"
+#include "tikz_export.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,14 +29,6 @@ typedef struct {
 /* ========================================================================
  * 颜色辅助
  * ======================================================================== */
-
-/** 将 [0,1] 浮点颜色值转换为 [0,255] 整数 */
-static int tikz_byte(float c) {
-    int v = (int)(c * 255.0f + 0.5f);
-    if (v < 0) return 0;
-    if (v > 255) return 255;
-    return v;
-}
 
 /** 输出 TikZ 颜色定义 (draw= 或 fill= 前缀) */
 static void tikz_write_color(FILE *fp, const float *color, const char *prefix) {

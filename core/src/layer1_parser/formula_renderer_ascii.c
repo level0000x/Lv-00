@@ -33,7 +33,6 @@
  * 生成基本的 ASCII 数学表示。
  * options 预留：未来可控制精度、宽度等格式参数。
  */
-int render_ascii_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);
 
 static int helper_ascii_number(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
@@ -57,87 +56,63 @@ static int helper_ascii_identifier(const FormulaNode *node, char *buffer, size_t
 
 static int helper_ascii_binary_add(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char left[lv_FORMULA_BUF_SIZE], right[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.binary_op.left, left, sizeof(left), options);
-    render_ascii_internal(node->data.binary_op.right, right, sizeof(right), options);
-    return snprintf(buffer, size, "(%s + %s)", left, right);
+    return render_binary_via(node, "(%s + %s)", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_binary_sub(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char left[lv_FORMULA_BUF_SIZE], right[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.binary_op.left, left, sizeof(left), options);
-    render_ascii_internal(node->data.binary_op.right, right, sizeof(right), options);
-    return snprintf(buffer, size, "(%s - %s)", left, right);
+    return render_binary_via(node, "(%s - %s)", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_binary_mul(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char left[lv_FORMULA_BUF_SIZE], right[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.binary_op.left, left, sizeof(left), options);
-    render_ascii_internal(node->data.binary_op.right, right, sizeof(right), options);
-    return snprintf(buffer, size, "(%s * %s)", left, right);
+    return render_binary_via(node, "(%s * %s)", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_binary_div(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char left[lv_FORMULA_BUF_SIZE], right[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.binary_op.left, left, sizeof(left), options);
-    render_ascii_internal(node->data.binary_op.right, right, sizeof(right), options);
-    return snprintf(buffer, size, "(%s / %s)", left, right);
+    return render_binary_via(node, "(%s / %s)", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_binary_pow(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char left[lv_FORMULA_BUF_SIZE], right[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.binary_op.left, left, sizeof(left), options);
-    render_ascii_internal(node->data.binary_op.right, right, sizeof(right), options);
-    return snprintf(buffer, size, "(%s ^ %s)", left, right);
+    return render_binary_via(node, "(%s ^ %s)", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_unary_neg(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char operand[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.unary_op.operand, operand, sizeof(operand), options);
-    return snprintf(buffer, size, "-(%s)", operand);
+    return render_unary_via(node, "-(", ")", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_unary_sqrt(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char operand[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.unary_op.operand, operand, sizeof(operand), options);
-    return snprintf(buffer, size, "sqrt(%s)", operand);
+    return render_unary_via(node, "sqrt(", ")", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    const char *fn = (node->type == NODE_UNARY_OP_SIN)   ? "sin"
-                     : (node->type == NODE_UNARY_OP_COS) ? "cos"
-                                                         : "tan";
-    char operand[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.unary_op.operand, operand, sizeof(operand), options);
-    return snprintf(buffer, size, "%s(%s)", fn, operand);
+    static const char *const prefixes[] = {
+        [NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "sin(",
+        [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "cos(",
+        [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "tan(",
+    };
+    return render_unary_via(node, formula_render_trig_name(node, prefixes, lv_ARRAY_SIZE(prefixes)), ")", 0, buffer,
+                            size, options, render_ascii_internal);
 }
 
 static int helper_ascii_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char operand[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.unary_op.operand, operand, sizeof(operand), options);
-    return snprintf(buffer, size, "|%s|", operand);
+    return render_unary_via(node, "|", "|", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_unary_ln(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char operand[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.unary_op.operand, operand, sizeof(operand), options);
-    return snprintf(buffer, size, "ln(%s)", operand);
+    return render_unary_via(node, "ln(", ")", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_unary_log(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    char operand[lv_FORMULA_BUF_SIZE];
-    render_ascii_internal(node->data.unary_op.operand, operand, sizeof(operand), options);
-    return snprintf(buffer, size, "log(%s)", operand);
+    return render_unary_via(node, "log(", ")", 0, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_equation(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -172,17 +147,7 @@ int render_ascii_internal(const FormulaNode *node, char *buffer, size_t size, co
     if (!node || !buffer || size == 0)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "invalid params for ascii render");
 
-    /* options->precision 控制浮点数输出精度 */
-    int prec = (options && options->precision > 0) ? options->precision : 6;
-    (void) prec; /* 精度参数由 render_number_internal 使用 */
-
-
-    if ((unsigned)node->type < lv_ARRAY_SIZE(s_render_ascii_funcs)
-        && s_render_ascii_funcs[node->type]) {
-        return s_render_ascii_funcs[node->type](node, buffer, size, options);
-    }
-
-    /* fallback for unhandled node types */
-    return render_latex_internal(node, buffer, size, options);
+    return dispatch_via(node, buffer, size, options, s_render_ascii_funcs, lv_ARRAY_SIZE(s_render_ascii_funcs),
+                        render_latex_internal);
 }
 

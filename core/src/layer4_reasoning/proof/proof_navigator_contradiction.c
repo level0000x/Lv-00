@@ -49,6 +49,22 @@ void lv_contradiction_result_destroy(lvContradictionResult *result) {
 }
 
 /**
+ * @brief 构造反证法失败结果
+ *
+ * @param msg 失败原因描述（字符串字面量）
+ * @return 新分配的反证法失败结果；分配失败返回 NULL
+ */
+static lvContradictionResult *contradiction_fail(const char *msg) {
+    lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
+    if (result) {
+        result->success = false;
+        result->contradiction_step = -1;
+        result->error_message = lv_strdup(msg);
+    }
+    return result;
+}
+
+/**
  * @brief 执行反证法证明
  *
  * 核心工作流程：
@@ -82,13 +98,7 @@ void lv_contradiction_result_destroy(lvContradictionResult *result) {
 lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Proposition *goal_prop, int max_steps) {
     if (!nav || !goal_prop) {
         /* 参数无效：返回失败结果 */
-        lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
-        if (result) {
-            result->success = false;
-            result->contradiction_step = -1;
-            result->error_message = lv_strdup("无效参数：nav 或 goal_prop 为 NULL");
-        }
-        return result;
+        return contradiction_fail("无效参数：nav 或 goal_prop 为 NULL");
     }
 
     /* 流式输出：反证法开始 */
@@ -102,13 +112,7 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
     /* 深拷贝目标命题，避免修改原始数据 */
     Proposition *negated_goal = proposition_create(-1, PROPOSITION_TYPE_NEGATION);
     if (!negated_goal) {
-        lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
-        if (result) {
-            result->success = false;
-            result->contradiction_step = -1;
-            result->error_message = lv_strdup("内存分配失败：无法创建否定命题");
-        }
-        return result;
+        return contradiction_fail("内存分配失败：无法创建否定命题");
     }
 
     /* 设置否定命题的元数据 */
@@ -125,13 +129,7 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
     ProofNavigator *branch_nav = proof_navigator_create(negated_goal, nav->engine);
     if (!branch_nav) {
         proposition_destroy(negated_goal);
-        lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
-        if (result) {
-            result->success = false;
-            result->contradiction_step = -1;
-            result->error_message = lv_strdup("内存分配失败：无法创建分支证明导航器");
-        }
-        return result;
+        return contradiction_fail("内存分配失败：无法创建分支证明导航器");
     }
 
     /* 设置分支导航器的策略注释 */
@@ -149,12 +147,7 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
     if (!trace_tree) {
         proof_navigator_destroy(branch_nav);
         proposition_destroy(negated_goal);
-        lvContradictionResult *result = lv_calloc(1, sizeof(lvContradictionResult));
-        if (result) {
-            result->success = false;
-            result->error_message = lv_strdup("内存分配失败：无法创建证明追踪树");
-        }
-        return result;
+        return contradiction_fail("内存分配失败：无法创建证明追踪树");
     }
 
     /* 添加反证法假设步骤到追踪树 */
@@ -192,11 +185,8 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
          * 已证命题的模式匹配，说明我们可能推导出了新的结论 */
 
         /* 流式事件：正向推理步骤 */
-        if (proof_stream_ctx && i % 10 == 0) {
-            lvStrBuf sb_6 = {0};
-            lv_strbuf_printf(&sb_6, "反证法正向推理: 步骤 %d/%d", i + 1, effective_max);
-            stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, sb_6.data, 0);
-            lv_strbuf_destroy(&sb_6);
+        if (i % 10 == 0) {
+            nav_emit(proof_stream_ctx, STREAM_EVENT_INFO, "反证法正向推理: 步骤 %d/%d", i + 1, effective_max);
         }
 
         /* 创建正向推理步骤 */
@@ -290,12 +280,7 @@ lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Prop
         proof_navigator_destroy(branch_nav);
         proposition_destroy(negated_goal);
         lv_free((void **) &contradiction_desc);
-        lvContradictionResult *err_result = lv_calloc(1, sizeof(lvContradictionResult));
-        if (err_result) {
-            err_result->success = false;
-            err_result->error_message = lv_strdup("内存分配失败：无法创建反证法结果");
-        }
-        return err_result;
+        return contradiction_fail("内存分配失败：无法创建反证法结果");
     }
 
     result->success = contradiction_found;

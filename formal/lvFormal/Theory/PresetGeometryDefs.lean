@@ -151,33 +151,82 @@ theorem collinear_of_between (A B C : LvPoint) (h_bet : between A B C) : colline
 /-- 当 B 在 A 和 C 之间时，距离满足可加性：AC = AB + BC -/
 theorem dist_additive_of_collinear (A B C : LvPoint) (h_col : collinear A B C)
   (h_bet : between A B C) : dist A C = dist A B + dist B C := by
-  sorry
+  rcases h_bet with ⟨t, ht0, ht1, hx, hy⟩
+  have h_nonneg_sq : 0 ≤ (A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2 := by positivity
+  have h_nonneg_t : 0 ≤ t := ht0
+  have h_nonneg_1mt : 0 ≤ 1 - t := by linarith
+  unfold dist
+  have h_AB_sq : (A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2 = t^2 * ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) := by
+    rw [hx, hy]; ring
+  have h_BC_sq : (B.coord.x - C.coord.x)^2 + (B.coord.y - C.coord.y)^2 = (1 - t)^2 * ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) := by
+    rw [hx, hy]; ring
+  calc
+    Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2)
+        = (t + (1 - t)) * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) := by ring
+    _ = t * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) +
+        (1 - t) * Real.sqrt ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2) := by ring
+    _ = Real.sqrt (t^2 * ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2)) +
+        Real.sqrt ((1 - t)^2 * ((A.coord.x - C.coord.x)^2 + (A.coord.y - C.coord.y)^2)) := by
+      rw [Real.sqrt_mul (show 0 ≤ t^2 from by positivity) _,
+        Real.sqrt_mul (show 0 ≤ (1 - t)^2 from by positivity) _,
+        Real.sqrt_sq h_nonneg_t, Real.sqrt_sq h_nonneg_1mt]
+    _ = Real.sqrt ((B.coord.x - C.coord.x)^2 + (B.coord.y - C.coord.y)^2) +
+        Real.sqrt ((A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2) := by
+      rw [h_BC_sq, h_AB_sq]
+    _ = Real.sqrt ((A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2) +
+        Real.sqrt ((B.coord.x - C.coord.x)^2 + (B.coord.y - C.coord.y)^2) := by ring
 
 /-- 辅助引理：距离相等推出平方距离相等 -/
 lemma sq_dist_eq_of_dist_eq {A B C D : LvPoint} (h : dist A B = dist C D) :
     (A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2 =
     (C.coord.x - D.coord.x)^2 + (C.coord.y - D.coord.y)^2 := by
-  sorry
+  unfold dist at h
+  unfold GeometryPresetDefs.dist at h
+  have h_nonneg1 : 0 ≤ (A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2 := by positivity
+  have h_nonneg2 : 0 ≤ (C.coord.x - D.coord.x)^2 + (C.coord.y - D.coord.y)^2 := by positivity
+  exact (Real.sqrt_inj h_nonneg1 h_nonneg2).mp h
 
 /-- 等边三角形的外心等于重心（坐标相等）-/
 theorem circumcenter_equals_centroid_of_equilateral (A B C : LvPoint)
   (h_eq : is_equilateral A B C) : (circumcenter A B C).coord = (centroid A B C).coord := by
-  sorry
+  rcases h_eq with ⟨hAB, hBC⟩
+  have hAB_sq : (A.coord.x - B.coord.x)^2 + (A.coord.y - B.coord.y)^2 = (B.coord.x - C.coord.x)^2 + (B.coord.y - C.coord.y)^2 :=
+    sq_dist_eq_of_dist_eq hAB
+  have hBC_sq : (B.coord.x - C.coord.x)^2 + (B.coord.y - C.coord.y)^2 = (C.coord.x - A.coord.x)^2 + (C.coord.y - A.coord.y)^2 :=
+    sq_dist_eq_of_dist_eq hBC
+  unfold circumcenter centroid
+  by_cases hd : 2 * (A.coord.x * (B.coord.y - C.coord.y) + B.coord.x * (C.coord.y - A.coord.y) + C.coord.x * (A.coord.y - B.coord.y)) = 0
+  · simp [hd]
+    ext <;> nlinarith
+  · simp [hd]
+    ext <;> field_simp [hd] <;> nlinarith
 
 /-- 等边三角形的外心等于垂心（坐标相等） -/
 theorem circumcenter_equals_orthocenter_of_equilateral (A B C : LvPoint)
   (h_eq : is_equilateral A B C) : (circumcenter A B C).coord = (orthocenter A B C).coord := by
-  sorry
+  have h_eq_cc : (circumcenter A B C).coord = (centroid A B C).coord :=
+    circumcenter_equals_centroid_of_equilateral A B C h_eq
+  unfold orthocenter
+  simp [h_eq_cc]
 
 /-- 若三点不共线，则它们定义的圆存在（不为 none） -/
 theorem circle_defined_by_noncollinear (A B C : LvPoint) (h : ¬ collinear A B C) :
     circle_defined_by A B C ≠ none := by
-  sorry
+  unfold circle_defined_by
+  simp [h]
 
 /-- 若两组三点定义同一个圆，且第一组不共线，则第二组也不共线。 -/
 theorem circle_inj_implies_noncollinear (A B C D E F : LvPoint)
     (h1 : circle_defined_by A B C = circle_defined_by D E F) (h2 : ¬ collinear A B C) :
     ¬ collinear D E F := by
-  sorry
+  intro hcol
+  have h_none : circle_defined_by D E F = none := by
+    unfold circle_defined_by
+    simp [hcol]
+  have h_none' : circle_defined_by A B C = none := by
+    rw [h1, h_none]
+  unfold circle_defined_by at h_none'
+  simp at h_none'
+  exact h2 h_none'
 
 end

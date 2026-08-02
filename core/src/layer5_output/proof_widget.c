@@ -346,28 +346,12 @@ char *proof_widget_get_search_tree(const ProofNavigator *navigator) {
     if (!navigator)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "proof_widget_get_search_tree: navigator is NULL");
 
-    size_t cap = JSON_BUF_INIT_SIZE;
-    char *buf = (char *) lv_malloc(cap);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_get_search_tree: malloc failed");
-
-    int n = snprintf(buf, cap,
-                     "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
-                     "\"tactic\":\"start\",\"children\":[]},\"status\":\"active\"}");
-    if (n < 0 || (size_t) n >= cap) {
-        cap = (size_t) n + 1;
-        char *nb = (char *) lv_realloc(buf, cap);
-        if (!nb) {
-            lv_free_ptr(buf);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_get_search_tree: realloc failed");
-        }
-        buf = nb;
-        snprintf(buf, cap,
-                 "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
-                 "\"tactic\":\"start\",\"children\":[]},\"status\":\"active\"}");
-    }
-
-    return buf;
+    lvJsonBuf _jb;
+    lv_json_buf_init(&_jb, 128);
+    lv_json_buf_append_raw(&_jb,
+        "{\"type\":\"search_tree\",\"root\":{\"id\":0,"
+        "\"tactic\":\"start\",\"children\":[]},\"status\":\"active\"}");
+    return lv_json_buf_finalize(&_jb);
 }
 
 /* 获取依赖图的 JSON 表示（调用者负责释放返回的字符串） */
@@ -394,77 +378,29 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
     if (!layout)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "proof_widget_export_layout: layout is NULL");
 
-    /* 估算缓冲区：基础 JSON + 每个 widget 约 160 字节 */
-    size_t cap = (size_t) (JSON_BUF_INIT_SIZE + layout->widget_count * 160);
-    char *buf = (char *) lv_malloc(cap);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_export_layout: malloc failed");
+    lvJsonBuf _jb;
+    lv_json_buf_init(&_jb, (size_t) (JSON_BUF_INIT_SIZE + layout->widget_count * 160));
 
-    size_t pos = 0;
-    int written;
-
-    /* JSON 头 */
-    written = snprintf(buf + pos, cap - pos,
-                       "{\"layout_type\":%d,\"columns\":%d,\"rows\":%d,"
-                       "\"widget_count\":%d,\"persistence_key\":\"%s\",\"widgets\":[",
-                       (int) layout->layout_type, layout->columns, layout->rows, layout->widget_count,
-                       layout->persistence_key ? layout->persistence_key : "");
-    if (written < 0) {
-        lv_free_ptr(buf);
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "proof_widget_export_layout: snprintf failed");
-    }
-    if ((size_t) written >= cap - pos) {
-        cap = pos + (size_t) written + 1;
-        char *nb = (char *) lv_realloc(buf, cap);
-        if (!nb) {
-            lv_free_ptr(buf);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_export_layout: realloc failed");
-        }
-        buf = nb;
-    }
-    pos += (size_t) written;
+    lv_json_buf_append_fmt(&_jb,
+        "{\"layout_type\":%d,\"columns\":%d,\"rows\":%d,"
+        "\"widget_count\":%d,\"persistence_key\":\"%s\",\"widgets\":[",
+        (int) layout->layout_type, layout->columns, layout->rows, layout->widget_count,
+        layout->persistence_key ? layout->persistence_key : "");
 
     /* 逐个 Widget 序列化 */
     for (int i = 0; i < layout->widget_count; i++) {
         const ProofWidgetState *ws = &layout->widgets[i];
-
-        /* 确保容量充足 */
-        if (pos + 256 > cap) {
-            cap *= 2;
-            char *nb = (char *) lv_realloc(buf, cap);
-            if (!nb) {
-                lv_free_ptr(buf);
-                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_export_layout: realloc in loop failed");
-            }
-            buf = nb;
-        }
-
-        if (i > 0) {
-            buf[pos++] = ',';
-        }
-        written =
-            snprintf(buf + pos, cap - pos,
-                     "{\"id\":%d,\"type\":%d,\"active\":%s,\"enabled\":%s,"
-                     "\"label\":\"%s\",\"step\":%d}",
-                     ws->widget_id, (int) ws->widget_type, ws->is_active ? "true" : "false",
-                     ws->is_enabled ? "true" : "false", ws->display_label ? ws->display_label : "", ws->bound_step_id);
-        if (written > 0)
-            pos += (size_t) written;
+        if (i > 0)
+            lv_json_buf_append_raw(&_jb, ",");
+        lv_json_buf_append_fmt(&_jb,
+            "{\"id\":%d,\"type\":%d,\"active\":%s,\"enabled\":%s,"
+            "\"label\":\"%s\",\"step\":%d}",
+            ws->widget_id, (int) ws->widget_type, ws->is_active ? "true" : "false",
+            ws->is_enabled ? "true" : "false", ws->display_label ? ws->display_label : "", ws->bound_step_id);
     }
 
-    /* JSON 尾 */
-    if (pos + 8 > cap) {
-        cap += 8;
-        char *nb = (char *) lv_realloc(buf, cap);
-        if (!nb) {
-            lv_free_ptr(buf);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "proof_widget_export_layout: final realloc failed");
-        }
-        buf = nb;
-    }
-    snprintf(buf + pos, cap - pos, "]}");
-
-    return buf;
+    lv_json_buf_append_raw(&_jb, "]}");
+    return lv_json_buf_finalize(&_jb);
 }
 
 /**

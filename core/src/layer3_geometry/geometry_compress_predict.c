@@ -215,68 +215,12 @@ bool predictive_encode_parallelogram(ConstraintGraph *graph) {
 
             /* Build Huffman tree */
             HuffmanNode hnodes[HUFFMAN_MAX_NODES];
-            memset(hnodes, 0, sizeof(hnodes));
-            int hnode_count = 0;
-
-            for (int i = 0; i < 256; i++) {
-                if (freq[i] > 0) {
-                    hnodes[hnode_count].left = -1;
-                    hnodes[hnode_count].right = -1;
-                    hnodes[hnode_count].parent = -1;
-                    hnodes[hnode_count].freq = freq[i];
-                    hnodes[hnode_count].byte_val = (uint8_t) i;
-                    hnode_count++;
-                }
-            }
-
-            if (hnode_count == 1) {
-                hnodes[hnode_count].left = 0;
-                hnodes[hnode_count].right = -1;
-                hnodes[hnode_count].parent = -1;
-                hnodes[hnode_count].freq = hnodes[0].freq;
-                hnodes[hnode_count].byte_val = 0;
-                hnodes[0].parent = hnode_count;
-                hnode_count++;
-            }
-
-            if (hnode_count >= 2) {
-                lvHeap heap;
-                if (!lv_heap_init(&heap, sizeof(HuffHeapElem), lv_MIN_HEAP, huff_heap_compare, HUFFMAN_MAX_NODES)) {
-                    /* 堆初始化失败（内存不足），跳过 Huffman 编码 */
-                } else {
-                    for (int i = 0; i < hnode_count; i++) {
-                        HuffHeapElem e = {i, hnodes[i].freq};
-                        lv_heap_push(&heap, &e);
-                    }
-
-                    while (lv_heap_size(&heap) > 1) {
-                        HuffHeapElem le, re;
-                        lv_heap_pop(&heap, &le);
-                        lv_heap_pop(&heap, &re);
-                        int left = le.node_index;
-                        int right = re.node_index;
-                        hnodes[hnode_count].left = left;
-                        hnodes[hnode_count].right = right;
-                        hnodes[hnode_count].parent = -1;
-                        hnodes[hnode_count].freq = hnodes[left].freq + hnodes[right].freq;
-                        hnodes[hnode_count].byte_val = 0;
-                        hnodes[left].parent = hnode_count;
-                        hnodes[right].parent = hnode_count;
-                        HuffHeapElem ne = {hnode_count, hnodes[hnode_count].freq};
-                        lv_heap_push(&heap, &ne);
-                        hnode_count++;
-                    }
-
-                    HuffHeapElem root_elem;
-                    lv_heap_pop(&heap, &root_elem);
-                    int root = root_elem.node_index;
-                    lv_heap_destroy(&heap);
-
-                    HuffmanCode codes[256];
-                    memset(codes, 0, sizeof(codes));
-                    huffman_generate_codes(hnodes, root, codes);
-                    (void) codes; /* Encoding table stored for subsequent use */
-                }
+            int root = huffman_tree_build(freq, hnodes);
+            if (root >= 0) {
+                HuffmanCode codes[256];
+                memset(codes, 0, sizeof(codes));
+                huffman_generate_codes(hnodes, root, codes);
+                (void) codes; /* Encoding table stored for subsequent use */
             }
 
             lv_free((void **) &quantized);

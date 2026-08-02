@@ -63,10 +63,10 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_] => simp [compile_constraint] at h
         | [_, _] => simp [compile_constraint] at h
         | a :: b :: c' :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm]
                 simp [ir_sem, cross]
             | d :: rest' => simp [compile_constraint] at h
     | .parallel =>
@@ -76,10 +76,10 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_, _] => simp [compile_constraint] at h
         | [_, _, _] => simp [compile_constraint] at h
         | a :: b :: c' :: d :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm]
                 simp [ir_sem, cross, ptX, ptY]
             | e :: rest' => simp [compile_constraint] at h
     | .perpendicular =>
@@ -89,10 +89,10 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_, _] => simp [compile_constraint] at h
         | [_, _, _] => simp [compile_constraint] at h
         | a :: b :: c' :: d :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm]
                 simp [ir_sem, dot, ptX, ptY]
             | e :: rest' => simp [compile_constraint] at h
     | .distance =>
@@ -100,11 +100,11 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [] => simp [compile_constraint] at h
         | [_] => simp [compile_constraint] at h
         | a :: b :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
-                simp [ir_sem, dist, eval_expr]
+                rw [h.symm]
+                simp [ir_sem, IR.dist, eval_expr]
             | c' :: rest' => simp [compile_constraint] at h
     | .angle =>
         match args with
@@ -113,10 +113,10 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_, _] => simp [compile_constraint] at h
         | [_, _, _] => simp [compile_constraint] at h
         | a :: b :: c' :: d :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm]
                 simp [ir_sem, eval_expr]
             | e :: rest' => simp [compile_constraint] at h
     | .midpoint =>
@@ -125,10 +125,10 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_] => simp [compile_constraint] at h
         | [_, _] => simp [compile_constraint] at h
         | m :: a :: b :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm]
                 simp [ir_sem, ptX, ptY]
             | c' :: rest' => simp [compile_constraint] at h
     | .rightAngle =>
@@ -137,10 +137,10 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_] => simp [compile_constraint] at h
         | [_, _] => simp [compile_constraint] at h
         | a :: b :: c' :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm]
                 simp [ir_sem, dot, ptX, ptY]
             | d :: rest' => simp [compile_constraint] at h
     | .equalLength =>
@@ -150,11 +150,11 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_, _] => simp [compile_constraint] at h
         | [_, _, _] => simp [compile_constraint] at h
         | a :: b :: c' :: d :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
-                simp [ir_sem, dist]
+                rw [h.symm]
+                simp [ir_sem, IR.dist]
             | e :: rest' => simp [compile_constraint] at h
     | .equalAngle =>
         match args with
@@ -165,22 +165,22 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_, _, _, _] => simp [compile_constraint] at h
         | [_, _, _, _, _] => simp [compile_constraint] at h
         | a :: b :: c' :: d :: e :: f :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
-                simp [ir_sem, dot, dist, ptX, ptY]
+                rw [h.symm]
+                simp [ir_sem, dot, IR.dist, ptX, ptY]
             | g :: rest' => simp [compile_constraint] at h
     | .radius =>
         match args with
         | [] => simp [compile_constraint] at h
         | [_] => simp [compile_constraint] at h
         | c' :: a :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
-                simp [ir_sem, dist, eval_expr]
+                rw [h.symm]
+                simp [ir_sem, IR.dist, eval_expr]
             | b :: rest' => simp [compile_constraint] at h
     | .tangent =>
         match args with
@@ -189,13 +189,11 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_, _] => simp [compile_constraint] at h
         | [_, _, _] => simp [compile_constraint] at h
         | c_ctr :: c_pt :: la :: lb :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
-                simp [ir_sem, dist, ptX, ptY]
-                use 0
-                simp
+                rw [h.symm]
+                simp [ir_sem, IR.dist, ptX, ptY]
             | c' :: rest' => simp [compile_constraint] at h
     | .ratioDivision =>
         match args with
@@ -203,13 +201,11 @@ lemma compile_constraint_trivially_satisfied (c : lvConstraint) :
         | [_] => simp [compile_constraint] at h
         | [_, _] => simp [compile_constraint] at h
         | p :: a :: b :: rest =>
-            cases rest with
+            match rest with
             | [] =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm]
                 simp [ir_sem, ptX, ptY, eval_expr]
-                use 0
-                simp
             | c' :: rest' => simp [compile_constraint] at h
 
 /-- 编译桥接引理：若 compile_constraint pts c = some ir，
@@ -258,7 +254,7 @@ lemma compile_program_go_contains (pts : List lvPoint) (prog : lvProgram) :
           · rcases ih pts ir hir with ⟨c', hc', hcc'⟩
             refine ⟨c', ?_, hcc'⟩
             right
-            simpa [constraints_of_program] using hc'
+            exact hc'
       | prove =>
           simp [compile_program_go, compile_stmt] at hir
           rcases ih pts ir hir with ⟨c, hc, hcc⟩
@@ -485,7 +481,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
               cases l3 with
               | nil =>
                   simp [compile_constraint] at h
-                  injection h; subst ir
+                  rw [h.symm] at hv
                   simpa [ir_vars] using hv
               | cons d l4 => simp [compile_constraint] at h
     | .parallel =>
@@ -504,7 +500,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                 cases l4 with
                 | nil =>
                     simp [compile_constraint] at h
-                    injection h; subst ir
+                    rw [h.symm] at hv
                     simpa [ir_vars] using hv
                 | cons e l5 => simp [compile_constraint] at h
     | .perpendicular =>
@@ -523,10 +519,10 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                 cases l4 with
                 | nil =>
                     simp [compile_constraint] at h
-                    injection h; subst ir
+                    rw [h.symm] at hv
                     simpa [ir_vars] using hv
                 | cons e l5 => simp [compile_constraint] at h
-  | .distance =>
+    | .distance =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -536,7 +532,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
             cases l2 with
             | nil =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm] at hv
                 simpa [ir_vars, ir_expr_vars] using hv
             | cons c' l3 => simp [compile_constraint] at h
     | .angle =>
@@ -555,11 +551,10 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                 cases l4 with
                 | nil =>
                     simp [compile_constraint] at h
-                    injection h; subst ir
-                    simp [ir_vars, ir_expr_vars] at hv
-                    cases hv
+                    rw [h.symm] at hv
+                    simpa [ir_vars, ir_expr_vars] using hv
                 | cons e l5 => simp [compile_constraint] at h
-  | .midpoint =>
+    | .midpoint =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons m l1 =>
@@ -572,7 +567,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
               cases l3 with
               | nil =>
                   simp [compile_constraint] at h
-                  injection h; subst ir
+                  rw [h.symm] at hv
                   simpa [ir_vars] using hv
               | cons c' l4 => simp [compile_constraint] at h
     | .rightAngle =>
@@ -588,7 +583,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
               cases l3 with
               | nil =>
                   simp [compile_constraint] at h
-                  injection h; subst ir
+                  rw [h.symm] at hv
                   simpa [ir_vars] using hv
               | cons d l4 => simp [compile_constraint] at h
     | .equalLength =>
@@ -607,10 +602,10 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                 cases l4 with
                 | nil =>
                     simp [compile_constraint] at h
-                    injection h; subst ir
+                    rw [h.symm] at hv
                     simpa [ir_vars] using hv
                 | cons e l5 => simp [compile_constraint] at h
-  | .equalAngle =>
+    | .equalAngle =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons a l1 =>
@@ -632,10 +627,10 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                     cases l6 with
                     | nil =>
                         simp [compile_constraint] at h
-                        injection h; subst ir
+                        rw [h.symm] at hv
                         simpa [ir_vars] using hv
                     | cons g l7 => simp [compile_constraint] at h
-  | .radius =>
+    | .radius =>
         cases args with
         | nil => simp [compile_constraint] at h
         | cons c' l1 =>
@@ -645,7 +640,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
             cases l2 with
             | nil =>
                 simp [compile_constraint] at h
-                injection h; subst ir
+                rw [h.symm] at hv
                 simpa [ir_vars, ir_expr_vars] using hv
             | cons b l3 => simp [compile_constraint] at h
     | .tangent =>
@@ -664,7 +659,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
                 cases l4 with
                 | nil =>
                     simp [compile_constraint] at h
-                    injection h; subst ir
+                    rw [h.symm] at hv
                     simpa [ir_vars] using hv
                 | cons c' l5 => simp [compile_constraint] at h
     | .ratioDivision =>
@@ -680,7 +675,7 @@ lemma compiled_ir_vars_subset_args (c : lvConstraint) (ir : IRConstraint)
               cases l3 with
               | nil =>
                   simp [compile_constraint] at h
-                  injection h; subst ir
+                  rw [h.symm] at hv
                   simpa [ir_vars, ir_expr_vars] using hv
               | cons c' l4 => simp [compile_constraint] at h
 

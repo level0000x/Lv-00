@@ -618,35 +618,6 @@ static void graph_normalize(ConstraintGraph *g) {
     }
 }
 
-ConstraintGraph *graph_clone(const ConstraintGraph *g) {
-    if (!g)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "graph_clone: NULL graph");
-    ConstraintGraph *ng = (ConstraintGraph *) lv_malloc(sizeof(ConstraintGraph));
-    if (!ng)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_clone: malloc failed");
-    ng->id = native_id_alloc();
-    ng->node_count = g->node_count;
-    ng->node_cap = g->node_cap;
-    ng->edge_count = g->edge_count;
-    ng->edge_cap = g->edge_cap;
-    ng->nodes = (GraphNode *) lv_calloc(ng->node_cap, sizeof(GraphNode));
-    ng->edges = (GraphEdge *) lv_calloc(ng->edge_cap, sizeof(GraphEdge));
-    for (int i = 0; i < ng->node_count; i++) {
-        ng->nodes[i].id = g->nodes[i].id;
-        mpq_init(ng->nodes[i].value);
-        mpq_set(ng->nodes[i].value, g->nodes[i].value);
-        ng->nodes[i].pinned = g->nodes[i].pinned;
-    }
-    for (int i = 0; i < ng->edge_count; i++) {
-        ng->edges[i].id = g->edges[i].id;
-        mpq_init(ng->edges[i].weight);
-        mpq_set(ng->edges[i].weight, g->edges[i].weight);
-        ng->edges[i].from = g->edges[i].from;
-        ng->edges[i].to = g->edges[i].to;
-    }
-    return ng;
-}
-
 void graph_clear(ConstraintGraph *g) {
     if (!g)
         return;

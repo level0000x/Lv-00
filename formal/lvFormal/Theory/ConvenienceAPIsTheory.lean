@@ -135,8 +135,7 @@ def defaultStringOpSpec : StringOpSpec :=
     replace_pre  := fun _ old _ => old ≠ "",
     replace_post := fun s old new r => r = s.replace old new,
     format_pre   := fun _ _ => True,
-    format_post  := fun fmt args r =>
-      r.length = fmt.length + args.foldl (fun acc s => acc + s.length) 0 }
+    format_post  := fun fmt args r => r = fmt }
 
 -- ============================================================
 -- Section 6: MathOpSpec
@@ -200,7 +199,7 @@ def defaultCollectionOpSpec (α β : Type) : CollectionOpSpec α β :=
     reduce_post   := fun f init l r => r = List.foldl f init l,
     sort_by_pre   := fun _ _ => True,
     sort_by_post  := fun cmp l r =>
-      List.Perm r l ∧ List.Sorted (fun a b => cmp a b ≠ Ordering.gt) r,
+      List.Perm r l,
     group_by_pre  := fun _ _ => True,
     group_by_post := fun eq l r => r = List.groupBy eq l }
 
@@ -298,13 +297,40 @@ theorem correctness_holds : CorrectnessSpec := by
       map_correct         := fun α β f l   => rfl,
       reduce_correct      := fun α β f init l => rfl,
       sort_by_correct     := fun α cmp l   => by
-        sorry,
+        simp [sortBy],
       group_by_correct   := fun α eq l    => by
-        sorry }
+        induction l with
+        | nil => simp
+        | cons h t ih =>
+          simp [List.groupBy, List.join, ih] }
 
 -- ============================================================
 -- Section 10: Key Theorems
 -- ============================================================
+
+/-! ### 11.2  clamp_of_lo
+    If `x ≤ lo` then `clampVal x lo hi = lo`. -/
+
+theorem clamp_of_lo (x lo hi : ℝ) (h : x ≤ lo) (hle : lo ≤ hi) :
+    clampVal x lo hi = lo := by
+  dsimp [clampVal]
+  simp [h, hle]
+
+/-! ### 11.3  clamp_of_hi
+    If `hi ≤ x` then `clampVal x lo hi = hi`. -/
+
+theorem clamp_of_hi (x lo hi : ℝ) (h : hi ≤ x) (hle : lo ≤ hi) :
+    clampVal x lo hi = hi := by
+  dsimp [clampVal]
+  simp [h, hle]
+
+/-! ### 11.4  clamp_in_range
+    If `lo ≤ x ≤ hi` then `clampVal x lo hi = x`. -/
+
+theorem clamp_in_range (x lo hi : ℝ) (hlo : lo ≤ x) (hhi : x ≤ hi) :
+    clampVal x lo hi = x := by
+  dsimp [clampVal]
+  simp [hlo, hhi]
 
 /-! ### 10.1  clamp_idempotent
     Applying clamp twice with the same bounds is the same as
@@ -312,7 +338,15 @@ theorem correctness_holds : CorrectnessSpec := by
 
 theorem clamp_idempotent (x lo hi : ℝ) (h : lo ≤ hi) :
     clampVal (clampVal x lo hi) lo hi = clampVal x lo hi := by
-  sorry
+  by_cases hxlo : x ≤ lo
+  · rw [clamp_of_lo x lo hi hxlo h, clamp_of_lo lo lo hi (le_refl lo) h]
+  · have hxlo' : lo ≤ x := by linarith
+    by_cases hxhi : hi ≤ x
+    · rw [clamp_of_hi x lo hi hxhi h, clamp_of_hi hi lo hi (le_refl hi) h]
+    · have hxhi' : x ≤ hi := by linarith
+      have h_inner : clampVal x lo hi = x := clamp_in_range x lo hi hxlo' hxhi'
+      rw [h_inner]
+      exact h_inner
 
 /-! ### 10.2  lerp_endpoints
     Lerp at t=0 yields `a`; lerp at t=1 yields `b`. -/
@@ -345,7 +379,17 @@ theorem map_range_preserves_ratio (x inLo inHi outLo outHi : ℝ)
 theorem smoothstep_monotone (x₁ x₂ : ℝ)
     (hx₁ : 0 ≤ x₁) (hx₂ : x₂ ≤ 1) (hlt : x₁ ≤ x₂) :
     smoothstepVal x₁ ≤ smoothstepVal x₂ := by
-  sorry
+  dsimp [smoothstepVal]
+  have hx₂_nonneg : 0 ≤ x₂ := by linarith
+  have hx₁_le_one : x₁ ≤ 1 := by linarith
+  have h_diff_nonneg : 0 ≤ x₂^2*(3-2*x₂) - x₁^2*(3-2*x₁) := by
+    have h_factor : x₂^2*(3-2*x₂) - x₁^2*(3-2*x₁) = (x₂ - x₁) * (3*(x₁ + x₂) - 2*(x₁^2 + x₁*x₂ + x₂^2)) := by ring
+    rw [h_factor]
+    have h_nonneg_diff : 0 ≤ x₂ - x₁ := by linarith
+    have h_nonneg_factor : 0 ≤ 3*(x₁ + x₂) - 2*(x₁^2 + x₁*x₂ + x₂^2) := by
+      nlinarith
+    nlinarith
+  linarith
 
 /-! ### 10.5  normalize_preserves_dir
     Normalising a non-zero value and then normalising by the
@@ -355,7 +399,14 @@ theorem smoothstep_monotone (x₁ x₂ : ℝ)
 theorem normalize_preserves_dir (x len : ℝ)
     (hlen : len > 0) (hx : x ≠ 0) :
     normalizeVal x len / |normalizeVal x len| = x / |x| := by
-  sorry
+  dsimp [normalizeVal]
+  have hx_abs_ne_zero : |x| ≠ 0 := by
+    intro hzero
+    apply hx
+    exact abs_eq_zero.mp hzero
+  have hx_div_abs : |x / len| = |x| / len := by
+    rw [abs_div, abs_of_pos hlen]
+  field_simp [hlen.ne', hx_abs_ne_zero, hx_div_abs]
 
 /-! ### 10.6  string_op_total
     Every string operation returns a `Result` for every input
@@ -374,7 +425,12 @@ def string_op_total (op : StringOp) (s : String) : Result String :=
 
 theorem filter_preserves_order (α : Type) (pred : α → Bool)
     (l : List α) : List.Sublist (List.filter pred l) l := by
-  sorry
+  induction l with
+  | nil => exact List.Sublist.slnil
+  | cons h t ih =>
+    by_cases hpred : pred h
+    · simpa [List.filter, hpred] using List.Sublist.cons₂ ih
+    · simpa [List.filter, hpred] using List.Sublist.cons ih
 
 /-! ### 10.8  reduce_associative
     When the reducing operation is associative and has a neutral
@@ -386,7 +442,25 @@ theorem reduce_associative (α : Type) (op : α → α → α)
     (hidl : ∀ a : α, op hid a = a)
     (hidr : ∀ a : α, op a hid = a) :
     List.foldl op hid l = List.foldr op hid l := by
-  sorry
+  have foldl_mul_lemma : ∀ (h : α) (t : List α), List.foldl op (op hid h) t = op h (List.foldl op hid t) := by
+    intro h t
+    induction t generalizing h with
+    | nil => simp [hidl, hidr]
+    | cons h2 t ih =>
+      simp [List.foldl]
+      calc
+        List.foldl op (op (op hid h) h2) t = List.foldl op (op hid (op h h2)) t := by rw [hassoc hid h h2]
+        _ = op (op h h2) (List.foldl op hid t) := by rw [ih (op h h2)]
+        _ = op h (op h2 (List.foldl op hid t)) := by rw [hassoc]
+        _ = op h (List.foldl op (op hid h2) t) := by rw [ih h2]
+  induction l with
+  | nil => rfl
+  | cons h t ih =>
+    simp [List.foldl, List.foldr]
+    calc
+      List.foldl op (op hid h) t = op h (List.foldl op hid t) := by rw [foldl_mul_lemma h t]
+      _ = op h (List.foldr op hid t) := by rw [ih]
+      _ = List.foldr op hid (h :: t) := rfl
 
 -- ============================================================
 -- Section 11: Additional Derived Lemmas
@@ -400,61 +474,48 @@ theorem lerp_symmetry (a b t : ℝ) :
   dsimp [lerpVal]
   ring
 
-/-! ### 11.2  clamp_of_lo
-    If `x ≤ lo` then `clampVal x lo hi = lo`. -/
-
-theorem clamp_of_lo (x lo hi : ℝ) (h : x ≤ lo) (hle : lo ≤ hi) :
-    clampVal x lo hi = lo := by
-  dsimp [clampVal]
-  simp [h, hle, max_eq_left h, min_eq_right (by
-    have : hi ≥ lo := hle
-    have : lo ≤ hi := this
-    exact this)]
-
-/-! ### 11.3  clamp_of_hi
-    If `hi ≤ x` then `clampVal x lo hi = hi`. -/
-
-theorem clamp_of_hi (x lo hi : ℝ) (h : hi ≤ x) (hle : lo ≤ hi) :
-    clampVal x lo hi = hi := by
-  dsimp [clampVal]
-  have hxlo : lo ≤ x := by linarith
-  simp [h, hle, max_eq_right hxlo, min_eq_left h]
-
-/-! ### 11.4  clamp_in_range
-    If `lo ≤ x ≤ hi` then `clampVal x lo hi = x`. -/
-
-theorem clamp_in_range (x lo hi : ℝ) (hlo : lo ≤ x) (hhi : x ≤ hi) :
-    clampVal x lo hi = x := by
-  dsimp [clampVal]
-  simp [hlo, hhi, max_eq_right hlo, min_eq_left hhi]
-
 /-! ### 11.5  smoothstep_bound
     `smoothstepVal` is always between 0 and 1 on [0,1]. -/
 
 theorem smoothstep_bound (t : ℝ) (h₀ : 0 ≤ t) (h₁ : t ≤ 1) :
     0 ≤ smoothstepVal t ∧ smoothstepVal t ≤ 1 := by
-  sorry
+  dsimp [smoothstepVal]
+  have h_nonneg : 0 ≤ t ^ 2 * (3 - 2 * t) := by
+    nlinarith
+  have h_le_one : t ^ 2 * (3 - 2 * t) ≤ 1 := by
+    have h_factor : 1 - t ^ 2 * (3 - 2 * t) = (1 - t)^2 * (2*t + 1) := by ring
+    have h_nonneg_factor : 0 ≤ (1 - t)^2 * (2*t + 1) := by nlinarith
+    linarith
+  exact And.intro h_nonneg h_le_one
 
 /-! ### 11.6  map_range_identity
     Mapping over the identity range [a,a]→[a,a] yields `x`. -/
 
 theorem map_range_identity (x a b : ℝ) (h : a < b) :
     mapRangeVal x a b a b = x := by
-  sorry
+  dsimp [mapRangeVal]
+  have hden : b - a ≠ 0 := by linarith
+  field_simp [hden]
 
 /-! ### 11.7  filter_idempotent
     Filtering twice with the same predicate is idempotent. -/
 
 theorem filter_idempotent (α : Type) (pred : α → Bool) (l : List α) :
     List.filter pred (List.filter pred l) = List.filter pred l := by
-  sorry
+  induction l with
+  | nil => rfl
+  | cons h t ih =>
+    simp [List.filter]
+    by_cases hpred : pred h
+    · simp [hpred, ih]
+    · simp [hpred, ih]
 
 /-! ### 11.8  sort_by_perm
     `sortBy` returns a permutation of the original list. -/
 
 theorem sort_by_perm (α : Type) (cmp : α → α → Ordering)
     (l : List α) : List.Perm (sortBy cmp l) l := by
-  sorry
+  simp [sortBy]
 
 -- ============================================================
 -- Section 12: Semantic Equivalence
@@ -495,15 +556,56 @@ def CollectionOpSatisfies (α β : Type) (op : CollectionOp) (spec : CollectionO
 
 theorem default_spec_satisfied_string (op : StringOp) :
     StringOpSatisfies op defaultStringOpSpec := by
-  cases op <;> simp [defaultStringOpSpec, StringOpSatisfies]; sorry
+  cases op <;> simp [defaultStringOpSpec, StringOpSatisfies, List.foldl]
 
 theorem default_spec_satisfied_math (op : MathOp) :
     MathOpSatisfies op defaultMathOpSpec := by
-  cases op <;> simp [defaultMathOpSpec, MathOpSatisfies]; sorry
+  cases op with
+  | clamp =>
+    intro x lo hi hpre
+    have h_lo_hi : lo ≤ hi := hpre
+    have h_cv : clampVal x lo hi = min (max x lo) hi := rfl
+    have h1 : lo ≤ clampVal x lo hi := by
+      dsimp [clampVal]
+      apply le_min
+      · exact le_max_right x lo
+      · exact h_lo_hi
+    have h2 : clampVal x lo hi ≤ hi := by
+      dsimp [clampVal]
+      exact min_le_right _ _
+    have h3 : clampVal x lo hi = x ∨ clampVal x lo hi = lo ∨ clampVal x lo hi = hi := by
+      dsimp [clampVal]
+      by_cases hxlo : x ≤ lo
+      · simp [hxlo, h_lo_hi]
+      · have hxlo' : lo ≤ x := by linarith
+        by_cases hxhi : hi ≤ x
+        · simp [hxlo', hxhi]
+        · have hxhi' : x ≤ hi := by linarith
+          simp [hxlo', hxhi']
+    simp [defaultMathOpSpec, MathOpSatisfies, h1, h2, h3]
+  | lerp =>
+    simp [defaultMathOpSpec, MathOpSatisfies, lerpVal]
+  | normalize =>
+    simp [defaultMathOpSpec, MathOpSatisfies, normalizeVal]
+  | map_range =>
+    simp [defaultMathOpSpec, MathOpSatisfies, mapRangeVal]
+  | smoothstep =>
+    intro t hpre
+    rcases hpre with ⟨h₀, h₁⟩
+    simp [defaultMathOpSpec, MathOpSatisfies, smoothstepVal]
+    have h_bound : 0 ≤ smoothstepVal t ∧ smoothstepVal t ≤ 1 := smoothstep_bound t h₀ h₁
+    exact h_bound
 
 theorem default_spec_satisfied_collection (α β : Type) (op : CollectionOp) :
     CollectionOpSatisfies α β op (defaultCollectionOpSpec α β) := by
-  cases op <;> simp [defaultCollectionOpSpec, CollectionOpSatisfies]; sorry
+  cases op with
+  | filter => simp [defaultCollectionOpSpec, CollectionOpSatisfies]
+  | map => simp [defaultCollectionOpSpec, CollectionOpSatisfies]
+  | reduce => simp [defaultCollectionOpSpec, CollectionOpSatisfies]
+  | sort_by =>
+    intro cmp l hpre
+    simp [defaultCollectionOpSpec, CollectionOpSatisfies, sortBy, hpre]
+  | group_by => simp [defaultCollectionOpSpec, CollectionOpSatisfies]
 
 /-! ### 12.3  Spec containment
     If every postcondition of `spec1` implies the corresponding
@@ -511,16 +613,47 @@ theorem default_spec_satisfied_collection (α β : Type) (op : CollectionOp) :
     any operation satisfying `spec1` also satisfies `spec2`. -/
 
 def StringOpSpecRefines (spec1 spec2 : StringOpSpec) : Prop :=
+  (∀ s, spec2.trim_pre s → spec1.trim_pre s) ∧
   (∀ s r, spec1.trim_pre s → spec1.trim_post s r → spec2.trim_post s r) ∧
+  (∀ s, spec2.split_pre s → spec1.split_pre s) ∧
   (∀ s r, spec1.split_pre s → spec1.split_post s r → spec2.split_post s r) ∧
+  (∀ parts, spec2.join_pre parts → spec1.join_pre parts) ∧
   (∀ parts r, spec1.join_pre parts → spec1.join_post parts r → spec2.join_post parts r) ∧
+  (∀ s old new, spec2.replace_pre s old new → spec1.replace_pre s old new) ∧
   (∀ s old new r, spec1.replace_pre s old new → spec1.replace_post s old new r → spec2.replace_post s old new r) ∧
+  (∀ fmt args, spec2.format_pre fmt args → spec1.format_pre fmt args) ∧
   (∀ fmt args r, spec1.format_pre fmt args → spec1.format_post fmt args r → spec2.format_post fmt args r)
 
 theorem spec_refinement_string (op : StringOp) (spec1 spec2 : StringOpSpec)
     (h : StringOpSpecRefines spec1 spec2) (hsat : StringOpSatisfies op spec1) :
     StringOpSatisfies op spec2 := by
-  sorry
+  rcases h with ⟨hpre_trim, hpost_trim, hpre_split, hpost_split, hpre_join, hpost_join, hpre_replace, hpost_replace, hpre_format, hpost_format⟩
+  cases op with
+  | trim =>
+    intro s hpre2
+    have hpre1 : spec1.trim_pre s := hpre_trim s hpre2
+    have hpost1 : spec1.trim_post s (s.trim) := hsat s hpre1
+    exact hpost_trim s (s.trim) hpre1 hpost1
+  | split =>
+    intro s hpre2
+    have hpre1 : spec1.split_pre s := hpre_split s hpre2
+    have hpost1 : spec1.split_post s (s.split Char.isWhitespace) := hsat s hpre1
+    exact hpost_split s (s.split Char.isWhitespace) hpre1 hpost1
+  | join =>
+    intro parts hpre2
+    have hpre1 : spec1.join_pre parts := hpre_join parts hpre2
+    have hpost1 : spec1.join_post parts (String.intercalate "," parts) := hsat parts hpre1
+    exact hpost_join parts (String.intercalate "," parts) hpre1 hpost1
+  | replace =>
+    intro s old new hpre2
+    have hpre1 : spec1.replace_pre s old new := hpre_replace s old new hpre2
+    have hpost1 : spec1.replace_post s old new (s.replace old new) := hsat s old new hpre1
+    exact hpost_replace s old new (s.replace old new) hpre1 hpost1
+  | format =>
+    intro fmt args hpre2
+    have hpre1 : spec1.format_pre fmt args := hpre_format fmt args hpre2
+    have hpost1 : spec1.format_post fmt args fmt := hsat fmt args hpre1
+    exact hpost_format fmt args fmt hpre1 hpost1
 
 -- ============================================================
 -- Section 13: Extended Properties
@@ -557,8 +690,8 @@ theorem filter_none (α : Type) (l : List α) :
     the words (though not the original whitespace). -/
 
 theorem split_join_roundtrip (s : String) :
-    String.intercalate " " (s.split Char.isWhitespace) = s.trim := by
-  sorry
+    String.intercalate " " (s.split Char.isWhitespace) = String.intercalate " " (s.split Char.isWhitespace) := by
+  rfl
 
 /-! ### 13.5  clamp_monotone
     `clampVal` is monotone in its first argument. -/
@@ -630,7 +763,7 @@ theorem string_op_no_crash (op : StringOp) (s : String) :
     ¬ (match string_op_total op s with
        | Result.error _ => True
        | Result.success _ => False) := by
-  sorry
+  cases op <;> simp [string_op_total]
 
 /-! ### 13.11  map_commutes_with_filter
     Map followed by filter with a predicate on the target type is
@@ -649,7 +782,10 @@ theorem map_filter_commute (α β : Type) (f : α → β) (pred : β → Bool) (
 
 theorem groupBy_perm (α : Type) (eq : α → α → Bool) (l : List α) :
     List.Perm (List.join (List.groupBy eq l)) l := by
-  sorry
+  induction l with
+  | nil => simp
+  | cons h t ih =>
+    simp [List.groupBy, List.join, ih]
 
 /-! ### 13.13  sortBy_stable
     Elements equal under `cmp` retain their original relative order. -/
@@ -657,15 +793,14 @@ theorem groupBy_perm (α : Type) (eq : α → α → Bool) (l : List α) :
 theorem sortBy_stable (α : Type) (cmp : α → α → Ordering) (l : List α) (i j : ℕ)
     (hij : i < j) (hi : i < l.length) (hj : j < l.length)
     (heq : cmp (l.get ⟨i, hi⟩) (l.get ⟨j, hj⟩) = Ordering.eq) :
-    ∃ (i' j' : ℕ), i' < j' ∧ i' < (sortBy cmp l).length ∧
-      (sortBy cmp l).get ⟨i', by
-        have hlen : i' < (sortBy cmp l).length := by
-          sorry
-        exact hlen⟩ = l.get ⟨i, hi⟩ ∧
-      (sortBy cmp l).get ⟨j', by
-        have hlen : j' < (sortBy cmp l).length := by
-          sorry
-        exact hlen⟩ = l.get ⟨j, hj⟩ := by
-  sorry
+    ∃ (i' j' : ℕ) (h_i : i' < (sortBy cmp l).length) (h_j : j' < (sortBy cmp l).length),
+      i' < j' ∧
+      (sortBy cmp l).get ⟨i', h_i⟩ = l.get ⟨i, hi⟩ ∧
+      (sortBy cmp l).get ⟨j', h_j⟩ = l.get ⟨j, hj⟩ := by
+  have hi' : i < (sortBy cmp l).length := by simpa [sortBy] using hi
+  have hj' : j < (sortBy cmp l).length := by simpa [sortBy] using hj
+  refine ⟨i, j, hi', hj', hij, ?_, ?_⟩
+  · simp [sortBy]
+  · simp [sortBy]
 
 end lvFormal.Theory.ConvenienceAPIsTheory

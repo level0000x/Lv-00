@@ -72,6 +72,17 @@ static void lru_touch(lvCacheManager *mgr, lvCacheEntry *entry) {
         mgr->lru_tail = entry;
 }
 
+/** 释放缓存条目：先调用自定义析构函数（若设置），再释放条目本身 */
+static void free_entry(lvCacheManager *mgr, lvCacheEntry *e) {
+    (void) mgr;
+    if (e->destructor && e->data) {
+        e->destructor(e->data, e->data_size);
+    } else {
+        lv_free((void **) &(e->data));
+    }
+    lv_free((void **) &e);
+}
+
 /** 从哈希表和 LRU 链表中移除条目 */
 static void remove_entry(lvCacheManager *mgr, lvCacheEntry *entry) {
     /* 从哈希桶中摘除 */
@@ -96,12 +107,7 @@ static void remove_entry(lvCacheManager *mgr, lvCacheEntry *entry) {
         mgr->lru_tail = entry->lru_prev;
 
     /* 释放数据 */
-    if (entry->destructor && entry->data) {
-        entry->destructor(entry->data, entry->data_size);
-    } else {
-        lv_free((void **) &(entry->data));
-    }
-    lv_free((void **) &entry);
+    free_entry(mgr, entry);
 }
 
 /** LRU 淘汰：移除最久未使用的条目 */
@@ -191,12 +197,7 @@ void lv_cache_manager_destroy(lvCacheManager *manager) {
         lvCacheEntry *entry = manager->buckets[i];
         while (entry != NULL) {
             lvCacheEntry *next = entry->hash_next;
-            if (entry->destructor && entry->data) {
-                entry->destructor(entry->data, entry->data_size);
-            } else {
-                lv_free((void **) &(entry->data));
-            }
-            lv_free((void **) &entry);
+            free_entry(manager, entry);
             entry = next;
         }
     }
@@ -272,8 +273,7 @@ bool lv_cache_put(lvCacheManager *manager, const char *key, const void *data, si
     if (entry == NULL)
         return false;
 
-    strncpy(entry->key, key, sizeof(entry->key) - 1);
-    entry->key[sizeof(entry->key) - 1] = '\0'; /* 确保 null-terminate */
+    lv_strlcpy(entry->key, key, sizeof(entry->key));
     entry->data = lv_malloc(size);
     if (entry->data == NULL) {
         lv_free((void **) &entry);
@@ -406,8 +406,7 @@ uint32_t lv_cache_context_create(lvCacheManager *manager, const char *name, uint
 
     lvCacheContext *ctx = &manager->contexts[manager->context_count];
     ctx->context_id = manager->next_context_id++;
-    strncpy(ctx->name, name, sizeof(ctx->name) - 1);
-    ctx->name[sizeof(ctx->name) - 1] = '\0'; /* 确保 null-terminate */
+    lv_strlcpy(ctx->name, name, sizeof(ctx->name));
     ctx->parent_id = parent_id;
     ctx->depth = 0;
     ctx->is_active = true;
@@ -590,12 +589,7 @@ lvErrorCode lv_cache_manager_reset(lvCacheManager *manager) {
         lvCacheEntry *entry = manager->buckets[i];
         while (entry != NULL) {
             lvCacheEntry *next = entry->hash_next;
-            if (entry->destructor && entry->data) {
-                entry->destructor(entry->data, entry->data_size);
-            } else {
-                lv_free((void **) &(entry->data));
-            }
-            lv_free((void **) &entry);
+            free_entry(manager, entry);
             entry = next;
         }
         manager->buckets[i] = NULL;

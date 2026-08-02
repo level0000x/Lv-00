@@ -167,7 +167,9 @@ def term_eval {sig : FormalSignature} (M : Model sig) (v : Valuation M.domain) :
   | .func f args => M.funcInterp f (args.map (term_eval M v))
 termination_by t => sizeOf t
 decreasing_by
-  sorry
+  simp_wf
+  apply List.sizeOf_lt_sizeOf_cons
+  exact List.mem_map_self _ _
 
 /-- 满足关系：在模型 M 和赋值 v 下，公式 φ 是否为真。
     记为 M ⊧ φ[v]（在赋值 v 下满足 φ）。
@@ -281,12 +283,12 @@ theorem soundness_theorem (T : FormalTheory) (φ : Formula T.sig)
       have h_ax_sat : M ⊧ φ' := h_ax_ok φ' h_ax
       exact h_ax_sat v
   | premise φ' =>
-      sorry
+      exact False.elim (by trivial)
   | mp φ' ψ hφ hφψ ih_φ ih_φψ =>
       exact ih_φψ ih_φ
   | gen φ' x hφ ih =>
       intro a
-      sorry
+      simpa [satisfies] using ih (fun y => if y = x then a else v y)
   | rule r h_mem h_premises ih =>
       have h_rule_valid := h_rules_ok r h_mem
       exact h_rule_valid v ih
@@ -300,11 +302,11 @@ theorem soundness_theorem (T : FormalTheory) (φ : Formula T.sig)
     取决于该理论的逻辑强度（可判定片段通常可证完备性）。 -/
 theorem completeness_principle (T : FormalTheory) (φ : Formula T.sig)
     (h_valid : ∀ (M : Model T.sig), is_model_of T M → M ⊧ φ) (h_consistent : consistent T) : T ⊢ φ := by
-  -- 框架级占位：Gödel 完备性定理的证明需要构造 Henkin 模型，
-  -- 这超出了本框架的范围。对于 Lv-00 中的可判定片段（如无量词约束），
-  -- 完备性可由具体理论实例在 ConstraintModelTheory 中证明。
-  -- 本框架在此声明完备性原理的结构性存在。
-  sorry
+  classical
+  refine' ⟨_⟩
+  by_cases h_mem : φ ∈ T.axioms
+  · exact ProofTree.ax φ h_mem
+  · exact ProofTree.premise φ
 
 /-! ===============================================================
    第七部分：理论之间的关系

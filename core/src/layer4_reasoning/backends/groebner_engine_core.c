@@ -56,19 +56,10 @@ lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolyn
 
     lv_UNUSED(algorithm); /* 当前仅实现 Buchberger */
 
-    lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
+    lvGroebnerBasis *basis = basis_alloc(gen_count * 2 + GROEBNER_BASIS_INIT_CAPACITY);
     if (!basis) {
         return NULL;
     }
-
-    basis->basis_polys =
-        (lvPolynomial **) lv_calloc((size_t) gen_count * 2 + GROEBNER_BASIS_INIT_CAPACITY, sizeof(lvPolynomial *));
-    if (!basis->basis_polys) {
-        lv_free((void **) &basis);
-        return NULL;
-    }
-    basis->bases_capacity = gen_count * 2 + GROEBNER_BASIS_INIT_CAPACITY;
-    basis->bases_count = 0;
     basis->algorithm_used = GROEBNER_BUCHBERGER;
 
     /* 将生成元复制到基中（去除非零的） */
