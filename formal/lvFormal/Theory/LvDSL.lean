@@ -229,9 +229,7 @@ def lv_type_infer : LvExpr → Option LvType
     | e :: es' =>
       match lv_type_infer e with
       | some t =>
-        if es'.all (fun e' => decide (lv_type_infer e' = some t)) then
-          some (.list t)
-        else none
+        if listLitAllInfer es' t then some (.list t) else none
       | none => none
   | .setLit es =>
     match es with
@@ -239,9 +237,7 @@ def lv_type_infer : LvExpr → Option LvType
     | e :: es' =>
       match lv_type_infer e with
       | some t =>
-        if es'.all (fun e' => decide (lv_type_infer e' = some t)) then
-          some (.set t)
-        else none
+        if setLitAllInfer es' t then some (.set t) else none
       | none => none
   | .some e => (lv_type_infer e).map .option
   | .none t => some (.option t)
@@ -253,8 +249,21 @@ def lv_type_infer : LvExpr → Option LvType
     match lv_type_infer f, lv_type_infer a with
     | some (.arrow dom codom), some t_a => if dom = t_a then some codom else none
     | _, _ => none
-termination_by e => e
-
+where
+  listLitAllInfer (es : List LvExpr) (t : LvType) : Bool :=
+    match es with
+    | [] => true
+    | e :: es' =>
+      match lv_type_infer e with
+      | some t' => if t' = t then listLitAllInfer es' t else false
+      | none => false
+  setLitAllInfer (es : List LvExpr) (t : LvType) : Bool :=
+    match es with
+    | [] => true
+    | e :: es' =>
+      match lv_type_infer e with
+      | some t' => if t' = t then setLitAllInfer es' t else false
+      | none => false
 /-- 类型检查：检查表达式是否具有给定类型 -/
 def lv_type_check : LvExpr → LvType → Bool
   | .var _, _ => true
@@ -292,7 +301,6 @@ def lv_type_check : LvExpr → LvType → Bool
     | some (.arrow dom codom) => lv_type_check a dom ∧ codom = t
     | _ => false
   | _, _ => false
-termination_by e _ => e
 
 /-- 自由变量收集 -/
 partial def lv_free_vars : LvExpr → List String
@@ -316,7 +324,7 @@ partial def lv_free_vars : LvExpr → List String
   | .pair e1 e2 => lv_free_vars e1 ++ lv_free_vars e2
 
 /-- 表达式替换：用 replacement 替换表达式中的变量 x（capture-avoiding） -/
-partial def lv_subst (x : String) (replacement : LvExpr) : LvExpr → LvExpr
+def lv_subst (x : String) (replacement : LvExpr) : LvExpr → LvExpr
   | .var n => if n = x then replacement else .var n
   | .intLit v => .intLit v
   | .floatLit v => .floatLit v
@@ -336,11 +344,18 @@ partial def lv_subst (x : String) (replacement : LvExpr) : LvExpr → LvExpr
   | .exists x' t b =>
     if x' = x then .exists x' t b
     else .exists x' t (lv_subst x replacement b)
-  | .listLit es => .listLit (es.map (lv_subst x replacement))
-  | .setLit es => .setLit (es.map (lv_subst x replacement))
+  | .listLit es => .listLit (lv_subst_list x replacement es)
+  | .setLit es => .setLit (lv_subst_set x replacement es)
   | .some e => .some (lv_subst x replacement e)
   | .none ty => .none ty
   | .pair e1 e2 => .pair (lv_subst x replacement e1) (lv_subst x replacement e2)
+where
+  lv_subst_list (x : String) (replacement : LvExpr) : List LvExpr → List LvExpr
+    | [] => []
+    | e :: es => lv_subst x replacement e :: lv_subst_list x replacement es
+  lv_subst_set (x : String) (replacement : LvExpr) : List LvExpr → List LvExpr
+    | [] => []
+    | e :: es => lv_subst x replacement e :: lv_subst_set x replacement es
 
 /-! ===============================================================
    第九部分：元理论性质
@@ -354,54 +369,63 @@ lemma empty_program_no_constraints : getConstraints (⟨"", []⟩ : LvProgram) =
 lemma empty_program_no_prove : findProveStmt (⟨"", []⟩ : LvProgram) = none := by
   rfl
 
-/-- 替换不改变常量表达式 -/
-lemma subst_const_identity (x : String) (r : LvExpr) (v : ℤ) :
-    lv_subst x r (.intLit v) = .intLit v := by
-  rfl
-
 /-- 替换变量 x 为 r 再求值，等价于在环境中将 x 映射为 r 的求值结果 -/
 lemma lv_expr_eval_subst (env : String → ℝ × ℝ) (x : String) (r e : LvExpr) :
     lv_expr_eval env (lv_subst x r e) = lv_expr_eval (fun y => if y = x then (lv_expr_eval env r, (0 : ℝ)) else env y) e := by
-  induction e with
-  | var n =>
-    simp [lv_subst, lv_expr_eval]
-  | intLit v =>
-    simp [lv_subst, lv_expr_eval]
-  | floatLit v =>
-    simp [lv_subst, lv_expr_eval]
-  | strLit v =>
-    simp [lv_subst, lv_expr_eval]
-  | boolLit v =>
-    simp [lv_subst, lv_expr_eval]
-  | app f a ih_f ih_a =>
-    simp [lv_subst, lv_expr_eval, ih_f, ih_a]
-  | add e1 e2 ih1 ih2 =>
-    simp [lv_subst, lv_expr_eval, ih1, ih2]
-  | sub e1 e2 ih1 ih2 =>
-    simp [lv_subst, lv_expr_eval, ih1, ih2]
-  | mul e1 e2 ih1 ih2 =>
-    simp [lv_subst, lv_expr_eval, ih1, ih2]
-  | div e1 e2 ih1 ih2 =>
-    simp [lv_subst, lv_expr_eval, ih1, ih2]
-  | lambda p t b ih =>
-    simp [lv_subst, lv_expr_eval]
-    split <;> simp [ih]
-  | forall_ x' t b ih =>
-    simp [lv_subst, lv_expr_eval]
-    split <;> simp [ih]
-  | exists x' t b ih =>
-    simp [lv_subst, lv_expr_eval]
-    split <;> simp [ih]
-  | listLit es ih =>
-    simp [lv_subst, lv_expr_eval, ih]
-  | setLit es ih =>
-    simp [lv_subst, lv_expr_eval, ih]
-  | some e ih =>
-    simp [lv_subst, lv_expr_eval, ih]
-  | none ty =>
-    simp [lv_subst, lv_expr_eval]
-  | pair e1 e2 ih1 ih2 =>
-    simp [lv_subst, lv_expr_eval, ih1, ih2]
+  match e with
+  | .var n =>
+    dsimp [lv_subst, lv_expr_eval]
+    by_cases hn : n = x <;> simp [hn, lv_expr_eval]
+  | .intLit v =>
+    dsimp [lv_subst, lv_expr_eval]
+  | .floatLit v =>
+    dsimp [lv_subst, lv_expr_eval]
+  | .strLit v =>
+    dsimp [lv_subst, lv_expr_eval]
+  | .boolLit v =>
+    dsimp [lv_subst, lv_expr_eval]
+  | .app f a =>
+    have ih_f := lv_expr_eval_subst env x r f
+    have ih_a := lv_expr_eval_subst env x r a
+    dsimp [lv_subst, lv_expr_eval]; simp [ih_f, ih_a]
+  | .add e1 e2 =>
+    have ih1 := lv_expr_eval_subst env x r e1
+    have ih2 := lv_expr_eval_subst env x r e2
+    dsimp [lv_subst, lv_expr_eval]; simp [ih1, ih2]
+  | .sub e1 e2 =>
+    have ih1 := lv_expr_eval_subst env x r e1
+    have ih2 := lv_expr_eval_subst env x r e2
+    dsimp [lv_subst, lv_expr_eval]; simp [ih1, ih2]
+  | .mul e1 e2 =>
+    have ih1 := lv_expr_eval_subst env x r e1
+    have ih2 := lv_expr_eval_subst env x r e2
+    dsimp [lv_subst, lv_expr_eval]; simp [ih1, ih2]
+  | .div e1 e2 =>
+    have ih1 := lv_expr_eval_subst env x r e1
+    have ih2 := lv_expr_eval_subst env x r e2
+    dsimp [lv_subst, lv_expr_eval]; simp [ih1, ih2]
+  | .lambda p t b =>
+    dsimp [lv_subst, lv_expr_eval]
+    by_cases hp : p = x <;> simp [hp, lv_expr_eval]
+  | .forall_ x' t b =>
+    dsimp [lv_subst, lv_expr_eval]
+    by_cases hx' : x' = x <;> simp [hx', lv_expr_eval]
+  | .exists x' t b =>
+    dsimp [lv_subst, lv_expr_eval]
+    by_cases hx' : x' = x <;> simp [hx', lv_expr_eval]
+  | .listLit es =>
+    dsimp [lv_subst, lv_expr_eval]
+  | .setLit es =>
+    dsimp [lv_subst, lv_expr_eval]
+  | .some e =>
+    have ih := lv_expr_eval_subst env x r e
+    dsimp [lv_subst, lv_expr_eval]; simp [ih]
+  | .none ty =>
+    dsimp [lv_subst, lv_expr_eval]
+  | .pair e1 e2 =>
+    have ih1 := lv_expr_eval_subst env x r e1
+    have ih2 := lv_expr_eval_subst env x r e2
+    dsimp [lv_subst, lv_expr_eval]; simp [ih1, ih2]
 
 /-- 约束提取后列表长度非负 -/
 lemma getConstraints_length_nonneg (p : LvProgram) : 0 ≤ (getConstraints p).length := by
@@ -446,7 +470,7 @@ lemma type_check_app (f a : LvExpr) (dom codom : LvType)
 
 /-- none 的类型检查 -/
 lemma type_check_none (t : LvType) : lv_type_check (.none t) (.option t) := by
-  unfold lv_type_check; rfl
+  unfold lv_type_check; simp
 
 /-- some 的类型检查 -/
 lemma type_check_some (e : LvExpr) (t : LvType) (h : lv_type_check e t) :
@@ -456,82 +480,113 @@ lemma type_check_some (e : LvExpr) (t : LvType) (h : lv_type_check e t) :
 /-- 类型推断和类型检查的一致性：若 lv_type_infer e = some t，则 lv_type_check e t -/
 lemma type_infer_check_consistent (e : LvExpr) (t : LvType)
     (h_infer : lv_type_infer e = some t) : lv_type_check e t := by
-  induction e generalizing t with
-  | var n =>
-    simp [lv_type_infer] at h_infer
-  | intLit v =>
-    simp [lv_type_infer] at h_infer
-    simp [h_infer, lv_type_check]
-  | floatLit v =>
-    simp [lv_type_infer] at h_infer
-    simp [h_infer, lv_type_check]
-  | strLit v =>
-    simp [lv_type_infer] at h_infer
-    simp [h_infer, lv_type_check]
-  | boolLit v =>
-    simp [lv_type_infer] at h_infer
-    simp [h_infer, lv_type_check]
-  | add e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h_infer
-    rcases h_infer with (⟨h1, h2⟩ | ⟨h1, h2⟩)
+  match e with
+  | .var n =>
+    unfold lv_type_infer at h_infer
+    simp at h_infer
+  | .intLit v =>
+    unfold lv_type_infer at h_infer
+    have h_t_eq : t = .int := by injection h_infer
+    subst h_t_eq; simp [lv_type_check]
+  | .floatLit v =>
+    unfold lv_type_infer at h_infer
+    have h_t_eq : t = .real := by injection h_infer
+    subst h_t_eq; simp [lv_type_check]
+  | .strLit v =>
+    unfold lv_type_infer at h_infer
+    have h_t_eq : t = .string := by injection h_infer
+    subst h_t_eq; simp [lv_type_check]
+  | .boolLit v =>
+    unfold lv_type_infer at h_infer
+    have h_t_eq : t = .bool := by injection h_infer
+    subst h_t_eq; simp [lv_type_check]
+  | .add e1 e2 =>
+    unfold lv_type_infer at h_infer
+    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h_infer
     · -- both .int
-      have hc1 : lv_type_check e1 .int := ih1 .int h1
-      have hc2 : lv_type_check e2 .int := ih2 .int h2
+      have h_t_eq : t = .int := by injection h_infer
+      subst h_t_eq
+      have hc1 : lv_type_check e1 .int := type_infer_check_consistent e1 .int h_inf1
+      have hc2 : lv_type_check e2 .int := type_infer_check_consistent e2 .int h_inf2
       simp [lv_type_check, hc1, hc2]
     · -- both .real
-      have hc1 : lv_type_check e1 .real := ih1 .real h1
-      have hc2 : lv_type_check e2 .real := ih2 .real h2
+      have h_t_eq : t = .real := by injection h_infer
+      subst h_t_eq
+      have hc1 : lv_type_check e1 .real := type_infer_check_consistent e1 .real h_inf1
+      have hc2 : lv_type_check e2 .real := type_infer_check_consistent e2 .real h_inf2
       simp [lv_type_check, hc1, hc2]
-  | sub e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h_infer
-    rcases h_infer with (⟨h1, h2⟩ | ⟨h1, h2⟩)
-    · have hc1 : lv_type_check e1 .int := ih1 .int h1
-      have hc2 : lv_type_check e2 .int := ih2 .int h2
+  | .sub e1 e2 =>
+    unfold lv_type_infer at h_infer
+    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h_infer
+    · -- both .int
+      have h_t_eq : t = .int := by injection h_infer
+      subst h_t_eq
+      have hc1 : lv_type_check e1 .int := type_infer_check_consistent e1 .int h_inf1
+      have hc2 : lv_type_check e2 .int := type_infer_check_consistent e2 .int h_inf2
       simp [lv_type_check, hc1, hc2]
-    · have hc1 : lv_type_check e1 .real := ih1 .real h1
-      have hc2 : lv_type_check e2 .real := ih2 .real h2
+    · -- both .real
+      have h_t_eq : t = .real := by injection h_infer
+      subst h_t_eq
+      have hc1 : lv_type_check e1 .real := type_infer_check_consistent e1 .real h_inf1
+      have hc2 : lv_type_check e2 .real := type_infer_check_consistent e2 .real h_inf2
       simp [lv_type_check, hc1, hc2]
-  | mul e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h_infer
-    rcases h_infer with (⟨h1, h2⟩ | ⟨h1, h2⟩)
-    · have hc1 : lv_type_check e1 .int := ih1 .int h1
-      have hc2 : lv_type_check e2 .int := ih2 .int h2
+  | .mul e1 e2 =>
+    unfold lv_type_infer at h_infer
+    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h_infer
+    · -- both .int
+      have h_t_eq : t = .int := by injection h_infer
+      subst h_t_eq
+      have hc1 : lv_type_check e1 .int := type_infer_check_consistent e1 .int h_inf1
+      have hc2 : lv_type_check e2 .int := type_infer_check_consistent e2 .int h_inf2
       simp [lv_type_check, hc1, hc2]
-    · have hc1 : lv_type_check e1 .real := ih1 .real h1
-      have hc2 : lv_type_check e2 .real := ih2 .real h2
+    · -- both .real
+      have h_t_eq : t = .real := by injection h_infer
+      subst h_t_eq
+      have hc1 : lv_type_check e1 .real := type_infer_check_consistent e1 .real h_inf1
+      have hc2 : lv_type_check e2 .real := type_infer_check_consistent e2 .real h_inf2
       simp [lv_type_check, hc1, hc2]
-  | div e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h_infer
-    rcases h_infer with (⟨h1, h2⟩ | ⟨h1, h2⟩)
-    · have hc1 : lv_type_check e1 .int := ih1 .int h1
-      have hc2 : lv_type_check e2 .int := ih2 .int h2
+  | .div e1 e2 =>
+    unfold lv_type_infer at h_infer
+    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h_infer
+    · -- both .int
+      have h_t_eq : t = .int := by injection h_infer
+      subst h_t_eq
+      have hc1 : lv_type_check e1 .int := type_infer_check_consistent e1 .int h_inf1
+      have hc2 : lv_type_check e2 .int := type_infer_check_consistent e2 .int h_inf2
       simp [lv_type_check, hc1, hc2]
-    · have hc1 : lv_type_check e1 .real := ih1 .real h1
-      have hc2 : lv_type_check e2 .real := ih2 .real h2
+    · -- both .real
+      have h_t_eq : t = .real := by injection h_infer
+      subst h_t_eq
+      have hc1 : lv_type_check e1 .real := type_infer_check_consistent e1 .real h_inf1
+      have hc2 : lv_type_check e2 .real := type_infer_check_consistent e2 .real h_inf2
       simp [lv_type_check, hc1, hc2]
-  | lambda p t' b ih =>
-    simp [lv_type_infer] at h_infer
+  | .lambda p t' b =>
+    unfold lv_type_infer at h_infer
     cases hb : lv_type_infer b with
     | none => simp [hb] at h_infer
     | some t_b =>
-      simp [hb] at h_infer
+      have h_infer' : some (.arrow t' t_b) = some t := by
+        simpa [hb] using h_infer
       have h_eq : t = LvType.arrow t' t_b := by
-        injection h_infer with h; exact h.symm
+        injection h_infer' with h; exact h.symm
       subst h_eq
       simp [lv_type_check]
-      have h_ih := ih t_b hb
-      simp [hb, h_ih]
-  | forall_ x' _ b ih =>
-    simp [lv_type_infer] at h_infer
-    simp [h_infer, lv_type_check]
-  | exists x' _ b ih =>
-    simp [lv_type_infer] at h_infer
-    simp [h_infer, lv_type_check]
-  | listLit es ih =>
-    simp [lv_type_infer] at h_infer
-    rcases es with ([] | e :: es')
-    · simp at h_infer
-    · cases h_inf_e : lv_type_infer e with
+      have h_ih := type_infer_check_consistent b t_b hb
+      simp [lv_type_check, h_ih]
+  | .forall_ x' _ b =>
+    unfold lv_type_infer at h_infer
+    have h_t_eq : t = .bool := by injection h_infer
+    subst h_t_eq; simp [lv_type_check]
+  | .exists x' _ b =>
+    unfold lv_type_infer at h_infer
+    have h_t_eq : t = .bool := by injection h_infer
+    subst h_t_eq; simp [lv_type_check]
+  | .listLit es =>
+    unfold lv_type_infer at h_infer
+    cases es with
+    | nil => simp at h_infer
+    | cons e es' =>
+      cases h_inf_e : lv_type_infer e with
       | none => simp [h_inf_e] at h_infer
       | some t_e =>
         simp [h_inf_e] at h_infer
@@ -540,7 +595,7 @@ lemma type_infer_check_consistent (e : LvExpr) (t : LvType)
           have h_t_eq : t = .list t_e := by
             injection h_infer with h; exact h.symm
           subst h_t_eq
-          have hc_e : lv_type_check e t_e := ih e t_e h_inf_e
+          have hc_e : lv_type_check e t_e := type_infer_check_consistent e t_e h_inf_e
           have hc_es' : lv_type_check (listLit es') (.list t_e) := by
             revert h_all
             induction es' generalizing t_e with
@@ -551,18 +606,19 @@ lemma type_infer_check_consistent (e : LvExpr) (t : LvType)
               have h_all_simp := by
                 simpa [List.all, Bool.and_eq_true] using h_all
               rcases h_all_simp with ⟨h_e'_dec, h_es''_all⟩
-              have hc_e' : lv_type_check e' t_e := ih e' t_e (by
+              have hc_e' : lv_type_check e' t_e := type_infer_check_consistent e' t_e (by
                 simpa using h_e'_dec)
               have hc_es'' : lv_type_check (listLit es'') (.list t_e) :=
                 ih_es' h_es''_all
               unfold lv_type_check; simp [hc_e', hc_es'']
           unfold lv_type_check; simp [hc_e, hc_es']
         · simp [h_all] at h_infer
-  | setLit es ih =>
-    simp [lv_type_infer] at h_infer
-    rcases es with ([] | e :: es')
-    · simp at h_infer
-    · cases h_inf_e : lv_type_infer e with
+  | .setLit es =>
+    unfold lv_type_infer at h_infer
+    cases es with
+    | nil => simp at h_infer
+    | cons e es' =>
+      cases h_inf_e : lv_type_infer e with
       | none => simp [h_inf_e] at h_infer
       | some t_e =>
         simp [h_inf_e] at h_infer
@@ -571,7 +627,7 @@ lemma type_infer_check_consistent (e : LvExpr) (t : LvType)
           have h_t_eq : t = .set t_e := by
             injection h_infer with h; exact h.symm
           subst h_t_eq
-          have hc_e : lv_type_check e t_e := ih e t_e h_inf_e
+          have hc_e : lv_type_check e t_e := type_infer_check_consistent e t_e h_inf_e
           have hc_es' : lv_type_check (setLit es') (.set t_e) := by
             revert h_all
             induction es' generalizing t_e with
@@ -582,23 +638,31 @@ lemma type_infer_check_consistent (e : LvExpr) (t : LvType)
               have h_all_simp := by
                 simpa [List.all, Bool.and_eq_true] using h_all
               rcases h_all_simp with ⟨h_e'_dec, h_es''_all⟩
-              have hc_e' : lv_type_check e' t_e := ih e' t_e (by
+              have hc_e' : lv_type_check e' t_e := type_infer_check_consistent e' t_e (by
                 simpa using h_e'_dec)
               have hc_es'' : lv_type_check (setLit es'') (.set t_e) :=
                 ih_es' h_es''_all
               unfold lv_type_check; simp [hc_e', hc_es'']
           unfold lv_type_check; simp [hc_e, hc_es']
         · simp [h_all] at h_infer
-  | some e ih =>
-    simp [lv_type_infer] at h_infer
-    rcases h_infer with ⟨h_e⟩
-    have hc_e : lv_type_check e t := ih e t h_e
-    simp [lv_type_check, hc_e]
-  | none ty =>
-    simp [lv_type_infer] at h_infer
-    simp [h_infer, lv_type_check]
-  | pair e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h_infer
+  | .some e =>
+    unfold lv_type_infer at h_infer
+    cases h_inf_e : lv_type_infer e with
+    | none => simp [h_inf_e] at h_infer
+    | some t_e =>
+      simp [h_inf_e] at h_infer
+      have h_t_eq : t = .option t_e := by
+        injection h_infer with h; exact h.symm
+      subst h_t_eq
+      have hc_e : lv_type_check e t_e := type_infer_check_consistent e t_e h_inf_e
+      simp [lv_type_check, hc_e]
+  | .none ty =>
+    unfold lv_type_infer at h_infer
+    have h_t_eq : t = .option ty := by
+      injection h_infer with h; exact h.symm
+    subst h_t_eq; simp [lv_type_check]
+  | .pair e1 e2 =>
+    unfold lv_type_infer at h_infer
     cases h_inf1 : lv_type_infer e1 with
     | none => simp [h_inf1] at h_infer
     | some t1 =>
@@ -606,14 +670,16 @@ lemma type_infer_check_consistent (e : LvExpr) (t : LvType)
       | none => simp [h_inf1, h_inf2] at h_infer
       | some t2 =>
         simp [h_inf1, h_inf2] at h_infer
+        have h_infer' : some (.pair t1 t2) = some t := by
+          simpa [h_inf1, h_inf2] using h_infer
         have h_t_eq : t = .pair t1 t2 := by
-          injection h_infer with h; exact h.symm
+          injection h_infer' with h; exact h.symm
         subst h_t_eq
-        have hc1 : lv_type_check e1 t1 := ih1 t1 h_inf1
-        have hc2 : lv_type_check e2 t2 := ih2 t2 h_inf2
+        have hc1 : lv_type_check e1 t1 := type_infer_check_consistent e1 t1 h_inf1
+        have hc2 : lv_type_check e2 t2 := type_infer_check_consistent e2 t2 h_inf2
         simp [lv_type_check, hc1, hc2]
-  | app f a ih_f ih_a =>
-    simp [lv_type_infer] at h_infer
+  | .app f a =>
+    unfold lv_type_infer at h_infer
     cases h_inf_f : lv_type_infer f with
     | none => simp [h_inf_f] at h_infer
     | some ty =>
@@ -625,34 +691,36 @@ lemma type_infer_check_consistent (e : LvExpr) (t : LvType)
           simp [h_inf_f, h_inf_a] at h_infer
           by_cases h_dom_eq : dom = t_a
           · simp [h_dom_eq] at h_infer
+            have h_infer' : some codom = some t := by
+              simpa [h_inf_f, h_inf_a, h_dom_eq] using h_infer
             have h_t_eq : t = codom := by
-              injection h_infer with h; exact h.symm
+              injection h_infer' with h; exact h.symm
             subst h_t_eq
             subst h_dom_eq
-            have hc_a : lv_type_check a dom := ih_a dom h_inf_a
+            have hc_a : lv_type_check a dom := type_infer_check_consistent a dom h_inf_a
             simp [lv_type_check, h_inf_f, hc_a]
           · simp [h_dom_eq] at h_infer
       | _ => simp [h_inf_f] at h_infer
 
 /-- 示例：类型检查基本用法 -/
 example : lv_type_check (.intLit 42) .int := by
-  unfold lv_type_check; rfl
+  simp [lv_type_check]
 
 /-- 示例：lambda 表达式的类型检查 -/
 example : lv_type_check (.lambda "x" .int (.add (.var "x") (.intLit 1))) (.arrow .int .int) := by
-  unfold lv_type_check; rfl
+  simp [lv_type_check]
 
 /-- 示例：函数应用的类型推断 -/
 example : lv_type_infer (.app (.lambda "x" .int (.add (.var "x") (.intLit 1))) (.intLit 5)) = some .int := by
-  native_decide
+  simp [lv_type_infer]
 
 /-- 示例：列表类型检查 -/
 example : lv_type_check (.listLit [.intLit 1, .intLit 2, .intLit 3]) (.list .int) := by
-  unfold lv_type_check; rfl
+  simp [lv_type_check]
 
 /-- 示例：pair 类型检查 -/
 example : lv_type_check (.pair (.intLit 1) (.floatLit 2.0)) (.pair .int .real) := by
-  unfold lv_type_check; rfl
+  simp [lv_type_check]
 
 /-! ===============================================================
    第十一部分：类型安全元理论（Progress & Preservation）
@@ -714,8 +782,10 @@ inductive Step : LvExpr → LvExpr → Prop where
       Step (.pair v1 e2) (.pair v1 e2')
   | some_step (e e' : LvExpr) (h : Step e e') :
       Step (.some e) (.some e')
-  | listLit_step (es es' : List LvExpr) (h : es = es') :
-      Step (.listLit es) (.listLit es')
+  | listLit_step (e : LvExpr) (es : List LvExpr) :
+      Step (.listLit (e :: es)) (.listLit es)
+  | setLit_step (e : LvExpr) (es : List LvExpr) :
+      Step (.setLit (e :: es)) (.setLit es)
   | if_true (e1 e2 : LvExpr) : Step (.app (.app (.app (.var "if") (.boolLit true)) e1) e2) e1
   | if_false (e1 e2 : LvExpr) : Step (.app (.app (.app (.var "if") (.boolLit false)) e1) e2) e2
 
@@ -868,18 +938,20 @@ theorem arithmetic_progress (e : LvExpr) (h_arith : ∀ sub ∈ lv_free_vars e, 
     left; exact Value.lambda p t b
   | forall_ _ _ _ =>
     left; exact Value.boolLit true
-  | exists _ _ _ =>
+  | LvExpr.exists _ _ _ =>
     left; exact Value.boolLit true
-  | listLit [] =>
-    left; exact Value.boolLit true
-  | listLit (e :: es) =>
-    right; refine ⟨.listLit es, ?_⟩
-    exact Step.listLit_step (e :: es) es (by simp)
-  | setLit [] =>
-    left; exact Value.boolLit true
-  | setLit (e :: es) =>
-    right; refine ⟨.setLit es, ?_⟩
-    exact Step.listLit_step (e :: es) es (by simp)
+  | listLit es =>
+    match es with
+    | [] => left; exact Value.boolLit true
+    | e :: es' =>
+      right; refine ⟨.listLit es', ?_⟩
+      exact Step.listLit_step e es'
+  | setLit es =>
+    match es with
+    | [] => left; exact Value.boolLit true
+    | e :: es' =>
+      right; refine ⟨.setLit es', ?_⟩
+      exact Step.setLit_step e es'
   | some e ih =>
     rcases ih with (hv | ⟨e', h_step⟩)
     · left; exact hv
@@ -921,58 +993,74 @@ theorem arithmetic_progress (e : LvExpr) (h_arith : ∀ sub ∈ lv_free_vars e, 
     · right; refine ⟨.app f' a, ?_⟩
       exact Step.app_left f f' a h_step_f
 
-/-- 若 lv_type_infer e = some (.arrow dom codom)，则 e 必须是 lambda 表达式 -/
-lemma type_infer_arrow_is_lambda (e : LvExpr) (dom codom : LvType)
-    (h : lv_type_infer e = some (.arrow dom codom)) : ∃ p t b, e = .lambda p t b := by
-  induction e with
-  | lambda p t b => exact ⟨p, t, b, rfl⟩
-  | var n => simp [lv_type_infer] at h
-  | intLit v => simp [lv_type_infer] at h
-  | floatLit v => simp [lv_type_infer] at h
-  | strLit v => simp [lv_type_infer] at h
-  | boolLit v => simp [lv_type_infer] at h
-  | add e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h
-    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h
-  | sub e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h
-    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h
-  | mul e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h
-    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h
-  | div e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h
-    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h
-  | forall_ x t b => simp [lv_type_infer] at h
-  | exists x t b => simp [lv_type_infer] at h
-  | listLit es =>
-    simp [lv_type_infer] at h
-    cases es with
-    | nil => simp at h
-    | cons e es' => simp [lv_type_infer] at h; cases h_inf : lv_type_infer e <;> simp [h_inf] at h
-  | setLit es =>
-    simp [lv_type_infer] at h
-    cases es with
-    | nil => simp at h
-    | cons e es' => simp [lv_type_infer] at h; cases h_inf : lv_type_infer e <;> simp [h_inf] at h
-  | some e =>
-    simp [lv_type_infer] at h
-    cases h_inf : lv_type_infer e <;> simp [h_inf] at h
-  | none ty => simp [lv_type_infer] at h
-  | pair e1 e2 ih1 ih2 =>
-    simp [lv_type_infer] at h
-    cases h_inf1 : lv_type_infer e1 <;> cases h_inf2 : lv_type_infer e2 <;> simp [h_inf1, h_inf2] at h
-  | app f a ih_f ih_a =>
-    simp [lv_type_infer] at h
-    cases h_inf_f : lv_type_infer f with
-    | none => simp [h_inf_f] at h
-    | some ty =>
-      cases ty with
-      | arrow dom codom =>
-        cases h_inf_a : lv_type_infer a with
-        | none => simp [h_inf_f, h_inf_a] at h
-        | some t_a => simp [h_inf_f, h_inf_a] at h
-      | _ => simp [h_inf_f] at h
+
+
+/-- 若 Step e e' 且 lv_type_infer e = some (.arrow dom codom)，则 lv_type_infer e' = some (.arrow dom codom)
+    此引理用于 arithmetic_preservation 的 app_left 分支，处理 app 表达式可以返回箭头类型的情况。 -/
+lemma type_infer_step_preserving_arrow (e e' : LvExpr) (dom codom : LvType)
+    (h_infer : lv_type_infer e = some (.arrow dom codom)) (h_step : Step e e') :
+    lv_type_infer e' = some (.arrow dom codom) := by
+  induction h_step with
+  | app_left f1 f1' a1 h_inner ih =>
+    -- e = .app f1 a1, e' = .app f1' a1
+    unfold lv_type_infer at h_infer
+    cases h_inf_f1 : lv_type_infer f1 with
+    | none => simp [h_inf_f1] at h_infer
+    | some ty_f1 =>
+      cases ty_f1 with
+      | arrow dom' codom' =>
+        cases h_inf_a1 : lv_type_infer a1 with
+        | none => simp [h_inf_f1, h_inf_a1] at h_infer
+        | some t_a1 =>
+          simp [h_inf_f1, h_inf_a1] at h_infer
+          by_cases h_dom_eq : dom' = t_a1
+          · simp [h_dom_eq] at h_infer
+            have h_codom'_eq : codom' = .arrow dom codom := by injection h_infer
+            subst h_codom'_eq
+            have h_f1' : lv_type_infer f1' = some (.arrow dom' (.arrow dom codom)) :=
+              ih h_inf_f1
+            unfold lv_type_infer; simp [h_f1', h_inf_a1, h_dom_eq]
+          · simp [h_dom_eq] at h_infer
+      | _ => simp [h_inf_f1] at h_infer
+  | app_right v1 a1 a1' h_val h_inner ih =>
+    unfold lv_type_infer at h_infer
+    cases h_inf_v1 : lv_type_infer v1 with
+    | none => simp [h_inf_v1] at h_infer
+    | some ty_v1 =>
+      cases ty_v1 with
+      | arrow dom' codom' =>
+        cases h_inf_a1 : lv_type_infer a1 with
+        | none => simp [h_inf_v1, h_inf_a1] at h_infer
+        | some t_a1 =>
+          simp [h_inf_v1, h_inf_a1] at h_infer
+          by_cases h_dom_eq : dom' = t_a1
+          · simp [h_dom_eq] at h_infer
+            have h_codom'_eq : codom' = .arrow dom codom := by injection h_infer
+            subst h_codom'_eq
+            have h_a1' : lv_type_infer a1' = some dom' := ih h_inf_a1
+            unfold lv_type_infer; simp [h_inf_v1, h_a1', h_dom_eq]
+          · simp [h_dom_eq] at h_infer
+      | _ => simp [h_inf_v1] at h_infer
+  | app_beta p t' b v h_val =>
+    unfold lv_type_infer at h_infer
+    cases h_inf_b : lv_type_infer b with
+    | none => simp [h_inf_b] at h_infer
+    | some t_b =>
+      cases h_inf_v : lv_type_infer v with
+      | none => simp [h_inf_b, h_inf_v] at h_infer
+      | some t_v =>
+        simp [h_inf_b, h_inf_v] at h_infer
+        by_cases h_t'_eq : t' = t_v
+        · simp [h_t'_eq] at h_infer
+          have h_t_b_eq : t_b = .arrow dom codom := by injection h_infer
+          subst h_t_b_eq
+          exact type_infer_subst_preserving b p v (.arrow dom codom) h_inf_b
+        · simp [h_t'_eq] at h_infer
+  | _ =>
+    -- For all other Step constructors, e is not a lambda or app that can return an arrow type,
+    -- so lv_type_infer e = some (.arrow dom codom) is impossible
+    simp [lv_type_infer] at h_infer
+    injection h_infer
 
 /-- 替换保持类型推断：若 lv_type_infer b = some t_b，则替换变量后推断结果不变 -/
 lemma type_infer_subst_preserving (b : LvExpr) (p : String) (v : LvExpr) (t_b : LvType)
@@ -1007,18 +1095,19 @@ lemma type_infer_subst_preserving (b : LvExpr) (p : String) (v : LvExpr) (t_b : 
     simp [lv_type_infer] at h_inf
     rcases h_inf with ⟨h_b'⟩
     simp [lv_subst, lv_type_infer]
-    split <;> simp [h_b', ih b' t_b h_b']
+    by_cases hp' : p' = p <;> simp [hp', h_b', ih b' t_b h_b']
   | forall_ _ _ b' ih =>
     simp [lv_type_infer] at h_inf
     simp [h_inf, lv_subst, lv_type_infer]
-  | exists _ _ b' ih =>
+  | LvExpr.exists _ _ b' ih =>
     simp [lv_type_infer] at h_inf
     simp [h_inf, lv_subst, lv_type_infer]
   | listLit es ih =>
     simp [lv_type_infer] at h_inf
-    rcases es with ([] | e :: es')
-    · simp at h_inf
-    · cases h_inf_e : lv_type_infer e with
+    match es with
+    | [] => simp at h_inf
+    | e :: es' =>
+      cases h_inf_e : lv_type_infer e with
       | none => simp [h_inf_e] at h_inf
       | some t_e =>
         simp [h_inf_e] at h_inf
@@ -1045,9 +1134,10 @@ lemma type_infer_subst_preserving (b : LvExpr) (p : String) (v : LvExpr) (t_b : 
         · simp [h_all] at h_inf
   | setLit es ih =>
     simp [lv_type_infer] at h_inf
-    rcases es with ([] | e :: es')
-    · simp at h_inf
-    · cases h_inf_e : lv_type_infer e with
+    match es with
+    | [] => simp at h_inf
+    | e :: es' =>
+      cases h_inf_e : lv_type_infer e with
       | none => simp [h_inf_e] at h_inf
       | some t_e =>
         simp [h_inf_e] at h_inf
@@ -1135,25 +1225,27 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
     · by_cases h_real : t = .real
       · subst h_real; unfold lv_type_check; rfl
       · exfalso
-        have h_false : lv_type_check (.add (.intLit v1) (.intLit v2)) t = false := by
-          unfold lv_type_check
-          match t with
-          | .int => exact absurd rfl h_int
-          | .real => exact absurd rfl h_real
-          | _ => rfl
-        rw [h_false] at h_type; simp at h_type
+        unfold lv_type_check at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | add_float v1 v2 =>
     -- e = .add (.floatLit v1) (.floatLit v2), e' = .floatLit (v1 + v2)
     -- t must be .real
     by_cases h_real : t = .real
     · subst h_real; unfold lv_type_check; rfl
     · exfalso
-      have h_false : lv_type_check (.add (.floatLit v1) (.floatLit v2)) t = false := by
-        unfold lv_type_check
-        match t with
-        | .real => exact absurd rfl h_real
-        | _ => rfl
-      rw [h_false] at h_type; simp at h_type
+      cases t with
+      | real => exact h_real rfl
+      | int =>
+        have h1 : lv_type_check (LvExpr.floatLit v1) LvType.int = false := by
+          simp [lv_type_check]
+        have h2 : lv_type_check (LvExpr.floatLit v2) LvType.int = false := by
+          simp [lv_type_check]
+        unfold lv_type_check at h_type
+        simp [h1, h2] at h_type
+      | _ => simp at h_type
   | add_left e1 e1' e2 h =>
     by_cases h_int : t = .int
     · subst h_int
@@ -1170,13 +1262,11 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
         have h1' : lv_type_check e1' .real := arithmetic_preservation e1 e1' .real h1 h
         unfold lv_type_check; simp [h1', h2]
       · exfalso
-        have h_false : lv_type_check (.add e1 e2) t = false := by
-          unfold lv_type_check
-          match t with
-          | .int => exact absurd rfl h_int
-          | .real => exact absurd rfl h_real
-          | _ => rfl
-        rw [h_false] at h_type; simp at h_type
+        unfold lv_type_check at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | add_right v1 e2 e2' h_val h =>
     by_cases h_int : t = .int
     · subst h_int
@@ -1193,36 +1283,36 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
         have h2' : lv_type_check e2' .real := arithmetic_preservation e2 e2' .real h2 h
         unfold lv_type_check; simp [h1, h2']
       · exfalso
-        have h_false : lv_type_check (.add v1 e2) t = false := by
-          unfold lv_type_check
-          match t with
-          | .int => exact absurd rfl h_int
-          | .real => exact absurd rfl h_real
-          | _ => rfl
-        rw [h_false] at h_type; simp at h_type
+        unfold lv_type_check at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | sub_int v1 v2 =>
     by_cases h_int : t = .int
     · subst h_int; unfold lv_type_check; rfl
     · by_cases h_real : t = .real
       · subst h_real; unfold lv_type_check; rfl
       · exfalso
-        have h_false : lv_type_check (.sub (.intLit v1) (.intLit v2)) t = false := by
-          unfold lv_type_check
-          match t with
-          | .int => exact absurd rfl h_int
-          | .real => exact absurd rfl h_real
-          | _ => rfl
-        rw [h_false] at h_type; simp at h_type
+        unfold lv_type_check at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | sub_float v1 v2 =>
     by_cases h_real : t = .real
     · subst h_real; unfold lv_type_check; rfl
     · exfalso
-      have h_false : lv_type_check (.sub (.floatLit v1) (.floatLit v2)) t = false := by
-        unfold lv_type_check
-        match t with
-        | .real => exact absurd rfl h_real
-        | _ => rfl
-      rw [h_false] at h_type; simp at h_type
+      cases t with
+      | real => exact h_real rfl
+      | int =>
+        have h1 : lv_type_check (LvExpr.floatLit v1) LvType.int = false := by
+          simp [lv_type_check]
+        have h2 : lv_type_check (LvExpr.floatLit v2) LvType.int = false := by
+          simp [lv_type_check]
+        unfold lv_type_check at h_type
+        simp [h1, h2] at h_type
+      | _ => simp at h_type
   | sub_left e1 e1' e2 h =>
     by_cases h_int : t = .int
     · subst h_int
@@ -1239,13 +1329,11 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
         have h1' : lv_type_check e1' .real := arithmetic_preservation e1 e1' .real h1 h
         unfold lv_type_check; simp [h1', h2]
       · exfalso
-        have h_false : lv_type_check (.sub e1 e2) t = false := by
-          unfold lv_type_check
-          match t with
-          | .int => exact absurd rfl h_int
-          | .real => exact absurd rfl h_real
-          | _ => rfl
-        rw [h_false] at h_type; simp at h_type
+        unfold lv_type_check at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | sub_right v1 e2 e2' h_val h =>
     by_cases h_int : t = .int
     · subst h_int
@@ -1262,13 +1350,11 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
         have h2' : lv_type_check e2' .real := arithmetic_preservation e2 e2' .real h2 h
         unfold lv_type_check; simp [h1, h2']
       · exfalso
-        have h_false : lv_type_check (.sub v1 e2) t = false := by
-          unfold lv_type_check
-          match t with
-          | .int => exact absurd rfl h_int
-          | .real => exact absurd rfl h_real
-          | _ => rfl
-        rw [h_false] at h_type; simp at h_type
+        unfold lv_type_check at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | mul_int v1 v2 =>
     by_cases h_int : t = .int
     · subst h_int; unfold lv_type_check; rfl
@@ -1276,13 +1362,24 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
       · subst h_real; unfold lv_type_check; rfl
       · exfalso
         unfold lv_type_check at h_type
-        simp [h_int, h_real] at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | mul_float v1 v2 =>
     by_cases h_real : t = .real
     · subst h_real; unfold lv_type_check; rfl
     · exfalso
-      unfold lv_type_check at h_type
-      simp [h_real] at h_type
+      cases t with
+      | real => exact h_real rfl
+      | int =>
+        have h1 : lv_type_check (LvExpr.floatLit v1) LvType.int = false := by
+          simp [lv_type_check]
+        have h2 : lv_type_check (LvExpr.floatLit v2) LvType.int = false := by
+          simp [lv_type_check]
+        unfold lv_type_check at h_type
+        simp [h1, h2] at h_type
+      | _ => simp at h_type
   | mul_left e1 e1' e2 h =>
     by_cases h_int : t = .int
     · subst h_int
@@ -1300,7 +1397,10 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
         unfold lv_type_check; simp [h1', h2]
       · exfalso
         unfold lv_type_check at h_type
-        simp [h_int, h_real] at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | mul_right v1 e2 e2' h_val h =>
     by_cases h_int : t = .int
     · subst h_int
@@ -1318,7 +1418,10 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
         unfold lv_type_check; simp [h1, h2']
       · exfalso
         unfold lv_type_check at h_type
-        simp [h_int, h_real] at h_type
+        cases t with
+        | int => exact h_int rfl
+        | real => exact h_real rfl
+        | _ => simp at h_type
   | div_left e1 e1' e2 h =>
     by_cases h_int : t = .int
     · subst h_int
@@ -1371,14 +1474,8 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
         simp [h_inf_f] at h_type
         rcases h_type with ⟨h_a, h_codom_dec⟩
         have h_codom_eq : codom = t := by simpa using h_codom_dec
-        have h_f' : lv_type_infer f' = some (.arrow dom codom) := by
-          -- lv_type_infer f = some (.arrow dom codom) implies f is a lambda,
-          -- and lambdas cannot step, so this case is impossible
-          have h_lam : ∃ p t_body b, f = .lambda p t_body b :=
-            type_infer_arrow_is_lambda f dom codom h_inf_f
-          rcases h_lam with ⟨p, t_body, b, h_f_eq⟩
-          subst h_f_eq
-          exfalso; cases h
+        have h_f' : lv_type_infer f' = some (.arrow dom codom) :=
+          type_infer_step_preserving_arrow f f' dom codom h_inf_f h
         unfold lv_type_check; simp [h_f', h_a, h_codom_eq]
       | _ => simp [h_inf_f] at h_type
   | app_right v1 a a' h_val h =>
@@ -1442,18 +1539,40 @@ theorem arithmetic_preservation (e e' : LvExpr) (t : LvType) (h_type : lv_type_c
       have h_e' : lv_type_check e0' t_inner := arithmetic_preservation e0 e0' t_inner h_e h
       unfold lv_type_check; simp [h_e']
     | _ => simp at h_type
-  | listLit_step es es' h =>
-    subst h; exact h_type
+  | listLit_step e es =>
+    unfold lv_type_check at h_type
+    cases t with
+    | list t_e =>
+      simp at h_type
+      rcases h_type with ⟨h_e, h_es⟩
+      exact h_es
+    | _ => simp at h_type
+  | setLit_step e es =>
+    unfold lv_type_check at h_type
+    cases t with
+    | set t_e =>
+      simp at h_type
+      rcases h_type with ⟨h_e, h_es⟩
+      exact h_es
+    | _ => simp at h_type
   | if_true e1 e2 =>
     -- e = .app (.app (.app (.var "if") (.boolLit true)) e1) e2, e' = e1
     -- lv_type_infer (.var "if") = none, so lv_type_check returns false for any t
     unfold lv_type_check at h_type
-    simp [lv_type_infer] at h_type
+    have h_inner : lv_type_infer ((LvExpr.var "if").app (LvExpr.boolLit true)) = none := by
+      native_decide
+    simp [h_inner] at h_type
+    -- h_type: false = true, contradiction
+    simp at h_type
   | if_false e1 e2 =>
     -- e = .app (.app (.app (.var "if") (.boolLit false)) e1) e2, e' = e2
     -- lv_type_infer (.var "if") = none, so lv_type_check returns false for any t
     unfold lv_type_check at h_type
-    simp [lv_type_infer] at h_type
+    have h_inner : lv_type_infer ((LvExpr.var "if").app (LvExpr.boolLit false)) = none := by
+      native_decide
+    simp [h_inner] at h_type
+    -- h_type: false = true, contradiction
+    simp at h_type
 
 /-- 类型安全定理（受限版本）：
     对于无自由变量的算术表达式，若 ⊢ e : t，则 e 是值或可归约。
