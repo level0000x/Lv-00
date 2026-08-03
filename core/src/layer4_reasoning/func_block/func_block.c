@@ -629,6 +629,42 @@ static int handle_cross_boundary_constraints(ConstraintGraph *graph, const int *
     return result;
 }
 
+/* ================================================================
+ * 查找表：CrossBoundaryAction → 处理函数（execute_boundary_action）
+ * ================================================================ */
+
+/** @brief 跨边界动作处理函数类型（用于 execute_boundary_action） */
+typedef int (*BoundaryActionHandler)(ConstraintGraph *graph, int constraint_id);
+
+/** @brief 处理 DISCONNECT 动作：删除约束 */
+static int boundary_action_disconnect(ConstraintGraph *graph, int constraint_id) {
+    return graph_deactivate_constraint(graph, constraint_id);
+}
+/** @brief 处理 PROMOTE 动作：保留约束 */
+static int boundary_action_promote(ConstraintGraph *graph, int constraint_id) {
+    (void) graph;
+    (void) constraint_id;
+    return lv_OK;
+}
+/** @brief 处理 CANCEL 动作：取消打包 */
+static int boundary_action_cancel(ConstraintGraph *graph, int constraint_id) {
+    (void) graph;
+    (void) constraint_id;
+    return lv_ERROR_CANCELLED;
+}
+
+/**
+ * @brief CrossBoundaryAction 处理函数查找表（execute_boundary_action）
+ *
+ * 索引：CROSS_BOUNDARY_PROMOTE=0, CROSS_BOUNDARY_DISCONNECT=1, CROSS_BOUNDARY_CANCEL=2
+ */
+static const BoundaryActionHandler s_boundary_action_handlers[] = {
+    boundary_action_promote,    /* CROSS_BOUNDARY_PROMOTE */
+    boundary_action_disconnect, /* CROSS_BOUNDARY_DISCONNECT */
+    boundary_action_cancel      /* CROSS_BOUNDARY_CANCEL */
+};
+#define lv_BOUNDARY_ACTION_HANDLER_COUNT lv_ARRAY_SIZE(s_boundary_action_handlers)
+
 /**
  * @brief 执行跨边界约束的处理动作
  *
@@ -641,16 +677,10 @@ int execute_boundary_action(ConstraintGraph *graph, int constraint_id, CrossBoun
     if (!graph)
         return lv_ERROR_INVALID_PARAM;
 
-    switch (action) {
-        case CROSS_BOUNDARY_DISCONNECT:
-            return graph_deactivate_constraint(graph, constraint_id);
-        case CROSS_BOUNDARY_PROMOTE:
-            /* 标记约束为"已提升"（保留在图中，作为端口依赖可见） */
-            return lv_OK;
-        case CROSS_BOUNDARY_CANCEL:
-        default:
-            return lv_ERROR_CANCELLED;
+    if ((unsigned) action < lv_BOUNDARY_ACTION_HANDLER_COUNT) {
+        return s_boundary_action_handlers[action](graph, constraint_id);
     }
+    return lv_ERROR_CANCELLED;
 }
 
 /* ============== 跨边界回调上下文 ============== */
@@ -662,6 +692,55 @@ typedef struct {
 } CrossBoundaryCallbackContext;
 
 static lv_THREAD_LOCAL CrossBoundaryCallbackContext g_cross_boundary_ctx = {NULL, NULL};
+
+/* ================================================================
+ * 查找表：CrossBoundaryAction → 打包内部处理函数（文件作用域）
+ * ================================================================ */
+
+/** @brief 打包内部跨边界动作处理上下文 */
+typedef struct {
+    ConstraintGraph *graph;
+    CrossBoundaryConstraint *conflicts;
+    int *bound_ids;
+    int constraint_idx;
+} PackBoundaryContext;
+
+/** @brief 打包内部处理函数类型 */
+typedef bool (*PackBoundaryActionHandler)(PackBoundaryContext *ctx);
+
+/** @brief 打包内部：处理 CANCEL */
+static bool pack_boundary_cancel(PackBoundaryContext *ctx) {
+    lv_free((void **) &ctx->conflicts);
+    lv_free((void **) &ctx->bound_ids);
+    return false; /* 调用者根据返回值判断中断 */
+}
+/** @brief 打包内部：处理 DISCONNECT */
+static bool pack_boundary_disconnect(PackBoundaryContext *ctx) {
+    for (int ci = 0; ci < ctx->graph->constraint_count; ci++) {
+        if (ctx->graph->constraints[ci]->id == ctx->conflicts[ctx->constraint_idx].constraint_id) {
+            graph_remove_constraint(ctx->graph, ci);
+            break;
+        }
+    }
+    return true; /* 继续处理 */
+}
+/** @brief 打包内部：处理 PROMOTE */
+static bool pack_boundary_promote(PackBoundaryContext *ctx) {
+    (void) ctx;
+    return true; /* 继续处理 */
+}
+
+/**
+ * @brief 打包内部跨边界动作处理函数查找表
+ *
+ * 索引：CROSS_BOUNDARY_PROMOTE=0, CROSS_BOUNDARY_DISCONNECT=1, CROSS_BOUNDARY_CANCEL=2
+ */
+static const PackBoundaryActionHandler s_pack_boundary_handlers[] = {
+    pack_boundary_promote,    /* CROSS_BOUNDARY_PROMOTE */
+    pack_boundary_disconnect, /* CROSS_BOUNDARY_DISCONNECT */
+    pack_boundary_cancel      /* CROSS_BOUNDARY_CANCEL */
+};
+#define lv_PACK_BOUNDARY_HANDLER_COUNT lv_ARRAY_SIZE(s_pack_boundary_handlers)
 
 /* ============== 打包操作 ============== */
 
@@ -818,6 +897,7 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
             }
         }
 
+        /* 使用文件作用域查找表 s_pack_boundary_handlers 处理跨边界约束 */
         /* 处理每条跨边界约束（CONNECTION 类型自动跳过） */
         int action_idx = 0;
         for (int i = 0; i < conflict_count; i++) {
@@ -826,25 +906,16 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
                 continue;
 
             CrossBoundaryAction action = cross_boundary_actions[action_idx++];
-            switch (action) {
-                case CROSS_BOUNDARY_CANCEL:
-                    lv_free((void **) &conflicts);
-                    lv_free((void **) &bound_ids);
+            if ((unsigned) action < lv_PACK_BOUNDARY_HANDLER_COUNT) {
+                PackBoundaryContext ctx;
+                ctx.graph = graph;
+                ctx.conflicts = conflicts;
+                ctx.bound_ids = bound_ids;
+                ctx.constraint_idx = i;
+                if (!s_pack_boundary_handlers[action](&ctx)) {
+                    /* CANCEL 已释放 conflicts 和 bound_ids，直接返回 */
                     return PACK_RESULT_CANCELLED;
-
-                case CROSS_BOUNDARY_DISCONNECT:
-                    /* 断开：删除该约束 */
-                    for (int ci = 0; ci < graph->constraint_count; ci++) {
-                        if (graph->constraints[ci]->id == conflicts[i].constraint_id) {
-                            graph_remove_constraint(graph, ci);
-                            break;
-                        }
-                    }
-                    break;
-
-                case CROSS_BOUNDARY_PROMOTE:
-                    /* 提升：约束保留，记录为端口依赖（后续处理） */
-                    break;
+                }
             }
         }
         lv_free((void **) &conflicts);

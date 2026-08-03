@@ -141,6 +141,70 @@ static LvAstNode *parse_mul_expr(LvParser *p);
 static LvAstNode *parse_unary_expr(LvParser *p);
 static LvAstNode *parse_primary_expr(LvParser *p);
 
+/* ── 查找表 ── */
+
+/** keyword → statement-starting flag 查找表（用于 synchronize 错误恢复） */
+static const int s_statement_start_tokens[LV_TOKEN_COUNT] = {
+    [LV_TOKEN_KW_POINT] = 1,
+    [LV_TOKEN_KW_LINE] = 1,
+    [LV_TOKEN_KW_CIRCLE] = 1,
+    [LV_TOKEN_KW_SEGMENT] = 1,
+    [LV_TOKEN_KW_RAY] = 1,
+    [LV_TOKEN_KW_ANGLE] = 1,
+    [LV_TOKEN_KW_TRIANGLE] = 1,
+    [LV_TOKEN_KW_POLYGON] = 1,
+    [LV_TOKEN_KW_SCALAR] = 1,
+    [LV_TOKEN_KW_BOOL] = 1,
+    [LV_TOKEN_KW_PROPOSITION] = 1,
+    [LV_TOKEN_KW_PROOF] = 1,
+    [LV_TOKEN_KW_CONSTRAINT] = 1,
+    [LV_TOKEN_KW_ASSUME] = 1,
+    [LV_TOKEN_KW_ASSERT] = 1,
+    [LV_TOKEN_KW_PROVE] = 1,
+    [LV_TOKEN_KW_LET] = 1,
+    [LV_TOKEN_KW_COMPUTE] = 1,
+    [LV_TOKEN_KW_NORMALIZE] = 1,
+    [LV_TOKEN_KW_EXPORT] = 1,
+    [LV_TOKEN_KW_AXIOM] = 1,
+    [LV_TOKEN_KW_THEOREM] = 1,
+    [LV_TOKEN_KW_MODULE] = 1,
+    [LV_TOKEN_KW_IMPORT] = 1,
+};
+
+/** token → entity type flag 查找表 */
+static const int s_is_entity_type_tokens[LV_TOKEN_COUNT] = {
+    [LV_TOKEN_KW_POINT] = 1,
+    [LV_TOKEN_KW_LINE] = 1,
+    [LV_TOKEN_KW_CIRCLE] = 1,
+    [LV_TOKEN_KW_SEGMENT] = 1,
+    [LV_TOKEN_KW_RAY] = 1,
+    [LV_TOKEN_KW_ANGLE] = 1,
+    [LV_TOKEN_KW_TRIANGLE] = 1,
+    [LV_TOKEN_KW_POLYGON] = 1,
+    [LV_TOKEN_KW_SCALAR] = 1,
+    [LV_TOKEN_KW_BOOL] = 1,
+    [LV_TOKEN_KW_PROPOSITION] = 1,
+    [LV_TOKEN_KW_PROOF] = 1,
+};
+
+/** token → 比较运算符字符串 查找表 */
+static const char *const s_compare_op_strings[LV_TOKEN_COUNT] = {
+    [LV_TOKEN_EQEQ] = "==",
+    [LV_TOKEN_NEQ] = "!=",
+    [LV_TOKEN_LT] = "<",
+    [LV_TOKEN_LE] = "<=",
+    [LV_TOKEN_GT] = ">",
+    [LV_TOKEN_GE] = ">=",
+};
+
+/** token → 关键字名称 查找表 */
+static const char *const s_keyword_name_strings[LV_TOKEN_COUNT] = {
+    [LV_TOKEN_KW_PARALLEL] = "parallel",
+    [LV_TOKEN_KW_PERPENDICULAR] = "perpendicular",
+    [LV_TOKEN_KW_CONGRUENT] = "congruent",
+    [LV_TOKEN_KW_TANGENT] = "tangent",
+};
+
 
 /* ================================================================
  * 语句级解析
@@ -148,23 +212,7 @@ static LvAstNode *parse_primary_expr(LvParser *p);
 
 /** EntityType ::= "Point" | "Line" | ... | "Proof" */
 static int is_entity_type(LvTokenType t) {
-    switch (t) {
-        case LV_TOKEN_KW_POINT:
-        case LV_TOKEN_KW_LINE:
-        case LV_TOKEN_KW_CIRCLE:
-        case LV_TOKEN_KW_SEGMENT:
-        case LV_TOKEN_KW_RAY:
-        case LV_TOKEN_KW_ANGLE:
-        case LV_TOKEN_KW_TRIANGLE:
-        case LV_TOKEN_KW_POLYGON:
-        case LV_TOKEN_KW_SCALAR:
-        case LV_TOKEN_KW_BOOL:
-        case LV_TOKEN_KW_PROPOSITION:
-        case LV_TOKEN_KW_PROOF:
-            return 1;
-        default:
-            return 0;
-    }
+    return t >= 0 && t < LV_TOKEN_COUNT && s_is_entity_type_tokens[t];
 }
 
 /** DeclarationStmt ::= EntityType IdentifierList ";" */
@@ -1210,22 +1258,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
     if (p->current.type == LV_TOKEN_KW_PARALLEL || p->current.type == LV_TOKEN_KW_PERPENDICULAR ||
         p->current.type == LV_TOKEN_KW_CONGRUENT || p->current.type == LV_TOKEN_KW_TANGENT) {
         const char *name = "";
-        switch (p->current.type) {
-            case LV_TOKEN_KW_PARALLEL:
-                name = "parallel";
-                break;
-            case LV_TOKEN_KW_PERPENDICULAR:
-                name = "perpendicular";
-                break;
-            case LV_TOKEN_KW_CONGRUENT:
-                name = "congruent";
-                break;
-            case LV_TOKEN_KW_TANGENT:
-                name = "tangent";
-                break;
-            default:
-                break;
-        }
+        if (p->current.type >= 0 && p->current.type < LV_TOKEN_COUNT)
+            name = s_keyword_name_strings[p->current.type];
         LvSourceLoc kw_loc = p->current.loc;
         advance(p);
         LvAstNode *args = NULL;

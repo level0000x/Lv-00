@@ -47,6 +47,222 @@ static LambdaSubstitution *add_substitution_head(LambdaSubstitution **list,
     return node;
 }
 
+/* ── VTable 模式 ── */
+
+/* 前向声明分发函数 */
+static bool occurs_check_rec(int index, LvLambdaTerm *term,
+                             LambdaSubstitution *subs, int binder_depth);
+static LvLambdaTerm *apply_subs_rec(LvLambdaTerm *term, LambdaSubstitution *subs,
+                                    int binder_depth);
+static bool is_pattern_rec(LvLambdaTerm *term, int binder_count);
+static LvLambdaTerm *lift_free_vars(LvLambdaTerm *term, int binder_offset);
+static int free_var_depth(LvLambdaTerm *term, int free_idx, int depth);
+
+/**
+ * @brief λ-项虚函数表，按 term->type 索引
+ */
+typedef struct {
+    bool (*occurs_check)(int index, LvLambdaTerm *term,
+                         LambdaSubstitution *subs, int binder_depth);
+    LvLambdaTerm *(*apply_subs)(LvLambdaTerm *term, LambdaSubstitution *subs,
+                                int binder_depth);
+    bool (*is_pattern)(LvLambdaTerm *term, int binder_count);
+    LvLambdaTerm *(*lift_free_vars)(LvLambdaTerm *term, int binder_offset);
+    int (*free_var_depth)(LvLambdaTerm *term, int free_idx, int depth);
+} LambdaTermVTable;
+
+/* ── LV_LAMBDA_VAR handler ── */
+
+static bool var_occurs_check(int index, LvLambdaTerm *term,
+                              LambdaSubstitution *subs, int binder_depth) {
+    /* 受 binder 绑定的变量（index < binder_depth）不是自由出现，跳过 */
+    if (term->data.var.index < binder_depth) {
+        return false;
+    }
+    if (term->data.var.index == index) return true;
+    {
+        LvLambdaTerm *replacement = find_substitution(subs, term->data.var.index);
+        if (replacement) {
+            return occurs_check_rec(index, replacement, subs, binder_depth);
+        }
+    }
+    return false;
+}
+
+static LvLambdaTerm *var_apply_subs(LvLambdaTerm *term, LambdaSubstitution *subs,
+                                     int binder_depth) {
+    int idx = term->data.var.index;
+    /* 受 binder 绑定的变量不应用替换，仅复制自身 */
+    if (idx >= binder_depth) {
+        LvLambdaTerm *replacement = find_substitution(subs, idx);
+        if (replacement) {
+            /* 替换项也要递归应用替换（链式替换） */
+            return apply_subs_rec(replacement, subs, binder_depth);
+        }
+    }
+    /* 无替换 → 复制自身 */
+    return lv_lambda_create_var(idx);
+}
+
+static bool var_is_pattern(LvLambdaTerm *term, int binder_count) {
+    (void)term;
+    (void)binder_count;
+    /* 自由变量 (index >= binder_count) 本身是合法的模式变量 */
+    return true;
+}
+
+static LvLambdaTerm *var_lift_free_vars(LvLambdaTerm *term, int binder_offset) {
+    return lv_lambda_create_var(term->data.var.index + binder_offset);
+}
+
+static int var_free_var_depth(LvLambdaTerm *term, int free_idx, int depth) {
+    if (term->data.var.index == free_idx) return depth;
+    return -1;
+}
+
+/* ── LV_LAMBDA_ABS handler ── */
+
+static bool abs_occurs_check(int index, LvLambdaTerm *term,
+                              LambdaSubstitution *subs, int binder_depth) {
+    /* 进入抽象体，binder 深度 +1；De Bruijn 索引在 abs 内部自然递增 */
+    return occurs_check_rec(index, term->data.abs.body, subs, binder_depth + 1);
+}
+
+static LvLambdaTerm *abs_apply_subs(LvLambdaTerm *term, LambdaSubstitution *subs,
+                                     int binder_depth) {
+    LvLambdaTerm *new_body = apply_subs_rec(term->data.abs.body, subs, binder_depth + 1);
+    if (!new_body && term->data.abs.body) {
+        return NULL;
+    }
+    return lv_lambda_create_abs(term->data.abs.binder, new_body);
+}
+
+static bool abs_is_pattern(LvLambdaTerm *term, int binder_count) {
+    /* 进入抽象，binder_count + 1 */
+    return is_pattern_rec(term->data.abs.body, binder_count + 1);
+}
+
+static LvLambdaTerm *abs_lift_free_vars(LvLambdaTerm *term, int binder_offset) {
+    LvLambdaTerm *new_body = lift_free_vars(term->data.abs.body, binder_offset + 1);
+    if (!new_body && term->data.abs.body) lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "提升自由变量: 抽象体复制失败");
+    /* 注意：abs 中的 binder 是绑定变量，不提升 */
+    return lv_lambda_create_abs(term->data.abs.binder, new_body);
+}
+
+static int abs_free_var_depth(LvLambdaTerm *term, int free_idx, int depth) {
+    int d = free_var_depth(term->data.abs.body, free_idx, depth + 1);
+    if (d >= 0) return d;
+    return -1;
+}
+
+/* ── LV_LAMBDA_APP handler ── */
+
+static bool app_occurs_check(int index, LvLambdaTerm *term,
+                              LambdaSubstitution *subs, int binder_depth) {
+    if (occurs_check_rec(index, term->data.app.left, subs, binder_depth)) return true;
+    return occurs_check_rec(index, term->data.app.right, subs, binder_depth);
+}
+
+static LvLambdaTerm *app_apply_subs(LvLambdaTerm *term, LambdaSubstitution *subs,
+                                     int binder_depth) {
+    LvLambdaTerm *new_left = apply_subs_rec(term->data.app.left, subs, binder_depth);
+    LvLambdaTerm *new_right = apply_subs_rec(term->data.app.right, subs, binder_depth);
+    if ((!new_left && term->data.app.left) || (!new_right && term->data.app.right)) {
+        lv_lambda_destroy(new_left);
+        lv_lambda_destroy(new_right);
+        return NULL;
+    }
+    return lv_lambda_create_app(new_left, new_right);
+}
+
+static bool app_is_pattern(LvLambdaTerm *term, int binder_count) {
+    /* 如果应用的最左端是自由变量 → 检查参数条件 */
+    LvLambdaTerm *leftmost = term;
+    while (leftmost && leftmost->type == LV_LAMBDA_APP) {
+        leftmost = leftmost->data.app.left;
+    }
+
+    if (leftmost && leftmost->type == LV_LAMBDA_VAR &&
+        leftmost->data.var.index >= binder_count) {
+        /* 自由变量在函数位置：收集所有参数，检查是否都是不同的 bound 变量 */
+        LvLambdaTerm *cur = term; /* 整个应用链 */
+        int arg_count = 0;
+        int bound_args[256];
+        bool all_bound = true;
+
+        /* 遍历应用链收集参数 */
+        while (cur && cur->type == LV_LAMBDA_APP) {
+            LvLambdaTerm *arg = cur->data.app.right;
+            if (arg && arg->type == LV_LAMBDA_VAR &&
+                arg->data.var.index < binder_count) {
+                /* 参数是 bound 变量 */
+                bound_args[arg_count++] = arg->data.var.index;
+            } else {
+                all_bound = false;
+                break;
+            }
+            cur = cur->data.app.left;
+        }
+
+        if (!all_bound) return false;
+
+        /* 检查所有 bound 变量是否各不相同 */
+        for (int i = 0; i < arg_count; i++) {
+            for (int j = i + 1; j < arg_count; j++) {
+                if (bound_args[i] == bound_args[j]) return false;
+            }
+        }
+        return true;
+    }
+
+    /* 函数位置不是自由变量 → 递归检查左右子项 */
+    return is_pattern_rec(term->data.app.left, binder_count) &&
+           is_pattern_rec(term->data.app.right, binder_count);
+}
+
+static LvLambdaTerm *app_lift_free_vars(LvLambdaTerm *term, int binder_offset) {
+    LvLambdaTerm *new_left = lift_free_vars(term->data.app.left, binder_offset);
+    LvLambdaTerm *new_right = lift_free_vars(term->data.app.right, binder_offset);
+    if ((!new_left && term->data.app.left) || (!new_right && term->data.app.right)) {
+        lv_lambda_destroy(new_left);
+        lv_lambda_destroy(new_right);
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "提升自由变量: 应用体复制失败");
+    }
+    return lv_lambda_create_app(new_left, new_right);
+}
+
+static int app_free_var_depth(LvLambdaTerm *term, int free_idx, int depth) {
+    int d = free_var_depth(term->data.app.left, free_idx, depth);
+    if (d >= 0) return d;
+    return free_var_depth(term->data.app.right, free_idx, depth);
+}
+
+/* ── VTable 查找表 ── */
+
+static const LambdaTermVTable kLambdaVTable[] = {
+    [LV_LAMBDA_VAR] = {
+        var_occurs_check,
+        var_apply_subs,
+        var_is_pattern,
+        var_lift_free_vars,
+        var_free_var_depth
+    },
+    [LV_LAMBDA_ABS] = {
+        abs_occurs_check,
+        abs_apply_subs,
+        abs_is_pattern,
+        abs_lift_free_vars,
+        abs_free_var_depth
+    },
+    [LV_LAMBDA_APP] = {
+        app_occurs_check,
+        app_apply_subs,
+        app_is_pattern,
+        app_lift_free_vars,
+        app_free_var_depth
+    }
+};
+
 /**
  * @brief 递归检查 index 是否在 term 中出现（occurs check）
  *
@@ -57,32 +273,10 @@ static bool occurs_check_rec(int index, LvLambdaTerm *term,
                              LambdaSubstitution *subs, int binder_depth) {
     if (!term) return false;
 
-    switch (term->type) {
-    case LV_LAMBDA_VAR:
-        /* 受 binder 绑定的变量（index < binder_depth）不是自由出现，跳过 */
-        if (term->data.var.index < binder_depth) {
-            return false;
-        }
-        if (term->data.var.index == index) return true;
-        {
-            LvLambdaTerm *replacement = find_substitution(subs, term->data.var.index);
-            if (replacement) {
-                return occurs_check_rec(index, replacement, subs, binder_depth);
-            }
-        }
-        return false;
-
-    case LV_LAMBDA_ABS:
-        /* 进入抽象体，binder 深度 +1；De Bruijn 索引在 abs 内部自然递增 */
-        return occurs_check_rec(index, term->data.abs.body, subs, binder_depth + 1);
-
-    case LV_LAMBDA_APP:
-        if (occurs_check_rec(index, term->data.app.left, subs, binder_depth)) return true;
-        return occurs_check_rec(index, term->data.app.right, subs, binder_depth);
-
-    default:
-        return false;
+    if (term->type >= LV_LAMBDA_VAR && term->type <= LV_LAMBDA_APP) {
+        return kLambdaVTable[term->type].occurs_check(index, term, subs, binder_depth);
     }
+    return false;
 }
 
 /* ── 句法合一递归核心 ── */
@@ -218,43 +412,10 @@ static LvLambdaTerm *apply_subs_rec(LvLambdaTerm *term, LambdaSubstitution *subs
                                     int binder_depth) {
     if (!term) return NULL;
 
-    switch (term->type) {
-    case LV_LAMBDA_VAR: {
-        int idx = term->data.var.index;
-        /* 受 binder 绑定的变量不应用替换，仅复制自身 */
-        if (idx >= binder_depth) {
-            LvLambdaTerm *replacement = find_substitution(subs, idx);
-            if (replacement) {
-                /* 替换项也要递归应用替换（链式替换） */
-                return apply_subs_rec(replacement, subs, binder_depth);
-            }
-        }
-        /* 无替换 → 复制自身 */
-        return lv_lambda_create_var(idx);
+    if (term->type >= LV_LAMBDA_VAR && term->type <= LV_LAMBDA_APP) {
+        return kLambdaVTable[term->type].apply_subs(term, subs, binder_depth);
     }
-
-    case LV_LAMBDA_ABS: {
-        LvLambdaTerm *new_body = apply_subs_rec(term->data.abs.body, subs, binder_depth + 1);
-        if (!new_body && term->data.abs.body) {
-            return NULL;
-        }
-        return lv_lambda_create_abs(term->data.abs.binder, new_body);
-    }
-
-    case LV_LAMBDA_APP: {
-        LvLambdaTerm *new_left = apply_subs_rec(term->data.app.left, subs, binder_depth);
-        LvLambdaTerm *new_right = apply_subs_rec(term->data.app.right, subs, binder_depth);
-        if ((!new_left && term->data.app.left) || (!new_right && term->data.app.right)) {
-            lv_lambda_destroy(new_left);
-            lv_lambda_destroy(new_right);
-            return NULL;
-        }
-        return lv_lambda_create_app(new_left, new_right);
-    }
-
-    default:
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "未知的λ-项类型");
-    }
+    lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "未知的λ-项类型");
 }
 
 LvLambdaTerm *lambda_unify_apply(LvLambdaTerm *term, LambdaSubstitution *subs) {
@@ -332,63 +493,10 @@ int lambda_unify_apply_to_graph(struct ConstraintGraph *graph,
 static bool is_pattern_rec(LvLambdaTerm *term, int binder_count) {
     if (!term) return false;
 
-    switch (term->type) {
-    case LV_LAMBDA_VAR:
-        /* 自由变量 (index >= binder_count) 本身是合法的模式变量 */
-        return true;
-
-    case LV_LAMBDA_ABS:
-        /* 进入抽象，binder_count + 1 */
-        return is_pattern_rec(term->data.abs.body, binder_count + 1);
-
-    case LV_LAMBDA_APP: {
-        /* 如果应用的最左端是自由变量 → 检查参数条件 */
-        LvLambdaTerm *leftmost = term;
-        while (leftmost && leftmost->type == LV_LAMBDA_APP) {
-            leftmost = leftmost->data.app.left;
-        }
-
-        if (leftmost && leftmost->type == LV_LAMBDA_VAR &&
-            leftmost->data.var.index >= binder_count) {
-            /* 自由变量在函数位置：收集所有参数，检查是否都是不同的 bound 变量 */
-            LvLambdaTerm *cur = term; /* 整个应用链 */
-            int arg_count = 0;
-            int bound_args[256];
-            bool all_bound = true;
-
-            /* 遍历应用链收集参数 */
-            while (cur && cur->type == LV_LAMBDA_APP) {
-                LvLambdaTerm *arg = cur->data.app.right;
-                if (arg && arg->type == LV_LAMBDA_VAR &&
-                    arg->data.var.index < binder_count) {
-                    /* 参数是 bound 变量 */
-                    bound_args[arg_count++] = arg->data.var.index;
-                } else {
-                    all_bound = false;
-                    break;
-                }
-                cur = cur->data.app.left;
-            }
-
-            if (!all_bound) return false;
-
-            /* 检查所有 bound 变量是否各不相同 */
-            for (int i = 0; i < arg_count; i++) {
-                for (int j = i + 1; j < arg_count; j++) {
-                    if (bound_args[i] == bound_args[j]) return false;
-                }
-            }
-            return true;
-        }
-
-        /* 函数位置不是自由变量 → 递归检查左右子项 */
-        return is_pattern_rec(term->data.app.left, binder_count) &&
-               is_pattern_rec(term->data.app.right, binder_count);
+    if (term->type >= LV_LAMBDA_VAR && term->type <= LV_LAMBDA_APP) {
+        return kLambdaVTable[term->type].is_pattern(term, binder_count);
     }
-
-    default:
-        return false;
-    }
+    return false;
 }
 
 bool lambda_is_pattern(LvLambdaTerm *term) {
@@ -404,31 +512,10 @@ bool lambda_is_pattern(LvLambdaTerm *term) {
 static LvLambdaTerm *lift_free_vars(LvLambdaTerm *term, int binder_offset) {
     if (!term) return NULL;
 
-    switch (term->type) {
-    case LV_LAMBDA_VAR:
-        return lv_lambda_create_var(term->data.var.index + binder_offset);
-
-    case LV_LAMBDA_ABS: {
-        LvLambdaTerm *new_body = lift_free_vars(term->data.abs.body, binder_offset + 1);
-        if (!new_body && term->data.abs.body) lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "提升自由变量: 抽象体复制失败");
-        /* 注意：abs 中的 binder 是绑定变量，不提升 */
-        return lv_lambda_create_abs(term->data.abs.binder, new_body);
+    if (term->type >= LV_LAMBDA_VAR && term->type <= LV_LAMBDA_APP) {
+        return kLambdaVTable[term->type].lift_free_vars(term, binder_offset);
     }
-
-    case LV_LAMBDA_APP: {
-        LvLambdaTerm *new_left = lift_free_vars(term->data.app.left, binder_offset);
-        LvLambdaTerm *new_right = lift_free_vars(term->data.app.right, binder_offset);
-        if ((!new_left && term->data.app.left) || (!new_right && term->data.app.right)) {
-            lv_lambda_destroy(new_left);
-            lv_lambda_destroy(new_right);
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "提升自由变量: 应用体复制失败");
-        }
-        return lv_lambda_create_app(new_left, new_right);
-    }
-
-    default:
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "提升自由变量: 未知的λ-项类型");
-    }
+    lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "提升自由变量: 未知的λ-项类型");
 }
 
 /**
@@ -461,26 +548,10 @@ static bool is_rigid(LvLambdaTerm *term) {
 static int free_var_depth(LvLambdaTerm *term, int free_idx, int depth) {
     if (!term) return -1;
 
-    switch (term->type) {
-    case LV_LAMBDA_VAR:
-        if (term->data.var.index == free_idx) return depth;
-        return -1;
-
-    case LV_LAMBDA_ABS: {
-        int d = free_var_depth(term->data.abs.body, free_idx, depth + 1);
-        if (d >= 0) return d;
-        return -1;
+    if (term->type >= LV_LAMBDA_VAR && term->type <= LV_LAMBDA_APP) {
+        return kLambdaVTable[term->type].free_var_depth(term, free_idx, depth);
     }
-
-    case LV_LAMBDA_APP: {
-        int d = free_var_depth(term->data.app.left, free_idx, depth);
-        if (d >= 0) return d;
-        return free_var_depth(term->data.app.right, free_idx, depth);
-    }
-
-    default:
-        return -1;
-    }
+    return -1;
 }
 
 /**

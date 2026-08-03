@@ -33,6 +33,151 @@
 /** 二次约束解数量的最大迭代次数 */
 #define MAX_QUADRATIC_SOLUTION_ITERATIONS 30
 
+/* ================================================================
+ * 查找表：ConstraintType → 计数器递增函数
+ * ================================================================ */
+
+/** @brief 约束类型计数器函数类型 */
+typedef void (*ConstraintCounterFunc)(DeterminismStaticStats *stats);
+
+static void count_linear(DeterminismStaticStats *stats) { stats->linear_count++; }
+static void count_quadratic(DeterminismStaticStats *stats) { stats->quadratic_count++; }
+static void count_connection(DeterminismStaticStats *stats) { stats->connection_count++; }
+
+/**
+ * @brief 约束类型计数器查找表（按枚举值升序）
+ *
+ * 索引：INCIDENCE=0, BETWEENNESS=1, INTERSECTION=2,
+ *       CONTAINMENT=3, CONNECTION=4, ANGLE=5
+ */
+static const ConstraintCounterFunc s_constraint_counters[] = {
+    count_linear,     /* INCIDENCE */
+    count_linear,     /* BETWEENNESS */
+    count_quadratic,  /* INTERSECTION */
+    count_linear,     /* CONTAINMENT */
+    count_connection, /* CONNECTION */
+    count_linear,     /* ANGLE */
+};
+#define lv_CONSTRAINT_COUNTER_COUNT lv_ARRAY_SIZE(s_constraint_counters)
+
+/* ================================================================
+ * 查找表：dof_result → 结果映射（DeterminismCheckResult 版本）
+ * ================================================================ */
+
+/** @brief dof_result 映射到 (DeterminismState, DeterminismCheckResult) */
+typedef struct {
+    DeterminismState fb_det;
+    DeterminismCheckResult ret;
+} DofResultCheckEntry;
+
+/**
+ * @brief dof_result 映射表（索引 = dof_result + 1）
+ *
+ * dof_result = -1 → 索引 0：过约束
+ * dof_result =  0 → 索引 1：恰好约束
+ * dof_result =  1 → 索引 2：欠约束
+ */
+static const DofResultCheckEntry s_dof_result_check_map[] = {
+    {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_CHECK_NO_SOLUTION},  /* dof_result = -1 */
+    {DETERMINISM_VERIFIED, DETERMINISM_CHECK_UNIQUE},                /* dof_result =  0 */
+    {DETERMINISM_PARTIALLY_VERIFIED, DETERMINISM_CHECK_MULTIPLE},    /* dof_result =  1 */
+};
+
+/* ================================================================
+ * 查找表：dof_result → 结果映射（DeterminismStatus 版本）
+ * ================================================================ */
+
+/** @brief dof_result 映射到 (DeterminismState, DeterminismStatus) */
+typedef struct {
+    DeterminismState fb_det;
+    DeterminismStatus ret;
+} DofResultStatusEntry;
+
+/**
+ * @brief dof_result 映射表（索引 = dof_result + 1）
+ *
+ * dof_result = -1 → 索引 0：过约束
+ * dof_result =  0 → 索引 1：恰好约束
+ * dof_result =  1 → 索引 2：欠约束
+ */
+static const DofResultStatusEntry s_dof_result_status_map[] = {
+    {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_NON_DETERMINISTIC},  /* dof_result = -1 */
+    {DETERMINISM_VERIFIED, DETERMINISM_VERIFIED},                    /* dof_result =  0 */
+    {DETERMINISM_PARTIALLY_VERIFIED, DETERMINISM_PARTIALLY_VERIFIED},/* dof_result =  1 */
+};
+
+/* ================================================================
+ * 查找表：SolverStatus → 静态确定性结果映射
+ * ================================================================ */
+
+/** @brief SolverStatus 映射到静态确定性检查结果 */
+typedef struct {
+    DeterminismState fb_det;
+    DeterminismStatus static_res;
+} SolverStatusStaticEntry;
+
+/**
+ * @brief SolverStatus 静态结果映射表
+ *
+ * 索引：SOLVER_UNIQUE=1 → 索引 0, SOLVER_MULTIPLE=2 → 1,
+ *       SOLVER_NO_SOLUTION=3 → 2, SOLVER_OVERCONSTRAINED=4 → 3
+ * 其他状态（SOLVER_OUT_OF_SCOPE, SOLVER_TIMEOUT 等）走默认路径
+ */
+static const SolverStatusStaticEntry s_solver_status_static_map[] = {
+    {DETERMINISM_VERIFIED, DETERMINISM_VERIFIED},                     /* SOLVER_UNIQUE */
+    {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_NON_DETERMINISTIC},   /* SOLVER_MULTIPLE */
+    {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_NON_DETERMINISTIC},   /* SOLVER_NO_SOLUTION */
+    {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_NON_DETERMINISTIC},   /* SOLVER_OVERCONSTRAINED */
+};
+#define lv_SOLVER_STATUS_STATIC_MAP_COUNT lv_ARRAY_SIZE(s_solver_status_static_map)
+
+/* ================================================================
+ * 查找表：SolverStatus → 动态确定性结果映射
+ * ================================================================ */
+
+/** @brief SolverStatus 映射到动态确定性检查结果 */
+typedef struct {
+    DeterminismState fb_det;
+    DeterminismStatus dynamic_res;
+    bool is_handled;  /* true = goto dynamic_done; false = 走启发式路径 */
+} SolverStatusDynamicEntry;
+
+/**
+ * @brief SolverStatus 动态结果映射表
+ *
+ * 索引：SOLVER_UNIQUE=1 → 索引 0, SOLVER_MULTIPLE=2 → 1,
+ *       SOLVER_NO_SOLUTION=3 → 2, SOLVER_OVERCONSTRAINED=4 → 3,
+ *       SOLVER_OUT_OF_SCOPE=5 → 4, SOLVER_TIMEOUT=6 → 5
+ */
+static const SolverStatusDynamicEntry s_solver_status_dynamic_map[] = {
+    {DETERMINISM_VERIFIED, DETERMINISM_VERIFIED, true},               /* SOLVER_UNIQUE */
+    {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_NON_DETERMINISTIC, true}, /* SOLVER_MULTIPLE */
+    {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_NON_DETERMINISTIC, true}, /* SOLVER_NO_SOLUTION */
+    {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_NON_DETERMINISTIC, true}, /* SOLVER_OVERCONSTRAINED */
+    {DETERMINISM_PARTIALLY_VERIFIED, DETERMINISM_PARTIALLY_VERIFIED, false}, /* SOLVER_OUT_OF_SCOPE */
+    {DETERMINISM_PARTIALLY_VERIFIED, DETERMINISM_PARTIALLY_VERIFIED, false}, /* SOLVER_TIMEOUT */
+};
+#define lv_SOLVER_STATUS_DYNAMIC_MAP_COUNT lv_ARRAY_SIZE(s_solver_status_dynamic_map)
+
+/* ================================================================
+ * 查找表：DeterminismCheckResult → DeterminismState
+ * ================================================================ */
+
+/**
+ * @brief DeterminismCheckResult → DeterminismState 映射表
+ *
+ * 索引：DETERMINISM_CHECK_RESULT_UNIQUE=0, _MULTIPLE=1,
+ *       _NO_SOLUTION=2, _TIMEOUT=3, _OUT_OF_RANGE=4
+ */
+static const DeterminismState s_check_result_to_state[] = {
+    DETERMINISM_VERIFIED,           /* DETERMINISM_CHECK_RESULT_UNIQUE */
+    DETERMINISM_PARTIALLY_VERIFIED, /* DETERMINISM_CHECK_RESULT_MULTIPLE */
+    DETERMINISM_NON_DETERMINISTIC,  /* DETERMINISM_CHECK_RESULT_NO_SOLUTION */
+    DETERMINISM_PARTIALLY_VERIFIED, /* DETERMINISM_CHECK_RESULT_TIMEOUT */
+    DETERMINISM_PARTIALLY_VERIFIED, /* DETERMINISM_CHECK_RESULT_OUT_OF_RANGE */
+};
+#define lv_CHECK_RESULT_TO_STATE_COUNT lv_ARRAY_SIZE(s_check_result_to_state)
+
 /* ============== 确定性检查 ============== */
 
 /**
@@ -82,19 +227,8 @@ int *determinism_collect_constraint_stats(const FuncBlock *fb, const ConstraintG
         if (!involves_internal)
             continue;
 
-        switch (c->type) {
-            case INCIDENCE:
-            case BETWEENNESS:
-            case CONTAINMENT:
-            case ANGLE:
-                stats->linear_count++;
-                break;
-            case INTERSECTION:
-                stats->quadratic_count++;
-                break;
-            case CONNECTION:
-                stats->connection_count++;
-                break;
+        if ((unsigned) c->type < lv_CONSTRAINT_COUNTER_COUNT) {
+            s_constraint_counters[c->type](stats);
         }
     }
 
@@ -278,17 +412,13 @@ DeterminismCheckResult func_block_check_determinism_static(FuncBlock *fb, Constr
     /* 使用共享核心：纯线性约束系统的自由度分析 */
     if (stats.quadratic_count == 0) {
         int dof_result = determinism_evaluate_linear_dof(stats.free_dof);
-        switch (dof_result) {
-            case -1:
-                fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-                return DETERMINISM_CHECK_NO_SOLUTION;
-            case 0:
-                fb->determinism = DETERMINISM_VERIFIED;
-                return DETERMINISM_CHECK_UNIQUE;
-            default:
-                fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
-                return DETERMINISM_CHECK_MULTIPLE;
+        int dof_idx = dof_result + 1;
+        if (dof_idx >= 0 && dof_idx < (int) lv_ARRAY_SIZE(s_dof_result_check_map)) {
+            fb->determinism = s_dof_result_check_map[dof_idx].fb_det;
+            return s_dof_result_check_map[dof_idx].ret;
         }
+        fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
+        return DETERMINISM_CHECK_MULTIPLE;
     }
 
     /* 含二次约束：尝试消元法 */
@@ -540,20 +670,15 @@ DeterminismStatus func_block_determinism_check_static(FuncBlock *fb, const Const
     /* 使用共享核心：纯线性约束系统的自由度分析 */
     if (stats.quadratic_count == 0) {
         int dof_result = determinism_evaluate_linear_dof(stats.free_dof);
-        switch (dof_result) {
-            case -1:
-                fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-                static_result = DETERMINISM_NON_DETERMINISTIC;
-                goto static_done;
-            case 0:
-                fb->determinism = DETERMINISM_VERIFIED;
-                static_result = DETERMINISM_VERIFIED;
-                goto static_done;
-            default:
-                fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
-                static_result = DETERMINISM_PARTIALLY_VERIFIED;
-                goto static_done;
+        int dof_idx = dof_result + 1;
+        if (dof_idx >= 0 && dof_idx < (int) lv_ARRAY_SIZE(s_dof_result_status_map)) {
+            fb->determinism = s_dof_result_status_map[dof_idx].fb_det;
+            static_result = s_dof_result_status_map[dof_idx].ret;
+            goto static_done;
         }
+        fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
+        static_result = DETERMINISM_PARTIALLY_VERIFIED;
+        goto static_done;
     }
 
     /* 含二次约束：使用求解器尝试消元 */
@@ -564,26 +689,15 @@ DeterminismStatus func_block_determinism_check_static(FuncBlock *fb, const Const
          * 强制转换是安全的，因为被调用函数不会产生副作用。 */
         SolverStatus status = solve_algebraic_system((ConstraintGraph *) graph, NULL, 0, &gresult);
 
-        switch (status) {
-            case SOLVER_UNIQUE:
-                fb->determinism = DETERMINISM_VERIFIED;
+        {
+            int status_idx = (int) status - 1;
+            if (status_idx >= 0 && status_idx < (int) lv_SOLVER_STATUS_STATIC_MAP_COUNT) {
+                fb->determinism = s_solver_status_static_map[status_idx].fb_det;
+                static_result = s_solver_status_static_map[status_idx].static_res;
                 determinism_cleanup_groebner(gresult);
-                static_result = DETERMINISM_VERIFIED;
                 goto static_done;
-            case SOLVER_NO_SOLUTION:
-            case SOLVER_OVERCONSTRAINED:
-                fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-                determinism_cleanup_groebner(gresult);
-                static_result = DETERMINISM_NON_DETERMINISTIC;
-                goto static_done;
-            case SOLVER_MULTIPLE:
-                fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-                determinism_cleanup_groebner(gresult);
-                static_result = DETERMINISM_NON_DETERMINISTIC;
-                goto static_done;
-            default:
-                determinism_cleanup_groebner(gresult);
-                break;
+            }
+            determinism_cleanup_groebner(gresult);
         }
     }
 
@@ -750,77 +864,53 @@ DeterminismStatus func_block_determinism_check_dynamic(FuncBlock *fb, Constraint
     }
 
     /* 根据求解器结果判断确定性 */
-    switch (status) {
-        case SOLVER_UNIQUE:
-            /* 唯一解：确认确定性 */
-            fb->determinism = DETERMINISM_VERIFIED;
+    {
+        int status_idx = (int) status - 1;
+        if (status_idx >= 0 && status_idx < (int) lv_SOLVER_STATUS_DYNAMIC_MAP_COUNT) {
+            const SolverStatusDynamicEntry *entry = &s_solver_status_dynamic_map[status_idx];
+            if (entry->is_handled) {
+                fb->determinism = entry->fb_det;
+                determinism_cleanup_groebner(gresult);
+                dynamic_result = entry->dynamic_res;
+                goto dynamic_done;
+            }
+            /* 未处理状态（SOLVER_OUT_OF_SCOPE, SOLVER_TIMEOUT）: 继续启发式分析 */
             determinism_cleanup_groebner(gresult);
-            /* 修复：all_ids 统一在 dynamic_done 处释放，避免遗漏 */
-            dynamic_result = DETERMINISM_VERIFIED;
-            goto dynamic_done;
-
-        case SOLVER_MULTIPLE:
-            /* 多解：降级为非确定性 */
-            fb->determinism = DETERMINISM_NON_DETERMINISTIC;
+        } else {
             determinism_cleanup_groebner(gresult);
-            /* 修复：all_ids 统一在 dynamic_done 处释放，避免遗漏 */
-            dynamic_result = DETERMINISM_NON_DETERMINISTIC;
-            goto dynamic_done;
-
-        case SOLVER_NO_SOLUTION:
-            /* 无解：输入不满足前置条件 */
-            fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-            determinism_cleanup_groebner(gresult);
-            /* 修复：all_ids 统一在 dynamic_done 处释放，避免遗漏 */
-            dynamic_result = DETERMINISM_NON_DETERMINISTIC;
-            goto dynamic_done;
-
-        case SOLVER_OVERCONSTRAINED:
-            /* 过约束：存在冲突 */
-            fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-            determinism_cleanup_groebner(gresult);
-            /* 修复：all_ids 统一在 dynamic_done 处释放，避免遗漏 */
-            dynamic_result = DETERMINISM_NON_DETERMINISTIC;
-            goto dynamic_done;
-
-        case SOLVER_TIMEOUT:
-        case SOLVER_OUT_OF_SCOPE:
-        default:
-            /* 求解器超时或超出范围：无法确认，但无冲突 */
-            determinism_cleanup_groebner(gresult);
-            /* 回退到启发式分析 */
-            {
-                int expected_solutions = 1;
-                bool has_quadratic = false;
-                for (int i = 0; i < graph->constraint_count; i++) {
-                    Constraint *c = graph->constraints[i];
-                    bool involves = false;
-                    for (int j = 0; j < c->participant_count; j++) {
-                        if (is_id_in_array(c->participants[j], all_ids, all_count)) {
-                            involves = true;
-                            break;
-                        }
-                    }
-                    if (!involves)
-                        continue;
-                    if (c->type == INTERSECTION) {
-                        has_quadratic = true;
-                        if (expected_solutions <= INT_MAX / 2) {
-                            expected_solutions *= 2;
-                        }
-                    }
-                }
-                /* 修复：all_ids 统一在 dynamic_done 处释放，此处不再释放 */
-                if (expected_solutions > 1 && has_quadratic) {
-                    fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-                    dynamic_result = DETERMINISM_NON_DETERMINISTIC;
-                    goto dynamic_done;
+        }
+    }
+    /* 回退到启发式分析 */
+    {
+        int expected_solutions = 1;
+        bool has_quadratic = false;
+        for (int i = 0; i < graph->constraint_count; i++) {
+            Constraint *c = graph->constraints[i];
+            bool involves = false;
+            for (int j = 0; j < c->participant_count; j++) {
+                if (is_id_in_array(c->participants[j], all_ids, all_count)) {
+                    involves = true;
+                    break;
                 }
             }
-            fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
-            dynamic_result = DETERMINISM_PARTIALLY_VERIFIED;
+            if (!involves)
+                continue;
+            if (c->type == INTERSECTION) {
+                has_quadratic = true;
+                if (expected_solutions <= INT_MAX / 2) {
+                    expected_solutions *= 2;
+                }
+            }
+        }
+        if (expected_solutions > 1 && has_quadratic) {
+            fb->determinism = DETERMINISM_NON_DETERMINISTIC;
+            dynamic_result = DETERMINISM_NON_DETERMINISTIC;
             goto dynamic_done;
+        }
     }
+    fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
+    dynamic_result = DETERMINISM_PARTIALLY_VERIFIED;
+    goto dynamic_done;
 
 dynamic_done:
     /* 修复：统一在此处释放 all_ids，确保所有路径都不会遗漏释放 */
@@ -865,24 +955,14 @@ DeterminismState func_block_verify_determinism(FuncBlock *fb, ConstraintGraph *g
     /* 第1步：静态分析 */
     DeterminismCheckResult static_result = func_block_check_determinism_static(fb, graph, step_limit);
 
-    switch (static_result) {
-        case DETERMINISM_CHECK_UNIQUE:
-            if (func_block_stream_ctx) {
-                stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, "确定性验证通过",
-                                   -1);
-            }
-            return DETERMINISM_VERIFIED;
-        case DETERMINISM_CHECK_NO_SOLUTION:
-            if (func_block_stream_ctx) {
-                stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_WARNING, "检测到非确定性", -1);
-            }
-            return DETERMINISM_NON_DETERMINISTIC;
-        case DETERMINISM_CHECK_TIMEOUT:
-        case DETERMINISM_CHECK_MULTIPLE:
-        case DETERMINISM_CHECK_OUT_OF_RANGE:
-            /* 部分验证：需要动态检查 */
-            return DETERMINISM_PARTIALLY_VERIFIED;
-        default:
-            return DETERMINISM_UNVERIFIED;
+    if ((unsigned) static_result < lv_CHECK_RESULT_TO_STATE_COUNT) {
+        DeterminismState state = s_check_result_to_state[static_result];
+        if (state == DETERMINISM_VERIFIED && func_block_stream_ctx) {
+            stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, "确定性验证通过", -1);
+        } else if (state == DETERMINISM_NON_DETERMINISTIC && func_block_stream_ctx) {
+            stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_WARNING, "检测到非确定性", -1);
+        }
+        return state;
     }
+    return DETERMINISM_UNVERIFIED;
 }

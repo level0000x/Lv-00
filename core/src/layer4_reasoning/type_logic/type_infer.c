@@ -34,6 +34,98 @@ extern lv_THREAD_LOCAL StreamContext *type_system_stream_ctx;
 
 /* ============== 前向声明 ============== */
 
+/* ================================================================
+ * 查找表：GeomType → 类型推断处理函数
+ * ================================================================ */
+
+/** @brief 节点类型推断处理函数类型 */
+typedef bool (*GeomTypeInferHandler)(TypeSystem *ts, ConstraintGraph *graph, GeomNode *node, TypeRegion **out_type);
+
+/** @brief 推断 GEOM_POINT 类型 */
+static bool infer_geom_point(TypeSystem *ts, ConstraintGraph *graph, GeomNode *node, TypeRegion **out_type) {
+    (void) graph;
+    (void) node;
+    *out_type = type_create_point(ts);
+    return true;
+}
+/** @brief 推断 GEOM_LINE_SEGMENT 类型 */
+static bool infer_geom_line_segment(TypeSystem *ts, ConstraintGraph *graph, GeomNode *node, TypeRegion **out_type) {
+    (void) graph;
+    (void) node;
+    *out_type = type_create_line_segment(ts);
+    return true;
+}
+/** @brief 推断 GEOM_REGION 类型 */
+static bool infer_geom_region(TypeSystem *ts, ConstraintGraph *graph, GeomNode *node, TypeRegion **out_type) {
+    (void) graph;
+    (void) node;
+    *out_type = type_create_region(ts, NULL, 0);
+    return true;
+}
+/** @brief 推断 GEOM_CIRCLE 类型 */
+static bool infer_geom_circle(TypeSystem *ts, ConstraintGraph *graph, GeomNode *node, TypeRegion **out_type) {
+    (void) graph;
+    (void) node;
+    *out_type = type_create_region(ts, NULL, 0);
+    return true;
+}
+/** @brief 推断 GEOM_PORT 类型 */
+static bool infer_geom_port(TypeSystem *ts, ConstraintGraph *graph, GeomNode *node, TypeRegion **out_type) {
+    (void) node;
+    return type_infer_port(ts, graph, node->id, out_type);
+}
+/** @brief 推断 GEOM_FUNCTION_BLOCK 类型 */
+static bool infer_geom_function_block(TypeSystem *ts, ConstraintGraph *graph, GeomNode *node, TypeRegion **out_type) {
+    (void) graph;
+    TypeRegion *input_type = NULL;
+    TypeRegion *output_type = NULL;
+
+    if (node->data.func_block.input_port_ids && node->data.func_block.input_count > 0) {
+        for (int i = 0; i < node->data.func_block.input_count; i++) {
+            TypeRegion *port_type = NULL;
+            if (type_infer_port(ts, graph, node->data.func_block.input_port_ids[i], &port_type)) {
+                if (input_type == NULL) {
+                    input_type = port_type;
+                } else {
+                    input_type = type_create_product(ts, input_type, port_type);
+                }
+            }
+        }
+    }
+
+    if (node->data.func_block.output_port_ids && node->data.func_block.output_count > 0) {
+        for (int i = 0; i < node->data.func_block.output_count; i++) {
+            TypeRegion *port_type = NULL;
+            if (type_infer_port(ts, graph, node->data.func_block.output_port_ids[i], &port_type)) {
+                if (output_type == NULL) {
+                    output_type = port_type;
+                } else {
+                    output_type = type_create_product(ts, output_type, port_type);
+                }
+            }
+        }
+    }
+
+    *out_type = type_create_function(ts, input_type, output_type);
+    return true;
+}
+
+/**
+ * @brief GeomType 推断处理函数查找表（按枚举值升序）
+ *
+ * 索引：GEOM_POINT=0, GEOM_LINE_SEGMENT=1, GEOM_REGION=2,
+ *       GEOM_CIRCLE=3, GEOM_PORT=4, GEOM_FUNCTION_BLOCK=5
+ */
+static const GeomTypeInferHandler s_geom_type_infer_handlers[] = {
+    infer_geom_point,          /* GEOM_POINT */
+    infer_geom_line_segment,   /* GEOM_LINE_SEGMENT */
+    infer_geom_region,         /* GEOM_REGION */
+    infer_geom_circle,         /* GEOM_CIRCLE */
+    infer_geom_port,           /* GEOM_PORT */
+    infer_geom_function_block  /* GEOM_FUNCTION_BLOCK */
+};
+#define lv_GEOM_TYPE_INFER_HANDLER_COUNT lv_ARRAY_SIZE(s_geom_type_infer_handlers)
+
 /**
  * @brief 类型推断的内部递归实现
  *
@@ -99,77 +191,10 @@ static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int
     if (!node)
         return false;
 
-    switch (node->type) {
-        case GEOM_POINT:
-            *out_type = type_create_point(ts);
+    if ((unsigned) node->type < lv_GEOM_TYPE_INFER_HANDLER_COUNT) {
+        if (s_geom_type_infer_handlers[node->type](ts, graph, node, out_type)) {
             return true;
-
-        case GEOM_LINE_SEGMENT:
-            *out_type = type_create_line_segment(ts);
-            return true;
-
-        case GEOM_REGION:
-            *out_type = type_create_region(ts, NULL, 0);
-            return true;
-        case GEOM_CIRCLE:
-            *out_type = type_create_region(ts, NULL, 0);
-            return true;
-
-        case GEOM_PORT:
-            /* 端口类型需要从连接推断 */
-            return type_infer_port(ts, graph, node_id, out_type);
-
-        case GEOM_FUNCTION_BLOCK:
-            /* 函数块类型：从输入输出端口推断 */
-            {
-                TypeRegion *input_type = NULL;
-                TypeRegion *output_type = NULL;
-
-                /* 从输入端口推断输入类型 */
-                if (node->data.func_block.input_port_ids && node->data.func_block.input_count > 0) {
-                    /*
-                     * 多个输入端口：构建乘积类型作为输入
-                     * 单个输入端口：直接使用该端口类型
-                     */
-                    for (int i = 0; i < node->data.func_block.input_count; i++) {
-                        TypeRegion *port_type = NULL;
-                        if (type_infer_port(ts, graph, node->data.func_block.input_port_ids[i], &port_type)) {
-                            if (input_type == NULL) {
-                                input_type = port_type;
-                            } else {
-                                /* 将多个输入组合为乘积类型 */
-                                input_type = type_create_product(ts, input_type, port_type);
-                            }
-                        }
-                    }
-                }
-
-                /* 从输出端口推断输出类型 */
-                if (node->data.func_block.output_port_ids && node->data.func_block.output_count > 0) {
-                    /*
-                     * 多个输出端口：构建乘积类型作为输出
-                     * 单个输出端口：直接使用该端口类型
-                     */
-                    for (int i = 0; i < node->data.func_block.output_count; i++) {
-                        TypeRegion *port_type = NULL;
-                        if (type_infer_port(ts, graph, node->data.func_block.output_port_ids[i], &port_type)) {
-                            if (output_type == NULL) {
-                                output_type = port_type;
-                            } else {
-                                /* 将多个输出组合为乘积类型 */
-                                output_type = type_create_product(ts, output_type, port_type);
-                            }
-                        }
-                    }
-                }
-
-                /* 构建函数类型 (domain -> codomain) */
-                *out_type = type_create_function(ts, input_type, output_type);
-                return true;
-            }
-
-        default:
-            break;
+        }
     }
 
     /* ===== 新增推断规则：沿集合包含链推断 ===== */
@@ -372,6 +397,133 @@ bool type_instantiate_variable(TypeSystem *ts, int var_id, TypeRegion *concrete_
     return true;
 }
 
+/* ================================================================
+ * 查找表：TypeKind → 类型变量替换处理函数
+ * ================================================================ */
+
+/** @brief 类型变量替换处理函数类型 */
+typedef bool (*TypeKindSubstHandler)(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
+                                     TypeRegion **out_result);
+
+/** @brief 替换 FUNCTION 类型中的变量 */
+static bool subst_kind_function(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
+                                TypeRegion **out_result) {
+    TypeRegion *new_input = NULL;
+    TypeRegion *new_output = NULL;
+
+    if (type->input_type) {
+        type_substitute_variable(ts, type->input_type, var_id, replacement, &new_input);
+    }
+    if (type->output_type) {
+        type_substitute_variable(ts, type->output_type, var_id, replacement, &new_output);
+    }
+
+    *out_result = type_create_function(ts, new_input, new_output);
+    return true;
+}
+
+/** @brief 替换 PRODUCT 类型中的变量 */
+static bool subst_kind_product(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
+                               TypeRegion **out_result) {
+    TypeRegion *new_left = NULL;
+    TypeRegion *new_right = NULL;
+
+    if (type->left_type) {
+        type_substitute_variable(ts, type->left_type, var_id, replacement, &new_left);
+    }
+    if (type->right_type) {
+        type_substitute_variable(ts, type->right_type, var_id, replacement, &new_right);
+    }
+
+    *out_result = type_create_product(ts, new_left, new_right);
+    return true;
+}
+
+/** @brief 替换 SUM 类型中的变量 */
+static bool subst_kind_sum(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
+                           TypeRegion **out_result) {
+    TypeRegion *new_first = NULL;
+    TypeRegion *new_second = NULL;
+
+    if (type->first_type) {
+        type_substitute_variable(ts, type->first_type, var_id, replacement, &new_first);
+    }
+    if (type->second_type) {
+        type_substitute_variable(ts, type->second_type, var_id, replacement, &new_second);
+    }
+
+    *out_result = type_create_sum(ts, new_first, new_second);
+    return true;
+}
+
+/** @brief 替换 DEPENDENT 类型中的变量 */
+static bool subst_kind_dependent(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
+                                 TypeRegion **out_result) {
+    TypeRegion *new_body = NULL;
+
+    if (type->body_type) {
+        type_substitute_variable(ts, type->body_type, var_id, replacement, &new_body);
+    }
+
+    *out_result = type_create_dependent(ts, type->param_node_id, new_body ? new_body : type->body_type);
+    return true;
+}
+
+/** @brief 替换 REGION 类型中的变量 */
+static bool subst_kind_region(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
+                              TypeRegion **out_result) {
+    if (type->aliased_type) {
+        TypeRegion *new_aliased = NULL;
+        if (type_substitute_variable(ts, type->aliased_type, var_id, replacement, &new_aliased)) {
+            if (new_aliased != type->aliased_type) {
+                TypeRegion *new_region = type_create_region(ts, type->contained_node_ids, type->contained_count);
+                if (new_region) {
+                    new_region->aliased_type = new_aliased;
+                    if (type->alias_name) {
+                        new_region->alias_name = lv_strdup(type->alias_name);
+                    }
+                    *out_result = new_region;
+                    return true;
+                }
+            }
+        }
+    }
+    *out_result = type;
+    return true;
+}
+
+/** @brief 无替换操作的默认处理：原样返回 */
+static bool subst_kind_identity(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
+                                TypeRegion **out_result) {
+    (void) ts;
+    (void) var_id;
+    (void) replacement;
+    *out_result = type;
+    return true;
+}
+
+/**
+ * @brief TypeKind 替换处理函数查找表（按枚举值升序）
+ *
+ * 索引：TYPE_KIND_POINT=0, TYPE_KIND_LINE_SEGMENT=1, TYPE_KIND_REGION=2,
+ *       TYPE_KIND_FUNCTION=3, TYPE_KIND_PRODUCT=4, TYPE_KIND_SUM=5,
+ *       TYPE_KIND_VARIABLE=6, TYPE_KIND_DEPENDENT=7, TYPE_KIND_BOTTOM=8,
+ *       TYPE_KIND_PREDICATE_SUBTYPE=9
+ */
+static const TypeKindSubstHandler s_type_kind_subst_handlers[] = {
+    subst_kind_identity,   /* TYPE_KIND_POINT */
+    subst_kind_identity,   /* TYPE_KIND_LINE_SEGMENT */
+    subst_kind_region,     /* TYPE_KIND_REGION */
+    subst_kind_function,   /* TYPE_KIND_FUNCTION */
+    subst_kind_product,    /* TYPE_KIND_PRODUCT */
+    subst_kind_sum,        /* TYPE_KIND_SUM */
+    subst_kind_identity,   /* TYPE_KIND_VARIABLE */
+    subst_kind_dependent,  /* TYPE_KIND_DEPENDENT */
+    subst_kind_identity,   /* TYPE_KIND_BOTTOM */
+    subst_kind_identity,   /* TYPE_KIND_PREDICATE_SUBTYPE */
+};
+#define lv_TYPE_KIND_SUBST_HANDLER_COUNT lv_ARRAY_SIZE(s_type_kind_subst_handlers)
+
 bool type_substitute_variable(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
                               TypeRegion **out_result) {
     if (!ts || !type || !replacement || !out_result)
@@ -392,93 +544,10 @@ bool type_substitute_variable(TypeSystem *ts, TypeRegion *type, int var_id, Type
         return true;
     }
 
-    /* 递归替换 */
-    switch (type->kind) {
-        case TYPE_KIND_FUNCTION: {
-            TypeRegion *new_input = NULL;
-            TypeRegion *new_output = NULL;
-
-            if (type->input_type) {
-                type_substitute_variable(ts, type->input_type, var_id, replacement, &new_input);
-            }
-            if (type->output_type) {
-                type_substitute_variable(ts, type->output_type, var_id, replacement, &new_output);
-            }
-
-            *out_result = type_create_function(ts, new_input, new_output);
-            return true;
-        }
-
-        case TYPE_KIND_PRODUCT: {
-            TypeRegion *new_left = NULL;
-            TypeRegion *new_right = NULL;
-
-            if (type->left_type) {
-                type_substitute_variable(ts, type->left_type, var_id, replacement, &new_left);
-            }
-            if (type->right_type) {
-                type_substitute_variable(ts, type->right_type, var_id, replacement, &new_right);
-            }
-
-            *out_result = type_create_product(ts, new_left, new_right);
-            return true;
-        }
-
-        case TYPE_KIND_SUM: {
-            TypeRegion *new_first = NULL;
-            TypeRegion *new_second = NULL;
-
-            if (type->first_type) {
-                type_substitute_variable(ts, type->first_type, var_id, replacement, &new_first);
-            }
-            if (type->second_type) {
-                type_substitute_variable(ts, type->second_type, var_id, replacement, &new_second);
-            }
-
-            *out_result = type_create_sum(ts, new_first, new_second);
-            return true;
-        }
-
-        case TYPE_KIND_DEPENDENT:
-            /* 依赖类型：递归替换体类型中的变量 */
-            {
-                TypeRegion *new_body = NULL;
-
-                if (type->body_type) {
-                    type_substitute_variable(ts, type->body_type, var_id, replacement, &new_body);
-                }
-
-                *out_result = type_create_dependent(ts, type->param_node_id, new_body ? new_body : type->body_type);
-                return true;
-            }
-
-        case TYPE_KIND_REGION:
-            /* 区域类型：递归替换被别名类型的变量 */
-            if (type->aliased_type) {
-                TypeRegion *new_aliased = NULL;
-                if (type_substitute_variable(ts, type->aliased_type, var_id, replacement, &new_aliased)) {
-                    if (new_aliased != type->aliased_type) {
-                        /* 创建新的区域类型，保留原有属性但替换被别名类型 */
-                        TypeRegion *new_region =
-                            type_create_region(ts, type->contained_node_ids, type->contained_count);
-                        if (new_region) {
-                            new_region->aliased_type = new_aliased;
-                            if (type->alias_name) {
-                                new_region->alias_name = lv_strdup(type->alias_name);
-                            }
-                            *out_result = new_region;
-                            return true;
-                        }
-                    }
-                }
-            }
-            /* 无需替换 */
-            *out_result = type;
-            return true;
-
-        default:
-            /* 其他类型不变 */
-            *out_result = type;
-            return true;
+    /* 通过查找表递归替换 */
+    if ((unsigned) type->kind < lv_TYPE_KIND_SUBST_HANDLER_COUNT) {
+        return s_type_kind_subst_handlers[type->kind](ts, type, var_id, replacement, out_result);
     }
+    *out_result = type;
+    return true;
 }

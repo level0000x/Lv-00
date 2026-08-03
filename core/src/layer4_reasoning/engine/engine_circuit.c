@@ -80,6 +80,118 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
     return ENGINE_CIRCUIT_IGNORE;
 }
 
+/* ================================================================
+ * 查找表：CoordType → 内部数据销毁函数
+ * ================================================================ */
+
+/** @brief CoordType 内部数据销毁函数类型 */
+typedef void (*CoordTypeDestroyFunc)(SymbolicCoord *coord);
+
+/** @brief 销毁有理数内部数据 */
+static void coord_type_destroy_rational(SymbolicCoord *coord) { rational_destroy(coord->data.rational); }
+/** @brief 销毁代数数内部数据 */
+static void coord_type_destroy_algebraic(SymbolicCoord *coord) { algebraic_destroy(coord->data.algebraic); }
+/** @brief 销毁二次域内部数据 */
+static void coord_type_destroy_quadratic(SymbolicCoord *coord) { quadratic_destroy(coord->data.quadratic); }
+/** @brief 销毁超越数内部数据 */
+static void coord_type_destroy_transcendental(SymbolicCoord *coord) { transcendental_destroy(coord->data.transcendental); }
+
+/**
+ * @brief CoordType 内部数据销毁函数查找表（按枚举值升序）
+ *
+ * 索引：RATIONAL=0, ALGEBRAIC=1, QUADRATIC=2, TRANSCENDENTAL=3
+ */
+static const CoordTypeDestroyFunc s_coord_type_destroy_handlers[] = {
+    coord_type_destroy_rational,       /* RATIONAL */
+    coord_type_destroy_algebraic,      /* ALGEBRAIC */
+    coord_type_destroy_quadratic,      /* QUADRATIC */
+    coord_type_destroy_transcendental, /* TRANSCENDENTAL */
+};
+
+/**
+ * @brief 通过查找表销毁 SymbolicCoord 的内部数据
+ */
+static void coord_type_destroy(SymbolicCoord *coord) {
+    if (!coord)
+        return;
+    if ((unsigned) coord->type < lv_ARRAY_SIZE(s_coord_type_destroy_handlers)) {
+        s_coord_type_destroy_handlers[coord->type](coord);
+    }
+}
+
+/* ================================================================
+ * 查找表：EngineCircuitAction → 处理函数
+ * ================================================================ */
+
+/** @brief 电路跳闸动作处理函数类型 */
+typedef EngineCircuitResult (*CircuitActionHandler)(lvEngine *engine, SymbolicCoord *overflow_coord);
+
+/** @brief 处理 IGNORE 动作：将坐标标记为琥珀色并继续 */
+static EngineCircuitResult handle_action_ignore(lvEngine *engine, SymbolicCoord *overflow_coord) {
+    if (overflow_coord) {
+        symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
+    }
+    circuit_handle_overflow();
+    engine->last_status = ENGINE_STATUS_OK;
+    engine->last_error[0] = '\0';
+    return ENGINE_CIRCUIT_IGNORE;
+}
+
+/** @brief 处理 ROLLBACK 动作：恢复到冻结点 */
+static EngineCircuitResult handle_action_rollback(lvEngine *engine, SymbolicCoord *overflow_coord) {
+    (void) overflow_coord;
+    if (engine->frozen_point) {
+        if (!engine_restore_frozen_point(engine, engine->frozen_point)) {
+            /* lv_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致"); */
+        }
+    }
+    circuit_reset_context();
+    engine->last_status = ENGINE_STATUS_OK;
+    snprintf(engine->last_error, sizeof(engine->last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
+    return ENGINE_CIRCUIT_ROLLBACK;
+}
+
+/** @brief 处理 DOWNGRADE 动作：替换为高精度浮点数近似值 */
+static EngineCircuitResult handle_action_downgrade(lvEngine *engine, SymbolicCoord *overflow_coord) {
+    if (overflow_coord) {
+        double approx = symbolic_coord_to_double(overflow_coord);
+        if (fabs(approx) > lv_VALUE_TOO_LARGE) {
+            symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
+        } else {
+            SymbolicCoord *new_coord = symbolic_coord_create_rational(
+                (int64_t) (approx * lv_DOWNGRADE_DENOMINATOR), lv_DOWNGRADE_DENOMINATOR);
+            if (new_coord) {
+                symbolic_coord_set_trust(new_coord, TRUST_AMBER);
+                coord_type_destroy(overflow_coord);
+                overflow_coord->type = new_coord->type;
+                overflow_coord->data = new_coord->data;
+                overflow_coord->trust = new_coord->trust;
+                lv_free((void **) &new_coord);
+            } else {
+                symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
+            }
+        }
+    }
+    circuit_handle_overflow();
+    engine->last_status = ENGINE_STATUS_OK;
+    snprintf(engine->last_error, sizeof(engine->last_error), "engine: 通过永久降级为琥珀色处理了电路跳闸");
+    return ENGINE_CIRCUIT_DOWNGRADE;
+}
+
+/**
+ * @brief EngineCircuitAction 处理函数查找表（按枚举值升序）
+ *
+ * 索引：ENGINE_CIRCUIT_ACTION_IGNORE=0,
+ *       ENGINE_CIRCUIT_ACTION_ROLLBACK=1,
+ *       ENGINE_CIRCUIT_ACTION_DOWNGRADE=2
+ */
+static const CircuitActionHandler s_circuit_action_handlers[] = {
+    handle_action_ignore,   /* ENGINE_CIRCUIT_ACTION_IGNORE */
+    handle_action_rollback, /* ENGINE_CIRCUIT_ACTION_ROLLBACK */
+    handle_action_downgrade /* ENGINE_CIRCUIT_ACTION_DOWNGRADE */
+};
+#define lv_CIRCUIT_ACTION_HANDLER_COUNT lv_ARRAY_SIZE(s_circuit_action_handlers)
+
 /**
  * @brief 使用显式用户动作处理电路跳闸
  *
@@ -98,84 +210,12 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(lvEngine *engine, Eng
 
     SymbolicCoord *overflow_coord = circuit_get_last_result();
 
-    switch (action) {
-        case ENGINE_CIRCUIT_ACTION_IGNORE: /* 忽略：将坐标标记为琥珀色并继续 */
-            if (overflow_coord) {
-                symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
-            }
-            circuit_handle_overflow();
-            engine->last_status = ENGINE_STATUS_OK;
-            engine->last_error[0] = '\0';
-            return ENGINE_CIRCUIT_IGNORE;
-
-        case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
-            if (engine->frozen_point) {
-                if (!engine_restore_frozen_point(engine, engine->frozen_point)) {
-                    /* lv_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致"); */
-                }
-                /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
-            }
-            circuit_reset_context();
-            engine->last_status = ENGINE_STATUS_OK;
-            snprintf(engine->last_error, sizeof(engine->last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
-            return ENGINE_CIRCUIT_ROLLBACK;
-
-        case ENGINE_CIRCUIT_ACTION_DOWNGRADE: /* 永久降级：替换为高精度浮点数近似值 */
-            if (overflow_coord) {
-                /* 将溢出坐标永久降级为高精度有理数近似值。
-                 * 策略：创建新的有理数坐标，然后将其内容原地替换到
-                 * overflow_coord 中，使得所有引用该坐标的节点都能
-                 * 看到降级后的值。 */
-                double approx = symbolic_coord_to_double(overflow_coord);
-                if (fabs(approx) > lv_VALUE_TOO_LARGE) {
-                    /* 值过大，无法用 int64_t 分子精确表示，仅标记琥珀色 */
-                    symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
-                } else {
-                    SymbolicCoord *new_coord = symbolic_coord_create_rational(
-                        (int64_t) (approx * lv_DOWNGRADE_DENOMINATOR), lv_DOWNGRADE_DENOMINATOR);
-                    if (new_coord) {
-                        symbolic_coord_set_trust(new_coord, TRUST_AMBER);
-                        /* 原地替换：先释放 overflow_coord 的内部数据（但不释放
-                         * overflow_coord 结构体本身，因为外部仍持有其指针），
-                         * 再将 new_coord 的数据转移过来，最后仅释放 new_coord 外壳。
-                         * 注意：不能调用 symbolic_coord_destroy(overflow_coord)，
-                         * 因为它会 lv_free((void **) &coord) 整个结构体，导致后续写入为 use-after-free。 */
-                        switch (overflow_coord->type) {
-                            case RATIONAL:
-                                rational_destroy(overflow_coord->data.rational);
-                                break;
-                            case ALGEBRAIC:
-                                algebraic_destroy(overflow_coord->data.algebraic);
-                                break;
-                            case QUADRATIC:
-                                quadratic_destroy(overflow_coord->data.quadratic);
-                                break;
-                            case TRANSCENDENTAL:
-                                transcendental_destroy(overflow_coord->data.transcendental);
-                                break;
-                            default:
-                                break;
-                        }
-                        overflow_coord->type = new_coord->type;
-                        overflow_coord->data = new_coord->data;
-                        overflow_coord->trust = new_coord->trust;
-                        /* 仅释放 new_coord 的外壳，不释放其内部数据（已转移至 overflow_coord） */
-                        lv_free((void **) &new_coord);
-                    } else {
-                        /* new_coord 创建失败，仅标记琥珀色作为降级 */
-                        symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
-                    }
-                }
-            }
-            circuit_handle_overflow();
-            engine->last_status = ENGINE_STATUS_OK;
-            snprintf(engine->last_error, sizeof(engine->last_error), "engine: 通过永久降级为琥珀色处理了电路跳闸");
-            return ENGINE_CIRCUIT_DOWNGRADE;
-
-        default:
-            engine->last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(engine->last_error, sizeof(engine->last_error),
-                     "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
-            return ENGINE_CIRCUIT_ERROR;
+    if ((unsigned) action < lv_CIRCUIT_ACTION_HANDLER_COUNT) {
+        return s_circuit_action_handlers[action](engine, overflow_coord);
     }
+
+    engine->last_status = ENGINE_STATUS_INVALID_STATE;
+    snprintf(engine->last_error, sizeof(engine->last_error),
+             "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
+    return ENGINE_CIRCUIT_ERROR;
 }

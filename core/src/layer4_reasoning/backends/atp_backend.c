@@ -120,6 +120,20 @@ ATPConfig atp_config_default(void) {
 }
 
 /* ============================================================
+ * 静态辅助函数（TPTP 谓词格式化）
+ * ============================================================ */
+
+/** @brief 格式化 2-参谓词（如 incident(p%d, l%d)） */
+static void s_format_predicate_2(char *buf, size_t sz, const char *fmt, const int *parts) {
+    snprintf(buf, sz, fmt, parts[0], parts[1]);
+}
+
+/** @brief 格式化 3-参谓词（如 between(p%d, p%d, p%d)） */
+static void s_format_predicate_3(char *buf, size_t sz, const char *fmt, const int *parts) {
+    snprintf(buf, sz, fmt, parts[0], parts[1], parts[2]);
+}
+
+/* ============================================================
  * 约束图 -> TPTP 编码
  * ============================================================ */
 
@@ -146,22 +160,14 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
     int offset = 0;
     int remaining = lv_config_get_int(LV_CFG_ATP_TPTP_BUFFER_SIZE, ATP_TPTP_BUFFER_SIZE);
 
-    /* 根据格式选择头部 */
-    const char *lang;
-    switch (format) {
-        case ATP_FORMAT_TPTP_FOF:
-            lang = "fof";
-            break;
-        case ATP_FORMAT_TPTP_CNF:
-            lang = "cnf";
-            break;
-        case ATP_FORMAT_TPTP_TFF:
-            lang = "tff";
-            break;
-        default:
-            lang = "fof";
-            break;
-    }
+    /* 格式 -> TPTP 语言标识符 查找表 */
+    static const char *const s_format_lang_table[] = {
+        "fof",  /* ATP_FORMAT_TPTP_FOF = 0 */
+        "cnf",  /* ATP_FORMAT_TPTP_CNF = 1 */
+        "tff",  /* ATP_FORMAT_TPTP_TFF = 2 */
+    };
+    const char *lang = ((int)format >= 0 && (int)format <= ATP_FORMAT_TPTP_TFF)
+                       ? s_format_lang_table[format] : "fof";
 
     int n = snprintf(buf + offset, (size_t) remaining,
                      "%% TPTP %s encoding for Lv-00 constraint graph\n"
@@ -231,20 +237,20 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
             continue;
         }
 
-        /* 根据 participant 数量构建谓词字符串 */
+        /* 根据 participant 数量构建谓词字符串（查找表驱动） */
+        typedef void (*PredicateFormatFn)(char *, size_t, const char *, const int *);
+        static const PredicateFormatFn s_format_predicate_fn_table[] = {
+            NULL,                        /* 0 */
+            NULL,                        /* 1 */
+            s_format_predicate_2,        /* 2 */
+            s_format_predicate_3,        /* 3 */
+        };
         char predicate[128];
-        switch (entry->min_participants) {
-            case 2:
-                snprintf(predicate, sizeof(predicate), entry->predicate_fmt,
-                         con->participants[0], con->participants[1]);
-                break;
-            case 3:
-                snprintf(predicate, sizeof(predicate), entry->predicate_fmt,
-                         con->participants[0], con->participants[1], con->participants[2]);
-                break;
-            default:
-                continue;
+        int pc = entry->min_participants;
+        if (pc < 2 || pc > 3 || !s_format_predicate_fn_table[pc]) {
+            continue;
         }
+        s_format_predicate_fn_table[pc](predicate, sizeof(predicate), entry->predicate_fmt, con->participants);
 
         n = snprintf(buf + offset, (size_t) remaining,
                      "%s(constraint_%d, axiom, %s).\n",
@@ -336,16 +342,17 @@ ATPBackendType atp_solver_get_type(const ATPBackendSolver *solver) {
  * @brief 获取 ATP 后端对应的可执行文件名
  */
 static const char *atp_executable_name(ATPBackendType type) {
-    switch (type) {
-        case ATP_BACKEND_VAMPIRE:
-            return "vampire";
-        case ATP_BACKEND_EPROVER:
-            return "eprover";
-        case ATP_BACKEND_IPROVER:
-            return "iprover";
-        default:
-            return NULL;
+    /* 后端类型 -> 可执行文件名 查找表（按枚举值升序） */
+    static const char *const s_executable_name_table[] = {
+        "vampire",   /* ATP_BACKEND_VAMPIRE = 0 */
+        "eprover",   /* ATP_BACKEND_EPROVER = 1 */
+        "iprover",   /* ATP_BACKEND_IPROVER = 2 */
+        NULL,        /* ATP_BACKEND_CUSTOM = 3 */
+    };
+    if ((int)type >= 0 && (int)type < ATP_BACKEND_CUSTOM) {
+        return s_executable_name_table[type];
     }
+    return NULL;
 }
 
 /**
@@ -988,19 +995,15 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
     char extra_args[512];
     extra_args[0] = '\0';
 
-    /* 通用参数 */
-    const char *mode = "--mode";
-    switch (solver->config.input_format) {
-        case ATP_FORMAT_TPTP_CNF:
-            mode = "--cnf";
-            break;
-        case ATP_FORMAT_TPTP_TFF:
-            mode = "--tff";
-            break;
-        default:
-            mode = "--fof";
-            break;
-    }
+    /* 输入格式 -> 模式参数 查找表 */
+    static const char *const s_format_mode_table[] = {
+        "--fof",  /* ATP_FORMAT_TPTP_FOF = 0 */
+        "--cnf",  /* ATP_FORMAT_TPTP_CNF = 1 */
+        "--tff",  /* ATP_FORMAT_TPTP_TFF = 2 */
+    };
+    const char *mode = ((int)solver->config.input_format >= 0
+                        && (int)solver->config.input_format <= ATP_FORMAT_TPTP_TFF)
+                       ? s_format_mode_table[solver->config.input_format] : "--fof";
 
     snprintf(extra_args, sizeof(extra_args), "%s -t %d --proof tptp", mode, (int) solver->config.timeout_seconds);
 

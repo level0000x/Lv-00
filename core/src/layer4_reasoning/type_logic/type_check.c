@@ -79,6 +79,8 @@ static lv_THREAD_LOCAL int s_equiv_visited_count = 0;
 /* 前向声明 */
 static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
                                                        bool use_rewrite, int depth);
+static bool type_detect_cycle_dfs(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack);
+static bool type_normalize_internal(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized, int depth);
 
 /**
  * 递归检查两个类型的等价性（用于二元复合类型）
@@ -109,6 +111,470 @@ static inline TypeEquivResult check_binary_type_equiv(TypeSystem *ts, TypeRegion
     VISITED_CHECK(sub2, other2);
     return type_check_equivalence_internal(ts, sub2, other2, use_rw, d + 1);
 }
+
+/* ============== VTable 类型分发 ============== */
+
+/* TYPE_KIND 枚举值数量（从 TYPE_KIND_POINT 到 TYPE_KIND_PREDICATE_SUBTYPE 共 10 个） */
+#define TYPE_KIND_COUNT 10
+
+/* ---------- 二元等价检查 VTable（switch #1：重写路径中的快捷比较） ---------- */
+typedef TypeEquivResult (*BinaryEquivHandler)(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                              bool use_rewrite, int depth);
+
+static TypeEquivResult binary_equiv_function(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                             bool use_rewrite, int depth) {
+    return check_binary_type_equiv(ts, type1, type2, type1->input_type, type1->output_type,
+                                   type2->input_type, type2->output_type, use_rewrite, depth);
+}
+static TypeEquivResult binary_equiv_product(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                            bool use_rewrite, int depth) {
+    return check_binary_type_equiv(ts, type1, type2, type1->left_type, type1->right_type,
+                                   type2->left_type, type2->right_type, use_rewrite, depth);
+}
+static TypeEquivResult binary_equiv_sum(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                        bool use_rewrite, int depth) {
+    return check_binary_type_equiv(ts, type1, type2, type1->first_type, type1->second_type,
+                                   type2->first_type, type2->second_type, use_rewrite, depth);
+}
+
+static BinaryEquivHandler s_binary_equiv_handlers[TYPE_KIND_COUNT] = {
+    [TYPE_KIND_FUNCTION] = binary_equiv_function,
+    [TYPE_KIND_PRODUCT]  = binary_equiv_product,
+    [TYPE_KIND_SUM]      = binary_equiv_sum,
+};
+
+/* ---------- 结构等价检查 VTable（switch #2：完整结构比较） ---------- */
+typedef TypeEquivResult (*StructEquivHandler)(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                              bool use_rewrite, int depth);
+
+static TypeEquivResult struct_equiv_primitive(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                              bool use_rewrite, int depth) {
+    (void)ts; (void)type1; (void)type2; (void)use_rewrite; (void)depth;
+    return TYPE_EQUIV_OK;
+}
+
+static TypeEquivResult struct_equiv_region(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                           bool use_rewrite, int depth) {
+    (void)use_rewrite; (void)depth;
+    if (type1->contained_count != type2->contained_count) {
+        return TYPE_EQUIV_NOT_EQUIV;
+    }
+    {
+        if (type1->contained_node_ids && type2->contained_node_ids) {
+            int count = type1->contained_count;
+            int *sorted1 = lv_malloc((size_t) count * sizeof(int));
+            int *sorted2 = lv_malloc((size_t) count * sizeof(int));
+            if (!sorted1 || !sorted2) {
+                lv_free((void **) &sorted1);
+                lv_free((void **) &sorted2);
+                return TYPE_EQUIV_ERROR;
+            }
+            memcpy(sorted1, type1->contained_node_ids, count * sizeof(int));
+            memcpy(sorted2, type2->contained_node_ids, count * sizeof(int));
+            qsort(sorted1, count, sizeof(int), lv_cmp_int);
+            qsort(sorted2, count, sizeof(int), lv_cmp_int);
+
+            bool equiv = true;
+            int i = 0, j = 0;
+            while (i < count && j < count) {
+                if (sorted1[i] == sorted2[j]) {
+                    i++;
+                    j++;
+                } else if (sorted1[i] < sorted2[j]) {
+                    equiv = false;
+                    break;
+                } else {
+                    equiv = false;
+                    break;
+                }
+            }
+            if (equiv && (i < count || j < count)) {
+                equiv = false;
+            }
+
+            lv_free((void **) &sorted1);
+            lv_free((void **) &sorted2);
+            return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
+        }
+
+        if (type1->constraint_ids && type2->constraint_ids) {
+            if (type1->constraint_count != type2->constraint_count) {
+                return TYPE_EQUIV_NOT_EQUIV;
+            }
+
+            int count = type1->constraint_count;
+            int *sorted1 = lv_malloc((size_t) count * sizeof(int));
+            int *sorted2 = lv_malloc((size_t) count * sizeof(int));
+            if (!sorted1 || !sorted2) {
+                lv_free((void **) &sorted1);
+                lv_free((void **) &sorted2);
+                return TYPE_EQUIV_ERROR;
+            }
+            memcpy(sorted1, type1->constraint_ids, count * sizeof(int));
+            memcpy(sorted2, type2->constraint_ids, count * sizeof(int));
+            qsort(sorted1, count, sizeof(int), lv_cmp_int);
+            qsort(sorted2, count, sizeof(int), lv_cmp_int);
+
+            bool equiv = true;
+            int i = 0, j = 0;
+            while (i < count && j < count) {
+                if (sorted1[i] == sorted2[j]) {
+                    i++;
+                    j++;
+                } else if (sorted1[i] < sorted2[j]) {
+                    equiv = false;
+                    break;
+                } else {
+                    equiv = false;
+                    break;
+                }
+            }
+            if (equiv && (i < count || j < count)) {
+                equiv = false;
+            }
+
+            lv_free((void **) &sorted1);
+            lv_free((void **) &sorted2);
+            return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
+        }
+
+        if (!type1->contained_node_ids && !type2->contained_node_ids && !type1->constraint_ids &&
+            !type2->constraint_ids) {
+            return type1->level == type2->level ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
+        }
+
+        return TYPE_EQUIV_UNKNOWN;
+    }
+}
+
+static TypeEquivResult struct_equiv_function(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                             bool use_rewrite, int depth) {
+    VISITED_CHECK(type1->input_type, type2->input_type);
+    TypeEquivResult input_result =
+        type_check_equivalence_internal(ts, type1->input_type, type2->input_type, use_rewrite, depth + 1);
+    if (input_result != TYPE_EQUIV_OK)
+        return input_result;
+    VISITED_CHECK(type1->output_type, type2->output_type);
+    return type_check_equivalence_internal(ts, type1->output_type, type2->output_type, use_rewrite, depth + 1);
+}
+
+static TypeEquivResult struct_equiv_product(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                            bool use_rewrite, int depth) {
+    VISITED_CHECK(type1->left_type, type2->left_type);
+    TypeEquivResult left_result =
+        type_check_equivalence_internal(ts, type1->left_type, type2->left_type, use_rewrite, depth + 1);
+    if (left_result != TYPE_EQUIV_OK)
+        return left_result;
+    VISITED_CHECK(type1->right_type, type2->right_type);
+    return type_check_equivalence_internal(ts, type1->right_type, type2->right_type, use_rewrite, depth + 1);
+}
+
+static TypeEquivResult struct_equiv_sum(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                        bool use_rewrite, int depth) {
+    VISITED_CHECK(type1->first_type, type2->first_type);
+    TypeEquivResult first_result =
+        type_check_equivalence_internal(ts, type1->first_type, type2->first_type, use_rewrite, depth + 1);
+    if (first_result != TYPE_EQUIV_OK)
+        return first_result;
+    VISITED_CHECK(type1->second_type, type2->second_type);
+    return type_check_equivalence_internal(ts, type1->second_type, type2->second_type, use_rewrite, depth + 1);
+}
+
+static TypeEquivResult struct_equiv_variable(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                             bool use_rewrite, int depth) {
+    (void)ts; (void)use_rewrite; (void)depth;
+    if (type1->variable_id == type2->variable_id) {
+        return TYPE_EQUIV_OK;
+    }
+    return TYPE_EQUIV_UNKNOWN;
+}
+
+static TypeEquivResult struct_equiv_dependent(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                              bool use_rewrite, int depth) {
+    if (type1->param_node_id <= 0 || type2->param_node_id <= 0) {
+        return TYPE_EQUIV_UNKNOWN;
+    }
+    if (!type1->body_type || !type2->body_type) {
+        return TYPE_EQUIV_ERROR;
+    }
+    if (type1->param_node_id == type2->param_node_id) {
+        VISITED_CHECK(type1->body_type, type2->body_type);
+        return type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
+    }
+    {
+        TypeRegion canonical_var;
+        memset(&canonical_var, 0, sizeof(canonical_var));
+        canonical_var.kind = TYPE_KIND_VARIABLE;
+        canonical_var.variable_id = -1;
+
+        TypeRegion *norm_body1 = NULL;
+        bool sub1_ok = type_substitute_variable(ts, type1->body_type, type1->param_node_id, &canonical_var, &norm_body1);
+
+        TypeRegion *norm_body2 = NULL;
+        bool sub2_ok = type_substitute_variable(ts, type2->body_type, type2->param_node_id, &canonical_var, &norm_body2);
+
+        if (sub1_ok && sub2_ok && norm_body1 && norm_body2) {
+            VISITED_CHECK(norm_body1, norm_body2);
+            TypeEquivResult body_result =
+                type_check_equivalence_internal(ts, norm_body1, norm_body2, use_rewrite, depth + 1);
+            type_region_deep_free(norm_body1);
+            type_region_deep_free(norm_body2);
+            return body_result;
+        }
+
+        if (norm_body1) type_region_deep_free(norm_body1);
+        if (norm_body2) type_region_deep_free(norm_body2);
+
+        if (type1->body_type->kind != type2->body_type->kind) {
+            return TYPE_EQUIV_NOT_EQUIV;
+        }
+
+        VISITED_CHECK(type1->body_type, type2->body_type);
+        TypeEquivResult body_result =
+            type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
+        if (body_result == TYPE_EQUIV_OK) {
+            return TYPE_EQUIV_OK;
+        }
+        return TYPE_EQUIV_UNKNOWN;
+    }
+}
+
+static StructEquivHandler s_struct_equiv_handlers[TYPE_KIND_COUNT] = {
+    [TYPE_KIND_POINT]          = struct_equiv_primitive,
+    [TYPE_KIND_LINE_SEGMENT]   = struct_equiv_primitive,
+    [TYPE_KIND_BOTTOM]         = struct_equiv_primitive,
+    [TYPE_KIND_REGION]         = struct_equiv_region,
+    [TYPE_KIND_FUNCTION]       = struct_equiv_function,
+    [TYPE_KIND_PRODUCT]        = struct_equiv_product,
+    [TYPE_KIND_SUM]            = struct_equiv_sum,
+    [TYPE_KIND_VARIABLE]       = struct_equiv_variable,
+    [TYPE_KIND_DEPENDENT]      = struct_equiv_dependent,
+};
+
+/* ---------- 循环检测 VTable（switch #4） ---------- */
+typedef bool (*CycleDetectHandler)(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack);
+
+static bool cycle_detect_function(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
+    bool has_cycle = false;
+    if (current->input_type) {
+        has_cycle = type_detect_cycle_dfs(ts, current->input_type, visited, on_stack);
+    }
+    if (!has_cycle && current->output_type) {
+        has_cycle = type_detect_cycle_dfs(ts, current->output_type, visited, on_stack);
+    }
+    return has_cycle;
+}
+
+static bool cycle_detect_product(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
+    bool has_cycle = false;
+    if (current->left_type) {
+        has_cycle = type_detect_cycle_dfs(ts, current->left_type, visited, on_stack);
+    }
+    if (!has_cycle && current->right_type) {
+        has_cycle = type_detect_cycle_dfs(ts, current->right_type, visited, on_stack);
+    }
+    return has_cycle;
+}
+
+static bool cycle_detect_sum(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
+    bool has_cycle = false;
+    if (current->first_type) {
+        has_cycle = type_detect_cycle_dfs(ts, current->first_type, visited, on_stack);
+    }
+    if (!has_cycle && current->second_type) {
+        has_cycle = type_detect_cycle_dfs(ts, current->second_type, visited, on_stack);
+    }
+    return has_cycle;
+}
+
+static bool cycle_detect_dependent(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
+    bool has_cycle = false;
+    if (current->body_type) {
+        has_cycle = type_detect_cycle_dfs(ts, current->body_type, visited, on_stack);
+    }
+    return has_cycle;
+}
+
+static bool cycle_detect_region(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
+    bool has_cycle = false;
+    if (current->aliased_type) {
+        has_cycle = type_detect_cycle_dfs(ts, current->aliased_type, visited, on_stack);
+    }
+    return has_cycle;
+}
+
+static bool cycle_detect_variable(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
+    bool has_cycle = false;
+    if (current->variable_id > 0) {
+        for (int i = 0; i < ts->type_var_count; i++) {
+            if (ts->type_vars[i] && ts->type_vars[i]->id == current->variable_id) {
+                if (ts->type_vars[i]->bound_type) {
+                    has_cycle = type_detect_cycle_dfs(ts, ts->type_vars[i]->bound_type, visited, on_stack);
+                }
+                break;
+            }
+        }
+    }
+    return has_cycle;
+}
+
+static bool cycle_detect_none(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
+    (void)ts; (void)current; (void)visited; (void)on_stack;
+    return false;
+}
+
+static CycleDetectHandler s_cycle_detect_handlers[TYPE_KIND_COUNT] = {
+    [TYPE_KIND_FUNCTION]     = cycle_detect_function,
+    [TYPE_KIND_PRODUCT]      = cycle_detect_product,
+    [TYPE_KIND_SUM]          = cycle_detect_sum,
+    [TYPE_KIND_DEPENDENT]    = cycle_detect_dependent,
+    [TYPE_KIND_REGION]       = cycle_detect_region,
+    [TYPE_KIND_VARIABLE]     = cycle_detect_variable,
+    [TYPE_KIND_POINT]        = cycle_detect_none,
+    [TYPE_KIND_LINE_SEGMENT] = cycle_detect_none,
+    [TYPE_KIND_BOTTOM]       = cycle_detect_none,
+};
+
+/* ---------- 类型规范化 VTable（switch #5） ---------- */
+typedef bool (*NormalizeHandler)(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized, int depth);
+
+static bool normalize_function(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized, int depth) {
+    TypeRegion *norm_input = NULL;
+    TypeRegion *norm_output = NULL;
+
+    if (type->input_type) {
+        type_normalize_internal(ts, type->input_type, &norm_input, depth + 1);
+    }
+    if (type->output_type) {
+        type_normalize_internal(ts, type->output_type, &norm_output, depth + 1);
+    }
+
+    if (norm_input || norm_output) {
+        *out_normalized = type_create_function(ts, norm_input ? norm_input : type->input_type,
+                                               norm_output ? norm_output : type->output_type);
+    } else {
+        *out_normalized = type;
+    }
+    return true;
+}
+
+static bool normalize_product(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized, int depth) {
+    TypeRegion *norm_left = NULL;
+    TypeRegion *norm_right = NULL;
+
+    if (type->left_type) {
+        type_normalize_internal(ts, type->left_type, &norm_left, depth + 1);
+    }
+    if (type->right_type) {
+        type_normalize_internal(ts, type->right_type, &norm_right, depth + 1);
+    }
+
+    if (norm_left || norm_right) {
+        *out_normalized = type_create_product(ts, norm_left ? norm_left : type->left_type,
+                                              norm_right ? norm_right : type->right_type);
+    } else {
+        *out_normalized = type;
+    }
+    return true;
+}
+
+static bool normalize_dependent(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized, int depth) {
+    TypeRegion *norm_body = NULL;
+
+    if (type->body_type) {
+        type_normalize_internal(ts, type->body_type, &norm_body, depth + 1);
+    }
+
+    if (norm_body) {
+        *out_normalized = type_create_dependent(ts, type->param_node_id, norm_body);
+    } else {
+        *out_normalized = type;
+    }
+    return true;
+}
+
+static bool normalize_identity(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized, int depth) {
+    (void)ts; (void)depth;
+    *out_normalized = type;
+    return true;
+}
+
+static NormalizeHandler s_normalize_handlers[TYPE_KIND_COUNT] = {
+    [TYPE_KIND_FUNCTION]   = normalize_function,
+    [TYPE_KIND_PRODUCT]    = normalize_product,
+    [TYPE_KIND_DEPENDENT]  = normalize_dependent,
+    [TYPE_KIND_POINT]      = normalize_identity,
+    [TYPE_KIND_LINE_SEGMENT] = normalize_identity,
+    [TYPE_KIND_REGION]     = normalize_identity,
+    [TYPE_KIND_SUM]        = normalize_identity,
+    [TYPE_KIND_VARIABLE]   = normalize_identity,
+    [TYPE_KIND_BOTTOM]     = normalize_identity,
+};
+
+/* ---------- 依赖类型检查 VTable（switch #6） ---------- */
+typedef bool (*DependentCheckHandler)(const TypeSystem *ts, const TypeRegion *output_type,
+                                      const TypeRegion *input_type, const SymbolicCoord **input_values);
+
+static bool dep_check_primitive(const TypeSystem *ts, const TypeRegion *output_type,
+                                const TypeRegion *input_type, const SymbolicCoord **input_values) {
+    (void)ts; (void)output_type; (void)input_type; (void)input_values;
+    return true;
+}
+
+static bool dep_check_function(const TypeSystem *ts, const TypeRegion *output_type,
+                               const TypeRegion *input_type, const SymbolicCoord **input_values) {
+    bool input_ok = true, output_ok = true;
+    if (output_type->input_type && input_type->input_type) {
+        input_ok = type_check_dependent(ts, output_type->input_type, input_type->input_type, input_values);
+    }
+    if (input_ok && output_type->output_type && input_type->output_type) {
+        output_ok = type_check_dependent(ts, output_type->output_type, input_type->output_type, input_values);
+    }
+    return (input_ok && output_ok);
+}
+
+static bool dep_check_product(const TypeSystem *ts, const TypeRegion *output_type,
+                              const TypeRegion *input_type, const SymbolicCoord **input_values) {
+    bool left_ok = true, right_ok = true;
+    if (output_type->left_type && input_type->left_type) {
+        left_ok = type_check_dependent(ts, output_type->left_type, input_type->left_type, input_values);
+    }
+    if (left_ok && output_type->right_type && input_type->right_type) {
+        right_ok = type_check_dependent(ts, output_type->right_type, input_type->right_type, input_values);
+    }
+    return (left_ok && right_ok);
+}
+
+static bool dep_check_sum(const TypeSystem *ts, const TypeRegion *output_type,
+                          const TypeRegion *input_type, const SymbolicCoord **input_values) {
+    bool first_ok = true, second_ok = true;
+    if (output_type->first_type && input_type->first_type) {
+        first_ok = type_check_dependent(ts, output_type->first_type, input_type->first_type, input_values);
+    }
+    if (first_ok && output_type->second_type && input_type->second_type) {
+        second_ok = type_check_dependent(ts, output_type->second_type, input_type->second_type, input_values);
+    }
+    return (first_ok && second_ok);
+}
+
+static bool dep_check_false(const TypeSystem *ts, const TypeRegion *output_type,
+                            const TypeRegion *input_type, const SymbolicCoord **input_values) {
+    (void)ts; (void)output_type; (void)input_type; (void)input_values;
+    return false;
+}
+
+static DependentCheckHandler s_dependent_check_handlers[TYPE_KIND_COUNT] = {
+    [TYPE_KIND_POINT]          = dep_check_primitive,
+    [TYPE_KIND_LINE_SEGMENT]   = dep_check_primitive,
+    [TYPE_KIND_REGION]         = dep_check_primitive,
+    [TYPE_KIND_FUNCTION]       = dep_check_function,
+    [TYPE_KIND_PRODUCT]        = dep_check_product,
+    [TYPE_KIND_SUM]            = dep_check_sum,
+    [TYPE_KIND_VARIABLE]       = dep_check_primitive,
+    [TYPE_KIND_BOTTOM]         = dep_check_primitive,
+    [TYPE_KIND_DEPENDENT]      = dep_check_false,
+    [TYPE_KIND_PREDICATE_SUBTYPE] = dep_check_false,
+};
 
 /* ============== 谓词子类型检查 ============== */
 
@@ -197,27 +663,14 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
 
         /* 检查类型种类 */
         if (type1->kind == type2->kind) {
-            /* 类型种类相同：对复合类型进行递归的深度受限归一化比较 */
-            switch (type1->kind) {
-                case TYPE_KIND_FUNCTION:
-                    /* 函数类型：递归比较输入和输出类型的等价性 */
-                    return check_binary_type_equiv(ts, type1, type2, type1->input_type, type1->output_type,
-                                                   type2->input_type, type2->output_type, use_rewrite, depth);
-
-                case TYPE_KIND_PRODUCT:
-                    /* 乘积类型：递归比较各分量类型的等价性 */
-                    return check_binary_type_equiv(ts, type1, type2, type1->left_type, type1->right_type,
-                                                   type2->left_type, type2->right_type, use_rewrite, depth);
-
-                case TYPE_KIND_SUM:
-                    /* 和类型：递归比较各分量类型的等价性 */
-                    return check_binary_type_equiv(ts, type1, type2, type1->first_type, type1->second_type,
-                                                   type2->first_type, type2->second_type, use_rewrite, depth);
-
-                default:
-                    /* 非复合类型，种类相同，继续执行下面的结构比较逻辑 */
-                    break;
+            /* 类型种类相同：通过 VTable 对复合类型进行递归的深度受限归一化比较 */
+            if (type1->kind >= 0 && type1->kind < TYPE_KIND_COUNT) {
+                BinaryEquivHandler handler = s_binary_equiv_handlers[type1->kind];
+                if (handler) {
+                    return handler(ts, type1, type2, use_rewrite, depth);
+                }
             }
+            /* 非复合类型，种类相同，继续执行下面的结构比较逻辑 */
         } else if (type1->kind == TYPE_KIND_VARIABLE || type2->kind == TYPE_KIND_VARIABLE) {
             /* 类型变量的等价性检查。
              * 当类型变量已被实例化（bound_type != NULL）时，应递归检查
@@ -274,272 +727,15 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
         return TYPE_EQUIV_NOT_EQUIV;
     }
 
-    switch (type1->kind) {
-        case TYPE_KIND_POINT:
-        case TYPE_KIND_LINE_SEGMENT:
-        case TYPE_KIND_BOTTOM:
-            /* 基本类型：种类相同即等价 */
-            return TYPE_EQUIV_OK;
-
-        case TYPE_KIND_REGION:
-            /* 区域类型：检查包含的节点 */
-            if (type1->contained_count != type2->contained_count) {
-                return TYPE_EQUIV_NOT_EQUIV;
-            }
-            /* 区域等价检查：两个区域等价当且仅当它们有相同的边界
-             * 边界由形成闭合边界的线段集合定义
-             *
-             * 检查策略：
-             * 1. 如果两个区域都有 contained_node_ids，检查它们是否包含相同的节点集合
-             * 2. 如果两个区域都有约束条件，检查约束是否等价
-             * 3. 如果都没有额外信息，则认为相同类型的区域等价
-             */
-            {
-                /* 情况1：都有包含节点，检查节点集合是否相同 */
-                if (type1->contained_node_ids && type2->contained_node_ids) {
-                    /* 排序+双指针 O(n log n) 优化 */
-                    int count = type1->contained_count;
-                    int *sorted1 = lv_malloc((size_t) count * sizeof(int));
-                    int *sorted2 = lv_malloc((size_t) count * sizeof(int));
-                    if (!sorted1 || !sorted2) {
-                        lv_free((void **) &sorted1);
-                        lv_free((void **) &sorted2);
-                        return TYPE_EQUIV_ERROR;
-                    }
-                    memcpy(sorted1, type1->contained_node_ids, count * sizeof(int));
-                    memcpy(sorted2, type2->contained_node_ids, count * sizeof(int));
-                    qsort(sorted1, count, sizeof(int), lv_cmp_int);
-                    qsort(sorted2, count, sizeof(int), lv_cmp_int);
-
-                    /* 双指针线性扫描 */
-                    bool equiv = true;
-                    int i = 0, j = 0;
-                    while (i < count && j < count) {
-                        if (sorted1[i] == sorted2[j]) {
-                            i++;
-                            j++;
-                        } else if (sorted1[i] < sorted2[j]) {
-                            equiv = false;
-                            break;
-                        } else {
-                            equiv = false;
-                            break;
-                        }
-                    }
-                    if (equiv && (i < count || j < count)) {
-                        equiv = false;
-                    }
-
-                    lv_free((void **) &sorted1);
-                    lv_free((void **) &sorted2);
-                    return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
-                }
-
-                /* 情况2：检查约束条件是否等价 */
-                if (type1->constraint_ids && type2->constraint_ids) {
-                    if (type1->constraint_count != type2->constraint_count) {
-                        return TYPE_EQUIV_NOT_EQUIV;
-                    }
-
-                    /* 排序+双指针 O(n log n) 优化 */
-                    int count = type1->constraint_count;
-                    int *sorted1 = lv_malloc((size_t) count * sizeof(int));
-                    int *sorted2 = lv_malloc((size_t) count * sizeof(int));
-                    if (!sorted1 || !sorted2) {
-                        lv_free((void **) &sorted1);
-                        lv_free((void **) &sorted2);
-                        return TYPE_EQUIV_ERROR;
-                    }
-                    memcpy(sorted1, type1->constraint_ids, count * sizeof(int));
-                    memcpy(sorted2, type2->constraint_ids, count * sizeof(int));
-                    qsort(sorted1, count, sizeof(int), lv_cmp_int);
-                    qsort(sorted2, count, sizeof(int), lv_cmp_int);
-
-                    /* 双指针线性扫描 */
-                    bool equiv = true;
-                    int i = 0, j = 0;
-                    while (i < count && j < count) {
-                        if (sorted1[i] == sorted2[j]) {
-                            i++;
-                            j++;
-                        } else if (sorted1[i] < sorted2[j]) {
-                            equiv = false;
-                            break;
-                        } else {
-                            equiv = false;
-                            break;
-                        }
-                    }
-                    if (equiv && (i < count || j < count)) {
-                        equiv = false;
-                    }
-
-                    lv_free((void **) &sorted1);
-                    lv_free((void **) &sorted2);
-                    return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
-                }
-
-                /* 情况3：都没有额外信息，检查层级是否相同 */
-                if (!type1->contained_node_ids && !type2->contained_node_ids && !type1->constraint_ids &&
-                    !type2->constraint_ids) {
-                    /* 两个空区域，层级相同则等价 */
-                    return type1->level == type2->level ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
-                }
-
-                /* 情况4：一个有信息一个没有，无法确定 */
-                return TYPE_EQUIV_UNKNOWN;
-            }
-
-        case TYPE_KIND_FUNCTION:
-            /* 函数类型：递归检查输入和输出 */
-            {
-                VISITED_CHECK(type1->input_type, type2->input_type);
-                TypeEquivResult input_result =
-                    type_check_equivalence_internal(ts, type1->input_type, type2->input_type, use_rewrite, depth + 1);
-                if (input_result != TYPE_EQUIV_OK)
-                    return input_result;
-
-                VISITED_CHECK(type1->output_type, type2->output_type);
-                return type_check_equivalence_internal(ts, type1->output_type, type2->output_type, use_rewrite,
-                                                       depth + 1);
-            }
-
-        case TYPE_KIND_PRODUCT:
-            /* 乘积类型：递归检查左右类型 */
-            {
-                VISITED_CHECK(type1->left_type, type2->left_type);
-                TypeEquivResult left_result =
-                    type_check_equivalence_internal(ts, type1->left_type, type2->left_type, use_rewrite, depth + 1);
-                if (left_result != TYPE_EQUIV_OK)
-                    return left_result;
-
-                VISITED_CHECK(type1->right_type, type2->right_type);
-                return type_check_equivalence_internal(ts, type1->right_type, type2->right_type, use_rewrite,
-                                                       depth + 1);
-            }
-
-        case TYPE_KIND_SUM:
-            /* 和类型：递归检查两个分支 */
-            {
-                VISITED_CHECK(type1->first_type, type2->first_type);
-                TypeEquivResult first_result =
-                    type_check_equivalence_internal(ts, type1->first_type, type2->first_type, use_rewrite, depth + 1);
-                if (first_result != TYPE_EQUIV_OK)
-                    return first_result;
-
-                VISITED_CHECK(type1->second_type, type2->second_type);
-                return type_check_equivalence_internal(ts, type1->second_type, type2->second_type, use_rewrite,
-                                                       depth + 1);
-            }
-
-        case TYPE_KIND_VARIABLE:
-            /* 类型变量：检查变量ID */
-            if (type1->variable_id == type2->variable_id) {
-                return TYPE_EQUIV_OK;
-            }
-            /* 不同变量可能被实例化为相同类型 */
-            return TYPE_EQUIV_UNKNOWN;
-
-        case TYPE_KIND_DEPENDENT:
-            /* 依赖类型 Pi(x:A).B(x) 的等价检查
-             *
-             * 两个依赖类型 Pi(x:A1).B1(x) 和 Pi(y:A2).B2(y) 等价当且仅当：
-             * 1. A1 和 A2 等价（参数类型相同）
-             * 2. B1 和 B2 在参数替换后等价（alpha等价）
-             *
-             * Alpha等价实现策略：
-             * - 使用 De Bruijn 索引方法：将两个依赖类型的参数统一重命名为
-             *   同一个规范变量（canonical_var），然后在体类型中替换各自的参数
-             *   为该规范变量，最后比较替换后的体类型。
-             */
-            {
-                /* 首先检查参数节点是否有效 */
-                if (type1->param_node_id <= 0 || type2->param_node_id <= 0) {
-                    /* 参数节点无效，无法进行完整检查 */
-                    return TYPE_EQUIV_UNKNOWN;
-                }
-
-                /* 检查体类型是否存在 */
-                if (!type1->body_type || !type2->body_type) {
-                    return TYPE_EQUIV_ERROR;
-                }
-
-                /* 策略1：相同参数节点ID，直接比较体类型 */
-                if (type1->param_node_id == type2->param_node_id) {
-                    VISITED_CHECK(type1->body_type, type2->body_type);
-                    return type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite,
-                                                           depth + 1);
-                }
-
-                /*
-                 * 策略2：Alpha等价 - 使用 De Bruijn 索引规范化
-                 *
-                 * 步骤：
-                 * 1. 创建一个规范类型变量（使用固定ID -1 表示内部规范变量）
-                 * 2. 将 type1 的体类型中的 param_node_id 替换为规范变量
-                 * 3. 将 type2 的体类型中的 param_node_id 替换为规范变量
-                 * 4. 比较两个替换后的体类型
-                 *
-                 * 由于 type_substitute_variable 需要一个 TypeRegion* 作为替换目标，
-                 * 我们创建一个简单的 TYPE_KIND_VARIABLE 节点作为规范变量。
-                 */
-
-                /* 创建规范变量节点（De Bruijn index 0 → variable_id = -1） */
-                TypeRegion canonical_var;
-                memset(&canonical_var, 0, sizeof(canonical_var));
-                canonical_var.kind = TYPE_KIND_VARIABLE;
-                canonical_var.variable_id = -1; /* 规范变量标记 */
-
-                /* 替换 type1 体类型中的参数为规范变量 */
-                TypeRegion *norm_body1 = NULL;
-                bool sub1_ok =
-                    type_substitute_variable(ts, type1->body_type, type1->param_node_id, &canonical_var, &norm_body1);
-
-                /* 替换 type2 体类型中的参数为规范变量 */
-                TypeRegion *norm_body2 = NULL;
-                bool sub2_ok =
-                    type_substitute_variable(ts, type2->body_type, type2->param_node_id, &canonical_var, &norm_body2);
-
-                if (sub1_ok && sub2_ok && norm_body1 && norm_body2) {
-                    /* 两个替换都成功，比较规范化后的体类型 */
-                    VISITED_CHECK(norm_body1, norm_body2);
-                    TypeEquivResult body_result =
-                        type_check_equivalence_internal(ts, norm_body1, norm_body2, use_rewrite, depth + 1);
-
-                    /* 释放临时规范化类型（仅释放容器，不释放共享的 canonical_var） */
-                    type_region_deep_free(norm_body1);
-                    type_region_deep_free(norm_body2);
-
-                    return body_result;
-                }
-
-                /* 替换失败，清理并回退到结构比较 */
-                if (norm_body1)
-                    type_region_deep_free(norm_body1);
-                if (norm_body2)
-                    type_region_deep_free(norm_body2);
-
-                /* 回退：检查体类型的种类是否相同 */
-                if (type1->body_type->kind != type2->body_type->kind) {
-                    return TYPE_EQUIV_NOT_EQUIV;
-                }
-
-                /* 对于简单情况，直接比较体类型（忽略参数差异） */
-                VISITED_CHECK(type1->body_type, type2->body_type);
-                TypeEquivResult body_result =
-                    type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
-
-                if (body_result == TYPE_EQUIV_OK) {
-                    return TYPE_EQUIV_OK;
-                }
-
-                return TYPE_EQUIV_UNKNOWN;
-            }
-
-        default:
-            /* 未知类型种类 */
-            return TYPE_EQUIV_NOT_EQUIV;
+    /* 通过 VTable 进行结构等价检查 */
+    if (type1->kind >= 0 && type1->kind < TYPE_KIND_COUNT) {
+        StructEquivHandler handler = s_struct_equiv_handlers[type1->kind];
+        if (handler) {
+            return handler(ts, type1, type2, use_rewrite, depth);
+        }
     }
+    /* 未知类型种类 */
+    return TYPE_EQUIV_NOT_EQUIV;
 }
 
 /**
@@ -602,30 +798,20 @@ TypeCheckResult type_check_port_compatibility(TypeSystem *ts, TypeRegion *source
     /* 检查类型等价 */
     TypeEquivResult equiv = type_check_equivalence(ts, source_type, target_type, true);
 
+    /* 等价结果到检查结果的映射表 */
+    static const TypeCheckResult s_equiv_to_check_result[] = {
+        [TYPE_EQUIV_OK] = TYPE_CHECK_OK,
+        [TYPE_EQUIV_NOT_EQUIV] = TYPE_CHECK_MISMATCH,
+        [TYPE_EQUIV_UNKNOWN] = TYPE_CHECK_INCOMPATIBLE,
+        [TYPE_EQUIV_ERROR] = TYPE_CHECK_ERROR,
+        [TYPE_EQUIV_NEEDS_INTERACTION] = TYPE_CHECK_ERROR,
+    };
     TypeCheckResult result;
 
-    switch (equiv) {
-        case TYPE_EQUIV_OK:
-            result = TYPE_CHECK_OK;
-            break;
-
-        case TYPE_EQUIV_NOT_EQUIV:
-            result = TYPE_CHECK_MISMATCH;
-            break;
-
-        case TYPE_EQUIV_UNKNOWN:
-            /* 端口兼容性检查采用保守策略。
-             * 之前 TYPE_EQUIV_UNKNOWN 时返回 TYPE_CHECK_OK（允许连接），
-             * 这可能导致类型不安全的连接通过检查。
-             * 改为返回 TYPE_CHECK_INCOMPATIBLE，在无法证明等价时拒绝连接，
-             * 确保类型安全性。如果后续需要更宽松的策略，可以在此处添加
-             * 交互式证明请求机制。 */
-            result = TYPE_CHECK_INCOMPATIBLE;
-            break;
-
-        default:
-            result = TYPE_CHECK_ERROR;
-            break;
+    if ((int)equiv >= 0 && (int)equiv < (int)(sizeof(s_equiv_to_check_result) / sizeof(s_equiv_to_check_result[0]))) {
+        result = s_equiv_to_check_result[equiv];
+    } else {
+        result = TYPE_CHECK_ERROR;
     }
 
     /* 流式事件：端口兼容性检查结果 */
@@ -679,69 +865,12 @@ static bool type_detect_cycle_dfs(TypeSystem *ts, TypeRegion *current, bool *vis
 
     bool has_cycle = false;
 
-    /* 根据类型种类递归检查子类型引用 */
-    switch (current->kind) {
-        case TYPE_KIND_FUNCTION:
-            /* 函数类型：检查输入和输出类型 */
-            if (current->input_type) {
-                has_cycle = type_detect_cycle_dfs(ts, current->input_type, visited, on_stack);
-            }
-            if (!has_cycle && current->output_type) {
-                has_cycle = type_detect_cycle_dfs(ts, current->output_type, visited, on_stack);
-            }
-            break;
-
-        case TYPE_KIND_PRODUCT:
-            /* 乘积类型：检查左右类型 */
-            if (current->left_type) {
-                has_cycle = type_detect_cycle_dfs(ts, current->left_type, visited, on_stack);
-            }
-            if (!has_cycle && current->right_type) {
-                has_cycle = type_detect_cycle_dfs(ts, current->right_type, visited, on_stack);
-            }
-            break;
-
-        case TYPE_KIND_SUM:
-            /* 和类型：检查两个分支 */
-            if (current->first_type) {
-                has_cycle = type_detect_cycle_dfs(ts, current->first_type, visited, on_stack);
-            }
-            if (!has_cycle && current->second_type) {
-                has_cycle = type_detect_cycle_dfs(ts, current->second_type, visited, on_stack);
-            }
-            break;
-
-        case TYPE_KIND_DEPENDENT:
-            /* 依赖类型：检查体类型 */
-            if (current->body_type) {
-                has_cycle = type_detect_cycle_dfs(ts, current->body_type, visited, on_stack);
-            }
-            break;
-
-        case TYPE_KIND_REGION:
-            /* 区域类型：检查包含的类型（通过aliased_type或约束引用） */
-            if (current->aliased_type) {
-                has_cycle = type_detect_cycle_dfs(ts, current->aliased_type, visited, on_stack);
-            }
-            break;
-
-        case TYPE_KIND_VARIABLE:
-            /* 类型变量：检查绑定的类型 */
-            if (current->variable_id > 0) {
-                for (int i = 0; i < ts->type_var_count; i++) {
-                    if (ts->type_vars[i] && ts->type_vars[i]->id == current->variable_id) {
-                        if (ts->type_vars[i]->bound_type) {
-                            has_cycle = type_detect_cycle_dfs(ts, ts->type_vars[i]->bound_type, visited, on_stack);
-                        }
-                        break;
-                    }
-                }
-            }
-            break;
-
-        default:
-            /* 基本类型（点、线段、底部）无子类型引用 */
-            break;
+    /* 通过 VTable 根据类型种类递归检查子类型引用 */
+    if (current->kind >= 0 && current->kind < TYPE_KIND_COUNT) {
+        CycleDetectHandler handler = s_cycle_detect_handlers[current->kind];
+        if (handler) {
+            has_cycle = handler(ts, current, visited, on_stack);
+        }
     }
 
     /* 从当前路径移除 */
@@ -858,71 +987,15 @@ static bool type_normalize_internal(TypeSystem *ts, TypeRegion *type, TypeRegion
         }
     }
 
-    /* 递归规范化复合类型 */
-    switch (type->kind) {
-        case TYPE_KIND_FUNCTION: {
-            TypeRegion *norm_input = NULL;
-            TypeRegion *norm_output = NULL;
-
-            if (type->input_type) {
-                type_normalize_internal(ts, type->input_type, &norm_input, depth + 1);
-            }
-            if (type->output_type) {
-                type_normalize_internal(ts, type->output_type, &norm_output, depth + 1);
-            }
-
-            if (norm_input || norm_output) {
-                *out_normalized = type_create_function(ts, norm_input ? norm_input : type->input_type,
-                                                       norm_output ? norm_output : type->output_type);
-            } else {
-                *out_normalized = type;
-            }
-            return true;
+    /* 通过 VTable 递归规范化复合类型 */
+    if (type->kind >= 0 && type->kind < TYPE_KIND_COUNT) {
+        NormalizeHandler handler = s_normalize_handlers[type->kind];
+        if (handler) {
+            return handler(ts, type, out_normalized, depth);
         }
-
-        case TYPE_KIND_PRODUCT:
-            /* 乘积类型：规范化每个分量 */
-            {
-                TypeRegion *norm_left = NULL;
-                TypeRegion *norm_right = NULL;
-
-                if (type->left_type) {
-                    type_normalize_internal(ts, type->left_type, &norm_left, depth + 1);
-                }
-                if (type->right_type) {
-                    type_normalize_internal(ts, type->right_type, &norm_right, depth + 1);
-                }
-
-                if (norm_left || norm_right) {
-                    *out_normalized = type_create_product(ts, norm_left ? norm_left : type->left_type,
-                                                          norm_right ? norm_right : type->right_type);
-                } else {
-                    *out_normalized = type;
-                }
-                return true;
-            }
-
-        case TYPE_KIND_DEPENDENT:
-            /* 依赖类型：规范化主体和依赖体 */
-            {
-                TypeRegion *norm_body = NULL;
-
-                if (type->body_type) {
-                    type_normalize_internal(ts, type->body_type, &norm_body, depth + 1);
-                }
-
-                if (norm_body) {
-                    *out_normalized = type_create_dependent(ts, type->param_node_id, norm_body);
-                } else {
-                    *out_normalized = type;
-                }
-                return true;
-            }
-
-        default:
-            *out_normalized = type;
-            return true;
     }
+    *out_normalized = type;
+    return true;
 }
 
 /**
@@ -1024,59 +1097,12 @@ bool type_check_dependent(const TypeSystem *ts, const TypeRegion *output_type, c
         return false;
     }
 
-    /* 相同类型种别的递归结构检查 */
-    switch (output_type->kind) {
-        case TYPE_KIND_POINT:
-        case TYPE_KIND_LINE_SEGMENT:
-            /* 基本类型：种类相同即兼容 */
-            return true;
-
-        case TYPE_KIND_FUNCTION:
-            /* 函数类型：递归检查输入和输出 */
-            {
-                bool input_ok = true, output_ok = true;
-                if (output_type->input_type && input_type->input_type) {
-                    input_ok = type_check_dependent(ts, output_type->input_type, input_type->input_type, input_values);
-                }
-                if (input_ok && output_type->output_type && input_type->output_type) {
-                    output_ok =
-                        type_check_dependent(ts, output_type->output_type, input_type->output_type, input_values);
-                }
-                return (input_ok && output_ok);
-            }
-
-        case TYPE_KIND_PRODUCT:
-            /* 乘积类型：递归检查左右 */
-            {
-                bool left_ok = true, right_ok = true;
-                if (output_type->left_type && input_type->left_type) {
-                    left_ok = type_check_dependent(ts, output_type->left_type, input_type->left_type, input_values);
-                }
-                if (left_ok && output_type->right_type && input_type->right_type) {
-                    right_ok = type_check_dependent(ts, output_type->right_type, input_type->right_type, input_values);
-                }
-                return (left_ok && right_ok);
-            }
-
-        case TYPE_KIND_SUM:
-            /* 和类型：递归检查两个分支 */
-            {
-                bool first_ok = true, second_ok = true;
-                if (output_type->first_type && input_type->first_type) {
-                    first_ok = type_check_dependent(ts, output_type->first_type, input_type->first_type, input_values);
-                }
-                if (first_ok && output_type->second_type && input_type->second_type) {
-                    second_ok =
-                        type_check_dependent(ts, output_type->second_type, input_type->second_type, input_values);
-                }
-                return (first_ok && second_ok);
-            }
-
-        case TYPE_KIND_REGION:
-            /* 区域类型：层级已检查，视为兼容 */
-            return true;
-
-        default:
-            return false;
+    /* 通过 VTable 进行相同类型种别的递归结构检查 */
+    if (output_type->kind >= 0 && output_type->kind < TYPE_KIND_COUNT) {
+        DependentCheckHandler handler = s_dependent_check_handlers[output_type->kind];
+        if (handler) {
+            return handler(ts, output_type, input_type, input_values);
+        }
     }
+    return false;
 }
