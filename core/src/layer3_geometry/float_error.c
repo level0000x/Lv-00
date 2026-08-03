@@ -396,6 +396,117 @@ static int expr_op_precedence(int op) {
     }
 }
 
+/* ========================================================================
+ * RPN 求值操作函数指针表（替代 switch-case 分派）
+ * ======================================================================== */
+
+/** @brief RPN 求值操作函数指针类型 */
+typedef bool (*RpnEvalHandler)(double *stack, int *top);
+
+/* 二元运算符处理器 */
+static bool rpn_eval_add(double *stack, int *top) {
+    if (*top < 2) return false;
+    stack[*top - 2] += stack[*top - 1];
+    (*top)--;
+    return true;
+}
+
+static bool rpn_eval_sub(double *stack, int *top) {
+    if (*top < 2) return false;
+    stack[*top - 2] -= stack[*top - 1];
+    (*top)--;
+    return true;
+}
+
+static bool rpn_eval_mul(double *stack, int *top) {
+    if (*top < 2) return false;
+    stack[*top - 2] *= stack[*top - 1];
+    (*top)--;
+    return true;
+}
+
+static bool rpn_eval_div(double *stack, int *top) {
+    if (*top < 2) return false;
+    if (fabs(stack[*top - 1]) < 1e-308) return false;
+    stack[*top - 2] /= stack[*top - 1];
+    (*top)--;
+    return true;
+}
+
+static bool rpn_eval_pow(double *stack, int *top) {
+    if (*top < 2) return false;
+    if (stack[*top - 2] < 0.0 &&
+        fabs(stack[*top - 1] - round(stack[*top - 1])) > 1e-12) {
+        return false;
+    }
+    stack[*top - 2] = pow(stack[*top - 2], stack[*top - 1]);
+    (*top)--;
+    return true;
+}
+
+/* 一元运算符处理器 */
+static bool rpn_eval_neg(double *stack, int *top) {
+    if (*top < 1) return false;
+    stack[*top - 1] = -stack[*top - 1];
+    return true;
+}
+
+static bool rpn_eval_sqrt(double *stack, int *top) {
+    if (*top < 1) return false;
+    if (stack[*top - 1] < 0.0) return false;
+    stack[*top - 1] = sqrt(stack[*top - 1]);
+    return true;
+}
+
+static bool rpn_eval_sin(double *stack, int *top) {
+    if (*top < 1) return false;
+    stack[*top - 1] = sin(stack[*top - 1]);
+    return true;
+}
+
+static bool rpn_eval_cos(double *stack, int *top) {
+    if (*top < 1) return false;
+    stack[*top - 1] = cos(stack[*top - 1]);
+    return true;
+}
+
+static bool rpn_eval_exp(double *stack, int *top) {
+    if (*top < 1) return false;
+    stack[*top - 1] = exp(stack[*top - 1]);
+    return true;
+}
+
+static bool rpn_eval_log(double *stack, int *top) {
+    if (*top < 1) return false;
+    if (stack[*top - 1] <= 0.0) return false;
+    stack[*top - 1] = log(stack[*top - 1]);
+    return true;
+}
+
+/** @brief 字符到 RPN 运算符的查找表（未映射的字符值为 0，表示无效） */
+static const int kCharToRpnOp[256] = {
+    ['+'] = RPN_OP_ADD,
+    ['-'] = RPN_OP_SUB,
+    ['*'] = RPN_OP_MUL,
+    ['/'] = RPN_OP_DIV,
+    ['^'] = RPN_OP_POW,
+};
+
+/** @brief RPN 运算符分发表：索引 = -op - 1（将 RPN_OP_* 负值映射到 0-based 索引） */
+static const RpnEvalHandler kRpnEvalOps[] = {
+    [(-RPN_OP_ADD) - 1] = rpn_eval_add,
+    [(-RPN_OP_SUB) - 1] = rpn_eval_sub,
+    [(-RPN_OP_MUL) - 1] = rpn_eval_mul,
+    [(-RPN_OP_DIV) - 1] = rpn_eval_div,
+    [(-RPN_OP_POW) - 1] = rpn_eval_pow,
+    [(-RPN_OP_NEG) - 1] = rpn_eval_neg,
+    [(-RPN_OP_SQRT) - 1] = rpn_eval_sqrt,
+    [(-RPN_OP_SIN) - 1] = rpn_eval_sin,
+    [(-RPN_OP_COS) - 1] = rpn_eval_cos,
+    [(-RPN_OP_EXP) - 1] = rpn_eval_exp,
+    [(-RPN_OP_LOG) - 1] = rpn_eval_log,
+};
+
 /**
  * @brief 数学表达式求值器 —— 调度场（Shunting-yard）算法
  *
@@ -560,72 +671,58 @@ static double evaluate_expression(const char *expr, const double *var_values, in
 
             int cur_op = 0;
 
-            switch (*p) {
-                case '+':
-                    cur_op = RPN_OP_ADD;
-                    break;
-                case '-':
-                    cur_op = RPN_OP_SUB;
-                    break;
-                case '*':
-                    cur_op = RPN_OP_MUL;
-                    break;
-                case '/':
-                    cur_op = RPN_OP_DIV;
-                    break;
-                case '^':
-                    cur_op = RPN_OP_POW;
-                    break;
-
-                case ')':
-                    /* 弹出直到遇到左括号哨兵 */
-                    while (op_top > 0 && op_stack[op_top - 1] != 0) {
-                        if (rpn_len >= EXPR_RPN_MAX)
-                            return NAN;
-                        rpn_op[rpn_len] = op_stack[op_top - 1];
-                        rpn_val[rpn_len] = 0.0;
-                        rpn_len++;
-                        op_top--;
-                    }
-                    if (op_top == 0)
-                        return NAN; /* 括号不匹配 */
-                    op_top--;       /* 弹出左括号哨兵 */
-                    /* 若栈顶是函数，将其弹出到 RPN */
-                    if (op_top > 0) {
-                        int top = op_stack[op_top - 1];
-                        if (top == RPN_OP_SQRT || top == RPN_OP_SIN || top == RPN_OP_COS || top == RPN_OP_EXP ||
-                            top == RPN_OP_LOG) {
-                            if (rpn_len >= EXPR_RPN_MAX)
-                                return NAN;
-                            rpn_op[rpn_len] = top;
-                            rpn_val[rpn_len] = 0.0;
-                            rpn_len++;
-                            op_top--;
-                        }
-                    }
-                    p++;
-                    expect_operand = 0;
-                    continue;
-
-                case ',':
-                    /* 函数参数分隔符：弹出直到遇到左括号哨兵 */
-                    while (op_top > 0 && op_stack[op_top - 1] != 0) {
-                        if (rpn_len >= EXPR_RPN_MAX)
-                            return NAN;
-                        rpn_op[rpn_len] = op_stack[op_top - 1];
-                        rpn_val[rpn_len] = 0.0;
-                        rpn_len++;
-                        op_top--;
-                    }
-                    if (op_top == 0)
+            /* 右括号：弹出直到遇到左括号哨兵 */
+            if (*p == ')') {
+                while (op_top > 0 && op_stack[op_top - 1] != 0) {
+                    if (rpn_len >= EXPR_RPN_MAX)
                         return NAN;
-                    p++;
-                    expect_operand = 1;
-                    continue;
-
-                default:
-                    return NAN; /* 未知字符 */
+                    rpn_op[rpn_len] = op_stack[op_top - 1];
+                    rpn_val[rpn_len] = 0.0;
+                    rpn_len++;
+                    op_top--;
+                }
+                if (op_top == 0)
+                    return NAN; /* 括号不匹配 */
+                op_top--;       /* 弹出左括号哨兵 */
+                /* 若栈顶是函数，将其弹出到 RPN */
+                if (op_top > 0) {
+                    int top = op_stack[op_top - 1];
+                    if (top == RPN_OP_SQRT || top == RPN_OP_SIN || top == RPN_OP_COS || top == RPN_OP_EXP ||
+                        top == RPN_OP_LOG) {
+                        if (rpn_len >= EXPR_RPN_MAX)
+                            return NAN;
+                        rpn_op[rpn_len] = top;
+                        rpn_val[rpn_len] = 0.0;
+                        rpn_len++;
+                        op_top--;
+                    }
+                }
+                p++;
+                expect_operand = 0;
+                continue;
             }
+
+            /* 逗号（函数参数分隔符）：弹出直到遇到左括号哨兵 */
+            if (*p == ',') {
+                while (op_top > 0 && op_stack[op_top - 1] != 0) {
+                    if (rpn_len >= EXPR_RPN_MAX)
+                        return NAN;
+                    rpn_op[rpn_len] = op_stack[op_top - 1];
+                    rpn_val[rpn_len] = 0.0;
+                    rpn_len++;
+                    op_top--;
+                }
+                if (op_top == 0)
+                    return NAN;
+                p++;
+                expect_operand = 1;
+                continue;
+            }
+
+            /* 使用查找表映射字符到 RPN 运算符 */
+            cur_op = kCharToRpnOp[(unsigned char)*p];
+            if (cur_op == 0)
+                return NAN; /* 未知字符 */
 
             /* 二元运算符：按优先级弹出栈中运算符 */
             if (cur_op != 0) {
@@ -687,80 +784,13 @@ static double evaluate_expression(const char *expr, const double *var_values, in
             eval_stack[eval_top++] = rpn_val[i];
         } else {
             /* 运算符：从求值栈弹出操作数并计算 */
-            switch (op) {
-                case RPN_OP_ADD:
-                    if (eval_top < 2)
-                        return NAN;
-                    eval_stack[eval_top - 2] += eval_stack[eval_top - 1];
-                    eval_top--;
-                    break;
-                case RPN_OP_SUB:
-                    if (eval_top < 2)
-                        return NAN;
-                    eval_stack[eval_top - 2] -= eval_stack[eval_top - 1];
-                    eval_top--;
-                    break;
-                case RPN_OP_MUL:
-                    if (eval_top < 2)
-                        return NAN;
-                    eval_stack[eval_top - 2] *= eval_stack[eval_top - 1];
-                    eval_top--;
-                    break;
-                case RPN_OP_DIV:
-                    if (eval_top < 2)
-                        return NAN;
-                    if (fabs(eval_stack[eval_top - 1]) < 1e-308)
-                        return NAN; /* 除零保护 */
-                    eval_stack[eval_top - 2] /= eval_stack[eval_top - 1];
-                    eval_top--;
-                    break;
-                case RPN_OP_POW:
-                    if (eval_top < 2)
-                        return NAN;
-                    /* Guard: pow(negative, non-integer) is undefined in reals */
-                    if (eval_stack[eval_top - 2] < 0.0 &&
-                        fabs(eval_stack[eval_top - 1] - round(eval_stack[eval_top - 1])) > 1e-12) {
-                        return NAN;
-                    }
-                    eval_stack[eval_top - 2] = pow(eval_stack[eval_top - 2], eval_stack[eval_top - 1]);
-                    eval_top--;
-                    break;
-                case RPN_OP_NEG:
-                    if (eval_top < 1)
-                        return NAN;
-                    eval_stack[eval_top - 1] = -eval_stack[eval_top - 1];
-                    break;
-                case RPN_OP_SQRT:
-                    if (eval_top < 1)
-                        return NAN;
-                    if (eval_stack[eval_top - 1] < 0.0)
-                        return NAN;
-                    eval_stack[eval_top - 1] = sqrt(eval_stack[eval_top - 1]);
-                    break;
-                case RPN_OP_SIN:
-                    if (eval_top < 1)
-                        return NAN;
-                    eval_stack[eval_top - 1] = sin(eval_stack[eval_top - 1]);
-                    break;
-                case RPN_OP_COS:
-                    if (eval_top < 1)
-                        return NAN;
-                    eval_stack[eval_top - 1] = cos(eval_stack[eval_top - 1]);
-                    break;
-                case RPN_OP_EXP:
-                    if (eval_top < 1)
-                        return NAN;
-                    eval_stack[eval_top - 1] = exp(eval_stack[eval_top - 1]);
-                    break;
-                case RPN_OP_LOG:
-                    if (eval_top < 1)
-                        return NAN;
-                    if (eval_stack[eval_top - 1] <= 0.0)
-                        return NAN;
-                    eval_stack[eval_top - 1] = log(eval_stack[eval_top - 1]);
-                    break;
-                default:
-                    return NAN;
+            /* 使用函数指针表分派 RPN 运算符 */
+            int idx = -op - 1;
+            if (idx < 0 || idx >= (int)(sizeof(kRpnEvalOps) / sizeof(kRpnEvalOps[0])) || !kRpnEvalOps[idx]) {
+                return NAN; /* 未知运算符 */
+            }
+            if (!kRpnEvalOps[idx](eval_stack, &eval_top)) {
+                return NAN; /* 求值失败（栈不足或数学域错误） */
             }
         }
     }

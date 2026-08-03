@@ -50,6 +50,87 @@ static void sanitize_isar_label(char *buf, size_t buf_size, const char *label) {
  *
  * 为每个命题生成 Isar 格式的 lemma/show/qed 块。
  */
+
+/* ================================================================
+ * 命题类型 → Isar 证明体生成 VTable
+ * ================================================================ */
+
+/** @brief 证明体生成 handler 类型 */
+typedef void (*ProofGenHandler)(const Proposition *prop, lvStrBuf *sb_2, const char *ptype);
+
+/** @brief 构造证明 handler：ATOMIC / CONJUNCTION / DISJUNCTION */
+static void proof_gen_construct(const Proposition *prop, lvStrBuf *sb_2, const char *ptype) {
+    const char *intro_method = (prop->type == PROPOSITION_TYPE_ATOMIC)
+                                   ? "rule"
+                                   : (prop->type == PROPOSITION_TYPE_CONJUNCTION)
+                                         ? "conjI"
+                                         : "disjI1";
+    lv_strbuf_printf(sb_2,
+             "proof -\n"
+             "  (* 构造证明：根据命题类型 %s 构建目标 *)\n"
+             "  have H: \"?thesis\"\n"
+             "    by %s\n"
+             "  thus ?thesis\n",
+             ptype, intro_method);
+}
+
+/** @brief 矛盾证明 handler：NEGATION / BOTTOM */
+static void proof_gen_contradiction(const Proposition *prop, lvStrBuf *sb_2, const char *ptype) {
+    (void)prop;
+    lv_strbuf_printf(sb_2,
+             "proof -\n"
+             "  (* 矛盾证明：假设前提，推导矛盾 *)\n"
+             "  assume \"\\<not> ?thesis\"\n"
+             "  then have False\n"
+             "    by auto\n"
+             "  from this show ?thesis\n"
+             "    by blast\n");
+}
+
+/** @brief 代数/量化证明 handler：IMPLICATION / UNIVERSAL / EXISTENTIAL */
+static void proof_gen_algebraic(const Proposition *prop, lvStrBuf *sb_2, const char *ptype) {
+    const char *intro_rule = (prop->type == PROPOSITION_TYPE_IMPLICATION)
+                                 ? "impI"
+                                 : (prop->type == PROPOSITION_TYPE_UNIVERSAL)
+                                       ? "allI"
+                                       : "exI";
+    lv_strbuf_printf(sb_2,
+             "proof -\n"
+             "  (* 代数/量化证明：使用 %s 规则引入 *)\n"
+             "  have H1: \"?thesis\"\n"
+             "    by %s\n"
+             "  show ?thesis\n"
+             "    by %s\n",
+             intro_rule, intro_rule, intro_rule);
+}
+
+/** @brief 默认 handler：未知类型生成基本框架 */
+static void proof_gen_default(const Proposition *prop, lvStrBuf *sb_2, const char *ptype) {
+    (void)prop;
+    lv_strbuf_printf(sb_2,
+             "proof -\n"
+             "  (* 证明待填充（命题类型: %s） *)\n"
+             "  sorry\n",
+             ptype);
+}
+
+/** @brief 命题类型 → handler 查找表 */
+static const ProofGenHandler proof_gen_handlers[] = {
+    [PROPOSITION_TYPE_ATOMIC]      = proof_gen_construct,
+    [PROPOSITION_TYPE_CONJUNCTION] = proof_gen_construct,
+    [PROPOSITION_TYPE_DISJUNCTION] = proof_gen_construct,
+    [PROPOSITION_TYPE_IMPLICATION] = proof_gen_algebraic,
+    [PROPOSITION_TYPE_NEGATION]    = proof_gen_contradiction,
+    [PROPOSITION_TYPE_UNIVERSAL]   = proof_gen_algebraic,
+    [PROPOSITION_TYPE_EXISTENTIAL] = proof_gen_algebraic,
+    [PROPOSITION_TYPE_BOTTOM]      = proof_gen_contradiction,
+};
+
+/**
+ * @brief 将命题列表导出为 Isar 结构化证明文本
+ *
+ * 为每个命题生成 Isar 格式的 lemma/show/qed 块。
+ */
 char *proof_export_isar(const Proposition **props, int prop_count) {
     if (!props || prop_count <= 0)
         return NULL;
@@ -80,70 +161,16 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
         const char *proof_body;
         lvStrBuf sb_2 = {0};
 
-        switch (prop->type) {
-            case PROPOSITION_TYPE_ATOMIC:
-            case PROPOSITION_TYPE_CONJUNCTION:
-            case PROPOSITION_TYPE_DISJUNCTION: {
-                /* ── CONSTRUCT 构造证明：show + thus 模式 ── */
-                const char *intro_method = (prop->type == PROPOSITION_TYPE_ATOMIC)
-                                               ? "rule"
-                                               : (prop->type == PROPOSITION_TYPE_CONJUNCTION)
-                                                     ? "conjI"
-                                                     : "disjI1";
-                lv_strbuf_printf(&sb_2,
-                         "proof -\n"
-                         "  (* 构造证明：根据命题类型 %s 构建目标 *)\n"
-                         "  have H: \"?thesis\"\n"
-                         "    by %s\n"
-                         "  thus ?thesis\n",
-                         ptype, intro_method);
-                proof_body = sb_2.data;
-                break;
+        {
+            /* VTable 查找：根据命题类型派发到对应的 handler */
+            ProofGenHandler handler = proof_gen_default;
+            size_t type_idx = (size_t) prop->type;
+            if (type_idx < sizeof(proof_gen_handlers) / sizeof(proof_gen_handlers[0]) &&
+                proof_gen_handlers[type_idx] != NULL) {
+                handler = proof_gen_handlers[type_idx];
             }
-            case PROPOSITION_TYPE_NEGATION:
-            case PROPOSITION_TYPE_BOTTOM: {
-                /* ── CONTRADICTION 矛盾证明：assume + from 模式 ── */
-                lv_strbuf_printf(&sb_2,
-                         "proof -\n"
-                         "  (* 矛盾证明：假设前提，推导矛盾 *)\n"
-                         "  assume \"\\<not> ?thesis\"\n"
-                         "  then have False\n"
-                         "    by auto\n"
-                         "  from this show ?thesis\n"
-                         "    by blast\n");
-                proof_body = sb_2.data;
-                break;
-            }
-            case PROPOSITION_TYPE_IMPLICATION:
-            case PROPOSITION_TYPE_UNIVERSAL:
-            case PROPOSITION_TYPE_EXISTENTIAL: {
-                /* ── ALGEBRAIC 代数证明：have + by 模式 ── */
-                const char *intro_rule = (prop->type == PROPOSITION_TYPE_IMPLICATION)
-                                             ? "impI"
-                                             : (prop->type == PROPOSITION_TYPE_UNIVERSAL)
-                                                   ? "allI"
-                                                   : "exI";
-                lv_strbuf_printf(&sb_2,
-                         "proof -\n"
-                         "  (* 代数/量化证明：使用 %s 规则引入 *)\n"
-                         "  have H1: \"?thesis\"\n"
-                         "    by %s\n"
-                         "  show ?thesis\n"
-                         "    by %s\n",
-                         intro_rule, intro_rule, intro_rule);
-                proof_body = sb_2.data;
-                break;
-            }
-            default: {
-                /* 未知类型，生成基本框架 */
-                lv_strbuf_printf(&sb_2,
-                         "proof -\n"
-                         "  (* 证明待填充（命题类型: %s） *)\n"
-                         "  sorry\n",
-                         ptype);
-                proof_body = sb_2.data;
-                break;
-            }
+            handler(prop, &sb_2, ptype);
+            proof_body = sb_2.data;
         }
 
         lv_strbuf_destroy(&sb_2);
@@ -362,6 +389,408 @@ static char *make_trace(const char *fmt, const char *arg1, const char *arg2, con
     return buf;
 }
 
+/* ================================================================
+ * 验证规则 VTable — 每条推理规则对应一个 handler 函数
+ * ================================================================ */
+
+/** @brief 验证规则 handler 类型 */
+typedef VerifyResult (*VerifyRuleHandler)(const char **premises, const char *conclusion, char **out_trace);
+
+/** @brief VERIFY_REFL handler */
+static VerifyResult verify_refl_handler(const char **premises, const char *conclusion, char **out_trace) {
+    (void)premises;
+    if (is_refl_form(conclusion)) {
+        if (out_trace) {
+            size_t len = strlen(conclusion) + 64;
+            *out_trace = (char *) lv_malloc(len);
+            if (*out_trace) {
+                snprintf(*out_trace, len, "VERIFY_VALID [REFL]: \"%s\" ≡ t=t, 自反性成立", conclusion);
+            }
+        }
+        return VERIFY_VALID;
+    }
+    if (out_trace) {
+        size_t len = strlen(conclusion) + 64;
+        *out_trace = (char *) lv_malloc(len);
+        if (*out_trace) {
+            snprintf(*out_trace, len, "VERIFY_INVALID [REFL]: \"%s\" 非 t=t 形式", conclusion);
+        }
+    }
+    return VERIFY_INVALID;
+}
+
+/** @brief VERIFY_TRANS handler */
+static VerifyResult verify_trans_handler(const char **premises, const char *conclusion, char **out_trace) {
+    if (!premises || !premises[0] || !premises[1]) {
+        if (out_trace)
+            *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [TRANS]: 需要两个前提 s=t, t=u");
+        return VERIFY_UNDECIDED;
+    }
+    {
+        const char *p0 = premises[0]; /* s=t */
+        const char *p1 = premises[1]; /* t=u */
+
+        /* 从 s=t 中提取 t（等号右侧） */
+        const char *eq0 = strstr(p0, "=");
+        if (!eq0) {
+            if (out_trace)
+                *out_trace = lv_strdup_safe("VERIFY_INVALID [TRANS]: 前提1非等式");
+            return VERIFY_INVALID;
+        }
+        const char *t_from_p0 = eq0 + 1;
+        while (*t_from_p0 == ' ')
+            t_from_p0++;
+
+        /* 从 t=u 中提取 t（等号左侧） */
+        const char *eq1 = strstr(p1, "=");
+        if (!eq1) {
+            if (out_trace)
+                *out_trace = lv_strdup_safe("VERIFY_INVALID [TRANS]: 前提2非等式");
+            return VERIFY_INVALID;
+        }
+        size_t t_in_p1_len = (size_t) (eq1 - p1);
+
+        /* 比较两个 t 是否一致 */
+        if (strncmp(t_from_p0, p1, t_in_p1_len) != 0) {
+            if (out_trace) {
+                size_t len = strlen(p0) + strlen(p1) + 128;
+                *out_trace = (char *) lv_malloc(len);
+                if (*out_trace) {
+                    snprintf(*out_trace, len, "VERIFY_INVALID [TRANS]: \"%s\" 和 \"%s\" 中间项不匹配", p0, p1);
+                }
+            }
+            return VERIFY_INVALID;
+        }
+
+        /* s=u: 从 s=t 取 s，从 t=u 取 u 构造结论并比较 */
+        if (out_trace) {
+            size_t len = strlen(conclusion) + strlen(p0) + strlen(p1) + 128;
+            *out_trace = (char *) lv_malloc(len);
+            if (*out_trace) {
+                snprintf(*out_trace, len, "VERIFY_VALID [TRANS]: s=t \"%s\", t=u \"%s\" => s=u \"%s\"", p0, p1,
+                         conclusion);
+            }
+        }
+        return VERIFY_VALID;
+    }
+}
+
+/** @brief VERIFY_ASSUME handler */
+static VerifyResult verify_assume_handler(const char **premises, const char *conclusion, char **out_trace) {
+    if (!premises) {
+        if (out_trace)
+            *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [ASSUME]: 无前提");
+        return VERIFY_UNDECIDED;
+    }
+    for (int i = 0; premises[i] != NULL; i++) {
+        if (strcmp(premises[i], conclusion) == 0) {
+            if (out_trace) {
+                size_t len = strlen(conclusion) + 64;
+                *out_trace = (char *) lv_malloc(len);
+                if (*out_trace) {
+                    snprintf(*out_trace, len, "VERIFY_VALID [ASSUME]: 结论 \"%s\" 在前提[%d]中", conclusion, i);
+                }
+            }
+            return VERIFY_VALID;
+        }
+    }
+    if (out_trace) {
+        size_t len = strlen(conclusion) + 64;
+        *out_trace = (char *) lv_malloc(len);
+        if (*out_trace) {
+            snprintf(*out_trace, len, "VERIFY_INVALID [ASSUME]: 结论 \"%s\" 不在前提中", conclusion);
+        }
+    }
+    return VERIFY_INVALID;
+}
+
+/** @brief VERIFY_BETA_CONV handler */
+static VerifyResult verify_beta_conv_handler(const char **premises, const char *conclusion, char **out_trace) {
+    (void)premises;
+    if (!has_equality_pattern(conclusion)) {
+        if (out_trace)
+            *out_trace =
+                make_trace("VERIFY_INVALID [BETA_CONV]: 结论 \"%s\" 非等式形式", conclusion, NULL, NULL);
+        return VERIFY_INVALID;
+    }
+    {
+        char lhs_buf[512];
+        int lhs_len = extract_eq_lhs(conclusion, lhs_buf, (int) sizeof(lhs_buf));
+        if (lhs_len <= 0) {
+            if (out_trace)
+                *out_trace =
+                    make_trace("VERIFY_UNDECIDED [BETA_CONV]: 无法解析结论 \"%s\"", conclusion, NULL, NULL);
+            return VERIFY_UNDECIDED;
+        }
+        /* 左侧应包含 lambda 模式和应用模式 */
+        if (has_lambda_pattern(lhs_buf) && has_application_pattern(lhs_buf)) {
+            if (out_trace)
+                *out_trace =
+                    make_trace("VERIFY_VALID [BETA_CONV]: \"%s\" 符合 beta-归约模式 (\\x.M) N = M[x:=N]",
+                               conclusion, NULL, NULL);
+            return VERIFY_VALID;
+        }
+        /* 左侧不含 lambda 但有应用：可能是已归约形式，标记为未决 */
+        if (has_application_pattern(lhs_buf)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_UNDECIDED [BETA_CONV]: \"%s\" 含应用但无 lambda 抽象，无法确认",
+                                        conclusion, NULL, NULL);
+            return VERIFY_UNDECIDED;
+        }
+        if (out_trace)
+            *out_trace =
+                make_trace("VERIFY_INVALID [BETA_CONV]: \"%s\" 不符合 beta-归约模式", conclusion, NULL, NULL);
+        return VERIFY_INVALID;
+    }
+}
+
+/** @brief VERIFY_MK_COMB handler */
+static VerifyResult verify_mk_comb_handler(const char **premises, const char *conclusion, char **out_trace) {
+    if (!premises || !premises[0] || !premises[1]) {
+        if (out_trace)
+            *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [MK_COMB]: 需要两个前提 f1=f2, g1=g2");
+        return VERIFY_UNDECIDED;
+    }
+    {
+        const char *p0 = premises[0]; /* f1=f2 */
+        const char *p1 = premises[1]; /* g1=g2 */
+        /* 两个前提都应为等式 */
+        if (!has_equality_pattern(p0) || !has_equality_pattern(p1)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_INVALID [MK_COMB]: 前提 \"%s\" 或 \"%s\" 非等式", p0, p1, NULL);
+            return VERIFY_INVALID;
+        }
+        /* 结论应包含 COMB 模式 */
+        if (has_comb_pattern(conclusion)) {
+            if (out_trace)
+                *out_trace =
+                    make_trace("VERIFY_VALID [MK_COMB]: 前提 \"%s\", \"%s\" => 结论 \"%s\" 符合组合子规则", p0,
+                               p1, conclusion);
+            return VERIFY_VALID;
+        }
+        /* 结论不含 COMB 但含等式：可能是隐式组合 */
+        if (has_equality_pattern(conclusion)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_UNDECIDED [MK_COMB]: 结论 \"%s\" 含等式但无 COMB 标记",
+                                        conclusion, NULL, NULL);
+            return VERIFY_UNDECIDED;
+        }
+        if (out_trace)
+            *out_trace =
+                make_trace("VERIFY_INVALID [MK_COMB]: 结论 \"%s\" 不符合 MK_COMB 规则", conclusion, NULL, NULL);
+        return VERIFY_INVALID;
+    }
+}
+
+/** @brief VERIFY_ABS handler */
+static VerifyResult verify_abs_handler(const char **premises, const char *conclusion, char **out_trace) {
+    if (!premises || !premises[0]) {
+        if (out_trace)
+            *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [ABS]: 需要前提 s=t");
+        return VERIFY_UNDECIDED;
+    }
+    {
+        const char *p0 = premises[0]; /* s=t */
+        if (!has_equality_pattern(p0)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_INVALID [ABS]: 前提 \"%s\" 非等式", p0, NULL, NULL);
+            return VERIFY_INVALID;
+        }
+        /* 结论应为等式且两侧含 lambda */
+        if (!has_equality_pattern(conclusion)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_INVALID [ABS]: 结论 \"%s\" 非等式", conclusion, NULL, NULL);
+            return VERIFY_INVALID;
+        }
+        char lhs_buf[512];
+        int lhs_len = extract_eq_lhs(conclusion, lhs_buf, (int) sizeof(lhs_buf));
+        const char *rhs = extract_eq_rhs(conclusion);
+        if (lhs_len > 0 && rhs && has_lambda_pattern(lhs_buf) && has_lambda_pattern(rhs)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_VALID [ABS]: 前提 \"%s\" => 结论 \"%s\" 符合抽象规则", p0,
+                                        conclusion, NULL);
+            return VERIFY_VALID;
+        }
+        if (out_trace)
+            *out_trace = make_trace("VERIFY_UNDECIDED [ABS]: 结论 \"%s\" 两侧不全含 lambda 抽象", conclusion,
+                                    NULL, NULL);
+        return VERIFY_UNDECIDED;
+    }
+}
+
+/** @brief VERIFY_SUBST handler */
+static VerifyResult verify_subst_handler(const char **premises, const char *conclusion, char **out_trace) {
+    if (!premises || !premises[0]) {
+        if (out_trace)
+            *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [SUBST]: 需要替换定理前提");
+        return VERIFY_UNDECIDED;
+    }
+    {
+        /* SUBST 通常有多个前提：替换定理 + 被替换的等式 */
+        /* 轻量级检查：前提中至少有一个等式，结论含等式或实例化标记 */
+        bool has_eq_premise = false;
+        for (int i = 0; premises[i] != NULL; i++) {
+            if (has_equality_pattern(premises[i])) {
+                has_eq_premise = true;
+                break;
+            }
+        }
+        if (!has_eq_premise) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_INVALID [SUBST]: 前提中无等式，无法执行替换", NULL, NULL, NULL);
+            return VERIFY_INVALID;
+        }
+        /* 结论应包含某种实例化或替换标记 */
+        if (has_inst_pattern(conclusion) || has_equality_pattern(conclusion)) {
+            if (out_trace)
+                *out_trace =
+                    make_trace("VERIFY_VALID [SUBST]: 结论 \"%s\" 符合替换实例模式", conclusion, NULL, NULL);
+            return VERIFY_VALID;
+        }
+        if (out_trace)
+            *out_trace = make_trace("VERIFY_UNDECIDED [SUBST]: 结论 \"%s\" 结构不明确", conclusion, NULL, NULL);
+        return VERIFY_UNDECIDED;
+    }
+}
+
+/** @brief VERIFY_INST_TYPE handler */
+static VerifyResult verify_inst_type_handler(const char **premises, const char *conclusion, char **out_trace) {
+    if (!premises || !premises[0]) {
+        if (out_trace)
+            *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [INST_TYPE]: 需要泛型定理前提");
+        return VERIFY_UNDECIDED;
+    }
+    {
+        const char *p0 = premises[0];
+        /* 前提和结论应有结构相似性（类型特化不改变项结构） */
+        /* 轻量级检查：结论长度 >= 前提长度（特化通常添加类型信息） */
+        if (strlen(conclusion) >= strlen(p0) && has_inst_type_pattern(conclusion)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_VALID [INST_TYPE]: 前提 \"%s\" => 结论 \"%s\" 符合类型实例化",
+                                        p0, conclusion, NULL);
+            return VERIFY_VALID;
+        }
+        /* 结论可能不含显式 INST_TYPE 标记但结构相似 */
+        if (lv_str_nonempty(conclusion) && strstr(conclusion, ":") != NULL) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_UNDECIDED [INST_TYPE]: 结论 \"%s\" 含类型标注但无显式标记",
+                                        conclusion, NULL, NULL);
+            return VERIFY_UNDECIDED;
+        }
+        if (out_trace)
+            *out_trace = make_trace("VERIFY_INVALID [INST_TYPE]: 结论 \"%s\" 不符合类型实例化模式", conclusion,
+                                    NULL, NULL);
+        return VERIFY_INVALID;
+    }
+}
+
+/** @brief VERIFY_INST handler */
+static VerifyResult verify_inst_handler(const char **premises, const char *conclusion, char **out_trace) {
+    if (!premises || !premises[0]) {
+        if (out_trace)
+            *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [INST]: 需要泛型定理前提");
+        return VERIFY_UNDECIDED;
+    }
+    {
+        const char *p0 = premises[0];
+        /* 轻量级检查：前提含变量模式（单字母大写或下划线开头），
+         * 结论含实例化标记或替换列表 */
+        if (has_inst_pattern(conclusion)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_VALID [INST]: 前提 \"%s\" => 结论 \"%s\" 符合项实例化", p0,
+                                        conclusion, NULL);
+            return VERIFY_VALID;
+        }
+        /* 结论可能不含显式 INST 标记 */
+        if (has_equality_pattern(conclusion) || has_application_pattern(conclusion)) {
+            if (out_trace)
+                *out_trace = make_trace("VERIFY_UNDECIDED [INST]: 结论 \"%s\" 结构可能为实例化结果但无显式标记",
+                                        conclusion, NULL, NULL);
+            return VERIFY_UNDECIDED;
+        }
+        if (out_trace)
+            *out_trace =
+                make_trace("VERIFY_INVALID [INST]: 结论 \"%s\" 不符合项实例化模式", conclusion, NULL, NULL);
+        return VERIFY_INVALID;
+    }
+}
+
+/** @brief VERIFY_DISCH handler */
+static VerifyResult verify_disch_handler(const char **premises, const char *conclusion, char **out_trace) {
+    if (!premises || !premises[0]) {
+        if (out_trace)
+            *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [DISCH]: 需要前提 B");
+        return VERIFY_UNDECIDED;
+    }
+    {
+        const char *p0 = premises[0]; /* B */
+        /* 结论应包含蕴含模式 */
+        if (!has_implication_pattern(conclusion)) {
+            if (out_trace)
+                *out_trace =
+                    make_trace("VERIFY_INVALID [DISCH]: 结论 \"%s\" 不含蕴含模式", conclusion, NULL, NULL);
+            return VERIFY_INVALID;
+        }
+        /* 结论的后件（蕴含右侧）应与前提匹配 */
+        /* 尝试提取蕴含右侧 */
+        const char *impl = strstr(conclusion, "==>");
+        if (!impl)
+            impl = strstr(conclusion, "-->");
+        if (impl) {
+            const char *rhs = impl + 3;
+            while (*rhs == ' ')
+                rhs++;
+            /* 去除尾部空格 */
+            size_t p0_len = strlen(p0);
+            size_t rhs_len = strlen(rhs);
+            while (rhs_len > 0 && rhs[rhs_len - 1] == ' ')
+                rhs_len--;
+            while (p0_len > 0 && p0[p0_len - 1] == ' ')
+                p0_len--;
+            if (rhs_len == p0_len && strncmp(rhs, p0, p0_len) == 0) {
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_VALID [DISCH]: 前提 \"%s\" => 结论 \"%s\" 符合蕴含引入", p0,
+                                            conclusion, NULL);
+                return VERIFY_VALID;
+            }
+            /* 后件与前提不完全匹配，但蕴含结构存在 */
+            if (out_trace)
+                *out_trace =
+                    make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含但后件与前提 \"%s\" 不完全匹配",
+                               conclusion, p0, NULL);
+            return VERIFY_UNDECIDED;
+        }
+        if (out_trace)
+            *out_trace = make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含关键词但格式不明确",
+                                    conclusion, NULL, NULL);
+        return VERIFY_UNDECIDED;
+    }
+}
+
+/** @brief 默认 handler：未知规则 */
+static VerifyResult verify_default_handler(const char **premises, const char *conclusion, char **out_trace) {
+    (void)premises;
+    (void)conclusion;
+    if (out_trace) {
+        *out_trace = lv_strdup_safe("VERIFY_INVALID: 未知验证规则");
+    }
+    return VERIFY_INVALID;
+}
+
+/** @brief 验证规则 → handler 查找表 */
+static const VerifyRuleHandler verify_rule_handlers[] = {
+    [VERIFY_REFL]      = verify_refl_handler,
+    [VERIFY_TRANS]     = verify_trans_handler,
+    [VERIFY_ASSUME]    = verify_assume_handler,
+    [VERIFY_BETA_CONV] = verify_beta_conv_handler,
+    [VERIFY_MK_COMB]   = verify_mk_comb_handler,
+    [VERIFY_ABS]       = verify_abs_handler,
+    [VERIFY_SUBST]     = verify_subst_handler,
+    [VERIFY_INST_TYPE] = verify_inst_type_handler,
+    [VERIFY_INST]      = verify_inst_handler,
+    [VERIFY_DISCH]     = verify_disch_handler,
+};
+
 /**
  * @brief 极简验证 — 仅用不超过 10 条基本规则验证一个证明步骤
  *
@@ -379,379 +808,15 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
         return VERIFY_INVALID;
     }
 
-    switch (rule) {
-        case VERIFY_REFL:
-            /* REFL: |- t = t */
-            if (is_refl_form(conclusion)) {
-                if (out_trace) {
-                    size_t len = strlen(conclusion) + 64;
-                    *out_trace = (char *) lv_malloc(len);
-                    if (*out_trace) {
-                        snprintf(*out_trace, len, "VERIFY_VALID [REFL]: \"%s\" ≡ t=t, 自反性成立", conclusion);
-                    }
-                }
-                return VERIFY_VALID;
-            }
-            if (out_trace) {
-                size_t len = strlen(conclusion) + 64;
-                *out_trace = (char *) lv_malloc(len);
-                if (*out_trace) {
-                    snprintf(*out_trace, len, "VERIFY_INVALID [REFL]: \"%s\" 非 t=t 形式", conclusion);
-                }
-            }
-            return VERIFY_INVALID;
-
-        case VERIFY_TRANS:
-            /* TRANS: s=t, t=u => s=u */
-            if (!premises || !premises[0] || !premises[1]) {
-                if (out_trace)
-                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [TRANS]: 需要两个前提 s=t, t=u");
-                return VERIFY_UNDECIDED;
-            }
-            {
-                const char *p0 = premises[0]; /* s=t */
-                const char *p1 = premises[1]; /* t=u */
-
-                /* 从 s=t 中提取 t（等号右侧） */
-                const char *eq0 = strstr(p0, "=");
-                if (!eq0) {
-                    if (out_trace)
-                        *out_trace = lv_strdup_safe("VERIFY_INVALID [TRANS]: 前提1非等式");
-                    return VERIFY_INVALID;
-                }
-                const char *t_from_p0 = eq0 + 1;
-                while (*t_from_p0 == ' ')
-                    t_from_p0++;
-
-                /* 从 t=u 中提取 t（等号左侧） */
-                const char *eq1 = strstr(p1, "=");
-                if (!eq1) {
-                    if (out_trace)
-                        *out_trace = lv_strdup_safe("VERIFY_INVALID [TRANS]: 前提2非等式");
-                    return VERIFY_INVALID;
-                }
-                size_t t_in_p1_len = (size_t) (eq1 - p1);
-
-                /* 比较两个 t 是否一致 */
-                if (strncmp(t_from_p0, p1, t_in_p1_len) != 0) {
-                    if (out_trace) {
-                        size_t len = strlen(p0) + strlen(p1) + 128;
-                        *out_trace = (char *) lv_malloc(len);
-                        if (*out_trace) {
-                            snprintf(*out_trace, len, "VERIFY_INVALID [TRANS]: \"%s\" 和 \"%s\" 中间项不匹配", p0, p1);
-                        }
-                    }
-                    return VERIFY_INVALID;
-                }
-
-                /* s=u: 从 s=t 取 s，从 t=u 取 u 构造结论并比较 */
-                if (out_trace) {
-                    size_t len = strlen(conclusion) + strlen(p0) + strlen(p1) + 128;
-                    *out_trace = (char *) lv_malloc(len);
-                    if (*out_trace) {
-                        snprintf(*out_trace, len, "VERIFY_VALID [TRANS]: s=t \"%s\", t=u \"%s\" => s=u \"%s\"", p0, p1,
-                                 conclusion);
-                    }
-                }
-                return VERIFY_VALID;
-            }
-
-        case VERIFY_ASSUME:
-            /* ASSUME: t |- t — 结论必须是前提之一 */
-            if (!premises) {
-                if (out_trace)
-                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [ASSUME]: 无前提");
-                return VERIFY_UNDECIDED;
-            }
-            for (int i = 0; premises[i] != NULL; i++) {
-                if (strcmp(premises[i], conclusion) == 0) {
-                    if (out_trace) {
-                        size_t len = strlen(conclusion) + 64;
-                        *out_trace = (char *) lv_malloc(len);
-                        if (*out_trace) {
-                            snprintf(*out_trace, len, "VERIFY_VALID [ASSUME]: 结论 \"%s\" 在前提[%d]中", conclusion, i);
-                        }
-                    }
-                    return VERIFY_VALID;
-                }
-            }
-            if (out_trace) {
-                size_t len = strlen(conclusion) + 64;
-                *out_trace = (char *) lv_malloc(len);
-                if (*out_trace) {
-                    snprintf(*out_trace, len, "VERIFY_INVALID [ASSUME]: 结论 \"%s\" 不在前提中", conclusion);
-                }
-            }
-            return VERIFY_INVALID;
-
-        case VERIFY_BETA_CONV:
-            /* BETA_CONV: |- (\x.M) N = M[x:=N]
-             * 检查结论是否为等式，且左侧包含 lambda 抽象和应用模式。
-             * 轻量级检查：结论形如 "(\\x.M) N = ..." 或 "(Abs x M) N = ..." */
-            if (!has_equality_pattern(conclusion)) {
-                if (out_trace)
-                    *out_trace =
-                        make_trace("VERIFY_INVALID [BETA_CONV]: 结论 \"%s\" 非等式形式", conclusion, NULL, NULL);
-                return VERIFY_INVALID;
-            }
-            {
-                char lhs_buf[512];
-                int lhs_len = extract_eq_lhs(conclusion, lhs_buf, (int) sizeof(lhs_buf));
-                if (lhs_len <= 0) {
-                    if (out_trace)
-                        *out_trace =
-                            make_trace("VERIFY_UNDECIDED [BETA_CONV]: 无法解析结论 \"%s\"", conclusion, NULL, NULL);
-                    return VERIFY_UNDECIDED;
-                }
-                /* 左侧应包含 lambda 模式和应用模式 */
-                if (has_lambda_pattern(lhs_buf) && has_application_pattern(lhs_buf)) {
-                    if (out_trace)
-                        *out_trace =
-                            make_trace("VERIFY_VALID [BETA_CONV]: \"%s\" 符合 beta-归约模式 (\\x.M) N = M[x:=N]",
-                                       conclusion, NULL, NULL);
-                    return VERIFY_VALID;
-                }
-                /* 左侧不含 lambda 但有应用：可能是已归约形式，标记为未决 */
-                if (has_application_pattern(lhs_buf)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [BETA_CONV]: \"%s\" 含应用但无 lambda 抽象，无法确认",
-                                                conclusion, NULL, NULL);
-                    return VERIFY_UNDECIDED;
-                }
-                if (out_trace)
-                    *out_trace =
-                        make_trace("VERIFY_INVALID [BETA_CONV]: \"%s\" 不符合 beta-归约模式", conclusion, NULL, NULL);
-                return VERIFY_INVALID;
-            }
-
-        case VERIFY_MK_COMB:
-            /* MK_COMB: f1=f2, g1=g2 => COMB f1 g1 = COMB f2 g2
-             * 检查：需要两个前提（f1=f2 和 g1=g2），结论应含 COMB 模式 */
-            if (!premises || !premises[0] || !premises[1]) {
-                if (out_trace)
-                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [MK_COMB]: 需要两个前提 f1=f2, g1=g2");
-                return VERIFY_UNDECIDED;
-            }
-            {
-                const char *p0 = premises[0]; /* f1=f2 */
-                const char *p1 = premises[1]; /* g1=g2 */
-                /* 两个前提都应为等式 */
-                if (!has_equality_pattern(p0) || !has_equality_pattern(p1)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [MK_COMB]: 前提 \"%s\" 或 \"%s\" 非等式", p0, p1, NULL);
-                    return VERIFY_INVALID;
-                }
-                /* 结论应包含 COMB 模式 */
-                if (has_comb_pattern(conclusion)) {
-                    if (out_trace)
-                        *out_trace =
-                            make_trace("VERIFY_VALID [MK_COMB]: 前提 \"%s\", \"%s\" => 结论 \"%s\" 符合组合子规则", p0,
-                                       p1, conclusion);
-                    return VERIFY_VALID;
-                }
-                /* 结论不含 COMB 但含等式：可能是隐式组合 */
-                if (has_equality_pattern(conclusion)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [MK_COMB]: 结论 \"%s\" 含等式但无 COMB 标记",
-                                                conclusion, NULL, NULL);
-                    return VERIFY_UNDECIDED;
-                }
-                if (out_trace)
-                    *out_trace =
-                        make_trace("VERIFY_INVALID [MK_COMB]: 结论 \"%s\" 不符合 MK_COMB 规则", conclusion, NULL, NULL);
-                return VERIFY_INVALID;
-            }
-
-        case VERIFY_ABS:
-            /* ABS: x not free in Gamma => Gamma |- s=t => Gamma |- (\x.s) = (\x.t)
-             * 检查：需要一个前提 s=t，结论两侧都应含 lambda 抽象 */
-            if (!premises || !premises[0]) {
-                if (out_trace)
-                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [ABS]: 需要前提 s=t");
-                return VERIFY_UNDECIDED;
-            }
-            {
-                const char *p0 = premises[0]; /* s=t */
-                if (!has_equality_pattern(p0)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [ABS]: 前提 \"%s\" 非等式", p0, NULL, NULL);
-                    return VERIFY_INVALID;
-                }
-                /* 结论应为等式且两侧含 lambda */
-                if (!has_equality_pattern(conclusion)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [ABS]: 结论 \"%s\" 非等式", conclusion, NULL, NULL);
-                    return VERIFY_INVALID;
-                }
-                char lhs_buf[512];
-                int lhs_len = extract_eq_lhs(conclusion, lhs_buf, (int) sizeof(lhs_buf));
-                const char *rhs = extract_eq_rhs(conclusion);
-                if (lhs_len > 0 && rhs && has_lambda_pattern(lhs_buf) && has_lambda_pattern(rhs)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_VALID [ABS]: 前提 \"%s\" => 结论 \"%s\" 符合抽象规则", p0,
-                                                conclusion, NULL);
-                    return VERIFY_VALID;
-                }
-                if (out_trace)
-                    *out_trace = make_trace("VERIFY_UNDECIDED [ABS]: 结论 \"%s\" 两侧不全含 lambda 抽象", conclusion,
-                                            NULL, NULL);
-                return VERIFY_UNDECIDED;
-            }
-
-        case VERIFY_SUBST:
-            /* SUBST: 替换实例验证
-             * 检查：前提应包含替换定理，结论应体现替换结果 */
-            if (!premises || !premises[0]) {
-                if (out_trace)
-                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [SUBST]: 需要替换定理前提");
-                return VERIFY_UNDECIDED;
-            }
-            {
-                /* SUBST 通常有多个前提：替换定理 + 被替换的等式 */
-                /* 轻量级检查：前提中至少有一个等式，结论含等式或实例化标记 */
-                bool has_eq_premise = false;
-                for (int i = 0; premises[i] != NULL; i++) {
-                    if (has_equality_pattern(premises[i])) {
-                        has_eq_premise = true;
-                        break;
-                    }
-                }
-                if (!has_eq_premise) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [SUBST]: 前提中无等式，无法执行替换", NULL, NULL, NULL);
-                    return VERIFY_INVALID;
-                }
-                /* 结论应包含某种实例化或替换标记 */
-                if (has_inst_pattern(conclusion) || has_equality_pattern(conclusion)) {
-                    if (out_trace)
-                        *out_trace =
-                            make_trace("VERIFY_VALID [SUBST]: 结论 \"%s\" 符合替换实例模式", conclusion, NULL, NULL);
-                    return VERIFY_VALID;
-                }
-                if (out_trace)
-                    *out_trace = make_trace("VERIFY_UNDECIDED [SUBST]: 结论 \"%s\" 结构不明确", conclusion, NULL, NULL);
-                return VERIFY_UNDECIDED;
-            }
-
-        case VERIFY_INST_TYPE:
-            /* INST_TYPE: 类型实例化
-             * 检查：前提为泛型定理，结论为特化后的版本（通常含类型标注） */
-            if (!premises || !premises[0]) {
-                if (out_trace)
-                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [INST_TYPE]: 需要泛型定理前提");
-                return VERIFY_UNDECIDED;
-            }
-            {
-                const char *p0 = premises[0];
-                /* 前提和结论应有结构相似性（类型特化不改变项结构） */
-                /* 轻量级检查：结论长度 >= 前提长度（特化通常添加类型信息） */
-                if (strlen(conclusion) >= strlen(p0) && has_inst_type_pattern(conclusion)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_VALID [INST_TYPE]: 前提 \"%s\" => 结论 \"%s\" 符合类型实例化",
-                                                p0, conclusion, NULL);
-                    return VERIFY_VALID;
-                }
-                /* 结论可能不含显式 INST_TYPE 标记但结构相似 */
-                if (lv_str_nonempty(conclusion) && strstr(conclusion, ":") != NULL) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [INST_TYPE]: 结论 \"%s\" 含类型标注但无显式标记",
-                                                conclusion, NULL, NULL);
-                    return VERIFY_UNDECIDED;
-                }
-                if (out_trace)
-                    *out_trace = make_trace("VERIFY_INVALID [INST_TYPE]: 结论 \"%s\" 不符合类型实例化模式", conclusion,
-                                            NULL, NULL);
-                return VERIFY_INVALID;
-            }
-
-        case VERIFY_INST:
-            /* INST: 项实例化
-             * 检查：前提为含变量的定理，结论为变量被替换后的版本 */
-            if (!premises || !premises[0]) {
-                if (out_trace)
-                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [INST]: 需要泛型定理前提");
-                return VERIFY_UNDECIDED;
-            }
-            {
-                const char *p0 = premises[0];
-                /* 轻量级检查：前提含变量模式（单字母大写或下划线开头），
-                 * 结论含实例化标记或替换列表 */
-                if (has_inst_pattern(conclusion)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_VALID [INST]: 前提 \"%s\" => 结论 \"%s\" 符合项实例化", p0,
-                                                conclusion, NULL);
-                    return VERIFY_VALID;
-                }
-                /* 结论可能不含显式 INST 标记 */
-                if (has_equality_pattern(conclusion) || has_application_pattern(conclusion)) {
-                    if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [INST]: 结论 \"%s\" 结构可能为实例化结果但无显式标记",
-                                                conclusion, NULL, NULL);
-                    return VERIFY_UNDECIDED;
-                }
-                if (out_trace)
-                    *out_trace =
-                        make_trace("VERIFY_INVALID [INST]: 结论 \"%s\" 不符合项实例化模式", conclusion, NULL, NULL);
-                return VERIFY_INVALID;
-            }
-
-        case VERIFY_DISCH:
-            /* DISCH: 如果 Gamma, A |- B 则 Gamma |- A ==> B
-             * 检查：前提为 B，结论应含蕴含模式（A ==> B 或 A --> B） */
-            if (!premises || !premises[0]) {
-                if (out_trace)
-                    *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [DISCH]: 需要前提 B");
-                return VERIFY_UNDECIDED;
-            }
-            {
-                const char *p0 = premises[0]; /* B */
-                /* 结论应包含蕴含模式 */
-                if (!has_implication_pattern(conclusion)) {
-                    if (out_trace)
-                        *out_trace =
-                            make_trace("VERIFY_INVALID [DISCH]: 结论 \"%s\" 不含蕴含模式", conclusion, NULL, NULL);
-                    return VERIFY_INVALID;
-                }
-                /* 结论的后件（蕴含右侧）应与前提匹配 */
-                /* 尝试提取蕴含右侧 */
-                const char *impl = strstr(conclusion, "==>");
-                if (!impl)
-                    impl = strstr(conclusion, "-->");
-                if (impl) {
-                    const char *rhs = impl + 3;
-                    while (*rhs == ' ')
-                        rhs++;
-                    /* 去除尾部空格 */
-                    size_t p0_len = strlen(p0);
-                    size_t rhs_len = strlen(rhs);
-                    while (rhs_len > 0 && rhs[rhs_len - 1] == ' ')
-                        rhs_len--;
-                    while (p0_len > 0 && p0[p0_len - 1] == ' ')
-                        p0_len--;
-                    if (rhs_len == p0_len && strncmp(rhs, p0, p0_len) == 0) {
-                        if (out_trace)
-                            *out_trace = make_trace("VERIFY_VALID [DISCH]: 前提 \"%s\" => 结论 \"%s\" 符合蕴含引入", p0,
-                                                    conclusion, NULL);
-                        return VERIFY_VALID;
-                    }
-                    /* 后件与前提不完全匹配，但蕴含结构存在 */
-                    if (out_trace)
-                        *out_trace =
-                            make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含但后件与前提 \"%s\" 不完全匹配",
-                                       conclusion, p0, NULL);
-                    return VERIFY_UNDECIDED;
-                }
-                if (out_trace)
-                    *out_trace = make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含关键词但格式不明确",
-                                            conclusion, NULL, NULL);
-                return VERIFY_UNDECIDED;
-            }
-
-        default:
-            if (out_trace) {
-                *out_trace = lv_strdup_safe("VERIFY_INVALID: 未知验证规则");
-            }
-            return VERIFY_INVALID;
+    {
+        /* VTable 查找：根据验证规则派发到对应的 handler */
+        VerifyRuleHandler handler = verify_default_handler;
+        size_t rule_idx = (size_t) rule;
+        if (rule_idx < sizeof(verify_rule_handlers) / sizeof(verify_rule_handlers[0]) &&
+            verify_rule_handlers[rule_idx] != NULL) {
+            handler = verify_rule_handlers[rule_idx];
+        }
+        return handler(premises, conclusion, out_trace);
     }
 }
 

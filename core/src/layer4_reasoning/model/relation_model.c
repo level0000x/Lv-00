@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file relation_model.c
  * @brief 关系模型层实现 —— 借鉴 Alloy 的"关系即一切"统一建模范式
  *
@@ -32,6 +32,134 @@
 #define SIG_INITIAL_CAP 8
 /** 导出缓冲区初始大小 */
 #define EXPORT_BUF_INITIAL_SIZE 4096
+
+/* ========================================================================
+ * 静态查找表 —— 消除 switch-case 类型代码反模式
+ * ======================================================================== */
+
+/** GeomType → sig_idx 映射表（GEOM_POINT=0, ..., GEOM_FUNCTION_BLOCK=5） */
+static const int geom_type_to_sig_idx[] = {
+    0, /* GEOM_POINT          -> sig_idx 0 (Point) */
+    1, /* GEOM_LINE_SEGMENT   -> sig_idx 1 (LineSegment) */
+    2, /* GEOM_REGION         -> sig_idx 2 (Region) */
+    2, /* GEOM_CIRCLE         -> sig_idx 2 (Region，与 REGION 共享) */
+    3, /* GEOM_PORT           -> sig_idx 3 (Port) */
+    4  /* GEOM_FUNCTION_BLOCK -> sig_idx 4 (FuncBlock) */
+};
+
+/** RelAtomType → 类型名称静态表 */
+static const char *atom_type_names[] = {
+    "Point",     /* REL_ATOM_POINT (0) */
+    "Line",      /* REL_ATOM_LINE (1) */
+    "Region",    /* REL_ATOM_REGION (2) */
+    "Port",      /* REL_ATOM_PORT (3) */
+    "FuncBlock"  /* REL_ATOM_FUNC_BLOCK (4) */
+};
+
+/* ========================================================================
+ * 函数指针类型定义 —— 用于 VTable 与查找表调度
+ * ======================================================================== */
+
+/** 关系表达式求值函数指针 */
+typedef Relation *(*RelExprEvalFunc)(const RelModel *model, const RelInstance *inst, const RelExpr *expr);
+
+/** 关系运算符执行函数指针 */
+typedef Relation *(*RelOpFunc)(Relation *left_r, Relation *right_r, const RelModel *model);
+
+/** 逻辑公式求值函数指针 */
+typedef bool (*RelFormulaEvalFunc)(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
+
+/** 量词检查函数指针 */
+typedef bool (*QuantCheckFunc)(int count, const Relation *r, const RelFormula *formula);
+
+/* ========================================================================
+ * 前向声明 —— 表达式中使用的辅助函数
+ * ======================================================================== */
+
+/* RelOp 包装函数（13 种） */
+static Relation *rel_op_union(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_intersection(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_difference(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_join(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_product(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_transpose(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_transitive_closure(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_refl_trans_closure(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_identity(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_complement(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_restrict_domain(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_restrict_range(Relation *left_r, Relation *right_r, const RelModel *model);
+static Relation *rel_op_override(Relation *left_r, Relation *right_r, const RelModel *model);
+
+/* RelOp 查找表（按 RelOp 枚举顺序） */
+static const RelOpFunc rel_op_table[] = {
+    rel_op_union,               /* REL_OP_UNION (0) */
+    rel_op_intersection,        /* REL_OP_INTERSECTION (1) */
+    rel_op_difference,          /* REL_OP_DIFFERENCE (2) */
+    rel_op_join,                /* REL_OP_JOIN (3) */
+    rel_op_product,             /* REL_OP_PRODUCT (4) */
+    rel_op_transpose,           /* REL_OP_TRANSPOSE (5) */
+    rel_op_transitive_closure,  /* REL_OP_TRANSITIVE_CLOSURE (6) */
+    rel_op_refl_trans_closure,  /* REL_OP_REFL_TRANS_CLOSURE (7) */
+    rel_op_identity,            /* REL_OP_IDENTITY (8) */
+    rel_op_complement,          /* REL_OP_COMPLEMENT (9) */
+    rel_op_restrict_domain,     /* REL_OP_RESTRICT_DOMAIN (10) */
+    rel_op_restrict_range,      /* REL_OP_RESTRICT_RANGE (11) */
+    rel_op_override             /* REL_OP_OVERRIDE (12) */
+};
+
+/* RelExpr 求值函数 */
+static Relation *eval_expr_atomic(const RelModel *model, const RelInstance *inst, const RelExpr *expr);
+static Relation *eval_expr_composite(const RelModel *model, const RelInstance *inst, const RelExpr *expr);
+
+/* RelExpr VTable（按 RelExprType 枚举顺序） */
+static const RelExprEvalFunc expr_eval_table[] = {
+    eval_expr_atomic,    /* REL_EXPR_ATOMIC (0) */
+    eval_expr_composite  /* REL_EXPR_COMPOSITE (1) */
+};
+
+/* 公式求值函数（12 种） */
+static bool eval_formula_quantifier(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
+static bool eval_formula_eq(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
+static bool eval_formula_subset(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
+static bool eval_formula_and(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
+static bool eval_formula_or(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
+static bool eval_formula_not(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
+static bool eval_formula_implies(const RelModel *model, const RelInstance *inst, const RelFormula *formula);
+
+/* RelFormula VTable（按 RelFormulaType 枚举顺序） */
+static const RelFormulaEvalFunc formula_eval_table[] = {
+    eval_formula_quantifier,  /* REL_FORMULA_FORALL (0) */
+    eval_formula_quantifier,  /* REL_FORMULA_EXISTS (1) */
+    eval_formula_quantifier,  /* REL_FORMULA_NO (2) */
+    eval_formula_quantifier,  /* REL_FORMULA_SOME (3) */
+    eval_formula_quantifier,  /* REL_FORMULA_LONE (4) */
+    eval_formula_quantifier,  /* REL_FORMULA_ONE (5) */
+    eval_formula_eq,          /* REL_FORMULA_EQ (6) */
+    eval_formula_subset,      /* REL_FORMULA_SUBSET (7) */
+    eval_formula_and,         /* REL_FORMULA_AND (8) */
+    eval_formula_or,          /* REL_FORMULA_OR (9) */
+    eval_formula_not,         /* REL_FORMULA_NOT (10) */
+    eval_formula_implies      /* REL_FORMULA_IMPLIES (11) */
+};
+
+/* 量词检查函数（6 种） */
+static bool quant_check_some(int count, const Relation *r, const RelFormula *formula);
+static bool quant_check_no(int count, const Relation *r, const RelFormula *formula);
+static bool quant_check_lone(int count, const Relation *r, const RelFormula *formula);
+static bool quant_check_one(int count, const Relation *r, const RelFormula *formula);
+static bool quant_check_forall(int count, const Relation *r, const RelFormula *formula);
+static bool quant_check_exists(int count, const Relation *r, const RelFormula *formula);
+
+/* 量词检查查找表（按 RelFormulaType 中 FORALL=0..ONE=5 的顺序） */
+static const QuantCheckFunc quant_check_table[] = {
+    quant_check_forall,  /* REL_FORMULA_FORALL (0) */
+    quant_check_exists,  /* REL_FORMULA_EXISTS (1) */
+    quant_check_no,      /* REL_FORMULA_NO (2) */
+    quant_check_some,    /* REL_FORMULA_SOME (3) */
+    quant_check_lone,    /* REL_FORMULA_LONE (4) */
+    quant_check_one      /* REL_FORMULA_ONE (5) */
+};
 
 /* ========================================================================
  * 内部辅助 —— 元组比较与克隆
@@ -451,6 +579,258 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
 }
 
 /* ========================================================================
+ * RelOp 包装函数 —— 替代 switch-case 的函数指针查找表
+ * ======================================================================== */
+
+static Relation *rel_op_union(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    return (left_r && right_r) ? rel_union(left_r, right_r) : NULL;
+}
+
+static Relation *rel_op_intersection(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    return (left_r && right_r) ? rel_intersection(left_r, right_r) : NULL;
+}
+
+static Relation *rel_op_difference(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    return (left_r && right_r) ? rel_difference(left_r, right_r) : NULL;
+}
+
+static Relation *rel_op_join(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    return (left_r && right_r) ? rel_join(left_r, right_r) : NULL;
+}
+
+static Relation *rel_op_product(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    return (left_r && right_r) ? rel_product(left_r, right_r) : NULL;
+}
+
+static Relation *rel_op_transpose(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    (void)right_r;
+    return left_r ? rel_transpose(left_r) : NULL;
+}
+
+static Relation *rel_op_transitive_closure(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    (void)right_r;
+    return left_r ? rel_transitive_closure(left_r) : NULL;
+}
+
+static Relation *rel_op_refl_trans_closure(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    (void)right_r;
+    return left_r ? rel_reflexive_transitive_closure(left_r) : NULL;
+}
+
+static Relation *rel_op_identity(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)left_r;
+    (void)right_r;
+    Relation *result = rel_new("identity", 2);
+    if (result && model) {
+        for (int si = 0; si < model->sigs.count; si++) {
+            RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, si);
+            if (!sig)
+                continue;
+            for (int ai = 0; ai < sig->atom_count; ai++) {
+                if (!sig->atoms[ai])
+                    continue;
+                int diag[2] = {sig->atoms[ai]->atom_id, sig->atoms[ai]->atom_id};
+                rel_add_tuple_inner(result, diag);
+            }
+        }
+    }
+    return result;
+}
+
+static Relation *rel_op_complement(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)right_r;
+    (void)model;
+    int arity = left_r ? left_r->arity : 1;
+    Relation *result = rel_new("complement", arity);
+    if (result && left_r) {
+        int domain_sizes[8] = {0};
+        RelAtom **domain_atoms[8] = {NULL};
+        for (int col = 0; col < arity && col < 8; col++) {
+            RelSignature *dsig = left_r->domains[col];
+            if (dsig && dsig->atom_count > 0) {
+                domain_atoms[col] = dsig->atoms;
+                domain_sizes[col] = dsig->atom_count;
+            } else {
+                domain_sizes[col] = 0;
+            }
+        }
+        long long total = 1;
+        for (int col = 0; col < arity; col++) {
+            if (domain_sizes[col] == 0) {
+                total = 0;
+                break;
+            }
+            total *= domain_sizes[col];
+            if (total > 10000) {
+                total = 0;
+                break;
+            }
+        }
+        if (total > 0) {
+            int tuple[8] = {0};
+            int idx[8] = {0};
+            for (long long n = 0; n < total; n++) {
+                for (int col = arity - 1; col >= 0; col--) {
+                    tuple[col] = domain_atoms[col][idx[col]]->atom_id;
+                }
+                if (!rel_contains_tuple(left_r, tuple)) {
+                    rel_add_tuple_inner(result, tuple);
+                }
+                for (int col = arity - 1; col >= 0; col--) {
+                    idx[col]++;
+                    if (idx[col] < domain_sizes[col])
+                        break;
+                    idx[col] = 0;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+static Relation *rel_op_restrict_domain(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    if (left_r && right_r) {
+        Relation *result = rel_new("rdom", left_r->arity);
+        if (result) {
+            for (int i = 0; i < left_r->tuples.count; i++) {
+                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
+                int first_elem = left_i[0];
+                bool allowed = false;
+                for (int j = 0; j < right_r->tuples.count; j++) {
+                    if ((*(int **)lv_darray_get(&right_r->tuples, j))[0] == first_elem) {
+                        allowed = true;
+                        break;
+                    }
+                }
+                if (allowed) {
+                    rel_add_tuple_inner(result, left_i);
+                }
+            }
+        }
+        return result;
+    }
+    return NULL;
+}
+
+static Relation *rel_op_restrict_range(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    if (left_r && right_r) {
+        Relation *result = rel_new("rrng", left_r->arity);
+        if (result) {
+            for (int i = 0; i < left_r->tuples.count; i++) {
+                if (left_r->arity < 2)
+                    continue;
+                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
+                int last_elem = left_i[left_r->arity - 1];
+                bool allowed = false;
+                for (int j = 0; j < right_r->tuples.count; j++) {
+                    if ((*(int **)lv_darray_get(&right_r->tuples, j))[0] == last_elem) {
+                        allowed = true;
+                        break;
+                    }
+                }
+                if (allowed) {
+                    rel_add_tuple_inner(result, left_i);
+                }
+            }
+        }
+        return result;
+    }
+    return NULL;
+}
+
+static Relation *rel_op_override(Relation *left_r, Relation *right_r, const RelModel *model) {
+    (void)model;
+    if (left_r) {
+        Relation *result = rel_new("override", left_r->arity);
+        if (result) {
+            for (int i = 0; i < left_r->tuples.count; i++) {
+                bool overridden = false;
+                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
+                if (right_r) {
+                    for (int j = 0; j < right_r->tuples.count; j++) {
+                        bool key_match = true;
+                        int key_len = (left_r->arity > 1) ? left_r->arity - 1 : 1;
+                        int *right_j = *(int **)lv_darray_get(&right_r->tuples, j);
+                        for (int k = 0; k < key_len; k++) {
+                            if (left_i[k] != right_j[k]) {
+                                key_match = false;
+                                break;
+                            }
+                        }
+                        if (key_match) {
+                            overridden = true;
+                            break;
+                        }
+                    }
+                }
+                if (!overridden) {
+                    rel_add_tuple_inner(result, left_i);
+                }
+            }
+            if (right_r) {
+                for (int j = 0; j < right_r->tuples.count; j++) {
+                    rel_add_tuple_inner(result, *(int **)lv_darray_get(&right_r->tuples, j));
+                }
+            }
+        }
+        return result;
+    }
+    return NULL;
+}
+
+/* ========================================================================
+ * RelExpr 求值辅助函数 —— 供 VTable 调度
+ * ======================================================================== */
+
+static Relation *eval_expr_atomic(const RelModel *model, const RelInstance *inst, const RelExpr *expr) {
+    (void)model;
+    (void)inst;
+    if (expr->data.atomic.rel) {
+        Relation *result = rel_new("eval", expr->data.atomic.rel->arity);
+        if (!result)
+            return NULL;
+        for (int i = 0; i < expr->data.atomic.rel->tuples.count; i++) {
+            if (!rel_add_tuple_inner(result, *(int **)lv_darray_get(&expr->data.atomic.rel->tuples, i))) {
+                rel_destroy(result);
+                return NULL;
+            }
+        }
+        return result;
+    }
+    return NULL;
+}
+
+static Relation *eval_expr_composite(const RelModel *model, const RelInstance *inst, const RelExpr *expr) {
+    RelOp op = expr->data.composite.op;
+    RelExpr *left = expr->data.composite.left;
+    RelExpr *right = expr->data.composite.right;
+
+    Relation *left_r = left ? relation_evaluate_expr(model, inst, left) : NULL;
+    Relation *right_r = right ? relation_evaluate_expr(model, inst, right) : NULL;
+
+    Relation *result = NULL;
+    if (op >= 0 && (size_t)op < sizeof(rel_op_table) / sizeof(rel_op_table[0])) {
+        result = rel_op_table[op](left_r, right_r, model);
+    }
+
+    if (left_r)
+        rel_destroy(left_r);
+    if (right_r)
+        rel_destroy(right_r);
+    return result;
+}
+
+/* ========================================================================
  * 关系模型构建 API
  * ======================================================================== */
 
@@ -507,29 +887,11 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
         if (!node)
             continue;
 
-        int sig_idx = -1;
-        switch (node->type) {
-            case GEOM_POINT:
-                sig_idx = 0;
-                break;
-            case GEOM_LINE_SEGMENT:
-                sig_idx = 1;
-                break;
-            case GEOM_REGION:
-                sig_idx = 2;
-                break;
-            case GEOM_CIRCLE:
-                sig_idx = 2;
-                break;
-            case GEOM_PORT:
-                sig_idx = 3;
-                break;
-            case GEOM_FUNCTION_BLOCK:
-                sig_idx = 4;
-                break;
-            default:
-                continue;
-        }
+        /* 使用静态查找表替代 switch */
+        int type_idx = (int)node->type;
+        if (type_idx < 0 || type_idx > GEOM_FUNCTION_BLOCK)
+            continue;
+        int sig_idx = geom_type_to_sig_idx[type_idx];
 
         RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, sig_idx);
 
@@ -768,246 +1130,171 @@ void relation_instance_destroy(RelInstance *inst) {
 Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst, const RelExpr *expr) {
     lv_CHECK_NULL(model, NULL);
     lv_CHECK_NULL(expr, NULL);
-    lv_UNUSED(inst);
 
-    switch (expr->type) {
-        case REL_EXPR_ATOMIC:
-            if (expr->data.atomic.rel) {
-                /* 浅拷贝引用关系 */
-                Relation *result = rel_new("eval", expr->data.atomic.rel->arity);
-                if (!result)
-                    return NULL;
-                for (int i = 0; i < expr->data.atomic.rel->tuples.count; i++) {
-                    if (!rel_add_tuple_inner(result, *(int **)lv_darray_get(&expr->data.atomic.rel->tuples, i))) {
-                        rel_destroy(result);
-                        return NULL;
-                    }
-                }
-                return result;
-            }
-            return NULL;
-
-        case REL_EXPR_COMPOSITE: {
-            RelOp op = expr->data.composite.op;
-            RelExpr *left = expr->data.composite.left;
-            RelExpr *right = expr->data.composite.right;
-
-            Relation *left_r = left ? relation_evaluate_expr(model, inst, left) : NULL;
-            Relation *right_r = right ? relation_evaluate_expr(model, inst, right) : NULL;
-
-            Relation *result = NULL;
-            switch (op) {
-                case REL_OP_UNION:
-                    if (left_r && right_r)
-                        result = rel_union(left_r, right_r);
-                    break;
-                case REL_OP_INTERSECTION:
-                    if (left_r && right_r)
-                        result = rel_intersection(left_r, right_r);
-                    break;
-                case REL_OP_DIFFERENCE:
-                    if (left_r && right_r)
-                        result = rel_difference(left_r, right_r);
-                    break;
-                case REL_OP_JOIN:
-                    if (left_r && right_r)
-                        result = rel_join(left_r, right_r);
-                    break;
-                case REL_OP_PRODUCT:
-                    if (left_r && right_r)
-                        result = rel_product(left_r, right_r);
-                    break;
-                case REL_OP_TRANSPOSE:
-                    if (left_r)
-                        result = rel_transpose(left_r);
-                    break;
-                case REL_OP_TRANSITIVE_CLOSURE:
-                    if (left_r)
-                        result = rel_transitive_closure(left_r);
-                    break;
-                case REL_OP_REFL_TRANS_CLOSURE:
-                    if (left_r)
-                        result = rel_reflexive_transitive_closure(left_r);
-                    break;
-                case REL_OP_IDENTITY: {
-                    /* 恒等关系：生成对角元组 {(a,a) | a in domain}
-                     * 需要从模型中获取域签名以确定原子集合 */
-                    result = rel_new("identity", 2);
-                    if (result && model) {
-                        /* 遍历模型中所有签名，收集原子生成对角元组 */
-                        for (int si = 0; si < model->sigs.count; si++) {
-                            RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, si);
-                            if (!sig)
-                                continue;
-                            for (int ai = 0; ai < sig->atom_count; ai++) {
-                                if (!sig->atoms[ai])
-                                    continue;
-                                int diag[2] = {sig->atoms[ai]->atom_id, sig->atoms[ai]->atom_id};
-                                rel_add_tuple_inner(result, diag);
-                            }
-                        }
-                    }
-                    break;
-                }
-                case REL_OP_COMPLEMENT: {
-                    /* 补集：计算相对于全笛卡尔积的补集
-                     * 对于 left_r 的每个域签名，计算不在 left_r 中的所有元组 */
-                    int arity = left_r ? left_r->arity : 1;
-                    result = rel_new("complement", arity);
-                    if (result && left_r) {
-                        /* 收集所有域签名中的原子，构建笛卡尔积 */
-                        int domain_sizes[8] = {0};
-                        RelAtom **domain_atoms[8] = {NULL};
-                        for (int col = 0; col < arity && col < 8; col++) {
-                            RelSignature *dsig = left_r->domains[col];
-                            if (dsig && dsig->atom_count > 0) {
-                                domain_atoms[col] = dsig->atoms;
-                                domain_sizes[col] = dsig->atom_count;
-                            } else {
-                                /* 无域签名，无法计算补集 */
-                                domain_sizes[col] = 0;
-                            }
-                        }
-                        /* 计算笛卡尔积大小，限制在 10000 以内防止爆炸 */
-                        long long total = 1;
-                        for (int col = 0; col < arity; col++) {
-                            if (domain_sizes[col] == 0) {
-                                total = 0;
-                                break;
-                            }
-                            total *= domain_sizes[col];
-                            if (total > 10000) {
-                                total = 0;
-                                break;
-                            }
-                        }
-                        if (total > 0) {
-                            /* 枚举笛卡尔积中每个元组，检查是否不在原关系中 */
-                            int tuple[8] = {0};
-                            int idx[8] = {0};
-                            for (long long n = 0; n < total; n++) {
-                                /* 生成当前元组 */
-                                long long tmp = n;
-                                for (int col = arity - 1; col >= 0; col--) {
-                                    tuple[col] = domain_atoms[col][idx[col]]->atom_id;
-                                }
-                                /* 检查是否不在原关系中 */
-                                if (!rel_contains_tuple(left_r, tuple)) {
-                                    rel_add_tuple_inner(result, tuple);
-                                }
-                                /* 递增索引（类似进位加法） */
-                                for (int col = arity - 1; col >= 0; col--) {
-                                    idx[col]++;
-                                    if (idx[col] < domain_sizes[col])
-                                        break;
-                                    idx[col] = 0;
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
-                case REL_OP_RESTRICT_DOMAIN:
-                    /* 域约束 S <: R —— 仅保留左关系第一元素在右关系中的元组 */
-                    if (left_r && right_r) {
-                        result = rel_new("rdom", left_r->arity);
-                        if (result) {
-                            /* 收集右关系中所有第一元素作为允许集合 */
-                            for (int i = 0; i < left_r->tuples.count; i++) {
-                                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
-                                int first_elem = left_i[0];
-                                /* 检查 first_elem 是否在 right_r 的元组中 */
-                                bool allowed = false;
-                                for (int j = 0; j < right_r->tuples.count; j++) {
-                                    if ((*(int **)lv_darray_get(&right_r->tuples, j))[0] == first_elem) {
-                                        allowed = true;
-                                        break;
-                                    }
-                                }
-                                if (allowed) {
-                                    rel_add_tuple_inner(result, left_i);
-                                }
-                            }
-                        }
-                    }
-                    break;
-                case REL_OP_RESTRICT_RANGE:
-                    /* 值域约束 R :> S —— 仅保留左关系第二元素在右关系中的元组 */
-                    if (left_r && right_r) {
-                        result = rel_new("rrng", left_r->arity);
-                        if (result) {
-                            for (int i = 0; i < left_r->tuples.count; i++) {
-                                if (left_r->arity < 2)
-                                    continue;
-                                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
-                                int last_elem = left_i[left_r->arity - 1];
-                                bool allowed = false;
-                                for (int j = 0; j < right_r->tuples.count; j++) {
-                                    if ((*(int **)lv_darray_get(&right_r->tuples, j))[0] == last_elem) {
-                                        allowed = true;
-                                        break;
-                                    }
-                                }
-                                if (allowed) {
-                                    rel_add_tuple_inner(result, left_i);
-                                }
-                            }
-                        }
-                    }
-                    break;
-                case REL_OP_OVERRIDE:
-                    /* 覆盖 R ++ S —— 右关系元组替换左关系中匹配的元组 */
-                    if (left_r) {
-                        result = rel_new("override", left_r->arity);
-                        if (result) {
-                            /* 先添加左关系中不被右关系覆盖的元组 */
-                            for (int i = 0; i < left_r->tuples.count; i++) {
-                                bool overridden = false;
-                                int *left_i = *(int **)lv_darray_get(&left_r->tuples, i);
-                                if (right_r) {
-                                    for (int j = 0; j < right_r->tuples.count; j++) {
-                                        /* 比较除最后一列外的所有列（键匹配） */
-                                        bool key_match = true;
-                                        int key_len = (left_r->arity > 1) ? left_r->arity - 1 : 1;
-                                        int *right_j = *(int **)lv_darray_get(&right_r->tuples, j);
-                                        for (int k = 0; k < key_len; k++) {
-                                            if (left_i[k] != right_j[k]) {
-                                                key_match = false;
-                                                break;
-                                            }
-                                        }
-                                        if (key_match) {
-                                            overridden = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (!overridden) {
-                                    rel_add_tuple_inner(result, left_i);
-                                }
-                            }
-                            /* 再添加右关系的所有元组 */
-                            if (right_r) {
-                                for (int j = 0; j < right_r->tuples.count; j++) {
-                                    rel_add_tuple_inner(result, *(int **)lv_darray_get(&right_r->tuples, j));
-                                }
-                            }
-                        }
-                    }
-                    break;
-                default:
-                    break;
-            }
-
-            if (left_r)
-                rel_destroy(left_r);
-            if (right_r)
-                rel_destroy(right_r);
-            return result;
-        }
+    /* 使用 VTable 替代 switch (expr->type) */
+    if (expr->type >= 0 && (size_t)expr->type < sizeof(expr_eval_table) / sizeof(expr_eval_table[0])) {
+        return expr_eval_table[expr->type](model, inst, expr);
     }
 
     return NULL;
+}
+
+/* ========================================================================
+ * 量词检查函数 —— 替代内层 switch (formula->type) 的查找表
+ * ======================================================================== */
+
+static bool quant_check_some(int count, const Relation *r, const RelFormula *formula) {
+    (void)r;
+    (void)formula;
+    return count > 0;
+}
+
+static bool quant_check_no(int count, const Relation *r, const RelFormula *formula) {
+    (void)r;
+    (void)formula;
+    return count == 0;
+}
+
+static bool quant_check_lone(int count, const Relation *r, const RelFormula *formula) {
+    (void)r;
+    (void)formula;
+    return count <= 1;
+}
+
+static bool quant_check_one(int count, const Relation *r, const RelFormula *formula) {
+    (void)r;
+    (void)formula;
+    return count == 1;
+}
+
+static bool quant_check_forall(int count, const Relation *r, const RelFormula *formula) {
+    if (r && formula->quant_sig) {
+        int domain_size = formula->quant_sig->atom_count;
+        if (domain_size <= 0)
+            return true;
+        long long total_possible = 1;
+        for (int a = 0; a < r->arity && a < 10; a++) {
+            total_possible *= domain_size;
+            if (total_possible > 100000)
+                return true;
+        }
+        return count >= total_possible;
+    }
+    return true;
+}
+
+static bool quant_check_exists(int count, const Relation *r, const RelFormula *formula) {
+    (void)r;
+    (void)formula;
+    return count > 0;
+}
+
+/* ========================================================================
+ * 公式求值辅助函数 —— 供 VTable 调度
+ * ======================================================================== */
+
+static bool eval_formula_quantifier(const RelModel *model, const RelInstance *inst, const RelFormula *formula) {
+    if (!formula->expr)
+        return false;
+
+    Relation *r = relation_evaluate_expr(model, inst, formula->expr);
+    int count = r ? r->tuples.count : 0;
+    /* 使用量词检查查找表替代内层 switch */
+    bool result = false;
+    if (formula->type >= 0 && (size_t)formula->type < sizeof(quant_check_table) / sizeof(quant_check_table[0])) {
+        result = quant_check_table[formula->type](count, r, formula);
+    }
+    rel_destroy(r);
+    return result;
+}
+
+static bool eval_formula_eq(const RelModel *model, const RelInstance *inst, const RelFormula *formula) {
+    Relation *left_r = NULL, *right_r = NULL;
+    if (formula->sub[0] && formula->sub[0]->expr) {
+        left_r = relation_evaluate_expr(model, inst, formula->sub[0]->expr);
+    }
+    if (formula->expr) {
+        right_r = relation_evaluate_expr(model, inst, formula->expr);
+    }
+
+    bool result = false;
+    if (left_r && right_r) {
+        if (left_r->tuples.count == right_r->tuples.count) {
+            result = true;
+            for (int i = 0; i < left_r->tuples.count && result; i++) {
+                if (!rel_contains_tuple(right_r, *(int **)lv_darray_get(&left_r->tuples, i))) {
+                    result = false;
+                }
+            }
+        }
+    } else if (!left_r && !right_r) {
+        result = true;
+    }
+
+    if (left_r)
+        rel_destroy(left_r);
+    if (right_r)
+        rel_destroy(right_r);
+    return result;
+}
+
+static bool eval_formula_subset(const RelModel *model, const RelInstance *inst, const RelFormula *formula) {
+    Relation *left_r = NULL, *right_r = NULL;
+    if (formula->sub[0] && formula->sub[0]->expr) {
+        left_r = relation_evaluate_expr(model, inst, formula->sub[0]->expr);
+    }
+    if (formula->expr) {
+        right_r = relation_evaluate_expr(model, inst, formula->expr);
+    }
+
+    bool result = false;
+    if (left_r && right_r) {
+        result = true;
+        for (int i = 0; i < left_r->tuples.count && result; i++) {
+            if (!rel_contains_tuple(right_r, *(int **)lv_darray_get(&left_r->tuples, i))) {
+                result = false;
+            }
+        }
+    } else if (!left_r) {
+        result = true;
+    }
+
+    if (left_r)
+        rel_destroy(left_r);
+    if (right_r)
+        rel_destroy(right_r);
+    return result;
+}
+
+static bool eval_formula_and(const RelModel *model, const RelInstance *inst, const RelFormula *formula) {
+    if (formula->sub[0] && formula->sub[1]) {
+        return relation_evaluate_formula(model, inst, formula->sub[0]) &&
+               relation_evaluate_formula(model, inst, formula->sub[1]);
+    }
+    return false;
+}
+
+static bool eval_formula_or(const RelModel *model, const RelInstance *inst, const RelFormula *formula) {
+    if (formula->sub[0] && formula->sub[1]) {
+        return relation_evaluate_formula(model, inst, formula->sub[0]) ||
+               relation_evaluate_formula(model, inst, formula->sub[1]);
+    }
+    return false;
+}
+
+static bool eval_formula_not(const RelModel *model, const RelInstance *inst, const RelFormula *formula) {
+    if (formula->sub[0]) {
+        return !relation_evaluate_formula(model, inst, formula->sub[0]);
+    }
+    return false;
+}
+
+static bool eval_formula_implies(const RelModel *model, const RelInstance *inst, const RelFormula *formula) {
+    if (formula->sub[0] && formula->sub[1]) {
+        return !relation_evaluate_formula(model, inst, formula->sub[0]) ||
+               relation_evaluate_formula(model, inst, formula->sub[1]);
+    }
+    return false;
 }
 
 /* ========================================================================
@@ -1019,136 +1306,12 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst, c
     lv_CHECK_NULL(inst, false);
     lv_CHECK_NULL(formula, false);
 
-    switch (formula->type) {
-        case REL_FORMULA_FORALL:
-        case REL_FORMULA_EXISTS:
-        case REL_FORMULA_NO:
-        case REL_FORMULA_SOME:
-        case REL_FORMULA_LONE:
-        case REL_FORMULA_ONE: {
-            /* 量词公式评估 */
-            if (formula->expr) {
-                Relation *r = relation_evaluate_expr(model, inst, formula->expr);
-                int count = r ? r->tuples.count : 0;
-                rel_destroy(r);
-
-                switch (formula->type) {
-                    case REL_FORMULA_SOME:
-                        return count > 0;
-                    case REL_FORMULA_NO:
-                        return count == 0;
-                    case REL_FORMULA_LONE:
-                        return count <= 1;
-                    case REL_FORMULA_ONE:
-                        return count == 1;
-                    case REL_FORMULA_FORALL:
-                        /* 全称量化：关系必须覆盖全域（所有可能元组） */
-                        if (r && formula->quant_sig) {
-                            /* 计算全域大小：签名中原子数的 arity 次幂 */
-                            int domain_size = formula->quant_sig->atom_count;
-                            if (domain_size <= 0)
-                                return true; /* 空域平凡满足 */
-                            long long total_possible = 1;
-                            for (int a = 0; a < r->arity && a < 10; a++) {
-                                total_possible *= domain_size;
-                                if (total_possible > 100000) {
-                                    /* 域过大，保守返回 true */
-                                    rel_destroy(r);
-                                    return true;
-                                }
-                            }
-                            return count >= total_possible;
-                        }
-                        rel_destroy(r);
-                        return true;
-                    case REL_FORMULA_EXISTS:
-                        /* 存在量化：关系非空即可 */
-                        rel_destroy(r);
-                        return count > 0;
-                    default:
-                        return false;
-                }
-            }
-            return false;
-        }
-
-        case REL_FORMULA_EQ:
-        case REL_FORMULA_SUBSET: {
-            /* 关系比较：实际评估左右表达式并比较 */
-            Relation *left_r = NULL, *right_r = NULL;
-            if (formula->sub[0] && formula->sub[0]->expr) {
-                left_r = relation_evaluate_expr(model, inst, formula->sub[0]->expr);
-            }
-            if (formula->expr) {
-                right_r = relation_evaluate_expr(model, inst, formula->expr);
-            }
-
-            bool result = false;
-            if (formula->type == REL_FORMULA_EQ) {
-                /* 关系相等：元组数相同且每个左元组都在右关系中 */
-                if (left_r && right_r) {
-                    if (left_r->tuples.count == right_r->tuples.count) {
-                        result = true;
-                        for (int i = 0; i < left_r->tuples.count && result; i++) {
-                            if (!rel_contains_tuple(right_r, *(int **)lv_darray_get(&left_r->tuples, i))) {
-                                result = false;
-                            }
-                        }
-                    }
-                } else if (!left_r && !right_r) {
-                    result = true; /* 两个空关系相等 */
-                }
-            } else {
-                /* REL_FORMULA_SUBSET：左关系的每个元组都在右关系中 */
-                if (left_r && right_r) {
-                    result = true;
-                    for (int i = 0; i < left_r->tuples.count && result; i++) {
-                        if (!rel_contains_tuple(right_r, *(int **)lv_darray_get(&left_r->tuples, i))) {
-                            result = false;
-                        }
-                    }
-                } else if (!left_r) {
-                    result = true; /* 空集是任意集合的子集 */
-                }
-            }
-
-            if (left_r)
-                rel_destroy(left_r);
-            if (right_r)
-                rel_destroy(right_r);
-            return result;
-        }
-
-        case REL_FORMULA_AND:
-            if (formula->sub[0] && formula->sub[1]) {
-                return relation_evaluate_formula(model, inst, formula->sub[0]) &&
-                       relation_evaluate_formula(model, inst, formula->sub[1]);
-            }
-            return false;
-
-        case REL_FORMULA_OR:
-            if (formula->sub[0] && formula->sub[1]) {
-                return relation_evaluate_formula(model, inst, formula->sub[0]) ||
-                       relation_evaluate_formula(model, inst, formula->sub[1]);
-            }
-            return false;
-
-        case REL_FORMULA_NOT:
-            if (formula->sub[0]) {
-                return !relation_evaluate_formula(model, inst, formula->sub[0]);
-            }
-            return false;
-
-        case REL_FORMULA_IMPLIES:
-            if (formula->sub[0] && formula->sub[1]) {
-                return !relation_evaluate_formula(model, inst, formula->sub[0]) ||
-                       relation_evaluate_formula(model, inst, formula->sub[1]);
-            }
-            return false;
-
-        default:
-            return false;
+    /* 使用 VTable 替代 switch (formula->type) */
+    if (formula->type >= 0 && (size_t)formula->type < sizeof(formula_eval_table) / sizeof(formula_eval_table[0])) {
+        return formula_eval_table[formula->type](model, inst, formula);
     }
+
+    return false;
 }
 
 /* ========================================================================
@@ -1236,26 +1399,9 @@ char *relation_instance_export_xml(const RelInstance *inst) {
         RelAtom *atom = inst->atoms[ai];
         if (!atom)
             continue;
-        const char *type_name = "Point";
-        switch (atom->type) {
-            case REL_ATOM_POINT:
-                type_name = "Point";
-                break;
-            case REL_ATOM_LINE:
-                type_name = "Line";
-                break;
-            case REL_ATOM_REGION:
-                type_name = "Region";
-                break;
-            case REL_ATOM_PORT:
-                type_name = "Port";
-                break;
-            case REL_ATOM_FUNC_BLOCK:
-                type_name = "FuncBlock";
-                break;
-            default:
-                type_name = "Unknown";
-                break;
+        const char *type_name = "Unknown";
+        if (atom->type >= 0 && (size_t)atom->type < sizeof(atom_type_names) / sizeof(atom_type_names[0])) {
+            type_name = atom_type_names[atom->type];
         }
         pos += snprintf(buf + pos, (size_t) (buf_size - pos), "    <atom id=\"%d\" label=\"%s\"/>\n", atom->atom_id,
                         type_name);

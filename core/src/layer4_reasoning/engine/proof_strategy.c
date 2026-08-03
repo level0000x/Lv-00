@@ -632,6 +632,44 @@ static bool execute_strategy_hybrid(lvProofEngine *engine, const Proposition *go
     return contra_ok;
 }
 
+/** @brief 策略执行函数指针类型 */
+typedef bool (*dispatch_handler)(lvProofEngine *, const Proposition *, lvProofTraceTree *);
+
+/**
+ * @brief 反证法策略包装函数
+ *
+ * 包装 lv_engine_proof_by_contradiction，使其符合标准策略函数签名。
+ * 负责创建和销毁 ContradictionPath。
+ */
+static bool execute_strategy_contradiction_wrapper(lvProofEngine *engine, const Proposition *goal,
+                                                    lvProofTraceTree *tree) {
+    (void)tree;
+    lvContradictionPath *path = NULL;
+    bool ok = lv_engine_proof_by_contradiction(engine, goal, engine->config.max_depth, &path);
+    if (path)
+        lv_contradiction_path_destroy(path);
+    return ok;
+}
+
+/**
+ * @brief 策略分发查找表
+ *
+ * 将 lvStrategyType 映射到对应的策略执行函数。
+ * 数组索引与枚举值一一对应。
+ */
+static const dispatch_handler kStrategyDispatch[] = {
+    execute_strategy_direct,                /* STRATEGY_DIRECT */
+    execute_strategy_contradiction_wrapper, /* STRATEGY_CONTRADICTION */
+    execute_strategy_contrapositive,        /* STRATEGY_CONTRAPOSITIVE */
+    execute_strategy_induction,             /* STRATEGY_INDUCTION */
+    execute_strategy_cases,                 /* STRATEGY_CASES */
+    execute_strategy_construction,          /* STRATEGY_CONSTRUCTION */
+    execute_strategy_unfolding,             /* STRATEGY_UNFOLDING */
+    execute_strategy_backward,              /* STRATEGY_BACKWARD */
+    execute_strategy_forward,               /* STRATEGY_FORWARD */
+    execute_strategy_hybrid                 /* STRATEGY_HYBRID */
+};
+
 /**
  * @brief 内部函数：策略分发器
  *
@@ -645,35 +683,10 @@ static bool execute_strategy_hybrid(lvProofEngine *engine, const Proposition *go
  */
 static bool dispatch_strategy(lvProofEngine *engine, const Proposition *goal, lvStrategyType type,
                               lvProofTraceTree *tree) {
-    switch (type) {
-        case STRATEGY_DIRECT:
-            return execute_strategy_direct(engine, goal, tree);
-        case STRATEGY_CONTRADICTION: {
-            lvContradictionPath *path = NULL;
-            bool ok = lv_engine_proof_by_contradiction(engine, goal, engine->config.max_depth, &path);
-            if (path)
-                lv_contradiction_path_destroy(path);
-            return ok;
-        }
-        case STRATEGY_CONTRAPOSITIVE:
-            return execute_strategy_contrapositive(engine, goal, tree);
-        case STRATEGY_INDUCTION:
-            return execute_strategy_induction(engine, goal, tree);
-        case STRATEGY_CASES:
-            return execute_strategy_cases(engine, goal, tree);
-        case STRATEGY_CONSTRUCTION:
-            return execute_strategy_construction(engine, goal, tree);
-        case STRATEGY_UNFOLDING:
-            return execute_strategy_unfolding(engine, goal, tree);
-        case STRATEGY_BACKWARD:
-            return execute_strategy_backward(engine, goal, tree);
-        case STRATEGY_FORWARD:
-            return execute_strategy_forward(engine, goal, tree);
-        case STRATEGY_HYBRID:
-            return execute_strategy_hybrid(engine, goal, tree);
-        default:
-            return false;
+    if (type >= 0 && type <= STRATEGY_HYBRID) {
+        return kStrategyDispatch[type](engine, goal, tree);
     }
+    return false;
 }
 
 /**

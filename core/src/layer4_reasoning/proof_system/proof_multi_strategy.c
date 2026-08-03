@@ -632,6 +632,28 @@ const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {
     return lv_enum_to_str(s_proof_strategy_type_to_string_en_entries, lv_ARRAY_SIZE(s_proof_strategy_type_to_string_en_entries), (int) strategy, "unknown");
 }
 
+/* ============== 策略处理函数查找表 ============== */
+
+/**
+ * @brief 策略类型到处理函数的查找表（替代 switch-case）
+ *
+ * 每种策略类型映射到对应的搜索执行函数。
+ * 添加新策略时只需在此表中添加一条记录。
+ */
+static bool (*const kMultiStrategyHandlers[])(ProofNavigator *, int) = {
+    [PROOF_STRATEGY_DIRECT_CONSTRUCTION] = proof_depth_first_search,
+    [PROOF_STRATEGY_AREA_METHOD]         = proof_depth_first_search,
+    [PROOF_STRATEGY_GROEBNER_BASIS]      = proof_depth_first_search,
+    [PROOF_STRATEGY_VECTOR_METHOD]       = proof_depth_first_search,
+    [PROOF_STRATEGY_FULL_ANGLE_METHOD]   = proof_depth_first_search,
+    [PROOF_STRATEGY_DEDUCTIVE_DATABASE]  = proof_depth_first_search,
+    [PROOF_STRATEGY_COORDINATE]          = proof_depth_first_search,
+    [PROOF_STRATEGY_LAMBDA_CALCULUS]     = proof_depth_first_search,
+    [PROOF_STRATEGY_LAMBDA_UNIFY]        = proof_depth_first_search,
+    [PROOF_STRATEGY_HOL_LIGHT]           = proof_depth_first_search,
+    [PROOF_STRATEGY_ORACLE]              = proof_depth_first_search,
+};
+
 /* ============== 公共简化API ============== */
 
 /**
@@ -654,25 +676,10 @@ bool proof_search_with_strategy(ProofNavigator *proof, ProofStrategyType strateg
         return false;
     }
 
-    /* 根据策略类型选择搜索方法 */
-    switch (strategy) {
-        case PROOF_STRATEGY_DIRECT_CONSTRUCTION:
-        case PROOF_STRATEGY_AREA_METHOD:
-        case PROOF_STRATEGY_GROEBNER_BASIS:
-        case PROOF_STRATEGY_VECTOR_METHOD:
-        case PROOF_STRATEGY_FULL_ANGLE_METHOD:
-        case PROOF_STRATEGY_DEDUCTIVE_DATABASE:
-        case PROOF_STRATEGY_COORDINATE:
-        case PROOF_STRATEGY_LAMBDA_CALCULUS:
-        case PROOF_STRATEGY_LAMBDA_UNIFY:
-        case PROOF_STRATEGY_HOL_LIGHT:
-        case PROOF_STRATEGY_ORACLE:
-            /* 使用深度优先搜索策略执行 */
-            return proof_depth_first_search(proof, max_steps);
-
-        default:
-            return false;
-    }
+    /* 通过查找表派发策略处理函数（替代 switch-case） */
+    if (strategy < 0 || strategy >= PROOF_STRATEGY_COUNT)
+        return false;
+    return kMultiStrategyHandlers[strategy](proof, max_steps);
 }
 
 /**

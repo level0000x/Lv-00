@@ -1027,6 +1027,101 @@ static CDCLState cdcl_step_restart(CDCLContext *ctx) {
     return CDCL_PROPAGATING;
 }
 
+/* ========================================================================
+ * CDCL 状态机 —— 查找表调度器
+ * ======================================================================== */
+
+/**
+ * @brief CDCL 状态处理函数指针类型
+ */
+typedef CDCLState (*CDCLStateHandler)(lvSolver *solver);
+
+/* --- 各状态的处理函数 --- */
+
+static CDCLState cdcl_handle_idle(lvSolver *solver) {
+    solver->cdcl.state = CDCL_PROPAGATING;
+    return solver->cdcl.state;
+}
+
+static CDCLState cdcl_handle_propagating(lvSolver *solver) {
+    solver->cdcl.state = cdcl_step_propagate(&solver->cdcl);
+    return solver->cdcl.state;
+}
+
+static CDCLState cdcl_handle_conflict(lvSolver *solver) {
+    CDCLContext *ctx = &solver->cdcl;
+    ctx->state = cdcl_step_conflict(ctx);
+    if (ctx->state == CDCL_CONFLICT) {
+        /* 决策层 0 冲突 = UNSAT，否则转入分析 */
+        ctx->state = (ctx->decision_level == 0) ? CDCL_UNSAT : CDCL_ANALYZING;
+    }
+    return ctx->state;
+}
+
+static CDCLState cdcl_handle_analyzing(lvSolver *solver) {
+    solver->cdcl.state = cdcl_step_analyze(&solver->cdcl);
+    return solver->cdcl.state;
+}
+
+static CDCLState cdcl_handle_backjumping(lvSolver *solver) {
+    solver->cdcl.state = cdcl_step_backjump(&solver->cdcl);
+    return solver->cdcl.state;
+}
+
+static CDCLState cdcl_handle_learning(lvSolver *solver) {
+    CDCLContext *ctx = &solver->cdcl;
+    ctx->state = cdcl_step_learn(ctx);
+    /* 检查是否需要重启 */
+    if (ctx->state == CDCL_DECIDING && solver->config.enable_restarts) {
+        int max_restarts = lv_config_get_int(LV_CFG_CDCL_MAX_RESTARTS, 10);
+        if (ctx->restarts < max_restarts && ctx->conflicts > 0 &&
+            ctx->conflicts % (int64_t)solver->config.restart_interval == 0) {
+            ctx->state = CDCL_RESTARTING;
+        }
+    }
+    return ctx->state;
+}
+
+static CDCLState cdcl_handle_deciding(lvSolver *solver) {
+    solver->cdcl.state = cdcl_step_decide(&solver->cdcl);
+    return solver->cdcl.state;
+}
+
+static CDCLState cdcl_handle_restarting(lvSolver *solver) {
+    solver->cdcl.state = cdcl_step_restart(&solver->cdcl);
+    return solver->cdcl.state;
+}
+
+static CDCLState cdcl_handle_satisfied(lvSolver *solver) {
+    (void)solver;
+    return CDCL_SATISFIED;
+}
+
+static CDCLState cdcl_handle_unsat(lvSolver *solver) {
+    (void)solver;
+    return CDCL_UNSAT;
+}
+
+/**
+ * @brief CDCL 状态处理函数查找表
+ *
+ * 索引为 CDCLState 枚举值，每个条目对应一个状态的处理函数。
+ * 终端状态（SATISFIED/UNSAT）的处理函数直接返回该状态，
+ * 由调用方检测并退出循环。
+ */
+static const CDCLStateHandler kCdclStateHandlers[] = {
+    [CDCL_IDLE]        = cdcl_handle_idle,
+    [CDCL_PROPAGATING] = cdcl_handle_propagating,
+    [CDCL_CONFLICT]    = cdcl_handle_conflict,
+    [CDCL_ANALYZING]   = cdcl_handle_analyzing,
+    [CDCL_BACKJUMPING] = cdcl_handle_backjumping,
+    [CDCL_LEARNING]    = cdcl_handle_learning,
+    [CDCL_DECIDING]    = cdcl_handle_deciding,
+    [CDCL_RESTARTING]  = cdcl_handle_restarting,
+    [CDCL_SATISFIED]   = cdcl_handle_satisfied,
+    [CDCL_UNSAT]       = cdcl_handle_unsat,
+};
+
 /**
  * @brief CDCL 状态机主循环
  *
@@ -1062,61 +1157,16 @@ static CDCLState cdcl_run(lvSolver *solver) {
     while (step < max_steps) {
         step++;
 
-        switch (ctx->state) {
-            case CDCL_IDLE:
-                ctx->state = CDCL_PROPAGATING;
-                break;
-
-            case CDCL_PROPAGATING:
-                ctx->state = cdcl_step_propagate(ctx);
-                break;
-
-            case CDCL_CONFLICT:
-                ctx->state = cdcl_step_conflict(ctx);
-                if (ctx->state == CDCL_CONFLICT) {
-                    /* 决策层 0 冲突 = UNSAT */
-                    if (ctx->decision_level == 0) {
-                        ctx->state = CDCL_UNSAT;
-                    } else {
-                        ctx->state = CDCL_ANALYZING;
-                    }
-                }
-                break;
-
-            case CDCL_ANALYZING:
-                ctx->state = cdcl_step_analyze(ctx);
-                break;
-
-            case CDCL_BACKJUMPING:
-                ctx->state = cdcl_step_backjump(ctx);
-                break;
-
-            case CDCL_LEARNING:
-                ctx->state = cdcl_step_learn(ctx);
-                /* 检查是否需要重启 */
-                if (ctx->state == CDCL_DECIDING && solver->config.enable_restarts) {
-                    int max_restarts = lv_config_get_int(LV_CFG_CDCL_MAX_RESTARTS, 10);
-                    if (ctx->restarts < max_restarts && ctx->conflicts > 0 &&
-                        ctx->conflicts % (int64_t) solver->config.restart_interval == 0) {
-                        ctx->state = CDCL_RESTARTING;
-                    }
-                }
-                break;
-
-            case CDCL_DECIDING:
-                ctx->state = cdcl_step_decide(ctx);
-                break;
-
-            case CDCL_RESTARTING:
-                ctx->state = cdcl_step_restart(ctx);
-                break;
-
-            case CDCL_SATISFIED:
-            case CDCL_UNSAT:
+        /* 使用查找表调度状态处理函数 */
+        if ((unsigned) ctx->state < sizeof(kCdclStateHandlers) / sizeof(kCdclStateHandlers[0]) &&
+            kCdclStateHandlers[ctx->state] != NULL) {
+            ctx->state = kCdclStateHandlers[ctx->state](solver);
+            /* 终端状态（SATISFIED / UNSAT）退出循环 */
+            if (ctx->state == CDCL_SATISFIED || ctx->state == CDCL_UNSAT) {
                 return ctx->state;
-
-            default:
-                return CDCL_IDLE;
+            }
+        } else {
+            return CDCL_IDLE;
         }
     }
 
@@ -1140,22 +1190,30 @@ lvSolverResult lv_solver_solve(lvSolver *solver) {
     /* 运行 CDCL 状态机 */
     CDCLState final_state = cdcl_run(solver);
 
-    switch (final_state) {
-        case CDCL_SATISFIED: {
-            /* 将 CDCL 赋值同步回 solver->values */
-            CDCLContext *ctx = &solver->cdcl;
-            for (int v = 1; v <= solver->var_count && v <= ctx->var_count; v++) {
-                if (v <= solver->var_capacity) {
-                    solver->values[v - 1] = ctx->assigns[v];
-                }
+    /* 结果映射查找表（lv_SOLVER_UNKNOWN = 0，未显式初始化的条目默认为 UNKNOWN） */
+    static const lvSolverResult kCdclSolveResultMap[] = {
+        [CDCL_SATISFIED] = lv_SOLVER_SAT,
+        [CDCL_UNSAT]     = lv_SOLVER_UNSAT,
+    };
+
+    /* 如果是 SAT，先将 CDCL 赋值同步回 solver->values */
+    if (final_state == CDCL_SATISFIED) {
+        CDCLContext *ctx = &solver->cdcl;
+        for (int v = 1; v <= solver->var_count && v <= ctx->var_count; v++) {
+            if (v <= solver->var_capacity) {
+                solver->values[v - 1] = ctx->assigns[v];
             }
-            return lv_SOLVER_SAT;
         }
-        case CDCL_UNSAT:
-            return lv_SOLVER_UNSAT;
-        default:
-            return lv_SOLVER_UNKNOWN;
     }
+
+    /* 从查找表查询结果，越界或未匹配的状态返回 UNKNOWN */
+    if ((unsigned) final_state < sizeof(kCdclSolveResultMap) / sizeof(kCdclSolveResultMap[0])) {
+        lvSolverResult result = kCdclSolveResultMap[final_state];
+        if (result != lv_SOLVER_UNKNOWN) {
+            return result;
+        }
+    }
+    return lv_SOLVER_UNKNOWN;
 }
 
 lvSolverResult lv_solver_solve_under_assumptions(lvSolver *solver, const lvSolverLit *assumptions, int count) {

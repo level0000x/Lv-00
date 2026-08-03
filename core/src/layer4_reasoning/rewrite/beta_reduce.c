@@ -97,6 +97,133 @@ static bool is_free_variable_ref(const GeomNode *node, int func_block_id) {
  * =========================================================================== */
 
 /**
+ * @brief 节点复制函数指针类型
+ */
+typedef int (*DuplicateNodeFunc)(ConstraintGraph *graph, const GeomNode *source);
+
+/* 各节点类型的复制函数实现 */
+static int dup_point(ConstraintGraph *graph, const GeomNode *source) {
+    SymbolicCoord **coords = NULL;
+    if (source->coord_count > 0 && source->symbolic_coords) {
+        coords = lv_calloc((size_t) source->coord_count, sizeof(SymbolicCoord *));
+        if (!coords)
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "duplicate_node: calloc coords failed");
+        for (int c = 0; c < source->coord_count; c++) {
+            coords[c] = symbolic_coord_copy(source->symbolic_coords[c]);
+            if (!coords[c]) {
+                for (int j = 0; j < c; j++)
+                    symbolic_coord_destroy(coords[j]);
+                lv_free((void **) &coords);
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "duplicate_node: symbolic_coord_copy failed");
+            }
+        }
+    }
+    AddNodeResult nr = graph_add_point(graph, (SymbolicCoord *const *) coords, source->coord_count);
+    if (coords) {
+        for (int c = 0; c < source->coord_count; c++)
+            symbolic_coord_destroy(coords[c]);
+        lv_free((void **) &coords);
+    }
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node: graph_add_point failed");
+    int new_id = graph_get_last_added_node_id(graph);
+    GeomNode *new_node = graph_get_node(graph, new_id);
+    if (new_node) {
+        new_node->namespace_depth = source->namespace_depth;
+        new_node->parent_block_id = source->parent_block_id;
+    }
+    return new_id;
+}
+
+static int dup_line_segment(ConstraintGraph *graph, const GeomNode *source) {
+    SymbolicCoord *zc = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *tmp_coords[] = {zc};
+    AddNodeResult nr = graph_add_point(graph, tmp_coords, 1);
+    symbolic_coord_destroy(zc);
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_point ep1 failed");
+    int ep1_id = graph_get_last_added_node_id(graph);
+
+    zc = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *tmp_coords2[] = {zc};
+    nr = graph_add_point(graph, tmp_coords2, 1);
+    symbolic_coord_destroy(zc);
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_point ep2 failed");
+    int ep2_id = graph_get_last_added_node_id(graph);
+
+    nr = graph_add_line_segment(graph, ep1_id, ep2_id);
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_line_segment failed");
+    int new_id = graph_get_last_added_node_id(graph);
+    GeomNode *new_node = graph_get_node(graph, new_id);
+    if (new_node) {
+        new_node->namespace_depth = source->namespace_depth;
+        new_node->parent_block_id = source->parent_block_id;
+    }
+    return new_id;
+}
+
+static int dup_region(ConstraintGraph *graph, const GeomNode *source) {
+    int empty_segs[] = {0};
+    AddNodeResult nr = graph_add_region(graph, empty_segs, 0);
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_REGION): graph_add_region failed");
+    int new_id = graph_get_last_added_node_id(graph);
+    GeomNode *new_node = graph_get_node(graph, new_id);
+    if (new_node) {
+        new_node->namespace_depth = source->namespace_depth;
+        new_node->parent_block_id = source->parent_block_id;
+    }
+    return new_id;
+}
+
+static int dup_circle(ConstraintGraph *graph, const GeomNode *source) {
+    int empty_segs[] = {0};
+    AddNodeResult nr = graph_add_region(graph, empty_segs, 0);
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_CIRCLE): graph_add_region failed");
+    int new_id = graph_get_last_added_node_id(graph);
+    GeomNode *new_node = graph_get_node(graph, new_id);
+    if (new_node) {
+        new_node->namespace_depth = source->namespace_depth;
+        new_node->parent_block_id = source->parent_block_id;
+    }
+    return new_id;
+}
+
+static int dup_port(ConstraintGraph *graph, const GeomNode *source) {
+    if (!source->data.port)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "duplicate_node: source port data is NULL");
+    PortType pt = source->data.port->type;
+    int depth = source->namespace_depth;
+    int parent = source->parent_block_id;
+    AddNodeResult nr = graph_add_port(graph, pt, depth, parent);
+    if (nr != ADD_NODE_OK)
+        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node: graph_add_port failed");
+    int new_id = graph_get_last_added_node_id(graph);
+    GeomNode *new_node = graph_get_node(graph, new_id);
+    if (new_node && new_node->data.port) {
+        new_node->data.port->is_formal_param = source->data.port->is_formal_param;
+        new_node->data.port->is_polymorphic = source->data.port->is_polymorphic;
+        new_node->data.port->connected_to = NULL;
+    }
+    return new_id;
+}
+
+/**
+ * @brief 节点复制 VTable
+ */
+static const DuplicateNodeFunc s_dup_vtable[] = {
+    [GEOM_POINT]        = dup_point,
+    [GEOM_LINE_SEGMENT] = dup_line_segment,
+    [GEOM_REGION]       = dup_region,
+    [GEOM_CIRCLE]       = dup_circle,
+    [GEOM_PORT]         = dup_port,
+};
+#define S_DUP_VTABLE_SIZE (sizeof(s_dup_vtable) / sizeof(s_dup_vtable[0]))
+
+/**
  * @brief 创建内部节点的复制件到目标图
  *
  * 根据原节点类型创建对应类型的新节点，复制坐标等公共数据。
@@ -112,132 +239,13 @@ static int duplicate_node(ConstraintGraph *graph, const GeomNode *source) {
     if (!graph || !source)
         return -1;
 
-    switch (source->type) {
-        case GEOM_POINT: {
-            /* 复制 POINT 节点 */
-            SymbolicCoord **coords = NULL;
-            if (source->coord_count > 0 && source->symbolic_coords) {
-                coords = lv_calloc((size_t) source->coord_count, sizeof(SymbolicCoord *));
-                if (!coords)
-                    lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "duplicate_node: calloc coords failed");
-                for (int c = 0; c < source->coord_count; c++) {
-                    coords[c] = symbolic_coord_copy(source->symbolic_coords[c]);
-                    if (!coords[c]) {
-                        for (int j = 0; j < c; j++)
-                            symbolic_coord_destroy(coords[j]);
-                        lv_free((void **) &coords);
-                        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "duplicate_node: symbolic_coord_copy failed");
-                    }
-                }
-            }
-            AddNodeResult nr = graph_add_point(graph, (SymbolicCoord *const *) coords, source->coord_count);
-            /* 不论成功失败，释放坐标副本（graph_add_point 内部会做拷贝） */
-            if (coords) {
-                for (int c = 0; c < source->coord_count; c++)
-                    symbolic_coord_destroy(coords[c]);
-                lv_free((void **) &coords);
-            }
-            if (nr != ADD_NODE_OK)
-                lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node: graph_add_point failed");
-            int new_id = graph_get_last_added_node_id(graph);
-            /* 复制 namespace_depth 和 parent_block_id */
-            GeomNode *new_node = graph_get_node(graph, new_id);
-            if (new_node) {
-                new_node->namespace_depth = source->namespace_depth;
-                new_node->parent_block_id = source->parent_block_id;
-            }
-            return new_id;
-        }
-
-        case GEOM_PORT: {
-            /* 复制 PORT 节点 */
-            if (!source->data.port)
-                lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "duplicate_node: source port data is NULL");
-            PortType pt = source->data.port->type;
-            int depth = source->namespace_depth;
-            int parent = source->parent_block_id;
-            AddNodeResult nr = graph_add_port(graph, pt, depth, parent);
-            if (nr != ADD_NODE_OK)
-                lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node: graph_add_port failed");
-            int new_id = graph_get_last_added_node_id(graph);
-            GeomNode *new_node = graph_get_node(graph, new_id);
-            if (new_node && new_node->data.port) {
-                /* 复制端口属性 */
-                new_node->data.port->is_formal_param = source->data.port->is_formal_param;
-                new_node->data.port->is_polymorphic = source->data.port->is_polymorphic;
-                /* 不复制 connected_to（后续通过约束重建） */
-                new_node->data.port->connected_to = NULL;
-            }
-            return new_id;
-        }
-
-        case GEOM_LINE_SEGMENT: {
-            /* 线段节点的复制需要端点信息。
-         * 由于端点也是内部节点，会在后续约束重建时处理。
-         * 此处创建一个占位线段（使用临时端点），
-         * 后续通过约束拷贝建立连接。 */
-            /* 创建临时端点 */
-            SymbolicCoord *zc = symbolic_coord_create_rational(0, 1);
-            SymbolicCoord *tmp_coords[] = {zc};
-            AddNodeResult nr = graph_add_point(graph, tmp_coords, 1);
-            symbolic_coord_destroy(zc);
-            if (nr != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_point ep1 failed");
-    int ep1_id = graph_get_last_added_node_id(graph);
-
-    zc = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *tmp_coords2[] = {zc};
-    nr = graph_add_point(graph, tmp_coords2, 1);
-    symbolic_coord_destroy(zc);
-    if (nr != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_point ep2 failed");
-    int ep2_id = graph_get_last_added_node_id(graph);
-
-    nr = graph_add_line_segment(graph, ep1_id, ep2_id);
-    if (nr != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_LINE_SEGMENT): graph_add_line_segment failed");
-            int new_id = graph_get_last_added_node_id(graph);
-            GeomNode *new_node = graph_get_node(graph, new_id);
-            if (new_node) {
-                new_node->namespace_depth = source->namespace_depth;
-                new_node->parent_block_id = source->parent_block_id;
-            }
-            return new_id;
-        }
-
-        case GEOM_REGION: {
-            /* 区域节点：创建空区域，边界通过后续约束重建 */
-            int empty_segs[] = {0};
-            AddNodeResult nr = graph_add_region(graph, empty_segs, 0);
-            if (nr != ADD_NODE_OK)
-                lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_REGION): graph_add_region failed");
-            int new_id = graph_get_last_added_node_id(graph);
-            GeomNode *new_node = graph_get_node(graph, new_id);
-            if (new_node) {
-                new_node->namespace_depth = source->namespace_depth;
-                new_node->parent_block_id = source->parent_block_id;
-            }
-            return new_id;
-        }
-        case GEOM_CIRCLE: {
-            /* 圆节点：使用 graph_add_region 创建占位，后续可添加独立 graph_add_circle API */
-            int empty_segs[] = {0};
-            AddNodeResult nr = graph_add_region(graph, empty_segs, 0);
-            if (nr != ADD_NODE_OK)
-                lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "duplicate_node(GEOM_CIRCLE): graph_add_region failed");
-            int new_id = graph_get_last_added_node_id(graph);
-            GeomNode *new_node = graph_get_node(graph, new_id);
-            if (new_node) {
-                new_node->namespace_depth = source->namespace_depth;
-                new_node->parent_block_id = source->parent_block_id;
-            }
-            return new_id;
-        }
-
-        default:
-            LOG_WARN("beta_reduce", "duplicate_node: 不支持的节点类型 %d", (int) source->type);
-            return -1;
+    GeomType type = source->type;
+    if ((size_t)type < S_DUP_VTABLE_SIZE && s_dup_vtable[type]) {
+        return s_dup_vtable[type](graph, source);
     }
+
+    LOG_WARN("beta_reduce", "duplicate_node: 不支持的节点类型 %d", (int) type);
+    return -1;
 }
 
 /* ===========================================================================
@@ -305,6 +313,61 @@ static int build_id_mapping(ConstraintGraph *graph, int func_block_id, const int
 /* ===========================================================================
  * 内部辅助：重建/重定向内部约束
  * =========================================================================== */
+
+/**
+ * @brief 约束重建函数指针类型
+ */
+typedef AddConstraintResult (*RemapConstraintFunc)(ConstraintGraph *graph, const int *participants, int participant_count, double numeric_value);
+
+/* 各约束类型的重建函数实现 */
+static AddConstraintResult remap_incidence(ConstraintGraph *graph, const int *participants, int count, double val) {
+    if (count == 2)
+        return graph_add_incidence(graph, participants[0], participants[1]);
+    return ADD_CONSTRAINT_OK;
+}
+
+static AddConstraintResult remap_betweenness(ConstraintGraph *graph, const int *participants, int count, double val) {
+    if (count == 3)
+        return graph_add_betweenness(graph, participants[0], participants[1], participants[2]);
+    return ADD_CONSTRAINT_OK;
+}
+
+static AddConstraintResult remap_intersection(ConstraintGraph *graph, const int *participants, int count, double val) {
+    if (count == 3)
+        return graph_add_intersection(graph, participants[0], participants[1], participants[2]);
+    return ADD_CONSTRAINT_OK;
+}
+
+static AddConstraintResult remap_containment(ConstraintGraph *graph, const int *participants, int count, double val) {
+    if (count == 2)
+        return graph_add_containment(graph, participants[0], participants[1]);
+    return ADD_CONSTRAINT_OK;
+}
+
+static AddConstraintResult remap_connection(ConstraintGraph *graph, const int *participants, int count, double val) {
+    if (count == 2)
+        return graph_add_connection(graph, participants[0], participants[1]);
+    return ADD_CONSTRAINT_OK;
+}
+
+static AddConstraintResult remap_angle(ConstraintGraph *graph, const int *participants, int count, double val) {
+    if (count == 2)
+        return graph_add_angle(graph, participants[0], participants[1], val);
+    return ADD_CONSTRAINT_OK;
+}
+
+/**
+ * @brief 约束重建 VTable
+ */
+static const RemapConstraintFunc s_remap_vtable[] = {
+    [INCIDENCE]    = remap_incidence,
+    [BETWEENNESS]  = remap_betweenness,
+    [INTERSECTION] = remap_intersection,
+    [CONTAINMENT]  = remap_containment,
+    [CONNECTION]   = remap_connection,
+    [ANGLE]        = remap_angle,
+};
+#define S_REMAP_VTABLE_SIZE (sizeof(s_remap_vtable) / sizeof(s_remap_vtable[0]))
 
 /**
  * @brief 查找并重建涉及内部节点的所有约束
@@ -387,38 +450,14 @@ static bool remap_internal_constraints(ConstraintGraph *graph, const int *intern
         if (skip_constraint)
             continue;
 
-        /* 添加重建后的约束 */
+        /* 添加重建后的约束（通过 VTable 分发） */
+        ConstraintType ctype = con->type;
         AddConstraintResult ar = ADD_CONSTRAINT_OK;
-        switch (con->type) {
-            case INCIDENCE:
-                if (con->participant_count == 2)
-                    ar = graph_add_incidence(graph, resolved_participants[0], resolved_participants[1]);
-                break;
-            case BETWEENNESS:
-                if (con->participant_count == 3)
-                    ar = graph_add_betweenness(graph, resolved_participants[0], resolved_participants[1],
-                                               resolved_participants[2]);
-                break;
-            case INTERSECTION:
-                if (con->participant_count == 3)
-                    ar = graph_add_intersection(graph, resolved_participants[0], resolved_participants[1],
-                                                resolved_participants[2]);
-                break;
-            case CONTAINMENT:
-                if (con->participant_count == 2)
-                    ar = graph_add_containment(graph, resolved_participants[0], resolved_participants[1]);
-                break;
-            case ANGLE:
-                if (con->participant_count == 2)
-                    ar = graph_add_angle(graph, resolved_participants[0], resolved_participants[1], con->numeric_value);
-                break;
-            case CONNECTION:
-                if (con->participant_count == 2)
-                    ar = graph_add_connection(graph, resolved_participants[0], resolved_participants[1]);
-                break;
-            default:
-                LOG_WARN("beta_reduce", "未知约束类型 %d", (int) con->type);
-                continue;
+        if ((size_t)ctype < S_REMAP_VTABLE_SIZE && s_remap_vtable[ctype]) {
+            ar = s_remap_vtable[ctype](graph, resolved_participants, con->participant_count, con->numeric_value);
+        } else {
+            LOG_WARN("beta_reduce", "未知约束类型 %d", (int) ctype);
+            continue;
         }
 
         if (ar != ADD_CONSTRAINT_OK && ar != ADD_CONSTRAINT_DUPLICATE) {

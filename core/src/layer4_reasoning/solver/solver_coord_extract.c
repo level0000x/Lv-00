@@ -63,31 +63,43 @@ static bool coord_to_double_via_serialize(const SymbolicCoord *c, double *out) {
     return (endptr != str);
 }
 
+/* ── CoordToDouble VTable ── */
+typedef bool (*CoordToDoubleFunc)(const SymbolicCoord *c, double *out);
+
+static bool coord_to_double_rational(const SymbolicCoord *c, double *out) {
+    if (c->data.rational) {
+        *out = mpq_get_d(c->data.rational->value);
+        return true;
+    }
+    /* 数据不一致：RATIONAL 类型但 rational 指针为空 */
+    lv_LOG_WARNING("coord_to_double: RATIONAL 类型但 data.rational 为 NULL");
+    *out = 0.0;
+    return false;
+}
+
+static bool coord_to_double_quadratic_or_algebraic(const SymbolicCoord *c, double *out) {
+    return coord_to_double_via_serialize(c, out);
+}
+
+static bool coord_to_double_transcendental(const SymbolicCoord *c, double *out) {
+    *out = symbolic_coord_to_double(c);
+    return (fabs(*out) > lv_EPSILON_DOUBLE || c->data.transcendental != NULL);
+}
+
+static const CoordToDoubleFunc coord_to_double_ops[] = {
+    [RATIONAL] = coord_to_double_rational,
+    [QUADRATIC] = coord_to_double_quadratic_or_algebraic,
+    [ALGEBRAIC] = coord_to_double_quadratic_or_algebraic,
+    [TRANSCENDENTAL] = coord_to_double_transcendental,
+};
+
 int coord_to_double(const SymbolicCoord *c, double *out) {
     if (!c)
         return false;
-    switch (c->type) {
-        case RATIONAL: {
-            if (c->data.rational) {
-                *out = mpq_get_d(c->data.rational->value);
-                return true;
-            }
-            /* 数据不一致：RATIONAL 类型但 rational 指针为空 */
-            lv_LOG_WARNING("coord_to_double: RATIONAL 类型但 data.rational 为 NULL");
-            *out = 0.0;
-            return false;
-        }
-        case QUADRATIC:
-        case ALGEBRAIC:
-            return coord_to_double_via_serialize(c, out);
-        case TRANSCENDENTAL: {
-            /* 使用公共 API 获取超越常数的数值近似值（如 pi, e 等） */
-            *out = symbolic_coord_to_double(c);
-            return (fabs(*out) > lv_EPSILON_DOUBLE || c->data.transcendental != NULL);
-        }
-        default:
-            return false;
-    }
+    int type = c->type;
+    if (type >= 0 && type < (int)(sizeof(coord_to_double_ops) / sizeof(coord_to_double_ops[0])) && coord_to_double_ops[type])
+        return coord_to_double_ops[type](c, out);
+    return false;
 }
 
 /* =======================================================================
@@ -202,62 +214,70 @@ void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
  * 对于二次根式和代数数，尝试有理化后转换；失败时回退到 double 近似。
  * 返回 true 表示精确转换成功，false 表示使用了近似。
  */
+/* ── CoordToMpzScaled VTable ── */
+typedef bool (*CoordToMpzScaledFunc)(const SymbolicCoord *coord, mpz_t result, int64_t scale);
+
+static bool coord_to_mpz_scaled_exact_rational(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
+    if (!coord->data.rational)
+        return false;
+    rational_to_mpz_scaled(coord->data.rational->value, result, scale);
+    return true;
+}
+
+static bool coord_to_mpz_scaled_exact_quadratic(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
+    Quadratic *q = coord->data.quadratic;
+    if (q && mpq_sgn(q->b->value) == 0) {
+        rational_to_mpz_scaled(q->a->value, result, scale);
+        return true;
+    }
+    double val;
+    if (coord_to_double(coord, &val)) {
+        double_to_mpz_scaled(val, result, scale);
+        return false;
+    }
+    return false;
+}
+
+static bool coord_to_mpz_scaled_exact_algebraic(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
+    Algebraic *a = coord->data.algebraic;
+    if (a && a->cached_rational) {
+        rational_to_mpz_scaled(a->cached_rational->value, result, scale);
+        return true;
+    }
+    if (a && algebraic_try_rationalize(a) && a->cached_rational) {
+        rational_to_mpz_scaled(a->cached_rational->value, result, scale);
+        return true;
+    }
+    double val;
+    if (coord_to_double(coord, &val)) {
+        double_to_mpz_scaled(val, result, scale);
+        return false;
+    }
+    return false;
+}
+
+static bool coord_to_mpz_scaled_exact_transcendental(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
+    double val;
+    if (coord_to_double(coord, &val)) {
+        double_to_mpz_scaled(val, result, scale);
+        return false;
+    }
+    return false;
+}
+
+static const CoordToMpzScaledFunc coord_to_mpz_scaled_ops[] = {
+    [RATIONAL] = coord_to_mpz_scaled_exact_rational,
+    [QUADRATIC] = coord_to_mpz_scaled_exact_quadratic,
+    [ALGEBRAIC] = coord_to_mpz_scaled_exact_algebraic,
+    [TRANSCENDENTAL] = coord_to_mpz_scaled_exact_transcendental,
+};
+
 static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
     if (!coord)
         return false;
-
-    switch (coord->type) {
-        case RATIONAL: {
-            if (!coord->data.rational)
-                return false;
-            rational_to_mpz_scaled(coord->data.rational->value, result, scale);
-            return true;
-        }
-        case QUADRATIC: {
-            /* 尝试有理化：如果 b=0，退化为有理数 */
-            Quadratic *q = coord->data.quadratic;
-            if (q && mpq_sgn(q->b->value) == 0) {
-                rational_to_mpz_scaled(q->a->value, result, scale);
-                return true;
-            }
-            /* 否则回退到 double */
-            double val;
-            if (coord_to_double(coord, &val)) {
-                double_to_mpz_scaled(val, result, scale);
-                return false;
-            }
-            return false;
-        }
-        case ALGEBRAIC: {
-            /* 尝试有理化 */
-            Algebraic *a = coord->data.algebraic;
-            if (a && a->cached_rational) {
-                rational_to_mpz_scaled(a->cached_rational->value, result, scale);
-                return true;
-            }
-            /* 尝试运行有理化 */
-            if (a && algebraic_try_rationalize(a) && a->cached_rational) {
-                rational_to_mpz_scaled(a->cached_rational->value, result, scale);
-                return true;
-            }
-            /* 回退到 double */
-            double val;
-            if (coord_to_double(coord, &val)) {
-                double_to_mpz_scaled(val, result, scale);
-                return false;
-            }
-            return false;
-        }
-        case TRANSCENDENTAL: {
-            /* 超越数只能用近似 */
-            double val;
-            if (coord_to_double(coord, &val)) {
-                double_to_mpz_scaled(val, result, scale);
-                return false;
-            }
-            return false;
-        }
-    }
+    int type = coord->type;
+    if (type >= 0 && type < (int)(sizeof(coord_to_mpz_scaled_ops) / sizeof(coord_to_mpz_scaled_ops[0])) && coord_to_mpz_scaled_ops[type])
+        return coord_to_mpz_scaled_ops[type](coord, result, scale);
     return false;
 }
 
@@ -439,348 +459,302 @@ bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out) {
  *      而非经过 double 中间表示。
  */
 
-/**
- * @brief 从约束图中提取代数方程
- *
- * @details 遍历约束图中的所有约束，根据约束类型生成对应的多项式方程：
- *          INCIDENCE（关联）、INTERSECTION（交点）、BETWEENNESS（介于）、
- *          CONTAINMENT（包含）、CONNECTION（连接）。
- *          也处理线段节点上的 numeric_assumption_declaration 距离约束。
- *          构造临时点用于 line_from_two_points，内存管理采用栈分配，
- *          不使用动态分配以避免泄漏风险。
- *
- * @param graph 约束图指针
- * @param sys   输出：存储提取方程的系统
- */
-void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys) {
-    for (int ci = 0; ci < graph->constraint_count; ci++) {
-        Constraint *c = graph->constraints[ci];
-        if (!c || c->participant_count < 2)
-            continue;
+/* ── ConstraintExtract VTable ── */
+typedef int (*ConstraintExtractFunc)(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c);
 
-        switch (c->type) {
-            case INCIDENCE: {
-                /* participants[0] = point, participants[1] = line/region */
-                GeomNode *pt = find_node(graph, c->participants[0]);
-                GeomNode *line = find_node(graph, c->participants[1]);
-                if (!pt || !line)
-                    break;
-                if (line->type == GEOM_LINE_SEGMENT && line->coord_count >= 2) {
-                    /* 线段的 symbolic_coords 存储端点坐标为 (x1,y1,x2,y2) 格式 */
-                    if (line->coord_count >= 4) {
-                        int64_t scale = lv_SOLVER_SCALE_FACTOR;
-                        /* 使用精确有理数路径获取端点坐标的缩放值 */
-                        mpz_t lx1_s, ly1_s, lx2_s, ly2_s;
-                        mpz_init(lx1_s);
-                        mpz_init(ly1_s);
-                        mpz_init(lx2_s);
-                        mpz_init(ly2_s);
-                        bool exact = coord_to_mpz_scaled_exact(line->symbolic_coords[0], lx1_s, scale) &&
-                                     coord_to_mpz_scaled_exact(line->symbolic_coords[1], ly1_s, scale) &&
-                                     coord_to_mpz_scaled_exact(line->symbolic_coords[2], lx2_s, scale) &&
-                                     coord_to_mpz_scaled_exact(line->symbolic_coords[3], ly2_s, scale);
+static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c) {
+    GeomNode *pt = find_node(graph, c->participants[0]);
+    GeomNode *line = find_node(graph, c->participants[1]);
+    if (!pt || !line)
+        return 0;
+    if (line->type == GEOM_LINE_SEGMENT && line->coord_count >= 2) {
+        if (line->coord_count >= 4) {
+            int64_t scale = lv_SOLVER_SCALE_FACTOR;
+            mpz_t lx1_s, ly1_s, lx2_s, ly2_s;
+            mpz_init(lx1_s);
+            mpz_init(ly1_s);
+            mpz_init(lx2_s);
+            mpz_init(ly2_s);
+            bool exact = coord_to_mpz_scaled_exact(line->symbolic_coords[0], lx1_s, scale) &&
+                         coord_to_mpz_scaled_exact(line->symbolic_coords[1], ly1_s, scale) &&
+                         coord_to_mpz_scaled_exact(line->symbolic_coords[2], lx2_s, scale) &&
+                         coord_to_mpz_scaled_exact(line->symbolic_coords[3], ly2_s, scale);
 
-                        if (exact) {
-                            /* 精确路径：所有坐标都是有理数，在 mpz 层面计算 */
-                            mpz_t dx_s, dy_s;
-                            mpz_init(dx_s);
-                            mpz_init(dy_s);
-                            mpz_sub(dx_s, lx2_s, lx1_s); /* dx * scale */
-                            mpz_sub(dy_s, ly2_s, ly1_s); /* dy * scale */
+            if (exact) {
+                mpz_t dx_s, dy_s;
+                mpz_init(dx_s);
+                mpz_init(dy_s);
+                mpz_sub(dx_s, lx2_s, lx1_s);
+                mpz_sub(dy_s, ly2_s, ly1_s);
 
-                            /* 叉积：dx*(py - ly1) - dy*(px - lx1) = 0
-                           => -dy*px + (dy*lx1 - dx*ly1) = 0
-                           系数1 = -dy (已缩放)
-                           系数0 = dy*lx1 - dx*ly1 (需要除以 scale，因为 dy_s 和 lx1_s 都已缩放) */
-                            mpz_poly_t poly;
-                            mpz_poly_init(&poly);
-                            poly.degree = 1;
-                            /* GMP 要求使用标准分配器 */
-                            poly.coeffs = coeff_pool_alloc(2);
-                            if (!poly.coeffs) {
-                                coeff_pool_clear(&poly);
-                                mpz_clear(dx_s);
-                                mpz_clear(dy_s);
-                                mpz_clear(lx1_s);
-                                mpz_clear(ly1_s);
-                                mpz_clear(lx2_s);
-                                mpz_clear(ly2_s);
-                                continue;
-                            }
-                            mpz_init(poly.coeffs[1]);
-                            mpz_init(poly.coeffs[0]);
-                            mpz_neg(poly.coeffs[1], dy_s);
-                            /* dy*lx1 - dx*ly1 = (dy_s * lx1_s - dx_s * ly1_s) / scale */
-                            {
-                                mpz_t term1, term2;
-                                mpz_init(term1);
-                                mpz_init(term2);
-                                mpz_mul(term1, dy_s, lx1_s);
-                                mpz_mul(term2, dx_s, ly1_s);
-                                mpz_sub(term1, term1, term2);
-                                mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
-                                mpz_clear(term1);
-                                mpz_clear(term2);
-                            }
-                            EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 0, push_error);
-                            coeff_pool_clear(&poly);
-
-                            /* y 坐标的第二个方程：
-                           dx*py + (-dx*ly1 - dy*lx1) = 0 */
-                            mpz_poly_init(&poly);
-                            poly.degree = 1;
-                            /* GMP 要求使用标准分配器 */
-                            poly.coeffs = coeff_pool_alloc(2);
-                            if (!poly.coeffs) {
-                                coeff_pool_clear(&poly);
-                                mpz_clear(dx_s);
-                                mpz_clear(dy_s);
-                                mpz_clear(lx1_s);
-                                mpz_clear(ly1_s);
-                                mpz_clear(lx2_s);
-                                mpz_clear(ly2_s);
-                                continue;
-                            }
-                            mpz_init(poly.coeffs[1]);
-                            mpz_init(poly.coeffs[0]);
-                            mpz_set(poly.coeffs[1], dx_s);
-                            /* -dx*ly1 - dy*lx1 = -(dx_s * ly1_s + dy_s * lx1_s) / scale */
-                            {
-                                mpz_t term1, term2;
-                                mpz_init(term1);
-                                mpz_init(term2);
-                                mpz_mul(term1, dx_s, ly1_s);
-                                mpz_mul(term2, dy_s, lx1_s);
-                                mpz_add(term1, term1, term2);
-                                mpz_neg(term1, term1);
-                                mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
-                                mpz_clear(term1);
-                                mpz_clear(term2);
-                            }
-                            EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 1, push_error);
-                            coeff_pool_clear(&poly);
-                            mpz_clear(dx_s);
-                            mpz_clear(dy_s);
-                        } else {
-                            /* 回退到 double 近似路径 */
-                            double lx1, ly1, lx2, ly2;
-                            if (coord_to_double(line->symbolic_coords[0], &lx1) &&
-                                coord_to_double(line->symbolic_coords[1], &ly1) &&
-                                coord_to_double(line->symbolic_coords[2], &lx2) &&
-                                coord_to_double(line->symbolic_coords[3], &ly2)) {
-                                double dx = lx2 - lx1;
-                                double dy = ly2 - ly1;
-                                mpz_poly_t poly;
-                                mpz_poly_init(&poly);
-                                poly.degree = 1;
-                                /* GMP 要求使用标准分配器 */
-                                poly.coeffs = coeff_pool_alloc(2);
-                                if (!poly.coeffs) {
-                                    coeff_pool_clear(&poly);
-                                    break;
-                                }
-                                mpz_init(poly.coeffs[1]);
-                                mpz_init(poly.coeffs[0]);
-                                double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
-                                double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
-                                EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 0, push_error);
-                                coeff_pool_clear(&poly);
-
-                                mpz_poly_init(&poly);
-                                poly.degree = 1;
-                                /* GMP 要求使用标准分配器 */
-                                poly.coeffs = coeff_pool_alloc(2);
-                                if (!poly.coeffs) {
-                                    coeff_pool_clear(&poly);
-                                    break;
-                                }
-                                mpz_init(poly.coeffs[1]);
-                                mpz_init(poly.coeffs[0]);
-                                double_to_mpz_scaled(dx, poly.coeffs[1], scale);
-                                double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
-                                EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 1, push_error);
-                                coeff_pool_clear(&poly);
-                            }
-                        }
-                        mpz_clear(lx1_s);
-                        mpz_clear(ly1_s);
-                        mpz_clear(lx2_s);
-                        mpz_clear(ly2_s);
-                    }
+                mpz_poly_t poly;
+                mpz_poly_init(&poly);
+                poly.degree = 1;
+                poly.coeffs = coeff_pool_alloc(2);
+                if (!poly.coeffs) {
+                    coeff_pool_clear(&poly);
+                    mpz_clear(dx_s);
+                    mpz_clear(dy_s);
+                    mpz_clear(lx1_s);
+                    mpz_clear(ly1_s);
+                    mpz_clear(lx2_s);
+                    mpz_clear(ly2_s);
+                    return 0;
                 }
-                break;
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_neg(poly.coeffs[1], dy_s);
+                {
+                    mpz_t term1, term2;
+                    mpz_init(term1);
+                    mpz_init(term2);
+                    mpz_mul(term1, dy_s, lx1_s);
+                    mpz_mul(term2, dx_s, ly1_s);
+                    mpz_sub(term1, term1, term2);
+                    mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                    mpz_clear(term1);
+                    mpz_clear(term2);
+                }
+                if (equation_system_push(sys, poly, pt->id, 0) != 0) {
+                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                    coeff_pool_clear(&poly);
+                    mpz_clear(dx_s);
+                    mpz_clear(dy_s);
+                    mpz_clear(lx1_s);
+                    mpz_clear(ly1_s);
+                    mpz_clear(lx2_s);
+                    mpz_clear(ly2_s);
+                    return -1;
+                }
+                coeff_pool_clear(&poly);
+
+                mpz_poly_init(&poly);
+                poly.degree = 1;
+                poly.coeffs = coeff_pool_alloc(2);
+                if (!poly.coeffs) {
+                    coeff_pool_clear(&poly);
+                    mpz_clear(dx_s);
+                    mpz_clear(dy_s);
+                    mpz_clear(lx1_s);
+                    mpz_clear(ly1_s);
+                    mpz_clear(lx2_s);
+                    mpz_clear(ly2_s);
+                    return 0;
+                }
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_set(poly.coeffs[1], dx_s);
+                {
+                    mpz_t term1, term2;
+                    mpz_init(term1);
+                    mpz_init(term2);
+                    mpz_mul(term1, dx_s, ly1_s);
+                    mpz_mul(term2, dy_s, lx1_s);
+                    mpz_add(term1, term1, term2);
+                    mpz_neg(term1, term1);
+                    mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                    mpz_clear(term1);
+                    mpz_clear(term2);
+                }
+                if (equation_system_push(sys, poly, pt->id, 1) != 0) {
+                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                    coeff_pool_clear(&poly);
+                    mpz_clear(dx_s);
+                    mpz_clear(dy_s);
+                    mpz_clear(lx1_s);
+                    mpz_clear(ly1_s);
+                    mpz_clear(lx2_s);
+                    mpz_clear(ly2_s);
+                    return -1;
+                }
+                coeff_pool_clear(&poly);
+                mpz_clear(dx_s);
+                mpz_clear(dy_s);
+            } else {
+                double lx1, ly1, lx2, ly2;
+                if (coord_to_double(line->symbolic_coords[0], &lx1) &&
+                    coord_to_double(line->symbolic_coords[1], &ly1) &&
+                    coord_to_double(line->symbolic_coords[2], &lx2) &&
+                    coord_to_double(line->symbolic_coords[3], &ly2)) {
+                    double dx = lx2 - lx1;
+                    double dy = ly2 - ly1;
+                    mpz_poly_t poly;
+                    mpz_poly_init(&poly);
+                    poly.degree = 1;
+                    poly.coeffs = coeff_pool_alloc(2);
+                    if (!poly.coeffs) {
+                        coeff_pool_clear(&poly);
+                        return 0;
+                    }
+                    mpz_init(poly.coeffs[1]);
+                    mpz_init(poly.coeffs[0]);
+                    double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
+                    double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
+                    if (equation_system_push(sys, poly, pt->id, 0) != 0) {
+                        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                        coeff_pool_clear(&poly);
+                        return -1;
+                    }
+                    coeff_pool_clear(&poly);
+
+                    mpz_poly_init(&poly);
+                    poly.degree = 1;
+                    poly.coeffs = coeff_pool_alloc(2);
+                    if (!poly.coeffs) {
+                        coeff_pool_clear(&poly);
+                        return 0;
+                    }
+                    mpz_init(poly.coeffs[1]);
+                    mpz_init(poly.coeffs[0]);
+                    double_to_mpz_scaled(dx, poly.coeffs[1], scale);
+                    double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
+                    if (equation_system_push(sys, poly, pt->id, 1) != 0) {
+                        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                        coeff_pool_clear(&poly);
+                        return -1;
+                    }
+                    coeff_pool_clear(&poly);
+                }
+            }
+            mpz_clear(lx1_s);
+            mpz_clear(ly1_s);
+            mpz_clear(lx2_s);
+            mpz_clear(ly2_s);
+        }
+    }
+    return 0;
+}
+
+static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c) {
+    if (c->participant_count < 3)
+        return 0;
+    GeomNode *line1 = find_node(graph, c->participants[0]);
+    GeomNode *line2 = find_node(graph, c->participants[1]);
+    GeomNode *rpt = find_node(graph, c->participants[2]);
+    if (!line1 || !line2 || !rpt)
+        return 0;
+
+    int64_t scale = lv_SOLVER_SCALE_FACTOR;
+
+    if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4 && line2->type == GEOM_LINE_SEGMENT &&
+        line2->coord_count >= 4) {
+        mpz_t l1x1_s, l1y1_s, l1x2_s, l1y2_s;
+        mpz_t l2x1_s, l2y1_s, l2x2_s, l2y2_s;
+        mpz_init(l1x1_s);
+        mpz_init(l1y1_s);
+        mpz_init(l1x2_s);
+        mpz_init(l1y2_s);
+        mpz_init(l2x1_s);
+        mpz_init(l2y1_s);
+        mpz_init(l2x2_s);
+        mpz_init(l2y2_s);
+
+        bool exact1 = coord_to_mpz_scaled_exact(line1->symbolic_coords[0], l1x1_s, scale) &&
+                      coord_to_mpz_scaled_exact(line1->symbolic_coords[1], l1y1_s, scale) &&
+                      coord_to_mpz_scaled_exact(line1->symbolic_coords[2], l1x2_s, scale) &&
+                      coord_to_mpz_scaled_exact(line1->symbolic_coords[3], l1y2_s, scale);
+        bool exact2 = coord_to_mpz_scaled_exact(line2->symbolic_coords[0], l2x1_s, scale) &&
+                      coord_to_mpz_scaled_exact(line2->symbolic_coords[1], l2y1_s, scale) &&
+                      coord_to_mpz_scaled_exact(line2->symbolic_coords[2], l2x2_s, scale) &&
+                      coord_to_mpz_scaled_exact(line2->symbolic_coords[3], l2y2_s, scale);
+
+        if (exact1 && exact2) {
+            mpz_t a1_s, b1_s, c1_s, a2_s, b2_s, c2_s;
+            mpz_t dx1_s, dy1_s, dx2_s, dy2_s;
+            mpz_init(a1_s);
+            mpz_init(b1_s);
+            mpz_init(c1_s);
+            mpz_init(a2_s);
+            mpz_init(b2_s);
+            mpz_init(c2_s);
+            mpz_init(dx1_s);
+            mpz_init(dy1_s);
+            mpz_init(dx2_s);
+            mpz_init(dy2_s);
+
+            mpz_sub(dx1_s, l1x2_s, l1x1_s);
+            mpz_sub(dy1_s, l1y2_s, l1y1_s);
+            mpz_set(a1_s, dy1_s);
+            mpz_neg(b1_s, dx1_s);
+            {
+                mpz_t t1, t2;
+                mpz_init(t1);
+                mpz_init(t2);
+                mpz_mul(t1, a1_s, l1x1_s);
+                mpz_mul(t2, b1_s, l1y1_s);
+                mpz_add(t1, t1, t2);
+                mpz_neg(t1, t1);
+                mpz_fdiv_q_ui(c1_s, t1, (unsigned long) scale);
+                mpz_clear(t1);
+                mpz_clear(t2);
             }
 
-            case INTERSECTION: {
-                /* participants[0] = line1, participants[1] = line2,
-               participants[2] = result_point（交点） */
-                if (c->participant_count < 3)
-                    break;
-                GeomNode *line1 = find_node(graph, c->participants[0]);
-                GeomNode *line2 = find_node(graph, c->participants[1]);
-                GeomNode *rpt = find_node(graph, c->participants[2]);
-                if (!line1 || !line2 || !rpt)
-                    break;
+            mpz_sub(dx2_s, l2x2_s, l2x1_s);
+            mpz_sub(dy2_s, l2y2_s, l2y1_s);
+            mpz_set(a2_s, dy2_s);
+            mpz_neg(b2_s, dx2_s);
+            {
+                mpz_t t1, t2;
+                mpz_init(t1);
+                mpz_init(t2);
+                mpz_mul(t1, a2_s, l2x1_s);
+                mpz_mul(t2, b2_s, l2y1_s);
+                mpz_add(t1, t1, t2);
+                mpz_neg(t1, t1);
+                mpz_fdiv_q_ui(c2_s, t1, (unsigned long) scale);
+                mpz_clear(t1);
+                mpz_clear(t2);
+            }
 
-                int64_t scale = lv_SOLVER_SCALE_FACTOR;
+            mpz_t D_s, x_num_s, y_num_s;
+            mpz_init(D_s);
+            mpz_init(x_num_s);
+            mpz_init(y_num_s);
+            {
+                mpz_t t1, t2;
+                mpz_init(t1);
+                mpz_init(t2);
+                mpz_mul(t1, a1_s, b2_s);
+                mpz_mul(t2, a2_s, b1_s);
+                mpz_sub(D_s, t1, t2);
+                mpz_clear(t1);
+                mpz_clear(t2);
+            }
 
-                /* 尝试精确有理数路径：直接从线段端点坐标计算直线方程 */
-                if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4 && line2->type == GEOM_LINE_SEGMENT &&
-                    line2->coord_count >= 4) {
-                    mpz_t l1x1_s, l1y1_s, l1x2_s, l1y2_s;
-                    mpz_t l2x1_s, l2y1_s, l2x2_s, l2y2_s;
-                    mpz_init(l1x1_s);
-                    mpz_init(l1y1_s);
-                    mpz_init(l1x2_s);
-                    mpz_init(l1y2_s);
-                    mpz_init(l2x1_s);
-                    mpz_init(l2y1_s);
-                    mpz_init(l2x2_s);
-                    mpz_init(l2y2_s);
+            if (mpz_sgn(D_s) != 0) {
+                {
+                    mpz_t t1, t2;
+                    mpz_init(t1);
+                    mpz_init(t2);
+                    mpz_mul(t1, b1_s, c2_s);
+                    mpz_mul(t2, b2_s, c1_s);
+                    mpz_sub(x_num_s, t1, t2);
+                    mpz_clear(t1);
+                    mpz_clear(t2);
+                }
+                {
+                    mpz_t t1, t2;
+                    mpz_init(t1);
+                    mpz_init(t2);
+                    mpz_mul(t1, a2_s, c1_s);
+                    mpz_mul(t2, a1_s, c2_s);
+                    mpz_sub(y_num_s, t1, t2);
+                    mpz_clear(t1);
+                    mpz_clear(t2);
+                }
 
-                    bool exact1 = coord_to_mpz_scaled_exact(line1->symbolic_coords[0], l1x1_s, scale) &&
-                                  coord_to_mpz_scaled_exact(line1->symbolic_coords[1], l1y1_s, scale) &&
-                                  coord_to_mpz_scaled_exact(line1->symbolic_coords[2], l1x2_s, scale) &&
-                                  coord_to_mpz_scaled_exact(line1->symbolic_coords[3], l1y2_s, scale);
-                    bool exact2 = coord_to_mpz_scaled_exact(line2->symbolic_coords[0], l2x1_s, scale) &&
-                                  coord_to_mpz_scaled_exact(line2->symbolic_coords[1], l2y1_s, scale) &&
-                                  coord_to_mpz_scaled_exact(line2->symbolic_coords[2], l2x2_s, scale) &&
-                                  coord_to_mpz_scaled_exact(line2->symbolic_coords[3], l2y2_s, scale);
-
-                    if (exact1 && exact2) {
-                        /* 精确路径：在 mpz 层面计算直线方程和交点 */
-
-                        /* 直线1: a1*x + b1*y + c1 = 0
-                       a1 = dy1 = (l1y2 - l1y1), b1 = -dx1 = -(l1x2 - l1x1)
-                       c1 = -(a1*l1x1 + b1*l1y1) (需要除以 scale) */
-                        mpz_t a1_s, b1_s, c1_s, a2_s, b2_s, c2_s;
-                        mpz_t dx1_s, dy1_s, dx2_s, dy2_s;
-                        mpz_init(a1_s);
-                        mpz_init(b1_s);
-                        mpz_init(c1_s);
-                        mpz_init(a2_s);
-                        mpz_init(b2_s);
-                        mpz_init(c2_s);
-                        mpz_init(dx1_s);
-                        mpz_init(dy1_s);
-                        mpz_init(dx2_s);
-                        mpz_init(dy2_s);
-
-                        mpz_sub(dx1_s, l1x2_s, l1x1_s);
-                        mpz_sub(dy1_s, l1y2_s, l1y1_s);
-                        mpz_set(a1_s, dy1_s);
-                        mpz_neg(b1_s, dx1_s);
-                        /* c1 = -(a1*l1x1 + b1*l1y1) / scale */
-                        {
-                            mpz_t t1, t2;
-                            mpz_init(t1);
-                            mpz_init(t2);
-                            mpz_mul(t1, a1_s, l1x1_s);
-                            mpz_mul(t2, b1_s, l1y1_s);
-                            mpz_add(t1, t1, t2);
-                            mpz_neg(t1, t1);
-                            mpz_fdiv_q_ui(c1_s, t1, (unsigned long) scale);
-                            mpz_clear(t1);
-                            mpz_clear(t2);
-                        }
-
-                        mpz_sub(dx2_s, l2x2_s, l2x1_s);
-                        mpz_sub(dy2_s, l2y2_s, l2y1_s);
-                        mpz_set(a2_s, dy2_s);
-                        mpz_neg(b2_s, dx2_s);
-                        /* c2 = -(a2*l2x1 + b2*l2y1) / scale */
-                        {
-                            mpz_t t1, t2;
-                            mpz_init(t1);
-                            mpz_init(t2);
-                            mpz_mul(t1, a2_s, l2x1_s);
-                            mpz_mul(t2, b2_s, l2y1_s);
-                            mpz_add(t1, t1, t2);
-                            mpz_neg(t1, t1);
-                            mpz_fdiv_q_ui(c2_s, t1, (unsigned long) scale);
-                            mpz_clear(t1);
-                            mpz_clear(t2);
-                        }
-
-                        /* D = a1*b2 - a2*b1 (已缩放: a1,b1 已缩放，a2,b2 已缩放 => D 缩放^2) */
-                        mpz_t D_s, x_num_s, y_num_s;
-                        mpz_init(D_s);
-                        mpz_init(x_num_s);
-                        mpz_init(y_num_s);
-                        {
-                            mpz_t t1, t2;
-                            mpz_init(t1);
-                            mpz_init(t2);
-                            mpz_mul(t1, a1_s, b2_s);
-                            mpz_mul(t2, a2_s, b1_s);
-                            mpz_sub(D_s, t1, t2);
-                            mpz_clear(t1);
-                            mpz_clear(t2);
-                        }
-
-                        /* 检查是否平行：D_s == 0 */
-                        if (mpz_sgn(D_s) != 0) {
-                            /* x_num = b1*c2 - b2*c1 (b1,b2 缩放, c1,c2 缩放 => x_num 缩放^2) */
-                            {
-                                mpz_t t1, t2;
-                                mpz_init(t1);
-                                mpz_init(t2);
-                                mpz_mul(t1, b1_s, c2_s);
-                                mpz_mul(t2, b2_s, c1_s);
-                                mpz_sub(x_num_s, t1, t2);
-                                mpz_clear(t1);
-                                mpz_clear(t2);
-                            }
-                            /* y_num = a2*c1 - a1*c2 */
-                            {
-                                mpz_t t1, t2;
-                                mpz_init(t1);
-                                mpz_init(t2);
-                                mpz_mul(t1, a2_s, c1_s);
-                                mpz_mul(t2, a1_s, c2_s);
-                                mpz_sub(y_num_s, t1, t2);
-                                mpz_clear(t1);
-                                mpz_clear(t2);
-                            }
-
-                            /*
-                         * 方程: D*x = x_num, D*y = y_num
-                         * D_s 和 x_num_s/y_num_s 都缩放了 scale^2，
-                         * 两边同时除以 scale^2 后等价。
-                         * 直接用 D_s 和 x_num_s 作为系数（公共因子 scale^2 约掉）。
-                         */
-                            mpz_poly_t poly;
-                            mpz_poly_init(&poly);
-                            poly.degree = 1;
-                            /* GMP 要求使用标准分配器 */
-                            poly.coeffs = coeff_pool_alloc(2);
-                            if (poly.coeffs) {
-                                mpz_init(poly.coeffs[1]);
-                                mpz_init(poly.coeffs[0]);
-                                mpz_set(poly.coeffs[1], D_s);
-                                mpz_neg(poly.coeffs[0], x_num_s);
-                                EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 0, push_error);
-                                coeff_pool_clear(&poly);
-                            } else {
-                                coeff_pool_clear(&poly);
-                            }
-
-                            mpz_poly_init(&poly);
-                            poly.degree = 1;
-                            /* GMP 要求使用标准分配器 */
-                            poly.coeffs = coeff_pool_alloc(2);
-                            if (poly.coeffs) {
-                                mpz_init(poly.coeffs[1]);
-                                mpz_init(poly.coeffs[0]);
-                                mpz_set(poly.coeffs[1], D_s);
-                                mpz_neg(poly.coeffs[0], y_num_s);
-                                EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 1, push_error);
-                                coeff_pool_clear(&poly);
-                            } else {
-                                coeff_pool_clear(&poly);
-                            }
-                        }
-
+                mpz_poly_t poly;
+                mpz_poly_init(&poly);
+                poly.degree = 1;
+                poly.coeffs = coeff_pool_alloc(2);
+                if (poly.coeffs) {
+                    mpz_init(poly.coeffs[1]);
+                    mpz_init(poly.coeffs[0]);
+                    mpz_set(poly.coeffs[1], D_s);
+                    mpz_neg(poly.coeffs[0], x_num_s);
+                    if (equation_system_push(sys, poly, rpt->id, 0) != 0) {
+                        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                        coeff_pool_clear(&poly);
                         mpz_clear(D_s);
                         mpz_clear(x_num_s);
                         mpz_clear(y_num_s);
@@ -802,432 +776,521 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                         mpz_clear(l2y1_s);
                         mpz_clear(l2x2_s);
                         mpz_clear(l2y2_s);
-                        break;
+                        return -1;
                     }
-
-                    mpz_clear(l1x1_s);
-                    mpz_clear(l1y1_s);
-                    mpz_clear(l1x2_s);
-                    mpz_clear(l1y2_s);
-                    mpz_clear(l2x1_s);
-                    mpz_clear(l2y1_s);
-                    mpz_clear(l2x2_s);
-                    mpz_clear(l2y2_s);
+                    coeff_pool_clear(&poly);
+                } else {
+                    coeff_pool_clear(&poly);
                 }
 
-                /* 回退到 double 近似路径 */
-                {
-                    /* 从两条线段中提取直线方程 */
-                    LineEquation le1, le2;
-                    bool got1 = false, got2 = false;
-
-                    if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4) {
-                        GeomNode ep1_storage, ep2_storage;
-                        memset(&ep1_storage, 0, sizeof(GeomNode));
-                        memset(&ep2_storage, 0, sizeof(GeomNode));
-                        GeomNode *ep1 = &ep1_storage;
-                        GeomNode *ep2 = &ep2_storage;
-                        ep1->type = GEOM_POINT;
-                        ep1->coord_count = 2;
-                        ep1->symbolic_coords = &line1->symbolic_coords[0];
-                        ep2->type = GEOM_POINT;
-                        ep2->coord_count = 2;
-                        ep2->symbolic_coords = &line1->symbolic_coords[2];
-                        got1 = line_from_two_points(ep1, ep2, &le1);
-                    }
-                    if (line2->type == GEOM_LINE_SEGMENT && line2->coord_count >= 4) {
-                        GeomNode ep1_storage, ep2_storage;
-                        memset(&ep1_storage, 0, sizeof(GeomNode));
-                        memset(&ep2_storage, 0, sizeof(GeomNode));
-                        GeomNode *ep1 = &ep1_storage;
-                        GeomNode *ep2 = &ep2_storage;
-                        ep1->type = GEOM_POINT;
-                        ep1->coord_count = 2;
-                        ep1->symbolic_coords = &line2->symbolic_coords[0];
-                        ep2->type = GEOM_POINT;
-                        ep2->coord_count = 2;
-                        ep2->symbolic_coords = &line2->symbolic_coords[2];
-                        got2 = line_from_two_points(ep1, ep2, &le2);
-                    }
-
-                    if (got1 && got2) {
-                        /*
-                     * 正确计算两条直线的交点
-                     *
-                     * 两条直线方程为:
-                     *   Line1: a1*x + b1*y + c1 = 0
-                     *   Line2: a2*x + b2*y + c2 = 0
-                     *
-                     * 联立求解交点 (x, y)：
-                     *   行列式 D = a1*b2 - a2*b1
-                     *   x = (b1*c2 - b2*c1) / D
-                     *   y = (a2*c1 - a1*c2) / D
-                     *
-                     * 为避免除法，我们将方程改写为:
-                     *   D*x = b1*c2 - b2*c1
-                     *   D*y = a2*c1 - a1*c2
-                     *
-                     * 这可以表示为两个线性方程:
-                     *   D*x + 0*y - (b1*c2 - b2*c1) = 0  =>  x 坐标的约束
-                     *   0*x + D*y - (a2*c1 - a1*c2) = 0  =>  y 坐标的约束
-                     */
-
-                        double D = le1.a * le2.b - le2.a * le1.b;
-
-                        /* 检查是否平行（行列式接近零） */
-                        if (fabs(D) < lv_EPSILON_NUMERIC_COMPARE) {
-                            /* 直线平行或重合，无法确定唯一交点 */
-                            break;
-                        }
-
-                        double x_numerator = le1.b * le2.c - le2.b * le1.c; /* b1*c2 - b2*c1 */
-                        double y_numerator = le2.a * le1.c - le1.a * le2.c; /* a2*c1 - a1*c2 */
-
-                        /* x 坐标方程: D*x - x_numerator = 0 */
-                        mpz_poly_t poly;
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
-                         * 因此此处必须使用标准 malloc 而非 lv_malloc。
-                         * lv_SOLVER_LINEAR_COEFF_COUNT 为常量，不存在溢出风险。 */
-                        poly.coeffs = coeff_pool_alloc(lv_SOLVER_LINEAR_COEFF_COUNT);
-                        if (!poly.coeffs) {
-                            coeff_pool_clear(&poly);
-                            break;
-                        }
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        double_to_mpz_scaled(D, poly.coeffs[1], scale);            /* x 的系数 */
-                        double_to_mpz_scaled(-x_numerator, poly.coeffs[0], scale); /* 常数项 */
-                        EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 0, push_error);
+                mpz_poly_init(&poly);
+                poly.degree = 1;
+                poly.coeffs = coeff_pool_alloc(2);
+                if (poly.coeffs) {
+                    mpz_init(poly.coeffs[1]);
+                    mpz_init(poly.coeffs[0]);
+                    mpz_set(poly.coeffs[1], D_s);
+                    mpz_neg(poly.coeffs[0], y_num_s);
+                    if (equation_system_push(sys, poly, rpt->id, 1) != 0) {
+                        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         coeff_pool_clear(&poly);
-
-                        /* y 坐标方程: D*y - y_numerator = 0 */
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        /* GMP 要求使用标准分配器 */
-                        poly.coeffs = coeff_pool_alloc(2);
-                        if (!poly.coeffs) {
-                            coeff_pool_clear(&poly);
-                            break;
-                        }
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        double_to_mpz_scaled(D, poly.coeffs[1], scale);            /* y 的系数 */
-                        double_to_mpz_scaled(-y_numerator, poly.coeffs[0], scale); /* 常数项 */
-                        EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 1, push_error);
-                        coeff_pool_clear(&poly);
+                        mpz_clear(D_s);
+                        mpz_clear(x_num_s);
+                        mpz_clear(y_num_s);
+                        mpz_clear(a1_s);
+                        mpz_clear(b1_s);
+                        mpz_clear(c1_s);
+                        mpz_clear(a2_s);
+                        mpz_clear(b2_s);
+                        mpz_clear(c2_s);
+                        mpz_clear(dx1_s);
+                        mpz_clear(dy1_s);
+                        mpz_clear(dx2_s);
+                        mpz_clear(dy2_s);
+                        mpz_clear(l1x1_s);
+                        mpz_clear(l1y1_s);
+                        mpz_clear(l1x2_s);
+                        mpz_clear(l1y2_s);
+                        mpz_clear(l2x1_s);
+                        mpz_clear(l2y1_s);
+                        mpz_clear(l2x2_s);
+                        mpz_clear(l2y2_s);
+                        return -1;
                     }
+                    coeff_pool_clear(&poly);
+                } else {
+                    coeff_pool_clear(&poly);
                 }
-                break;
             }
 
-            case BETWEENNESS: {
-                /* participants[0]=p1, participants[1]=p2, participants[2]=p3
-               p2 is between p1 and p3 => collinear + 0 <= t <= 1 */
-                if (c->participant_count < 3)
-                    break;
-                GeomNode *p1 = find_node(graph, c->participants[0]);
-                GeomNode *p2 = find_node(graph, c->participants[1]);
-                GeomNode *p3 = find_node(graph, c->participants[2]);
-                if (!p1 || !p2 || !p3)
-                    break;
-                if (p1->type != GEOM_POINT || p3->type != GEOM_POINT)
-                    break;
+            mpz_clear(D_s);
+            mpz_clear(x_num_s);
+            mpz_clear(y_num_s);
+            mpz_clear(a1_s);
+            mpz_clear(b1_s);
+            mpz_clear(c1_s);
+            mpz_clear(a2_s);
+            mpz_clear(b2_s);
+            mpz_clear(c2_s);
+            mpz_clear(dx1_s);
+            mpz_clear(dy1_s);
+            mpz_clear(dx2_s);
+            mpz_clear(dy2_s);
+            mpz_clear(l1x1_s);
+            mpz_clear(l1y1_s);
+            mpz_clear(l1x2_s);
+            mpz_clear(l1y2_s);
+            mpz_clear(l2x1_s);
+            mpz_clear(l2y1_s);
+            mpz_clear(l2x2_s);
+            mpz_clear(l2y2_s);
+            return 0;
+        }
 
-                /* 共线性判断：向量 (p2-p1) 和 (p3-p1) 的叉积 = 0
-               (x2-x1)*(y3-y1) - (y2-y1)*(x3-x1) = 0
-               展开: dy13*x2 - dx13*y2 + (dx13*y1 - dy13*x1) = 0
-               使用精确有理数路径避免 double 精度损失 */
-                int64_t scale = lv_SOLVER_SCALE_FACTOR;
-                mpz_t x1_s, y1_s, x3_s, y3_s;
-                mpz_init(x1_s);
-                mpz_init(y1_s);
-                mpz_init(x3_s);
-                mpz_init(y3_s);
+        mpz_clear(l1x1_s);
+        mpz_clear(l1y1_s);
+        mpz_clear(l1x2_s);
+        mpz_clear(l1y2_s);
+        mpz_clear(l2x1_s);
+        mpz_clear(l2y1_s);
+        mpz_clear(l2x2_s);
+        mpz_clear(l2y2_s);
+    }
 
-                if (p1->symbolic_coords && p3->symbolic_coords && p1->coord_count >= 2 && p3->coord_count >= 2 &&
-                    coord_to_mpz_scaled_exact(p1->symbolic_coords[0], x1_s, scale) &&
-                    coord_to_mpz_scaled_exact(p1->symbolic_coords[1], y1_s, scale) &&
-                    coord_to_mpz_scaled_exact(p3->symbolic_coords[0], x3_s, scale) &&
-                    coord_to_mpz_scaled_exact(p3->symbolic_coords[1], y3_s, scale)) {
-                    /* dx = x3 - x1, dy = y3 - y1 (均缩放 scale 倍) */
-                    mpz_t dx_s, dy_s;
-                    mpz_init(dx_s);
-                    mpz_init(dy_s);
-                    mpz_sub(dx_s, x3_s, x1_s);
-                    mpz_sub(dy_s, y3_s, y1_s);
+    {
+        LineEquation le1, le2;
+        bool got1 = false, got2 = false;
 
-                    /* x2 方程: dy*x2 + (y1*dx - x1*dy) = 0
-                   coeff = dy_s, const = (y1_s * dx_s - x1_s * dy_s) / scale */
-                    {
-                        mpz_poly_t poly;
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        poly.coeffs = coeff_pool_alloc(2);
-                        if (poly.coeffs) {
-                            mpz_init(poly.coeffs[1]);
-                            mpz_init(poly.coeffs[0]);
-                            mpz_set(poly.coeffs[1], dy_s);
-                            mpz_t term1, term2;
-                            mpz_init(term1);
-                            mpz_init(term2);
-                            mpz_mul(term1, y1_s, dx_s);
-                            mpz_mul(term2, x1_s, dy_s);
-                            mpz_sub(term1, term1, term2);
-                            mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
-                            mpz_clear(term1);
-                            mpz_clear(term2);
-                            EQUATION_PUSH_OR_GOTO(sys, poly, p2->id, 0, push_error);
-                        }
-                        coeff_pool_clear(&poly);
-                    }
+        if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4) {
+            GeomNode ep1_storage, ep2_storage;
+            memset(&ep1_storage, 0, sizeof(GeomNode));
+            memset(&ep2_storage, 0, sizeof(GeomNode));
+            GeomNode *ep1 = &ep1_storage;
+            GeomNode *ep2 = &ep2_storage;
+            ep1->type = GEOM_POINT;
+            ep1->coord_count = 2;
+            ep1->symbolic_coords = &line1->symbolic_coords[0];
+            ep2->type = GEOM_POINT;
+            ep2->coord_count = 2;
+            ep2->symbolic_coords = &line1->symbolic_coords[2];
+            got1 = line_from_two_points(ep1, ep2, &le1);
+        }
+        if (line2->type == GEOM_LINE_SEGMENT && line2->coord_count >= 4) {
+            GeomNode ep1_storage, ep2_storage;
+            memset(&ep1_storage, 0, sizeof(GeomNode));
+            memset(&ep2_storage, 0, sizeof(GeomNode));
+            GeomNode *ep1 = &ep1_storage;
+            GeomNode *ep2 = &ep2_storage;
+            ep1->type = GEOM_POINT;
+            ep1->coord_count = 2;
+            ep1->symbolic_coords = &line2->symbolic_coords[0];
+            ep2->type = GEOM_POINT;
+            ep2->coord_count = 2;
+            ep2->symbolic_coords = &line2->symbolic_coords[2];
+            got2 = line_from_two_points(ep1, ep2, &le2);
+        }
 
-                    /* y2 方程: -dx*y2 + (dy*x1 - dx*y1) = 0
-                   coeff = -dx_s, const = (dy_s * x1_s - dx_s * y1_s) / scale */
-                    {
-                        mpz_poly_t poly;
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        poly.coeffs = coeff_pool_alloc(2);
-                        if (poly.coeffs) {
-                            mpz_init(poly.coeffs[1]);
-                            mpz_init(poly.coeffs[0]);
-                            mpz_neg(poly.coeffs[1], dx_s);
-                            mpz_t term1, term2;
-                            mpz_init(term1);
-                            mpz_init(term2);
-                            mpz_mul(term1, dy_s, x1_s);
-                            mpz_mul(term2, dx_s, y1_s);
-                            mpz_sub(term1, term1, term2);
-                            mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
-                            mpz_clear(term1);
-                            mpz_clear(term2);
-                            EQUATION_PUSH_OR_GOTO(sys, poly, p2->id, 1, push_error);
-                        }
-                        coeff_pool_clear(&poly);
-                    }
+        if (got1 && got2) {
+            double D = le1.a * le2.b - le2.a * le1.b;
 
+            if (fabs(D) < lv_EPSILON_NUMERIC_COMPARE) {
+                return 0;
+            }
+
+            double x_numerator = le1.b * le2.c - le2.b * le1.c;
+            double y_numerator = le2.a * le1.c - le1.a * le2.c;
+
+            mpz_poly_t poly;
+            mpz_poly_init(&poly);
+            poly.degree = 1;
+            poly.coeffs = coeff_pool_alloc(lv_SOLVER_LINEAR_COEFF_COUNT);
+            if (!poly.coeffs) {
+                coeff_pool_clear(&poly);
+                return 0;
+            }
+            mpz_init(poly.coeffs[1]);
+            mpz_init(poly.coeffs[0]);
+            double_to_mpz_scaled(D, poly.coeffs[1], scale);
+            double_to_mpz_scaled(-x_numerator, poly.coeffs[0], scale);
+            if (equation_system_push(sys, poly, rpt->id, 0) != 0) {
+                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                coeff_pool_clear(&poly);
+                return -1;
+            }
+            coeff_pool_clear(&poly);
+
+            mpz_poly_init(&poly);
+            poly.degree = 1;
+            poly.coeffs = coeff_pool_alloc(2);
+            if (!poly.coeffs) {
+                coeff_pool_clear(&poly);
+                return 0;
+            }
+            mpz_init(poly.coeffs[1]);
+            mpz_init(poly.coeffs[0]);
+            double_to_mpz_scaled(D, poly.coeffs[1], scale);
+            double_to_mpz_scaled(-y_numerator, poly.coeffs[0], scale);
+            if (equation_system_push(sys, poly, rpt->id, 1) != 0) {
+                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                coeff_pool_clear(&poly);
+                return -1;
+            }
+            coeff_pool_clear(&poly);
+        }
+    }
+    return 0;
+}
+
+static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c) {
+    if (c->participant_count < 3)
+        return 0;
+    GeomNode *p1 = find_node(graph, c->participants[0]);
+    GeomNode *p2 = find_node(graph, c->participants[1]);
+    GeomNode *p3 = find_node(graph, c->participants[2]);
+    if (!p1 || !p2 || !p3)
+        return 0;
+    if (p1->type != GEOM_POINT || p3->type != GEOM_POINT)
+        return 0;
+
+    int64_t scale = lv_SOLVER_SCALE_FACTOR;
+    mpz_t x1_s, y1_s, x3_s, y3_s;
+    mpz_init(x1_s);
+    mpz_init(y1_s);
+    mpz_init(x3_s);
+    mpz_init(y3_s);
+
+    if (p1->symbolic_coords && p3->symbolic_coords && p1->coord_count >= 2 && p3->coord_count >= 2 &&
+        coord_to_mpz_scaled_exact(p1->symbolic_coords[0], x1_s, scale) &&
+        coord_to_mpz_scaled_exact(p1->symbolic_coords[1], y1_s, scale) &&
+        coord_to_mpz_scaled_exact(p3->symbolic_coords[0], x3_s, scale) &&
+        coord_to_mpz_scaled_exact(p3->symbolic_coords[1], y3_s, scale)) {
+        mpz_t dx_s, dy_s;
+        mpz_init(dx_s);
+        mpz_init(dy_s);
+        mpz_sub(dx_s, x3_s, x1_s);
+        mpz_sub(dy_s, y3_s, y1_s);
+
+        {
+            mpz_poly_t poly;
+            mpz_poly_init(&poly);
+            poly.degree = 1;
+            poly.coeffs = coeff_pool_alloc(2);
+            if (poly.coeffs) {
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_set(poly.coeffs[1], dy_s);
+                mpz_t term1, term2;
+                mpz_init(term1);
+                mpz_init(term2);
+                mpz_mul(term1, y1_s, dx_s);
+                mpz_mul(term2, x1_s, dy_s);
+                mpz_sub(term1, term1, term2);
+                mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                mpz_clear(term1);
+                mpz_clear(term2);
+                if (equation_system_push(sys, poly, p2->id, 0) != 0) {
+                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                    coeff_pool_clear(&poly);
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
+                    mpz_clear(x1_s);
+                    mpz_clear(y1_s);
+                    mpz_clear(x3_s);
+                    mpz_clear(y3_s);
+                    return -1;
                 }
-                mpz_clear(x1_s);
-                mpz_clear(y1_s);
-                mpz_clear(x3_s);
-                mpz_clear(y3_s);
-                break;
             }
+            coeff_pool_clear(&poly);
+        }
 
-            case CONTAINMENT: {
-                /* 点/区域包含约束: inner 几何体位于 outer 区域内。
-               对多边形区域的每条边界边，点必须在边的"内侧"。
-               使用精确有理数路径避免 double 精度损失。 */
-                if (c->participant_count < 2)
-                    break;
-                GeomNode *inner = find_node(graph, c->participants[0]);
-                GeomNode *outer = find_node(graph, c->participants[1]);
-                if (!inner || !outer)
-                    break;
+        {
+            mpz_poly_t poly;
+            mpz_poly_init(&poly);
+            poly.degree = 1;
+            poly.coeffs = coeff_pool_alloc(2);
+            if (poly.coeffs) {
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_neg(poly.coeffs[1], dx_s);
+                mpz_t term1, term2;
+                mpz_init(term1);
+                mpz_init(term2);
+                mpz_mul(term1, dy_s, x1_s);
+                mpz_mul(term2, dx_s, y1_s);
+                mpz_sub(term1, term1, term2);
+                mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                mpz_clear(term1);
+                mpz_clear(term2);
+                if (equation_system_push(sys, poly, p2->id, 1) != 0) {
+                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                    coeff_pool_clear(&poly);
+                    mpz_clear(dx_s);
+                    mpz_clear(dy_s);
+                    mpz_clear(x1_s);
+                    mpz_clear(y1_s);
+                    mpz_clear(x3_s);
+                    mpz_clear(y3_s);
+                    return -1;
+                }
+            }
+            coeff_pool_clear(&poly);
+        }
 
-                /* 当前仅处理点-区域包含 */
-                if (inner->type != GEOM_POINT || outer->type != GEOM_REGION)
-                    break;
-                if (outer->data.region.segment_count <= 0 || !outer->data.region.boundary_segments)
-                    break;
+        mpz_clear(dx_s);
+        mpz_clear(dy_s);
+    }
+    mpz_clear(x1_s);
+    mpz_clear(y1_s);
+    mpz_clear(x3_s);
+    mpz_clear(y3_s);
+    return 0;
+}
+
+static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c) {
+    if (c->participant_count < 2)
+        return 0;
+    GeomNode *inner = find_node(graph, c->participants[0]);
+    GeomNode *outer = find_node(graph, c->participants[1]);
+    if (!inner || !outer)
+        return 0;
+
+    if (inner->type != GEOM_POINT || outer->type != GEOM_REGION)
+        return 0;
+    if (outer->data.region.segment_count <= 0 || !outer->data.region.boundary_segments)
+        return 0;
+
+    {
+        int64_t scale = lv_SOLVER_SCALE_FACTOR;
+        int seg_count = outer->data.region.segment_count;
+
+        for (int si = 0; si < seg_count; si++) {
+            GeomNode *seg = outer->data.region.boundary_segments[si];
+            if (!seg || seg->type != GEOM_LINE_SEGMENT)
+                continue;
+            if (seg->coord_count < 4 || !seg->symbolic_coords)
+                continue;
+
+            mpz_t sx1_s, sy1_s, sx2_s, sy2_s;
+            mpz_init(sx1_s);
+            mpz_init(sy1_s);
+            mpz_init(sx2_s);
+            mpz_init(sy2_s);
+
+            if (coord_to_mpz_scaled_exact(seg->symbolic_coords[0], sx1_s, scale) &&
+                coord_to_mpz_scaled_exact(seg->symbolic_coords[1], sy1_s, scale) &&
+                coord_to_mpz_scaled_exact(seg->symbolic_coords[2], sx2_s, scale) &&
+                coord_to_mpz_scaled_exact(seg->symbolic_coords[3], sy2_s, scale)) {
+                mpz_t dx_s, dy_s;
+                mpz_init(dx_s);
+                mpz_init(dy_s);
+                mpz_sub(dx_s, sx2_s, sx1_s);
+                mpz_sub(dy_s, sy2_s, sy1_s);
 
                 {
-                    int64_t scale = lv_SOLVER_SCALE_FACTOR;
-                    int seg_count = outer->data.region.segment_count;
-
-                    for (int si = 0; si < seg_count; si++) {
-                        GeomNode *seg = outer->data.region.boundary_segments[si];
-                        if (!seg || seg->type != GEOM_LINE_SEGMENT)
-                            continue;
-                        if (seg->coord_count < 4 || !seg->symbolic_coords)
-                            continue;
-
-                        /* 精确有理数路径：获取边界线段端点坐标的缩放整数值 */
-                        mpz_t sx1_s, sy1_s, sx2_s, sy2_s;
-                        mpz_init(sx1_s);
-                        mpz_init(sy1_s);
-                        mpz_init(sx2_s);
-                        mpz_init(sy2_s);
-
-                        if (coord_to_mpz_scaled_exact(seg->symbolic_coords[0], sx1_s, scale) &&
-                            coord_to_mpz_scaled_exact(seg->symbolic_coords[1], sy1_s, scale) &&
-                            coord_to_mpz_scaled_exact(seg->symbolic_coords[2], sx2_s, scale) &&
-                            coord_to_mpz_scaled_exact(seg->symbolic_coords[3], sy2_s, scale)) {
-                            /* 边方向向量 (均缩放 scale 倍) */
-                            mpz_t dx_s, dy_s;
-                            mpz_init(dx_s);
-                            mpz_init(dy_s);
-                            mpz_sub(dx_s, sx2_s, sx1_s);
-                            mpz_sub(dy_s, sy2_s, sy1_s);
-
-                            /* x-分量方程: dy*px + (-dy*sx1 + dx*sy1) = 0
-                           coeff = dy_s, const = (dx_s * sy1_s - dy_s * sx1_s) / scale */
-                            {
-                                mpz_poly_t poly;
-                                mpz_poly_init(&poly);
-                                poly.degree = 1;
-                                poly.coeffs = coeff_pool_alloc(2);
-                                if (poly.coeffs) {
-                                    mpz_init(poly.coeffs[1]);
-                                    mpz_init(poly.coeffs[0]);
-                                    mpz_set(poly.coeffs[1], dy_s);
-                                    mpz_t term1, term2;
-                                    mpz_init(term1);
-                                    mpz_init(term2);
-                                    mpz_mul(term1, dx_s, sy1_s);
-                                    mpz_mul(term2, dy_s, sx1_s);
-                                    mpz_sub(term1, term1, term2);
-                                    mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
-                                    mpz_clear(term1);
-                                    mpz_clear(term2);
-                                    EQUATION_PUSH_OR_GOTO(sys, poly, inner->id, 0, push_error);
-                                }
-                                coeff_pool_clear(&poly);
-                            }
-
-                            /* y-分量方程: -dx*py + (dy*sx1 - dx*sy1) = 0
-                           coeff = -dx_s, const = (dy_s * sx1_s - dx_s * sy1_s) / scale */
-                            {
-                                mpz_poly_t poly;
-                                mpz_poly_init(&poly);
-                                poly.degree = 1;
-                                poly.coeffs = coeff_pool_alloc(2);
-                                if (poly.coeffs) {
-                                    mpz_init(poly.coeffs[1]);
-                                    mpz_init(poly.coeffs[0]);
-                                    mpz_neg(poly.coeffs[1], dx_s);
-                                    mpz_t term1, term2;
-                                    mpz_init(term1);
-                                    mpz_init(term2);
-                                    mpz_mul(term1, dy_s, sx1_s);
-                                    mpz_mul(term2, dx_s, sy1_s);
-                                    mpz_sub(term1, term1, term2);
-                                    mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
-                                    mpz_clear(term1);
-                                    mpz_clear(term2);
-                                    EQUATION_PUSH_OR_GOTO(sys, poly, inner->id, 1, push_error);
-                                }
-                                coeff_pool_clear(&poly);
-                            }
-
+                    mpz_poly_t poly;
+                    mpz_poly_init(&poly);
+                    poly.degree = 1;
+                    poly.coeffs = coeff_pool_alloc(2);
+                    if (poly.coeffs) {
+                        mpz_init(poly.coeffs[1]);
+                        mpz_init(poly.coeffs[0]);
+                        mpz_set(poly.coeffs[1], dy_s);
+                        mpz_t term1, term2;
+                        mpz_init(term1);
+                        mpz_init(term2);
+                        mpz_mul(term1, dx_s, sy1_s);
+                        mpz_mul(term2, dy_s, sx1_s);
+                        mpz_sub(term1, term1, term2);
+                        mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                        mpz_clear(term1);
+                        mpz_clear(term2);
+                        if (equation_system_push(sys, poly, inner->id, 0) != 0) {
+                            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                            coeff_pool_clear(&poly);
                             mpz_clear(dx_s);
                             mpz_clear(dy_s);
+                            mpz_clear(sx1_s);
+                            mpz_clear(sy1_s);
+                            mpz_clear(sx2_s);
+                            mpz_clear(sy2_s);
+                            return -1;
                         }
-
-                        mpz_clear(sx1_s);
-                        mpz_clear(sy1_s);
-                        mpz_clear(sx2_s);
-                        mpz_clear(sy2_s);
                     }
+                    coeff_pool_clear(&poly);
                 }
-                break;
-            }
 
-            case ANGLE: {
-                /* 角度约束: 两条线段之间的夹角。
-                 * 当前暂不生成坐标方程，后续版本可引入方向向量叉积。 */
-                break;
-            }
-
-            case CONNECTION: {
-                /* 端口之间的连接。从关联节点的数值假设声明中提取距离约束。
-               如果两个节点都有坐标且其中一个编码了距离，
-               生成方程：(xA-xB)^2 + (yA-yB)^2 = d^2。 */
-                if (c->participant_count < 2)
-                    break;
-                GeomNode *nodeA = find_node(graph, c->participants[0]);
-                GeomNode *nodeB = find_node(graph, c->participants[1]);
-                if (!nodeA || !nodeB)
-                    break;
-
-                /* 尝试从任一节点的数值假设声明中提取距离值 */
-                double dist_val = -1.0;
-                GeomNode *dist_node = NULL;
-                const char *prefix = "distance=";
-                size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免循环内重复计算 */
-                for (int ni = 0; ni < 2; ni++) {
-                    GeomNode *n = (ni == 0) ? nodeA : nodeB;
-                    if (!n || !n->numeric_assumption_declaration)
-                        continue;
-                    const char *decl = n->numeric_assumption_declaration;
-                    if (strncmp(decl, prefix, prefix_len) == 0) {
-                        dist_val = strtod(decl + prefix_len, NULL);
-                        dist_node = n;
-                        break;
+                {
+                    mpz_poly_t poly;
+                    mpz_poly_init(&poly);
+                    poly.degree = 1;
+                    poly.coeffs = coeff_pool_alloc(2);
+                    if (poly.coeffs) {
+                        mpz_init(poly.coeffs[1]);
+                        mpz_init(poly.coeffs[0]);
+                        mpz_neg(poly.coeffs[1], dx_s);
+                        mpz_t term1, term2;
+                        mpz_init(term1);
+                        mpz_init(term2);
+                        mpz_mul(term1, dy_s, sx1_s);
+                        mpz_mul(term2, dx_s, sy1_s);
+                        mpz_sub(term1, term1, term2);
+                        mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                        mpz_clear(term1);
+                        mpz_clear(term2);
+                        if (equation_system_push(sys, poly, inner->id, 1) != 0) {
+                            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                            coeff_pool_clear(&poly);
+                            mpz_clear(dx_s);
+                            mpz_clear(dy_s);
+                            mpz_clear(sx1_s);
+                            mpz_clear(sy1_s);
+                            mpz_clear(sx2_s);
+                            mpz_clear(sy2_s);
+                            return -1;
+                        }
                     }
-                }
-
-                if (dist_val < 0)
-                    break;
-
-                /* 两个节点均需要至少 2 个坐标 (x, y) */
-                if (nodeA->coord_count < 2 || nodeB->coord_count < 2)
-                    break;
-                if (!nodeA->symbolic_coords || !nodeB->symbolic_coords)
-                    break;
-
-                double ax, ay, bx, by;
-                if (!coord_to_double(nodeA->symbolic_coords[0], &ax) ||
-                    !coord_to_double(nodeA->symbolic_coords[1], &ay) ||
-                    !coord_to_double(nodeB->symbolic_coords[0], &bx) ||
-                    !coord_to_double(nodeB->symbolic_coords[1], &by))
-                    break;
-
-                double dist_sq = dist_val * dist_val;
-                int64_t scale = lv_SOLVER_SCALE_FACTOR;
-
-                /* (xA-xB)^2 + (yA-yB)^2 = d^2
-               Expand for nodeB as variable (nodeA as fixed):
-               xB^2 - 2*ax*xB + (ax^2 + ay^2 - 2*ay*yB + yB^2 - dist_sq) = 0
-               Simplified as univariate in xB:
-               xB^2 - 2*ax*xB + (ax^2 + ay^2 - dist_sq) = 0
-               (ignoring y coupling terms, consistent with existing approach) */
-                mpz_poly_t poly;
-                mpz_poly_init(&poly);
-                poly.degree = 2;
-                /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
-                 * 因此此处必须使用标准 malloc 而非 lv_malloc。
-                 * lv_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
-                poly.coeffs = coeff_pool_alloc(lv_SOLVER_QUADRATIC_COEFF_COUNT);
-                if (!poly.coeffs) {
                     coeff_pool_clear(&poly);
-                    break;
                 }
-                mpz_init(poly.coeffs[2]);
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
-                mpz_set_si(poly.coeffs[2], scale);
-                double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
-                double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-                EQUATION_PUSH_OR_GOTO(sys, poly, nodeB->id, 0, push_error);
-                coeff_pool_clear(&poly);
 
-                /* 同理对 yB 建立方程：yB^2 - 2*ay*yB + (ax^2 + ay^2 - dist_sq) = 0 */
-                mpz_poly_init(&poly);
-                poly.degree = 2;
-                /* GMP 要求使用标准分配器 */
-                poly.coeffs = coeff_pool_alloc(3);
-                if (!poly.coeffs) {
-                    coeff_pool_clear(&poly);
-                    break;
-                }
-                mpz_init(poly.coeffs[2]);
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
-                mpz_set_si(poly.coeffs[2], scale);
-                double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
-                double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-                EQUATION_PUSH_OR_GOTO(sys, poly, nodeB->id, 1, push_error);
-                coeff_pool_clear(&poly);
-                break;
+                mpz_clear(dx_s);
+                mpz_clear(dy_s);
             }
-            default:
-                lv_LOG_WARNING("Unknown constraint type %d in extract_equations_from_constraints", c->type);
-                break;
+
+            mpz_clear(sx1_s);
+            mpz_clear(sy1_s);
+            mpz_clear(sx2_s);
+            mpz_clear(sy2_s);
+        }
+    }
+    return 0;
+}
+
+static int extract_angle(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c) {
+    (void)graph;
+    (void)sys;
+    (void)c;
+    return 0;
+}
+
+static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c) {
+    if (c->participant_count < 2)
+        return 0;
+    GeomNode *nodeA = find_node(graph, c->participants[0]);
+    GeomNode *nodeB = find_node(graph, c->participants[1]);
+    if (!nodeA || !nodeB)
+        return 0;
+
+    double dist_val = -1.0;
+    GeomNode *dist_node = NULL;
+    const char *prefix = "distance=";
+    size_t prefix_len = strlen(prefix);
+    for (int ni = 0; ni < 2; ni++) {
+        GeomNode *n = (ni == 0) ? nodeA : nodeB;
+        if (!n || !n->numeric_assumption_declaration)
+            continue;
+        const char *decl = n->numeric_assumption_declaration;
+        if (strncmp(decl, prefix, prefix_len) == 0) {
+            dist_val = strtod(decl + prefix_len, NULL);
+            dist_node = n;
+            break;
+        }
+    }
+
+    if (dist_val < 0)
+        return 0;
+
+    if (nodeA->coord_count < 2 || nodeB->coord_count < 2)
+        return 0;
+    if (!nodeA->symbolic_coords || !nodeB->symbolic_coords)
+        return 0;
+
+    double ax, ay, bx, by;
+    if (!coord_to_double(nodeA->symbolic_coords[0], &ax) ||
+        !coord_to_double(nodeA->symbolic_coords[1], &ay) ||
+        !coord_to_double(nodeB->symbolic_coords[0], &bx) ||
+        !coord_to_double(nodeB->symbolic_coords[1], &by))
+        return 0;
+
+    double dist_sq = dist_val * dist_val;
+    int64_t scale = lv_SOLVER_SCALE_FACTOR;
+
+    mpz_poly_t poly;
+    mpz_poly_init(&poly);
+    poly.degree = 2;
+    poly.coeffs = coeff_pool_alloc(lv_SOLVER_QUADRATIC_COEFF_COUNT);
+    if (!poly.coeffs) {
+        coeff_pool_clear(&poly);
+        return 0;
+    }
+    mpz_init(poly.coeffs[2]);
+    mpz_init(poly.coeffs[1]);
+    mpz_init(poly.coeffs[0]);
+    mpz_set_si(poly.coeffs[2], scale);
+    double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
+    double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
+    if (equation_system_push(sys, poly, nodeB->id, 0) != 0) {
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+        coeff_pool_clear(&poly);
+        return -1;
+    }
+    coeff_pool_clear(&poly);
+
+    mpz_poly_init(&poly);
+    poly.degree = 2;
+    poly.coeffs = coeff_pool_alloc(3);
+    if (!poly.coeffs) {
+        coeff_pool_clear(&poly);
+        return 0;
+    }
+    mpz_init(poly.coeffs[2]);
+    mpz_init(poly.coeffs[1]);
+    mpz_init(poly.coeffs[0]);
+    mpz_set_si(poly.coeffs[2], scale);
+    double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
+    double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
+    if (equation_system_push(sys, poly, nodeB->id, 1) != 0) {
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+        coeff_pool_clear(&poly);
+        return -1;
+    }
+    coeff_pool_clear(&poly);
+    return 0;
+}
+
+static const ConstraintExtractFunc constraint_extract_ops[] = {
+    [INCIDENCE] = extract_incidence,
+    [INTERSECTION] = extract_intersection,
+    [BETWEENNESS] = extract_betweenness,
+    [CONTAINMENT] = extract_containment,
+    [ANGLE] = extract_angle,
+    [CONNECTION] = extract_connection,
+};
+
+/**
+ * @brief 从约束图中提取代数方程
+ *
+ * @details 遍历约束图中的所有约束，根据约束类型生成对应的多项式方程：
+ *          INCIDENCE（关联）、INTERSECTION（交点）、BETWEENNESS（介于）、
+ *          CONTAINMENT（包含）、CONNECTION（连接）。
+ *          也处理线段节点上的 numeric_assumption_declaration 距离约束。
+ *          构造临时点用于 line_from_two_points，内存管理采用栈分配，
+ *          不使用动态分配以避免泄漏风险。
+ *
+ * @param graph 约束图指针
+ * @param sys   输出：存储提取方程的系统
+ */
+void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys) {
+    for (int ci = 0; ci < graph->constraint_count; ci++) {
+        Constraint *c = graph->constraints[ci];
+        if (!c || c->participant_count < 2)
+            continue;
+
+        int type = c->type;
+        if (type >= 0 && type < (int)(sizeof(constraint_extract_ops) / sizeof(constraint_extract_ops[0])) && constraint_extract_ops[type]) {
+            if (constraint_extract_ops[type](graph, sys, c) != 0)
+                goto push_error;
+        } else {
+            lv_LOG_WARNING("Unknown constraint type %d in extract_equations_from_constraints", c->type);
         }
     }
 

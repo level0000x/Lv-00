@@ -28,6 +28,31 @@
 #include "lv/lv_str_utils.h"
 
 /**
+ * @brief JSON 字符转义查找表
+ *
+ * 对于每个字符，存储其转义后的第二个字符（'\\'后的字符）。
+ * 值为 0 表示不需要简单转义（可能为普通字符或需 \uXXXX 转义）。
+ */
+static const char kJsonEscapeChar[256] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 't', 'n', 0, 0, 'r', 0, 0,  /* 00-0F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 10-1F */
+    0, 0, '"', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 20-2F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 30-3F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 40-4F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '\\', 0, 0, 0,  /* 50-5F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 60-6F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 70-7F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 80-8F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 90-9F */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* A0-AF */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* B0-BF */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* C0-CF */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* D0-DF */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* E0-EF */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* F0-FF */
+};
+
+/**
  * @brief 将 src 中的特殊 JSON 字符转义后写入 dst
  *
  * 转义双引号、反斜杠和控制字符。如果 dst 不够大，结果会被截断。
@@ -46,45 +71,18 @@ static int json_escape(char *dst, size_t dst_size, const char *src) {
     }
     size_t j = 0;
     for (size_t i = 0; src[i] && j < dst_size - 2; i++) {
-        switch (src[i]) {
-            case '"':
-                if (j + 2 < dst_size) {
-                    dst[j++] = '\\';
-                    dst[j++] = '"';
-                }
-                break;
-            case '\\':
-                if (j + 2 < dst_size) {
-                    dst[j++] = '\\';
-                    dst[j++] = '\\';
-                }
-                break;
-            case '\n':
-                if (j + 2 < dst_size) {
-                    dst[j++] = '\\';
-                    dst[j++] = 'n';
-                }
-                break;
-            case '\r':
-                if (j + 2 < dst_size) {
-                    dst[j++] = '\\';
-                    dst[j++] = 'r';
-                }
-                break;
-            case '\t':
-                if (j + 2 < dst_size) {
-                    dst[j++] = '\\';
-                    dst[j++] = 't';
-                }
-                break;
-            default:
-                if ((unsigned char) src[i] < 0x20) {
-                    if (j + 6 < dst_size)
-                        j += (size_t) snprintf(dst + j, dst_size - j, "\\u%04x", (unsigned char) src[i]);
-                } else {
-                    dst[j++] = src[i];
-                }
-                break;
+        unsigned char c = (unsigned char) src[i];
+        char esc = kJsonEscapeChar[c];
+        if (esc) {
+            if (j + 2 < dst_size) {
+                dst[j++] = '\\';
+                dst[j++] = esc;
+            }
+        } else if (c < 0x20) {
+            if (j + 6 < dst_size)
+                j += (size_t) snprintf(dst + j, dst_size - j, "\\u%04x", c);
+        } else {
+            dst[j++] = src[i];
         }
     }
     dst[j] = '\0';
@@ -524,6 +522,12 @@ BacktrackNode *backtrack_node_create(BacktrackNodeType type, const char *label) 
  * @param child  子节点
  * @return 成功返回true，参数无效或内存分配失败返回false
  */
+
+/** @brief 增量辅助函数，用于 kStatFuncs 查找表 */
+static void proof_search_tree_inc_success(ProofSearchTree *t) { t->success_paths++; }
+static void proof_search_tree_inc_failure(ProofSearchTree *t) { t->failure_paths++; }
+static void proof_search_tree_inc_prune(ProofSearchTree *t) { t->pruned_branches++; }
+
 bool proof_search_tree_add_child(ProofSearchTree *tree, BacktrackNode *parent, BacktrackNode *child) {
     if (!tree || !child)
         return false;
@@ -555,18 +559,15 @@ bool proof_search_tree_add_child(ProofSearchTree *tree, BacktrackNode *parent, B
         child->parent = p;
 
         /* 更新统计信息 */
-        switch (child->type) {
-            case BACKTRACK_SUCCESS:
-                tree->success_paths++;
-                break;
-            case BACKTRACK_FAILURE:
-                tree->failure_paths++;
-                break;
-            case BACKTRACK_PRUNE:
-                tree->pruned_branches++;
-                break;
-            default:
-                break;
+        {
+            static void (* const kStatFuncs[])(ProofSearchTree *) = {
+                [BACKTRACK_SUCCESS] = proof_search_tree_inc_success,
+                [BACKTRACK_FAILURE] = proof_search_tree_inc_failure,
+                [BACKTRACK_PRUNE]   = proof_search_tree_inc_prune,
+            };
+            if ((size_t)child->type < sizeof(kStatFuncs)/sizeof(kStatFuncs[0]) && kStatFuncs[child->type]) {
+                kStatFuncs[child->type](tree);
+            }
         }
 
         /* 更新最大深度 */
@@ -762,32 +763,26 @@ static void backtrack_node_write_dot(FILE *f, const BacktrackNode *node, int par
     if (!f || !node)
         return;
 
-    /* 节点颜色映射 */
-    const char *fill_color;
-    const char *border_color;
+    /* 节点颜色映射（查找表替代 switch） */
+    static const struct {
+        BacktrackNodeType type;
+        const char *fill_color;
+        const char *border_color;
+    } kDotColors[] = {
+        {BACKTRACK_SUCCESS,      "#90EE90", "#006400"},  /* light green / dark green */
+        {BACKTRACK_FAILURE,      "#FFB6C1", "#8B0000"},  /* light red   / dark red   */
+        {BACKTRACK_CHOICE_POINT, "#87CEEB", "#00008B"},  /* light blue  / dark blue  */
+        {BACKTRACK_PRUNE,        "#D3D3D3", "#696969"},  /* light gray  / dim gray   */
+    };
+    const char *fill_color = "#FFFFFF";
+    const char *border_color = "#000000";
     const char *shape = node->is_backtrack_point ? "diamond" : "box";
-
-    switch (node->type) {
-        case BACKTRACK_SUCCESS:
-            fill_color = "#90EE90";   /* light green */
-            border_color = "#006400"; /* dark green */
+    for (size_t ci = 0; ci < sizeof(kDotColors)/sizeof(kDotColors[0]); ci++) {
+        if (node->type == kDotColors[ci].type) {
+            fill_color = kDotColors[ci].fill_color;
+            border_color = kDotColors[ci].border_color;
             break;
-        case BACKTRACK_FAILURE:
-            fill_color = "#FFB6C1";   /* light red */
-            border_color = "#8B0000"; /* dark red */
-            break;
-        case BACKTRACK_CHOICE_POINT:
-            fill_color = "#87CEEB";   /* light blue */
-            border_color = "#00008B"; /* dark blue */
-            break;
-        case BACKTRACK_PRUNE:
-            fill_color = "#D3D3D3";   /* light gray */
-            border_color = "#696969"; /* dim gray */
-            break;
-        default:
-            fill_color = "#FFFFFF";
-            border_color = "#000000";
-            break;
+        }
     }
 
     /* 节点标签转义：双引号 -> 单引号，换行 -> 空格 */
@@ -1070,29 +1065,20 @@ static const char *explain_why_zh(ProofStepType type) {
 /**
  * @brief 生成为什么可以进行这一步骤的解释（英文）
  */
+/** @brief explain_why_en 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_explain_why_en_entries[] = {
+    {"Based on the known conditions and construction rules, this geometric object is validly constructible.", PROOF_STEP_ADD_NODE},
+    {"Based on the relationships between constructed geometric objects, this constraint holds.", PROOF_STEP_ADD_CONSTRAINT},
+    {"Pattern matching succeeded; the preconditions of the rewrite rule are satisfied.", PROOF_STEP_REWRITE},
+    {"The input port types of the function block match the argument types.", PROOF_STEP_FUNCTION_APP},
+    {"Coordinate-equivalent nodes detected; merging to maintain graph consistency.", PROOF_STEP_NORMALIZATION},
+    {"The construction graph matches the proposition pattern at all levels.", PROOF_STEP_UNIFY},
+    {"From contradiction ⊥, any proposition follows by the principle of explosion.", PROOF_STEP_EX_FALSO},
+    {"This step depends on an external knowledge source whose correctness requires independent verification.", PROOF_STEP_ORACLE},
+};
+
 static const char *explain_why_en(ProofStepType type) {
-    switch (type) {
-        case PROOF_STEP_ADD_NODE:
-            return "Based on the known conditions and construction rules, this geometric object is validly "
-                   "constructible.";
-        case PROOF_STEP_ADD_CONSTRAINT:
-            return "Based on the relationships between constructed geometric objects, this constraint holds.";
-        case PROOF_STEP_REWRITE:
-            return "Pattern matching succeeded; the preconditions of the rewrite rule are satisfied.";
-        case PROOF_STEP_FUNCTION_APP:
-            return "The input port types of the function block match the argument types.";
-        case PROOF_STEP_NORMALIZATION:
-            return "Coordinate-equivalent nodes detected; merging to maintain graph consistency.";
-        case PROOF_STEP_UNIFY:
-            return "The construction graph matches the proposition pattern at all levels.";
-        case PROOF_STEP_EX_FALSO:
-            return "From contradiction ⊥, any proposition follows by the principle of explosion.";
-        case PROOF_STEP_ORACLE:
-            return "This step depends on an external knowledge source whose correctness requires independent "
-                   "verification.";
-        default:
-            return "";
-    }
+    return lv_enum_to_str(s_explain_why_en_entries, lv_ARRAY_SIZE(s_explain_why_en_entries), (int) type, "");
 }
 
 /**

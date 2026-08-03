@@ -286,165 +286,240 @@ static ExprNode *parse_full_expr(const char *str) {
     return parse_binary(&p);
 }
 
+/* ── Unary interval operation handlers (lookup table) ── */
+
+typedef bool (*UnaryOpHandler)(double lo, double hi, double *rlo, double *rhi);
+
+static bool unary_op_neg(double lo, double hi, double *rlo, double *rhi) {
+    *rlo = -hi;
+    *rhi = -lo;
+    return true;
+}
+
+static bool unary_op_abs(double lo, double hi, double *rlo, double *rhi) {
+    if (lo >= 0) {
+        *rlo = lo;
+        *rhi = hi;
+    } else if (hi <= 0) {
+        *rlo = -hi;
+        *rhi = -lo;
+    } else {
+        *rlo = 0;
+        *rhi = fmax(-lo, hi);
+    }
+    return true;
+}
+
+static bool unary_op_sin(double lo, double hi, double *rlo, double *rhi) {
+    *rlo = fmin(sin(lo), sin(hi));
+    *rhi = fmax(sin(lo), sin(hi));
+    int k0 = (int) floor((lo + M_PI / 2) / M_PI), k1 = (int) floor((hi + M_PI / 2) / M_PI);
+    for (int k = k0; k <= k1; k++) {
+        double x = k * M_PI - M_PI / 2;
+        if (x >= lo - 1e-15 && x <= hi + 1e-15) {
+            double v = sin(x);
+            if (v < *rlo)
+                *rlo = v;
+            if (v > *rhi)
+                *rhi = v;
+        }
+    }
+    return true;
+}
+
+static bool unary_op_cos(double lo, double hi, double *rlo, double *rhi) {
+    *rlo = fmin(cos(lo), cos(hi));
+    *rhi = fmax(cos(lo), cos(hi));
+    int k0 = (int) floor(lo / M_PI), k1 = (int) floor(hi / M_PI);
+    for (int k = k0; k <= k1; k++) {
+        double x = k * M_PI;
+        if (x >= lo - 1e-15 && x <= hi + 1e-15) {
+            double v = cos(x);
+            if (v < *rlo)
+                *rlo = v;
+            if (v > *rhi)
+                *rhi = v;
+        }
+    }
+    return true;
+}
+
+static bool unary_op_sqrt(double lo, double hi, double *rlo, double *rhi) {
+    if (hi < 0)
+        return false;
+    *rlo = (lo > 0) ? sqrt(lo) : 0;
+    *rhi = sqrt(hi);
+    return true;
+}
+
+static bool unary_op_exp(double lo, double hi, double *rlo, double *rhi) {
+    *rlo = exp(lo);
+    *rhi = exp(hi);
+    return true;
+}
+
+static bool unary_op_log(double lo, double hi, double *rlo, double *rhi) {
+    if (lo <= 0)
+        return false;
+    *rlo = log(lo);
+    *rhi = log(hi);
+    return true;
+}
+
+static const UnaryOpHandler kUnaryIntervalOps[] = {
+    [EXPR_NEG] = unary_op_neg,
+    [EXPR_ABS] = unary_op_abs,
+    [EXPR_SIN] = unary_op_sin,
+    [EXPR_COS] = unary_op_cos,
+    [EXPR_SQRT] = unary_op_sqrt,
+    [EXPR_EXP] = unary_op_exp,
+    [EXPR_LOG] = unary_op_log,
+};
+
+/* ── Binary interval operation handlers (lookup table) ── */
+
+typedef bool (*BinaryOpHandler)(double llo, double lhi, double rlo, double rhi, double *ol, double *oh);
+
+static bool binary_op_add(double llo, double lhi, double rlo, double rhi, double *ol, double *oh) {
+    *ol = llo + rlo;
+    *oh = lhi + rhi;
+    return true;
+}
+
+static bool binary_op_sub(double llo, double lhi, double rlo, double rhi, double *ol, double *oh) {
+    *ol = llo - rhi;
+    *oh = lhi - rlo;
+    return true;
+}
+
+static bool binary_op_mul(double llo, double lhi, double rlo, double rhi, double *ol, double *oh) {
+    double a = llo * rlo, b = llo * rhi, c = lhi * rlo, d = lhi * rhi;
+    *ol = fmin(fmin(a, b), fmin(c, d));
+    *oh = fmax(fmax(a, b), fmax(c, d));
+    return true;
+}
+
+static bool binary_op_div(double llo, double lhi, double rlo, double rhi, double *ol, double *oh) {
+    if (rlo <= 0 && rhi >= 0)
+        return false;
+    double a = llo / rlo, b = llo / rhi, c = lhi / rlo, d = lhi / rhi;
+    *ol = fmin(fmin(a, b), fmin(c, d));
+    *oh = fmax(fmax(a, b), fmax(c, d));
+    return true;
+}
+
+static bool binary_op_pow(double llo, double lhi, double rlo, double rhi, double *ol, double *oh) {
+    double a = pow(llo, rlo), b = pow(llo, rhi), c = pow(lhi, rlo), d = pow(lhi, rhi);
+    *ol = fmin(fmin(a, b), fmin(c, d));
+    *oh = fmax(fmax(a, b), fmax(c, d));
+    return true;
+}
+
+static const BinaryOpHandler kBinaryIntervalOps[] = {
+    [EXPR_ADD] = binary_op_add,
+    [EXPR_SUB] = binary_op_sub,
+    [EXPR_MUL] = binary_op_mul,
+    [EXPR_DIV] = binary_op_div,
+    [EXPR_POW] = binary_op_pow,
+};
+
 /* ── Interval propagation engine ── */
 
 static bool interval_unary(ExprNodeType op, double lo, double hi, double *rlo, double *rhi) {
     if (!rlo || !rhi || lo > hi)
         return false;
-    switch (op) {
-        case EXPR_NEG:
-            *rlo = -hi;
-            *rhi = -lo;
-            return true;
-        case EXPR_ABS:
-            if (lo >= 0) {
-                *rlo = lo;
-                *rhi = hi;
-            } else if (hi <= 0) {
-                *rlo = -hi;
-                *rhi = -lo;
-            } else {
-                *rlo = 0;
-                *rhi = fmax(-lo, hi);
-            }
-            return true;
-        case EXPR_SIN: {
-            *rlo = fmin(sin(lo), sin(hi));
-            *rhi = fmax(sin(lo), sin(hi));
-            int k0 = (int) floor((lo + M_PI / 2) / M_PI), k1 = (int) floor((hi + M_PI / 2) / M_PI);
-            for (int k = k0; k <= k1; k++) {
-                double x = k * M_PI - M_PI / 2;
-                if (x >= lo - 1e-15 && x <= hi + 1e-15) {
-                    double v = sin(x);
-                    if (v < *rlo)
-                        *rlo = v;
-                    if (v > *rhi)
-                        *rhi = v;
-                }
-            }
-            return true;
-        }
-        case EXPR_COS: {
-            *rlo = fmin(cos(lo), cos(hi));
-            *rhi = fmax(cos(lo), cos(hi));
-            int k0 = (int) floor(lo / M_PI), k1 = (int) floor(hi / M_PI);
-            for (int k = k0; k <= k1; k++) {
-                double x = k * M_PI;
-                if (x >= lo - 1e-15 && x <= hi + 1e-15) {
-                    double v = cos(x);
-                    if (v < *rlo)
-                        *rlo = v;
-                    if (v > *rhi)
-                        *rhi = v;
-                }
-            }
-            return true;
-        }
-        case EXPR_SQRT:
-            if (hi < 0)
-                return false;
-            *rlo = (lo > 0) ? sqrt(lo) : 0;
-            *rhi = sqrt(hi);
-            return true;
-        case EXPR_EXP:
-            *rlo = exp(lo);
-            *rhi = exp(hi);
-            return true;
-        case EXPR_LOG:
-            if (lo <= 0)
-                return false;
-            *rlo = log(lo);
-            *rhi = log(hi);
-            return true;
-        default:
-            return false;
-    }
+    if (op >= 0 && (size_t)op < sizeof(kUnaryIntervalOps) / sizeof(kUnaryIntervalOps[0]) && kUnaryIntervalOps[op])
+        return kUnaryIntervalOps[op](lo, hi, rlo, rhi);
+    return false;
 }
 
 static bool interval_binary(ExprNodeType op, double llo, double lhi, double rlo, double rhi, double *ol, double *oh) {
     if (!ol || !oh || llo > lhi || rlo > rhi)
         return false;
-    switch (op) {
-        case EXPR_ADD:
-            *ol = llo + rlo;
-            *oh = lhi + rhi;
-            return true;
-        case EXPR_SUB:
-            *ol = llo - rhi;
-            *oh = lhi - rlo;
-            return true;
-        case EXPR_MUL: {
-            double a = llo * rlo, b = llo * rhi, c = lhi * rlo, d = lhi * rhi;
-            *ol = fmin(fmin(a, b), fmin(c, d));
-            *oh = fmax(fmax(a, b), fmax(c, d));
-            return true;
-        }
-        case EXPR_DIV:
-            if (rlo <= 0 && rhi >= 0)
-                return false;
-            {
-                double a = llo / rlo, b = llo / rhi, c = lhi / rlo, d = lhi / rhi;
-                *ol = fmin(fmin(a, b), fmin(c, d));
-                *oh = fmax(fmax(a, b), fmax(c, d));
-                return true;
-            }
-        case EXPR_POW: {
-            double a = pow(llo, rlo), b = pow(llo, rhi), c = pow(lhi, rlo), d = pow(lhi, rhi);
-            *ol = fmin(fmin(a, b), fmin(c, d));
-            *oh = fmax(fmax(a, b), fmax(c, d));
-            return true;
-        }
-        default:
-            return false;
-    }
+    if (op >= 0 && (size_t)op < sizeof(kBinaryIntervalOps) / sizeof(kBinaryIntervalOps[0]) && kBinaryIntervalOps[op])
+        return kBinaryIntervalOps[op](llo, lhi, rlo, rhi, ol, oh);
+    return false;
 }
+
+/* ── Eval interval operation handlers (lookup table) ── */
+
+/* Forward declaration needed by eval handlers */
+static bool expr_eval_ival(const ExprNode *n, const lvGappaPredicate *hyp, int hc, double *lo, double *hi,
+                           ProofStep *steps, int *sc, int d);
+
+typedef bool (*EvalHandler)(const ExprNode *n, const lvGappaPredicate *hyp, int hc,
+                            double *lo, double *hi, ProofStep *steps, int *sc, int d);
+
+static bool eval_handler_const(const ExprNode *n, const lvGappaPredicate *hyp, int hc,
+                               double *lo, double *hi, ProofStep *steps, int *sc, int d) {
+    (void)hyp;
+    (void)hc;
+    (void)steps;
+    (void)sc;
+    (void)d;
+    *lo = n->const_val;
+    *hi = n->const_val;
+    return true;
+}
+
+static bool eval_handler_var(const ExprNode *n, const lvGappaPredicate *hyp, int hc,
+                             double *lo, double *hi, ProofStep *steps, int *sc, int d) {
+    (void)steps;
+    (void)sc;
+    (void)d;
+    for (int i = 0; i < hc; i++)
+        if (strcmp(hyp[i].expr_lhs, n->var_name) == 0) {
+            *lo = hyp[i].bound_lo;
+            *hi = hyp[i].bound_hi;
+            return true;
+        }
+    *lo = 0;
+    *hi = 0;
+    return false;
+}
+
+static bool eval_handler_unary(const ExprNode *n, const lvGappaPredicate *hyp, int hc,
+                               double *lo, double *hi, ProofStep *steps, int *sc, int d) {
+    double al, ah;
+    if (!expr_eval_ival(n->left, hyp, hc, &al, &ah, steps, sc, d + 1))
+        return false;
+    return interval_unary(n->type, al, ah, lo, hi);
+}
+
+static bool eval_handler_binary(const ExprNode *n, const lvGappaPredicate *hyp, int hc,
+                                double *lo, double *hi, ProofStep *steps, int *sc, int d) {
+    double ll, lh, rl, rh;
+    if (!expr_eval_ival(n->left, hyp, hc, &ll, &lh, steps, sc, d + 1))
+        return false;
+    if (!expr_eval_ival(n->right, hyp, hc, &rl, &rh, steps, sc, d + 1))
+        return false;
+    return interval_binary(n->type, ll, lh, rl, rh, lo, hi);
+}
+
+static const EvalHandler kEvalIntervalOps[] = {
+    [EXPR_CONST] = eval_handler_const,
+    [EXPR_VAR]   = eval_handler_var,
+    [EXPR_NEG]   = eval_handler_unary,
+    [EXPR_ABS]   = eval_handler_unary,
+    [EXPR_SIN]   = eval_handler_unary,
+    [EXPR_COS]   = eval_handler_unary,
+    [EXPR_SQRT]  = eval_handler_unary,
+    [EXPR_EXP]   = eval_handler_unary,
+    [EXPR_LOG]   = eval_handler_unary,
+    [EXPR_ADD]   = eval_handler_binary,
+    [EXPR_SUB]   = eval_handler_binary,
+    [EXPR_MUL]   = eval_handler_binary,
+    [EXPR_DIV]   = eval_handler_binary,
+    [EXPR_POW]   = eval_handler_binary,
+};
 
 static bool expr_eval_ival(const ExprNode *n, const lvGappaPredicate *hyp, int hc, double *lo, double *hi,
                            ProofStep *steps, int *sc, int d) {
     if (!n || !lo || !hi || d > 20)
         return false;
-    switch (n->type) {
-        case EXPR_CONST:
-            *lo = n->const_val;
-            *hi = n->const_val;
-            return true;
-        case EXPR_VAR:
-            for (int i = 0; i < hc; i++)
-                if (strcmp(hyp[i].expr_lhs, n->var_name) == 0) {
-                    *lo = hyp[i].bound_lo;
-                    *hi = hyp[i].bound_hi;
-                    return true;
-                }
-            *lo = 0;
-            *hi = 0;
-            return false;
-        case EXPR_NEG:
-        case EXPR_ABS:
-        case EXPR_SIN:
-        case EXPR_COS:
-        case EXPR_SQRT:
-        case EXPR_EXP:
-        case EXPR_LOG: {
-            double al, ah;
-            if (!expr_eval_ival(n->left, hyp, hc, &al, &ah, steps, sc, d + 1))
-                return false;
-            return interval_unary(n->type, al, ah, lo, hi);
-        }
-        case EXPR_ADD:
-        case EXPR_SUB:
-        case EXPR_MUL:
-        case EXPR_DIV:
-        case EXPR_POW: {
-            double ll, lh, rl, rh;
-            if (!expr_eval_ival(n->left, hyp, hc, &ll, &lh, steps, sc, d + 1))
-                return false;
-            if (!expr_eval_ival(n->right, hyp, hc, &rl, &rh, steps, sc, d + 1))
-                return false;
-            return interval_binary(n->type, ll, lh, rl, rh, lo, hi);
-        }
-        default:
-            return false;
-    }
+    if (n->type >= 0 && (size_t)(n->type) < sizeof(kEvalIntervalOps) / sizeof(kEvalIntervalOps[0]) && kEvalIntervalOps[n->type])
+        return kEvalIntervalOps[n->type](n, hyp, hc, lo, hi, steps, sc, d);
+    return false;
 }
 
 static void apply_round_err(double *lo, double *hi, const lvGappaFormat *fmt) {
