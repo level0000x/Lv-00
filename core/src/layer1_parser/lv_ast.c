@@ -281,6 +281,275 @@ void lv_ast_append_child(LvAstNode *parent, LvAstNode *child) {
     parent->child_count++;
 }
 
+/* ── VTable 定义 ── */
+
+/** 销毁 handler 函数指针类型 */
+typedef void (*LvAstDestroyFunc)(LvAstNode *node);
+
+/** Debug 打印 handler 函数指针类型，返回新的 buf 偏移量 */
+typedef int (*LvAstDebugPrintFunc)(const LvAstNode *node, char *buf, size_t size, int off);
+
+/** 子节点打印 handler 函数指针类型 */
+typedef void (*LvAstPrintFunc)(const LvAstNode *node, int indent);
+
+/**
+ * @brief AST VTable 结构体
+ *
+ * 每个 AST 节点类型通过 VTable 分发三种操作：
+ * - destroy:    释放节点 union data 中的动态分配内存
+ * - debug_print:向缓冲区追加节点类型相关的调试信息，返回新偏移量
+ * - print:      递归打印节点特有的子节点
+ */
+typedef struct {
+    LvAstDestroyFunc    destroy;
+    LvAstDebugPrintFunc debug_print;
+    LvAstPrintFunc      print;
+} LvAstVTable;
+
+/* ── Destroy handlers ── */
+
+static void ast_destroy_declaration(LvAstNode *node) {
+    lv_free((void **) &node->data.decl.names);
+}
+
+static void ast_destroy_let(LvAstNode *node) {
+    lv_free((void **) &node->data.let_def.name);
+    lv_free((void **) &node->data.let_def.type_name);
+}
+
+static void ast_destroy_ident(LvAstNode *node) {
+    lv_free((void **) &node->data.ident.name);
+}
+
+static void ast_destroy_string(LvAstNode *node) {
+    lv_free((void **) &node->data.literal.string_value);
+}
+
+static void ast_destroy_quantifier(LvAstNode *node) {
+    lv_free((void **) &node->data.quantifier.var_name);
+    lv_free((void **) &node->data.quantifier.var_type);
+}
+
+static void ast_destroy_call(LvAstNode *node) {
+    lv_free((void **) &node->data.call.func_name);
+}
+
+static void ast_destroy_export(LvAstNode *node) {
+    lv_free((void **) &node->data.export_stmt.target);
+    lv_free((void **) &node->data.export_stmt.format);
+    lv_free((void **) &node->data.export_stmt.path);
+}
+
+static void ast_destroy_module_import(LvAstNode *node) {
+    lv_free((void **) &node->data.module_import.qualified_name);
+}
+
+static void ast_destroy_theorem(LvAstNode *node) {
+    lv_free((void **) &node->data.theorem.name);
+}
+
+static void ast_destroy_normalize(LvAstNode *node) {
+    lv_free((void **) &node->data.normalize.target);
+}
+
+static void ast_destroy_nop(LvAstNode *node) {
+    (void)node;
+}
+
+/* ── Debug print handlers ── */
+
+static int ast_debug_declaration(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [entity=%s, names=%s]",
+                          lv_entity_type_name((LvEntityType) node->data.decl.entity_type),
+                          node->data.decl.names ? node->data.decl.names : "");
+}
+
+static int ast_debug_let(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [name=%s, type=%s]",
+                          node->data.let_def.name ? node->data.let_def.name : "",
+                          node->data.let_def.type_name ? node->data.let_def.type_name : "");
+}
+
+static int ast_debug_ident(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]",
+                          node->data.ident.name ? node->data.ident.name : "");
+}
+
+static int ast_debug_integer(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%lld]",
+                          node->data.literal.integer_value);
+}
+
+static int ast_debug_rational(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%lld/%lld]",
+                          node->data.literal.rational_value.num,
+                          node->data.literal.rational_value.den);
+}
+
+static int ast_debug_decimal(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%g]",
+                          node->data.literal.decimal_value);
+}
+
+static int ast_debug_string(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [\"%s\"]",
+                          node->data.literal.string_value ? node->data.literal.string_value : "");
+}
+
+static int ast_debug_bool(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]",
+                          node->data.literal.bool_value ? "true" : "false");
+}
+
+static int ast_debug_binary_op(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]", node->data.binary.op);
+}
+
+static int ast_debug_unary_op(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]", node->data.unary.op);
+}
+
+static int ast_debug_compare(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]", node->data.compare.op);
+}
+
+static int ast_debug_call(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]",
+                          node->data.call.func_name ? node->data.call.func_name : "");
+}
+
+static int ast_debug_quantifier(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s: %s]",
+                          node->data.quantifier.var_name ? node->data.quantifier.var_name : "",
+                          node->data.quantifier.var_type ? node->data.quantifier.var_type : "");
+}
+
+static int ast_debug_export(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [target=%s, format=%s]",
+                          node->data.export_stmt.target ? node->data.export_stmt.target : "",
+                          node->data.export_stmt.format ? node->data.export_stmt.format : "");
+}
+
+static int ast_debug_module_import(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]",
+                          node->data.module_import.qualified_name ? node->data.module_import.qualified_name : "");
+}
+
+static int ast_debug_theorem(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]",
+                          node->data.theorem.name ? node->data.theorem.name : "");
+}
+
+static int ast_debug_normalize(const LvAstNode *node, char *buf, size_t size, int off) {
+    return off + snprintf(buf + off, size - (size_t)off, " [%s]",
+                          node->data.normalize.target ? node->data.normalize.target : "");
+}
+
+static int ast_debug_nop(const LvAstNode *node, char *buf, size_t size, int off) {
+    (void)node;
+    (void)buf;
+    (void)size;
+    return off;
+}
+
+/* ── Print children handlers ── */
+
+/* Forward declaration needed by VTable print handlers */
+void lv_ast_print(const LvAstNode *node, int indent);
+
+static void ast_print_binary_op(const LvAstNode *node, int indent) {
+    if (node->data.binary.left)
+        lv_ast_print(node->data.binary.left, indent + 1);
+    if (node->data.binary.right)
+        lv_ast_print(node->data.binary.right, indent + 1);
+}
+
+static void ast_print_unary_op(const LvAstNode *node, int indent) {
+    if (node->data.unary.operand)
+        lv_ast_print(node->data.unary.operand, indent + 1);
+}
+
+static void ast_print_compare(const LvAstNode *node, int indent) {
+    if (node->data.compare.left)
+        lv_ast_print(node->data.compare.left, indent + 1);
+    if (node->data.compare.right)
+        lv_ast_print(node->data.compare.right, indent + 1);
+}
+
+static void ast_print_let(const LvAstNode *node, int indent) {
+    if (node->data.let_def.value)
+        lv_ast_print(node->data.let_def.value, indent + 1);
+}
+
+static void ast_print_stmt(const LvAstNode *node, int indent) {
+    if (node->data.stmt.expr)
+        lv_ast_print(node->data.stmt.expr, indent + 1);
+}
+
+static void ast_print_theorem(const LvAstNode *node, int indent) {
+    if (node->data.theorem.proposition)
+        lv_ast_print(node->data.theorem.proposition, indent + 1);
+    if (node->data.theorem.proof_block)
+        lv_ast_print(node->data.theorem.proof_block, indent + 1);
+}
+
+static void ast_print_call(const LvAstNode *node, int indent) {
+    if (node->data.call.args)
+        lv_ast_print(node->data.call.args, indent + 1);
+}
+
+static void ast_print_quantifier(const LvAstNode *node, int indent) {
+    if (node->data.quantifier.body)
+        lv_ast_print(node->data.quantifier.body, indent + 1);
+}
+
+static void ast_print_nop(const LvAstNode *node, int indent) {
+    (void)node;
+    (void)indent;
+}
+
+/* ── VTable 查找表 ── */
+
+#define LV_AST_VTABLE_COUNT LV_AST_COUNT
+
+static const LvAstVTable kAstVTable[LV_AST_VTABLE_COUNT] = {
+    [LV_AST_PROGRAM]         = { ast_destroy_nop,        ast_debug_nop,        ast_print_nop },
+    [LV_AST_DECLARATION]     = { ast_destroy_declaration, ast_debug_declaration, ast_print_nop },
+    [LV_AST_LET]             = { ast_destroy_let,         ast_debug_let,         ast_print_let },
+    [LV_AST_CONSTRAINT_STMT] = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
+    [LV_AST_ASSUME_STMT]     = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
+    [LV_AST_ASSERT_STMT]     = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
+    [LV_AST_PROVE_STMT]      = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
+    [LV_AST_COMPUTE_STMT]    = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
+    [LV_AST_NORMALIZE_STMT]  = { ast_destroy_normalize,  ast_debug_normalize,   ast_print_nop },
+    [LV_AST_EXPORT_STMT]     = { ast_destroy_export,     ast_debug_export,      ast_print_nop },
+    [LV_AST_AXIOM_STMT]      = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
+    [LV_AST_THEOREM_STMT]    = { ast_destroy_theorem,    ast_debug_theorem,     ast_print_theorem },
+    [LV_AST_IDENTIFIER_EXPR] = { ast_destroy_ident,      ast_debug_ident,       ast_print_nop },
+    [LV_AST_INTEGER_LITERAL] = { ast_destroy_nop,        ast_debug_integer,     ast_print_nop },
+    [LV_AST_RATIONAL_LITERAL]= { ast_destroy_nop,        ast_debug_rational,    ast_print_nop },
+    [LV_AST_DECIMAL_LITERAL] = { ast_destroy_nop,        ast_debug_decimal,     ast_print_nop },
+    [LV_AST_STRING_LITERAL]  = { ast_destroy_string,     ast_debug_string,      ast_print_nop },
+    [LV_AST_BOOL_LITERAL]    = { ast_destroy_nop,        ast_debug_bool,        ast_print_nop },
+    [LV_AST_LOGIC_AND]       = { ast_destroy_nop,        ast_debug_binary_op,   ast_print_nop },
+    [LV_AST_LOGIC_OR]        = { ast_destroy_nop,        ast_debug_binary_op,   ast_print_nop },
+    [LV_AST_LOGIC_NOT]       = { ast_destroy_nop,        ast_debug_nop,         ast_print_nop },
+    [LV_AST_LOGIC_IMPLIES]   = { ast_destroy_nop,        ast_debug_binary_op,   ast_print_nop },
+    [LV_AST_LOGIC_IFF]       = { ast_destroy_nop,        ast_debug_binary_op,   ast_print_nop },
+    [LV_AST_LOGIC_FORALL]    = { ast_destroy_quantifier, ast_debug_quantifier,  ast_print_quantifier },
+    [LV_AST_LOGIC_EXISTS]    = { ast_destroy_quantifier, ast_debug_quantifier,  ast_print_quantifier },
+    [LV_AST_BINARY_OP]       = { ast_destroy_nop,        ast_debug_binary_op,   ast_print_binary_op },
+    [LV_AST_UNARY_OP]        = { ast_destroy_nop,        ast_debug_unary_op,    ast_print_unary_op },
+    [LV_AST_FUNCTION_CALL]   = { ast_destroy_call,       ast_debug_call,        ast_print_call },
+    [LV_AST_RELATION]        = { ast_destroy_call,       ast_debug_call,        ast_print_call },
+    [LV_AST_MEASURE]         = { ast_destroy_call,       ast_debug_call,        ast_print_call },
+    [LV_AST_GEOMETRY_EXPR]   = { ast_destroy_call,       ast_debug_call,        ast_print_call },
+    [LV_AST_COMPARE]         = { ast_destroy_nop,        ast_debug_compare,     ast_print_compare },
+    [LV_AST_MODULE_DECL]     = { ast_destroy_module_import, ast_debug_module_import, ast_print_nop },
+    [LV_AST_IMPORT_DECL]     = { ast_destroy_module_import, ast_debug_module_import, ast_print_nop },
+    [LV_AST_PROOF_BLOCK]     = { ast_destroy_nop,        ast_debug_nop,         ast_print_nop },
+};
+
 /* ── 销毁 AST 树 ── */
 
 /**
@@ -305,50 +574,9 @@ void lv_ast_destroy(LvAstNode *node) {
         node->child = NULL;
     }
 
-    /* 释放 union 中动态分配的内存 */
-    switch (node->type) {
-        case LV_AST_DECLARATION:
-            lv_free((void **) &node->data.decl.names);
-            break;
-        case LV_AST_LET:
-            lv_free((void **) &node->data.let_def.name);
-            lv_free((void **) &node->data.let_def.type_name);
-            break;
-        case LV_AST_IDENTIFIER_EXPR:
-            lv_free((void **) &node->data.ident.name);
-            break;
-        case LV_AST_STRING_LITERAL:
-            lv_free((void **) &node->data.literal.string_value);
-            break;
-        case LV_AST_LOGIC_FORALL:
-        case LV_AST_LOGIC_EXISTS:
-            lv_free((void **) &node->data.quantifier.var_name);
-            lv_free((void **) &node->data.quantifier.var_type);
-            break;
-        case LV_AST_FUNCTION_CALL:
-        case LV_AST_RELATION:
-        case LV_AST_MEASURE:
-        case LV_AST_GEOMETRY_EXPR:
-            lv_free((void **) &node->data.call.func_name);
-            break;
-        case LV_AST_EXPORT_STMT:
-            lv_free((void **) &node->data.export_stmt.target);
-            lv_free((void **) &node->data.export_stmt.format);
-            lv_free((void **) &node->data.export_stmt.path);
-            break;
-        case LV_AST_MODULE_DECL:
-        case LV_AST_IMPORT_DECL:
-            lv_free((void **) &node->data.module_import.qualified_name);
-            break;
-        case LV_AST_THEOREM_STMT:
-            lv_free((void **) &node->data.theorem.name);
-            break;
-        case LV_AST_NORMALIZE_STMT:
-            lv_free((void **) &node->data.normalize.target);
-            break;
-        default:
-            break;
-    }
+    /* 通过 VTable 释放 union 中动态分配的内存 */
+    if (node->type >= 0 && node->type < LV_AST_VTABLE_COUNT && kAstVTable[node->type].destroy)
+        kAstVTable[node->type].destroy(node);
 
     lv_free((void **) &node);
 }
@@ -404,82 +632,9 @@ void lv_ast_print(const LvAstNode *node, int indent) {
 
     off += snprintf(buf + off, sizeof(buf) - (size_t) off, "%s", ast_type_name(node->type));
 
-    switch (node->type) {
-        case LV_AST_DECLARATION:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [entity=%s, names=%s]",
-                            lv_entity_type_name((LvEntityType) node->data.decl.entity_type),
-                            node->data.decl.names ? node->data.decl.names : "");
-            break;
-        case LV_AST_LET:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [name=%s, type=%s]",
-                            node->data.let_def.name ? node->data.let_def.name : "",
-                            node->data.let_def.type_name ? node->data.let_def.type_name : "");
-            break;
-        case LV_AST_IDENTIFIER_EXPR:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
-                            node->data.ident.name ? node->data.ident.name : "");
-            break;
-        case LV_AST_INTEGER_LITERAL:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%lld]", node->data.literal.integer_value);
-            break;
-        case LV_AST_RATIONAL_LITERAL:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%lld/%lld]",
-                            node->data.literal.rational_value.num, node->data.literal.rational_value.den);
-            break;
-        case LV_AST_DECIMAL_LITERAL:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%g]", node->data.literal.decimal_value);
-            break;
-        case LV_AST_STRING_LITERAL:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [\"%s\"]",
-                            node->data.literal.string_value ? node->data.literal.string_value : "");
-            break;
-        case LV_AST_BOOL_LITERAL:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
-                            node->data.literal.bool_value ? "true" : "false");
-            break;
-        case LV_AST_BINARY_OP:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]", node->data.binary.op);
-            break;
-        case LV_AST_UNARY_OP:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]", node->data.unary.op);
-            break;
-        case LV_AST_COMPARE:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]", node->data.compare.op);
-            break;
-        case LV_AST_FUNCTION_CALL:
-        case LV_AST_RELATION:
-        case LV_AST_MEASURE:
-        case LV_AST_GEOMETRY_EXPR:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
-                            node->data.call.func_name ? node->data.call.func_name : "");
-            break;
-        case LV_AST_LOGIC_FORALL:
-        case LV_AST_LOGIC_EXISTS:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s: %s]",
-                            node->data.quantifier.var_name ? node->data.quantifier.var_name : "",
-                            node->data.quantifier.var_type ? node->data.quantifier.var_type : "");
-            break;
-        case LV_AST_EXPORT_STMT:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [target=%s, format=%s]",
-                            node->data.export_stmt.target ? node->data.export_stmt.target : "",
-                            node->data.export_stmt.format ? node->data.export_stmt.format : "");
-            break;
-        case LV_AST_MODULE_DECL:
-        case LV_AST_IMPORT_DECL:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
-                            node->data.module_import.qualified_name ? node->data.module_import.qualified_name : "");
-            break;
-        case LV_AST_THEOREM_STMT:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
-                            node->data.theorem.name ? node->data.theorem.name : "");
-            break;
-        case LV_AST_NORMALIZE_STMT:
-            off += snprintf(buf + off, sizeof(buf) - (size_t) off, " [%s]",
-                            node->data.normalize.target ? node->data.normalize.target : "");
-            break;
-        default:
-            break;
-    }
+    /* 通过 VTable 打印节点类型相关的调试信息 */
+    if (node->type >= 0 && node->type < LV_AST_VTABLE_COUNT && kAstVTable[node->type].debug_print)
+        off = kAstVTable[node->type].debug_print(node, buf, sizeof(buf), off);
 
     if (off > 0)
         lv_INFO("%s", buf);
@@ -489,58 +644,9 @@ void lv_ast_print(const LvAstNode *node, int indent) {
         lv_ast_print(node->child, indent + 1);
     }
 
-    /* 根据节点类型打印特殊的子节点 */
-    switch (node->type) {
-        case LV_AST_BINARY_OP:
-            if (node->data.binary.left)
-                lv_ast_print(node->data.binary.left, indent + 1);
-            if (node->data.binary.right)
-                lv_ast_print(node->data.binary.right, indent + 1);
-            break;
-        case LV_AST_UNARY_OP:
-            if (node->data.unary.operand)
-                lv_ast_print(node->data.unary.operand, indent + 1);
-            break;
-        case LV_AST_COMPARE:
-            if (node->data.compare.left)
-                lv_ast_print(node->data.compare.left, indent + 1);
-            if (node->data.compare.right)
-                lv_ast_print(node->data.compare.right, indent + 1);
-            break;
-        case LV_AST_LET:
-            if (node->data.let_def.value)
-                lv_ast_print(node->data.let_def.value, indent + 1);
-            break;
-        case LV_AST_CONSTRAINT_STMT:
-        case LV_AST_ASSUME_STMT:
-        case LV_AST_ASSERT_STMT:
-        case LV_AST_PROVE_STMT:
-        case LV_AST_COMPUTE_STMT:
-        case LV_AST_AXIOM_STMT:
-            if (node->data.stmt.expr)
-                lv_ast_print(node->data.stmt.expr, indent + 1);
-            break;
-        case LV_AST_THEOREM_STMT:
-            if (node->data.theorem.proposition)
-                lv_ast_print(node->data.theorem.proposition, indent + 1);
-            if (node->data.theorem.proof_block)
-                lv_ast_print(node->data.theorem.proof_block, indent + 1);
-            break;
-        case LV_AST_FUNCTION_CALL:
-        case LV_AST_RELATION:
-        case LV_AST_MEASURE:
-        case LV_AST_GEOMETRY_EXPR:
-            if (node->data.call.args)
-                lv_ast_print(node->data.call.args, indent + 1);
-            break;
-        case LV_AST_LOGIC_FORALL:
-        case LV_AST_LOGIC_EXISTS:
-            if (node->data.quantifier.body)
-                lv_ast_print(node->data.quantifier.body, indent + 1);
-            break;
-        default:
-            break;
-    }
+    /* 通过 VTable 打印节点特有的子节点 */
+    if (node->type >= 0 && node->type < LV_AST_VTABLE_COUNT && kAstVTable[node->type].print)
+        kAstVTable[node->type].print(node, indent);
 
     /* 打印兄弟节点 */
     if (node->next) {

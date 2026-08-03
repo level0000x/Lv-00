@@ -29,6 +29,103 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 
+/* ============== 查找表 ============== */
+
+/* 状态名称表（按 lvTraceNodeStatus 枚举值索引） */
+static const char *kStatusNameZh[] = {
+    "[探索中]",  /* TRACE_STATUS_UNEXPLORED */
+    "[探索中]",  /* TRACE_STATUS_EXPLORING */
+    "[已证明]",  /* TRACE_STATUS_PROVED */
+    "[已证伪]",  /* TRACE_STATUS_DISPROVED */
+    "[阻塞]"     /* TRACE_STATUS_BLOCKED */
+};
+static const char *kStatusNameEn[] = {
+    "[EXPLORING]",
+    "[EXPLORING]",
+    "[PROVED]",
+    "[DISPROVED]",
+    "[BLOCKED]"
+};
+
+/* 类型名称表（按 lvTraceNodeType 枚举值索引） */
+static const char *kTypeNameZh[] = {
+    "公理",         /* TRACE_NODE_AXIOM */
+    "定义",         /* TRACE_NODE_DEFINITION */
+    "定理",         /* TRACE_NODE_THEOREM */
+    "引理",         /* TRACE_NODE_LEMMA */
+    "假设",         /* TRACE_NODE_HYPOTHESIS */
+    "推导",         /* TRACE_NODE_DERIVATION */
+    "矛盾",         /* TRACE_NODE_CONTRADICTION */
+    "目标"          /* TRACE_NODE_GOAL */
+};
+static const char *kTypeNameEn[] = {
+    "Axiom",
+    "Definition",
+    "Theorem",
+    "Lemma",
+    "Hypothesis",
+    "Derivation",
+    "Contradiction",
+    "Goal"
+};
+
+/* LaTeX 类型标签表（按 lvTraceNodeType 枚举值索引） */
+static const char *kTypeLatexLabel[] = {
+    "\\textbf{Axiom}",      /* TRACE_NODE_AXIOM */
+    "\\textbf{Def}",        /* TRACE_NODE_DEFINITION */
+    "\\textbf{Thm}",        /* TRACE_NODE_THEOREM */
+    "\\textbf{Lemma}",      /* TRACE_NODE_LEMMA */
+    "\\textit{Hyp}",        /* TRACE_NODE_HYPOTHESIS */
+    "\\textbf{Step}",       /* TRACE_NODE_DERIVATION */
+    "\\textbf{Contr!}",     /* TRACE_NODE_CONTRADICTION */
+    "\\textbf{Goal}"        /* TRACE_NODE_GOAL */
+};
+
+/* Coq 格式条目 */
+typedef struct {
+    const char *comment_fmt;   /* 注释行格式 (使用 node->label) */
+    const char *action_fmt;    /* 动作行格式 (使用 node->label), NULL 表示无动作 */
+} CoqFormatEntry;
+
+/* Coq 格式查找表（按 lvTraceNodeType 枚举值索引） */
+/* DERIVATION 有特殊条件逻辑，表中不包含 */
+static const CoqFormatEntry kCoqFormats[] = {
+    [TRACE_NODE_AXIOM]         = { "  (* Axiom: %s *)\n",           "  apply %s_axiom.\n" },
+    [TRACE_NODE_DEFINITION]    = { "  (* Unfold definition: %s *)\n","  unfold %s.\n" },
+    [TRACE_NODE_THEOREM]       = { "  (* Apply theorem: %s *)\n",   "  apply %s.\n" },
+    [TRACE_NODE_LEMMA]         = { "  (* Apply lemma: %s *)\n",     "  apply %s_lemma.\n" },
+    [TRACE_NODE_HYPOTHESIS]    = { "  (* Hypothesis: %s *)\n",      "  intro H%s.\n" },
+    [TRACE_NODE_CONTRADICTION] = { "  (* Contradiction: %s *)\n",   "  contradiction.\n" },
+    [TRACE_NODE_GOAL]          = { "  (* Sub-goal: %s *)\n",        NULL },
+};
+
+/* Isar 格式条目 */
+typedef struct {
+    const char *comment_fmt;   /* 注释行格式 (使用 node->label) */
+    const char *action_fmt1;   /* 第一动作行格式 (使用 node->label), NULL 表示无 */
+    const char *action_fmt2;   /* 第二动作行格式, NULL 表示无 */
+    const char *action_fmt3;   /* 第三动作行格式, NULL 表示无 */
+} IsarFormatEntry;
+
+/* Isar 格式查找表（按 lvTraceNodeType 枚举值索引） */
+/* DERIVATION 有特殊条件逻辑，表中不包含 */
+static const IsarFormatEntry kIsarFormats[] = {
+    [TRACE_NODE_AXIOM]         = { "  -- Axiom: %s\n",              "  have \"%s\" by auto\n",          NULL, NULL },
+    [TRACE_NODE_DEFINITION]    = { "  -- Unfold: %s\n",             "  unfolding %s_def\n",             NULL, NULL },
+    [TRACE_NODE_THEOREM]       = { "  -- Theorem: %s\n",            "  from `%s` have \"%s\" .\n",      NULL, NULL },
+    [TRACE_NODE_LEMMA]         = { "  -- Lemma: %s\n",              "  using `%s_lemma`\n",             NULL, NULL },
+    [TRACE_NODE_HYPOTHESIS]    = { "  -- Hypothesis: %s\n",         "  assume \"%s\"\n",                NULL, NULL },
+    [TRACE_NODE_CONTRADICTION] = { "  -- Contradiction: %s\n",      "  then show False\n",              "    contradiction\n", NULL },
+    [TRACE_NODE_GOAL]          = { "  -- Sub-goal: %s\n",           "  moreover have \"%s\"\n",         NULL, NULL },
+};
+
+/* 数组大小常量 */
+#define kStatusNameCount (sizeof(kStatusNameZh) / sizeof(kStatusNameZh[0]))
+#define kTypeNameCount   (sizeof(kTypeNameZh)   / sizeof(kTypeNameZh[0]))
+#define kTypeLatexCount  (sizeof(kTypeLatexLabel)/ sizeof(kTypeLatexLabel[0]))
+#define kCoqFormatCount  (sizeof(kCoqFormats)    / sizeof(kCoqFormats[0]))
+#define kIsarFormatCount (sizeof(kIsarFormats)   / sizeof(kIsarFormats[0]))
+
 /* ============== 证明导出 ============== */
 /* 自然语言、LaTeX、Coq、Isar 格式输出 */
 
@@ -69,50 +166,23 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace, ProofNaturalLa
             continue;
 
         const char *status_str;
-        switch (node->status) {
-            case TRACE_STATUS_PROVED:
-                status_str = (lang == PROOF_NL_LANG_ZH_CN) ? "[已证明]" : "[PROVED]";
-                break;
-            case TRACE_STATUS_DISPROVED:
-                status_str = (lang == PROOF_NL_LANG_ZH_CN) ? "[已证伪]" : "[DISPROVED]";
-                break;
-            case TRACE_STATUS_BLOCKED:
-                status_str = (lang == PROOF_NL_LANG_ZH_CN) ? "[阻塞]" : "[BLOCKED]";
-                break;
-            default:
+        {
+            int idx = (int)node->status;
+            if (idx >= 0 && idx < (int)kStatusNameCount) {
+                status_str = (lang == PROOF_NL_LANG_ZH_CN) ? kStatusNameZh[idx] : kStatusNameEn[idx];
+            } else {
                 status_str = (lang == PROOF_NL_LANG_ZH_CN) ? "[探索中]" : "[EXPLORING]";
-                break;
+            }
         }
 
         const char *type_str;
-        switch (node->type) {
-            case TRACE_NODE_AXIOM:
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "公理" : "Axiom";
-                break;
-            case TRACE_NODE_DEFINITION:
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "定义" : "Definition";
-                break;
-            case TRACE_NODE_THEOREM:
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "定理" : "Theorem";
-                break;
-            case TRACE_NODE_LEMMA:
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "引理" : "Lemma";
-                break;
-            case TRACE_NODE_HYPOTHESIS:
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "假设" : "Hypothesis";
-                break;
-            case TRACE_NODE_DERIVATION:
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "推导" : "Derivation";
-                break;
-            case TRACE_NODE_CONTRADICTION:
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "矛盾" : "Contradiction";
-                break;
-            case TRACE_NODE_GOAL:
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "目标" : "Goal";
-                break;
-            default:
+        {
+            int idx = (int)node->type;
+            if (idx >= 0 && idx < (int)kTypeNameCount) {
+                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? kTypeNameZh[idx] : kTypeNameEn[idx];
+            } else {
                 type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "未知" : "Unknown";
-                break;
+            }
         }
 
         if (lang == PROOF_NL_LANG_ZH_CN) {
@@ -217,34 +287,13 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
 
         /* 节点类型标签 */
         const char *type_label;
-        switch (node->type) {
-            case TRACE_NODE_AXIOM:
-                type_label = "\\textbf{Axiom}";
-                break;
-            case TRACE_NODE_DEFINITION:
-                type_label = "\\textbf{Def}";
-                break;
-            case TRACE_NODE_THEOREM:
-                type_label = "\\textbf{Thm}";
-                break;
-            case TRACE_NODE_LEMMA:
-                type_label = "\\textbf{Lemma}";
-                break;
-            case TRACE_NODE_HYPOTHESIS:
-                type_label = "\\textit{Hyp}";
-                break;
-            case TRACE_NODE_DERIVATION:
-                type_label = "\\textbf{Step}";
-                break;
-            case TRACE_NODE_CONTRADICTION:
-                type_label = "\\textbf{Contr!}";
-                break;
-            case TRACE_NODE_GOAL:
-                type_label = "\\textbf{Goal}";
-                break;
-            default:
+        {
+            int idx = (int)node->type;
+            if (idx >= 0 && idx < (int)kTypeLatexCount) {
+                type_label = kTypeLatexLabel[idx];
+            } else {
                 type_label = "Step";
-                break;
+            }
         }
 
         int color_idx = (int) node->trust_color;
@@ -312,56 +361,30 @@ char *lv_proof_to_coq(const lvProofTraceTree *trace) {
         if (node == trace->root)
             continue;
 
-        switch (node->type) {
-            case TRACE_NODE_AXIOM:
-                lv_strbuf_printf(&buf, "  (* Axiom: %s *)\n", node->label);
-                lv_strbuf_printf(&buf, "  apply %s_axiom.\n", node->label);
-                break;
-
-            case TRACE_NODE_HYPOTHESIS:
-                lv_strbuf_printf(&buf, "  (* Hypothesis: %s *)\n", node->label);
-                lv_strbuf_printf(&buf, "  intro H%s.\n", node->label);
-                break;
-
-            case TRACE_NODE_DERIVATION:
-                if (node->rule && node->rule->name[0] != '\0') {
-                    lv_strbuf_printf(&buf, "  (* Apply rule: %s *)\n", node->rule->name);
-                    lv_strbuf_printf(&buf, "  apply %s.\n", node->rule->name);
-                } else {
-                    lv_strbuf_printf(&buf, "  (* Derivation: %s *)\n", node->label);
-                    lv_strbuf_printf(&buf, "  assert (H%d : Prop).\n", node->id);
-                    lv_strbuf_printf(&buf, "  { %s. }\n", node->description);
+        if (node->type == TRACE_NODE_DERIVATION) {
+            /* DERIVATION 有特殊条件逻辑 */
+            if (node->rule && node->rule->name[0] != '\0') {
+                lv_strbuf_printf(&buf, "  (* Apply rule: %s *)\n", node->rule->name);
+                lv_strbuf_printf(&buf, "  apply %s.\n", node->rule->name);
+            } else {
+                lv_strbuf_printf(&buf, "  (* Derivation: %s *)\n", node->label);
+                lv_strbuf_printf(&buf, "  assert (H%d : Prop).\n", node->id);
+                lv_strbuf_printf(&buf, "  { %s. }\n", node->description);
+            }
+        } else {
+            int idx = (int)node->type;
+            if (idx >= 0 && idx < (int)kCoqFormatCount && kCoqFormats[idx].comment_fmt != NULL) {
+                const CoqFormatEntry *entry = &kCoqFormats[idx];
+                const char *comment_arg = (node->type == TRACE_NODE_CONTRADICTION) ? node->description : node->label;
+                lv_strbuf_printf(&buf, entry->comment_fmt, comment_arg);
+                if (entry->action_fmt) {
+                    lv_strbuf_printf(&buf, entry->action_fmt, node->label);
                 }
-                break;
-
-            case TRACE_NODE_CONTRADICTION:
-                lv_strbuf_printf(&buf, "  (* Contradiction: %s *)\n", node->description);
-                lv_strbuf_printf(&buf, "  contradiction.\n");
-                break;
-
-            case TRACE_NODE_GOAL:
-                lv_strbuf_printf(&buf, "  (* Sub-goal: %s *)\n", node->label);
-                break;
-
-            case TRACE_NODE_THEOREM:
-                lv_strbuf_printf(&buf, "  (* Apply theorem: %s *)\n", node->label);
-                lv_strbuf_printf(&buf, "  apply %s.\n", node->label);
-                break;
-
-            case TRACE_NODE_LEMMA:
-                lv_strbuf_printf(&buf, "  (* Apply lemma: %s *)\n", node->label);
-                lv_strbuf_printf(&buf, "  apply %s_lemma.\n", node->label);
-                break;
-
-            case TRACE_NODE_DEFINITION:
-                lv_strbuf_printf(&buf, "  (* Unfold definition: %s *)\n", node->label);
-                lv_strbuf_printf(&buf, "  unfold %s.\n", node->label);
-                break;
-
-            default:
+            } else {
+                /* 默认情况 */
                 lv_strbuf_printf(&buf, "  (* Step: %s *)\n", node->label);
                 lv_strbuf_printf(&buf, "  admit.\n");
-                break;
+            }
         }
     }
 
@@ -415,61 +438,44 @@ char *lv_proof_to_isar(const lvProofTraceTree *trace) {
         if (node == trace->root)
             continue;
 
-        switch (node->type) {
-            case TRACE_NODE_AXIOM:
-                lv_strbuf_printf(&buf, "  -- Axiom: %s\n", node->label);
-                lv_strbuf_printf(&buf, "  have \"%s\" by auto\n", node->label);
-                break;
-
-            case TRACE_NODE_HYPOTHESIS:
-                lv_strbuf_printf(&buf, "  -- Hypothesis: %s\n", node->label);
-                lv_strbuf_printf(&buf, "  assume \"%s\"\n", node->label);
-                break;
-
-            case TRACE_NODE_DERIVATION:
-                if (node->rule && node->rule->name[0] != '\0') {
-                    lv_strbuf_printf(&buf, "  -- Apply rule: %s\n", node->rule->name);
-                    lv_strbuf_printf(&buf, "  then have \"%s\" using %s\n", node->label, node->rule->name);
-                } else {
-                    lv_strbuf_printf(&buf, "  -- Derivation: %s\n", node->label);
-                    lv_strbuf_printf(&buf, "  have \"%s\"\n", node->label);
-                    if (node->description[0] != '\0') {
-                        lv_strbuf_printf(&buf, "    -- \"%s\"\n", node->description);
-                    }
-                    lv_strbuf_printf(&buf, "    sorry\n");
+        if (node->type == TRACE_NODE_DERIVATION) {
+            /* DERIVATION 有特殊条件逻辑 */
+            if (node->rule && node->rule->name[0] != '\0') {
+                lv_strbuf_printf(&buf, "  -- Apply rule: %s\n", node->rule->name);
+                lv_strbuf_printf(&buf, "  then have \"%s\" using %s\n", node->label, node->rule->name);
+            } else {
+                lv_strbuf_printf(&buf, "  -- Derivation: %s\n", node->label);
+                lv_strbuf_printf(&buf, "  have \"%s\"\n", node->label);
+                if (node->description[0] != '\0') {
+                    lv_strbuf_printf(&buf, "    -- \"%s\"\n", node->description);
                 }
-                break;
-
-            case TRACE_NODE_CONTRADICTION:
-                lv_strbuf_printf(&buf, "  -- Contradiction: %s\n", node->description);
-                lv_strbuf_printf(&buf, "  then show False\n");
-                lv_strbuf_printf(&buf, "    contradiction\n");
-                break;
-
-            case TRACE_NODE_GOAL:
-                lv_strbuf_printf(&buf, "  -- Sub-goal: %s\n", node->label);
-                lv_strbuf_printf(&buf, "  moreover have \"%s\"\n", node->label);
-                break;
-
-            case TRACE_NODE_THEOREM:
-                lv_strbuf_printf(&buf, "  -- Theorem: %s\n", node->label);
-                lv_strbuf_printf(&buf, "  from `%s` have \"%s\" .\n", node->label, node->label);
-                break;
-
-            case TRACE_NODE_LEMMA:
-                lv_strbuf_printf(&buf, "  -- Lemma: %s\n", node->label);
-                lv_strbuf_printf(&buf, "  using `%s_lemma`\n", node->label);
-                break;
-
-            case TRACE_NODE_DEFINITION:
-                lv_strbuf_printf(&buf, "  -- Unfold: %s\n", node->label);
-                lv_strbuf_printf(&buf, "  unfolding %s_def\n", node->label);
-                break;
-
-            default:
+                lv_strbuf_printf(&buf, "    sorry\n");
+            }
+        } else {
+            int idx = (int)node->type;
+            if (idx >= 0 && idx < (int)kIsarFormatCount && kIsarFormats[idx].comment_fmt != NULL) {
+                const IsarFormatEntry *entry = &kIsarFormats[idx];
+                const char *comment_arg = (node->type == TRACE_NODE_CONTRADICTION) ? node->description : node->label;
+                lv_strbuf_printf(&buf, entry->comment_fmt, comment_arg);
+                if (entry->action_fmt1) {
+                    if (node->type == TRACE_NODE_THEOREM) {
+                        /* THEOREM 使用两次 node->label */
+                        lv_strbuf_printf(&buf, entry->action_fmt1, node->label, node->label);
+                    } else {
+                        lv_strbuf_printf(&buf, entry->action_fmt1, node->label);
+                    }
+                }
+                if (entry->action_fmt2) {
+                    lv_strbuf_printf(&buf, entry->action_fmt2);
+                }
+                if (entry->action_fmt3) {
+                    lv_strbuf_printf(&buf, entry->action_fmt3);
+                }
+            } else {
+                /* 默认情况 */
                 lv_strbuf_printf(&buf, "  -- Step: %s\n", node->label);
                 lv_strbuf_printf(&buf, "  sorry\n");
-                break;
+            }
         }
     }
 

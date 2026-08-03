@@ -131,6 +131,7 @@ static bool add_symbol(LvSemaContext *ctx, const char *name, LvSemanticType type
 
 /** 前向声明 */
 static LvSemanticType check_expr(LvSemaContext *ctx, LvAstNode *node);
+static void check_stmt(LvSemaContext *ctx, LvAstNode *node);
 
 /** 处理 Declaration 节点：将声明的标识符加入符号表 */
 static void check_declaration(LvSemaContext *ctx, LvAstNode *node) {
@@ -260,181 +261,223 @@ static LvSemanticType check_call(LvSemaContext *ctx, LvAstNode *node) {
     return LV_TYPE_UNKNOWN;
 }
 
+/* ── VTable for check_expr ── */
+
+typedef LvSemanticType (*CheckExprFn)(LvSemaContext *, LvAstNode *);
+
+static LvSemanticType check_expr_ident(LvSemaContext *ctx, LvAstNode *node) {
+    const char *name = node->data.ident.name;
+    if (!name)
+        return LV_TYPE_ERROR;
+    LvSymbol *sym = find_symbol(ctx, name);
+    if (!sym) {
+        sema_error(ctx, node->loc, "undeclared identifier: '%s'", name);
+        return LV_TYPE_ERROR;
+    }
+    return sym->type;
+}
+
+static LvSemanticType check_expr_literal_scalar(LvSemaContext *ctx, LvAstNode *node) {
+    (void)ctx;
+    (void)node;
+    return LV_TYPE_SCALAR;
+}
+
+static LvSemanticType check_expr_literal_string(LvSemaContext *ctx, LvAstNode *node) {
+    (void)ctx;
+    (void)node;
+    return LV_TYPE_UNKNOWN;
+}
+
+static LvSemanticType check_expr_literal_bool(LvSemaContext *ctx, LvAstNode *node) {
+    (void)ctx;
+    (void)node;
+    return LV_TYPE_BOOL;
+}
+
+static LvSemanticType check_expr_binary_op(LvSemaContext *ctx, LvAstNode *node) {
+    LvSemanticType lt = check_expr(ctx, node->data.binary.left);
+    LvSemanticType rt = check_expr(ctx, node->data.binary.right);
+    if (lt != LV_TYPE_SCALAR && lt != LV_TYPE_ERROR)
+        sema_error(ctx, node->data.binary.left->loc, "binary op expects Scalar operands");
+    if (rt != LV_TYPE_SCALAR && rt != LV_TYPE_ERROR)
+        sema_error(ctx, node->data.binary.right->loc, "binary op expects Scalar operands");
+    return LV_TYPE_SCALAR;
+}
+
+static LvSemanticType check_expr_unary_op(LvSemaContext *ctx, LvAstNode *node) {
+    return check_expr(ctx, node->data.unary.operand);
+}
+
+static LvSemanticType check_expr_compare(LvSemaContext *ctx, LvAstNode *node) {
+    LvSemanticType lt = check_expr(ctx, node->data.compare.left);
+    LvSemanticType rt = check_expr(ctx, node->data.compare.right);
+    (void)lt;
+    (void)rt;
+    return LV_TYPE_PROPOSITION;
+}
+
+static LvSemanticType check_expr_call(LvSemaContext *ctx, LvAstNode *node) {
+    return check_call(ctx, node);
+}
+
+static LvSemanticType check_expr_logic_and_or(LvSemaContext *ctx, LvAstNode *node) {
+    LvSemanticType lt = check_expr(ctx, node->data.binary.left);
+    LvSemanticType rt = check_expr(ctx, node->data.binary.right);
+    if (lt != LV_TYPE_PROPOSITION && lt != LV_TYPE_ERROR)
+        sema_error(ctx, node->data.binary.left->loc, "logic op expects Proposition operands");
+    if (rt != LV_TYPE_PROPOSITION && rt != LV_TYPE_ERROR)
+        sema_error(ctx, node->data.binary.right->loc, "logic op expects Proposition operands");
+    return LV_TYPE_PROPOSITION;
+}
+
+static LvSemanticType check_expr_logic_not(LvSemaContext *ctx, LvAstNode *node) {
+    LvSemanticType ot = check_expr(ctx, node->data.unary.operand);
+    if (ot != LV_TYPE_PROPOSITION && ot != LV_TYPE_ERROR)
+        sema_error(ctx, node->data.unary.operand->loc, "not expects Proposition operand");
+    return LV_TYPE_PROPOSITION;
+}
+
+static LvSemanticType check_expr_logic_implies_iff(LvSemaContext *ctx, LvAstNode *node) {
+    LvSemanticType lt = check_expr(ctx, node->data.binary.left);
+    LvSemanticType rt = check_expr(ctx, node->data.binary.right);
+    if (lt != LV_TYPE_PROPOSITION && lt != LV_TYPE_ERROR)
+        sema_error(ctx, node->data.binary.left->loc, "implies/iff expects Proposition operands");
+    if (rt != LV_TYPE_PROPOSITION && rt != LV_TYPE_ERROR)
+        sema_error(ctx, node->data.binary.right->loc, "implies/iff expects Proposition operands");
+    return LV_TYPE_PROPOSITION;
+}
+
+static LvSemanticType check_expr_quantifier(LvSemaContext *ctx, LvAstNode *node) {
+    const char *vname = node->data.quantifier.var_name;
+    LvSemanticType vtype = type_name_to_type(node->data.quantifier.var_type);
+    if (vtype == LV_TYPE_UNKNOWN) {
+        sema_error(ctx, node->loc, "unknown type '%s' in quantifier",
+                   node->data.quantifier.var_type ? node->data.quantifier.var_type : "?");
+    }
+    if (vname) {
+        LvSymbol *existing = find_symbol(ctx, vname);
+        if (!existing) {
+            add_symbol(ctx, vname, vtype, node->loc);
+        }
+    }
+    LvSemanticType bt = LV_TYPE_ERROR;
+    if (node->data.quantifier.body) {
+        bt = check_expr(ctx, node->data.quantifier.body);
+    }
+    if (bt != LV_TYPE_PROPOSITION && bt != LV_TYPE_ERROR)
+        sema_error(ctx, node->loc, "quantifier body must be Proposition");
+    return LV_TYPE_PROPOSITION;
+}
+
+static LvSemanticType check_expr_default(LvSemaContext *ctx, LvAstNode *node) {
+    (void)ctx;
+    (void)node;
+    return LV_TYPE_UNKNOWN;
+}
+
+static const CheckExprFn check_expr_table[LV_AST_COUNT] = {
+    [LV_AST_IDENTIFIER_EXPR] = check_expr_ident,
+    [LV_AST_INTEGER_LITERAL] = check_expr_literal_scalar,
+    [LV_AST_RATIONAL_LITERAL] = check_expr_literal_scalar,
+    [LV_AST_DECIMAL_LITERAL] = check_expr_literal_scalar,
+    [LV_AST_STRING_LITERAL] = check_expr_literal_string,
+    [LV_AST_BOOL_LITERAL] = check_expr_literal_bool,
+    [LV_AST_BINARY_OP] = check_expr_binary_op,
+    [LV_AST_UNARY_OP] = check_expr_unary_op,
+    [LV_AST_COMPARE] = check_expr_compare,
+    [LV_AST_FUNCTION_CALL] = check_expr_call,
+    [LV_AST_RELATION] = check_expr_call,
+    [LV_AST_MEASURE] = check_expr_call,
+    [LV_AST_GEOMETRY_EXPR] = check_expr_call,
+    [LV_AST_LOGIC_AND] = check_expr_logic_and_or,
+    [LV_AST_LOGIC_OR] = check_expr_logic_and_or,
+    [LV_AST_LOGIC_NOT] = check_expr_logic_not,
+    [LV_AST_LOGIC_IMPLIES] = check_expr_logic_implies_iff,
+    [LV_AST_LOGIC_IFF] = check_expr_logic_implies_iff,
+    [LV_AST_LOGIC_FORALL] = check_expr_quantifier,
+    [LV_AST_LOGIC_EXISTS] = check_expr_quantifier,
+};
+
 /** 递归检查表达式，返回其语义类型 */
 static LvSemanticType check_expr(LvSemaContext *ctx, LvAstNode *node) {
     if (!node)
         return LV_TYPE_ERROR;
 
-    switch (node->type) {
-        case LV_AST_IDENTIFIER_EXPR: {
-            const char *name = node->data.ident.name;
-            if (!name)
-                return LV_TYPE_ERROR;
-            LvSymbol *sym = find_symbol(ctx, name);
-            if (!sym) {
-                sema_error(ctx, node->loc, "undeclared identifier: '%s'", name);
-                return LV_TYPE_ERROR;
-            }
-            return sym->type;
-        }
+    LvAstNodeType t = node->type;
+    if (t >= 0 && t < LV_AST_COUNT && check_expr_table[t])
+        return check_expr_table[t](ctx, node);
+    return LV_TYPE_UNKNOWN;
+}
 
-        case LV_AST_INTEGER_LITERAL:
-        case LV_AST_RATIONAL_LITERAL:
-        case LV_AST_DECIMAL_LITERAL:
-            return LV_TYPE_SCALAR;
+/* ── VTable for check_stmt ── */
 
-        case LV_AST_STRING_LITERAL:
-            return LV_TYPE_UNKNOWN;
+typedef void (*CheckStmtFn)(LvSemaContext *, LvAstNode *);
 
-        case LV_AST_BOOL_LITERAL:
-            return LV_TYPE_BOOL;
+static void check_stmt_declaration(LvSemaContext *ctx, LvAstNode *node) {
+    check_declaration(ctx, node);
+}
 
-        case LV_AST_BINARY_OP: {
-            LvSemanticType lt = check_expr(ctx, node->data.binary.left);
-            LvSemanticType rt = check_expr(ctx, node->data.binary.right);
-            if (lt != LV_TYPE_SCALAR && lt != LV_TYPE_ERROR)
-                sema_error(ctx, node->data.binary.left->loc, "binary op expects Scalar operands");
-            if (rt != LV_TYPE_SCALAR && rt != LV_TYPE_ERROR)
-                sema_error(ctx, node->data.binary.right->loc, "binary op expects Scalar operands");
-            return LV_TYPE_SCALAR;
-        }
+static void check_stmt_let(LvSemaContext *ctx, LvAstNode *node) {
+    check_let(ctx, node);
+}
 
-        case LV_AST_UNARY_OP:
-            return check_expr(ctx, node->data.unary.operand);
-
-        case LV_AST_COMPARE: {
-            LvSemanticType lt = check_expr(ctx, node->data.compare.left);
-            LvSemanticType rt = check_expr(ctx, node->data.compare.right);
-            (void) lt;
-            (void) rt;
-            /* 比较返回 Proposition */
-            return LV_TYPE_PROPOSITION;
-        }
-
-        case LV_AST_FUNCTION_CALL:
-        case LV_AST_RELATION:
-        case LV_AST_MEASURE:
-        case LV_AST_GEOMETRY_EXPR:
-            return check_call(ctx, node);
-
-        case LV_AST_LOGIC_AND:
-        case LV_AST_LOGIC_OR: {
-            LvSemanticType lt = check_expr(ctx, node->data.binary.left);
-            LvSemanticType rt = check_expr(ctx, node->data.binary.right);
-            if (lt != LV_TYPE_PROPOSITION && lt != LV_TYPE_ERROR)
-                sema_error(ctx, node->data.binary.left->loc, "logic op expects Proposition operands");
-            if (rt != LV_TYPE_PROPOSITION && rt != LV_TYPE_ERROR)
-                sema_error(ctx, node->data.binary.right->loc, "logic op expects Proposition operands");
-            return LV_TYPE_PROPOSITION;
-        }
-
-        case LV_AST_LOGIC_NOT: {
-            LvSemanticType ot = check_expr(ctx, node->data.unary.operand);
-            if (ot != LV_TYPE_PROPOSITION && ot != LV_TYPE_ERROR)
-                sema_error(ctx, node->data.unary.operand->loc, "not expects Proposition operand");
-            return LV_TYPE_PROPOSITION;
-        }
-
-        case LV_AST_LOGIC_IMPLIES:
-        case LV_AST_LOGIC_IFF: {
-            LvSemanticType lt = check_expr(ctx, node->data.binary.left);
-            LvSemanticType rt = check_expr(ctx, node->data.binary.right);
-            if (lt != LV_TYPE_PROPOSITION && lt != LV_TYPE_ERROR)
-                sema_error(ctx, node->data.binary.left->loc, "implies/iff expects Proposition operands");
-            if (rt != LV_TYPE_PROPOSITION && rt != LV_TYPE_ERROR)
-                sema_error(ctx, node->data.binary.right->loc, "implies/iff expects Proposition operands");
-            return LV_TYPE_PROPOSITION;
-        }
-
-        case LV_AST_LOGIC_FORALL:
-        case LV_AST_LOGIC_EXISTS: {
-            /* 将绑定变量加入符号表 */
-            const char *vname = node->data.quantifier.var_name;
-            LvSemanticType vtype = type_name_to_type(node->data.quantifier.var_type);
-            if (vtype == LV_TYPE_UNKNOWN) {
-                sema_error(ctx, node->loc, "unknown type '%s' in quantifier",
-                           node->data.quantifier.var_type ? node->data.quantifier.var_type : "?");
-            }
-            /* 暂时先添加变量 */
-            if (vname) {
-                /* 检查是否已存在，先不报错因为可能是同名不同作用域 */
-                LvSymbol *existing = find_symbol(ctx, vname);
-                if (!existing) {
-                    add_symbol(ctx, vname, vtype, node->loc);
-                }
-            }
-            LvSemanticType bt = LV_TYPE_ERROR;
-            if (node->data.quantifier.body) {
-                bt = check_expr(ctx, node->data.quantifier.body);
-            }
-            if (bt != LV_TYPE_PROPOSITION && bt != LV_TYPE_ERROR)
-                sema_error(ctx, node->loc, "quantifier body must be Proposition");
-            return LV_TYPE_PROPOSITION;
-        }
-
-        default:
-            return LV_TYPE_UNKNOWN;
+static void check_stmt_constraint_like(LvSemaContext *ctx, LvAstNode *node) {
+    LvSemanticType etype = LV_TYPE_UNKNOWN;
+    if (node->data.stmt.expr) {
+        etype = check_expr(ctx, node->data.stmt.expr);
+    }
+    /* Constraint/Prove/Assume/Assert 需要 Proposition 类型 */
+    if (node->type != LV_AST_COMPUTE_STMT && etype != LV_TYPE_ERROR && etype != LV_TYPE_PROPOSITION &&
+        etype != LV_TYPE_UNKNOWN) {
+        sema_error(ctx, node->loc, "expected Proposition expression in statement");
     }
 }
+
+static void check_stmt_theorem(LvSemaContext *ctx, LvAstNode *node) {
+    if (node->data.theorem.proposition) {
+        LvSemanticType pt = check_expr(ctx, node->data.theorem.proposition);
+        if (pt != LV_TYPE_PROPOSITION && pt != LV_TYPE_ERROR) {
+            sema_error(ctx, node->loc, "theorem proposition must be Proposition type");
+        }
+    }
+    if (node->data.theorem.proof_block) {
+        for (LvAstNode *s = node->data.theorem.proof_block->child; s; s = s->next) {
+            check_stmt(ctx, s);
+        }
+    }
+}
+
+static void check_stmt_noop(LvSemaContext *ctx, LvAstNode *node) {
+    (void)ctx;
+    (void)node;
+}
+
+static const CheckStmtFn check_stmt_table[LV_AST_COUNT] = {
+    [LV_AST_DECLARATION] = check_stmt_declaration,
+    [LV_AST_LET] = check_stmt_let,
+    [LV_AST_CONSTRAINT_STMT] = check_stmt_constraint_like,
+    [LV_AST_ASSUME_STMT] = check_stmt_constraint_like,
+    [LV_AST_ASSERT_STMT] = check_stmt_constraint_like,
+    [LV_AST_PROVE_STMT] = check_stmt_constraint_like,
+    [LV_AST_AXIOM_STMT] = check_stmt_constraint_like,
+    [LV_AST_COMPUTE_STMT] = check_stmt_constraint_like,
+    [LV_AST_THEOREM_STMT] = check_stmt_theorem,
+    [LV_AST_EXPORT_STMT] = check_stmt_noop,
+    [LV_AST_NORMALIZE_STMT] = check_stmt_noop,
+    [LV_AST_MODULE_DECL] = check_stmt_noop,
+    [LV_AST_IMPORT_DECL] = check_stmt_noop,
+    [LV_AST_PROOF_BLOCK] = check_stmt_noop,
+};
 
 /** 检查语句节点 */
 static void check_stmt(LvSemaContext *ctx, LvAstNode *node) {
     if (!node)
         return;
 
-    switch (node->type) {
-        case LV_AST_DECLARATION:
-            check_declaration(ctx, node);
-            break;
-
-        case LV_AST_LET:
-            check_let(ctx, node);
-            break;
-
-        case LV_AST_CONSTRAINT_STMT:
-        case LV_AST_ASSUME_STMT:
-        case LV_AST_ASSERT_STMT:
-        case LV_AST_PROVE_STMT:
-        case LV_AST_AXIOM_STMT:
-        case LV_AST_COMPUTE_STMT: {
-            LvSemanticType etype = LV_TYPE_UNKNOWN;
-            if (node->data.stmt.expr) {
-                etype = check_expr(ctx, node->data.stmt.expr);
-            }
-            /* Constraint/Prove/Assume/Assert 需要 Proposition 类型 */
-            if (node->type != LV_AST_COMPUTE_STMT && etype != LV_TYPE_ERROR && etype != LV_TYPE_PROPOSITION &&
-                etype != LV_TYPE_UNKNOWN) {
-                sema_error(ctx, node->loc, "expected Proposition expression in statement");
-            }
-            break;
-        }
-
-        case LV_AST_THEOREM_STMT: {
-            if (node->data.theorem.proposition) {
-                LvSemanticType pt = check_expr(ctx, node->data.theorem.proposition);
-                if (pt != LV_TYPE_PROPOSITION && pt != LV_TYPE_ERROR) {
-                    sema_error(ctx, node->loc, "theorem proposition must be Proposition type");
-                }
-            }
-            if (node->data.theorem.proof_block) {
-                for (LvAstNode *s = node->data.theorem.proof_block->child; s; s = s->next) {
-                    check_stmt(ctx, s);
-                }
-            }
-            break;
-        }
-
-        case LV_AST_EXPORT_STMT:
-        case LV_AST_NORMALIZE_STMT:
-        case LV_AST_MODULE_DECL:
-        case LV_AST_IMPORT_DECL:
-        case LV_AST_PROOF_BLOCK:
-            /* 这些语句不需要类型检查 */
-            break;
-
-        default:
-            break;
-    }
+    LvAstNodeType t = node->type;
+    if (t >= 0 && t < LV_AST_COUNT && check_stmt_table[t])
+        check_stmt_table[t](ctx, node);
 }
 
 /* ── 公共 API ── */

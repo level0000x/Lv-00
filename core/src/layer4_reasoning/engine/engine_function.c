@@ -244,27 +244,16 @@ UnifyStatus engine_unify(lvEngine *engine, ConstraintGraph *construction, Constr
     } else {
         /* 合一失败：根据具体失败类型设置对应的引擎错误信息 */
         const char *reason = "未知合一失败原因";
-        switch (status) {
-            case UNIFY_STATUS_PORT_TYPE_MISMATCH:
-                reason = "端口类型不匹配";
-                break;
-            case UNIFY_STATUS_CONSTRAINT_MISMATCH:
-                reason = "约束不匹配";
-                break;
-            case UNIFY_STATUS_COORD_MISMATCH:
-                reason = "符号坐标不匹配";
-                break;
-            case UNIFY_STATUS_STRUCTURE_MISMATCH:
-                reason = "图结构不匹配";
-                break;
-            case UNIFY_STATUS_SCOPE_MISMATCH:
-                reason = "作用域不匹配";
-                break;
-            case UNIFY_STATUS_FAILED:
-                reason = "合一检查系统内部错误";
-                break;
-            default:
-                break;
+        static const char *s_unify_status_reasons[] = {
+            [UNIFY_STATUS_PORT_TYPE_MISMATCH] = "端口类型不匹配",
+            [UNIFY_STATUS_CONSTRAINT_MISMATCH] = "约束不匹配",
+            [UNIFY_STATUS_COORD_MISMATCH] = "符号坐标不匹配",
+            [UNIFY_STATUS_STRUCTURE_MISMATCH] = "图结构不匹配",
+            [UNIFY_STATUS_SCOPE_MISMATCH] = "作用域不匹配",
+            [UNIFY_STATUS_FAILED] = "合一检查系统内部错误",
+        };
+        if ((int) status >= 0 && (size_t) status < lv_ARRAY_SIZE(s_unify_status_reasons) && s_unify_status_reasons[(int) status]) {
+            reason = s_unify_status_reasons[(int) status];
         }
         engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
         snprintf(engine->last_error, sizeof(engine->last_error), "合一失败 [状态码=%d]: %s", (int) status, reason);

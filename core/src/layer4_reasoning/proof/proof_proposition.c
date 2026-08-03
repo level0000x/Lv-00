@@ -584,26 +584,17 @@ UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Propositio
             lv_free((void **) out_mismatch_info);
             *out_mismatch_info = NULL;
         }
-        switch (result) {
-            case UNIFY_STATUS_PORT_TYPE_MISMATCH:
-                *out_mismatch_info = lv_strdup_safe("端口类型不匹配");
-                break;
-            case UNIFY_STATUS_CONSTRAINT_MISMATCH:
-                *out_mismatch_info = lv_strdup_safe("约束类型不匹配");
-                break;
-            case UNIFY_STATUS_COORD_MISMATCH:
-                *out_mismatch_info = lv_strdup_safe("符号坐标不匹配");
-                break;
-            case UNIFY_STATUS_STRUCTURE_MISMATCH:
-                *out_mismatch_info = lv_strdup_safe("结构不匹配");
-                break;
-            case UNIFY_STATUS_SCOPE_MISMATCH:
-                *out_mismatch_info = lv_strdup_safe("作用域不匹配");
-                break;
-            default:
-                *out_mismatch_info = lv_strdup_safe("未知错误");
-                break;
-        }
+        static const char *s_unify_mismatch_info[] = {
+            [UNIFY_STATUS_PORT_TYPE_MISMATCH] = "端口类型不匹配",
+            [UNIFY_STATUS_CONSTRAINT_MISMATCH] = "约束类型不匹配",
+            [UNIFY_STATUS_COORD_MISMATCH] = "符号坐标不匹配",
+            [UNIFY_STATUS_STRUCTURE_MISMATCH] = "结构不匹配",
+            [UNIFY_STATUS_SCOPE_MISMATCH] = "作用域不匹配",
+        };
+        const char *info = ((int) result >= 0 && (size_t) result < lv_ARRAY_SIZE(s_unify_mismatch_info) && s_unify_mismatch_info[(int) result])
+                               ? s_unify_mismatch_info[(int) result]
+                               : "未知错误";
+        *out_mismatch_info = lv_strdup_safe(info);
     }
 
     return result;

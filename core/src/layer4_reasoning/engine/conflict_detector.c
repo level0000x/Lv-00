@@ -220,27 +220,33 @@ const char *lv_conflict_severity_name(ConflictSeverity severity) {
  * 基础约束冲突检测
  * ================================================================ */
 
+typedef struct {
+    int type_value;
+    int count;
+} ParticipantCountEntry;
+
+static const ParticipantCountEntry s_participant_count_table[] = {
+    {INCIDENCE, 2},
+    {BETWEENNESS, 3},
+    {INTERSECTION, 3},
+    {CONTAINMENT, 2},
+    {CONNECTION, 2},
+    {ANGLE, 2},
+    {CONSTRAINT_ANGLE, 2},
+    {CONSTRAINT_COINCIDENT, 2},
+    {CONSTRAINT_PARALLEL, 2},
+    {CONSTRAINT_PERPENDICULAR, 2},
+    {CONSTRAINT_HORIZONTAL, 1},
+    {CONSTRAINT_VERTICAL, 1},
+};
+
 static int expected_participant_count(ConstraintType type) {
-    switch (type) {
-        case INCIDENCE:
-        case CONTAINMENT:
-        case CONNECTION:
-        case ANGLE:
-        case CONSTRAINT_DISTANCE:
-        case CONSTRAINT_ANGLE:
-        case CONSTRAINT_COINCIDENT:
-        case CONSTRAINT_PARALLEL:
-        case CONSTRAINT_PERPENDICULAR:
-            return 2;
-        case BETWEENNESS:
-        case INTERSECTION:
-            return 3;
-        case CONSTRAINT_HORIZONTAL:
-        case CONSTRAINT_VERTICAL:
-            return 1;
-        default:
-            return -1;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(s_participant_count_table); i++) {
+        if (s_participant_count_table[i].type_value == (int) type) {
+            return s_participant_count_table[i].count;
+        }
     }
+    return -1;
 }
 
 static void add_constraint_entity_ids(ConflictRecord *rec, const Constraint *constraint) {

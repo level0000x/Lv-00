@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_event_detect.c
  * @brief 几何事件检测器 —— 基于 SUNDIALS Rootfinding 的事件检测实现
  *
@@ -446,24 +446,17 @@ int geo_event_register(lvEventDetector *detector, int event_id, lvEventType type
 
     /* 若未提供自定义事件函数，使用类型默认函数 */
     if (!func) {
-        switch (type) {
-            case lv_EVENT_INTERSECTION:
-                func = geodet_check_intersection;
-                break;
-            case lv_EVENT_CONTACT:
-                func = geodet_check_contact;
-                break;
-            case lv_EVENT_CROSSING:
-                func = geodet_check_crossing;
-                break;
-            case lv_EVENT_THRESHOLD:
-                func = geodet_check_threshold;
-                break;
-            case lv_EVENT_PERIODIC:
-                func = geodet_check_periodic;
-                break;
-            default:
-                lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "自定义事件lv_EVENT_CUSTOM必须提供func参数");
+        static const lvEventFunc s_default_event_funcs[] = {
+            [lv_EVENT_INTERSECTION] = geodet_check_intersection,
+            [lv_EVENT_CONTACT] = geodet_check_contact,
+            [lv_EVENT_CROSSING] = geodet_check_crossing,
+            [lv_EVENT_THRESHOLD] = geodet_check_threshold,
+            [lv_EVENT_PERIODIC] = geodet_check_periodic,
+        };
+        if ((int) type >= 0 && (size_t) type < lv_ARRAY_SIZE(s_default_event_funcs) && s_default_event_funcs[(int) type]) {
+            func = s_default_event_funcs[(int) type];
+        } else {
+            lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "自定义事件lv_EVENT_CUSTOM必须提供func参数");
         }
     }
 

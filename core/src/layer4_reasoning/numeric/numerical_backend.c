@@ -934,25 +934,20 @@ static lvLinearSolver *serial_linsol_create(lvLinearSolverMethod method) {
     LS->solver_data = NULL;
     LS->backend_data = NULL;
 
-    switch (method) {
-        case lv_LINSOL_DIRECT_DENSE:
-        case lv_LINSOL_DIRECT_BAND:
-        case lv_LINSOL_DIRECT_SPARSE:
-            LS->ops = &serial_dense_linsol_ops;
-            break;
-        case lv_LINSOL_ITERATIVE_GMRES:
-            LS->ops = &serial_gmres_linsol_ops;
-            break;
-        case lv_LINSOL_ITERATIVE_BICGSTAB:
-            LS->ops = &serial_bicgstab_linsol_ops;
-            break;
-        case lv_LINSOL_ITERATIVE_CG:
-            LS->ops = &serial_cg_linsol_ops;
-            break;
-        default:
-            lv_free((void **) &LS);
-            lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "不支持的线性求解方法: %s", lv_linsol_method_name(method));
-            return NULL;
+    static const lvLinearSolverOps *s_linsol_ops[] = {
+        [lv_LINSOL_DIRECT_DENSE] = &serial_dense_linsol_ops,
+        [lv_LINSOL_DIRECT_BAND] = &serial_dense_linsol_ops,
+        [lv_LINSOL_DIRECT_SPARSE] = &serial_dense_linsol_ops,
+        [lv_LINSOL_ITERATIVE_GMRES] = &serial_gmres_linsol_ops,
+        [lv_LINSOL_ITERATIVE_BICGSTAB] = &serial_bicgstab_linsol_ops,
+        [lv_LINSOL_ITERATIVE_CG] = &serial_cg_linsol_ops,
+    };
+    if ((int) method >= 0 && (size_t) method < lv_ARRAY_SIZE(s_linsol_ops) && s_linsol_ops[(int) method]) {
+        LS->ops = s_linsol_ops[(int) method];
+    } else {
+        lv_free((void **) &LS);
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "不支持的线性求解方法: %s", lv_linsol_method_name(method));
+        return NULL;
     }
 
     return LS;

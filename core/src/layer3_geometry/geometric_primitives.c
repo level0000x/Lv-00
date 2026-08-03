@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geometric_primitives.c
  * @brief 13 个几何原语统一包装层实现
  *
@@ -62,93 +62,128 @@ static int *geo_dup_int(int v) {
     return p;
 }
 
-/* 原语 1: geo_create_node -- 创建几何节点（POINT/LINE/REGION/PORT） */
-GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type, const int *ids, int count) {
-    CHECK_GRAPH(graph);
-    AddNodeResult res;
-
-    switch (type) {
-        case GEO_NODE_POINT: {
-            if (!ids || count < 1)
-                return geo_err(GEO_STATUS_INVALID_PARAM, "点至少需要一个坐标维度");
-            SymbolicCoord **c = (SymbolicCoord **) lv_malloc((size_t) count * sizeof(SymbolicCoord *));
-            if (!c)
-                return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
-            for (int i = 0; i < count; i++)
-                c[i] = symbolic_coord_create_rational((int64_t) ids[i], 1);
-            res = graph_add_point(graph, c, count);
-            for (int i = 0; i < count; i++)
-                symbolic_coord_destroy(c[i]);
-            lv_free((void **)&(c));
-            break;
-        }
-        case GEO_NODE_LINE_SEGMENT:
-            if (!ids || count < 2)
-                return geo_err(GEO_STATUS_INVALID_PARAM, "线段需2个端点");
-            res = graph_add_line_segment(graph, ids[0], ids[1]);
-            break;
-        case GEO_NODE_REGION:
-            if (!ids || count < 1)
-                return geo_err(GEO_STATUS_INVALID_PARAM, "区域需边界线段");
-            res = graph_add_region(graph, ids, count);
-            break;
-        case GEO_NODE_PORT:
-            if (!ids || count < 3)
-                return geo_err(GEO_STATUS_INVALID_PARAM, "端口需3个参数");
-            res = graph_add_port(graph, (PortType) ids[0], ids[1], ids[2]);
-            break;
-        case GEO_NODE_FUNCTION_BLOCK:
-            return geo_err(GEO_STATUS_UNSUPPORTED, "函数块请使用 geo_pack");
-        default:
-            return geo_err(GEO_STATUS_INVALID_TYPE, "未知节点类型");
-    }
-
+/* ── 节点创建辅助函数：将 AddNodeResult 包装为 GeoResult ── */
+static GeoResult geo_create_node_finish(AddNodeResult res, ConstraintGraph *graph) {
     if (res != ADD_NODE_OK)
         return geo_err(GEO_STATUS_CONFLICT, "添加节点失败");
     int *out = geo_dup_int(graph_get_last_added_node_id(graph));
     return out ? geo_ok(out) : geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
 }
 
-/* 原语 2: geo_create_constraint -- 创建约束关系 */
-GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type, const int *p, int n) {
-    CHECK_GRAPH(graph);
-    if (!p || n < 2)
-        return geo_err(GEO_STATUS_INVALID_PARAM, "参与者不足");
+/* ── 各类型节点创建处理函数 ── */
+static GeoResult geo_create_node_point(ConstraintGraph *graph, const int *ids, int count) {
+    if (!ids || count < 1)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "点至少需要一个坐标维度");
+    SymbolicCoord **c = (SymbolicCoord **) lv_malloc((size_t) count * sizeof(SymbolicCoord *));
+    if (!c)
+        return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
+    for (int i = 0; i < count; i++)
+        c[i] = symbolic_coord_create_rational((int64_t) ids[i], 1);
+    AddNodeResult res = graph_add_point(graph, c, count);
+    for (int i = 0; i < count; i++)
+        symbolic_coord_destroy(c[i]);
+    lv_free((void **)&(c));
+    return geo_create_node_finish(res, graph);
+}
 
-    AddConstraintResult res;
-    switch (type) {
-        case GEO_CONSTRAINT_INCIDENCE:
-            res = graph_add_incidence(graph, p[0], p[1]);
-            break;
-        case GEO_CONSTRAINT_BETWEENNESS:
-            if (n < 3)
-                return geo_err(GEO_STATUS_INVALID_PARAM, "之间需3个参与者");
-            res = graph_add_betweenness(graph, p[0], p[1], p[2]);
-            break;
-        case GEO_CONSTRAINT_INTERSECTION:
-            if (n < 3)
-                return geo_err(GEO_STATUS_INVALID_PARAM, "相交需3个参与者");
-            res = graph_add_intersection(graph, p[0], p[1], p[2]);
-            break;
-        case GEO_CONSTRAINT_CONTAINMENT:
-            res = graph_add_containment(graph, p[0], p[1]);
-            break;
-        case GEO_CONSTRAINT_CONNECTION:
-            res = graph_add_connection(graph, p[0], p[1]);
-            break;
-        case GEO_CONSTRAINT_ANGLE:
-            if (n < 3)
-                return geo_err(GEO_STATUS_INVALID_PARAM, "角度需2条线段和角度值");
-            res = graph_add_angle(graph, p[0], p[1], (double)p[2]);
-            break;
-        default:
-            return geo_err(GEO_STATUS_INVALID_TYPE, "未知约束类型");
+static GeoResult geo_create_node_line_segment(ConstraintGraph *graph, const int *ids, int count) {
+    if (!ids || count < 2)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "线段需2个端点");
+    return geo_create_node_finish(graph_add_line_segment(graph, ids[0], ids[1]), graph);
+}
+
+static GeoResult geo_create_node_region(ConstraintGraph *graph, const int *ids, int count) {
+    if (!ids || count < 1)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "区域需边界线段");
+    return geo_create_node_finish(graph_add_region(graph, ids, count), graph);
+}
+
+static GeoResult geo_create_node_port(ConstraintGraph *graph, const int *ids, int count) {
+    if (!ids || count < 3)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "端口需3个参数");
+    return geo_create_node_finish(graph_add_port(graph, (PortType) ids[0], ids[1], ids[2]), graph);
+}
+
+static GeoResult geo_create_node_function_block(ConstraintGraph *graph, const int *ids, int count) {
+    (void)graph; (void)ids; (void)count;
+    return geo_err(GEO_STATUS_UNSUPPORTED, "函数块请使用 geo_pack");
+}
+
+/** @brief 节点类型 → 创建处理函数 查找表 */
+static GeoResult (*const s_node_handlers[])(ConstraintGraph *, const int *, int) = {
+    [GEO_NODE_POINT] = geo_create_node_point,
+    [GEO_NODE_LINE_SEGMENT] = geo_create_node_line_segment,
+    [GEO_NODE_REGION] = geo_create_node_region,
+    [GEO_NODE_PORT] = geo_create_node_port,
+    [GEO_NODE_FUNCTION_BLOCK] = geo_create_node_function_block,
+};
+
+/* 原语 1: geo_create_node -- 创建几何节点（POINT/LINE/REGION/PORT） */
+GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type, const int *ids, int count) {
+    CHECK_GRAPH(graph);
+    if ((int) type >= 0 && (size_t) type < lv_ARRAY_SIZE(s_node_handlers) && s_node_handlers[(int) type]) {
+        return s_node_handlers[(int) type](graph, ids, count);
     }
+    return geo_err(GEO_STATUS_INVALID_TYPE, "未知节点类型");
+}
+
+/* ── 约束创建辅助函数：将 AddConstraintResult 包装为 GeoResult ── */
+static GeoResult geo_create_constraint_finish(AddConstraintResult res) {
     if (res == ADD_CONSTRAINT_CONFLICT)
         return geo_err(GEO_STATUS_CONFLICT, "约束冲突");
     if (res == ADD_CONSTRAINT_DUPLICATE)
         return geo_err(GEO_STATUS_CONFLICT, "约束重复");
     return s_ok;
+}
+
+/* ── 各类型约束创建处理函数 ── */
+static GeoResult geo_create_constraint_incidence(ConstraintGraph *graph, const int *p, int n) {
+    (void)n;
+    return geo_create_constraint_finish(graph_add_incidence(graph, p[0], p[1]));
+}
+static GeoResult geo_create_constraint_betweenness(ConstraintGraph *graph, const int *p, int n) {
+    if (n < 3)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "之间需3个参与者");
+    return geo_create_constraint_finish(graph_add_betweenness(graph, p[0], p[1], p[2]));
+}
+static GeoResult geo_create_constraint_intersection(ConstraintGraph *graph, const int *p, int n) {
+    if (n < 3)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "相交需3个参与者");
+    return geo_create_constraint_finish(graph_add_intersection(graph, p[0], p[1], p[2]));
+}
+static GeoResult geo_create_constraint_containment(ConstraintGraph *graph, const int *p, int n) {
+    (void)n;
+    return geo_create_constraint_finish(graph_add_containment(graph, p[0], p[1]));
+}
+static GeoResult geo_create_constraint_connection(ConstraintGraph *graph, const int *p, int n) {
+    (void)n;
+    return geo_create_constraint_finish(graph_add_connection(graph, p[0], p[1]));
+}
+static GeoResult geo_create_constraint_angle(ConstraintGraph *graph, const int *p, int n) {
+    if (n < 3)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "角度需2条线段和角度值");
+    return geo_create_constraint_finish(graph_add_angle(graph, p[0], p[1], (double)p[2]));
+}
+
+/** @brief 约束类型 → 创建处理函数 查找表 */
+static GeoResult (*const s_constraint_handlers[])(ConstraintGraph *, const int *, int) = {
+    [GEO_CONSTRAINT_INCIDENCE] = geo_create_constraint_incidence,
+    [GEO_CONSTRAINT_BETWEENNESS] = geo_create_constraint_betweenness,
+    [GEO_CONSTRAINT_INTERSECTION] = geo_create_constraint_intersection,
+    [GEO_CONSTRAINT_CONTAINMENT] = geo_create_constraint_containment,
+    [GEO_CONSTRAINT_CONNECTION] = geo_create_constraint_connection,
+    [GEO_CONSTRAINT_ANGLE] = geo_create_constraint_angle,
+};
+
+/* 原语 2: geo_create_constraint -- 创建约束关系 */
+GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type, const int *p, int n) {
+    CHECK_GRAPH(graph);
+    if (!p || n < 2)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "参与者不足");
+    if ((int) type >= 0 && (size_t) type < lv_ARRAY_SIZE(s_constraint_handlers) && s_constraint_handlers[(int) type]) {
+        return s_constraint_handlers[(int) type](graph, p, n);
+    }
+    return geo_err(GEO_STATUS_INVALID_TYPE, "未知约束类型");
 }
 
 /* 原语 3: geo_solve -- 求解约束系统 */

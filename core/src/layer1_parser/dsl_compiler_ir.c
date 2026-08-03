@@ -95,6 +95,320 @@ static int ir_add_op(DslIR *ir, DslIROp op, int result_id, const int *operands, 
     return idx;
 }
 
+/* ================================================================
+ *  VTable-based dispatch for AST node compilation
+ * ================================================================ */
+
+/* Forward declaration needed by recursive handlers (constraint, block) */
+static bool compile_node(DslIR *ir, const DslAST *node, int *result_id);
+
+/** Function pointer type for compilation handlers */
+typedef bool (*CompileHandler)(DslIR *ir, const DslAST *node, int *result_id);
+
+/* ---- Simple declaration handlers ---- */
+
+static bool compile_point_decl(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    ir_add_op(ir, IR_CREATE_POINT, rid, NULL, 0, node->name, node->line);
+    if (node->name)
+        ir_add_symbol(ir, node->name, rid);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_line_decl(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    ir_add_op(ir, IR_CREATE_LINE, rid, NULL, 0, node->name, node->line);
+    if (node->name)
+        ir_add_symbol(ir, node->name, rid);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_circle_decl(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    ir_add_op(ir, IR_CREATE_CIRCLE, rid, NULL, 0, node->name, node->line);
+    if (node->name)
+        ir_add_symbol(ir, node->name, rid);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_segment_decl(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    ir_add_op(ir, IR_CREATE_SEGMENT, rid, NULL, 0, node->name, node->line);
+    if (node->name)
+        ir_add_symbol(ir, node->name, rid);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_ray_decl(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    ir_add_op(ir, IR_CREATE_RAY, rid, NULL, 0, node->name, node->line);
+    if (node->name)
+        ir_add_symbol(ir, node->name, rid);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_polygon_decl(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    ir_add_op(ir, IR_CREATE_POLYGON, rid, NULL, 0, node->name, node->line);
+    if (node->name)
+        ir_add_symbol(ir, node->name, rid);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_triangle_decl(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    ir_add_op(ir, IR_CREATE_TRIANGLE, rid, NULL, 0, node->name, node->line);
+    if (node->name)
+        ir_add_symbol(ir, node->name, rid);
+    *result_id = rid;
+    return true;
+}
+
+/* ---- Construction operation handlers ---- */
+
+static bool compile_intersect(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_INTERSECT, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_parallel(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_PARALLEL_THROUGH, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_perpendicular(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_PERPENDICULAR_THROUGH, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_midpoint(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_MIDPOINT_OF, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_circumcenter(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_CIRCUMCENTER_OF, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_orthocenter(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_ORTHOCENTER_OF, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_centroid(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_CENTROID_OF, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_incenter(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_INCENTER_OF, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_bisector(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count && oc < 8; i++) {
+        int child_rid = -1;
+        if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
+            child_rid = ir_find_symbol(ir, node->children[i]->name);
+        if (child_rid >= 0)
+            ops[oc++] = child_rid;
+    }
+    ir_add_op(ir, IR_BISECTOR_OF, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+/* ---- Special case handlers ---- */
+
+static bool compile_fix_point(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int operand_ids[2] = {-1, -1};
+    for (int i = 0; i < node->child_count && i < 2; i++) {
+        if (node->children[i]->type == DSL_AST_NUMBER) {
+            operand_ids[i] = (int) node->children[i]->num_value;
+        }
+    }
+    ir_add_op(ir, IR_CREATE_POINT_FIXED, rid, operand_ids, 2, node->name, node->line);
+    if (node->name)
+        ir_add_symbol(ir, node->name, rid);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_load(DslIR *ir, const DslAST *node, int *result_id) {
+    ir_add_op(ir, IR_LOAD_AXIOM, -1, NULL, 0, node->name, node->line);
+    *result_id = -1;
+    return true;
+}
+
+static bool compile_prove(DslIR *ir, const DslAST *node, int *result_id) {
+    ir_add_op(ir, IR_PROVE, -1, NULL, 0, node->name, node->line);
+    *result_id = -1;
+    return true;
+}
+
+static bool compile_constraint(DslIR *ir, const DslAST *node, int *result_id) {
+    int rid = ir->next_id;
+    int ops[8];
+    int oc = 0;
+    for (int i = 0; i < node->child_count; i++) {
+        DslAST *child = node->children[i];
+        if (!child)
+            continue;
+        if (child->type == DSL_AST_BLOCK) {
+            for (int j = 0; j < child->child_count; j++) {
+                int op_rid = -1;
+                compile_node(ir, child->children[j], &op_rid);
+            }
+        } else {
+            if (child->type == DSL_AST_IDENT && child->name && oc < 8) {
+                int sym_id = ir_find_symbol(ir, child->name);
+                if (sym_id >= 0)
+                    ops[oc++] = sym_id;
+            }
+        }
+    }
+    ir_add_op(ir, IR_ADD_CONSTRAINT, rid, oc > 0 ? ops : NULL, oc, NULL, node->line);
+    *result_id = rid;
+    return true;
+}
+
+static bool compile_block(DslIR *ir, const DslAST *node, int *result_id) {
+    for (int i = 0; i < node->child_count; i++) {
+        int inner_result = -1;
+        compile_node(ir, node->children[i], &inner_result);
+    }
+    *result_id = -1;
+    return true;
+}
+
+/* ---- VTable lookup table ---- */
+static CompileHandler s_compile_handlers[] = {
+    NULL,                   /* DSL_AST_PROGRAM (0) */
+    compile_point_decl,     /* DSL_AST_POINT_DECL */
+    compile_line_decl,      /* DSL_AST_LINE_DECL */
+    compile_circle_decl,    /* DSL_AST_CIRCLE_DECL */
+    compile_segment_decl,   /* DSL_AST_SEGMENT_DECL */
+    compile_ray_decl,       /* DSL_AST_RAY_DECL */
+    compile_polygon_decl,   /* DSL_AST_POLYGON_DECL */
+    compile_triangle_decl,  /* DSL_AST_TRIANGLE_DECL */
+    compile_intersect,      /* DSL_AST_INTERSECT */
+    compile_parallel,       /* DSL_AST_PARALLEL */
+    compile_perpendicular,  /* DSL_AST_PERPENDICULAR */
+    compile_midpoint,       /* DSL_AST_MIDPOINT */
+    compile_circumcenter,   /* DSL_AST_CIRCUMCENTER */
+    compile_orthocenter,    /* DSL_AST_ORTHOCENTER */
+    compile_centroid,       /* DSL_AST_CENTROID */
+    compile_incenter,       /* DSL_AST_INCENTER */
+    compile_bisector,       /* DSL_AST_BISECTOR */
+    compile_constraint,     /* DSL_AST_CONSTRAINT */
+    compile_prove,          /* DSL_AST_PROVE */
+    compile_load,           /* DSL_AST_LOAD */
+    compile_fix_point,      /* DSL_AST_FIX_POINT */
+    compile_point_decl,     /* DSL_AST_FREE_POINT (same as POINT_DECL) */
+    compile_block,          /* DSL_AST_BLOCK */
+    NULL,                   /* DSL_AST_IDENT */
+    NULL                    /* DSL_AST_NUMBER */
+};
+
 /**
  * @brief 递归编译 AST 节点为 IR 操作
  *
@@ -107,283 +421,12 @@ static bool compile_node(DslIR *ir, const DslAST *node, int *result_id) {
     if (!ir || !node)
         return false;
 
-    int line = node->line;
-    int rid = -1;
-
-    switch (node->type) {
-        /* ---- 几何原语声明 ---- */
-        case DSL_AST_POINT_DECL: {
-            rid = ir->next_id;
-            ir_add_op(ir, IR_CREATE_POINT, rid, NULL, 0, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        case DSL_AST_LINE_DECL: {
-            rid = ir->next_id;
-            ir_add_op(ir, IR_CREATE_LINE, rid, NULL, 0, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        case DSL_AST_CIRCLE_DECL: {
-            rid = ir->next_id;
-            ir_add_op(ir, IR_CREATE_CIRCLE, rid, NULL, 0, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        case DSL_AST_SEGMENT_DECL: {
-            rid = ir->next_id;
-            ir_add_op(ir, IR_CREATE_SEGMENT, rid, NULL, 0, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        case DSL_AST_RAY_DECL: {
-            rid = ir->next_id;
-            ir_add_op(ir, IR_CREATE_RAY, rid, NULL, 0, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        case DSL_AST_POLYGON_DECL: {
-            rid = ir->next_id;
-            ir_add_op(ir, IR_CREATE_POLYGON, rid, NULL, 0, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        case DSL_AST_TRIANGLE_DECL: {
-            rid = ir->next_id;
-            ir_add_op(ir, IR_CREATE_TRIANGLE, rid, NULL, 0, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        /* ---- 构造操作 ---- */
-        case DSL_AST_INTERSECT: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_INTERSECT, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        case DSL_AST_PARALLEL: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_PARALLEL_THROUGH, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        case DSL_AST_PERPENDICULAR: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_PERPENDICULAR_THROUGH, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        case DSL_AST_MIDPOINT: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_MIDPOINT_OF, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        case DSL_AST_CIRCUMCENTER: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_CIRCUMCENTER_OF, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        case DSL_AST_ORTHOCENTER: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_ORTHOCENTER_OF, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        case DSL_AST_CENTROID: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_CENTROID_OF, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        case DSL_AST_INCENTER: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_INCENTER_OF, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        case DSL_AST_BISECTOR: {
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count && oc < 8; i++) {
-                int child_rid = -1;
-                if (node->children[i]->type == DSL_AST_IDENT && node->children[i]->name)
-                    child_rid = ir_find_symbol(ir, node->children[i]->name);
-                if (child_rid >= 0)
-                    ops[oc++] = child_rid;
-            }
-            ir_add_op(ir, IR_BISECTOR_OF, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        /* ---- fix / free ---- */
-        case DSL_AST_FIX_POINT: {
-            rid = ir->next_id;
-            /* 将坐标作为数值操作数 */
-            int operand_ids[2] = {-1, -1};
-            for (int i = 0; i < node->child_count && i < 2; i++) {
-                if (node->children[i]->type == DSL_AST_NUMBER) {
-                    /* 数值直接编码为操作数的 IR ID（后续 IR loader 解释） */
-                    operand_ids[i] = (int) node->children[i]->num_value;
-                }
-            }
-            ir_add_op(ir, IR_CREATE_POINT_FIXED, rid, operand_ids, 2, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        case DSL_AST_FREE_POINT: {
-            rid = ir->next_id;
-            ir_add_op(ir, IR_CREATE_POINT, rid, NULL, 0, node->name, line);
-            if (node->name)
-                ir_add_symbol(ir, node->name, rid);
-            break;
-        }
-
-        /* ---- load / prove ---- */
-        case DSL_AST_LOAD: {
-            ir_add_op(ir, IR_LOAD_AXIOM, -1, NULL, 0, node->name, line);
-            break;
-        }
-
-        case DSL_AST_PROVE: {
-            ir_add_op(ir, IR_PROVE, -1, NULL, 0, node->name, line);
-            break;
-        }
-
-        /* ---- constraint ---- */
-        case DSL_AST_CONSTRAINT: {
-            /* constraint { ... } 块内的子语句展开为约束操作 */
-            rid = ir->next_id;
-            int ops[8];
-            int oc = 0;
-            for (int i = 0; i < node->child_count; i++) {
-                DslAST *child = node->children[i];
-                if (!child)
-                    continue;
-                if (child->type == DSL_AST_BLOCK) {
-                    for (int j = 0; j < child->child_count; j++) {
-                        int op_rid = -1;
-                        compile_node(ir, child->children[j], &op_rid);
-                    }
-                } else {
-                    /* 标识符引用：在约束类型选择中使用 */
-                    if (child->type == DSL_AST_IDENT && child->name && oc < 8) {
-                        int sym_id = ir_find_symbol(ir, child->name);
-                        if (sym_id >= 0)
-                            ops[oc++] = sym_id;
-                    }
-                }
-            }
-            ir_add_op(ir, IR_ADD_CONSTRAINT, rid, oc > 0 ? ops : NULL, oc, NULL, line);
-            break;
-        }
-
-        /* ---- block ---- */
-        case DSL_AST_BLOCK: {
-            for (int i = 0; i < node->child_count; i++) {
-                int inner_result = -1;
-                compile_node(ir, node->children[i], &inner_result);
-            }
-            break;
-        }
-
-        default:
-            return false;
+    if ((size_t)node->type < sizeof(s_compile_handlers) / sizeof(s_compile_handlers[0])) {
+        CompileHandler handler = s_compile_handlers[node->type];
+        if (handler)
+            return handler(ir, node, result_id);
     }
-
-    if (result_id)
-        *result_id = rid;
-    return true;
+    return false;
 }
 
 /**

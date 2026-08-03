@@ -427,6 +427,282 @@ int lv_session_run(lvSession *session, const char *input) {
     return 0;
 }
 
+/* 函数指针类型：阶段处理函数 */
+typedef int (*StageHandler)(lvSession *session, int stage);
+
+/* ── 阶段处理函数 ── */
+
+/**
+ * @brief 解析阶段处理（单阶段执行）
+ */
+static int handle_stage_parse(lvSession *session, int stage) {
+    /*
+     * 解析阶段（单阶段执行）：验证输入并统计行数/标记数。
+     * 注意：单阶段执行时，原始输入字符串可能无法从 session 中获取，
+     * 因此回退使用会话名称作为模拟输入源。
+     */
+    clock_t t0 = clock();
+
+    int simulated_tokens = 0;
+    int simulated_lines = 1;
+    /* 使用会话名称作为模拟输入（单阶段调用时可能无原始输入） */
+    const char *sim_input = session->session_name;
+    if (sim_input && sim_input[0] != '\0') {
+        int len = (int) strlen(sim_input);
+        int in_tok = 0;
+        for (int i = 0; i < len; i++) {
+            if (sim_input[i] == '\n') {
+                simulated_lines++;
+                in_tok = 0;
+            } else if (sim_input[i] == ' ' || sim_input[i] == '\t') {
+                in_tok = 0;
+            } else {
+                if (!in_tok) {
+                    simulated_tokens++;
+                    in_tok = 1;
+                }
+            }
+        }
+    } else {
+        simulated_tokens = 1;
+    }
+
+    double elapsed = lv_clock_elapsed_ms(t0);
+    if (elapsed < 0.1)
+        elapsed = 0.5 + simulated_tokens * 0.01;
+
+    snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+             "解析完成(单阶段): %d 行, %d 标记", simulated_lines, simulated_tokens);
+    session->stages[stage].elapsed_ms = elapsed;
+    session->stages[stage].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+/**
+ * @brief 资源阶段处理（单阶段执行）
+ */
+static int handle_stage_resource(lvSession *session, int stage) {
+    /* 资源阶段（单阶段执行）：根据配置计算所需资源单元数 */
+    clock_t t0 = clock();
+
+    int resource_count = 3; /* 基础资源：上下文 + 内存池 + 类型系统 */
+    resource_count += session->config.max_reasoning_depth / 20;
+    if (strcmp(session->config.input_format, "lv-dsl") == 0)
+        resource_count += 2;
+
+    double elapsed = lv_clock_elapsed_ms(t0);
+    if (elapsed < 0.05)
+        elapsed = 0.5;
+
+    snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+             "资源就绪(单阶段): %d 个资源单元", resource_count);
+    session->stages[stage].elapsed_ms = elapsed;
+    session->stages[stage].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+/**
+ * @brief 几何阶段处理（单阶段执行）
+ */
+static int handle_stage_geometry(lvSession *session, int stage) {
+    /*
+     * 几何阶段（单阶段执行）：从解析阶段的消息中提取标记数，
+     * 按比例估算几何对象数量（每 3 个标记约对应 1 个几何对象）。
+     */
+    clock_t t0 = clock();
+
+    int geo_obj_count = 0;
+    /* 从解析阶段消息中提取标记数来估算几何对象 */
+    const char *parse_msg = session->stages[lv_STAGE_PARSE].error_msg;
+    if (parse_msg) {
+        const char *p = strstr(parse_msg, "标记");
+        if (p) {
+            const char *num_start = p;
+            while (num_start > parse_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
+                num_start--;
+            if (num_start < p) {
+                int tokens = lv_parse_int_default(num_start, 0);
+                geo_obj_count = tokens > 0 ? (tokens + 2) / 3 : 1;
+            }
+        }
+    }
+    if (geo_obj_count == 0)
+        geo_obj_count = 1;
+
+    double elapsed = lv_clock_elapsed_ms(t0);
+    if (elapsed < 0.1)
+        elapsed = 1.0 + geo_obj_count * 0.1;
+
+    snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+             "几何构造完成(单阶段): %d 个几何对象", geo_obj_count);
+    session->stages[stage].elapsed_ms = elapsed;
+    session->stages[stage].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+/**
+ * @brief 推理阶段处理（单阶段执行）
+ */
+static int handle_stage_reasoning(lvSession *session, int stage) {
+    /*
+     * 推理阶段（单阶段执行）：调用多策略证明引擎。
+     * 若引擎/导航器/命题创建失败，降级为模拟推理并返回成功（标记为模拟模式），
+     * 避免单阶段调用因底层组件不可用而阻塞。
+     */
+    clock_t t0 = clock();
+
+    int reasoning_ok = 0;
+    Proposition *target = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
+    if (target) {
+        ProofNavigator *nav = proof_navigator_create(target, NULL);
+        if (nav) {
+            ProofMultiStrategy *mse = proof_multi_strategy_create(nav);
+            if (mse) {
+                ProofStrategyType result = proof_multi_strategy_try_all(mse);
+                reasoning_ok = (result != PROOF_STRATEGY_COUNT);
+
+                int total_attempts = 0, success_count = 0;
+                proof_multi_strategy_get_stats(mse, &total_attempts, &success_count);
+
+                double elapsed = lv_clock_elapsed_ms(t0);
+                if (elapsed < 1.0)
+                    elapsed = 5.0 + total_attempts * 2.0;
+
+                snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+                         "推理完成(单阶段): %s (尝试 %d, 成功 %d)", reasoning_ok ? "已证明" : "未找到证明",
+                         total_attempts, success_count);
+                session->stages[stage].elapsed_ms = elapsed;
+
+                proof_multi_strategy_destroy(mse);
+            } else {
+                /* 多策略引擎创建失败，降级为模拟模式 */
+                double elapsed = lv_clock_elapsed_ms(t0);
+                if (elapsed < 1.0)
+                    elapsed = 10.0;
+                reasoning_ok = 1;
+                snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+                         "推理完成(模拟/单阶段): 多策略引擎不可用");
+                session->stages[stage].elapsed_ms = elapsed;
+            }
+            proof_navigator_destroy(nav);
+        } else {
+            /* 导航器创建失败，降级为模拟模式 */
+            double elapsed = lv_clock_elapsed_ms(t0);
+            if (elapsed < 1.0)
+                elapsed = 10.0;
+            reasoning_ok = 1;
+            snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+                     "推理完成(模拟/单阶段): 导航器不可用");
+            session->stages[stage].elapsed_ms = elapsed;
+        }
+        proposition_destroy(target);
+    } else {
+        /* 命题创建失败，降级为模拟模式 */
+        double elapsed = lv_clock_elapsed_ms(t0);
+        if (elapsed < 1.0)
+            elapsed = 10.0;
+        reasoning_ok = 1;
+        snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+                 "推理完成(模拟/单阶段): 命题创建不可用");
+        session->stages[stage].elapsed_ms = elapsed;
+    }
+
+    if (reasoning_ok) {
+        session->stages[stage].status = lv_STAGE_COMPLETED;
+        return 0;
+    } else {
+        session->stages[stage].status = lv_STAGE_FAILED;
+        snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+                 "推理失败(单阶段): 所有策略均未找到证明");
+        return -1;
+    }
+}
+
+/**
+ * @brief 输出阶段处理（单阶段执行）
+ */
+static int handle_stage_output(lvSession *session, int stage) {
+    /* 输出阶段（单阶段执行）：根据配置的输出格式，估算生成的输出大小 */
+    clock_t t0 = clock();
+
+    int output_len = 0;
+    const char *format = session->config.output_format;
+    if (strcmp(format, "proof") == 0)
+        output_len = ORCH_OUTPUT_BASE_PROOF + session->config.max_reasoning_depth;
+    else if (strcmp(format, "latex") == 0)
+        output_len = ORCH_OUTPUT_BASE_LATEX + session->config.max_reasoning_depth * 2;
+    else if (strcmp(format, "html") == 0)
+        output_len = ORCH_OUTPUT_BASE_HTML + session->config.max_reasoning_depth * 4;
+    else
+        output_len = ORCH_OUTPUT_BASE_DEFAULT;
+
+    double elapsed = lv_clock_elapsed_ms(t0);
+    if (elapsed < 0.05)
+        elapsed = 1.0 + output_len * 0.001;
+
+    snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+             "输出生成完成(单阶段): 格式=%s, 预估 %d 字节", format, output_len);
+    session->stages[stage].elapsed_ms = elapsed;
+    session->stages[stage].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+/**
+ * @brief 可视化阶段处理（单阶段执行）
+ */
+static int handle_stage_visual(lvSession *session, int stage) {
+    /* 可视化阶段（单阶段执行）：若启用，从几何阶段消息中提取对象数并设置画布 */
+    if (session->config.enable_visualization) {
+        clock_t t0 = clock();
+
+        int obj_count = 1;
+        /* 从几何阶段的 error_msg 中提取对象数量 */
+        const char *geo_msg = session->stages[lv_STAGE_GEOMETRY].error_msg;
+        if (geo_msg) {
+            const char *p = strstr(geo_msg, "个几何对象");
+            if (p) {
+                const char *num_start = p;
+                while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
+                    num_start--;
+                if (num_start < p)
+                    obj_count = lv_parse_int_default(num_start, 0);
+            }
+        }
+        if (obj_count <= 0)
+            obj_count = 1;
+
+        double elapsed = lv_clock_elapsed_ms(t0);
+        if (elapsed < 0.1)
+            elapsed = 3.0 + obj_count * 0.5;
+
+        snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
+                 "可视化就绪(单阶段): 画布 %dx%d, %d 个对象", ORCH_CANVAS_DEFAULT_W, ORCH_CANVAS_DEFAULT_H,
+                 obj_count);
+        session->stages[stage].elapsed_ms = elapsed;
+        session->stages[stage].status = lv_STAGE_COMPLETED;
+    } else {
+        /* 可视化未启用，跳过 */
+        session->stages[stage].status = lv_STAGE_SKIPPED;
+    }
+    return 0;
+}
+
+/* ── VTable：阶段到处理函数的映射表 ── */
+typedef struct {
+    int stage;
+    StageHandler handler;
+} StageHandlerEntry;
+
+static const StageHandlerEntry kStageHandlers[] = {
+    {lv_STAGE_PARSE,     handle_stage_parse},
+    {lv_STAGE_RESOURCE,  handle_stage_resource},
+    {lv_STAGE_GEOMETRY,  handle_stage_geometry},
+    {lv_STAGE_REASONING, handle_stage_reasoning},
+    {lv_STAGE_OUTPUT,    handle_stage_output},
+    {lv_STAGE_VISUAL,    handle_stage_visual},
+};
+static const int kStageHandlerCount = (int)(sizeof(kStageHandlers) / sizeof(kStageHandlers[0]));
+
 /**
  * @brief 运行会话的指定阶段
  *
@@ -451,252 +727,21 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
         }
     }
 
-    /* 按阶段类型分发执行 */
+    /* 按阶段类型分发执行：通过 VTable 查找匹配的处理函数 */
     int rc = 0;
-    switch (stage) {
-        case lv_STAGE_PARSE: {
-            /*
-         * 解析阶段（单阶段执行）：验证输入并统计行数/标记数。
-         * 注意：单阶段执行时，原始输入字符串可能无法从 session 中获取，
-         * 因此回退使用会话名称作为模拟输入源。
-         */
-            clock_t t0 = clock();
-
-            int simulated_tokens = 0;
-            int simulated_lines = 1;
-            /* 使用会话名称作为模拟输入（单阶段调用时可能无原始输入） */
-            const char *sim_input = session->session_name;
-            if (sim_input && sim_input[0] != '\0') {
-                int len = (int) strlen(sim_input);
-                int in_tok = 0;
-                for (int i = 0; i < len; i++) {
-                    if (sim_input[i] == '\n') {
-                        simulated_lines++;
-                        in_tok = 0;
-                    } else if (sim_input[i] == ' ' || sim_input[i] == '\t') {
-                        in_tok = 0;
-                    } else {
-                        if (!in_tok) {
-                            simulated_tokens++;
-                            in_tok = 1;
-                        }
-                    }
-                }
-            } else {
-                simulated_tokens = 1;
-            }
-
-            double elapsed = lv_clock_elapsed_ms(t0);
-            if (elapsed < 0.1)
-                elapsed = 0.5 + simulated_tokens * 0.01;
-
-            snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                     "解析完成(单阶段): %d 行, %d 标记", simulated_lines, simulated_tokens);
-            session->stages[stage].elapsed_ms = elapsed;
-            session->stages[stage].status = lv_STAGE_COMPLETED;
+    int found = 0;
+    for (int i = 0; i < kStageHandlerCount; i++) {
+        if (kStageHandlers[i].stage == stage) {
+            rc = kStageHandlers[i].handler(session, stage);
+            found = 1;
             break;
         }
-
-        case lv_STAGE_RESOURCE: {
-            /* 资源阶段（单阶段执行）：根据配置计算所需资源单元数 */
-            clock_t t0 = clock();
-
-            int resource_count = 3; /* 基础资源：上下文 + 内存池 + 类型系统 */
-            resource_count += session->config.max_reasoning_depth / 20;
-            if (strcmp(session->config.input_format, "lv-dsl") == 0)
-                resource_count += 2;
-
-            double elapsed = lv_clock_elapsed_ms(t0);
-            if (elapsed < 0.05)
-                elapsed = 0.5;
-
-            snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                     "资源就绪(单阶段): %d 个资源单元", resource_count);
-            session->stages[stage].elapsed_ms = elapsed;
-            session->stages[stage].status = lv_STAGE_COMPLETED;
-            break;
-        }
-
-        case lv_STAGE_GEOMETRY: {
-            /*
-         * 几何阶段（单阶段执行）：从解析阶段的消息中提取标记数，
-         * 按比例估算几何对象数量（每 3 个标记约对应 1 个几何对象）。
-         */
-            clock_t t0 = clock();
-
-            int geo_obj_count = 0;
-            /* 从解析阶段消息中提取标记数来估算几何对象 */
-            const char *parse_msg = session->stages[lv_STAGE_PARSE].error_msg;
-            if (parse_msg) {
-                const char *p = strstr(parse_msg, "标记");
-                if (p) {
-                    const char *num_start = p;
-                    while (num_start > parse_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
-                        num_start--;
-                    if (num_start < p) {
-                        int tokens = lv_parse_int_default(num_start, 0);
-                        geo_obj_count = tokens > 0 ? (tokens + 2) / 3 : 1;
-                    }
-                }
-            }
-            if (geo_obj_count == 0)
-                geo_obj_count = 1;
-
-            double elapsed = lv_clock_elapsed_ms(t0);
-            if (elapsed < 0.1)
-                elapsed = 1.0 + geo_obj_count * 0.1;
-
-            snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                     "几何构造完成(单阶段): %d 个几何对象", geo_obj_count);
-            session->stages[stage].elapsed_ms = elapsed;
-            session->stages[stage].status = lv_STAGE_COMPLETED;
-            break;
-        }
-
-        case lv_STAGE_REASONING: {
-            /*
-         * 推理阶段（单阶段执行）：调用多策略证明引擎。
-         * 若引擎/导航器/命题创建失败，降级为模拟推理并返回成功（标记为模拟模式），
-         * 避免单阶段调用因底层组件不可用而阻塞。
-         */
-            clock_t t0 = clock();
-
-            int reasoning_ok = 0;
-            Proposition *target = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
-            if (target) {
-                ProofNavigator *nav = proof_navigator_create(target, NULL);
-                if (nav) {
-                    ProofMultiStrategy *mse = proof_multi_strategy_create(nav);
-                    if (mse) {
-                        ProofStrategyType result = proof_multi_strategy_try_all(mse);
-                        reasoning_ok = (result != PROOF_STRATEGY_COUNT);
-
-                        int total_attempts = 0, success_count = 0;
-                        proof_multi_strategy_get_stats(mse, &total_attempts, &success_count);
-
-                        double elapsed = lv_clock_elapsed_ms(t0);
-                        if (elapsed < 1.0)
-                            elapsed = 5.0 + total_attempts * 2.0;
-
-                        snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                                 "推理完成(单阶段): %s (尝试 %d, 成功 %d)", reasoning_ok ? "已证明" : "未找到证明",
-                                 total_attempts, success_count);
-                        session->stages[stage].elapsed_ms = elapsed;
-
-                        proof_multi_strategy_destroy(mse);
-                    } else {
-                        /* 多策略引擎创建失败，降级为模拟模式 */
-                        double elapsed = lv_clock_elapsed_ms(t0);
-                        if (elapsed < 1.0)
-                            elapsed = 10.0;
-                        reasoning_ok = 1;
-                        snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                                 "推理完成(模拟/单阶段): 多策略引擎不可用");
-                        session->stages[stage].elapsed_ms = elapsed;
-                    }
-                    proof_navigator_destroy(nav);
-                } else {
-                    /* 导航器创建失败，降级为模拟模式 */
-                    double elapsed = lv_clock_elapsed_ms(t0);
-                    if (elapsed < 1.0)
-                        elapsed = 10.0;
-                    reasoning_ok = 1;
-                    snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                             "推理完成(模拟/单阶段): 导航器不可用");
-                    session->stages[stage].elapsed_ms = elapsed;
-                }
-                proposition_destroy(target);
-            } else {
-                /* 命题创建失败，降级为模拟模式 */
-                double elapsed = lv_clock_elapsed_ms(t0);
-                if (elapsed < 1.0)
-                    elapsed = 10.0;
-                reasoning_ok = 1;
-                snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                         "推理完成(模拟/单阶段): 命题创建不可用");
-                session->stages[stage].elapsed_ms = elapsed;
-            }
-
-            if (reasoning_ok) {
-                session->stages[stage].status = lv_STAGE_COMPLETED;
-            } else {
-                session->stages[stage].status = lv_STAGE_FAILED;
-                snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                         "推理失败(单阶段): 所有策略均未找到证明");
-                rc = -1;
-            }
-            break;
-        }
-
-        case lv_STAGE_OUTPUT: {
-            /* 输出阶段（单阶段执行）：根据配置的输出格式，估算生成的输出大小 */
-            clock_t t0 = clock();
-
-            int output_len = 0;
-            const char *format = session->config.output_format;
-            if (strcmp(format, "proof") == 0)
-                output_len = ORCH_OUTPUT_BASE_PROOF + session->config.max_reasoning_depth;
-            else if (strcmp(format, "latex") == 0)
-                output_len = ORCH_OUTPUT_BASE_LATEX + session->config.max_reasoning_depth * 2;
-            else if (strcmp(format, "html") == 0)
-                output_len = ORCH_OUTPUT_BASE_HTML + session->config.max_reasoning_depth * 4;
-            else
-                output_len = ORCH_OUTPUT_BASE_DEFAULT;
-
-            double elapsed = lv_clock_elapsed_ms(t0);
-            if (elapsed < 0.05)
-                elapsed = 1.0 + output_len * 0.001;
-
-            snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                     "输出生成完成(单阶段): 格式=%s, 预估 %d 字节", format, output_len);
-            session->stages[stage].elapsed_ms = elapsed;
-            session->stages[stage].status = lv_STAGE_COMPLETED;
-            break;
-        }
-
-        case lv_STAGE_VISUAL: {
-            /* 可视化阶段（单阶段执行）：若启用，从几何阶段消息中提取对象数并设置画布 */
-            if (session->config.enable_visualization) {
-                clock_t t0 = clock();
-
-                int obj_count = 1;
-                /* 从几何阶段的 error_msg 中提取对象数量 */
-                const char *geo_msg = session->stages[lv_STAGE_GEOMETRY].error_msg;
-                if (geo_msg) {
-                    const char *p = strstr(geo_msg, "个几何对象");
-                    if (p) {
-                        const char *num_start = p;
-                        while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
-                            num_start--;
-                        if (num_start < p)
-                            obj_count = lv_parse_int_default(num_start, 0);
-                    }
-                }
-                if (obj_count <= 0)
-                    obj_count = 1;
-
-                double elapsed = lv_clock_elapsed_ms(t0);
-                if (elapsed < 0.1)
-                    elapsed = 3.0 + obj_count * 0.5;
-
-                snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
-                         "可视化就绪(单阶段): 画布 %dx%d, %d 个对象", ORCH_CANVAS_DEFAULT_W, ORCH_CANVAS_DEFAULT_H,
-                         obj_count);
-                session->stages[stage].elapsed_ms = elapsed;
-                session->stages[stage].status = lv_STAGE_COMPLETED;
-            } else {
-                /* 可视化未启用，跳过 */
-                session->stages[stage].status = lv_STAGE_SKIPPED;
-            }
-            break;
-        }
-
-        default:
-            /* 未知阶段标识，视为内部错误 */
-            session->stages[stage].status = lv_STAGE_FAILED;
-            snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg), "未知阶段: %d", stage);
-            rc = -1;
-            break;
+    }
+    if (!found) {
+        /* 未知阶段标识，视为内部错误 */
+        session->stages[stage].status = lv_STAGE_FAILED;
+        snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg), "未知阶段: %d", stage);
+        rc = -1;
     }
 
     return rc;

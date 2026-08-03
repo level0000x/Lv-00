@@ -1153,6 +1153,21 @@ void type_system_clear_inference_rules(TypeSystem *ts) {
     /* 不释放内存，保留容量以供后续注册使用 */
 }
 
+/* ── 局部包装函数：将 type_create_* 统一为 (TypeSystem*) → TypeRegion* 签名 ── */
+static TypeRegion *type_create_region_wrapper(TypeSystem *ts) { return type_create_region(ts, NULL, 0); }
+static TypeRegion *type_create_function_wrapper(TypeSystem *ts) { return type_create_function(ts, NULL, NULL); }
+static TypeRegion *type_create_variable_wrapper(TypeSystem *ts) { return type_create_variable(ts, NULL); }
+
+/** @brief 类型种类 → 创建函数 查找表（按 TypeKind 枚举值索引，未使用的条目为 NULL） */
+static TypeRegion *(*const s_type_kind_creators[])(TypeSystem *) = {
+    [TYPE_KIND_POINT] = type_create_point,
+    [TYPE_KIND_LINE_SEGMENT] = type_create_line_segment,
+    [TYPE_KIND_REGION] = type_create_region_wrapper,
+    [TYPE_KIND_FUNCTION] = type_create_function_wrapper,
+    [TYPE_KIND_VARIABLE] = type_create_variable_wrapper,
+    [TYPE_KIND_BOTTOM] = type_create_bottom,
+};
+
 /**
  * @brief 基于规则表的类型推断
  *
@@ -1180,37 +1195,14 @@ TypeEquivResult type_infer_by_rules(TypeSystem *ts, ConstraintGraph *graph, int 
             continue;
         }
 
-        /* 匹配成功：根据 target_type_kind 创建对应类型 */
+        /* 匹配成功：根据 target_type_kind 查表创建对应类型 */
         TypeRegion *type = NULL;
-
-        switch (rule->target_type_kind) {
-            case TYPE_KIND_POINT:
-                type = type_create_point(ts);
-                break;
-
-            case TYPE_KIND_LINE_SEGMENT:
-                type = type_create_line_segment(ts);
-                break;
-
-            case TYPE_KIND_REGION:
-                type = type_create_region(ts, NULL, 0);
-                break;
-
-            case TYPE_KIND_FUNCTION:
-                type = type_create_function(ts, NULL, NULL);
-                break;
-
-            case TYPE_KIND_VARIABLE:
-                type = type_create_variable(ts, NULL);
-                break;
-
-            case TYPE_KIND_BOTTOM:
-                type = type_create_bottom(ts);
-                break;
-
-            default:
-                /* 不支持的类型种类，跳过此规则 */
-                continue;
+        int kind = rule->target_type_kind;
+        if (kind >= 0 && (size_t) kind < lv_ARRAY_SIZE(s_type_kind_creators) && s_type_kind_creators[kind]) {
+            type = s_type_kind_creators[kind](ts);
+        } else {
+            /* 不支持的类型种类，跳过此规则 */
+            continue;
         }
 
         if (!type)
