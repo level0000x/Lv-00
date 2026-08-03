@@ -1,4 +1,4 @@
-﻿#ifndef lv_GROEBNER_PARALLEL_H
+#ifndef lv_GROEBNER_PARALLEL_H
 #define lv_GROEBNER_PARALLEL_H
 
 #include "lv/type_system.h"
@@ -36,6 +36,7 @@ typedef struct lvGroebnerParallel {
 
     /* Thread pool */
     void *thread_pool;
+    int thread_count; /**< 实际使用的线程数 */
 
     /* Result */
     void **groebner_basis;

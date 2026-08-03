@@ -27,6 +27,66 @@
 extern bool evaluate_precondition(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *match);
 /* ---- 模式匹配辅助函数 ---- */
 
+/* 模式变量类型推导：根据模式约束的参与者槽位，推导每个模式变量
+ * 可绑定的 GeomType 集合。类型约束与 graph_index.c 中 typed add_*
+ * 系列的类型校验保持一致：
+ *   INCIDENCE:    [0]=POINT, [1]=LINE_SEGMENT/REGION/CIRCLE
+ *   BETWEENNESS:  全部为 POINT
+ *   INTERSECTION: [0][1]=LINE_SEGMENT, [2]=POINT
+ *   CONTAINMENT:  [0]=POINT/REGION, [1]=REGION/CIRCLE
+ *   CONNECTION:   全部为 PORT
+ *   ANGLE:        全部为 LINE_SEGMENT
+ */
+
+#define REWRITE_GEOM_TYPE_COUNT 6
+
+static unsigned rewrite_constraint_participant_type_mask(ConstraintType type, int position) {
+    switch (type) {
+        case INCIDENCE:
+            return (position == 0) ? (1u << GEOM_POINT)
+                                   : ((1u << GEOM_LINE_SEGMENT) | (1u << GEOM_REGION) | (1u << GEOM_CIRCLE));
+        case BETWEENNESS:
+            return 1u << GEOM_POINT;
+        case INTERSECTION:
+            return (position < 2) ? (1u << GEOM_LINE_SEGMENT) : (1u << GEOM_POINT);
+        case CONTAINMENT:
+            return (position == 0) ? ((1u << GEOM_POINT) | (1u << GEOM_REGION))
+                                   : ((1u << GEOM_REGION) | (1u << GEOM_CIRCLE));
+        case CONNECTION:
+            return 1u << GEOM_PORT;
+        case ANGLE:
+            return 1u << GEOM_LINE_SEGMENT;
+        default:
+            return (1u << REWRITE_GEOM_TYPE_COUNT) - 1u;
+    }
+}
+
+static void rewrite_pattern_var_type_masks(const RewritePattern *pat, unsigned *masks, int var_count) {
+    const unsigned all_types = (1u << REWRITE_GEOM_TYPE_COUNT) - 1u;
+    for (int j = 0; j < var_count; j++)
+        masks[j] = all_types;
+    for (int c = 0; c < pat->pattern_constraint_count; c++) {
+        Constraint *pc = pat->pattern_constraints[c];
+        if (!pc)
+            continue;
+        for (int p = 0; p < pc->participant_count; p++) {
+            int pid = pc->participants[p];
+            if (pid >= 0)
+                continue;
+            int slot = -1;
+            for (int j = 0; j < var_count; j++) {
+                if (pat->variable_node_ids[j] == pid) {
+                    slot = j;
+                    break;
+                }
+            }
+            if (slot < 0)
+                continue;
+            masks[slot] &= rewrite_constraint_participant_type_mask(pc->type, p);
+        }
+    }
+}
+
 static bool pattern_var_matches_node(int pattern_var_id, GeomNode *graph_node, const int *bindings, int binding_count) {
     if (pattern_var_id >= 0) {
         return pattern_var_id == graph_node->id;
@@ -91,6 +151,11 @@ static bool pattern_constraint_matches(Constraint *pattern, Constraint *graph_co
  */
 RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool local_equivalence_tolerant) {
     RewritePattern *pat = rule->pattern;
+
+    /* 空图上不存在任何匹配 */
+    if (!graph || graph->node_count == 0)
+        return NULL;
+
     RewriteMatch *match = lv_calloc(1, sizeof(RewriteMatch));
     if (!match)
         return NULL;
@@ -107,6 +172,22 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
     }
     match->binding_count = 0;
     int binding_count = 0;
+
+    /* 推导每个模式变量可绑定的节点类型集合（依据模式约束的参与者槽位）。
+     * 使 Phase 1 绑定具备类型感知能力：例如 INCIDENCE 的 participants[1]
+     * 槽位只会接受 LINE_SEGMENT/REGION/CIRCLE，避免把线段变量错误地
+     * 绑定到 POINT 节点上。 */
+    unsigned *type_masks = NULL;
+    if (pat->var_count > 0) {
+        type_masks = lv_malloc((size_t) pat->var_count * sizeof(unsigned));
+        if (!type_masks) {
+            lv_free((void **) &match->node_bindings);
+            lv_free((void **) &match->constraint_bindings);
+            lv_free((void **) &match);
+            return NULL;
+        }
+        rewrite_pattern_var_type_masks(pat, type_masks, pat->var_count);
+    }
 
     /* --- Phase 1: bind pattern variables to graph nodes --- */
     for (int j = 0; j < pat->var_count; j++) {
@@ -148,6 +229,12 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
                 }
             }
             if (was_bound)
+                continue;
+
+            /* 类型兼容性检查：模式变量只能绑定其允许的 GeomType */
+            if (gn->type < 0 || gn->type >= REWRITE_GEOM_TYPE_COUNT)
+                continue;
+            if (!(type_masks[j] & (1u << (unsigned) gn->type)))
                 continue;
 
             /* 在 local_equivalence_tolerant 模式下，对于 POINT 节点，
@@ -195,6 +282,7 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
 
         if (!bound) {
             /* 无法绑定此模式变量 */
+            lv_free((void **) &type_masks);
             lv_free((void **) &match->node_bindings);
             lv_free((void **) &match->constraint_bindings);
             lv_free((void **) &match);
@@ -225,6 +313,7 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
     lv_free((void **) &pattern_con_matched);
 
     if (constraint_match_count != pat->pattern_constraint_count) {
+        lv_free((void **) &type_masks);
         lv_free((void **) &match->node_bindings);
         lv_free((void **) &match->constraint_bindings);
         lv_free((void **) &match);
@@ -238,6 +327,7 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
      * 此处应使用 binding_count，因为后续代码依赖 binding_count 来遍历
      * node_bindings 数组中的绑定对。 */
     match->binding_count = binding_count;
+    lv_free((void **) &type_masks);
     return match;
 }
 

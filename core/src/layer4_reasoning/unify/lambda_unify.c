@@ -53,28 +53,32 @@ static LambdaSubstitution *add_substitution_head(LambdaSubstitution **list,
  * 扫描 λ-项树的所有节点，判断 De Bruijn 索引 index 是否作为自由变量出现。
  * 如果替换链中有替换项，需要展开后检查。
  */
-static bool occurs_check_rec(int index, LvLambdaTerm *term, LambdaSubstitution *subs) {
+static bool occurs_check_rec(int index, LvLambdaTerm *term,
+                             LambdaSubstitution *subs, int binder_depth) {
     if (!term) return false;
 
     switch (term->type) {
     case LV_LAMBDA_VAR:
+        /* 受 binder 绑定的变量（index < binder_depth）不是自由出现，跳过 */
+        if (term->data.var.index < binder_depth) {
+            return false;
+        }
         if (term->data.var.index == index) return true;
         {
             LvLambdaTerm *replacement = find_substitution(subs, term->data.var.index);
             if (replacement) {
-                return occurs_check_rec(index, replacement, subs);
+                return occurs_check_rec(index, replacement, subs, binder_depth);
             }
         }
         return false;
 
     case LV_LAMBDA_ABS:
-        /* 抽象体中的 free var index 不经过 binder（binder 绑定一个变量），
-           不需要偏移，因为 De Bruijn 索引在 abs 内部自然递增。 */
-        return occurs_check_rec(index, term->data.abs.body, subs);
+        /* 进入抽象体，binder 深度 +1；De Bruijn 索引在 abs 内部自然递增 */
+        return occurs_check_rec(index, term->data.abs.body, subs, binder_depth + 1);
 
     case LV_LAMBDA_APP:
-        if (occurs_check_rec(index, term->data.app.left, subs)) return true;
-        return occurs_check_rec(index, term->data.app.right, subs);
+        if (occurs_check_rec(index, term->data.app.left, subs, binder_depth)) return true;
+        return occurs_check_rec(index, term->data.app.right, subs, binder_depth);
 
     default:
         return false;
@@ -94,6 +98,7 @@ static bool occurs_check_rec(int index, LvLambdaTerm *term, LambdaSubstitution *
  */
 static LambdaUnifyStatus lambda_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
                                            LambdaSubstitution **subs,
+                                           int binder_depth,
                                            int depth, int max_depth) {
     if (depth >= max_depth) {
         lv_LOG_ERROR("lambda_unify", "最大递归深度 %d 超限", max_depth);
@@ -112,27 +117,39 @@ static LambdaUnifyStatus lambda_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
     if (t1->type == LV_LAMBDA_VAR) {
         int idx1 = t1->data.var.index;
 
+        /* 刚性受绑定变量：index < binder_depth 时已被外层 binder 绑定，
+           只能与相同 index 的 VAR 合一，与任何其它项合一一律失败 */
+        if (idx1 < binder_depth) {
+            if (t2->type == LV_LAMBDA_VAR && t2->data.var.index == idx1) {
+                return LAMBDA_UNIFY_OK;
+            }
+            return LAMBDA_UNIFY_FAIL;
+        }
+
         /* 如果 idx1 已有替换，展开替换后递归 */
         LvLambdaTerm *r1 = find_substitution(*subs, idx1);
         if (r1) {
-            return lambda_unify_rec(r1, t2, subs, depth + 1, max_depth);
+            return lambda_unify_rec(r1, t2, subs, binder_depth, depth + 1, max_depth);
         }
 
-        /* t2 如果是变量，也尝试展开 */
+        /* t2 如果是自由元变量，也尝试展开 */
         if (t2->type == LV_LAMBDA_VAR) {
             int idx2 = t2->data.var.index;
-            LvLambdaTerm *r2 = find_substitution(*subs, idx2);
-            if (r2) {
-                return lambda_unify_rec(t1, r2, subs, depth + 1, max_depth);
+            if (idx2 >= binder_depth) {
+                LvLambdaTerm *r2 = find_substitution(*subs, idx2);
+                if (r2) {
+                    return lambda_unify_rec(t1, r2, subs, binder_depth, depth + 1, max_depth);
+                }
+                /* 相同索引 → 合一成功 */
+                if (idx1 == idx2) {
+                    return LAMBDA_UNIFY_OK;
+                }
             }
-            /* 相同索引 → 合一成功 */
-            if (idx1 == idx2) {
-                return LAMBDA_UNIFY_OK;
-            }
+            /* idx2 < binder_depth：t2 是受绑定变量，不能与自由元变量直接相等 */
         }
 
-        /* Occurs check：检查 idx1 是否出现在 t2 中 */
-        if (occurs_check_rec(idx1, t2, *subs)) {
+        /* Occurs check：检查 idx1 是否在 t2 中自由出现 */
+        if (occurs_check_rec(idx1, t2, *subs, binder_depth)) {
             return LAMBDA_UNIFY_OCCURS_CHECK;
         }
 
@@ -150,7 +167,7 @@ static LambdaUnifyStatus lambda_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
 
     /* t2 是变量但 t1 不是 → 交换合一 */
     if (t2->type == LV_LAMBDA_VAR) {
-        return lambda_unify_rec(t2, t1, subs, depth + 1, max_depth);
+        return lambda_unify_rec(t2, t1, subs, binder_depth, depth + 1, max_depth);
     }
 
     /* ── 处理抽象 ── */
@@ -158,9 +175,9 @@ static LambdaUnifyStatus lambda_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
         if (t2->type != LV_LAMBDA_ABS) {
             return LAMBDA_UNIFY_FAIL;
         }
-        /* 抽象合一：递归合一体，binder 索引偏移由 De Bruijn 约定自然处理 */
+        /* 抽象合一：递归合一体，进入抽象体 binder 深度 +1 */
         return lambda_unify_rec(t1->data.abs.body, t2->data.abs.body,
-                                subs, depth + 1, max_depth);
+                                subs, binder_depth + 1, depth + 1, max_depth);
     }
 
     /* ── 处理应用 ── */
@@ -170,12 +187,12 @@ static LambdaUnifyStatus lambda_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
         }
         /* 先合一 fun，再合一 arg */
         LambdaUnifyStatus s = lambda_unify_rec(t1->data.app.left, t2->data.app.left,
-                                                subs, depth + 1, max_depth);
+                                                subs, binder_depth, depth + 1, max_depth);
         if (s != LAMBDA_UNIFY_OK) {
             return s;
         }
         return lambda_unify_rec(t1->data.app.right, t2->data.app.right,
-                                subs, depth + 1, max_depth);
+                                subs, binder_depth, depth + 1, max_depth);
     }
 
     return LAMBDA_UNIFY_ERROR;
@@ -189,7 +206,7 @@ LambdaUnifyStatus lambda_unify(LvLambdaTerm *t1, LvLambdaTerm *t2,
         return LAMBDA_UNIFY_ERROR;
     }
     *out_subs = NULL;
-    return lambda_unify_rec(t1, t2, out_subs, 0, max_depth);
+    return lambda_unify_rec(t1, t2, out_subs, 0, 0, max_depth);
 }
 
 /* ── 替换应用 ── */
@@ -197,23 +214,27 @@ LambdaUnifyStatus lambda_unify(LvLambdaTerm *t1, LvLambdaTerm *t2,
 /**
  * @brief 递归将替换应用于 λ-项
  */
-static LvLambdaTerm *apply_subs_rec(LvLambdaTerm *term, LambdaSubstitution *subs) {
+static LvLambdaTerm *apply_subs_rec(LvLambdaTerm *term, LambdaSubstitution *subs,
+                                    int binder_depth) {
     if (!term) return NULL;
 
     switch (term->type) {
     case LV_LAMBDA_VAR: {
         int idx = term->data.var.index;
-        LvLambdaTerm *replacement = find_substitution(subs, idx);
-        if (replacement) {
-            /* 替换项也要递归应用替换（链式替换） */
-            return apply_subs_rec(replacement, subs);
+        /* 受 binder 绑定的变量不应用替换，仅复制自身 */
+        if (idx >= binder_depth) {
+            LvLambdaTerm *replacement = find_substitution(subs, idx);
+            if (replacement) {
+                /* 替换项也要递归应用替换（链式替换） */
+                return apply_subs_rec(replacement, subs, binder_depth);
+            }
         }
         /* 无替换 → 复制自身 */
         return lv_lambda_create_var(idx);
     }
 
     case LV_LAMBDA_ABS: {
-        LvLambdaTerm *new_body = apply_subs_rec(term->data.abs.body, subs);
+        LvLambdaTerm *new_body = apply_subs_rec(term->data.abs.body, subs, binder_depth + 1);
         if (!new_body && term->data.abs.body) {
             return NULL;
         }
@@ -221,8 +242,8 @@ static LvLambdaTerm *apply_subs_rec(LvLambdaTerm *term, LambdaSubstitution *subs
     }
 
     case LV_LAMBDA_APP: {
-        LvLambdaTerm *new_left = apply_subs_rec(term->data.app.left, subs);
-        LvLambdaTerm *new_right = apply_subs_rec(term->data.app.right, subs);
+        LvLambdaTerm *new_left = apply_subs_rec(term->data.app.left, subs, binder_depth);
+        LvLambdaTerm *new_right = apply_subs_rec(term->data.app.right, subs, binder_depth);
         if ((!new_left && term->data.app.left) || (!new_right && term->data.app.right)) {
             lv_lambda_destroy(new_left);
             lv_lambda_destroy(new_right);
@@ -238,7 +259,7 @@ static LvLambdaTerm *apply_subs_rec(LvLambdaTerm *term, LambdaSubstitution *subs
 
 LvLambdaTerm *lambda_unify_apply(LvLambdaTerm *term, LambdaSubstitution *subs) {
     if (!term) return NULL;
-    return apply_subs_rec(term, subs);
+    return apply_subs_rec(term, subs, 0);
 }
 
 void lambda_substitution_list_destroy(LambdaSubstitution *subs) {
@@ -517,7 +538,7 @@ static LambdaUnifyStatus pattern_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
         }
 
         /* t2 是刚性项 → Imitation + Projection 决策 */
-        if (!occurs_check_rec(fv_idx, t2, *subs)) {
+        if (!occurs_check_rec(fv_idx, t2, *subs, binder_count)) {
             /* 直接替换（一阶情况）：绑定 fv_idx ↦ t2 */
             LvLambdaTerm *copy = lv_lambda_copy(t2);
             if (!copy) return LAMBDA_UNIFY_ERROR;

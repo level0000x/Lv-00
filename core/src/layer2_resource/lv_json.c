@@ -358,6 +358,25 @@ const char *lv_json_find_key(const char *json, const char *key, size_t key_len) 
                        *p != ' ' && *p != '\n' && *p != '\t' && *p != '\r')
                     p++;
             }
+        } else if (*p == '{') {
+            /* 跳过开括号进入对象内部，继续搜索键 */
+            p++;
+        } else if (*p == '[') {
+            /* 跳过整个数组（数组内无命名键） */
+            int depth = 1;
+            p++;
+            while (p < end && depth > 0) {
+                if (*p == '[')
+                    depth++;
+                else if (*p == ']')
+                    depth--;
+                p++;
+            }
+        } else {
+            /* 跳过其他非字符串 token（如字面量 true/false/null） */
+            while (p < end && *p != ',' && *p != '}' && *p != ']' &&
+                   *p != ' ' && *p != '\n' && *p != '\t' && *p != '\r')
+                p++;
         }
     }
     return NULL;
@@ -447,7 +466,7 @@ bool lv_json_get_string(const char *json, const char *key, char *out, size_t out
     if (ok) {
         memcpy(out, str, len + 1);
     }
-    lv_free(str);
+    lv_free((void **)&str);
     return ok;
 }
 

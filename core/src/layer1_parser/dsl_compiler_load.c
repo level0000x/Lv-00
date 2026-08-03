@@ -22,6 +22,8 @@
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
 #include "lv/lv_xmacro.h"
+#include "lv/context.h"
+#include "lv/axiom_pkg.h"
 
 #include "lv_internal.h"
 
@@ -49,6 +51,49 @@ static bool resolve_fixed_coords(const DslIROperation *op, double *out_x, double
     /* 但我们存储的是 double 的整数部分（作为整型坐标） */
     *out_x = (double) op->operands[0];
     *out_y = (double) op->operands[1];
+    return true;
+}
+
+/**
+ * @brief 将 IR 系统操作的结果文本记录到图的消息通道
+ *
+ * 约束图节点/约束没有通用的结果存储字段，这里复用 graph_set_error 的消息通道
+ * （优先写入 graph->context->error_message，回退到图 error_buffer），供上层通过
+ * graph_get_error() 观察系统操作（load/prove/check_sat/label）的结果。
+ *
+ * @param graph  目标约束图（可为 NULL，此时不记录）
+ * @param kind   操作类别（如 "check_sat"）
+ * @param detail 结果描述文本（可为 NULL）
+ */
+static void dsl_record_ir_result(ConstraintGraph *graph, const char *kind, const char *detail) {
+    if (!graph || !kind)
+        return;
+    if (detail)
+        graph_set_error(graph, "%s: %s", kind, detail);
+    else
+        graph_set_error(graph, "%s", kind);
+}
+
+/**
+ * @brief 将公理包登记到 lvContext 的公理库（axiom_pkg_refs）
+ *
+ * 按 lvContext 的既有设计，axiom_pkg_refs 是"不拥有所有权"的引用数组，
+ * 上下文销毁时仅释放数组本身。由 DSL loader 创建的公理包对象登记进公理库后，
+ * 其生命周期与上下文共存（符合公理库语义：已加载公理在上下文存活期间有效）。
+ *
+ * @param ctx 编译上下文（可为 NULL）
+ * @param pkg 公理包对象（调用方创建，登记成功后由公理库持有）
+ * @return 成功返回 true
+ */
+static bool dsl_ctx_register_axiom_pkg(struct lvContext *ctx, AxiomPackage *pkg) {
+    if (!ctx || !pkg)
+        return false;
+    void **np = lv_realloc(ctx->axiom_pkg_refs, sizeof(void *) * (size_t) (ctx->axiom_pkg_ref_count + 1));
+    if (!np)
+        return false;
+    ctx->axiom_pkg_refs = np;
+    ctx->axiom_pkg_refs[ctx->axiom_pkg_ref_count] = pkg;
+    ctx->axiom_pkg_ref_count++;
     return true;
 }
 
@@ -163,13 +208,25 @@ bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph) {
             }
 
             case IR_CREATE_RAY: {
-                /* 射线 -> 也用线段节点占位 */
+                /* 射线：约束图 GeomType 没有 GEOM_RAY 类型，与 IR_CREATE_LINE /
+                 * IR_CREATE_SEGMENT 的处理一致，射线作为一维几何原语使用
+                 * GEOM_LINE_SEGMENT 表示；若 IR 携带定义点（原点/方向点），
+                 * 为每个定义点添加"点在射线上"的关联约束，使射线节点并非空占位。 */
                 GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_LINE_SEGMENT, NULL, 0);
                 if (node && op->result_id >= 0) {
                     ENSURE_ID_MAP(op->result_id + 1);
                     if (op->result_id >= id_map_count)
                         id_map_count = op->result_id + 1;
                     id_map[op->result_id] = node->id;
+
+                    /* 定义点（原点/方向点）关联到射线 */
+                    for (int j = 0; j < op->operand_count; j++) {
+                        int pid = (op->operands[j] >= 0 && op->operands[j] < id_map_count) ? id_map[op->operands[j]] : -1;
+                        if (pid >= 0) {
+                            int parts[2] = {pid, node->id};
+                            graph_add_constraint_with_id(graph, -1, INCIDENCE, parts, 2);
+                        }
+                    }
                 }
                 break;
             }
@@ -294,27 +351,110 @@ bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph) {
 
             /* ---- 系统操作 ---- */
             case IR_LOAD_AXIOM: {
-                /* load 语句：当前为桩，不做实际操作 */
+                /* load 语句：创建公理包对象并登记到编译上下文（graph->context）的公理库。
+                 *
+                 * 当前 DSL 的 load 语句携带公理包名称（非文件路径），因此此处登记包的
+                 * 身份到上下文公理库；若后续支持文件路径形式，可进一步调用
+                 * axiom_package_load(pkg, path) 从文件解析公理内容。 */
+                const char *pkg_name = op->label ? op->label : "unnamed";
+                AxiomPackage *pkg = lv_axiom_package_create(pkg_name, "0.0.0");
+                if (!pkg) {
+                    dsl_record_ir_result(graph, "load axiom", "公理包对象创建失败");
+                    break;
+                }
+                if (graph->context) {
+                    /* 有编译上下文：登记进上下文公理库（公理包生命周期与上下文共存） */
+                    if (!dsl_ctx_register_axiom_pkg(graph->context, pkg)) {
+                        axiom_package_destroy(pkg);
+                        dsl_record_ir_result(graph, "load axiom", "公理库登记失败（内存不足）");
+                    }
+                } else {
+                    /* 无上下文可登记：释放对象，并在消息通道记录加载请求 */
+                    axiom_package_destroy(pkg);
+                    dsl_record_ir_result(graph, "load axiom", pkg_name);
+                }
                 break;
             }
 
             case IR_PROVE: {
-                /* prove 语句：当前为桩，不做实际操作 */
+                /* prove 语句：登记待证明目标并对构造做一致性预检。
+                 *
+                 * 约束图加载阶段不执行完整证明——证明由调用方在加载完成后发起
+                 * （见 lv_convenience.c::lv_prove 的 engine_rewrite_and_solve 流水线）。
+                 * 此处把目标文本写入上下文消息通道，并把构造相容性预检状态写入
+                 * 上下文的 last_status（对应"上下文证明状态"）。 */
+                const char *goal = op->label ? op->label : "(unnamed)";
+                dsl_record_ir_result(graph, "prove", goal);
+                lvConstraintCompatibilityResult comp = {0};
+                if (graph_check_compatibility(graph, &comp)) {
+                    if (graph->context)
+                        graph->context->last_status = (int) comp.status;
+                    if (comp.status == lv_CONSTRAINT_STATUS_INCONSISTENT)
+                        dsl_record_ir_result(graph, "prove 预检",
+                                             comp.diagnostic ? comp.diagnostic : "约束矛盾，目标不可证明");
+                }
                 break;
             }
 
             case IR_CHECK_SAT: {
-                /* 可满足性检查：当前为桩 */
+                /* 可满足性检查：调用约束图相容性检查 API（graph_check_compatibility）
+                 * 判定当前约束集合是否可满足（SAT），状态码写入上下文 last_status，
+                 * 结果文本记录到消息通道。 */
+                lvConstraintCompatibilityResult comp = {0};
+                if (!graph_check_compatibility(graph, &comp)) {
+                    dsl_record_ir_result(graph, "check_sat", "检查失败：输入无效");
+                    break;
+                }
+                if (graph->context)
+                    graph->context->last_status = (int) comp.status;
+                const char *verdict = (comp.status == lv_CONSTRAINT_STATUS_INCONSISTENT) ? "unsat" : "sat";
+                char detail[256];
+                snprintf(detail, sizeof(detail), "%s（status=%d，%s；冲突约束=%d，冗余=%d，自由度=%d）",
+                         verdict, (int) comp.status, comp.diagnostic ? comp.diagnostic : "无诊断",
+                         comp.conflicting_constraint_id, comp.redundant_constraint_count, comp.free_degree_count);
+                dsl_record_ir_result(graph, "check_sat", detail);
                 break;
             }
 
             case IR_LABEL: {
-                /* 标签操作：当前为桩 */
+                /* 标签操作：将标签文本附加到目标节点。
+                 *
+                 * 约束图节点没有专用 label 字段；GeomNode 唯一的自有字符串槽位是
+                 * numeric_assumption_declaration（由 graph_destroy 统一释放）。
+                 * 该槽位未被数值假设占用时，将标签文本保存在节点上（最接近
+                 * "写入图中的 label 字段"）；否则（槽位已占用 / 节点不存在 /
+                 * 目标是约束）退化为消息通道记录。 */
+                const char *text = op->label ? op->label : "(unnamed)";
+                if (op->operand_count > 0 && op->operands[0] >= 0 && op->operands[0] < id_map_count) {
+                    int gid = id_map[op->operands[0]];
+                    GeomNode *node = (gid >= 0) ? graph_get_node(graph, gid) : NULL;
+                    if (node && !node->numeric_assumption_declaration) {
+                        char *s = lv_strdup(text);
+                        if (s)
+                            node->numeric_assumption_declaration = s;
+                    } else {
+                        char detail[192];
+                        snprintf(detail, sizeof(detail), "实体#%d label=\"%s\"", gid, text);
+                        dsl_record_ir_result(graph, "label", detail);
+                    }
+                }
                 break;
             }
 
             case IR_REMOVE_CONSTRAINT: {
-                /* 移除约束：当前为桩 */
+                /* 移除约束：按约束 ID 调用约束生命周期 API graph_deactivate_constraint
+                 * 惰性移除（标记不活跃、从活跃索引摘除并保留审计数据），随后调用
+                 * graph_sync_nodes 同步节点属性，传播约束移除的影响。 */
+                for (int j = 0; j < op->operand_count; j++) {
+                    int cid = op->operands[j];
+                    int rc = graph_deactivate_constraint(graph, cid);
+                    if (rc != lv_OK) {
+                        char detail[128];
+                        snprintf(detail, sizeof(detail), "约束 #%d 移除失败（错误码 %d）", cid, rc);
+                        dsl_record_ir_result(graph, "remove_constraint", detail);
+                    }
+                }
+                graph_sync_nodes(graph);
                 break;
             }
 

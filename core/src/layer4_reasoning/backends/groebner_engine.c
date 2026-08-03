@@ -85,6 +85,39 @@ lv_mutex_t g_data_mutex;
 /** @brief 互斥锁是否已初始化的标志 */
 int g_data_mutex_initialized = 0;
 
+/** @brief 全局互斥锁的一次性初始化控制（进程级生命周期） */
+static lv_once_t g_data_mutex_once = lv_ONCE_INIT;
+
+/**
+ * @brief 全局互斥锁的一次性初始化回调（仅执行一次）
+ */
+static void g_data_mutex_ensure_once(void) {
+    lv_mutex_init(&g_data_mutex);
+    g_data_mutex_initialized = 1;
+}
+
+/**
+ * @brief 确保全局互斥锁已初始化（线程安全，可在加锁前调用）
+ *
+ * 全局锁 g_data_mutex 采用进程级生命周期：首次使用时通过 lv_once
+ * 恰好初始化一次，之后永不销毁，避免 ring_registry_destroy 等路径
+ * 销毁后再次加锁导致的 CRITICAL_SECTION 损坏。
+ */
+void groebner_mutex_ensure(void) {
+    lv_once(&g_data_mutex_once, g_data_mutex_ensure_once);
+}
+
+/**
+ * @brief 加锁守卫初始化（groebner 引擎专用）
+ *
+ * 在获取全局锁之前先确保锁已初始化（解决"先锁后初始化"的鸡生蛋问题）。
+ * 用法与 lv_lock_guard_init 一致，配合 lv_lock_guard_destroy 使用。
+ */
+void groebner_lock_guard_init(lvLockGuard *g) {
+    groebner_mutex_ensure();
+    lv_lock_guard_init(g, &g_data_mutex);
+}
+
 /* ================================================================
  *  前向声明 —— 内部辅助函数
  * ================================================================ */
@@ -208,15 +241,11 @@ int variety_internal_store(lvRegistryData *data, lvVariety *variety) {
 /**
  * @brief 确保全局注册数据已初始化（调用方必须持有 g_data_mutex）
  *
- * 注意：此函数不负责加锁，由调用方在持有锁的状态下调用。
- * 首次调用时初始化互斥锁本身（仅执行一次）。
+ * 注意：此函数不负责加锁，也不负责初始化互斥锁（互斥锁由
+ * groebner_mutex_ensure() 在加锁前完成一次性初始化），
+ * 调用方应在持有锁的状态下调用本函数。
  */
 lvRegistryData *registry_data_ensure(void) {
-    /* 首次调用时初始化互斥锁（仅一次） */
-    if (!g_data_mutex_initialized) {
-        lv_mutex_init(&g_data_mutex);
-        g_data_mutex_initialized = 1;
-    }
     if (!g_data) {
         g_data = (lvRegistryData *) lv_calloc(1, sizeof(lvRegistryData));
     }
@@ -347,7 +376,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
                         ring_id, registry->ring_count);
 
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     int ret = -1;
 
     lvPolynomialRing *ring = registry->rings[ring_id];

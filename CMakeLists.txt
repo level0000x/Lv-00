@@ -1377,6 +1377,9 @@ endmacro()
 # Layer 2: 资源管理层（基础层，不依赖任何上层）
 add_library(lv_layer2_resource OBJECT ${lv_LAYER2_SOURCES} ${lv_HEADERS})
 lv_setup_layer(lv_layer2_resource 2)
+# layer6_visual/converter 已实现同名直接转换 API（block_to_text/node/geometry），
+# 用宏守卫排除 layer2 旧桩，避免重复符号及 FuncBlock* 语义误读
+target_compile_definitions(lv_layer2_resource PRIVATE LV_HAS_LAYER6_CONVERTER)
 target_link_libraries(lv_layer2_resource ${GMP_LIBRARIES})
 
 # Core: 核心便利层（基础层，不依赖任何上层）

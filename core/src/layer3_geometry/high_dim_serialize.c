@@ -183,7 +183,12 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                     p++; /* 跳过 '[' */
                     int idx = 0;
 
+                    int loop_count = 0;
                     while (idx < HIGH_DIM_MAX_DIMENSIONS) {
+                        loop_count++;
+                        if (loop_count > 100) {
+                            break;
+                        }
                         p = hd_json_skip_ws(p);
                         if (*p == ']')
                             break;
@@ -192,7 +197,12 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                             continue;
                         }
                         if (*p != '{') {
+                            /* 跳过异常 token；若指针未推进（如到达字符串结尾 \0），
+                             * 继续循环将陷入死循环，必须终止 */
+                            const char *prev = p;
                             p = hd_json_skip_value(p);
+                            if (p == prev)
+                                break;
                             continue;
                         }
 

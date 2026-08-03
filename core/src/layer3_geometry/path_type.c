@@ -336,10 +336,66 @@ bool path_is_constant(const lvPathSystem *sys, int path_id) {
 }
 
 /**
+ * @brief 重建路径的相邻节点链
+ *
+ * 遍历路径系统，将路径展开为相邻节点对序列：
+ * - 非合成路径：节点链为 [endpoint_a, endpoint_b]
+ * - 合成路径 p = p1 @ p2 @ ... : a = b：沿路径系统中以链尾为起点的
+ *   路径回溯中间节点，构成 [a, m1, m2, ..., b]
+ *
+ * @param sys       路径系统
+ * @param path      目标路径（非 NULL）
+ * @param out_nodes 输出节点 ID 数组（调用者分配，容量 >= max_nodes）
+ * @param max_nodes 数组容量（至少为 2）
+ * @return 节点链长度（>= 2），参数无效返回 -1
+ */
+static int path_build_node_chain(lvPathSystem *sys, const lvPath *path, int *out_nodes, int max_nodes) {
+    if (!sys || !path || !out_nodes || max_nodes < 2)
+        return -1;
+
+    int count = 0;
+    out_nodes[count++] = path->endpoint_a;
+
+    /* 仅合成路径需要回溯中间节点；其余类型路径的链即 [a, b] */
+    if (path->type == PATH_COMPOSITE) {
+        for (int i = 0; i < sys->paths_da.count && count < max_nodes - 1; i++) {
+            const lvPath *p = (const lvPath *)lv_darray_get(&sys->paths_da, i);
+            if (!p || p->endpoint_a != out_nodes[count - 1])
+                continue;
+            if (p->endpoint_b == p->endpoint_a)
+                continue; /* 原地踏步路径无助于前移 */
+            int already = 0;
+            for (int j = 0; j < count; j++) {
+                if (out_nodes[j] == p->endpoint_b) {
+                    already = 1;
+                    break;
+                }
+            }
+            if (already)
+                continue; /* 避免回环 */
+            out_nodes[count++] = p->endpoint_b;
+            if (p->endpoint_b == path->endpoint_b)
+                break; /* 已到达终点 */
+        }
+    }
+
+    /* 确保终点收尾 */
+    if (out_nodes[count - 1] != path->endpoint_b && count < max_nodes) {
+        out_nodes[count++] = path->endpoint_b;
+    }
+    return count;
+}
+
+/**
  * @brief 将 HoTT 路径转换为等式证明
  *
- * 简化实现：创建一个空的约束图作为等式证明的占位符。
- * 完整实现应遍历路径结构并生成相应的等式约束。
+ * 遍历路径数据结构（端点、路径类型、构造图），为路径上的每一对
+ * 相邻节点生成等式约束。相邻节点对 (u, v) 的"相等"关系编码为：
+ * - 线段连接 graph_add_line_segment(u, v)：建立节点对的几何轨迹
+ * - 关联约束 graph_add_incidence(u, seg) / graph_add_incidence(v, seg)：
+ *   两端点同时落于同一线段，表达 u 与 v 重合于同一轨迹（等价）
+ * 恒等路径端点重合，生成自关联约束；合成路径沿节点链逐对生成；
+ * 路径携带的构造图约束被复制为等式证明的支撑约束。
  */
 int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equality) {
     if (!sys || !sys->is_initialized || !out_equality)
@@ -354,44 +410,66 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
     if (!eq)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "path_to_equality: graph_create failed");
 
-    /* 使用端点 ID 创建区分性的符号坐标 */
-    SymbolicCoord *coord_a_x = symbolic_coord_create_rational(path->endpoint_a * lv_RATIONAL_SCALE_LOW + 1, lv_RATIONAL_SCALE_LOW);
-    SymbolicCoord *coord_a_y = symbolic_coord_create_rational(path->endpoint_a * lv_RATIONAL_SCALE_LOW + 2, lv_RATIONAL_SCALE_LOW);
-    SymbolicCoord *coords_a[2] = {coord_a_x, coord_a_y};
-
-    SymbolicCoord *coord_b_x = symbolic_coord_create_rational(path->endpoint_b * lv_RATIONAL_SCALE_LOW + 3, lv_RATIONAL_SCALE_LOW);
-    SymbolicCoord *coord_b_y = symbolic_coord_create_rational(path->endpoint_b * lv_RATIONAL_SCALE_LOW + 4, lv_RATIONAL_SCALE_LOW);
-    SymbolicCoord *coords_b[2] = {coord_b_x, coord_b_y};
-
-    /* 添加路径端点作为图中的点节点 */
-    AddNodeResult r_a = graph_add_point(eq, (SymbolicCoord *const *) coords_a, 2);
-    if (r_a != ADD_NODE_OK) {
-        symbolic_coord_destroy(coord_a_x);
-        symbolic_coord_destroy(coord_a_y);
-        symbolic_coord_destroy(coord_b_x);
-        symbolic_coord_destroy(coord_b_y);
+    /* 重建路径的相邻节点链（链长上限 64，覆盖路径系统中的典型链） */
+    int chain[64];
+    int chain_len = path_build_node_chain(sys, path, chain, 64);
+    if (chain_len < 2) {
         graph_destroy(eq);
-        lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "path_to_equality: graph_add_point A failed");
-    }
-    int node_a = graph_get_last_added_node_id(eq);
-
-    AddNodeResult r_b = graph_add_point(eq, (SymbolicCoord *const *) coords_b, 2);
-    if (r_b != ADD_NODE_OK) {
-        symbolic_coord_destroy(coord_b_x);
-        symbolic_coord_destroy(coord_b_y);
-        graph_destroy(eq);
-        lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "path_to_equality: graph_add_point B failed");
-    }
-    int node_b = graph_get_last_added_node_id(eq);
-
-    /* 路径 p : a = b 表示端点 a 与端点 b 等价 → 添加 incidence 约束 */
-    if (node_a >= 0 && node_b >= 0) {
-        graph_add_incidence(eq, node_a, node_b);
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "path_to_equality: failed to build node chain");
     }
 
-    /* 非恒等路径：添加线段连接两端点，表示路径的几何轨迹 */
-    if (!path->is_constant && node_a >= 0 && node_b >= 0) {
-        graph_add_line_segment(eq, node_a, node_b);
+    /* 为链上每个节点创建点节点（同一节点 ID 只创建一次） */
+    int graph_nodes[64];
+    for (int i = 0; i < chain_len; i++)
+        graph_nodes[i] = -1;
+
+    for (int i = 0; i < chain_len; i++) {
+        int nid = chain[i];
+        /* 复用已创建的节点 */
+        int reuse = -1;
+        for (int j = 0; j < i; j++) {
+            if (chain[j] == nid) {
+                reuse = graph_nodes[j];
+                break;
+            }
+        }
+        if (reuse >= 0) {
+            graph_nodes[i] = reuse;
+            continue;
+        }
+
+        /* 使用节点 ID 生成区分性的符号坐标 */
+        SymbolicCoord *coord_x = symbolic_coord_create_rational(nid * lv_RATIONAL_SCALE_LOW + 1, lv_RATIONAL_SCALE_LOW);
+        SymbolicCoord *coord_y = symbolic_coord_create_rational(nid * lv_RATIONAL_SCALE_LOW + 2, lv_RATIONAL_SCALE_LOW);
+        SymbolicCoord *coords[2] = {coord_x, coord_y};
+        AddNodeResult r = graph_add_point(eq, (SymbolicCoord *const *) coords, 2);
+        if (r != ADD_NODE_OK) {
+            symbolic_coord_destroy(coord_x);
+            symbolic_coord_destroy(coord_y);
+            graph_destroy(eq);
+            lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "path_to_equality: graph_add_point failed");
+        }
+        graph_nodes[i] = graph_get_last_added_node_id(eq);
+    }
+
+    /* 为每一对相邻节点生成等式约束 */
+    for (int i = 0; i + 1 < chain_len; i++) {
+        int u = graph_nodes[i];
+        int v = graph_nodes[i + 1];
+        if (u < 0 || v < 0)
+            continue;
+        if (u == v) {
+            /* 恒等路径：端点重合，生成自关联约束表达平凡等式 */
+            graph_add_incidence(eq, u, u);
+        } else {
+            /* 非恒等路径：线段 + 双向关联，编码相邻节点的等价 */
+            graph_add_line_segment(eq, u, v);
+            int seg_id = graph_get_last_added_node_id(eq);
+            if (seg_id >= 0) {
+                graph_add_incidence(eq, u, seg_id);
+                graph_add_incidence(eq, v, seg_id);
+            }
+        }
     }
 
     /* 如果路径源已有构造图，深度复制其约束到等式图中 */

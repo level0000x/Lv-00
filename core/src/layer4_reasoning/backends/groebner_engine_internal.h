@@ -114,6 +114,12 @@ extern lv_mutex_t g_data_mutex;
 extern int g_data_mutex_initialized;
 
 /* ================================================================
+ *  全局互斥锁生命周期（groebner_engine.c 实现）
+ * ================================================================ */
+void groebner_mutex_ensure(void);
+void groebner_lock_guard_init(lvLockGuard *g);
+
+/* ================================================================
  *  注册存储与查询（groebner_engine.c 实现）
  * ================================================================ */
 lvRegistryData *registry_data_ensure(void);

@@ -6,20 +6,27 @@
  * 多项式代数功能。与 CUDA/HIP 等向量/矩阵运算后端不同，Singular
  * 后端专注于符号计算。
  *
- * 编译时通过宏 LV_HAS_SINGULAR 控制：
- *   - 定义时：链接 libsingular 内核库，提供完整功能
- *   - 未定义时：提供优雅降级的存根实现
+ * 本后端不再依赖 libsingular 内核库，而是将全部代数计算委托给
+ * 项目自研的内部 Gröbner 引擎（layer4_reasoning/backends/）：
+ *   - ring_create / ideal_create / ideal_add_generator
+ *   - groebner_compute / ideal_membership
+ *   - ideal_intersection / ideal_quotient
+ *   - constraint_graph_to_ideal
+ *
+ * 后端通过"句柄 → 内部引擎对象"的数据映射层与内部引擎对接：
+ *   - 环句柄     = 内部引擎的 ring_id（int）
+ *   - 多项式句柄 = SingularPoly { ring_id, poly_id }
+ *   - 理想句柄   = SingularIdeal { ring_id, nvars, var_ids（poly_id 数组） }
  *
  * @author Lv-00 Project
- * @version v1.0.0
- * @date 2026-07-30
+ * @version v1.1.0
+ * @date 2026-08-03
  *
  * @dependencies
- *   - singular_backend.h : Singular 后端公共接口
- *   - lv/lv_utils.h      : 统一内存分配器
- *   - debug.h            : 日志与断言
- *   - lv_internal.h      : 内部工具宏
- *   - libsingular (可选) : Singular 内核库 (LV_HAS_SINGULAR)
+ *   - singular_backend.h             : Singular 后端公共接口
+ *   - lv/groebner_engine.h           : 内部 Gröbner 引擎公共 API
+ *   - groebner_engine_internal.h     : 内部引擎池化数据结构（句柄映射层使用）
+ *   - lv/lv_utils.h / debug.h / lv_internal.h
  */
 
 /* ========================================================================
@@ -30,21 +37,14 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "lv/lv_utils.h"
 #include "debug.h"
 #include "lv/lv_internal.h"
 
-#ifdef LV_HAS_SINGULAR
-/* Singular 内核 C 接口头文件 — 需要 libsingular-dev 或等价 SDK */
-#include <kernel/mod2.h>
-#include <kernel/GBEngine/kstd1.h>
-#include <kernel/polys.h>
-#include <kernel/ideals.h>
-#include <kernel/ring.h>
-#include <coeffs/coeffs.h>
-#include <kernel/longalg.h>
-#endif /* LV_HAS_SINGULAR */
+#include "lv/groebner_engine.h"
+#include "layer4_reasoning/backends/groebner_engine_internal.h"
 
 /* ========================================================================
  * 数据结构定义
@@ -63,14 +63,25 @@ typedef struct {
 } SingularVar;
 
 /**
+ * @brief Singular 多项式句柄
+ *
+ * 表示环中的一个多项式，poly_id 为内部 Gröbner 引擎多项式池的 ID。
+ */
+typedef struct {
+    int ring_id;    /**< 所属多项式环的标识符 */
+    int poly_id;    /**< 内部引擎多项式池中的 poly_id */
+} SingularPoly;
+
+/**
  * @brief Singular 理想描述符
  *
  * 表示一个多项式理想，包含所属环的标识和生成元列表。
+ * var_ids 中的每个元素为内部引擎多项式池的 poly_id（-1 表示跳过/零多项式）。
  */
 typedef struct {
     int ring_id;    /**< 所属多项式环的标识符 */
     int nvars;      /**< 生成元个数 */
-    int *var_ids;   /**< 生成元对应的变量 ID 数组（每个 ID 指向一个环内多项式） */
+    int *var_ids;   /**< 生成元对应的多项式 ID 数组（内部引擎 poly_id） */
 } SingularIdeal;
 
 /* ========================================================================
@@ -78,46 +89,24 @@ typedef struct {
  * ======================================================================== */
 
 /** @brief Singular 后端版本字符串 */
-#define SINGULAR_BACKEND_VERSION "1.0.0"
-
-/* ========================================================================
- * 通用（非 Singular）实现 — 当 LV_HAS_SINGULAR 未定义时的存根
- * ======================================================================== */
-
-#ifndef LV_HAS_SINGULAR
-
-int lv_singular_register_backend(void) {
-    LOG_WARN("Singular", "后端不可用：未定义 LV_HAS_SINGULAR（需要 libsingular SDK）");
-    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "Singular 后端不可用：未定义 LV_HAS_SINGULAR");
-}
-
-int lv_singular_available(void) {
-    return 0;
-}
-
-const char *lv_singular_backend_version(void) {
-    return "Singular (unavailable - stub)";
-}
-
-#else /* LV_HAS_SINGULAR — 完整实现 */
+#define SINGULAR_BACKEND_VERSION "1.1.0"
 
 /* ========================================================================
  * Singular 内部数据结构与状态管理
  * ======================================================================== */
 
 /**
- * @brief Singular 内核状态（单例）
+ * @brief Singular 后端状态（单例）
  *
- * 管理 Singular 内核库的初始化状态和当前活跃环。
- * 由于 Singular 内核设计为单例模式（全局解释器状态），
- * 本结构体也采用单例模式。
+ * 管理内部 Gröbner 引擎的环注册表与初始化状态。
+ * 环、多项式、理想对象全部由内部引擎的注册表统一管理。
  */
 typedef struct SingularState {
-    int initialized;            /**< 内核是否已初始化 */
-    int n_rings;                /**< 已创建的多项式环数量 */
-    void **rings;               /**< 环指针数组（Singular ring_t* 的 void 包装） */
-    int current_ring;           /**< 当前活跃环索引 */
-    char version_str[128];      /**< Singular 库版本字符串 */
+    int initialized;            /**< 后端是否已初始化 */
+    int n_rings;                /**< 已创建的多项式环数量（信息统计） */
+    lvRingRegistry *registry;   /**< 内部 Gröbner 引擎的环注册表 */
+    int current_ring;           /**< 最近创建（当前活跃）的环 ID */
+    char version_str[128];      /**< 后端版本字符串 */
 } SingularState;
 
 /** @brief 全局 Singular 状态（静态单例） */
@@ -134,6 +123,17 @@ static void *singular_compute_groebner(void *ideal_ptr);
 static int singular_ideal_intersection(void *ideal_a, void *ideal_b, void **result);
 static int singular_ideal_quotient(void *ideal_a, void *ideal_b, void **result);
 static int singular_ideal_membership(void *poly, void *ideal);
+static void *singular_constraint_graph_to_ideal(const int *constraint_ids,
+                                                int n_constraints,
+                                                const SingularVar *vars,
+                                                int n_vars);
+
+/* 数据映射层辅助函数（句柄 ↔ 内部引擎对象） */
+static int singular_ideal_to_internal(const SingularIdeal *s_ideal);
+static SingularIdeal *singular_polys_to_handle(lvPolynomialRing *ring, lvPolynomial **polys, int count);
+static SingularIdeal *singular_ideal_from_internal(int ideal_id);
+static SingularIdeal *singular_basis_from_internal(int ideal_id);
+static void singular_internal_ideal_release(int ideal_id);
 
 /* ========================================================================
  * 公共 API 实现
@@ -170,10 +170,10 @@ const char *lv_singular_backend_version(void) {
  * ======================================================================== */
 
 /**
- * @brief 初始化 Singular 内核
+ * @brief 初始化 Singular 后端
  *
- * 调用 Singular 的 siInit 或等效初始化函数。设置解释器、
- * 系数域（默认为 ℚ）和全局状态结构体。
+ * 创建内部 Gröbner 引擎的环注册表，并建立默认的 ℚ[x] 初始环
+ * （与 Singular 内核"启动即存在默认环"的行为一致）。
  *
  * @return 成功返回 0，失败返回 -1
  */
@@ -182,46 +182,32 @@ static int singular_kernel_init(void) {
         return 0;
     }
 
-    /*
-     * Singular 内核初始化：
-     *   siInit() 设置全局解释器状态，必须在任何环/多项式操作之前调用。
-     *   omalloc 系统通常由 siInit 自动初始化。
-     *
-     * 注意：实际调用取决于 libsingular 的编译方式和 API 版本。
-     *       siInit 和 omStart 在 Singular 4.x 中的 API 可能有变。
-     */
-#if defined(LV_HAS_SINGULAR) && defined(SI_INIT_AVAILABLE)
-    siInit((char *)"Singular/Lv-00");
-#elif defined(LV_HAS_SINGULAR) && defined(SINGULAR_OMALLOC_INIT)
-    omStart(0);
-    siInit((char *)"Singular/Lv-00");
-#else
-    /*
-     * 若未找到具体初始化宏，尝试通用的 siInit 调用。
-     * 这允许在未完全配置 Singular SDK 的测试环境下编译通过。
-     */
-    #pragma message("Warning: Using generic Singular init path - may require SDK adjustment")
-    siInit((char *)"Singular/Lv-00");
-#endif
+    /* 创建内部 Gröbner 引擎的环注册表（全局单例） */
+    g_singular_state.registry = ring_registry_create(8);
+    if (!g_singular_state.registry) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "Singular 引擎初始化失败：无法创建环注册表");
+    }
 
     /* 创建默认的 ℚ[x] 环作为初始环 */
     const char *default_vars[] = {"x"};
     if (singular_create_ring(default_vars, 1) < 0) {
+        ring_registry_destroy(g_singular_state.registry);
+        g_singular_state.registry = NULL;
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "Singular 默认环创建失败");
     }
 
     /* 记录版本信息 */
     snprintf(g_singular_state.version_str, sizeof(g_singular_state.version_str),
-             "Singular %s (libsingular kernel)", "4.x");
+             "Singular %s (internal groebner engine)", SINGULAR_BACKEND_VERSION);
 
     g_singular_state.initialized = 1;
     return 0;
 }
 
 /**
- * @brief 清理 Singular 内核状态
+ * @brief 清理 Singular 后端状态
  *
- * 释放所有已创建的多项式环和内核资源。
+ * 销毁环注册表（内部引擎会级联释放所有环、多项式与理想对象）。
  * 通常在进程退出或后端注销时调用。
  */
 static void singular_kernel_cleanup(void) {
@@ -229,16 +215,9 @@ static void singular_kernel_cleanup(void) {
         return;
     }
 
-    /* 销毁所有已创建的环 */
-    for (int i = 0; i < g_singular_state.n_rings; i++) {
-        if (g_singular_state.rings[i]) {
-            /* ringDestroy 是 Singular 的环销毁函数 */
-#ifdef LV_HAS_SINGULAR
-            /* ring_t *r = (ring_t *)g_singular_state.rings[i]; */
-            /* rKill(r); — Singular 4.x 环销毁函数 */
-#endif
-            g_singular_state.rings[i] = NULL;
-        }
+    if (g_singular_state.registry) {
+        ring_registry_destroy(g_singular_state.registry);
+        g_singular_state.registry = NULL;
     }
 
     g_singular_state.n_rings = 0;
@@ -255,52 +234,325 @@ static void singular_kernel_cleanup(void) {
 /**
  * @brief 创建多项式环
  *
- * 在 Singular 内核中创建一个多项式环 K[var_0, ..., var_{nvars-1}]，
- * 其中 K 为默认系数域（通常为 ℚ 或 ℤ/pℤ）。
+ * 在内部 Gröbner 引擎中创建一个多项式环
+ * K[var_0, ..., var_{nvars-1}]，其中 K 为 ℚ 系数域（与 Singular
+ * 默认一致），单项式序为 grevlex（Singular 默认全局序）。
  *
  * @param var_names  变量名数组（每个名称以 null 结尾）
  * @param nvars      变量个数
- * @return 环标识符（≥0），失败返回 -1
+ * @return 环标识符（≥0，内部引擎 ring_id），失败返回 -1
  */
 static int singular_create_ring(const char *var_names[], int nvars) {
     if (!var_names || nvars <= 0) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_create_ring: 无效参数");
     }
+    if (!g_singular_state.registry) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "singular_create_ring: 引擎未初始化");
+    }
 
-#ifdef LV_HAS_SINGULAR
-    /*
-     * 使用 Singular C API 创建环：
-     *
-     *   ring_t *r = rDefault(nvars, var_names);
-     *   或分步：
-     *      coeffs cf = nInitChar(n_Q, NULL);  // ℚ 系数域
-     *      ring_t *r = rDefault(cf, nvars, var_names);
-     *
-     *  rSetHdl(r) 将新环设为当前活跃环。
-     */
+    /* 内部引擎：ℚ 系数域 + grevlex 单项式序（与 Singular 默认设置一致） */
+    int ring_id = ring_create(g_singular_state.registry, var_names, nvars,
+                              RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "singular");
+    if (ring_id < 0) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_create_ring: 内部引擎建环失败");
+    }
 
-    /* ---- 占位：实际调用需链接 libsingular ---- */
-    /* coeffs cf = nInitChar(n_Q, NULL); */
-    /* ring_t *r = rDefault(cf, nvars, (char **)var_names); */
-    /* if (!r) { */
-    /*     return -1; */
-    /* } */
-    /* rSetHdl(r); */
-
-    /* 记录到状态中（占位逻辑） */
-    int ring_id = g_singular_state.n_rings;
-    /* g_singular_state.rings[ring_id] = (void *)r; */
     g_singular_state.n_rings++;
     g_singular_state.current_ring = ring_id;
 
     LOG_INFO("Singular", "环创建: %d 个变量, ring_id=%d", nvars, ring_id);
     return ring_id;
+}
 
-#else
-    (void)var_names;
-    (void)nvars;
-    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "singular_create_ring: LV_HAS_SINGULAR 未定义");
-#endif
+/* ========================================================================
+ * 数据映射层：句柄 ↔ 内部引擎对象
+ * ======================================================================== */
+
+/**
+ * @brief 将 SingularIdeal 句柄映射为内部引擎理想 ID
+ *
+ * 在内部引擎中新建理想（ring_id 取自句柄）并逐一添加生成元
+ * （生成元为句柄中的 poly_id），返回内部 ideal_id。
+ * 生成的临时理想仅引用句柄的生成元多项式，不拥有它们。
+ *
+ * @param s_ideal SingularIdeal 句柄
+ * @return >= 0 内部 ideal_id，失败返回 -1
+ */
+static int singular_ideal_to_internal(const SingularIdeal *s_ideal) {
+    if (!s_ideal || s_ideal->nvars < 0 || (s_ideal->nvars > 0 && !s_ideal->var_ids)) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_to_internal: 无效理想句柄");
+    }
+    if (!g_singular_state.registry) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "singular_ideal_to_internal: 引擎未初始化");
+    }
+
+    int ideal_id = ideal_create(g_singular_state.registry, s_ideal->ring_id, "singular_ideal");
+    if (ideal_id < 0) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_to_internal: ideal_create 失败");
+    }
+
+    for (int i = 0; i < s_ideal->nvars; i++) {
+        if (s_ideal->var_ids[i] < 0) {
+            continue; /* 占位符（零多项式）跳过 */
+        }
+        if (ideal_add_generator(g_singular_state.registry, ideal_id, s_ideal->var_ids[i]) != 0) {
+            ideal_destroy(g_singular_state.registry, ideal_id);
+            lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM,
+                            "singular_ideal_to_internal: 生成元 poly_id=%d 无效",
+                            s_ideal->var_ids[i]);
+        }
+    }
+    return ideal_id;
+}
+
+/**
+ * @brief 将多项式数组包装为 SingularIdeal 句柄
+ *
+ * 对每个多项式深拷贝并注册进内部引擎多项式池（获得独立 poly_id），
+ * 因此句柄与源理想/基之间不存在共享所有权，释放互不影响。
+ *
+ * @param ring  多项式所属的内部引擎环
+ * @param polys 多项式指针数组
+ * @param count 多项式个数
+ * @return SingularIdeal 句柄，失败返回 NULL
+ */
+static SingularIdeal *singular_polys_to_handle(lvPolynomialRing *ring,
+                                               lvPolynomial **polys,
+                                               int count) {
+    if (!ring || count < 0 || (count > 0 && !polys)) {
+        return NULL;
+    }
+
+    SingularIdeal *h = (SingularIdeal *)lv_calloc(1, sizeof(SingularIdeal));
+    if (!h) {
+        return NULL;
+    }
+    h->ring_id = ring->ring_id;
+    h->nvars = count;
+    h->var_ids = count > 0 ? (int *)lv_calloc((size_t)count, sizeof(int)) : NULL;
+    if (count > 0 && !h->var_ids) {
+        lv_free((void **)&h);
+        return NULL;
+    }
+
+    /* 期望入池的多项式个数 */
+    int expect = 0;
+    for (int k = 0; k < count; k++) {
+        h->var_ids[k] = -1;
+        if (polys[k]) expect++;
+    }
+
+    /* 深拷贝并注册进多项式池（poly_internal_store 不自带锁，需持有全局锁） */
+    int stored = 0;
+    lvLockGuard _lg;
+    lv_lock_guard_init(&_lg, &g_data_mutex);
+    if (!g_data) {
+        lv_lock_guard_destroy(&_lg);
+        lv_free((void **)&h->var_ids);
+        lv_free((void **)&h);
+        return NULL;
+    }
+    for (int k = 0; k < count; k++) {
+        if (!polys[k]) {
+            continue;
+        }
+        lvPolynomial *copy = poly_internal_copy(polys[k], ring);
+        if (!copy) {
+            break;
+        }
+        int pid = poly_internal_store(g_data, copy);
+        if (pid < 0) {
+            poly_internal_destroy(copy);
+            break;
+        }
+        h->var_ids[k] = pid;
+        stored++;
+    }
+    lv_lock_guard_destroy(&_lg);
+
+    if (stored != expect) {
+        /* 失败回滚：释放已入池的副本（poly_destroy 内部加锁，须在锁外调用） */
+        for (int k = 0; k < count; k++) {
+            if (h->var_ids[k] >= 0) {
+                poly_destroy(g_singular_state.registry, h->var_ids[k]);
+            }
+        }
+        lv_free((void **)&h->var_ids);
+        lv_free((void **)&h);
+        return NULL;
+    }
+    return h;
+}
+
+/**
+ * @brief 将内部引擎理想包装为 SingularIdeal 句柄
+ *
+ * 提取内部理想的全部生成元多项式并构建句柄。
+ *
+ * @param ideal_id 内部理想 ID
+ * @return SingularIdeal 句柄，失败返回 NULL
+ */
+static SingularIdeal *singular_ideal_from_internal(int ideal_id) {
+    if (!g_singular_state.registry) {
+        return NULL;
+    }
+
+    lvPolynomial **gens = NULL;
+    int count = 0;
+    int ring_id = -1;
+    {
+        lvLockGuard _lg;
+        lv_lock_guard_init(&_lg, &g_data_mutex);
+        if (!g_data || ideal_id < 0 || ideal_id >= g_data->ideal_count ||
+            !g_data->ideals[ideal_id]) {
+            lv_lock_guard_destroy(&_lg);
+            return NULL;
+        }
+        lvIdeal *ideal = g_data->ideals[ideal_id];
+        count = ideal->generator_count;
+        ring_id = ideal->ring_id;
+        if (count > 0) {
+            gens = (lvPolynomial **)lv_calloc((size_t)count, sizeof(lvPolynomial *));
+            if (gens) {
+                for (int k = 0; k < count; k++) {
+                    gens[k] = ideal->generators[k];
+                }
+            }
+        }
+        lv_lock_guard_destroy(&_lg);
+    }
+
+    if (ring_id < 0 || (count > 0 && !gens)) {
+        lv_free((void **)&gens);
+        return NULL;
+    }
+    lvPolynomialRing *ring = ring_find(g_singular_state.registry, ring_id);
+    if (!ring) {
+        lv_free((void **)&gens);
+        return NULL;
+    }
+
+    SingularIdeal *h = singular_polys_to_handle(ring, gens, count);
+    lv_free((void **)&gens);
+    return h;
+}
+
+/**
+ * @brief 提取内部理想的缓存 Gröbner 基并包装为 SingularIdeal 句柄
+ *
+ * 要求目标理想的 Gröbner 基已计算（basis_valid 为真）。
+ *
+ * @param ideal_id 内部理想 ID
+ * @return 以基多项式为生成元的 SingularIdeal 句柄，失败返回 NULL
+ */
+static SingularIdeal *singular_basis_from_internal(int ideal_id) {
+    if (!g_singular_state.registry) {
+        return NULL;
+    }
+
+    lvPolynomial **basis_polys = NULL;
+    int count = 0;
+    int ring_id = -1;
+    {
+        lvLockGuard _lg;
+        lv_lock_guard_init(&_lg, &g_data_mutex);
+        if (!g_data || ideal_id < 0 || ideal_id >= g_data->ideal_count ||
+            !g_data->ideals[ideal_id]) {
+            lv_lock_guard_destroy(&_lg);
+            return NULL;
+        }
+        lvIdeal *ideal = g_data->ideals[ideal_id];
+        if (ideal->cached_basis && ideal->basis_valid) {
+            count = ideal->cached_basis->bases_count;
+            ring_id = ideal->ring_id;
+            if (count > 0) {
+                basis_polys = (lvPolynomial **)lv_calloc((size_t)count, sizeof(lvPolynomial *));
+                if (basis_polys) {
+                    for (int k = 0; k < count; k++) {
+                        basis_polys[k] = ideal->cached_basis->basis_polys[k];
+                    }
+                }
+            }
+        }
+        lv_lock_guard_destroy(&_lg);
+    }
+
+    if (ring_id < 0) {
+        lv_free((void **)&basis_polys);
+        return NULL;
+    }
+    lvPolynomialRing *ring = ring_find(g_singular_state.registry, ring_id);
+    if (!ring) {
+        lv_free((void **)&basis_polys);
+        return NULL;
+    }
+
+    SingularIdeal *h = singular_polys_to_handle(ring, basis_polys, count);
+    lv_free((void **)&basis_polys);
+    return h;
+}
+
+/**
+ * @brief 释放内部引擎结果理想及其独占的生成元多项式
+ *
+ * 仅用于释放本后端自行创建的结果理想（交/商/约束图编码结果）。
+ * 这些理想的生成元由理想独占持有；已注册进多项式池的用 poly_destroy
+ * 释放，未注册的（如 constraint_graph_to_ideal 内部生成的临时多项式）
+ * 用 poly_internal_destroy 释放。
+ *
+ * @param ideal_id 内部理想 ID
+ */
+static void singular_internal_ideal_release(int ideal_id) {
+    if (!g_singular_state.registry) {
+        return;
+    }
+
+    /* 先快照生成元指针，避免持锁期间执行销毁操作 */
+    lvPolynomial **gens = NULL;
+    int count = 0;
+    {
+        lvLockGuard _lg;
+        lv_lock_guard_init(&_lg, &g_data_mutex);
+        if (g_data && ideal_id >= 0 && ideal_id < g_data->ideal_count &&
+            g_data->ideals[ideal_id]) {
+            lvIdeal *ideal = g_data->ideals[ideal_id];
+            count = ideal->generator_count;
+            if (count > 0) {
+                gens = (lvPolynomial **)lv_calloc((size_t)count, sizeof(lvPolynomial *));
+                if (gens) {
+                    for (int k = 0; k < count; k++) {
+                        gens[k] = ideal->generators[k];
+                    }
+                }
+            }
+        }
+        lv_lock_guard_destroy(&_lg);
+    }
+
+    /* 销毁理想结构（释放缓存基与生成元数组，不释放生成元多项式本身） */
+    ideal_destroy(g_singular_state.registry, ideal_id);
+
+    for (int k = 0; k < count && gens; k++) {
+        lvPolynomial *g = gens[k];
+        if (!g) {
+            continue;
+        }
+        bool in_pool = false;
+        {
+            lvLockGuard _lg;
+            lv_lock_guard_init(&_lg, &g_data_mutex);
+            if (g_data && g->poly_id >= 0 && g->poly_id < g_data->poly_count) {
+                in_pool = (g_data->polys[g->poly_id] == g);
+            }
+            lv_lock_guard_destroy(&_lg);
+        }
+        if (in_pool) {
+            poly_destroy(g_singular_state.registry, g->poly_id);
+        } else {
+            poly_internal_destroy(g);
+        }
+    }
+    lv_free((void **)&gens);
 }
 
 /* ========================================================================
@@ -310,45 +562,44 @@ static int singular_create_ring(const char *var_names[], int nvars) {
 /**
  * @brief 计算 Gröbner 基
  *
- * 对给定的多项式理想计算（关于当前单项式序的）Gröbner 基。
- * 内部调用 Singular 的 ksCreateGroebner（或 kStd / t_gr_opt 等）引擎。
+ * 对给定的多项式理想计算（关于 grevlex 单项式序的）Gröbner 基。
+ * 内部调用内部 Gröbner 引擎的 groebner_compute（自研 Buchberger
+ * 实现，等价于 Singular 的 kStd 语义）。
  *
- * @param ideal_ptr  指向 Singular 理想结构体的指针（ideal_t 或 ID ideal）
- * @return 计算得到的 Gröbner 基（以 ideal_t* 形式），失败返回 NULL
+ * @param ideal_ptr  SingularIdeal 句柄
+ * @return 以基多项式为生成元的 SingularIdeal 句柄，失败返回 NULL
  */
 static void *singular_compute_groebner(void *ideal_ptr) {
-    if (!ideal_ptr) {
+    SingularIdeal *s_ideal = (SingularIdeal *)ideal_ptr;
+    if (!s_ideal) {
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "singular_compute_groebner: 理想指针为空");
     }
+    if (!g_singular_state.registry) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "singular_compute_groebner: 引擎未初始化");
+    }
 
-#ifdef LV_HAS_SINGULAR
-    /*
-     * Singular 内核提供多个 Gröbner 基演算引擎：
-     *
-     *   1. kStd(ideal I, ring r, etc.) — 标准 Buchberger 算法
-     *   2. ksCreateGroebner(ideal I, ring r) — 简化的创建接口
-     *   3. t_gr_opt — 优化的 Gröbner 迹算法
-     *
-     * 此处使用 ksCreateGroebner 语义作为主要接口。
-     */
+    int ideal_id = singular_ideal_to_internal(s_ideal);
+    if (ideal_id < 0) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "singular_compute_groebner: 理想映射失败");
+    }
 
-    /* ---- 占位：实际调用 libsingular ---- */
-    /* ideal_t I = (ideal_t)ideal_ptr; */
-    /* ring_t r = g_singular_state.rings[g_singular_state.current_ring]; */
-    /* ideal_t G = kStd(I, r, testHomog, NULL); */
-    /* ideal_t G = ksCreateGroebner(I, r); */
+    /* 委托内部引擎计算 Gröbner 基（结果缓存于理想对象中） */
+    if (groebner_compute(g_singular_state.registry, ideal_id, GROEBNER_AUTO) != 0) {
+        ideal_destroy(g_singular_state.registry, ideal_id);
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "singular_compute_groebner: groebner_compute 失败");
+    }
 
-    /* 若 G 非空，返回 G；否则返回 NULL */
-    /* return (void *)G; */
+    /* 提取基多项式并包装为句柄 */
+    SingularIdeal *basis_handle = singular_basis_from_internal(ideal_id);
 
+    /* 临时理想仅引用句柄的生成元多项式，释放时不得销毁生成元 */
+    ideal_destroy(g_singular_state.registry, ideal_id);
+
+    if (!basis_handle) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "singular_compute_groebner: Gröbner 基提取失败");
+    }
     LOG_INFO("Singular", "Gröbner 基计算完成");
-    /* 占位返回 — 实际实现需返回计算后的理想 */
-    return ideal_ptr;
-
-#else
-    (void)ideal_ptr;
-    lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED, "singular_compute_groebner: LV_HAS_SINGULAR 未定义");
-#endif
+    return basis_handle;
 }
 
 /* ========================================================================
@@ -358,129 +609,134 @@ static void *singular_compute_groebner(void *ideal_ptr) {
 /**
  * @brief 计算两个理想的交 I ∩ J
  *
- * @param ideal_a  理想 A（Singular ideal_t*）
- * @param ideal_b  理想 B（Singular ideal_t*）
- * @param result   输出参数：I ∩ J 的理想指针
+ * @param ideal_a  理想 A（SingularIdeal 句柄）
+ * @param ideal_b  理想 B（SingularIdeal 句柄）
+ * @param result   输出参数：I ∩ J 的理想句柄
  * @return 成功返回 0，失败返回 -1
  */
 static int singular_ideal_intersection(void *ideal_a, void *ideal_b, void **result) {
-    if (!ideal_a || !ideal_b || !result) {
+    SingularIdeal *ia = (SingularIdeal *)ideal_a;
+    SingularIdeal *ib = (SingularIdeal *)ideal_b;
+    if (!ia || !ib || !result) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_intersection: 无效参数");
     }
+    if (!g_singular_state.registry) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "singular_ideal_intersection: 引擎未初始化");
+    }
+    if (ia->ring_id != ib->ring_id) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_intersection: 两个理想所属环不一致");
+    }
 
-#ifdef LV_HAS_SINGULAR
-    /*
-     * 交运算在 Singular 中通过引入新的消去变量实现：
-     *
-     *   给定 I = <f1,...,fk>, J = <g1,...,gl> ⊆ K[x1,...,xn]
-     *   构造 I' = <f1,...,fk, t*g1,...,t*gl> ⊆ K[t, x1,...,xn]
-     *   然后 I ∩ J = I' ∩ K[x1,...,xn] （消去 t）
-     *
-     *   Singular API:   ideal IdIntersect(ideal I, ideal J)
-     *   或借助消去序:   ideal G = kStd(IJ, elim_ring);
-     *                  ideal result = IdEliminate(G, t_index);
-     */
+    int ida = singular_ideal_to_internal(ia);
+    if (ida < 0) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_intersection: 理想 A 映射失败");
+    }
+    int idb = singular_ideal_to_internal(ib);
+    if (idb < 0) {
+        ideal_destroy(g_singular_state.registry, ida);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_intersection: 理想 B 映射失败");
+    }
 
-    /* ---- 占位：实际调用 libsingular ---- */
-    /* ideal_t I = (ideal_t)ideal_a; */
-    /* ideal_t J = (ideal_t)ideal_b; */
-    /* *result = (void *)IdIntersect(I, J); */
+    /* 委托内部引擎计算交（生成元注册进多项式池） */
+    int res = ideal_intersection(g_singular_state.registry, ida, idb);
+    ideal_destroy(g_singular_state.registry, ida);
+    ideal_destroy(g_singular_state.registry, idb);
+    if (res < 0) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_intersection: ideal_intersection 失败");
+    }
+
+    SingularIdeal *h = singular_ideal_from_internal(res);
+    singular_internal_ideal_release(res);
+    if (!h) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_intersection: 结果句柄创建失败");
+    }
 
     LOG_INFO("Singular", "理想交计算完成");
-    *result = NULL;
+    *result = h;
     return 0;
-
-#else
-    (void)ideal_a;
-    (void)ideal_b;
-    *result = NULL;
-    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "singular_ideal_intersection: LV_HAS_SINGULAR 未定义");
-#endif
 }
 
 /**
  * @brief 计算两个理想的商 I : J
  *
- * @param ideal_a  理想 A（Singular ideal_t*）
- * @param ideal_b  理想 B（Singular ideal_t*）
- * @param result   输出参数：I : J 的理想指针
+ * @param ideal_a  理想 A（SingularIdeal 句柄）
+ * @param ideal_b  理想 B（SingularIdeal 句柄）
+ * @param result   输出参数：I : J 的理想句柄
  * @return 成功返回 0，失败返回 -1
  */
 static int singular_ideal_quotient(void *ideal_a, void *ideal_b, void **result) {
-    if (!ideal_a || !ideal_b || !result) {
+    SingularIdeal *ia = (SingularIdeal *)ideal_a;
+    SingularIdeal *ib = (SingularIdeal *)ideal_b;
+    if (!ia || !ib || !result) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_quotient: 无效参数");
     }
+    if (!g_singular_state.registry) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "singular_ideal_quotient: 引擎未初始化");
+    }
+    if (ia->ring_id != ib->ring_id) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_quotient: 两个理想所属环不一致");
+    }
 
-#ifdef LV_HAS_SINGULAR
-    /*
-     * 理想商 I : J = { f ∈ K[x] | f·J ⊆ I }
-     *
-     * Singular API:   ideal IdQuotient(ideal I, ideal J)
-     *
-     * 实现思路：
-     *   对 J 的每个生成元 gj，计算 (I : gj) = (1/gj * I) ∩ K[x]
-     *   然后 I : J = ∩_j (I : gj)
-     */
+    int ida = singular_ideal_to_internal(ia);
+    if (ida < 0) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_quotient: 理想 A 映射失败");
+    }
+    int idb = singular_ideal_to_internal(ib);
+    if (idb < 0) {
+        ideal_destroy(g_singular_state.registry, ida);
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_quotient: 理想 B 映射失败");
+    }
 
-    /* ---- 占位：实际调用 libsingular ---- */
-    /* ideal_t I = (ideal_t)ideal_a; */
-    /* ideal_t J = (ideal_t)ideal_b; */
-    /* *result = (void *)IdQuotient(I, J); */
+    /* 委托内部引擎计算商（生成元注册进多项式池） */
+    int res = ideal_quotient(g_singular_state.registry, ida, idb, "singular_quotient");
+    ideal_destroy(g_singular_state.registry, ida);
+    ideal_destroy(g_singular_state.registry, idb);
+    if (res < 0) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_quotient: ideal_quotient 失败");
+    }
+
+    SingularIdeal *h = singular_ideal_from_internal(res);
+    singular_internal_ideal_release(res);
+    if (!h) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_quotient: 结果句柄创建失败");
+    }
 
     LOG_INFO("Singular", "理想商计算完成");
-    *result = NULL;
+    *result = h;
     return 0;
-
-#else
-    (void)ideal_a;
-    (void)ideal_b;
-    *result = NULL;
-    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "singular_ideal_quotient: LV_HAS_SINGULAR 未定义");
-#endif
 }
 
 /**
  * @brief 多项式成员判定：检查多项式 p 是否属于理想 I
  *
- * @param poly   指向多项式的指针
- * @param ideal  指向理想的指针
+ * @param poly   SingularPoly 句柄
+ * @param ideal  SingularIdeal 句柄
  * @return 若 p ∈ I 返回 1，否则返回 0，出错返回 -1
  */
 static int singular_ideal_membership(void *poly, void *ideal) {
-    if (!poly || !ideal) {
+    SingularPoly *sp = (SingularPoly *)poly;
+    SingularIdeal *si = (SingularIdeal *)ideal;
+    if (!sp || !si) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_membership: 无效参数");
     }
+    if (!g_singular_state.registry) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "singular_ideal_membership: 引擎未初始化");
+    }
+    if (sp->ring_id != si->ring_id) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_membership: 多项式与理想所属环不一致");
+    }
 
-#ifdef LV_HAS_SINGULAR
-    /*
-     * 成员判定通过计算多项式关于理想 Gröbner 基的标准型实现：
-     *
-     *   1. 计算 ideal 的 Gröbner 基 G
-     *   2. 计算 p 对 G 的标准型 NF(p, G)
-     *   3. 若 NF(p, G) == 0，则 p ∈ ideal
-     *
-     * Singular API:
-     *   ideal G = kStd(I, r, ...);
-     *   poly NF = kNF(G, r, p);
-     *   int belongs = (NF == NULL);
-     */
+    int ideal_id = singular_ideal_to_internal(si);
+    if (ideal_id < 0) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "singular_ideal_membership: 理想映射失败");
+    }
 
-    /* ---- 占位：实际调用 libsingular ---- */
-    /* ideal_t I = (ideal_t)ideal; */
-    /* poly_t p = (poly_t)poly; */
-    /* ideal_t G = kStd(I, ...); */
-    /* poly_t NF = kNF(G, currRing, p); */
-    /* int result = (NF == NULL) ? 1 : 0; */
-    /* pFree(NF); */
+    /* 委托内部引擎做成员判定（基于理想 Gröbner 基标准型归约） */
+    bool belongs = ideal_membership(g_singular_state.registry, ideal_id, sp->poly_id);
+    ideal_destroy(g_singular_state.registry, ideal_id);
 
     LOG_INFO("Singular", "成员判定完成");
-    return 0;
-
-#else
-    (void)poly;
-    (void)ideal;
-    lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "singular_ideal_membership: LV_HAS_SINGULAR 未定义");
-#endif
+    return belongs ? 1 : 0;
 }
 
 /* ========================================================================
@@ -494,15 +750,23 @@ static int singular_ideal_membership(void *poly, void *ideal) {
  * 多项式方程 fi(x) = 0。本函数将约束标识符集转换为对应的
  * 多项式理想 I = <f1, f2, ..., fk>。
  *
+ * 转换完全委托给内部 Gröbner 引擎的 constraint_graph_to_ideal：
+ *   1. 用 vars 中的变量名创建多项式环（ℚ[x0,...,x_{n-1}]）
+ *   2. 构建约束图：每两个变量构成一个 POINT 节点的 (x, y)，
+ *      坐标为对应 vars 的数值（经 1e6 缩放转为有理数）
+ *   3. 约束 ID 按约定注册为 INCIDENCE 约束（参与者为相邻 POINT 节点）
+ *   4. 调用 constraint_graph_to_ideal 完成"约束图 → 理想"编码
+ *
  * @param constraint_ids  约束标识符数组
  * @param n_constraints   约束个数
- * @param vars            变量描述符数组（提供变量名和索引映射）
+ * @param vars            变量描述符数组（提供变量名和数值）
  * @param n_vars          变量个数
- * @return 创建的 ideal_t 指针（需调用方释放），失败返回 NULL
+ * @return SingularIdeal 句柄，失败返回 NULL
  *
- * @note 这是约束图代数建模的核心转换函数。具体约束→多项式的
- *       编码规则定义在 layer4_reasoning 的约束解析模块中。
- *       Singular 后端仅负责构建对应的多项式环和理想表示。
+ * @note 编码规则与内部引擎 constraint_graph_to_ideal 保持一致：
+ *       每个 POINT 节点的符号坐标编码为常量方程 (x - val = 0)；
+ *       INCIDENCE 编码为叉积方程；BETWEENNESS 编码为共线性方程；
+ *       其余约束类型由内部实现处理。
  */
 static void *singular_constraint_graph_to_ideal(const int *constraint_ids,
                                                 int n_constraints,
@@ -512,42 +776,98 @@ static void *singular_constraint_graph_to_ideal(const int *constraint_ids,
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM,
                              "singular_constraint_graph_to_ideal: 无效参数");
     }
+    if (!g_singular_state.registry) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE,
+                             "singular_constraint_graph_to_ideal: 引擎未初始化");
+    }
 
-#ifdef LV_HAS_SINGULAR
-    /*
-     * 转换步骤：
-     *
-     *   1. 确保目标多项式环存在（含所有 vars 中的变量）
-     *   2. 对每个约束标识符，查找对应的多项式表达式
-     *   3. 将表达式转换为 Singular 多项式
-     *   4. 构造理想 = <p1, p2, ..., pk>
-     *
-     * Singular API:
-     *   poly p = pOne();                              // 1
-     *   pSetExp(p, var_index, exp); pSetm(p);         // x^exp
-     *   ideal I = idInit(n_constraints, 1);           // 空理想
-     *   I->m[i] = p;                                  // 设置生成元
-     */
+    /* 1. 创建包含全部变量的多项式环 */
+    const char **names = (const char **)lv_malloc((size_t)n_vars * sizeof(char *));
+    if (!names) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY,
+                             "singular_constraint_graph_to_ideal: 变量名数组分配失败");
+    }
+    for (int i = 0; i < n_vars; i++) {
+        names[i] = vars[i].name;
+    }
+    int ring_id = singular_create_ring(names, n_vars);
+    lv_free((void **)&names);
+    if (ring_id < 0) {
+        return NULL;
+    }
 
-    /* ---- 占位：实际调用 libsingular ---- */
-    /* 创建或切换到包含所有变量的环 */
-    /* int ring_id = singular_ensure_ring(vars, n_vars); */
-    /* ideal_t I = idInit(n_constraints, 1); */
-    /* for (int i = 0; i < n_constraints; i++) { */
-    /*     poly p = constraint_to_poly(constraint_ids[i], vars, n_vars); */
-    /*     I->m[i] = p; */
-    /* } */
+    /* 2. 构建约束图：每两个变量构成一个 POINT 节点的 (x, y) */
+    ConstraintGraph *graph = graph_create();
+    if (!graph) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL,
+                             "singular_constraint_graph_to_ideal: graph_create 失败");
+    }
+    int point_count = n_vars / 2;
+    for (int i = 0; i < point_count; i++) {
+        SymbolicCoord *coords[2] = {
+            symbolic_coord_from_double_scaled(vars[2 * i].val, 1000000),
+            symbolic_coord_from_double_scaled(vars[2 * i + 1].val, 1000000)
+        };
+        if (!coords[0] || !coords[1]) {
+            if (coords[0]) {
+                symbolic_coord_destroy(coords[0]);
+            }
+            if (coords[1]) {
+                symbolic_coord_destroy(coords[1]);
+            }
+            graph_destroy(graph);
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY,
+                                 "singular_constraint_graph_to_ideal: 符号坐标创建失败");
+        }
+        GeomNode *node = graph_add_node_with_id(graph, i, GEOM_POINT, coords, 2);
+        symbolic_coord_destroy(coords[0]);
+        symbolic_coord_destroy(coords[1]);
+        if (!node) {
+            graph_destroy(graph);
+            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL,
+                                 "singular_constraint_graph_to_ideal: POINT 节点创建失败");
+        }
+    }
+
+    /* 3. 注册约束：函数签名未提供约束类型信息，按约定注册为
+     *    INCIDENCE（参与者为相邻 POINT 节点），具体编码由
+     *    constraint_graph_to_ideal 内部实现完成。 */
+    if (point_count > 0) {
+        for (int i = 0; i < n_constraints; i++) {
+            int p1 = constraint_ids[i] % point_count;
+            if (p1 < 0) {
+                p1 += point_count;
+            }
+            int p2 = (p1 + 1) % point_count;
+            int participants[2] = {p1, p2};
+            if (!graph_add_constraint_with_id(graph, constraint_ids[i],
+                                              INCIDENCE, participants, 2)) {
+                graph_destroy(graph);
+                lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL,
+                                     "singular_constraint_graph_to_ideal: 约束注册失败");
+            }
+        }
+    }
+
+    /* 4. 委托内部引擎完成"约束图 → 多项式理想"编码 */
+    int ideal_id = constraint_graph_to_ideal(g_singular_state.registry, graph, ring_id,
+                                             "singular_constraint_ideal");
+    graph_destroy(graph);
+    if (ideal_id < 0) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL,
+                             "singular_constraint_graph_to_ideal: 编码失败");
+    }
+
+    /* 5. 包装为理想句柄并释放临时理想 */
+    SingularIdeal *h = singular_ideal_from_internal(ideal_id);
+    singular_internal_ideal_release(ideal_id);
+    if (!h) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL,
+                             "singular_constraint_graph_to_ideal: 结果句柄创建失败");
+    }
 
     LOG_INFO("Singular", "约束图→理想转换: %d 个约束, %d 个变量", n_constraints, n_vars);
-    lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED, "singular_constraint_graph_to_ideal: 占位实现未完成");
-
-#else
-    (void)constraint_ids;
-    (void)n_constraints;
-    (void)vars;
-    (void)n_vars;
-    lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED, "singular_constraint_graph_to_ideal: LV_HAS_SINGULAR 未定义");
-#endif
+    return h;
 }
 
 /* ========================================================================
@@ -621,5 +941,3 @@ void *lv_singular_graph_to_ideal(const int *constraint_ids,
     return singular_constraint_graph_to_ideal(constraint_ids, n_constraints,
                                               vars, n_vars);
 }
-
-#endif /* LV_HAS_SINGULAR */

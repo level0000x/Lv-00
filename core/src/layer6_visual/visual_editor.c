@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file visual_editor.c
  * @brief 可视化编辑器实现
  *
@@ -75,7 +75,7 @@ int lv_visual_editor_reset(lvVisualEditor *editor) {
  */
 int lv_visual_editor_switch_view(lvVisualEditor *editor, lvViewType view) {
     lv_CHECK_NOT_NULL(editor);
-    lv_CHECK_ARG(view >= lv_VIEW_GEOMETRY_CANVAS && view <= lv_VIEW_TEXT_CODE, lv_ERROR_INVALID_PARAM,
+    lv_CHECK_ARG(view >= lv_VIEW_BLOCK_CANVAS && view < lv_VIEW_COUNT, lv_ERROR_INVALID_PARAM,
                  "invalid view type %d", view);
     editor->active_view = view;
     return 0;

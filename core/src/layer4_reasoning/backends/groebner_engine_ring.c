@@ -54,7 +54,7 @@ lvRingRegistry *ring_registry_create(int capacity) {
 
     /* 初始化全局注册数据（加锁保护） */
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     registry_data_ensure();
     lv_lock_guard_destroy(&_lg);
 
@@ -72,7 +72,7 @@ void ring_registry_destroy(lvRingRegistry *registry) {
     /* 加锁保护全局池数据的释放 */
     {
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
 
     /* 释放全局池数据 */
     if (g_data) {
@@ -116,10 +116,10 @@ void ring_registry_destroy(lvRingRegistry *registry) {
 
     lv_lock_guard_destroy(&_lg);
     }
-    if (g_data_mutex_initialized) {
-        lv_mutex_destroy(&g_data_mutex);
-        g_data_mutex_initialized = 0;
-    }
+
+    /* 注意：全局互斥锁 g_data_mutex 采用进程级生命周期，
+     * 不在此处销毁。若销毁，后续 ring_registry_create 等调用
+     * 再次加锁时将因 CRITICAL_SECTION 已被删除而崩溃。 */
 
     /* 释放环 */
     for (int i = 0; i < registry->ring_count; i++) {

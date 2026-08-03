@@ -77,7 +77,9 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
         return NULL;
     node->var_id = var_id;
     node->low = low;
+    bdd_ref(low);   /* 子节点引用计数 +1，防止被 bdd_deref 提前释放 */
     node->high = high;
+    bdd_ref(high);  /* 子节点引用计数 +1，防止被 bdd_deref 提前释放 */
     node->ref_count = 1; /* 初始引用计数为 1（调用者持有） */
     node->complemented = false;
     mgr->node_count++;
@@ -167,7 +169,7 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     for (int i = 0; i < var_count; i++) {
         mgr->var_order[i] = i;
     }
-    mgr->var_count = var_count;
+    mgr->var_count = 0;
     mgr->var_capacity = var_count;
     mgr->node_count = 0;
 
@@ -352,9 +354,15 @@ void bdd_deref(BDDManager *mgr, BDDNode *node) {
     if (old_ref > 1)
         return;
 
-    /* 引用计数降为 0：从唯一表中标记为墓碑并释放 */
+    /* 引用计数降为 0：先释放子节点，再从唯一表移除，最后释放自身 */
+    BDDNode *child_low = node->low;
+    BDDNode *child_high = node->high;
+    node->low = NULL;
+    node->high = NULL;
+
+    /* 从唯一表中标记为墓碑并释放 */
     if (mgr && mgr->unique_table) {
-        int idx = bdd_unique_hash(node->var_id, node->low, node->high, mgr->unique_table_size);
+        int idx = bdd_unique_hash(node->var_id, child_low, child_high, mgr->unique_table_size);
         for (int probe = 0; probe < mgr->unique_table_size; probe++) {
             int slot = (idx + probe) % mgr->unique_table_size;
             if (mgr->unique_table[slot] == node) {
@@ -367,6 +375,10 @@ void bdd_deref(BDDManager *mgr, BDDNode *node) {
         mgr->node_count--;
     }
     lv_free((void **) &node);
+
+    /* 释放子节点引用（在释放自身之后，避免递归中的崩溃） */
+    bdd_deref(mgr, child_low);
+    bdd_deref(mgr, child_high);
 }
 
 /* ========================================================================
@@ -482,21 +494,40 @@ BDDNode *bdd_ite(BDDManager *mgr, BDDNode *f, BDDNode *g, BDDNode *h) {
 
 BDDNode *bdd_and(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* f & g = ite(f, g, F) */
+    if (!mgr) return NULL;
     return bdd_ite(mgr, f, g, mgr->false_node);
 }
 
 BDDNode *bdd_or(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* f | g = ite(f, T, g) */
+    if (!mgr) return NULL;
     return bdd_ite(mgr, f, mgr->true_node, g);
 }
 
 BDDNode *bdd_not(BDDManager *mgr, BDDNode *f) {
-    /* ~f = ite(f, F, T) */
-    return bdd_ite(mgr, f, mgr->false_node, mgr->true_node);
+    /* ~f = ite(f, F, T) —— 直接实现避免通过 bdd_ite 触发无限递归
+     * Shannon 展开：~f = x * ~f_high + ~x * ~f_low */
+    if (!mgr || !f)
+        return NULL;
+    if (f == mgr->true_node) {
+        bdd_ref(mgr->false_node);
+        return mgr->false_node;
+    }
+    if (f == mgr->false_node) {
+        bdd_ref(mgr->true_node);
+        return mgr->true_node;
+    }
+    BDDNode *not_low = bdd_not(mgr, f->low);
+    BDDNode *not_high = bdd_not(mgr, f->high);
+    BDDNode *result = bdd_unique_lookup(mgr, f->var_id, not_low, not_high);
+    bdd_deref(mgr, not_low);
+    bdd_deref(mgr, not_high);
+    return result;
 }
 
 BDDNode *bdd_xor(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* f ^ g = ite(f, ~g, g) */
+    if (!mgr) return NULL;
     BDDNode *not_g = bdd_not(mgr, g);
     BDDNode *result = bdd_ite(mgr, f, not_g, g);
     bdd_deref(mgr, not_g);
@@ -505,6 +536,7 @@ BDDNode *bdd_xor(BDDManager *mgr, BDDNode *f, BDDNode *g) {
 
 BDDNode *bdd_nand(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* ~(f & g) = ite(f, ~g, T) */
+    if (!mgr) return NULL;
     BDDNode *not_g = bdd_not(mgr, g);
     BDDNode *result = bdd_ite(mgr, f, not_g, mgr->true_node);
     bdd_deref(mgr, not_g);
@@ -759,9 +791,73 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
                 }
                 break;
 
-            case ANGLE:
-                /* 角度约束：暂不支持BDD编码 */
+            case ANGLE: {
+                /*
+                 * 角度约束：∠(line1, line2) = numeric_value（度）
+                 *  参与者: [line1_id, line2_id]（两条线段），
+                 *  numeric_value 字段存储角度值（单位：度）。
+                 *
+                 * 编码原理（角度离散化 bit-blasting）：
+                 * 与 SAT 编码一致，将角度区间 [0, 180°) 离散为 2^8 个
+                 * 等宽桶（桶宽 ≈ 0.703°）。为当前角度约束创建 8 个布尔
+                 * BDD 变量作为桶索引的二进制位，并通过与运算把每一位
+                 * 强制为"目标桶索引"的位模式（正/负文字），从而把角度
+                 * 固定到目标离散桶中。两条线段节点自身的存在性文字也
+                 * 参与编码（与 INCIDENCE/BETWEENNESS 编码风格一致）。
+                 */
+                if (con->participant_count >= 2) {
+                    int l1_id = con->participants[0];
+                    int l2_id = con->participants[1];
+                    int l1_var = (l1_id >= 0) ? LOOKUP_NODE_BASE_VAR(l1_id) : -1;
+                    int l2_var = (l2_id >= 0) ? LOOKUP_NODE_BASE_VAR(l2_id) : -1;
+
+                    /* 目标离散桶索引 = floor(角度值 / 桶宽) */
+                    int bucket_count = 1 << 8;
+                    double bucket_width = 180.0 / (double) bucket_count;
+                    int target_bucket = (int) (con->numeric_value / bucket_width);
+                    if (target_bucket < 0)
+                        target_bucket = 0;
+                    if (target_bucket >= bucket_count)
+                        target_bucket = bucket_count - 1;
+
+                    BDDNode *acc = bdd_true(mgr);
+
+                    /* 两条线段节点的存在性 */
+                    if (l1_var >= 0) {
+                        BDDNode *lit = bdd_literal(mgr, l1_var + 1);
+                        BDDNode *and1 = bdd_and(mgr, acc, lit);
+                        bdd_deref(mgr, acc);
+                        bdd_deref(mgr, lit);
+                        acc = and1;
+                    }
+                    if (l2_var >= 0) {
+                        BDDNode *lit = bdd_literal(mgr, l2_var + 1);
+                        BDDNode *and1 = bdd_and(mgr, acc, lit);
+                        bdd_deref(mgr, acc);
+                        bdd_deref(mgr, lit);
+                        acc = and1;
+                    }
+
+                    /* 角度离散位变量：强制为目标桶索引的二进制位模式。
+                     * 正文字 var_id = bit_var+1，负文字 var_id = -(bit_var+1)。 */
+                    for (int bit = 0; bit < 8; bit++) {
+                        char var_name[48];
+                        snprintf(var_name, sizeof(var_name), "angle_c%d_bit%d", con->id, bit);
+                        int bit_var = bdd_new_var(mgr, var_name, BDD_BOOLEAN);
+                        if (bit_var < 0)
+                            break;
+                        int bit_value = (target_bucket >> bit) & 1;
+                        BDDNode *bit_lit = bdd_literal(mgr, bit_value ? (bit_var + 1) : -(bit_var + 1));
+                        BDDNode *and1 = bdd_and(mgr, acc, bit_lit);
+                        bdd_deref(mgr, acc);
+                        bdd_deref(mgr, bit_lit);
+                        acc = and1;
+                    }
+
+                    sub = acc;
+                }
                 break;
+            }
 
             case CONNECTION:
                 /* 连接: 端口连接 —— 此处跳过（端口编码需单独处理） */
@@ -879,9 +975,11 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
                 mgr->var_types = new_types;
                 mgr->var_capacity = new_capacity;
             }
-            /* 初始化新增的变量序条目 */
+            /* 初始化新增的变量条目 */
             for (int v = mgr->var_count; v < needed; v++) {
                 mgr->var_order[v] = v;
+                mgr->var_names[v] = NULL;
+                mgr->var_types[v] = BDD_BOOLEAN;
             }
             mgr->var_count = needed;
         }

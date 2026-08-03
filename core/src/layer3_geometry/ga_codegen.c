@@ -10,6 +10,7 @@
 
 #include "lv/ga_codegen.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -194,16 +195,89 @@ char *ga_render_latex(const lvMultiVector *mv) {
     if (mv == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "ga_render_latex: mv is NULL");
 
-    char *buf = (char *) lv_malloc(GA_CODEGEN_LATEX_BUF_SIZE);
+    /* Cl(3,0,1) 代数 16 个基元素的 LaTeX 名称（与 ga_multivector.c 索引一致） */
+    static const char *blade_names[GA_MV_DIM] = {
+        "1",        /* 0: 标量 */
+        "e_{0}",    /* 1: e0 */
+        "e_{1}",    /* 2: e1 */
+        "e_{2}",    /* 3: e2 */
+        "e_{3}",    /* 4: e3 */
+        "e_{01}",   /* 5: e0∧e1 */
+        "e_{02}",   /* 6: e0∧e2 */
+        "e_{03}",   /* 7: e0∧e3 */
+        "e_{12}",   /* 8: e1∧e2 */
+        "e_{13}",   /* 9: e1∧e3 */
+        "e_{23}",   /* 10: e2∧e3 */
+        "e_{012}",  /* 11: e0∧e1∧e2 */
+        "e_{013}",  /* 12: e0∧e1∧e3 */
+        "e_{023}",  /* 13: e0∧e2∧e3 */
+        "e_{123}",  /* 14: e1∧e2∧e3 */
+        "e_{0123}"  /* 15: e0∧e1∧e2∧e3（伪标量） */
+    };
+
+    size_t cap = GA_CODEGEN_LATEX_BUF_SIZE;
+    char *buf = (char *) lv_malloc(cap);
     if (buf == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_render_latex: malloc failed");
+    buf[0] = '\0';
 
-    /* 简化渲染：多重向量为零时输出 "0"，否则输出占位表达式 */
-    if (ga_mv_zero() == NULL || mv == NULL) {
-        snprintf(buf, GA_CODEGEN_LATEX_BUF_SIZE, "0");
-    } else {
-        snprintf(buf, GA_CODEGEN_LATEX_BUF_SIZE, "\\mathbf{mv}_{%d\\text{ blades}}", GA_MV_DIM);
+    size_t pos = 0;
+    int first = 1;
+
+    /* 逐分量遍历，输出每个非零基元素的系数与基名称 */
+    for (int i = 0; i < GA_MV_DIM; i++) {
+        double c = ga_mv_get(mv, i);
+        if (fabs(c) < 1e-12)
+            continue;
+        double a = fabs(c);
+        int neg = (c < 0.0);
+
+        /* 构造单项式：系数绝对值（为 1 时省略）+ 基元素名称 */
+        char term[64];
+        if (i == 0) {
+            /* 标量分量直接输出数值 */
+            if (fabs(a - 1.0) < 1e-12)
+                snprintf(term, sizeof(term), "1");
+            else
+                snprintf(term, sizeof(term), "%.12g", a);
+        } else if (fabs(a - 1.0) < 1e-12) {
+            snprintf(term, sizeof(term), "\\mathbf{%s}", blade_names[i]);
+        } else {
+            snprintf(term, sizeof(term), "%.12g\\mathbf{%s}", a, blade_names[i]);
+        }
+
+        size_t tlen = strlen(term);
+        size_t sep = (first ? (neg ? 1u : 0u) : 3u);
+        /* 缓冲区不足时扩容 */
+        if (pos + sep + tlen + 1 > cap) {
+            size_t new_cap = cap * 2;
+            char *nb = (char *) lv_realloc(buf, new_cap);
+            if (nb == NULL) {
+                lv_free_ptr(buf);
+                lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_render_latex: realloc failed");
+            }
+            buf = nb;
+            cap = new_cap;
+        }
+
+        /* 写入项间符号与单项式 */
+        if (first) {
+            if (neg)
+                buf[pos++] = '-';
+            first = 0;
+        } else {
+            memcpy(buf + pos, neg ? " - " : " + ", 3);
+            pos += 3;
+        }
+        memcpy(buf + pos, term, tlen);
+        pos += tlen;
+        buf[pos] = '\0';
     }
+
+    /* 所有分量均为零 */
+    if (first)
+        snprintf(buf, cap, "0");
+
     return buf;
 }
 

@@ -507,9 +507,8 @@ static void test_rule_unload(void) {
     ok = rewrite_rule_unload(&rules, &count, "unload_test");
     TEST_ASSERT(!ok, "second unload should fail");
 
-    /* 注意：rewrite_rule_unload 内部已销毁 r1，不要重复释放 */
-    lv_free((void **)&pat);
-    lv_free((void **)&repl);
+    /* 注意：rewrite_rule_unload 内部已深销毁 r1（含 pattern/replacement），
+     * 不要重复释放 pat、repl 或 r1 */
 }
 
 /* ============================================================

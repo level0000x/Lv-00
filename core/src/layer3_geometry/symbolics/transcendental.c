@@ -149,7 +149,9 @@ Transcendental *transcendental_create(const char *name) {
                     lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
             }
         } else {
-            lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED, "transcendental_create: unsupported name format");
+            /* 任意超越函数名（如 "sinθ_mrad"、"cosθ" 等）：作为裸常量处理，
+             * 以便支持符号三角函数表达式的创建 */
+            base = name;
         }
     }
 

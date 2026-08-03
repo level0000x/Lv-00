@@ -138,11 +138,11 @@ int interop_serialize_response(const InteropResponse *resp, char *output, size_t
         return lv_ERROR_OUT_OF_MEMORY;
     size_t _len = strlen(_js);
     if (_len >= output_size) {
-        lv_free(_js);
+        lv_free((void **)&_js);
         return lv_ERROR_BUFFER_TOO_SMALL;
     }
     lv_strlcpy(output, _js, output_size);
-    lv_free(_js);
+    lv_free((void **)&_js);
     return lv_OK;
 }
 
@@ -182,7 +182,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             char *_js = lv_json_buf_finalize(&_jb);
             if (_js) {
                 lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                lv_free(_js);
+                lv_free((void **)&_js);
             }
             break;
         }
@@ -256,7 +256,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                         char *_js = lv_json_buf_finalize(&_jb);
                         if (_js) {
                             lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                            lv_free(_js);
+                            lv_free((void **)&_js);
                         }
                     } else {
                         resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -266,7 +266,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                         char *_js = lv_json_buf_finalize(&_jb);
                         if (_js) {
                             lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                            lv_free(_js);
+                            lv_free((void **)&_js);
                         }
                     }
                 } else {
@@ -292,7 +292,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                     char *_js = lv_json_buf_finalize(&_jb);
                     if (_js) {
                         lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                        lv_free(_js);
+                        lv_free((void **)&_js);
                     }
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -302,7 +302,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                     char *_js = lv_json_buf_finalize(&_jb);
                     if (_js) {
                         lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                        lv_free(_js);
+                        lv_free((void **)&_js);
                     }
                 }
             } else if (strcmp(type_str, "Circle") == 0 || strcmp(type_str, "circle") == 0) {
@@ -323,7 +323,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                     char *_js = lv_json_buf_finalize(&_jb);
                     if (_js) {
                         lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                        lv_free(_js);
+                        lv_free((void **)&_js);
                     }
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -333,7 +333,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                     char *_js = lv_json_buf_finalize(&_jb);
                     if (_js) {
                         lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                        lv_free(_js);
+                        lv_free((void **)&_js);
                     }
                 }
             } else if (strcmp(type_str, "Region") == 0 || strcmp(type_str, "region") == 0) {
@@ -357,7 +357,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                     char *_js = lv_json_buf_finalize(&_jb);
                     if (_js) {
                         lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                        lv_free(_js);
+                        lv_free((void **)&_js);
                     }
                 } else {
                     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -367,7 +367,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                     char *_js = lv_json_buf_finalize(&_jb);
                     if (_js) {
                         lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                        lv_free(_js);
+                        lv_free((void **)&_js);
                     }
                 }
             } else {
@@ -399,7 +399,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             } else {
                 resp->status_code = lv_ERROR_NOT_FOUND;
@@ -410,7 +410,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             }
             break;
@@ -481,7 +481,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             } else {
                 resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -510,7 +510,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             } else {
                 resp->status_code = lv_ERROR_NOT_FOUND;
@@ -521,7 +521,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             }
             break;
@@ -572,7 +572,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
                 lv_free((void **) &results);
             } else {
@@ -608,7 +608,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             }
             break;
@@ -625,7 +625,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             }
             break;
@@ -790,7 +790,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
             char *_js = lv_json_buf_finalize(&_jb);
             if (_js) {
                 lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                lv_free(_js);
+                lv_free((void **)&_js);
             }
             break;
         }
@@ -813,7 +813,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             } else {
                 resp->status_code = lv_ERROR_INVALID_PARAM;
@@ -825,7 +825,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             }
             break;
@@ -864,7 +864,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
                 char *_js = lv_json_buf_finalize(&_jb);
                 if (_js) {
                     lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free(_js);
+                    lv_free((void **)&_js);
                 }
             } else {
                 lv_strlcpy(resp->data, "{\"result\": \"ok\", \"pending\": 0}", sizeof(resp->data));

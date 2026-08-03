@@ -28,17 +28,70 @@ static int stream_find_event_type_by_id(const char *id_str) {
     return -1;
 }
 
+/** @brief 类别名→掩码映射表条目 */
+typedef struct {
+    const char *name;
+    uint64_t mask;
+} CategoryMaskEntry;
+
+/** @brief 类别名→掩码映射表（按名称长度降序排列，避免短名误匹配长名） */
+static const CategoryMaskEntry s_category_masks[] = {
+    {"func_block",
+        STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_START) |
+        STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_DONE) |
+        STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START) |
+        STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE) |
+        STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY) |
+        STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK) |
+        STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID) |
+        STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY)},
+    {"normalize",
+        STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_START) |
+        STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_MERGE) |
+        STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_DONE)},
+    {"rewrite",
+        STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_START) |
+        STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_RULE_LOADED) |
+        STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_MATCH_FOUND) |
+        STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_APPLIED) |
+        STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_ROLLBACK) |
+        STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_DONE)},
+    {"conflict",
+        STREAM_EVENT_MASK(STREAM_EVENT_CONFLICT_DETECTED)},
+    {"engine",
+        STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START) |
+        STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE) |
+        STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_PAUSED)},
+    {"solve",
+        STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START) |
+        STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_EQUATION_EXTRACTED) |
+        STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_GROEBNER_STEP) |
+        STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) |
+        STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_DONE)},
+    {"proof",
+        STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_ADDED) |
+        STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_APPLIED) |
+        STREAM_EVENT_MASK(STREAM_EVENT_PROOF_UNIFY) |
+        STREAM_EVENT_MASK(STREAM_EVENT_PROOF_COLOR_UPDATE) |
+        STREAM_EVENT_MASK(STREAM_EVENT_PROOF_DEPENDENCY_CHANGE)},
+    {"info",
+        STREAM_EVENT_MASK(STREAM_EVENT_INFO) |
+        STREAM_EVENT_MASK(STREAM_EVENT_PROGRESS) |
+        STREAM_EVENT_MASK(STREAM_EVENT_GRAPH_SNAPSHOT)},
+};
+
 /**
  * @brief 解析类别名为事件类型掩码
  *
  * 支持以下类别名（不区分大小写）：
- *   - "engine":    引擎生命周期事件（ENGINE_START/DONE/PAUSED）
- *   - "normalize": 归一化事件（NORMALIZE_START/MERGE/DONE）
- *   - "rewrite":   重写事件（REWRITE_START/RULE_LOADED/MATCH_FOUND/APPLIED/ROLLBACK/DONE）
- *   - "solve":     求解事件（SOLVE_START/EQUATION_EXTRACTED/GROEBNER_STEP/VARIABLE_RESOLVED/DONE）
- *   - "proof":     证明事件（PROOF_STEP_ADDED/APPLIED/UNIFY/COLOR_UPDATE/DEPENDENCY_CHANGE）
- *   - "conflict":  冲突事件（CONFLICT_DETECTED）
- *   - "info":      信息事件（INFO/PROGRESS/GRAPH_SNAPSHOT）
+ *   - "engine":    引擎生命周期事件
+ *   - "normalize": 归一化事件
+ *   - "rewrite":   重写事件
+ *   - "solve":     求解事件
+ *   - "proof":     证明事件
+ *   - "func_block": 函数块事件
+ *   - "conflict":  冲突事件
+ *   - "info":      信息事件
  *
  * @param category 类别名
  * @return 对应的事件类型位掩码，未识别时返回 STREAM_FILTER_NONE
@@ -47,48 +100,10 @@ static uint64_t stream_parse_category(const char *category) {
     if (!category)
         return STREAM_FILTER_NONE;
 
-    /* 不区分大小写比较 */
-    if (strcasecmp(category, "engine") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START) | STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE) |
-               STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_PAUSED);
+    for (size_t i = 0; i < lv_ARRAY_SIZE(s_category_masks); i++) {
+        if (strcasecmp(category, s_category_masks[i].name) == 0)
+            return s_category_masks[i].mask;
     }
-    if (strcasecmp(category, "normalize") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_START) | STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_MERGE) |
-               STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_DONE);
-    }
-    if (strcasecmp(category, "rewrite") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_START) | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_RULE_LOADED) |
-               STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_MATCH_FOUND) | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_APPLIED) |
-               STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_ROLLBACK) | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_DONE);
-    }
-    if (strcasecmp(category, "solve") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START) | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_EQUATION_EXTRACTED) |
-               STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_GROEBNER_STEP) |
-               STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_DONE);
-    }
-    if (strcasecmp(category, "proof") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_ADDED) | STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_APPLIED) |
-               STREAM_EVENT_MASK(STREAM_EVENT_PROOF_UNIFY) | STREAM_EVENT_MASK(STREAM_EVENT_PROOF_COLOR_UPDATE) |
-               STREAM_EVENT_MASK(STREAM_EVENT_PROOF_DEPENDENCY_CHANGE);
-    }
-    if (strcasecmp(category, "func_block") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_START) |
-               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_DONE) |
-               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START) |
-               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE) |
-               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY) |
-               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK) |
-               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID) |
-               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY);
-    }
-    if (strcasecmp(category, "conflict") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_CONFLICT_DETECTED);
-    }
-    if (strcasecmp(category, "info") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_INFO) | STREAM_EVENT_MASK(STREAM_EVENT_PROGRESS) |
-               STREAM_EVENT_MASK(STREAM_EVENT_GRAPH_SNAPSHOT);
-    }
-
     return STREAM_FILTER_NONE;
 }
 

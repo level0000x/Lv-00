@@ -477,6 +477,11 @@ typedef enum {
     ENGINE_CIRCUIT_ACTION_DOWNGRADE /**< 永久降级为 AMBER */
 } EngineCircuitAction;
 
+/**
+ * @brief 获取引擎最近一次操作的状态码
+ * @param engine 引擎实例（可为 NULL，返回 ENGINE_STATUS_OK）
+ * @return 最近一次操作的状态码
+ */
 lv_PUBLIC_API EngineStatus engine_get_last_status(const lvEngine *engine);
 /**
  * @brief 获取引擎最近一次错误的描述字符串

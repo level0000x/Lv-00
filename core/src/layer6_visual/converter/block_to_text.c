@@ -7,6 +7,9 @@
 #include "lv/lv_parse_utils.h"
 #include "lv/representation_converter.h"
 
+/* layer6 新实现接管：屏蔽 layer2 旧桩的同名直接转换 API */
+#define LV_HAS_LAYER6_CONVERTER
+
 /* 内部辅助：追加字符串到动态缓冲区 */
 typedef struct {
     char *data;

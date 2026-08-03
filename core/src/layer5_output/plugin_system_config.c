@@ -219,7 +219,9 @@ int lv_plugin_config_set(lvPluginConfig *config, const char *key, const char *va
  * @return 配置值或默认值
  */
 const char *lv_plugin_config_get(const lvPluginConfig *config, const char *key, const char *default_value) {
-    if (!config || !key)
+    if (!config)
+        return NULL;
+    if (!key)
         return default_value;
 
     for (size_t i = 0; i < config->entry_count; i++) {

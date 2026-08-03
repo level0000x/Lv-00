@@ -579,7 +579,7 @@ void lv_groebner_parallel_destroy(lvGroebnerParallel *engine) {
     /* 注意：当前实现为顺序执行，thread_pool 存储的是 WorkerArg 数组 */
     if (engine->thread_pool) {
         WorkerArg *args = (WorkerArg *) engine->thread_pool;
-        int num_threads = engine->config.max_threads;
+        int num_threads = engine->thread_count;
 
         /* 设置关闭标志 */
         for (int i = 0; i < num_threads; i++) {
@@ -600,17 +600,26 @@ void lv_groebner_parallel_destroy(lvGroebnerParallel *engine) {
                 args[i].all_queues = NULL;
             }
             /* 释放关闭标志 */
-            lv_free((void **) &args[i].shutdown_flag);
-            args[i].shutdown_flag = NULL;
+            if (args[i].shutdown_flag) {
+                lv_free((void **) &args[i].shutdown_flag);
+                args[i].shutdown_flag = NULL;
+            }
             /* 释放全局计数器（仅释放第一个线程拥有的） */
             if (i == 0) {
-                lv_free((void **) &args[i].global_completed);
-                lv_free((void **) &args[i].global_total);
+                if (args[i].global_completed) {
+                    lv_free((void **) &args[i].global_completed);
+                    args[i].global_completed = NULL;
+                }
+                if (args[i].global_total) {
+                    lv_free((void **) &args[i].global_total);
+                    args[i].global_total = NULL;
+                }
             }
         }
 
         lv_free((void **) &args);
         engine->thread_pool = NULL;
+        engine->thread_count = 0;
     }
 
     /* 释放 Groebner 基结果 */
@@ -741,6 +750,7 @@ int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, 
 
     /* 存储线程参数到引擎（用于 destroy 时清理） */
     engine->thread_pool = args;
+    engine->thread_count = num_threads;
 
     /* 顺序执行所有线程的工作（当前为单线程并行框架，
      * 多线程扩展只需将 worker_process 包装为 pthread_create 调用） */
@@ -778,6 +788,8 @@ int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, 
         args[t].local_queue = NULL;
         args[t].all_queues = NULL;
         args[t].shutdown_flag = NULL;
+        args[t].global_completed = NULL;
+        args[t].global_total = NULL;
     }
 
     /* 释放 all_queues 数组（不释放队列本身） */

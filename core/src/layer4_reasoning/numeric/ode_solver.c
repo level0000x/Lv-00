@@ -225,15 +225,41 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
     double *f_history[4] = {NULL, NULL, NULL, NULL};
     size_t ab_history_idx = 0;
 
-    for (size_t i = 1; i <= n_steps; i++) {
-        /* Check if we would overshoot t_end */
-        if (t + dt > problem->t_span[1]) {
-            dt = problem->t_span[1] - t;
+    const double t_end = problem->t_span[1];
+    const int use_adaptive = (config->method == ODE_RK4 && config->rtol > 0.0 && config->atol > 0.0);
+    size_t i = 1; /* 已写入条目数（含初始条件），即下一个写入索引 */
+    const size_t capacity = n_steps + 1; /* 预分配容量（含初始条件） */
+
+    while (t < t_end && i < capacity) {
+        /* 负步长/非法步长防护：杜绝时间倒流 */
+        if (dt <= 0.0) {
+            break;
         }
+
+        /* 越界钳制：最后一步截断到 t_end */
+        if (t + dt > t_end) {
+            dt = t_end - t;
+        }
+        if (dt <= 0.0) {
+            break;
+        }
+
+        /* 机器精度防护：步长过小（t+dt==t）时直接收尾，避免死循环 */
+        if (t + dt <= t) {
+            t = t_end;
+            sol->t_values[i] = t;
+            for (size_t j = 0; j < dim; j++) {
+                sol->y_values[i * dim + j] = y_curr[j];
+            }
+            i++;
+            break;
+        }
+
+        double step_used = dt; /* 本步实际使用的步长（自适应路径可能不等于 dt） */
 
         switch (config->method) {
             case ODE_RK4:
-                if (config->rtol > 0.0 && config->atol > 0.0) {
+                if (use_adaptive) {
                     /* 自适应步长控制（基于步长加倍误差估计） */
                     double current_dt = dt;
                     int retries = 0;
@@ -268,11 +294,15 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
                         /* 步进被接受：根据误差调整后续步长 */
                         if (max_err < 0.5 && max_err > 1e-15) {
                             double factor = fmin(5.0, safety / pow(max_err, 1.0 / 4.0));
-                            dt = current_dt * fmin(factor, 10.0 * config->dt / current_dt);
+                            /* 上限比值始终取正，防御 current_dt 非正导致的符号翻转 */
+                            double ratio_cap = 10.0 * fabs(config->dt) / fabs(current_dt);
+                            dt = current_dt * fmin(factor, ratio_cap);
                         } else {
                             dt = current_dt;
                         }
 
+                        /* 时间推进必须用本步实际步长，而非下一步建议步长 dt */
+                        step_used = current_dt;
                         memcpy(y_next, y_full, dim * sizeof(double));
                         break;
                     }
@@ -304,7 +334,8 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
                 break;
         }
 
-        t += dt;
+        /* 用实际步长推进时间 */
+        t += step_used;
         sol->t_values[i] = t;
 
         /* Swap buffers */
@@ -316,7 +347,11 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
         for (size_t j = 0; j < dim; j++) {
             sol->y_values[i * dim + j] = y_curr[j];
         }
+        i++;
     }
+
+    /* 实际存储条目数（含初始条件）：自适应路径步数可变 */
+    sol->n_steps = i;
 
     lv_free((void **) &y_curr);
     lv_free((void **) &y_next);

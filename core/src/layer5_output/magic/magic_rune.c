@@ -90,9 +90,9 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
     }
 
     /* 使用 mpz_set_d / mpz_set_si 安全设置 GMP 值，避免 double 到 long 的溢出风险 */
-    double computed = value * value * MAGIC_POLY_APPROX_A - value * MAGIC_POLY_APPROX_B;
-    mpz_set_d(poly.coeffs[0], computed);
-    mpz_set_si(poly.coeffs[1], (long) (MAGIC_POLY_APPROX_B));
+    double constant = -(value * value * MAGIC_POLY_APPROX_C + value * MAGIC_POLY_APPROX_B);
+    mpz_set_d(poly.coeffs[0], constant);
+    mpz_set_si(poly.coeffs[1], (long) MAGIC_POLY_APPROX_B);
     mpz_set_si(poly.coeffs[2], MAGIC_POLY_APPROX_C);
 
     /* 使用相对容差，避免小数值时区间不合理 */
@@ -341,8 +341,19 @@ Rune *rune_parse(const char *str) {
 
     /* 检查是否为有理数格式（带前缀） */
     const char *num_start = str;
+    bool has_explicit_prefix = false;
     if (strncmp(str, "rational:", 9) == 0) {
         num_start = str + 9;
+        has_explicit_prefix = true;
+    }
+
+    /* 拒绝无效前缀：如果冒号出现在元素分隔冒号之前，且不是已知前缀，则拒绝 */
+    if (!has_explicit_prefix && colon) {
+        const char *first_colon = strchr(str, ':');
+        if (first_colon && first_colon < colon) {
+            lv_LOG_WARNING("rune_parse: 无效前缀");
+            return NULL;
+        }
     }
 
     /* 解析分子 */

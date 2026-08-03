@@ -203,6 +203,7 @@ int lv_converter_verify_roundtrip(lvRepresentationConverter *conv, void *origina
     }
 }
 
+#if !defined(LV_HAS_LAYER6_CONVERTER)
 /* ============ Legacy 直接转换 API（桩实现） ============ */
 
 /**
@@ -306,6 +307,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     }
     return make_success_result(buf);
 }
+#endif /* !LV_HAS_LAYER6_CONVERTER */
 
 /**
  * @brief 将函数块转换为几何表示（直接 API）

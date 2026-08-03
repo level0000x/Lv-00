@@ -6,6 +6,13 @@
 #include "high_dim.h"
 #include "test_helpers.h"
 
+/* build3 以 -DNDEBUG 编译，<assert.h> 的 assert 会退化为空操作：逻辑错误不中止、
+ * 测试可能继续沿错误路径执行而崩溃挂起（Windows WER），被 ctest 判为超时。
+ * 这里将 assert 重定向到 test_helpers.h 的 TEST_ASSERT 宏（始终生效），
+ * 失败时递增 g_fail_count 并立即从当前测试函数返回。 */
+#undef assert
+#define assert(cond) TEST_ASSERT((cond), #cond)
+
 int g_pass_count = 0;
 int g_fail_count = 0;
 
@@ -118,7 +125,8 @@ void test_high_dim_projection_preset() {
         new_preset.mappings[i].axis_index = i;
         new_preset.mappings[i].scale = 1.0;
         new_preset.mappings[i].offset = 0.0;
-        new_preset.mappings[i].mapping_type = (i < 2) ? HIGH_DIM_MAP_TO_X : HIGH_DIM_MAP_FOLD;
+        new_preset.mappings[i].mapping_type =
+            (i == 0) ? HIGH_DIM_MAP_TO_X : (i == 1) ? HIGH_DIM_MAP_TO_Y : HIGH_DIM_MAP_FOLD;
     }
     new_preset.transform.m[0][0] = 1.0;
     new_preset.transform.m[0][1] = 0.0;
@@ -148,14 +156,16 @@ void test_high_dim_projection_preset() {
     assert(result == lv_ERROR_INVALID_PARAM);
     printf("  Set invalid preset index: PASSED\n");
 
+    /* preset_count=2（默认 + Custom），删除索引 0 应成功 */
     result = high_dim_remove_projection_preset(manager, 1, 0);
-    assert(result == lv_ERROR_UNSUPPORTED);
-    printf("  Remove last preset check: PASSED\n");
-
-    result = high_dim_remove_projection_preset(manager, 1, 1);
     assert(result == lv_OK);
     assert(((HighDimAbstractBlock *) lv_darray_get(&manager->blocks, 0))->preset_count == 1);
     printf("  Remove existing preset: PASSED\n");
+
+    /* 仅剩最后一个预设时禁止删除 */
+    result = high_dim_remove_projection_preset(manager, 1, 0);
+    assert(result == lv_ERROR_UNSUPPORTED);
+    printf("  Remove last preset check: PASSED\n");
 
     high_dim_manager_destroy(manager);
 
@@ -341,7 +351,7 @@ void test_high_dim_multi_projection_view() {
     assert(result == lv_OK);
 
     int preset_indices[] = {0};
-    int view_ids[1];
+    int view_ids[1] = {0};
 
     result = high_dim_create_multi_projection_view(NULL, 1, preset_indices, 1, view_ids);
     assert(result == lv_ERROR_INVALID_PARAM);
@@ -387,7 +397,7 @@ void test_high_dim_link_highlight() {
     assert(result == lv_OK);
 
     int preset_indices[] = {0};
-    int view_ids[1];
+    int view_ids[1] = {0};
     result = high_dim_create_multi_projection_view(manager, 1, preset_indices, 1, view_ids);
     assert(result == lv_OK);
 
@@ -446,16 +456,30 @@ int main() {
     printf("=== Lv-00 High Dimension Module Test Suite ===\n\n");
 
     test_high_dim_manager_lifecycle();
+    fflush(stdout);
     test_high_dim_block_registration();
+    fflush(stdout);
     test_high_dim_projection_preset();
+    fflush(stdout);
     test_high_dim_coordinate_projection();
+    fflush(stdout);
     test_high_dim_transform();
+    fflush(stdout);
     test_high_dim_fidelity();
+    fflush(stdout);
     test_high_dim_semantic_zoom();
+    fflush(stdout);
     test_high_dim_multi_projection_view();
+    fflush(stdout);
     test_high_dim_link_highlight();
+    fflush(stdout);
     test_high_dim_serialization();
+    fflush(stdout);
 
-    printf("\n=== All high_dim tests PASSED! ===\n");
+    if (g_fail_count > 0) {
+        printf("\n=== high_dim tests FAILED (%d failures, %d passed) ===\n", g_fail_count, g_pass_count);
+        return 1;
+    }
+    printf("\n=== All high_dim tests PASSED! (%d checks) ===\n", g_pass_count);
     return 0;
 }

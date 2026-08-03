@@ -41,13 +41,15 @@ void engine_set_error(lvEngine *engine, EngineStatus status, const char *fmt, ..
  * @brief 获取引擎最近一次操作的状态码
  *
  * 每个引擎实例独立维护自己的错误状态。
+ * 与 engine_get_state 等查询类 getter 约定一致：
+ * 传入 NULL 时返回新引擎实例的初始状态。
  *
- * @param[in] engine 引擎实例（为 NULL 时返回 ENGINE_STATUS_INVALID_ARGUMENT）
+ * @param[in] engine 引擎实例（为 NULL 时返回 ENGINE_STATUS_OK）
  * @return 最近一次操作的状态码
  */
 EngineStatus engine_get_last_status(const lvEngine *engine) {
     if (!engine) {
-        return ENGINE_STATUS_INVALID_ARGUMENT;
+        return ENGINE_STATUS_OK;
     }
     return engine->last_status;
 }

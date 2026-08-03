@@ -41,6 +41,8 @@ static int smtlib2_encode_containment(const ConstraintGraph *graph, const Constr
                                       bool named);
 static int smtlib2_encode_connection(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
                                      bool named);
+static int smtlib2_encode_angle(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
+                                bool named);
 
 
 /**
@@ -171,7 +173,8 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
                 n = smtlib2_encode_containment(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
                 break;
             case ANGLE:
-                /* 角度约束：暂不支持SMT编码 */
+                /* 角度约束：∠(line1, line2) = numeric_value（度） */
+                n = smtlib2_encode_angle(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
                 break;
             case CONNECTION:
                 /* 连接约束：端口连接 -> 坐标等价 */
@@ -396,6 +399,208 @@ static int smtlib2_encode_betweenness(const ConstraintGraph *graph, const Constr
                      "               (+ (* (- %s %s) (- %s %s))\n"
                      "                  (* (- %s %s) (- %s %s)))))\n",
                      bx, ax, cx, ax, by, ay, cy, ay, cx, ax, cx, ax, cy, ay, cy, ay);
+    }
+    if (n < 0)
+        return -1;
+    total += n;
+
+    return total;
+}
+
+/**
+ * @brief 通过关联约束解析线段端点的两个点节点 ID
+ *
+ * 几何语义：线段由两个端点点节点确定，端点在图中通过
+ * INCIDENCE 约束（点在线段上）表达。这里扫描图中全部
+ * 关联约束，收集以该线段为目标对象的所有点节点 ID。
+ *
+ * @param graph          约束图
+ * @param line_id        线段节点 ID
+ * @param out_endpoints  输出端点点节点 ID（最多 2 个）
+ * @return 找到的端点数量
+ */
+static int smtlib2_find_line_endpoints(const ConstraintGraph *graph, int line_id, int out_endpoints[2]) {
+    if (!graph || !out_endpoints)
+        return 0;
+
+    int count = 0;
+    for (int i = 0; i < graph->constraint_count && count < 2; i++) {
+        const Constraint *con = graph->constraints[i];
+        if (!con)
+            continue;
+        if (con->type != INCIDENCE || con->participant_count < 2)
+            continue;
+        /* 关联约束 participants[0] = 点, participants[1] = 对象 */
+        if (con->participants[1] == line_id) {
+            int point_id = con->participants[0];
+            if (point_id >= 0 && point_id < graph->node_count && graph->nodes[point_id] != NULL) {
+                out_endpoints[count++] = point_id;
+            }
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief 编码角度约束（ANGLE）：两条线段的夹角为给定值
+ *
+ * 几何含义：线段 AB 与线段 CB 在公共顶点 B 处的夹角为 θ。
+ * 设 v1 = A - B，v2 = C - B（均以顶点为起点），则：
+ *   dot   = v1·v2 = |v1|·|v2|·cosθ
+ *   |v1|^2 = v1x^2 + v1y^2
+ *   |v2|^2 = v2x^2 + v2y^2
+ *
+ * 代数编码（三点角度 = 向量夹角余弦，消去分母避免开方）：
+ *   dot^2 = |v1|^2 · |v2|^2 · cos^2θ
+ * 余弦在 [0°, 180°] 上单调，配合 dot 的符号断言：
+ *   dot >= 0（当 cosθ >= 0） 或 dot <= 0（当 cosθ <= 0）
+ * 即可唯一确定夹角。全部使用 QF_NRA 多项式实数算术。
+ *
+ * 参与者形式：
+ *   - participant_count >= 3：三点 ∠p0p1p2（顶点为 p1）
+ *   - participant_count == 2：两条线段（通过关联约束解析端点，
+ *     公共点为顶点）
+ *
+ * @param graph     约束图
+ * @param c         角度约束（numeric_value 为角度值，单位度）
+ * @param buf       输出缓冲区
+ * @param remaining 缓冲区剩余空间
+ * @param named     是否生成命名断言
+ * @return 写入的字符数，失败返回 -1
+ */
+static int smtlib2_encode_angle(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
+                                bool named) {
+    if (!c || c->participant_count < 2)
+        return 0;
+
+    int a_id = -1, b_id = -1, cc_id = -1;
+    if (c->participant_count >= 3) {
+        /* 三点形式：∠p0p1p2，顶点为 p1 */
+        a_id = c->participants[0];
+        b_id = c->participants[1];
+        cc_id = c->participants[2];
+    } else {
+        /* 两线段形式：解析端点并求公共顶点 */
+        int ep1[2] = {-1, -1}, ep2[2] = {-1, -1};
+        int n1 = smtlib2_find_line_endpoints(graph, c->participants[0], ep1);
+        int n2 = smtlib2_find_line_endpoints(graph, c->participants[1], ep2);
+        if (n1 >= 2 && n2 >= 2) {
+            for (int i = 0; i < 2; i++) {
+                for (int j = 0; j < 2; j++) {
+                    if (ep1[i] == ep2[j]) {
+                        b_id = ep1[i];
+                        a_id = ep1[1 - i];
+                        cc_id = ep2[1 - j];
+                        break;
+                    }
+                }
+                if (b_id >= 0)
+                    break;
+            }
+        }
+    }
+    if (a_id < 0 || b_id < 0 || cc_id < 0)
+        return 0;
+
+    /* 角度值（度）→ 余弦（弧度） */
+    double theta_rad = c->numeric_value * 3.14159265358979323846 / 180.0;
+    double cos_theta = cos(theta_rad);
+    double cos2 = cos_theta * cos_theta;
+
+    const char *ax = smtlib2_coord_var_name(a_id, 0);
+    const char *ay = smtlib2_coord_var_name(a_id, 1);
+    const char *bx = smtlib2_coord_var_name(b_id, 0);
+    const char *by = smtlib2_coord_var_name(b_id, 1);
+    const char *cx = smtlib2_coord_var_name(cc_id, 0);
+    const char *cy = smtlib2_coord_var_name(cc_id, 1);
+
+    int total = 0;
+    int n = 0;
+
+    /* 断言 1：dot^2 = |v1|^2 · |v2|^2 · cos^2θ */
+    if (named) {
+        n = snprintf(buf + total, (size_t) (remaining - total),
+                     "  ; 角度约束 c%d: ∠(对象 %d, 对象 %d) = %.6f°\n"
+                     "  (assert (! (= (* (+ (* (- %s %s) (- %s %s))\n"
+                     "                   (* (- %s %s) (- %s %s)))\n"
+                     "                 (+ (* (- %s %s) (- %s %s))\n"
+                     "                    (* (- %s %s) (- %s %s))))\n"
+                     "                (* (+ (* (- %s %s) (- %s %s))\n"
+                     "                      (* (- %s %s) (- %s %s)))\n"
+                     "                   (+ (* (- %s %s) (- %s %s))\n"
+                     "                      (* (- %s %s) (- %s %s)))\n"
+                     "                   %.12f)) :named c%d_angle_mag))\n",
+                     c->id, c->participants[0], c->participants[1], c->numeric_value,
+                     ax, bx, cx, bx,
+                     ay, by, cy, by,
+                     ax, bx, cx, bx,
+                     ay, by, cy, by,
+                     ax, bx, ax, bx,
+                     ay, by, ay, by,
+                     cx, bx, cx, bx,
+                     cy, by, cy, by,
+                     cos2, c->id);
+    } else {
+        n = snprintf(buf + total, (size_t) (remaining - total),
+                     "  ; 角度约束 c%d: ∠(对象 %d, 对象 %d) = %.6f°\n"
+                     "  (assert (= (* (+ (* (- %s %s) (- %s %s))\n"
+                     "                   (* (- %s %s) (- %s %s)))\n"
+                     "                 (+ (* (- %s %s) (- %s %s))\n"
+                     "                    (* (- %s %s) (- %s %s))))\n"
+                     "                (* (+ (* (- %s %s) (- %s %s))\n"
+                     "                      (* (- %s %s) (- %s %s)))\n"
+                     "                   (+ (* (- %s %s) (- %s %s))\n"
+                     "                      (* (- %s %s) (- %s %s)))\n"
+                     "                   %.12f)))\n",
+                     c->id, c->participants[0], c->participants[1], c->numeric_value,
+                     ax, bx, cx, bx,
+                     ay, by, cy, by,
+                     ax, bx, cx, bx,
+                     ay, by, cy, by,
+                     ax, bx, ax, bx,
+                     ay, by, ay, by,
+                     cx, bx, cx, bx,
+                     cy, by, cy, by,
+                     cos2);
+    }
+    if (n < 0 || n >= remaining - total)
+        return (n < 0) ? -1 : total;
+    total += n;
+
+    /* 断言 2：dot 的符号，消除平方带来的符号二义性 */
+    if (remaining - total <= 64)
+        return total;
+    if (cos_theta > 1e-9) {
+        if (named) {
+            n = snprintf(buf + total, (size_t) (remaining - total),
+                         "  (assert (! (>= (+ (* (- %s %s) (- %s %s))\n"
+                         "                    (* (- %s %s) (- %s %s)))\n"
+                         "                 0.0) :named c%d_angle_sign))\n",
+                         ax, bx, cx, bx, ay, by, cy, by, c->id);
+        } else {
+            n = snprintf(buf + total, (size_t) (remaining - total),
+                         "  (assert (>= (+ (* (- %s %s) (- %s %s))\n"
+                         "                  (* (- %s %s) (- %s %s)))\n"
+                         "               0.0))\n",
+                         ax, bx, cx, bx, ay, by, cy, by);
+        }
+    } else if (cos_theta < -1e-9) {
+        if (named) {
+            n = snprintf(buf + total, (size_t) (remaining - total),
+                         "  (assert (! (<= (+ (* (- %s %s) (- %s %s))\n"
+                         "                    (* (- %s %s) (- %s %s)))\n"
+                         "                 0.0) :named c%d_angle_sign))\n",
+                         ax, bx, cx, bx, ay, by, cy, by, c->id);
+        } else {
+            n = snprintf(buf + total, (size_t) (remaining - total),
+                         "  (assert (<= (+ (* (- %s %s) (- %s %s))\n"
+                         "                  (* (- %s %s) (- %s %s)))\n"
+                         "               0.0))\n",
+                         ax, bx, cx, bx, ay, by, cy, by);
+        }
+    } else {
+        /* cosθ ≈ 0 时 dot^2 = 0 已蕴含 dot = 0，无需符号断言 */
+        return total;
     }
     if (n < 0)
         return -1;

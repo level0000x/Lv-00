@@ -96,8 +96,30 @@ char **lv_plugin_system_get_search_paths(lvPluginSystem *system, size_t *count) 
     if (!system || !count)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_system_get_search_paths: system or count is NULL");
 
-    *count = (size_t)system->search_paths.count;
-    return (char **)system->search_paths.data;
+    /* 文档契约：调用者需负责释放返回数组，因此返回独立副本，避免暴露内部缓冲区 */
+    size_t n = (size_t)system->search_paths.count;
+    if (n == 0) {
+        *count = 0;
+        return NULL;
+    }
+
+    char **paths = (char **) lv_malloc(n * sizeof(char *));
+    if (!paths)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_get_search_paths: malloc failed");
+
+    for (size_t i = 0; i < n; i++) {
+        const char *src = *(char **) lv_darray_get(&system->search_paths, i);
+        paths[i] = lv_strdup(src);
+        if (!paths[i]) {
+            for (size_t j = 0; j < i; j++)
+                lv_free((void **) &paths[j]);
+            lv_free((void **) &paths);
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_get_search_paths: strdup failed");
+        }
+    }
+
+    *count = n;
+    return paths;
 }
 
 /* ============ 自动加载 ============ */

@@ -19,7 +19,9 @@
 
 #include "geometry_transform.h"
 
+#include "lv/constraint_graph.h"
 #include "lv/lv_strbuf.h"
+#include "lv/symbolic_coord.h"
 #include "lv_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +31,14 @@
 
 /** 初始变换序列容量 */
 #define TRANSFORM_SEQ_INIT_CAPACITY 8
+
+/**
+ * 对称性验证时从 double 重建符号坐标的缩放比例。
+ * 非有理数坐标（代数数、二次根式等）经 lv_transform_apply_double 计算后，
+ * 按该缩放比例重建为有理数坐标。缩放越大精度越高，但需保证
+ * 坐标值 × 缩放不超过 int64 安全范围。
+ */
+#define SYMMETRY_COORD_SCALE 1000000LL
 
 /* ============== GMP辅助函数 ============== */
 
@@ -1317,6 +1327,143 @@ int lv_transform_order(const lvTransform *t) {
 }
 
 /**
+ * @brief 由精确有理数创建有理型符号坐标
+ *
+ * 几何变换模块需要保留变换后坐标的精确性（用于退化线段 / 重复约束检测），
+ * 因此对 RATIONAL 类型坐标走精确 mpq 路径，避免 double 舍入误差。
+ * 该函数将 mpq 值封装为 SymbolicCoord（RATIONAL 类型），供验证流程使用。
+ *
+ * @param value 有理数值（mpq）
+ * @param trust 继承原坐标的信任颜色
+ * @return 新建的符号坐标，失败返回 NULL
+ */
+static SymbolicCoord *symbolic_coord_create_from_mpq(const mpq_t value, TrustColor trust) {
+    SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
+    if (!coord) {
+        return NULL;
+    }
+
+    coord->type = RATIONAL;
+    coord->trust = trust;
+    coord->cache_valid = false;
+    coord->cached_value = 0.0;
+
+    Rational *rat = lv_calloc(1, sizeof(Rational));
+    if (!rat) {
+        lv_free((void **) &coord);
+        return NULL;
+    }
+    mpq_init(rat->value);
+    mpq_set(rat->value, value);
+    coord->data.rational = rat;
+
+    return coord;
+}
+
+/**
+ * @brief 验证候选变换是否保持约束图的所有约束关系
+ *
+ * 对称变换必须是约束图的自同构：对图中每个几何节点的符号坐标应用变换后，
+ * 所有约束仍应成立。实现步骤：
+ *   1. 用 graph_copy 深拷贝原图，在副本上操作，避免修改调用者的数据；
+ *   2. 以 (x, y) 点对为单位遍历每个节点的符号坐标：
+ *        - RATIONAL 坐标走精确有理数路径（mpq 矩阵运算，无浮点误差）；
+ *        - 其他类型坐标经 lv_transform_apply_double 计算后按固定缩放重建；
+ *   3. 调用 graph_check_compatibility 校验变换后图与原图具有相同的
+ *      相容性状态——若出现退化线段（INCONSISTENT）或新增重复约束
+ *      （OVER_CONSTRAINED）等差异，说明变换破坏了约束关系。
+ *
+ * @param graph 约束图（const，不会被修改）
+ * @param t     候选变换（非 NULL，矩阵须有效）
+ * @return true 表示变换保持约束图（对称变换），false 表示变换破坏了约束
+ */
+static bool transform_preserves_graph(const ConstraintGraph *graph, const lvTransform *t) {
+    if (!graph || !t || !t->matrix_valid) {
+        return false;
+    }
+
+    /* 评估原图的相容性状态，作为变换后状态对比的基准 */
+    lvConstraintCompatibilityResult orig_compat;
+    if (!graph_check_compatibility(graph, &orig_compat)) {
+        return false;
+    }
+
+    /* 深拷贝原图，在副本上应用变换 */
+    ConstraintGraph *temp = graph_copy(graph);
+    if (!temp) {
+        return false;
+    }
+
+    bool preserved = true;
+
+    /* 逐节点应用变换：符号坐标以 (x, y) 点对连续存储（点为 1 对、线段为 2 对） */
+    for (int i = 0; i < temp->node_count && preserved; i++) {
+        GeomNode *node = temp->nodes[i];
+        if (!node || !node->symbolic_coords || node->coord_count < 2) {
+            continue;
+        }
+        for (int k = 0; k + 1 < node->coord_count; k += 2) {
+            SymbolicCoord *sx = node->symbolic_coords[k];
+            SymbolicCoord *sy = node->symbolic_coords[k + 1];
+            if (!sx || !sy) {
+                continue;
+            }
+
+            SymbolicCoord *nsx = NULL;
+            SymbolicCoord *nsy = NULL;
+
+            /* 有理数坐标：精确 mpq 路径，避免浮点舍入误差 */
+            if (sx->type == RATIONAL && sy->type == RATIONAL && sx->data.rational && sy->data.rational) {
+                mpq_t mx, my;
+                mpq_init(mx);
+                mpq_init(my);
+                mpq_set(mx, sx->data.rational->value);
+                mpq_set(my, sy->data.rational->value);
+                if (lv_transform_apply_point(t, mx, my)) {
+                    nsx = symbolic_coord_create_from_mpq(mx, sx->trust);
+                    nsy = symbolic_coord_create_from_mpq(my, sy->trust);
+                }
+                mpq_clear(mx);
+                mpq_clear(my);
+            } else {
+                /* 非有理坐标：double 路径，按固定缩放重建为有理坐标 */
+                double dx = 0.0, dy = 0.0;
+                lv_transform_apply_double(t, symbolic_coord_to_double(sx), symbolic_coord_to_double(sy), &dx, &dy);
+                nsx = symbolic_coord_from_double_rounded(dx, SYMMETRY_COORD_SCALE);
+                nsy = symbolic_coord_from_double_rounded(dy, SYMMETRY_COORD_SCALE);
+            }
+
+            if (!nsx || !nsy) {
+                /* 坐标重建失败：释放已分配部分并判定变换未保持约束图 */
+                symbolic_coord_destroy(nsx);
+                symbolic_coord_destroy(nsy);
+                preserved = false;
+                break;
+            }
+
+            /* 用变换后的坐标替换原坐标（原坐标已由 graph_copy 深拷贝，可安全释放） */
+            symbolic_coord_destroy(sx);
+            symbolic_coord_destroy(sy);
+            node->symbolic_coords[k] = nsx;
+            node->symbolic_coords[k + 1] = nsy;
+        }
+    }
+
+    if (preserved) {
+        /* 校验所有约束在变换后是否仍然成立：变换后图的相容性状态必须与原图一致 */
+        lvConstraintCompatibilityResult compat;
+        if (!graph_check_compatibility(temp, &compat)) {
+            preserved = false;
+        } else {
+            preserved = (compat.status == orig_compat.status);
+        }
+    }
+
+    graph_destroy(temp);
+    return preserved;
+}
+
+/**
  * @brief 分析约束图的所有对称变换
  *
  * 遍历约束图中的几何对象，识别保持约束关系的对称变换。
@@ -1361,10 +1508,12 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform *
 
         lvTransform *ref_x = lv_transform_reflection(ax, ay, bx, by);
         if (ref_x) {
-            /* 简化检测：仅检查变换是否保持约束图的节点集合不变。
-             * 完整实现需要逐一验证每个约束在变换后是否仍然成立。
-             * 此处作为骨架实现，假设反射是对称变换。 */
-            out_transforms[found++] = ref_x;
+            /* 验证 x 轴反射后所有约束是否仍然成立，成立才作为对称变换加入输出 */
+            if (transform_preserves_graph(graph, ref_x)) {
+                out_transforms[found++] = ref_x;
+            } else {
+                lv_transform_destroy(ref_x);
+            }
         }
 
         mpq_clear(ax);
@@ -1388,7 +1537,12 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform *
 
         lvTransform *ref_y = lv_transform_reflection(ax, ay, bx, by);
         if (ref_y) {
-            out_transforms[found++] = ref_y;
+            /* 验证 y 轴反射后所有约束是否仍然成立，成立才作为对称变换加入输出 */
+            if (transform_preserves_graph(graph, ref_y)) {
+                out_transforms[found++] = ref_y;
+            } else {
+                lv_transform_destroy(ref_y);
+            }
         }
 
         mpq_clear(ax);
@@ -1401,7 +1555,12 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform *
     if (found < max_count) {
         lvTransform *rot180 = lv_transform_rotation(zero, zero, 180, 1);
         if (rot180) {
-            out_transforms[found++] = rot180;
+            /* 验证 180 度旋转后所有约束是否仍然成立，成立才作为对称变换加入输出 */
+            if (transform_preserves_graph(graph, rot180)) {
+                out_transforms[found++] = rot180;
+            } else {
+                lv_transform_destroy(rot180);
+            }
         }
     }
 
@@ -1409,7 +1568,12 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform *
     if (found < max_count) {
         lvTransform *rot90 = lv_transform_rotation(zero, zero, 90, 1);
         if (rot90) {
-            out_transforms[found++] = rot90;
+            /* 验证 90 度旋转后所有约束是否仍然成立，成立才作为对称变换加入输出 */
+            if (transform_preserves_graph(graph, rot90)) {
+                out_transforms[found++] = rot90;
+            } else {
+                lv_transform_destroy(rot90);
+            }
         }
     }
 
@@ -1417,7 +1581,12 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform *
     if (found < max_count) {
         lvTransform *rot120 = lv_transform_rotation(zero, zero, 120, 1);
         if (rot120) {
-            out_transforms[found++] = rot120;
+            /* 验证 120 度旋转后所有约束是否仍然成立，成立才作为对称变换加入输出 */
+            if (transform_preserves_graph(graph, rot120)) {
+                out_transforms[found++] = rot120;
+            } else {
+                lv_transform_destroy(rot120);
+            }
         }
     }
 
@@ -1436,7 +1605,12 @@ int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform *
 
         lvTransform *ref_yx = lv_transform_reflection(ax, ay, bx, by);
         if (ref_yx) {
-            out_transforms[found++] = ref_yx;
+            /* 验证 y=x 反射后所有约束是否仍然成立，成立才作为对称变换加入输出 */
+            if (transform_preserves_graph(graph, ref_yx)) {
+                out_transforms[found++] = ref_yx;
+            } else {
+                lv_transform_destroy(ref_yx);
+            }
         }
 
         mpq_clear(ax);

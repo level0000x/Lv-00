@@ -21,6 +21,7 @@
 
 #include "lv/conflict_detector.h"
 #include "lv/constraint_graph.h"
+#include "lv/groebner_engine.h"
 #include "lv/lv.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -45,8 +46,8 @@ static PropagationResult propagation_run_with_assignment(PropagationContext *ctx
 /* ── L1 矛盾检测辅助函数 ── */
 
 /* 前向声明 */
-static bool check_all_constraints(const ConstraintGraph *graph, int node_id,
-                                   const SymbolicCoord *candidate);
+static bool meta_groebner_candidate_excluded(const ConstraintGraph *graph, int node_id,
+                                             const SymbolicCoord *candidate);
 
 /**
  * @brief 检查 INCIDENCE 约束是否与候选坐标矛盾
@@ -125,6 +126,303 @@ static bool check_incidence_contradiction(const ConstraintGraph *graph, int node
     double cross = (x2 - x1) * (yp - y1) - (y2 - y1) * (xp - x1);
 
     return fabs(cross) > 1e-10; /* 叉积非零 → 不在线上 */
+}
+
+/* ── L1 约束真实求值辅助函数 ── */
+
+/* 几何判定容差 */
+#define META_PROOF_GEOM_EPS 1e-9
+#define META_PROOF_ANGLE_EPS 1e-6
+#define META_PROOF_PI 3.14159265358979323846
+
+/**
+ * @brief 获取节点的符号坐标（double 值）
+ *
+ * @param graph   约束图
+ * @param node_id 节点 ID
+ * @param out_x   输出 x 坐标
+ * @param out_y   输出 y 坐标
+ * @return true 成功获取，false 节点不存在或无坐标
+ */
+static bool graph_node_coords(const ConstraintGraph *graph, int node_id, double *out_x, double *out_y) {
+    if (!graph || !out_x || !out_y || node_id < 0)
+        return false;
+
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || node->id != node_id || !node->symbolic_coords || node->coord_count < 2)
+            continue;
+        *out_x = symbolic_coord_to_double(node->symbolic_coords[0]);
+        *out_y = symbolic_coord_to_double(node->symbolic_coords[1]);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief 计算角度（度）：以 (vx, vy) 为顶点，两条射线到 (p1x, p1y) 与 (p2x, p2y) 的夹角
+ *
+ * @return 夹角度数（0~180），任一向量退化时返回 -1
+ */
+static double compute_angle_degrees(double vx, double vy, double p1x, double p1y, double p2x, double p2y) {
+    double ax = p1x - vx, ay = p1y - vy;
+    double bx = p2x - vx, by = p2y - vy;
+    double la = sqrt(ax * ax + ay * ay);
+    double lb = sqrt(bx * bx + by * by);
+    if (la < META_PROOF_GEOM_EPS || lb < META_PROOF_GEOM_EPS)
+        return -1.0; /* 向量退化 */
+    double dot = (ax * bx + ay * by) / (la * lb);
+    if (dot > 1.0)
+        dot = 1.0;
+    if (dot < -1.0)
+        dot = -1.0;
+    return acos(dot) * 180.0 / META_PROOF_PI;
+}
+
+/**
+ * @brief 判断点 B 是否位于线段 AC 上（共线且投影参数在 [0,1]）
+ *
+ * @return true 位于线段上，false 不位于或无法判定
+ */
+static bool is_point_between_segment(double ax, double ay, double bx, double by, double cx, double cy) {
+    /* 共线检测：叉积近似为零 */
+    double cross = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    if (fabs(cross) > META_PROOF_GEOM_EPS)
+        return false;
+    /* 投影参数 t = (B-A)·(C-A) / |C-A|² ∈ [0,1] ⇔ B 位于线段 AC 上 */
+    double dx = cx - ax, dy = cy - ay;
+    double len2 = dx * dx + dy * dy;
+    if (len2 < META_PROOF_GEOM_EPS * META_PROOF_GEOM_EPS)
+        return false; /* A 与 C 重合，无法判定有序关系 */
+    double t = ((bx - ax) * dx + (by - ay) * dy) / len2;
+    return t >= -META_PROOF_GEOM_EPS && t <= 1.0 + META_PROOF_GEOM_EPS;
+}
+
+/**
+ * @brief 检查候选点是否位于指定几何对象上
+ *
+ * 依据对象类型执行坐标级判定：
+ * - GEOM_POINT：与对象坐标重合
+ * - GEOM_LINE_SEGMENT：通过 INCIDENCE 约束收集两个端点，检查点是否在线段上
+ * - GEOM_CIRCLE：到圆心距离等于半径
+ * - 其他类型（区域/端口/函数块）：不做坐标级判定，返回 false
+ *
+ * @param graph  约束图
+ * @param px     候选 x 坐标
+ * @param py     候选 y 坐标
+ * @param obj_id 几何对象节点 ID
+ * @return true 候选点在对象上，false 不在或无法判定
+ */
+static bool check_point_on_object(const ConstraintGraph *graph, double px, double py, int obj_id) {
+    GeomNode *obj = NULL;
+    for (int i = 0; i < graph->node_count; i++) {
+        if (graph->nodes[i] && graph->nodes[i]->id == obj_id) {
+            obj = graph->nodes[i];
+            break;
+        }
+    }
+    if (!obj || !obj->is_active)
+        return false;
+
+    switch (obj->type) {
+        case GEOM_POINT: {
+            if (!obj->symbolic_coords || obj->coord_count < 2)
+                return false;
+            double ox = symbolic_coord_to_double(obj->symbolic_coords[0]);
+            double oy = symbolic_coord_to_double(obj->symbolic_coords[1]);
+            return fabs(px - ox) <= META_PROOF_GEOM_EPS && fabs(py - oy) <= META_PROOF_GEOM_EPS;
+        }
+
+        case GEOM_LINE_SEGMENT: {
+            /* 通过 INCIDENCE(point, segment) 约束收集两个端点 */
+            double ep[2][2];
+            int ep_count = 0;
+            for (int i = 0; i < graph->constraint_count && ep_count < 2; i++) {
+                Constraint *c = graph->constraints[i];
+                if (!c || !c->is_active || c->type != INCIDENCE || c->participant_count != 2)
+                    continue;
+                if (c->participants[1] != obj_id)
+                    continue;
+                double ex, ey;
+                if (!graph_node_coords(graph, c->participants[0], &ex, &ey))
+                    continue;
+                bool dup = false;
+                for (int k = 0; k < ep_count; k++) {
+                    if (fabs(ep[k][0] - ex) <= META_PROOF_GEOM_EPS && fabs(ep[k][1] - ey) <= META_PROOF_GEOM_EPS) {
+                        dup = true;
+                        break;
+                    }
+                }
+                if (!dup) {
+                    ep[ep_count][0] = ex;
+                    ep[ep_count][1] = ey;
+                    ep_count++;
+                }
+            }
+            if (ep_count < 2)
+                return false; /* 端点信息不足，不做判定 */
+            return is_point_between_segment(ep[0][0], ep[0][1], px, py, ep[1][0], ep[1][1]);
+        }
+
+        case GEOM_CIRCLE: {
+            double ox, oy, rx, ry;
+            if (!graph_node_coords(graph, obj->data.circle.center_node_id, &ox, &oy))
+                return false;
+            if (!graph_node_coords(graph, obj->data.circle.radius_node_id, &rx, &ry))
+                return false;
+            double radius = sqrt((rx - ox) * (rx - ox) + (ry - oy) * (ry - oy));
+            double dist = sqrt((px - ox) * (px - ox) + (py - oy) * (py - oy));
+            return fabs(dist - radius) <= META_PROOF_GEOM_EPS;
+        }
+
+        default:
+            /* 区域/端口/函数块等不做坐标级判定 */
+            return false;
+    }
+}
+
+/**
+ * @brief 约束求值：判断候选坐标是否与指定约束产生矛盾
+ *
+ * 将候选坐标作为 node_id 的位置代入约束，依据约束的几何语义执行真实求值：
+ * - INCIDENCE：候选点必须落在目标对象上
+ * - BETWEENNESS：候选（参与点）必须位于另两个参与点之间
+ * - INTERSECTION：候选交点必须同时位于两个对象上
+ * - CONTAINMENT：候选（内对象）必须位于外对象内
+ * - ANGLE：以候选为相关顶点/臂点计算的角度必须等于约束值
+ * - CONNECTION：端口数据流约束与坐标无关，不产生几何矛盾
+ *
+ * @param graph     约束图
+ * @param node_id   被检查的节点 ID
+ * @param candidate 候选坐标
+ * @param con_id    约束 ID
+ * @return true 表示候选不满足该约束（矛盾），false 表示满足或无法判定
+ */
+static bool constraint_eval_contradiction(const ConstraintGraph *graph, int node_id,
+                                          const SymbolicCoord *candidate, int con_id) {
+    if (!graph || !candidate || node_id < 0)
+        return false;
+
+    Constraint *con = NULL;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        if (graph->constraints[i] && graph->constraints[i]->id == con_id) {
+            con = graph->constraints[i];
+            break;
+        }
+    }
+    if (!con || !con->is_active)
+        return false;
+
+    double cx = symbolic_coord_to_double(candidate);
+    double cy = symbolic_coord_to_double(candidate + 1);
+
+    switch (con->type) {
+        case INCIDENCE:
+            /* 关联约束：候选点必须位于目标对象上 */
+            return check_incidence_contradiction(graph, node_id, candidate, con_id);
+
+        case BETWEENNESS: {
+            /* BETWEENNESS(A, B, C)：B 必须位于 A 与 C 之间 */
+            if (con->participant_count != 3)
+                return false;
+            int pa = con->participants[0];
+            int pb = con->participants[1];
+            int pc = con->participants[2];
+            double ax, ay, bx, by, ccx, ccy;
+            if (node_id == pb) {
+                if (!graph_node_coords(graph, pa, &ax, &ay))
+                    return false;
+                if (!graph_node_coords(graph, pc, &ccx, &ccy))
+                    return false;
+                bx = cx;
+                by = cy;
+            } else if (node_id == pa) {
+                if (!graph_node_coords(graph, pb, &bx, &by))
+                    return false;
+                if (!graph_node_coords(graph, pc, &ccx, &ccy))
+                    return false;
+                ax = cx;
+                ay = cy;
+            } else if (node_id == pc) {
+                if (!graph_node_coords(graph, pa, &ax, &ay))
+                    return false;
+                if (!graph_node_coords(graph, pb, &bx, &by))
+                    return false;
+                ccx = cx;
+                ccy = cy;
+            } else {
+                return false; /* 约束不涉及该节点 */
+            }
+            /* 候选不满足“位于两点之间”→ 矛盾 */
+            return !is_point_between_segment(ax, ay, bx, by, ccx, ccy);
+        }
+
+        case INTERSECTION: {
+            /* INTERSECTION(obj1, obj2, point)：交点必须同时位于两个对象上 */
+            if (con->participant_count != 3)
+                return false;
+            if (node_id != con->participants[2])
+                return false;
+            if (!check_point_on_object(graph, cx, cy, con->participants[0]))
+                return true;
+            if (!check_point_on_object(graph, cx, cy, con->participants[1]))
+                return true;
+            return false;
+        }
+
+        case CONTAINMENT: {
+            /* CONTAINMENT(inner, outer)：内对象必须位于外对象内 */
+            if (con->participant_count != 2)
+                return false;
+            if (node_id != con->participants[0])
+                return false;
+            return !check_point_on_object(graph, cx, cy, con->participants[1]);
+        }
+
+        case ANGLE: {
+            /* ANGLE(vertex, arm1, arm2) = numeric_value（度） */
+            if (con->participant_count != 3)
+                return false;
+            int pv = con->participants[0];
+            int p1 = con->participants[1];
+            int p2 = con->participants[2];
+            double vx, vy, x1, y1, x2, y2;
+            if (node_id == pv) {
+                vx = cx;
+                vy = cy;
+                if (!graph_node_coords(graph, p1, &x1, &y1))
+                    return false;
+                if (!graph_node_coords(graph, p2, &x2, &y2))
+                    return false;
+            } else if (node_id == p1) {
+                if (!graph_node_coords(graph, pv, &vx, &vy))
+                    return false;
+                x1 = cx;
+                y1 = cy;
+                if (!graph_node_coords(graph, p2, &x2, &y2))
+                    return false;
+            } else if (node_id == p2) {
+                if (!graph_node_coords(graph, pv, &vx, &vy))
+                    return false;
+                if (!graph_node_coords(graph, p1, &x1, &y1))
+                    return false;
+                x2 = cx;
+                y2 = cy;
+            } else {
+                return false;
+            }
+            double measured = compute_angle_degrees(vx, vy, x1, y1, x2, y2);
+            if (measured < 0.0)
+                return false; /* 向量退化，无法判定 */
+            /* 实测角度与约束值偏差超过容差 → 矛盾 */
+            return fabs(measured - con->numeric_value) > META_PROOF_ANGLE_EPS;
+        }
+
+        case CONNECTION:
+        default:
+            /* 连接约束（端口数据流）与几何坐标无关，不产生矛盾 */
+            return false;
+    }
 }
 
 /* ============================================================
@@ -257,51 +555,13 @@ MetaProofResult meta_prove_direct_contradiction(MetaProofContext *ctx, int node_
 
     constraint_graph_get_constraints_for_node(ctx->graph, node_id, constraint_ids, constraint_count);
 
-    /* 检查每个约束是否与候选矛盾 */
+    /* 检查每个约束是否与候选矛盾：对约束执行真实求值 */
     for (int i = 0; i < constraint_count; i++) {
         int cid = constraint_ids[i];
 
-        /* 获取约束的代数表达式 */
-        /* 简化实现：假设约束有 evaluate 方法 */
-        /* 实际实现需要根据约束类型进行代入验证 */
-
-        /* 这里简化为检查约束类型 */
-        ConstraintType type = constraint_graph_get_constraint_type(ctx->graph, cid);
-
-        /* 根据约束类型进行验证 */
-        bool contradicts = false;
-
-        switch (type) {
-            case CONSTRAINT_INCIDENCE:
-                /* 关联约束：候选必须在线上 */
-                contradicts = check_incidence_contradiction(ctx->graph, node_id, candidate, cid);
-                break;
-
-            case CONSTRAINT_BETWEEN:
-                /* 之间约束：候选必须在两点之间 */
-                /* 简化：假设总是满足 */
-                contradicts = false;
-                break;
-
-            case CONSTRAINT_DISTANCE:
-                /* 距离约束：候选距离必须等于指定值 */
-                /* 简化：假设总是满足 */
-                contradicts = false;
-                break;
-
-            case CONSTRAINT_ANGLE:
-                /* 角度约束：角度必须等于指定值 */
-                /* 简化：假设总是满足 */
-                contradicts = false;
-                break;
-
-            default:
-                /* 未知约束类型 */
-                contradicts = false;
-                break;
-        }
-
-        if (contradicts) {
+        /* 将候选坐标代入涉及该节点的约束，依据约束的几何语义
+         * （关联/之间/相交/包含/角度）执行真实求值并判定矛盾 */
+        if (constraint_eval_contradiction(ctx->graph, node_id, candidate, cid)) {
             if (out_conflicting_constraint) {
                 *out_conflicting_constraint = cid;
             }
@@ -329,8 +589,10 @@ MetaProofResult meta_prove_propagation_contradiction(MetaProofContext *ctx, int 
         return META_PROVE_INCONCLUSIVE;
     }
 
-    /* 临时坍缩节点为候选状态 */
-    /* 简化实现：假设传播引擎会检测矛盾 */
+    /* 临时坍缩节点为候选状态后运行真实约束传播：
+     * 传播引擎（AC-3 弧一致性）对图中每个约束执行相容性检查
+     * （check_constraint_compatible），当任意节点的状态空间被
+     * 排空时即检测到矛盾，返回 PROP_RESULT_CONTRADICTION。 */
 
     /* 运行传播 */
     PropagationResult result =
@@ -359,14 +621,16 @@ MetaProofResult meta_prove_algebraic_exclusion(MetaProofContext *ctx, int node_i
         return META_PROVE_INCONCLUSIVE;
     }
 
-    /* 检查候选是否满足图中所有涉及该节点的约束 */
-    if (!check_all_constraints(ctx->graph, node_id, candidate)) {
-        /* 候选不满足某约束 → 可以被排除 */
+    /* 代数排除：将约束图编码为多项式理想，并以候选坐标构造附加方程
+     * { x_v - cx = 0, y_v - cy = 0 } 加入理想，计算 Groebner 基后
+     * 判定 1 ∈ J：若理想为整个多项式环，则候选不可能满足全部约束 */
+    if (meta_groebner_candidate_excluded(ctx->graph, node_id, candidate)) {
+        /* 候选被约束代数系统排除 → 可以被剪枝 */
         ctx->l3_proofs++;
         return META_PROVE_VALID;
     }
 
-    /* 所有约束满足 → 无法通过代数方式排除 */
+    /* 候选与约束系统相容 → 无法通过代数方式排除 */
     return META_PROVE_INCONCLUSIVE;
 }
 
@@ -669,18 +933,24 @@ static PropagationResult propagation_run_with_assignment(PropagationContext *ctx
     lv_darray_free(&space->candidates_da);
     space->is_unbounded = false;
 
-    /* 运行约束传播 */
-    PropagationResult result = propagation_run(ctx);
-
-    /* 恢复快照（propagation_snapshot_restore 销毁当前状态和快照） */
-    propagation_snapshot_restore(ctx, snap);
-
-    /* 超时检测：max_steps 表示传播的最大迭代次数
-     * propagation_run 内部循环使用 ctx->max_iterations 作为上限，
-     * 当 max_steps > 0 时覆盖默认值以支持步数限制。 */
+    /* 设置传播步数上限：必须在 propagation_run 之前写入，
+     * 否则传播循环内不会采用 max_steps 作为迭代上限 */
+    int saved_max_iterations = ctx->max_iterations;
     if (max_steps > 0) {
         ctx->max_iterations = max_steps;
     }
+
+    /* 运行约束传播：
+     * 传播引擎对每个约束执行相容性检查（check_constraint_compatible），
+     * 当某节点状态空间被排空时即检测到矛盾（PROP_RESULT_CONTRADICTION），
+     * 即候选赋值与约束系统矛盾的传播级证据。 */
+    PropagationResult result = propagation_run(ctx);
+
+    /* 恢复默认传播步数上限 */
+    ctx->max_iterations = saved_max_iterations;
+
+    /* 恢复快照（propagation_snapshot_restore 销毁当前状态和快照） */
+    propagation_snapshot_restore(ctx, snap);
 
     if (result == PROP_RESULT_CONTRADICTION)
         return PROP_RESULT_CONTRADICTION;
@@ -691,85 +961,217 @@ static PropagationResult propagation_run_with_assignment(PropagationContext *ctx
 }
 
 /**
- * @brief 检查候选坐标是否满足图中所有约束
+ * @brief 创建常数多项式（值恒为 coeff）
  *
- * 遍历图中所有涉及指定节点的约束，逐一检查候选坐标是否满足。
- * 这是 L3 代数排除的简化实现（直接约束检查而非 Groebner 基）。
+ * lvPolynomial 结构为公开定义，此处直接构造单项式常数项。
+ * 用于判定 1 ∈ J（理想是否为整个多项式环）。
+ *
+ * @param registry 环注册表
+ * @param ring_id  环 ID
+ * @param coeff    常数值
+ * @param label    多项式标签
+ * @return 多项式 ID，失败返回 -1
+ */
+static int meta_poly_create_constant(lvRingRegistry *registry, int ring_id, double coeff, const char *label) {
+    int pid = poly_create(registry, ring_id, 1, label);
+    if (pid < 0)
+        return -1;
+    const lvPolynomial *poly = poly_get(registry, pid);
+    if (!poly) {
+        poly_destroy(registry, pid);
+        return -1;
+    }
+    lvPolynomial *p = (lvPolynomial *) poly;
+    /* 常数项：所有变量指数为 0 */
+    for (int v = 0; v < p->var_count; v++)
+        p->powers[v] = 0;
+    ((double *) p->coeffs)[0] = coeff;
+    p->term_count = 1;
+    p->total_degree = 0;
+    return pid;
+}
+
+/**
+ * @brief 创建线性多项式 x_var - constant（一个变量项 + 一个常数项）
+ *
+ * 用于把候选坐标编码为附加方程：x_var - cx = 0、y_var - cy = 0。
+ * 采用 RING_FIELD_REAL 域，系数按 double 存储。
+ *
+ * @param registry 环注册表
+ * @param ring_id  环 ID
+ * @param var_idx  变量索引
+ * @param constant 常数项
+ * @param label    多项式标签
+ * @return 多项式 ID，失败返回 -1
+ */
+static int meta_poly_create_linear(lvRingRegistry *registry, int ring_id, int var_idx, double constant,
+                                   const char *label) {
+    int pid = poly_create(registry, ring_id, 2, label);
+    if (pid < 0)
+        return -1;
+    const lvPolynomial *poly = poly_get(registry, pid);
+    if (!poly) {
+        poly_destroy(registry, pid);
+        return -1;
+    }
+    lvPolynomial *p = (lvPolynomial *) poly;
+    if (var_idx < 0 || var_idx >= p->var_count) {
+        poly_destroy(registry, pid);
+        return -1;
+    }
+    /* 项 0：1 * x_var */
+    for (int v = 0; v < p->var_count; v++)
+        p->powers[v] = 0;
+    p->powers[var_idx] = 1;
+    /* 项 1：常数项 -constant */
+    for (int v = 0; v < p->var_count; v++)
+        p->powers[p->term_capacity + v] = 0;
+    ((double *) p->coeffs)[0] = 1.0;
+    ((double *) p->coeffs)[1] = -constant;
+    p->term_count = 2;
+    p->total_degree = 1;
+    return pid;
+}
+
+/**
+ * @brief 使用 Groebner 基判定候选坐标是否被约束代数系统排除
+ *
+ * 实现步骤：
+ *   1. 统计 POINT 节点数量，创建多项式环（每点 2 个变量 x、y）
+ *   2. 将约束图编码为多项式理想 I（constraint_graph_to_ideal）
+ *   3. 以候选坐标构造附加方程 x_v - cx = 0、y_v - cy = 0 加入理想得 J
+ *   4. 计算 J 的 Groebner 基（groebner_compute）
+ *   5. 判定 1 ∈ J（ideal_membership）：若恒 1 多项式属于理想，则 J 为
+ *      整个多项式环，约束系统与候选坐标矛盾 → 候选被代数排除
  *
  * @param graph     约束图
- * @param node_id   节点 ID
+ * @param node_id   被检查的节点 ID（POINT）
  * @param candidate 候选坐标
- * @return true 表示所有约束满足（候选可能是合法解），
- *         false 表示至少一个约束不满足（候选可被排除）
+ * @return true 表示候选被代数排除，false 表示未被排除或计算失败
  */
-static bool check_all_constraints(const ConstraintGraph *graph, int node_id,
-                                   const SymbolicCoord *candidate) {
-    if (!graph || !candidate)
-        return true;
+static bool meta_groebner_candidate_excluded(const ConstraintGraph *graph, int node_id,
+                                             const SymbolicCoord *candidate) {
+    if (!graph || !candidate || node_id < 0)
+        return false;
 
-    for (int ci = 0; ci < graph->constraint_count; ci++) {
-        Constraint *con = graph->constraints[ci];
-        if (!con || !con->is_active)
-            continue;
-
-        /* 检查该约束是否涉及本节点 */
-        bool involves_node = false;
-        for (int p = 0; p < con->participant_count; p++) {
-            if (con->participants[p] == node_id) {
-                involves_node = true;
-                break;
-            }
-        }
-        if (!involves_node)
-            continue;
-
-        switch (con->type) {
-            case INCIDENCE: {
-                /* INCIDENCE(point, seg): 叉积 = 0 → 点在线上 */
-                int seg_id = con->participants[0] == node_id ? con->participants[1] : con->participants[0];
-
-                /* 查找线段端点 */
-                int ep1 = -1, ep2 = -1;
-                for (int i = 0; i < graph->constraint_count; i++) {
-                    Constraint *ic = graph->constraints[i];
-                    if (!ic || ic->id == con->id || ic->type != INCIDENCE)
-                        continue;
-                    if (ic->participants[1] == seg_id) {
-                        int other = ic->participants[0];
-                        if (other == node_id) continue;
-                        if (ep1 < 0) ep1 = other;
-                        else if (ep2 < 0) ep2 = other;
-                    }
-                }
-                if (ep1 < 0 || ep2 < 0) continue;
-
-                /* 获取端点坐标 */
-                GeomNode *n1 = NULL, *n2 = NULL;
-                for (int j = 0; j < graph->node_count; j++) {
-                    GeomNode *n = graph->nodes[j];
-                    if (!n) continue;
-                    if (n->id == ep1) n1 = n;
-                    if (n->id == ep2) n2 = n;
-                }
-                if (!n1 || !n2 || n1->coord_count < 2 || n2->coord_count < 2)
-                    continue;
-
-                double x1 = symbolic_coord_to_double(n1->symbolic_coords[0]);
-                double y1 = symbolic_coord_to_double(n1->symbolic_coords[1]);
-                double x2 = symbolic_coord_to_double(n2->symbolic_coords[0]);
-                double y2 = symbolic_coord_to_double(n2->symbolic_coords[1]);
-                double xp = symbolic_coord_to_double(candidate);
-                double yp = (n1->coord_count >= 2) ? symbolic_coord_to_double(candidate + 1) : 0.0;
-
-                double cross = (x2 - x1) * (yp - y1) - (y2 - y1) * (xp - x1);
-                if (fabs(cross) > 1e-10)
-                    return false; /* 不在线上 → 约束不满足 */
-                break;
-            }
-
-            default:
-                break;
-        }
+    /* 统计 POINT 节点数量（每个点 2 个变量：x、y） */
+    int point_count = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (node && node->is_active && node->type == GEOM_POINT)
+            point_count++;
     }
-    return true;
+    if (point_count == 0)
+        return false;
+
+    int var_count = point_count * 2;
+
+    /* 创建环注册表与多项式环 */
+    lvRingRegistry *registry = ring_registry_create(8);
+    if (!registry)
+        return false;
+
+    /* 生成变量名 p{id}_x / p{id}_y，变量索引顺序与
+     * constraint_graph_to_ideal 的 POINT 节点遍历顺序保持一致 */
+    char **var_names = (char **) lv_calloc((size_t) var_count, sizeof(char *));
+    if (!var_names) {
+        lv_free((void **) &registry->rings);
+        lv_free((void **) &registry);
+        return false;
+    }
+
+    int vi = 0;
+    int node_vi = -1; /* node_id 的 x 变量索引 */
+    for (int i = 0; i < graph->node_count && vi < var_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active || node->type != GEOM_POINT)
+            continue;
+        char name[64];
+        snprintf(name, sizeof(name), "p%d_x", node->id);
+        var_names[vi] = (char *) lv_calloc(1, strlen(name) + 1);
+        if (!var_names[vi])
+            goto fail;
+        strcpy(var_names[vi], name);
+        snprintf(name, sizeof(name), "p%d_y", node->id);
+        var_names[vi + 1] = (char *) lv_calloc(1, strlen(name) + 1);
+        if (!var_names[vi + 1])
+            goto fail;
+        strcpy(var_names[vi + 1], name);
+        if (node->id == node_id)
+            node_vi = vi;
+        vi += 2;
+    }
+    if (node_vi < 0 || node_vi + 1 >= var_count)
+        goto fail;
+
+    int ring_id = ring_create(registry, (const char **) var_names, var_count, RING_FIELD_REAL,
+                              MONOMIAL_GREVLEX, "meta_proof_l3");
+    if (ring_id < 0)
+        goto fail;
+
+    /* 释放变量名字符串（ring_create 已复制） */
+    for (int i = 0; i < var_count; i++) {
+        if (var_names[i])
+            lv_free((void **) &var_names[i]);
+    }
+    lv_free((void **) &var_names);
+    var_names = NULL;
+
+    /* 将约束图编码为多项式理想 */
+    int ideal_id = constraint_graph_to_ideal(registry, graph, ring_id, "meta_proof_constraint_ideal");
+    if (ideal_id < 0)
+        goto fail;
+
+    /* 构造候选坐标方程：x_v - cx = 0、y_v - cy = 0 */
+    double cx = symbolic_coord_to_double(candidate);
+    double cy = symbolic_coord_to_double(candidate + 1);
+    int px_id = meta_poly_create_linear(registry, ring_id, node_vi, cx, "candidate_x");
+    int py_id = meta_poly_create_linear(registry, ring_id, node_vi + 1, cy, "candidate_y");
+    if (px_id < 0 || py_id < 0)
+        goto fail;
+
+    /* 将候选方程加入理想：J = I + <x_v - cx, y_v - cy> */
+    if (ideal_add_generator(registry, ideal_id, px_id) != 0)
+        goto fail;
+    if (ideal_add_generator(registry, ideal_id, py_id) != 0)
+        goto fail;
+
+    /* 计算 Groebner 基 */
+    if (groebner_compute(registry, ideal_id, GROEBNER_AUTO) != 0)
+        goto fail;
+
+    /* 判定 1 ∈ J：若恒 1 多项式属于理想，则 J 为整个多项式环，
+     * 约束系统与候选坐标矛盾 → 候选被代数排除 */
+    int one_id = meta_poly_create_constant(registry, ring_id, 1.0, "constant_one");
+    if (one_id < 0)
+        goto fail;
+    int member = ideal_membership(registry, ideal_id, one_id);
+
+    /* 清理本次创建的多项式（理想/环销毁由下述调用完成；
+     * 注意 ring_registry_destroy 会清空全局池，故此处不调用它，
+     * 避免影响其他环的 Groebner 数据） */
+    poly_destroy(registry, one_id);
+    poly_destroy(registry, px_id);
+    poly_destroy(registry, py_id);
+    ideal_destroy(registry, ideal_id);
+    ring_destroy(registry, ring_id);
+    lv_free((void **) &registry->rings);
+    lv_free((void **) &registry);
+
+    return member == 1;
+
+fail:
+    /* 失败路径：释放本次创建的变量名与注册表结构 */
+    if (var_names) {
+        for (int i = 0; i < var_count; i++) {
+            if (var_names[i])
+                lv_free((void **) &var_names[i]);
+        }
+        lv_free((void **) &var_names);
+    }
+    if (registry) {
+        lv_free((void **) &registry->rings);
+        lv_free((void **) &registry);
+    }
+    return false;
 }

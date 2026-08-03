@@ -175,11 +175,14 @@ lv_PUBLIC_API lvSolveResult lv_geo_solver_solve(lvSolverSystem *sys) {
         return lv_SOLVE_OK;
     }
 
-    /* 统计约束方程数量 */
+    /* 统计约束方程数量（跳过 FIXED 约束，与 compute_residuals 保持一致：
+     * FIXED 的 DOF 行数若计入 nrows 但残差/雅可比无对应行，会使雅可比出现全零行、JtJ 奇异） */
     int nrows = 0;
     for (int ci = 0; ci < sys->constraint_count; ci++) {
         const lvConstraint *c = &sys->constraints[ci];
         if (!c->is_active)
+            continue;
+        if (c->type == lv_CONSTRAINT_FIXED)
             continue;
         nrows += evaluate_constraint(sys, c, NULL);
     }

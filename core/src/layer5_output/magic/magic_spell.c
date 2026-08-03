@@ -547,15 +547,15 @@ int threshold_to_energy(EnergyThreshold level) {
  * @return 对应的能量阈值等级
  */
 EnergyThreshold energy_to_threshold(int energy) {
-    if (energy <= MAGIC_ENERGY_T1)
+    if (energy < MAGIC_ENERGY_T2)
         return THRESHOLD_T1;
-    if (energy <= MAGIC_ENERGY_T2)
+    if (energy < MAGIC_ENERGY_T3)
         return THRESHOLD_T2;
-    if (energy <= MAGIC_ENERGY_T3)
+    if (energy < MAGIC_ENERGY_T4)
         return THRESHOLD_T3;
-    if (energy <= MAGIC_ENERGY_T4)
+    if (energy < MAGIC_ENERGY_T5)
         return THRESHOLD_T4;
-    if (energy <= MAGIC_ENERGY_T5)
+    if (energy < MAGIC_ENERGY_T6)
         return THRESHOLD_T5;
     return THRESHOLD_T6;
 }

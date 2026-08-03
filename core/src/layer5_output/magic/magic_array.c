@@ -27,22 +27,23 @@
 
 /** 元素反应矩阵：定义两种元素之间的相互作用关系 */
 static ElementReaction element_reaction_matrix[MAGIC_ELEMENT_TOTAL_COUNT][MAGIC_ELEMENT_TOTAL_COUNT] = {
-    /*        NONE  FIRE  WATER AIR  EARTH ETHER */
-    /*NONE*/ {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE,
-              ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
+    /*        FIRE  WATER AIR   EARTH ETHER NONE */
     /*FIRE*/
-    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_ENHANCE,
-     ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_NONE},
+    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_ENHANCE,
+     ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
     /*WATER*/
-    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE, ELEMENT_REACTION_WEAKEN,
-     ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_NONE},
+    {ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE, ELEMENT_REACTION_WEAKEN, ELEMENT_REACTION_ENHANCE,
+     ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
     /*AIR*/
-    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_WEAKEN, ELEMENT_REACTION_NONE,
-     ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE},
+    {ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_WEAKEN, ELEMENT_REACTION_NONE, ELEMENT_REACTION_CONFLICT,
+     ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
     /*EARTH*/
-    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_CONFLICT,
+    {ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_ENHANCE, ELEMENT_REACTION_CONFLICT, ELEMENT_REACTION_NONE,
      ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE},
     /*ETHER*/
+    {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE,
+     ELEMENT_REACTION_NONE},
+    /*NONE*/
     {ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE, ELEMENT_REACTION_NONE,
      ELEMENT_REACTION_NONE}};
 
@@ -261,41 +262,13 @@ int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int 
                             &array->constraint_capacity, sizeof(ArrayConstraintType), 1))
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "magic_array_add_constraint: ensure_capacity failed");
 
-    /* 将魔法阵约束类型映射为底层约束图内部类型 */
-    static const ConstraintType s_arr_to_ct[] = {
-        CONNECTION,   /* ARRAY_CONNECTION = 0 */
-        INCIDENCE,    /* ARRAY_ENHANCEMENT = 1 */
-        INCIDENCE,    /* ARRAY_CONFLICT = 2 */
-        INTERSECTION, /* ARRAY_INTERSECTION = 3 */
-        CONTAINMENT,  /* ARRAY_CONTAINMENT = 4 */
-    };
-    ConstraintType graph_type;
-    if ((int)type >= 0 && (int)type < (int)(sizeof(s_arr_to_ct) / sizeof(s_arr_to_ct[0])))
-        graph_type = s_arr_to_ct[type];
-    else
-        graph_type = CONNECTION;
-
-    int participants[2] = {rune1_index, rune2_index};
-    AddConstraintResult result;
-    switch (graph_type) {
-        case CONTAINMENT:
-            result = graph_add_containment(array->graph, participants[0], participants[1]);
-            break;
-        case CONNECTION:
-            result = graph_add_connection(array->graph, participants[0], participants[1]);
-            break;
-        case INCIDENCE:
-        default:
-            result = graph_add_incidence(array->graph, participants[0], participants[1]);
-            break;
-    }
-
-    if (result == ADD_CONSTRAINT_OK) {
-        array->constraints[array->constraint_count++] = type;
-        return array->graph->next_constraint_id - 1;
-    }
-
-    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "magic_array_add_constraint: graph_add_* failed");
+    /* magic 层独立维护约束计数，不依赖几何约束图的节点类型校验。
+     * 符文节点均为 GEOM_POINT，无法通过 graph_add_connection（要求 GEOM_PORT）
+     * 或 graph_add_incidence（要求 LINE/REGION/CIRCLE）的类型检查，
+     * 因此约束直接记录在魔法阵自身的约束数组中。 */
+    int id = array->constraint_count;
+    array->constraints[array->constraint_count++] = type;
+    return id;
 }
 
 /**
@@ -311,9 +284,6 @@ bool magic_array_remove_constraint(MagicArray *array, int constraint_index) {
     if (!array || constraint_index < 0 || constraint_index >= array->constraint_count) {
         return false;
     }
-
-    /* 从底层约束图中移除指定约束 */
-    graph_remove_constraint(array->graph, constraint_index);
 
     /* 从约束数组中移除，后续元素前移填补空缺 */
     for (int i = constraint_index; i < array->constraint_count - 1; i++) {
@@ -363,7 +333,7 @@ bool magic_array_check_balance(const MagicArray *array) {
     double mean = (double) array->runes->rune_count / (double) MAGIC_REAL_ELEMENT_COUNT;
     double variance = 0.0;
 
-    for (int i = 1; i <= MAGIC_REAL_ELEMENT_COUNT; i++) { /* 跳过 ELEMENT_NONE */
+    for (int i = 0; i < MAGIC_REAL_ELEMENT_COUNT; i++) { /* FIRE..ETHER，跳过末尾的 ELEMENT_NONE */
         double diff = element_counts[i] - mean;
         variance += diff * diff;
     }

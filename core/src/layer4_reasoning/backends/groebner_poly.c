@@ -138,6 +138,7 @@ lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capacity, c
     }
 
     poly->ring_id = ring->ring_id;
+    poly->var_count = vc;
     poly->term_count = 0;
     poly->term_capacity = capacity;
     poly->total_degree = 0;
@@ -173,44 +174,10 @@ bool poly_ensure_capacity(lvPolynomial *poly, int needed) {
     if (!poly) {
         return false;
     }
-    if (poly->term_capacity >= needed) {
-        return true;
+    if (poly->var_count <= 0) {
+        return false;
     }
-
-    int new_cap = poly->term_capacity;
-    while (new_cap < needed) {
-        new_cap *= GROEBNER_POLY_GROW_FACTOR;
-        if (new_cap > 1000000) {
-            /* 安全上限 */
-            new_cap = needed + 100;
-            break;
-        }
-    }
-
-    int vc = 0;
-    /* 从外部环获取 var_count —— 使用 powers 中隐含的信息 */
-    /* 这里需要确定 var_count，我们需要一个方式获取 */
-    /* 暂时从 poly 的已知上下文获取 —— 实际上我们需要环信息 */
-    /* 让我们推断：poly->term_capacity 已知，但 var_count 未知。 */
-    /* 简化处理：维护一个内部字段或者在调用点传入 var_count。 */
-    /* 此处通过重新分配现有块的大小比例来推断。 */
-    /* 但这是不完美的。我们需要更好的设计。 */
-    /* 让我们检查是否可以从现有分配推断：如果 poly->term_capacity > 0 */
-    /* 则之前的分配是 term_capacity * var_count，但我们不知道 var_count。 */
-    /* 解决方案：在函数签名中需要 var_count 或存储在多项式中。 */
-    /* 由于这是内部函数，我们约定调用者通过其他方式确保参数正确。 */
-    /* 实际上我们需要 var_count。让我们采用另一种方法：在多项式结构中存储 var_count。 */
-    /* 但 struct 定义在头文件中，我不能修改它。 */
-    /* 让我们采用一个折中方案：在 poly 结构中通过 total_degree 等方式无法推断 var_count。 */
-    /* 简单地，我们要求调用者确保容量足够，或者我们在此处做一个保守假设。 */
-    /* 既然 powers 数组长度 = term_capacity * var_count，且目前 term_count 已知， */
-    /* 我们可以通过 term_count > 0 时 powers 的长度来推断。但首次分配时 term_count=0 则不行。 */
-    /* 警告：此函数为空操作（始终返回 true）。
-     * 原因：多项式的 powers 数组大小为 term_capacity * var_count，
-     * 但本函数无法获取 var_count（该信息存储在外部环结构中）。
-     * 所有需要扩容的调用点均使用 poly_ensure_capacity_ex(poly, needed, var_count)。
-     * 保留此函数仅为向后兼容 API 签名。 */
-    return true;
+    return poly_ensure_capacity_ex(poly, needed, poly->var_count);
 }
 
 /**
@@ -282,6 +249,7 @@ lvPolynomial *poly_internal_copy(const lvPolynomial *src, const lvPolynomialRing
     }
 
     int vc = ring->var_count;
+    cpy->var_count = src->var_count;
     cpy->term_count = src->term_count;
     cpy->total_degree = src->total_degree;
     cpy->is_homogeneous = src->is_homogeneous;
@@ -498,18 +466,11 @@ lvPolynomial *poly_internal_substitute(const lvPolynomial *f, int var_index, con
             return NULL;
         }
         term_poly->term_count = 1;
-        term_poly->term_capacity = 1;
-        /* 重新分配以确保正确大小 */
-        lv_free((void **) &term_poly->powers);
-        lv_free((void **) &term_poly->coeffs);
-        term_poly->powers = (int *) lv_calloc((size_t) vc, sizeof(int));
-        term_poly->coeffs = (double *) lv_calloc(1, sizeof(double));
-        if (!term_poly->powers || !term_poly->coeffs) {
+        if (!poly_ensure_capacity_ex(term_poly, 1, vc)) {
             poly_internal_destroy(term_poly);
             poly_internal_destroy(result);
             return NULL;
         }
-        term_poly->term_capacity = 1;
         for (int k = 0; k < vc; k++) {
             if (k != var_index) {
                 term_poly->powers[k] = f->powers[i * vc + k];

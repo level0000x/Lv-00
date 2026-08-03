@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file node_graph.c
  * @brief 节点图视图实现
  *
@@ -272,7 +272,9 @@ lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id) {
  * @return 成功返回0，失败返回-1
  */
 int lv_node_graph_layout(lvNodeGraphView *graph) {
-    if (!graph || graph->nodes_da.count <= 1)
+    if (!graph)
+        return -1;
+    if (graph->nodes_da.count <= 1)
         return 0;
 
     const double C = 1.0; /* 常数因子 */

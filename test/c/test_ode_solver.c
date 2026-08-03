@@ -14,6 +14,7 @@
  * @date   2026-05-25
  */
 
+/* rtol/atol 为自适应步长控制的保留字段（reserved），这些固定容差测试使用固定步长，故置零。 */
 /* [QA] Uses double for test assertions against GMP mpq_t via comparison helpers. Acceptable in test code. */
 
 #include <math.h>
@@ -66,8 +67,8 @@ static void test_euler_exponential_decay(void) {
     config.method = ODE_EULER;
     config.dt = 0.01;
     config.max_steps = 10000;
-    config.rtol = 1e-6;
-    config.atol = 1e-9;
+    config.rtol = 0.0;
+    config.atol = 0.0;
 
     lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
@@ -102,8 +103,8 @@ static void test_rk4_exponential_decay(void) {
     config.method = ODE_RK4;
     config.dt = 0.01;
     config.max_steps = 10000;
-    config.rtol = 1e-6;
-    config.atol = 1e-9;
+    config.rtol = 0.0;
+    config.atol = 0.0;
 
     lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
@@ -138,8 +139,8 @@ static void test_euler_fast_decay(void) {
     config.method = ODE_EULER;
     config.dt = 0.005;
     config.max_steps = 10000;
-    config.rtol = 1e-6;
-    config.atol = 1e-9;
+    config.rtol = 0.0;
+    config.atol = 0.0;
 
     lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
@@ -169,8 +170,8 @@ static void test_rk4_fast_decay(void) {
     config.method = ODE_RK4;
     config.dt = 0.005;
     config.max_steps = 10000;
-    config.rtol = 1e-6;
-    config.atol = 1e-9;
+    config.rtol = 0.0;
+    config.atol = 0.0;
 
     lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);
@@ -199,8 +200,8 @@ static void test_rk4_more_accurate_than_euler(void) {
     lvODEConfig config;
     config.dt = 0.1;
     config.max_steps = 10000;
-    config.rtol = 1e-6;
-    config.atol = 1e-9;
+    config.rtol = 0.0;
+    config.atol = 0.0;
 
     /* Euler */
     config.method = ODE_EULER;
@@ -243,8 +244,8 @@ static void test_ode_null_safety(void) {
     config.method = ODE_EULER;
     config.dt = 0.01;
     config.max_steps = 10000;
-    config.rtol = 1e-6;
-    config.atol = 1e-9;
+    config.rtol = 0.0;
+    config.atol = 0.0;
 
     /* NULL problem */
     lvODESolution *sol = ode_solve(NULL, &config);
@@ -293,8 +294,8 @@ static void test_solution_dimensions(void) {
     config.method = ODE_EULER;
     config.dt = 0.1;
     config.max_steps = 10000;
-    config.rtol = 1e-6;
-    config.atol = 1e-9;
+    config.rtol = 0.0;
+    config.atol = 0.0;
 
     lvODESolution *sol = ode_solve(&problem, &config);
     TEST_ASSERT_NOT_NULL(sol);

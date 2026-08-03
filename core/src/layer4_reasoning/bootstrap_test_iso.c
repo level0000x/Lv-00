@@ -401,7 +401,9 @@ uint64_t graph_isomorphism_hash(const void *graph) {
  * @param graph_a              图 A
  * @param graph_b              图 B
  * @param out_node_mapping     输出节点映射数组（na 个 int），调用者负责 free
- * @param out_constraint_mapping 输出约束映射（当前未实现，为 NULL）
+ * @param out_constraint_mapping 输出约束映射数组（图 A 约束数 个 int，
+ *                               元素 i 为图 A 约束 i 在图 B 中对应的约束 ID，
+ *                               未匹配或映射失败时为 -1），调用者负责 free
  * @return true 映射成功，false 失败或不同构
  */
 bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp, const void *graph_a, const void *graph_b,
@@ -419,124 +421,240 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp, const void
     if (na != nb)
         return false;
 
-    if (out_node_mapping) {
-        int *mapping = (int *) lv_calloc((size_t) na, sizeof(int));
-        if (!mapping)
-            return false;
-
-        /* 计算度数 */
-        int *deg_a = (int *) lv_calloc((size_t) na, sizeof(int));
-        int *deg_b = (int *) lv_calloc((size_t) nb, sizeof(int));
-        if (!deg_a || !deg_b) {
-            lv_free((void **) &mapping);
-            lv_free((void **) &deg_a);
-            lv_free((void **) &deg_b);
-            return false;
+    /* 无论调用方是否索要节点映射，内部都必须先确定节点映射，
+     * 约束映射依赖节点映射计算结果 */
+    int *mapping = (int *) lv_calloc((size_t) na, sizeof(int));
+    if (!mapping) {
+        if (out_node_mapping) {
+            *out_node_mapping = NULL;
         }
-
-        for (int i = 0; i < na; i++) {
-            int cids[64];
-            deg_a[i] = graph_find_constraints_involving(ga, i, cids, 64);
+        if (out_constraint_mapping) {
+            *out_constraint_mapping = NULL;
         }
-        for (int i = 0; i < nb; i++) {
-            int cids[64];
-            deg_b[i] = graph_find_constraints_involving(gb, i, cids, 64);
-        }
+        return false;
+    }
 
-        /* 贪心匹配：按度数排序后逐个匹配 */
-        bool *used = (bool *) lv_calloc((size_t) nb, sizeof(bool));
-        if (!used) {
-            lv_free((void **) &mapping);
-            lv_free((void **) &deg_a);
-            lv_free((void **) &deg_b);
-            return false;
+    /* 计算度数 */
+    int *deg_a = (int *) lv_calloc((size_t) na, sizeof(int));
+    int *deg_b = (int *) lv_calloc((size_t) nb, sizeof(int));
+    if (!deg_a || !deg_b) {
+        lv_free((void **) &mapping);
+        lv_free((void **) &deg_a);
+        lv_free((void **) &deg_b);
+        if (out_node_mapping) {
+            *out_node_mapping = NULL;
         }
-
-        for (int i = 0; i < na; i++) {
-            mapping[i] = -1;
-            for (int j = 0; j < nb; j++) {
-                if (!used[j] && deg_a[i] == deg_b[j]) {
-                    mapping[i] = j;
-                    used[j] = true;
-                    break;
-                }
-            }
+        if (out_constraint_mapping) {
+            *out_constraint_mapping = NULL;
         }
+        return false;
+    }
 
-        /* 检查是否全部匹配 */
-        bool all_mapped = true;
-        for (int i = 0; i < na; i++) {
-            if (mapping[i] < 0) {
-                all_mapped = false;
+    for (int i = 0; i < na; i++) {
+        int cids[64];
+        deg_a[i] = graph_find_constraints_involving(ga, i, cids, 64);
+    }
+    for (int i = 0; i < nb; i++) {
+        int cids[64];
+        deg_b[i] = graph_find_constraints_involving(gb, i, cids, 64);
+    }
+
+    /* 贪心匹配：按度数排序后逐个匹配 */
+    bool *used = (bool *) lv_calloc((size_t) nb, sizeof(bool));
+    if (!used) {
+        lv_free((void **) &mapping);
+        lv_free((void **) &deg_a);
+        lv_free((void **) &deg_b);
+        if (out_node_mapping) {
+            *out_node_mapping = NULL;
+        }
+        if (out_constraint_mapping) {
+            *out_constraint_mapping = NULL;
+        }
+        return false;
+    }
+
+    for (int i = 0; i < na; i++) {
+        mapping[i] = -1;
+        for (int j = 0; j < nb; j++) {
+            if (!used[j] && deg_a[i] == deg_b[j]) {
+                mapping[i] = j;
+                used[j] = true;
                 break;
             }
         }
+    }
 
-        /* 边保持验证：检查 G1 中所有边在映射下是否在 G2 中也存在 */
-        bool edges_preserved = true;
-        if (all_mapped) {
-            for (int c = 0; c < graph_get_constraint_count(ga) && edges_preserved; c++) {
-                Constraint *cons = graph_get_constraint(ga, c);
-                if (!cons || !cons->is_active)
-                    continue;
-                if (cons->participant_count < 2)
-                    continue;
+    /* 检查是否全部匹配 */
+    bool all_mapped = true;
+    for (int i = 0; i < na; i++) {
+        if (mapping[i] < 0) {
+            all_mapped = false;
+            break;
+        }
+    }
 
-                /* 对每对参与者 (u, v)，检查 (map[u], map[v]) 是否在 G2 中有对应约束 */
-                for (int p = 0; p < cons->participant_count && edges_preserved; p++) {
-                    int u = cons->participants[p];
-                    if (u < 0 || u >= na)
+    /* 边保持验证：检查 G1 中所有边在映射下是否在 G2 中也存在 */
+    bool edges_preserved = true;
+    if (all_mapped) {
+        for (int c = 0; c < graph_get_constraint_count(ga) && edges_preserved; c++) {
+            Constraint *cons = graph_get_constraint(ga, c);
+            if (!cons || !cons->is_active)
+                continue;
+            if (cons->participant_count < 2)
+                continue;
+
+            /* 对每对参与者 (u, v)，检查 (map[u], map[v]) 是否在 G2 中有对应约束 */
+            for (int p = 0; p < cons->participant_count && edges_preserved; p++) {
+                int u = cons->participants[p];
+                if (u < 0 || u >= na)
+                    continue;
+                int u_mapped = mapping[u];
+
+                for (int q = p + 1; q < cons->participant_count && edges_preserved; q++) {
+                    int v = cons->participants[q];
+                    if (v < 0 || v >= na)
                         continue;
-                    int u_mapped = mapping[u];
+                    int v_mapped = mapping[v];
 
-                    for (int q = p + 1; q < cons->participant_count && edges_preserved; q++) {
-                        int v = cons->participants[q];
-                        if (v < 0 || v >= na)
+                    /* 在 G2 中查找 u_mapped 和 v_mapped 之间是否有相同类型的约束 */
+                    int cids_b[64];
+                    int nc_b = graph_find_constraints_involving(gb, u_mapped, cids_b, 64);
+                    bool found_edge = false;
+                    for (int cb = 0; cb < nc_b; cb++) {
+                        Constraint *cons_b = graph_get_constraint(gb, cids_b[cb]);
+                        if (!cons_b || !cons_b->is_active)
                             continue;
-                        int v_mapped = mapping[v];
-
-                        /* 在 G2 中查找 u_mapped 和 v_mapped 之间是否有相同类型的约束 */
-                        int cids_b[64];
-                        int nc_b = graph_find_constraints_involving(gb, u_mapped, cids_b, 64);
-                        bool found_edge = false;
-                        for (int cb = 0; cb < nc_b; cb++) {
-                            Constraint *cons_b = graph_get_constraint(gb, cids_b[cb]);
-                            if (!cons_b || !cons_b->is_active)
-                                continue;
-                            if (cons_b->type != cons->type)
-                                continue;
-                            /* 检查 cons_b 是否包含 v_mapped */
-                            for (int pp = 0; pp < cons_b->participant_count; pp++) {
-                                if (cons_b->participants[pp] == v_mapped) {
-                                    found_edge = true;
-                                    break;
-                                }
-                            }
-                            if (found_edge)
+                        if (cons_b->type != cons->type)
+                            continue;
+                        /* 检查 cons_b 是否包含 v_mapped */
+                        for (int pp = 0; pp < cons_b->participant_count; pp++) {
+                            if (cons_b->participants[pp] == v_mapped) {
+                                found_edge = true;
                                 break;
+                            }
                         }
-                        if (!found_edge) {
-                            edges_preserved = false;
-                        }
+                        if (found_edge)
+                            break;
+                    }
+                    if (!found_edge) {
+                        edges_preserved = false;
                     }
                 }
             }
         }
+    }
 
-        if (all_mapped && edges_preserved) {
+    bool mapping_established = all_mapped && edges_preserved;
+
+    /* 输出节点映射（调用方传入 NULL 表示不需要） */
+    if (out_node_mapping) {
+        if (mapping_established) {
+            /* 将节点映射所有权转移给调用方 */
             *out_node_mapping = mapping;
         } else {
-            lv_free((void **) &mapping);
+            *out_node_mapping = NULL;
         }
-
-        lv_free((void **) &deg_a);
-        lv_free((void **) &deg_b);
-        lv_free((void **) &used);
     }
 
+    /* 输出约束映射：在节点映射确定后，将图 A 的每个约束映射到图 B 中对应的约束 */
     if (out_constraint_mapping) {
         *out_constraint_mapping = NULL;
+        if (mapping_established) {
+            int ca_count = graph_get_constraint_count(ga);
+            int cb_count = graph_get_constraint_count(gb);
+            int *constraint_mapping = (int *) lv_calloc((size_t) ca_count, sizeof(int));
+            bool *used_cb = (bool *) lv_calloc((size_t) cb_count, sizeof(bool));
+            if (constraint_mapping && used_cb) {
+                for (int c = 0; c < ca_count; c++) {
+                    constraint_mapping[c] = -1;
+                    Constraint *cons = graph_get_constraint(ga, c);
+                    if (!cons || !cons->is_active) {
+                        continue;
+                    }
+
+                    /* 根据节点映射将约束的每个参与者节点映射到图 B 的节点 */
+                    int *mapped_participants = (int *) lv_calloc((size_t) cons->participant_count, sizeof(int));
+                    if (!mapped_participants) {
+                        continue;
+                    }
+                    bool parts_valid = true;
+                    for (int p = 0; p < cons->participant_count; p++) {
+                        int u = cons->participants[p];
+                        if (u < 0 || u >= na) {
+                            parts_valid = false;
+                            break;
+                        }
+                        mapped_participants[p] = mapping[u];
+                    }
+
+                    if (parts_valid) {
+                        /* 按映射后的参与者组合，在图 B 中查找相同类型的约束 */
+                        for (int cb = 0; cb < cb_count && constraint_mapping[c] < 0; cb++) {
+                            if (used_cb[cb]) {
+                                continue;
+                            }
+                            Constraint *cons_b = graph_get_constraint(gb, cb);
+                            if (!cons_b || !cons_b->is_active) {
+                                continue;
+                            }
+                            if (cons_b->type != cons->type) {
+                                continue;
+                            }
+                            if (cons_b->participant_count != cons->participant_count) {
+                                continue;
+                            }
+
+                            /* 多集合匹配：映射后的参与者须一一对应到 cons_b 的参与者 */
+                            bool *seen = (bool *) lv_calloc((size_t) cons_b->participant_count, sizeof(bool));
+                            if (!seen) {
+                                break;
+                            }
+                            bool match = true;
+                            for (int p = 0; p < cons->participant_count && match; p++) {
+                                bool found = false;
+                                for (int q = 0; q < cons_b->participant_count; q++) {
+                                    if (seen[q]) {
+                                        continue;
+                                    }
+                                    if (cons_b->participants[q] == mapped_participants[p]) {
+                                        seen[q] = true;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (!found) {
+                                    match = false;
+                                }
+                            }
+                            lv_free((void **) &seen);
+
+                            if (match) {
+                                /* 将图 B 的约束 ID 写入映射数组，且每个 B 约束至多被使用一次 */
+                                constraint_mapping[c] = cons_b->id;
+                                used_cb[cb] = true;
+                            }
+                        }
+                    }
+                    lv_free((void **) &mapped_participants);
+                }
+                *out_constraint_mapping = constraint_mapping;
+            } else {
+                lv_free((void **) &constraint_mapping);
+                lv_free((void **) &used_cb);
+            }
+            lv_free((void **) &used_cb);
+        }
     }
+
+    /* 节点映射未转移给调用方（未请求或未建立）时释放内部副本 */
+    if (!(out_node_mapping && mapping_established)) {
+        lv_free((void **) &mapping);
+    }
+
+    lv_free((void **) &deg_a);
+    lv_free((void **) &deg_b);
+    lv_free((void **) &used);
 
     return true;
 }

@@ -15,6 +15,7 @@
 #include "lv/config.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_thread.h"
 
 #include "debug.h"
 #include "error_codes.h"
@@ -31,8 +32,16 @@
 /**
  * @brief 多投影视图内部上下文
  *
- * 在 C 层维护每个多投影视图的状态，包括关联的高维块、投影预设和
- * 当前高亮元素列表。视图ID由 create 函数生成，通过静态数组统一管理。
+ * 在 C 层维护每个多投影视图的状态，包括关联的高维块、投影预设、
+ * 当前高亮元素列表，以及显示顺序/布局元数据。视图ID由 create 函数
+ * 生成，通过静态数组统一管理。
+ *
+ * 布局与显示顺序字段由 C 层维护逻辑状态，供 UI 层消费：
+ *   - z_order        ：显示顺序（数值越小越靠前），重排操作修改该值
+ *   - layout_x/y     ：视口左上角像素坐标（默认瀑布流网格分配）
+ *   - layout_width/h ：视口尺寸（像素）
+ *   - camera_zoom    ：摄像机缩放系数（1.0 = 原始大小）
+ *   - camera_angle   ：摄像机旋转角（弧度）
  */
 typedef struct {
     int view_id;                                       /**< 唯一视图标识符 */
@@ -41,17 +50,59 @@ typedef struct {
     bool is_active;                                    /**< 视图是否处于激活状态 */
     int highlighted_elements[HIGH_DIM_MAX_DIMENSIONS]; /**< 当前高亮的元素ID列表 */
     int highlighted_count;                             /**< 高亮元素数量 */
+    int z_order;                                       /**< 显示顺序（越小越靠前） */
+    int layout_x;                                      /**< 视口左上角 x（像素） */
+    int layout_y;                                      /**< 视口左上角 y（像素） */
+    int layout_width;                                  /**< 视口宽度（像素） */
+    int layout_height;                                 /**< 视口高度（像素） */
+    double camera_zoom;                                /**< 摄像机缩放系数 */
+    double camera_angle;                               /**< 摄像机旋转角（弧度） */
 } HighDimMultiViewContext;
 
-/** 全局活跃视图追踪数组 */
+/** 全局活跃视图追踪数组（线程本地：每个线程维护独立视图集合） */
 static lv_THREAD_LOCAL HighDimMultiViewContext g_multi_views[HIGH_DIM_MAX_ACTIVE_VIEWS];
 static lv_THREAD_LOCAL int g_multi_view_count = 0;
+
+/* ==================== 并发安全（全局锁） ==================== */
+
+/**
+ * @brief 全局视图数组互斥锁
+ *
+ * 尽管 g_multi_views[] 是线程本地数组，同一线程内的重入调用以及
+ * 未来可能引入的共享状态仍需要互斥保护。所有公开入口
+ * （create/destroy/link_highlight/manage_multi_views）在访问全局
+ * 数组前必须持有该锁，保证多线程环境下视图状态的一致性。
+ */
+static lv_mutex_t g_multi_views_lock;
+static lv_once_t g_multi_views_lock_once = lv_ONCE_INIT;
+
+static void high_dim_views_lock_init(void) {
+    lv_mutex_init(&g_multi_views_lock);
+}
+
+static void high_dim_views_lock(void) {
+    lv_once(&g_multi_views_lock_once, high_dim_views_lock_init);
+    lv_mutex_lock(&g_multi_views_lock);
+}
+
+static void high_dim_views_unlock(void) {
+    lv_mutex_unlock(&g_multi_views_lock);
+}
+
+/* ==================== 视图快照存储 ==================== */
+
+/** 视图快照存储：保存/恢复用（线程本地，与视图数组同线程语义） */
+static lv_THREAD_LOCAL HighDimMultiViewContext g_multi_view_snapshot[HIGH_DIM_MAX_ACTIVE_VIEWS];
+static lv_THREAD_LOCAL int g_multi_view_snapshot_count = 0;
+
+/* ==================== 内部辅助函数 ==================== */
 
 /**
  * @brief 在全局视图数组中查找指定 view_id 对应的索引
  *
  * @param view_id 视图ID
  * @return 数组索引（>= 0），未找到返回 -1
+ * @note 调用者必须持有 g_multi_views_lock
  */
 static int high_dim_find_view_index(int view_id) {
     for (int i = 0; i < g_multi_view_count; i++) {
@@ -63,12 +114,51 @@ static int high_dim_find_view_index(int view_id) {
 }
 
 /**
+ * @brief 计算下一个可用的显示顺序（当前最大 z_order + 1）
+ *
+ * @return 新的 z_order 值
+ * @note 调用者必须持有 g_multi_views_lock
+ */
+static int high_dim_next_z_order(void) {
+    int max_z = 0;
+    for (int i = 0; i < g_multi_view_count; i++) {
+        if (g_multi_views[i].is_active && g_multi_views[i].z_order > max_z) {
+            max_z = g_multi_views[i].z_order;
+        }
+    }
+    return max_z + 1;
+}
+
+/**
+ * @brief 为新分配的视图初始化默认布局（瀑布流网格）
+ *
+ * 默认布局：每行 4 个视口，网格尺寸 320x240（视口 300x220）。
+ * 显示顺序自动追加到当前所有视图之后。
+ *
+ * @param ctx 视图上下文
+ * @param slot_index 槽位索引（决定网格位置）
+ * @note 调用者必须持有 g_multi_views_lock
+ */
+static void high_dim_init_view_layout(HighDimMultiViewContext *ctx, int slot_index) {
+    int col = slot_index % 4;
+    int row = slot_index / 4;
+    ctx->z_order = high_dim_next_z_order();
+    ctx->layout_x = col * 320;
+    ctx->layout_y = row * 240;
+    ctx->layout_width = 300;
+    ctx->layout_height = 220;
+    ctx->camera_zoom = 1.0;
+    ctx->camera_angle = 0.0;
+}
+
+/**
  * @brief 分配一个新的视图上下文槽位
  *
  * @param view_id 视图ID
  * @param block_id 关联的高维块ID
  * @param preset_index 投影预设索引
  * @return 新分配的数组索引，失败返回 -1
+ * @note 调用者必须持有 g_multi_views_lock
  */
 static int high_dim_allocate_view_slot(int view_id, int block_id, int preset_index) {
     /* 首先尝试复用已释放的槽位 */
@@ -80,6 +170,7 @@ static int high_dim_allocate_view_slot(int view_id, int block_id, int preset_ind
             g_multi_views[i].preset_index = preset_index;
             g_multi_views[i].is_active = true;
             g_multi_views[i].highlighted_count = 0;
+            high_dim_init_view_layout(&g_multi_views[i], i);
             return i;
         }
     }
@@ -96,13 +187,137 @@ static int high_dim_allocate_view_slot(int view_id, int block_id, int preset_ind
     g_multi_views[idx].preset_index = preset_index;
     g_multi_views[idx].is_active = true;
     g_multi_views[idx].highlighted_count = 0;
+    high_dim_init_view_layout(&g_multi_views[idx], idx);
     g_multi_view_count++;
 
     return idx;
 }
 
-int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id, const int *preset_indices,
-                                          int preset_count, int *view_ids) {
+/**
+ * @brief 在 JSON 字符串缓冲区末尾追加一段格式化内容
+ *
+ * 基于 vsnprintf 的截断检测：若剩余空间不足则返回 -1，
+ * 否则将写入长度累加到 *pos。
+ *
+ * @param buf 目标缓冲区
+ * @param size 缓冲区总容量
+ * @param pos 当前写入位置（输入/输出）
+ * @param fmt 格式化串
+ * @return 0 成功，-1 缓冲区空间不足
+ */
+static int high_dim_json_append(char *buf, size_t size, size_t *pos, const char *fmt, ...) {
+    if (!buf || size == 0 || !pos) {
+        return -1;
+    }
+    if (*pos >= size) {
+        return -1;
+    }
+    va_list args;
+    va_start(args, fmt);
+    int n = vsnprintf(buf + *pos, size - *pos, fmt, args);
+    va_end(args);
+    if (n < 0) {
+        return -1;
+    }
+    if ((size_t)n >= size - *pos) {
+        return -1; /* 截断 */
+    }
+    *pos += (size_t)n;
+    return 0;
+}
+
+/**
+ * @brief 将当前全部活跃视图状态序列化为 JSON 字符串
+ *
+ * 序列化格式（真实 JSON）：
+ *   {"view_count":N,"views":[{"view_id":..,"block_id":..,"preset_index":..,
+ *    "z_order":..,"layout":{"x":..,"y":..,"width":..,"height":..},
+ *    "camera":{"zoom":..,"angle":..},"highlights":[...]},...]}
+ *
+ * @param buffer 输出缓冲区（UTF-8）
+ * @param buffer_size 缓冲区容量（字节）
+ * @return 写入的字节数（不含终止符），容量不足返回 -1
+ * @note 调用者必须持有 g_multi_views_lock
+ */
+static int high_dim_views_export_json(char *buffer, size_t buffer_size) {
+    if (!buffer || buffer_size < 2) {
+        return -1;
+    }
+    size_t pos = 0;
+    /* 先统计活跃视图数，并预写根节点 */
+    int active_count = 0;
+    for (int i = 0; i < g_multi_view_count; i++) {
+        if (g_multi_views[i].is_active) {
+            active_count++;
+        }
+    }
+
+    if (high_dim_json_append(buffer, buffer_size, &pos, "{\"view_count\":%d,\"views\":[", active_count) != 0) {
+        return -1;
+    }
+
+    int written_views = 0;
+    for (int i = 0; i < g_multi_view_count; i++) {
+        if (!g_multi_views[i].is_active) {
+            continue;
+        }
+        HighDimMultiViewContext *v = &g_multi_views[i];
+        if (written_views > 0) {
+            if (high_dim_json_append(buffer, buffer_size, &pos, ",") != 0) {
+                return -1;
+            }
+        }
+        if (high_dim_json_append(buffer, buffer_size, &pos,
+                                 "{\"view_id\":%d,\"block_id\":%d,\"preset_index\":%d,\"z_order\":%d,"
+                                 "\"layout\":{\"x\":%d,\"y\":%d,\"width\":%d,\"height\":%d},"
+                                 "\"camera\":{\"zoom\":%.3f,\"angle\":%.4f},\"highlights\":[",
+                                 v->view_id, v->block_id, v->preset_index, v->z_order,
+                                 v->layout_x, v->layout_y, v->layout_width, v->layout_height,
+                                 v->camera_zoom, v->camera_angle) != 0) {
+            return -1;
+        }
+        for (int h = 0; h < v->highlighted_count; h++) {
+            if (h > 0) {
+                if (high_dim_json_append(buffer, buffer_size, &pos, ",") != 0) {
+                    return -1;
+                }
+            }
+            if (high_dim_json_append(buffer, buffer_size, &pos, "%d", v->highlighted_elements[h]) != 0) {
+                return -1;
+            }
+        }
+        if (high_dim_json_append(buffer, buffer_size, &pos, "]}") != 0) {
+            return -1;
+        }
+        written_views++;
+    }
+
+    if (high_dim_json_append(buffer, buffer_size, &pos, "]}") != 0) {
+        return -1;
+    }
+    return (int)pos;
+}
+
+/**
+ * @brief 将当前全部活跃视图状态序列化为 JSON 字符串（公开接口）
+ *
+ * @param manager 高维管理器指针（仅用于非空校验）
+ * @param buffer 输出缓冲区（UTF-8）
+ * @param buffer_size 缓冲区容量（字节）
+ * @return 写入的字节数（不含终止符），参数无效或容量不足返回负值
+ */
+int high_dim_export_views_json(HighDimManager *manager, char *buffer, size_t buffer_size) {
+    if (!manager || !buffer || buffer_size == 0) {
+        return -1;
+    }
+    high_dim_views_lock();
+    int n = high_dim_views_export_json(buffer, buffer_size);
+    high_dim_views_unlock();
+    return n;
+}
+
+static int high_dim_create_multi_projection_view_locked(HighDimManager *manager, int block_id,
+                                                        const int *preset_indices, int preset_count, int *view_ids) {
     /**
      * @brief 创建多投影并排视图
      *
@@ -136,6 +351,7 @@ int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
      *         lv_ERROR_INVALID_PARAM 参数无效
      *         lv_ERROR_NOT_FOUND 未找到指定的高维块
      *         lv_ERROR_RESOURCE_EXHAUSTED 视图槽位已满
+     * @note 调用者必须持有 g_multi_views_lock
      */
     if (!manager || !preset_indices || !view_ids || preset_count <= 0) {
         return lv_ERROR_INVALID_PARAM;
@@ -216,7 +432,20 @@ int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
     return lv_OK;
 }
 
-int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id) {
+/**
+ * @brief 创建多投影并排视图（线程安全公开入口）
+ *
+ * 加锁保护全局视图数组后委托给内部实现。
+ */
+int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id, const int *preset_indices,
+                                          int preset_count, int *view_ids) {
+    high_dim_views_lock();
+    int rc = high_dim_create_multi_projection_view_locked(manager, block_id, preset_indices, preset_count, view_ids);
+    high_dim_views_unlock();
+    return rc;
+}
+
+static int high_dim_destroy_multi_projection_view_locked(HighDimManager *manager, int view_id) {
     /**
      * @brief 销毁多投影视图
      *
@@ -240,6 +469,7 @@ int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id)
      * @return lv_OK 视图成功标记为销毁
      *         lv_ERROR_INVALID_PARAM 参数无效或 view_id 不合法
      *         lv_ERROR_NOT_FOUND 未找到指定的视图或对应的块不存在
+     * @note 调用者必须持有 g_multi_views_lock
      */
     if (!manager)
         return lv_ERROR_INVALID_PARAM;
@@ -296,7 +526,19 @@ int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id)
     return lv_OK;
 }
 
-int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int view_count, int element_id) {
+/**
+ * @brief 销毁多投影视图（线程安全公开入口）
+ *
+ * 加锁保护全局视图数组后委托给内部实现。
+ */
+int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id) {
+    high_dim_views_lock();
+    int rc = high_dim_destroy_multi_projection_view_locked(manager, view_id);
+    high_dim_views_unlock();
+    return rc;
+}
+
+static int high_dim_link_highlight_locked(HighDimManager *manager, const int *view_ids, int view_count, int element_id) {
     /**
      * @brief 多视图联动高亮元素
      *
@@ -334,6 +576,7 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
      * @return lv_OK 高亮状态已成功记录到至少一个视图
      *         lv_ERROR_INVALID_PARAM 参数无效
      *         lv_ERROR_NOT_FOUND 所有视图均未找到
+     * @note 调用者必须持有 g_multi_views_lock
      */
     if (!manager || !view_ids || view_count <= 0) {
         return lv_ERROR_INVALID_PARAM;
@@ -442,92 +685,93 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
     return lv_OK;
 }
 
-
+/**
+ * @brief 多视图联动高亮元素（线程安全公开入口）
+ *
+ * 加锁保护全局视图数组后委托给内部实现。
+ */
+int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int view_count, int element_id) {
+    high_dim_views_lock();
+    int rc = high_dim_link_highlight_locked(manager, view_ids, view_count, element_id);
+    high_dim_views_unlock();
+    return rc;
+}
 /* ==================== 多视图管理（统一接口） ==================== */
 
-int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *view_ids, int *count) {
+static int high_dim_manage_multi_views_locked(HighDimManager *manager, int operation, int *view_ids, int *count) {
     /**
      * @brief 统一的多投影视图管理接口
      *
      * 【实现概述】
-     *   本函数将多投影视图的创建、销毁和查询操作统一为一个管理接口，
-     *   使调用者可以通过 operation 参数选择具体操作，简化API使用。
+     *   本函数将多投影视图的创建、销毁、查询、导出、布局、克隆、
+     *   重排与快照操作统一为一个管理接口，使调用者可以通过 operation
+     *   参数选择具体操作，简化API使用。
      *
-     *   支持的操作类型：
-     *     MULTIVIEW_OP_LIST (0)  : 列出所有活跃视图的ID
-     *     MULTIVIEW_OP_COUNT (1) : 获取活跃视图的总数
-     *     MULTIVIEW_OP_CLEAR (2) : 清除所有视图（批量标记为inactive）
+     * 【支持的操作类型】
+     *   MULTIVIEW_OP_LIST             (0) : 列出所有活跃视图的ID
+     *   MULTIVIEW_OP_COUNT            (1) : 获取活跃视图的总数
+     *   MULTIVIEW_OP_CLEAR            (2) : 清除所有视图（批量标记为inactive）
+     *   MULTIVIEW_OP_LIST_BY_BLOCK    (3) : 按 block_id 过滤列出活跃视图
+     *   MULTIVIEW_OP_EXPORT_JSON      (4) : 将全部视图状态导出为 JSON
+     *   MULTIVIEW_OP_QUERY_LAYOUT     (5) : 查询指定视图的布局信息
+     *   MULTIVIEW_OP_CREATE_BATCH     (6) : 批量创建视图
+     *   MULTIVIEW_OP_CLONE            (7) : 克隆/复制一个视图到新视图
+     *   MULTIVIEW_OP_REORDER          (8) : 按指定顺序重排视图
+     *   MULTIVIEW_OP_SNAPSHOT_SAVE    (9) : 保存当前视图状态快照
+     *   MULTIVIEW_OP_SNAPSHOT_RESTORE (10): 从快照恢复视图状态
      *
-     * 【已实现功能】
-     *   1. 列出所有活跃视图（MULTIVIEW_OP_LIST）：
-     *      - 遍历全局视图追踪数组 g_multi_views[]
-     *      - 将每个活跃视图的 view_id 写入 view_ids 输出数组
-     *      - 通过 count 返回实际写入的视图数量
-     *      - 参数要求：view_ids 非空，count 非空且 *count >= 期望的视图数
-     *   2. 获取活跃视图数量（MULTIVIEW_OP_COUNT）：
-     *      - 遍历全局视图追踪数组，统计 is_active == true 的条目
-     *      - 通过 count 返回当前活跃视图数
-     *      - 注意：此数量可能小于 g_multi_view_count（因为有 inactive 槽位）
-     *   3. 清除所有视图（MULTIVIEW_OP_CLEAR）：
-     *      - 将所有视图标记为 inactive，清空高亮列表
-     *      - 释放视图槽位（标记复用，不压缩数组）
-     *      - 注意：此操作不可逆，所有投影视图将被销毁
-     *      - 不释放高维块（block），仅清除视图追踪记录
+     * 【各操作参数约定】
+     *   LIST (0):
+     *     - view_ids 输出数组；*count 输入=容量，输出=实际写入数
+     *   COUNT (1):
+     *     - *count 输出=活跃视图总数
+     *   CLEAR (2):
+     *     - *count 输出=被清除的视图数
+     *   LIST_BY_BLOCK (3):
+     *     - view_ids[0] = 目标 block_id（输入），view_ids[1..] 输出匹配的视图ID
+     *     - *count 输入=输出数组容量，输出=匹配的视图数
+     *   EXPORT_JSON (4):
+     *     - view_ids 需强制转换为 (char *) 作为 JSON 输出缓冲区
+     *     - *count 输入=缓冲区字节容量，输出=实际写入字节数（不含终止符）
+     *     - 更安全的做法：直接调用 high_dim_export_views_json()
+     *   QUERY_LAYOUT (5):
+     *     - view_ids[0] = 目标 view_id（输入）
+     *     - view_ids[1..5] 输出 layout_x/layout_y/width/height/z_order（整数像素）
+     *     - *count 输入=数组长度（需>=6），输出=1（找到）
+     *   CREATE_BATCH (6):
+     *     - view_ids[0] = block_id（输入），view_ids[1..] = preset_indices（输入）
+     *     - *count 输入=数组长度（=preset数+1），输出=创建的视图数
+     *     - view_ids[0..] 覆盖为创建出的 view_id 列表
+     *   CLONE (7):
+     *     - view_ids[0] = 源 view_id（输入），view_ids[1] 输出=新 view_id
+     *     - *count 输出=新 view_id
+     *   REORDER (8):
+     *     - view_ids = 新的显示顺序（视图ID数组）；*count = 数组长度
+     *     - 数组顺序即目标 z_order（1..n）
+     *   SNAPSHOT_SAVE (9):
+     *     - *count 输出=已保存的视图数（view_ids 可为 NULL）
+     *   SNAPSHOT_RESTORE (10):
+     *     - *count 输出=已恢复的视图数（view_ids 可为 NULL）
      *
-     * 【仍为桩函数的部分（需要外部依赖或后续版本实现）】
-     *   1. 按 block_id 过滤列出 —— 当前 LIST 返回所有视图，
-     *      不支持只列出某个特定高维块的关联视图
-     *   2. 视图状态导出 —— 不支持将当前多视图状态序列化为JSON/配置，
-     *      以便保存和恢复工作会话
-     *   3. 视图布局查询 —— 不支持获取视图的屏幕布局信息（位置、大小等），
-     *      这些信息由UI层管理
-     *   4. 批量视图创建 —— 本函数不直接创建视图，
-     *      创建操作请使用 high_dim_create_multi_projection_view()
-     *   5. 视图克隆/复制 —— 不支持复制一个视图的投影配置到新视图
-     *   6. 视图重排 —— 不支持调整视图的显示顺序
-     *   7. 视图快照 —— 不支持保存当前视图状态以便后续恢复
-     *   8. 并发安全 —— 全局视图数组 g_multi_views[] 无锁保护，
-     *      多线程环境下需要外部同步机制
-     *
-     * 【操作类型常量（建议在 high_dim.h 中定义）】
-     *   #define MULTIVIEW_OP_LIST   0
-     *   #define MULTIVIEW_OP_COUNT  1
-     *   #define MULTIVIEW_OP_CLEAR  2
-     *
-     * 【使用示例】
-     *   // 列出所有视图
-     *   int view_ids[32];
-     *   int count = 32;
-     *   high_dim_manage_multi_views(manager, MULTIVIEW_OP_LIST, view_ids, &count);
-     *   printf("活跃视图数: %d\n", count);
-     *
-     *   // 获取视图数量
-     *   int count;
-     *   high_dim_manage_multi_views(manager, MULTIVIEW_OP_COUNT, NULL, &count);
-     *
-     *   // 清除所有视图
-     *   int dummy = 0;
-     *   high_dim_manage_multi_views(manager, MULTIVIEW_OP_CLEAR, NULL, &dummy);
+     * 【并发安全】
+     *   所有公开入口（create/destroy/link_highlight/manage_multi_views）
+     *   在访问全局视图数组前持有 g_multi_views_lock 互斥锁，保证
+     *   多线程环境下视图状态的一致性。
      *
      * @param manager 高维管理器指针
-     * @param operation 操作类型：
-     *                  0 = 列出活跃视图ID
-     *                  1 = 获取活跃视图数量
-     *                  2 = 清除所有视图
-     * @param view_ids 视图ID的输出数组（LIST操作使用，COUNT/CLEAR时可为NULL）
-     * @param count 输入/输出参数：
-     *              LIST操作：输入=数组最大容量，输出=实际写入的视图数
-     *              COUNT操作：输出=活跃视图总数
-     *              CLEAR操作：输出=被清除的视图数
+     * @param operation 操作类型（见 MULTIVIEW_OP_* 常量定义）
+     * @param view_ids 视图ID数组（参数约定见上）
+     * @param count 输入/输出参数（参数约定见上）
      * @return lv_OK 操作成功
      *         lv_ERROR_INVALID_PARAM 参数无效
+     *         lv_ERROR_NOT_FOUND 未找到指定的视图/块
+     *         lv_ERROR_RESOURCE_EXHAUSTED 视图槽位或ID空间耗尽
+     *         lv_ERROR_BUFFER_TOO_SMALL 导出缓冲区容量不足
      *         lv_ERROR_UNSUPPORTED 不支持的操作类型
+     * @note 调用者必须持有 g_multi_views_lock
      */
-    if (!manager)
-        return lv_ERROR_INVALID_PARAM;
-
     switch (operation) {
-        case 0: {
+        case MULTIVIEW_OP_LIST: {
             /*
              * 操作：列出所有活跃视图（MULTIVIEW_OP_LIST）
              *
@@ -538,8 +782,6 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *vie
              *   - view_ids 非空且 count 非空：确保输出缓冲区有效
              *   - 写入数量限制在 max_count 内：防止缓冲区溢出
              *   - written 变量独立计数：即使缓冲区不足也能返回实际总数
-             *   - g_multi_view_count 受 HIGH_DIM_MAX_VIEWS 限制（定义在头文件），
-             *     确保数组索引不越界
              */
             if (!view_ids || !count) {
                 return lv_ERROR_INVALID_PARAM;
@@ -571,18 +813,12 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *vie
             return lv_OK;
         }
 
-        case 1: {
+        case MULTIVIEW_OP_COUNT: {
             /*
              * 操作：获取活跃视图数量（MULTIVIEW_OP_COUNT）
              *
              * 统计 g_multi_views[] 中 is_active == true 的条目数。
              * 注意：此值通常 <= g_multi_view_count（因为可能有释放的槽位）。
-             *
-             * 【边界检查】
-             *   - count 非空：确保输出参数有效
-             *   - 循环受 g_multi_view_count 限制：不会越界访问
-             *   - active_count 从 0 递增：返回值最小为 0
-             *   - 此操作仅读取数组，不修改全局状态，天然线程安全（只读）
              */
             if (!count) {
                 return lv_ERROR_INVALID_PARAM;
@@ -599,7 +835,7 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *vie
             return lv_OK;
         }
 
-        case 2: {
+        case MULTIVIEW_OP_CLEAR: {
             /*
              * 操作：清除所有视图（MULTIVIEW_OP_CLEAR）
              *
@@ -607,20 +843,8 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *vie
              * 这是批量销毁操作，等价于对每个视图调用
              * high_dim_destroy_multi_projection_view()。
              *
-             * 【边界检查和错误处理】
-             *   - 清空前检查 highlighted_elements 数组容量（HIGH_DIM_MAX_HIGHLIGHTS）
-             *   - memset 确保所有高亮条目清零，避免悬空/无效引用
-             *   - cleared 变量记录实际清除的视图数，在 count 中返回
-             *   - 此操作不可逆：被清除的视图数据已永久丢失，
-             *     若需恢复需通过 UI 层重新创建视图
-             *   - 此操作不释放高维块（block），仅清除视图追踪记录
-             *
-             * 【并发安全注意】
-             *   全局数组 g_multi_views[] 无锁保护。
-             *   多线程环境下，如果某一视图正在渲染中被标记 inactive，
-             *   渲染器可能访问已释放的资源。调用者需确保：
-             *   1. 在单线程环境中调用（如主事件循环）
-             *   2. 或在调用前确保所有渲染操作已完成
+             * 此操作不释放高维块（block），仅清除视图追踪记录。
+             * 调用者在锁内执行，避免渲染线程访问已释放资源。
              */
             int cleared = 0;
             for (int i = 0; i < g_multi_view_count; i++) {
@@ -644,12 +868,335 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *vie
             return lv_OK;
         }
 
+        case MULTIVIEW_OP_LIST_BY_BLOCK: {
+            /*
+             * 操作：按 block_id 过滤列出活跃视图（MULTIVIEW_OP_LIST_BY_BLOCK）
+             *
+             * 遍历全局视图追踪数组，仅收集 block_id 与过滤条件匹配的活跃视图。
+             * view_ids[0] 作为过滤条件输入，输出从 view_ids[1] 开始写入，
+             * 避免覆盖输入的 block_id。
+             */
+            if (!view_ids || !count) {
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int block_filter = view_ids[0];
+            int capacity = *count;
+            int written = 0;
+
+            for (int i = 0; i < g_multi_view_count; i++) {
+                if (g_multi_views[i].is_active && g_multi_views[i].block_id == block_filter) {
+                    if (written < capacity) {
+                        view_ids[written + 1] = g_multi_views[i].view_id;
+                    }
+                    written++;
+                }
+            }
+
+            *count = written;
+
+            if (written > capacity) {
+                lv_set_error(lv_OK,
+                             "按block_id=%d过滤列出视图：共%d个匹配，但输出数组容量仅%d，"
+                             "实际写入%d个。请增大view_ids数组容量。",
+                             block_filter, written, capacity, capacity);
+            } else {
+                lv_set_error(lv_OK, "按block_id=%d过滤列出视图：共%d个匹配，已全部写入view_ids数组。", block_filter,
+                             written);
+            }
+            return lv_OK;
+        }
+
+        case MULTIVIEW_OP_EXPORT_JSON: {
+            /*
+             * 操作：导出全部视图状态为 JSON（MULTIVIEW_OP_EXPORT_JSON）
+             *
+             * 将当前全部活跃视图的状态（视图ID、块ID、预设索引、显示顺序、
+             * 布局矩形、相机参数、高亮列表）序列化为 JSON 字符串。
+             * 输出缓冲区由调用者提供（view_ids 强转为 char *）。
+             */
+            if (!view_ids || !count) {
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int capacity = *count;
+            if (capacity <= 0) {
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int written = high_dim_views_export_json((char *)view_ids, (size_t)capacity);
+            if (written < 0) {
+                lv_set_error(lv_ERROR_BUFFER_TOO_SMALL,
+                             "多视图导出失败：JSON序列化结果超过缓冲区容量%d字节。"
+                             "请使用 high_dim_export_views_json() 并传入足够大的缓冲区。",
+                             capacity);
+                return lv_ERROR_BUFFER_TOO_SMALL;
+            }
+            *count = written;
+            return lv_OK;
+        }
+
+        case MULTIVIEW_OP_QUERY_LAYOUT: {
+            /*
+             * 操作：查询视图布局信息（MULTIVIEW_OP_QUERY_LAYOUT）
+             *
+             * 返回指定视图在 C 层维护的逻辑布局元数据：
+             *   视口矩形（x/y/width/height，整数像素）与显示顺序 z_order。
+             * 布局信息由创建时的瀑布流网格算法初始化，可被重排/克隆/快照操作修改。
+             */
+            if (!view_ids || !count) {
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int arr_len = *count;
+            if (arr_len < 6) {
+                lv_set_error(lv_ERROR_INVALID_PARAM, "查询视图布局失败：view_ids数组长度=%d，至少需要6个元素。",
+                             arr_len);
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int target_vid = view_ids[0];
+            int idx = high_dim_find_view_index(target_vid);
+            if (idx < 0) {
+                lv_set_error(lv_ERROR_NOT_FOUND, "查询视图布局失败：未找到view_id=%d对应的活跃视图。", target_vid);
+                return lv_ERROR_NOT_FOUND;
+            }
+            HighDimMultiViewContext *v = &g_multi_views[idx];
+            view_ids[1] = v->layout_x;
+            view_ids[2] = v->layout_y;
+            view_ids[3] = v->layout_width;
+            view_ids[4] = v->layout_height;
+            view_ids[5] = v->z_order;
+            *count = 1;
+            return lv_OK;
+        }
+
+        case MULTIVIEW_OP_CREATE_BATCH: {
+            /*
+             * 操作：批量创建视图（MULTIVIEW_OP_CREATE_BATCH）
+             *
+             * 为同一高维块批量创建多个并排投影视图。
+             * view_ids[0]=block_id，view_ids[1..]=预设索引数组（输入）；
+             * 输出时将创建出的 view_id 覆盖写入 view_ids[0..]。
+             * 先拷贝输入到局部数组，避免输入被覆盖丢失。
+             */
+            if (!view_ids || !count) {
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int arr_len = *count;
+            if (arr_len < 2) {
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int batch_block_id = view_ids[0];
+            int batch_preset_count = arr_len - 1;
+            if (batch_preset_count > HIGH_DIM_MAX_ACTIVE_VIEWS) {
+                lv_set_error(lv_ERROR_INVALID_PARAM, "批量创建视图失败：预设数量=%d超过最大视图数%d。",
+                             batch_preset_count, HIGH_DIM_MAX_ACTIVE_VIEWS);
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int input_presets[HIGH_DIM_MAX_ACTIVE_VIEWS];
+            for (int i = 0; i < batch_preset_count; i++) {
+                input_presets[i] = view_ids[i + 1];
+            }
+            int out_ids[HIGH_DIM_MAX_ACTIVE_VIEWS];
+            int rc = high_dim_create_multi_projection_view_locked(manager, batch_block_id, input_presets,
+                                                                  batch_preset_count, out_ids);
+            if (rc != lv_OK) {
+                return rc;
+            }
+            for (int i = 0; i < batch_preset_count; i++) {
+                view_ids[i] = out_ids[i];
+            }
+            *count = batch_preset_count;
+            lv_set_error(lv_OK, "批量创建多投影视图：block_id=%d 成功创建%d个视图。", batch_block_id, batch_preset_count);
+            return lv_OK;
+        }
+
+        case MULTIVIEW_OP_CLONE: {
+            /*
+             * 操作：克隆/复制视图（MULTIVIEW_OP_CLONE）
+             *
+             * 复制源视图的投影配置、布局、相机参数与高亮列表到新视图。
+             * 新视图 ID 按源视图的编码规则重新生成唯一值。
+             */
+            if (!view_ids || !count) {
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int src_vid = view_ids[0];
+            int src_idx = high_dim_find_view_index(src_vid);
+            if (src_idx < 0) {
+                lv_set_error(lv_ERROR_NOT_FOUND, "克隆视图失败：未找到源视图view_id=%d。", src_vid);
+                return lv_ERROR_NOT_FOUND;
+            }
+            HighDimMultiViewContext *src = &g_multi_views[src_idx];
+            int base_vid = src->block_id * 1000 + src->preset_index;
+            int new_vid = base_vid;
+            int offset = 0;
+            while (high_dim_find_view_index(new_vid) >= 0 && offset < 100) {
+                offset++;
+                new_vid = base_vid + offset * 10000;
+            }
+            if (offset >= 100) {
+                lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "克隆视图失败：视图ID空间已耗尽。");
+                return lv_ERROR_RESOURCE_EXHAUSTED;
+            }
+            int slot = high_dim_allocate_view_slot(new_vid, src->block_id, src->preset_index);
+            if (slot < 0) {
+                lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "克隆视图失败：全局视图槽位已满。");
+                return lv_ERROR_RESOURCE_EXHAUSTED;
+            }
+            HighDimMultiViewContext *dst = &g_multi_views[slot];
+            dst->z_order = src->z_order + 1;
+            dst->layout_x = src->layout_x;
+            dst->layout_y = src->layout_y;
+            dst->layout_width = src->layout_width;
+            dst->layout_height = src->layout_height;
+            dst->camera_zoom = src->camera_zoom;
+            dst->camera_angle = src->camera_angle;
+            dst->highlighted_count = src->highlighted_count;
+            memcpy(dst->highlighted_elements, src->highlighted_elements, sizeof(dst->highlighted_elements));
+            view_ids[1] = new_vid;
+            *count = new_vid;
+            LOG_DEBUG("high_dim", "视图克隆成功：view_id=%d -> view_id=%d（继承布局/相机/高亮状态）。", src_vid,
+                      new_vid);
+            return lv_OK;
+        }
+
+        case MULTIVIEW_OP_REORDER: {
+            /*
+             * 操作：视图重排（MULTIVIEW_OP_REORDER）
+             *
+             * 按调用者给定的视图ID数组顺序重新分配 z_order（1..n）。
+             * 未列入数组的活跃视图保持原有 z_order 不变。
+             * 执行前先校验所有视图ID均存在，避免部分生效。
+             */
+            if (!view_ids || !count) {
+                return lv_ERROR_INVALID_PARAM;
+            }
+            int n = *count;
+            if (n <= 0 || n > HIGH_DIM_MAX_ACTIVE_VIEWS) {
+                lv_set_error(lv_ERROR_INVALID_PARAM, "视图重排失败：数组长度=%d超出有效范围（1-%d）。", n,
+                             HIGH_DIM_MAX_ACTIVE_VIEWS);
+                return lv_ERROR_INVALID_PARAM;
+            }
+            for (int i = 0; i < n; i++) {
+                if (high_dim_find_view_index(view_ids[i]) < 0) {
+                    lv_set_error(lv_ERROR_NOT_FOUND, "视图重排失败：数组第%d个view_id=%d不存在。", i, view_ids[i]);
+                    return lv_ERROR_NOT_FOUND;
+                }
+            }
+            for (int i = 0; i < n; i++) {
+                int idx = high_dim_find_view_index(view_ids[i]);
+                g_multi_views[idx].z_order = i + 1;
+            }
+            lv_set_error(lv_OK, "视图重排成功：%d个视图已按指定顺序重新排列。", n);
+            return lv_OK;
+        }
+
+        case MULTIVIEW_OP_SNAPSHOT_SAVE: {
+            /*
+             * 操作：保存视图状态快照（MULTIVIEW_OP_SNAPSHOT_SAVE）
+             *
+             * 将当前全部活跃视图的完整状态（ID、块、预设、顺序、布局、
+             * 相机、高亮）复制到线程本地快照存储，供后续恢复。
+             */
+            int saved = 0;
+            for (int i = 0; i < g_multi_view_count && saved < HIGH_DIM_MAX_ACTIVE_VIEWS; i++) {
+                if (g_multi_views[i].is_active) {
+                    g_multi_view_snapshot[saved] = g_multi_views[i];
+                    saved++;
+                }
+            }
+            g_multi_view_snapshot_count = saved;
+            if (count) {
+                *count = saved;
+            }
+            lv_set_error(lv_OK, "视图快照保存成功：已保存%d个活跃视图的状态。", saved);
+            return lv_OK;
+        }
+
+        case MULTIVIEW_OP_SNAPSHOT_RESTORE: {
+            /*
+             * 操作：从快照恢复视图状态（MULTIVIEW_OP_SNAPSHOT_RESTORE）
+             *
+             * 对快照中的每个视图：
+             *   - 若同 view_id 的视图仍活跃：直接恢复其显示顺序/布局/相机/高亮
+             *   - 若槽位已释放：重新分配槽位并恢复状态；若 view_id 已被其他
+             *     视图占用，则按编码规则生成新的唯一 ID
+             */
+            int restored = 0;
+            for (int s = 0; s < g_multi_view_snapshot_count; s++) {
+                HighDimMultiViewContext *snap = &g_multi_view_snapshot[s];
+                if (!snap->is_active) {
+                    continue;
+                }
+                int idx = high_dim_find_view_index(snap->view_id);
+                if (idx >= 0) {
+                    HighDimMultiViewContext *v = &g_multi_views[idx];
+                    v->z_order = snap->z_order;
+                    v->layout_x = snap->layout_x;
+                    v->layout_y = snap->layout_y;
+                    v->layout_width = snap->layout_width;
+                    v->layout_height = snap->layout_height;
+                    v->camera_zoom = snap->camera_zoom;
+                    v->camera_angle = snap->camera_angle;
+                    v->highlighted_count = snap->highlighted_count;
+                    memcpy(v->highlighted_elements, snap->highlighted_elements, sizeof(v->highlighted_elements));
+                    restored++;
+                } else {
+                    int new_vid = snap->view_id;
+                    if (high_dim_find_view_index(new_vid) >= 0) {
+                        int base = new_vid;
+                        int offset = 0;
+                        while (high_dim_find_view_index(new_vid) >= 0 && offset < 100) {
+                            offset++;
+                            new_vid = base + offset * 10000;
+                        }
+                        if (offset >= 100) {
+                            continue;
+                        }
+                    }
+                    int slot = high_dim_allocate_view_slot(new_vid, snap->block_id, snap->preset_index);
+                    if (slot < 0) {
+                        continue;
+                    }
+                    HighDimMultiViewContext *v = &g_multi_views[slot];
+                    v->z_order = snap->z_order;
+                    v->layout_x = snap->layout_x;
+                    v->layout_y = snap->layout_y;
+                    v->layout_width = snap->layout_width;
+                    v->layout_height = snap->layout_height;
+                    v->camera_zoom = snap->camera_zoom;
+                    v->camera_angle = snap->camera_angle;
+                    v->highlighted_count = snap->highlighted_count;
+                    memcpy(v->highlighted_elements, snap->highlighted_elements, sizeof(v->highlighted_elements));
+                    restored++;
+                }
+            }
+            if (count) {
+                *count = restored;
+            }
+            lv_set_error(lv_OK, "视图快照恢复成功：已恢复%d个视图的状态。", restored);
+            return lv_OK;
+        }
+
         default:
             lv_set_error(lv_ERROR_UNSUPPORTED,
                          "多视图管理失败：不支持的操作类型=%d"
-                         "（有效值：0=LIST, 1=COUNT, 2=CLEAR）",
+                         "（有效值：0=LIST, 1=COUNT, 2=CLEAR, 3=LIST_BY_BLOCK, "
+                         "4=EXPORT_JSON, 5=QUERY_LAYOUT, 6=CREATE_BATCH, 7=CLONE, "
+                         "8=REORDER, 9=SNAPSHOT_SAVE, 10=SNAPSHOT_RESTORE）",
                          operation);
             return lv_ERROR_UNSUPPORTED;
     }
 }
 
+/**
+ * @brief 统一的多投影视图管理接口（线程安全公开入口）
+ *
+ * 加锁保护全局视图数组后委托给内部实现。
+ */
+int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *view_ids, int *count) {
+    if (!manager) {
+        return lv_ERROR_INVALID_PARAM;
+    }
+    high_dim_views_lock();
+    int rc = high_dim_manage_multi_views_locked(manager, operation, view_ids, count);
+    high_dim_views_unlock();
+    return rc;
+}

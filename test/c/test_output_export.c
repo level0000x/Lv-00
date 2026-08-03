@@ -496,7 +496,7 @@ static void test_widget_update_full(void) {
     TEST_ASSERT_NOT_NULL(json);
     TEST_ASSERT(strstr(json, "Updated Label") != NULL, "label updated");
     TEST_ASSERT(strstr(json, "false") != NULL || strstr(json, "true") != NULL, "has boolean flags");
-    lv_free(json);
+    lv_free((void **)&json);
 
     /* 更新仅部分字段 */
     TEST_ASSERT_EQ(proof_widget_update(layout, id, true, true, NULL, 3, NULL), 0);
@@ -530,7 +530,7 @@ static void test_widget_suggest_tactic(void) {
     /* 清理 */
     for (int i = 0; i < 3; i++) {
         if (suggestions[i])
-            lv_free(suggestions[i]);
+            lv_free((void **)&suggestions[i]);
     }
 }
 
@@ -602,7 +602,7 @@ static void test_widget_search_tree_dep_graph(void) {
     tree = proof_widget_get_search_tree((ProofNavigator *) 0x1);
     TEST_ASSERT_NOT_NULL(tree);
     TEST_ASSERT(strstr(tree, "search_tree") != NULL || strstr(tree, "type") != NULL, "strstr should succeed");
-    lv_free(tree);
+    lv_free((void **)&tree);
 
     /* Dependency graph */
     char *dep = proof_widget_get_dependency_graph(NULL);
@@ -611,7 +611,7 @@ static void test_widget_search_tree_dep_graph(void) {
     dep = proof_widget_get_dependency_graph((ProofNavigator *) 0x1);
     TEST_ASSERT_NOT_NULL(dep);
     TEST_ASSERT(strstr(dep, "dependency_graph") != NULL || strstr(dep, "type") != NULL, "strstr should succeed");
-    lv_free(dep);
+    lv_free((void **)&dep);
 }
 
 static void test_widget_apply_tactic(void) {

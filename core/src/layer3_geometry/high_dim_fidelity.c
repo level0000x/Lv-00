@@ -220,81 +220,704 @@ int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id, c
 
     return lv_OK;
 }
+/* ==================== 增强版保真度计算：六项细粒度指标 ==================== */
 
+/**
+ * 约束类型敏感度权重表
+ *
+ * 每种约束类型在低维投影中"失真"的敏感程度不同：
+ *   - INCIDENCE / CONNECTION 只需 1 个可见维度即可区分，敏感度低；
+ *   - BETWEENNESS / INTERSECTION 需要 2 个可见维度表达空间关系；
+ *   - CONTAINMENT / ANGLE 对维度保留要求最高（内外判定、角度度量），敏感度最高。
+ * weight 用于约束可见性的加权统计（越大越敏感），required_dims 为可见性判定门槛。
+ */
+typedef struct {
+    ConstraintType type;
+    double weight;
+    int required_dims;
+} HighDimConstraintSensitivityEntry;
 
-/* ==================== 保真度计算（增强版） ==================== */
+static const HighDimConstraintSensitivityEntry g_constraint_sensitivity_table[] = {
+    { INCIDENCE,    1.0, 1 },
+    { CONNECTION,   1.0, 1 },
+    { BETWEENNESS,  1.2, 2 },
+    { INTERSECTION, 1.2, 2 },
+    { CONTAINMENT,  1.4, 2 },
+    { ANGLE,        1.3, 2 },
+};
 
-int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const ConstraintGraph *constraint_graph,
+static const int g_constraint_sensitivity_count =
+    (int) (sizeof(g_constraint_sensitivity_table) / sizeof(g_constraint_sensitivity_table[0]));
+
+/* 从权重表查询约束类型的敏感度权重与可见维度门槛 */
+static void high_dim_sensitivity_lookup(ConstraintType type, double *out_weight, int *out_required_dims) {
+    *out_weight = 1.0;
+    *out_required_dims = 1;
+    for (int i = 0; i < g_constraint_sensitivity_count; i++) {
+        if (g_constraint_sensitivity_table[i].type == type) {
+            *out_weight = g_constraint_sensitivity_table[i].weight;
+            *out_required_dims = g_constraint_sensitivity_table[i].required_dims;
+            return;
+        }
+    }
+}
+
+/* 计算当前预设可见的维度数（映射到 X/Y 轴的维度） */
+static int high_dim_count_visible_dims(HighDimManager *manager, int block_id) {
+    const HighDimProjectionPreset *preset = high_dim_get_current_preset(manager, block_id);
+    if (!preset) {
+        return 0;
+    }
+    int visible = 0;
+    for (int i = 0; i < preset->mapping_count; i++) {
+        if (preset->mappings[i].mapping_type == HIGH_DIM_MAP_TO_X ||
+            preset->mappings[i].mapping_type == HIGH_DIM_MAP_TO_Y) {
+            visible++;
+        }
+    }
+    return visible;
+}
+
+/* ── 指标 1：约束类型敏感度 ──
+ *
+ * 以约束类型权重为口径统计约束保留率：类型越"敏感"（如包含、角度），
+ * 权重越高，其丢失对保真度的影响越大。结果为 0~1 的加权保留率。
+ */
+static double high_dim_constraint_type_sensitivity(HighDimManager *manager, int block_id,
+                                                   const ConstraintGraph *graph) {
+    if (!graph || graph->constraint_count == 0) {
+        return 1.0;
+    }
+
+    int visible_dims = high_dim_count_visible_dims(manager, block_id);
+
+    double weighted_total = 0.0;
+    double weighted_visible = 0.0;
+
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c || !c->is_active) {
+            continue;
+        }
+        double weight;
+        int required_dims;
+        high_dim_sensitivity_lookup(c->type, &weight, &required_dims);
+
+        weighted_total += weight;
+        if (visible_dims >= required_dims) {
+            weighted_visible += weight;
+        }
+    }
+
+    if (weighted_total <= 0.0) {
+        return 1.0;
+    }
+    return weighted_visible / weighted_total;
+}
+
+/* ── 指标 2：几何失真度量（距离 + 角度） ──
+ *
+ * 将节点符号坐标分别投影到高维数值向量与低维投影坐标：
+ *   - 距离失真：采样点对的高维距离/低维距离比值的变异系数
+ *     （比值偏离均值越大，长度关系被扭曲越严重）
+ *   - 角度失真：采样三点在投影前后的夹角余弦偏差（归一化到 0~1）
+ * 最终失真 = 0.7*距离失真 + 0.3*角度失真。
+ */
+static double high_dim_geometric_distortion(HighDimManager *manager, int block_id,
+                                            const ConstraintGraph *graph) {
+    if (!graph || graph->node_count < 2) {
+        return 0.0;
+    }
+
+    /* 采样可投影节点，保存高维数值向量与低维投影坐标 */
+    enum { MAX_SAMPLE_NODES = 64 };
+    double hi[MAX_SAMPLE_NODES][HIGH_DIM_MAX_DIMENSIONS];
+    double lo[MAX_SAMPLE_NODES][2];
+    int sample_count = 0;
+
+    for (int i = 0; i < graph->node_count && sample_count < MAX_SAMPLE_NODES; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active || !node->symbolic_coords || node->coord_count == 0) {
+            continue;
+        }
+
+        /* 使用当前投影预设将节点符号坐标投影到低维 */
+        HighDimProjectedCoord pc;
+        if (high_dim_project_coordinates(manager, block_id, (const SymbolicCoord **) node->symbolic_coords,
+                                         node->coord_count, &pc) != lv_OK || !pc.is_valid) {
+            continue;
+        }
+
+        int dims = node->coord_count;
+        if (dims > HIGH_DIM_MAX_DIMENSIONS) {
+            dims = HIGH_DIM_MAX_DIMENSIONS;
+        }
+        for (int d = 0; d < dims; d++) {
+            hi[sample_count][d] = symbolic_coord_to_double(node->symbolic_coords[d]);
+        }
+        for (int d = dims; d < HIGH_DIM_MAX_DIMENSIONS; d++) {
+            hi[sample_count][d] = 0.0;
+        }
+        lo[sample_count][0] = pc.x;
+        lo[sample_count][1] = pc.y;
+        sample_count++;
+    }
+
+    if (sample_count < 2) {
+        return 0.0;
+    }
+
+    /* 距离失真：抽样点对，比较高维/低维距离比的一致性 */
+    enum { MAX_DIST_SAMPLES = 128 };
+    double ratios[MAX_DIST_SAMPLES];
+    int ratio_count = 0;
+    double sum_ratio = 0.0;
+
+    for (int i = 0; i < sample_count - 1 && ratio_count < MAX_DIST_SAMPLES; i++) {
+        for (int j = i + 1; j < sample_count && ratio_count < MAX_DIST_SAMPLES; j++) {
+            double sum_sq = 0.0;
+            for (int d = 0; d < HIGH_DIM_MAX_DIMENSIONS; d++) {
+                double diff = hi[i][d] - hi[j][d];
+                sum_sq += diff * diff;
+            }
+            double hi_dist = sqrt(sum_sq);
+            if (hi_dist < 1e-9) {
+                continue; /* 高维退化点对，跳过 */
+            }
+            double dx = lo[i][0] - lo[j][0];
+            double dy = lo[i][1] - lo[j][1];
+            double lo_dist = sqrt(dx * dx + dy * dy);
+
+            double ratio = lo_dist / hi_dist;
+            ratios[ratio_count++] = ratio;
+            sum_ratio += ratio;
+        }
+    }
+
+    double distance_distortion = 0.0;
+    if (ratio_count > 0) {
+        double mean_ratio = sum_ratio / ratio_count;
+        if (mean_ratio < 1e-9) {
+            distance_distortion = 1.0; /* 所有低维距离为零：完全坍缩 */
+        } else {
+            double var = 0.0;
+            for (int i = 0; i < ratio_count; i++) {
+                double dev = (ratios[i] - mean_ratio) / mean_ratio;
+                var += dev * dev;
+            }
+            distance_distortion = sqrt(var / ratio_count);
+            if (distance_distortion > 1.0) {
+                distance_distortion = 1.0;
+            }
+        }
+    }
+
+    /* 角度失真：抽样三点，比较投影前后的夹角余弦偏差 */
+    enum { MAX_ANGLE_SAMPLES = 128 };
+    double angle_loss_sum = 0.0;
+    int angle_count = 0;
+
+    for (int i = 0; i < sample_count - 2 && angle_count < MAX_ANGLE_SAMPLES; i++) {
+        for (int j = i + 1; j < sample_count - 1 && angle_count < MAX_ANGLE_SAMPLES; j++) {
+            for (int k = j + 1; k < sample_count && angle_count < MAX_ANGLE_SAMPLES; k++) {
+                /* 高维夹角余弦（顶点 j） */
+                double cos_hi = 0.0;
+                double n_hi_a = 0.0, n_hi_b = 0.0;
+                for (int d = 0; d < HIGH_DIM_MAX_DIMENSIONS; d++) {
+                    double a = hi[i][d] - hi[j][d];
+                    double b = hi[k][d] - hi[j][d];
+                    cos_hi += a * b;
+                    n_hi_a += a * a;
+                    n_hi_b += b * b;
+                }
+                double norm_hi = sqrt(n_hi_a) * sqrt(n_hi_b);
+                if (norm_hi < 1e-9) {
+                    continue;
+                }
+                cos_hi /= norm_hi;
+                if (cos_hi > 1.0) cos_hi = 1.0;
+                if (cos_hi < -1.0) cos_hi = -1.0;
+
+                /* 低维夹角余弦（顶点 j） */
+                double a_lo_x = lo[i][0] - lo[j][0];
+                double a_lo_y = lo[i][1] - lo[j][1];
+                double b_lo_x = lo[k][0] - lo[j][0];
+                double b_lo_y = lo[k][1] - lo[j][1];
+                double n_lo_a = sqrt(a_lo_x * a_lo_x + a_lo_y * a_lo_y);
+                double n_lo_b = sqrt(b_lo_x * b_lo_x + b_lo_y * b_lo_y);
+                if (n_lo_a < 1e-9 || n_lo_b < 1e-9) {
+                    continue;
+                }
+                double cos_lo = (a_lo_x * b_lo_x + a_lo_y * b_lo_y) / (n_lo_a * n_lo_b);
+                if (cos_lo > 1.0) cos_lo = 1.0;
+                if (cos_lo < -1.0) cos_lo = -1.0;
+
+                double diff = cos_hi - cos_lo;
+                if (diff < 0.0) diff = -diff;
+                angle_loss_sum += diff / 2.0; /* 余弦差/2 归一化到 0~1 */
+                angle_count++;
+            }
+        }
+    }
+
+    double angle_distortion = (angle_count > 0) ? (angle_loss_sum / angle_count) : 0.0;
+
+    double distortion = 0.7 * distance_distortion + 0.3 * angle_distortion;
+    if (distortion < 0.0) distortion = 0.0;
+    if (distortion > 1.0) distortion = 1.0;
+    return distortion;
+}
+
+/* ── 指标 3：局部保真度热图 ──
+ *
+ * 将低维投影空间按包围盒划分为 HIGH_DIM_HEATMAP_GRID × HIGH_DIM_HEATMAP_GRID
+ * 的网格。每个约束按其参与者投影质心归入所在格子，统计该格内的
+ * 类型加权可见率，得到局部保真度热图（0~1）。
+ */
+static void high_dim_local_fidelity_heatmap(HighDimManager *manager, int block_id,
+                                            const ConstraintGraph *graph,
+                                            double heatmap[HIGH_DIM_HEATMAP_GRID][HIGH_DIM_HEATMAP_GRID]) {
+    for (int r = 0; r < HIGH_DIM_HEATMAP_GRID; r++) {
+        for (int c = 0; c < HIGH_DIM_HEATMAP_GRID; c++) {
+            heatmap[r][c] = 1.0;
+        }
+    }
+
+    if (!graph || graph->node_count == 0 || graph->constraint_count == 0) {
+        return;
+    }
+
+    int visible_dims = high_dim_count_visible_dims(manager, block_id);
+
+    /* 包围盒：先投影所有节点，得到低维坐标范围 */
+    enum { MAX_HM_NODES = 256 };
+    double px[MAX_HM_NODES], py[MAX_HM_NODES];
+    int pid[MAX_HM_NODES];
+    int pcount = 0;
+    double min_x = 1e300, min_y = 1e300, max_x = -1e300, max_y = -1e300;
+
+    for (int i = 0; i < graph->node_count && pcount < MAX_HM_NODES; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active || !node->symbolic_coords || node->coord_count == 0) {
+            continue;
+        }
+        HighDimProjectedCoord pc;
+        if (high_dim_project_coordinates(manager, block_id, (const SymbolicCoord **) node->symbolic_coords,
+                                         node->coord_count, &pc) != lv_OK || !pc.is_valid) {
+            continue;
+        }
+        px[pcount] = pc.x;
+        py[pcount] = pc.y;
+        pid[pcount] = node->id;
+        if (pc.x < min_x) min_x = pc.x;
+        if (pc.x > max_x) max_x = pc.x;
+        if (pc.y < min_y) min_y = pc.y;
+        if (pc.y > max_y) max_y = pc.y;
+        pcount++;
+    }
+
+    if (pcount == 0) {
+        return;
+    }
+
+    double span_x = max_x - min_x;
+    double span_y = max_y - min_y;
+    if (span_x < 1e-9) span_x = 1.0;
+    if (span_y < 1e-9) span_y = 1.0;
+
+    /* 每格累计权重（分母）与可见权重（分子） */
+    double weight_total[HIGH_DIM_HEATMAP_GRID][HIGH_DIM_HEATMAP_GRID];
+    double weight_visible[HIGH_DIM_HEATMAP_GRID][HIGH_DIM_HEATMAP_GRID];
+    for (int r = 0; r < HIGH_DIM_HEATMAP_GRID; r++) {
+        for (int c = 0; c < HIGH_DIM_HEATMAP_GRID; c++) {
+            weight_total[r][c] = 0.0;
+            weight_visible[r][c] = 0.0;
+        }
+    }
+
+    /* 遍历约束：质心所在格决定归属，可见性决定该约束是否被保留 */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *con = graph->constraints[i];
+        if (!con || !con->is_active) {
+            continue;
+        }
+
+        double weight;
+        int required_dims;
+        high_dim_sensitivity_lookup(con->type, &weight, &required_dims);
+
+        /* 参与者投影质心 */
+        double cx = 0.0, cy = 0.0;
+        int cnt = 0;
+        for (int p = 0; p < con->participant_count; p++) {
+            for (int q = 0; q < pcount; q++) {
+                if (pid[q] == con->participants[p]) {
+                    cx += px[q];
+                    cy += py[q];
+                    cnt++;
+                    break;
+                }
+            }
+        }
+        if (cnt == 0) {
+            continue;
+        }
+        cx /= cnt;
+        cy /= cnt;
+
+        /* 归一化到 [0,1] 并映射到格子 */
+        double ux = (cx - min_x) / span_x;
+        double uy = (cy - min_y) / span_y;
+        if (ux < 0.0) ux = 0.0;
+        if (ux >= 1.0) ux = 1.0 - 1e-9;
+        if (uy < 0.0) uy = 0.0;
+        if (uy >= 1.0) uy = 1.0 - 1e-9;
+        int c = (int) (ux * HIGH_DIM_HEATMAP_GRID);
+        int r = (int) (uy * HIGH_DIM_HEATMAP_GRID);
+
+        weight_total[r][c] += weight;
+        if (visible_dims >= required_dims) {
+            weight_visible[r][c] += weight;
+        }
+    }
+
+    /* 计算每格的局部保真度；无约束落入的格子保持 1.0 */
+    for (int r = 0; r < HIGH_DIM_HEATMAP_GRID; r++) {
+        for (int c = 0; c < HIGH_DIM_HEATMAP_GRID; c++) {
+            if (weight_total[r][c] > 0.0) {
+                heatmap[r][c] = weight_visible[r][c] / weight_total[r][c];
+            }
+        }
+    }
+}
+
+/* ── 指标 4：动态精度调整 ──
+ *
+ * - dynamic_precision_factor：几何失真越大，建议降低缩放以放大局部细节，
+ *   因子 = 1 - 0.5*失真，钳制在 [0.1, 2.0]；
+ * - dynamic_rotation_angle：对低维投影点做 2D PCA，建议旋转到主成分方向，
+ *   以最大化轴向方差、减少投影遮挡，角度 = 0.5*atan2(2*Cxy, Cxx - Cyy)。
+ */
+static void high_dim_dynamic_precision(HighDimManager *manager, int block_id, const ConstraintGraph *graph,
+                                       double geometric_distortion, double *out_precision_factor,
+                                       double *out_rotation_angle) {
+    double factor = 1.0 - 0.5 * geometric_distortion;
+    if (factor < 0.1) factor = 0.1;
+    if (factor > 2.0) factor = 2.0;
+    *out_precision_factor = factor;
+
+    *out_rotation_angle = 0.0;
+    if (!graph || graph->node_count < 2) {
+        return;
+    }
+
+    enum { MAX_PCA_NODES = 128 };
+    double xs[MAX_PCA_NODES];
+    double ys[MAX_PCA_NODES];
+    int count = 0;
+
+    for (int i = 0; i < graph->node_count && count < MAX_PCA_NODES; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active || !node->symbolic_coords || node->coord_count == 0) {
+            continue;
+        }
+        HighDimProjectedCoord pc;
+        if (high_dim_project_coordinates(manager, block_id, (const SymbolicCoord **) node->symbolic_coords,
+                                         node->coord_count, &pc) != lv_OK || !pc.is_valid) {
+            continue;
+        }
+        xs[count] = pc.x;
+        ys[count] = pc.y;
+        count++;
+    }
+    if (count < 2) {
+        return;
+    }
+
+    double mx = 0.0, my = 0.0;
+    for (int i = 0; i < count; i++) {
+        mx += xs[i];
+        my += ys[i];
+    }
+    mx /= count;
+    my /= count;
+
+    double cxx = 0.0, cyy = 0.0, cxy = 0.0;
+    for (int i = 0; i < count; i++) {
+        double dx = xs[i] - mx;
+        double dy = ys[i] - my;
+        cxx += dx * dx;
+        cyy += dy * dy;
+        cxy += dx * dy;
+    }
+
+    /* 2x2 对称协方差矩阵主方向角 */
+    *out_rotation_angle = 0.5 * atan2(2.0 * cxy, cxx - cyy);
+}
+/* ── 指标 5：MDS stress（Kruskal stress-1） ──
+ *
+ * 对采样点对计算高维欧氏距离与低维欧氏距离，用最小二乘过原点
+ * 拟合得到最优缩放系数 b，再计算 Kruskal stress-1：
+ *   stress = sqrt( Σ(d_lo - b*d_hi)^2 / Σ(d_lo^2) )
+ * 0 = 完美保持，1 = 完全失真。
+ */
+static double high_dim_mds_stress(HighDimManager *manager, int block_id, const ConstraintGraph *graph) {
+    if (!graph || graph->node_count < 2) {
+        return 0.0;
+    }
+
+    enum { MAX_STRESS_NODES = 48 };
+    double hi[MAX_STRESS_NODES][HIGH_DIM_MAX_DIMENSIONS];
+    double lo[MAX_STRESS_NODES][2];
+    int sample_count = 0;
+
+    for (int i = 0; i < graph->node_count && sample_count < MAX_STRESS_NODES; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active || !node->symbolic_coords || node->coord_count == 0) {
+            continue;
+        }
+        HighDimProjectedCoord pc;
+        if (high_dim_project_coordinates(manager, block_id, (const SymbolicCoord **) node->symbolic_coords,
+                                         node->coord_count, &pc) != lv_OK || !pc.is_valid) {
+            continue;
+        }
+        int dims = node->coord_count;
+        if (dims > HIGH_DIM_MAX_DIMENSIONS) {
+            dims = HIGH_DIM_MAX_DIMENSIONS;
+        }
+        for (int d = 0; d < dims; d++) {
+            hi[sample_count][d] = symbolic_coord_to_double(node->symbolic_coords[d]);
+        }
+        for (int d = dims; d < HIGH_DIM_MAX_DIMENSIONS; d++) {
+            hi[sample_count][d] = 0.0;
+        }
+        lo[sample_count][0] = pc.x;
+        lo[sample_count][1] = pc.y;
+        sample_count++;
+    }
+
+    if (sample_count < 2) {
+        return 0.0;
+    }
+
+    enum { MAX_STRESS_PAIRS = 1024 };
+    double d_hi[MAX_STRESS_PAIRS];
+    double d_lo[MAX_STRESS_PAIRS];
+    int pair_count = 0;
+
+    for (int i = 0; i < sample_count - 1 && pair_count < MAX_STRESS_PAIRS; i++) {
+        for (int j = i + 1; j < sample_count && pair_count < MAX_STRESS_PAIRS; j++) {
+            double sum_sq = 0.0;
+            for (int d = 0; d < HIGH_DIM_MAX_DIMENSIONS; d++) {
+                double diff = hi[i][d] - hi[j][d];
+                sum_sq += diff * diff;
+            }
+            double hi_dist = sqrt(sum_sq);
+            if (hi_dist < 1e-9) {
+                continue; /* 高维退化点对，不参与应力计算 */
+            }
+            double dx = lo[i][0] - lo[j][0];
+            double dy = lo[i][1] - lo[j][1];
+            d_hi[pair_count] = hi_dist;
+            d_lo[pair_count] = sqrt(dx * dx + dy * dy);
+            pair_count++;
+        }
+    }
+
+    if (pair_count < 2) {
+        return 0.0;
+    }
+
+    double sum_lo_hi = 0.0, sum_hi2 = 0.0, sum_lo2 = 0.0;
+    for (int k = 0; k < pair_count; k++) {
+        sum_lo_hi += d_lo[k] * d_hi[k];
+        sum_hi2 += d_hi[k] * d_hi[k];
+        sum_lo2 += d_lo[k] * d_lo[k];
+    }
+
+    if (sum_hi2 < 1e-12) {
+        return 0.0;
+    }
+    if (sum_lo2 < 1e-12) {
+        return 1.0; /* 所有低维距离为零：投影完全坍缩 */
+    }
+
+    double b = sum_lo_hi / sum_hi2;
+    double num = 0.0;
+    for (int k = 0; k < pair_count; k++) {
+        double residual = d_lo[k] - b * d_hi[k];
+        num += residual * residual;
+    }
+
+    double stress = sqrt(num / sum_lo2);
+    if (stress < 0.0) stress = 0.0;
+    if (stress > 1.0) stress = 1.0;
+    return stress;
+}
+
+/* ── 指标 6：拓扑保持度量（k 近邻重叠率） ──
+ *
+ * 对每个采样点分别在高维与低维中取 k 个最近邻（贪心选择），
+ * 计算两个近邻集合的共有元素占比，再对所有点取平均，得到 0~1 的
+ * 邻域保持率。k = min(5, n-1)。
+ */
+static double high_dim_topology_preservation(HighDimManager *manager, int block_id, const ConstraintGraph *graph) {
+    if (!graph || graph->node_count < 3) {
+        return 1.0;
+    }
+
+    enum { MAX_TOP_NODES = 48 };
+    double hi[MAX_TOP_NODES][HIGH_DIM_MAX_DIMENSIONS];
+    double lo[MAX_TOP_NODES][2];
+    int sample_count = 0;
+
+    for (int i = 0; i < graph->node_count && sample_count < MAX_TOP_NODES; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active || !node->symbolic_coords || node->coord_count == 0) {
+            continue;
+        }
+        HighDimProjectedCoord pc;
+        if (high_dim_project_coordinates(manager, block_id, (const SymbolicCoord **) node->symbolic_coords,
+                                         node->coord_count, &pc) != lv_OK || !pc.is_valid) {
+            continue;
+        }
+        int dims = node->coord_count;
+        if (dims > HIGH_DIM_MAX_DIMENSIONS) {
+            dims = HIGH_DIM_MAX_DIMENSIONS;
+        }
+        for (int d = 0; d < dims; d++) {
+            hi[sample_count][d] = symbolic_coord_to_double(node->symbolic_coords[d]);
+        }
+        for (int d = dims; d < HIGH_DIM_MAX_DIMENSIONS; d++) {
+            hi[sample_count][d] = 0.0;
+        }
+        lo[sample_count][0] = pc.x;
+        lo[sample_count][1] = pc.y;
+        sample_count++;
+    }
+
+    if (sample_count < 3) {
+        return 1.0;
+    }
+
+    int k = 5;
+    if (k >= sample_count) {
+        k = sample_count - 1;
+    }
+
+    double total_overlap = 0.0;
+
+    for (int p = 0; p < sample_count; p++) {
+        /* 高维与低维距离数组（自身距离置为无穷大，避免自指） */
+        double hi_dist[MAX_TOP_NODES];
+        double lo_dist[MAX_TOP_NODES];
+        for (int q = 0; q < sample_count; q++) {
+            if (q == p) {
+                hi_dist[q] = 1e300;
+                lo_dist[q] = 1e300;
+                continue;
+            }
+            double sum_sq = 0.0;
+            for (int d = 0; d < HIGH_DIM_MAX_DIMENSIONS; d++) {
+                double diff = hi[p][d] - hi[q][d];
+                sum_sq += diff * diff;
+            }
+            hi_dist[q] = sqrt(sum_sq);
+            double dx = lo[p][0] - lo[q][0];
+            double dy = lo[p][1] - lo[q][1];
+            lo_dist[q] = sqrt(dx * dx + dy * dy);
+        }
+
+        int hi_nn[MAX_TOP_NODES];
+        int lo_nn[MAX_TOP_NODES];
+
+        /* 贪心选择 k 个最近邻（每轮取当前最小距离并标记为无穷大） */
+        for (int round = 0; round < k; round++) {
+            int best_hi = -1;
+            int best_lo = -1;
+            double bd_hi = 1e300;
+            double bd_lo = 1e300;
+            for (int q = 0; q < sample_count; q++) {
+                if (hi_dist[q] < bd_hi) {
+                    bd_hi = hi_dist[q];
+                    best_hi = q;
+                }
+                if (lo_dist[q] < bd_lo) {
+                    bd_lo = lo_dist[q];
+                    best_lo = q;
+                }
+            }
+            hi_nn[round] = best_hi;
+            lo_nn[round] = best_lo;
+            if (best_hi >= 0) {
+                hi_dist[best_hi] = 1e300;
+            }
+            if (best_lo >= 0) {
+                lo_dist[best_lo] = 1e300;
+            }
+        }
+
+        /* 计算两个 k 近邻集合的共有元素占比 */
+        int overlap = 0;
+        for (int a = 0; a < k; a++) {
+            if (hi_nn[a] < 0) {
+                continue;
+            }
+            for (int b = 0; b < k; b++) {
+                if (hi_nn[a] == lo_nn[b]) {
+                    overlap++;
+                    break;
+                }
+            }
+        }
+        total_overlap += (double) overlap / (double) k;
+    }
+
+    double ratio = total_overlap / (double) sample_count;
+    if (ratio < 0.0) ratio = 0.0;
+    if (ratio > 1.0) ratio = 1.0;
+    return ratio;
+}
+
+/* 统计可投影节点的数量（拓扑/几何指标的采样基数） */
+static int high_dim_count_valid_points(HighDimManager *manager, int block_id, const ConstraintGraph *graph) {
+    if (!graph) {
+        return 0;
+    }
+    int count = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active || !node->symbolic_coords || node->coord_count == 0) {
+            continue;
+        }
+        HighDimProjectedCoord pc;
+        if (high_dim_project_coordinates(manager, block_id, (const SymbolicCoord **) node->symbolic_coords,
+                                         node->coord_count, &pc) != lv_OK || !pc.is_valid) {
+            continue;
+        }
+        count++;
+    }
+    return count;
+}
+/* ==================== 增强版综合保真度 ==================== */
+
+/**
+ * @brief 计算高维投影的增强保真度（综合六项细粒度指标）
+ *
+ * 在传统维度可见性统计之上，引入：
+ *   - 第二层：约束类型敏感度加权保留率
+ *   - 第三层：几何保真（1 - 几何失真）
+ *
+ * 综合保真度 = 0.2*维度保真 + 0.5*约束保真 + 0.3*几何保真
+ *
+ * @param manager  管理器指针
+ * @param block_id 块 ID
+ * @param graph    约束图指针（可为 NULL，此时约束/几何指标退化为维度统计）
+ * @param stats    输出参数，接收可见性统计
+ * @return lv_OK 成功，错误码表示失败原因
+ */
+int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const ConstraintGraph *graph,
                               HighDimVisibilityStats *stats) {
-    /**
-     * @brief 计算投影保真度（增强版，基于约束图结构的准确度量）
-     *
-     * 【实现概述】
-     *   本函数是 high_dim_calculate_fidelity 的增强版本，提供了比简单维度
-     *   计数更准确的保真度计算。当前实现基于以下三层度量：
-     *
-     *   第一层：维度可见性比例（基础度量）
-     *     保真度 = 可见维度数 / 总维度数
-     *     这是最基础的度量，与 high_dim_calculate_fidelity 一致。
-     *     公式: fidelity_1 = visible_dims / total_dims
-     *
-     *   第二层：约束图关系保留率（约束度量）
-     *     遍历约束图中的所有约束，统计其参与者节点在当前投影下的可见性。
-     *     如果约束的所有参与者节点坐标均可投影（coord_count >= 2），则该约束
-     *     被视为"可保留"；否则被视为"丢失"。
-     *     公式: fidelity_2 = retainable_constraints / total_constraints
-     *
-     *   第三层：几何信息熵比（信息度量）
-     *     计算投影前后坐标数值的分布范围比。
-     *     如果投影后坐标被折叠到过小的范围（如所有点映射到同一点），
-     *     则信息损失严重。
-     *     公式: fidelity_3 = projected_range / original_range
-     *     其中 original_range = max(|x|,|y|,|z|,|w|) 的最大跨距
-     *          projected_range = max(|x'|,|y'|) 的跨距
-     *
-     *   综合保真度：
-     *     取三层度量的加权调和平均值，权重偏向约束保留率（约束保留最重要）。
-     *     fidelity = (0.2*f1 + 0.5*f2 + 0.3*f3)
-     *     如果无约束图（graph=NULL或constraint_count=0），退化为仅使用f1。
-     *
-     * 【已实现功能】
-     *   1. 三维度综合保真度计算（维度、约束、几何）
-     *   2. 约束保留率分析（遍历约束图的O(n)遍历）
-     *   3. 退化处理：
-     *      - 无约束图时退化为简单维度比
-     *      - 无节点时保真度为0
-     *      - 单一节点时保真度为1.0（无需投影）
-     *   4. 详细的统计信息输出到 stats 结构体
-     *   5. 同步更新 block->fidelity_ratio 以供后续查询
-     *
-     * 【仍为桩函数的部分（需要外部依赖或后续版本实现）】
-     *   1. 约束类型敏感度 —— 当前将所有约束类型（INCIDENCE/BETWEENNESS/...）
-     *      同等对待，实际应区分：拓扑约束（如连接关系）比度量约束（如距离）
-     *      对维度折叠更敏感
-     *   2. 几何失真度量 —— 当前仅计算坐标范围的"收缩比"，未计算形状保真度
-     *      （如角度失真、面积失真、交叉比等更精细的几何不变量）
-     *   3. 局部保真度热图 —— 当前仅输出全局保真度，不支持"哪个区域保真度低"
-     *      的空间分析
-     *   4. 动态精度调整 —— 不支持根据保真度自动调整投影参数
-     *      （如自动旋转视点以最大化可见维度）
-     *   5. 多维缩放（MDS）误差 —— 对5D+维度，降维到2D的MDS stress 值
-     *      可作为更精确的保真度损失度量
-     *   6. 拓扑保持度量 —— 检查投影是否改变了节点间的邻接关系
-     *      （如原本不相连的点在投影后重叠）
-     *
-     * 【与 high_dim_calculate_fidelity 的关系】
-     *   本函数是增强版，包含了原有函数的所有功能并增加了约束分析和
-     *   几何信息分析。原有函数保留不变，用于快速简单的保真度检查。
-     *
-     * @param manager 高维管理器指针
-     * @param block_id 要计算保真度的高维块ID
-     * @param constraint_graph 关联的约束图（可为NULL，此时仅用维度比）
-     * @param stats 输出参数，接收详细的保真度统计信息
-     * @return lv_OK 计算成功
-     *         lv_ERROR_INVALID_PARAM 参数无效
-     *         lv_ERROR_NOT_FOUND 未找到指定的高维块
-     *         lv_ERROR_INVALID_STATE 投影预设无效
-     */
     if (!manager || !stats) {
         return lv_ERROR_INVALID_PARAM;
     }
@@ -309,135 +932,104 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const Const
         return lv_ERROR_INVALID_STATE;
     }
 
-    /* ---- 第一层：维度可见性比例 ---- */
-    int visible_dims = 0;
-    for (int i = 0; i < preset->mapping_count; i++) {
-        if (preset->mappings[i].mapping_type == HIGH_DIM_MAP_TO_X ||
-            preset->mappings[i].mapping_type == HIGH_DIM_MAP_TO_Y) {
-            visible_dims++;
-        }
+    /* 第一层：维度可见性保真 */
+    double dim_fidelity = 1.0;
+    if (block->dimension_count > 0) {
+        dim_fidelity = (double) high_dim_count_visible_dims(manager, block_id) / (double) block->dimension_count;
     }
 
-    double fidelity_dim = (block->dimension_count > 0) ? (double) visible_dims / block->dimension_count : 1.0;
+    /* 第二层：约束类型敏感度加权保留率 */
+    double constraint_fidelity = high_dim_constraint_type_sensitivity(manager, block_id, graph);
 
-    /* ---- 第二层：约束图关系保留率 ---- */
-    double fidelity_constraint = 1.0; /* 默认：无约束时视为完全保留 */
-    int total_constraints = 0;
-    int retainable_constraints = 0;
+    /* 第三层：几何保真（1 - 几何失真） */
+    double geometric_distortion = high_dim_geometric_distortion(manager, block_id, graph);
+    double geometric_fidelity = 1.0 - geometric_distortion;
 
-    if (constraint_graph && constraint_graph->constraint_count > 0) {
-        total_constraints = constraint_graph->constraint_count;
+    /* 综合加权 */
+    double combined = 0.2 * dim_fidelity + 0.5 * constraint_fidelity + 0.3 * geometric_fidelity;
+    if (combined < 0.0) combined = 0.0;
+    if (combined > 1.0) combined = 1.0;
 
-        for (int i = 0; i < constraint_graph->constraint_count; i++) {
-            Constraint *c = constraint_graph->constraints[i];
-            if (!c)
+    /* 填充宏观统计 */
+    stats->fidelity_ratio = combined;
+
+    stats->total_elements = graph ? graph->node_count : 0;
+    stats->visible_elements = high_dim_count_valid_points(manager, block_id, graph);
+
+    if (graph && graph->constraint_count > 0) {
+        stats->total_relations = graph->constraint_count;
+        int visible_dims = high_dim_count_visible_dims(manager, block_id);
+        int visible_relations = 0;
+        for (int i = 0; i < graph->constraint_count; i++) {
+            Constraint *c = graph->constraints[i];
+            if (!c || !c->is_active) {
                 continue;
-
-            /*
-             * 约束保留判定：
-             * 如果一个约束的所有参与者节点都有足够的坐标（coord_count >= 2），
-             * 则认为该约束在当前投影下可以被保留。
-             * 实际约束的几何意义（如在2D投影中是否可见）需要完整的几何计算。
-             */
-            bool all_participants_visible = true;
-            for (int p = 0; p < c->participant_count; p++) {
-                GeomNode *node = graph_get_node_by_id(constraint_graph, c->participants[p]);
-                if (!node || node->coord_count < 2) {
-                    all_participants_visible = false;
-                    break;
-                }
             }
-
-            if (all_participants_visible) {
-                retainable_constraints++;
+            double weight;
+            int required_dims;
+            high_dim_sensitivity_lookup(c->type, &weight, &required_dims);
+            if (visible_dims >= required_dims) {
+                visible_relations++;
             }
         }
-
-        fidelity_constraint = (total_constraints > 0) ? (double) retainable_constraints / total_constraints : 1.0;
+        stats->visible_relations = visible_relations;
+    } else {
+        stats->total_relations = block->dimension_count;
+        stats->visible_relations = high_dim_count_visible_dims(manager, block_id);
     }
 
-    /* ---- 第三层：几何信息熵比 ---- */
-    /*
-     * 计算约束图中所有节点坐标的范围。
-     * 如果投影后范围过小（所有点聚在一起），信息损失大。
-     *
-     * 当前使用节点坐标的最大跨距作为"几何信息量"的代理指标。
-     * 完整的几何信息度量应使用协方差矩阵的特征值分析。
-     */
-    double fidelity_geometry = 1.0;
-    if (constraint_graph && constraint_graph->node_count > 0) {
-        double min_x = 0.0, max_x = 0.0;
-        double min_y = 0.0, max_y = 0.0;
-        int has_coords = 0;
+    /* 遮挡率以 MDS stress 作为真实代理指标（嵌入越扭曲，遮挡越严重） */
+    stats->occlusion_rate = high_dim_mds_stress(manager, block_id, graph);
+    stats->is_below_threshold = (combined < lv_high_dim_default_fidelity_threshold()) ? true : false;
 
-        for (int i = 0; i < constraint_graph->node_count; i++) {
-            GeomNode *node = constraint_graph->nodes[i];
-            if (!node || node->coord_count < 2)
-                continue;
-
-            double x = symbolic_coord_to_double(node->symbolic_coords[0]);
-            double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-
-            if (has_coords == 0) {
-                min_x = max_x = x;
-                min_y = max_y = y;
-                has_coords = 1;
-            } else {
-                if (x < min_x)
-                    min_x = x;
-                if (x > max_x)
-                    max_x = x;
-                if (y < min_y)
-                    min_y = y;
-                if (y > max_y)
-                    max_y = y;
-            }
-        }
-
-        if (has_coords) {
-            double range_x = max_x - min_x;
-            double range_y = max_y - min_y;
-            double total_range = fmax(range_x, range_y);
-
-            /*
-             * 几何保真度：如果投影后的坐标范围至少覆盖100个单位，
-             * 则认为几何信息保留充分。小于100时按比例衰减。
-             * 这个阈值可以根据实际使用场景调整。
-             */
-            if (total_range >= 100.0) {
-                fidelity_geometry = 1.0;
-            } else if (total_range > 0.0) {
-                fidelity_geometry = total_range / 100.0;
-            } else {
-                fidelity_geometry = 0.0; /* 所有点重合，完全损失几何信息 */
-            }
-        }
-    }
-
-    /* ---- 综合保真度：加权调和平均 ---- */
-    /*
-     * 权重分配理由：
-     *   - 约束保留率（0.5）最重要：约束是Lv-00系统的核心，
-     *     约束丢失意味着求解能力下降
-     *   - 几何信息（0.3）次要：几何失真影响可视化质量
-     *   - 维度比（0.2）基线：提供基础的维度覆盖度量
-     */
-    double fidelity = 0.2 * fidelity_dim + 0.5 * fidelity_constraint + 0.3 * fidelity_geometry;
-
-    /* 钳制到 [0.0, 1.0] 范围 */
-    if (fidelity < 0.0)
-        fidelity = 0.0;
-    if (fidelity > 1.0)
-        fidelity = 1.0;
-
-    /* ---- 输出统计信息 ---- */
-    stats->total_relations = block->dimension_count;
-    stats->visible_relations = visible_dims;
-    stats->fidelity_ratio = fidelity;
-
-    /* 同步更新块的保真度缓存 */
-    block->fidelity_ratio = fidelity;
+    block->fidelity_ratio = combined;
 
     return lv_OK;
 }
 
+/**
+ * @brief 计算高维投影的详细保真度（六项细粒度指标逐项输出）
+ *
+ * 除宏观可见性统计外，还输出：
+ *   - constraint_type_sensitivity：约束类型敏感度加权保留率
+ *   - geometric_distortion：几何失真（距离/角度）
+ *   - local_fidelity_heatmap：局部保真度热图（GRID×GRID）
+ *   - dynamic_precision_factor / dynamic_rotation_angle：动态精度建议
+ *   - mds_stress：Kruskal stress-1
+ *   - topology_preservation：k 近邻拓扑保持率
+ *
+ * @param manager  管理器指针
+ * @param block_id 块 ID
+ * @param graph    约束图指针（可为 NULL）
+ * @param stats    输出参数，宏观统计（可为 NULL，内部使用临时对象）
+ * @param detail   输出参数，详细指标（不可为 NULL）
+ * @return lv_OK 成功，错误码表示失败原因
+ */
+int high_dim_compute_fidelity_detailed(HighDimManager *manager, int block_id, const ConstraintGraph *graph,
+                                       HighDimVisibilityStats *stats, HighDimFidelityDetail *detail) {
+    if (!manager || !detail) {
+        return lv_ERROR_INVALID_PARAM;
+    }
+
+    HighDimVisibilityStats local_stats;
+    HighDimVisibilityStats *out_stats = stats ? stats : &local_stats;
+
+    int rc = high_dim_compute_fidelity(manager, block_id, graph, out_stats);
+    if (rc != lv_OK) {
+        return rc;
+    }
+
+    /* 六项细粒度指标 */
+    detail->constraint_type_sensitivity = high_dim_constraint_type_sensitivity(manager, block_id, graph);
+    detail->geometric_distortion = high_dim_geometric_distortion(manager, block_id, graph);
+    high_dim_local_fidelity_heatmap(manager, block_id, graph, detail->local_fidelity_heatmap);
+    high_dim_dynamic_precision(manager, block_id, graph, detail->geometric_distortion,
+                               &detail->dynamic_precision_factor, &detail->dynamic_rotation_angle);
+    detail->mds_stress = high_dim_mds_stress(manager, block_id, graph);
+    detail->topology_preservation = high_dim_topology_preservation(manager, block_id, graph);
+
+    detail->node_count = graph ? graph->node_count : 0;
+    detail->valid_point_count = high_dim_count_valid_points(manager, block_id, graph);
+
+    return lv_OK;
+}

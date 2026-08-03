@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_backend_impl.c
  * @brief SMT 后端抽象层实现 —— 多引擎 SMT 求解器框架（含 Groebner 基真实求解）
  *
@@ -363,16 +363,15 @@ bool smtsolver_result_is_valid(const SMTSolverResult *result) {
  * Z3、cvc5、Singular 需要对应的编译单元被链接后才可用。
  */
 bool smtsolver_is_backend_available(SolverBackendType type) {
-    switch (type) {
-        case GROEBNER:
-            return true; /* 内置实现，始终可用 */
-        case SMT_Z3:
-        case SMT_CVC5:
-        case SMT_SINGULAR:
-            return false; /* 未链接 */
-        default:
-            return false;
-    }
+    static const bool s_available[COUNT] = {
+        [GROEBNER] = true,
+        [SMT_Z3] = false,
+        [SMT_CVC5] = false,
+        [SMT_SINGULAR] = false,
+    };
+    if (type < 0 || type >= COUNT)
+        return false;
+    return s_available[type];
 }
 
 /**
@@ -396,25 +395,26 @@ const char *smtsolver_backend_type_name(SolverBackendType type) {
 
 /**
  * @brief 从名称字符串解析后端类型（大小写不敏感）
+ *
+ * 使用 s_smtsolver_backend_type_name_entries 表驱动查找。
+ * 注意：表中 "Groebner" 首字母大写，此处做大小写不敏感比较。
  */
 SolverBackendType smtsolver_backend_type_from_name(const char *name) {
     if (!name) {
         return COUNT;
     }
 
-    /* 简单的大小写不敏感比较 */
-    if (strcasecmp(name, "groebner") == 0 || strcasecmp(name, "grobner") == 0) {
+    /* 先尝试精确匹配现有表项 */
+    int v = lv_str_to_enum_ci(s_smtsolver_backend_type_name_entries,
+                               lv_ARRAY_SIZE(s_smtsolver_backend_type_name_entries),
+                               name, -1);
+    if (v >= 0)
+        return (SolverBackendType) v;
+
+    /* 兼容 "grobner" 拼写错误 */
+    if (strcasecmp(name, "grobner") == 0)
         return GROEBNER;
-    }
-    if (strcasecmp(name, "z3") == 0) {
-        return SMT_Z3;
-    }
-    if (strcasecmp(name, "cvc5") == 0) {
-        return SMT_CVC5;
-    }
-    if (strcasecmp(name, "singular") == 0) {
-        return SMT_SINGULAR;
-    }
+
     return COUNT;
 }
 

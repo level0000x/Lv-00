@@ -546,14 +546,21 @@ int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, i
     }
 
     for (int i = 0; i + 1 < n; i += 2) {
-        /* x' = a11*x + a12*y + tx */
+        /* x' = a11*x + a12*y + tx
+         * y' = a21*x + a22*y + ty */
         SymbolicCoord *a11x = symbolic_coord_multiply(obj->symbolic_coords[i], s_a11);
         SymbolicCoord *a12y = symbolic_coord_multiply(obj->symbolic_coords[i + 1], s_a12);
-        if (!a11x || !a12y) {
+        SymbolicCoord *a21x = symbolic_coord_multiply(obj->symbolic_coords[i], s_a21);
+        SymbolicCoord *a22y = symbolic_coord_multiply(obj->symbolic_coords[i + 1], s_a22);
+        if (!a11x || !a12y || !a21x || !a22y) {
             if (a11x)
                 symbolic_coord_destroy(a11x);
             if (a12y)
                 symbolic_coord_destroy(a12y);
+            if (a21x)
+                symbolic_coord_destroy(a21x);
+            if (a22y)
+                symbolic_coord_destroy(a22y);
             for (int j = 0; j < i; j++)
                 symbolic_coord_destroy(new_coords[j]);
             lv_free((void **) &new_coords);
@@ -565,6 +572,38 @@ int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, i
             symbolic_coord_destroy(s_ty);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_affine: multiply failed (a11x/a12y)");
         }
+        /* x' = a11*x + a12*y + tx */
+        SymbolicCoord *sx_sum = symbolic_coord_add(a11x, a12y);
+        SymbolicCoord *nx = sx_sum ? symbolic_coord_add(sx_sum, s_tx) : NULL;
+        /* y' = a21*x + a22*y + ty */
+        SymbolicCoord *sy_sum = symbolic_coord_add(a21x, a22y);
+        SymbolicCoord *ny = sy_sum ? symbolic_coord_add(sy_sum, s_ty) : NULL;
+        symbolic_coord_destroy(a11x);
+        symbolic_coord_destroy(a12y);
+        symbolic_coord_destroy(a21x);
+        symbolic_coord_destroy(a22y);
+        if (sx_sum)
+            symbolic_coord_destroy(sx_sum);
+        if (sy_sum)
+            symbolic_coord_destroy(sy_sum);
+        if (!nx || !ny) {
+            if (nx)
+                symbolic_coord_destroy(nx);
+            if (ny)
+                symbolic_coord_destroy(ny);
+            for (int j = 0; j < i; j++)
+                symbolic_coord_destroy(new_coords[j]);
+            lv_free((void **) &new_coords);
+            symbolic_coord_destroy(s_a11);
+            symbolic_coord_destroy(s_a12);
+            symbolic_coord_destroy(s_a21);
+            symbolic_coord_destroy(s_a22);
+            symbolic_coord_destroy(s_tx);
+            symbolic_coord_destroy(s_ty);
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_affine: add failed (nx/ny)");
+        }
+        new_coords[i] = nx;
+        new_coords[i + 1] = ny;
     }
 
     /* 处理奇数个坐标的情况 */
@@ -636,6 +675,14 @@ int64_t preset_compose_transforms(lvEngine *ctx, int64_t t1_id, int64_t t2_id) {
 /** 恒等变换 */
 int64_t preset_identity_transform(lvEngine *ctx) {
     ConstraintGraph *graph = ctx->main_graph;
+    if (!graph)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_identity_transform: NULL graph");
+
+    /* 恒等变换在图中注册一个表示恒等映射的变换锚点。
+     * 若图尚未包含任何节点，先添加一个参考节点，确保返回的
+     * 变换锚点 ID 有效（> 0）。 */
+    if (graph->node_count == 0)
+        graph_add_point(graph, NULL, 0);
     graph_add_point(graph, NULL, 0);
     int result_id = graph_get_last_added_node_id(graph);
     if (result_id < 0)

@@ -466,15 +466,321 @@ static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
                 radius = p->current.num_value;
                 lvz_parser_advance(p);
             }
-            /* 圆节点暂不支持，跳过 */
-            (void) center;
-            (void) radius;
+
+            /* 圆心节点引用必须有效 */
+            if (center < 0) {
+                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 的圆心节点 ID 无效 (%d)",
+                             p->current.line, node_id, center);
+                return false;
+            }
+            GeomNode *center_node = graph_get_node(mod->graph, center);
+            if (!center_node) {
+                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 引用的圆心节点 #%d 不存在",
+                             p->current.line, node_id, center);
+                return false;
+            }
+
+            /* 取圆心节点坐标，用于构造半径端点点 */
+            double cx = 0.0, cy = 0.0;
+            if (center_node->symbolic_coords && center_node->coord_count >= 1) {
+                cx = symbolic_coord_to_double(center_node->symbolic_coords[0]);
+            }
+            if (center_node->symbolic_coords && center_node->coord_count >= 2) {
+                cy = symbolic_coord_to_double(center_node->symbolic_coords[1]);
+            }
+
+            /* 创建半径端点点节点 (cx + radius, cy)，使圆心到此点的距离恰为半径 */
+            SymbolicCoord *srx = symbolic_coord_from_double_rounded(cx + radius, 10000);
+            SymbolicCoord *sry = symbolic_coord_from_double_rounded(cy, 10000);
+            if (!srx || !sry) {
+                symbolic_coord_destroy(srx);
+                symbolic_coord_destroy(sry);
+                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法为圆节点 #%d 构造半径端点点坐标",
+                             p->current.line, node_id);
+                return false;
+            }
+            SymbolicCoord *radius_coords[2] = {srx, sry};
+            AddNodeResult add_result = graph_add_point(mod->graph, radius_coords, 2);
+            symbolic_coord_destroy(srx);
+            symbolic_coord_destroy(sry);
+            if (add_result != ADD_NODE_OK) {
+                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d 的半径端点点节点",
+                             p->current.line, node_id);
+                return false;
+            }
+
+            /* 创建圆节点并关联圆心与半径端点（沿用自动分配 ID，与点/线节点一致） */
+            int radius_point_id = graph_get_last_added_node_id(mod->graph);
+            int circle_id = radius_point_id + 1;
+            GeomNode *circle_node = graph_add_node_with_id(mod->graph, circle_id, GEOM_CIRCLE, NULL, 0);
+            if (!circle_node) {
+                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d (节点 ID 冲突?)",
+                             p->current.line, circle_id);
+                return false;
+            }
+            circle_node->data.circle.center_node_id = center;
+            circle_node->data.circle.radius_node_id = radius_point_id;
         } else {
             /* 未知节点类型，跳过参数 */
             while (p->current.type == TOK_NUMBER) {
                 lvz_parser_advance(p);
             }
         }
+    }
+
+    return true;
+}
+
+/* 判断约束类型是否为原生约束（原生约束直接构造，不走模板展开） */
+static bool lvz_is_native_constraint_type(const char *type) {
+    if (!type)
+        return false;
+    return strcmp(type, "incidence") == 0 || strcmp(type, "betweenness") == 0 ||
+           strcmp(type, "intersection") == 0 || strcmp(type, "containment") == 0 ||
+           strcmp(type, "connection") == 0 || strcmp(type, "angle") == 0;
+}
+
+/**
+ * @brief 将模板展开结果图的节点与约束合并进模块主图
+ *
+ * 节点按 ID 复制到主图；若主图已存在同 ID 节点则分配新 ID，
+ * 并通过 id_map 记录 ID 重映射关系。约束参与者 ID 经 id_map 重映射后复制。
+ * 圆节点的圆心/半径端点节点引用在全部节点复制完成后统一重映射。
+ *
+ * @param mod      模块（主图）
+ * @param expanded 模板展开结果图（归公理包展开缓存所有，只读使用，勿销毁）
+ * @return true 成功；false 失败
+ */
+static bool lvz_merge_template_expansion(Module *mod, const ConstraintGraph *expanded) {
+    if (!mod || !mod->graph || !expanded)
+        return false;
+
+    /* 统计展开图的节点 ID 范围，用于构建重映射表 */
+    int max_node_id = -1;
+    for (int i = 0; i < expanded->node_count; i++) {
+        GeomNode *src = expanded->nodes[i];
+        if (src && src->id > max_node_id)
+            max_node_id = src->id;
+    }
+
+    /* id_map[src_id] = dst_id；-1 表示展开图中不存在该 ID */
+    int *id_map = NULL;
+    if (max_node_id >= 0) {
+        id_map = lv_calloc((size_t) max_node_id + 1, sizeof(int));
+        if (!id_map)
+            return false;
+        for (int i = 0; i <= max_node_id; i++)
+            id_map[i] = -1;
+    }
+
+    /* 第一轮：复制全部节点，记录 ID 重映射 */
+    for (int i = 0; i < expanded->node_count; i++) {
+        GeomNode *src = expanded->nodes[i];
+        if (!src)
+            continue;
+
+        /* 若主图已有同 ID 节点，寻找主图中第一个空闲节点 ID */
+        int dst_id = src->id;
+        if (dst_id < 0 || graph_get_node(mod->graph, dst_id)) {
+            dst_id = 0;
+            while (graph_get_node(mod->graph, dst_id))
+                dst_id++;
+        }
+
+        GeomNode *dst = graph_add_node_with_id(mod->graph, dst_id, src->type, src->symbolic_coords, src->coord_count);
+        if (!dst) {
+            lv_free((void **) &id_map);
+            return false;
+        }
+
+        /* 复制节点增强字段 */
+        dst->trust = src->trust;
+        dst->is_active = src->is_active;
+        dst->lo_subtype = src->lo_subtype;
+        dst->namespace_depth = src->namespace_depth;
+        dst->parent_block_id = src->parent_block_id;
+        dst->numeric_precision = src->numeric_precision;
+        if (src->numeric_assumption_declaration) {
+            dst->numeric_assumption_declaration = lv_strdup_safe(src->numeric_assumption_declaration);
+        }
+
+        /* 圆节点的圆心/半径端点引用先保持源 ID，第二轮统一重映射 */
+        if (src->type == GEOM_CIRCLE) {
+            dst->data.circle.center_node_id = src->data.circle.center_node_id;
+            dst->data.circle.radius_node_id = src->data.circle.radius_node_id;
+        }
+
+        if (src->id >= 0 && id_map)
+            id_map[src->id] = dst_id;
+    }
+
+    /* 第二轮：重映射圆节点引用的圆心/半径端点节点 ID */
+    for (int i = 0; i < expanded->node_count; i++) {
+        GeomNode *src = expanded->nodes[i];
+        if (!src || src->type != GEOM_CIRCLE || src->id < 0)
+            continue;
+        int dst_id = (id_map && src->id <= max_node_id) ? id_map[src->id] : src->id;
+        GeomNode *dst = dst_id >= 0 ? graph_get_node(mod->graph, dst_id) : NULL;
+        if (!dst)
+            continue;
+
+        int center_id = src->data.circle.center_node_id;
+        int radius_id = src->data.circle.radius_node_id;
+        if (center_id >= 0 && id_map && center_id <= max_node_id && id_map[center_id] >= 0)
+            dst->data.circle.center_node_id = id_map[center_id];
+        else
+            dst->data.circle.center_node_id = center_id;
+        if (radius_id >= 0 && id_map && radius_id <= max_node_id && id_map[radius_id] >= 0)
+            dst->data.circle.radius_node_id = id_map[radius_id];
+        else
+            dst->data.circle.radius_node_id = radius_id;
+    }
+
+    /* 第三轮：复制全部约束，参与者 ID 经 id_map 重映射 */
+    for (int i = 0; i < expanded->constraint_count; i++) {
+        Constraint *src = expanded->constraints[i];
+        if (!src)
+            continue;
+
+        int mapped_participants[8];
+        int mapped_count = src->participant_count < 8 ? src->participant_count : 8;
+        for (int j = 0; j < mapped_count; j++) {
+            int pid = src->participants[j];
+            if (pid >= 0 && id_map && pid <= max_node_id && id_map[pid] >= 0)
+                mapped_participants[j] = id_map[pid];
+            else
+                mapped_participants[j] = pid;
+        }
+
+        /* 若主图已有同 ID 约束，寻找第一个空闲约束 ID */
+        int dst_id = src->id;
+        if (dst_id < 0 || graph_get_constraint(mod->graph, dst_id)) {
+            dst_id = 0;
+            while (graph_get_constraint(mod->graph, dst_id))
+                dst_id++;
+        }
+
+        Constraint *dst = graph_add_constraint_with_id(mod->graph, dst_id, src->type, mapped_participants, mapped_count);
+        if (!dst) {
+            lv_free((void **) &id_map);
+            return false;
+        }
+
+        /* 复制约束增强字段 */
+        dst->template_id = src->template_id;
+        dst->is_active = src->is_active;
+        dst->numeric_value = src->numeric_value;
+        dst->satisfaction = src->satisfaction;
+    }
+
+    lv_free((void **) &id_map);
+    return true;
+}
+
+/**
+ * @brief 通过公理包模板展开高级约束 (distance/parallel/perpendicular/tangent 等)
+ *
+ * 流程：
+ *   1. 在模块声明的公理包中查找匹配约束类型的模板
+ *   2. 将约束参数（参与者节点坐标或数值）收集为 SymbolicCoord** 参数数组
+ *   3. 调用 axiom_template_expand_lazy 惰性展开为独立约束图
+ *   4. 将展开图的节点与约束合并进模块主图（处理 ID 冲突）
+ *
+ * @param p              解析器
+ * @param mod            模块
+ * @param constraint_type 约束类型名（即模板名）
+ * @param params         约束参数（节点 ID / 数值）
+ * @param param_count    参数数量
+ * @return true 成功；false 失败（模板缺失/参数无效/展开为空/合并失败）
+ */
+static bool lvz_expand_constraint_template(LvzParser *p, Module *mod, const char *constraint_type, const int *params,
+                                           int param_count) {
+    if (!p || !mod || !constraint_type)
+        return false;
+
+    /* 原生约束类型走到此处说明参数不足，明确报错而非静默跳过 */
+    if (lvz_is_native_constraint_type(constraint_type)) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 原生约束 '%s' 参数不足 (实际 %d 个)", p->current.line,
+                     constraint_type, param_count);
+        return false;
+    }
+
+    /* 在模块声明的公理包中查找匹配约束类型的模板 */
+    AxiomPackage *found_pkg = NULL;
+    for (int i = 0; i < mod->axiom_packages.count; i++) {
+        AxiomPackage **slot = (AxiomPackage **) lv_darray_get(&mod->axiom_packages, i);
+        if (slot && *slot && axiom_package_get_template(*slot, constraint_type)) {
+            found_pkg = *slot;
+            break;
+        }
+    }
+    if (!found_pkg) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 高级约束 '%s' 未在任何已声明公理包中找到对应模板",
+                     p->current.line, constraint_type);
+        return false;
+    }
+
+    /* 收集模板参数：参与者节点展开为其全部符号坐标，数值参数转换为有理数坐标 */
+    int coord_total = 0;
+    for (int i = 0; i < param_count; i++) {
+        GeomNode *node = graph_get_node(mod->graph, params[i]);
+        if (node)
+            coord_total += node->coord_count;
+        else
+            coord_total += 1; /* 非节点 ID（如距离数值），作为单个有理数坐标 */
+    }
+
+    SymbolicCoord **tmpl_params = NULL;
+    if (coord_total > 0) {
+        tmpl_params = lv_calloc((size_t) coord_total, sizeof(SymbolicCoord *));
+        if (!tmpl_params) {
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配模板参数数组", p->current.line);
+            return false;
+        }
+        int idx = 0;
+        for (int i = 0; i < param_count; i++) {
+            GeomNode *node = graph_get_node(mod->graph, params[i]);
+            if (node) {
+                for (int j = 0; j < node->coord_count; j++) {
+                    tmpl_params[idx] = symbolic_coord_copy(node->symbolic_coords[j]);
+                    idx++;
+                }
+            } else {
+                tmpl_params[idx] = symbolic_coord_create_rational(params[i], 1);
+                idx++;
+            }
+        }
+    }
+
+    /* 惰性展开模板为独立约束图（返回图归公理包展开缓存所有，只读使用） */
+    ConstraintGraph *expanded = axiom_template_expand_lazy(found_pkg, constraint_type, tmpl_params, coord_total);
+
+    /* 释放模板参数（深拷贝） */
+    if (tmpl_params) {
+        for (int i = 0; i < coord_total; i++) {
+            if (tmpl_params[i])
+                symbolic_coord_destroy(tmpl_params[i]);
+        }
+        lv_free((void **) &tmpl_params);
+    }
+
+    if (!expanded) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开失败", p->current.line, constraint_type);
+        return false;
+    }
+
+    /* 展开结果为空图：模板缺少可执行的展开体，属于明确错误而非静默跳过 */
+    if (expanded->node_count == 0 && expanded->constraint_count == 0) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开结果为空（模板未提供可执行的展开体）",
+                     p->current.line, constraint_type);
+        return false;
+    }
+
+    /* 将展开图的节点与约束合并进模块主图（处理 ID 冲突） */
+    if (!lvz_merge_template_expansion(mod, expanded)) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开结果合并进主图失败", p->current.line,
+                     constraint_type);
+        return false;
     }
 
     return true;
@@ -506,7 +812,16 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
             return false;
         }
 
-        const char *constraint_type = p->current.str_value;
+        /* 复制约束类型名：lvz_parser_advance 会释放 current.str_value，
+           若不复制，参数解析后的 strcmp/模板查找将读取悬垂内存 */
+        char constraint_type_buf[64];
+        size_t ct_len = strlen(p->current.str_value);
+        if (ct_len >= sizeof(constraint_type_buf)) {
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 约束类型名过长", p->current.line);
+            return false;
+        }
+        memcpy(constraint_type_buf, p->current.str_value, ct_len + 1);
+        const char *constraint_type = constraint_type_buf;
         lvz_parser_advance(p);
 
         /* 解析约束参数 (简化实现，读取所有数字参数) */
@@ -544,9 +859,12 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
             if (params[0] >= 0 && params[1] >= 0) {
                 graph_add_connection(mod->graph, params[0], params[1]);
             }
+        } else {
+            /* 其他约束类型 (distance, angle, parallel, perpendicular, tangent)
+               是公理包定义的高级约束，通过公理包模板展开实现 */
+            if (!lvz_expand_constraint_template(p, mod, constraint_type, params, param_count))
+                return false;
         }
-        /* 其他约束类型 (distance, angle, parallel, perpendicular, tangent) 
-           是公理包定义的高级约束，需要通过模板展开，这里暂不支持 */
     }
 
     return true;

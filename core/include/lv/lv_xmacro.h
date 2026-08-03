@@ -56,7 +56,7 @@ typedef struct {
 #define LV_X_TO_ENUM_ENTRY(name, str) { str, name },
 
 /**
- * @brief 在映射表中查找字符串对应的枚举值
+ * @brief 在映射表中查找字符串对应的枚举值（大小写敏感）
  * @param table     映射表
  * @param count     表大小
  * @param str       要查找的字符串
@@ -67,6 +67,23 @@ static inline int lv_str_to_enum(const lvStrToEnumEntry *table, size_t count,
                                   const char *str, int default_value) {
     for (size_t i = 0; i < count; i++) {
         if (strcmp(table[i].name, str) == 0)
+            return table[i].value;
+    }
+    return default_value;
+}
+
+/**
+ * @brief 在映射表中查找字符串对应的枚举值（大小写不敏感）
+ * @param table     映射表
+ * @param count     表大小
+ * @param str       要查找的字符串
+ * @param default_value 未找到时的默认返回值
+ * @return 枚举值（int），未找到返回 default_value
+ */
+static inline int lv_str_to_enum_ci(const lvStrToEnumEntry *table, size_t count,
+                                     const char *str, int default_value) {
+    for (size_t i = 0; i < count; i++) {
+        if (strcasecmp(table[i].name, str) == 0)
             return table[i].value;
     }
     return default_value;

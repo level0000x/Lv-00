@@ -120,6 +120,7 @@ struct lvPolynomialRing {
 struct lvPolynomial {
     int poly_id;         /**< 多项式唯一标识符 */
     int ring_id;         /**< 所属环 ID */
+    int var_count;       /**< 变量数量（冗余存储，用于独立扩容） */
     int *powers;         /**< 幂次扁平数组：powers[i * var_count + j] 表示第 i 项第 j 变量的幂 */
     void *coeffs;        /**< 系数数组（类型依系数域而定：double* 或 mpq_t* 或 mpz_t*） */
     int term_count;      /**< 项数量 */
@@ -430,6 +431,16 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id);
  * @return >= 0 新理想 ID, < 0 错误码
  */
 int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b);
+/**
+ * @brief 理想商：计算 I : J
+ *
+ * @param registry     环注册表
+ * @param ideal_id_a   理想 I 的 ID
+ * @param ideal_id_b   理想 J 的 ID
+ * @param result_label 结果标签（可为 NULL）
+ * @return >= 0 新理想 ID, < 0 错误码
+ */
+int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, const char *result_label);
 
 /* Forward declarations for smt_backend_impl.c */
 int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,

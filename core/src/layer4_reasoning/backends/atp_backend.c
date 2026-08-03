@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file atp_backend.c
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层实现
  *
@@ -1359,28 +1359,30 @@ const char *atp_backend_type_name(ATPBackendType type) {
 
 /**
  * @brief 从名称字符串解析后端类型
+ *
+ * 使用 s_atp_backend_type_name_entries 表驱动查找。
+ * 注意：表中 "E Prover" 包含空格，此处额外支持 "e" 别名。
  */
 bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type) {
     if (!name || !out_type) {
         return false;
     }
 
-    if (strcasecmp(name, "vampire") == 0) {
-        *out_type = ATP_BACKEND_VAMPIRE;
+    /* 先尝试精确匹配现有表项 */
+    int v = lv_str_to_enum_ci(s_atp_backend_type_name_entries,
+                               lv_ARRAY_SIZE(s_atp_backend_type_name_entries),
+                               name, -1);
+    if (v >= 0) {
+        *out_type = (ATPBackendType) v;
         return true;
     }
-    if (strcasecmp(name, "eprover") == 0 || strcasecmp(name, "e") == 0) {
+
+    /* 兼容 "e" 缩写 */
+    if (strcasecmp(name, "e") == 0) {
         *out_type = ATP_BACKEND_EPROVER;
         return true;
     }
-    if (strcasecmp(name, "iprover") == 0) {
-        *out_type = ATP_BACKEND_IPROVER;
-        return true;
-    }
-    if (strcasecmp(name, "custom") == 0) {
-        *out_type = ATP_BACKEND_CUSTOM;
-        return true;
-    }
+
     return false;
 }
 

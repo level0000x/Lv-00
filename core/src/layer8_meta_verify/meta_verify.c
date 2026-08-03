@@ -5,7 +5,8 @@
  * @details 实现六项元验证检查（结构完整性、类型一致性、完备性、可靠性、
  * 非平凡性、往返验证），用于验证证明流水线输出的正确性。提供会话级别
  * (lv_meta_verify_session) 和证明对象级别 (lv_meta_verify_proof) 两套验证接口。
- * 每个检查可通过掩码单独启用/禁用，支持严格模式（预留扩展）。
+ * 每个检查可通过掩码单独启用/禁用，支持严格模式（严格模式下警告即失败、
+ * 不允许跳过任何检查项）。
  *
  * @author Lv-00 Project
  */
@@ -34,7 +35,8 @@
  * 验证所有 pipeline 阶段都已完成或被跳过，没有遗留的
  * PENDING/RUNNING/FAILED 状态。
  */
-static int check_structural(const lvSession *session, char *desc, int desc_size) {
+static int check_structural(const lvSession *session, int strict, char *desc, int desc_size) {
+    (void) strict;
     if (!session) {
         snprintf(desc, desc_size, "Session is NULL");
         return 0;
@@ -56,7 +58,7 @@ static int check_structural(const lvSession *session, char *desc, int desc_size)
  * 验证 proof 输出类型与目标命题类型匹配。
  * 通过检查推理阶段的输出信息来验证类型一致性。
  */
-static int check_type_consistency(const lvSession *session, char *desc, int desc_size) {
+static int check_type_consistency(const lvSession *session, int strict, char *desc, int desc_size) {
     if (!session) {
         snprintf(desc, desc_size, "Session is NULL");
         return 0;
@@ -95,6 +97,11 @@ static int check_type_consistency(const lvSession *session, char *desc, int desc
         const char *fmt = session->config.output_format;
         if (fmt && fmt[0] != '\0' && output_msg && strstr(output_msg, fmt) == NULL) {
             /* 输出消息中未包含配置的格式标识，可能是类型不匹配 */
+            if (strict) {
+                /* 严格模式：格式标识缺失直接判定为失败，而非仅警告 */
+                snprintf(desc, desc_size, "类型一致性失败：输出格式 '%s' 未在输出消息中找到", fmt);
+                return 0;
+            }
             snprintf(desc, desc_size, "类型一致性警告：输出格式 '%s' 未在输出消息中找到", fmt);
             /* 不严格失败，仅警告 */
         }
@@ -116,7 +123,8 @@ static int check_type_consistency(const lvSession *session, char *desc, int desc
  * 验证所有子目标都已解决。
  * 检查所有 pipeline 阶段是否已完成，无遗留的未解决依赖。
  */
-static int check_completeness(const lvSession *session, char *desc, int desc_size) {
+static int check_completeness(const lvSession *session, int strict, char *desc, int desc_size) {
+    (void) strict;
     if (!session) {
         snprintf(desc, desc_size, "Session is NULL");
         return 0;
@@ -187,7 +195,8 @@ static int check_completeness(const lvSession *session, char *desc, int desc_siz
  * 验证每一步推理都逻辑可靠。
  * 检查阶段间的依赖链一致性、无循环依赖、无矛盾。
  */
-static int check_soundness(const lvSession *session, char *desc, int desc_size) {
+static int check_soundness(const lvSession *session, int strict, char *desc, int desc_size) {
+    (void) strict;
     if (!session) {
         snprintf(desc, desc_size, "Session is NULL");
         return 0;
@@ -265,7 +274,8 @@ static int check_soundness(const lvSession *session, char *desc, int desc_size) 
  * 验证证明不是平凡的（如空证明、零步推理）。
  * 检查推理阶段是否有实质性的工作产出。
  */
-static int check_nontriviality(const lvSession *session, char *desc, int desc_size) {
+static int check_nontriviality(const lvSession *session, int strict, char *desc, int desc_size) {
+    (void) strict;
     if (!session) {
         snprintf(desc, desc_size, "Session is NULL");
         return 0;
@@ -362,7 +372,7 @@ static int check_nontriviality(const lvSession *session, char *desc, int desc_si
  * 验证输出可以重新解析为等价结构。
  * 检查输出阶段是否包含有效的结构化标记。
  */
-static int check_roundtrip(const lvSession *session, char *desc, int desc_size) {
+static int check_roundtrip(const lvSession *session, int strict, char *desc, int desc_size) {
     if (!session) {
         snprintf(desc, desc_size, "Session is NULL");
         return 0;
@@ -442,6 +452,11 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
         } else if (strstr(reasoning_msg, "模拟") != NULL) {
             /* 模拟模式也包含可解析信息 */
         } else {
+            if (strict) {
+                /* 严格模式：无法确认推理输出可重新解析即判定为失败 */
+                snprintf(desc, desc_size, "往返验证失败：推理输出格式不可重新解析");
+                return 0;
+            }
             snprintf(desc, desc_size, "往返验证警告：推理输出格式可能不可重新解析");
             /* 不严格失败 */
         }
@@ -454,10 +469,10 @@ static int check_roundtrip(const lvSession *session, char *desc, int desc_size) 
 /**
  * @brief 检查函数分发表类型
  *
- * 所有内部检查函数遵循统一签名：接收只读会话指针、输出描述缓冲区及大小，
+ * 所有内部检查函数遵循统一签名：接收只读会话指针、严格模式标记、输出描述缓冲区及大小，
  * 返回 1（通过）或 0（失败）。
  */
-typedef int (*check_func_t)(const lvSession *, char *, int);
+typedef int (*check_func_t)(const lvSession *, int, char *, int);
 
 /** 
  * @brief 六项检查函数的分发表
@@ -535,7 +550,11 @@ void lv_meta_verifier_disable_check(lvMetaVerifier *verifier, lvVerifyCheck chec
 /**
  * @brief 设置严格模式
  *
- * 启用严格模式后，验证失败将产生更严格的判定（预留扩展，当前仅存储标记）。
+ * 启用严格模式后，验证行为显著收紧：
+ * 1. 各检查项中原本"仅警告不失败"的分支（输出格式标识缺失、
+ *    推理输出不可重新解析等）直接判定为验证失败；
+ * 2. 被禁用（跳过）的检查项视为失败，不允许以跳过换取宽松判定；
+ * 3. 报告摘要中标注 "strict" 模式，供调用方识别判定强度。
  *
  * @param verifier 元验证器指针
  * @param strict   非零值启用严格模式，零值禁用
@@ -567,9 +586,10 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     for (int i = 0; i < lv_CHECK_COUNT; i++) {
         report.results[i].check = (lvVerifyCheck) i;
         if (verifier->check_mask & (1 << i)) {
-            /* 调用对应的检查函数 */
+            /* 调用对应的检查函数，传入严格模式标记 */
             int passed =
-                g_check_funcs[i](session, report.results[i].description, sizeof(report.results[i].description));
+                g_check_funcs[i](session, verifier->strict_mode, report.results[i].description,
+                                 sizeof(report.results[i].description));
             report.results[i].passed = passed;
             if (passed) {
                 report.passed_checks++;
@@ -577,14 +597,23 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
                 report.failed_checks++;
             }
         } else {
-            report.results[i].passed = -1; /* Skipped */
-            report.skipped_checks++;
+            /* 严格模式下不允许跳过任何检查：被禁用的检查项视为失败 */
+            if (verifier->strict_mode) {
+                snprintf(report.results[i].description, sizeof(report.results[i].description),
+                         "严格模式失败：检查项 %d 被禁用，不允许跳过验证", i);
+                report.results[i].passed = 0;
+                report.failed_checks++;
+            } else {
+                report.results[i].passed = -1; /* Skipped */
+                report.skipped_checks++;
+            }
         }
     }
 
     /* 生成摘要 */
-    snprintf(report.summary, sizeof(report.summary), "Meta-verification: %d/%d passed, %d failed, %d skipped",
-             report.passed_checks, report.total_checks, report.failed_checks, report.skipped_checks);
+    snprintf(report.summary, sizeof(report.summary), "Meta-verification (%s): %d/%d passed, %d failed, %d skipped",
+             verifier->strict_mode ? "strict" : "normal", report.passed_checks, report.total_checks,
+             report.failed_checks, report.skipped_checks);
     return report;
 }
 
@@ -613,8 +642,16 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
     for (int i = 0; i < lv_CHECK_COUNT; i++) {
         report.results[i].check = (lvVerifyCheck) i;
         if (!(verifier->check_mask & (1 << i))) {
-            report.results[i].passed = -1; /* Skipped */
-            report.skipped_checks++;
+            /* 严格模式下不允许跳过任何检查：被禁用的检查项视为失败 */
+            if (verifier->strict_mode) {
+                snprintf(report.results[i].description, sizeof(report.results[i].description),
+                         "严格模式失败：检查项 %d 被禁用，不允许跳过验证", i);
+                report.results[i].passed = 0;
+                report.failed_checks++;
+            } else {
+                report.results[i].passed = -1; /* Skipped */
+                report.skipped_checks++;
+            }
             continue;
         }
 
@@ -810,8 +847,10 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
     }
 
     /* 生成摘要 */
-    snprintf(report.summary, sizeof(report.summary), "Proof meta-verification: %d/%d passed, %d failed, %d skipped",
-             report.passed_checks, report.total_checks, report.failed_checks, report.skipped_checks);
+    snprintf(report.summary, sizeof(report.summary),
+             "Proof meta-verification (%s): %d/%d passed, %d failed, %d skipped",
+             verifier->strict_mode ? "strict" : "normal", report.passed_checks, report.total_checks,
+             report.failed_checks, report.skipped_checks);
     return report;
 }
 

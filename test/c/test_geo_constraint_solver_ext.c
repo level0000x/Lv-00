@@ -218,8 +218,8 @@ int main(void) {
         lv_solver_add_entity(sys, &pt);
         lv_solver_add_entity(sys, &seg);
 
-        /* 固定端点，对线段施加 VERTICAL -> 线段变为垂直 */
-        lvConstraint fix1 = lv_constraint_fixed(2, 1);
+        /* 固定点，对线段施加 VERTICAL -> 线段变为垂直 */
+        lvConstraint fix1 = lv_constraint_fixed(2, 0);
         lvConstraint vert = lv_constraint_vertical(3, 1);
         lv_geo_solver_add_constraint(sys, &fix1);
         lv_geo_solver_add_constraint(sys, &vert);

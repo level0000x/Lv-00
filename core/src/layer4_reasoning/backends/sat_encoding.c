@@ -529,9 +529,66 @@ int sat_encode_constraint(SatEncoding *enc, int constraint_id) {
                 return sat_encode_containment(enc, con->participants[0], con->participants[1]);
             break;
 
-        case ANGLE:
-            /* 角度约束：暂不支持SAT编码 */
+        case ANGLE: {
+            /*
+             * 角度约束：∠(line1, line2) = numeric_value（度）
+             *  参与者: [line1_id, line2_id]（两条线段），
+             *  numeric_value 字段存储角度值（单位：度）。
+             *
+             * 编码原理（角度变量的多值离散化 / bit-blasting）：
+             * 借鉴 Alloy Kodkod 对数值域的二进制编码思想，把角度区间
+             * [0, 180°) 均匀离散为 2^DEFAULT_BITWIDTH 个等宽桶（桶宽
+             * = 180/256 ≈ 0.703°）。为当前角度约束注册 DEFAULT_BITWIDTH
+             * 个布尔 SAT 变量，作为"该角度所属桶索引"的二进制位；再用
+             * 单元子句把每一位强制为"目标桶索引"的对应二进制位，从而把
+             * 角度精确固定到目标离散桶中。同时用单元子句断言两条线段的
+             * 关系变量（角度关系存在域）必须为真。
+             */
+            if (con->participant_count >= 2) {
+                int line1_id = con->participants[0];
+                int line2_id = con->participants[1];
+
+                /* 角度关系存在域：注册 (line1, line2) 对变量 */
+                int v_angle;
+                if (register_pair_var(enc, line1_id, line2_id, &v_angle) < 0)
+                    return -1;
+
+                /* 计算目标离散桶索引 = floor(角度值 / 桶宽) */
+                int bucket_count = 1 << DEFAULT_BITWIDTH;
+                double bucket_width = 180.0 / (double) bucket_count;
+                int target_bucket = (int) (con->numeric_value / bucket_width);
+                if (target_bucket < 0)
+                    target_bucket = 0;
+                if (target_bucket >= bucket_count)
+                    target_bucket = bucket_count - 1;
+
+                int clause_count = 0;
+
+                /* 两条线段必须真实参与角度关系 */
+                {
+                    SatLiteral c_pair[] = {v_angle};
+                    if (sat_encoding_add_clause(enc, c_pair, 1) >= 0)
+                        clause_count++;
+                }
+
+                /* 角度离散位：以 (v_angle, bit) 为键注册布尔变量，
+                 * 并用单元子句强制每一位等于目标桶索引的二进制位 */
+                for (int bit = 0; bit < DEFAULT_BITWIDTH; bit++) {
+                    int ids[2] = {v_angle, bit};
+                    int bit_var = sat_encoding_register_var(enc, 2, ids);
+                    if (bit_var < 1)
+                        return -1;
+
+                    int bit_value = (target_bucket >> bit) & 1;
+                    SatLiteral lit = bit_value ? (SatLiteral) bit_var : (SatLiteral) -bit_var;
+                    if (sat_encoding_add_clause(enc, &lit, 1) >= 0)
+                        clause_count++;
+                }
+
+                return clause_count;
+            }
             break;
+        }
 
         case CONNECTION:
             /* 连接约束编码为关系存在 */
@@ -872,7 +929,8 @@ SatResult sat_solve_and_decode(SatEncoding *enc, SatModel **out_model) {
     if (!solver)
         return SAT_ERROR;
 
-    /* 将编码的子句加入求解器 */
+    /* 将编码的子句加入求解器，同时计算最大变量 ID */
+    int max_var_id = 0;
     for (int i = 0; i < enc->clause_count; i++) {
         int *clause = enc->clauses[i];
         int size = enc->clause_sizes[i];
@@ -883,9 +941,17 @@ SatResult sat_solve_and_decode(SatEncoding *enc, SatModel **out_model) {
         }
         for (int j = 0; j < size; j++) {
             lits[j] = clause[j];
+            int var = (clause[j] < 0) ? -clause[j] : clause[j];
+            if (var > max_var_id)
+                max_var_id = var;
         }
         lv_solver_add_constraint(solver, lits, size);
         lv_free((void **) &lits);
+    }
+
+    /* 确保求解器注册了子句中引用的所有变量 */
+    if (max_var_id > lv_solver_var_count(solver)) {
+        lv_solver_new_vars(solver, max_var_id - lv_solver_var_count(solver));
     }
 
     lvSolverResult result = lv_solver_solve(solver);

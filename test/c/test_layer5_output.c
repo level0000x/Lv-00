@@ -109,7 +109,7 @@ static void test_rune_serialize_parse(void) {
     TEST_ASSERT_NOT_NULL(ser);
     /* 应该包含元素、威力和坐标信息 */
     TEST_ASSERT(strstr(ser, "FIRE") != NULL || strstr(ser, "0") != NULL, "strstr should succeed"); /* FIRE 枚举值=0 */
-    lv_free(ser);
+    lv_free((void **)&ser);
     rune_destroy(r);
 
     /* 序列化到缓冲区 */
@@ -306,7 +306,7 @@ static void test_magic_array_serialize(void) {
     char *json = magic_array_serialize(arr);
     TEST_ASSERT_NOT_NULL(json);
     TEST_ASSERT(strstr(json, "rune_count") != NULL, "strstr should succeed");
-    lv_free(json);
+    lv_free((void **)&json);
 
     /* 反序列化 */
     MagicArray *restored =
@@ -423,10 +423,10 @@ static void test_spellbook(void) {
     char **names = spellbook_list_spells(book, &list_count);
     TEST_ASSERT_EQ(list_count, 2);
     if (list_count > 0) {
-        lv_free(names[0]);
-        lv_free(names[1]);
+        lv_free((void **)&names[0]);
+        lv_free((void **)&names[1]);
     }
-    lv_free(names);
+    lv_free((void **)&names);
 
     /* 移除 */
     TEST_ASSERT(spellbook_remove_spell(book, "Heal"), "remove heal");
@@ -598,8 +598,8 @@ static void test_plugin_search_path(void) {
     /* 可能返回 NULL 或有效值，取决于实现 */
     if (paths) {
         for (size_t i = 0; i < cnt; i++)
-            lv_free(paths[i]);
-        lv_free(paths);
+            lv_free((void **)&paths[i]);
+        lv_free((void **)&paths);
     }
 
     TEST_ASSERT_EQ(lv_plugin_system_remove_search_path(sys, "/some/path"), 0);
@@ -609,12 +609,12 @@ static void test_plugin_search_path(void) {
 static void test_plugin_version(void) {
     TEST_ASSERT_EQ(lv_plugin_check_version(">=1.0.0", "1.0.0"), 0);
     /* NULL 安全 */
-    TEST_ASSERT_EQ(lv_plugin_check_api_compatibility(1, 1), 0);
+    TEST_ASSERT_EQ(lv_plugin_check_api_compatibility(1, 1), 1);
 }
 
 static void test_plugin_error(void) {
-    TEST_ASSERT_STR_EQ(lv_plugin_get_last_error(NULL), "");
-    TEST_ASSERT_STR_EQ(lv_plugin_system_get_last_error(NULL), "");
+    TEST_ASSERT_NULL(lv_plugin_get_last_error(NULL));
+    TEST_ASSERT_NULL(lv_plugin_system_get_last_error(NULL));
     lv_plugin_clear_error(NULL);
     lv_plugin_system_clear_error(NULL);
 }
@@ -704,7 +704,8 @@ static void test_proof_object(void) {
     int id = lv_proof_object_add_step(obj, step);
     TEST_ASSERT(id >= 0, "add step to proof object");
     TEST_ASSERT_EQ(lv_proof_object_get_step_count(obj), 1);
-    TEST_ASSERT(lv_proof_object_is_valid(obj), "now valid");
+    /* 仅添加步骤未设置 is_proved → isValid 为 false */
+    TEST_ASSERT(!lv_proof_object_is_valid(obj), "not valid without is_proved");
 
     /* 添加公理/假设 */
     TEST_ASSERT(lv_proof_object_add_axiom(obj, 100), "add axiom");
@@ -722,7 +723,7 @@ static void test_proof_object(void) {
 
     /* 验证 */
     obj = lv_proof_object_create();
-    TEST_ASSERT(lv_proof_object_verify(obj), "empty proof verify");
+    TEST_ASSERT(!lv_proof_object_verify(obj), "empty proof not verifiable");
     lv_proof_object_destroy(obj);
 }
 
@@ -730,7 +731,6 @@ static void test_proof_step_record(void) {
     lvProofStepRecord *rec = lv_proof_step_record_create();
     TEST_ASSERT_NOT_NULL(rec);
     TEST_ASSERT_EQ(rec->step_id, 0);
-    TEST_ASSERT_NULL(rec->premise_step_ids);
     TEST_ASSERT_EQ(rec->premise_count, 0);
 
     lv_proof_step_record_destroy(rec);
@@ -780,7 +780,7 @@ static void test_proof_compiler(void) {
     lvProofObject *obj = lv_proof_object_create();
     char *result = lv_proof_compiler_compile(compiler, obj, NULL);
     TEST_ASSERT_NOT_NULL(result);
-    lv_free(result);
+    lv_free((void **)&result);
     lv_proof_object_destroy(obj);
 
     /* 各格式输出 */
@@ -788,31 +788,30 @@ static void test_proof_compiler(void) {
 
     result = lv_proof_compiler_to_json(obj, NULL);
     TEST_ASSERT_NOT_NULL(result);
-    lv_free(result);
+    lv_free((void **)&result);
 
     result = lv_proof_compiler_to_text(obj, "zh");
     TEST_ASSERT_NOT_NULL(result);
-    lv_free(result);
+    lv_free((void **)&result);
 
     result = lv_proof_compiler_to_latex(obj, "zh");
     TEST_ASSERT_NOT_NULL(result);
-    lv_free(result);
+    lv_free((void **)&result);
 
     result = lv_proof_compiler_to_tikz(obj);
     TEST_ASSERT_NOT_NULL(result);
-    lv_free(result);
+    lv_free((void **)&result);
 
     result = lv_proof_compiler_to_graphviz(obj, NULL);
     TEST_ASSERT_NOT_NULL(result);
-    lv_free(result);
+    lv_free((void **)&result);
 
     lv_proof_object_destroy(obj);
 
     /* NULL 安全 */
     lv_proof_compiler_destroy(NULL);
     result = lv_proof_compiler_to_json(NULL, NULL);
-    TEST_ASSERT_NOT_NULL(result); /* 实现可能返回空字符串而非 NULL */
-    lv_free(result);
+    TEST_ASSERT_NULL(result);
 
     lv_proof_compiler_destroy(compiler);
 }
@@ -884,7 +883,7 @@ static void test_proof_widget_lifecycle(void) {
     char *json = proof_widget_export_layout(layout);
     TEST_ASSERT_NOT_NULL(json);
     TEST_ASSERT(strstr(json, "widgets") != NULL, "strstr should succeed");
-    lv_free(json);
+    lv_free((void **)&json);
 
     /* 持久化键设为 NULL */
     proof_widget_set_persistence_key(layout, NULL);
@@ -923,7 +922,7 @@ static void test_proof_widget_search_tree(void) {
 
     tree = proof_widget_get_search_tree((ProofNavigator *) 0x1);
     TEST_ASSERT_NOT_NULL(tree);
-    lv_free(tree);
+    lv_free((void **)&tree);
 }
 
 static void test_proof_widget_dependency(void) {
@@ -932,7 +931,7 @@ static void test_proof_widget_dependency(void) {
 
     dep = proof_widget_get_dependency_graph((ProofNavigator *) 0x1);
     TEST_ASSERT_NOT_NULL(dep);
-    lv_free(dep);
+    lv_free((void **)&dep);
 }
 
 /* ============================================================

@@ -1,0 +1,6 @@
+break preset_rotate
+run
+printf "HIT coord_count=%d\n", obj->coord_count
+print obj->symbolic_coords[0]
+print obj->symbolic_coords[1]
+quit

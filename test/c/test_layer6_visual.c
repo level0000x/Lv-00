@@ -193,8 +193,8 @@ static void test_bc_connect(void) {
     int b2 = lv_block_canvas_add_block(canvas, "B", 200, 0, 100, 50, 0, 1, 1);
     TEST_ASSERT(b1 > 0 && b2 > 0, "添加块");
 
-    /* 连接（输出端口 ID=2，输入端口 ID=1） */
-    int conn = lv_block_canvas_connect_blocks(canvas, b1, 2, b2, 1);
+    /* 连接（端口 ID 为画布全局递增：A 输出=2，B 输入=3） */
+    int conn = lv_block_canvas_connect_blocks(canvas, b1, 2, b2, 3);
     TEST_ASSERT(conn > 0, "连接应返回正 ID");
 
     /* 自连接应失败 */
@@ -202,20 +202,20 @@ static void test_bc_connect(void) {
     TEST_ASSERT_EQ(self, -1);
 
     /* 无效块 ID */
-    int bad = lv_block_canvas_connect_blocks(canvas, -1, 1, b2, 1);
+    int bad = lv_block_canvas_connect_blocks(canvas, -1, 1, b2, 3);
     TEST_ASSERT_EQ(bad, -1);
 
     /* 无效端口 ID */
-    bad = lv_block_canvas_connect_blocks(canvas, b1, 999, b2, 1);
+    bad = lv_block_canvas_connect_blocks(canvas, b1, 999, b2, 3);
     TEST_ASSERT_EQ(bad, -1);
 
     /* NULL 画布 */
-    bad = lv_block_canvas_connect_blocks(NULL, b1, 2, b2, 1);
+    bad = lv_block_canvas_connect_blocks(NULL, b1, 2, b2, 3);
     TEST_ASSERT_EQ(bad, -1);
 
     /* 移除源块时连接应自动删除 */
     int b3 = lv_block_canvas_add_block(canvas, "C", 400, 0, 100, 50, 0, 1, 1);
-    int c2 = lv_block_canvas_connect_blocks(canvas, b2, 2, b3, 1);
+    int c2 = lv_block_canvas_connect_blocks(canvas, b2, 4, b3, 5);
     TEST_ASSERT(c2 > 0, "第三个连接");
     lv_block_canvas_remove_block(canvas, b2);
     /* 连接应已被移除 */
@@ -233,7 +233,7 @@ static void test_bc_render_svg(void) {
     int b2 = lv_block_canvas_add_block(canvas, "Another", 200, 0, 100, 50, 3, 2, 1);
     TEST_ASSERT(b2 > 0, "添加第二个块");
 
-    lv_block_canvas_connect_blocks(canvas, b1, 2, b2, 1);
+    lv_block_canvas_connect_blocks(canvas, b1, 2, b2, 3);
 
     char *svg = lv_block_canvas_render_svg(canvas);
     TEST_ASSERT_NOT_NULL(svg);

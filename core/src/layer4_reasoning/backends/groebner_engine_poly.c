@@ -53,7 +53,7 @@ int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char 
 
     int ret = -1;
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
         poly_internal_destroy(poly);
@@ -74,7 +74,7 @@ cleanup:
 void poly_destroy(lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     if (!g_data || poly_id < 0 || poly_id >= g_data->poly_count)
         goto cleanup;
 
@@ -96,7 +96,7 @@ int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char 
 
     int ret = -1;
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     if (!g_data)
         goto cleanup;
     if (poly_id_f < 0 || poly_id_g < 0)
@@ -137,7 +137,7 @@ int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const 
 
     int ret = -1;
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     if (!g_data)
         goto cleanup;
     if (poly_id_f < 0 || poly_id_g < 0)
@@ -178,7 +178,7 @@ int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int su
 
     int ret = -1;
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     if (!g_data)
         goto cleanup;
     if (poly_id < 0 || subst_poly_id < 0)
@@ -217,7 +217,7 @@ const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
     const lvPolynomial *p = NULL;
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     if (!g_data || poly_id < 0 || poly_id >= g_data->poly_count)
         goto cleanup;
     p = g_data->polys[poly_id];

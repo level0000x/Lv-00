@@ -457,6 +457,176 @@ static int _poly_create_coord_diff(lvRingRegistry *registry, int ring_id, const 
 }
 
 /**
+ * @brief 创建常数多项式（所有指数均为 0）
+ *
+ * 用于给多项式乘以标量系数（如角度约束中的 cosθ / sinθ 系数）。
+ *
+ * @param registry  环注册表
+ * @param ring_id   多项式环 ID
+ * @param coeff     常数值
+ * @param var_count 环的变量数
+ * @param label     多项式标签
+ * @return 多项式 ID，失败返回 -1
+ */
+static int _poly_create_const(lvRingRegistry *registry, int ring_id, double coeff, int var_count, const char *label) {
+    int pid = poly_create(registry, ring_id, 1, label);
+    if (pid < 0)
+        return -1;
+
+    int *exp = (int *) lv_calloc((size_t) var_count, sizeof(int));
+    if (!exp) {
+        poly_destroy(registry, pid);
+        return -1;
+    }
+
+    /* 常数项：所有变量指数均为 0，系数为 coeff */
+    _poly_add_term(registry, pid, coeff, exp, var_count);
+
+    lv_free((void **) &exp);
+    return pid;
+}
+
+/**
+ * @brief 批量销毁角度编码过程中创建的中间多项式
+ *
+ * 构造角度约束多项式时会生成大量中间多项式
+ * （坐标差、点积、叉积、范数平方、三角函数常数等）。
+ * 本函数在失败路径上统一销毁它们，避免内存泄漏。
+ *
+ * @param registry 环注册表
+ * @param ids      多项式 ID 数组
+ * @param count    数组长度（销毁 ids[0..count-1]）
+ */
+static void _poly_destroy_angle_ids(lvRingRegistry *registry, const int *ids, int count) {
+    if (!registry || !ids || count <= 0)
+        return;
+    for (int i = 0; i < count; i++) {
+        if (ids[i] >= 0)
+            poly_destroy(registry, ids[i]);
+    }
+}
+
+/**
+ * @brief 构造角度约束多项式（向量夹角余弦公式）
+ *
+ * 几何语义：∠BAC = θ，其中 A、C 为两条射线上的点，B 为公共顶点
+ * （v1 = A-B，v2 = C-B）。
+ *
+ * 记 dot = v1·v2，cross = v1×v2，n1 = |v1|²，n2 = |v2|²，则
+ * cosθ = dot/(|v1|·|v2|)，sinθ = cross/(|v1|·|v2|)。
+ * 利用恒等式 (dot·cosθ + cross·sinθ)² = (|v1|·|v2|)² 消去分母，
+ * 得到坐标变量的 4 次多项式方程：
+ *   (dot·cosθ + cross·sinθ)² - n1·n2 = 0
+ *
+ * 说明：当 0° < θ < 180° 时该方程精确等价于 ∠ = θ；
+ * 当 θ = 0° 或 180°（共线）时，平方形式会同时接受两个共线方向，
+ * 这是多项式理想编码的固有代数歧义。
+ *
+ * @param registry  环注册表
+ * @param ring_id   环 ID
+ * @param var_map   节点 ID → 变量索引映射
+ * @param a_id      射线端点 A 节点 ID（与顶点 B 同属第一条线段）
+ * @param b_id      公共顶点 B 节点 ID
+ * @param c_id      射线端点 C 节点 ID（与顶点 B 同属第二条线段）
+ * @param var_count 环的变量总数
+ * @param theta_deg 角度数值（度）
+ * @return 多项式 ID（≥0），失败返回 -1
+ */
+static int _poly_create_angle(lvRingRegistry *registry, int ring_id, const int *var_map, int a_id, int b_id, int c_id,
+                              int var_count, double theta_deg) {
+    const double rad = theta_deg * M_PI / 180.0;
+    const double cos_t = cos(rad);
+    const double sin_t = sin(rad);
+
+    int owned[32];
+    int n_owned = 0;
+    int result = -1;
+
+    /* 创建多项式并登记所有权；失败时销毁已登记的全部中间多项式后返回 -1 */
+#define ANGLE_CREATE(var, call)                                 \
+    do {                                                        \
+        var = (call);                                           \
+        if (var < 0) {                                          \
+            _poly_destroy_angle_ids(registry, owned, n_owned);  \
+            return -1;                                          \
+        }                                                       \
+        owned[n_owned++] = var;                                 \
+    } while (0)
+
+    /* ---- 步骤 1：坐标差多项式 v1 = A-B，v2 = C-B ---- */
+    int d1x = -1, d1y = -1, d2x = -1, d2y = -1;
+    ANGLE_CREATE(d1x, _poly_create_coord_diff(registry, ring_id, var_map, a_id, b_id, 0, var_count, "angle_d1x"));
+    ANGLE_CREATE(d1y, _poly_create_coord_diff(registry, ring_id, var_map, a_id, b_id, 1, var_count, "angle_d1y"));
+    ANGLE_CREATE(d2x, _poly_create_coord_diff(registry, ring_id, var_map, c_id, b_id, 0, var_count, "angle_d2x"));
+    ANGLE_CREATE(d2y, _poly_create_coord_diff(registry, ring_id, var_map, c_id, b_id, 1, var_count, "angle_d2y"));
+
+    /* ---- 步骤 2：点积 dot = v1·v2 = d1x·d2x + d1y·d2y ---- */
+    int dot_x = -1, dot_y = -1, dot = -1;
+    ANGLE_CREATE(dot_x, poly_multiply(registry, d1x, d2x, "angle_dot_x"));
+    ANGLE_CREATE(dot_y, poly_multiply(registry, d1y, d2y, "angle_dot_y"));
+    ANGLE_CREATE(dot, poly_add(registry, dot_x, dot_y, "angle_dot"));
+
+    /* ---- 步骤 3：叉积 cross = v1×v2 = d1x·d2y - d1y·d2x ---- */
+    int cross_x = -1, cross_y = -1, cneg = -1, neg_cross_y = -1, cross = -1;
+    ANGLE_CREATE(cross_x, poly_multiply(registry, d1x, d2y, "angle_cross_x"));
+    ANGLE_CREATE(cross_y, poly_multiply(registry, d1y, d2x, "angle_cross_y"));
+    ANGLE_CREATE(cneg, _poly_create_const(registry, ring_id, -1.0, var_count, "angle_neg1"));
+    ANGLE_CREATE(neg_cross_y, poly_multiply(registry, cneg, cross_y, "angle_neg_cross_y"));
+    ANGLE_CREATE(cross, poly_add(registry, cross_x, neg_cross_y, "angle_cross"));
+
+    /* ---- 步骤 4：范数平方 n1 = |v1|²，n2 = |v2|² ---- */
+    int n1_x = -1, n1_y = -1, n1 = -1;
+    ANGLE_CREATE(n1_x, poly_multiply(registry, d1x, d1x, "angle_n1_x"));
+    ANGLE_CREATE(n1_y, poly_multiply(registry, d1y, d1y, "angle_n1_y"));
+    ANGLE_CREATE(n1, poly_add(registry, n1_x, n1_y, "angle_n1"));
+    int n2_x = -1, n2_y = -1, n2 = -1;
+    ANGLE_CREATE(n2_x, poly_multiply(registry, d2x, d2x, "angle_n2_x"));
+    ANGLE_CREATE(n2_y, poly_multiply(registry, d2y, d2y, "angle_n2_y"));
+    ANGLE_CREATE(n2, poly_add(registry, n2_x, n2_y, "angle_n2"));
+
+    /* ---- 步骤 5：组合项 comb = dot·cosθ + cross·sinθ ----
+     * 三角函数值约等于 0 时跳过对应项，避免与零多项式相乘产生零系数项。 */
+    int c_cos = -1, c_sin = -1, term_cos = -1, term_sin = -1, comb = -1;
+    const double trig_eps = 1e-12;
+    if (fabs(cos_t) > trig_eps) {
+        ANGLE_CREATE(c_cos, _poly_create_const(registry, ring_id, cos_t, var_count, "angle_cos"));
+        ANGLE_CREATE(term_cos, poly_multiply(registry, dot, c_cos, "angle_term_cos"));
+    }
+    if (fabs(sin_t) > trig_eps) {
+        ANGLE_CREATE(c_sin, _poly_create_const(registry, ring_id, sin_t, var_count, "angle_sin"));
+        ANGLE_CREATE(term_sin, poly_multiply(registry, cross, c_sin, "angle_term_sin"));
+    }
+    if (term_cos >= 0 && term_sin >= 0) {
+        ANGLE_CREATE(comb, poly_add(registry, term_cos, term_sin, "angle_comb"));
+    } else if (term_cos >= 0) {
+        comb = term_cos;
+    } else if (term_sin >= 0) {
+        comb = term_sin;
+    } else {
+        /* cosθ 与 sinθ 同时为零不可能发生（cos²+sin²=1），防御性处理 */
+        _poly_destroy_angle_ids(registry, owned, n_owned);
+        return -1;
+    }
+
+    /* ---- 步骤 6：组合平方与范数乘积 ---- */
+    int comb_sq = -1, nprod = -1, neg_nprod = -1;
+    ANGLE_CREATE(comb_sq, poly_multiply(registry, comb, comb, "angle_comb_sq"));
+    ANGLE_CREATE(nprod, poly_multiply(registry, n1, n2, "angle_nprod"));
+    ANGLE_CREATE(neg_nprod, poly_multiply(registry, cneg, nprod, "angle_neg_nprod"));
+
+    /* ---- 步骤 7：结果多项式 comb_sq - n1·n2 = 0 ---- */
+    ANGLE_CREATE(result, poly_add(registry, comb_sq, neg_nprod, "angle_constraint"));
+
+    /* 成功：销毁除 result 外的全部中间多项式（result 交由理想持有） */
+    for (int i = 0; i < n_owned; i++) {
+        if (owned[i] != result)
+            poly_destroy(registry, owned[i]);
+    }
+#undef ANGLE_CREATE
+    return result;
+}
+
+/**
  * @brief Groebner 后端：将约束图转换为多项式理想并求解
  *
  * 完整的 Groebner 基求解流程：
@@ -641,7 +811,67 @@ SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGraph *gr
                     break;
                 }
                 case ANGLE: {
-                    /* 角度约束：暂不支持理想编码 */
+                    /*
+                 * 角度约束：两条线段之间的夹角
+                 *  参与者: [line1_id, line2_id]
+                 *  多项式: (dot·cosθ + cross·sinθ)^2 - n1·n2 = 0
+                 *
+                 * 通过 INCIDENCE 约束分别解析两条线段的端点，
+                 * 公共端点即顶点 B，另外两个端点分别为 A 和 C。
+                 */
+                    if (c->participant_count >= 2) {
+                        int line1_id = c->participants[0];
+                        int line2_id = c->participants[1];
+
+                        /* 分别查找两条线段的端点 */
+                        int ep1[2] = {-1, -1}, ep2[2] = {-1, -1};
+                        int n1 = _find_line_endpoints(graph, line1_id, ep1);
+                        int n2 = _find_line_endpoints(graph, line2_id, ep2);
+
+                        if (n1 >= 2 && n2 >= 2) {
+                            /* 查找公共顶点：两条线段共有的端点 */
+                            int a_id = -1, b_id = -1, c_id = -1;
+                            for (int i = 0; i < 2 && b_id < 0; i++) {
+                                for (int j = 0; j < 2; j++) {
+                                    if (ep1[i] == ep2[j]) {
+                                        b_id = ep1[i];
+                                        a_id = ep1[1 - i];
+                                        c_id = ep2[1 - j];
+                                        break;
+                                    }
+                                }
+                            }
+
+                            bool valid = (a_id >= 0 && b_id >= 0 && c_id >= 0 && a_id < map_size && b_id < map_size &&
+                                          c_id < map_size && var_map[a_id] >= 0 && var_map[b_id] >= 0 &&
+                                          var_map[c_id] >= 0);
+                            if (valid) {
+                                int poly_id = _poly_create_angle(registry, ring_id, var_map, a_id, b_id, c_id, vc,
+                                                                 c->numeric_value);
+                                if (poly_id >= 0) {
+                                    ideal_add_generator(registry, ideal_id, poly_id);
+                                } else {
+                                    lv_LOG_WARNING("ANGLE: 无法构造角度多项式 (c=%d)", c->id);
+                                    int fallback = poly_create(registry, ring_id, 2, "angle_placeholder");
+                                    if (fallback >= 0) {
+                                        ideal_add_generator(registry, ideal_id, fallback);
+                                    }
+                                }
+                            } else {
+                                lv_LOG_WARNING("ANGLE: 端点缺少变量映射 (c=%d)", c->id);
+                                int fallback = poly_create(registry, ring_id, 2, "angle_placeholder");
+                                if (fallback >= 0) {
+                                    ideal_add_generator(registry, ideal_id, fallback);
+                                }
+                            }
+                        } else {
+                            lv_LOG_WARNING("ANGLE: 无法确定线段端点 (c=%d)", c->id);
+                            int fallback = poly_create(registry, ring_id, 2, "angle_placeholder");
+                            if (fallback >= 0) {
+                                ideal_add_generator(registry, ideal_id, fallback);
+                            }
+                        }
+                    }
                     break;
                 }
                 case CONNECTION: {

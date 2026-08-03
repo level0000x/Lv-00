@@ -321,6 +321,8 @@ static SymbolicCoord *quadratic_to_algebraic(const SymbolicCoord *q) {
  * 符号坐标加法：计算 a + b。
  */
 SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b) {
+    if (!a || !b)
+        return NULL;
     g_overflow_context.left_type = a->type;
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "add";
@@ -570,6 +572,8 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
 }
 
 SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoord *b) {
+    if (!a || !b)
+        return NULL;
     g_overflow_context.left_type = a->type;
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "subtract";
@@ -850,6 +854,8 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 }
 
 SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoord *b) {
+    if (!a || !b)
+        return NULL;
     g_overflow_context.left_type = a->type;
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "multiply";
@@ -1069,6 +1075,8 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
  * 符号坐标除法：计算 a / b。
  */
 SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord *b) {
+    if (!a || !b)
+        return NULL;
     g_overflow_context.left_type = a->type;
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "divide";

@@ -799,7 +799,8 @@ static void test_algebra_selector(void) {
     TEST_ASSERT_NOT_NULL(sel3);
 
     /* NULL参数 */
-    TEST_ASSERT_NULL(algebra_selector_create(SELECTOR_ALL, NULL));
+    algebra_selector_destroy(NULL); /* 释放NULL选择器不应崩溃 */
+    TEST_ASSERT_NULL(algebra_selector_create((lvSelectorType) -1, NULL));
 
     algebra_selector_destroy(sel);
     algebra_selector_destroy(sel2);

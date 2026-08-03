@@ -262,7 +262,7 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
         return -1;
 
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     int ret = -1;
 
     if (!g_data) {
@@ -365,7 +365,7 @@ cleanup:
 int variety_dimension(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     int ret = -1;
 
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
@@ -385,7 +385,7 @@ cleanup:
 bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     bool ok = false;
 
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
@@ -409,7 +409,7 @@ bool variety_get_solution_point(lvRingRegistry *registry, int variety_id, int po
         return false;
 
     lvLockGuard _lg;
-    lv_lock_guard_init(&_lg, &g_data_mutex);
+    groebner_lock_guard_init(&_lg);
     bool ok = false;
 
     if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {

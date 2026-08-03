@@ -83,7 +83,9 @@ int lv_plugin_resolve_dependencies(lvPluginSystem *system, lvPlugin *plugin) {
  * @return 有非可选依赖返回 0，无非可选依赖返回 1，出错返回 -1
  */
 int lv_plugin_check_dependencies(const lvPlugin *plugin) {
-    lv_CHECK_NOT_NULL(plugin);
+    /* NULL 输入视为无依赖，检查通过 */
+    if (!plugin)
+        return 0;
     lv_CHECK_ARG(plugin->info.dependencies != NULL || plugin->info.dependency_count == 0, lv_ERROR_INTERNAL,
                  "deps array NULL but count > 0");
 

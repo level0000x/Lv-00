@@ -140,7 +140,7 @@ void test_rational_power(void) {
     /* 负指数：(2/3)^(-1) = 3/2 */
     AlgRational neg_pow = alg_rational_pow(&a, -1, &err);
     TEST_ASSERT(err == ALG_RATIONAL_OK, "negative exponent should succeed");
-    TEST_ASSERT(alg_rational_cmp(&neg_pow, &one) < 0, "negative exponent means reciprocal"); /* just check direction */
+    TEST_ASSERT(alg_rational_cmp(&neg_pow, &one) > 0, "negative exponent means reciprocal"); /* just check direction */
 
     /* INT_MIN 负指数 */
     AlgRational intmin = alg_rational_from_int(2);
@@ -302,7 +302,7 @@ void test_quadratic_compare_convert(void) {
 
     /* 判断是否为有理数 */
     TEST_ASSERT(alg_quadratic_is_rational(&qa) == false, "1+2*sqrt(3) is not rational");
-    TEST_ASSERT(alg_quadratic_is_rational(&qc) == false, "even b=0 still has d field so is_rational may be false");
+    TEST_ASSERT(alg_quadratic_is_rational(&qc) == true, "2+0*sqrt(3)=2 is rational");
 
     /* 有理部分提取 */
     AlgRational rpart = alg_quadratic_rational_part(&qa);

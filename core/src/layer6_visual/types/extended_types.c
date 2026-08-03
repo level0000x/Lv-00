@@ -1,4 +1,4 @@
-﻿#include "lv/extended_types.h"
+#include "lv/extended_types.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -77,13 +77,13 @@ void lv_effect_type_destroy(lvEffectTypeRegion *t) {
 /* 扩展类型兼容性检查 */
 /* 检查两个扩展类型是否兼容，支持协变/逆变规则 */
 int lv_extended_type_compatible(void *a, void *b) {
-    /* 指针相同则必然兼容 */
-    if (a == b)
-        return 1;
-
     /* 任一为 NULL 则不兼容 */
     if (!a || !b)
         return 0;
+
+    /* 指针相同则必然兼容 */
+    if (a == b)
+        return 1;
 
     /* 两个指针都指向 TypeRegion（基础类型系统） */
     TypeRegion *ta = (TypeRegion *) a;

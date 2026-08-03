@@ -266,6 +266,8 @@ void symbolic_coord_invalidate_cache(SymbolicCoord *coord) {
  * @return 新分配的字符串，失败时返回 NULL
  */
 char *symbolic_coord_serialize(const SymbolicCoord *coord) {
+    if (!coord)
+        return NULL;
     switch (coord->type) {
         case RATIONAL:
             return rational_serialize(coord->data.rational);
@@ -366,12 +368,12 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
 /**
  * 检查符号坐标是否为零。
  *
- * @param coord 符号坐标对象（可为 NULL，NULL 视为零）
+ * @param coord 符号坐标对象（可为 NULL，NULL 视为非零）
  * @return true 表示为零，false 表示非零
  */
 bool symbolic_coord_is_zero(const SymbolicCoord *coord) {
     if (!coord)
-        return true;
+        return false;
     switch (coord->type) {
         case RATIONAL:
             return mpq_cmp_ui(coord->data.rational->value, 0, 1) == 0;

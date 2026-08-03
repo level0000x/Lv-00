@@ -482,9 +482,6 @@ static void dpll_solve(DPLLSolver *s, CNFBuilder *cnf) {
     if (s->solution_count >= s->max_solutions)
         return;
 
-    for (int i = 1; i <= s->var_count; i++)
-        s->assign[i] = 0;
-
     int status = dpll_unit_propagate(s, cnf);
     if (status == 0) {
         s->satisfiable = 0;
@@ -516,6 +513,10 @@ static void dpll_solve(DPLLSolver *s, CNFBuilder *cnf) {
         memcpy(copy.assign, s->assign, (size_t) (s->var_count + 1) * sizeof(int));
         copy.assign[var] = 1;
         dpll_solve(&copy, cnf);
+        /* 合并 True 分支的 solution_count 回父级 */
+        s->solution_count = copy.solution_count;
+        if (copy.satisfiable == 1)
+            s->satisfiable = 1;
         lv_free((void **) &(copy.assign));
     }
 
@@ -525,6 +526,8 @@ static void dpll_solve(DPLLSolver *s, CNFBuilder *cnf) {
     /* 再试 False */
     s->assign[var] = -1;
     dpll_solve(s, cnf);
+    /* 回溯：恢复变量赋值 */
+    s->assign[var] = 0;
 }
 
 /**
@@ -555,7 +558,7 @@ static int count_solutions(CNFBuilder *cnf, int max_count) {
  * ============================================================ */
 
 bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, ApproxCountResult *out) {
-    if (!graph || !out)
+    if (!graph || !cfg || !out)
         return false;
 
     memset(out, 0, sizeof(*out));

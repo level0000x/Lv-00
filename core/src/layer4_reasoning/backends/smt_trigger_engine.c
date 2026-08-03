@@ -175,9 +175,9 @@ void trigger_engine_destroy(lvTriggerEngine *engine) {
     if (!engine)
         return;
 
-    free(engine->triggers);
+    lv_free((void **) &engine->triggers);
     engine->triggers = NULL;
-    free(engine->instance_cache);
+    lv_free((void **) &engine->instance_cache);
     engine->instance_cache = NULL;
 
     engine->trigger_count = 0;
@@ -185,7 +185,7 @@ void trigger_engine_destroy(lvTriggerEngine *engine) {
     engine->cache_count = 0;
     engine->cache_capacity = 0;
 
-    free(engine);
+    lv_free((void **) &engine);
 }
 
 /* ========================================================================

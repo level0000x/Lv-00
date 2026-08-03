@@ -337,11 +337,12 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, lvTransformOp op, const do
 
     switch (op) {
         case TRANSFORM_TRANSLATE:
-            if (param_count < 3)
+            if (param_count < 2)
                 return NULL;
             m[3] = params[0];  /* dx */
             m[7] = params[1];  /* dy */
-            m[11] = params[2]; /* dz */
+            if (param_count >= 3)
+                m[11] = params[2]; /* dz */
             break;
 
         case TRANSFORM_ROTATE: {
@@ -493,6 +494,9 @@ AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double s
  * ================================================================ */
 
 lvSelector *algebra_selector_create(lvSelectorType type, const char *expr) {
+    if (type < SELECTOR_ALL || type > SELECTOR_COMPOSITE)
+        return NULL;
+
     lvSelector *sel = (lvSelector *) lv_calloc(1, sizeof(lvSelector));
     if (!sel)
         return NULL;
@@ -730,6 +734,11 @@ int algebra_snapshot(AlgebraicGeom *geom) {
     /* 对拥有所有权的字段做深拷贝 */
     if (geom->name)
         copy->name = lv_strdup_safe(geom->name);
+
+    /* 深拷贝约束图：快照必须持有独立的图，否则销毁快照时
+     * 会与主几何体共享的 graph 发生双重释放 */
+    if (geom->graph)
+        copy->graph = graph_copy(geom->graph);
 
     if (geom->history_count > 0) {
         copy->history = (int *) lv_malloc((size_t) geom->history_count * sizeof(int));

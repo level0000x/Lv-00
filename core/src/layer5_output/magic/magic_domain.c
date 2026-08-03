@@ -273,11 +273,12 @@ SymbolicCoord *domain_get_center(const Domain *domain) {
  *  @note 原实现为 names[] 索引表；此处按原表的运行时映射原样迁移，
  *        保持既有输出与边界行为（未命中返回 "未知"）不变。 */
 static const lvStrToEnumEntry s_element_to_string_entries[] = {
-    {"无属性", ELEMENT_FIRE},
-    {"火", ELEMENT_WATER},
-    {"水", ELEMENT_AIR},
-    {"风", ELEMENT_EARTH},
-    {"土", ELEMENT_ETHER},
+    {"FIRE", ELEMENT_FIRE},
+    {"WATER", ELEMENT_WATER},
+    {"AIR", ELEMENT_AIR},
+    {"EARTH", ELEMENT_EARTH},
+    {"ETHER", ELEMENT_ETHER},
+    {"NONE", ELEMENT_NONE},
 };
 
 /** @brief stage_to_string 名称表（按枚举值升序） */
