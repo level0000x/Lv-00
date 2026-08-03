@@ -86,8 +86,7 @@ struct ATPBackendSolver {
 typedef struct {
     lvRegistry registry;                           /**< 全局注册表（单例） */
     bool registry_inited;                          /**< 注册表是否已初始化 */
-    ATPBackendEntry entries[ATP_BACKEND_COUNT];    /**< 后端附加元数据（与 lvRegistry 配合使用） */
-    int entry_count;                               /**< 已注册后端数量 */
+    ATPBackendRegistry public_registry;            /**< 公开注册表（兼容 ATPBackendRegistry 布局） */
 } ATPRegistryState;
 
 /** @brief ATP 后端注册表全局单例 */
@@ -1267,15 +1266,14 @@ int atp_proof_to_lv(const ATPResultInfo *result, Proof *proof, int *step_count) 
 /**
  * @brief 获取全局 ATP 后端注册表（返回保留的私有指针，用于外部只读访问）
  *
- * @note 为了保持向后兼容，返回 (const ATPBackendRegistry*) 的空指针。
- *       实际注册表数据通过 atp_find_backend / atp_backend_type_name 访问。
+ * 返回的指针指向内部的 ATPBackendRegistry，可用于遍历已注册的后端。
  */
 const ATPBackendRegistry *atp_get_registry(void) {
     if (!s_atp_registry_state.registry_inited) {
         lv_registry_init(&s_atp_registry_state.registry, ATP_BACKEND_COUNT);
         s_atp_registry_state.registry_inited = true;
     }
-    return NULL; /* 向后兼容：调用者不再直接访问 ATPBackendRegistry 内部 */
+    return &s_atp_registry_state.public_registry;
 }
 
 /**
@@ -1302,9 +1300,9 @@ int atp_register_backend(const ATPBackendEntry *entry) {
     }
 
     /* 保存完整元数据到并行数组 */
-    if (s_atp_registry_state.entry_count < ATP_BACKEND_COUNT) {
-        s_atp_registry_state.entries[s_atp_registry_state.entry_count] = *entry;
-        s_atp_registry_state.entry_count++;
+    if (s_atp_registry_state.public_registry.count < ATP_BACKEND_COUNT) {
+        s_atp_registry_state.public_registry.entries[s_atp_registry_state.public_registry.count] = *entry;
+        s_atp_registry_state.public_registry.count++;
     }
 
     return (int) lv_OK;
@@ -1330,9 +1328,9 @@ const ATPBackendEntry *atp_find_backend(ATPBackendType type) {
         return NULL;
     }
 
-    for (int i = 0; i < s_atp_registry_state.entry_count; i++) {
-        if (s_atp_registry_state.entries[i].type == type) {
-            return &s_atp_registry_state.entries[i];
+    for (int i = 0; i < s_atp_registry_state.public_registry.count; i++) {
+        if (s_atp_registry_state.public_registry.entries[i].type == type) {
+            return &s_atp_registry_state.public_registry.entries[i];
         }
     }
     return NULL;
@@ -1361,7 +1359,7 @@ const char *atp_backend_type_name(ATPBackendType type) {
  * @brief 从名称字符串解析后端类型
  *
  * 使用 s_atp_backend_type_name_entries 表驱动查找。
- * 注意：表中 "E Prover" 包含空格，此处额外支持 "e" 别名。
+ * 注意：表中 "E Prover" 包含空格，此处额外支持 "e" 和 "eprover" 别名。
  */
 bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type) {
     if (!name || !out_type) {
@@ -1377,8 +1375,8 @@ bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type) {
         return true;
     }
 
-    /* 兼容 "e" 缩写 */
-    if (strcasecmp(name, "e") == 0) {
+    /* 兼容 "e" 缩写和 "eprover" 别名 */
+    if (strcasecmp(name, "e") == 0 || strcasecmp(name, "eprover") == 0) {
         *out_type = ATP_BACKEND_EPROVER;
         return true;
     }
