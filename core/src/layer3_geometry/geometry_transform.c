@@ -166,105 +166,55 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
     /* 这里简化处理，只支持一些常见角度 */
     int normalized = angle_num / angle_denom;
 
-    switch (normalized) {
-        case 0: /* 0° */
-            mpq_set_ui(t->params.params.rotation.cos_theta, 1, 1);
-            mpq_set_ui(t->params.params.rotation.sin_theta, 0, 1);
-            mpq_set_ui(t->matrix.a, 1, 1);
-            mpq_set_ui(t->matrix.b, 0, 1);
-            mpq_set_ui(t->matrix.c, 0, 1);
-            mpq_set_ui(t->matrix.d, 1, 1);
+    /* 特化角度查找表 */
+    static const struct {
+        int angle;
+        double cos_val;
+        double sin_val;
+    } kAngleTable[] = {
+        {  0,  1.0,                    0.0                   },
+        { 30,  0.8660254037844386,     0.5                   },
+        { 45,  0.7071067811865476,     0.7071067811865476    },
+        { 60,  0.5,                    0.8660254037844386    },
+        { 90,  0.0,                    1.0                   },
+        {120, -0.5,                    0.8660254037844386    },
+        {135, -0.7071067811865476,     0.7071067811865476    },
+        {150, -0.8660254037844386,     0.5                   },
+        {180, -1.0,                    0.0                   },
+        {270,  0.0,                   -1.0                   },
+    };
+#define ANGLE_TABLE_SIZE (sizeof(kAngleTable)/sizeof(kAngleTable[0]))
+
+    /* 在查找表中查找匹配的角度 */
+    int i;
+    for (i = 0; i < (int)ANGLE_TABLE_SIZE; i++) {
+        if (kAngleTable[i].angle == normalized) {
+            mpq_set_d(t->params.params.rotation.cos_theta, kAngleTable[i].cos_val);
+            mpq_set_d(t->params.params.rotation.sin_theta, kAngleTable[i].sin_val);
+            mpq_set_d(t->matrix.a, kAngleTable[i].cos_val);
+            mpq_set_d(t->matrix.b, -kAngleTable[i].sin_val);
+            mpq_set_d(t->matrix.c, kAngleTable[i].sin_val);
+            mpq_set_d(t->matrix.d, kAngleTable[i].cos_val);
             break;
-        case 30: /* 30°: a=cos30, b=-1/2, c=1/2, d=cos30 */
-            mpq_set_d(t->params.params.rotation.cos_theta, 0.8660254037844386);
-            mpq_set_ui(t->params.params.rotation.sin_theta, 1, 2);
-            mpq_set_d(t->matrix.a, 0.8660254037844386);
-            mpq_set_si(t->matrix.b, -1, 2);
-            mpq_set_ui(t->matrix.c, 1, 2);
-            mpq_set_d(t->matrix.d, 0.8660254037844386);
-            break;
-        case 45: /* 45°: a=cos45, b=-sin45, c=sin45, d=cos45 */
-            mpq_set_d(t->params.params.rotation.cos_theta, 0.7071067811865476);
-            mpq_set_d(t->params.params.rotation.sin_theta, 0.7071067811865476);
-            mpq_set_d(t->matrix.a, 0.7071067811865476);
-            mpq_set_d(t->matrix.b, -0.7071067811865476);
-            mpq_set_d(t->matrix.c, 0.7071067811865476);
-            mpq_set_d(t->matrix.d, 0.7071067811865476);
-            break;
-        case 60: /* 60°: a=1/2, b=-sin60, c=sin60, d=1/2 */
-            mpq_set_ui(t->params.params.rotation.cos_theta, 1, 2);
-            mpq_set_d(t->params.params.rotation.sin_theta, 0.8660254037844386);
-            mpq_set_ui(t->matrix.a, 1, 2);
-            mpq_set_d(t->matrix.b, -0.8660254037844386);
-            mpq_set_d(t->matrix.c, 0.8660254037844386);
-            mpq_set_ui(t->matrix.d, 1, 2);
-            break;
-        case 90: /* 90° */
-            mpq_set_ui(t->params.params.rotation.cos_theta, 0, 1);
-            mpq_set_ui(t->params.params.rotation.sin_theta, 1, 1);
-            mpq_set_ui(t->matrix.a, 0, 1);
+        }
+    }
+    if (i == (int)ANGLE_TABLE_SIZE) {
+        /* 其他角度：使用有理数近似计算 cos/sin。
+         * 先将角度转换为弧度，用 double 计算 cos/sin，
+         * 再通过 mpq_set_d 转换为有理数近似。
+         * 这保证了变换矩阵始终被正确设置，而非静默降级为单位矩阵。 */
+        {
+            double angle_rad = (double) angle_num / (double) angle_denom * M_PI / 180.0;
+            double cos_d = cos(angle_rad);
+            double sin_d = sin(angle_rad);
+            mpq_set_d(t->params.params.rotation.cos_theta, cos_d);
+            mpq_set_d(t->params.params.rotation.sin_theta, sin_d);
+            mpq_set_d(t->matrix.a, cos_d);
             mpq_set_si(t->matrix.b, -1, 1);
-            mpq_set_ui(t->matrix.c, 1, 1);
-            mpq_set_ui(t->matrix.d, 0, 1);
-            break;
-        case 120: /* 120°: a=-1/2, b=-sin120, c=sin120, d=-1/2 */
-            mpq_set_si(t->params.params.rotation.cos_theta, -1, 2);
-            mpq_set_d(t->params.params.rotation.sin_theta, 0.8660254037844386);
-            mpq_set_si(t->matrix.a, -1, 2);
-            mpq_set_d(t->matrix.b, -0.8660254037844386);
-            mpq_set_d(t->matrix.c, 0.8660254037844386);
-            mpq_set_si(t->matrix.d, -1, 2);
-            break;
-        case 135: /* 135°: a=cos135, b=-sin135, c=sin135, d=cos135 */
-            mpq_set_d(t->params.params.rotation.cos_theta, -0.7071067811865476);
-            mpq_set_d(t->params.params.rotation.sin_theta, 0.7071067811865476);
-            mpq_set_d(t->matrix.a, -0.7071067811865476);
-            mpq_set_d(t->matrix.b, -0.7071067811865476);
-            mpq_set_d(t->matrix.c, 0.7071067811865476);
-            mpq_set_d(t->matrix.d, -0.7071067811865476);
-            break;
-        case 150: /* 150°: a=cos150, b=-1/2, c=1/2, d=cos150 */
-            mpq_set_d(t->params.params.rotation.cos_theta, -0.8660254037844386);
-            mpq_set_ui(t->params.params.rotation.sin_theta, 1, 2);
-            mpq_set_d(t->matrix.a, -0.8660254037844386);
-            mpq_set_si(t->matrix.b, -1, 2);
-            mpq_set_ui(t->matrix.c, 1, 2);
-            mpq_set_d(t->matrix.d, -0.8660254037844386);
-            break;
-        case 180: /* 180° */
-            mpq_set_si(t->params.params.rotation.cos_theta, -1, 1);
-            mpq_set_ui(t->params.params.rotation.sin_theta, 0, 1);
-            mpq_set_si(t->matrix.a, -1, 1);
-            mpq_set_ui(t->matrix.b, 0, 1);
-            mpq_set_ui(t->matrix.c, 0, 1);
-            mpq_set_si(t->matrix.d, -1, 1);
-            break;
-        case 270: /* 270° */
-            mpq_set_ui(t->params.params.rotation.cos_theta, 0, 1);
-            mpq_set_si(t->params.params.rotation.sin_theta, -1, 1);
-            mpq_set_ui(t->matrix.a, 0, 1);
-            mpq_set_ui(t->matrix.b, 1, 1);
-            mpq_set_si(t->matrix.c, -1, 1);
-            mpq_set_ui(t->matrix.d, 0, 1);
-            break;
-        default:
-            /* 其他角度：使用有理数近似计算 cos/sin。
-             * 先将角度转换为弧度，用 double 计算 cos/sin，
-             * 再通过 mpq_set_d 转换为有理数近似。
-             * 这保证了变换矩阵始终被正确设置，而非静默降级为单位矩阵。 */
-            {
-                double angle_rad = (double) angle_num / (double) angle_denom * M_PI / 180.0;
-                double cos_d = cos(angle_rad);
-                double sin_d = sin(angle_rad);
-                mpq_set_d(t->params.params.rotation.cos_theta, cos_d);
-                mpq_set_d(t->params.params.rotation.sin_theta, sin_d);
-                mpq_set_d(t->matrix.a, cos_d);
-                mpq_set_si(t->matrix.b, -1, 1);
-                mpq_mul(t->matrix.b, t->matrix.b, t->params.params.rotation.sin_theta);
-                mpq_set_d(t->matrix.c, sin_d);
-                mpq_set(t->matrix.d, t->params.params.rotation.cos_theta);
-            }
-            break;
+            mpq_mul(t->matrix.b, t->matrix.b, t->params.params.rotation.sin_theta);
+            mpq_set_d(t->matrix.c, sin_d);
+            mpq_set(t->matrix.d, t->params.params.rotation.cos_theta);
+        }
     }
 
     /* 计算平移分量：tx = cx - a*cx - b*cy, ty = cy - c*cx - d*cy */

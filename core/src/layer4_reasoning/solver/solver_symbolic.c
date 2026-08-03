@@ -429,22 +429,18 @@ bool check_contradiction_after_substitution(EquationSystem *sys) {
  * @return 约束贡献的标量方程数量
  */
 int constraint_weight(const Constraint *c) {
-    switch (c->type) {
-        case INCIDENCE:
-            return 1; /* 一个线性方程（点在线上） */
-        case BETWEENNESS:
-            return 2; /* 共线性 + 比值约束 */
-        case INTERSECTION:
-            return 2; /* 点在两条线上 */
-        case CONTAINMENT:
-            return 1; /* 至少一个边界约束 */
-        case ANGLE:
-            return 1; /* 角度约束消耗 1 DOF */
-        case CONNECTION:
-            return 1; /* 端口连接性 */
-        default:
-            return 1;
-    }
+    static const int kConstraintWeights[] = {
+        [INCIDENCE] = 1,
+        [BETWEENNESS] = 2,
+        [INTERSECTION] = 2,
+        [CONTAINMENT] = 1,
+        [ANGLE] = 1,
+        [CONNECTION] = 1,
+    };
+    const int n = (int)(sizeof(kConstraintWeights) / sizeof(kConstraintWeights[0]));
+    if (c->type >= 0 && c->type < n)
+        return kConstraintWeights[c->type];
+    return 1;
 }
 
 /**

@@ -27,6 +27,84 @@
 #include "lv_utils.h"
 
 /* ============================================================
+ * 平台抽象辅助函数
+ * ============================================================ */
+
+/**
+ * @brief 封装 lv_pclose 并返回进程退出码（跨平台处理 WIFEXITED/WEXITSTATUS）
+ * @param pipe  子进程管道（由 lv_popen 打开）
+ * @return 进程退出码；异常终止返回 -1
+ */
+static int smt_platform_pclose(FILE *pipe) {
+    int status = lv_pclose(pipe);
+#ifdef _WIN32
+    return status;
+#else
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    return -1;
+#endif
+}
+
+/**
+ * @brief 封装文件删除（跨平台处理 _unlink / remove）
+ * @param path  要删除的文件路径
+ * @return 0 成功，非 0 失败
+ */
+static int smt_platform_unlink(const char *path) {
+#ifdef _WIN32
+    return _unlink(path);
+#else
+    return remove(path);
+#endif
+}
+
+/**
+ * @brief 写入临时文件并获取路径
+ *
+ * 将 SMT-LIB2 输入写入临时文件，并填充 tmp_path 供后续命令行构造使用。
+ * 在 Windows 上需要创建命名临时文件（因为子进程需要通过路径访问）；
+ * 在 Unix 上直接使用 /dev/fd/N 路径。
+ *
+ * @param[in]  tmp           已打开的 tmpfile 句柄
+ * @param[in]  smt2_input    SMT-LIB2 输入文本
+ * @param[out] tmp_path      输出：临时文件路径
+ * @param[in]  tmp_path_size tmp_path 缓冲区大小
+ * @return 0 成功，非 0 失败
+ */
+static int smt_platform_write_tmpfile(FILE *tmp, const char *smt2_input, char *tmp_path, size_t tmp_path_size) {
+    fputs(smt2_input, tmp);
+    fflush(tmp);
+
+#ifdef _WIN32
+    long fd = _fileno(tmp);
+    if (_get_osfhandle(fd) == -1 || tmpnam_s(tmp_path, tmp_path_size) != 0) {
+        return -1;
+    }
+    FILE *named_tmp = lv_file_open(tmp_path, "w");
+    if (!named_tmp) {
+        return -1;
+    }
+    rewind(tmp);
+    char copy_buf[4096];
+    size_t n;
+    while ((n = fread(copy_buf, 1, sizeof(copy_buf), tmp)) > 0) {
+        size_t written = fwrite(copy_buf, 1, n, named_tmp);
+        if (written != n) {
+            break;
+        }
+    }
+    lv_file_close(named_tmp);
+    /* 注意：tmp 在此处不关闭，由调用方统一清理 */
+#else
+    snprintf(tmp_path, tmp_path_size, "/dev/fd/%d", fileno(tmp));
+#endif
+
+    return 0;
+}
+
+/* ============================================================
  * 外部求解器子进程辅助函数
  * ============================================================ */
 
@@ -56,62 +134,31 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
         lv_LOG_WARNING("外部求解器 %s: 无法创建临时文件，回退到 UNKNOWN", executable);
         return SMT_RESULT_UNKNOWN;
     }
-    fputs(smt2_input, tmp);
-    fflush(tmp);
 
-    /* 获取临时文件的文件描述符/句柄 */
-#ifdef _WIN32
-    long fd = _fileno(tmp);
-    /* 在 Windows 上获取临时文件路径 */
-    char tmp_path[MAX_PATH];
-    if (_get_osfhandle(fd) == -1 || tmpnam_s(tmp_path, MAX_PATH) != 0) {
+    /* 写入临时文件并获取路径 */
+    char tmp_path[1024];
+    if (smt_platform_write_tmpfile(tmp, smt2_input, tmp_path, sizeof(tmp_path)) != 0) {
         lv_file_close(tmp);
         lv_LOG_WARNING("外部求解器 %s: 无法获取临时文件路径，回退到 UNKNOWN", executable);
         return SMT_RESULT_UNKNOWN;
     }
-    /* 将 tmpfile 内容复制到命名临时文件 */
-    FILE *named_tmp = lv_file_open(tmp_path, "w");
-    if (!named_tmp) {
-        lv_file_close(tmp);
-        lv_LOG_WARNING("外部求解器 %s: 无法创建命名临时文件，回退到 UNKNOWN", executable);
-        return SMT_RESULT_UNKNOWN;
-    }
-    rewind(tmp);
-    char copy_buf[4096];
-    size_t n;
-    while ((n = fread(copy_buf, 1, sizeof(copy_buf), tmp)) > 0) {
-        size_t written = fwrite(copy_buf, 1, n, named_tmp);
-        if (written != n) {
-            lv_LOG_WARNING("外部求解器 %s: 临时文件写入不完整（期望 %zu, 实际 %zu）", executable, n, written);
-            break;
-        }
-    }
-    lv_file_close(named_tmp);
-    lv_file_close(tmp);
 
     /* 构造命令行 */
-    char cmd[1024];
-    if (strcmp(executable, "z3") == 0) {
-        snprintf(cmd, sizeof(cmd), "z3 -in \"%s\" 2>NUL", tmp_path);
-    } else if (strcmp(executable, "cvc5") == 0) {
-        snprintf(cmd, sizeof(cmd), "cvc5 --lang smt2 \"%s\" 2>NUL", tmp_path);
-    } else {
-        snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" 2>NUL", executable, tmp_path);
-    }
+    const char *null_dev =
+#ifdef _WIN32
+        "NUL"
 #else
-    char tmp_path[64];
-    snprintf(tmp_path, sizeof(tmp_path), "/dev/fd/%d", fileno(tmp));
-
-    /* 构造命令行 */
+        "/dev/null"
+#endif
+    ;
     char cmd[1024];
     if (strcmp(executable, "z3") == 0) {
-        snprintf(cmd, sizeof(cmd), "%s -in %s 2>/dev/null", executable, tmp_path);
+        snprintf(cmd, sizeof(cmd), "%s -in \"%s\" 2>%s", executable, tmp_path, null_dev);
     } else if (strcmp(executable, "cvc5") == 0) {
-        snprintf(cmd, sizeof(cmd), "%s --lang smt2 %s 2>/dev/null", executable, tmp_path);
+        snprintf(cmd, sizeof(cmd), "%s --lang smt2 \"%s\" 2>%s", executable, tmp_path, null_dev);
     } else {
-        snprintf(cmd, sizeof(cmd), "%s %s 2>/dev/null", executable, tmp_path);
+        snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" 2>%s", executable, tmp_path, null_dev);
     }
-#endif
 
     lv_LOG_INFO("外部求解器 %s: 启动子进程: %s", executable, cmd);
 
@@ -119,11 +166,8 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
     FILE *pipe = lv_popen(cmd, "r");
     if (!pipe) {
         lv_LOG_WARNING("外部求解器 %s: popen 失败（求解器可能未安装），回退到 UNKNOWN", executable);
-#ifdef _WIN32
-        _unlink(tmp_path);
-#else
         lv_file_close(tmp);
-#endif
+        smt_platform_unlink(tmp_path);
         return SMT_RESULT_UNKNOWN;
     }
 
@@ -136,34 +180,19 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
     }
     output_buf[total_read] = '\0';
 
-    int status = lv_pclose(pipe);
-
-#ifdef _WIN32
-    _unlink(tmp_path);
-#else
+    int exit_code = smt_platform_pclose(pipe);
     lv_file_close(tmp);
-#endif
+    smt_platform_unlink(tmp_path);
 
     /* 将原始输出复制到 result_buf（如果调用者需要） */
     if (result_buf && result_size > 0) {
         snprintf(result_buf, result_size, "%s", output_buf);
     }
 
-    /* 检查进程退出状态 */
-#ifndef _WIN32
-    if (WIFEXITED(status)) {
-        int exit_code = WEXITSTATUS(status);
-        if (exit_code != 0) {
-            lv_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, exit_code);
-            return SMT_RESULT_UNKNOWN;
-        }
-    }
-#else
-    if (status != 0) {
-        lv_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, status);
+    if (exit_code != 0) {
+        lv_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, exit_code);
         return SMT_RESULT_UNKNOWN;
     }
-#endif
 
     /* 解析求解器输出 */
     /* 去除首尾空白 */

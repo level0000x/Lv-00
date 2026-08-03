@@ -492,6 +492,116 @@ int sat_encode_containment(SatEncoding *enc, int p_id, int r_id) {
     return (idx >= 0) ? 1 : -1;
 }
 
+/* ========================================================================
+ * VTable 约束编码器 — 函数指针表替代 switch 分发
+ * ======================================================================== */
+
+/** 约束编码函数指针类型 */
+typedef int (*ConstraintEncoderFn)(SatEncoding *enc, const Constraint *con);
+
+/** VTable 条目：约束类型到编码函数的映射 */
+typedef struct {
+    ConstraintType type;
+    ConstraintEncoderFn fn;
+} ConstraintEncoderEntry;
+
+/* ── 各约束类型的编码器实现 ── */
+
+static int encode_betweenness(SatEncoding *enc, const Constraint *con) {
+    if (con->participant_count >= 3)
+        return sat_encode_collinearity(enc, con->participants[0], con->participants[1], con->participants[2]);
+    return 0;
+}
+
+static int encode_incidence(SatEncoding *enc, const Constraint *con) {
+    if (con->participant_count >= 2)
+        return sat_encode_containment(enc, con->participants[0], con->participants[1]);
+    return 0;
+}
+
+static int encode_intersection(SatEncoding *enc, const Constraint *con) {
+    if (con->participant_count >= 4)
+        return sat_encode_parallelism(enc, con->participants[0], con->participants[1],
+                                      con->participants[2], con->participants[3]);
+    return 0;
+}
+
+static int encode_containment(SatEncoding *enc, const Constraint *con) {
+    if (con->participant_count >= 2)
+        return sat_encode_containment(enc, con->participants[0], con->participants[1]);
+    return 0;
+}
+
+static int encode_angle(SatEncoding *enc, const Constraint *con) {
+    if (con->participant_count >= 2) {
+        int line1_id = con->participants[0];
+        int line2_id = con->participants[1];
+
+        /* 角度关系存在域：注册 (line1, line2) 对变量 */
+        int v_angle;
+        if (register_pair_var(enc, line1_id, line2_id, &v_angle) < 0)
+            return -1;
+
+        /* 计算目标离散桶索引 = floor(角度值 / 桶宽) */
+        int bucket_count = 1 << DEFAULT_BITWIDTH;
+        double bucket_width = 180.0 / (double) bucket_count;
+        int target_bucket = (int) (con->numeric_value / bucket_width);
+        if (target_bucket < 0)
+            target_bucket = 0;
+        if (target_bucket >= bucket_count)
+            target_bucket = bucket_count - 1;
+
+        int clause_count = 0;
+
+        /* 两条线段必须真实参与角度关系 */
+        {
+            SatLiteral c_pair[] = {v_angle};
+            if (sat_encoding_add_clause(enc, c_pair, 1) >= 0)
+                clause_count++;
+        }
+
+        /* 角度离散位：以 (v_angle, bit) 为键注册布尔变量，
+         * 并用单元子句强制每一位等于目标桶索引的二进制位 */
+        for (int bit = 0; bit < DEFAULT_BITWIDTH; bit++) {
+            int ids[2] = {v_angle, bit};
+            int bit_var = sat_encoding_register_var(enc, 2, ids);
+            if (bit_var < 1)
+                return -1;
+
+            int bit_value = (target_bucket >> bit) & 1;
+            SatLiteral lit = bit_value ? (SatLiteral) bit_var : (SatLiteral) -bit_var;
+            if (sat_encoding_add_clause(enc, &lit, 1) >= 0)
+                clause_count++;
+        }
+
+        return clause_count;
+    }
+    return 0;
+}
+
+static int encode_connection(SatEncoding *enc, const Constraint *con) {
+    if (con->participant_count >= 2) {
+        int var;
+        if (register_pair_var(enc, con->participants[0], con->participants[1], &var) < 0)
+            return -1;
+        SatLiteral c1[] = {var};
+        int idx = sat_encoding_add_clause(enc, c1, 1);
+        return (idx >= 0) ? 1 : -1;
+    }
+    return 0;
+}
+
+/* ── VTable 映射表 ── */
+
+static const ConstraintEncoderEntry constraint_encoders[] = {
+    {BETWEENNESS,  encode_betweenness},
+    {INCIDENCE,    encode_incidence},
+    {INTERSECTION, encode_intersection},
+    {CONTAINMENT,  encode_containment},
+    {ANGLE,        encode_angle},
+    {CONNECTION,   encode_connection},
+};
+
 /* ── 通用约束编码（根据约束类型分发）── */
 
 int sat_encode_constraint(SatEncoding *enc, int constraint_id) {
@@ -507,104 +617,14 @@ int sat_encode_constraint(SatEncoding *enc, int constraint_id) {
         return -1;
     }
 
-    switch (con->type) {
-        case BETWEENNESS:
-            if (con->participant_count >= 3)
-                return sat_encode_collinearity(enc, con->participants[0], con->participants[1], con->participants[2]);
-            break;
-
-        case INCIDENCE:
-            if (con->participant_count >= 2)
-                return sat_encode_containment(enc, con->participants[0], con->participants[1]);
-            break;
-
-        case INTERSECTION:
-            if (con->participant_count >= 4)
-                return sat_encode_parallelism(enc, con->participants[0], con->participants[1], con->participants[2],
-                                              con->participants[3]);
-            break;
-
-        case CONTAINMENT:
-            if (con->participant_count >= 2)
-                return sat_encode_containment(enc, con->participants[0], con->participants[1]);
-            break;
-
-        case ANGLE: {
-            /*
-             * 角度约束：∠(line1, line2) = numeric_value（度）
-             *  参与者: [line1_id, line2_id]（两条线段），
-             *  numeric_value 字段存储角度值（单位：度）。
-             *
-             * 编码原理（角度变量的多值离散化 / bit-blasting）：
-             * 借鉴 Alloy Kodkod 对数值域的二进制编码思想，把角度区间
-             * [0, 180°) 均匀离散为 2^DEFAULT_BITWIDTH 个等宽桶（桶宽
-             * = 180/256 ≈ 0.703°）。为当前角度约束注册 DEFAULT_BITWIDTH
-             * 个布尔 SAT 变量，作为"该角度所属桶索引"的二进制位；再用
-             * 单元子句把每一位强制为"目标桶索引"的对应二进制位，从而把
-             * 角度精确固定到目标离散桶中。同时用单元子句断言两条线段的
-             * 关系变量（角度关系存在域）必须为真。
-             */
-            if (con->participant_count >= 2) {
-                int line1_id = con->participants[0];
-                int line2_id = con->participants[1];
-
-                /* 角度关系存在域：注册 (line1, line2) 对变量 */
-                int v_angle;
-                if (register_pair_var(enc, line1_id, line2_id, &v_angle) < 0)
-                    return -1;
-
-                /* 计算目标离散桶索引 = floor(角度值 / 桶宽) */
-                int bucket_count = 1 << DEFAULT_BITWIDTH;
-                double bucket_width = 180.0 / (double) bucket_count;
-                int target_bucket = (int) (con->numeric_value / bucket_width);
-                if (target_bucket < 0)
-                    target_bucket = 0;
-                if (target_bucket >= bucket_count)
-                    target_bucket = bucket_count - 1;
-
-                int clause_count = 0;
-
-                /* 两条线段必须真实参与角度关系 */
-                {
-                    SatLiteral c_pair[] = {v_angle};
-                    if (sat_encoding_add_clause(enc, c_pair, 1) >= 0)
-                        clause_count++;
-                }
-
-                /* 角度离散位：以 (v_angle, bit) 为键注册布尔变量，
-                 * 并用单元子句强制每一位等于目标桶索引的二进制位 */
-                for (int bit = 0; bit < DEFAULT_BITWIDTH; bit++) {
-                    int ids[2] = {v_angle, bit};
-                    int bit_var = sat_encoding_register_var(enc, 2, ids);
-                    if (bit_var < 1)
-                        return -1;
-
-                    int bit_value = (target_bucket >> bit) & 1;
-                    SatLiteral lit = bit_value ? (SatLiteral) bit_var : (SatLiteral) -bit_var;
-                    if (sat_encoding_add_clause(enc, &lit, 1) >= 0)
-                        clause_count++;
-                }
-
-                return clause_count;
-            }
-            break;
+    /* VTable 查找：遍历映射表，找到匹配的约束类型并调用对应的编码函数 */
+    for (int i = 0; i < (int)(sizeof(constraint_encoders) / sizeof(constraint_encoders[0])); i++) {
+        if (constraint_encoders[i].type == con->type) {
+            return constraint_encoders[i].fn(enc, con);
         }
-
-        case CONNECTION:
-            /* 连接约束编码为关系存在 */
-            if (con->participant_count >= 2) {
-                int var;
-                if (register_pair_var(enc, con->participants[0], con->participants[1], &var) < 0)
-                    return -1;
-                SatLiteral c1[] = {var};
-                int idx = sat_encoding_add_clause(enc, c1, 1);
-                return (idx >= 0) ? 1 : -1;
-            }
-            break;
-        default:
-            lv_LOG_WARNING("Unknown constraint type %d in sat_encode_constraint", con->type);
-            break;
     }
+
+    lv_LOG_WARNING("Unknown constraint type %d in sat_encode_constraint", con->type);
 
     return 0;
 }
@@ -633,6 +653,285 @@ SatResult constraint_graph_to_sat(const ConstraintGraph *graph, SatEncoding *enc
 
     return SAT_OK;
 }
+
+/* ========================================================================
+ * 关系模型 → SAT 编码
+ * ======================================================================== */
+
+/* ========================================================================
+ * 公式编码器 VTable —— 函数指针类型与各编码器实现
+ * ======================================================================== */
+
+typedef int (*RelFormulaEncoderFn)(SatEncoding *enc, const RelFormula *formula);
+
+/* ── 各公式类型的编码器实现 ── */
+
+static int encode_formula_some(SatEncoding *enc, const RelFormula *formula) {
+    /* some R: 关系 R 非空，至少一个元组为真 */
+    if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
+        Relation *rel = formula->expr->data.atomic.rel;
+        /* 为该关系的每个元组注册变量，然后添加"至少一个为真"的子句 */
+        SatLiteral *disj = (SatLiteral *) lv_malloc((size_t) rel->tuple_count * sizeof(SatLiteral));
+        if (!disj) {
+            return 0;
+        }
+        int disj_count = 0;
+        for (int ti = 0; ti < rel->tuple_count; ti++) {
+            int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
+            if (var >= 1) {
+                disj[disj_count++] = var;
+            }
+        }
+        if (disj_count > 0) {
+            sat_encoding_add_clause(enc, disj, disj_count);
+        }
+        lv_free((void **) &disj);
+    }
+    return 0;
+}
+
+static int encode_formula_no(SatEncoding *enc, const RelFormula *formula) {
+    /* no R: 关系 R 为空，所有元组必须为假 */
+    if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
+        Relation *rel = formula->expr->data.atomic.rel;
+        for (int ti = 0; ti < rel->tuple_count; ti++) {
+            int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
+            if (var >= 1) {
+                SatLiteral unit = -var;
+                sat_encoding_add_clause(enc, &unit, 1);
+            }
+        }
+    }
+    return 0;
+}
+
+static int encode_formula_one(SatEncoding *enc, const RelFormula *formula) {
+    /* one R: 关系 R 恰好包含一个元组 */
+    if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
+        Relation *rel = formula->expr->data.atomic.rel;
+        int *vars = (int *) lv_malloc((size_t) rel->tuple_count * sizeof(int));
+        if (!vars)
+            return 0;
+        int var_count = 0;
+        for (int ti = 0; ti < rel->tuple_count; ti++) {
+            int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
+            if (var >= 1) {
+                vars[var_count++] = var;
+            }
+        }
+        /* 至少一个为真 */
+        if (var_count > 0) {
+            SatLiteral *disj = (SatLiteral *) lv_malloc((size_t) var_count * sizeof(SatLiteral));
+            if (disj) {
+                for (int vi = 0; vi < var_count; vi++)
+                    disj[vi] = vars[vi];
+                sat_encoding_add_clause(enc, disj, var_count);
+                lv_free((void **) &disj);
+            }
+        }
+        /* 至多一个为真：任意两个不同元组不能同时为真 */
+        for (int i = 0; i < var_count; i++) {
+            for (int j = i + 1; j < var_count; j++) {
+                SatLiteral pair[] = {-vars[i], -vars[j]};
+                sat_encoding_add_clause(enc, pair, 2);
+            }
+        }
+        lv_free((void **) &vars);
+    }
+    return 0;
+}
+
+static int encode_formula_lone(SatEncoding *enc, const RelFormula *formula) {
+    /* lone R: 关系 R 最多包含一个元组 */
+    if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
+        Relation *rel = formula->expr->data.atomic.rel;
+        int *vars = (int *) lv_malloc((size_t) rel->tuple_count * sizeof(int));
+        if (!vars)
+            return 0;
+        int var_count = 0;
+        for (int ti = 0; ti < rel->tuple_count; ti++) {
+            int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
+            if (var >= 1) {
+                vars[var_count++] = var;
+            }
+        }
+        for (int i = 0; i < var_count; i++) {
+            for (int j = i + 1; j < var_count; j++) {
+                SatLiteral pair[] = {-vars[i], -vars[j]};
+                sat_encoding_add_clause(enc, pair, 2);
+            }
+        }
+        lv_free((void **) &vars);
+    }
+    return 0;
+}
+
+static int encode_formula_eq_subset(SatEncoding *enc, const RelFormula *formula) {
+    /* R = S 或 R in S: 简化为逐元组蕴含 */
+    /* 对于原子关系引用，编码为元组级别的等价/蕴含 */
+    if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
+        Relation *rel = formula->expr->data.atomic.rel;
+        /* 将关系中的每个元组编码为必须为真（作为硬约束） */
+        for (int ti = 0; ti < rel->tuple_count; ti++) {
+            int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
+            if (var >= 1) {
+                SatLiteral unit = var;
+                sat_encoding_add_clause(enc, &unit, 1);
+            }
+        }
+    }
+    return 0;
+}
+
+static int encode_formula_and(SatEncoding *enc, const RelFormula *formula) {
+    /* F && G: 递归编码两个子公式 */
+    /* 子公式通过 model->facts 中的其他条目处理，
+     * 此处直接编码为：两个子公式对应的关系元组都必须为真 */
+    for (int si = 0; si < 2; si++) {
+        RelFormula *sub = formula->sub[si];
+        if (!sub || !sub->expr)
+            continue;
+        if (sub->expr->type == REL_EXPR_ATOMIC && sub->expr->data.atomic.rel) {
+            Relation *sub_rel = sub->expr->data.atomic.rel;
+            for (int ti = 0; ti < sub_rel->tuple_count; ti++) {
+                int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[ti]);
+                if (var >= 1) {
+                    SatLiteral unit = var;
+                    sat_encoding_add_clause(enc, &unit, 1);
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int encode_formula_or(SatEncoding *enc, const RelFormula *formula) {
+    /* F || G: 至少一个子公式成立 */
+    {
+        SatLiteral disj[2];
+        int disj_count = 0;
+        for (int si = 0; si < 2; si++) {
+            RelFormula *sub = formula->sub[si];
+            if (!sub || !sub->expr)
+                continue;
+            if (sub->expr->type == REL_EXPR_ATOMIC && sub->expr->data.atomic.rel) {
+                Relation *sub_rel = sub->expr->data.atomic.rel;
+                /* 取第一个元组为代表变量 */
+                if (sub_rel->tuple_count > 0) {
+                    int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[0]);
+                    if (var >= 1)
+                        disj[disj_count++] = var;
+                }
+            }
+        }
+        if (disj_count > 0) {
+            sat_encoding_add_clause(enc, disj, disj_count);
+        }
+    }
+    return 0;
+}
+
+static int encode_formula_not(SatEncoding *enc, const RelFormula *formula) {
+    /* !F: 取反子公式 */
+    if (formula->sub[0] && formula->sub[0]->expr && formula->sub[0]->expr->type == REL_EXPR_ATOMIC &&
+        formula->sub[0]->expr->data.atomic.rel) {
+        Relation *sub_rel = formula->sub[0]->expr->data.atomic.rel;
+        for (int ti = 0; ti < sub_rel->tuple_count; ti++) {
+            int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[ti]);
+            if (var >= 1) {
+                SatLiteral unit = -var;
+                sat_encoding_add_clause(enc, &unit, 1);
+            }
+        }
+    }
+    return 0;
+}
+
+static int encode_formula_implies(SatEncoding *enc, const RelFormula *formula) {
+    /* F => G: 等价于 !F || G */
+    {
+        SatLiteral disj[2];
+        int disj_count = 0;
+        /* !F: 取反左侧 */
+        if (formula->sub[0] && formula->sub[0]->expr && formula->sub[0]->expr->type == REL_EXPR_ATOMIC &&
+            formula->sub[0]->expr->data.atomic.rel) {
+            Relation *left_rel = formula->sub[0]->expr->data.atomic.rel;
+            if (left_rel->tuple_count > 0) {
+                int var = sat_encoding_register_var(enc, left_rel->arity, left_rel->tuples[0]);
+                if (var >= 1)
+                    disj[disj_count++] = -var;
+            }
+        }
+        /* G: 正向右侧 */
+        if (formula->sub[1] && formula->sub[1]->expr && formula->sub[1]->expr->type == REL_EXPR_ATOMIC &&
+            formula->sub[1]->expr->data.atomic.rel) {
+            Relation *right_rel = formula->sub[1]->expr->data.atomic.rel;
+            if (right_rel->tuple_count > 0) {
+                int var = sat_encoding_register_var(enc, right_rel->arity, right_rel->tuples[0]);
+                if (var >= 1)
+                    disj[disj_count++] = var;
+            }
+        }
+        if (disj_count > 0) {
+            sat_encoding_add_clause(enc, disj, disj_count);
+        }
+    }
+    return 0;
+}
+
+static int encode_formula_forall_exists(SatEncoding *enc, const RelFormula *formula) {
+    /* 量词公式：在全称/存在量化下编码子公式 */
+    /* 实现：对有限域上的量词进行展开编码 */
+    if (formula->sub[0] && formula->sub[0]->expr && formula->sub[0]->expr->type == REL_EXPR_ATOMIC &&
+        formula->sub[0]->expr->data.atomic.rel) {
+        Relation *sub_rel = formula->sub[0]->expr->data.atomic.rel;
+        if (formula->type == REL_FORMULA_FORALL) {
+            /* all x: S | F => F 对所有 x 成立 */
+            for (int ti = 0; ti < sub_rel->tuple_count; ti++) {
+                int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[ti]);
+                if (var >= 1) {
+                    SatLiteral unit = var;
+                    sat_encoding_add_clause(enc, &unit, 1);
+                }
+            }
+        } else {
+            /* some x: S | F => 至少一个 x 使 F 成立 */
+            SatLiteral *disj = (SatLiteral *) lv_malloc((size_t) sub_rel->tuple_count * sizeof(SatLiteral));
+            if (disj) {
+                int dc = 0;
+                for (int ti = 0; ti < sub_rel->tuple_count; ti++) {
+                    int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[ti]);
+                    if (var >= 1)
+                        disj[dc++] = var;
+                }
+                if (dc > 0)
+                    sat_encoding_add_clause(enc, disj, dc);
+                lv_free((void **) &disj);
+            }
+        }
+    }
+    return 0;
+}
+
+/* ── 公式编码器 VTable ── */
+
+static const struct {
+    RelFormulaType type;
+    RelFormulaEncoderFn encode;
+} kFormulaEncoders[] = {
+    {REL_FORMULA_SOME,     encode_formula_some},
+    {REL_FORMULA_NO,       encode_formula_no},
+    {REL_FORMULA_ONE,      encode_formula_one},
+    {REL_FORMULA_LONE,     encode_formula_lone},
+    {REL_FORMULA_EQ,       encode_formula_eq_subset},
+    {REL_FORMULA_SUBSET,   encode_formula_eq_subset},
+    {REL_FORMULA_AND,      encode_formula_and},
+    {REL_FORMULA_OR,       encode_formula_or},
+    {REL_FORMULA_NOT,      encode_formula_not},
+    {REL_FORMULA_IMPLIES,  encode_formula_implies},
+    {REL_FORMULA_FORALL,   encode_formula_forall_exists},
+    {REL_FORMULA_EXISTS,   encode_formula_forall_exists},
+};
 
 /* ========================================================================
  * 关系模型 → SAT 编码
@@ -667,249 +966,18 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
         if (!formula)
             continue;
 
-        switch (formula->type) {
-            case REL_FORMULA_SOME: {
-                /* some R: 关系 R 非空，至少一个元组为真 */
-                if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
-                    Relation *rel = formula->expr->data.atomic.rel;
-                    /* 为该关系的每个元组注册变量，然后添加"至少一个为真"的子句 */
-                    SatLiteral *disj = (SatLiteral *) lv_malloc((size_t) rel->tuple_count * sizeof(SatLiteral));
-                    if (!disj) { /* 内存不足，跳过此事实 */
-                        break;
-                    }
-                    int disj_count = 0;
-                    for (int ti = 0; ti < rel->tuple_count; ti++) {
-                        int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
-                        if (var >= 1) {
-                            disj[disj_count++] = var;
-                        }
-                    }
-                    if (disj_count > 0) {
-                        sat_encoding_add_clause(enc, disj, disj_count);
-                    }
-                    lv_free((void **) &disj);
+        {
+            bool found = false;
+            for (size_t i = 0; i < sizeof(kFormulaEncoders) / sizeof(kFormulaEncoders[0]); i++) {
+                if (kFormulaEncoders[i].type == formula->type) {
+                    kFormulaEncoders[i].encode(enc, formula);
+                    found = true;
+                    break;
                 }
-                break;
             }
-            case REL_FORMULA_NO: {
-                /* no R: 关系 R 为空，所有元组必须为假 */
-                if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
-                    Relation *rel = formula->expr->data.atomic.rel;
-                    for (int ti = 0; ti < rel->tuple_count; ti++) {
-                        int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
-                        if (var >= 1) {
-                            SatLiteral unit = -var;
-                            sat_encoding_add_clause(enc, &unit, 1);
-                        }
-                    }
-                }
-                break;
-            }
-            case REL_FORMULA_ONE: {
-                /* one R: 关系 R 恰好包含一个元组 */
-                if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
-                    Relation *rel = formula->expr->data.atomic.rel;
-                    int *vars = (int *) lv_malloc((size_t) rel->tuple_count * sizeof(int));
-                    if (!vars)
-                        break;
-                    int var_count = 0;
-                    for (int ti = 0; ti < rel->tuple_count; ti++) {
-                        int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
-                        if (var >= 1) {
-                            vars[var_count++] = var;
-                        }
-                    }
-                    /* 至少一个为真 */
-                    if (var_count > 0) {
-                        SatLiteral *disj = (SatLiteral *) lv_malloc((size_t) var_count * sizeof(SatLiteral));
-                        if (disj) {
-                            for (int vi = 0; vi < var_count; vi++)
-                                disj[vi] = vars[vi];
-                            sat_encoding_add_clause(enc, disj, var_count);
-                            lv_free((void **) &disj);
-                        }
-                    }
-                    /* 至多一个为真：任意两个不同元组不能同时为真 */
-                    for (int i = 0; i < var_count; i++) {
-                        for (int j = i + 1; j < var_count; j++) {
-                            SatLiteral pair[] = {-vars[i], -vars[j]};
-                            sat_encoding_add_clause(enc, pair, 2);
-                        }
-                    }
-                    lv_free((void **) &vars);
-                }
-                break;
-            }
-            case REL_FORMULA_LONE: {
-                /* lone R: 关系 R 最多包含一个元组 */
-                if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
-                    Relation *rel = formula->expr->data.atomic.rel;
-                    int *vars = (int *) lv_malloc((size_t) rel->tuple_count * sizeof(int));
-                    if (!vars)
-                        break;
-                    int var_count = 0;
-                    for (int ti = 0; ti < rel->tuple_count; ti++) {
-                        int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
-                        if (var >= 1) {
-                            vars[var_count++] = var;
-                        }
-                    }
-                    for (int i = 0; i < var_count; i++) {
-                        for (int j = i + 1; j < var_count; j++) {
-                            SatLiteral pair[] = {-vars[i], -vars[j]};
-                            sat_encoding_add_clause(enc, pair, 2);
-                        }
-                    }
-                    lv_free((void **) &vars);
-                }
-                break;
-            }
-            case REL_FORMULA_EQ:
-            case REL_FORMULA_SUBSET: {
-                /* R = S 或 R in S: 简化为逐元组蕴含 */
-                /* 对于原子关系引用，编码为元组级别的等价/蕴含 */
-                if (formula->expr && formula->expr->type == REL_EXPR_ATOMIC && formula->expr->data.atomic.rel) {
-                    Relation *rel = formula->expr->data.atomic.rel;
-                    /* 将关系中的每个元组编码为必须为真（作为硬约束） */
-                    for (int ti = 0; ti < rel->tuple_count; ti++) {
-                        int var = sat_encoding_register_var(enc, rel->arity, rel->tuples[ti]);
-                        if (var >= 1) {
-                            SatLiteral unit = var;
-                            sat_encoding_add_clause(enc, &unit, 1);
-                        }
-                    }
-                }
-                break;
-            }
-            case REL_FORMULA_AND: {
-                /* F && G: 递归编码两个子公式 */
-                /* 子公式通过 model->facts 中的其他条目处理，
-                 * 此处直接编码为：两个子公式对应的关系元组都必须为真 */
-                for (int si = 0; si < 2; si++) {
-                    RelFormula *sub = formula->sub[si];
-                    if (!sub || !sub->expr)
-                        continue;
-                    if (sub->expr->type == REL_EXPR_ATOMIC && sub->expr->data.atomic.rel) {
-                        Relation *sub_rel = sub->expr->data.atomic.rel;
-                        for (int ti = 0; ti < sub_rel->tuple_count; ti++) {
-                            int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[ti]);
-                            if (var >= 1) {
-                                SatLiteral unit = var;
-                                sat_encoding_add_clause(enc, &unit, 1);
-                            }
-                        }
-                    }
-                }
-                break;
-            }
-            case REL_FORMULA_OR: {
-                /* F || G: 至少一个子公式成立 */
-                {
-                    SatLiteral disj[2];
-                    int disj_count = 0;
-                    for (int si = 0; si < 2; si++) {
-                        RelFormula *sub = formula->sub[si];
-                        if (!sub || !sub->expr)
-                            continue;
-                        if (sub->expr->type == REL_EXPR_ATOMIC && sub->expr->data.atomic.rel) {
-                            Relation *sub_rel = sub->expr->data.atomic.rel;
-                            /* 取第一个元组为代表变量 */
-                            if (sub_rel->tuple_count > 0) {
-                                int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[0]);
-                                if (var >= 1)
-                                    disj[disj_count++] = var;
-                            }
-                        }
-                    }
-                    if (disj_count > 0) {
-                        sat_encoding_add_clause(enc, disj, disj_count);
-                    }
-                }
-                break;
-            }
-            case REL_FORMULA_NOT: {
-                /* !F: 取反子公式 */
-                if (formula->sub[0] && formula->sub[0]->expr && formula->sub[0]->expr->type == REL_EXPR_ATOMIC &&
-                    formula->sub[0]->expr->data.atomic.rel) {
-                    Relation *sub_rel = formula->sub[0]->expr->data.atomic.rel;
-                    for (int ti = 0; ti < sub_rel->tuple_count; ti++) {
-                        int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[ti]);
-                        if (var >= 1) {
-                            SatLiteral unit = -var;
-                            sat_encoding_add_clause(enc, &unit, 1);
-                        }
-                    }
-                }
-                break;
-            }
-            case REL_FORMULA_IMPLIES: {
-                /* F => G: 等价于 !F || G */
-                {
-                    SatLiteral disj[2];
-                    int disj_count = 0;
-                    /* !F: 取反左侧 */
-                    if (formula->sub[0] && formula->sub[0]->expr && formula->sub[0]->expr->type == REL_EXPR_ATOMIC &&
-                        formula->sub[0]->expr->data.atomic.rel) {
-                        Relation *left_rel = formula->sub[0]->expr->data.atomic.rel;
-                        if (left_rel->tuple_count > 0) {
-                            int var = sat_encoding_register_var(enc, left_rel->arity, left_rel->tuples[0]);
-                            if (var >= 1)
-                                disj[disj_count++] = -var;
-                        }
-                    }
-                    /* G: 正向右侧 */
-                    if (formula->sub[1] && formula->sub[1]->expr && formula->sub[1]->expr->type == REL_EXPR_ATOMIC &&
-                        formula->sub[1]->expr->data.atomic.rel) {
-                        Relation *right_rel = formula->sub[1]->expr->data.atomic.rel;
-                        if (right_rel->tuple_count > 0) {
-                            int var = sat_encoding_register_var(enc, right_rel->arity, right_rel->tuples[0]);
-                            if (var >= 1)
-                                disj[disj_count++] = var;
-                        }
-                    }
-                    if (disj_count > 0) {
-                        sat_encoding_add_clause(enc, disj, disj_count);
-                    }
-                }
-                break;
-            }
-            case REL_FORMULA_FORALL:
-            case REL_FORMULA_EXISTS: {
-                /* 量词公式：在全称/存在量化下编码子公式 */
-                /* 实现：对有限域上的量词进行展开编码 */
-                if (formula->sub[0] && formula->sub[0]->expr && formula->sub[0]->expr->type == REL_EXPR_ATOMIC &&
-                    formula->sub[0]->expr->data.atomic.rel) {
-                    Relation *sub_rel = formula->sub[0]->expr->data.atomic.rel;
-                    if (formula->type == REL_FORMULA_FORALL) {
-                        /* all x: S | F => F 对所有 x 成立 */
-                        for (int ti = 0; ti < sub_rel->tuple_count; ti++) {
-                            int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[ti]);
-                            if (var >= 1) {
-                                SatLiteral unit = var;
-                                sat_encoding_add_clause(enc, &unit, 1);
-                            }
-                        }
-                    } else {
-                        /* some x: S | F => 至少一个 x 使 F 成立 */
-                        SatLiteral *disj = (SatLiteral *) lv_malloc((size_t) sub_rel->tuple_count * sizeof(SatLiteral));
-                        if (disj) {
-                            int dc = 0;
-                            for (int ti = 0; ti < sub_rel->tuple_count; ti++) {
-                                int var = sat_encoding_register_var(enc, sub_rel->arity, sub_rel->tuples[ti]);
-                                if (var >= 1)
-                                    disj[dc++] = var;
-                            }
-                            if (dc > 0)
-                                sat_encoding_add_clause(enc, disj, dc);
-                            lv_free((void **) &disj);
-                        }
-                    }
-                }
-                break;
-            }
-            default:
+            if (!found) {
                 lv_LOG_WARNING("Unknown formula type %d in sat_encode_model_facts", formula->type);
-                break;
+            }
         }
     }
 

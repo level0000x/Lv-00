@@ -195,54 +195,60 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
     }
 
     /* 编码几何约束为谓词 —— 根据实际约束类型编码 */
+
+    /* 约束类型 -> TPTP 谓词格式 静态查找表 */
+    typedef struct {
+        ConstraintType type;
+        int min_participants;
+        const char *predicate_fmt;
+    } ConstraintPredicateEntry;
+
+    static const ConstraintPredicateEntry s_constraint_predicate_table[] = {
+        {INCIDENCE,    2, "incident(p%d, l%d)"},
+        {BETWEENNESS,  3, "between(p%d, p%d, p%d)"},
+        {INTERSECTION, 3, "intersect(l%d, l%d, p%d)"},
+        {CONTAINMENT,  2, "contain(r%d, p%d)"},
+        {ANGLE,        2, "angle(l%d, l%d)"},
+        {CONNECTION,   2, "connect(p%d, p%d)"},
+    };
+    const int s_constraint_predicate_count = (int)(sizeof(s_constraint_predicate_table) / sizeof(s_constraint_predicate_table[0]));
+
     int edge_count = graph->constraint_count;
     for (int i = 0; i < edge_count && remaining > 128; i++) {
         const Constraint *con = graph->constraints[i];
         if (!con || !con->is_active)
             continue;
 
-        switch (con->type) {
-            case INCIDENCE:
-                if (con->participant_count >= 2) {
-                    n = snprintf(buf + offset, (size_t) remaining, "%s(constraint_%d, axiom, incident(p%d, l%d)).\n",
-                                 lang, con->id, con->participants[0], con->participants[1]);
-                }
+        /* 查找表驱动：匹配约束类型并构建 TPTP 谓词 */
+        const ConstraintPredicateEntry *entry = NULL;
+        for (int k = 0; k < s_constraint_predicate_count; k++) {
+            if (s_constraint_predicate_table[k].type == con->type) {
+                entry = &s_constraint_predicate_table[k];
                 break;
-            case BETWEENNESS:
-                if (con->participant_count >= 3) {
-                    n = snprintf(buf + offset, (size_t) remaining,
-                                 "%s(constraint_%d, axiom, between(p%d, p%d, p%d)).\n", lang, con->id,
-                                 con->participants[0], con->participants[1], con->participants[2]);
-                }
+            }
+        }
+        if (!entry || con->participant_count < entry->min_participants) {
+            continue;
+        }
+
+        /* 根据 participant 数量构建谓词字符串 */
+        char predicate[128];
+        switch (entry->min_participants) {
+            case 2:
+                snprintf(predicate, sizeof(predicate), entry->predicate_fmt,
+                         con->participants[0], con->participants[1]);
                 break;
-            case INTERSECTION:
-                if (con->participant_count >= 3) {
-                    n = snprintf(buf + offset, (size_t) remaining,
-                                 "%s(constraint_%d, axiom, intersect(l%d, l%d, p%d)).\n", lang, con->id,
-                                 con->participants[0], con->participants[1], con->participants[2]);
-                }
-                break;
-            case CONTAINMENT:
-                if (con->participant_count >= 2) {
-                    n = snprintf(buf + offset, (size_t) remaining, "%s(constraint_%d, axiom, contain(r%d, p%d)).\n",
-                                 lang, con->id, con->participants[0], con->participants[1]);
-                }
-                break;
-            case ANGLE:
-                if (con->participant_count >= 2) {
-                    n = snprintf(buf + offset, (size_t) remaining, "%s(constraint_%d, axiom, angle(l%d, l%d)).\n",
-                                 lang, con->id, con->participants[0], con->participants[1]);
-                }
-                break;
-            case CONNECTION:
-                if (con->participant_count >= 2) {
-                    n = snprintf(buf + offset, (size_t) remaining, "%s(constraint_%d, axiom, connect(p%d, p%d)).\n",
-                                 lang, con->id, con->participants[0], con->participants[1]);
-                }
+            case 3:
+                snprintf(predicate, sizeof(predicate), entry->predicate_fmt,
+                         con->participants[0], con->participants[1], con->participants[2]);
                 break;
             default:
                 continue;
         }
+
+        n = snprintf(buf + offset, (size_t) remaining,
+                     "%s(constraint_%d, axiom, %s).\n",
+                     lang, con->id, predicate);
         if (n > 0 && n < remaining) {
             offset += n;
             remaining -= n;
