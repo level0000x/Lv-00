@@ -282,7 +282,7 @@ lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, const lv
         if (poly_internal_is_zero(p))
             continue;
         double lc;
-        if (poly_leading_term(p, ring, NULL, &lc) == 0 && fabs(lc) > GROEBNER_ZERO_THRESHOLD) {
+        if (poly_leading_term(p, ring, NULL, &lc) == 0 && fabs(lc) > lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
             poly_internal_scale(p, 1.0 / lc);
         }
     }
@@ -361,7 +361,7 @@ lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, const lv
         if (poly_internal_is_zero(p))
             continue;
         double lc;
-        if (poly_leading_term(p, ring, NULL, &lc) == 0 && fabs(lc) > GROEBNER_ZERO_THRESHOLD) {
+        if (poly_leading_term(p, ring, NULL, &lc) == 0 && fabs(lc) > lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
             poly_internal_scale(p, 1.0 / lc);
         }
     }

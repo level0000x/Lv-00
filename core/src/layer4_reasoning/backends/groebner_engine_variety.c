@@ -69,15 +69,15 @@ static double groebner_newton_refine(double (*eval)(double, void *), double (*de
                                      double x0) {
     double x = x0;
     double prev_fx = fabs(eval(x, ctx));
-    for (int iter = 0; iter < GROEBNER_NEWTON_MAX_ITER; iter++) {
+    for (int iter = 0; iter < lv_config_get_int(LV_CFG_GROEBNER_NEWTON_MAX_ITER, GROEBNER_NEWTON_MAX_ITER); iter++) {
         double fx = eval(x, ctx);
         double fpx = deriv(x, ctx);
-        if (fabs(fpx) < GROEBNER_ZERO_THRESHOLD) {
+        if (fabs(fpx) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
             break;
         }
         double dx = fx / fpx;
         x = x - dx;
-        if (fabs(dx) < GROEBNER_NEWTON_TOL) {
+        if (fabs(dx) < lv_config_get_double(LV_CFG_GROEBNER_NEWTON_TOL, GROEBNER_NEWTON_TOL)) {
             break;
         }
         /* 发散检测：如果 |fx| 增长超过 10 倍，说明迭代发散，提前退出 */
@@ -179,10 +179,10 @@ lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis, const lvPol
     }
 
     double a = -10.0, b = 10.0;
-    double step = (b - a) / (double) GROEBNER_ROOT_SEARCH_SEGMENTS;
+    double step = (b - a) / (double) lv_config_get_int(LV_CFG_GROEBNER_ROOT_SEARCH_SEGMENTS, GROEBNER_ROOT_SEARCH_SEGMENTS);
     double prev_val = univar_eval(a, &ctx);
 
-    for (int seg = 1; seg <= GROEBNER_ROOT_SEARCH_SEGMENTS && root_count < max_solutions; seg++) {
+    for (int seg = 1; seg <= lv_config_get_int(LV_CFG_GROEBNER_ROOT_SEARCH_SEGMENTS, GROEBNER_ROOT_SEARCH_SEGMENTS) && root_count < max_solutions; seg++) {
         double x = a + step * seg;
         double curr_val = univar_eval(x, &ctx);
 
@@ -190,10 +190,10 @@ lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis, const lvPol
             /* 符号变化：根存在于此区间 */
             double mid = (x + (x - step)) / 2.0;
             double root = groebner_newton_refine(univar_eval, univar_deriv, &ctx, mid);
-            if (fabs(univar_eval(root, &ctx)) < GROEBNER_ZERO_THRESHOLD) {
+            if (fabs(univar_eval(root, &ctx)) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
                 roots[root_count++] = root;
             }
-        } else if (fabs(curr_val) < GROEBNER_ZERO_THRESHOLD) {
+        } else if (fabs(curr_val) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
             roots[root_count++] = x;
         }
         prev_val = curr_val;

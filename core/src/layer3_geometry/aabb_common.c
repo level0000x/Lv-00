@@ -11,6 +11,7 @@
  * @version v3.6.0
  */
 
+#include "lv/lv.h"
 #include "lv/geo_aabb_tree.h"
 #include "aabb_internal.h"
 
@@ -53,9 +54,9 @@ lv_PUBLIC_API void lv_aabb_query_result_free(lvAABBQueryResult *result) {
  */
 lv_PUBLIC_API lvAABBTreeConfig lv_aabb_tree_default_config(void) {
     lvAABBTreeConfig cfg;
-    cfg.max_leaf_size = AABB_DEFAULT_MAX_LEAF_SIZE;
-    cfg.max_depth = AABB_DEFAULT_MAX_DEPTH;
-    cfg.use_sah = AABB_DEFAULT_USE_SAH;
+    cfg.max_leaf_size = lv_config_get_int(LV_CFG_AABB_DEFAULT_MAX_LEAF_SIZE, AABB_DEFAULT_MAX_LEAF_SIZE);
+    cfg.max_depth = lv_config_get_int(LV_CFG_AABB_DEFAULT_MAX_DEPTH, AABB_DEFAULT_MAX_DEPTH);
+    cfg.use_sah = (bool)lv_config_get_int(LV_CFG_AABB_DEFAULT_USE_SAH, 1);
     return cfg;
 }
 

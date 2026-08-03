@@ -13,8 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv.h"
 #include "lv/lv_file.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_xmacro.h"
 
 #include "smt_backend.h"
 #include "smt_backend_internal.h"
@@ -1325,7 +1327,8 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverRe
     /* ---- 其他后端：标准 SMT-LIB2 编码管线 ---- */
 
     /* 步骤 1：编码约束图为 SMT-LIB2 */
-    char *smtlib2_buf = (char *) lv_malloc(SMTLIB2_DEFAULT_BUFFER);
+    int smtlib2_buf_size = lv_config_get_int(LV_CFG_SMTLIB2_DEFAULT_BUFFER, SMTLIB2_DEFAULT_BUFFER);
+    char *smtlib2_buf = (char *) lv_malloc((size_t)smtlib2_buf_size);
     if (!smtlib2_buf) {
         out_result->sat_result = SMT_RESULT_ERROR;
         out_result->error_code = SMT_ERROR_MEMORY_EXHAUSTED;
@@ -1334,7 +1337,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverRe
     }
 
     int enc_len = smtencode_constraint_graph_to_smtlib2(graph, solver->config.logic, solver->config.produce_unsat_cores,
-                                                        smtlib2_buf, SMTLIB2_DEFAULT_BUFFER);
+                                                        smtlib2_buf, smtlib2_buf_size);
     if (enc_len < 0) {
         lv_free((void **) &smtlib2_buf);
         out_result->sat_result = SMT_RESULT_ERROR;

@@ -638,6 +638,38 @@ bool lv_transform_apply_point(const lvTransform *t, mpq_t x, mpq_t y) {
     return true;
 }
 
+void lv_transform_apply_double(const lvTransform *t, double src_x, double src_y, double *dst_x, double *dst_y) {
+    if (!t || !t->matrix_valid || !dst_x || !dst_y) {
+        if (dst_x) *dst_x = src_x;
+        if (dst_y) *dst_y = src_y;
+        return;
+    }
+
+    double a = mpq_get_d(t->matrix.a);
+    double b = mpq_get_d(t->matrix.b);
+    double tx = mpq_get_d(t->matrix.tx);
+    double c = mpq_get_d(t->matrix.c);
+    double d = mpq_get_d(t->matrix.d);
+    double ty = mpq_get_d(t->matrix.ty);
+
+    *dst_x = a * src_x + b * src_y + tx;
+    *dst_y = c * src_x + d * src_y + ty;
+}
+
+void lv_transform_apply_double4x4(const double t[16], const double *in, double *out, size_t count) {
+    if (!t || !in || !out) return;
+
+    for (size_t i = 0; i < count; i++) {
+        double x = in[i * 3];
+        double y = in[i * 3 + 1];
+        double z = in[i * 3 + 2];
+        double w = 1.0;
+        out[i * 3]     = t[0] * x + t[1] * y + t[2] * z + t[3] * w;
+        out[i * 3 + 1] = t[4] * x + t[5] * y + t[6] * z + t[7] * w;
+        out[i * 3 + 2] = t[8] * x + t[9] * y + t[10] * z + t[11] * w;
+    }
+}
+
 bool lv_transform_get_matrix(lvTransform *t, lvTransformMatrix *matrix) {
     if (!t || !matrix) {
         return false;

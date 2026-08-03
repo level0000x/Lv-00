@@ -1060,6 +1060,29 @@ void lv_config_reset(void);
 #define LV_CFG_PCTL_VALUE_ITER_MAX         "pctl_value_iter_max"
 #define LV_CFG_PCTL_POWER_ITER_MAX         "pctl_power_iter_max"
 
+/* ---- SMT backend config keys ---- */
+#define LV_CFG_SMT_DEFAULT_TIMEOUT_MS       "smt_default_timeout_ms"
+#define LV_CFG_SMT_DEFAULT_MEMORY_MB        "smt_default_memory_mb"
+#define LV_CFG_SMTLIB2_DEFAULT_BUFFER       "smtlib2_default_buffer"
+#define LV_CFG_GROEBNER_DEFAULT_VAR_CAPACITY "groebner_default_var_capacity"
+#define LV_CFG_GROEBNER_SMT_ZERO_THRESHOLD  "groebner_smt_zero_threshold"
+/* ---- Groebner engine config keys ---- */
+#define LV_CFG_GROEBNER_ZERO_THRESHOLD       "groebner_zero_threshold"
+#define LV_CFG_GROEBNER_POLY_INIT_CAPACITY   "groebner_poly_init_capacity"
+#define LV_CFG_GROEBNER_SOLVE_MAX_ITER       "groebner_solve_max_iter"
+#define LV_CFG_GROEBNER_NEWTON_TOL           "groebner_newton_tol"
+#define LV_CFG_GROEBNER_NEWTON_MAX_ITER      "groebner_newton_max_iter"
+#define LV_CFG_GROEBNER_ROOT_SEARCH_SEGMENTS "groebner_root_search_segments"
+/* ---- AABB tree config keys ---- */
+#define LV_CFG_AABB_INITIAL_CAPACITY         "aabb_initial_capacity"
+#define LV_CFG_AABB_DEFAULT_MAX_LEAF_SIZE    "aabb_default_max_leaf_size"
+#define LV_CFG_AABB_DEFAULT_MAX_DEPTH        "aabb_default_max_depth"
+#define LV_CFG_AABB_DEFAULT_USE_SAH          "aabb_default_use_sah"
+/* ---- ATP backend config keys ---- */
+#define LV_CFG_ATP_DEFAULT_TIMEOUT           "atp_default_timeout"
+#define LV_CFG_ATP_DEFAULT_MEMORY_MB         "atp_default_memory_mb"
+#define LV_CFG_ATP_TPTP_BUFFER_SIZE          "atp_tptp_buffer_size"
+
 /* 路径分隔符 */
 #ifndef lv_PATH_SEPARATOR
 #ifdef _WIN32

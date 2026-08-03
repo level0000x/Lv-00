@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv.h"
 #include "lv/lv_file.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
@@ -79,7 +80,7 @@ static lv_once_t g_default_config_once = lv_ONCE_INIT;
 static void smtsolver_default_config_init(void) {
     for (int i = 0; i < COUNT; i++) {
         g_default_configs[i].timeout_ms = lv_DEFAULT_TIMEOUT_MS;
-        g_default_configs[i].memory_limit_mb = SMT_DEFAULT_MEMORY_MB;
+        g_default_configs[i].memory_limit_mb = lv_config_get_int(LV_CFG_SMT_DEFAULT_MEMORY_MB, SMT_DEFAULT_MEMORY_MB);
         g_default_configs[i].logic = SMT_LOGIC_AUTO;
         g_default_configs[i].produce_models = true;
         g_default_configs[i].produce_unsat_cores = false;

@@ -175,7 +175,7 @@ int poly_internal_store(lvRegistryData *data, lvPolynomial *poly) {
     }
 
     if (data->poly_count >= data->poly_capacity) {
-        int new_cap = data->poly_capacity == 0 ? GROEBNER_POLY_INIT_CAPACITY : data->poly_capacity * 2;
+        int new_cap = data->poly_capacity == 0 ? lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY) : data->poly_capacity * 2;
         lvPolynomial **new_polys = (lvPolynomial **) lv_realloc(data->polys, (size_t) new_cap * sizeof(lvPolynomial *));
         if (!new_polys) {
             return -1;
@@ -301,7 +301,7 @@ static lvPolynomial *poly_internal_make_term(const lvPolynomialRing *ring, int v
  */
 static void poly_internal_add_term(lvPolynomial *poly, const lvPolynomialRing *ring,
                                    int var_idx, int power, double coeff) {
-    if (!poly || !ring || fabs(coeff) < GROEBNER_ZERO_THRESHOLD)
+    if (!poly || !ring || fabs(coeff) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD))
         return;
     int vc = ring->var_count;
     if (!poly_ensure_capacity_ex(poly, poly->term_count + 1, vc))
@@ -326,7 +326,7 @@ static void poly_internal_add_term(lvPolynomial *poly, const lvPolynomialRing *r
         }
         if (same) {
             ((double *)poly->coeffs)[i] += coeff;
-            if (fabs(((double *)poly->coeffs)[i]) < GROEBNER_ZERO_THRESHOLD) {
+            if (fabs(((double *)poly->coeffs)[i]) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
                 int last = poly->term_count - 1;
                 if (i < last) {
                     memcpy(&poly->powers[i * vc], &poly->powers[last * vc], (size_t)vc * sizeof(int));

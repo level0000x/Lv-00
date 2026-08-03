@@ -672,6 +672,53 @@ const lvProofRule *rule_engine_find_rule(const lvRuleEngine *engine, const char 
     return NULL;
 }
 
+/* ============== Search Strategy VTable ============== */
+
+/**
+ * @brief VTable for search strategy dispatch
+ */
+typedef struct {
+    lvSearchResultStatus (*search)(lvRuleEngine *engine, lvProofState *state, uint64_t start_time_us);
+} SearchStrategyVTable;
+
+/**
+ * @brief Wrapper for best-first search (adds depth=0 parameter)
+ */
+static lvSearchResultStatus search_best_first_wrap(lvRuleEngine *engine, lvProofState *state, uint64_t start_time_us) {
+    return search_best_first(engine, state, 0, start_time_us);
+}
+
+/**
+ * @brief Wrapper for depth-first search (adds depth=0 parameter)
+ */
+static lvSearchResultStatus search_depth_first_wrap(lvRuleEngine *engine, lvProofState *state, uint64_t start_time_us) {
+    return search_depth_first(engine, state, 0, start_time_us);
+}
+
+/**
+ * @brief Wrapper for breadth-first search
+ */
+static lvSearchResultStatus search_breadth_first_wrap(lvRuleEngine *engine, lvProofState *state, uint64_t start_time_us) {
+    return search_breadth_first(engine, state, start_time_us);
+}
+
+/**
+ * @brief Wrapper for iterative deepening search
+ */
+static lvSearchResultStatus search_iterative_deepening_wrap(lvRuleEngine *engine, lvProofState *state, uint64_t start_time_us) {
+    return search_iterative_deepening(engine, state, start_time_us);
+}
+
+/**
+ * @brief VTable array indexed by lvSearchStrategy enum
+ */
+static const SearchStrategyVTable kSearchStrategyVTables[] = {
+    { search_best_first_wrap },
+    { search_depth_first_wrap },
+    { search_breadth_first_wrap },
+    { search_iterative_deepening_wrap },
+};
+
 lvSearchResultStatus rule_engine_search(lvRuleEngine *engine, lvProofState *state) {
     if (!engine || !state)
         return SEARCH_RESULT_ERROR;
@@ -684,19 +731,11 @@ lvSearchResultStatus rule_engine_search(lvRuleEngine *engine, lvProofState *stat
     /* 记录搜索开始时间（用于超时检查，使用高精度微秒级计时） */
     uint64_t start_time_us = lv_circuit_breaker_now_us();
 
-    /* Dispatch to strategy-specific search */
-    switch (engine->search_strategy) {
-        case SEARCH_BEST_FIRST:
-            return search_best_first(engine, state, 0, start_time_us);
-        case SEARCH_DEPTH_FIRST:
-            return search_depth_first(engine, state, 0, start_time_us);
-        case SEARCH_BREADTH_FIRST:
-            return search_breadth_first(engine, state, start_time_us);
-        case SEARCH_ITERATIVE_DEEPENING:
-            return search_iterative_deepening(engine, state, start_time_us);
-        default:
-            return SEARCH_RESULT_ERROR;
+    /* Dispatch to strategy-specific search via VTable */
+    if (engine->search_strategy >= 0 && (size_t)engine->search_strategy < sizeof(kSearchStrategyVTables) / sizeof(kSearchStrategyVTables[0])) {
+        return kSearchStrategyVTables[engine->search_strategy].search(engine, state, start_time_us);
     }
+    return SEARCH_RESULT_ERROR;
 }
 
 int rule_engine_rule_count(const lvRuleEngine *engine) {

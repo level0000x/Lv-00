@@ -457,6 +457,38 @@ const char *preset_extended_category_to_string(PresetExtendedCategory cat) {
 
 /* ==================== 预设注册函数 ==================== */
 
+/** @brief 按 PresetCategory 枚举值索引的查找表 */
+static const PresetExtendedCategory kCategoryToExtendedMap[PRESET_CATEGORY_COUNT] = {
+    PRESET_EXT_BASIC_CONSTRUCTION,       /* PRESET_CATEGORY_CONSTRUCTION */
+    PRESET_EXT_MEASUREMENT,              /* PRESET_CATEGORY_MEASUREMENT */
+    PRESET_EXT_TRANSFORMATION_BASIC,     /* PRESET_CATEGORY_TRANSFORMATION */
+    PRESET_EXT_ALGEBRA_BASIC,            /* PRESET_CATEGORY_ALGEBRAIC */
+    PRESET_EXT_LOGIC_PROPOSITIONAL,      /* PRESET_CATEGORY_LOGIC */
+    PRESET_EXT_ANALYSIS,                 /* PRESET_CATEGORY_ANALYSIS */
+    PRESET_EXT_NUMBER_THEORY,            /* PRESET_CATEGORY_NUMBER_THEORY */
+    PRESET_EXT_GROUP_THEORY,             /* PRESET_CATEGORY_GROUP_THEORY */
+    PRESET_EXT_TOPOLOGY,                 /* PRESET_CATEGORY_TOPOLOGY */
+    PRESET_EXT_ALGEBRA_BASIC,            /* PRESET_CATEGORY_RING_THEORY */
+    PRESET_EXT_ALGEBRA_ADVANCED,         /* PRESET_CATEGORY_FIELD_THEORY */
+    PRESET_EXT_LINEAR_ALGEBRA,           /* PRESET_CATEGORY_LINEAR_ALGEBRA */
+    PRESET_EXT_COMBINATORICS,            /* PRESET_CATEGORY_COMBINATORICS */
+    PRESET_EXT_ANALYSIS,                 /* PRESET_CATEGORY_COMPLEX_ANALYSIS */
+    PRESET_EXT_ANALYSIS,                 /* PRESET_CATEGORY_PROBABILITY */
+    PRESET_EXT_ADVANCED_CONSTRUCTION,    /* PRESET_CATEGORY_GEOMETRY */
+    PRESET_EXT_ALGEBRA_BASIC,            /* PRESET_CATEGORY_ALGEBRA */
+    PRESET_EXT_TOPOLOGY,                 /* PRESET_CATEGORY_CATEGORY_THEORY */
+    PRESET_EXT_TOPOLOGY,                 /* PRESET_CATEGORY_SET_THEORY */
+    PRESET_EXT_BASIC_CONSTRUCTION,       /* PRESET_CATEGORY_CUSTOM */
+    PRESET_EXT_GRAPH_THEORY,             /* PRESET_CATEGORY_GRAPH_THEORY */
+    PRESET_EXT_DIFFERENTIAL_GEOMETRY,    /* PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY */
+    PRESET_EXT_NUMERICAL_ANALYSIS,       /* PRESET_CATEGORY_NUMERICAL */
+    PRESET_EXT_OPTIMIZATION_THEORY,      /* PRESET_CATEGORY_OPTIMIZATION */
+    PRESET_EXT_MATH_LOGIC,               /* PRESET_CATEGORY_MATH_LOGIC */
+    PRESET_EXT_BASIC_CONSTRUCTION,       /* PRESET_CATEGORY_COUNT */
+};
+lv_STATIC_ASSERT(sizeof(kCategoryToExtendedMap) / sizeof(kCategoryToExtendedMap[0]) == PRESET_CATEGORY_COUNT,
+                 "kCategoryToExtendedMap 大小必须与 PRESET_CATEGORY_COUNT 一致");
+
 /**
  * @brief 将 PresetCategory 映射到 PresetExtendedCategory
  *
@@ -467,64 +499,10 @@ const char *preset_extended_category_to_string(PresetExtendedCategory cat) {
  * @return 对应的扩展类别
  */
 static PresetExtendedCategory map_category_to_extended(PresetCategory category) {
-    switch (category) {
-        case PRESET_CATEGORY_CONSTRUCTION:
-            return PRESET_EXT_BASIC_CONSTRUCTION;
-        case PRESET_CATEGORY_MEASUREMENT:
-            return PRESET_EXT_MEASUREMENT;
-        case PRESET_CATEGORY_TRANSFORMATION:
-            return PRESET_EXT_TRANSFORMATION_BASIC;
-        case PRESET_CATEGORY_ALGEBRAIC:
-            return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_LOGIC:
-            return PRESET_EXT_LOGIC_PROPOSITIONAL;
-        case PRESET_CATEGORY_ANALYSIS:
-            return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_NUMBER_THEORY:
-            return PRESET_EXT_NUMBER_THEORY;
-        case PRESET_CATEGORY_GROUP_THEORY:
-            return PRESET_EXT_GROUP_THEORY;
-        case PRESET_CATEGORY_TOPOLOGY:
-            return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_RING_THEORY:
-            return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_FIELD_THEORY:
-            return PRESET_EXT_ALGEBRA_ADVANCED;
-        case PRESET_CATEGORY_LINEAR_ALGEBRA:
-            return PRESET_EXT_LINEAR_ALGEBRA;
-        case PRESET_CATEGORY_COMBINATORICS:
-            return PRESET_EXT_COMBINATORICS;
-        case PRESET_CATEGORY_COMPLEX_ANALYSIS:
-            return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_PROBABILITY:
-            return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_GEOMETRY:
-            return PRESET_EXT_ADVANCED_CONSTRUCTION;
-        case PRESET_CATEGORY_ALGEBRA:
-            return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_CATEGORY_THEORY:
-            return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_SET_THEORY:
-            return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_CUSTOM:
-            return PRESET_EXT_BASIC_CONSTRUCTION;
-        /* ---- v10.0 修复：补齐"界面层-扩展类别"映射中缺失的 5 个分支 ---- */
-        case PRESET_CATEGORY_GRAPH_THEORY:
-            return PRESET_EXT_GRAPH_THEORY;
-        case PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY:
-            return PRESET_EXT_DIFFERENTIAL_GEOMETRY;
-        case PRESET_CATEGORY_NUMERICAL:
-            return PRESET_EXT_NUMERICAL_ANALYSIS;
-        case PRESET_CATEGORY_OPTIMIZATION:
-            return PRESET_EXT_OPTIMIZATION_THEORY;
-        case PRESET_CATEGORY_MATH_LOGIC:
-            return PRESET_EXT_MATH_LOGIC;
-        case PRESET_CATEGORY_COUNT:
-            return PRESET_EXT_BASIC_CONSTRUCTION;
-            /* 不提供 default 分支：若未来新增 PresetCategory 而未同步更新此 switch，
-         * 编译器将发出 -Wswitch 警告，提示开发者补充映射。这比静默回退到默认值更安全。 */
+    if ((int)category < 0 || (int)category >= PRESET_CATEGORY_COUNT) {
+        return PRESET_EXT_BASIC_CONSTRUCTION;
     }
-    return PRESET_EXT_BASIC_CONSTRUCTION;
+    return kCategoryToExtendedMap[category];
 }
 
 /* ==================== 通用简化注册 ==================== */

@@ -79,7 +79,7 @@ int poly_sort_terms(lvPolynomial *poly, const lvPolynomialRing *ring) {
     /* 移除系数为 0 的项 */
     write_pos = 0;
     for (int i = 0; i < poly->term_count; i++) {
-        if (fabs(coeffs[i]) > GROEBNER_ZERO_THRESHOLD) {
+        if (fabs(coeffs[i]) > lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
             if (write_pos != i) {
                 for (int k = 0; k < vc; k++) {
                     poly->powers[write_pos * vc + k] = poly->powers[i * vc + k];
@@ -120,7 +120,7 @@ lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capacity, c
     }
 
     if (capacity < 1) {
-        capacity = GROEBNER_POLY_INIT_CAPACITY;
+        capacity = lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY);
     }
 
     int vc = ring->var_count;
@@ -198,7 +198,7 @@ bool poly_ensure_capacity_ex(lvPolynomial *poly, int needed, int var_count) {
 
     int new_cap = poly->term_capacity;
     if (new_cap < 1) {
-        new_cap = GROEBNER_POLY_INIT_CAPACITY;
+        new_cap = lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY);
     }
     while (new_cap < needed) {
         new_cap *= GROEBNER_POLY_GROW_FACTOR;
@@ -279,8 +279,8 @@ lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial *g, co
 
     int vc = ring->var_count;
     int est_capacity = f->term_count + g->term_count;
-    if (est_capacity < GROEBNER_POLY_INIT_CAPACITY) {
-        est_capacity = GROEBNER_POLY_INIT_CAPACITY;
+    if (est_capacity < lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY)) {
+        est_capacity = lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY);
     }
 
     lvPolynomial *result = poly_internal_create(ring, est_capacity, NULL);
@@ -315,7 +315,7 @@ lvPolynomial *poly_internal_add(const lvPolynomial *f, const lvPolynomial *g, co
         } else {
             /* 同类项 */
             double sum = ((double *) f->coeffs)[fi] + ((double *) g->coeffs)[gi];
-            if (fabs(sum) > GROEBNER_ZERO_THRESHOLD) {
+            if (fabs(sum) > lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
                 mono_copy(&result->powers[ti * vc], &f->powers[fi * vc], vc);
                 coeffs[ti] = sum;
                 result->term_count++;
@@ -379,7 +379,7 @@ lvPolynomial *poly_internal_multiply(const lvPolynomial *f, const lvPolynomial *
     int vc = ring->var_count;
     int est_capacity = f->term_count * g->term_count;
     if (est_capacity < 1) {
-        est_capacity = GROEBNER_POLY_INIT_CAPACITY;
+        est_capacity = lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY);
     }
     if (est_capacity > 100000) {
         est_capacity = 100000;
@@ -443,7 +443,7 @@ lvPolynomial *poly_internal_substitute(const lvPolynomial *f, int var_index, con
     }
 
     /* 先创建零多项式作为累加器 */
-    lvPolynomial *result = poly_internal_create(ring, GROEBNER_POLY_INIT_CAPACITY, NULL);
+    lvPolynomial *result = poly_internal_create(ring, lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY), NULL);
     if (!result) {
         return NULL;
     }
@@ -455,7 +455,7 @@ lvPolynomial *poly_internal_substitute(const lvPolynomial *f, int var_index, con
         int exp = f->powers[i * vc + var_index];
         double coeff = f_coeffs[i];
 
-        if (fabs(coeff) < GROEBNER_ZERO_THRESHOLD) {
+        if (fabs(coeff) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
             continue;
         }
 
@@ -548,7 +548,7 @@ bool poly_internal_is_zero(const lvPolynomial *poly) {
     /* 检查是否所有系数都接近零 */
     double *coeffs = (double *) poly->coeffs;
     for (int i = 0; i < poly->term_count; i++) {
-        if (fabs(coeffs[i]) > GROEBNER_ZERO_THRESHOLD) {
+        if (fabs(coeffs[i]) > lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
             return false;
         }
     }
@@ -796,7 +796,7 @@ lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **basis, 
 
         /* 寻找当前多项式中可被约化的项 */
         for (int i = 0; i < remainder->term_count; i++) {
-            if (fabs(rem_coeffs[i]) < GROEBNER_ZERO_THRESHOLD) {
+            if (fabs(rem_coeffs[i]) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
                 continue;
             }
 

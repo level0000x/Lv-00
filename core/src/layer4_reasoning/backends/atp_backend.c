@@ -54,13 +54,13 @@
  * ============================================================ */
 
 /** @brief 默认求解超时（秒） */
-#define ATP_DEFAULT_TIMEOUT 30.0
+#define lv_config_get_double(LV_CFG_ATP_DEFAULT_TIMEOUT, ATP_DEFAULT_TIMEOUT) 30.0
 
 /** @brief 默认内存限制（MB） */
-#define ATP_DEFAULT_MEMORY_MB 1024
+#define lv_config_get_int(LV_CFG_ATP_DEFAULT_MEMORY_MB, ATP_DEFAULT_MEMORY_MB) 1024
 
 /** @brief TPTP 编码缓冲区默认大小 */
-#define ATP_TPTP_BUFFER_SIZE 65536
+#define lv_config_get_int(LV_CFG_ATP_TPTP_BUFFER_SIZE, ATP_TPTP_BUFFER_SIZE) 65536
 
 /* ============================================================
  * 不透明结构：ATPBackendSolver 内部实现
@@ -105,8 +105,8 @@ ATPConfig atp_config_default(void) {
     ATPConfig cfg;
     memset(&cfg, 0, sizeof(ATPConfig));
     cfg.input_format = ATP_FORMAT_TPTP_FOF;
-    cfg.timeout_seconds = ATP_DEFAULT_TIMEOUT;
-    cfg.memory_limit_mb = ATP_DEFAULT_MEMORY_MB;
+    cfg.timeout_seconds = lv_config_get_double(LV_CFG_ATP_DEFAULT_TIMEOUT, ATP_DEFAULT_TIMEOUT);
+    cfg.memory_limit_mb = lv_config_get_int(LV_CFG_ATP_DEFAULT_MEMORY_MB, ATP_DEFAULT_MEMORY_MB);
     cfg.auto_strategy = true;
     cfg.strategy_name = NULL;
     cfg.produce_proof = true;
@@ -138,13 +138,13 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
                                   bool include_proof_goal, const Proposition *target_prop) {
     lv_CHECK_NULL(graph, NULL);
 
-    char *buf = (char *) lv_malloc(ATP_TPTP_BUFFER_SIZE);
+    char *buf = (char *) lv_malloc(lv_config_get_int(LV_CFG_ATP_TPTP_BUFFER_SIZE, ATP_TPTP_BUFFER_SIZE));
     if (!buf) {
         return NULL;
     }
 
     int offset = 0;
-    int remaining = ATP_TPTP_BUFFER_SIZE;
+    int remaining = lv_config_get_int(LV_CFG_ATP_TPTP_BUFFER_SIZE, ATP_TPTP_BUFFER_SIZE);
 
     /* 根据格式选择头部 */
     const char *lang;

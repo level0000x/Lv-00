@@ -675,22 +675,24 @@ static bool s_universe_checking_enabled = true;
  * @param node 几何节点
  * @return 宇宙层级；node 为 NULL 或未知类型时返回 UNIVERSE_LEVEL_0
  */
+/* 查找表：GeomType → UniverseLevel */
+static const UniverseLevel kNodeTypeUniverseLevels[] = {
+    [GEOM_POINT]          = UNIVERSE_LEVEL_0,
+    [GEOM_LINE_SEGMENT]   = UNIVERSE_LEVEL_0,
+    [GEOM_REGION]         = UNIVERSE_LEVEL_1,
+    [GEOM_CIRCLE]         = UNIVERSE_LEVEL_1,
+    [GEOM_PORT]           = UNIVERSE_LEVEL_0,
+    [GEOM_FUNCTION_BLOCK] = UNIVERSE_LEVEL_1,
+};
+
 UniverseLevel type_get_universe_level(const GeomNode *node) {
     if (!node)
         return UNIVERSE_LEVEL_0;
 
-    switch (node->type) {
-        case GEOM_POINT:
-        case GEOM_LINE_SEGMENT:
-        case GEOM_PORT:
-            return UNIVERSE_LEVEL_0;
-        case GEOM_REGION:
-        case GEOM_CIRCLE:
-        case GEOM_FUNCTION_BLOCK:
-            return UNIVERSE_LEVEL_1;
-        default:
-            return UNIVERSE_LEVEL_0;
-    }
+    if (node->type < 0 || node->type >= (int)(sizeof(kNodeTypeUniverseLevels)/sizeof(kNodeTypeUniverseLevels[0])))
+        return UNIVERSE_LEVEL_0;
+
+    return kNodeTypeUniverseLevels[node->type];
 }
 
 /**

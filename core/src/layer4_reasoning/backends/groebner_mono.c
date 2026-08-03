@@ -9,6 +9,8 @@
 
 #include "groebner_engine_internal.h"
 
+#include "lv/lv.h"
+
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -126,7 +128,7 @@ int mono_compare(const lvPolynomialRing *ring, const int *powers_a, const int *p
                     w_a += ring->weights[i] * powers_a[i];
                     w_b += ring->weights[i] * powers_b[i];
                 }
-                if (fabs(w_a - w_b) > GROEBNER_ZERO_THRESHOLD) {
+                if (fabs(w_a - w_b) > lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
                     return (w_a > w_b) ? 1 : -1;
                 }
             }

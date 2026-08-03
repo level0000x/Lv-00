@@ -324,6 +324,133 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
 }
 
 /* ================================================================
+ * 变换操作 VTable
+ * ================================================================ */
+
+/** 变换操作虚函数表 */
+typedef struct {
+    int (*apply)(double m[16], const double *params, int param_count);
+} TransformOpVTable;
+
+/** 平移变换 */
+static int apply_translate(double m[16], const double *params, int param_count) {
+    if (param_count < 2)
+        return 0;
+    m[3] = params[0];  /* dx */
+    m[7] = params[1];  /* dy */
+    if (param_count >= 3)
+        m[11] = params[2]; /* dz */
+    return 1;
+}
+
+/** 旋转变换（绕任意轴旋转） */
+static int apply_rotate(double m[16], const double *params, int param_count) {
+    double angle_deg, ax, ay, az, rad, c, s, len, ux, uy, uz;
+    if (param_count < 4)
+        return 0;
+    angle_deg = params[0];
+    ax = params[1];
+    ay = params[2];
+    az = params[3];
+    rad = angle_deg * M_PI / 180.0;
+    c = cos(rad);
+    s = sin(rad);
+    len = sqrt(ax * ax + ay * ay + az * az);
+    if (len < 1e-15)
+        return 0;
+    ux = ax / len;
+    uy = ay / len;
+    uz = az / len;
+    m[0] = c + ux * ux * (1 - c);
+    m[1] = ux * uy * (1 - c) + uz * s;
+    m[2] = ux * uz * (1 - c) - uy * s;
+    m[4] = uy * ux * (1 - c) - uz * s;
+    m[5] = c + uy * uy * (1 - c);
+    m[6] = uy * uz * (1 - c) + ux * s;
+    m[8] = uz * ux * (1 - c) + uy * s;
+    m[9] = uz * uy * (1 - c) - ux * s;
+    m[10] = c + uz * uz * (1 - c);
+    return 1;
+}
+
+/** 缩放变换 */
+static int apply_scale(double m[16], const double *params, int param_count) {
+    if (param_count < 3)
+        return 0;
+    m[0] = params[0];  /* sx */
+    m[5] = params[1];  /* sy */
+    m[10] = params[2]; /* sz */
+    return 1;
+}
+
+/** 镜像变换（平面反射） */
+static int apply_mirror(double m[16], const double *params, int param_count) {
+    double nx, ny, nz, d;
+    if (param_count < 4)
+        return 0;
+    nx = params[0];
+    ny = params[1];
+    nz = params[2];
+    d = params[3];
+    /* 平面反射矩阵：reflect through plane nx*x + ny*y + nz*z = d */
+    double nlen = sqrt(nx * nx + ny * ny + nz * nz);
+    if (nlen < 1e-15)
+        return 0;
+    nx /= nlen;
+    ny /= nlen;
+    nz /= nlen;
+    m[0] = 1.0 - 2.0 * nx * nx;
+    m[1] = -2.0 * nx * ny;
+    m[2] = -2.0 * nx * nz;
+    m[3] = 2.0 * nx * d;
+    m[4] = -2.0 * ny * nx;
+    m[5] = 1.0 - 2.0 * ny * ny;
+    m[6] = -2.0 * ny * nz;
+    m[7] = 2.0 * ny * d;
+    m[8] = -2.0 * nz * nx;
+    m[9] = -2.0 * nz * ny;
+    m[10] = 1.0 - 2.0 * nz * nz;
+    m[11] = 2.0 * nz * d;
+    return 1;
+}
+
+/** 正交投影变换（投影到通过原点的指定平面） */
+static int apply_project(double m[16], const double *params, int param_count) {
+    double px, py, pz;
+    if (param_count < 3)
+        return 0;
+    px = params[0];
+    py = params[1];
+    pz = params[2];
+    /* 正交投影到指定平面（通过原点，法向量为 (px,py,pz)） */
+    double plen = sqrt(px * px + py * py + pz * pz);
+    if (plen < 1e-15)
+        return 0;
+    px /= plen;
+    py /= plen;
+    pz /= plen;
+    m[0] = 1.0 - px * px;
+    m[1] = -px * py;
+    m[2] = -px * pz;
+    m[4] = -py * px;
+    m[5] = 1.0 - py * py;
+    m[6] = -py * pz;
+    m[8] = -pz * px;
+    m[9] = -pz * py;
+    m[10] = 1.0 - pz * pz;
+    return 1;
+}
+
+/** 按枚举值索引的 VTable 数组 */
+static const TransformOpVTable kTransformOpVTables[] = {
+    {apply_translate},  /* TRANSFORM_TRANSLATE = 0 */
+    {apply_rotate},     /* TRANSFORM_ROTATE    = 1 */
+    {apply_scale},      /* TRANSFORM_SCALE     = 2 */
+    {apply_mirror},     /* TRANSFORM_MIRROR    = 3 */
+    {apply_project}     /* TRANSFORM_PROJECT   = 4 */
+};
+
+/* ================================================================
  * 变换操作
  * ================================================================ */
 
@@ -333,114 +460,14 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, lvTransformOp op, const do
     if (!geom || !params || param_count < 1)
         return NULL;
 
+    /* 检查 op 是否在有效范围内 */
+    if (op < TRANSFORM_TRANSLATE || op > TRANSFORM_PROJECT)
+        return NULL;
+
     identity_matrix(m);
 
-    switch (op) {
-        case TRANSFORM_TRANSLATE:
-            if (param_count < 2)
-                return NULL;
-            m[3] = params[0];  /* dx */
-            m[7] = params[1];  /* dy */
-            if (param_count >= 3)
-                m[11] = params[2]; /* dz */
-            break;
-
-        case TRANSFORM_ROTATE: {
-            double angle_deg, ax, ay, az, rad, c, s, len, ux, uy, uz;
-            if (param_count < 4)
-                return NULL;
-            angle_deg = params[0];
-            ax = params[1];
-            ay = params[2];
-            az = params[3];
-            rad = angle_deg * M_PI / 180.0;
-            c = cos(rad);
-            s = sin(rad);
-            len = sqrt(ax * ax + ay * ay + az * az);
-            if (len < 1e-15)
-                return NULL;
-            ux = ax / len;
-            uy = ay / len;
-            uz = az / len;
-            m[0] = c + ux * ux * (1 - c);
-            m[1] = ux * uy * (1 - c) + uz * s;
-            m[2] = ux * uz * (1 - c) - uy * s;
-            m[4] = uy * ux * (1 - c) - uz * s;
-            m[5] = c + uy * uy * (1 - c);
-            m[6] = uy * uz * (1 - c) + ux * s;
-            m[8] = uz * ux * (1 - c) + uy * s;
-            m[9] = uz * uy * (1 - c) - ux * s;
-            m[10] = c + uz * uz * (1 - c);
-            break;
-        }
-
-        case TRANSFORM_SCALE:
-            if (param_count < 3)
-                return NULL;
-            m[0] = params[0];  /* sx */
-            m[5] = params[1];  /* sy */
-            m[10] = params[2]; /* sz */
-            break;
-
-        case TRANSFORM_MIRROR: {
-            double nx, ny, nz, d;
-            if (param_count < 4)
-                return NULL;
-            nx = params[0];
-            ny = params[1];
-            nz = params[2];
-            d = params[3];
-            /* 平面反射矩阵：reflect through plane nx*x + ny*y + nz*z = d */
-            double nlen = sqrt(nx * nx + ny * ny + nz * nz);
-            if (nlen < 1e-15)
-                return NULL;
-            nx /= nlen;
-            ny /= nlen;
-            nz /= nlen;
-            m[0] = 1.0 - 2.0 * nx * nx;
-            m[1] = -2.0 * nx * ny;
-            m[2] = -2.0 * nx * nz;
-            m[3] = 2.0 * nx * d;
-            m[4] = -2.0 * ny * nx;
-            m[5] = 1.0 - 2.0 * ny * ny;
-            m[6] = -2.0 * ny * nz;
-            m[7] = 2.0 * ny * d;
-            m[8] = -2.0 * nz * nx;
-            m[9] = -2.0 * nz * ny;
-            m[10] = 1.0 - 2.0 * nz * nz;
-            m[11] = 2.0 * nz * d;
-            break;
-        }
-
-        case TRANSFORM_PROJECT: {
-            double px, py, pz;
-            if (param_count < 3)
-                return NULL;
-            px = params[0];
-            py = params[1];
-            pz = params[2];
-            /* 正交投影到指定平面（通过原点，法向量为 (px,py,pz)） */
-            double plen = sqrt(px * px + py * py + pz * pz);
-            if (plen < 1e-15)
-                return NULL;
-            px /= plen;
-            py /= plen;
-            pz /= plen;
-            m[0] = 1.0 - px * px;
-            m[1] = -px * py;
-            m[2] = -px * pz;
-            m[4] = -py * px;
-            m[5] = 1.0 - py * py;
-            m[6] = -py * pz;
-            m[8] = -pz * px;
-            m[9] = -pz * py;
-            m[10] = 1.0 - pz * pz;
-            break;
-        }
-
-        default:
-            return NULL;
-    }
+    if (!kTransformOpVTables[op].apply(m, params, param_count))
+        return NULL;
 
     /* 累积变换：new_transform = m * old_transform */
     mul_matrix(geom->transform, m, geom->transform);

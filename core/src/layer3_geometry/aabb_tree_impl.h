@@ -20,6 +20,8 @@
  *   AABB_LEAF_MULTI     - 是否支持多面片叶子（1 或 0）
  */
 
+#include "lv/lv.h"
+
 /* ========================================================================
  * 宏连接辅助
  * ======================================================================== */
@@ -39,7 +41,7 @@
  * ======================================================================== */
 static int AABB_FUNC(node_alloc)(AABB_TREE_TYPE *tree) {
     if (tree->node_count >= tree->node_capacity) {
-        int new_cap = (tree->node_capacity > 0) ? tree->node_capacity * 2 : AABB_INITIAL_CAPACITY;
+        int new_cap = (tree->node_capacity > 0) ? tree->node_capacity * 2 : lv_config_get_int(LV_CFG_AABB_INITIAL_CAPACITY, AABB_INITIAL_CAPACITY);
         lvAABBNode *new_nodes = (lvAABBNode *) lv_realloc(tree->nodes, (size_t) new_cap * sizeof(lvAABBNode));
         if (!new_nodes)
             return AABB_INVALID_NODE;
@@ -135,7 +137,7 @@ static int AABB_FUNC(build_recursive)(AABB_TREE_TYPE *tree, int *prim_indices, i
         int old_size = tree->leaf_prim_capacity;
         int needed = old_size + count;
         if (needed > tree->leaf_prim_capacity) {
-            int new_cap = (tree->leaf_prim_capacity > 0) ? tree->leaf_prim_capacity * 2 : AABB_INITIAL_CAPACITY;
+            int new_cap = (tree->leaf_prim_capacity > 0) ? tree->leaf_prim_capacity * 2 : lv_config_get_int(LV_CFG_AABB_INITIAL_CAPACITY, AABB_INITIAL_CAPACITY);
             while (new_cap < needed)
                 new_cap *= 2;
             int *new_ids = (int *) lv_realloc(tree->leaf_prim_ids, (size_t) new_cap * sizeof(int));
