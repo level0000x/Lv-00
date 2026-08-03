@@ -130,32 +130,52 @@ static bool rule_matches(const RoutingRule *rule, const GraphFeatures *features,
 }
 
 /* ============================================================
- * 内部辅助：将 SolverStatus 映射为 SMTSatResult
+ * 内部辅助：SolverStatus → SMTSatResult 查找表（代替 switch）
  * ============================================================ */
+static const SMTSatResult kSolverStatusToSat[] = {
+    [SOLVER_STATUS_OK]            = SMT_RESULT_SAT,
+    [SOLVER_STATUS_UNIQUE]        = SMT_RESULT_SAT,
+    [SOLVER_STATUS_MULTIPLE]      = SMT_RESULT_SAT,
+    [SOLVER_STATUS_NO_SOLUTION]   = SMT_RESULT_UNSAT,
+    [SOLVER_STATUS_OVERCONSTRAINED] = SMT_RESULT_UNSAT,
+    [SOLVER_STATUS_TIMEOUT]       = SMT_RESULT_UNKNOWN,
+    [SOLVER_STATUS_OUT_OF_SCOPE]  = SMT_RESULT_UNKNOWN,
+    [SOLVER_STATUS_OUT_OF_MEMORY] = SMT_RESULT_ERROR,
+};
+
 static SMTSatResult solver_status_to_sat(SolverStatus status) {
-    switch (status) {
-        case SOLVER_STATUS_OK:
-        case SOLVER_STATUS_UNIQUE:
-        case SOLVER_STATUS_MULTIPLE:
-            return SMT_RESULT_SAT;
-
-        case SOLVER_STATUS_NO_SOLUTION:
-            return SMT_RESULT_UNSAT;
-
-        case SOLVER_STATUS_OVERCONSTRAINED:
-            return SMT_RESULT_UNSAT;
-
-        case SOLVER_STATUS_TIMEOUT:
-            return SMT_RESULT_UNKNOWN;
-
-        case SOLVER_STATUS_OUT_OF_SCOPE:
-            return SMT_RESULT_UNKNOWN;
-
-        case SOLVER_STATUS_OUT_OF_MEMORY:
-        default:
-            return SMT_RESULT_ERROR;
+    int idx = (int)status;
+    if (idx >= 0 && idx < (int)(sizeof(kSolverStatusToSat) / sizeof(kSolverStatusToSat[0]))) {
+        return kSolverStatusToSat[idx];
     }
+    return SMT_RESULT_ERROR;
 }
+
+/* ============================================================
+ * SolverStatus → 返回码查找表（用于 scheduler_solve_groebner_compat）
+ * ============================================================ */
+static const int kSolverStatusToReturnCode[] = {
+    [SOLVER_STATUS_OK]            = 0,
+    [SOLVER_STATUS_UNIQUE]        = 0,
+    [SOLVER_STATUS_MULTIPLE]      = 0,
+    [SOLVER_STATUS_NO_SOLUTION]   = 1,
+    [SOLVER_STATUS_OVERCONSTRAINED] = 1,
+    [SOLVER_STATUS_TIMEOUT]       = 2,
+    [SOLVER_STATUS_OUT_OF_MEMORY] = -1,
+    [SOLVER_STATUS_OUT_OF_SCOPE]  = -1,
+};
+
+/* ============================================================
+ * 调度器后端虚函数表（VTable）—— 消除 backend_type switch 分发
+ * ============================================================ */
+typedef struct SchedulerBackendVTable {
+    SolverBackendType type;  /**< 后端类型标识 */
+    const char       *name;  /**< 后端名称 */
+    int (*solve)(EngineScheduler *scheduler, const ConstraintGraph *graph,
+                 SMTSolverResult *out_result);  /**< 求解函数 */
+    void *(*create)(void);    /**< 创建后端实例（保留扩展用） */
+    void  (*destroy)(void *backend); /**< 销毁后端实例（保留扩展用） */
+} SchedulerBackendVTable;
 
 /* ============================================================
  * 内部辅助：从 GroebnerResult 中提取 POINT 节点坐标到 SMTSolverResult
@@ -628,6 +648,77 @@ SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler, con
 }
 
 /* ============================================================
+ * Per-backend solve 函数（VTable 分发用）
+ * ============================================================ */
+
+/** GROEBNER 后端求解 */
+static int groebner_solve(EngineScheduler *scheduler, const ConstraintGraph *graph,
+                          SMTSolverResult *out_result) {
+    (void)scheduler;
+    GroebnerResult *groebner_result = NULL;
+
+    ConstraintGraph *nc_graph = (ConstraintGraph *) (uintptr_t) graph;
+
+    uint64_t start_us = lv_get_time_us();
+    SolverStatus status = solve_algebraic_system(nc_graph, NULL, 0, &groebner_result);
+    uint64_t elapsed_us = lv_get_time_us() - start_us;
+
+    out_result->sat_result = solver_status_to_sat(status);
+    out_result->solve_time_ms = (double) elapsed_us / 1000.0;
+
+    /* 从图中提取赋值 */
+    if (out_result->sat_result == SMT_RESULT_SAT) {
+        extract_assignments_from_graph(graph, &out_result->assignments, &out_result->assignment_count);
+
+        out_result->error_code = SMT_ERROR_NONE;
+        out_result->error_message[0] = '\0';
+    }
+
+    /* 设置错误信息 */
+    if (status == SOLVER_STATUS_TIMEOUT) {
+        out_result->error_code = SMT_ERROR_TIMEOUT_REACHED;
+        snprintf(out_result->error_message, sizeof(out_result->error_message), "Groebner solver timed out");
+    } else if (status == SOLVER_STATUS_OUT_OF_MEMORY) {
+        out_result->error_code = SMT_ERROR_MEMORY_EXHAUSTED;
+        snprintf(out_result->error_message, sizeof(out_result->error_message), "Groebner solver out of memory");
+    } else if (status == SOLVER_STATUS_NO_SOLUTION) {
+        out_result->error_code = SMT_ERROR_NONE;
+        snprintf(out_result->error_message, sizeof(out_result->error_message),
+                 "Constraint system has no solution");
+    }
+
+    if (groebner_result) {
+        groebner_result_destroy(groebner_result);
+    }
+
+    return 0;
+}
+
+/** 不可用后端求解（SMT_Z3 / SMT_CVC5 / SMT_SINGULAR） */
+static int smt_unavailable_solve(EngineScheduler *scheduler, const ConstraintGraph *graph,
+                                 SMTSolverResult *out_result) {
+    (void)scheduler;
+    (void)graph;
+    out_result->sat_result = SMT_RESULT_ERROR;
+    out_result->error_code = SMT_ERROR_BACKEND_UNAVAILABLE;
+    snprintf(out_result->error_message, sizeof(out_result->error_message),
+             "Backend '%s' is not available (not linked)", smtsolver_backend_type_name(out_result->backend_used));
+    return 0;
+}
+
+/* ============================================================
+ * 静态 VTable 数组 —— 后端类型 → 操作函数映射
+ * ============================================================ */
+static const SchedulerBackendVTable kSchedulerBackendVTables[] = {
+    {GROEBNER,     "Groebner",  groebner_solve,       NULL, NULL},
+    {SMT_Z3,       "Z3",        smt_unavailable_solve, NULL, NULL},
+    {SMT_CVC5,     "CVC5",      smt_unavailable_solve, NULL, NULL},
+    {SMT_SINGULAR, "Singular",  smt_unavailable_solve, NULL, NULL},
+};
+static const int kSchedulerBackendVTableCount =
+    (int)(sizeof(kSchedulerBackendVTables) / sizeof(kSchedulerBackendVTables[0]));
+
+/* ============================================================
  * 分发求解
  * ============================================================ */
 int scheduler_solve_with_backend(EngineScheduler *scheduler, const ConstraintGraph *graph,
@@ -640,64 +731,25 @@ int scheduler_solve_with_backend(EngineScheduler *scheduler, const ConstraintGra
 
     uint64_t start_us = lv_get_time_us();
 
-    switch (backend_type) {
-        case GROEBNER: {
-            /* Groebner 后端 */
-            GroebnerResult *groebner_result = NULL;
-
-            /* 将 const 转换，因为 solve_algebraic_system 接受非 const 图 */
-            ConstraintGraph *nc_graph = (ConstraintGraph *) (uintptr_t) graph;
-
-            SolverStatus status = solve_algebraic_system(nc_graph, NULL, 0, &groebner_result);
-
-            out_result->sat_result = solver_status_to_sat(status);
-
-            /* 从图中提取赋值 */
-            if (out_result->sat_result == SMT_RESULT_SAT) {
-                extract_assignments_from_graph(graph, &out_result->assignments, &out_result->assignment_count);
-
-                out_result->error_code = SMT_ERROR_NONE;
-                out_result->error_message[0] = '\0';
+    /* VTable 分发 —— 替代 switch(backend_type) */
+    {
+        bool dispatched = false;
+        for (int i = 0; i < kSchedulerBackendVTableCount; i++) {
+            if (kSchedulerBackendVTables[i].type == backend_type) {
+                if (kSchedulerBackendVTables[i].solve) {
+                    kSchedulerBackendVTables[i].solve(scheduler, graph, out_result);
+                }
+                dispatched = true;
+                break;
             }
-
-            /* 设置错误信息 */
-            if (status == SOLVER_STATUS_TIMEOUT) {
-                out_result->error_code = SMT_ERROR_TIMEOUT_REACHED;
-                snprintf(out_result->error_message, sizeof(out_result->error_message), "Groebner solver timed out");
-            } else if (status == SOLVER_STATUS_OUT_OF_MEMORY) {
-                out_result->error_code = SMT_ERROR_MEMORY_EXHAUSTED;
-                snprintf(out_result->error_message, sizeof(out_result->error_message), "Groebner solver out of memory");
-            } else if (status == SOLVER_STATUS_NO_SOLUTION) {
-                out_result->error_code = SMT_ERROR_NONE;
-                snprintf(out_result->error_message, sizeof(out_result->error_message),
-                         "Constraint system has no solution");
-            }
-
-            if (groebner_result) {
-                groebner_result_destroy(groebner_result);
-            }
-
-            /* 更新统计 */
-            uint64_t elapsed_us = lv_get_time_us() - start_us;
-            out_result->solve_time_ms = (double) elapsed_us / 1000.0;
-            break;
         }
 
-        case SMT_Z3:
-        case SMT_CVC5:
-        case SMT_SINGULAR:
-            out_result->sat_result = SMT_RESULT_ERROR;
-            out_result->error_code = SMT_ERROR_BACKEND_UNAVAILABLE;
-            snprintf(out_result->error_message, sizeof(out_result->error_message),
-                     "Backend '%s' is not available (not linked)", smtsolver_backend_type_name(backend_type));
-            break;
-
-        default:
+        if (!dispatched) {
             out_result->sat_result = SMT_RESULT_ERROR;
             out_result->error_code = SMT_ERROR_BACKEND_UNAVAILABLE;
             snprintf(out_result->error_message, sizeof(out_result->error_message), "Unknown backend type %d",
                      (int) backend_type);
-            break;
+        }
     }
 
     /* 更新调度器统计 */
@@ -773,25 +825,13 @@ int scheduler_solve_groebner_compat(EngineScheduler *scheduler, const Constraint
         scheduler->stats.backend_solve_counts[GROEBNER]++;
     }
 
-    switch (status) {
-        case SOLVER_STATUS_OK:
-        case SOLVER_STATUS_UNIQUE:
-        case SOLVER_STATUS_MULTIPLE:
-            return 0; /* 成功 */
-
-        case SOLVER_STATUS_NO_SOLUTION:
-        case SOLVER_STATUS_OVERCONSTRAINED:
-            return 1; /* 无解 */
-
-        case SOLVER_STATUS_TIMEOUT:
-            return 2; /* 超时 */
-
-        case SOLVER_STATUS_OUT_OF_MEMORY:
-            return -1; /* 内存不足 */
-
-        case SOLVER_STATUS_OUT_OF_SCOPE:
-        default:
-            return -1; /* 其他错误 */
+    /* 查找表分发 —— 替代 switch(status) */
+    {
+        int idx = (int) status;
+        if (idx >= 0 && idx < (int)(sizeof(kSolverStatusToReturnCode) / sizeof(kSolverStatusToReturnCode[0]))) {
+            return kSolverStatusToReturnCode[idx];
+        }
+        return -1; /* 未知状态视为错误 */
     }
 }
 

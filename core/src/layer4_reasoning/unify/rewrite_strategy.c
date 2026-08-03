@@ -33,8 +33,7 @@
 /** Initial capacity for the rules array */
 #define INITIAL_RULE_CAPACITY 16
 
-/** Default maximum iterations if 0 is passed */
-#define DEFAULT_MAX_ITERATIONS 1000
+/** Default maximum iterations if 0 is passed (migrated to lvConfig runtime config) */
 
 /**
  * @brief Duplicate a string using malloc.
@@ -499,7 +498,7 @@ lvRewriteEngineEx *rewrite_engine_ex_create(lvRewriteStrategyEx strategy, int ma
     engine->rule_count = 0;
     engine->rule_capacity = INITIAL_RULE_CAPACITY;
     engine->strategy = strategy;
-    engine->max_iterations = (max_iterations > 0) ? max_iterations : DEFAULT_MAX_ITERATIONS;
+    engine->max_iterations = (max_iterations > 0) ? max_iterations : lv_config_current()->engine.rewrite_default_max_iterations;
 
     return engine;
 }
@@ -713,7 +712,7 @@ int lv_rewrite_apply_strategy(lvRewriteContext *ctx, lvRewriteStrategyType strat
     }
 
     /* 创建新引擎并存入 context */
-    lvRewriteEngineEx *engine = rewrite_engine_ex_create((lvRewriteStrategyEx) strategy, 100);
+    lvRewriteEngineEx *engine = rewrite_engine_ex_create((lvRewriteStrategyEx) strategy, lv_config_current()->engine.rewrite_engine_init_iterations);
     if (!engine) {
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_rewrite_apply_strategy: 创建引擎失败");
     }

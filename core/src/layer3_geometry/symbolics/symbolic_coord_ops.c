@@ -47,7 +47,6 @@ lvMemPool *g_coeff_pool = NULL;
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6
 #define SYM_COORD_SIGFIGS_APPROX 4
-#define SYM_COORD_EPS 1e-8
 #define SYM_COORD_MAX_REFINE 15
 #define SYM_COORD_AMB_MIN_SIGFIGS 3
 #define COORD_SEVEN_OVER_FIVE_N 32
@@ -65,8 +64,335 @@ int remove_square_factors(int n);
 /* 降级检查函数（定义于 symbolic_coord_trust.c） */
 SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *result);
 
+/* 前向声明：定义于本文件稍后位置的 static 辅助函数 */
+static size_t rational_total_bits(const Rational *r);
+static void bit_burning_check_result(SymbolicCoord *result, const char *operation);
+static SymbolicCoord *quadratic_to_algebraic(const SymbolicCoord *q);
+
 /* ── 外部溢出上下文 ── */
 extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
+
+/* ── 共享内部头文件：CoordOpsVTable 定义 ── */
+#include "symbolic_coord_internal.h"
+
+/* ── Per-type same-operation handlers for vtable dispatch ── */
+
+/* RATIONAL handlers */
+static SymbolicCoord *same_type_add_rational(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Rational *r = rational_add(a->data.rational, b->data.rational);
+    if (!r)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: rational_add failed");
+    SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
+    if (!result) {
+        rational_destroy(r);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: result allocation failed");
+    }
+    rational_destroy(result->data.rational);
+    result->data.rational = r;
+    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    bit_burning_check_result(result, "add");
+    return result;
+}
+
+static SymbolicCoord *same_type_subtract_rational(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Rational *r = rational_subtract(a->data.rational, b->data.rational);
+    if (!r)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_subtract: rational_subtract failed");
+    SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
+    if (!result) {
+        rational_destroy(r);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_subtract: result allocation failed");
+    }
+    rational_destroy(result->data.rational);
+    result->data.rational = r;
+    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    bit_burning_check_result(result, "subtract");
+    return result;
+}
+
+static SymbolicCoord *same_type_multiply_rational(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Rational *r = rational_multiply(a->data.rational, b->data.rational);
+    if (!r)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: rational_multiply failed");
+    SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
+    if (!result) {
+        rational_destroy(r);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: result allocation failed");
+    }
+    rational_destroy(result->data.rational);
+    result->data.rational = r;
+    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    bit_burning_check_result(result, "multiply");
+    return result;
+}
+
+static SymbolicCoord *same_type_divide_rational(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Rational *r = rational_divide(a->data.rational, b->data.rational);
+    if (!r)
+        return NULL;
+    SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
+    if (!result) {
+        rational_destroy(r);
+        return NULL;
+    }
+    rational_destroy(result->data.rational);
+    result->data.rational = r;
+    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    bit_burning_check_result(result, "divide");
+    return result;
+}
+
+static size_t bit_burning_bits_rational(const SymbolicCoord *c) {
+    if (!c->data.rational)
+        return 0;
+    size_t total = rational_total_bits(c->data.rational);
+    if (total == SIZE_MAX)
+        return SIZE_MAX;
+    return total;
+}
+
+/* ALGEBRAIC handlers */
+static SymbolicCoord *same_type_add_algebraic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Algebraic *alg = algebraic_add(a->data.algebraic, b->data.algebraic);
+    if (!alg)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: algebraic_add failed");
+    SymbolicCoord *result =
+        symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
+    algebraic_destroy(alg);
+    if (result)
+        result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    return _symbolic_coord_degrade_check_algebraic(result);
+}
+
+static SymbolicCoord *same_type_subtract_algebraic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Algebraic *alg = algebraic_subtract(a->data.algebraic, b->data.algebraic);
+    if (!alg)
+        return NULL;
+    SymbolicCoord *result =
+        symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
+    algebraic_destroy(alg);
+    if (result)
+        result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    return _symbolic_coord_degrade_check_algebraic(result);
+}
+
+static SymbolicCoord *same_type_multiply_algebraic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Algebraic *alg = algebraic_multiply(a->data.algebraic, b->data.algebraic);
+    if (!alg)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: algebraic_multiply failed");
+    SymbolicCoord *result =
+        symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
+    algebraic_destroy(alg);
+    if (result)
+        result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    return _symbolic_coord_degrade_check_algebraic(result);
+}
+
+static SymbolicCoord *same_type_divide_algebraic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Algebraic *alg = algebraic_divide(a->data.algebraic, b->data.algebraic);
+    if (!alg)
+        return NULL;
+    SymbolicCoord *result =
+        symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
+    algebraic_destroy(alg);
+    if (result)
+        result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    return _symbolic_coord_degrade_check_algebraic(result);
+}
+
+static size_t bit_burning_bits_algebraic(const SymbolicCoord *c) {
+    if (!c->data.algebraic)
+        return 0;
+    size_t total = 0;
+    if (c->data.algebraic->cached_rational) {
+        size_t rb = rational_total_bits(c->data.algebraic->cached_rational);
+        if (rb == SIZE_MAX)
+            return SIZE_MAX;
+        total += rb;
+    }
+    for (int i = 0; i <= c->data.algebraic->minimal_poly.degree; i++) {
+        size_t cb = (size_t) mpz_sizeinbase(c->data.algebraic->minimal_poly.coeffs[i], 2);
+        if (cb > (size_t) BIT_CUTOFF_THRESHOLD)
+            return SIZE_MAX;
+        total += cb;
+    }
+    return total;
+}
+
+/* QUADRATIC handlers */
+static SymbolicCoord *same_type_add_quadratic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Quadratic *q = quadratic_add(a->data.quadratic, b->data.quadratic);
+    if (!q) {
+        SymbolicCoord *a_alg = quadratic_to_algebraic(a);
+        SymbolicCoord *b_alg = quadratic_to_algebraic(b);
+        if (!a_alg || !b_alg) {
+            if (a_alg)
+                symbolic_coord_destroy(a_alg);
+            if (b_alg)
+                symbolic_coord_destroy(b_alg);
+            return NULL;
+        }
+        SymbolicCoord *result = symbolic_coord_add(a_alg, b_alg);
+        symbolic_coord_destroy(a_alg);
+        symbolic_coord_destroy(b_alg);
+        return result;
+    }
+    SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
+    lv_free((void **) &q);
+    if (result)
+        result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    return result;
+}
+
+static SymbolicCoord *same_type_subtract_quadratic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Quadratic *q = quadratic_subtract(a->data.quadratic, b->data.quadratic);
+    if (!q) {
+        SymbolicCoord *a_alg = quadratic_to_algebraic(a);
+        SymbolicCoord *b_alg = quadratic_to_algebraic(b);
+        if (!a_alg || !b_alg) {
+            if (a_alg)
+                symbolic_coord_destroy(a_alg);
+            if (b_alg)
+                symbolic_coord_destroy(b_alg);
+            return NULL;
+        }
+        SymbolicCoord *result = symbolic_coord_subtract(a_alg, b_alg);
+        symbolic_coord_destroy(a_alg);
+        symbolic_coord_destroy(b_alg);
+        return result;
+    }
+    SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
+    lv_free((void **) &q);
+    if (result)
+        result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    return result;
+}
+
+static SymbolicCoord *same_type_multiply_quadratic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Quadratic *q = quadratic_multiply(a->data.quadratic, b->data.quadratic);
+    if (!q) {
+        SymbolicCoord *a_alg = quadratic_to_algebraic(a);
+        SymbolicCoord *b_alg = quadratic_to_algebraic(b);
+        if (!a_alg || !b_alg) {
+            if (a_alg)
+                symbolic_coord_destroy(a_alg);
+            if (b_alg)
+                symbolic_coord_destroy(b_alg);
+            return NULL;
+        }
+        SymbolicCoord *result = symbolic_coord_multiply(a_alg, b_alg);
+        symbolic_coord_destroy(a_alg);
+        symbolic_coord_destroy(b_alg);
+        return result;
+    }
+    SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
+    lv_free((void **) &q);
+    if (result)
+        result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    return result;
+}
+
+static SymbolicCoord *same_type_divide_quadratic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    Quadratic *q = quadratic_divide(a->data.quadratic, b->data.quadratic);
+    if (!q) {
+        SymbolicCoord *a_alg = quadratic_to_algebraic(a);
+        SymbolicCoord *b_alg = quadratic_to_algebraic(b);
+        if (!a_alg || !b_alg) {
+            if (a_alg)
+                symbolic_coord_destroy(a_alg);
+            if (b_alg)
+                symbolic_coord_destroy(b_alg);
+            return NULL;
+        }
+        SymbolicCoord *result = symbolic_coord_divide(a_alg, b_alg);
+        symbolic_coord_destroy(a_alg);
+        symbolic_coord_destroy(b_alg);
+        return result;
+    }
+    SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
+    lv_free((void **) &q);
+    if (result)
+        result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+    return result;
+}
+
+static size_t bit_burning_bits_quadratic(const SymbolicCoord *c) {
+    if (!c->data.quadratic)
+        return 0;
+    size_t rb_a = rational_total_bits(c->data.quadratic->a);
+    size_t rb_b = rational_total_bits(c->data.quadratic->b);
+    if (rb_a == SIZE_MAX || rb_b == SIZE_MAX)
+        return SIZE_MAX;
+    return rb_a + rb_b;
+}
+
+/* ── Per-type compare handlers ── */
+static int same_type_compare_rational(const SymbolicCoord *a, const SymbolicCoord *b) {
+    return rational_compare(a->data.rational, b->data.rational);
+}
+static int same_type_compare_algebraic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    return algebraic_compare(a->data.algebraic, b->data.algebraic);
+}
+static int same_type_compare_quadratic(const SymbolicCoord *a, const SymbolicCoord *b) {
+    return quadratic_compare(a->data.quadratic, b->data.quadratic);
+}
+static int same_type_compare_transcendental(const SymbolicCoord *a, const SymbolicCoord *b) {
+    return transcendental_compare(a->data.transcendental, b->data.transcendental);
+}
+
+/* ── Per-type to_double handlers ── */
+static double to_double_rational(const SymbolicCoord *c) {
+    return rational_to_double(c->data.rational);
+}
+static double to_double_algebraic(const SymbolicCoord *c) {
+    return algebraic_to_double(c->data.algebraic);
+}
+static double to_double_quadratic(const SymbolicCoord *c) {
+    return quadratic_to_double(c->data.quadratic);
+}
+static double to_double_transcendental(const SymbolicCoord *c) {
+    return transcendental_to_double(c->data.transcendental);
+}
+
+/* ── vtable 数组（extern 声明于 symbolic_coord_internal.h） ── */
+const CoordOpsVTable kCoordOpsVTable[] = {
+    [RATIONAL] = {
+        .add = same_type_add_rational,
+        .subtract = same_type_subtract_rational,
+        .multiply = same_type_multiply_rational,
+        .divide = same_type_divide_rational,
+        .compare = same_type_compare_rational,
+        .to_double = to_double_rational,
+        .bit_burning_bits = bit_burning_bits_rational,
+    },
+    [ALGEBRAIC] = {
+        .add = same_type_add_algebraic,
+        .subtract = same_type_subtract_algebraic,
+        .multiply = same_type_multiply_algebraic,
+        .divide = same_type_divide_algebraic,
+        .compare = same_type_compare_algebraic,
+        .to_double = to_double_algebraic,
+        .bit_burning_bits = bit_burning_bits_algebraic,
+    },
+    [QUADRATIC] = {
+        .add = same_type_add_quadratic,
+        .subtract = same_type_subtract_quadratic,
+        .multiply = same_type_multiply_quadratic,
+        .divide = same_type_divide_quadratic,
+        .compare = same_type_compare_quadratic,
+        .to_double = to_double_quadratic,
+        .bit_burning_bits = bit_burning_bits_quadratic,
+    },
+    [TRANSCENDENTAL] = {
+        .add = NULL,
+        .subtract = NULL,
+        .multiply = NULL,
+        .divide = NULL,
+        .compare = same_type_compare_transcendental,
+        .to_double = to_double_transcendental,
+        .bit_burning_bits = NULL,
+    },
+};
 
 /* ── 位数熔断辅助函数 ── */
 
@@ -92,56 +418,12 @@ static void bit_burning_check_result(SymbolicCoord *result, const char *operatio
 
     (void) operation;
 
-    size_t total_bits = 0;
-    bool overflow = false;
+    if (result->type == TRANSCENDENTAL)
+        return;
 
-    switch (result->type) {
-        case RATIONAL: {
-            if (!result->data.rational)
-                return;
-            total_bits = rational_total_bits(result->data.rational);
-            if (total_bits == SIZE_MAX)
-                overflow = true;
-            break;
-        }
-        case ALGEBRAIC: {
-            if (!result->data.algebraic)
-                return;
-            if (result->data.algebraic->cached_rational) {
-                size_t rb = rational_total_bits(result->data.algebraic->cached_rational);
-                if (rb == SIZE_MAX) {
-                    overflow = true;
-                    break;
-                }
-                total_bits += rb;
-            }
-            for (int i = 0; i <= result->data.algebraic->minimal_poly.degree; i++) {
-                size_t cb = (size_t) mpz_sizeinbase(result->data.algebraic->minimal_poly.coeffs[i], 2);
-                if (cb > (size_t) BIT_CUTOFF_THRESHOLD) {
-                    overflow = true;
-                    break;
-                }
-                total_bits += cb;
-            }
-            break;
-        }
-        case QUADRATIC: {
-            if (!result->data.quadratic)
-                return;
-            size_t rb_a = rational_total_bits(result->data.quadratic->a);
-            size_t rb_b = rational_total_bits(result->data.quadratic->b);
-            if (rb_a == SIZE_MAX || rb_b == SIZE_MAX) {
-                overflow = true;
-                break;
-            }
-            total_bits = rb_a + rb_b;
-            break;
-        }
-        default:
-            return;
-    }
-
-    if (overflow || total_bits > (size_t) BIT_CUTOFF_THRESHOLD) {
+    const CoordOpsVTable *vt = &kCoordOpsVTable[result->type];
+    size_t total_bits = vt->bit_burning_bits(result);
+    if (total_bits == SIZE_MAX || total_bits > (size_t) BIT_CUTOFF_THRESHOLD) {
         BitBurningState *state = bit_burning_get_global_state();
         bit_burning_check(total_bits > (size_t) BIT_CUTOFF_THRESHOLD ? total_bits : BIT_CUTOFF_THRESHOLD, state);
         result->trust = TRUST_AMBER;
@@ -455,61 +737,9 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
         }
     }
 
-    /* Same type operations */
+    /* Same type operations: vtable dispatch */
     if (a->type == b->type) {
-        switch (a->type) {
-            case RATIONAL: {
-                Rational *r = rational_add(a->data.rational, b->data.rational);
-                if (!r)
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: rational_add failed");
-                SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
-                if (!result) {
-                    rational_destroy(r);
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: result allocation failed");
-                }
-                rational_destroy(result->data.rational);
-                result->data.rational = r;
-                result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                bit_burning_check_result(result, "add");
-                return result;
-            }
-            case ALGEBRAIC: {
-                Algebraic *alg = algebraic_add(a->data.algebraic, b->data.algebraic);
-                if (!alg)
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: algebraic_add failed");
-                SymbolicCoord *result =
-                    symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
-                algebraic_destroy(alg);
-                if (result)
-                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return _symbolic_coord_degrade_check_algebraic(result);
-            }
-            case QUADRATIC: {
-                Quadratic *q = quadratic_add(a->data.quadratic, b->data.quadratic);
-                if (!q) {
-                    SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-                    SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-                    if (!a_alg || !b_alg) {
-                        if (a_alg)
-                            symbolic_coord_destroy(a_alg);
-                        if (b_alg)
-                            symbolic_coord_destroy(b_alg);
-                        return NULL;
-                    }
-                    SymbolicCoord *result = symbolic_coord_add(a_alg, b_alg);
-                    symbolic_coord_destroy(a_alg);
-                    symbolic_coord_destroy(b_alg);
-                    return result;
-                }
-                SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                lv_free((void **) &q);
-                if (result)
-                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return result;
-            }
-            default:
-                return NULL;
-        }
+        return kCoordOpsVTable[a->type].add(a, b);
     }
 
     /* Cross-type operations */
@@ -737,61 +967,9 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
         }
     }
 
-    /* Same type operations */
+    /* Same type operations: vtable dispatch */
     if (a->type == b->type) {
-        switch (a->type) {
-            case RATIONAL: {
-                Rational *r = rational_subtract(a->data.rational, b->data.rational);
-                if (!r)
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_subtract: rational_subtract failed");
-                SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
-                if (!result) {
-                    rational_destroy(r);
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_subtract: result allocation failed");
-                }
-                rational_destroy(result->data.rational);
-                result->data.rational = r;
-                result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                bit_burning_check_result(result, "subtract");
-                return result;
-            }
-            case ALGEBRAIC: {
-                Algebraic *alg = algebraic_subtract(a->data.algebraic, b->data.algebraic);
-                if (!alg)
-                    return NULL;
-                SymbolicCoord *result =
-                    symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
-                algebraic_destroy(alg);
-                if (result)
-                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return _symbolic_coord_degrade_check_algebraic(result);
-            }
-            case QUADRATIC: {
-                Quadratic *q = quadratic_subtract(a->data.quadratic, b->data.quadratic);
-                if (!q) {
-                    SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-                    SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-                    if (!a_alg || !b_alg) {
-                        if (a_alg)
-                            symbolic_coord_destroy(a_alg);
-                        if (b_alg)
-                            symbolic_coord_destroy(b_alg);
-                        return NULL;
-                    }
-                    SymbolicCoord *result = symbolic_coord_subtract(a_alg, b_alg);
-                    symbolic_coord_destroy(a_alg);
-                    symbolic_coord_destroy(b_alg);
-                    return result;
-                }
-                SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                lv_free((void **) &q);
-                if (result)
-                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return result;
-            }
-            default:
-                return NULL;
-        }
+        return kCoordOpsVTable[a->type].subtract(a, b);
     }
 
     /* Cross-type operations */
@@ -955,61 +1133,9 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
         }
     }
 
-    /* Same type operations */
+    /* Same type operations: vtable dispatch */
     if (a->type == b->type) {
-        switch (a->type) {
-            case RATIONAL: {
-                Rational *r = rational_multiply(a->data.rational, b->data.rational);
-                if (!r)
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: rational_multiply failed");
-                SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
-                if (!result) {
-                    rational_destroy(r);
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: result allocation failed");
-                }
-                rational_destroy(result->data.rational);
-                result->data.rational = r;
-                result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                bit_burning_check_result(result, "multiply");
-                return result;
-            }
-            case ALGEBRAIC: {
-                Algebraic *alg = algebraic_multiply(a->data.algebraic, b->data.algebraic);
-                if (!alg)
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_multiply: algebraic_multiply failed");
-                SymbolicCoord *result =
-                    symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
-                algebraic_destroy(alg);
-                if (result)
-                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return _symbolic_coord_degrade_check_algebraic(result);
-            }
-            case QUADRATIC: {
-                Quadratic *q = quadratic_multiply(a->data.quadratic, b->data.quadratic);
-                if (!q) {
-                    SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-                    SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-                    if (!a_alg || !b_alg) {
-                        if (a_alg)
-                            symbolic_coord_destroy(a_alg);
-                        if (b_alg)
-                            symbolic_coord_destroy(b_alg);
-                        return NULL;
-                    }
-                    SymbolicCoord *result = symbolic_coord_multiply(a_alg, b_alg);
-                    symbolic_coord_destroy(a_alg);
-                    symbolic_coord_destroy(b_alg);
-                    return result;
-                }
-                SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                lv_free((void **) &q);
-                if (result)
-                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return result;
-            }
-            default:
-                return NULL;
-        }
+        return kCoordOpsVTable[a->type].multiply(a, b);
     }
 
     /* Cross-type operations */
@@ -1226,61 +1352,9 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
         }
     }
 
-    /* Same type operations */
+    /* Same type operations: vtable dispatch */
     if (a->type == b->type) {
-        switch (a->type) {
-            case RATIONAL: {
-                Rational *r = rational_divide(a->data.rational, b->data.rational);
-                if (!r)
-                    return NULL;
-                SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
-                if (!result) {
-                    rational_destroy(r);
-                    return NULL;
-                }
-                rational_destroy(result->data.rational);
-                result->data.rational = r;
-                result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                bit_burning_check_result(result, "divide");
-                return result;
-            }
-            case ALGEBRAIC: {
-                Algebraic *alg = algebraic_divide(a->data.algebraic, b->data.algebraic);
-                if (!alg)
-                    return NULL;
-                SymbolicCoord *result =
-                    symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
-                algebraic_destroy(alg);
-                if (result)
-                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return _symbolic_coord_degrade_check_algebraic(result);
-            }
-            case QUADRATIC: {
-                Quadratic *q = quadratic_divide(a->data.quadratic, b->data.quadratic);
-                if (!q) {
-                    SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-                    SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-                    if (!a_alg || !b_alg) {
-                        if (a_alg)
-                            symbolic_coord_destroy(a_alg);
-                        if (b_alg)
-                            symbolic_coord_destroy(b_alg);
-                        return NULL;
-                    }
-                    SymbolicCoord *result = symbolic_coord_divide(a_alg, b_alg);
-                    symbolic_coord_destroy(a_alg);
-                    symbolic_coord_destroy(b_alg);
-                    return result;
-                }
-                SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                lv_free((void **) &q);
-                if (result)
-                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                return result;
-            }
-            default:
-                return NULL;
-        }
+        return kCoordOpsVTable[a->type].divide(a, b);
     }
 
     /* Cross-type operations */

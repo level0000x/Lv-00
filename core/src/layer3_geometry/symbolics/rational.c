@@ -39,7 +39,6 @@ extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6
 #define SYM_COORD_SIGFIGS_APPROX 4
-#define SYM_COORD_EPS 1e-8
 #define SYM_COORD_MAX_REFINE 15
 #define SYM_COORD_AMB_MIN_SIGFIGS 3
 #define COORD_SEVEN_OVER_FIVE_N 32

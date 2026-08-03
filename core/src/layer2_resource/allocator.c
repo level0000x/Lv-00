@@ -19,6 +19,33 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* 平台相关的内存大小查询头文件 */
+#ifdef _WIN32
+#include <malloc.h> /* _msize */
+#elif defined(__linux__)
+#include <malloc.h> /* malloc_usable_size */
+#elif defined(__APPLE__)
+#include <malloc/malloc.h> /* malloc_size */
+#endif
+
+/* ============================================================
+ * 平台相关的内存大小查询函数
+ * ============================================================ */
+
+#ifdef _WIN32
+static size_t win32_size_query(void *ptr) {
+    return (size_t) _msize(ptr);
+}
+#elif defined(__APPLE__)
+static size_t apple_size_query(void *ptr) {
+    return (size_t) malloc_size(ptr);
+}
+#elif defined(__linux__)
+static size_t linux_size_query(void *ptr) {
+    return (size_t) malloc_usable_size(ptr);
+}
+#endif
+
 /* ============================================================
  * 原始分配器（标准 malloc/free）
  * ============================================================ */
@@ -44,7 +71,14 @@ static const AllocatorOps g_raw_allocator = {
     .calloc  = raw_calloc,
     .realloc = raw_realloc,
     .free    = raw_free,
-    .name    = "raw"
+    .name    = "raw",
+#ifdef _WIN32
+    .size_query = win32_size_query
+#elif defined(__APPLE__)
+    .size_query = apple_size_query
+#elif defined(__linux__)
+    .size_query = linux_size_query
+#endif
 };
 
 /* ============================================================
@@ -230,13 +264,10 @@ static void *debug_realloc(void *ptr, size_t size) {
 
         /* 尝试获取旧分配的实际可用大小 */
         size_t old_usable_size = 0;
-#ifdef _WIN32
-        old_usable_size = (size_t) _msize(ptr);
-#elif defined(__APPLE__)
-        old_usable_size = (size_t) malloc_size(ptr);
-#elif defined(__linux__)
-        old_usable_size = (size_t) malloc_usable_size(ptr);
-#endif
+        const AllocatorOps *ops = lv_allocator_get();
+        if (ops && ops->size_query) {
+            old_usable_size = ops->size_query(ptr);
+        }
         if (old_usable_size > 0) {
             size_t copy_size = (alloc_size < old_usable_size) ? alloc_size : old_usable_size;
             memcpy(new_ptr, ptr, copy_size);
@@ -296,7 +327,14 @@ static const AllocatorOps g_debug_allocator = {
     .calloc  = debug_calloc,
     .realloc = debug_realloc,
     .free    = debug_free,
-    .name    = "debug"
+    .name    = "debug",
+#ifdef _WIN32
+    .size_query = win32_size_query
+#elif defined(__APPLE__)
+    .size_query = apple_size_query
+#elif defined(__linux__)
+    .size_query = linux_size_query
+#endif
 };
 
 /* ============================================================

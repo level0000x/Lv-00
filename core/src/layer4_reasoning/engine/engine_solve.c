@@ -30,8 +30,7 @@
 
 #include "engine_internal.h"
 
-/** @brief 重写-求解协作最大迭代次数 */
-#define ENGINE_MAX_COLLABORATION_ITERATIONS 10000
+/** @brief 重写-求解协作最大迭代次数（已迁移至 lvConfig 运行时配置） */
 
 /**
  * @brief 检查约束图中的冲突
@@ -196,7 +195,7 @@ EngineSolveResult engine_solve(lvEngine *engine) {
         {
             BitBurningState *bb_state = bit_burning_get_global_state();
             if (bb_state && bb_state->tripped) {
-                if (bb_state->consecutive_trips >= MAX_CONSECUTIVE_TRIPS) {
+                if (bb_state->consecutive_trips >= lv_config_current()->health.max_consecutive_trips) {
                     engine_emit_stream_event(engine, STREAM_EVENT_WARNING,
                                              "位数熔断: 连续触发达到阈值，自动降级为数值假设", 2, -1, -1);
                     /* 标记引擎状态，信任颜色传播会在步骤5中处理 */
@@ -329,15 +328,15 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
         iteration++;
 
         /* 总迭代次数安全限制：防止重写-求解交替无限循环 */
-        if (iteration > ENGINE_MAX_COLLABORATION_ITERATIONS) {
+        int max_collab = lv_config_current()->engine.engine_max_collaboration_iterations;
+        if (iteration > max_collab) {
             engine_emit_stream_event(
                 engine, STREAM_EVENT_ERROR,
-                "重写-求解协作超过最大迭代次数限制 (" lv_TOSTRING(ENGINE_MAX_COLLABORATION_ITERATIONS) ")", iteration,
-                -1, -1);
+                "重写-求解协作超过最大迭代次数限制 (%d)", iteration,
+                max_collab, -1);
             engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
             snprintf(engine->last_error, sizeof(engine->last_error),
-                     "engine_rewrite_and_solve: 总迭代次数超过上限 " lv_TOSTRING(
-                         ENGINE_MAX_COLLABORATION_ITERATIONS) "，终止执行");
+                     "engine_rewrite_and_solve: 总迭代次数超过上限 %d，终止执行", max_collab);
             wl_history_destroy(&wl_history);
             return -2;
         }
@@ -442,7 +441,7 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
             {
                 BitBurningState *bb_state = bit_burning_get_global_state();
                 if (bb_state && bb_state->tripped) {
-                    if (bb_state->consecutive_trips >= MAX_CONSECUTIVE_TRIPS) {
+                    if (bb_state->consecutive_trips >= lv_config_current()->health.max_consecutive_trips) {
                         engine_emit_stream_event(engine, STREAM_EVENT_WARNING, "位数熔断: 连续触发达到阈值，自动降级",
                                                  iteration, -1, -1);
                         snprintf(engine->last_error, sizeof(engine->last_error),

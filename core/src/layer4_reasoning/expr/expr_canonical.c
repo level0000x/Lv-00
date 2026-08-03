@@ -148,6 +148,77 @@ lvExpr *lv_expr_function(const char *func_name, lvExpr *argument) {
     return e;
 }
 
+/* ============================================================
+ * VTable 类型分发 — 消除 ExprType switch 反模式
+ * ============================================================ */
+
+/** @brief 表达式虚函数表条目（每个 type 一组操作） */
+typedef struct {
+    /** 释放 type 特有数据（不释放 lvExpr 结构体本身） */
+    void (*destroy_data)(lvExpr *e);
+    /** 复制 type 特有数据到 dst（已分配好，仅填充 data 字段） */
+    int (*copy_data)(const lvExpr *src, lvExpr *dst);
+} ExprVTableEntry;
+
+/* ── 各 type 的 destroy 实现 ── */
+
+static void destroy_variable(lvExpr *e) { lv_free((void **)&e->data.variable.name); }
+static void destroy_rational(lvExpr *e) { mpq_clear(e->data.rational.value); }
+static void destroy_power(lvExpr *e) { (void)e; /* 子表达式由调用者管理 */ }
+static void destroy_composite(lvExpr *e) { lv_free((void **)&e->data.composite.operands); }
+static void destroy_function(lvExpr *e) { lv_free((void **)&e->data.function.func_name); }
+
+/* ── 各 type 的 copy 实现 ── */
+
+static int copy_variable(const lvExpr *src, lvExpr *dst) {
+    dst->data.variable.name = lv_strdup(src->data.variable.name);
+    return dst->data.variable.name ? 0 : -1;
+}
+
+static int copy_rational(const lvExpr *src, lvExpr *dst) {
+    mpq_init(dst->data.rational.value);
+    mpq_set(dst->data.rational.value, src->data.rational.value);
+    return 0;
+}
+
+static int copy_power(const lvExpr *src, lvExpr *dst) {
+    dst->data.power.base = src->data.power.base;
+    dst->data.power.exponent = src->data.power.exponent;
+    return 0;
+}
+
+static int copy_composite(const lvExpr *src, lvExpr *dst) {
+    dst->data.composite.count = src->data.composite.count;
+    dst->data.composite.operands = (lvExpr **)lv_malloc((size_t)src->data.composite.count * sizeof(lvExpr *));
+    if (!dst->data.composite.operands) return -1;
+    for (uint32_t i = 0; i < src->data.composite.count; i++)
+        dst->data.composite.operands[i] = src->data.composite.operands[i];
+    return 0;
+}
+
+static int copy_function(const lvExpr *src, lvExpr *dst) {
+    dst->data.function.func_name = lv_strdup(src->data.function.func_name);
+    if (!dst->data.function.func_name) return -1;
+    dst->data.function.argument = src->data.function.argument;
+    return 0;
+}
+
+/* ── VTable 数组 ── */
+
+static const ExprVTableEntry kExprVTables[EXPR_TYPE_FUNCTION + 1] = {
+    [EXPR_TYPE_VARIABLE] = { destroy_variable, copy_variable },
+    [EXPR_TYPE_RATIONAL] = { destroy_rational, copy_rational },
+    [EXPR_TYPE_POWER]    = { destroy_power,    copy_power },
+    [EXPR_TYPE_PRODUCT]  = { destroy_composite, copy_composite },
+    [EXPR_TYPE_SUM]      = { destroy_composite, copy_composite },
+    [EXPR_TYPE_FUNCTION] = { destroy_function,  copy_function },
+};
+
+static const ExprVTableEntry *expr_get_vtable(lvExprType type) {
+    if (type < 0 || type > EXPR_TYPE_FUNCTION) return NULL;
+    return &kExprVTables[type];
+}
+
 /* ============== 表达式销毁/复制 ============== */
 
 void lv_expr_destroy(lvExpr **expr) {
@@ -155,28 +226,11 @@ void lv_expr_destroy(lvExpr **expr) {
         return;
     lvExpr *e = *expr;
 
-    switch (e->type) {
-        case EXPR_TYPE_VARIABLE:
-            lv_free((void **) &e->data.variable.name);
-            break;
-        case EXPR_TYPE_RATIONAL:
-            mpq_clear(e->data.rational.value);
-            break;
-        case EXPR_TYPE_POWER:
-            /* 不递归销毁子表达式，由调用者管理生命周期 */
-            break;
-        case EXPR_TYPE_PRODUCT:
-        case EXPR_TYPE_SUM:
-            /* 不递归销毁操作数，由调用者管理 */
-            lv_free((void **) &e->data.composite.operands);
-            break;
-        case EXPR_TYPE_FUNCTION:
-            lv_free((void **) &e->data.function.func_name);
-            break;
-        default:
-            /* 未知类型：静默忽略（避免新增枚举值时内存泄漏） */
-            break;
-    }
+    /* VTable dispatch */
+    const ExprVTableEntry *vt = expr_get_vtable(e->type);
+    if (vt && vt->destroy_data)
+        vt->destroy_data(e);
+
     lv_free((void **) &e->label);
     lv_free((void **) expr);
 }
@@ -189,47 +243,17 @@ lvExpr *lv_expr_copy(const lvExpr *expr) {
         return NULL;
     copy->type = expr->type;
 
-    switch (expr->type) {
-        case EXPR_TYPE_VARIABLE:
-            copy->data.variable.name = lv_strdup(expr->data.variable.name);
-            if (!copy->data.variable.name) {
-                lv_free((void **) &copy);
-                return NULL;
-            }
-            break;
-        case EXPR_TYPE_RATIONAL:
-            mpq_init(copy->data.rational.value);
-            mpq_set(copy->data.rational.value, expr->data.rational.value);
-            break;
-        case EXPR_TYPE_POWER:
-            copy->data.power.base = expr->data.power.base;
-            copy->data.power.exponent = expr->data.power.exponent;
-            break;
-        case EXPR_TYPE_PRODUCT:
-        case EXPR_TYPE_SUM:
-            copy->data.composite.count = expr->data.composite.count;
-            copy->data.composite.operands =
-                (lvExpr **) lv_malloc((size_t) expr->data.composite.count * sizeof(lvExpr *));
-            if (!copy->data.composite.operands) {
-                lv_free((void **) &copy);
-                return NULL;
-            }
-            for (uint32_t i = 0; i < expr->data.composite.count; i++) {
-                copy->data.composite.operands[i] = expr->data.composite.operands[i];
-            }
-            break;
-        case EXPR_TYPE_FUNCTION:
-            copy->data.function.func_name = lv_strdup(expr->data.function.func_name);
-            if (!copy->data.function.func_name) {
-                lv_free((void **) &copy);
-                return NULL;
-            }
-            copy->data.function.argument = expr->data.function.argument;
-            break;
-        default:
-            /* 未知类型：cast 无法复制，返回 NULL 表示失败 */
+    /* VTable dispatch */
+    const ExprVTableEntry *vt = expr_get_vtable(expr->type);
+    if (vt && vt->copy_data) {
+        if (vt->copy_data(expr, copy) != 0) {
             lv_free((void **) &copy);
             return NULL;
+        }
+    } else {
+        /* 未知类型 */
+        lv_free((void **) &copy);
+        return NULL;
     }
 
     if (expr->label) {

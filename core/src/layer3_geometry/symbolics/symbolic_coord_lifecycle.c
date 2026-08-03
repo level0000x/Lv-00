@@ -27,6 +27,8 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
+#include "symbolic_coord_internal.h"
+
 /* ── 前向声明（来自 symbolics 子目录其他模块）── */
 double algebraic_to_double(const Algebraic *a);
 double quadratic_to_double(const Quadratic *q);
@@ -213,24 +215,7 @@ double symbolic_coord_to_double(const SymbolicCoord *coord) {
         return coord->cached_value;
     }
 
-    double val = 0.0;
-    switch (coord->type) {
-        case RATIONAL:
-            val = rational_to_double(coord->data.rational);
-            break;
-        case ALGEBRAIC:
-            val = algebraic_to_double(coord->data.algebraic);
-            break;
-        case QUADRATIC:
-            val = quadratic_to_double(coord->data.quadratic);
-            break;
-        case TRANSCENDENTAL:
-            val = transcendental_to_double(coord->data.transcendental);
-            break;
-        default:
-            val = 0.0;
-            break;
-    }
+    double val = kCoordOpsVTable[coord->type].to_double(coord);
 
     /* 更新缓存（const 转换为非 const：缓存是性能优化，不改变逻辑语义） */
     ((SymbolicCoord *) coord)->cached_value = val;

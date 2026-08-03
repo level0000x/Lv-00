@@ -31,6 +31,8 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
+#include "symbolic_coord_internal.h"
+
 /* ── 前向声明（来自 symbolics 子目录其他模块）── */
 bool is_rational_zero(const Rational *r);
 void refine_algebraic_bounds(Algebraic *a, int iterations);
@@ -40,20 +42,9 @@ bool algebraic_try_rationalize(Algebraic *a);
 int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
     if (!a || !b)
         return 0;
-    /* Same type: use type-specific comparison */
+    /* Same type: use vtable dispatch */
     if (a->type == b->type) {
-        switch (a->type) {
-            case RATIONAL:
-                return rational_compare(a->data.rational, b->data.rational);
-            case ALGEBRAIC:
-                return algebraic_compare(a->data.algebraic, b->data.algebraic);
-            case QUADRATIC:
-                return quadratic_compare(a->data.quadratic, b->data.quadratic);
-            case TRANSCENDENTAL:
-                return transcendental_compare(a->data.transcendental, b->data.transcendental);
-            default:
-                return 0;
-        }
+        return kCoordOpsVTable[a->type].compare(a, b);
     }
 
     /* 跨类型比较（提高精度）*/

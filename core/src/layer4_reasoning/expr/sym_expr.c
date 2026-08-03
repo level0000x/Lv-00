@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file sym_expr.c
  * @brief Symbolic expression tree -- implementation
  *
@@ -107,6 +107,397 @@ static int sym_expr_is_var(const lvSymExpr *expr) {
  */
 static int sym_expr_is_const_val(const lvSymExpr *expr, double val) {
     return sym_expr_is_const(expr) && expr->value == val;
+}
+
+/* ============================================================
+ * VTable 类型分发 — 消除 ExprKind switch 反模式
+ * ============================================================ */
+
+/** @brief 符号表达式虚函数表条目（每个 kind 一组操作） */
+typedef struct {
+    /** 数值求值 */
+    double (*eval_double)(const lvSymExpr *expr, const char **var_names,
+                          const double *var_values, int var_count);
+    /** 求导 */
+    lvSymExpr *(*diff)(const lvSymExpr *expr, const char *var_name);
+    /** 化简（接收已递归化简的子节点，应用代数规则后返回新节点） */
+    lvSymExpr *(*simplify)(lvSymExprKind kind, lvSymExpr **simplified_children, int child_count);
+    /** 字符串格式 */
+    int (*to_string)(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op);
+} SymExprVTableEntry;
+
+/* ── 各 kind 的 eval 实现 ── */
+
+static double eval_const(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    (void)var_names; (void)var_values; (void)var_count;
+    return expr->value;
+}
+
+static double eval_var(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    for (int i = 0; i < var_count; i++) {
+        if (strcmp(expr->var_name, var_names[i]) == 0)
+            return var_values[i];
+    }
+    return NAN;
+}
+
+static double eval_binary_arith(const lvSymExpr *expr, const char **var_names,
+                                 const double *var_values, int var_count, char op) {
+    double a = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
+    double b = sym_expr_eval_double(expr->children[1], var_names, var_values, var_count);
+    if (op == '+') return a + b;
+    if (op == '*') return a * b;
+    /* pow */
+    if (isnan(a) || isnan(b)) return NAN;
+    if (a < 0.0 && fabs(b - round(b)) > 1e-12) return NAN;
+    return pow(a, b);
+}
+
+static double eval_add(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    return eval_binary_arith(expr, var_names, var_values, var_count, '+');
+}
+
+static double eval_mul(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    return eval_binary_arith(expr, var_names, var_values, var_count, '*');
+}
+
+static double eval_pow(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    return eval_binary_arith(expr, var_names, var_values, var_count, '^');
+}
+
+static double eval_neg(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    return -sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
+}
+
+static double eval_sin(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    return sin(sym_expr_eval_double(expr->children[0], var_names, var_values, var_count));
+}
+
+static double eval_cos(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    return cos(sym_expr_eval_double(expr->children[0], var_names, var_values, var_count));
+}
+
+static double eval_sqrt(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    double val = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
+    if (isnan(val) || val < 0.0) return NAN;
+    return sqrt(val);
+}
+
+static double eval_log(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
+    double val = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
+    if (isnan(val) || val <= 0.0) return NAN;
+    return log(val);
+}
+
+/* ── 各 kind 的 diff 实现 ── */
+
+static lvSymExpr *diff_const(const lvSymExpr *expr, const char *var_name) {
+    (void)expr; (void)var_name;
+    return sym_expr_create_const(0.0);
+}
+
+static lvSymExpr *diff_var(const lvSymExpr *expr, const char *var_name) {
+    return sym_expr_create_const(strcmp(expr->var_name, var_name) == 0 ? 1.0 : 0.0);
+}
+
+static lvSymExpr *diff_add(const lvSymExpr *expr, const char *var_name) {
+    return sym_expr_create_binary(lv_SYM_ADD,
+        sym_expr_diff(expr->children[0], var_name),
+        sym_expr_diff(expr->children[1], var_name));
+}
+
+static lvSymExpr *diff_mul(const lvSymExpr *expr, const char *var_name) {
+    lvSymExpr *da = sym_expr_diff(expr->children[0], var_name);
+    lvSymExpr *db = sym_expr_diff(expr->children[1], var_name);
+    lvSymExpr *a_copy = sym_expr_deep_copy(expr->children[0]);
+    lvSymExpr *b_copy = sym_expr_deep_copy(expr->children[1]);
+    lvSymExpr *term1 = sym_expr_create_binary(lv_SYM_MUL, da, b_copy);
+    lvSymExpr *term2 = sym_expr_create_binary(lv_SYM_MUL, a_copy, db);
+    return sym_expr_create_binary(lv_SYM_ADD, term1, term2);
+}
+
+static lvSymExpr *diff_pow(const lvSymExpr *expr, const char *var_name) {
+    if (sym_expr_is_const(expr->children[1])) {
+        double n = expr->children[1]->value;
+        lvSymExpr *f_copy = sym_expr_deep_copy(expr->children[0]);
+        lvSymExpr *f_prime = sym_expr_diff(expr->children[0], var_name);
+        lvSymExpr *n_minus_1 = sym_expr_create_const(n - 1.0);
+        lvSymExpr *n_const = sym_expr_create_const(n);
+        lvSymExpr *f_pow = sym_expr_create_binary(lv_SYM_POW, f_copy, n_minus_1);
+        lvSymExpr *n_f_pow = sym_expr_create_binary(lv_SYM_MUL, n_const, f_pow);
+        return sym_expr_create_binary(lv_SYM_MUL, n_f_pow, f_prime);
+    }
+    lvSymExpr *f_copy = sym_expr_deep_copy(expr->children[0]);
+    lvSymExpr *g_copy = sym_expr_deep_copy(expr->children[1]);
+    lvSymExpr *f_prime = sym_expr_diff(expr->children[0], var_name);
+    lvSymExpr *g_prime = sym_expr_diff(expr->children[1], var_name);
+    lvSymExpr *log_f = sym_expr_create_unary(lv_SYM_LOG, f_copy);
+    lvSymExpr *g_prime_log_f = sym_expr_create_binary(lv_SYM_MUL, g_prime, log_f);
+    lvSymExpr *f_copy2 = sym_expr_deep_copy(expr->children[0]);
+    lvSymExpr *g_f_prime = sym_expr_create_binary(lv_SYM_MUL, g_copy, f_prime);
+    lvSymExpr *f_div = sym_expr_create_binary(lv_SYM_POW, f_copy2, sym_expr_create_const(-1.0));
+    lvSymExpr *g_f_div = sym_expr_create_binary(lv_SYM_MUL, g_f_prime, f_div);
+    lvSymExpr *inner = sym_expr_create_binary(lv_SYM_ADD, g_prime_log_f, g_f_div);
+    lvSymExpr *fg = sym_expr_create_binary(lv_SYM_POW,
+        sym_expr_deep_copy(expr->children[0]), sym_expr_deep_copy(expr->children[1]));
+    return sym_expr_create_binary(lv_SYM_MUL, fg, inner);
+}
+
+static lvSymExpr *diff_neg(const lvSymExpr *expr, const char *var_name) {
+    return sym_expr_create_unary(lv_SYM_NEG, sym_expr_diff(expr->children[0], var_name));
+}
+
+static lvSymExpr *diff_sin(const lvSymExpr *expr, const char *var_name) {
+    return sym_expr_create_binary(lv_SYM_MUL,
+        sym_expr_create_unary(lv_SYM_COS, sym_expr_deep_copy(expr->children[0])),
+        sym_expr_diff(expr->children[0], var_name));
+}
+
+static lvSymExpr *diff_cos(const lvSymExpr *expr, const char *var_name) {
+    return sym_expr_create_binary(lv_SYM_MUL,
+        sym_expr_create_unary(lv_SYM_NEG,
+            sym_expr_create_unary(lv_SYM_SIN, sym_expr_deep_copy(expr->children[0]))),
+        sym_expr_diff(expr->children[0], var_name));
+}
+
+static lvSymExpr *diff_sqrt_fn(const lvSymExpr *expr, const char *var_name) {
+    lvSymExpr *f_prime = sym_expr_diff(expr->children[0], var_name);
+    lvSymExpr *sqrt_f = sym_expr_create_unary(lv_SYM_SQRT, sym_expr_deep_copy(expr->children[0]));
+    lvSymExpr *two = sym_expr_create_const(2.0);
+    lvSymExpr *denom = sym_expr_create_binary(lv_SYM_MUL, two, sqrt_f);
+    return sym_expr_create_binary(lv_SYM_MUL, f_prime,
+        sym_expr_create_binary(lv_SYM_POW, denom, sym_expr_create_const(-1.0)));
+}
+
+static lvSymExpr *diff_log(const lvSymExpr *expr, const char *var_name) {
+    return sym_expr_create_binary(lv_SYM_MUL,
+        sym_expr_diff(expr->children[0], var_name),
+        sym_expr_create_binary(lv_SYM_POW,
+            sym_expr_deep_copy(expr->children[0]), sym_expr_create_const(-1.0)));
+}
+
+/* ── 各 kind 的 simplify 实现 ── */
+
+static lvSymExpr *simplify_add(lvSymExprKind kind, lvSymExpr **children, int child_count) {
+    (void)kind;
+    lvSymExpr *left = children[0], *right = children[1];
+    if (sym_expr_is_const_val(left, 0.0)) { sym_expr_destroy(left); return right; }
+    if (sym_expr_is_const_val(right, 0.0)) { sym_expr_destroy(right); return left; }
+    if (sym_expr_is_const(left) && sym_expr_is_const(right)) {
+        lvSymExpr *r = sym_expr_create_const(left->value + right->value);
+        sym_expr_destroy(left); sym_expr_destroy(right); return r;
+    }
+    return sym_expr_create_binary(lv_SYM_ADD, left, right);
+}
+
+static lvSymExpr *simplify_mul(lvSymExprKind kind, lvSymExpr **children, int child_count) {
+    (void)kind;
+    lvSymExpr *left = children[0], *right = children[1];
+    if (sym_expr_is_const_val(left, 0.0) || sym_expr_is_const_val(right, 0.0)) {
+        sym_expr_destroy(left); sym_expr_destroy(right);
+        return sym_expr_create_const(0.0);
+    }
+    if (sym_expr_is_const_val(left, 1.0)) { sym_expr_destroy(left); return right; }
+    if (sym_expr_is_const_val(right, 1.0)) { sym_expr_destroy(right); return left; }
+    if (sym_expr_is_const(left) && sym_expr_is_const(right)) {
+        lvSymExpr *r = sym_expr_create_const(left->value * right->value);
+        sym_expr_destroy(left); sym_expr_destroy(right); return r;
+    }
+    return sym_expr_create_binary(lv_SYM_MUL, left, right);
+}
+
+static lvSymExpr *simplify_pow(lvSymExprKind kind, lvSymExpr **children, int child_count) {
+    (void)kind;
+    lvSymExpr *base = children[0], *exp = children[1];
+    if (sym_expr_is_const_val(exp, 0.0)) { sym_expr_destroy(base); sym_expr_destroy(exp); return sym_expr_create_const(1.0); }
+    if (sym_expr_is_const_val(exp, 1.0)) { sym_expr_destroy(exp); return base; }
+    if (sym_expr_is_const(base) && sym_expr_is_const(exp)) {
+        double val = (base->value < 0.0 && fabs(exp->value - round(exp->value)) > 1e-12)
+                     ? NAN : pow(base->value, exp->value);
+        lvSymExpr *r = sym_expr_create_const(val);
+        sym_expr_destroy(base); sym_expr_destroy(exp); return r;
+    }
+    return sym_expr_create_binary(lv_SYM_POW, base, exp);
+}
+
+static lvSymExpr *simplify_neg(lvSymExprKind kind, lvSymExpr **children, int child_count) {
+    (void)kind; (void)child_count;
+    lvSymExpr *operand = children[0];
+    if (sym_expr_is_const(operand)) {
+        lvSymExpr *r = sym_expr_create_const(-operand->value);
+        sym_expr_destroy(operand); return r;
+    }
+    if (operand->kind == lv_SYM_NEG && operand->child_count == 1) {
+        lvSymExpr *r = operand->children[0];
+        operand->children[0] = NULL;
+        sym_expr_destroy(operand); return r;
+    }
+    return sym_expr_create_unary(lv_SYM_NEG, operand);
+}
+
+static lvSymExpr *simplify_unary_fn(lvSymExprKind kind, lvSymExpr **children, int child_count) {
+    (void)child_count;
+    lvSymExpr *operand = children[0];
+    if (sym_expr_is_const(operand)) {
+        double val = 0.0;
+        if (kind == lv_SYM_SIN) val = sin(operand->value);
+        else if (kind == lv_SYM_COS) val = cos(operand->value);
+        else if (kind == lv_SYM_SQRT) val = (operand->value >= 0.0) ? sqrt(operand->value) : NAN;
+        else if (kind == lv_SYM_LOG) val = (operand->value > 0.0) ? log(operand->value) : NAN;
+        lvSymExpr *r = sym_expr_create_const(val);
+        sym_expr_destroy(operand); return r;
+    }
+    return sym_expr_create_unary(kind, operand);
+}
+
+/* ── 各 kind 的 to_string 实现 ── */
+
+/* Forward declaration（to_string 的 vtable 处理函数调用的递归格式化函数） */
+static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op);
+
+static int to_string_const(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    (void)parent_op;
+    lvStrBuf sb = {0};
+    if (expr->value == (double)(long long)expr->value && fabs(expr->value) < 1e15)
+        lv_strbuf_printf(&sb, "%lld", (long long)expr->value);
+    else
+        lv_strbuf_printf(&sb, "%.6g", expr->value);
+    int len = (int)sb.len;
+    if (buf && bufsize > 0) {
+        int copy_len = (len < bufsize) ? len : bufsize - 1;
+        memcpy(buf, sb.data, (size_t)copy_len);
+        buf[copy_len] = '\0';
+    }
+    lv_strbuf_destroy(&sb);
+    return len;
+}
+
+static int to_string_var(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    (void)parent_op;
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "%s", expr->var_name ? expr->var_name : "?");
+    int len = (int)sb.len;
+    if (buf && bufsize > 0) {
+        int copy_len = (len < bufsize) ? len : bufsize - 1;
+        memcpy(buf, sb.data, (size_t)copy_len);
+        buf[copy_len] = '\0';
+    }
+    lv_strbuf_destroy(&sb);
+    return len;
+}
+
+static int to_string_binary_op(const lvSymExpr *expr, char *buf, int bufsize,
+                                lvSymExprKind parent_op, const char *op_str) {
+    (void)parent_op;
+    int l = sym_expr_to_string_impl(expr->children[0], NULL, 0, expr->kind);
+    int r = sym_expr_to_string_impl(expr->children[1], NULL, 0, expr->kind);
+    int need_paren_l = (expr->kind == lv_SYM_MUL && expr->children[0]->kind == lv_SYM_ADD);
+    int need_paren_r = (expr->kind == lv_SYM_MUL && expr->children[1]->kind == lv_SYM_ADD);
+    int len = l + (need_paren_l ? 2 : 0) + (int)strlen(op_str) + r + (need_paren_r ? 2 : 0);
+    if (buf && bufsize > 0) {
+        int pos = 0;
+        if (need_paren_l && pos < bufsize) buf[pos++] = '(';
+        pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, expr->kind);
+        if (need_paren_l && pos < bufsize) buf[pos++] = ')';
+        if (pos < bufsize) pos += snprintf(buf + pos, bufsize - pos, "%s", op_str);
+        if (need_paren_r && pos < bufsize) buf[pos++] = '(';
+        pos += sym_expr_to_string_impl(expr->children[1], buf + pos, bufsize - pos, expr->kind);
+        if (need_paren_r && pos < bufsize) buf[pos++] = ')';
+    }
+    return len;
+}
+
+static int to_string_add(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    return to_string_binary_op(expr, buf, bufsize, parent_op, " + ");
+}
+
+static int to_string_mul(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    return to_string_binary_op(expr, buf, bufsize, parent_op, " * ");
+}
+
+static int to_string_pow(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    (void)parent_op;
+    int l = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_POW);
+    int r = sym_expr_to_string_impl(expr->children[1], NULL, 0, lv_SYM_POW);
+    int need_paren_l = (expr->children[0]->kind != lv_SYM_CONST && expr->children[0]->kind != lv_SYM_VAR);
+    int len = l + (need_paren_l ? 2 : 0) + 3 + r;
+    if (buf && bufsize > 0) {
+        int pos = 0;
+        if (need_paren_l && pos < bufsize) buf[pos++] = '(';
+        pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_POW);
+        if (need_paren_l && pos < bufsize) buf[pos++] = ')';
+        if (pos < bufsize) pos += snprintf(buf + pos, bufsize - pos, " ^ ");
+        pos += sym_expr_to_string_impl(expr->children[1], buf + pos, bufsize - pos, lv_SYM_POW);
+    }
+    return len;
+}
+
+static int to_string_neg(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    (void)parent_op;
+    int need_paren = (expr->children[0]->kind == lv_SYM_ADD);
+    int inner_len = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_NEG);
+    int len = 1 + inner_len + (need_paren ? 2 : 0);
+    if (buf && bufsize > 0) {
+        int pos = 0;
+        buf[pos++] = '-';
+        if (need_paren && pos < bufsize) buf[pos++] = '(';
+        pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_NEG);
+        if (need_paren && pos < bufsize) buf[pos++] = ')';
+    }
+    return len;
+}
+
+static int to_string_unary_fn(const lvSymExpr *expr, char *buf, int bufsize,
+                               lvSymExprKind parent_op, const char *fn_name) {
+    (void)parent_op;
+    int fn_len = (int)strlen(fn_name);
+    int inner_len = sym_expr_to_string_impl(expr->children[0], NULL, 0, expr->kind);
+    int len = fn_len + inner_len + 1;
+    if (buf && bufsize > 0) {
+        int pos = 0;
+        pos += snprintf(buf + pos, bufsize - pos, "%s(", fn_name);
+        pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, expr->kind);
+        if (pos < bufsize) buf[pos++] = ')';
+    }
+    return len;
+}
+
+static int to_string_sin(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    return to_string_unary_fn(expr, buf, bufsize, parent_op, "sin");
+}
+
+static int to_string_cos(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    return to_string_unary_fn(expr, buf, bufsize, parent_op, "cos");
+}
+
+static int to_string_sqrt(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    return to_string_unary_fn(expr, buf, bufsize, parent_op, "sqrt");
+}
+
+static int to_string_log(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+    return to_string_unary_fn(expr, buf, bufsize, parent_op, "log");
+}
+
+/* ── VTable 数组 ── */
+
+static const SymExprVTableEntry kSymExprVTables[lv_SYM_LOG + 1] = {
+    [lv_SYM_CONST] = { eval_const,  diff_const,    NULL,               to_string_const },
+    [lv_SYM_VAR]   = { eval_var,    diff_var,      NULL,               to_string_var },
+    [lv_SYM_ADD]   = { eval_add,    diff_add,      simplify_add,       to_string_add },
+    [lv_SYM_MUL]   = { eval_mul,    diff_mul,      simplify_mul,       to_string_mul },
+    [lv_SYM_POW]   = { eval_pow,    diff_pow,      simplify_pow,       to_string_pow },
+    [lv_SYM_NEG]   = { eval_neg,    diff_neg,      simplify_neg,       to_string_neg },
+    [lv_SYM_SIN]   = { eval_sin,    diff_sin,      simplify_unary_fn,  to_string_sin },
+    [lv_SYM_COS]   = { eval_cos,    diff_cos,      simplify_unary_fn,  to_string_cos },
+    [lv_SYM_SQRT]  = { eval_sqrt,   diff_sqrt_fn,  simplify_unary_fn,  to_string_sqrt },
+    [lv_SYM_LOG]   = { eval_log,    diff_log,      simplify_unary_fn,  to_string_log },
+};
+
+/** @brief 获取指定 kind 的 VTable 条目 */
+static const SymExprVTableEntry *sym_expr_get_vtable(lvSymExprKind kind) {
+    if (kind < 0 || kind > lv_SYM_LOG)
+        return NULL;
+    return &kSymExprVTables[kind];
 }
 
 /* ============================================================
@@ -240,180 +631,13 @@ lv_PUBLIC_API lvSymExpr *sym_expr_simplify(const lvSymExpr *expr) {
 
     lvSymExpr *result = NULL;
 
-    switch (expr->kind) {
-        case lv_SYM_ADD: {
-            lvSymExpr *left = simplified_children[0];
-            lvSymExpr *right = simplified_children[1];
-
-            /* 0 + x -> x */
-            if (sym_expr_is_const_val(left, 0.0)) {
-                result = right;
-                sym_expr_destroy(left);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* x + 0 -> x */
-            if (sym_expr_is_const_val(right, 0.0)) {
-                result = left;
-                sym_expr_destroy(right);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* const + const -> const */
-            if (sym_expr_is_const(left) && sym_expr_is_const(right)) {
-                result = sym_expr_create_const(left->value + right->value);
-                sym_expr_destroy(left);
-                sym_expr_destroy(right);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* Default: build simplified add node */
-            result = sym_expr_create_binary(lv_SYM_ADD, left, right);
-            break;
-        }
-
-        case lv_SYM_MUL: {
-            lvSymExpr *left = simplified_children[0];
-            lvSymExpr *right = simplified_children[1];
-
-            /* 0 * x -> 0 */
-            if (sym_expr_is_const_val(left, 0.0) || sym_expr_is_const_val(right, 0.0)) {
-                result = sym_expr_create_const(0.0);
-                sym_expr_destroy(left);
-                sym_expr_destroy(right);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* 1 * x -> x */
-            if (sym_expr_is_const_val(left, 1.0)) {
-                result = right;
-                sym_expr_destroy(left);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* x * 1 -> x */
-            if (sym_expr_is_const_val(right, 1.0)) {
-                result = left;
-                sym_expr_destroy(right);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* const * const -> const */
-            if (sym_expr_is_const(left) && sym_expr_is_const(right)) {
-                result = sym_expr_create_const(left->value * right->value);
-                sym_expr_destroy(left);
-                sym_expr_destroy(right);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* Default: build simplified mul node */
-            result = sym_expr_create_binary(lv_SYM_MUL, left, right);
-            break;
-        }
-
-        case lv_SYM_POW: {
-            lvSymExpr *base = simplified_children[0];
-            lvSymExpr *exp = simplified_children[1];
-
-            /* x^0 -> 1 */
-            if (sym_expr_is_const_val(exp, 0.0)) {
-                result = sym_expr_create_const(1.0);
-                sym_expr_destroy(base);
-                sym_expr_destroy(exp);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* x^1 -> x */
-            if (sym_expr_is_const_val(exp, 1.0)) {
-                result = base;
-                sym_expr_destroy(exp);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* const^const -> const */
-            if (sym_expr_is_const(base) && sym_expr_is_const(exp)) {
-                /* Guard: pow(negative, non-integer) is undefined in reals.
-             * Check if exponent is effectively an integer; if not and base < 0,
-             * the result would be NaN. */
-                double val;
-                if (base->value < 0.0 && fabs(exp->value - round(exp->value)) > 1e-12) {
-                    val = NAN;
-                } else {
-                    val = pow(base->value, exp->value);
-                }
-                result = sym_expr_create_const(val);
-                sym_expr_destroy(base);
-                sym_expr_destroy(exp);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* Default: build simplified pow node */
-            result = sym_expr_create_binary(lv_SYM_POW, base, exp);
-            break;
-        }
-
-        case lv_SYM_NEG: {
-            lvSymExpr *operand = simplified_children[0];
-
-            /* -const -> const */
-            if (sym_expr_is_const(operand)) {
-                result = sym_expr_create_const(-operand->value);
-                sym_expr_destroy(operand);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* -(-x) -> x */
-            if (operand->kind == lv_SYM_NEG && operand->child_count == 1) {
-                result = operand->children[0];
-                operand->children[0] = NULL; /* prevent double-free */
-                sym_expr_destroy(operand);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* Default: build simplified neg node */
-            result = sym_expr_create_unary(lv_SYM_NEG, operand);
-            break;
-        }
-
-        case lv_SYM_SIN:
-        case lv_SYM_COS:
-        case lv_SYM_SQRT:
-        case lv_SYM_LOG: {
-            lvSymExpr *operand = simplified_children[0];
-
-            /* f(const) -> const */
-            if (sym_expr_is_const(operand)) {
-                double val = 0.0;
-                switch (expr->kind) {
-                    case lv_SYM_SIN:
-                        val = sin(operand->value);
-                        break;
-                    case lv_SYM_COS:
-                        val = cos(operand->value);
-                        break;
-                    case lv_SYM_SQRT:
-                        val = (operand->value >= 0.0) ? sqrt(operand->value) : NAN;
-                        break;
-                    case lv_SYM_LOG:
-                        val = (operand->value > 0.0) ? log(operand->value) : NAN;
-                        break;
-                    default:
-                        break;
-                }
-                result = sym_expr_create_const(val);
-                sym_expr_destroy(operand);
-                lv_free((void **)&(simplified_children));
-                return result;
-            }
-            /* Default: build simplified node */
-            result = sym_expr_create_unary(expr->kind, operand);
-            break;
-        }
-
-        default:
-            /* Unknown kind: return deep copy */
-            result = sym_expr_deep_copy(expr);
-            break;
+    /* VTable dispatch: 使用 kind 对应的 simplify 函数 */
+    const SymExprVTableEntry *vt = sym_expr_get_vtable(expr->kind);
+    if (vt && vt->simplify) {
+        result = vt->simplify(expr->kind, simplified_children, expr->child_count);
+    } else {
+        /* Leaf (CONST, VAR) 或未知 kind：返回深拷贝 */
+        result = sym_expr_deep_copy(expr);
     }
 
     lv_free((void **)&(simplified_children));
@@ -429,63 +653,12 @@ lv_PUBLIC_API double sym_expr_eval_double(const lvSymExpr *expr, const char **va
     if (!expr)
         return NAN;
 
-    switch (expr->kind) {
-        case lv_SYM_CONST:
-            return expr->value;
-
-        case lv_SYM_VAR:
-            for (int i = 0; i < var_count; i++) {
-                if (strcmp(expr->var_name, var_names[i]) == 0) {
-                    return var_values[i];
-                }
-            }
-            return NAN; /* variable not found */
-
-        case lv_SYM_ADD:
-            return sym_expr_eval_double(expr->children[0], var_names, var_values, var_count) +
-                   sym_expr_eval_double(expr->children[1], var_names, var_values, var_count);
-
-        case lv_SYM_MUL:
-            return sym_expr_eval_double(expr->children[0], var_names, var_values, var_count) *
-                   sym_expr_eval_double(expr->children[1], var_names, var_values, var_count);
-
-        case lv_SYM_POW: {
-            double base = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
-            double exp = sym_expr_eval_double(expr->children[1], var_names, var_values, var_count);
-            /* Guard: NaN propagation and domain check for negative base with non-integer exponent */
-            if (isnan(base) || isnan(exp))
-                return NAN;
-            if (base < 0.0 && fabs(exp - round(exp)) > 1e-12)
-                return NAN;
-            return pow(base, exp);
-        }
-
-        case lv_SYM_NEG:
-            return -sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
-
-        case lv_SYM_SIN:
-            return sin(sym_expr_eval_double(expr->children[0], var_names, var_values, var_count));
-
-        case lv_SYM_COS:
-            return cos(sym_expr_eval_double(expr->children[0], var_names, var_values, var_count));
-
-        case lv_SYM_SQRT: {
-            double val = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
-            if (isnan(val) || val < 0.0)
-                return NAN;
-            return sqrt(val);
-        }
-
-        case lv_SYM_LOG: {
-            double val = sym_expr_eval_double(expr->children[0], var_names, var_values, var_count);
-            if (isnan(val) || val <= 0.0)
-                return NAN;
-            return log(val);
-        }
-
-        default:
-            return NAN;
+    /* VTable dispatch: 使用 kind 对应的 eval_double 函数 */
+    const SymExprVTableEntry *vt = sym_expr_get_vtable(expr->kind);
+    if (vt && vt->eval_double) {
+        return vt->eval_double(expr, var_names, var_values, var_count);
     }
+    return NAN;
 }
 
 /* ============================================================
@@ -509,154 +682,15 @@ static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf, int bufsize
         return 0;
     }
 
-    lvStrBuf sb = {0};
-    int len = 0;
-
-    switch (expr->kind) {
-        case lv_SYM_CONST:
-            /* Format integer-valued constants without decimal point */
-            if (expr->value == (double) (long long) expr->value && fabs(expr->value) < 1e15) {
-                lv_strbuf_printf(&sb, "%lld", (long long) expr->value);
-                len = (int)sb.len;
-            } else {
-                lv_strbuf_printf(&sb, "%.6g", expr->value);
-                len = (int)sb.len;
-            }
-            break;
-
-        case lv_SYM_VAR:
-            lv_strbuf_printf(&sb, "%s", expr->var_name ? expr->var_name : "?");
-            len = (int)sb.len;
-            break;
-
-        case lv_SYM_ADD: {
-            int l = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_ADD);
-            int r = sym_expr_to_string_impl(expr->children[1], NULL, 0, lv_SYM_ADD);
-            len = l + 3 + r; /* "left + right" */
-            if (buf && bufsize > 0) {
-                int pos = 0;
-                pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_ADD);
-                if (pos < bufsize)
-                    pos += snprintf(buf + pos, bufsize - pos, " + ");
-                pos += sym_expr_to_string_impl(expr->children[1], buf + pos, bufsize - pos, lv_SYM_ADD);
-            }
-            lv_strbuf_destroy(&sb);
-            return len;
-        }
-
-        case lv_SYM_MUL: {
-            int l = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_MUL);
-            int r = sym_expr_to_string_impl(expr->children[1], NULL, 0, lv_SYM_MUL);
-            /* Add parentheses for non-atomic children when parent is add/pow */
-            int need_paren_l = (expr->children[0]->kind == lv_SYM_ADD);
-            int need_paren_r = (expr->children[1]->kind == lv_SYM_ADD);
-            len = l + (need_paren_l ? 2 : 0) + 3 + r + (need_paren_r ? 2 : 0);
-            if (buf && bufsize > 0) {
-                int pos = 0;
-                if (need_paren_l && pos < bufsize)
-                    buf[pos++] = '(';
-                pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_MUL);
-                if (need_paren_l && pos < bufsize)
-                    buf[pos++] = ')';
-                if (pos < bufsize)
-                    pos += snprintf(buf + pos, bufsize - pos, " * ");
-                if (need_paren_r && pos < bufsize)
-                    buf[pos++] = '(';
-                pos += sym_expr_to_string_impl(expr->children[1], buf + pos, bufsize - pos, lv_SYM_MUL);
-                if (need_paren_r && pos < bufsize)
-                    buf[pos++] = ')';
-            }
-            return len;
-        }
-
-        case lv_SYM_POW: {
-            int l = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_POW);
-            int r = sym_expr_to_string_impl(expr->children[1], NULL, 0, lv_SYM_POW);
-            int need_paren_l = (expr->children[0]->kind != lv_SYM_CONST && expr->children[0]->kind != lv_SYM_VAR);
-            len = l + (need_paren_l ? 2 : 0) + 3 + r;
-            if (buf && bufsize > 0) {
-                int pos = 0;
-                if (need_paren_l && pos < bufsize)
-                    buf[pos++] = '(';
-                pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_POW);
-                if (need_paren_l && pos < bufsize)
-                    buf[pos++] = ')';
-                if (pos < bufsize)
-                    pos += snprintf(buf + pos, bufsize - pos, " ^ ");
-                pos += sym_expr_to_string_impl(expr->children[1], buf + pos, bufsize - pos, lv_SYM_POW);
-            }
-            return len;
-        }
-
-        case lv_SYM_NEG: {
-            int need_paren = (expr->children[0]->kind == lv_SYM_ADD);
-            int inner_len = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_NEG);
-            len = 1 + inner_len + (need_paren ? 2 : 0);
-            if (buf && bufsize > 0) {
-                int pos = 0;
-                buf[pos++] = '-';
-                if (need_paren && pos < bufsize)
-                    buf[pos++] = '(';
-                pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_NEG);
-                if (need_paren && pos < bufsize)
-                    buf[pos++] = ')';
-            }
-            return len;
-        }
-
-        case lv_SYM_SIN:
-            len = 5 + sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_SIN) + 1;
-            if (buf && bufsize > 0) {
-                int pos = 0;
-                pos += snprintf(buf + pos, bufsize - pos, "sin(");
-                pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_SIN);
-                if (pos < bufsize)
-                    buf[pos++] = ')';
-            }
-            return len;
-
-        case lv_SYM_COS:
-            len = 5 + sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_COS) + 1;
-            if (buf && bufsize > 0) {
-                int pos = 0;
-                pos += snprintf(buf + pos, bufsize - pos, "cos(");
-                pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_COS);
-                if (pos < bufsize)
-                    buf[pos++] = ')';
-            }
-            return len;
-
-        case lv_SYM_SQRT:
-            len = 6 + sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_SQRT) + 1;
-            if (buf && bufsize > 0) {
-                int pos = 0;
-                pos += snprintf(buf + pos, bufsize - pos, "sqrt(");
-                pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_SQRT);
-                if (pos < bufsize)
-                    buf[pos++] = ')';
-            }
-            return len;
-
-        case lv_SYM_LOG:
-            len = 5 + sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_LOG) + 1;
-            if (buf && bufsize > 0) {
-                int pos = 0;
-                pos += snprintf(buf + pos, bufsize - pos, "log(");
-                pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_LOG);
-                if (pos < bufsize)
-                    buf[pos++] = ')';
-            }
-            return len;
+    /* VTable dispatch: 使用 kind 对应的 to_string 函数 */
+    const SymExprVTableEntry *vt = sym_expr_get_vtable(expr->kind);
+    if (vt && vt->to_string) {
+        return vt->to_string(expr, buf, bufsize, parent_op);
     }
 
-    /* Copy from tmp to buf if needed */
-    if (buf && bufsize > 0) {
-        int copy_len = (len < bufsize) ? len : bufsize - 1;
-        memcpy(buf, sb.data, (size_t) copy_len);
-        buf[copy_len] = '\0';
-    }
-
-    return len;
+    /* Unknown kind: empty string */
+    if (buf && bufsize > 0) buf[0] = '\0';
+    return 0;
 }
 
 lv_PUBLIC_API char *sym_expr_to_string(const lvSymExpr *expr) {
@@ -689,106 +723,12 @@ lv_PUBLIC_API lvSymExpr *sym_expr_diff(const lvSymExpr *expr, const char *var_na
     if (!expr || !var_name)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_diff: expr or var_name is NULL");
 
-    switch (expr->kind) {
-        case lv_SYM_CONST:
-            /* d/dx(c) = 0 */
-            return sym_expr_create_const(0.0);
-
-        case lv_SYM_VAR:
-            /* d/dx(x) = 1, d/dx(y) = 0 */
-            return sym_expr_create_const(strcmp(expr->var_name, var_name) == 0 ? 1.0 : 0.0);
-
-        case lv_SYM_ADD:
-            /* d/dx(a + b) = da/dx + db/dx */
-            return sym_expr_create_binary(lv_SYM_ADD, sym_expr_diff(expr->children[0], var_name),
-                                          sym_expr_diff(expr->children[1], var_name));
-
-        case lv_SYM_MUL: {
-            /* Product rule: d/dx(a * b) = a' * b + a * b' */
-            lvSymExpr *da = sym_expr_diff(expr->children[0], var_name);
-            lvSymExpr *db = sym_expr_diff(expr->children[1], var_name);
-            lvSymExpr *a_copy = sym_expr_deep_copy(expr->children[0]);
-            lvSymExpr *b_copy = sym_expr_deep_copy(expr->children[1]);
-
-            lvSymExpr *term1 = sym_expr_create_binary(lv_SYM_MUL, da, b_copy);
-            lvSymExpr *term2 = sym_expr_create_binary(lv_SYM_MUL, a_copy, db);
-
-            return sym_expr_create_binary(lv_SYM_ADD, term1, term2);
-        }
-
-        case lv_SYM_POW: {
-            /* Power rule: d/dx(f^g) = f^g * (g' * ln(f) + g * f'/f)
-         * Special case for constant exponent: d/dx(f^n) = n * f^(n-1) * f' */
-            if (sym_expr_is_const(expr->children[1])) {
-                /* d/dx(f^n) = n * f^(n-1) * f' */
-                double n = expr->children[1]->value;
-                lvSymExpr *f_copy = sym_expr_deep_copy(expr->children[0]);
-                lvSymExpr *f_prime = sym_expr_diff(expr->children[0], var_name);
-                lvSymExpr *n_minus_1 = sym_expr_create_const(n - 1.0);
-                lvSymExpr *n_const = sym_expr_create_const(n);
-
-                lvSymExpr *f_pow = sym_expr_create_binary(lv_SYM_POW, f_copy, n_minus_1);
-                lvSymExpr *n_f_pow = sym_expr_create_binary(lv_SYM_MUL, n_const, f_pow);
-                return sym_expr_create_binary(lv_SYM_MUL, n_f_pow, f_prime);
-            } else {
-                /* General case: d/dx(f^g) = f^g * (g' * log(f) + g * f'/f) */
-                lvSymExpr *f_copy = sym_expr_deep_copy(expr->children[0]);
-                lvSymExpr *g_copy = sym_expr_deep_copy(expr->children[1]);
-                lvSymExpr *f_prime = sym_expr_diff(expr->children[0], var_name);
-                lvSymExpr *g_prime = sym_expr_diff(expr->children[1], var_name);
-
-                lvSymExpr *log_f = sym_expr_create_unary(lv_SYM_LOG, f_copy);
-                lvSymExpr *g_prime_log_f = sym_expr_create_binary(lv_SYM_MUL, g_prime, log_f);
-
-                lvSymExpr *f_copy2 = sym_expr_deep_copy(expr->children[0]);
-                lvSymExpr *g_f_prime = sym_expr_create_binary(lv_SYM_MUL, g_copy, f_prime);
-                lvSymExpr *f_div = sym_expr_create_binary(lv_SYM_POW, f_copy2, sym_expr_create_const(-1.0));
-                lvSymExpr *g_f_div = sym_expr_create_binary(lv_SYM_MUL, g_f_prime, f_div);
-
-                lvSymExpr *inner = sym_expr_create_binary(lv_SYM_ADD, g_prime_log_f, g_f_div);
-                lvSymExpr *fg = sym_expr_create_binary(lv_SYM_POW, sym_expr_deep_copy(expr->children[0]),
-                                                       sym_expr_deep_copy(expr->children[1]));
-                return sym_expr_create_binary(lv_SYM_MUL, fg, inner);
-            }
-        }
-
-        case lv_SYM_NEG:
-            /* d/dx(-f) = -f' */
-            return sym_expr_create_unary(lv_SYM_NEG, sym_expr_diff(expr->children[0], var_name));
-
-        case lv_SYM_SIN:
-            /* d/dx(sin(f)) = cos(f) * f' */
-            return sym_expr_create_binary(lv_SYM_MUL,
-                                          sym_expr_create_unary(lv_SYM_COS, sym_expr_deep_copy(expr->children[0])),
-                                          sym_expr_diff(expr->children[0], var_name));
-
-        case lv_SYM_COS:
-            /* d/dx(cos(f)) = -sin(f) * f' */
-            return sym_expr_create_binary(
-                lv_SYM_MUL,
-                sym_expr_create_unary(lv_SYM_NEG,
-                                      sym_expr_create_unary(lv_SYM_SIN, sym_expr_deep_copy(expr->children[0]))),
-                sym_expr_diff(expr->children[0], var_name));
-
-        case lv_SYM_SQRT: {
-            /* d/dx(sqrt(f)) = f' / (2 * sqrt(f)) */
-            lvSymExpr *f_prime = sym_expr_diff(expr->children[0], var_name);
-            lvSymExpr *sqrt_f = sym_expr_create_unary(lv_SYM_SQRT, sym_expr_deep_copy(expr->children[0]));
-            lvSymExpr *two = sym_expr_create_const(2.0);
-            lvSymExpr *denom = sym_expr_create_binary(lv_SYM_MUL, two, sqrt_f);
-            return sym_expr_create_binary(lv_SYM_MUL, f_prime,
-                                          sym_expr_create_binary(lv_SYM_POW, denom, sym_expr_create_const(-1.0)));
-        }
-
-        case lv_SYM_LOG:
-            /* d/dx(log(f)) = f' / f */
-            return sym_expr_create_binary(
-                lv_SYM_MUL, sym_expr_diff(expr->children[0], var_name),
-                sym_expr_create_binary(lv_SYM_POW, sym_expr_deep_copy(expr->children[0]), sym_expr_create_const(-1.0)));
-
-        default:
-            return sym_expr_create_const(0.0);
+    /* VTable dispatch: 使用 kind 对应的 diff 函数 */
+    const SymExprVTableEntry *vt = sym_expr_get_vtable(expr->kind);
+    if (vt && vt->diff) {
+        return vt->diff(expr, var_name);
     }
+    return sym_expr_create_const(0.0);
 }
 
 /* ============================================================

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_config.c
  * @brief Lv-00 运行时配置系统实现
  *
@@ -56,6 +56,9 @@ static void lv_config_default_init(void) {
     def.engine.vf2_max_depth = 100;
     def.engine.buchberger_max_steps = 50000;
     def.engine.groebner_reduce_max_steps = 10000;
+    def.engine.engine_max_collaboration_iterations = 10000;
+    def.engine.rewrite_default_max_iterations = 1000;
+    def.engine.rewrite_engine_init_iterations = 100;
     /* 流式 */
     def.stream.stream_async_queue_capacity = 1024;
     def.stream.stream_initial_callbacks = 16;
@@ -109,6 +112,7 @@ static void lv_config_default_init(void) {
     def.geometry.geoevol_min_step = 1e-15;
     def.geometry.geoevol_max_step = 1e10;
     def.geometry.geoevol_pi_smooth_factor = 0.25;
+    def.geometry.geo_sym_coord_eps = 1e-8;
     /* 证明 */
     def.proof.proof_max_depth = 100;
     def.proof.proof_max_branches = 64;
@@ -124,10 +128,13 @@ static void lv_config_default_init(void) {
     def.context.context_reasoning_stack_max_depth = 1000;
     def.context.context_timeout_ms = 30000;
     def.context.context_cooldown_ms = 5000;
+    def.context.view_sync_timeout_ms = 1000;
     /* 集成（互操作 + 插件 + 后端） */
     def.integration.interop_max_params = 32;
     def.integration.interop_max_completions = 64;
     def.integration.interop_ws_default_port = 8765;
+    def.integration.interop_buffer_size = 65536;
+    def.integration.interop_timeout_ms = 30000;
     def.integration.max_plugins = 256;
     def.integration.max_interfaces = 128;
     def.integration.backend_step_limit = 1000;
@@ -383,6 +390,31 @@ void lv_config_set_high_dim_max_active_views(int val) {
 }
 void lv_config_set_high_dim_default_fidelity_threshold(double val) {
     cfg_mut()->high_dim.high_dim_default_fidelity_threshold = val;
+}
+
+void lv_config_set_geo_sym_coord_eps(double val) {
+    cfg_mut()->geometry.geo_sym_coord_eps = val;
+}
+void lv_config_set_engine_max_collaboration_iterations(int val) {
+    cfg_mut()->engine.engine_max_collaboration_iterations = val;
+}
+void lv_config_set_rewrite_default_max_iterations(int val) {
+    cfg_mut()->engine.rewrite_default_max_iterations = val;
+}
+void lv_config_set_rewrite_engine_init_iterations(int val) {
+    cfg_mut()->engine.rewrite_engine_init_iterations = val;
+}
+void lv_config_set_interop_buffer_size(int val) {
+    cfg_mut()->integration.interop_buffer_size = val;
+}
+void lv_config_set_interop_timeout_ms(int val) {
+    cfg_mut()->integration.interop_timeout_ms = val;
+}
+void lv_config_set_view_sync_timeout_ms(int val) {
+    cfg_mut()->context.view_sync_timeout_ms = val;
+}
+void lv_config_set_max_consecutive_trips(int val) {
+    cfg_mut()->health.max_consecutive_trips = val;
 }
 
 /* ---- 通用 key-value setter ---- */

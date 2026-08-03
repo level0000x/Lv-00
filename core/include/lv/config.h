@@ -261,6 +261,9 @@ typedef struct lvCfgEngine {
     int vf2_max_depth;               /**< VF2 最大深度（默认 100） */
     int buchberger_max_steps;        /**< Buchberger 最大步数（默认 50000） */
     int groebner_reduce_max_steps;   /**< Groebner 归约最大步数（默认 10000） */
+    int engine_max_collaboration_iterations; /**< 重写-求解协作最大迭代次数（默认 10000） */
+    int rewrite_default_max_iterations; /**< 重写默认最大迭代次数（默认 1000） */
+    int rewrite_engine_init_iterations; /**< 重写引擎初始迭代次数（默认 100） */
 } lvCfgEngine;
 
 /** @brief 解析器与类型系统配置 */
@@ -328,6 +331,7 @@ typedef struct lvCfgGeometry {
     double geoevol_min_step;             /**< ODE 最小步长（默认 1e-15） */
     double geoevol_max_step;             /**< ODE 最大步长（默认 1e10） */
     double geoevol_pi_smooth_factor;     /**< ODE PI 平滑因子（默认 0.25） */
+    double geo_sym_coord_eps;            /**< 符号坐标计算容差（默认 1e-8） */
 } lvCfgGeometry;
 
 /** @brief 证明引擎配置 */
@@ -349,6 +353,7 @@ typedef struct lvCfgContext {
     int context_reasoning_stack_max_depth;        /**< 推理栈最大深度（默认 1000） */
     int context_timeout_ms;                       /**< 上下文默认超时毫秒（默认 30000） */
     int context_cooldown_ms;                      /**< 上下文冷却时间毫秒（默认 5000） */
+    int view_sync_timeout_ms;                     /**< 视图同步超时毫秒（默认 1000） */
 } lvCfgContext;
 
 /** @brief 运行时防护配置 */
@@ -363,6 +368,8 @@ typedef struct lvCfgIntegration {
     int interop_max_params;            /**< 互操作最大参数数（默认 32） */
     int interop_max_completions;       /**< 互操作最大补全数（默认 64） */
     int interop_ws_default_port;       /**< 互操作 WebSocket 默认端口（默认 8765） */
+    int interop_buffer_size;           /**< 互操作响应缓冲区大小（默认 65536） */
+    int interop_timeout_ms;            /**< 互操作超时毫秒（默认 30000） */
     int max_plugins;                   /**< 最大插件数（默认 256） */
     int max_interfaces;                /**< 最大接口数（默认 128） */
     int backend_step_limit;            /**< 数值后端步数上限（默认 1000） */
@@ -397,6 +404,7 @@ typedef struct lvCfgHealth {
     int health_memory_leak_penalty;    /**< 健康内存泄漏扣分（默认 20） */
     int health_recent_error_penalty;   /**< 健康最近错误扣分（默认 5） */
     int circuit_overflow_threshold;    /**< 熔断器溢出阈值（默认 3） */
+    int max_consecutive_trips;         /**< 位数熔断连续触发阈值（默认 3） */
     int value_too_large;               /**< 代数值过大阈值（默认 1048576） */
     int downgrade_denominator;         /**< 降级分母阈值（默认 100000） */
     int default_memory_limit_mb;       /**< 默认内存限制 MB（默认 0=无限制） */
@@ -466,6 +474,9 @@ typedef struct lvConfig {
     X("vf2_max_depth", engine.vf2_max_depth) \
     X("buchberger_max_steps", engine.buchberger_max_steps) \
     X("groebner_reduce_max_steps", engine.groebner_reduce_max_steps) \
+    X("engine_max_collaboration_iterations", engine.engine_max_collaboration_iterations) \
+    X("rewrite_default_max_iterations", engine.rewrite_default_max_iterations) \
+    X("rewrite_engine_init_iterations", engine.rewrite_engine_init_iterations) \
     X("stream_async_queue_capacity", stream.stream_async_queue_capacity) \
     X("stream_initial_callbacks", stream.stream_initial_callbacks) \
     X("stream_max_callbacks", stream.stream_max_callbacks) \
@@ -521,6 +532,8 @@ typedef struct lvConfig {
     X("interop_max_params", integration.interop_max_params) \
     X("interop_max_completions", integration.interop_max_completions) \
     X("interop_ws_default_port", integration.interop_ws_default_port) \
+    X("interop_buffer_size", integration.interop_buffer_size) \
+    X("interop_timeout_ms", integration.interop_timeout_ms) \
     X("log_max_files", diagnostics.log_max_files) \
     X("log_max_size", diagnostics.log_max_size) \
     X("log_ring_buffer_capacity", diagnostics.log_ring_buffer_capacity) \
@@ -537,6 +550,7 @@ typedef struct lvConfig {
     X("stress_test_default_chain", test.stress_test_default_chain) \
     X("stress_test_max_poly_degree", test.stress_test_max_poly_degree) \
     X("circuit_overflow_threshold", health.circuit_overflow_threshold) \
+    X("max_consecutive_trips", health.max_consecutive_trips) \
     X("value_too_large", health.value_too_large) \
     X("downgrade_denominator", health.downgrade_denominator) \
     X("default_memory_limit_mb", health.default_memory_limit_mb) \
@@ -546,6 +560,7 @@ typedef struct lvConfig {
     X("health_recent_error_penalty", health.health_recent_error_penalty) \
     X("context_timeout_ms", context.context_timeout_ms) \
     X("context_cooldown_ms", context.context_cooldown_ms) \
+    X("view_sync_timeout_ms", context.view_sync_timeout_ms) \
     X("prop_max_iterations", propagation.prop_max_iterations) \
     X("prop_max_backtracks", propagation.prop_max_backtracks) \
     X("prop_max_collaboration_iters", propagation.prop_max_collaboration_iters) \
@@ -562,7 +577,8 @@ typedef struct lvConfig {
     X("geoevol_pi_smooth_factor", geometry.geoevol_pi_smooth_factor) \
     X("health_memory_usage_ratio", health.health_memory_usage_ratio) \
     X("health_memory_leak_ratio", health.health_memory_leak_ratio) \
-    X("high_dim_default_fidelity_threshold", high_dim.high_dim_default_fidelity_threshold)
+    X("high_dim_default_fidelity_threshold", high_dim.high_dim_default_fidelity_threshold) \
+    X("geo_sym_coord_eps", geometry.geo_sym_coord_eps)
 
 /* ====================================================================
  * 运行时配置 API
@@ -608,6 +624,14 @@ void lv_config_set_high_dim_max_depth(int val);
 void lv_config_set_high_dim_max_projection_presets(int val);
 void lv_config_set_high_dim_max_active_views(int val);
 void lv_config_set_high_dim_default_fidelity_threshold(double val);
+void lv_config_set_geo_sym_coord_eps(double val);
+void lv_config_set_engine_max_collaboration_iterations(int val);
+void lv_config_set_rewrite_default_max_iterations(int val);
+void lv_config_set_rewrite_engine_init_iterations(int val);
+void lv_config_set_interop_buffer_size(int val);
+void lv_config_set_interop_timeout_ms(int val);
+void lv_config_set_view_sync_timeout_ms(int val);
+void lv_config_set_max_consecutive_trips(int val);
 
 /* ---- 通用 key-value setter（低频字段用，一次调用不改编译） ---- */
 bool lv_config_set_int(const char *key, int val);

@@ -24,6 +24,19 @@ extern "C" {
 #endif
 
 /**
+ * @brief 函数指针类型：查询给定指针的底层分配实际可用大小
+ *
+ * 对应平台 API：
+ *   - Windows : _msize
+ *   - macOS   : malloc_size
+ *   - Linux   : malloc_usable_size
+ *
+ * @param ptr 已分配的内存指针
+ * @return 该指针指向的底层分配的实际可用字节数，失败时返回 0
+ */
+typedef size_t (*AllocatorSizeQuery)(void *ptr);
+
+/**
  * @brief 可替换的内存分配器虚表
  *
  * 每个函数指针对应一个分配/释放操作。
@@ -38,6 +51,7 @@ typedef struct {
     void *(*realloc)(void *ptr, size_t new_size);
     void  (*free)(void *ptr);
     const char *name;
+    AllocatorSizeQuery size_query;  /**< 查询底层分配的实际可用大小（可为 NULL） */
 } AllocatorOps;
 
 /**
