@@ -688,6 +688,7 @@ set(lv_LAYER1_SOURCES
 # 依赖：GMP，C 标准库（仅 Layer 2 能直接依赖 GMP 链接）
 set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_utils.c
+    core/src/layer2_resource/allocator.c
     core/src/layer2_resource/lv_utils_str.c
     core/src/layer2_resource/lv_utils_array.c
     core/src/layer2_resource/lv_utils_config.c
@@ -1139,63 +1140,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/func_block/preset_manager_compose.c
     core/src/layer4_reasoning/func_block/preset_manager_doc.c
     core/src/layer4_reasoning/func_block/preset_manager_serialize.c
-    # 数学理论预设 (55 个文件)
-    core/src/layer4_reasoning/preset/preset_advanced_geometry.c
-    core/src/layer4_reasoning/preset/preset_algebraic.c
-    core/src/layer4_reasoning/preset/preset_algebraic_geometry.c
-    core/src/layer4_reasoning/preset/preset_algebraic_topology.c
-    core/src/layer4_reasoning/preset/preset_algebraic_topology_adv.c
-    core/src/layer4_reasoning/preset/preset_analysis.c
-    core/src/layer4_reasoning/preset/preset_arithmetic_geometry.c
-    core/src/layer4_reasoning/preset/preset_basic_geometry.c
-    core/src/layer4_reasoning/preset/preset_category_theory.c
-    core/src/layer4_reasoning/preset/preset_category_theory_adv.c
-    core/src/layer4_reasoning/preset/preset_coding_theory.c
-    core/src/layer4_reasoning/preset/preset_combinatorics.c
-    core/src/layer4_reasoning/preset/preset_complex_analysis.c
-    core/src/layer4_reasoning/preset/preset_difference_equations.c
-    core/src/layer4_reasoning/preset/preset_differential_equations.c
-    core/src/layer4_reasoning/preset/preset_differential_geometry.c
-    core/src/layer4_reasoning/preset/preset_differential_geometry_adv.c
-    core/src/layer4_reasoning/preset/preset_dynamical_systems.c
-    core/src/layer4_reasoning/preset/preset_field_theory.c
-    core/src/layer4_reasoning/preset/preset_functional_analysis.c
-    core/src/layer4_reasoning/preset/preset_functional_analysis_adv.c
-    core/src/layer4_reasoning/preset/preset_game_theory.c
-    core/src/layer4_reasoning/preset/preset_geometry_3d.c
-    core/src/layer4_reasoning/preset/preset_graph_theory.c
-    core/src/layer4_reasoning/preset/preset_group_theory.c
-    core/src/layer4_reasoning/preset/preset_homological_algebra.c
-    core/src/layer4_reasoning/preset/preset_information_theory.c
-    core/src/layer4_reasoning/preset/preset_integral_transforms.c
-    core/src/layer4_reasoning/preset/preset_lattice_theory.c
-    core/src/layer4_reasoning/preset/preset_lie_theory_advanced.c
-    core/src/layer4_reasoning/preset/preset_linear_algebra.c
-    core/src/layer4_reasoning/preset/preset_logic_advanced.c
-    core/src/layer4_reasoning/preset/preset_math_logic.c
-    core/src/layer4_reasoning/preset/preset_mathematical_logic.c
-    core/src/layer4_reasoning/preset/preset_mathematical_physics.c
-    core/src/layer4_reasoning/preset/preset_matrix.c
-    core/src/layer4_reasoning/preset/preset_measure_theory.c
-    core/src/layer4_reasoning/preset/preset_measurements.c
-    core/src/layer4_reasoning/preset/preset_number_theory.c
-    core/src/layer4_reasoning/preset/preset_numerical.c
-    core/src/layer4_reasoning/preset/preset_numerical_analysis.c
-    core/src/layer4_reasoning/preset/preset_optimization.c
-    core/src/layer4_reasoning/preset/preset_order_theory.c
-    core/src/layer4_reasoning/preset/preset_polygons.c
-    core/src/layer4_reasoning/preset/preset_polynomial.c
-    core/src/layer4_reasoning/preset/preset_probability.c
-    core/src/layer4_reasoning/preset/preset_probability_statistics.c
-    core/src/layer4_reasoning/preset/preset_representation_theory.c
-    core/src/layer4_reasoning/preset/preset_ring_theory.c
-    core/src/layer4_reasoning/preset/preset_set_theory.c
-    core/src/layer4_reasoning/preset/preset_special_functions.c
-    core/src/layer4_reasoning/preset/preset_statistics.c
-    core/src/layer4_reasoning/preset/preset_stochastic_processes.c
-    core/src/layer4_reasoning/preset/preset_topology.c
-    core/src/layer4_reasoning/preset/preset_transformations.c
-    core/src/layer4_reasoning/preset/preset_trigonometry.c
+    # 数学理论预设已转换为 .lvz 格式，在运行时从 module/presets/ 加载
     # v3.6.0 新增：WFC 范式 - 剪枝合法性元证明（Layer 4 推理层）
     core/src/layer4_reasoning/meta_proof.c
     # 补全遗漏文件：冲突检测、矛盾证明、抽象代数预设
@@ -1412,6 +1357,9 @@ target_link_libraries(lv_layer3_geometry Threads::Threads)
 add_library(lv_layer4_reasoning OBJECT ${lv_LAYER4_SOURCES} ${lv_HEADERS})
 lv_setup_layer(lv_layer4_reasoning 4)
 target_link_libraries(lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
+# 运行时预设 .lvz 文件目录（preset_blocks.c 使用此宏定位文件）
+target_compile_definitions(lv_layer4_reasoning PRIVATE
+    lv_PRESETS_DIR="${CMAKE_SOURCE_DIR}/module/presets")
 
 # Layer 5: 结果输出层（依赖 Layer 4，Layer 3，Layer 2）
 add_library(lv_layer5_output OBJECT ${lv_LAYER5_SOURCES} ${lv_HEADERS})

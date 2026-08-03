@@ -18,6 +18,18 @@
 #include <stdio.h>
 #include <string.h>
 
+/* ============== SIMD 内联头文件 ============== */
+#if defined(__AVX__)
+#include <immintrin.h>
+#elif defined(__SSE2__)
+#include <emmintrin.h>
+#if defined(__SSE3__)
+#include <pmmintrin.h>
+#endif
+#elif defined(__ARM_NEON__) || defined(__ARM_NEON)
+#include <arm_neon.h>
+#endif
+
 /* ============== SIMD 能力检测 ============== */
 
 static atomic_uint g_simd_capabilities = 0;
@@ -223,100 +235,342 @@ void lv_vec4d_storeu(double *ptr, lvVec4d vec) {
 
 lvVec4d lv_vec4d_add(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vr = _mm256_add_pd(va, vb);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vb_lo = _mm_loadu_pd(b.v);
+    __m128d vb_hi = _mm_loadu_pd(b.v + 2);
+    __m128d vr_lo = _mm_add_pd(va_lo, vb_lo);
+    __m128d vr_hi = _mm_add_pd(va_hi, vb_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vb_lo = vld1q_f64(b.v);
+    float64x2_t vb_hi = vld1q_f64(b.v + 2);
+    float64x2_t vr_lo = vaddq_f64(va_lo, vb_lo);
+    float64x2_t vr_hi = vaddq_f64(va_hi, vb_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = a.v[0] + b.v[0];
     r.v[1] = a.v[1] + b.v[1];
     r.v[2] = a.v[2] + b.v[2];
     r.v[3] = a.v[3] + b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_sub(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vr = _mm256_sub_pd(va, vb);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vb_lo = _mm_loadu_pd(b.v);
+    __m128d vb_hi = _mm_loadu_pd(b.v + 2);
+    __m128d vr_lo = _mm_sub_pd(va_lo, vb_lo);
+    __m128d vr_hi = _mm_sub_pd(va_hi, vb_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vb_lo = vld1q_f64(b.v);
+    float64x2_t vb_hi = vld1q_f64(b.v + 2);
+    float64x2_t vr_lo = vsubq_f64(va_lo, vb_lo);
+    float64x2_t vr_hi = vsubq_f64(va_hi, vb_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = a.v[0] - b.v[0];
     r.v[1] = a.v[1] - b.v[1];
     r.v[2] = a.v[2] - b.v[2];
     r.v[3] = a.v[3] - b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_mul(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vr = _mm256_mul_pd(va, vb);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vb_lo = _mm_loadu_pd(b.v);
+    __m128d vb_hi = _mm_loadu_pd(b.v + 2);
+    __m128d vr_lo = _mm_mul_pd(va_lo, vb_lo);
+    __m128d vr_hi = _mm_mul_pd(va_hi, vb_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vb_lo = vld1q_f64(b.v);
+    float64x2_t vb_hi = vld1q_f64(b.v + 2);
+    float64x2_t vr_lo = vmulq_f64(va_lo, vb_lo);
+    float64x2_t vr_hi = vmulq_f64(va_hi, vb_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = a.v[0] * b.v[0];
     r.v[1] = a.v[1] * b.v[1];
     r.v[2] = a.v[2] * b.v[2];
     r.v[3] = a.v[3] * b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_div(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vr = _mm256_div_pd(va, vb);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vb_lo = _mm_loadu_pd(b.v);
+    __m128d vb_hi = _mm_loadu_pd(b.v + 2);
+    __m128d vr_lo = _mm_div_pd(va_lo, vb_lo);
+    __m128d vr_hi = _mm_div_pd(va_hi, vb_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vb_lo = vld1q_f64(b.v);
+    float64x2_t vb_hi = vld1q_f64(b.v + 2);
+    float64x2_t vr_lo = vdivq_f64(va_lo, vb_lo);
+    float64x2_t vr_hi = vdivq_f64(va_hi, vb_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = a.v[0] / b.v[0];
     r.v[1] = a.v[1] / b.v[1];
     r.v[2] = a.v[2] / b.v[2];
     r.v[3] = a.v[3] / b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_neg(lvVec4d a) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d sign_mask = _mm256_set1_pd(-0.0);
+    __m256d vr = _mm256_xor_pd(va, sign_mask);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d sign_mask = _mm_set1_pd(-0.0);
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vr_lo = _mm_xor_pd(va_lo, sign_mask);
+    __m128d vr_hi = _mm_xor_pd(va_hi, sign_mask);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vr_lo = vnegq_f64(va_lo);
+    float64x2_t vr_hi = vnegq_f64(va_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = -a.v[0];
     r.v[1] = -a.v[1];
     r.v[2] = -a.v[2];
     r.v[3] = -a.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_sqrt(lvVec4d a) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vr = _mm256_sqrt_pd(va);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vr_lo = _mm_sqrt_pd(va_lo);
+    __m128d vr_hi = _mm_sqrt_pd(va_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vr_lo = vsqrtq_f64(va_lo);
+    float64x2_t vr_hi = vsqrtq_f64(va_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = sqrt(a.v[0]);
     r.v[1] = sqrt(a.v[1]);
     r.v[2] = sqrt(a.v[2]);
     r.v[3] = sqrt(a.v[3]);
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_abs(lvVec4d a) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d sign_mask = _mm256_set1_pd(-0.0);
+    __m256d vr = _mm256_andnot_pd(sign_mask, va);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d sign_mask = _mm_set1_pd(-0.0);
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vr_lo = _mm_andnot_pd(sign_mask, va_lo);
+    __m128d vr_hi = _mm_andnot_pd(sign_mask, va_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vr_lo = vabsq_f64(va_lo);
+    float64x2_t vr_hi = vabsq_f64(va_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = fabs(a.v[0]);
     r.v[1] = fabs(a.v[1]);
     r.v[2] = fabs(a.v[2]);
     r.v[3] = fabs(a.v[3]);
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_max(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vr = _mm256_max_pd(va, vb);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vb_lo = _mm_loadu_pd(b.v);
+    __m128d vb_hi = _mm_loadu_pd(b.v + 2);
+    __m128d vr_lo = _mm_max_pd(va_lo, vb_lo);
+    __m128d vr_hi = _mm_max_pd(va_hi, vb_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vb_lo = vld1q_f64(b.v);
+    float64x2_t vb_hi = vld1q_f64(b.v + 2);
+    float64x2_t vr_lo = vmaxq_f64(va_lo, vb_lo);
+    float64x2_t vr_hi = vmaxq_f64(va_hi, vb_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = (a.v[0] > b.v[0]) ? a.v[0] : b.v[0];
     r.v[1] = (a.v[1] > b.v[1]) ? a.v[1] : b.v[1];
     r.v[2] = (a.v[2] > b.v[2]) ? a.v[2] : b.v[2];
     r.v[3] = (a.v[3] > b.v[3]) ? a.v[3] : b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_min(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vr = _mm256_min_pd(va, vb);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vb_lo = _mm_loadu_pd(b.v);
+    __m128d vb_hi = _mm_loadu_pd(b.v + 2);
+    __m128d vr_lo = _mm_min_pd(va_lo, vb_lo);
+    __m128d vr_hi = _mm_min_pd(va_hi, vb_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vb_lo = vld1q_f64(b.v);
+    float64x2_t vb_hi = vld1q_f64(b.v + 2);
+    float64x2_t vr_lo = vminq_f64(va_lo, vb_lo);
+    float64x2_t vr_hi = vminq_f64(va_hi, vb_hi);
+    vst1q_f64(r.v, vr_lo);
+    vst1q_f64(r.v + 2, vr_hi);
+#else
     r.v[0] = (a.v[0] < b.v[0]) ? a.v[0] : b.v[0];
     r.v[1] = (a.v[1] < b.v[1]) ? a.v[1] : b.v[1];
     r.v[2] = (a.v[2] < b.v[2]) ? a.v[2] : b.v[2];
     r.v[3] = (a.v[3] < b.v[3]) ? a.v[3] : b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4d lv_vec4d_fmadd(lvVec4d a, lvVec4d x, lvVec4d y) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vx = _mm256_loadu_pd(x.v);
+    __m256d vy = _mm256_loadu_pd(y.v);
+    __m256d vr = _mm256_fmadd_pd(va, vx, vy);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE2__)
+    __m128d a_lo = _mm_loadu_pd(a.v);
+    __m128d a_hi = _mm_loadu_pd(a.v + 2);
+    __m128d x_lo = _mm_loadu_pd(x.v);
+    __m128d x_hi = _mm_loadu_pd(x.v + 2);
+    __m128d y_lo = _mm_loadu_pd(y.v);
+    __m128d y_hi = _mm_loadu_pd(y.v + 2);
+    __m128d vr_lo = _mm_add_pd(_mm_mul_pd(a_lo, x_lo), y_lo);
+    __m128d vr_hi = _mm_add_pd(_mm_mul_pd(a_hi, x_hi), y_hi);
+    _mm_storeu_pd(r.v, vr_lo);
+    _mm_storeu_pd(r.v + 2, vr_hi);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t a_lo = vld1q_f64(a.v);
+    float64x2_t a_hi = vld1q_f64(a.v + 2);
+    float64x2_t x_lo = vld1q_f64(x.v);
+    float64x2_t x_hi = vld1q_f64(x.v + 2);
+    float64x2_t y_lo = vld1q_f64(y.v);
+    float64x2_t y_hi = vld1q_f64(y.v + 2);
+    vst1q_f64(r.v, vmlaq_f64(y_lo, a_lo, x_lo));
+    vst1q_f64(r.v + 2, vmlaq_f64(y_hi, a_hi, x_hi));
+#else
     r.v[0] = a.v[0] * x.v[0] + y.v[0];
     r.v[1] = a.v[1] * x.v[1] + y.v[1];
     r.v[2] = a.v[2] * x.v[2] + y.v[2];
     r.v[3] = a.v[3] * x.v[3] + y.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
@@ -413,7 +667,157 @@ double lv_vec4d_hmin(lvVec4d a) {
 }
 
 double lv_vec4d_dot(lvVec4d a, lvVec4d b) {
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vmul = _mm256_mul_pd(va, vb);
+    __m256d vsum = _mm256_hadd_pd(vmul, _mm256_setzero_pd());
+    /* vsum = [a0*b0+a1*b1, 0, a2*b2+a3*b3, 0] */
+    double sum = ((double*)&vsum)[0] + ((double*)&vsum)[2];
+    return sum;
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vb_lo = _mm_loadu_pd(b.v);
+    __m128d vb_hi = _mm_loadu_pd(b.v + 2);
+    __m128d vmul_lo = _mm_mul_pd(va_lo, vb_lo);
+    __m128d vmul_hi = _mm_mul_pd(va_hi, vb_hi);
+    __m128d vsum = _mm_add_pd(vmul_lo, vmul_hi);
+    /* vsum = [a0*b0 + a2*b2, a1*b1 + a3*b3] */
+    vsum = _mm_add_pd(vsum, _mm_shuffle_pd(vsum, vsum, 1));
+    return _mm_cvtsd_f64(vsum);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vb_lo = vld1q_f64(b.v);
+    float64x2_t vb_hi = vld1q_f64(b.v + 2);
+    float64x2_t vm_lo = vmulq_f64(va_lo, vb_lo);
+    float64x2_t vm_hi = vmulq_f64(va_hi, vb_hi);
+    float64x2_t vsum = vaddq_f64(vm_lo, vm_hi);
+    return vgetq_lane_f64(vsum, 0) + vgetq_lane_f64(vsum, 1);
+#else
     return a.v[0] * b.v[0] + a.v[1] * b.v[1] + a.v[2] * b.v[2] + a.v[3] * b.v[3];
+#endif
+}
+
+double lv_vec4d_norm(lvVec4d a) {
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vsq = _mm256_mul_pd(va, va);
+    __m256d vsum = _mm256_hadd_pd(vsq, _mm256_setzero_pd());
+    double sum = ((double*)&vsum)[0] + ((double*)&vsum)[2];
+    return sqrt(sum);
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vsq_lo = _mm_mul_pd(va_lo, va_lo);
+    __m128d vsq_hi = _mm_mul_pd(va_hi, va_hi);
+    __m128d vsum = _mm_add_pd(vsq_lo, vsq_hi);
+    vsum = _mm_add_pd(vsum, _mm_shuffle_pd(vsum, vsum, 1));
+    return sqrt(_mm_cvtsd_f64(vsum));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vsq_lo = vmulq_f64(va_lo, va_lo);
+    float64x2_t vsq_hi = vmulq_f64(va_hi, va_hi);
+    float64x2_t vsum = vaddq_f64(vsq_lo, vsq_hi);
+    double sum = vgetq_lane_f64(vsum, 0) + vgetq_lane_f64(vsum, 1);
+    return sqrt(sum);
+#else
+    return sqrt(a.v[0] * a.v[0] + a.v[1] * a.v[1] + a.v[2] * a.v[2] + a.v[3] * a.v[3]);
+#endif
+}
+
+lvVec4d lv_vec4d_normalize(lvVec4d a) {
+    lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vsq = _mm256_mul_pd(va, va);
+    __m256d vsum = _mm256_hadd_pd(vsq, _mm256_setzero_pd());
+    double sum = ((double*)&vsum)[0] + ((double*)&vsum)[2];
+    double norm = sqrt(sum);
+    if (norm > 1e-15) {
+        __m256d vnorm = _mm256_set1_pd(1.0 / norm);
+        __m256d vr = _mm256_mul_pd(va, vnorm);
+        _mm256_storeu_pd(r.v, vr);
+    } else {
+        _mm256_storeu_pd(r.v, va);
+    }
+#elif defined(__SSE2__)
+    __m128d va_lo = _mm_loadu_pd(a.v);
+    __m128d va_hi = _mm_loadu_pd(a.v + 2);
+    __m128d vsq_lo = _mm_mul_pd(va_lo, va_lo);
+    __m128d vsq_hi = _mm_mul_pd(va_hi, va_hi);
+    __m128d vsum = _mm_add_pd(vsq_lo, vsq_hi);
+    vsum = _mm_add_pd(vsum, _mm_shuffle_pd(vsum, vsum, 1));
+    double norm = sqrt(_mm_cvtsd_f64(vsum));
+    if (norm > 1e-15) {
+        double inv_norm = 1.0 / norm;
+        __m128d vinv = _mm_set1_pd(inv_norm);
+        __m128d vr_lo = _mm_mul_pd(va_lo, vinv);
+        __m128d vr_hi = _mm_mul_pd(va_hi, vinv);
+        _mm_storeu_pd(r.v, vr_lo);
+        _mm_storeu_pd(r.v + 2, vr_hi);
+    } else {
+        _mm_storeu_pd(r.v, va_lo);
+        _mm_storeu_pd(r.v + 2, va_hi);
+    }
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t va_lo = vld1q_f64(a.v);
+    float64x2_t va_hi = vld1q_f64(a.v + 2);
+    float64x2_t vsq_lo = vmulq_f64(va_lo, va_lo);
+    float64x2_t vsq_hi = vmulq_f64(va_hi, va_hi);
+    float64x2_t vsum = vaddq_f64(vsq_lo, vsq_hi);
+    double norm = sqrt(vgetq_lane_f64(vsum, 0) + vgetq_lane_f64(vsum, 1));
+    if (norm > 1e-15) {
+        double inv_norm = 1.0 / norm;
+        float64x2_t vinv = vdupq_n_f64(inv_norm);
+        vst1q_f64(r.v, vmulq_f64(va_lo, vinv));
+        vst1q_f64(r.v + 2, vmulq_f64(va_hi, vinv));
+    } else {
+        vst1q_f64(r.v, va_lo);
+        vst1q_f64(r.v + 2, va_hi);
+    }
+#else
+    double norm = sqrt(a.v[0] * a.v[0] + a.v[1] * a.v[1] + a.v[2] * a.v[2] + a.v[3] * a.v[3]);
+    if (norm > 1e-15) {
+        r.v[0] = a.v[0] / norm;
+        r.v[1] = a.v[1] / norm;
+        r.v[2] = a.v[2] / norm;
+        r.v[3] = a.v[3] / norm;
+    } else {
+        r.v[0] = a.v[0];
+        r.v[1] = a.v[1];
+        r.v[2] = a.v[2];
+        r.v[3] = a.v[3];
+    }
+#endif
+    g_simd_stats.vec4_ops++;
+    return r;
+}
+
+lvVec4d lv_vec4d_cross(lvVec4d a, lvVec4d b) {
+    lvVec4d r;
+    /* 4D 叉积，最后一位为 0 */
+    /* cross_x = a.y*b.z - a.z*b.y */
+    /* cross_y = a.z*b.x - a.x*b.z */
+    /* cross_z = a.x*b.y - a.y*b.x */
+    /* cross_w = 0 */
+#if defined(__AVX__) || defined(__SSE2__)
+    double ax = a.v[0], ay = a.v[1], az = a.v[2];
+    double bx = b.v[0], by = b.v[1], bz = b.v[2];
+    r.v[0] = ay * bz - az * by;
+    r.v[1] = az * bx - ax * bz;
+    r.v[2] = ax * by - ay * bx;
+    r.v[3] = 0.0;
+#else
+    r.v[0] = a.v[1] * b.v[2] - a.v[2] * b.v[1];
+    r.v[1] = a.v[2] * b.v[0] - a.v[0] * b.v[2];
+    r.v[2] = a.v[0] * b.v[1] - a.v[1] * b.v[0];
+    r.v[3] = 0.0;
+#endif
+    g_simd_stats.vec4_ops++;
+    return r;
 }
 
 /* ============== 4x float 向量操作 ============== */
@@ -449,50 +853,132 @@ void lv_vec4f_store(float *ptr, lvVec4f vec) {
 
 lvVec4f lv_vec4f_add(lvVec4f a, lvVec4f b) {
     lvVec4f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vb = _mm256_loadu_ps(b.v);
+    __m256 vr = _mm256_add_ps(va, vb);
+    _mm256_storeu_ps(r.v, vr);
+#elif defined(__SSE2__)
+    __m128 va = _mm_loadu_ps(a.v);
+    __m128 vb = _mm_loadu_ps(b.v);
+    __m128 vr = _mm_add_ps(va, vb);
+    _mm_storeu_ps(r.v, vr);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float32x4_t va = vld1q_f32(a.v);
+    float32x4_t vb = vld1q_f32(b.v);
+    float32x4_t vr = vaddq_f32(va, vb);
+    vst1q_f32(r.v, vr);
+#else
     r.v[0] = a.v[0] + b.v[0];
     r.v[1] = a.v[1] + b.v[1];
     r.v[2] = a.v[2] + b.v[2];
     r.v[3] = a.v[3] + b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4f lv_vec4f_sub(lvVec4f a, lvVec4f b) {
     lvVec4f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vb = _mm256_loadu_ps(b.v);
+    __m256 vr = _mm256_sub_ps(va, vb);
+    _mm256_storeu_ps(r.v, vr);
+#elif defined(__SSE2__)
+    __m128 va = _mm_loadu_ps(a.v);
+    __m128 vb = _mm_loadu_ps(b.v);
+    __m128 vr = _mm_sub_ps(va, vb);
+    _mm_storeu_ps(r.v, vr);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float32x4_t va = vld1q_f32(a.v);
+    float32x4_t vb = vld1q_f32(b.v);
+    float32x4_t vr = vsubq_f32(va, vb);
+    vst1q_f32(r.v, vr);
+#else
     r.v[0] = a.v[0] - b.v[0];
     r.v[1] = a.v[1] - b.v[1];
     r.v[2] = a.v[2] - b.v[2];
     r.v[3] = a.v[3] - b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4f lv_vec4f_mul(lvVec4f a, lvVec4f b) {
     lvVec4f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vb = _mm256_loadu_ps(b.v);
+    __m256 vr = _mm256_mul_ps(va, vb);
+    _mm256_storeu_ps(r.v, vr);
+#elif defined(__SSE2__)
+    __m128 va = _mm_loadu_ps(a.v);
+    __m128 vb = _mm_loadu_ps(b.v);
+    __m128 vr = _mm_mul_ps(va, vb);
+    _mm_storeu_ps(r.v, vr);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float32x4_t va = vld1q_f32(a.v);
+    float32x4_t vb = vld1q_f32(b.v);
+    float32x4_t vr = vmulq_f32(va, vb);
+    vst1q_f32(r.v, vr);
+#else
     r.v[0] = a.v[0] * b.v[0];
     r.v[1] = a.v[1] * b.v[1];
     r.v[2] = a.v[2] * b.v[2];
     r.v[3] = a.v[3] * b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4f lv_vec4f_div(lvVec4f a, lvVec4f b) {
     lvVec4f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vb = _mm256_loadu_ps(b.v);
+    __m256 vr = _mm256_div_ps(va, vb);
+    _mm256_storeu_ps(r.v, vr);
+#elif defined(__SSE2__)
+    __m128 va = _mm_loadu_ps(a.v);
+    __m128 vb = _mm_loadu_ps(b.v);
+    __m128 vr = _mm_div_ps(va, vb);
+    _mm_storeu_ps(r.v, vr);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float32x4_t va = vld1q_f32(a.v);
+    float32x4_t vb = vld1q_f32(b.v);
+    float32x4_t vr = vdivq_f32(va, vb);
+    vst1q_f32(r.v, vr);
+#else
     r.v[0] = a.v[0] / b.v[0];
     r.v[1] = a.v[1] / b.v[1];
     r.v[2] = a.v[2] / b.v[2];
     r.v[3] = a.v[3] / b.v[3];
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
 
 lvVec4f lv_vec4f_sqrt(lvVec4f a) {
     lvVec4f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vr = _mm256_sqrt_ps(va);
+    _mm256_storeu_ps(r.v, vr);
+#elif defined(__SSE2__)
+    __m128 va = _mm_loadu_ps(a.v);
+    __m128 vr = _mm_sqrt_ps(va);
+    _mm_storeu_ps(r.v, vr);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float32x4_t va = vld1q_f32(a.v);
+    float32x4_t vr = vsqrtq_f32(va);
+    vst1q_f32(r.v, vr);
+#else
     r.v[0] = sqrtf(a.v[0]);
     r.v[1] = sqrtf(a.v[1]);
     r.v[2] = sqrtf(a.v[2]);
     r.v[3] = sqrtf(a.v[3]);
+#endif
     g_simd_stats.vec4_ops++;
     return r;
 }
@@ -687,6 +1173,151 @@ void lv_simd_scale_array_d(const double *in, double scale, double *out, size_t c
         lvVec4d vr = lv_vec4d_mul(v, vscale);
         lv_vec4d_store(out + i, vr);
     }
+
+    for (; i < count; i++) {
+        out[i] = in[i] * scale;
+    }
+}
+
+double lv_simd_dot_product_array(const double *a, const double *b, size_t count) {
+    g_simd_stats.array_ops++;
+    g_simd_stats.elements_processed += count;
+
+    double dot = 0.0;
+    size_t i = 0;
+
+#if defined(__AVX__)
+    __m256d vdot = _mm256_setzero_pd();
+    for (; i + 4 <= count; i += 4) {
+        __m256d va = _mm256_loadu_pd(a + i);
+        __m256d vb = _mm256_loadu_pd(b + i);
+        vdot = _mm256_add_pd(vdot, _mm256_mul_pd(va, vb));
+    }
+    __m256d vsum = _mm256_hadd_pd(vdot, _mm256_setzero_pd());
+    dot = ((double*)&vsum)[0] + ((double*)&vsum)[2];
+#elif defined(__SSE2__)
+    __m128d vdot_lo = _mm_setzero_pd();
+    __m128d vdot_hi = _mm_setzero_pd();
+    for (; i + 4 <= count; i += 4) {
+        __m128d va_lo = _mm_loadu_pd(a + i);
+        __m128d va_hi = _mm_loadu_pd(a + i + 2);
+        __m128d vb_lo = _mm_loadu_pd(b + i);
+        __m128d vb_hi = _mm_loadu_pd(b + i + 2);
+        vdot_lo = _mm_add_pd(vdot_lo, _mm_mul_pd(va_lo, vb_lo));
+        vdot_hi = _mm_add_pd(vdot_hi, _mm_mul_pd(va_hi, vb_hi));
+    }
+    __m128d vsum = _mm_add_pd(vdot_lo, vdot_hi);
+    vsum = _mm_add_pd(vsum, _mm_shuffle_pd(vsum, vsum, 1));
+    dot = _mm_cvtsd_f64(vsum);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t vdot_lo = vdupq_n_f64(0.0);
+    float64x2_t vdot_hi = vdupq_n_f64(0.0);
+    for (; i + 4 <= count; i += 4) {
+        float64x2_t va_lo = vld1q_f64(a + i);
+        float64x2_t va_hi = vld1q_f64(a + i + 2);
+        float64x2_t vb_lo = vld1q_f64(b + i);
+        float64x2_t vb_hi = vld1q_f64(b + i + 2);
+        vdot_lo = vaddq_f64(vdot_lo, vmulq_f64(va_lo, vb_lo));
+        vdot_hi = vaddq_f64(vdot_hi, vmulq_f64(va_hi, vb_hi));
+    }
+    float64x2_t vsum = vaddq_f64(vdot_lo, vdot_hi);
+    dot = vgetq_lane_f64(vsum, 0) + vgetq_lane_f64(vsum, 1);
+#else
+    lvVec4d vdot = lv_vec4d_zero();
+    for (; i + 4 <= count; i += 4) {
+        lvVec4d va = lv_vec4d_load(a + i);
+        lvVec4d vb = lv_vec4d_load(b + i);
+        vdot = lv_vec4d_fmadd(va, vb, vdot);
+    }
+    dot = lv_vec4d_hsum(vdot);
+#endif
+
+    for (; i < count; i++) {
+        dot += a[i] * b[i];
+    }
+
+    return dot;
+}
+
+void lv_simd_norm_array(const double *in, double *out, size_t count) {
+    g_simd_stats.array_ops++;
+    g_simd_stats.elements_processed += count;
+
+    size_t i = 0;
+
+    /* 计算每个 4D 向量的范数：sqrt(x0^2 + x1^2 + x2^2 + x3^2) */
+#if defined(__AVX__)
+    for (; i < count; i++) {
+        __m256d v = _mm256_loadu_pd(in + i * 4);
+        __m256d vsq = _mm256_mul_pd(v, v);
+        __m256d vsum = _mm256_hadd_pd(vsq, _mm256_setzero_pd());
+        double s = ((double*)&vsum)[0] + ((double*)&vsum)[2];
+        out[i] = sqrt(s);
+    }
+#elif defined(__SSE2__)
+    for (; i < count; i++) {
+        __m128d v_lo = _mm_loadu_pd(in + i * 4);
+        __m128d v_hi = _mm_loadu_pd(in + i * 4 + 2);
+        __m128d vsq_lo = _mm_mul_pd(v_lo, v_lo);
+        __m128d vsq_hi = _mm_mul_pd(v_hi, v_hi);
+        __m128d vsum = _mm_add_pd(vsq_lo, vsq_hi);
+        vsum = _mm_add_pd(vsum, _mm_shuffle_pd(vsum, vsum, 1));
+        out[i] = sqrt(_mm_cvtsd_f64(vsum));
+    }
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    for (; i < count; i++) {
+        float64x2_t v_lo = vld1q_f64(in + i * 4);
+        float64x2_t v_hi = vld1q_f64(in + i * 4 + 2);
+        float64x2_t vsq_lo = vmulq_f64(v_lo, v_lo);
+        float64x2_t vsq_hi = vmulq_f64(v_hi, v_hi);
+        float64x2_t vsum = vaddq_f64(vsq_lo, vsq_hi);
+        out[i] = sqrt(vgetq_lane_f64(vsum, 0) + vgetq_lane_f64(vsum, 1));
+    }
+#else
+    for (; i < count; i++) {
+        double s = in[i * 4] * in[i * 4] + in[i * 4 + 1] * in[i * 4 + 1]
+                 + in[i * 4 + 2] * in[i * 4 + 2] + in[i * 4 + 3] * in[i * 4 + 3];
+        out[i] = sqrt(s);
+    }
+#endif
+}
+
+void lv_simd_scale_array(const double *in, double scale, double *out, size_t count) {
+    g_simd_stats.array_ops++;
+    g_simd_stats.elements_processed += count;
+
+    size_t i = 0;
+
+#if defined(__AVX__)
+    __m256d vscale = _mm256_set1_pd(scale);
+    for (; i + 4 <= count; i += 4) {
+        __m256d v = _mm256_loadu_pd(in + i);
+        _mm256_storeu_pd(out + i, _mm256_mul_pd(v, vscale));
+    }
+#elif defined(__SSE2__)
+    __m128d vscale = _mm_set1_pd(scale);
+    for (; i + 4 <= count; i += 4) {
+        __m128d v_lo = _mm_loadu_pd(in + i);
+        __m128d v_hi = _mm_loadu_pd(in + i + 2);
+        _mm_storeu_pd(out + i, _mm_mul_pd(v_lo, vscale));
+        _mm_storeu_pd(out + i + 2, _mm_mul_pd(v_hi, vscale));
+    }
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t vscale = vdupq_n_f64(scale);
+    for (; i + 4 <= count; i += 4) {
+        float64x2_t v_lo = vld1q_f64(in + i);
+        float64x2_t v_hi = vld1q_f64(in + i + 2);
+        vst1q_f64(out + i, vmulq_f64(v_lo, vscale));
+        vst1q_f64(out + i + 2, vmulq_f64(v_hi, vscale));
+    }
+#else
+    lvVec4d vscale = lv_vec4d_set1(scale);
+    for (; i + 4 <= count; i += 4) {
+        lvVec4d v = lv_vec4d_load(in + i);
+        lvVec4d vr = lv_vec4d_mul(v, vscale);
+        lv_vec4d_store(out + i, vr);
+    }
+#endif
 
     for (; i < count; i++) {
         out[i] = in[i] * scale;

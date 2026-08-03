@@ -1,0 +1,76 @@
+# =============================================================================
+# Lv-00 Presets: Category Theory Adv
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "adjunction_construct" {
+        description "构造伴随函子对 F ⊣ G（F左伴随G）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "adjunction_test" {
+        description "判定函子对是否构成伴随关系"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "adjunction_unit_counit" {
+        description "从伴随函子对提取单位 η: Id → GF 和余单位 ε: FG → Id"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "limit_compute" {
+        description "计算图表的极限（锥的终对象）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "colimit_compute" {
+        description "计算图表的余极限（余锥的始对象）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "left_kan_extension" {
+        description "计算函子沿另一函子的左Kan扩张 Lan_K F"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "right_kan_extension" {
+        description "计算函子沿另一函子的右Kan扩张 Ran_K F"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

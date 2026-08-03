@@ -1,0 +1,247 @@
+# =============================================================================
+# Lv-00 Presets: Differential Equations
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "de_separable_method" {
+        description "分离变量法：求解 dy/dx = f(x)g(y)，分离变量后积分得通解"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "\\int \\frac{dy}{g(y)} = \\int f(x)\\,dx + C"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_integrating_factor" {
+        description "积分因子法：求解 y' + P(x)y = Q(x)，μ(x) = exp(∫P dx)"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "\\mu(x) = e^{\\int P(x)\\,dx},\"
+            \"\\quad y = \\frac{1}{\\mu(x)}\\left(\\int \\mu(x)Q(x)\\,dx + C\\right)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_variation_constants" {
+        description "常数变易法：用齐次解构造非齐次线性ODE的特解"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "y_p = \\sum_{i=1}^{n} u_i(x) y_i(x),\"
+            \"\\quad \\sum u_i' y_i^{(k)} = 0\\ (k < n-1),\"
+            \"\\quad \\sum u_i' y_i^{(n-1)} = g(x)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_characteristic_eq" {
+        description "特征方程法：构造并求解常系数齐次线性ODE的特征方程"
+        category "ANALYSIS"
+        inputs 1 "LIST"
+        output "FUNCTION"
+        math_def "a_n r^n + a_{n-1} r^{n-1} + \\cdots + a_0 = 0"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_bernoulli_eq" {
+        description "Bernoulli方程：y' + P(x)y = Q(x)y^n，代换 v = y^{1-n} 化为一阶线性方程"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "FUNCTION" "SCALAR"
+        output "FUNCTION"
+        math_def "y' + P(x)y = Q(x)y^n,\"
+            \"\\quad v = y^{1-n},\"
+            \"\\quad v' + (1-n)P(x)v = (1-n)Q(x)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_riccati_eq" {
+        description "Riccati方程：y' = P(x) + Q(x)y + R(x)y^2，已知特解时通过 y = y_1 + 1/v 降阶"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "FUNCTION" "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "y' = P(x) + Q(x)y + R(x)y^2,\"
+            \"\\quad y = y_1 + \\frac{1}{v}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_exact_eq" {
+        description "恰当方程：Mdx + Ndy = 0，满足 dM/dy = dN/dx 时求势函数 F(x,y) = C"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "M(x,y)dx + N(x,y)dy = 0,\"
+            \"\\quad \\frac{\\partial M}{\\partial y} = \\frac{\\partial N}{\\partial x},\"
+            \"\\quad F(x,y) = C"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_linear_first_order" {
+        description "一阶线性ODE：求解标准形式 y' + P(x)y = Q(x) 的解析通解"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "y = e^{-\\int P dx}\\left(\\int Q \\cdot e^{\\int P dx} dx + C\\right)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_homogeneous_ode" {
+        description "齐次ODE：y' = F(y/x)，代换 v = y/x 化为可分离变量方程"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "FUNCTION"
+        math_def "\\frac{dy}{dx} = F\\left(\\frac{y}{x}\\right),\"
+            \"\\quad v = \\frac{y}{x},\\quad \\frac{dv}{F(v)-v} = \\frac{dx}{x}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_cauchy_euler" {
+        description "Cauchy-Euler方程：x^n y^{(n)} + ... + a_0 y = g(x)，代换 x = e^t 化为常系数方程"
+        category "ANALYSIS"
+        inputs 2 "LIST" "FUNCTION"
+        output "FUNCTION"
+        math_def "x^n y^{(n)} + a_{n-1}x^{n-1}y^{(n-1)} + \\cdots + a_0 y = g(x)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_pde_separable" {
+        description "PDE分离变量法：设 u(x,t) = X(x)T(t) 将偏微分方程分离为两个ODE"
+        category "ANALYSIS"
+        inputs 1 "EQUATION"
+        output "LIST"
+        math_def "u(x,t) = X(x)T(t) \\Rightarrow \"
+            \"\\frac{X''}{X} = \\frac{T'}{\\alpha^2 T} = -\\lambda"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_characteristic_line" {
+        description "特征线法：对 a(x,y,u)u_x + b(x,y,u)u_y = c(x,y,u) 构造特征线方程组"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "FUNCTION" "FUNCTION"
+        output "EQUATION"
+        math_def "\\frac{dx}{a} = \\frac{dy}{b} = \\frac{du}{c}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_existence_uniqueness" {
+        description "存在唯一性判定：对 y' = f(t,y), y(t_0)=y_0，判定是否满足Picard-Lindelof条件"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "SCALAR"
+        output "BOOLEAN"
+        math_def "|f(t, y_1) - f(t, y_2)| \\leq L|y_1 - y_2| \\text{ (Lipschitz条件)}"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "de_lipschitz_check" {
+        description "Lipschitz条件判定：验证 f(t,y) 在给定区域上是否关于 y 满足Lipschitz条件"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "REGION"
+        output "BOOLEAN"
+        math_def "\\exists L > 0: |f(t, y_1) - f(t, y_2)| \\leq L|y_1 - y_2|,\"
+            \"\\ \\forall (t,y_1),(t,y_2) \\in D"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "de_lyapunov_stability" {
+        description "Lyapunov稳定性：用Lyapunov函数 V(x) 判定平衡点的稳定性"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "BOOLEAN"
+        math_def "V(x) > 0\\ (x \\neq 0),\\ V(0) = 0,\"
+            \"\\quad \\dot{V}(x) = \\nabla V \\cdot f(x) \\leq 0"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "de_asymptotic_stability" {
+        description "渐近稳定性：若 V 正定且 dV/dt 负定，则平衡点渐近稳定"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "BOOLEAN"
+        math_def "V(x) > 0,\\ \\dot{V}(x) < 0\\ (x \\neq 0) \"
+            \"\\Rightarrow \\lim_{t\\to\\infty} x(t) = 0"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "de_phase_plane" {
+        description "相平面分析：对二维自治系统进行平衡点分类与定性分析"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "STRING"
+        math_def "\\dot{x} = f(x,y),\\ \\dot{y} = g(x,y),\"
+            \"\\quad J = \\begin{pmatrix} f_x & f_y \\\\ g_x & g_y \\end{pmatrix}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_euler_method" {
+        description "Euler方法：用显式Euler法数值求解初值问题 y' = f(t,y)"
+        category "ANALYSIS"
+        inputs 5 "FUNCTION" "SCALAR" "SCALAR" "SCALAR" "INTEGER"
+        output "LIST"
+        math_def "y_{n+1} = y_n + h\\,f(t_n, y_n),\\quad t_{n+1} = t_n + h"
+        complexity "O(N)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_picard_iteration" {
+        description "Picard迭代：y_{n+1}(t) = y_0 + ∫_{t_0}^t f(s, y_n(s)) ds，逼近初值问题真解"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "INTEGER"
+        output "FUNCTION"
+        math_def "y_{n+1}(t) = y_0 + \\int_{t_0}^{t} f(s, y_n(s))\\,ds"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "de_series_solution" {
+        description "幂级数解法：设 y = Σ a_n (x-x0)^n，代入ODE逐次比较系数求级数解"
+        category "ANALYSIS"
+        inputs 3 "EQUATION" "SCALAR" "INTEGER"
+        output "FUNCTION"
+        math_def "y = \\sum_{n=0}^{N} a_n (x - x_0)^n"
+        complexity "O(N^2)"
+        constructive true
+        reversible false
+    }
+
+}

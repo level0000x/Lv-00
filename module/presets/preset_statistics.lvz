@@ -1,0 +1,263 @@
+# =============================================================================
+# Lv-00 Presets: Statistics
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "stat_mean" {
+        description "算术平均值：mu = (1/n) Σ x_i"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "SCALAR"
+        math_def "\\mu = \\bar{x} = \\frac{1}{n}\\sum_{i=1}^{n} x_i"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_median" {
+        description "中位数：排序后位于中间位置的值"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "SCALAR"
+        math_def "\\tilde{x} = \\begin{cases} x_{(n+1)/2} & n\\text{奇数} \"
+            \"\\\\ \\frac{x_{n/2}+x_{n/2+1}}{2} & n\\text{偶数} \\end{cases}"
+        complexity "O(n\\log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_mode" {
+        description "众数：出现频率最高的值 M_o = argmax f(x)"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "SCALAR"
+        math_def "M_o = \\arg\\max_x f(x)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_quantile" {
+        description "分位数：计算第 p 百分位数 P_p"
+        category "PROBABILITY"
+        inputs 2 "LIST" "SCALAR"
+        output "SCALAR"
+        math_def "P_p = x_{\\lceil p\\cdot n/100 \\rceil},\\quad p \\in [0,100]"
+        complexity "O(n\\log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_normal_dist" {
+        description "正态分布：计算 N(mu, sigma^2) 的概率密度函数值"
+        category "PROBABILITY"
+        inputs 3 "SCALAR" "SCALAR" "SCALAR"
+        output "PROBABILITY"
+        math_def "f(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}}\"
+            \"\\exp\\left(-\\frac{(x-\\mu)^2}{2\\sigma^2}\\right)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_t_dist" {
+        description "t分布：计算 t(nu) 的概率密度函数值"
+        category "PROBABILITY"
+        inputs 2 "SCALAR" "INTEGER"
+        output "PROBABILITY"
+        math_def "f(t) = \\frac{\\Gamma((\\nu+1)/2)}{\\sqrt{\\nu\\pi}\\Gamma(\\nu/2)}\"
+            \"\\left(1+\\frac{t^2}{\\nu}\\right)^{-(\\nu+1)/2}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_f_dist" {
+        description "F分布：计算 F(d1, d2) 的概率密度函数值"
+        category "PROBABILITY"
+        inputs 3 "SCALAR" "INTEGER" "INTEGER"
+        output "PROBABILITY"
+        math_def "F \\sim F(d_1, d_2)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_z_test" {
+        description "Z检验：大样本均值检验，Z = (x_bar - mu0) / (sigma / sqrt(n))"
+        category "PROBABILITY"
+        inputs 3 "LIST" "SCALAR" "SCALAR"
+        output "BOOLEAN"
+        math_def "Z = \\frac{\\bar{X} - \\mu_0}{\\sigma/\\sqrt{n}},\\quad H_0: \\mu = \\mu_0"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_t_test" {
+        description "t检验：小样本均值检验（sigma未知），t = (x_bar - mu0) / (S / sqrt(n))"
+        category "PROBABILITY"
+        inputs 2 "LIST" "SCALAR"
+        output "BOOLEAN"
+        math_def "t = \\frac{\\bar{X} - \\mu_0}{S/\\sqrt{n}},\\quad H_0: \\mu = \\mu_0"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_f_test" {
+        description "F检验：两总体方差齐性检验，F = S1^2 / S2^2"
+        category "PROBABILITY"
+        inputs 2 "LIST" "LIST"
+        output "BOOLEAN"
+        math_def "F = \\frac{S_1^2}{S_2^2},\\quad H_0: \\sigma_1^2 = \\sigma_2^2"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_anova" {
+        description "ANOVA（单因素方差分析）：检验 k 组均值是否相等"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "BOOLEAN"
+        math_def "F = \\frac{SS_B/(k-1)}{SS_W/(n-k)} \\sim F(k-1, n-k),\"
+            \"\\quad H_0: \\mu_1 = \\mu_2 = \\cdots = \\mu_k"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_wilcoxon" {
+        description "Wilcoxon秩和检验：非参数两独立样本位置检验"
+        category "PROBABILITY"
+        inputs 2 "LIST" "LIST"
+        output "BOOLEAN"
+        math_def "U = n_1 n_2 + \\frac{n_1(n_1+1)}{2} - R_1,\"
+            \"\\quad H_0: \\text{两总体分布相同}"
+        complexity "O(n\\log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_kruskal_wallis" {
+        description "Kruskal-Wallis检验：非参数多独立样本位置检验"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "BOOLEAN"
+        math_def "H = \\frac{12}{n(n+1)}\\sum\\frac{R_i^2}{n_i} - 3(n+1),\"
+            \"\\quad H_0: \\text{各组分布相同}"
+        complexity "O(n\\log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_multiple_linear_regression" {
+        description "多元线性回归：y = X·beta + eps，beta_hat = (X^T X)^{-1} X^T y"
+        category "PROBABILITY"
+        inputs 2 "MATRIX" "LIST"
+        output "LIST"
+        math_def "\\hat{\\beta} = (X^T X)^{-1} X^T y"
+        complexity "O(p^3 + np^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_logistic_regression" {
+        description "逻辑回归：P(Y=1|X) = 1/(1+e^{-Xβ})，极大似然估计"
+        category "PROBABILITY"
+        inputs 2 "MATRIX" "LIST"
+        output "LIST"
+        math_def "P(Y=1|X) = \\frac{1}{1+e^{-(\\beta_0+\\beta_1 x_1+\\cdots+\\beta_p x_p)}}"
+        complexity "O(n k)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_r_squared" {
+        description "决定系数 R^2：衡量回归模型的拟合优度"
+        category "PROBABILITY"
+        inputs 2 "LIST" "LIST"
+        output "SCALAR"
+        math_def "R^2 = 1 - \\frac{SS_{res}}{SS_{tot}} = \"
+            \"1 - \\frac{\\sum(y_i-\\hat{y}_i)^2}{\\sum(y_i-\\bar{y})^2}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_prior_distribution" {
+        description "先验分布：设定参数的先验分布 pi(theta)"
+        category "PROBABILITY"
+        inputs 2 "INTEGER" "LIST"
+        output "FUNCTION"
+        math_def "\\pi(\\theta): \\text{关于参数 } \\theta \\text{ 的先验信念}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_posterior_distribution" {
+        description "后验分布：由贝叶斯定理 pi(theta|X) ∝ L(X|theta)·pi(theta)"
+        category "PROBABILITY"
+        inputs 3 "FUNCTION" "FUNCTION" "LIST"
+        output "FUNCTION"
+        math_def "\\pi(\\theta|X) = \"
+            \"\\frac{L(X|\\theta)\\pi(\\theta)}{\\int L(X|\\theta)\\pi(\\theta)\\,d\\theta}"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_bayes_factor" {
+        description "贝叶斯因子：B01 = P(X|H0)/P(X|H1)，衡量两个假设的证据强度"
+        category "PROBABILITY"
+        inputs 3 "LIST" "FUNCTION" "FUNCTION"
+        output "SCALAR"
+        math_def "B_{01} = \\frac{P(X|H_0)}{P(X|H_1)}"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_bootstrap" {
+        description "Bootstrap重抽样：B次有放回重抽样，估计统计量的抽样分布"
+        category "PROBABILITY"
+        inputs 3 "LIST" "INTEGER" "FUNCTION"
+        output "LIST"
+        math_def "\\hat{\\theta}_b^* = T(X_b^*),\\quad b = 1,\\ldots,B"
+        complexity "O(B n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_variance" {
+        description "方差：sigma^2 = (1/n) Σ (x_i - x_bar)^2"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "SCALAR"
+        math_def "\\sigma^2 = \\frac{1}{n}\\sum_{i=1}^{n}(x_i - \\bar{x})^2"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "stat_confidence_interval" {
+        description "置信区间：构建参数在置信水平 1-alpha 下的置信区间"
+        category "PROBABILITY"
+        inputs 2 "LIST" "SCALAR"
+        output "TUPLE"
+        math_def "P(L \\leq \\theta \\leq U) = 1 - \\alpha"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+}

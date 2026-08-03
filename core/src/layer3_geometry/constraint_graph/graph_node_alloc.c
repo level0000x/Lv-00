@@ -32,6 +32,7 @@
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "lv/lv_json.h"
 #include "lv/lv_strbuf.h"
 
 #include "graph_node_internal.h"
@@ -71,20 +72,15 @@ GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
     /* v3.4.1: 使用原子操作分配节点ID，确保多线程安全 */
     node->id = GRAPH_ATOMIC_NODE_ID_INCREMENT(graph);
     node->type = type;
+    node->vtable = get_vtable_for_type(type);
     node->trust = TRUST_GREEN;
     node->is_active = true; /* v3.6.0: 新节点默认活跃 */
     node->namespace_depth = 0;
     node->parent_block_id = -1;
 
-    /* v3.x: PORT 类型节点同步分配 Port 结构体，避免后续 data.port 为 NULL */
-    if (type == GEOM_PORT) {
-        node->data.port = lv_calloc(1, sizeof(Port));
-        if (node->data.port) {
-            node->data.port->type = PORT_INPUT;
-            node->data.port->namespace_depth = 0;
-            node->data.port->parent_block_id = -1;
-            node->data.port->is_formal_param = false;
-        }
+    /* 通过 vtable 调用类型特定的初始化 */
+    if (node->vtable && node->vtable->alloc) {
+        node->vtable->alloc(node, graph);
     }
     GeomNode **new_nodes = (GeomNode **) graph_ensure_capacity(graph->nodes, graph->node_count, &graph->node_capacity,
                                                                sizeof(GeomNode *), 1);
@@ -146,20 +142,15 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 
     node->id = node_id;
     node->type = type;
+    node->vtable = get_vtable_for_type(type);
     node->trust = TRUST_GREEN;
     node->is_active = true; /* v3.6.0: 新节点默认活跃 */
     node->namespace_depth = 0;
     node->parent_block_id = -1;
 
-    /* PORT 类型节点同步分配 Port 结构体 */
-    if (type == GEOM_PORT) {
-        node->data.port = lv_calloc(1, sizeof(Port));
-        if (node->data.port) {
-            node->data.port->type = PORT_INPUT;
-            node->data.port->namespace_depth = 0;
-            node->data.port->parent_block_id = -1;
-            node->data.port->is_formal_param = false;
-        }
+    /* 通过 vtable 调用类型特定的初始化 */
+    if (node->vtable && node->vtable->alloc) {
+        node->vtable->alloc(node, graph);
     }
 
     /* 复制坐标 */
@@ -311,6 +302,645 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
     }
 
     return con;
+}
+
+/* ========================================================================
+ * 几何节点虚函数表 (VTable) 实现
+ * ======================================================================== */
+
+/* ── 类型特定的 alloc（类型特定的节点初始化） ── */
+
+static void point_alloc(GeomNode *node, ConstraintGraph *graph) {
+    (void)node;
+    (void)graph;
+    /* GEOM_POINT: 无需额外的类型特定初始化 */
+}
+
+static void line_segment_alloc(GeomNode *node, ConstraintGraph *graph) {
+    (void)node;
+    (void)graph;
+    /* GEOM_LINE_SEGMENT: 无需额外的类型特定初始化 */
+}
+
+static void region_alloc(GeomNode *node, ConstraintGraph *graph) {
+    (void)node;
+    (void)graph;
+    /* GEOM_REGION: 边界线段在 graph_add_region 中设置 */
+}
+
+static void circle_alloc(GeomNode *node, ConstraintGraph *graph) {
+    (void)node;
+    (void)graph;
+    /* GEOM_CIRCLE: 圆心和半径节点 ID 在 graph_add_circle 中设置 */
+}
+
+static void port_alloc(GeomNode *node, ConstraintGraph *graph) {
+    (void)graph;
+    /* GEOM_PORT: 同步分配 Port 结构体，避免后续 data.port 为 NULL */
+    if (!node->data.port) {
+        node->data.port = (Port *)lv_calloc(1, sizeof(Port));
+        if (node->data.port) {
+            node->data.port->type = PORT_INPUT;
+            node->data.port->namespace_depth = 0;
+            node->data.port->parent_block_id = -1;
+            node->data.port->is_formal_param = false;
+        }
+    }
+}
+
+static void func_block_alloc(GeomNode *node, ConstraintGraph *graph) {
+    (void)node;
+    (void)graph;
+    /* GEOM_FUNCTION_BLOCK: 内部节点和端口数组在 graph_add_function_block 中设置 */
+}
+
+/* ── 类型特定的 free（释放类型特定的数据） ── */
+
+static void point_free(GeomNode *node) {
+    (void)node;
+    /* GEOM_POINT: 无类型特定数据需释放 */
+}
+
+static void line_segment_free(GeomNode *node) {
+    (void)node;
+    /* GEOM_LINE_SEGMENT: 无类型特定数据需释放 */
+}
+
+static void region_free(GeomNode *node) {
+    lv_free((void **)&node->data.region.boundary_segments);
+    node->data.region.boundary_segments = NULL;
+    node->data.region.segment_count = 0;
+}
+
+static void circle_free(GeomNode *node) {
+    (void)node;
+    /* GEOM_CIRCLE: 无类型特定数据需释放 */
+}
+
+static void port_free(GeomNode *node) {
+    lv_free((void **)&node->data.port);
+    node->data.port = NULL;
+}
+
+static void func_block_free(GeomNode *node) {
+    lv_free((void **)&node->data.func_block.internal_nodes);
+    node->data.func_block.internal_nodes = NULL;
+    lv_free((void **)&node->data.func_block.input_port_ids);
+    node->data.func_block.input_port_ids = NULL;
+    lv_free((void **)&node->data.func_block.output_port_ids);
+    node->data.func_block.output_port_ids = NULL;
+    node->data.func_block.internal_node_count = 0;
+    node->data.func_block.input_count = 0;
+    node->data.func_block.output_count = 0;
+}
+
+/* ── 类型特定的 clone（存根，完整实现需深拷贝类型特定数据） ── */
+
+static GeomNode *point_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
+    (void)node;
+    (void)dst_graph;
+    return NULL; /* 存根 */
+}
+
+static GeomNode *line_segment_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
+    (void)node;
+    (void)dst_graph;
+    return NULL; /* 存根 */
+}
+
+static GeomNode *region_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
+    (void)node;
+    (void)dst_graph;
+    return NULL; /* 存根 */
+}
+
+static GeomNode *circle_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
+    (void)node;
+    (void)dst_graph;
+    return NULL; /* 存根 */
+}
+
+static GeomNode *port_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
+    (void)node;
+    (void)dst_graph;
+    return NULL; /* 存根 */
+}
+
+static GeomNode *func_block_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
+    (void)node;
+    (void)dst_graph;
+    return NULL; /* 存根 */
+}
+
+/* ── 类型特定的 type_name ── */
+
+static const char *point_type_name(void) {
+    return "POINT";
+}
+
+static const char *line_segment_type_name(void) {
+    return "LINE_SEGMENT";
+}
+
+static const char *region_type_name(void) {
+    return "REGION";
+}
+
+static const char *circle_type_name(void) {
+    return "CIRCLE";
+}
+
+static const char *port_type_name(void) {
+    return "PORT";
+}
+
+static const char *func_block_type_name(void) {
+    return "FUNCTION_BLOCK";
+}
+
+/* ── 类型特定的 serialize（追加类型特定数据到 JSON 缓冲区） ── */
+
+static bool point_serialize(const GeomNode *node, void *buf) {
+    (void)node;
+    (void)buf;
+    /* GEOM_POINT: 只有通用数据，无需追加 */
+    return true;
+}
+
+static bool line_segment_serialize(const GeomNode *node, void *buf) {
+    lvJsonBuf *jb = (lvJsonBuf *)buf;
+    char id_str[32];
+    int half = node->coord_count / 2;
+    if (half < 2) half = 2;
+    lv_json_buf_append_raw(jb, "\"endpoint1_start\":0,");
+    lv_json_buf_append_raw(jb, "\"endpoint2_start\":");
+    snprintf(id_str, sizeof(id_str), "%d", half);
+    lv_json_buf_append_raw(jb, id_str);
+    lv_json_buf_append_raw(jb, ",");
+    lv_json_buf_append_raw(jb, "\"coord_count\":");
+    snprintf(id_str, sizeof(id_str), "%d", node->coord_count);
+    lv_json_buf_append_raw(jb, id_str);
+    return true;
+}
+
+static bool region_serialize(const GeomNode *node, void *buf) {
+    lvJsonBuf *jb = (lvJsonBuf *)buf;
+    char id_str[32];
+    lv_json_buf_append_raw(jb, "\"boundary_segments\":[");
+    for (int i = 0; i < node->data.region.segment_count; i++) {
+        if (i > 0) lv_json_buf_append_char(jb, ',');
+        snprintf(id_str, sizeof(id_str), "%d", node->data.region.boundary_segments[i]->id);
+        lv_json_buf_append_raw(jb, id_str);
+    }
+    lv_json_buf_append_raw(jb, "],");
+    lv_json_buf_append_raw(jb, "\"segment_count\":");
+    snprintf(id_str, sizeof(id_str), "%d", node->data.region.segment_count);
+    lv_json_buf_append_raw(jb, id_str);
+    return true;
+}
+
+static bool circle_serialize(const GeomNode *node, void *buf) {
+    lvJsonBuf *jb = (lvJsonBuf *)buf;
+    char id_str[32];
+    lv_json_buf_append_raw(jb, "\"center_node_id\":");
+    snprintf(id_str, sizeof(id_str), "%d", node->data.circle.center_node_id);
+    lv_json_buf_append_raw(jb, id_str);
+    lv_json_buf_append_raw(jb, ",");
+    lv_json_buf_append_raw(jb, "\"radius_node_id\":");
+    snprintf(id_str, sizeof(id_str), "%d", node->data.circle.radius_node_id);
+    lv_json_buf_append_raw(jb, id_str);
+    return true;
+}
+
+static bool port_serialize(const GeomNode *node, void *buf) {
+    lvJsonBuf *jb = (lvJsonBuf *)buf;
+    if (node->data.port) {
+        lv_json_buf_append_raw(jb, "\"port_type\":\"");
+        lv_json_buf_append_raw(jb, node->data.port->type == PORT_INPUT ? "INPUT" : "OUTPUT");
+        lv_json_buf_append_raw(jb, "\",");
+        lv_json_buf_append_raw(jb, "\"is_formal_param\":");
+        lv_json_buf_append_raw(jb, node->data.port->is_formal_param ? "true" : "false");
+        lv_json_buf_append_raw(jb, ",");
+        lv_json_buf_append_raw(jb, "\"is_polymorphic\":");
+        lv_json_buf_append_raw(jb, node->data.port->is_polymorphic ? "true" : "false");
+    }
+    return true;
+}
+
+static bool func_block_serialize(const GeomNode *node, void *buf) {
+    lvJsonBuf *jb = (lvJsonBuf *)buf;
+    char id_str[32];
+
+    lv_json_buf_append_raw(jb, "\"internal_nodes\":[");
+    for (int i = 0; i < node->data.func_block.internal_node_count; i++) {
+        if (i > 0) lv_json_buf_append_char(jb, ',');
+        snprintf(id_str, sizeof(id_str), "%d", node->data.func_block.internal_nodes[i]->id);
+        lv_json_buf_append_raw(jb, id_str);
+    }
+    lv_json_buf_append_raw(jb, "],");
+
+    lv_json_buf_append_raw(jb, "\"input_port_ids\":[");
+    for (int i = 0; i < node->data.func_block.input_count; i++) {
+        if (i > 0) lv_json_buf_append_char(jb, ',');
+        snprintf(id_str, sizeof(id_str), "%d", node->data.func_block.input_port_ids[i]);
+        lv_json_buf_append_raw(jb, id_str);
+    }
+    lv_json_buf_append_raw(jb, "],");
+
+    lv_json_buf_append_raw(jb, "\"output_port_ids\":[");
+    for (int i = 0; i < node->data.func_block.output_count; i++) {
+        if (i > 0) lv_json_buf_append_char(jb, ',');
+        snprintf(id_str, sizeof(id_str), "%d", node->data.func_block.output_port_ids[i]);
+        lv_json_buf_append_raw(jb, id_str);
+    }
+    lv_json_buf_append_raw(jb, "],");
+
+    lv_json_buf_append_raw(jb, "\"determinism_state\":");
+    switch (node->data.func_block.determinism_state) {
+        case UNVERIFIED:
+            lv_json_buf_append_raw(jb, "\"UNVERIFIED\"");
+            break;
+        case VERIFIED:
+            lv_json_buf_append_raw(jb, "\"VERIFIED\"");
+            break;
+        case NON_DETERMINISTIC:
+            lv_json_buf_append_raw(jb, "\"NON_DETERMINISTIC\"");
+            break;
+        case PARTIALLY_VERIFIED:
+            lv_json_buf_append_raw(jb, "\"PARTIALLY_VERIFIED\"");
+            break;
+    }
+    return true;
+}
+
+/* ── 类型特定的 detect_conflict（存根） ── */
+
+static bool point_detect_conflict(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return false; /* 存根 */
+}
+
+static bool line_segment_detect_conflict(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return false; /* 存根 */
+}
+
+static bool region_detect_conflict(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return false; /* 存根 */
+}
+
+static bool circle_detect_conflict(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return false; /* 存根 */
+}
+
+static bool port_detect_conflict(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return false; /* 存根 */
+}
+
+static bool func_block_detect_conflict(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return false; /* 存根 */
+}
+
+/* ── 类型特定的 hash（计算类型特定数据的哈希值） ── */
+
+static uint32_t point_hash(const GeomNode *node) {
+    (void)node;
+    return 0; /* GEOM_POINT: 无类型特定数据，哈希值固定为 0 */
+}
+
+static uint32_t line_segment_hash(const GeomNode *node) {
+    (void)node;
+    return 0; /* 存根 */
+}
+
+static uint32_t region_hash(const GeomNode *node) {
+    (void)node;
+    return 0; /* 存根 */
+}
+
+static uint32_t circle_hash(const GeomNode *node) {
+    (void)node;
+    return 0; /* 存根 */
+}
+
+static uint32_t port_hash(const GeomNode *node) {
+    (void)node;
+    return 0; /* 存根 */
+}
+
+static uint32_t func_block_hash(const GeomNode *node) {
+    (void)node;
+    return 0; /* 存根 */
+}
+
+/* ── 类型特定的 compare ── */
+
+static int point_compare(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return 0; /* 存根：暂不比较类型特定数据 */
+}
+
+static int line_segment_compare(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return 0; /* 存根 */
+}
+
+static int region_compare(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return 0; /* 存根 */
+}
+
+static int circle_compare(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return 0; /* 存根 */
+}
+
+static int port_compare(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return 0; /* 存根 */
+}
+
+static int func_block_compare(const GeomNode *a, const GeomNode *b) {
+    (void)a;
+    (void)b;
+    return 0; /* 存根 */
+}
+
+/* ── 类型特定的 deserialize（存根） ── */
+
+static bool point_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
+    (void)node;
+    (void)data;
+    (void)size;
+    return true; /* GEOM_POINT: 无类型特定数据 */
+}
+
+static bool line_segment_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
+    (void)node;
+    (void)data;
+    (void)size;
+    return true; /* 存根 */
+}
+
+static bool region_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
+    (void)node;
+    (void)data;
+    (void)size;
+    return true; /* 存根 */
+}
+
+static bool circle_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
+    (void)node;
+    (void)data;
+    (void)size;
+    return true; /* 存根 */
+}
+
+static bool port_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
+    (void)node;
+    (void)data;
+    (void)size;
+    return true; /* 存根 */
+}
+
+static bool func_block_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
+    (void)node;
+    (void)data;
+    (void)size;
+    return true; /* 存根 */
+}
+
+/* ── 类型特定的 fixup_refs（深拷贝后修复交叉引用） ── */
+
+static void point_fixup_refs(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph) {
+    (void)node;
+    (void)id_map;
+    (void)max_id;
+    (void)dst_graph;
+    /* GEOM_POINT: 无内部指针引用需修复 */
+}
+
+static void line_segment_fixup_refs(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph) {
+    (void)node;
+    (void)id_map;
+    (void)max_id;
+    (void)dst_graph;
+    /* GEOM_LINE_SEGMENT: 无内部指针引用需修复 */
+}
+
+static void region_fixup_refs(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph) {
+    for (int j = 0; j < node->data.region.segment_count; j++) {
+        if (node->data.region.boundary_segments[j]) {
+            int old_sid = node->data.region.boundary_segments[j]->id;
+            if (id_map && old_sid >= 0 && old_sid <= max_id && id_map[old_sid] >= 0) {
+                node->data.region.boundary_segments[j] = graph_get_node(dst_graph, id_map[old_sid]);
+            } else {
+                node->data.region.boundary_segments[j] = NULL;
+            }
+        }
+    }
+}
+
+static void circle_fixup_refs(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph) {
+    (void)dst_graph;
+    if (id_map) {
+        if (node->data.circle.center_node_id >= 0 && node->data.circle.center_node_id <= max_id &&
+            id_map[node->data.circle.center_node_id] >= 0) {
+            node->data.circle.center_node_id = id_map[node->data.circle.center_node_id];
+        }
+        if (node->data.circle.radius_node_id >= 0 && node->data.circle.radius_node_id <= max_id &&
+            id_map[node->data.circle.radius_node_id] >= 0) {
+            node->data.circle.radius_node_id = id_map[node->data.circle.radius_node_id];
+        }
+    }
+}
+
+static void port_fixup_refs(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph) {
+    if (node->data.port && node->data.port->connected_to) {
+        int old_cid = node->data.port->connected_to->id;
+        if (id_map && old_cid >= 0 && old_cid <= max_id && id_map[old_cid] >= 0) {
+            node->data.port->connected_to = graph_get_node(dst_graph, id_map[old_cid]);
+        } else {
+            node->data.port->connected_to = NULL;
+        }
+    }
+}
+
+static void func_block_fixup_refs(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph) {
+    for (int j = 0; j < node->data.func_block.internal_node_count; j++) {
+        if (node->data.func_block.internal_nodes[j]) {
+            int old_iid = node->data.func_block.internal_nodes[j]->id;
+            if (id_map && old_iid >= 0 && old_iid <= max_id && id_map[old_iid] >= 0) {
+                node->data.func_block.internal_nodes[j] = graph_get_node(dst_graph, id_map[old_iid]);
+            } else {
+                node->data.func_block.internal_nodes[j] = NULL;
+            }
+        }
+    }
+    for (int j = 0; j < node->data.func_block.input_count; j++) {
+        int old_pid = node->data.func_block.input_port_ids[j];
+        if (id_map && old_pid >= 0 && old_pid <= max_id && id_map[old_pid] >= 0) {
+            node->data.func_block.input_port_ids[j] = id_map[old_pid];
+        }
+    }
+    for (int j = 0; j < node->data.func_block.output_count; j++) {
+        int old_pid = node->data.func_block.output_port_ids[j];
+        if (id_map && old_pid >= 0 && old_pid <= max_id && id_map[old_pid] >= 0) {
+            node->data.func_block.output_port_ids[j] = id_map[old_pid];
+        }
+    }
+}
+
+/* ── 类型特定的 get_trust_coord_count（信任颜色传播用的坐标计数） ── */
+
+static int point_get_trust_coord_count(const GeomNode *node) {
+    return node->coord_count;
+}
+
+static int line_segment_get_trust_coord_count(const GeomNode *node) {
+    return node->coord_count;
+}
+
+static int region_get_trust_coord_count(const GeomNode *node) {
+    (void)node;
+    return 0; /* 区域节点不参与信任颜色传播 */
+}
+
+static int circle_get_trust_coord_count(const GeomNode *node) {
+    (void)node;
+    return 0; /* 圆节点不参与信任颜色传播 */
+}
+
+static int port_get_trust_coord_count(const GeomNode *node) {
+    (void)node;
+    return 0; /* 端口节点不参与信任颜色传播 */
+}
+
+static int func_block_get_trust_coord_count(const GeomNode *node) {
+    (void)node;
+    return 0; /* 函数块节点不参与信任颜色传播 */
+}
+
+/* ── VTable 实例 ── */
+
+static const GeomNodeVTable kPointVTable = {
+    .alloc = point_alloc,
+    .free = point_free,
+    .clone = point_clone,
+    .type_name = point_type_name,
+    .serialize = point_serialize,
+    .detect_conflict = point_detect_conflict,
+    .hash = point_hash,
+    .compare = point_compare,
+    .deserialize = point_deserialize,
+    .fixup_refs = point_fixup_refs,
+    .get_trust_coord_count = point_get_trust_coord_count,
+};
+
+static const GeomNodeVTable kLineSegmentVTable = {
+    .alloc = line_segment_alloc,
+    .free = line_segment_free,
+    .clone = line_segment_clone,
+    .type_name = line_segment_type_name,
+    .serialize = line_segment_serialize,
+    .detect_conflict = line_segment_detect_conflict,
+    .hash = line_segment_hash,
+    .compare = line_segment_compare,
+    .deserialize = line_segment_deserialize,
+    .fixup_refs = line_segment_fixup_refs,
+    .get_trust_coord_count = line_segment_get_trust_coord_count,
+};
+
+static const GeomNodeVTable kRegionVTable = {
+    .alloc = region_alloc,
+    .free = region_free,
+    .clone = region_clone,
+    .type_name = region_type_name,
+    .serialize = region_serialize,
+    .detect_conflict = region_detect_conflict,
+    .hash = region_hash,
+    .compare = region_compare,
+    .deserialize = region_deserialize,
+    .fixup_refs = region_fixup_refs,
+    .get_trust_coord_count = region_get_trust_coord_count,
+};
+
+static const GeomNodeVTable kCircleVTable = {
+    .alloc = circle_alloc,
+    .free = circle_free,
+    .clone = circle_clone,
+    .type_name = circle_type_name,
+    .serialize = circle_serialize,
+    .detect_conflict = circle_detect_conflict,
+    .hash = circle_hash,
+    .compare = circle_compare,
+    .deserialize = circle_deserialize,
+    .fixup_refs = circle_fixup_refs,
+    .get_trust_coord_count = circle_get_trust_coord_count,
+};
+
+static const GeomNodeVTable kPortVTable = {
+    .alloc = port_alloc,
+    .free = port_free,
+    .clone = port_clone,
+    .type_name = port_type_name,
+    .serialize = port_serialize,
+    .detect_conflict = port_detect_conflict,
+    .hash = port_hash,
+    .compare = port_compare,
+    .deserialize = port_deserialize,
+    .fixup_refs = port_fixup_refs,
+    .get_trust_coord_count = port_get_trust_coord_count,
+};
+
+static const GeomNodeVTable kFuncBlockVTable = {
+    .alloc = func_block_alloc,
+    .free = func_block_free,
+    .clone = func_block_clone,
+    .type_name = func_block_type_name,
+    .serialize = func_block_serialize,
+    .detect_conflict = func_block_detect_conflict,
+    .hash = func_block_hash,
+    .compare = func_block_compare,
+    .deserialize = func_block_deserialize,
+    .fixup_refs = func_block_fixup_refs,
+    .get_trust_coord_count = func_block_get_trust_coord_count,
+};
+
+/* ── 根据 GeomType 获取 vtable ── */
+
+const GeomNodeVTable *get_vtable_for_type(GeomType type) {
+    switch (type) {
+        case GEOM_POINT:
+            return &kPointVTable;
+        case GEOM_LINE_SEGMENT:
+            return &kLineSegmentVTable;
+        case GEOM_REGION:
+            return &kRegionVTable;
+        case GEOM_CIRCLE:
+            return &kCircleVTable;
+        case GEOM_PORT:
+            return &kPortVTable;
+        case GEOM_FUNCTION_BLOCK:
+            return &kFuncBlockVTable;
+        default:
+            return NULL;
+    }
 }
 
 /**

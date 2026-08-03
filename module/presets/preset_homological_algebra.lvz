@@ -1,0 +1,85 @@
+# =============================================================================
+# Lv-00 Presets: Homological Algebra
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "chain_complex_construct" {
+        description "构造链复形 ... → C_{n+1} → C_n → C_{n-1} → ..."
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "cochain_complex_construct" {
+        description "构造上链复形 ... ← C^{n+1} ← C^n ← C^{n-1} ← ..."
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "homology_group_compute" {
+        description "计算链复形的第n个同调群 H_n = Ker d_n / Im d_{n+1}"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "cohomology_group_compute" {
+        description "计算上链复形的第n个上同调群 H^n = Ker d^n / Im d^{n-1}"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "exact_sequence_test" {
+        description "判定序列 0 → A → B → C → 0 是否正合"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "left_derived_functor" {
+        description "计算右正合函子F的左导出函子 L_n F"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "right_derived_functor" {
+        description "计算左正合函子F的右导出函子 R^n F"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "projective_resolution" {
+        description "构造模M的投射分解 ... → P_1 → P_0 → M → 0"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

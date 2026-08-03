@@ -1,0 +1,193 @@
+# =============================================================================
+# Lv-00 Presets: Basic Geometry
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "circumcenter" {
+        description "���������ε����ģ����ԲԲ�ģ�"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "incenter" {
+        description "���������ε����ģ�����ԲԲ�ģ�"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "orthocenter" {
+        description "���������εĴ��ģ������ߵĽ��㣩"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "segment_from_points" {
+        description "ͨ�����㹹���߶� AB"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "perpendicular_bisector" {
+        description "�����߶εĴ�ֱƽ����"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "point_on_perp_bisector" {
+        description "���д����Ϲ�������е�Ϊ d �ĵ�"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "line_from_points" {
+        description "ͨ�����㹹������ֱ��"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "parallel_line" {
+        description "������ƽ���ڸ����߶ε�ֱ��"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "perpendicular_line" {
+        description "��������ֱ�ڸ����߶ε�ֱ��"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "ray_from_points" {
+        description "ͨ�����ͷ���㹹������"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "circle_center_radius" {
+        description "ͨ��Բ�ĺͰ뾶�㹹��Բ"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "circle_three_points" {
+        description "ͨ�����㹹�����Բ"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "tangent_from_point" {
+        description "���ⲿ����Բ������"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "line_intersection" {
+        description "������ֱ�ߵĽ���"
+        category "CONSTRUCTION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "line_circle_intersection" {
+        description "����ֱ����Բ�Ľ���"
+        category "CONSTRUCTION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "circle_circle_intersection" {
+        description "������Բ�Ľ���"
+        category "CONSTRUCTION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "reflect_point_over_line" {
+        description "�����ֱ�ߵķ��䣨�ԳƵ㣩"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "reflect_point_over_point" {
+        description "����ڵ�����ĶԳ�"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "point_divide_segment" {
+        description "�������ָ��߶εĵ�"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "harmonic_conjugate" {
+        description "������͹����"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

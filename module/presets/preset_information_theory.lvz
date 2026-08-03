@@ -1,0 +1,31 @@
+# =============================================================================
+# Lv-00 Presets: Information Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "shannon_channel_coding" {
+        description "香农信道编码定理：可靠传输率 R <= C"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "huffman_coding" {
+        description "构造最优Huffman编码（最小冗余编码）"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

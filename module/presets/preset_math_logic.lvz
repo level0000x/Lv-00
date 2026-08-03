@@ -1,0 +1,233 @@
+# =============================================================================
+# Lv-00 Presets: Math Logic
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "logic_conjunction" {
+        description "命题合取：P ∧ Q，当且仅当 P 和 Q 均为真时结果为真"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "P \\land Q"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_disjunction" {
+        description "命题析取：P ∨ Q，当且仅当 P 或 Q 至少一个为真时结果为真"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "P \\lor Q"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_negation" {
+        description "命题否定：¬P，当 P 为真时结果为假，反之亦然"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "\\lnot P"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "logic_implication" {
+        description "命题蕴含：P → Q，等价于 ¬P ∨ Q"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "P \\to Q \\equiv \\lnot P \\lor Q"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_biconditional" {
+        description "命题等价：P ↔ Q，当 P 和 Q 真值相同时结果为真"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "P \\leftrightarrow Q \\equiv (P \\to Q) \\land (Q \\to P)"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "logic_tautology_test" {
+        description "判定命题公式是否为永真式（对所有真值指派均为真）"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "\\varphi \\text{ 是永真式} \\Leftrightarrow \\forall v: v(\\varphi) = \\text{T}"
+        complexity "O(2^n)，n 为命题变元数"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_satisfiability_test" {
+        description "判定命题公式是否可满足（存在使其为真的真值指派）"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "\\varphi \\text{ 可满足} \\Leftrightarrow \\exists v: v(\\varphi) = \\text{T}"
+        complexity "O(2^n)，n 为命题变元数"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_universal_instantiation" {
+        description "全称实例化：从 ∀x P(x) 推出 P(c)，c 为论域中任意元素"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "FORMULA"
+        math_def "\\forall x \\, P(x) \\vdash P(c)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_existential_generalization" {
+        description "存在泛化：从 P(c) 推出 ∃x P(x)，c 为论域中某个元素"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "FORMULA"
+        math_def "P(c) \\vdash \\exists x \\, P(x)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_universal_generalization" {
+        description "全称泛化：从 P(c) 推出 ∀x P(x)，要求 c 为任意常量且未被特殊假定"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "FORMULA"
+        math_def "P(c) \\vdash \\forall x \\, P(x), \\quad c \\text{ 为任意常量}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_existential_instantiation" {
+        description "存在实例化：从 ∃x P(x) 引入 P(c)，c 为此前未出现的新常量"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "FORMULA"
+        math_def "\\exists x \\, P(x) \\vdash P(c), \\quad c \\text{ 为新常量}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_natural_deduction" {
+        description "自然演绎系统：基于引入规则（∧I, ∨I, →I, ∀I, ∃I）和消去规则（∧E, ∨E, →E, ∀E, ∃E）的证明"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "\\Gamma \\vdash_{\\text{ND}} \\varphi"
+        complexity "O(2^{|\\Gamma|})"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_resolution" {
+        description "归结原理：将公式集转化为子句集，通过归结消解推导空子句以证明不可满足性"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "S \\vdash_{\\text{Res}} \\Box \\Leftrightarrow S \\text{ 不可满足}"
+        complexity "O(n^k)，n 为子句数"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_tableau_method" {
+        description "语义表方法：通过系统性地分解公式构建反证树，判定公式的可满足性"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "\\lnot \\varphi \\text{ 的表封闭} \\Leftrightarrow \\varphi \\text{ 有效}"
+        complexity "O(2^n)，n 为子公式数"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_model_check" {
+        description "模型判定：判定结构 M 是否为公式集 Γ 的模型（M ⊨ Γ）"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "M \\models \\Gamma \\Leftrightarrow \\forall \\varphi \\in \\Gamma, M \\models \\varphi"
+        complexity "O(|\\Gamma| \\cdot |M|)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_validity_test" {
+        description "有效式判定：判定一阶公式是否在所有结构中都为真（⊨ φ）"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "\\models \\varphi \\Leftrightarrow \\forall M, M \\models \\varphi"
+        complexity "不可判定（半可判定）"
+        constructive false
+        reversible false
+    }
+
+    preset "logic_model_satisfiability" {
+        description "模型论可满足性：判定一阶公式集 Γ 是否存在一致的模型（Γ 有模型）"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "\\Gamma \\text{ 可满足} \\Leftrightarrow \\exists M: M \\models \\Gamma"
+        complexity "不可判定（半可判定）"
+        constructive false
+        reversible false
+    }
+
+    preset "logic_turing_machine_check" {
+        description "判定给定描述是否定义了一台合法的图灵机（状态集、字母表、转移函数完备性检验）"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "T = (Q, \\Sigma, \\Gamma, \\delta, q_0, q_{\\text{acc}}, q_{\\text{rej}}) \\text{ 合法性检验}"
+        complexity "O(|Q| \\cdot |\\Gamma|)"
+        constructive true
+        reversible false
+    }
+
+    preset "logic_recursive_check" {
+        description "判定给定函数是否为递归函数（可通过图灵机计算）"
+        category "MATH_LOGIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "f \\text{ 是递归函数} \\Leftrightarrow \\exists T_M: T_M(x) = f(x)"
+        complexity "不可判定"
+        constructive false
+        reversible false
+    }
+
+    preset "logic_halting_problem" {
+        description "停机问题：判定图灵机 M 在输入 w 上是否最终停机（经典不可判定问题）"
+        category "MATH_LOGIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "H(M, w) = \\begin{cases} 1 & M \\text{ 在 } w \\text{ 上停机} \\\\ 0 & \\text{否则} \\end{cases}"
+        complexity "不可判定"
+        constructive false
+        reversible false
+    }
+
+}

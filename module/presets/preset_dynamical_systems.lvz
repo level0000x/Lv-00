@@ -1,0 +1,94 @@
+# =============================================================================
+# Lv-00 Presets: Dynamical Systems
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "bifurcation_diagram" {
+        description "构造离散动力系统的分岔图（参数扫描）"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "hopf_bifurcation_test" {
+        description "判定连续动力系统是否发生Hopf分岔"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "chaos_detection" {
+        description "基于Lyapunov指数判定系统是否混沌（λ > 0）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "attractor_compute" {
+        description "计算动力系统的吸引子"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "strange_attractor_test" {
+        description "检测系统是否具有奇异吸引子"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "phase_plane_analysis" {
+        description "二维自治系统的相平面分析"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "limit_cycle_detection" {
+        description "检测二维系统是否存在极限环"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "poincare_map" {
+        description "构造Poincaré截面映射"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "sensitivity_analysis" {
+        description "分析初始条件的敏感依赖性"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

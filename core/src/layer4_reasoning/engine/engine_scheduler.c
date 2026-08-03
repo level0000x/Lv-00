@@ -44,10 +44,15 @@ struct EngineScheduler {
 };
 
 /* ============================================================
- * 向后兼容 —— 全局静态引擎指针与默认调度器
+ * 向后兼容 —— 线程局部引擎指针
+ *
+ * 用于不支持引擎实例参数的旧版 API（lv_engine_schedule、
+ * lv_engine_execute_pending）。新代码应通过 lvEngine 实例
+ * 的 scheduler 字段直接访问调度器。
+ *
+ * TLS 确保每个线程有独立的引擎关联，为多引擎并发做准备。
  * ============================================================ */
-static lvEngine *g_compat_engine = NULL;
-static EngineScheduler *g_default_scheduler = NULL;
+static lv_THREAD_LOCAL lvEngine *g_tls_engine = NULL;
 
 /* ============================================================
  * 内部辅助：路由规则按优先级排序的比较函数
@@ -955,10 +960,15 @@ GroebnerResult *scheduler_convert_smt_to_groebner(const SMTSolverResult *smt_res
  * 向后兼容 —— 旧版调度器 API
  * ============================================================ */
 void lv_engine_scheduler_init(lvEngine *engine) {
-    g_compat_engine = engine;
+    if (!engine)
+        return;
 
-    if (!g_default_scheduler) {
-        g_default_scheduler = scheduler_create();
+    /* 记录到 TLS，供旧版 API（lv_engine_schedule 等）使用 */
+    g_tls_engine = engine;
+
+    /* 调度器嵌入到引擎实例中，支持多引擎隔离 */
+    if (!engine->scheduler) {
+        engine->scheduler = scheduler_create();
     }
 }
 
@@ -966,10 +976,17 @@ int lv_engine_schedule(const char *task_name, int priority) {
     if (!task_name)
         return -1;
 
-    if (!g_default_scheduler) {
-        g_default_scheduler = scheduler_create();
-        if (!g_default_scheduler)
+    /* 从 TLS 获取当前线程关联的引擎实例 */
+    lvEngine *engine = g_tls_engine;
+    if (!engine)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_engine_schedule: engine not initialized (call lv_engine_scheduler_init first)");
+
+    EngineScheduler *scheduler = engine->scheduler;
+    if (!scheduler) {
+        scheduler = scheduler_create();
+        if (!scheduler)
             lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_engine_schedule: scheduler_create failed");
+        engine->scheduler = scheduler;
     }
 
     /* 旧版调度器是一个简单的优先级队列。
@@ -977,25 +994,23 @@ int lv_engine_schedule(const char *task_name, int priority) {
      * task_name 决定操作类型，priority 影响路由 */
     lv_UNUSED(priority);
 
-    if (!g_compat_engine)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_engine_schedule: g_compat_engine is NULL");
-    if (!g_compat_engine->main_graph)
+    if (!engine->main_graph)
         return 0;
 
     SMTSolverResult result;
     smtsolver_result_init(&result);
 
     if (strcmp(task_name, "solve") == 0) {
-        scheduler_solve(g_default_scheduler, g_compat_engine->main_graph, &result);
+        scheduler_solve(scheduler, engine->main_graph, &result);
     } else if (strcmp(task_name, "normalize") == 0) {
-        graph_normalize(g_compat_engine->main_graph, false);
+        graph_normalize(engine->main_graph, false);
     } else if (strcmp(task_name, "unify") == 0) {
         /* unify 任务需要两个图（构造图 + 命题图），调度器只有一个主图。
          * 当前直接返回 0 表示"无操作完成"，上层应通过
          * unify_construction_with_proposition() 显式调用。 */
         LOG_WARN("scheduler", "unify 任务需要命题图，当前为无操作。请使用 unify_construction_with_proposition() 直接调用。");
     } else if (strcmp(task_name, "rewrite") == 0) {
-        scheduler_solve(g_default_scheduler, g_compat_engine->main_graph, &result);
+        scheduler_solve(scheduler, engine->main_graph, &result);
     }
 
     smtsolver_result_clear(&result);
@@ -1003,16 +1018,19 @@ int lv_engine_schedule(const char *task_name, int priority) {
 }
 
 bool lv_engine_execute_pending(void) {
-    if (!g_compat_engine || !g_default_scheduler)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_engine_execute_pending: engine or scheduler not initialized");
-    if (!g_compat_engine->main_graph)
+    lvEngine *engine = g_tls_engine;
+    if (!engine)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_engine_execute_pending: engine not initialized (call lv_engine_scheduler_init first)");
+    if (!engine->scheduler)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_engine_execute_pending: scheduler not initialized");
+    if (!engine->main_graph)
         lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_engine_execute_pending: main_graph is NULL");
 
     /* 用默认后端执行一次求解 */
     SMTSolverResult result;
     smtsolver_result_init(&result);
 
-    scheduler_solve(g_default_scheduler, g_compat_engine->main_graph, &result);
+    scheduler_solve(engine->scheduler, engine->main_graph, &result);
 
     smtsolver_result_clear(&result);
 

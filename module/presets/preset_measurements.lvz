@@ -1,0 +1,193 @@
+# =============================================================================
+# Lv-00 Presets: Measurements
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "distance_euclidean" {
+        description "计算两点间的欧几里得距离"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "distance_squared" {
+        description "计算两点距离的平方（避免开根号）"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "distance_manhattan" {
+        description "计算两点间的曼哈顿距离（L1范数）"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "distance_chebyshev" {
+        description "计算两点间的切比雪夫距离（L∞范数）"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "distance_point_to_line" {
+        description "计算点到直线的最短距离"
+        category "MEASUREMENT"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "distance_point_to_segment" {
+        description "计算点到线段的最短距离"
+        category "MEASUREMENT"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "angle_three_points" {
+        description "计算三点形成的角度"
+        category "MEASUREMENT"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "angle_two_lines" {
+        description "计算两条直线的夹角"
+        category "MEASUREMENT"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "directed_angle" {
+        description "计算有向角（带符号）"
+        category "MEASUREMENT"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "triangle_area" {
+        description "使用鞋带公式计算三角形面积"
+        category "MEASUREMENT"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "triangle_area_heron" {
+        description "使用海伦公式计算三角形面积"
+        category "MEASUREMENT"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "circle_area" {
+        description "计算圆的面积"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "sector_area" {
+        description "计算扇形的面积"
+        category "MEASUREMENT"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "segment_length" {
+        description "计算线段长度"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "circle_circumference" {
+        description "计算圆的周长"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_magnitude" {
+        description "计算向量的模长"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_dot_product" {
+        description "计算两个向量的点积"
+        category "MEASUREMENT"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_cross_product" {
+        description "计算两个向量的叉积（二维）"
+        category "MEASUREMENT"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_angle" {
+        description "计算两个向量的夹角"
+        category "MEASUREMENT"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "circle_curvature" {
+        description "计算圆的曲率"
+        category "MEASUREMENT"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

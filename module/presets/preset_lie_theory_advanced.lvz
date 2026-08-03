@@ -1,0 +1,58 @@
+# =============================================================================
+# Lv-00 Presets: Lie Theory Advanced
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "lie_algebra_construct" {
+        description "由生成元和李括号关系构造李代数 g"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "lie_bracket" {
+        description "计算李代数中两个元素的李括号 [X, Y]"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "root_system_compute" {
+        description "计算半单李代数的根系 Φ"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "cartan_matrix" {
+        description "由根系计算Cartan矩阵 A_{ij} = <α_i, α_j>"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "weight_space_decomposition" {
+        description "计算表示的权空间分解 V = ⊕ V_μ"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

@@ -1,0 +1,279 @@
+# =============================================================================
+# Lv-00 Presets: Algebraic Topology
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "preset_name" {
+        description "desc"
+        category "TOPOLOGY"
+        output "ANY"
+        math_def "math"
+        complexity "comp"
+        constructive false
+        reversible false
+    }
+
+    preset "at_simplicial_homology" {
+        description "单纯同调群：基于单纯复形的单纯链复形计算同调群 H_n(K; G)"
+        category "TOPOLOGY"
+        inputs 2 "STRUCTURE" "GROUP"
+        output "GROUP"
+        math_def "H_n(K; G) = \\frac{\\ker \\partial_n}{\\operatorname{im} \\partial_{n+1}}, \\quad \\partial_n: C_n \\to C_{n-1}"
+        complexity "O(2^n)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_singular_homology" {
+        description "奇异同调群：计算一般拓扑空间的奇异同调群 H_n(X; G)（最一般的同调理论）"
+        category "TOPOLOGY"
+        inputs 2 "TOPOLOGY" "GROUP"
+        output "GROUP"
+        math_def "H_n(X; G) = \\frac{\\ker \\partial_n}{\\operatorname{im} \\partial_{n+1}}"
+        complexity "O(2^n)"
+        constructive false
+        reversible false
+    }
+
+    preset "at_relative_homology" {
+        description "相对同调群：计算空间对 (X, A) 的相对同调群 H_n(X, A)"
+        category "TOPOLOGY"
+        inputs 2 "TOPOLOGY" "TOPOLOGY"
+        output "GROUP"
+        math_def "H_n(X, A) = \\frac{\\ker \\partial_n^{rel}}{\\operatorname{im} \\partial_{n+1}^{rel}}"
+        complexity "O(2^n)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_mayer_vietoris" {
+        description "Mayer-Vietoris序列：利用空间开覆盖 U∪V 分解同调群计算"
+        category "TOPOLOGY"
+        inputs 3 "TOPOLOGY" "TOPOLOGY" "TOPOLOGY"
+        output "STRUCTURE"
+        math_def "\\cdots \\to H_n(U\\cap V) \\to H_n(U)\\oplus H_n(V) \\to H_n(X) \\to H_{n-1}(U\\cap V) \\to \\cdots"
+        complexity "O(2^n)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_excision_theorem" {
+        description "切除定理：验证并应用切除同构 H_n(X-Z, A-Z) ≅ H_n(X, A)（闭包条件）"
+        category "TOPOLOGY"
+        inputs 3 "TOPOLOGY" "TOPOLOGY" "TOPOLOGY"
+        output "BOOLEAN"
+        math_def "\\bar{Z} \\subset \\operatorname{int}(A) \\Rightarrow H_n(X-Z, A-Z) \\cong H_n(X, A)"
+        complexity "O(2^n)"
+        constructive false
+        reversible false
+    }
+
+    preset "at_cellular_homology" {
+        description "胞腔同调：基于CW复形的胞腔分解计算同调群 H_n^{CW}(X)"
+        category "TOPOLOGY"
+        inputs 1 "STRUCTURE"
+        output "GROUP"
+        math_def "H_n^{CW}(X) = H_n(C_n^{cell}, \\partial_n^{cell})"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_betti_numbers" {
+        description "Betti数：计算拓扑空间的Betti数 beta_n = rank H_n(X)，描述'洞'的数量"
+        category "TOPOLOGY"
+        inputs 1 "GROUP"
+        output "TUPLE"
+        math_def "\\beta_n = \\operatorname{rank} H_n(X)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_homology_exact_sequence" {
+        description "同调正合序列：构造空间对 (X, A) 的长正合同调序列"
+        category "TOPOLOGY"
+        inputs 2 "TOPOLOGY" "TOPOLOGY"
+        output "STRUCTURE"
+        math_def "\\cdots \\to H_n(A) \\to H_n(X) \\to H_n(X,A) \\xrightarrow{\\partial} H_{n-1}(A) \\to \\cdots"
+        complexity "O(2^n)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_singular_cohomology" {
+        description "奇异上同调群：计算拓扑空间的奇异上同调群 H^n(X; G)（对偶链复形）"
+        category "TOPOLOGY"
+        inputs 2 "TOPOLOGY" "GROUP"
+        output "GROUP"
+        math_def "H^n(X; G) = \\frac{\\ker \\delta^n}{\\operatorname{im} \\delta^{n-1}}, \\quad \"
+                \"\\delta^n = (\\partial_{n+1})^*"
+        complexity "O(2^n)"
+        constructive false
+        reversible false
+    }
+
+    preset "at_cup_product" {
+        description "上积结构：计算两个上同调类的上积 alpha ∪ beta ∈ H^{p+q}(X)"
+        category "TOPOLOGY"
+        inputs 2 "GROUP" "GROUP"
+        output "GROUP"
+        math_def "(\\alpha \\smile \\beta)(\\sigma) = \"
+                \"\\alpha(\\sigma|_{[v_0\\ldots v_p]})\\beta(\\sigma|_{[v_p\\ldots v_{p+q}]})"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_de_rham_cohomology" {
+        description "de Rham上同调：基于光滑流形上微分形式计算de Rham上同调群"
+        category "TOPOLOGY"
+        inputs 1 "MANIFOLD"
+        output "GROUP"
+        math_def "H_{dR}^k(M) = \\frac{\\ker d_k}{\\operatorname{im} d_{k-1}}, \\quad \"
+                \"H_{dR}^k(M) \\cong H^k(M; \\mathbb{R})"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_cap_product" {
+        description "下积：计算同调类与上同调类的下积 cap: H_p × H^q -> H_{p-q}"
+        category "TOPOLOGY"
+        inputs 2 "GROUP" "GROUP"
+        output "GROUP"
+        math_def "\\frown: H_p(X) \\times H^q(X) \\to H_{p-q}(X)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_cohomology_ring" {
+        description "上同调环：构造上同调群的带分次环结构 H^*(X; R)，上积为乘法"
+        category "TOPOLOGY"
+        inputs 1 "GROUP"
+        output "STRUCTURE"
+        math_def "H^*(X; R) = \\bigoplus_{n\\ge 0} H^n(X; R)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_higher_homotopy_groups" {
+        description "高阶同伦群：计算拓扑空间的n阶同伦群 pi_n(X, x0)（n>=2时为阿贝尔群）"
+        category "TOPOLOGY"
+        inputs 2 "TOPOLOGY" "INTEGER"
+        output "GROUP"
+        math_def "\\pi_n(X, x_0) = [(S^n, *), (X, x_0)], \\quad n \\ge 2 \\Rightarrow \\text{Abel}"
+        complexity "O(2^{2^n})"
+        constructive false
+        reversible false
+    }
+
+    preset "at_relative_homotopy" {
+        description "相对同伦群：计算空间对 (X, A) 的相对同伦群 pi_n(X, A, x0)"
+        category "TOPOLOGY"
+        inputs 3 "TOPOLOGY" "TOPOLOGY" "INTEGER"
+        output "GROUP"
+        math_def "\\pi_n(X, A, x_0) = [(D^n, S^{n-1}, *), (X, A, x_0)]"
+        complexity "O(2^{2^n})"
+        constructive false
+        reversible false
+    }
+
+    preset "at_hurewicz_homomorphism" {
+        description "Hurewicz同态：构造从同伦群到同调群的自然同态 h_n: pi_n -> H_n"
+        category "TOPOLOGY"
+        inputs 2 "TOPOLOGY" "INTEGER"
+        output "HOMOMORPHISM"
+        math_def "h_n: \\pi_n(X) \\to H_n(X), \\quad h_n([f]) = f_*([S^n])"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_homotopy_exact_sequence" {
+        description "同伦正合序列：构造空间对 (X, A) 的长正合同伦序列"
+        category "TOPOLOGY"
+        inputs 2 "TOPOLOGY" "TOPOLOGY"
+        output "STRUCTURE"
+        math_def "\\cdots \\to \\pi_n(A) \\to \\pi_n(X) \\to \\pi_n(X,A) \\xrightarrow{\\partial} \\pi_{n-1}(A) \\to \\cdots"
+        complexity "O(2^{2^n})"
+        constructive true
+        reversible false
+    }
+
+    preset "at_whitehead_theorem" {
+        description "Whitehead定理：判定CW复形间映射是否同伦等价（诱导所有同伦群的同构）"
+        category "TOPOLOGY"
+        inputs 3 "FUNCTION" "STRUCTURE" "STRUCTURE"
+        output "BOOLEAN"
+        math_def "f_*: \\pi_n(X) \\xrightarrow{\\cong} \\pi_n(Y), \\; \\forall n \\Rightarrow f \\text{ 同伦等价}"
+        complexity "O(2^{2^n})"
+        constructive false
+        reversible false
+    }
+
+    preset "at_simplicial_complex" {
+        description "单纯复形构造：由顶点集合和单形列表构造单纯复形K（满足子单形封闭性）"
+        category "TOPOLOGY"
+        inputs 2 "SET" "LIST"
+        output "STRUCTURE"
+        math_def "K = \\{ \\sigma \\subset V : \\tau \\subset \\sigma \\in K \\Rightarrow \\tau \\in K \\}"
+        complexity "O(n \\log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_triangulation" {
+        description "三角剖分：对拓扑空间或多面体进行三角剖分，表示为单纯复形"
+        category "TOPOLOGY"
+        inputs 1 "TOPOLOGY"
+        output "STRUCTURE"
+        math_def "|K| \\cong X \\text{（同胚）}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_euler_characteristic" {
+        description "Euler示性数：计算单纯复形的Euler示性数 chi = sum (-1)^i * (i维单形数)"
+        category "TOPOLOGY"
+        inputs 1 "STRUCTURE"
+        output "INTEGER"
+        math_def "\\chi(K) = \\sum_{i=0}^n (-1)^i f_i"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_barycentric_subdivision" {
+        description "重心重分：计算单纯复形的重心重分 Sd(K)，细化网格但保持几何实现"
+        category "TOPOLOGY"
+        inputs 1 "STRUCTURE"
+        output "STRUCTURE"
+        math_def "\\operatorname{Sd}(K), \\quad |\\operatorname{Sd}(K)| = |K|"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "at_simplicial_approx" {
+        description "单纯逼近：构造连续映射的单纯逼近 g: K -> L 满足 |g| ≈ f"
+        category "TOPOLOGY"
+        inputs 1 "FUNCTION"
+        output "FUNCTION"
+        math_def "g: K \\to L \\text{ 是 } f: |K| \\to |L| \\text{ 的单纯逼近}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+}

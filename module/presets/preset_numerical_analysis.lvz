@@ -1,0 +1,290 @@
+# =============================================================================
+# Lv-00 Presets: Numerical Analysis
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "numerical_integral_trapezoid" {
+        description "梯形法则数值积分：∫ₐᵇ f(x)dx ≈ h/2·[f(a) + 2Σf(xᵢ) + f(b)]，h = (b-a)/n"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
+        output "SCALAR"
+        math_def "\\int_a^b f(x)\\,dx \\approx \\frac{h}{2}\\left[f(a) + 2\\sum_{i=1}^{n-1} f(x_i) + f(b)\\right]"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "numerical_integral_simpson" {
+        description "辛普森法则数值积分：∫ₐᵇ f(x)dx ≈ h/3·[f(a) + 4Σf(x₂ᵢ₋₁) + 2Σf(x₂ᵢ) + f(b)]"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
+        output "SCALAR"
+        math_def "\\int_a^b f(x)\\,dx \\approx \\frac{h}{3}\\left[f(a) + 4\\sum f(x_{2i-1}) + 2\\sum f(x_{2i}) + \"
+            \"f(b)\\right]"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "numerical_integral_gauss" {
+        description "高斯-勒让德求积：∫ₐᵇ f(x)dx ≈ (b-a)/2·Σ wᵢ·f((b-a)/2·tᵢ + (a+b)/2)"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
+        output "SCALAR"
+        math_def "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{2} \\sum_{i=1}^{n} w_i \\cdot \"
+            \"f\\left(\\frac{b-a}{2}t_i + \\frac{a+b}{2}\\right)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "numerical_integral_romberg" {
+        description "龙贝格积分：通过理查森外推递推加速梯形序列，达到高精度积分"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
+        output "SCALAR"
+        math_def "R_{m,k} = \\frac{4^k R_{m,k-1} - R_{m-1,k-1}}{4^k - 1}"
+        complexity "O(n²)"
+        constructive true
+        reversible false
+    }
+
+    preset "numerical_integral_monte_carlo" {
+        description "蒙特卡洛积分：∫ₐᵇ f(x)dx ≈ (b-a)/N·Σ f(xᵢ)，xᵢ 为均匀随机采样"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
+        output "SCALAR"
+        math_def "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{N} \\sum_{i=1}^{N} f(x_i), \\quad x_i \\sim U(a,b)"
+        complexity "O(N)"
+        constructive true
+        reversible false
+    }
+
+    preset "root_bisection" {
+        description "二分法求根：在区间 [a,b] 中迭代缩小区间，收敛精度 |b-a| < ε"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "x_{n+1} = \\frac{a_n + b_n}{2}, \\quad f(a_n) \\cdot f(b_n) < 0"
+        complexity "O(log((b-a)/ε))"
+        constructive true
+        reversible false
+    }
+
+    preset "root_newton" {
+        description "牛顿法求根：xₙ₊₁ = xₙ - f(xₙ)/f'(xₙ)，二阶收敛速度"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "FUNCTION" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "x_{n+1} = x_n - \\frac{f(x_n)}{f'(x_n)}"
+        complexity "O(log(1/ε))"
+        constructive true
+        reversible false
+    }
+
+    preset "root_secant" {
+        description "割线法求根：xₙ₊₁ = xₙ - f(xₙ)·(xₙ - xₙ₋₁)/(f(xₙ) - f(xₙ₋₁))，超线性收敛"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "x_{n+1} = x_n - f(x_n) \\cdot \\frac{x_n - x_{n-1}}{f(x_n) - f(x_{n-1})}"
+        complexity "O(log²(1/ε))"
+        constructive true
+        reversible false
+    }
+
+    preset "root_fixed_point" {
+        description "不动点迭代：xₙ₊₁ = g(xₙ)，当 |g'(x*)| < 1 时收敛到不动点 x*"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "x_{n+1} = g(x_n), \\quad x^* = g(x^*)"
+        complexity "O(log(1/ε))"
+        constructive true
+        reversible false
+    }
+
+    preset "system_newton" {
+        description "非线性方程组牛顿法：Xₙ₊₁ = Xₙ - J⁻¹(Xₙ)·F(Xₙ)，J 为雅可比矩阵"
+        category "ANALYSIS"
+        inputs 3 "LIST" "LIST" "SCALAR"
+        output "TUPLE"
+        math_def "\\mathbf{X}_{n+1} = \\mathbf{X}_n - J^{-1}(\\mathbf{X}_n) \\cdot \\mathbf{F}(\\mathbf{X}_n)"
+        complexity "O(n³·log(1/ε))"
+        constructive true
+        reversible false
+    }
+
+    preset "interpolation_lagrange" {
+        description "拉格朗日插值：L(x) = Σ yᵢ·Π(x - xⱼ)/(xᵢ - xⱼ)，j≠i"
+        category "ANALYSIS"
+        inputs 3 "LIST" "LIST" "SCALAR"
+        output "SCALAR"
+        math_def "L(x) = \\sum_{i=0}^{n} y_i \\prod_{\\substack{j=0 \\\\ j \\ne i}}^{n} \\frac{x - x_j}{x_i - x_j}"
+        complexity "O(n²)"
+        constructive true
+        reversible false
+    }
+
+    preset "interpolation_newton" {
+        description "牛顿均差插值：N(x) = f[x₀] + f[x₀,x₁](x-x₀) + f[x₀,x₁,x₂](x-x₀)(x-x₁) + ..."
+        category "ANALYSIS"
+        inputs 3 "LIST" "LIST" "SCALAR"
+        output "SCALAR"
+        math_def "N(x) = f[x_0] + \\sum_{k=1}^{n} f[x_0, \\ldots, x_k] \\prod_{i=0}^{k-1}(x - x_i)"
+        complexity "O(n²)"
+        constructive true
+        reversible false
+    }
+
+    preset "interpolation_spline_linear" {
+        description "线性样条插值：相邻节点间用线性函数连接，分段连续但一阶导数不连续"
+        category "ANALYSIS"
+        inputs 3 "LIST" "LIST" "SCALAR"
+        output "SCALAR"
+        math_def "S_i(x) = y_i + \\frac{y_{i+1} - y_i}{x_{i+1} - x_i}(x - x_i)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "interpolation_spline_cubic" {
+        description "三次样条插值：分段三次多项式，保证函数值、一阶和二阶导数连续"
+        category "ANALYSIS"
+        inputs 3 "LIST" "LIST" "SCALAR"
+        output "SCALAR"
+        math_def "S_i(x) = a_i + b_i(x-x_i) + c_i(x-x_i)^2 + d_i(x-x_i)^3"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "interpolation_chebyshev" {
+        description "切比雪夫插值：在切比雪夫节点 xₖ = cos((2k+1)π/(2n)) 上插值，最小化龙格现象"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
+        output "SCALAR"
+        math_def "x_k = \\cos\\left(\\frac{(2k+1)\\pi}{2n}\\right), \\quad k = 0, 1, \\ldots, n-1"
+        complexity "O(n²)"
+        constructive true
+        reversible false
+    }
+
+    preset "differentiation_forward" {
+        description "前向差分近似导数：f'(x) ≈ (f(x+h) - f(x)) / h，一阶精度 O(h)"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "f'(x) \\approx \\frac{f(x+h) - f(x)}{h} + O(h)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "differentiation_backward" {
+        description "后向差分近似导数：f'(x) ≈ (f(x) - f(x-h)) / h，一阶精度 O(h)"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "f'(x) \\approx \\frac{f(x) - f(x-h)}{h} + O(h)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "differentiation_central" {
+        description "中心差分近似导数：f'(x) ≈ (f(x+h) - f(x-h)) / (2h)，二阶精度 O(h²)"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "f'(x) \\approx \\frac{f(x+h) - f(x-h)}{2h} + O(h^2)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "differentiation_richardson" {
+        description "理查森外推：通过组合不同步长的差分结果消除低阶误差项，提高导数精度"
+        category "ANALYSIS"
+        inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
+        output "SCALAR"
+        math_def "D(h) = \\frac{2^{2n} D(h/2) - D(h)}{2^{2n} - 1} + O(h^{2n+2})"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ode_euler" {
+        description "欧拉方法求解ODE：yₙ₊₁ = yₙ + h·f(xₙ, yₙ)，一阶精度 O(h)"
+        category "ANALYSIS"
+        inputs 5 "FUNCTION" "SCALAR" "SCALAR" "SCALAR" "INTEGER"
+        output "LIST"
+        math_def "y_{n+1} = y_n + h \\cdot f(x_n, y_n)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ode_rk4" {
+        description "四阶龙格-库塔方法：yₙ₊₁ = yₙ + h/6·(k₁ + 2k₂ + 2k₃ + k₄)，四阶精度 O(h⁴)"
+        category "ANALYSIS"
+        inputs 5 "FUNCTION" "SCALAR" "SCALAR" "SCALAR" "INTEGER"
+        output "LIST"
+        math_def "y_{n+1} = y_n + \\frac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ode_adaptive" {
+        description "自适应步长方法（RK45）：根据局部误差估计自动调整步长，平衡精度与效率"
+        category "ANALYSIS"
+        inputs 5 "FUNCTION" "SCALAR" "SCALAR" "SCALAR" "SCALAR"
+        output "LIST"
+        math_def "h_{\\text{new}} = h \\cdot \\left(\\frac{\\varepsilon \\cdot h}{|y_4 - y_5|}\\right)^{1/5}"
+        complexity "O(n·log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ode_system" {
+        description "ODE方程组求解：使用RK4方法同时求解多个耦合的一阶常微分方程"
+        category "ANALYSIS"
+        inputs 5 "LIST" "LIST" "SCALAR" "SCALAR" "INTEGER"
+        output "LIST"
+        math_def "\\mathbf{y}'(x) = \\mathbf{f}(x, \\mathbf{y}), \\quad \\mathbf{y}(x_0) = \\mathbf{y}_0"
+        complexity "O(n·m³)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_lu_decompose" {
+        description "LU分解：将矩阵 A 分解为下三角矩阵 L 和上三角矩阵 U，A = LU，用于高效求解线性方程组"
+        category "ANALYSIS"
+        inputs 1 "MATRIX"
+        output "TUPLE"
+        math_def "A = LU, \\quad L_{ii} = 1, \\quad U_{ij} = 0 \\ (i > j), \\quad L_{ij} = 0 \\ (i < j)"
+        complexity "O(n³)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_eigenvalues" {
+        description "特征值计算：使用QR算法迭代求解矩阵的所有特征值，Av = λv"
+        category "ANALYSIS"
+        inputs 2 "MATRIX" "SCALAR"
+        output "TUPLE"
+        math_def "A\\mathbf{v} = \\lambda \\mathbf{v}, \\quad \\det(A - \\lambda I) = 0"
+        complexity "O(n³)"
+        constructive true
+        reversible false
+    }
+
+}

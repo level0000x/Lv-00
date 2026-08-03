@@ -1,0 +1,211 @@
+# =============================================================================
+# Lv-00 Presets: Polynomial
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "polynomial_add" {
+        description "多项式加法：计算两个多项式的和，对应系数相加"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "(f + g)(x) = f(x) + g(x)"
+        complexity "O(n)"
+        constructive true
+        reversible true
+    }
+
+    preset "polynomial_subtract" {
+        description "多项式减法：计算两个多项式的差，对应系数相减"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "(f - g)(x) = f(x) - g(x)"
+        complexity "O(n)"
+        constructive true
+        reversible true
+    }
+
+    preset "polynomial_multiply" {
+        description "多项式乘法：计算两个多项式的积，卷积运算"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "(f \\cdot g)(x) = f(x) \\cdot g(x)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_divide" {
+        description "多项式除法（带余）：计算 f = g*q + r，返回商 q 和余式 r"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "TUPLE"
+        math_def "f = g \\cdot q + r, \\quad \\deg(r) < \\deg(g)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_gcd" {
+        description "多项式GCD：使用欧几里得算法计算两个多项式的最大公因式"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "\\gcd(f, g) = \\max\\{d : d|f \\land d|g\\}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_lcm" {
+        description "多项式LCM：计算两个多项式的最小公倍式"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "\\text{lcm}(f, g) = \\frac{f \\cdot g}{\\gcd(f, g)}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_degree" {
+        description "多项式次数：返回多项式的最高次项的次数 deg(f)"
+        category "ALGEBRA"
+        inputs 1 "POLYNOMIAL"
+        output "INTEGER"
+        math_def "\\deg(f) = \\max\\{i : a_i \\neq 0\\}"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "polynomial_evaluate" {
+        description "多项式求值：使用秦九韶算法（Horner法则）计算 f(x_0) 的值"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "SCALAR"
+        output "SCALAR"
+        math_def "f(x_0) = a_n x_0^n + a_{n-1} x_0^{n-1} + \\cdots + a_1 x_0 + a_0"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "polynomial_derivative" {
+        description "多项式求导：计算多项式的形式导数 f'(x)"
+        category "ALGEBRA"
+        inputs 1 "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "f'(x) = \\sum_{i=1}^{n} i \\cdot a_i \\cdot x^{i-1}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_integral" {
+        description "多项式积分：计算多项式的不定积分（忽略常数项）"
+        category "ALGEBRA"
+        inputs 1 "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "\\int f(x)\\,dx = \\sum_{i=0}^{n} \\frac{a_i}{i+1} x^{i+1} + C"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_compose" {
+        description "多项式复合：计算复合多项式 f(g(x))"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "(f \\circ g)(x) = f(g(x))"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_roots_quadratic" {
+        description "二次方程求根：使用求根公式求解 ax^2 + bx + c = 0"
+        category "ALGEBRA"
+        inputs 3 "SCALAR" "SCALAR" "SCALAR"
+        output "LIST"
+        math_def "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_roots_cubic" {
+        description "三次方程求根：使用Cardano公式求解 ax^3 + bx^2 + cx + d = 0"
+        category "ALGEBRA"
+        inputs 4 "SCALAR" "SCALAR" "SCALAR" "SCALAR"
+        output "LIST"
+        math_def "x^3 + px + q = 0, \\quad \\Delta = -4p^3 - 27q^2 \\text{（Cardano公式）}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_roots_quartic" {
+        description "四次方程求根：使用Ferrari方法求解 ax^4 + bx^3 + cx^2 + dx + e = 0"
+        category "ALGEBRA"
+        inputs 5 "SCALAR" "SCALAR" "SCALAR" "SCALAR" "SCALAR"
+        output "LIST"
+        math_def "x^4 + px^2 + qx + r = 0 \\text{（Ferrari方法，化为三次预解方程）}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_factor" {
+        description "多项式因式分解：将多项式分解为不可约因式的乘积"
+        category "ALGEBRA"
+        inputs 1 "POLYNOMIAL"
+        output "LIST"
+        math_def "f(x) = a_n \\prod_{i=1}^{k} (x - r_i)^{e_i} \\cdot \\prod_{j=1}^{m} q_j(x)^{d_j}"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "polynomial_resultant" {
+        description "结式：计算两个多项式的结式 Res(f,g)，用于判断公共零点"
+        category "ALGEBRA"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "SCALAR"
+        math_def "\\text{Res}(f, g) = a_n^m \\prod_{i=1}^{n} g(r_i), \\quad r_i \\text{ 为 } f \\text{ 的根}"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "polynomial_discriminant" {
+        description "判别式：计算多项式的判别式 Delta(f)，判断根的重数"
+        category "ALGEBRA"
+        inputs 1 "POLYNOMIAL"
+        output "SCALAR"
+        math_def "\\Delta(f) = (-1)^{\\frac{n(n-1)}{2}} \\cdot \\frac{\\text{Res}(f, f')}{a_n}"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "polynomial_interpolation" {
+        description "多项式插值：给定 n+1 个数据点，使用Lagrange或Newton插值构造过这些点的多项式"
+        category "ALGEBRA"
+        inputs 2 "LIST" "LIST"
+        output "POLYNOMIAL"
+        math_def "L(x) = \\sum_{i=0}^{n} y_i \\prod_{j \\neq i} \\frac{x - x_j}{x_i - x_j}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+}

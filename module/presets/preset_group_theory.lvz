@@ -1,0 +1,431 @@
+# =============================================================================
+# Lv-00 Presets: Group Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "group_operation" {
+        description "群运算：计算群中两个元素的乘积 a * b"
+        category "GROUP_THEORY"
+        inputs 3 "GROUP" "GROUP_ELEMENT" "GROUP_ELEMENT"
+        output "GROUP_ELEMENT"
+        math_def "a \\cdot b \\in G"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "group_inverse" {
+        description "计算群元素的逆元 a^(-1)"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "GROUP_ELEMENT"
+        output "GROUP_ELEMENT"
+        math_def "a \\cdot a^{-1} = e"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "group_power" {
+        description "群元素的幂运算 a^n（快速幂算法）"
+        category "GROUP_THEORY"
+        inputs 3 "GROUP" "GROUP_ELEMENT" "INTEGER"
+        output "GROUP_ELEMENT"
+        math_def "a^n = \\underbrace{a \\cdot a \\cdots a}_{n \\text{ 次}}"
+        complexity "O(log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "group_identity_test" {
+        description "判定元素是否是群的单位元"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "GROUP_ELEMENT"
+        output "BOOLEAN"
+        math_def "e \\cdot a = a \\cdot e = a, \\forall a \\in G"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "element_order" {
+        description "计算群元素的阶 ord(a)"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "GROUP_ELEMENT"
+        output "INTEGER"
+        math_def "\\text{ord}(a) = \\min\\{n > 0 : a^n = e\\}"
+        complexity "O(ord(a))"
+        constructive true
+        reversible false
+    }
+
+    preset "subgroup_test" {
+        description "判定子集是否构成子群（封闭性、单位元、逆元）"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "SUBGROUP"
+        output "BOOLEAN"
+        math_def "H \\le G \\Leftrightarrow \\forall a,b \\in H: ab^{-1} \\in H"
+        complexity "O(|H|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "generated_subgroup" {
+        description "由元素集合生成的子群 <S>"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "SEQUENCE"
+        output "SUBGROUP"
+        math_def "\\langle S \\rangle = \\{s_1^{e_1} \\cdots s_k^{e_k} : s_i \\in S\\}"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "left_coset" {
+        description "计算元素关于子群的左陪集 aH"
+        category "GROUP_THEORY"
+        inputs 3 "GROUP" "SUBGROUP" "GROUP_ELEMENT"
+        output "SET"
+        math_def "aH = \\{ah : h \\in H\\}"
+        complexity "O(|H|)"
+        constructive true
+        reversible false
+    }
+
+    preset "right_coset" {
+        description "计算元素关于子群的右陪集 Ha"
+        category "GROUP_THEORY"
+        inputs 3 "GROUP" "SUBGROUP" "GROUP_ELEMENT"
+        output "SET"
+        math_def "Ha = \\{ha : h \\in H\\}"
+        complexity "O(|H|)"
+        constructive true
+        reversible false
+    }
+
+    preset "coset_decomposition" {
+        description "群关于子群的陪集分解"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "SUBGROUP"
+        output "SET"
+        math_def "G = \\bigcup_{i=1}^{[G:H]} g_i H"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "normal_subgroup_test" {
+        description "判定子群是否是正规子群"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "SUBGROUP"
+        output "BOOLEAN"
+        math_def "H \\triangleleft G \\Leftrightarrow gHg^{-1} = H, \\forall g \\in G"
+        complexity "O(|G|·|H|)"
+        constructive true
+        reversible false
+    }
+
+    preset "quotient_group" {
+        description "构造商群 G/H（要求 H 是正规子群）"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "SUBGROUP"
+        output "GROUP"
+        math_def "G/H = \\{gH : g \\in G\\}"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "group_homomorphism_test" {
+        description "判定映射是否是群同态"
+        category "GROUP_THEORY"
+        inputs 3 "GROUP" "GROUP" "HOMOMORPHISM"
+        output "BOOLEAN"
+        math_def "f(ab) = f(a)f(b), \\forall a,b \\in G"
+        complexity "O(|G|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "homomorphism_kernel" {
+        description "计算群同态的核 ker(f)"
+        category "GROUP_THEORY"
+        inputs 3 "GROUP" "GROUP" "HOMOMORPHISM"
+        output "SUBGROUP"
+        math_def "\\ker(f) = \\{g \\in G : f(g) = e_H\\}"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "homomorphism_image" {
+        description "计算群同态的像 im(f)"
+        category "GROUP_THEORY"
+        inputs 3 "GROUP" "GROUP" "HOMOMORPHISM"
+        output "SUBGROUP"
+        math_def "\\text{im}(f) = \\{f(g) : g \\in G\\}"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "group_isomorphism_test" {
+        description "判定两个群是否同构"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "GROUP"
+        output "BOOLEAN"
+        math_def "G \\cong H \\Leftrightarrow \\exists \\varphi: G \\to H \\text{ 双射同态}"
+        complexity "O(|G|!)"
+        constructive true
+        reversible false
+    }
+
+    preset "automorphism_group" {
+        description "计算群的自同构群 Aut(G)"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "GROUP"
+        math_def "\\text{Aut}(G) = \\{\\varphi : G \\to G \\text{ 同构}\\}"
+        complexity "O(|G|!)"
+        constructive true
+        reversible false
+    }
+
+    preset "inner_automorphism" {
+        description "计算群的内自同构群 Inn(G)"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "GROUP"
+        math_def "\\text{Inn}(G) = \\{\\varphi_g : x \\mapsto gxg^{-1}\\}"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cyclic_group_test" {
+        description "判定群是否是循环群"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "BOOLEAN"
+        math_def "G \\text{ 循环} \\Leftrightarrow \\exists g: G = \\langle g \\rangle"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cyclic_generators" {
+        description "计算循环群的所有生成元"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "SET"
+        math_def "\\{g : \\langle g \\rangle = G\\}"
+        complexity "O(|G| log |G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "abelian_group_test" {
+        description "判定群是否是阿贝尔群（交换群）"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "BOOLEAN"
+        math_def "G \\text{ 阿贝尔} \\Leftrightarrow ab = ba, \\forall a,b \\in G"
+        complexity "O(|G|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "permutation_multiply" {
+        description "两个置换的乘积（复合）"
+        category "GROUP_THEORY"
+        inputs 2 "SEQUENCE" "SEQUENCE"
+        output "SEQUENCE"
+        math_def "(\\sigma \\circ \\tau)(i) = \\sigma(\\tau(i))"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "permutation_decompose" {
+        description "将置换分解为不相交轮换的乘积"
+        category "GROUP_THEORY"
+        inputs 1 "SEQUENCE"
+        output "TUPLE"
+        math_def "\\sigma = \\tau_1 \\circ \\tau_2 \\circ \\cdots \\circ \\tau_k"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "symmetric_group" {
+        description "构造 n 次对称群 S_n"
+        category "GROUP_THEORY"
+        inputs 1 "INTEGER"
+        output "GROUP"
+        math_def "S_n = \\{\\text{所有 } n \\text{ 元置换}\\}, |S_n| = n!"
+        complexity "O(n!)"
+        constructive true
+        reversible false
+    }
+
+    preset "alternating_group" {
+        description "构造 n 次交错群 A_n（偶置换群）"
+        category "GROUP_THEORY"
+        inputs 1 "INTEGER"
+        output "GROUP"
+        math_def "A_n = \\{\\sigma \\in S_n : \\text{sgn}(\\sigma) = 1\\}"
+        complexity "O(n!)"
+        constructive true
+        reversible false
+    }
+
+    preset "dihedral_group" {
+        description "构造 n 阶二面体群 D_n（正 n 边形的对称群）"
+        category "GROUP_THEORY"
+        inputs 1 "INTEGER"
+        output "GROUP"
+        math_def "D_n = \\langle r, s : r^n = s^2 = e, srs = r^{-1} \\rangle"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "group_order" {
+        description "计算群的阶 |G|"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "INTEGER"
+        math_def "|G| = \\text{群中元素个数}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "conjugacy_class" {
+        description "计算元素的共轭类 [a]"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "GROUP_ELEMENT"
+        output "SET"
+        math_def "[a] = \\{gag^{-1} : g \\in G\\}"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "class_equation" {
+        description "计算群的类方程"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "EQUATION"
+        math_def "|G| = |Z(G)| + \\sum_{i} [G : C_G(g_i)]"
+        complexity "O(|G|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "group_center" {
+        description "计算群的中心 Z(G)"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "SUBGROUP"
+        math_def "Z(G) = \\{z \\in G : zg = gz, \\forall g \\in G\\}"
+        complexity "O(|G|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "commutator_subgroup" {
+        description "计算换位子群 [G,G]"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "SUBGROUP"
+        math_def "[G,G] = \\langle [a,b] : a,b \\in G \\rangle"
+        complexity "O(|G|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "derived_series" {
+        description "计算群的导列"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "SEQUENCE"
+        math_def "G^{(0)} = G, G^{(i+1)} = [G^{(i)}, G^{(i)}]"
+        complexity "O(|G|² k)"
+        constructive true
+        reversible false
+    }
+
+    preset "solvable_group_test" {
+        description "判定群是否是可解群"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "BOOLEAN"
+        math_def "G \\text{ 可解} \\Leftrightarrow \\exists k: G^{(k)} = \\{e\\}"
+        complexity "O(|G|² k)"
+        constructive true
+        reversible false
+    }
+
+    preset "nilpotent_group_test" {
+        description "判定群是否是幂零群"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "BOOLEAN"
+        math_def "G \\text{ 幂零} \\Leftrightarrow \\exists k: G_k = \\{e\\}"
+        complexity "O(|G|² k)"
+        constructive true
+        reversible false
+    }
+
+    preset "sylow_p_subgroup" {
+        description "计算西罗 p-子群"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "PRIME"
+        output "SUBGROUP"
+        math_def "P \\le G, |P| = p^k, p^k || |G|"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "sylow_subgroup_count" {
+        description "计算西罗 p-子群的数量 n_p"
+        category "GROUP_THEORY"
+        inputs 2 "GROUP" "PRIME"
+        output "INTEGER"
+        math_def "n_p \\equiv 1 \\pmod{p}, n_p | m"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "lower_central_series" {
+        description "计算群的下中心列"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "SEQUENCE"
+        math_def "\\gamma_1(G) = G, \\gamma_{i+1}(G) = [\\gamma_i(G), G]"
+        complexity "O(|G|^2 k)"
+        constructive true
+        reversible false
+    }
+
+    preset "upper_central_series" {
+        description "计算群的上中心列"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "SEQUENCE"
+        math_def "Z_0(G) = \\{e\\}, Z_{i+1}(G)/Z_i(G) = Z(G/Z_i(G))"
+        complexity "O(|G|^2 k)"
+        constructive true
+        reversible false
+    }
+
+}

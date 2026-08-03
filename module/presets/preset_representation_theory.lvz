@@ -1,0 +1,203 @@
+# =============================================================================
+# Lv-00 Presets: Representation Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "desc" {
+        description "n_inputs"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "comp"
+        complexity "constructive"
+        constructive false
+        reversible false
+    }
+
+    preset "线性表示：构造群 G 在向量空间 V 上的群同态 rho: G -> GL(V)，用线性变换刻画群结构" {
+        description "2"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G| \\cdot n^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "置换表示：由群 G 在有限集 X 上的作用构造维数为 |X| 的置换矩阵表示" {
+        description "2"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G| \\cdot |X|^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "正则表示：构造群代数上的左平移表示，每个不可约表示出现 dim(rho) 次" {
+        description "1"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G|^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "酉表示：在 Hilbert 空间上构造保持内积的酉表示 rho: G -> U(H)（可酉化）" {
+        description "1"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G| \\cdot n^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "表示维数：计算线性表示 rho: G -> GL(V) 的维数 dim(rho) = dim V = chi(e)" {
+        description "1"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(1)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "表示的直和与张量积：构造函数 rho1⊕rho2 (维数相加) 或 rho1⊗rho2 (维数相乘)" {
+        description "3"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(n^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "特征标计算：对表示 rho 计算特征标函数 chi(g) = Tr(rho(g))（等价不变量）" {
+        description "1"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G| \\cdot n^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "特征标表：构造有限群的不可约特征标表（行=不可约表示，列=共轭类），行正交" {
+        description "1"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G|^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "特征标内积：计算类函数的内积 (chi, psi)_G = 1/|G| ∑ chi(g)·conj(psi(g))" {
+        description "3"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G|)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "不可约特征标正交性：验证 Schur 正交关系 sum χ_i(g)·conj(χ_j(g)) = |G|·δ_ij" {
+        description "2"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G|^2)"
+        complexity "false"
+        constructive false
+        reversible false
+    }
+
+    preset "不可约表示判定：验证表示是否不可约（特征标内积 (chi, chi) = 1 则不可约）" {
+        description "2"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G| \\cdot n^2)"
+        complexity "false"
+        constructive false
+        reversible false
+    }
+
+    preset "Maschke定理：验证有限群在 char(F)∤|G| 的域上的表示完全可约" {
+        description "2"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G| \\cdot n^2)"
+        complexity "false"
+        constructive false
+        reversible false
+    }
+
+    preset "不可约表示分解：将可约表示分解为不可约表示的直和 rho ≅ ⊕ d_i·rho_i，d_i = (chi, chi_i)" {
+        description "2"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G|^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "Schur引理：计算 Intertwiner 空间 Hom_G(rho1, rho2) 维数（不可约时 0 或 1）" {
+        description "3"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(n^2)"
+        complexity "false"
+        constructive false
+        reversible false
+    }
+
+    preset "Frobenius互反律：(Ind_H^G chi, psi)_G = (chi, Res_H^G psi)_H，诱导与限制对偶" {
+        description "2"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G|)"
+        complexity "false"
+        constructive false
+        reversible false
+    }
+
+    preset "诱导特征标：计算 Ind_H^G chi(g) = 1/|H|·sum_{x∈G, xgx^{-1}∈H} chi(xgx^{-1})" {
+        description "3"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(|G|^2)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+    preset "伴随表示：构造李代数的伴随表示 ad_X(Y) = [X, Y]，Killing 形式 B(X,Y)=Tr(ad_X ad_Y)" {
+        description "1"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(n^2)"
+        complexity "true"
+        constructive true
+        reversible false
+    }
+
+    preset "最高权表示：从统治整权 lambda 构造有限维不可约表示 V_lambda（Cartan-Weyl理论）" {
+        description "2"
+        category "GROUP_THEORY"
+        output "ANY"
+        math_def "O(n^3)"
+        complexity "true"
+        constructive false
+        reversible false
+    }
+
+}

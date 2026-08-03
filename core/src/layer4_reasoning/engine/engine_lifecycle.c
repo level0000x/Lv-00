@@ -20,6 +20,7 @@
 
 #include "debug.h"
 #include "engine_internal.h"
+#include "engine_scheduler.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "stream_context_util.h"
@@ -112,6 +113,10 @@ void engine_destroy(lvEngine *engine) {
     if (engine->frozen_point) {
         engine_destroy_frozen_point(engine->frozen_point);
         engine->frozen_point = NULL;
+    }
+    if (engine->scheduler) {
+        scheduler_destroy(engine->scheduler);
+        engine->scheduler = NULL;
     }
     if (engine->stream_ctx) {
         /* 在销毁流式上下文前，清除所有已注册模块的全局指针，

@@ -1,0 +1,360 @@
+# =============================================================================
+# Lv-00 Presets: Ring Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "ring_addition" {
+        description "环加法：计算环R中两个元素的和 a + b，加法满足交换律与结合律"
+        category "RING_THEORY"
+        inputs 2 "RING" "RING"
+        output "RING"
+        math_def "(a, b) \\mapsto a + b \\in R"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "ring_multiplication" {
+        description "环乘法：计算环R中两个元素的积 a * b，乘法满足结合律与分配律"
+        category "RING_THEORY"
+        inputs 2 "RING" "RING"
+        output "RING"
+        math_def "(a, b) \\mapsto a \\cdot b \\in R"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_additive_inverse" {
+        description "加法逆元：计算环元素的加法逆元 -a，满足 a + (-a) = 0_R"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "RING"
+        math_def "a \\mapsto -a, \\quad a + (-a) = 0_R"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "ring_multiplicative_inverse" {
+        description "乘法逆元：计算环元素的乘法逆元 a^(-1)（若存在），满足 a * a^(-1) = 1_R"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "RING"
+        math_def "a \\mapsto a^{-1}, \\quad a \\cdot a^{-1} = 1_R"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "ring_zero_element" {
+        description "零元检测：获取环R的加法单位元 0_R，满足 a + 0_R = a 对所有 a in R"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "RING"
+        math_def "0_R \\in R, \\quad \\forall a \\in R: a + 0_R = a"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_identity_element" {
+        description "单位元检测：获取环R的乘法单位元 1_R（若存在），满足 a * 1_R = a 对所有 a in R"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "RING"
+        math_def "1_R \\in R, \\quad \\forall a \\in R: a \\cdot 1_R = a"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_ideal_test" {
+        description "理想判定：验证环R的子集I是否构成理想（加法子群 + 吸收性）"
+        category "RING_THEORY"
+        inputs 2 "RING" "SET"
+        output "BOOLEAN"
+        math_def "I \\triangleleft R \\Leftrightarrow (I \\le (R,+)) \\land (\\forall r \\in R, \"
+                       \"a \\in I: ra \\in I \\land ar \\in I)"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "principal_ideal" {
+        description "主理想生成：由单个元素a生成主理想 <a> = aR = Ra"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "IDEAL"
+        math_def "\\langle a \\rangle = \\{ra : r \\in R\\} \\quad \\text{（交换环）}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_ideal_sum" {
+        description "理想和：计算两个理想的和 I + J = {a + b : a in I, b in J}"
+        category "RING_THEORY"
+        inputs 2 "IDEAL" "IDEAL"
+        output "IDEAL"
+        math_def "I + J = \\{a + b : a \\in I, \\; b \\in J\\}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_ideal_intersection" {
+        description "理想交：计算两个理想的交 I ∩ J，是包含于I和J的最大理想"
+        category "RING_THEORY"
+        inputs 2 "IDEAL" "IDEAL"
+        output "IDEAL"
+        math_def "I \\cap J = \\{a : a \\in I \\land a \\in J\\}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_quotient_ring" {
+        description "商环构造：由环R和理想I构造商环 R/I，元素为陪集 a + I"
+        category "RING_THEORY"
+        inputs 2 "RING" "IDEAL"
+        output "RING"
+        math_def "R/I = \\{a + I : a \\in R\\}, \\quad (a+I)+(b+I)=(a+b)+I, \\; (a+I)(b+I)=(ab)+I"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_maximal_ideal_test" {
+        description "极大理想判定：判定理想I是否为极大理想（R/I是域）"
+        category "RING_THEORY"
+        inputs 2 "IDEAL" "RING"
+        output "BOOLEAN"
+        math_def "I \\text{ 极大} \\Leftrightarrow R/I \\text{ 是域} \\Leftrightarrow \\nexists \"
+                       \"J: I \\subsetneq J \\subsetneq R"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_prime_ideal_test" {
+        description "素理想判定：判定理想I是否为素理想（R/I是整环）"
+        category "RING_THEORY"
+        inputs 2 "IDEAL" "RING"
+        output "BOOLEAN"
+        math_def "I \\text{ 素} \\Leftrightarrow R/I \\text{ 是整环} \\Leftrightarrow (ab \\in \"
+                       \"I \\Rightarrow a \\in I \\lor b \\in I)"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_homomorphism_test" {
+        description "环同态检测：验证映射 f: R -> S 是否为环同态，满足 f(a+b)=f(a)+f(b), f(ab)=f(a)f(b), f(1_R)=1_S"
+        category "RING_THEORY"
+        inputs 3 "RING" "RING" "FUNCTION"
+        output "BOOLEAN"
+        math_def "f: R \\to S \\text{ 是环同态} \\Leftrightarrow f(a+b)=f(a)+f(b), \\; f(ab)=f(a)f(b), \\; f(1_R)=1_S"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_homomorphism_kernel" {
+        description "同态核：计算环同态 f 的核 ker(f) = {a in R | f(a) = 0_S}，同态核始终是R的理想"
+        category "RING_THEORY"
+        inputs 1 "FUNCTION"
+        output "IDEAL"
+        math_def "\\ker(f) = \\{a \\in R : f(a) = 0_S\\}, \\quad \\ker(f) \\triangleleft R"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_homomorphism_image" {
+        description "同态像：计算环同态 f 的像 Im(f) = {f(a) | a in R}，同态像是S的子环"
+        category "RING_THEORY"
+        inputs 1 "FUNCTION"
+        output "RING"
+        math_def "\\text{Im}(f) = \\{f(a) : a \\in R\\}, \\quad \\text{Im}(f) \\le S"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_isomorphism_test" {
+        description "环同构判定：判定两个环R和S是否同构，即存在双射的环同态 f: R -> S"
+        category "RING_THEORY"
+        inputs 2 "RING" "RING"
+        output "BOOLEAN"
+        math_def "R \\cong S \\Leftrightarrow \\exists f: R \\to S \\text{ 双射，且为环同态}"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_integral_domain_test" {
+        description "整环判定：验证环R是否为整环（交换含幺环且无零因子）"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "BOOLEAN"
+        math_def "R \\text{ 是整环} \\Leftrightarrow R \\text{ 交换含幺} \\land (ab = 0 \\Rightarrow a = 0 \\lor b = 0)"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_field_test" {
+        description "域判定：验证环R是否为域（非零元均可逆的交换含幺环）"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "BOOLEAN"
+        math_def "R \\text{ 是域} \\Leftrightarrow R \\text{ 是整环} \\land \\forall a \\neq 0, \\exists a^{-1}"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_euclidean_domain_test" {
+        description "欧几里得整环判定：验证整环R是否为欧几里得整环（存在欧几里得范数函数）"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "BOOLEAN"
+        math_def "R \\text{ 是欧几里得整环} \\Leftrightarrow \\exists d: R \\setminus \\{0\\} \"
+                       \"\\to \\mathbb{N}, \\; \\forall a,b \\neq 0: a = bq + r, \\; d(r) < d(b)"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_pid_test" {
+        description "主理想整环判定：验证整环R是否为主理想整环（每个理想都是主理想）"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "BOOLEAN"
+        math_def "R \\text{ 是PID} \\Leftrightarrow \\forall I \\triangleleft R, \\; \\exists a \"
+                       \"\\in R: I = \\langle a \\rangle"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_ufd_test" {
+        description "唯一分解整环判定：验证整环R是否为唯一分解整环（每个非零非可逆元可唯一分解为不可约元之积）"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "BOOLEAN"
+        math_def "R \\text{ 是UFD} \\Leftrightarrow \\forall a \\neq 0, a \\notin R^*: a = up_1 p_2 \\cdots p_n \"
+                       \"\\text{（不可约分解唯一）}"
+        complexity "O(n^3)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_poly_addition" {
+        description "多项式加法：计算两个多项式的和 f(x) + g(x)"
+        category "RING_THEORY"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "(f + g)(x) = \\sum_{i=0}^{n} (a_i + b_i) x^i"
+        complexity "O(n)"
+        constructive true
+        reversible true
+    }
+
+    preset "ring_poly_multiplication" {
+        description "多项式乘法：计算两个多项式的积 f(x) * g(x)，使用卷积算法"
+        category "RING_THEORY"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "(f \\cdot g)(x) = \\sum_{k=0}^{m+n} \\left(\\sum_{i+j=k} a_i b_j\\right) x^k"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_poly_gcd" {
+        description "多项式GCD：使用欧几里得算法计算两个多项式的最大公因式 gcd(f, g)"
+        category "RING_THEORY"
+        inputs 2 "POLYNOMIAL" "POLYNOMIAL"
+        output "POLYNOMIAL"
+        math_def "\\gcd(f, g) = d, \\quad d | f \\land d | g \\land (e | f \\land e | g \\Rightarrow e | d)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_poly_evaluation" {
+        description "多项式求值：计算多项式 f(x) 在点 c 处的值 f(c)，使用秦九韶算法（Horner法则）"
+        category "RING_THEORY"
+        inputs 2 "POLYNOMIAL" "RING"
+        output "RING"
+        math_def "f(c) = a_n c^n + a_{n-1} c^{n-1} + \\cdots + a_1 c + a_0"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "ring_poly_irreducible_test" {
+        description "多项式不可约判定：判定多项式 f(x) 在给定环/域上是否不可约"
+        category "RING_THEORY"
+        inputs 2 "POLYNOMIAL" "RING"
+        output "BOOLEAN"
+        math_def "f \\text{ 不可约} \\Leftrightarrow f = gh \\Rightarrow \\deg(g) = 0 \\text{ 或 } \\deg(h) = 0"
+        complexity "O(n^3)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_characteristic" {
+        description "环的特征：计算环R的特征 char(R)，即满足 n*1_R = 0_R 的最小正整数n"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "INTEGER"
+        math_def "\\text{char}(R) = \\min\\{n > 0 : n \\cdot 1_R = 0_R\\}"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_nilpotent_test" {
+        description "幂零元检测：判定环元素a是否为幂零元，即存在正整数n使得 a^n = 0"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "BOOLEAN"
+        math_def "a \\text{ 幂零} \\Leftrightarrow \\exists n > 0: a^n = 0_R"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_idempotent_test" {
+        description "幂等元检测：判定环元素a是否为幂等元，满足 a^2 = a"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "BOOLEAN"
+        math_def "a \\text{ 幂等} \\Leftrightarrow a^2 = a"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "ring_unit_group" {
+        description "单位的群：计算环R的所有可逆元构成的乘法群 R^*"
+        category "RING_THEORY"
+        inputs 1 "RING"
+        output "SET"
+        math_def "R^* = \\{a \\in R : \\exists b \\in R, \\; ab = ba = 1_R\\}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+}

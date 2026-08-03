@@ -1,0 +1,256 @@
+# =============================================================================
+# Lv-00 Presets: Functional Analysis
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "fa_norm_check" {
+        description "范数判定：验证函数 ||·|| 是否满足正定性、齐次性、三角不等式"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SPACE"
+        output "BOOLEAN"
+        math_def "\\|x\\|=0\\Leftrightarrow x=0,\"
+            \"\\ \\|\\alpha x\\|=|\\alpha|\\|x\\|,\"
+            \"\\ \\|x+y\\|\\leq\\|x\\|+\\|y\\|"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_banach_space_check" {
+        description "Banach空间判定：验证赋范空间是否完备（Cauchy列收敛）"
+        category "ANALYSIS"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "\\forall\\{x_n\\}: \\|x_m-x_n\\|\\to0\\Rightarrow\\exists x: \\|x_n-x\\|\\to0"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_inner_product_check" {
+        description "内积判定：验证二元函数是否满足内积公理"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SPACE"
+        output "BOOLEAN"
+        math_def "\\langle x,x\\rangle\\geq0,\\ \\langle x,y\\rangle=\"
+            \"\\overline{\\langle y,x\\rangle},\"
+            \"\\ \\langle\\alpha x+\\beta y,z\\rangle=\"
+            \"\\alpha\\langle x,z\\rangle+\\beta\\langle y,z\\rangle"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_hilbert_space_check" {
+        description "Hilbert空间判定：验证内积空间是否关于诱导范数完备"
+        category "ANALYSIS"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "\\|x\\|=\\sqrt{\\langle x,x\\rangle},\"
+            \"\\ \\forall\\{x_n\\}\\text{ Cauchy}\\Rightarrow\\exists x: \\|x_n-x\\|\\to0"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_bounded_operator" {
+        description "有界性判定：T:X→Y 线性，∃M>0: ||Tx||≤M||x||"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SPACE" "SPACE"
+        output "BOOLEAN"
+        math_def "\\|T\\| = \\sup_{\\|x\\|\\leq1}\\|Tx\\| < \\infty"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_compact_operator" {
+        description "紧算子判定：有界集在T下的像的闭包为紧集"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SPACE"
+        output "BOOLEAN"
+        math_def "\\forall B\\subset X\\text{ 有界}: \\overline{T(B)}\\text{ 为紧集}"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_spectral_analysis" {
+        description "谱分析：分析有界线性算子T的谱集组成"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "LIST"
+        math_def "\\sigma(T) = \\{\\lambda: (T-\\lambda I)^{-1}\\text{ 不存在或无界}\\}\"
+            \"= \\sigma_p\\cup\\sigma_c\\cup\\sigma_r"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_hahn_banach" {
+        description "Hahn-Banach定理：将子空间上的有界线性泛函保范延拓到全空间"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SPACE" "SPACE"
+        output "FUNCTION"
+        math_def "\\exists F\\in X^*: F|_M = f,\\ \\|F\\| = \\|f\\|"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_open_mapping" {
+        description "开映射定理：Banach空间之间的满射有界线性算子将开集映射为开集"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SET"
+        output "SET"
+        math_def "T\\text{ 满射}\\Rightarrow T(U)\\text{ 为开集},\\forall U\\text{ 开集}"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_closed_graph" {
+        description "闭图像定理：图像为闭集的线性算子必有界"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SPACE" "SPACE"
+        output "BOOLEAN"
+        math_def "\\Gamma(T)\\text{ 闭}\\Rightarrow T\\text{ 有界}"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_uniform_boundedness" {
+        description "一致有界原理：逐点有界的算子族一致有界"
+        category "ANALYSIS"
+        inputs 2 "LIST" "SPACE"
+        output "BOOLEAN"
+        math_def "\\sup_\\alpha\\|T_\\alpha x\\|<\\infty\\ (\\forall x)\"
+            \"\\Rightarrow\\sup_\\alpha\\|T_\\alpha\\|<\\infty"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_weak_convergence" {
+        description "弱收敛：x_n ⇀ x ⇔ ∀f∈X*: f(x_n)→f(x)"
+        category "ANALYSIS"
+        inputs 3 "SEQUENCE" "VECTOR" "SPACE"
+        output "BOOLEAN"
+        math_def "x_n\\rightharpoonup x \\Leftrightarrow \"
+            \"\\forall f\\in X^*: \\lim f(x_n)=f(x)"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_weak_star_convergence" {
+        description "弱*收敛：f_n ⇀* f ⇔ ∀x∈X: f_n(x)→f(x)"
+        category "ANALYSIS"
+        inputs 3 "SEQUENCE" "FUNCTION" "SPACE"
+        output "BOOLEAN"
+        math_def "f_n\\rightharpoonup^* f \\Leftrightarrow \"
+            \"\\forall x\\in X: \\lim f_n(x)=f(x)"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_dual_space" {
+        description "对偶空间：X* = L(X,F)，所有有界线性泛函构成的对偶空间"
+        category "ANALYSIS"
+        inputs 1 "SPACE"
+        output "SPACE"
+        math_def "X^* = \\{f:X\\to\\mathbb{F}: f\\text{ 线性有界}\\}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_adjoint_operator" {
+        description "伴随算子：⟨Tx,y⟩ = ⟨x,T*y⟩，T*为T的Hilbert伴随"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "FUNCTION"
+        math_def "\\langle Tx, y\\rangle = \\langle x, T^*y\\rangle"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_self_adjoint" {
+        description "自伴算子判定：T = T*，即 ⟨Tx,y⟩ = ⟨x,Ty⟩"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "BOOLEAN"
+        math_def "T = T^* \\Leftrightarrow \\langle Tx, y\\rangle = \\langle x, Ty\\rangle"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_orthogonal_projection" {
+        description "正交投影：计算 x 在闭子空间 M 上的正交投影 P_M x"
+        category "ANALYSIS"
+        inputs 2 "VECTOR" "SPACE"
+        output "VECTOR"
+        math_def "x - P_M x \\perp M,\\quad P_M x \\in M"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_gram_schmidt" {
+        description "Gram-Schmidt正交化：将线性无关向量组正交规范化"
+        category "ANALYSIS"
+        inputs 1 "LIST"
+        output "LIST"
+        math_def "e_k = v_k - \\sum_{j=1}^{k-1}\"
+            \"\\frac{\\langle v_k,e_j\\rangle}{\\langle e_j,e_j\\rangle}e_j"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_riesz_representation" {
+        description "Riesz表示定理：∃!y_f∈H: f(x) = ⟨x,y_f⟩, ||f|| = ||y_f||"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SPACE"
+        output "VECTOR"
+        math_def "\\forall f\\in H^*,\\ \\exists! y_f\\in H: f(x)=\\langle x,y_f\\rangle"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_fixed_point" {
+        description "Banach不动点定理：完备度量空间上的压缩映射存在唯一不动点"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SPACE"
+        output "VECTOR"
+        math_def "\\exists! x^*: T(x^*) = x^*,\"
+            \"\\quad d(Tx,Ty)\\leq k\\,d(x,y),\\ k\\in(0,1)"
+        complexity "O(k^n)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_contraction_mapping" {
+        description "压缩映射判定：∃k∈(0,1): d(Tx,Ty) ≤ k·d(x,y)"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SPACE"
+        output "BOOLEAN"
+        math_def "\\exists k\\in(0,1): d(Tx,Ty)\\leq k\\cdot d(x,y),\\ \\forall x,y"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+}

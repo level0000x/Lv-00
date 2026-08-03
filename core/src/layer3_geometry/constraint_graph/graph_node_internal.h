@@ -18,6 +18,9 @@ extern "C" {
 /* graph_node_alloc.c 实现，供 conflict/stub 模块共享 */
 GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type);
 
+/* 根据 GeomType 获取对应的 vtable 指针 */
+const GeomNodeVTable *get_vtable_for_type(GeomType type);
+
 /* graph_node_hash.c 实现，供 conflict 模块回滚删除使用 */
 void node_index_remove(ConstraintGraph *graph, int node_id);
 

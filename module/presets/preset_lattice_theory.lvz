@@ -1,0 +1,366 @@
+# =============================================================================
+# Lv-00 Presets: Lattice Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "desc" {
+        description "inputs"
+        category "ALGEBRAIC"
+        output "ANY"
+        math_def "math"
+        complexity "comp"
+        constructive false
+        reversible false
+    }
+
+    preset "上确界（并）：计算格中两个元素的最小上界 a ∨ b" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ALGEBRA"
+        math_def "a \\vee b = \\min\\{c \\in L : c \\geq a \\land c \\geq b\\}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "下确界（交）：计算格中两个元素的最大下界 a ∧ b" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ALGEBRA"
+        math_def "a \\wedge b = \\max\\{c \\in L : c \\leq a \\land c \\leq b\\}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "最大元（顶）：获取有界格L的最大元 ⊤" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "ALGEBRA"
+        math_def "\\top \\in L, \\quad \\forall a \\in L: a \\leq \\top"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "最小元（底）：获取有界格L的最小元 ⊥" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "ALGEBRA"
+        math_def "\\bot \\in L, \\quad \\forall a \\in L: \\bot \\leq a"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "补元：计算有界格中元素a的补元a'，满足 a ∨ a' = ⊤ 且 a ∧ a' = ⊥" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ALGEBRA"
+        math_def "a' \\in L, \\quad a \\vee a' = \\top \\land a \\wedge a' = \\bot"
+        complexity "O(n)"
+        constructive true
+        reversible true
+    }
+
+    preset "偏序关系判定：判定集合L上的关系≤是否构成偏序（自反、反对称、传递）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "(L, \\leq) \\text{ 是偏序集} \\Leftrightarrow \\leq \\text{ 满足自反性、反对称性、传递性}"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "格结构判定：判定偏序集(L, ≤)是否构成格（任意两元素的上确界和下确界存在）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "(L, \\leq) \\text{ 是格} \\Leftrightarrow \\forall a, b \\in L: a \\vee b \\in L \\land a \"
+                         \"\\wedge b \\in L"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "有界格判定：判定格L是否为有界格（存在最大元⊤和最小元⊥）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "L \\text{ 是有界格} \\Leftrightarrow \\exists \\top, \\bot \\in L: \\bot \\leq a \\leq \\top \"
+                         \"\\; \\forall a \\in L"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "分配格判定：判定格L是否为分配格（交对并满足分配律）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "L \\text{ 是分配格} \\Leftrightarrow \\forall a, b, c \\in L: a \\wedge (b \\vee c) = (a \"
+                         \"\\wedge b) \\vee (a \\wedge c)"
+        complexity "O(n^3)"
+        constructive false
+        reversible false
+    }
+
+    preset "模格判定：判定格L是否为模格（Dedekind格），若 a ≤ c 则 a ∨ (b ∧ c) = (a ∨ b) ∧ c" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "L \\text{ 是模格} \\Leftrightarrow \\forall a, b, c \\in L: a \\leq c \\Rightarrow a \\vee \"
+                         \"(b \\wedge c) = (a \\vee b) \\wedge c"
+        complexity "O(n^3)"
+        constructive false
+        reversible false
+    }
+
+    preset "布尔代数判定：判定有界分配格L是否为布尔代数（每个元素都有补元）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "L \\text{ 是布尔代数} \\Leftrightarrow L \\text{ 是有界分配格} \\land \\forall a \\in L, \"
+                         \"\\exists a': a \\vee a' = \\top \\land a \\wedge a' = \\bot"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "布尔代数运算：执行并(∨)、交(∧)、补(')、蕴含(→)、异或(⊕)、等价(↔)运算" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ALGEBRA"
+        math_def "a \\vee b, \\; a \\wedge b, \\; a', \\; a \\to b, \\; a \\oplus b, \\; a \\leftrightarrow b"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "Heyting代数判定：判定有界格L是否为Heyting代数（任意两元素存在相对伪补）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "L \\text{ 是Heyting代数} \\Leftrightarrow \\forall a, b \\in L, \\exists a \\to b: c \\leq a \"
+                         \"\\to b \\Leftrightarrow c \\wedge a \\leq b"
+        complexity "O(n^3)"
+        constructive false
+        reversible false
+    }
+
+    preset "Heyting蕴涵：计算相对伪补 a → b = max{x : x ∧ a ≤ b}" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ALGEBRA"
+        math_def "a \\to b = \\max\\{x \\in L : x \\wedge a \\leq b\\}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "完备格判定：判定格L是否为完备格（任意子集都有上确界和下确界）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "BOOLEAN"
+        math_def "L \\text{ 是完备格} \\Leftrightarrow \\forall S \\subseteq L: \\bigvee S \\in L \\land \"
+                         \"\\bigwedge S \\in L"
+        complexity "O(2^n)"
+        constructive false
+        reversible false
+    }
+
+    preset "完备格上确界：计算完备格中子集S的上确界 ∨S" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ALGEBRA"
+        math_def "\\bigvee S = \\min\\{c \\in L : \\forall s \\in S, s \\leq c\\}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "完备格下确界：计算完备格中子集S的下确界 ∧S" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ALGEBRA"
+        math_def "\\bigwedge S = \\max\\{c \\in L : \\forall s \\in S, c \\leq s\\}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "格理想：由格L的子集S生成格理想（对∧封闭的下集）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "IDEAL"
+        math_def "I \\trianglelefteq L \\Leftrightarrow I \\neq \\emptyset \\land (a, b \\in I \\Rightarrow a \"
+                         \"\\wedge b \\in I) \\land (a \\in I, b \\leq a \\Rightarrow b \\in I)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "格同态：验证映射 f: L1 -> L2 是否为格同态（保持∨和∧运算）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "BOOLEAN"
+        math_def "f: L_1 \\to L_2 \\text{ 是格同态} \\Leftrightarrow f(a \\vee b) = f(a) \\vee f(b) \\land f(a \"
+                         \"\\wedge b) = f(a) \\wedge f(b)"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "格嵌入：验证映射 f: L1 -> L2 是否为格嵌入（单射格同态）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "BOOLEAN"
+        math_def "f: L_1 \\hookrightarrow L_2 \\text{ 是格嵌入} \\Leftrightarrow f \\text{ 是单射格同态}"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "格同构判定：判定两个格L1和L2是否同构（存在双射格同态）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "L_1 \\cong L_2 \\Leftrightarrow \\exists f: L_1 \\to L_2 \\text{ 双射，且为格同态}"
+        complexity "O(n!)"
+        constructive false
+        reversible false
+    }
+
+    preset "子格判定：判定格L的子集S是否构成子格（对∨和∧封闭）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "BOOLEAN"
+        math_def "S \\le L \\Leftrightarrow S \\neq \\emptyset \\land (\\forall a, b \\in S: a \\vee_L b \\in \"
+                         \"S \\land a \\wedge_L b \\in S)"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "格直积：计算两个格L1和L2的直积 L1 × L2（分量逐点偏序）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ALGEBRA"
+        math_def "L_1 \\times L_2 = \\{(a_1, a_2) : a_1 \\in L_1, a_2 \\in L_2\\}, \\quad (a_1, a_2) \\leq \"
+                         \"(b_1, b_2) \\Leftrightarrow a_1 \\leq b_1 \\land a_2 \\leq b_2"
+        complexity "O(n_1 \\cdot n_2)"
+        constructive true
+        reversible false
+    }
+
+    preset "格对偶性：将格L转化为对偶格L^op（偏序取反，∨与∧互换）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "ALGEBRA"
+        math_def "L^{op}: a \\leq_{op} b \\Leftrightarrow b \\leq a, \\quad a \\vee_{op} b = a \\wedge b, \"
+                         \"\\quad a \\wedge_{op} b = a \\vee b"
+        complexity "O(n)"
+        constructive true
+        reversible true
+    }
+
+    preset "Stone表示定理：构造布尔代数B到幂集代数 P(Spec(B)) 的同构表示" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "FUNCTION"
+        math_def "B \\cong \\mathcal{P}(\\text{Spec}(B)), \\quad \\text{其中 Spec}(B) \\text{ 是B的素理想集合}"
+        complexity "O(2^n)"
+        constructive true
+        reversible false
+    }
+
+    preset "Hasse图：由偏序集(P, ≤)构造Hasse图（覆盖关系图）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "GRAPH"
+        math_def "\\text{Hasse}(P, \\leq): a \\to b \\text{ 当且仅当 } b \\text{ 覆盖 } a"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "链判定（全序）：判定偏序集的子集S是否构成链（任意两元素可比较）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "BOOLEAN"
+        math_def "S \\text{ 是链} \\Leftrightarrow \\forall a, b \\in S: a \\leq b \\lor b \\leq a"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "反链判定：判定偏序集的子集S是否构成反链（任意两不同元素不可比较）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "BOOLEAN"
+        math_def "S \\text{ 是反链} \\Leftrightarrow \\forall a, b \\in S: a \\neq b \\Rightarrow a \\not\\leq \"
+                         \"b \\land b \\not\\leq a"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "格的高度：计算格L的高度（最长链的长度）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "INTEGER"
+        math_def "h(L) = \\max\\{|C| - 1 : C \\text{ 是 } L \\text{ 中的链}\\}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "格的宽度：计算格L的宽度（最大反链的大小）" {
+        description "inputs"
+        category "ALGEBRAIC"
+        inputs 1 
+        output "INTEGER"
+        math_def "w(L) = \\max\\{|A| : A \\text{ 是 } L \\text{ 中的反链}\\}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+}

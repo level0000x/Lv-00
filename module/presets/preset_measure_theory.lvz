@@ -1,0 +1,229 @@
+# =============================================================================
+# Lv-00 Presets: Measure Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "mt_sigma_algebra" {
+        description "σ代数构造：由集合X和子集族C生成最小σ-代数 σ(C)"
+        category "ANALYSIS"
+        inputs 2 "SET" "SET"
+        output "SET"
+        math_def "\\sigma(\\mathcal{C}) = \\bigcap\\{\"
+            \"\\Sigma : \\mathcal{C} \\subseteq \\Sigma, \\Sigma \\text{ 为 } \\sigma\\text{-代数}\\}"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "mt_borel_algebra" {
+        description "Borel σ-代数：由拓扑空间所有开集生成Borel σ-代数 B(X)"
+        category "ANALYSIS"
+        inputs 1 "TOPOLOGY"
+        output "SET"
+        math_def "\\mathcal{B}(X) = \\sigma(\\{U \\subseteq X : U \\text{ 开集}\\})"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "mt_measure_space" {
+        description "测度空间：构造测度空间 (X, Σ, μ) 满足 μ(∅) = 0"
+        category "ANALYSIS"
+        inputs 3 "SET" "SET" "FUNCTION"
+        output "SPACE"
+        math_def "(X, \\Sigma, \\mu),\\quad \\mu: \\Sigma \\to [0,+\\infty],\\quad \\mu(\\emptyset)=0"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_null_set" {
+        description "零测集判定：判定集合 N 是否满足 μ(N) = 0"
+        category "ANALYSIS"
+        inputs 2 "SET" "FUNCTION"
+        output "BOOLEAN"
+        math_def "\\mu(N) = 0 \\Rightarrow N \\text{ 为零测集}"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "mt_lebesgue_measure" {
+        description "Lebesgue测度：在 R^n 上构造Lebesgue测度 m"
+        category "ANALYSIS"
+        inputs 1 "INTEGER"
+        output "FUNCTION"
+        math_def "m([a_1,b_1]\\times\\cdots\\times[a_n,b_n]) = \\prod_{i=1}^{n}(b_i-a_i)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_counting_measure" {
+        description "计数测度：对任意集合赋予其元素个数"
+        category "ANALYSIS"
+        inputs 1 "SET"
+        output "FUNCTION"
+        math_def "\\#(A) = \\begin{cases} n & A \\text{ 有限}, |A|=n \\\\ +\\infty & A \\text{ 无穷} \\end{cases}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_dirac_measure" {
+        description "Dirac测度：在点 x0 处的集中测度 δ_{x0}"
+        category "ANALYSIS"
+        inputs 1 "POINT"
+        output "FUNCTION"
+        math_def "\\delta_{x_0}(A) = \\begin{cases} 1 & x_0 \\in A \\\\ 0 & x_0 \\notin A \\end{cases}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_outer_measure" {
+        description "外测度：计算集合A的外测度 μ*(A)，由可测集覆盖的下确界定义"
+        category "ANALYSIS"
+        inputs 2 "SET" "FUNCTION"
+        output "SCALAR"
+        math_def "\\mu^*(A) = \\inf\\left\\{\\sum_{i=1}^{\\infty}\\mu(E_i):\"
+            \"A\\subseteq\\bigcup_{i=1}^{\\infty}E_i, E_i\\in\\Sigma\\right\\}"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_measurable_function" {
+        description "可测函数判定：f 可测 ⇔ ∀B ∈ B(R), f^{-1}(B) ∈ Σ"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SET"
+        output "BOOLEAN"
+        math_def "f \\text{ 可测} \\Leftrightarrow \"
+            \"\\forall B\\in\\mathcal{B}(\\mathbb{R}): f^{-1}(B)\\in\\Sigma"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "mt_lebesgue_integral" {
+        description "Lebesgue积分：计算 f 在 A 上关于 μ 的Lebesgue积分 ∫_A f dμ"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SET" "FUNCTION"
+        output "SCALAR"
+        math_def "\\int_A f\\,d\\mu = \\int_A f^+\\,d\\mu - \\int_A f^-\\,d\\mu"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_lp_norm" {
+        description "L^p空间范数：计算 f 的 L^p 范数 ||f||_p"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "FUNCTION"
+        output "SCALAR"
+        math_def "\\|f\\|_p = \\left(\\int |f|^p\\,d\\mu\\right)^{1/p},\\quad p \\geq 1"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_monotone_convergence" {
+        description "单调收敛定理：若 0≤f1≤f2≤... 且 fn→f a.e.，则 lim∫fn dμ = ∫f dμ"
+        category "ANALYSIS"
+        inputs 2 "SEQUENCE" "FUNCTION"
+        output "SCALAR"
+        math_def "0\\leq f_1\\leq f_2\\leq\\cdots,\\ f_n\\to f \\text{ a.e.}\"
+            \"\\Rightarrow \\lim\\int f_n\\,d\\mu = \\int f\\,d\\mu"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_fatou_lemma" {
+        description "Fatou引理：∫liminf fn dμ ≤ liminf ∫fn dμ"
+        category "ANALYSIS"
+        inputs 2 "SEQUENCE" "FUNCTION"
+        output "BOOLEAN"
+        math_def "\\int\\liminf_{n\\to\\infty} f_n\\,d\\mu\\leq\"
+            \"\\liminf_{n\\to\\infty}\\int f_n\\,d\\mu"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "mt_dominated_convergence" {
+        description "控制收敛定理：若 fn→f a.e. 且 |fn|≤g∈L^1，则lim∫fn dμ=∫f dμ"
+        category "ANALYSIS"
+        inputs 3 "SEQUENCE" "FUNCTION" "FUNCTION"
+        output "SCALAR"
+        math_def "f_n\\to f\\text{ a.e.},\\ |f_n|\\leq g\\in L^1\"
+            \"\\Rightarrow \\lim\\int f_n\\,d\\mu = \\int f\\,d\\mu"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_almost_everywhere" {
+        description "几乎处处收敛：判定 fn 是否几乎处处收敛于 f"
+        category "ANALYSIS"
+        inputs 3 "SEQUENCE" "FUNCTION" "FUNCTION"
+        output "BOOLEAN"
+        math_def "\\mu(\\{x:\\lim f_n(x)\\neq f(x)\\}) = 0"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "mt_product_measure" {
+        description "乘积测度：构造两个σ-有限测度空间的乘积测度"
+        category "ANALYSIS"
+        inputs 2 "SPACE" "SPACE"
+        output "SPACE"
+        math_def "(\\mu\\times\\nu)(A\\times B) = \\mu(A)\\cdot\\nu(B)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_fubini_theorem" {
+        description "Fubini定理：若 f∈L^1(μ×ν)，则重积分可交换次序"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "FUNCTION" "FUNCTION"
+        output "SCALAR"
+        math_def "\\int_{X\\times Y} f\\,d(\\mu\\times\\nu)=\"
+            \"\\int_X\\left(\\int_Y f(x,y)\\,d\\nu(y)\\right)d\\mu(x)"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+    preset "mt_absolute_continuity" {
+        description "绝对连续性：ν≪μ ⇔ μ(A)=0 ⇒ ν(A)=0"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "BOOLEAN"
+        math_def "\\nu\\ll\\mu \\Leftrightarrow \\mu(A)=0\\Rightarrow\\nu(A)=0"
+        complexity "O(\\infty)"
+        constructive false
+        reversible false
+    }
+
+    preset "mt_radon_nikodym" {
+        description "Radon-Nikodym导数：当 ν≪μ 时，dν/dμ 满足 ν(A)=∫_A(dν/dμ)dμ"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "\\frac{d\\nu}{d\\mu} = f,\\quad \\nu(A) = \\int_A f\\,d\\mu,\\ \\forall A\\in\\Sigma"
+        complexity "O(\\infty)"
+        constructive true
+        reversible false
+    }
+
+}

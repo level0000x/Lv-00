@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_renderer.c
  * @brief 公式渲染器实现
  *
@@ -36,6 +36,17 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 #include "lv_utils.h" /* lv_malloc / lv_realloc / lv_free —— 统一内存分配器 */
+
+/* 渲染函数指针表 — 文件作用域，供所有渲染函数使用 */
+static const RenderNodeFunc s_render_funcs[] = {
+    [OUTPUT_LATEX]  = render_latex_internal,
+    [OUTPUT_PYTHON] = render_python_internal,
+    [OUTPUT_DSL]    = render_dsl_internal,
+    [OUTPUT_MATHML] = render_mathml_internal,
+    [OUTPUT_ASCII]  = render_ascii_internal,
+    [OUTPUT_HTML]   = render_html_internal,
+};
+
 /* ============================================================
  * 公共 API 实现
  * ============================================================ */
@@ -79,16 +90,6 @@ char *formula_render_ex(const FormulaNode *node, OutputFormat format, const Rend
 
     int written = 0;
 
-    /* 渲染函数指针表 */
-    typedef int (*render_func_t)(const FormulaNode *, char *, size_t, const RenderOptions *);
-    static const render_func_t s_render_funcs[] = {
-        [OUTPUT_LATEX]  = render_latex_internal,
-        [OUTPUT_PYTHON] = render_python_internal,
-        [OUTPUT_DSL]    = render_dsl_internal,
-        [OUTPUT_MATHML] = render_mathml_internal,
-        [OUTPUT_ASCII]  = render_ascii_internal,
-        [OUTPUT_HTML]   = render_html_internal,
-    };
     if ((unsigned)format < sizeof(s_render_funcs) / sizeof(s_render_funcs[0]) && s_render_funcs[format]) {
         written = s_render_funcs[format](node, buffer, lv_MAX_RENDER_BUFFER, options);
     } else {
@@ -140,27 +141,10 @@ int formula_render_to_buffer_ex(const FormulaNode *node, OutputFormat format, co
 
     int written = 0;
 
-    switch (format) {
-        case OUTPUT_LATEX:
-            written = render_latex_internal(node, buffer, size, options);
-            break;
-        case OUTPUT_PYTHON:
-            written = render_python_internal(node, buffer, size, options);
-            break;
-        case OUTPUT_DSL:
-            written = render_dsl_internal(node, buffer, size, options);
-            break;
-        case OUTPUT_MATHML:
-            written = render_mathml_internal(node, buffer, size, options);
-            break;
-        case OUTPUT_ASCII:
-            written = render_ascii_internal(node, buffer, size, options);
-            break;
-        case OUTPUT_HTML:
-            written = render_html_internal(node, buffer, size, options);
-            break;
-        default:
-            lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "unsupported output format");
+    if ((unsigned)format < sizeof(s_render_funcs) / sizeof(s_render_funcs[0]) && s_render_funcs[format]) {
+        written = s_render_funcs[format](node, buffer, size, options);
+    } else {
+        lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "unsupported output format");
     }
 
     return written;

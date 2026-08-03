@@ -1,0 +1,166 @@
+# =============================================================================
+# Lv-00 Presets: Polygons
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "equilateral_triangle" {
+        description "�����߹����������εĵ���������"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "square" {
+        description "�����߹��������ε�������������"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "regular_polygon" {
+        description "�����߹�����n����"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "regular_pentagon" {
+        description "�����߹����������"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "regular_hexagon" {
+        description "�����߹�����������"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "isosceles_triangle" {
+        description "�����ױߺ͸߹������������"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "right_triangle" {
+        description "����ֱ�Ƕ����һֱ�Ǳ߹���ֱ��������"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "triangle_sss" {
+        description "�������߳�����������"
+        category "CONSTRUCTION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "triangle_sas" {
+        description "�������߼��нǹ���������"
+        category "CONSTRUCTION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "triangle_asa" {
+        description "�������Ǽ��б߹���������"
+        category "CONSTRUCTION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "rectangle" {
+        description "���������㹹�����"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "parallelogram" {
+        description "���������㹹��ƽ���ı���"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "rhombus" {
+        description "�����Խ��߹�������"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "trapezoid" {
+        description "�����ױߺ͵׽ǹ�������"
+        category "CONSTRUCTION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "kite" {
+        description "�����Խ��ߺͶ��㹹������"
+        category "CONSTRUCTION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "star_polygon" {
+        description "�������ζ���� {n/k}"
+        category "CONSTRUCTION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "pentagram" {
+        description "�����������"
+        category "CONSTRUCTION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

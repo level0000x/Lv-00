@@ -1,0 +1,555 @@
+# =============================================================================
+# Lv-00 Presets: Topology
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "topology_test" {
+        description "判定集合族是否构成集合 X 上的拓扑"
+        category "TOPOLOGY"
+        inputs 2 "SET" "SET"
+        output "BOOLEAN"
+        math_def "\\mathcal{T} \\text{ 是拓扑} \\Leftrightarrow \\emptyset, X \\in \\mathcal{T}, \"
+                       \"\\mathcal{T} \\text{ 对任意并、有限交封闭}"
+        complexity "O(|\\mathcal{T}|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "open_set_test" {
+        description "判定集合是否是拓扑空间中的开集"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "OPEN_SET"
+        output "BOOLEAN"
+        math_def "U \\in \\mathcal{T}"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "closed_set_test" {
+        description "判定集合是否是拓扑空间中的闭集"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "CLOSED_SET"
+        output "BOOLEAN"
+        math_def "X \\setminus A \\in \\mathcal{T}"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "closure" {
+        description "计算集合的闭包（包含该集合的最小闭集）"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "CLOSED_SET"
+        math_def "\\bar{A} = \\bigcap \\{F : A \\subseteq F, F \\text{ 闭}\\}"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "interior" {
+        description "计算集合的内部（包含在该集合中的最大开集）"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "OPEN_SET"
+        math_def "A^\\circ = \\bigcup \\{U : U \\subseteq A, U \\in \\mathcal{T}\\}"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "boundary" {
+        description "计算集合的边界"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "SET"
+        math_def "\\partial A = \\bar{A} \\setminus A^\\circ"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "neighborhood_test" {
+        description "判定集合是否是某点的邻域"
+        category "TOPOLOGY"
+        inputs 3 "SPACE" "SET" "SET"
+        output "BOOLEAN"
+        math_def "N \\text{ 是 } x \\text{ 的邻域} \\Leftrightarrow \\exists U \\in \\mathcal{T}: x \\in U \\subseteq N"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "neighborhood_system" {
+        description "计算某点的邻域系"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "SET"
+        math_def "\\mathcal{N}(x) = \\{N : x \\in N^\\circ\\}"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "base_test" {
+        description "判定集合族是否是拓扑的基"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "BOOLEAN"
+        math_def "\\mathcal{B} \\text{ 是基} \\Leftrightarrow \\forall x, \\forall U \\ni x, \"
+                       \"\\exists B \\in \\mathcal{B}: x \\in B \\subseteq U"
+        complexity "O(|\\mathcal{B}|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "topology_from_base" {
+        description "由基生成拓扑"
+        category "TOPOLOGY"
+        inputs 2 "SET" "SET"
+        output "SPACE"
+        math_def "\\mathcal{T} = \\{\\bigcup \\mathcal{B}' : \\mathcal{B}' \\subseteq \\mathcal{B}\\}"
+        complexity "O(2^{|\\mathcal{B}|})"
+        constructive true
+        reversible false
+    }
+
+    preset "continuous_map_test" {
+        description "判定映射是否连续"
+        category "TOPOLOGY"
+        inputs 3 "SPACE" "SPACE" "FUNCTION"
+        output "BOOLEAN"
+        math_def "f \\text{ 连续} \\Leftrightarrow f^{-1}(U) \\in \\mathcal{T}_X, \\forall U \\in \\mathcal{T}_Y"
+        complexity "O(|\\mathcal{T}_Y|)"
+        constructive true
+        reversible false
+    }
+
+    preset "homeomorphism_test" {
+        description "判定两个拓扑空间是否同胚"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SPACE"
+        output "BOOLEAN"
+        math_def "X \\cong Y \\Leftrightarrow \\exists f: X \\to Y \\text{ 连续双射且 } f^{-1} \\text{ 连续}"
+        complexity "O(|X|!)"
+        constructive true
+        reversible false
+    }
+
+    preset "quotient_topology" {
+        description "构造商空间 X/~ 的商拓扑"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "FUNCTION"
+        output "SPACE"
+        math_def "\\mathcal{T}_{X/~} = \\{U : \\pi^{-1}(U) \\in \\mathcal{T}_X\\}"
+        complexity "O(|\\mathcal{T}_X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "product_topology" {
+        description "构造积空间 X × Y 的积拓扑"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SPACE"
+        output "SPACE"
+        math_def "\\mathcal{T}_{X×Y} = \\text{由 } \\{U × V : U \\in \\mathcal{T}_X, V \\in \\mathcal{T}_Y\\} \\text{ 生成}"
+        complexity "O(|\\mathcal{T}_X| × |\\mathcal{T}_Y|)"
+        constructive true
+        reversible false
+    }
+
+    preset "subspace_topology" {
+        description "构造子空间 A ⊆ X 的诱导拓扑"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "SPACE"
+        math_def "\\mathcal{T}_A = \\{U ∩ A : U \\in \\mathcal{T}_X\\}"
+        complexity "O(|\\mathcal{T}_X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "t0_space_test" {
+        description "判定是否是 T0 (Kolmogorov) 空间"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 是 } T_0 \\Leftrightarrow \\forall x \\neq y, \"
+                       \"\\exists U \\in \\mathcal{T}: (x \\in U, y \\notin U) \\lor (y \\in U, x \\notin U)"
+        complexity "O(|X|² |\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "t1_space_test" {
+        description "判定是否是 T1 (Fréchet) 空间"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 是 } T_1 \\Leftrightarrow \\forall x \\neq y, \\exists U \\in \\mathcal{T}: x \\in U, y \\notin U"
+        complexity "O(|X|² |\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "t2_space_test" {
+        description "判定是否是 T2 (Hausdorff) 空间"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 是 } T_2 \\Leftrightarrow \\forall x \\neq y, \\exists U, V \\in \\mathcal{T}: x \\in U, y \\in V, U ∩ V = \\emptyset"
+        complexity "O(|X|² |\\mathcal{T}|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "t3_space_test" {
+        description "判定是否是 T3 (正则) 空间"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 正则} \\Leftrightarrow T_1 + \\forall x, \\forall \\text{闭集} F \\not\\ni x, \\exists U, V \\in \\mathcal{T}: x \\in U, F \\subseteq V, U ∩ V = \\emptyset"
+        complexity "O(|X|² |\\mathcal{T}|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "t4_space_test" {
+        description "判定是否是 T4 (正规) 空间"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 正规} \\Leftrightarrow T_1 + \\forall \\text{闭集} E, F \\text{ 不相交}, \\exists U, V \\in \\mathcal{T}: E \\subseteq U, F \\subseteq V, U ∩ V = \\emptyset"
+        complexity "O(|X|² |\\mathcal{T}|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "compact_space_test" {
+        description "判定拓扑空间是否紧致"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 紧致} \\Leftrightarrow \\text{每个开覆盖有有限子覆盖}"
+        complexity "O(2^{|\\mathcal{T}|})"
+        constructive true
+        reversible false
+    }
+
+    preset "sequentially_compact" {
+        description "判定拓扑空间是否列紧"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 列紧} \\Leftrightarrow \\text{每个序列有收敛子序列}"
+        complexity "O(|X|^{|X|})"
+        constructive true
+        reversible false
+    }
+
+    preset "locally_compact_test" {
+        description "判定拓扑空间是否局部紧致"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 局部紧致} \\Leftrightarrow \\forall x, \\exists \\text{紧致邻域 } K \\ni x"
+        complexity "O(|X| |\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "one_point_compactification" {
+        description "构造拓扑空间的单点紧致化 X* = X ∪ {∞}"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "SPACE"
+        math_def "X^* = X \\cup \\{\\infty\\}, \\mathcal{T}^* = \\mathcal{T} \\cup \\{X^* \\setminus K : K \\text{ 紧致}\\}"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "connected_space_test" {
+        description "判定拓扑空间是否连通"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 连通} \\Leftrightarrow \\nexists U, V \\in \\mathcal{T} \\setminus \\{\\emptyset\\}: U ∪ V = X, U ∩ V = \\emptyset"
+        complexity "O(|\\mathcal{T}|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "path_connected_test" {
+        description "判定拓扑空间是否道路连通"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 道路连通} \\Leftrightarrow \\forall x, y, \\exists \\gamma: [0,1] \\to X \\text{ 连续}: \\gamma(0) = x, \\gamma(1) = y"
+        complexity "O(|X|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "connected_component" {
+        description "计算包含某点的连通分支"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "SET"
+        math_def "C(x) = \\bigcup \\{C : x \\in C, C \\text{ 连通}\\}"
+        complexity "O(|X| |\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "path_component" {
+        description "计算包含某点的道路连通分支"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "SET"
+        math_def "P(x) = \\{y : \\exists \\text{道路 } \\gamma: x \\to y\\}"
+        complexity "O(|X|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "locally_connected_test" {
+        description "判定拓扑空间是否局部连通"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 局部连通} \\Leftrightarrow \\forall x, \\forall U \\ni x, \\exists \\text{连通开集 } V: x \\in V \\subseteq U"
+        complexity "O(|X| |\\mathcal{T}|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "totally_disconnected" {
+        description "判定拓扑空间是否完全不连通"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 完全不连通} \\Leftrightarrow \\text{所有连通分支都是单点集}"
+        complexity "O(|X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "homotopy_test" {
+        description "判定两条道路是否同伦"
+        category "TOPOLOGY"
+        inputs 3 "SPACE" "PATH" "PATH"
+        output "BOOLEAN"
+        math_def "f \\simeq g \\Leftrightarrow \\exists H: X × [0,1] \\to Y \\text{ 连续}: H(x,0) = f(x), H(x,1) = g(x)"
+        complexity "O(|X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "path_homotopy_test" {
+        description "判定两条道路是否道路同伦（保持端点）"
+        category "TOPOLOGY"
+        inputs 3 "SPACE" "PATH" "PATH"
+        output "BOOLEAN"
+        math_def "f \\simeq_p g \\Leftrightarrow f \\simeq g \\land f(0)=g(0) \\land f(1)=g(1)"
+        complexity "O(|X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "fundamental_group" {
+        description "计算拓扑空间在基点处的基本群 π₁(X, x₀)"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "GROUP"
+        math_def "\\pi_1(X, x_0) = \\{[\\gamma] : \\gamma \\text{ 是基于 } x_0 \\text{ 的闭路}\\}"
+        complexity "O(|X|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "path_class_multiply" {
+        description "道路类的乘法（首尾相接）"
+        category "TOPOLOGY"
+        inputs 3 "SPACE" "PATH" "PATH"
+        output "PATH"
+        math_def "[f] \\cdot [g] = [f * g], \\text{其中 } (f * g)(t) = \\begin{cases} f(2t) & t \\le 1/2 \\\\ g(2t-1) & t \\ge 1/2 \\end{cases}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "simply_connected_test" {
+        description "判定拓扑空间是否单连通"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 单连通} \\Leftrightarrow X \\text{ 道路连通} \\land \\pi_1(X) = \\{e\\}"
+        complexity "O(|X|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "covering_space" {
+        description "构造覆盖空间"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "SPACE"
+        math_def "p: \\tilde{X} \\to X \\text{ 是覆盖映射} \\Leftrightarrow \\forall x, \\exists U: p^{-1}(U) = \\bigsqcup V_\\alpha"
+        complexity "O(|X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "discrete_topology" {
+        description "构造集合上的离散拓扑（所有子集都是开集）"
+        category "TOPOLOGY"
+        inputs 1 "SET"
+        output "SPACE"
+        math_def "\\mathcal{T}_{\\text{离散}} = \\mathcal{P}(X)"
+        complexity "O(2^{|X|})"
+        constructive true
+        reversible false
+    }
+
+    preset "trivial_topology" {
+        description "构造集合上的平凡拓扑（只有空集和全集是开集）"
+        category "TOPOLOGY"
+        inputs 1 "SET"
+        output "SPACE"
+        math_def "\\mathcal{T}_{\\text{平凡}} = \\{\\emptyset, X\\}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "metric_topology" {
+        description "由度量函数生成拓扑"
+        category "TOPOLOGY"
+        inputs 2 "SET" "FUNCTION"
+        output "SPACE"
+        math_def "\\mathcal{T}_d = \\text{由 } \\{B(x,r) : x \\in X, r > 0\\} \\text{ 生成}"
+        complexity "O(|X|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "order_topology" {
+        description "由全序关系生成拓扑"
+        category "TOPOLOGY"
+        inputs 2 "SET" "FUNCTION"
+        output "SPACE"
+        math_def "\\mathcal{T}_< = \\text{由 } \\{(a,b), (-\\infty, b), (a, +\\infty)\\} \\text{ 生成}"
+        complexity "O(|X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "open_map_test" {
+        description "判定映射是否是开映射"
+        category "TOPOLOGY"
+        inputs 3 "SPACE" "SPACE" "FUNCTION"
+        output "BOOLEAN"
+        math_def "f \\text{ 开映射} \\Leftrightarrow f(U) \\in \\mathcal{T}_Y, \\forall U \\in \\mathcal{T}_X"
+        complexity "O(|\\mathcal{T}_X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "closed_map_test" {
+        description "判定映射是否是闭映射"
+        category "TOPOLOGY"
+        inputs 3 "SPACE" "SPACE" "FUNCTION"
+        output "BOOLEAN"
+        math_def "f \\text{ 闭映射} \\Leftrightarrow f(F) \\text{ 闭}, \\forall F \\text{ 闭}"
+        complexity "O(|\\mathcal{T}_X|)"
+        constructive true
+        reversible false
+    }
+
+    preset "embedding_test" {
+        description "判定映射是否是嵌入"
+        category "TOPOLOGY"
+        inputs 3 "SPACE" "SPACE" "FUNCTION"
+        output "BOOLEAN"
+        math_def "f \\text{ 是嵌入} \\Leftrightarrow f \\text{ 单射且 } f: X \\to f(X) \\text{ 同胚}"
+        complexity "O(|\\mathcal{T}_X| + |\\mathcal{T}_Y|)"
+        constructive true
+        reversible false
+    }
+
+    preset "subbase_test" {
+        description "判定集合族是否是拓扑的子基"
+        category "TOPOLOGY"
+        inputs 2 "SPACE" "SET"
+        output "BOOLEAN"
+        math_def "\\mathcal{S} \\text{ 是子基} \\Leftrightarrow \\mathcal{T} = \\text{由有限交生成的拓扑}"
+        complexity "O(|\\mathcal{S}|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "open_cover" {
+        description "计算拓扑空间的一个开覆盖"
+        category "TOPOLOGY"
+        inputs 1 "SPACE"
+        output "SET"
+        math_def "\\bigcup_{U \\in \\mathcal{C}} U = X"
+        complexity "O(|\\mathcal{T}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "separation_axioms" {
+        description "判定拓扑空间满足的最高分离公理"
+        category "TOPOLOGY"
+        inputs 1 "SET"
+        output "SCALAR"
+        math_def "依次检验 T0→T1→T2→T3→T4，返回满足的最高级别"
+        complexity "O(n²)"
+        constructive false
+        reversible false
+    }
+
+    preset "compactification" {
+        description "构造拓扑空间的紧致化"
+        category "TOPOLOGY"
+        inputs 2 "SET" "FUNCTION"
+        output "SET"
+        math_def "将非紧致空间嵌入紧致空间中"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "finite_subcover" {
+        description "从开覆盖中提取有限子覆盖"
+        category "TOPOLOGY"
+        inputs 1 "LIST"
+        output "LIST"
+        math_def "若空间紧致，则任一开覆盖存在有限子覆盖"
+        complexity "O(n²)"
+        constructive true
+        reversible false
+    }
+
+    preset "lifting_existence" {
+        description "判定连续映射的提升是否存在"
+        category "TOPOLOGY"
+        inputs 3 "FUNCTION" "SET" "SET"
+        output "BOOLEAN"
+        math_def "给定 f:X→B 和覆盖空间 p:E→B，判定是否存在 g:X→E 使得 p∘g=f"
+        complexity "O(∞)"
+        constructive false
+        reversible false
+    }
+
+}

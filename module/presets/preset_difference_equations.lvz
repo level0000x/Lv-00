@@ -1,0 +1,94 @@
+# =============================================================================
+# Lv-00 Presets: Difference Equations
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "homogeneous_first_order" {
+        description "求解一阶齐次差分方程 a_n = r * a_{n-1}"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "homogeneous_second_order" {
+        description "求解二阶齐次差分方程 a_n = p*a_{n-1} + q*a_{n-2}"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "homogeneous_kth_order" {
+        description "求解k阶齐次线性差分方程（特征方程法）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "particular_solution" {
+        description "待定系数法构造非齐次差分方程的特解"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "z_transform_solve" {
+        description "利用Z变换求解线性常系数差分方程"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "equilibrium_point" {
+        description "计算差分方程的平衡点（不动点）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "stability_test" {
+        description "判定差分方程平衡点的稳定性"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "asymptotic_behavior" {
+        description "分析差分方程解的渐近行为"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "generating_function_solve" {
+        description "利用生成函数求解递推关系"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

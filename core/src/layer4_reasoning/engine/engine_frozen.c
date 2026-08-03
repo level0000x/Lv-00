@@ -86,70 +86,11 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
         dst->nodes[dst->node_count++] = copy;
     }
 
-    /* 第二遍：更新拷贝节点中的交叉引用 */
+    /* 第二遍：通过 vtable 更新拷贝节点中的交叉引用 */
     for (int i = 0; i < dst->node_count; i++) {
         GeomNode *copy = dst->nodes[i];
-        switch (copy->type) {
-            case GEOM_PORT:
-                if (copy->data.port && copy->data.port->connected_to) {
-                    int old_cid = copy->data.port->connected_to->id;
-                    if (id_map && old_cid >= 0 && old_cid <= max_id && id_map[old_cid] >= 0) {
-                        copy->data.port->connected_to = graph_get_node(dst, id_map[old_cid]);
-                    } else {
-                        copy->data.port->connected_to = NULL;
-                    }
-                }
-                break;
-            case GEOM_REGION:
-                for (int j = 0; j < copy->data.region.segment_count; j++) {
-                    if (copy->data.region.boundary_segments[j]) {
-                        int old_sid = copy->data.region.boundary_segments[j]->id;
-                        if (id_map && old_sid >= 0 && old_sid <= max_id && id_map[old_sid] >= 0) {
-                            copy->data.region.boundary_segments[j] = graph_get_node(dst, id_map[old_sid]);
-                        } else {
-                            copy->data.region.boundary_segments[j] = NULL;
-                        }
-                    }
-                }
-                break;
-            case GEOM_CIRCLE:
-                if (id_map) {
-                    if (copy->data.circle.center_node_id >= 0 && copy->data.circle.center_node_id <= max_id &&
-                        id_map[copy->data.circle.center_node_id] >= 0) {
-                        copy->data.circle.center_node_id = id_map[copy->data.circle.center_node_id];
-                    }
-                    if (copy->data.circle.radius_node_id >= 0 && copy->data.circle.radius_node_id <= max_id &&
-                        id_map[copy->data.circle.radius_node_id] >= 0) {
-                        copy->data.circle.radius_node_id = id_map[copy->data.circle.radius_node_id];
-                    }
-                }
-                break;
-            case GEOM_FUNCTION_BLOCK:
-                for (int j = 0; j < copy->data.func_block.internal_node_count; j++) {
-                    if (copy->data.func_block.internal_nodes[j]) {
-                        int old_iid = copy->data.func_block.internal_nodes[j]->id;
-                        if (id_map && old_iid >= 0 && old_iid <= max_id && id_map[old_iid] >= 0) {
-                            copy->data.func_block.internal_nodes[j] = graph_get_node(dst, id_map[old_iid]);
-                        } else {
-                            copy->data.func_block.internal_nodes[j] = NULL;
-                        }
-                    }
-                }
-                for (int j = 0; j < copy->data.func_block.input_count; j++) {
-                    int old_pid = copy->data.func_block.input_port_ids[j];
-                    if (id_map && old_pid >= 0 && old_pid <= max_id && id_map[old_pid] >= 0) {
-                        copy->data.func_block.input_port_ids[j] = id_map[old_pid];
-                    }
-                }
-                for (int j = 0; j < copy->data.func_block.output_count; j++) {
-                    int old_pid = copy->data.func_block.output_port_ids[j];
-                    if (id_map && old_pid >= 0 && old_pid <= max_id && id_map[old_pid] >= 0) {
-                        copy->data.func_block.output_port_ids[j] = id_map[old_pid];
-                    }
-                }
-                break;
-            default:
-                break;
+        if (copy->vtable && copy->vtable->fixup_refs) {
+            copy->vtable->fixup_refs(copy, id_map, max_id, dst);
         }
     }
 

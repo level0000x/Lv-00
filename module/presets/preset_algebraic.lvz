@@ -1,0 +1,148 @@
+# =============================================================================
+# Lv-00 Presets: Algebraic
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "vector_add" {
+        description "�����ӷ���OA + OB = OC"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_sub" {
+        description "����������OA - OB = OC"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_scale" {
+        description "�������ˣ�k * OA = OB"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_linear_combination" {
+        description "����������ϣ�k1*OA1 + k2*OA2 = OB"
+        category "ALGEBRAIC"
+        inputs 5 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_normalize" {
+        description "���쵥λ����"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "vector_project" {
+        description "�����ڷ����ϵ�ͶӰ"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "standard_basis" {
+        description "�����׼������"
+        category "ALGEBRAIC"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "coordinate_transform" {
+        description "�����һ����任����һ���"
+        category "ALGEBRAIC"
+        inputs 5 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "polar_to_cartesian" {
+        description "������ת��Ϊֱ������"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "complex_multiply" {
+        description "�����˷��ļ��α�ʾ"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "complex_divide" {
+        description "���������ļ��α�ʾ"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "complex_power" {
+        description "������ n ����"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "complex_root" {
+        description "������ n �η���"
+        category "ALGEBRAIC"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "parabola_point" {
+        description "�����������ϵĵ�"
+        category "ALGEBRAIC"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "ellipse_point" {
+        description "������Բ�ϵĵ�"
+        category "ALGEBRAIC"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

@@ -1,0 +1,192 @@
+# =============================================================================
+# Lv-00 Presets: Category Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "cat_identity_morphism" {
+        description "恒等态射：获取对象 A 的恒等态射 id_A: A -> A，满足 id_A(x) = x"
+        category "CATEGORY_THEORY"
+        inputs 1 "SET"
+        output "FUNCTION"
+        math_def "\\mathrm{id}_A : A \\to A, \\quad \\mathrm{id}_A(x) = x, \"
+                       \"\\quad f \\circ \\mathrm{id}_A = f = \\mathrm{id}_B \\circ f"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_composition" {
+        description "态射复合：计算两个可复合态射的复合 g o f，要求 cod(f) = dom(g)"
+        category "CATEGORY_THEORY"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "(g \\circ f)(x) = g(f(x)), \\quad \\text{要求 } \\mathrm{cod}(f) = \\mathrm{dom}(g)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_isomorphism_test" {
+        description "同构判定：判定态射 f: A -> B 是否为同构（存在逆态射 f^{-1} 使得 f o f^{-1} = id 且 f^{-1} o f = id）"
+        category "CATEGORY_THEORY"
+        inputs 1 "FUNCTION"
+        output "BOOLEAN"
+        math_def "f \\text{ 是同构} \\Leftrightarrow \\exists g, \\; f \\circ g = \\mathrm{id}_B \"
+            \"\\land g \\circ f = \\mathrm{id}_A"
+        complexity "O(|\\mathrm{Hom}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_functor_apply" {
+        description "函子作用：计算函子 F 对态射 f 的作用 F(f)，保持恒等和复合"
+        category "CATEGORY_THEORY"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "F(\\mathrm{id}_A) = \\mathrm{id}_{F(A)}, \\quad \"
+                       \"F(g \\circ f) = F(g) \\circ F(f)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_natural_transformation" {
+        description "自然变换：判定或构造两个函子 F, G 之间的自然变换 alpha: F => G"
+        category "CATEGORY_THEORY"
+        inputs 3 "FUNCTION" "FUNCTION" "FUNCTION"
+        output "BOOLEAN"
+        math_def "\\alpha : F \\Rightarrow G \\Leftrightarrow \"
+                       \"\\forall f : A \\to B, \\; G(f) \\circ \\alpha_A = \\alpha_B \\circ F(f)"
+        complexity "O(|\\mathrm{Ob}| \\cdot |\\mathrm{Mor}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_product" {
+        description "积：构造对象 A 和 B 的积 A x B，带投影态射 pi_1, pi_2，满足泛性质"
+        category "CATEGORY_THEORY"
+        inputs 2 "SET" "SET"
+        output "SET"
+        math_def "A \\times B \\text{ 满足：} \\forall Q, f, g, \"
+                       \"\\exists! \\langle f, g \\rangle : Q \\to A \\times B"
+        complexity "O(|\\mathrm{Hom}|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_coproduct" {
+        description "余积：构造对象 A 和 B 的余积 A + B，带内射态射 i_1, i_2，满足泛性质"
+        category "CATEGORY_THEORY"
+        inputs 2 "SET" "SET"
+        output "SET"
+        math_def "A \\amalg B \\text{ 满足：} \\forall Q, f, g, \"
+                       \"\\exists! [f, g] : A \\amalg B \\to Q"
+        complexity "O(|\\mathrm{Hom}|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_pullback" {
+        description "拉回（纤维积）：构造交换方框的拉回 A x_C B = {(a,b) : f(a) = g(b)}"
+        category "CATEGORY_THEORY"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "SET"
+        math_def "A \\times_C B = \\{(a, b) \\mid f(a) = g(b)\\}, \"
+                       \"\\text{满足泛性质}"
+        complexity "O(|A| \\cdot |B|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_pushout" {
+        description "推出：构造余交换方框的推出 A +_C B，满足泛性质"
+        category "CATEGORY_THEORY"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "SET"
+        math_def "A \\amalg_C B \\text{ 满足泛性质}"
+        complexity "O(|A| + |B|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_equalizer" {
+        description "等化子：构造平行态射 f, g: A -> B 的等化子 eq(f,g) = {x : f(x) = g(x)}"
+        category "CATEGORY_THEORY"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "SET"
+        math_def "\\mathrm{eq}(f, g) = \\{x \\in A : f(x) = g(x)\\}, \"
+                       \"\\text{满足 } f \\circ e = g \\circ e"
+        complexity "O(|A|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_coequalizer" {
+        description "余等化子：构造平行态射 f, g: A -> B 的余等化子 coeq(f,g) = B/~"
+        category "CATEGORY_THEORY"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "SET"
+        math_def "\\mathrm{coeq}(f, g) = B / {\\sim}, \"
+                       \"\\text{其中 } {\\sim} \\text{ 是 } f, g \\text{ 生成的最小等价关系}"
+        complexity "O(|B| + |A|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_exponential" {
+        description "指数对象：构造指数对象 B^A，满足 Hom(A x B, C) ≅ Hom(A, C^B)"
+        category "CATEGORY_THEORY"
+        inputs 2 "SET" "SET"
+        output "SET"
+        math_def "B^A \\text{ 满足：} \\mathrm{Hom}(A \\times B, C) \\cong \"
+                       \"\\mathrm{Hom}(A, C^B)"
+        complexity "O(|\\mathrm{Hom}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_initial_object" {
+        description "初始对象：判定对象 0 是否为范畴的初始对象（到每个对象恰有一个态射）"
+        category "CATEGORY_THEORY"
+        inputs 1 "SET"
+        output "BOOLEAN"
+        math_def "0 \\text{ 是初始对象} \\Leftrightarrow \"
+                       \"\\forall A, \\; |\\mathrm{Hom}(0, A)| = 1"
+        complexity "O(|\\mathrm{Ob}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_terminal_object" {
+        description "终止对象：判定对象 1 是否为范畴的终止对象（从每个对象恰有一个态射）"
+        category "CATEGORY_THEORY"
+        inputs 1 "SET"
+        output "BOOLEAN"
+        math_def "1 \\text{ 是终止对象} \\Leftrightarrow \"
+                       \"\\forall A, \\; |\\mathrm{Hom}(A, 1)| = 1"
+        complexity "O(|\\mathrm{Ob}|)"
+        constructive true
+        reversible false
+    }
+
+    preset "cat_adjoint" {
+        description "伴随函子：判定两个函子 F: C -> D 和 G: D -> C 是否构成伴随对 F -| G"
+        category "CATEGORY_THEORY"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "BOOLEAN"
+        math_def "F \\dashv G \\Leftrightarrow \"
+                       \"\\mathrm{Hom}_{\\mathcal{D}}(F(A), B) \\cong \"
+                       \"\\mathrm{Hom}_{\\mathcal{C}}(A, G(B)) \\text{ 自然同构}"
+        complexity "O(|\\mathrm{Ob}| \\cdot |\\mathrm{Mor}|)"
+        constructive true
+        reversible false
+    }
+
+}

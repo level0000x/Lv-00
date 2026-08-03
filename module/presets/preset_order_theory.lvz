@@ -1,0 +1,113 @@
+# =============================================================================
+# Lv-00 Presets: Order Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "partial_order_relation" {
+        description "偏序关系构造：验证二元关系 R 是否构成偏序（自反 ∧ 反对称 ∧ 传递），构造偏序集 (P, ≤)"
+        category "LOGIC"
+        inputs 2 "SET" "SET"
+        output "SET"
+        math_def "\\le \\text{ 是偏序} \\Leftrightarrow \"
+                       \"\\text{自反}(\\forall a, a \\le a) \\land \"
+                       \"\\text{反对称}(a \\le b \\land b \\le a \\Rightarrow a = b) \\land \"
+                       \"\\text{传递}(a \\le b \\land b \\le c \\Rightarrow a \\le c)"
+        complexity "O(|P|^2 \\cdot |R|)"
+        constructive true
+        reversible false
+    }
+
+    preset "lattice_join" {
+        description "格的上确界（join/并）：a ∨ b，a 和 b 的最小上界"
+        category "LOGIC"
+        inputs 3 "SET" "ANY" "ANY"
+        output "ANY"
+        math_def "a \\vee b = \\min\\{c \\in L : a \\le c \\land b \\le c\\}, \"
+                       \"\\quad a \\vee a = a, \\; a \\vee b = b \\vee a"
+        complexity "O(|L|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "lattice_meet" {
+        description "格的下确界（meet/交）：a ∧ b，a 和 b 的最大下界"
+        category "LOGIC"
+        inputs 3 "SET" "ANY" "ANY"
+        output "ANY"
+        math_def "a \\wedge b = \\max\\{c \\in L : c \\le a \\land c \\le b\\}, \"
+                       \"\\quad a \\wedge a = a, \\; a \\wedge b = b \\wedge a"
+        complexity "O(|L|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "chain_decomposition" {
+        description "链分解（Dilworth定理）：将有限偏序集分解为不相交链的最小划分，链数 = 最大反链大小"
+        category "LOGIC"
+        inputs 2 "SET" "SET"
+        output "SET"
+        math_def "\\text{Dilworth: } \\min\\{\\text{链划分数}\\} = \"
+                       \"\\max\\{\\text{反链大小}\\} = \\text{width}(P)"
+        complexity "O(|P|^3)"
+        constructive false
+        reversible false
+    }
+
+    preset "zorn_lemma_application" {
+        description "Zorn引理应用：若非空偏序集的每条链都有上界，则存在极大元（与选择公理等价）"
+        category "LOGIC"
+        inputs 2 "SET" "SET"
+        output "BOOLEAN"
+        math_def "(\\forall C \\subseteq P, C \\text{ 是链} \\Rightarrow \"
+                       \"\\exists u \\in P, \\forall c \\in C, c \\le u) \"
+                       \"\\Rightarrow \\exists m \\in P, \\forall x \\in P, m \\le x \\Rightarrow m = x"
+        complexity "不可判定（依赖选择公理）"
+        constructive false
+        reversible false
+    }
+
+    preset "fixed_point_theorem" {
+        description "不动点定理（Tarski/Knaster）：完备格上保序映射的不动点集构成非空完备格"
+        category "LOGIC"
+        inputs 2 "SET" "FUNCTION"
+        output "SET"
+        math_def "\\text{Fix}(f) = \\{x \\in L : f(x) = x\\} \\text{ 构成完备格}, \\quad \"
+                       \"\\mu f = \\bigwedge\\{x : f(x) \\le x\\}, \\; \"
+                       \"\\nu f = \\bigvee\\{x : x \\le f(x)\\}"
+        complexity "O(|L|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "galois_connection" {
+        description "Galois连接：验证 (f, g) 是否构成偏序集间的Galois连接（伴随对），f(a) ≤ b ⟺ a ≤ g(b)"
+        category "LOGIC"
+        inputs 4 "SET" "SET" "FUNCTION" "FUNCTION"
+        output "BOOLEAN"
+        math_def "f \\dashv g \\Leftrightarrow \\forall a \\in A, \\forall b \\in B: \"
+                       \"f(a) \\le_B b \\Leftrightarrow a \\le_A g(b)"
+        complexity "O(|A| \\cdot |B|)"
+        constructive true
+        reversible false
+    }
+
+    preset "complete_lattice_completion" {
+        description "完备化（Dedekind-MacNeille）：将偏序集嵌入到其最小完备格中"
+        category "LOGIC"
+        inputs 2 "SET" "SET"
+        output "SET"
+        math_def "DM(P) = \\{S \\subseteq P : S^{ul} = S\\}, \"
+                       \"\\quad \\iota: P \\hookrightarrow DM(P), \\; a \\mapsto \\downarrow a"
+        complexity "O(2^{|P|})"
+        constructive true
+        reversible false
+    }
+
+}

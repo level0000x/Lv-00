@@ -23,224 +23,112 @@
 #include "lv_utils.h"
 #include "preset_common.h"
 
-/* ==================== 外部模块注册函数声明 ==================== */
+/* ==================== LVZ 预设文件加载 ==================== */
 
-extern bool preset_basic_geometry_register(void);
-extern bool preset_transformations_register(void);
-extern bool preset_measurements_register(void);
-extern bool preset_polygons_register(void);
-extern bool preset_algebraic_register(void);
-extern bool preset_number_theory_register(void);
-extern bool preset_group_theory_register(void);
-extern bool preset_topology_register(void);
-extern bool preset_analysis_register(void);
-extern bool preset_combinatorics_register(void);
-extern bool preset_graph_theory_register(void);
-extern bool preset_probability_register(void);
-extern bool preset_numerical_register(void);
-extern bool preset_optimization_register(void);
-extern bool preset_advanced_geometry_register(void);
-extern bool preset_geometry_3d_register(void);
-extern bool preset_ring_theory_register(void);
-extern bool preset_field_theory_register(void);
-extern bool preset_linear_algebra_register(void);
-extern bool preset_polynomial_register(void);
-extern bool preset_set_theory_register(void);
-extern bool preset_logic_advanced_register(void);
-extern bool preset_category_theory_register(void);
-extern bool preset_complex_analysis_register(void);
-extern bool preset_measure_theory_register(void);
-extern bool preset_order_theory_register(void);
-extern bool preset_functional_analysis_adv_register(void);
-extern bool preset_functional_analysis_register(void);
-extern bool preset_algebraic_topology_adv_register(void);
-extern bool preset_mathematical_logic_register(void);
-extern bool preset_matrix_register(void);
-extern bool preset_calculus_register(void);
-extern bool preset_basic_math_register(void);
-extern bool preset_math_logic_register(void);
-extern bool preset_trigonometry_register(void);
-extern bool preset_differential_geometry_register(void);
-extern bool preset_differential_equations_register(void);
-extern bool preset_statistics_register(void);
-extern bool preset_integral_transforms_register(void);
-extern bool preset_representation_theory_register(void);
-extern bool preset_algebraic_topology_register(void);
-extern bool preset_lattice_theory_register(void);
-extern bool preset_category_theory_adv_register(void);
-extern bool preset_special_functions_register(void);
-extern bool preset_differential_geometry_adv_register(void);
-extern bool preset_probability_statistics_register(void);
-extern bool preset_numerical_analysis_register(void);
-extern bool preset_mathematical_physics_register(void);
-extern bool preset_dynamical_systems_register(void);
-extern bool preset_arithmetic_geometry_register(void);
-extern bool preset_algebraic_geometry_register(void);
-extern bool preset_homological_algebra_register(void);
-extern bool preset_lie_theory_advanced_register(void);
-extern bool preset_stochastic_processes_register(void);
-extern bool preset_game_theory_register(void);
-extern bool preset_information_theory_register(void);
-extern bool preset_coding_theory_register(void);
-extern bool preset_difference_equations_register(void);
-
-/* ==================== 外部模块注册函数表 ==================== */
+/* 从 module_lvz.c 中引用的函数声明 */
+extern bool lvz_load_presets_file(const char *filepath);
 
 /**
- * @brief 外部预设模块注册项
+ * @brief 预设 .lvz 文件列表
  *
- * @param module  模块名称（用于失败警告文本，与历史文本保持一致）
- * @param warning 注册失败时是否输出警告（false 保留历史"静默注册"行为）
- * @param broken  是否受 lv_EXCLUDE_BROKEN_PRESETS 条件编译控制
- * @param reg     模块注册函数
+ * 这些文件位于 module/presets/ 目录下，包含通过 Python 脚本
+ * 从 C 预设文件自动转换的预设定义。
  */
-typedef struct {
-    const char *module;
-    bool warning;
-    bool broken;
-    bool (*reg)(void);
-} PresetModuleEntry;
-
-/** 外部预设模块注册表（顺序与历史注册顺序严格一致） */
-static const PresetModuleEntry g_preset_modules[] = {
-    /* 基础几何构造 */
-    {"基础几何模块", true, false, preset_basic_geometry_register},
-    /* 几何变换 */
-    {"几何变换模块", true, false, preset_transformations_register},
-    /* 度量计算 */
-    {"度量计算模块", true, false, preset_measurements_register},
-    /* 多边形构造 */
-    {"多边形构造模块", true, false, preset_polygons_register},
-    /* 代数运算 */
-    {"代数运算模块", true, false, preset_algebraic_register},
-    /* 数论运算（新增） */
-    {"数论运算模块", true, false, preset_number_theory_register},
-    /* 群论运算（新增） */
-    {"群论运算模块", true, false, preset_group_theory_register},
-    /* 拓扑学运算（新增） */
-    {"拓扑学运算模块", true, false, preset_topology_register},
-    /* 分析学运算（新增） */
-    {"分析学模块", true, false, preset_analysis_register},
-    /* 微分方程（新增 v9.0） */
-    {"微分方程模块", true, false, preset_differential_equations_register},
-    /* 特殊函数（新增 v10.0） */
-    {"特殊函数模块", true, false, preset_special_functions_register},
-    /* 组合数学（新增 v5.0） */
-    {"组合数学模块", true, false, preset_combinatorics_register},
-    /* 三角函数（新增 v9.0） */
-    {"三角函数模块", true, false, preset_trigonometry_register},
-    /* 图论（新增 v5.0） */
-    {"图论模块", true, false, preset_graph_theory_register},
-    /* 概率统计（新增 v5.0） */
-    {"概率统计模块", true, false, preset_probability_register},
-    /* 统计学（新增 v9.0） */
-    {"统计学模块", true, false, preset_statistics_register},
-    /* 数值分析（新增 v5.0） */
-    {"数值分析模块", true, false, preset_numerical_register},
-    /* 微分几何（新增 v9.0，受 lv_EXCLUDE_BROKEN_PRESETS 控制） */
-    {"微分几何模块", true, true, preset_differential_geometry_register},
-    /* 优化理论（新增 v5.0） */
-    {"优化理论模块", true, false, preset_optimization_register},
-    /* 高级几何构造（新增） */
-    {"高级几何模块", true, false, preset_advanced_geometry_register},
-    /* 三维几何构造（新增） */
-    {"三维几何模块", true, false, preset_geometry_3d_register},
-    /* 环论运算（新增 v5.0） */
-    {"环论模块", true, false, preset_ring_theory_register},
-    /* 域论运算（新增 v5.0） */
-    {"域论模块", true, false, preset_field_theory_register},
-    /* 线性代数运算（新增 v5.0） */
-    {"线性代数模块", true, false, preset_linear_algebra_register},
-    /* 多项式理论运算（新增 v5.0） */
-    {"多项式理论模块", true, false, preset_polynomial_register},
-    /* 集合论模块（新增 v6.0） */
-    {"集合论模块", true, false, preset_set_theory_register},
-    /* 高级逻辑模块（新增 v6.0） */
-    {"高级逻辑模块", true, false, preset_logic_advanced_register},
-    /* 范畴论模块（新增 v6.0） */
-    {"范畴论模块", true, false, preset_category_theory_register},
-    /* 复分析模块（新增 v6.0） */
-    {"复分析模块", true, false, preset_complex_analysis_register},
-    /* 测度论模块（新增 v7.0） */
-    {"测度论模块", true, false, preset_measure_theory_register},
-    /* 序理论模块（新增 v7.0） */
-    {"序理论模块", true, false, preset_order_theory_register},
-    /* 泛函分析进阶模块（新增 v7.0） */
-    {"泛函分析进阶模块", true, false, preset_functional_analysis_adv_register},
-    /* 泛函分析模块（新增 v9.0，受 lv_EXCLUDE_BROKEN_PRESETS 控制） */
-    {"泛函分析模块", true, true, preset_functional_analysis_register},
-    /* 代数拓扑进阶模块（新增 v7.0） */
-    {"代数拓扑进阶模块", true, false, preset_algebraic_topology_adv_register},
-    /* 数学逻辑模块（新增 v8.0） */
-    {"数学逻辑模块", true, false, preset_mathematical_logic_register},
-    /* 矩阵运算模块（新增 v8.0） */
-    {"矩阵运算模块", true, false, preset_matrix_register},
-    /* 微积分模块（新增 v8.0） */
-    {"微积分模块", true, false, preset_calculus_register},
-    /* 基础数学模块（新增 v8.0） */
-    {"基础数学模块", true, false, preset_basic_math_register},
-    /* 进阶数学逻辑模块（新增 v8.0） */
-    {"进阶数学逻辑模块", true, false, preset_math_logic_register},
-    /* 代数拓扑模块（新增 v9.0） */
-    {"代数拓扑模块", true, false, preset_algebraic_topology_register},
-    /* 积分变换模块（新增 v9.0） */
-    {"积分变换模块", true, false, preset_integral_transforms_register},
-    /* 表示论模块（新增 v9.0） */
-    {"表示论模块", true, false, preset_representation_theory_register},
-    /* 格论模块（新增 v10.0） */
-    {"格论模块", true, false, preset_lattice_theory_register},
-    /* 进阶范畴论模块（新增 v10.0） */
-    {"进阶范畴论模块", true, false, preset_category_theory_adv_register},
-    /* 高级微分几何模块（新增 v11.0） */
-    {"高级微分几何模块", true, false, preset_differential_geometry_adv_register},
-    /* 概率论与数理统计模块（新增 v11.0） */
-    {"概率论与数理统计模块", true, false, preset_probability_statistics_register},
-    /* 数值分析模块（新增 v11.0） */
-    {"数值分析模块", true, false, preset_numerical_analysis_register},
-    /* 代数几何模块（新增 v11.0） */
-    {"代数几何模块", true, false, preset_algebraic_geometry_register},
-    /* 同调代数模块（新增 v11.0） */
-    {"同调代数模块", true, false, preset_homological_algebra_register},
-    /* 李理论高级模块（新增 v11.0） */
-    {"李理论高级模块", true, false, preset_lie_theory_advanced_register},
-    /* 数学物理方程模块（新增 v12.0） */
-    {"数学物理方程模块", true, false, preset_mathematical_physics_register},
-    /* 动力系统模块（新增 v12.0） */
-    {"动力系统模块", true, false, preset_dynamical_systems_register},
-    /* 算术几何模块（新增 v12.0，失败静默） */
-    {"算术几何模块", false, false, preset_arithmetic_geometry_register},
-    /* 随机过程模块（新增 v12.0，失败静默） */
-    {"随机过程模块", false, false, preset_stochastic_processes_register},
-    /* 博弈论模块（新增 v12.0，失败静默） */
-    {"博弈论模块", false, false, preset_game_theory_register},
-    /* 信息论模块（新增 v12.0，失败静默） */
-    {"信息论模块", false, false, preset_information_theory_register},
-    /* 编码理论模块（新增 v12.0，失败静默） */
-    {"编码理论模块", false, false, preset_coding_theory_register},
-    /* 差分方程模块（新增 v12.0，失败静默） */
-    {"差分方程模块", false, false, preset_difference_equations_register},
+static const char *g_preset_lvz_files[] = {
+    "preset_advanced_geometry.lvz",
+    "preset_algebraic.lvz",
+    "preset_algebraic_geometry.lvz",
+    "preset_algebraic_topology.lvz",
+    "preset_algebraic_topology_adv.lvz",
+    "preset_analysis.lvz",
+    "preset_arithmetic_geometry.lvz",
+    "preset_basic_geometry.lvz",
+    "preset_category_theory.lvz",
+    "preset_category_theory_adv.lvz",
+    "preset_coding_theory.lvz",
+    "preset_combinatorics.lvz",
+    "preset_complex_analysis.lvz",
+    "preset_difference_equations.lvz",
+    "preset_differential_equations.lvz",
+    "preset_differential_geometry.lvz",
+    "preset_differential_geometry_adv.lvz",
+    "preset_dynamical_systems.lvz",
+    "preset_field_theory.lvz",
+    "preset_functional_analysis.lvz",
+    "preset_functional_analysis_adv.lvz",
+    "preset_game_theory.lvz",
+    "preset_geometry_3d.lvz",
+    "preset_graph_theory.lvz",
+    "preset_group_theory.lvz",
+    "preset_homological_algebra.lvz",
+    "preset_information_theory.lvz",
+    "preset_integral_transforms.lvz",
+    "preset_lattice_theory.lvz",
+    "preset_lie_theory_advanced.lvz",
+    "preset_linear_algebra.lvz",
+    "preset_logic_advanced.lvz",
+    "preset_math_logic.lvz",
+    "preset_mathematical_logic.lvz",
+    "preset_mathematical_physics.lvz",
+    "preset_matrix.lvz",
+    "preset_measure_theory.lvz",
+    "preset_measurements.lvz",
+    "preset_number_theory.lvz",
+    "preset_numerical.lvz",
+    "preset_numerical_analysis.lvz",
+    "preset_optimization.lvz",
+    "preset_order_theory.lvz",
+    "preset_polygons.lvz",
+    "preset_polynomial.lvz",
+    "preset_probability.lvz",
+    "preset_probability_statistics.lvz",
+    "preset_representation_theory.lvz",
+    "preset_ring_theory.lvz",
+    "preset_set_theory.lvz",
+    "preset_special_functions.lvz",
+    "preset_statistics.lvz",
+    "preset_stochastic_processes.lvz",
+    "preset_topology.lvz",
+    "preset_transformations.lvz",
+    "preset_trigonometry.lvz",
 };
 
 /**
- * @brief 注册全部外部预设模块
+ * @brief 从 .lvz 文件加载所有预设定义
  *
- * 按 g_preset_modules 表驱动注册，保持历史注册顺序；
- * broken 项在 lv_EXCLUDE_BROKEN_PRESETS 下被跳过；
- * warning=false 的模块注册失败时静默处理。
+ * 遍历 g_preset_lvz_files 列表，构造完整路径并调用
+ * lvz_load_presets_file 加载每个 .lvz 文件中的预设定义。
+ *
+ * 路径由编译时定义的 lv_PRESETS_DIR 宏指定。
  */
-static void register_external_preset_modules(void) {
-    for (size_t i = 0; i < lv_ARRAY_SIZE(g_preset_modules); i++) {
-#ifndef lv_EXCLUDE_BROKEN_PRESETS
-        const bool broken_excluded = false;
+static void load_presets_from_lvz(void) {
+    const size_t file_count = sizeof(g_preset_lvz_files) / sizeof(g_preset_lvz_files[0]);
+
+#ifdef lv_PRESETS_DIR
+    /* 使用编译时定义的预设目录路径 */
+    const char *presets_dir = lv_PRESETS_DIR;
 #else
-        const bool broken_excluded = g_preset_modules[i].broken;
+    /* 回退到相对于工作目录的默认路径 */
+    const char *presets_dir = "module/presets";
 #endif
-        if (broken_excluded) {
+
+    for (size_t i = 0; i < file_count; i++) {
+        /* 构造完整路径: dir/filename */
+        size_t dir_len = strlen(presets_dir);
+        size_t name_len = strlen(g_preset_lvz_files[i]);
+        char *filepath = (char *) lv_malloc(dir_len + 1 + name_len + 1);
+        if (!filepath) {
+            lv_LOG_WARNING("无法分配内存以加载预设文件 '%s'", g_preset_lvz_files[i]);
             continue;
         }
-        if (!g_preset_modules[i].reg() && g_preset_modules[i].warning) {
-            lv_LOG_WARNING("%s预设注册部分失败", g_preset_modules[i].module);
+        memcpy(filepath, presets_dir, dir_len);
+        filepath[dir_len] = '/';
+        memcpy(filepath + dir_len + 1, g_preset_lvz_files[i], name_len + 1);
+
+        if (!lvz_load_presets_file(filepath)) {
+            lv_LOG_WARNING("加载预设文件 '%s' 失败", filepath);
         }
+        lv_free((void **) &filepath);
     }
 }
 
@@ -430,56 +318,14 @@ bool preset_blocks_init(void) {
     }
 
     /* ============================================================
-     * 注册各模块的预设函数块
-     * 
-     * 模块注册顺序：
-     * 1. 基础几何构造
-     * 2. 几何变换
-     * 3. 度量计算
-     * 4. 多边形构造
-     * 5. 代数运算
-     * 6. 数论运算（新增）
-     * 7. 群论运算（新增）
-     * 8. 拓扑学运算（新增）
-     * 9. 分析学运算（新增）
-     * 10. 微分方程（新增 v9.0）
-     * 11. 组合数学（新增 v5.0）
-     * 12. 三角函数（新增 v9.0）
-     * 13. 图论（新增 v5.0）
-     * 14. 概率统计（新增 v5.0）
-     * 15. 统计学（新增 v9.0）
-     * 16. 数值分析（新增 v5.0）
-     * 17. 微分几何（新增 v9.0）
-     * 18. 优化理论（新增 v5.0）
-     * 19. 高级几何构造（新增）
-     * 20. 三维几何构造（新增）
-     * 21. 环论运算（新增 v5.0）
-     * 22. 域论运算（新增 v5.0）
-     * 23. 线性代数运算（新增 v5.0）
-     * 24. 多项式理论运算（新增 v5.0）
-     * 25. 集合论模块（新增 v6.0）
-     * 26. 高级逻辑模块（新增 v6.0）
-     * 27. 范畴论模块（新增 v6.0）
-     * 28. 复分析模块（新增 v6.0）
-     * 29. 测度论模块（新增 v7.0）
-     * 30. 序理论模块（新增 v7.0）
-     * 31. 泛函分析进阶模块（新增 v7.0）
-     * 32. 泛函分析模块（新增 v9.0）
-     * 33. 代数拓扑进阶模块（新增 v7.0）
-     * 34. 数学逻辑模块（新增 v8.0）
-     * 35. 矩阵运算模块（新增 v8.0）
-     * 36. 微积分模块（新增 v8.0）
-     * 37. 基础数学模块（新增 v8.0）
-     * 38. 进阶数学逻辑模块（新增 v8.0）
-     * 39. 微分几何模块（新增 v9.0）—— 曲线论/曲面论/联络/测地线/张量分析
-     * 40. 代数拓扑模块（新增 v9.0）—— 同调/上同调/高阶同伦/单纯复形
-     * 41. 积分变换模块（新增 v9.0）—— 傅里叶/拉普拉斯/Z变换/梅林/希尔伯特
-     * 42. 表示论模块（新增 v9.0）—— 群表示/特征标/不可约/诱导/李代数表示
-     * 43. 特殊函数模块（新增 v10.0）—— Gamma/Beta/Bessel/正交多项式/Zeta，共20个
+     * 从 .lvz 文件加载预设定义
+     *
+     * 所有预设定义已从 C 源文件转换为 .lvz 格式，
+     * 存放在 module/presets/ 目录下。
+     * 此处通过 lvz_load_presets_file 逐个加载并注册。
      * ============================================================ */
 
-    /* 按模块注册表批量注册所有外部预设模块（保持历史注册顺序） */
-    register_external_preset_modules();
+    load_presets_from_lvz();
 
     g_preset_registry.initialized = true;
     return true;

@@ -1,0 +1,94 @@
+# =============================================================================
+# Lv-00 Presets: Stochastic Processes
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "markov_chain_construct" {
+        description "由转移矩阵P构造离散时间Markov链"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "markov_n_step_transition" {
+        description "计算n步转移概率矩阵 P^n"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "stationary_distribution" {
+        description "计算Markov链的平稳分布 π = πP"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "ergodicity_test" {
+        description "判定Markov链是否遍历（不可约且非周期）"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "brownian_properties" {
+        description "计算Brown运动的统计性质（均值、方差、协方差）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "martingale_test" {
+        description "判定随机过程是否是鞅 E[X_{n+1}|F_n] = X_n"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "optional_stopping" {
+        description "应用可选停时定理 E[X_T] = E[X_0]"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "arrival_time_distribution" {
+        description "计算Poisson过程第k次到达时间（Erlang分布）"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "sde_solve" {
+        description "求解Itô随机微分方程 dX = μ dt + σ dW"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

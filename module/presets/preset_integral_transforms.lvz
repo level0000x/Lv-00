@@ -1,0 +1,40 @@
+# =============================================================================
+# Lv-00 Presets: Integral Transforms
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "discrete_fourier_transform" {
+        description "离散 Fourier 变换：X[k] = sum_{n=0}^{N-1} x[n] e^{-i*2*pi*k*n/N}"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "discrete_wavelet_transform" {
+        description "离散小波变换：DWT 多分辨率分析，逐层分解信号"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "wavelet_inverse_transform" {
+        description "小波逆变换：从系数重构原始信号"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

@@ -197,10 +197,41 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
     memcpy(combined + combined_header + clers_serial_size, raw_buf, raw_size);
     lv_free((void **) &raw_buf);
 
-    /* Apply real entropy encoding (RLE + Huffman) */
+    /* Apply entropy encoding based on configuration */
     uint8_t *encoded = NULL;
     size_t encoded_size = 0;
-    bool enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
+    bool enc_ok = false;
+
+    switch (cfg.entropy) {
+        case ENTROPY_NONE:
+            /* No entropy encoding: output combined data directly */
+            encoded = combined;
+            encoded_size = combined_size;
+            combined = NULL; /* Transfer ownership, prevent double-free */
+            enc_ok = true;
+            break;
+
+        case ENTROPY_HUFFMAN:
+            /* Pure Huffman encoding */
+            enc_ok = entropy_encode_huffman(combined, combined_size, &encoded, &encoded_size);
+            break;
+
+        case ENTROPY_RANS:
+            // TODO: RANS 编码器尚未实现，使用默认 RLE+Huffman 编码
+            enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
+            break;
+
+        case ENTROPY_ARITHMETIC:
+            // TODO: 算术编码器尚未实现，使用默认 RLE+Huffman 编码
+            enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
+            break;
+
+        default:
+            /* Fallback to default RLE + Huffman */
+            enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
+            break;
+    }
+
     lv_free((void **) &combined);
 
     graph_destroy(work_graph);

@@ -1,0 +1,323 @@
+# =============================================================================
+# Lv-00 Presets: Matrix
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "matrix_add" {
+        description "矩阵加法：计算同阶矩阵 A 与 B 的和 C = A + B"
+        category "ALGEBRAIC"
+        inputs 2 "MATRIX" "MATRIX"
+        output "MATRIX"
+        math_def "C_{ij} = A_{ij} + B_{ij}"
+        complexity "O(mn)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_subtract" {
+        description "矩阵减法：计算同阶矩阵 A 与 B 的差 C = A - B"
+        category "ALGEBRAIC"
+        inputs 2 "MATRIX" "MATRIX"
+        output "MATRIX"
+        math_def "C_{ij} = A_{ij} - B_{ij}"
+        complexity "O(mn)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_scalar_multiply" {
+        description "标量乘法：计算标量 k 与矩阵 A 的数乘 kA"
+        category "ALGEBRAIC"
+        inputs 2 "SCALAR" "MATRIX"
+        output "MATRIX"
+        math_def "(kA)_{ij} = k \\cdot A_{ij}"
+        complexity "O(mn)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_multiply" {
+        description "矩阵乘法：计算矩阵 A 与 B 的乘积 C = AB（A的列数等于B的行数）"
+        category "ALGEBRAIC"
+        inputs 2 "MATRIX" "MATRIX"
+        output "MATRIX"
+        math_def "C_{ij} = \\sum_{k=1}^{n} A_{ik} B_{kj}"
+        complexity "O(mnp)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_transpose" {
+        description "矩阵转置：计算矩阵 A 的转置 A^T"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "MATRIX"
+        math_def "(A^T)_{ij} = A_{ji}"
+        complexity "O(mn)"
+        constructive true
+        reversible true
+    }
+
+    preset "matrix_trace" {
+        description "矩阵迹：计算方阵 A 的迹 tr(A)，即主对角线元素之和"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "SCALAR"
+        math_def "\\text{tr}(A) = \\sum_{i=1}^{n} A_{ii}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_determinant" {
+        description "矩阵行列式：计算方阵 A 的行列式 det(A)"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "SCALAR"
+        math_def "\\det(A) = \\sum_{\\sigma \\in S_n} \\text{sgn}(\\sigma) \\prod_{i=1}^{n} A_{i,\\sigma(i)}"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_inverse" {
+        description "矩阵逆：计算可逆方阵 A 的逆矩阵 A^{-1}（det(A) != 0）"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "MATRIX"
+        math_def "A A^{-1} = A^{-1} A = I_n, \\quad \\det(A) \\neq 0"
+        complexity "O(n^3)"
+        constructive true
+        reversible true
+    }
+
+    preset "matrix_rank" {
+        description "矩阵秩：计算矩阵 A 的秩 rank(A)，即行空间（或列空间）的维数"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "INTEGER"
+        math_def "\\text{rank}(A) = \\dim(\\text{Im}(A))"
+        complexity "O(mn \\cdot \\min(m,n))"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_nullity" {
+        description "零化度：计算矩阵 A 的零化度 nullity(A) = dim(ker(A))"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "INTEGER"
+        math_def "\\text{nullity}(A) = \\dim(\\ker(A)) = n - \\text{rank}(A)"
+        complexity "O(mn \\cdot \\min(m,n))"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_eigenvalues" {
+        description "特征值：计算方阵 A 的所有特征值 lambda_i，满足 det(A - lambda I) = 0"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "LIST"
+        math_def "\\det(A - \\lambda I) = 0"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_eigenvectors" {
+        description "特征向量：计算方阵 A 的特征向量，满足 Av = lambda v"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "LIST"
+        math_def "A \\mathbf{v} = \\lambda \\mathbf{v}, \\quad \\mathbf{v} \\neq \\mathbf{0}"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_characteristic_poly" {
+        description "特征多项式：计算方阵 A 的特征多项式 p(lambda) = det(lambda I - A)"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "POLYNOMIAL"
+        math_def "p(\\lambda) = \\det(\\lambda I - A) = \\lambda^n + c_{n-1}\\lambda^{n-1} + \\cdots + c_0"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_minimal_poly" {
+        description "最小多项式：计算方阵 A 的最小多项式 m(x)，即满足 m(A) = 0 的最低次首一多项式"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "POLYNOMIAL"
+        math_def "m(A) = 0, \\quad m(x) | p(x)"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_kernel" {
+        description "核空间：计算矩阵 A 的核空间（零空间）ker(A) = {x : Ax = 0} 的基"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "LIST"
+        math_def "\\ker(A) = \\{\\mathbf{x} \\in \\mathbb{R}^n : A\\mathbf{x} = \\mathbf{0}\\}"
+        complexity "O(mn \\cdot \\min(m,n))"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_image" {
+        description "像空间：计算矩阵 A 的像空间（列空间）Im(A) = {Ax : x in R^n} 的基"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "LIST"
+        math_def "\\text{Im}(A) = \\{A\\mathbf{x} : \\mathbf{x} \\in \\mathbb{R}^n\\}"
+        complexity "O(mn \\cdot \\min(m,n))"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_lu_decomposition" {
+        description "LU分解：将方阵 A 分解为下三角矩阵 L 和上三角矩阵 U 的乘积 A = LU"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "TUPLE"
+        math_def "A = LU, \\quad L \\text{为下三角}, U \\text{为上三角}"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_qr_decomposition" {
+        description "QR分解：将矩阵 A 分解为正交矩阵 Q 和上三角矩阵 R 的乘积 A = QR"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "TUPLE"
+        math_def "A = QR, \\quad Q^T Q = I, R \\text{为上三角}"
+        complexity "O(mn^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_svd" {
+        description "奇异值分解：将矩阵 A 分解为 A = U Sigma V^T，其中 U、V 为正交矩阵，Sigma 为对角矩阵"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "TUPLE"
+        math_def "A = U \\Sigma V^T, \\quad \\sigma_1 \\geq \\sigma_2 \\geq \\cdots \\geq 0"
+        complexity "O(mn \\cdot \\min(m,n))"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_cholesky" {
+        description "Cholesky分解：将对称正定矩阵 A 分解为 A = LL^T，其中 L 为下三角矩阵"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "MATRIX"
+        math_def "A = LL^T, \\quad L \\text{为下三角}, A \\text{对称正定}"
+        complexity "O(n^3 / 3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_jordan_form" {
+        description "Jordan标准形：计算方阵 A 的Jordan标准形 J = P^{-1}AP"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "TUPLE"
+        math_def "J = P^{-1}AP = \\text{diag}(J_1, J_2, \\ldots, J_k)"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_spectral" {
+        description "谱分解：将可对角化的方阵 A 分解为 A = PDP^{-1}，其中 D 为特征值对角矩阵"
+        category "ALGEBRAIC"
+        inputs 1 "MATRIX"
+        output "TUPLE"
+        math_def "A = PDP^{-1}, \\quad D = \\text{diag}(\\lambda_1, \\ldots, \\lambda_n)"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_identity" {
+        description "单位矩阵：生成 n 阶单位矩阵 I_n，主对角线元素为1，其余为0"
+        category "ALGEBRAIC"
+        inputs 1 "INTEGER"
+        output "MATRIX"
+        math_def "I_n = (\\delta_{ij})_{n \\times n}, \\quad \\delta_{ij} = \\begin{cases} 1 & i = j \"
+                                   \"\\\\ 0 & i \\neq j \\end{cases}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_zero" {
+        description "零矩阵：生成 m x n 阶零矩阵 O_{m x n}，所有元素为0"
+        category "ALGEBRAIC"
+        inputs 2 "INTEGER" "INTEGER"
+        output "MATRIX"
+        math_def "O_{m \\times n} = (0)_{m \\times n}"
+        complexity "O(mn)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_diagonal" {
+        description "对角矩阵：以向量 v 的元素作为主对角线生成对角矩阵 diag(v)"
+        category "ALGEBRAIC"
+        inputs 1 "VECTOR"
+        output "MATRIX"
+        math_def "\\text{diag}(v) = \\begin{pmatrix} v_1 & & \\\\ & \\ddots & \\\\ & & v_n \\end{pmatrix}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_elementary_row" {
+        description "初等行变换矩阵：生成 n 阶初等行变换矩阵（行交换、行倍乘、行倍加）"
+        category "ALGEBRAIC"
+        inputs 3 "INTEGER" "INTEGER" "SCALAR"
+        output "MATRIX"
+        math_def "E_{ij}(c) = I + c \\cdot e_i e_j^T"
+        complexity "O(n^2)"
+        constructive true
+        reversible true
+    }
+
+    preset "matrix_vandermonde" {
+        description "Vandermonde矩阵：以向量 x 的元素生成 Vandermonde 矩阵"
+        category "ALGEBRAIC"
+        inputs 1 "VECTOR"
+        output "MATRIX"
+        math_def "V(x_1, \\ldots, x_n) = \\begin{pmatrix} 1 & x_1 & x_1^2 & \\cdots & x_1^{n-1} \\\\ \\vdots & \\vdots \"
+                \"& \\vdots & \\ddots & \\vdots \\\\ 1 & x_n & x_n^2 & \\cdots & x_n^{n-1} \\end{pmatrix}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "matrix_hilbert" {
+        description "Hilbert矩阵：生成 n 阶 Hilbert 矩阵 H_{ij} = 1/(i+j-1)，经典的病态矩阵"
+        category "ALGEBRAIC"
+        inputs 1 "INTEGER"
+        output "MATRIX"
+        math_def "H_{ij} = \\frac{1}{i + j - 1}, \\quad 1 \\leq i, j \\leq n"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+}

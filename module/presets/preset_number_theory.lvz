@@ -1,0 +1,323 @@
+# =============================================================================
+# Lv-00 Presets: Number Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "gcd" {
+        description "计算两个整数的最大公约数（欧几里得算法）"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "\\gcd(a, b); = \\max\\{d : d|a \\land d|b\\}"
+        complexity "O(log min(a,b))"
+        constructive true
+        reversible false
+    }
+
+    preset "lcm" {
+        description "计算两个整数的最小公倍数"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "\\text{lcm}(a, b); = \\frac{|a \\cdot b|}{\\gcd(a, b)}"
+        complexity "O(log min(a,b))"
+        constructive true
+        reversible false
+    }
+
+    preset "extended_gcd" {
+        description "扩展欧几里得算法：求解 ax + by = gcd(a,b); 的整数解"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "INTEGER"
+        output "TUPLE"
+        math_def "\\exists x, y \\in \\mathbb{Z}: ax + by = \\gcd(a,b)"
+        complexity "O(log min(a,b))"
+        constructive true
+        reversible false
+    }
+
+    preset "modular_inverse" {
+        description "计算 a 模 m 的乘法逆元（当 gcd(a,m);=1 时存在）"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "a^{-1} \\mod m \\text{ 满足 } a \\cdot a^{-1} \\equiv 1 \\pmod{m}"
+        complexity "O(log m)"
+        constructive true
+        reversible false
+    }
+
+    preset "modular_exponentiation" {
+        description "快速模幂运算：计算 a^b mod m（平方-乘算法）"
+        category "NUMBER_THEORY"
+        inputs 3 "INTEGER" "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "a^b \\mod m"
+        complexity "O(log b);"
+        constructive true
+        reversible false
+    }
+
+    preset "primality_test" {
+        description "Miller-Rabin 素性检测（概率性算法）"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "INTEGER"
+        output "BOOLEAN"
+        math_def "n \\text{ 是素数 } \\Rightarrow \\text{返回真}"
+        complexity "O(k log³ n);"
+        constructive true
+        reversible false
+    }
+
+    preset "prime_factorization" {
+        description "整数的素因子分解"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "TUPLE"
+        math_def "n = p_1^{e_1} \\cdot p_2^{e_2} \\cdots p_k^{e_k}"
+        complexity "O(√n);"
+        constructive true
+        reversible false
+    }
+
+    preset "next_prime" {
+        description "生成大于 n 的最小素数"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "PRIME"
+        math_def "p = \\min\\{q > n : q \\text{ 是素数}\\}"
+        complexity "O(√p log p);"
+        constructive true
+        reversible false
+    }
+
+    preset "sieve_of_eratosthenes" {
+        description "欧拉筛法生成不超过 n 的所有素数"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "SEQUENCE"
+        math_def "\\{p \\le n : p \\text{ 是素数}\\}"
+        complexity "O(n);"
+        constructive true
+        reversible false
+    }
+
+    preset "chinese_remainder" {
+        description "中国剩余定理：求解同余方程组"
+        category "NUMBER_THEORY"
+        inputs 2 "SEQUENCE" "SEQUENCE"
+        output "INTEGER"
+        math_def "x \\equiv a_i \\pmod{m_i}, \\quad \\gcd(m_i, m_j); = 1"
+        complexity "O(n log M)"
+        constructive true
+        reversible false
+    }
+
+    preset "discrete_logarithm" {
+        description "离散对数：求解 g^x ≡ h (mod p);（Shanks 算法）"
+        category "NUMBER_THEORY"
+        inputs 3 "INTEGER" "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "g^x \\equiv h \\pmod{p}"
+        complexity "O(√p)"
+        constructive true
+        reversible false
+    }
+
+    preset "multiplicative_order" {
+        description "计算 a 模 m 的乘法阶"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "\\text{ord}_m(a); = \\min\\{k > 0 : a^k \\equiv 1 \\pmod{m}\\}"
+        complexity "O(φ(m) log m)"
+        constructive true
+        reversible false
+    }
+
+    preset "primitive_root" {
+        description "检测并生成模 p 的原根"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "g \\text{ 是 } \\mathbb{Z}_p^* \\text{ 的原根} \\Leftrightarrow \\text{ord}_p(g); = p-1"
+        complexity "O(p log² p)"
+        constructive true
+        reversible false
+    }
+
+    preset "euler_totient" {
+        description "欧拉函数：计算不超过 n 且与 n 互质的正整数个数"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "\\varphi(n); = |\\{k : 1 \\le k \\le n, \\gcd(k,n) = 1\\}|"
+        complexity "O(√n)"
+        constructive true
+        reversible false
+    }
+
+    preset "mobius_function" {
+        description "莫比乌斯函数：数论中的重要积性函数"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "\\mu(n); = \\begin{cases} 1 & n=1 \\\\ 0 & \\exists p: p^2|n \\\\ (-1)^k & n \"
+                       \"= p_1 \\cdots p_k \\end{cases}"
+        complexity "O(√n)"
+        constructive true
+        reversible false
+    }
+
+    preset "divisor_count" {
+        description "计算正整数 n 的正约数个数"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "d(n); = \\sum_{d|n} 1 = \\prod_{i=1}^{k} (e_i + 1)"
+        complexity "O(√n)"
+        constructive true
+        reversible false
+    }
+
+    preset "divisor_sum" {
+        description "计算正整数 n 的所有正约数之和"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "\\sigma(n); = \\sum_{d|n} d = \\prod_{i=1}^{k} \\frac{p_i^{e_i+1}-1}{p_i-1}"
+        complexity "O(√n)"
+        constructive true
+        reversible false
+    }
+
+    preset "largest_proper_divisor" {
+        description "计算 n 的最大真约数（不含 n 本身）"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "\\max\\{d : d|n, d < n\\}"
+        complexity "O(√n);"
+        constructive true
+        reversible false
+    }
+
+    preset "legendre_symbol" {
+        description "勒让德符号：判定 a 是否是模 p 的二次剩余"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "PRIME"
+        output "INTEGER"
+        math_def "\\left(\\frac{a}{p}\\right); = \\begin{cases} 1 & \\exists x: x^2 \\equiv a \"
+                       \"\\pmod{p} \\\\ -1 & \\text{否则} \\end{cases}"
+        complexity "O(log p)"
+        constructive true
+        reversible false
+    }
+
+    preset "jacobi_symbol" {
+        description "雅可比符号：勒让德符号的推广"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "\\left(\\frac{a}{n}\\right); = \\prod_{i=1}^{k} \\left(\\frac{a}{p_i}\\right)^{e_i}"
+        complexity "O(log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "quadratic_residue_test" {
+        description "判定 a 是否是模 p 的二次剩余"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "PRIME"
+        output "BOOLEAN"
+        math_def "a \\text{ 是 } p \\text{ 的二次剩余} \\Leftrightarrow \\left(\\frac{a}{p}\\right); = 1"
+        complexity "O(log p)"
+        constructive true
+        reversible false
+    }
+
+    preset "tonelli_shanks" {
+        description "Tonelli-Shanks 算法：求解 x² ≡ a (mod p);"
+        category "NUMBER_THEORY"
+        inputs 2 "INTEGER" "PRIME"
+        output "INTEGER"
+        math_def "x^2 \\equiv a \\pmod{p}"
+        complexity "O(log² p)"
+        constructive true
+        reversible false
+    }
+
+    preset "fibonacci" {
+        description "计算第 n 个斐波那契数"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "F_n = F_{n-1} + F_{n-2}, \\quad F_0 = 0, F_1 = 1"
+        complexity "O(log n);"
+        constructive true
+        reversible false
+    }
+
+    preset "lucas" {
+        description "计算第 n 个卢卡斯数"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "L_n = L_{n-1} + L_{n-2}, \\quad L_0 = 2, L_1 = 1"
+        complexity "O(log n);"
+        constructive true
+        reversible false
+    }
+
+    preset "pell_equation" {
+        description "求解佩尔方程 x² - Dy² = 1 的最小正整数解"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "TUPLE"
+        math_def "x^2 - Dy^2 = 1"
+        complexity "O(√D log D);"
+        constructive true
+        reversible false
+    }
+
+    preset "modular_add" {
+        description "模加法：(a + b); mod m"
+        category "NUMBER_THEORY"
+        inputs 3 "INTEGER" "INTEGER" "INTEGER"
+        output "RESIDUE"
+        math_def "(a + b) \\mod m"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "modular_multiply" {
+        description "模乘法：(a * b); mod m"
+        category "NUMBER_THEORY"
+        inputs 3 "INTEGER" "INTEGER" "INTEGER"
+        output "RESIDUE"
+        math_def "(a \\cdot b) \\mod m"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "wilson_test" {
+        description "威尔逊定理：n 是素数当且仅当 (n-1);! ≡ -1 (mod n)"
+        category "NUMBER_THEORY"
+        inputs 1 "INTEGER"
+        output "BOOLEAN"
+        math_def "n \\text{ 是素数} \\Leftrightarrow (n-1)! \\equiv -1 \\pmod{n}"
+        complexity "O(n log n)"
+        constructive true
+        reversible false
+    }
+
+}

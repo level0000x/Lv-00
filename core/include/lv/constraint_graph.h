@@ -120,6 +120,7 @@ typedef enum {
 } ConstraintType;
 
 typedef struct GeomNode GeomNode;
+typedef struct GeomNodeVTable GeomNodeVTable;
 typedef struct Constraint Constraint;
 typedef struct ConstraintGraph ConstraintGraph;
 typedef struct Port Port;
@@ -133,6 +134,45 @@ struct Port {
     bool is_polymorphic;     /* 是否为多态端口（如爆炸原理的输出） */
     TypeRegion *type_region; /* 端口类型区域（多态实例化后设置） */
     GeomNode *connected_to;
+};
+
+/**
+ * @brief 几何节点虚函数表 (VTable)
+ *
+ * 为每种几何节点类型提供多态操作，消除 switch/if-else 类型代码反模式。
+ * 每个 GeomNode 实例通过 vtable 指针关联其类型对应的操作表。
+ */
+struct GeomNodeVTable {
+    /** 生命周期：类型特定的节点初始化（在公共分配之后调用，node 已分配） */
+    void (*alloc)(GeomNode *node, ConstraintGraph *graph);
+    /** 生命周期：释放类型特定的节点数据（在公共清理之后调用） */
+    void (*free)(GeomNode *node);
+    /** 生命周期：深拷贝类型特定的节点数据 */
+    GeomNode *(*clone)(const GeomNode *node, ConstraintGraph *dst_graph);
+
+    /** 标识：返回节点类型的字符串名称 */
+    const char *(*type_name)(void);
+
+    /** 序列化：将类型特定的节点数据追加到 JSON 缓冲区 */
+    bool (*serialize)(const GeomNode *node, void *buf);
+
+    /** 冲突检测：检查两个节点之间是否存在类型特定的冲突 */
+    bool (*detect_conflict)(const GeomNode *a, const GeomNode *b);
+
+    /** 哈希：计算节点类型特定数据的哈希值（用于去重和比较） */
+    uint32_t (*hash)(const GeomNode *node);
+
+    /** 比较：比较两个节点的类型特定数据是否相等 */
+    int (*compare)(const GeomNode *a, const GeomNode *b);
+
+    /** 反序列化：从二进制数据恢复类型特定的节点数据 */
+    bool (*deserialize)(GeomNode *node, const uint8_t *data, size_t size);
+
+    /** 交叉引用修复：深拷贝后修复节点内部的指针引用（如 region->boundary_segments 等） */
+    void (*fixup_refs)(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph);
+
+    /** 信任坐标计数：返回用于信任颜色传播的坐标数量（0 表示该类型不参与信任传播） */
+    int (*get_trust_coord_count)(const GeomNode *node);
 };
 
 /**
@@ -179,6 +219,7 @@ struct Port {
 struct GeomNode {
     int id;
     GeomType type;
+    const GeomNodeVTable *vtable; /**< 虚函数表指针，提供节点类型的多态操作 */
     SymbolicCoord **symbolic_coords;
     int coord_count;
     TrustColor trust;

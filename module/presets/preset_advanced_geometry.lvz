@@ -1,0 +1,618 @@
+# =============================================================================
+# Lv-00 Presets: Advanced Geometry
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "ellipse_focus_directrix" {
+        description "通过焦点、准线和离心率构造椭圆"
+        category "GEOMETRY"
+        inputs 3 "POINT" "LINE" "SCALAR"
+        output "POLYGON"
+        math_def "到焦点距离与到准线距离之比为 e (0<e<1) 的点的轨迹"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "ellipse_center_axes" {
+        description "通过中心、长轴端点和短轴长度构造椭圆"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "SCALAR"
+        output "POLYGON"
+        math_def "中心为 C，长轴端点为 A，短轴长为 2b 的椭圆"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "conic_five_points" {
+        description "通过五点确定圆锥曲线"
+        category "GEOMETRY"
+        inputs 5 "POINT" "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "通过不共线五点的唯一圆锥曲线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "parabola_focus_directrix" {
+        description "通过焦点和准线构造抛物线"
+        category "GEOMETRY"
+        inputs 2 "POINT" "LINE"
+        output "POLYGON"
+        math_def "到焦点距离等于到准线距离的点的轨迹"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "parabola_vertex_focus" {
+        description "通过顶点和焦点构造抛物线"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POLYGON"
+        math_def "顶点为 V，焦点为 F 的抛物线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "hyperbola_focus_directrix" {
+        description "通过焦点、准线和离心率构造双曲线"
+        category "GEOMETRY"
+        inputs 3 "POINT" "LINE" "SCALAR"
+        output "POLYGON"
+        math_def "到焦点距离与到准线距离之比为 e (e>1) 的点的轨迹"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "hyperbola_center_vertices" {
+        description "通过中心和两顶点构造双曲线"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "中心为 C，顶点为 V1, V2 的双曲线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "conic_tangent" {
+        description "构造圆锥曲线在某点的切线"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "LINE"
+        math_def "圆锥曲线在某点处的切线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "conic_normal" {
+        description "构造圆锥曲线在某点的法线"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "LINE"
+        math_def "圆锥曲线在某点处的法线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "conic_intersection" {
+        description "求两圆锥曲线的交点"
+        category "GEOMETRY"
+        inputs 6 "POINT" "POINT" "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "两圆锥曲线的交点，最多4个"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "bezier_quadratic" {
+        description "通过三点构造二次贝塞尔曲线"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2, t∈[0,1]"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "bezier_cubic" {
+        description "通过四点构造三次贝塞尔曲线"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3, t∈[0,1]"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "bezier_n" {
+        description "通过控制点列表构造n次贝塞尔曲线"
+        category "GEOMETRY"
+        inputs 2 "LIST" "INTEGER"
+        output "POLYGON"
+        math_def "B(t) = Σ C(n,i)(1-t)^(n-i)t^i Pi, t∈[0,1]"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "bezier_evaluate" {
+        description "计算三次贝塞尔曲线在参数t处的点"
+        category "GEOMETRY"
+        inputs 5 "POINT" "POINT" "POINT" "POINT" "SCALAR"
+        output "POINT"
+        math_def "B(t) 的值"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "bezier_tangent" {
+        description "构造贝塞尔曲线在某参数处的切线"
+        category "GEOMETRY"
+        inputs 5 "POINT" "POINT" "POINT" "POINT" "SCALAR"
+        output "LINE"
+        math_def "B'(t) 方向上的切线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "bezier_normal" {
+        description "构造贝塞尔曲线在某参数处的法线"
+        category "GEOMETRY"
+        inputs 5 "POINT" "POINT" "POINT" "POINT" "SCALAR"
+        output "LINE"
+        math_def "垂直于切线的法线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "bezier_curvature" {
+        description "计算贝塞尔曲线在某参数处的曲率"
+        category "GEOMETRY"
+        inputs 5 "POINT" "POINT" "POINT" "POINT" "SCALAR"
+        output "SCALAR"
+        math_def "κ = |B'(t)×B''(t)|/|B'(t)|³"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "bezier_arclength" {
+        description "计算三次贝塞尔曲线的弧长"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "SCALAR"
+        math_def "L = ∫|B'(t)|dt, t∈[0,1]（数值积分）"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "bezier_subdivide" {
+        description "在参数t处细分贝塞尔曲线"
+        category "GEOMETRY"
+        inputs 5 "POINT" "POINT" "POINT" "POINT" "SCALAR"
+        output "TUPLE"
+        math_def "德卡斯特里奥算法细分后的两段曲线控制点"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "bezier_elevate" {
+        description "将三次贝塞尔曲线升阶为四次"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "TUPLE"
+        math_def "升阶后的五个控制点"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "bspline_create" {
+        description "通过控制点、节点向量和阶数构造B样条曲线"
+        category "GEOMETRY"
+        inputs 3 "LIST" "LIST" "INTEGER"
+        output "POLYGON"
+        math_def "S(u) = Σ Ni,p(u)Pi，其中 Ni,p 为p次B样条基函数"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "bspline_evaluate" {
+        description "计算B样条曲线在参数u处的点"
+        category "GEOMETRY"
+        inputs 4 "LIST" "LIST" "INTEGER" "SCALAR"
+        output "POINT"
+        math_def "S(u) 的值（使用de Boor算法）"
+        complexity "O(p²)"
+        constructive false
+        reversible false
+    }
+
+    preset "bspline_insert_knot" {
+        description "在B样条曲线中插入节点"
+        category "GEOMETRY"
+        inputs 4 "LIST" "LIST" "INTEGER" "SCALAR"
+        output "TUPLE"
+        math_def "插入节点后的新控制点和节点向量"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "bspline_subdivide" {
+        description "在参数u处细分B样条曲线"
+        category "GEOMETRY"
+        inputs 4 "LIST" "LIST" "INTEGER" "SCALAR"
+        output "TUPLE"
+        math_def "细分后的两段曲线控制点和节点向量"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "bspline_derivative" {
+        description "构造B样条曲线的导数曲线"
+        category "GEOMETRY"
+        inputs 3 "LIST" "LIST" "INTEGER"
+        output "POLYGON"
+        math_def "降阶后的导数曲线控制点"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "surface_revolution" {
+        description "通过母线绕轴旋转构造旋转曲面"
+        category "GEOMETRY"
+        inputs 2 "POLYGON" "LINE"
+        output "POLYGON"
+        math_def "S(u,v) = (x(u)cos(v), x(u)sin(v), z(u))"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "surface_ruled" {
+        description "通过两条曲线构造直纹面"
+        category "GEOMETRY"
+        inputs 2 "POLYGON" "POLYGON"
+        output "POLYGON"
+        math_def "S(u,v) = (1-v)C1(u) + vC2(u)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "surface_bilinear" {
+        description "通过四点构造双线性曲面"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "S(u,v) = (1-u)(1-v)P00 + u(1-v)P10 + (1-u)vP01 + uvP11"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "surface_bezier_bicubic" {
+        description "通过16个控制点构造双三次贝塞尔曲面"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "POLYGON"
+        math_def "S(u,v) = ΣΣ Bi,3(u)Bj,3(v)Pi,j"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "surface_bspline" {
+        description "通过控制点网格和节点向量构造B样条曲面"
+        category "GEOMETRY"
+        inputs 5 "LIST" "LIST" "LIST" "INTEGER" "INTEGER"
+        output "POLYGON"
+        math_def "S(u,v) = ΣΣ Ni,p(u)Nj,q(v)Pi,j"
+        complexity "O(mn)"
+        constructive true
+        reversible false
+    }
+
+    preset "surface_coons" {
+        description "通过四条边界曲线构造Coons曲面"
+        category "GEOMETRY"
+        inputs 4 "POLYGON" "POLYGON" "POLYGON" "POLYGON"
+        output "POLYGON"
+        math_def "双线性Coons曲面插值"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "surface_gordon" {
+        description "通过两组曲线构造Gordon曲面"
+        category "GEOMETRY"
+        inputs 2 "LIST" "LIST"
+        output "POLYGON"
+        math_def "Gordon曲面插值"
+        complexity "O(mn)"
+        constructive true
+        reversible false
+    }
+
+    preset "convex_hull" {
+        description "计算点集的凸包"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "POLYGON"
+        math_def "包含所有点的最小凸多边形（Graham扫描或Jarvis步进）"
+        complexity "O(n log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "delaunay_triangulation" {
+        description "计算点集的Delaunay三角剖分"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "LIST"
+        math_def "最大化最小角的三角剖分"
+        complexity "O(n log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "voronoi_diagram" {
+        description "计算点集的Voronoi图"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "LIST"
+        math_def "每个区域包含距离某点最近的所有点"
+        complexity "O(n log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "minimum_enclosing_circle" {
+        description "计算点集的最小包围圆"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "CIRCLE"
+        math_def "包含所有点的最小圆（Welzl算法）"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "minimum_enclosing_sphere" {
+        description "计算点集的最小包围球"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "POLYGON"
+        math_def "包含所有点的最小球（Welzl算法）"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "minimum_bounding_box" {
+        description "计算点集的最小面积包围矩形"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "POLYGON"
+        math_def "旋转卡壳算法求最小面积包围矩形"
+        complexity "O(n log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "centroid_points" {
+        description "计算点集的几何质心"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "POINT"
+        math_def "C = (ΣPi)/n"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "principal_components" {
+        description "计算点集的主成分分析"
+        category "GEOMETRY"
+        inputs 1 "LIST"
+        output "TUPLE"
+        math_def "返回质心、主轴方向和方差"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "point_in_polygon" {
+        description "判断点是否在多边形内"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POLYGON"
+        output "BOOLEAN"
+        math_def "射线法判断点与多边形的关系"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "point_in_convex_hull" {
+        description "判断点是否在凸包内"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POLYGON"
+        output "BOOLEAN"
+        math_def "二分查找判断点与凸包的关系"
+        complexity "O(log n)"
+        constructive false
+        reversible false
+    }
+
+    preset "distance_point_polygon" {
+        description "计算点到多边形的距离"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POLYGON"
+        output "SCALAR"
+        math_def "点到多边形各边的最小距离"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "segment_polygon_intersection" {
+        description "计算线段与多边形的交点"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POLYGON"
+        output "LIST"
+        math_def "线段与多边形各边的交点列表"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "polygon_intersection" {
+        description "计算两多边形的交集"
+        category "GEOMETRY"
+        inputs 2 "POLYGON" "POLYGON"
+        output "POLYGON"
+        math_def "Sutherland-Hodgman或Weiler-Atherton裁剪"
+        complexity "O(n+m)"
+        constructive true
+        reversible false
+    }
+
+    preset "polygon_union" {
+        description "计算两简单多边形的并集"
+        category "GEOMETRY"
+        inputs 2 "POLYGON" "POLYGON"
+        output "POLYGON"
+        math_def "多边形并集运算"
+        complexity "O(n+m)"
+        constructive true
+        reversible false
+    }
+
+    preset "polygon_difference" {
+        description "计算两多边形的差集"
+        category "GEOMETRY"
+        inputs 2 "POLYGON" "POLYGON"
+        output "POLYGON"
+        math_def "多边形差集运算"
+        complexity "O(n+m)"
+        constructive true
+        reversible false
+    }
+
+    preset "frenet_frame" {
+        description "计算曲线在某点的Frenet标架(切向量、主法向量、次法向量)"
+        category "GEOMETRY"
+        inputs 2 "POLYGON" "SCALAR"
+        output "TUPLE"
+        math_def "Frenet标架 {T,N,B}，其中 T=r'/|r'|, N=T'/|T'|, B=T×N"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "first_fundamental_form" {
+        description "计算曲面的第一基本形式系数(E,F,G)"
+        category "GEOMETRY"
+        inputs 3 "POLYGON" "SCALAR" "SCALAR"
+        output "TUPLE"
+        math_def "I = E du² + 2F du dv + G dv²，E=ru·ru, F=ru·rv, G=rv·rv"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "second_fundamental_form" {
+        description "计算曲面的第二基本形式系数(L,M,N)"
+        category "GEOMETRY"
+        inputs 3 "POLYGON" "SCALAR" "SCALAR"
+        output "TUPLE"
+        math_def "II = L du² + 2M du dv + N dv²，L=ruu·n, M=ruv·n, N=rvv·n"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "gaussian_curvature" {
+        description "计算曲面在某点的高斯曲率"
+        category "GEOMETRY"
+        inputs 3 "POLYGON" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "K = (LN - M²) / (EG - F²)，高斯曲率是内蕴不变量"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "mean_curvature" {
+        description "计算曲面在某点的平均曲率"
+        category "GEOMETRY"
+        inputs 3 "POLYGON" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "H = (EN - 2FM + GL) / (2(EG - F²))"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "principal_curvatures" {
+        description "计算曲面在某点的主曲率κ₁和κ₂"
+        category "GEOMETRY"
+        inputs 3 "POLYGON" "SCALAR" "SCALAR"
+        output "TUPLE"
+        math_def "κ = H ± √(H²-K)，主曲率是法曲率的极值"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "lines_of_curvature" {
+        description "计算曲面上的曲率线"
+        category "GEOMETRY"
+        inputs 1 "POLYGON"
+        output "LIST"
+        math_def "曲率线是曲面上每点切方向为主方向的曲线"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "asymptotic_lines" {
+        description "计算曲面上的渐近线"
+        category "GEOMETRY"
+        inputs 1 "POLYGON"
+        output "LIST"
+        math_def "渐近线是法曲率为零的方向构成的曲线，满足 II=0"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+}

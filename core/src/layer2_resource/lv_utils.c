@@ -40,6 +40,7 @@
 #include "lv_utils.h"
 #include "lv_utils_internal.h"
 
+#include "lv/allocator.h"
 #include "lv/lv_file.h"
 
 #include <ctype.h>
@@ -162,8 +163,7 @@ void fill_poison(void *data, size_t size) {
 }
 
 void *lv_malloc(size_t size) {
-    /* 向后兼容：委托给 tracked 版本，file/line 为 NULL/0 */
-    return lv_malloc_tracked(size, NULL, 0);
+    return lv_allocator_get()->alloc(size);
 }
 
 void *lv_malloc_tracked(size_t size, const char *file, int line) {
@@ -211,7 +211,22 @@ void *lv_malloc_tracked(size_t size, const char *file, int line) {
 }
 
 void *lv_calloc(size_t nmemb, size_t size) {
-    return lv_calloc_tracked(nmemb, size, NULL, 0);
+    const AllocatorOps *ops = lv_allocator_get();
+    if (ops->calloc) {
+        return ops->calloc(nmemb, size);
+    }
+    /* 回退：alloc + memset */
+    if (nmemb == 0 || size == 0)
+        return NULL;
+    if (nmemb > SIZE_MAX / size) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "calloc 溢出: %zu * %zu", nmemb, size);
+    }
+    size_t total = nmemb * size;
+    void *p = ops->alloc(total);
+    if (p) {
+        memset(p, 0, total);
+    }
+    return p;
 }
 
 void *lv_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
@@ -281,129 +296,32 @@ overflow:
  */
 void *lv_realloc(void *ptr, size_t size) {
     if (!ptr)
-        return lv_malloc(size);
+        return lv_allocator_get()->alloc(size);
     if (size == 0)
         return NULL;
 
-    size_t alloc_size = size;
-    AllocHeader *old_hdr = get_header(ptr);
-
-    if (old_hdr) {
-        /* 正规路径：由本分配器分配的指针，可以精确追踪 */
-        size_t old_size = old_hdr->size;
-
-        /* 计算新总大小 */
-        size_t new_total = ALLOC_HEADER_SIZE;
-        if (new_total > SIZE_MAX - alloc_size)
-            goto realloc_overflow;
-        new_total += alloc_size;
-        if (new_total > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE)
-            goto realloc_overflow;
-        new_total += ALLOC_TAIL_MAGIC_SIZE;
-
-        /* 从追踪链表中移除旧节点 */
-        untrack_allocation(old_hdr);
-
-        AllocHeader *new_hdr = (AllocHeader *) realloc(old_hdr, new_total);
-        if (!new_hdr) {
-            /* realloc 失败：旧分配仍然有效，重新加入追踪链表 */
-            track_allocation(old_hdr);
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "realloc 重新分配失败");
-        }
-
-        new_hdr->head_magic = ALLOC_HEAD_MAGIC;
-        new_hdr->tail_offset = (uint32_t) alloc_size;
-        new_hdr->size = alloc_size;
-
-        /* 设置尾部魔数 */
-        uint32_t tail_magic = ALLOC_TAIL_MAGIC;
-        memcpy(new_hdr->data + alloc_size, &tail_magic, sizeof(uint32_t));
-
-        /* 重新加入追踪链表 */
-        track_allocation(new_hdr);
-
-        /* 更新统计：减去旧大小，加上新大小 */
-        s_utils_state.memory_stats.total_allocated += alloc_size;
-        if (old_size <= s_utils_state.memory_stats.current_used) {
-            s_utils_state.memory_stats.current_used = s_utils_state.memory_stats.current_used - old_size + alloc_size;
-        } else {
-            s_utils_state.memory_stats.current_used += alloc_size;
-        }
-        if (s_utils_state.memory_stats.current_used > s_utils_state.memory_stats.peak_used)
-            s_utils_state.memory_stats.peak_used = s_utils_state.memory_stats.current_used;
-
-        return new_hdr->data;
-    } else {
-        /* 非本分配器分配的指针（魔数不匹配）：
-         * 尝试获取旧分配大小并复制数据，以避免数据丢失。
-         * 使用平台特定 API 获取旧块大小：_msize (Windows) / malloc_usable_size (Linux/macOS)。
-         * [Bug修复] 原代码未复制旧数据，导致 realloc 语义不正确。 */
-        void *new_ptr = lv_malloc(alloc_size);
+    const AllocatorOps *ops = lv_allocator_get();
+    if (ops->realloc) {
+        return ops->realloc(ptr, size);
+    }
+    /* 回退：alloc + memcpy + free */
+    {
+        void *new_ptr = ops->alloc(size);
         if (!new_ptr)
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "realloc 外部指针 malloc 失败");
-
-        /* 尝试获取旧分配的实际可用大小 */
-        size_t old_usable_size = 0;
-#ifdef _WIN32
-        old_usable_size = (size_t) _msize(ptr);
-#elif defined(__APPLE__)
-        old_usable_size = (size_t) malloc_size(ptr);
-#elif defined(__linux__)
-        old_usable_size = (size_t) malloc_usable_size(ptr);
-#endif
-        if (old_usable_size > 0) {
-            /* 复制 min(alloc_size, old_usable_size) 字节，确保不越界 */
-            size_t copy_size = (alloc_size < old_usable_size) ? alloc_size : old_usable_size;
-            memcpy(new_ptr, ptr, copy_size);
-        }
-        /* 注意：若平台不支持获取旧大小（old_usable_size == 0），
-         * 则不复制旧数据。调用者应尽量使用 lv_malloc/lv_free 配对。 */
-
-        /* 释放旧指针（由 raw malloc/calloc 分配，用 raw free 释放） */
-        free(ptr);
-
+            return NULL;
+        /* 保守复制：复制 min(旧大小, 新大小) 字节 */
+        size_t copy_size = size;
+        memcpy(new_ptr, ptr, copy_size);
+        ops->free(ptr);
         return new_ptr;
     }
-
-realloc_overflow:
-    lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "realloc 溢出");
 }
 
 void lv_free(void **ptr) {
     if (!ptr || !*ptr)
         return;
 
-    AllocHeader *hdr = get_header(*ptr);
-    if (hdr) {
-        /* 正规路径：由本分配器分配的指针 */
-        size_t freed_size = hdr->size;
-
-        /* 从追踪链表中移除 */
-        untrack_allocation(hdr);
-
-        /* 用毒模式填充用户数据区（检测 use-after-free） */
-        fill_poison(hdr->data, hdr->tail_offset);
-
-        /* 标记头部魔数为已释放（防止 double-free） */
-        hdr->head_magic = ALLOC_MAGIC_FREED;
-
-        /* 更新统计 */
-        if (freed_size <= s_utils_state.memory_stats.current_used) {
-            s_utils_state.memory_stats.current_used -= freed_size;
-        } else {
-            /* 防御：统计不一致时将 current_used 归零 */
-            s_utils_state.memory_stats.current_used = 0;
-        }
-        s_utils_state.memory_stats.total_freed += freed_size;
-        s_utils_state.memory_stats.free_count++;
-
-        free(hdr);
-    } else {
-        /* 非本分配器指针或已释放（魔数不匹配）：
-         * 仍然释放内存以防泄漏，但不更新统计。 */
-        free(*ptr);
-    }
-
+    lv_allocator_get()->free(*ptr);
     *ptr = NULL;
 }
 

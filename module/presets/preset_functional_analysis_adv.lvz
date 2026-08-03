@@ -1,0 +1,108 @@
+# =============================================================================
+# Lv-00 Presets: Functional Analysis Adv
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "fa_banach_space" {
+        description "Banach空间验证：验证赋范线性空间是否完备，即每个Cauchy列都收敛于空间中一点"
+        category "ANALYSIS"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "(X, \\|\\cdot\\|) \\text{ 是Banach空间} \\Leftrightarrow \\forall \\{x_n\\} \\text{ Cauchy}: \"
+                    \"\\exists x \\in X: \\lim_{n\\to\\infty} \\|x_n - x\\| = 0"
+        complexity "O(∞)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_hilbert_space" {
+        description "Hilbert空间验证：验证内积空间是否完备，即由内积诱导的范数下每个Cauchy列收敛"
+        category "ANALYSIS"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "(H, \\langle\\cdot,\\cdot\\rangle) \\text{ 是Hilbert空间} \\Leftrightarrow \\forall \\{x_n\\} \\text{ \"
+                \"Cauchy}: \\exists x \\in H: \\lim \\|x_n - x\\| = 0, \\|x\\| = \\sqrt{\\langle x,x\\rangle}"
+        complexity "O(∞)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_bounded_operator" {
+        description "有界线性算子：验证线性算子T: X → Y的有界性并计算算子范数 ||T|| = sup_{||x||=1} ||Tx||"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SPACE" "SPACE"
+        output "SCALAR"
+        math_def "\\|T\\| = \\sup\\{\\|Tx\\|_Y : \\|x\\|_X = 1\\} = \\inf\\{M \\geq 0 : \\|Tx\\| \\leq \"
+                    \"M\\|x\\|, \\forall x\\}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_spectral_theorem" {
+        description "谱定理：对自伴紧算子T进行谱分解，得到特征值序列 {λₙ} 满足 Tx = Σₙ λₙ <x, eₙ> eₙ"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "SEQUENCE"
+        math_def "Tx = \\sum_{n=1}^{\\infty} \\lambda_n \\langle x, e_n \\rangle e_n, \\quad T \\text{ \"
+                    \"自伴紧算子}, \\lambda_n \\in \\mathbb{R}, \\lambda_n \\to 0"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "fa_hahn_banach_theorem" {
+        description "Hahn-Banach定理：将子空间M上的有界线性泛函f保范延拓到整个赋范空间X"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SET" "SPACE"
+        output "FUNCTION"
+        math_def "F: X \\to \\mathbb{R}, \\quad F|_M = f, \\quad \\|F\\| = \\|f\\|"
+        complexity "O(∞)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_open_mapping_theorem" {
+        description "开映射定理：Banach空间之间的满射有界线性算子将开集映射为开集"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "BOOLEAN"
+        math_def "T: X \\to Y \\text{ 满射}, X,Y \\text{ Banach空间} \\Rightarrow U \\subseteq X \\text{ 开} \"
+                \"\\implies T(U) \\subseteq Y \\text{ 开}"
+        complexity "O(∞)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_closed_graph_theorem" {
+        description "闭图像定理：线性算子T有界当且仅当其图像 G(T) = {(x, Tx)} 在X×Y中为闭集"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "BOOLEAN"
+        math_def "G(T) = \\{(x, Tx) : x \\in X\\} \\subseteq X \\times Y \\text{ 闭} \\Leftrightarrow T \\text{ \"
+                    \"有界}, X,Y \\text{ Banach空间}"
+        complexity "O(∞)"
+        constructive false
+        reversible false
+    }
+
+    preset "fa_weak_convergence" {
+        description "弱收敛判定：判定赋范空间中函数序列是否弱收敛，即对一切有界线性泛函取值收敛"
+        category "ANALYSIS"
+        inputs 2 "SEQUENCE" "SPACE"
+        output "BOOLEAN"
+        math_def "f_n \\rightharpoonup f \\Leftrightarrow \\forall \\varphi \\in X^*: \\lim_{n\\to\\infty} \"
+                    \"\\varphi(f_n) = \\varphi(f)"
+        complexity "O(∞)"
+        constructive false
+        reversible false
+    }
+
+}

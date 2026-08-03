@@ -1,0 +1,85 @@
+# =============================================================================
+# Lv-00 Presets: Coding Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "linear_code_construct" {
+        description "由生成矩阵G构造 [n,k] 线性码 C"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "parity_check_matrix" {
+        description "由生成矩阵计算校验矩阵 H（GH^T = 0）"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "encode_message" {
+        description "将信息字编码为码字 c = mG"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "hamming_code_construct" {
+        description "构造 [2^r-1, 2^r-1-r] Hamming码"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "hamming_decode" {
+        description "Hamming码伴随式译码（纠正单比特错误）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "reed_solomon_construct" {
+        description "构造 [n, k, n-k+1] Reed-Solomon码（最大距离可分码）"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "reed_solomon_encode" {
+        description "Reed-Solomon编码（多项式求值）"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "crc_check" {
+        description "循环冗余校验（CRC）检测传输错误"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

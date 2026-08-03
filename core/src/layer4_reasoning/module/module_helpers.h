@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module_helpers.h
  * @brief 模块子系统共享内部类型和辅助函数声明
  *
@@ -65,6 +65,9 @@ typedef struct {
 void lvz_parser_init(LvzParser *p, const char *source);
 void lvz_parser_cleanup(LvzParser *p);
 bool lvz_parse(LvzParser *p, Module *mod);
+
+/* 从 .lvz 文件加载预设定义并注册 */
+bool lvz_load_presets_file(const char *filepath);
 
 /* LVZ 辅助函数（供 lvz_parse 内部使用的递归下降解析器） */
 void lvz_parser_advance(LvzParser *p);

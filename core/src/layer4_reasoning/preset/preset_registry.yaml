@@ -1,0 +1,3095 @@
+presets:
+- module: advanced_geometry
+  category: GEOMETRY
+  items:
+  - name: PRESET_ELLIPSE_FOCUS_DIRECTRIX
+    description: 通过焦点、准线和离心率构造椭圆
+    inputs: [POINT, LINE, SCALAR]
+    output: POLYGON
+    math_def: 到焦点距离与到准线距离之比为 e (0<e<1) 的点的轨迹
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_ELLIPSE_CENTER_AXES
+    description: 通过中心、长轴端点和短轴长度构造椭圆
+    inputs: [POINT, POINT, SCALAR]
+    output: POLYGON
+    math_def: 中心为 C，长轴端点为 A，短轴长为 2b 的椭圆
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONIC_FIVE_POINTS
+    description: 通过五点确定圆锥曲线
+    inputs: [POINT, POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 通过不共线五点的唯一圆锥曲线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PARABOLA_FOCUS_DIRECTRIX
+    description: 通过焦点和准线构造抛物线
+    inputs: [POINT, LINE]
+    output: POLYGON
+    math_def: 到焦点距离等于到准线距离的点的轨迹
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PARABOLA_VERTEX_FOCUS
+    description: 通过顶点和焦点构造抛物线
+    inputs: [POINT, POINT]
+    output: POLYGON
+    math_def: 顶点为 V，焦点为 F 的抛物线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_HYPERBOLA_FOCUS_DIRECTRIX
+    description: 通过焦点、准线和离心率构造双曲线
+    inputs: [POINT, LINE, SCALAR]
+    output: POLYGON
+    math_def: 到焦点距离与到准线距离之比为 e (e>1) 的点的轨迹
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_HYPERBOLA_CENTER_VERTICES
+    description: 通过中心和两顶点构造双曲线
+    inputs: [POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 中心为 C，顶点为 V1, V2 的双曲线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONIC_TANGENT
+    description: 构造圆锥曲线在某点的切线
+    inputs: [POINT, POINT, POINT, POINT]
+    output: LINE
+    math_def: 圆锥曲线在某点处的切线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONIC_NORMAL
+    description: 构造圆锥曲线在某点的法线
+    inputs: [POINT, POINT, POINT, POINT]
+    output: LINE
+    math_def: 圆锥曲线在某点处的法线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONIC_INTERSECTION
+    description: 求两圆锥曲线的交点
+    inputs: [POINT, POINT, POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: 两圆锥曲线的交点，最多4个
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_BEZIER_QUADRATIC
+    description: 通过三点构造二次贝塞尔曲线
+    inputs: [POINT, POINT, POINT]
+    output: POLYGON
+    math_def: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2, t∈[0,1]
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_BEZIER_CUBIC
+    description: 通过四点构造三次贝塞尔曲线
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3, t∈[0,1]
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_BEZIER_N
+    description: 通过控制点列表构造n次贝塞尔曲线
+    inputs: [LIST, INTEGER]
+    output: POLYGON
+    math_def: B(t) = Σ C(n,i)(1-t)^(n-i)t^i Pi, t∈[0,1]
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_BEZIER_EVALUATE
+    description: 计算三次贝塞尔曲线在参数t处的点
+    inputs: [POINT, POINT, POINT, POINT, SCALAR]
+    output: POINT
+    math_def: B(t) 的值
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_BEZIER_TANGENT
+    description: 构造贝塞尔曲线在某参数处的切线
+    inputs: [POINT, POINT, POINT, POINT, SCALAR]
+    output: LINE
+    math_def: B'(t) 方向上的切线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_BEZIER_NORMAL
+    description: 构造贝塞尔曲线在某参数处的法线
+    inputs: [POINT, POINT, POINT, POINT, SCALAR]
+    output: LINE
+    math_def: 垂直于切线的法线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_BEZIER_CURVATURE
+    description: 计算贝塞尔曲线在某参数处的曲率
+    inputs: [POINT, POINT, POINT, POINT, SCALAR]
+    output: SCALAR
+    math_def: κ = |B'(t)×B''(t)|/|B'(t)|³
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_BEZIER_ARCLENGTH
+    description: 计算三次贝塞尔曲线的弧长
+    inputs: [POINT, POINT, POINT, POINT]
+    output: SCALAR
+    math_def: L = ∫|B'(t)|dt, t∈[0,1]（数值积分）
+    complexity: O(n)
+    constructive: false
+    reversible: false
+  - name: PRESET_BEZIER_SUBDIVIDE
+    description: 在参数t处细分贝塞尔曲线
+    inputs: [POINT, POINT, POINT, POINT, SCALAR]
+    output: TUPLE
+    math_def: 德卡斯特里奥算法细分后的两段曲线控制点
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_BEZIER_ELEVATE
+    description: 将三次贝塞尔曲线升阶为四次
+    inputs: [POINT, POINT, POINT, POINT]
+    output: TUPLE
+    math_def: 升阶后的五个控制点
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_BSPLINE_CREATE
+    description: 通过控制点、节点向量和阶数构造B样条曲线
+    inputs: [LIST, LIST, INTEGER]
+    output: POLYGON
+    math_def: S(u) = Σ Ni,p(u)Pi，其中 Ni,p 为p次B样条基函数
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_BSPLINE_EVALUATE
+    description: 计算B样条曲线在参数u处的点
+    inputs: [LIST, LIST, INTEGER, SCALAR]
+    output: POINT
+    math_def: S(u) 的值（使用de Boor算法）
+    complexity: O(p²)
+    constructive: false
+    reversible: false
+  - name: PRESET_BSPLINE_INSERT_KNOT
+    description: 在B样条曲线中插入节点
+    inputs: [LIST, LIST, INTEGER, SCALAR]
+    output: TUPLE
+    math_def: 插入节点后的新控制点和节点向量
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_BSPLINE_SUBDIVIDE
+    description: 在参数u处细分B样条曲线
+    inputs: [LIST, LIST, INTEGER, SCALAR]
+    output: TUPLE
+    math_def: 细分后的两段曲线控制点和节点向量
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_BSPLINE_DERIVATIVE
+    description: 构造B样条曲线的导数曲线
+    inputs: [LIST, LIST, INTEGER]
+    output: POLYGON
+    math_def: 降阶后的导数曲线控制点
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_SURFACE_REVOLUTION
+    description: 通过母线绕轴旋转构造旋转曲面
+    inputs: [POLYGON, LINE]
+    output: POLYGON
+    math_def: S(u,v) = (x(u)cos(v), x(u)sin(v), z(u))
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_SURFACE_RULED
+    description: 通过两条曲线构造直纹面
+    inputs: [POLYGON, POLYGON]
+    output: POLYGON
+    math_def: S(u,v) = (1-v)C1(u) + vC2(u)
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_SURFACE_BILINEAR
+    description: 通过四点构造双线性曲面
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: S(u,v) = (1-u)(1-v)P00 + u(1-v)P10 + (1-u)vP01 + uvP11
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_SURFACE_BEZIER_BICUBIC
+    description: 通过16个控制点构造双三次贝塞尔曲面
+    inputs: [LIST]
+    output: POLYGON
+    math_def: S(u,v) = ΣΣ Bi,3(u)Bj,3(v)Pi,j
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_SURFACE_BSPLINE
+    description: 通过控制点网格和节点向量构造B样条曲面
+    inputs: [LIST, LIST, LIST, INTEGER, INTEGER]
+    output: POLYGON
+    math_def: S(u,v) = ΣΣ Ni,p(u)Nj,q(v)Pi,j
+    complexity: O(mn)
+    constructive: true
+    reversible: false
+  - name: PRESET_SURFACE_COONS
+    description: 通过四条边界曲线构造Coons曲面
+    inputs: [POLYGON, POLYGON, POLYGON, POLYGON]
+    output: POLYGON
+    math_def: 双线性Coons曲面插值
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_SURFACE_GORDON
+    description: 通过两组曲线构造Gordon曲面
+    inputs: [LIST, LIST]
+    output: POLYGON
+    math_def: Gordon曲面插值
+    complexity: O(mn)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONVEX_HULL
+    description: 计算点集的凸包
+    inputs: [LIST]
+    output: POLYGON
+    math_def: 包含所有点的最小凸多边形（Graham扫描或Jarvis步进）
+    complexity: O(n log n)
+    constructive: true
+    reversible: false
+  - name: PRESET_DELAUNAY_TRIANGULATION
+    description: 计算点集的Delaunay三角剖分
+    inputs: [LIST]
+    output: LIST
+    math_def: 最大化最小角的三角剖分
+    complexity: O(n log n)
+    constructive: true
+    reversible: false
+  - name: PRESET_VORONOI_DIAGRAM
+    description: 计算点集的Voronoi图
+    inputs: [LIST]
+    output: LIST
+    math_def: 每个区域包含距离某点最近的所有点
+    complexity: O(n log n)
+    constructive: true
+    reversible: false
+  - name: PRESET_MINIMUM_ENCLOSING_CIRCLE
+    description: 计算点集的最小包围圆
+    inputs: [LIST]
+    output: CIRCLE
+    math_def: 包含所有点的最小圆（Welzl算法）
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_MINIMUM_ENCLOSING_SPHERE
+    description: 计算点集的最小包围球
+    inputs: [LIST]
+    output: POLYGON
+    math_def: 包含所有点的最小球（Welzl算法）
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_MINIMUM_BOUNDING_BOX
+    description: 计算点集的最小面积包围矩形
+    inputs: [LIST]
+    output: POLYGON
+    math_def: 旋转卡壳算法求最小面积包围矩形
+    complexity: O(n log n)
+    constructive: true
+    reversible: false
+  - name: PRESET_CENTROID_POINTS
+    description: 计算点集的几何质心
+    inputs: [LIST]
+    output: POINT
+    math_def: C = (ΣPi)/n
+    complexity: O(n)
+    constructive: false
+    reversible: false
+  - name: PRESET_PRINCIPAL_COMPONENTS
+    description: 计算点集的主成分分析
+    inputs: [LIST]
+    output: TUPLE
+    math_def: 返回质心、主轴方向和方差
+    complexity: O(n)
+    constructive: false
+    reversible: false
+  - name: PRESET_POINT_IN_POLYGON
+    description: 判断点是否在多边形内
+    inputs: [POINT, POLYGON]
+    output: BOOLEAN
+    math_def: 射线法判断点与多边形的关系
+    complexity: O(n)
+    constructive: false
+    reversible: false
+  - name: PRESET_POINT_IN_CONVEX_HULL
+    description: 判断点是否在凸包内
+    inputs: [POINT, POLYGON]
+    output: BOOLEAN
+    math_def: 二分查找判断点与凸包的关系
+    complexity: O(log n)
+    constructive: false
+    reversible: false
+  - name: PRESET_DISTANCE_POINT_POLYGON
+    description: 计算点到多边形的距离
+    inputs: [POINT, POLYGON]
+    output: SCALAR
+    math_def: 点到多边形各边的最小距离
+    complexity: O(n)
+    constructive: false
+    reversible: false
+  - name: PRESET_SEGMENT_POLYGON_INTERSECTION
+    description: 计算线段与多边形的交点
+    inputs: [POINT, POINT, POLYGON]
+    output: LIST
+    math_def: 线段与多边形各边的交点列表
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_POLYGON_INTERSECTION
+    description: 计算两多边形的交集
+    inputs: [POLYGON, POLYGON]
+    output: POLYGON
+    math_def: Sutherland-Hodgman或Weiler-Atherton裁剪
+    complexity: O(n+m)
+    constructive: true
+    reversible: false
+  - name: PRESET_POLYGON_UNION
+    description: 计算两简单多边形的并集
+    inputs: [POLYGON, POLYGON]
+    output: POLYGON
+    math_def: 多边形并集运算
+    complexity: O(n+m)
+    constructive: true
+    reversible: false
+  - name: PRESET_POLYGON_DIFFERENCE
+    description: 计算两多边形的差集
+    inputs: [POLYGON, POLYGON]
+    output: POLYGON
+    math_def: 多边形差集运算
+    complexity: O(n+m)
+    constructive: true
+    reversible: false
+  - name: PRESET_FRENET_FRAME
+    description: 计算曲线在某点的Frenet标架(切向量、主法向量、次法向量)
+    inputs: [POLYGON, SCALAR]
+    output: TUPLE
+    math_def: Frenet标架 {T,N,B}，其中 T=r'/|r'|, N=T'/|T'|, B=T×N
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_FIRST_FUNDAMENTAL_FORM
+    description: 计算曲面的第一基本形式系数(E,F,G)
+    inputs: [POLYGON, SCALAR, SCALAR]
+    output: TUPLE
+    math_def: I = E du² + 2F du dv + G dv²，E=ru·ru, F=ru·rv, G=rv·rv
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_SECOND_FUNDAMENTAL_FORM
+    description: 计算曲面的第二基本形式系数(L,M,N)
+    inputs: [POLYGON, SCALAR, SCALAR]
+    output: TUPLE
+    math_def: II = L du² + 2M du dv + N dv²，L=ruu·n, M=ruv·n, N=rvv·n
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_GAUSSIAN_CURVATURE
+    description: 计算曲面在某点的高斯曲率
+    inputs: [POLYGON, SCALAR, SCALAR]
+    output: SCALAR
+    math_def: K = (LN - M²) / (EG - F²)，高斯曲率是内蕴不变量
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_MEAN_CURVATURE
+    description: 计算曲面在某点的平均曲率
+    inputs: [POLYGON, SCALAR, SCALAR]
+    output: SCALAR
+    math_def: H = (EN - 2FM + GL) / (2(EG - F²))
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_PRINCIPAL_CURVATURES
+    description: 计算曲面在某点的主曲率κ₁和κ₂
+    inputs: [POLYGON, SCALAR, SCALAR]
+    output: TUPLE
+    math_def: κ = H ± √(H²-K)，主曲率是法曲率的极值
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_LINES_OF_CURVATURE
+    description: 计算曲面上的曲率线
+    inputs: [POLYGON]
+    output: LIST
+    math_def: 曲率线是曲面上每点切方向为主方向的曲线
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_ASYMPTOTIC_LINES
+    description: 计算曲面上的渐近线
+    inputs: [POLYGON]
+    output: LIST
+    math_def: 渐近线是法曲率为零的方向构成的曲线，满足 II=0
+    complexity: O(n)
+    constructive: true
+    reversible: false
+- module: algebraic
+  category: ALGEBRAIC
+  items:
+  - {name: '"vector_add"', description: �����ӷ���OA + OB = OC, category: PRESET_EXT_ALGEBRA_BASIC, input_count: 3, output_count: 1}
+- module: algebraic_topology
+  category: TOPOLOGY
+  items:
+  - name: PRESET_AT_SIMPLICIAL_HOMOLOGY
+    description: 单纯同调群：基于单纯复形的单纯链复形计算同调群 H_n(K; G)
+    inputs: [STRUCTURE, GROUP]
+    output: GROUP
+    math_def: 'H_n(K; G) = \\frac{\\ker \\partial_n}{\\operatorname{im} \\partial_{n+1}}, \\quad \\partial_n: C_n \\to C_{n-1}'
+    complexity: O(2^n)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_SINGULAR_HOMOLOGY
+    description: 奇异同调群：计算一般拓扑空间的奇异同调群 H_n(X; G)（最一般的同调理论）
+    inputs: [TOPOLOGY, GROUP]
+    output: GROUP
+    math_def: H_n(X; G) = \\frac{\\ker \\partial_n}{\\operatorname{im} \\partial_{n+1}}
+    complexity: O(2^n)
+    constructive: false
+    reversible: false
+  - name: PRESET_AT_RELATIVE_HOMOLOGY
+    description: 相对同调群：计算空间对 (X, A) 的相对同调群 H_n(X, A)
+    inputs: [TOPOLOGY, TOPOLOGY]
+    output: GROUP
+    math_def: H_n(X, A) = \\frac{\\ker \\partial_n^{rel}}{\\operatorname{im} \\partial_{n+1}^{rel}}
+    complexity: O(2^n)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_MAYER_VIETORIS
+    description: Mayer-Vietoris序列：利用空间开覆盖 U∪V 分解同调群计算
+    inputs: [TOPOLOGY, TOPOLOGY, TOPOLOGY]
+    output: STRUCTURE
+    math_def: \\cdots \\to H_n(U\\cap V) \\to H_n(U)\\oplus H_n(V) \\to H_n(X) \\to H_{n-1}(U\\cap V) \\to \\cdots
+    complexity: O(2^n)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_EXCISION_THEOREM
+    description: 切除定理：验证并应用切除同构 H_n(X-Z, A-Z) ≅ H_n(X, A)（闭包条件）
+    inputs: [TOPOLOGY, TOPOLOGY, TOPOLOGY]
+    output: BOOLEAN
+    math_def: \\bar{Z} \\subset \\operatorname{int}(A) \\Rightarrow H_n(X-Z, A-Z) \\cong H_n(X, A)
+    complexity: O(2^n)
+    constructive: false
+    reversible: false
+  - name: PRESET_AT_CELLULAR_HOMOLOGY
+    description: 胞腔同调：基于CW复形的胞腔分解计算同调群 H_n^{CW}(X)
+    inputs: [STRUCTURE]
+    output: GROUP
+    math_def: H_n^{CW}(X) = H_n(C_n^{cell}, \\partial_n^{cell})
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_BETTI_NUMBERS
+    description: Betti数：计算拓扑空间的Betti数 beta_n = rank H_n(X)，描述'洞'的数量
+    inputs: [GROUP]
+    output: TUPLE
+    math_def: \\beta_n = \\operatorname{rank} H_n(X)
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_HOMOLOGY_EXACT_SEQUENCE
+    description: 同调正合序列：构造空间对 (X, A) 的长正合同调序列
+    inputs: [TOPOLOGY, TOPOLOGY]
+    output: STRUCTURE
+    math_def: \\cdots \\to H_n(A) \\to H_n(X) \\to H_n(X,A) \\xrightarrow{\\partial} H_{n-1}(A) \\to \\cdots
+    complexity: O(2^n)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_CAP_PRODUCT
+    description: '下积：计算同调类与上同调类的下积 cap: H_p × H^q -> H_{p-q}'
+    inputs: [GROUP, GROUP]
+    output: GROUP
+    math_def: '\\frown: H_p(X) \\times H^q(X) \\to H_{p-q}(X)'
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_COHOMOLOGY_RING
+    description: 上同调环：构造上同调群的带分次环结构 H^*(X; R)，上积为乘法
+    inputs: [GROUP]
+    output: STRUCTURE
+    math_def: H^*(X; R) = \\bigoplus_{n\\ge 0} H^n(X; R)
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_HIGHER_HOMOTOPY_GROUPS
+    description: 高阶同伦群：计算拓扑空间的n阶同伦群 pi_n(X, x0)（n>=2时为阿贝尔群）
+    inputs: [TOPOLOGY, INTEGER]
+    output: GROUP
+    math_def: \\pi_n(X, x_0) = [(S^n, *), (X, x_0)], \\quad n \\ge 2 \\Rightarrow \\text{Abel}
+    complexity: O(2^{2^n})
+    constructive: false
+    reversible: false
+  - name: PRESET_AT_RELATIVE_HOMOTOPY
+    description: 相对同伦群：计算空间对 (X, A) 的相对同伦群 pi_n(X, A, x0)
+    inputs: [TOPOLOGY, TOPOLOGY, INTEGER]
+    output: GROUP
+    math_def: \\pi_n(X, A, x_0) = [(D^n, S^{n-1}, *), (X, A, x_0)]
+    complexity: O(2^{2^n})
+    constructive: false
+    reversible: false
+  - name: PRESET_AT_HUREWICZ_HOMOMORPHISM
+    description: 'Hurewicz同态：构造从同伦群到同调群的自然同态 h_n: pi_n -> H_n'
+    inputs: [TOPOLOGY, INTEGER]
+    output: HOMOMORPHISM
+    math_def: 'h_n: \\pi_n(X) \\to H_n(X), \\quad h_n([f]) = f_*([S^n])'
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_HOMOTOPY_EXACT_SEQUENCE
+    description: 同伦正合序列：构造空间对 (X, A) 的长正合同伦序列
+    inputs: [TOPOLOGY, TOPOLOGY]
+    output: STRUCTURE
+    math_def: \\cdots \\to \\pi_n(A) \\to \\pi_n(X) \\to \\pi_n(X,A) \\xrightarrow{\\partial} \\pi_{n-1}(A) \\to \\cdots
+    complexity: O(2^{2^n})
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_WHITEHEAD_THEOREM
+    description: Whitehead定理：判定CW复形间映射是否同伦等价（诱导所有同伦群的同构）
+    inputs: [FUNCTION, STRUCTURE, STRUCTURE]
+    output: BOOLEAN
+    math_def: 'f_*: \\pi_n(X) \\xrightarrow{\\cong} \\pi_n(Y), \\; \\forall n \\Rightarrow f \\text{ 同伦等价}'
+    complexity: O(2^{2^n})
+    constructive: false
+    reversible: false
+  - name: PRESET_AT_SIMPLICIAL_COMPLEX
+    description: 单纯复形构造：由顶点集合和单形列表构造单纯复形K（满足子单形封闭性）
+    inputs: [SET, LIST]
+    output: STRUCTURE
+    math_def: 'K = \\{ \\sigma \\subset V : \\tau \\subset \\sigma \\in K \\Rightarrow \\tau \\in K \\}'
+    complexity: O(n \\log n)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_TRIANGULATION
+    description: 三角剖分：对拓扑空间或多面体进行三角剖分，表示为单纯复形
+    inputs: [TOPOLOGY]
+    output: STRUCTURE
+    math_def: '|K| \\cong X \\text{（同胚）}'
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_EULER_CHARACTERISTIC
+    description: Euler示性数：计算单纯复形的Euler示性数 chi = sum (-1)^i * (i维单形数)
+    inputs: [STRUCTURE]
+    output: INTEGER
+    math_def: \\chi(K) = \\sum_{i=0}^n (-1)^i f_i
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_BARYCENTRIC_SUBDIVISION
+    description: 重心重分：计算单纯复形的重心重分 Sd(K)，细化网格但保持几何实现
+    inputs: [STRUCTURE]
+    output: STRUCTURE
+    math_def: \\operatorname{Sd}(K), \\quad |\\operatorname{Sd}(K)| = |K|
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_AT_SIMPLICIAL_APPROX
+    description: '单纯逼近：构造连续映射的单纯逼近 g: K -> L 满足 |g| ≈ f'
+    inputs: [FUNCTION]
+    output: FUNCTION
+    math_def: 'g: K \\to L \\text{ 是 } f: |K| \\to |L| \\text{ 的单纯逼近}'
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+- module: analysis
+  category: ANALYSIS
+  items:
+  - name: PRESET_LEFT_LIMIT
+    description: 计算函数在某点的左极限 lim(x→a⁻) f(x)
+    inputs: [FUNCTION, SCALAR]
+    output: LIMIT
+    math_def: \\lim_{x \\to a^-} f(x) = L
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_RIGHT_LIMIT
+    description: 计算函数在某点的右极限 lim(x→a⁺) f(x)
+    inputs: [FUNCTION, SCALAR]
+    output: LIMIT
+    math_def: \\lim_{x \\to a^+} f(x) = L
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_LIMIT_SUPERIOR
+    description: 计算数列的上极限 lim sup a_n
+    inputs: [SEQUENCE]
+    output: LIMIT
+    math_def: \\limsup_{n \\to \\infty} a_n = \\lim_{n \\to \\infty} \\sup_{k \\ge n} a_k
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_LIMIT_INFERIOR
+    description: 计算数列的下极限 lim inf a_n
+    inputs: [SEQUENCE]
+    output: LIMIT
+    math_def: \\liminf_{n \\to \\infty} a_n = \\lim_{n \\to \\infty} \\inf_{k \\ge n} a_k
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_LIMIT_EXISTS_TEST
+    description: 判定数列极限是否存在
+    inputs: [SEQUENCE]
+    output: BOOLEAN
+    math_def: \\lim a_n \\text{ 存在} \\Leftrightarrow \\limsup a_n = \\liminf a_n
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONTINUITY_TEST
+    description: 判定函数在某点是否连续
+    inputs: [FUNCTION, SCALAR]
+    output: BOOLEAN
+    math_def: f \\text{ 在 } a \\text{ 连续} \\Leftrightarrow \\lim_{x \\to a} f(x) = f(a)
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_DISCONTINUITY_CLASSIFY
+    description: 对函数的间断点进行分类（可去、跳跃、无穷、振荡）
+    inputs: [FUNCTION, SCALAR]
+    output: INTEGER
+    math_def: '\\text{第一类: 可去/跳跃; 第二类: 无穷/振荡}'
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_LIPSCHITZ_TEST
+    description: 判定函数是否 Lipschitz 连续
+    inputs: [FUNCTION, REGION]
+    output: BOOLEAN
+    math_def: '\\exists L: |f(x) - f(y)| \\le L|x-y|, \\forall x, y'
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_DERIVATIVE
+    description: 计算函数在某点的导数 f'(a)
+    inputs: [FUNCTION, SCALAR]
+    output: DERIVATIVE
+    math_def: f'(a) = \\lim_{h \\to 0} \\frac{f(a+h) - f(a)}{h}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_HIGHER_DERIVATIVE
+    description: 计算函数的 n 阶导数 f^(n)(x)
+    inputs: [FUNCTION, INTEGER]
+    output: DERIVATIVE
+    math_def: f^{(n)}(x) = \\frac{d^n f}{dx^n}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PARTIAL_DERIVATIVE
+    description: 计算多元函数的偏导数 ∂f/∂x_i
+    inputs: [FUNCTION, INTEGER, SCALAR]
+    output: DERIVATIVE
+    math_def: \\frac{\\partial f}{\\partial x_i} = \\lim_{h \\to 0} \\frac{f(x+he_i) - f(x)}{h}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_DIVERGENCE
+    description: 计算向量场的散度 ∇·F
+    inputs: [FUNCTION]
+    output: SCALAR
+    math_def: \\nabla \\cdot \\mathbf{F} = \\sum_{i=1}^{n} \\frac{\\partial F_i}{\\partial x_i}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_LAPLACIAN
+    description: 计算标量场的拉普拉斯算子 Δf
+    inputs: [FUNCTION]
+    output: SCALAR
+    math_def: \\Delta f = \\nabla^2 f = \\sum_{i=1}^{n} \\frac{\\partial^2 f}{\\partial x_i^2}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_DIFFERENTIABILITY_TEST
+    description: 判定函数在某点是否可微
+    inputs: [FUNCTION, SCALAR]
+    output: BOOLEAN
+    math_def: f \\text{ 可微} \\Leftrightarrow \\lim_{h \\to 0} \\frac{f(a+h) - f(a) - f'(a)h}{h} = 0
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_TAYLOR_EXPANSION
+    description: 计算函数在 a 点的 n 阶泰勒展开
+    inputs: [FUNCTION, SCALAR, INTEGER]
+    output: POLYNOMIAL
+    math_def: f(x) = \\sum_{k=0}^{n} \\frac{f^{(k)}(a)}{k!}(x-a)^k + R_n(x)
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_INDEFINITE_INTEGRAL
+    description: 计算函数的不定积分 ∫f(x)dx
+    inputs: [FUNCTION]
+    output: FUNCTION
+    math_def: \\int f(x) \\, dx = F(x) + C, \\text{其中 } F'(x) = f(x)
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_DEFINITE_INTEGRAL
+    description: 计算定积分 ∫ₐᵇ f(x)dx
+    inputs: [FUNCTION, SCALAR, SCALAR]
+    output: SCALAR
+    math_def: \\int_a^b f(x) \\, dx = F(b) - F(a)
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_IMPROPER_INTEGRAL
+    description: 计算广义积分（无穷积分或瑕积分）
+    inputs: [FUNCTION, SCALAR]
+    output: SCALAR
+    math_def: \\int_a^{\\infty} f(x) \\, dx = \\lim_{b \\to \\infty} \\int_a^b f(x) \\, dx
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_MULTIPLE_INTEGRAL
+    description: 计算重积分 ∫∫...∫_D f dV
+    inputs: [FUNCTION, REGION, INTEGER]
+    output: SCALAR
+    math_def: \\int \\cdots \\int_D f(x_1, \\ldots, x_n) \\, dV
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_SURFACE_INTEGRAL
+    description: 计算曲面积分 ∬_S f dS 或 ∬_S F·dS
+    inputs: [FUNCTION, SURFACE]
+    output: SCALAR
+    math_def: \\iint_S \\mathbf{F} \\cdot d\\mathbf{S} = \\iint_D \\mathbf{F} \\cdot \\mathbf{n} \\, dS
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_INTEGRABILITY_TEST
+    description: 判定函数在区间上是否黎曼可积
+    inputs: [FUNCTION, REGION]
+    output: BOOLEAN
+    math_def: f \\text{ 可积} \\Leftrightarrow \\text{间断点集为零测集}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_SERIES_CONVERGENCE_TEST
+    description: 判定数项级数是否收敛（比较、比值、根值判别法）
+    inputs: [SEQUENCE]
+    output: BOOLEAN
+    math_def: \\sum a_n \\text{ 收敛} \\Leftrightarrow \\{S_n\\} \\text{ 收敛}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_ABSOLUTE_CONVERGENCE
+    description: 判定级数是否绝对收敛
+    inputs: [SEQUENCE]
+    output: BOOLEAN
+    math_def: \\sum a_n \\text{ 绝对收敛} \\Leftrightarrow \\sum |a_n| \\text{ 收敛}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONDITIONAL_CONVERGENCE
+    description: 判定级数是否条件收敛
+    inputs: [SEQUENCE]
+    output: BOOLEAN
+    math_def: \\sum a_n \\text{ 条件收敛} \\Leftrightarrow \\sum a_n \\text{ 收敛} \\land \\sum |a_n| \\text{ 发散}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_POWER_SERIES_RADIUS
+    description: 计算幂级数的收敛半径 R
+    inputs: [SEQUENCE]
+    output: SCALAR
+    math_def: R = \\frac{1}{\\limsup_{n \\to \\infty} \\sqrt[n]{|a_n|}}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_SERIES_SUM
+    description: 计算收敛级数的和
+    inputs: [SEQUENCE]
+    output: SCALAR
+    math_def: \\sum_{n=1}^{\\infty} a_n = \\lim_{N \\to \\infty} S_N
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_FOURIER_SERIES
+    description: 计算函数的傅里叶级数展开
+    inputs: [FUNCTION, SCALAR]
+    output: SEQUENCE
+    math_def: f(x) \\sim \\frac{a_0}{2} + \\sum_{n=1}^{\\infty} (a_n \\cos nx + b_n \\sin nx)
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_LP_NORM
+    description: 计算函数的 L^p 范数
+    inputs: [FUNCTION, SCALAR, REGION]
+    output: SCALAR
+    math_def: \\|f\\|_p = \\left(\\int_D |f|^p \\, dx\\right)^{1/p}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_SUP_NORM
+    description: 计算函数的一致范数（上确界范数）
+    inputs: [FUNCTION, REGION]
+    output: SCALAR
+    math_def: \\|f\\|_{\\infty} = \\sup_{x \\in D} |f(x)|
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMPLETION
+    description: 构造度量空间的完备化
+    inputs: [SPACE]
+    output: SPACE
+    math_def: \\hat{X} = \\{\\text{柯西序列等价类}\\}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMPACTNESS_TEST
+    description: 判定函数空间是否紧致（Arzelà-Ascoli 定理）
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: \\mathcal{F} \\text{ 紧致} \\Leftrightarrow \\text{一致有界且等度连续}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMPLETE_SPACE_TEST
+    description: 判定度量空间是否完备
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: X \\text{ 完备} \\Leftrightarrow \\text{每个柯西序列收敛}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONTRACTION_MAPPING
+    description: 判定映射是否是压缩映射
+    inputs: [FUNCTION, SCALAR]
+    output: BOOLEAN
+    math_def: T \\text{ 是压缩映射} \\Leftrightarrow d(Tx, Ty) \\le k \\cdot d(x,y), k < 1
+    complexity: O(|X|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_FIXED_POINT_THEOREM
+    description: 应用 Banach 不动点定理求不动点
+    inputs: [FUNCTION]
+    output: SET
+    math_def: 'T \\text{ 压缩} \\Rightarrow \\exists! x^*: Tx^* = x^*'
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_GAMMA_FUNCTION
+    description: 计算 Γ 函数值
+    inputs: [SCALAR]
+    output: SCALAR
+    math_def: \\Gamma(z) = \\int_0^{\\infty} t^{z-1} e^{-t} \\, dt
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_BETA_FUNCTION
+    description: 计算 B 函数值
+    inputs: [SCALAR, SCALAR]
+    output: SCALAR
+    math_def: B(a, b) = \\int_0^1 t^{a-1} (1-t)^{b-1} \\, dt = \\frac{\\Gamma(a)\\Gamma(b)}{\\Gamma(a+b)}
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_ZETA_FUNCTION
+    description: 计算黎曼 ζ 函数值
+    inputs: [SCALAR]
+    output: SCALAR
+    math_def: \\zeta(s) = \\sum_{n=1}^{\\infty} \\frac{1}{n^s}, \\quad \\text{Re}(s) > 1
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_ERROR_FUNCTION
+    description: 计算误差函数 erf(x)
+    inputs: [SCALAR]
+    output: SCALAR
+    math_def: \\text{erf}(x) = \\frac{2}{\\sqrt{\\pi}} \\int_0^x e^{-t^2} \\, dt
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_MEAN_VALUE_THEOREM
+    description: 应用积分中值定理求中值点
+    inputs: [FUNCTION, SCALAR, SCALAR]
+    output: SCALAR
+    math_def: '\\exists c \\in [a,b]: \\int_a^b f(x) \\, dx = f(c)(b-a)'
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_INFINITE_LIMIT
+    description: 计算函数在无穷远处的极限
+    inputs: [FUNCTION]
+    output: LIMIT
+    math_def: \\lim_{x \\to \\infty} f(x) = L
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+- module: category_theory
+  category: CATEGORY_THEORY
+  items:
+  - name: PRESET_CAT_COMPOSITION
+    description: 态射复合：计算两个可复合态射的复合 g o f，要求 cod(f) = dom(g)
+    inputs: [FUNCTION, FUNCTION]
+    output: FUNCTION
+    math_def: (g \\circ f)(x) = g(f(x)), \\quad \\text{要求 } \\mathrm{cod}(f) = \\mathrm{dom}(g)
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CAT_PUSHOUT
+    description: 推出：构造余交换方框的推出 A +_C B，满足泛性质
+    inputs: [FUNCTION, FUNCTION]
+    output: SET
+    math_def: A \\amalg_C B \\text{ 满足泛性质}
+    complexity: O(|A| + |B|)
+    constructive: true
+    reversible: false
+- module: combinatorics
+  category: COMBINATORICS
+  items:
+  - name: PRESET_COMB_PERMUTATION
+    description: 排列数：P(n, k) = n! / (n-k)!，从n个元素中取k个的有序排列数
+    inputs: [INTEGER, INTEGER]
+    output: INTEGER
+    math_def: P(n, k) = \\frac{n!}{(n-k)!}
+    complexity: O(k)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_COMBINATION
+    description: 组合数：C(n, k) = n! / (k!(n-k)!)，从n个元素中取k个的无序组合数
+    inputs: [INTEGER, INTEGER]
+    output: INTEGER
+    math_def: C(n, k) = \\binom{n}{k} = \\frac{n!}{k!(n-k)!}
+    complexity: O(k)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_MULTISET_PERMUTATION
+    description: 多重集排列数：n个元素中有重复时的排列数 n! / (n1!·n2!·...·nk!)
+    inputs: [LIST]
+    output: INTEGER
+    math_def: \\frac{n!}{n_1! \\cdot n_2! \\cdots n_k!}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_MULTISET_COMBINATION
+    description: 多重集组合数（重复组合）：C(n+k-1, k)，从n类中可重复取k个
+    inputs: [INTEGER, INTEGER]
+    output: INTEGER
+    math_def: \\left(\\!\\!\\binom{n}{k}\\!\\!\\right) = \\binom{n+k-1}{k}
+    complexity: O(k)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_STIRLING_FIRST
+    description: 第一类Stirling数：s(n, k)，将n个元素排成k个轮换的方式数
+    inputs: [INTEGER, INTEGER]
+    output: INTEGER
+    math_def: s(n, k) = s(n-1, k-1) - (n-1) \\cdot s(n-1, k)
+    complexity: O(nk)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_STIRLING_SECOND
+    description: 第二类Stirling数：S(n, k)，将n个元素划分为k个非空子集的方式数
+    inputs: [INTEGER, INTEGER]
+    output: INTEGER
+    math_def: S(n, k) = S(n-1, k-1) + k \\cdot S(n-1, k)
+    complexity: O(nk)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_OGF
+    description: 普通生成函数：G(x) = sum_{n>=0} a_n x^n
+    inputs: [LIST]
+    output: FUNCTION
+    math_def: G(x) = \\sum_{n=0}^{\\infty} a_n x^n
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_EGF
+    description: 指数生成函数：E(x) = sum_{n>=0} a_n x^n / n!
+    inputs: [LIST]
+    output: FUNCTION
+    math_def: E(x) = \\sum_{n=0}^{\\infty} a_n \\frac{x^n}{n!}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_COEFFICIENT_EXTRACT
+    description: 系数提取：提取生成函数 F(x) 中 x^n 的系数 [x^n]F(x)
+    inputs: [FUNCTION, INTEGER]
+    output: SCALAR
+    math_def: '[x^n] F(x) = a_n'
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_COMPOSITION
+    description: 生成函数复合：计算 F(G(x))，两个生成函数的复合运算
+    inputs: [FUNCTION, FUNCTION]
+    output: FUNCTION
+    math_def: F(G(x)) = \\sum_{n=0}^{\\infty} a_n [G(x)]^n
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_GRAPH_CREATE
+    description: 图创建：创建含 n 个顶点的空图 G(V, E)
+    inputs: [INTEGER]
+    output: GRAPH
+    math_def: G = (V, E), \\quad |V| = n, \\quad E = \\emptyset
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_GRAPH_ADD_EDGE
+    description: 添加边：向图中添加一条边 (u, v)
+    inputs: [GRAPH, INTEGER, INTEGER]
+    output: GRAPH
+    math_def: G' = (V, E \\cup \\{(u, v)\\})
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_GRAPH_DEGREE
+    description: '顶点度数：计算顶点 v 的度数 deg(v) = |{u : (u,v) in E}|'
+    inputs: [GRAPH, INTEGER]
+    output: INTEGER
+    math_def: '\\deg(v) = |\\{u : (u, v) \\in E\\}|'
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMB_GRAPH_IS_TREE
+    description: 树判定：判定图 G 是否为树（连通且 |E| = |V| - 1）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: G \\text{ 是树} \\Leftrightarrow G \\text{ 连通且 } |E| = |V| - 1
+    complexity: O(V + E)
+    constructive: false
+    reversible: false
+  - name: PRESET_COMB_RAMSEY_NUMBER
+    description: Ramsey数：R(s, t)，保证在完全图中存在s团或t独立集的最小顶点数
+    inputs: [INTEGER, INTEGER]
+    output: INTEGER
+    math_def: R(s, t) \\le \\binom{s+t-2}{s-1}
+    complexity: O(2^n)
+    constructive: true
+    reversible: false
+- module: field_theory
+  category: ALGEBRAIC
+  items:
+  - name: PRESET_FIELD_MULTIPLY
+    description: 域乘法：计算域F中两个元素的积 a * b
+    inputs: [FIELD, FIELD]
+    output: FIELD
+    math_def: (a, b) \\mapsto a \\cdot b \\in F
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_FIELD_DIVIDE
+    description: 域除法：计算域F中两个元素的商 a / b（b != 0）
+    inputs: [FIELD, FIELD]
+    output: FIELD
+    math_def: (a, b) \\mapsto a \\cdot b^{-1} \\in F, \\quad b \\neq 0
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_FIELD_EXTENSION_CHECK
+    description: 域扩张判定：判定E是否为F的域扩张 E/F（F是E的子域）
+    inputs: [FIELD, FIELD]
+    output: BOOLEAN
+    math_def: E/F \\text{ 是域扩张} \\Leftrightarrow F \\le E
+    complexity: O(n^2)
+    constructive: false
+    reversible: false
+  - name: PRESET_EXTENSION_DEGREE
+    description: 扩张次数：计算域扩张 E/F 的次数 [E:F]（E作为F上向量空间的维数）
+    inputs: [FIELD, FIELD]
+    output: INTEGER
+    math_def: '[E : F] = \\dim_F(E)'
+    complexity: O(n)
+    constructive: false
+    reversible: false
+  - name: PRESET_SIMPLE_EXTENSION
+    description: 简单扩张：由域F和元素alpha构造简单扩张 F(alpha)
+    inputs: [FIELD, FIELD]
+    output: FIELD
+    math_def: F(\\alpha) = F[\\alpha] \\text{（当 } \\alpha \\text{ 是代数元时）}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_FINITE_EXTENSION
+    description: 有限扩张判定：判定域扩张 E/F 是否为有限扩张（[E:F] < infinity）
+    inputs: [FIELD, FIELD]
+    output: BOOLEAN
+    math_def: 'E/F \\text{ 是有限扩张} \\Leftrightarrow [E : F] < \\infty'
+    complexity: O(n)
+    constructive: false
+    reversible: false
+  - name: PRESET_ALGEBRAIC_ELEMENT_CHECK
+    description: 代数元判定：判定域扩张中的元素alpha是否为F上的代数元
+    inputs: [FIELD, FIELD]
+    output: BOOLEAN
+    math_def: '\\alpha \\text{ 是代数元} \\Leftrightarrow \\exists f \\in F[x] \\setminus \\{0\\}: f(\\alpha) = 0'
+    complexity: O(n^2)
+    constructive: false
+    reversible: false
+  - name: PRESET_MINIMAL_POLYNOMIAL
+    description: 极小多项式：计算代数元alpha在F上的极小多项式（首一最低次零化多项式）
+    inputs: [FIELD, FIELD]
+    output: POLYNOMIAL
+    math_def: \\text{minpoly}_F(\\alpha) = \\text{F[x]中首一的最低次多项式 } f, \\; f(\\alpha) = 0
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_FIELD_TOWER
+    description: 域塔定理：验证域塔 F subset K subset E 的次数关系 [E:F] = [E:K]*[K:F]
+    inputs: [FIELD, FIELD, FIELD]
+    output: INTEGER
+    math_def: '[E : F] = [E : K] \\cdot [K : F]'
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PRIMITIVE_ELEMENT
+    description: 本原元定理：对有限可分扩张 E/F 构造本原元 theta 使得 E = F(theta)
+    inputs: [FIELD, FIELD]
+    output: FIELD
+    math_def: E = F(\\theta), \\quad \\text{当 } E/F \\text{ 是有限可分扩张时}
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_NORMAL_EXTENSION
+    description: 正规扩张判定：判定域扩张 E/F 是否为正规扩张（某个多项式族的分裂域）
+    inputs: [FIELD, FIELD]
+    output: BOOLEAN
+    math_def: E/F \\text{ 是正规扩张} \\Leftrightarrow E \\text{ 是 } F[x] \\text{ 中某个多项式集合的分裂域}
+    complexity: O(n^3)
+    constructive: false
+    reversible: false
+  - name: PRESET_GALOIS_GROUP
+    description: 伽罗瓦群：计算域扩张 E/F 的伽罗瓦群 Gal(E/F)（所有F-自同构组成的群）
+    inputs: [FIELD, FIELD]
+    output: GROUP
+    math_def: '\\text{Gal}(E/F) = \\{\\sigma : E \\to E \\; | \\; \\sigma|_F = \\text{id}_F\\}'
+    complexity: O(n!)
+    constructive: true
+    reversible: false
+  - name: PRESET_GALOIS_GROUP_ORDER
+    description: 伽罗瓦群阶：计算伽罗瓦群 Gal(E/F) 的阶 |Gal(E/F)|
+    inputs: [FIELD, FIELD]
+    output: INTEGER
+    math_def: '|\\text{Gal}(E/F)| \\le [E : F], \\quad \\text{等号成立当且仅当 } E/F \\text{ 是伽罗瓦扩张}'
+    complexity: O(n!)
+    constructive: false
+    reversible: false
+  - name: PRESET_FIXED_FIELD
+    description: 不动域：计算伽罗瓦群G的不动域 E^G = {x in E | sigma(x)=x, 对所有sigma in G}
+    inputs: [FIELD, GROUP]
+    output: FIELD
+    math_def: 'E^G = \\{x \\in E : \\sigma(x) = x, \\; \\forall \\sigma \\in G\\}'
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_SPLITTING_FIELD
+    description: 分裂域构造：构造多项式 f(x) 在域F上的分裂域（包含f(x)所有根的最小扩域）
+    inputs: [FIELD, POLYNOMIAL]
+    output: FIELD
+    math_def: E = F(\\alpha_1, \\ldots, \\alpha_n), \\quad f(x) = (x - \\alpha_1) \\cdots (x - \\alpha_n) \\in E[x]
+    complexity: O(n!)
+    constructive: true
+    reversible: false
+  - name: PRESET_CYCLOTOMIC_FIELD
+    description: 分圆域：构造n次分圆域 Q(zeta_n)，即添加n次本原单位根的扩域
+    inputs: [INTEGER]
+    output: FIELD
+    math_def: \\mathbb{Q}(\\zeta_n) \\text{，其中 } \\zeta_n = e^{2\\pi i / n}, \\; \\zeta_n^n = 1
+    complexity: O(n \\log n)
+    constructive: true
+    reversible: false
+  - name: PRESET_FROBENIUS_AUTOMORPHISM
+    description: Frobenius自同构：计算有限域上的Frobenius映射 x -> x^p
+    inputs: [FIELD, INTEGER]
+    output: FIELD
+    math_def: \\varphi_p(x) = x^p, \\quad \\varphi_p \\in \\text{Gal}(\\mathbb{F}_{p^n}/\\mathbb{F}_p)
+    complexity: O(\\log p)
+    constructive: true
+    reversible: true
+  - name: PRESET_FIELD_EMBEDDING
+    description: 域嵌入：构造域扩张 E/F 的F-嵌入（保持F不动的域同态）
+    inputs: [FIELD, FIELD]
+    output: LIST
+    math_def: '\\text{Hom}_F(E, L) = \\{\\sigma : E \\to L \\; | \\; \\sigma|_F = \\text{id}_F\\}'
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_ALGEBRAIC_CLOSURE
+    description: 代数闭包：构造域F的代数闭包（F的代数扩张且是代数闭域）
+    inputs: [FIELD]
+    output: FIELD
+    math_def: \\overline{F} \\text{ 满足：} \\overline{F}/F \\text{ 是代数扩张，且 } \\overline{F} \\text{ 是代数闭域}
+    complexity: O(n!)
+    constructive: true
+    reversible: false
+- module: geometry_3d
+  category: GEOMETRY
+  items:
+  - name: PRESET_POINT_3D_FROM_COORDS
+    description: 通过笛卡尔坐标构造空间点 P(x, y, z)
+    inputs: [SCALAR, SCALAR, SCALAR]
+    output: POINT
+    math_def: P(x, y, z) 其中 x, y, z 为实数坐标
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_MIDPOINT_3D
+    description: 构造空间两点的中点 M = (A+B)/2
+    inputs: [POINT, POINT]
+    output: POINT
+    math_def: M = (A + B) / 2，即中点公式
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CENTROID_3D
+    description: 构造空间三角形的重心 G = (A+B+C)/3
+    inputs: [POINT, POINT, POINT]
+    output: POINT
+    math_def: G = (A + B + C) / 3，三条中线的交点
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CENTROID_TETRAHEDRON
+    description: 构造四面体的重心 G = (A+B+C+D)/4
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: G = (A + B + C + D) / 4，四条顶点到对面重心连线的交点
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CIRCUMCENTER_3D
+    description: 构造四面体的外接球心
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: 到四个顶点距离相等的点，六条棱的垂直平分面的交点
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_INCENTER_3D
+    description: 构造四面体的内切球心
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: 到四个面距离相等的点，六条二面角平分面的交点
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_ORTHOCENTER_3D
+    description: 构造空间三角形的垂心
+    inputs: [POINT, POINT, POINT]
+    output: POINT
+    math_def: 三条高的交点（仅当三角形所在平面确定时）
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_LINE_3D_FROM_POINTS
+    description: 通过两点构造空间直线
+    inputs: [POINT, POINT]
+    output: LINE
+    math_def: 通过空间两点 A, B 的唯一确定直线 L
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_LINE_3D_FROM_POINT_DIRECTION
+    description: 通过点和方向向量构造空间直线
+    inputs: [POINT, VECTOR]
+    output: LINE
+    math_def: 'L: P = P0 + t*v，其中 P0 为点，v 为方向向量'
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_LINE_3D_PLANE_INTERSECTION
+    description: 构造两平面的交线
+    inputs: [POINT, POINT, POINT, POINT]
+    output: LINE
+    math_def: 平面 π1(P1,P2,P3) 与 π2(P1,P2,P4) 的交线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PERPENDICULAR_3D_TO_LINE
+    description: 构造点到空间直线的垂线
+    inputs: [POINT, POINT, POINT]
+    output: LINE
+    math_def: 过点 P 且垂直于直线 L(P1,P2) 的直线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PERPENDICULAR_3D_TO_PLANE
+    description: 构造点到平面的垂线
+    inputs: [POINT, POINT, POINT, POINT]
+    output: LINE
+    math_def: 过点 P 且垂直于平面 π(P1,P2,P3) 的直线
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PLANE_FROM_POINTS
+    description: 通过不共线三点构造平面
+    inputs: [POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 通过不共线三点 A, B, C 的唯一确定平面 π
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PLANE_FROM_POINT_NORMAL
+    description: 通过点和法向量构造平面
+    inputs: [POINT, VECTOR]
+    output: POLYGON
+    math_def: 'π: n·(P - P0) = 0，其中 P0 为点，n 为法向量'
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PLANE_FROM_LINES
+    description: 通过两相交或平行直线构造平面
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 包含直线 L1(P1,P2) 和 L2(P3,P4) 的平面
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PARALLEL_PLANE
+    description: 构造平行于给定平面且过给定点的平面
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 过点 P 且平行于平面 π(P1,P2,P3) 的平面
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PERPENDICULAR_PLANE
+    description: 构造过给定直线且垂直于给定平面的平面
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 过直线 L(P1,P2) 且垂直于平面 π(P1,P2,P3) 的平面
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_ANGLE_BISECTOR_PLANE
+    description: 构造两平面的角平分面
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 平面 π1(P1,P2,P3) 与 π2(P1,P2,P4) 的角平分面
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_SPHERE_CENTER_RADIUS
+    description: 通过球心和半径点构造球
+    inputs: [POINT, POINT]
+    output: POLYGON
+    math_def: 球心为 O，半径为 |OR| 的球面
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_SPHERE_FOUR_POINTS
+    description: 通过不共面四点构造球
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 通过不共面四点的唯一球面
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CYLINDER_AXIS_RADIUS
+    description: 通过轴和半径构造圆柱
+    inputs: [POINT, POINT, SCALAR]
+    output: POLYGON
+    math_def: 以直线 L(P1,P2) 为轴，半径为 r 的圆柱面
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONE_BASE_APEX
+    description: 通过底面圆心和半径点以及顶点构造圆锥
+    inputs: [POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 底面为圆 C(O,R)，顶点为 A 的圆锥面
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_ELLIPSOID_CENTER_AXES
+    description: 通过中心和三个半轴端点构造椭球
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POLYGON
+    math_def: 中心为 C，三个半轴分别为 |CA|, |CB|, |CC'| 的椭球
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_TETRAHEDRON_REGULAR
+    description: 通过一边构造正四面体
+    inputs: [POINT, POINT]
+    output: POLYGON
+    math_def: 以线段 AB 为边的正四面体
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CUBE
+    description: 通过一边构造正方体
+    inputs: [POINT, POINT]
+    output: POLYGON
+    math_def: 以线段 AB 为边的正方体
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_CUBOID
+    description: 通过底边和高构造长方体
+    inputs: [POINT, POINT, SCALAR]
+    output: POLYGON
+    math_def: 底面为矩形（边 AB），高为 h 的长方体
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_OCTAHEDRON_REGULAR
+    description: 通过对角线构造正八面体
+    inputs: [POINT, POINT]
+    output: POLYGON
+    math_def: 以线段 AB 为对角线的正八面体
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_DODECAHEDRON_REGULAR
+    description: 通过一边构造正十二面体
+    inputs: [POINT, POINT]
+    output: POLYGON
+    math_def: 以线段 AB 为边的正十二面体
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_ICOSAHEDRON_REGULAR
+    description: 通过一边构造正二十面体
+    inputs: [POINT, POINT]
+    output: POLYGON
+    math_def: 以线段 AB 为边的正二十面体
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PRISM
+    description: 通过底面多边形和高构造棱柱
+    inputs: [POLYGON, SCALAR]
+    output: POLYGON
+    math_def: 以多边形为底面，高为 h 的直棱柱
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PYRAMID
+    description: 通过底面多边形和顶点构造棱锥
+    inputs: [POLYGON, POINT]
+    output: POLYGON
+    math_def: 以多边形为底面，A 为顶点的棱锥
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_TRANSLATION_3D
+    description: 三维平移变换
+    inputs: [POINT, VECTOR]
+    output: POINT
+    math_def: P' = P + v，将点 P 沿向量 v 平移
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_ROTATION_3D_AXIS
+    description: 绕空间轴旋转
+    inputs: [POINT, POINT, POINT, SCALAR]
+    output: POINT
+    math_def: 点 P 绕轴 L(P1,P2) 旋转角度 θ 后的位置
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_ROTATION_3D_EULER
+    description: 使用欧拉角绕原点旋转
+    inputs: [POINT, SCALAR, SCALAR, SCALAR]
+    output: POINT
+    math_def: 点 P 绕 X, Y, Z 轴分别旋转 α, β, γ 后的位置
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_ROTATION_3D_AROUND_POINT
+    description: 绕空间点使用欧拉角旋转
+    inputs: [POINT, POINT, SCALAR, SCALAR, SCALAR]
+    output: POINT
+    math_def: 点 P 绕点 O 使用欧拉角(α,β,γ)旋转后的位置
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_SCALE_3D
+    description: 三维非均匀缩放
+    inputs: [POINT, SCALAR, SCALAR, SCALAR]
+    output: POINT
+    math_def: P' = (sx*x, sy*y, sz*z)，相对于原点的缩放
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_SCALE_3D_UNIFORM
+    description: 三维均匀缩放
+    inputs: [POINT, SCALAR]
+    output: POINT
+    math_def: P' = s*P，相对于原点的均匀缩放
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_REFLECTION_3D_PLANE
+    description: 关于平面的反射（镜像）
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: 点 P 关于平面 π(P1,P2,P3) 的对称点
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_REFLECTION_3D_POINT
+    description: 关于点的中心对称
+    inputs: [POINT, POINT]
+    output: POINT
+    math_def: 点 P 关于中心 O 的对称点 P'，满足 O 是 PP' 中点
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_SHEAR_3D
+    description: 三维剪切变换
+    inputs: [POINT, SCALAR, SCALAR, SCALAR]
+    output: POINT
+    math_def: 沿某方向的剪切变换，保持某一坐标不变
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_POINT_ON_PLANE
+    description: 判断点是否在平面上
+    inputs: [POINT, POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断点 P 是否在平面 π(P1,P2,P3) 上
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_POINT_ON_LINE_3D
+    description: 判断点是否在空间直线上
+    inputs: [POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断点 P 是否在直线 L(P1,P2) 上
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_POINT_INSIDE_SPHERE
+    description: 判断点是否在球内
+    inputs: [POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断点 P 是否在球 S(O,R) 内部或表面上
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_LINES_3D_PARALLEL
+    description: 判断两空间直线是否平行
+    inputs: [POINT, POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断直线 L1(P1,P2) 与 L2(P3,P4) 是否平行
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_LINES_3D_PERPENDICULAR
+    description: 判断两空间直线是否垂直
+    inputs: [POINT, POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断直线 L1(P1,P2) 与 L2(P3,P4) 是否垂直
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_PLANES_PARALLEL
+    description: 判断两平面是否平行
+    inputs: [POINT, POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断平面 π1(P1,P2,P3) 与 π2(P1,P2,P4) 是否平行
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_PLANES_PERPENDICULAR
+    description: 判断两平面是否垂直
+    inputs: [POINT, POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断平面 π1(P1,P2,P3) 与 π2(P1,P2,P4) 是否垂直
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_LINE_PLANE_PARALLEL
+    description: 判断直线与平面是否平行
+    inputs: [POINT, POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断直线 L(P1,P2) 与平面 π(P1,P2,P3) 是否平行
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_LINE_PLANE_PERPENDICULAR
+    description: 判断直线与平面是否垂直
+    inputs: [POINT, POINT, POINT, POINT]
+    output: BOOLEAN
+    math_def: 判断直线 L(P1,P2) 与平面 π(P1,P2,P3) 是否垂直
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_LINE_PLANE_INTERSECTION
+    description: 计算直线与平面的交点
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: 直线 L(P1,P2) 与平面 π(P1,P2,P3) 的交点
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_THREE_PLANES_INTERSECTION
+    description: 计算三平面的交点
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: 三平面 π1, π2, π3 的公共交点（当三平面不平行于同一直线时）
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_LINE_SPHERE_INTERSECTION
+    description: 计算直线与球的交点
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: 直线 L(P1,P2) 与球 S(O,R) 的交点，0-2个解
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_SPHERE_SPHERE_INTERSECTION
+    description: 计算两球的交线（圆）
+    inputs: [POINT, POINT, POINT, POINT]
+    output: CIRCLE
+    math_def: 球 S1(O1,R1) 与 S2(O2,R2) 的交线（当两球相交时）
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PLANE_SPHERE_INTERSECTION
+    description: 计算平面与球的交线（圆）
+    inputs: [POINT, POINT, POINT, POINT]
+    output: CIRCLE
+    math_def: 平面 π 与球 S(O,R) 的交线（当平面与球相交时）
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_DISTANCE_3D
+    description: 计算三维空间两点距离
+    inputs: [POINT, POINT]
+    output: SCALAR
+    math_def: d(A,B) = √((xB-xA)² + (yB-yA)² + (zB-zA)²)
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_DISTANCE_POINT_PLANE
+    description: 计算点到平面的距离
+    inputs: [POINT, POINT, POINT, POINT]
+    output: SCALAR
+    math_def: d(P,π) = |n·(P-P0)|/|n|，其中 n 为法向量
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_DISTANCE_POINT_LINE_3D
+    description: 计算点到空间直线的距离
+    inputs: [POINT, POINT, POINT]
+    output: SCALAR
+    math_def: d(P,L) = |(P-P0)×v|/|v|，其中 v 为方向向量
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_DISTANCE_PARALLEL_PLANES
+    description: 计算两平行平面间的距离
+    inputs: [POINT, POINT, POINT, POINT]
+    output: SCALAR
+    math_def: d(π1,π2) = |d2-d1|/|n|（当两平面平行时）
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_DISTANCE_SKEW_LINES
+    description: 计算两异面直线间的距离
+    inputs: [POINT, POINT, POINT, POINT]
+    output: SCALAR
+    math_def: d = |(P2-P1)·(v1×v2)|/|v1×v2|
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_ANGLE_PLANES
+    description: 计算两平面的夹角
+    inputs: [POINT, POINT, POINT, POINT]
+    output: SCALAR
+    math_def: cos(θ) = |n1·n2|/(|n1||n2|)
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_ANGLE_LINE_PLANE
+    description: 计算直线与平面的夹角
+    inputs: [POINT, POINT, POINT, POINT]
+    output: SCALAR
+    math_def: sin(θ) = |v·n|/(|v||n|)，其中 v 为方向向量，n 为法向量
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_ANGLE_LINES_3D
+    description: 计算两空间直线的夹角
+    inputs: [POINT, POINT, POINT, POINT]
+    output: SCALAR
+    math_def: cos(θ) = |v1·v2|/(|v1||v2|)，取锐角
+    complexity: O(1)
+    constructive: false
+    reversible: false
+  - name: PRESET_PROJECT_POINT_PLANE
+    description: 计算点在平面上的投影
+    inputs: [POINT, POINT, POINT, POINT]
+    output: POINT
+    math_def: 点 P 在平面 π 上的垂足
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROJECT_POINT_LINE_3D
+    description: 计算点在空间直线上的投影
+    inputs: [POINT, POINT, POINT]
+    output: POINT
+    math_def: 点 P 在直线 L 上的垂足
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROJECT_LINE_PLANE
+    description: 计算直线在平面上的投影
+    inputs: [POINT, POINT, POINT, POINT]
+    output: LINE
+    math_def: 直线 L 在平面 π 上的正交投影
+    complexity: O(1)
+    constructive: true
+    reversible: false
+- module: graph_theory
+  category: GRAPH_THEORY
+  items:
+  - name: PRESET_GRAPH_CONSTRUCT
+    description: 由顶点集 V 和边集 E 构造图 G = (V, E)
+    inputs: [SET, SET]
+    output: GRAPH
+    math_def: G = (V, E), V = \\{v_1, v_2, \\ldots, v_n\\}, E \\subseteq V \\times V
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_ADJACENCY_MATRIX
+    description: 计算图的邻接矩阵 A(G)，其中 A_{ij} 表示顶点 i 与 j 之间的边数
+    inputs: [GRAPH]
+    output: MATRIX
+    math_def: A(G)_{ij} = \\begin{cases} 1 & \\text{若 } (v_i, v_j) \\in E \\\\ 0 & \\text{否则} \\end{cases}
+    complexity: O(|V|^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_DEGREE_SEQUENCE
+    description: 计算图的度序列，按非递增顺序排列
+    inputs: [GRAPH]
+    output: SEQUENCE
+    math_def: d(G) = (d_1, d_2, \\ldots, d_n), d_1 \\ge d_2 \\ge \\cdots \\ge d_n
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_SUBGRAPH_TEST
+    description: 判定图 H 是否是图 G 的子图（V(H) ⊆ V(G), E(H) ⊆ E(G)）
+    inputs: [GRAPH, GRAPH]
+    output: BOOLEAN
+    math_def: H \\le G \\Leftrightarrow V(H) \\subseteq V(G) \\wedge E(H) \\subseteq E(G)
+    complexity: O(|V_H| + |E_H|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_COMPLEMENT
+    description: 计算图的补图 \\bar{G}，其中 \bar{G} 包含 G 中不存在的所有边
+    inputs: [GRAPH]
+    output: GRAPH
+    math_def: '\\bar{G} = (V, \\bar{E}), \\bar{E} = \\{uv : u,v \\in V, uv \\notin E, u \\ne v\\}'
+    complexity: O(|V|^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_CONNECTED_COMPONENTS
+    description: 计算图的所有连通分量（基于BFS/DFS遍历）
+    inputs: [GRAPH]
+    output: LIST
+    math_def: G = C_1 \\cup C_2 \\cup \\cdots \\cup C_k, C_i \\text{ 连通}
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_CONNECTIVITY_TEST
+    description: 判定无向图是否连通（任意两顶点间存在路径）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: G \\text{ 连通} \\Leftrightarrow \\forall u,v \\in V, \\exists \\text{ 路径 } u \\to v
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_SCC
+    description: 计算有向图的所有强连通分量（Kosaraju算法）
+    inputs: [GRAPH]
+    output: LIST
+    math_def: \\text{SCC}(G) = \\{C_1, C_2, \\ldots, C_k\\}, C_i \\text{ 强连通}
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_ARTICULATION_POINTS
+    description: 检测图中的所有割点（关节点），删除后增加连通分量数
+    inputs: [GRAPH]
+    output: SET
+    math_def: v \\text{ 是割点} \\Leftrightarrow c(G - v) > c(G)
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_BRIDGES
+    description: 检测图中的所有桥（割边），删除后增加连通分量数
+    inputs: [GRAPH]
+    output: SET
+    math_def: e \\text{ 是桥} \\Leftrightarrow c(G - e) > c(G)
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_SHORTEST_PATH
+    description: Dijkstra单源最短路径算法，计算从源点到目标点的最短路径
+    inputs: [GRAPH, INTEGER, INTEGER]
+    output: SEQUENCE
+    math_def: 'd(s, t) = \\min\\{\\sum_{e \\in P} w(e) : P \\text{ 是 } s \\to t \\text{ 的路径}\\}'
+    complexity: O((|V| + |E|) \\log |V|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_MST
+    description: Kruskal最小生成树算法，计算连通加权图的最小生成树
+    inputs: [GRAPH]
+    output: GRAPH
+    math_def: T = \\arg\\min_{T'' \\subseteq E} \\sum_{e \\in T''} w(e), |T''| = |V| - 1
+    complexity: O(|E| \\log |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_EULER_PATH_TEST
+    description: 判定图是否存在欧拉路径或欧拉回路（经过每条边恰好一次）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: G \\text{ 有欧拉回路} \\Leftrightarrow G \\text{ 连通且所有顶点度为偶数}
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_HAMILTONIAN_TEST
+    description: 判定图是否存在哈密顿路径（经过每个顶点恰好一次）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: G \\text{ 有哈密顿路径} \\Leftrightarrow \\exists P = v_1 v_2 \\cdots v_n, V(P) = V(G)
+    complexity: O(n! \\cdot n)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_CYCLE_DETECT
+    description: 检测图中是否存在环（基于DFS回溯边检测）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: 'G \\text{ 有环} \\Leftrightarrow \\exists v_1, v_2, \\ldots, v_k: v_1 = v_k, |E(P)| = k'
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_CHROMATIC_NUMBER
+    description: 计算图的色数 chi(G)，即顶点着色所需的最少颜色数
+    inputs: [GRAPH]
+    output: INTEGER
+    math_def: '\\chi(G) = \\min\\{k : \\exists \\text{ 合法的 } k \\text{-着色}\\}'
+    complexity: O(2.44^{\\chi(G)} \\cdot |V|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_VERTEX_COLORING
+    description: 贪心顶点着色算法，用 k 种颜色对图的顶点着色
+    inputs: [GRAPH, INTEGER]
+    output: FUNCTION
+    math_def: 'f: V \\to \\{1, 2, \\ldots, k\\}, f(u) \\ne f(v) \\text{ 若 } uv \\in E'
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_EDGE_COLORING
+    description: 贪心边着色算法，用 k 种颜色对图的边着色
+    inputs: [GRAPH, INTEGER]
+    output: FUNCTION
+    math_def: 'f: E \\to \\{1, 2, \\ldots, k\\}, f(e_1) \\ne f(e_2) \\text{ 若 } e_1, e_2 \\text{ 相邻}'
+    complexity: O(|V| \\cdot |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_PLANARITY_TEST
+    description: 判定图是否是平面图（可在平面上绘制且边不相交）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: G \\text{ 平面} \\Leftrightarrow |E| \\le 3|V| - 6 \\text{（|V| \\ge 3 时必要条件）}
+    complexity: O(|V|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_FOUR_COLOR_VERIFY
+    description: 验证四色定理对给定平面图成立（构造4-着色方案）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: \\chi(G) \\le 4, \\forall \\text{ 平面图 } G
+    complexity: O(|V|^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_MAXIMUM_MATCHING
+    description: 计算图的最大匹配（基于增广路算法）
+    inputs: [GRAPH]
+    output: SET
+    math_def: M^* = \\arg\\max_{M \\subseteq E} |M|, M \\text{ 中边两两不邻}
+    complexity: O(|V| \\cdot |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_PERFECT_MATCHING_TEST
+    description: 判定图是否存在完美匹配（每个顶点恰好被一条匹配边覆盖）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: G \\text{ 有完美匹配} \\Leftrightarrow |M^*| = |V|/2
+    complexity: O(|V| \\cdot |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_INDEPENDENT_SET
+    description: 计算图的最大独立集（集合中任意两顶点不相邻）
+    inputs: [GRAPH]
+    output: SET
+    math_def: '\\alpha(G) = \\max\\{|S| : S \\subseteq V, \\forall u,v \\in S, uv \\notin E\\}'
+    complexity: O(1.1996^{|V|})
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_VERTEX_COVER
+    description: 计算图的最小顶点覆盖（每条边至少有一个端点在覆盖中）
+    inputs: [GRAPH]
+    output: SET
+    math_def: '\\tau(G) = \\min\\{|C| : C \\subseteq V, \\forall uv \\in E, u \\in C \\lor v \\in C\\}'
+    complexity: O(1.2738^{\\tau(G)} \\cdot |V|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_DOMINATING_SET
+    description: 计算图的最小支配集（每个顶点要么在集合中，要么与集合中顶点相邻）
+    inputs: [GRAPH]
+    output: SET
+    math_def: '\\gamma(G) = \\min\\{|D| : \\forall v \\in V, v \\in D \\lor \\exists u \\in D, uv \\in E\\}'
+    complexity: O(1.4969^{|V|})
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_COMPLETE
+    description: 构造 n 阶完全图 K_n（每对顶点之间都有边相连）
+    inputs: [INTEGER]
+    output: GRAPH
+    math_def: K_n = (V, E), |V| = n, |E| = \\binom{n}{2}
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_BIPARTITE_TEST
+    description: 判定图是否是二部图（顶点集可划分为两个独立集）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: G \\text{ 二部} \\Leftrightarrow \\chi(G) \\le 2 \\Leftrightarrow G \\text{ 无奇数环}
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_TREE_TEST
+    description: 判定图是否是树（连通且无环的无向图）
+    inputs: [GRAPH]
+    output: BOOLEAN
+    math_def: G \\text{ 是树} \\Leftrightarrow G \\text{ 连通且 } |E| = |V| - 1
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_DUAL
+    description: 计算平面图的对偶图 G*（面与顶点互换）
+    inputs: [GRAPH]
+    output: GRAPH
+    math_def: G^* = (F, E^*), F \\text{ 是 } G \\text{ 的面集}
+    complexity: O(|V| + |E|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GRAPH_AUTOMORPHISM_GROUP
+    description: 计算图的自同构群 Aut(G)，即保持图结构的所有顶点置换
+    inputs: [GRAPH]
+    output: GROUP
+    math_def: '\\text{Aut}(G) = \\{\\sigma \\in S_{|V|} : uv \\in E \\Leftrightarrow \\sigma(u)\\sigma(v) \\in E\\}'
+    complexity: O(|V|! \\cdot |V|^2)
+    constructive: true
+    reversible: false
+- module: group_theory
+  category: GROUP_THEORY
+  items:
+  - name: PRESET_GROUP_OPERATION
+    description: 群运算：计算群中两个元素的乘积 a * b
+    inputs: [GROUP, GROUP_ELEMENT, GROUP_ELEMENT]
+    output: GROUP_ELEMENT
+    math_def: a \\cdot b \\in G
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_GROUP_INVERSE
+    description: 计算群元素的逆元 a^(-1)
+    inputs: [GROUP, GROUP_ELEMENT]
+    output: GROUP_ELEMENT
+    math_def: a \\cdot a^{-1} = e
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_GROUP_POWER
+    description: 群元素的幂运算 a^n（快速幂算法）
+    inputs: [GROUP, GROUP_ELEMENT, INTEGER]
+    output: GROUP_ELEMENT
+    math_def: a^n = \\underbrace{a \\cdot a \\cdots a}_{n \\text{ 次}}
+    complexity: O(log n)
+    constructive: true
+    reversible: false
+  - name: PRESET_GROUP_IDENTITY_TEST
+    description: 判定元素是否是群的单位元
+    inputs: [GROUP, GROUP_ELEMENT]
+    output: BOOLEAN
+    math_def: e \\cdot a = a \\cdot e = a, \\forall a \\in G
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_ELEMENT_ORDER
+    description: 计算群元素的阶 ord(a)
+    inputs: [GROUP, GROUP_ELEMENT]
+    output: INTEGER
+    math_def: '\\text{ord}(a) = \\min\\{n > 0 : a^n = e\\}'
+    complexity: O(ord(a))
+    constructive: true
+    reversible: false
+  - name: PRESET_SUBGROUP_TEST
+    description: 判定子集是否构成子群（封闭性、单位元、逆元）
+    inputs: [GROUP, SUBGROUP]
+    output: BOOLEAN
+    math_def: 'H \\le G \\Leftrightarrow \\forall a,b \\in H: ab^{-1} \\in H'
+    complexity: O(|H|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_GENERATED_SUBGROUP
+    description: 由元素集合生成的子群 <S>
+    inputs: [GROUP, SEQUENCE]
+    output: SUBGROUP
+    math_def: '\\langle S \\rangle = \\{s_1^{e_1} \\cdots s_k^{e_k} : s_i \\in S\\}'
+    complexity: O(|G|)
+    constructive: true
+    reversible: false
+  - name: PRESET_LEFT_COSET
+    description: 计算元素关于子群的左陪集 aH
+    inputs: [GROUP, SUBGROUP, GROUP_ELEMENT]
+    output: SET
+    math_def: 'aH = \\{ah : h \\in H\\}'
+    complexity: O(|H|)
+    constructive: true
+    reversible: false
+  - name: PRESET_RIGHT_COSET
+    description: 计算元素关于子群的右陪集 Ha
+    inputs: [GROUP, SUBGROUP, GROUP_ELEMENT]
+    output: SET
+    math_def: 'Ha = \\{ha : h \\in H\\}'
+    complexity: O(|H|)
+    constructive: true
+    reversible: false
+  - name: PRESET_COSET_DECOMPOSITION
+    description: 群关于子群的陪集分解
+    inputs: [GROUP, SUBGROUP]
+    output: SET
+    math_def: G = \\bigcup_{i=1}^{[G:H]} g_i H
+    complexity: O(|G|)
+    constructive: true
+    reversible: false
+  - name: PRESET_NORMAL_SUBGROUP_TEST
+    description: 判定子群是否是正规子群
+    inputs: [GROUP, SUBGROUP]
+    output: BOOLEAN
+    math_def: H \\triangleleft G \\Leftrightarrow gHg^{-1} = H, \\forall g \\in G
+    complexity: O(|G|·|H|)
+    constructive: true
+    reversible: false
+  - name: PRESET_QUOTIENT_GROUP
+    description: 构造商群 G/H（要求 H 是正规子群）
+    inputs: [GROUP, SUBGROUP]
+    output: GROUP
+    math_def: 'G/H = \\{gH : g \\in G\\}'
+    complexity: O(|G|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GROUP_HOMOMORPHISM_TEST
+    description: 判定映射是否是群同态
+    inputs: [GROUP, GROUP, HOMOMORPHISM]
+    output: BOOLEAN
+    math_def: f(ab) = f(a)f(b), \\forall a,b \\in G
+    complexity: O(|G|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_HOMOMORPHISM_KERNEL
+    description: 计算群同态的核 ker(f)
+    inputs: [GROUP, GROUP, HOMOMORPHISM]
+    output: SUBGROUP
+    math_def: '\\ker(f) = \\{g \\in G : f(g) = e_H\\}'
+    complexity: O(|G|)
+    constructive: true
+    reversible: false
+  - name: PRESET_HOMOMORPHISM_IMAGE
+    description: 计算群同态的像 im(f)
+    inputs: [GROUP, GROUP, HOMOMORPHISM]
+    output: SUBGROUP
+    math_def: '\\text{im}(f) = \\{f(g) : g \\in G\\}'
+    complexity: O(|G|)
+    constructive: true
+    reversible: false
+  - name: PRESET_GROUP_ISOMORPHISM_TEST
+    description: 判定两个群是否同构
+    inputs: [GROUP, GROUP]
+    output: BOOLEAN
+    math_def: 'G \\cong H \\Leftrightarrow \\exists \\varphi: G \\to H \\text{ 双射同态}'
+    complexity: O(|G|!)
+    constructive: true
+    reversible: false
+  - name: PRESET_AUTOMORPHISM_GROUP
+    description: 计算群的自同构群 Aut(G)
+    inputs: [GROUP]
+    output: GROUP
+    math_def: '\\text{Aut}(G) = \\{\\varphi : G \\to G \\text{ 同构}\\}'
+    complexity: O(|G|!)
+    constructive: true
+    reversible: false
+  - name: PRESET_INNER_AUTOMORPHISM
+    description: 计算群的内自同构群 Inn(G)
+    inputs: [GROUP]
+    output: GROUP
+    math_def: '\\text{Inn}(G) = \\{\\varphi_g : x \\mapsto gxg^{-1}\\}'
+    complexity: O(|G|)
+    constructive: true
+    reversible: false
+  - name: PRESET_CYCLIC_GROUP_TEST
+    description: 判定群是否是循环群
+    inputs: [GROUP]
+    output: BOOLEAN
+    math_def: 'G \\text{ 循环} \\Leftrightarrow \\exists g: G = \\langle g \\rangle'
+    complexity: O(|G|)
+    constructive: true
+    reversible: false
+  - name: PRESET_CYCLIC_GENERATORS
+    description: 计算循环群的所有生成元
+    inputs: [GROUP]
+    output: SET
+    math_def: '\\{g : \\langle g \\rangle = G\\}'
+    complexity: O(|G| log |G|)
+    constructive: true
+    reversible: false
+  - name: PRESET_ABELIAN_GROUP_TEST
+    description: 判定群是否是阿贝尔群（交换群）
+    inputs: [GROUP]
+    output: BOOLEAN
+    math_def: G \\text{ 阿贝尔} \\Leftrightarrow ab = ba, \\forall a,b \\in G
+    complexity: O(|G|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_PERMUTATION_MULTIPLY
+    description: 两个置换的乘积（复合）
+    inputs: [SEQUENCE, SEQUENCE]
+    output: SEQUENCE
+    math_def: (\\sigma \\circ \\tau)(i) = \\sigma(\\tau(i))
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PERMUTATION_DECOMPOSE
+    description: 将置换分解为不相交轮换的乘积
+    inputs: [SEQUENCE]
+    output: TUPLE
+    math_def: \\sigma = \\tau_1 \\circ \\tau_2 \\circ \\cdots \\circ \\tau_k
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_SYMMETRIC_GROUP
+    description: 构造 n 次对称群 S_n
+    inputs: [INTEGER]
+    output: GROUP
+    math_def: S_n = \\{\\text{所有 } n \\text{ 元置换}\\}, |S_n| = n!
+    complexity: O(n!)
+    constructive: true
+    reversible: false
+  - name: PRESET_ALTERNATING_GROUP
+    description: 构造 n 次交错群 A_n（偶置换群）
+    inputs: [INTEGER]
+    output: GROUP
+    math_def: 'A_n = \\{\\sigma \\in S_n : \\text{sgn}(\\sigma) = 1\\}'
+    complexity: O(n!)
+    constructive: true
+    reversible: false
+  - name: PRESET_DIHEDRAL_GROUP
+    description: 构造 n 阶二面体群 D_n（正 n 边形的对称群）
+    inputs: [INTEGER]
+    output: GROUP
+    math_def: 'D_n = \\langle r, s : r^n = s^2 = e, srs = r^{-1} \\rangle'
+    complexity: O(n)
+    constructive: true
+    reversible: false
+- module: matrix
+  category: ALGEBRAIC
+  items:
+  - name: PRESET_MATRIX_ADD
+    description: 矩阵加法：计算同阶矩阵 A 与 B 的和 C = A + B
+    inputs: [MATRIX, MATRIX]
+    output: MATRIX
+    math_def: C_{ij} = A_{ij} + B_{ij}
+    complexity: O(mn)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_SUBTRACT
+    description: 矩阵减法：计算同阶矩阵 A 与 B 的差 C = A - B
+    inputs: [MATRIX, MATRIX]
+    output: MATRIX
+    math_def: C_{ij} = A_{ij} - B_{ij}
+    complexity: O(mn)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_SCALAR_MULTIPLY
+    description: 标量乘法：计算标量 k 与矩阵 A 的数乘 kA
+    inputs: [SCALAR, MATRIX]
+    output: MATRIX
+    math_def: (kA)_{ij} = k \\cdot A_{ij}
+    complexity: O(mn)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_MULTIPLY
+    description: 矩阵乘法：计算矩阵 A 与 B 的乘积 C = AB（A的列数等于B的行数）
+    inputs: [MATRIX, MATRIX]
+    output: MATRIX
+    math_def: C_{ij} = \\sum_{k=1}^{n} A_{ik} B_{kj}
+    complexity: O(mnp)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_TRANSPOSE
+    description: 矩阵转置：计算矩阵 A 的转置 A^T
+    inputs: [MATRIX]
+    output: MATRIX
+    math_def: (A^T)_{ij} = A_{ji}
+    complexity: O(mn)
+    constructive: true
+    reversible: true
+  - name: PRESET_MATRIX_TRACE
+    description: 矩阵迹：计算方阵 A 的迹 tr(A)，即主对角线元素之和
+    inputs: [MATRIX]
+    output: SCALAR
+    math_def: \\text{tr}(A) = \\sum_{i=1}^{n} A_{ii}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_DETERMINANT
+    description: 矩阵行列式：计算方阵 A 的行列式 det(A)
+    inputs: [MATRIX]
+    output: SCALAR
+    math_def: \\det(A) = \\sum_{\\sigma \\in S_n} \\text{sgn}(\\sigma) \\prod_{i=1}^{n} A_{i,\\sigma(i)}
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_INVERSE
+    description: 矩阵逆：计算可逆方阵 A 的逆矩阵 A^{-1}（det(A) != 0）
+    inputs: [MATRIX]
+    output: MATRIX
+    math_def: A A^{-1} = A^{-1} A = I_n, \\quad \\det(A) \\neq 0
+    complexity: O(n^3)
+    constructive: true
+    reversible: true
+  - name: PRESET_MATRIX_RANK
+    description: 矩阵秩：计算矩阵 A 的秩 rank(A)，即行空间（或列空间）的维数
+    inputs: [MATRIX]
+    output: INTEGER
+    math_def: \\text{rank}(A) = \\dim(\\text{Im}(A))
+    complexity: O(mn \\cdot \\min(m,n))
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_NULLITY
+    description: 零化度：计算矩阵 A 的零化度 nullity(A) = dim(ker(A))
+    inputs: [MATRIX]
+    output: INTEGER
+    math_def: \\text{nullity}(A) = \\dim(\\ker(A)) = n - \\text{rank}(A)
+    complexity: O(mn \\cdot \\min(m,n))
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_EIGENVALUES
+    description: 特征值：计算方阵 A 的所有特征值 lambda_i，满足 det(A - lambda I) = 0
+    inputs: [MATRIX]
+    output: LIST
+    math_def: \\det(A - \\lambda I) = 0
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_EIGENVECTORS
+    description: 特征向量：计算方阵 A 的特征向量，满足 Av = lambda v
+    inputs: [MATRIX]
+    output: LIST
+    math_def: A \\mathbf{v} = \\lambda \\mathbf{v}, \\quad \\mathbf{v} \\neq \\mathbf{0}
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_CHARACTERISTIC_POLY
+    description: 特征多项式：计算方阵 A 的特征多项式 p(lambda) = det(lambda I - A)
+    inputs: [MATRIX]
+    output: POLYNOMIAL
+    math_def: p(\\lambda) = \\det(\\lambda I - A) = \\lambda^n + c_{n-1}\\lambda^{n-1} + \\cdots + c_0
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_MINIMAL_POLY
+    description: 最小多项式：计算方阵 A 的最小多项式 m(x)，即满足 m(A) = 0 的最低次首一多项式
+    inputs: [MATRIX]
+    output: POLYNOMIAL
+    math_def: m(A) = 0, \\quad m(x) | p(x)
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_KERNEL
+    description: '核空间：计算矩阵 A 的核空间（零空间）ker(A) = {x : Ax = 0} 的基'
+    inputs: [MATRIX]
+    output: LIST
+    math_def: '\\ker(A) = \\{\\mathbf{x} \\in \\mathbb{R}^n : A\\mathbf{x} = \\mathbf{0}\\}'
+    complexity: O(mn \\cdot \\min(m,n))
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_IMAGE
+    description: '像空间：计算矩阵 A 的像空间（列空间）Im(A) = {Ax : x in R^n} 的基'
+    inputs: [MATRIX]
+    output: LIST
+    math_def: '\\text{Im}(A) = \\{A\\mathbf{x} : \\mathbf{x} \\in \\mathbb{R}^n\\}'
+    complexity: O(mn \\cdot \\min(m,n))
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_LU_DECOMPOSITION
+    description: LU分解：将方阵 A 分解为下三角矩阵 L 和上三角矩阵 U 的乘积 A = LU
+    inputs: [MATRIX]
+    output: TUPLE
+    math_def: A = LU, \\quad L \\text{为下三角}, U \\text{为上三角}
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_QR_DECOMPOSITION
+    description: QR分解：将矩阵 A 分解为正交矩阵 Q 和上三角矩阵 R 的乘积 A = QR
+    inputs: [MATRIX]
+    output: TUPLE
+    math_def: A = QR, \\quad Q^T Q = I, R \\text{为上三角}
+    complexity: O(mn^2)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_SVD
+    description: 奇异值分解：将矩阵 A 分解为 A = U Sigma V^T，其中 U、V 为正交矩阵，Sigma 为对角矩阵
+    inputs: [MATRIX]
+    output: TUPLE
+    math_def: A = U \\Sigma V^T, \\quad \\sigma_1 \\geq \\sigma_2 \\geq \\cdots \\geq 0
+    complexity: O(mn \\cdot \\min(m,n))
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_CHOLESKY
+    description: Cholesky分解：将对称正定矩阵 A 分解为 A = LL^T，其中 L 为下三角矩阵
+    inputs: [MATRIX]
+    output: MATRIX
+    math_def: A = LL^T, \\quad L \\text{为下三角}, A \\text{对称正定}
+    complexity: O(n^3 / 3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_JORDAN_FORM
+    description: Jordan标准形：计算方阵 A 的Jordan标准形 J = P^{-1}AP
+    inputs: [MATRIX]
+    output: TUPLE
+    math_def: J = P^{-1}AP = \\text{diag}(J_1, J_2, \\ldots, J_k)
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_SPECTRAL
+    description: 谱分解：将可对角化的方阵 A 分解为 A = PDP^{-1}，其中 D 为特征值对角矩阵
+    inputs: [MATRIX]
+    output: TUPLE
+    math_def: A = PDP^{-1}, \\quad D = \\text{diag}(\\lambda_1, \\ldots, \\lambda_n)
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_ZERO
+    description: 零矩阵：生成 m x n 阶零矩阵 O_{m x n}，所有元素为0
+    inputs: [INTEGER, INTEGER]
+    output: MATRIX
+    math_def: O_{m \\times n} = (0)_{m \\times n}
+    complexity: O(mn)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_DIAGONAL
+    description: 对角矩阵：以向量 v 的元素作为主对角线生成对角矩阵 diag(v)
+    inputs: [VECTOR]
+    output: MATRIX
+    math_def: \\text{diag}(v) = \\begin{pmatrix} v_1 & & \\\\ & \\ddots & \\\\ & & v_n \\end{pmatrix}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_MATRIX_ELEMENTARY_ROW
+    description: 初等行变换矩阵：生成 n 阶初等行变换矩阵（行交换、行倍乘、行倍加）
+    inputs: [INTEGER, INTEGER, SCALAR]
+    output: MATRIX
+    math_def: E_{ij}(c) = I + c \\cdot e_i e_j^T
+    complexity: O(n^2)
+    constructive: true
+    reversible: true
+  - name: PRESET_MATRIX_HILBERT
+    description: Hilbert矩阵：生成 n 阶 Hilbert 矩阵 H_{ij} = 1/(i+j-1)，经典的病态矩阵
+    inputs: [INTEGER]
+    output: MATRIX
+    math_def: H_{ij} = \\frac{1}{i + j - 1}, \\quad 1 \\leq i, j \\leq n
+    complexity: O(n^2)
+    constructive: true
+    reversible: false
+- module: optimization
+  category: OPTIMIZATION
+  items:
+  - name: PRESET_OPT_GRADIENT_DESCENT
+    description: 梯度下降法：沿目标函数的负梯度方向迭代搜索极小值点
+    inputs: [FUNCTION, TUPLE]
+    output: TUPLE
+    math_def: x_{k+1} = x_k - \\alpha_k \\nabla f(x_k)
+    complexity: O(n \\cdot k)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_NEWTON_METHOD
+    description: 牛顿法：利用目标函数的二阶导数（Hessian矩阵）构造二次近似模型进行迭代
+    inputs: [FUNCTION, TUPLE]
+    output: TUPLE
+    math_def: x_{k+1} = x_k - [\\nabla^2 f(x_k)]^{-1} \\nabla f(x_k)
+    complexity: O(n^3 \\cdot k)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_QUASI_NEWTON
+    description: 拟牛顿法（BFGS/DFP）：通过梯度差分近似Hessian矩阵的逆，避免直接计算二阶导数
+    inputs: [FUNCTION, TUPLE]
+    output: TUPLE
+    math_def: B_{k+1} = B_k + \\frac{y_k y_k^T}{y_k^T s_k} - \\frac{B_k s_k s_k^T B_k}{s_k^T B_k s_k}
+    complexity: O(n^2 \\cdot k)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_LAGRANGE_MULTIPLIER
+    description: 拉格朗日乘子法：引入拉格朗日乘子将等式约束优化问题转化为无约束问题
+    inputs: [FUNCTION, LIST]
+    output: TUPLE
+    math_def: \\mathcal{L}(x, \\lambda) = f(x) + \\sum_{i=1}^{m} \\lambda_i h_i(x)
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_BARRIER_METHOD
+    description: 障碍函数法：在可行域内部添加障碍项，使迭代点始终保持在可行域内并逼近最优解
+    inputs: [FUNCTION, LIST, SCALAR]
+    output: FUNCTION
+    math_def: B(x, \\mu) = f(x) - \\mu \\sum_{i=1}^{m} \\ln(-g_i(x))
+    complexity: O(n \\cdot k)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_SIMPLEX
+    description: 单纯形法：在可行域的顶点之间移动，逐步改进目标函数值，求解线性规划问题
+    inputs: [FUNCTION, MATRIX, TUPLE]
+    output: TUPLE
+    math_def: \\min c^T x \\quad \\text{s.t.} \\quad Ax = b, \\quad x \\ge 0
+    complexity: O(2^n) 最坏情况
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_INTERIOR_POINT
+    description: 内点法：通过障碍函数在可行域内部逼近最优解，具有多项式时间复杂度
+    inputs: [FUNCTION, MATRIX, TUPLE]
+    output: TUPLE
+    math_def: \\min c^T x - \\mu \\sum_{i} \\ln x_i \\quad \\text{s.t.} \\quad Ax = b, \\quad x > 0
+    complexity: O(n^{3.5} L)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_DUAL_SIMPLEX
+    description: 对偶单纯形法：基于对偶理论，在保持对偶可行性的前提下恢复原始可行性
+    inputs: [FUNCTION, MATRIX, TUPLE]
+    output: TUPLE
+    math_def: \\max b^T y \\quad \\text{s.t.} \\quad A^T y \\le c
+    complexity: O(2^n) 最坏情况
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_CONVEXITY_TEST
+    description: 凸性检验：判断目标函数是否为凸函数（Hessian矩阵半正定）
+    inputs: [FUNCTION]
+    output: BOOLEAN
+    math_def: f(\\theta x + (1-\\theta)y) \\le \\theta f(x) + (1-\\theta)f(y), \\quad \\forall \\theta \\in [0,1]
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_ADMM
+    description: 交替方向乘子法（ADMM）：将全局优化问题分解为局部子问题，适用于分布式凸优化
+    inputs: [FUNCTION, FUNCTION, MATRIX]
+    output: TUPLE
+    math_def: \\min f(x) + g(z) \\quad \\text{s.t.} \\quad Ax + Bz = c
+    complexity: O(n \\cdot k)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_EULER_LAGRANGE
+    description: 欧拉-拉格朗日方程：泛函极值问题的必要条件，将变分问题转化为微分方程
+    inputs: [FUNCTION]
+    output: EQUATION
+    math_def: \\frac{\\partial L}{\\partial y} - \\frac{d}{dx}\\frac{\\partial L}{\\partial y'} = 0
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_CALCULUS_OF_VARIATIONS
+    description: 变分法：求解泛函极值问题的数学框架，寻找使泛函取极值的函数
+    inputs: [FUNCTION, FUNCTION, FUNCTION]
+    output: FUNCTION
+    math_def: J[y] = \\int_a^b L(x, y(x), y'(x)) \\, dx \\to \\min
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_WEAK_DUALITY_TEST
+    description: 弱对偶性检验：验证对偶间隙是否非负（d* <= p* 恒成立）
+    inputs: [FUNCTION, LIST, LIST]
+    output: BOOLEAN
+    math_def: d^* \\le p^* \\quad \\text{（对偶间隙} \\quad p^* - d^* \\ge 0 \\text{）}
+    complexity: O(n^3)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPT_GENETIC_ALGORITHM
+    description: 遗传算法：基于自然选择和遗传机制的全局优化元启发式算法，通过选择、交叉、变异操作进化种群
+    inputs: [FUNCTION, LIST, SCALAR]
+    output: TUPLE
+    math_def: x_{\\text{child}} = \\text{Crossover}(x_{p1}, x_{p2}), \\quad x' = \\text{Mutate}(x, p_m)
+    complexity: O(N \\cdot G \\cdot n)
+    constructive: true
+    reversible: false
+- module: probability
+  category: PROBABILITY
+  items:
+  - name: PRESET_PROB_SAMPLE_SPACE
+    description: 样本空间：定义随机试验的所有可能结果的集合 Omega
+    inputs: [SET]
+    output: SET
+    math_def: \\Omega = \\{\\omega_1, \\omega_2, \\ldots, \\omega_n\\}
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_EVENT_PROBABILITY
+    description: 事件概率：计算事件 A 的概率 P(A) = |A| / |Omega|
+    inputs: [SET, SET]
+    output: PROBABILITY
+    math_def: P(A) = \\frac{|A|}{|\\Omega|}
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_COMPLEMENT_EVENT
+    description: 补事件概率：P(A^c) = 1 - P(A)
+    inputs: [PROBABILITY]
+    output: PROBABILITY
+    math_def: P(A^c) = 1 - P(A)
+    complexity: O(1)
+    constructive: true
+    reversible: true
+  - name: PRESET_PROB_UNION_EVENT
+    description: 并事件概率：P(A U B) = P(A) + P(B) - P(A ∩ B)
+    inputs: [PROBABILITY, PROBABILITY, PROBABILITY]
+    output: PROBABILITY
+    math_def: P(A \\cup B) = P(A) + P(B) - P(A \\cap B)
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_INTERSECTION_EVENT
+    description: 交事件概率：计算 P(A ∩ B)
+    inputs: [PROBABILITY, PROBABILITY]
+    output: PROBABILITY
+    math_def: P(A \\cap B)
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_CONDITIONAL
+    description: 条件概率：P(A|B) = P(A∩B) / P(B)，已知事件B已发生时A的概率
+    inputs: [PROBABILITY, PROBABILITY]
+    output: PROBABILITY
+    math_def: P(A|B) = \\frac{P(A \\cap B)}{P(B)}
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_BAYES
+    description: 贝叶斯定理：P(A|B) = P(B|A)·P(A) / P(B)，后验概率计算
+    inputs: [PROBABILITY, PROBABILITY, PROBABILITY]
+    output: PROBABILITY
+    math_def: P(A|B) = \\frac{P(B|A) \\cdot P(A)}{P(B)}
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_INDEPENDENCE_TEST
+    description: 独立性检验：验证 P(A∩B) = P(A)·P(B) 是否成立
+    inputs: [PROBABILITY, PROBABILITY, PROBABILITY]
+    output: BOOLEAN
+    math_def: A \\perp\\!\\!\\!\\perp B \\Leftrightarrow P(A \\cap B) = P(A) \\cdot P(B)
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_TOTAL_PROBABILITY
+    description: 全概率公式：P(A) = Σ P(A|Bi)·P(Bi)，{Bi} 为完备事件组
+    inputs: [LIST, LIST]
+    output: PROBABILITY
+    math_def: P(A) = \\sum_{i=1}^{n} P(A|B_i) \\cdot P(B_i)
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_BINOMIAL_PMF
+    description: 二项分布PMF：P(X=k) = C(n,k)·p^k·(1-p)^(n-k)
+    inputs: [INTEGER, SCALAR, INTEGER]
+    output: PROBABILITY
+    math_def: P(X=k) = \\binom{n}{k} p^k (1-p)^{n-k}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_POISSON_PMF
+    description: 泊松分布PMF：P(X=k) = λ^k·e^(-λ) / k!
+    inputs: [SCALAR, INTEGER]
+    output: PROBABILITY
+    math_def: P(X=k) = \\frac{\\lambda^k e^{-\\lambda}}{k!}
+    complexity: O(k)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_GEOMETRIC_PMF
+    description: 几何分布PMF：P(X=k) = (1-p)^(k-1)·p，首次成功所需的试验次数
+    inputs: [SCALAR, INTEGER]
+    output: PROBABILITY
+    math_def: P(X=k) = (1-p)^{k-1} p, \\quad k = 1, 2, \\ldots
+    complexity: O(k)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_HYPERGEOMETRIC_PMF
+    description: 超几何分布PMF：从N个中（含K个成功）取n个，恰好k个成功的概率
+    inputs: [INTEGER, INTEGER, INTEGER, INTEGER]
+    output: PROBABILITY
+    math_def: P(X=k) = \\frac{\\binom{K}{k}\\binom{N-K}{n-k}}{\\binom{N}{n}}
+    complexity: O(k)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_DISCRETE_UNIFORM_PMF
+    description: 离散均匀分布PMF：P(X=k) = 1/n，k ∈ {a, a+1, ..., b}
+    inputs: [INTEGER, INTEGER]
+    output: PROBABILITY
+    math_def: P(X=k) = \\frac{1}{n}, \\quad k \\in \\{a, a+1, \\ldots, b\\}
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_EXPONENTIAL_PDF
+    description: 指数分布概率密度函数：f(x) = λ·exp(-λx)，x >= 0
+    inputs: [SCALAR, SCALAR]
+    output: PROBABILITY
+    math_def: f(x) = \\lambda e^{-\\lambda x}, \\quad x \\ge 0
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_UNIFORM_PDF
+    description: 均匀分布概率密度函数：f(x) = 1/(b-a)，a <= x <= b
+    inputs: [SCALAR, SCALAR, SCALAR]
+    output: PROBABILITY
+    math_def: f(x) = \\frac{1}{b-a}, \\quad a \\le x \\le b
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_SAMPLE_MEAN
+    description: 样本均值：x̄ = (1/n)·Σ xi
+    inputs: [LIST]
+    output: SCALAR
+    math_def: \\bar{x} = \\frac{1}{n} \\sum_{i=1}^{n} x_i
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_SAMPLE_VARIANCE
+    description: 样本方差（无偏估计）：s^2 = (1/(n-1))·Σ(xi - x̄)^2
+    inputs: [LIST]
+    output: SCALAR
+    math_def: s^2 = \\frac{1}{n-1} \\sum_{i=1}^{n} (x_i - \\bar{x})^2
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_SAMPLE_STD
+    description: 样本标准差：s = √(样本方差)
+    inputs: [LIST]
+    output: SCALAR
+    math_def: s = \\sqrt{\\frac{1}{n-1} \\sum_{i=1}^{n} (x_i - \\bar{x})^2}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_Z_TEST
+    description: Z检验：z = (x̄ - μ₀) / (σ/√n)，大样本均值假设检验
+    inputs: [LIST, SCALAR, SCALAR, SCALAR]
+    output: TUPLE
+    math_def: z = \\frac{\\bar{x} - \\mu_0}{\\sigma / \\sqrt{n}}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_T_TEST
+    description: t检验：t = (x̄ - μ₀) / (s/√n)，小样本均值假设检验
+    inputs: [LIST, SCALAR]
+    output: TUPLE
+    math_def: t = \\frac{\\bar{x} - \\mu_0}{s / \\sqrt{n}}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+  - name: PRESET_PROB_CHI_SQUARED_TEST
+    description: 卡方检验：χ² = Σ (Oi - Ei)^2 / Ei，拟合优度或独立性检验
+    inputs: [LIST, LIST]
+    output: TUPLE
+    math_def: \\chi^2 = \\sum_{i} \\frac{(O_i - E_i)^2}{E_i}
+    complexity: O(n)
+    constructive: true
+    reversible: false
+- module: topology
+  category: TOPOLOGY
+  items:
+  - name: PRESET_OPEN_SET_TEST
+    description: 判定集合是否是拓扑空间中的开集
+    inputs: [SPACE, OPEN_SET]
+    output: BOOLEAN
+    math_def: U \\in \\mathcal{T}
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_CLOSED_SET_TEST
+    description: 判定集合是否是拓扑空间中的闭集
+    inputs: [SPACE, CLOSED_SET]
+    output: BOOLEAN
+    math_def: X \\setminus A \\in \\mathcal{T}
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_CLOSURE
+    description: 计算集合的闭包（包含该集合的最小闭集）
+    inputs: [SPACE, SET]
+    output: CLOSED_SET
+    math_def: '\\bar{A} = \\bigcap \\{F : A \\subseteq F, F \\text{ 闭}\\}'
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_INTERIOR
+    description: 计算集合的内部（包含在该集合中的最大开集）
+    inputs: [SPACE, SET]
+    output: OPEN_SET
+    math_def: 'A^\\circ = \\bigcup \\{U : U \\subseteq A, U \\in \\mathcal{T}\\}'
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_BOUNDARY
+    description: 计算集合的边界
+    inputs: [SPACE, SET]
+    output: SET
+    math_def: \\partial A = \\bar{A} \\setminus A^\\circ
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_NEIGHBORHOOD_TEST
+    description: 判定集合是否是某点的邻域
+    inputs: [SPACE, SET, SET]
+    output: BOOLEAN
+    math_def: 'N \\text{ 是 } x \\text{ 的邻域} \\Leftrightarrow \\exists U \\in \\mathcal{T}: x \\in U \\subseteq N'
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_NEIGHBORHOOD_SYSTEM
+    description: 计算某点的邻域系
+    inputs: [SPACE, SET]
+    output: SET
+    math_def: '\\mathcal{N}(x) = \\{N : x \\in N^\\circ\\}'
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_TOPOLOGY_FROM_BASE
+    description: 由基生成拓扑
+    inputs: [SET, SET]
+    output: SPACE
+    math_def: '\\mathcal{T} = \\{\\bigcup \\mathcal{B}'' : \\mathcal{B}'' \\subseteq \\mathcal{B}\\}'
+    complexity: O(2^{|\\mathcal{B}|})
+    constructive: true
+    reversible: false
+  - name: PRESET_CONTINUOUS_MAP_TEST
+    description: 判定映射是否连续
+    inputs: [SPACE, SPACE, FUNCTION]
+    output: BOOLEAN
+    math_def: f \\text{ 连续} \\Leftrightarrow f^{-1}(U) \\in \\mathcal{T}_X, \\forall U \\in \\mathcal{T}_Y
+    complexity: O(|\\mathcal{T}_Y|)
+    constructive: true
+    reversible: false
+  - name: PRESET_HOMEOMORPHISM_TEST
+    description: 判定两个拓扑空间是否同胚
+    inputs: [SPACE, SPACE]
+    output: BOOLEAN
+    math_def: 'X \\cong Y \\Leftrightarrow \\exists f: X \\to Y \\text{ 连续双射且 } f^{-1} \\text{ 连续}'
+    complexity: O(|X|!)
+    constructive: true
+    reversible: false
+  - name: PRESET_QUOTIENT_TOPOLOGY
+    description: 构造商空间 X/~ 的商拓扑
+    inputs: [SPACE, FUNCTION]
+    output: SPACE
+    math_def: '\\mathcal{T}_{X/~} = \\{U : \\pi^{-1}(U) \\in \\mathcal{T}_X\\}'
+    complexity: O(|\\mathcal{T}_X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_PRODUCT_TOPOLOGY
+    description: 构造积空间 X × Y 的积拓扑
+    inputs: [SPACE, SPACE]
+    output: SPACE
+    math_def: '\\mathcal{T}_{X×Y} = \\text{由 } \\{U × V : U \\in \\mathcal{T}_X, V \\in \\mathcal{T}_Y\\} \\text{ 生成}'
+    complexity: O(|\\mathcal{T}_X| × |\\mathcal{T}_Y|)
+    constructive: true
+    reversible: false
+  - name: PRESET_SUBSPACE_TOPOLOGY
+    description: 构造子空间 A ⊆ X 的诱导拓扑
+    inputs: [SPACE, SET]
+    output: SPACE
+    math_def: '\\mathcal{T}_A = \\{U ∩ A : U \\in \\mathcal{T}_X\\}'
+    complexity: O(|\\mathcal{T}_X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_T1_SPACE_TEST
+    description: 判定是否是 T1 (Fréchet) 空间
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: 'X \\text{ 是 } T_1 \\Leftrightarrow \\forall x \\neq y, \\exists U \\in \\mathcal{T}: x \\in U, y \\notin U'
+    complexity: O(|X|² |\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_T2_SPACE_TEST
+    description: 判定是否是 T2 (Hausdorff) 空间
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: 'X \\text{ 是 } T_2 \\Leftrightarrow \\forall x \\neq y, \\exists U, V \\in \\mathcal{T}: x \\in U, y \\in V,
+      U ∩ V = \\emptyset'
+    complexity: O(|X|² |\\mathcal{T}|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_T3_SPACE_TEST
+    description: 判定是否是 T3 (正则) 空间
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: 'X \\text{ 正则} \\Leftrightarrow T_1 + \\forall x, \\forall \\text{闭集} F \\not\\ni x, \\exists U, V \\in \\mathcal{T}:
+      x \\in U, F \\subseteq V, U ∩ V = \\emptyset'
+    complexity: O(|X|² |\\mathcal{T}|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_T4_SPACE_TEST
+    description: 判定是否是 T4 (正规) 空间
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: 'X \\text{ 正规} \\Leftrightarrow T_1 + \\forall \\text{闭集} E, F \\text{ 不相交}, \\exists U, V \\in \\mathcal{T}:
+      E \\subseteq U, F \\subseteq V, U ∩ V = \\emptyset'
+    complexity: O(|X|² |\\mathcal{T}|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_COMPACT_SPACE_TEST
+    description: 判定拓扑空间是否紧致
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: X \\text{ 紧致} \\Leftrightarrow \\text{每个开覆盖有有限子覆盖}
+    complexity: O(2^{|\\mathcal{T}|})
+    constructive: true
+    reversible: false
+  - name: PRESET_SEQUENTIALLY_COMPACT
+    description: 判定拓扑空间是否列紧
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: X \\text{ 列紧} \\Leftrightarrow \\text{每个序列有收敛子序列}
+    complexity: O(|X|^{|X|})
+    constructive: true
+    reversible: false
+  - name: PRESET_LOCALLY_COMPACT_TEST
+    description: 判定拓扑空间是否局部紧致
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: X \\text{ 局部紧致} \\Leftrightarrow \\forall x, \\exists \\text{紧致邻域 } K \\ni x
+    complexity: O(|X| |\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_ONE_POINT_COMPACTIFICATION
+    description: 构造拓扑空间的单点紧致化 X* = X ∪ {∞}
+    inputs: [SPACE]
+    output: SPACE
+    math_def: 'X^* = X \\cup \\{\\infty\\}, \\mathcal{T}^* = \\mathcal{T} \\cup \\{X^* \\setminus K : K \\text{ 紧致}\\}'
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONNECTED_SPACE_TEST
+    description: 判定拓扑空间是否连通
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: 'X \\text{ 连通} \\Leftrightarrow \\nexists U, V \\in \\mathcal{T} \\setminus \\{\\emptyset\\}: U ∪ V = X, U ∩
+      V = \\emptyset'
+    complexity: O(|\\mathcal{T}|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_PATH_CONNECTED_TEST
+    description: 判定拓扑空间是否道路连通
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: 'X \\text{ 道路连通} \\Leftrightarrow \\forall x, y, \\exists \\gamma: [0,1] \\to X \\text{ 连续}: \\gamma(0) = x,
+      \\gamma(1) = y'
+    complexity: O(|X|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_CONNECTED_COMPONENT
+    description: 计算包含某点的连通分支
+    inputs: [SPACE, SET]
+    output: SET
+    math_def: 'C(x) = \\bigcup \\{C : x \\in C, C \\text{ 连通}\\}'
+    complexity: O(|X| |\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_PATH_COMPONENT
+    description: 计算包含某点的道路连通分支
+    inputs: [SPACE, SET]
+    output: SET
+    math_def: 'P(x) = \\{y : \\exists \\text{道路 } \\gamma: x \\to y\\}'
+    complexity: O(|X|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_LOCALLY_CONNECTED_TEST
+    description: 判定拓扑空间是否局部连通
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: 'X \\text{ 局部连通} \\Leftrightarrow \\forall x, \\forall U \\ni x, \\exists \\text{连通开集 } V: x \\in V \\subseteq
+      U'
+    complexity: O(|X| |\\mathcal{T}|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_TOTALLY_DISCONNECTED
+    description: 判定拓扑空间是否完全不连通
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: X \\text{ 完全不连通} \\Leftrightarrow \\text{所有连通分支都是单点集}
+    complexity: O(|X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_HOMOTOPY_TEST
+    description: 判定两条道路是否同伦
+    inputs: [SPACE, PATH, PATH]
+    output: BOOLEAN
+    math_def: 'f \\simeq g \\Leftrightarrow \\exists H: X × [0,1] \\to Y \\text{ 连续}: H(x,0) = f(x), H(x,1) = g(x)'
+    complexity: O(|X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_PATH_HOMOTOPY_TEST
+    description: 判定两条道路是否道路同伦（保持端点）
+    inputs: [SPACE, PATH, PATH]
+    output: BOOLEAN
+    math_def: f \\simeq_p g \\Leftrightarrow f \\simeq g \\land f(0)=g(0) \\land f(1)=g(1)
+    complexity: O(|X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_FUNDAMENTAL_GROUP
+    description: 计算拓扑空间在基点处的基本群 π₁(X, x₀)
+    inputs: [SPACE, SET]
+    output: GROUP
+    math_def: '\\pi_1(X, x_0) = \\{[\\gamma] : \\gamma \\text{ 是基于 } x_0 \\text{ 的闭路}\\}'
+    complexity: O(|X|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_PATH_CLASS_MULTIPLY
+    description: 道路类的乘法（首尾相接）
+    inputs: [SPACE, PATH, PATH]
+    output: PATH
+    math_def: '[f] \\cdot [g] = [f * g], \\text{其中 } (f * g)(t) = \\begin{cases} f(2t) & t \\le 1/2 \\\\ g(2t-1) & t \\ge
+      1/2 \\end{cases}'
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_SIMPLY_CONNECTED_TEST
+    description: 判定拓扑空间是否单连通
+    inputs: [SPACE]
+    output: BOOLEAN
+    math_def: X \\text{ 单连通} \\Leftrightarrow X \\text{ 道路连通} \\land \\pi_1(X) = \\{e\\}
+    complexity: O(|X|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_COVERING_SPACE
+    description: 构造覆盖空间
+    inputs: [SPACE]
+    output: SPACE
+    math_def: 'p: \\tilde{X} \\to X \\text{ 是覆盖映射} \\Leftrightarrow \\forall x, \\exists U: p^{-1}(U) = \\bigsqcup V_\\alpha'
+    complexity: O(|X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_DISCRETE_TOPOLOGY
+    description: 构造集合上的离散拓扑（所有子集都是开集）
+    inputs: [SET]
+    output: SPACE
+    math_def: \\mathcal{T}_{\\text{离散}} = \\mathcal{P}(X)
+    complexity: O(2^{|X|})
+    constructive: true
+    reversible: false
+  - name: PRESET_TRIVIAL_TOPOLOGY
+    description: 构造集合上的平凡拓扑（只有空集和全集是开集）
+    inputs: [SET]
+    output: SPACE
+    math_def: \\mathcal{T}_{\\text{平凡}} = \\{\\emptyset, X\\}
+    complexity: O(1)
+    constructive: true
+    reversible: false
+  - name: PRESET_METRIC_TOPOLOGY
+    description: 由度量函数生成拓扑
+    inputs: [SET, FUNCTION]
+    output: SPACE
+    math_def: '\\mathcal{T}_d = \\text{由 } \\{B(x,r) : x \\in X, r > 0\\} \\text{ 生成}'
+    complexity: O(|X|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_ORDER_TOPOLOGY
+    description: 由全序关系生成拓扑
+    inputs: [SET, FUNCTION]
+    output: SPACE
+    math_def: \\mathcal{T}_< = \\text{由 } \\{(a,b), (-\\infty, b), (a, +\\infty)\\} \\text{ 生成}
+    complexity: O(|X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPEN_MAP_TEST
+    description: 判定映射是否是开映射
+    inputs: [SPACE, SPACE, FUNCTION]
+    output: BOOLEAN
+    math_def: f \\text{ 开映射} \\Leftrightarrow f(U) \\in \\mathcal{T}_Y, \\forall U \\in \\mathcal{T}_X
+    complexity: O(|\\mathcal{T}_X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_CLOSED_MAP_TEST
+    description: 判定映射是否是闭映射
+    inputs: [SPACE, SPACE, FUNCTION]
+    output: BOOLEAN
+    math_def: f \\text{ 闭映射} \\Leftrightarrow f(F) \\text{ 闭}, \\forall F \\text{ 闭}
+    complexity: O(|\\mathcal{T}_X|)
+    constructive: true
+    reversible: false
+  - name: PRESET_EMBEDDING_TEST
+    description: 判定映射是否是嵌入
+    inputs: [SPACE, SPACE, FUNCTION]
+    output: BOOLEAN
+    math_def: 'f \\text{ 是嵌入} \\Leftrightarrow f \\text{ 单射且 } f: X \\to f(X) \\text{ 同胚}'
+    complexity: O(|\\mathcal{T}_X| + |\\mathcal{T}_Y|)
+    constructive: true
+    reversible: false
+  - name: PRESET_SUBBASE_TEST
+    description: 判定集合族是否是拓扑的子基
+    inputs: [SPACE, SET]
+    output: BOOLEAN
+    math_def: \\mathcal{S} \\text{ 是子基} \\Leftrightarrow \\mathcal{T} = \\text{由有限交生成的拓扑}
+    complexity: O(|\\mathcal{S}|²)
+    constructive: true
+    reversible: false
+  - name: PRESET_OPEN_COVER
+    description: 计算拓扑空间的一个开覆盖
+    inputs: [SPACE]
+    output: SET
+    math_def: \\bigcup_{U \\in \\mathcal{C}} U = X
+    complexity: O(|\\mathcal{T}|)
+    constructive: true
+    reversible: false
+  - name: PRESET_SEPARATION_AXIOMS
+    description: 判定拓扑空间满足的最高分离公理
+    inputs: [SET]
+    output: SCALAR
+    math_def: 依次检验 T0→T1→T2→T3→T4，返回满足的最高级别
+    complexity: O(n²)
+    constructive: false
+    reversible: false
+  - name: PRESET_COMPACTIFICATION
+    description: 构造拓扑空间的紧致化
+    inputs: [SET, FUNCTION]
+    output: SET
+    math_def: 将非紧致空间嵌入紧致空间中
+    complexity: O(∞)
+    constructive: true
+    reversible: false
+  - name: PRESET_FINITE_SUBCOVER
+    description: 从开覆盖中提取有限子覆盖
+    inputs: [LIST]
+    output: LIST
+    math_def: 若空间紧致，则任一开覆盖存在有限子覆盖
+    complexity: O(n²)
+    constructive: true
+    reversible: false
+  - name: PRESET_LIFTING_EXISTENCE
+    description: 判定连续映射的提升是否存在
+    inputs: [FUNCTION, SET, SET]
+    output: BOOLEAN
+    math_def: 给定 f:X→B 和覆盖空间 p:E→B，判定是否存在 g:X→E 使得 p∘g=f
+    complexity: O(∞)
+    constructive: false
+    reversible: false
+- module: transformations
+  category: TRANSFORMATION
+  items:
+  - {name: '"translation"', description: ����������ƽ��, category: PRESET_EXT_TRANSFORMATION_BASIC, input_count: 3, output_count: 1}

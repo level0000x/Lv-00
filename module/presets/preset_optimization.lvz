@@ -1,0 +1,263 @@
+# =============================================================================
+# Lv-00 Presets: Optimization
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "opt_gradient_descent" {
+        description "梯度下降法：沿目标函数的负梯度方向迭代搜索极小值点"
+        category "OPTIMIZATION"
+        inputs 2 "FUNCTION" "TUPLE"
+        output "TUPLE"
+        math_def "x_{k+1} = x_k - \\alpha_k \\nabla f(x_k)"
+        complexity "O(n \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_newton_method" {
+        description "牛顿法：利用目标函数的二阶导数（Hessian矩阵）构造二次近似模型进行迭代"
+        category "OPTIMIZATION"
+        inputs 2 "FUNCTION" "TUPLE"
+        output "TUPLE"
+        math_def "x_{k+1} = x_k - [\\nabla^2 f(x_k)]^{-1} \\nabla f(x_k)"
+        complexity "O(n^3 \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_conjugate_gradient" {
+        description "共轭梯度法：在共轭方向上依次进行一维搜索，适用于大规模无约束优化问题"
+        category "OPTIMIZATION"
+        inputs 2 "FUNCTION" "TUPLE"
+        output "TUPLE"
+        math_def "d_{k+1} = -\\nabla f(x_{k+1}) + \\beta_k d_k, \\quad \\beta_k = \"
+                                         \"\\frac{\\|\\nabla f(x_{k+1})\\|^2}{\\|\\nabla f(x_k)\\|^2}"
+        complexity "O(n \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_quasi_newton" {
+        description "拟牛顿法（BFGS/DFP）：通过梯度差分近似Hessian矩阵的逆，避免直接计算二阶导数"
+        category "OPTIMIZATION"
+        inputs 2 "FUNCTION" "TUPLE"
+        output "TUPLE"
+        math_def "B_{k+1} = B_k + \\frac{y_k y_k^T}{y_k^T s_k} - \\frac{B_k s_k s_k^T B_k}{s_k^T B_k s_k}"
+        complexity "O(n^2 \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_lagrange_multiplier" {
+        description "拉格朗日乘子法：引入拉格朗日乘子将等式约束优化问题转化为无约束问题"
+        category "OPTIMIZATION"
+        inputs 2 "FUNCTION" "LIST"
+        output "TUPLE"
+        math_def "\\mathcal{L}(x, \\lambda) = f(x) + \\sum_{i=1}^{m} \\lambda_i h_i(x)"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_kkt_conditions" {
+        description "KKT条件：约束优化问题局部最优解的必要条件（Karush-Kuhn-Tucker条件）"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "LIST" "LIST"
+        output "BOOLEAN"
+        math_def "\\nabla f(x^*) + \\sum_i \\lambda_i \\nabla g_i(x^*) + \\sum_j \\mu_j \\nabla h_j(x^*) = 0, \\quad \"
+                \"\\lambda_i \\ge 0, \\quad \\lambda_i g_i(x^*) = 0"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_penalty_method" {
+        description "罚函数法：通过在目标函数中添加约束违反的惩罚项，将约束优化转化为无约束优化"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "LIST" "SCALAR"
+        output "FUNCTION"
+        math_def "P(x, \\rho) = f(x) + \\frac{\\rho}{2} \\sum_{i=1}^{m} [\\max(0, g_i(x))]^2 + \"
+                                         \"\\frac{\\rho}{2} \\sum_{j=1}^{l} h_j(x)^2"
+        complexity "O(n \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_barrier_method" {
+        description "障碍函数法：在可行域内部添加障碍项，使迭代点始终保持在可行域内并逼近最优解"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "LIST" "SCALAR"
+        output "FUNCTION"
+        math_def "B(x, \\mu) = f(x) - \\mu \\sum_{i=1}^{m} \\ln(-g_i(x))"
+        complexity "O(n \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_simplex" {
+        description "单纯形法：在可行域的顶点之间移动，逐步改进目标函数值，求解线性规划问题"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "MATRIX" "TUPLE"
+        output "TUPLE"
+        math_def "\\min c^T x \\quad \\text{s.t.} \\quad Ax = b, \\quad x \\ge 0"
+        complexity "O(2^n) 最坏情况"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_interior_point" {
+        description "内点法：通过障碍函数在可行域内部逼近最优解，具有多项式时间复杂度"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "MATRIX" "TUPLE"
+        output "TUPLE"
+        math_def "\\min c^T x - \\mu \\sum_{i} \\ln x_i \\quad \\text{s.t.} \\quad Ax = b, \\quad x > 0"
+        complexity "O(n^{3.5} L)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_dual_simplex" {
+        description "对偶单纯形法：基于对偶理论，在保持对偶可行性的前提下恢复原始可行性"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "MATRIX" "TUPLE"
+        output "TUPLE"
+        math_def "\\max b^T y \\quad \\text{s.t.} \\quad A^T y \\le c"
+        complexity "O(2^n) 最坏情况"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_convexity_test" {
+        description "凸性检验：判断目标函数是否为凸函数（Hessian矩阵半正定）"
+        category "OPTIMIZATION"
+        inputs 1 "FUNCTION"
+        output "BOOLEAN"
+        math_def "f(\\theta x + (1-\\theta)y) \\le \\theta f(x) + (1-\\theta)f(y), \\quad \\forall \\theta \\in [0,1]"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_cvx_gradient" {
+        description "凸梯度法：针对凸函数的梯度下降优化，保证收敛到全局最优解"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "TUPLE" "SCALAR"
+        output "TUPLE"
+        math_def "x_{k+1} = x_k - \\alpha \\nabla f(x_k), \\quad f(x^*) \\le f(x_k) - \"
+                                         \"\\frac{\\|\\nabla f(x_k)\\|^2}{2L}"
+        complexity "O(n \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_proximal_gradient" {
+        description "近端梯度法：处理复合目标函数 min f(x)+g(x)，其中f光滑、g非光滑但可计算近端算子"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "FUNCTION" "TUPLE"
+        output "TUPLE"
+        math_def "x_{k+1} = \\text{prox}_{\\alpha g}(x_k - \\alpha \\nabla f(x_k)), \\quad \\text{prox}_{g}(v) = \"
+                \"\\arg\\min_x \\frac{1}{2}\\|x - v\\|^2 + g(x)"
+        complexity "O(n \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_admm" {
+        description "交替方向乘子法（ADMM）：将全局优化问题分解为局部子问题，适用于分布式凸优化"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "FUNCTION" "MATRIX"
+        output "TUPLE"
+        math_def "\\min f(x) + g(z) \\quad \\text{s.t.} \\quad Ax + Bz = c"
+        complexity "O(n \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_euler_lagrange" {
+        description "欧拉-拉格朗日方程：泛函极值问题的必要条件，将变分问题转化为微分方程"
+        category "OPTIMIZATION"
+        inputs 1 "FUNCTION"
+        output "EQUATION"
+        math_def "\\frac{\\partial L}{\\partial y} - \\frac{d}{dx}\\frac{\\partial L}{\\partial y'} = 0"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_calculus_of_variations" {
+        description "变分法：求解泛函极值问题的数学框架，寻找使泛函取极值的函数"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "J[y] = \\int_a^b L(x, y(x), y'(x)) \\, dx \\to \\min"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_dual_problem" {
+        description "对偶问题：构造原优化问题的Lagrange对偶问题"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "LIST" "LIST"
+        output "FUNCTION"
+        math_def "g(\\lambda, \\mu) = \\inf_x \\mathcal{L}(x, \\lambda, \\mu) = \\inf_x \"
+                                         \"\\left[ f(x) + \\sum_i \\lambda_i g_i(x) + \\sum_j \\mu_j h_j(x) \\right]"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_strong_duality_test" {
+        description "强对偶性检验：验证原问题最优值与对偶问题最优值是否相等（对偶间隙为零）"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "LIST" "LIST"
+        output "BOOLEAN"
+        math_def "p^* = d^* \\quad \\text{其中} \\quad p^* = \\inf_x f_0(x), \\quad d^* = \"
+                                         \"\\sup_{\\lambda, \\mu} g(\\lambda, \\mu)"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_weak_duality_test" {
+        description "弱对偶性检验：验证对偶间隙是否非负（d* <= p* 恒成立）"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "LIST" "LIST"
+        output "BOOLEAN"
+        math_def "d^* \\le p^* \\quad \\text{（对偶间隙} \\quad p^* - d^* \\ge 0 \\text{）}"
+        complexity "O(n^3)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_simulated_annealing" {
+        description "模拟退火：受物理退火过程启发的概率性全局优化算法，通过接受劣解来跳出局部最优"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "TUPLE" "SCALAR"
+        output "TUPLE"
+        math_def "P(\\text{接受}) = \\begin{cases} 1 & \\Delta E < 0 \\\\ \\exp(-\\Delta E / \"
+                                         \"T_k) & \\Delta E \\ge 0 \\end{cases}"
+        complexity "O(n \\cdot k)"
+        constructive true
+        reversible false
+    }
+
+    preset "opt_genetic_algorithm" {
+        description "遗传算法：基于自然选择和遗传机制的全局优化元启发式算法，通过选择、交叉、变异操作进化种群"
+        category "OPTIMIZATION"
+        inputs 3 "FUNCTION" "LIST" "SCALAR"
+        output "TUPLE"
+        math_def "x_{\\text{child}} = \\text{Crossover}(x_{p1}, x_{p2}), \\quad x' = \\text{Mutate}(x, p_m)"
+        complexity "O(N \\cdot G \\cdot n)"
+        constructive true
+        reversible false
+    }
+
+}

@@ -1,0 +1,352 @@
+# =============================================================================
+# Lv-00 Presets: Field Theory
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "field_add" {
+        description "域加法：计算域F中两个元素的和 a + b"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "FIELD"
+        math_def "(a, b) \\mapsto a + b \\in F"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "field_multiply" {
+        description "域乘法：计算域F中两个元素的积 a * b"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "FIELD"
+        math_def "(a, b) \\mapsto a \\cdot b \\in F"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "field_inverse" {
+        description "乘法逆元：计算域中非零元素的乘法逆元 a^{-1}，满足 a * a^{-1} = 1"
+        category "ALGEBRAIC"
+        inputs 1 "FIELD"
+        output "FIELD"
+        math_def "a \\mapsto a^{-1}, \\quad a \\cdot a^{-1} = 1_F, \\; a \\neq 0"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "field_divide" {
+        description "域除法：计算域F中两个元素的商 a / b（b != 0）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "FIELD"
+        math_def "(a, b) \\mapsto a \\cdot b^{-1} \\in F, \\quad b \\neq 0"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "field_characteristic" {
+        description "域特征：计算域F的特征 char(F)，即满足 n*1=0 的最小正整数n（若不存在则为0）"
+        category "ALGEBRAIC"
+        inputs 1 "FIELD"
+        output "INTEGER"
+        math_def "\\text{char}(F) = \\min\\{n > 0 : n \\cdot 1_F = 0\\}, \\quad \\text{char}(F) \\in \\{0, p \\; \"
+                       \"| \\; p \\text{ 是素数}\\}"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "field_subfield_check" {
+        description "子域判定：判定域F的子集K是否构成子域（含0,1，四则运算封闭）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "SET"
+        output "BOOLEAN"
+        math_def "K \\le F \\Leftrightarrow 0, 1 \\in K \\land (\\forall a,b \\in K: a \\pm b, ab \\in K) \\land \"
+                       \"(\\forall a \\neq 0 \\in K: a^{-1} \\in K)"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "field_extension_check" {
+        description "域扩张判定：判定E是否为F的域扩张 E/F（F是E的子域）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "E/F \\text{ 是域扩张} \\Leftrightarrow F \\le E"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "field_prime_subfield" {
+        description "素子域：获取域F的素子域（char=p时为F_p，char=0时为Q）"
+        category "ALGEBRAIC"
+        inputs 1 "FIELD"
+        output "FIELD"
+        math_def "\\text{PrimeSubfield}(F) = \\begin{cases} \\mathbb{F}_p & \\text{char}(F) = p \\neq 0 \\\\ \"
+                       \"\\mathbb{Q} & \\text{char}(F) = 0 \\end{cases}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "extension_degree" {
+        description "扩张次数：计算域扩张 E/F 的次数 [E:F]（E作为F上向量空间的维数）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "INTEGER"
+        math_def "[E : F] = \\dim_F(E)"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "simple_extension" {
+        description "简单扩张：由域F和元素alpha构造简单扩张 F(alpha)"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "FIELD"
+        math_def "F(\\alpha) = F[\\alpha] \\text{（当 } \\alpha \\text{ 是代数元时）}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "algebraic_extension" {
+        description "代数扩张判定：判定域扩张 E/F 是否为代数扩张（E中每个元素都是F上的代数元）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "E/F \\text{ 是代数扩张} \\Leftrightarrow \\forall \\alpha \\in E, \\; \\exists f \\in F[x]: \"
+                       \"f(\\alpha) = 0"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "transcendental_extension" {
+        description "超越扩张判定：判定域扩张 E/F 是否为超越扩张（E中存在F上的超越元）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "E/F \\text{ 是超越扩张} \\Leftrightarrow \\exists \\alpha \\in E, \\; \\forall f \\in F[x] \"
+                       \"\\setminus \\{0\\}: f(\\alpha) \\neq 0"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "finite_extension" {
+        description "有限扩张判定：判定域扩张 E/F 是否为有限扩张（[E:F] < infinity）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "E/F \\text{ 是有限扩张} \\Leftrightarrow [E : F] < \\infty"
+        complexity "O(n)"
+        constructive false
+        reversible false
+    }
+
+    preset "algebraic_element_check" {
+        description "代数元判定：判定域扩张中的元素alpha是否为F上的代数元"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "\\alpha \\text{ 是代数元} \\Leftrightarrow \\exists f \\in F[x] \\setminus \\{0\\}: f(\\alpha) = 0"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "minimal_polynomial" {
+        description "极小多项式：计算代数元alpha在F上的极小多项式（首一最低次零化多项式）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "POLYNOMIAL"
+        math_def "\\text{minpoly}_F(\\alpha) = \\text{F[x]中首一的最低次多项式 } f, \\; f(\\alpha) = 0"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "field_tower" {
+        description "域塔定理：验证域塔 F subset K subset E 的次数关系 [E:F] = [E:K]*[K:F]"
+        category "ALGEBRAIC"
+        inputs 3 "FIELD" "FIELD" "FIELD"
+        output "INTEGER"
+        math_def "[E : F] = [E : K] \\cdot [K : F]"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "primitive_element" {
+        description "本原元定理：对有限可分扩张 E/F 构造本原元 theta 使得 E = F(theta)"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "FIELD"
+        math_def "E = F(\\theta), \\quad \\text{当 } E/F \\text{ 是有限可分扩张时}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "normal_extension" {
+        description "正规扩张判定：判定域扩张 E/F 是否为正规扩张（某个多项式族的分裂域）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "E/F \\text{ 是正规扩张} \\Leftrightarrow E \\text{ 是 } F[x] \\text{ 中某个多项式集合的分裂域}"
+        complexity "O(n^3)"
+        constructive false
+        reversible false
+    }
+
+    preset "galois_group" {
+        description "伽罗瓦群：计算域扩张 E/F 的伽罗瓦群 Gal(E/F)（所有F-自同构组成的群）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "GROUP"
+        math_def "\\text{Gal}(E/F) = \\{\\sigma : E \\to E \\; | \\; \\sigma|_F = \\text{id}_F\\}"
+        complexity "O(n!)"
+        constructive true
+        reversible false
+    }
+
+    preset "galois_group_order" {
+        description "伽罗瓦群阶：计算伽罗瓦群 Gal(E/F) 的阶 |Gal(E/F)|"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "INTEGER"
+        math_def "|\\text{Gal}(E/F)| \\le [E : F], \\quad \\text{等号成立当且仅当 } E/F \\text{ 是伽罗瓦扩张}"
+        complexity "O(n!)"
+        constructive false
+        reversible false
+    }
+
+    preset "fixed_field" {
+        description "不动域：计算伽罗瓦群G的不动域 E^G = {x in E | sigma(x)=x, 对所有sigma in G}"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "GROUP"
+        output "FIELD"
+        math_def "E^G = \\{x \\in E : \\sigma(x) = x, \\; \\forall \\sigma \\in G\\}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "galois_correspondence" {
+        description "伽罗瓦对应：建立伽罗瓦群的子群与中间域之间的双射对应关系"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "\\{\\text{Gal}(E/F) \\text{ 的子群}\\} \\xleftrightarrow{1-1} \\{F \\subseteq K \\subseteq E \"
+                       \"\\text{ 的中间域}\\}"
+        complexity "O(n!)"
+        constructive false
+        reversible false
+    }
+
+    preset "galois_check" {
+        description "伽罗瓦扩张判定：判定 E/F 是否为伽罗瓦扩张（正规且可分）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "E/F \\text{ 是伽罗瓦扩张} \\Leftrightarrow E/F \\text{ 正规且可分} \\Leftrightarrow \"
+                       \"|\\text{Gal}(E/F)| = [E:F]"
+        complexity "O(n^3)"
+        constructive false
+        reversible false
+    }
+
+    preset "separable_extension" {
+        description "可分扩张判定：判定域扩张 E/F 是否为可分扩张（每个元素的最小多项式无重根）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "BOOLEAN"
+        math_def "E/F \\text{ 是可分扩张} \\Leftrightarrow \\forall \\alpha \\in E, \\; \"
+                       \"\\text{minpoly}_F(\\alpha) \\text{ 无重根}"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "splitting_field" {
+        description "分裂域构造：构造多项式 f(x) 在域F上的分裂域（包含f(x)所有根的最小扩域）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "POLYNOMIAL"
+        output "FIELD"
+        math_def "E = F(\\alpha_1, \\ldots, \\alpha_n), \\quad f(x) = (x - \\alpha_1) \\cdots (x - \\alpha_n) \\in E[x]"
+        complexity "O(n!)"
+        constructive true
+        reversible false
+    }
+
+    preset "cyclotomic_field" {
+        description "分圆域：构造n次分圆域 Q(zeta_n)，即添加n次本原单位根的扩域"
+        category "ALGEBRAIC"
+        inputs 1 "INTEGER"
+        output "FIELD"
+        math_def "\\mathbb{Q}(\\zeta_n) \\text{，其中 } \\zeta_n = e^{2\\pi i / n}, \\; \\zeta_n^n = 1"
+        complexity "O(n \\log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "finite_field_construct" {
+        description "有限域构造：构造有限域 GF(p^n)，其中p为素数，n为正整数"
+        category "ALGEBRAIC"
+        inputs 2 "INTEGER" "INTEGER"
+        output "FIELD"
+        math_def "\\text{GF}(p^n) = \\mathbb{F}_p[x] / \\langle f(x) \\rangle, \\quad f \\text{ 是 } \"
+                       \"\\mathbb{F}_p \\text{ 上 } n \\text{ 次不可约多项式}"
+        complexity "O(n \\log p)"
+        constructive true
+        reversible false
+    }
+
+    preset "frobenius_automorphism" {
+        description "Frobenius自同构：计算有限域上的Frobenius映射 x -> x^p"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "INTEGER"
+        output "FIELD"
+        math_def "\\varphi_p(x) = x^p, \\quad \\varphi_p \\in \\text{Gal}(\\mathbb{F}_{p^n}/\\mathbb{F}_p)"
+        complexity "O(\\log p)"
+        constructive true
+        reversible true
+    }
+
+    preset "field_embedding" {
+        description "域嵌入：构造域扩张 E/F 的F-嵌入（保持F不动的域同态）"
+        category "ALGEBRAIC"
+        inputs 2 "FIELD" "FIELD"
+        output "LIST"
+        math_def "\\text{Hom}_F(E, L) = \\{\\sigma : E \\to L \\; | \\; \\sigma|_F = \\text{id}_F\\}"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "algebraic_closure" {
+        description "代数闭包：构造域F的代数闭包（F的代数扩张且是代数闭域）"
+        category "ALGEBRAIC"
+        inputs 1 "FIELD"
+        output "FIELD"
+        math_def "\\overline{F} \\text{ 满足：} \\overline{F}/F \\text{ 是代数扩张，且 } \\overline{F} \\text{ 是代数闭域}"
+        complexity "O(n!)"
+        constructive true
+        reversible false
+    }
+
+}

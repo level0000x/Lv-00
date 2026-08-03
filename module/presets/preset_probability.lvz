@@ -1,0 +1,291 @@
+# =============================================================================
+# Lv-00 Presets: Probability
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "prob_sample_space" {
+        description "样本空间：定义随机试验的所有可能结果的集合 Omega"
+        category "PROBABILITY"
+        inputs 1 "SET"
+        output "SET"
+        math_def "\\Omega = \\{\\omega_1, \\omega_2, \\ldots, \\omega_n\\}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_event_probability" {
+        description "事件概率：计算事件 A 的概率 P(A) = |A| / |Omega|"
+        category "PROBABILITY"
+        inputs 2 "SET" "SET"
+        output "PROBABILITY"
+        math_def "P(A) = \\frac{|A|}{|\\Omega|}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_complement_event" {
+        description "补事件概率：P(A^c) = 1 - P(A)"
+        category "PROBABILITY"
+        inputs 1 "PROBABILITY"
+        output "PROBABILITY"
+        math_def "P(A^c) = 1 - P(A)"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "prob_union_event" {
+        description "并事件概率：P(A U B) = P(A) + P(B) - P(A ∩ B)"
+        category "PROBABILITY"
+        inputs 3 "PROBABILITY" "PROBABILITY" "PROBABILITY"
+        output "PROBABILITY"
+        math_def "P(A \\cup B) = P(A) + P(B) - P(A \\cap B)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_intersection_event" {
+        description "交事件概率：计算 P(A ∩ B)"
+        category "PROBABILITY"
+        inputs 2 "PROBABILITY" "PROBABILITY"
+        output "PROBABILITY"
+        math_def "P(A \\cap B)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_conditional" {
+        description "条件概率：P(A|B) = P(A∩B) / P(B)，已知事件B已发生时A的概率"
+        category "PROBABILITY"
+        inputs 2 "PROBABILITY" "PROBABILITY"
+        output "PROBABILITY"
+        math_def "P(A|B) = \\frac{P(A \\cap B)}{P(B)}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_bayes" {
+        description "贝叶斯定理：P(A|B) = P(B|A)·P(A) / P(B)，后验概率计算"
+        category "PROBABILITY"
+        inputs 3 "PROBABILITY" "PROBABILITY" "PROBABILITY"
+        output "PROBABILITY"
+        math_def "P(A|B) = \\frac{P(B|A) \\cdot P(A)}{P(B)}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_independence_test" {
+        description "独立性检验：验证 P(A∩B) = P(A)·P(B) 是否成立"
+        category "PROBABILITY"
+        inputs 3 "PROBABILITY" "PROBABILITY" "PROBABILITY"
+        output "BOOLEAN"
+        math_def "A \\perp\\!\\!\\!\\perp B \\Leftrightarrow P(A \\cap B) = P(A) \\cdot P(B)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_total_probability" {
+        description "全概率公式：P(A) = Σ P(A|Bi)·P(Bi)，{Bi} 为完备事件组"
+        category "PROBABILITY"
+        inputs 2 "LIST" "LIST"
+        output "PROBABILITY"
+        math_def "P(A) = \\sum_{i=1}^{n} P(A|B_i) \\cdot P(B_i)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_binomial_pmf" {
+        description "二项分布PMF：P(X=k) = C(n,k)·p^k·(1-p)^(n-k)"
+        category "PROBABILITY"
+        inputs 3 "INTEGER" "SCALAR" "INTEGER"
+        output "PROBABILITY"
+        math_def "P(X=k) = \\binom{n}{k} p^k (1-p)^{n-k}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_poisson_pmf" {
+        description "泊松分布PMF：P(X=k) = λ^k·e^(-λ) / k!"
+        category "PROBABILITY"
+        inputs 2 "SCALAR" "INTEGER"
+        output "PROBABILITY"
+        math_def "P(X=k) = \\frac{\\lambda^k e^{-\\lambda}}{k!}"
+        complexity "O(k)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_geometric_pmf" {
+        description "几何分布PMF：P(X=k) = (1-p)^(k-1)·p，首次成功所需的试验次数"
+        category "PROBABILITY"
+        inputs 2 "SCALAR" "INTEGER"
+        output "PROBABILITY"
+        math_def "P(X=k) = (1-p)^{k-1} p, \\quad k = 1, 2, \\ldots"
+        complexity "O(k)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_hypergeometric_pmf" {
+        description "超几何分布PMF：从N个中（含K个成功）取n个，恰好k个成功的概率"
+        category "PROBABILITY"
+        inputs 4 "INTEGER" "INTEGER" "INTEGER" "INTEGER"
+        output "PROBABILITY"
+        math_def "P(X=k) = \\frac{\\binom{K}{k}\\binom{N-K}{n-k}}{\\binom{N}{n}}"
+        complexity "O(k)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_discrete_uniform_pmf" {
+        description "离散均匀分布PMF：P(X=k) = 1/n，k ∈ {a, a+1, ..., b}"
+        category "PROBABILITY"
+        inputs 2 "INTEGER" "INTEGER"
+        output "PROBABILITY"
+        math_def "P(X=k) = \\frac{1}{n}, \\quad k \\in \\{a, a+1, \\ldots, b\\}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_normal_pdf" {
+        description "正态分布概率密度函数：f(x) = (1/σ√2π)·exp(-(x-μ)^2/2σ^2)"
+        category "PROBABILITY"
+        inputs 3 "SCALAR" "SCALAR" "SCALAR"
+        output "PROBABILITY"
+        math_def "f(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}} \"
+                       \"\\exp\\left(-\\frac{(x-\\mu)^2}{2\\sigma^2}\\right)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_normal_cdf" {
+        description "正态分布累积分布函数：Φ(x) = ∫_{-∞}^x f(t)dt"
+        category "PROBABILITY"
+        inputs 3 "SCALAR" "SCALAR" "SCALAR"
+        output "PROBABILITY"
+        math_def "\\Phi(x) = \\int_{-\\infty}^{x} \"
+                       \"\\frac{1}{\\sigma\\sqrt{2\\pi}} e^{-\\frac{(t-\\mu)^2}{2\\sigma^2}} dt"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_exponential_pdf" {
+        description "指数分布概率密度函数：f(x) = λ·exp(-λx)，x >= 0"
+        category "PROBABILITY"
+        inputs 2 "SCALAR" "SCALAR"
+        output "PROBABILITY"
+        math_def "f(x) = \\lambda e^{-\\lambda x}, \\quad x \\ge 0"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_uniform_pdf" {
+        description "均匀分布概率密度函数：f(x) = 1/(b-a)，a <= x <= b"
+        category "PROBABILITY"
+        inputs 3 "SCALAR" "SCALAR" "SCALAR"
+        output "PROBABILITY"
+        math_def "f(x) = \\frac{1}{b-a}, \\quad a \\le x \\le b"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_sample_mean" {
+        description "样本均值：x̄ = (1/n)·Σ xi"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "SCALAR"
+        math_def "\\bar{x} = \\frac{1}{n} \\sum_{i=1}^{n} x_i"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_sample_variance" {
+        description "样本方差（无偏估计）：s^2 = (1/(n-1))·Σ(xi - x̄)^2"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "SCALAR"
+        math_def "s^2 = \\frac{1}{n-1} \\sum_{i=1}^{n} (x_i - \\bar{x})^2"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_sample_std" {
+        description "样本标准差：s = √(样本方差)"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "SCALAR"
+        math_def "s = \\sqrt{\\frac{1}{n-1} \\sum_{i=1}^{n} (x_i - \\bar{x})^2}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_sample_median" {
+        description "样本中位数：将数据排序后取中间值"
+        category "PROBABILITY"
+        inputs 1 "LIST"
+        output "SCALAR"
+        math_def "\\tilde{x} = \\begin{cases} x_{(n+1)/2} & n \\text{ 为奇数} \\\\ \"
+                       \"\\frac{x_{n/2} + x_{n/2+1}}{2} & n \\text{ 为偶数} \\end{cases}"
+        complexity "O(n log n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_z_test" {
+        description "Z检验：z = (x̄ - μ₀) / (σ/√n)，大样本均值假设检验"
+        category "PROBABILITY"
+        inputs 4 "LIST" "SCALAR" "SCALAR" "SCALAR"
+        output "TUPLE"
+        math_def "z = \\frac{\\bar{x} - \\mu_0}{\\sigma / \\sqrt{n}}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_t_test" {
+        description "t检验：t = (x̄ - μ₀) / (s/√n)，小样本均值假设检验"
+        category "PROBABILITY"
+        inputs 2 "LIST" "SCALAR"
+        output "TUPLE"
+        math_def "t = \\frac{\\bar{x} - \\mu_0}{s / \\sqrt{n}}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "prob_chi_squared_test" {
+        description "卡方检验：χ² = Σ (Oi - Ei)^2 / Ei，拟合优度或独立性检验"
+        category "PROBABILITY"
+        inputs 2 "LIST" "LIST"
+        output "TUPLE"
+        math_def "\\chi^2 = \\sum_{i} \\frac{(O_i - E_i)^2}{E_i}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+}

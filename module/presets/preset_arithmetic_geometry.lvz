@@ -1,0 +1,85 @@
+# =============================================================================
+# Lv-00 Presets: Arithmetic Geometry
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "elliptic_curve_construct" {
+        description "构造椭圆曲线 E: y^2 = x^3 + ax + b（Weierstrass形式）"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "elliptic_curve_add" {
+        description "椭圆曲线上两点的群加法 P + Q"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "elliptic_curve_double" {
+        description "椭圆曲线上点的倍点运算 [n]P"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "modular_form_construct" {
+        description "构造权为k、级为N的模形式"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "modular_form_q_expansion" {
+        description "计算模形式的q展开系数"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "hecke_operator" {
+        description "计算模形式上的Hecke算子 T_n 作用"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "rational_point_search" {
+        description "在代数簇上搜索有理点"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "bsd_invariants" {
+        description "计算BSD猜想相关的不变量（秩、Sha群、调节子）"
+        category "CUSTOM"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

@@ -11,6 +11,7 @@
 #include "lv_utils.h"
 #include "lv_utils_internal.h"
 
+#include "lv/allocator.h"
 #include "lv/lv_file.h"
 
 #include <ctype.h>
@@ -723,25 +724,7 @@ void lv_free_ptr(void *ptr) {
     if (!ptr)
         return;
 
-    AllocHeader *hdr = get_header(ptr);
-    if (hdr) {
-        size_t freed_size = hdr->size;
-
-        untrack_allocation(hdr);
-        fill_poison(hdr->data, hdr->tail_offset);
-        hdr->head_magic = ALLOC_MAGIC_FREED;
-
-        if (freed_size <= s_utils_state.memory_stats.current_used) {
-            s_utils_state.memory_stats.current_used -= freed_size;
-        } else {
-            s_utils_state.memory_stats.current_used = 0;
-        }
-        s_utils_state.memory_stats.total_freed += freed_size;
-        s_utils_state.memory_stats.free_count++;
-        free(hdr);
-    } else {
-        lv_free((void **) &ptr);
-    }
+    lv_allocator_get()->free(ptr);
 }
 
 /* ============================================================

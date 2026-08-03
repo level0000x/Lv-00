@@ -1,0 +1,563 @@
+# =============================================================================
+# Lv-00 Presets: Analysis
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "sequence_limit" {
+        description "计算数列的极限 lim(n→∞) a_n"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "LIMIT"
+        math_def "\\lim_{n \\to \\infty} a_n = L \\Leftrightarrow \"
+                       \"\\forall \\epsilon > 0, \\exists N: n > N \\Rightarrow |a_n - L| < \\epsilon"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "function_limit" {
+        description "计算函数在某点的极限 lim(x→a) f(x)"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "LIMIT"
+        math_def "\\lim_{x \\to a} f(x) = L \\Leftrightarrow \"
+                       \"\\forall \\epsilon > 0, \\exists \\delta: 0 < |x-a| < \\delta \\Rightarrow |f(x)-L| < \\epsilon"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "left_limit" {
+        description "计算函数在某点的左极限 lim(x→a⁻) f(x)"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "LIMIT"
+        math_def "\\lim_{x \\to a^-} f(x) = L"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "right_limit" {
+        description "计算函数在某点的右极限 lim(x→a⁺) f(x)"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "LIMIT"
+        math_def "\\lim_{x \\to a^+} f(x) = L"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "limit_superior" {
+        description "计算数列的上极限 lim sup a_n"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "LIMIT"
+        math_def "\\limsup_{n \\to \\infty} a_n = \\lim_{n \\to \\infty} \\sup_{k \\ge n} a_k"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "limit_inferior" {
+        description "计算数列的下极限 lim inf a_n"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "LIMIT"
+        math_def "\\liminf_{n \\to \\infty} a_n = \\lim_{n \\to \\infty} \\inf_{k \\ge n} a_k"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "limit_exists_test" {
+        description "判定数列极限是否存在"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "BOOLEAN"
+        math_def "\\lim a_n \\text{ 存在} \\Leftrightarrow \\limsup a_n = \\liminf a_n"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "continuity_test" {
+        description "判定函数在某点是否连续"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "BOOLEAN"
+        math_def "f \\text{ 在 } a \\text{ 连续} \\Leftrightarrow \\lim_{x \\to a} f(x) = f(a)"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "uniform_continuity_test" {
+        description "判定函数在区间上是否一致连续"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "REGION"
+        output "BOOLEAN"
+        math_def "f \\text{ 一致连续} \\Leftrightarrow \\forall \\epsilon, \\exists \\delta: \"
+                       \"|x-y| < \\delta \\Rightarrow |f(x)-f(y)| < \\epsilon"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "discontinuity_classify" {
+        description "对函数的间断点进行分类（可去、跳跃、无穷、振荡）"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "INTEGER"
+        math_def "\\text{第一类: 可去/跳跃; 第二类: 无穷/振荡}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "lipschitz_test" {
+        description "判定函数是否 Lipschitz 连续"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "REGION"
+        output "BOOLEAN"
+        math_def "\\exists L: |f(x) - f(y)| \\le L|x-y|, \\forall x, y"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "derivative" {
+        description "计算函数在某点的导数 f'(a)"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "DERIVATIVE"
+        math_def "f'(a) = \\lim_{h \\to 0} \\frac{f(a+h) - f(a)}{h}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "higher_derivative" {
+        description "计算函数的 n 阶导数 f^(n)(x)"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "INTEGER"
+        output "DERIVATIVE"
+        math_def "f^{(n)}(x) = \\frac{d^n f}{dx^n}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "partial_derivative" {
+        description "计算多元函数的偏导数 ∂f/∂x_i"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "INTEGER" "SCALAR"
+        output "DERIVATIVE"
+        math_def "\\frac{\\partial f}{\\partial x_i} = \\lim_{h \\to 0} \\frac{f(x+he_i) - f(x)}{h}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "gradient" {
+        description "计算标量场的梯度 ∇f"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "VECTOR"
+        math_def "\\nabla f = \\left(\\frac{\\partial f}{\\partial x_1}, \\ldots, \\frac{\\partial \"
+                       \"f}{\\partial x_n}\\right)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "divergence" {
+        description "计算向量场的散度 ∇·F"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "SCALAR"
+        math_def "\\nabla \\cdot \\mathbf{F} = \\sum_{i=1}^{n} \\frac{\\partial F_i}{\\partial x_i}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "curl" {
+        description "计算三维向量场的旋度 ∇×F"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "VECTOR"
+        math_def "\\nabla \\times \\mathbf{F} = \"
+                       \"\\begin{vmatrix} \\mathbf{i} & \\mathbf{j} & \\mathbf{k} \\\\ \"
+                       \"\\frac{\\partial}{\\partial x} & \\frac{\\partial}{\\partial y} & \\frac{\\partial}{\\partial z} \\\\ \"
+                       \"F_x & F_y & F_z \\end{vmatrix}"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "laplacian" {
+        description "计算标量场的拉普拉斯算子 Δf"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "SCALAR"
+        math_def "\\Delta f = \\nabla^2 f = \\sum_{i=1}^{n} \\frac{\\partial^2 f}{\\partial x_i^2}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "differentiability_test" {
+        description "判定函数在某点是否可微"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "BOOLEAN"
+        math_def "f \\text{ 可微} \\Leftrightarrow \\lim_{h \\to 0} \\frac{f(a+h) - f(a) - f'(a)h}{h} = 0"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "taylor_expansion" {
+        description "计算函数在 a 点的 n 阶泰勒展开"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "INTEGER"
+        output "POLYNOMIAL"
+        math_def "f(x) = \\sum_{k=0}^{n} \\frac{f^{(k)}(a)}{k!}(x-a)^k + R_n(x)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "indefinite_integral" {
+        description "计算函数的不定积分 ∫f(x)dx"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "FUNCTION"
+        math_def "\\int f(x) \\, dx = F(x) + C, \\text{其中 } F'(x) = f(x)"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "definite_integral" {
+        description "计算定积分 ∫ₐᵇ f(x)dx"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "\\int_a^b f(x) \\, dx = F(b) - F(a)"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "improper_integral" {
+        description "计算广义积分（无穷积分或瑕积分）"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "SCALAR"
+        math_def "\\int_a^{\\infty} f(x) \\, dx = \\lim_{b \\to \\infty} \\int_a^b f(x) \\, dx"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "multiple_integral" {
+        description "计算重积分 ∫∫...∫_D f dV"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "REGION" "INTEGER"
+        output "SCALAR"
+        math_def "\\int \\cdots \\int_D f(x_1, \\ldots, x_n) \\, dV"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "line_integral" {
+        description "计算曲线积分 ∫_C f ds 或 ∫_C F·dr"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "PATH"
+        output "SCALAR"
+        math_def "\\int_C \\mathbf{F} \\cdot d\\mathbf{r} = \\int_a^b \\mathbf{F}(\\mathbf{r}(t)) \"
+                       \"\\cdot \\mathbf{r}'(t) \\, dt"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "surface_integral" {
+        description "计算曲面积分 ∬_S f dS 或 ∬_S F·dS"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SURFACE"
+        output "SCALAR"
+        math_def "\\iint_S \\mathbf{F} \\cdot d\\mathbf{S} = \\iint_D \\mathbf{F} \\cdot \\mathbf{n} \\, dS"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "integrability_test" {
+        description "判定函数在区间上是否黎曼可积"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "REGION"
+        output "BOOLEAN"
+        math_def "f \\text{ 可积} \\Leftrightarrow \\text{间断点集为零测集}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "series_convergence_test" {
+        description "判定数项级数是否收敛（比较、比值、根值判别法）"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "BOOLEAN"
+        math_def "\\sum a_n \\text{ 收敛} \\Leftrightarrow \\{S_n\\} \\text{ 收敛}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "absolute_convergence" {
+        description "判定级数是否绝对收敛"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "BOOLEAN"
+        math_def "\\sum a_n \\text{ 绝对收敛} \\Leftrightarrow \\sum |a_n| \\text{ 收敛}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "conditional_convergence" {
+        description "判定级数是否条件收敛"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "BOOLEAN"
+        math_def "\\sum a_n \\text{ 条件收敛} \\Leftrightarrow \\sum a_n \\text{ 收敛} \\land \\sum |a_n| \\text{ 发散}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "power_series_radius" {
+        description "计算幂级数的收敛半径 R"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "SCALAR"
+        math_def "R = \\frac{1}{\\limsup_{n \\to \\infty} \\sqrt[n]{|a_n|}}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "series_sum" {
+        description "计算收敛级数的和"
+        category "ANALYSIS"
+        inputs 1 "SEQUENCE"
+        output "SCALAR"
+        math_def "\\sum_{n=1}^{\\infty} a_n = \\lim_{N \\to \\infty} S_N"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "fourier_series" {
+        description "计算函数的傅里叶级数展开"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "SEQUENCE"
+        math_def "f(x) \\sim \\frac{a_0}{2} + \\sum_{n=1}^{\\infty} (a_n \\cos nx + b_n \\sin nx)"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "lp_norm" {
+        description "计算函数的 L^p 范数"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "REGION"
+        output "SCALAR"
+        math_def "\\|f\\|_p = \\left(\\int_D |f|^p \\, dx\\right)^{1/p}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "sup_norm" {
+        description "计算函数的一致范数（上确界范数）"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "REGION"
+        output "SCALAR"
+        math_def "\\|f\\|_{\\infty} = \\sup_{x \\in D} |f(x)|"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "completion" {
+        description "构造度量空间的完备化"
+        category "ANALYSIS"
+        inputs 1 "SPACE"
+        output "SPACE"
+        math_def "\\hat{X} = \\{\\text{柯西序列等价类}\\}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "compactness_test" {
+        description "判定函数空间是否紧致（Arzelà-Ascoli 定理）"
+        category "ANALYSIS"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "\\mathcal{F} \\text{ 紧致} \\Leftrightarrow \\text{一致有界且等度连续}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "metric_space_test" {
+        description "判定二元函数是否构成度量"
+        category "ANALYSIS"
+        inputs 2 "SET" "FUNCTION"
+        output "BOOLEAN"
+        math_def "d \\text{ 是度量} \\Leftrightarrow d(x,y) \\ge 0, d(x,y)=0 \\Leftrightarrow x=y, \"
+                       \"d(x,y)=d(y,x), d(x,z) \\le d(x,y)+d(y,z)"
+        complexity "O(|X|³)"
+        constructive true
+        reversible false
+    }
+
+    preset "cauchy_sequence_test" {
+        description "判定序列是否是柯西序列"
+        category "ANALYSIS"
+        inputs 2 "SEQUENCE" "FUNCTION"
+        output "BOOLEAN"
+        math_def "\\{x_n\\} \\text{ 柯西} \\Leftrightarrow \\forall \\epsilon, \\exists N: \"
+                       \"m,n > N \\Rightarrow d(x_m, x_n) < \\epsilon"
+        complexity "O(n²)"
+        constructive true
+        reversible false
+    }
+
+    preset "complete_space_test" {
+        description "判定度量空间是否完备"
+        category "ANALYSIS"
+        inputs 1 "SPACE"
+        output "BOOLEAN"
+        math_def "X \\text{ 完备} \\Leftrightarrow \\text{每个柯西序列收敛}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "contraction_mapping" {
+        description "判定映射是否是压缩映射"
+        category "ANALYSIS"
+        inputs 2 "FUNCTION" "SCALAR"
+        output "BOOLEAN"
+        math_def "T \\text{ 是压缩映射} \\Leftrightarrow d(Tx, Ty) \\le k \\cdot d(x,y), k < 1"
+        complexity "O(|X|²)"
+        constructive true
+        reversible false
+    }
+
+    preset "fixed_point_theorem" {
+        description "应用 Banach 不动点定理求不动点"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "SET"
+        math_def "T \\text{ 压缩} \\Rightarrow \\exists! x^*: Tx^* = x^*"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "gamma_function" {
+        description "计算 Γ 函数值"
+        category "ANALYSIS"
+        inputs 1 "SCALAR"
+        output "SCALAR"
+        math_def "\\Gamma(z) = \\int_0^{\\infty} t^{z-1} e^{-t} \\, dt"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "beta_function" {
+        description "计算 B 函数值"
+        category "ANALYSIS"
+        inputs 2 "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "B(a, b) = \\int_0^1 t^{a-1} (1-t)^{b-1} \\, dt = \\frac{\\Gamma(a)\\Gamma(b)}{\\Gamma(a+b)}"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "zeta_function" {
+        description "计算黎曼 ζ 函数值"
+        category "ANALYSIS"
+        inputs 1 "SCALAR"
+        output "SCALAR"
+        math_def "\\zeta(s) = \\sum_{n=1}^{\\infty} \\frac{1}{n^s}, \\quad \\text{Re}(s) > 1"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "error_function" {
+        description "计算误差函数 erf(x)"
+        category "ANALYSIS"
+        inputs 1 "SCALAR"
+        output "SCALAR"
+        math_def "\\text{erf}(x) = \\frac{2}{\\sqrt{\\pi}} \\int_0^x e^{-t^2} \\, dt"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "directional_derivative" {
+        description "计算函数在某点沿某方向的方向导数"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "VECTOR" "SCALAR"
+        output "DERIVATIVE"
+        math_def "D_{\\mathbf{v}} f(a) = \\lim_{h \\to 0} \\frac{f(a + h\\mathbf{v}) - f(a)}{h} = \"
+                       \"\\nabla f(a) \\cdot \\mathbf{v}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "mean_value_theorem" {
+        description "应用积分中值定理求中值点"
+        category "ANALYSIS"
+        inputs 3 "FUNCTION" "SCALAR" "SCALAR"
+        output "SCALAR"
+        math_def "\\exists c \\in [a,b]: \\int_a^b f(x) \\, dx = f(c)(b-a)"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+    preset "infinite_limit" {
+        description "计算函数在无穷远处的极限"
+        category "ANALYSIS"
+        inputs 1 "FUNCTION"
+        output "LIMIT"
+        math_def "\\lim_{x \\to \\infty} f(x) = L"
+        complexity "O(∞)"
+        constructive true
+        reversible false
+    }
+
+}

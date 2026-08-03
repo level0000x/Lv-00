@@ -978,20 +978,9 @@ void node_destroy(GeomNode *node) {
         lv_free((void **) &node->numeric_assumption_declaration);
         node->numeric_assumption_declaration = NULL;
     }
-    switch (node->type) {
-        case GEOM_PORT:
-            lv_free((void **) &node->data.port);
-            break;
-        case GEOM_REGION:
-            lv_free((void **) &node->data.region.boundary_segments);
-            break;
-        case GEOM_FUNCTION_BLOCK:
-            lv_free((void **) &node->data.func_block.internal_nodes);
-            lv_free((void **) &node->data.func_block.input_port_ids);
-            lv_free((void **) &node->data.func_block.output_port_ids);
-            break;
-        default:
-            break;
+    /* 通过 vtable 释放类型特定的数据 */
+    if (node->vtable && node->vtable->free) {
+        node->vtable->free(node);
     }
     lv_free((void **) &node);
 }

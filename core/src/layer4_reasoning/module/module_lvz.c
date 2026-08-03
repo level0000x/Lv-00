@@ -23,6 +23,8 @@
 #include "lv_utils.h"
 #include "module_helpers.h"
 
+#include "lv/preset_blocks.h" /* 用于 preset 注册 */
+
 /* LVZ 格式版本（与 module.c 保持一致） */
 #ifndef LVZ_VERSION_MAJOR
 #define LVZ_VERSION_MAJOR 1
@@ -231,6 +233,7 @@ static bool lvz_parse_axioms_section(LvzParser *p, Module *mod);
 static bool lvz_parse_nodes_section(LvzParser *p, Module *mod);
 static bool lvz_parse_constraints_section(LvzParser *p, Module *mod);
 static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod);
+static bool lvz_parse_presets_section(LvzParser *p, Module *mod);
 
 /* 解析模块声明: module "name" "version" */
 static bool lvz_parse_module_decl(LvzParser *p, Module *mod) {
@@ -939,6 +942,332 @@ static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
     return true;
 }
 
+/* ==================== 预设解析辅助函数 ==================== */
+
+/**
+ * @brief 将字符串类别名映射为 PresetCategory 枚举值
+ */
+static PresetCategory lvz_category_from_string(const char *name) {
+    if (!name) return PRESET_CATEGORY_CUSTOM;
+    if (strcmp(name, "CONSTRUCTION") == 0) return PRESET_CATEGORY_CONSTRUCTION;
+    if (strcmp(name, "MEASUREMENT") == 0) return PRESET_CATEGORY_MEASUREMENT;
+    if (strcmp(name, "TRANSFORMATION") == 0) return PRESET_CATEGORY_TRANSFORMATION;
+    if (strcmp(name, "ALGEBRAIC") == 0) return PRESET_CATEGORY_ALGEBRAIC;
+    if (strcmp(name, "LOGIC") == 0) return PRESET_CATEGORY_LOGIC;
+    if (strcmp(name, "ANALYSIS") == 0) return PRESET_CATEGORY_ANALYSIS;
+    if (strcmp(name, "NUMBER_THEORY") == 0) return PRESET_CATEGORY_NUMBER_THEORY;
+    if (strcmp(name, "GROUP_THEORY") == 0) return PRESET_CATEGORY_GROUP_THEORY;
+    if (strcmp(name, "RING_THEORY") == 0) return PRESET_CATEGORY_RING_THEORY;
+    if (strcmp(name, "FIELD_THEORY") == 0) return PRESET_CATEGORY_FIELD_THEORY;
+    if (strcmp(name, "TOPOLOGY") == 0) return PRESET_CATEGORY_TOPOLOGY;
+    if (strcmp(name, "LINEAR_ALGEBRA") == 0) return PRESET_CATEGORY_LINEAR_ALGEBRA;
+    if (strcmp(name, "COMBINATORICS") == 0) return PRESET_CATEGORY_COMBINATORICS;
+    if (strcmp(name, "COMPLEX_ANALYSIS") == 0) return PRESET_CATEGORY_COMPLEX_ANALYSIS;
+    if (strcmp(name, "PROBABILITY") == 0) return PRESET_CATEGORY_PROBABILITY;
+    if (strcmp(name, "GEOMETRY") == 0) return PRESET_CATEGORY_GEOMETRY;
+    if (strcmp(name, "ALGEBRA") == 0) return PRESET_CATEGORY_ALGEBRA;
+    if (strcmp(name, "CATEGORY_THEORY") == 0) return PRESET_CATEGORY_CATEGORY_THEORY;
+    if (strcmp(name, "SET_THEORY") == 0) return PRESET_CATEGORY_SET_THEORY;
+    if (strcmp(name, "GRAPH_THEORY") == 0) return PRESET_CATEGORY_GRAPH_THEORY;
+    if (strcmp(name, "DIFFERENTIAL_GEOMETRY") == 0) return PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY;
+    if (strcmp(name, "NUMERICAL") == 0) return PRESET_CATEGORY_NUMERICAL;
+    if (strcmp(name, "OPTIMIZATION") == 0) return PRESET_CATEGORY_OPTIMIZATION;
+    if (strcmp(name, "MATH_LOGIC") == 0) return PRESET_CATEGORY_MATH_LOGIC;
+    return PRESET_CATEGORY_CUSTOM;
+}
+
+/**
+ * @brief 将字符串类型名映射为 PresetType 枚举值
+ */
+static PresetType lvz_type_from_string(const char *name) {
+    if (!name) return PRESET_TYPE_ANY;
+    if (strcmp(name, "POINT") == 0) return PRESET_TYPE_POINT;
+    if (strcmp(name, "LINE") == 0) return PRESET_TYPE_LINE;
+    if (strcmp(name, "LINE_SEGMENT") == 0) return PRESET_TYPE_LINE_SEGMENT;
+    if (strcmp(name, "RAY") == 0) return PRESET_TYPE_RAY;
+    if (strcmp(name, "CIRCLE") == 0) return PRESET_TYPE_CIRCLE;
+    if (strcmp(name, "POLYGON") == 0) return PRESET_TYPE_POLYGON;
+    if (strcmp(name, "ANGLE") == 0) return PRESET_TYPE_ANGLE;
+    if (strcmp(name, "SCALAR") == 0) return PRESET_TYPE_SCALAR;
+    if (strcmp(name, "VECTOR") == 0) return PRESET_TYPE_VECTOR;
+    if (strcmp(name, "MATRIX") == 0) return PRESET_TYPE_MATRIX;
+    if (strcmp(name, "BOOLEAN") == 0) return PRESET_TYPE_BOOLEAN;
+    if (strcmp(name, "INTEGER") == 0) return PRESET_TYPE_INTEGER;
+    if (strcmp(name, "SET") == 0) return PRESET_TYPE_SET;
+    if (strcmp(name, "FUNCTION") == 0) return PRESET_TYPE_FUNCTION;
+    if (strcmp(name, "TUPLE") == 0) return PRESET_TYPE_TUPLE;
+    if (strcmp(name, "LIST") == 0) return PRESET_TYPE_LIST;
+    if (strcmp(name, "SEQUENCE") == 0) return PRESET_TYPE_SEQUENCE;
+    if (strcmp(name, "REGION") == 0) return PRESET_TYPE_REGION;
+    if (strcmp(name, "PATH") == 0) return PRESET_TYPE_PATH;
+    if (strcmp(name, "SURFACE") == 0) return PRESET_TYPE_SURFACE;
+    if (strcmp(name, "SPACE") == 0) return PRESET_TYPE_SPACE;
+    if (strcmp(name, "GROUP") == 0) return PRESET_TYPE_GROUP;
+    if (strcmp(name, "GROUP_ELEMENT") == 0) return PRESET_TYPE_GROUP_ELEMENT;
+    if (strcmp(name, "SUBGROUP") == 0) return PRESET_TYPE_SUBGROUP;
+    if (strcmp(name, "HOMOMORPHISM") == 0) return PRESET_TYPE_HOMOMORPHISM;
+    if (strcmp(name, "PRIME") == 0) return PRESET_TYPE_PRIME;
+    if (strcmp(name, "EQUATION") == 0) return PRESET_TYPE_EQUATION;
+    if (strcmp(name, "LIMIT") == 0) return PRESET_TYPE_LIMIT;
+    if (strcmp(name, "DERIVATIVE") == 0) return PRESET_TYPE_DERIVATIVE;
+    if (strcmp(name, "POLYNOMIAL") == 0) return PRESET_TYPE_POLYNOMIAL;
+    if (strcmp(name, "LIMIT_EXPRESSION") == 0) return PRESET_TYPE_LIMIT_EXPRESSION;
+    if (strcmp(name, "RING") == 0) return PRESET_TYPE_RING;
+    if (strcmp(name, "IDEAL") == 0) return PRESET_TYPE_IDEAL;
+    if (strcmp(name, "FIELD") == 0) return PRESET_TYPE_FIELD;
+    if (strcmp(name, "MODULE") == 0) return PRESET_TYPE_MODULE;
+    if (strcmp(name, "ALGEBRA") == 0) return PRESET_TYPE_ALGEBRA;
+    if (strcmp(name, "TOPOLOGY") == 0) return PRESET_TYPE_TOPOLOGY;
+    if (strcmp(name, "MANIFOLD") == 0) return PRESET_TYPE_MANIFOLD;
+    if (strcmp(name, "DISTRIBUTION") == 0) return PRESET_TYPE_DISTRIBUTION;
+    if (strcmp(name, "PROBABILITY") == 0) return PRESET_TYPE_PROBABILITY;
+    if (strcmp(name, "GRAPH") == 0) return PRESET_TYPE_GRAPH;
+    if (strcmp(name, "TREE") == 0) return PRESET_TYPE_TREE;
+    if (strcmp(name, "INTEGRAL") == 0) return PRESET_TYPE_INTEGRAL;
+    if (strcmp(name, "SERIES") == 0) return PRESET_TYPE_SERIES;
+    if (strcmp(name, "COMPLEX") == 0) return PRESET_TYPE_COMPLEX;
+    if (strcmp(name, "PERMUTATION") == 0) return PRESET_TYPE_PERMUTATION;
+    if (strcmp(name, "COSET") == 0) return PRESET_TYPE_COSET;
+    if (strcmp(name, "EXTENSION") == 0) return PRESET_TYPE_EXTENSION;
+    if (strcmp(name, "AUTOMORPHISM") == 0) return PRESET_TYPE_AUTOMORPHISM;
+    if (strcmp(name, "DISTANCE") == 0) return PRESET_TYPE_DISTANCE;
+    if (strcmp(name, "AREA") == 0) return PRESET_TYPE_AREA;
+    if (strcmp(name, "LENGTH") == 0) return PRESET_TYPE_LENGTH;
+    if (strcmp(name, "CURVATURE") == 0) return PRESET_TYPE_CURVATURE;
+    if (strcmp(name, "OPEN_SET") == 0) return PRESET_TYPE_OPEN_SET;
+    if (strcmp(name, "CLOSED_SET") == 0) return PRESET_TYPE_CLOSED_SET;
+    if (strcmp(name, "RESIDUE") == 0) return PRESET_TYPE_RESIDUE;
+    if (strcmp(name, "FORMULA") == 0) return PRESET_TYPE_FORMULA;
+    if (strcmp(name, "EXPRESSION") == 0) return PRESET_TYPE_EXPRESSION;
+    if (strcmp(name, "STRUCTURE") == 0) return PRESET_TYPE_STRUCTURE;
+    if (strcmp(name, "STRING") == 0) return PRESET_TYPE_STRING;
+    if (strcmp(name, "ANY") == 0) return PRESET_TYPE_ANY;
+    return PRESET_TYPE_ANY;
+}
+
+/* ==================== 预设节解析 ==================== */
+
+/**
+ * @brief 解析 preset 块体内的单个字段
+ *
+ * 支持的字段: description, category, inputs, output, math_def, complexity, constructive, reversible
+ *
+ * @param p 解析器
+ * @param name 预设名称（用于错误消息）
+ * @param out_desc 输出描述字符串（调用者负责释放）
+ * @param out_category 输出类别
+ * @param out_types 输出输入类型数组（调用者负责释放）
+ * @param out_type_count 输出输入类型数量
+ * @param out_output 输出类型
+ * @param out_math 输出数学定义字符串（调用者负责释放）
+ * @param out_complexity 输出复杂度字符串（调用者负责释放）
+ * @param out_constructive 输出是否构造性
+ * @param out_reversible 输出是否可逆
+ * @return true 解析成功，false 解析失败
+ */
+static bool lvz_parse_preset_body(LvzParser *p, const char *name,
+                                   char **out_desc, PresetCategory *out_category,
+                                   PresetType **out_types, int *out_type_count,
+                                   PresetType *out_output,
+                                   char **out_math, char **out_complexity,
+                                   bool *out_constructive, bool *out_reversible) {
+    /* 初始化字段默认值 */
+    *out_desc = NULL;
+    *out_category = PRESET_CATEGORY_CUSTOM;
+    *out_types = NULL;
+    *out_type_count = 0;
+    *out_output = PRESET_TYPE_ANY;
+    *out_math = NULL;
+    *out_complexity = NULL;
+    *out_constructive = true;
+    *out_reversible = false;
+
+    /* 跳过 { */
+    if (p->current.type == TOK_LBRACE) {
+        lvz_parser_advance(p);
+    }
+
+    /* 解析字段，直到遇到 } 或 EOF */
+    while (p->current.type != TOK_RBRACE && p->current.type != TOK_EOF && !p->has_error) {
+        if (p->current.type != TOK_IDENTIFIER) {
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 预设 '%s'): 期望字段名", p->current.line, name);
+            p->has_error = true;
+            return false;
+        }
+
+        const char *field = p->current.str_value;
+
+        if (strcmp(field, "description") == 0) {
+            lvz_parser_advance(p);
+            if (!lvz_parser_expect_string(p, out_desc))
+                return false;
+            lvz_parser_advance(p);
+
+        } else if (strcmp(field, "category") == 0) {
+            lvz_parser_advance(p);
+            if (!lvz_parser_expect(p, TOK_STRING))
+                return false;
+            *out_category = lvz_category_from_string(p->current.str_value);
+            lvz_parser_advance(p);
+
+        } else if (strcmp(field, "inputs") == 0) {
+            lvz_parser_advance(p);
+            /* 期望输入类型数量 */
+            if (!lvz_parser_expect(p, TOK_NUMBER))
+                return false;
+            int count = (int) p->current.num_value;
+            lvz_parser_advance(p);
+
+            if (count > 0) {
+                *out_types = (PresetType *) lv_malloc((size_t) count * sizeof(PresetType));
+                if (!*out_types) {
+                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配输入类型数组", p->current.line);
+                    p->has_error = true;
+                    return false;
+                }
+                for (int i = 0; i < count; i++) {
+                    if (!lvz_parser_expect(p, TOK_STRING)) {
+                        lv_free((void **) out_types);
+                        return false;
+                    }
+                    (*out_types)[i] = lvz_type_from_string(p->current.str_value);
+                    lvz_parser_advance(p);
+                }
+            }
+            *out_type_count = count;
+
+        } else if (strcmp(field, "output") == 0) {
+            lvz_parser_advance(p);
+            if (!lvz_parser_expect(p, TOK_STRING))
+                return false;
+            *out_output = lvz_type_from_string(p->current.str_value);
+            lvz_parser_advance(p);
+
+        } else if (strcmp(field, "math_def") == 0) {
+            lvz_parser_advance(p);
+            if (!lvz_parser_expect_string(p, out_math))
+                return false;
+            lvz_parser_advance(p);
+
+        } else if (strcmp(field, "complexity") == 0) {
+            lvz_parser_advance(p);
+            if (!lvz_parser_expect_string(p, out_complexity))
+                return false;
+            lvz_parser_advance(p);
+
+        } else if (strcmp(field, "constructive") == 0) {
+            lvz_parser_advance(p);
+            if (p->current.type == TOK_IDENTIFIER) {
+                *out_constructive = (strcmp(p->current.str_value, "true") == 0);
+                lvz_parser_advance(p);
+            }
+
+        } else if (strcmp(field, "reversible") == 0) {
+            lvz_parser_advance(p);
+            if (p->current.type == TOK_IDENTIFIER) {
+                *out_reversible = (strcmp(p->current.str_value, "true") == 0);
+                lvz_parser_advance(p);
+            }
+
+        } else {
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 预设 '%s'): 未知字段 '%s'",
+                         p->current.line, name, field);
+            p->has_error = true;
+            return false;
+        }
+    }
+
+    /* 期望 } */
+    if (p->current.type == TOK_RBRACE) {
+        lvz_parser_advance(p);
+    }
+
+    return !p->has_error;
+}
+
+/**
+ * @brief 解析 preset 节: presets { preset "name" { ... } ... }
+ *
+ * @param p 解析器
+ * @param mod 模块（可选，预设注册不依赖模块，此处保留参数以兼容主解析器接口）
+ * @return true 解析成功，false 解析失败
+ */
+static bool lvz_parse_presets_section(LvzParser *p, Module *mod) {
+    (void) mod; /* 预设注册不依赖模块 */
+    lvz_parser_advance(p); /* 跳过 'presets' */
+
+    /* 期望 { */
+    if (p->current.type != TOK_LBRACE) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 '{' 开始预设节", p->current.line);
+        p->has_error = true;
+        return false;
+    }
+    lvz_parser_advance(p);
+
+    /* 解析每个 preset 块 */
+    while (p->current.type == TOK_IDENTIFIER && strcmp(p->current.str_value, "preset") == 0 && !p->has_error) {
+        lvz_parser_advance(p); /* 跳过 'preset' */
+
+        /* 期望预设名称 (字符串) */
+        if (!lvz_parser_expect(p, TOK_STRING)) {
+            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望预设名称字符串", p->current.line);
+            p->has_error = true;
+            return false;
+        }
+        char *preset_name = lv_strdup_safe(p->current.str_value);
+        lvz_parser_advance(p);
+
+        /* 解析预设体 */
+        char *desc = NULL;
+        PresetCategory category = PRESET_CATEGORY_CUSTOM;
+        PresetType *input_types = NULL;
+        int input_count = 0;
+        PresetType output_type = PRESET_TYPE_ANY;
+        char *math_def = NULL;
+        char *complexity = NULL;
+        bool constructive = true;
+        bool reversible = false;
+
+        bool ok = lvz_parse_preset_body(p, preset_name, &desc, &category,
+                                         &input_types, &input_count,
+                                         &output_type, &math_def, &complexity,
+                                         &constructive, &reversible);
+        if (ok) {
+            /* 注册预设 */
+            ok = preset_blocks_register_simple(preset_name, desc ? desc : "",
+                                                category,
+                                                input_types, input_count,
+                                                output_type,
+                                                math_def, complexity,
+                                                constructive, reversible);
+            if (!ok) {
+                lv_LOG_WARNING("预设 '%s' 注册失败（在 .lvz 文件中）", preset_name);
+            }
+        }
+
+        /* 释放临时资源 */
+        lv_free((void **) &desc);
+        lv_free((void **) &math_def);
+        lv_free((void **) &complexity);
+        lv_free((void **) &input_types);
+        lv_free((void **) &preset_name);
+
+        if (!ok) {
+            return false;
+        }
+    }
+
+    /* 期望 } 结束 presets 节 */
+    if (p->current.type != TOK_RBRACE) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 预设节缺少结束 '}'", p->current.line);
+        p->has_error = true;
+        return false;
+    }
+    lvz_parser_advance(p);
+
+    return !p->has_error;
+}
+
 /* 主解析函数 */
 bool lvz_parse(LvzParser *p, Module *mod) {
     /* 获取第一个 token */
@@ -1007,6 +1336,9 @@ bool lvz_parse(LvzParser *p, Module *mod) {
         } else if (strcmp(section, "func_blocks") == 0) {
             if (!lvz_parse_func_blocks_section(p, mod))
                 return false;
+        } else if (strcmp(section, "presets") == 0) {
+            if (!lvz_parse_presets_section(p, mod))
+                return false;
         } else if (strcmp(section, "end") == 0) {
             lvz_parser_advance(p);
             break;
@@ -1025,4 +1357,85 @@ bool dependency_exists(Module **visited, int count, Module *mod) {
             return true;
     }
     return false;
+}
+
+/**
+ * @brief 从 .lvz 文件加载预设定义并注册
+ *
+ * 读取指定 .lvz 文件，解析其中的 presets 节，自动注册所有预设。
+ * 文件的其余部分（module/deps/axioms/nodes/constraints 等）会被忽略。
+ *
+ * @param filepath .lvz 文件的完整路径
+ * @return true 加载成功，false 加载失败（文件不存在、解析错误等）
+ */
+bool lvz_load_presets_file(const char *filepath) {
+    if (!filepath) {
+        lv_set_error(lv_ERROR_PARSE, "lvz_load_presets_file: 文件路径为空");
+        return false;
+    }
+
+    /* 读取文件内容 */
+    FILE *fp = fopen(filepath, "rb");
+    if (!fp) {
+        lv_set_error(lv_ERROR_IO, "lvz_load_presets_file: 无法打开文件 '%s'", filepath);
+        return false;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    long file_size = ftell(fp);
+    if (file_size <= 0) {
+        fclose(fp);
+        lv_set_error(lv_ERROR_IO, "lvz_load_presets_file: 文件 '%s' 为空", filepath);
+        return false;
+    }
+
+    rewind(fp);
+    char *source = (char *) lv_malloc((size_t) file_size + 1);
+    if (!source) {
+        fclose(fp);
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "lvz_load_presets_file: 无法分配内存");
+        return false;
+    }
+
+    size_t read_size = fread(source, 1, (size_t) file_size, fp);
+    fclose(fp);
+
+    if (read_size != (size_t) file_size) {
+        lv_free((void **) &source);
+        lv_set_error(lv_ERROR_IO, "lvz_load_presets_file: 读取文件 '%s' 失败", filepath);
+        return false;
+    }
+    source[file_size] = '\0';
+
+    /* 解析 .lvz 内容（presets 节会自动注册预设） */
+    LvzParser parser;
+    lvz_parser_init(&parser, source);
+    /* 记录模块目录路径，以便在解析错误时提供上下文 */
+    {
+        const char *slash = strrchr(filepath, '/');
+        const char *bslash = strrchr(filepath, '\\');
+        const char *last_sep = (slash > bslash) ? slash : bslash;
+        if (last_sep) {
+            size_t dir_len = (size_t)(last_sep - filepath);
+            parser.module_dir = (char *) lv_malloc(dir_len + 1);
+            if (parser.module_dir) {
+                memcpy(parser.module_dir, filepath, dir_len);
+                parser.module_dir[dir_len] = '\0';
+            }
+        }
+    }
+
+    /* 解析（preset 注册在解析过程中自动完成） */
+    bool ok = lvz_parse(&parser, NULL);
+
+    /* 清理 */
+    lvz_parser_cleanup(&parser);
+    lv_free((void **) &source);
+
+    if (!ok) {
+        lv_set_error(lv_ERROR_PARSE, "lvz_load_presets_file: 解析 '%s' 失败", filepath);
+        return false;
+    }
+
+    return true;
 }

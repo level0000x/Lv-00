@@ -36,6 +36,9 @@ extern "C" {
 typedef struct ConstraintGraph ConstraintGraph;
 typedef struct RewriteRule RewriteRule;
 
+/* 前向声明：EngineScheduler（不透明类型，定义在 engine_scheduler.c 中） */
+typedef struct EngineScheduler EngineScheduler;
+
 /* ============================================================
  * 五层架构层级标识（v3.3）
  * ============================================================
@@ -289,6 +292,9 @@ typedef struct lvEngine {
 
     /* 位电路跳闸回滚的冻结点快照（由引擎持有所有权） */
     void *frozen_point;
+
+    /* 引擎调度器实例（v3.4.0+ 从全局静态变量迁移到引擎实例字段，支持多引擎并发） */
+    EngineScheduler *scheduler;
 
     /* 上一次合一操作的状态码 */
     int last_unify_status;

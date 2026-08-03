@@ -1,4 +1,4 @@
-﻿#ifndef lv_SIMD_OPS_H
+#ifndef lv_SIMD_OPS_H
 #define lv_SIMD_OPS_H
 
 #ifdef __cplusplus
@@ -75,6 +75,15 @@ lvVec4d lv_vec4d_cmpgt(lvVec4d a, lvVec4d b);
 lvVec4d lv_vec4d_cmpge(lvVec4d a, lvVec4d b);
 lvVec4d lv_vec4d_select(lvVec4d mask, lvVec4d a, lvVec4d b);
 
+/* ── Vec4d 归约/几何 ── */
+double lv_vec4d_hsum(lvVec4d a);
+double lv_vec4d_hmax(lvVec4d a);
+double lv_vec4d_hmin(lvVec4d a);
+double lv_vec4d_dot(lvVec4d a, lvVec4d b);
+double lv_vec4d_norm(lvVec4d a);
+lvVec4d lv_vec4d_normalize(lvVec4d a);
+lvVec4d lv_vec4d_cross(lvVec4d a, lvVec4d b);
+
 /* ── Vec4f ── */
 lvVec4f lv_vec4f_zero(void);
 lvVec4f lv_vec4f_set1(float val);
@@ -84,6 +93,10 @@ lvVec4f lv_vec4f_sub(lvVec4f a, lvVec4f b);
 lvVec4f lv_vec4f_mul(lvVec4f a, lvVec4f b);
 lvVec4f lv_vec4f_div(lvVec4f a, lvVec4f b);
 lvVec4f lv_vec4f_sqrt(lvVec4f a);
+
+/* ── Vec4f 归约 ── */
+float lv_vec4f_hsum(lvVec4f a);
+float lv_vec4f_dot(lvVec4f a, lvVec4f b);
 
 /* ── Vec8f ── */
 lvVec8f lv_vec8f_zero(void);
@@ -96,6 +109,11 @@ lvVec8f lv_vec8f_div(lvVec8f a, lvVec8f b);
 
 /* ── Matrix SIMD helper ── */
 lvVec4d lv_simd_mat4x4_vec4_mul(const double mat[16], lvVec4d vec);
+
+/* ── 批量数组运算 ── */
+double lv_simd_dot_product_array(const double *a, const double *b, size_t count);
+void lv_simd_norm_array(const double *in, double *out, size_t count);
+void lv_simd_scale_array(const double *in, double scale, double *out, size_t count);
 
 #ifdef __cplusplus
 }

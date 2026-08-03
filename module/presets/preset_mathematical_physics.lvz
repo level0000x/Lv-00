@@ -1,0 +1,85 @@
+# =============================================================================
+# Lv-00 Presets: Mathematical Physics
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "isoperimetric_problem" {
+        description "求解带约束的变分问题（等周问题）"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "lagrangian_construct" {
+        description "构造Lagrange函数 L = T - V（动能减势能）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "hamiltonian_construct" {
+        description "由Lagrange函数通过Legendre变换构造Hamilton函数 H"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "hamilton_equation" {
+        description "建立Hamilton正则方程 dq/dt = ∂H/∂p, dp/dt = -∂H/∂q"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "noether_theorem" {
+        description "应用Noether定理：连续对称性对应守恒量"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "conserved_quantity" {
+        description "计算运动方程的守恒量（能量、动量、角动量等）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "field_equation" {
+        description "由场的Lagrangian密度推导场的运动方程"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "action_principle" {
+        description "计算作用量 S = ∫ L dt 并应用最小作用量原理"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

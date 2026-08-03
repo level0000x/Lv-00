@@ -1,0 +1,85 @@
+# =============================================================================
+# Lv-00 Presets: Probability Statistics
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "z_test" {
+        description "单样本Z检验（已知总体方差的均值检验）"
+        category "CUSTOM"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "t_test" {
+        description "单样本/双样本t检验（未知总体方差的均值检验）"
+        category "CUSTOM"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "chi_square_test" {
+        description "卡方拟合优度检验（观测频数与期望频数比较）"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "bayesian_estimation" {
+        description "贝叶斯参数估计：后验 ∝ 似然 x 先验"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "least_squares_regression" {
+        description "最小二乘法线性回归 y = a + bx"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "confidence_interval" {
+        description "计算总体均值的置信区间"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "maximum_likelihood_estimation" {
+        description "极大似然估计（MLE）求参数估计值"
+        category "CUSTOM"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "central_limit_theorem" {
+        description "中心极限定理应用：样本均值的近似分布"
+        category "CUSTOM"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

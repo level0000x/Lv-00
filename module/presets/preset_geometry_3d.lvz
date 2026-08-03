@@ -1,0 +1,728 @@
+# =============================================================================
+# Lv-00 Presets: Geometry 3D
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "point_3d_from_coords" {
+        description "通过笛卡尔坐标构造空间点 P(x, y, z)"
+        category "GEOMETRY"
+        inputs 3 "SCALAR" "SCALAR" "SCALAR"
+        output "POINT"
+        math_def "P(x, y, z) 其中 x, y, z 为实数坐标"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "midpoint_3d" {
+        description "构造空间两点的中点 M = (A+B)/2"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POINT"
+        math_def "M = (A + B) / 2，即中点公式"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "centroid_3d" {
+        description "构造空间三角形的重心 G = (A+B+C)/3"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "G = (A + B + C) / 3，三条中线的交点"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "centroid_tetrahedron" {
+        description "构造四面体的重心 G = (A+B+C+D)/4"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "G = (A + B + C + D) / 4，四条顶点到对面重心连线的交点"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "circumcenter_3d" {
+        description "构造四面体的外接球心"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "到四个顶点距离相等的点，六条棱的垂直平分面的交点"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "incenter_3d" {
+        description "构造四面体的内切球心"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "到四个面距离相等的点，六条二面角平分面的交点"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "orthocenter_3d" {
+        description "构造空间三角形的垂心"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "三条高的交点（仅当三角形所在平面确定时）"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "line_3d_from_points" {
+        description "通过两点构造空间直线"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "LINE"
+        math_def "通过空间两点 A, B 的唯一确定直线 L"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "line_3d_from_point_direction" {
+        description "通过点和方向向量构造空间直线"
+        category "GEOMETRY"
+        inputs 2 "POINT" "VECTOR"
+        output "LINE"
+        math_def "L: P = P0 + t*v，其中 P0 为点，v 为方向向量"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "line_3d_plane_intersection" {
+        description "构造两平面的交线"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "LINE"
+        math_def "平面 π1(P1,P2,P3) 与 π2(P1,P2,P4) 的交线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "perpendicular_3d_to_line" {
+        description "构造点到空间直线的垂线"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "LINE"
+        math_def "过点 P 且垂直于直线 L(P1,P2) 的直线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "perpendicular_3d_to_plane" {
+        description "构造点到平面的垂线"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "LINE"
+        math_def "过点 P 且垂直于平面 π(P1,P2,P3) 的直线"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "plane_from_points" {
+        description "通过不共线三点构造平面"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "通过不共线三点 A, B, C 的唯一确定平面 π"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "plane_from_point_normal" {
+        description "通过点和法向量构造平面"
+        category "GEOMETRY"
+        inputs 2 "POINT" "VECTOR"
+        output "POLYGON"
+        math_def "π: n·(P - P0) = 0，其中 P0 为点，n 为法向量"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "plane_from_lines" {
+        description "通过两相交或平行直线构造平面"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "包含直线 L1(P1,P2) 和 L2(P3,P4) 的平面"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "parallel_plane" {
+        description "构造平行于给定平面且过给定点的平面"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "过点 P 且平行于平面 π(P1,P2,P3) 的平面"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "perpendicular_plane" {
+        description "构造过给定直线且垂直于给定平面的平面"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "过直线 L(P1,P2) 且垂直于平面 π(P1,P2,P3) 的平面"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "angle_bisector_plane" {
+        description "构造两平面的角平分面"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "平面 π1(P1,P2,P3) 与 π2(P1,P2,P4) 的角平分面"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "sphere_center_radius" {
+        description "通过球心和半径点构造球"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POLYGON"
+        math_def "球心为 O，半径为 |OR| 的球面"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "sphere_four_points" {
+        description "通过不共面四点构造球"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "通过不共面四点的唯一球面"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "cylinder_axis_radius" {
+        description "通过轴和半径构造圆柱"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "SCALAR"
+        output "POLYGON"
+        math_def "以直线 L(P1,P2) 为轴，半径为 r 的圆柱面"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "cone_base_apex" {
+        description "通过底面圆心和半径点以及顶点构造圆锥"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "底面为圆 C(O,R)，顶点为 A 的圆锥面"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "ellipsoid_center_axes" {
+        description "通过中心和三个半轴端点构造椭球"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POLYGON"
+        math_def "中心为 C，三个半轴分别为 |CA|, |CB|, |CC'| 的椭球"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "tetrahedron_regular" {
+        description "通过一边构造正四面体"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POLYGON"
+        math_def "以线段 AB 为边的正四面体"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "cube" {
+        description "通过一边构造正方体"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POLYGON"
+        math_def "以线段 AB 为边的正方体"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "cuboid" {
+        description "通过底边和高构造长方体"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "SCALAR"
+        output "POLYGON"
+        math_def "底面为矩形（边 AB），高为 h 的长方体"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "octahedron_regular" {
+        description "通过对角线构造正八面体"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POLYGON"
+        math_def "以线段 AB 为对角线的正八面体"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "dodecahedron_regular" {
+        description "通过一边构造正十二面体"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POLYGON"
+        math_def "以线段 AB 为边的正十二面体"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "icosahedron_regular" {
+        description "通过一边构造正二十面体"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POLYGON"
+        math_def "以线段 AB 为边的正二十面体"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "prism" {
+        description "通过底面多边形和高构造棱柱"
+        category "GEOMETRY"
+        inputs 2 "POLYGON" "SCALAR"
+        output "POLYGON"
+        math_def "以多边形为底面，高为 h 的直棱柱"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "pyramid" {
+        description "通过底面多边形和顶点构造棱锥"
+        category "GEOMETRY"
+        inputs 2 "POLYGON" "POINT"
+        output "POLYGON"
+        math_def "以多边形为底面，A 为顶点的棱锥"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "translation_3d" {
+        description "三维平移变换"
+        category "GEOMETRY"
+        inputs 2 "POINT" "VECTOR"
+        output "POINT"
+        math_def "P' = P + v，将点 P 沿向量 v 平移"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "rotation_3d_axis" {
+        description "绕空间轴旋转"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "SCALAR"
+        output "POINT"
+        math_def "点 P 绕轴 L(P1,P2) 旋转角度 θ 后的位置"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "rotation_3d_euler" {
+        description "使用欧拉角绕原点旋转"
+        category "GEOMETRY"
+        inputs 4 "POINT" "SCALAR" "SCALAR" "SCALAR"
+        output "POINT"
+        math_def "点 P 绕 X, Y, Z 轴分别旋转 α, β, γ 后的位置"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "rotation_3d_around_point" {
+        description "绕空间点使用欧拉角旋转"
+        category "GEOMETRY"
+        inputs 5 "POINT" "POINT" "SCALAR" "SCALAR" "SCALAR"
+        output "POINT"
+        math_def "点 P 绕点 O 使用欧拉角(α,β,γ)旋转后的位置"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "scale_3d" {
+        description "三维非均匀缩放"
+        category "GEOMETRY"
+        inputs 4 "POINT" "SCALAR" "SCALAR" "SCALAR"
+        output "POINT"
+        math_def "P' = (sx*x, sy*y, sz*z)，相对于原点的缩放"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "scale_3d_uniform" {
+        description "三维均匀缩放"
+        category "GEOMETRY"
+        inputs 2 "POINT" "SCALAR"
+        output "POINT"
+        math_def "P' = s*P，相对于原点的均匀缩放"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "reflection_3d_plane" {
+        description "关于平面的反射（镜像）"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "点 P 关于平面 π(P1,P2,P3) 的对称点"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "reflection_3d_point" {
+        description "关于点的中心对称"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "POINT"
+        math_def "点 P 关于中心 O 的对称点 P'，满足 O 是 PP' 中点"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "shear_3d" {
+        description "三维剪切变换"
+        category "GEOMETRY"
+        inputs 4 "POINT" "SCALAR" "SCALAR" "SCALAR"
+        output "POINT"
+        math_def "沿某方向的剪切变换，保持某一坐标不变"
+        complexity "O(1)"
+        constructive true
+        reversible true
+    }
+
+    preset "point_on_plane" {
+        description "判断点是否在平面上"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断点 P 是否在平面 π(P1,P2,P3) 上"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "point_on_line_3d" {
+        description "判断点是否在空间直线上"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断点 P 是否在直线 L(P1,P2) 上"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "point_inside_sphere" {
+        description "判断点是否在球内"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断点 P 是否在球 S(O,R) 内部或表面上"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "lines_3d_parallel" {
+        description "判断两空间直线是否平行"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断直线 L1(P1,P2) 与 L2(P3,P4) 是否平行"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "lines_3d_perpendicular" {
+        description "判断两空间直线是否垂直"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断直线 L1(P1,P2) 与 L2(P3,P4) 是否垂直"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "planes_parallel" {
+        description "判断两平面是否平行"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断平面 π1(P1,P2,P3) 与 π2(P1,P2,P4) 是否平行"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "planes_perpendicular" {
+        description "判断两平面是否垂直"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断平面 π1(P1,P2,P3) 与 π2(P1,P2,P4) 是否垂直"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "line_plane_parallel" {
+        description "判断直线与平面是否平行"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断直线 L(P1,P2) 与平面 π(P1,P2,P3) 是否平行"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "line_plane_perpendicular" {
+        description "判断直线与平面是否垂直"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "BOOLEAN"
+        math_def "判断直线 L(P1,P2) 与平面 π(P1,P2,P3) 是否垂直"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "line_plane_intersection" {
+        description "计算直线与平面的交点"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "直线 L(P1,P2) 与平面 π(P1,P2,P3) 的交点"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "three_planes_intersection" {
+        description "计算三平面的交点"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "三平面 π1, π2, π3 的公共交点（当三平面不平行于同一直线时）"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "line_sphere_intersection" {
+        description "计算直线与球的交点"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "直线 L(P1,P2) 与球 S(O,R) 的交点，0-2个解"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "sphere_sphere_intersection" {
+        description "计算两球的交线（圆）"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "CIRCLE"
+        math_def "球 S1(O1,R1) 与 S2(O2,R2) 的交线（当两球相交时）"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "plane_sphere_intersection" {
+        description "计算平面与球的交线（圆）"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "CIRCLE"
+        math_def "平面 π 与球 S(O,R) 的交线（当平面与球相交时）"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "distance_3d" {
+        description "计算三维空间两点距离"
+        category "GEOMETRY"
+        inputs 2 "POINT" "POINT"
+        output "SCALAR"
+        math_def "d(A,B) = √((xB-xA)² + (yB-yA)² + (zB-zA)²)"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "distance_point_plane" {
+        description "计算点到平面的距离"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "SCALAR"
+        math_def "d(P,π) = |n·(P-P0)|/|n|，其中 n 为法向量"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "distance_point_line_3d" {
+        description "计算点到空间直线的距离"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "SCALAR"
+        math_def "d(P,L) = |(P-P0)×v|/|v|，其中 v 为方向向量"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "distance_parallel_planes" {
+        description "计算两平行平面间的距离"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "SCALAR"
+        math_def "d(π1,π2) = |d2-d1|/|n|（当两平面平行时）"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "distance_skew_lines" {
+        description "计算两异面直线间的距离"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "SCALAR"
+        math_def "d = |(P2-P1)·(v1×v2)|/|v1×v2|"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "angle_planes" {
+        description "计算两平面的夹角"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "SCALAR"
+        math_def "cos(θ) = |n1·n2|/(|n1||n2|)"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "angle_line_plane" {
+        description "计算直线与平面的夹角"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "SCALAR"
+        math_def "sin(θ) = |v·n|/(|v||n|)，其中 v 为方向向量，n 为法向量"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "angle_lines_3d" {
+        description "计算两空间直线的夹角"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "SCALAR"
+        math_def "cos(θ) = |v1·v2|/(|v1||v2|)，取锐角"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "project_point_plane" {
+        description "计算点在平面上的投影"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "点 P 在平面 π 上的垂足"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "project_point_line_3d" {
+        description "计算点在空间直线上的投影"
+        category "GEOMETRY"
+        inputs 3 "POINT" "POINT" "POINT"
+        output "POINT"
+        math_def "点 P 在直线 L 上的垂足"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "project_line_plane" {
+        description "计算直线在平面上的投影"
+        category "GEOMETRY"
+        inputs 4 "POINT" "POINT" "POINT" "POINT"
+        output "LINE"
+        math_def "直线 L 在平面 π 上的正交投影"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+}

@@ -241,14 +241,10 @@ EngineSolveResult engine_solve(lvEngine *engine) {
             TrustColor worst = TRUST_GREEN;
             int coord_count = 0;
 
-            switch (node->type) {
-                case GEOM_POINT:
-                case GEOM_LINE_SEGMENT:
-                    coord_count = node->coord_count;
-                    break;
-                default:
-                    break;
-            }
+            /* 通过 vtable 获取用于信任颜色传播的坐标数量 */
+            coord_count = (node->vtable && node->vtable->get_trust_coord_count)
+                              ? node->vtable->get_trust_coord_count(node)
+                              : 0;
 
             for (int j = 0; j < coord_count; j++) {
                 if (node->symbolic_coords && node->symbolic_coords[j]) {

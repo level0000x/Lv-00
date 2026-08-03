@@ -1,0 +1,148 @@
+# =============================================================================
+# Lv-00 Presets: Transformations
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "translation" {
+        description "����������ƽ��"
+        category "TRANSFORMATION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "rotation" {
+        description "������������תָ���Ƕ�"
+        category "TRANSFORMATION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "rotation_by_reference" {
+        description "ͨ���ο���ȷ����ת�Ƕ�"
+        category "TRANSFORMATION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "reflection_line" {
+        description "�����ֱ�ߵķ���"
+        category "TRANSFORMATION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "reflection_point" {
+        description "����ڵ�����ķ���"
+        category "TRANSFORMATION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "glide_reflection" {
+        description "������ط����᷽��ƽ��"
+        category "TRANSFORMATION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "homothety" {
+        description "�������ĵ�λ�Ʊ任�����ţ�"
+        category "TRANSFORMATION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "homothety_by_reference" {
+        description "ͨ���ο���ȷ������ϵ��"
+        category "TRANSFORMATION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "scale" {
+        description "��ԭ��Ϊ���ĵľ�������"
+        category "TRANSFORMATION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "shear" {
+        description "��ָ������Ĵ��б任"
+        category "TRANSFORMATION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "transform_compose" {
+        description "�����任�ĸ��� g �� f"
+        category "TRANSFORMATION"
+        inputs 2 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "transform_inverse" {
+        description "��任����"
+        category "TRANSFORMATION"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "identity_transform" {
+        description "��ȱ任"
+        category "TRANSFORMATION"
+        inputs 1 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "inversion" {
+        description "����Բ�ķ��ݱ任"
+        category "TRANSFORMATION"
+        inputs 3 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "spiral_similarity" {
+        description "��ת�����ŵĸ���"
+        category "TRANSFORMATION"
+        inputs 4 
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+}

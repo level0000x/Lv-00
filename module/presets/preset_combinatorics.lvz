@@ -1,0 +1,239 @@
+# =============================================================================
+# Lv-00 Presets: Combinatorics
+# =============================================================================
+#
+# Auto-generated from C preset files.
+#
+# =============================================================================
+
+lvz 1
+
+presets {
+
+    preset "comb_permutation" {
+        description "排列数：P(n, k) = n! / (n-k)!，从n个元素中取k个的有序排列数"
+        category "COMBINATORICS"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "P(n, k) = \\frac{n!}{(n-k)!}"
+        complexity "O(k)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_combination" {
+        description "组合数：C(n, k) = n! / (k!(n-k)!)，从n个元素中取k个的无序组合数"
+        category "COMBINATORICS"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "C(n, k) = \\binom{n}{k} = \\frac{n!}{k!(n-k)!}"
+        complexity "O(k)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_multiset_permutation" {
+        description "多重集排列数：n个元素中有重复时的排列数 n! / (n1!·n2!·...·nk!)"
+        category "COMBINATORICS"
+        inputs 1 "LIST"
+        output "INTEGER"
+        math_def "\\frac{n!}{n_1! \\cdot n_2! \\cdots n_k!}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_multiset_combination" {
+        description "多重集组合数（重复组合）：C(n+k-1, k)，从n类中可重复取k个"
+        category "COMBINATORICS"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "\\left(\\!\\!\\binom{n}{k}\\!\\!\\right) = \\binom{n+k-1}{k}"
+        complexity "O(k)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_stirling_first" {
+        description "第一类Stirling数：s(n, k)，将n个元素排成k个轮换的方式数"
+        category "COMBINATORICS"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "s(n, k) = s(n-1, k-1) - (n-1) \\cdot s(n-1, k)"
+        complexity "O(nk)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_stirling_second" {
+        description "第二类Stirling数：S(n, k)，将n个元素划分为k个非空子集的方式数"
+        category "COMBINATORICS"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "S(n, k) = S(n-1, k-1) + k \\cdot S(n-1, k)"
+        complexity "O(nk)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_ogf" {
+        description "普通生成函数：G(x) = sum_{n>=0} a_n x^n"
+        category "COMBINATORICS"
+        inputs 1 "LIST"
+        output "FUNCTION"
+        math_def "G(x) = \\sum_{n=0}^{\\infty} a_n x^n"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_egf" {
+        description "指数生成函数：E(x) = sum_{n>=0} a_n x^n / n!"
+        category "COMBINATORICS"
+        inputs 1 "LIST"
+        output "FUNCTION"
+        math_def "E(x) = \\sum_{n=0}^{\\infty} a_n \\frac{x^n}{n!}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_coefficient_extract" {
+        description "系数提取：提取生成函数 F(x) 中 x^n 的系数 [x^n]F(x)"
+        category "COMBINATORICS"
+        inputs 2 "FUNCTION" "INTEGER"
+        output "SCALAR"
+        math_def "[x^n] F(x) = a_n"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_composition" {
+        description "生成函数复合：计算 F(G(x))，两个生成函数的复合运算"
+        category "COMBINATORICS"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "FUNCTION"
+        math_def "F(G(x)) = \\sum_{n=0}^{\\infty} a_n [G(x)]^n"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_graph_create" {
+        description "图创建：创建含 n 个顶点的空图 G(V, E)"
+        category "COMBINATORICS"
+        inputs 1 "INTEGER"
+        output "GRAPH"
+        math_def "G = (V, E), \\quad |V| = n, \\quad E = \\emptyset"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_graph_add_edge" {
+        description "添加边：向图中添加一条边 (u, v)"
+        category "COMBINATORICS"
+        inputs 3 "GRAPH" "INTEGER" "INTEGER"
+        output "GRAPH"
+        math_def "G' = (V, E \\cup \\{(u, v)\\})"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_graph_degree" {
+        description "顶点度数：计算顶点 v 的度数 deg(v) = |{u : (u,v) in E}|"
+        category "COMBINATORICS"
+        inputs 2 "GRAPH" "INTEGER"
+        output "INTEGER"
+        math_def "\\deg(v) = |\\{u : (u, v) \\in E\\}|"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_graph_is_connected" {
+        description "连通性判定：判定无向图 G 是否连通（任意两顶点间存在路径）"
+        category "COMBINATORICS"
+        inputs 1 "GRAPH"
+        output "BOOLEAN"
+        math_def "G \\text{ 连通} \\Leftrightarrow \\forall u, v \\in V, \"
+                                 \"\\exists \\text{ 路径 } u \\leadsto v"
+        complexity "O(V + E)"
+        constructive false
+        reversible false
+    }
+
+    preset "comb_graph_is_tree" {
+        description "树判定：判定图 G 是否为树（连通且 |E| = |V| - 1）"
+        category "COMBINATORICS"
+        inputs 1 "GRAPH"
+        output "BOOLEAN"
+        math_def "G \\text{ 是树} \\Leftrightarrow G \\text{ 连通且 } |E| = |V| - 1"
+        complexity "O(V + E)"
+        constructive false
+        reversible false
+    }
+
+    preset "comb_inclusion_exclusion" {
+        description "容斥原理：|A1 U ... U An| = Σ|Ai| - Σ|Ai∩Aj| + ... + (-1)^(n+1)|A1∩...∩An|"
+        category "COMBINATORICS"
+        inputs 2 "SET" "LIST"
+        output "INTEGER"
+        math_def "\\left|\\bigcup_{i=1}^{n} A_i\\right| = \"
+                                 \"\\sum_{k=1}^{n} (-1)^{k+1} \\sum_{1 \\le i_1 < \\cdots < i_k \\le n} \"
+                                 \"\\left|A_{i_1} \\cap \\cdots \\cap A_{i_k}\\right|"
+        complexity "O(2^n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_pigeonhole" {
+        description "鸽巢原理：将 n+1 个物体放入 n 个盒子，至少一个盒子有 >= 2 个物体"
+        category "COMBINATORICS"
+        inputs 2 "INTEGER" "INTEGER"
+        output "BOOLEAN"
+        math_def "\\text{若 } |A| > n \\text{ 且 } f: A \\to \\{1, \\ldots, n\\}, \"
+                                 \"\\text{则 } \\exists i, j: f(i) = f(j)"
+        complexity "O(1)"
+        constructive false
+        reversible false
+    }
+
+    preset "comb_ramsey_number" {
+        description "Ramsey数：R(s, t)，保证在完全图中存在s团或t独立集的最小顶点数"
+        category "COMBINATORICS"
+        inputs 2 "INTEGER" "INTEGER"
+        output "INTEGER"
+        math_def "R(s, t) \\le \\binom{s+t-2}{s-1}"
+        complexity "O(2^n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_catalan_number" {
+        description "Catalan数：C_n = (1/(n+1))·C(2n, n)，计数括号匹配、二叉树等"
+        category "COMBINATORICS"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "C_n = \\frac{1}{n+1}\\binom{2n}{n} = \"
+                                 \"\\frac{(2n)!}{(n+1)! \\cdot n!}"
+        complexity "O(n)"
+        constructive true
+        reversible false
+    }
+
+    preset "comb_partition_number" {
+        description "整数分拆数：p(n)，将正整数 n 表示为正整数之和的方式数"
+        category "COMBINATORICS"
+        inputs 1 "INTEGER"
+        output "INTEGER"
+        math_def "p(n) = p(n-1) + p(n-2) - p(n-5) - p(n-7) + \\cdots \"
+                                 \"\\text{（五边形数定理）}"
+        complexity "O(n\\sqrt{n})"
+        constructive true
+        reversible false
+    }
+
+}
