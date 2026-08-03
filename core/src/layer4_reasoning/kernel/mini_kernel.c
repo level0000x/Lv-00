@@ -796,6 +796,51 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath) {
     return import_count;
 }
 
+/* ========================================================================
+ * 导出处理函数表 —— 替代 switch 语句
+ * ======================================================================== */
+
+/** @brief 导出处理函数类型 */
+typedef void (*MiniStmtExportHandler)(FILE *fp, const MiniStatement *stmt, const MiniKernel *kernel);
+
+/** @brief 导出 $f 变量声明 */
+static void mini_stmt_export_var(FILE *fp, const MiniStatement *stmt, const MiniKernel *kernel) {
+    (void)kernel;
+    fprintf(fp, "$f %s %s $.\n", stmt->label, stmt->formula_text);
+}
+
+/** @brief 导出 $e 前提 */
+static void mini_stmt_export_hyp(FILE *fp, const MiniStatement *stmt, const MiniKernel *kernel) {
+    (void)kernel;
+    fprintf(fp, "$e %s %s $.\n", stmt->label, stmt->formula_text);
+}
+
+/** @brief 导出 $a 公理 */
+static void mini_stmt_export_axiom(FILE *fp, const MiniStatement *stmt, const MiniKernel *kernel) {
+    (void)kernel;
+    fprintf(fp, "$a %s %s $.\n", stmt->label, stmt->formula_text);
+}
+
+/** @brief 导出 $p 定理（含证明引用） */
+static void mini_stmt_export_theorem(FILE *fp, const MiniStatement *stmt, const MiniKernel *kernel) {
+    fprintf(fp, "$p %s %s $=", stmt->label, stmt->formula_text);
+    for (int j = 0; j < stmt->ref_count; j++) {
+        int ref_id = stmt->proof_refs[j];
+        if (ref_id >= 0 && ref_id < kernel->statement_count && kernel->statements[ref_id]) {
+            fprintf(fp, " %s", kernel->statements[ref_id]->label);
+        }
+    }
+    fprintf(fp, " $.\n");
+}
+
+/** @brief 语句类型 → 导出处理函数 查找表 */
+static const MiniStmtExportHandler kMiniStmtExportOps[] = {
+    [MINI_STMT_VAR]     = mini_stmt_export_var,
+    [MINI_STMT_HYP]     = mini_stmt_export_hyp,
+    [MINI_STMT_AXIOM]   = mini_stmt_export_axiom,
+    [MINI_STMT_THEOREM] = mini_stmt_export_theorem,
+};
+
 bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath) {
     lv_CHECK_NULL(kernel, false);
     lv_CHECK_NULL(filepath, false);
@@ -813,29 +858,8 @@ bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath) {
         if (!stmt)
             continue;
 
-        switch (stmt->type) {
-            case MINI_STMT_VAR:
-                fprintf(fp, "$f %s %s $.\n", stmt->label, stmt->formula_text);
-                break;
-            case MINI_STMT_HYP:
-                fprintf(fp, "$e %s %s $.\n", stmt->label, stmt->formula_text);
-                break;
-            case MINI_STMT_AXIOM:
-                fprintf(fp, "$a %s %s $.\n", stmt->label, stmt->formula_text);
-                break;
-            case MINI_STMT_THEOREM: {
-                fprintf(fp, "$p %s %s $=", stmt->label, stmt->formula_text);
-                for (int j = 0; j < stmt->ref_count; j++) {
-                    int ref_id = stmt->proof_refs[j];
-                    if (ref_id >= 0 && ref_id < kernel->statement_count && kernel->statements[ref_id]) {
-                        fprintf(fp, " %s", kernel->statements[ref_id]->label);
-                    }
-                }
-                fprintf(fp, " $.\n");
-                break;
-            }
-            default:
-                break;
+        if (stmt->type >= MINI_STMT_VAR && stmt->type <= MINI_STMT_THEOREM) {
+            kMiniStmtExportOps[stmt->type](fp, stmt, kernel);
         }
     }
 
@@ -906,38 +930,25 @@ void mini_kernel_stats(const MiniKernel *kernel, int *out_total_stmts, int *out_
     if (!kernel)
         return;
 
-    int vars = 0, hyps = 0, axioms = 0, theorems = 0;
+    int counters[4] = {0};
     for (int i = 0; i < kernel->statement_count; i++) {
         MiniStatement *stmt = kernel->statements[i];
         if (!stmt)
             continue;
-        switch (stmt->type) {
-            case MINI_STMT_VAR:
-                vars++;
-                break;
-            case MINI_STMT_HYP:
-                hyps++;
-                break;
-            case MINI_STMT_AXIOM:
-                axioms++;
-                break;
-            case MINI_STMT_THEOREM:
-                theorems++;
-                break;
-            default:
-                break;
+        if (stmt->type >= MINI_STMT_VAR && stmt->type <= MINI_STMT_THEOREM) {
+            counters[stmt->type]++;
         }
     }
     if (out_total_stmts)
         *out_total_stmts = kernel->statement_count;
     if (out_vars)
-        *out_vars = vars;
+        *out_vars = counters[MINI_STMT_VAR];
     if (out_hyps)
-        *out_hyps = hyps;
+        *out_hyps = counters[MINI_STMT_HYP];
     if (out_axioms)
-        *out_axioms = axioms;
+        *out_axioms = counters[MINI_STMT_AXIOM];
     if (out_theorems)
-        *out_theorems = theorems;
+        *out_theorems = counters[MINI_STMT_THEOREM];
     if (out_verified)
         *out_verified = kernel->total_verified;
     if (out_tcb_lines)

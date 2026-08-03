@@ -364,6 +364,11 @@ const CoordOpsVTable kCoordOpsVTable[] = {
         .compare = same_type_compare_rational,
         .to_double = to_double_rational,
         .bit_burning_bits = bit_burning_bits_rational,
+        .destroy = destroy_rational,
+        .serialize = serialize_rational,
+        .copy_data = copy_data_rational,
+        .copy_check = copy_check_rational,
+        .is_zero = is_zero_rational,
     },
     [ALGEBRAIC] = {
         .add = same_type_add_algebraic,
@@ -373,6 +378,11 @@ const CoordOpsVTable kCoordOpsVTable[] = {
         .compare = same_type_compare_algebraic,
         .to_double = to_double_algebraic,
         .bit_burning_bits = bit_burning_bits_algebraic,
+        .destroy = destroy_algebraic,
+        .serialize = serialize_algebraic,
+        .copy_data = copy_data_algebraic,
+        .copy_check = copy_check_algebraic,
+        .is_zero = is_zero_algebraic,
     },
     [QUADRATIC] = {
         .add = same_type_add_quadratic,
@@ -382,6 +392,11 @@ const CoordOpsVTable kCoordOpsVTable[] = {
         .compare = same_type_compare_quadratic,
         .to_double = to_double_quadratic,
         .bit_burning_bits = bit_burning_bits_quadratic,
+        .destroy = destroy_quadratic,
+        .serialize = serialize_quadratic,
+        .copy_data = copy_data_quadratic,
+        .copy_check = copy_check_quadratic,
+        .is_zero = is_zero_quadratic,
     },
     [TRANSCENDENTAL] = {
         .add = NULL,
@@ -391,6 +406,11 @@ const CoordOpsVTable kCoordOpsVTable[] = {
         .compare = same_type_compare_transcendental,
         .to_double = to_double_transcendental,
         .bit_burning_bits = NULL,
+        .destroy = destroy_transcendental,
+        .serialize = serialize_transcendental,
+        .copy_data = copy_data_transcendental,
+        .copy_check = copy_check_transcendental,
+        .is_zero = is_zero_transcendental,
     },
 };
 

@@ -37,6 +37,41 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
  * @param indent  缩进层级
  * @return 更新后的已写入字符数，出错返回 -1
  */
+
+/* ── 导出处理器函数类型 ── */
+typedef int (*CsgExportHandler)(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
+
+/* 基本图元导出辅助函数 */
+static int prim_sphere(char *buf, int buf_size, int written, const char *indent_str, double *params) {
+    return snprintf(buf + written, (size_t)(buf_size - written), "%ssphere(r=%.10g);\n", indent_str, params[0]);
+}
+static int prim_cube(char *buf, int buf_size, int written, const char *indent_str, double *params) {
+    return snprintf(buf + written, (size_t)(buf_size - written), "%scube([%.10g, %.10g, %.10g], center=true);\n", indent_str, params[0], params[1], params[2]);
+}
+static int prim_cylinder(char *buf, int buf_size, int written, const char *indent_str, double *params) {
+    return snprintf(buf + written, (size_t)(buf_size - written), "%scylinder(r=%.10g, h=%.10g, center=true);\n", indent_str, params[0], params[1]);
+}
+
+/* 处理器函数前向声明 */
+static int export_primitive(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
+static int export_boolean_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
+static int export_transform_handler(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
+static int export_children_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
+
+/* ── CSG 节点类型 → 导出处理器 查找表 ── */
+static CsgExportHandler kCsgExportOps[] = {
+    [CSG_NODE_PRIMITIVE] = export_primitive,
+    [CSG_NODE_UNION] = export_boolean_op,
+    [CSG_NODE_DIFFERENCE] = export_boolean_op,
+    [CSG_NODE_INTERSECTION] = export_boolean_op,
+    [CSG_NODE_TRANSFORM] = export_transform_handler,
+    [CSG_NODE_HULL] = export_children_op,
+    [CSG_NODE_MINKOWSKI] = export_children_op,
+    [CSG_NODE_EXTRUDE_LINEAR] = export_children_op,
+    [CSG_NODE_EXTRUDE_ROTATE] = export_children_op,
+};
+static const int kCsgExportOpsCount = (int)(sizeof(kCsgExportOps) / sizeof(kCsgExportOps[0]));
+
 static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int written, int indent) {
     if (!node || !buf || written < 0 || written >= buf_size)
         return written;
@@ -49,113 +84,112 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
     memset(indent_str, ' ', (size_t) indent_len);
     indent_str[indent_len] = '\0';
 
-    int n = 0;
-
-    switch (node->kind) {
-        case CSG_NODE_PRIMITIVE: {
-            int ptype = node->data.prim.type;
-            double *p = node->data.prim.params;
-
-            switch (ptype) {
-                case 0: /* 球体 */
-                    n = snprintf(buf + written, (size_t) (buf_size - written), "%ssphere(r=%.10g);\n", indent_str,
-                                 p[0]);
-                    break;
-                case 1: /* 立方体 */
-                    n = snprintf(buf + written, (size_t) (buf_size - written),
-                                 "%scube([%.10g, %.10g, %.10g], center=true);\n", indent_str, p[0], p[1], p[2]);
-                    break;
-                case 2: /* 圆柱体 */
-                    n = snprintf(buf + written, (size_t) (buf_size - written),
-                                 "%scylinder(r=%.10g, h=%.10g, center=true);\n", indent_str, p[0], p[1]);
-                    break;
-                default:
-                    n = snprintf(buf + written, (size_t) (buf_size - written), "%s// unknown primitive type %d\n",
-                                 indent_str, ptype);
-                    break;
-            }
-            if (n > 0)
-                written += n;
-            if (n < 0)
-                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for primitive");
-            break;
-        }
-
-        case CSG_NODE_UNION:
-        case CSG_NODE_DIFFERENCE:
-        case CSG_NODE_INTERSECTION: {
-            const char *op_name = "union";
-            if (node->kind == CSG_NODE_DIFFERENCE)
-                op_name = "difference";
-            if (node->kind == CSG_NODE_INTERSECTION)
-                op_name = "intersection";
-
-            n = snprintf(buf + written, (size_t) (buf_size - written), "%s%s() {\n", indent_str, op_name);
-            if (n > 0)
-                written += n;
-            else if (n < 0)
-                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for boolean op");
-
-            for (int i = 0; i < node->child_count; i++) {
-                written = csg_export_node(node->children[i], buf, buf_size, written, indent + 1);
-                if (written < 0)
-                    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: child export failed");
-            }
-
-            n = snprintf(buf + written, (size_t) (buf_size - written), "%s}\n", indent_str);
-            if (n > 0)
-                written += n;
-            else if (n < 0)
-                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for boolean close");
-            break;
-        }
-
-        case CSG_NODE_TRANSFORM:
-            n = snprintf(buf + written, (size_t) (buf_size - written), "%s// transform (TBI)\n", indent_str);
-            if (n > 0)
-                written += n;
-            else if (n < 0)
-                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for transform");
-            if (node->child_count > 0) {
-                written = csg_export_node(node->children[0], buf, buf_size, written, indent);
-                if (written < 0)
-                    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: transform child export failed");
-            }
-            break;
-
-        case CSG_NODE_HULL:
-        case CSG_NODE_MINKOWSKI:
-        case CSG_NODE_EXTRUDE_LINEAR:
-        case CSG_NODE_EXTRUDE_ROTATE: {
-            const char *op_name = "hull";
-            if (node->kind == CSG_NODE_MINKOWSKI)
-                op_name = "minkowski";
-            if (node->kind == CSG_NODE_EXTRUDE_LINEAR)
-                op_name = "linear_extrude";
-            if (node->kind == CSG_NODE_EXTRUDE_ROTATE)
-                op_name = "rotate_extrude";
-
-            n = snprintf(buf + written, (size_t) (buf_size - written), "%s%s() {\n", indent_str, op_name);
-            if (n > 0)
-                written += n;
-            else if (n < 0)
-                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for hull/minkowski/extrude");
-
-            for (int i = 0; i < node->child_count; i++) {
-                written = csg_export_node(node->children[i], buf, buf_size, written, indent + 1);
-                if (written < 0)
-                    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: child export failed");
-            }
-
-            n = snprintf(buf + written, (size_t) (buf_size - written), "%s}\n", indent_str);
-            if (n > 0)
-                written += n;
-            else if (n < 0)
-                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for hull/minkowski/extrude close");
-            break;
-        }
+    /* 通过查找表分发到对应处理器 */
+    if (node->kind >= 0 && node->kind < kCsgExportOpsCount && kCsgExportOps[node->kind]) {
+        return kCsgExportOps[node->kind](node, buf, buf_size, written, indent, indent_str);
     }
 
+    return written;
+}
+
+/* ================================================================
+ * 导出处理器函数实现
+ * ================================================================ */
+
+static int export_primitive(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
+    (void)indent;
+    int ptype = node->data.prim.type;
+    double *p = node->data.prim.params;
+    int n;
+
+    /* 图元类型 → 导出函数 查找表 */
+    static int (*const kPrimOps[])(char *buf, int buf_size, int written, const char *indent_str, double *params) = {
+        prim_sphere,   /* 0 */
+        prim_cube,     /* 1 */
+        prim_cylinder, /* 2 */
+    };
+    int prim_count = (int)(sizeof(kPrimOps) / sizeof(kPrimOps[0]));
+
+    if (ptype >= 0 && ptype < prim_count) {
+        n = kPrimOps[ptype](buf, buf_size, written, indent_str, p);
+    } else {
+        n = snprintf(buf + written, (size_t)(buf_size - written), "%s// unknown primitive type %d\n", indent_str, ptype);
+    }
+
+    if (n > 0)
+        written += n;
+    if (n < 0)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for primitive");
+    return written;
+}
+
+static int export_boolean_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
+    const char *op_name = "union";
+    if (node->kind == CSG_NODE_DIFFERENCE)
+        op_name = "difference";
+    if (node->kind == CSG_NODE_INTERSECTION)
+        op_name = "intersection";
+
+    int n = snprintf(buf + written, (size_t)(buf_size - written), "%s%s() {\n", indent_str, op_name);
+    if (n > 0)
+        written += n;
+    else if (n < 0)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for boolean op");
+
+    for (int i = 0; i < node->child_count; i++) {
+        written = csg_export_node(node->children[i], buf, buf_size, written, indent + 1);
+        if (written < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: child export failed");
+    }
+
+    n = snprintf(buf + written, (size_t)(buf_size - written), "%s}\n", indent_str);
+    if (n > 0)
+        written += n;
+    else if (n < 0)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for boolean close");
+    return written;
+}
+
+static int export_transform_handler(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
+    int n = snprintf(buf + written, (size_t)(buf_size - written), "%s// transform (TBI)\n", indent_str);
+    if (n > 0)
+        written += n;
+    else if (n < 0)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for transform");
+    if (node->child_count > 0) {
+        written = csg_export_node(node->children[0], buf, buf_size, written, indent);
+        if (written < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: transform child export failed");
+    }
+    return written;
+}
+
+static int export_children_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
+    const char *op_name = "hull";
+    if (node->kind == CSG_NODE_MINKOWSKI)
+        op_name = "minkowski";
+    if (node->kind == CSG_NODE_EXTRUDE_LINEAR)
+        op_name = "linear_extrude";
+    if (node->kind == CSG_NODE_EXTRUDE_ROTATE)
+        op_name = "rotate_extrude";
+
+    int n = snprintf(buf + written, (size_t)(buf_size - written), "%s%s() {\n", indent_str, op_name);
+    if (n > 0)
+        written += n;
+    else if (n < 0)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for hull/minkowski/extrude");
+
+    for (int i = 0; i < node->child_count; i++) {
+        written = csg_export_node(node->children[i], buf, buf_size, written, indent + 1);
+        if (written < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: child export failed");
+    }
+
+    n = snprintf(buf + written, (size_t)(buf_size - written), "%s}\n", indent_str);
+    if (n > 0)
+        written += n;
+    else if (n < 0)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for hull/minkowski/extrude close");
     return written;
 }
 

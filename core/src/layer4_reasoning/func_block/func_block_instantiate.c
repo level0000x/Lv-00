@@ -21,6 +21,116 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
+/* ============== 类型特定复制处理器（查找表） ============== */
+
+/**
+ * @brief 类型特定复制操作的结果码
+ */
+typedef enum {
+    COPY_OK = 0,            /**< 复制成功 */
+    COPY_OUT_OF_MEMORY = 1, /**< 内存分配失败 */
+    COPY_NO_SOLUTION = 2    /**< 数据无效，无法复制 */
+} CopyResult;
+
+/**
+ * @brief 类型特定深拷贝处理函数类型
+ * @param orig 源节点（只读）
+ * @param copy 目标节点（已分配并 memcpy 浅拷贝）
+ * @return CopyResult 结果码
+ */
+typedef int (*InstantiateCopyHandler)(const GeomNode *orig, GeomNode *copy);
+
+/** @brief 复制 GEOM_PORT 类型数据 */
+static int instantiate_copy_port(const GeomNode *orig, GeomNode *copy) {
+    if (!orig->data.port) {
+        return COPY_NO_SOLUTION;
+    }
+    Port *port_copy = lv_calloc(1, sizeof(Port));
+    if (!port_copy) {
+        return COPY_OUT_OF_MEMORY;
+    }
+    memcpy(port_copy, orig->data.port, sizeof(Port));
+    port_copy->id = copy->id;
+    port_copy->connected_to = NULL;
+    port_copy->namespace_depth = copy->namespace_depth;
+    port_copy->parent_block_id = -1;
+    copy->data.port = port_copy;
+    return COPY_OK;
+}
+
+/** @brief 复制 GEOM_REGION 类型数据 */
+static int instantiate_copy_region(const GeomNode *orig, GeomNode *copy) {
+    if (orig->data.region.boundary_segments && orig->data.region.segment_count > 0) {
+        copy->data.region.boundary_segments =
+            lv_malloc((size_t) orig->data.region.segment_count * sizeof(GeomNode *));
+        if (!copy->data.region.boundary_segments) {
+            return COPY_OUT_OF_MEMORY;
+        }
+        memcpy(copy->data.region.boundary_segments, orig->data.region.boundary_segments,
+               (size_t) orig->data.region.segment_count * sizeof(GeomNode *));
+    }
+    return COPY_OK;
+}
+
+/** @brief 复制 GEOM_CIRCLE 类型数据 */
+static int instantiate_copy_circle(const GeomNode *orig, GeomNode *copy) {
+    copy->data.circle.center_node_id = orig->data.circle.center_node_id;
+    copy->data.circle.radius_node_id = orig->data.circle.radius_node_id;
+    return COPY_OK;
+}
+
+/** @brief 复制 GEOM_FUNCTION_BLOCK 类型数据 */
+static int instantiate_copy_func_block(const GeomNode *orig, GeomNode *copy) {
+    if (orig->data.func_block.internal_nodes && orig->data.func_block.internal_node_count > 0) {
+        copy->data.func_block.internal_nodes =
+            lv_malloc((size_t) orig->data.func_block.internal_node_count * sizeof(GeomNode *));
+        if (!copy->data.func_block.internal_nodes) {
+            return COPY_OUT_OF_MEMORY;
+        }
+        memcpy(copy->data.func_block.internal_nodes, orig->data.func_block.internal_nodes,
+               (size_t) orig->data.func_block.internal_node_count * sizeof(GeomNode *));
+    }
+    if (orig->data.func_block.input_port_ids && orig->data.func_block.input_count > 0) {
+        copy->data.func_block.input_port_ids =
+            lv_malloc((size_t) orig->data.func_block.input_count * sizeof(int));
+        if (!copy->data.func_block.input_port_ids) {
+            lv_free((void **) &copy->data.func_block.internal_nodes);
+            return COPY_OUT_OF_MEMORY;
+        }
+        memcpy(copy->data.func_block.input_port_ids, orig->data.func_block.input_port_ids,
+               (size_t) orig->data.func_block.input_count * sizeof(int));
+    }
+    if (orig->data.func_block.output_port_ids && orig->data.func_block.output_count > 0) {
+        copy->data.func_block.output_port_ids =
+            lv_malloc((size_t) orig->data.func_block.output_count * sizeof(int));
+        if (!copy->data.func_block.output_port_ids) {
+            lv_free((void **) &copy->data.func_block.input_port_ids);
+            lv_free((void **) &copy->data.func_block.internal_nodes);
+            return COPY_OUT_OF_MEMORY;
+        }
+        memcpy(copy->data.func_block.output_port_ids, orig->data.func_block.output_port_ids,
+               (size_t) orig->data.func_block.output_count * sizeof(int));
+    }
+    return COPY_OK;
+}
+
+/** @brief 默认复制（GEOM_POINT, GEOM_LINE_SEGMENT 无额外数据） */
+static int instantiate_copy_default(const GeomNode *orig, GeomNode *copy) {
+    (void)orig;
+    (void)copy;
+    return COPY_OK;
+}
+
+/** @brief 类型到复制处理器的查找表 */
+static const InstantiateCopyHandler kInstantiateOps[] = {
+    [GEOM_POINT] = instantiate_copy_default,
+    [GEOM_LINE_SEGMENT] = instantiate_copy_default,
+    [GEOM_REGION] = instantiate_copy_region,
+    [GEOM_CIRCLE] = instantiate_copy_circle,
+    [GEOM_PORT] = instantiate_copy_port,
+    [GEOM_FUNCTION_BLOCK] = instantiate_copy_func_block,
+};
+
 /* ============== 例化操作 ============== */
 
 /**
@@ -156,103 +266,14 @@ static InstantiateResult instantiate_copy_internal_nodes(FuncBlock *fb, Constrai
             copy->numeric_assumption_declaration = NULL;
         }
 
-        /* 处理类型特定数据 */
-        switch (orig->type) {
-            case GEOM_PORT: {
-                /* 防止空指针解引用：确保 orig->data.port 不为 NULL */
-                if (!orig->data.port) {
-                    lv_free((void **) &copy->symbolic_coords);
-                    lv_free((void **) &copy->numeric_assumption_declaration);
-                    lv_free((void **) &copy);
-                    lv_free((void **) &new_node_ids);
-                    return INSTANTIATE_NO_SOLUTION;
-                }
-                Port *port_copy = lv_calloc(1, sizeof(Port));
-                if (!port_copy) {
-                    lv_free((void **) &copy->symbolic_coords);
-                    lv_free((void **) &copy->numeric_assumption_declaration);
-                    lv_free((void **) &copy);
-                    lv_free((void **) &new_node_ids);
-                    return INSTANTIATE_OUT_OF_MEMORY;
-                }
-                memcpy(port_copy, orig->data.port, sizeof(Port));
-                port_copy->id = copy->id;
-                port_copy->connected_to = NULL;
-                port_copy->namespace_depth = copy->namespace_depth;
-                port_copy->parent_block_id = -1;
-                copy->data.port = port_copy;
-                break;
-            }
-            case GEOM_REGION: {
-                if (orig->data.region.boundary_segments && orig->data.region.segment_count > 0) {
-                    copy->data.region.boundary_segments =
-                        lv_malloc((size_t) orig->data.region.segment_count * sizeof(GeomNode *));
-                    if (!copy->data.region.boundary_segments) {
-                        lv_free((void **) &copy->symbolic_coords);
-                        lv_free((void **) &copy->numeric_assumption_declaration);
-                        lv_free((void **) &copy);
-                        lv_free((void **) &new_node_ids);
-                        return INSTANTIATE_OUT_OF_MEMORY;
-                    }
-                    memcpy(copy->data.region.boundary_segments, orig->data.region.boundary_segments,
-                           (size_t) orig->data.region.segment_count * sizeof(GeomNode *));
-                }
-                break;
-            }
-            case GEOM_CIRCLE: {
-                /* 圆节点数据为简单整数 ID，直接复制 */
-                copy->data.circle.center_node_id = orig->data.circle.center_node_id;
-                copy->data.circle.radius_node_id = orig->data.circle.radius_node_id;
-                break;
-            }
-            case GEOM_FUNCTION_BLOCK: {
-                if (orig->data.func_block.internal_nodes && orig->data.func_block.internal_node_count > 0) {
-                    copy->data.func_block.internal_nodes =
-                        lv_malloc((size_t) orig->data.func_block.internal_node_count * sizeof(GeomNode *));
-                    if (!copy->data.func_block.internal_nodes) {
-                        lv_free((void **) &copy->symbolic_coords);
-                        lv_free((void **) &copy->numeric_assumption_declaration);
-                        lv_free((void **) &copy);
-                        lv_free((void **) &new_node_ids);
-                        return INSTANTIATE_OUT_OF_MEMORY;
-                    }
-                    memcpy(copy->data.func_block.internal_nodes, orig->data.func_block.internal_nodes,
-                           (size_t) orig->data.func_block.internal_node_count * sizeof(GeomNode *));
-                }
-                if (orig->data.func_block.input_port_ids && orig->data.func_block.input_count > 0) {
-                    copy->data.func_block.input_port_ids =
-                        lv_malloc((size_t) orig->data.func_block.input_count * sizeof(int));
-                    if (!copy->data.func_block.input_port_ids) {
-                        lv_free((void **) &copy->data.func_block.internal_nodes);
-                        lv_free((void **) &copy->symbolic_coords);
-                        lv_free((void **) &copy->numeric_assumption_declaration);
-                        lv_free((void **) &copy);
-                        lv_free((void **) &new_node_ids);
-                        return INSTANTIATE_OUT_OF_MEMORY;
-                    }
-                    memcpy(copy->data.func_block.input_port_ids, orig->data.func_block.input_port_ids,
-                           (size_t) orig->data.func_block.input_count * sizeof(int));
-                }
-                if (orig->data.func_block.output_port_ids && orig->data.func_block.output_count > 0) {
-                    copy->data.func_block.output_port_ids =
-                        lv_malloc((size_t) orig->data.func_block.output_count * sizeof(int));
-                    if (!copy->data.func_block.output_port_ids) {
-                        lv_free((void **) &copy->data.func_block.input_port_ids);
-                        lv_free((void **) &copy->data.func_block.internal_nodes);
-                        lv_free((void **) &copy->symbolic_coords);
-                        lv_free((void **) &copy->numeric_assumption_declaration);
-                        lv_free((void **) &copy);
-                        lv_free((void **) &new_node_ids);
-                        return INSTANTIATE_OUT_OF_MEMORY;
-                    }
-                    memcpy(copy->data.func_block.output_port_ids, orig->data.func_block.output_port_ids,
-                           (size_t) orig->data.func_block.output_count * sizeof(int));
-                }
-                break;
-            }
-            default:
-                /* GEOM_POINT, GEOM_LINE_SEGMENT 无额外数据 */
-                break;
+        /* 处理类型特定数据（通过查找表派发） */
+        int copy_result = kInstantiateOps[orig->type](orig, copy);
+        if (copy_result != COPY_OK) {
+            lv_free((void **) &copy->symbolic_coords);
+            lv_free((void **) &copy->numeric_assumption_declaration);
+            lv_free((void **) &copy);
+            lv_free((void **) &new_node_ids);
+            return (copy_result == COPY_OUT_OF_MEMORY) ? INSTANTIATE_OUT_OF_MEMORY : INSTANTIATE_NO_SOLUTION;
         }
 
         /* 注册 ID 映射 */
@@ -310,6 +331,93 @@ static InstantiateResult instantiate_copy_internal_nodes(FuncBlock *fb, Constrai
     return INSTANTIATE_OK;
 }
 
+/* ============== 引用更新处理器（查找表） ============== */
+
+/**
+ * @brief 类型特定引用更新处理函数类型
+ * @param graph 约束图
+ * @param copy  已复制的节点
+ * @param id_map ID 映射表
+ * @param max_id 最大 ID
+ */
+typedef void (*UpdateRefsHandler)(ConstraintGraph *graph, GeomNode *copy, const int *id_map, int max_id);
+
+/** @brief 更新 GEOM_REGION 节点的引用 */
+static void update_refs_region(ConstraintGraph *graph, GeomNode *copy, const int *id_map, int max_id) {
+    for (int j = 0; j < copy->data.region.segment_count; j++) {
+        if (copy->data.region.boundary_segments[j]) {
+            int old_seg_id = copy->data.region.boundary_segments[j]->id;
+            if (old_seg_id >= 0 && old_seg_id <= max_id && id_map[old_seg_id] >= 0) {
+                copy->data.region.boundary_segments[j] = graph_get_node(graph, id_map[old_seg_id]);
+            }
+        }
+    }
+}
+
+/** @brief 更新 GEOM_CIRCLE 节点的引用 */
+static void update_refs_circle(ConstraintGraph *graph, GeomNode *copy, const int *id_map, int max_id) {
+    if (copy->data.circle.center_node_id >= 0 && copy->data.circle.center_node_id <= max_id &&
+        id_map[copy->data.circle.center_node_id] >= 0) {
+        copy->data.circle.center_node_id = id_map[copy->data.circle.center_node_id];
+    }
+    if (copy->data.circle.radius_node_id >= 0 && copy->data.circle.radius_node_id <= max_id &&
+        id_map[copy->data.circle.radius_node_id] >= 0) {
+        copy->data.circle.radius_node_id = id_map[copy->data.circle.radius_node_id];
+    }
+}
+
+/** @brief 更新 GEOM_FUNCTION_BLOCK 节点的引用 */
+static void update_refs_func_block(ConstraintGraph *graph, GeomNode *copy, const int *id_map, int max_id) {
+    for (int j = 0; j < copy->data.func_block.internal_node_count; j++) {
+        if (copy->data.func_block.internal_nodes[j]) {
+            int old_nid = copy->data.func_block.internal_nodes[j]->id;
+            if (old_nid >= 0 && old_nid <= max_id && id_map[old_nid] >= 0) {
+                copy->data.func_block.internal_nodes[j] = graph_get_node(graph, id_map[old_nid]);
+            }
+        }
+    }
+    for (int j = 0; j < copy->data.func_block.input_count; j++) {
+        int old_pid = copy->data.func_block.input_port_ids[j];
+        if (old_pid >= 0 && old_pid <= max_id && id_map[old_pid] >= 0) {
+            copy->data.func_block.input_port_ids[j] = id_map[old_pid];
+        }
+    }
+    for (int j = 0; j < copy->data.func_block.output_count; j++) {
+        int old_pid = copy->data.func_block.output_port_ids[j];
+        if (old_pid >= 0 && old_pid <= max_id && id_map[old_pid] >= 0) {
+            copy->data.func_block.output_port_ids[j] = id_map[old_pid];
+        }
+    }
+}
+
+/** @brief 更新 GEOM_PORT 节点的引用 */
+static void update_refs_port(ConstraintGraph *graph, GeomNode *copy, const int *id_map, int max_id) {
+    if (copy->data.port && copy->data.port->connected_to) {
+        int old_cid = copy->data.port->connected_to->id;
+        if (old_cid >= 0 && old_cid <= max_id && id_map[old_cid] >= 0) {
+            copy->data.port->connected_to = graph_get_node(graph, id_map[old_cid]);
+        }
+    }
+}
+
+/** @brief 默认处理器（GEOM_POINT, GEOM_LINE_SEGMENT 无引用需要更新） */
+static void update_refs_default(ConstraintGraph *graph, GeomNode *copy, const int *id_map, int max_id) {
+    (void)graph;
+    (void)copy;
+    (void)id_map;
+    (void)max_id;
+}
+
+/** @brief 类型到引用更新处理器的查找表 */
+static const UpdateRefsHandler kUpdateRefsOps[] = {
+    [GEOM_POINT] = update_refs_default,
+    [GEOM_LINE_SEGMENT] = update_refs_default,
+    [GEOM_REGION] = update_refs_region,
+    [GEOM_CIRCLE] = update_refs_circle,
+    [GEOM_PORT] = update_refs_port,
+    [GEOM_FUNCTION_BLOCK] = update_refs_func_block,
+};
+
 /**
  * @brief 例化后更新复制节点中的引用
  *
@@ -331,64 +439,8 @@ static void instantiate_update_references(ConstraintGraph *graph, int *new_node_
         if (!copy)
             continue;
 
-        switch (copy->type) {
-            case GEOM_REGION:
-                for (int j = 0; j < copy->data.region.segment_count; j++) {
-                    if (copy->data.region.boundary_segments[j]) {
-                        int old_seg_id = copy->data.region.boundary_segments[j]->id;
-                        if (old_seg_id >= 0 && old_seg_id <= max_id && id_map[old_seg_id] >= 0) {
-                            copy->data.region.boundary_segments[j] = graph_get_node(graph, id_map[old_seg_id]);
-                        }
-                    }
-                }
-                break;
-            case GEOM_CIRCLE:
-                /* 圆的圆心和半径数据在节点创建时已设置 */
-                if (copy->data.circle.center_node_id >= 0 && copy->data.circle.center_node_id <= max_id &&
-                    id_map[copy->data.circle.center_node_id] >= 0) {
-                    copy->data.circle.center_node_id = id_map[copy->data.circle.center_node_id];
-                }
-                if (copy->data.circle.radius_node_id >= 0 && copy->data.circle.radius_node_id <= max_id &&
-                    id_map[copy->data.circle.radius_node_id] >= 0) {
-                    copy->data.circle.radius_node_id = id_map[copy->data.circle.radius_node_id];
-                }
-                break;
-
-            case GEOM_FUNCTION_BLOCK:
-                for (int j = 0; j < copy->data.func_block.internal_node_count; j++) {
-                    if (copy->data.func_block.internal_nodes[j]) {
-                        int old_nid = copy->data.func_block.internal_nodes[j]->id;
-                        if (old_nid >= 0 && old_nid <= max_id && id_map[old_nid] >= 0) {
-                            copy->data.func_block.internal_nodes[j] = graph_get_node(graph, id_map[old_nid]);
-                        }
-                    }
-                }
-                for (int j = 0; j < copy->data.func_block.input_count; j++) {
-                    int old_pid = copy->data.func_block.input_port_ids[j];
-                    if (old_pid >= 0 && old_pid <= max_id && id_map[old_pid] >= 0) {
-                        copy->data.func_block.input_port_ids[j] = id_map[old_pid];
-                    }
-                }
-                for (int j = 0; j < copy->data.func_block.output_count; j++) {
-                    int old_pid = copy->data.func_block.output_port_ids[j];
-                    if (old_pid >= 0 && old_pid <= max_id && id_map[old_pid] >= 0) {
-                        copy->data.func_block.output_port_ids[j] = id_map[old_pid];
-                    }
-                }
-                break;
-
-            case GEOM_PORT:
-                if (copy->data.port && copy->data.port->connected_to) {
-                    int old_cid = copy->data.port->connected_to->id;
-                    if (old_cid >= 0 && old_cid <= max_id && id_map[old_cid] >= 0) {
-                        copy->data.port->connected_to = graph_get_node(graph, id_map[old_cid]);
-                    }
-                }
-                break;
-
-            default:
-                break;
-        }
+        /* 通过查找表派发引用更新 */
+        kUpdateRefsOps[copy->type](graph, copy, id_map, max_id);
     }
 }
 

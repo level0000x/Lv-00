@@ -41,6 +41,109 @@ char *transcendental_serialize(const Transcendental *t);
 extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
 
 /* ============================================================
+ * VTable Handler Functions (Lifecycle)
+ * ============================================================ */
+
+/* ── destroy handlers ── */
+void destroy_rational(SymbolicCoord *coord) {
+    rational_destroy(coord->data.rational);
+    coord->data.rational = NULL;
+}
+void destroy_algebraic(SymbolicCoord *coord) {
+    algebraic_destroy(coord->data.algebraic);
+    coord->data.algebraic = NULL;
+}
+void destroy_quadratic(SymbolicCoord *coord) {
+    quadratic_destroy(coord->data.quadratic);
+    coord->data.quadratic = NULL;
+}
+void destroy_transcendental(SymbolicCoord *coord) {
+    transcendental_destroy(coord->data.transcendental);
+    coord->data.transcendental = NULL;
+}
+
+/* ── serialize handlers ── */
+char *serialize_rational(const SymbolicCoord *coord) {
+    return rational_serialize(coord->data.rational);
+}
+char *serialize_algebraic(const SymbolicCoord *coord) {
+    return algebraic_serialize(coord->data.algebraic);
+}
+char *serialize_quadratic(const SymbolicCoord *coord) {
+    return quadratic_serialize(coord->data.quadratic);
+}
+char *serialize_transcendental(const SymbolicCoord *coord) {
+    return transcendental_serialize(coord->data.transcendental);
+}
+
+/* ── copy_data handlers ── */
+void copy_data_rational(const SymbolicCoord *src, SymbolicCoord *dst) {
+    dst->data.rational = rational_copy(src->data.rational);
+}
+void copy_data_algebraic(const SymbolicCoord *src, SymbolicCoord *dst) {
+    dst->data.algebraic = algebraic_create((mpz_poly_t *) &src->data.algebraic->minimal_poly,
+                                           src->data.algebraic->left_bound, src->data.algebraic->right_bound);
+    if (dst->data.algebraic && src->data.algebraic->cached_rational) {
+        dst->data.algebraic->cached_rational = rational_copy(src->data.algebraic->cached_rational);
+    }
+}
+void copy_data_quadratic(const SymbolicCoord *src, SymbolicCoord *dst) {
+    Rational *a = rational_copy(src->data.quadratic->a);
+    Rational *b = rational_copy(src->data.quadratic->b);
+    dst->data.quadratic = quadratic_create(a, b, src->data.quadratic->n);
+}
+void copy_data_transcendental(const SymbolicCoord *src, SymbolicCoord *dst) {
+    dst->data.transcendental = transcendental_create(src->data.transcendental->name);
+    if (dst->data.transcendental && src->data.transcendental->expr) {
+        TranscendentalExpr *src_expr = src->data.transcendental->expr;
+        TranscendentalExpr *dst_expr = lv_calloc(1, sizeof(TranscendentalExpr));
+        if (dst_expr) {
+            dst_expr->expr_type = src_expr->expr_type;
+            lv_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
+            dst_expr->rational_operand =
+                src_expr->rational_operand ? rational_copy(src_expr->rational_operand) : NULL;
+            dst_expr->out_of_scope = src_expr->out_of_scope;
+            dst->data.transcendental->expr = dst_expr;
+        }
+    }
+}
+
+/* ── copy_check handlers ── */
+bool copy_check_rational(const SymbolicCoord *coord) {
+    return (coord->data.rational != NULL);
+}
+bool copy_check_algebraic(const SymbolicCoord *coord) {
+    return (coord->data.algebraic != NULL);
+}
+bool copy_check_quadratic(const SymbolicCoord *coord) {
+    return (coord->data.quadratic != NULL);
+}
+bool copy_check_transcendental(const SymbolicCoord *coord) {
+    return (coord->data.transcendental != NULL);
+}
+
+/* ── is_zero handlers ── */
+bool is_zero_rational(const SymbolicCoord *coord) {
+    return mpq_cmp_ui(coord->data.rational->value, 0, 1) == 0;
+}
+bool is_zero_algebraic(const SymbolicCoord *coord) {
+    Algebraic *a = coord->data.algebraic;
+    if (a->cached_rational) {
+        return mpq_cmp_ui(a->cached_rational->value, 0, 1) == 0;
+    }
+    return (a->left_bound <= 0 && a->right_bound >= 0);
+}
+bool is_zero_quadratic(const SymbolicCoord *coord) {
+    Quadratic *q = coord->data.quadratic;
+    extern bool is_rational_zero(const Rational *r);
+    return is_rational_zero(q->a) && is_rational_zero(q->b);
+}
+bool is_zero_transcendental(const SymbolicCoord *coord) {
+    (void)coord;
+    return false;
+}
+
+/* ============================================================
  * SymbolicCoord Constructors
  * ============================================================ */
 
@@ -164,26 +267,7 @@ void symbolic_coord_destroy(SymbolicCoord *coord) {
     coord->cache_valid = false;
     coord->cached_value = 0.0;
 
-    switch (coord->type) {
-        case RATIONAL:
-            rational_destroy(coord->data.rational);
-            coord->data.rational = NULL;
-            break;
-        case ALGEBRAIC:
-            algebraic_destroy(coord->data.algebraic);
-            coord->data.algebraic = NULL;
-            break;
-        case QUADRATIC:
-            quadratic_destroy(coord->data.quadratic);
-            coord->data.quadratic = NULL;
-            break;
-        case TRANSCENDENTAL:
-            transcendental_destroy(coord->data.transcendental);
-            coord->data.transcendental = NULL;
-            break;
-        default:
-            break; /* 未知类型无需释放 */
-    }
+    kCoordOpsVTable[coord->type].destroy(coord);
 
     /* 将 trust 颜色重置为安全默认值 */
     coord->trust = TRUST_GREEN;
@@ -253,19 +337,7 @@ void symbolic_coord_invalidate_cache(SymbolicCoord *coord) {
 char *symbolic_coord_serialize(const SymbolicCoord *coord) {
     if (!coord)
         return NULL;
-    switch (coord->type) {
-        case RATIONAL:
-            return rational_serialize(coord->data.rational);
-        case ALGEBRAIC:
-            return algebraic_serialize(coord->data.algebraic);
-        case QUADRATIC:
-            return quadratic_serialize(coord->data.quadratic);
-        case TRANSCENDENTAL:
-            return transcendental_serialize(coord->data.transcendental);
-        default:
-            return NULL; /* 未知类型无法序列化 */
-    }
-    return NULL;
+    return kCoordOpsVTable[coord->type].serialize(coord);
 }
 
 /* ============================================================
@@ -286,58 +358,9 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
     dst->cache_valid = false; /* 复制品缓存初始无效，首次访问时重新计算 */
     dst->cached_value = 0.0;
 
-    switch (src->type) {
-        case RATIONAL:
-            dst->data.rational = rational_copy(src->data.rational);
-            break;
-        case ALGEBRAIC: {
-            dst->data.algebraic = algebraic_create((mpz_poly_t *) &src->data.algebraic->minimal_poly,
-                                                   src->data.algebraic->left_bound, src->data.algebraic->right_bound);
-            if (dst->data.algebraic && src->data.algebraic->cached_rational) {
-                dst->data.algebraic->cached_rational = rational_copy(src->data.algebraic->cached_rational);
-            }
-            break;
-        }
-        case QUADRATIC: {
-            Rational *a = rational_copy(src->data.quadratic->a);
-            Rational *b = rational_copy(src->data.quadratic->b);
-            dst->data.quadratic = quadratic_create(a, b, src->data.quadratic->n);
-            break;
-        }
-        case TRANSCENDENTAL: {
-            dst->data.transcendental = transcendental_create(src->data.transcendental->name);
-            /* Deep copy the expression tree if present */
-            if (dst->data.transcendental && src->data.transcendental->expr) {
-                TranscendentalExpr *src_expr = src->data.transcendental->expr;
-                TranscendentalExpr *dst_expr = lv_calloc(1, sizeof(TranscendentalExpr));
-                if (dst_expr) {
-                    dst_expr->expr_type = src_expr->expr_type;
-                    lv_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
-                    dst_expr->rational_operand =
-                        src_expr->rational_operand ? rational_copy(src_expr->rational_operand) : NULL;
-                    dst_expr->out_of_scope = src_expr->out_of_scope;
-                    dst->data.transcendental->expr = dst_expr;
-                }
-            }
-            break;
-        }
-    }
+    kCoordOpsVTable[src->type].copy_data(src, dst);
 
-    bool copy_ok = false;
-    switch (src->type) {
-        case RATIONAL:
-            copy_ok = (dst->data.rational != NULL);
-            break;
-        case ALGEBRAIC:
-            copy_ok = (dst->data.algebraic != NULL);
-            break;
-        case QUADRATIC:
-            copy_ok = (dst->data.quadratic != NULL);
-            break;
-        case TRANSCENDENTAL:
-            copy_ok = (dst->data.transcendental != NULL);
-            break;
-    }
+    bool copy_ok = kCoordOpsVTable[src->type].copy_check(dst);
     if (!copy_ok) {
         symbolic_coord_destroy(dst);
         return NULL;
@@ -359,27 +382,7 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
 bool symbolic_coord_is_zero(const SymbolicCoord *coord) {
     if (!coord)
         return false;
-    switch (coord->type) {
-        case RATIONAL:
-            return mpq_cmp_ui(coord->data.rational->value, 0, 1) == 0;
-        case ALGEBRAIC: {
-            Algebraic *a = coord->data.algebraic;
-            if (a->cached_rational) {
-                return mpq_cmp_ui(a->cached_rational->value, 0, 1) == 0;
-            }
-            /* 检查区间是否包含零 */
-            return (a->left_bound <= 0 && a->right_bound >= 0);
-        }
-        case QUADRATIC: {
-            Quadratic *q = coord->data.quadratic;
-            /* is_rational_zero is defined in symbolic_coord.c */
-            extern bool is_rational_zero(const Rational *r);
-            return is_rational_zero(q->a) && is_rational_zero(q->b);
-        }
-        case TRANSCENDENTAL:
-            return false; /* 超越数永远不为零 */
-    }
-    return false;
+    return kCoordOpsVTable[coord->type].is_zero(coord);
 }
 
 /**

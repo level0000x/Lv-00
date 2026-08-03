@@ -207,6 +207,35 @@ void csg_bsp_split_triangle(const CSGTriangle *tri, CSGVec3 plane_point, CSGVec3
     }
 }
 
+/* --- Lookup table dispatch for BSP build --- */
+typedef void (*csg_bsp_build_dispatch_t)(const CSGTriangle *cur, CSGBSPNode *node, CSGTriList *front_list, CSGTriList *back_list, double eps);
+
+static void csg_bsp_build_dispatch_front(const CSGTriangle *cur, CSGBSPNode *node, CSGTriList *front_list, CSGTriList *back_list, double eps) {
+    (void)node; (void)back_list; (void)eps;
+    csg_trilist_append(front_list, cur);
+}
+
+static void csg_bsp_build_dispatch_back(const CSGTriangle *cur, CSGBSPNode *node, CSGTriList *front_list, CSGTriList *back_list, double eps) {
+    (void)node; (void)front_list; (void)eps;
+    csg_trilist_append(back_list, cur);
+}
+
+static void csg_bsp_build_dispatch_on(const CSGTriangle *cur, CSGBSPNode *node, CSGTriList *front_list, CSGTriList *back_list, double eps) {
+    (void)front_list; (void)back_list; (void)eps;
+    csg_bsp_node_add_tri(node, cur);
+}
+
+static void csg_bsp_build_dispatch_split(const CSGTriangle *cur, CSGBSPNode *node, CSGTriList *front_list, CSGTriList *back_list, double eps) {
+    csg_bsp_split_triangle(cur, node->plane_point, node->plane_normal, eps, front_list, back_list);
+}
+
+static const csg_bsp_build_dispatch_t csg_bsp_build_dispatch_table[4] = {
+    csg_bsp_build_dispatch_front,  /* CSG_BSP_FRONT = 0 */
+    csg_bsp_build_dispatch_back,   /* CSG_BSP_BACK  = 1 */
+    csg_bsp_build_dispatch_on,     /* CSG_BSP_ON    = 2 */
+    csg_bsp_build_dispatch_split   /* CSG_BSP_SPLIT = 3 */
+};
+
 /**
  * @brief 从三角形列表构建 BSP 树
  *
@@ -246,22 +275,7 @@ CSGBSPNode *csg_bsp_build(CSGTriList *tris, double eps) {
         const CSGTriangle *cur = &tris->tris[i];
         CSGBSPClass cls = csg_bsp_classify_triangle(node, cur, eps);
 
-        switch (cls) {
-            case CSG_BSP_FRONT:
-                csg_trilist_append(&front_list, cur);
-                break;
-            case CSG_BSP_BACK:
-                csg_trilist_append(&back_list, cur);
-                break;
-            case CSG_BSP_ON:
-                csg_bsp_node_add_tri(node, cur);
-                break;
-            case CSG_BSP_SPLIT: {
-                /* 切割三角形，前半部分加入 front_list，后半部分加入 back_list */
-                csg_bsp_split_triangle(cur, node->plane_point, node->plane_normal, eps, &front_list, &back_list);
-                break;
-            }
-        }
+        csg_bsp_build_dispatch_table[cls](cur, node, &front_list, &back_list, eps);
     }
 
     /* 递归构建子树 */
@@ -277,6 +291,64 @@ CSGBSPNode *csg_bsp_build(CSGTriList *tris, double eps) {
 
     return node;
 }
+
+/* --- Lookup table dispatch for BSP clip --- */
+typedef void (*csg_bsp_clip_dispatch_t)(const CSGTriangle *tri, const CSGBSPNode *node, CSGTriList *out, double eps, int keep_inside);
+
+static void csg_bsp_clip_dispatch_front(const CSGTriangle *tri, const CSGBSPNode *node, CSGTriList *out, double eps, int keep_inside) {
+    (void)out;
+    if (keep_inside) {
+        return;
+    }
+    csg_bsp_clip_triangle(tri, node->front, out, eps, keep_inside);
+}
+
+static void csg_bsp_clip_dispatch_back(const CSGTriangle *tri, const CSGBSPNode *node, CSGTriList *out, double eps, int keep_inside) {
+    (void)out;
+    if (keep_inside) {
+        csg_bsp_clip_triangle(tri, node->back, out, eps, keep_inside);
+        return;
+    }
+}
+
+static void csg_bsp_clip_dispatch_on(const CSGTriangle *tri, const CSGBSPNode *node, CSGTriList *out, double eps, int keep_inside) {
+    (void)node; (void)eps; (void)keep_inside;
+    csg_trilist_append(out, tri);
+}
+
+static void csg_bsp_clip_dispatch_split(const CSGTriangle *tri, const CSGBSPNode *node, CSGTriList *out, double eps, int keep_inside) {
+    CSGTriList front_list, back_list;
+    csg_trilist_init(&front_list, 2);
+    csg_trilist_init(&back_list, 2);
+
+    csg_bsp_split_triangle(tri, node->plane_point, node->plane_normal, eps, &front_list, &back_list);
+
+    if (keep_inside) {
+        /* 保留内部：只递归后半部分（内部），前半部分（外部）丢弃 */
+        for (int i = 0; i < back_list.count; i++) {
+            csg_bsp_clip_triangle(&back_list.tris[i], node->back, out, eps, keep_inside);
+        }
+    } else {
+        /* 保留外部：前半部分（外部）继续在前半子树中测试 */
+        for (int i = 0; i < front_list.count; i++) {
+            csg_bsp_clip_triangle(&front_list.tris[i], node->front, out, eps, keep_inside);
+        }
+        /* 后半部分（内部）继续在后半子树中测试 */
+        for (int i = 0; i < back_list.count; i++) {
+            csg_bsp_clip_triangle(&back_list.tris[i], node->back, out, eps, keep_inside);
+        }
+    }
+
+    csg_trilist_free(&front_list);
+    csg_trilist_free(&back_list);
+}
+
+static const csg_bsp_clip_dispatch_t csg_bsp_clip_dispatch_table[4] = {
+    csg_bsp_clip_dispatch_front,  /* CSG_BSP_FRONT = 0 */
+    csg_bsp_clip_dispatch_back,   /* CSG_BSP_BACK  = 1 */
+    csg_bsp_clip_dispatch_on,     /* CSG_BSP_ON    = 2 */
+    csg_bsp_clip_dispatch_split   /* CSG_BSP_SPLIT = 3 */
+};
 
 /**
  * @brief 将三角形相对于 BSP 树做裁剪
@@ -303,61 +375,7 @@ void csg_bsp_clip_triangle(const CSGTriangle *tri, const CSGBSPNode *node, CSGTr
 
     CSGBSPClass cls = csg_bsp_classify_triangle(node, tri, eps);
 
-    switch (cls) {
-        case CSG_BSP_FRONT:
-            /* 在平面前方（外部半空间） */
-            if (keep_inside) {
-                /* 保留内部：外部部分丢弃 */
-                break;
-            }
-            /* 保留外部：继续在前半子树中测试 */
-            csg_bsp_clip_triangle(tri, node->front, out, eps, keep_inside);
-            break;
-
-        case CSG_BSP_BACK:
-            /* 在平面后方（内部半空间） */
-            if (keep_inside) {
-                /* 保留内部：继续在后半子树中测试 */
-                csg_bsp_clip_triangle(tri, node->back, out, eps, keep_inside);
-                break;
-            }
-            /* 保留外部：内部部分丢弃 */
-            break;
-
-        case CSG_BSP_ON:
-            /* 三角形在分割平面上 → 保留（构成边界） */
-            csg_trilist_append(out, tri);
-            break;
-
-        case CSG_BSP_SPLIT: {
-            /* 横跨平面 → 切割后分别递归 */
-            CSGTriList front_list, back_list;
-            csg_trilist_init(&front_list, 2);
-            csg_trilist_init(&back_list, 2);
-
-            csg_bsp_split_triangle(tri, node->plane_point, node->plane_normal, eps, &front_list, &back_list);
-
-            if (keep_inside) {
-                /* 保留内部：只递归后半部分（内部），前半部分（外部）丢弃 */
-                for (int i = 0; i < back_list.count; i++) {
-                    csg_bsp_clip_triangle(&back_list.tris[i], node->back, out, eps, keep_inside);
-                }
-            } else {
-                /* 保留外部：前半部分（外部）继续在前半子树中测试 */
-                for (int i = 0; i < front_list.count; i++) {
-                    csg_bsp_clip_triangle(&front_list.tris[i], node->front, out, eps, keep_inside);
-                }
-                /* 后半部分（内部）继续在后半子树中测试 */
-                for (int i = 0; i < back_list.count; i++) {
-                    csg_bsp_clip_triangle(&back_list.tris[i], node->back, out, eps, keep_inside);
-                }
-            }
-
-            csg_trilist_free(&front_list);
-            csg_trilist_free(&back_list);
-            break;
-        }
-    }
+    csg_bsp_clip_dispatch_table[cls](tri, node, out, eps, keep_inside);
 }
 
 /* ================================================================

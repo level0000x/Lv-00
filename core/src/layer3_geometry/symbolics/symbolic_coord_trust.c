@@ -121,6 +121,61 @@ TrustColor trust_color_combine(TrustColor a, TrustColor b) {
  * Hash Function for Normalization Grouping
  * ============================================================ */
 
+/* ── CoordType 哈希分发表 ── */
+typedef uint64_t (*CoordHashFn)(const SymbolicCoord *coord, uint64_t hash);
+
+static uint64_t hash_rational(const SymbolicCoord *coord, uint64_t hash) {
+    char *ser = rational_serialize(coord->data.rational);
+    if (ser) {
+        hash = lv_fnv1a_update(hash, ser, strlen(ser));
+        lv_free((void **) &ser);
+    }
+    return hash;
+}
+
+static uint64_t hash_algebraic(const SymbolicCoord *coord, uint64_t hash) {
+    Algebraic *a = coord->data.algebraic;
+    for (int i = 0; i <= a->minimal_poly.degree; i++) {
+        char *coeff_str = mpz_get_str(NULL, 16, a->minimal_poly.coeffs[i]);
+        if (coeff_str) {
+            hash = lv_fnv1a_update(hash, coeff_str, strlen(coeff_str));
+            lv_free_external((void **) &coeff_str);
+        }
+    }
+    hash = lv_fnv1a_update(hash, (const char *) &a->left_bound, sizeof(double));
+    hash = lv_fnv1a_update(hash, (const char *) &a->right_bound, sizeof(double));
+    return hash;
+}
+
+static uint64_t hash_quadratic(const SymbolicCoord *coord, uint64_t hash) {
+    Quadratic *q = coord->data.quadratic;
+    char *a_ser = rational_serialize(q->a);
+    char *b_ser = rational_serialize(q->b);
+    if (a_ser) {
+        hash = lv_fnv1a_update(hash, a_ser, strlen(a_ser));
+        lv_free((void **) &a_ser);
+    }
+    if (b_ser) {
+        hash = lv_fnv1a_update(hash, b_ser, strlen(b_ser));
+        lv_free((void **) &b_ser);
+    }
+    hash = lv_fnv1a_update(hash, (const char *) &q->n, sizeof(q->n));
+    return hash;
+}
+
+static uint64_t hash_transcendental(const SymbolicCoord *coord, uint64_t hash) {
+    hash = lv_fnv1a_update(hash, coord->data.transcendental->name,
+                           strlen(coord->data.transcendental->name));
+    return hash;
+}
+
+static const CoordHashFn coord_hash_handlers[] = {
+    hash_rational,       /* RATIONAL */
+    hash_algebraic,      /* ALGEBRAIC */
+    hash_quadratic,      /* QUADRATIC */
+    hash_transcendental  /* TRANSCENDENTAL */
+};
+
 uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
     if (!coord)
         return 0;
@@ -130,47 +185,10 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
     /* Hash the type */
     hash = lv_fnv1a_update(hash, (const char *) &coord->type, sizeof(coord->type));
 
-    switch (coord->type) {
-        case RATIONAL: {
-            char *ser = rational_serialize(coord->data.rational);
-            if (ser) {
-                hash = lv_fnv1a_update(hash, ser, strlen(ser));
-                lv_free((void **) &ser);
-            }
-            break;
-        }
-        case ALGEBRAIC: {
-            Algebraic *a = coord->data.algebraic;
-            for (int i = 0; i <= a->minimal_poly.degree; i++) {
-                char *coeff_str = mpz_get_str(NULL, 16, a->minimal_poly.coeffs[i]);
-                if (coeff_str) {
-                    hash = lv_fnv1a_update(hash, coeff_str, strlen(coeff_str));
-                    lv_free_external((void **) &coeff_str);
-                }
-            }
-            hash = lv_fnv1a_update(hash, (const char *) &a->left_bound, sizeof(double));
-            hash = lv_fnv1a_update(hash, (const char *) &a->right_bound, sizeof(double));
-            break;
-        }
-        case QUADRATIC: {
-            Quadratic *q = coord->data.quadratic;
-            char *a_ser = rational_serialize(q->a);
-            char *b_ser = rational_serialize(q->b);
-            if (a_ser) {
-                hash = lv_fnv1a_update(hash, a_ser, strlen(a_ser));
-                lv_free((void **) &a_ser);
-            }
-            if (b_ser) {
-                hash = lv_fnv1a_update(hash, b_ser, strlen(b_ser));
-                lv_free((void **) &b_ser);
-            }
-            hash = lv_fnv1a_update(hash, (const char *) &q->n, sizeof(q->n));
-            break;
-        }
-        case TRANSCENDENTAL: {
-            hash = lv_fnv1a_update(hash, coord->data.transcendental->name, strlen(coord->data.transcendental->name));
-            break;
-        }
+    /* Dispatch via lookup table */
+    unsigned int type_idx = (unsigned int) coord->type;
+    if (type_idx < sizeof(coord_hash_handlers) / sizeof(coord_hash_handlers[0])) {
+        hash = coord_hash_handlers[type_idx](coord, hash);
     }
 
     return hash;
@@ -435,6 +453,13 @@ AlgebraicPlan symbolic_coord_get_plan(void) {
     return algebraic_get_plan();
 }
 
+/* ── 降级计划映射表 ── */
+static const AlgebraicPlan degrade_next_plan[] = {
+    PLAN_B_QUADRATIC_ONLY,  /* PLAN_A_FULL_ALGEBRAIC → PLAN_B_QUADRATIC_ONLY */
+    PLAN_C_RATIONAL_ONLY,   /* PLAN_B_QUADRATIC_ONLY  → PLAN_C_RATIONAL_ONLY */
+    PLAN_C_RATIONAL_ONLY    /* PLAN_C_RATIONAL_ONLY   → PLAN_C_RATIONAL_ONLY (default) */
+};
+
 /**
  * @brief 自动降级决策
  */
@@ -451,16 +476,12 @@ bool symbolic_coord_auto_degrade(const char *reason) {
 
     if (g_degrade_fail_count >= SYM_COORD_DEGRADE_THRESHOLD) {
         AlgebraicPlan new_plan;
-        switch (current) {
-            case PLAN_A_FULL_ALGEBRAIC:
-                new_plan = PLAN_B_QUADRATIC_ONLY;
-                break;
-            case PLAN_B_QUADRATIC_ONLY:
-                new_plan = PLAN_C_RATIONAL_ONLY;
-                break;
-            default:
-                new_plan = current;
-                break;
+        /* 通过查找表获取下一级计划 */
+        unsigned int idx = (unsigned int) current;
+        if (idx < sizeof(degrade_next_plan) / sizeof(degrade_next_plan[0])) {
+            new_plan = degrade_next_plan[idx];
+        } else {
+            new_plan = current;
         }
 
         if (new_plan != current) {
@@ -478,50 +499,72 @@ bool symbolic_coord_auto_degrade(const char *reason) {
 /**
  * @brief 创建符号坐标（带计划感知）
  */
+
+/* ── 计划感知创建函数 ── */
+typedef SymbolicCoord *(*CreateWithPlanFn)(long num, long den);
+
+/* 前向声明（create_plan_a_full_algebraic 调用 create_plan_b_quadratic_only） */
+static SymbolicCoord *create_plan_b_quadratic_only(long num, long den);
+
+static SymbolicCoord *create_plan_a_full_algebraic(long num, long den) {
+    Rational *r = rational_create((int64_t) num, (uint64_t) den);
+    if (!r)
+        return NULL;
+
+    Algebraic *alg = algebraic_from_rational(r);
+    rational_destroy(r);
+
+    if (alg) {
+        SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
+        if (!result) {
+            algebraic_destroy(alg);
+            return NULL;
+        }
+        result->type = ALGEBRAIC;
+        result->trust = TRUST_GREEN;
+        result->cache_valid = false;
+        result->cached_value = 0.0;
+        result->algebraic_info = NULL;
+        result->data.algebraic = alg;
+        return result;
+    }
+
+    /* algebraic_from_rational 失败，尝试降级并回退到 PLAN_B_QUADRATIC_ONLY */
+    symbolic_coord_auto_degrade("algebraic_from_rational failed");
+    return create_plan_b_quadratic_only(num, den);
+}
+
+static SymbolicCoord *create_plan_b_quadratic_only(long num, long den) {
+    Rational *a = rational_create((int64_t) num, (uint64_t) den);
+    Rational *b = rational_create(0, 1);
+    SymbolicCoord *result = symbolic_coord_create_quadratic(a, b, 1);
+    if (!result) {
+        rational_destroy(a);
+        rational_destroy(b);
+    }
+    return result;
+}
+
+static SymbolicCoord *create_plan_c_rational_only(long num, long den) {
+    return symbolic_coord_create_rational((int64_t) num, (uint64_t) den);
+}
+
+static const CreateWithPlanFn create_plan_handlers[] = {
+    create_plan_a_full_algebraic,  /* PLAN_A_FULL_ALGEBRAIC */
+    create_plan_b_quadratic_only,  /* PLAN_B_QUADRATIC_ONLY */
+    create_plan_c_rational_only    /* PLAN_C_RATIONAL_ONLY */
+};
+
 SymbolicCoord *symbolic_coord_create_with_plan(long num, long den) {
     AlgebraicPlan plan = algebraic_get_plan();
 
-    switch (plan) {
-        case PLAN_A_FULL_ALGEBRAIC: {
-            Rational *r = rational_create((int64_t) num, (uint64_t) den);
-            if (!r)
-                return NULL;
-
-            Algebraic *alg = algebraic_from_rational(r);
-            rational_destroy(r);
-
-            if (alg) {
-                SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-                if (!result) {
-                    algebraic_destroy(alg);
-                    return NULL;
-                }
-                result->type = ALGEBRAIC;
-                result->trust = TRUST_GREEN;
-                result->cache_valid = false;
-                result->cached_value = 0.0;
-                result->algebraic_info = NULL;
-                result->data.algebraic = alg;
-                return result;
-            }
-
-            symbolic_coord_auto_degrade("algebraic_from_rational failed");
-            __attribute__((fallthrough));
-        }
-        case PLAN_B_QUADRATIC_ONLY: {
-            Rational *a = rational_create((int64_t) num, (uint64_t) den);
-            Rational *b = rational_create(0, 1);
-            SymbolicCoord *result = symbolic_coord_create_quadratic(a, b, 1);
-            if (!result) {
-                rational_destroy(a);
-                rational_destroy(b);
-            }
-            return result;
-        }
-        case PLAN_C_RATIONAL_ONLY:
-        default:
-            return symbolic_coord_create_rational((int64_t) num, (uint64_t) den);
+    unsigned int idx = (unsigned int) plan;
+    if (idx < sizeof(create_plan_handlers) / sizeof(create_plan_handlers[0])) {
+        return create_plan_handlers[idx](num, den);
     }
+
+    /* 未知计划，默认回退到有理数 */
+    return create_plan_c_rational_only(num, den);
 }
 
 /**

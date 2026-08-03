@@ -561,6 +561,101 @@ int path_from_construction(lvPathSystem *sys, int step_index, const char *label)
  * - PATH_INVERSE: 逆路径 → 反向 incidence
  * - PATH_TRANSPORT: 传输路径 → 两个点节点 + incidence
  */
+
+/* ============================================================
+ * 路径类型分发表（替换 switch）
+ * ============================================================ */
+
+/** @brief 路径类型处理函数类型 */
+typedef bool (*PathToConstraintHandler)(ConstraintGraph *cg, int node_a, int node_b, const lvPath *path);
+
+/** @brief 恒等路径处理器：端点等价 → 添加 incidence 约束 */
+static bool handler_identity(ConstraintGraph *cg, int node_a, int node_b, const lvPath *path) {
+    (void)path;
+    if (node_a >= 0 && node_b >= 0) {
+        graph_add_incidence(cg, node_a, node_b);
+    }
+    return true;
+}
+
+/** @brief 构造路径处理器：incidence + 线段 + 复制构造图约束 */
+static bool handler_construction(ConstraintGraph *cg, int node_a, int node_b, const lvPath *path) {
+    if (node_a >= 0 && node_b >= 0) {
+        graph_add_incidence(cg, node_a, node_b);
+        graph_add_line_segment(cg, node_a, node_b);
+    }
+
+    /* 如果有构造图，复制其约束作为附加约束 */
+    if (path->construction) {
+        ConstraintGraph *src = path->construction;
+        for (int i = 0; i < src->constraint_count; i++) {
+            Constraint *c = src->constraints[i];
+            if (c && c->is_active) {
+                graph_add_constraint_with_id(cg, -1, c->type,
+                                             c->participants, c->participant_count);
+            }
+        }
+    }
+    return true;
+}
+
+/** @brief 合成路径处理器：incidence + 线段 */
+static bool handler_composite(ConstraintGraph *cg, int node_a, int node_b, const lvPath *path) {
+    (void)path;
+    if (node_a >= 0 && node_b >= 0) {
+        graph_add_incidence(cg, node_a, node_b);
+        graph_add_line_segment(cg, node_a, node_b);
+    }
+    return true;
+}
+
+/** @brief 逆路径处理器：反向 incidence（b → a） */
+static bool handler_inverse(ConstraintGraph *cg, int node_a, int node_b, const lvPath *path) {
+    (void)path;
+    if (node_a >= 0 && node_b >= 0) {
+        graph_add_incidence(cg, node_b, node_a);
+    }
+    return true;
+}
+
+/** @brief 传输路径处理器：incidence 约束 */
+static bool handler_transport(ConstraintGraph *cg, int node_a, int node_b, const lvPath *path) {
+    (void)path;
+    if (node_a >= 0 && node_b >= 0) {
+        graph_add_incidence(cg, node_a, node_b);
+    }
+    return true;
+}
+
+/** @brief 等价路径处理器：incidence + 线段 */
+static bool handler_equivalence(ConstraintGraph *cg, int node_a, int node_b, const lvPath *path) {
+    (void)path;
+    if (node_a >= 0 && node_b >= 0) {
+        graph_add_incidence(cg, node_a, node_b);
+        graph_add_line_segment(cg, node_a, node_b);
+    }
+    return true;
+}
+
+/** @brief 未知类型兜底处理器：incidence 约束 */
+static bool handler_default(ConstraintGraph *cg, int node_a, int node_b, const lvPath *path) {
+    (void)path;
+    if (node_a >= 0 && node_b >= 0) {
+        graph_add_incidence(cg, node_a, node_b);
+    }
+    return true;
+}
+
+/** @brief 路径类型到约束图处理函数的查找表 */
+static const PathToConstraintHandler kPathToConstraintOps[] = {
+    [PATH_IDENTITY]      = handler_identity,
+    [PATH_CONSTRUCTION]  = handler_construction,
+    [PATH_COMPOSITE]     = handler_composite,
+    [PATH_INVERSE]       = handler_inverse,
+    [PATH_TRANSPORT]     = handler_transport,
+    [PATH_EQUIVALENCE]   = handler_equivalence,
+};
+
 int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **out_constraint) {
     if (!sys || !sys->is_initialized || !out_constraint)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "path_to_constraint_graph: sys/out_constraint is NULL or not initialized");
@@ -591,78 +686,15 @@ int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **o
     }
     int node_b = graph_get_last_added_node_id(cg);
 
-    /* 根据路径类型和构造步骤添加完整约束序列 */
-    switch (path->type) {
-        case PATH_IDENTITY: {
-            /* 恒等路径：端点等价 → 添加 incidence 约束 */
-            if (node_a >= 0 && node_b >= 0) {
-                graph_add_incidence(cg, node_a, node_b);
-            }
-            break;
-        }
-
-        case PATH_CONSTRUCTION: {
-            /* 构造路径：添加点 + 线段 + incidence 的完整约束序列 */
-            if (node_a >= 0 && node_b >= 0) {
-                graph_add_incidence(cg, node_a, node_b);
-                graph_add_line_segment(cg, node_a, node_b);
-            }
-
-            /* 如果有构造图，复制其约束作为附加约束 */
-            if (path->construction) {
-                ConstraintGraph *src = path->construction;
-                for (int i = 0; i < src->constraint_count; i++) {
-                    Constraint *c = src->constraints[i];
-                    if (c && c->is_active) {
-                        graph_add_constraint_with_id(cg, -1, c->type,
-                                                     c->participants, c->participant_count);
-                    }
-                }
-            }
-            break;
-        }
-
-        case PATH_COMPOSITE: {
-            /* 合成路径：添加端点等价 + 线段约束 */
-            if (node_a >= 0 && node_b >= 0) {
-                graph_add_incidence(cg, node_a, node_b);
-                graph_add_line_segment(cg, node_a, node_b);
-            }
-            break;
-        }
-
-        case PATH_INVERSE: {
-            /* 逆路径：反向 incidence（b → a） */
-            if (node_a >= 0 && node_b >= 0) {
-                graph_add_incidence(cg, node_b, node_a);
-            }
-            break;
-        }
-
-        case PATH_TRANSPORT: {
-            /* 传输路径：添加两个点节点 + incidence */
-            if (node_a >= 0 && node_b >= 0) {
-                graph_add_incidence(cg, node_a, node_b);
-            }
-            break;
-        }
-
-        case PATH_EQUIVALENCE: {
-            /* 等价路径：添加 incidence + 线段 */
-            if (node_a >= 0 && node_b >= 0) {
-                graph_add_incidence(cg, node_a, node_b);
-                graph_add_line_segment(cg, node_a, node_b);
-            }
-            break;
-        }
-
-        default: {
-            /* 未知类型：兜底使用 incidence 约束 */
-            if (node_a >= 0 && node_b >= 0) {
-                graph_add_incidence(cg, node_a, node_b);
-            }
-            break;
-        }
+    /* 使用查找表分派路径类型处理 */
+    {
+        PathToConstraintHandler handler = (path->type >= 0 &&
+                                           (size_t)path->type < sizeof(kPathToConstraintOps) / sizeof(kPathToConstraintOps[0]))
+                                          ? kPathToConstraintOps[path->type]
+                                          : NULL;
+        if (!handler)
+            handler = handler_default;
+        handler(cg, node_a, node_b, path);
     }
 
     *out_constraint = cg;

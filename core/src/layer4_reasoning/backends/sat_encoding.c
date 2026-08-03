@@ -1055,13 +1055,17 @@ SatResult sat_solve_and_decode(SatEncoding *enc, SatModel **out_model) {
 
     lv_solver_destroy(solver);
 
-    switch (result) {
-        case lv_SOLVER_SAT:
-            return SAT_OK;
-        case lv_SOLVER_UNSAT:
-            return SAT_UNSAT;
-        default:
-            return SAT_UNKNOWN;
+    /* 查找表：lvSolverResult → SatResult */
+    {
+        static const SatResult kSolverResultMap[] = {
+            SAT_UNKNOWN,  /* lv_SOLVER_UNKNOWN = 0 */
+            SAT_OK,       /* lv_SOLVER_SAT     = 1 */
+            SAT_UNSAT     /* lv_SOLVER_UNSAT   = 2 */
+        };
+        SatResult sr = (result >= 0 && result < (int)(sizeof(kSolverResultMap) / sizeof(kSolverResultMap[0])))
+                            ? kSolverResultMap[result]
+                            : SAT_UNKNOWN;
+        return sr;
     }
 }
 
@@ -1120,27 +1124,22 @@ ConstraintGraph *sat_model_to_graph(const SatModel *model) {
                     if (graph_get_node(graph, atom->atom_id))
                         continue;
 
-                    GeomType gtype = GEOM_POINT;
-                    switch (atom->type) {
-                        case REL_ATOM_POINT:
-                            gtype = GEOM_POINT;
-                            break;
-                        case REL_ATOM_LINE:
-                            gtype = GEOM_LINE_SEGMENT;
-                            break;
-                        case REL_ATOM_REGION:
-                            gtype = GEOM_REGION;
-                            break;
-                        case REL_ATOM_PORT:
-                            gtype = GEOM_PORT;
-                            break;
-                        case REL_ATOM_FUNC_BLOCK:
-                            gtype = GEOM_FUNCTION_BLOCK;
-                            break;
-                        default:
+                    GeomType gtype;
+                    /* 查找表：RelAtomType → GeomType */
+                    {
+                        static const GeomType kAtomTypeToGeomMap[] = {
+                            GEOM_POINT,          /* REL_ATOM_POINT      = 0 */
+                            GEOM_LINE_SEGMENT,   /* REL_ATOM_LINE       = 1 */
+                            GEOM_REGION,         /* REL_ATOM_REGION     = 2 */
+                            GEOM_PORT,           /* REL_ATOM_PORT       = 3 */
+                            GEOM_FUNCTION_BLOCK  /* REL_ATOM_FUNC_BLOCK = 4 */
+                        };
+                        if (atom->type >= 0 && atom->type < (int)(sizeof(kAtomTypeToGeomMap) / sizeof(kAtomTypeToGeomMap[0]))) {
+                            gtype = kAtomTypeToGeomMap[atom->type];
+                        } else {
                             lv_LOG_WARNING("Unknown atom type %d in sat_decode_to_graph", atom->type);
                             gtype = GEOM_POINT;
-                            break;
+                        }
                     }
                     graph_add_node_with_id(graph, atom->atom_id, gtype, NULL, 0);
                 }

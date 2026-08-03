@@ -62,6 +62,36 @@ static const char *kTrustColorTikZ[] = {
     "{HTML}{F0883E}", "{HTML}{DB6D28}", "{HTML}{F85149}", "{HTML}{8B949E}", "{HTML}{BC8CFF}", "{HTML}{39C5CF}",
 };
 
+/** 静态查找表：TrustColor → lvTrustColor */
+static const lvTrustColor kTrustToLv[] = {
+    [TRUST_GREEN]                 = lv_COLOR_GREEN,
+    [TRUST_BLUE_UNEXPLORED]       = lv_COLOR_BLUE,
+    [TRUST_BLUE_EXCEEDED]         = lv_COLOR_BLUE,
+    [TRUST_BLUE_OUT_OF_SCOPE]     = lv_COLOR_BLUE_RANGE,
+    [TRUST_YELLOW]                = lv_COLOR_YELLOW,
+    [TRUST_LIGHT_ORANGE_ORACLE]   = lv_COLOR_LIGHT_ORANGE,
+    [TRUST_LIGHT_ORANGE_EXPLOSION]= lv_COLOR_ORANGE,
+    [TRUST_AMBER]                 = lv_COLOR_AMBER,
+    [TRUST_DEEP_ORANGE]           = lv_COLOR_DARK_ORANGE,
+    [TRUST_RED]                   = lv_COLOR_RED,
+};
+
+/** 静态查找表：lvTrustColor → TrustColor */
+static const TrustColor kLvToTrust[] = {
+    [lv_COLOR_GREEN]        = TRUST_GREEN,
+    [lv_COLOR_BLUE]         = TRUST_BLUE_UNEXPLORED,
+    [lv_COLOR_BLUE_RANGE]   = TRUST_BLUE_OUT_OF_SCOPE,
+    [lv_COLOR_YELLOW]       = TRUST_YELLOW,
+    [lv_COLOR_AMBER]        = TRUST_AMBER,
+    [lv_COLOR_LIGHT_ORANGE] = TRUST_LIGHT_ORANGE_ORACLE,
+    [lv_COLOR_ORANGE]       = TRUST_LIGHT_ORANGE_EXPLOSION,
+    [lv_COLOR_DARK_ORANGE]  = TRUST_DEEP_ORANGE,
+    [lv_COLOR_RED]          = TRUST_RED,
+    [lv_COLOR_GREY]         = TRUST_BLUE_UNEXPLORED,
+    [lv_COLOR_PURPLE]       = TRUST_GREEN,
+    [lv_COLOR_CYAN]         = TRUST_BLUE_UNEXPLORED,
+};
+
 /**
  * @brief 获取信任颜色的名称字符串
  *
@@ -133,29 +163,10 @@ const char *lv_trust_color_tikz(lvTrustColor c) {
  *   越界                         → lv_COLOR_GREY
  */
 lvTrustColor trust_color_to_lv_protocol(TrustColor tc) {
-    switch (tc) {
-        case TRUST_GREEN:
-            return lv_COLOR_GREEN;
-        case TRUST_BLUE_UNEXPLORED:
-        case TRUST_BLUE_EXCEEDED:
-            return lv_COLOR_BLUE;
-        case TRUST_BLUE_OUT_OF_SCOPE:
-            return lv_COLOR_BLUE_RANGE;
-        case TRUST_YELLOW:
-            return lv_COLOR_YELLOW;
-        case TRUST_LIGHT_ORANGE_ORACLE:
-            return lv_COLOR_LIGHT_ORANGE;
-        case TRUST_LIGHT_ORANGE_EXPLOSION:
-            return lv_COLOR_ORANGE;
-        case TRUST_AMBER:
-            return lv_COLOR_AMBER;
-        case TRUST_DEEP_ORANGE:
-            return lv_COLOR_DARK_ORANGE;
-        case TRUST_RED:
-            return lv_COLOR_RED;
-        default:
-            return lv_COLOR_GREY;
+    if (tc < 0 || tc > TRUST_RED) {
+        return lv_COLOR_GREY;
     }
+    return kTrustToLv[tc];
 }
 
 /**
@@ -177,32 +188,10 @@ lvTrustColor trust_color_to_lv_protocol(TrustColor tc) {
  *   越界                   → TRUST_BLUE_UNEXPLORED
  */
 TrustColor lv_protocol_to_trust_color(lvTrustColor lv) {
-    switch (lv) {
-        case lv_COLOR_GREEN:
-            return TRUST_GREEN;
-        case lv_COLOR_BLUE:
-            return TRUST_BLUE_UNEXPLORED;
-        case lv_COLOR_BLUE_RANGE:
-            return TRUST_BLUE_OUT_OF_SCOPE;
-        case lv_COLOR_YELLOW:
-            return TRUST_YELLOW;
-        case lv_COLOR_AMBER:
-            return TRUST_AMBER;
-        case lv_COLOR_LIGHT_ORANGE:
-            return TRUST_LIGHT_ORANGE_ORACLE;
-        case lv_COLOR_ORANGE:
-            return TRUST_LIGHT_ORANGE_EXPLOSION;
-        case lv_COLOR_DARK_ORANGE:
-            return TRUST_DEEP_ORANGE;
-        case lv_COLOR_RED:
-            return TRUST_RED;
-        case lv_COLOR_GREY:
-        case lv_COLOR_CYAN:
-        default:
-            return TRUST_BLUE_UNEXPLORED;
-        case lv_COLOR_PURPLE:
-            return TRUST_GREEN;
+    if (lv < 0 || lv > lv_COLOR_CYAN) {
+        return TRUST_BLUE_UNEXPLORED;
     }
+    return kLvToTrust[lv];
 }
 
 /* ================================================================

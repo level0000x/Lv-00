@@ -550,6 +550,101 @@ void lv_quant_expr_destroy(lvQuantifiedExpr *expr) {
     lv_free((void **) &expr);
 }
 
+/* ============== 空域真值处理函数 ============== */
+
+/** 空域上 ∀x∈∅.P(x) 为 TRUE（空合取的恒等元） */
+static lvTruthValue handle_forall_empty(void) {
+    return lv_TRUE;
+}
+
+/** 空域上 ∃x∈∅.P(x) 为 FALSE（空析取的恒等元） */
+static lvTruthValue handle_exists_empty(void) {
+    return lv_FALSE;
+}
+
+/** 空域上 ∃!x∈∅.P(x) 为 FALSE（不存在唯一满足的元素） */
+static lvTruthValue handle_exists_unique_empty(void) {
+    return lv_FALSE;
+}
+
+/* ============== 有限域枚举评估函数 ============== */
+
+/** 有限域全称量词评估：∀x∈D.P(x) → P(d1) ∧ ... ∧ P(dn) */
+static lvTruthValue handle_forall_finite(lvQuantifiedExpr *expr) {
+    int i;
+    lvTruthValue elem_truth;
+    lvTruthValue result = lv_TRUE;
+
+    for (i = 0; i < expr->domain->element_count; i++) {
+        elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
+        result = lv_tvl_and(result, elem_truth);
+        /* 短路：遇到 FALSE 立即停止 */
+        if (result == lv_FALSE) {
+            break;
+        }
+    }
+    return result;
+}
+
+/** 有限域存在量词评估：∃x∈D.P(x) → P(d1) ∨ ... ∨ P(dn) */
+static lvTruthValue handle_exists_finite(lvQuantifiedExpr *expr) {
+    int i;
+    lvTruthValue elem_truth;
+    lvTruthValue result = lv_FALSE;
+
+    for (i = 0; i < expr->domain->element_count; i++) {
+        elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
+        result = lv_tvl_or(result, elem_truth);
+        /* 短路：遇到 TRUE 立即停止 */
+        if (result == lv_TRUE) {
+            break;
+        }
+    }
+    return result;
+}
+
+/** 有限域唯一存在量词评估：∃!x∈D.P(x) → 恰好一个元素满足 */
+static lvTruthValue handle_exists_unique_finite(lvQuantifiedExpr *expr) {
+    int i;
+    int satisfying_count = 0;
+    lvTruthValue elem_truth;
+    lvTruthValue result = lv_FALSE;
+
+    for (i = 0; i < expr->domain->element_count; i++) {
+        elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
+        if (elem_truth == lv_TRUE) {
+            satisfying_count++;
+        } else if (elem_truth == lv_UNKNOWN) {
+            result = lv_UNKNOWN;
+        }
+    }
+    if (result != lv_UNKNOWN) {
+        result = (satisfying_count == 1) ? lv_TRUE : lv_FALSE;
+    }
+    return result;
+}
+
+/* ============== 查找表 ============== */
+
+/* 空域真值处理函数指针类型 */
+typedef lvTruthValue (*EmptyDomainHandler)(void);
+/* 有限域枚举评估函数指针类型 */
+typedef lvTruthValue (*FiniteDomainHandler)(lvQuantifiedExpr *expr);
+
+/** 空域真值处理函数查找表 */
+static const EmptyDomainHandler kEmptyDomainHandlers[] = {
+    handle_forall_empty,       /* lv_FORALL = 0 */
+    handle_exists_empty,       /* lv_EXISTS = 1 */
+    handle_exists_unique_empty /* lv_EXISTS_UNIQUE = 2 */
+};
+
+/** 有限域枚举评估函数查找表 */
+static const FiniteDomainHandler kFiniteDomainHandlers[] = {
+    handle_forall_finite,       /* lv_FORALL = 0 */
+    handle_exists_finite,       /* lv_EXISTS = 1 */
+    handle_exists_unique_finite /* lv_EXISTS_UNIQUE = 2 */
+};
+
 /**
  * @brief 评估量化表达式的真值（三值逻辑）
  *
@@ -567,10 +662,6 @@ void lv_quant_expr_destroy(lvQuantifiedExpr *expr) {
  */
 lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr) {
     int domain_size;
-    int i;
-    int satisfying_count;
-    lvTruthValue elem_truth;
-    lvTruthValue result;
 
     if (!expr) {
         return lv_UNKNOWN;
@@ -592,81 +683,20 @@ lvTruthValue lv_quant_expr_evaluate(lvQuantifiedExpr *expr) {
 
     /* 空域处理 */
     if (domain_size == 0) {
-        switch (expr->quantifier) {
-            case lv_FORALL:
-                /* 空合取的恒等元为 TRUE */
-                expr->cached_truth = lv_TRUE;
-                break;
-            case lv_EXISTS:
-                /* 空析取的恒等元为 FALSE */
-                expr->cached_truth = lv_FALSE;
-                break;
-            case lv_EXISTS_UNIQUE:
-                /* 空域上不存在唯一满足的元素 */
-                expr->cached_truth = lv_FALSE;
-                break;
-            default:
-                expr->cached_truth = lv_UNKNOWN;
-                break;
+        if (expr->quantifier >= lv_FORALL && expr->quantifier <= lv_EXISTS_UNIQUE) {
+            expr->cached_truth = kEmptyDomainHandlers[expr->quantifier]();
+        } else {
+            expr->cached_truth = lv_UNKNOWN;
         }
         expr->truth_cache_valid = true;
         return expr->cached_truth;
     }
 
     /* 有限域：枚举评估 */
-    switch (expr->quantifier) {
-        case lv_FORALL: {
-            /* ∀x∈D.P(x) → P(d1) ∧ ... ∧ P(dn) */
-            result = lv_TRUE;
-            for (i = 0; i < expr->domain->element_count; i++) {
-                elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
-                result = lv_tvl_and(result, elem_truth);
-                /* 短路：遇到 FALSE 立即停止 */
-                if (result == lv_FALSE) {
-                    break;
-                }
-            }
-            expr->cached_truth = result;
-            break;
-        }
-
-        case lv_EXISTS: {
-            /* ∃x∈D.P(x) → P(d1) ∨ ... ∨ P(dn) */
-            result = lv_FALSE;
-            for (i = 0; i < expr->domain->element_count; i++) {
-                elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
-                result = lv_tvl_or(result, elem_truth);
-                /* 短路：遇到 TRUE 立即停止 */
-                if (result == lv_TRUE) {
-                    break;
-                }
-            }
-            expr->cached_truth = result;
-            break;
-        }
-
-        case lv_EXISTS_UNIQUE: {
-            /* ∃!x∈D.P(x) → 恰好一个元素满足 */
-            satisfying_count = 0;
-            result = lv_FALSE;
-            for (i = 0; i < expr->domain->element_count; i++) {
-                elem_truth = evaluate_body_for_element(expr, expr->domain->domain_elements[i]);
-                if (elem_truth == lv_TRUE) {
-                    satisfying_count++;
-                } else if (elem_truth == lv_UNKNOWN) {
-                    result = lv_UNKNOWN;
-                }
-            }
-            if (result != lv_UNKNOWN) {
-                result = (satisfying_count == 1) ? lv_TRUE : lv_FALSE;
-            }
-            expr->cached_truth = result;
-            break;
-        }
-
-        default:
-            expr->cached_truth = lv_UNKNOWN;
-            break;
+    if (expr->quantifier >= lv_FORALL && expr->quantifier <= lv_EXISTS_UNIQUE) {
+        expr->cached_truth = kFiniteDomainHandlers[expr->quantifier](expr);
+    } else {
+        expr->cached_truth = lv_UNKNOWN;
     }
 
     expr->truth_cache_valid = true;

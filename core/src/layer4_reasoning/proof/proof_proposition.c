@@ -23,6 +23,8 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 
+#include "lv/lv_xmacro.h"
+
 /* ── 流式上下文声明 ── */
 /* ── 命题销毁栈初始容量 ── */
 #ifndef PROOF_DESTROY_STACK_INITIAL_CAPACITY
@@ -322,6 +324,76 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child) {
 }
 
 
+/* ── 几何节点指针重映射查找表 ── */
+
+/** 节点指针重映射处理函数类型 */
+typedef void (*NodePtrRemapHandler)(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
+
+/* 前向声明 */
+static void remap_region_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
+static void remap_circle_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
+static void remap_func_block_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
+static void remap_port_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
+
+/**
+ * @brief 按节点类型索引的指针重映射查找表
+ *
+ * 索引对应 GeomType 枚举值，NULL 条目表示该类型无需指针重映射。
+ */
+static const NodePtrRemapHandler kNodePtrRemapHandlers[] = {
+    NULL,                      /* GEOM_POINT */
+    NULL,                      /* GEOM_LINE_SEGMENT */
+    remap_region_ptr,          /* GEOM_REGION */
+    remap_circle_ptr,          /* GEOM_CIRCLE */
+    remap_port_ptr,            /* GEOM_PORT */
+    remap_func_block_ptr       /* GEOM_FUNCTION_BLOCK */
+};
+
+/* ── 处理器函数实现 ── */
+
+static void remap_region_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy) {
+    (void)orig_node;
+    for (int j = 0; j < cn->data.region.segment_count; j++) {
+        if (cn->data.region.boundary_segments[j]) {
+            int old_id = cn->data.region.boundary_segments[j]->id;
+            GeomNode *new_node = graph_get_node(copy, old_id);
+            if (new_node) {
+                cn->data.region.boundary_segments[j] = new_node;
+            }
+        }
+    }
+}
+
+static void remap_circle_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy) {
+    (void)cn;
+    (void)orig_node;
+    (void)copy;
+    /* 圆节点的中心/半径为核心整数ID，无需指针重映射 */
+}
+
+static void remap_func_block_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy) {
+    (void)orig_node;
+    for (int j = 0; j < cn->data.func_block.internal_node_count; j++) {
+        if (cn->data.func_block.internal_nodes[j]) {
+            int old_id = cn->data.func_block.internal_nodes[j]->id;
+            GeomNode *new_node = graph_get_node(copy, old_id);
+            if (new_node) {
+                cn->data.func_block.internal_nodes[j] = new_node;
+            }
+        }
+    }
+}
+
+static void remap_port_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy) {
+    if (cn->data.port && orig_node->data.port && orig_node->data.port->connected_to) {
+        int old_id = orig_node->data.port->connected_to->id;
+        GeomNode *new_node = graph_get_node(copy, old_id);
+        if (new_node) {
+            cn->data.port->connected_to = new_node;
+        }
+    }
+}
+
 /**
  * 深拷贝整个 ConstraintGraph。
  * 返回一个完全独立的新图，规范化副本不会影响原图。
@@ -364,43 +436,15 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *orig) {
     /* ---- 第二遍：更新内部指针到新图中的节点 ---- */
     for (int i = 0; i < copy->node_count; i++) {
         GeomNode *cn = copy->nodes[i];
-        switch (cn->type) {
-            case GEOM_REGION:
-                for (int j = 0; j < cn->data.region.segment_count; j++) {
-                    if (cn->data.region.boundary_segments[j]) {
-                        int old_id = cn->data.region.boundary_segments[j]->id;
-                        GeomNode *new_node = graph_get_node(copy, old_id);
-                        if (new_node) {
-                            cn->data.region.boundary_segments[j] = new_node;
-                        }
-                    }
+        /* 使用查找表分发指针重映射 */
+        {
+            size_t table_size = sizeof(kNodePtrRemapHandlers) / sizeof(kNodePtrRemapHandlers[0]);
+            if ((size_t)cn->type < table_size) {
+                NodePtrRemapHandler handler = kNodePtrRemapHandlers[cn->type];
+                if (handler) {
+                    handler(cn, orig->nodes[i], copy);
                 }
-                break;
-            case GEOM_CIRCLE:
-                /* 圆节点的中心/半径为核心整数ID，无需指针重映射 */
-                break;
-            case GEOM_FUNCTION_BLOCK:
-                for (int j = 0; j < cn->data.func_block.internal_node_count; j++) {
-                    if (cn->data.func_block.internal_nodes[j]) {
-                        int old_id = cn->data.func_block.internal_nodes[j]->id;
-                        GeomNode *new_node = graph_get_node(copy, old_id);
-                        if (new_node) {
-                            cn->data.func_block.internal_nodes[j] = new_node;
-                        }
-                    }
-                }
-                break;
-            case GEOM_PORT:
-                if (cn->data.port && orig->nodes[i]->data.port && orig->nodes[i]->data.port->connected_to) {
-                    int old_id = orig->nodes[i]->data.port->connected_to->id;
-                    GeomNode *new_node = graph_get_node(copy, old_id);
-                    if (new_node) {
-                        cn->data.port->connected_to = new_node;
-                    }
-                }
-                break;
-            default:
-                break;
+            }
         }
     }
 

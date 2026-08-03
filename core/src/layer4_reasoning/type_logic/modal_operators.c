@@ -527,15 +527,16 @@ void lv_modal_eval_result_destroy(lvModalEvalResult *result) {
  *  辅助函数
  * ================================================================ */
 
+/** @brief 模态算子 → Unicode 字符串查找表，按枚举值索引 */
+static const char *kModalOpNames[] = {
+    "\xe2\x96\xa1", /* lv_MODALOP_NECESSARY = 0 → "□" */
+    "\xe2\x9a\xa7", /* lv_MODALOP_POSSIBLE  = 1 → "◇" */
+};
+
 const char *lv_modal_op_to_string(lvModalOperator op) {
-    switch (op) {
-        case lv_MODALOP_NECESSARY:
-            return "\xe2\x96\xa1"; /* "□" */
-        case lv_MODALOP_POSSIBLE:
-            return "\xe2\x9a\xa7"; /* "◇" */
-        default:
-            return "?";
-    }
+    if ((int)op >= 0 && (size_t)op < lv_ARRAY_SIZE(kModalOpNames))
+        return kModalOpNames[(size_t)op];
+    return "?";
 }
 
 /* ================================================================

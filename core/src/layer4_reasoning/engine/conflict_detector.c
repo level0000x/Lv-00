@@ -37,6 +37,74 @@
 #define CONFLICT_MAX_SUGGESTION_LEN 256
 
 /* ================================================================
+ * 查找表（替代 switch 语句）
+ * ================================================================ */
+
+/** @brief 严重等级 -> 标志位偏移 查找表项 */
+typedef struct {
+    size_t flag_offset; /**< 在 ConflictReport 中对应 bool 标志的偏移量 */
+} SeverityFlagEntry;
+
+/** @brief 按 severity 索引映射到 ConflictReport 中的布尔标志 */
+static const SeverityFlagEntry kSeverityFlagTable[] = {
+    {offsetof(ConflictReport, has_warning)},  /* CONFLICT_SEVERITY_WARNING = 0 */
+    {offsetof(ConflictReport, has_error)},    /* CONFLICT_SEVERITY_ERROR   = 1 */
+    {offsetof(ConflictReport, has_critical)}, /* CONFLICT_SEVERITY_CRITICAL = 2 */
+};
+
+/** @brief 严重等级 -> 名称字符串 查找表 */
+static const char *kSeverityNameTable[] = {
+    "WARNING",  /* CONFLICT_SEVERITY_WARNING = 0 */
+    "ERROR",    /* CONFLICT_SEVERITY_ERROR   = 1 */
+    "CRITICAL", /* CONFLICT_SEVERITY_CRITICAL = 2 */
+};
+
+/** @brief 重复参与者冲突处理函数指针类型 */
+typedef void (*DuplicateParticipantHandler)(ConflictReport *report, const Constraint *constraint);
+
+/* 前向声明：report_constraint_conflict 定义于本文件后方 */
+static bool report_constraint_conflict(ConflictReport *report, const Constraint *constraint, ConflictType type,
+                                       ConflictSeverity severity, const char *description, const char *suggestion);
+
+/** @brief BETWEENNESS 重复参与者处理 */
+static void handle_betweenness_duplicate(ConflictReport *report, const Constraint *constraint) {
+    report_constraint_conflict(report, constraint, CONFLICT_TRANSITIVE_ORDER, CONFLICT_SEVERITY_ERROR,
+                               "BETWEENNESS 约束出现重复参与点，导致\"点在自身与另一点之间\"的退化关系。",
+                               "BETWEENNESS 应使用三个互不相同的点，并在上层构造前校验输入。");
+}
+
+/** @brief INTERSECTION 重复参与者处理 */
+static void handle_intersection_duplicate(ConflictReport *report, const Constraint *constraint) {
+    report_constraint_conflict(report, constraint, CONFLICT_INTERSECTION_VS_PARALLEL, CONFLICT_SEVERITY_ERROR,
+                               "INTERSECTION 约束出现重复参与对象，形成自相交或交点与线对象混同的退化关系。",
+                               "INTERSECTION 应使用两条不同几何对象和一个独立交点。");
+}
+
+/** @brief CONNECTION 重复参与者处理 */
+static void handle_connection_duplicate(ConflictReport *report, const Constraint *constraint) {
+    report_constraint_conflict(report, constraint, CONFLICT_CYCLIC_DEPENDENCY, CONFLICT_SEVERITY_ERROR,
+                               "CONNECTION 约束将端口连接到自身，形成直接循环依赖。",
+                               "拆除自连接，使用不同的输入/输出端口建立连接。");
+}
+
+/** @brief 默认重复参与者处理（非特殊类型） */
+static void handle_default_duplicate(ConflictReport *report, const Constraint *constraint) {
+    report_constraint_conflict(report, constraint, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_WARNING,
+                               "约束包含重复参与者，可能表示退化几何关系。",
+                               "检查该约束是否确实允许自引用；若不允许，应拆分或删除该约束。");
+}
+
+/** @brief 按 ConstraintType 索引的重复参与者处理函数表 */
+static const DuplicateParticipantHandler kDuplicateParticipantHandlers[] = {
+    NULL,                /* INCIDENCE    = 0 */
+    handle_betweenness_duplicate,   /* BETWEENNESS  = 1 */
+    handle_intersection_duplicate,  /* INTERSECTION = 2 */
+    NULL,                /* CONTAINMENT  = 3 */
+    handle_connection_duplicate,    /* CONNECTION   = 4 */
+    NULL,                /* ANGLE        = 5 */
+};
+
+/* ================================================================
  * 默认配置
  * ================================================================ */
 
@@ -158,16 +226,9 @@ static bool conflict_report_add(ConflictReport *report, ConflictType type, Confl
     /* 更新统计 */
     if (type < 16)
         report->by_type[type]++;
-    switch (severity) {
-        case CONFLICT_SEVERITY_CRITICAL:
-            report->has_critical = true;
-            break;
-        case CONFLICT_SEVERITY_ERROR:
-            report->has_error = true;
-            break;
-        case CONFLICT_SEVERITY_WARNING:
-            report->has_warning = true;
-            break;
+    if (severity >= CONFLICT_SEVERITY_WARNING && severity <= CONFLICT_SEVERITY_CRITICAL) {
+        bool *flag = (bool *)((char *)report + kSeverityFlagTable[severity].flag_offset);
+        *flag = true;
     }
 
     return true;
@@ -204,16 +265,10 @@ const char *lv_conflict_type_name(ConflictType type) {
 }
 
 const char *lv_conflict_severity_name(ConflictSeverity severity) {
-    switch (severity) {
-        case CONFLICT_SEVERITY_WARNING:
-            return "WARNING";
-        case CONFLICT_SEVERITY_ERROR:
-            return "ERROR";
-        case CONFLICT_SEVERITY_CRITICAL:
-            return "CRITICAL";
-        default:
-            return "UNKNOWN";
+    if (severity >= CONFLICT_SEVERITY_WARNING && severity <= CONFLICT_SEVERITY_CRITICAL) {
+        return kSeverityNameTable[severity];
     }
+    return "UNKNOWN";
 }
 
 /* ================================================================
@@ -339,28 +394,14 @@ static int detect_structural_constraint_conflicts(const ConstraintGraph *graph, 
         }
 
         if (constraint_has_duplicate_participants(constraint)) {
-            switch (constraint->type) {
-                case BETWEENNESS:
-                    report_constraint_conflict(report, constraint, CONFLICT_TRANSITIVE_ORDER, CONFLICT_SEVERITY_ERROR,
-                                               "BETWEENNESS 约束出现重复参与点，导致“点在自身与另一点之间”的退化关系。",
-                                               "BETWEENNESS 应使用三个互不相同的点，并在上层构造前校验输入。");
-                    break;
-                case INTERSECTION:
-                    report_constraint_conflict(
-                        report, constraint, CONFLICT_INTERSECTION_VS_PARALLEL, CONFLICT_SEVERITY_ERROR,
-                        "INTERSECTION 约束出现重复参与对象，形成自相交或交点与线对象混同的退化关系。",
-                        "INTERSECTION 应使用两条不同几何对象和一个独立交点。");
-                    break;
-                case CONNECTION:
-                    report_constraint_conflict(report, constraint, CONFLICT_CYCLIC_DEPENDENCY, CONFLICT_SEVERITY_ERROR,
-                                               "CONNECTION 约束将端口连接到自身，形成直接循环依赖。",
-                                               "拆除自连接，使用不同的输入/输出端口建立连接。");
-                    break;
-                default:
-                    report_constraint_conflict(report, constraint, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_WARNING,
-                                               "约束包含重复参与者，可能表示退化几何关系。",
-                                               "检查该约束是否确实允许自引用；若不允许，应拆分或删除该约束。");
-                    break;
+            DuplicateParticipantHandler handler = NULL;
+            if (constraint->type >= 0 && constraint->type <= ANGLE) {
+                handler = kDuplicateParticipantHandlers[constraint->type];
+            }
+            if (handler) {
+                handler(report, constraint);
+            } else {
+                handle_default_duplicate(report, constraint);
             }
         }
 

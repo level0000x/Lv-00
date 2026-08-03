@@ -138,6 +138,112 @@ PropFormula *prop_formula_create_true(void) {
 static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth);
 static void prop_formula_destroy_depth(PropFormula *f, int depth);
 
+/* ---- Copy VTable ---- */
+
+/** 拷贝处理函数类型 */
+typedef PropFormula *(*CopyHandler)(const PropFormula *f, int depth);
+
+static PropFormula *copy_atom(const PropFormula *f, int depth) {
+    (void)depth;
+    return prop_formula_create_atom(f->data.atom.name);
+}
+
+static PropFormula *copy_conjunction(const PropFormula *f, int depth) {
+    return prop_formula_create_conjunction(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                           prop_formula_copy_depth(f->data.binary.right, depth + 1));
+}
+
+static PropFormula *copy_disjunction(const PropFormula *f, int depth) {
+    return prop_formula_create_disjunction(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                           prop_formula_copy_depth(f->data.binary.right, depth + 1));
+}
+
+static PropFormula *copy_implication(const PropFormula *f, int depth) {
+    return prop_formula_create_implication(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                           prop_formula_copy_depth(f->data.binary.right, depth + 1));
+}
+
+static PropFormula *copy_negation(const PropFormula *f, int depth) {
+    return prop_formula_create_negation(prop_formula_copy_depth(f->data.unary.operand, depth + 1));
+}
+
+static PropFormula *copy_bottom(const PropFormula *f, int depth) {
+    (void)f; (void)depth;
+    return prop_formula_create_bottom();
+}
+
+static PropFormula *copy_true(const PropFormula *f, int depth) {
+    (void)f; (void)depth;
+    return prop_formula_create_true();
+}
+
+/** 拷贝 VTable — 按 PropFormulaType 枚举值索引 */
+static const CopyHandler copy_handlers[] = {
+    [PROP_ATOM]         = copy_atom,
+    [PROP_CONJUNCTION]  = copy_conjunction,
+    [PROP_DISJUNCTION]  = copy_disjunction,
+    [PROP_IMPLICATION]  = copy_implication,
+    [PROP_NEGATION]     = copy_negation,
+    [PROP_BOTTOM]       = copy_bottom,
+    [PROP_TRUE]         = copy_true,
+};
+
+/* ---- Destroy VTable ---- */
+
+/** 销毁栈推送辅助：将子节点压入销毁栈，必要时自动扩容 */
+static bool push_to_stack(PropFormula *child, PropFormula ***stack, int *stack_top, int *stack_capacity) {
+    if (!child)
+        return true; /* NULL 子节点，无需操作 */
+    if (*stack_top >= *stack_capacity) {
+        int new_cap = *stack_capacity * PROP_DESTROY_STACK_GROWTH;
+        if (new_cap <= *stack_capacity)
+            return false; /* 溢出保护 */
+        PropFormula **new_stack = (PropFormula **) lv_realloc(*stack, (size_t) new_cap * sizeof(PropFormula *));
+        if (!new_stack) {
+            /* 栈扩容失败，直接递归销毁该子节点 */
+            prop_formula_destroy(child);
+            return false;
+        }
+        *stack = new_stack;
+        *stack_capacity = new_cap;
+    }
+    (*stack)[(*stack_top)++] = child;
+    return true;
+}
+
+/** 销毁处理函数类型 */
+typedef void (*DestroyHandler)(PropFormula *f, PropFormula ***stack, int *stack_top, int *stack_capacity);
+
+static void destroy_binary(PropFormula *f, PropFormula ***stack, int *stack_top, int *stack_capacity) {
+    /* 二元节点：先压右子节点，再压左子节点（后进先出） */
+    push_to_stack(f->data.binary.right, stack, stack_top, stack_capacity);
+    push_to_stack(f->data.binary.left, stack, stack_top, stack_capacity);
+    f->data.binary.left = NULL;
+    f->data.binary.right = NULL;
+}
+
+static void destroy_unary(PropFormula *f, PropFormula ***stack, int *stack_top, int *stack_capacity) {
+    /* 一元节点：压入其子节点 */
+    push_to_stack(f->data.unary.operand, stack, stack_top, stack_capacity);
+    f->data.unary.operand = NULL;
+}
+
+static void destroy_leaf(PropFormula *f, PropFormula ***stack, int *stack_top, int *stack_capacity) {
+    /* 叶子节点（ATOM, BOTTOM, TRUE）：无子节点 */
+    (void)f; (void)stack; (void)stack_top; (void)stack_capacity;
+}
+
+/** 销毁 VTable — 按 PropFormulaType 枚举值索引 */
+static const DestroyHandler destroy_handlers[] = {
+    [PROP_ATOM]         = destroy_leaf,
+    [PROP_CONJUNCTION]  = destroy_binary,
+    [PROP_DISJUNCTION]  = destroy_binary,
+    [PROP_IMPLICATION]  = destroy_binary,
+    [PROP_NEGATION]     = destroy_unary,
+    [PROP_BOTTOM]       = destroy_leaf,
+    [PROP_TRUE]         = destroy_leaf,
+};
+
 /* 深拷贝公式（带递归深度保护，防止栈溢出） */
 /**
  * @brief 深拷贝命题公式
@@ -163,27 +269,8 @@ static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
         /* 递归深度超限，防止栈溢出 */
         return NULL;
     }
-    switch (f->type) {
-        case PROP_ATOM:
-            return prop_formula_create_atom(f->data.atom.name);
-        case PROP_CONJUNCTION:
-            return prop_formula_create_conjunction(prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
-        case PROP_DISJUNCTION:
-            return prop_formula_create_disjunction(prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
-        case PROP_IMPLICATION:
-            return prop_formula_create_implication(prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
-        case PROP_NEGATION:
-            return prop_formula_create_negation(prop_formula_copy_depth(f->data.unary.operand, depth + 1));
-        case PROP_BOTTOM:
-            return prop_formula_create_bottom();
-        case PROP_TRUE:
-            return prop_formula_create_true();
-        default:
-            break;
-    }
+    if ((size_t)f->type < sizeof(copy_handlers) / sizeof(copy_handlers[0]) && copy_handlers[f->type])
+        return copy_handlers[f->type](f, depth);
     return NULL;
 }
 
@@ -225,81 +312,9 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
     while (stack_top > 0) {
         PropFormula *current = stack[--stack_top];
 
-        /* 将子节点压栈（后进先出保证销毁顺序） */
-        switch (current->type) {
-            case PROP_CONJUNCTION:
-            case PROP_DISJUNCTION:
-            case PROP_IMPLICATION:
-                /* 二元节点：先压右子节点，再压左子节点 */
-                if (current->data.binary.right) {
-                    if (stack_top >= stack_capacity) {
-                        int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity)
-                            break; /* 溢出保护 */
-                        PropFormula **new_stack =
-                            (PropFormula **) lv_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
-                        if (!new_stack) {
-                            /* 栈扩容失败，改用直接递归销毁剩余子节点 */
-                            if (current->data.binary.left)
-                                prop_formula_destroy(current->data.binary.left);
-                            if (current->data.binary.right)
-                                prop_formula_destroy(current->data.binary.right);
-                            current->data.binary.left = NULL;
-                            current->data.binary.right = NULL;
-                            break;
-                        }
-                        stack = new_stack;
-                        stack_capacity = new_cap;
-                    }
-                    stack[stack_top++] = current->data.binary.right;
-                }
-                if (current->data.binary.left) {
-                    if (stack_top >= stack_capacity) {
-                        int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity)
-                            break;
-                        PropFormula **new_stack =
-                            (PropFormula **) lv_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
-                        if (!new_stack) {
-                            if (current->data.binary.left)
-                                prop_formula_destroy(current->data.binary.left);
-                            current->data.binary.left = NULL;
-                            break;
-                        }
-                        stack = new_stack;
-                        stack_capacity = new_cap;
-                    }
-                    stack[stack_top++] = current->data.binary.left;
-                }
-                current->data.binary.left = NULL;
-                current->data.binary.right = NULL;
-                break;
-            case PROP_NEGATION:
-                /* 一元节点：压入其子节点 */
-                if (current->data.unary.operand) {
-                    if (stack_top >= stack_capacity) {
-                        int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity)
-                            break;
-                        PropFormula **new_stack =
-                            (PropFormula **) lv_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
-                        if (!new_stack) {
-                            if (current->data.unary.operand)
-                                prop_formula_destroy(current->data.unary.operand);
-                            current->data.unary.operand = NULL;
-                            break;
-                        }
-                        stack = new_stack;
-                        stack_capacity = new_cap;
-                    }
-                    stack[stack_top++] = current->data.unary.operand;
-                }
-                current->data.unary.operand = NULL;
-                break;
-            default:
-                /* 叶子节点（ATOM, BOTTOM, TRUE）：无子节点 */
-                break;
-        }
+        /* 通过 VTable 将子节点压栈（后进先出保证销毁顺序） */
+        if ((size_t)current->type < sizeof(destroy_handlers) / sizeof(destroy_handlers[0]) && destroy_handlers[current->type])
+            destroy_handlers[current->type](current, &stack, &stack_top, &stack_capacity);
 
         /* 释放当前节点 */
         lv_free((void **) &current);
@@ -308,4 +323,3 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
     /* 释放栈 */
     lv_free((void **) &stack);
 }
-
