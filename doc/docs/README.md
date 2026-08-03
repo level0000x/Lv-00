@@ -142,7 +142,7 @@ if (result == UNIFY_OK) {
 ```
 Lv-00/
 ├── core/                     # 核心引擎（C11）
-│   ├── include/lv/         # 公共 API 头文件（229 个 .h）
+│   ├── include/lv/         # 公共 API 头文件（287 个 .h）
 │   │   ├── lv.h            # 主头文件 — 唯一公共入口
 │   │   ├── config.h          # 配置系统
 │   │   ├── proof.h           # 证明系统

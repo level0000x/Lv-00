@@ -37,6 +37,21 @@ static void svg_escape_string(const char *src, char *dst, size_t dst_size) {
     lv_strbuf_destroy(&sb);
 }
 
+/* ---- 约束类型 → SVG 属性查找表 ---- */
+typedef struct {
+    const char *stroke;      /**< 线条颜色 */
+    const char *dasharray;   /**< dasharray 值（可为 NULL） */
+    const char *class_attr;  /**< class 属性值（可为 NULL） */
+    const char *extra_attr;  /**< 额外属性（可为 NULL） */
+} ConstraintSvgEntry;
+
+static const ConstraintSvgEntry constraint_svg_map[] = {
+    [INCIDENCE]   = { "#6b7280", NULL,       "constraint", NULL },
+    [CONTAINMENT] = { "#14b8a6", "2,4",      "constraint", NULL },
+    [ANGLE]       = { "#a855f7", "4,2",      "constraint", NULL },
+    [CONNECTION]  = { "#f59e0b", NULL,       NULL, "stroke-width=\"1.5\" marker-end=\"url(#arrowhead)\"" },
+};
+
 /**
  * @brief TikZ转义特殊字符
  *
@@ -372,14 +387,6 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
         double y1 = symbolic_coord_to_double(p1->symbolic_coords[1]);
 
         switch (c->type) {
-            case INCIDENCE:
-                /* 关联约束：虚线 */
-                fprintf(fp,
-                        "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
-                        "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#6b7280\"/>\n",
-                        x0, y0, x1, y1);
-                break;
-
             case BETWEENNESS: {
                 /* 之间约束：三点之间用标签标注 */
                 double mx = (x0 + x1) / 2.0;
@@ -448,35 +455,21 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
                 break;
             }
 
-            case CONTAINMENT:
-                /* 包含约束：点线 */
-                fprintf(fp,
-                        "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
-                        "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#14b8a6\" "
-                        "stroke-dasharray=\"2,4\"/>\n",
-                        x0, y0, x1, y1);
+            default: {
+                /* 使用查找表 */
+                const ConstraintSvgEntry *entry = &constraint_svg_map[c->type];
+                fprintf(fp, "  <line");
+                if (entry->class_attr)
+                    fprintf(fp, " class=\"%s\"", entry->class_attr);
+                fprintf(fp, " x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" stroke=\"%s\"",
+                        x0, y0, x1, y1, entry->stroke);
+                if (entry->dasharray)
+                    fprintf(fp, " stroke-dasharray=\"%s\"", entry->dasharray);
+                if (entry->extra_attr)
+                    fprintf(fp, " %s", entry->extra_attr);
+                fprintf(fp, "/>\n");
                 break;
-
-            case ANGLE:
-                /* 角度约束：紫色虚线 */
-                fprintf(fp,
-                        "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
-                        "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#a855f7\" "
-                        "stroke-dasharray=\"4,2\"/>\n",
-                        x0, y0, x1, y1);
-                break;
-
-            case CONNECTION:
-                /* 连接约束：箭头线 */
-                fprintf(fp,
-                        "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-                        "stroke=\"#f59e0b\" stroke-width=\"1.5\" "
-                        "marker-end=\"url(#arrowhead)\"/>\n",
-                        x0, y0, x1, y1);
-                break;
-
-            default:
-                break;
+            }
         }
     }
 

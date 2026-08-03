@@ -282,271 +282,214 @@ static int get_node_input_port(const ConstraintGraph *graph, int node_id) {
  * - LV_LAMBDA_APP:  参数端口的 PORT_OUTPUT → 函数块输入端口的 PORT_INPUT
  *                   （参数字符串作为数据流接入函数块）
  */
+/* ── λ-to-graph 编译处理器查找表 ── */
+typedef bool (*LambdaToGraphHandler)(LvLambdaTerm *term, ConstraintGraph *graph, LambdaScope *scope, int depth,
+                                     int *out_node_id);
+
+/* 前向声明：lambda_to_graph_internal 被 abs 处理器调用 */
+static bool lambda_to_graph_internal(LvLambdaTerm *term, ConstraintGraph *graph, LambdaScope *scope, int depth,
+                                     int *out_node_id);
+
+static bool lambda_to_graph_var(LvLambdaTerm *term, ConstraintGraph *graph, LambdaScope *scope, int depth,
+                                int *out_node_id) {
+    int index = term->data.var.index;
+    int binder_port_id = scope_lookup(scope, index);
+    if (binder_port_id < 0) {
+        LOG_ERROR("lambda_to_graph", "自由的 De Bruijn 索引 %d（作用域深度 %d）", index, scope->depth);
+        return false;
+    }
+
+    AddNodeResult nr = graph_add_port(graph, PORT_OUTPUT, depth, -1);
+    if (nr != ADD_NODE_OK) {
+        LOG_ERROR("lambda_to_graph", "创建 VAR 引用端口失败");
+        return false;
+    }
+    int ref_port_id = graph_get_last_added_node_id(graph);
+
+    LOG_DEBUG("lambda_to_graph", "编译 VAR(%d): binder=%d, ref_port=%d", index, binder_port_id, ref_port_id);
+
+    *out_node_id = ref_port_id;
+    return true;
+}
+
+static bool lambda_to_graph_abs(LvLambdaTerm *term, ConstraintGraph *graph, LambdaScope *scope, int depth,
+                                int *out_node_id) {
+    int binder = term->data.abs.binder;
+    (void)binder;
+    LvLambdaTerm *body = term->data.abs.body;
+    if (!body) {
+        LOG_ERROR("lambda_to_graph", "ABS 体为空");
+        return false;
+    }
+
+    int start_node_count = graph->node_count;
+
+    AddNodeResult nr = graph_add_port(graph, PORT_INPUT, depth, -1);
+    if (nr != ADD_NODE_OK) {
+        LOG_ERROR("lambda_to_graph", "创建 binder 端口失败");
+        return false;
+    }
+    int input_port_id = graph_get_last_added_node_id(graph);
+
+    GeomNode *input_node = graph_get_node(graph, input_port_id);
+    if (input_node && input_node->data.port)
+        input_node->data.port->is_formal_param = true;
+
+    nr = graph_add_port(graph, PORT_OUTPUT, depth, -1);
+    if (nr != ADD_NODE_OK) {
+        LOG_ERROR("lambda_to_graph", "创建输出端口失败");
+        return false;
+    }
+    int output_port_id = graph_get_last_added_node_id(graph);
+
+    if (!scope_push(scope, input_port_id)) {
+        LOG_ERROR("lambda_to_graph", "作用域压栈失败");
+        return false;
+    }
+
+    int body_root_id = -1;
+    if (!lambda_to_graph_internal(body, graph, scope, depth + 1, &body_root_id)) {
+        scope_pop(scope);
+        LOG_ERROR("lambda_to_graph", "编译 ABS body 失败");
+        return false;
+    }
+
+    if (body_root_id >= 0) {
+        int body_output = get_node_output_port(graph, body_root_id);
+        if (body_output >= 0) {
+            GeomNode *out_node = graph_get_node(graph, output_port_id);
+            if (out_node && out_node->data.port)
+                out_node->data.port->connected_to = graph_get_node(graph, body_output);
+        }
+    }
+
+    scope_pop(scope);
+
+    int internal_count = 0;
+    int *internal_ids = collect_node_ids_since(graph, start_node_count, &internal_count);
+    if (!internal_ids || internal_count <= 0) {
+        LOG_ERROR("lambda_to_graph", "收集内部节点失败");
+        lv_free((void **)&internal_ids);
+        return false;
+    }
+
+    int input_ids[] = {input_port_id};
+    int output_ids[] = {output_port_id};
+
+    nr = graph_add_function_block(graph, internal_ids, internal_count, input_ids, 1, output_ids, 1);
+    lv_free((void **)&internal_ids);
+
+    if (nr != ADD_NODE_OK) {
+        LOG_ERROR("lambda_to_graph", "创建函数块失败");
+        return false;
+    }
+
+    int fb_id = graph_get_last_added_node_id(graph);
+
+    GeomNode *fb_node = graph_get_node(graph, fb_id);
+    if (fb_node) {
+        int *fb_input_ids = fb_node->data.func_block.input_port_ids;
+        int *fb_output_ids = fb_node->data.func_block.output_port_ids;
+        for (int i = 0; i < fb_node->data.func_block.input_count && fb_input_ids; i++) {
+            GeomNode *pn = graph_get_node(graph, fb_input_ids[i]);
+            if (pn) pn->parent_block_id = fb_id;
+        }
+        for (int i = 0; i < fb_node->data.func_block.output_count && fb_output_ids; i++) {
+            GeomNode *pn = graph_get_node(graph, fb_output_ids[i]);
+            if (pn) pn->parent_block_id = fb_id;
+        }
+    }
+
+    LOG_DEBUG("lambda_to_graph", "编译 ABS: fb=%d, input=%d, output=%d, internals=%d", fb_id, input_port_id,
+              output_port_id, internal_count);
+
+    *out_node_id = fb_id;
+    return true;
+}
+
+static bool lambda_to_graph_app(LvLambdaTerm *term, ConstraintGraph *graph, LambdaScope *scope, int depth,
+                                int *out_node_id) {
+    LvLambdaTerm *left = term->data.app.left;
+    LvLambdaTerm *right = term->data.app.right;
+    if (!left || !right) {
+        LOG_ERROR("lambda_to_graph", "APP 子项为空");
+        return false;
+    }
+
+    int left_node_id = -1;
+    if (!lambda_to_graph_internal(left, graph, scope, depth, &left_node_id)) {
+        LOG_ERROR("lambda_to_graph", "编译 APP left 失败");
+        return false;
+    }
+
+    int right_node_id = -1;
+    if (!lambda_to_graph_internal(right, graph, scope, depth, &right_node_id)) {
+        LOG_ERROR("lambda_to_graph", "编译 APP right 失败");
+        return false;
+    }
+
+    GeomNode *left_node = graph_get_node(graph, left_node_id);
+    if (!left_node) {
+        LOG_ERROR("lambda_to_graph", "left 节点 %d 不存在", left_node_id);
+        return false;
+    }
+
+    if (left_node->type == GEOM_FUNCTION_BLOCK) {
+        int left_input = get_node_input_port(graph, left_node_id);
+        if (left_input < 0) {
+            LOG_ERROR("lambda_to_graph", "函数块 %d 无输入端口", left_node_id);
+            return false;
+        }
+
+        int right_output = get_node_output_port(graph, right_node_id);
+        if (right_output < 0) {
+            LOG_ERROR("lambda_to_graph", "实参 %d 无输出端口", right_node_id);
+            return false;
+        }
+
+        AddConstraintResult cr = graph_add_connection(graph, right_output, left_input);
+        if (cr == ADD_CONSTRAINT_OK)
+            LOG_DEBUG("lambda_to_graph", "APP redex: arg_out=%d → func_in=%d", right_output, left_input);
+        else if (cr == ADD_CONSTRAINT_DUPLICATE)
+            LOG_DEBUG("lambda_to_graph", "APP redex: 重复连接 arg_out=%d → func_in=%d", right_output, left_input);
+        else
+            LOG_WARN("lambda_to_graph", "APP redex 连接 %d→%d 失败 (result=%d)", right_output, left_input, (int)cr);
+
+        int left_output = get_node_output_port(graph, left_node_id);
+        if (left_output < 0) {
+            LOG_ERROR("lambda_to_graph", "函数块 %d 无输出端口", left_node_id);
+            return false;
+        }
+        *out_node_id = left_output;
+
+        LOG_DEBUG("lambda_to_graph", "编译 APP: redex, left=FB%d, result=port%d", left_node_id, left_output);
+    } else {
+        LOG_DEBUG("lambda_to_graph", "编译 APP: non-redex, left=node%d (type=%d)", left_node_id, (int)left_node->type);
+        *out_node_id = left_node_id;
+    }
+    return true;
+}
+
+static const LambdaToGraphHandler lambda_to_graph_table[LV_LAMBDA_APP + 1] = {
+    [LV_LAMBDA_VAR] = lambda_to_graph_var,
+    [LV_LAMBDA_ABS] = lambda_to_graph_abs,
+    [LV_LAMBDA_APP] = lambda_to_graph_app,
+};
+
 static bool lambda_to_graph_internal(LvLambdaTerm *term, ConstraintGraph *graph, LambdaScope *scope, int depth,
                                      int *out_node_id) {
     if (!term || !graph || !scope || !out_node_id)
         return false;
     *out_node_id = -1;
 
-    switch (term->type) {
-        /* ================================================================
-     * LV_LAMBDA_VAR(index): 创建变量引用端口 (PORT_OUTPUT)
-     *
-     * 在约束图中创建一个 PORT_OUTPUT 节点，代表对该绑定变量的读取。
-     * 与 binder 端口（PORT_INPUT，形式参数）不同，变量引用端口是
-     * 数据生产者，可以作为 graph_add_connection 的 src。
-     *
-     * is_formal_param = false（这是变量引用而非绑定声明）。
-     * ================================================================ */
-        case LV_LAMBDA_VAR: {
-            /* 查找 De Bruijn 索引对应的 binder 端口 */
-            int index = term->data.var.index;
-            int binder_port_id = scope_lookup(scope, index);
-            if (binder_port_id < 0) {
-                LOG_ERROR("lambda_to_graph", "自由的 De Bruijn 索引 %d（作用域深度 %d）", index, scope->depth);
-                return false;
-            }
-
-            /* 创建 PORT_OUTPUT 节点代表变量引用（数据生产者） */
-            AddNodeResult nr = graph_add_port(graph, PORT_OUTPUT, depth, -1);
-            if (nr != ADD_NODE_OK) {
-                LOG_ERROR("lambda_to_graph", "创建 VAR 引用端口失败");
-                return false;
-            }
-            int ref_port_id = graph_get_last_added_node_id(graph);
-
-            /* 已创建默认 is_formal_param = false，无需额外设置 */
-
-            LOG_DEBUG("lambda_to_graph", "编译 VAR(%d): binder=%d, ref_port=%d", index, binder_port_id, ref_port_id);
-
-            *out_node_id = ref_port_id;
-            return true;
-        }
-
-        /* ================================================================
-     * LV_LAMBDA_ABS(binder, body): 创建函数块
-     *
-     * 1. 创建 binder 输入端口（PORT_INPUT, is_formal_param=true）
-     * 2. 创建输出端口（PORT_OUTPUT，向外部提供函数结果）
-     * 3. 将 binder 端口压入作用域
-     * 4. 递归编译 body
-     * 5. 将 body 的结果端口连接到函数块的输出端
-     *    （CONNECTION: body_result(PORT_OUTPUT) → output(PORT_INPUT)）
-     * 6. 收集所有新节点打包成函数块
-     * ================================================================ */
-        case LV_LAMBDA_ABS: {
-            int binder = term->data.abs.binder;  /* 未使用，保留接口兼容 */
-            (void) binder;
-            LvLambdaTerm *body = term->data.abs.body;
-            if (!body) {
-                LOG_ERROR("lambda_to_graph", "ABS 体为空");
-                return false;
-            }
-
-            /* 记录当前节点数，用于后续收集内部节点 */
-            int start_node_count = graph->node_count;
-
-            /* 1. 创建 binder 输入端口（PORT_INPUT，接收参数） */
-            AddNodeResult nr = graph_add_port(graph, PORT_INPUT, depth, -1);
-            if (nr != ADD_NODE_OK) {
-                LOG_ERROR("lambda_to_graph", "创建 binder 端口失败");
-                return false;
-            }
-            int input_port_id = graph_get_last_added_node_id(graph);
-
-            /* 标记为形式参数（在 β-归约时被映射到实参） */
-            GeomNode *input_node = graph_get_node(graph, input_port_id);
-            if (input_node && input_node->data.port) {
-                input_node->data.port->is_formal_param = true;
-            }
-
-            /* 2. 创建输出端口（PORT_OUTPUT，向外部提供结果） */
-            nr = graph_add_port(graph, PORT_OUTPUT, depth, -1);
-            if (nr != ADD_NODE_OK) {
-                LOG_ERROR("lambda_to_graph", "创建输出端口失败");
-                return false;
-            }
-            int output_port_id = graph_get_last_added_node_id(graph);
-
-            /* 3. 将 binder 端口压入作用域 */
-            if (!scope_push(scope, input_port_id)) {
-                LOG_ERROR("lambda_to_graph", "作用域压栈失败");
-                return false;
-            }
-
-            /* 4. 递归编译 body */
-            int body_root_id = -1;
-            if (!lambda_to_graph_internal(body, graph, scope, depth + 1, &body_root_id)) {
-                scope_pop(scope);
-                LOG_ERROR("lambda_to_graph", "编译 ABS body 失败");
-                return false;
-            }
-
-            /* 5. 连接 body 的输出到函数块的输出端口
-             *    body 编译结果为 PORT_OUTPUT（数据生产者），
-             *    函数块输出端口为 PORT_OUTPUT（向外部提供结果）。
-             *    关键：body→output 的连接方向为 body_result → output_port，
-             *    使用 get_node_output_port 获取 body 的有效输出端口。 */
-            if (body_root_id >= 0) {
-                int body_output = get_node_output_port(graph, body_root_id);
-                if (body_output >= 0) {
-                    /* body_output(PORT_OUTPUT) → output_port_id(PORT_OUTPUT)：
-                     * graph_add_connection 要求 dst 为 PORT_INPUT，
-                     * 因此这里创建 body_output → output 的约束时，
-                     * 将 output_port 作为 dst。
-                     * 但由于 output_port 是 PORT_OUTPUT，标准 CONNECTION 不接受。
-                     *
-                     * 解决方案：不使用 graph_add_connection，而是直接设置
-                     * connected_to 建立关联关系。β-归约使用 internal_nodes
-                     * 和 remap_internal_constraints 处理内部连接，不需要
-                     * body→output 的显式 CONNECTION 约束。 */
-                    GeomNode *out_node = graph_get_node(graph, output_port_id);
-                    if (out_node && out_node->data.port) {
-                        out_node->data.port->connected_to = graph_get_node(graph, body_output);
-                    }
-                }
-            }
-
-            scope_pop(scope);
-
-            /* 6. 收集所有新创建的节点，打包成函数块 */
-            int internal_count = 0;
-            int *internal_ids = collect_node_ids_since(graph, start_node_count, &internal_count);
-            if (!internal_ids || internal_count <= 0) {
-                LOG_ERROR("lambda_to_graph", "收集内部节点失败");
-                lv_free((void **) &internal_ids);
-                return false;
-            }
-
-            int input_ids[] = {input_port_id};
-            int output_ids[] = {output_port_id};
-
-            nr = graph_add_function_block(graph, internal_ids, internal_count, input_ids, 1, output_ids, 1);
-            lv_free((void **) &internal_ids);
-
-            if (nr != ADD_NODE_OK) {
-                LOG_ERROR("lambda_to_graph", "创建函数块失败");
-                return false;
-            }
-
-            int fb_id = graph_get_last_added_node_id(graph);
-
-            /* 更新端口节点的 parent_block_id */
-            GeomNode *fb_node = graph_get_node(graph, fb_id);
-            if (fb_node) {
-                int *fb_input_ids = fb_node->data.func_block.input_port_ids;
-                int *fb_output_ids = fb_node->data.func_block.output_port_ids;
-                for (int i = 0; i < fb_node->data.func_block.input_count && fb_input_ids; i++) {
-                    GeomNode *pn = graph_get_node(graph, fb_input_ids[i]);
-                    if (pn)
-                        pn->parent_block_id = fb_id;
-                }
-                for (int i = 0; i < fb_node->data.func_block.output_count && fb_output_ids; i++) {
-                    GeomNode *pn = graph_get_node(graph, fb_output_ids[i]);
-                    if (pn)
-                        pn->parent_block_id = fb_id;
-                }
-            }
-
-            LOG_DEBUG("lambda_to_graph", "编译 ABS: fb=%d, input=%d, output=%d, internals=%d", fb_id, input_port_id,
-                      output_port_id, internal_count);
-
-            *out_node_id = fb_id;
-            return true;
-        }
-
-        /* ================================================================
-     * LV_LAMBDA_APP(left, right): 连接函数与实参
-     *
-     * 编译 left（函数）和 right（实参），然后将实参的数据流
-     * 接入函数的输入端口。
-     *
-     * 当 left 是函数块（ABS）时，构成 β-归约的 redex：
-     *   - right 的输出端口（PORT_OUTPUT）→ left 的输入端口（PORT_INPUT）
-     *   - 结果 = left 的输出端口
-     *
-     * 当 left 是 PORT（变量引用、非 redex）时：
-     *   - 不创建连接（无法归约）
-     *   - 结果 = left 节点
-     * ================================================================ */
-        case LV_LAMBDA_APP: {
-            LvLambdaTerm *left = term->data.app.left;
-            LvLambdaTerm *right = term->data.app.right;
-            if (!left || !right) {
-                LOG_ERROR("lambda_to_graph", "APP 子项为空");
-                return false;
-            }
-
-            /* 1. 编译 left（函数） */
-            int left_node_id = -1;
-            if (!lambda_to_graph_internal(left, graph, scope, depth, &left_node_id)) {
-                LOG_ERROR("lambda_to_graph", "编译 APP left 失败");
-                return false;
-            }
-
-            /* 2. 编译 right（实参） */
-            int right_node_id = -1;
-            if (!lambda_to_graph_internal(right, graph, scope, depth, &right_node_id)) {
-                LOG_ERROR("lambda_to_graph", "编译 APP right 失败");
-                return false;
-            }
-
-            GeomNode *left_node = graph_get_node(graph, left_node_id);
-            if (!left_node) {
-                LOG_ERROR("lambda_to_graph", "left 节点 %d 不存在", left_node_id);
-                return false;
-            }
-
-            /* 3. 如果 left 是函数块（ABS），构成 redex：
-             *    连接 right 的输出（PORT_OUTPUT）→ left 的输入（PORT_INPUT） */
-            if (left_node->type == GEOM_FUNCTION_BLOCK) {
-                /* 获取 left 的输入端口（PORT_INPUT） */
-                int left_input = get_node_input_port(graph, left_node_id);
-                if (left_input < 0) {
-                    LOG_ERROR("lambda_to_graph", "函数块 %d 无输入端口", left_node_id);
-                    return false;
-                }
-
-                /* 获取 right 的输出端口（PORT_OUTPUT） */
-                int right_output = get_node_output_port(graph, right_node_id);
-                if (right_output < 0) {
-                    LOG_ERROR("lambda_to_graph", "实参 %d 无输出端口", right_node_id);
-                    return false;
-                }
-
-                /* 连接：right_output(PORT_OUTPUT) → left_input(PORT_INPUT) */
-                AddConstraintResult cr = graph_add_connection(graph, right_output, left_input);
-                if (cr == ADD_CONSTRAINT_OK) {
-                    LOG_DEBUG("lambda_to_graph", "APP redex: arg_out=%d → func_in=%d", right_output, left_input);
-                } else if (cr == ADD_CONSTRAINT_DUPLICATE) {
-                    LOG_DEBUG("lambda_to_graph", "APP redex: 重复连接 arg_out=%d → func_in=%d", right_output, left_input);
-                } else {
-                    LOG_WARN("lambda_to_graph", "APP redex 连接 %d→%d 失败 (result=%d)", right_output, left_input,
-                             (int) cr);
-                }
-
-                /* 结果 = left 的输出端口 */
-                int left_output = get_node_output_port(graph, left_node_id);
-                if (left_output < 0) {
-                    LOG_ERROR("lambda_to_graph", "函数块 %d 无输出端口", left_node_id);
-                    return false;
-                }
-                *out_node_id = left_output;
-
-                LOG_DEBUG("lambda_to_graph", "编译 APP: redex, left=FB%d, result=port%d", left_node_id, left_output);
-            } else {
-                /* left 不是函数块（变量引用），非 redex：不创建连接 */
-                LOG_DEBUG("lambda_to_graph", "编译 APP: non-redex, left=node%d (type=%d)", left_node_id,
-                          (int) left_node->type);
-                *out_node_id = left_node_id;
-            }
-            return true;
-        }
-
-        default:
-            LOG_ERROR("lambda_to_graph", "未知 λ-项类型 %d", (int) term->type);
-            return false;
+    if (term->type >= 0 && term->type <= LV_LAMBDA_APP) {
+        LambdaToGraphHandler handler = lambda_to_graph_table[term->type];
+        if (handler)
+            return handler(term, graph, scope, depth, out_node_id);
     }
+
+    LOG_ERROR("lambda_to_graph", "未知 λ-项类型 %d", (int)term->type);
+    return false;
 }
 
 /* ===========================================================================

@@ -955,28 +955,19 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
         /* 构造表达式描述字符串 */
         /* 格式："constraint_N: type=X, vars=[a,b,c]" */
+        static const char *kConstraintTypeNames[] = {
+            "INCIDENCE",    /* INCIDENCE = 0 */
+            "BETWEENNESS",  /* BETWEENNESS = 1 */
+            "INTERSECTION", /* INTERSECTION = 2 */
+            "CONTAINMENT",  /* CONTAINMENT = 3 */
+            "CONNECTION",   /* CONNECTION = 4 */
+            "ANGLE"         /* ANGLE = 5 */
+        };
+        static const int kConstraintTypeNamesCount =
+            (int)(sizeof(kConstraintTypeNames) / sizeof(kConstraintTypeNames[0]));
         const char *type_str = "UNKNOWN";
-        switch (c->type) {
-            case INCIDENCE:
-                type_str = "INCIDENCE";
-                break;
-            case BETWEENNESS:
-                type_str = "BETWEENNESS";
-                break;
-            case INTERSECTION:
-                type_str = "INTERSECTION";
-                break;
-            case CONTAINMENT:
-                type_str = "CONTAINMENT";
-                break;
-            case CONNECTION:
-                type_str = "CONNECTION";
-                break;
-            case ANGLE:
-                type_str = "ANGLE";
-                break;
-            default:
-                break;
+        if (c->type >= 0 && c->type < kConstraintTypeNamesCount) {
+            type_str = kConstraintTypeNames[(int)c->type];
         }
 
         char buf[EXPR_BUFFER_INITIAL];

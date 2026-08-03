@@ -180,20 +180,7 @@ static double prob_from_satisfaction(const Constraint *con) {
         return 0.0;
     if (con->satisfaction < -0.01) {
         /* 违反的约束 — 低概率 */
-        switch (con->type) {
-            case INCIDENCE:
-                return 0.05;
-            case BETWEENNESS:
-                return 0.05;
-            case INTERSECTION:
-                return 0.05;
-            case CONTAINMENT:
-                return 0.05;
-            case CONNECTION:
-                return 0.05;
-            default:
-                return 0.05;
-        }
+        return 0.05;
     }
     /* satisfaction ∈ [0,1] → 直接用作转移概率 */
     double p = con->satisfaction;
@@ -203,6 +190,43 @@ static double prob_from_satisfaction(const Constraint *con) {
         p = 1.0;
     return p;
 }
+
+/* ── DTMC 转移构建函数（文件作用域，用于查找表） ── */
+typedef void (*DTMCBuildFn)(SimpleDTMC *mc, int src, int dst, double prob, const Constraint *c, int n);
+typedef struct {
+    ConstraintType type;
+    DTMCBuildFn build;
+} DTMCBuildEntry;
+
+static void dtmc_build_bidirectional(SimpleDTMC *mc, int src, int dst, double prob, const Constraint *c, int n) {
+    (void)c; (void)n;
+    dtmc_add_transition(mc, src, dst, prob);
+    dtmc_add_transition(mc, dst, src, prob);
+}
+static void dtmc_build_betweenness(SimpleDTMC *mc, int src, int dst, double prob, const Constraint *c, int n) {
+    dtmc_add_transition(mc, src, dst, prob);
+    if (c->participant_count >= 3) {
+        int mid = c->participants[2];
+        if (mid >= 0 && mid < n) {
+            dtmc_add_transition(mc, dst, mid, prob);
+        }
+    }
+}
+static void dtmc_build_unidirectional(SimpleDTMC *mc, int src, int dst, double prob, const Constraint *c, int n) {
+    (void)c; (void)n;
+    dtmc_add_transition(mc, src, dst, prob);
+}
+
+static const DTMCBuildEntry kDTMCBuildTable[] = {
+    {INCIDENCE,    dtmc_build_bidirectional},
+    {BETWEENNESS,  dtmc_build_betweenness},
+    {INTERSECTION, dtmc_build_bidirectional},
+    {CONTAINMENT,  dtmc_build_unidirectional},
+    {ANGLE,        dtmc_build_unidirectional},
+    {CONNECTION,   dtmc_build_bidirectional}
+};
+static const int kDTMCBuildTableCount =
+    (int)(sizeof(kDTMCBuildTable) / sizeof(kDTMCBuildTable[0]));
 
 /**
  * @brief 从约束图构建 DTMC
@@ -244,34 +268,11 @@ static SimpleDTMC *build_dtmc_from_graph(const ConstraintGraph *graph) {
 
         double prob = prob_from_satisfaction(c);
 
-        switch (c->type) {
-            case INCIDENCE:
-                dtmc_add_transition(mc, src, dst, prob);
-                dtmc_add_transition(mc, dst, src, prob);
+        for (int ti = 0; ti < kDTMCBuildTableCount; ti++) {
+            if (kDTMCBuildTable[ti].type == c->type) {
+                kDTMCBuildTable[ti].build(mc, src, dst, prob, c, n);
                 break;
-            case BETWEENNESS:
-                dtmc_add_transition(mc, src, dst, prob);
-                if (c->participant_count >= 3) {
-                    int mid = c->participants[2];
-                    if (mid >= 0 && mid < n) {
-                        dtmc_add_transition(mc, dst, mid, prob);
-                    }
-                }
-                break;
-            case INTERSECTION:
-                dtmc_add_transition(mc, src, dst, prob);
-                dtmc_add_transition(mc, dst, src, prob);
-                break;
-            case CONTAINMENT:
-                dtmc_add_transition(mc, src, dst, prob);
-                break;
-            case ANGLE:
-                dtmc_add_transition(mc, src, dst, prob);
-                break;
-            case CONNECTION:
-                dtmc_add_transition(mc, src, dst, prob);
-                dtmc_add_transition(mc, dst, src, prob);
-                break;
+            }
         }
     }
 
@@ -675,6 +676,37 @@ static double pctl_compute_until(const SimpleDTMC *mc, const char *phi_predicate
     return result;
 }
 
+/* ── PCTL 子公式评估函数（文件作用域，用于查找表） ── */
+static double pctl_compute_probability(const SimpleDTMC *mc, const PCTLFormula *formula);
+
+typedef double (*PCTLSubEvalFn)(const SimpleDTMC *mc, const PCTLFormula *sub);
+typedef struct {
+    PCTLFormulaType type;
+    PCTLSubEvalFn eval;
+} PCTLSubEvalEntry;
+
+static double pctl_sub_eval_eventually(const SimpleDTMC *mc, const PCTLFormula *sub) {
+    return pctl_compute_eventually(mc, sub->state_predicate);
+}
+static double pctl_sub_eval_always(const SimpleDTMC *mc, const PCTLFormula *sub) {
+    return pctl_compute_always(mc, sub->state_predicate);
+}
+static double pctl_sub_eval_until(const SimpleDTMC *mc, const PCTLFormula *sub) {
+    return pctl_compute_until(mc, sub->state_predicate, sub->path_predicate);
+}
+static double pctl_sub_eval_prob_bound(const SimpleDTMC *mc, const PCTLFormula *sub) {
+    return pctl_compute_probability(mc, sub);
+}
+
+static const PCTLSubEvalEntry kPCTLSubEvalTable[] = {
+    {PCTL_EVENTUALLY,  pctl_sub_eval_eventually},
+    {PCTL_ALWAYS,      pctl_sub_eval_always},
+    {PCTL_UNTIL,       pctl_sub_eval_until},
+    {PCTL_PROB_BOUND,  pctl_sub_eval_prob_bound}
+};
+static const int kPCTLSubEvalTableCount =
+    (int)(sizeof(kPCTLSubEvalTable) / sizeof(kPCTLSubEvalTable[0]));
+
 /**
  * @brief 计算概率界 P>=p [ phi ] 或 P<=p [ phi ]
  *
@@ -688,24 +720,13 @@ static double pctl_compute_probability(const SimpleDTMC *mc, const PCTLFormula *
     double actual_prob = 0.0;
 
     if (formula->sub_formula) {
-        /* 递归评估子公式 */
-        switch (formula->sub_formula->type) {
-            case PCTL_EVENTUALLY:
-                actual_prob = pctl_compute_eventually(mc, formula->sub_formula->state_predicate);
+        /* 递归评估子公式 — 使用查找表 */
+        actual_prob = formula->p_bound; /* 默认值 */
+        for (int ti = 0; ti < kPCTLSubEvalTableCount; ti++) {
+            if (kPCTLSubEvalTable[ti].type == formula->sub_formula->type) {
+                actual_prob = kPCTLSubEvalTable[ti].eval(mc, formula->sub_formula);
                 break;
-            case PCTL_ALWAYS:
-                actual_prob = pctl_compute_always(mc, formula->sub_formula->state_predicate);
-                break;
-            case PCTL_UNTIL:
-                actual_prob =
-                    pctl_compute_until(mc, formula->sub_formula->state_predicate, formula->sub_formula->path_predicate);
-                break;
-            case PCTL_PROB_BOUND:
-                actual_prob = pctl_compute_probability(mc, formula->sub_formula);
-                break;
-            default:
-                actual_prob = formula->p_bound;
-                break;
+            }
         }
     } else {
         /* 无子公式，使用状态谓词直接评估 */
@@ -748,23 +769,33 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
     }
 
     /* 设置支撑集 */
-    switch (type) {
-        case PROB_DIST_UNIFORM:
-            dist->support_lo = (param_count >= 2) ? params[0] : 0.0;
-            dist->support_hi = (param_count >= 2) ? params[1] : 1.0;
-            break;
-        case PROB_DIST_NORMAL:
+    {
+        static const double kDistSupportLo[] = {
+            0.0,    /* PROB_DIST_UNIFORM */
+            -1e308, /* PROB_DIST_NORMAL */
+            0.0,    /* PROB_DIST_BETA */
+            -1e308, /* PROB_DIST_DISCRETE */
+            -1e308  /* PROB_DIST_CUSTOM */
+        };
+        static const double kDistSupportHi[] = {
+            1.0,    /* PROB_DIST_UNIFORM */
+            1e308,  /* PROB_DIST_NORMAL */
+            1.0,    /* PROB_DIST_BETA */
+            1e308,  /* PROB_DIST_DISCRETE */
+            1e308   /* PROB_DIST_CUSTOM */
+        };
+        static const int kDistSupportCount =
+            (int)(sizeof(kDistSupportLo) / sizeof(kDistSupportLo[0]));
+        if (type == PROB_DIST_UNIFORM && param_count >= 2) {
+            dist->support_lo = params[0];
+            dist->support_hi = params[1];
+        } else if (type >= 0 && type < kDistSupportCount) {
+            dist->support_lo = kDistSupportLo[(int)type];
+            dist->support_hi = kDistSupportHi[(int)type];
+        } else {
             dist->support_lo = -1e308;
             dist->support_hi = 1e308;
-            break;
-        case PROB_DIST_BETA:
-            dist->support_lo = 0.0;
-            dist->support_hi = 1.0;
-            break;
-        default:
-            dist->support_lo = -1e308;
-            dist->support_hi = 1e308;
-            break;
+        }
     }
 
     return dist;
@@ -781,6 +812,38 @@ void prob_dist_destroy(ProbDistribution *dist) {
     }
 }
 
+/* ── PDF 计算辅助函数（文件作用域，用于查找表）── */
+typedef double (*PDFFn)(ProbDistribution *dist, double x);
+static double pdf_uniform(ProbDistribution *dist, double x) {
+    double a = (dist->param_count >= 2) ? dist->params[0] : 0.0;
+    double b = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+    if (x < a || x > b) return 0.0;
+    return 1.0 / (b - a);
+}
+static double pdf_normal(ProbDistribution *dist, double x) {
+    double mu = (dist->param_count >= 2) ? dist->params[0] : 0.0;
+    double sigma = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+    double z = (x - mu) / sigma;
+    return exp(-0.5 * z * z) / (sigma * sqrt(2.0 * M_PI));
+}
+static double pdf_beta(ProbDistribution *dist, double x) {
+    double alpha = (dist->param_count >= 2) ? dist->params[0] : 1.0;
+    double beta = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+    if (x < 0.0 || x > 1.0) return 0.0;
+    double norm = exp(lgamma(alpha + beta) - lgamma(alpha) - lgamma(beta));
+    return norm * pow(x, alpha - 1.0) * pow(1.0 - x, beta - 1.0);
+}
+
+/* ── PDF 查找表（文件作用域）── */
+static const PDFFn kPDFTable[] = {
+    pdf_uniform, /* PROB_DIST_UNIFORM */
+    pdf_normal,  /* PROB_DIST_NORMAL */
+    pdf_beta,    /* PROB_DIST_BETA */
+    NULL,        /* PROB_DIST_DISCRETE */
+    NULL         /* PROB_DIST_CUSTOM */
+};
+static const int kPDFTableCount = (int)(sizeof(kPDFTable) / sizeof(kPDFTable[0]));
+
 /* ========================================================================
  * prob_dist_pdf —— 计算概率密度函数值
  * ======================================================================== */
@@ -794,37 +857,41 @@ double prob_dist_pdf(ProbDistribution *dist, double x) {
         return dist->pdf(x, dist->params, dist->param_count);
     }
 
-    switch (dist->type) {
-        case PROB_DIST_UNIFORM: {
-            double a = (dist->param_count >= 2) ? dist->params[0] : 0.0;
-            double b = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-            if (x < a || x > b)
-                return 0.0;
-            return 1.0 / (b - a);
-        }
-        case PROB_DIST_NORMAL: {
-            double mu = (dist->param_count >= 2) ? dist->params[0] : 0.0;
-            double sigma = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-            double z = (x - mu) / sigma;
-            return exp(-0.5 * z * z) / (sigma * sqrt(2.0 * M_PI));
-        }
-        case PROB_DIST_BETA: {
-            double alpha = (dist->param_count >= 2) ? dist->params[0] : 1.0;
-            double beta = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-            if (x < 0.0 || x > 1.0)
-                return 0.0;
-            /* Beta 分布 PDF：使用 lgamma 计算归一化常数 B(α,β) = Γ(α+β)/(Γ(α)Γ(β)) */
-            double norm = exp(lgamma(alpha + beta) - lgamma(alpha) - lgamma(beta));
-            return norm * pow(x, alpha - 1.0) * pow(1.0 - x, beta - 1.0);
-        }
-        default:
-            return 0.0;
+    if (dist->type >= 0 && dist->type < kPDFTableCount && kPDFTable[(int)dist->type]) {
+        return kPDFTable[(int)dist->type](dist, x);
     }
+    return 0.0;
+}
+
+/* ── CDF 计算辅助函数（文件作用域，用于查找表）── */
+typedef double (*CDFFn)(ProbDistribution *dist, double x);
+static double cdf_uniform(ProbDistribution *dist, double x) {
+    double a = (dist->param_count >= 2) ? dist->params[0] : 0.0;
+    double b = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+    if (x < a) return 0.0;
+    if (x > b) return 1.0;
+    return (x - a) / (b - a);
+}
+static double cdf_normal(ProbDistribution *dist, double x) {
+    double mu = (dist->param_count >= 2) ? dist->params[0] : 0.0;
+    double sigma = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+    double z = (x - mu) / (sigma * sqrt(2.0));
+    return 0.5 * (1.0 + erf(z));
 }
 
 /* ========================================================================
  * prob_dist_cdf —— 计算累积分布函数值
  * ======================================================================== */
+
+/* ── CDF 查找表（文件作用域）── */
+static const CDFFn kCDFTable[] = {
+    cdf_uniform, /* PROB_DIST_UNIFORM */
+    cdf_normal,  /* PROB_DIST_NORMAL */
+    NULL,        /* PROB_DIST_BETA */
+    NULL,        /* PROB_DIST_DISCRETE */
+    NULL         /* PROB_DIST_CUSTOM */
+};
+static const int kCDFTableCount = (int)(sizeof(kCDFTable) / sizeof(kCDFTable[0]));
 
 double prob_dist_cdf(ProbDistribution *dist, double x) {
     if (!dist)
@@ -834,27 +901,105 @@ double prob_dist_cdf(ProbDistribution *dist, double x) {
         return dist->cdf(x, dist->params, dist->param_count);
     }
 
-    switch (dist->type) {
-        case PROB_DIST_UNIFORM: {
-            double a = (dist->param_count >= 2) ? dist->params[0] : 0.0;
-            double b = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-            if (x < a)
-                return 0.0;
-            if (x > b)
-                return 1.0;
-            return (x - a) / (b - a);
-        }
-        case PROB_DIST_NORMAL: {
-            double mu = (dist->param_count >= 2) ? dist->params[0] : 0.0;
-            double sigma = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-            /* 使用 erf 近似 */
-            double z = (x - mu) / (sigma * sqrt(2.0));
-            return 0.5 * (1.0 + erf(z));
-        }
-        default:
-            return 0.0;
+    if (dist->type >= 0 && dist->type < kCDFTableCount && kCDFTable[(int)dist->type]) {
+        return kCDFTable[(int)dist->type](dist, x);
     }
+    return 0.0;
 }
+
+/* ── 采样辅助函数（文件作用域，用于查找表）── */
+typedef double (*SampleFn)(ProbDistribution *dist);
+static double sample_uniform(ProbDistribution *dist) {
+    double a = (dist->param_count >= 2) ? dist->params[0] : 0.0;
+    double b = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+    return a + rand_uniform_lcg() * (b - a);
+}
+static double sample_normal(ProbDistribution *dist) {
+    double mu = (dist->param_count >= 2) ? dist->params[0] : 0.0;
+    double sigma = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+    return mu + sigma * rand_normal_box_muller();
+}
+static double sample_beta(ProbDistribution *dist) {
+    double alpha = (dist->param_count >= 2) ? dist->params[0] : 1.0;
+    double beta = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+    if (alpha < 0.01) alpha = 0.01;
+    if (beta < 0.01) beta = 0.01;
+    double x_gamma = 0.0, y_gamma = 0.0;
+    if (alpha >= 1.0) {
+        double d = alpha - 1.0 / 3.0;
+        double c = 1.0 / sqrt(9.0 * d);
+        int _try = 0;
+        for (;;) {
+            if (++_try > GAMMA_SAMPLE_MAX_RETRIES) { x_gamma = 1.0; break; }
+            double v = 1.0 + c * rand_normal_box_muller();
+            if (v <= 0.0) continue;
+            v = v * v * v;
+            double u = rand_uniform_lcg();
+            if (u < 1.0 - 0.0331 * (v * v) / (d * d)) { x_gamma = d * v; break; }
+            if (log(u) < 0.5 * (v / d) * (v / d) + d * (1.0 - v + log(v))) { x_gamma = d * v; break; }
+        }
+    } else {
+        double am = 0.0;
+        int _try2 = 0;
+        for (;;) {
+            if (++_try2 > GAMMA_SAMPLE_MAX_RETRIES) { x_gamma = 1.0; break; }
+            am = alpha + 1.0;
+            double u1 = rand_uniform_lcg();
+            double u2 = rand_uniform_lcg();
+            double vv = am * pow(u1, 1.0 / am);
+            if (u2 <= exp(-vv)) { x_gamma = vv; break; }
+        }
+    }
+    if (beta >= 1.0) {
+        double d = beta - 1.0 / 3.0;
+        double c = 1.0 / sqrt(9.0 * d);
+        int _try3 = 0;
+        for (;;) {
+            if (++_try3 > GAMMA_SAMPLE_MAX_RETRIES) { y_gamma = 1.0; break; }
+            double v = 1.0 + c * rand_normal_box_muller();
+            if (v <= 0.0) continue;
+            v = v * v * v;
+            double u = rand_uniform_lcg();
+            if (u < 1.0 - 0.0331 * (v * v) / (d * d)) { y_gamma = d * v; break; }
+            if (log(u) < 0.5 * (v / d) * (v / d) + d * (1.0 - v + log(v))) { y_gamma = d * v; break; }
+        }
+    } else {
+        double bm = 0.0;
+        int _try4 = 0;
+        for (;;) {
+            if (++_try4 > GAMMA_SAMPLE_MAX_RETRIES) { y_gamma = 1.0; break; }
+            bm = beta + 1.0;
+            double u1 = rand_uniform_lcg();
+            double u2 = rand_uniform_lcg();
+            double vv = bm * pow(u1, 1.0 / bm);
+            if (u2 <= exp(-vv)) { y_gamma = vv; break; }
+        }
+    }
+    double result = x_gamma / (x_gamma + y_gamma);
+    if (result < 0.0) result = 0.0;
+    if (result > 1.0) result = 1.0;
+    return result;
+}
+static double sample_discrete(ProbDistribution *dist) {
+    double r = rand_uniform_lcg();
+    double cum = 0.0;
+    int k = 0;
+    for (; k < dist->param_count; k++) {
+        cum += dist->params[k];
+        if (r <= cum) break;
+    }
+    return (double) k;
+}
+
+/* ── 采样函数查找表（文件作用域）── */
+static const SampleFn kSampleTable[] = {
+    sample_uniform,  /* PROB_DIST_UNIFORM */
+    sample_normal,   /* PROB_DIST_NORMAL */
+    sample_beta,     /* PROB_DIST_BETA */
+    sample_discrete, /* PROB_DIST_DISCRETE */
+    NULL             /* PROB_DIST_CUSTOM */
+};
+static const int kSampleTableCount = (int)(sizeof(kSampleTable) / sizeof(kSampleTable[0]));
 
 /* ========================================================================
  * prob_dist_sample —— 从分布中采样
@@ -869,150 +1014,10 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
         return -1;
 
     for (int i = 0; i < n_samples; i++) {
-        switch (dist->type) {
-            case PROB_DIST_UNIFORM: {
-                double a = (dist->param_count >= 2) ? dist->params[0] : 0.0;
-                double b = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-                samples[i] = a + rand_uniform_lcg() * (b - a);
-                break;
-            }
-            case PROB_DIST_NORMAL: {
-                double mu = (dist->param_count >= 2) ? dist->params[0] : 0.0;
-                double sigma = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-                samples[i] = mu + sigma * rand_normal_box_muller();
-                break;
-            }
-            case PROB_DIST_BETA: {
-                /* Johnk 方法 + Gamma 采样生成 Beta(alpha, beta)
-                 *
-                 * Beta 可通过两独立 Gamma 变量构造：
-                 *   X ~ Gamma(alpha, 1), Y ~ Gamma(beta, 1) → X/(X+Y) ~ Beta(alpha, beta)
-                 *
-                 * Gamma 采样使用 Marsaglia-Tsang 方法（alpha >= 1 时）
-                 * 或简单接受-拒绝法（alpha < 1 时）。
-                 */
-                double alpha = (dist->param_count >= 2) ? dist->params[0] : 1.0;
-                double beta = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-                if (alpha < 0.01)
-                    alpha = 0.01;
-                if (beta < 0.01)
-                    beta = 0.01;
-
-                /* Gamma 采样：alpha >= 1 使用 Marsaglia-Tsang；
-                   alpha < 1 使用接受-拒绝变换 */
-                double x_gamma = 0.0, y_gamma = 0.0;
-
-                /* ---- 采样 Gamma(alpha, 1) ---- */
-                if (alpha >= 1.0) {
-                    double d = alpha - 1.0 / 3.0;
-                    double c = 1.0 / sqrt(9.0 * d);
-                    int _try = 0;
-                    for (;;) {
-                        if (++_try > GAMMA_SAMPLE_MAX_RETRIES) {
-                            x_gamma = 1.0;
-                            break;
-                        }
-                        double v = 1.0 + c * rand_normal_box_muller();
-                        if (v <= 0.0)
-                            continue;
-                        v = v * v * v;
-                        double u = rand_uniform_lcg();
-                        if (u < 1.0 - 0.0331 * (v * v) / (d * d)) {
-                            x_gamma = d * v;
-                            break;
-                        }
-                        if (log(u) < 0.5 * (v / d) * (v / d) + d * (1.0 - v + log(v))) {
-                            x_gamma = d * v;
-                            break;
-                        }
-                    }
-                } else {
-                    /* alpha < 1：Gamma 的 Ahrens-Dieter 接受-拒绝法 */
-                    double am = 0.0;
-                    int _try2 = 0;
-                    for (;;) {
-                        if (++_try2 > GAMMA_SAMPLE_MAX_RETRIES) {
-                            x_gamma = 1.0;
-                            break;
-                        }
-                        am = alpha + 1.0;
-                        double u1 = rand_uniform_lcg();
-                        double u2 = rand_uniform_lcg();
-                        double vv = am * pow(u1, 1.0 / am);
-                        if (u2 <= exp(-vv)) {
-                            x_gamma = vv;
-                            break;
-                        }
-                    }
-                }
-
-                /* ---- 采样 Gamma(beta, 1) ---- */
-                if (beta >= 1.0) {
-                    double d = beta - 1.0 / 3.0;
-                    double c = 1.0 / sqrt(9.0 * d);
-                    int _try3 = 0;
-                    for (;;) {
-                        if (++_try3 > GAMMA_SAMPLE_MAX_RETRIES) {
-                            y_gamma = 1.0;
-                            break;
-                        }
-                        double v = 1.0 + c * rand_normal_box_muller();
-                        if (v <= 0.0)
-                            continue;
-                        v = v * v * v;
-                        double u = rand_uniform_lcg();
-                        if (u < 1.0 - 0.0331 * (v * v) / (d * d)) {
-                            y_gamma = d * v;
-                            break;
-                        }
-                        if (log(u) < 0.5 * (v / d) * (v / d) + d * (1.0 - v + log(v))) {
-                            y_gamma = d * v;
-                            break;
-                        }
-                    }
-                } else {
-                    double bm = 0.0;
-                    int _try4 = 0;
-                    for (;;) {
-                        if (++_try4 > GAMMA_SAMPLE_MAX_RETRIES) {
-                            y_gamma = 1.0;
-                            break;
-                        }
-                        bm = beta + 1.0;
-                        double u1 = rand_uniform_lcg();
-                        double u2 = rand_uniform_lcg();
-                        double vv = bm * pow(u1, 1.0 / bm);
-                        if (u2 <= exp(-vv)) {
-                            y_gamma = vv;
-                            break;
-                        }
-                    }
-                }
-
-                samples[i] = x_gamma / (x_gamma + y_gamma);
-                if (samples[i] < 0.0)
-                    samples[i] = 0.0;
-                if (samples[i] > 1.0)
-                    samples[i] = 1.0;
-                break;
-            }
-            case PROB_DIST_DISCRETE: {
-                /* 离散分布：逆 CDF 方法 */
-                double r = rand_uniform_lcg();
-                double cum = 0.0;
-                int k = 0;
-                for (; k < dist->param_count; k++) {
-                    cum += dist->params[k];
-                    if (r <= cum)
-                        break;
-                }
-                samples[i] = (double) k;
-                break;
-            }
-            case PROB_DIST_CUSTOM:
-            default:
-                samples[i] = 0.0;
-                break;
+        if (dist->type >= 0 && dist->type < kSampleTableCount && kSampleTable[(int)dist->type]) {
+            samples[i] = kSampleTable[(int)dist->type](dist);
+        } else {
+            samples[i] = 0.0;
         }
     }
 
@@ -1072,6 +1077,95 @@ int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out
     return prob_dist_sample(node->coord_dist, n_samples, out_samples);
 }
 
+/* ── PCTL 评估辅助函数（文件作用域，用于查找表）── */
+typedef bool (*PCTLEvalFn)(SimpleDTMC *mc, const PCTLFormula *formula, double *out_probability);
+static bool pctl_eval_prob_bound(SimpleDTMC *mc, const PCTLFormula *formula, double *out_probability) {
+    *out_probability = pctl_compute_probability(mc, formula);
+    return true;
+}
+static bool pctl_eval_next(SimpleDTMC *mc, const PCTLFormula *formula, double *out_probability) {
+    double prob = 0.0;
+    for (int i = 0; i < mc->state_count; i++) {
+        if (mc->initial_dist[i] < PCTL_EPSILON)
+            continue;
+        for (int t = 0; t < mc->trans_count[i]; t++) {
+            int j = mc->trans_targets[i][t];
+            double p = mc->trans_probs[i][t];
+            if (j >= 0 && j < mc->state_count && eval_state_predicate(formula->state_predicate, j)) {
+                prob += mc->initial_dist[i] * p;
+            }
+        }
+    }
+    *out_probability = (prob > 1.0) ? 1.0 : prob;
+    return true;
+}
+static bool pctl_eval_until(SimpleDTMC *mc, const PCTLFormula *formula, double *out_probability) {
+    *out_probability = pctl_compute_until(mc, formula->state_predicate, formula->path_predicate);
+    return true;
+}
+static bool pctl_eval_eventually(SimpleDTMC *mc, const PCTLFormula *formula, double *out_probability) {
+    *out_probability = pctl_compute_eventually(mc, formula->state_predicate);
+    return true;
+}
+static bool pctl_eval_always(SimpleDTMC *mc, const PCTLFormula *formula, double *out_probability) {
+    *out_probability = pctl_compute_always(mc, formula->state_predicate);
+    return true;
+}
+static bool pctl_eval_steady_state(SimpleDTMC *mc, const PCTLFormula *formula, double *out_probability) {
+    int n = mc->state_count;
+    double *pi = (double *) lv_malloc((size_t) n * sizeof(double));
+    double *next_pi = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (pi && next_pi) {
+        for (int i = 0; i < n; i++) pi[i] = 1.0 / (double) n;
+        const double convergence_threshold = 1e-12;
+        const int max_iter = lv_config_get_int(LV_CFG_PCTL_POWER_ITER_MAX, 10000);
+        bool converged = false;
+        for (int iter = 0; iter < max_iter; iter++) {
+            memset(next_pi, 0, (size_t) n * sizeof(double));
+            for (int i = 0; i < n; i++)
+                for (int t = 0; t < mc->trans_count[i]; t++) {
+                    int j = mc->trans_targets[i][t];
+                    double p = mc->trans_probs[i][t];
+                    if (j >= 0 && j < n) next_pi[j] += pi[i] * p;
+                }
+            double sum = 0.0;
+            for (int i = 0; i < n; i++) sum += next_pi[i];
+            if (sum > PCTL_EPSILON)
+                for (int i = 0; i < n; i++) next_pi[i] /= sum;
+            double max_diff = 0.0;
+            for (int i = 0; i < n; i++) {
+                double diff = fabs(next_pi[i] - pi[i]);
+                if (diff > max_diff) max_diff = diff;
+            }
+            double *tmp = pi; pi = next_pi; next_pi = tmp;
+            if (max_diff < convergence_threshold) { converged = true; break; }
+        }
+        if (!converged)
+            fprintf(stderr, "Warning: PCTL steady-state power iteration did not converge within %d iterations.\n", max_iter);
+        double result = 0.0;
+        for (int i = 0; i < n; i++)
+            if (eval_state_predicate(formula->state_predicate, i)) result += pi[i];
+        *out_probability = (result > 1.0) ? 1.0 : result;
+        lv_free((void **) &pi); lv_free((void **) &next_pi);
+    } else {
+        *out_probability = 1.0 / (double) n;
+        lv_free((void **) &pi); lv_free((void **) &next_pi);
+    }
+    return true;
+}
+
+/* ── PCTL 评估函数查找表（文件作用域）── */
+static const PCTLEvalFn kPCTLEvalTable[] = {
+    pctl_eval_prob_bound,   /* PCTL_PROB_BOUND */
+    pctl_eval_eventually,   /* PCTL_EVENTUALLY */
+    pctl_eval_always,       /* PCTL_ALWAYS */
+    pctl_eval_until,        /* PCTL_UNTIL */
+    pctl_eval_next,         /* PCTL_NEXT */
+    pctl_eval_steady_state, /* PCTL_STEADY_STATE */
+    NULL                    /* PCTL_ATOMIC */
+};
+static const int kPCTLEvalTableCount = (int)(sizeof(kPCTLEvalTable) / sizeof(kPCTLEvalTable[0]));
+
 /* ========================================================================
  * pctl_evaluate —— 在约束图上评估 PCTL 公式
  *
@@ -1098,127 +1192,14 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
         return true;
     }
 
-    switch (formula->type) {
-        case PCTL_PROB_BOUND:
-            /* P~p [ phi ]：计算概率并检查是否满足边界 */
-            *out_probability = pctl_compute_probability(mc, formula);
-            break;
-
-        case PCTL_NEXT:
-            /* X phi：下一状态满足 phi
-             * 计算初始状态一步转移后满足 phi 的期望概率 */
-            {
-                double prob = 0.0;
-                for (int i = 0; i < mc->state_count; i++) {
-                    if (mc->initial_dist[i] < PCTL_EPSILON)
-                        continue;
-                    for (int t = 0; t < mc->trans_count[i]; t++) {
-                        int j = mc->trans_targets[i][t];
-                        double p = mc->trans_probs[i][t];
-                        if (j >= 0 && j < mc->state_count && eval_state_predicate(formula->state_predicate, j)) {
-                            prob += mc->initial_dist[i] * p;
-                        }
-                    }
-                }
-                *out_probability = (prob > 1.0) ? 1.0 : prob;
-            }
-            break;
-
-        case PCTL_UNTIL:
-            /* phi U psi：使用值迭代法 */
-            *out_probability = pctl_compute_until(mc, formula->state_predicate, formula->path_predicate);
-            break;
-
-        case PCTL_EVENTUALLY:
-            /* F phi = true U phi：BFS 搜索可达目标状态 */
-            *out_probability = pctl_compute_eventually(mc, formula->state_predicate);
-            break;
-
-        case PCTL_ALWAYS:
-            /* G phi：所有可达状态都满足 phi */
-            *out_probability = pctl_compute_always(mc, formula->state_predicate);
-            break;
-
-        case PCTL_STEADY_STATE:
-            /* S~p [ phi ]：稳态概率
-             * 使用幂迭代法近似稳态分布，带收敛检查 */
-            {
-                int n = mc->state_count;
-                double *pi = (double *) lv_malloc((size_t) n * sizeof(double));
-                double *next_pi = (double *) lv_malloc((size_t) n * sizeof(double));
-                if (pi && next_pi) {
-                    /* 初始化为均匀分布 */
-                    for (int i = 0; i < n; i++)
-                        pi[i] = 1.0 / (double) n;
-
-                    const double convergence_threshold = 1e-12;
-                    const int max_iter = lv_config_get_int(LV_CFG_PCTL_POWER_ITER_MAX, 10000);
-                    bool converged = false;
-
-                    /* 幂迭代 */
-                    for (int iter = 0; iter < max_iter; iter++) {
-                        memset(next_pi, 0, (size_t) n * sizeof(double));
-                        for (int i = 0; i < n; i++) {
-                            for (int t = 0; t < mc->trans_count[i]; t++) {
-                                int j = mc->trans_targets[i][t];
-                                double p = mc->trans_probs[i][t];
-                                if (j >= 0 && j < n)
-                                    next_pi[j] += pi[i] * p;
-                            }
-                        }
-                        /* 归一化 */
-                        double sum = 0.0;
-                        for (int i = 0; i < n; i++)
-                            sum += next_pi[i];
-                        if (sum > PCTL_EPSILON) {
-                            for (int i = 0; i < n; i++)
-                                next_pi[i] /= sum;
-                        }
-                        /* 收敛检查 */
-                        double max_diff = 0.0;
-                        for (int i = 0; i < n; i++) {
-                            double diff = fabs(next_pi[i] - pi[i]);
-                            if (diff > max_diff)
-                                max_diff = diff;
-                        }
-                        /* 交换 */
-                        double *tmp = pi;
-                        pi = next_pi;
-                        next_pi = tmp;
-
-                        if (max_diff < convergence_threshold) {
-                            converged = true;
-                            break;
-                        }
-                    }
-
-                    if (!converged) {
-                        fprintf(stderr,
-                                "Warning: PCTL steady-state power iteration did not converge within %d iterations.\n",
-                                max_iter);
-                    }
-
-                    /* 计算满足谓词的稳态概率 */
-                    double result = 0.0;
-                    for (int i = 0; i < n; i++) {
-                        if (eval_state_predicate(formula->state_predicate, i))
-                            result += pi[i];
-                    }
-                    *out_probability = (result > 1.0) ? 1.0 : result;
-
-                    lv_free((void **) &pi);
-                    lv_free((void **) &next_pi);
-                } else {
-                    *out_probability = 1.0 / (double) n;
-                    lv_free((void **) &pi);
-                    lv_free((void **) &next_pi);
-                }
-            }
-            break;
-
-        default:
+    if (formula->type >= 0 && formula->type < kPCTLEvalTableCount && kPCTLEvalTable[(int)formula->type]) {
+        if (!kPCTLEvalTable[(int)formula->type](mc, formula, out_probability)) {
             dtmc_destroy(mc);
             return false;
+        }
+    } else {
+        dtmc_destroy(mc);
+        return false;
     }
 
     dtmc_destroy(mc);

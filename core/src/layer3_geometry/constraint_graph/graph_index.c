@@ -590,22 +590,27 @@ void graph_sync_nodes(ConstraintGraph *graph) {
                 continue;
 
             /* 基于约束类型调整信任等级 */
-            switch (c->type) {
-                case INCIDENCE:
-                case BETWEENNESS:
-                case INTERSECTION:
-                    /* 几何约束对精度要求高，保持或提升 trust */
-                    if (node->trust > TRUST_GREEN)
-                        node->trust = TRUST_GREEN;
-                    break;
-                case CONTAINMENT:
-                case CONNECTION:
-                case ANGLE:
-                    /* 拓扑/数值约束允许较低的 trust */
-                    break;
-                default:
+            {
+                static const bool kConstraintNeedsTrustAdjust[] = {
+                    true,   /* INCIDENCE */
+                    true,   /* BETWEENNESS */
+                    true,   /* INTERSECTION */
+                    false,  /* CONTAINMENT */
+                    false,  /* CONNECTION */
+                    false   /* ANGLE */
+                };
+                static const int kConstraintNeedsTrustAdjustCount =
+                    (int)(sizeof(kConstraintNeedsTrustAdjust) / sizeof(kConstraintNeedsTrustAdjust[0]));
+                if (c->type >= 0 && c->type < kConstraintNeedsTrustAdjustCount) {
+                    if (kConstraintNeedsTrustAdjust[(int)c->type]) {
+                        /* 几何约束对精度要求高，保持或提升 trust */
+                        if (node->trust > TRUST_GREEN)
+                            node->trust = TRUST_GREEN;
+                    }
+                    /* 拓扑/数值约束允许较低的 trust，无需调整 */
+                } else {
                     lv_LOG_ERROR("graph_sync_nodes: 未知约束类型 %d (id=%d)", (int) c->type, c->id);
-                    break;
+                }
             }
         }
     }

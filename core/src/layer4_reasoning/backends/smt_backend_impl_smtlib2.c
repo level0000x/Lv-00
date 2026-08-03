@@ -155,34 +155,24 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
             continue;
 
         int n = 0;
-        switch (c->type) {
-            case INCIDENCE:
-                /* 关联约束：点在线段上 -> 叉积方程 */
-                n = smtlib2_encode_incidence(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
-                break;
-            case BETWEENNESS:
-                /* 之间约束：三点共线有序 -> 共线叉积 + 有序性 */
-                n = smtlib2_encode_betweenness(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
-                break;
-            case INTERSECTION:
-                /* 相交约束：两线段交点 -> 联立参数方程 */
-                n = smtlib2_encode_intersection(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
-                break;
-            case CONTAINMENT:
-                /* 包含约束：包含关系 -> 距离约束 */
-                n = smtlib2_encode_containment(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
-                break;
-            case ANGLE:
-                /* 角度约束：∠(line1, line2) = numeric_value（度） */
-                n = smtlib2_encode_angle(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
-                break;
-            case CONNECTION:
-                /* 连接约束：端口连接 -> 坐标等价 */
-                n = smtlib2_encode_connection(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
-                break;
-            default:
+        {
+            /* ── SMT-LIB2 约束编码函数查找表 ── */
+            typedef int (*Smtlib2EncodeFn)(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining, bool named);
+            static const Smtlib2EncodeFn kSmtlib2EncodeTable[] = {
+                smtlib2_encode_incidence,    /* INCIDENCE */
+                smtlib2_encode_betweenness,  /* BETWEENNESS */
+                smtlib2_encode_intersection, /* INTERSECTION */
+                smtlib2_encode_containment,  /* CONTAINMENT */
+                smtlib2_encode_connection,   /* CONNECTION */
+                smtlib2_encode_angle         /* ANGLE */
+            };
+            static const int kSmtlib2EncodeTableCount =
+                (int)(sizeof(kSmtlib2EncodeTable) / sizeof(kSmtlib2EncodeTable[0]));
+            if (c->type >= 0 && c->type < kSmtlib2EncodeTableCount) {
+                n = kSmtlib2EncodeTable[(int)c->type](graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
+            } else {
                 lv_LOG_WARNING("Unknown constraint type %d in smtlib2_encode_constraints", c->type);
-                break;
+            }
         }
         if (n < 0 || n >= remaining)
             break;

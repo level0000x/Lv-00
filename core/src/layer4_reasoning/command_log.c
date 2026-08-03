@@ -46,23 +46,31 @@ const char *g_command_type_names[CMD_COUNT] = {
  *  辅助函数
  * ════════════════════════════════════════════════════════════════ */
 
+/* ── command_entry_cleanup 查找表 ── */
+typedef void (*CleanupHandler)(CommandEntry *entry);
+
+static void cleanup_add_node(CommandEntry *entry) {
+    lv_free((void **) &entry->params.add_node.coords_num);
+    lv_free((void **) &entry->params.add_node.coords_den);
+}
+
+static void cleanup_pack_function(CommandEntry *entry) {
+    lv_free((void **) &entry->params.pack_function.internal_node_ids);
+    lv_free((void **) &entry->params.pack_function.input_port_ids);
+    lv_free((void **) &entry->params.pack_function.output_port_ids);
+}
+
+static const CleanupHandler cleanup_table[CMD_COUNT] = {
+    [CMD_ADD_NODE]      = cleanup_add_node,
+    [CMD_PACK_FUNCTION] = cleanup_pack_function,
+};
+
 /** 销毁命令条目的内部动态内存（不释放 entry 本身）*/
 static void command_entry_cleanup(CommandEntry *entry) {
     if (!entry)
         return;
-    switch (entry->type) {
-        case CMD_ADD_NODE:
-            lv_free((void **) &entry->params.add_node.coords_num);
-            lv_free((void **) &entry->params.add_node.coords_den);
-            break;
-        case CMD_PACK_FUNCTION:
-            lv_free((void **) &entry->params.pack_function.internal_node_ids);
-            lv_free((void **) &entry->params.pack_function.input_port_ids);
-            lv_free((void **) &entry->params.pack_function.output_port_ids);
-            break;
-        default:
-            break;
-    }
+    CleanupHandler h = cleanup_table[entry->type];
+    if (h) h(entry);
     command_entry_destroy(entry->inverse);
     entry->inverse = NULL;
 }
@@ -283,98 +291,97 @@ void command_entry_destroy(CommandEntry *entry) {
  *  命令执行
  * ════════════════════════════════════════════════════════════════ */
 
+/* ── execute_command 查找表 ── */
+typedef bool (*ExecuteHandler)(CommandEntry *entry, lvEngine *engine);
+
+static bool exec_add_node(CommandEntry *entry, lvEngine *engine) {
+    CmdAddNodeParams *p = &entry->params.add_node;
+    if (p->coord_count >= 2 && p->coords_num && p->coords_den) {
+        SymbolicCoord **coords = (SymbolicCoord **) lv_malloc((size_t) p->coord_count * sizeof(SymbolicCoord *));
+        if (!coords) return false;
+        for (int i = 0; i < p->coord_count; i++) {
+            coords[i] = symbolic_coord_create_rational((int64_t) p->coords_num[i], p->coords_den[i]);
+            if (!coords[i]) {
+                for (int j = 0; j < i; j++) symbolic_coord_destroy(coords[j]);
+                lv_free((void **) &coords);
+                return false;
+            }
+        }
+        int id = lv_add_point(engine, p->coords_num[0], p->coords_den[0], p->coords_num[1], p->coords_den[1]);
+        for (int i = 0; i < p->coord_count; i++) symbolic_coord_destroy(coords[i]);
+        lv_free((void **) &coords);
+        return id >= 0;
+    }
+    return false;
+}
+
+static bool exec_add_constraint(CommandEntry *entry, lvEngine *engine) {
+    CmdAddConstraintParams *p = &entry->params.add_constraint;
+    if (p->participant_count >= 2) {
+        for (int i = 1; i < p->participant_count; i++)
+            lv_add_constraint_incidence(engine, p->participant_ids[i], p->participant_ids[0]);
+        return true;
+    }
+    return false;
+}
+
+static bool exec_remove_node(CommandEntry *entry, lvEngine *engine) {
+    RemoveNodeResult result = graph_remove_node(engine->main_graph, entry->params.remove_node.node_id);
+    return result == REMOVE_NODE_OK;
+}
+
+static bool exec_remove_constraint(CommandEntry *entry, lvEngine *engine) {
+    RemoveConstraintResult result = graph_remove_constraint(engine->main_graph, entry->params.remove_constraint.constraint_index);
+    return result == REMOVE_CONSTRAINT_OK;
+}
+
+static bool exec_pack_function(CommandEntry *entry, lvEngine *engine) {
+    CmdPackFunctionParams *p = &entry->params.pack_function;
+    int func_id = -1;
+    bool ok = engine_pack_function(engine, p->internal_node_ids, p->internal_count, p->input_port_ids,
+                                   p->input_count, p->output_port_ids, p->output_count, &func_id);
+    p->result_func_id = func_id;
+    return ok;
+}
+
+static bool exec_normalize_graph(CommandEntry *entry, lvEngine *engine) {
+    engine_rewrite_and_solve(engine, entry->params.normalize_graph.max_iterations, 0);
+    return true;
+}
+
+static bool exec_unify(CommandEntry *entry, lvEngine *engine) {
+    CmdUnifyParams *p = &entry->params.unify;
+    UnifyStatus status = engine_unify(engine, engine->main_graph, engine->main_graph);
+    p->result = (status == UNIFY_STATUS_OK);
+    return p->result;
+}
+
+static bool exec_set_numeric_assumption(CommandEntry *entry, lvEngine *engine) {
+    CmdSetNumericAssumptionParams *p = &entry->params.set_numeric_assumption;
+    return lv_set_numeric_assumption(engine, p->node_id, p->precision, p->declaration) == 0;
+}
+
+static bool exec_default(CommandEntry *entry, lvEngine *engine) { (void)entry; (void)engine; return false; }
+
+static const ExecuteHandler execute_table[CMD_COUNT] = {
+    [CMD_ADD_NODE]             = exec_add_node,
+    [CMD_ADD_CONSTRAINT]       = exec_add_constraint,
+    [CMD_REMOVE_NODE]          = exec_remove_node,
+    [CMD_REMOVE_CONSTRAINT]    = exec_remove_constraint,
+    [CMD_PACK_FUNCTION]        = exec_pack_function,
+    [CMD_NORMALIZE_GRAPH]      = exec_normalize_graph,
+    [CMD_UNIFY]                = exec_unify,
+    [CMD_SET_NUMERIC_ASSUMPTION] = exec_set_numeric_assumption,
+};
+
 /**
  * @brief 执行单条命令（不记录日志）
  */
 static bool execute_command(CommandEntry *entry, lvEngine *engine) {
     if (!entry || !engine)
         return false;
-
-    switch (entry->type) {
-        case CMD_ADD_NODE: {
-            CmdAddNodeParams *p = &entry->params.add_node;
-            if (p->coord_count >= 2 && p->coords_num && p->coords_den) {
-                /* 创建 SymbolicCoord 数组 */
-                SymbolicCoord **coords =
-                    (SymbolicCoord **) lv_malloc((size_t) p->coord_count * sizeof(SymbolicCoord *));
-                if (!coords)
-                    return false;
-                for (int i = 0; i < p->coord_count; i++) {
-                    coords[i] = symbolic_coord_create_rational((int64_t) p->coords_num[i], p->coords_den[i]);
-                    if (!coords[i]) {
-                        for (int j = 0; j < i; j++)
-                            symbolic_coord_destroy(coords[j]);
-                        lv_free((void **) &coords);
-                        return false;
-                    }
-                }
-                int id = lv_add_point(engine, p->coords_num[0], p->coords_den[0], p->coords_num[1], p->coords_den[1]);
-                for (int i = 0; i < p->coord_count; i++)
-                    symbolic_coord_destroy(coords[i]);
-                lv_free((void **) &coords);
-                return id >= 0;
-            }
-            return false;
-        }
-
-        case CMD_ADD_CONSTRAINT: {
-            CmdAddConstraintParams *p = &entry->params.add_constraint;
-            /* 简化：通过引擎 API 添加约束 */
-            if (p->participant_count >= 2) {
-                /* 使用 incidence 约束作为通用 fallback */
-                for (int i = 1; i < p->participant_count; i++) {
-                    lv_add_constraint_incidence(engine, p->participant_ids[i], p->participant_ids[0]);
-                }
-                return true;
-            }
-            return false;
-        }
-
-        case CMD_REMOVE_NODE: {
-            CmdRemoveNodeParams *p = &entry->params.remove_node;
-            RemoveNodeResult result = graph_remove_node(engine->main_graph, p->node_id);
-            return result == REMOVE_NODE_OK;
-        }
-
-        case CMD_REMOVE_CONSTRAINT: {
-            CmdRemoveConstraintParams *p = &entry->params.remove_constraint;
-            RemoveConstraintResult result = graph_remove_constraint(engine->main_graph, p->constraint_index);
-            return result == REMOVE_CONSTRAINT_OK;
-        }
-
-        case CMD_PACK_FUNCTION: {
-            CmdPackFunctionParams *p = &entry->params.pack_function;
-            int func_id = -1;
-            bool ok = engine_pack_function(engine, p->internal_node_ids, p->internal_count, p->input_port_ids,
-                                           p->input_count, p->output_port_ids, p->output_count, &func_id);
-            p->result_func_id = func_id;
-            return ok;
-        }
-
-        case CMD_NORMALIZE_GRAPH: {
-            /* 规范化通过引擎重写管线 */
-            engine_rewrite_and_solve(engine, entry->params.normalize_graph.max_iterations, 0);
-            return true;
-        }
-
-        case CMD_UNIFY: {
-            CmdUnifyParams *p = &entry->params.unify;
-            /* construction_graph_id 和 proposition_graph_id 保留供将来多图使用，
-         * 当前引擎仅有一个主图，因此均传入 engine->main_graph */
-            UnifyStatus status = engine_unify(engine, engine->main_graph, engine->main_graph);
-            p->result = (status == UNIFY_STATUS_OK);
-            return p->result;
-        }
-
-        case CMD_SET_NUMERIC_ASSUMPTION: {
-            CmdSetNumericAssumptionParams *p = &entry->params.set_numeric_assumption;
-            int rc = lv_set_numeric_assumption(engine, p->node_id, p->precision, p->declaration);
-            return rc == 0;
-        }
-
-        default:
-            return false;
-    }
+    ExecuteHandler h = execute_table[entry->type];
+    return h ? h(entry, engine) : false;
 }
 
 bool command_log_execute(CommandLog *log, CommandEntry *entry, lvEngine *engine) {
@@ -451,97 +458,109 @@ static void json_buf_uint64_array(lvJsonBuf *buf, const uint64_t *arr, int count
     lv_json_buf_append_char(buf, ']');
 }
 
+/* ── json_buf_write_params 查找表 ── */
+typedef void (*JsonWriteHandler)(lvJsonBuf *buf, const CommandEntry *e);
+
+static void json_write_add_node(lvJsonBuf *buf, const CommandEntry *e) {
+    const CmdAddNodeParams *p = &e->params.add_node;
+    lv_json_buf_append_fmt(buf, "\"geom_type\": %d,\n", p->geom_type);
+    lv_json_buf_append_fmt(buf, "      \"node_id\": %d,\n", p->node_id);
+    lv_json_buf_append_fmt(buf, "      \"coord_count\": %d,\n", p->coord_count);
+    lv_json_buf_append_fmt(buf, "      \"namespace_depth\": %d,\n", p->namespace_depth);
+    lv_json_buf_append_fmt(buf, "      \"parent_block_id\": %d,\n", p->parent_block_id);
+    lv_json_buf_append_fmt(buf, "      \"is_formal_param\": %s,\n", p->is_formal_param ? "true" : "false");
+    lv_json_buf_append_raw(buf, "      \"coords_num\": ");
+    if (p->coords_num && p->coord_count > 0)
+        json_buf_double_array(buf, p->coords_num, p->coord_count);
+    else
+        lv_json_buf_append_raw(buf, "null");
+    lv_json_buf_append_raw(buf, ",\n");
+    lv_json_buf_append_raw(buf, "      \"coords_den\": ");
+    if (p->coords_den && p->coord_count > 0)
+        json_buf_uint64_array(buf, p->coords_den, p->coord_count);
+    else
+        lv_json_buf_append_raw(buf, "null");
+}
+
+static void json_write_add_constraint(lvJsonBuf *buf, const CommandEntry *e) {
+    const CmdAddConstraintParams *p = &e->params.add_constraint;
+    lv_json_buf_append_fmt(buf, "\"constraint_type\": %d,\n", p->constraint_type);
+    lv_json_buf_append_fmt(buf, "      \"constraint_id\": %d,\n", p->constraint_id);
+    lv_json_buf_append_fmt(buf, "      \"participant_count\": %d,\n", p->participant_count);
+    lv_json_buf_append_raw(buf, "      \"participant_ids\": ");
+    json_buf_int_array(buf, p->participant_ids, p->participant_count);
+}
+
+static void json_write_remove_node(lvJsonBuf *buf, const CommandEntry *e) {
+    lv_json_buf_append_fmt(buf, "\"node_id\": %d", e->params.remove_node.node_id);
+}
+
+static void json_write_remove_constraint(lvJsonBuf *buf, const CommandEntry *e) {
+    lv_json_buf_append_fmt(buf, "\"constraint_index\": %d", e->params.remove_constraint.constraint_index);
+}
+
+static void json_write_pack_function(lvJsonBuf *buf, const CommandEntry *e) {
+    const CmdPackFunctionParams *p = &e->params.pack_function;
+    lv_json_buf_append_fmt(buf, "\"internal_count\": %d,\n", p->internal_count);
+    lv_json_buf_append_fmt(buf, "      \"input_count\": %d,\n", p->input_count);
+    lv_json_buf_append_fmt(buf, "      \"output_count\": %d,\n", p->output_count);
+    lv_json_buf_append_fmt(buf, "      \"result_func_id\": %d,\n", p->result_func_id);
+    lv_json_buf_append_raw(buf, "      \"internal_node_ids\": ");
+    if (p->internal_node_ids && p->internal_count > 0)
+        json_buf_int_array(buf, p->internal_node_ids, p->internal_count);
+    else
+        lv_json_buf_append_raw(buf, "null");
+    lv_json_buf_append_raw(buf, ",\n");
+    lv_json_buf_append_raw(buf, "      \"input_port_ids\": ");
+    if (p->input_port_ids && p->input_count > 0)
+        json_buf_int_array(buf, p->input_port_ids, p->input_count);
+    else
+        lv_json_buf_append_raw(buf, "null");
+    lv_json_buf_append_raw(buf, ",\n");
+    lv_json_buf_append_raw(buf, "      \"output_port_ids\": ");
+    if (p->output_port_ids && p->output_count > 0)
+        json_buf_int_array(buf, p->output_port_ids, p->output_count);
+    else
+        lv_json_buf_append_raw(buf, "null");
+}
+
+static void json_write_normalize_graph(lvJsonBuf *buf, const CommandEntry *e) {
+    lv_json_buf_append_fmt(buf, "\"scope_aware\": %s,\n", e->params.normalize_graph.scope_aware ? "true" : "false");
+    lv_json_buf_append_fmt(buf, "      \"max_iterations\": %d", e->params.normalize_graph.max_iterations);
+}
+
+static void json_write_unify(lvJsonBuf *buf, const CommandEntry *e) {
+    lv_json_buf_append_fmt(buf, "\"construction_graph_id\": %d,\n", e->params.unify.construction_graph_id);
+    lv_json_buf_append_fmt(buf, "      \"proposition_graph_id\": %d,\n", e->params.unify.proposition_graph_id);
+    lv_json_buf_append_fmt(buf, "      \"result\": %s", e->params.unify.result ? "true" : "false");
+}
+
+static void json_write_set_numeric_assumption(lvJsonBuf *buf, const CommandEntry *e) {
+    const CmdSetNumericAssumptionParams *p = &e->params.set_numeric_assumption;
+    lv_json_buf_append_fmt(buf, "\"node_id\": %d,\n", p->node_id);
+    lv_json_buf_append_fmt(buf, "      \"precision\": %.17g,\n", p->precision);
+    lv_json_buf_append_raw(buf, "      \"declaration\": ");
+    lv_json_buf_append_string(buf, p->declaration);
+}
+
+static const JsonWriteHandler json_write_table[CMD_COUNT] = {
+    [CMD_ADD_NODE]             = json_write_add_node,
+    [CMD_ADD_CONSTRAINT]       = json_write_add_constraint,
+    [CMD_REMOVE_NODE]          = json_write_remove_node,
+    [CMD_REMOVE_CONSTRAINT]    = json_write_remove_constraint,
+    [CMD_PACK_FUNCTION]        = json_write_pack_function,
+    [CMD_NORMALIZE_GRAPH]      = json_write_normalize_graph,
+    [CMD_UNIFY]                = json_write_unify,
+    [CMD_SET_NUMERIC_ASSUMPTION] = json_write_set_numeric_assumption,
+};
+
 /** 输出命令参数的 JSON 对象体（不含外层花括号）（lvJsonBuf 版本） */
 static void json_buf_write_params(lvJsonBuf *buf, const CommandEntry *e) {
-    switch (e->type) {
-        case CMD_ADD_NODE: {
-            const CmdAddNodeParams *p = &e->params.add_node;
-            lv_json_buf_append_fmt(buf, "\"geom_type\": %d,\n", p->geom_type);
-            lv_json_buf_append_fmt(buf, "      \"node_id\": %d,\n", p->node_id);
-            lv_json_buf_append_fmt(buf, "      \"coord_count\": %d,\n", p->coord_count);
-            lv_json_buf_append_fmt(buf, "      \"namespace_depth\": %d,\n", p->namespace_depth);
-            lv_json_buf_append_fmt(buf, "      \"parent_block_id\": %d,\n", p->parent_block_id);
-            lv_json_buf_append_fmt(buf, "      \"is_formal_param\": %s,\n", p->is_formal_param ? "true" : "false");
-            lv_json_buf_append_raw(buf, "      \"coords_num\": ");
-            if (p->coords_num && p->coord_count > 0) {
-                json_buf_double_array(buf, p->coords_num, p->coord_count);
-            } else {
-                lv_json_buf_append_raw(buf, "null");
-            }
-            lv_json_buf_append_raw(buf, ",\n");
-            lv_json_buf_append_raw(buf, "      \"coords_den\": ");
-            if (p->coords_den && p->coord_count > 0) {
-                json_buf_uint64_array(buf, p->coords_den, p->coord_count);
-            } else {
-                lv_json_buf_append_raw(buf, "null");
-            }
-            break;
-        }
-        case CMD_ADD_CONSTRAINT: {
-            const CmdAddConstraintParams *p = &e->params.add_constraint;
-            lv_json_buf_append_fmt(buf, "\"constraint_type\": %d,\n", p->constraint_type);
-            lv_json_buf_append_fmt(buf, "      \"constraint_id\": %d,\n", p->constraint_id);
-            lv_json_buf_append_fmt(buf, "      \"participant_count\": %d,\n", p->participant_count);
-            lv_json_buf_append_raw(buf, "      \"participant_ids\": ");
-            json_buf_int_array(buf, p->participant_ids, p->participant_count);
-            break;
-        }
-        case CMD_REMOVE_NODE: {
-            lv_json_buf_append_fmt(buf, "\"node_id\": %d", e->params.remove_node.node_id);
-            break;
-        }
-        case CMD_REMOVE_CONSTRAINT: {
-            lv_json_buf_append_fmt(buf, "\"constraint_index\": %d", e->params.remove_constraint.constraint_index);
-            break;
-        }
-        case CMD_PACK_FUNCTION: {
-            const CmdPackFunctionParams *p = &e->params.pack_function;
-            lv_json_buf_append_fmt(buf, "\"internal_count\": %d,\n", p->internal_count);
-            lv_json_buf_append_fmt(buf, "      \"input_count\": %d,\n", p->input_count);
-            lv_json_buf_append_fmt(buf, "      \"output_count\": %d,\n", p->output_count);
-            lv_json_buf_append_fmt(buf, "      \"result_func_id\": %d,\n", p->result_func_id);
-            lv_json_buf_append_raw(buf, "      \"internal_node_ids\": ");
-            if (p->internal_node_ids && p->internal_count > 0)
-                json_buf_int_array(buf, p->internal_node_ids, p->internal_count);
-            else
-                lv_json_buf_append_raw(buf, "null");
-            lv_json_buf_append_raw(buf, ",\n");
-            lv_json_buf_append_raw(buf, "      \"input_port_ids\": ");
-            if (p->input_port_ids && p->input_count > 0)
-                json_buf_int_array(buf, p->input_port_ids, p->input_count);
-            else
-                lv_json_buf_append_raw(buf, "null");
-            lv_json_buf_append_raw(buf, ",\n");
-            lv_json_buf_append_raw(buf, "      \"output_port_ids\": ");
-            if (p->output_port_ids && p->output_count > 0)
-                json_buf_int_array(buf, p->output_port_ids, p->output_count);
-            else
-                lv_json_buf_append_raw(buf, "null");
-            break;
-        }
-        case CMD_NORMALIZE_GRAPH: {
-            lv_json_buf_append_fmt(buf, "\"scope_aware\": %s,\n", e->params.normalize_graph.scope_aware ? "true" : "false");
-            lv_json_buf_append_fmt(buf, "      \"max_iterations\": %d", e->params.normalize_graph.max_iterations);
-            break;
-        }
-        case CMD_UNIFY: {
-            lv_json_buf_append_fmt(buf, "\"construction_graph_id\": %d,\n", e->params.unify.construction_graph_id);
-            lv_json_buf_append_fmt(buf, "      \"proposition_graph_id\": %d,\n", e->params.unify.proposition_graph_id);
-            lv_json_buf_append_fmt(buf, "      \"result\": %s", e->params.unify.result ? "true" : "false");
-            break;
-        }
-        case CMD_SET_NUMERIC_ASSUMPTION: {
-            const CmdSetNumericAssumptionParams *p = &e->params.set_numeric_assumption;
-            lv_json_buf_append_fmt(buf, "\"node_id\": %d,\n", p->node_id);
-            lv_json_buf_append_fmt(buf, "      \"precision\": %.17g,\n", p->precision);
-            lv_json_buf_append_raw(buf, "      \"declaration\": ");
-            lv_json_buf_append_string(buf, p->declaration);
-            break;
-        }
-        default:
-            lv_json_buf_append_raw(buf, "\"type\": \"unknown\"");
-            break;
-    }
+    JsonWriteHandler h = json_write_table[e->type];
+    if (h)
+        h(buf, e);
+    else
+        lv_json_buf_append_raw(buf, "\"type\": \"unknown\"");
 }
 
 bool command_log_serialize_json(const CommandLog *log, const char *filepath) {
@@ -964,6 +983,104 @@ static void json_skip_value(JsonCtx *j) {
     }
 }
 
+/* ── json_parse_params 查找表 ── */
+typedef void (*JsonParseHandler)(JsonCtx *j, CommandEntry *e, const char *key);
+
+static void json_parse_add_node(JsonCtx *j, CommandEntry *e, const char *key) {
+    CmdAddNodeParams *p = &e->params.add_node;
+    if (strcmp(key, "geom_type") == 0) json_parse_int(j, &p->geom_type);
+    else if (strcmp(key, "node_id") == 0) json_parse_int(j, &p->node_id);
+    else if (strcmp(key, "coord_count") == 0) json_parse_int(j, &p->coord_count);
+    else if (strcmp(key, "namespace_depth") == 0) json_parse_int(j, &p->namespace_depth);
+    else if (strcmp(key, "parent_block_id") == 0) json_parse_int(j, &p->parent_block_id);
+    else if (strcmp(key, "is_formal_param") == 0) json_parse_bool(j, &p->is_formal_param);
+    else if (strcmp(key, "coords_num") == 0) {
+        if (json_peek(j) == 'n') json_parse_null(j);
+        else { lv_free((void **) &p->coords_num); json_parse_double_array(j, &p->coords_num); }
+    } else if (strcmp(key, "coords_den") == 0) {
+        if (json_peek(j) == 'n') json_parse_null(j);
+        else { lv_free((void **) &p->coords_den); json_parse_uint64_array(j, &p->coords_den); }
+    } else json_skip_value(j);
+}
+
+static void json_parse_add_constraint(JsonCtx *j, CommandEntry *e, const char *key) {
+    CmdAddConstraintParams *p = &e->params.add_constraint;
+    if (strcmp(key, "constraint_type") == 0) json_parse_int(j, &p->constraint_type);
+    else if (strcmp(key, "constraint_id") == 0) json_parse_int(j, &p->constraint_id);
+    else if (strcmp(key, "participant_count") == 0) json_parse_int(j, &p->participant_count);
+    else if (strcmp(key, "participant_ids") == 0) {
+        int *arr = NULL;
+        int cnt = json_parse_int_array(j, &arr);
+        if (arr) {
+            int n = (cnt > 8) ? 8 : cnt;
+            memcpy(p->participant_ids, arr, (size_t) n * sizeof(int));
+            lv_free((void **) &arr);
+        }
+    } else json_skip_value(j);
+}
+
+static void json_parse_remove_node(JsonCtx *j, CommandEntry *e, const char *key) {
+    if (strcmp(key, "node_id") == 0) json_parse_int(j, &e->params.remove_node.node_id);
+    else json_skip_value(j);
+}
+
+static void json_parse_remove_constraint(JsonCtx *j, CommandEntry *e, const char *key) {
+    if (strcmp(key, "constraint_index") == 0) json_parse_int(j, &e->params.remove_constraint.constraint_index);
+    else json_skip_value(j);
+}
+
+static void json_parse_pack_function(JsonCtx *j, CommandEntry *e, const char *key) {
+    CmdPackFunctionParams *p = &e->params.pack_function;
+    if (strcmp(key, "internal_count") == 0) json_parse_int(j, &p->internal_count);
+    else if (strcmp(key, "input_count") == 0) json_parse_int(j, &p->input_count);
+    else if (strcmp(key, "output_count") == 0) json_parse_int(j, &p->output_count);
+    else if (strcmp(key, "result_func_id") == 0) json_parse_int(j, &p->result_func_id);
+    else if (strcmp(key, "internal_node_ids") == 0) {
+        if (json_peek(j) == 'n') json_parse_null(j);
+        else { int *arr = NULL; (void) json_parse_int_array(j, &arr); lv_free((void **) &p->internal_node_ids); p->internal_node_ids = arr; }
+    } else if (strcmp(key, "input_port_ids") == 0) {
+        if (json_peek(j) == 'n') json_parse_null(j);
+        else { int *arr = NULL; (void) json_parse_int_array(j, &arr); lv_free((void **) &p->input_port_ids); p->input_port_ids = arr; }
+    } else if (strcmp(key, "output_port_ids") == 0) {
+        if (json_peek(j) == 'n') json_parse_null(j);
+        else { int *arr = NULL; (void) json_parse_int_array(j, &arr); lv_free((void **) &p->output_port_ids); p->output_port_ids = arr; }
+    } else json_skip_value(j);
+}
+
+static void json_parse_normalize_graph(JsonCtx *j, CommandEntry *e, const char *key) {
+    if (strcmp(key, "scope_aware") == 0) json_parse_bool(j, &e->params.normalize_graph.scope_aware);
+    else if (strcmp(key, "max_iterations") == 0) json_parse_int(j, &e->params.normalize_graph.max_iterations);
+    else json_skip_value(j);
+}
+
+static void json_parse_unify(JsonCtx *j, CommandEntry *e, const char *key) {
+    if (strcmp(key, "construction_graph_id") == 0) json_parse_int(j, &e->params.unify.construction_graph_id);
+    else if (strcmp(key, "proposition_graph_id") == 0) json_parse_int(j, &e->params.unify.proposition_graph_id);
+    else if (strcmp(key, "result") == 0) json_parse_bool(j, &e->params.unify.result);
+    else json_skip_value(j);
+}
+
+static void json_parse_set_numeric_assumption(JsonCtx *j, CommandEntry *e, const char *key) {
+    CmdSetNumericAssumptionParams *p = &e->params.set_numeric_assumption;
+    if (strcmp(key, "node_id") == 0) json_parse_int(j, &p->node_id);
+    else if (strcmp(key, "precision") == 0) json_parse_double(j, &p->precision);
+    else if (strcmp(key, "declaration") == 0) json_parse_string(j, p->declaration, sizeof(p->declaration));
+    else json_skip_value(j);
+}
+
+static void json_parse_default(JsonCtx *j, CommandEntry *e, const char *key) { (void)e; json_skip_value(j); }
+
+static const JsonParseHandler json_parse_table[CMD_COUNT] = {
+    [CMD_ADD_NODE]             = json_parse_add_node,
+    [CMD_ADD_CONSTRAINT]       = json_parse_add_constraint,
+    [CMD_REMOVE_NODE]          = json_parse_remove_node,
+    [CMD_REMOVE_CONSTRAINT]    = json_parse_remove_constraint,
+    [CMD_PACK_FUNCTION]        = json_parse_pack_function,
+    [CMD_NORMALIZE_GRAPH]      = json_parse_normalize_graph,
+    [CMD_UNIFY]                = json_parse_unify,
+    [CMD_SET_NUMERIC_ASSUMPTION] = json_parse_set_numeric_assumption,
+};
+
 /** 查找并解析命令参数字段 */
 static void json_parse_params(JsonCtx *j, CommandEntry *e) {
     /* 调用方已消费 "params": 并定位到 '{'，直接检查并消费 */
@@ -977,150 +1094,9 @@ static void json_parse_params(JsonCtx *j, CommandEntry *e) {
             if (!json_expect(j, ':'))
                 break;
 
-            switch (e->type) {
-                case CMD_ADD_NODE: {
-                    CmdAddNodeParams *p = &e->params.add_node;
-                    if (strcmp(k, "geom_type") == 0)
-                        json_parse_int(j, &p->geom_type);
-                    else if (strcmp(k, "node_id") == 0)
-                        json_parse_int(j, &p->node_id);
-                    else if (strcmp(k, "coord_count") == 0)
-                        json_parse_int(j, &p->coord_count);
-                    else if (strcmp(k, "namespace_depth") == 0)
-                        json_parse_int(j, &p->namespace_depth);
-                    else if (strcmp(k, "parent_block_id") == 0)
-                        json_parse_int(j, &p->parent_block_id);
-                    else if (strcmp(k, "is_formal_param") == 0)
-                        json_parse_bool(j, &p->is_formal_param);
-                    else if (strcmp(k, "coords_num") == 0) {
-                        if (json_peek(j) == 'n') {
-                            json_parse_null(j);
-                        } else {
-                            lv_free((void **) &p->coords_num);
-                            json_parse_double_array(j, &p->coords_num);
-                        }
-                    } else if (strcmp(k, "coords_den") == 0) {
-                        if (json_peek(j) == 'n') {
-                            json_parse_null(j);
-                        } else {
-                            lv_free((void **) &p->coords_den);
-                            json_parse_uint64_array(j, &p->coords_den);
-                        }
-                    } else
-                        json_skip_value(j);
-                    break;
-                }
-                case CMD_ADD_CONSTRAINT: {
-                    CmdAddConstraintParams *p = &e->params.add_constraint;
-                    if (strcmp(k, "constraint_type") == 0)
-                        json_parse_int(j, &p->constraint_type);
-                    else if (strcmp(k, "constraint_id") == 0)
-                        json_parse_int(j, &p->constraint_id);
-                    else if (strcmp(k, "participant_count") == 0)
-                        json_parse_int(j, &p->participant_count);
-                    else if (strcmp(k, "participant_ids") == 0) {
-                        int *arr = NULL;
-                        int cnt = json_parse_int_array(j, &arr);
-                        if (arr) {
-                            int n = (cnt > 8) ? 8 : cnt;
-                            memcpy(p->participant_ids, arr, (size_t) n * sizeof(int));
-                            lv_free((void **) &arr);
-                        }
-                    } else
-                        json_skip_value(j);
-                    break;
-                }
-                case CMD_REMOVE_NODE: {
-                    if (strcmp(k, "node_id") == 0)
-                        json_parse_int(j, &e->params.remove_node.node_id);
-                    else
-                        json_skip_value(j);
-                    break;
-                }
-                case CMD_REMOVE_CONSTRAINT: {
-                    if (strcmp(k, "constraint_index") == 0)
-                        json_parse_int(j, &e->params.remove_constraint.constraint_index);
-                    else
-                        json_skip_value(j);
-                    break;
-                }
-                case CMD_PACK_FUNCTION: {
-                    CmdPackFunctionParams *p = &e->params.pack_function;
-                    if (strcmp(k, "internal_count") == 0)
-                        json_parse_int(j, &p->internal_count);
-                    else if (strcmp(k, "input_count") == 0)
-                        json_parse_int(j, &p->input_count);
-                    else if (strcmp(k, "output_count") == 0)
-                        json_parse_int(j, &p->output_count);
-                    else if (strcmp(k, "result_func_id") == 0)
-                        json_parse_int(j, &p->result_func_id);
-                    else if (strcmp(k, "internal_node_ids") == 0) {
-                        if (json_peek(j) == 'n')
-                            json_parse_null(j);
-                        else {
-                            int *arr = NULL;
-                            (void) json_parse_int_array(j, &arr);
-                            lv_free((void **) &p->internal_node_ids);
-                            p->internal_node_ids = arr;
-                        }
-                    } else if (strcmp(k, "input_port_ids") == 0) {
-                        if (json_peek(j) == 'n')
-                            json_parse_null(j);
-                        else {
-                            int *arr = NULL;
-                            (void) json_parse_int_array(j, &arr);
-                            lv_free((void **) &p->input_port_ids);
-                            p->input_port_ids = arr;
-                        }
-                    } else if (strcmp(k, "output_port_ids") == 0) {
-                        if (json_peek(j) == 'n')
-                            json_parse_null(j);
-                        else {
-                            int *arr = NULL;
-                            (void) json_parse_int_array(j, &arr);
-                            lv_free((void **) &p->output_port_ids);
-                            p->output_port_ids = arr;
-                        }
-                    } else
-                        json_skip_value(j);
-                    break;
-                }
-                case CMD_NORMALIZE_GRAPH: {
-                    if (strcmp(k, "scope_aware") == 0)
-                        json_parse_bool(j, &e->params.normalize_graph.scope_aware);
-                    else if (strcmp(k, "max_iterations") == 0)
-                        json_parse_int(j, &e->params.normalize_graph.max_iterations);
-                    else
-                        json_skip_value(j);
-                    break;
-                }
-                case CMD_UNIFY: {
-                    if (strcmp(k, "construction_graph_id") == 0)
-                        json_parse_int(j, &e->params.unify.construction_graph_id);
-                    else if (strcmp(k, "proposition_graph_id") == 0)
-                        json_parse_int(j, &e->params.unify.proposition_graph_id);
-                    else if (strcmp(k, "result") == 0)
-                        json_parse_bool(j, &e->params.unify.result);
-                    else
-                        json_skip_value(j);
-                    break;
-                }
-                case CMD_SET_NUMERIC_ASSUMPTION: {
-                    CmdSetNumericAssumptionParams *p = &e->params.set_numeric_assumption;
-                    if (strcmp(k, "node_id") == 0)
-                        json_parse_int(j, &p->node_id);
-                    else if (strcmp(k, "precision") == 0)
-                        json_parse_double(j, &p->precision);
-                    else if (strcmp(k, "declaration") == 0)
-                        json_parse_string(j, p->declaration, sizeof(p->declaration));
-                    else
-                        json_skip_value(j);
-                    break;
-                }
-                default:
-                    json_skip_value(j);
-                    break;
-            }
+            JsonParseHandler h = json_parse_table[e->type];
+            if (h) h(j, e, k);
+            else json_skip_value(j);
 
             if (json_peek(j) == ',')
                 json_next(j);

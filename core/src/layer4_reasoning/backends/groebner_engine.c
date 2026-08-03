@@ -350,6 +350,77 @@ static void poly_internal_add_term(lvPolynomial *poly, const lvPolynomialRing *r
     lv_free((void **)&exp);
 }
 
+/* ── Groebner 引擎编码上下文 ── */
+typedef struct {
+    lvPolynomialRing *ring;
+    int vc;
+    const int *var_x;
+    const int *var_y;
+    int map_size;
+    const ConstraintGraph *graph;
+    lvIdeal *ideal;
+} GroebnerEngineEncodeCtx;
+
+/* ── 各约束类型的 Groebner 引擎编码函数（文件作用域，用于查找表） ── */
+static void groebner_engine_encode_incidence(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    int pt_id = con->participants[0];
+    int seg_id = con->participants[1];
+    int xpt = (pt_id >= 0 && pt_id < ctx->map_size) ? ctx->var_x[pt_id] : -1;
+    int ypt = (pt_id >= 0 && pt_id < ctx->map_size) ? ctx->var_y[pt_id] : -1;
+    if (xpt < 0 || ypt < 0) return;
+
+    int p1_id = -1, p2_id = -1;
+    for (int n = 0; n < ctx->graph->node_count; n++) {
+        GeomNode *sn = ctx->graph->nodes[n];
+        if (!sn || sn->id != seg_id) continue;
+        if (sn->type == GEOM_LINE_SEGMENT) { }
+        break;
+    }
+    if (p1_id < 0) return;
+
+    int x1 = (p1_id >= 0 && p1_id < ctx->map_size) ? ctx->var_x[p1_id] : -1;
+    int y1 = (p1_id >= 0 && p1_id < ctx->map_size) ? ctx->var_y[p1_id] : -1;
+    int x2 = (p2_id >= 0 && p2_id < ctx->map_size) ? ctx->var_x[p2_id] : -1;
+    int y2 = (p2_id >= 0 && p2_id < ctx->map_size) ? ctx->var_y[p2_id] : -1;
+    if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0) return;
+
+    lvPolynomial *inc_poly = poly_internal_make_term(ctx->ring, xpt, 1, 1.0, NULL);
+    if (inc_poly) {
+        poly_internal_add_term(inc_poly, ctx->ring, ypt, 1, 1.0);
+    }
+    if (inc_poly) {
+        if (ctx->ideal->generator_count >= ctx->ideal->generator_capacity) {
+            int new_cap = ctx->ideal->generator_capacity * 2;
+            lvPolynomial **new_g = (lvPolynomial **)lv_realloc(ctx->ideal->generators, (size_t)new_cap * sizeof(lvPolynomial *));
+            if (!new_g) { lv_free((void **)&inc_poly); return; }
+            ctx->ideal->generators = new_g;
+            ctx->ideal->generator_capacity = new_cap;
+        }
+        ctx->ideal->generators[ctx->ideal->generator_count++] = inc_poly;
+    }
+}
+
+static void groebner_engine_encode_skip(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    (void) ctx; (void) con;
+}
+
+/* ── Groebner 引擎编码函数查找表 ── */
+typedef void (*GroebnerEngineEncodeFn)(const GroebnerEngineEncodeCtx *ctx, const Constraint *con);
+typedef struct {
+    ConstraintType type;
+    GroebnerEngineEncodeFn encode;
+} GroebnerEngineEncodeEntry;
+static const GroebnerEngineEncodeEntry kGroebnerEngineEncodeTable[] = {
+    {INCIDENCE,    groebner_engine_encode_incidence},
+    {BETWEENNESS,  groebner_engine_encode_skip},
+    {INTERSECTION, groebner_engine_encode_skip},
+    {CONTAINMENT,  groebner_engine_encode_skip},
+    {CONNECTION,   groebner_engine_encode_skip},
+    {ANGLE,        groebner_engine_encode_skip}
+};
+static const int kGroebnerEngineEncodeTableCount =
+    (int)(sizeof(kGroebnerEngineEncodeTable) / sizeof(kGroebnerEngineEncodeTable[0]));
+
 /**
  * @brief 将约束图转换为多项式理想
  *
@@ -496,65 +567,26 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         ADD_GENERATOR_LOCKED(py);
     }
 
-    /* 第三遍：遍历约束，编码为多项式方程 */
+    /* 第三遍：遍历约束，通过查找表编码为多项式方程 */
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *con = graph->constraints[ci];
         if (!con || !con->is_active) continue;
         if (con->participant_count < 2) continue;
 
-        switch (con->type) {
-            case INCIDENCE: {
-                /* INCIDENCE(point_id, line_seg_id):
-                 * 点在线上 ↔ 叉积 = 0
-                 * 需要查找线段的端点坐标来构造方程:
-                 * (x2 - x1)(yp - y1) - (y2 - y1)(xp - x1) = 0
-                 * 展开为: x2*yp - x2*y1 - x1*yp + x1*y1 - y2*xp + y2*x1 + y1*xp - y1*x1 = 0 */
-                int pt_id = con->participants[0];
-                int seg_id = con->participants[1];
-                int xpt = (pt_id >= 0 && pt_id < map_size) ? var_x[pt_id] : -1;
-                int ypt = (pt_id >= 0 && pt_id < map_size) ? var_y[pt_id] : -1;
-                if (xpt < 0 || ypt < 0) continue;
+        GroebnerEngineEncodeCtx gctx;
+        gctx.ring = ring;
+        gctx.vc = vc;
+        gctx.var_x = var_x;
+        gctx.var_y = var_y;
+        gctx.map_size = map_size;
+        gctx.graph = graph;
+        gctx.ideal = ideal;
 
-                /* 查找线段端点 */
-                int p1_id = -1, p2_id = -1;
-                for (int n = 0; n < graph->node_count; n++) {
-                    GeomNode *sn = graph->nodes[n];
-                    if (!sn || sn->id != seg_id) continue;
-                    if (sn->type == GEOM_LINE_SEGMENT) {
-                        /* 从线段的端点引用获取端点 ID */
-                        /* LINE_SEGMENT 节点的 data 存储端点引用 */
-                        /* 需要查看 graph 中是如何存储的 */
-                        /* 简化：通过遍历约束查找 incidence(_, seg_id) 来找端点 */
-                    }
-                    break;
-                }
-                /* 简化实现：先跳过未找到线段的 incidence */
-                if (p1_id < 0) continue;
-
-                int x1 = (p1_id >= 0 && p1_id < map_size) ? var_x[p1_id] : -1;
-                int y1 = (p1_id >= 0 && p1_id < map_size) ? var_y[p1_id] : -1;
-                int x2 = (p2_id >= 0 && p2_id < map_size) ? var_x[p2_id] : -1;
-                int y2 = (p2_id >= 0 && p2_id < map_size) ? var_y[p2_id] : -1;
-                if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0) continue;
-
-                /* 构造叉积方程：x2*yp - x2*y1 - x1*yp + x1*y1 - y2*xp + y2*x1 + y1*xp - y1*x1 = 0 */
-                /* = xp*(y1 - y2) + yp*(x2 - x1) + (x1*y2 - x2*y1) = 0 */
-                lvPolynomial *inc_poly = poly_internal_make_term(ring, xpt, 1, 1.0, NULL);
-                if (inc_poly) {
-                    /* xp * (y1 - y2) */
-                    poly_internal_add_term(inc_poly, ring, ypt, 1, 1.0);
-                    /* 常数项暂时跳过（需要端点坐标值） */
-                }
-                if (inc_poly) ADD_GENERATOR_LOCKED(inc_poly);
+        for (int ti = 0; ti < kGroebnerEngineEncodeTableCount; ti++) {
+            if (kGroebnerEngineEncodeTable[ti].type == con->type) {
+                kGroebnerEngineEncodeTable[ti].encode(&gctx, con);
                 break;
             }
-
-            case BETWEENNESS:
-                /* BETWEENNESS 编码为共线性方程，暂跳过 */
-                break;
-
-            default:
-                break;
         }
     }
 

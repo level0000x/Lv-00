@@ -26,6 +26,24 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 
+/* ---- 约束类型 → PDF 图形状态查找表 ---- */
+typedef struct {
+    const char *color_rg;      /**< 颜色设置 (e.g. "0.42 0.45 0.50 RG") */
+    const char *dash_pattern;  /**< dash 模式 (可为 NULL) */
+    double draw_width;         /**< 绘制线宽 */
+    bool reset_dash;           /**< 是否恢复实线 */
+    bool reset_width;          /**< 是否恢复默认线宽 */
+} ConstraintPdfEntry;
+
+static const ConstraintPdfEntry constraint_pdf_map[] = {
+    [INCIDENCE]    = { "0.42 0.45 0.50 RG", "[4.0 3.0] 0 d", 1.0, true,  true  },
+    [CONNECTION]   = { "0.96 0.62 0.04 RG", NULL,             1.5, false, false },
+    [BETWEENNESS]  = { "0.39 0.40 0.95 RG", "[2.0 2.0] 0 d", 1.0, true,  true  },
+    [INTERSECTION] = { "0.66 0.33 0.97 RG", NULL,             1.0, false, true  },
+    [CONTAINMENT]  = { "0.08 0.72 0.65 RG", "[6.0 3.0 1.0 3.0] 0 d", 1.0, true, true  },
+    [ANGLE]        = { "0.66 0.33 0.97 RG", "[4.0 2.0] 0 d", 1.0, true,  true  },
+};
+
 /**
  * @brief 将约束图导出为 PDF 文档（最小化纯C实现，无外部库依赖）
  * @param graph  约束图指针
@@ -288,71 +306,25 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
         switch (c->type) {
             case INCIDENCE:
-                /* 关联约束：灰色虚线 */
-                BUF_APPEND("0.42 0.45 0.50 RG\n");
-                BUF_APPEND("[4.0 3.0] 0 d\n");
-                BUF_APPEND("%.2f w\n", 1.0);
-                BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
-                BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
-                BUF_APPEND("S\n");
-                BUF_APPEND("[] 0 d\n"); /* 恢复实线 */
-                BUF_APPEND("%.2f w\n", 1.5);
-                break;
-
             case CONNECTION:
-                /* 连接约束：橙色实线 */
-                BUF_APPEND("0.96 0.62 0.04 RG\n");
-                BUF_APPEND("%.2f w\n", 1.5);
-                BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
-                BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
-                BUF_APPEND("S\n");
-                break;
-
             case BETWEENNESS:
-                /* 之间约束：紫色细线 */
-                BUF_APPEND("0.39 0.40 0.95 RG\n");
-                BUF_APPEND("%.2f w\n", 1.0);
-                BUF_APPEND("[2.0 2.0] 0 d\n");
-                BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
-                BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
-                BUF_APPEND("S\n");
-                BUF_APPEND("[] 0 d\n");
-                BUF_APPEND("%.2f w\n", 1.5);
-                break;
-
             case INTERSECTION:
-                /* 相交约束：紫色十字标记 */
-                BUF_APPEND("0.66 0.33 0.97 RG\n");
-                BUF_APPEND("%.2f w\n", 1.0);
-                BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
-                BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
-                BUF_APPEND("S\n");
-                BUF_APPEND("%.2f w\n", 1.5);
-                break;
-
             case CONTAINMENT:
-                /* 包含约束：青色点划线 */
-                BUF_APPEND("0.08 0.72 0.65 RG\n");
-                BUF_APPEND("[6.0 3.0 1.0 3.0] 0 d\n");
-                BUF_APPEND("%.2f w\n", 1.0);
+            case ANGLE: {
+                const ConstraintPdfEntry *entry = &constraint_pdf_map[c->type];
+                BUF_APPEND("%s\n", entry->color_rg);
+                if (entry->dash_pattern)
+                    BUF_APPEND("%s\n", entry->dash_pattern);
+                BUF_APPEND("%.2f w\n", entry->draw_width);
                 BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
                 BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
                 BUF_APPEND("S\n");
-                BUF_APPEND("[] 0 d\n");
-                BUF_APPEND("%.2f w\n", 1.5);
+                if (entry->reset_dash)
+                    BUF_APPEND("[] 0 d\n");
+                if (entry->reset_width)
+                    BUF_APPEND("%.2f w\n", 1.5);
                 break;
-
-            case ANGLE:
-                /* 角度约束：紫色虚线 */
-                BUF_APPEND("0.66 0.33 0.97 RG\n");
-                BUF_APPEND("[4.0 2.0] 0 d\n");
-                BUF_APPEND("%.2f w\n", 1.0);
-                BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
-                BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
-                BUF_APPEND("S\n");
-                BUF_APPEND("[] 0 d\n");
-                BUF_APPEND("%.2f w\n", 1.5);
-                break;
+            }
 
             default:
                 break;

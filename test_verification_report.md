@@ -4,7 +4,7 @@
 
 ### C 测试套件
 
-从 [CMakeLists.txt](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/CMakeLists.txt#L1237-L1618) 统计，共有 **约 150 个** 通过 `add_lv_test_and_register` 注册的 C 测试目标，分布在 `test/c/` 目录下约 **140 个** 测试源文件（含 2 个 manual 测试和 3 个 fuzz 测试）。
+从 [CMakeLists.txt](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/CMakeLists.txt#L1237-L1618) 统计，共有 **152 个** 通过 `add_lv_test_and_register` 注册的 C 测试目标，分布在 `test/c/` 目录下约 **155 个** 测试源文件（含 2 个 manual 测试和 3 个 fuzz 测试）。
 
 测试按模块分布如下：
 
@@ -17,7 +17,7 @@
 | **Layer 5: 输出** | ~5 | test_layer5_output, test_layer5_output_ops, test_output_export, test_interop |
 | **Layer 6: 可视化** | ~3 | test_layer6_visual, test_geo_visual, test_visual_editor |
 | **公理包** | ~42 | test_axiom_* (覆盖从集合论到微分几何的 42 个数学分支) |
-| **其他** | ~15 | test_func_block, test_wfc_modules, test_auto_diff, test_ode_solver, test_propagation, test_performance, test_engine_scheduler |
+| **其他** | ~21 | test_func_block, test_wfc_modules, test_auto_diff, test_ode_solver, test_propagation, test_performance, test_engine_scheduler, test_lambda_church, test_lambda_ycombinator |
 
 ### 模糊测试
 
@@ -30,7 +30,7 @@
 
 ### Lean 理论文件
 
-从 [formal/lvFormal/Theory/](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/formal/lvFormal/Theory/) 中共有 **53 个** `.lean` 理论文件：
+从 [formal/lvFormal/Theory/](file:///c:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/formal/lvFormal/Theory/) 中共有 **53 个** `.lean` 理论文件（项目总计 172 个 `.lean` 文件，含构建脚本与辅助模块）：
 
 | 类别 | 文件 | 覆盖内容 |
 |------|------|----------|
@@ -167,10 +167,20 @@ Hilbert 几何公理体系       ❌       ✅ 10文件      仅 Lean
 
 | 指标 | 数值 |
 |------|------|
-| C 测试文件总数 | ~140 |
-| 注册 CTest 测试数 | ~150 |
-| Lean 理论文件数 | 53 (+10 Hilbert 公理) |
+| C 测试文件总数 | ~155 |
+| 注册 CTest 测试数 | **152** |
+| Lean 理论文件数 | 53（+10 Hilbert 公理），项目总计 172 个 `.lean` 文件 |
 | 双覆盖（C + Lean）模块 | ~15 个区域，约 40 个测试 |
 | 仅 C 测试模块 | ~11 个区域，约 25 个测试 |
 | 仅 Lean 证明模块 | 3 个区域 |
 | **整体形式化覆盖率** | **约 60%**（按模块区域计） |
+
+### 测试结果总结
+
+| 指标 | 数值 |
+|------|------|
+| 测试总数 | **152/152 全部通过** |
+| 失败数 | **0** |
+| 通过率 | **100%** |
+| 模糊测试 | 2 个（约束图 + 符号坐标），持续运行 |
+| 构建目标 | 137/137 通过，0 错误/警告 |

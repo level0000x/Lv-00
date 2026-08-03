@@ -73,76 +73,76 @@ void lambda_type_check_pop(LambdaTypingContext *ctx) {
     ctx->stack_count--;
 }
 
-/* ── 核心类型推断 ── */
+/* ── 核心类型推断 - 查找表 ── */
+
+typedef TypeRegion *(*InferHandler)(LvLambdaTerm *term, LambdaTypingContext *ctx);
+
+static TypeRegion *infer_var(LvLambdaTerm *term, LambdaTypingContext *ctx) {
+    int idx = term->data.var.index;
+    if (idx < 0 || idx >= ctx->stack_count)
+        return NULL;
+    return ctx->type_stack[ctx->stack_count - 1 - idx];
+}
+
+static TypeRegion *infer_abs(LvLambdaTerm *term, LambdaTypingContext *ctx) {
+    if (!term->data.abs.body)
+        return NULL;
+
+    TypeRegion *binder_type = type_create_variable(ctx->ts, "_abs_binder");
+    if (!binder_type)
+        return NULL;
+
+    if (!lambda_type_check_push(ctx, binder_type))
+        return NULL;
+
+    TypeRegion *body_type = lambda_type_infer(term->data.abs.body, ctx);
+    lambda_type_check_pop(ctx);
+
+    if (!body_type)
+        return NULL;
+
+    return type_create_function(ctx->ts, binder_type, body_type);
+}
+
+static TypeRegion *infer_app(LvLambdaTerm *term, LambdaTypingContext *ctx) {
+    if (!term->data.app.left || !term->data.app.right)
+        return NULL;
+
+    TypeRegion *left_type = lambda_type_infer(term->data.app.left, ctx);
+    if (!left_type)
+        return NULL;
+
+    TypeRegion *right_type = lambda_type_infer(term->data.app.right, ctx);
+    if (!right_type)
+        return NULL;
+
+    if (left_type->kind != TYPE_KIND_FUNCTION)
+        return NULL;
+
+    TypeEquivResult equiv = type_check_equivalence(ctx->ts, left_type->input_type, right_type, false);
+    if (equiv != TYPE_EQUIV_OK)
+        return NULL;
+
+    return left_type->output_type;
+}
+
+static const InferHandler infer_table[LV_LAMBDA_APP + 1] = {
+    [LV_LAMBDA_VAR] = infer_var,
+    [LV_LAMBDA_ABS] = infer_abs,
+    [LV_LAMBDA_APP] = infer_app,
+};
 
 TypeRegion *lambda_type_infer(LvLambdaTerm *term, LambdaTypingContext *ctx) {
     if (!term || !ctx || !ctx->ts)
         return NULL;
 
-    switch (term->type) {
-        case LV_LAMBDA_VAR: {
-            /* Var：在上下文中查找 De Bruijn 索引对应类型 */
-            int idx = term->data.var.index;
-            if (idx < 0 || idx >= ctx->stack_count)
-                return NULL;
-            return ctx->type_stack[ctx->stack_count - 1 - idx];
-        }
-
-        case LV_LAMBDA_ABS: {
-            /* Abs：创建类型变量，入栈，递归推断 body，出栈 */
-            if (!term->data.abs.body)
-                return NULL;
-
-            /* 为 binder 创建类型变量 */
-            TypeRegion *binder_type = type_create_variable(ctx->ts, "_abs_binder");
-            if (!binder_type)
-                return NULL;
-
-            if (!lambda_type_check_push(ctx, binder_type)) {
-                return NULL;
-            }
-
-            /* 递归推断 body 的类型 */
-            TypeRegion *body_type = lambda_type_infer(term->data.abs.body, ctx);
-
-            lambda_type_check_pop(ctx);
-
-            if (!body_type)
-                return NULL;
-
-            /* 创建函数类型 binder_type → body_type */
-            return type_create_function(ctx->ts, binder_type, body_type);
-        }
-
-        case LV_LAMBDA_APP: {
-            /* App：推断 left/right 类型，检查 left 为函数类型 */
-            if (!term->data.app.left || !term->data.app.right)
-                return NULL;
-
-            TypeRegion *left_type = lambda_type_infer(term->data.app.left, ctx);
-            if (!left_type)
-                return NULL;
-
-            TypeRegion *right_type = lambda_type_infer(term->data.app.right, ctx);
-            if (!right_type)
-                return NULL;
-
-            /* left_type 必须是函数类型 */
-            if (left_type->kind != TYPE_KIND_FUNCTION)
-                return NULL;
-
-            /* 检查 left 的输入类型与 right 的类型是否等价 */
-            TypeEquivResult equiv =
-                type_check_equivalence(ctx->ts, left_type->input_type, right_type, false);
-            if (equiv != TYPE_EQUIV_OK)
-                return NULL;
-
-            return left_type->output_type;
-        }
-
-        default:
-            return NULL;
+    if (term->type >= 0 && term->type <= LV_LAMBDA_APP) {
+        InferHandler handler = infer_table[term->type];
+        if (handler)
+            return handler(term, ctx);
     }
+
+    return NULL;
 }
 
 /* ── 便捷函数 ── */

@@ -32,10 +32,10 @@
 ### 23.2.2 版本管理
 
 ```c
-#define lv_VERSION_MAJOR 5
-#define lv_VERSION_MINOR 0
+#define lv_VERSION_MAJOR 1
+#define lv_VERSION_MINOR 1
 #define lv_VERSION_PATCH 0
-#define lv_VERSION_STRING "5.0.0"
+#define lv_VERSION_STRING "1.1.0"
 ```
 
 **版本 API**：

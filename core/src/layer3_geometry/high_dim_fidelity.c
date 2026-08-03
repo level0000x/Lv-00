@@ -101,18 +101,19 @@ int high_dim_calculate_fidelity(HighDimManager *manager, int block_id, const Con
              * - CONTAINMENT（包含）：需要2个可见维度（内外判定）
              * - CONNECTION（连接）：端口连接，需要1个可见维度
              */
+            static const int kConstraintRequiredDims[] = {
+                1,  /* INCIDENCE */
+                2,  /* BETWEENNESS */
+                2,  /* INTERSECTION */
+                2,  /* CONTAINMENT */
+                1,  /* CONNECTION */
+                2   /* ANGLE */
+            };
+            static const int kConstraintRequiredDimsCount =
+                (int)(sizeof(kConstraintRequiredDims) / sizeof(kConstraintRequiredDims[0]));
             int required_dims = 1;
-            switch (c->type) {
-                case INCIDENCE:
-                case CONNECTION:
-                    required_dims = 1;
-                    break;
-                case BETWEENNESS:
-                case INTERSECTION:
-                case CONTAINMENT:
-                case ANGLE:
-                    required_dims = 2;
-                    break;
+            if (c->type >= 0 && c->type < kConstraintRequiredDimsCount) {
+                required_dims = kConstraintRequiredDims[(int)c->type];
             }
 
             /* 如果可见维度数满足该约束类型的要求，则视为可见 */

@@ -89,6 +89,197 @@ static bool segments_intersect(const GeomNode *seg_a, const GeomNode *seg_b) {
  *  增量代数冲突检测
  * ================================================================ */
 
+/* ── 冲突检测函数（文件作用域，用于查找表） ── */
+typedef bool (*ConflictCheckFn)(const ConstraintGraph *graph, const Constraint *new_constraint);
+
+static bool check_conflict_incidence(const ConstraintGraph *graph, const Constraint *new_constraint) {
+    /* 点不应已被约束在两条不相交线上（这在2D中会过度约束） */
+    int point_id = new_constraint->participants[0];
+    int line_id = new_constraint->participants[1];
+    int incident_count = 0;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (c->type != INCIDENCE)
+            continue;
+        if (c->participants[0] == point_id && c->participants[1] != line_id) {
+            incident_count++;
+        }
+    }
+    /* 在2D中，点在2条不同线上是可以的（构成交点）
+     * 但3条或更多条线且没有相交约束则是冲突 */
+    if (incident_count >= 2) {
+        /* 检查是否有任意一对关联线之间有 INTERSECTION 约束 */
+        /* v3.4.2: 使用动态分配替代固定大小数组，避免缓冲区溢出风险 */
+        int *lines = NULL;
+        int line_count = 0;
+        int lines_capacity = 8; /* 初始容量 */
+
+        lines = (int *) lv_malloc(sizeof(int) * lines_capacity);
+        if (!lines) {
+            lv_LOG_ERROR("check_incremental_conflict: 内存分配失败");
+            return false; /* 内存不足，保守返回无冲突 */
+        }
+
+        for (int i = 0; i < graph->constraint_count; i++) {
+            Constraint *c = graph->constraints[i];
+            if (c->type == INCIDENCE && c->participants[0] == point_id) {
+                /* v3.4.2: 动态扩容 */
+                if (line_count >= lines_capacity) {
+                    int new_cap = lines_capacity * 2;
+                    if (new_cap < lines_capacity) { /* 溢出检查 */
+                        lv_free((void **) &lines);
+                        return false;
+                    }
+                    int *new_lines = (int *) lv_realloc(lines, sizeof(int) * new_cap);
+                    if (!new_lines) {
+                        lv_free((void **) &lines);
+                        return false;
+                    }
+                    lines = new_lines;
+                    lines_capacity = new_cap;
+                }
+                lines[line_count++] = c->participants[1];
+            }
+        }
+        /* 包含新添加的线 */
+        if (line_count >= lines_capacity) {
+            int new_cap = lines_capacity * 2;
+            if (new_cap < lines_capacity) {
+                lv_free((void **) &lines);
+                return false;
+            }
+            int *new_lines = (int *) lv_realloc(lines, sizeof(int) * new_cap);
+            if (!new_lines) {
+                lv_free((void **) &lines);
+                return false;
+            }
+            lines = new_lines;
+            lines_capacity = new_cap;
+        }
+        lines[line_count++] = line_id;
+
+        /* 检查所有线对的相交约束 */
+        bool conflict_found = false;
+        for (int a = 0; a < line_count && !conflict_found; a++) {
+            for (int b = a + 1; b < line_count && !conflict_found; b++) {
+                bool has_intersection = false;
+                for (int i = 0; i < graph->constraint_count; i++) {
+                    Constraint *c = graph->constraints[i];
+                    if (c->type == INTERSECTION && c->participant_count == 3) {
+                        if ((c->participants[0] == lines[a] && c->participants[1] == lines[b]) ||
+                            (c->participants[0] == lines[b] && c->participants[1] == lines[a])) {
+                            has_intersection = true;
+                            break;
+                        }
+                    }
+                }
+                if (!has_intersection) {
+                    /* 两条线共点但没有相交约束 - 如果线平行则是潜在冲突 */
+                    conflict_found = true;
+                }
+            }
+        }
+
+        /* v3.4.2: 释放动态分配的数组 */
+        lv_free((void **) &lines);
+
+        if (conflict_found) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool check_conflict_betweenness(const ConstraintGraph *graph, const Constraint *new_constraint) {
+    /* 检查三个点是否已被约束为非共线（如，各自位于不同线上） */
+    int p1 = new_constraint->participants[0];
+    int p2 = new_constraint->participants[1];
+    int p3 = new_constraint->participants[2];
+
+    /* 收集每个点所在的线 */
+    int p1_lines[64], p1_lc = 0;
+    int p2_lines[64], p2_lc = 0;
+    int p3_lines[64], p3_lc = 0;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (c->type != INCIDENCE)
+            continue;
+        int pid = c->participants[0], lid = c->participants[1];
+        if (pid == p1 && p1_lc < 64)
+            p1_lines[p1_lc++] = lid;
+        if (pid == p2 && p2_lc < 64)
+            p2_lines[p2_lc++] = lid;
+        if (pid == p3 && p3_lc < 64)
+            p3_lines[p3_lc++] = lid;
+    }
+    /* 如果没有两个点共享一条线，则它们不可能共线 */
+    bool any_shared = false;
+    for (int i = 0; i < p1_lc && !any_shared; i++) {
+        for (int j = 0; j < p2_lc && !any_shared; j++) {
+            if (p1_lines[i] == p2_lines[j])
+                any_shared = true;
+        }
+    }
+    if (!any_shared) {
+        for (int i = 0; i < p2_lc && !any_shared; i++) {
+            for (int j = 0; j < p3_lc && !any_shared; j++) {
+                if (p2_lines[i] == p3_lines[j])
+                    any_shared = true;
+            }
+        }
+    }
+    if (!any_shared) {
+        for (int i = 0; i < p1_lc && !any_shared; i++) {
+            for (int j = 0; j < p3_lc && !any_shared; j++) {
+                if (p1_lines[i] == p3_lines[j])
+                    any_shared = true;
+            }
+        }
+    }
+    if (!any_shared)
+        return true; /* 冲突：不可能共线 */
+    return false;
+}
+
+static bool check_conflict_intersection(const ConstraintGraph *graph, const Constraint *new_constraint) {
+    /* Check if the two lines are already known to be parallel
+     * (no intersection possible). For now, we check if there's
+     * already an INTERSECTION constraint for the same pair with
+     * a different result point. */
+    int l1 = new_constraint->participants[0];
+    int l2 = new_constraint->participants[1];
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (c->type == INTERSECTION && c->participant_count == 3) {
+            if ((c->participants[0] == l1 && c->participants[1] == l2) ||
+                (c->participants[0] == l2 && c->participants[1] == l1)) {
+                /* Already have an intersection for this pair */
+                if (c->participants[2] != new_constraint->participants[2]) {
+                    return true; /* Different result point = conflict */
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool check_conflict_none(const ConstraintGraph *graph, const Constraint *new_constraint) {
+    (void)graph; (void)new_constraint;
+    /* No simple algebraic conflict check for these types */
+    return false;
+}
+
+static const ConflictCheckFn kConflictCheckTable[] = {
+    check_conflict_incidence,    /* INCIDENCE */
+    check_conflict_betweenness,  /* BETWEENNESS */
+    check_conflict_intersection, /* INTERSECTION */
+    check_conflict_none,         /* CONTAINMENT */
+    check_conflict_none,         /* CONNECTION */
+    check_conflict_none          /* ANGLE */
+};
+static const int kConflictCheckTableCount =
+    (int)(sizeof(kConflictCheckTable) / sizeof(kConflictCheckTable[0]));
+
 /**
  * 检查新约束是否与现有约束代数冲突。
  *
@@ -107,186 +298,12 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
     if (!graph || !new_constraint)
         return false;
 
-    switch (new_constraint->type) {
-        case INCIDENCE: {
-            /* 点不应已被约束在两条不相交线上（这在2D中会过度约束） */
-            int point_id = new_constraint->participants[0];
-            int line_id = new_constraint->participants[1];
-            int incident_count = 0;
-            for (int i = 0; i < graph->constraint_count; i++) {
-                Constraint *c = graph->constraints[i];
-                if (c->type != INCIDENCE)
-                    continue;
-                if (c->participants[0] == point_id && c->participants[1] != line_id) {
-                    incident_count++;
-                }
-            }
-            /* 在2D中，点在2条不同线上是可以的（构成交点）
-         * 但3条或更多条线且没有相交约束则是冲突 */
-            if (incident_count >= 2) {
-                /* 检查是否有任意一对关联线之间有 INTERSECTION 约束 */
-                /* v3.4.2: 使用动态分配替代固定大小数组，避免缓冲区溢出风险 */
-                int *lines = NULL;
-                int line_count = 0;
-                int lines_capacity = 8; /* 初始容量 */
-
-                lines = (int *) lv_malloc(sizeof(int) * lines_capacity);
-                if (!lines) {
-                    lv_LOG_ERROR("check_incremental_conflict: 内存分配失败");
-                    return false; /* 内存不足，保守返回无冲突 */
-                }
-
-                for (int i = 0; i < graph->constraint_count; i++) {
-                    Constraint *c = graph->constraints[i];
-                    if (c->type == INCIDENCE && c->participants[0] == point_id) {
-                        /* v3.4.2: 动态扩容 */
-                        if (line_count >= lines_capacity) {
-                            int new_cap = lines_capacity * 2;
-                            if (new_cap < lines_capacity) { /* 溢出检查 */
-                                lv_free((void **) &lines);
-                                return false;
-                            }
-                            int *new_lines = (int *) lv_realloc(lines, sizeof(int) * new_cap);
-                            if (!new_lines) {
-                                lv_free((void **) &lines);
-                                return false;
-                            }
-                            lines = new_lines;
-                            lines_capacity = new_cap;
-                        }
-                        lines[line_count++] = c->participants[1];
-                    }
-                }
-                /* 包含新添加的线 */
-                if (line_count >= lines_capacity) {
-                    int new_cap = lines_capacity * 2;
-                    if (new_cap < lines_capacity) {
-                        lv_free((void **) &lines);
-                        return false;
-                    }
-                    int *new_lines = (int *) lv_realloc(lines, sizeof(int) * new_cap);
-                    if (!new_lines) {
-                        lv_free((void **) &lines);
-                        return false;
-                    }
-                    lines = new_lines;
-                    lines_capacity = new_cap;
-                }
-                lines[line_count++] = line_id;
-
-                /* 检查所有线对的相交约束 */
-                bool conflict_found = false;
-                for (int a = 0; a < line_count && !conflict_found; a++) {
-                    for (int b = a + 1; b < line_count && !conflict_found; b++) {
-                        bool has_intersection = false;
-                        for (int i = 0; i < graph->constraint_count; i++) {
-                            Constraint *c = graph->constraints[i];
-                            if (c->type == INTERSECTION && c->participant_count == 3) {
-                                if ((c->participants[0] == lines[a] && c->participants[1] == lines[b]) ||
-                                    (c->participants[0] == lines[b] && c->participants[1] == lines[a])) {
-                                    has_intersection = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!has_intersection) {
-                            /* 两条线共点但没有相交约束 - 如果线平行则是潜在冲突 */
-                            conflict_found = true;
-                        }
-                    }
-                }
-
-                /* v3.4.2: 释放动态分配的数组 */
-                lv_free((void **) &lines);
-
-                if (conflict_found) {
-                    return true;
-                }
-            }
-            break;
-        }
-        case BETWEENNESS: {
-            /* 检查三个点是否已被约束为非共线（如，各自位于不同线上） */
-            int p1 = new_constraint->participants[0];
-            int p2 = new_constraint->participants[1];
-            int p3 = new_constraint->participants[2];
-
-            /* 收集每个点所在的线 */
-            int p1_lines[64], p1_lc = 0;
-            int p2_lines[64], p2_lc = 0;
-            int p3_lines[64], p3_lc = 0;
-            for (int i = 0; i < graph->constraint_count; i++) {
-                Constraint *c = graph->constraints[i];
-                if (c->type != INCIDENCE)
-                    continue;
-                int pid = c->participants[0], lid = c->participants[1];
-                if (pid == p1 && p1_lc < 64)
-                    p1_lines[p1_lc++] = lid;
-                if (pid == p2 && p2_lc < 64)
-                    p2_lines[p2_lc++] = lid;
-                if (pid == p3 && p3_lc < 64)
-                    p3_lines[p3_lc++] = lid;
-            }
-            /* 如果没有两个点共享一条线，则它们不可能共线 */
-            bool any_shared = false;
-            for (int i = 0; i < p1_lc && !any_shared; i++) {
-                for (int j = 0; j < p2_lc && !any_shared; j++) {
-                    if (p1_lines[i] == p2_lines[j])
-                        any_shared = true;
-                }
-            }
-            if (!any_shared) {
-                for (int i = 0; i < p2_lc && !any_shared; i++) {
-                    for (int j = 0; j < p3_lc && !any_shared; j++) {
-                        if (p2_lines[i] == p3_lines[j])
-                            any_shared = true;
-                    }
-                }
-            }
-            if (!any_shared) {
-                for (int i = 0; i < p1_lc && !any_shared; i++) {
-                    for (int j = 0; j < p3_lc && !any_shared; j++) {
-                        if (p1_lines[i] == p3_lines[j])
-                            any_shared = true;
-                    }
-                }
-            }
-            if (!any_shared)
-                return true; /* 冲突：不可能共线 */
-            break;
-        }
-        case INTERSECTION: {
-            /* Check if the two lines are already known to be parallel
-         * (no intersection possible). For now, we check if there's
-         * already an INTERSECTION constraint for the same pair with
-         * a different result point. */
-            int l1 = new_constraint->participants[0];
-            int l2 = new_constraint->participants[1];
-            for (int i = 0; i < graph->constraint_count; i++) {
-                Constraint *c = graph->constraints[i];
-                if (c->type == INTERSECTION && c->participant_count == 3) {
-                    if ((c->participants[0] == l1 && c->participants[1] == l2) ||
-                        (c->participants[0] == l2 && c->participants[1] == l1)) {
-                        /* Already have an intersection for this pair */
-                        if (c->participants[2] != new_constraint->participants[2]) {
-                            return true; /* Different result point = conflict */
-                        }
-                    }
-                }
-            }
-            break;
-        }
-        case CONTAINMENT:
-        case CONNECTION:
-        case ANGLE:
-            /* No simple algebraic conflict check for these types */
-            break;
-        default:
-            /* v3.5.0: 未知约束类型，记录错误 */
-            lv_set_error(lv_ERROR_UNKNOWN, "check_incremental_conflict: 未知约束类型 %d (constraint id=%d)",
-                         (int) new_constraint->type, new_constraint->id);
-            break;
+    if (new_constraint->type >= 0 && new_constraint->type < kConflictCheckTableCount) {
+        return kConflictCheckTable[(int)new_constraint->type](graph, new_constraint);
     }
+    /* v3.5.0: 未知约束类型，记录错误 */
+    lv_set_error(lv_ERROR_UNKNOWN, "check_incremental_conflict: 未知约束类型 %d (constraint id=%d)",
+                 (int) new_constraint->type, new_constraint->id);
     return false;
 }
 
@@ -484,20 +501,21 @@ static bool graph_segments_have_same_endpoints(const GeomNode *a, const GeomNode
 static int constraint_dof_cost(const Constraint *con) {
     if (!con)
         return 0;
-    switch (con->type) {
-        case INCIDENCE:    /* 关联约束：点在线段/区域上 */
-        case BETWEENNESS:  /* 之间约束：三点共线有序 */
-        case INTERSECTION: /* 相交约束：两线交于一点 */
-        case CONTAINMENT:  /* 包含约束：对象在另一对象内 */
-            return 1;
-        case CONNECTION: /* 连接约束：数据流连接，非几何约束 */
-            return 0;
-        case ANGLE:      /* 角度约束：两条线段之间的夹角 */
-            return 1;
-        default:
-            /* 未知约束类型：保守按 1 DOF 消耗计 */
-            return 1;
+    static const int kConstraintDofCost[] = {
+        1,  /* INCIDENCE */
+        1,  /* BETWEENNESS */
+        1,  /* INTERSECTION */
+        1,  /* CONTAINMENT */
+        0,  /* CONNECTION */
+        1   /* ANGLE */
+    };
+    static const int kConstraintDofCostCount =
+        (int)(sizeof(kConstraintDofCost) / sizeof(kConstraintDofCost[0]));
+    if (con->type >= 0 && con->type < kConstraintDofCostCount) {
+        return kConstraintDofCost[(int)con->type];
     }
+    /* 未知约束类型：保守按 1 DOF 消耗计 */
+    return 1;
 }
 
 bool graph_check_compatibility(const ConstraintGraph *graph, lvConstraintCompatibilityResult *out_result) {

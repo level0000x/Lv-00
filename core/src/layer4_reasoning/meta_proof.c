@@ -213,6 +213,59 @@ static bool is_point_between_segment(double ax, double ay, double bx, double by,
  * @param obj_id 几何对象节点 ID
  * @return true 候选点在对象上，false 不在或无法判定
  */
+/* ── check_point_on_object 处理器 ── */
+typedef bool (*PointOnObjHandler)(const ConstraintGraph *graph, double px, double py, int obj_id, const GeomNode *obj);
+
+static bool point_on_point(const ConstraintGraph *graph, double px, double py, int obj_id, const GeomNode *obj) {
+    (void)graph; (void)obj_id;
+    if (!obj->symbolic_coords || obj->coord_count < 2) return false;
+    double ox = symbolic_coord_to_double(obj->symbolic_coords[0]);
+    double oy = symbolic_coord_to_double(obj->symbolic_coords[1]);
+    return fabs(px - ox) <= META_PROOF_GEOM_EPS && fabs(py - oy) <= META_PROOF_GEOM_EPS;
+}
+
+static bool point_on_line_segment(const ConstraintGraph *graph, double px, double py, int obj_id, const GeomNode *obj) {
+    (void)obj;
+    double ep[2][2];
+    int ep_count = 0;
+    for (int i = 0; i < graph->constraint_count && ep_count < 2; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c || !c->is_active || c->type != INCIDENCE || c->participant_count != 2) continue;
+        if (c->participants[1] != obj_id) continue;
+        double ex, ey;
+        if (!graph_node_coords(graph, c->participants[0], &ex, &ey)) continue;
+        bool dup = false;
+        for (int k = 0; k < ep_count; k++) {
+            if (fabs(ep[k][0] - ex) <= META_PROOF_GEOM_EPS && fabs(ep[k][1] - ey) <= META_PROOF_GEOM_EPS) {
+                dup = true; break;
+            }
+        }
+        if (!dup) { ep[ep_count][0] = ex; ep[ep_count][1] = ey; ep_count++; }
+    }
+    if (ep_count < 2) return false;
+    return is_point_between_segment(ep[0][0], ep[0][1], px, py, ep[1][0], ep[1][1]);
+}
+
+static bool point_on_circle(const ConstraintGraph *graph, double px, double py, int obj_id, const GeomNode *obj) {
+    (void)obj_id;
+    double ox, oy, rx, ry;
+    if (!graph_node_coords(graph, obj->data.circle.center_node_id, &ox, &oy)) return false;
+    if (!graph_node_coords(graph, obj->data.circle.radius_node_id, &rx, &ry)) return false;
+    double radius = sqrt((rx - ox) * (rx - ox) + (ry - oy) * (ry - oy));
+    double dist = sqrt((px - ox) * (px - ox) + (py - oy) * (py - oy));
+    return fabs(dist - radius) <= META_PROOF_GEOM_EPS;
+}
+
+static bool point_on_default(const ConstraintGraph *graph, double px, double py, int obj_id, const GeomNode *obj) {
+    (void)graph; (void)px; (void)py; (void)obj_id; (void)obj; return false;
+}
+
+static const PointOnObjHandler point_on_obj_table[] = {
+    [GEOM_POINT]        = point_on_point,
+    [GEOM_LINE_SEGMENT] = point_on_line_segment,
+    [GEOM_CIRCLE]       = point_on_circle,
+};
+
 static bool check_point_on_object(const ConstraintGraph *graph, double px, double py, int obj_id) {
     GeomNode *obj = NULL;
     for (int i = 0; i < graph->node_count; i++) {
@@ -221,65 +274,91 @@ static bool check_point_on_object(const ConstraintGraph *graph, double px, doubl
             break;
         }
     }
-    if (!obj || !obj->is_active)
-        return false;
-
-    switch (obj->type) {
-        case GEOM_POINT: {
-            if (!obj->symbolic_coords || obj->coord_count < 2)
-                return false;
-            double ox = symbolic_coord_to_double(obj->symbolic_coords[0]);
-            double oy = symbolic_coord_to_double(obj->symbolic_coords[1]);
-            return fabs(px - ox) <= META_PROOF_GEOM_EPS && fabs(py - oy) <= META_PROOF_GEOM_EPS;
-        }
-
-        case GEOM_LINE_SEGMENT: {
-            /* 通过 INCIDENCE(point, segment) 约束收集两个端点 */
-            double ep[2][2];
-            int ep_count = 0;
-            for (int i = 0; i < graph->constraint_count && ep_count < 2; i++) {
-                Constraint *c = graph->constraints[i];
-                if (!c || !c->is_active || c->type != INCIDENCE || c->participant_count != 2)
-                    continue;
-                if (c->participants[1] != obj_id)
-                    continue;
-                double ex, ey;
-                if (!graph_node_coords(graph, c->participants[0], &ex, &ey))
-                    continue;
-                bool dup = false;
-                for (int k = 0; k < ep_count; k++) {
-                    if (fabs(ep[k][0] - ex) <= META_PROOF_GEOM_EPS && fabs(ep[k][1] - ey) <= META_PROOF_GEOM_EPS) {
-                        dup = true;
-                        break;
-                    }
-                }
-                if (!dup) {
-                    ep[ep_count][0] = ex;
-                    ep[ep_count][1] = ey;
-                    ep_count++;
-                }
-            }
-            if (ep_count < 2)
-                return false; /* 端点信息不足，不做判定 */
-            return is_point_between_segment(ep[0][0], ep[0][1], px, py, ep[1][0], ep[1][1]);
-        }
-
-        case GEOM_CIRCLE: {
-            double ox, oy, rx, ry;
-            if (!graph_node_coords(graph, obj->data.circle.center_node_id, &ox, &oy))
-                return false;
-            if (!graph_node_coords(graph, obj->data.circle.radius_node_id, &rx, &ry))
-                return false;
-            double radius = sqrt((rx - ox) * (rx - ox) + (ry - oy) * (ry - oy));
-            double dist = sqrt((px - ox) * (px - ox) + (py - oy) * (py - oy));
-            return fabs(dist - radius) <= META_PROOF_GEOM_EPS;
-        }
-
-        default:
-            /* 区域/端口/函数块等不做坐标级判定 */
-            return false;
-    }
+    if (!obj || !obj->is_active) return false;
+    PointOnObjHandler h = ((unsigned)obj->type < sizeof(point_on_obj_table)/sizeof(point_on_obj_table[0]))
+                          ? point_on_obj_table[obj->type] : NULL;
+    return h ? h(graph, px, py, obj_id, obj) : point_on_default(graph, px, py, obj_id, obj);
 }
+
+/* ── constraint_eval_contradiction 查找表 ── */
+typedef bool (*ConEvalHandler)(const ConstraintGraph *graph, int node_id, double cx, double cy, int con_id, const Constraint *con, const SymbolicCoord *candidate);
+
+static bool eval_incidence(const ConstraintGraph *graph, int node_id, double cx, double cy, int con_id, const Constraint *con, const SymbolicCoord *candidate) {
+    (void)cx; (void)cy; (void)con; return check_incidence_contradiction(graph, node_id, candidate, con_id);
+}
+
+static bool eval_betweenness(const ConstraintGraph *graph, int node_id, double cx, double cy, int con_id, const Constraint *con, const SymbolicCoord *candidate) {
+    (void)con_id; (void)candidate;
+    if (con->participant_count != 3) return false;
+    int pa = con->participants[0], pb = con->participants[1], pc = con->participants[2];
+    double ax, ay, bx, by, ccx, ccy;
+    if (node_id == pb) {
+        if (!graph_node_coords(graph, pa, &ax, &ay)) return false;
+        if (!graph_node_coords(graph, pc, &ccx, &ccy)) return false;
+        bx = cx; by = cy;
+    } else if (node_id == pa) {
+        if (!graph_node_coords(graph, pb, &bx, &by)) return false;
+        if (!graph_node_coords(graph, pc, &ccx, &ccy)) return false;
+        ax = cx; ay = cy;
+    } else if (node_id == pc) {
+        if (!graph_node_coords(graph, pa, &ax, &ay)) return false;
+        if (!graph_node_coords(graph, pb, &bx, &by)) return false;
+        ccx = cx; ccy = cy;
+    } else { return false; }
+    return !is_point_between_segment(ax, ay, bx, by, ccx, ccy);
+}
+
+static bool eval_intersection(const ConstraintGraph *graph, int node_id, double cx, double cy, int con_id, const Constraint *con, const SymbolicCoord *candidate) {
+    (void)con_id; (void)candidate;
+    if (con->participant_count != 3) return false;
+    if (node_id != con->participants[2]) return false;
+    if (!check_point_on_object(graph, cx, cy, con->participants[0])) return true;
+    if (!check_point_on_object(graph, cx, cy, con->participants[1])) return true;
+    return false;
+}
+
+static bool eval_containment(const ConstraintGraph *graph, int node_id, double cx, double cy, int con_id, const Constraint *con, const SymbolicCoord *candidate) {
+    (void)con_id; (void)candidate;
+    if (con->participant_count != 2) return false;
+    if (node_id != con->participants[0]) return false;
+    return !check_point_on_object(graph, cx, cy, con->participants[1]);
+}
+
+static bool eval_angle(const ConstraintGraph *graph, int node_id, double cx, double cy, int con_id, const Constraint *con, const SymbolicCoord *candidate) {
+    (void)con_id; (void)candidate;
+    if (con->participant_count != 3) return false;
+    int pv = con->participants[0], p1 = con->participants[1], p2 = con->participants[2];
+    double vx, vy, x1, y1, x2, y2;
+    if (node_id == pv) {
+        vx = cx; vy = cy;
+        if (!graph_node_coords(graph, p1, &x1, &y1)) return false;
+        if (!graph_node_coords(graph, p2, &x2, &y2)) return false;
+    } else if (node_id == p1) {
+        if (!graph_node_coords(graph, pv, &vx, &vy)) return false;
+        x1 = cx; y1 = cy;
+        if (!graph_node_coords(graph, p2, &x2, &y2)) return false;
+    } else if (node_id == p2) {
+        if (!graph_node_coords(graph, pv, &vx, &vy)) return false;
+        if (!graph_node_coords(graph, p1, &x1, &y1)) return false;
+        x2 = cx; y2 = cy;
+    } else { return false; }
+    double measured = compute_angle_degrees(vx, vy, x1, y1, x2, y2);
+    if (measured < 0.0) return false;
+    return fabs(measured - con->numeric_value) > META_PROOF_ANGLE_EPS;
+}
+
+static bool eval_default(const ConstraintGraph *graph, int node_id, double cx, double cy, int con_id, const Constraint *con, const SymbolicCoord *candidate) {
+    (void)graph; (void)node_id; (void)cx; (void)cy; (void)con_id; (void)con; (void)candidate; return false;
+}
+
+static const ConEvalHandler con_eval_table[] = {
+    [INCIDENCE]    = eval_incidence,
+    [BETWEENNESS]  = eval_betweenness,
+    [INTERSECTION] = eval_intersection,
+    [CONTAINMENT]  = eval_containment,
+    [ANGLE]        = eval_angle,
+    [CONNECTION]   = eval_default,
+};
 
 /**
  * @brief 约束求值：判断候选坐标是否与指定约束产生矛盾
@@ -316,113 +395,9 @@ static bool constraint_eval_contradiction(const ConstraintGraph *graph, int node
     double cx = symbolic_coord_to_double(candidate);
     double cy = symbolic_coord_to_double(candidate + 1);
 
-    switch (con->type) {
-        case INCIDENCE:
-            /* 关联约束：候选点必须位于目标对象上 */
-            return check_incidence_contradiction(graph, node_id, candidate, con_id);
-
-        case BETWEENNESS: {
-            /* BETWEENNESS(A, B, C)：B 必须位于 A 与 C 之间 */
-            if (con->participant_count != 3)
-                return false;
-            int pa = con->participants[0];
-            int pb = con->participants[1];
-            int pc = con->participants[2];
-            double ax, ay, bx, by, ccx, ccy;
-            if (node_id == pb) {
-                if (!graph_node_coords(graph, pa, &ax, &ay))
-                    return false;
-                if (!graph_node_coords(graph, pc, &ccx, &ccy))
-                    return false;
-                bx = cx;
-                by = cy;
-            } else if (node_id == pa) {
-                if (!graph_node_coords(graph, pb, &bx, &by))
-                    return false;
-                if (!graph_node_coords(graph, pc, &ccx, &ccy))
-                    return false;
-                ax = cx;
-                ay = cy;
-            } else if (node_id == pc) {
-                if (!graph_node_coords(graph, pa, &ax, &ay))
-                    return false;
-                if (!graph_node_coords(graph, pb, &bx, &by))
-                    return false;
-                ccx = cx;
-                ccy = cy;
-            } else {
-                return false; /* 约束不涉及该节点 */
-            }
-            /* 候选不满足“位于两点之间”→ 矛盾 */
-            return !is_point_between_segment(ax, ay, bx, by, ccx, ccy);
-        }
-
-        case INTERSECTION: {
-            /* INTERSECTION(obj1, obj2, point)：交点必须同时位于两个对象上 */
-            if (con->participant_count != 3)
-                return false;
-            if (node_id != con->participants[2])
-                return false;
-            if (!check_point_on_object(graph, cx, cy, con->participants[0]))
-                return true;
-            if (!check_point_on_object(graph, cx, cy, con->participants[1]))
-                return true;
-            return false;
-        }
-
-        case CONTAINMENT: {
-            /* CONTAINMENT(inner, outer)：内对象必须位于外对象内 */
-            if (con->participant_count != 2)
-                return false;
-            if (node_id != con->participants[0])
-                return false;
-            return !check_point_on_object(graph, cx, cy, con->participants[1]);
-        }
-
-        case ANGLE: {
-            /* ANGLE(vertex, arm1, arm2) = numeric_value（度） */
-            if (con->participant_count != 3)
-                return false;
-            int pv = con->participants[0];
-            int p1 = con->participants[1];
-            int p2 = con->participants[2];
-            double vx, vy, x1, y1, x2, y2;
-            if (node_id == pv) {
-                vx = cx;
-                vy = cy;
-                if (!graph_node_coords(graph, p1, &x1, &y1))
-                    return false;
-                if (!graph_node_coords(graph, p2, &x2, &y2))
-                    return false;
-            } else if (node_id == p1) {
-                if (!graph_node_coords(graph, pv, &vx, &vy))
-                    return false;
-                x1 = cx;
-                y1 = cy;
-                if (!graph_node_coords(graph, p2, &x2, &y2))
-                    return false;
-            } else if (node_id == p2) {
-                if (!graph_node_coords(graph, pv, &vx, &vy))
-                    return false;
-                if (!graph_node_coords(graph, p1, &x1, &y1))
-                    return false;
-                x2 = cx;
-                y2 = cy;
-            } else {
-                return false;
-            }
-            double measured = compute_angle_degrees(vx, vy, x1, y1, x2, y2);
-            if (measured < 0.0)
-                return false; /* 向量退化，无法判定 */
-            /* 实测角度与约束值偏差超过容差 → 矛盾 */
-            return fabs(measured - con->numeric_value) > META_PROOF_ANGLE_EPS;
-        }
-
-        case CONNECTION:
-        default:
-            /* 连接约束（端口数据流）与几何坐标无关，不产生矛盾 */
-            return false;
-    }
+    ConEvalHandler h = (con->type >= 0 && (size_t)con->type < sizeof(con_eval_table)/sizeof(con_eval_table[0]))
+                       ? con_eval_table[con->type] : NULL;
+    return h ? h(graph, node_id, cx, cy, con_id, con, candidate) : eval_default(graph, node_id, cx, cy, con_id, con, candidate);
 }
 
 /* ============================================================
@@ -789,21 +764,21 @@ void meta_proof_set_stream_context(MetaProofContext *ctx, StreamContext *stream_
         ctx->stream_ctx = stream_ctx;
 }
 
-void meta_proof_set_strategy_enabled(MetaProofContext *ctx, PruneStrategy strategy, bool enable) {
-    if (!ctx)
-        return;
+/* ── strategy_table 文件作用域处理器 ── */
+typedef void (*StrategySetter)(MetaProofContext *, bool);
+static void set_l1(MetaProofContext *c, bool e) { c->enable_l1 = e; }
+static void set_l2(MetaProofContext *c, bool e) { c->enable_l2 = e; }
+static void set_l3(MetaProofContext *c, bool e) { c->enable_l3 = e; }
+static const StrategySetter strategy_table[] = {
+    [PRUNE_DIRECT_CONTRADICTION]      = set_l1,
+    [PRUNE_PROPAGATION_CONTRADICTION] = set_l2,
+    [PRUNE_ALGEBRAIC_EXCLUSION]       = set_l3,
+};
 
-    switch (strategy) {
-        case PRUNE_DIRECT_CONTRADICTION:
-            ctx->enable_l1 = enable;
-            break;
-        case PRUNE_PROPAGATION_CONTRADICTION:
-            ctx->enable_l2 = enable;
-            break;
-        case PRUNE_ALGEBRAIC_EXCLUSION:
-            ctx->enable_l3 = enable;
-            break;
-    }
+void meta_proof_set_strategy_enabled(MetaProofContext *ctx, PruneStrategy strategy, bool enable) {
+    if (!ctx) return;
+    if ((unsigned)strategy < sizeof(strategy_table)/sizeof(strategy_table[0]) && strategy_table[strategy])
+        strategy_table[strategy](ctx, enable);
 }
 
 void meta_proof_set_max_propagation_steps(MetaProofContext *ctx, int max_steps) {

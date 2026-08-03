@@ -23,7 +23,62 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 
+/* ---- 约束类型 → TikZ 样式查找表 ---- */
+typedef struct {
+    const char *tikz_style;  /**< TikZ 绘制样式 */
+} ConstraintTikzEntry;
 
+static const ConstraintTikzEntry constraint_tikz_map[] = {
+    [INCIDENCE]   = { "constraint" },
+    [CONTAINMENT] = { "constraint, teal, densely dotted" },
+    [ANGLE]       = { "constraint, purple, densely dashed" },
+    [CONNECTION]  = { "connection" },
+};
+
+/* ---- 图例标志索引 ---- */
+enum {
+    LEGEND_POINT_IDX,
+    LEGEND_LINE_IDX,
+    LEGEND_REGION_IDX,
+    LEGEND_BLOCK_IDX,
+    LEGEND_PORT_IDX,
+    LEGEND_NODE_COUNT
+};
+
+static const int node_legend_idx_map[] = {
+    [GEOM_POINT]         = LEGEND_POINT_IDX,
+    [GEOM_LINE_SEGMENT]  = LEGEND_LINE_IDX,
+    [GEOM_REGION]        = LEGEND_REGION_IDX,
+    [GEOM_CIRCLE]        = LEGEND_REGION_IDX,
+    [GEOM_FUNCTION_BLOCK]= LEGEND_BLOCK_IDX,
+    [GEOM_PORT]          = LEGEND_PORT_IDX,
+};
+
+enum {
+    LEGEND_INCIDENCE_IDX,
+    LEGEND_BETWEENNESS_IDX,
+    LEGEND_INTERSECTION_IDX,
+    LEGEND_CONTAINMENT_IDX,
+    LEGEND_ANGLE_IDX,
+    LEGEND_CONNECTION_IDX,
+    LEGEND_CSTR_COUNT
+};
+
+static const int cstr_legend_idx_map[] = {
+    [INCIDENCE]    = LEGEND_INCIDENCE_IDX,
+    [BETWEENNESS]  = LEGEND_BETWEENNESS_IDX,
+    [INTERSECTION] = LEGEND_INTERSECTION_IDX,
+    [CONTAINMENT]  = LEGEND_CONTAINMENT_IDX,
+    [ANGLE]        = LEGEND_ANGLE_IDX,
+    [CONNECTION]   = LEGEND_CONNECTION_IDX,
+};
+
+/**
+ * @brief 将约束图导出为 TikZ 文档（完整 LaTeX 文档，含文档框架）
+ * @param graph  约束图指针
+ * @param config 导出配置
+ * @return lv_OK 成功，lv_ERROR_INVALID_PARAM 参数无效，lv_ERROR_IO 文件错误
+ */
 int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig *config) {
     if (!graph || !config)
         return lv_ERROR_INVALID_PARAM;
@@ -278,10 +333,6 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
         double y1 = symbolic_coord_to_double(p1->symbolic_coords[1]);
 
         switch (c->type) {
-            case INCIDENCE:
-                TIKZ_FRAG_PRINTF("    \\draw[constraint] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
-                break;
-
             case BETWEENNESS: {
                 double mx = (x0 + x1) / 2.0;
                 double my = (y0 + y1) / 2.0;
@@ -301,114 +352,47 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
                 TIKZ_FRAG_PRINTF("    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n", x0, y0);
                 break;
 
-            case CONTAINMENT:
-                TIKZ_FRAG_PRINTF(
-                    "    \\draw[constraint, teal, densely dotted] "
-                    "(%.2f, %.2f) -- (%.2f, %.2f);\n",
-                    x0, y0, x1, y1);
+            default: {
+                /* 使用查找表 */
+                const ConstraintTikzEntry *entry = &constraint_tikz_map[c->type];
+                TIKZ_FRAG_PRINTF("    \\draw[%s] (%.2f, %.2f) -- (%.2f, %.2f);\n",
+                                 entry->tikz_style, x0, y0, x1, y1);
                 break;
-
-            case ANGLE:
-                /* 角度约束：紫色虚线段 */
-                TIKZ_FRAG_PRINTF(
-                    "    \\draw[constraint, purple, densely dashed] "
-                    "(%.2f, %.2f) -- (%.2f, %.2f);\n",
-                    x0, y0, x1, y1);
-                break;
-
-            case CONNECTION:
-                TIKZ_FRAG_PRINTF("    \\draw[connection] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
-                break;
-
-            default:
-                break;
+            }
         }
     }
 
     /* ---- 图例（Legend） ---- */
     {
-        bool has_point = false, has_line = false, has_region = false;
-        bool has_block = false, has_port = false;
-        bool has_incidence = false, has_betweenness = false;
-        bool has_intersection = false, has_containment = false, has_angle = false;
-        bool has_connection = false;
+        bool has_node_legend[LEGEND_NODE_COUNT] = {false};
+        bool has_cstr_legend[LEGEND_CSTR_COUNT] = {false};
 
         for (int i = 0; i < graph->node_count; i++) {
             GeomNode *n = graph->nodes[i];
             if (!n)
                 continue;
-            switch (n->type) {
-                case GEOM_POINT:
-                    has_point = true;
-                    break;
-                case GEOM_LINE_SEGMENT:
-                    has_line = true;
-                    break;
-                case GEOM_REGION:
-                    has_region = true;
-                    break;
-                case GEOM_CIRCLE:
-                    has_region = true;
-                    break;
-                case GEOM_FUNCTION_BLOCK:
-                    has_block = true;
-                    break;
-                case GEOM_PORT:
-                    has_port = true;
-                    break;
-                default:
-                    break;
-            }
+            /* 使用查找表替代 switch */
+            if ((int)n->type >= 0 && (size_t)n->type < sizeof(node_legend_idx_map) / sizeof(node_legend_idx_map[0]))
+                has_node_legend[node_legend_idx_map[n->type]] = true;
         }
         for (int i = 0; i < graph->constraint_count; i++) {
             Constraint *c = graph->constraints[i];
             if (!c)
                 continue;
-            switch (c->type) {
-                case INCIDENCE:
-                    has_incidence = true;
-                    break;
-                case BETWEENNESS:
-                    has_betweenness = true;
-                    break;
-                case INTERSECTION:
-                    has_intersection = true;
-                    break;
-                case CONTAINMENT:
-                    has_containment = true;
-                    break;
-                case ANGLE:
-                    has_angle = true;
-                    break;
-                case CONNECTION:
-                    has_connection = true;
-                    break;
-                default:
-                    break;
-            }
+            /* 使用查找表替代 switch */
+            if ((int)c->type >= 0 && (size_t)c->type < sizeof(cstr_legend_idx_map) / sizeof(cstr_legend_idx_map[0]))
+                has_cstr_legend[cstr_legend_idx_map[c->type]] = true;
         }
 
         int legend_rows = 0;
-        if (has_point)
-            legend_rows++;
-        if (has_line)
-            legend_rows++;
-        if (has_region)
-            legend_rows++;
-        if (has_block)
-            legend_rows++;
-        if (has_port)
-            legend_rows++;
-        if (has_incidence)
-            legend_rows++;
-        if (has_betweenness)
-            legend_rows++;
-        if (has_intersection)
-            legend_rows++;
-        if (has_containment)
-            legend_rows++;
-        if (has_connection)
-            legend_rows++;
+        for (int i = 0; i < LEGEND_NODE_COUNT; i++) {
+            if (has_node_legend[i])
+                legend_rows++;
+        }
+        for (int i = 0; i < LEGEND_CSTR_COUNT; i++) {
+            if (has_cstr_legend[i])
+                legend_rows++;
+        }
 
         if (legend_rows > 0) {
             TIKZ_FRAG_PRINTF("\n    %% Legend\n");
@@ -419,43 +403,43 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
             TIKZ_FRAG_PRINTF("    at (current bounding box.south east) {\n");
 
             int row = 0;
-            if (has_point) {
+            if (has_node_legend[LEGEND_POINT_IDX]) {
                 TIKZ_FRAG_PRINTF("        \\node[point] {}; & \\node {Point}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_line) {
+            if (has_node_legend[LEGEND_LINE_IDX]) {
                 TIKZ_FRAG_PRINTF("        \\draw[line] (0,0) -- (0.5,0); & \\node {Line Segment}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_region) {
+            if (has_node_legend[LEGEND_REGION_IDX]) {
                 TIKZ_FRAG_PRINTF("        \\draw[region, fill=blue!20] (0,0) rectangle (0.5,0.3); & \\node {Region}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_block) {
+            if (has_node_legend[LEGEND_BLOCK_IDX]) {
                 TIKZ_FRAG_PRINTF(
                     "        \\node[block, minimum width=0.5cm, minimum height=0.3cm] {}; & \\node {Function Block}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_port) {
+            if (has_node_legend[LEGEND_PORT_IDX]) {
                 TIKZ_FRAG_PRINTF("        \\node[port] {}; & \\node {Port}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_incidence) {
+            if (has_cstr_legend[LEGEND_INCIDENCE_IDX]) {
                 TIKZ_FRAG_PRINTF("        \\draw[constraint] (0,0) -- (0.5,0); & \\node {Incidence}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_betweenness) {
+            if (has_cstr_legend[LEGEND_BETWEENNESS_IDX]) {
                 TIKZ_FRAG_PRINTF("        \\node[purple, font=\\itshape] {B}; & \\node {Betweenness}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_intersection) {
+            if (has_cstr_legend[LEGEND_INTERSECTION_IDX]) {
                 TIKZ_FRAG_PRINTF(
                     "        \\draw[constraint, purple] (0,0) -- (0.5,0); "
                     "\\node[circle, draw=purple, inner sep=0.5pt] at (0.25,0) {}; "
@@ -463,13 +447,13 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_containment) {
+            if (has_cstr_legend[LEGEND_CONTAINMENT_IDX]) {
                 TIKZ_FRAG_PRINTF(
                     "        \\draw[constraint, teal, densely dotted] (0,0) -- (0.5,0); & \\node {Containment}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");
             }
-            if (has_connection) {
+            if (has_cstr_legend[LEGEND_CONNECTION_IDX]) {
                 TIKZ_FRAG_PRINTF("        \\draw[connection] (0,0) -- (0.5,0); & \\node {Connection}; ");
                 if (++row < legend_rows)
                     TIKZ_FRAG_PRINTF("\\\\\n");

@@ -660,6 +660,167 @@ int bdd_reorder_sift(BDDManager *mgr) {
     return improved;
 }
 
+/* ── 辅助：根据节点 ID 查找 node_base_var 数组索引 ── */
+static int lookup_node_base_var(int node_id, int n, const int *node_base_var, const ConstraintGraph *graph) {
+    for (int j = 0; j < n; j++) {
+        if (graph->nodes[j] && graph->nodes[j]->id == node_id)
+            return node_base_var[j];
+    }
+    return -1;
+}
+
+/* ── BDD 编码辅助函数（文件作用域，用于查找表） ── */
+typedef BDDNode *(*BDDEncodeFn)(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph);
+
+static BDDNode *bdd_encode_incidence(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
+    (void)n;
+    if (con->participant_count >= 2) {
+        int p_id = con->participants[0];
+        int l_id = con->participants[1];
+        int p_var = (p_id >= 0) ? lookup_node_base_var(p_id, n, node_base_var, graph) : -1;
+        int l_var = (l_id >= 0) ? lookup_node_base_var(l_id, n, node_base_var, graph) : -1;
+        if (p_var >= 0 && l_var >= 0) {
+            BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
+            BDDNode *l_lit = bdd_literal(mgr, l_var + 1);
+            BDDNode *result = bdd_and(mgr, p_lit, l_lit);
+            bdd_deref(mgr, p_lit);
+            bdd_deref(mgr, l_lit);
+            return result;
+        }
+    }
+    return NULL;
+}
+
+static BDDNode *bdd_encode_betweenness(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
+    (void)n;
+    if (con->participant_count >= 3) {
+        int p1_var = (con->participants[0] >= 0) ? lookup_node_base_var(con->participants[0], n, node_base_var, graph) : -1;
+        int p2_var = (con->participants[1] >= 0) ? lookup_node_base_var(con->participants[1], n, node_base_var, graph) : -1;
+        int p3_var = (con->participants[2] >= 0) ? lookup_node_base_var(con->participants[2], n, node_base_var, graph) : -1;
+        if (p1_var >= 0 && p2_var >= 0 && p3_var >= 0) {
+            BDDNode *a = bdd_literal(mgr, p1_var + 1);
+            BDDNode *b = bdd_literal(mgr, p2_var + 1);
+            BDDNode *c = bdd_literal(mgr, p3_var + 1);
+            BDDNode *ab = bdd_and(mgr, a, b);
+            BDDNode *result = bdd_and(mgr, ab, c);
+            bdd_deref(mgr, a);
+            bdd_deref(mgr, b);
+            bdd_deref(mgr, c);
+            bdd_deref(mgr, ab);
+            return result;
+        }
+    }
+    return NULL;
+}
+
+static BDDNode *bdd_encode_intersection(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
+    (void)n;
+    if (con->participant_count >= 3) {
+        int l1_var = (con->participants[0] >= 0) ? lookup_node_base_var(con->participants[0], n, node_base_var, graph) : -1;
+        int l2_var = (con->participants[1] >= 0) ? lookup_node_base_var(con->participants[1], n, node_base_var, graph) : -1;
+        int p_var = (con->participants[2] >= 0) ? lookup_node_base_var(con->participants[2], n, node_base_var, graph) : -1;
+        if (l1_var >= 0 && l2_var >= 0 && p_var >= 0) {
+            BDDNode *l1_lit = bdd_literal(mgr, l1_var + 1);
+            BDDNode *l2_lit = bdd_literal(mgr, l2_var + 1);
+            BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
+            BDDNode *l_and = bdd_and(mgr, l1_lit, l2_lit);
+            BDDNode *result = bdd_and(mgr, l_and, p_lit);
+            bdd_deref(mgr, l1_lit);
+            bdd_deref(mgr, l2_lit);
+            bdd_deref(mgr, p_lit);
+            bdd_deref(mgr, l_and);
+            return result;
+        }
+    }
+    return NULL;
+}
+
+static BDDNode *bdd_encode_containment(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
+    (void)n;
+    if (con->participant_count >= 2) {
+        int r_var = (con->participants[0] >= 0) ? lookup_node_base_var(con->participants[0], n, node_base_var, graph) : -1;
+        int p_var = (con->participants[1] >= 0) ? lookup_node_base_var(con->participants[1], n, node_base_var, graph) : -1;
+        if (r_var >= 0 && p_var >= 0) {
+            BDDNode *r_lit = bdd_literal(mgr, r_var + 1);
+            BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
+            BDDNode *result = bdd_and(mgr, r_lit, p_lit);
+            bdd_deref(mgr, r_lit);
+            bdd_deref(mgr, p_lit);
+            return result;
+        }
+    }
+    return NULL;
+}
+
+static BDDNode *bdd_encode_angle(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
+    (void)n;
+    if (con->participant_count >= 2) {
+        int l1_id = con->participants[0];
+        int l2_id = con->participants[1];
+        int l1_var = (l1_id >= 0) ? lookup_node_base_var(l1_id, n, node_base_var, graph) : -1;
+        int l2_var = (l2_id >= 0) ? lookup_node_base_var(l2_id, n, node_base_var, graph) : -1;
+
+        int bucket_count = 1 << 8;
+        double bucket_width = 180.0 / (double) bucket_count;
+        int target_bucket = (int) (con->numeric_value / bucket_width);
+        if (target_bucket < 0)
+            target_bucket = 0;
+        if (target_bucket >= bucket_count)
+            target_bucket = bucket_count - 1;
+
+        BDDNode *acc = bdd_true(mgr);
+
+        if (l1_var >= 0) {
+            BDDNode *lit = bdd_literal(mgr, l1_var + 1);
+            BDDNode *and1 = bdd_and(mgr, acc, lit);
+            bdd_deref(mgr, acc);
+            bdd_deref(mgr, lit);
+            acc = and1;
+        }
+        if (l2_var >= 0) {
+            BDDNode *lit = bdd_literal(mgr, l2_var + 1);
+            BDDNode *and1 = bdd_and(mgr, acc, lit);
+            bdd_deref(mgr, acc);
+            bdd_deref(mgr, lit);
+            acc = and1;
+        }
+
+        for (int bit = 0; bit < 8; bit++) {
+            char var_name[48];
+            snprintf(var_name, sizeof(var_name), "angle_c%d_bit%d", con->id, bit);
+            int bit_var = bdd_new_var(mgr, var_name, BDD_BOOLEAN);
+            if (bit_var < 0)
+                break;
+            int bit_value = (target_bucket >> bit) & 1;
+            BDDNode *bit_lit = bdd_literal(mgr, bit_value ? (bit_var + 1) : -(bit_var + 1));
+            BDDNode *and1 = bdd_and(mgr, acc, bit_lit);
+            bdd_deref(mgr, acc);
+            bdd_deref(mgr, bit_lit);
+            acc = and1;
+        }
+
+        return acc;
+    }
+    return NULL;
+}
+
+static BDDNode *bdd_encode_connection(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
+    (void)mgr; (void)con; (void)n; (void)node_base_var; (void)graph;
+    /* 连接: 端口连接 —— 此处跳过（端口编码需单独处理） */
+    return NULL;
+}
+
+static const BDDEncodeFn kBddEncodeTable[] = {
+    bdd_encode_incidence,    /* INCIDENCE */
+    bdd_encode_betweenness,  /* BETWEENNESS */
+    bdd_encode_intersection, /* INTERSECTION */
+    bdd_encode_containment,  /* CONTAINMENT */
+    bdd_encode_connection,   /* CONNECTION */
+    bdd_encode_angle         /* ANGLE */
+};
+static const int kBddEncodeTableCount =
+    (int)(sizeof(kBddEncodeTable) / sizeof(kBddEncodeTable[0]));
+
 /* ========================================================================
  * constraint_graph_to_bdd —— 约束图 -> BDD 编码
  *
@@ -694,20 +855,6 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             next_var += bits;
     }
 
-/* 辅助：根据节点 ID 查找 node_base_var 数组索引 */
-/* 当节点 ID != 数组索引时，需要遍历 nodes 数组找到对应位置 */
-#define LOOKUP_NODE_BASE_VAR(node_id)                                    \
-    ({                                                                   \
-        int _result = -1;                                                \
-        for (int _j = 0; _j < n; _j++) {                                 \
-            if (graph->nodes[_j] && graph->nodes[_j]->id == (node_id)) { \
-                _result = node_base_var[_j];                             \
-                break;                                                   \
-            }                                                            \
-        }                                                                \
-        _result;                                                         \
-    })
-
     /* 阶段 2: 遍历所有活跃约束，按类型编码 BDD 子公式 */
     BDDNode *constraint_bdd = bdd_true(mgr);
 
@@ -717,154 +864,8 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             continue;
 
         BDDNode *sub = NULL;
-
-        switch (con->type) {
-            case INCIDENCE:
-                /* 关联(point, line): 点在线上 */
-                if (con->participant_count >= 2) {
-                    int p_id = con->participants[0];
-                    int l_id = con->participants[1];
-                    int p_var = (p_id >= 0) ? LOOKUP_NODE_BASE_VAR(p_id) : -1;
-                    int l_var = (l_id >= 0) ? LOOKUP_NODE_BASE_VAR(l_id) : -1;
-                    if (p_var >= 0 && l_var >= 0) {
-                        BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
-                        BDDNode *l_lit = bdd_literal(mgr, l_var + 1);
-                        sub = bdd_and(mgr, p_lit, l_lit);
-                        bdd_deref(mgr, p_lit);
-                        bdd_deref(mgr, l_lit);
-                    }
-                }
-                break;
-
-            case BETWEENNESS:
-                /* 介于(p1, p2, p3): p2 在 p1 与 p3 之间 */
-                if (con->participant_count >= 3) {
-                    int p1_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
-                    int p2_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
-                    int p3_var = (con->participants[2] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[2]) : -1;
-                    if (p1_var >= 0 && p2_var >= 0 && p3_var >= 0) {
-                        BDDNode *a = bdd_literal(mgr, p1_var + 1);
-                        BDDNode *b = bdd_literal(mgr, p2_var + 1);
-                        BDDNode *c = bdd_literal(mgr, p3_var + 1);
-                        BDDNode *ab = bdd_and(mgr, a, b);
-                        sub = bdd_and(mgr, ab, c);
-                        bdd_deref(mgr, a);
-                        bdd_deref(mgr, b);
-                        bdd_deref(mgr, c);
-                        bdd_deref(mgr, ab);
-                    }
-                }
-                break;
-
-            case INTERSECTION:
-                /* 相交(line1, line2, point): 两线交于一点 */
-                if (con->participant_count >= 3) {
-                    int l1_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
-                    int l2_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
-                    int p_var = (con->participants[2] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[2]) : -1;
-                    if (l1_var >= 0 && l2_var >= 0 && p_var >= 0) {
-                        BDDNode *l1_lit = bdd_literal(mgr, l1_var + 1);
-                        BDDNode *l2_lit = bdd_literal(mgr, l2_var + 1);
-                        BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
-                        BDDNode *l_and = bdd_and(mgr, l1_lit, l2_lit);
-                        sub = bdd_and(mgr, l_and, p_lit);
-                        bdd_deref(mgr, l1_lit);
-                        bdd_deref(mgr, l2_lit);
-                        bdd_deref(mgr, p_lit);
-                        bdd_deref(mgr, l_and);
-                    }
-                }
-                break;
-
-            case CONTAINMENT:
-                /* 包含(region, point): 点在区域内 */
-                if (con->participant_count >= 2) {
-                    int r_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
-                    int p_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
-                    if (r_var >= 0 && p_var >= 0) {
-                        BDDNode *r_lit = bdd_literal(mgr, r_var + 1);
-                        BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
-                        sub = bdd_and(mgr, r_lit, p_lit);
-                        bdd_deref(mgr, r_lit);
-                        bdd_deref(mgr, p_lit);
-                    }
-                }
-                break;
-
-            case ANGLE: {
-                /*
-                 * 角度约束：∠(line1, line2) = numeric_value（度）
-                 *  参与者: [line1_id, line2_id]（两条线段），
-                 *  numeric_value 字段存储角度值（单位：度）。
-                 *
-                 * 编码原理（角度离散化 bit-blasting）：
-                 * 与 SAT 编码一致，将角度区间 [0, 180°) 离散为 2^8 个
-                 * 等宽桶（桶宽 ≈ 0.703°）。为当前角度约束创建 8 个布尔
-                 * BDD 变量作为桶索引的二进制位，并通过与运算把每一位
-                 * 强制为"目标桶索引"的位模式（正/负文字），从而把角度
-                 * 固定到目标离散桶中。两条线段节点自身的存在性文字也
-                 * 参与编码（与 INCIDENCE/BETWEENNESS 编码风格一致）。
-                 */
-                if (con->participant_count >= 2) {
-                    int l1_id = con->participants[0];
-                    int l2_id = con->participants[1];
-                    int l1_var = (l1_id >= 0) ? LOOKUP_NODE_BASE_VAR(l1_id) : -1;
-                    int l2_var = (l2_id >= 0) ? LOOKUP_NODE_BASE_VAR(l2_id) : -1;
-
-                    /* 目标离散桶索引 = floor(角度值 / 桶宽) */
-                    int bucket_count = 1 << 8;
-                    double bucket_width = 180.0 / (double) bucket_count;
-                    int target_bucket = (int) (con->numeric_value / bucket_width);
-                    if (target_bucket < 0)
-                        target_bucket = 0;
-                    if (target_bucket >= bucket_count)
-                        target_bucket = bucket_count - 1;
-
-                    BDDNode *acc = bdd_true(mgr);
-
-                    /* 两条线段节点的存在性 */
-                    if (l1_var >= 0) {
-                        BDDNode *lit = bdd_literal(mgr, l1_var + 1);
-                        BDDNode *and1 = bdd_and(mgr, acc, lit);
-                        bdd_deref(mgr, acc);
-                        bdd_deref(mgr, lit);
-                        acc = and1;
-                    }
-                    if (l2_var >= 0) {
-                        BDDNode *lit = bdd_literal(mgr, l2_var + 1);
-                        BDDNode *and1 = bdd_and(mgr, acc, lit);
-                        bdd_deref(mgr, acc);
-                        bdd_deref(mgr, lit);
-                        acc = and1;
-                    }
-
-                    /* 角度离散位变量：强制为目标桶索引的二进制位模式。
-                     * 正文字 var_id = bit_var+1，负文字 var_id = -(bit_var+1)。 */
-                    for (int bit = 0; bit < 8; bit++) {
-                        char var_name[48];
-                        snprintf(var_name, sizeof(var_name), "angle_c%d_bit%d", con->id, bit);
-                        int bit_var = bdd_new_var(mgr, var_name, BDD_BOOLEAN);
-                        if (bit_var < 0)
-                            break;
-                        int bit_value = (target_bucket >> bit) & 1;
-                        BDDNode *bit_lit = bdd_literal(mgr, bit_value ? (bit_var + 1) : -(bit_var + 1));
-                        BDDNode *and1 = bdd_and(mgr, acc, bit_lit);
-                        bdd_deref(mgr, acc);
-                        bdd_deref(mgr, bit_lit);
-                        acc = and1;
-                    }
-
-                    sub = acc;
-                }
-                break;
-            }
-
-            case CONNECTION:
-                /* 连接: 端口连接 —— 此处跳过（端口编码需单独处理） */
-                break;
-
-            default:
-                break;
+        if (con->type >= 0 && con->type < kBddEncodeTableCount) {
+            sub = kBddEncodeTable[(int)con->type](mgr, con, n, node_base_var, graph);
         }
 
         if (sub) {
@@ -876,9 +877,42 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
     }
 
     lv_free((void **) &node_base_var);
-#undef LOOKUP_NODE_BASE_VAR
     return constraint_bdd;
 }
+
+/* ── 坐标类型数值提取函数（文件作用域，用于查找表）── */
+typedef double (*CoordValueFn)(const SymbolicCoord *coord);
+static double coord_value_rational(const SymbolicCoord *coord) {
+    if (coord->data.rational)
+        return mpq_get_d(coord->data.rational->value);
+    return 0.0;
+}
+static double coord_value_algebraic(const SymbolicCoord *coord) {
+    if (coord->data.algebraic) {
+        return (coord->data.algebraic->left_bound + coord->data.algebraic->right_bound) / 2.0;
+    }
+    return 0.0;
+}
+static double coord_value_quadratic(const SymbolicCoord *coord) {
+    if (coord->data.quadratic) {
+        Quadratic *q = coord->data.quadratic;
+        double a_val = (q->a) ? mpq_get_d(q->a->value) : 0.0;
+        double b_val = (q->b) ? mpq_get_d(q->b->value) : 0.0;
+        return a_val + b_val * sqrt((double) q->n);
+    }
+    return 0.0;
+}
+static double coord_value_transcendental(const SymbolicCoord *coord) {
+    return symbolic_coord_to_double(coord);
+}
+static const CoordValueFn kCoordValueTable[] = {
+    coord_value_rational,      /* RATIONAL */
+    coord_value_algebraic,     /* ALGEBRAIC */
+    coord_value_quadratic,     /* QUADRATIC */
+    coord_value_transcendental /* TRANSCENDENTAL */
+};
+static const int kCoordValueTableCount =
+    (int)(sizeof(kCoordValueTable) / sizeof(kCoordValueTable[0]));
 
 /* ========================================================================
  * coord_to_bdd_var —— 坐标 bit-blasting
@@ -902,37 +936,10 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
         /* 优先使用已缓存的数值近似 */
         value = coord->cached_value;
     } else {
-        switch (coord->type) {
-            case RATIONAL:
-                if (coord->data.rational)
-                    value = mpq_get_d(coord->data.rational->value);
-                break;
-
-            case ALGEBRAIC:
-                /* 代数数：使用区间中点作为数值近似 */
-                if (coord->data.algebraic) {
-                    value = (coord->data.algebraic->left_bound + coord->data.algebraic->right_bound) / 2.0;
-                }
-                break;
-
-            case QUADRATIC:
-                /* 二次扩张数：计算 a + b*sqrt(n) */
-                if (coord->data.quadratic) {
-                    Quadratic *q = coord->data.quadratic;
-                    double a_val = (q->a) ? mpq_get_d(q->a->value) : 0.0;
-                    double b_val = (q->b) ? mpq_get_d(q->b->value) : 0.0;
-                    value = a_val + b_val * sqrt((double) q->n);
-                }
-                break;
-
-            case TRANSCENDENTAL:
-                /* 超越数：使用 symbolic_coord_to_double 辅助函数 */
-                value = symbolic_coord_to_double(coord);
-                break;
-
-            default:
-                value = 0.0;
-                break;
+        if (coord->type >= 0 && coord->type < kCoordValueTableCount) {
+            value = kCoordValueTable[(int)coord->type](coord);
+        } else {
+            value = 0.0;
         }
     }
 

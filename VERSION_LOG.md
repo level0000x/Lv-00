@@ -1,4 +1,4 @@
-# Lv-00 版本迭代日志
+﻿# Lv-00 版本迭代日志
 
 本文件用于记录 Lv-00 项目的正式版本演进、关键整改、兼容性变化与验收状态。
 
@@ -61,6 +61,27 @@
 - 2 处浮点精确比较→容差比较：`geo_event_detect.c` 二分法/牛顿法
 
 **验证**: 编译 152/153 通过，测试 137/138 通过（1 项预存失败）
+
+---
+
+
+## 2026-08-04
+
+### v1.1.0-dev — 抽象层重构（VTable/Config/Allocator）
+
+**范围**: 全仓库，覆盖抽象层重构（VTable/Config/Allocator）
+
+**变更**:
+- VTable 重构：engine_scheduler 后端调度器 + symbolic_coord_ops 坐标操作消除 switch 反模式
+- 配置迁移：engine_solve.c + rewrite_strategy.c 硬编码配置迁移至 lvConfig 系统
+- 平台抽象：allocator.c 内存大小查询抽象为 AllocatorOps vtable
+
+**修复**:
+- ATP 后端注册空指针、eprover 别名修复
+- 头文件冲突 (debug.h vs runtime_monitor.h)
+- CMake ws2_32 链接修复
+
+**验证**: 152/152 测试全部通过，编译 0 错误
 
 ---
 
@@ -250,3 +271,4 @@
 - 128+ 测试点全部通过
 - Church 编码 2² → 4、Y 组合子阶乘 Y F 3 → 6 验证
 - 所有 β-归约在 10000 步上限内完成
+

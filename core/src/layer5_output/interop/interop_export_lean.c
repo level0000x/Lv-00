@@ -23,6 +23,200 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 
+/* ---- 证明步骤类型 → Lean 输出处理器查找表 ---- */
+typedef void (*LeanStepHandler)(FILE *fp, const ProofStep *step,
+                                 bool is_green, bool is_blue,
+                                 bool is_orange, bool is_amber);
+
+static void lean_handler_add_node(FILE *fp, const ProofStep *step,
+                                   bool is_green, bool is_blue,
+                                   bool is_orange, bool is_amber) {
+    if (is_green) {
+        fprintf(fp, "    have h_node_%d : True := by intro node_%d ; constructor\n", step->node_id, step->node_id);
+    } else if (is_blue) {
+        fprintf(fp, "    -- [BLUE] 构造节点 node_%d, 信任色: %s (未探索/资源受限)\n", step->node_id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    have h_node_%d : True := by admit\n", step->node_id);
+    } else if (is_orange) {
+        fprintf(fp, "    -- [ORANGE] 构造节点 node_%d, 信任色: %s (非构造性oracle依赖)\n",
+                step->node_id, proof_color_to_string(step->color));
+        fprintf(fp, "    have h_node_%d : True := by exact oracle_result.node_%d\n", step->node_id, step->node_id);
+    } else if (is_amber) {
+        fprintf(fp, "    -- [AMBER] 构造节点 node_%d, 信任色: %s (数值假设)\n", step->node_id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    have h_node_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n", step->node_id);
+    } else {
+        fprintf(fp, "    -- 构造节点 node_%d, 信任色: %s\n", step->node_id, proof_color_to_string(step->color));
+        fprintf(fp, "    have h_node_%d : True := by trivial\n", step->node_id);
+    }
+}
+
+static void lean_handler_add_constraint(FILE *fp, const ProofStep *step,
+                                         bool is_green, bool is_blue,
+                                         bool is_orange, bool is_amber) {
+    if (is_green) {
+        fprintf(fp, "    have h_cstr_%d : True := by constructor ; assumption\n", step->constraint_id);
+    } else if (is_blue) {
+        fprintf(fp, "    -- [BLUE] 添加约束 cstr_%d, 信任色: %s (未探索/资源受限)\n",
+                step->constraint_id, proof_color_to_string(step->color));
+        fprintf(fp, "    have h_cstr_%d : True := by admit\n", step->constraint_id);
+    } else if (is_orange) {
+        fprintf(fp, "    -- [ORANGE] 添加约束 cstr_%d, 信任色: %s (非构造性oracle依赖)\n",
+                step->constraint_id, proof_color_to_string(step->color));
+        fprintf(fp, "    have h_cstr_%d : True := by exact oracle_result.cstr_%d\n",
+                step->constraint_id, step->constraint_id);
+    } else if (is_amber) {
+        fprintf(fp, "    -- [AMBER] 添加约束 cstr_%d, 信任色: %s (数值假设)\n", step->constraint_id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    have h_cstr_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n", step->constraint_id);
+    } else {
+        fprintf(fp, "    -- 添加约束 cstr_%d, 信任色: %s\n", step->constraint_id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    have h_cstr_%d : True := by trivial\n", step->constraint_id);
+    }
+}
+
+static void lean_handler_rewrite(FILE *fp, const ProofStep *step,
+                                  bool is_green, bool is_blue,
+                                  bool is_orange, bool is_amber) {
+    if (is_green) {
+        fprintf(fp, "    rw [h]\n");
+    } else if (is_blue) {
+        fprintf(fp, "    -- [BLUE] 重写步骤 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
+    } else if (is_orange) {
+        fprintf(fp, "    -- [ORANGE] 重写步骤 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
+    } else if (is_amber) {
+        fprintf(fp, "    -- [AMBER] 重写步骤 step_%d, 信任色: %s (数值假设)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
+    } else {
+        fprintf(fp, "    -- 重写步骤 step_%d, 信任色: %s\n", step->id, proof_color_to_string(step->color));
+        fprintf(fp, "    by assumption\n");
+    }
+}
+
+static void lean_handler_func_app(FILE *fp, const ProofStep *step,
+                                   bool is_green, bool is_blue,
+                                   bool is_orange, bool is_amber) {
+    if (is_green) {
+        fprintf(fp, "    apply h\n");
+    } else if (is_blue) {
+        fprintf(fp, "    -- [BLUE] 函数应用 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
+    } else if (is_orange) {
+        fprintf(fp, "    -- [ORANGE] 函数应用 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
+    } else if (is_amber) {
+        fprintf(fp, "    -- [AMBER] 函数应用 step_%d, 信任色: %s (数值假设)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
+    } else {
+        fprintf(fp, "    -- 函数应用 step_%d, 信任色: %s\n", step->id, proof_color_to_string(step->color));
+        fprintf(fp, "    by trivial\n");
+    }
+}
+
+static void lean_handler_pack_func(FILE *fp, const ProofStep *step,
+                                    bool is_green, bool is_blue,
+                                    bool is_orange, bool is_amber) {
+    (void)is_green; (void)is_blue; (void)is_orange; (void)is_amber;
+    fprintf(fp, "    -- 函数块打包: step_%d, func_block_%d\n", step->id, step->func_block_id);
+}
+
+static void lean_handler_normalization(FILE *fp, const ProofStep *step,
+                                        bool is_green, bool is_blue,
+                                        bool is_orange, bool is_amber) {
+    if (is_green) {
+        fprintf(fp, "    simp [normalization]\n");
+    } else if (is_blue) {
+        fprintf(fp, "    -- [BLUE] 归一化 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
+    } else if (is_orange) {
+        fprintf(fp, "    -- [ORANGE] 归一化 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
+    } else if (is_amber) {
+        fprintf(fp, "    -- [AMBER] 归一化 step_%d, 信任色: %s (数值假设)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
+    } else {
+        fprintf(fp, "    -- 归一化 step_%d, 信任色: %s\n", step->id, proof_color_to_string(step->color));
+        fprintf(fp, "    by assumption\n");
+    }
+}
+
+static void lean_handler_unify(FILE *fp, const ProofStep *step,
+                                bool is_green, bool is_blue,
+                                bool is_orange, bool is_amber) {
+    if (is_green) {
+        fprintf(fp, "    rfl\n");
+    } else if (is_blue) {
+        fprintf(fp, "    -- [BLUE] 合一检查 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
+    } else if (is_orange) {
+        fprintf(fp, "    -- [ORANGE] 合一检查 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
+    } else if (is_amber) {
+        fprintf(fp, "    -- [AMBER] 合一检查 step_%d, 信任色: %s (数值假设)\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
+    } else {
+        fprintf(fp, "    -- 合一检查 step_%d, 信任色: %s\n", step->id, proof_color_to_string(step->color));
+        fprintf(fp, "    by trivial\n");
+    }
+}
+
+static void lean_handler_ex_falso(FILE *fp, const ProofStep *step,
+                                   bool is_green, bool is_blue,
+                                   bool is_orange, bool is_amber) {
+    (void)is_blue; (void)is_orange; (void)is_amber;
+    if (is_green) {
+        fprintf(fp, "    contradiction ; assumption\n");
+    } else {
+        fprintf(fp, "    -- [非绿色] 爆炸原理 step_%d, 信任色: %s\n", step->id,
+                proof_color_to_string(step->color));
+        fprintf(fp, "    exfalso ; by sorry -- 非构造性爆炸原理，需外部验证\n");
+    }
+}
+
+static void lean_handler_oracle(FILE *fp, const ProofStep *step,
+                                 bool is_green, bool is_blue,
+                                 bool is_orange, bool is_amber) {
+    (void)is_green; (void)is_blue; (void)is_orange; (void)is_amber;
+    fprintf(fp, "    -- [ORACLE] Oracle依赖: step_%d, 信任色: %s\n", step->id,
+            proof_color_to_string(step->color));
+    fprintf(fp, "    by exact (oracle.verify step_%d) -- 非构造性依赖，需外部oracle验证\n", step->id);
+}
+
+static void lean_handler_default(FILE *fp, const ProofStep *step,
+                                  bool is_green, bool is_blue,
+                                  bool is_orange, bool is_amber) {
+    (void)is_green; (void)is_blue; (void)is_orange; (void)is_amber;
+    fprintf(fp, "    -- 未知步骤类型: %d, 信任色: %s\n", (int) step->type,
+            proof_color_to_string(step->color));
+    fprintf(fp, "    by trivial\n");
+}
+
+static const LeanStepHandler lean_step_handlers[] = {
+    [PROOF_STEP_ADD_NODE]       = lean_handler_add_node,
+    [PROOF_STEP_ADD_CONSTRAINT] = lean_handler_add_constraint,
+    [PROOF_STEP_REWRITE]        = lean_handler_rewrite,
+    [PROOF_STEP_FUNCTION_APP]   = lean_handler_func_app,
+    [PROOF_STEP_PACK_FUNCTION]  = lean_handler_pack_func,
+    [PROOF_STEP_NORMALIZATION]  = lean_handler_normalization,
+    [PROOF_STEP_UNIFY]          = lean_handler_unify,
+    [PROOF_STEP_EX_FALSO]       = lean_handler_ex_falso,
+    [PROOF_STEP_ORACLE]         = lean_handler_oracle,
+};
 
 int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *config) {
     if (!proof || !config)
@@ -98,168 +292,13 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                               step->color == PROOF_COLOR_DARK_ORANGE);
             bool is_amber = (step->color == PROOF_COLOR_AMBER);
 
-            switch (step->type) {
-                case PROOF_STEP_ADD_NODE:
-                    if (is_green) {
-                        fprintf(fp, "    have h_node_%d : True := by intro node_%d ; constructor\n", step->node_id,
-                                step->node_id);
-                    } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 构造节点 node_%d, 信任色: %s (未探索/资源受限)\n", step->node_id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_node_%d : True := by admit\n", step->node_id);
-                    } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 构造节点 node_%d, 信任色: %s (非构造性oracle依赖)\n",
-                                step->node_id, proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_node_%d : True := by exact oracle_result.node_%d\n", step->node_id,
-                                step->node_id);
-                    } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 构造节点 node_%d, 信任色: %s (数值假设)\n", step->node_id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_node_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n", step->node_id);
-                    } else {
-                        fprintf(fp, "    -- 构造节点 node_%d, 信任色: %s\n", step->node_id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_node_%d : True := by trivial\n", step->node_id);
-                    }
-                    break;
-
-                case PROOF_STEP_ADD_CONSTRAINT:
-                    if (is_green) {
-                        fprintf(fp, "    have h_cstr_%d : True := by constructor ; assumption\n", step->constraint_id);
-                    } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 添加约束 cstr_%d, 信任色: %s (未探索/资源受限)\n",
-                                step->constraint_id, proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_cstr_%d : True := by admit\n", step->constraint_id);
-                    } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 添加约束 cstr_%d, 信任色: %s (非构造性oracle依赖)\n",
-                                step->constraint_id, proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_cstr_%d : True := by exact oracle_result.cstr_%d\n",
-                                step->constraint_id, step->constraint_id);
-                    } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 添加约束 cstr_%d, 信任色: %s (数值假设)\n", step->constraint_id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_cstr_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n",
-                                step->constraint_id);
-                    } else {
-                        fprintf(fp, "    -- 添加约束 cstr_%d, 信任色: %s\n", step->constraint_id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    have h_cstr_%d : True := by trivial\n", step->constraint_id);
-                    }
-                    break;
-
-                case PROOF_STEP_REWRITE:
-                    if (is_green) {
-                        fprintf(fp, "    rw [h]\n");
-                    } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 重写步骤 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
-                    } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 重写步骤 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
-                    } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 重写步骤 step_%d, 信任色: %s (数值假设)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
-                    } else {
-                        fprintf(fp, "    -- 重写步骤 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by assumption\n");
-                    }
-                    break;
-
-                case PROOF_STEP_FUNCTION_APP:
-                    if (is_green) {
-                        fprintf(fp, "    apply h\n");
-                    } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 函数应用 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
-                    } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 函数应用 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
-                    } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 函数应用 step_%d, 信任色: %s (数值假设)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
-                    } else {
-                        fprintf(fp, "    -- 函数应用 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by trivial\n");
-                    }
-                    break;
-
-                case PROOF_STEP_PACK_FUNCTION:
-                    fprintf(fp, "    -- 函数块打包: step_%d, func_block_%d\n", step->id, step->func_block_id);
-                    break;
-
-                case PROOF_STEP_NORMALIZATION:
-                    if (is_green) {
-                        fprintf(fp, "    simp [normalization]\n");
-                    } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 归一化 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
-                    } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 归一化 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
-                    } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 归一化 step_%d, 信任色: %s (数值假设)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
-                    } else {
-                        fprintf(fp, "    -- 归一化 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by assumption\n");
-                    }
-                    break;
-
-                case PROOF_STEP_UNIFY:
-                    if (is_green) {
-                        fprintf(fp, "    rfl\n");
-                    } else if (is_blue) {
-                        fprintf(fp, "    -- [BLUE] 合一检查 step_%d, 信任色: %s (未探索/资源受限)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
-                    } else if (is_orange) {
-                        fprintf(fp, "    -- [ORANGE] 合一检查 step_%d, 信任色: %s (非构造性oracle依赖)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
-                    } else if (is_amber) {
-                        fprintf(fp, "    -- [AMBER] 合一检查 step_%d, 信任色: %s (数值假设)\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
-                    } else {
-                        fprintf(fp, "    -- 合一检查 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    by trivial\n");
-                    }
-                    break;
-
-                case PROOF_STEP_EX_FALSO:
-                    if (is_green) {
-                        fprintf(fp, "    contradiction ; assumption\n");
-                    } else {
-                        fprintf(fp, "    -- [非绿色] 爆炸原理 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    exfalso ; by sorry -- 非构造性爆炸原理，需外部验证\n");
-                    }
-                    break;
-
-                case PROOF_STEP_ORACLE:
-                    fprintf(fp, "    -- [ORACLE] Oracle依赖: step_%d, 信任色: %s\n", step->id,
-                            proof_color_to_string(step->color));
-                    fprintf(fp, "    by exact (oracle.verify step_%d) -- 非构造性依赖，需外部oracle验证\n", step->id);
-                    break;
-
-                default:
-                    fprintf(fp, "    -- 未知步骤类型: %d, 信任色: %s\n", (int) step->type,
-                            proof_color_to_string(step->color));
-                    fprintf(fp, "    by trivial\n");
-                    break;
+            /* 使用查找表替代 switch */
+            {
+                LeanStepHandler handler = lean_handler_default;
+                int n_handlers = (int)(sizeof(lean_step_handlers) / sizeof(lean_step_handlers[0]));
+                if ((int)step->type >= 0 && (int)step->type < n_handlers && lean_step_handlers[step->type])
+                    handler = lean_step_handlers[step->type];
+                handler(fp, step, is_green, is_blue, is_orange, is_amber);
             }
         }
     } else {

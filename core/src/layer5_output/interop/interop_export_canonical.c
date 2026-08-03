@@ -23,6 +23,40 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 
+/* ---- 节点类型 → 规范输出处理器查找表 ---- */
+typedef void (*CanonicalNodeHandler)(FILE *fp, const GeomNode *node);
+
+static void canonical_handler_port(FILE *fp, const GeomNode *node) {
+    if (node->data.port) {
+        fprintf(fp, " port_type=%s formal=%s poly=%s",
+                (node->data.port->type == PORT_INPUT) ? "input" : "output",
+                node->data.port->is_formal_param ? "true" : "false",
+                node->data.port->is_polymorphic ? "true" : "false");
+    }
+}
+
+static void canonical_handler_region(FILE *fp, const GeomNode *node) {
+    fprintf(fp, " boundary_segments=%d", node->data.region.segment_count);
+}
+
+static void canonical_handler_circle(FILE *fp, const GeomNode *node) {
+    fprintf(fp, " center=%d radius=%d", node->data.circle.center_node_id, node->data.circle.radius_node_id);
+}
+
+static void canonical_handler_func_block(FILE *fp, const GeomNode *node) {
+    fprintf(fp, " internal=%d inputs=%d outputs=%d state=%d",
+            node->data.func_block.internal_node_count,
+            node->data.func_block.input_count,
+            node->data.func_block.output_count,
+            node->data.func_block.determinism_state);
+}
+
+static const CanonicalNodeHandler canonical_node_handlers[] = {
+    [GEOM_PORT]         = canonical_handler_port,
+    [GEOM_REGION]       = canonical_handler_region,
+    [GEOM_CIRCLE]       = canonical_handler_circle,
+    [GEOM_FUNCTION_BLOCK] = canonical_handler_func_block,
+};
 
 int interop_export_canonical(const ConstraintGraph *graph, const char *output_path) {
     if (!graph || !output_path)
@@ -79,29 +113,14 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
         /* 命名空间深度和父块 */
         fprintf(fp, " ns=%d parent=%d", node->namespace_depth, node->parent_block_id);
 
-        /* 类型特定信息 */
-        switch (node->type) {
-            case GEOM_PORT:
-                if (node->data.port) {
-                    fprintf(fp, " port_type=%s formal=%s poly=%s",
-                            (node->data.port->type == PORT_INPUT) ? "input" : "output",
-                            node->data.port->is_formal_param ? "true" : "false",
-                            node->data.port->is_polymorphic ? "true" : "false");
-                }
-                break;
-            case GEOM_REGION:
-                fprintf(fp, " boundary_segments=%d", node->data.region.segment_count);
-                break;
-            case GEOM_CIRCLE:
-                fprintf(fp, " center=%d radius=%d", node->data.circle.center_node_id, node->data.circle.radius_node_id);
-                break;
-            case GEOM_FUNCTION_BLOCK:
-                fprintf(fp, " internal=%d inputs=%d outputs=%d state=%d", node->data.func_block.internal_node_count,
-                        node->data.func_block.input_count, node->data.func_block.output_count,
-                        node->data.func_block.determinism_state);
-                break;
-            default:
-                break;
+        /* 类型特定信息 — 使用查找表 */
+        {
+            CanonicalNodeHandler handler = NULL;
+            int n_handlers = (int)(sizeof(canonical_node_handlers) / sizeof(canonical_node_handlers[0]));
+            if ((int)node->type >= 0 && (int)node->type < n_handlers)
+                handler = canonical_node_handlers[node->type];
+            if (handler)
+                handler(fp, node);
         }
 
         fprintf(fp, "\n");

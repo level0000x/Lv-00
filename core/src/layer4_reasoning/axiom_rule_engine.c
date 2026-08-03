@@ -343,39 +343,20 @@ lvDifficultyAssessment *lv_proof_step_assess_difficulty(const ProofStep *step, c
 
     if (step) {
         /* 基于步骤类型和关联数据评估难度 */
-        switch (step->type) {
-            case PROOF_STEP_ADD_NODE:
-                score = 20;
-                level = 1;
-                break;
-            case PROOF_STEP_ADD_CONSTRAINT:
-                score = 50;
-                level = 2;
-                break;
-            case PROOF_STEP_REWRITE:
-                score = 80;
-                level = 2;
-                break;
-            case PROOF_STEP_FUNCTION_APP:
-                score = 120;
-                level = 3;
-                break;
-            case PROOF_STEP_NORMALIZATION:
-                score = 60;
-                level = 2;
-                break;
-            case PROOF_STEP_UNIFY:
-                score = 150;
-                level = 3;
-                break;
-            case PROOF_STEP_ORACLE:
-                score = 200;
-                level = 4;
-                break;
-            default:
-                score = 100;
-                level = 2;
-                break;
+        static const struct { uint32_t score; uint32_t level; } step_difficulty[] = {
+            [PROOF_STEP_ADD_NODE]       = { 20,  1 },
+            [PROOF_STEP_ADD_CONSTRAINT] = { 50,  2 },
+            [PROOF_STEP_REWRITE]        = { 80,  2 },
+            [PROOF_STEP_FUNCTION_APP]   = { 120, 3 },
+            [PROOF_STEP_NORMALIZATION]  = { 60,  2 },
+            [PROOF_STEP_UNIFY]          = { 150, 3 },
+            [PROOF_STEP_ORACLE]         = { 200, 4 },
+        };
+        if ((unsigned)step->type < sizeof(step_difficulty)/sizeof(step_difficulty[0]) && step_difficulty[step->type].score) {
+            score = step_difficulty[step->type].score;
+            level = step_difficulty[step->type].level;
+        } else {
+            score = 100; level = 2;
         }
         /* 如果有规则 ID，尝试查找规则库中更精确的难度 */
         if (step->rule_id >= 0) {
@@ -411,27 +392,17 @@ lvDifficultyAssessment *lv_proposition_assess_difficulty(const Proposition *prop
 
     if (prop) {
         /* 基于命题类型和复杂度 */
-        switch (prop->type) {
-            case PROPOSITION_TYPE_ATOMIC:
-                score = 50;
-                level = 1;
-                break;
-            case PROPOSITION_TYPE_CONJUNCTION:
-                score = 150;
-                level = 3;
-                break;
-            case PROPOSITION_TYPE_DISJUNCTION:
-                score = 200;
-                level = 4;
-                break;
-            case PROPOSITION_TYPE_IMPLICATION:
-                score = 300;
-                level = 5;
-                break;
-            default:
-                score = 100;
-                level = 2;
-                break;
+        static const struct { uint32_t score; uint32_t level; } prop_difficulty[] = {
+            [PROPOSITION_TYPE_ATOMIC]      = { 50,  1 },
+            [PROPOSITION_TYPE_CONJUNCTION] = { 150, 3 },
+            [PROPOSITION_TYPE_DISJUNCTION] = { 200, 4 },
+            [PROPOSITION_TYPE_IMPLICATION] = { 300, 5 },
+        };
+        if ((unsigned)prop->type < sizeof(prop_difficulty)/sizeof(prop_difficulty[0]) && prop_difficulty[prop->type].score) {
+            score = prop_difficulty[prop->type].score;
+            level = prop_difficulty[prop->type].level;
+        } else {
+            score = 100; level = 2;
         }
         /* 基于目标图节点数调整 */
          if (prop->pattern) {

@@ -356,6 +356,101 @@ static void svg_write_style(FILE *fp, const lvVisualStyle *s) {
     }
 }
 
+/* ── SVG 渲染处理器函数 ── */
+typedef void (*SvgObjHandler)(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth);
+
+static void svg_render_point(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 2))
+        return;
+    float px = cache[0], py = cache[1];
+    apply_camera(&px, &py, scene);
+    fprintf(fp, "%*s<circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\"", depth * 2, "", px, py,
+            obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f);
+    svg_write_style(fp, &obj->style);
+    fprintf(fp, " fill=\"rgb(%d,%d,%d)\"", to_byte(obj->style.stroke_color[0]),
+            to_byte(obj->style.stroke_color[1]), to_byte(obj->style.stroke_color[2]));
+    fprintf(fp, "/>\n");
+}
+
+static void svg_render_segment(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 4))
+        return;
+    float x1 = cache[0], y1 = cache[1];
+    float x2 = cache[2], y2 = cache[3];
+    apply_camera(&x1, &y1, scene);
+    apply_camera(&x2, &y2, scene);
+    fprintf(fp, "%*s<line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\"",
+            depth * 2, "", x1, y1, x2, y2);
+    svg_write_style(fp, &obj->style);
+    fprintf(fp, "/>\n");
+}
+
+static void svg_render_line(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 4))
+        return;
+    float x1 = cache[0], y1 = cache[1];
+    float x2 = cache[2], y2 = cache[3];
+    float w = 800.0f, h = 600.0f;
+    float dx = x2 - x1, dy = y2 - y1;
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len < 1e-6f)
+        return;
+    float ux = dx / len, uy = dy / len;
+    float t_max = sqrtf(w * w + h * h);
+    float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
+    float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
+    apply_camera(&lx1, &ly1, scene);
+    apply_camera(&lx2, &ly2, scene);
+    fprintf(fp, "%*s<line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\"",
+            depth * 2, "", lx1, ly1, lx2, ly2);
+    svg_write_style(fp, &obj->style);
+    fprintf(fp, "/>\n");
+}
+
+static void svg_render_circle(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 3))
+        return;
+    float cx = cache[0], cy = cache[1], r = cache[2];
+    apply_camera(&cx, &cy, scene);
+    fprintf(fp, "%*s<circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\"", depth * 2, "", cx, cy, r);
+    svg_write_style(fp, &obj->style);
+    fprintf(fp, "/>\n");
+}
+
+static void svg_render_polygon(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    if (obj->render_cache == NULL)
+        return;
+    int pcount = ((int *) obj->render_cache)[0];
+    float *verts = (float *) ((int *) obj->render_cache + 1);
+    if (pcount < 3)
+        return;
+    fprintf(fp, "%*s<polygon points=\"", depth * 2, "");
+    for (int j = 0; j < pcount; j++) {
+        float vx = verts[j * 2], vy = verts[j * 2 + 1];
+        apply_camera(&vx, &vy, scene);
+        fprintf(fp, "%.2f,%.2f ", vx, vy);
+    }
+    fprintf(fp, "\"");
+    svg_write_style(fp, &obj->style);
+    fprintf(fp, "/>\n");
+}
+
+static const SvgObjHandler svg_render_table[lv_VISUAL_MOBJECT_GROUP] = {
+    [lv_VISUAL_POINT]   = svg_render_point,
+    [lv_VISUAL_SEGMENT] = svg_render_segment,
+    [lv_VISUAL_LINE]    = svg_render_line,
+    [lv_VISUAL_CIRCLE]  = svg_render_circle,
+    [lv_VISUAL_POLYGON] = svg_render_polygon,
+};
+
 /** 递归渲染单个对象为 SVG */
 static void svg_render_object(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
     if (obj == NULL)
@@ -369,96 +464,10 @@ static void svg_render_object(FILE *fp, const lvVisualObject *obj, const lvVisua
         return;
     }
 
-    float cache[8];
-    memset(cache, 0, sizeof(cache));
-
-    switch (obj->type) {
-        case lv_VISUAL_POINT: {
-            if (!get_float_cache(obj, cache, 2))
-                return;
-            float px = cache[0], py = cache[1];
-            apply_camera(&px, &py, scene);
-            fprintf(fp, "%*s<circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\"", depth * 2, "", px, py,
-                    obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f);
-            svg_write_style(fp, &obj->style);
-            /* 点为实心小圆 */
-            fprintf(fp, " fill=\"rgb(%d,%d,%d)\"", to_byte(obj->style.stroke_color[0]),
-                    to_byte(obj->style.stroke_color[1]), to_byte(obj->style.stroke_color[2]));
-            fprintf(fp, "/>\n");
-            break;
-        }
-        case lv_VISUAL_SEGMENT: {
-            if (!get_float_cache(obj, cache, 4))
-                return;
-            float x1 = cache[0], y1 = cache[1];
-            float x2 = cache[2], y2 = cache[3];
-            apply_camera(&x1, &y1, scene);
-            apply_camera(&x2, &y2, scene);
-            fprintf(fp,
-                    "%*s<line x1=\"%.2f\" y1=\"%.2f\" "
-                    "x2=\"%.2f\" y2=\"%.2f\"",
-                    depth * 2, "", x1, y1, x2, y2);
-            svg_write_style(fp, &obj->style);
-            fprintf(fp, "/>\n");
-            break;
-        }
-        case lv_VISUAL_LINE: {
-            /* 直线从场景边界穿过 */
-            if (!get_float_cache(obj, cache, 4))
-                return;
-            float x1 = cache[0], y1 = cache[1];
-            float x2 = cache[2], y2 = cache[3];
-            float w = (float) (scene->objects ? 800 : 800); /* 使用默认宽度 */
-            float h = (float) (scene->objects ? 600 : 600);
-            float dx = x2 - x1, dy = y2 - y1;
-            float len = sqrtf(dx * dx + dy * dy);
-            if (len < 1e-6f)
-                return;
-            float ux = dx / len, uy = dy / len;
-            float t_max = sqrtf(w * w + h * h);
-            float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
-            float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
-            apply_camera(&lx1, &ly1, scene);
-            apply_camera(&lx2, &ly2, scene);
-            fprintf(fp,
-                    "%*s<line x1=\"%.2f\" y1=\"%.2f\" "
-                    "x2=\"%.2f\" y2=\"%.2f\"",
-                    depth * 2, "", lx1, ly1, lx2, ly2);
-            svg_write_style(fp, &obj->style);
-            fprintf(fp, "/>\n");
-            break;
-        }
-        case lv_VISUAL_CIRCLE: {
-            if (!get_float_cache(obj, cache, 3))
-                return;
-            float cx = cache[0], cy = cache[1], r = cache[2];
-            apply_camera(&cx, &cy, scene);
-            fprintf(fp, "%*s<circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\"", depth * 2, "", cx, cy, r);
-            svg_write_style(fp, &obj->style);
-            fprintf(fp, "/>\n");
-            break;
-        }
-        case lv_VISUAL_POLYGON: {
-            /* 多边形缓存格式: [count, x0, y0, x1, y1, ...] */
-            if (obj->render_cache == NULL)
-                return;
-            int pcount = ((int *) obj->render_cache)[0];
-            float *verts = (float *) ((int *) obj->render_cache + 1);
-            if (pcount < 3)
-                return;
-            fprintf(fp, "%*s<polygon points=\"", depth * 2, "");
-            for (int j = 0; j < pcount; j++) {
-                float vx = verts[j * 2], vy = verts[j * 2 + 1];
-                apply_camera(&vx, &vy, scene);
-                fprintf(fp, "%.2f,%.2f ", vx, vy);
-            }
-            fprintf(fp, "\"");
-            svg_write_style(fp, &obj->style);
-            fprintf(fp, "/>\n");
-            break;
-        }
-        default:
-            break;
+    if (obj->type >= 0 && obj->type < lv_VISUAL_MOBJECT_GROUP) {
+        SvgObjHandler handler = svg_render_table[obj->type];
+        if (handler)
+            handler(fp, obj, scene, depth);
     }
 }
 
@@ -510,6 +519,103 @@ static void tikz_write_style(FILE *fp, const lvVisualStyle *s, bool is_fill) {
     }
 }
 
+/* ── TikZ 渲染处理器函数 ── */
+typedef void (*TikzObjHandler)(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth);
+
+static void tikz_render_point(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 2))
+        return;
+    float px = cache[0], py = cache[1];
+    apply_camera(&px, &py, scene);
+    float r = obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f;
+    fprintf(fp, "  \\fill[");
+    tikz_write_color(fp, &obj->style, "");
+    fprintf(fp, "] (%.2f,%.2f) circle (%.2fpt);\n", px, py, r);
+}
+
+static void tikz_render_segment(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 4))
+        return;
+    float x1 = cache[0], y1 = cache[1];
+    float x2 = cache[2], y2 = cache[3];
+    apply_camera(&x1, &y1, scene);
+    apply_camera(&x2, &y2, scene);
+    fprintf(fp, "  \\draw[");
+    tikz_write_style(fp, &obj->style, false);
+    fprintf(fp, "] (%.2f,%.2f) -- (%.2f,%.2f);\n", x1, y1, x2, y2);
+}
+
+static void tikz_render_line(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 4))
+        return;
+    float x1 = cache[0], y1 = cache[1];
+    float x2 = cache[2], y2 = cache[3];
+    float dx = x2 - x1, dy = y2 - y1;
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len < 1e-6f)
+        return;
+    float ux = dx / len, uy = dy / len;
+    float t_max = 1000.0f;
+    float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
+    float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
+    apply_camera(&lx1, &ly1, scene);
+    apply_camera(&lx2, &ly2, scene);
+    fprintf(fp, "  \\draw[");
+    tikz_write_style(fp, &obj->style, false);
+    fprintf(fp, "] (%.2f,%.2f) -- (%.2f,%.2f);\n", lx1, ly1, lx2, ly2);
+}
+
+static void tikz_render_circle(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 3))
+        return;
+    float cx = cache[0], cy = cache[1], r = cache[2];
+    apply_camera(&cx, &cy, scene);
+    fprintf(fp, "  \\draw[");
+    tikz_write_style(fp, &obj->style, false);
+    fprintf(fp, "] (%.2f,%.2f) circle (%.2f);\n", cx, cy, r);
+}
+
+static void tikz_render_polygon(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    if (obj->render_cache == NULL)
+        return;
+    int pcount = ((int *) obj->render_cache)[0];
+    float *verts = (float *) ((int *) obj->render_cache + 1);
+    if (pcount < 3)
+        return;
+    fprintf(fp, "  \\draw[");
+    tikz_write_style(fp, &obj->style, false);
+    fprintf(fp, "] ");
+    for (int j = 0; j < pcount; j++) {
+        float vx = verts[j * 2], vy = verts[j * 2 + 1];
+        apply_camera(&vx, &vy, scene);
+        fprintf(fp, "(%.2f,%.2f)", vx, vy);
+        if (j < pcount - 1)
+            fprintf(fp, " -- ");
+    }
+    fprintf(fp, " -- cycle;\n");
+}
+
+static const TikzObjHandler tikz_render_table[lv_VISUAL_MOBJECT_GROUP] = {
+    [lv_VISUAL_POINT]   = tikz_render_point,
+    [lv_VISUAL_SEGMENT] = tikz_render_segment,
+    [lv_VISUAL_LINE]    = tikz_render_line,
+    [lv_VISUAL_CIRCLE]  = tikz_render_circle,
+    [lv_VISUAL_POLYGON] = tikz_render_polygon,
+};
+
 /** 递归渲染单个对象为 TikZ */
 static void tikz_render_object(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
     if (obj == NULL)
@@ -522,86 +628,10 @@ static void tikz_render_object(FILE *fp, const lvVisualObject *obj, const lvVisu
         return;
     }
 
-    float cache[8];
-    memset(cache, 0, sizeof(cache));
-    const char *indent = "  ";
-
-    switch (obj->type) {
-        case lv_VISUAL_POINT: {
-            if (!get_float_cache(obj, cache, 2))
-                return;
-            float px = cache[0], py = cache[1];
-            apply_camera(&px, &py, scene);
-            float r = obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f;
-            fprintf(fp, "  \\fill[");
-            tikz_write_color(fp, &obj->style, "");
-            fprintf(fp, "] (%.2f,%.2f) circle (%.2fpt);\n", px, py, r);
-            break;
-        }
-        case lv_VISUAL_SEGMENT: {
-            if (!get_float_cache(obj, cache, 4))
-                return;
-            float x1 = cache[0], y1 = cache[1];
-            float x2 = cache[2], y2 = cache[3];
-            apply_camera(&x1, &y1, scene);
-            apply_camera(&x2, &y2, scene);
-            fprintf(fp, "  \\draw[");
-            tikz_write_style(fp, &obj->style, false);
-            fprintf(fp, "] (%.2f,%.2f) -- (%.2f,%.2f);\n", x1, y1, x2, y2);
-            break;
-        }
-        case lv_VISUAL_LINE: {
-            if (!get_float_cache(obj, cache, 4))
-                return;
-            float x1 = cache[0], y1 = cache[1];
-            float x2 = cache[2], y2 = cache[3];
-            float dx = x2 - x1, dy = y2 - y1;
-            float len = sqrtf(dx * dx + dy * dy);
-            if (len < 1e-6f)
-                return;
-            float ux = dx / len, uy = dy / len;
-            float t_max = 1000.0f;
-            float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
-            float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
-            apply_camera(&lx1, &ly1, scene);
-            apply_camera(&lx2, &ly2, scene);
-            fprintf(fp, "  \\draw[");
-            tikz_write_style(fp, &obj->style, false);
-            fprintf(fp, "] (%.2f,%.2f) -- (%.2f,%.2f);\n", lx1, ly1, lx2, ly2);
-            break;
-        }
-        case lv_VISUAL_CIRCLE: {
-            if (!get_float_cache(obj, cache, 3))
-                return;
-            float cx = cache[0], cy = cache[1], r = cache[2];
-            apply_camera(&cx, &cy, scene);
-            fprintf(fp, "  \\draw[");
-            tikz_write_style(fp, &obj->style, false);
-            fprintf(fp, "] (%.2f,%.2f) circle (%.2f);\n", cx, cy, r);
-            break;
-        }
-        case lv_VISUAL_POLYGON: {
-            if (obj->render_cache == NULL)
-                return;
-            int pcount = ((int *) obj->render_cache)[0];
-            float *verts = (float *) ((int *) obj->render_cache + 1);
-            if (pcount < 3)
-                return;
-            fprintf(fp, "  \\draw[");
-            tikz_write_style(fp, &obj->style, false);
-            fprintf(fp, "] ");
-            for (int j = 0; j < pcount; j++) {
-                float vx = verts[j * 2], vy = verts[j * 2 + 1];
-                apply_camera(&vx, &vy, scene);
-                fprintf(fp, "(%.2f,%.2f)", vx, vy);
-                if (j < pcount - 1)
-                    fprintf(fp, " -- ");
-            }
-            fprintf(fp, " -- cycle;\n");
-            break;
-        }
-        default:
-            break;
+    if (obj->type >= 0 && obj->type < lv_VISUAL_MOBJECT_GROUP) {
+        TikzObjHandler handler = tikz_render_table[obj->type];
+        if (handler)
+            handler(fp, obj, scene, depth);
     }
 }
 
@@ -639,13 +669,131 @@ static void cairo_write_style(FILE *fp, const lvVisualStyle *s, const char *inde
     }
 }
 
+/* ── Cairo 渲染处理器函数 ── */
+typedef void (*CairoObjHandler)(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth);
+
+static void cairo_render_point(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    const char *ind = "    ";
+    if (!get_float_cache(obj, cache, 2))
+        return;
+    float px = cache[0], py = cache[1];
+    apply_camera(&px, &py, scene);
+    float r = obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f;
+    cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
+    fprintf(fp, "%scairo_arc(cr, %.2f, %.2f, %.2f, 0, 2 * M_PI);\n", ind, (double) px, (double) py, (double) r);
+    fprintf(fp, "%scairo_fill(cr);\n", ind);
+}
+
+static void cairo_render_segment(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    const char *ind = "    ";
+    if (!get_float_cache(obj, cache, 4))
+        return;
+    float x1 = cache[0], y1 = cache[1];
+    float x2 = cache[2], y2 = cache[3];
+    apply_camera(&x1, &y1, scene);
+    apply_camera(&x2, &y2, scene);
+    cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
+    cairo_write_style(fp, &obj->style, ind);
+    fprintf(fp, "%scairo_move_to(cr, %.2f, %.2f);\n", ind, (double) x1, (double) y1);
+    fprintf(fp, "%scairo_line_to(cr, %.2f, %.2f);\n", ind, (double) x2, (double) y2);
+    fprintf(fp, "%scairo_stroke(cr);\n", ind);
+}
+
+static void cairo_render_line(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    const char *ind = "    ";
+    if (!get_float_cache(obj, cache, 4))
+        return;
+    float x1 = cache[0], y1 = cache[1];
+    float x2 = cache[2], y2 = cache[3];
+    float dx = x2 - x1, dy = y2 - y1;
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len < 1e-6f)
+        return;
+    float ux = dx / len, uy = dy / len;
+    float t_max = 1000.0f;
+    float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
+    float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
+    apply_camera(&lx1, &ly1, scene);
+    apply_camera(&lx2, &ly2, scene);
+    cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
+    cairo_write_style(fp, &obj->style, ind);
+    fprintf(fp, "%scairo_move_to(cr, %.2f, %.2f);\n", ind, (double) lx1, (double) ly1);
+    fprintf(fp, "%scairo_line_to(cr, %.2f, %.2f);\n", ind, (double) lx2, (double) ly2);
+    fprintf(fp, "%scairo_stroke(cr);\n", ind);
+}
+
+static void cairo_render_circle(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    const char *ind = "    ";
+    if (!get_float_cache(obj, cache, 3))
+        return;
+    float cx = cache[0], cy = cache[1], r = cache[2];
+    apply_camera(&cx, &cy, scene);
+    cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
+    cairo_write_style(fp, &obj->style, ind);
+    fprintf(fp, "%scairo_arc(cr, %.2f, %.2f, %.2f, 0, 2 * M_PI);\n", ind, (double) cx, (double) cy, (double) r);
+    fprintf(fp, "%scairo_stroke_preserve(cr);\n", ind);
+    if (obj->style.fill_color[3] > 0.0f) {
+        cairo_write_color(fp, obj->style.fill_color, obj->style.opacity, ind, "cr");
+        fprintf(fp, "%scairo_fill(cr);\n", ind);
+    } else {
+        fprintf(fp, "%scairo_new_path(cr);\n", ind);
+    }
+}
+
+static void cairo_render_polygon(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
+    (void)depth;
+    const char *ind = "    ";
+    if (obj->render_cache == NULL)
+        return;
+    int pcount = ((int *) obj->render_cache)[0];
+    float *verts = (float *) ((int *) obj->render_cache + 1);
+    if (pcount < 3)
+        return;
+    cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
+    cairo_write_style(fp, &obj->style, ind);
+    float vx0 = verts[0], vy0 = verts[1];
+    apply_camera(&vx0, &vy0, scene);
+    fprintf(fp, "%scairo_move_to(cr, %.2f, %.2f);\n", ind, (double) vx0, (double) vy0);
+    for (int j = 1; j < pcount; j++) {
+        float vx = verts[j * 2], vy = verts[j * 2 + 1];
+        apply_camera(&vx, &vy, scene);
+        fprintf(fp, "%scairo_line_to(cr, %.2f, %.2f);\n", ind, (double) vx, (double) vy);
+    }
+    fprintf(fp, "%scairo_close_path(cr);\n", ind);
+    fprintf(fp, "%scairo_stroke_preserve(cr);\n", ind);
+    if (obj->style.fill_color[3] > 0.0f) {
+        cairo_write_color(fp, obj->style.fill_color, obj->style.opacity, ind, "cr");
+        fprintf(fp, "%scairo_fill(cr);\n", ind);
+    } else {
+        fprintf(fp, "%scairo_new_path(cr);\n", ind);
+    }
+}
+
+static const CairoObjHandler cairo_render_table[lv_VISUAL_MOBJECT_GROUP] = {
+    [lv_VISUAL_POINT]   = cairo_render_point,
+    [lv_VISUAL_SEGMENT] = cairo_render_segment,
+    [lv_VISUAL_LINE]    = cairo_render_line,
+    [lv_VISUAL_CIRCLE]  = cairo_render_circle,
+    [lv_VISUAL_POLYGON] = cairo_render_polygon,
+};
+
 /** 递归生成单个对象的 Cairo 绘制代码 */
 static void cairo_render_object(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth) {
     if (obj == NULL)
         return;
-    const char *ind = "    "; /* 基础缩进 */
 
-    /* 组合对象：递归 */
     if (obj->type == lv_VISUAL_MOBJECT_GROUP) {
         for (size_t i = 0; i < obj->children_count; i++) {
             cairo_render_object(fp, obj->children[i], scene, depth + 1);
@@ -653,107 +801,10 @@ static void cairo_render_object(FILE *fp, const lvVisualObject *obj, const lvVis
         return;
     }
 
-    float cache[8];
-    memset(cache, 0, sizeof(cache));
-
-    switch (obj->type) {
-        case lv_VISUAL_POINT: {
-            if (!get_float_cache(obj, cache, 2))
-                return;
-            float px = cache[0], py = cache[1];
-            apply_camera(&px, &py, scene);
-            float r = obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f;
-            cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
-            fprintf(fp, "%scairo_arc(cr, %.2f, %.2f, %.2f, 0, 2 * M_PI);\n", ind, (double) px, (double) py, (double) r);
-            fprintf(fp, "%scairo_fill(cr);\n", ind);
-            break;
-        }
-        case lv_VISUAL_SEGMENT: {
-            if (!get_float_cache(obj, cache, 4))
-                return;
-            float x1 = cache[0], y1 = cache[1];
-            float x2 = cache[2], y2 = cache[3];
-            apply_camera(&x1, &y1, scene);
-            apply_camera(&x2, &y2, scene);
-            cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
-            cairo_write_style(fp, &obj->style, ind);
-            fprintf(fp, "%scairo_move_to(cr, %.2f, %.2f);\n", ind, (double) x1, (double) y1);
-            fprintf(fp, "%scairo_line_to(cr, %.2f, %.2f);\n", ind, (double) x2, (double) y2);
-            fprintf(fp, "%scairo_stroke(cr);\n", ind);
-            break;
-        }
-        case lv_VISUAL_LINE: {
-            if (!get_float_cache(obj, cache, 4))
-                return;
-            float x1 = cache[0], y1 = cache[1];
-            float x2 = cache[2], y2 = cache[3];
-            float dx = x2 - x1, dy = y2 - y1;
-            float len = sqrtf(dx * dx + dy * dy);
-            if (len < 1e-6f)
-                return;
-            float ux = dx / len, uy = dy / len;
-            float t_max = 1000.0f;
-            float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
-            float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
-            apply_camera(&lx1, &ly1, scene);
-            apply_camera(&lx2, &ly2, scene);
-            cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
-            cairo_write_style(fp, &obj->style, ind);
-            fprintf(fp, "%scairo_move_to(cr, %.2f, %.2f);\n", ind, (double) lx1, (double) ly1);
-            fprintf(fp, "%scairo_line_to(cr, %.2f, %.2f);\n", ind, (double) lx2, (double) ly2);
-            fprintf(fp, "%scairo_stroke(cr);\n", ind);
-            break;
-        }
-        case lv_VISUAL_CIRCLE: {
-            if (!get_float_cache(obj, cache, 3))
-                return;
-            float cx = cache[0], cy = cache[1], r = cache[2];
-            apply_camera(&cx, &cy, scene);
-            /* 描边 */
-            cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
-            cairo_write_style(fp, &obj->style, ind);
-            fprintf(fp, "%scairo_arc(cr, %.2f, %.2f, %.2f, 0, 2 * M_PI);\n", ind, (double) cx, (double) cy, (double) r);
-            fprintf(fp, "%scairo_stroke_preserve(cr);\n", ind);
-            /* 填充 */
-            if (obj->style.fill_color[3] > 0.0f) {
-                cairo_write_color(fp, obj->style.fill_color, obj->style.opacity, ind, "cr");
-                fprintf(fp, "%scairo_fill(cr);\n", ind);
-            } else {
-                fprintf(fp, "%scairo_new_path(cr);\n", ind);
-            }
-            break;
-        }
-        case lv_VISUAL_POLYGON: {
-            if (obj->render_cache == NULL)
-                return;
-            int pcount = ((int *) obj->render_cache)[0];
-            float *verts = (float *) ((int *) obj->render_cache + 1);
-            if (pcount < 3)
-                return;
-            /* 描边 */
-            cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
-            cairo_write_style(fp, &obj->style, ind);
-            float vx0 = verts[0], vy0 = verts[1];
-            apply_camera(&vx0, &vy0, scene);
-            fprintf(fp, "%scairo_move_to(cr, %.2f, %.2f);\n", ind, (double) vx0, (double) vy0);
-            for (int j = 1; j < pcount; j++) {
-                float vx = verts[j * 2], vy = verts[j * 2 + 1];
-                apply_camera(&vx, &vy, scene);
-                fprintf(fp, "%scairo_line_to(cr, %.2f, %.2f);\n", ind, (double) vx, (double) vy);
-            }
-            fprintf(fp, "%scairo_close_path(cr);\n", ind);
-            fprintf(fp, "%scairo_stroke_preserve(cr);\n", ind);
-            /* 填充 */
-            if (obj->style.fill_color[3] > 0.0f) {
-                cairo_write_color(fp, obj->style.fill_color, obj->style.opacity, ind, "cr");
-                fprintf(fp, "%scairo_fill(cr);\n", ind);
-            } else {
-                fprintf(fp, "%scairo_new_path(cr);\n", ind);
-            }
-            break;
-        }
-        default:
-            break;
+    if (obj->type >= 0 && obj->type < lv_VISUAL_MOBJECT_GROUP) {
+        CairoObjHandler handler = cairo_render_table[obj->type];
+        if (handler)
+            handler(fp, obj, scene, depth);
     }
 }
 
@@ -799,6 +850,177 @@ static void cairo_render_scene(FILE *fp, const lvVisualRenderer *renderer, const
  * Three.js 渲染（生成交互式 HTML / JavaScript）
  * ======================================================================== */
 
+/* ── Three.js 渲染处理器函数 ── */
+typedef void (*ThreejsObjHandler)(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth,
+                                  const char *parent_var);
+
+static void threejs_render_point(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth,
+                                 const char *parent_var) {
+    (void)depth;
+    const char *ind = "        ";
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 2))
+        return;
+    float px = cache[0], py = cache[1];
+    apply_camera(&px, &py, scene);
+    float r = obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f;
+    fprintf(fp, "%s{\n", ind);
+    fprintf(fp, "%s    const geo = new THREE.SphereGeometry(%.2f, 16, 16);\n", ind, (double) (r * 0.5f));
+    fprintf(fp, "%s    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(%.3f, %.3f, %.3f) });\n",
+            ind, (double) obj->style.stroke_color[0], (double) obj->style.stroke_color[1],
+            (double) obj->style.stroke_color[2]);
+    fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
+    fprintf(fp, "%s    mesh.position.set(%.2f, %.2f, 0);\n", ind, (double) px, (double) py);
+    fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
+    fprintf(fp, "%s}\n", ind);
+}
+
+static void threejs_render_segment(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth,
+                                   const char *parent_var) {
+    (void)depth;
+    const char *ind = "        ";
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 4))
+        return;
+    float x1 = cache[0], y1 = cache[1];
+    float x2 = cache[2], y2 = cache[3];
+    apply_camera(&x1, &y1, scene);
+    apply_camera(&x2, &y2, scene);
+    float mx = (x1 + x2) * 0.5f, my = (y1 + y2) * 0.5f;
+    float dx = x2 - x1, dy = y2 - y1;
+    float length = sqrtf(dx * dx + dy * dy);
+    if (length < 1e-6f)
+        return;
+    float angle = atan2f(dy, dx);
+    fprintf(fp, "%s{\n", ind);
+    fprintf(fp, "%s    const geo = new THREE.PlaneGeometry(%.2f, %.2f);\n", ind, (double) length,
+            (double) obj->style.stroke_width);
+    fprintf(fp, "%s    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(%.3f, %.3f, %.3f), "
+            "side: THREE.DoubleSide, transparent: true, opacity: %.2f });\n",
+            ind, (double) obj->style.stroke_color[0], (double) obj->style.stroke_color[1],
+            (double) obj->style.stroke_color[2], (double) (obj->style.stroke_color[3] * obj->style.opacity));
+    fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
+    fprintf(fp, "%s    mesh.position.set(%.2f, %.2f, 0);\n", ind, (double) mx, (double) my);
+    fprintf(fp, "%s    mesh.rotation.z = %.6f;\n", ind, (double) angle);
+    fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
+    fprintf(fp, "%s}\n", ind);
+}
+
+static void threejs_render_line(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth,
+                                const char *parent_var) {
+    (void)depth;
+    const char *ind = "        ";
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 4))
+        return;
+    float x1 = cache[0], y1 = cache[1];
+    float x2 = cache[2], y2 = cache[3];
+    float dx = x2 - x1, dy = y2 - y1;
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len < 1e-6f)
+        return;
+    float ux = dx / len, uy = dy / len;
+    float t_max = 500.0f;
+    float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
+    float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
+    apply_camera(&lx1, &ly1, scene);
+    apply_camera(&lx2, &ly2, scene);
+    float mx = (lx1 + lx2) * 0.5f, my = (ly1 + ly2) * 0.5f;
+    float ldx = lx2 - lx1, ldy = ly2 - ly1;
+    float llength = sqrtf(ldx * ldx + ldy * ldy);
+    float lang = atan2f(ldy, ldx);
+    fprintf(fp, "%s{\n", ind);
+    fprintf(fp, "%s    const geo = new THREE.PlaneGeometry(%.2f, %.2f);\n", ind, (double) llength,
+            (double) obj->style.stroke_width);
+    fprintf(fp, "%s    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(%.3f, %.3f, %.3f), "
+            "side: THREE.DoubleSide, transparent: true, opacity: %.2f });\n",
+            ind, (double) obj->style.stroke_color[0], (double) obj->style.stroke_color[1],
+            (double) obj->style.stroke_color[2], (double) (obj->style.stroke_color[3] * obj->style.opacity));
+    fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
+    fprintf(fp, "%s    mesh.position.set(%.2f, %.2f, 0);\n", ind, (double) mx, (double) my);
+    fprintf(fp, "%s    mesh.rotation.z = %.6f;\n", ind, (double) lang);
+    fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
+    fprintf(fp, "%s}\n", ind);
+}
+
+static void threejs_render_circle(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth,
+                                  const char *parent_var) {
+    (void)depth;
+    const char *ind = "        ";
+    float cache[8];
+    memset(cache, 0, sizeof(cache));
+    if (!get_float_cache(obj, cache, 3))
+        return;
+    float cx = cache[0], cy = cache[1], r = cache[2];
+    apply_camera(&cx, &cy, scene);
+    fprintf(fp, "%s{\n", ind);
+    float inner_r = (obj->style.fill_color[3] > 0.0f) ? 0.0f : (r - 1.0f);
+    if (inner_r < 0.0f)
+        inner_r = 0.0f;
+    fprintf(fp, "%s    const geo = new THREE.RingGeometry(%.2f, %.2f, 64);\n", ind, (double) inner_r, (double) r);
+    float sr = obj->style.stroke_color[0];
+    float sg = obj->style.stroke_color[1];
+    float sb = obj->style.stroke_color[2];
+    float sa = obj->style.stroke_color[3] * obj->style.opacity;
+    fprintf(fp, "%s    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(%.3f, %.3f, %.3f), "
+            "side: THREE.DoubleSide, transparent: true, opacity: %.2f });\n",
+            ind, (double) sr, (double) sg, (double) sb, (double) sa);
+    if (obj->style.fill_color[3] > 0.0f) {
+        fprintf(fp, "%s    // 填充色: (%.3f, %.3f, %.3f)\n", ind, (double) obj->style.fill_color[0],
+                (double) obj->style.fill_color[1], (double) obj->style.fill_color[2]);
+    }
+    fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
+    fprintf(fp, "%s    mesh.position.set(%.2f, %.2f, 0);\n", ind, (double) cx, (double) cy);
+    fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
+    fprintf(fp, "%s}\n", ind);
+}
+
+static void threejs_render_polygon(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth,
+                                   const char *parent_var) {
+    (void)depth;
+    const char *ind = "        ";
+    if (obj->render_cache == NULL)
+        return;
+    int pcount = ((int *) obj->render_cache)[0];
+    float *verts = (float *) ((int *) obj->render_cache + 1);
+    if (pcount < 3)
+        return;
+    fprintf(fp, "%s{\n", ind);
+    fprintf(fp, "%s    const shape = new THREE.Shape();\n", ind);
+    float vx0 = verts[0], vy0 = verts[1];
+    apply_camera(&vx0, &vy0, scene);
+    fprintf(fp, "%s    shape.moveTo(%.2f, %.2f);\n", ind, (double) vx0, (double) vy0);
+    for (int j = 1; j < pcount; j++) {
+        float vx = verts[j * 2], vy = verts[j * 2 + 1];
+        apply_camera(&vx, &vy, scene);
+        fprintf(fp, "%s    shape.lineTo(%.2f, %.2f);\n", ind, (double) vx, (double) vy);
+    }
+    fprintf(fp, "%s    shape.closePath();\n", ind);
+    fprintf(fp, "%s    const geo = new THREE.ShapeGeometry(shape);\n", ind);
+    float sr = obj->style.stroke_color[0];
+    float sg = obj->style.stroke_color[1];
+    float sb = obj->style.stroke_color[2];
+    float sa = obj->style.stroke_color[3] * obj->style.opacity;
+    fprintf(fp, "%s    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(%.3f, %.3f, %.3f), "
+            "side: THREE.DoubleSide, transparent: true, opacity: %.2f });\n",
+            ind, (double) sr, (double) sg, (double) sb, (double) sa);
+    fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
+    fprintf(fp, "%s    mesh.position.z = 0;\n", ind);
+    fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
+    fprintf(fp, "%s}\n", ind);
+}
+
+static const ThreejsObjHandler threejs_render_table[lv_VISUAL_MOBJECT_GROUP] = {
+    [lv_VISUAL_POINT]   = threejs_render_point,
+    [lv_VISUAL_SEGMENT] = threejs_render_segment,
+    [lv_VISUAL_LINE]    = threejs_render_line,
+    [lv_VISUAL_CIRCLE]  = threejs_render_circle,
+    [lv_VISUAL_POLYGON] = threejs_render_polygon,
+};
+
 /** 递归生成单个对象的 Three.js JavaScript 代码 */
 static void threejs_render_object(FILE *fp, const lvVisualObject *obj, const lvVisualScene *scene, int depth,
                                   const char *parent_var) {
@@ -807,7 +1029,6 @@ static void threejs_render_object(FILE *fp, const lvVisualObject *obj, const lvV
     const char *ind = "        ";
 
     if (obj->type == lv_VISUAL_MOBJECT_GROUP) {
-        /* 组对象：创建 THREE.Group，递归添加子对象 */
         fprintf(fp, "%s{\n", ind);
         fprintf(fp, "%s    const grp = new THREE.Group();\n", ind);
         for (size_t i = 0; i < obj->children_count; i++) {
@@ -818,164 +1039,10 @@ static void threejs_render_object(FILE *fp, const lvVisualObject *obj, const lvV
         return;
     }
 
-    float cache[8];
-    memset(cache, 0, sizeof(cache));
-
-    switch (obj->type) {
-        case lv_VISUAL_POINT: {
-            if (!get_float_cache(obj, cache, 2))
-                return;
-            float px = cache[0], py = cache[1];
-            apply_camera(&px, &py, scene);
-            float r = obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f;
-            fprintf(fp, "%s{\n", ind);
-            fprintf(fp, "%s    const geo = new THREE.SphereGeometry(%.2f, 16, 16);\n", ind, (double) (r * 0.5f));
-            fprintf(fp,
-                    "%s    const mat = new THREE.MeshBasicMaterial({ color: "
-                    "new THREE.Color(%.3f, %.3f, %.3f) });\n",
-                    ind, (double) obj->style.stroke_color[0], (double) obj->style.stroke_color[1],
-                    (double) obj->style.stroke_color[2]);
-            fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
-            fprintf(fp, "%s    mesh.position.set(%.2f, %.2f, 0);\n", ind, (double) px, (double) py);
-            fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
-            fprintf(fp, "%s}\n", ind);
-            break;
-        }
-        case lv_VISUAL_SEGMENT: {
-            if (!get_float_cache(obj, cache, 4))
-                return;
-            float x1 = cache[0], y1 = cache[1];
-            float x2 = cache[2], y2 = cache[3];
-            apply_camera(&x1, &y1, scene);
-            apply_camera(&x2, &y2, scene);
-            float mx = (x1 + x2) * 0.5f, my = (y1 + y2) * 0.5f;
-            float dx = x2 - x1, dy = y2 - y1;
-            float length = sqrtf(dx * dx + dy * dy);
-            if (length < 1e-6f)
-                return;
-            float angle = atan2f(dy, dx);
-            fprintf(fp, "%s{\n", ind);
-            fprintf(fp, "%s    const geo = new THREE.PlaneGeometry(%.2f, %.2f);\n", ind, (double) length,
-                    (double) obj->style.stroke_width);
-            fprintf(fp,
-                    "%s    const mat = new THREE.MeshBasicMaterial({ color: "
-                    "new THREE.Color(%.3f, %.3f, %.3f), "
-                    "side: THREE.DoubleSide, transparent: true, "
-                    "opacity: %.2f });\n",
-                    ind, (double) obj->style.stroke_color[0], (double) obj->style.stroke_color[1],
-                    (double) obj->style.stroke_color[2], (double) (obj->style.stroke_color[3] * obj->style.opacity));
-            fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
-            fprintf(fp, "%s    mesh.position.set(%.2f, %.2f, 0);\n", ind, (double) mx, (double) my);
-            fprintf(fp, "%s    mesh.rotation.z = %.6f;\n", ind, (double) angle);
-            fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
-            fprintf(fp, "%s}\n", ind);
-            break;
-        }
-        case lv_VISUAL_LINE: {
-            if (!get_float_cache(obj, cache, 4))
-                return;
-            float x1 = cache[0], y1 = cache[1];
-            float x2 = cache[2], y2 = cache[3];
-            float dx = x2 - x1, dy = y2 - y1;
-            float len = sqrtf(dx * dx + dy * dy);
-            if (len < 1e-6f)
-                return;
-            float ux = dx / len, uy = dy / len;
-            float t_max = 500.0f;
-            float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
-            float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
-            apply_camera(&lx1, &ly1, scene);
-            apply_camera(&lx2, &ly2, scene);
-            float mx = (lx1 + lx2) * 0.5f, my = (ly1 + ly2) * 0.5f;
-            float ldx = lx2 - lx1, ldy = ly2 - ly1;
-            float llength = sqrtf(ldx * ldx + ldy * ldy);
-            float lang = atan2f(ldy, ldx);
-            fprintf(fp, "%s{\n", ind);
-            fprintf(fp, "%s    const geo = new THREE.PlaneGeometry(%.2f, %.2f);\n", ind, (double) llength,
-                    (double) obj->style.stroke_width);
-            fprintf(fp,
-                    "%s    const mat = new THREE.MeshBasicMaterial({ color: "
-                    "new THREE.Color(%.3f, %.3f, %.3f), "
-                    "side: THREE.DoubleSide, transparent: true, "
-                    "opacity: %.2f });\n",
-                    ind, (double) obj->style.stroke_color[0], (double) obj->style.stroke_color[1],
-                    (double) obj->style.stroke_color[2], (double) (obj->style.stroke_color[3] * obj->style.opacity));
-            fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
-            fprintf(fp, "%s    mesh.position.set(%.2f, %.2f, 0);\n", ind, (double) mx, (double) my);
-            fprintf(fp, "%s    mesh.rotation.z = %.6f;\n", ind, (double) lang);
-            fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
-            fprintf(fp, "%s}\n", ind);
-            break;
-        }
-        case lv_VISUAL_CIRCLE: {
-            if (!get_float_cache(obj, cache, 3))
-                return;
-            float cx = cache[0], cy = cache[1], r = cache[2];
-            apply_camera(&cx, &cy, scene);
-            fprintf(fp, "%s{\n", ind);
-            /* 圆形用 RingGeometry（内径略小于外径形成细环） */
-            float inner_r = (obj->style.fill_color[3] > 0.0f) ? 0.0f : (r - 1.0f);
-            if (inner_r < 0.0f)
-                inner_r = 0.0f;
-            fprintf(fp, "%s    const geo = new THREE.RingGeometry(%.2f, %.2f, 64);\n", ind, (double) inner_r,
-                    (double) r);
-            float sr = obj->style.stroke_color[0];
-            float sg = obj->style.stroke_color[1];
-            float sb = obj->style.stroke_color[2];
-            float sa = obj->style.stroke_color[3] * obj->style.opacity;
-            fprintf(fp,
-                    "%s    const mat = new THREE.MeshBasicMaterial({ color: "
-                    "new THREE.Color(%.3f, %.3f, %.3f), "
-                    "side: THREE.DoubleSide, transparent: true, "
-                    "opacity: %.2f });\n",
-                    ind, (double) sr, (double) sg, (double) sb, (double) sa);
-            if (obj->style.fill_color[3] > 0.0f) {
-                fprintf(fp, "%s    // 填充色: (%.3f, %.3f, %.3f)\n", ind, (double) obj->style.fill_color[0],
-                        (double) obj->style.fill_color[1], (double) obj->style.fill_color[2]);
-            }
-            fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
-            fprintf(fp, "%s    mesh.position.set(%.2f, %.2f, 0);\n", ind, (double) cx, (double) cy);
-            fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
-            fprintf(fp, "%s}\n", ind);
-            break;
-        }
-        case lv_VISUAL_POLYGON: {
-            if (obj->render_cache == NULL)
-                return;
-            int pcount = ((int *) obj->render_cache)[0];
-            float *verts = (float *) ((int *) obj->render_cache + 1);
-            if (pcount < 3)
-                return;
-            fprintf(fp, "%s{\n", ind);
-            fprintf(fp, "%s    const shape = new THREE.Shape();\n", ind);
-            float vx0 = verts[0], vy0 = verts[1];
-            apply_camera(&vx0, &vy0, scene);
-            fprintf(fp, "%s    shape.moveTo(%.2f, %.2f);\n", ind, (double) vx0, (double) vy0);
-            for (int j = 1; j < pcount; j++) {
-                float vx = verts[j * 2], vy = verts[j * 2 + 1];
-                apply_camera(&vx, &vy, scene);
-                fprintf(fp, "%s    shape.lineTo(%.2f, %.2f);\n", ind, (double) vx, (double) vy);
-            }
-            fprintf(fp, "%s    shape.closePath();\n", ind);
-            fprintf(fp, "%s    const geo = new THREE.ShapeGeometry(shape);\n", ind);
-            float sr = obj->style.stroke_color[0];
-            float sg = obj->style.stroke_color[1];
-            float sb = obj->style.stroke_color[2];
-            float sa = obj->style.stroke_color[3] * obj->style.opacity;
-            fprintf(fp,
-                    "%s    const mat = new THREE.MeshBasicMaterial({ color: "
-                    "new THREE.Color(%.3f, %.3f, %.3f), "
-                    "side: THREE.DoubleSide, transparent: true, "
-                    "opacity: %.2f });\n",
-                    ind, (double) sr, (double) sg, (double) sb, (double) sa);
-            fprintf(fp, "%s    const mesh = new THREE.Mesh(geo, mat);\n", ind);
-            fprintf(fp, "%s    mesh.position.z = 0;\n", ind);
-            fprintf(fp, "%s    %s.add(mesh);\n", ind, parent_var);
-            fprintf(fp, "%s}\n", ind);
-            break;
-        }
-        default:
-            break;
+    if (obj->type >= 0 && obj->type < lv_VISUAL_MOBJECT_GROUP) {
+        ThreejsObjHandler handler = threejs_render_table[obj->type];
+        if (handler)
+            handler(fp, obj, scene, depth, parent_var);
     }
 }
 
@@ -1257,55 +1324,59 @@ static bool write_png_rgb(const char *path, int width, int height, const uint8_t
     return true;
 }
 
+/* ── 后端场景渲染函数表 ── */
+typedef void (*SceneRenderFn)(FILE *fp, const lvVisualRenderer *renderer, const lvVisualScene *scene);
+
+static void tikz_render_visitor(const lvVisualRenderer *renderer, const lvVisualScene *scene, const char *output_path) {
+    lvRenderVisitor visitor;
+    if (lv_render_visitor_tikz_create(output_path, &visitor)) {
+        lv_render_scene(&visitor, scene);
+        lv_render_visitor_tikz_destroy(&visitor);
+    }
+}
+
+static void png_render_fallback(const lvVisualRenderer *renderer, const char *output_path) {
+    size_t px = (size_t) renderer->width * (size_t) renderer->height;
+    size_t rgb_size = px * 3;
+    uint8_t *rgb = (uint8_t *) lv_malloc(rgb_size);
+    if (rgb) {
+        memset(rgb, 255, rgb_size);
+        write_png_rgb(output_path, renderer->width, renderer->height, rgb);
+        lv_free((void **) &rgb);
+    }
+}
+
+static const SceneRenderFn scene_render_table[lv_RENDER_PNG] = {
+    [lv_RENDER_SVG]    = svg_render_scene,
+    [lv_RENDER_CAIRO]  = cairo_render_scene,
+    [lv_RENDER_THREEJS] = threejs_render_scene,
+};
+
 void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const char *output_path) {
     if (renderer == NULL || scene == NULL || output_path == NULL)
         return;
+
+    if (renderer->backend == lv_RENDER_TIKZ) {
+        tikz_render_visitor(renderer, scene, output_path);
+        return;
+    }
+
+    if (renderer->backend == lv_RENDER_PNG) {
+        png_render_fallback(renderer, output_path);
+        return;
+    }
 
     FILE *fp = lv_file_open(output_path, "w");
     if (fp == NULL)
         return;
 
-    switch (renderer->backend) {
-        case lv_RENDER_SVG:
-            svg_render_scene(fp, renderer, scene);
-            break;
-        case lv_RENDER_CAIRO:
-            cairo_render_scene(fp, renderer, scene);
-            break;
-        case lv_RENDER_THREEJS:
-            threejs_render_scene(fp, renderer, scene);
-            break;
-        case lv_RENDER_TIKZ:
-            /* 使用基于 visitor 的 TikZ 后端（POC） */
-            lv_file_close(fp);
-            {
-                lvRenderVisitor visitor;
-                if (lv_render_visitor_tikz_create(output_path, &visitor)) {
-                    lv_render_scene(&visitor, scene);
-                    lv_render_visitor_tikz_destroy(&visitor);
-                }
-            }
-            fp = NULL;
-            break;
-        case lv_RENDER_PNG: {
-            /* PNG 使用二进制模式，关闭文本模式 fp */
-            lv_file_close(fp);
-            size_t px = (size_t) renderer->width * (size_t) renderer->height;
-            size_t rgb_size = px * 3;
-            uint8_t *rgb = (uint8_t *) lv_malloc(rgb_size);
-            if (rgb) {
-                memset(rgb, 255, rgb_size);
-                write_png_rgb(output_path, renderer->width, renderer->height, rgb);
-                lv_free((void **) &rgb);
-            }
-            /* write_png_rgb 已关闭文件，避免重复关闭 */
-            fp = NULL;
-            break;
-        }
-        default:
+    if (renderer->backend >= 0 && renderer->backend < lv_RENDER_PNG) {
+        SceneRenderFn fn = scene_render_table[renderer->backend];
+        if (fn)
+            fn(fp, renderer, scene);
+        else
             fprintf(fp, "// Lv-00 render output (backend=%d, %dx%d)\n", (int) renderer->backend, renderer->width,
                     renderer->height);
-            break;
     }
 
     lv_file_close(fp);

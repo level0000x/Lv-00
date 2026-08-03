@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -34,6 +34,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
+
+### 抽象层重构（VTable/Config/Allocator）— 2026-08-04
+
+#### 变更 (Changed)
+- **VTable 重构** — engine_scheduler 后端调度器 + symbolic_coord_ops 坐标操作消除 switch 反模式
+- **配置迁移** — engine_solve.c + rewrite_strategy.c 硬编码配置迁移至 lvConfig 系统
+- **平台抽象** — allocator.c 内存大小查询抽象为 AllocatorOps vtable
+
+#### 修复 (Fixed)
+- **ATP 后端注册空指针** — 修复 eprover 别名导致的空指针解引用
+- **头文件冲突** — debug.h vs runtime_monitor.h 符号冲突解决
+- **CMake 链接** — ws2_32 库链接修复
+
+#### 验证
+- 152/152 测试全部通过，编译 0 错误
+
+### 项目指标（截至 2026-08-04）
+| 指标 | v1.1.0 初版 | 当前 |
+|:---|---:|---:|
+| .c | 232 | 615 |
+| .h | ~170 | 287 |
+| .lean | 81 | 172 |
+| .lv | 138 | 138 |
+| .lvz | — | 149 |
+| .py | 83 | 119 |
+| 测试 | — | 152 (152 通过, 0 失败) |
 
 ### 数学严谨性与数值稳定性修复（3 轮，30+ 文件）
 
@@ -156,3 +182,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python 绑定需要编译后的 C 共享库
 - Lean4 `lake build` 未运行 (需 mathlib4)
 - GitHub Actions CI/CD 预期为红灯
+
+
