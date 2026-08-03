@@ -1,1 +1,1 @@
-﻿ninja: build stopped: subcommand failed.
+﻿ninja: no work to do.

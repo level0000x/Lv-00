@@ -46,7 +46,8 @@ typedef struct {
 } lvVec8f;
 
 /* ── Capability queries ── */
-lvSimdCapability lv_simd_detect(void);
+uint32_t lv_simd_detect_capabilities(void);
+bool lv_simd_has_capability(lvSimdCapability cap);
 const char *lv_simd_capability_name(lvSimdCapability cap);
 void lv_simd_get_stats(lvSimdStats *stats);
 void lv_simd_reset_stats(void);
@@ -58,6 +59,8 @@ lvVec4d lv_vec4d_set1(double val);
 lvVec4d lv_vec4d_set(double x, double y, double z, double w);
 lvVec4d lv_vec4d_load(const double *ptr);
 lvVec4d lv_vec4d_loadu(const double *ptr);
+void lv_vec4d_store(double *ptr, lvVec4d vec);
+void lv_vec4d_storeu(double *ptr, lvVec4d vec);
 lvVec4d lv_vec4d_add(lvVec4d a, lvVec4d b);
 lvVec4d lv_vec4d_sub(lvVec4d a, lvVec4d b);
 lvVec4d lv_vec4d_mul(lvVec4d a, lvVec4d b);
@@ -88,6 +91,7 @@ lvVec4d lv_vec4d_cross(lvVec4d a, lvVec4d b);
 lvVec4f lv_vec4f_zero(void);
 lvVec4f lv_vec4f_set1(float val);
 lvVec4f lv_vec4f_load(const float *ptr);
+void lv_vec4f_store(float *ptr, lvVec4f vec);
 lvVec4f lv_vec4f_add(lvVec4f a, lvVec4f b);
 lvVec4f lv_vec4f_sub(lvVec4f a, lvVec4f b);
 lvVec4f lv_vec4f_mul(lvVec4f a, lvVec4f b);
@@ -102,10 +106,12 @@ float lv_vec4f_dot(lvVec4f a, lvVec4f b);
 lvVec8f lv_vec8f_zero(void);
 lvVec8f lv_vec8f_set1(float val);
 lvVec8f lv_vec8f_load(const float *ptr);
+void lv_vec8f_store(float *ptr, lvVec8f vec);
 lvVec8f lv_vec8f_add(lvVec8f a, lvVec8f b);
 lvVec8f lv_vec8f_sub(lvVec8f a, lvVec8f b);
 lvVec8f lv_vec8f_mul(lvVec8f a, lvVec8f b);
 lvVec8f lv_vec8f_div(lvVec8f a, lvVec8f b);
+float lv_vec8f_hsum(lvVec8f a);
 
 /* ── Matrix SIMD helper ── */
 lvVec4d lv_simd_mat4x4_vec4_mul(const double mat[16], lvVec4d vec);

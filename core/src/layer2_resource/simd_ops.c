@@ -578,92 +578,272 @@ lvVec4d lv_vec4d_fmadd(lvVec4d a, lvVec4d x, lvVec4d y) {
 /* 比较操作 */
 lvVec4d lv_vec4d_cmpeq(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vm = _mm256_cmp_pd(va, vb, _CMP_EQ_OQ);
+    _mm256_storeu_pd(r.v, vm);
+#elif defined(__SSE2__)
+    __m128d a_lo = _mm_loadu_pd(a.v), a_hi = _mm_loadu_pd(a.v + 2);
+    __m128d b_lo = _mm_loadu_pd(b.v), b_hi = _mm_loadu_pd(b.v + 2);
+    _mm_storeu_pd(r.v, _mm_cmpeq_pd(a_lo, b_lo));
+    _mm_storeu_pd(r.v + 2, _mm_cmpeq_pd(a_hi, b_hi));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t a_lo = vld1q_f64(a.v), a_hi = vld1q_f64(a.v + 2);
+    float64x2_t b_lo = vld1q_f64(b.v), b_hi = vld1q_f64(b.v + 2);
+    uint64x2_t r_lo = vceqq_f64(a_lo, b_lo);
+    uint64x2_t r_hi = vceqq_f64(a_hi, b_hi);
+    vst1q_f64(r.v, (float64x2_t)r_lo);
+    vst1q_f64(r.v + 2, (float64x2_t)r_hi);
+#else
     r.v[0] = (a.v[0] == b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] == b.v[1]) ? -1.0 : 0.0;
     r.v[2] = (a.v[2] == b.v[2]) ? -1.0 : 0.0;
     r.v[3] = (a.v[3] == b.v[3]) ? -1.0 : 0.0;
+#endif
     return r;
 }
 
 lvVec4d lv_vec4d_cmplt(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vm = _mm256_cmp_pd(va, vb, _CMP_LT_OQ);
+    _mm256_storeu_pd(r.v, vm);
+#elif defined(__SSE2__)
+    __m128d a_lo = _mm_loadu_pd(a.v), a_hi = _mm_loadu_pd(a.v + 2);
+    __m128d b_lo = _mm_loadu_pd(b.v), b_hi = _mm_loadu_pd(b.v + 2);
+    _mm_storeu_pd(r.v, _mm_cmplt_pd(a_lo, b_lo));
+    _mm_storeu_pd(r.v + 2, _mm_cmplt_pd(a_hi, b_hi));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t a_lo = vld1q_f64(a.v), a_hi = vld1q_f64(a.v + 2);
+    float64x2_t b_lo = vld1q_f64(b.v), b_hi = vld1q_f64(b.v + 2);
+    uint64x2_t r_lo = vcltq_f64(a_lo, b_lo);
+    uint64x2_t r_hi = vcltq_f64(a_hi, b_hi);
+    vst1q_f64(r.v, (float64x2_t)r_lo);
+    vst1q_f64(r.v + 2, (float64x2_t)r_hi);
+#else
     r.v[0] = (a.v[0] < b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] < b.v[1]) ? -1.0 : 0.0;
     r.v[2] = (a.v[2] < b.v[2]) ? -1.0 : 0.0;
     r.v[3] = (a.v[3] < b.v[3]) ? -1.0 : 0.0;
+#endif
     return r;
 }
 
 lvVec4d lv_vec4d_cmple(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vm = _mm256_cmp_pd(va, vb, _CMP_LE_OQ);
+    _mm256_storeu_pd(r.v, vm);
+#elif defined(__SSE2__)
+    __m128d a_lo = _mm_loadu_pd(a.v), a_hi = _mm_loadu_pd(a.v + 2);
+    __m128d b_lo = _mm_loadu_pd(b.v), b_hi = _mm_loadu_pd(b.v + 2);
+    _mm_storeu_pd(r.v, _mm_cmple_pd(a_lo, b_lo));
+    _mm_storeu_pd(r.v + 2, _mm_cmple_pd(a_hi, b_hi));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t a_lo = vld1q_f64(a.v), a_hi = vld1q_f64(a.v + 2);
+    float64x2_t b_lo = vld1q_f64(b.v), b_hi = vld1q_f64(b.v + 2);
+    uint64x2_t r_lo = vcleq_f64(a_lo, b_lo);
+    uint64x2_t r_hi = vcleq_f64(a_hi, b_hi);
+    vst1q_f64(r.v, (float64x2_t)r_lo);
+    vst1q_f64(r.v + 2, (float64x2_t)r_hi);
+#else
     r.v[0] = (a.v[0] <= b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] <= b.v[1]) ? -1.0 : 0.0;
     r.v[2] = (a.v[2] <= b.v[2]) ? -1.0 : 0.0;
     r.v[3] = (a.v[3] <= b.v[3]) ? -1.0 : 0.0;
+#endif
     return r;
 }
 
 lvVec4d lv_vec4d_cmpgt(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vm = _mm256_cmp_pd(va, vb, _CMP_GT_OQ);
+    _mm256_storeu_pd(r.v, vm);
+#elif defined(__SSE2__)
+    __m128d a_lo = _mm_loadu_pd(a.v), a_hi = _mm_loadu_pd(a.v + 2);
+    __m128d b_lo = _mm_loadu_pd(b.v), b_hi = _mm_loadu_pd(b.v + 2);
+    _mm_storeu_pd(r.v, _mm_cmpgt_pd(a_lo, b_lo));
+    _mm_storeu_pd(r.v + 2, _mm_cmpgt_pd(a_hi, b_hi));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t a_lo = vld1q_f64(a.v), a_hi = vld1q_f64(a.v + 2);
+    float64x2_t b_lo = vld1q_f64(b.v), b_hi = vld1q_f64(b.v + 2);
+    uint64x2_t r_lo = vcgtq_f64(a_lo, b_lo);
+    uint64x2_t r_hi = vcgtq_f64(a_hi, b_hi);
+    vst1q_f64(r.v, (float64x2_t)r_lo);
+    vst1q_f64(r.v + 2, (float64x2_t)r_hi);
+#else
     r.v[0] = (a.v[0] > b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] > b.v[1]) ? -1.0 : 0.0;
     r.v[2] = (a.v[2] > b.v[2]) ? -1.0 : 0.0;
     r.v[3] = (a.v[3] > b.v[3]) ? -1.0 : 0.0;
+#endif
     return r;
 }
 
 lvVec4d lv_vec4d_cmpge(lvVec4d a, lvVec4d b) {
     lvVec4d r;
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vm = _mm256_cmp_pd(va, vb, _CMP_GE_OQ);
+    _mm256_storeu_pd(r.v, vm);
+#elif defined(__SSE2__)
+    __m128d a_lo = _mm_loadu_pd(a.v), a_hi = _mm_loadu_pd(a.v + 2);
+    __m128d b_lo = _mm_loadu_pd(b.v), b_hi = _mm_loadu_pd(b.v + 2);
+    _mm_storeu_pd(r.v, _mm_cmpge_pd(a_lo, b_lo));
+    _mm_storeu_pd(r.v + 2, _mm_cmpge_pd(a_hi, b_hi));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t a_lo = vld1q_f64(a.v), a_hi = vld1q_f64(a.v + 2);
+    float64x2_t b_lo = vld1q_f64(b.v), b_hi = vld1q_f64(b.v + 2);
+    uint64x2_t r_lo = vcgeq_f64(a_lo, b_lo);
+    uint64x2_t r_hi = vcgeq_f64(a_hi, b_hi);
+    vst1q_f64(r.v, (float64x2_t)r_lo);
+    vst1q_f64(r.v + 2, (float64x2_t)r_hi);
+#else
     r.v[0] = (a.v[0] >= b.v[0]) ? -1.0 : 0.0;
     r.v[1] = (a.v[1] >= b.v[1]) ? -1.0 : 0.0;
     r.v[2] = (a.v[2] >= b.v[2]) ? -1.0 : 0.0;
     r.v[3] = (a.v[3] >= b.v[3]) ? -1.0 : 0.0;
+#endif
     return r;
 }
 
 lvVec4d lv_vec4d_select(lvVec4d mask, lvVec4d a, lvVec4d b) {
     lvVec4d r;
-    /* 使用位操作实现选择 */
-    union {
-        double d;
-        uint64_t u;
-    } m, va, vb, vr;
-
+#if defined(__AVX__)
+    __m256d vm = _mm256_loadu_pd(mask.v);
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vb = _mm256_loadu_pd(b.v);
+    __m256d vr = _mm256_blendv_pd(vb, va, vm);
+    _mm256_storeu_pd(r.v, vr);
+#elif defined(__SSE4_1__)
+    __m128d m_lo = _mm_loadu_pd(mask.v), m_hi = _mm_loadu_pd(mask.v + 2);
+    __m128d a_lo = _mm_loadu_pd(a.v), a_hi = _mm_loadu_pd(a.v + 2);
+    __m128d b_lo = _mm_loadu_pd(b.v), b_hi = _mm_loadu_pd(b.v + 2);
+    _mm_storeu_pd(r.v, _mm_blendv_pd(b_lo, a_lo, m_lo));
+    _mm_storeu_pd(r.v + 2, _mm_blendv_pd(b_hi, a_hi, m_hi));
+#elif defined(__SSE2__)
+    /* 使用 AND/ANDNOT/OR 模拟 blendv */
+    __m128d m_lo = _mm_loadu_pd(mask.v), m_hi = _mm_loadu_pd(mask.v + 2);
+    __m128d a_lo = _mm_loadu_pd(a.v), a_hi = _mm_loadu_pd(a.v + 2);
+    __m128d b_lo = _mm_loadu_pd(b.v), b_hi = _mm_loadu_pd(b.v + 2);
+    _mm_storeu_pd(r.v, _mm_or_pd(_mm_and_pd(m_lo, a_lo), _mm_andnot_pd(m_lo, b_lo)));
+    _mm_storeu_pd(r.v + 2, _mm_or_pd(_mm_and_pd(m_hi, a_hi), _mm_andnot_pd(m_hi, b_hi)));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    /* NEON: vbslq_f64 selects based on the first argument's bits */
+    uint64x2_t m_lo = vld1q_u64((const uint64_t*)mask.v);
+    uint64x2_t m_hi = vld1q_u64((const uint64_t*)(mask.v + 2));
+    float64x2_t a_lo = vld1q_f64(a.v), a_hi = vld1q_f64(a.v + 2);
+    float64x2_t b_lo = vld1q_f64(b.v), b_hi = vld1q_f64(b.v + 2);
+    vst1q_f64(r.v, vbslq_f64(m_lo, a_lo, b_lo));
+    vst1q_f64(r.v + 2, vbslq_f64(m_hi, a_hi, b_hi));
+#else
+    union { double d; uint64_t u; } m, va, vb, vr;
     for (int i = 0; i < 4; i++) {
-        m.d = mask.v[i];
-        va.d = a.v[i];
-        vb.d = b.v[i];
+        m.d = mask.v[i]; va.d = a.v[i]; vb.d = b.v[i];
         vr.u = (va.u & m.u) | (vb.u & ~m.u);
         r.v[i] = vr.d;
     }
+#endif
     return r;
 }
 
 /* 归约操作 */
 double lv_vec4d_hsum(lvVec4d a) {
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vsum = _mm256_hadd_pd(va, _mm256_setzero_pd());
+    return ((double*)&vsum)[0] + ((double*)&vsum)[2];
+#elif defined(__SSE3__)
+    __m128d vlo = _mm_loadu_pd(a.v);
+    __m128d vhi = _mm_loadu_pd(a.v + 2);
+    __m128d vsum = _mm_add_pd(vlo, vhi);
+    vsum = _mm_hadd_pd(vsum, vsum);
+    return _mm_cvtsd_f64(vsum);
+#elif defined(__SSE2__)
+    __m128d vlo = _mm_loadu_pd(a.v);
+    __m128d vhi = _mm_loadu_pd(a.v + 2);
+    __m128d vsum = _mm_add_pd(vlo, vhi);
+    vsum = _mm_add_pd(vsum, _mm_shuffle_pd(vsum, vsum, 1));
+    return _mm_cvtsd_f64(vsum);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t vlo = vld1q_f64(a.v);
+    float64x2_t vhi = vld1q_f64(a.v + 2);
+    float64x2_t vsum = vaddq_f64(vlo, vhi);
+    return vgetq_lane_f64(vsum, 0) + vgetq_lane_f64(vsum, 1);
+#else
     return a.v[0] + a.v[1] + a.v[2] + a.v[3];
+#endif
 }
 
 double lv_vec4d_hmax(lvVec4d a) {
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vswap = _mm256_permute_pd(va, 0x05);
+    __m256d vmax = _mm256_max_pd(va, vswap);
+    double result = ((double*)&vmax)[0];
+    if (((double*)&vmax)[2] > result) result = ((double*)&vmax)[2];
+    return result;
+#elif defined(__SSE2__)
+    __m128d vlo = _mm_loadu_pd(a.v);
+    __m128d vhi = _mm_loadu_pd(a.v + 2);
+    __m128d vmax = _mm_max_pd(vlo, vhi);
+    double m = _mm_cvtsd_f64(vmax);
+    double m2 = _mm_cvtsd_f64(_mm_shuffle_pd(vmax, vmax, 1));
+    return (m > m2) ? m : m2;
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t vlo = vld1q_f64(a.v);
+    float64x2_t vhi = vld1q_f64(a.v + 2);
+    float64x2_t vmax = vmaxq_f64(vlo, vhi);
+    double m0 = vgetq_lane_f64(vmax, 0);
+    double m1 = vgetq_lane_f64(vmax, 1);
+    return (m0 > m1) ? m0 : m1;
+#else
     double m = a.v[0];
-    if (a.v[1] > m)
-        m = a.v[1];
-    if (a.v[2] > m)
-        m = a.v[2];
-    if (a.v[3] > m)
-        m = a.v[3];
+    if (a.v[1] > m) m = a.v[1];
+    if (a.v[2] > m) m = a.v[2];
+    if (a.v[3] > m) m = a.v[3];
     return m;
+#endif
 }
 
 double lv_vec4d_hmin(lvVec4d a) {
+#if defined(__AVX__)
+    __m256d va = _mm256_loadu_pd(a.v);
+    __m256d vswap = _mm256_permute_pd(va, 0x05);
+    __m256d vmin = _mm256_min_pd(va, vswap);
+    double result = ((double*)&vmin)[0];
+    if (((double*)&vmin)[2] < result) result = ((double*)&vmin)[2];
+    return result;
+#elif defined(__SSE2__)
+    __m128d vlo = _mm_loadu_pd(a.v);
+    __m128d vhi = _mm_loadu_pd(a.v + 2);
+    __m128d vmin = _mm_min_pd(vlo, vhi);
+    double m = _mm_cvtsd_f64(vmin);
+    double m2 = _mm_cvtsd_f64(_mm_shuffle_pd(vmin, vmin, 1));
+    return (m < m2) ? m : m2;
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float64x2_t vlo = vld1q_f64(a.v);
+    float64x2_t vhi = vld1q_f64(a.v + 2);
+    float64x2_t vmin = vminq_f64(vlo, vhi);
+    double m0 = vgetq_lane_f64(vmin, 0);
+    double m1 = vgetq_lane_f64(vmin, 1);
+    return (m0 < m1) ? m0 : m1;
+#else
     double m = a.v[0];
-    if (a.v[1] < m)
-        m = a.v[1];
-    if (a.v[2] < m)
-        m = a.v[2];
-    if (a.v[3] < m)
-        m = a.v[3];
+    if (a.v[1] < m) m = a.v[1];
+    if (a.v[2] < m) m = a.v[2];
+    if (a.v[3] < m) m = a.v[3];
     return m;
+#endif
 }
 
 double lv_vec4d_dot(lvVec4d a, lvVec4d b) {
@@ -1001,62 +1181,166 @@ lvVec8f lv_vec8f_zero(void) {
 
 lvVec8f lv_vec8f_set1(float val) {
     lvVec8f v;
+#if defined(__AVX__)
+    __m256 vv = _mm256_set1_ps(val);
+    _mm256_storeu_ps(v.v, vv);
+#elif defined(__SSE2__)
+    __m128 vv = _mm_set1_ps(val);
+    _mm_storeu_ps(v.v, vv);
+    _mm_storeu_ps(v.v + 4, vv);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float32x4_t vv = vdupq_n_f32(val);
+    vst1q_f32(v.v, vv);
+    vst1q_f32(v.v + 4, vv);
+#else
     for (int i = 0; i < 8; i++)
         v.v[i] = val;
+#endif
     g_simd_stats.vec8_ops++;
     return v;
 }
 
 lvVec8f lv_vec8f_load(const float *ptr) {
     lvVec8f v;
+#if defined(__AVX__)
+    __m256 vv = _mm256_loadu_ps(ptr);
+    _mm256_storeu_ps(v.v, vv);
+#elif defined(__SSE2__)
+    _mm_storeu_ps(v.v, _mm_loadu_ps(ptr));
+    _mm_storeu_ps(v.v + 4, _mm_loadu_ps(ptr + 4));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    vst1q_f32(v.v, vld1q_f32(ptr));
+    vst1q_f32(v.v + 4, vld1q_f32(ptr + 4));
+#else
     for (int i = 0; i < 8; i++)
         v.v[i] = ptr[i];
+#endif
     g_simd_stats.vec8_ops++;
     return v;
 }
 
 void lv_vec8f_store(float *ptr, lvVec8f vec) {
+#if defined(__AVX__)
+    __m256 vv = _mm256_loadu_ps(vec.v);
+    _mm256_storeu_ps(ptr, vv);
+#elif defined(__SSE2__)
+    _mm_storeu_ps(ptr, _mm_loadu_ps(vec.v));
+    _mm_storeu_ps(ptr + 4, _mm_loadu_ps(vec.v + 4));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    vst1q_f32(ptr, vld1q_f32(vec.v));
+    vst1q_f32(ptr + 4, vld1q_f32(vec.v + 4));
+#else
     for (int i = 0; i < 8; i++)
         ptr[i] = vec.v[i];
+#endif
 }
 
 lvVec8f lv_vec8f_add(lvVec8f a, lvVec8f b) {
     lvVec8f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vb = _mm256_loadu_ps(b.v);
+    _mm256_storeu_ps(r.v, _mm256_add_ps(va, vb));
+#elif defined(__SSE2__)
+    _mm_storeu_ps(r.v, _mm_add_ps(_mm_loadu_ps(a.v), _mm_loadu_ps(b.v)));
+    _mm_storeu_ps(r.v + 4, _mm_add_ps(_mm_loadu_ps(a.v + 4), _mm_loadu_ps(b.v + 4)));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    vst1q_f32(r.v, vaddq_f32(vld1q_f32(a.v), vld1q_f32(b.v)));
+    vst1q_f32(r.v + 4, vaddq_f32(vld1q_f32(a.v + 4), vld1q_f32(b.v + 4)));
+#else
     for (int i = 0; i < 8; i++)
         r.v[i] = a.v[i] + b.v[i];
+#endif
     g_simd_stats.vec8_ops++;
     return r;
 }
 
 lvVec8f lv_vec8f_sub(lvVec8f a, lvVec8f b) {
     lvVec8f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vb = _mm256_loadu_ps(b.v);
+    _mm256_storeu_ps(r.v, _mm256_sub_ps(va, vb));
+#elif defined(__SSE2__)
+    _mm_storeu_ps(r.v, _mm_sub_ps(_mm_loadu_ps(a.v), _mm_loadu_ps(b.v)));
+    _mm_storeu_ps(r.v + 4, _mm_sub_ps(_mm_loadu_ps(a.v + 4), _mm_loadu_ps(b.v + 4)));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    vst1q_f32(r.v, vsubq_f32(vld1q_f32(a.v), vld1q_f32(b.v)));
+    vst1q_f32(r.v + 4, vsubq_f32(vld1q_f32(a.v + 4), vld1q_f32(b.v + 4)));
+#else
     for (int i = 0; i < 8; i++)
         r.v[i] = a.v[i] - b.v[i];
+#endif
     g_simd_stats.vec8_ops++;
     return r;
 }
 
 lvVec8f lv_vec8f_mul(lvVec8f a, lvVec8f b) {
     lvVec8f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vb = _mm256_loadu_ps(b.v);
+    _mm256_storeu_ps(r.v, _mm256_mul_ps(va, vb));
+#elif defined(__SSE2__)
+    _mm_storeu_ps(r.v, _mm_mul_ps(_mm_loadu_ps(a.v), _mm_loadu_ps(b.v)));
+    _mm_storeu_ps(r.v + 4, _mm_mul_ps(_mm_loadu_ps(a.v + 4), _mm_loadu_ps(b.v + 4)));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    vst1q_f32(r.v, vmulq_f32(vld1q_f32(a.v), vld1q_f32(b.v)));
+    vst1q_f32(r.v + 4, vmulq_f32(vld1q_f32(a.v + 4), vld1q_f32(b.v + 4)));
+#else
     for (int i = 0; i < 8; i++)
         r.v[i] = a.v[i] * b.v[i];
+#endif
     g_simd_stats.vec8_ops++;
     return r;
 }
 
 lvVec8f lv_vec8f_div(lvVec8f a, lvVec8f b) {
     lvVec8f r;
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m256 vb = _mm256_loadu_ps(b.v);
+    _mm256_storeu_ps(r.v, _mm256_div_ps(va, vb));
+#elif defined(__SSE2__)
+    _mm_storeu_ps(r.v, _mm_div_ps(_mm_loadu_ps(a.v), _mm_loadu_ps(b.v)));
+    _mm_storeu_ps(r.v + 4, _mm_div_ps(_mm_loadu_ps(a.v + 4), _mm_loadu_ps(b.v + 4)));
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    vst1q_f32(r.v, vdivq_f32(vld1q_f32(a.v), vld1q_f32(b.v)));
+    vst1q_f32(r.v + 4, vdivq_f32(vld1q_f32(a.v + 4), vld1q_f32(b.v + 4)));
+#else
     for (int i = 0; i < 8; i++)
         r.v[i] = a.v[i] / b.v[i];
+#endif
     g_simd_stats.vec8_ops++;
     return r;
 }
 
 float lv_vec8f_hsum(lvVec8f a) {
+#if defined(__AVX__)
+    __m256 va = _mm256_loadu_ps(a.v);
+    __m128 vsum = _mm_add_ps(_mm256_castps256_ps128(va), _mm256_extractf128_ps(va, 1));
+    vsum = _mm_hadd_ps(vsum, vsum);
+    vsum = _mm_hadd_ps(vsum, vsum);
+    return _mm_cvtss_f32(vsum);
+#elif defined(__SSE2__)
+    __m128 vlo = _mm_loadu_ps(a.v);
+    __m128 vhi = _mm_loadu_ps(a.v + 4);
+    __m128 vsum = _mm_add_ps(vlo, vhi);
+    vsum = _mm_hadd_ps(vsum, vsum);
+    vsum = _mm_hadd_ps(vsum, vsum);
+    return _mm_cvtss_f32(vsum);
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    float32x4_t vlo = vld1q_f32(a.v);
+    float32x4_t vhi = vld1q_f32(a.v + 4);
+    float32x4_t vsum = vaddq_f32(vlo, vhi);
+    return vgetq_lane_f32(vsum, 0) + vgetq_lane_f32(vsum, 1)
+         + vgetq_lane_f32(vsum, 2) + vgetq_lane_f32(vsum, 3);
+#else
     float sum = 0.0f;
     for (int i = 0; i < 8; i++)
         sum += a.v[i];
     return sum;
+#endif
 }
 
 /* ============== 批量运算 ============== */
