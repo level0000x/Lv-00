@@ -69,6 +69,25 @@ typedef enum {
     lv_PRESET_FIELD_COMPLEXITY
 } lvPresetFieldId;
 
+/** @brief 字段 getter 类型 */
+typedef int64_t (*PresetFieldGetter)(const PresetEntry *entry);
+
+static int64_t get_input_count(const PresetEntry *entry)         { return (int64_t)entry->metadata.input_count; }
+static int64_t get_output_count(const PresetEntry *entry)        { return (int64_t)entry->metadata.output_count; }
+static int64_t get_precondition_count(const PresetEntry *entry)  { return (int64_t)entry->metadata.precondition_count; }
+static int64_t get_postcondition_count(const PresetEntry *entry) { return (int64_t)entry->metadata.postcondition_count; }
+static int64_t get_properties(const PresetEntry *entry)          { return (int64_t)entry->metadata.properties; }
+static int64_t get_complexity(const PresetEntry *entry)          { return (int64_t)entry->metadata.complexity; }
+
+static const PresetFieldGetter kFieldGetters[] = {
+    [lv_PRESET_FIELD_INPUT_COUNT]         = get_input_count,
+    [lv_PRESET_FIELD_OUTPUT_COUNT]        = get_output_count,
+    [lv_PRESET_FIELD_PRECONDITION_COUNT]  = get_precondition_count,
+    [lv_PRESET_FIELD_POSTCONDITION_COUNT] = get_postcondition_count,
+    [lv_PRESET_FIELD_PROPERTIES]          = get_properties,
+    [lv_PRESET_FIELD_COMPLEXITY]          = get_complexity,
+};
+
 /**
  * @brief 通用预设元数据 int64_t 字段访问器
  *
@@ -80,15 +99,9 @@ static int64_t preset_entry_get_field(lvEngine *ctx, const char *name, lvPresetF
     if (!name) return default_value;
     PresetEntry *entry = func_block_registry_find(name);
     if (!entry) return default_value;
-    switch (field) {
-        case lv_PRESET_FIELD_INPUT_COUNT:         return (int64_t) entry->metadata.input_count;
-        case lv_PRESET_FIELD_OUTPUT_COUNT:        return (int64_t) entry->metadata.output_count;
-        case lv_PRESET_FIELD_PRECONDITION_COUNT:  return (int64_t) entry->metadata.precondition_count;
-        case lv_PRESET_FIELD_POSTCONDITION_COUNT: return (int64_t) entry->metadata.postcondition_count;
-        case lv_PRESET_FIELD_PROPERTIES:          return (int64_t) entry->metadata.properties;
-        case lv_PRESET_FIELD_COMPLEXITY:          return (int64_t) entry->metadata.complexity;
-        default:                                  return default_value;
-    }
+    if ((unsigned)field < sizeof(kFieldGetters)/sizeof(kFieldGetters[0]) && kFieldGetters[field])
+        return kFieldGetters[field](entry);
+    return default_value;
 }
 
 /** 获取预设输入参数数量 -- 从注册表条目获取元数据 */

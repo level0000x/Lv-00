@@ -74,6 +74,104 @@ void lv_effect_type_destroy(lvEffectTypeRegion *t) {
     lv_free((void **) &t);
 }
 
+/* 类型兼容性检查处理器函数指针类型 */
+typedef int (*TypeCompatibleHandler)(const TypeRegion *ta, const TypeRegion *tb);
+
+/* 函数类型兼容性检查：输入逆变，输出协变 */
+static int compat_function(const TypeRegion *ta, const TypeRegion *tb) {
+    if (ta->input_type && tb->input_type) {
+        if (!lv_extended_type_compatible(tb->input_type, ta->input_type)) {
+            return 0;
+        }
+    }
+    if (ta->output_type && tb->output_type) {
+        if (!lv_extended_type_compatible(ta->output_type, tb->output_type)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* 乘积类型兼容性检查：每个分量协变 */
+static int compat_product(const TypeRegion *ta, const TypeRegion *tb) {
+    if (ta->left_type && tb->left_type) {
+        if (!lv_extended_type_compatible(ta->left_type, tb->left_type)) {
+            return 0;
+        }
+    }
+    if (ta->right_type && tb->right_type) {
+        if (!lv_extended_type_compatible(ta->right_type, tb->right_type)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* 和类型兼容性检查：两个分支都需要兼容 */
+static int compat_sum(const TypeRegion *ta, const TypeRegion *tb) {
+    if (ta->first_type && tb->first_type) {
+        if (!lv_extended_type_compatible(ta->first_type, tb->first_type)) {
+            return 0;
+        }
+    }
+    if (ta->second_type && tb->second_type) {
+        if (!lv_extended_type_compatible(ta->second_type, tb->second_type)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* 依赖类型兼容性检查：参数节点ID相同且体类型兼容 */
+static int compat_dependent(const TypeRegion *ta, const TypeRegion *tb) {
+    if (ta->param_node_id != tb->param_node_id) {
+        return 0;
+    }
+    if (ta->body_type && tb->body_type) {
+        return lv_extended_type_compatible(ta->body_type, tb->body_type);
+    }
+    return 1;
+}
+
+/* 类型变量兼容性检查：同名或同ID则兼容 */
+static int compat_variable(const TypeRegion *ta, const TypeRegion *tb) {
+    if (ta->variable_id == tb->variable_id)
+        return 1;
+    if (ta->variable_name && tb->variable_name && strcmp(ta->variable_name, tb->variable_name) == 0) {
+        return 1;
+    }
+    return 0;
+}
+
+/* 基本几何类型兼容性检查：同种类即兼容 */
+static int compat_geom_primitive(const TypeRegion *ta, const TypeRegion *tb) {
+    (void)ta;
+    (void)tb;
+    return 1;
+}
+
+/* BOTTOM 类型兼容性检查：兼容所有类型 */
+static int compat_bottom(const TypeRegion *ta, const TypeRegion *tb) {
+    (void)ta;
+    (void)tb;
+    return 1;
+}
+
+/* 谓词子类型兼容性检查：基类型兼容即可 */
+static int compat_predicate_subtype(const TypeRegion *ta, const TypeRegion *tb) {
+    if (ta->base_type && tb->base_type) {
+        return lv_extended_type_compatible(ta->base_type, tb->base_type);
+    }
+    return 1;
+}
+
+/* 默认兼容性检查：不兼容 */
+static int compat_default(const TypeRegion *ta, const TypeRegion *tb) {
+    (void)ta;
+    (void)tb;
+    return 0;
+}
+
 /* 扩展类型兼容性检查 */
 /* 检查两个扩展类型是否兼容，支持协变/逆变规则 */
 int lv_extended_type_compatible(void *a, void *b) {
@@ -98,90 +196,22 @@ int lv_extended_type_compatible(void *a, void *b) {
         return 0;
     }
 
-    /* 同种类，根据具体种类执行深度兼容性检查 */
-    switch (ta->kind) {
-        case TYPE_KIND_FUNCTION:
-            /* 函数类型：输入逆变，输出协变 */
-            /* 即 (A -> B) 兼容 (C -> D) 当且仅当 C 兼容 A 且 B 兼容 D */
-            if (ta->input_type && tb->input_type) {
-                /* 输入参数逆变：tb->input_type 需兼容 ta->input_type */
-                if (!lv_extended_type_compatible(tb->input_type, ta->input_type)) {
-                    return 0;
-                }
-            }
-            if (ta->output_type && tb->output_type) {
-                /* 输出参数协变：ta->output_type 需兼容 tb->output_type */
-                if (!lv_extended_type_compatible(ta->output_type, tb->output_type)) {
-                    return 0;
-                }
-            }
-            return 1;
+    /* 同种类，使用 VTable 查找表进行类型兼容性检查 */
+    static const TypeCompatibleHandler kTypeCompatibleHandlers[] = {
+        [TYPE_KIND_FUNCTION]         = compat_function,
+        [TYPE_KIND_PRODUCT]          = compat_product,
+        [TYPE_KIND_SUM]              = compat_sum,
+        [TYPE_KIND_DEPENDENT]        = compat_dependent,
+        [TYPE_KIND_VARIABLE]         = compat_variable,
+        [TYPE_KIND_POINT]            = compat_geom_primitive,
+        [TYPE_KIND_LINE_SEGMENT]     = compat_geom_primitive,
+        [TYPE_KIND_REGION]           = compat_geom_primitive,
+        [TYPE_KIND_BOTTOM]           = compat_bottom,
+        [TYPE_KIND_PREDICATE_SUBTYPE]= compat_predicate_subtype,
+    };
 
-        case TYPE_KIND_PRODUCT:
-            /* 乘积类型：每个分量都需要兼容（协变） */
-            if (ta->left_type && tb->left_type) {
-                if (!lv_extended_type_compatible(ta->left_type, tb->left_type)) {
-                    return 0;
-                }
-            }
-            if (ta->right_type && tb->right_type) {
-                if (!lv_extended_type_compatible(ta->right_type, tb->right_type)) {
-                    return 0;
-                }
-            }
-            return 1;
-
-        case TYPE_KIND_SUM:
-            /* 和类型：两个分支都需要兼容 */
-            if (ta->first_type && tb->first_type) {
-                if (!lv_extended_type_compatible(ta->first_type, tb->first_type)) {
-                    return 0;
-                }
-            }
-            if (ta->second_type && tb->second_type) {
-                if (!lv_extended_type_compatible(ta->second_type, tb->second_type)) {
-                    return 0;
-                }
-            }
-            return 1;
-
-        case TYPE_KIND_DEPENDENT:
-            /* 依赖类型：参数节点ID相同且体类型兼容 */
-            if (ta->param_node_id != tb->param_node_id) {
-                return 0;
-            }
-            if (ta->body_type && tb->body_type) {
-                return lv_extended_type_compatible(ta->body_type, tb->body_type);
-            }
-            return 1;
-
-        case TYPE_KIND_VARIABLE:
-            /* 类型变量：同名或同ID则兼容 */
-            if (ta->variable_id == tb->variable_id)
-                return 1;
-            if (ta->variable_name && tb->variable_name && strcmp(ta->variable_name, tb->variable_name) == 0) {
-                return 1;
-            }
-            return 0;
-
-        case TYPE_KIND_POINT:
-        case TYPE_KIND_LINE_SEGMENT:
-        case TYPE_KIND_REGION:
-            /* 基本几何类型：同种类即兼容 */
-            return 1;
-
-        case TYPE_KIND_BOTTOM:
-            /* BOTTOM 兼容所有类型 */
-            return 1;
-
-        case TYPE_KIND_PREDICATE_SUBTYPE:
-            /* 谓词子类型：基类型兼容即可 */
-            if (ta->base_type && tb->base_type) {
-                return lv_extended_type_compatible(ta->base_type, tb->base_type);
-            }
-            return 1;
-
-        default:
-            return 0;
+    if (ta->kind >= 0 && ta->kind < (int)(sizeof(kTypeCompatibleHandlers)/sizeof(kTypeCompatibleHandlers[0])) && kTypeCompatibleHandlers[ta->kind]) {
+        return kTypeCompatibleHandlers[ta->kind](ta, tb);
     }
+    return 0;
 }

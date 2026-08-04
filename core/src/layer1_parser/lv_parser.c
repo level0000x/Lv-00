@@ -624,40 +624,37 @@ static LvAstNode *parse_import_decl(LvParser *p) {
     return node;
 }
 
+/** Statement parse handler 函数指针类型 */
+typedef LvAstNode *(*StatementParseHandler)(LvParser *p);
+
+/** 语句解析 VTable 查找表 */
+static const StatementParseHandler kStatementParseHandlers[LV_TOKEN_COUNT] = {
+    [LV_TOKEN_KW_CONSTRAINT] = parse_constraint_stmt,
+    [LV_TOKEN_KW_PROVE]      = parse_prove_stmt,
+    [LV_TOKEN_KW_ASSUME]     = parse_assume_stmt,
+    [LV_TOKEN_KW_ASSERT]     = parse_assert_stmt,
+    [LV_TOKEN_KW_LET]        = parse_let_stmt,
+    [LV_TOKEN_KW_COMPUTE]    = parse_compute_stmt,
+    [LV_TOKEN_KW_NORMALIZE]  = parse_normalize_stmt,
+    [LV_TOKEN_KW_EXPORT]     = parse_export_stmt,
+    [LV_TOKEN_KW_AXIOM]      = parse_axiom_stmt,
+    [LV_TOKEN_KW_THEOREM]    = parse_theorem_stmt,
+    [LV_TOKEN_KW_MODULE]     = parse_module_decl,
+    [LV_TOKEN_KW_IMPORT]     = parse_import_decl,
+};
+
 /** Statement ::= DeclarationStmt | ConstraintStmt | ... */
 static LvAstNode *parse_statement(LvParser *p) {
     if (is_entity_type(p->current.type)) {
         return parse_declaration_stmt(p);
     }
 
-    switch (p->current.type) {
-        case LV_TOKEN_KW_CONSTRAINT:
-            return parse_constraint_stmt(p);
-        case LV_TOKEN_KW_PROVE:
-            return parse_prove_stmt(p);
-        case LV_TOKEN_KW_ASSUME:
-            return parse_assume_stmt(p);
-        case LV_TOKEN_KW_ASSERT:
-            return parse_assert_stmt(p);
-        case LV_TOKEN_KW_LET:
-            return parse_let_stmt(p);
-        case LV_TOKEN_KW_COMPUTE:
-            return parse_compute_stmt(p);
-        case LV_TOKEN_KW_NORMALIZE:
-            return parse_normalize_stmt(p);
-        case LV_TOKEN_KW_EXPORT:
-            return parse_export_stmt(p);
-        case LV_TOKEN_KW_AXIOM:
-            return parse_axiom_stmt(p);
-        case LV_TOKEN_KW_THEOREM:
-            return parse_theorem_stmt(p);
-        case LV_TOKEN_KW_MODULE:
-            return parse_module_decl(p);
-        case LV_TOKEN_KW_IMPORT:
-            return parse_import_decl(p);
-        default:
-            return NULL;
+    if (p->current.type >= 0 && p->current.type < LV_TOKEN_COUNT) {
+        StatementParseHandler handler = kStatementParseHandlers[p->current.type];
+        if (handler)
+            return handler(p);
     }
+    return NULL;
 }
 
 /* ================================================================
@@ -954,36 +951,26 @@ static LvAstNode *parse_predicate_expr(LvParser *p) {
 }
 
 /** CompareExpr ::= AddExpr (("==" | "!=" | "<" | "<=" | ">" | ">=") AddExpr)? */
+static const char *kCompareOpNames[] = {
+    [LV_TOKEN_EQEQ] = "==",
+    [LV_TOKEN_NEQ]  = "!=",
+    [LV_TOKEN_LT]   = "<",
+    [LV_TOKEN_LE]   = "<=",
+    [LV_TOKEN_GT]   = ">",
+    [LV_TOKEN_GE]   = ">=",
+};
+
 static LvAstNode *parse_compare_expr(LvParser *p) {
     LvAstNode *left = parse_add_expr(p);
     if (!left)
         return NULL;
 
-    const char *op = NULL;
     LvSourceLoc op_loc = p->current.loc;
 
-    switch (p->current.type) {
-        case LV_TOKEN_EQEQ:
-            op = "==";
-            break;
-        case LV_TOKEN_NEQ:
-            op = "!=";
-            break;
-        case LV_TOKEN_LT:
-            op = "<";
-            break;
-        case LV_TOKEN_LE:
-            op = "<=";
-            break;
-        case LV_TOKEN_GT:
-            op = ">";
-            break;
-        case LV_TOKEN_GE:
-            op = ">=";
-            break;
-        default:
-            return left;
-    }
+    const char *op = NULL;
+    if (p->current.type >= 0 && p->current.type < (int)(sizeof(kCompareOpNames)/sizeof(kCompareOpNames[0])))
+        op = kCompareOpNames[p->current.type];
+    if (!op) return left;
 
     advance(p); /* consume operator */
 

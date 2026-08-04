@@ -347,14 +347,17 @@ uint64_t lv_hash_string(const char *str) {
  *   - lv_LOG_LEVEL_*：数值越大越详细（DEBUG=4 > ERROR=1）
  *   - LogLevel：数值越大越严重（FATAL=4 > TRACE=-1）
  */
+static const LogLevel kLogLevelMap[] = {
+    [lv_LOG_LEVEL_ERROR]   = LOG_LEVEL_ERROR,
+    [lv_LOG_LEVEL_WARNING] = LOG_LEVEL_WARN,
+    [lv_LOG_LEVEL_INFO]    = LOG_LEVEL_INFO,
+    [lv_LOG_LEVEL_DEBUG]   = LOG_LEVEL_DEBUG,
+};
+
 static LogLevel lv_log_map_level(int level) {
-    switch (level) {
-        case lv_LOG_LEVEL_ERROR:   return LOG_LEVEL_ERROR;
-        case lv_LOG_LEVEL_WARNING: return LOG_LEVEL_WARN;
-        case lv_LOG_LEVEL_INFO:    return LOG_LEVEL_INFO;
-        case lv_LOG_LEVEL_DEBUG:   return LOG_LEVEL_DEBUG;
-        default:                   return LOG_LEVEL_INFO;
-    }
+    if (level >= 0 && level < (int)(sizeof(kLogLevelMap)/sizeof(kLogLevelMap[0])))
+        return kLogLevelMap[level];
+    return LOG_LEVEL_INFO;
 }
 
 /**

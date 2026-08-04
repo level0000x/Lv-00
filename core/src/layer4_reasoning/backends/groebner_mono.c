@@ -16,8 +16,123 @@
 #include <string.h>
 
 /* ================================================================
- *  单项式序比较函数
+ *  单项式序比较函数 — VTable 实现
  * ================================================================ */
+
+/* ---------- 函数指针类型 ---------- */
+typedef int (*MonomialCompareHandler)(const lvPolynomialRing *ring, const int *powers_a, const int *powers_b);
+
+/* ---------- handler 函数 ---------- */
+
+/**
+ * @brief 纯字典序（lex）
+ */
+static int compare_lex(const lvPolynomialRing *ring, const int *powers_a, const int *powers_b) {
+    int vc = ring->var_count;
+    for (int i = 0; i < vc; i++) {
+        if (powers_a[i] != powers_b[i]) {
+            return powers_a[i] - powers_b[i];
+        }
+    }
+    return 0;
+}
+
+/**
+ * @brief 分次字典序（grlex）
+ */
+static int compare_grlex(const lvPolynomialRing *ring, const int *powers_a, const int *powers_b) {
+    int vc = ring->var_count;
+    int deg_a = 0, deg_b = 0;
+    for (int i = 0; i < vc; i++) {
+        deg_a += powers_a[i];
+        deg_b += powers_b[i];
+    }
+    if (deg_a != deg_b) {
+        return deg_a - deg_b;
+    }
+    for (int i = 0; i < vc; i++) {
+        if (powers_a[i] != powers_b[i]) {
+            return powers_a[i] - powers_b[i];
+        }
+    }
+    return 0;
+}
+
+/**
+ * @brief 分次反字典序（grevlex）
+ */
+static int compare_grevlex(const lvPolynomialRing *ring, const int *powers_a, const int *powers_b) {
+    int vc = ring->var_count;
+    int deg_a = 0, deg_b = 0;
+    for (int i = 0; i < vc; i++) {
+        deg_a += powers_a[i];
+        deg_b += powers_b[i];
+    }
+    if (deg_a != deg_b) {
+        return deg_a - deg_b;
+    }
+    for (int i = vc - 1; i >= 0; i--) {
+        if (powers_a[i] != powers_b[i]) {
+            return powers_b[i] - powers_a[i];
+        }
+    }
+    return 0;
+}
+
+/**
+ * @brief 消去序（elim）
+ */
+static int compare_elim(const lvPolynomialRing *ring, const int *powers_a, const int *powers_b) {
+    int vc = ring->var_count;
+    int elim_count = ring->elim_var_count;
+    if (elim_count > 0 && ring->elim_vars) {
+        int deg_elim_a = 0, deg_elim_b = 0;
+        for (int i = 0; i < vc; i++) {
+            bool is_elim = false;
+            for (int j = 0; j < elim_count; j++) {
+                if (ring->elim_vars[j] == i) {
+                    is_elim = true;
+                    break;
+                }
+            }
+            if (is_elim) {
+                deg_elim_a += powers_a[i];
+                deg_elim_b += powers_b[i];
+            }
+        }
+        if (deg_elim_a != deg_elim_b) {
+            return deg_elim_a - deg_elim_b;
+        }
+    }
+    return compare_grevlex(ring, powers_a, powers_b);
+}
+
+/**
+ * @brief 权重序（weight）
+ */
+static int compare_weight(const lvPolynomialRing *ring, const int *powers_a, const int *powers_b) {
+    int vc = ring->var_count;
+    if (ring->weights) {
+        double w_a = 0.0, w_b = 0.0;
+        for (int i = 0; i < vc; i++) {
+            w_a += ring->weights[i] * powers_a[i];
+            w_b += ring->weights[i] * powers_b[i];
+        }
+        if (fabs(w_a - w_b) > lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
+            return (w_a > w_b) ? 1 : -1;
+        }
+    }
+    return compare_grevlex(ring, powers_a, powers_b);
+}
+
+/* ---------- 静态查找表 ---------- */
+static const MonomialCompareHandler kMonomialCompareHandlers[] = {
+    [MONOMIAL_LEX]     = compare_lex,
+    [MONOMIAL_GRLEX]   = compare_grlex,
+    [MONOMIAL_GREVLEX] = compare_grevlex,
+    [MONOMIAL_ELIM]    = compare_elim,
+    [MONOMIAL_WEIGHT]  = compare_weight,
+};
 
 /**
  * @brief 比较两个单项式的序关系
@@ -34,139 +149,12 @@ int mono_compare(const lvPolynomialRing *ring, const int *powers_a, const int *p
         return 0;
     }
 
-    int vc = ring->var_count;
-
-    switch (ring->order) {
-        case MONOMIAL_LEX: {
-            /* 纯字典序：从左到右逐项比较 */
-            for (int i = 0; i < vc; i++) {
-                if (powers_a[i] != powers_b[i]) {
-                    return powers_a[i] - powers_b[i];
-                }
-            }
-            return 0;
-        }
-        case MONOMIAL_GRLEX: {
-            /* 分次字典序：先比较总次数，相同时用字典序 */
-            int deg_a = 0, deg_b = 0;
-            for (int i = 0; i < vc; i++) {
-                deg_a += powers_a[i];
-                deg_b += powers_b[i];
-            }
-            if (deg_a != deg_b) {
-                return deg_a - deg_b;
-            }
-            for (int i = 0; i < vc; i++) {
-                if (powers_a[i] != powers_b[i]) {
-                    return powers_a[i] - powers_b[i];
-                }
-            }
-            return 0;
-        }
-        case MONOMIAL_GREVLEX: {
-            /* 分次反字典序：先比较总次数，相同时从右向左逐项比较（取反） */
-            int deg_a = 0, deg_b = 0;
-            for (int i = 0; i < vc; i++) {
-                deg_a += powers_a[i];
-                deg_b += powers_b[i];
-            }
-            if (deg_a != deg_b) {
-                return deg_a - deg_b;
-            }
-            for (int i = vc - 1; i >= 0; i--) {
-                if (powers_a[i] != powers_b[i]) {
-                    /* grevlex: 次数相等时，最后变量指数较小的单项式更大 */
-                    return powers_b[i] - powers_a[i];
-                }
-            }
-            return 0;
-        }
-        case MONOMIAL_ELIM: {
-            /* 消去序：先按消去变量组比较，再按默认 grevlex 比较剩余变量 */
-            int elim_count = ring->elim_var_count;
-            if (elim_count > 0 && ring->elim_vars) {
-                /* 先比较消去组的总次数 */
-                int deg_elim_a = 0, deg_elim_b = 0;
-                for (int i = 0; i < vc; i++) {
-                    bool is_elim = false;
-                    for (int j = 0; j < elim_count; j++) {
-                        if (ring->elim_vars[j] == i) {
-                            is_elim = true;
-                            break;
-                        }
-                    }
-                    if (is_elim) {
-                        deg_elim_a += powers_a[i];
-                        deg_elim_b += powers_b[i];
-                    }
-                }
-                if (deg_elim_a != deg_elim_b) {
-                    return deg_elim_a - deg_elim_b;
-                }
-            }
-            /* 回退到 grevlex */
-            int deg_a = 0, deg_b = 0;
-            for (int i = 0; i < vc; i++) {
-                deg_a += powers_a[i];
-                deg_b += powers_b[i];
-            }
-            if (deg_a != deg_b) {
-                return deg_a - deg_b;
-            }
-            for (int i = vc - 1; i >= 0; i--) {
-                if (powers_a[i] != powers_b[i]) {
-                    return powers_b[i] - powers_a[i];
-                }
-            }
-            return 0;
-        }
-        case MONOMIAL_WEIGHT: {
-            /* 权重序：先按权重向量的点积比较，再回退 grevlex */
-            if (ring->weights) {
-                double w_a = 0.0, w_b = 0.0;
-                for (int i = 0; i < vc; i++) {
-                    w_a += ring->weights[i] * powers_a[i];
-                    w_b += ring->weights[i] * powers_b[i];
-                }
-                if (fabs(w_a - w_b) > lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
-                    return (w_a > w_b) ? 1 : -1;
-                }
-            }
-            /* 回退到 grevlex */
-            int deg_a = 0, deg_b = 0;
-            for (int i = 0; i < vc; i++) {
-                deg_a += powers_a[i];
-                deg_b += powers_b[i];
-            }
-            if (deg_a != deg_b) {
-                return deg_a - deg_b;
-            }
-            for (int i = vc - 1; i >= 0; i--) {
-                if (powers_a[i] != powers_b[i]) {
-                    return powers_b[i] - powers_a[i];
-                }
-            }
-            return 0;
-        }
-        default:
-            /* 默认 grevlex */
-            {
-                int deg_a = 0, deg_b = 0;
-                for (int i = 0; i < vc; i++) {
-                    deg_a += powers_a[i];
-                    deg_b += powers_b[i];
-                }
-                if (deg_a != deg_b) {
-                    return deg_a - deg_b;
-                }
-                for (int i = vc - 1; i >= 0; i--) {
-                    if (powers_a[i] != powers_b[i]) {
-                        return powers_b[i] - powers_a[i];
-                    }
-                }
-                return 0;
-            }
+    if (ring->order >= 0
+        && ring->order < (int)(sizeof(kMonomialCompareHandlers) / sizeof(kMonomialCompareHandlers[0]))
+        && kMonomialCompareHandlers[ring->order]) {
+        return kMonomialCompareHandlers[ring->order](ring, powers_a, powers_b);
     }
+    return compare_grevlex(ring, powers_a, powers_b);
 }
 
 /**
