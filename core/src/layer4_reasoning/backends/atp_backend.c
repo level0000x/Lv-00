@@ -1519,8 +1519,8 @@ const char *atp_format_name(ATPInputFormat format) {
 /** @brief ATP 后端插件描述符数组 */
 static lvBackendPlugin s_atp_plugins[ATP_BACKEND_COUNT];
 
-/** @brief ATP 插件是否已注册到全局注册表 */
-static bool s_atp_plugins_registered = false;
+/** @brief ATP 插件懒注册一次性守卫（lv_once 保证线程安全） */
+static lv_once_t s_atp_plugins_once = lv_ONCE_INIT;
 
 /**
  * @brief ATP 后端插件初始化函数
@@ -1546,17 +1546,12 @@ static bool atp_plugin_init_custom(void) {
 }
 
 /**
- * @brief 将所有 ATP 后端注册到全局后端插件注册表
+ * @brief ATP 后端插件一次性注册回调（仅由 lv_once 调用一次）
  *
  * 创建 lvBackendPlugin 包装器，将每个 ATP 后端类型映射到
  * 统一插件描述符，并注册到全局注册表。
- * 此函数可安全地多次调用（仅首次生效）。
  */
-void atp_register_all_plugins(void) {
-    if (s_atp_plugins_registered) {
-        return;
-    }
-
+static void atp_plugins_register_once(void) {
     lvBackendPluginRegistry *reg = lv_backend_plugin_registry_global();
 
     /* 初始化静态插件描述符 */
@@ -1609,6 +1604,16 @@ void atp_register_all_plugins(void) {
     s_atp_plugins[ATP_BACKEND_CUSTOM].cleanup = NULL;
     s_atp_plugins[ATP_BACKEND_CUSTOM].ops = NULL;
     lv_backend_plugin_register(reg, &s_atp_plugins[ATP_BACKEND_CUSTOM]);
+}
 
-    s_atp_plugins_registered = true;
+/**
+ * @brief 将所有 ATP 后端注册到全局后端插件注册表
+ *
+ * 创建 lvBackendPlugin 包装器，将每个 ATP 后端类型映射到
+ * 统一插件描述符，并注册到全局注册表。
+ * 此函数可安全地多次调用（仅首次生效），
+ * 由 lv_once 保证懒注册的线程安全（消除无锁标志的检查-设置竞态）。
+ */
+void atp_register_all_plugins(void) {
+    lv_once(&s_atp_plugins_once, atp_plugins_register_once);
 }

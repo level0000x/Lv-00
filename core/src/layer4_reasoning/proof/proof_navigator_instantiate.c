@@ -28,6 +28,7 @@
 #include "stream.h"
 #include "stream_context_util.h"
 #include "proof_navigator_internal.h"
+#include "proof_classical.h"
 
 /* ============== 命题实例化 ============== */
 
@@ -410,8 +411,9 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
                 /* 启发式匹配：根据已知不可构造问题的特征检查约束图 */
                 bool pattern_match = false;
 
-                /* 经典不可构造问题的启发式匹配 */
-                if (strstr(ku->name, "trisection") || strstr(ku->name, "三等分")) {
+                /* 经典不可构造问题的启发式匹配（统一走 proof_classical.h 查找表） */
+                switch (lv_classical_problem_match(ku->name)) {
+                case CLASSICAL_PROBLEM_TRISECTION:
                     /* 三等分角问题：通常涉及角度构造 */
                     /* 检查图中是否有角度相关的约束 */
                     for (int k = 0; k < graph->constraint_count; k++) {
@@ -420,10 +422,12 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
                             break;
                         }
                     }
-                } else if (strstr(ku->name, "doubling") || strstr(ku->name, "倍立方")) {
+                    break;
+                case CLASSICAL_PROBLEM_DOUBLING:
                     /* 倍立方问题：涉及特定比例 */
                     pattern_match = (graph->node_count >= 3 && graph->node_count <= 8);
-                } else if (strstr(ku->name, "squaring") || strstr(ku->name, "化圆为方")) {
+                    break;
+                case CLASSICAL_PROBLEM_SQUARING: {
                     /* 化圆为方：涉及圆和正方形 */
                     int circle_count = 0, region_count = 0;
                     for (int k = 0; k < graph->node_count; k++) {
@@ -435,9 +439,14 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
                         }
                     }
                     pattern_match = (circle_count >= 2 && region_count >= 1);
-                } else if (strstr(ku->name, "heptagon") || strstr(ku->name, "七边形")) {
+                    break;
+                }
+                case CLASSICAL_PROBLEM_HEPTAGON:
                     /* 正七边形构造 */
                     pattern_match = (graph->node_count >= 7);
+                    break;
+                default:
+                    break;
                 }
 
                 if (pattern_match) {

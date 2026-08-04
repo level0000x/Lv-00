@@ -1009,20 +1009,44 @@ static LvAstNode *parse_unary_expr(LvParser *p) {
     return parse_primary_expr(p);
 }
 
+/* 几何关系函数名查找表（精确匹配，strcmp 语义） */
+static const char *const kGeometryRelations[] = {
+    "collinear", "parallel", "perpendicular", "congruent", "tangent"
+};
+
+/* 几何度量函数名查找表（精确匹配，strcmp 语义） */
+static const char *const kMeasureFuncs[] = {
+    "length", "distance", "angle", "measure", "area", "radius"
+};
+
+/* 几何对象构造函数名查找表（精确匹配，strcmp 语义） */
+static const char *const kGeometryFuncs[] = {
+    "point", "line", "circle", "segment", "ray", "triangle"
+};
+
 /** 检查 identifier 是否为关系/度量/几何函数名 */
 static int is_relation_func(const char *name) {
-    return strcmp(name, "collinear") == 0 || strcmp(name, "parallel") == 0 || strcmp(name, "perpendicular") == 0 ||
-           strcmp(name, "congruent") == 0 || strcmp(name, "tangent") == 0;
+    for (size_t i = 0; i < sizeof(kGeometryRelations) / sizeof(kGeometryRelations[0]); i++) {
+        if (strcmp(name, kGeometryRelations[i]) == 0)
+            return 1;
+    }
+    return 0;
 }
 
 static int is_measure_func(const char *name) {
-    return strcmp(name, "length") == 0 || strcmp(name, "distance") == 0 || strcmp(name, "angle") == 0 ||
-           strcmp(name, "measure") == 0 || strcmp(name, "area") == 0 || strcmp(name, "radius") == 0;
+    for (size_t i = 0; i < sizeof(kMeasureFuncs) / sizeof(kMeasureFuncs[0]); i++) {
+        if (strcmp(name, kMeasureFuncs[i]) == 0)
+            return 1;
+    }
+    return 0;
 }
 
 static int is_geometry_func(const char *name) {
-    return strcmp(name, "point") == 0 || strcmp(name, "line") == 0 || strcmp(name, "circle") == 0 ||
-           strcmp(name, "segment") == 0 || strcmp(name, "ray") == 0 || strcmp(name, "triangle") == 0;
+    for (size_t i = 0; i < sizeof(kGeometryFuncs) / sizeof(kGeometryFuncs[0]); i++) {
+        if (strcmp(name, kGeometryFuncs[i]) == 0)
+            return 1;
+    }
+    return 0;
 }
 
 /** 解析参数列表: "(" Expr ("," Expr)* ")" */

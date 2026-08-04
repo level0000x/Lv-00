@@ -26,6 +26,63 @@
  * 第4部分:预设变换 -- preset_transformations(17函数)
  * ============================================================ */
 
+/* ------------------------------------------------------------------
+ * 样板宏(供下述 17 个预设变换函数复用)
+ * ------------------------------------------------------------------
+ * 所有宏均以 do { ... } while (0) 包裹,内部含 return,展开后行为与原
+ * 内联代码完全一致;错误消息文本通过参数原样保留。
+ * ------------------------------------------------------------------ */
+
+/* 回退复制块:obj 无坐标(或条件满足)时,直接复制坐标点 + 挂接连线后返回。
+ * cond    触发回退的条件表达式;errmsg 为失败错误消息字符串;
+ * obj_id  源对象 id;extra  额外挂接语句(无操作用 (void)0,含逗号需括号包裹)。 */
+#define LV_FALLBACK_COPY(graph, obj, cond, errmsg, obj_id, extra) do { \
+    if (cond) { \
+        graph_add_point((graph), (obj)->symbolic_coords, (obj)->coord_count); \
+        int result_id = graph_get_last_added_node_id((graph)); \
+        if (result_id < 0) \
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, errmsg); \
+        graph_add_line_segment((graph), (int)(obj_id), result_id); \
+        extra; \
+        return (int64_t) result_id; \
+    } \
+} while (0)
+
+/* 提交尾块:graph_add_point 深拷贝后销毁临时坐标数组,取 last_id 挂接连线并返回。
+ * new_coords 为临时 SymbolicCoord** 数组;n 为元素个数;其余同 LV_FALLBACK_COPY。 */
+#define LV_COMMIT_RESULT(graph, new_coords, n, errmsg, obj_id, extra) do { \
+    graph_add_point((graph), (new_coords), (n)); \
+    for (int i = 0; i < (n); i++) \
+        symbolic_coord_destroy((new_coords)[i]); \
+    lv_free((void **) &(new_coords)); \
+    int result_id = graph_get_last_added_node_id((graph)); \
+    if (result_id < 0) \
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, errmsg); \
+    graph_add_line_segment((graph), (int)(obj_id), result_id); \
+    extra; \
+    return (int64_t) result_id; \
+} while (0)
+
+/* 克隆+挂接块:复制源对象坐标点 + 取 last_id + 挂接连线(用于无坐标计算的包装函数)。
+ * src     源 GeomNode;link_id 第一条连线的源 id;其余同 LV_FALLBACK_COPY。 */
+#define LV_CLONE_ATTACH(graph, src, errmsg, link_id, extra) do { \
+    graph_add_point((graph), (src)->symbolic_coords, (src)->coord_count); \
+    int result_id = graph_get_last_added_node_id((graph)); \
+    if (result_id < 0) \
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, errmsg); \
+    graph_add_line_segment((graph), (int)(link_id), result_id); \
+    extra; \
+    return (int64_t) result_id; \
+} while (0)
+
+/* 失败清理链(部分):销毁 new_coords[0..upto) 并释放数组本身。
+ * 用于各函数循环内/奇数坐标复制失败路径,临时中间量的销毁仍留在调用处。 */
+#define LV_FAIL_PARTIAL(new_coords, upto) do { \
+    for (int j = 0; j < (upto); j++) \
+        symbolic_coord_destroy((new_coords)[j]); \
+    lv_free((void **) &(new_coords)); \
+} while (0)
+
 /** 平移变换 */
 int64_t preset_translate(lvEngine *ctx, int64_t obj_id, int64_t dx, int64_t dy) {
     ConstraintGraph *graph = ctx->main_graph;
@@ -34,14 +91,7 @@ int64_t preset_translate(lvEngine *ctx, int64_t obj_id, int64_t dx, int64_t dy) 
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_translate: NULL obj node");
 
     /* 如果 obj 没有坐标，回退到复制行为 */
-    if (obj->coord_count == 0) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_translate: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0, "preset_translate: graph_get_last_added_node_id failed (fallback)", obj_id, (void)0);
 
     /* 创建平移向量 */
     SymbolicCoord *dx_r = symbolic_coord_create_rational(dx, 1);
@@ -67,9 +117,7 @@ int64_t preset_translate(lvEngine *ctx, int64_t obj_id, int64_t dx, int64_t dy) 
         SymbolicCoord *delta = (i % 2 == 0) ? dx_r : dy_r;
         new_coords[i] = symbolic_coord_add(obj->symbolic_coords[i], delta);
         if (!new_coords[i]) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(dx_r);
             symbolic_coord_destroy(dy_r);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_translate: symbolic_coord_add failed");
@@ -80,16 +128,7 @@ int64_t preset_translate(lvEngine *ctx, int64_t obj_id, int64_t dx, int64_t dy) 
     symbolic_coord_destroy(dy_r);
 
     /* 创建新点（graph_add_point 会深拷贝坐标，故可释放临时数组） */
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_translate: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_translate: graph_get_last_added_node_id failed", obj_id, (void)0);
 }
 
 /** 旋转变换(绕原点) */
@@ -100,14 +139,7 @@ int64_t preset_rotate(lvEngine *ctx, int64_t obj_id, int64_t angle_mrad) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_rotate: NULL obj node");
 
     /* 如果 obj 没有坐标，回退到复制行为 */
-    if (obj->coord_count == 0) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_rotate: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0, "preset_rotate: graph_get_last_added_node_id failed (fallback)", obj_id, (void)0);
 
     /* 创建 sinθ 和 cosθ 超越数 */
     SymbolicCoord *sin_theta = symbolic_coord_create_transcendental("sinθ_mrad");
@@ -138,9 +170,7 @@ int64_t preset_rotate(lvEngine *ctx, int64_t obj_id, int64_t angle_mrad) {
                 symbolic_coord_destroy(x_cos);
             if (y_sin)
                 symbolic_coord_destroy(y_sin);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotate: multiply failed (x_cos/y_sin)");
@@ -149,9 +179,7 @@ int64_t preset_rotate(lvEngine *ctx, int64_t obj_id, int64_t angle_mrad) {
         symbolic_coord_destroy(x_cos);
         symbolic_coord_destroy(y_sin);
         if (!new_coords[i]) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotate: subtract failed (new_coords[i])");
@@ -166,9 +194,7 @@ int64_t preset_rotate(lvEngine *ctx, int64_t obj_id, int64_t angle_mrad) {
             if (y_cos)
                 symbolic_coord_destroy(y_cos);
             symbolic_coord_destroy(new_coords[i]);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotate: multiply failed (x_sin/y_cos)");
@@ -178,9 +204,7 @@ int64_t preset_rotate(lvEngine *ctx, int64_t obj_id, int64_t angle_mrad) {
         symbolic_coord_destroy(y_cos);
         if (!new_coords[i + 1]) {
             symbolic_coord_destroy(new_coords[i]);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotate: add failed (new_coords[i+1])");
@@ -191,9 +215,7 @@ int64_t preset_rotate(lvEngine *ctx, int64_t obj_id, int64_t angle_mrad) {
     if (n % 2 != 0) {
         new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
         if (!new_coords[n - 1]) {
-            for (int j = 0; j < n - 1; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, n - 1);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotate: symbolic_coord_copy failed");
@@ -203,16 +225,7 @@ int64_t preset_rotate(lvEngine *ctx, int64_t obj_id, int64_t angle_mrad) {
     symbolic_coord_destroy(sin_theta);
     symbolic_coord_destroy(cos_theta);
 
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_rotate: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_rotate: graph_get_last_added_node_id failed", obj_id, (void)0);
 }
 
 /** 关于点的反射 */
@@ -222,13 +235,8 @@ int64_t preset_reflect_point(lvEngine *ctx, int64_t obj_id, int64_t center_id) {
     GeomNode *center = graph_get_node(graph, (int) center_id);
     if (!obj || !center)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_reflect_point: NULL node input");
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_reflect_point: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    graph_add_line_segment(graph, (int) center_id, result_id);
-    return (int64_t) result_id;
+    LV_CLONE_ATTACH(graph, obj, "preset_reflect_point: graph_get_last_added_node_id failed", obj_id,
+                    (graph_add_line_segment(graph, (int) center_id, result_id)));
 }
 
 /** 关于直线的反射 */
@@ -238,13 +246,8 @@ int64_t preset_reflect_line(lvEngine *ctx, int64_t obj_id, int64_t line_id) {
     GeomNode *line = graph_get_node(graph, (int) line_id);
     if (!obj || !line)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_reflect_line: NULL node input");
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_reflect_line: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    graph_add_incidence(graph, result_id, (int) line_id);
-    return (int64_t) result_id;
+    LV_CLONE_ATTACH(graph, obj, "preset_reflect_line: graph_get_last_added_node_id failed", obj_id,
+                    (graph_add_incidence(graph, result_id, (int) line_id)));
 }
 
 /** 缩放变换 */
@@ -255,14 +258,7 @@ int64_t preset_scale(lvEngine *ctx, int64_t obj_id, int64_t sx, int64_t sy, int6
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_scale: NULL obj node");
 
     /* 如果 obj 没有坐标，回退到复制行为 */
-    if (obj->coord_count == 0) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_scale: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0, "preset_scale: graph_get_last_added_node_id failed (fallback)", obj_id, (void)0);
 
     /* 创建缩放因子 */
     SymbolicCoord *sx_r = symbolic_coord_create_rational(sx, (uint64_t) denom);
@@ -288,9 +284,7 @@ int64_t preset_scale(lvEngine *ctx, int64_t obj_id, int64_t sx, int64_t sy, int6
         SymbolicCoord *scale = (i % 2 == 0) ? sx_r : sy_r;
         new_coords[i] = symbolic_coord_multiply(obj->symbolic_coords[i], scale);
         if (!new_coords[i]) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sx_r);
             symbolic_coord_destroy(sy_r);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_scale: symbolic_coord_multiply failed");
@@ -300,16 +294,7 @@ int64_t preset_scale(lvEngine *ctx, int64_t obj_id, int64_t sx, int64_t sy, int6
     symbolic_coord_destroy(sx_r);
     symbolic_coord_destroy(sy_r);
 
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_scale: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_scale: graph_get_last_added_node_id failed", obj_id, (void)0);
 }
 
 /** X方向剪切变换 */
@@ -320,14 +305,7 @@ int64_t preset_shear_x(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_shear_x: NULL obj node");
 
     /* 如果 obj 没有坐标，回退到复制行为 */
-    if (obj->coord_count == 0) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_shear_x: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0, "preset_shear_x: graph_get_last_added_node_id failed (fallback)", obj_id, (void)0);
 
     /* 创建剪切因子: factor/denom */
     SymbolicCoord *ratio = symbolic_coord_create_rational(factor, (uint64_t) denom);
@@ -346,18 +324,14 @@ int64_t preset_shear_x(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
         /* x' = x + y * ratio */
         SymbolicCoord *y_ratio = symbolic_coord_multiply(obj->symbolic_coords[i + 1], ratio);
         if (!y_ratio) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_shear_x: multiply failed (y_ratio)");
         }
         new_coords[i] = symbolic_coord_add(obj->symbolic_coords[i], y_ratio);
         symbolic_coord_destroy(y_ratio);
         if (!new_coords[i]) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_shear_x: add failed (new_coords[i])");
         }
@@ -366,9 +340,7 @@ int64_t preset_shear_x(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
         new_coords[i + 1] = symbolic_coord_copy(obj->symbolic_coords[i + 1]);
         if (!new_coords[i + 1]) {
             symbolic_coord_destroy(new_coords[i]);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_shear_x: copy failed (new_coords[i+1])");
         }
@@ -378,9 +350,7 @@ int64_t preset_shear_x(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
     if (n % 2 != 0) {
         new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
         if (!new_coords[n - 1]) {
-            for (int j = 0; j < n - 1; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, n - 1);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_shear_x: copy failed (odd coord)");
         }
@@ -388,16 +358,7 @@ int64_t preset_shear_x(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
 
     symbolic_coord_destroy(ratio);
 
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_shear_x: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_shear_x: graph_get_last_added_node_id failed", obj_id, (void)0);
 }
 
 /** Y方向剪切变换 */
@@ -408,14 +369,7 @@ int64_t preset_shear_y(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_shear_y: NULL obj node");
 
     /* 如果 obj 没有坐标，回退到复制行为 */
-    if (obj->coord_count == 0) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_shear_y: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0, "preset_shear_y: graph_get_last_added_node_id failed (fallback)", obj_id, (void)0);
 
     /* 创建剪切因子: factor/denom */
     SymbolicCoord *ratio = symbolic_coord_create_rational(factor, (uint64_t) denom);
@@ -434,9 +388,7 @@ int64_t preset_shear_y(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
         /* x' = x (不变) */
         new_coords[i] = symbolic_coord_copy(obj->symbolic_coords[i]);
         if (!new_coords[i]) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_shear_y: copy failed (new_coords[i])");
         }
@@ -445,9 +397,7 @@ int64_t preset_shear_y(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
         SymbolicCoord *x_ratio = symbolic_coord_multiply(obj->symbolic_coords[i], ratio);
         if (!x_ratio) {
             symbolic_coord_destroy(new_coords[i]);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_shear_y: multiply failed (x_ratio)");
         }
@@ -455,9 +405,7 @@ int64_t preset_shear_y(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
         symbolic_coord_destroy(x_ratio);
         if (!new_coords[i + 1]) {
             symbolic_coord_destroy(new_coords[i]);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_shear_y: add failed (new_coords[i+1])");
         }
@@ -467,9 +415,7 @@ int64_t preset_shear_y(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
     if (n % 2 != 0) {
         new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
         if (!new_coords[n - 1]) {
-            for (int j = 0; j < n - 1; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, n - 1);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_shear_y: copy failed (odd coord)");
         }
@@ -477,16 +423,7 @@ int64_t preset_shear_y(lvEngine *ctx, int64_t obj_id, int64_t factor, int64_t de
 
     symbolic_coord_destroy(ratio);
 
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_shear_y: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_shear_y: graph_get_last_added_node_id failed", obj_id, (void)0);
 }
 
 /** 仿射变换(6参数矩阵) */
@@ -498,14 +435,7 @@ int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, i
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_affine: NULL obj node");
 
     /* 如果 obj 没有坐标，回退到复制行为 */
-    if (obj->coord_count == 0) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_affine: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0, "preset_affine: graph_get_last_added_node_id failed (fallback)", obj_id, (void)0);
 
     /* 创建矩阵元素和偏移量 */
     SymbolicCoord *s_a11 = symbolic_coord_create_rational(a11, (uint64_t) denom);
@@ -561,9 +491,7 @@ int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, i
                 symbolic_coord_destroy(a21x);
             if (a22y)
                 symbolic_coord_destroy(a22y);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(s_a11);
             symbolic_coord_destroy(s_a12);
             symbolic_coord_destroy(s_a21);
@@ -591,9 +519,7 @@ int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, i
                 symbolic_coord_destroy(nx);
             if (ny)
                 symbolic_coord_destroy(ny);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(s_a11);
             symbolic_coord_destroy(s_a12);
             symbolic_coord_destroy(s_a21);
@@ -610,9 +536,7 @@ int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, i
     if (n % 2 != 0) {
         new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
         if (!new_coords[n - 1]) {
-            for (int j = 0; j < n - 1; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, n - 1);
             symbolic_coord_destroy(s_a11);
             symbolic_coord_destroy(s_a12);
             symbolic_coord_destroy(s_a21);
@@ -630,16 +554,7 @@ int64_t preset_affine(lvEngine *ctx, int64_t obj_id, int64_t a11, int64_t a12, i
     symbolic_coord_destroy(s_tx);
     symbolic_coord_destroy(s_ty);
 
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_affine: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_affine: graph_get_last_added_node_id failed", obj_id, (void)0);
 }
 
 /** 逆变换 */
@@ -648,12 +563,7 @@ int64_t preset_inverse_transform(lvEngine *ctx, int64_t transform_id) {
     GeomNode *t = graph_get_node(graph, (int) transform_id);
     if (!t)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_inverse_transform: NULL transform node");
-    graph_add_point(graph, t->symbolic_coords, t->coord_count);
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_inverse_transform: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) transform_id, result_id);
-    return (int64_t) result_id;
+    LV_CLONE_ATTACH(graph, t, "preset_inverse_transform: graph_get_last_added_node_id failed", transform_id, (void)0);
 }
 
 /** 组合两个变换 */
@@ -663,13 +573,8 @@ int64_t preset_compose_transforms(lvEngine *ctx, int64_t t1_id, int64_t t2_id) {
     GeomNode *t2 = graph_get_node(graph, (int) t2_id);
     if (!t1 || !t2)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_compose_transforms: NULL transform node");
-    graph_add_point(graph, t1->symbolic_coords, t1->coord_count);
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_compose_transforms: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) t1_id, result_id);
-    graph_add_line_segment(graph, (int) t2_id, result_id);
-    return (int64_t) result_id;
+    LV_CLONE_ATTACH(graph, t1, "preset_compose_transforms: graph_get_last_added_node_id failed", t1_id,
+                    (graph_add_line_segment(graph, (int) t2_id, result_id)));
 }
 
 /** 恒等变换 */
@@ -699,15 +604,8 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_dilate: NULL node input");
 
     /* 如果 obj 或 center 没有坐标，回退到复制行为 */
-    if (obj->coord_count == 0 || center->coord_count < 2) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_dilate: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        graph_add_line_segment(graph, (int) center_id, result_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0 || center->coord_count < 2, "preset_dilate: graph_get_last_added_node_id failed (fallback)", obj_id,
+                     (graph_add_line_segment(graph, (int) center_id, result_id)));
 
     /* 创建缩放比率: ratio = ratio_num/ratio_den */
     SymbolicCoord *ratio = symbolic_coord_create_rational(ratio_num, (uint64_t) ratio_den);
@@ -730,9 +628,7 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
         /* offset_x = x - cx */
         SymbolicCoord *off_x = symbolic_coord_subtract(obj->symbolic_coords[i], cx);
         if (!off_x) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_dilate: subtract failed (off_x)");
         }
@@ -740,9 +636,7 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
         SymbolicCoord *off_y = symbolic_coord_subtract(obj->symbolic_coords[i + 1], cy);
         if (!off_y) {
             symbolic_coord_destroy(off_x);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_dilate: subtract failed (off_y)");
         }
@@ -757,9 +651,7 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
                 symbolic_coord_destroy(scaled_x);
             if (scaled_y)
                 symbolic_coord_destroy(scaled_y);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_dilate: multiply failed (scaled)");
         }
@@ -769,9 +661,7 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
         symbolic_coord_destroy(scaled_x);
         if (!new_coords[i]) {
             symbolic_coord_destroy(scaled_y);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_dilate: add failed (new_coords[i])");
         }
@@ -781,9 +671,7 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
         symbolic_coord_destroy(scaled_y);
         if (!new_coords[i + 1]) {
             symbolic_coord_destroy(new_coords[i]);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_dilate: add failed (new_coords[i+1])");
         }
@@ -793,9 +681,7 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
     if (n % 2 != 0) {
         new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
         if (!new_coords[n - 1]) {
-            for (int j = 0; j < n - 1; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, n - 1);
             symbolic_coord_destroy(ratio);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_dilate: copy failed (odd coord)");
         }
@@ -803,17 +689,8 @@ int64_t preset_dilate(lvEngine *ctx, int64_t obj_id, int64_t center_id, int64_t 
 
     symbolic_coord_destroy(ratio);
 
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_dilate: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    graph_add_line_segment(graph, (int) center_id, result_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_dilate: graph_get_last_added_node_id failed", obj_id,
+                     (graph_add_line_segment(graph, (int) center_id, result_id)));
 }
 
 /** 滑移反射 */
@@ -825,15 +702,8 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_glide_reflect: NULL node input");
 
     /* 如果 obj 或 line 没有足够坐标，回退到复制+关联行为 */
-    if (obj->coord_count == 0 || line->coord_count < 4) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_glide_reflect: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        graph_add_incidence(graph, result_id, (int) line_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0 || line->coord_count < 4, "preset_glide_reflect: graph_get_last_added_node_id failed (fallback)", obj_id,
+                     (graph_add_incidence(graph, result_id, (int) line_id)));
 
     /* 获取直线端点坐标 */
     SymbolicCoord *lx1 = line->symbolic_coords[0];
@@ -910,9 +780,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
                 symbolic_coord_destroy(wx);
             if (wy)
                 symbolic_coord_destroy(wy);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -931,9 +799,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
                 symbolic_coord_destroy(wx_vx);
             if (wy_vy)
                 symbolic_coord_destroy(wy_vy);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -945,9 +811,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         symbolic_coord_destroy(wx_vx);
         symbolic_coord_destroy(wy_vy);
         if (!w_dot_v) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -960,9 +824,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         SymbolicCoord *t = symbolic_coord_divide(w_dot_v, v_dot_v);
         symbolic_coord_destroy(w_dot_v);
         if (!t) {
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -975,9 +837,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         SymbolicCoord *t_vx = symbolic_coord_multiply(t, vx);
         if (!t_vx) {
             symbolic_coord_destroy(t);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -989,9 +849,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         symbolic_coord_destroy(t_vx);
         if (!proj_x) {
             symbolic_coord_destroy(t);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -1005,9 +863,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         symbolic_coord_destroy(t);
         if (!t_vy) {
             symbolic_coord_destroy(proj_x);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -1019,9 +875,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         symbolic_coord_destroy(t_vy);
         if (!proj_y) {
             symbolic_coord_destroy(proj_x);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -1035,9 +889,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         symbolic_coord_destroy(proj_x);
         if (!new_coords[i]) {
             symbolic_coord_destroy(proj_y);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -1051,9 +903,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
         symbolic_coord_destroy(proj_y);
         if (!new_coords[i + 1]) {
             symbolic_coord_destroy(new_coords[i]);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -1067,9 +917,7 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
     if (n % 2 != 0) {
         new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
         if (!new_coords[n - 1]) {
-            for (int j = 0; j < n - 1; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, n - 1);
             symbolic_coord_destroy(v_dot_v);
             symbolic_coord_destroy(vx);
             symbolic_coord_destroy(vy);
@@ -1085,17 +933,8 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
     symbolic_coord_destroy(dx_r);
     symbolic_coord_destroy(dy_r);
 
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_glide_reflect: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    graph_add_incidence(graph, result_id, (int) line_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_glide_reflect: graph_get_last_added_node_id failed", obj_id,
+                     (graph_add_incidence(graph, result_id, (int) line_id)));
 }
 
 /** 绕指定点旋转 */
@@ -1107,15 +946,8 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_rotation_about: NULL node input");
 
     /* 如果 obj 或 center 没有坐标，回退到复制行为 */
-    if (obj->coord_count == 0 || center->coord_count < 2) {
-        graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-        int result_id = graph_get_last_added_node_id(graph);
-        if (result_id < 0)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_rotation_about: graph_get_last_added_node_id failed (fallback)");
-        graph_add_line_segment(graph, (int) obj_id, result_id);
-        graph_add_line_segment(graph, (int) center_id, result_id);
-        return (int64_t) result_id;
-    }
+    LV_FALLBACK_COPY(graph, obj, obj->coord_count == 0 || center->coord_count < 2, "preset_rotation_about: graph_get_last_added_node_id failed (fallback)", obj_id,
+                     (graph_add_line_segment(graph, (int) center_id, result_id)));
 
     /* 创建 sinθ 和 cosθ 超越数 */
     SymbolicCoord *sin_theta = symbolic_coord_create_transcendental("sinθ_mrad");
@@ -1152,9 +984,7 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
                 symbolic_coord_destroy(off_x);
             if (off_y)
                 symbolic_coord_destroy(off_y);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotation_about: subtract failed (off_x/off_y)");
@@ -1170,9 +1000,7 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
                 symbolic_coord_destroy(oy_sin);
             symbolic_coord_destroy(off_x);
             symbolic_coord_destroy(off_y);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotation_about: multiply failed (ox_cos/oy_sin)");
@@ -1183,9 +1011,7 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
         if (!rot_x) {
             symbolic_coord_destroy(off_x);
             symbolic_coord_destroy(off_y);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotation_about: subtract failed (rot_x)");
@@ -1202,9 +1028,7 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
             if (oy_cos)
                 symbolic_coord_destroy(oy_cos);
             symbolic_coord_destroy(rot_x);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotation_about: multiply failed (ox_sin/oy_cos)");
@@ -1214,9 +1038,7 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
         symbolic_coord_destroy(oy_cos);
         if (!rot_y) {
             symbolic_coord_destroy(rot_x);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotation_about: add failed (rot_y)");
@@ -1227,9 +1049,7 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
         symbolic_coord_destroy(rot_x);
         if (!new_coords[i]) {
             symbolic_coord_destroy(rot_y);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotation_about: add failed (new_coords[i])");
@@ -1240,9 +1060,7 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
         symbolic_coord_destroy(rot_y);
         if (!new_coords[i + 1]) {
             symbolic_coord_destroy(new_coords[i]);
-            for (int j = 0; j < i; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, i);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotation_about: add failed (new_coords[i+1])");
@@ -1253,9 +1071,7 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
     if (n % 2 != 0) {
         new_coords[n - 1] = symbolic_coord_copy(obj->symbolic_coords[n - 1]);
         if (!new_coords[n - 1]) {
-            for (int j = 0; j < n - 1; j++)
-                symbolic_coord_destroy(new_coords[j]);
-            lv_free((void **) &new_coords);
+            LV_FAIL_PARTIAL(new_coords, n - 1);
             symbolic_coord_destroy(sin_theta);
             symbolic_coord_destroy(cos_theta);
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "preset_rotation_about: copy failed (odd coord)");
@@ -1265,17 +1081,8 @@ int64_t preset_rotation_about(lvEngine *ctx, int64_t obj_id, int64_t center_id, 
     symbolic_coord_destroy(sin_theta);
     symbolic_coord_destroy(cos_theta);
 
-    graph_add_point(graph, new_coords, n);
-    for (int i = 0; i < n; i++)
-        symbolic_coord_destroy(new_coords[i]);
-    lv_free((void **) &new_coords);
-
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_rotation_about: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    graph_add_line_segment(graph, (int) center_id, result_id);
-    return (int64_t) result_id;
+    LV_COMMIT_RESULT(graph, new_coords, n, "preset_rotation_about: graph_get_last_added_node_id failed", obj_id,
+                     (graph_add_line_segment(graph, (int) center_id, result_id)));
 }
 
 /** 关于指定直线的反射 */
@@ -1285,13 +1092,8 @@ int64_t preset_reflection_about(lvEngine *ctx, int64_t obj_id, int64_t line_id) 
     GeomNode *line = graph_get_node(graph, (int) line_id);
     if (!obj || !line)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_reflection_about: NULL node input");
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_reflection_about: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    graph_add_incidence(graph, result_id, (int) line_id);
-    return (int64_t) result_id;
+    LV_CLONE_ATTACH(graph, obj, "preset_reflection_about: graph_get_last_added_node_id failed", obj_id,
+                    (graph_add_incidence(graph, result_id, (int) line_id)));
 }
 
 /** 投影变换 */
@@ -1301,13 +1103,8 @@ int64_t preset_projection(lvEngine *ctx, int64_t obj_id, int64_t line_id) {
     GeomNode *line = graph_get_node(graph, (int) line_id);
     if (!obj || !line)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_projection: NULL node input");
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_projection: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    graph_add_incidence(graph, result_id, (int) line_id);
-    return (int64_t) result_id;
+    LV_CLONE_ATTACH(graph, obj, "preset_projection: graph_get_last_added_node_id failed", obj_id,
+                    (graph_add_incidence(graph, result_id, (int) line_id)));
 }
 
 /** 反演变换 */
@@ -1317,11 +1114,6 @@ int64_t preset_inversion(lvEngine *ctx, int64_t obj_id, int64_t circle_id) {
     GeomNode *circle = graph_get_node(graph, (int) circle_id);
     if (!obj || !circle)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_inversion: NULL node input");
-    graph_add_point(graph, obj->symbolic_coords, obj->coord_count);
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_inversion: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) obj_id, result_id);
-    graph_add_line_segment(graph, (int) circle_id, result_id);
-    return (int64_t) result_id;
+    LV_CLONE_ATTACH(graph, obj, "preset_inversion: graph_get_last_added_node_id failed", obj_id,
+                    (graph_add_line_segment(graph, (int) circle_id, result_id)));
 }

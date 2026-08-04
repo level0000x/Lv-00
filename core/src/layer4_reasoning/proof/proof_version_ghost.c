@@ -94,9 +94,36 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
         }                                                                            \
     } while (0)
 
+    /* 目标类型关键词查找表：关键词 -> 启发式分组（strstr 子串匹配） */
+    typedef enum {
+        GK_TRIANGLE = 1 << 0,  /* 三角形相关 */
+        GK_CIRCLE   = 1 << 1,  /* 圆形相关 */
+        GK_INTERSECT = 1 << 2, /* 交点相关 */
+        GK_AREA     = 1 << 3,  /* 面积/体积相关 */
+        GK_EQUAL    = 1 << 4,  /* 等式相关 */
+    } GoalKeywordGroup;
+
+    static const struct {
+        const char *keyword;    /* 匹配关键词（子串） */
+        GoalKeywordGroup group; /* 归属启发式分组 */
+    } kGoalKeywords[] = {
+        {"triangle", GK_TRIANGLE}, {"Triangle", GK_TRIANGLE}, {"isosceles", GK_TRIANGLE},
+        {"right_triangle", GK_TRIANGLE},
+        {"circle", GK_CIRCLE}, {"Circle", GK_CIRCLE},
+        {"intersect", GK_INTERSECT}, {"Intersection", GK_INTERSECT},
+        {"area", GK_AREA}, {"volume", GK_AREA}, {"Area", GK_AREA}, {"Volume", GK_AREA},
+        {"=", GK_EQUAL}, {"equal", GK_EQUAL}, {"congruent", GK_EQUAL},
+    };
+
+    /* 一次性扫描所有关键词，按分组记录命中（组间互不排斥，与原独立 if 语义一致） */
+    int goal_matched_groups = 0;
+    for (size_t i = 0; i < sizeof(kGoalKeywords) / sizeof(kGoalKeywords[0]); i++) {
+        if (strstr(goal_type, kGoalKeywords[i].keyword) != NULL)
+            goal_matched_groups |= (int) kGoalKeywords[i].group;
+    }
+
     /* 启发式 1：三角形相关 */
-    if (strstr(goal_type, "triangle") || strstr(goal_type, "Triangle") || strstr(goal_type, "isosceles") ||
-        strstr(goal_type, "right_triangle")) {
+    if (goal_matched_groups & GK_TRIANGLE) {
         APPEND_FILL(FILL_CONSTRUCTOR, "构造三角形构造器（给定顶点）", "triangle_create(a, b, c)", 3);
         APPEND_FILL(FILL_REFINE, "精化三角形性质", "assert_triangle_properties(a, b, c)", 0);
         /* 若有维度信息 */
@@ -106,26 +133,25 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
     }
 
     /* 启发式 2：圆形相关 */
-    if (strstr(goal_type, "circle") || strstr(goal_type, "Circle")) {
+    if (goal_matched_groups & GK_CIRCLE) {
         APPEND_FILL(FILL_CONSTRUCTOR, "构造圆形构造器（圆心+半径）", "circle_create(center, radius)", 2);
         APPEND_FILL(FILL_REFINE, "精化圆形方程", "assert_circle_eq(center, radius)", 0);
     }
 
     /* 启发式 3：交点相关 */
-    if (strstr(goal_type, "intersect") || strstr(goal_type, "Intersection")) {
+    if (goal_matched_groups & GK_INTERSECT) {
         APPEND_FILL(FILL_CASE_SPLIT, "对交点情况做分支分析", "case intersection_of(obj1, obj2) of ...", 2);
         APPEND_FILL(FILL_REFINE, "解交点方程", "solve_intersection(obj1, obj2)", 0);
     }
 
     /* 启发式 4：面积或体积相关 */
-    if (strstr(goal_type, "area") || strstr(goal_type, "volume") || strstr(goal_type, "Area") ||
-        strstr(goal_type, "Volume")) {
+    if (goal_matched_groups & GK_AREA) {
         APPEND_FILL(FILL_REFINE, "应用面积/体积公式", "apply_measure_formula(obj)", 0);
         APPEND_FILL(FILL_EXACT, "已知几何体查询面积常量", "lookup_area_constant(obj_type, dim)", 0);
     }
 
     /* 启发式 5：等式相关 */
-    if (strstr(goal_type, "=") || strstr(goal_type, "equal") || strstr(goal_type, "congruent")) {
+    if (goal_matched_groups & GK_EQUAL) {
         APPEND_FILL(FILL_REFINE, "重写为等式两边化简", "rewrite_equality(lhs, rhs)", 0);
         APPEND_FILL(FILL_CASE_SPLIT, "对等式方向分支（左 -> 右 / 右 -> 左）", "case equality_direction of L2R | R2L",
                     0);

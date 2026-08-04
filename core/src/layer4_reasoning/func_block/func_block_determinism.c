@@ -76,6 +76,13 @@ typedef struct {
  * dof_result = -1 → 索引 0：过约束
  * dof_result =  0 → 索引 1：恰好约束
  * dof_result =  1 → 索引 2：欠约束
+ *
+ * 【关联说明】本表与下方 s_dof_result_status_map 高度同构（同一
+ * dof_result → (fb_det, 返回码) 映射），仅返回码类型不同：
+ *   本表返回 DeterminismCheckResult，供 func_block_check_determinism_static()
+ *   使用；s_dof_result_status_map 返回 DeterminismStatus，供
+ *   func_block_determinism_check_static() 使用。
+ * 修改时需保持两表同步（fb_det 字段语义一致）。
  */
 static const DofResultCheckEntry s_dof_result_check_map[] = {
     {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_CHECK_NO_SOLUTION},  /* dof_result = -1 */
@@ -99,6 +106,13 @@ typedef struct {
  * dof_result = -1 → 索引 0：过约束
  * dof_result =  0 → 索引 1：恰好约束
  * dof_result =  1 → 索引 2：欠约束
+ *
+ * 【关联说明】本表与上方 s_dof_result_check_map 高度同构（同一
+ * dof_result → (fb_det, 返回码) 映射），仅返回码类型不同：
+ *   本表返回 DeterminismStatus，供 func_block_determinism_check_static()
+ *   使用；s_dof_result_check_map 返回 DeterminismCheckResult，供
+ *   func_block_check_determinism_static() 使用。
+ * 修改时需保持两表同步（fb_det 字段语义一致）。
  */
 static const DofResultStatusEntry s_dof_result_status_map[] = {
     {DETERMINISM_NON_DETERMINISTIC, DETERMINISM_NON_DETERMINISTIC},  /* dof_result = -1 */
@@ -453,69 +467,24 @@ DeterminismCheckResult func_block_check_determinism_static(FuncBlock *fb, Constr
     return DETERMINISM_CHECK_MULTIPLE;
 }
 
+/* ============== 确定性检查（设计文档 8.2 节增强版） ============== */
+
 /**
- * @brief 动态确定性检查（废弃版本）
+ * @brief 启发式估算二次约束（INTERSECTION）对解数量的影响
  *
- * @deprecated 本函数自 design_v2.9.md (Section 8.2) 生效后废弃。
- *             请使用 func_block_determinism_check_dynamic() 替代。
+ * 遍历涉及内部节点的约束，每遇到一个 INTERSECTION 约束将
+ * expected_solutions 翻倍（上限 INT_MAX），并记录是否存在二次约束。
  *
- * 废弃原因：
- * 1. 返回值类型（DeterminismCheckResult）与增强版返回的 DeterminismStatus
- *    不兼容，导致调用方需要额外的类型转换。
- * 2. 缺少线程安全的 save/restore 坐标绑定机制。增强版使用
- *    saved_coords/saved_coord_counts 数组在求解前后保存/恢复节点的
- *    symbolic_coords，而本版本直接修改图中节点坐标，在多线程环境下
- *    存在数据竞争风险。
- * 3. 增强版增加了流式事件通知（stream_emit_simple）支持，便于上层框架
- *    监控确定性检查的进度和结果。
- * 4. 增强版有更完善的错误处理路径（统一在 dynamic_done 标签处释放
- *    all_ids），避免了本版本中存在的多 return 路径资源泄漏风险。
- *
- * 替代方案：
- *   func_block_determinism_check_dynamic(fb, graph, input_values, n_inputs)
- *
- * @param fb              函数块
- * @param graph           约束图
- * @param arg_values      实参符号坐标数组
- * @param arg_count       实参数量
- * @param out_solutions   输出候选解数组（调用者负责释放）
- * @param out_solution_count 输出候选解数量
- * @return 确定性检查结果
+ * @param graph                  约束图
+ * @param all_ids                内部相关节点 ID 列表
+ * @param all_count              all_ids 长度
+ * @param out_expected_solutions 输出：估算的解数量（无二次约束时为 1）
+ * @param out_has_quadratic     输出：是否存在二次约束
  */
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((deprecated("use func_block_determinism_check_dynamic instead")))
-#elif defined(_MSC_VER)
-__declspec(deprecated("use func_block_determinism_check_dynamic instead"))
-#endif
-DeterminismCheckResult func_block_check_determinism_dynamic(FuncBlock *fb, ConstraintGraph *graph,
-                                                            SymbolicCoord **arg_values, int arg_count,
-                                                            GeomNode ***out_solutions, int *out_solution_count) {
-    if (!fb || !graph || !out_solutions || !out_solution_count) {
-        return DETERMINISM_CHECK_NO_SOLUTION;
-    }
-
-    *out_solutions = NULL;
-    *out_solution_count = 0;
-
-    /* 修复：使用统一的 cleanup 标签管理 all_ids 释放，
-     * 确保所有 return 路径都经过资源释放点。
-     * 原代码在中间某处直接 lv_free 后仍有多个 return 路径，
-     * 若未来代码添加新的返回路径，可能遗漏资源释放。 */
-    DeterminismCheckResult retval = DETERMINISM_CHECK_UNIQUE;
-
-    /* 收集所有内部相关节点ID（使用共享辅助函数） */
-    int *all_ids = NULL;
-    int all_count = 0;
-    if (!collect_all_block_ids(fb, &all_ids, &all_count)) {
-        fb->determinism = DETERMINISM_VERIFIED;
-        retval = DETERMINISM_CHECK_UNIQUE;
-        goto dynamic_cleanup;
-    }
-
-    /* 动态分析：在给定实参值下估算解的数量 */
-    int expected_solution_count = 1;
+static void determinism_estimate_intersection_solutions(const ConstraintGraph *graph, const int *all_ids, int all_count,
+                                                        int *out_expected_solutions, bool *out_has_quadratic) {
+    int expected_solutions = 1;
     bool has_quadratic = false;
-
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         bool involves_internal = false;
@@ -527,93 +496,18 @@ DeterminismCheckResult func_block_check_determinism_dynamic(FuncBlock *fb, Const
         }
         if (!involves_internal)
             continue;
-
         if (c->type == INTERSECTION) {
             has_quadratic = true;
             /* 两条线段相交：最多1个交点，但可能有0个（不相交） */
             /* 每个二次约束可能使解的数量翻倍 */
-            if (expected_solution_count <= INT_MAX / 2) {
-                expected_solution_count *= 2;
+            if (expected_solutions <= INT_MAX / 2) {
+                expected_solutions *= 2;
             }
         }
     }
-
-    /*
-     * 说明：all_ids 在约束统计循环中已使用完毕。
-     * 此处不再使用 all_ids，后续求解器和启发式代码也无需 all_ids。
-     * all_ids 将由统一的 dynamic_cleanup 标签释放。
-     */
-
-    /* 根据 design_v2.9.md Section 8.2：实际求解代数系统，
-     * 而不仅仅是从约束类型进行估算。 */
-    {
-        GroebnerResult *gresult = NULL;
-        SolverStatus status = solve_algebraic_system(graph, NULL, 0, &gresult);
-
-        if (status == SOLVER_UNIQUE) {
-            fb->determinism = DETERMINISM_VERIFIED;
-            determinism_cleanup_groebner(gresult);
-            retval = DETERMINISM_CHECK_UNIQUE;
-            goto dynamic_cleanup;
-        } else if (status == SOLVER_NO_SOLUTION) {
-            fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-            determinism_cleanup_groebner(gresult);
-            retval = DETERMINISM_CHECK_NO_SOLUTION;
-            goto dynamic_cleanup;
-        } else if (status == SOLVER_MULTIPLE) {
-            /* 如果函数块有选择器，可能会过滤为唯一解 */
-            if (fb->selector) {
-                fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
-                determinism_cleanup_groebner(gresult);
-                retval = DETERMINISM_CHECK_MULTIPLE;
-                goto dynamic_cleanup;
-            }
-            fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-            determinism_cleanup_groebner(gresult);
-            retval = DETERMINISM_CHECK_MULTIPLE;
-            goto dynamic_cleanup;
-        } else if (status == SOLVER_OUT_OF_SCOPE) {
-            fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
-            determinism_cleanup_groebner(gresult);
-            /* 继续执行下面的启发式检查 */
-        } else {
-            determinism_cleanup_groebner(gresult);
-            /* 继续执行下面的启发式检查 */
-        }
-    }
-
-    /* 启发式检查：利用之前计算的 expected_solution_count 和 has_quadratic */
-    if (expected_solution_count == 0) {
-        fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-        retval = DETERMINISM_CHECK_NO_SOLUTION;
-        goto dynamic_cleanup;
-    }
-
-    if (expected_solution_count > 1 && has_quadratic) {
-        fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-        *out_solution_count = expected_solution_count;
-
-        /* 如果有选择器，报告需要选择器 */
-        if (!fb->selector) {
-            retval = DETERMINISM_CHECK_MULTIPLE;
-            goto dynamic_cleanup;
-        }
-        /* 有选择器时，仍然返回 MULTIPLE，调用者负责使用选择器 */
-        retval = DETERMINISM_CHECK_MULTIPLE;
-        goto dynamic_cleanup;
-    }
-
-    fb->determinism = DETERMINISM_VERIFIED;
-    retval = DETERMINISM_CHECK_UNIQUE;
-
-dynamic_cleanup:
-    /* 修复：统一在此释放 all_ids，确保所有路径都不会遗漏释放。
-     * 即使 all_ids 为 NULL，lv_free 也能安全处理。 */
-    lv_free((void **) &all_ids);
-    return retval;
+    *out_expected_solutions = expected_solutions;
+    *out_has_quadratic = has_quadratic;
 }
-
-/* ============== 确定性检查（设计文档 8.2 节增强版） ============== */
 
 /**
  * @brief 静态确定性检查（增强版）
@@ -880,28 +774,11 @@ DeterminismStatus func_block_determinism_check_dynamic(FuncBlock *fb, Constraint
             determinism_cleanup_groebner(gresult);
         }
     }
-    /* 回退到启发式分析 */
+    /* 回退到启发式分析：估算二次约束（INTERSECTION）对解数量的影响 */
     {
-        int expected_solutions = 1;
+        int expected_solutions = 0;
         bool has_quadratic = false;
-        for (int i = 0; i < graph->constraint_count; i++) {
-            Constraint *c = graph->constraints[i];
-            bool involves = false;
-            for (int j = 0; j < c->participant_count; j++) {
-                if (is_id_in_array(c->participants[j], all_ids, all_count)) {
-                    involves = true;
-                    break;
-                }
-            }
-            if (!involves)
-                continue;
-            if (c->type == INTERSECTION) {
-                has_quadratic = true;
-                if (expected_solutions <= INT_MAX / 2) {
-                    expected_solutions *= 2;
-                }
-            }
-        }
+        determinism_estimate_intersection_solutions(graph, all_ids, all_count, &expected_solutions, &has_quadratic);
         if (expected_solutions > 1 && has_quadratic) {
             fb->determinism = DETERMINISM_NON_DETERMINISTIC;
             dynamic_result = DETERMINISM_NON_DETERMINISTIC;

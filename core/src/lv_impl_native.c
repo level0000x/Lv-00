@@ -71,20 +71,40 @@ static void coord_clear(Coord *c) {
     }
 }
 
+/* 分配 Coord 对象骨架:lv_malloc + NULL 检查 + 分配全局ID。
+ * fn_name 为调用函数名字符串字面量,用于保留原有的错误消息文本。 */
+#define LV_COORD_ALLOC(c, fn_name) do { \
+    (c) = (Coord *) lv_malloc(sizeof(Coord)); \
+    if (!(c)) \
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, fn_name ": malloc failed"); \
+    (c)->id = native_id_alloc(); \
+} while (0)
+
+/* 二元坐标算子模板:"NULL 输入检查 → 分配骨架 → 逐坐标 mpq 运算"。
+ * name 生成函数名(错误消息随之生成),MPQ_OP 为 mpq_add/mpq_sub 等二元 GMP 调用。 */
+#define LV_COORD_BINOP(name, MPQ_OP) \
+Coord *name(const Coord *a, const Coord *b) { \
+    if (!a || !b) \
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, #name ": NULL input"); \
+    Coord *c; \
+    LV_COORD_ALLOC(c, #name); \
+    mpq_init(c->x); \
+    MPQ_OP(c->x, a->x, b->x); /* GMP 精确运算 */ \
+    mpq_init(c->y); \
+    MPQ_OP(c->y, a->y, b->y); \
+    return c; \
+}
+
 Coord *coord_create(const char *x_str, const char *y_str) {
-    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
-    if (!c)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_create: malloc failed");
-    c->id = native_id_alloc();
+    Coord *c;
+    LV_COORD_ALLOC(c, "coord_create");
     coord_init(c, x_str, y_str);
     return c;
 }
 
 Coord *coord_create_si(long x_num, long y_num) {
-    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
-    if (!c)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_create_si: malloc failed");
-    c->id = native_id_alloc();
+    Coord *c;
+    LV_COORD_ALLOC(c, "coord_create_si");
     coord_init_si(c, x_num, y_num);
     return c;
 }
@@ -100,10 +120,8 @@ void coord_destroy(Coord *c) {
 Coord *coord_dup(const Coord *src) {
     if (!src)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_dup: NULL src");
-    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
-    if (!c)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_dup: malloc failed");
-    c->id = native_id_alloc();
+    Coord *c;
+    LV_COORD_ALLOC(c, "coord_dup");
     mpq_init(c->x);
     mpq_set(c->x, src->x);
     mpq_init(c->y);
@@ -111,41 +129,14 @@ Coord *coord_dup(const Coord *src) {
     return c;
 }
 
-Coord *coord_add(const Coord *a, const Coord *b) {
-    if (!a || !b)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_add: NULL input");
-    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
-    if (!c)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_add: malloc failed");
-    c->id = native_id_alloc();
-    mpq_init(c->x);
-    mpq_add(c->x, a->x, b->x); /* GMP 精确加法 */
-    mpq_init(c->y);
-    mpq_add(c->y, a->y, b->y);
-    return c;
-}
-
-Coord *coord_sub(const Coord *a, const Coord *b) {
-    if (!a || !b)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_sub: NULL input");
-    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
-    if (!c)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_sub: malloc failed");
-    c->id = native_id_alloc();
-    mpq_init(c->x);
-    mpq_sub(c->x, a->x, b->x); /* GMP 精确减法 */
-    mpq_init(c->y);
-    mpq_sub(c->y, a->y, b->y);
-    return c;
-}
+LV_COORD_BINOP(coord_add, mpq_add)
+LV_COORD_BINOP(coord_sub, mpq_sub)
 
 Coord *coord_mul(const Coord *a, const mpq_t scalar) {
     if (!a)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_mul: NULL input");
-    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
-    if (!c)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_mul: malloc failed");
-    c->id = native_id_alloc();
+    Coord *c;
+    LV_COORD_ALLOC(c, "coord_mul");
     mpq_init(c->x);
     mpq_mul(c->x, a->x, scalar); /* GMP 精确乘法 */
     mpq_init(c->y);
@@ -156,10 +147,8 @@ Coord *coord_mul(const Coord *a, const mpq_t scalar) {
 Coord *coord_div(const Coord *a, const mpq_t scalar) {
     if (!a || mpq_sgn(scalar) == 0)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "coord_div: NULL input or zero scalar");
-    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
-    if (!c)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_div: malloc failed");
-    c->id = native_id_alloc();
+    Coord *c;
+    LV_COORD_ALLOC(c, "coord_div");
     mpq_init(c->x);
     mpq_div(c->x, a->x, scalar); /* GMP 精确除法 */
     mpq_init(c->y);
@@ -213,10 +202,8 @@ void coord_dist_sq(mpq_t result, const Coord *a, const Coord *b) {
 Coord *coord_midpoint(const Coord *a, const Coord *b) {
     if (!a || !b)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_midpoint: NULL input");
-    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
-    if (!c)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "coord_midpoint: malloc failed");
-    c->id = native_id_alloc();
+    Coord *c;
+    LV_COORD_ALLOC(c, "coord_midpoint");
     mpq_t two;
     mpq_init(two);
     mpq_set_si(two, 2, 1);
@@ -273,11 +260,36 @@ typedef struct {
     mpq_t val;
 } Rational;
 
+/* 分配 Rational 对象骨架:lv_malloc + NULL 检查 + 分配全局ID。
+ * fn_name 为调用函数名字符串字面量,用于保留原有的错误消息文本。 */
+#define LV_RATIONAL_ALLOC(r, fn_name) do { \
+    (r) = (Rational *) lv_malloc(sizeof(Rational)); \
+    if (!(r)) \
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, fn_name ": malloc failed"); \
+    (r)->id = native_id_alloc(); \
+} while (0)
+
+/* 二元有理数算子模板:"NULL 输入检查 → 分配骨架 → 单值 mpq 运算"。
+ * modifier 保留原函数的链接属性(static 或空),name 生成函数名,
+ * MPQ_OP 为 mpq_add/mpq_sub/mpq_mul 等二元 GMP 调用。 */
+#define LV_RATIONAL_BINOP(modifier, name, MPQ_OP) \
+modifier Rational *name(const Rational *a, const Rational *b) { \
+    if (!a || !b) \
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, #name ": NULL input"); \
+    Rational *r; \
+    LV_RATIONAL_ALLOC(r, #name); \
+    mpq_init(r->val); \
+    MPQ_OP(r->val, a->val, b->val); /* GMP 精确运算 */ \
+    return r; \
+}
+
+LV_RATIONAL_BINOP(static, rational_add, mpq_add)
+LV_RATIONAL_BINOP(, rational_sub, mpq_sub)
+LV_RATIONAL_BINOP(, rational_mul, mpq_mul)
+
 Rational *rational_create_str(const char *s) {
-    Rational *r = (Rational *) lv_malloc(sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_create_str: malloc failed");
-    r->id = native_id_alloc();
+    Rational *r;
+    LV_RATIONAL_ALLOC(r, "rational_create_str");
     mpq_init(r->val);
     mpq_set_str(r->val, s, 10); /* GMP 精确解析 "num/den" 或 "int" */
     mpq_canonicalize(r->val);
@@ -285,10 +297,8 @@ Rational *rational_create_str(const char *s) {
 }
 
 Rational *rational_create_si(long num, unsigned long den) {
-    Rational *r = (Rational *) lv_malloc(sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_create_si: malloc failed");
-    r->id = native_id_alloc();
+    Rational *r;
+    LV_RATIONAL_ALLOC(r, "rational_create_si");
     mpq_init(r->val);
     mpq_set_si(r->val, num, den);
     mpq_canonicalize(r->val);
@@ -309,52 +319,11 @@ static void rational_destroy(Rational *r) {
     }
 }
 
-/**
- * @brief GMP精确有理数加法
- */
-static Rational *rational_add(const Rational *a, const Rational *b) {
-    if (!a || !b)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_add: NULL input");
-    Rational *r = (Rational *) lv_malloc(sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_add: malloc failed");
-    r->id = native_id_alloc();
-    mpq_init(r->val);
-    mpq_add(r->val, a->val, b->val); /* GMP 精确加法 */
-    return r;
-}
-
-Rational *rational_sub(const Rational *a, const Rational *b) {
-    if (!a || !b)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_sub: NULL input");
-    Rational *r = (Rational *) lv_malloc(sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_sub: malloc failed");
-    r->id = native_id_alloc();
-    mpq_init(r->val);
-    mpq_sub(r->val, a->val, b->val); /* GMP 精确减法 */
-    return r;
-}
-
-Rational *rational_mul(const Rational *a, const Rational *b) {
-    if (!a || !b)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_mul: NULL input");
-    Rational *r = (Rational *) lv_malloc(sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_mul: malloc failed");
-    r->id = native_id_alloc();
-    mpq_init(r->val);
-    mpq_mul(r->val, a->val, b->val); /* GMP 精确乘法 */
-    return r;
-}
-
 Rational *rational_div(const Rational *a, const Rational *b) {
     if (!a || !b || mpq_sgn(b->val) == 0)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "rational_div: NULL input or division by zero");
-    Rational *r = (Rational *) lv_malloc(sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_div: malloc failed");
-    r->id = native_id_alloc();
+    Rational *r;
+    LV_RATIONAL_ALLOC(r, "rational_div");
     mpq_init(r->val);
     mpq_div(r->val, a->val, b->val); /* GMP 精确除法 */
     return r;
@@ -438,6 +407,57 @@ static void graph_edge_clear(GraphEdge *e) {
         mpq_clear(e->weight);
 }
 
+/* 节点数组容量翻倍扩容骨架(graph_add_node 使用)。
+ * 错误消息保留原函数文本;失败时返回 -1(错误已记录)。 */
+static int graph_grow_nodes(ConstraintGraph *g) {
+    if (g->node_cap > INT_MAX / 2)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_add_node: node_cap overflow");
+    int new_cap_int = g->node_cap * 2;
+    size_t new_cap = (size_t) new_cap_int;
+    GraphNode *tmp = (GraphNode *) lv_realloc(g->nodes, new_cap * sizeof(GraphNode));
+    if (!tmp)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "graph_add_node: realloc failed");
+    g->node_cap = (int) new_cap_int;
+    g->nodes = tmp;
+    return 0;
+}
+
+/* 边数组容量翻倍扩容骨架(graph_add_edge 使用) */
+static int graph_grow_edges(ConstraintGraph *g) {
+    if (g->edge_cap > SIZE_MAX / 2 / sizeof(GraphEdge))
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_add_edge: edge_cap overflow");
+    size_t new_cap = (size_t) g->edge_cap * 2;
+    GraphEdge *tmp = (GraphEdge *) lv_realloc(g->edges, new_cap * sizeof(GraphEdge));
+    if (!tmp)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "graph_add_edge: realloc failed");
+    g->edge_cap = (int) new_cap;
+    g->edges = tmp;
+    return 0;
+}
+
+/* swap-remove 骨架:释放 GMP 值后用末尾元素覆盖被删槽位并递减计数。
+ * 注意:此处仅通过 graph_node_clear 释放一次 GMP 值(不得再手动 mpq_clear,否则双重 free)。 */
+static void graph_swap_remove_node(ConstraintGraph *g, int i) {
+    graph_node_clear(&g->nodes[i]);
+    g->nodes[i] = g->nodes[--g->node_count];
+}
+
+static void graph_swap_remove_edge(ConstraintGraph *g, int i) {
+    graph_edge_clear(&g->edges[i]);
+    g->edges[i] = g->edges[--g->edge_count];
+}
+
+/* 线性查找骨架:按 id 在数组中找下标,未找到返回 -1 */
+#define LV_GRAPH_LINEAR_FIND(g_ptr, id_val, array, cnt) \
+    do { \
+        if (!(g_ptr)) \
+            return -1; \
+        for (int i = 0; i < (cnt); i++) \
+            if ((array)[i].id == (id_val)) \
+                return i; \
+        return -1; \
+    } while (0)
+
 /**
  * @brief 创建约束图并分配初始缓冲区
  */
@@ -472,15 +492,8 @@ int64_t graph_add_node(ConstraintGraph *g, const mpq_t value, int pinned) {
     if (!g)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_add_node: NULL graph");
     if (g->node_count >= g->node_cap) {
-        if (g->node_cap > INT_MAX / 2)
-            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_add_node: node_cap overflow");
-        int new_cap_int = g->node_cap * 2;
-        size_t new_cap = (size_t) new_cap_int;
-        GraphNode *tmp = (GraphNode *) lv_realloc(g->nodes, new_cap * sizeof(GraphNode));
-        if (!tmp)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "graph_add_node: realloc failed");
-        g->node_cap = (int) new_cap_int;
-        g->nodes = tmp;
+        if (graph_grow_nodes(g) < 0)
+            return -1;
     }
     int idx = g->node_count++;
     g->nodes[idx].id = native_id_alloc();
@@ -507,9 +520,7 @@ static int graph_remove_node(ConstraintGraph *g, int64_t node_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_remove_node: NULL graph");
     for (int i = 0; i < g->node_count; i++) {
         if (g->nodes[i].id == node_id) {
-            graph_node_clear(&g->nodes[i]);
-            mpq_clear(g->nodes[i].value);
-            g->nodes[i] = g->nodes[--g->node_count];
+            graph_swap_remove_node(g, i); /* 内部仅 mpq_clear 一次(修复双重 free) */
             return 0;
         }
     }
@@ -522,14 +533,8 @@ int64_t graph_add_edge(ConstraintGraph *g, int from_idx, int to_idx, const mpq_t
     if (from_idx >= g->node_count || to_idx >= g->node_count)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "graph_add_edge: index out of range");
     if (g->edge_count >= g->edge_cap) {
-        if (g->edge_cap > SIZE_MAX / 2 / sizeof(GraphEdge))
-            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_add_edge: edge_cap overflow");
-        size_t new_cap = (size_t) g->edge_cap * 2;
-        GraphEdge *tmp = (GraphEdge *) lv_realloc(g->edges, new_cap * sizeof(GraphEdge));
-        if (!tmp)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "graph_add_edge: realloc failed");
-        g->edge_cap = (int) new_cap;
-        g->edges = tmp;
+        if (graph_grow_edges(g) < 0)
+            return -1;
     }
     int idx = g->edge_count++;
     g->edges[idx].id = native_id_alloc();
@@ -554,9 +559,7 @@ int graph_remove_edge(ConstraintGraph *g, int64_t edge_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_remove_edge: NULL graph");
     for (int i = 0; i < g->edge_count; i++) {
         if (g->edges[i].id == edge_id) {
-            graph_edge_clear(&g->edges[i]);
-            mpq_clear(g->edges[i].weight);
-            g->edges[i] = g->edges[--g->edge_count];
+            graph_swap_remove_edge(g, i); /* 内部仅 mpq_clear 一次(修复双重 free) */
             return 0;
         }
     }
@@ -637,21 +640,11 @@ int graph_edge_count(const ConstraintGraph *g) {
 }
 
 int graph_find_node(const ConstraintGraph *g, int64_t node_id) {
-    if (!g)
-        return -1;
-    for (int i = 0; i < g->node_count; i++)
-        if (g->nodes[i].id == node_id)
-            return i;
-    return -1;
+    LV_GRAPH_LINEAR_FIND(g, node_id, g->nodes, g->node_count);
 }
 
 int graph_find_edge(const ConstraintGraph *g, int64_t edge_id) {
-    if (!g)
-        return -1;
-    for (int i = 0; i < g->edge_count; i++)
-        if (g->edges[i].id == edge_id)
-            return i;
-    return -1;
+    LV_GRAPH_LINEAR_FIND(g, edge_id, g->edges, g->edge_count);
 }
 
 int graph_validate(const ConstraintGraph *g) {
@@ -765,35 +758,22 @@ static int eval_var(mpq_t result, Expr *e, const char **varnames, const mpq_t *v
     return -1; /* var not found */
 }
 
-static int eval_add(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    mpq_t l, r;
-    mpq_inits(l, r, NULL);
-    expr_eval(l, e->left, varnames, values, nvars);
-    expr_eval(r, e->right, varnames, values, nvars);
-    mpq_add(result, l, r);
-    mpq_clears(l, r, NULL);
-    return 0;
+/* EVAL 二元算子模板:左右子树求值后做一次 mpq 运算。
+ * name 生成处理器函数名,MPQ_OP 为 mpq_add/mpq_sub/mpq_mul 等二元 GMP 调用。 */
+#define LV_EVAL_BINOP(name, MPQ_OP) \
+static int name(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) { \
+    mpq_t l, r; \
+    mpq_inits(l, r, NULL); \
+    expr_eval(l, e->left, varnames, values, nvars); \
+    expr_eval(r, e->right, varnames, values, nvars); \
+    MPQ_OP(result, l, r); \
+    mpq_clears(l, r, NULL); \
+    return 0; \
 }
 
-static int eval_sub(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    mpq_t l, r;
-    mpq_inits(l, r, NULL);
-    expr_eval(l, e->left, varnames, values, nvars);
-    expr_eval(r, e->right, varnames, values, nvars);
-    mpq_sub(result, l, r);
-    mpq_clears(l, r, NULL);
-    return 0;
-}
-
-static int eval_mul(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    mpq_t l, r;
-    mpq_inits(l, r, NULL);
-    expr_eval(l, e->left, varnames, values, nvars);
-    expr_eval(r, e->right, varnames, values, nvars);
-    mpq_mul(result, l, r);
-    mpq_clears(l, r, NULL);
-    return 0;
-}
+LV_EVAL_BINOP(eval_add, mpq_add)
+LV_EVAL_BINOP(eval_sub, mpq_sub)
+LV_EVAL_BINOP(eval_mul, mpq_mul)
 
 static int eval_div(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
     mpq_t l, r;

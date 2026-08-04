@@ -26,6 +26,113 @@
  * 第6部分:预设多边形 -- preset_polygons(15函数)
  * ============================================================ */
 
+/* ============================================================
+ * 宏定义区:多边形构造骨架
+ *
+ * 说明:
+ *   - LV_VERTEX_FROM_NODE:全文件约 30 处重复的三元式
+ *     "(node->coord_count > idx) ? symbolic_coord_copy(...)
+ *                                 : symbolic_coord_create_rational(...)"
+ *     抽取为表达式宏。
+ *   - LV_TRIANGLE_SKELETON:SSS/SAS/ASA/AAS 四个三角形函数主体
+ *     (顶点A(0,0) → 顶点B → 顶点C → 三条边 → region)逐字相同,抽取为骨架宏。
+ *   - LV_POLY_JUDGEMENT:preset_is_convex / preset_is_regular 公共主体。
+ * ============================================================ */
+
+/**
+ * @brief 取节点符号坐标第 idx 维,坐标不足时用有理数兜底
+ *
+ * 等价于重复三元式:
+ *   (node->coord_count > idx)
+ *       ? symbolic_coord_copy(node->symbolic_coords[idx])
+ *       : symbolic_coord_create_rational(num, den)
+ *
+ * @param node         GeomNode 指针
+ * @param idx          坐标维下标(0=x, 1=y)
+ * @param fallback_num 兜底有理数分子
+ * @param fallback_den 兜底有理数分母
+ */
+#define LV_VERTEX_FROM_NODE(node, idx, fallback_num, fallback_den) \
+    ((node)->coord_count > (idx)) \
+        ? symbolic_coord_copy((node)->symbolic_coords[(idx)]) \
+        : symbolic_coord_create_rational((fallback_num), (fallback_den))
+
+/**
+ * @brief 三角形骨架:顶点A(0,0) + 顶点B + 顶点C + 三条边 + 区域
+ *
+ * 等价于 preset_triangle_SSS/SAS/ASA/AAS 的公共主体:
+ *   A 固定 (0,0);B 的 x 取 node_b 坐标(兜底 1,1)、y 固定 0;
+ *   C 的 x/y 分别取 node_c0 / node_c1 坐标(兜底可定制);
+ *   随后连 AB/BC/CA 三条边并生成三角形区域。
+ * 展开后 A_id/B_id/C_id/ab_id/bc_id/ca_id 仅宏块内可见,
+ * 调用处通过 graph_get_last_added_node_id(g) 取区域 id 返回。
+ *
+ * @param g         约束图指针
+ * @param node_b    顶点 B x 坐标来源节点
+ * @param node_c0   顶点 C x 坐标来源节点
+ * @param fb_c0_num C.x 兜底分子
+ * @param fb_c0_den C.x 兜底分母
+ * @param node_c1   顶点 C y 坐标来源节点
+ * @param fb_c1_num C.y 兜底分子
+ * @param fb_c1_den C.y 兜底分母
+ */
+#define LV_TRIANGLE_SKELETON(g, node_b, node_c0, fb_c0_num, fb_c0_den, node_c1, fb_c1_num, fb_c1_den) \
+    do { \
+        /* 顶点 A(0,0) */ \
+        SymbolicCoord *coords_A[2]; \
+        coords_A[0] = symbolic_coord_create_rational(0, 1); \
+        coords_A[1] = symbolic_coord_create_rational(0, 1); \
+        graph_add_point((g), coords_A, 2); \
+        int A_id = graph_get_last_added_node_id(g); \
+        /* 顶点 B:x 取 node_b 坐标(兜底 1,1),y 固定 0 */ \
+        SymbolicCoord *coords_B[2]; \
+        coords_B[0] = LV_VERTEX_FROM_NODE(node_b, 0, 1, 1); \
+        coords_B[1] = symbolic_coord_create_rational(0, 1); \
+        graph_add_point((g), coords_B, 2); \
+        int B_id = graph_get_last_added_node_id(g); \
+        /* 顶点 C:x/y 分别取 node_c0 / node_c1 坐标(兜底可定制) */ \
+        SymbolicCoord *coords_C[2]; \
+        coords_C[0] = LV_VERTEX_FROM_NODE(node_c0, 0, fb_c0_num, fb_c0_den); \
+        coords_C[1] = LV_VERTEX_FROM_NODE(node_c1, 0, fb_c1_num, fb_c1_den); \
+        graph_add_point((g), coords_C, 2); \
+        int C_id = graph_get_last_added_node_id(g); \
+        /* 三条边 */ \
+        graph_add_line_segment((g), A_id, B_id); \
+        int ab_id = graph_get_last_added_node_id(g); \
+        graph_add_line_segment((g), B_id, C_id); \
+        int bc_id = graph_get_last_added_node_id(g); \
+        graph_add_line_segment((g), C_id, A_id); \
+        int ca_id = graph_get_last_added_node_id(g); \
+        /* 三角形区域 */ \
+        int seg_ids[] = {ab_id, bc_id, ca_id}; \
+        graph_add_region((g), seg_ids, 3); \
+    } while (0)
+
+/**
+ * @brief 创建多边形判定结果节点(值为 value_num/value_den 的有理数)
+ *
+ * 等价于 preset_is_convex / preset_is_regular 的公共主体:
+ *   取 poly 节点(检查非空) → 创建单坐标结果节点(默认值)→ 返回其 id。
+ * 原两函数仅默认值与错误消息前缀不同,故以参数区分。
+ * 注意:本宏为语句序列(非 do-while)——需在调用函数作用域泄漏
+ * 变量 g / poly 供返回语句使用,调用处须以分号结尾。
+ *
+ * @param ctx        引擎上下文
+ * @param poly_id    多边形节点 id
+ * @param value_num  默认值分子(is_convex=1, is_regular=0)
+ * @param value_den  默认值分母(恒为 1)
+ * @param fn         错误消息前缀,如 "preset_is_convex"
+ */
+#define LV_POLY_JUDGEMENT(ctx, poly_id, value_num, value_den, fn) \
+    ConstraintGraph *g = (ctx)->main_graph; \
+    GeomNode *poly = graph_get_node(g, (int) (poly_id)); \
+    if (!poly) \
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, fn ": NULL poly node"); \
+    /* 创建判定结果节点:单坐标存储默认值 */ \
+    SymbolicCoord *coords[1]; \
+    coords[0] = symbolic_coord_create_rational((value_num), (value_den)); \
+    graph_add_point(g, coords, 1)
+
 /** SSS构造三角形 */
 int64_t preset_triangle_SSS(lvEngine *ctx, int64_t a, int64_t b, int64_t c) {
     ConstraintGraph *g = ctx->main_graph;
@@ -35,41 +142,8 @@ int64_t preset_triangle_SSS(lvEngine *ctx, int64_t a, int64_t b, int64_t c) {
     if (!na || !nb || !nc)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_triangle_SSS: NULL node input");
 
-    /* 顶点 A(0,0) */
-    SymbolicCoord *coords_A[2];
-    coords_A[0] = symbolic_coord_create_rational(0, 1);
-    coords_A[1] = symbolic_coord_create_rational(0, 1);
-    graph_add_point(g, coords_A, 2);
-    int A_id = graph_get_last_added_node_id(g);
-
-    /* 顶点 B — 使用 a 节点的符号坐标 */
-    SymbolicCoord *coords_B[2];
-    coords_B[0] =
-        (na->coord_count > 0) ? symbolic_coord_copy(na->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    coords_B[1] = symbolic_coord_create_rational(0, 1);
-    graph_add_point(g, coords_B, 2);
-    int B_id = graph_get_last_added_node_id(g);
-
-    /* 顶点 C — 使用 b 和 c 节点的符号坐标 */
-    SymbolicCoord *coords_C[2];
-    coords_C[0] =
-        (nc->coord_count > 0) ? symbolic_coord_copy(nc->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    coords_C[1] =
-        (nb->coord_count > 0) ? symbolic_coord_copy(nb->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    graph_add_point(g, coords_C, 2);
-    int C_id = graph_get_last_added_node_id(g);
-
-    /* 三条边 */
-    graph_add_line_segment(g, A_id, B_id);
-    int ab_id = graph_get_last_added_node_id(g);
-    graph_add_line_segment(g, B_id, C_id);
-    int bc_id = graph_get_last_added_node_id(g);
-    graph_add_line_segment(g, C_id, A_id);
-    int ca_id = graph_get_last_added_node_id(g);
-
-    /* 三角形区域 */
-    int seg_ids[] = {ab_id, bc_id, ca_id};
-    graph_add_region(g, seg_ids, 3);
+    /* SSS 骨架:B 取 na.x(兜底 1,1);C.x 取 nc.x(兜底 1,1),C.y 取 nb.x(兜底 1,1) */
+    LV_TRIANGLE_SKELETON(g, na, nc, 1, 1, nb, 1, 1);
     return (int64_t) graph_get_last_added_node_id(g);
 }
 
@@ -82,40 +156,8 @@ int64_t preset_triangle_SAS(lvEngine *ctx, int64_t side1, int64_t angle_mrad, in
     if (!ns1 || !na || !ns2)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_triangle_SAS: NULL node input");
 
-    /* 顶点 A(0,0) */
-    SymbolicCoord *coords_A[2];
-    coords_A[0] = symbolic_coord_create_rational(0, 1);
-    coords_A[1] = symbolic_coord_create_rational(0, 1);
-    graph_add_point(g, coords_A, 2);
-    int A_id = graph_get_last_added_node_id(g);
-
-    /* 顶点 B(side1, 0) */
-    SymbolicCoord *coords_B[2];
-    coords_B[0] =
-        (ns1->coord_count > 0) ? symbolic_coord_copy(ns1->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    coords_B[1] = symbolic_coord_create_rational(0, 1);
-    graph_add_point(g, coords_B, 2);
-    int B_id = graph_get_last_added_node_id(g);
-
-    /* 顶点 C — 用 side2 和 angle 编码位置 */
-    SymbolicCoord *coords_C[2];
-    coords_C[0] =
-        (na->coord_count > 0) ? symbolic_coord_copy(na->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    coords_C[1] =
-        (ns2->coord_count > 0) ? symbolic_coord_copy(ns2->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    graph_add_point(g, coords_C, 2);
-    int C_id = graph_get_last_added_node_id(g);
-
-    /* 三条边 */
-    graph_add_line_segment(g, A_id, B_id);
-    int ab_id = graph_get_last_added_node_id(g);
-    graph_add_line_segment(g, B_id, C_id);
-    int bc_id = graph_get_last_added_node_id(g);
-    graph_add_line_segment(g, C_id, A_id);
-    int ca_id = graph_get_last_added_node_id(g);
-
-    int seg_ids[] = {ab_id, bc_id, ca_id};
-    graph_add_region(g, seg_ids, 3);
+    /* SAS 骨架:B 取 ns1.x(兜底 1,1);C.x 取 na.x(兜底 0,1),C.y 取 ns2.x(兜底 1,1) */
+    LV_TRIANGLE_SKELETON(g, ns1, na, 0, 1, ns2, 1, 1);
     return (int64_t) graph_get_last_added_node_id(g);
 }
 
@@ -128,40 +170,8 @@ int64_t preset_triangle_ASA(lvEngine *ctx, int64_t angle1_mrad, int64_t side, in
     if (!na1 || !ns || !na2)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_triangle_ASA: NULL node input");
 
-    /* 顶点 A(0,0) */
-    SymbolicCoord *coords_A[2];
-    coords_A[0] = symbolic_coord_create_rational(0, 1);
-    coords_A[1] = symbolic_coord_create_rational(0, 1);
-    graph_add_point(g, coords_A, 2);
-    int A_id = graph_get_last_added_node_id(g);
-
-    /* 顶点 B(side, 0) */
-    SymbolicCoord *coords_B[2];
-    coords_B[0] =
-        (ns->coord_count > 0) ? symbolic_coord_copy(ns->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    coords_B[1] = symbolic_coord_create_rational(0, 1);
-    graph_add_point(g, coords_B, 2);
-    int B_id = graph_get_last_added_node_id(g);
-
-    /* 顶点 C — 用两个 angle 节点编码位置 */
-    SymbolicCoord *coords_C[2];
-    coords_C[0] =
-        (na1->coord_count > 0) ? symbolic_coord_copy(na1->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    coords_C[1] =
-        (na2->coord_count > 0) ? symbolic_coord_copy(na2->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    graph_add_point(g, coords_C, 2);
-    int C_id = graph_get_last_added_node_id(g);
-
-    /* 三条边 */
-    graph_add_line_segment(g, A_id, B_id);
-    int ab_id = graph_get_last_added_node_id(g);
-    graph_add_line_segment(g, B_id, C_id);
-    int bc_id = graph_get_last_added_node_id(g);
-    graph_add_line_segment(g, C_id, A_id);
-    int ca_id = graph_get_last_added_node_id(g);
-
-    int seg_ids[] = {ab_id, bc_id, ca_id};
-    graph_add_region(g, seg_ids, 3);
+    /* ASA 骨架:B 取 ns.x(兜底 1,1);C.x 取 na1.x(兜底 0,1),C.y 取 na2.x(兜底 1,1) */
+    LV_TRIANGLE_SKELETON(g, ns, na1, 0, 1, na2, 1, 1);
     return (int64_t) graph_get_last_added_node_id(g);
 }
 
@@ -174,40 +184,8 @@ int64_t preset_triangle_AAS(lvEngine *ctx, int64_t angle1_mrad, int64_t angle2_m
     if (!na1 || !na2 || !ns)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_triangle_AAS: NULL node input");
 
-    /* 顶点 A(0,0) */
-    SymbolicCoord *coords_A[2];
-    coords_A[0] = symbolic_coord_create_rational(0, 1);
-    coords_A[1] = symbolic_coord_create_rational(0, 1);
-    graph_add_point(g, coords_A, 2);
-    int A_id = graph_get_last_added_node_id(g);
-
-    /* 顶点 B(side, 0) */
-    SymbolicCoord *coords_B[2];
-    coords_B[0] =
-        (ns->coord_count > 0) ? symbolic_coord_copy(ns->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    coords_B[1] = symbolic_coord_create_rational(0, 1);
-    graph_add_point(g, coords_B, 2);
-    int B_id = graph_get_last_added_node_id(g);
-
-    /* 顶点 C — 用 angle1 和 angle2 编码位置 */
-    SymbolicCoord *coords_C[2];
-    coords_C[0] =
-        (na1->coord_count > 0) ? symbolic_coord_copy(na1->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    coords_C[1] =
-        (na2->coord_count > 0) ? symbolic_coord_copy(na2->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
-    graph_add_point(g, coords_C, 2);
-    int C_id = graph_get_last_added_node_id(g);
-
-    /* 三条边 */
-    graph_add_line_segment(g, A_id, B_id);
-    int ab_id = graph_get_last_added_node_id(g);
-    graph_add_line_segment(g, B_id, C_id);
-    int bc_id = graph_get_last_added_node_id(g);
-    graph_add_line_segment(g, C_id, A_id);
-    int ca_id = graph_get_last_added_node_id(g);
-
-    int seg_ids[] = {ab_id, bc_id, ca_id};
-    graph_add_region(g, seg_ids, 3);
+    /* AAS 骨架:B 取 ns.x(兜底 1,1);C.x 取 na1.x(兜底 0,1),C.y 取 na2.x(兜底 1,1) */
+    LV_TRIANGLE_SKELETON(g, ns, na1, 0, 1, na2, 1, 1);
     return (int64_t) graph_get_last_added_node_id(g);
 }
 
@@ -223,34 +201,26 @@ int64_t preset_quadrilateral(lvEngine *ctx, int64_t p1, int64_t p2, int64_t p3, 
 
     /* 用输入点的符号坐标创建新顶点 */
     SymbolicCoord *coords_V1[2];
-    coords_V1[0] =
-        (np1->coord_count > 0) ? symbolic_coord_copy(np1->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    coords_V1[1] =
-        (np1->coord_count > 1) ? symbolic_coord_copy(np1->symbolic_coords[1]) : symbolic_coord_create_rational(0, 1);
+    coords_V1[0] = LV_VERTEX_FROM_NODE(np1, 0, 0, 1);
+    coords_V1[1] = LV_VERTEX_FROM_NODE(np1, 1, 0, 1);
     graph_add_point(g, coords_V1, 2);
     int V1_id = graph_get_last_added_node_id(g);
 
     SymbolicCoord *coords_V2[2];
-    coords_V2[0] =
-        (np2->coord_count > 0) ? symbolic_coord_copy(np2->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    coords_V2[1] =
-        (np2->coord_count > 1) ? symbolic_coord_copy(np2->symbolic_coords[1]) : symbolic_coord_create_rational(0, 1);
+    coords_V2[0] = LV_VERTEX_FROM_NODE(np2, 0, 0, 1);
+    coords_V2[1] = LV_VERTEX_FROM_NODE(np2, 1, 0, 1);
     graph_add_point(g, coords_V2, 2);
     int V2_id = graph_get_last_added_node_id(g);
 
     SymbolicCoord *coords_V3[2];
-    coords_V3[0] =
-        (np3->coord_count > 0) ? symbolic_coord_copy(np3->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    coords_V3[1] =
-        (np3->coord_count > 1) ? symbolic_coord_copy(np3->symbolic_coords[1]) : symbolic_coord_create_rational(0, 1);
+    coords_V3[0] = LV_VERTEX_FROM_NODE(np3, 0, 0, 1);
+    coords_V3[1] = LV_VERTEX_FROM_NODE(np3, 1, 0, 1);
     graph_add_point(g, coords_V3, 2);
     int V3_id = graph_get_last_added_node_id(g);
 
     SymbolicCoord *coords_V4[2];
-    coords_V4[0] =
-        (np4->coord_count > 0) ? symbolic_coord_copy(np4->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    coords_V4[1] =
-        (np4->coord_count > 1) ? symbolic_coord_copy(np4->symbolic_coords[1]) : symbolic_coord_create_rational(0, 1);
+    coords_V4[0] = LV_VERTEX_FROM_NODE(np4, 0, 0, 1);
+    coords_V4[1] = LV_VERTEX_FROM_NODE(np4, 1, 0, 1);
     graph_add_point(g, coords_V4, 2);
     int V4_id = graph_get_last_added_node_id(g);
 
@@ -285,12 +255,10 @@ int64_t preset_regular_polygon(lvEngine *ctx, int64_t center_id, int64_t radius_
     /* 由于没有三角函数,使用符号坐标编码:每个顶点的坐标 = center.coords + radius.coords * 方向因子 */
     int vertex_ids[128]; /* 安全边界 */
 
-    SymbolicCoord *cx =
-        (nc->coord_count > 0) ? symbolic_coord_copy(nc->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy =
-        (nc->coord_count > 1) ? symbolic_coord_copy(nc->symbolic_coords[1]) : symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *rx =
-        (nr->coord_count > 0) ? symbolic_coord_copy(nr->symbolic_coords[0]) : symbolic_coord_create_rational(1, 1);
+    SymbolicCoord *cx = LV_VERTEX_FROM_NODE(nc, 0, 0, 1);
+    SymbolicCoord *cy = LV_VERTEX_FROM_NODE(nc, 1, 0, 1);
+    SymbolicCoord *rx = LV_VERTEX_FROM_NODE(nr, 0, 1, 1);
+    /* ry 兜底为复制 rx(非常量有理数),LV_VERTEX_FROM_NODE 无法表达,保留原样 */
     SymbolicCoord *ry = (nr->coord_count > 1) ? symbolic_coord_copy(nr->symbolic_coords[1]) : symbolic_coord_copy(rx);
 
     for (int i = 0; i < n; i++) {
@@ -347,10 +315,8 @@ int64_t preset_centroid_polygon(lvEngine *ctx, int64_t poly_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_centroid_polygon: NULL poly node");
 
     /* 创建重心节点,用多边形的符号坐标编码重心位置 */
-    SymbolicCoord *cx =
-        (poly->coord_count > 0) ? symbolic_coord_copy(poly->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy =
-        (poly->coord_count > 1) ? symbolic_coord_copy(poly->symbolic_coords[1]) : symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *cx = LV_VERTEX_FROM_NODE(poly, 0, 0, 1);
+    SymbolicCoord *cy = LV_VERTEX_FROM_NODE(poly, 1, 0, 1);
 
     /* 重心 = 顶点坐标均值,此处用多边形坐标近似 */
     SymbolicCoord *coords_C[2];
@@ -362,29 +328,15 @@ int64_t preset_centroid_polygon(lvEngine *ctx, int64_t poly_id) {
 
 /** 判断多边形是否为凸 */
 int64_t preset_is_convex(lvEngine *ctx, int64_t poly_id) {
-    ConstraintGraph *g = ctx->main_graph;
-    GeomNode *poly = graph_get_node(g, (int) poly_id);
-    if (!poly)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_is_convex: NULL poly node");
-
     /* 创建判定结果节点:存储 1(凸)或 0(非凸) */
-    SymbolicCoord *coords[1];
-    coords[0] = symbolic_coord_create_rational(1, 1); /* 默认 1=是凸多边形 */
-    graph_add_point(g, coords, 1);
+    LV_POLY_JUDGEMENT(ctx, poly_id, 1, 1, "preset_is_convex");
     return (int64_t) graph_get_last_added_node_id(g);
 }
 
 /** 判断多边形是否为正多边形 */
 int64_t preset_is_regular(lvEngine *ctx, int64_t poly_id) {
-    ConstraintGraph *g = ctx->main_graph;
-    GeomNode *poly = graph_get_node(g, (int) poly_id);
-    if (!poly)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_is_regular: NULL poly node");
-
     /* 创建判定结果节点:存储 0(非正)或 1(正) */
-    SymbolicCoord *coords[1];
-    coords[0] = symbolic_coord_create_rational(0, 1); /* 默认 0=非正多边形 */
-    graph_add_point(g, coords, 1);
+    LV_POLY_JUDGEMENT(ctx, poly_id, 0, 1, "preset_is_regular");
     return (int64_t) graph_get_last_added_node_id(g);
 }
 
@@ -463,10 +415,8 @@ int64_t preset_circumscribed(lvEngine *ctx, int64_t poly_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_circumscribed: NULL poly node");
 
     /* 创建外接圆节点:用多边形坐标编码圆心和半径 */
-    SymbolicCoord *cx =
-        (poly->coord_count > 0) ? symbolic_coord_copy(poly->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy =
-        (poly->coord_count > 1) ? symbolic_coord_copy(poly->symbolic_coords[1]) : symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *cx = LV_VERTEX_FROM_NODE(poly, 0, 0, 1);
+    SymbolicCoord *cy = LV_VERTEX_FROM_NODE(poly, 1, 0, 1);
 
     /* 外接圆:圆心 = 多边形中心近似,半径 = 顶点到中心距离 */
     SymbolicCoord *coords[3];
@@ -485,10 +435,8 @@ int64_t preset_inscribed(lvEngine *ctx, int64_t poly_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_inscribed: NULL poly node");
 
     /* 创建内切圆节点:圆心和半径由多边形决定 */
-    SymbolicCoord *cx =
-        (poly->coord_count > 0) ? symbolic_coord_copy(poly->symbolic_coords[0]) : symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy =
-        (poly->coord_count > 1) ? symbolic_coord_copy(poly->symbolic_coords[1]) : symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *cx = LV_VERTEX_FROM_NODE(poly, 0, 0, 1);
+    SymbolicCoord *cy = LV_VERTEX_FROM_NODE(poly, 1, 0, 1);
 
     SymbolicCoord *coords[3];
     coords[0] = cx;
@@ -519,10 +467,8 @@ int64_t preset_dual_polygon(lvEngine *ctx, int64_t poly_id) {
 
     for (int i = 0; i < seg_count; i++) {
         GeomNode *seg = poly->data.region.boundary_segments[i];
-        SymbolicCoord *mx = (seg->coord_count > 0) ? symbolic_coord_copy(seg->symbolic_coords[0])
-                                                   : symbolic_coord_create_rational(0, 1);
-        SymbolicCoord *my = (seg->coord_count > 1) ? symbolic_coord_copy(seg->symbolic_coords[1])
-                                                   : symbolic_coord_create_rational(0, 1);
+        SymbolicCoord *mx = LV_VERTEX_FROM_NODE(seg, 0, 0, 1);
+        SymbolicCoord *my = LV_VERTEX_FROM_NODE(seg, 1, 0, 1);
         SymbolicCoord *coords_M[2];
         coords_M[0] = mx;
         coords_M[1] = my;

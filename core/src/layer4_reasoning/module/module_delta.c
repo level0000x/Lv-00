@@ -18,6 +18,7 @@
 #include "lv/module_internal.h"
 
 #include "debug.h"
+#include "lv/lv_thread.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "module_helpers.h"
@@ -324,6 +325,15 @@ typedef struct {
 /** @brief Delta 基线表全局单例 */
 static DeltaBaselineState s_delta_baseline_state = {0};
 
+/** @brief Delta 基线表并发保护互斥锁（惰性初始化） */
+static lv_mutex_t s_delta_baseline_mutex;
+static lv_once_t s_delta_baseline_once;
+
+/** 惰性初始化基线表互斥锁（lv_once 保证只执行一次） */
+static void delta_baseline_mutex_init(void) {
+    lv_mutex_init(&s_delta_baseline_mutex);
+}
+
 static DeltaBaseline *find_delta_baseline(const char *module_name) {
     for (int i = 0; i < s_delta_baseline_state.count; i++) {
         if (strcmp(s_delta_baseline_state.entries[i].module_name, module_name) == 0) {
@@ -439,7 +449,7 @@ static void store_baseline(const Module *mod, uint64_t hash) {
     }
 }
 
-ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
+static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base_hash) {
     if (!mod)
         return NULL;
 
@@ -1115,6 +1125,36 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
     }
 
     return true;
+}
+
+/**
+ * @brief 线程安全入口：计算模块增量（内部持基线表锁）
+ *
+ * 基线表为模块级单例，通过互斥锁保护并发访问，
+ * 行为与旧无锁版本一致（基线比较结果不变）。
+ */
+ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
+    lv_once(&s_delta_baseline_once, delta_baseline_mutex_init);
+    lv_mutex_lock(&s_delta_baseline_mutex);
+    ModuleDelta *result = module_compute_delta_locked(mod, base_hash);
+    lv_mutex_unlock(&s_delta_baseline_mutex);
+    return result;
+}
+
+/**
+ * @brief 释放全部 Delta 基线（供程序退出或模块卸载时调用）
+ *
+ * 释放基线表中所有动态内存并清空计数；
+ * 互斥锁本身保留，避免清理后再次使用导致未初始化锁。
+ */
+void module_delta_cleanup(void) {
+    lv_once(&s_delta_baseline_once, delta_baseline_mutex_init);
+    lv_mutex_lock(&s_delta_baseline_mutex);
+    for (int i = 0; i < s_delta_baseline_state.count; i++) {
+        free_delta_baseline(&s_delta_baseline_state.entries[i]);
+    }
+    s_delta_baseline_state.count = 0;
+    lv_mutex_unlock(&s_delta_baseline_mutex);
 }
 
 void module_delta_destroy(ModuleDelta *delta) {

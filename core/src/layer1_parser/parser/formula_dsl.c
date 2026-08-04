@@ -1063,6 +1063,23 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
     return node;
 }
 
+/* 约束名称 -> 节点类型映射条目 */
+typedef struct {
+    const char *name; /**< DSL 约束名称 */
+    NodeType type;    /**< 对应的 AST 节点类型 */
+} ConstraintTypeEntry;
+
+/* 约束名称查找表（精确匹配，strcmp 语义） */
+static const ConstraintTypeEntry kConstraintTypes[] = {
+    {"perpendicular", NODE_CONSTRAINT_PERPENDICULAR},
+    {"parallel", NODE_CONSTRAINT_PARALLEL},
+    {"midpoint", NODE_CONSTRAINT_MIDPOINT},
+    {"bisector", NODE_CONSTRAINT_BISECTOR},
+    {"collinear", NODE_CONSTRAINT_COLLINEAR},
+    {"tangent", NODE_CONSTRAINT_TANGENT},
+    {"congruent", NODE_CONSTRAINT_CONGRUENT},
+};
+
 /**
  * @brief 根据名称获取几何约束类型
  *
@@ -1076,20 +1093,10 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
  * @note 返回 (NodeType)-1 时表示未知约束类型，调用方应处理此情况
  */
 static NodeType get_constraint_type(const char *name) {
-    if (strcmp(name, "perpendicular") == 0)
-        return NODE_CONSTRAINT_PERPENDICULAR;
-    if (strcmp(name, "parallel") == 0)
-        return NODE_CONSTRAINT_PARALLEL;
-    if (strcmp(name, "midpoint") == 0)
-        return NODE_CONSTRAINT_MIDPOINT;
-    if (strcmp(name, "bisector") == 0)
-        return NODE_CONSTRAINT_BISECTOR;
-    if (strcmp(name, "collinear") == 0)
-        return NODE_CONSTRAINT_COLLINEAR;
-    if (strcmp(name, "tangent") == 0)
-        return NODE_CONSTRAINT_TANGENT;
-    if (strcmp(name, "congruent") == 0)
-        return NODE_CONSTRAINT_CONGRUENT;
+    for (size_t i = 0; i < sizeof(kConstraintTypes) / sizeof(kConstraintTypes[0]); i++) {
+        if (strcmp(name, kConstraintTypes[i].name) == 0)
+            return kConstraintTypes[i].type;
+    }
     return (NodeType) -1; /* 未知约束类型，由调用方处理 */
 }
 

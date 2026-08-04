@@ -61,36 +61,15 @@
  * 每个槽位持有一个堆分配的缓冲区指针。
  * 缓冲区仅在首次使用时懒初始化，之后被复用。
  */
-/* ---------- 缓冲区池线程安全保护 ----------
+/* ---------- 缓冲区池（线程局部存储，每线程独立缓冲池，天然免锁） ----------
  *
- * 缓冲区池是全局共享的静态数组，多线程并发渲染时存在竞态条件。
- * 使用 lv/lv_thread.h 提供的跨平台互斥锁保护 formula_pool_alloc 和
- * formula_pool_free 中的 in_use 标志读写。
- *
- * 线程安全的惰性初始化通过 lv_once() 实现，消除手动
- * InterlockedCompareExchange / PTHREAD_MUTEX_INITIALIZER 的平台差异。
+ * 缓冲池声明为线程局部（lv_THREAD_LOCAL），每个线程持有自己独立的
+ * 槽位数组与堆缓冲区，多线程并发渲染时互不干扰，无需互斥锁。
+ * alloc/free 必须在线程内配对使用（渲染流程为同步调用，天然满足）。
  */
 
-static lv_mutex_t g_formula_pool_mutex;
-static lv_once_t g_formula_pool_once = lv_ONCE_INIT;
-
-static void formula_pool_mutex_init(void) {
-    lv_mutex_init(&g_formula_pool_mutex);
-}
-
-static void formula_pool_ensure_mutex_init(void) {
-    lv_once(&g_formula_pool_once, formula_pool_mutex_init);
-}
-
-#define lv_FORMULA_POOL_LOCK()                       \
-    do {                                             \
-        formula_pool_ensure_mutex_init();            \
-        lv_mutex_lock(&g_formula_pool_mutex);        \
-    } while (0)
-#define lv_FORMULA_POOL_UNLOCK() lv_mutex_unlock(&g_formula_pool_mutex)
-
-/** 文件级缓冲区池，所有内部渲染函数共用（由 g_formula_pool_mutex 保护） */
-static FormulaPoolSlot g_formula_buf_pool[lv_FORMULA_POOL_SLOTS] = {{NULL, false}};
+/** 文件级缓冲区池，所有内部渲染函数共用（线程局部，每线程 8 个槽位） */
+static lv_THREAD_LOCAL FormulaPoolSlot g_formula_buf_pool[lv_FORMULA_POOL_SLOTS] = {{NULL, false}};
 
 /**
  * @brief 从池中获取一个已分配大小的缓冲区
@@ -98,25 +77,19 @@ static FormulaPoolSlot g_formula_buf_pool[lv_FORMULA_POOL_SLOTS] = {{NULL, false
  * 优先从池中寻找空闲的同尺寸缓冲区复用；若没有空闲缓冲区且槽位未满，
  * 则分配新缓冲区；若池已满则回退到 lv_malloc 直接分配。
  *
- * 线程安全：整个函数在 lv_FORMULA_POOL_LOCK/UNLOCK 保护内执行，
- * 确保 in_use 标志的读写是原子的。
+ * 线程安全：缓冲池为线程局部存储，仅当前线程访问，无需加锁。
  *
  * @param size 需要的缓冲区大小（应 ≤ lv_FORMULA_BUF_SIZE）
  * @return 堆分配的缓冲区指针，失败返回 NULL
  */
 char *formula_pool_alloc(size_t size) {
-    char *result = NULL;
-
-    lv_FORMULA_POOL_LOCK();
-
     /* 优先查找同尺寸的已分配空闲槽位 */
     for (int i = 0; i < lv_FORMULA_POOL_SLOTS; i++) {
         if (g_formula_buf_pool[i].data && !g_formula_buf_pool[i].in_use) {
             g_formula_buf_pool[i].in_use = true;
             /* STACK_SAFE: 零初始化后复用 */
             memset(g_formula_buf_pool[i].data, 0, lv_FORMULA_BUF_SIZE);
-            result = g_formula_buf_pool[i].data;
-            goto done;
+            return g_formula_buf_pool[i].data;
         }
     }
 
@@ -124,25 +97,19 @@ char *formula_pool_alloc(size_t size) {
     for (int i = 0; i < lv_FORMULA_POOL_SLOTS; i++) {
         if (!g_formula_buf_pool[i].data) {
             g_formula_buf_pool[i].data = (char *) lv_malloc(lv_FORMULA_BUF_SIZE);
-            if (!g_formula_buf_pool[i].data) {
-                result = NULL; /* OOM */
-                goto done;
-            }
+            if (!g_formula_buf_pool[i].data)
+                return NULL; /* OOM */
             g_formula_buf_pool[i].in_use = true;
             memset(g_formula_buf_pool[i].data, 0, lv_FORMULA_BUF_SIZE);
-            result = g_formula_buf_pool[i].data;
-            goto done;
+            return g_formula_buf_pool[i].data;
         }
     }
 
     /* 池已满，回退到直接分配（rare case，渲染输出仍正确） */
-    result = (char *) lv_malloc(size);
+    char *result = (char *) lv_malloc(size);
     if (result) {
         memset(result, 0, size);
     }
-
-done:
-    lv_FORMULA_POOL_UNLOCK();
     return result;
 }
 
@@ -152,8 +119,7 @@ done:
  * 若指针属于池中的某个槽位，则标记为空闲以供复用；
  * 否则直接释放（回退分配的情况）。
  *
- * 线程安全：整个函数在 lv_FORMULA_POOL_LOCK/UNLOCK 保护内执行，
- * 确保 in_use 标志的读写是原子的。
+ * 线程安全：缓冲池为线程局部存储，仅当前线程访问，无需加锁。
  *
  * @param ptr 待归还的缓冲区指针
  */
@@ -161,18 +127,13 @@ void formula_pool_free(char *ptr) {
     if (!ptr)
         return;
 
-    lv_FORMULA_POOL_LOCK();
-
     /* 检查是否属于池 */
     for (int i = 0; i < lv_FORMULA_POOL_SLOTS; i++) {
         if (g_formula_buf_pool[i].data == ptr) {
             g_formula_buf_pool[i].in_use = false;
-            lv_FORMULA_POOL_UNLOCK();
             return;
         }
     }
-
-    lv_FORMULA_POOL_UNLOCK();
 
     /* 不属于池，直接释放（回退分配） */
     lv_free((void **) &ptr);

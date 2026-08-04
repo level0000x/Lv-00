@@ -38,6 +38,20 @@
  * 第12部分:L10 互操作层(interop: 6种导出,含 malloc/snprintf)
  * ============================================================ */
 
+/**
+ * @brief 创建导出配置 -- 零初始化并填充常用字段
+ *
+ * 统一"memset + format + pretty_print"初始化样板；
+ * include_proofs 由 memset 清零(默认 false),需要开启的调用方自行置位。
+ */
+static InteropExportConfig interop_export_config_for(InteropExportFormat format) {
+    InteropExportConfig config;
+    memset(&config, 0, sizeof(config));
+    config.format = format;
+    config.pretty_print = 1;
+    return config;
+}
+
 /** 导出为Coq格式（委托 layer10_interop/coq_bridge.c 的插件系统） */
 int64_t upper_interop_export_coq(lvEngine *ctx, int64_t proof_id, char *buf, int64_t buf_size) {
     if (!buf || buf_size <= 0)
@@ -45,11 +59,8 @@ int64_t upper_interop_export_coq(lvEngine *ctx, int64_t proof_id, char *buf, int
     /* 使用 interop.h 的导出 API：通过临时文件路径调用真实的 Coq 导出 */
     if (ctx && ctx->context) {
         /* 利用证明导航器生成 Coq 证明脚本 -- ctx->context 持有当前证明上下文 */
-        InteropExportConfig config;
-        memset(&config, 0, sizeof(config));
-        config.format = INTEROP_EXPORT_COQ;
+        InteropExportConfig config = interop_export_config_for(INTEROP_EXPORT_COQ);
         config.include_proofs = 1;
-        config.pretty_print = 1;
         /* 生成 Coq 兼容的证明脚本到缓冲区 */
         snprintf(config.output_path, sizeof(config.output_path), "lv_coq_%lld.v", (long long) proof_id);
         return (int64_t) snprintf(buf, (size_t) buf_size,
@@ -151,11 +162,7 @@ int64_t upper_interop_export_geojson(lvEngine *ctx, int64_t graph_id, char *buf,
         lv_free(_js);
         return _len;
     }
-    InteropExportConfig config;
-    memset(&config, 0, sizeof(config));
-    config.format = INTEROP_EXPORT_GEOJSON;
-    config.include_proofs = 0;
-    config.pretty_print = 1;
+    InteropExportConfig config = interop_export_config_for(INTEROP_EXPORT_GEOJSON);
     return interop_export_geojson(graph, &config);
 }
 
@@ -170,11 +177,7 @@ int64_t upper_interop_export_svg(lvEngine *ctx, int64_t graph_id, char *buf, int
                                   "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n"
                                   "  <!-- No graph available -->\n</svg>\n");
     }
-    InteropExportConfig config;
-    memset(&config, 0, sizeof(config));
-    config.format = INTEROP_EXPORT_SVG;
-    config.include_proofs = 0;
-    config.pretty_print = 1;
+    InteropExportConfig config = interop_export_config_for(INTEROP_EXPORT_SVG);
     return interop_export_svg(graph, &config);
 }
 
@@ -190,10 +193,6 @@ int64_t upper_interop_export_tikz(lvEngine *ctx, int64_t graph_id, char *buf, in
                                   "  %% No graph available\n"
                                   "\\end{tikzpicture}\n");
     }
-    InteropExportConfig config;
-    memset(&config, 0, sizeof(config));
-    config.format = INTEROP_EXPORT_TIKZ;
-    config.include_proofs = 0;
-    config.pretty_print = 1;
+    InteropExportConfig config = interop_export_config_for(INTEROP_EXPORT_TIKZ);
     return interop_export_tikz(graph, &config);
 }

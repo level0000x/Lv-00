@@ -48,15 +48,11 @@ int64_t visual_editor_create(lvEngine *ctx) {
     lvVisualEditor *editor = lv_visual_editor_create();
     if (!editor)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "visual_editor_create: lv_visual_editor_create failed");
-    int slot = 0;
-    for (; slot < MAX_VISUAL_EDITOR_TABLE; slot++) {
-        if (!s_upper_state.visual_editor_table[slot])
-            break;
-    }
-    editor->editor_id = (int) s_upper_state.upper_id;
-    s_upper_state.visual_editor_table[slot] = editor;
-    s_upper_state.visual_editor_count++;
-    return s_upper_state.upper_id++;
+    int64_t id = s_upper_state.upper_id++;
+    editor->editor_id = (int) id; /* 保留对象内嵌 ID,与槽位 id 保持一致 */
+    lv_obj_table_add(s_upper_state.visual_editor_table, &s_upper_state.visual_editor_count,
+                     MAX_VISUAL_EDITOR_TABLE, id, editor);
+    return id;
 }
 
 /** 渲染当前约束图到画布（执行可视化编辑器） */
@@ -64,16 +60,10 @@ int64_t visual_editor_render(lvEngine *ctx, int64_t editor_id) {
     (void) ctx;
     if (editor_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "visual_editor_render: invalid editor_id");
-    lvVisualEditor *editor = NULL;
-    for (int i = 0; i < MAX_VISUAL_EDITOR_TABLE; i++) {
-        if (s_upper_state.visual_editor_table[i] && s_upper_state.visual_editor_table[i]->editor_id == (int) editor_id) {
-            editor = s_upper_state.visual_editor_table[i];
-            break;
-        }
-    }
-    if (!editor)
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.visual_editor_table, MAX_VISUAL_EDITOR_TABLE, editor_id);
+    if (!slot)
         lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "visual_editor_render: editor not found");
-    return lv_visual_editor_execute(editor);
+    return lv_visual_editor_execute((lvVisualEditor *) slot->ptr);
 }
 
 /** 更新编辑器中的节点位置（更新节点图坐标并重置执行） */
@@ -81,15 +71,10 @@ int64_t visual_editor_update(lvEngine *ctx, int64_t editor_id, int64_t node_id, 
     (void) ctx;
     if (editor_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "visual_editor_update: invalid editor_id");
-    lvVisualEditor *editor = NULL;
-    for (int i = 0; i < MAX_VISUAL_EDITOR_TABLE; i++) {
-        if (s_upper_state.visual_editor_table[i] && s_upper_state.visual_editor_table[i]->editor_id == (int) editor_id) {
-            editor = s_upper_state.visual_editor_table[i];
-            break;
-        }
-    }
-    if (!editor)
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.visual_editor_table, MAX_VISUAL_EDITOR_TABLE, editor_id);
+    if (!slot)
         lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "visual_editor_update: editor not found");
+    lvVisualEditor *editor = (lvVisualEditor *) slot->ptr;
     /* 更新节点在节点图中的位置坐标 */
     if (editor->node_graph) {
         lv_node_graph_add_node(editor->node_graph, (int) node_id, NULL, (double) x, (double) y, 0);
@@ -102,15 +87,10 @@ int64_t visual_editor_zoom(lvEngine *ctx, int64_t editor_id, int64_t zoom_level)
     (void) ctx;
     if (editor_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "visual_editor_zoom: invalid editor_id");
-    lvVisualEditor *editor = NULL;
-    for (int i = 0; i < MAX_VISUAL_EDITOR_TABLE; i++) {
-        if (s_upper_state.visual_editor_table[i] && s_upper_state.visual_editor_table[i]->editor_id == (int) editor_id) {
-            editor = s_upper_state.visual_editor_table[i];
-            break;
-        }
-    }
-    if (!editor)
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.visual_editor_table, MAX_VISUAL_EDITOR_TABLE, editor_id);
+    if (!slot)
         lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "visual_editor_zoom: editor not found");
+    lvVisualEditor *editor = (lvVisualEditor *) slot->ptr;
     /* zoom_level 0-3 映射到四种视图类型 */
     if (zoom_level >= 0 && zoom_level <= 3) {
         lv_visual_editor_switch_view(editor, (lvViewType)(int) zoom_level);
@@ -127,16 +107,13 @@ int64_t visual_editor_destroy(lvEngine *ctx, int64_t editor_id) {
     (void) ctx;
     if (editor_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "visual_editor_destroy: invalid editor_id");
-    for (int i = 0; i < MAX_VISUAL_EDITOR_TABLE; i++) {
-        lvVisualEditor *editor = s_upper_state.visual_editor_table[i];
-        if (editor && editor->editor_id == (int) editor_id) {
-            lv_visual_editor_destroy(editor);
-            s_upper_state.visual_editor_table[i] = NULL;
-            s_upper_state.visual_editor_count--;
-            return 0;
-        }
-    }
-    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "visual_editor_destroy: editor not found");
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.visual_editor_table, MAX_VISUAL_EDITOR_TABLE, editor_id);
+    if (!slot)
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "visual_editor_destroy: editor not found");
+    lv_visual_editor_destroy((lvVisualEditor *) slot->ptr);
+    lv_obj_table_remove(s_upper_state.visual_editor_table, &s_upper_state.visual_editor_count,
+                        MAX_VISUAL_EDITOR_TABLE, editor_id);
+    return 0;
 }
 
 /* ---- view_synchronizer: 视图同步器(3函数)---- */
@@ -149,30 +126,25 @@ int64_t view_synchronizer_create(lvEngine *ctx) {
     lvViewSynchronizer *sync = lv_view_sync_create();
     if (!sync)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "view_synchronizer_create: lv_view_sync_create failed");
-    int slot = 0;
-    for (; slot < MAX_VIEW_SYNC_TABLE; slot++) {
-        if (!s_upper_state.view_sync_table[slot])
-            break;
-    }
-    sync->sync_id = (int) s_upper_state.upper_id;
-    s_upper_state.view_sync_table[slot] = sync;
-    s_upper_state.view_sync_count++;
-    return s_upper_state.upper_id++;
+    int64_t id = s_upper_state.upper_id++;
+    sync->sync_id = (int) id; /* 保留对象内嵌 ID,与槽位 id 保持一致 */
+    lv_obj_table_add(s_upper_state.view_sync_table, &s_upper_state.view_sync_count,
+                     MAX_VIEW_SYNC_TABLE, id, sync);
+    return id;
 }
 
 /** 同步两个视图(如文本视图与图形视图) */
 int64_t view_synchronizer_sync(lvEngine *ctx, int64_t sync_id, int64_t src_view, int64_t dst_view) {
     (void) ctx;
+    (void) dst_view;
     if (sync_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "view_synchronizer_sync: invalid sync_id");
-    for (int i = 0; i < MAX_VIEW_SYNC_TABLE; i++) {
-        if (s_upper_state.view_sync_table[i] && s_upper_state.view_sync_table[i]->sync_id == (int) sync_id) {
-            lv_view_sync_propagate(s_upper_state.view_sync_table[i], (int) src_view, "sync_update");
-            lv_view_sync_flush(s_upper_state.view_sync_table[i]);
-            return 0;
-        }
-    }
-    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "view_synchronizer_sync: sync_id not found");
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.view_sync_table, MAX_VIEW_SYNC_TABLE, sync_id);
+    if (!slot)
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "view_synchronizer_sync: sync_id not found");
+    lv_view_sync_propagate((lvViewSynchronizer *) slot->ptr, (int) src_view, "sync_update");
+    lv_view_sync_flush((lvViewSynchronizer *) slot->ptr);
+    return 0;
 }
 
 /** 销毁视图同步器 */
@@ -180,16 +152,13 @@ int64_t view_synchronizer_destroy(lvEngine *ctx, int64_t sync_id) {
     (void) ctx;
     if (sync_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "view_synchronizer_destroy: invalid sync_id");
-    for (int i = 0; i < MAX_VIEW_SYNC_TABLE; i++) {
-        lvViewSynchronizer *sync = s_upper_state.view_sync_table[i];
-        if (sync && sync->sync_id == (int) sync_id) {
-            lv_view_sync_destroy(sync);
-            s_upper_state.view_sync_table[i] = NULL;
-            s_upper_state.view_sync_count--;
-            return 0;
-        }
-    }
-    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "view_synchronizer_destroy: sync_id not found");
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.view_sync_table, MAX_VIEW_SYNC_TABLE, sync_id);
+    if (!slot)
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "view_synchronizer_destroy: sync_id not found");
+    lv_view_sync_destroy((lvViewSynchronizer *) slot->ptr);
+    lv_obj_table_remove(s_upper_state.view_sync_table, &s_upper_state.view_sync_count,
+                        MAX_VIEW_SYNC_TABLE, sync_id);
+    return 0;
 }
 
 /* ---- text_code: 文本代码视图(3函数)---- */
@@ -202,15 +171,11 @@ int64_t text_code_create(lvEngine *ctx) {
     lvTextCodeView *view = lv_text_code_create();
     if (!view)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "text_code_create: lv_text_code_create failed");
-    int slot = 0;
-    for (; slot < MAX_TEXT_CODE_TABLE; slot++) {
-        if (!s_upper_state.text_code_table[slot])
-            break;
-    }
-    view->view_id = (int) s_upper_state.upper_id;
-    s_upper_state.text_code_table[slot] = view;
-    s_upper_state.text_code_count++;
-    return s_upper_state.upper_id++;
+    int64_t id = s_upper_state.upper_id++;
+    view->view_id = (int) id; /* 保留对象内嵌 ID,与槽位 id 保持一致 */
+    lv_obj_table_add(s_upper_state.text_code_table, &s_upper_state.text_code_count,
+                     MAX_TEXT_CODE_TABLE, id, view);
+    return id;
 }
 
 /** 设置文本代码视图内容 */
@@ -218,23 +183,25 @@ int64_t text_code_set_text(lvEngine *ctx, int64_t view_id, const char *text) {
     (void) ctx;
     if (view_id < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "text_code_set_text: invalid view_id");
-    for (int i = 0; i < MAX_TEXT_CODE_TABLE; i++) {
-        if (s_upper_state.text_code_table[i] && s_upper_state.text_code_table[i]->view_id == (int) view_id) {
-            return lv_text_code_set_text(s_upper_state.text_code_table[i], text);
-        }
-    }
-    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "text_code_set_text: view_id not found");
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.text_code_table, MAX_TEXT_CODE_TABLE, view_id);
+    if (!slot)
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "text_code_set_text: view_id not found");
+    return lv_text_code_set_text((lvTextCodeView *) slot->ptr, text);
 }
 
-/** 获取文本代码视图内容 */
-const char *text_code_get_text(lvEngine *ctx, int64_t view_id) {
+/** 获取文本代码视图内容并写入缓冲区(统一错误码约定,与 proof_tptp_export 同风格) */
+int64_t text_code_get_text(lvEngine *ctx, int64_t view_id, char *buf, int64_t buf_size) {
     (void) ctx;
     if (view_id < 0)
-        return "";
-    for (int i = 0; i < MAX_TEXT_CODE_TABLE; i++) {
-        if (s_upper_state.text_code_table[i] && s_upper_state.text_code_table[i]->view_id == (int) view_id) {
-            return lv_text_code_get_text(s_upper_state.text_code_table[i]);
-        }
-    }
-    return "";
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "text_code_get_text: invalid view_id");
+    if (!buf || buf_size <= 0)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "text_code_get_text: NULL buf or small buf_size");
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.text_code_table, MAX_TEXT_CODE_TABLE, view_id);
+    if (!slot)
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "text_code_get_text: view_id not found");
+    const char *text = lv_text_code_get_text((lvTextCodeView *) slot->ptr);
+    if (!text)
+        return 0;
+    int n = snprintf(buf, (size_t) buf_size, "%s", text);
+    return (int64_t) (n >= 0 ? n : -1);
 }

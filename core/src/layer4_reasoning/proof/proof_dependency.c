@@ -27,6 +27,7 @@
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "proof_step_registry.h"
+#include "proof_classical.h"
 
 /**
  * 深拷贝命题并替换函数块输出端口 ID。
@@ -246,8 +247,9 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                     /* 检查构造特征与归约目标的兼容性 */
                     bool can_reduce = false;
 
-                    /* 基于约束类型的归约检查 */
-                    if (strstr(ku->reduces_to, "trisection") || strstr(ku->reduces_to, "三等分")) {
+                    /* 基于约束类型的归约检查（统一走 proof_classical.h 查找表） */
+                    switch (lv_classical_problem_match(ku->reduces_to)) {
+                    case CLASSICAL_PROBLEM_TRISECTION:
                         /* 三等分角需要 ANGLE 约束或特定比例 */
                         for (int k = 0; k < graph->constraint_count; k++) {
                             if (graph->constraints[k]->type == BETWEENNESS ||
@@ -256,9 +258,13 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                                 break;
                             }
                         }
-                    } else if (strstr(ku->reduces_to, "doubling") || strstr(ku->reduces_to, "倍立方")) {
+                        break;
+                    case CLASSICAL_PROBLEM_DOUBLING:
                         /* 倍立方需要比例约束或特定代数数 */
                         can_reduce = (graph->node_count >= 3 && graph->constraint_count >= 2);
+                        break;
+                    default:
+                        break;
                     }
 
                     if (can_reduce) {

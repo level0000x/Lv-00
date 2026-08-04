@@ -14,6 +14,7 @@
 
 #include "lv/adaptive_threshold.h"
 #include "lv/lv.h"
+#include "lv/lv_thread.h"
 
 #include <float.h>
 #include <math.h>
@@ -112,6 +113,21 @@ typedef struct {
 /** @brief 自适应阈值模块全局单例 */
 static ThresholdState s_threshold_state = {0};
 
+/** @brief 保护 s_threshold_state 并发读写的互斥锁（lv_once 懒初始化） */
+static lv_mutex_t s_threshold_mutex;
+static lv_once_t s_threshold_mutex_once = lv_ONCE_INIT;
+
+/** @brief 阈值状态互斥锁初始化回调（仅由 lv_once 调用一次） */
+static void threshold_mutex_init_func(void) {
+    lv_mutex_init(&s_threshold_mutex);
+}
+
+#define THRESHOLD_LOCK() do { \
+    lv_once(&s_threshold_mutex_once, threshold_mutex_init_func); \
+    lv_mutex_lock(&s_threshold_mutex); \
+} while (0)
+#define THRESHOLD_UNLOCK() lv_mutex_unlock(&s_threshold_mutex)
+
 /* ================================================================
  * 内部辅助函数
  * ================================================================ */
@@ -201,8 +217,12 @@ static int count_connected_components(const ConstraintGraph *graph) {
  * ================================================================ */
 
 lvError lv_adaptive_threshold_init(void) {
-    if (s_threshold_state.initialized)
+    THRESHOLD_LOCK();
+
+    if (s_threshold_state.initialized) {
+        THRESHOLD_UNLOCK();
         return lv_OK;
+    }
 
     /* 初始化全局默认配置：按算法枚举显式遍历，避免位置数组强转错位 */
     for (size_t i = 0; i < lv_ARRAY_SIZE(kAllAlgos); i++) {
@@ -218,14 +238,17 @@ lvError lv_adaptive_threshold_init(void) {
     }
 
     s_threshold_state.initialized = true;
+    THRESHOLD_UNLOCK();
     return lv_OK;
 }
 
 void lv_adaptive_threshold_cleanup(void) {
+    THRESHOLD_LOCK();
     for (size_t i = 0; i < lv_ARRAY_SIZE(kAllAlgos); i++) {
         s_threshold_state.configs_set[kAllAlgos[i]] = false;
     }
     s_threshold_state.initialized = false;
+    THRESHOLD_UNLOCK();
 }
 
 lvError lv_compute_complexity(const lvConstraintGraph *graph, lvProblemComplexity *complexity) {
@@ -304,7 +327,9 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
     if (config) {
         c->config = *config;
     } else {
+        THRESHOLD_LOCK();
         c->config = s_threshold_state.configs[algo];
+        THRESHOLD_UNLOCK();
     }
 
     c->initialized = true;
@@ -338,7 +363,9 @@ lvError lv_adaptive_threshold_default_config(lvAlgorithmType algo, lvThresholdCo
 
     lv_adaptive_threshold_init();
 
+    THRESHOLD_LOCK();
     *config = s_threshold_state.configs[algo];
+    THRESHOLD_UNLOCK();
     return lv_OK;
 }
 
@@ -392,8 +419,10 @@ void lv_adaptive_threshold_should_prune(lvAdaptiveThresholdCtx *ctx, bool *shoul
 lvError lv_adaptive_threshold_set_global_config(lvAlgorithmType algo, const lvThresholdConfig *config) {
     if ((unsigned) algo >= lv_ARRAY_SIZE(kAlgoDefaults) || !config)
         return lv_ERROR_INVALID_PARAM;
+    THRESHOLD_LOCK();
     s_threshold_state.configs[algo] = *config;
     s_threshold_state.configs_set[algo] = true;
+    THRESHOLD_UNLOCK();
     return lv_OK;
 }
 
@@ -435,7 +464,10 @@ size_t lv_get_rewrite_solve_max_iterations(const lvConstraintGraph *graph) {
  * ================================================================ */
 
 int lv_threshold_is_adaptive(void) {
-    return s_threshold_state.is_adaptive;
+    THRESHOLD_LOCK();
+    int is_adaptive = s_threshold_state.is_adaptive;
+    THRESHOLD_UNLOCK();
+    return is_adaptive;
 }
 
 void lv_set_adaptive_threshold(double value) {
@@ -443,10 +475,15 @@ void lv_set_adaptive_threshold(double value) {
         value = 0.0;
     if (value > 1.0)
         value = 1.0;
+    THRESHOLD_LOCK();
     s_threshold_state.threshold = value;
     s_threshold_state.is_adaptive = 1;
+    THRESHOLD_UNLOCK();
 }
 
 double lv_get_adaptive_threshold(void) {
-    return s_threshold_state.threshold;
+    THRESHOLD_LOCK();
+    double threshold = s_threshold_state.threshold;
+    THRESHOLD_UNLOCK();
+    return threshold;
 }

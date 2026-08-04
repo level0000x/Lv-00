@@ -947,101 +947,125 @@ static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
 /**
  * @brief 将字符串类别名映射为 PresetCategory 枚举值
  */
+
+/** @brief lvz_category_from_string 查找表（字符串 -> PresetCategory 枚举映射） */
+static const struct {
+    const char *name;
+    PresetCategory category;
+} kCategoryMap[] = {
+    {"CONSTRUCTION", PRESET_CATEGORY_CONSTRUCTION},
+    {"MEASUREMENT", PRESET_CATEGORY_MEASUREMENT},
+    {"TRANSFORMATION", PRESET_CATEGORY_TRANSFORMATION},
+    {"ALGEBRAIC", PRESET_CATEGORY_ALGEBRAIC},
+    {"LOGIC", PRESET_CATEGORY_LOGIC},
+    {"ANALYSIS", PRESET_CATEGORY_ANALYSIS},
+    {"NUMBER_THEORY", PRESET_CATEGORY_NUMBER_THEORY},
+    {"GROUP_THEORY", PRESET_CATEGORY_GROUP_THEORY},
+    {"RING_THEORY", PRESET_CATEGORY_RING_THEORY},
+    {"FIELD_THEORY", PRESET_CATEGORY_FIELD_THEORY},
+    {"TOPOLOGY", PRESET_CATEGORY_TOPOLOGY},
+    {"LINEAR_ALGEBRA", PRESET_CATEGORY_LINEAR_ALGEBRA},
+    {"COMBINATORICS", PRESET_CATEGORY_COMBINATORICS},
+    {"COMPLEX_ANALYSIS", PRESET_CATEGORY_COMPLEX_ANALYSIS},
+    {"PROBABILITY", PRESET_CATEGORY_PROBABILITY},
+    {"GEOMETRY", PRESET_CATEGORY_GEOMETRY},
+    {"ALGEBRA", PRESET_CATEGORY_ALGEBRA},
+    {"CATEGORY_THEORY", PRESET_CATEGORY_CATEGORY_THEORY},
+    {"SET_THEORY", PRESET_CATEGORY_SET_THEORY},
+    {"GRAPH_THEORY", PRESET_CATEGORY_GRAPH_THEORY},
+    {"DIFFERENTIAL_GEOMETRY", PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY},
+    {"NUMERICAL", PRESET_CATEGORY_NUMERICAL},
+    {"OPTIMIZATION", PRESET_CATEGORY_OPTIMIZATION},
+    {"MATH_LOGIC", PRESET_CATEGORY_MATH_LOGIC},
+};
+
 static PresetCategory lvz_category_from_string(const char *name) {
     if (!name) return PRESET_CATEGORY_CUSTOM;
-    if (strcmp(name, "CONSTRUCTION") == 0) return PRESET_CATEGORY_CONSTRUCTION;
-    if (strcmp(name, "MEASUREMENT") == 0) return PRESET_CATEGORY_MEASUREMENT;
-    if (strcmp(name, "TRANSFORMATION") == 0) return PRESET_CATEGORY_TRANSFORMATION;
-    if (strcmp(name, "ALGEBRAIC") == 0) return PRESET_CATEGORY_ALGEBRAIC;
-    if (strcmp(name, "LOGIC") == 0) return PRESET_CATEGORY_LOGIC;
-    if (strcmp(name, "ANALYSIS") == 0) return PRESET_CATEGORY_ANALYSIS;
-    if (strcmp(name, "NUMBER_THEORY") == 0) return PRESET_CATEGORY_NUMBER_THEORY;
-    if (strcmp(name, "GROUP_THEORY") == 0) return PRESET_CATEGORY_GROUP_THEORY;
-    if (strcmp(name, "RING_THEORY") == 0) return PRESET_CATEGORY_RING_THEORY;
-    if (strcmp(name, "FIELD_THEORY") == 0) return PRESET_CATEGORY_FIELD_THEORY;
-    if (strcmp(name, "TOPOLOGY") == 0) return PRESET_CATEGORY_TOPOLOGY;
-    if (strcmp(name, "LINEAR_ALGEBRA") == 0) return PRESET_CATEGORY_LINEAR_ALGEBRA;
-    if (strcmp(name, "COMBINATORICS") == 0) return PRESET_CATEGORY_COMBINATORICS;
-    if (strcmp(name, "COMPLEX_ANALYSIS") == 0) return PRESET_CATEGORY_COMPLEX_ANALYSIS;
-    if (strcmp(name, "PROBABILITY") == 0) return PRESET_CATEGORY_PROBABILITY;
-    if (strcmp(name, "GEOMETRY") == 0) return PRESET_CATEGORY_GEOMETRY;
-    if (strcmp(name, "ALGEBRA") == 0) return PRESET_CATEGORY_ALGEBRA;
-    if (strcmp(name, "CATEGORY_THEORY") == 0) return PRESET_CATEGORY_CATEGORY_THEORY;
-    if (strcmp(name, "SET_THEORY") == 0) return PRESET_CATEGORY_SET_THEORY;
-    if (strcmp(name, "GRAPH_THEORY") == 0) return PRESET_CATEGORY_GRAPH_THEORY;
-    if (strcmp(name, "DIFFERENTIAL_GEOMETRY") == 0) return PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY;
-    if (strcmp(name, "NUMERICAL") == 0) return PRESET_CATEGORY_NUMERICAL;
-    if (strcmp(name, "OPTIMIZATION") == 0) return PRESET_CATEGORY_OPTIMIZATION;
-    if (strcmp(name, "MATH_LOGIC") == 0) return PRESET_CATEGORY_MATH_LOGIC;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kCategoryMap); i++) {
+        if (strcmp(name, kCategoryMap[i].name) == 0)
+            return kCategoryMap[i].category;
+    }
     return PRESET_CATEGORY_CUSTOM;
 }
 
 /**
  * @brief 将字符串类型名映射为 PresetType 枚举值
  */
+
+/** @brief lvz_type_from_string 查找表（字符串 -> PresetType 枚举映射） */
+static const struct {
+    const char *name;
+    PresetType type;
+} kTypeMap[] = {
+    {"POINT", PRESET_TYPE_POINT},
+    {"LINE", PRESET_TYPE_LINE},
+    {"LINE_SEGMENT", PRESET_TYPE_LINE_SEGMENT},
+    {"RAY", PRESET_TYPE_RAY},
+    {"CIRCLE", PRESET_TYPE_CIRCLE},
+    {"POLYGON", PRESET_TYPE_POLYGON},
+    {"ANGLE", PRESET_TYPE_ANGLE},
+    {"SCALAR", PRESET_TYPE_SCALAR},
+    {"VECTOR", PRESET_TYPE_VECTOR},
+    {"MATRIX", PRESET_TYPE_MATRIX},
+    {"BOOLEAN", PRESET_TYPE_BOOLEAN},
+    {"INTEGER", PRESET_TYPE_INTEGER},
+    {"SET", PRESET_TYPE_SET},
+    {"FUNCTION", PRESET_TYPE_FUNCTION},
+    {"TUPLE", PRESET_TYPE_TUPLE},
+    {"LIST", PRESET_TYPE_LIST},
+    {"SEQUENCE", PRESET_TYPE_SEQUENCE},
+    {"REGION", PRESET_TYPE_REGION},
+    {"PATH", PRESET_TYPE_PATH},
+    {"SURFACE", PRESET_TYPE_SURFACE},
+    {"SPACE", PRESET_TYPE_SPACE},
+    {"GROUP", PRESET_TYPE_GROUP},
+    {"GROUP_ELEMENT", PRESET_TYPE_GROUP_ELEMENT},
+    {"SUBGROUP", PRESET_TYPE_SUBGROUP},
+    {"HOMOMORPHISM", PRESET_TYPE_HOMOMORPHISM},
+    {"PRIME", PRESET_TYPE_PRIME},
+    {"EQUATION", PRESET_TYPE_EQUATION},
+    {"LIMIT", PRESET_TYPE_LIMIT},
+    {"DERIVATIVE", PRESET_TYPE_DERIVATIVE},
+    {"POLYNOMIAL", PRESET_TYPE_POLYNOMIAL},
+    {"LIMIT_EXPRESSION", PRESET_TYPE_LIMIT_EXPRESSION},
+    {"RING", PRESET_TYPE_RING},
+    {"IDEAL", PRESET_TYPE_IDEAL},
+    {"FIELD", PRESET_TYPE_FIELD},
+    {"MODULE", PRESET_TYPE_MODULE},
+    {"ALGEBRA", PRESET_TYPE_ALGEBRA},
+    {"TOPOLOGY", PRESET_TYPE_TOPOLOGY},
+    {"MANIFOLD", PRESET_TYPE_MANIFOLD},
+    {"DISTRIBUTION", PRESET_TYPE_DISTRIBUTION},
+    {"PROBABILITY", PRESET_TYPE_PROBABILITY},
+    {"GRAPH", PRESET_TYPE_GRAPH},
+    {"TREE", PRESET_TYPE_TREE},
+    {"INTEGRAL", PRESET_TYPE_INTEGRAL},
+    {"SERIES", PRESET_TYPE_SERIES},
+    {"COMPLEX", PRESET_TYPE_COMPLEX},
+    {"PERMUTATION", PRESET_TYPE_PERMUTATION},
+    {"COSET", PRESET_TYPE_COSET},
+    {"EXTENSION", PRESET_TYPE_EXTENSION},
+    {"AUTOMORPHISM", PRESET_TYPE_AUTOMORPHISM},
+    {"DISTANCE", PRESET_TYPE_DISTANCE},
+    {"AREA", PRESET_TYPE_AREA},
+    {"LENGTH", PRESET_TYPE_LENGTH},
+    {"CURVATURE", PRESET_TYPE_CURVATURE},
+    {"OPEN_SET", PRESET_TYPE_OPEN_SET},
+    {"CLOSED_SET", PRESET_TYPE_CLOSED_SET},
+    {"RESIDUE", PRESET_TYPE_RESIDUE},
+    {"FORMULA", PRESET_TYPE_FORMULA},
+    {"EXPRESSION", PRESET_TYPE_EXPRESSION},
+    {"STRUCTURE", PRESET_TYPE_STRUCTURE},
+    {"STRING", PRESET_TYPE_STRING},
+    {"ANY", PRESET_TYPE_ANY},
+};
+
 static PresetType lvz_type_from_string(const char *name) {
     if (!name) return PRESET_TYPE_ANY;
-    if (strcmp(name, "POINT") == 0) return PRESET_TYPE_POINT;
-    if (strcmp(name, "LINE") == 0) return PRESET_TYPE_LINE;
-    if (strcmp(name, "LINE_SEGMENT") == 0) return PRESET_TYPE_LINE_SEGMENT;
-    if (strcmp(name, "RAY") == 0) return PRESET_TYPE_RAY;
-    if (strcmp(name, "CIRCLE") == 0) return PRESET_TYPE_CIRCLE;
-    if (strcmp(name, "POLYGON") == 0) return PRESET_TYPE_POLYGON;
-    if (strcmp(name, "ANGLE") == 0) return PRESET_TYPE_ANGLE;
-    if (strcmp(name, "SCALAR") == 0) return PRESET_TYPE_SCALAR;
-    if (strcmp(name, "VECTOR") == 0) return PRESET_TYPE_VECTOR;
-    if (strcmp(name, "MATRIX") == 0) return PRESET_TYPE_MATRIX;
-    if (strcmp(name, "BOOLEAN") == 0) return PRESET_TYPE_BOOLEAN;
-    if (strcmp(name, "INTEGER") == 0) return PRESET_TYPE_INTEGER;
-    if (strcmp(name, "SET") == 0) return PRESET_TYPE_SET;
-    if (strcmp(name, "FUNCTION") == 0) return PRESET_TYPE_FUNCTION;
-    if (strcmp(name, "TUPLE") == 0) return PRESET_TYPE_TUPLE;
-    if (strcmp(name, "LIST") == 0) return PRESET_TYPE_LIST;
-    if (strcmp(name, "SEQUENCE") == 0) return PRESET_TYPE_SEQUENCE;
-    if (strcmp(name, "REGION") == 0) return PRESET_TYPE_REGION;
-    if (strcmp(name, "PATH") == 0) return PRESET_TYPE_PATH;
-    if (strcmp(name, "SURFACE") == 0) return PRESET_TYPE_SURFACE;
-    if (strcmp(name, "SPACE") == 0) return PRESET_TYPE_SPACE;
-    if (strcmp(name, "GROUP") == 0) return PRESET_TYPE_GROUP;
-    if (strcmp(name, "GROUP_ELEMENT") == 0) return PRESET_TYPE_GROUP_ELEMENT;
-    if (strcmp(name, "SUBGROUP") == 0) return PRESET_TYPE_SUBGROUP;
-    if (strcmp(name, "HOMOMORPHISM") == 0) return PRESET_TYPE_HOMOMORPHISM;
-    if (strcmp(name, "PRIME") == 0) return PRESET_TYPE_PRIME;
-    if (strcmp(name, "EQUATION") == 0) return PRESET_TYPE_EQUATION;
-    if (strcmp(name, "LIMIT") == 0) return PRESET_TYPE_LIMIT;
-    if (strcmp(name, "DERIVATIVE") == 0) return PRESET_TYPE_DERIVATIVE;
-    if (strcmp(name, "POLYNOMIAL") == 0) return PRESET_TYPE_POLYNOMIAL;
-    if (strcmp(name, "LIMIT_EXPRESSION") == 0) return PRESET_TYPE_LIMIT_EXPRESSION;
-    if (strcmp(name, "RING") == 0) return PRESET_TYPE_RING;
-    if (strcmp(name, "IDEAL") == 0) return PRESET_TYPE_IDEAL;
-    if (strcmp(name, "FIELD") == 0) return PRESET_TYPE_FIELD;
-    if (strcmp(name, "MODULE") == 0) return PRESET_TYPE_MODULE;
-    if (strcmp(name, "ALGEBRA") == 0) return PRESET_TYPE_ALGEBRA;
-    if (strcmp(name, "TOPOLOGY") == 0) return PRESET_TYPE_TOPOLOGY;
-    if (strcmp(name, "MANIFOLD") == 0) return PRESET_TYPE_MANIFOLD;
-    if (strcmp(name, "DISTRIBUTION") == 0) return PRESET_TYPE_DISTRIBUTION;
-    if (strcmp(name, "PROBABILITY") == 0) return PRESET_TYPE_PROBABILITY;
-    if (strcmp(name, "GRAPH") == 0) return PRESET_TYPE_GRAPH;
-    if (strcmp(name, "TREE") == 0) return PRESET_TYPE_TREE;
-    if (strcmp(name, "INTEGRAL") == 0) return PRESET_TYPE_INTEGRAL;
-    if (strcmp(name, "SERIES") == 0) return PRESET_TYPE_SERIES;
-    if (strcmp(name, "COMPLEX") == 0) return PRESET_TYPE_COMPLEX;
-    if (strcmp(name, "PERMUTATION") == 0) return PRESET_TYPE_PERMUTATION;
-    if (strcmp(name, "COSET") == 0) return PRESET_TYPE_COSET;
-    if (strcmp(name, "EXTENSION") == 0) return PRESET_TYPE_EXTENSION;
-    if (strcmp(name, "AUTOMORPHISM") == 0) return PRESET_TYPE_AUTOMORPHISM;
-    if (strcmp(name, "DISTANCE") == 0) return PRESET_TYPE_DISTANCE;
-    if (strcmp(name, "AREA") == 0) return PRESET_TYPE_AREA;
-    if (strcmp(name, "LENGTH") == 0) return PRESET_TYPE_LENGTH;
-    if (strcmp(name, "CURVATURE") == 0) return PRESET_TYPE_CURVATURE;
-    if (strcmp(name, "OPEN_SET") == 0) return PRESET_TYPE_OPEN_SET;
-    if (strcmp(name, "CLOSED_SET") == 0) return PRESET_TYPE_CLOSED_SET;
-    if (strcmp(name, "RESIDUE") == 0) return PRESET_TYPE_RESIDUE;
-    if (strcmp(name, "FORMULA") == 0) return PRESET_TYPE_FORMULA;
-    if (strcmp(name, "EXPRESSION") == 0) return PRESET_TYPE_EXPRESSION;
-    if (strcmp(name, "STRUCTURE") == 0) return PRESET_TYPE_STRUCTURE;
-    if (strcmp(name, "STRING") == 0) return PRESET_TYPE_STRING;
-    if (strcmp(name, "ANY") == 0) return PRESET_TYPE_ANY;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kTypeMap); i++) {
+        if (strcmp(name, kTypeMap[i].name) == 0)
+            return kTypeMap[i].type;
+    }
     return PRESET_TYPE_ANY;
 }
 

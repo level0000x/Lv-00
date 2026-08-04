@@ -243,10 +243,10 @@ static bool is_refl_form(const char *term) {
  * @brief 检查字符串是否包含 lambda 抽象模式（反斜杠或 "Abs" 或 "LAM"）
  */
 static bool has_lambda_pattern(const char *s) {
+    static const char *const kLambdaKeywords[] = {"\\", "Abs", "LAM", "lambda", NULL};
     if (!s)
         return false;
-    return (strstr(s, "\\") != NULL || strstr(s, "Abs") != NULL || strstr(s, "LAM") != NULL ||
-            strstr(s, "lambda") != NULL);
+    return lv_str_match_any(s, kLambdaKeywords) >= 0;
 }
 
 /**
@@ -262,38 +262,40 @@ static bool has_application_pattern(const char *s) {
  * @brief 检查字符串是否包含组合子模式（COMB 或 "comb"）
  */
 static bool has_comb_pattern(const char *s) {
+    static const char *const kCombKeywords[] = {"COMB", "comb", NULL};
     if (!s)
         return false;
-    return (strstr(s, "COMB") != NULL || strstr(s, "comb") != NULL);
+    return lv_str_match_any(s, kCombKeywords) >= 0;
 }
 
 /**
  * @brief 检查字符串是否包含替换实例模式（INST 或 "inst"）
  */
 static bool has_inst_pattern(const char *s) {
+    static const char *const kInstKeywords[] = {"INST", "inst", "[|", "|]", NULL};
     if (!s)
         return false;
-    return (strstr(s, "INST") != NULL || strstr(s, "inst") != NULL || strstr(s, "[|") != NULL ||
-            strstr(s, "|]") != NULL);
+    return lv_str_match_any(s, kInstKeywords) >= 0;
 }
 
 /**
  * @brief 检查字符串是否包含类型实例化模式（INST_TYPE 或 ":"）
  */
 static bool has_inst_type_pattern(const char *s) {
+    static const char *const kInstTypeKeywords[] = {"INST_TYPE", "inst_type", NULL};
     if (!s)
         return false;
-    return (strstr(s, "INST_TYPE") != NULL || strstr(s, "inst_type") != NULL);
+    return lv_str_match_any(s, kInstTypeKeywords) >= 0;
 }
 
 /**
  * @brief 检查字符串是否包含蕴含/推出模式（==>, -->, imp）
  */
 static bool has_implication_pattern(const char *s) {
+    static const char *const kImplicationKeywords[] = {"==>", "-->", "imp", "IMP", NULL};
     if (!s)
         return false;
-    return (strstr(s, "==>") != NULL || strstr(s, "-->") != NULL || strstr(s, "imp") != NULL ||
-            strstr(s, "IMP") != NULL);
+    return lv_str_match_any(s, kImplicationKeywords) >= 0;
 }
 
 /**

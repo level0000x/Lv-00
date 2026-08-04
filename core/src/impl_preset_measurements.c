@@ -26,6 +26,44 @@
  * 第5部分:预设测量 -- preset_measurements(17函数)
  * ============================================================ */
 
+/* ============================================================
+ * 宏定义区:测量结果节点骨架
+ *
+ * 说明:
+ *   17 个测量函数尾部都重复同一段 8 行骨架:
+ *   graph_add_point(锚定节点坐标) → 检查 ADD_NODE_OK →
+ *   graph_get_last_added_node_id → 检查 <0 → graph_add_line_segment → return。
+ *   抽取为 LV_MEASURE_RESULT_NODE 宏,消除逐字重复;
+ *   各函数仅锚定节点/线段端点/错误消息前缀不同,以参数区分。
+ * ============================================================ */
+
+/**
+ * @brief 创建测量结果节点并返回其 id
+ *
+ * 行为等价于 17 个 preset_* 测量函数尾部公共骨架:
+ *   1. 以 anchor_node 的符号坐标创建结果节点(检查 ADD_NODE_OK);
+ *   2. 取得新节点 id(检查 <0);
+ *   3. 从 anchor_id 向结果节点连一条线段(返回值原代码即忽略);
+ *   4. return 结果节点 id。
+ *
+ * @param graph       约束图指针(调用前已通过非空检查)
+ * @param anchor_node 提供结果节点坐标的锚定节点(GeomNode*)
+ * @param anchor_id   线段另一端点 id(int64_t,内部强转 int)
+ * @param fn          错误消息前缀字符串,如 "preset_distance",
+ *                    展开后生成 "preset_distance: graph_add_point failed" 等
+ */
+#define LV_MEASURE_RESULT_NODE(graph, anchor_node, anchor_id, fn) \
+    do { \
+        AddNodeResult res = graph_add_point((graph), (anchor_node)->symbolic_coords, (anchor_node)->coord_count); \
+        if (res != ADD_NODE_OK) \
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, fn ": graph_add_point failed"); \
+        int result_id = graph_get_last_added_node_id(graph); \
+        if (result_id < 0) \
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, fn ": graph_get_last_added_node_id failed"); \
+        graph_add_line_segment((graph), (int) (anchor_id), result_id); \
+        return (int64_t) result_id; \
+    } while (0)
+
 /** 两点间距(以整数有理数分子表示) */
 int64_t preset_distance(lvEngine *ctx, int64_t p1, int64_t p2) {
     ConstraintGraph *graph = ctx->main_graph;
@@ -39,14 +77,7 @@ int64_t preset_distance(lvEngine *ctx, int64_t p1, int64_t p2) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "preset_distance: nodes not GEOM_POINT");
     /* 创建测量结果节点,锚定在 n2 的坐标上。
      * 实际距离值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, n2->symbolic_coords, n2->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_distance: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_distance: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) p2, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, n2, p2, "preset_distance");
 }
 
 /** 三点所成角度(毫弧度) */
@@ -63,14 +94,7 @@ int64_t preset_angle(lvEngine *ctx, int64_t p_vertex, int64_t p1, int64_t p2) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "preset_angle: nodes not GEOM_POINT");
     /* 创建测量结果节点,锚定在顶点坐标上。
      * 实际角度值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, nv->symbolic_coords, nv->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_angle: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_angle: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) p2, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, nv, p2, "preset_angle");
 }
 
 /** 三角形面积 */
@@ -87,14 +111,7 @@ int64_t preset_area_triangle(lvEngine *ctx, int64_t p1, int64_t p2, int64_t p3) 
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "preset_area_triangle: nodes not GEOM_POINT");
     /* 创建测量结果节点,锚定在 n3 的坐标上。
      * 实际面积值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, n3->symbolic_coords, n3->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_area_triangle: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_area_triangle: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) p3, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, n3, p3, "preset_area_triangle");
 }
 
 /** 多边形面积(Shoelace公式) */
@@ -118,14 +135,7 @@ int64_t preset_area_polygon(lvEngine *ctx, int64_t *point_ids, int64_t count) {
     GeomNode *last_pt = graph_get_node(graph, (int) point_ids[last_idx]);
     /* 创建测量结果节点,锚定在最后一个顶点的坐标上。
      * 实际面积值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, last_pt->symbolic_coords, last_pt->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_area_polygon: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_area_polygon: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) point_ids[last_idx], result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, last_pt, point_ids[last_idx], "preset_area_polygon");
 }
 
 /** 多边形周长 */
@@ -148,14 +158,7 @@ int64_t preset_perimeter(lvEngine *ctx, int64_t *point_ids, int64_t count) {
     GeomNode *last_pt = graph_get_node(graph, (int) point_ids[last_idx]);
     /* 创建测量结果节点,锚定在最后一个顶点的坐标上。
      * 实际周长值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, last_pt->symbolic_coords, last_pt->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_perimeter: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_perimeter: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) point_ids[last_idx], result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, last_pt, point_ids[last_idx], "preset_perimeter");
 }
 
 /** 曲率(给定向量的离散曲率近似) */
@@ -168,14 +171,7 @@ int64_t preset_curvature(lvEngine *ctx, int64_t curve_id, int64_t t_param) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_curvature: NULL curve node");
     /* 创建测量结果节点,锚定在曲线节点的坐标上。
      * t_param 为参数值,实际曲率由约束求解器计算得出。 */
-    AddNodeResult res = graph_add_point(graph, curve->symbolic_coords, curve->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_curvature: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_curvature: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) curve_id, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, curve, curve_id, "preset_curvature");
 }
 
 /** 线段分割比率 */
@@ -192,14 +188,7 @@ int64_t preset_ratio(lvEngine *ctx, int64_t p1, int64_t p2, int64_t p_div) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "preset_ratio: nodes not GEOM_POINT");
     /* 创建测量结果节点,锚定在分割点的坐标上。
      * 实际比率由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, nd->symbolic_coords, nd->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_ratio: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_ratio: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) p_div, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, nd, p_div, "preset_ratio");
 }
 
 /** 调和比(共线四点 a,b,c,d 的调和分割) */
@@ -217,14 +206,7 @@ int64_t preset_harmonic_ratio(lvEngine *ctx, int64_t a, int64_t b, int64_t c, in
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "preset_harmonic_ratio: nodes not GEOM_POINT");
     /* 创建测量结果节点,锚定在 d 的坐标上。
      * 实际调和比值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, nd->symbolic_coords, nd->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_harmonic_ratio: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_harmonic_ratio: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) d, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, nd, d, "preset_harmonic_ratio");
 }
 
 /** 交比(cross ratio,共线四点 a,b,c,d) */
@@ -242,14 +224,7 @@ int64_t preset_cross_ratio(lvEngine *ctx, int64_t a, int64_t b, int64_t c, int64
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "preset_cross_ratio: nodes not GEOM_POINT");
     /* 创建测量结果节点,锚定在 d 的坐标上。
      * 实际交比值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, nd->symbolic_coords, nd->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_cross_ratio: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_cross_ratio: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) d, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, nd, d, "preset_cross_ratio");
 }
 
 /** 直线斜率(有理数表示) */
@@ -262,14 +237,7 @@ int64_t preset_slope(lvEngine *ctx, int64_t line_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_slope: NULL line node");
     /* 创建测量结果节点,锚定在直线节点的坐标上。
      * 实际斜率值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, line->symbolic_coords, line->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_slope: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_slope: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) line_id, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, line, line_id, "preset_slope");
 }
 
 /** 直线截距 */
@@ -282,14 +250,7 @@ int64_t preset_intercept(lvEngine *ctx, int64_t line_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_intercept: NULL line node");
     /* 创建测量结果节点,锚定在直线节点的坐标上。
      * 实际截距值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, line->symbolic_coords, line->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_intercept: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_intercept: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) line_id, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, line, line_id, "preset_intercept");
 }
 
 /** 线段长度 */
@@ -302,14 +263,7 @@ int64_t preset_length_segment(lvEngine *ctx, int64_t seg_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_length_segment: NULL seg node");
     /* 创建测量结果节点,锚定在线段节点的坐标上。
      * 实际长度值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, seg->symbolic_coords, seg->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_length_segment: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_length_segment: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) seg_id, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, seg, seg_id, "preset_length_segment");
 }
 
 /** 弧长 */
@@ -322,14 +276,7 @@ int64_t preset_arc_length(lvEngine *ctx, int64_t arc_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_arc_length: NULL arc node");
     /* 创建测量结果节点,锚定在弧节点的坐标上。
      * 实际弧长值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, arc->symbolic_coords, arc->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_arc_length: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_arc_length: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) arc_id, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, arc, arc_id, "preset_arc_length");
 }
 
 /** 对角线长度 */
@@ -342,14 +289,7 @@ int64_t preset_diagonal_length(lvEngine *ctx, int64_t poly_id, int64_t diag_idx)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_diagonal_length: NULL poly node");
     /* 创建测量结果节点,锚定在多边形节点的坐标上。
      * diag_idx 为对角线索引,实际长度由约束求解器计算得出。 */
-    AddNodeResult res = graph_add_point(graph, poly->symbolic_coords, poly->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_diagonal_length: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_diagonal_length: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) poly_id, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, poly, poly_id, "preset_diagonal_length");
 }
 
 /** 圆半径 */
@@ -362,15 +302,7 @@ int64_t preset_radius(lvEngine *ctx, int64_t circle_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_radius: NULL circle node");
     /* 创建测量结果节点,锚定在圆节点的坐标上。
      * 实际半径值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, circle->symbolic_coords, circle->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_radius: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_radius: graph_get_last_added_node_id failed");
-
-    graph_add_line_segment(graph, (int) circle_id, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, circle, circle_id, "preset_radius");
 }
 
 /** 圆直径 */
@@ -383,14 +315,7 @@ int64_t preset_diameter(lvEngine *ctx, int64_t circle_id) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "preset_diameter: NULL circle node");
     /* 创建测量结果节点,锚定在圆节点的坐标上。
      * 实际直径值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, circle->symbolic_coords, circle->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_diameter: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_diameter: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) circle_id, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, circle, circle_id, "preset_diameter");
 }
 
 /** 弦长 */
@@ -407,12 +332,5 @@ int64_t preset_chord_length(lvEngine *ctx, int64_t circle_id, int64_t p1, int64_
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "preset_chord_length: points not GEOM_POINT");
     /* 创建测量结果节点,锚定在 p2 的坐标上。
      * 实际弦长值由约束求解器在解析约束后计算得出。 */
-    AddNodeResult res = graph_add_point(graph, np2->symbolic_coords, np2->coord_count);
-    if (res != ADD_NODE_OK)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_chord_length: graph_add_point failed");
-    int result_id = graph_get_last_added_node_id(graph);
-    if (result_id < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "preset_chord_length: graph_get_last_added_node_id failed");
-    graph_add_line_segment(graph, (int) p2, result_id);
-    return (int64_t) result_id;
+    LV_MEASURE_RESULT_NODE(graph, np2, p2, "preset_chord_length");
 }

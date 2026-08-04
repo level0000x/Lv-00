@@ -15,6 +15,7 @@
 #include "lv/error_codes.h"
 #include "lv/lv.h"
 
+#include <limits.h>
 #include <string.h>
 
 /* ==================== 状态码判断函数 ==================== */
@@ -50,40 +51,43 @@ int lv_status_is_warning(int code) {
 }
 
 /**
+ * @brief 状态码类别区间映射表
+ *
+ * 每项定义 [min, max] 闭区间对应的类别名称，线性扫描匹配，
+ * 替代手写硬编码区间 if 链。区间划分与顺序与原实现完全一致。
+ */
+static const struct {
+    int min;
+    int max;
+    const char *category;
+} kStatusCategoryRanges[] = {
+    {0, 0, "成功"},
+    {1, 99, "通用系统错误"},
+    {100, 129, "内存与资源错误"},
+    {130, 139, "解析器安全错误"},
+    {200, 299, "约束图错误"},
+    {300, 399, "符号坐标错误"},
+    {400, 499, "求解器错误"},
+    {500, 599, "重写引擎错误"},
+    {600, 699, "合一检查错误"},
+    {700, 749, "函数块错误"},
+    {750, 799, "预设系统错误"},
+    {800, 899, "类型系统错误"},
+    {900, 999, "证明系统错误"},
+    {INT_MIN, -1, "警告"},
+};
+
+/**
  * @brief 获取状态码所属类别名称
  *
  * @param code 状态码
  * @return 类别名称字符串（中文，静态存储，无需释放）
  */
 const char *lv_status_category(int code) {
-    if (code == 0)
-        return "成功";
-    if (code >= 1 && code < 100)
-        return "通用系统错误";
-    if (code >= 100 && code < 130)
-        return "内存与资源错误";
-    if (code >= 130 && code < 140)
-        return "解析器安全错误";
-    if (code >= 200 && code < 300)
-        return "约束图错误";
-    if (code >= 300 && code < 400)
-        return "符号坐标错误";
-    if (code >= 400 && code < 500)
-        return "求解器错误";
-    if (code >= 500 && code < 600)
-        return "重写引擎错误";
-    if (code >= 600 && code < 700)
-        return "合一检查错误";
-    if (code >= 700 && code < 750)
-        return "函数块错误";
-    if (code >= 750 && code < 800)
-        return "预设系统错误";
-    if (code >= 800 && code < 900)
-        return "类型系统错误";
-    if (code >= 900 && code < 1000)
-        return "证明系统错误";
-    if (code < 0)
-        return "警告";
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kStatusCategoryRanges); i++) {
+        if (code >= kStatusCategoryRanges[i].min && code <= kStatusCategoryRanges[i].max)
+            return kStatusCategoryRanges[i].category;
+    }
     return "未分类";
 }
 

@@ -201,6 +201,82 @@ TrustColor lv_protocol_to_trust_color(lvTrustColor lv) {
  * 调用 lv_health_check() 获取健康评分，基于这些信息填充投影字段。
  * ================================================================ */
 
+/* ================================================================
+ * 系统信息字符串关键词查找表
+ * ================================================================ */
+
+/** @brief 系统信息字符串中可解析的字段枚举 */
+typedef enum {
+    SYSINFO_FIELD_NODES,         /**< "节点创建" */
+    SYSINFO_FIELD_CONSTRAINTS,   /**< "约束创建" */
+    SYSINFO_FIELD_SOLVER_CALLS,  /**< "求解器调用" */
+    SYSINFO_FIELD_REWRITE_STEPS, /**< "重写步数" */
+    SYSINFO_FIELD_UNIFY_CHECKS,  /**< "合一检查" */
+    SYSINFO_FIELD_CURRENT_MEM,   /**< "当前使用" */
+    SYSINFO_FIELD_PEAK_MEM,      /**< "峰值使用" */
+} SysinfoField;
+
+/** @brief 系统信息关键词查找表条目（strstr 子串匹配） */
+typedef struct {
+    const char *keyword; /**< 中文关键词（子串） */
+    SysinfoField field;  /**< 对应字段枚举 */
+} SysinfoKeywordEntry;
+
+/** @brief 系统信息关键词查找表 */
+static const SysinfoKeywordEntry kSysinfoKeywords[] = {
+    {"节点创建", SYSINFO_FIELD_NODES},
+    {"约束创建", SYSINFO_FIELD_CONSTRAINTS},
+    {"求解器调用", SYSINFO_FIELD_SOLVER_CALLS},
+    {"重写步数", SYSINFO_FIELD_REWRITE_STEPS},
+    {"合一检查", SYSINFO_FIELD_UNIFY_CHECKS},
+    {"当前使用", SYSINFO_FIELD_CURRENT_MEM},
+    {"峰值使用", SYSINFO_FIELD_PEAK_MEM},
+};
+
+/**
+ * @brief 在系统信息文本中定位指定字段的关键词（strstr 子串匹配）
+ * @param info  系统信息字符串
+ * @param field 目标字段枚举
+ * @return 关键词首次出现的指针；未命中返回 NULL
+ */
+static const char *sysinfo_find_field(const char *info, SysinfoField field) {
+    for (size_t i = 0; i < sizeof(kSysinfoKeywords) / sizeof(kSysinfoKeywords[0]); i++) {
+        if (kSysinfoKeywords[i].field == field)
+            return strstr(info, kSysinfoKeywords[i].keyword);
+    }
+    return NULL;
+}
+
+/**
+ * @brief 解析系统信息中的 uint64 计数器
+ *
+ * 关键词不存在或格式不符时输出 0（与原解析逻辑一致）。
+ */
+static void parse_sysinfo_u64(const char *info, SysinfoField field, uint64_t *out) {
+    const char *p = sysinfo_find_field(info, field);
+    if (p) {
+        if (sscanf(p, "%*[^:]: %" PRIu64, out) != 1)
+            *out = 0;
+    } else {
+        *out = 0;
+    }
+}
+
+/**
+ * @brief 解析系统信息中的 double 数值
+ *
+ * 关键词不存在或格式不符时输出 0.0（与原解析逻辑一致）。
+ */
+static void parse_sysinfo_double(const char *info, SysinfoField field, double *out) {
+    const char *p = sysinfo_find_field(info, field);
+    if (p) {
+        if (sscanf(p, "%*[^:]: %lf", out) != 1)
+            *out = 0.0;
+    } else {
+        *out = 0.0;
+    }
+}
+
 /**
  * @brief 解析系统信息字符串，提取性能计数器
  *
@@ -212,51 +288,11 @@ static int parse_sysinfo_counters(const char *info, uint64_t *nodes, uint64_t *c
     if (!info)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "parse_sysinfo_counters: info is NULL");
 
-    /* "节点创建: N" */
-    const char *p = strstr(info, "\347\273\223\347\202\271\345\210\233\345\273\272"); /* "节点创建" */
-    if (p) {
-        if (sscanf(p, "%*[^:]: %" PRIu64, nodes) != 1)
-            *nodes = 0;
-    } else {
-        *nodes = 0;
-    }
-
-    /* "约束创建: N" */
-    p = strstr(info, "\347\272\246\346\235\237\345\210\233\345\273\272"); /* "约束创建" */
-    if (p) {
-        if (sscanf(p, "%*[^:]: %" PRIu64, constraints) != 1)
-            *constraints = 0;
-    } else {
-        *constraints = 0;
-    }
-
-    /* "求解器调用: N" */
-    p = strstr(info, "\346\261\202\350\247\243\345\231\250\350\260\203\347\224\250"); /* "求解器调用" */
-    if (p) {
-        if (sscanf(p, "%*[^:]: %" PRIu64, solver_calls) != 1)
-            *solver_calls = 0;
-    } else {
-        *solver_calls = 0;
-    }
-
-    /* "重写步数: N" */
-    p = strstr(info, "\351\207\215\345\206\231\346\255\245\346\225\260"); /* "重写步数" */
-    if (p) {
-        if (sscanf(p, "%*[^:]: %" PRIu64, rewrite_steps) != 1)
-            *rewrite_steps = 0;
-    } else {
-        *rewrite_steps = 0;
-    }
-
-    /* "合一检查: N" */
-    p = strstr(info, "\345\220\210\344\270\200\346\243\200\346\237\245"); /* "合一检查" */
-    if (p) {
-        if (sscanf(p, "%*[^:]: %" PRIu64, unify_checks) != 1)
-            *unify_checks = 0;
-    } else {
-        *unify_checks = 0;
-    }
-
+    parse_sysinfo_u64(info, SYSINFO_FIELD_NODES, nodes);
+    parse_sysinfo_u64(info, SYSINFO_FIELD_CONSTRAINTS, constraints);
+    parse_sysinfo_u64(info, SYSINFO_FIELD_SOLVER_CALLS, solver_calls);
+    parse_sysinfo_u64(info, SYSINFO_FIELD_REWRITE_STEPS, rewrite_steps);
+    parse_sysinfo_u64(info, SYSINFO_FIELD_UNIFY_CHECKS, unify_checks);
     return 0;
 }
 
@@ -267,25 +303,11 @@ static int parse_sysinfo_memory(const char *info, double *current_mb, double *pe
     if (!info)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "parse_sysinfo_memory: info is NULL");
 
-    if (current_mb) {
-        const char *p = strstr(info, "\345\275\223\345\211\215\344\275\277\347\224\250"); /* "当前使用" */
-        if (p) {
-            if (sscanf(p, "%*[^:]: %lf", current_mb) != 1)
-                *current_mb = 0.0;
-        } else {
-            *current_mb = 0.0;
-        }
-    }
+    if (current_mb)
+        parse_sysinfo_double(info, SYSINFO_FIELD_CURRENT_MEM, current_mb);
 
-    if (peak_mb) {
-        const char *p = strstr(info, "\345\263\260\345\200\274\344\275\277\347\224\250"); /* "峰值使用" */
-        if (p) {
-            if (sscanf(p, "%*[^:]: %lf", peak_mb) != 1)
-                *peak_mb = 0.0;
-        } else {
-            *peak_mb = 0.0;
-        }
-    }
+    if (peak_mb)
+        parse_sysinfo_double(info, SYSINFO_FIELD_PEAK_MEM, peak_mb);
 
     return 0;
 }
@@ -590,10 +612,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
         if (child) {
             snprintf(child->id, sizeof(child->id), "solver");
             uint64_t solver_calls = 0;
-            const char *p =
-                strstr(sys_info, "\346\261\202\350\247\243\345\231\250\350\260\203\347\224\250"); /* "求解器调用" */
-            if (p)
-                sscanf(p, "%*[^:]: %" PRIu64, &solver_calls);
+            parse_sysinfo_u64(sys_info, SYSINFO_FIELD_SOLVER_CALLS, &solver_calls);
             snprintf(child->label, sizeof(child->label), "Solver: %" PRIu64 " calls", solver_calls);
             child->trust_color = lv_COLOR_BLUE;
             child->status = lv_TREE_PENDING;
@@ -608,9 +627,7 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
         if (child) {
             snprintf(child->id, sizeof(child->id), "memory");
             double cur_mb = 0.0;
-            const char *p = strstr(sys_info, "\345\275\223\345\211\215\344\275\277\347\224\250"); /* "当前使用" */
-            if (p)
-                sscanf(p, "%*[^:]: %lf", &cur_mb);
+            parse_sysinfo_double(sys_info, SYSINFO_FIELD_CURRENT_MEM, &cur_mb);
             snprintf(child->label, sizeof(child->label), "Memory: %.2f MB", cur_mb);
             child->trust_color = lv_COLOR_BLUE;
             child->status = lv_TREE_PENDING;

@@ -486,6 +486,23 @@ static void skip_whitespace(ExprParser *p) {
 
 static lvInterval parse_expr(ExprParser *p);
 
+/**
+ * @brief 一元数学函数查找表
+ *
+ * 函数名 → 区间运算函数映射，线性扫描匹配，替代手写 strcmp 分支链。
+ */
+static const struct {
+    const char *name;
+    lvInterval (*fn)(lvInterval);
+} kIntervalFuncs[] = {
+    {"sqrt", interval_sqrt},
+    {"sin", interval_sin},
+    {"cos", interval_cos},
+    {"exp", interval_exp},
+    {"log", interval_log},
+    {"abs", interval_abs},
+};
+
 static lvInterval parse_primary(ExprParser *p) {
     skip_whitespace(p);
 
@@ -540,18 +557,11 @@ static lvInterval parse_primary(ExprParser *p) {
             else
                 p->error = 1;
 
-            if (strcmp(name, "sqrt") == 0)
-                return interval_sqrt(arg);
-            if (strcmp(name, "sin") == 0)
-                return interval_sin(arg);
-            if (strcmp(name, "cos") == 0)
-                return interval_cos(arg);
-            if (strcmp(name, "exp") == 0)
-                return interval_exp(arg);
-            if (strcmp(name, "log") == 0)
-                return interval_log(arg);
-            if (strcmp(name, "abs") == 0)
-                return interval_abs(arg);
+            /* 查表匹配一元数学函数 */
+            for (size_t i = 0; i < lv_ARRAY_SIZE(kIntervalFuncs); i++) {
+                if (strcmp(name, kIntervalFuncs[i].name) == 0)
+                    return kIntervalFuncs[i].fn(arg);
+            }
 
             /* Unknown function */
             p->error = 1;

@@ -45,6 +45,35 @@
 
 /* ---- 13a. 元数据与属性函数(24个)---- */
 
+/**
+ * @brief 查找预设条目 -- name 为 NULL 或未找到时返回 fallback
+ *
+ * 统一"name 空检查 + 注册表查找"前奏；调用方各自处理各自的 fallback 语义。
+ */
+static PresetEntry *preset_entry_lookup(lvEngine *ctx, const char *name, PresetEntry *fallback) {
+    (void) ctx;
+    if (!name)
+        return fallback;
+    PresetEntry *entry = func_block_registry_find(name);
+    return entry ? entry : fallback;
+}
+
+/**
+ * @brief 收尾提交 JSON 缓冲区
+ *
+ * finalize -> NULL 检查 -> strlen -> lv_strlcpy -> lv_free。
+ * 成功返回写入长度；finalize 失败返回 -1。
+ */
+static int64_t lv_json_buf_commit(lvJsonBuf *jb, char *buf, int64_t buf_size) {
+    char *js = lv_json_buf_finalize(jb);
+    if (!js)
+        return -1;
+    int64_t len = (int64_t) strlen(js);
+    lv_strlcpy(buf, js, (size_t) buf_size);
+    lv_free((void **) &js);
+    return len;
+}
+
 /** 获取预设总数 -- 调用注册表获取计数 */
 int64_t upper_func_block_preset_count(lvEngine *ctx) {
     (void) ctx;
@@ -173,10 +202,7 @@ const char *func_block_preset_complexity_name(lvEngine *ctx, int64_t complexity)
 
 /** 获取预设的版本信息(从 metadata 组装版本字符串) */
 const char *func_block_preset_version(lvEngine *ctx, const char *name) {
-    (void) ctx;
-    if (!name)
-        return "0.0.0";
-    PresetEntry *entry = func_block_registry_find(name);
+    PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     if (!entry)
         return "0.0.0";
     /* 使用 static 缓冲区组装版本字符串 */
@@ -188,11 +214,8 @@ const char *func_block_preset_version(lvEngine *ctx, const char *name) {
 
 /** 获取预设描述文本 -- 从 metadata 获取 */
 const char *func_block_preset_description(lvEngine *ctx, const char *name) {
-    (void) ctx;
     static const char fallback[] = "Standard preset function block";
-    if (!name)
-        return fallback;
-    PresetEntry *entry = func_block_registry_find(name);
+    PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     if (!entry)
         return fallback;
     return entry->metadata.description ? entry->metadata.description : fallback;
@@ -200,11 +223,8 @@ const char *func_block_preset_description(lvEngine *ctx, const char *name) {
 
 /** 获取预设数学定义(LaTeX)-- 从 metadata 获取 */
 const char *func_block_preset_definition(lvEngine *ctx, const char *name) {
-    (void) ctx;
     static const char fallback[] = "\\text{No explicit definition available}";
-    if (!name)
-        return fallback;
-    PresetEntry *entry = func_block_registry_find(name);
+    PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     if (!entry)
         return fallback;
     return entry->metadata.mathematical_def ? entry->metadata.mathematical_def : fallback;
@@ -222,14 +242,9 @@ int64_t func_block_preset_postcondition_count(lvEngine *ctx, const char *name) {
 
 /** 获取预设关联的预设列表 -- 从 metadata 读取 related_presets 数组 */
 int64_t func_block_preset_related(lvEngine *ctx, const char *name, char *buf, int64_t buf_size) {
-    (void) ctx;
     if (!buf || buf_size <= 0)
         return 0;
-    if (!name) {
-        buf[0] = '\0';
-        return 0;
-    }
-    PresetEntry *entry = func_block_registry_find(name);
+    PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     if (!entry) {
         buf[0] = '\0';
         return 0;
@@ -303,10 +318,9 @@ int64_t func_block_preset_complexity_enum(lvEngine *ctx, const char *name) {
 
 /** 获取预设参数是否为可选参数 -- 从 input_params 数组中按索引查询 */
 int64_t func_block_preset_is_optional(lvEngine *ctx, const char *name, int64_t param_idx) {
-    (void) ctx;
-    if (!name || param_idx < 0)
+    if (param_idx < 0)
         return 0;
-    PresetEntry *entry = func_block_registry_find(name);
+    PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     if (!entry)
         return 0;
     if (param_idx >= entry->metadata.input_count)
@@ -316,10 +330,9 @@ int64_t func_block_preset_is_optional(lvEngine *ctx, const char *name, int64_t p
 
 /** 获取预设参数默认值描述 -- 从 metadata 查询参数描述作为默认值信息 */
 const char *func_block_preset_default_value(lvEngine *ctx, const char *name, int64_t param_idx) {
-    (void) ctx;
-    if (!name || param_idx < 0)
+    if (param_idx < 0)
         return "N/A";
-    PresetEntry *entry = func_block_registry_find(name);
+    PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     if (!entry)
         return "N/A";
     if (param_idx >= entry->metadata.input_count)
@@ -330,10 +343,7 @@ const char *func_block_preset_default_value(lvEngine *ctx, const char *name, int
 
 /** 获取参数约束总数 -- 遍历所有输入参数的约束数量求和 */
 int64_t func_block_preset_constraint_count(lvEngine *ctx, const char *name) {
-    (void) ctx;
-    if (!name)
-        return 0;
-    PresetEntry *entry = func_block_registry_find(name);
+    PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     if (!entry)
         return 0;
     int64_t total = 0;
@@ -385,11 +395,8 @@ int64_t func_block_preset_metadata(lvEngine *ctx, const char *name, char *buf, i
         lv_json_buf_append_raw(&_jb, "{\"name\":");
         lv_json_buf_append_string(&_jb, sname);
         lv_json_buf_append_raw(&_jb, ",\"error\":\"not_found\"}");
-        char *_js = lv_json_buf_finalize(&_jb);
-        if (!_js) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_metadata: json_buf_finalize failed");
-        int64_t _len = (int64_t) strlen(_js);
-        lv_strlcpy(buf, _js, (size_t) buf_size);
-        lv_free(_js);
+        int64_t _len = lv_json_buf_commit(&_jb, buf, buf_size);
+        if (_len < 0) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_metadata: json_buf_finalize failed");
         return _len;
     }
     PresetMetadata *m = &entry->metadata;
@@ -414,11 +421,8 @@ int64_t func_block_preset_metadata(lvEngine *ctx, const char *name, char *buf, i
         lv_json_buf_append_fmt(&_jb, ",\"properties\":%d", (int) m->properties);
         lv_json_buf_append_fmt(&_jb, ",\"complexity\":%d", (int) m->complexity);
         lv_json_buf_append_raw(&_jb, "}");
-        char *_js = lv_json_buf_finalize(&_jb);
-        if (!_js) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_metadata: json_buf_finalize failed (2)");
-        int64_t _len = (int64_t) strlen(_js);
-        lv_strlcpy(buf, _js, (size_t) buf_size);
-        lv_free(_js);
+        int64_t _len = lv_json_buf_commit(&_jb, buf, buf_size);
+        if (_len < 0) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_metadata: json_buf_finalize failed (2)");
         return _len;
     }
 }
@@ -609,9 +613,7 @@ static const PresetParamCompatEntry kParamCompatTable[] = {
 
 /** 验证参数类型是否匹配 -- 通过注册表获取输入参数定义,进行节点类型匹配 */
 int64_t func_block_preset_validate(lvEngine *ctx, const char *name, int64_t *input_ids, int64_t input_count) {
-    if (!name)
-        return 0;
-    PresetEntry *entry = func_block_registry_find(name);
+    PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     /* 预设不存在 = 验证失败 */
     if (!entry)
         return 0;
@@ -666,11 +668,8 @@ int64_t func_block_preset_bindings(lvEngine *ctx, int64_t instance_id, char *buf
         lv_json_buf_init(&_jb, 64);
         lv_json_buf_append_fmt(&_jb, "{\"instance\":%lld,\"bindings\":[],\"error\":\"not_found\"}",
                                (long long) instance_id);
-        char *_js = lv_json_buf_finalize(&_jb);
-        if (!_js) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_bindings: json_buf_finalize failed");
-        int64_t _len = (int64_t) strlen(_js);
-        lv_strlcpy(buf, _js, (size_t) buf_size);
-        lv_free(_js);
+        int64_t _len = lv_json_buf_commit(&_jb, buf, buf_size);
+        if (_len < 0) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_bindings: json_buf_finalize failed");
         return _len;
     }
     lvJsonBuf _jb;
@@ -684,11 +683,8 @@ int64_t func_block_preset_bindings(lvEngine *ctx, int64_t instance_id, char *buf
         lv_json_buf_append_fmt(&_jb, "{\"port\":%d}", i);
     }
     lv_json_buf_append_raw(&_jb, "]}");
-    char *_js = lv_json_buf_finalize(&_jb);
-    if (!_js) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_bindings: json_buf_finalize failed (2)");
-    int64_t _len = (int64_t) strlen(_js);
-    lv_strlcpy(buf, _js, (size_t) buf_size);
-    lv_free(_js);
+    int64_t _len = lv_json_buf_commit(&_jb, buf, buf_size);
+    if (_len < 0) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_bindings: json_buf_finalize failed (2)");
     return _len;
 }
 

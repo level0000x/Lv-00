@@ -193,19 +193,24 @@ int lv_circuit_breaker_summary(lvContext *ctx, char *buf, size_t buf_size) {
 }
 
 /* ============================================================
- * 全局递归深度保护（轻量级熔断器）
+ * 线程局部递归深度保护（轻量级熔断器）
  *
  * 与 lvContext 内的 CircuitBreaker 不同，此处提供
  * 无上下文依赖的全局递归深度保护，供递归调用链中的
  * 任意位置快速检查。lv_MAX_RECURSION_DEPTH (128)
  * 定义在 recursion.h 中。
+ *
+ * 深度计数器与熔断标志均声明为线程局部（lv_THREAD_LOCAL），
+ * 消除"进程级共享被多线程互踩"的跨线程语义错误：
+ * 每个线程维护自己的递归深度，线程 A 的 enter/leave
+ * 不再影响线程 B 的深度与熔断状态。
  * ============================================================ */
 
-/** 当前全局递归深度（进程级） */
-static int g_recursion_depth = 0;
+/** 当前线程递归深度（线程局部） */
+static lv_THREAD_LOCAL int g_recursion_depth = 0;
 
-/** 全局熔断器是否已触发 */
-static bool g_circuit_breaker_triggered = false;
+/** 当前线程熔断器是否已触发（线程局部） */
+static lv_THREAD_LOCAL bool g_circuit_breaker_triggered = false;
 
 bool lv_recursion_enter(void) {
     if (g_recursion_depth >= lv_MAX_RECURSION_DEPTH) {

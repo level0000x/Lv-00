@@ -53,16 +53,9 @@ int64_t geom_evol_create(lvEngine *ctx, int64_t dim) {
     if (!evol)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "geom_evol_create: geoevol_create failed");
 
+    /* count < MAX 保证存在空槽, add 必然成功 */
     int64_t id = s_upper_state.upper_id++;
-    int slot = 0;
-    /* 查找空闲槽位 */
-    for (; slot < MAX_EVOL_TABLE; slot++) {
-        if (!s_upper_state.evol_table[slot].evol)
-            break;
-    }
-    s_upper_state.evol_table[slot].evol = evol;
-    s_upper_state.evol_table[slot].id = id;
-    s_upper_state.evol_count++;
+    lv_obj_table_add(s_upper_state.evol_table, &s_upper_state.evol_count, MAX_EVOL_TABLE, id, evol);
     return id;
 }
 
@@ -70,17 +63,12 @@ int64_t geom_evol_create(lvEngine *ctx, int64_t dim) {
 int64_t geom_evol_step(lvEngine *ctx, int64_t evol_id, int64_t steps) {
     (void) ctx;
     /* 在内部表中查找对应的演化引擎 */
-    lvGeomEvol *evol = NULL;
-    for (int i = 0; i < MAX_EVOL_TABLE; i++) {
-        if (s_upper_state.evol_table[i].evol && s_upper_state.evol_table[i].id == evol_id) {
-            evol = s_upper_state.evol_table[i].evol;
-            break;
-        }
-    }
-    if (!evol) {
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.evol_table, MAX_EVOL_TABLE, evol_id);
+    if (!slot) {
         /* 未找到引擎,返回模拟值 */
         return steps + 1;
     }
+    lvGeomEvol *evol = (lvGeomEvol *) slot->ptr;
 
     /* 执行 steps 次单步演化 */
     int64_t executed = 0;
@@ -98,16 +86,12 @@ int64_t geom_evol_step(lvEngine *ctx, int64_t evol_id, int64_t steps) {
 int64_t geom_evol_destroy(lvEngine *ctx, int64_t evol_id) {
     (void) ctx;
     /* 查找并销毁对应 ID 的演化引擎 */
-    for (int i = 0; i < MAX_EVOL_TABLE; i++) {
-        if (s_upper_state.evol_table[i].evol && s_upper_state.evol_table[i].id == evol_id) {
-            geoevol_destroy(s_upper_state.evol_table[i].evol);
-            s_upper_state.evol_table[i].evol = NULL;
-            s_upper_state.evol_table[i].id = 0;
-            s_upper_state.evol_count--;
-            return 0;
-        }
-    }
-    return -1; /* 未找到 */
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.evol_table, MAX_EVOL_TABLE, evol_id);
+    if (!slot)
+        return -1; /* 未找到 */
+    geoevol_destroy((lvGeomEvol *) slot->ptr);
+    lv_obj_table_remove(s_upper_state.evol_table, &s_upper_state.evol_count, MAX_EVOL_TABLE, evol_id);
+    return 0;
 }
 
 /* ---- atp_backend: 自动定理证明后端 ---- */
@@ -160,20 +144,11 @@ int64_t atp_backend_create(lvEngine *ctx, const char *solver_name) {
     if (!solver)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "atp_backend_create: solver create failed");
 
-    /* 查找空闲槽位 */
-    int slot = 0;
-    for (; slot < MAX_ATP_BACKEND_TABLE; slot++) {
-        if (!s_upper_state.atp_backend_table[slot].solver)
-            break;
-    }
-    if (slot >= MAX_ATP_BACKEND_TABLE) {
-        atp_solver_destroy(solver);
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "atp_backend_create: no free slot");
-    }
-    s_upper_state.atp_backend_table[slot].solver = solver;
-    s_upper_state.atp_backend_table[slot].id = s_upper_state.upper_id++;
-    s_upper_state.atp_backend_count++;
-    return s_upper_state.atp_backend_table[slot].id;
+    /* count < MAX 保证存在空槽, add 必然成功 */
+    int64_t id = s_upper_state.upper_id++;
+    lv_obj_table_add(s_upper_state.atp_backend_table, &s_upper_state.atp_backend_count,
+                     MAX_ATP_BACKEND_TABLE, id, solver);
+    return id;
 }
 
 /** 向ATP后端提交证明任务,返回任务ID */
@@ -185,15 +160,10 @@ int64_t atp_backend_submit(lvEngine *ctx, int64_t backend_id, const char *conjec
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "atp_backend_submit: task table full");
 
     /* 查找后端求解器 */
-    ATPBackendSolver *solver = NULL;
-    for (int i = 0; i < MAX_ATP_BACKEND_TABLE; i++) {
-        if (s_upper_state.atp_backend_table[i].solver && s_upper_state.atp_backend_table[i].id == backend_id) {
-            solver = s_upper_state.atp_backend_table[i].solver;
-            break;
-        }
-    }
-    if (!solver)
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.atp_backend_table, MAX_ATP_BACKEND_TABLE, backend_id);
+    if (!slot)
         lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "atp_backend_submit: solver not found");
+    ATPBackendSolver *solver = (ATPBackendSolver *) slot->ptr;
 
     /* 创建任务 */
     int task_slot = s_upper_state.atp_task_count++;
@@ -234,16 +204,13 @@ int64_t atp_backend_result(lvEngine *ctx, int64_t task_id) {
 /** 销毁ATP后端实例 */
 int64_t atp_backend_destroy(lvEngine *ctx, int64_t backend_id) {
     (void) ctx;
-    for (int i = 0; i < MAX_ATP_BACKEND_TABLE; i++) {
-        if (s_upper_state.atp_backend_table[i].solver && s_upper_state.atp_backend_table[i].id == backend_id) {
-            atp_solver_destroy(s_upper_state.atp_backend_table[i].solver);
-            s_upper_state.atp_backend_table[i].solver = NULL;
-            s_upper_state.atp_backend_table[i].id = 0;
-            s_upper_state.atp_backend_count--;
-            return 0;
-        }
-    }
-    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "atp_backend_destroy: backend_id not found");
+    lvObjSlot *slot = lv_obj_table_find(s_upper_state.atp_backend_table, MAX_ATP_BACKEND_TABLE, backend_id);
+    if (!slot)
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "atp_backend_destroy: backend_id not found");
+    atp_solver_destroy((ATPBackendSolver *) slot->ptr);
+    lv_obj_table_remove(s_upper_state.atp_backend_table, &s_upper_state.atp_backend_count,
+                        MAX_ATP_BACKEND_TABLE, backend_id);
+    return 0;
 }
 
 /* ---- proof_tptp: TPTP格式证明处理 ---- */

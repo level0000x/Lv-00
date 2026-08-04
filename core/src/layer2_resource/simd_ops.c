@@ -136,15 +136,51 @@ const char *lv_simd_capability_name(lvSimdCapability cap) {
 
 /* ============== 统计 ============== */
 
-static lvSimdStats g_simd_stats = {0};
+/*
+ * 内部原子统计结构：字段与公共 lvSimdStats 一一对应（保持 simd_ops.h 公开布局不变），
+ * 仅将字段类型原子化，消除热路径统计计数器的非原子自增竞态。
+ */
+typedef struct {
+    _Atomic uint64_t vec4_ops;
+    _Atomic uint64_t vec8_ops;
+    _Atomic uint64_t array_ops;
+    _Atomic uint64_t elements_processed;
+    _Atomic uint64_t simd_time_us;
+    _Atomic uint64_t scalar_fallbacks;
+} lvSimdStatsAtomic;
+
+static lvSimdStatsAtomic g_simd_stats = {0};
+
+/* 热路径统计累加宏（relaxed 序：计数器允许乱序累加，只需保证读改写不撕裂） */
+#define lv_SIMD_STATS_INC(field) \
+    atomic_fetch_add_explicit(&g_simd_stats.field, 1, memory_order_relaxed)
+#define lv_SIMD_STATS_ADD(field, n) \
+    atomic_fetch_add_explicit(&g_simd_stats.field, (uint64_t)(n), memory_order_relaxed)
+
+/* 原子计数器汇总为普通快照（get_stats / print_diag 共用，各字段独立 relaxed 读取） */
+static void lv_simd_stats_snapshot(lvSimdStats *out) {
+    out->vec4_ops = atomic_load_explicit(&g_simd_stats.vec4_ops, memory_order_relaxed);
+    out->vec8_ops = atomic_load_explicit(&g_simd_stats.vec8_ops, memory_order_relaxed);
+    out->array_ops = atomic_load_explicit(&g_simd_stats.array_ops, memory_order_relaxed);
+    out->elements_processed = atomic_load_explicit(&g_simd_stats.elements_processed, memory_order_relaxed);
+    out->simd_time_us = atomic_load_explicit(&g_simd_stats.simd_time_us, memory_order_relaxed);
+    out->scalar_fallbacks = atomic_load_explicit(&g_simd_stats.scalar_fallbacks, memory_order_relaxed);
+}
 
 void lv_simd_get_stats(lvSimdStats *stats) {
-    if (stats)
-        *stats = g_simd_stats;
+    if (!stats)
+        return;
+    lv_simd_stats_snapshot(stats);
 }
 
 void lv_simd_reset_stats(void) {
-    memset(&g_simd_stats, 0, sizeof(g_simd_stats));
+    /* 原子类型不可用 memset，逐字段 store 0 清零（与并发累加竞争时语义等价于清零） */
+    atomic_store_explicit(&g_simd_stats.vec4_ops, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_simd_stats.vec8_ops, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_simd_stats.array_ops, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_simd_stats.elements_processed, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_simd_stats.simd_time_us, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_simd_stats.scalar_fallbacks, 0, memory_order_relaxed);
 }
 
 void lv_simd_print_diag(void *stream) {
@@ -171,12 +207,14 @@ void lv_simd_print_diag(void *stream) {
     }
 
     fprintf(f, "\n--- 性能统计 ---\n");
-    fprintf(f, "4元素向量操作: %llu\n", (unsigned long long) g_simd_stats.vec4_ops);
-    fprintf(f, "8元素向量操作: %llu\n", (unsigned long long) g_simd_stats.vec8_ops);
-    fprintf(f, "数组操作: %llu\n", (unsigned long long) g_simd_stats.array_ops);
-    fprintf(f, "处理元素总数: %llu\n", (unsigned long long) g_simd_stats.elements_processed);
-    fprintf(f, "SIMD总耗时: %llu us\n", (unsigned long long) g_simd_stats.simd_time_us);
-    fprintf(f, "标量回退次数: %llu\n", (unsigned long long) g_simd_stats.scalar_fallbacks);
+    lvSimdStats snapshot;
+    lv_simd_stats_snapshot(&snapshot);
+    fprintf(f, "4元素向量操作: %llu\n", (unsigned long long) snapshot.vec4_ops);
+    fprintf(f, "8元素向量操作: %llu\n", (unsigned long long) snapshot.vec8_ops);
+    fprintf(f, "数组操作: %llu\n", (unsigned long long) snapshot.array_ops);
+    fprintf(f, "处理元素总数: %llu\n", (unsigned long long) snapshot.elements_processed);
+    fprintf(f, "SIMD总耗时: %llu us\n", (unsigned long long) snapshot.simd_time_us);
+    fprintf(f, "标量回退次数: %llu\n", (unsigned long long) snapshot.scalar_fallbacks);
     fprintf(f, "=====================================\n\n");
 }
 
@@ -186,25 +224,25 @@ void lv_simd_print_diag(void *stream) {
 
 lvVec4d lv_vec4d_zero(void) {
     lvVec4d v = {{0.0, 0.0, 0.0, 0.0}};
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return v;
 }
 
 lvVec4d lv_vec4d_one(void) {
     lvVec4d v = {{1.0, 1.0, 1.0, 1.0}};
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return v;
 }
 
 lvVec4d lv_vec4d_set1(double val) {
     lvVec4d v = {{val, val, val, val}};
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return v;
 }
 
 lvVec4d lv_vec4d_set(double x, double y, double z, double w) {
     lvVec4d v = {{x, y, z, w}};
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return v;
 }
 
@@ -214,7 +252,7 @@ lvVec4d lv_vec4d_load(const double *ptr) {
     v.v[1] = ptr[1];
     v.v[2] = ptr[2];
     v.v[3] = ptr[3];
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return v;
 }
 
@@ -264,7 +302,7 @@ lvVec4d lv_vec4d_add(lvVec4d a, lvVec4d b) {
     r.v[2] = a.v[2] + b.v[2];
     r.v[3] = a.v[3] + b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -299,7 +337,7 @@ lvVec4d lv_vec4d_sub(lvVec4d a, lvVec4d b) {
     r.v[2] = a.v[2] - b.v[2];
     r.v[3] = a.v[3] - b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -334,7 +372,7 @@ lvVec4d lv_vec4d_mul(lvVec4d a, lvVec4d b) {
     r.v[2] = a.v[2] * b.v[2];
     r.v[3] = a.v[3] * b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -369,7 +407,7 @@ lvVec4d lv_vec4d_div(lvVec4d a, lvVec4d b) {
     r.v[2] = a.v[2] / b.v[2];
     r.v[3] = a.v[3] / b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -401,7 +439,7 @@ lvVec4d lv_vec4d_neg(lvVec4d a) {
     r.v[2] = -a.v[2];
     r.v[3] = -a.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -431,7 +469,7 @@ lvVec4d lv_vec4d_sqrt(lvVec4d a) {
     r.v[2] = sqrt(a.v[2]);
     r.v[3] = sqrt(a.v[3]);
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -463,7 +501,7 @@ lvVec4d lv_vec4d_abs(lvVec4d a) {
     r.v[2] = fabs(a.v[2]);
     r.v[3] = fabs(a.v[3]);
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -498,7 +536,7 @@ lvVec4d lv_vec4d_max(lvVec4d a, lvVec4d b) {
     r.v[2] = (a.v[2] > b.v[2]) ? a.v[2] : b.v[2];
     r.v[3] = (a.v[3] > b.v[3]) ? a.v[3] : b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -533,7 +571,7 @@ lvVec4d lv_vec4d_min(lvVec4d a, lvVec4d b) {
     r.v[2] = (a.v[2] < b.v[2]) ? a.v[2] : b.v[2];
     r.v[3] = (a.v[3] < b.v[3]) ? a.v[3] : b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -571,7 +609,7 @@ lvVec4d lv_vec4d_fmadd(lvVec4d a, lvVec4d x, lvVec4d y) {
     r.v[2] = a.v[2] * x.v[2] + y.v[2];
     r.v[3] = a.v[3] * x.v[3] + y.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -972,7 +1010,7 @@ lvVec4d lv_vec4d_normalize(lvVec4d a) {
         r.v[3] = a.v[3];
     }
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -996,7 +1034,7 @@ lvVec4d lv_vec4d_cross(lvVec4d a, lvVec4d b) {
     r.v[2] = a.v[0] * b.v[1] - a.v[1] * b.v[0];
     r.v[3] = 0.0;
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -1004,13 +1042,13 @@ lvVec4d lv_vec4d_cross(lvVec4d a, lvVec4d b) {
 
 lvVec4f lv_vec4f_zero(void) {
     lvVec4f v = {{0.0f, 0.0f, 0.0f, 0.0f}};
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return v;
 }
 
 lvVec4f lv_vec4f_set1(float val) {
     lvVec4f v = {{val, val, val, val}};
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return v;
 }
 
@@ -1020,7 +1058,7 @@ lvVec4f lv_vec4f_load(const float *ptr) {
     v.v[1] = ptr[1];
     v.v[2] = ptr[2];
     v.v[3] = ptr[3];
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return v;
 }
 
@@ -1054,7 +1092,7 @@ lvVec4f lv_vec4f_add(lvVec4f a, lvVec4f b) {
     r.v[2] = a.v[2] + b.v[2];
     r.v[3] = a.v[3] + b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -1081,7 +1119,7 @@ lvVec4f lv_vec4f_sub(lvVec4f a, lvVec4f b) {
     r.v[2] = a.v[2] - b.v[2];
     r.v[3] = a.v[3] - b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -1108,7 +1146,7 @@ lvVec4f lv_vec4f_mul(lvVec4f a, lvVec4f b) {
     r.v[2] = a.v[2] * b.v[2];
     r.v[3] = a.v[3] * b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -1135,7 +1173,7 @@ lvVec4f lv_vec4f_div(lvVec4f a, lvVec4f b) {
     r.v[2] = a.v[2] / b.v[2];
     r.v[3] = a.v[3] / b.v[3];
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -1159,7 +1197,7 @@ lvVec4f lv_vec4f_sqrt(lvVec4f a) {
     r.v[2] = sqrtf(a.v[2]);
     r.v[3] = sqrtf(a.v[3]);
 #endif
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return r;
 }
 
@@ -1175,7 +1213,7 @@ float lv_vec4f_dot(lvVec4f a, lvVec4f b) {
 
 lvVec8f lv_vec8f_zero(void) {
     lvVec8f v = {{0}};
-    g_simd_stats.vec8_ops++;
+    lv_SIMD_STATS_INC(vec8_ops);
     return v;
 }
 
@@ -1196,7 +1234,7 @@ lvVec8f lv_vec8f_set1(float val) {
     for (int i = 0; i < 8; i++)
         v.v[i] = val;
 #endif
-    g_simd_stats.vec8_ops++;
+    lv_SIMD_STATS_INC(vec8_ops);
     return v;
 }
 
@@ -1215,7 +1253,7 @@ lvVec8f lv_vec8f_load(const float *ptr) {
     for (int i = 0; i < 8; i++)
         v.v[i] = ptr[i];
 #endif
-    g_simd_stats.vec8_ops++;
+    lv_SIMD_STATS_INC(vec8_ops);
     return v;
 }
 
@@ -1251,7 +1289,7 @@ lvVec8f lv_vec8f_add(lvVec8f a, lvVec8f b) {
     for (int i = 0; i < 8; i++)
         r.v[i] = a.v[i] + b.v[i];
 #endif
-    g_simd_stats.vec8_ops++;
+    lv_SIMD_STATS_INC(vec8_ops);
     return r;
 }
 
@@ -1271,7 +1309,7 @@ lvVec8f lv_vec8f_sub(lvVec8f a, lvVec8f b) {
     for (int i = 0; i < 8; i++)
         r.v[i] = a.v[i] - b.v[i];
 #endif
-    g_simd_stats.vec8_ops++;
+    lv_SIMD_STATS_INC(vec8_ops);
     return r;
 }
 
@@ -1291,7 +1329,7 @@ lvVec8f lv_vec8f_mul(lvVec8f a, lvVec8f b) {
     for (int i = 0; i < 8; i++)
         r.v[i] = a.v[i] * b.v[i];
 #endif
-    g_simd_stats.vec8_ops++;
+    lv_SIMD_STATS_INC(vec8_ops);
     return r;
 }
 
@@ -1311,7 +1349,7 @@ lvVec8f lv_vec8f_div(lvVec8f a, lvVec8f b) {
     for (int i = 0; i < 8; i++)
         r.v[i] = a.v[i] / b.v[i];
 #endif
-    g_simd_stats.vec8_ops++;
+    lv_SIMD_STATS_INC(vec8_ops);
     return r;
 }
 
@@ -1346,8 +1384,8 @@ float lv_vec8f_hsum(lvVec8f a) {
 /* ============== 批量运算 ============== */
 
 void lv_simd_add_array_d(const double *a, const double *b, double *out, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     size_t i = 0;
 
@@ -1366,8 +1404,8 @@ void lv_simd_add_array_d(const double *a, const double *b, double *out, size_t c
 }
 
 void lv_simd_mul_array_d(const double *a, const double *b, double *out, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     size_t i = 0;
     for (; i + 4 <= count; i += 4) {
@@ -1383,8 +1421,8 @@ void lv_simd_mul_array_d(const double *a, const double *b, double *out, size_t c
 }
 
 void lv_simd_fmadd_array_d(const double *a, const double *b, const double *c, double *out, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     size_t i = 0;
     for (; i + 4 <= count; i += 4) {
@@ -1401,8 +1439,8 @@ void lv_simd_fmadd_array_d(const double *a, const double *b, const double *c, do
 }
 
 double lv_simd_sum_array_d(const double *arr, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     double sum = 0.0;
     size_t i = 0;
@@ -1424,8 +1462,8 @@ double lv_simd_sum_array_d(const double *arr, size_t count) {
 }
 
 double lv_simd_dot_array_d(const double *a, const double *b, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     double dot = 0.0;
     size_t i = 0;
@@ -1446,8 +1484,8 @@ double lv_simd_dot_array_d(const double *a, const double *b, size_t count) {
 }
 
 void lv_simd_scale_array_d(const double *in, double scale, double *out, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     lvVec4d vscale = lv_vec4d_set1(scale);
     size_t i = 0;
@@ -1464,8 +1502,8 @@ void lv_simd_scale_array_d(const double *in, double scale, double *out, size_t c
 }
 
 double lv_simd_dot_product_array(const double *a, const double *b, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     double dot = 0.0;
     size_t i = 0;
@@ -1524,8 +1562,8 @@ double lv_simd_dot_product_array(const double *a, const double *b, size_t count)
 }
 
 void lv_simd_norm_array(const double *in, double *out, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     size_t i = 0;
 
@@ -1567,8 +1605,8 @@ void lv_simd_norm_array(const double *in, double *out, size_t count) {
 }
 
 void lv_simd_scale_array(const double *in, double scale, double *out, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     size_t i = 0;
 
@@ -1612,8 +1650,8 @@ double lv_simd_max_array_d(const double *arr, size_t count) {
     if (count == 0)
         return 0.0;
 
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     double max_val = arr[0];
     size_t i = 1;
@@ -1635,8 +1673,8 @@ double lv_simd_min_array_d(const double *arr, size_t count) {
     if (count == 0)
         return 0.0;
 
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     double min_val = arr[0];
     size_t i = 1;
@@ -1658,8 +1696,8 @@ double lv_simd_min_array_d(const double *arr, size_t count) {
 
 void lv_simd_distance_array(const double *x1, const double *y1, const double *x2, const double *y2, double *out,
                             size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     for (size_t i = 0; i < count; i++) {
         double dx = x2[i] - x1[i];
@@ -1670,8 +1708,8 @@ void lv_simd_distance_array(const double *x1, const double *y1, const double *x2
 
 void lv_simd_point_line_distance_array(const double *px, const double *py, double x1, double y1, double x2, double y2,
                                        double *out, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     double dx = x2 - x1;
     double dy = y2 - y1;
@@ -1700,8 +1738,8 @@ void lv_simd_point_line_distance_array(const double *px, const double *py, doubl
 
 void lv_simd_cross2d_array(const double *ax, const double *ay, const double *bx, const double *by, double *out,
                            size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     size_t i = 0;
     for (; i + 4 <= count; i += 4) {
@@ -1725,8 +1763,8 @@ void lv_simd_cross2d_array(const double *ax, const double *ay, const double *bx,
 
 void lv_simd_point_in_circle_array(const double *px, const double *py, double cx, double cy, double r, int *out,
                                    size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     double r_sq = r * r;
 
@@ -1748,13 +1786,13 @@ lvVec4d lv_simd_mat4x4_vec4_mul(const double mat[16], lvVec4d vec) {
     result.v[2] = mat[8] * vec.v[0] + mat[9] * vec.v[1] + mat[10] * vec.v[2] + mat[11] * vec.v[3];
     result.v[3] = mat[12] * vec.v[0] + mat[13] * vec.v[1] + mat[14] * vec.v[2] + mat[15] * vec.v[3];
 
-    g_simd_stats.vec4_ops++;
+    lv_SIMD_STATS_INC(vec4_ops);
     return result;
 }
 
 void lv_simd_mat4x4_vec4_array_mul(const double mat[16], const double *vecs, double *out, size_t count) {
-    g_simd_stats.array_ops++;
-    g_simd_stats.elements_processed += count;
+    lv_SIMD_STATS_INC(array_ops);
+    lv_SIMD_STATS_ADD(elements_processed, count);
 
     for (size_t i = 0; i < count; i++) {
         lvVec4d v = lv_vec4d_load(vecs + i * 4);

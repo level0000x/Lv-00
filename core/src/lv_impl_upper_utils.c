@@ -74,21 +74,34 @@ int64_t lv_upper_full_verify(lvEngine *ctx) {
     return (c && m && s && (d == 0)) ? 1 : 0;
 }
 
+/** @brief 综合导出目标条目 -- 名称 + 函数指针 */
+typedef struct {
+    const char *name; /**< 导出格式名称 */
+    int64_t (*fn)(lvEngine *ctx, int64_t id, char *buf, int64_t buf_size); /**< 导出函数 */
+} UpperExportEntry;
+
+/** @brief 综合导出的目标表（Coq / Lean4 / SVG,三个导出函数签名一致） */
+static const UpperExportEntry kUpperExportTable[] = {
+    {"coq", upper_interop_export_coq},
+    {"lean4", interop_export_lean4},
+    {"svg", upper_interop_export_svg},
+};
+
 /**
  * @brief 综合导出 -- 将证明结果同时导出为 Coq / Lean4 / SVG
  *
- * 分别调用三个导出函数,将结果写入对应缓冲区,
+ * 表驱动遍历 kUpperExportTable,将结果写入对应缓冲区,
  * 返回成功导出的格式数量。
  */
 int64_t lv_upper_export_all(lvEngine *ctx, int64_t proof_id, char *coq_buf, int64_t coq_sz, char *lean_buf,
                             int64_t lean_sz, char *svg_buf, int64_t svg_sz) {
     int64_t n = 0;
-    if (upper_interop_export_coq(ctx, proof_id, coq_buf, coq_sz) > 0)
-        n++;
-    if (interop_export_lean4(ctx, proof_id, lean_buf, lean_sz) > 0)
-        n++;
-    if (upper_interop_export_svg(ctx, proof_id, svg_buf, svg_sz) > 0)
-        n++;
+    char *bufs[] = {coq_buf, lean_buf, svg_buf};
+    int64_t szs[] = {coq_sz, lean_sz, svg_sz};
+    for (size_t i = 0; i < sizeof(kUpperExportTable) / sizeof(kUpperExportTable[0]); i++) {
+        if (kUpperExportTable[i].fn(ctx, proof_id, bufs[i], szs[i]) > 0)
+            n++;
+    }
     return n;
 }
 

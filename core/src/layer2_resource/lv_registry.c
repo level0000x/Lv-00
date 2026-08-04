@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/lv_utils.h"   /* lv_malloc, lv_calloc, lv_realloc, lv_free */
+#include "lv/lv_thread.h"  /* lv_once_t, lv_once */
 
 /* ============================================================
  * 内部常量
@@ -143,20 +144,43 @@ typedef struct {
 typedef struct {
     ModuleEntry entries[lv_MAX_MODULES]; /**< 模块注册表 */
     int count;                           /**< 已注册模块数量 */
+    lvMutex mutex;                       /**< 注册表保护互斥锁 */
 } ModuleRegistryState;
 
 /** @brief 模块注册表全局单例 */
 static ModuleRegistryState s_module_registry = {0};
 
+/** @brief 模块注册表互斥锁一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t s_module_registry_once = lv_ONCE_INIT;
+
+/** @brief 模块注册表互斥锁初始化回调（仅由 lv_once 调用一次） */
+static void module_registry_mutex_init(void) {
+    lv_MUTEX_INIT(&s_module_registry.mutex);
+}
+
+#define MODULE_REGISTRY_LOCK() do { \
+    lv_once(&s_module_registry_once, module_registry_mutex_init); \
+    lv_MUTEX_LOCK(&s_module_registry.mutex); \
+} while (0)
+#define MODULE_REGISTRY_UNLOCK() lv_MUTEX_UNLOCK(&s_module_registry.mutex)
+
 bool lv_module_register(const char *name, lvModuleInitFunc init_fn,
                          lvModuleCleanupFunc cleanup_fn, lvModulePriority priority) {
-    if (!name || s_module_registry.count >= lv_MAX_MODULES) {
+    if (!name) {
+        return false;
+    }
+
+    MODULE_REGISTRY_LOCK();
+
+    if (s_module_registry.count >= lv_MAX_MODULES) {
+        MODULE_REGISTRY_UNLOCK();
         return false;
     }
 
     /* 检查名称是否已存在 */
     for (int i = 0; i < s_module_registry.count; i++) {
         if (strcmp(s_module_registry.entries[i].name, name) == 0) {
+            MODULE_REGISTRY_UNLOCK();
             return false; /* 不允许重复注册 */
         }
     }
@@ -167,6 +191,7 @@ bool lv_module_register(const char *name, lvModuleInitFunc init_fn,
     s_module_registry.entries[s_module_registry.count].priority = priority;
     s_module_registry.count++;
 
+    MODULE_REGISTRY_UNLOCK();
     return true;
 }
 
@@ -180,6 +205,8 @@ static int module_compare(const void *a, const void *b) {
 }
 
 bool lv_module_init_all(void) {
+    MODULE_REGISTRY_LOCK();
+
     /* 按优先级排序 */
     qsort(s_module_registry.entries, (size_t) s_module_registry.count, sizeof(ModuleEntry), module_compare);
 
@@ -187,23 +214,32 @@ bool lv_module_init_all(void) {
     for (int i = 0; i < s_module_registry.count; i++) {
         if (s_module_registry.entries[i].init) {
             if (!s_module_registry.entries[i].init()) {
+                MODULE_REGISTRY_UNLOCK();
                 return false; /* 初始化失败即停止 */
             }
         }
     }
 
+    MODULE_REGISTRY_UNLOCK();
     return true;
 }
 
 void lv_module_cleanup_all(void) {
+    MODULE_REGISTRY_LOCK();
+
     /* 按反向优先级清理（高优先级先清理，核心最后清理） */
     for (int i = s_module_registry.count - 1; i >= 0; i--) {
         if (s_module_registry.entries[i].cleanup) {
             s_module_registry.entries[i].cleanup();
         }
     }
+
+    MODULE_REGISTRY_UNLOCK();
 }
 
 int lv_module_count(void) {
-    return s_module_registry.count;
+    MODULE_REGISTRY_LOCK();
+    int count = s_module_registry.count;
+    MODULE_REGISTRY_UNLOCK();
+    return count;
 }

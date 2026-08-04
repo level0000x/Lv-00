@@ -1,4 +1,5 @@
 #include "lv/lv_log.h"
+#include "lv/lv_thread.h"
 
 #include <stdarg.h>
 #include <time.h>
@@ -19,6 +20,15 @@ static bool g_timestamp_enabled = false;
 /** 是否输出源位置（file:line function） */
 static bool g_source_enabled = false;
 
+/** 全局状态互斥锁：保护上述 4 个配置项的并发读写（惰性初始化） */
+static lv_mutex_t g_log_state_mutex;
+static lv_once_t g_log_state_once;
+
+/** 惰性初始化日志状态互斥锁（lv_once 保证只执行一次） */
+static void log_state_mutex_init_func(void) {
+    lv_mutex_init(&g_log_state_mutex);
+}
+
 /* ================================================================
  * 级别名称表
  * ================================================================ */
@@ -36,7 +46,15 @@ static const char *s_level_names[] = {
  * ================================================================ */
 
 void lv_log(lvLogLevel level, const char *fmt, ...) {
-    if (level < g_min_level || level > lv_LOG_FATAL) {
+    if (level > lv_LOG_FATAL) {
+        return;
+    }
+
+    lv_once(&g_log_state_once, log_state_mutex_init_func);
+    lv_mutex_lock(&g_log_state_mutex);
+
+    if (level < g_min_level) {
+        lv_mutex_unlock(&g_log_state_mutex);
         return;
     }
 
@@ -64,20 +82,36 @@ void lv_log(lvLogLevel level, const char *fmt, ...) {
 
     fprintf(fp, "\n");
     fflush(fp);
+
+    lv_mutex_unlock(&g_log_state_mutex);
 }
 
 lvLogLevel lv_log_get_level(void) {
-    return g_min_level;
+    lvLogLevel level;
+    lv_once(&g_log_state_once, log_state_mutex_init_func);
+    lv_mutex_lock(&g_log_state_mutex);
+    level = g_min_level;
+    lv_mutex_unlock(&g_log_state_mutex);
+    return level;
 }
 
 void lv_log_set_output(FILE *fp) {
+    lv_once(&g_log_state_once, log_state_mutex_init_func);
+    lv_mutex_lock(&g_log_state_mutex);
     g_output = fp;
+    lv_mutex_unlock(&g_log_state_mutex);
 }
 
 void lv_log_enable_timestamp(bool enable) {
+    lv_once(&g_log_state_once, log_state_mutex_init_func);
+    lv_mutex_lock(&g_log_state_mutex);
     g_timestamp_enabled = enable;
+    lv_mutex_unlock(&g_log_state_mutex);
 }
 
 void lv_log_enable_source(bool enable) {
+    lv_once(&g_log_state_once, log_state_mutex_init_func);
+    lv_mutex_lock(&g_log_state_mutex);
     g_source_enabled = enable;
+    lv_mutex_unlock(&g_log_state_mutex);
 }
