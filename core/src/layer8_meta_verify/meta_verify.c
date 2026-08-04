@@ -475,6 +475,14 @@ static int check_roundtrip(const lvSession *session, int strict, char *desc, int
 typedef int (*check_func_t)(const lvSession *, int, char *, int);
 
 /** 
+ * @brief 证明对象级验证处理器函数指针类型
+ *
+ * 接收只读证明对象指针和字符串缓冲区，返回 1（通过）或 0（失败）。
+ * 失败时通过 lvStrBuf 填充错误描述。
+ */
+typedef int (*VerifyCheckHandler)(const lvProofObject *p, lvStrBuf *sb);
+
+/** 
  * @brief 六项检查函数的分发表
  *
  * 索引与 lvVerifyCheck 枚举值一一对应，通过 lv_meta_verify_session 遍历调用。
@@ -617,11 +625,211 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     return report;
 }
 
+/* ============================================================
+ * 证明对象级验证处理器函数
+ * ============================================================ */
+
+/**
+ * @brief 处理器 1: 结构完整性 (lv_CHECK_STRUCTURAL)
+ *
+ * 检查证明至少有一个步骤，且步骤数组有效。
+ */
+static int handle_verify_structural(const lvProofObject *p, lvStrBuf *sb) {
+    if (!p) {
+        lv_strbuf_printf(sb, "Proof is NULL");
+        return 0;
+    }
+    if (p->step_count < 1) {
+        lv_strbuf_printf(sb, "Proof has no steps (step_count=%d)", p->step_count);
+        return 0;
+    }
+    if (!p->steps || !p->steps[0]) {
+        lv_strbuf_printf(sb, "Proof steps array is NULL or first step is NULL");
+        return 0;
+    }
+    lv_strbuf_printf(sb, "Structural check passed: %d steps", p->step_count);
+    return 1;
+}
+
+/**
+ * @brief 处理器 2: 类型一致性 (lv_CHECK_TYPE)
+ *
+ * 检查步骤链有效性：每个步骤的前提引用更早的步骤。
+ */
+static int handle_verify_type(const lvProofObject *p, lvStrBuf *sb) {
+    if (!p) {
+        lv_strbuf_printf(sb, "Proof is NULL");
+        return 0;
+    }
+    for (int s = 0; s < p->step_count; s++) {
+        lvProofStepRecord *step = p->steps[s];
+        if (!step) {
+            lv_strbuf_printf(sb, "Step %d is NULL", s);
+            return 0;
+        }
+        for (int j = 0; j < step->premise_count; j++) {
+            int pid = step->premise_step_ids[j];
+            if (pid < 0 || pid >= s) {
+                lv_strbuf_printf(sb, "Step %d references premise %d which is not an earlier step", s, pid);
+                return 0;
+            }
+        }
+    }
+    lv_strbuf_printf(sb, "Type/chain check passed: all premises reference earlier steps");
+    return 1;
+}
+
+/**
+ * @brief 处理器 3: 完备性 (lv_CHECK_COMPLETE)
+ *
+ * 检查最后一步的结论是否匹配目标。
+ */
+static int handle_verify_complete(const lvProofObject *p, lvStrBuf *sb) {
+    if (!p) {
+        lv_strbuf_printf(sb, "Proof is NULL");
+        return 0;
+    }
+    if (p->step_count == 0) {
+        lv_strbuf_printf(sb, "No steps to check conclusion");
+        return 0;
+    }
+    lvProofStepRecord *last = p->steps[p->step_count - 1];
+    if (!last || !last->conclusion) {
+        lv_strbuf_printf(sb, "Last step has no conclusion");
+        return 0;
+    }
+    if (p->goal && last->conclusion != p->goal &&
+        !(last->conclusion->label && p->goal->label &&
+          strcmp(last->conclusion->label, p->goal->label) == 0)) {
+        lv_strbuf_printf(sb, "Last step conclusion does not match goal");
+        return 0;
+    }
+    lv_strbuf_printf(sb, "Completeness check passed: final conclusion matches goal");
+    return 1;
+}
+
+/**
+ * @brief 处理器 4: 可靠性 (lv_CHECK_SOUND)
+ *
+ * 检查循环依赖：确保没有步骤间接依赖自身。
+ */
+static int handle_verify_sound(const lvProofObject *p, lvStrBuf *sb) {
+    if (!p) {
+        lv_strbuf_printf(sb, "Proof is NULL");
+        return 0;
+    }
+    for (int s = 0; s < p->step_count; s++) {
+        lvProofStepRecord *step = p->steps[s];
+        if (!step)
+            continue;
+        /* BFS 检查前提链中是否包含步骤 s 自身 */
+        int queue_cap = p->step_count * 4;
+        if (queue_cap < 16)
+            queue_cap = 16;
+        int *queue = (int *) lv_malloc((size_t) queue_cap * sizeof(int));
+        int *visited = (int *) lv_calloc((size_t) p->step_count, sizeof(int));
+        if (!queue || !visited) {
+            lv_free((void **) &queue);
+            lv_free((void **) &visited);
+            lv_strbuf_printf(sb, "Memory allocation failed");
+            return 0;
+        }
+        int head = 0, tail = 0;
+        for (int j = 0; j < step->premise_count; j++) {
+            if (tail < queue_cap) {
+                queue[tail++] = step->premise_step_ids[j];
+            }
+        }
+        visited[s] = 1;
+        int found_cycle = 0;
+        while (head < tail) {
+            int cur = queue[head++];
+            if (cur == s) {
+                found_cycle = 1;
+                break;
+            }
+            if (cur < 0 || cur >= p->step_count)
+                continue;
+            if (visited[cur])
+                continue;
+            visited[cur] = 1;
+            lvProofStepRecord *cur_step = p->steps[cur];
+            if (cur_step) {
+                for (int j = 0; j < cur_step->premise_count; j++) {
+                    if (tail < queue_cap) {
+                        queue[tail++] = cur_step->premise_step_ids[j];
+                    }
+                }
+            }
+        }
+        lv_free((void **) &queue);
+        lv_free((void **) &visited);
+        if (found_cycle) {
+            lv_strbuf_printf(sb, "Circular dependency detected at step %d", s);
+            return 0;
+        }
+    }
+    lv_strbuf_printf(sb, "Soundness check passed: no circular dependencies");
+    return 1;
+}
+
+/**
+ * @brief 处理器 5: 非平凡性 (lv_CHECK_NONTRIVIAL)
+ *
+ * 检查证明非平凡：至少有2个步骤或使用了公理/假设。
+ */
+static int handle_verify_nontrivial(const lvProofObject *p, lvStrBuf *sb) {
+    if (!p) {
+        lv_strbuf_printf(sb, "Proof is NULL");
+        return 0;
+    }
+    if (p->step_count <= 1 && p->axiom_count == 0 && p->assumption_count == 0) {
+        lv_strbuf_printf(sb, "Proof is trivial: only %d step(s), no axioms or assumptions", p->step_count);
+        return 0;
+    }
+    lv_strbuf_printf(sb, "Nontriviality check passed: %d steps, %d axioms, %d assumptions",
+             p->step_count, p->axiom_count, p->assumption_count);
+    return 1;
+}
+
+/**
+ * @brief 处理器 6: 往返验证 (lv_CHECK_ROUNDTRIP)
+ *
+ * 检查证明标记为已完成。
+ */
+static int handle_verify_roundtrip(const lvProofObject *p, lvStrBuf *sb) {
+    if (!p) {
+        lv_strbuf_printf(sb, "Proof is NULL");
+        return 0;
+    }
+    if (!p->is_proved) {
+        lv_strbuf_printf(sb, "Proof is not marked as proved");
+        return 0;
+    }
+    lv_strbuf_printf(sb, "Roundtrip check passed: proof is marked as proved");
+    return 1;
+}
+
+/** 
+ * @brief 证明对象级验证处理器查找表
+ *
+ * 索引与 lvVerifyCheck 枚举值一一对应，通过 lv_meta_verify_proof 遍历调用。
+ * 每个处理器执行单一维度的验证，结果通过 lvStrBuf 输出描述。
+ */
+static const VerifyCheckHandler kVerifyCheckHandlers[] = {
+    [lv_CHECK_STRUCTURAL]  = handle_verify_structural,
+    [lv_CHECK_TYPE]        = handle_verify_type,
+    [lv_CHECK_COMPLETE]    = handle_verify_complete,
+    [lv_CHECK_SOUND]       = handle_verify_sound,
+    [lv_CHECK_NONTRIVIAL]  = handle_verify_nontrivial,
+    [lv_CHECK_ROUNDTRIP]   = handle_verify_roundtrip,
+};
+
 /**
  * @brief 运行证明对象级元验证
  *
  * 对 lvProofObject 结构体直接执行六项验证检查（非会话上下文）。
- * 通过 switch-case 逐项检查步骤链完整性、循环依赖、结论匹配目标等。
+ * 通过 VTable 分发表逐项检查步骤链完整性、循环依赖、结论匹配目标等。
  *
  * @param verifier 元验证器（决定哪些检查项启用）
  * @param proof    证明对象指针（lvProofObject 类型）
@@ -658,181 +866,10 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         int passed = 0;
         lvStrBuf sb = {0};
 
-        switch ((lvVerifyCheck) i) {
-            case lv_CHECK_STRUCTURAL: {
-                /* 检查证明至少有一个步骤 */
-                if (!p) {
-                    lv_strbuf_printf(&sb, "Proof is NULL");
-                    break;
-                }
-                if (p->step_count < 1) {
-                    lv_strbuf_printf(&sb, "Proof has no steps (step_count=%d)", p->step_count);
-                    break;
-                }
-                if (!p->steps || !p->steps[0]) {
-                    lv_strbuf_printf(&sb, "Proof steps array is NULL or first step is NULL");
-                    break;
-                }
-                lv_strbuf_printf(&sb, "Structural check passed: %d steps", p->step_count);
-                passed = 1;
-                break;
-            }
-            case lv_CHECK_TYPE: {
-                /* 检查步骤链有效性：每个步骤的前提引用更早的步骤 */
-                if (!p) {
-                    lv_strbuf_printf(&sb, "Proof is NULL");
-                    break;
-                }
-                passed = 1;
-                for (int s = 0; s < p->step_count; s++) {
-                    lvProofStepRecord *step = p->steps[s];
-                    if (!step) {
-                        lv_strbuf_printf(&sb, "Step %d is NULL", s);
-                        passed = 0;
-                        break;
-                    }
-                    for (int j = 0; j < step->premise_count; j++) {
-                        int pid = step->premise_step_ids[j];
-                        if (pid < 0 || pid >= s) {
-                            lv_strbuf_printf(&sb, "Step %d references premise %d which is not an earlier step",
-                                     s, pid);
-                            passed = 0;
-                            break;
-                        }
-                    }
-                    if (!passed)
-                        break;
-                }
-                if (passed) {
-                    lv_strbuf_printf(&sb, "Type/chain check passed: all premises reference earlier steps");
-                }
-                break;
-            }
-            case lv_CHECK_COMPLETE: {
-                /* 检查最后一步的结论是否匹配目标 */
-                if (!p) {
-                    lv_strbuf_printf(&sb, "Proof is NULL");
-                    break;
-                }
-                if (p->step_count == 0) {
-                    lv_strbuf_printf(&sb, "No steps to check conclusion");
-                    break;
-                }
-                lvProofStepRecord *last = p->steps[p->step_count - 1];
-                if (!last || !last->conclusion) {
-                    lv_strbuf_printf(&sb, "Last step has no conclusion");
-                    break;
-                }
-                if (p->goal && last->conclusion != p->goal &&
-                    !(last->conclusion->label && p->goal->label &&
-                      strcmp(last->conclusion->label, p->goal->label) == 0)) {
-                    lv_strbuf_printf(&sb, "Last step conclusion does not match goal");
-                    break;
-                }
-                lv_strbuf_printf(&sb, "Completeness check passed: final conclusion matches goal");
-                passed = 1;
-                break;
-            }
-            case lv_CHECK_SOUND: {
-                /* 检查循环依赖：确保没有步骤间接依赖自身 */
-                if (!p) {
-                    lv_strbuf_printf(&sb, "Proof is NULL");
-                    break;
-                }
-                passed = 1;
-                /* 对每个步骤，检查其前提链是否回指自身 */
-                for (int s = 0; s < p->step_count; s++) {
-                    lvProofStepRecord *step = p->steps[s];
-                    if (!step)
-                        continue;
-                    /* BFS 检查前提链中是否包含步骤 s 自身 */
-                    /* 队列大小：最坏情况每个步骤的所有前提都入队 */
-                    int queue_cap = p->step_count * 4;
-                    if (queue_cap < 16)
-                        queue_cap = 16;
-                    int *queue = (int *) lv_malloc((size_t) queue_cap * sizeof(int));
-                    int *visited = (int *) lv_calloc((size_t) p->step_count, sizeof(int));
-                    if (!queue || !visited) {
-                        lv_free((void **) &queue);
-                        lv_free((void **) &visited);
-                        lv_strbuf_printf(&sb, "Memory allocation failed");
-                        passed = 0;
-                        break;
-                    }
-                    int head = 0, tail = 0;
-                    for (int j = 0; j < step->premise_count; j++) {
-                        if (tail < queue_cap) {
-                            queue[tail++] = step->premise_step_ids[j];
-                        }
-                    }
-                    visited[s] = 1;
-                    int found_cycle = 0;
-                    while (head < tail) {
-                        int cur = queue[head++];
-                        if (cur == s) {
-                            found_cycle = 1;
-                            break;
-                        }
-                        if (cur < 0 || cur >= p->step_count)
-                            continue;
-                        if (visited[cur])
-                            continue;
-                        visited[cur] = 1;
-                        lvProofStepRecord *cur_step = p->steps[cur];
-                        if (cur_step) {
-                            for (int j = 0; j < cur_step->premise_count; j++) {
-                                if (tail < queue_cap) {
-                                    queue[tail++] = cur_step->premise_step_ids[j];
-                                }
-                            }
-                        }
-                    }
-                    lv_free((void **) &queue);
-                    lv_free((void **) &visited);
-                    if (found_cycle) {
-                        lv_strbuf_printf(&sb, "Circular dependency detected at step %d", s);
-                        passed = 0;
-                        break;
-                    }
-                }
-                if (passed) {
-                    lv_strbuf_printf(&sb, "Soundness check passed: no circular dependencies");
-                }
-                break;
-            }
-            case lv_CHECK_NONTRIVIAL: {
-                /* 检查证明非平凡：至少有2个步骤或使用了公理/假设 */
-                if (!p) {
-                    lv_strbuf_printf(&sb, "Proof is NULL");
-                    break;
-                }
-                if (p->step_count <= 1 && p->axiom_count == 0 && p->assumption_count == 0) {
-                    lv_strbuf_printf(&sb, "Proof is trivial: only %d step(s), no axioms or assumptions",
-                             p->step_count);
-                    break;
-                }
-                lv_strbuf_printf(&sb, "Nontriviality check passed: %d steps, %d axioms, %d assumptions",
-                         p->step_count, p->axiom_count, p->assumption_count);
-                passed = 1;
-                break;
-            }
-            case lv_CHECK_ROUNDTRIP: {
-                /* 检查证明标记为已完成 */
-                if (!p) {
-                    lv_strbuf_printf(&sb, "Proof is NULL");
-                    break;
-                }
-                if (!p->is_proved) {
-                    lv_strbuf_printf(&sb, "Proof is not marked as proved");
-                    break;
-                }
-                lv_strbuf_printf(&sb, "Roundtrip check passed: proof is marked as proved");
-                passed = 1;
-                break;
-            }
-            default:
-                lv_strbuf_printf(&sb, "Unknown check");
-                break;
+        if ((unsigned)i < sizeof(kVerifyCheckHandlers)/sizeof(kVerifyCheckHandlers[0]) && kVerifyCheckHandlers[i]) {
+            passed = kVerifyCheckHandlers[i](p, &sb);
+        } else {
+            lv_strbuf_printf(&sb, "Unknown check");
         }
 
         report.results[i].passed = passed;

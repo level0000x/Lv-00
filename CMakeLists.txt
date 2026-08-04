@@ -87,6 +87,10 @@ option(ENABLE_LAYER_VALIDATION "Enable compile-time layer boundary checks" OFF)
 # -Wextra    : 启用额外有用的警告（如未使用参数等）
 # -Wpedantic : 严格 ISO C 标准合规性检查，禁用编译器扩展语法
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    # MinGW 需要 fms-extensions 以支持 __unaligned 等 Microsoft 扩展
+    if(WIN32)
+        add_compile_options(-fms-extensions)
+    endif()
     add_compile_options(-Wall -Wextra -Wpedantic)
 # Windows Interlocked API 在 GCC 下产生 incompatible-pointer-types 警告，不影响正确性
 add_compile_options(-Wno-incompatible-pointer-types)
@@ -389,6 +393,7 @@ set(lv_HEADERS
     core/include/lv/lv.h
     core/include/lv/cross_platform.h
     core/include/lv/error_codes.h
+    core/include/lv/lv_error.h
     core/include/lv/symbolic_coord.h
     core/include/lv/constraint_graph.h
     core/include/lv/normalization.h
@@ -642,6 +647,12 @@ set(lv_HEADERS
     core/include/lv/lv_pipeline.h
     # v5.0.0 统一存储抽象层
     core/include/lv/lv_storage.h
+    # 图/树遍历抽象层
+    core/include/lv/lv_graph_traversal.h
+    # v1.0.0 竞技场分配器抽象层
+    core/include/lv/lv_arena.h
+    # 数值类型统一抽象层
+    core/include/lv/lv_number.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -712,6 +723,7 @@ set(lv_LAYER2_SOURCES
     # v4.0.0 新增：流式输出上下文独立模块（从 lvContext God Object 提取）
     core/src/layer2_resource/lv_stream_context.c
     core/src/layer2_resource/error_codes.c
+    core/src/layer2_resource/lv_error.c
     core/src/layer2_resource/debug.c
     core/src/layer2_resource/debug_state.c
     core/src/layer2_resource/debug_mempool.c
@@ -781,6 +793,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_backend_plugin.c
     # v5.0.0 统一存储抽象层
     core/src/layer2_resource/lv_storage.c
+    # v1.0.0 竞技场分配器抽象层
+    core/src/layer2_resource/lv_arena.c
 )
 
 # ── Core: 核心便利层 (Core Convenience) ──
@@ -919,6 +933,8 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph/graph_node_conflict.c
     core/src/layer3_geometry/constraint_graph/graph_node_stub.c
     core/src/layer3_geometry/constraint_graph/graph_serialize.c
+    # 图/树遍历抽象层实现
+    core/src/layer3_geometry/constraint_graph/lv_graph_traversal.c
     # 符号计算子模块：代数、二次、有理、坐标运算、超越函数
     core/src/layer3_geometry/symbolics/algebraic.c
     core/src/layer3_geometry/symbolics/quadratic.c
@@ -929,6 +945,7 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/symbolics/symbolic_coord_transform.c
     core/src/layer3_geometry/symbolics/symbolic_coord_trust.c
     core/src/layer3_geometry/symbolics/transcendental.c
+    core/src/layer3_geometry/symbolics/lv_number.c
     # 稀疏线性代数
     core/src/layer3_geometry/sparse_linear_algebra.c
 )

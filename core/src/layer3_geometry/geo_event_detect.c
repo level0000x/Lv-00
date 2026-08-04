@@ -558,8 +558,41 @@ lvEventResult geo_event_detect(lvEventDetector *detector, double t_prev, const d
 }
 
 /* ========================================================================
- * 求根定位调度
+ * 求根定位调度 — 函数指针查找表（替代 switch-case 分派）
  * ======================================================================== */
+
+/** @brief 求根处理器函数指针类型 */
+typedef int (*RootFindHandler)(lvEventDetector *detector, int event_id, const double *param_a, const double *param_b,
+                               int dim, double a, double b, double ga, double gb, double *root);
+
+/** @brief Brent 法 wrapper（适配多出的 tol/max_iter 参数） */
+static int rootfind_brent_wrapper(lvEventDetector *detector, int event_id, const double *param_a,
+                                  const double *param_b, int dim, double a, double b, double ga, double gb,
+                                  double *root) {
+    return geo_event_root_brent(detector, event_id, param_a, param_b, dim, a, b, ga, gb, detector->root_tol,
+                                detector->max_root_iters, root);
+}
+
+/** @brief Illinois 法 wrapper */
+static int rootfind_illinois_wrapper(lvEventDetector *detector, int event_id, const double *param_a,
+                                     const double *param_b, int dim, double a, double b, double ga, double gb,
+                                     double *root) {
+    return geodet_root_illinois(detector, event_id, param_a, param_b, dim, a, b, ga, gb, root);
+}
+
+/** @brief 二分法 wrapper */
+static int rootfind_bisection_wrapper(lvEventDetector *detector, int event_id, const double *param_a,
+                                       const double *param_b, int dim, double a, double b, double ga, double gb,
+                                       double *root) {
+    return geodet_root_bisection(detector, event_id, param_a, param_b, dim, a, b, ga, gb, root);
+}
+
+/** @brief 求根方法查找表 */
+static const RootFindHandler kRootFindHandlers[] = {
+    [lv_ROOTFIND_BRENT]     = rootfind_brent_wrapper,
+    [lv_ROOTFIND_ILLINOIS]  = rootfind_illinois_wrapper,
+    [lv_ROOTFIND_BISECTION] = rootfind_bisection_wrapper,
+};
 
 /**
  * @brief 在区间 [a, b] 内精确求根定位
@@ -571,22 +604,11 @@ int geo_event_root_locate(lvEventDetector *detector, int event_id, const double 
     lv_CHECK_NULL(detector, -1);
     lv_CHECK_NULL(root, -1);
 
-    /* 调用对应的方法 */
-    switch (detector->root_method) {
-        case lv_ROOTFIND_BRENT:
-            /* 使用头文件中的内联 Brent 法实现 */
-            return geo_event_root_brent(detector, event_id, param_a, param_b, dim, a, b, ga, gb, detector->root_tol,
-                                        detector->max_root_iters, root);
+    /* 通过函数指针查找表调度 */
+    if ((unsigned)detector->root_method < sizeof(kRootFindHandlers)/sizeof(kRootFindHandlers[0]))
+        return kRootFindHandlers[detector->root_method](detector, event_id, param_a, param_b, dim, a, b, ga, gb, root);
 
-        case lv_ROOTFIND_ILLINOIS:
-            return geodet_root_illinois(detector, event_id, param_a, param_b, dim, a, b, ga, gb, root);
-
-        case lv_ROOTFIND_BISECTION:
-            return geodet_root_bisection(detector, event_id, param_a, param_b, dim, a, b, ga, gb, root);
-
-        default:
-            /* 默认回退 Brent 法 */
-            return geo_event_root_brent(detector, event_id, param_a, param_b, dim, a, b, ga, gb, detector->root_tol,
-                                        detector->max_root_iters, root);
-    }
+    /* 默认回退 Brent 法 */
+    return geo_event_root_brent(detector, event_id, param_a, param_b, dim, a, b, ga, gb, detector->root_tol,
+                                detector->max_root_iters, root);
 }

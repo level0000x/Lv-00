@@ -1,0 +1,264 @@
+/**
+ * @file lv_error.c
+ * @brief Lv-00 错误处理增强抽象层实现
+ *
+ * @details 实现错误上下文传播和链式错误追踪。
+ *          使用线程局部存储管理当前线程的错误上下文，
+ *          支持多级错误帧形成错误链。
+ *
+ * @version 1.1.0
+ * @author Lv-00 Team
+ */
+
+#include "lv/lv_error.h"
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "lv_utils.h"
+#include "lv/cross_platform.h"
+
+/* ============================================================
+ * 线程局部错误上下文
+ * ============================================================ */
+
+/** 线程局部错误上下文存储 */
+static lv_THREAD_LOCAL lvErrorContext g_error_context;
+
+/** 线程局部初始化标志 */
+static lv_THREAD_LOCAL bool g_error_context_initialized = false;
+
+/* ============================================================
+ * 内部辅助函数
+ * ============================================================ */
+
+/**
+ * @brief 确保错误上下文已初始化
+ *
+ * 如果上下文尚未初始化，设置默认值。
+ */
+static void ensure_context_initialized(lvErrorContext *ctx)
+{
+    if (!ctx->frame_capacity) {
+        ctx->frame_capacity = lv_ERROR_MAX_FRAMES;
+        ctx->frame_count = 0;
+        ctx->scratch[0] = '\0';
+    }
+}
+
+/**
+ * @brief 将错误帧压入栈顶
+ *
+ * @param ctx  错误上下文
+ * @param code 错误码
+ * @return 新错误帧的指针，栈满时返回 NULL
+ */
+static lvErrorFrame *push_frame(lvErrorContext *ctx, int code)
+{
+    if (ctx->frame_count >= ctx->frame_capacity) {
+        /* 栈满：丢弃最旧的帧，为新帧腾出空间 */
+        /* 将所有帧向前移动一位 */
+        if (ctx->frame_count > 1) {
+            /* 更新 cause 指针：每个帧的 cause 指向其前一个帧 */
+            /* 先移动帧数据，再修复 cause 指针 */
+            for (int i = 1; i < ctx->frame_count; i++) {
+                ctx->frames[i - 1] = ctx->frames[i];
+            }
+            ctx->frame_count--;
+            /* 修复 cause 指针：每个帧的 cause 指向其前一个帧 */
+            for (int i = 1; i < ctx->frame_count; i++) {
+                ctx->frames[i].cause = &ctx->frames[i - 1];
+            }
+            ctx->frames[0].cause = NULL;
+        } else {
+            ctx->frame_count = 0;
+        }
+    }
+
+    lvErrorFrame *frame = &ctx->frames[ctx->frame_count];
+    ctx->frame_count++;
+
+    frame->file = NULL;
+    frame->func = NULL;
+    frame->line = 0;
+    frame->code = code;
+    frame->message[0] = '\0';
+    frame->cause = NULL;
+
+    return frame;
+}
+
+/* ============================================================
+ * API 实现
+ * ============================================================ */
+
+lvErrorContext *lv_error_context_current(void)
+{
+    if (!g_error_context_initialized) {
+        lv_error_context_init(&g_error_context);
+        g_error_context_initialized = true;
+    }
+    return &g_error_context;
+}
+
+void lv_error_context_init(lvErrorContext *ctx)
+{
+    if (!ctx) return;
+    ctx->frame_capacity = lv_ERROR_MAX_FRAMES;
+    ctx->frame_count = 0;
+    ctx->scratch[0] = '\0';
+    memset(ctx->frames, 0, sizeof(ctx->frames));
+}
+
+void lv_error_context_cleanup(lvErrorContext *ctx)
+{
+    if (!ctx) return;
+    ctx->frame_capacity = 0;
+    ctx->frame_count = 0;
+    ctx->scratch[0] = '\0';
+    memset(ctx->frames, 0, sizeof(ctx->frames));
+}
+
+bool lv_error_set(lvErrorContext *ctx, int code, const char *format, ...)
+{
+    if (!ctx) return false;
+
+    ensure_context_initialized(ctx);
+
+    lvErrorFrame *frame = push_frame(ctx, code);
+    if (!frame) return false;
+
+    /* 记录调用位置 */
+    frame->code = code;
+
+    /* 格式化错误消息 */
+    if (format) {
+        va_list args;
+        va_start(args, format);
+        vsnprintf(frame->message, lv_ERROR_MSG_MAX, format, args);
+        va_end(args);
+    }
+
+    return false;
+}
+
+bool lv_error_set_with_cause(lvErrorContext *ctx, int code,
+                              lvErrorFrame *cause, const char *format, ...)
+{
+    if (!ctx) return false;
+
+    ensure_context_initialized(ctx);
+
+    lvErrorFrame *frame = push_frame(ctx, code);
+    if (!frame) return false;
+
+    frame->code = code;
+    frame->cause = cause;
+
+    /* 格式化错误消息 */
+    if (format) {
+        va_list args;
+        va_start(args, format);
+        vsnprintf(frame->message, lv_ERROR_MSG_MAX, format, args);
+        va_end(args);
+    }
+
+    return false;
+}
+
+int lv_error_code(lvErrorContext *ctx)
+{
+    if (!ctx || ctx->frame_count <= 0) return lv_OK;
+    return ctx->frames[ctx->frame_count - 1].code;
+}
+
+const char *lv_error_message(lvErrorContext *ctx)
+{
+    if (!ctx || ctx->frame_count <= 0) return "";
+    return ctx->frames[ctx->frame_count - 1].message;
+}
+
+lvErrorFrame *lv_error_cause(lvErrorContext *ctx)
+{
+    if (!ctx || ctx->frame_count <= 0) return NULL;
+    return ctx->frames[ctx->frame_count - 1].cause;
+}
+
+void lv_error_clear(lvErrorContext *ctx)
+{
+    if (!ctx) return;
+    ctx->frame_count = 0;
+    ctx->scratch[0] = '\0';
+}
+
+bool lv_error_has_error(lvErrorContext *ctx)
+{
+    if (!ctx) return false;
+    return ctx->frame_count > 0;
+}
+
+char *lv_error_format_chain(lvErrorContext *ctx)
+{
+    if (!ctx || ctx->frame_count <= 0) return NULL;
+
+    /* 估算所需缓冲区大小 */
+    /* 格式: [file:line] func: message (code=%d)\n */
+    /*        ^--- cause ---^                   */
+    size_t total_size = 256;
+    for (int i = 0; i < ctx->frame_count; i++) {
+        total_size += lv_ERROR_MSG_MAX + 128;
+    }
+
+    char *result = (char *)lv_malloc(total_size);
+    if (!result) return NULL;
+
+    result[0] = '\0';
+    size_t pos = 0;
+
+    /* 从最旧的帧开始遍历（根因优先） */
+    for (int i = 0; i < ctx->frame_count; i++) {
+        lvErrorFrame *frame = &ctx->frames[i];
+        const char *file = frame->file ? frame->file : "?";
+        const char *func = frame->func ? frame->func : "?";
+        int line = frame->line;
+
+        int written;
+        if (i == 0) {
+            written = snprintf(result + pos, total_size - pos,
+                "[%s:%d] %s: %s (code=%d)",
+                file, line, func, frame->message, frame->code);
+        } else {
+            written = snprintf(result + pos, total_size - pos,
+                "\n  caused by -> [%s:%d] %s: %s (code=%d)",
+                file, line, func, frame->message, frame->code);
+        }
+
+        if (written > 0 && (size_t)written < total_size - pos) {
+            pos += (size_t)written;
+        } else {
+            break;
+        }
+    }
+
+    return result;
+}
+
+const char *lv_error_file(lvErrorContext *ctx)
+{
+    if (!ctx || ctx->frame_count <= 0) return NULL;
+    return ctx->frames[ctx->frame_count - 1].file;
+}
+
+const char *lv_error_func(lvErrorContext *ctx)
+{
+    if (!ctx || ctx->frame_count <= 0) return NULL;
+    return ctx->frames[ctx->frame_count - 1].func;
+}
+
+int lv_error_line(lvErrorContext *ctx)
+{
+    if (!ctx || ctx->frame_count <= 0) return 0;
+    return ctx->frames[ctx->frame_count - 1].line;
+}

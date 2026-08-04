@@ -22,6 +22,11 @@
 #define GA_CODEGEN_LATEX_BUF_SIZE 256
 
 /* ========================================================================
+ * 代码生成处理器函数指针类型
+ * ======================================================================== */
+typedef char* (*CodegenHandler)(const lvMultiVector *mv, const GACodegenOptions *options);
+
+/* ========================================================================
  * 内部辅助：计算字符串行数
  * ======================================================================== */
 static int count_lines(const char *str) {
@@ -124,6 +129,49 @@ static char *generate_python_code(const lvMultiVector *mv, const GACodegenOption
 }
 
 /* ========================================================================
+ * VTable 包装函数：将各生成器适配为 CodegenHandler 签名
+ * ======================================================================== */
+
+static char* codegen_c(const lvMultiVector *mv, const GACodegenOptions *options) {
+    return generate_c_code(mv, options);
+}
+
+static char* codegen_cpp(const lvMultiVector *mv, const GACodegenOptions *options) {
+    return generate_cpp_code(mv, options);
+}
+
+static char* codegen_cuda(const lvMultiVector *mv, const GACodegenOptions *options) {
+    return generate_cuda_code(mv, options);
+}
+
+static char* codegen_python(const lvMultiVector *mv, const GACodegenOptions *options) {
+    return generate_python_code(mv, options);
+}
+
+static char* codegen_latex(const lvMultiVector *mv, const GACodegenOptions *options) {
+    (void)options;
+    return ga_render_latex(mv);
+}
+
+static char* codegen_dot(const lvMultiVector *mv, const GACodegenOptions *options) {
+    (void)options;
+    return ga_render_dot(mv);
+}
+
+/* ========================================================================
+ * 代码生成处理器静态查找表
+ * ======================================================================== */
+
+static const CodegenHandler kCodegenHandlers[] = {
+    [GA_CODEGEN_C]      = codegen_c,
+    [GA_CODEGEN_CPP]    = codegen_cpp,
+    [GA_CODEGEN_CUDA]   = codegen_cuda,
+    [GA_CODEGEN_PYTHON] = codegen_python,
+    [GA_CODEGEN_LATEX]  = codegen_latex,
+    [GA_CODEGEN_DOT]    = codegen_dot,
+};
+
+/* ========================================================================
  * 公共 API 实现
  * ======================================================================== */
 
@@ -141,30 +189,12 @@ GACodegenResult *ga_codegen_compile(const lvMultiVector *mv, const GACodegenOpti
     res->target = options->target;
     res->error_msg = NULL;
 
-    /* 选择目标语言生成器 */
-    switch (options->target) {
-        case GA_CODEGEN_C:
-            res->code = generate_c_code(mv, options);
-            break;
-        case GA_CODEGEN_CPP:
-            res->code = generate_cpp_code(mv, options);
-            break;
-        case GA_CODEGEN_CUDA:
-            res->code = generate_cuda_code(mv, options);
-            break;
-        case GA_CODEGEN_PYTHON:
-            res->code = generate_python_code(mv, options);
-            break;
-        case GA_CODEGEN_LATEX:
-            res->code = ga_render_latex(mv);
-            break;
-        case GA_CODEGEN_DOT:
-            res->code = ga_render_dot(mv);
-            break;
-        default:
-            res->error_msg = lv_strdup_safe("不支持的代码生成目标");
-            res->code = NULL;
-            break;
+    /* 通过 VTable 查找表选择目标语言生成器 */
+    if (options->target >= 0 && options->target < (int)(sizeof(kCodegenHandlers)/sizeof(kCodegenHandlers[0])) && kCodegenHandlers[options->target]) {
+        res->code = kCodegenHandlers[options->target](mv, options);
+    } else {
+        res->error_msg = lv_strdup_safe("不支持的代码生成目标");
+        res->code = NULL;
     }
 
     if (res->code == NULL && res->error_msg == NULL) {

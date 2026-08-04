@@ -186,19 +186,24 @@ GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type, 
     return geo_err(GEO_STATUS_INVALID_TYPE, "未知约束类型");
 }
 
+/* ── geo_solve 状态映射处理函数 ── */
+static GeoResult handle_solve_ok(void) { return s_ok; }
+static GeoResult handle_solve_conflict(void) { return geo_err(GEO_STATUS_CONFLICT, "求解冲突"); }
+static GeoResult handle_solve_timeout(void) { return geo_err(GEO_STATUS_TIMEOUT, "求解超时"); }
+
+static GeoResult (*kSolveHandlers[])(void) = {
+    [ENGINE_SOLVE_OK]       = handle_solve_ok,
+    [ENGINE_SOLVE_CONFLICT] = handle_solve_conflict,
+    [ENGINE_SOLVE_TIMEOUT]  = handle_solve_timeout,
+};
+
 /* 原语 3: geo_solve -- 求解约束系统 */
 GeoResult geo_solve(lvEngine *engine) {
     CHECK_ENGINE(engine);
-    switch (engine_solve(engine)) {
-        case ENGINE_SOLVE_OK:
-            return s_ok;
-        case ENGINE_SOLVE_CONFLICT:
-            return geo_err(GEO_STATUS_CONFLICT, "求解冲突");
-        case ENGINE_SOLVE_TIMEOUT:
-            return geo_err(GEO_STATUS_TIMEOUT, "求解超时");
-        default:
-            return geo_err(GEO_STATUS_INTERNAL_ERROR, "求解错误");
-    }
+    EngineSolveResult esr = engine_solve(engine);
+    if ((unsigned)esr < lv_ARRAY_SIZE(kSolveHandlers) && kSolveHandlers[esr])
+        return kSolveHandlers[esr]();
+    return geo_err(GEO_STATUS_INTERNAL_ERROR, "求解错误");
 }
 
 /* 原语 4: geo_normalize -- 约束图归一化 */
@@ -213,6 +218,19 @@ GeoResult geo_normalize(ConstraintGraph *graph, bool scope_aware) {
     return merged ? geo_ok(merged) : geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
 }
 
+/* ── geo_rewrite 状态映射处理函数 ── */
+static GeoResult handle_rewrite_ok(void) { return geo_ok(geo_dup_int(REWRITE_STATUS_OK)); }
+static GeoResult handle_rewrite_no_match(void) { return geo_ok(geo_dup_int(REWRITE_STATUS_NO_MATCH)); }
+static GeoResult handle_rewrite_terminated(void) { return geo_ok(geo_dup_int(REWRITE_STATUS_TERMINATED)); }
+static GeoResult handle_rewrite_confluence(void) { return geo_err(GEO_STATUS_CONFLICT, "汇流性问题"); }
+
+static GeoResult (*kRewriteHandlers[])(void) = {
+    [REWRITE_STATUS_OK]               = handle_rewrite_ok,
+    [REWRITE_STATUS_NO_MATCH]         = handle_rewrite_no_match,
+    [REWRITE_STATUS_TERMINATED]       = handle_rewrite_terminated,
+    [REWRITE_STATUS_CONFLUENCE_ISSUE] = handle_rewrite_confluence,
+};
+
 /* 原语 5: geo_rewrite -- 应用重写规则 */
 GeoResult geo_rewrite(ConstraintGraph *graph, void **rules, int rule_count, int step_limit) {
     CHECK_GRAPH(graph);
@@ -222,17 +240,27 @@ GeoResult geo_rewrite(ConstraintGraph *graph, void **rules, int rule_count, int 
         step_limit = 1000;
 
     RewriteStatus s = rewrite_with_rules(graph, (RewriteRule **) rules, rule_count, step_limit, true);
-    switch (s) {
-        case REWRITE_STATUS_OK:
-        case REWRITE_STATUS_NO_MATCH:
-        case REWRITE_STATUS_TERMINATED:
-            return geo_ok(geo_dup_int((int) s));
-        case REWRITE_STATUS_CONFLUENCE_ISSUE:
-            return geo_err(GEO_STATUS_CONFLICT, "汇流性问题");
-        default:
-            return geo_err(GEO_STATUS_INTERNAL_ERROR, "重写错误");
-    }
+    if ((unsigned)s < lv_ARRAY_SIZE(kRewriteHandlers) && kRewriteHandlers[s])
+        return kRewriteHandlers[s]();
+    return geo_err(GEO_STATUS_INTERNAL_ERROR, "重写错误");
 }
+
+/* ── geo_unify 状态映射处理函数 ── */
+static GeoResult handle_unify_ok(void) { return s_ok; }
+static GeoResult handle_unify_port_type_mismatch(void) { return geo_err(GEO_STATUS_CONFLICT, "端口类型不匹配"); }
+static GeoResult handle_unify_constraint_mismatch(void) { return geo_err(GEO_STATUS_CONFLICT, "约束不匹配"); }
+static GeoResult handle_unify_coord_mismatch(void) { return geo_err(GEO_STATUS_CONFLICT, "坐标不匹配"); }
+static GeoResult handle_unify_structure_mismatch(void) { return geo_err(GEO_STATUS_CONFLICT, "结构不匹配"); }
+static GeoResult handle_unify_scope_mismatch(void) { return geo_err(GEO_STATUS_CONFLICT, "作用域不匹配"); }
+
+static GeoResult (*kUnifyHandlers[])(void) = {
+    [UNIFY_STATUS_OK]                  = handle_unify_ok,
+    [UNIFY_STATUS_PORT_TYPE_MISMATCH]  = handle_unify_port_type_mismatch,
+    [UNIFY_STATUS_CONSTRAINT_MISMATCH] = handle_unify_constraint_mismatch,
+    [UNIFY_STATUS_COORD_MISMATCH]      = handle_unify_coord_mismatch,
+    [UNIFY_STATUS_STRUCTURE_MISMATCH]  = handle_unify_structure_mismatch,
+    [UNIFY_STATUS_SCOPE_MISMATCH]      = handle_unify_scope_mismatch,
+};
 
 /* 原语 6: geo_unify -- 统一构造与命题 */
 GeoResult geo_unify(const ConstraintGraph *construction, const ConstraintGraph *proposition) {
@@ -242,23 +270,26 @@ GeoResult geo_unify(const ConstraintGraph *construction, const ConstraintGraph *
         return geo_err(GEO_STATUS_NULL_ARG, "命题图 NULL");
 
     UnifyStatus s = unify_construction_with_proposition(construction, proposition);
-    switch (s) {
-        case UNIFY_STATUS_OK:
-            return s_ok;
-        case UNIFY_STATUS_PORT_TYPE_MISMATCH:
-            return geo_err(GEO_STATUS_CONFLICT, "端口类型不匹配");
-        case UNIFY_STATUS_CONSTRAINT_MISMATCH:
-            return geo_err(GEO_STATUS_CONFLICT, "约束不匹配");
-        case UNIFY_STATUS_COORD_MISMATCH:
-            return geo_err(GEO_STATUS_CONFLICT, "坐标不匹配");
-        case UNIFY_STATUS_STRUCTURE_MISMATCH:
-            return geo_err(GEO_STATUS_CONFLICT, "结构不匹配");
-        case UNIFY_STATUS_SCOPE_MISMATCH:
-            return geo_err(GEO_STATUS_CONFLICT, "作用域不匹配");
-        default:
-            return geo_err(GEO_STATUS_INTERNAL_ERROR, "合一失败");
-    }
+    if ((unsigned)s < lv_ARRAY_SIZE(kUnifyHandlers) && kUnifyHandlers[s])
+        return kUnifyHandlers[s]();
+    return geo_err(GEO_STATUS_INTERNAL_ERROR, "合一失败");
 }
+
+/* ── geo_pack 状态映射处理函数 ── */
+static GeoResult handle_pack_ok(FuncBlock *fb) {
+    int *id = geo_dup_int(func_block_get_id(fb));
+    func_block_destroy(fb);
+    return id ? geo_ok(id) : geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
+}
+static GeoResult handle_pack_cross_boundary(void) { return geo_err(GEO_STATUS_CONFLICT, "跨边界约束冲突"); }
+static GeoResult handle_pack_invalid_nodes(void) { return geo_err(GEO_STATUS_INVALID_PARAM, "无效内部节点"); }
+static GeoResult handle_pack_invalid_ports(void) { return geo_err(GEO_STATUS_INVALID_PARAM, "无效端口"); }
+
+static GeoResult (*kPackHandlers[])(void) = {
+    [PACK_RESULT_CROSS_BOUNDARY_CONFLICT] = handle_pack_cross_boundary,
+    [PACK_RESULT_INVALID_NODES]           = handle_pack_invalid_nodes,
+    [PACK_RESULT_INVALID_PORTS]           = handle_pack_invalid_ports,
+};
 
 /* 原语 7: geo_pack -- 打包为函数块 */
 GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids, int internal_count, const int *in_ports,
@@ -270,21 +301,11 @@ GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids, int internal
     FuncBlock *fb = NULL;
     PackResult r =
         func_block_pack(graph, internal_ids, internal_count, in_ports, in_count, out_ports, out_count, NULL, 0, &fb);
-    switch (r) {
-        case PACK_RESULT_OK: {
-            int *id = geo_dup_int(func_block_get_id(fb));
-            func_block_destroy(fb);
-            return id ? geo_ok(id) : geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
-        }
-        case PACK_RESULT_CROSS_BOUNDARY_CONFLICT:
-            return geo_err(GEO_STATUS_CONFLICT, "跨边界约束冲突");
-        case PACK_RESULT_INVALID_NODES:
-            return geo_err(GEO_STATUS_INVALID_PARAM, "无效内部节点");
-        case PACK_RESULT_INVALID_PORTS:
-            return geo_err(GEO_STATUS_INVALID_PARAM, "无效端口");
-        default:
-            return geo_err(GEO_STATUS_INTERNAL_ERROR, "打包错误");
-    }
+    if (r == PACK_RESULT_OK)
+        return handle_pack_ok(fb);
+    if ((unsigned)r < lv_ARRAY_SIZE(kPackHandlers) && kPackHandlers[r])
+        return kPackHandlers[r]();
+    return geo_err(GEO_STATUS_INTERNAL_ERROR, "打包错误");
 }
 
 /* 原语 8: geo_instantiate -- 实例化函数块 */

@@ -148,6 +148,18 @@ extern "C" {
  * ═══════════════════════════════════════════════════════════════════ */
 
 #ifdef _WIN32
+  #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+  #endif
+  #ifndef NOIME
+    #define NOIME
+  #endif
+  #ifndef NOSERVICE
+    #define NOSERVICE
+  #endif
+  #ifndef NOMCX
+    #define NOMCX
+  #endif
   #include <windows.h>
   static inline void *lv_dlopen(const char *path) {
       return (void *)LoadLibraryA(path);

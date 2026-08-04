@@ -379,21 +379,21 @@ FloatInterval float_interval_log(FloatInterval a) {
  * @param[in] op 运算符编码（RPN_OP_* 宏）
  * @return 优先级数值；若无法识别返回 0
  */
+/** @brief 运算符优先级查找表（索引为 -RPN_OP_* 编码，即取正后的值） */
+static const int kOpPrecedence[] = {
+    [-RPN_OP_ADD] = 1,
+    [-RPN_OP_SUB] = 1,
+    [-RPN_OP_MUL] = 2,
+    [-RPN_OP_DIV] = 2,
+    [-RPN_OP_NEG] = 3,
+    [-RPN_OP_POW] = 4,
+};
+
 static int expr_op_precedence(int op) {
-    switch (op) {
-        case RPN_OP_ADD:
-        case RPN_OP_SUB:
-            return 1;
-        case RPN_OP_MUL:
-        case RPN_OP_DIV:
-            return 2;
-        case RPN_OP_NEG:
-            return 3;
-        case RPN_OP_POW:
-            return 4;
-        default:
-            return 0;
-    }
+    int idx = -op;
+    if (idx > 0 && idx < (int)(sizeof(kOpPrecedence)/sizeof(kOpPrecedence[0])))
+        return kOpPrecedence[idx];
+    return 0;
 }
 
 /* ========================================================================

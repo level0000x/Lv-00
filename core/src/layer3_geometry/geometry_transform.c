@@ -486,6 +486,63 @@ lvTransform *lv_transform_scaling(const mpq_t cx, const mpq_t cy, const mpq_t sc
     return t;
 }
 
+/* ── 变换参数清理处理器（VTable 重构） ── */
+
+/** @brief 清理处理器函数指针类型 */
+typedef void (*TransformCleanupHandler)(const lvTransform *t);
+
+/** @brief 清理平移变换参数 */
+static void cleanup_translation(const lvTransform *t) {
+    mpq_clear(t->params.params.translation.dx);
+    mpq_clear(t->params.params.translation.dy);
+}
+
+/** @brief 清理旋转变换参数 */
+static void cleanup_rotation(const lvTransform *t) {
+    mpq_clear(t->params.params.rotation.cx);
+    mpq_clear(t->params.params.rotation.cy);
+    mpq_clear(t->params.params.rotation.cos_theta);
+    mpq_clear(t->params.params.rotation.sin_theta);
+}
+
+/** @brief 清理反射变换参数 */
+static void cleanup_reflection(const lvTransform *t) {
+    mpq_clear(t->params.params.reflection.ax);
+    mpq_clear(t->params.params.reflection.ay);
+    mpq_clear(t->params.params.reflection.bx);
+    mpq_clear(t->params.params.reflection.by);
+    mpq_clear(t->params.params.reflection.line_a);
+    mpq_clear(t->params.params.reflection.line_b);
+    mpq_clear(t->params.params.reflection.line_c);
+}
+
+/** @brief 清理缩放变换参数 */
+static void cleanup_scaling(const lvTransform *t) {
+    mpq_clear(t->params.params.scaling.cx);
+    mpq_clear(t->params.params.scaling.cy);
+    mpq_clear(t->params.params.scaling.scale);
+}
+
+/** @brief 默认清理处理器（空操作） */
+static void cleanup_default(const lvTransform *t) {
+    (void)t;
+}
+
+/** @brief 清理处理器查找表（按 lvTransformType 枚举索引） */
+static const TransformCleanupHandler kTransformCleanupHandlers[] = {
+    [TRANSFORM_IDENTITY]    = cleanup_default,
+    [TRANSFORM_TRANSLATION] = cleanup_translation,
+    [TRANSFORM_ROTATION]    = cleanup_rotation,
+    [TRANSFORM_SCALE]       = cleanup_default,
+    [TRANSFORM_SHEAR]       = cleanup_default,
+    [TRANSFORM_REFLECTION]  = cleanup_reflection,
+    [TRANSFORM_SCALING]     = cleanup_scaling,
+    [TRANSFORM_AFFINE]      = cleanup_default,
+    [TRANSFORM_PROJECTIVE]  = cleanup_default,
+    [TRANSFORM_GLUING]      = cleanup_default,
+    [TRANSFORM_COMPOSITE]   = cleanup_default,
+};
+
 void lv_transform_destroy(lvTransform *t) {
     if (!t) {
         return;
@@ -496,34 +553,10 @@ void lv_transform_destroy(lvTransform *t) {
         return;
     }
 
-    /* 清理参数 */
-    switch (t->type) {
-        case TRANSFORM_TRANSLATION:
-            mpq_clear(t->params.params.translation.dx);
-            mpq_clear(t->params.params.translation.dy);
-            break;
-        case TRANSFORM_ROTATION:
-            mpq_clear(t->params.params.rotation.cx);
-            mpq_clear(t->params.params.rotation.cy);
-            mpq_clear(t->params.params.rotation.cos_theta);
-            mpq_clear(t->params.params.rotation.sin_theta);
-            break;
-        case TRANSFORM_REFLECTION:
-            mpq_clear(t->params.params.reflection.ax);
-            mpq_clear(t->params.params.reflection.ay);
-            mpq_clear(t->params.params.reflection.bx);
-            mpq_clear(t->params.params.reflection.by);
-            mpq_clear(t->params.params.reflection.line_a);
-            mpq_clear(t->params.params.reflection.line_b);
-            mpq_clear(t->params.params.reflection.line_c);
-            break;
-        case TRANSFORM_SCALING:
-            mpq_clear(t->params.params.scaling.cx);
-            mpq_clear(t->params.params.scaling.cy);
-            mpq_clear(t->params.params.scaling.scale);
-            break;
-        default:
-            break;
+    /* 清理参数（VTable 分发） */
+    if (t->type >= 0 && t->type < (int)(sizeof(kTransformCleanupHandlers)/sizeof(kTransformCleanupHandlers[0]))
+        && kTransformCleanupHandlers[t->type]) {
+        kTransformCleanupHandlers[t->type](t);
     }
 
     /* 清理矩阵 */

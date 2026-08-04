@@ -386,6 +386,14 @@ static const StageHandlerEntry kStageHandlers[] = {
 };
 static const int kStageHandlerCount = (int)(sizeof(kStageHandlers) / sizeof(kStageHandlers[0]));
 
+/** @brief Pipeline 状态 → session 状态映射表 */
+static const int kPipelineStageStatusMap[] = {
+    [lv_PIPELINE_STAGE_COMPLETED] = lv_STAGE_COMPLETED,
+    [lv_PIPELINE_STAGE_FAILED]    = lv_STAGE_FAILED,
+    [lv_PIPELINE_STAGE_SKIPPED]   = lv_STAGE_SKIPPED,
+    [lv_PIPELINE_STAGE_CANCELLED] = lv_STAGE_SKIPPED,
+};
+
 /**
  * @brief 流水线阶段处理函数包装器
  *
@@ -466,24 +474,9 @@ int lv_session_run(lvSession *session, const char *input) {
         lvPipelineStage *ps = &pipeline.stages[i];
         lvStageResult *sr = &session->stages[i];
 
-        /* 映射 pipeline 状态到 session 状态 */
-        switch (ps->status) {
-            case lv_PIPELINE_STAGE_COMPLETED:
-                sr->status = lv_STAGE_COMPLETED;
-                break;
-            case lv_PIPELINE_STAGE_FAILED:
-                sr->status = lv_STAGE_FAILED;
-                break;
-            case lv_PIPELINE_STAGE_SKIPPED:
-                sr->status = lv_STAGE_SKIPPED;
-                break;
-            case lv_PIPELINE_STAGE_CANCELLED:
-                sr->status = lv_STAGE_SKIPPED;
-                break;
-            default:
-                /* 保持原状 */
-                break;
-        }
+        /* 通过查找表映射 pipeline 状态到 session 状态 */
+        if ((unsigned)ps->status < sizeof(kPipelineStageStatusMap)/sizeof(kPipelineStageStatusMap[0]))
+            sr->status = kPipelineStageStatusMap[ps->status];
     }
 
     /* 清理流水线 */
