@@ -738,81 +738,120 @@ void expr_destroy(Expr *e) {
     }
 }
 
+/* ---- VTable-based expression evaluation ---- */
+
+/* Forward declaration */
+int expr_eval(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars);
+
+/* Function pointer type for expression evaluation handlers */
+typedef int (*ExprEvalFn)(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars);
+
+/* --- Handler functions --- */
+
+static int eval_const(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    (void)varnames; (void)values; (void)nvars;
+    mpq_set(result, e->val);
+    return 0;
+}
+
+static int eval_var(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    for (int i = 0; i < nvars; i++) {
+        if (strcmp(e->name, varnames[i]) == 0) {
+            mpq_set(result, values[i]);
+            return 0;
+        }
+    }
+    mpq_set_si(result, 0, 1);
+    return -1; /* var not found */
+}
+
+static int eval_add(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    mpq_t l, r;
+    mpq_inits(l, r, NULL);
+    expr_eval(l, e->left, varnames, values, nvars);
+    expr_eval(r, e->right, varnames, values, nvars);
+    mpq_add(result, l, r);
+    mpq_clears(l, r, NULL);
+    return 0;
+}
+
+static int eval_sub(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    mpq_t l, r;
+    mpq_inits(l, r, NULL);
+    expr_eval(l, e->left, varnames, values, nvars);
+    expr_eval(r, e->right, varnames, values, nvars);
+    mpq_sub(result, l, r);
+    mpq_clears(l, r, NULL);
+    return 0;
+}
+
+static int eval_mul(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    mpq_t l, r;
+    mpq_inits(l, r, NULL);
+    expr_eval(l, e->left, varnames, values, nvars);
+    expr_eval(r, e->right, varnames, values, nvars);
+    mpq_mul(result, l, r);
+    mpq_clears(l, r, NULL);
+    return 0;
+}
+
+static int eval_div(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    mpq_t l, r;
+    mpq_inits(l, r, NULL);
+    expr_eval(l, e->left, varnames, values, nvars);
+    expr_eval(r, e->right, varnames, values, nvars);
+    if (mpq_sgn(r) == 0) {
+        mpq_set_si(result, 0, 1);
+        mpq_clears(l, r, NULL);
+        return -2;
+    }
+    mpq_div(result, l, r);
+    mpq_clears(l, r, NULL);
+    return 0;
+}
+
+static int eval_pow(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    if (expr_eval(result, e->left, varnames, values, nvars) < 0)
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "expr_eval: pow sub-eval failed");
+    {
+        mpz_t num, den, base_num, base_den;
+        mpz_inits(num, den, base_num, base_den, NULL);
+        mpq_get_num(base_num, result);
+        mpq_get_den(base_den, result);
+        mpz_set(num, base_num);
+        mpz_set(den, base_den);
+        for (int i = 1; i < e->exp; i++) {
+            mpz_mul(num, num, base_num);
+            mpz_mul(den, den, base_den);
+        }
+        mpq_set_num(result, num);
+        mpq_set_den(result, den);
+        mpz_clears(num, den, base_num, base_den, NULL);
+    }
+    return 0;
+}
+
+/* VTable for expression evaluation */
+static const ExprEvalFn kExprEvalHandlers[] = {
+    [0] = eval_const,
+    [1] = eval_var,
+    [2] = eval_add,
+    [3] = eval_sub,
+    [4] = eval_mul,
+    [5] = eval_div,
+    [6] = eval_pow,
+};
+
 /* expr_eval: 代入 env (var_name → mpq_t*) 计算精确有理数值 */
 int expr_eval(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
     if (!e)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "expr_eval: NULL expr");
-    mpq_t l, r;
-    switch (e->kind) {
-        case 0: /* const */
-            mpq_set(result, e->val);
-            return 0;
-        case 1: /* var */
-            for (int i = 0; i < nvars; i++) {
-                if (strcmp(e->name, varnames[i]) == 0) {
-                    mpq_set(result, values[i]);
-                    return 0;
-                }
-            }
-            mpq_set_si(result, 0, 1);
-            return -1; /* var not found */
-        case 2:        /* add */
-            mpq_inits(l, r, NULL);
-            expr_eval(l, e->left, varnames, values, nvars);
-            expr_eval(r, e->right, varnames, values, nvars);
-            mpq_add(result, l, r); /* GMP 精确加法 */
-            mpq_clears(l, r, NULL);
-            return 0;
-        case 3: /* sub */
-            mpq_inits(l, r, NULL);
-            expr_eval(l, e->left, varnames, values, nvars);
-            expr_eval(r, e->right, varnames, values, nvars);
-            mpq_sub(result, l, r); /* GMP 精确减法 */
-            mpq_clears(l, r, NULL);
-            return 0;
-        case 4: /* mul */
-            mpq_inits(l, r, NULL);
-            expr_eval(l, e->left, varnames, values, nvars);
-            expr_eval(r, e->right, varnames, values, nvars);
-            mpq_mul(result, l, r); /* GMP 精确乘法 */
-            mpq_clears(l, r, NULL);
-            return 0;
-        case 5: /* div */
-            mpq_inits(l, r, NULL);
-            expr_eval(l, e->left, varnames, values, nvars);
-            expr_eval(r, e->right, varnames, values, nvars);
-            if (mpq_sgn(r) == 0) {
-                mpq_set_si(result, 0, 1);
-                mpq_clears(l, r, NULL);
-                return -2;
-            }
-            mpq_div(result, l, r); /* GMP 精确除法 */
-            mpq_clears(l, r, NULL);
-            return 0;
-        case 6: /* pow */
-            if (expr_eval(result, e->left, varnames, values, nvars) < 0)
-                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "expr_eval: pow sub-eval failed");
-            /* 精确有理数幂: result = result^exp */
-            {
-                mpz_t num, den, base_num, base_den;
-                mpz_inits(num, den, base_num, base_den, NULL);
-                mpq_get_num(base_num, result);
-                mpq_get_den(base_den, result);
-                mpz_set(num, base_num);
-                mpz_set(den, base_den);
-                for (int i = 1; i < e->exp; i++) {
-                    mpz_mul(num, num, base_num); /* 乘以原始基数, 非平方 */
-                    mpz_mul(den, den, base_den);
-                }
-                mpq_set_num(result, num);
-                mpq_set_den(result, den);
-                mpz_clears(num, den, base_num, base_den, NULL);
-            }
-            return 0;
-        default:
-            mpq_set_si(result, 0, 1);
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "expr_eval: unknown expr kind %d", e->kind);
+    if ((unsigned)e->kind < sizeof(kExprEvalHandlers)/sizeof(kExprEvalHandlers[0]) && kExprEvalHandlers[e->kind]) {
+        return kExprEvalHandlers[e->kind](result, e, varnames, values, nvars);
     }
+    mpq_set_si(result, 0, 1);
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "expr_eval: unknown expr kind %d", e->kind);
+    return -1;
 }
 
 /* expr_compare: 用 GMP 比较两表达式在给定环境下的值 */

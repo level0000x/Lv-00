@@ -508,6 +508,43 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
     return lv_strbuf_to_string(&sb);
 }
 
+/* ================================================================
+ * 函数指针类型 + 包装函数 + 查找表（替代 switch）
+ * ================================================================ */
+
+/** @brief 编译输出处理函数指针类型 */
+typedef char *(*CompileHandlerFn)(lvProofCompiler *compiler, const lvProofObject *proof, const lvProofTrace *trace);
+
+static char *compile_json(lvProofCompiler *compiler, const lvProofObject *proof, const lvProofTrace *trace) {
+    (void)compiler;
+    return lv_proof_compiler_to_json(proof, trace);
+}
+static char *compile_latex(lvProofCompiler *compiler, const lvProofObject *proof, const lvProofTrace *trace) {
+    (void)trace;
+    return lv_proof_compiler_to_latex(proof, compiler->config.language);
+}
+static char *compile_tikz(lvProofCompiler *compiler, const lvProofObject *proof, const lvProofTrace *trace) {
+    (void)compiler; (void)trace;
+    return lv_proof_compiler_to_tikz(proof);
+}
+static char *compile_text(lvProofCompiler *compiler, const lvProofObject *proof, const lvProofTrace *trace) {
+    (void)trace;
+    return lv_proof_compiler_to_text(proof, compiler->config.language);
+}
+static char *compile_graphviz(lvProofCompiler *compiler, const lvProofObject *proof, const lvProofTrace *trace) {
+    (void)compiler;
+    return lv_proof_compiler_to_graphviz(proof, trace);
+}
+
+/** @brief 编译输出格式查找表（按枚举值索引） */
+static const CompileHandlerFn kCompileHandlers[] = {
+    [OUTPUT_FORMAT_JSON] = compile_json,
+    [OUTPUT_FORMAT_LATEX] = compile_latex,
+    [OUTPUT_FORMAT_TIKZ] = compile_tikz,
+    [OUTPUT_FORMAT_TEXT] = compile_text,
+    [OUTPUT_FORMAT_GRAPHVIZ] = compile_graphviz,
+};
+
 /**
  * @brief 编译证明对象为字符串
  */
@@ -515,20 +552,10 @@ char *lv_proof_compiler_compile(lvProofCompiler *compiler, const lvProofObject *
     if (!compiler || !proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_compile: compiler or proof is NULL");
 
-    switch (compiler->config.format) {
-        case OUTPUT_FORMAT_JSON:
-            return lv_proof_compiler_to_json(proof, trace);
-        case OUTPUT_FORMAT_LATEX:
-            return lv_proof_compiler_to_latex(proof, compiler->config.language);
-        case OUTPUT_FORMAT_TIKZ:
-            return lv_proof_compiler_to_tikz(proof);
-        case OUTPUT_FORMAT_TEXT:
-            return lv_proof_compiler_to_text(proof, compiler->config.language);
-        case OUTPUT_FORMAT_GRAPHVIZ:
-            return lv_proof_compiler_to_graphviz(proof, trace);
-        default:
-            return lv_proof_compiler_to_text(proof, compiler->config.language);
+    if ((unsigned)compiler->config.format < sizeof(kCompileHandlers)/sizeof(kCompileHandlers[0]) && kCompileHandlers[compiler->config.format]) {
+        return kCompileHandlers[compiler->config.format](compiler, proof, trace);
     }
+    return lv_proof_compiler_to_text(proof, compiler->config.language);
 }
 
 /**

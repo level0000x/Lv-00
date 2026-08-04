@@ -1,4 +1,4 @@
-/*
+﻿/*
  * @file high_dim_project.c
  * @brief High-dim module - coordinate projection and 3d projection
  * @details Split from high_dim.c
@@ -49,6 +49,60 @@
  * @param projected       输出参数，接收投影结果
  * @return lv_OK 成功，错误码表示失败原因
  */
+typedef struct {
+    HighDimProjectedCoord *projected;
+    double scaled_value;
+    double coord_value;
+    const HighDimAxisMapping *mapping;
+    char *folded_dims;
+    size_t *folded_pos;
+    int *folded_count;
+} ProjectContext;
+
+typedef void (*ProjectFn)(const ProjectContext *ctx);
+
+static void project_to_x(const ProjectContext *ctx) {
+    ctx->projected->x += ctx->scaled_value;
+}
+static void project_to_y(const ProjectContext *ctx) {
+    ctx->projected->y += ctx->scaled_value;
+}
+static void project_log(const ProjectContext *ctx) {
+    double v = ctx->coord_value;
+    double logv = log(1.0 + fabs(v));
+    ctx->projected->x += ctx->mapping->scale * (v < 0.0 ? -logv : logv) + ctx->mapping->offset;
+}
+static void project_exp(const ProjectContext *ctx) {
+    double ev = exp(ctx->coord_value);
+    if (ev > 1e12) ev = 1e12;
+    if (ev < -1e12) ev = -1e12;
+    ctx->projected->x += ctx->mapping->scale * ev + ctx->mapping->offset;
+}
+static void project_tsne(const ProjectContext *ctx) {
+    double v = ctx->coord_value;
+    ctx->projected->x += ctx->mapping->scale * v / (1.0 + fabs(v));
+}
+static void project_fold_discard(const ProjectContext *ctx) {
+    if (*ctx->folded_count < 3) {
+        char dim_info[32];
+        high_dim_snprintf(dim_info, sizeof(dim_info), "%d:%.2f", ctx->mapping->axis_index, ctx->coord_value);
+        lv_str_append_sep(ctx->folded_dims, 256, ctx->folded_pos, ", ", dim_info);
+    }
+    (*ctx->folded_count)++;
+}
+
+static const ProjectFn kProjectHandlers[] = {
+    [HIGH_DIM_MAP_TO_X] = project_to_x,
+    [HIGH_DIM_MAP_TO_Y] = project_to_y,
+    [HIGH_DIM_MAP_LINEAR] = project_to_x,
+    [HIGH_DIM_MAP_LOG] = project_log,
+    [HIGH_DIM_MAP_EXP] = project_exp,
+    [HIGH_DIM_MAP_PCA] = project_to_x,
+    [HIGH_DIM_MAP_T_SNE] = project_tsne,
+    [HIGH_DIM_MAP_FOLD] = project_fold_discard,
+    [HIGH_DIM_MAP_DISCARD] = project_fold_discard,
+};
+
 int high_dim_project_coordinates(HighDimManager *manager, int block_id, const SymbolicCoord **high_dim_coords,
                                  int coord_count, HighDimProjectedCoord *projected) {
     /*
@@ -101,76 +155,9 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id, const Sy
 
         double scaled_value = coord_value * mapping->scale + mapping->offset;
 
-        switch (mapping->mapping_type) {
-            case HIGH_DIM_MAP_TO_X:
-                projected->x += scaled_value;
-                break;
-            case HIGH_DIM_MAP_TO_Y:
-                projected->y += scaled_value;
-                break;
-            case HIGH_DIM_MAP_LINEAR:
-                /* 线性投影：加权线性组合，scale 为权重、offset 为偏置 */
-                projected->x += scaled_value;
-                break;
-            case HIGH_DIM_MAP_LOG:
-                /*
-                 * 对数尺度映射：
-                 *   y = scale * sign(v) * log(1 + |v|) + offset
-                 * 压缩大动态范围、放大近零小值，同时保持数值符号。
-                 */
-                {
-                    double v = coord_value;
-                    double logv = log(1.0 + fabs(v));
-                    projected->x += mapping->scale * (v < 0.0 ? -logv : logv) + mapping->offset;
-                }
-                break;
-            case HIGH_DIM_MAP_EXP:
-                /*
-                 * 指数尺度映射：
-                 *   y = scale * exp(v) + offset
-                 * 放大维度间的差异；对指数结果进行钳制，防止数值溢出。
-                 */
-                {
-                    double ev = exp(coord_value);
-                    if (ev > 1e12) {
-                        ev = 1e12;
-                    }
-                    if (ev < -1e12) {
-                        ev = -1e12;
-                    }
-                    projected->x += mapping->scale * ev + mapping->offset;
-                }
-                break;
-            case HIGH_DIM_MAP_PCA:
-                /*
-                 * 主成分方向投影（单点退化形式）：
-                 * 单个数据点无法估计协方差矩阵，此处将 scale 解释为
-                 * 该维度在第一主成分方向上的权重，投影结果为加权线性组合，
-                 * 语义等价于“按主成分权重将维度投影到 x 轴”。
-                 */
-                projected->x += scaled_value;
-                break;
-            case HIGH_DIM_MAP_T_SNE:
-                /*
-                 * t-SNE 单点核近似：
-                 *   y = scale * v / (1 + |v|)
-                 * 采用 t 分布核的归一化形式，将极端值压缩到 (-1, 1)，
-                 * 模拟 t-SNE 对距离的鲁棒缩放行为。
-                 */
-                {
-                    double v = coord_value;
-                    projected->x += mapping->scale * v / (1.0 + fabs(v));
-                }
-                break;
-            case HIGH_DIM_MAP_FOLD:
-            case HIGH_DIM_MAP_DISCARD:
-                if (folded_count < 3) {
-                    char dim_info[32];
-                    high_dim_snprintf(dim_info, sizeof(dim_info), "%d:%.2f", mapping->axis_index, coord_value);
-                    lv_str_append_sep(folded_dims, sizeof(folded_dims), &folded_pos, ", ", dim_info);
-                }
-                folded_count++;
-                break;
+        if ((unsigned)mapping->mapping_type < sizeof(kProjectHandlers)/sizeof(kProjectHandlers[0]) && kProjectHandlers[mapping->mapping_type]) {
+            ProjectContext pctx = {projected, scaled_value, coord_value, mapping, folded_dims, &folded_pos, &folded_count};
+            kProjectHandlers[mapping->mapping_type](&pctx);
         }
     }
 

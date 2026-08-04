@@ -133,6 +133,30 @@ static uint8_t *serialize_clers(const EdgebreakerMode *seq, int seq_len, size_t 
     return buf;
 }
 
+typedef bool (*EntropyEncodeFn)(const uint8_t *data, size_t size, uint8_t **out, size_t *out_size);
+
+static bool encode_none(const uint8_t *data, size_t size, uint8_t **out, size_t *out_size) {
+    *out = (uint8_t *)data;  /* transfer ownership */
+    *out_size = size;
+    return true;
+}
+static bool encode_huffman(const uint8_t *data, size_t size, uint8_t **out, size_t *out_size) {
+    return entropy_encode_huffman(data, size, out, out_size);
+}
+static bool encode_rans(const uint8_t *data, size_t size, uint8_t **out, size_t *out_size) {
+    return entropy_encode_real(data, size, out, out_size);
+}
+static bool encode_arithmetic(const uint8_t *data, size_t size, uint8_t **out, size_t *out_size) {
+    return entropy_encode_real(data, size, out, out_size);
+}
+
+static const EntropyEncodeFn kEntropyEncoders[] = {
+    [ENTROPY_NONE] = encode_none,
+    [ENTROPY_HUFFMAN] = encode_huffman,
+    [ENTROPY_RANS] = encode_rans,
+    [ENTROPY_ARITHMETIC] = encode_arithmetic,
+};
+
 bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *config, uint8_t **out_data, size_t *out_size,
                        CompressMetadata *out_meta) {
     if (!graph || !out_data || !out_size)
@@ -202,34 +226,11 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
     size_t encoded_size = 0;
     bool enc_ok = false;
 
-    switch (cfg.entropy) {
-        case ENTROPY_NONE:
-            /* No entropy encoding: output combined data directly */
-            encoded = combined;
-            encoded_size = combined_size;
-            combined = NULL; /* Transfer ownership, prevent double-free */
-            enc_ok = true;
-            break;
-
-        case ENTROPY_HUFFMAN:
-            /* Pure Huffman encoding */
-            enc_ok = entropy_encode_huffman(combined, combined_size, &encoded, &encoded_size);
-            break;
-
-        case ENTROPY_RANS:
-            // TODO: RANS 编码器尚未实现，使用默认 RLE+Huffman 编码
-            enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
-            break;
-
-        case ENTROPY_ARITHMETIC:
-            // TODO: 算术编码器尚未实现，使用默认 RLE+Huffman 编码
-            enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
-            break;
-
-        default:
-            /* Fallback to default RLE + Huffman */
-            enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
-            break;
+    if ((unsigned)cfg.entropy < sizeof(kEntropyEncoders)/sizeof(kEntropyEncoders[0]) && kEntropyEncoders[cfg.entropy]) {
+        enc_ok = kEntropyEncoders[cfg.entropy](combined, combined_size, &encoded, &encoded_size);
+        if (cfg.entropy == ENTROPY_NONE) combined = NULL; /* ownership transferred */
+    } else {
+        enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
     }
 
     lv_free((void **) &combined);

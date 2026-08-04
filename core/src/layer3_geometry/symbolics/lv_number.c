@@ -703,12 +703,16 @@ lv_PUBLIC_API void lv_number_destroy(lvNumber *n) {
  * ============================================================ */
 
 lv_PUBLIC_API const char *lv_number_type_name(lvNumberType type) {
-    switch (type) {
-        case lv_NUMBER_RATIONAL:  return "Rational";
-        case lv_NUMBER_ALGEBRAIC: return "Algebraic";
-        case lv_NUMBER_INTERVAL:  return "Interval";
-        case lv_NUMBER_FLOAT:     return "Float";
-        case lv_NUMBER_INTEGER:   return "Integer";
-        default:                  return "Unknown";
+    static const char *kNumberTypeNames[] = {
+        [lv_NUMBER_RATIONAL] = "Rational",
+        [lv_NUMBER_ALGEBRAIC] = "Algebraic",
+        [lv_NUMBER_INTERVAL] = "Interval",
+        [lv_NUMBER_FLOAT] = "Float",
+        [lv_NUMBER_INTEGER] = "Integer",
+    };
+
+    if ((unsigned)type < sizeof(kNumberTypeNames)/sizeof(kNumberTypeNames[0]) && kNumberTypeNames[type]) {
+        return kNumberTypeNames[type];
     }
+    return "Unknown";
 }

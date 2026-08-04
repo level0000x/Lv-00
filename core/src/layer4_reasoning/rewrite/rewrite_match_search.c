@@ -41,24 +41,19 @@ extern bool evaluate_precondition(ConstraintGraph *graph, RewriteRule *rule, Rew
 #define REWRITE_GEOM_TYPE_COUNT 6
 
 static unsigned rewrite_constraint_participant_type_mask(ConstraintType type, int position) {
-    switch (type) {
-        case INCIDENCE:
-            return (position == 0) ? (1u << GEOM_POINT)
-                                   : ((1u << GEOM_LINE_SEGMENT) | (1u << GEOM_REGION) | (1u << GEOM_CIRCLE));
-        case BETWEENNESS:
-            return 1u << GEOM_POINT;
-        case INTERSECTION:
-            return (position < 2) ? (1u << GEOM_LINE_SEGMENT) : (1u << GEOM_POINT);
-        case CONTAINMENT:
-            return (position == 0) ? ((1u << GEOM_POINT) | (1u << GEOM_REGION))
-                                   : ((1u << GEOM_REGION) | (1u << GEOM_CIRCLE));
-        case CONNECTION:
-            return 1u << GEOM_PORT;
-        case ANGLE:
-            return 1u << GEOM_LINE_SEGMENT;
-        default:
-            return (1u << REWRITE_GEOM_TYPE_COUNT) - 1u;
+    static const unsigned kConstraintTypeMasks[][3] = {
+        [INCIDENCE]    = {1u << GEOM_POINT, (1u << GEOM_LINE_SEGMENT) | (1u << GEOM_REGION) | (1u << GEOM_CIRCLE), 0},
+        [BETWEENNESS]  = {1u << GEOM_POINT, 1u << GEOM_POINT, 1u << GEOM_POINT},
+        [INTERSECTION] = {1u << GEOM_LINE_SEGMENT, 1u << GEOM_LINE_SEGMENT, 1u << GEOM_POINT},
+        [CONTAINMENT]  = {(1u << GEOM_POINT) | (1u << GEOM_REGION), (1u << GEOM_REGION) | (1u << GEOM_CIRCLE), 0},
+        [CONNECTION]   = {1u << GEOM_PORT, 1u << GEOM_PORT, 0},
+        [ANGLE]        = {1u << GEOM_LINE_SEGMENT, 1u << GEOM_LINE_SEGMENT, 0},
+    };
+    if ((unsigned)type < sizeof(kConstraintTypeMasks)/sizeof(kConstraintTypeMasks[0]) && (unsigned)position < 3) {
+        unsigned mask = kConstraintTypeMasks[type][position];
+        if (mask != 0) return mask;
     }
+    return (1u << REWRITE_GEOM_TYPE_COUNT) - 1u;
 }
 
 static void rewrite_pattern_var_type_masks(const RewritePattern *pat, unsigned *masks, int var_count) {

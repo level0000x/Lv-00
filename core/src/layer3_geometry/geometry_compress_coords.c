@@ -22,6 +22,22 @@
 #include "node_deep_copy.h"
 #include "symbolic_coord.h"
 
+/* ── Prediction function pointer type ── */
+typedef bool (*PredictFn)(ConstraintGraph *graph);
+
+/* ── No-op predictor for PREDICT_NONE ── */
+static bool predict_none(ConstraintGraph *graph) {
+    (void)graph;
+    return true;
+}
+
+/* ── Predictor dispatch table (PREDICT_NONE = -1 handled separately) ── */
+static const PredictFn kPredictHandlers[] = {
+    [PREDICT_PARALLELOGRAM] = predictive_encode_parallelogram,
+    [PREDICT_MULTI_PARALLELOGRAM] = predictive_encode_multi_parallelogram,
+    [PREDICT_DELTA] = predictive_encode_delta,
+};
+
 /* ========================================================================
  * Public predictive encoding interface
  * ======================================================================== */
@@ -30,22 +46,12 @@ bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
     if (!graph)
         return false;
 
-    switch (mode) {
-        case PREDICT_PARALLELOGRAM:
-            return predictive_encode_parallelogram(graph);
+    if (mode == PREDICT_NONE)
+        return true;
 
-        case PREDICT_MULTI_PARALLELOGRAM:
-            return predictive_encode_multi_parallelogram(graph);
-
-        case PREDICT_DELTA:
-            return predictive_encode_delta(graph);
-
-        case PREDICT_NONE:
-            /* No prediction: keep original coordinates */
-            return true;
-
-        default:
-            return false;
+    if ((unsigned)mode < sizeof(kPredictHandlers)/sizeof(kPredictHandlers[0]) && kPredictHandlers[mode]) {
+        return kPredictHandlers[mode](graph);
     }
+    return false;
 }
 

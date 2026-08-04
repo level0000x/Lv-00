@@ -176,33 +176,22 @@ lvMultiVector *ga_mv_grade_project(const lvMultiVector *mv, int grade) {
     if (!result)
         return NULL;
 
-    switch (grade) {
-        case 0:
-            result->c[GA_S] = mv->c[GA_S];
-            break;
-        case 1:
-            result->c[GA_E0] = mv->c[GA_E0];
-            result->c[GA_E1] = mv->c[GA_E1];
-            result->c[GA_E2] = mv->c[GA_E2];
-            result->c[GA_E3] = mv->c[GA_E3];
-            break;
-        case 2:
-            result->c[GA_E01] = mv->c[GA_E01];
-            result->c[GA_E02] = mv->c[GA_E02];
-            result->c[GA_E03] = mv->c[GA_E03];
-            result->c[GA_E12] = mv->c[GA_E12];
-            result->c[GA_E13] = mv->c[GA_E13];
-            result->c[GA_E23] = mv->c[GA_E23];
-            break;
-        case 3:
-            result->c[GA_E012] = mv->c[GA_E012];
-            result->c[GA_E013] = mv->c[GA_E013];
-            result->c[GA_E023] = mv->c[GA_E023];
-            result->c[GA_E123] = mv->c[GA_E123];
-            break;
-        case 4:
-            result->c[GA_E0123] = mv->c[GA_E0123];
-            break;
+    /* Grade -> component mask lookup table */
+    static const unsigned kGradeComponentMasks[] = {
+        [0] = (1u << GA_S),
+        [1] = (1u << GA_E0) | (1u << GA_E1) | (1u << GA_E2) | (1u << GA_E3),
+        [2] = (1u << GA_E01) | (1u << GA_E02) | (1u << GA_E03) | (1u << GA_E12) | (1u << GA_E13) | (1u << GA_E23),
+        [3] = (1u << GA_E012) | (1u << GA_E013) | (1u << GA_E023) | (1u << GA_E123),
+        [4] = (1u << GA_E0123),
+    };
+
+    if ((unsigned)grade < sizeof(kGradeComponentMasks)/sizeof(kGradeComponentMasks[0])) {
+        unsigned mask = kGradeComponentMasks[grade];
+        for (int i = 0; i < 16; i++) {
+            if (mask & (1u << i)) {
+                result->c[i] = mv->c[i];
+            }
+        }
     }
 
     return result;

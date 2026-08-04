@@ -143,35 +143,46 @@ int resolve_replacement_participant(int participant_id, const int *match_binding
  * @param participant_count 参与者数量
  * @return true 添加成功，false 失败（类型不支持或参数不匹配）
  */
+typedef bool (*AddConstraintFn)(ConstraintGraph *graph, const int *participants, int participant_count);
+
+static bool add_incidence_impl(ConstraintGraph *graph, const int *participants, int count) {
+    if (count == 2) return graph_add_incidence(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
+    return false;
+}
+static bool add_betweenness_impl(ConstraintGraph *graph, const int *participants, int count) {
+    if (count == 3) return graph_add_betweenness(graph, participants[0], participants[1], participants[2]) == ADD_CONSTRAINT_OK;
+    return false;
+}
+static bool add_intersection_impl(ConstraintGraph *graph, const int *participants, int count) {
+    if (count == 3) return graph_add_intersection(graph, participants[0], participants[1], participants[2]) == ADD_CONSTRAINT_OK;
+    return false;
+}
+static bool add_containment_impl(ConstraintGraph *graph, const int *participants, int count) {
+    if (count == 2) return graph_add_containment(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
+    return false;
+}
+static bool add_angle_impl(ConstraintGraph *graph, const int *participants, int count) {
+    if (count >= 2) return graph_add_angle(graph, participants[0], participants[1], 0.0) == ADD_CONSTRAINT_OK;
+    return false;
+}
+static bool add_connection_impl(ConstraintGraph *graph, const int *participants, int count) {
+    if (count == 2) return graph_add_connection(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
+    return false;
+}
+
+static const AddConstraintFn kAddConstraintHandlers[] = {
+    [INCIDENCE] = add_incidence_impl,
+    [BETWEENNESS] = add_betweenness_impl,
+    [INTERSECTION] = add_intersection_impl,
+    [CONTAINMENT] = add_containment_impl,
+    [ANGLE] = add_angle_impl,
+    [CONNECTION] = add_connection_impl,
+};
+
 bool add_constraint_generic(ConstraintGraph *graph, ConstraintType type, const int *participants,
                             int participant_count) {
-    switch (type) {
-        case INCIDENCE:
-            if (participant_count == 2)
-                return graph_add_incidence(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
-            break;
-        case BETWEENNESS:
-            if (participant_count == 3)
-                return graph_add_betweenness(graph, participants[0], participants[1], participants[2]) ==
-                       ADD_CONSTRAINT_OK;
-            break;
-        case INTERSECTION:
-            if (participant_count == 3)
-                return graph_add_intersection(graph, participants[0], participants[1], participants[2]) ==
-                       ADD_CONSTRAINT_OK;
-            break;
-        case CONTAINMENT:
-            if (participant_count == 2)
-                return graph_add_containment(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
-            break;
-        case ANGLE:
-            if (participant_count >= 2)
-                return graph_add_angle(graph, participants[0], participants[1], 0.0) == ADD_CONSTRAINT_OK;
-            break;
-        case CONNECTION:
-            if (participant_count == 2)
-                return graph_add_connection(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
-            break;
+    if ((unsigned)type < sizeof(kAddConstraintHandlers)/sizeof(kAddConstraintHandlers[0]) && kAddConstraintHandlers[type]) {
+        return kAddConstraintHandlers[type](graph, participants, participant_count);
     }
     return false;
 }

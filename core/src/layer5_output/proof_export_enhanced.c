@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_export_enhanced.c
  * @brief 增强的证明导出功能实现
  *
@@ -454,6 +454,19 @@ static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *co
  * 公共 API
  * ================================================================ */
 
+/** 导出处理函数指针类型 */
+typedef lvExportResult *(*ExportHandlerFn)(const lvProof *proof, const lvExportConfig *config);
+
+/** 导出格式到处理函数的查找表 */
+static const ExportHandlerFn kExportHandlers[] = {
+    [EXPORT_HTML] = export_html,
+    [EXPORT_LATEX] = export_latex,
+    [EXPORT_COQ] = export_coq,
+    [EXPORT_LEAN4] = export_lean4,
+    [EXPORT_JSON] = export_json,
+    [EXPORT_DOT] = export_dot,
+};
+
 lvExportResult *proof_export_enhanced(const lvProof *proof, const lvExportConfig *config) {
     if (!proof) {
         return make_error("proof_export_enhanced: proof is NULL");
@@ -462,22 +475,10 @@ lvExportResult *proof_export_enhanced(const lvProof *proof, const lvExportConfig
         return make_error("proof_export_enhanced: config is NULL");
     }
 
-    switch (config->format) {
-        case EXPORT_HTML:
-            return export_html(proof, config);
-        case EXPORT_LATEX:
-            return export_latex(proof, config);
-        case EXPORT_COQ:
-            return export_coq(proof, config);
-        case EXPORT_LEAN4:
-            return export_lean4(proof, config);
-        case EXPORT_JSON:
-            return export_json(proof, config);
-        case EXPORT_DOT:
-            return export_dot(proof, config);
-        default:
-            return make_error("proof_export_enhanced: unknown format");
+    if ((unsigned)config->format < sizeof(kExportHandlers)/sizeof(kExportHandlers[0]) && kExportHandlers[config->format]) {
+        return kExportHandlers[config->format](proof, config);
     }
+    return make_error("proof_export_enhanced: unknown format");
 }
 
 lvExportResult *proof_export_from_navigator(const char *theorem_name, lvExportFormat format) {
