@@ -64,43 +64,90 @@ static int rule_compare(const void *a, const void *b) {
 }
 
 /* ============================================================
- * 内部辅助：检查路由条件是否满足
+ * 路由条件函数指针类型
+ * ============================================================ */
+typedef bool (*RouteConditionHandler)(const RouteCondition *cond, const GraphFeatures *features,
+                                      const EngineScheduler *scheduler);
+
+/* ============================================================
+ * 路由条件处理函数（每个 ROUTE_COND_* 一个）
+ * ============================================================ */
+static bool handle_cond_none(const RouteCondition *cond, const GraphFeatures *features,
+                             const EngineScheduler *scheduler) {
+    (void)cond; (void)features; (void)scheduler;
+    return true;
+}
+
+static bool handle_cond_var_count_le(const RouteCondition *cond, const GraphFeatures *features,
+                                     const EngineScheduler *scheduler) {
+    (void)scheduler;
+    return features->variable_nodes <= cond->int_value;
+}
+
+static bool handle_cond_var_count_ge(const RouteCondition *cond, const GraphFeatures *features,
+                                     const EngineScheduler *scheduler) {
+    (void)scheduler;
+    return features->variable_nodes >= cond->int_value;
+}
+
+static bool handle_cond_nonlinear_ratio_ge(const RouteCondition *cond, const GraphFeatures *features,
+                                           const EngineScheduler *scheduler) {
+    (void)scheduler;
+    return features->nonlinear_ratio >= cond->float_value;
+}
+
+static bool handle_cond_has_quantifier(const RouteCondition *cond, const GraphFeatures *features,
+                                       const EngineScheduler *scheduler) {
+    (void)cond; (void)scheduler;
+    return features->has_quantifier_like;
+}
+
+static bool handle_cond_has_boolean(const RouteCondition *cond, const GraphFeatures *features,
+                                    const EngineScheduler *scheduler) {
+    (void)cond; (void)scheduler;
+    return features->has_boolean_variables;
+}
+
+static bool handle_cond_degree_ge(const RouteCondition *cond, const GraphFeatures *features,
+                                  const EngineScheduler *scheduler) {
+    (void)scheduler;
+    return features->estimated_degree_max >= cond->int_value;
+}
+
+static bool handle_cond_backend_available(const RouteCondition *cond, const GraphFeatures *features,
+                                          const EngineScheduler *scheduler) {
+    (void)features;
+    SolverBackendType bt = (SolverBackendType) cond->int_value;
+    return scheduler_is_backend_available(scheduler, bt);
+}
+
+/* ============================================================
+ * 路由条件处理函数查找表
+ * ============================================================ */
+static const RouteConditionHandler kRouteConditionHandlers[] = {
+    [ROUTE_COND_NONE]               = handle_cond_none,
+    [ROUTE_COND_VAR_COUNT_LE]       = handle_cond_var_count_le,
+    [ROUTE_COND_VAR_COUNT_GE]       = handle_cond_var_count_ge,
+    [ROUTE_COND_NONLINEAR_RATIO_GE] = handle_cond_nonlinear_ratio_ge,
+    [ROUTE_COND_HAS_QUANTIFIER]     = handle_cond_has_quantifier,
+    [ROUTE_COND_HAS_BOOLEAN]        = handle_cond_has_boolean,
+    [ROUTE_COND_DEGREE_GE]          = handle_cond_degree_ge,
+    [ROUTE_COND_BACKEND_AVAILABLE]  = handle_cond_backend_available,
+};
+
+/* ============================================================
+ * 内部辅助：检查路由条件是否满足（查找表分发）
  * ============================================================ */
 static bool check_condition(const RouteCondition *cond, const GraphFeatures *features,
                             const EngineScheduler *scheduler) {
     if (!cond)
         return false;
 
-    switch (cond->type) {
-        case ROUTE_COND_NONE:
-            return true;
-
-        case ROUTE_COND_VAR_COUNT_LE:
-            return features->variable_nodes <= cond->int_value;
-
-        case ROUTE_COND_VAR_COUNT_GE:
-            return features->variable_nodes >= cond->int_value;
-
-        case ROUTE_COND_NONLINEAR_RATIO_GE:
-            return features->nonlinear_ratio >= cond->float_value;
-
-        case ROUTE_COND_HAS_QUANTIFIER:
-            return features->has_quantifier_like;
-
-        case ROUTE_COND_HAS_BOOLEAN:
-            return features->has_boolean_variables;
-
-        case ROUTE_COND_DEGREE_GE:
-            return features->estimated_degree_max >= cond->int_value;
-
-        case ROUTE_COND_BACKEND_AVAILABLE: {
-            SolverBackendType bt = (SolverBackendType) cond->int_value;
-            return scheduler_is_backend_available(scheduler, bt);
-        }
-
-        default:
-            return false;
+    if (cond->type >= 0 && (size_t)cond->type < sizeof(kRouteConditionHandlers)/sizeof(kRouteConditionHandlers[0])
+        && kRouteConditionHandlers[cond->type]) {
+        return kRouteConditionHandlers[cond->type](cond, features, scheduler);
     }
+    return false;
 }
 
 /* ============================================================
@@ -501,6 +548,40 @@ int scheduler_load_preset_rules(EngineScheduler *scheduler) {
 /* ============================================================
  * 图特征分析
  * ============================================================ */
+
+/* 节点特征增量查找表 —— 替代 switch 分支 */
+typedef struct {
+    int variable_inc;
+    int port_inc;
+    int block_inc;
+    bool check_fixed;
+} NodeFeatureDelta;
+
+static const NodeFeatureDelta kNodeFeatureDeltas[] = {
+    [GEOM_POINT]           = {1, 0, 0, true},
+    [GEOM_PORT]            = {0, 1, 0, false},
+    [GEOM_FUNCTION_BLOCK]  = {0, 0, 1, false},
+};
+
+/* 约束特征增量查找表 —— 替代 switch 分支 */
+typedef struct {
+    int incidence_inc;
+    int betweenness_inc;
+    int intersection_inc;
+    int containment_inc;
+    int angle_inc;
+    int connection_inc;
+} ConstraintFeatureDelta;
+
+static const ConstraintFeatureDelta kConstraintFeatureDeltas[] = {
+    [INCIDENCE]     = {1, 0, 0, 0, 0, 0},
+    [BETWEENNESS]   = {0, 1, 0, 0, 0, 0},
+    [INTERSECTION]  = {0, 0, 1, 0, 0, 0},
+    [CONTAINMENT]   = {0, 0, 0, 1, 0, 0},
+    [ANGLE]         = {0, 0, 0, 0, 1, 0},
+    [CONNECTION]    = {0, 0, 0, 0, 0, 1},
+};
+
 int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *features) {
     if (!graph || !features)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_analyze_graph: NULL graph or features");
@@ -518,21 +599,14 @@ int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *feature
         if (!node)
             continue;
 
-        switch (node->type) {
-            case GEOM_POINT:
-                features->variable_nodes++;
-                if (node->coord_count > 0) {
-                    features->fixed_nodes++;
-                }
-                break;
-            case GEOM_PORT:
-                features->port_nodes++;
-                break;
-            case GEOM_FUNCTION_BLOCK:
-                features->block_nodes++;
-                break;
-            default:
-                break;
+        if (node->type >= 0 && (size_t)node->type < sizeof(kNodeFeatureDeltas)/sizeof(kNodeFeatureDeltas[0])) {
+            const NodeFeatureDelta *d = &kNodeFeatureDeltas[node->type];
+            features->variable_nodes += d->variable_inc;
+            features->port_nodes += d->port_inc;
+            features->block_nodes += d->block_inc;
+            if (d->check_fixed && node->coord_count > 0) {
+                features->fixed_nodes++;
+            }
         }
     }
 
@@ -542,27 +616,14 @@ int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *feature
         if (!c)
             continue;
 
-        switch (c->type) {
-            case INCIDENCE:
-                features->incidence_constraints++;
-                break;
-            case BETWEENNESS:
-                features->betweenness_constraints++;
-                break;
-            case INTERSECTION:
-                features->intersection_constraints++;
-                break;
-            case CONTAINMENT:
-                features->containment_constraints++;
-                break;
-            case ANGLE:
-                features->angle_constraints++;
-                break;
-            case CONNECTION:
-                features->connection_constraints++;
-                break;
-            default:
-                break;
+        if (c->type >= 0 && (size_t)c->type < sizeof(kConstraintFeatureDeltas)/sizeof(kConstraintFeatureDeltas[0])) {
+            const ConstraintFeatureDelta *d = &kConstraintFeatureDeltas[c->type];
+            features->incidence_constraints += d->incidence_inc;
+            features->betweenness_constraints += d->betweenness_inc;
+            features->intersection_constraints += d->intersection_inc;
+            features->containment_constraints += d->containment_inc;
+            features->angle_constraints += d->angle_inc;
+            features->connection_constraints += d->connection_inc;
         }
     }
 

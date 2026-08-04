@@ -1044,6 +1044,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_system/prop_verifier_bhk.c
     core/src/layer4_reasoning/proof_system/prop_verifier_trust.c
     core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c
+    core/src/layer4_reasoning/proof_system/prop_formula_ops.c
     # 后端求解引擎
     core/src/layer4_reasoning/backends/groebner_engine.c
     core/src/layer4_reasoning/backends/groebner_engine_core.c
@@ -1825,7 +1826,8 @@ if(BUILD_TESTS)
         core/src/layer4_reasoning/proof_system/prop_formula_visitor.c
         core/src/layer4_reasoning/proof_system/prop_verifier_bhk.c
         core/src/layer4_reasoning/proof_system/prop_verifier_trust.c
-        core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c)
+        core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c
+        core/src/layer4_reasoning/proof_system/prop_formula_ops.c)
     target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv)
     target_link_libraries(test_prop_verifier lv ${GMP_LIBRARIES})
     if(WIN32)

@@ -5,6 +5,7 @@
  */
 
 #include "lv/prop_verifier.h"
+#include "lv/prop_formula_ops.h"
 #include "prop_verifier_internal.h"
 
 #include <stdarg.h>
@@ -46,29 +47,10 @@
 uint64_t formula_hash(const PropFormula *f) {
     if (!f)
         return 0;
-    uint64_t h = (uint64_t) f->type * PROP_HASH_TYPE_MULTIPLIER;
-    switch (f->type) {
-        case PROP_ATOM: {
-            for (const char *s = f->data.atom.name; *s; s++)
-                h = h * PROP_HASH_STRING_MULTIPLIER + (uint64_t) (unsigned char) *s;
-            break;
-        }
-        case PROP_CONJUNCTION:
-        case PROP_DISJUNCTION:
-        case PROP_IMPLICATION:
-            h ^= formula_hash(f->data.binary.left) * PROP_HASH_LEFT_MULTIPLIER;
-            h ^= formula_hash(f->data.binary.right) * PROP_HASH_RIGHT_MULTIPLIER;
-            break;
-        case PROP_NEGATION:
-            h ^= formula_hash(f->data.unary.operand) * PROP_HASH_RIGHT_MULTIPLIER;
-            break;
-        case PROP_BOTTOM:
-        case PROP_TRUE:
-            break;
-        default:
-            break;
-    }
-    return h;
+    const PropFormulaOps *ops = prop_formula_get_ops(f->type);
+    if (ops && ops->hash)
+        return ops->hash(f);
+    return 0;
 }
 
 /**

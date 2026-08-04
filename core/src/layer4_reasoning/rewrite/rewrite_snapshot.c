@@ -26,6 +26,135 @@
  * Graph Snapshot — 用于重写替换操作的事务性回滚
  * ------------------------------------------------------------------------- */
 
+/* ========================================================================
+ * H4: Snapshot 操作 VTable — 替代 GeomType switch 语句
+ * ======================================================================== */
+typedef bool (*SnapshotNodeCopyFn)(GeomNode *dst, const GeomNode *src);
+typedef void (*SnapshotNodeDestroyFn)(GeomNode *node);
+typedef void (*SnapshotNodeCleanupFn)(GeomNode *node);
+
+typedef struct {
+    SnapshotNodeCopyFn   deep_copy_data;
+    SnapshotNodeDestroyFn destroy_data;
+    SnapshotNodeCleanupFn cleanup_data;
+} SnapshotNodeOps;
+
+/* ---- 类型特定 handler 函数 ---- */
+
+/* Port: 拷贝 Port 结构体，清空 connected_to 指针 */
+static bool copy_port_data(GeomNode *dst, const GeomNode *src) {
+    if (src->data.port) {
+        dst->data.port = lv_calloc(1, sizeof(Port));
+        if (dst->data.port) {
+            memcpy(dst->data.port, src->data.port, sizeof(Port));
+            dst->data.port->connected_to = NULL;
+        }
+    }
+    return true;
+}
+static void destroy_port_data(GeomNode *node) {
+    lv_free((void **) &node->data.port);
+}
+static void cleanup_port_data(GeomNode *node) {
+    lv_free((void **) &node->data.port);
+}
+
+/* Region: 拷贝 boundary_segments 数组（指针清零，后续通过 ID 映射重绑定） */
+static bool copy_region_data(GeomNode *dst, const GeomNode *src) {
+    dst->data.region.boundary_segments = NULL;
+    dst->data.region.segment_count = 0;
+    if (src->data.region.segment_count > 0 && src->data.region.boundary_segments) {
+        dst->data.region.boundary_segments =
+            lv_malloc((size_t) src->data.region.segment_count * sizeof(GeomNode *));
+        if (dst->data.region.boundary_segments) {
+            dst->data.region.segment_count = src->data.region.segment_count;
+            memset(dst->data.region.boundary_segments, 0,
+                   (size_t) src->data.region.segment_count * sizeof(GeomNode *));
+        }
+    }
+    return true;
+}
+static void destroy_region_data(GeomNode *node) {
+    lv_free((void **) &node->data.region.boundary_segments);
+}
+static void cleanup_region_data(GeomNode *node) {
+    lv_free((void **) &node->data.region.boundary_segments);
+}
+
+/* Function Block: 拷贝 internal_nodes / input_port_ids / output_port_ids */
+static bool copy_func_block_data(GeomNode *dst, const GeomNode *src) {
+    dst->data.func_block.internal_nodes = NULL;
+    dst->data.func_block.input_port_ids = NULL;
+    dst->data.func_block.output_port_ids = NULL;
+    dst->data.func_block.internal_node_count = 0;
+    dst->data.func_block.input_count = 0;
+    dst->data.func_block.output_count = 0;
+    dst->data.func_block.determinism_state = src->data.func_block.determinism_state;
+
+    if (src->data.func_block.internal_node_count > 0 && src->data.func_block.internal_nodes) {
+        dst->data.func_block.internal_nodes =
+            lv_malloc((size_t) src->data.func_block.internal_node_count * sizeof(GeomNode *));
+        if (dst->data.func_block.internal_nodes) {
+            dst->data.func_block.internal_node_count = src->data.func_block.internal_node_count;
+            memset(dst->data.func_block.internal_nodes, 0,
+                   (size_t) src->data.func_block.internal_node_count * sizeof(GeomNode *));
+        }
+    }
+    if (src->data.func_block.input_count > 0 && src->data.func_block.input_port_ids) {
+        dst->data.func_block.input_port_ids =
+            lv_malloc((size_t) src->data.func_block.input_count * sizeof(int));
+        if (dst->data.func_block.input_port_ids) {
+            memcpy(dst->data.func_block.input_port_ids, src->data.func_block.input_port_ids,
+                   (size_t) src->data.func_block.input_count * sizeof(int));
+            dst->data.func_block.input_count = src->data.func_block.input_count;
+        }
+    }
+    if (src->data.func_block.output_count > 0 && src->data.func_block.output_port_ids) {
+        dst->data.func_block.output_port_ids =
+            lv_malloc((size_t) src->data.func_block.output_count * sizeof(int));
+        if (dst->data.func_block.output_port_ids) {
+            memcpy(dst->data.func_block.output_port_ids, src->data.func_block.output_port_ids,
+                   (size_t) src->data.func_block.output_count * sizeof(int));
+            dst->data.func_block.output_count = src->data.func_block.output_count;
+        }
+    }
+    return true;
+}
+static void destroy_func_block_data(GeomNode *node) {
+    lv_free((void **) &node->data.func_block.internal_nodes);
+    lv_free((void **) &node->data.func_block.input_port_ids);
+    lv_free((void **) &node->data.func_block.output_port_ids);
+}
+static void cleanup_func_block_data(GeomNode *node) {
+    lv_free((void **) &node->data.func_block.internal_nodes);
+    lv_free((void **) &node->data.func_block.input_port_ids);
+    lv_free((void **) &node->data.func_block.output_port_ids);
+}
+
+/* ---- VTable 实例表 ---- */
+static const SnapshotNodeOps kPointSnapshotOps =           {NULL, NULL, NULL};
+static const SnapshotNodeOps kLineSegmentSnapshotOps =     {NULL, NULL, NULL};
+static const SnapshotNodeOps kRegionSnapshotOps =           {copy_region_data, destroy_region_data, cleanup_region_data};
+static const SnapshotNodeOps kCircleSnapshotOps =           {NULL, NULL, NULL};
+static const SnapshotNodeOps kPortSnapshotOps =             {copy_port_data, destroy_port_data, cleanup_port_data};
+static const SnapshotNodeOps kFuncBlockSnapshotOps =        {copy_func_block_data, destroy_func_block_data, cleanup_func_block_data};
+
+static const SnapshotNodeOps *kSnapshotNodeOpsTable[] = {
+    [GEOM_POINT]          = &kPointSnapshotOps,
+    [GEOM_LINE_SEGMENT]   = &kLineSegmentSnapshotOps,
+    [GEOM_REGION]         = &kRegionSnapshotOps,
+    [GEOM_CIRCLE]         = &kCircleSnapshotOps,
+    [GEOM_PORT]           = &kPortSnapshotOps,
+    [GEOM_FUNCTION_BLOCK] = &kFuncBlockSnapshotOps,
+};
+
+static const SnapshotNodeOps *get_snapshot_ops(GeomType type) {
+    if (type >= 0 && (size_t)type < sizeof(kSnapshotNodeOpsTable)/sizeof(kSnapshotNodeOpsTable[0])) {
+        return kSnapshotNodeOpsTable[type];
+    }
+    return NULL;
+}
+
 /* 深拷贝单个 GeomNode
  *
  * 【内存管理策略】此函数对所有动态分配的字段执行深拷贝：
@@ -93,77 +222,10 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
         }
     }
 
-    /* 深拷贝类型特定数据 */
-    switch (src->type) {
-        case GEOM_PORT: {
-            if (src->data.port) {
-                dst->data.port = lv_calloc(1, sizeof(Port));
-                if (dst->data.port) {
-                    memcpy(dst->data.port, src->data.port, sizeof(Port));
-                    dst->data.port->connected_to = NULL; /* 指针在恢复后需要重建 */
-                }
-            }
-            break;
-        }
-        case GEOM_REGION:
-        case GEOM_CIRCLE: {
-            dst->data.region.boundary_segments = NULL;
-            dst->data.region.segment_count = 0;
-            if (src->data.region.segment_count > 0 && src->data.region.boundary_segments) {
-                goto geom_clone_region;
-            }
-            break;
-        }
-        geom_clone_region:
-                dst->data.region.boundary_segments =
-                    lv_malloc((size_t) src->data.region.segment_count * sizeof(GeomNode *));
-                if (dst->data.region.boundary_segments) {
-                    dst->data.region.segment_count = src->data.region.segment_count;
-                    /* 指针置空，恢复时根据 ID 重新绑定 */
-                    memset(dst->data.region.boundary_segments, 0,
-                           (size_t) src->data.region.segment_count * sizeof(GeomNode *));
-                }
-            break;
-        case GEOM_FUNCTION_BLOCK: {
-            dst->data.func_block.internal_nodes = NULL;
-            dst->data.func_block.input_port_ids = NULL;
-            dst->data.func_block.output_port_ids = NULL;
-            dst->data.func_block.internal_node_count = 0;
-            dst->data.func_block.input_count = 0;
-            dst->data.func_block.output_count = 0;
-            dst->data.func_block.determinism_state = src->data.func_block.determinism_state;
-
-            if (src->data.func_block.internal_node_count > 0 && src->data.func_block.internal_nodes) {
-                dst->data.func_block.internal_nodes =
-                    lv_malloc((size_t) src->data.func_block.internal_node_count * sizeof(GeomNode *));
-                if (dst->data.func_block.internal_nodes) {
-                    dst->data.func_block.internal_node_count = src->data.func_block.internal_node_count;
-                    memset(dst->data.func_block.internal_nodes, 0,
-                           (size_t) src->data.func_block.internal_node_count * sizeof(GeomNode *));
-                }
-            }
-            if (src->data.func_block.input_count > 0 && src->data.func_block.input_port_ids) {
-                dst->data.func_block.input_port_ids =
-                    lv_malloc((size_t) src->data.func_block.input_count * sizeof(int));
-                if (dst->data.func_block.input_port_ids) {
-                    memcpy(dst->data.func_block.input_port_ids, src->data.func_block.input_port_ids,
-                           (size_t) src->data.func_block.input_count * sizeof(int));
-                    dst->data.func_block.input_count = src->data.func_block.input_count;
-                }
-            }
-            if (src->data.func_block.output_count > 0 && src->data.func_block.output_port_ids) {
-                dst->data.func_block.output_port_ids =
-                    lv_malloc((size_t) src->data.func_block.output_count * sizeof(int));
-                if (dst->data.func_block.output_port_ids) {
-                    memcpy(dst->data.func_block.output_port_ids, src->data.func_block.output_port_ids,
-                           (size_t) src->data.func_block.output_count * sizeof(int));
-                    dst->data.func_block.output_count = src->data.func_block.output_count;
-                }
-            }
-            break;
-        }
-        default:
-            break;
+    /* 深拷贝类型特定数据（通过 VTable 分发） */
+    const SnapshotNodeOps *ops = get_snapshot_ops(src->type);
+    if (ops && ops->deep_copy_data) {
+        ops->deep_copy_data(dst, src);
     }
 
     return dst;
@@ -184,23 +246,10 @@ static void snapshot_node_destroy(GeomNode *node) {
         lv_free((void **) &node->symbolic_coords);
     }
     lv_free((void **) &node->numeric_assumption_declaration);
-    switch (node->type) {
-        case GEOM_PORT:
-            lv_free((void **) &node->data.port);
-            break;
-        case GEOM_REGION:
-            lv_free((void **) &node->data.region.boundary_segments);
-            break;
-        case GEOM_CIRCLE:
-            /* CIRCLE 节点无额外动态分配数据 */
-            break;
-        case GEOM_FUNCTION_BLOCK:
-            lv_free((void **) &node->data.func_block.internal_nodes);
-            lv_free((void **) &node->data.func_block.input_port_ids);
-            lv_free((void **) &node->data.func_block.output_port_ids);
-            break;
-        default:
-            break;
+    /* 通过 VTable 分发类型特定数据销毁 */
+    const SnapshotNodeOps *ops = get_snapshot_ops(node->type);
+    if (ops && ops->destroy_data) {
+        ops->destroy_data(node);
     }
     lv_free((void **) &node);
 }
@@ -427,23 +476,10 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
             lv_free((void **) &node->symbolic_coords);
         }
         lv_free((void **) &node->numeric_assumption_declaration);
-        switch (node->type) {
-            case GEOM_PORT:
-                lv_free((void **) &node->data.port);
-                break;
-            case GEOM_REGION:
-                lv_free((void **) &node->data.region.boundary_segments);
-                break;
-            case GEOM_CIRCLE:
-                /* CIRCLE 节点无额外动态分配数据 */
-                break;
-            case GEOM_FUNCTION_BLOCK:
-                lv_free((void **) &node->data.func_block.internal_nodes);
-                lv_free((void **) &node->data.func_block.input_port_ids);
-                lv_free((void **) &node->data.func_block.output_port_ids);
-                break;
-            default:
-                break;
+        /* 通过 VTable 分发类型特定数据清理 */
+        const SnapshotNodeOps *ops = get_snapshot_ops(node->type);
+        if (ops && ops->cleanup_data) {
+            ops->cleanup_data(node);
         }
         lv_free((void **) &node);
     }

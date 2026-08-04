@@ -5,6 +5,7 @@
  */
 
 #include "lv/prop_verifier.h"
+#include "lv/prop_formula_ops.h"
 #include "prop_verifier_internal.h"
 
 #include <stdarg.h>
@@ -28,17 +29,10 @@ static bool formula_is_descendant(const PropFormula *child, const PropFormula *p
         return false;
     if (child == parent)
         return true;
-    switch (parent->type) {
-        case PROP_CONJUNCTION:
-        case PROP_DISJUNCTION:
-        case PROP_IMPLICATION:
-            return formula_is_descendant(child, parent->data.binary.left) ||
-                   formula_is_descendant(child, parent->data.binary.right);
-        case PROP_NEGATION:
-            return formula_is_descendant(child, parent->data.unary.operand);
-        default:
-            return false;
-    }
+    const PropFormulaOps *ops = prop_formula_get_ops(parent->type);
+    if (ops && ops->is_descendant)
+        return ops->is_descendant(child, parent);
+    return false;
 }
 
 /* �̲⸨���꣺����ԭ������ */

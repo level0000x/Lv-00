@@ -5,6 +5,7 @@
  */
 
 #include "lv/prop_verifier.h"
+#include "lv/prop_formula_ops.h"
 #include "prop_verifier_internal.h"
 
 #include <stdarg.h>
@@ -40,22 +41,9 @@ bool formula_equal(const PropFormula *a, const PropFormula *b) {
         return a == b;
     if (a->type != b->type)
         return false;
-    switch (a->type) {
-        case PROP_ATOM:
-            return strcmp(a->data.atom.name, b->data.atom.name) == 0;
-        case PROP_CONJUNCTION:
-        case PROP_DISJUNCTION:
-        case PROP_IMPLICATION:
-            return formula_equal(a->data.binary.left, b->data.binary.left) &&
-                   formula_equal(a->data.binary.right, b->data.binary.right);
-        case PROP_NEGATION:
-            return formula_equal(a->data.unary.operand, b->data.unary.operand);
-        case PROP_BOTTOM:
-        case PROP_TRUE:
-            return true;
-        default:
-            break;
-    }
+    const PropFormulaOps *ops = prop_formula_get_ops(a->type);
+    if (ops && ops->equal)
+        return ops->equal(a, b);
     return false;
 }
 
