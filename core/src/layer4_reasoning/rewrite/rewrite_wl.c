@@ -227,6 +227,22 @@ static bool wl_history_contains(WLHashHistory *hist, uint64_t hash) {
     return false;
 }
 
+/* ================================================================
+ * 约束类型 -> 拓扑计数槽 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/* 约束类型 → 拓扑计数槽索引 映射表。
+ * 槽位顺序与 compute_wl_initial_labels 中标签混入顺序保持一致：
+ * 0=INCIDENCE, 1=BETWEENNESS, 2=INTERSECTION, 3=CONTAINMENT, 4=ANGLE, 5=CONNECTION */
+static const int s_constraint_count_slots[] = {
+    [INCIDENCE]    = 0,
+    [BETWEENNESS]  = 1,
+    [INTERSECTION] = 2,
+    [CONTAINMENT]  = 3,
+    [ANGLE]        = 4,
+    [CONNECTION]   = 5,
+};
+
 /**
  * @brief 计算节点的初始 WL 标签
  *

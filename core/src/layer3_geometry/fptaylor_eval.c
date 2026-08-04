@@ -54,6 +54,23 @@ typedef struct {
     int var_count;         /**< 变量数量 */
 } Lexer;
 
+/* ── 单字符运算符查找表 ── */
+
+/**
+ * @brief 单字符运算符查找表
+ *
+ * 按 ASCII 下标索引；表项为零值 FP_TOKEN_END 表示未映射的字符
+ * （未命中时落到下方数值/变量解析）。
+ */
+static const FpTokenType s_operator_tokens[128] = {
+    ['+'] = FP_TOKEN_PLUS,
+    ['-'] = FP_TOKEN_MINUS,
+    ['*'] = FP_TOKEN_MUL,
+    ['/'] = FP_TOKEN_DIV,
+    ['('] = FP_TOKEN_LPAREN,
+    [')'] = FP_TOKEN_RPAREN,
+};
+
 /** 向前看一个 token */
 static void lex_advance(Lexer *lex) {
     /* 跳过空白 */
@@ -67,15 +84,14 @@ static void lex_advance(Lexer *lex) {
         return;
     }
 
-    /* 单字符运算符 */
-    switch (c) {
-        case '+': lex->tok = FP_TOKEN_PLUS;   lex->p++; return;
-        case '-': lex->tok = FP_TOKEN_MINUS;  lex->p++; return;
-        case '*': lex->tok = FP_TOKEN_MUL;    lex->p++; return;
-        case '/': lex->tok = FP_TOKEN_DIV;    lex->p++; return;
-        case '(': lex->tok = FP_TOKEN_LPAREN; lex->p++; return;
-        case ')': lex->tok = FP_TOKEN_RPAREN; lex->p++; return;
-        default: break;
+    /* 单字符运算符：查表分发，未命中则落到下方数值/变量解析 */
+    if ((unsigned char) c < 128) {
+        FpTokenType op_tok = s_operator_tokens[(unsigned char) c];
+        if (op_tok != FP_TOKEN_END) {
+            lex->tok = op_tok;
+            lex->p++;
+            return;
+        }
     }
 
     /* 数值常量 */

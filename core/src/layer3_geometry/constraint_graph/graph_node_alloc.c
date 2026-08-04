@@ -922,25 +922,23 @@ static const GeomNodeVTable kFuncBlockVTable = {
     .get_trust_coord_count = func_block_get_trust_coord_count,
 };
 
-/* ── 根据 GeomType 获取 vtable ── */
+/* ── 根据 GeomType 获取 vtable（GeomType 连续 0..5，按下标索引） ── */
+
+/** GeomType → 节点 VTable 映射表 */
+static const GeomNodeVTable *kVTables[] = {
+    [GEOM_POINT] = &kPointVTable,
+    [GEOM_LINE_SEGMENT] = &kLineSegmentVTable,
+    [GEOM_REGION] = &kRegionVTable,
+    [GEOM_CIRCLE] = &kCircleVTable,
+    [GEOM_PORT] = &kPortVTable,
+    [GEOM_FUNCTION_BLOCK] = &kFuncBlockVTable,
+};
 
 const GeomNodeVTable *get_vtable_for_type(GeomType type) {
-    switch (type) {
-        case GEOM_POINT:
-            return &kPointVTable;
-        case GEOM_LINE_SEGMENT:
-            return &kLineSegmentVTable;
-        case GEOM_REGION:
-            return &kRegionVTable;
-        case GEOM_CIRCLE:
-            return &kCircleVTable;
-        case GEOM_PORT:
-            return &kPortVTable;
-        case GEOM_FUNCTION_BLOCK:
-            return &kFuncBlockVTable;
-        default:
-            return NULL;
+    if ((unsigned) type < sizeof(kVTables) / sizeof(kVTables[0]) && kVTables[type]) {
+        return kVTables[type];
     }
+    return NULL; /* 非法类型 */
 }
 
 /**

@@ -21,6 +21,21 @@
 
 /* ============== 加载时验证的完整测试集 ============== */
 
+/* 比较结果 → 测试判定 查找表条目 */
+typedef struct {
+    bool passed;         /**< 该比较结果是否判定为通过 */
+    const char *message; /**< 失败时的错误消息（通过时为 NULL） */
+} MeasureCompareTestEntry;
+
+/* 比较结果判定静态查找表（越界按比较出错处理） */
+static const MeasureCompareTestEntry kCompareTestTable[] = {
+    [MEASURE_LESS]    = { true,  NULL },                                        /* 严格递减 → 通过 */
+    [MEASURE_EQUAL]   = { false, "Measure values are equal (not decreasing)" }, /* 相等 → 未递减 */
+    [MEASURE_GREATER] = { false, "Measure value increased (not decreasing)" },  /* 增大 → 未递减 */
+    [MEASURE_UNKNOWN] = { false, "Cannot determine measure comparison" },       /* 无法比较 */
+    [MEASURE_ERROR]   = { false, "Error comparing measure values" },            /* 比较出错 */
+};
+
 bool recursion_run_measure_tests(const Measure *measure, int test_count, SymbolicCoord ***test_before_values,
                                  SymbolicCoord ***test_after_values, MeasureTestResult *results) {
     if (!measure || test_count <= 0 || !test_before_values || !test_after_values || !results) {
@@ -48,31 +63,17 @@ bool recursion_run_measure_tests(const Measure *measure, int test_count, Symboli
             /* 符号测度：使用符号坐标比较 */
             MeasureCompareResult cmp = measure_compare((Measure *) measure, after, before);
 
-            switch (cmp) {
-                case MEASURE_LESS:
-                    results[i].passed = true;
-                    break;
-                case MEASURE_EQUAL:
-                    results[i].passed = false;
-                    results[i].error_message = lv_strdup("Measure values are equal (not decreasing)");
-                    all_passed = false;
-                    break;
-                case MEASURE_GREATER:
-                    results[i].passed = false;
-                    results[i].error_message = lv_strdup("Measure value increased (not decreasing)");
-                    all_passed = false;
-                    break;
-                case MEASURE_UNKNOWN:
-                    results[i].passed = false;
-                    results[i].error_message = lv_strdup("Cannot determine measure comparison");
-                    all_passed = false;
-                    break;
-                case MEASURE_ERROR:
-                default:
-                    results[i].passed = false;
-                    results[i].error_message = lv_strdup("Error comparing measure values");
-                    all_passed = false;
-                    break;
+            /* 查表取得比较结果判定，越界（含负值）按比较出错处理 */
+            const MeasureCompareTestEntry *entry = NULL;
+            if ((unsigned)cmp < sizeof(kCompareTestTable) / sizeof(kCompareTestTable[0]))
+                entry = &kCompareTestTable[cmp];
+
+            if (!entry || !entry->passed) {
+                results[i].passed = false;
+                results[i].error_message = lv_strdup(entry ? entry->message : "Error comparing measure values");
+                all_passed = false;
+            } else {
+                results[i].passed = true; /* error_message 保持 NULL */
             }
         } else if (measure->type == MEASURE_CUSTOM) {
             /* 非符号测度：使用自定义比较函数 */

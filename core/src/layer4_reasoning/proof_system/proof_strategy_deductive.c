@@ -28,6 +28,26 @@
 #include "type_system.h"
 #include "unify.h"
 
+/* ================================================================
+ * 约束类型 -> 初始事实格式 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/* 约束类型 → 初始事实格式 映射表。
+ * min_participants 为该约束生成事实所需的最少参与者数量。 */
+typedef struct {
+    const char *format;   /* 事实格式串，如 "incidence:%d,%d" */
+    int min_participants; /* 所需最少参与者数 */
+} DeductFactSpec;
+
+static const DeductFactSpec s_constraint_fact_specs[] = {
+    [INCIDENCE]    = {"incidence:%d,%d", 2},
+    [BETWEENNESS]  = {"betweenness:%d,%d,%d", 3},
+    [INTERSECTION] = {"intersection:%d,%d,%d", 3},
+    [CONTAINMENT]  = {"containment:%d,%d", 2},
+    [ANGLE]        = {"angle:%d,%d", 2},
+    [CONNECTION]   = {"connection:%d,%d", 2},
+};
+
 /**
  * @brief 演绎数据库法执行 —— 前向链推理
  *
@@ -95,35 +115,12 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
         if (!c || !c->is_active)
             continue;
 
-        switch (c->type) {
-            case INCIDENCE:
-                if (c->participant_count >= 2)
-                    DEDUCT_ADD_FACT("incidence:%d,%d", c->participants[0], c->participants[1]);
-                break;
-            case BETWEENNESS:
-                if (c->participant_count >= 3)
-                    DEDUCT_ADD_FACT("betweenness:%d,%d,%d", c->participants[0], c->participants[1], c->participants[2]);
-                break;
-            case INTERSECTION:
-                if (c->participant_count >= 3)
-                    DEDUCT_ADD_FACT("intersection:%d,%d,%d", c->participants[0], c->participants[1],
-                                    c->participants[2]);
-                break;
-            case CONTAINMENT:
-                if (c->participant_count >= 2)
-                    DEDUCT_ADD_FACT("containment:%d,%d", c->participants[0], c->participants[1]);
-                break;
-            case ANGLE:
-                if (c->participant_count >= 2)
-                    DEDUCT_ADD_FACT("angle:%d,%d", c->participants[0], c->participants[1]);
-                break;
-            case CONNECTION:
-                if (c->participant_count >= 2)
-                    DEDUCT_ADD_FACT("connection:%d,%d", c->participants[0], c->participants[1]);
-                break;
-            default:
-                /* lv_LOG_WARNING("Unknown constraint type in deduct_extract_facts"); */
-                break;
+        /* 按约束类型查表生成事实（格式串 + 最少参与者数检查） */
+        if ((unsigned) c->type < lv_ARRAY_SIZE(s_constraint_fact_specs)) {
+            const DeductFactSpec *spec = &s_constraint_fact_specs[c->type];
+            if (spec->format && c->participant_count >= spec->min_participants)
+                DEDUCT_ADD_FACT(spec->format, c->participants[0], c->participants[1],
+                                c->participant_count >= 3 ? c->participants[2] : 0);
         }
     }
 

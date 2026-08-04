@@ -20,6 +20,62 @@
 #include "lv/lv_utils.h"
 
 /* ==================================================================
+ * 转义查找表（ASCII 下标，替代 switch-case 反模式）
+ * ================================================================== */
+
+/** @brief 解析阶段：转义字符 → {前进字节数, 长度增量} 查找表（adv=0 表示未声明，走 default） */
+typedef struct {
+    unsigned char adv; /**< 输入前进字节数 */
+    unsigned char inc; /**< 解码后长度增量 */
+} lvJsonEscapeStep;
+
+static const lvJsonEscapeStep s_json_escape_steps[256] = {
+    ['"']  = {2, 1},
+    ['\\'] = {2, 1},
+    ['/']  = {2, 1},
+    ['b']  = {2, 1},
+    ['f']  = {2, 1},
+    ['n']  = {2, 1},
+    ['r']  = {2, 1},
+    ['t']  = {2, 1},
+    ['u']  = {6, 4}, /* \uXXXX：前进 6 字节，最多产生 4 字节 UTF-8 */
+};
+
+/** @brief 解析阶段：简单转义字符 → 解码字符 查找表（'\0' 表示未声明，走 default 原样保留） */
+static const char s_json_escape_decode[256] = {
+    ['"']  = '"',
+    ['\\'] = '\\',
+    ['/']  = '/',
+    ['b']  = '\b',
+    ['f']  = '\f',
+    ['n']  = '\n',
+    ['r']  = '\r',
+    ['t']  = '\t',
+};
+
+/** @brief 写出阶段：转义字符 → 转义后长度增量 查找表（0 表示未声明，走 default 控制字符逻辑） */
+static const unsigned char s_json_escape_len[256] = {
+    ['"']  = 2,
+    ['\\'] = 2,
+    ['\n'] = 2,
+    ['\t'] = 2,
+    ['\r'] = 2,
+    ['\b'] = 2,
+    ['\f'] = 2,
+};
+
+/** @brief 写出阶段：转义字符 → 转义对字符串 查找表（NULL 表示未声明，走 default） */
+static const char *const s_json_escape_pairs[256] = {
+    ['"']  = "\\\"",
+    ['\\'] = "\\\\",
+    ['\n'] = "\\n",
+    ['\t'] = "\\t",
+    ['\r'] = "\\r",
+    ['\b'] = "\\b",
+    ['\f'] = "\\f",
+};
+
+/* ==================================================================
  * JSON 解析器实现
  * ================================================================== */
 
@@ -65,28 +121,15 @@ char *lv_json_parse_string(lvJsonParser *p) {
     /* 第一遍：计算转义后的字符串长度 */
     while (p->pos < p->size && p->data[p->pos] != '"') {
         if (p->data[p->pos] == '\\' && p->pos + 1 < p->size) {
-            switch (p->data[p->pos + 1]) {
-                case '"':
-                case '\\':
-                case '/':
-                case 'b':
-                case 'f':
-                case 'n':
-                case 'r':
-                case 't':
-                    p->pos += 2;
-                    len++;
-                    break;
-                case 'u': {
-                    /* \uXXXX — 最多产生 4 字节 UTF-8 */
-                    p->pos += 6; /* \u + 4 hex */
-                    len += 4;
-                    break;
-                }
-                default:
-                    p->pos += 2;
-                    len++;
-                    break;
+            /* 查找表：按转义字符索引 {前进字节数, 长度增量}，未命中走 default */
+            const lvJsonEscapeStep step = s_json_escape_steps[(unsigned char) p->data[p->pos + 1]];
+            if (step.adv > 0) {
+                p->pos += step.adv;
+                len += step.inc;
+            } else {
+                /* default：未声明的转义字符按单字符处理 */
+                p->pos += 2;
+                len++;
             }
         } else {
             p->pos++;
@@ -111,66 +154,40 @@ char *lv_json_parse_string(lvJsonParser *p) {
     while (src < end) {
         if (*src == '\\' && src + 1 < end) {
             src++;
-            switch (*src) {
-                case '"':
-                    *dst++ = '"';
-                    break;
-                case '\\':
-                    *dst++ = '\\';
-                    break;
-                case '/':
-                    *dst++ = '/';
-                    break;
-                case 'b':
-                    *dst++ = '\b';
-                    break;
-                case 'f':
-                    *dst++ = '\f';
-                    break;
-                case 'n':
-                    *dst++ = '\n';
-                    break;
-                case 'r':
-                    *dst++ = '\r';
-                    break;
-                case 't':
-                    *dst++ = '\t';
-                    break;
-                case 'u': {
-                    /* \uXXXX — 简化为原样传递（完整 UTF-16 代理对处理过于复杂） */
-                    if (src + 4 < end) {
-                        /* 将 \uXXXX 编码为 UTF-8 */
-                        unsigned int codepoint = 0;
-                        for (int i = 0; i < 4; i++) {
-                            src++;
-                            char c = *src;
-                            codepoint <<= 4;
-                            if (c >= '0' && c <= '9')
-                                codepoint |= (unsigned int)(c - '0');
-                            else if (c >= 'a' && c <= 'f')
-                                codepoint |= (unsigned int)(c - 'a' + 10);
-                            else if (c >= 'A' && c <= 'F')
-                                codepoint |= (unsigned int)(c - 'A' + 10);
-                            else
-                                codepoint |= 0xFFFD; /* 替换字符 */
-                        }
-                        /* 编码为 UTF-8 */
-                        if (codepoint < 0x80) {
-                            *dst++ = (char)codepoint;
-                        } else if (codepoint < 0x800) {
-                            *dst++ = (char)(0xC0 | (codepoint >> 6));
-                            *dst++ = (char)(0x80 | (codepoint & 0x3F));
-                        } else {
-                            *dst++ = (char)(0xE0 | (codepoint >> 12));
-                            *dst++ = (char)(0x80 | ((codepoint >> 6) & 0x3F));
-                            *dst++ = (char)(0x80 | (codepoint & 0x3F));
-                        }
+            if (*src == 'u') {
+                /* \uXXXX — 简化为原样传递（完整 UTF-16 代理对处理过于复杂） */
+                if (src + 4 < end) {
+                    /* 将 \uXXXX 编码为 UTF-8 */
+                    unsigned int codepoint = 0;
+                    for (int i = 0; i < 4; i++) {
+                        src++;
+                        char c = *src;
+                        codepoint <<= 4;
+                        if (c >= '0' && c <= '9')
+                            codepoint |= (unsigned int)(c - '0');
+                        else if (c >= 'a' && c <= 'f')
+                            codepoint |= (unsigned int)(c - 'a' + 10);
+                        else if (c >= 'A' && c <= 'F')
+                            codepoint |= (unsigned int)(c - 'A' + 10);
+                        else
+                            codepoint |= 0xFFFD; /* 替换字符 */
                     }
-                    break;
+                    /* 编码为 UTF-8 */
+                    if (codepoint < 0x80) {
+                        *dst++ = (char)codepoint;
+                    } else if (codepoint < 0x800) {
+                        *dst++ = (char)(0xC0 | (codepoint >> 6));
+                        *dst++ = (char)(0x80 | (codepoint & 0x3F));
+                    } else {
+                        *dst++ = (char)(0xE0 | (codepoint >> 12));
+                        *dst++ = (char)(0x80 | ((codepoint >> 6) & 0x3F));
+                        *dst++ = (char)(0x80 | (codepoint & 0x3F));
+                    }
                 }
-                default:
-                    *dst++ = *src;
-                    break;
+            } else {
+                /* 简单转义查表解码；未命中（'\0'）走 default 原样保留 */
+                char dec = s_json_escape_decode[(unsigned char)*src];
+                *dst++ = dec != '\0' ? dec : *src;
             }
             src++;
         } else {
@@ -539,24 +556,16 @@ void lv_json_buf_append_string(lvJsonBuf *buf, const char *str) {
     /* 计算转义后长度：初始 2 字节给引号 */
     size_t escaped_len = 2;
     for (const char *s = str; *s; s++) {
-        switch (*s) {
-            case '"':
-            case '\\':
-                escaped_len += 2;
-                break;
-            case '\n':
-            case '\t':
-            case '\r':
-            case '\b':
-            case '\f':
-                escaped_len += 2;
-                break;
-            default:
-                if ((unsigned char)*s < 0x20)
-                    escaped_len += 6; /* \u00XX */
-                else
-                    escaped_len += 1;
-                break;
+        /* 查找表：转义字符 → 长度增量（0 表示未命中，走 default） */
+        unsigned char inc = s_json_escape_len[(unsigned char)*s];
+        if (inc > 0) {
+            escaped_len += inc;
+        } else {
+            /* default：其他控制字符 \u00XX 占 6 字节，其余原样 1 字节 */
+            if ((unsigned char)*s < 0x20)
+                escaped_len += 6;
+            else
+                escaped_len += 1;
         }
     }
 
@@ -565,45 +574,20 @@ void lv_json_buf_append_string(lvJsonBuf *buf, const char *str) {
     buf->buffer[buf->pos++] = '"';
     for (const char *s = str; *s; s++) {
         unsigned char c = (unsigned char)*s;
-        switch (c) {
-            case '"':
-                buf->buffer[buf->pos++] = '\\';
-                buf->buffer[buf->pos++] = '"';
-                break;
-            case '\\':
-                buf->buffer[buf->pos++] = '\\';
-                buf->buffer[buf->pos++] = '\\';
-                break;
-            case '\n':
-                buf->buffer[buf->pos++] = '\\';
-                buf->buffer[buf->pos++] = 'n';
-                break;
-            case '\t':
-                buf->buffer[buf->pos++] = '\\';
-                buf->buffer[buf->pos++] = 't';
-                break;
-            case '\r':
-                buf->buffer[buf->pos++] = '\\';
-                buf->buffer[buf->pos++] = 'r';
-                break;
-            case '\b':
-                buf->buffer[buf->pos++] = '\\';
-                buf->buffer[buf->pos++] = 'b';
-                break;
-            case '\f':
-                buf->buffer[buf->pos++] = '\\';
-                buf->buffer[buf->pos++] = 'f';
-                break;
-            default:
-                if (c < 0x20) {
-                    /* 其他控制字符：\u00XX */
-                    buf->pos += (size_t)snprintf(buf->buffer + buf->pos,
-                                                  buf->capacity - buf->pos,
-                                                  "\\u%04x", c);
-                } else {
-                    buf->buffer[buf->pos++] = (char)c;
-                }
-                break;
+        /* 查找表：转义字符 → 转义对字符串（NULL 表示未命中，走 default） */
+        const char *pair = s_json_escape_pairs[c];
+        if (pair) {
+            buf->buffer[buf->pos++] = pair[0];
+            buf->buffer[buf->pos++] = pair[1];
+        } else {
+            /* default：其他控制字符：\u00XX，其余原样写入 */
+            if (c < 0x20) {
+                buf->pos += (size_t)snprintf(buf->buffer + buf->pos,
+                                              buf->capacity - buf->pos,
+                                              "\\u%04x", c);
+            } else {
+                buf->buffer[buf->pos++] = (char)c;
+            }
         }
     }
     buf->buffer[buf->pos++] = '"';

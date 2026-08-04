@@ -484,28 +484,29 @@ const char *lv_context_state_name(lvContextState state) {
 /**
  * @brief 检查状态转移是否合法
  *
- * 状态转移规则：
+ * 状态转移合法性表：每行是一个位掩码，bit i 表示 from 状态可转移到枚举值 i 的目标状态
+ *
+ * 转移规则（与原 switch 完全一致）：
  *   IDLE      → PARSING | ERROR
  *   PARSING   → REASONING | ERROR | IDLE
  *   REASONING → COMPLETE | ERROR | IDLE
  *   COMPLETE  → IDLE
  *   ERROR     → IDLE
  */
+static const uint32_t kValidTransitions[] = {
+    [lv_CONTEXT_IDLE]      = (1u << lv_CONTEXT_PARSING) | (1u << lv_CONTEXT_ERROR),
+    [lv_CONTEXT_PARSING]   = (1u << lv_CONTEXT_REASONING) | (1u << lv_CONTEXT_ERROR) | (1u << lv_CONTEXT_IDLE),
+    [lv_CONTEXT_REASONING] = (1u << lv_CONTEXT_COMPLETE) | (1u << lv_CONTEXT_ERROR) | (1u << lv_CONTEXT_IDLE),
+    [lv_CONTEXT_COMPLETE]  = (1u << lv_CONTEXT_IDLE),
+    [lv_CONTEXT_ERROR]     = (1u << lv_CONTEXT_IDLE),
+};
+
 bool lv_context_state_transition_valid(lvContextState from, lvContextState to) {
-    switch (from) {
-        case lv_CONTEXT_IDLE:
-            return (to == lv_CONTEXT_PARSING || to == lv_CONTEXT_ERROR);
-        case lv_CONTEXT_PARSING:
-            return (to == lv_CONTEXT_REASONING || to == lv_CONTEXT_ERROR || to == lv_CONTEXT_IDLE);
-        case lv_CONTEXT_REASONING:
-            return (to == lv_CONTEXT_COMPLETE || to == lv_CONTEXT_ERROR || to == lv_CONTEXT_IDLE);
-        case lv_CONTEXT_COMPLETE:
-            return (to == lv_CONTEXT_IDLE);
-        case lv_CONTEXT_ERROR:
-            return (to == lv_CONTEXT_IDLE);
-        default:
-            return false;
+    if ((unsigned) from >= sizeof(kValidTransitions) / sizeof(kValidTransitions[0])) {
+        return false; /* 非法源状态（原 default 分支语义） */
     }
+    return ((unsigned) to < 32u) &&
+           ((kValidTransitions[from] >> (unsigned) to) & 1u);
 }
 
 /**

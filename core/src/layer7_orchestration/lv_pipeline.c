@@ -76,15 +76,19 @@ static int lv_pipeline_calc_stage_progress(int stage_index, int total_stages) {
  * ============================================================ */
 
 const char *lv_pipeline_stage_status_to_string(lvPipelineStageStatus status) {
-    switch (status) {
-        case lv_PIPELINE_STAGE_IDLE:      return "IDLE";
-        case lv_PIPELINE_STAGE_RUNNING:   return "RUNNING";
-        case lv_PIPELINE_STAGE_COMPLETED: return "COMPLETED";
-        case lv_PIPELINE_STAGE_FAILED:    return "FAILED";
-        case lv_PIPELINE_STAGE_SKIPPED:   return "SKIPPED";
-        case lv_PIPELINE_STAGE_CANCELLED: return "CANCELLED";
-        default:                          return "UNKNOWN";
+    /* 阶段状态 → 名称映射表（枚举连续 0..5，按下标索引；未知状态返回 "UNKNOWN"） */
+    static const char *kStageStatusNames[] = {
+        [lv_PIPELINE_STAGE_IDLE]      = "IDLE",
+        [lv_PIPELINE_STAGE_RUNNING]   = "RUNNING",
+        [lv_PIPELINE_STAGE_COMPLETED] = "COMPLETED",
+        [lv_PIPELINE_STAGE_FAILED]    = "FAILED",
+        [lv_PIPELINE_STAGE_SKIPPED]   = "SKIPPED",
+        [lv_PIPELINE_STAGE_CANCELLED] = "CANCELLED",
+    };
+    if ((unsigned) status < sizeof(kStageStatusNames) / sizeof(kStageStatusNames[0]) && kStageStatusNames[status]) {
+        return kStageStatusNames[status];
     }
+    return "UNKNOWN";
 }
 
 /* ============================================================

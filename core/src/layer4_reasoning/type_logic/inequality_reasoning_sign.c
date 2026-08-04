@@ -6,6 +6,15 @@
 #include "inequality_reasoning_internal.h"
 #include "lv/expr_vtable.h"
 
+/* 符号 → 描述字符串 静态查找表（越界含 SIGN_UNKNOWN 保持 "unknown"） */
+static const char *const kSignDescriptionTable[] = {
+    [SIGN_POSITIVE] = "positive",
+    [SIGN_NEGATIVE] = "negative",
+    [SIGN_ZERO] = "zero",
+    [SIGN_NONNEGATIVE] = "non-negative",
+    [SIGN_NONPOSITIVE] = "non-positive",
+};
+
 
 lvSign lv_expr_sign(lvExpr *expr, const lvInequalitySystem *sys) {
     if (!expr)
@@ -314,14 +323,9 @@ bool lv_expr_sos_decompose(lvExpr *poly, lvSOSDecomposition **out_sos) {
                 s = ops->sign(poly, NULL);
 
             const char *sign_desc = "unknown";
-            switch (s) {
-                case SIGN_POSITIVE:    sign_desc = "positive"; break;
-                case SIGN_NEGATIVE:    sign_desc = "negative"; break;
-                case SIGN_ZERO:        sign_desc = "zero"; break;
-                case SIGN_NONNEGATIVE: sign_desc = "non-negative"; break;
-                case SIGN_NONPOSITIVE: sign_desc = "non-positive"; break;
-                default: break;
-            }
+            /* 查静态查找表获取符号描述，越界（含 SIGN_UNKNOWN）保持 "unknown" */
+            if ((unsigned)s < sizeof(kSignDescriptionTable) / sizeof(kSignDescriptionTable[0]))
+                sign_desc = kSignDescriptionTable[s];
             char buf[256];
             snprintf(buf, sizeof(buf),
                      "Expression is %s — not directly decomposable into sum of squares. "

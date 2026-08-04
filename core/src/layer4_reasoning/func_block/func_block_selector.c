@@ -258,6 +258,128 @@ void selector_set_graph(SolutionSelector *selector, ConstraintGraph *graph) {
  * @return true  选择成功
  * @return false 选择失败（参数无效或无法找到有效解）
  */
+
+/* ============================================================
+ * 选择器类型分发：type → 选择策略函数指针表
+ * ============================================================ */
+
+/** 选择策略处理函数指针类型 */
+typedef bool (*SelectorApplyFn)(SolutionSelector *selector, GeomNode **candidates, int count,
+                                int *out_selected_index);
+
+/* 策略1：选择正根 - 遍历候选解，取第一个 x 坐标大于 0 的解 */
+static bool selector_positive_root(SolutionSelector *selector, GeomNode **candidates, int count,
+                                   int *out_selected_index) {
+    (void) selector;
+    for (int i = 0; i < count; i++) {
+        if (candidates[i] && candidates[i]->coord_count > 0 && candidates[i]->symbolic_coords &&
+            candidates[i]->symbolic_coords[0]) {
+            double val = symbolic_coord_to_double(candidates[i]->symbolic_coords[0]);
+            /* 检查返回值有效性：纯符号坐标可能无法转换为数值（返回 NaN） */
+            if (!isnan(val) && val > 0.0) {
+                *out_selected_index = i;
+                return true;
+            }
+        }
+    }
+    /* 未找到正根，选择失败 */
+    return false;
+}
+
+/* 策略2：选择负根 - 遍历候选解，取第一个 x 坐标小于 0 的解 */
+static bool selector_negative_root(SolutionSelector *selector, GeomNode **candidates, int count,
+                                   int *out_selected_index) {
+    (void) selector;
+    for (int i = 0; i < count; i++) {
+        if (candidates[i] && candidates[i]->coord_count > 0 && candidates[i]->symbolic_coords &&
+            candidates[i]->symbolic_coords[0]) {
+            double val = symbolic_coord_to_double(candidates[i]->symbolic_coords[0]);
+            /* 检查返回值有效性：纯符号坐标可能无法转换为数值（返回 NaN） */
+            if (!isnan(val) && val < 0.0) {
+                *out_selected_index = i;
+                return true;
+            }
+        }
+    }
+    /* 未找到负根，选择失败 */
+    return false;
+}
+
+/* 策略3：选择区域内的解 - 使用射线法判断候选点是否在指定区域内 */
+static bool selector_in_region(SolutionSelector *selector, GeomNode **candidates, int count,
+                               int *out_selected_index) {
+    ConstraintGraph *sel_graph = selector->graph;
+    GeomNode *region = NULL;
+    if (!sel_graph) {
+        /* 约束图未设置，配置错误 */
+        return false;
+    }
+    region = graph_get_node(sel_graph, selector->reference_node_id);
+    if (!region || region->type != GEOM_REGION) {
+        /* 参考节点无效或非区域类型 */
+        return false;
+    }
+    for (int i = 0; i < count; i++) {
+        if (candidates[i] && point_in_region(candidates[i], region, sel_graph)) {
+            *out_selected_index = i;
+            return true;
+        }
+    }
+    /* 未找到区域内的点 */
+    return false;
+}
+
+/* 策略4：选择最近点 - 遍历候选解，取距离参考点欧几里得距离最小的解 */
+static bool selector_nearest_to_point(SolutionSelector *selector, GeomNode **candidates, int count,
+                                      int *out_selected_index) {
+    ConstraintGraph *sel_graph = selector->graph;
+    GeomNode *ref_point = NULL;
+    if (!sel_graph) {
+        /* 约束图未设置，配置错误 */
+        return false;
+    }
+    ref_point = graph_get_node(sel_graph, selector->reference_node_id);
+    if (!ref_point) {
+        /* 参考点无效 */
+        return false;
+    }
+    int best_idx = -1;
+    double best_dist = lv_DEFAULT_DISTANCE_SQUARED;
+    for (int i = 0; i < count; i++) {
+        if (!candidates[i])
+            continue;
+        double dist = point_distance(candidates[i], ref_point);
+        if (dist < best_dist) {
+            best_dist = dist;
+            best_idx = i;
+        }
+    }
+    if (best_idx >= 0) {
+        *out_selected_index = best_idx;
+        return true;
+    }
+    /* 无有效候选解 */
+    return false;
+}
+
+/* 策略5：自定义选择 - 委托给用户提供的回调函数 */
+static bool selector_custom(SolutionSelector *selector, GeomNode **candidates, int count,
+                            int *out_selected_index) {
+    if (selector->custom_func) {
+        return selector->custom_func(candidates, count, out_selected_index, selector->user_data);
+    }
+    return false;
+}
+
+/** 选择器类型 → 选择策略函数查找表 */
+static const SelectorApplyFn kSelectorApplyHandlers[] = {
+    [SELECTOR_POSITIVE_ROOT] = selector_positive_root,
+    [SELECTOR_NEGATIVE_ROOT] = selector_negative_root,
+    [SELECTOR_IN_REGION] = selector_in_region,
+    [SELECTOR_NEAREST_TO_POINT] = selector_nearest_to_point,
+    [SELECTOR_CUSTOM] = selector_custom,
+};
+
 bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count, int *out_selected_index) {
     if (!selector || !candidates || count <= 0 || !out_selected_index) {
         return false;
@@ -268,102 +390,10 @@ bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count
         return true;
     }
 
-    switch (selector->type) {
-        /* 策略1：选择正根 - 遍历候选解，取第一个 x 坐标大于 0 的解 */
-        case SELECTOR_POSITIVE_ROOT:
-            for (int i = 0; i < count; i++) {
-                if (candidates[i] && candidates[i]->coord_count > 0 && candidates[i]->symbolic_coords &&
-                    candidates[i]->symbolic_coords[0]) {
-                    double val = symbolic_coord_to_double(candidates[i]->symbolic_coords[0]);
-                    /* 检查返回值有效性：纯符号坐标可能无法转换为数值（返回 NaN） */
-                    if (!isnan(val) && val > 0.0) {
-                        *out_selected_index = i;
-                        return true;
-                    }
-                }
-            }
-            /* 未找到正根，选择失败 */
-            return false;
-
-        /* 策略2：选择负根 - 遍历候选解，取第一个 x 坐标小于 0 的解 */
-        case SELECTOR_NEGATIVE_ROOT:
-            for (int i = 0; i < count; i++) {
-                if (candidates[i] && candidates[i]->coord_count > 0 && candidates[i]->symbolic_coords &&
-                    candidates[i]->symbolic_coords[0]) {
-                    double val = symbolic_coord_to_double(candidates[i]->symbolic_coords[0]);
-                    /* 检查返回值有效性：纯符号坐标可能无法转换为数值（返回 NaN） */
-                    if (!isnan(val) && val < 0.0) {
-                        *out_selected_index = i;
-                        return true;
-                    }
-                }
-            }
-            /* 未找到负根，选择失败 */
-            return false;
-
-        /* 策略3：选择区域内的解 - 使用射线法判断候选点是否在指定区域内 */
-        case SELECTOR_IN_REGION: {
-            ConstraintGraph *sel_graph = selector->graph;
-            GeomNode *region = NULL;
-            if (!sel_graph) {
-                /* 约束图未设置，配置错误 */
-                return false;
-            }
-            region = graph_get_node(sel_graph, selector->reference_node_id);
-            if (!region || region->type != GEOM_REGION) {
-                /* 参考节点无效或非区域类型 */
-                return false;
-            }
-            for (int i = 0; i < count; i++) {
-                if (candidates[i] && point_in_region(candidates[i], region, sel_graph)) {
-                    *out_selected_index = i;
-                    return true;
-                }
-            }
-            /* 未找到区域内的点 */
-            return false;
-        }
-
-        /* 策略4：选择最近点 - 遍历候选解，取距离参考点欧几里得距离最小的解 */
-        case SELECTOR_NEAREST_TO_POINT: {
-            ConstraintGraph *sel_graph = selector->graph;
-            GeomNode *ref_point = NULL;
-            if (!sel_graph) {
-                /* 约束图未设置，配置错误 */
-                return false;
-            }
-            ref_point = graph_get_node(sel_graph, selector->reference_node_id);
-            if (!ref_point) {
-                /* 参考点无效 */
-                return false;
-            }
-            int best_idx = -1;
-            double best_dist = lv_DEFAULT_DISTANCE_SQUARED;
-            for (int i = 0; i < count; i++) {
-                if (!candidates[i])
-                    continue;
-                double dist = point_distance(candidates[i], ref_point);
-                if (dist < best_dist) {
-                    best_dist = dist;
-                    best_idx = i;
-                }
-            }
-            if (best_idx >= 0) {
-                *out_selected_index = best_idx;
-                return true;
-            }
-            /* 无有效候选解 */
-            return false;
-        }
-
-        /* 策略5：自定义选择 - 委托给用户提供的回调函数 */
-        case SELECTOR_CUSTOM:
-            if (selector->custom_func) {
-                return selector->custom_func(candidates, count, out_selected_index, selector->user_data);
-            }
-            return false;
-
-        default:
-            return false;
+    /* 按选择器类型分派到对应的选择策略 */
+    if ((unsigned)selector->type < sizeof(kSelectorApplyHandlers)/sizeof(kSelectorApplyHandlers[0]) &&
+        kSelectorApplyHandlers[selector->type]) {
+        return kSelectorApplyHandlers[selector->type](selector, candidates, count, out_selected_index);
     }
+    return false;
 }

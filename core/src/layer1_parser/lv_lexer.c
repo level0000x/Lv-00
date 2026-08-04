@@ -120,6 +120,41 @@ static LvTokenType lookup_keyword(const char *word, size_t len) {
     return LV_TOKEN_IDENTIFIER;
 }
 
+/* ── 单字符运算符查找表 ── */
+
+/** 单字符运算符映射条目 */
+typedef struct {
+    unsigned char valid; /**< 1 表示有效映射；0 表示未映射（默认 LV_TOKEN_ERROR） */
+    LvTokenType type;    /**< 映射的 Token 类型 */
+} CharTokenEntry;
+
+/**
+ * @brief 单字符运算符查找表
+ *
+ * 按 ASCII 下标索引，未映射的字符默认为 LV_TOKEN_ERROR。
+ * 用于替代 lex_raw 中的单字符运算符 switch。
+ */
+static const CharTokenEntry s_char_token[128] = {
+    ['('] = {1, LV_TOKEN_LPAREN},
+    [')'] = {1, LV_TOKEN_RPAREN},
+    ['{'] = {1, LV_TOKEN_LBRACE},
+    ['}'] = {1, LV_TOKEN_RBRACE},
+    ['['] = {1, LV_TOKEN_LBRACKET},
+    [']'] = {1, LV_TOKEN_RBRACKET},
+    [';'] = {1, LV_TOKEN_SEMICOLON},
+    [','] = {1, LV_TOKEN_COMMA},
+    ['.'] = {1, LV_TOKEN_DOT},
+    [':'] = {1, LV_TOKEN_COLON},
+    ['='] = {1, LV_TOKEN_EQUALS},
+    ['+'] = {1, LV_TOKEN_PLUS},
+    ['-'] = {1, LV_TOKEN_MINUS},
+    ['*'] = {1, LV_TOKEN_STAR},
+    ['/'] = {1, LV_TOKEN_SLASH},
+    ['^'] = {1, LV_TOKEN_CARET},
+    ['<'] = {1, LV_TOKEN_LT},
+    ['>'] = {1, LV_TOKEN_GT},
+};
+
 /**
  * @brief 构造一个 LvToken 实例
  *
@@ -336,46 +371,14 @@ static LvToken lex_raw(LvLexer *lexer) {
     /* 单字符运算符 */
     lexer->pos++;
     lexer->column++;
-    switch (c) {
-        case '(':
-            return make_token_at(lexer, LV_TOKEN_LPAREN, start, 1, start_col);
-        case ')':
-            return make_token_at(lexer, LV_TOKEN_RPAREN, start, 1, start_col);
-        case '{':
-            return make_token_at(lexer, LV_TOKEN_LBRACE, start, 1, start_col);
-        case '}':
-            return make_token_at(lexer, LV_TOKEN_RBRACE, start, 1, start_col);
-        case '[':
-            return make_token_at(lexer, LV_TOKEN_LBRACKET, start, 1, start_col);
-        case ']':
-            return make_token_at(lexer, LV_TOKEN_RBRACKET, start, 1, start_col);
-        case ';':
-            return make_token_at(lexer, LV_TOKEN_SEMICOLON, start, 1, start_col);
-        case ',':
-            return make_token_at(lexer, LV_TOKEN_COMMA, start, 1, start_col);
-        case '.':
-            return make_token_at(lexer, LV_TOKEN_DOT, start, 1, start_col);
-        case ':':
-            return make_token_at(lexer, LV_TOKEN_COLON, start, 1, start_col);
-        case '=':
-            return make_token_at(lexer, LV_TOKEN_EQUALS, start, 1, start_col);
-        case '+':
-            return make_token_at(lexer, LV_TOKEN_PLUS, start, 1, start_col);
-        case '-':
-            return make_token_at(lexer, LV_TOKEN_MINUS, start, 1, start_col);
-        case '*':
-            return make_token_at(lexer, LV_TOKEN_STAR, start, 1, start_col);
-        case '/':
-            return make_token_at(lexer, LV_TOKEN_SLASH, start, 1, start_col);
-        case '^':
-            return make_token_at(lexer, LV_TOKEN_CARET, start, 1, start_col);
-        case '<':
-            return make_token_at(lexer, LV_TOKEN_LT, start, 1, start_col);
-        case '>':
-            return make_token_at(lexer, LV_TOKEN_GT, start, 1, start_col);
-        default:
-            return make_token_at(lexer, LV_TOKEN_ERROR, start, 1, start_col);
+    /* 查表分发：未映射的字符默认为 LV_TOKEN_ERROR */
+    LvTokenType type = LV_TOKEN_ERROR;
+    if ((unsigned char) c < 128) {
+        const CharTokenEntry *entry = &s_char_token[(unsigned char) c];
+        if (entry->valid)
+            type = entry->type;
     }
+    return make_token_at(lexer, type, start, 1, start_col);
 }
 
 /* ── 公共 API ── */

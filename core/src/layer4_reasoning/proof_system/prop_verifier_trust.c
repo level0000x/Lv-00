@@ -33,30 +33,36 @@
  *   - ��֤α��VERIFY_DISPROVEN���� TRUST_RED
  *   - ��ʱ/���� �� TRUST_BLUE
  */
+/* VerifyResult → 基准 TrustColor 静态查找表
+ * VERIFY_PROVEN 因需依据 bhk 缺构数细分颜色，单独处理，不列入本表 */
+static const TrustColor kVerifyBaseColorTable[] = {
+    [VERIFY_DISPROVEN]     = TRUST_RED,              /* 验证伪 → 红 */
+    [VERIFY_FAILED]        = TRUST_BLUE_UNEXPLORED,  /* 未验证 → 蓝-未探索 */
+    [VERIFY_TIMEOUT]       = TRUST_BLUE_UNEXPLORED,  /* 超时 → 蓝-未探索 */
+    [VERIFY_INVALID_INPUT] = TRUST_BLUE_UNEXPLORED,  /* 非法输入 → 蓝-未探索 */
+    [VERIFY_ERROR]         = TRUST_BLUE_UNEXPLORED,  /* 出错 → 蓝-未探索 */
+};
+
 static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk, VerifyResult verify_result) {
-    switch (verify_result) {
-        case VERIFY_PROVEN:
-            if (!bhk->verified) {
-                /* BHK��δͨ���������ͨ���������Կ��� */
-                return TRUST_YELLOW;
-            }
-            if (bhk->missing_constructions == 0) {
-                return TRUST_GREEN;
-            } else if (bhk->missing_constructions <= 2) {
-                return TRUST_YELLOW;
-            } else {
-                return TRUST_AMBER;
-            }
-        case VERIFY_DISPROVEN:
-            return TRUST_RED;
-        case VERIFY_FAILED:
-            return TRUST_BLUE_UNEXPLORED;
-        case VERIFY_TIMEOUT:
-        case VERIFY_INVALID_INPUT:
-        case VERIFY_ERROR:
-        default:
-            return TRUST_BLUE_UNEXPLORED;
+    /* PROVEN 分支：依据 bhk 缺构数细分颜色，独立处理 */
+    if (verify_result == VERIFY_PROVEN) {
+        if (!bhk->verified) {
+            /* BHK 未通过却判定可证，信息不足，保守给黄色 */
+            return TRUST_YELLOW;
+        }
+        if (bhk->missing_constructions == 0) {
+            return TRUST_GREEN;
+        } else if (bhk->missing_constructions <= 2) {
+            return TRUST_YELLOW;
+        } else {
+            return TRUST_AMBER;
+        }
     }
+
+    /* 其余结果查基准色表，越界保守回退为蓝-未探索 */
+    if ((unsigned)verify_result < sizeof(kVerifyBaseColorTable) / sizeof(kVerifyBaseColorTable[0]))
+        return kVerifyBaseColorTable[verify_result];
+    return TRUST_BLUE_UNEXPLORED;
 }
 
 /**

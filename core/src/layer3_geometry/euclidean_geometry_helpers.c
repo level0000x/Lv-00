@@ -29,6 +29,25 @@
  * 第八部分：内部辅助函数
  * ======================================================================== */
 
+/* ================================================================
+ * 公理组 -> {位掩码偏移, 组内索引上限} 静态查找表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 公理组表条目 */
+typedef struct {
+    int offset;       /**< 位掩码偏移量 */
+    int max_axiom_id; /**< 组内公理索引上限（含） */
+} AxiomGroupEntry;
+
+/** @brief 公理组 -> 位掩码偏移/索引上限 查找表（组号 0~4 连续） */
+static const AxiomGroupEntry s_axiom_group_table[] = {
+    [0] = {EUCLID_INCIDENCE_OFFSET, 7},
+    [1] = {EUCLID_ORDER_OFFSET, 3},
+    [2] = {EUCLID_CONGRUENCE_OFFSET, 4},
+    [3] = {EUCLID_PARALLEL_OFFSET, 2},
+    [4] = {EUCLID_CONTINUITY_OFFSET, 1},
+};
+
 /**
  * @brief 将公理组别和索引转换为位掩码偏移量
  *
@@ -37,30 +56,13 @@
  * @return 位掩码偏移量（0-31），参数无效返回 -1
  */
 int euclidean_axiom_mask_offset(int group, int axiom_id) {
-    switch (group) {
-        case 0:
-            if (axiom_id < 0 || axiom_id > 7)
-                return -1;
-            return EUCLID_INCIDENCE_OFFSET + axiom_id;
-        case 1:
-            if (axiom_id < 0 || axiom_id > 3)
-                return -1;
-            return EUCLID_ORDER_OFFSET + axiom_id;
-        case 2:
-            if (axiom_id < 0 || axiom_id > 4)
-                return -1;
-            return EUCLID_CONGRUENCE_OFFSET + axiom_id;
-        case 3:
-            if (axiom_id < 0 || axiom_id > 2)
-                return -1;
-            return EUCLID_PARALLEL_OFFSET + axiom_id;
-        case 4:
-            if (axiom_id < 0 || axiom_id > 1)
-                return -1;
-            return EUCLID_CONTINUITY_OFFSET + axiom_id;
-        default:
-            return -1;
-    }
+    /* 查表获取公理组信息；未知组别回退到 -1（原 default 分支） */
+    if ((unsigned) group >= lv_ARRAY_SIZE(s_axiom_group_table))
+        return -1;
+    const AxiomGroupEntry *entry = &s_axiom_group_table[group];
+    if (axiom_id < 0 || axiom_id > entry->max_axiom_id)
+        return -1;
+    return entry->offset + axiom_id;
 }
 
 /**

@@ -32,6 +32,37 @@
 #define MATH_PROTO_TYPE_OBJECT "object"
 
 /* ================================================================
+ *  转义查找表（ASCII 下标，替代 switch-case 反模式）
+ * ================================================================ */
+
+/** @brief 协议字符串简单转义 → 解码字符 查找表（'\0' 表示未声明，走 default 原样保留） */
+static const char s_proto_escape_decode[256] = {
+    ['"']  = '"',
+    ['\\'] = '\\',
+    ['n']  = '\n',
+    ['t']  = '\t',
+    ['r']  = '\r',
+};
+
+/** @brief 协议转义字符 → 是否需转义 查找表（true 表示转义为 2 字符，false 原样 1 字符） */
+static const bool s_proto_need_escape[256] = {
+    ['"']  = true,
+    ['\\'] = true,
+    ['\n'] = true,
+    ['\t'] = true,
+    ['\r'] = true,
+};
+
+/** @brief 协议转义字符 → 转义对字符串 查找表（NULL 表示无需转义，原样写入） */
+static const char *const s_proto_escape_pairs[256] = {
+    ['"']  = "\\\"",
+    ['\\'] = "\\\\",
+    ['\n'] = "\\n",
+    ['\t'] = "\\t",
+    ['\r'] = "\\r",
+};
+
+/* ================================================================
  *  内部辅助函数
  * ================================================================ */
 
@@ -94,25 +125,12 @@ static const char *proto_parse_string(const char *p, char *buf, int bufsz) {
         /* 处理简单转义序列 */
         if (*p == '\\' && *(p + 1)) {
             p++;
-            switch (*p) {
-                case '"':
-                    buf[len++] = '"';
-                    break;
-                case '\\':
-                    buf[len++] = '\\';
-                    break;
-                case 'n':
-                    buf[len++] = '\n';
-                    break;
-                case 't':
-                    buf[len++] = '\t';
-                    break;
-                case 'r':
-                    buf[len++] = '\r';
-                    break;
-                default:
-                    buf[len++] = *p;
-                    break;
+            /* 查找表：转义字符 → 解码字符；未命中（'\0'）走 default 原样保留 */
+            char dec = s_proto_escape_decode[(unsigned char)*p];
+            if (dec != '\0') {
+                buf[len++] = dec;
+            } else {
+                buf[len++] = *p;
             }
             p++;
         } else {
@@ -138,18 +156,8 @@ static int proto_escaped_length(const char *str) {
     if (!str)
         return 0;
     while (*str) {
-        switch (*str) {
-            case '"':
-            case '\\':
-            case '\n':
-            case '\t':
-            case '\r':
-                len += 2; /* 需要反斜杠转义 */
-                break;
-            default:
-                len += 1;
-                break;
-        }
+        /* 查找表：转义字符 → 是否需转义；命中加 2，否则原样加 1 */
+        len += s_proto_need_escape[(unsigned char)*str] ? 2 : 1;
         str++;
     }
     return len;
@@ -175,30 +183,13 @@ static char *proto_write_escaped_string(char *out, const char *buf_end, const ch
         lv_RETURN_ERROR_NULL(lv_ERROR_BUFFER_TOO_SMALL, "proto_write_escaped_string: 写入开头引号后缓冲区不足");
 
     while (*str && out < buf_end - 1) {
-        switch (*str) {
-            case '"':
-                *out++ = '\\';
-                *out++ = '"';
-                break;
-            case '\\':
-                *out++ = '\\';
-                *out++ = '\\';
-                break;
-            case '\n':
-                *out++ = '\\';
-                *out++ = 'n';
-                break;
-            case '\t':
-                *out++ = '\\';
-                *out++ = 't';
-                break;
-            case '\r':
-                *out++ = '\\';
-                *out++ = 'r';
-                break;
-            default:
-                *out++ = *str;
-                break;
+        /* 查找表：转义字符 → 转义对字符串；未命中（NULL）走 default 原样写入 */
+        const char *pair = s_proto_escape_pairs[(unsigned char)*str];
+        if (pair) {
+            *out++ = pair[0];
+            *out++ = pair[1];
+        } else {
+            *out++ = *str;
         }
         str++;
     }

@@ -30,6 +30,25 @@
 /*  JSON 序列化 / 反序列化                                             */
 /* ================================================================== */
 
+/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
+static const char *const s_json_escape_table[256] = {
+    ['"'] = "\\\"",
+    ['\\'] = "\\\\",
+    ['\n'] = "\\n",
+    ['\r'] = "\\r",
+    ['\t'] = "\\t",
+};
+
+/** @brief JSON 转义解码查找表（按转义符 ASCII 下标，0 表示无映射，保留原字符） */
+static const char s_json_unescape_table[256] = {
+    ['n'] = '\n',
+    ['r'] = '\r',
+    ['t'] = '\t',
+    ['"'] = '"',
+    ['\\'] = '\\',
+    ['/'] = '/',
+};
+
 /* JSON 写入器类型定义已提取至 module_helpers.h */
 
 bool json_writer_init(JsonWriter *w, size_t initial_capacity) {
@@ -75,31 +94,15 @@ void json_writer_write_escaped_str(JsonWriter *w, const char *s) {
     }
     json_writer_putc(w, '"');
     for (; *s; s++) {
-        switch (*s) {
-            case '"':
-                json_writer_puts(w, "\\\"");
-                break;
-            case '\\':
-                json_writer_puts(w, "\\\\");
-                break;
-            case '\n':
-                json_writer_puts(w, "\\n");
-                break;
-            case '\r':
-                json_writer_puts(w, "\\r");
-                break;
-            case '\t':
-                json_writer_puts(w, "\\t");
-                break;
-            default:
-                if ((unsigned char) *s < 0x20) {
-                    char buf[8];
-                    snprintf(buf, sizeof(buf), "\\u%04x", (unsigned char) *s);
-                    json_writer_puts(w, buf);
-                } else {
-                    json_writer_putc(w, *s);
-                }
-                break;
+        const char *esc = s_json_escape_table[(unsigned char) *s];
+        if (esc) {
+            json_writer_puts(w, esc);
+        } else if ((unsigned char) *s < 0x20) {
+            char buf[8];
+            snprintf(buf, sizeof(buf), "\\u%04x", (unsigned char) *s);
+            json_writer_puts(w, buf);
+        } else {
+            json_writer_putc(w, *s);
         }
     }
     json_writer_putc(w, '"');
@@ -314,29 +317,8 @@ char *json_reader_read_string(JsonReader *r) {
     while (src < end) {
         if (*src == '\\' && src + 1 < end) {
             src++;
-            switch (*src) {
-                case 'n':
-                    *dst++ = '\n';
-                    break;
-                case 'r':
-                    *dst++ = '\r';
-                    break;
-                case 't':
-                    *dst++ = '\t';
-                    break;
-                case '"':
-                    *dst++ = '"';
-                    break;
-                case '\\':
-                    *dst++ = '\\';
-                    break;
-                case '/':
-                    *dst++ = '/';
-                    break;
-                default:
-                    *dst++ = *src;
-                    break;
-            }
+            char decoded = s_json_unescape_table[(unsigned char) *src];
+            *dst++ = decoded ? decoded : *src;
             src++;
         } else {
             *dst++ = *src++;

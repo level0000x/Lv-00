@@ -39,6 +39,26 @@ void func_block_preset_free_details(InstantiateDetails *details) {
     }
 }
 
+/* ================================================================
+ * 节点类型 -> 预设参数类型 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/* GeomNode 类型 → PresetParamType 映射表。
+ * NODE_TYPE_* 取值为 -5..2（负值为 func_block 内部扩展类型，未在
+ * GeomType 枚举中定义），统一加 NODE_TYPE_PARAM_SHIFT 偏移映射到表索引 0..7。 */
+#define NODE_TYPE_PARAM_SHIFT 5
+
+static const PresetParamType s_node_type_to_param_types[] = {
+    [NODE_TYPE_VECTOR + NODE_TYPE_PARAM_SHIFT]  = PARAM_TYPE_VECTOR,
+    [NODE_TYPE_SCALAR + NODE_TYPE_PARAM_SHIFT]  = PARAM_TYPE_SCALAR,
+    [NODE_TYPE_POLYGON + NODE_TYPE_PARAM_SHIFT] = PARAM_TYPE_POLYGON,
+    [NODE_TYPE_ARC + NODE_TYPE_PARAM_SHIFT]     = PARAM_TYPE_ARC,
+    [NODE_TYPE_CIRCLE + NODE_TYPE_PARAM_SHIFT]  = PARAM_TYPE_CIRCLE,
+    [NODE_TYPE_POINT + NODE_TYPE_PARAM_SHIFT]   = PARAM_TYPE_POINT,
+    [NODE_TYPE_LINE + NODE_TYPE_PARAM_SHIFT]    = PARAM_TYPE_LINE,
+    [NODE_TYPE_REGION + NODE_TYPE_PARAM_SHIFT]  = PARAM_TYPE_REGION,
+};
+
 bool func_block_preset_validate_types(const char *preset_name, GeomNode **input_nodes, int input_count,
                                       int *out_mismatch_index) {
     if (!preset_name)
@@ -84,37 +104,11 @@ bool func_block_preset_validate_types(const char *preset_name, GeomNode **input_
                 continue;
             }
 
-            /* 获取节点实际类型映射 */
-            PresetParamType actual;
-            switch (input_nodes[i]->type) {
-                case NODE_TYPE_POINT:
-                    actual = PARAM_TYPE_POINT;
-                    break;
-                case NODE_TYPE_LINE:
-                    actual = PARAM_TYPE_LINE;
-                    break;
-                case NODE_TYPE_CIRCLE:
-                    actual = PARAM_TYPE_CIRCLE;
-                    break;
-                case NODE_TYPE_ARC:
-                    actual = PARAM_TYPE_ARC;
-                    break;
-                case NODE_TYPE_POLYGON:
-                    actual = PARAM_TYPE_POLYGON;
-                    break;
-                case NODE_TYPE_REGION:
-                    actual = PARAM_TYPE_REGION;
-                    break;
-                case NODE_TYPE_SCALAR:
-                    actual = PARAM_TYPE_SCALAR;
-                    break;
-                case NODE_TYPE_VECTOR:
-                    actual = PARAM_TYPE_VECTOR;
-                    break;
-                default:
-                    actual = PARAM_TYPE_ANY;
-                    break;
-            }
+            /* 获取节点实际类型映射（负值扩展类型经偏移映射到查找表） */
+            PresetParamType actual = PARAM_TYPE_ANY;
+            int type_idx = (int) input_nodes[i]->type + NODE_TYPE_PARAM_SHIFT;
+            if (type_idx >= 0 && type_idx < (int) lv_ARRAY_SIZE(s_node_type_to_param_types))
+                actual = s_node_type_to_param_types[type_idx];
 
             /* 类型兼容性检查：
              *   - 精确匹配：通过

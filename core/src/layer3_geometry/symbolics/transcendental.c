@@ -261,6 +261,26 @@ int transcendental_compare(const Transcendental *a, const Transcendental *b) {
     return 0;
 }
 
+/* ================================================================
+ * 表达式类型 -> 运算符/语义 静态查找表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 表达式类型 -> 序列化运算符字符串 */
+static const char *const s_trans_expr_op_str[] = {
+    [TRANS_EXPR_ADD_RATIONAL] = "+",
+    [TRANS_EXPR_MUL_RATIONAL] = "*",
+    [TRANS_EXPR_ADD_ALGEBRAIC] = "+",
+    [TRANS_EXPR_MUL_ALGEBRAIC] = "*",
+};
+
+/** @brief 表达式类型 -> 是否为乘法（true=系数*基础常数，false=基础常数+系数） */
+static const bool s_trans_expr_is_mul[] = {
+    [TRANS_EXPR_ADD_RATIONAL] = false,
+    [TRANS_EXPR_MUL_RATIONAL] = true,
+    [TRANS_EXPR_ADD_ALGEBRAIC] = false,
+    [TRANS_EXPR_MUL_ALGEBRAIC] = true,
+};
+
 char *transcendental_serialize(const Transcendental *t) {
     if (!t->expr) {
         /* 裸常量：使用 lv_strdup 分配内存 */
@@ -269,22 +289,13 @@ char *transcendental_serialize(const Transcendental *t) {
 
     /* Serialize expression tree */
     const char *op_str = NULL;
-    switch (t->expr->expr_type) {
-        case TRANS_EXPR_ADD_RATIONAL:
-            op_str = "+";
-            break;
-        case TRANS_EXPR_MUL_RATIONAL:
-            op_str = "*";
-            break;
-        case TRANS_EXPR_ADD_ALGEBRAIC:
-            op_str = "+";
-            break;
-        case TRANS_EXPR_MUL_ALGEBRAIC:
-            op_str = "*";
-            break;
-        default:
-            /* 未知表达式类型：使用 lv_strdup 分配内存 */
-            return lv_strdup(t->name);
+    /* 查表获取运算符字符串；未知表达式类型回退到裸常量名（原 default 分支） */
+    TransExprType et = t->expr->expr_type;
+    if ((unsigned) et < lv_ARRAY_SIZE(s_trans_expr_op_str) && s_trans_expr_op_str[et]) {
+        op_str = s_trans_expr_op_str[et];
+    } else {
+        /* 未知表达式类型：使用 lv_strdup 分配内存 */
+        return lv_strdup(t->name);
     }
 
     if (t->expr->out_of_scope) {
@@ -359,18 +370,14 @@ double transcendental_to_double(const Transcendental *t) {
         k = mpq_get_d(t->expr->rational_operand->value);
         mpq_clear(rat_val);
 
-        switch (t->expr->expr_type) {
-            case TRANS_EXPR_MUL_RATIONAL:
+        /* 查表判断运算语义：乘法 k*base / 加法 base+k；未知类型返回基础常数（原 default 分支） */
+        TransExprType et = t->expr->expr_type;
+        if ((unsigned) et < lv_ARRAY_SIZE(s_trans_expr_is_mul)) {
+            if (s_trans_expr_is_mul[et])
                 return k * base_val;
-            case TRANS_EXPR_ADD_RATIONAL:
-                return base_val + k;
-            case TRANS_EXPR_MUL_ALGEBRAIC:
-                return k * base_val;
-            case TRANS_EXPR_ADD_ALGEBRAIC:
-                return base_val + k;
-            default:
-                return base_val;
+            return base_val + k;
         }
+        return base_val;
     }
 
     return base_val;

@@ -23,6 +23,34 @@
  * Internal helpers
  * ======================================================================== */
 
+/* ================================================================
+ * 枚举 -> 值域 静态查找表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 不变量类型期望值域表条目 */
+typedef struct {
+    double min; /**< 期望最小值 */
+    double max; /**< 期望最大值 */
+} InvariantRangeEntry;
+
+/** @brief get_invariant_range 值域表（按枚举值升序，仅覆盖有特定值域的类型） */
+static const InvariantRangeEntry s_invariant_range_table[] = {
+    [GEO_INV_DISTANCE] = {0.0, 1e30},            /* practical upper bound */
+    [GEO_INV_AREA] = {0.0, 1e30},                /* practical upper bound */
+    [GEO_INV_VOLUME] = {0.0, 1e30},              /* practical upper bound */
+    [GEO_INV_PERIMETER] = {0.0, 1e30},           /* practical upper bound */
+    [GEO_INV_MOMENT_OF_INERTIA] = {0.0, 1e30},   /* practical upper bound */
+    [GEO_INV_ANGLE] = {0.0, 360.0},              /* degrees */
+    [GEO_INV_DIHEDRAL_ANGLE] = {0.0, 360.0},     /* degrees */
+    [GEO_INV_SOLID_ANGLE] = {0.0, 360.0},        /* degrees */
+    [GEO_INV_CROSS_RATIO] = {-1e30, 1e30},
+    [GEO_INV_CURVATURE] = {-1e30, 1e30},
+    [GEO_INV_TORSION] = {-1e30, 1e30},
+    [GEO_INV_BARYCENTER] = {-1e30, 1e30},
+    [GEO_INV_PARALLELISM] = {0.0, 1.0},          /* Boolean-like: 0.0 = false, 1.0 = true */
+    [GEO_INV_ORTHOGONALITY] = {0.0, 1.0},        /* Boolean-like: 0.0 = false, 1.0 = true */
+};
+
 /**
  * @brief Get the expected value range for an invariant kind
  *
@@ -31,50 +59,13 @@
  * @param out_max    Output maximum value (may be +INFINITY)
  */
 static void get_invariant_range(GeoInvariantKind kind, double *out_min, double *out_max) {
-    switch (kind) {
-        case GEO_INV_DISTANCE:
-        case GEO_INV_AREA:
-        case GEO_INV_VOLUME:
-        case GEO_INV_PERIMETER:
-        case GEO_INV_MOMENT_OF_INERTIA:
-            *out_min = 0.0;
-            *out_max = 1e30; /* practical upper bound */
-            break;
-
-        case GEO_INV_ANGLE:
-        case GEO_INV_DIHEDRAL_ANGLE:
-        case GEO_INV_SOLID_ANGLE:
-            *out_min = 0.0;
-            *out_max = 360.0; /* degrees */
-            break;
-
-        case GEO_INV_CROSS_RATIO:
-            *out_min = -1e30;
-            *out_max = 1e30;
-            break;
-
-        case GEO_INV_CURVATURE:
-        case GEO_INV_TORSION:
-            *out_min = -1e30;
-            *out_max = 1e30;
-            break;
-
-        case GEO_INV_BARYCENTER:
-            *out_min = -1e30;
-            *out_max = 1e30;
-            break;
-
-        case GEO_INV_PARALLELISM:
-        case GEO_INV_ORTHOGONALITY:
-            /* Boolean-like: 0.0 = false, 1.0 = true */
-            *out_min = 0.0;
-            *out_max = 1.0;
-            break;
-
-        default:
-            *out_min = -1e30;
-            *out_max = 1e30;
-            break;
+    /* 查表获取期望值域；未知/越界类型回退到默认值域（原 default 分支） */
+    if ((unsigned) kind < lv_ARRAY_SIZE(s_invariant_range_table)) {
+        *out_min = s_invariant_range_table[kind].min;
+        *out_max = s_invariant_range_table[kind].max;
+    } else {
+        *out_min = -1e30;
+        *out_max = 1e30;
     }
 }
 

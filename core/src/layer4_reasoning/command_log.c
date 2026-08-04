@@ -608,6 +608,15 @@ bool command_log_serialize_json(const CommandLog *log, const char *filepath) {
  *  JSON 反序列化 —— 最小 JSON 解析器
  * ════════════════════════════════════════════════════════════════ */
 
+/** @brief JSON 转义解码查找表（按转义符 ASCII 下标，0 表示无映射，保留原字符） */
+static const char s_json_unescape_table[256] = {
+    ['"'] = '"',
+    ['\\'] = '\\',
+    ['n'] = '\n',
+    ['r'] = '\r',
+    ['t'] = '\t',
+};
+
 /** 轻量 JSON 解析上下文 */
 typedef struct {
     const char *buf; /* 输入缓冲区 */
@@ -659,26 +668,8 @@ static bool json_parse_string(JsonCtx *j, char *dst, size_t dst_size) {
         }
         if (c == '\\' && j->pos < j->len) {
             char esc = j->buf[j->pos++];
-            switch (esc) {
-                case '"':
-                    c = '"';
-                    break;
-                case '\\':
-                    c = '\\';
-                    break;
-                case 'n':
-                    c = '\n';
-                    break;
-                case 'r':
-                    c = '\r';
-                    break;
-                case 't':
-                    c = '\t';
-                    break;
-                default:
-                    c = esc;
-                    break;
-            }
+            char decoded = s_json_unescape_table[(unsigned char) esc];
+            c = decoded ? decoded : esc;
         }
         if (i < dst_size - 1)
             dst[i++] = c;

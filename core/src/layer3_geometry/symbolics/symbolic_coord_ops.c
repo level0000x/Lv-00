@@ -468,6 +468,25 @@ static int64_t safe_atol(const char *str) {
 
 /* ── 超越数转 double 辅助 ── */
 
+/* ================================================================
+ * 表达式类型 -> 运算语义 静态查找表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 超越数表达式运算语义 */
+typedef enum {
+    TRANS_OP_UNKNOWN = 0, /**< 未知语义（沿用名称解析回退路径） */
+    TRANS_OP_ADD,         /**< 加法：base + 有理数 */
+    TRANS_OP_MUL,         /**< 乘法：base * 有理数 */
+} TransOpKind;
+
+/** @brief 表达式类型 -> 运算语义 查找表 */
+static const TransOpKind s_trans_expr_op_kind[] = {
+    [TRANS_EXPR_ADD_RATIONAL] = TRANS_OP_ADD,
+    [TRANS_EXPR_MUL_RATIONAL] = TRANS_OP_MUL,
+    [TRANS_EXPR_ADD_ALGEBRAIC] = TRANS_OP_UNKNOWN,
+    [TRANS_EXPR_MUL_ALGEBRAIC] = TRANS_OP_UNKNOWN,
+};
+
 /**
  * 将超越数转换为 double 近似值。
  */
@@ -491,14 +510,14 @@ static double transcendental_expr_to_double(const Transcendental *t) {
 
     if (t->expr->rational_operand) {
         double rat_val = rational_to_double(t->expr->rational_operand);
-        switch (t->expr->expr_type) {
-            case TRANS_EXPR_MUL_RATIONAL:
-                return base_val * rat_val;
-            case TRANS_EXPR_ADD_RATIONAL:
-                return base_val + rat_val;
-            default:
-                break;
-        }
+        /* 查表获取运算语义；仅 ADD/MUL_RATIONAL 有定义，其余继续走回退路径（原 default break） */
+        TransOpKind op = TRANS_OP_UNKNOWN;
+        if ((unsigned) t->expr->expr_type < lv_ARRAY_SIZE(s_trans_expr_op_kind))
+            op = s_trans_expr_op_kind[t->expr->expr_type];
+        if (op == TRANS_OP_MUL)
+            return base_val * rat_val;
+        if (op == TRANS_OP_ADD)
+            return base_val + rat_val;
     }
 
     if (t->expr->expr_type == TRANS_EXPR_ADD_ALGEBRAIC || t->expr->expr_type == TRANS_EXPR_MUL_ALGEBRAIC) {

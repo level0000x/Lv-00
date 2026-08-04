@@ -71,6 +71,35 @@ static const char *token_lexeme_dup(const char *s, size_t len) {
 }
 
 /* ================================================================
+ *  单字符运算符/分隔符查找表
+ * ================================================================ */
+
+/** 单字符运算符/分隔符映射条目 */
+typedef struct {
+    DSLTokenType type; /**< 对应的 Token 类型 */
+    const char *lex;   /**< 词素字符串 */
+} SingleCharToken;
+
+/**
+ * @brief 单字符运算符和分隔符查找表
+ *
+ * 按 ASCII 下标索引；lex 为 NULL 表示未映射（跳过该字符）。
+ * 用于替代 dsl_tokenize 中的单字符 switch。
+ */
+static const SingleCharToken s_single_char_tokens[256] = {
+    ['='] = {DSL_TOK_ASSIGN, "="},
+    ['('] = {DSL_TOK_LPAREN, "("},
+    [')'] = {DSL_TOK_RPAREN, ")"},
+    ['{'] = {DSL_TOK_LBRACE, "{"},
+    ['}'] = {DSL_TOK_RBRACE, "}"},
+    ['['] = {DSL_TOK_LBRACKET, "["},
+    [']'] = {DSL_TOK_RBRACKET, "]"},
+    [','] = {DSL_TOK_COMMA, ","},
+    [';'] = {DSL_TOK_SEMI, ";"},
+    [':'] = {DSL_TOK_COLON, ":"},
+};
+
+/* ================================================================
  *  Tokenizer
  * ================================================================ */
 
@@ -278,61 +307,18 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
         }
 
         /* ---- 单字符运算符和分隔符 ---- */
-        DSLTokenType single_type = DSL_TOK_ERROR;
-        const char *single_lex = NULL;
-        int advance = 1;
-
-        switch (c) {
-            case '=':
-                single_type = DSL_TOK_ASSIGN;
-                single_lex = "=";
-                break;
-            case '(':
-                single_type = DSL_TOK_LPAREN;
-                single_lex = "(";
-                break;
-            case ')':
-                single_type = DSL_TOK_RPAREN;
-                single_lex = ")";
-                break;
-            case '{':
-                single_type = DSL_TOK_LBRACE;
-                single_lex = "{";
-                break;
-            case '}':
-                single_type = DSL_TOK_RBRACE;
-                single_lex = "}";
-                break;
-            case '[':
-                single_type = DSL_TOK_LBRACKET;
-                single_lex = "[";
-                break;
-            case ']':
-                single_type = DSL_TOK_RBRACKET;
-                single_lex = "]";
-                break;
-            case ',':
-                single_type = DSL_TOK_COMMA;
-                single_lex = ",";
-                break;
-            case ';':
-                single_type = DSL_TOK_SEMI;
-                single_lex = ";";
-                break;
-            case ':':
-                single_type = DSL_TOK_COLON;
-                single_lex = ":";
-                break;
-            default: /* 无法识别的字符：跳过 */
-                pos++;
-                col++;
-                continue;
+        /* 查表分发：未映射的字符直接跳过 */
+        const SingleCharToken *single = &s_single_char_tokens[(unsigned char) c];
+        if (single->lex == NULL) {
+            pos++;
+            col++;
+            continue;
         }
 
-        if (!token_append(&tokens, &count, &capacity, single_type, single_lex, line, start_col))
+        if (!token_append(&tokens, &count, &capacity, single->type, single->lex, line, start_col))
             goto fail;
-        pos += advance;
-        col += advance;
+        pos++;
+        col++;
     }
 
     /* 追加 EOF Token */

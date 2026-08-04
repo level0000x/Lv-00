@@ -37,6 +37,15 @@ int stream_buffer_size(const StreamContext *ctx) {
 
 /* ==================== JSON 序列化 API ==================== */
 
+/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
+static const char *const s_json_escape_table[256] = {
+    ['"'] = "\\\"",
+    ['\\'] = "\\\\",
+    ['\n'] = "\\n",
+    ['\r'] = "\\r",
+    ['\t'] = "\\t",
+};
+
 /**
  * @brief JSON 字符串转义辅助函数
  *
@@ -54,40 +63,15 @@ static int stream_json_escape(char *dest, const char *src, size_t dest_size) {
 
     size_t written = 0;
     while (*src && written + 1 < dest_size) {
-        switch (*src) {
-            case '"':
-                if (written + 2 >= dest_size)
-                    goto done;
-                dest[written++] = '\\';
-                dest[written++] = '"';
-                break;
-            case '\\':
-                if (written + 2 >= dest_size)
-                    goto done;
-                dest[written++] = '\\';
-                dest[written++] = '\\';
-                break;
-            case '\n':
-                if (written + 2 >= dest_size)
-                    goto done;
-                dest[written++] = '\\';
-                dest[written++] = 'n';
-                break;
-            case '\r':
-                if (written + 2 >= dest_size)
-                    goto done;
-                dest[written++] = '\\';
-                dest[written++] = 'r';
-                break;
-            case '\t':
-                if (written + 2 >= dest_size)
-                    goto done;
-                dest[written++] = '\\';
-                dest[written++] = 't';
-                break;
-            default:
-                dest[written++] = *src;
-                break;
+        const char *esc = s_json_escape_table[(unsigned char) *src];
+        if (esc) {
+            size_t esc_len = strlen(esc);
+            if (written + esc_len >= dest_size)
+                goto done;
+            memcpy(dest + written, esc, esc_len);
+            written += esc_len;
+        } else {
+            dest[written++] = *src;
         }
         src++;
     }

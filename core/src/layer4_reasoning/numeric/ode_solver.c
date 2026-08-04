@@ -145,6 +145,129 @@ static void ab4_step(lvODERhsFn rhs, double t, const double *y, double dt, size_
 }
 
 /* ============================================================
+ * ODE 单步积分函数表（数据表化，替代 switch）
+ * ============================================================ */
+
+/** @brief ODE 单步积分上下文：主循环与各方法函数间的共享状态 */
+typedef struct {
+    double dt;             /**< 当前步长（自适应路径可调整，作为下一步建议值） */
+    double step_used;      /**< 本步实际使用的步长（输出） */
+    size_t step_index;     /**< 主循环已写入条目数（AB4 启动阶段判断用） */
+    double **f_history;    /**< AB4 导数历史缓冲区（4 槽循环） */
+    size_t ab_history_idx; /**< AB4 历史写入索引 */
+} OdeStepCtx;
+
+/** @brief ODE 单步积分函数指针类型 */
+typedef void (*OdeIntegrateStepFn)(const lvODEProblem *problem, const lvODEConfig *config,
+                                   size_t dim, double t, const double *y_curr, double *y_next,
+                                   OdeStepCtx *ctx, double *y_full, double *y_half, double *y_tmp_adapt);
+
+/** @brief 显式 Euler 单步积分（一阶） */
+static void ode_integrate_euler(const lvODEProblem *problem, const lvODEConfig *config,
+                                size_t dim, double t, const double *y_curr, double *y_next,
+                                OdeStepCtx *ctx, double *y_full, double *y_half, double *y_tmp_adapt) {
+    (void) config;
+    (void) y_full;
+    (void) y_half;
+    (void) y_tmp_adapt;
+    euler_step(problem->rhs_fn, t, y_curr, ctx->dt, dim, problem->params, y_next);
+    ctx->step_used = ctx->dt;
+}
+
+/** @brief 经典 RK4 单步积分（含自适应步长控制路径） */
+static void ode_integrate_rk4(const lvODEProblem *problem, const lvODEConfig *config,
+                              size_t dim, double t, const double *y_curr, double *y_next,
+                              OdeStepCtx *ctx, double *y_full, double *y_half, double *y_tmp_adapt) {
+    const int use_adaptive = (config->rtol > 0.0 && config->atol > 0.0);
+    if (use_adaptive) {
+        /* 自适应步长控制（基于步长加倍误差估计） */
+        double current_dt = ctx->dt;
+        int retries = 0;
+        const int max_retries = 100;
+
+        for (;;) {
+            /* 用 current_dt 做一步完整步进 */
+            rk4_step(problem->rhs_fn, t, y_curr, current_dt, dim, problem->params, y_full);
+
+            /* 用两个半步进 */
+            rk4_step(problem->rhs_fn, t, y_curr, current_dt * 0.5, dim, problem->params, y_tmp_adapt);
+            rk4_step(problem->rhs_fn, t + current_dt * 0.5, y_tmp_adapt, current_dt * 0.5, dim,
+                     problem->params, y_half);
+
+            /* 估计相对误差 */
+            double max_err = 0.0;
+            for (size_t j = 0; j < dim; j++) {
+                double scale = config->atol + config->rtol * fmax(fabs(y_curr[j]), fabs(y_full[j]));
+                double err = fabs(y_full[j] - y_half[j]) / scale;
+                if (err > max_err) max_err = err;
+            }
+
+            const double safety = 0.9;
+
+            if (max_err > 1.0 && retries < max_retries) {
+                /* 步进被拒绝：缩小 dt 重试 */
+                current_dt *= fmax(0.2, safety / pow(max_err, 1.0 / 4.0));
+                retries++;
+                continue;
+            }
+
+            /* 步进被接受：根据误差调整后续步长 */
+            if (max_err < 0.5 && max_err > 1e-15) {
+                double factor = fmin(5.0, safety / pow(max_err, 1.0 / 4.0));
+                /* 上限比值始终取正，防御 current_dt 非正导致的符号翻转 */
+                double ratio_cap = 10.0 * fabs(config->dt) / fabs(current_dt);
+                ctx->dt = current_dt * fmin(factor, ratio_cap);
+            } else {
+                ctx->dt = current_dt;
+            }
+
+            /* 时间推进必须用本步实际步长，而非下一步建议步长 dt */
+            ctx->step_used = current_dt;
+            memcpy(y_next, y_full, dim * sizeof(double));
+            break;
+        }
+    } else {
+        /* 固定步长 RK4 */
+        rk4_step(problem->rhs_fn, t, y_curr, ctx->dt, dim, problem->params, y_next);
+        ctx->step_used = ctx->dt;
+    }
+}
+
+/** @brief Adams-Bashforth 4 步单步积分（前 3 步用 RK4 建立历史） */
+static void ode_integrate_adams(const lvODEProblem *problem, const lvODEConfig *config,
+                                size_t dim, double t, const double *y_curr, double *y_next,
+                                OdeStepCtx *ctx, double *y_full, double *y_half, double *y_tmp_adapt) {
+    (void) config;
+    (void) y_full;
+    (void) y_half;
+    (void) y_tmp_adapt;
+
+    /* AB4 startup: first 3 steps use RK4 to build history */
+    if (ctx->step_index <= 3) {
+        rk4_step(problem->rhs_fn, t, y_curr, ctx->dt, dim, problem->params, y_next);
+        /* Compute and store derivative for history */
+        double *f_k = (double *) lv_calloc(dim, sizeof(double));
+        if (f_k) {
+            problem->rhs_fn(t, y_curr, problem->params, f_k);
+            ctx->f_history[ctx->ab_history_idx] = f_k;
+            ctx->ab_history_idx = (ctx->ab_history_idx + 1) & 3;
+        }
+    } else {
+        /* Full AB4 step */
+        ab4_step(problem->rhs_fn, t, y_curr, ctx->dt, dim, problem->params, y_next,
+                 ctx->f_history, ctx->ab_history_idx);
+    }
+    ctx->step_used = ctx->dt;
+}
+
+/** @brief 方法 -> 单步积分函数 静态查找表（lvODEMethod 枚举 0~2 连续） */
+static const OdeIntegrateStepFn s_ode_step_funcs[] = {
+    [ODE_EULER] = ode_integrate_euler,
+    [ODE_RK4] = ode_integrate_rk4,
+    [ODE_ADAMS] = ode_integrate_adams,
+};
+
+/* ============================================================
  * API: Solve
  * ============================================================ */
 
@@ -226,7 +349,6 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
     size_t ab_history_idx = 0;
 
     const double t_end = problem->t_span[1];
-    const int use_adaptive = (config->method == ODE_RK4 && config->rtol > 0.0 && config->atol > 0.0);
     size_t i = 1; /* 已写入条目数（含初始条件），即下一个写入索引 */
     const size_t capacity = n_steps + 1; /* 预分配容量（含初始条件） */
 
@@ -257,82 +379,25 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
 
         double step_used = dt; /* 本步实际使用的步长（自适应路径可能不等于 dt） */
 
-        switch (config->method) {
-            case ODE_RK4:
-                if (use_adaptive) {
-                    /* 自适应步长控制（基于步长加倍误差估计） */
-                    double current_dt = dt;
-                    int retries = 0;
-                    const int max_retries = 100;
-
-                    for (;;) {
-                        /* 用 current_dt 做一步完整步进 */
-                        rk4_step(problem->rhs_fn, t, y_curr, current_dt, dim, problem->params, y_full);
-
-                        /* 用两个半步进 */
-                        rk4_step(problem->rhs_fn, t, y_curr, current_dt * 0.5, dim, problem->params, y_tmp_adapt);
-                        rk4_step(problem->rhs_fn, t + current_dt * 0.5, y_tmp_adapt, current_dt * 0.5, dim,
-                                 problem->params, y_half);
-
-                        /* 估计相对误差 */
-                        double max_err = 0.0;
-                        for (size_t j = 0; j < dim; j++) {
-                            double scale = config->atol + config->rtol * fmax(fabs(y_curr[j]), fabs(y_full[j]));
-                            double err = fabs(y_full[j] - y_half[j]) / scale;
-                            if (err > max_err) max_err = err;
-                        }
-
-                        const double safety = 0.9;
-
-                        if (max_err > 1.0 && retries < max_retries) {
-                            /* 步进被拒绝：缩小 dt 重试 */
-                            current_dt *= fmax(0.2, safety / pow(max_err, 1.0 / 4.0));
-                            retries++;
-                            continue;
-                        }
-
-                        /* 步进被接受：根据误差调整后续步长 */
-                        if (max_err < 0.5 && max_err > 1e-15) {
-                            double factor = fmin(5.0, safety / pow(max_err, 1.0 / 4.0));
-                            /* 上限比值始终取正，防御 current_dt 非正导致的符号翻转 */
-                            double ratio_cap = 10.0 * fabs(config->dt) / fabs(current_dt);
-                            dt = current_dt * fmin(factor, ratio_cap);
-                        } else {
-                            dt = current_dt;
-                        }
-
-                        /* 时间推进必须用本步实际步长，而非下一步建议步长 dt */
-                        step_used = current_dt;
-                        memcpy(y_next, y_full, dim * sizeof(double));
-                        break;
-                    }
-                } else {
-                    /* 固定步长 RK4 */
-                    rk4_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next);
-                }
-                break;
-            case ODE_ADAMS: {
-                /* AB4 startup: first 3 steps use RK4 to build history */
-                if (i <= 3) {
-                    rk4_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next);
-                    /* Compute and store derivative for history */
-                    double *f_k = (double *) lv_calloc(dim, sizeof(double));
-                    if (f_k) {
-                        problem->rhs_fn(t, y_curr, problem->params, f_k);
-                        f_history[ab_history_idx] = f_k;
-                        ab_history_idx = (ab_history_idx + 1) & 3;
-                    }
-                } else {
-                    /* Full AB4 step */
-                    ab4_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next, f_history, ab_history_idx);
-                }
-                break;
-            }
-            case ODE_EULER:
-            default:
-                euler_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next);
-                break;
+        /* 查表分发：方法 -> 单步积分函数（越界回退 Euler，与原 default 一致） */
+        OdeStepCtx step_ctx = {
+            .dt = dt,
+            .step_used = dt,
+            .step_index = i,
+            .f_history = f_history,
+            .ab_history_idx = ab_history_idx,
+        };
+        if ((unsigned) config->method < sizeof(s_ode_step_funcs) / sizeof(s_ode_step_funcs[0]) &&
+            s_ode_step_funcs[config->method]) {
+            s_ode_step_funcs[config->method](problem, config, dim, t, y_curr, y_next, &step_ctx, y_full, y_half,
+                                             y_tmp_adapt);
+        } else {
+            euler_step(problem->rhs_fn, t, y_curr, dt, dim, problem->params, y_next);
         }
+        /* 同步单步函数可能调整的共享状态 */
+        dt = step_ctx.dt;
+        step_used = step_ctx.step_used;
+        ab_history_idx = step_ctx.ab_history_idx;
 
         /* 用实际步长推进时间 */
         t += step_used;

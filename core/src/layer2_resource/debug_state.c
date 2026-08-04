@@ -173,24 +173,22 @@ void debug_refcount_unlock(void) {
     lv_mutex_unlock(&s_debug_state.counter_mutex);
 }
 
-    /* 获取日志级别字符串 —— v3.3.0：扩展 TRACE 和 FATAL 级别 */
-    const char *log_level_string(LogLevel level) {
-    switch (level) {
-        case LOG_LEVEL_TRACE:
-            return "TRACE";
-        case LOG_LEVEL_DEBUG:
-            return "DEBUG";
-        case LOG_LEVEL_INFO:
-            return "INFO";
-        case LOG_LEVEL_WARN:
-            return "WARN";
-        case LOG_LEVEL_ERROR:
-            return "ERROR";
-        case LOG_LEVEL_FATAL:
-            return "FATAL";
-        default:
-            return "UNKNOWN";
+/* 日志级别 → 名称映射表（TRACE=-1，以 TRACE 为基准偏移下标；未知级别返回 "UNKNOWN"） */
+static const char *kLogLevelNames[] = {
+    [LOG_LEVEL_TRACE - LOG_LEVEL_TRACE] = "TRACE",
+    [LOG_LEVEL_DEBUG - LOG_LEVEL_TRACE] = "DEBUG",
+    [LOG_LEVEL_INFO - LOG_LEVEL_TRACE]  = "INFO",
+    [LOG_LEVEL_WARN - LOG_LEVEL_TRACE]  = "WARN",
+    [LOG_LEVEL_ERROR - LOG_LEVEL_TRACE] = "ERROR",
+    [LOG_LEVEL_FATAL - LOG_LEVEL_TRACE] = "FATAL",
+};
+
+/* 获取日志级别字符串 —— v3.3.0：扩展 TRACE 和 FATAL 级别 */
+const char *log_level_string(LogLevel level) {
+    if (level >= LOG_LEVEL_TRACE && level <= LOG_LEVEL_FATAL) {
+        return kLogLevelNames[(int) level - LOG_LEVEL_TRACE];
     }
+    return "UNKNOWN";
 }
 
 /* 获取主目录 */

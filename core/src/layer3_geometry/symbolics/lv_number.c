@@ -430,14 +430,19 @@ static const lvNumberOps g_int_ops = {
  * 后续可扩展为更精确的类型提升规则。
  * ============================================================ */
 
+/* 数值类型 → ops 映射表（未列出的类型如 ALGEBRAIC/INTERVAL 回退到浮点 ops） */
+static const lvNumberOps *kOpsByType[] = {
+    [lv_NUMBER_RATIONAL] = &g_rational_ops,
+    [lv_NUMBER_FLOAT]    = &g_float_ops,
+    [lv_NUMBER_INTEGER]  = &g_int_ops,
+};
+
 /* 获取一个 lvNumber 的 ops 指针（用于类型间运算时提升） */
 static const lvNumberOps *ops_for_type(lvNumberType type) {
-    switch (type) {
-        case lv_NUMBER_RATIONAL: return &g_rational_ops;
-        case lv_NUMBER_FLOAT:    return &g_float_ops;
-        case lv_NUMBER_INTEGER:  return &g_int_ops;
-        default:                 return &g_float_ops;
+    if ((unsigned) type < sizeof(kOpsByType) / sizeof(kOpsByType[0]) && kOpsByType[type]) {
+        return kOpsByType[type];
     }
+    return &g_float_ops; /* default：未知类型回退到浮点 */
 }
 
 /* ============================================================

@@ -215,6 +215,20 @@ static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *c
  * LaTeX 导出
  * ================================================================ */
 
+/** @brief LaTeX 特殊字符 → 转义字符串 查找表（NULL 表示原样输出） */
+static const char *const s_latex_escape_map[256] = {
+    ['\\'] = "\\textbackslash{}",
+    ['{']  = "\\{",
+    ['}']  = "\\}",
+    ['_']  = "\\_",
+    ['&']  = "\\&",
+    ['#']  = "\\#",
+    ['%']  = "\\%%",
+    ['$']  = "\\$",
+    ['^']  = "\\^{}",
+    ['~']  = "\\~{}",
+};
+
 static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *config) {
     lvDStr d;
     if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
@@ -233,42 +247,13 @@ static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *
     lv_dstr_append_fmt(&d, "\\begin{proof}[");
     /* 简单转义：\ → \textbackslash, { → \{, } → \}, _ → \_, & → \&, # → \#, % → \% */
     for (const char *p = th; *p; p++) {
-        switch (*p) {
-            case '\\':
-                lv_dstr_append_fmt(&d, "\\textbackslash{}");
-                break;
-            case '{':
-                lv_dstr_append_fmt(&d, "\\{");
-                break;
-            case '}':
-                lv_dstr_append_fmt(&d, "\\}");
-                break;
-            case '_':
-                lv_dstr_append_fmt(&d, "\\_");
-                break;
-            case '&':
-                lv_dstr_append_fmt(&d, "\\&");
-                break;
-            case '#':
-                lv_dstr_append_fmt(&d, "\\#");
-                break;
-            case '%':
-                lv_dstr_append_fmt(&d, "\\%%");
-                break;
-            case '$':
-                lv_dstr_append_fmt(&d, "\\$");
-                break;
-            case '^':
-                lv_dstr_append_fmt(&d, "\\^{}");
-                break;
-            case '~':
-                lv_dstr_append_fmt(&d, "\\~{}");
-                break;
-            default: {
-                char tmp[2] = {*p, '\0'};
-                lv_dstr_append_str(&d, tmp);
-                break;
-            }
+        /* 查找表：特殊字符 → LaTeX 转义字符串；未命中（NULL）走 default 原样输出 */
+        const char *esc = s_latex_escape_map[(unsigned char)*p];
+        if (esc) {
+            lv_dstr_append_fmt(&d, "%s", esc);
+        } else {
+            char tmp[2] = {*p, '\0'};
+            lv_dstr_append_str(&d, tmp);
         }
     }
     lv_dstr_append_fmt(&d, "]%s", nl);

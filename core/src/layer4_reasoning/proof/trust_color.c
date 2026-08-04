@@ -17,66 +17,52 @@
  * 映射函数：TrustColor ↔ ProofColor
  * ================================================================ */
 
+/* ================================================================
+ * 枚举 -> 颜色 映射表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief TrustColor → ProofColor 映射表（按 TrustColor 枚举值升序） */
+static const ProofColor s_trust_to_proof_colors[] = {
+    [TRUST_GREEN]                  = PROOF_COLOR_GREEN,
+    [TRUST_BLUE_UNEXPLORED]        = PROOF_COLOR_BLUE_UNEXPLORED,
+    [TRUST_BLUE_EXCEEDED]          = PROOF_COLOR_BLUE_RESOURCE,
+    [TRUST_BLUE_OUT_OF_SCOPE]      = PROOF_COLOR_BLUE_OUT_OF_RANGE,
+    [TRUST_YELLOW]                 = PROOF_COLOR_YELLOW,
+    [TRUST_LIGHT_ORANGE_ORACLE]    = PROOF_COLOR_ORANGE_ORACLE,
+    [TRUST_LIGHT_ORANGE_EXPLOSION] = PROOF_COLOR_ORANGE_EX_FALSO,
+    [TRUST_AMBER]                  = PROOF_COLOR_AMBER,
+    [TRUST_DEEP_ORANGE]            = PROOF_COLOR_DARK_ORANGE,
+    [TRUST_RED]                    = PROOF_COLOR_RED_CONFLICT,
+};
+
 ProofColor trust_color_to_proof(TrustColor tc) {
-    switch (tc) {
-        case TRUST_GREEN:
-            return PROOF_COLOR_GREEN;
-        case TRUST_BLUE_UNEXPLORED:
-            return PROOF_COLOR_BLUE_UNEXPLORED;
-        case TRUST_BLUE_EXCEEDED:
-            return PROOF_COLOR_BLUE_RESOURCE;
-        case TRUST_BLUE_OUT_OF_SCOPE:
-            return PROOF_COLOR_BLUE_OUT_OF_RANGE;
-        case TRUST_YELLOW:
-            return PROOF_COLOR_YELLOW;
-        case TRUST_LIGHT_ORANGE_ORACLE:
-            return PROOF_COLOR_ORANGE_ORACLE;
-        case TRUST_LIGHT_ORANGE_EXPLOSION:
-            return PROOF_COLOR_ORANGE_EX_FALSO;
-        case TRUST_AMBER:
-            return PROOF_COLOR_AMBER;
-        case TRUST_DEEP_ORANGE:
-            return PROOF_COLOR_DARK_ORANGE;
-        case TRUST_RED:
-            return PROOF_COLOR_RED_CONFLICT;
-        default:
-            /* 越界值保守回退为未探索蓝 */
-            return PROOF_COLOR_BLUE_UNEXPLORED;
-    }
+    if ((unsigned) tc < lv_ARRAY_SIZE(s_trust_to_proof_colors))
+        return s_trust_to_proof_colors[tc];
+    /* 越界值保守回退为未探索蓝 */
+    return PROOF_COLOR_BLUE_UNEXPLORED;
 }
 
+/** @brief ProofColor → TrustColor 映射表（按 ProofColor 枚举值升序） */
+static const TrustColor s_proof_to_trust_colors[] = {
+    [PROOF_COLOR_GREEN]            = TRUST_GREEN,
+    [PROOF_COLOR_BLUE_UNEXPLORED]  = TRUST_BLUE_UNEXPLORED,
+    [PROOF_COLOR_BLUE_RESOURCE]    = TRUST_BLUE_EXCEEDED,
+    [PROOF_COLOR_BLUE_OUT_OF_RANGE] = TRUST_BLUE_OUT_OF_SCOPE,
+    [PROOF_COLOR_GREEN_VERIFIED]   = TRUST_GREEN, /* 已验证的不可构造 → 归为绿色（全构造语义上的"已验证"） */
+    [PROOF_COLOR_YELLOW]           = TRUST_YELLOW,
+    [PROOF_COLOR_ORANGE_ORACLE]    = TRUST_LIGHT_ORANGE_ORACLE,
+    [PROOF_COLOR_ORANGE_EX_FALSO]  = TRUST_LIGHT_ORANGE_EXPLOSION,
+    [PROOF_COLOR_AMBER]            = TRUST_AMBER,
+    [PROOF_COLOR_DARK_ORANGE]      = TRUST_DEEP_ORANGE,
+    [PROOF_COLOR_GREEN_COMPLETE]   = TRUST_GREEN, /* 证明完成 → 归为绿色 */
+    [PROOF_COLOR_RED_CONFLICT]     = TRUST_RED,
+};
+
 TrustColor proof_color_to_trust(ProofColor pc) {
-    switch (pc) {
-        case PROOF_COLOR_GREEN:
-            return TRUST_GREEN;
-        case PROOF_COLOR_BLUE_UNEXPLORED:
-            return TRUST_BLUE_UNEXPLORED;
-        case PROOF_COLOR_BLUE_RESOURCE:
-            return TRUST_BLUE_EXCEEDED;
-        case PROOF_COLOR_BLUE_OUT_OF_RANGE:
-            return TRUST_BLUE_OUT_OF_SCOPE;
-        case PROOF_COLOR_GREEN_VERIFIED:
-            /* 已验证的不可构造 → 归为绿色（全构造语义上的"已验证"） */
-            return TRUST_GREEN;
-        case PROOF_COLOR_YELLOW:
-            return TRUST_YELLOW;
-        case PROOF_COLOR_ORANGE_ORACLE:
-            return TRUST_LIGHT_ORANGE_ORACLE;
-        case PROOF_COLOR_ORANGE_EX_FALSO:
-            return TRUST_LIGHT_ORANGE_EXPLOSION;
-        case PROOF_COLOR_AMBER:
-            return TRUST_AMBER;
-        case PROOF_COLOR_DARK_ORANGE:
-            return TRUST_DEEP_ORANGE;
-        case PROOF_COLOR_GREEN_COMPLETE:
-            /* 证明完成 → 归为绿色 */
-            return TRUST_GREEN;
-        case PROOF_COLOR_RED_CONFLICT:
-            return TRUST_RED;
-        default:
-            /* 越界值保守回退为未探索蓝 */
-            return TRUST_BLUE_UNEXPLORED;
-    }
+    if ((unsigned) pc < lv_ARRAY_SIZE(s_proof_to_trust_colors))
+        return s_proof_to_trust_colors[pc];
+    /* 越界值保守回退为未探索蓝 */
+    return TRUST_BLUE_UNEXPLORED;
 }
 
 /* ================================================================

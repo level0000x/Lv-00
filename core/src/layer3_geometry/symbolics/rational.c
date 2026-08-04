@@ -337,6 +337,42 @@ static CircuitStatus check_quadratic_circuit(const Quadratic *q) {
     return CIRCUIT_STATUS_OK;
 }
 
+/* ================================================================
+ * 坐标类型 -> 位数电路检查函数 静态查找表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 坐标位数电路检查函数指针类型 */
+typedef CircuitStatus (*CoordCircuitCheckFn)(const SymbolicCoord *coord);
+
+/** @brief RATIONAL 类型检查：委托 check_rational_circuit */
+static CircuitStatus circuit_check_rational(const SymbolicCoord *coord) {
+    return check_rational_circuit(coord->data.rational);
+}
+
+/** @brief ALGEBRAIC 类型检查：委托 check_algebraic_circuit */
+static CircuitStatus circuit_check_algebraic(const SymbolicCoord *coord) {
+    return check_algebraic_circuit(coord->data.algebraic);
+}
+
+/** @brief QUADRATIC 类型检查：委托 check_quadratic_circuit */
+static CircuitStatus circuit_check_quadratic(const SymbolicCoord *coord) {
+    return check_quadratic_circuit(coord->data.quadratic);
+}
+
+/** @brief TRANSCENDENTAL 类型检查：超越数没有比特位需要检查 */
+static CircuitStatus circuit_check_transcendental(const SymbolicCoord *coord) {
+    (void) coord;
+    return CIRCUIT_STATUS_OK;
+}
+
+/** @brief 坐标类型 -> 检查函数 查找表（CoordType 枚举 0~3 连续，风格同 kCoordOpsVTable） */
+static const CoordCircuitCheckFn s_coord_circuit_checkers[] = {
+    [RATIONAL] = circuit_check_rational,
+    [ALGEBRAIC] = circuit_check_algebraic,
+    [QUADRATIC] = circuit_check_quadratic,
+    [TRANSCENDENTAL] = circuit_check_transcendental,
+};
+
 /**
  * 检查 SymbolicCoord 是否超过位数阈值。
  *
@@ -351,18 +387,13 @@ CircuitStatus check_digit_circuit(const SymbolicCoord *coord) {
     if (!coord)
         return CIRCUIT_STATUS_OK;
 
-    switch (coord->type) {
-        case RATIONAL:
-            return check_rational_circuit(coord->data.rational);
-        case ALGEBRAIC:
-            return check_algebraic_circuit(coord->data.algebraic);
-        case QUADRATIC:
-            return check_quadratic_circuit(coord->data.quadratic);
-        case TRANSCENDENTAL:
-            return CIRCUIT_STATUS_OK; /* 超越数没有比特位需要检查 */
-        default:
-            return CIRCUIT_STATUS_OK; /* 未知类型视为安全 */
+    /* 查表获取类型对应的检查函数；未知类型视为安全（原 default 分支） */
+    CoordCircuitCheckFn checker = NULL;
+    if ((unsigned) coord->type < lv_ARRAY_SIZE(s_coord_circuit_checkers)) {
+        checker = s_coord_circuit_checkers[coord->type];
     }
+    if (checker)
+        return checker(coord);
     return CIRCUIT_STATUS_OK;
 }
 

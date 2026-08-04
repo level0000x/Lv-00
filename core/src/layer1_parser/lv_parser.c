@@ -84,6 +84,9 @@ static void parser_error(LvParser *p, const LvToken *tok, const char *msg) {
     }
 }
 
+/** 语句起始关键字查找表前向声明（定义见后文查找表区） */
+static const int s_statement_start_tokens[LV_TOKEN_COUNT];
+
 /** 跳过 token 直到遇到分号或语句关键字（错误恢复） */
 static void synchronize(LvParser *p) {
     while (p->current.type != LV_TOKEN_EOF) {
@@ -91,35 +94,10 @@ static void synchronize(LvParser *p) {
             advance(p);
             return;
         }
-        /* 语句起始关键字 */
-        switch (p->current.type) {
-            case LV_TOKEN_KW_POINT:
-            case LV_TOKEN_KW_LINE:
-            case LV_TOKEN_KW_CIRCLE:
-            case LV_TOKEN_KW_SEGMENT:
-            case LV_TOKEN_KW_RAY:
-            case LV_TOKEN_KW_ANGLE:
-            case LV_TOKEN_KW_TRIANGLE:
-            case LV_TOKEN_KW_POLYGON:
-            case LV_TOKEN_KW_SCALAR:
-            case LV_TOKEN_KW_BOOL:
-            case LV_TOKEN_KW_PROPOSITION:
-            case LV_TOKEN_KW_PROOF:
-            case LV_TOKEN_KW_CONSTRAINT:
-            case LV_TOKEN_KW_ASSUME:
-            case LV_TOKEN_KW_ASSERT:
-            case LV_TOKEN_KW_PROVE:
-            case LV_TOKEN_KW_LET:
-            case LV_TOKEN_KW_COMPUTE:
-            case LV_TOKEN_KW_NORMALIZE:
-            case LV_TOKEN_KW_EXPORT:
-            case LV_TOKEN_KW_AXIOM:
-            case LV_TOKEN_KW_THEOREM:
-            case LV_TOKEN_KW_MODULE:
-            case LV_TOKEN_KW_IMPORT:
-                return;
-            default:
-                break;
+        /* 语句起始关键字：查表判定 */
+        if (p->current.type >= 0 && p->current.type < LV_TOKEN_COUNT &&
+            s_statement_start_tokens[p->current.type]) {
+            return;
         }
         advance(p);
     }

@@ -84,6 +84,26 @@ static const lvStrToEnumEntry s_unify_result_to_string_names[] = {
 
 /* ============== 辅助函数 ============== */
 
+/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
+static const char *const s_json_escape_table[256] = {
+    ['\b'] = "\\b",
+    ['\t'] = "\\t",
+    ['\n'] = "\\n",
+    ['\f'] = "\\f",
+    ['\r'] = "\\r",
+    ['"'] = "\\\"",
+    ['\\'] = "\\\\",
+};
+
+/** @brief HTML 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
+static const char *const s_html_escape_table[256] = {
+    ['&'] = "&amp;",
+    ['<'] = "&lt;",
+    ['>'] = "&gt;",
+    ['"'] = "&quot;",
+    ['\''] = "&#39;",
+};
+
 /**
  * @brief 将字符串转义为安全的 JSON 字符串字面量
  *
@@ -96,42 +116,17 @@ static const char *json_escape(const char *s) {
     static lv_THREAD_LOCAL char buf[4096];
     size_t j = 0;
     for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
-        switch (s[i]) {
-            case '"':
-                buf[j++] = '\\';
-                buf[j++] = '"';
+        const char *esc = s_json_escape_table[(unsigned char) s[i]];
+        if (esc) {
+            size_t esc_len = strlen(esc);
+            if (j + esc_len >= sizeof(buf))
                 break;
-            case '\\':
-                buf[j++] = '\\';
-                buf[j++] = '\\';
-                break;
-            case '\n':
-                buf[j++] = '\\';
-                buf[j++] = 'n';
-                break;
-            case '\r':
-                buf[j++] = '\\';
-                buf[j++] = 'r';
-                break;
-            case '\t':
-                buf[j++] = '\\';
-                buf[j++] = 't';
-                break;
-            case '\b':
-                buf[j++] = '\\';
-                buf[j++] = 'b';
-                break;
-            case '\f':
-                buf[j++] = '\\';
-                buf[j++] = 'f';
-                break;
-            default:
-                if ((unsigned char) s[i] < 0x20) {
-                    j += (size_t) snprintf(buf + j, sizeof(buf) - j, "\\u%04x", (unsigned char) s[i]);
-                } else {
-                    buf[j++] = s[i];
-                }
-                break;
+            memcpy(buf + j, esc, esc_len);
+            j += esc_len;
+        } else if ((unsigned char) s[i] < 0x20) {
+            j += (size_t) snprintf(buf + j, sizeof(buf) - j, "\\u%04x", (unsigned char) s[i]);
+        } else {
+            buf[j++] = s[i];
         }
     }
     buf[j] = '\0';
@@ -150,30 +145,15 @@ const char *html_escape(const char *s) {
     static lv_THREAD_LOCAL char buf[4096];
     size_t j = 0;
     for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
-        switch (s[i]) {
-            case '&':
-                memcpy(buf + j, "&amp;", 5);
-                j += 5;
+        const char *esc = s_html_escape_table[(unsigned char) s[i]];
+        if (esc) {
+            size_t esc_len = strlen(esc);
+            if (j + esc_len >= sizeof(buf))
                 break;
-            case '<':
-                memcpy(buf + j, "&lt;", 4);
-                j += 4;
-                break;
-            case '>':
-                memcpy(buf + j, "&gt;", 4);
-                j += 4;
-                break;
-            case '"':
-                memcpy(buf + j, "&quot;", 6);
-                j += 6;
-                break;
-            case '\'':
-                memcpy(buf + j, "&#39;", 5);
-                j += 5;
-                break;
-            default:
-                buf[j++] = s[i];
-                break;
+            memcpy(buf + j, esc, esc_len);
+            j += esc_len;
+        } else {
+            buf[j++] = s[i];
         }
     }
     buf[j] = '\0';

@@ -1568,6 +1568,15 @@ static lvMatrix *cuda_matrix_create(int64_t rows, int64_t cols, bool sparse) {
     return A;
 }
 
+/* 线性求解方法 → ops 操作表映射（方法枚举 0..4 为下标；CG/CUSTOM 等不支持方法走错误分支） */
+static const lvLinearSolverOps *kCudaLinsolOpsByMethod[] = {
+    [lv_LINSOL_DIRECT_DENSE]   = &cuda_dense_linsol_ops,
+    [lv_LINSOL_DIRECT_BAND]    = &cuda_dense_linsol_ops,
+    [lv_LINSOL_DIRECT_SPARSE]  = &cuda_dense_linsol_ops,
+    [lv_LINSOL_ITERATIVE_GMRES]    = &cuda_gmres_linsol_ops,
+    [lv_LINSOL_ITERATIVE_BICGSTAB] = &cuda_bicgstab_linsol_ops,
+};
+
 /**
  * @brief 创建 CUDA 后端线性求解器
  */
@@ -1580,23 +1589,14 @@ static lvLinearSolver *cuda_linsol_create(lvLinearSolverMethod method) {
     LS->solver_data = NULL;
     LS->backend_data = NULL;
 
-    switch (method) {
-        case lv_LINSOL_DIRECT_DENSE:
-        case lv_LINSOL_DIRECT_BAND:
-        case lv_LINSOL_DIRECT_SPARSE:
-            LS->ops = &cuda_dense_linsol_ops;
-            break;
-        case lv_LINSOL_ITERATIVE_GMRES:
-            LS->ops = &cuda_gmres_linsol_ops;
-            break;
-        case lv_LINSOL_ITERATIVE_BICGSTAB:
-            LS->ops = &cuda_bicgstab_linsol_ops;
-            break;
-        default:
-            lv_free((void **) &LS);
-            lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "CUDA 后端不支持的求解方法: %s",
-                         lv_linsol_method_name(method));
-            return NULL;
+    if ((unsigned) method < sizeof(kCudaLinsolOpsByMethod) / sizeof(kCudaLinsolOpsByMethod[0]) &&
+        kCudaLinsolOpsByMethod[method]) {
+        LS->ops = kCudaLinsolOpsByMethod[method];
+    } else {
+        lv_free((void **) &LS);
+        lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "CUDA 后端不支持的求解方法: %s",
+                     lv_linsol_method_name(method));
+        return NULL;
     }
 
     return LS;

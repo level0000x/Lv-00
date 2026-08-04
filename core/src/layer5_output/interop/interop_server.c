@@ -1036,7 +1036,8 @@ enum {
     WS_FS_LEN16,      /**< 等待 2 字节扩展长度 */
     WS_FS_LEN64,      /**< 等待 8 字节扩展长度 */
     WS_FS_MASK,       /**< 等待 4 字节掩码 key */
-    WS_FS_PAYLOAD     /**< 接收帧负载 */
+    WS_FS_PAYLOAD,    /**< 接收帧负载 */
+    WS_FS_COUNT       /**< 状态机阶段总数（表驱动分发用） */
 };
 
 /** WebSocket 客户端连接状态 */
@@ -1249,167 +1250,218 @@ static int ws_frame_dispatch(InteropServer *server, WsClient *client) {
     return 1;
 }
 
+/* ---- 帧解析状态机（表驱动，替代 switch 分发） ---- */
+
+/** 状态处理函数返回值约定 */
+enum {
+    WS_PARSE_CONTINUE = 1,  /**< 状态已推进，继续解析下一阶段 */
+    WS_PARSE_NEED_MORE = 0, /**< 数据不足，等待更多数据 */
+    WS_PARSE_CLOSE = -1     /**< 应关闭连接 */
+};
+
+/**
+ * @brief 帧解析状态处理函数
+ * @param server 互操作服务器
+ * @param client 客户端连接（含当前帧解析状态）
+ * @return WS_PARSE_CONTINUE=状态已推进需继续解析；WS_PARSE_NEED_MORE=数据不足需等待；WS_PARSE_CLOSE=应关闭连接
+ */
+typedef int (*WsStateHandler)(InteropServer *server, WsClient *client);
+
+/** WS_FS_HEADER：解析帧头起始 2 字节，决定扩展长度阶段 */
+static int ws_state_header(InteropServer *server, WsClient *client) {
+    const uint8_t *p = client->recv_buf + client->recv_pos;
+    size_t avail = client->recv_len - client->recv_pos;
+
+    if (avail < 2) {
+        return WS_PARSE_NEED_MORE;
+    }
+    uint8_t b0 = p[0];
+    uint8_t b1 = p[1];
+    client->recv_pos += 2;
+
+    client->frame_fin = (b0 & 0x80) ? 1 : 0;
+    client->frame_rsv = (b0 & 0x70);
+    client->frame_opcode = (b0 & 0x0F);
+    client->frame_masked = (b1 & 0x80) ? 1 : 0;
+    uint8_t len7 = (uint8_t) (b1 & 0x7F);
+
+    /* RSV 位：未协商扩展，必须为 0 */
+    if (client->frame_rsv != 0) {
+        return ws_protocol_error(client);
+    }
+    /* opcode 合法性 */
+    if (!ws_opcode_valid(client->frame_opcode)) {
+        return ws_protocol_error(client);
+    }
+    /* 控制帧限制：不得分片、负载 ≤ 125（RFC 6455 §5.5） */
+    if (client->frame_opcode >= 0x8) {
+        if (!client->frame_fin) {
+            return ws_protocol_error(client);
+        }
+        if (len7 > WS_CTL_PAYLOAD_MAX) {
+            return ws_protocol_error(client);
+        }
+        client->ctl_len = 0; /* 新一轮控制帧负载 */
+    }
+    /* 客户端帧必须掩码（RFC 6455 §5.1） */
+    if (!client->frame_masked) {
+        return ws_protocol_error(client);
+    }
+    /* 数据帧不允许交错：续帧必须有进行中的分片；新消息不能打断分片（RFC 6455 §5.4） */
+    if (client->frame_opcode == WS_OP_CONTINUATION) {
+        if (client->frag_opcode < 0) {
+            return ws_protocol_error(client);
+        }
+    } else if (client->frame_opcode == WS_OP_TEXT || client->frame_opcode == WS_OP_BINARY) {
+        if (client->frag_opcode >= 0) {
+            return ws_protocol_error(client);
+        }
+        client->msg_len = 0; /* 新消息起始，重置累积 */
+        if (!client->frame_fin) {
+            client->frag_opcode = client->frame_opcode; /* 登记分片消息类型 */
+        }
+    }
+
+    /* 长度解析（RFC 6455 §5.2） */
+    if (len7 < 126) {
+        client->frame_payload_remaining = len7;
+        client->frame_state = WS_FS_MASK;
+    } else if (len7 == 126) {
+        client->frame_state = WS_FS_LEN16;
+    } else {
+        client->frame_state = WS_FS_LEN64;
+    }
+    return WS_PARSE_CONTINUE;
+}
+
+/** WS_FS_LEN16：解析 2 字节扩展长度（大端序） */
+static int ws_state_len16(InteropServer *server, WsClient *client) {
+    (void) server;
+    const uint8_t *p = client->recv_buf + client->recv_pos;
+    size_t avail = client->recv_len - client->recv_pos;
+
+    if (avail < 2) {
+        return WS_PARSE_NEED_MORE;
+    }
+    client->frame_payload_remaining = ((uint64_t) p[0] << 8) | p[1];
+    client->recv_pos += 2;
+    if (client->frame_payload_remaining > WS_MAX_MESSAGE_SIZE) {
+        return ws_message_too_big(client);
+    }
+    client->frame_state = WS_FS_MASK;
+    return WS_PARSE_CONTINUE;
+}
+
+/** WS_FS_LEN64：解析 8 字节扩展长度（大端序） */
+static int ws_state_len64(InteropServer *server, WsClient *client) {
+    (void) server;
+    const uint8_t *p = client->recv_buf + client->recv_pos;
+    size_t avail = client->recv_len - client->recv_pos;
+
+    if (avail < 8) {
+        return WS_PARSE_NEED_MORE;
+    }
+    uint64_t v = 0;
+    for (int i = 0; i < 8; i++) {
+        v = (v << 8) | p[i];
+    }
+    client->recv_pos += 8;
+    if (v > WS_MAX_MESSAGE_SIZE) {
+        return ws_message_too_big(client);
+    }
+    client->frame_payload_remaining = v;
+    client->frame_state = WS_FS_MASK;
+    return WS_PARSE_CONTINUE;
+}
+
+/** WS_FS_MASK：读取 4 字节掩码 key（客户端帧必带掩码） */
+static int ws_state_mask(InteropServer *server, WsClient *client) {
+    (void) server;
+    const uint8_t *p = client->recv_buf + client->recv_pos;
+    size_t avail = client->recv_len - client->recv_pos;
+
+    if (client->frame_masked) {
+        if (avail < 4) {
+            return WS_PARSE_NEED_MORE;
+        }
+        memcpy(client->frame_mask, p, 4);
+        client->recv_pos += 4;
+    }
+    client->frame_mask_pos = 0;
+    client->frame_state = WS_FS_PAYLOAD;
+    return WS_PARSE_CONTINUE;
+}
+
+/** WS_FS_PAYLOAD：累积帧负载（控制帧入独立缓冲，数据帧解码掩码后入消息缓冲） */
+static int ws_state_payload(InteropServer *server, WsClient *client) {
+    const uint8_t *p = client->recv_buf + client->recv_pos;
+    size_t avail = client->recv_len - client->recv_pos;
+
+    if (client->frame_payload_remaining == 0) {
+        return ws_frame_dispatch(server, client); /* 零负载帧 */
+    }
+    if (avail == 0) {
+        return WS_PARSE_NEED_MORE;
+    }
+    size_t take = avail;
+    if ((uint64_t) take > client->frame_payload_remaining) {
+        take = (size_t) client->frame_payload_remaining;
+    }
+
+    if (client->frame_opcode >= 0x8) {
+        /* 控制帧：负载存入独立缓冲，不污染消息累积 */
+        memcpy(client->ctl_payload + client->ctl_len, p, take);
+        client->ctl_len += take;
+    } else {
+        /* 数据帧：应用掩码后累积到消息缓冲（RFC 6455 §5.3） */
+        uint8_t *dst = ws_msg_ensure(client, client->msg_len + take);
+        if (!dst) {
+            return ws_message_too_big(client);
+        }
+        if (client->frame_masked) {
+            for (size_t i = 0; i < take; i++) {
+                dst[client->msg_len + i] =
+                    (uint8_t) (p[i] ^ client->frame_mask[client->frame_mask_pos]);
+                client->frame_mask_pos = (client->frame_mask_pos + 1) & 3;
+            }
+        } else {
+            memcpy(dst + client->msg_len, p, take);
+        }
+        client->msg_len += take;
+    }
+    client->recv_pos += take;
+    client->frame_payload_remaining -= take;
+
+    if (client->frame_payload_remaining == 0) {
+        /* 帧负载接收完成，分发 */
+        return ws_frame_dispatch(server, client);
+    }
+    return WS_PARSE_NEED_MORE; /* 本帧负载未完且缓冲已耗尽，等待更多数据 */
+}
+
+/** 帧解析状态机分发表（下标 = WS_FS_* 状态值） */
+static const WsStateHandler kStateHandlers[WS_FS_COUNT] = {
+    [WS_FS_HEADER]  = ws_state_header,
+    [WS_FS_LEN16]   = ws_state_len16,
+    [WS_FS_LEN64]   = ws_state_len64,
+    [WS_FS_MASK]    = ws_state_mask,
+    [WS_FS_PAYLOAD] = ws_state_payload,
+};
+
 /**
  * 从接收缓冲中解析并处理一帧（增量状态机，支持任意 TCP 分段）
  * @return 1=已处理一帧（可能已发送响应）；0=数据不足需等待；-1=应关闭连接
  */
 static int ws_client_parse_one(InteropServer *server, WsClient *client) {
     for (;;) {
-        const uint8_t *p = client->recv_buf + client->recv_pos;
-        size_t avail = client->recv_len - client->recv_pos;
-
-        switch (client->frame_state) {
-        case WS_FS_HEADER: {
-            if (avail < 2) {
-                return 0;
-            }
-            uint8_t b0 = p[0];
-            uint8_t b1 = p[1];
-            client->recv_pos += 2;
-
-            client->frame_fin = (b0 & 0x80) ? 1 : 0;
-            client->frame_rsv = (b0 & 0x70);
-            client->frame_opcode = (b0 & 0x0F);
-            client->frame_masked = (b1 & 0x80) ? 1 : 0;
-            uint8_t len7 = (uint8_t) (b1 & 0x7F);
-
-            /* RSV 位：未协商扩展，必须为 0 */
-            if (client->frame_rsv != 0) {
-                return ws_protocol_error(client);
-            }
-            /* opcode 合法性 */
-            if (!ws_opcode_valid(client->frame_opcode)) {
-                return ws_protocol_error(client);
-            }
-            /* 控制帧限制：不得分片、负载 ≤ 125（RFC 6455 §5.5） */
-            if (client->frame_opcode >= 0x8) {
-                if (!client->frame_fin) {
-                    return ws_protocol_error(client);
-                }
-                if (len7 > WS_CTL_PAYLOAD_MAX) {
-                    return ws_protocol_error(client);
-                }
-                client->ctl_len = 0; /* 新一轮控制帧负载 */
-            }
-            /* 客户端帧必须掩码（RFC 6455 §5.1） */
-            if (!client->frame_masked) {
-                return ws_protocol_error(client);
-            }
-            /* 数据帧不允许交错：续帧必须有进行中的分片；新消息不能打断分片（RFC 6455 §5.4） */
-            if (client->frame_opcode == WS_OP_CONTINUATION) {
-                if (client->frag_opcode < 0) {
-                    return ws_protocol_error(client);
-                }
-            } else if (client->frame_opcode == WS_OP_TEXT || client->frame_opcode == WS_OP_BINARY) {
-                if (client->frag_opcode >= 0) {
-                    return ws_protocol_error(client);
-                }
-                client->msg_len = 0; /* 新消息起始，重置累积 */
-                if (!client->frame_fin) {
-                    client->frag_opcode = client->frame_opcode; /* 登记分片消息类型 */
-                }
-            }
-
-            /* 长度解析（RFC 6455 §5.2） */
-            if (len7 < 126) {
-                client->frame_payload_remaining = len7;
-                client->frame_state = WS_FS_MASK;
-            } else if (len7 == 126) {
-                client->frame_state = WS_FS_LEN16;
-            } else {
-                client->frame_state = WS_FS_LEN64;
-            }
-            continue;
+        int st = client->frame_state;
+        /* 非法状态：原 default 分支语义，按协议错误关闭连接 */
+        if ((unsigned) st >= WS_FS_COUNT) {
+            return WS_PARSE_CLOSE;
         }
-
-        case WS_FS_LEN16: {
-            if (avail < 2) {
-                return 0;
-            }
-            client->frame_payload_remaining = ((uint64_t) p[0] << 8) | p[1];
-            client->recv_pos += 2;
-            if (client->frame_payload_remaining > WS_MAX_MESSAGE_SIZE) {
-                return ws_message_too_big(client);
-            }
-            client->frame_state = WS_FS_MASK;
-            continue;
-        }
-
-        case WS_FS_LEN64: {
-            if (avail < 8) {
-                return 0;
-            }
-            uint64_t v = 0;
-            for (int i = 0; i < 8; i++) {
-                v = (v << 8) | p[i];
-            }
-            client->recv_pos += 8;
-            if (v > WS_MAX_MESSAGE_SIZE) {
-                return ws_message_too_big(client);
-            }
-            client->frame_payload_remaining = v;
-            client->frame_state = WS_FS_MASK;
-            continue;
-        }
-
-        case WS_FS_MASK: {
-            if (client->frame_masked) {
-                if (avail < 4) {
-                    return 0;
-                }
-                memcpy(client->frame_mask, p, 4);
-                client->recv_pos += 4;
-            }
-            client->frame_mask_pos = 0;
-            client->frame_state = WS_FS_PAYLOAD;
-            continue;
-        }
-
-        case WS_FS_PAYLOAD: {
-            if (client->frame_payload_remaining == 0) {
-                return ws_frame_dispatch(server, client); /* 零负载帧 */
-            }
-            if (avail == 0) {
-                return 0;
-            }
-            size_t take = avail;
-            if ((uint64_t) take > client->frame_payload_remaining) {
-                take = (size_t) client->frame_payload_remaining;
-            }
-
-            if (client->frame_opcode >= 0x8) {
-                /* 控制帧：负载存入独立缓冲，不污染消息累积 */
-                memcpy(client->ctl_payload + client->ctl_len, p, take);
-                client->ctl_len += take;
-            } else {
-                /* 数据帧：应用掩码后累积到消息缓冲（RFC 6455 §5.3） */
-                uint8_t *dst = ws_msg_ensure(client, client->msg_len + take);
-                if (!dst) {
-                    return ws_message_too_big(client);
-                }
-                if (client->frame_masked) {
-                    for (size_t i = 0; i < take; i++) {
-                        dst[client->msg_len + i] =
-                            (uint8_t) (p[i] ^ client->frame_mask[client->frame_mask_pos]);
-                        client->frame_mask_pos = (client->frame_mask_pos + 1) & 3;
-                    }
-                } else {
-                    memcpy(dst + client->msg_len, p, take);
-                }
-                client->msg_len += take;
-            }
-            client->recv_pos += take;
-            client->frame_payload_remaining -= take;
-
-            if (client->frame_payload_remaining == 0) {
-                /* 帧负载接收完成，分发 */
-                return ws_frame_dispatch(server, client);
-            }
-            return 0; /* 本帧负载未完且缓冲已耗尽，等待更多数据 */
-        }
-
-        default:
-            return -1;
+        int r = kStateHandlers[st](server, client);
+        if (r != WS_PARSE_CONTINUE) {
+            return r; /* WS_PARSE_NEED_MORE=等待数据；WS_PARSE_CLOSE=关闭连接 */
         }
     }
 }

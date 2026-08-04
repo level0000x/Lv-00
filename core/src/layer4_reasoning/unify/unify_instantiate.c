@@ -199,6 +199,65 @@ static ConstraintCopyFunc s_constraint_copy_funcs[] = {
 };
 static const int s_constraint_copy_func_count = (int)(sizeof(s_constraint_copy_funcs) / sizeof(s_constraint_copy_funcs[0]));
 
+/* --- 阶段1节点拷贝：函数指针表 --- */
+
+/** 几何节点拷贝函数指针类型 */
+typedef bool (*GeomNodeCopyFn)(ConstraintGraph *dst, const GeomNode *src_node, int *out_new_id);
+
+/** @brief 拷贝 GEOM_POINT 节点（无依赖，直接拷贝并返回新节点ID） */
+static bool copy_geom_point(ConstraintGraph *dst, const GeomNode *src_node, int *out_new_id) {
+    AddNodeResult r = graph_add_point(dst, src_node->symbolic_coords, src_node->coord_count);
+    if (r != ADD_NODE_OK)
+        return false;
+    *out_new_id = dst->nodes[dst->node_count - 1]->id;
+    return true;
+}
+
+/** @brief 拷贝 GEOM_PORT 节点（拷贝端口属性，type_region 共享引用不做深拷贝） */
+static bool copy_geom_port(ConstraintGraph *dst, const GeomNode *src_node, int *out_new_id) {
+    PortType pt = PORT_INPUT;
+    int ns_depth = 0;
+    int parent_id = -1;
+    if (src_node->data.port) {
+        pt = src_node->data.port->type;
+        ns_depth = src_node->data.port->namespace_depth;
+        parent_id = src_node->data.port->parent_block_id;
+    }
+    AddNodeResult r = graph_add_port(dst, pt, ns_depth, parent_id);
+    if (r != ADD_NODE_OK)
+        return false;
+    int new_id = dst->nodes[dst->node_count - 1]->id;
+
+    /* 复制端口属性到新节点 */
+    GeomNode *new_node = dst->nodes[dst->node_count - 1];
+    if (new_node && new_node->data.port && src_node->data.port) {
+        new_node->data.port->is_formal_param = src_node->data.port->is_formal_param;
+        new_node->data.port->is_polymorphic = src_node->data.port->is_polymorphic;
+        new_node->data.port->type_region = src_node->data.port->type_region;
+        /* 注意：type_region 不做深拷贝，共享引用 */
+    }
+    *out_new_id = new_id;
+    return true;
+}
+
+/** @brief 跳过拷贝（LINE_SEGMENT/REGION/CIRCLE/FUNCTION_BLOCK 留待第二、三、四阶段处理） */
+static bool copy_geom_skip(ConstraintGraph *dst, const GeomNode *src_node, int *out_new_id) {
+    (void) dst;
+    (void) src_node;
+    *out_new_id = -1;
+    return true;
+}
+
+/** 几何节点类型 → 拷贝函数 查找表（designated initializer） */
+static const GeomNodeCopyFn kNodeCopyHandlers[] = {
+    [GEOM_POINT] = copy_geom_point,
+    [GEOM_PORT] = copy_geom_port,
+    [GEOM_LINE_SEGMENT] = copy_geom_skip,
+    [GEOM_REGION] = copy_geom_skip,
+    [GEOM_CIRCLE] = copy_geom_skip,
+    [GEOM_FUNCTION_BLOCK] = copy_geom_skip,
+};
+
 static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
     if (!src)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "deep_copy_graph: src is NULL");
@@ -234,44 +293,15 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int old_id = src_node->id;
         int new_id = -1;
 
-        switch (src_node->type) {
-            case GEOM_POINT: {
-                AddNodeResult r = graph_add_point(dst, src_node->symbolic_coords, src_node->coord_count);
-                if (r != ADD_NODE_OK)
-                    goto fail;
-                new_id = dst->nodes[dst->node_count - 1]->id;
-                break;
-            }
-            case GEOM_PORT: {
-                PortType pt = PORT_INPUT;
-                int ns_depth = 0;
-                int parent_id = -1;
-                if (src_node->data.port) {
-                    pt = src_node->data.port->type;
-                    ns_depth = src_node->data.port->namespace_depth;
-                    parent_id = src_node->data.port->parent_block_id;
-                }
-                AddNodeResult r = graph_add_port(dst, pt, ns_depth, parent_id);
-                if (r != ADD_NODE_OK)
-                    goto fail;
-                new_id = dst->nodes[dst->node_count - 1]->id;
-
-                /* 复制端口属性到新节点 */
-                GeomNode *new_node = dst->nodes[dst->node_count - 1];
-                if (new_node && new_node->data.port && src_node->data.port) {
-                    new_node->data.port->is_formal_param = src_node->data.port->is_formal_param;
-                    new_node->data.port->is_polymorphic = src_node->data.port->is_polymorphic;
-                    new_node->data.port->type_region = src_node->data.port->type_region;
-                    /* 注意：type_region 不做深拷贝，共享引用 */
-                }
-                break;
-            }
-            case GEOM_LINE_SEGMENT:
-            case GEOM_REGION:
-            case GEOM_CIRCLE:
-            case GEOM_FUNCTION_BLOCK:
-                /* 这些类型在第二阶段处理 */
-                continue;
+        /* VTable 分发：根据节点类型调用对应的拷贝函数。
+         * POINT/PORT 完成拷贝并返回新节点 ID；
+         * LINE_SEGMENT/REGION/CIRCLE/FUNCTION_BLOCK 映射到 copy_geom_skip（跳过），
+         * 未知类型不进入查找表，两者均保持 new_id = -1，不记录映射，
+         * 与原 continue/default 行为一致。 */
+        if ((unsigned) src_node->type < sizeof(kNodeCopyHandlers) / sizeof(kNodeCopyHandlers[0]) &&
+            kNodeCopyHandlers[src_node->type]) {
+            if (!kNodeCopyHandlers[src_node->type](dst, src_node, &new_id))
+                goto fail;
         }
 
         /* 记录ID映射 */

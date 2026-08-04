@@ -766,6 +766,32 @@ cleanup_bdf:
     return 0;
 }
 
+/* ================================================================
+ * 演化方法 -> {步进函数, 阶数, 误差估计方式} 静态查找表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 误差估计方式 */
+typedef enum {
+    GEOEVOL_ERR_EST_RICHARDSON, /**< Richardson 外推（RK4：半步长两步 vs 全步长） */
+    GEOEVOL_ERR_EST_NONE,       /**< 无嵌入式估计（Euler：直接接受） */
+    GEOEVOL_ERR_EST_EULER_REF,  /**< Euler 参考步估计（Adams/BDF：低阶参考） */
+} GeoEvolErrEstKind;
+
+/** @brief 演化方法表条目 */
+typedef struct {
+    int (*stepper)(lvGeomEvol *evol, double h, const double *y, double *y_out); /**< 单步积分函数 */
+    int order;                 /**< 方法阶数；-1 表示变阶（取 evol->ms_order，1~5） */
+    GeoEvolErrEstKind err_est; /**< 误差估计方式 */
+} GeoEvolMethodEntry;
+
+/** @brief 演化方法 -> 步进函数/阶数/误差估计 查找表（lvEvolMethod 枚举 0~3 连续） */
+static const GeoEvolMethodEntry s_evol_method_table[] = {
+    [lv_EVOL_EULER] = {geoevol_step_euler, 1, GEOEVOL_ERR_EST_NONE},
+    [lv_EVOL_RK4] = {geoevol_step_rk4, 4, GEOEVOL_ERR_EST_RICHARDSON},
+    [lv_EVOL_ADAMS] = {geoevol_step_adams, -1, GEOEVOL_ERR_EST_EULER_REF},
+    [lv_EVOL_BDF] = {geoevol_step_bdf, -1, GEOEVOL_ERR_EST_EULER_REF},
+};
+
 /* ========================================================================
  * 核心单步演化
  * ======================================================================== */
@@ -830,29 +856,17 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
             goto cleanup;
         }
 
-        /* 选择积分方法和阶数 */
+        /* 选择积分方法和阶数（查表替代 switch） */
         int (*stepper)(lvGeomEvol *, double, const double *, double *) = NULL;
-        switch (method) {
-            case lv_EVOL_EULER:
-                stepper = geoevol_step_euler;
-                method_order = 1;
-                break;
-            case lv_EVOL_RK4:
-                stepper = geoevol_step_rk4;
-                method_order = 4;
-                break;
-            case lv_EVOL_ADAMS:
-                stepper = geoevol_step_adams;
-                method_order = evol->ms_order; /* 变阶：1~5 */
-                break;
-            case lv_EVOL_BDF:
-                stepper = geoevol_step_bdf;
-                method_order = evol->ms_order; /* 变阶：1~5 */
-                break;
-            default:
-                lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "不支持的演化方法=%d", (int) method);
-                evol->status = lv_EVOL_STATUS_ERROR;
-                goto cleanup;
+        const GeoEvolMethodEntry *me = NULL;
+        if ((unsigned) method < lv_ARRAY_SIZE(s_evol_method_table) && s_evol_method_table[method].stepper) {
+            me = &s_evol_method_table[method];
+            stepper = me->stepper;
+            method_order = (me->order >= 0) ? me->order : evol->ms_order; /* 变阶：1~5 */
+        } else {
+            lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "不支持的演化方法=%d", (int) method);
+            evol->status = lv_EVOL_STATUS_ERROR;
+            goto cleanup;
         }
 
         /* 执行试探步（全步长 h） */
@@ -862,10 +876,10 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
             goto cleanup;
         }
 
-        /* Richardson 外推误差估计（仅对 RK4 方法）：
-         * 用步长 h/2 执行两步 RK4，与全步长结果比较。
-         * 误差 = (y_{h/2} - y_h) / (2^p - 1)，p = 方法阶数 */
-        if (method == lv_EVOL_RK4) {
+        /* 误差估计（按方法查表选择方式）：
+         * - Richardson 外推（RK4）：用步长 h/2 执行两步 RK4，与全步长结果比较。
+         *   误差 = (y_{h/2} - y_h) / (2^p - 1)，p = 方法阶数 */
+        if (me->err_est == GEOEVOL_ERR_EST_RICHARDSON) {
             /* 半步长两步法：先走 h/2，再走 h/2 */
             double half_h = 0.5 * h;
             double *y_mid = lv_malloc((size_t) dim * sizeof(double));
@@ -893,7 +907,7 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
                 evol->status = lv_EVOL_STATUS_ERROR;
                 goto cleanup;
             }
-        } else if (method == lv_EVOL_EULER) {
+        } else if (me->err_est == GEOEVOL_ERR_EST_NONE) {
             /* Euler 没有嵌入式估计，直接接受 */
             memcpy(y_half, y_trial, (size_t) dim * sizeof(double));
         } else {

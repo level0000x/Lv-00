@@ -37,6 +37,15 @@ static void generate_session_id(char *buf, size_t buf_size) {
     snprintf(buf, buf_size, "sess_%llx", (unsigned long long) now);
 }
 
+/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
+static const char *const s_json_escape_table[256] = {
+    ['"'] = "\\\"",
+    ['\\'] = "\\\\",
+    ['\n'] = "\\n",
+    ['\r'] = "\\r",
+    ['\t'] = "\\t",
+};
+
 /**
  * @brief Escape a string for JSON output
  *
@@ -55,40 +64,15 @@ static void json_escape_string(char *dst, size_t dst_size, const char *src) {
     }
 
     while (src[si] != '\0' && di + 2 < dst_size) {
-        switch (src[si]) {
-            case '"':
-                if (di + 2 < dst_size) {
-                    dst[di++] = '\\';
-                    dst[di++] = '"';
-                }
-                break;
-            case '\\':
-                if (di + 2 < dst_size) {
-                    dst[di++] = '\\';
-                    dst[di++] = '\\';
-                }
-                break;
-            case '\n':
-                if (di + 2 < dst_size) {
-                    dst[di++] = '\\';
-                    dst[di++] = 'n';
-                }
-                break;
-            case '\r':
-                if (di + 2 < dst_size) {
-                    dst[di++] = '\\';
-                    dst[di++] = 'r';
-                }
-                break;
-            case '\t':
-                if (di + 2 < dst_size) {
-                    dst[di++] = '\\';
-                    dst[di++] = 't';
-                }
-                break;
-            default:
-                dst[di++] = src[si];
-                break;
+        const char *esc = s_json_escape_table[(unsigned char) src[si]];
+        if (esc) {
+            size_t esc_len = strlen(esc);
+            if (di + esc_len < dst_size) {
+                memcpy(dst + di, esc, esc_len);
+                di += esc_len;
+            }
+        } else {
+            dst[di++] = src[si];
         }
         si++;
     }

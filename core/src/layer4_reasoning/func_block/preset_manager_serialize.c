@@ -28,6 +28,24 @@
  * 序列化与反序列化（JSON 格式）
  * ============================================================ */
 
+/** @brief JSON 转义增量查找表（按 ASCII 下标，1 表示需转义为 2 字节，0 表示普通字符占 1 字节） */
+static const unsigned char s_json_escape_inc_table[256] = {
+    ['"'] = 1,
+    ['\\'] = 1,
+    ['\n'] = 1,
+    ['\r'] = 1,
+    ['\t'] = 1,
+};
+
+/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
+static const char *const s_json_escape_table[256] = {
+    ['"'] = "\\\"",
+    ['\\'] = "\\\\",
+    ['\n'] = "\\n",
+    ['\r'] = "\\r",
+    ['\t'] = "\\t",
+};
+
 /**
  * @brief 对 JSON 字符串中的特殊字符进行转义
  *
@@ -45,18 +63,7 @@ static char *json_escape_string(const char *str, size_t *out_len) {
     /* 预计算转义后长度 */
     size_t len = 0;
     for (const char *p = str; *p; p++) {
-        switch (*p) {
-            case '"':
-            case '\\':
-            case '\n':
-            case '\r':
-            case '\t':
-                len += 2;
-                break;
-            default:
-                len += 1;
-                break;
-        }
+        len += s_json_escape_inc_table[(unsigned char) *p] ? 2 : 1;
     }
 
     char *escaped = (char *) lv_malloc(len + 1);
@@ -65,30 +72,13 @@ static char *json_escape_string(const char *str, size_t *out_len) {
 
     size_t pos = 0;
     for (const char *p = str; *p; p++) {
-        switch (*p) {
-            case '"':
-                escaped[pos++] = '\\';
-                escaped[pos++] = '"';
-                break;
-            case '\\':
-                escaped[pos++] = '\\';
-                escaped[pos++] = '\\';
-                break;
-            case '\n':
-                escaped[pos++] = '\\';
-                escaped[pos++] = 'n';
-                break;
-            case '\r':
-                escaped[pos++] = '\\';
-                escaped[pos++] = 'r';
-                break;
-            case '\t':
-                escaped[pos++] = '\\';
-                escaped[pos++] = 't';
-                break;
-            default:
-                escaped[pos++] = *p;
-                break;
+        const char *esc = s_json_escape_table[(unsigned char) *p];
+        if (esc) {
+            size_t esc_len = strlen(esc);
+            memcpy(escaped + pos, esc, esc_len);
+            pos += esc_len;
+        } else {
+            escaped[pos++] = *p;
         }
     }
     escaped[pos] = '\0';

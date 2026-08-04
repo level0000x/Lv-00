@@ -123,11 +123,8 @@ static const lvStrToEnumEntry constraint_type_map[] = {
  * @return 类型名称字符串（静态常量，无需释放）
  */
 static const char *geom_type_to_string(GeomType type) {
-    switch (type) {
-        lv_XMACRO_TO_STR(LV_GEOM_TYPE_X)
-        default:
-            return "UNKNOWN";
-    }
+    /* 复用 geom_type_map 表 + lv_enum_to_str 二分查找（替代 switch） */
+    return lv_enum_to_str(geom_type_map, lv_ARRAY_SIZE(geom_type_map), (int) type, "UNKNOWN");
 }
 
 /**

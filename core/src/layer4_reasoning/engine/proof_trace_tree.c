@@ -180,6 +180,22 @@ void lv_trace_node_set_status(lvProofTraceNode *node, lvTraceNodeStatus status) 
     }
 }
 
+/* 溯源节点类型 → 初始信任颜色 映射表（数据表化，替代 lv_trace_node_compute_color 中的 switch）。
+ * TRACE_NODE_DERIVATION / TRACE_NODE_GOAL 需递归取子节点最小颜色，用哨兵值标记。 */
+#define TRACE_NODE_COLOR_AUTO (-1)    /* 需递归计算（推导/目标节点） */
+#define TRACE_NODE_COLOR_UNKNOWN (-2) /* 未知类型：保持节点原有颜色 */
+
+static const int s_trace_node_initial_colors[] = {
+    [TRACE_NODE_AXIOM]         = TRUST_GREEN,
+    [TRACE_NODE_DEFINITION]    = TRUST_GREEN,
+    [TRACE_NODE_THEOREM]       = TRUST_GREEN,
+    [TRACE_NODE_LEMMA]         = TRUST_GREEN,
+    [TRACE_NODE_HYPOTHESIS]    = TRUST_BLUE_UNEXPLORED,
+    [TRACE_NODE_DERIVATION]    = TRACE_NODE_COLOR_AUTO,
+    [TRACE_NODE_CONTRADICTION] = TRUST_GREEN, /* 矛盾节点在反证法中视为有效推导 */
+    [TRACE_NODE_GOAL]          = TRACE_NODE_COLOR_AUTO,
+};
+
 /**
  * @brief 计算溯源节点的信任颜色
  *
@@ -201,37 +217,24 @@ TrustColor lv_trace_node_compute_color(lvProofTraceNode *node) {
     if (!node)
         return TRUST_GREEN;
 
-    switch (node->type) {
-        case TRACE_NODE_AXIOM:
-        case TRACE_NODE_DEFINITION:
-        case TRACE_NODE_THEOREM:
-        case TRACE_NODE_LEMMA:
-            node->trust_color = TRUST_GREEN;
-            break;
+    /* 通过查找表获取初始颜色，越界类型保持节点原有颜色 */
+    int initial = TRACE_NODE_COLOR_UNKNOWN;
+    if ((unsigned) node->type < lv_ARRAY_SIZE(s_trace_node_initial_colors))
+        initial = s_trace_node_initial_colors[node->type];
 
-        case TRACE_NODE_HYPOTHESIS:
-            node->trust_color = TRUST_BLUE_UNEXPLORED;
-            break;
-
-        case TRACE_NODE_CONTRADICTION:
-            /* 矛盾节点在反证法中视为有效推导 */
-            node->trust_color = TRUST_GREEN;
-            break;
-
-        case TRACE_NODE_DERIVATION:
-        case TRACE_NODE_GOAL: {
-            /* 取子节点中最低信任颜色 */
-            TrustColor min_color = TRUST_GREEN;
-            for (int i = 0; i < node->children.count; i++) {
-                lvProofTraceNode **child = (lvProofTraceNode **)lv_darray_get(&node->children, i);
-                TrustColor child_color = lv_trace_node_compute_color(*child);
-                if (child_color < min_color) {
-                    min_color = child_color;
-                }
+    if (initial == TRACE_NODE_COLOR_AUTO) {
+        /* 推导/目标节点：取子节点中最低信任颜色 */
+        TrustColor min_color = TRUST_GREEN;
+        for (int i = 0; i < node->children.count; i++) {
+            lvProofTraceNode **child = (lvProofTraceNode **)lv_darray_get(&node->children, i);
+            TrustColor child_color = lv_trace_node_compute_color(*child);
+            if (child_color < min_color) {
+                min_color = child_color;
             }
-            node->trust_color = min_color;
-            break;
         }
+        node->trust_color = min_color;
+    } else if (initial != TRACE_NODE_COLOR_UNKNOWN) {
+        node->trust_color = (TrustColor) initial;
     }
 
     return node->trust_color;

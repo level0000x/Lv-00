@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lexer_shared.c
  * @brief 共享词法分析器基础设施实现
  *
@@ -89,6 +89,15 @@ void lv_lexer_skip_whitespace_and_comments(lvLexer *lex) {
  *  提取字符串字面量（含转义处理）
  * ================================================================ */
 
+/** 转义字符解码查找表（按 ASCII 下标索引；0 表示未定义的转义，保留原字符） */
+static const char s_escape_decode[256] = {
+    ['n'] = '\n',
+    ['t'] = '\t',
+    ['r'] = '\r',
+    ['"'] = '"',
+    ['\\'] = '\\',
+};
+
 char *lv_lexer_extract_string(lvLexer *lex) {
     if (!lex || !lex->pos)
         return NULL;
@@ -133,26 +142,10 @@ char *lv_lexer_extract_string(lvLexer *lex) {
     while (src < lex->pos && dst < dst_end) {
         if (*src == '\\' && src + 1 < lex->pos) {
             src++;
-            switch (*src) {
-                case 'n':
-                    *dst++ = '\n';
-                    break;
-                case 't':
-                    *dst++ = '\t';
-                    break;
-                case 'r':
-                    *dst++ = '\r';
-                    break;
-                case '"':
-                    *dst++ = '"';
-                    break;
-                case '\\':
-                    *dst++ = '\\';
-                    break;
-                default:
-                    *dst++ = *src;
-                    break; /* 未识别的转义，保留原字符 */
-            }
+            /* 转义解码：查表，未定义的转义保留原字符 */
+            unsigned char esc = (unsigned char) *src;
+            char decoded = s_escape_decode[esc];
+            *dst++ = decoded ? decoded : (char) esc;
             src++;
             written++;
         } else {

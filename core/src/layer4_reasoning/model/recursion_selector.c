@@ -414,6 +414,15 @@ void selector_block_update_states(SelectorBlock *sb, BranchState true_state, Bra
 
 /* ============== 符号测度验证 ============== */
 
+/* 测度比较结果 → 递归检查结果 静态查找表 */
+static const RecursionCheckResult kCompareToCheckTable[] = {
+    [MEASURE_LESS]    = RECURSION_OK,             /* 严格递减 → 有效 */
+    [MEASURE_EQUAL]   = RECURSION_NOT_DECREASING, /* 相等 → 未递减 */
+    [MEASURE_GREATER] = RECURSION_NOT_DECREASING, /* 增大 → 未递减 */
+    [MEASURE_UNKNOWN] = RECURSION_ERROR,          /* 无法比较 → 出错 */
+    [MEASURE_ERROR]   = RECURSION_ERROR,          /* 比较出错 → 出错 */
+};
+
 RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, const Measure *measure,
                                                 const ConstraintGraph *graph, int node_id) {
     if (!ctx || !measure || !graph || node_id < 0)
@@ -453,18 +462,10 @@ RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, con
                            cmp == MEASURE_LESS ? "测度验证通过" : "测度验证失败", node_id);
     }
 
-    /* 返回结果 */
-    switch (cmp) {
-        case MEASURE_LESS:
-            return RECURSION_OK; /* 严格递减 */
-        case MEASURE_EQUAL:
-        case MEASURE_GREATER:
-            return RECURSION_NOT_DECREASING; /* 未递减 */
-        case MEASURE_UNKNOWN:
-        case MEASURE_ERROR:
-        default:
-            return RECURSION_ERROR; /* 出错或无法比较 */
-    }
+    /* 返回结果：查静态查找表，越界保守回退为出错 */
+    if ((unsigned)cmp < sizeof(kCompareToCheckTable) / sizeof(kCompareToCheckTable[0]))
+        return kCompareToCheckTable[cmp];
+    return RECURSION_ERROR;
 }
 
 /* ============== 选择器块分支管理增强 ============== */

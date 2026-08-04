@@ -28,6 +28,68 @@
  * 预设组合
  * ============================================================ */
 
+/* ============================================================
+ * 组合模式的输出元数据计算查找表（VTable）
+ *
+ * 将 preset_compose() 中对 composition->mode 的大型 switch 重构为
+ * 函数指针查找表：每种组合模式对应一个独立的 static 计算函数，
+ * 通过 designated initializer 建立「模式 → 函数」的映射。
+ * 所有函数均通过输出参数 composed_meta 修改组合后的元数据。
+ * ============================================================ */
+
+/** 组合模式元数据计算函数指针类型 */
+typedef void (*ComposeMetaFn)(const PresetComposition *composition, InternalPresetEntry *first_entry,
+                              PresetMetadata *composed_meta);
+
+/** @brief 顺序执行：输入 = 第一个预设的输入，输出 = 最后一个预设的输出 */
+static void compose_meta_sequence(const PresetComposition *composition, InternalPresetEntry *first_entry,
+                                  PresetMetadata *composed_meta) {
+    (void) first_entry;
+    InternalPresetEntry *last_entry = find_entry(composition->preset_names[composition->count - 1]);
+    if (last_entry) {
+        composed_meta->output_count = last_entry->metadata.output_count;
+        composed_meta->output_params = last_entry->metadata.output_params;
+    }
+}
+
+/** @brief 并行执行：输出数量 = 各预设输出之和 */
+static void compose_meta_parallel(const PresetComposition *composition, InternalPresetEntry *first_entry,
+                                  PresetMetadata *composed_meta) {
+    (void) first_entry;
+    int total_outputs = 0;
+    for (int i = 0; i < composition->count; i++) {
+        InternalPresetEntry *e = find_entry(composition->preset_names[i]);
+        if (e && e->metadata.output_count > 0) {
+            total_outputs += e->metadata.output_count;
+        }
+    }
+    composed_meta->output_count = total_outputs;
+}
+
+/** @brief 管道模式：类似顺序，但输出保留中间状态（即第一个预设的输出） */
+static void compose_meta_pipe(const PresetComposition *composition, InternalPresetEntry *first_entry,
+                              PresetMetadata *composed_meta) {
+    (void) composition;
+    composed_meta->output_count = first_entry->metadata.output_count;
+}
+
+/** @brief 反馈/分支模式：保留第一预设的输出数量作为初始值（无额外调整） */
+static void compose_meta_noop(const PresetComposition *composition, InternalPresetEntry *first_entry,
+                              PresetMetadata *composed_meta) {
+    (void) composition;
+    (void) first_entry;
+    (void) composed_meta;
+}
+
+/** 组合模式 → 元数据计算函数 查找表（designated initializer） */
+static const ComposeMetaFn kComposeMetaHandlers[] = {
+    [PRESET_COMPOSE_SEQUENCE] = compose_meta_sequence,
+    [PRESET_COMPOSE_PARALLEL] = compose_meta_parallel,
+    [PRESET_COMPOSE_PIPE] = compose_meta_pipe,
+    [PRESET_COMPOSE_FEEDBACK] = compose_meta_noop,
+    [PRESET_COMPOSE_BRANCH] = compose_meta_noop,
+};
+
 /**
  * @brief 组合预设
  *
@@ -87,43 +149,12 @@ bool preset_compose(const PresetComposition *composition, PresetEntryHandle *out
     /* 注意：仅浅复制 name/description/math_def 等 const 指针，
      * 在注册时 preset_register_custom 会通过 lv_strdup 深拷贝。 */
 
-    /* 根据组合模式确定输出行为 */
-    switch (composition->mode) {
-        case PRESET_COMPOSE_SEQUENCE:
-            /* 顺序执行：输入 = 第一个预设的输入，输出 = 最后一个预设的输出 */
-            {
-                InternalPresetEntry *last_entry = find_entry(composition->preset_names[composition->count - 1]);
-                if (last_entry) {
-                    composed_meta.output_count = last_entry->metadata.output_count;
-                    composed_meta.output_params = last_entry->metadata.output_params;
-                }
-            }
-            break;
-
-        case PRESET_COMPOSE_PARALLEL:
-            /* 并行执行：输出数量 = 各预设输出之和 */
-            {
-                int total_outputs = 0;
-                for (int i = 0; i < composition->count; i++) {
-                    InternalPresetEntry *e = find_entry(composition->preset_names[i]);
-                    if (e && e->metadata.output_count > 0) {
-                        total_outputs += e->metadata.output_count;
-                    }
-                }
-                composed_meta.output_count = total_outputs;
-            }
-            break;
-
-        case PRESET_COMPOSE_PIPE:
-            /* 管道模式：类似顺序，但输出保留中间状态 */
-            composed_meta.output_count = first_entry->metadata.output_count;
-            break;
-
-        case PRESET_COMPOSE_FEEDBACK:
-        case PRESET_COMPOSE_BRANCH:
-            /* 反馈/分支模式：保留第一预设的输出数量作为初始值 */
-            break;
+    /* 根据组合模式确定输出行为（VTable 分发） */
+    if ((unsigned) composition->mode < sizeof(kComposeMetaHandlers) / sizeof(kComposeMetaHandlers[0]) &&
+        kComposeMetaHandlers[composition->mode]) {
+        kComposeMetaHandlers[composition->mode](composition, first_entry, &composed_meta);
     }
+    /* 未知组合模式：保持第一预设的元数据不变（与原 default 行为一致） */
 
     /* 注册新预设 */
     bool success = preset_register_custom(&composed_meta, first_entry->template_fb, out_new_entry);

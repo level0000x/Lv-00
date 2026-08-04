@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file parser_safety.c
  * @brief 解析器安全加固实现
  *
@@ -40,6 +40,40 @@ static bool is_disallowed_ctrl(unsigned char c) {
     return true;      /* 其他控制字符 (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F) */
 }
 
+/* ============================================================
+ * Unicode 空白字符模式查找表
+ * ============================================================ */
+
+/** Unicode 空白字符 UTF-8 编码模式条目 */
+typedef struct {
+    unsigned char len; /**< UTF-8 编码总字节数；0 表示不是 Unicode 空白起始字节 */
+    unsigned char n2;  /**< 第二字节匹配值（0 表示特殊模式，需单独校验） */
+    unsigned char n3;  /**< 第三字节匹配值（仅 len==3 且非特殊模式时有效） */
+} UnicodeWsPattern;
+
+/** 按首字节索引的 Unicode 空白模式查找表（替代 is_unicode_whitespace_start 中的 switch） */
+static const UnicodeWsPattern s_unicode_ws_patterns[256] = {
+    [0xC2] = {2, 0xA0, 0x00}, /* U+00A0 NBSP: C2 A0 */
+    [0xE1] = {3, 0x9A, 0x80}, /* U+1680: E1 9A 80 */
+    [0xE2] = {3, 0x00, 0x00}, /* 特殊：多组后续字节模式，见 unicode_ws_e2_len */
+    [0xE3] = {3, 0x80, 0x80}, /* U+3000: E3 80 80 */
+    [0xEF] = {3, 0xBB, 0xBF}, /* U+FEFF: EF BB BF */
+};
+
+/** 校验 0xE2 开头的三字节序列的后续字节（U+2000-U+200A 等） */
+static int unicode_ws_e2_len(unsigned char n2, unsigned char n3) {
+    /* U+2000-U+200A: E2 80 80-8A */
+    if (n2 == 0x80 && n3 >= 0x80 && n3 <= 0x8A)
+        return 3;
+    /* U+2028: E2 80 A8, U+2029: E2 80 A9, U+202F: E2 80 AF */
+    if (n2 == 0x80 && (n3 == 0xA8 || n3 == 0xA9 || n3 == 0xAF))
+        return 3;
+    /* U+205F: E2 81 9F */
+    if (n2 == 0x81 && n3 == 0x9F)
+        return 3;
+    return 0;
+}
+
 /**
  * @brief 检查字节是否为Unicode空白字符（多字节序列的起始字节）
  *
@@ -60,33 +94,15 @@ static bool is_disallowed_ctrl(unsigned char c) {
  * @return 该字符的UTF-8编码字节数（1-3），0表示不是Unicode空白
  */
 static int is_unicode_whitespace_start(unsigned char c, unsigned char n2, unsigned char n3) {
-    switch (c) {
-        case 0xC2:
-            /* U+00A0 NBSP: C2 A0 */
-            return (n2 == 0xA0) ? 2 : 0;
-        case 0xE1:
-            /* U+1680: E1 9A 80 */
-            return (n2 == 0x9A && n3 == 0x80) ? 3 : 0;
-        case 0xE2:
-            /* U+2000-U+200A: E2 80 80-8A */
-            if (n2 == 0x80 && n3 >= 0x80 && n3 <= 0x8A)
-                return 3;
-            /* U+2028: E2 80 A8, U+2029: E2 80 A9, U+202F: E2 80 AF */
-            if (n2 == 0x80 && (n3 == 0xA8 || n3 == 0xA9 || n3 == 0xAF))
-                return 3;
-            /* U+205F: E2 81 9F */
-            if (n2 == 0x81 && n3 == 0x9F)
-                return 3;
-            return 0;
-        case 0xE3:
-            /* U+3000: E3 80 80 */
-            return (n2 == 0x80 && n3 == 0x80) ? 3 : 0;
-        case 0xEF:
-            /* U+FEFF: EF BB BF */
-            return (n2 == 0xBB && n3 == 0xBF) ? 3 : 0;
-        default:
-            return 0;
-    }
+    const UnicodeWsPattern *pat = &s_unicode_ws_patterns[c];
+    if (pat->len == 0)
+        return 0;
+    /* 特殊模式：0xE2 包含多组后续字节匹配 */
+    if (pat->n2 == 0)
+        return unicode_ws_e2_len(n2, n3);
+    if (pat->len == 2)
+        return (n2 == pat->n2) ? 2 : 0;
+    return (n2 == pat->n2 && n3 == pat->n3) ? 3 : 0;
 }
 
 /* ============================================================

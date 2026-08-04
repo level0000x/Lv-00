@@ -284,33 +284,39 @@ bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, con
 
 /* ===== 字符串转义 ===== */
 
+/** @brief JSON 转义字符 → 转义对字符串 查找表（NULL 表示未声明，走 default 控制字符逻辑） */
+static const char *const s_str_escape_json_pairs[256] = {
+    ['"']  = "\\\"",
+    ['\\'] = "\\\\",
+    ['\n'] = "\\n",
+    ['\r'] = "\\r",
+    ['\t'] = "\\t",
+};
+
+/** @brief XML 转义字符 → 实体字符串 查找表（NULL 表示原样输出） */
+static const char *const s_str_escape_xml_entities[256] = {
+    ['&']  = "&amp;",
+    ['<']  = "&lt;",
+    ['>']  = "&gt;",
+    ['"']  = "&quot;",
+    ['\''] = "&apos;",
+};
+
 void lv_str_escape_json(lvStrBuf *sb, const char *str, size_t len) {
     if (!sb || !str) return;
     for (size_t i = 0; i < len; i++) {
         unsigned char c = (unsigned char) str[i];
-        switch (c) {
-            case '"':
-                lv_strbuf_printf(sb, "\\\"");
-                break;
-            case '\\':
-                lv_strbuf_printf(sb, "\\\\");
-                break;
-            case '\n':
-                lv_strbuf_printf(sb, "\\n");
-                break;
-            case '\r':
-                lv_strbuf_printf(sb, "\\r");
-                break;
-            case '\t':
-                lv_strbuf_printf(sb, "\\t");
-                break;
-            default:
-                if (c < 0x20) {
-                    lv_strbuf_printf(sb, "\\u%04x", c);
-                } else {
-                    lv_strbuf_append_n(sb, (char) c, 1);
-                }
-                break;
+        /* 查找表：转义字符 → 转义对字符串；未命中（NULL）走 default */
+        const char *pair = s_str_escape_json_pairs[c];
+        if (pair) {
+            lv_strbuf_printf(sb, "%s", pair);
+        } else {
+            /* default：其他控制字符 \u00XX，其余原样输出 */
+            if (c < 0x20) {
+                lv_strbuf_printf(sb, "\\u%04x", c);
+            } else {
+                lv_strbuf_append_n(sb, (char) c, 1);
+            }
         }
     }
 }
@@ -319,25 +325,12 @@ void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len) {
     if (!sb || !str) return;
     for (size_t i = 0; i < len; i++) {
         char c = str[i];
-        switch (c) {
-            case '&':
-                lv_strbuf_printf(sb, "&amp;");
-                break;
-            case '<':
-                lv_strbuf_printf(sb, "&lt;");
-                break;
-            case '>':
-                lv_strbuf_printf(sb, "&gt;");
-                break;
-            case '"':
-                lv_strbuf_printf(sb, "&quot;");
-                break;
-            case '\'':
-                lv_strbuf_printf(sb, "&apos;");
-                break;
-            default:
-                lv_strbuf_append_n(sb, c, 1);
-                break;
+        /* 查找表：转义字符 → 实体字符串；未命中（NULL）走 default 原样输出 */
+        const char *ent = s_str_escape_xml_entities[(unsigned char)c];
+        if (ent) {
+            lv_strbuf_printf(sb, "%s", ent);
+        } else {
+            lv_strbuf_append_n(sb, c, 1);
         }
     }
 }

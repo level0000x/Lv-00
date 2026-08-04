@@ -655,6 +655,18 @@ MetaProofResult meta_prove_pruning(MetaProofContext *ctx, int node_id, const Sym
  * 完备性验证
  * ============================================================ */
 
+/* TrustColor → 计数桶索引 静态查找表
+ * 0 = proven 计数桶（GREEN / BLUE_UNEXPLORED / BLUE_EXCEEDED）
+ * 1 = unproven 计数桶（BLUE_OUT_OF_SCOPE / YELLOW）
+ * 越界（如 AMBER 及以上）归入 invalid，与旧 default 行为一致 */
+static const int kTrustToCountBucketTable[] = {
+    [TRUST_GREEN]             = 0, /* proven 计数桶 */
+    [TRUST_BLUE_UNEXPLORED]   = 0, /* proven 计数桶 */
+    [TRUST_BLUE_EXCEEDED]     = 0, /* proven 计数桶 */
+    [TRUST_BLUE_OUT_OF_SCOPE] = 1, /* unproven 计数桶 */
+    [TRUST_YELLOW]            = 1, /* unproven 计数桶 */
+};
+
 CompletenessReport *meta_prove_completeness(MetaProofContext *ctx) {
     if (!ctx || !ctx->record) {
         return NULL;
@@ -673,21 +685,17 @@ CompletenessReport *meta_prove_completeness(MetaProofContext *ctx) {
     for (int i = 0; i < ctx->record->operations.count; i++) {
         PruningOperation *op = (PruningOperation *)lv_darray_get(&ctx->record->operations, i);
 
-        switch (op->trust) {
-            case 0: /* GREEN */
-                report->proven_prunings++;
-                break;
-            case 1: /* BLUE */
-            case 2: /* BLUE_RANGE */
-                report->proven_prunings++;
-                break;
-            case 3: /* YELLOW */
-            case 4: /* AMBER */
-                report->unproven_prunings++;
-                break;
-            default:
-                report->invalid_prunings++;
-                break;
+        /* 查询信任颜色 → 计数桶索引：0=proven, 1=unproven；越界视为非法 */
+        int bucket = -1;
+        if ((unsigned)op->trust < sizeof(kTrustToCountBucketTable) / sizeof(kTrustToCountBucketTable[0]))
+            bucket = kTrustToCountBucketTable[op->trust];
+
+        if (bucket == 0) {
+            report->proven_prunings++;
+        } else if (bucket == 1) {
+            report->unproven_prunings++;
+        } else {
+            report->invalid_prunings++;
         }
     }
 

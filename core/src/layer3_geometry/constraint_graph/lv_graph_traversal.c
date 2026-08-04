@@ -947,21 +947,24 @@ int lv_graph_topological_sort(ConstraintGraph *graph, int **out_nodes, int *out_
  * 字符串转换函数
  * ============================================================ */
 
+/* ================================================================
+ * 枚举 -> 名称 静态字符串表（数据表化，替代 switch）
+ * ================================================================ */
+
+/** @brief 遍历顺序 -> 名称表（lvTraversalOrder 枚举值 0~4 连续，按下标索引） */
+static const char *const s_traversal_order_names[] = {
+    [lv_TRAVERSAL_DFS_PRE] = "DFS_PRE",
+    [lv_TRAVERSAL_DFS_POST] = "DFS_POST",
+    [lv_TRAVERSAL_BFS] = "BFS",
+    [lv_TRAVERSAL_TOPOLOGICAL] = "TOPOLOGICAL",
+    [lv_TRAVERSAL_REVERSE_TOPOLOGICAL] = "REVERSE_TOPOLOGICAL",
+};
+
 const char *lv_traversal_order_to_string(lvTraversalOrder order) {
-    switch (order) {
-        case lv_TRAVERSAL_DFS_PRE:
-            return "DFS_PRE";
-        case lv_TRAVERSAL_DFS_POST:
-            return "DFS_POST";
-        case lv_TRAVERSAL_BFS:
-            return "BFS";
-        case lv_TRAVERSAL_TOPOLOGICAL:
-            return "TOPOLOGICAL";
-        case lv_TRAVERSAL_REVERSE_TOPOLOGICAL:
-            return "REVERSE_TOPOLOGICAL";
-        default:
-            return "UNKNOWN";
-    }
+    /* 按下标索引；未知/越界顺序回退到 "UNKNOWN"（原 default 分支） */
+    if ((unsigned) order < lv_ARRAY_SIZE(s_traversal_order_names) && s_traversal_order_names[order])
+        return s_traversal_order_names[order];
+    return "UNKNOWN";
 }
 
 const char *lv_traversal_result_to_string(lvTraversalResult result) {
