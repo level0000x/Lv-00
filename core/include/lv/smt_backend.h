@@ -154,6 +154,15 @@ SMTBackendRegistry *smtsolver_get_registry(void);
 int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEntry *entry);
 const SMTBackendEntry *smtsolver_find_backend(const SMTBackendRegistry *registry, SolverBackendType type);
 
+/**
+ * @brief 将所有 SMT 后端注册到全局后端插件注册表
+ *
+ * 创建 lvBackendPlugin 包装器，使 SMT 后端可通过统一的
+ * lv_backend_plugin_find() / lv_backend_plugin_find_by_type() 查找。
+ * 可安全地多次调用（仅首次生效）。
+ */
+void smt_register_all_plugins(void);
+
 #ifdef __cplusplus
 }
 #endif

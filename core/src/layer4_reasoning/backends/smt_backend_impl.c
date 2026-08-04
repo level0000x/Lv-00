@@ -43,6 +43,7 @@
 
 #include "smt_backend.h"
 #include "smt_backend_internal.h"
+#include "lv/lv_backend_plugin.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
 
@@ -534,4 +535,110 @@ const SMTBackendEntry *smtsolver_find_backend(const SMTBackendRegistry *registry
         }
     }
     return NULL;
+}
+
+/* ============================================================
+ * 统一后端插件系统集成
+ *
+ * 将 SMT 后端注册到全局 lvBackendPluginRegistry，
+ * 保持现有 API 向后兼容。
+ * ============================================================ */
+
+/** @brief SMT 后端插件描述符数组 */
+static lvBackendPlugin s_smt_plugins[COUNT];
+
+/** @brief SMT 插件是否已注册到全局注册表 */
+static bool s_smt_plugins_registered = false;
+
+/**
+ * @brief SMT 后端插件初始化函数
+ */
+static bool smt_plugin_init_groebner(void) {
+    s_smt_plugins[GROEBNER].available = smtsolver_is_backend_available(GROEBNER);
+    return true;
+}
+
+static bool smt_plugin_init_z3(void) {
+    s_smt_plugins[SMT_Z3].available = smtsolver_is_backend_available(SMT_Z3);
+    return true;
+}
+
+static bool smt_plugin_init_cvc5(void) {
+    s_smt_plugins[SMT_CVC5].available = smtsolver_is_backend_available(SMT_CVC5);
+    return true;
+}
+
+static bool smt_plugin_init_singular(void) {
+    s_smt_plugins[SMT_SINGULAR].available = smtsolver_is_backend_available(SMT_SINGULAR);
+    return true;
+}
+
+/**
+ * @brief 将所有 SMT 后端注册到全局后端插件注册表
+ *
+ * 创建 lvBackendPlugin 包装器，将每个 SMT 后端类型映射到
+ * 统一插件描述符，并注册到全局注册表。
+ * 此函数可安全地多次调用（仅首次生效）。
+ */
+void smt_register_all_plugins(void) {
+    if (s_smt_plugins_registered) {
+        return;
+    }
+
+    lvBackendPluginRegistry *reg = lv_backend_plugin_registry_global();
+
+    /* 初始化静态插件描述符 */
+    memset(s_smt_plugins, 0, sizeof(s_smt_plugins));
+
+    /* Groebner */
+    s_smt_plugins[GROEBNER].name = "Groebner";
+    s_smt_plugins[GROEBNER].version = "1.0";
+    s_smt_plugins[GROEBNER].type = lv_PLUGIN_TYPE_GROEBNER;
+    s_smt_plugins[GROEBNER].capabilities = lv_PLUGIN_CAP_EXACT;
+    s_smt_plugins[GROEBNER].priority = 1;
+    s_smt_plugins[GROEBNER].available = smtsolver_is_backend_available(GROEBNER);
+    s_smt_plugins[GROEBNER].init = smt_plugin_init_groebner;
+    s_smt_plugins[GROEBNER].cleanup = NULL;
+    s_smt_plugins[GROEBNER].ops = NULL;
+    lv_backend_plugin_register(reg, &s_smt_plugins[GROEBNER]);
+
+    /* Z3 */
+    s_smt_plugins[SMT_Z3].name = "Z3";
+    s_smt_plugins[SMT_Z3].version = "4.x";
+    s_smt_plugins[SMT_Z3].type = lv_PLUGIN_TYPE_SMT;
+    s_smt_plugins[SMT_Z3].capabilities = lv_PLUGIN_CAP_INCREMENTAL | lv_PLUGIN_CAP_PROOF_PROD
+                                         | lv_PLUGIN_CAP_UNSAT_CORE | lv_PLUGIN_CAP_FLOAT;
+    s_smt_plugins[SMT_Z3].priority = 2;
+    s_smt_plugins[SMT_Z3].available = smtsolver_is_backend_available(SMT_Z3);
+    s_smt_plugins[SMT_Z3].init = smt_plugin_init_z3;
+    s_smt_plugins[SMT_Z3].cleanup = NULL;
+    s_smt_plugins[SMT_Z3].ops = NULL;
+    lv_backend_plugin_register(reg, &s_smt_plugins[SMT_Z3]);
+
+    /* cvc5 */
+    s_smt_plugins[SMT_CVC5].name = "cvc5";
+    s_smt_plugins[SMT_CVC5].version = "1.x";
+    s_smt_plugins[SMT_CVC5].type = lv_PLUGIN_TYPE_SMT;
+    s_smt_plugins[SMT_CVC5].capabilities = lv_PLUGIN_CAP_INCREMENTAL | lv_PLUGIN_CAP_PROOF_PROD
+                                           | lv_PLUGIN_CAP_UNSAT_CORE | lv_PLUGIN_CAP_FLOAT;
+    s_smt_plugins[SMT_CVC5].priority = 3;
+    s_smt_plugins[SMT_CVC5].available = smtsolver_is_backend_available(SMT_CVC5);
+    s_smt_plugins[SMT_CVC5].init = smt_plugin_init_cvc5;
+    s_smt_plugins[SMT_CVC5].cleanup = NULL;
+    s_smt_plugins[SMT_CVC5].ops = NULL;
+    lv_backend_plugin_register(reg, &s_smt_plugins[SMT_CVC5]);
+
+    /* Singular */
+    s_smt_plugins[SMT_SINGULAR].name = "Singular";
+    s_smt_plugins[SMT_SINGULAR].version = "4.x";
+    s_smt_plugins[SMT_SINGULAR].type = lv_PLUGIN_TYPE_GROEBNER;
+    s_smt_plugins[SMT_SINGULAR].capabilities = lv_PLUGIN_CAP_EXACT;
+    s_smt_plugins[SMT_SINGULAR].priority = 4;
+    s_smt_plugins[SMT_SINGULAR].available = smtsolver_is_backend_available(SMT_SINGULAR);
+    s_smt_plugins[SMT_SINGULAR].init = smt_plugin_init_singular;
+    s_smt_plugins[SMT_SINGULAR].cleanup = NULL;
+    s_smt_plugins[SMT_SINGULAR].ops = NULL;
+    lv_backend_plugin_register(reg, &s_smt_plugins[SMT_SINGULAR]);
+
+    s_smt_plugins_registered = true;
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file orchestrator.h
  * @brief Layer 7 编排调度器 —— 多阶段 pipeline 会话管理
  *
@@ -34,7 +34,7 @@ typedef enum {
     lv_STAGE_OUTPUT,    /**< Stage 4: 输出生成 */
     lv_STAGE_VISUAL,    /**< Stage 5: 可视化（可选） */
     lv_STAGE_COUNT      /**< 阶段总数 */
-} lvPipelineStage;
+} lvSessionStage;
 
 /**
  * @brief 阶段运行状态
@@ -55,7 +55,7 @@ typedef enum {
  * @brief 单个阶段的运行结果
  */
 typedef struct {
-    lvPipelineStage stage; /**< 阶段标识 */
+    lvSessionStage stage; /**< 阶段标识 */
     lvStageStatus status;  /**< 运行状态 */
     double elapsed_ms;     /**< 耗时（毫秒） */
     char error_msg[256];   /**< 错误信息 */
@@ -129,7 +129,7 @@ int lv_session_run(lvSession *session, const char *input);
  * @param stage 要运行的阶段
  * @return 成功返回 0，失败返回非零
  */
-int lv_session_run_stage(lvSession *session, lvPipelineStage stage);
+int lv_session_run_stage(lvSession *session, lvSessionStage stage);
 
 /**
  * @brief 从指定阶段开始运行
@@ -137,7 +137,7 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage);
  * @param from_stage 起始阶段
  * @return 成功返回 0，失败返回非零
  */
-int lv_session_run_from(lvSession *session, lvPipelineStage from_stage);
+int lv_session_run_from(lvSession *session, lvSessionStage from_stage);
 
 /**
  * @brief 获取阶段结果
@@ -145,7 +145,7 @@ int lv_session_run_from(lvSession *session, lvPipelineStage from_stage);
  * @param stage 阶段标识
  * @return 返回对应阶段的结果指针
  */
-const lvStageResult *lv_session_stage_result(const lvSession *session, lvPipelineStage stage);
+const lvStageResult *lv_session_stage_result(const lvSession *session, lvSessionStage stage);
 
 /**
  * @brief 查询整体是否成功

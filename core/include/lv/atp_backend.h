@@ -274,6 +274,14 @@ const ATPBackendEntry *atp_find_backend(ATPBackendType type);
  */
 const char *atp_backend_type_name(ATPBackendType type);
 /**
+ * @brief 将所有 ATP 后端注册到全局后端插件注册表
+ *
+ * 创建 lvBackendPlugin 包装器，使 ATP 后端可通过统一的
+ * lv_backend_plugin_find() / lv_backend_plugin_find_by_type() 查找。
+ * 可安全地多次调用（仅首次生效）。
+ */
+void atp_register_all_plugins(void);
+/**
  * @brief 从名称字符串解析后端类型
  * @return 成功返回 true，失败返回 false
  */

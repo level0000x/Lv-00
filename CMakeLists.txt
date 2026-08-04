@@ -628,6 +628,8 @@ set(lv_HEADERS
     core/include/lv/lv_loader.h
     # v1.1.0 通用注册表接口
     core/include/lv/lv_registry.h
+    # v1.1.0 统一后端插件系统抽象层
+    core/include/lv/lv_backend_plugin.h
     # v4.0.0 新增：推理分支栈独立模块头文件
     core/include/lv/lv_reasoning_stack.h
     # v4.0.0 新增：流式输出上下文独立模块头文件
@@ -636,6 +638,10 @@ set(lv_HEADERS
     core/include/lv/lv_ringbuf.h
     # 脏变量追踪（增量求解支持，从 solver.c 提取）
     core/include/lv/solver_dirty_set.h
+    # v5.0.0 流水线抽象层
+    core/include/lv/lv_pipeline.h
+    # v5.0.0 统一存储抽象层
+    core/include/lv/lv_storage.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -771,6 +777,10 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_file.c
     # v1.1.0 通用注册表（统一 ATP/SMT/Groebner 后端注册表模式）
     core/src/layer2_resource/lv_registry.c
+    # v1.1.0 统一后端插件系统抽象层
+    core/src/layer2_resource/lv_backend_plugin.c
+    # v5.0.0 统一存储抽象层
+    core/src/layer2_resource/lv_storage.c
 )
 
 # ── Core: 核心便利层 (Core Convenience) ──
@@ -1427,6 +1437,7 @@ target_link_libraries(lv_layer6_visual lv_layer5_output lv_layer4_reasoning lv_l
 # ── Layer 7: 编排调度层 (Orchestration Layer) ──
 set(lv_LAYER7_SOURCES
     core/src/layer7_orchestration/orchestrator.c
+    core/src/layer7_orchestration/lv_pipeline.c
 )
 set(lv_LAYER7_HEADERS
     core/include/lv/orchestrator.h

@@ -12,6 +12,7 @@
  */
 
 #include "lv/orchestrator.h"
+#include "lv/lv_pipeline.h"
 
 #include <stdatomic.h>
 #include <stdio.h>
@@ -76,7 +77,7 @@ lvSession *lv_session_create(const char *name) {
     }
     session->config = lv_default_session_config();
     for (int i = 0; i < lv_STAGE_COUNT; i++) {
-        session->stages[i].stage = (lvPipelineStage) i;
+        session->stages[i].stage = (lvSessionStage) i;
         session->stages[i].status = lv_STAGE_PENDING;
     }
     return session;
@@ -107,325 +108,7 @@ int lv_session_configure(lvSession *session, const lvSessionConfig *config) {
     return 0;
 }
 
-/**
- * @brief 运行完整的会话流水线
- *
- * 依次执行解析、资源、几何、推理、输出、可视化（可选）六个阶段。
- * 每个阶段依赖前置阶段的成功完成，任一步失败则终止流水线。
- *
- * @param session 会话实例
- * @param input   输入字符串（DSL 格式的几何证明描述）
- * @return 成功返回 0，session 或 input 为 NULL 返回 -1，流水线失败返回非零值
- */
-int lv_session_run(lvSession *session, const char *input) {
-    lv_CHECK_NOT_NULL(session);
-    lv_CHECK_NOT_NULL(input);
-    session->success = 0;
-
-    /* ── Stage 0: Parse ── 验证输入非空，模拟解析：统计行数/标记数 ── */
-    session->stages[lv_STAGE_PARSE].status = lv_STAGE_RUNNING;
-    {
-        int input_len = (int) strlen(input);
-        /* 空输入直接判定为解析失败 */
-        if (input_len == 0) {
-            session->stages[lv_STAGE_PARSE].status = lv_STAGE_FAILED;
-            strncpy(session->stages[lv_STAGE_PARSE].error_msg, "解析失败：输入为空",
-                    sizeof(session->stages[lv_STAGE_PARSE].error_msg));
-            session->stages[lv_STAGE_PARSE].error_msg[sizeof(session->stages[lv_STAGE_PARSE].error_msg) - 1] = '\0';
-            strncpy(session->final_error, "Stage 0 (Parse) 失败: 输入为空", sizeof(session->final_error));
-            session->final_error[sizeof(session->final_error) - 1] = '\0';
-            session->success = 0;
-            lv_RETURN_ERROR(lv_ERROR_PARSE, "parse failed: empty input");
-        }
-
-        /* 模拟解析：遍历输入字符，统计行数和标记数（以空格/换行分隔的连续非空白字符序列计为一个标记） */
-        int line_count = 1;
-        int token_count = 0;
-        int in_token = 0;
-        for (int i = 0; i < input_len; i++) {
-            if (input[i] == '\n') {
-                line_count++;
-                in_token = 0;
-            } else if (input[i] == ' ' || input[i] == '\t' || input[i] == '\r') {
-                in_token = 0;
-            } else {
-                if (!in_token) {
-                    token_count++;
-                    in_token = 1;
-                }
-            }
-        }
-
-        /*
-         * 模拟解析耗时：此处仅做计时演示，实际解析器应进行语法树构建。
-         * 若实测耗时过短（< 0.1ms），按输入长度估算以保证阶段显示有合理耗时。
-         */
-        clock_t t0 = clock();
-        /* 实际解析工作位置：验证输入格式标记（占位） */
-        double elapsed = lv_clock_elapsed_ms(t0);
-        if (elapsed < 0.1)
-            elapsed = 0.1 + input_len * 0.001; /* 保证最小耗时 */
-
-        snprintf(session->stages[lv_STAGE_PARSE].error_msg, sizeof(session->stages[lv_STAGE_PARSE].error_msg),
-                 "解析完成: %d 行, %d 标记, %d 字节", line_count, token_count, input_len);
-        session->stages[lv_STAGE_PARSE].status = lv_STAGE_COMPLETED;
-        session->stages[lv_STAGE_PARSE].elapsed_ms = elapsed;
-    }
-
-    /* ── Stage 1: Resource ── 检查/创建上下文，统计可用资源 ── */
-    session->stages[lv_STAGE_RESOURCE].status = lv_STAGE_RUNNING;
-    {
-        clock_t t0 = clock();
-
-        /* 模拟资源加载：基于会话配置参数计算所需资源单元数 */
-        int resource_count = 0;
-        /* 基础资源：上下文、内存池、类型系统三个核心组件 */
-        resource_count += 3;
-        /* 基于推理深度增加资源：深度越大所需资源越多 */
-        resource_count += session->config.max_reasoning_depth / 20;
-        /* 基于输入格式增加资源：DSL 格式需要额外解析器资源 */
-        if (strcmp(session->config.input_format, "lv-dsl") == 0)
-            resource_count += 2; /* DSL 解析器 + 语法分析器 */
-        else
-            resource_count += 1; /* 通用解析器 */
-
-        /* 模拟资源分配耗时 */
-        double elapsed = lv_clock_elapsed_ms(t0);
-        if (elapsed < 0.05)
-            elapsed = 0.5;
-
-        snprintf(session->stages[lv_STAGE_RESOURCE].error_msg, sizeof(session->stages[lv_STAGE_RESOURCE].error_msg),
-                 "资源就绪: %d 个资源单元, 深度上限 %d, 超时 %dms", resource_count, session->config.max_reasoning_depth,
-                 session->config.timeout_ms);
-        session->stages[lv_STAGE_RESOURCE].status = lv_STAGE_COMPLETED;
-        session->stages[lv_STAGE_RESOURCE].elapsed_ms = elapsed;
-    }
-
-    /* ── Stage 2: Geometry ── 从解析结果中提取几何对象信息 ── */
-    session->stages[lv_STAGE_GEOMETRY].status = lv_STAGE_RUNNING;
-    {
-        clock_t t0 = clock();
-
-        /* 前置检查：解析阶段必须完成，几何阶段依赖解析产生的标记流 */
-        if (session->stages[lv_STAGE_PARSE].status != lv_STAGE_COMPLETED) {
-            session->stages[lv_STAGE_GEOMETRY].status = lv_STAGE_FAILED;
-            strncpy(session->stages[lv_STAGE_GEOMETRY].error_msg, "几何阶段失败：前置解析阶段未完成",
-                    sizeof(session->stages[lv_STAGE_GEOMETRY].error_msg) - 1);
-            strncpy(session->final_error, "Stage 2 (Geometry) 失败: 前置阶段未完成", sizeof(session->final_error) - 1);
-            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "geometry stage: parse stage not completed");
-        }
-
-        /*
-         * 模拟几何对象提取：遍历中英文几何关键词列表，在输入字符串中逐一匹配。
-         * 每次匹配成功计为一个几何对象。若无匹配则保底为 1（隐含上下文对象）。
-         */
-        int geo_obj_count = 0;
-        const char *geo_keywords[] = {"point",  "line",   "circle", "triangle", "angle", "segment", "polygon", "plane",
-                                      "sphere", "vector", "arc",    "ray",      "点",    "线",      "圆",      "三角形",
-                                      "角",     "边",     "多边形", "面",       "向量",  "弧",      "射线"};
-        int keyword_count = (int) (sizeof(geo_keywords) / sizeof(geo_keywords[0]));
-        for (int k = 0; k < keyword_count; k++) {
-            const char *pos = input;
-            int kw_len = (int) strlen(geo_keywords[k]);
-            while ((pos = strstr(pos, geo_keywords[k])) != NULL) {
-                geo_obj_count++;
-                pos += kw_len; /* 移动指针避免同一位置重复匹配 */
-            }
-        }
-        if (geo_obj_count == 0)
-            geo_obj_count = 1; /* 至少一个隐含对象 */
-
-        double elapsed = lv_clock_elapsed_ms(t0);
-        if (elapsed < 0.1)
-            elapsed = 1.0 + geo_obj_count * 0.1;
-
-        snprintf(session->stages[lv_STAGE_GEOMETRY].error_msg, sizeof(session->stages[lv_STAGE_GEOMETRY].error_msg),
-                 "几何构造完成: %d 个几何对象已识别", geo_obj_count);
-        session->stages[lv_STAGE_GEOMETRY].status = lv_STAGE_COMPLETED;
-        session->stages[lv_STAGE_GEOMETRY].elapsed_ms = elapsed;
-    }
-
-    /* ── Stage 3: Reasoning ── 调用多策略证明引擎，尝试所有可用推理策略 ── */
-    session->stages[lv_STAGE_REASONING].status = lv_STAGE_RUNNING;
-    {
-        clock_t t0 = clock();
-
-        /* 前置检查：几何阶段必须完成，推理依赖几何对象的拓扑关系 */
-        if (session->stages[lv_STAGE_GEOMETRY].status != lv_STAGE_COMPLETED) {
-            session->stages[lv_STAGE_REASONING].status = lv_STAGE_FAILED;
-            strncpy(session->stages[lv_STAGE_REASONING].error_msg, "推理阶段失败：前置几何阶段未完成",
-                    sizeof(session->stages[lv_STAGE_REASONING].error_msg) - 1);
-            strncpy(session->final_error, "Stage 3 (Reasoning) 失败: 前置阶段未完成", sizeof(session->final_error) - 1);
-            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "reasoning stage: geometry stage not completed");
-        }
-
-        /*
-         * 核心推理流程：创建命题 → 构建证明导航器 → 初始化多策略引擎 → 尝试所有策略。
-         * 采用分层创建模式，每层失败时向上传播错误信息。
-         */
-        int reasoning_ok = 0;
-        Proposition *target = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
-        if (target) {
-            ProofNavigator *nav = proof_navigator_create(target, NULL);
-            if (nav) {
-                ProofMultiStrategy *mse = proof_multi_strategy_create(nav);
-                if (mse) {
-                    /* 尝试所有可用的证明策略（前向链、后向链、归纳法等） */
-                    ProofStrategyType result = proof_multi_strategy_try_all(mse);
-                    reasoning_ok = (result != PROOF_STRATEGY_COUNT);
-
-                    int total_attempts = 0, success_count = 0;
-                    proof_multi_strategy_get_stats(mse, &total_attempts, &success_count);
-
-                    double elapsed = lv_clock_elapsed_ms(t0);
-                    if (elapsed < 1.0)
-                        elapsed = 5.0 + total_attempts * 2.0;
-
-                    snprintf(session->stages[lv_STAGE_REASONING].error_msg,
-                             sizeof(session->stages[lv_STAGE_REASONING].error_msg),
-                             "推理完成: %s (尝试 %d 策略, 成功 %d)", reasoning_ok ? "已证明" : "未找到证明",
-                             total_attempts, success_count);
-                    session->stages[lv_STAGE_REASONING].elapsed_ms = elapsed;
-
-                    proof_multi_strategy_destroy(mse);
-                } else {
-                    /* 多策略引擎创建失败 — 通常是内存不足或导航器状态异常 */
-                    double elapsed = lv_clock_elapsed_ms(t0);
-                    if (elapsed < 1.0)
-                        elapsed = 10.0;
-                    reasoning_ok = 0;
-                    snprintf(session->stages[lv_STAGE_REASONING].error_msg,
-                             sizeof(session->stages[lv_STAGE_REASONING].error_msg),
-                             "推理失败: 多策略引擎创建失败，无法执行推理");
-                    session->stages[lv_STAGE_REASONING].elapsed_ms = elapsed;
-                }
-                proof_navigator_destroy(nav);
-            } else {
-                /* 导航器创建失败 — 目标命题可能不合法 */
-                double elapsed = lv_clock_elapsed_ms(t0);
-                if (elapsed < 1.0)
-                    elapsed = 10.0;
-                reasoning_ok = 0;
-                snprintf(session->stages[lv_STAGE_REASONING].error_msg,
-                         sizeof(session->stages[lv_STAGE_REASONING].error_msg),
-                         "推理失败: 证明导航器创建失败，无法执行推理");
-                session->stages[lv_STAGE_REASONING].elapsed_ms = elapsed;
-            }
-            proposition_destroy(target);
-        } else {
-            /* 命题创建失败 — 参数无效或内存不足 */
-            double elapsed = lv_clock_elapsed_ms(t0);
-            if (elapsed < 1.0)
-                elapsed = 10.0;
-            reasoning_ok = 0;
-            snprintf(session->stages[lv_STAGE_REASONING].error_msg,
-                     sizeof(session->stages[lv_STAGE_REASONING].error_msg), "推理失败: 证明命题创建失败，无法执行推理");
-            session->stages[lv_STAGE_REASONING].elapsed_ms = elapsed;
-        }
-
-        if (reasoning_ok) {
-            session->stages[lv_STAGE_REASONING].status = lv_STAGE_COMPLETED;
-        } else {
-            /* 所有证明策略均无法完成证明，标记为失败 */
-            session->stages[lv_STAGE_REASONING].status = lv_STAGE_FAILED;
-            strncpy(session->final_error, "Stage 3 (Reasoning) 失败: 所有策略均未找到证明",
-                    sizeof(session->final_error) - 1);
-            session->success = 0;
-            lv_RETURN_ERROR(lv_ERROR_PROOF_INVALID, "reasoning stage: all strategies failed");
-        }
-    }
-
-    /* ── Stage 4: Output ── 基于推理结果，按指定格式生成证明输出 ── */
-    session->stages[lv_STAGE_OUTPUT].status = lv_STAGE_RUNNING;
-    {
-        clock_t t0 = clock();
-
-        /* 前置检查：推理阶段必须完成，输出依赖推理产生的证明树 */
-        if (session->stages[lv_STAGE_REASONING].status != lv_STAGE_COMPLETED) {
-            session->stages[lv_STAGE_OUTPUT].status = lv_STAGE_FAILED;
-            strncpy(session->stages[lv_STAGE_OUTPUT].error_msg, "输出生成失败：前置推理阶段未完成",
-                    sizeof(session->stages[lv_STAGE_OUTPUT].error_msg) - 1);
-            strncpy(session->final_error, "Stage 4 (Output) 失败: 前置阶段未完成", sizeof(session->final_error) - 1);
-            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "output stage: reasoning stage not completed");
-        }
-
-        /* 根据 output_format 选择不同的输出模板，不同格式的详细度各异 */
-        int output_len = 0;
-        const char *format = session->config.output_format;
-        if (strcmp(format, "proof") == 0) {
-            output_len = ORCH_OUTPUT_BASE_PROOF + session->config.max_reasoning_depth;
-        } else if (strcmp(format, "latex") == 0) {
-            output_len = ORCH_OUTPUT_BASE_LATEX + session->config.max_reasoning_depth * 2;
-        } else if (strcmp(format, "html") == 0) {
-            output_len = ORCH_OUTPUT_BASE_HTML + session->config.max_reasoning_depth * 4;
-        } else {
-            output_len = ORCH_OUTPUT_BASE_DEFAULT;
-        }
-
-        double elapsed = lv_clock_elapsed_ms(t0);
-        if (elapsed < 0.05)
-            elapsed = 1.0 + output_len * 0.001;
-
-        snprintf(session->stages[lv_STAGE_OUTPUT].error_msg, sizeof(session->stages[lv_STAGE_OUTPUT].error_msg),
-                 "输出生成完成: 格式=%s, 预估 %d 字节", format, output_len);
-        session->stages[lv_STAGE_OUTPUT].status = lv_STAGE_COMPLETED;
-        session->stages[lv_STAGE_OUTPUT].elapsed_ms = elapsed;
-    }
-
-    /* ── Stage 5: Visual (optional) ── 若启用可视化，初始化画布并渲染几何对象 ── */
-    if (session->config.enable_visualization) {
-        session->stages[lv_STAGE_VISUAL].status = lv_STAGE_RUNNING;
-        {
-            clock_t t0 = clock();
-
-            /* 前置检查：输出阶段必须完成，可视化渲染依赖完整的输出数据 */
-            if (session->stages[lv_STAGE_OUTPUT].status != lv_STAGE_COMPLETED) {
-                session->stages[lv_STAGE_VISUAL].status = lv_STAGE_FAILED;
-                strncpy(session->stages[lv_STAGE_VISUAL].error_msg, "可视化阶段失败：前置输出阶段未完成",
-                        sizeof(session->stages[lv_STAGE_VISUAL].error_msg) - 1);
-                strncpy(session->final_error, "Stage 5 (Visual) 失败: 前置阶段未完成",
-                        sizeof(session->final_error) - 1);
-                lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "visual stage: output stage not completed");
-            }
-
-            /* 解析几何阶段消息中记录的对象数，用于计算画布布局 */
-            int canvas_w = ORCH_CANVAS_DEFAULT_W;
-            int canvas_h = ORCH_CANVAS_DEFAULT_H;
-            int obj_count = 0;
-            /* 从几何阶段的 error_msg 中向后解析出对象数量 */
-            const char *geo_msg = session->stages[lv_STAGE_GEOMETRY].error_msg;
-            if (geo_msg) {
-                const char *p = strstr(geo_msg, "个几何对象");
-                if (p) {
-                    /* 从匹配位置向前搜索数字字符 */
-                    const char *num_start = p;
-                    while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
-                        num_start--;
-                    if (num_start < p) {
-                        obj_count = lv_parse_int_default(num_start, 0);
-                    }
-                }
-            }
-            if (obj_count <= 0)
-                obj_count = 1;
-
-            double elapsed = lv_clock_elapsed_ms(t0);
-            if (elapsed < 0.1)
-                elapsed = 3.0 + obj_count * 0.5;
-
-            snprintf(session->stages[lv_STAGE_VISUAL].error_msg, sizeof(session->stages[lv_STAGE_VISUAL].error_msg),
-                     "可视化就绪: 画布 %dx%d, %d 个对象已渲染", canvas_w, canvas_h, obj_count);
-            session->stages[lv_STAGE_VISUAL].status = lv_STAGE_COMPLETED;
-            session->stages[lv_STAGE_VISUAL].elapsed_ms = elapsed;
-        }
-    } else {
-        /* 可视化未启用，跳过该阶段 */
-        session->stages[lv_STAGE_VISUAL].status = lv_STAGE_SKIPPED;
-    }
-
-    session->success = 1;
-    return 0;
-}
+/* pipeline_stage_process 和 lv_session_run 定义在 VTable 之后 */
 
 /* 函数指针类型：阶段处理函数 */
 typedef int (*StageHandler)(lvSession *session, int stage);
@@ -704,6 +387,124 @@ static const StageHandlerEntry kStageHandlers[] = {
 static const int kStageHandlerCount = (int)(sizeof(kStageHandlers) / sizeof(kStageHandlers[0]));
 
 /**
+ * @brief 流水线阶段处理函数包装器
+ *
+ * 通过 VTable 查找对应的阶段处理函数并执行。
+ * 是 lvPipelineProcessFn 的适配层。
+ */
+static bool pipeline_stage_process(void *stage_ctx, void *pipeline_data,
+                                    lvEventBus *event_bus, char *error_buf, int error_buf_size) {
+    (void)event_bus;
+    if (!stage_ctx || !pipeline_data)
+        return false;
+
+    lvSession *session = (lvSession *)pipeline_data;
+    int stage_idx = (int)(intptr_t)stage_ctx;
+
+    /* 通过 VTable 查找并执行对应的处理函数 */
+    int rc = 0;
+    int found = 0;
+    for (int i = 0; i < kStageHandlerCount; i++) {
+        if (kStageHandlers[i].stage == stage_idx) {
+            rc = kStageHandlers[i].handler(session, stage_idx);
+            found = 1;
+            break;
+        }
+    }
+    if (!found) {
+        snprintf(error_buf, (size_t)error_buf_size, "Unknown stage: %d", stage_idx);
+        return false;
+    }
+
+    if (rc != 0) {
+        strncpy(error_buf, session->stages[stage_idx].error_msg, (size_t)error_buf_size - 1);
+        error_buf[error_buf_size - 1] = '\0';
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief 运行完整的会话流水线
+ *
+ * 通过 lvPipeline 抽象层依次执行解析、资源、几何、推理、输出、可视化六个阶段。
+ * 每个阶段依赖前置阶段的成功完成，任一步失败则终止流水线。
+ *
+ * @param session 会话实例
+ * @param input   输入字符串（DSL 格式的几何证明描述）
+ * @return 成功返回 0，session 或 input 为 NULL 返回 -1，流水线失败返回非零值
+ */
+int lv_session_run(lvSession *session, const char *input) {
+    lv_CHECK_NOT_NULL(session);
+    lv_CHECK_NOT_NULL(input);
+    session->success = 0;
+
+    /* 创建并初始化流水线 */
+    lvPipeline pipeline;
+    lv_pipeline_init(&pipeline, NULL);
+
+    /* 注册各阶段 */
+    lv_pipeline_add_stage(&pipeline, "Parse", "输入解析与词法分析",
+                           pipeline_stage_process, (void *)(intptr_t)lv_STAGE_PARSE);
+    lv_pipeline_add_stage(&pipeline, "Resource", "资源加载与上下文初始化",
+                           pipeline_stage_process, (void *)(intptr_t)lv_STAGE_RESOURCE);
+    lv_pipeline_add_stage(&pipeline, "Geometry", "几何构造与对象识别",
+                           pipeline_stage_process, (void *)(intptr_t)lv_STAGE_GEOMETRY);
+    lv_pipeline_add_stage(&pipeline, "Reasoning", "推理求解与证明搜索",
+                           pipeline_stage_process, (void *)(intptr_t)lv_STAGE_REASONING);
+    lv_pipeline_add_stage(&pipeline, "Output", "输出生成与格式化",
+                           pipeline_stage_process, (void *)(intptr_t)lv_STAGE_OUTPUT);
+    lv_pipeline_add_stage(&pipeline, "Visual", "可视化渲染（可选）",
+                           pipeline_stage_process, (void *)(intptr_t)lv_STAGE_VISUAL);
+
+    /* 执行流水线 */
+    bool pipeline_ok = lv_pipeline_execute(&pipeline, session);
+
+    /* 将 pipeline 结果同步回 session 的 stages 数组 */
+    for (int i = 0; i < lv_STAGE_COUNT && i < pipeline.stage_count; i++) {
+        lvPipelineStage *ps = &pipeline.stages[i];
+        lvStageResult *sr = &session->stages[i];
+
+        /* 映射 pipeline 状态到 session 状态 */
+        switch (ps->status) {
+            case lv_PIPELINE_STAGE_COMPLETED:
+                sr->status = lv_STAGE_COMPLETED;
+                break;
+            case lv_PIPELINE_STAGE_FAILED:
+                sr->status = lv_STAGE_FAILED;
+                break;
+            case lv_PIPELINE_STAGE_SKIPPED:
+                sr->status = lv_STAGE_SKIPPED;
+                break;
+            case lv_PIPELINE_STAGE_CANCELLED:
+                sr->status = lv_STAGE_SKIPPED;
+                break;
+            default:
+                /* 保持原状 */
+                break;
+        }
+    }
+
+    /* 清理流水线 */
+    lv_pipeline_cleanup(&pipeline);
+
+    if (!pipeline_ok) {
+        const char *err = lv_pipeline_get_error(&pipeline);
+        if (err) {
+            strncpy(session->final_error, err, sizeof(session->final_error) - 1);
+            session->final_error[sizeof(session->final_error) - 1] = '\0';
+        }
+        session->success = 0;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "pipeline execution failed: %s",
+                        err ? err : "unknown error");
+    }
+
+    session->success = 1;
+    return 0;
+}
+
+/**
  * @brief 运行会话的指定阶段
  *
  * 单独执行流水线中的某一个阶段。非首阶段会检查前置阶段是否已完成。
@@ -712,7 +513,7 @@ static const int kStageHandlerCount = (int)(sizeof(kStageHandlers) / sizeof(kSta
  * @param stage   要执行的流水线阶段
  * @return 成功返回 0，参数无效或阶段执行失败返回 -1
  */
-int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
+int lv_session_run_stage(lvSession *session, lvSessionStage stage) {
     lv_CHECK_NOT_NULL(session);
     lv_CHECK_ARG(stage >= 0 && stage < lv_STAGE_COUNT, lv_ERROR_INVALID_PARAM, "invalid stage %d", stage);
     session->stages[stage].status = lv_STAGE_RUNNING;
@@ -756,12 +557,12 @@ int lv_session_run_stage(lvSession *session, lvPipelineStage stage) {
  * @param from_stage 起始阶段
  * @return 全部阶段成功返回 0，参数无效或某阶段失败返回非零值
  */
-int lv_session_run_from(lvSession *session, lvPipelineStage from_stage) {
+int lv_session_run_from(lvSession *session, lvSessionStage from_stage) {
     lv_CHECK_NOT_NULL(session);
     lv_CHECK_ARG(from_stage >= 0 && from_stage < lv_STAGE_COUNT, lv_ERROR_INVALID_PARAM, "invalid from_stage %d", from_stage);
     /* 从指定阶段开始依次执行后续所有阶段，任一步失败即终止 */
     for (int i = from_stage; i < lv_STAGE_COUNT; i++) {
-        int rc = lv_session_run_stage(session, (lvPipelineStage) i);
+        int rc = lv_session_run_stage(session, (lvSessionStage) i);
         if (rc != 0)
             return rc;
     }
@@ -775,7 +576,7 @@ int lv_session_run_from(lvSession *session, lvPipelineStage from_stage) {
  * @param stage   流水线阶段
  * @return 阶段结果指针，session 为 NULL 或 stage 越界返回 NULL
  */
-const lvStageResult *lv_session_stage_result(const lvSession *session, lvPipelineStage stage) {
+const lvStageResult *lv_session_stage_result(const lvSession *session, lvSessionStage stage) {
     return (session && stage >= 0 && stage < lv_STAGE_COUNT) ? &session->stages[stage] : NULL;
 }
 

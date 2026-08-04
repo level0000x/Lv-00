@@ -30,6 +30,7 @@
 #include "lv/lv_file.h"
 
 #include "atp_backend.h"
+#include "lv/lv_backend_plugin.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_xmacro.h"
 
@@ -1506,4 +1507,108 @@ static const lvStrToEnumEntry s_atp_format_name_entries[] = {
 
 const char *atp_format_name(ATPInputFormat format) {
     return lv_enum_to_str(s_atp_format_name_entries, lv_ARRAY_SIZE(s_atp_format_name_entries), (int) format, "UNKNOWN");
+}
+
+/* ============================================================
+ * 统一后端插件系统集成
+ *
+ * 将 ATP 后端注册到全局 lvBackendPluginRegistry，
+ * 保持现有 API 向后兼容。
+ * ============================================================ */
+
+/** @brief ATP 后端插件描述符数组 */
+static lvBackendPlugin s_atp_plugins[ATP_BACKEND_COUNT];
+
+/** @brief ATP 插件是否已注册到全局注册表 */
+static bool s_atp_plugins_registered = false;
+
+/**
+ * @brief ATP 后端插件初始化函数
+ */
+static bool atp_plugin_init_vampire(void) {
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].available = atp_is_backend_available(ATP_BACKEND_VAMPIRE);
+    return true;
+}
+
+static bool atp_plugin_init_eprover(void) {
+    s_atp_plugins[ATP_BACKEND_EPROVER].available = atp_is_backend_available(ATP_BACKEND_EPROVER);
+    return true;
+}
+
+static bool atp_plugin_init_iprover(void) {
+    s_atp_plugins[ATP_BACKEND_IPROVER].available = atp_is_backend_available(ATP_BACKEND_IPROVER);
+    return true;
+}
+
+static bool atp_plugin_init_custom(void) {
+    s_atp_plugins[ATP_BACKEND_CUSTOM].available = false;
+    return true;
+}
+
+/**
+ * @brief 将所有 ATP 后端注册到全局后端插件注册表
+ *
+ * 创建 lvBackendPlugin 包装器，将每个 ATP 后端类型映射到
+ * 统一插件描述符，并注册到全局注册表。
+ * 此函数可安全地多次调用（仅首次生效）。
+ */
+void atp_register_all_plugins(void) {
+    if (s_atp_plugins_registered) {
+        return;
+    }
+
+    lvBackendPluginRegistry *reg = lv_backend_plugin_registry_global();
+
+    /* 初始化静态插件描述符 */
+    memset(s_atp_plugins, 0, sizeof(s_atp_plugins));
+
+    /* Vampire */
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].name = "Vampire";
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].version = "4.x";
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].type = lv_PLUGIN_TYPE_ATP;
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].capabilities = lv_PLUGIN_CAP_PROOF_PROD | lv_PLUGIN_CAP_UNSAT_CORE;
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].priority = 1;
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].available = atp_is_backend_available(ATP_BACKEND_VAMPIRE);
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].init = atp_plugin_init_vampire;
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].cleanup = NULL;
+    s_atp_plugins[ATP_BACKEND_VAMPIRE].ops = NULL;
+    lv_backend_plugin_register(reg, &s_atp_plugins[ATP_BACKEND_VAMPIRE]);
+
+    /* E Prover */
+    s_atp_plugins[ATP_BACKEND_EPROVER].name = "E Prover";
+    s_atp_plugins[ATP_BACKEND_EPROVER].version = "3.x";
+    s_atp_plugins[ATP_BACKEND_EPROVER].type = lv_PLUGIN_TYPE_ATP;
+    s_atp_plugins[ATP_BACKEND_EPROVER].capabilities = lv_PLUGIN_CAP_PROOF_PROD;
+    s_atp_plugins[ATP_BACKEND_EPROVER].priority = 2;
+    s_atp_plugins[ATP_BACKEND_EPROVER].available = atp_is_backend_available(ATP_BACKEND_EPROVER);
+    s_atp_plugins[ATP_BACKEND_EPROVER].init = atp_plugin_init_eprover;
+    s_atp_plugins[ATP_BACKEND_EPROVER].cleanup = NULL;
+    s_atp_plugins[ATP_BACKEND_EPROVER].ops = NULL;
+    lv_backend_plugin_register(reg, &s_atp_plugins[ATP_BACKEND_EPROVER]);
+
+    /* iProver */
+    s_atp_plugins[ATP_BACKEND_IPROVER].name = "iProver";
+    s_atp_plugins[ATP_BACKEND_IPROVER].version = "3.x";
+    s_atp_plugins[ATP_BACKEND_IPROVER].type = lv_PLUGIN_TYPE_ATP;
+    s_atp_plugins[ATP_BACKEND_IPROVER].capabilities = lv_PLUGIN_CAP_PROOF_PROD;
+    s_atp_plugins[ATP_BACKEND_IPROVER].priority = 3;
+    s_atp_plugins[ATP_BACKEND_IPROVER].available = atp_is_backend_available(ATP_BACKEND_IPROVER);
+    s_atp_plugins[ATP_BACKEND_IPROVER].init = atp_plugin_init_iprover;
+    s_atp_plugins[ATP_BACKEND_IPROVER].cleanup = NULL;
+    s_atp_plugins[ATP_BACKEND_IPROVER].ops = NULL;
+    lv_backend_plugin_register(reg, &s_atp_plugins[ATP_BACKEND_IPROVER]);
+
+    /* Custom */
+    s_atp_plugins[ATP_BACKEND_CUSTOM].name = "ATP Custom";
+    s_atp_plugins[ATP_BACKEND_CUSTOM].version = "1.0";
+    s_atp_plugins[ATP_BACKEND_CUSTOM].type = lv_PLUGIN_TYPE_ATP;
+    s_atp_plugins[ATP_BACKEND_CUSTOM].capabilities = lv_PLUGIN_CAP_NONE;
+    s_atp_plugins[ATP_BACKEND_CUSTOM].priority = 99;
+    s_atp_plugins[ATP_BACKEND_CUSTOM].available = false;
+    s_atp_plugins[ATP_BACKEND_CUSTOM].init = atp_plugin_init_custom;
+    s_atp_plugins[ATP_BACKEND_CUSTOM].cleanup = NULL;
+    s_atp_plugins[ATP_BACKEND_CUSTOM].ops = NULL;
+    lv_backend_plugin_register(reg, &s_atp_plugins[ATP_BACKEND_CUSTOM]);
+
+    s_atp_plugins_registered = true;
 }
