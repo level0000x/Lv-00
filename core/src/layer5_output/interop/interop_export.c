@@ -92,6 +92,64 @@ void compute_bounding_box(const ConstraintGraph *graph, double *min_x, double *m
 }
 
 /**
+ * @brief 计算贝塞尔曲线的两个控制点（SVG cubic 与 PDF c 操作符共用）
+ * @details 原实现分别在 interop_export_svg.c 与 interop_export_pdf.c 中逐字重复，
+ *          现统一收敛到此处。公式与历史行为完全一致：
+ *          CP1 = P1 + 0.3*(P2-P1) + 垂直法向偏移；
+ *          CP2 = P2 - 0.3*(P2-P1) + 垂直法向偏移。
+ *          法向 n = (-dy, dx) / (|P2-P1| + 0.001)，偏移量 0.15*|P2-P1|（过短固定 5.0）。
+ * @param p1x,p1y 起点坐标
+ * @param p2x,p2y 终点坐标
+ * @param cp1x,cp1y [out] 第一控制点
+ * @param cp2x,cp2y [out] 第二控制点
+ */
+void compute_bezier_control_points(double p1x, double p1y, double p2x, double p2y,
+                                   double *cp1x, double *cp1y, double *cp2x, double *cp2y) {
+    double dx = p2x - p1x;
+    double dy = p2y - p1y;
+    double dist = sqrt(dx * dx + dy * dy);
+
+    double offset = 0.15 * dist;
+    if (offset < 0.01)
+        offset = 5.0;
+
+    double nx = -dy / (dist + 0.001);
+    double ny = dx / (dist + 0.001);
+
+    *cp1x = p1x + 0.3 * dx + nx * offset;
+    *cp1y = p1y + 0.3 * dy + ny * offset;
+    *cp2x = p2x - 0.3 * dx + nx * offset;
+    *cp2y = p2y - 0.3 * dy + ny * offset;
+}
+
+/**
+ * @brief 计算两条线段的交点（SVG 相交约束渲染共用）
+ * @details 解线段参数方程：P1 + t*(P2-P1) = Q1 + s*(Q2-Q1)。
+ *          平行/共线（|cross|<=1e-10）或交点参数 t 超出 [-0.05, 1.05] 范围时
+ *          返回 false 且不写 ix/iy（与原 SVG 内联实现语义一致）。
+ * @return true 交点有效；false 无有效交点
+ */
+bool segment_intersection(double p1x, double p1y, double p2x, double p2y,
+                          double q1x, double q1y, double q2x, double q2y,
+                          double *ix, double *iy) {
+    double d1x = p2x - p1x, d1y = p2y - p1y;
+    double d2x = q2x - q1x, d2y = q2y - q1y;
+    double cross = d1x * d2y - d1y * d2x;
+
+    if (fabs(cross) > 1e-10) {
+        double dx0 = q1x - p1x;
+        double dy0 = q1y - p1y;
+        double t = (dx0 * d2y - dy0 * d2x) / cross;
+        if (t >= -0.05 && t <= 1.05) {
+            *ix = p1x + t * d1x;
+            *iy = p1y + t * d1y;
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * @brief SVG转义XML特殊字符
  *
  * 将字符串中的 XML 特殊字符（&、<、>、"、'）转义为对应的实体引用，

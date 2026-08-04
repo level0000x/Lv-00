@@ -37,20 +37,24 @@ static void svg_escape_string(const char *src, char *dst, size_t dst_size) {
     lv_strbuf_destroy(&sb);
 }
 
-/* ---- 约束类型 → SVG 属性查找表 ---- */
+/* ---- 约束类型 → SVG 属性窄适配（颜色/线宽取自公共核心表 kConstraintVisuals） ---- */
 typedef struct {
-    const char *stroke;      /**< 线条颜色 */
-    const char *dasharray;   /**< dasharray 值（可为 NULL） */
-    const char *class_attr;  /**< class 属性值（可为 NULL） */
-    const char *extra_attr;  /**< 额外属性（可为 NULL） */
-} ConstraintSvgEntry;
+    const char *dasharray;  /**< dasharray 值（可为 NULL） */
+    const char *class_attr; /**< class 属性值（可为 NULL） */
+    const char *extra_attr; /**< 额外属性（可为 NULL） */
+} ConstraintSvgSyntax;
 
-static const ConstraintSvgEntry constraint_svg_map[] = {
-    [INCIDENCE]   = { "#6b7280", NULL,       "constraint", NULL },
-    [CONTAINMENT] = { "#14b8a6", "2,4",      "constraint", NULL },
-    [ANGLE]       = { "#a855f7", "4,2",      "constraint", NULL },
-    [CONNECTION]  = { "#f59e0b", NULL,       NULL, "stroke-width=\"1.5\" marker-end=\"url(#arrowhead)\"" },
+static const ConstraintSvgSyntax constraint_svg_syntax[] = {
+    [INCIDENCE]   = { NULL,       "constraint", NULL },
+    [CONTAINMENT] = { "2,4",      "constraint", NULL },
+    [ANGLE]       = { "4,2",      "constraint", NULL },
+    [CONNECTION]  = { NULL,       NULL, "stroke-width=\"1.5\" marker-end=\"url(#arrowhead)\"" },
 };
+
+/** @brief 从公共核心表 rgb 生成 SVG 十六进制颜色串（如 "#6b7280"） */
+static void constraint_rgb_to_svg_hex(const ConstraintVisual *vis, char *hex, size_t hex_size) {
+    snprintf(hex, hex_size, "#%02x%02x%02x", vis->rgb[0], vis->rgb[1], vis->rgb[2]);
+}
 
 /**
  * @brief TikZ转义特殊字符
@@ -257,19 +261,9 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
                 double seg_x2 = symbolic_coord_to_double(node->symbolic_coords[(p + 1) * 2]);
                 double seg_y2 = symbolic_coord_to_double(node->symbolic_coords[(p + 1) * 2 + 1]);
 
-                /* CP1 = P0 + 0.3*(P1-P0) + 垂直偏移 */
-                double dx = seg_x2 - seg_x1;
-                double dy = seg_y2 - seg_y1;
-                double offset = 0.15 * sqrt(dx * dx + dy * dy);
-                if (offset < 0.01)
-                    offset = 5.0;
-                double nx = -dy / (sqrt(dx * dx + dy * dy) + 0.001);
-                double ny = dx / (sqrt(dx * dx + dy * dy) + 0.001);
-
-                double cp1x = seg_x1 + 0.3 * dx + nx * offset;
-                double cp1y = seg_y1 + 0.3 * dy + ny * offset;
-                double cp2x = seg_x2 - 0.3 * dx + nx * offset;
-                double cp2y = seg_y2 - 0.3 * dy + ny * offset;
+                /* CP1 = P0 + 0.3*(P1-P0) + 垂直偏移（公共几何函数，与 PDF 共用） */
+                double cp1x, cp1y, cp2x, cp2y;
+                compute_bezier_control_points(seg_x1, seg_y1, seg_x2, seg_y2, &cp1x, &cp1y, &cp2x, &cp2y);
 
                 fprintf(fp, " C %.2f,%.2f %.2f,%.2f %.2f,%.2f", cp1x, cp1y, cp2x, cp2y, seg_x2, seg_y2);
             }
@@ -409,7 +403,7 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
                 double a1x = x0, a1y = y0;
                 double b1x = x1, b1y = y1;
 
-                /* 使用线段参数方程求精确交点 */
+                /* 使用公共几何函数 segment_intersection 求精确交点（与原内联实现语义一致） */
                 if (p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 && p1->type == GEOM_LINE_SEGMENT &&
                     p1->coord_count >= 4) {
                     double a2x = symbolic_coord_to_double(p0->symbolic_coords[2]);
@@ -417,20 +411,8 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
                     double b2x = symbolic_coord_to_double(p1->symbolic_coords[2]);
                     double b2y = symbolic_coord_to_double(p1->symbolic_coords[3]);
 
-                    /* 解线性方程组：P1 + t*(P2-P1) = Q1 + s*(Q2-Q1) */
-                    double d1x = a2x - a1x, d1y = a2y - a1y;
-                    double d2x = b2x - b1x, d2y = b2y - b1y;
-                    double cross = d1x * d2y - d1y * d2x;
-
-                    if (fabs(cross) > 1e-10) {
-                        double dx0 = b1x - a1x;
-                        double dy0 = b1y - a1y;
-                        double t = (dx0 * d2y - dy0 * d2x) / cross;
-                        if (t >= -0.05 && t <= 1.05) {
-                            ix = a1x + t * d1x;
-                            iy = a1y + t * d1y;
-                        }
-                    }
+                    /* 解线性方程组：P1 + t*(P2-P1) = Q1 + s*(Q2-Q1)；有效时更新 ix/iy */
+                    segment_intersection(a1x, a1y, a2x, a2y, b1x, b1y, b2x, b2y, &ix, &iy);
                 }
 
                 fprintf(fp,
@@ -456,17 +438,20 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
             }
 
             default: {
-                /* 使用查找表 */
-                const ConstraintSvgEntry *entry = &constraint_svg_map[c->type];
+                /* 使用公共核心表颜色 + 本语法窄适配（default 可达类型均有条目） */
+                const ConstraintVisual *vis = constraint_visual_find(c->type);
+                const ConstraintSvgSyntax *syn = &constraint_svg_syntax[c->type];
+                char stroke[8];
+                constraint_rgb_to_svg_hex(vis ? vis : &kConstraintVisuals[0], stroke, sizeof(stroke));
                 fprintf(fp, "  <line");
-                if (entry->class_attr)
-                    fprintf(fp, " class=\"%s\"", entry->class_attr);
+                if (syn->class_attr)
+                    fprintf(fp, " class=\"%s\"", syn->class_attr);
                 fprintf(fp, " x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" stroke=\"%s\"",
-                        x0, y0, x1, y1, entry->stroke);
-                if (entry->dasharray)
-                    fprintf(fp, " stroke-dasharray=\"%s\"", entry->dasharray);
-                if (entry->extra_attr)
-                    fprintf(fp, " %s", entry->extra_attr);
+                        x0, y0, x1, y1, stroke);
+                if (syn->dasharray)
+                    fprintf(fp, " stroke-dasharray=\"%s\"", syn->dasharray);
+                if (syn->extra_attr)
+                    fprintf(fp, " %s", syn->extra_attr);
                 fprintf(fp, "/>\n");
                 break;
             }

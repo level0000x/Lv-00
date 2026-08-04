@@ -71,6 +71,32 @@ typedef struct CSGBSPNode {
 /* eval function pointer table entry (geometry_csg_eval.c) */
 typedef void (*CSGEvalFunc)(const CSGNode *node, CSGTriList *out);
 
+/* ---- 图元类型枚举（与 node->data.prim.type 取值一致） ---- */
+typedef enum {
+    CSG_PRIM_SPHERE = 0,
+    CSG_PRIM_CUBE = 1,
+    CSG_PRIM_CYLINDER = 2,
+    CSG_PRIM_CONE = 3
+} CSGPrimKind;
+
+/* ---- 图元统一分派 vtable（表定义于 geometry_csg_primitive.c） ----
+ * gen_tris / bbox 分别与 geometry_csg_mesh.c 的 csg_gen_* 系列、
+ * geometry_csg_bbox.c 的 csg_bbox_* 系列签名对齐（均返回 void）；
+ * 由于各图元散参个数不同，gen_tris 统一为 (node, out) 签名，
+ * 由实现层解包 node->data.prim.params。
+ */
+typedef struct CSGPrimOps {
+    CSGPrimKind kind;                     /* 图元类型（与 node->data.prim.type 一致） */
+    const char *name;                     /* 内部名称 */
+    void (*gen_tris)(const CSGNode *node, CSGTriList *out); /* 三角面生成 */
+    void (*bbox)(CSGNode *node);          /* 包围盒计算 */
+    const char *scad_name;                /* OpenSCAD 导出基元名 */
+    int param_count;                      /* params 有效参数个数 */
+} CSGPrimOps;
+
+extern const CSGPrimOps s_prim_ops[];
+extern const int s_prim_ops_count;
+
 /* ---- shared helpers (defined in geometry_csg.c) ---- */
 CSGVec3 csg_vec3_cross(CSGVec3 a, CSGVec3 b);
 double csg_vec3_dot(CSGVec3 a, CSGVec3 b);
@@ -84,10 +110,17 @@ void csg_trilist_init(CSGTriList *list, int init_cap);
 void csg_trilist_append(CSGTriList *list, const CSGTriangle *tri);
 void csg_trilist_free(CSGTriList *list);
 
-/* mesh generation (geometry_csg_mesh.c) */
+/* mesh generation (geometry_csg_mesh.c；圆锥实现于 geometry_csg_primitive.c) */
 void csg_gen_sphere_tris(double radius, CSGTriList *out);
 void csg_gen_cube_tris(double w, double h, double d, CSGTriList *out);
 void csg_gen_cylinder_tris(double radius, double height, CSGTriList *out);
+void csg_gen_cone_tris(double radius1, double radius2, double height, CSGTriList *out);
+
+/* bounding box (geometry_csg_bbox.c，供图元 vtable 引用) */
+void csg_bbox_sphere(CSGNode *node);
+void csg_bbox_cube(CSGNode *node);
+void csg_bbox_cylinder(CSGNode *node);
+void csg_bbox_cone(CSGNode *node);
 
 /* BSP tree (geometry_csg_bsp.c) */
 CSGBSPNode *csg_bsp_node_create(void);

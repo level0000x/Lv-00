@@ -620,27 +620,30 @@ bool gappa_format_predefined(const char *name, lvGappaFormat *out) {
         return false;
     memset(out, 0, sizeof(lvGappaFormat));
     if (name) {
-        if (strcmp(name, "binary32") == 0) {
-            out->format_id = 1;
-            out->name = "binary32";
-            out->precision_bits = 24;
-            out->exponent_bits = 8;
-        } else if (strcmp(name, "binary64") == 0) {
-            out->format_id = 2;
-            out->name = "binary64";
-            out->precision_bits = 53;
-            out->exponent_bits = 11;
-        } else if (strcmp(name, "binary16") == 0) {
-            out->format_id = 3;
-            out->name = "binary16";
-            out->precision_bits = 11;
-            out->exponent_bits = 5;
-        } else if (strcmp(name, "binary128") == 0) {
-            out->format_id = 4;
-            out->name = "binary128";
-            out->precision_bits = 113;
-            out->exponent_bits = 15;
-        } else {
+        /* 预定义格式名 -> 格式字段 查找表（替代 strcmp 分支链） */
+        static const struct {
+            const char *name;
+            int format_id;
+            int precision_bits;
+            int exponent_bits;
+        } kPredefinedFormats[] = {
+            {"binary32", 1, 24, 8},
+            {"binary64", 2, 53, 11},
+            {"binary16", 3, 11, 5},
+            {"binary128", 4, 113, 15},
+        };
+        bool matched = false;
+        for (size_t gi = 0; gi < lv_ARRAY_SIZE(kPredefinedFormats); gi++) {
+            if (strcmp(name, kPredefinedFormats[gi].name) == 0) {
+                out->format_id = kPredefinedFormats[gi].format_id;
+                out->name = kPredefinedFormats[gi].name;
+                out->precision_bits = kPredefinedFormats[gi].precision_bits;
+                out->exponent_bits = kPredefinedFormats[gi].exponent_bits;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
             return false;
         }
     } else {

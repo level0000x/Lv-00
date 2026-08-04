@@ -614,18 +614,25 @@ static double evaluate_expression(const char *expr, const double *var_values, in
                 }
                 name[nl] = '\0';
 
+                /* 一元函数名 -> RPN 运算符编码 查找表（替代 strcmp 分支链） */
+                static const struct {
+                    const char *name;
+                    int op;
+                } kFuncNameOps[] = {
+                    {"sqrt", RPN_OP_SQRT},
+                    {"sin", RPN_OP_SIN},
+                    {"cos", RPN_OP_COS},
+                    {"exp", RPN_OP_EXP},
+                    {"log", RPN_OP_LOG},
+                };
                 int func_op = 0;
-                if (strcmp(name, "sqrt") == 0)
-                    func_op = RPN_OP_SQRT;
-                else if (strcmp(name, "sin") == 0)
-                    func_op = RPN_OP_SIN;
-                else if (strcmp(name, "cos") == 0)
-                    func_op = RPN_OP_COS;
-                else if (strcmp(name, "exp") == 0)
-                    func_op = RPN_OP_EXP;
-                else if (strcmp(name, "log") == 0)
-                    func_op = RPN_OP_LOG;
-                else
+                for (size_t fi = 0; fi < lv_ARRAY_SIZE(kFuncNameOps); fi++) {
+                    if (strcmp(name, kFuncNameOps[fi].name) == 0) {
+                        func_op = kFuncNameOps[fi].op;
+                        break;
+                    }
+                }
+                if (func_op == 0)
                     return NAN; /* 无法识别的标识符 */
 
                 if (op_top >= EXPR_STACK_MAX)

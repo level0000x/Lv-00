@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geometry_canvas.c
  * @brief 几何画布视图实现
  *
@@ -285,11 +285,215 @@ int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas, int entity_a_id,
     return c->id;
 }
 
+/* ================================================================
+ * 几何实体 vtable（按实体类型分派，消除 3 处重复 switch/if-else）
+ * ================================================================ */
+
+/** @brief 安全写入 SVG 内容的辅助宏
+ *  检查缓冲区剩余空间后调用 snprintf，防止缓冲区溢出。
+ *  自动将 pos 限制在 [0, size-1] 范围内。 */
+#define SVG_WRITE(_buf, _pos, _size, ...)                                                       \
+    do {                                                                                        \
+        if ((_pos) < (_size)) {                                                                 \
+            int _w = snprintf((_buf) + (_pos), (size_t) ((_size) - (_pos)), __VA_ARGS__);       \
+            if (_w > 0) {                                                                       \
+                (_pos) += _w;                                                                   \
+                if ((_pos) >= (_size))                                                          \
+                    (_pos) = (_size) - 1;                                                       \
+            }                                                                                   \
+        }                                                                                       \
+    } while (0)
+
+/** @brief 几何实体操作 vtable：按实体类型分派 */
+typedef struct {
+    /** 扩展包围盒（圆需额外考虑半径，其余类型为空操作） */
+    void (*extend_bounds)(const lvGeomEntity *e, double *min_x, double *min_y, double *max_x, double *max_y);
+    /** 计算中心坐标，成功返回 0，失败返回 -1 */
+    int (*center)(const lvGeomEntity *e, double *cx, double *cy);
+    /** 渲染为 SVG 片段 */
+    void (*render_svg)(const lvGeomEntity *e, char *buf, int buf_size, int *pos);
+} lvGeomEntityVtbl;
+
+/** @brief 计算顶点平均位置（多边形默认中心，也作为特例不满足时的兜底） */
+static int geom_avg_center(const lvGeomEntity *e, double *cx, double *cy) {
+    if (e->coord_count >= 2) {
+        double sx = 0, sy = 0;
+        for (int j = 0; j < e->coord_count; j += 2) {
+            sx += e->coords[j];
+            if (j + 1 < e->coord_count)
+                sy += e->coords[j + 1];
+        }
+        int npts = (e->coord_count + 1) / 2;
+        *cx = sx / npts;
+        *cy = sy / npts;
+        return 0;
+    }
+    return -1;
+}
+
+/* ---- 包围盒扩展（默认空操作；圆需额外考虑半径） ---- */
+
+static void geom_default_extend_bounds(const lvGeomEntity *e, double *min_x, double *min_y, double *max_x,
+                                       double *max_y) {
+    (void) e;
+    (void) min_x;
+    (void) min_y;
+    (void) max_x;
+    (void) max_y;
+}
+
+static void geom_circle_extend_bounds(const lvGeomEntity *e, double *min_x, double *min_y, double *max_x,
+                                      double *max_y) {
+    /* 圆需要考虑半径 */
+    if (e->coord_count >= 3) {
+        double r = e->coords[2];
+        if (e->coords[0] - r < *min_x)
+            *min_x = e->coords[0] - r;
+        if (e->coords[1] - r < *min_y)
+            *min_y = e->coords[1] - r;
+        if (e->coords[0] + r > *max_x)
+            *max_x = e->coords[0] + r;
+        if (e->coords[1] + r > *max_y)
+            *max_y = e->coords[1] + r;
+    }
+}
+
+/* ---- 中心计算 ---- */
+
+/** @brief 点：直接使用坐标 */
+static int geom_point_center(const lvGeomEntity *e, double *cx, double *cy) {
+    if (e->coord_count >= 2) {
+        *cx = e->coords[0];
+        *cy = e->coords[1];
+        return 0;
+    }
+    return -1;
+}
+
+/** @brief 线：两端点中点 */
+static int geom_line_center(const lvGeomEntity *e, double *cx, double *cy) {
+    if (e->coord_count >= 4) {
+        *cx = (e->coords[0] + e->coords[2]) / 2.0;
+        *cy = (e->coords[1] + e->coords[3]) / 2.0;
+        return 0;
+    }
+    return geom_avg_center(e, cx, cy);
+}
+
+/** @brief 圆：圆心 */
+static int geom_circle_center(const lvGeomEntity *e, double *cx, double *cy) {
+    if (e->coord_count >= 2) {
+        *cx = e->coords[0];
+        *cy = e->coords[1];
+        return 0;
+    }
+    return geom_avg_center(e, cx, cy);
+}
+
+/** @brief 多边形：顶点平均位置 */
+static int geom_polygon_center(const lvGeomEntity *e, double *cx, double *cy) {
+    return geom_avg_center(e, cx, cy);
+}
+
+/* ---- SVG 渲染 ---- */
+
+/** @brief 点渲染：小圆 + 标签 */
+static void geom_point_render(const lvGeomEntity *e, char *buf, int buf_size, int *pos) {
+    if (e->coord_count >= 2) {
+        SVG_WRITE(buf, *pos, buf_size,
+                  "  <circle cx=\"%g\" cy=\"%g\" r=\"4\" "
+                  "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
+                  e->coords[0], e->coords[1], e->fill_color, e->stroke_color, e->stroke_width);
+        if (e->label[0] != '\0') {
+            SVG_WRITE(buf, *pos, buf_size,
+                      "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
+                      "text-anchor=\"middle\" dy=\"-8\">%s</text>\n",
+                      e->coords[0], e->coords[1], e->label);
+        }
+    }
+}
+
+/** @brief 线渲染：线段 + 中点标签 */
+static void geom_line_render(const lvGeomEntity *e, char *buf, int buf_size, int *pos) {
+    if (e->coord_count >= 4) {
+        SVG_WRITE(buf, *pos, buf_size,
+                  "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
+                  "stroke=\"%s\" stroke-width=\"%g\"/>\n",
+                  e->coords[0], e->coords[1], e->coords[2], e->coords[3], e->stroke_color, e->stroke_width);
+        if (e->label[0] != '\0') {
+            double mx = (e->coords[0] + e->coords[2]) / 2.0;
+            double my = (e->coords[1] + e->coords[3]) / 2.0;
+            SVG_WRITE(buf, *pos, buf_size,
+                      "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
+                      "text-anchor=\"middle\" dy=\"-6\">%s</text>\n",
+                      mx, my, e->label);
+        }
+    }
+}
+
+/** @brief 圆渲染：圆 + 半径偏移标签 */
+static void geom_circle_render(const lvGeomEntity *e, char *buf, int buf_size, int *pos) {
+    if (e->coord_count >= 3) {
+        SVG_WRITE(buf, *pos, buf_size,
+                  "  <circle cx=\"%g\" cy=\"%g\" r=\"%g\" "
+                  "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
+                  e->coords[0], e->coords[1], e->coords[2], e->fill_color, e->stroke_color, e->stroke_width);
+        if (e->label[0] != '\0') {
+            SVG_WRITE(buf, *pos, buf_size,
+                      "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
+                      "text-anchor=\"middle\" dy=\"-%g\">%s</text>\n",
+                      e->coords[0], e->coords[1], e->coords[2] + 4, e->label);
+        }
+    }
+}
+
+/** @brief 多边形渲染：顶点序列 + 平均中心标签 */
+static void geom_polygon_render(const lvGeomEntity *e, char *buf, int buf_size, int *pos) {
+    if (e->coord_count >= 6) {
+        SVG_WRITE(buf, *pos, buf_size, "  <polygon points=\"");
+        for (int j = 0; j < e->coord_count; j += 2) {
+            if (j + 1 < e->coord_count) {
+                SVG_WRITE(buf, *pos, buf_size, "%g,%g ", e->coords[j], e->coords[j + 1]);
+            }
+        }
+        SVG_WRITE(buf, *pos, buf_size, "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n", e->fill_color,
+                  e->stroke_color, e->stroke_width);
+        if (e->label[0] != '\0') {
+            double cx = 0, cy = 0;
+            int npts = e->coord_count / 2;
+            for (int j = 0; j < e->coord_count; j += 2) {
+                cx += e->coords[j];
+                if (j + 1 < e->coord_count)
+                    cy += e->coords[j + 1];
+            }
+            cx /= npts;
+            cy /= npts;
+            SVG_WRITE(buf, *pos, buf_size,
+                      "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
+                      "text-anchor=\"middle\">%s</text>\n",
+                      cx, cy, e->label);
+        }
+    }
+}
+
+/** @brief 实体类型 vtable 查找表（指定初始化器，编译器校验 lvGeomEntityType 对齐） */
+static const lvGeomEntityVtbl kGeomEntityVtbls[] = {
+    [lv_GEOM_POINT] = {geom_default_extend_bounds, geom_point_center, geom_point_render},
+    [lv_GEOM_LINE] = {geom_default_extend_bounds, geom_line_center, geom_line_render},
+    [lv_GEOM_CIRCLE] = {geom_circle_extend_bounds, geom_circle_center, geom_circle_render},
+    [lv_GEOM_POLYGON] = {geom_default_extend_bounds, geom_polygon_center, geom_polygon_render},
+};
+
+/* ================================================================
+ * 包围盒 / 中心 / SVG 输出
+ * ================================================================ */
+
 /**
  * @brief 计算包围盒
  *
  * 遍历所有实体，计算包含所有几何元素的最小包围盒。
- * 对于圆形，额外考虑半径的扩展范围。计算结果缓存到 bounds 字段。
+ * 对于圆形，额外考虑半径的扩展范围（经 vtable 分派）。
+ * 计算结果缓存到 bounds 字段。
  *
  * @param canvas 几何画布指针（内部函数，入参非空由调用者保证）
  */
@@ -313,17 +517,9 @@ static void compute_bounds(lvGeometryCanvas *canvas) {
             if (y > max_y)
                 max_y = y;
         }
-        /* 圆需要考虑半径 */
-        if (e->type == lv_GEOM_CIRCLE && e->coord_count >= 3) {
-            double r = e->coords[2];
-            if (e->coords[0] - r < min_x)
-                min_x = e->coords[0] - r;
-            if (e->coords[1] - r < min_y)
-                min_y = e->coords[1] - r;
-            if (e->coords[0] + r > max_x)
-                max_x = e->coords[0] + r;
-            if (e->coords[1] + r > max_y)
-                max_y = e->coords[1] + r;
+        /* 按实体类型扩展包围盒（圆需额外考虑半径） */
+        if ((unsigned) e->type < lv_ARRAY_SIZE(kGeomEntityVtbls)) {
+            kGeomEntityVtbls[e->type].extend_bounds(e, &min_x, &min_y, &max_x, &max_y);
         }
     }
     /* 添加边距 */
@@ -355,7 +551,7 @@ int lv_geometry_canvas_fit_view(lvGeometryCanvas *canvas) {
  * @brief 查找实体中心坐标
  *
  * 根据实体ID查找几何实体的中心点坐标。
- * 不同类型的实体有不同的中心计算方式：
+ * 不同类型的实体有不同的中心计算方式（经 vtable 分派）：
  *   - 点：直接使用坐标
  *   - 线：两端点中点
  *   - 圆：圆心
@@ -371,29 +567,11 @@ static int find_entity_center(lvGeometryCanvas *canvas, int id, double *cx, doub
     for (int i = 0; i < canvas->entity_count; i++) {
         lvGeomEntity *e = &canvas->entities[i];
         if (e->id == id) {
-            if (e->type == lv_GEOM_POINT && e->coord_count >= 2) {
-                *cx = e->coords[0];
-                *cy = e->coords[1];
-            } else if (e->type == lv_GEOM_LINE && e->coord_count >= 4) {
-                *cx = (e->coords[0] + e->coords[2]) / 2.0;
-                *cy = (e->coords[1] + e->coords[3]) / 2.0;
-            } else if (e->type == lv_GEOM_CIRCLE && e->coord_count >= 2) {
-                *cx = e->coords[0];
-                *cy = e->coords[1];
-            } else if (e->coord_count >= 2) {
-                double sx = 0, sy = 0;
-                for (int j = 0; j < e->coord_count; j += 2) {
-                    sx += e->coords[j];
-                    if (j + 1 < e->coord_count)
-                        sy += e->coords[j + 1];
-                }
-                int npts = (e->coord_count + 1) / 2;
-                *cx = sx / npts;
-                *cy = sy / npts;
-            } else {
-                return -1;
+            if ((unsigned) e->type < lv_ARRAY_SIZE(kGeomEntityVtbls)) {
+                return kGeomEntityVtbls[e->type].center(e, cx, cy);
             }
-            return 0;
+            /* 未知类型：退化为顶点平均（保持原 else 分支语义） */
+            return geom_avg_center(e, cx, cy);
         }
     }
     return -1;
@@ -435,104 +613,21 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate SVG buffer");
 
     int pos = 0;
-/* 辅助宏：安全写入 snprintf 链，防止 pos 溢出 buf_size */
-#define SVG_SAFE_WRITE(...)                                                       \
-    do {                                                                          \
-        if (pos < buf_size) {                                                     \
-            int _w = snprintf(buf + pos, (size_t) (buf_size - pos), __VA_ARGS__); \
-            if (_w > 0) {                                                         \
-                pos += _w;                                                        \
-                if (pos >= buf_size)                                              \
-                    pos = buf_size - 1;                                           \
-            }                                                                     \
-        }                                                                         \
-    } while (0)
 
-    SVG_SAFE_WRITE(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" "
-        "viewBox=\"%g %g %g %g\" width=\"800\" height=\"600\">\n",
-        canvas->bounds.min_x, canvas->bounds.min_y, canvas->bounds.max_x - canvas->bounds.min_x,
-        canvas->bounds.max_y - canvas->bounds.min_y);
+    SVG_WRITE(buf, pos, buf_size,
+              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+              "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+              "viewBox=\"%g %g %g %g\" width=\"800\" height=\"600\">\n",
+              canvas->bounds.min_x, canvas->bounds.min_y, canvas->bounds.max_x - canvas->bounds.min_x,
+              canvas->bounds.max_y - canvas->bounds.min_y);
 
-    /* 绘制实体 */
+    /* 绘制实体（按类型 vtable 分派渲染） */
     for (int i = 0; i < canvas->entity_count; i++) {
         lvGeomEntity *e = &canvas->entities[i];
-        switch (e->type) {
-            case lv_GEOM_POINT:
-                if (e->coord_count >= 2) {
-                    SVG_SAFE_WRITE(
-                        "  <circle cx=\"%g\" cy=\"%g\" r=\"4\" "
-                        "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
-                        e->coords[0], e->coords[1], e->fill_color, e->stroke_color, e->stroke_width);
-                    if (e->label[0] != '\0') {
-                        SVG_SAFE_WRITE(
-                            "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
-                            "text-anchor=\"middle\" dy=\"-8\">%s</text>\n",
-                            e->coords[0], e->coords[1], e->label);
-                    }
-                }
-                break;
-            case lv_GEOM_LINE:
-                if (e->coord_count >= 4) {
-                    SVG_SAFE_WRITE(
-                        "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
-                        "stroke=\"%s\" stroke-width=\"%g\"/>\n",
-                        e->coords[0], e->coords[1], e->coords[2], e->coords[3], e->stroke_color, e->stroke_width);
-                    if (e->label[0] != '\0') {
-                        double mx = (e->coords[0] + e->coords[2]) / 2.0;
-                        double my = (e->coords[1] + e->coords[3]) / 2.0;
-                        SVG_SAFE_WRITE(
-                            "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
-                            "text-anchor=\"middle\" dy=\"-6\">%s</text>\n",
-                            mx, my, e->label);
-                    }
-                }
-                break;
-            case lv_GEOM_CIRCLE:
-                if (e->coord_count >= 3) {
-                    SVG_SAFE_WRITE(
-                        "  <circle cx=\"%g\" cy=\"%g\" r=\"%g\" "
-                        "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
-                        e->coords[0], e->coords[1], e->coords[2], e->fill_color, e->stroke_color, e->stroke_width);
-                    if (e->label[0] != '\0') {
-                        SVG_SAFE_WRITE(
-                            "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
-                            "text-anchor=\"middle\" dy=\"-%g\">%s</text>\n",
-                            e->coords[0], e->coords[1], e->coords[2] + 4, e->label);
-                    }
-                }
-                break;
-            case lv_GEOM_POLYGON:
-                if (e->coord_count >= 6) {
-                    SVG_SAFE_WRITE("  <polygon points=\"");
-                    for (int j = 0; j < e->coord_count; j += 2) {
-                        if (j + 1 < e->coord_count) {
-                            SVG_SAFE_WRITE("%g,%g ", e->coords[j], e->coords[j + 1]);
-                        }
-                    }
-                    SVG_SAFE_WRITE("\" fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n", e->fill_color,
-                                   e->stroke_color, e->stroke_width);
-                    if (e->label[0] != '\0') {
-                        double cx = 0, cy = 0;
-                        int npts = e->coord_count / 2;
-                        for (int j = 0; j < e->coord_count; j += 2) {
-                            cx += e->coords[j];
-                            if (j + 1 < e->coord_count)
-                                cy += e->coords[j + 1];
-                        }
-                        cx /= npts;
-                        cy /= npts;
-                        SVG_SAFE_WRITE(
-                            "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
-                            "text-anchor=\"middle\">%s</text>\n",
-                            cx, cy, e->label);
-                    }
-                }
-                break;
-            default:
-                break;
+        if ((unsigned) e->type < lv_ARRAY_SIZE(kGeomEntityVtbls)) {
+            kGeomEntityVtbls[e->type].render_svg(e, buf, buf_size, &pos);
         }
+        /* 未知类型不渲染（原 switch default 分支为空） */
     }
 
     /* 绘制约束（虚线） */
@@ -544,22 +639,23 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
         if (find_entity_center(canvas, c->entity_b_id, &bx, &by) != 0)
             continue;
 
-        SVG_SAFE_WRITE(
-            "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
-            "stroke=\"%s\" stroke-width=\"1\" stroke-dasharray=\"5,5\"/>\n",
-            ax, ay, bx, by, c->color);
+        SVG_WRITE(buf, pos, buf_size,
+                  "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
+                  "stroke=\"%s\" stroke-width=\"1\" stroke-dasharray=\"5,5\"/>\n",
+                  ax, ay, bx, by, c->color);
 
         if (c->label[0] != '\0') {
             double mx = (ax + bx) / 2.0;
             double my = (ay + by) / 2.0;
-            SVG_SAFE_WRITE(
-                "  <text x=\"%g\" y=\"%g\" font-size=\"10\" "
-                "fill=\"%s\" text-anchor=\"middle\" dy=\"-4\">%s</text>\n",
-                mx, my, c->color, c->label);
+            SVG_WRITE(buf, pos, buf_size,
+                      "  <text x=\"%g\" y=\"%g\" font-size=\"10\" "
+                      "fill=\"%s\" text-anchor=\"middle\" dy=\"-4\">%s</text>\n",
+                      mx, my, c->color, c->label);
         }
     }
 
-    SVG_SAFE_WRITE("</svg>\n");
-#undef SVG_SAFE_WRITE
+    SVG_WRITE(buf, pos, buf_size, "</svg>\n");
     return buf;
 }
+
+#undef SVG_WRITE

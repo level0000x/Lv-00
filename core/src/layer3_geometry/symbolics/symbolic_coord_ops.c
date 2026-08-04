@@ -635,6 +635,73 @@ static SymbolicCoord *quadratic_to_algebraic(const SymbolicCoord *q) {
 }
 
 /* ============================================================
+ * Cross-type 类型提升查找表（数据表化，替代逐对 if 分支）
+ * ============================================================ */
+
+/** @brief 类型提升等级：等级越高表达能力越强，cross-type 运算提升低等级操作数 */
+static const int kCoordPromotionRank[] = {
+    [RATIONAL] = 0,
+    [QUADRATIC] = 1,
+    [ALGEBRAIC] = 2,
+};
+
+/** @brief 提升函数签名：将 c 提升为高等级类型；quad_n 仅 RATIONAL→QUADRATIC 提升时使用 */
+typedef SymbolicCoord *(*CoordPromoteFn)(const SymbolicCoord *c, unsigned int quad_n);
+
+static SymbolicCoord *promote_rational_to_quadratic(const SymbolicCoord *c, unsigned int quad_n) {
+    return rational_to_quadratic_with_n(c, quad_n);
+}
+
+static SymbolicCoord *promote_rational_to_algebraic(const SymbolicCoord *c, unsigned int quad_n) {
+    (void) quad_n;
+    return rational_to_algebraic(c);
+}
+
+static SymbolicCoord *promote_quadratic_to_algebraic(const SymbolicCoord *c, unsigned int quad_n) {
+    (void) quad_n;
+    return quadratic_to_algebraic(c);
+}
+
+/** @brief 类型提升函数表 [来源类型][目标类型] → 提升函数；不可提升组合为 NULL */
+static const CoordPromoteFn kCoordPromoteFn[4][4] = {
+    [RATIONAL][QUADRATIC] = promote_rational_to_quadratic,
+    [RATIONAL][ALGEBRAIC] = promote_rational_to_algebraic,
+    [QUADRATIC][ALGEBRAIC] = promote_quadratic_to_algebraic,
+};
+
+/**
+ * @brief 统一 cross-type 提升分派：将低等级操作数提升为高等级类型后递归执行同类型运算
+ *
+ * 仅处理 RATIONAL / QUADRATIC / ALGEBRAIC 之间等级不同的两两组合；
+ * 同类型、含 TRANSCENDENTAL 或不可提升组合返回 NULL。
+ *
+ * @param op 递归入口（symbolic_coord_add / subtract / multiply / divide）
+ */
+static SymbolicCoord *promote_cross_type_dispatch(const SymbolicCoord *a, const SymbolicCoord *b,
+                                                  SymbolicCoord *(*op)(const SymbolicCoord *, const SymbolicCoord *)) {
+    int rank_a = ((unsigned) a->type < lv_ARRAY_SIZE(kCoordPromotionRank)) ? kCoordPromotionRank[a->type] : -1;
+    int rank_b = ((unsigned) b->type < lv_ARRAY_SIZE(kCoordPromotionRank)) ? kCoordPromotionRank[b->type] : -1;
+    if (rank_a < 0 || rank_b < 0 || rank_a == rank_b)
+        return NULL; /* 同类型或含 TRANSCENDENTAL：无需提升 */
+    const SymbolicCoord *low = (rank_a < rank_b) ? a : b;
+    const SymbolicCoord *high = (rank_a < rank_b) ? b : a;
+    /* 查表获取提升函数（带边界检查） */
+    CoordPromoteFn fn = NULL;
+    if ((unsigned) low->type < lv_ARRAY_SIZE(kCoordPromoteFn) &&
+        (unsigned) high->type < lv_ARRAY_SIZE(kCoordPromoteFn[0]))
+        fn = kCoordPromoteFn[low->type][high->type];
+    if (!fn)
+        return NULL;
+    unsigned int quad_n = (high->type == QUADRATIC) ? high->data.quadratic->n : 0;
+    SymbolicCoord *promoted = fn(low, quad_n);
+    if (!promoted)
+        return NULL;
+    SymbolicCoord *result = (low == a) ? op(promoted, b) : op(a, promoted);
+    symbolic_coord_destroy(promoted);
+    return result;
+}
+
+/* ============================================================
  * Cross-type Arithmetic Operations
  * ============================================================ */
 
@@ -781,63 +848,8 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
         return kCoordOpsVTable[a->type].add(a, b);
     }
 
-    /* Cross-type operations */
-
-    /* Rational + Algebraic = Algebraic */
-    if (a->type == RATIONAL && b->type == ALGEBRAIC) {
-        SymbolicCoord *a_alg = rational_to_algebraic(a);
-        if (!a_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_add(a_alg, b);
-        symbolic_coord_destroy(a_alg);
-        return result;
-    }
-    if (a->type == ALGEBRAIC && b->type == RATIONAL) {
-        SymbolicCoord *b_alg = rational_to_algebraic(b);
-        if (!b_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_add(a, b_alg);
-        symbolic_coord_destroy(b_alg);
-        return result;
-    }
-
-    /* Rational + Quadratic = Quadratic */
-    if (a->type == RATIONAL && b->type == QUADRATIC) {
-        SymbolicCoord *a_quad = rational_to_quadratic_with_n(a, b->data.quadratic->n);
-        if (!a_quad)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_add(a_quad, b);
-        symbolic_coord_destroy(a_quad);
-        return result;
-    }
-    if (a->type == QUADRATIC && b->type == RATIONAL) {
-        SymbolicCoord *b_quad = rational_to_quadratic_with_n(b, a->data.quadratic->n);
-        if (!b_quad)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_add(a, b_quad);
-        symbolic_coord_destroy(b_quad);
-        return result;
-    }
-
-    /* Quadratic + Algebraic = Algebraic */
-    if (a->type == QUADRATIC && b->type == ALGEBRAIC) {
-        SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-        if (!a_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_add(a_alg, b);
-        symbolic_coord_destroy(a_alg);
-        return result;
-    }
-    if (a->type == ALGEBRAIC && b->type == QUADRATIC) {
-        SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-        if (!b_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_add(a, b_alg);
-        symbolic_coord_destroy(b_alg);
-        return result;
-    }
-
-    return NULL;
+    /* Cross-type operations：统一提升分派（先提升低 rank 操作数，再递归同类型运算） */
+    return promote_cross_type_dispatch(a, b, symbolic_coord_add);
 }
 
 SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoord *b) {
@@ -1011,63 +1023,8 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
         return kCoordOpsVTable[a->type].subtract(a, b);
     }
 
-    /* Cross-type operations */
-
-    /* Rational - Algebraic = Algebraic */
-    if (a->type == RATIONAL && b->type == ALGEBRAIC) {
-        SymbolicCoord *a_alg = rational_to_algebraic(a);
-        if (!a_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_subtract(a_alg, b);
-        symbolic_coord_destroy(a_alg);
-        return result;
-    }
-    if (a->type == ALGEBRAIC && b->type == RATIONAL) {
-        SymbolicCoord *b_alg = rational_to_algebraic(b);
-        if (!b_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_subtract(a, b_alg);
-        symbolic_coord_destroy(b_alg);
-        return result;
-    }
-
-    /* Rational - Quadratic = Quadratic */
-    if (a->type == RATIONAL && b->type == QUADRATIC) {
-        SymbolicCoord *a_quad = rational_to_quadratic_with_n(a, b->data.quadratic->n);
-        if (!a_quad)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_subtract(a_quad, b);
-        symbolic_coord_destroy(a_quad);
-        return result;
-    }
-    if (a->type == QUADRATIC && b->type == RATIONAL) {
-        SymbolicCoord *b_quad = rational_to_quadratic_with_n(b, a->data.quadratic->n);
-        if (!b_quad)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_subtract(a, b_quad);
-        symbolic_coord_destroy(b_quad);
-        return result;
-    }
-
-    /* Quadratic - Algebraic = Algebraic */
-    if (a->type == QUADRATIC && b->type == ALGEBRAIC) {
-        SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-        if (!a_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_subtract(a_alg, b);
-        symbolic_coord_destroy(a_alg);
-        return result;
-    }
-    if (a->type == ALGEBRAIC && b->type == QUADRATIC) {
-        SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-        if (!b_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_subtract(a, b_alg);
-        symbolic_coord_destroy(b_alg);
-        return result;
-    }
-
-    return NULL;
+    /* Cross-type operations：统一提升分派（先提升低 rank 操作数，再递归同类型运算） */
+    return promote_cross_type_dispatch(a, b, symbolic_coord_subtract);
 }
 
 SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoord *b) {
@@ -1179,34 +1136,17 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
 
     /* Cross-type operations */
 
-    /* Rational * Algebraic = Algebraic */
-    if (a->type == RATIONAL && b->type == ALGEBRAIC) {
-        SymbolicCoord *a_alg = rational_to_algebraic(a);
-        if (!a_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_multiply(a_alg, b);
-        symbolic_coord_destroy(a_alg);
-        return result;
-    }
-    if (a->type == ALGEBRAIC && b->type == RATIONAL) {
-        SymbolicCoord *b_alg = rational_to_algebraic(b);
-        if (!b_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_multiply(a, b_alg);
-        symbolic_coord_destroy(b_alg);
-        return result;
-    }
-
-    /* Rational * Quadratic = Quadratic */
-    if (a->type == RATIONAL && b->type == QUADRATIC) {
-        Rational *new_a = rational_multiply(a->data.rational, b->data.quadratic->a);
-        Rational *new_b = rational_multiply(a->data.rational, b->data.quadratic->b);
-        SymbolicCoord *result = symbolic_coord_create_quadratic(new_a, new_b, b->data.quadratic->n);
-        if (result)
-            result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-        return result;
-    }
-    if (a->type == QUADRATIC && b->type == RATIONAL) {
+    /* RATIONAL * QUADRATIC = QUADRATIC：直接系数运算（非提升路径，保持原语义） */
+    if ((a->type == RATIONAL && b->type == QUADRATIC) ||
+        (a->type == QUADRATIC && b->type == RATIONAL)) {
+        if (a->type == RATIONAL) {
+            Rational *new_a = rational_multiply(a->data.rational, b->data.quadratic->a);
+            Rational *new_b = rational_multiply(a->data.rational, b->data.quadratic->b);
+            SymbolicCoord *result = symbolic_coord_create_quadratic(new_a, new_b, b->data.quadratic->n);
+            if (result)
+                result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+            return result;
+        }
         Rational *new_a = rational_multiply(a->data.quadratic->a, b->data.rational);
         Rational *new_b = rational_multiply(a->data.quadratic->b, b->data.rational);
         SymbolicCoord *result = symbolic_coord_create_quadratic(new_a, new_b, a->data.quadratic->n);
@@ -1215,25 +1155,8 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
         return result;
     }
 
-    /* Quadratic * Algebraic = Algebraic */
-    if (a->type == QUADRATIC && b->type == ALGEBRAIC) {
-        SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-        if (!a_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_multiply(a_alg, b);
-        symbolic_coord_destroy(a_alg);
-        return result;
-    }
-    if (a->type == ALGEBRAIC && b->type == QUADRATIC) {
-        SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-        if (!b_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_multiply(a, b_alg);
-        symbolic_coord_destroy(b_alg);
-        return result;
-    }
-
-    return NULL;
+    /* 其余组合（RATIONAL↔ALGEBRAIC、QUADRATIC↔ALGEBRAIC）：统一提升分派 */
+    return promote_cross_type_dispatch(a, b, symbolic_coord_multiply);
 }
 
 /**
@@ -1398,33 +1321,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
     /* Cross-type operations */
 
-    /* Rational / Algebraic = Algebraic */
-    if (a->type == RATIONAL && b->type == ALGEBRAIC) {
-        SymbolicCoord *a_alg = rational_to_algebraic(a);
-        if (!a_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_divide(a_alg, b);
-        symbolic_coord_destroy(a_alg);
-        return result;
-    }
-    if (a->type == ALGEBRAIC && b->type == RATIONAL) {
-        SymbolicCoord *b_alg = rational_to_algebraic(b);
-        if (!b_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_divide(a, b_alg);
-        symbolic_coord_destroy(b_alg);
-        return result;
-    }
-
-    /* Rational / Quadratic = Quadratic */
-    if (a->type == RATIONAL && b->type == QUADRATIC) {
-        SymbolicCoord *r_quad = rational_to_quadratic_with_n(a, b->data.quadratic->n);
-        if (!r_quad)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_divide(r_quad, b);
-        symbolic_coord_destroy(r_quad);
-        return result;
-    }
+    /* QUADRATIC / RATIONAL = QUADRATIC：直接系数运算（非提升路径，保持原语义） */
     if (a->type == QUADRATIC && b->type == RATIONAL) {
         Rational *new_a = rational_divide(a->data.quadratic->a, b->data.rational);
         Rational *new_b = rational_divide(a->data.quadratic->b, b->data.rational);
@@ -1441,23 +1338,6 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
         return result;
     }
 
-    /* Quadratic / Algebraic = Algebraic */
-    if (a->type == QUADRATIC && b->type == ALGEBRAIC) {
-        SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-        if (!a_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_divide(a_alg, b);
-        symbolic_coord_destroy(a_alg);
-        return result;
-    }
-    if (a->type == ALGEBRAIC && b->type == QUADRATIC) {
-        SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-        if (!b_alg)
-            return NULL;
-        SymbolicCoord *result = symbolic_coord_divide(a, b_alg);
-        symbolic_coord_destroy(b_alg);
-        return result;
-    }
-
-    return NULL;
+    /* 其余组合（RATIONAL÷QUADRATIC 提升、RATIONAL↔ALGEBRAIC、QUADRATIC↔ALGEBRAIC）：统一提升分派 */
+    return promote_cross_type_dispatch(a, b, symbolic_coord_divide);
 }

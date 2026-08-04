@@ -556,19 +556,19 @@ static bool func_block_serialize(const GeomNode *node, void *buf) {
     lv_json_buf_append_raw(jb, "],");
 
     lv_json_buf_append_raw(jb, "\"determinism_state\":");
-    switch (node->data.func_block.determinism_state) {
-        case UNVERIFIED:
-            lv_json_buf_append_raw(jb, "\"UNVERIFIED\"");
-            break;
-        case VERIFIED:
-            lv_json_buf_append_raw(jb, "\"VERIFIED\"");
-            break;
-        case NON_DETERMINISTIC:
-            lv_json_buf_append_raw(jb, "\"NON_DETERMINISTIC\"");
-            break;
-        case PARTIALLY_VERIFIED:
-            lv_json_buf_append_raw(jb, "\"PARTIALLY_VERIFIED\"");
-            break;
+    /* 确定性状态 -> JSON 字符串 查找表（按下标索引，与 func_block 匿名枚举严格对齐） */
+    static const char *const s_determinism_state_names[] = {
+        [UNVERIFIED] = "UNVERIFIED",
+        [VERIFIED] = "VERIFIED",
+        [NON_DETERMINISTIC] = "NON_DETERMINISTIC",
+        [PARTIALLY_VERIFIED] = "PARTIALLY_VERIFIED",
+    };
+    /* 原 switch 无 default：未知状态不输出字符串，保持行为一致 */
+    if ((unsigned) node->data.func_block.determinism_state < lv_ARRAY_SIZE(s_determinism_state_names)) {
+        const char *ds_name = s_determinism_state_names[node->data.func_block.determinism_state];
+        if (ds_name) {
+            lv_json_buf_append_raw(jb, ds_name);
+        }
     }
     return true;
 }

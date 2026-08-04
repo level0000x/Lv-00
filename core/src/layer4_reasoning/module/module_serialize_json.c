@@ -24,30 +24,12 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "module_helpers.h"
 
 /* ================================================================== */
 /*  JSON 序列化 / 反序列化                                             */
 /* ================================================================== */
-
-/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
-static const char *const s_json_escape_table[256] = {
-    ['"'] = "\\\"",
-    ['\\'] = "\\\\",
-    ['\n'] = "\\n",
-    ['\r'] = "\\r",
-    ['\t'] = "\\t",
-};
-
-/** @brief JSON 转义解码查找表（按转义符 ASCII 下标，0 表示无映射，保留原字符） */
-static const char s_json_unescape_table[256] = {
-    ['n'] = '\n',
-    ['r'] = '\r',
-    ['t'] = '\t',
-    ['"'] = '"',
-    ['\\'] = '\\',
-    ['/'] = '/',
-};
 
 /* JSON 写入器类型定义已提取至 module_helpers.h */
 
@@ -92,20 +74,14 @@ void json_writer_write_escaped_str(JsonWriter *w, const char *s) {
         json_writer_puts(w, "null");
         return;
     }
-    json_writer_putc(w, '"');
-    for (; *s; s++) {
-        const char *esc = s_json_escape_table[(unsigned char) *s];
-        if (esc) {
-            json_writer_puts(w, esc);
-        } else if ((unsigned char) *s < 0x20) {
-            char buf[8];
-            snprintf(buf, sizeof(buf), "\\u%04x", (unsigned char) *s);
-            json_writer_puts(w, buf);
-        } else {
-            json_writer_putc(w, *s);
-        }
-    }
-    json_writer_putc(w, '"');
+    size_t len = strlen(s);
+    /* 统一走公共 API lv_str_json_escape：先计算所需长度，再一次性写入 */
+    size_t need = lv_str_json_escape(s, len, NULL, 0);
+    json_writer_ensure(w, need + 3); /* 2 引号 + NUL */
+    w->buffer[w->pos++] = '"';
+    w->pos += lv_str_json_escape(s, len, w->buffer + w->pos, w->capacity - w->pos);
+    w->buffer[w->pos++] = '"';
+    w->buffer[w->pos] = '\0';
 }
 
 void json_writer_destroy(JsonWriter *w) {
@@ -289,15 +265,16 @@ char *json_reader_read_string(JsonReader *r) {
         return NULL;
 
     size_t start = r->pos;
-    size_t len = 0;
+    size_t raw_len = 0;
 
+    /* 第一遍：定位结束引号，统计原始字节数（转义序列按原始长度计入） */
     while (r->pos < r->size && r->data[r->pos] != '"') {
         if (r->data[r->pos] == '\\' && r->pos + 1 < r->size) {
             r->pos += 2;
-            len++;
+            raw_len += 2;
         } else {
             r->pos++;
-            len++;
+            raw_len++;
         }
     }
 
@@ -305,26 +282,13 @@ char *json_reader_read_string(JsonReader *r) {
         return NULL;
     r->pos++; /* 跳过结束引号 */
 
-    /* 解码转义字符 */
+    /* 第二遍：公共反转义 API 计算解码后长度并分配 */
+    size_t len = lv_str_json_unescape(r->data + start, raw_len, NULL, 0);
     char *result = (char *) lv_calloc(len + 1, 1);
     if (!result)
         return NULL;
 
-    const char *src = r->data + start;
-    char *dst = result;
-    const char *end = r->data + r->pos - 1;
-
-    while (src < end) {
-        if (*src == '\\' && src + 1 < end) {
-            src++;
-            char decoded = s_json_unescape_table[(unsigned char) *src];
-            *dst++ = decoded ? decoded : *src;
-            src++;
-        } else {
-            *dst++ = *src++;
-        }
-    }
-    *dst = '\0';
+    lv_str_json_unescape(r->data + start, raw_len, result, len + 1);
     return result;
 }
 

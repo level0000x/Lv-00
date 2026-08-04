@@ -26,6 +26,7 @@
 #include "lv/config.h"
 #include "lv/geometry_config.h"
 #include "lv/interval_arithmetic.h"
+#include "lv/lv_utils.h"
 
 /* 确保 lv_PUBLIC_API 已定义 */
 #ifndef lv_PUBLIC_API
@@ -63,6 +64,25 @@ static lvPredicateStats g_predicate_stats = {0, 0, 0};
 /* ========================================================================
  * 内部辅助函数
  * ======================================================================== */
+
+/* ── 精度模式分派查找表（数据表化，替代重复的 if 分支链） ── */
+
+/** @brief 模式归一化表：SYMBOLIC → EXACT（符号模式暂回退到精确模式），其余原样 */
+static const lvPredicateMode s_predicate_mode_normalize[] = {
+    [lv_PREDICATE_EXACT] = lv_PREDICATE_EXACT,
+    [lv_PREDICATE_APPROX] = lv_PREDICATE_APPROX,
+    [lv_PREDICATE_ADAPTIVE] = lv_PREDICATE_ADAPTIVE,
+    [lv_PREDICATE_SYMBOLIC] = lv_PREDICATE_EXACT,
+};
+
+/**
+ * @brief 归一化精度模式：将 SYMBOLIC 映射为 EXACT，其余模式原样返回
+ */
+static lvPredicateMode normalize_predicate_mode(lvPredicateMode mode) {
+    if ((unsigned) mode < lv_ARRAY_SIZE(s_predicate_mode_normalize))
+        return s_predicate_mode_normalize[mode];
+    return mode;
+}
 
 /**
  * @brief 使用区间算术精确计算 2D 方向谓词（有符号面积的两倍）
@@ -236,6 +256,62 @@ static lvInterval four_points_concyclic_exact_interval(double ax, double ay, dou
  * 第二部分：2D 精确谓词 API 实现
  * ======================================================================== */
 
+/* ── lv_orientation_2d 精度模式实现 ── */
+
+/** @brief 2D 方向谓词实现函数签名 */
+typedef lvOrientation (*Orientation2dImplFn)(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y,
+                                              double eps);
+
+/** @brief 近似模式实现：直接浮点叉积 + 自适应阈值 */
+static lvOrientation orientation_2d_approx(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y,
+                                           double eps) {
+    g_predicate_stats.approx_count++;
+
+    double cross = (p2x - p1x) * (p3y - p1y) - (p3x - p1x) * (p2y - p1y);
+
+    /*
+     * 自适应阈值：当 |cross| 相对于输入坐标的量级足够大时，
+     * 浮点结果可信。2D 叉积展开后每项都是坐标差乘积，
+     * 量级正比于 O(coord^3)，因此浮点舍入误差的上界也按此标度增长。
+     * 固定阈值对于大坐标会过于严格（舍入误差超过阈值），
+     * 对于小坐标又可能过于宽松。
+     */
+    double max_coord =
+        fmax(fmax(fabs(p1x), fabs(p1y)), fmax(fmax(fabs(p2x), fabs(p2y)), fmax(fabs(p3x), fabs(p3y))));
+    double adapted_eps = eps * fmax(1.0, max_coord * max_coord * max_coord);
+
+    if (cross > adapted_eps) {
+        return lv_ORIENTATION_LEFT;
+    } else if (cross < -adapted_eps) {
+        return lv_ORIENTATION_RIGHT;
+    } else {
+        return lv_ORIENTATION_COLLINEAR;
+    }
+}
+
+/** @brief 精确模式实现：区间算术 */
+static lvOrientation orientation_2d_exact(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y,
+                                          double eps) {
+    (void) eps;
+    g_predicate_stats.exact_count++;
+
+    lvInterval result = orientation_2d_exact_interval(p1x, p1y, p2x, p2y, p3x, p3y);
+
+    if (result.lo > 0.0) {
+        return lv_ORIENTATION_LEFT;
+    } else if (result.hi < 0.0) {
+        return lv_ORIENTATION_RIGHT;
+    } else {
+        return lv_ORIENTATION_COLLINEAR;
+    }
+}
+
+/** @brief 2D 方向谓词实现表：[lv_PREDICATE_APPROX / lv_PREDICATE_EXACT] → 实现函数 */
+static const Orientation2dImplFn s_orientation_2d_impls[] = {
+    [lv_PREDICATE_APPROX] = orientation_2d_approx,
+    [lv_PREDICATE_EXACT] = orientation_2d_exact,
+};
+
 /**
  * @brief 判定三点方向（2D orientation test）
  *
@@ -275,50 +351,12 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x
         return lv_ORIENTATION_DEGENERATE;
     }
 
-    if (mode == lv_PREDICATE_SYMBOLIC) {
-        /* 符号模式暂回退到精确模式 */
-        mode = lv_PREDICATE_EXACT;
-    }
+    /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
+    mode = normalize_predicate_mode(mode);
 
-    if (mode == lv_PREDICATE_APPROX) {
-        /* 近似模式：直接浮点运算 */
-        g_predicate_stats.approx_count++;
-
-        double cross = (p2x - p1x) * (p3y - p1y) - (p3x - p1x) * (p2y - p1y);
-
-        /*
-         * 自适应阈值：当 |cross| 相对于输入坐标的量级足够大时，
-         * 浮点结果可信。2D 叉积展开后每项都是坐标差乘积，
-         * 量级正比于 O(coord^3)，因此浮点舍入误差的上界也按此标度增长。
-         * 固定阈值对于大坐标会过于严格（舍入误差超过阈值），
-         * 对于小坐标又可能过于宽松。
-         */
-        double max_coord =
-            fmax(fmax(fabs(p1x), fabs(p1y)), fmax(fmax(fabs(p2x), fabs(p2y)), fmax(fabs(p3x), fabs(p3y))));
-        double adapted_eps = eps * fmax(1.0, max_coord * max_coord * max_coord);
-
-        if (cross > adapted_eps) {
-            return lv_ORIENTATION_LEFT;
-        } else if (cross < -adapted_eps) {
-            return lv_ORIENTATION_RIGHT;
-        } else {
-            return lv_ORIENTATION_COLLINEAR;
-        }
-    }
-
-    if (mode == lv_PREDICATE_EXACT) {
-        /* 精确模式：区间算术 */
-        g_predicate_stats.exact_count++;
-
-        lvInterval result = orientation_2d_exact_interval(p1x, p1y, p2x, p2y, p3x, p3y);
-
-        if (result.lo > 0.0) {
-            return lv_ORIENTATION_LEFT;
-        } else if (result.hi < 0.0) {
-            return lv_ORIENTATION_RIGHT;
-        } else {
-            return lv_ORIENTATION_COLLINEAR;
-        }
+    /* 查表分发 APPROX / EXACT 实现 */
+    if ((unsigned) mode < lv_ARRAY_SIZE(s_orientation_2d_impls) && s_orientation_2d_impls[mode]) {
+        return s_orientation_2d_impls[mode](p1x, p1y, p2x, p2y, p3x, p3y, eps);
     }
 
     /* 自适应模式：先浮点，不确定时切换精确 */
@@ -366,6 +404,59 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x
     }
 }
 
+/* ── lv_orientation_3d 精度模式实现 ── */
+
+/** @brief 3D 方向谓词实现函数签名 */
+typedef lvOrientation (*Orientation3dImplFn)(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
+                                              double p3x, double p3y, double p3z, double p4x, double p4y, double p4z,
+                                              double eps);
+
+/** @brief 近似模式实现：直接浮点 3x3 行列式 */
+static lvOrientation orientation_3d_approx(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
+                                           double p3x, double p3y, double p3z, double p4x, double p4y, double p4z,
+                                           double eps) {
+    g_predicate_stats.approx_count++;
+
+    /* 3x3 行列式：det(a, b, c) = a . (b x c) */
+    double ax = p2x - p1x, ay = p2y - p1y, az = p2z - p1z;
+    double bx = p3x - p1x, by = p3y - p1y, bz = p3z - p1z;
+    double cx = p4x - p1x, cy = p4y - p1y, cz = p4z - p1z;
+
+    double det = ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
+
+    if (det > eps) {
+        return lv_ORIENTATION_LEFT;
+    } else if (det < -eps) {
+        return lv_ORIENTATION_RIGHT;
+    } else {
+        return lv_ORIENTATION_COPLANAR;
+    }
+}
+
+/** @brief 精确模式实现：区间算术 */
+static lvOrientation orientation_3d_exact(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
+                                          double p3x, double p3y, double p3z, double p4x, double p4y, double p4z,
+                                          double eps) {
+    (void) eps;
+    g_predicate_stats.exact_count++;
+
+    lvInterval result = orientation_3d_exact_interval(p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z);
+
+    if (result.lo > 0.0) {
+        return lv_ORIENTATION_LEFT;
+    } else if (result.hi < 0.0) {
+        return lv_ORIENTATION_RIGHT;
+    } else {
+        return lv_ORIENTATION_COPLANAR;
+    }
+}
+
+/** @brief 3D 方向谓词实现表：[lv_PREDICATE_APPROX / lv_PREDICATE_EXACT] → 实现函数 */
+static const Orientation3dImplFn s_orientation_3d_impls[] = {
+    [lv_PREDICATE_APPROX] = orientation_3d_approx,
+    [lv_PREDICATE_EXACT] = orientation_3d_exact,
+};
+
 /**
  * @brief 判定四点方向（3D orientation test）
  *
@@ -399,41 +490,12 @@ lv_PUBLIC_API lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z
         return lv_ORIENTATION_DEGENERATE;
     }
 
-    if (mode == lv_PREDICATE_SYMBOLIC) {
-        mode = lv_PREDICATE_EXACT;
-    }
+    /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
+    mode = normalize_predicate_mode(mode);
 
-    if (mode == lv_PREDICATE_APPROX) {
-        g_predicate_stats.approx_count++;
-
-        /* 3x3 行列式：det(a, b, c) = a . (b x c) */
-        double ax = p2x - p1x, ay = p2y - p1y, az = p2z - p1z;
-        double bx = p3x - p1x, by = p3y - p1y, bz = p3z - p1z;
-        double cx = p4x - p1x, cy = p4y - p1y, cz = p4z - p1z;
-
-        double det = ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
-
-        if (det > eps) {
-            return lv_ORIENTATION_LEFT;
-        } else if (det < -eps) {
-            return lv_ORIENTATION_RIGHT;
-        } else {
-            return lv_ORIENTATION_COPLANAR;
-        }
-    }
-
-    if (mode == lv_PREDICATE_EXACT) {
-        g_predicate_stats.exact_count++;
-
-        lvInterval result = orientation_3d_exact_interval(p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z);
-
-        if (result.lo > 0.0) {
-            return lv_ORIENTATION_LEFT;
-        } else if (result.hi < 0.0) {
-            return lv_ORIENTATION_RIGHT;
-        } else {
-            return lv_ORIENTATION_COPLANAR;
-        }
+    /* 查表分发 APPROX / EXACT 实现 */
+    if ((unsigned) mode < lv_ARRAY_SIZE(s_orientation_3d_impls) && s_orientation_3d_impls[mode]) {
+        return s_orientation_3d_impls[mode](p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z, eps);
     }
 
     /* 自适应模式 */
@@ -548,6 +610,52 @@ lv_PUBLIC_API lvLineSide lv_segment_side(double px, double py, double sx1, doubl
     return side_of_line_impl(px, py, sx1, sy1, sx2, sy2, mode);
 }
 
+/* ── lv_side_of_circle 精度模式实现 ── */
+
+/** @brief 点与圆位置谓词实现函数签名 */
+typedef lvSideOfCircle (*SideOfCircleImplFn)(double px, double py, double cx, double cy, double r, double eps);
+
+/** @brief 近似模式实现：直接浮点距离平方差 */
+static lvSideOfCircle side_of_circle_approx(double px, double py, double cx, double cy, double r, double eps) {
+    g_predicate_stats.approx_count++;
+
+    double dx = px - cx;
+    double dy = py - cy;
+    double dist_sq = dx * dx + dy * dy;
+    double r_sq = r * r;
+    double diff = dist_sq - r_sq;
+
+    if (diff < -eps) {
+        return lv_SIDE_INSIDE;
+    } else if (diff > eps) {
+        return lv_SIDE_OUTSIDE;
+    } else {
+        return lv_SIDE_ON;
+    }
+}
+
+/** @brief 精确模式实现：区间算术 */
+static lvSideOfCircle side_of_circle_exact(double px, double py, double cx, double cy, double r, double eps) {
+    (void) eps;
+    g_predicate_stats.exact_count++;
+
+    lvInterval result = side_of_circle_exact_interval(px, py, cx, cy, r);
+
+    if (result.hi < 0.0) {
+        return lv_SIDE_INSIDE;
+    } else if (result.lo > 0.0) {
+        return lv_SIDE_OUTSIDE;
+    } else {
+        return lv_SIDE_ON;
+    }
+}
+
+/** @brief 点与圆位置谓词实现表：[lv_PREDICATE_APPROX / lv_PREDICATE_EXACT] → 实现函数 */
+static const SideOfCircleImplFn s_side_of_circle_impls[] = {
+    [lv_PREDICATE_APPROX] = side_of_circle_approx,
+    [lv_PREDICATE_EXACT] = side_of_circle_exact,
+};
+
 /**
  * @brief 判定点相对于圆的位置
  *
@@ -572,40 +680,12 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(double px, double py, double cx, 
     const lvGeometryConfig *cfg = lv_geometry_get_config();
     double eps = cfg ? cfg->distance_epsilon : lv_GEO_COLLINEAR_EPSILON;
 
-    if (mode == lv_PREDICATE_SYMBOLIC) {
-        mode = lv_PREDICATE_EXACT;
-    }
+    /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
+    mode = normalize_predicate_mode(mode);
 
-    if (mode == lv_PREDICATE_APPROX) {
-        g_predicate_stats.approx_count++;
-
-        double dx = px - cx;
-        double dy = py - cy;
-        double dist_sq = dx * dx + dy * dy;
-        double r_sq = r * r;
-        double diff = dist_sq - r_sq;
-
-        if (diff < -eps) {
-            return lv_SIDE_INSIDE;
-        } else if (diff > eps) {
-            return lv_SIDE_OUTSIDE;
-        } else {
-            return lv_SIDE_ON;
-        }
-    }
-
-    if (mode == lv_PREDICATE_EXACT) {
-        g_predicate_stats.exact_count++;
-
-        lvInterval result = side_of_circle_exact_interval(px, py, cx, cy, r);
-
-        if (result.hi < 0.0) {
-            return lv_SIDE_INSIDE;
-        } else if (result.lo > 0.0) {
-            return lv_SIDE_OUTSIDE;
-        } else {
-            return lv_SIDE_ON;
-        }
+    /* 查表分发 APPROX / EXACT 实现 */
+    if ((unsigned) mode < lv_ARRAY_SIZE(s_side_of_circle_impls) && s_side_of_circle_impls[mode]) {
+        return s_side_of_circle_impls[mode](px, py, cx, cy, r, eps);
     }
 
     /* 自适应模式 */
@@ -877,6 +957,76 @@ lv_PUBLIC_API bool lv_point_in_triangle(double px, double py, double ax, double 
     return true;
 }
 
+/* ── lv_four_points_concyclic 精度模式实现 ── */
+
+/** @brief 四点共圆谓词实现函数签名 */
+typedef bool (*FourPointsConcyclicImplFn)(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                          double dy, double eps);
+
+/** @brief 近似模式实现：直接浮点 4x4 行列式（归一化后与 eps 比较） */
+static bool four_points_concyclic_approx(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                         double dy, double eps) {
+    g_predicate_stats.approx_count++;
+
+    double a2 = ax * ax + ay * ay;
+    double b2 = bx * bx + by * by;
+    double c2 = cx * cx + cy * cy;
+    double d2 = dx * dx + dy * dy;
+
+    /*
+     * Laplace 展开沿最后一列：
+     * det = M11 - M21 + M31 - M41
+     *
+     * M11 = by*(c2-d2) - b2*(cy-dy) + (cy*d2 - c2*dy)
+     * M21 = bx*(c2-d2) - a2*(cx-dx) + (cx*d2 - c2*dx)
+     * M31 = ax*(b2-d2) - a2*(bx-dx) + (bx*d2 - b2*dx)
+     * M41 = ax*(b2-c2) - a2*(bx-cx) + (bx*c2 - b2*cx)
+     */
+    double m11 = by * (c2 - d2) - b2 * (cy - dy) + (cy * d2 - c2 * dy);
+    double m21 = bx * (c2 - d2) - a2 * (cx - dx) + (cx * d2 - c2 * dx);
+    double m31 = ax * (b2 - d2) - a2 * (bx - dx) + (bx * d2 - b2 * dx);
+    double m41 = ax * (b2 - c2) - a2 * (bx - cx) + (bx * c2 - b2 * cx);
+
+    double det = m11 - m21 + m31 - m41;
+
+    /*
+     * 归一化：按坐标量级缩放行列式，使其与容差 eps 可比。
+     *
+     * 共圆 4×4 行列式经 Laplace 展开后，每项 3×3 子行列式
+     * 含两列坐标（λ）和一列坐标平方（λ²），总计 O(λ⁴)。
+     * 因此归一化因子应为 max_coord⁴ 而非 max_coord³。
+     *
+     * 推导：子行列式 M11 = |bx by bx²+by²; cx cy cx²+cy²; dx dy dx²+dy²|
+     *       缩放后每列因子为 λ, λ, λ²，子行列式缩放 λ⁴。
+     */
+    double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)), fmax(fabs(bx), fabs(by))),
+                            fmax(fmax(fabs(cx), fabs(cy)), fmax(fabs(dx), fabs(dy))));
+    if (max_coord > 1.0) {
+        double s = max_coord * max_coord;
+        det /= (s * s);
+    }
+
+    return fabs(det) < eps;
+}
+
+/** @brief 精确模式实现：区间算术 */
+static bool four_points_concyclic_exact(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                        double dy, double eps) {
+    (void) eps;
+    g_predicate_stats.exact_count++;
+
+    lvInterval result = four_points_concyclic_exact_interval(ax, ay, bx, by, cx, cy, dx, dy);
+
+    /* 如果区间包含零，则可能共圆 */
+    return (result.lo <= 0.0 && result.hi >= 0.0);
+}
+
+/** @brief 四点共圆谓词实现表：[lv_PREDICATE_APPROX / lv_PREDICATE_EXACT] → 实现函数 */
+static const FourPointsConcyclicImplFn s_four_points_concyclic_impls[] = {
+    [lv_PREDICATE_APPROX] = four_points_concyclic_approx,
+    [lv_PREDICATE_EXACT] = four_points_concyclic_exact,
+};
+
 /**
  * @brief 判定四点是否共圆
  *
@@ -895,64 +1045,15 @@ lv_PUBLIC_API bool lv_point_in_triangle(double px, double py, double ax, double 
  */
 lv_PUBLIC_API bool lv_four_points_concyclic(double ax, double ay, double bx, double by, double cx, double cy, double dx,
                                             double dy, lvPredicateMode mode) {
-    if (mode == lv_PREDICATE_SYMBOLIC) {
-        mode = lv_PREDICATE_EXACT;
-    }
-
     const lvGeometryConfig *cfg = lv_geometry_get_config();
     double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
 
-    if (mode == lv_PREDICATE_APPROX) {
-        g_predicate_stats.approx_count++;
+    /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
+    mode = normalize_predicate_mode(mode);
 
-        double a2 = ax * ax + ay * ay;
-        double b2 = bx * bx + by * by;
-        double c2 = cx * cx + cy * cy;
-        double d2 = dx * dx + dy * dy;
-
-        /*
-         * Laplace 展开沿最后一列：
-         * det = M11 - M21 + M31 - M41
-         *
-         * M11 = by*(c2-d2) - b2*(cy-dy) + (cy*d2 - c2*dy)
-         * M21 = bx*(c2-d2) - a2*(cx-dx) + (cx*d2 - c2*dx)
-         * M31 = ax*(b2-d2) - a2*(bx-dx) + (bx*d2 - b2*dx)
-         * M41 = ax*(b2-c2) - a2*(bx-cx) + (bx*c2 - b2*cx)
-         */
-        double m11 = by * (c2 - d2) - b2 * (cy - dy) + (cy * d2 - c2 * dy);
-        double m21 = bx * (c2 - d2) - a2 * (cx - dx) + (cx * d2 - c2 * dx);
-        double m31 = ax * (b2 - d2) - a2 * (bx - dx) + (bx * d2 - b2 * dx);
-        double m41 = ax * (b2 - c2) - a2 * (bx - cx) + (bx * c2 - b2 * cx);
-
-        double det = m11 - m21 + m31 - m41;
-
-        /*
-         * 归一化：按坐标量级缩放行列式，使其与容差 eps 可比。
-         *
-         * 共圆 4×4 行列式经 Laplace 展开后，每项 3×3 子行列式
-         * 含两列坐标（λ）和一列坐标平方（λ²），总计 O(λ⁴)。
-         * 因此归一化因子应为 max_coord⁴ 而非 max_coord³。
-         *
-         * 推导：子行列式 M11 = |bx by bx²+by²; cx cy cx²+cy²; dx dy dx²+dy²|
-         *       缩放后每列因子为 λ, λ, λ²，子行列式缩放 λ⁴。
-         */
-        double max_coord = fmax(fmax(fmax(fabs(ax), fabs(ay)), fmax(fabs(bx), fabs(by))),
-                                fmax(fmax(fabs(cx), fabs(cy)), fmax(fabs(dx), fabs(dy))));
-        if (max_coord > 1.0) {
-            double s = max_coord * max_coord;
-            det /= (s * s);
-        }
-
-        return fabs(det) < eps;
-    }
-
-    if (mode == lv_PREDICATE_EXACT) {
-        g_predicate_stats.exact_count++;
-
-        lvInterval result = four_points_concyclic_exact_interval(ax, ay, bx, by, cx, cy, dx, dy);
-
-        /* 如果区间包含零，则可能共圆 */
-        return (result.lo <= 0.0 && result.hi >= 0.0);
+    /* 查表分发 APPROX / EXACT 实现 */
+    if ((unsigned) mode < lv_ARRAY_SIZE(s_four_points_concyclic_impls) && s_four_points_concyclic_impls[mode]) {
+        return s_four_points_concyclic_impls[mode](ax, ay, bx, by, cx, cy, dx, dy, eps);
     }
 
     /* 自适应模式 */

@@ -7,6 +7,7 @@
 #include "lv/lv_utils.h"
 
 #include <ctype.h>
+#include <stdio.h>
 #include <string.h>
 
 /* ===== 字符串检查 ===== */
@@ -333,6 +334,174 @@ void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len) {
             lv_strbuf_append_n(sb, c, 1);
         }
     }
+}
+
+/* ===== JSON/HTML 转义（统一公共 API，snprintf 语义） ===== */
+
+/** @brief JSON 转义字符 → 转义对字符串 查找表（按 ASCII 下标，NULL 表示非简单转义，走控制字符逻辑） */
+static const char *const s_json_escape_pairs[256] = {
+    ['"']  = "\\\"",
+    ['\\'] = "\\\\",
+    ['\n'] = "\\n",
+    ['\r'] = "\\r",
+    ['\t'] = "\\t",
+    ['\b'] = "\\b",
+    ['\f'] = "\\f",
+};
+
+/** @brief HTML 转义字符 → 实体字符串 查找表（按 ASCII 下标，NULL 表示原样输出；' 用 &#39; 而非 XML 的 &apos;） */
+static const char *const s_html_escape_entities[256] = {
+    ['&']  = "&amp;",
+    ['<']  = "&lt;",
+    ['>']  = "&gt;",
+    ['"']  = "&quot;",
+    ['\''] = "&#39;",
+};
+
+/** @brief 将 src 的转义结果写入 dst（内部辅助：统一截断与 NUL 结尾语义） */
+static void str_escape_write(char *dst, size_t dst_cap, size_t *written, const char *seg, size_t seg_len) {
+    if (!dst || dst_cap == 0)
+        return;
+    if (*written >= dst_cap - 1)
+        return;
+    size_t copy = seg_len;
+    if (*written + copy > dst_cap - 1)
+        copy = dst_cap - 1 - *written;
+    memcpy(dst + *written, seg, copy);
+    *written += copy;
+}
+
+size_t lv_str_json_escape(const char *src, size_t src_len, char *dst, size_t dst_cap) {
+    if (!src)
+        src_len = 0;
+    size_t need = 0;    /* 转义后所需总长度（不含 NUL） */
+    size_t written = 0; /* 实际写入长度（<= dst_cap-1） */
+    for (size_t i = 0; i < src_len; i++) {
+        unsigned char c = (unsigned char) src[i];
+        const char *pair = s_json_escape_pairs[c];
+        char uesc[8];
+        const char *seg;
+        size_t seg_len;
+        if (pair) {
+            seg = pair;
+            seg_len = 2;
+        } else if (c < 0x20) {
+            /* 其他控制字符编码为 \u00XX */
+            seg = uesc;
+            seg_len = (size_t) snprintf(uesc, sizeof(uesc), "\\u%04x", c);
+        } else {
+            seg = (const char *) &src[i];
+            seg_len = 1;
+        }
+        need += seg_len;
+        str_escape_write(dst, dst_cap, &written, seg, seg_len);
+    }
+    if (dst && dst_cap > 0)
+        dst[written] = '\0';
+    return need;
+}
+
+size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst_cap) {
+    if (!src)
+        src_len = 0;
+    size_t need = 0;
+    size_t written = 0;
+    for (size_t i = 0; i < src_len; i++) {
+        unsigned char c = (unsigned char) src[i];
+        const char *ent = s_html_escape_entities[c];
+        if (ent) {
+            need += strlen(ent);
+            str_escape_write(dst, dst_cap, &written, ent, strlen(ent));
+        } else {
+            need++;
+            str_escape_write(dst, dst_cap, &written, (const char *) &src[i], 1);
+        }
+    }
+    if (dst && dst_cap > 0)
+        dst[written] = '\0';
+    return need;
+}
+
+size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t dst_cap) {
+    if (!src)
+        src_len = 0;
+    size_t need = 0;    /* 解码后所需总长度（不含 NUL） */
+    size_t written = 0; /* 实际写入长度（<= dst_cap-1） */
+    size_t i = 0;
+    char utf8[4];
+    while (i < src_len) {
+        unsigned char c = (unsigned char) src[i];
+        size_t seg_len = 1;
+        size_t adv = 1;
+        const char *seg = (const char *) &src[i];
+        if (c == '\\' && i + 1 < src_len) {
+            unsigned char e = (unsigned char) src[i + 1];
+            adv = 2;
+            switch (e) {
+                case '"':  seg = "\""; break;
+                case '\\': seg = "\\"; break;
+                case '/':  seg = "/";  break;
+                case 'b':  seg = "\b"; break;
+                case 'f':  seg = "\f"; break;
+                case 'n':  seg = "\n"; break;
+                case 'r':  seg = "\r"; break;
+                case 't':  seg = "\t"; break;
+                case 'u': {
+                    /* \uXXXX → UTF-8（与 lv_json_parse_string 一致的 1~3 字节编码） */
+                    unsigned int cp = 0;
+                    size_t k = i + 2;
+                    unsigned int digits = 0;
+                    for (; k < src_len && digits < 4; k++, digits++) {
+                        char h = src[k];
+                        unsigned int nibble;
+                        if (h >= '0' && h <= '9')
+                            nibble = (unsigned int) (h - '0');
+                        else if (h >= 'a' && h <= 'f')
+                            nibble = (unsigned int) (h - 'a' + 10);
+                        else if (h >= 'A' && h <= 'F')
+                            nibble = (unsigned int) (h - 'A' + 10);
+                        else
+                            break; /* 非法十六进制：按已有位数截断处理 */
+                        cp = (cp << 4) | nibble;
+                    }
+                    if (digits == 0) {
+                        /* 非十六进制字符：保留 'u' 原样 */
+                        seg = (const char *) &src[i + 1];
+                        seg_len = 1;
+                    } else {
+                        /* 编码为 UTF-8 */
+                        if (cp < 0x80) {
+                            utf8[0] = (char) cp;
+                            seg_len = 1;
+                        } else if (cp < 0x800) {
+                            utf8[0] = (char) (0xC0 | (cp >> 6));
+                            utf8[1] = (char) (0x80 | (cp & 0x3F));
+                            seg_len = 2;
+                        } else {
+                            utf8[0] = (char) (0xE0 | (cp >> 12));
+                            utf8[1] = (char) (0x80 | ((cp >> 6) & 0x3F));
+                            utf8[2] = (char) (0x80 | (cp & 0x3F));
+                            seg_len = 3;
+                        }
+                        seg = utf8;
+                        adv = 2 + digits;
+                    }
+                    break;
+                }
+                default:
+                    /* 未声明的转义：保留转义字符本身（去掉反斜杠） */
+                    seg = (const char *) &src[i + 1];
+                    seg_len = 1;
+                    break;
+            }
+        }
+        need += seg_len;
+        str_escape_write(dst, dst_cap, &written, seg, seg_len);
+        i += adv;
+    }
+    if (dst && dst_cap > 0)
+        dst[written] = '\0';
+    return need;
 }
 
 /* ===== 报告表格辅助 ===== */

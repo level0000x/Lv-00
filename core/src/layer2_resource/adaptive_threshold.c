@@ -36,6 +36,7 @@
 
 #define BUCHBERGER_BASE_THRESHOLD 20000.0
 #define BUCHBERGER_SCALE_FACTOR 2.0
+#define BUCHBERGER_TIME_BUDGET_MS 5000.0
 #define BUCHBERGER_MIN_THRESHOLD 10000.0
 #define BUCHBERGER_MAX_THRESHOLD 200000.0
 
@@ -47,6 +48,53 @@
 
 /* 回溯率阈值：超过此比例触发剪枝 */
 #define BACKTRACK_PRUNE_RATIO 0.8
+
+/**
+ * @brief 算法默认配置查找表
+ *
+ * 使用指定初始化器按 lvAlgorithmType 枚举值对齐，
+ * 编译器可校验枚举与配置的对应关系，避免位置数组因枚举插入而错位。
+ */
+static const lvThresholdConfig kAlgoDefaults[] = {
+    [lv_ALGO_VF2_MATCH] = {
+        .base_threshold = VF2_BASE_THRESHOLD,
+        .scale_factor = VF2_SCALE_FACTOR,
+        .time_budget_ms = VF2_TIME_BUDGET_MS,
+        .min_threshold = VF2_MIN_THRESHOLD,
+        .max_threshold = VF2_MAX_THRESHOLD,
+        .enable_time_based = true,
+        .enable_progress_tracking = true,
+    },
+    [lv_ALGO_BUCHBERGER] = {
+        .base_threshold = BUCHBERGER_BASE_THRESHOLD,
+        .scale_factor = BUCHBERGER_SCALE_FACTOR,
+        .time_budget_ms = BUCHBERGER_TIME_BUDGET_MS,
+        .min_threshold = BUCHBERGER_MIN_THRESHOLD,
+        .max_threshold = BUCHBERGER_MAX_THRESHOLD,
+        .enable_time_based = true,
+        .enable_progress_tracking = true,
+    },
+    [lv_ALGO_REWRITE_SOLVE] = {
+        .base_threshold = REWRITE_BASE_THRESHOLD,
+        .scale_factor = REWRITE_SCALE_FACTOR,
+        .time_budget_ms = REWRITE_TIME_BUDGET_MS,
+        .min_threshold = REWRITE_MIN_THRESHOLD,
+        .max_threshold = REWRITE_MAX_THRESHOLD,
+        .enable_time_based = true,
+        .enable_progress_tracking = true,
+    },
+};
+
+/** @brief 算法枚举遍历表（显式声明，供初始化/清理按枚举值遍历，避免位置数组强转） */
+static const lvAlgorithmType kAllAlgos[] = {
+    lv_ALGO_VF2_MATCH, lv_ALGO_BUCHBERGER, lv_ALGO_REWRITE_SOLVE
+};
+
+/* 编译期断言：默认配置表大小与算法枚举一致，防止枚举插入后表错位 */
+_Static_assert(lv_ALGO_REWRITE_SOLVE + 1 == (int) lv_ARRAY_SIZE(kAlgoDefaults),
+               "kAlgoDefaults 表大小与 lvAlgorithmType 枚举不一致（新增算法需同步扩展默认配置表）");
+_Static_assert(lv_ARRAY_SIZE(kAlgoDefaults) == lv_ARRAY_SIZE(kAllAlgos),
+               "kAlgoDefaults 与 kAllAlgos 表大小不一致");
 
 /* ================================================================
  * 模块级全局状态
@@ -67,22 +115,6 @@ static ThresholdState s_threshold_state = {0};
 /* ================================================================
  * 内部辅助函数
  * ================================================================ */
-
-/**
- * @brief 获取算法索引
- */
-static int algo_index(lvAlgorithmType algo) {
-    switch (algo) {
-        case lv_ALGO_VF2_MATCH:
-            return 0;
-        case lv_ALGO_BUCHBERGER:
-            return 1;
-        case lv_ALGO_REWRITE_SOLVE:
-            return 2;
-        default:
-            return -1;
-    }
-}
 
 /**
  * @brief BFS 计算连通分量数
@@ -172,40 +204,15 @@ lvError lv_adaptive_threshold_init(void) {
     if (s_threshold_state.initialized)
         return lv_OK;
 
-    /* 初始化全局默认配置 */
-    for (int i = 0; i < 3; i++) {
-        if (!s_threshold_state.configs_set[i]) {
-            lvThresholdConfig *cfg = &s_threshold_state.configs[i];
-            switch ((lvAlgorithmType) i) {
-                case lv_ALGO_VF2_MATCH:
-                    cfg->base_threshold = VF2_BASE_THRESHOLD;
-                    cfg->scale_factor = VF2_SCALE_FACTOR;
-                    cfg->time_budget_ms = VF2_TIME_BUDGET_MS;
-                    cfg->min_threshold = VF2_MIN_THRESHOLD;
-                    cfg->max_threshold = VF2_MAX_THRESHOLD;
-                    cfg->enable_time_based = true;
-                    cfg->enable_progress_tracking = true;
-                    break;
-                case lv_ALGO_BUCHBERGER:
-                    cfg->base_threshold = BUCHBERGER_BASE_THRESHOLD;
-                    cfg->scale_factor = BUCHBERGER_SCALE_FACTOR;
-                    cfg->time_budget_ms = lv_config_get_double(LV_CFG_BUCHBERGER_TIME_BUDGET_MS, 5000.0);
-                    cfg->min_threshold = BUCHBERGER_MIN_THRESHOLD;
-                    cfg->max_threshold = BUCHBERGER_MAX_THRESHOLD;
-                    cfg->enable_time_based = true;
-                    cfg->enable_progress_tracking = true;
-                    break;
-                case lv_ALGO_REWRITE_SOLVE:
-                    cfg->base_threshold = REWRITE_BASE_THRESHOLD;
-                    cfg->scale_factor = REWRITE_SCALE_FACTOR;
-                    cfg->time_budget_ms = REWRITE_TIME_BUDGET_MS;
-                    cfg->min_threshold = REWRITE_MIN_THRESHOLD;
-                    cfg->max_threshold = REWRITE_MAX_THRESHOLD;
-                    cfg->enable_time_based = true;
-                    cfg->enable_progress_tracking = true;
-                    break;
-                default:
-                    break;
+    /* 初始化全局默认配置：按算法枚举显式遍历，避免位置数组强转错位 */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kAllAlgos); i++) {
+        lvAlgorithmType algo = kAllAlgos[i];
+        if (!s_threshold_state.configs_set[algo]) {
+            s_threshold_state.configs[algo] = kAlgoDefaults[algo];
+            /* Buchberger 时间预算支持运行时配置覆盖（默认 5000ms） */
+            if (algo == lv_ALGO_BUCHBERGER) {
+                s_threshold_state.configs[algo].time_budget_ms =
+                    lv_config_get_double(LV_CFG_BUCHBERGER_TIME_BUDGET_MS, BUCHBERGER_TIME_BUDGET_MS);
             }
         }
     }
@@ -215,8 +222,8 @@ lvError lv_adaptive_threshold_init(void) {
 }
 
 void lv_adaptive_threshold_cleanup(void) {
-    for (int i = 0; i < 3; i++) {
-        s_threshold_state.configs_set[i] = false;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kAllAlgos); i++) {
+        s_threshold_state.configs_set[kAllAlgos[i]] = false;
     }
     s_threshold_state.initialized = false;
 }
@@ -265,8 +272,8 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
     if (!graph || !ctx)
         return lv_ERROR_INVALID_PARAM;
 
-    int idx = algo_index(algo);
-    if (idx < 0)
+    /* 校验算法类型在默认配置表范围内 */
+    if ((unsigned) algo >= lv_ARRAY_SIZE(kAlgoDefaults))
         return lv_ERROR_INVALID_PARAM;
 
     /* 自动初始化 */
@@ -297,7 +304,7 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
     if (config) {
         c->config = *config;
     } else {
-        c->config = s_threshold_state.configs[idx];
+        c->config = s_threshold_state.configs[algo];
     }
 
     c->initialized = true;
@@ -326,13 +333,12 @@ size_t lv_adaptive_threshold_compute(lvAdaptiveThresholdCtx *ctx) {
 }
 
 lvError lv_adaptive_threshold_default_config(lvAlgorithmType algo, lvThresholdConfig *config) {
-    int idx = algo_index(algo);
-    if (idx < 0 || !config)
+    if ((unsigned) algo >= lv_ARRAY_SIZE(kAlgoDefaults) || !config)
         return lv_ERROR_INVALID_PARAM;
 
     lv_adaptive_threshold_init();
 
-    *config = s_threshold_state.configs[idx];
+    *config = s_threshold_state.configs[algo];
     return lv_OK;
 }
 
@@ -384,11 +390,10 @@ void lv_adaptive_threshold_should_prune(lvAdaptiveThresholdCtx *ctx, bool *shoul
 }
 
 lvError lv_adaptive_threshold_set_global_config(lvAlgorithmType algo, const lvThresholdConfig *config) {
-    int idx = algo_index(algo);
-    if (idx < 0 || !config)
+    if ((unsigned) algo >= lv_ARRAY_SIZE(kAlgoDefaults) || !config)
         return lv_ERROR_INVALID_PARAM;
-    s_threshold_state.configs[idx] = *config;
-    s_threshold_state.configs_set[idx] = true;
+    s_threshold_state.configs[algo] = *config;
+    s_threshold_state.configs_set[algo] = true;
     return lv_OK;
 }
 

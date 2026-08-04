@@ -590,6 +590,23 @@ int64_t func_block_preset_batch(lvEngine *ctx, const char **names, int64_t count
     return valid;
 }
 
+/** @brief 参数类型 → 可接受节点类型 兼容性映射表条目 */
+typedef struct {
+    PresetParamType param_type; /**< 预设参数类型 */
+    GeomType node_type;         /**< 可接受的几何节点类型 */
+} PresetParamCompatEntry;
+
+/** @brief 参数类型 → 可接受节点类型 兼容性表（未列入的类型不做检查，对应原 default/ANY/VARIADIC 跳过语义） */
+static const PresetParamCompatEntry kParamCompatTable[] = {
+    {PARAM_TYPE_POINT,   GEOM_POINT},
+    {PARAM_TYPE_LINE,    GEOM_LINE_SEGMENT},
+    {PARAM_TYPE_SEGMENT, GEOM_LINE_SEGMENT},
+    {PARAM_TYPE_RAY,     GEOM_LINE_SEGMENT},
+    {PARAM_TYPE_CIRCLE,  GEOM_REGION},
+    {PARAM_TYPE_ARC,     GEOM_REGION},
+    {PARAM_TYPE_REGION,  GEOM_REGION},
+};
+
 /** 验证参数类型是否匹配 -- 通过注册表获取输入参数定义,进行节点类型匹配 */
 int64_t func_block_preset_validate(lvEngine *ctx, const char *name, int64_t *input_ids, int64_t input_count) {
     if (!name)
@@ -610,32 +627,19 @@ int64_t func_block_preset_validate(lvEngine *ctx, const char *name, int64_t *inp
         GeomNode *node = graph_get_node(ctx->main_graph, (int) input_ids[i]);
         if (!node)
             return 0;
-        /* 基本类型匹配:检查节点类型是否与预设参数的几何类型兼容 */
+        /* 基本类型匹配:查询兼容性表；未列入的类型（ANY/VARIADIC 等）跳过检查（对应原 default 分支） */
         PresetParamType expected = entry->metadata.input_params[i].type;
-        switch (expected) {
-            case PARAM_TYPE_POINT:
-                if (node->type != GEOM_POINT)
-                    return 0;
+        GeomType accepted = GEOM_POINT;
+        bool has_mapping = false;
+        for (size_t k = 0; k < lv_ARRAY_SIZE(kParamCompatTable); k++) {
+            if (kParamCompatTable[k].param_type == expected) {
+                accepted = kParamCompatTable[k].node_type;
+                has_mapping = true;
                 break;
-            case PARAM_TYPE_LINE:
-            case PARAM_TYPE_SEGMENT:
-            case PARAM_TYPE_RAY:
-                if (node->type != GEOM_LINE_SEGMENT)
-                    return 0;
-                break;
-            case PARAM_TYPE_CIRCLE:
-            case PARAM_TYPE_ARC:
-            case PARAM_TYPE_REGION:
-                if (node->type != GEOM_REGION)
-                    return 0;
-                break;
-            case PARAM_TYPE_ANY:
-            case PARAM_TYPE_VARIADIC:
-                break;
-            default:
-                /* 其他类型暂不做严格检查 */
-                break;
+            }
         }
+        if (has_mapping && node->type != accepted)
+            return 0;
     }
     return 1;
 }

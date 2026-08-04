@@ -51,6 +51,10 @@ static int prim_cube(char *buf, int buf_size, int written, const char *indent_st
 static int prim_cylinder(char *buf, int buf_size, int written, const char *indent_str, double *params) {
     return snprintf(buf + written, (size_t)(buf_size - written), "%scylinder(r=%.10g, h=%.10g, center=true);\n", indent_str, params[0], params[1]);
 }
+static int prim_cone(char *buf, int buf_size, int written, const char *indent_str, double *params) {
+    /* OpenSCAD 无独立 cone 基元，圆锥/圆台用 cylinder(r1, r2, h) 表达 */
+    return snprintf(buf + written, (size_t)(buf_size - written), "%scylinder(r1=%.10g, r2=%.10g, h=%.10g, center=true);\n", indent_str, params[0], params[1], params[2]);
+}
 
 /* 处理器函数前向声明 */
 static int export_primitive(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
@@ -71,6 +75,30 @@ static CsgExportHandler kCsgExportOps[] = {
     [CSG_NODE_EXTRUDE_ROTATE] = export_children_op,
 };
 static const int kCsgExportOpsCount = (int)(sizeof(kCsgExportOps) / sizeof(kCsgExportOps[0]));
+
+/* ── CSG 节点类型 → OpenSCAD 操作名 查找表 ──
+ * 仅列出非默认操作；默认名由各导出处理器回退（union / hull）。
+ */
+static const struct {
+    CSGNodeKind kind;
+    const char *op_name;
+} s_csg_op_names[] = {
+    { CSG_NODE_DIFFERENCE, "difference" },
+    { CSG_NODE_INTERSECTION, "intersection" },
+    { CSG_NODE_MINKOWSKI, "minkowski" },
+    { CSG_NODE_EXTRUDE_LINEAR, "linear_extrude" },
+    { CSG_NODE_EXTRUDE_ROTATE, "rotate_extrude" },
+};
+static const int s_csg_op_names_count = (int)(sizeof(s_csg_op_names) / sizeof(s_csg_op_names[0]));
+
+/* 查表获取操作名，未命中返回 fallback */
+static const char *csg_op_name_for(CSGNodeKind kind, const char *fallback) {
+    for (int i = 0; i < s_csg_op_names_count; i++) {
+        if (s_csg_op_names[i].kind == kind)
+            return s_csg_op_names[i].op_name;
+    }
+    return fallback;
+}
 
 static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int written, int indent) {
     if (!node || !buf || written < 0 || written >= buf_size)
@@ -104,9 +132,10 @@ static int export_primitive(const CSGNode *node, char *buf, int buf_size, int wr
 
     /* 图元类型 → 导出函数 查找表 */
     static int (*const kPrimOps[])(char *buf, int buf_size, int written, const char *indent_str, double *params) = {
-        prim_sphere,   /* 0 */
-        prim_cube,     /* 1 */
-        prim_cylinder, /* 2 */
+        prim_sphere,   /* 0 = CSG_PRIM_SPHERE */
+        prim_cube,     /* 1 = CSG_PRIM_CUBE */
+        prim_cylinder, /* 2 = CSG_PRIM_CYLINDER */
+        prim_cone,     /* 3 = CSG_PRIM_CONE */
     };
     int prim_count = (int)(sizeof(kPrimOps) / sizeof(kPrimOps[0]));
 
@@ -124,11 +153,7 @@ static int export_primitive(const CSGNode *node, char *buf, int buf_size, int wr
 }
 
 static int export_boolean_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
-    const char *op_name = "union";
-    if (node->kind == CSG_NODE_DIFFERENCE)
-        op_name = "difference";
-    if (node->kind == CSG_NODE_INTERSECTION)
-        op_name = "intersection";
+    const char *op_name = csg_op_name_for(node->kind, "union");
 
     int n = snprintf(buf + written, (size_t)(buf_size - written), "%s%s() {\n", indent_str, op_name);
     if (n > 0)
@@ -165,13 +190,7 @@ static int export_transform_handler(const CSGNode *node, char *buf, int buf_size
 }
 
 static int export_children_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
-    const char *op_name = "hull";
-    if (node->kind == CSG_NODE_MINKOWSKI)
-        op_name = "minkowski";
-    if (node->kind == CSG_NODE_EXTRUDE_LINEAR)
-        op_name = "linear_extrude";
-    if (node->kind == CSG_NODE_EXTRUDE_ROTATE)
-        op_name = "rotate_extrude";
+    const char *op_name = csg_op_name_for(node->kind, "hull");
 
     int n = snprintf(buf + written, (size_t)(buf_size - written), "%s%s() {\n", indent_str, op_name);
     if (n > 0)

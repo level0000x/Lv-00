@@ -156,6 +156,13 @@ int debug_trace_check_breakpoint(TraceEventType type, int step) {
  * 导出
  * ======================================================================== */
 
+/** @brief TRACE_* 枚举 -> 名称 查找表（指定初始化器，编译器校验枚举对齐） */
+static const char *const kTraceTypeNames[] = {
+    [TRACE_NORMALIZATION] = "normalization",
+    [TRACE_REWRITE] = "rewrite",
+    [TRACE_SOLVER] = "solver",
+};
+
 /** @brief 将追踪会话导出为 JSON 字符串 */
 char *trace_session_export_json(const TraceSession *session) {
     if (session == NULL)
@@ -170,12 +177,8 @@ char *trace_session_export_json(const TraceSession *session) {
     for (int i = 0; i < session->event_count; i++) {
         const TraceEvent *evt = &session->events[i];
         const char *type_str = "unknown";
-        if (evt->type == TRACE_NORMALIZATION)
-            type_str = "normalization";
-        else if (evt->type == TRACE_REWRITE)
-            type_str = "rewrite";
-        else if (evt->type == TRACE_SOLVER)
-            type_str = "solver";
+        if ((unsigned) evt->type < lv_ARRAY_SIZE(kTraceTypeNames) && kTraceTypeNames[evt->type] != NULL)
+            type_str = kTraceTypeNames[evt->type];
 
         lv_json_buf_append_raw(&buf, "  {\"type\":\"");
         lv_json_buf_append_string(&buf, type_str);

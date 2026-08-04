@@ -15,38 +15,60 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 
-/* --- 包围盒计算：函数指针表 --- */
-typedef void (*CSGBBoxFunc)(CSGNode *node);
+/* --- 包围盒计算：按图元类型拆分的独立实现（供图元 vtable s_prim_ops 引用） --- */
+
+void csg_bbox_sphere(CSGNode *node) {
+    /* 球体：params = [radius] */
+    double *p = node->data.prim.params;
+    node->bbox_min[0] = node->bbox_min[1] = node->bbox_min[2] = -p[0];
+    node->bbox_max[0] = node->bbox_max[1] = node->bbox_max[2] = p[0];
+}
+
+void csg_bbox_cube(CSGNode *node) {
+    /* 立方体：params = [w, h, d] */
+    double *p = node->data.prim.params;
+    node->bbox_min[0] = -p[0] * 0.5;
+    node->bbox_min[1] = -p[1] * 0.5;
+    node->bbox_min[2] = -p[2] * 0.5;
+    node->bbox_max[0] = p[0] * 0.5;
+    node->bbox_max[1] = p[1] * 0.5;
+    node->bbox_max[2] = p[2] * 0.5;
+}
+
+void csg_bbox_cylinder(CSGNode *node) {
+    /* 圆柱体：params = [radius, height] */
+    double *p = node->data.prim.params;
+    node->bbox_min[0] = -p[0];
+    node->bbox_min[1] = -p[0];
+    node->bbox_min[2] = -p[1] * 0.5;
+    node->bbox_max[0] = p[0];
+    node->bbox_max[1] = p[0];
+    node->bbox_max[2] = p[1] * 0.5;
+}
+
+void csg_bbox_cone(CSGNode *node) {
+    /* 圆锥/圆台：params = [radius1, radius2, height]，取两底最大半径 */
+    double *p = node->data.prim.params;
+    double r = fmax(p[0], p[1]);
+    node->bbox_min[0] = -r;
+    node->bbox_min[1] = -r;
+    node->bbox_min[2] = -p[2] * 0.5;
+    node->bbox_max[0] = r;
+    node->bbox_max[1] = r;
+    node->bbox_max[2] = p[2] * 0.5;
+}
 
 static void bbox_primitive(CSGNode *node) {
     int ptype = node->data.prim.type;
-    double *p = node->data.prim.params;
 
-    switch (ptype) {
-        case 0: /* 球体：params = [radius] */
-            node->bbox_min[0] = node->bbox_min[1] = node->bbox_min[2] = -p[0];
-            node->bbox_max[0] = node->bbox_max[1] = node->bbox_max[2] = p[0];
-            break;
-        case 1: /* 立方体：params = [w, h, d] */
-            node->bbox_min[0] = -p[0] * 0.5;
-            node->bbox_min[1] = -p[1] * 0.5;
-            node->bbox_min[2] = -p[2] * 0.5;
-            node->bbox_max[0] = p[0] * 0.5;
-            node->bbox_max[1] = p[1] * 0.5;
-            node->bbox_max[2] = p[2] * 0.5;
-            break;
-        case 2: /* 圆柱体：params = [radius, height] */
-            node->bbox_min[0] = -p[0];
-            node->bbox_min[1] = -p[0];
-            node->bbox_min[2] = -p[1] * 0.5;
-            node->bbox_max[0] = p[0];
-            node->bbox_max[1] = p[0];
-            node->bbox_max[2] = p[1] * 0.5;
-            break;
-        default:
-            break;
+    /* 图元类型 → 包围盒计算 统一走 vtable（见 s_prim_ops，定义于 geometry_csg_primitive.c） */
+    if (ptype >= 0 && ptype < s_prim_ops_count && s_prim_ops[ptype].bbox) {
+        s_prim_ops[ptype].bbox(node);
     }
 }
+
+/* --- 包围盒计算：函数指针表 --- */
+typedef void (*CSGBBoxFunc)(CSGNode *node);
 
 static void bbox_merge_children(CSGNode *node) {
     for (int i = 0; i < node->child_count; i++) {

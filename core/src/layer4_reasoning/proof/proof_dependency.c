@@ -26,68 +26,7 @@
 #include "lv/lv_json.h"
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
-
-/**
- * @brief JSON 字符转义查找表
- *
- * 对于每个字符，存储其转义后的第二个字符（'\\'后的字符）。
- * 值为 0 表示不需要简单转义（可能为普通字符或需 \uXXXX 转义）。
- */
-static const char kJsonEscapeChar[256] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 't', 'n', 0, 0, 'r', 0, 0,  /* 00-0F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 10-1F */
-    0, 0, '"', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 20-2F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 30-3F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 40-4F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '\\', 0, 0, 0,  /* 50-5F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 60-6F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 70-7F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 80-8F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 90-9F */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* A0-AF */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* B0-BF */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* C0-CF */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* D0-DF */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* E0-EF */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* F0-FF */
-};
-
-/**
- * @brief 将 src 中的特殊 JSON 字符转义后写入 dst
- *
- * 转义双引号、反斜杠和控制字符。如果 dst 不够大，结果会被截断。
- *
- * @param dst      目标缓冲区
- * @param dst_size 目标缓冲区大小
- * @param src      源字符串（可为 NULL）
- * @return 写入 dst 的字符数（不含终止符）
- */
-static int json_escape(char *dst, size_t dst_size, const char *src) {
-    if (!dst || dst_size == 0)
-        return 0;
-    if (!src) {
-        dst[0] = '\0';
-        return 0;
-    }
-    size_t j = 0;
-    for (size_t i = 0; src[i] && j < dst_size - 2; i++) {
-        unsigned char c = (unsigned char) src[i];
-        char esc = kJsonEscapeChar[c];
-        if (esc) {
-            if (j + 2 < dst_size) {
-                dst[j++] = '\\';
-                dst[j++] = esc;
-            }
-        } else if (c < 0x20) {
-            if (j + 6 < dst_size)
-                j += (size_t) snprintf(dst + j, dst_size - j, "\\u%04x", c);
-        } else {
-            dst[j++] = src[i];
-        }
-    }
-    dst[j] = '\0';
-    return (int) j;
-}
+#include "proof_step_registry.h"
 
 /**
  * 深拷贝命题并替换函数块输出端口 ID。
@@ -955,42 +894,22 @@ bool proof_search_tree_export_dot(const ProofSearchTree *tree, const char *filep
 
 /**
  * @brief 步骤类型到自然语言动词映射（中文）
+ *
+ * 文案统一取自证明步骤注册表（proof_step_registry）。
  */
-/** @brief step_type_verb_zh 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_step_type_verb_zh_entries[] = {
-    {"构造", PROOF_STEP_ADD_NODE},
-    {"添加约束", PROOF_STEP_ADD_CONSTRAINT},
-    {"应用重写规则", PROOF_STEP_REWRITE},
-    {"应用函数块", PROOF_STEP_FUNCTION_APP},
-    {"打包函数块", PROOF_STEP_PACK_FUNCTION},
-    {"执行规范化", PROOF_STEP_NORMALIZATION},
-    {"执行合一检查", PROOF_STEP_UNIFY},
-    {"应用爆炸原理", PROOF_STEP_EX_FALSO},
-    {"引用外部预言机", PROOF_STEP_ORACLE},
-};
-
 static const char *step_type_verb_zh(ProofStepType type) {
-    return lv_enum_to_str(s_step_type_verb_zh_entries, lv_ARRAY_SIZE(s_step_type_verb_zh_entries), (int) type, "执行操作");
+    const ProofStepInfo *info = proof_step_info(type);
+    return info ? info->verb_zh : "执行操作";
 }
 
 /**
  * @brief 步骤类型到自然语言动词映射（英文）
+ *
+ * 文案统一取自证明步骤注册表（proof_step_registry）。
  */
-/** @brief step_type_verb_en 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_step_type_verb_en_entries[] = {
-    {"Construct", PROOF_STEP_ADD_NODE},
-    {"Add constraint", PROOF_STEP_ADD_CONSTRAINT},
-    {"Apply rewrite rule", PROOF_STEP_REWRITE},
-    {"Apply function block", PROOF_STEP_FUNCTION_APP},
-    {"Package function block", PROOF_STEP_PACK_FUNCTION},
-    {"Perform normalization", PROOF_STEP_NORMALIZATION},
-    {"Perform unification check", PROOF_STEP_UNIFY},
-    {"Apply ex falso quodlibet", PROOF_STEP_EX_FALSO},
-    {"Reference external oracle", PROOF_STEP_ORACLE},
-};
-
 static const char *step_type_verb_en(ProofStepType type) {
-    return lv_enum_to_str(s_step_type_verb_en_entries, lv_ARRAY_SIZE(s_step_type_verb_en_entries), (int) type, "Execute operation");
+    const ProofStepInfo *info = proof_step_info(type);
+    return info ? info->verb_en : "Execute operation";
 }
 
 /**
@@ -1045,40 +964,22 @@ static void describe_objects_en(const ProofStep *step, char *buf, size_t buf_siz
 
 /**
  * @brief 生成为什么可以进行这一步骤的解释（中文）
+ *
+ * 文案统一取自证明步骤注册表（proof_step_registry）。
  */
-/** @brief explain_why_zh 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_explain_why_zh_entries[] = {
-    {"根据已知条件和构造规则，该几何对象可以合法构造。", PROOF_STEP_ADD_NODE},
-    {"根据已构造的几何对象之间的关系，该约束成立。", PROOF_STEP_ADD_CONSTRAINT},
-    {"模式匹配成功，重写规则的前提条件已满足。", PROOF_STEP_REWRITE},
-    {"函数块的输入端口类型与实参类型匹配。", PROOF_STEP_FUNCTION_APP},
-    {"检测到坐标等价的节点，执行合并以保持图的一致性。", PROOF_STEP_NORMALIZATION},
-    {"构造图与命题模式在所有层级完成匹配。", PROOF_STEP_UNIFY},
-    {"由矛盾 ⊥ 出发，根据爆炸原理可以推出任意命题。", PROOF_STEP_EX_FALSO},
-    {"此步骤依赖外部知识源，其正确性需要独立验证。", PROOF_STEP_ORACLE},
-};
-
 static const char *explain_why_zh(ProofStepType type) {
-    return lv_enum_to_str(s_explain_why_zh_entries, lv_ARRAY_SIZE(s_explain_why_zh_entries), (int) type, "");
+    const ProofStepInfo *info = proof_step_info(type);
+    return info ? info->why_zh : "";
 }
 
 /**
  * @brief 生成为什么可以进行这一步骤的解释（英文）
+ *
+ * 文案统一取自证明步骤注册表（proof_step_registry）。
  */
-/** @brief explain_why_en 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_explain_why_en_entries[] = {
-    {"Based on the known conditions and construction rules, this geometric object is validly constructible.", PROOF_STEP_ADD_NODE},
-    {"Based on the relationships between constructed geometric objects, this constraint holds.", PROOF_STEP_ADD_CONSTRAINT},
-    {"Pattern matching succeeded; the preconditions of the rewrite rule are satisfied.", PROOF_STEP_REWRITE},
-    {"The input port types of the function block match the argument types.", PROOF_STEP_FUNCTION_APP},
-    {"Coordinate-equivalent nodes detected; merging to maintain graph consistency.", PROOF_STEP_NORMALIZATION},
-    {"The construction graph matches the proposition pattern at all levels.", PROOF_STEP_UNIFY},
-    {"From contradiction ⊥, any proposition follows by the principle of explosion.", PROOF_STEP_EX_FALSO},
-    {"This step depends on an external knowledge source whose correctness requires independent verification.", PROOF_STEP_ORACLE},
-};
-
 static const char *explain_why_en(ProofStepType type) {
-    return lv_enum_to_str(s_explain_why_en_entries, lv_ARRAY_SIZE(s_explain_why_en_entries), (int) type, "");
+    const ProofStepInfo *info = proof_step_info(type);
+    return info ? info->why_en : "";
 }
 
 /**

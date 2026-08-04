@@ -1219,6 +1219,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof/proof_navigator_utils.c
     core/src/layer4_reasoning/proof/proof_navigator_instantiate.c
     core/src/layer4_reasoning/proof/proof_proposition.c
+    core/src/layer4_reasoning/proof/proof_step_registry.c
     core/src/layer4_reasoning/proof/proof_version.c
     core/src/layer4_reasoning/proof/proof_version_nl.c
     core/src/layer4_reasoning/proof/proof_version_ghost.c

@@ -967,15 +967,16 @@ const char *lv_traversal_order_to_string(lvTraversalOrder order) {
     return "UNKNOWN";
 }
 
+/** @brief 遍历回调结果 -> 名称表（lvTraversalResult 枚举值 0~2 连续，按下标索引） */
+static const char *const s_traversal_result_names[] = {
+    [lv_TRAVERSAL_CONTINUE] = "CONTINUE",
+    [lv_TRAVERSAL_SKIP_CHILDREN] = "SKIP_CHILDREN",
+    [lv_TRAVERSAL_STOP] = "STOP",
+};
+
 const char *lv_traversal_result_to_string(lvTraversalResult result) {
-    switch (result) {
-        case lv_TRAVERSAL_CONTINUE:
-            return "CONTINUE";
-        case lv_TRAVERSAL_SKIP_CHILDREN:
-            return "SKIP_CHILDREN";
-        case lv_TRAVERSAL_STOP:
-            return "STOP";
-        default:
-            return "UNKNOWN";
-    }
+    /* 按下标索引；未知/越界结果回退到 "UNKNOWN"（原 default 分支） */
+    if ((unsigned) result < lv_ARRAY_SIZE(s_traversal_result_names) && s_traversal_result_names[result])
+        return s_traversal_result_names[result];
+    return "UNKNOWN";
 }

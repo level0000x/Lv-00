@@ -78,6 +78,16 @@ const char *trust_color_name(TrustColor tc);
 const char *proof_color_name(ProofColor pc);
 
 /**
+ * @brief 获取 ProofColor 对应的 HTML 十六进制颜色
+ *
+ * 统一维护 UI/导出层的颜色呈现（原 proof_navigator_export.c 私有表收敛于此）。
+ *
+ * @param pc ProofColor 枚举值
+ * @return 静态字符串（如 "#4CAF50"），越界返回默认灰 "#78909C"
+ */
+const char *proof_color_to_html_hex(ProofColor pc);
+
+/**
  * @brief 合并两个 ProofColor（语义等价于 trust_color_combine）
  *
  * 使用与 TrustColor 相同的叠加规则：

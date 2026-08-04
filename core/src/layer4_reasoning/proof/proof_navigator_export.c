@@ -32,11 +32,6 @@
 
 /* ============== 导出功能 ============== */
 
-/**
- * @brief 辅助函数前向声明：将 ProofColor 转换为 HTML 十六进制颜色字符串
- */
-static const char *proof_color_to_html_hex(ProofColor c);
-
 bool proof_export_html(ProofNavigator *nav, const char *filepath) {
     (void) nav;
     (void) filepath;
@@ -45,32 +40,8 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
     return false;
 }
 
-/**
- * @brief 辅助函数：将 ProofColor 转换为 HTML 十六进制颜色字符串
- */
-/* ================================================================
- * 枚举 -> 名称 映射表（数据表化，替代 switch）
- * ================================================================ */
-
-/** @brief proof_color_to_html_hex 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_proof_color_html_names[] = {
-    {"#4CAF50", PROOF_COLOR_GREEN},
-    {"#2196F3", PROOF_COLOR_BLUE_UNEXPLORED},
-    {"#1976D2", PROOF_COLOR_BLUE_RESOURCE},
-    {"#0D47A1", PROOF_COLOR_BLUE_OUT_OF_RANGE},
-    {"#2E7D32", PROOF_COLOR_GREEN_VERIFIED},
-    {"#FFC107", PROOF_COLOR_YELLOW},
-    {"#FF9800", PROOF_COLOR_ORANGE_ORACLE},
-    {"#F57C00", PROOF_COLOR_ORANGE_EX_FALSO},
-    {"#FFB300", PROOF_COLOR_AMBER},
-    {"#E65100", PROOF_COLOR_DARK_ORANGE},
-    {"#1B5E20", PROOF_COLOR_GREEN_COMPLETE},
-    {"#D32F2F", PROOF_COLOR_RED_CONFLICT},
-};
-
-static const char *proof_color_to_html_hex(ProofColor c) {
-    return lv_enum_to_str(s_proof_color_html_names, lv_ARRAY_SIZE(s_proof_color_html_names), (int) c, "#78909C");
-}
+/* 注：ProofColor → HTML 十六进制颜色映射（proof_color_to_html_hex）
+ * 已收敛至 trust_color.c 公共层，见 lv/trust_color.h。 */
 
 /* ============== ProofStepStrategy 策略实例 ============== */
 

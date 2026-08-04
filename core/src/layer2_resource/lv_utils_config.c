@@ -189,29 +189,34 @@ bool config_set_string(ConfigManager *mgr, const char *key, const char *value) {
     return true;
 }
 
-int config_get_int(const ConfigManager *mgr, const char *key, int default_val) {
-    ConfigItem *item = config_find_item(mgr, key);
-    if (item && item->type == CONFIG_TYPE_INT) {
-        return item->value.int_val;
+/**
+ * @brief 生成标量类型配置获取函数的宏
+ *
+ * 与 DEFINE_CONFIG_SET_SCALAR 对称，用于 int、bool、double 等标量类型的
+ * config_get_* 函数，避免逐字重复"查找已有项 → 类型匹配则取值"的逻辑。
+ *
+ * 参数说明：
+ *   func_name    - 要生成的函数名（如 config_get_int）
+ *   cfg_type     - 对应的 ConfigType 枚举值（如 CONFIG_TYPE_INT）
+ *   val_type     - 返回值及默认值参数的 C 类型（如 int）
+ *   val_member   - ConfigItem.value 联合体中的成员名（如 int_val）
+ *
+ * 注意：config_get_string 不使用此宏，因为字符串返回值需要特殊处理
+ * （返回内部指针而非拷贝），逻辑与标量类型有本质区别。
+ */
+#define DEFINE_CONFIG_GET_SCALAR(func_name, cfg_type, val_type, val_member) \
+    val_type func_name(const ConfigManager *mgr, const char *key, val_type default_val) { \
+        ConfigItem *item = config_find_item(mgr, key);                      \
+        if (item && item->type == cfg_type) {                               \
+            return item->value.val_member;                                  \
+        }                                                                   \
+        return default_val;                                                 \
     }
-    return default_val;
-}
 
-bool config_get_bool(const ConfigManager *mgr, const char *key, bool default_val) {
-    ConfigItem *item = config_find_item(mgr, key);
-    if (item && item->type == CONFIG_TYPE_BOOL) {
-        return item->value.bool_val;
-    }
-    return default_val;
-}
-
-double config_get_double(const ConfigManager *mgr, const char *key, double default_val) {
-    ConfigItem *item = config_find_item(mgr, key);
-    if (item && item->type == CONFIG_TYPE_DOUBLE) {
-        return item->value.double_val;
-    }
-    return default_val;
-}
+/* 使用宏生成 int、bool、double 三种标量类型的配置获取函数 */
+DEFINE_CONFIG_GET_SCALAR(config_get_int, CONFIG_TYPE_INT, int, int_val)
+DEFINE_CONFIG_GET_SCALAR(config_get_bool, CONFIG_TYPE_BOOL, bool, bool_val)
+DEFINE_CONFIG_GET_SCALAR(config_get_double, CONFIG_TYPE_DOUBLE, double, double_val)
 
 const char *config_get_string(const ConfigManager *mgr, const char *key, const char *default_val) {
     ConfigItem *item = config_find_item(mgr, key);
@@ -336,6 +341,56 @@ bool config_load(ConfigManager *mgr) {
     return true;
 }
 
+/* ============================================================
+ * 配置序列化（类型 -> 格式化函数 查找表，替代 switch 分派）
+ * ============================================================ */
+
+/** @brief 配置项序列化函数签名（写出 key = value 一行） */
+typedef void (*ConfigSerializeFn)(FILE *f, const ConfigItem *item);
+
+static void config_serialize_int(FILE *f, const ConfigItem *item) {
+    fprintf(f, "%s = %d\n", item->key, item->value.int_val);
+}
+
+static void config_serialize_bool(FILE *f, const ConfigItem *item) {
+    fprintf(f, "%s = %s\n", item->key, item->value.bool_val ? "true" : "false");
+}
+
+static void config_serialize_double(FILE *f, const ConfigItem *item) {
+    fprintf(f, "%s = %.6f\n", item->key, item->value.double_val);
+}
+
+static void config_serialize_string(FILE *f, const ConfigItem *item) {
+    fprintf(f, "%s = %s\n", item->key, item->value.string_val);
+}
+
+static void config_serialize_array(FILE *f, const ConfigItem *item) {
+    /* 数组类型：逐元素序列化 */
+    fprintf(f, "%s = [", item->key);
+    if (item->value.array_val && item->array_count > 0) {
+        for (size_t ai = 0; ai < item->array_count; ai++) {
+            if (ai > 0)
+                fprintf(f, ", ");
+            ConfigItem *elem_item = item->value.array_val[ai];
+            if (elem_item && elem_item->key) {
+                fprintf(f, "\"%s\"", elem_item->key);
+            } else {
+                fprintf(f, "\"\"");
+            }
+        }
+    }
+    fprintf(f, "]\n");
+}
+
+/** @brief 配置类型 -> 序列化函数 查找表（指定初始化器，编译器校验 ConfigType 对齐） */
+static const ConfigSerializeFn kConfigSerializers[] = {
+    [CONFIG_TYPE_INT] = config_serialize_int,
+    [CONFIG_TYPE_BOOL] = config_serialize_bool,
+    [CONFIG_TYPE_DOUBLE] = config_serialize_double,
+    [CONFIG_TYPE_STRING] = config_serialize_string,
+    [CONFIG_TYPE_ARRAY] = config_serialize_array,
+};
+
 bool config_save(const ConfigManager *mgr) {
     if (!mgr || !mgr->config_file)
         lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_save 参数无效");
@@ -374,38 +429,9 @@ bool config_save(const ConfigManager *mgr) {
             }
         }
 
-        switch (item->type) {
-            case CONFIG_TYPE_INT:
-                fprintf(f, "%s = %d\n", item->key, item->value.int_val);
-                break;
-            case CONFIG_TYPE_BOOL:
-                fprintf(f, "%s = %s\n", item->key, item->value.bool_val ? "true" : "false");
-                break;
-            case CONFIG_TYPE_DOUBLE:
-                fprintf(f, "%s = %.6f\n", item->key, item->value.double_val);
-                break;
-            case CONFIG_TYPE_STRING:
-                fprintf(f, "%s = %s\n", item->key, item->value.string_val);
-                break;
-            case CONFIG_TYPE_ARRAY:
-                /* 数组类型：逐元素序列化 */
-                fprintf(f, "%s = [", item->key);
-                if (item->value.array_val && item->array_count > 0) {
-                    for (size_t ai = 0; ai < item->array_count; ai++) {
-                        if (ai > 0)
-                            fprintf(f, ", ");
-                        ConfigItem *elem_item = item->value.array_val[ai];
-                        if (elem_item && elem_item->key) {
-                            fprintf(f, "\"%s\"", elem_item->key);
-                        } else {
-                            fprintf(f, "\"\"");
-                        }
-                    }
-                }
-                fprintf(f, "]\n");
-                break;
-            default:
-                break;
+        /* 按类型查表输出键值对；未知类型不输出（保持原 default 空分支语义） */
+        if ((unsigned) item->type < lv_ARRAY_SIZE(kConfigSerializers) && kConfigSerializers[item->type]) {
+            kConfigSerializers[item->type](f, item);
         }
         item = item->next;
     }
@@ -413,4 +439,3 @@ bool config_save(const ConfigManager *mgr) {
     lv_file_close(f);
     return true;
 }
-

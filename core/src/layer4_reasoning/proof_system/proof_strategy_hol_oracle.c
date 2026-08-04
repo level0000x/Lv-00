@@ -27,6 +27,7 @@
 #include "normalization.h"
 #include "type_system.h"
 #include "unify.h"
+#include "layer4_reasoning/proof/proof_step_registry.h"
 
 /**
  * @brief Oracle法执行 —— 外部求解器辅助
@@ -69,22 +70,13 @@ bool execute_hol_light(ProofMultiStrategy *mse, ProofNavigator *nav) {
         if (!step)
             continue;
 
-        /* 将 ProofStepType 映射到 VerifyRuleType */
-        VerifyRuleType rule;
-        switch (step->type) {
-            case PROOF_STEP_REWRITE:
-                rule = VERIFY_TRANS;
-                break;
-            case PROOF_STEP_FUNCTION_APP:
-                rule = VERIFY_MK_COMB;
-                break;
-            case PROOF_STEP_NORMALIZATION:
-                rule = VERIFY_BETA_CONV;
-                break;
-            default:
-                /* 无对应 HOL Light 规则的步骤跳过 */
-                continue;
+        /* 将 ProofStepType 映射到 VerifyRuleType（统一取自证明步骤注册表） */
+        const ProofStepInfo *info = proof_step_info(step->type);
+        if (!info || info->hol_rule == PROOF_STEP_HOL_RULE_NONE) {
+            /* 无对应 HOL Light 规则的步骤跳过 */
+            continue;
         }
+        VerifyRuleType rule = info->hol_rule;
 
         /* 收集前提（依赖的前驱步骤的结论） */
         const char *premises[16];

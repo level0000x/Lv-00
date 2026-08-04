@@ -57,21 +57,14 @@ bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem syst
         return false;
     }
 
-    /* 根据新体系调整公理默认启用状态 */
-    switch (system) {
-        case EUCLID_BIRKHOFF:
-            ctx->enabled_axioms_mask = EUCLID_DEFAULT_AXIOM_MASK;
-            break;
-        case EUCLID_TARSKI:
-            ctx->enabled_axioms_mask = EUCLID_DEFAULT_AXIOM_MASK;
-            break;
-        case EUCLID_HILBERT:
-            ctx->enabled_axioms_mask = EUCLID_DEFAULT_AXIOM_MASK;
-            break;
-        case EUCLID_CUSTOM:
-            break;
-        default:
-            break;
+    /* 根据新体系调整公理默认启用状态（查找表替代 switch；CUSTOM 与未知体系不修改掩码） */
+    static const uint32_t kAxiomSystemMasks[] = {
+        [EUCLID_BIRKHOFF] = EUCLID_DEFAULT_AXIOM_MASK,
+        [EUCLID_TARSKI] = EUCLID_DEFAULT_AXIOM_MASK,
+        [EUCLID_HILBERT] = EUCLID_DEFAULT_AXIOM_MASK,
+    };
+    if ((unsigned) system < lv_ARRAY_SIZE(kAxiomSystemMasks) && kAxiomSystemMasks[system]) {
+        ctx->enabled_axioms_mask = kAxiomSystemMasks[system];
     }
 
     return true;

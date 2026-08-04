@@ -1195,6 +1195,74 @@ bool lv_transform_group_add_generator(lvTransformGroup *group, lvTransform *gene
     return true;
 }
 
+/* ---------- 预设群构造过程（查找表分发，替代 strcmp 分支链） ---------- */
+
+/** @brief 预设群构造签名：向 group 填充生成器与群属性（zero/one 为预置有理数常量） */
+typedef void (*PresetGroupBuilder)(lvTransformGroup *group, mpq_t zero, mpq_t one);
+
+static void preset_group_c2(lvTransformGroup *group, mpq_t zero, mpq_t one) {
+    (void)one;
+    /* C2: 180度旋转 */
+    lvTransform *rot = lv_transform_rotation(zero, zero, 180, 1);
+    lv_transform_group_add_generator(group, rot);
+    lv_transform_unref(rot);
+    group->order = 2;
+    group->is_abelian = true;
+}
+
+static void preset_group_c4(lvTransformGroup *group, mpq_t zero, mpq_t one) {
+    (void)one;
+    /* C4: 90度旋转 */
+    lvTransform *rot = lv_transform_rotation(zero, zero, 90, 1);
+    lv_transform_group_add_generator(group, rot);
+    lv_transform_unref(rot);
+    group->order = 4;
+    group->is_abelian = true;
+}
+
+static void preset_group_d2(lvTransformGroup *group, mpq_t zero, mpq_t one) {
+    (void)zero;
+    (void)one;
+    /* Klein 四元群：两个正交反射 */
+    mpq_t ax, ay, bx, by;
+    mpq_init(ax);
+    mpq_init(ay);
+    mpq_init(bx);
+    mpq_init(by);
+    mpq_set_ui(ax, 0, 1);
+    mpq_set_ui(ay, 0, 1);
+    mpq_set_ui(bx, 1, 1);
+    mpq_set_ui(by, 0, 1);
+    lvTransform *r1 = lv_transform_reflection(ax, ay, bx, by);
+
+    mpq_set_ui(bx, 0, 1);
+    mpq_set_ui(by, 1, 1);
+    lvTransform *r2 = lv_transform_reflection(ax, ay, bx, by);
+
+    lv_transform_group_add_generator(group, r1);
+    lv_transform_group_add_generator(group, r2);
+    lv_transform_unref(r1);
+    lv_transform_unref(r2);
+    mpq_clear(ax);
+    mpq_clear(ay);
+    mpq_clear(bx);
+    mpq_clear(by);
+
+    group->order = 4;
+    group->is_abelian = true;
+}
+
+/** @brief 预设群名 -> 构造过程 查找表（D2 与 Klein 共享同一构造过程） */
+static const struct {
+    const char *name;
+    PresetGroupBuilder builder;
+} kPresetGroupBuilders[] = {
+    {"C2", preset_group_c2},
+    {"C4", preset_group_c4},
+    {"D2", preset_group_d2},
+    {"Klein", preset_group_d2},
+};
+
 lvTransformGroup *lv_transform_group_create_preset(const char *type) {
     if (!type) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_transform_group_create_preset: NULL type");
@@ -1213,48 +1281,12 @@ lvTransformGroup *lv_transform_group_create_preset(const char *type) {
     mpq_set_ui(one, 1, 1);
     mpq_set_si(neg_one, -1, 1);
 
-    if (strcmp(type, "C2") == 0) {
-        /* C2: 180度旋转 */
-        lvTransform *rot = lv_transform_rotation(zero, zero, 180, 1);
-        lv_transform_group_add_generator(group, rot);
-        lv_transform_unref(rot);
-        group->order = 2;
-        group->is_abelian = true;
-    } else if (strcmp(type, "C4") == 0) {
-        /* C4: 90度旋转 */
-        lvTransform *rot = lv_transform_rotation(zero, zero, 90, 1);
-        lv_transform_group_add_generator(group, rot);
-        lv_transform_unref(rot);
-        group->order = 4;
-        group->is_abelian = true;
-    } else if (strcmp(type, "D2") == 0 || strcmp(type, "Klein") == 0) {
-        /* Klein 四元群：两个正交反射 */
-        mpq_t ax, ay, bx, by;
-        mpq_init(ax);
-        mpq_init(ay);
-        mpq_init(bx);
-        mpq_init(by);
-        mpq_set_ui(ax, 0, 1);
-        mpq_set_ui(ay, 0, 1);
-        mpq_set_ui(bx, 1, 1);
-        mpq_set_ui(by, 0, 1);
-        lvTransform *r1 = lv_transform_reflection(ax, ay, bx, by);
-
-        mpq_set_ui(bx, 0, 1);
-        mpq_set_ui(by, 1, 1);
-        lvTransform *r2 = lv_transform_reflection(ax, ay, bx, by);
-
-        lv_transform_group_add_generator(group, r1);
-        lv_transform_group_add_generator(group, r2);
-        lv_transform_unref(r1);
-        lv_transform_unref(r2);
-        mpq_clear(ax);
-        mpq_clear(ay);
-        mpq_clear(bx);
-        mpq_clear(by);
-
-        group->order = 4;
-        group->is_abelian = true;
+    /* 按预设群名查表分发构造（替代 strcmp 分支链） */
+    for (size_t gi = 0; gi < lv_ARRAY_SIZE(kPresetGroupBuilders); gi++) {
+        if (strcmp(type, kPresetGroupBuilders[gi].name) == 0) {
+            kPresetGroupBuilders[gi].builder(group, zero, one);
+            break;
+        }
     }
 
     mpq_clear(zero);

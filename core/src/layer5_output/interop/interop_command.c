@@ -24,6 +24,7 @@
 #include "lv/lv_xmacro.h"
 
 #include "debug.h"
+#include "interop_export_internal.h" /* 公共信任颜色全字段表 kTrustColorEntries */
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -938,22 +939,10 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief interop_trust_color_to_svg 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_interop_trust_color_to_svg_entries[] = {
-    {"#22c55e", TRUST_GREEN},
-    {"#3b82f6", TRUST_BLUE_UNEXPLORED},
-    {"#6366f1", TRUST_BLUE_EXCEEDED},
-    {"#93c5fd", TRUST_BLUE_OUT_OF_SCOPE},
-    {"#eab308", TRUST_YELLOW},
-    {"#fb923c", TRUST_LIGHT_ORANGE_ORACLE},
-    {"#f97316", TRUST_LIGHT_ORANGE_EXPLOSION},
-    {"#f59e0b", TRUST_AMBER},
-    {"#ea580c", TRUST_DEEP_ORANGE},
-    {"#ef4444", TRUST_RED},
-};
-
 const char *interop_trust_color_to_svg(TrustColor trust) {
-    return lv_enum_to_str(s_interop_trust_color_to_svg_entries, lv_ARRAY_SIZE(s_interop_trust_color_to_svg_entries), (int) trust, "#9ca3af");
+    /* 查公共信任颜色全字段表（interop_export_internal.h），未命中返回默认灰色 */
+    const TrustColorEntry *e = interop_trust_color_find(trust);
+    return e ? e->svg_hex : "#9ca3af";
 }
 
 /**
@@ -964,22 +953,10 @@ const char *interop_trust_color_to_svg(TrustColor trust) {
  * @param trust 信任颜色枚举值
  * @return 对应的 TikZ 颜色字符串（如 "green!70!black"），未知颜色返回 "gray"
  */
-/** @brief interop_trust_color_to_tikz 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_interop_trust_color_to_tikz_entries[] = {
-    {"green!70!black", TRUST_GREEN},
-    {"blue!70!black", TRUST_BLUE_UNEXPLORED},
-    {"blue!50!black", TRUST_BLUE_EXCEEDED},
-    {"blue!30!black", TRUST_BLUE_OUT_OF_SCOPE},
-    {"yellow!70!black", TRUST_YELLOW},
-    {"orange!40!black", TRUST_LIGHT_ORANGE_ORACLE},
-    {"orange!60!black", TRUST_LIGHT_ORANGE_EXPLOSION},
-    {"orange!80!black", TRUST_AMBER},
-    {"red!70!black", TRUST_DEEP_ORANGE},
-    {"red!80!black", TRUST_RED},
-};
-
 const char *interop_trust_color_to_tikz(TrustColor trust) {
-    return lv_enum_to_str(s_interop_trust_color_to_tikz_entries, lv_ARRAY_SIZE(s_interop_trust_color_to_tikz_entries), (int) trust, "gray");
+    /* 查公共信任颜色全字段表（interop_export_internal.h），未命中返回默认 gray */
+    const TrustColorEntry *e = interop_trust_color_find(trust);
+    return e ? e->tikz_expr : "gray";
 }
 
 /**
@@ -1024,69 +1001,4 @@ static const lvStrToEnumEntry s_interop_constraint_type_name_entries[] = {
 
 const char *interop_constraint_type_name(ConstraintType type) {
     return lv_enum_to_str(s_interop_constraint_type_name_entries, lv_ARRAY_SIZE(s_interop_constraint_type_name_entries), (int) type, "unknown");
-}
-
-/**
- * @brief 计算图的边界框（用于 SVG viewBox）
- * @details 遍历约束图中所有节点的坐标，计算最小/最大 x、y 值，
- *          并添加边距用于 viewBox 的设置。
- * @param graph 约束图指针（可为 NULL）
- * @param min_x [out] 最小 x 坐标
- * @param min_y [out] 最小 y 坐标
- * @param max_x [out] 最大 x 坐标
- * @param max_y [out] 最大 y 坐标
- */
-static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, double *min_y, double *max_x,
-                                 double *max_y) {
-    /* 默认边界框 */
-    *min_x = 0.0;
-    *min_y = 0.0;
-    *max_x = 100.0;
-    *max_y = 100.0;
-
-    if (!graph || graph->node_count == 0)
-        return;
-
-    bool first = true;
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (!node || !node->symbolic_coords)
-            continue;
-
-        for (int c = 0; c < node->coord_count; c++) {
-            if (!node->symbolic_coords[c])
-                continue;
-
-            double val = symbolic_coord_to_double(node->symbolic_coords[c]);
-            if (first) {
-                if (c == 0) {
-                    *min_x = val;
-                    *max_x = val;
-                } else {
-                    *min_y = val;
-                    *max_y = val;
-                }
-                first = false;
-            } else {
-                if (c == 0) {
-                    if (val < *min_x)
-                        *min_x = val;
-                    if (val > *max_x)
-                        *max_x = val;
-                } else {
-                    if (val < *min_y)
-                        *min_y = val;
-                    if (val > *max_y)
-                        *max_y = val;
-                }
-            }
-        }
-    }
-
-    /* 添加边距 */
-    double margin = 10.0;
-    *min_x -= margin;
-    *min_y -= margin;
-    *max_x += margin;
-    *max_y += margin;
 }

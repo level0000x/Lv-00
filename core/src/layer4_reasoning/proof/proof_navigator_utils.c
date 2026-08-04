@@ -28,22 +28,8 @@
 #include "stream.h"
 #include "stream_context_util.h"
 #include "proof_navigator_internal.h"
-
-/** @brief proof_color_to_string 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_proof_color_to_string_names[] = {
-    {"Green", PROOF_COLOR_GREEN},
-    {"Blue (unexplored)", PROOF_COLOR_BLUE_UNEXPLORED},
-    {"Blue (resource)", PROOF_COLOR_BLUE_RESOURCE},
-    {"Blue (out of range)", PROOF_COLOR_BLUE_OUT_OF_RANGE},
-    {"Green (verified)", PROOF_COLOR_GREEN_VERIFIED},
-    {"Yellow", PROOF_COLOR_YELLOW},
-    {"Orange (oracle)", PROOF_COLOR_ORANGE_ORACLE},
-    {"Orange (ex falso)", PROOF_COLOR_ORANGE_EX_FALSO},
-    {"Amber", PROOF_COLOR_AMBER},
-    {"Dark orange", PROOF_COLOR_DARK_ORANGE},
-    {"Green (complete)", PROOF_COLOR_GREEN_COMPLETE},
-    {"Red (conflict)", PROOF_COLOR_RED_CONFLICT},
-};
+#include "proof_step_registry.h"
+#include "lv/lv_str_utils.h"
 
 /** @brief proposition_type_to_string 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_proposition_type_to_string_names[] = {
@@ -55,19 +41,6 @@ static const lvStrToEnumEntry s_proposition_type_to_string_names[] = {
     {"Universal", PROPOSITION_TYPE_UNIVERSAL},
     {"Existential", PROPOSITION_TYPE_EXISTENTIAL},
     {"Bottom", PROPOSITION_TYPE_BOTTOM},
-};
-
-/** @brief proof_step_type_to_string 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_proof_step_type_to_string_names[] = {
-    {"Add Node", PROOF_STEP_ADD_NODE},
-    {"Add Constraint", PROOF_STEP_ADD_CONSTRAINT},
-    {"Rewrite", PROOF_STEP_REWRITE},
-    {"Function Application", PROOF_STEP_FUNCTION_APP},
-    {"Pack Function", PROOF_STEP_PACK_FUNCTION},
-    {"Normalization", PROOF_STEP_NORMALIZATION},
-    {"Unify", PROOF_STEP_UNIFY},
-    {"Ex Falso", PROOF_STEP_EX_FALSO},
-    {"Oracle", PROOF_STEP_ORACLE},
 };
 
 /** @brief unify_result_to_string 名称表（按枚举值升序） */
@@ -84,55 +57,6 @@ static const lvStrToEnumEntry s_unify_result_to_string_names[] = {
 
 /* ============== 辅助函数 ============== */
 
-/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
-static const char *const s_json_escape_table[256] = {
-    ['\b'] = "\\b",
-    ['\t'] = "\\t",
-    ['\n'] = "\\n",
-    ['\f'] = "\\f",
-    ['\r'] = "\\r",
-    ['"'] = "\\\"",
-    ['\\'] = "\\\\",
-};
-
-/** @brief HTML 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
-static const char *const s_html_escape_table[256] = {
-    ['&'] = "&amp;",
-    ['<'] = "&lt;",
-    ['>'] = "&gt;",
-    ['"'] = "&quot;",
-    ['\''] = "&#39;",
-};
-
-/**
- * @brief 将字符串转义为安全的 JSON 字符串字面量
- *
- * 转义双引号、反斜杠、换行符、回车符、制表符等 JSON 特殊字符。
- * 返回线程局部缓冲区，每次调用覆盖前一次结果。
- */
-static const char *json_escape(const char *s) {
-    if (!s)
-        return "";
-    static lv_THREAD_LOCAL char buf[4096];
-    size_t j = 0;
-    for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
-        const char *esc = s_json_escape_table[(unsigned char) s[i]];
-        if (esc) {
-            size_t esc_len = strlen(esc);
-            if (j + esc_len >= sizeof(buf))
-                break;
-            memcpy(buf + j, esc, esc_len);
-            j += esc_len;
-        } else if ((unsigned char) s[i] < 0x20) {
-            j += (size_t) snprintf(buf + j, sizeof(buf) - j, "\\u%04x", (unsigned char) s[i]);
-        } else {
-            buf[j++] = s[i];
-        }
-    }
-    buf[j] = '\0';
-    return buf;
-}
-
 /**
  * @brief 将字符串转义为安全的 HTML 文本
  *
@@ -143,25 +67,12 @@ const char *html_escape(const char *s) {
     if (!s)
         return "";
     static lv_THREAD_LOCAL char buf[4096];
-    size_t j = 0;
-    for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
-        const char *esc = s_html_escape_table[(unsigned char) s[i]];
-        if (esc) {
-            size_t esc_len = strlen(esc);
-            if (j + esc_len >= sizeof(buf))
-                break;
-            memcpy(buf + j, esc, esc_len);
-            j += esc_len;
-        } else {
-            buf[j++] = s[i];
-        }
-    }
-    buf[j] = '\0';
+    lv_str_html_escape(s, strlen(s), buf, sizeof(buf));
     return buf;
 }
 
 const char *proof_color_to_string(ProofColor color) {
-    return lv_enum_to_str(s_proof_color_to_string_names, lv_ARRAY_SIZE(s_proof_color_to_string_names), (int) color, "Unknown");
+    return proof_color_name(color);
 }
 
 const char *proposition_type_to_string(PropositionType type) {
@@ -169,7 +80,9 @@ const char *proposition_type_to_string(PropositionType type) {
 }
 
 const char *proof_step_type_to_string(ProofStepType type) {
-    return lv_enum_to_str(s_proof_step_type_to_string_names, lv_ARRAY_SIZE(s_proof_step_type_to_string_names), (int) type, "Unknown");
+    /* 英文类型名统一取自证明步骤注册表（proof_step_registry） */
+    const ProofStepInfo *info = proof_step_info(type);
+    return info ? info->name_en : "Unknown";
 }
 
 const char *unify_result_to_string(UnifyStatus result) {

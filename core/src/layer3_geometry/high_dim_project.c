@@ -264,6 +264,105 @@ static int high_dim_rotate_4d(const double in[4], const double rot[4][4], double
     return lv_OK;
 }
 
+/* ==================== 4D/高维 -> 3D 投影 ==================== */
+
+/**
+ * @brief 3D 投影上下文：承载各投影实现共享的输入/输出数据
+ *
+ * 透视/正交/立体三种投影实现共用同一签名，通过本结构体交换数据。
+ */
+typedef struct {
+    double px, py, pz, pw;  /**< 输入：按轴选择提取的 3 个坐标与深度轴值 */
+    double camera_distance; /**< 输入：摄像机到原点的距离（透视投影使用） */
+    double factor;          /**< 输出：投影缩放因子（正交恒为 1.0） */
+    double depth;           /**< 输出：深度值（透视/立体为 factor，正交为 pw） */
+    double *coord_3d;       /**< 输出：3D 坐标数组（长度 >= 3） */
+} ProjectTo3dContext;
+
+/** @brief 3D 投影实现签名：成功返回 lv_OK，参数非法返回 lv_ERROR_INVALID_PARAM */
+typedef int (*ProjectTo3dFn)(ProjectTo3dContext *ctx);
+
+static int project_to_3d_perspective(ProjectTo3dContext *ctx) {
+    /*
+     * 透视投影模式
+     *
+     * 核心思想：将深度轴坐标 w 视为"与摄像机的距离"，
+     * 通过透视除法实现远小近大的效果。
+     * 退化处理：dim_count < 4 时 w=0，factor=1，直接取前三维。
+     */
+    if (ctx->camera_distance <= 0.0) {
+        lv_set_error(lv_ERROR_INVALID_PARAM, "4D透视投影失败：camera_distance=%.2f无效，必须大于0",
+                     ctx->camera_distance);
+        return lv_ERROR_INVALID_PARAM;
+    }
+    double denominator = ctx->camera_distance - ctx->pw;
+    if (fabs(denominator) < ctx->camera_distance * 1e-6 + 1e-12) {
+        double min_denom = ctx->camera_distance * 1e-6 + 1e-12;
+        denominator = (denominator >= 0) ? min_denom : -min_denom;
+        lv_set_error(lv_OK,
+                     "4D透视投影：w=%.4f接近摄像机距离d=%.4f，"
+                     "已应用奇点保护（截断因子=%.0fx）",
+                     ctx->pw, ctx->camera_distance, ctx->camera_distance / min_denom);
+    }
+    ctx->factor = ctx->camera_distance / denominator;
+    if (ctx->factor > 1e12) {
+        ctx->factor = 1e12;
+    }
+    if (ctx->factor < -1e12) {
+        ctx->factor = -1e12;
+    }
+    ctx->depth = ctx->factor;
+    ctx->coord_3d[0] = ctx->px * ctx->factor;
+    ctx->coord_3d[1] = ctx->py * ctx->factor;
+    ctx->coord_3d[2] = ctx->pz * ctx->factor;
+    return lv_OK;
+}
+
+static int project_to_3d_orthographic(ProjectTo3dContext *ctx) {
+    /*
+     * 正交投影模式
+     *
+     * 简单丢弃深度轴及以上的所有维度，是"轴对齐切片"。
+     * 没有透视效果，保距性好（保留 x,y,z 的真实比例）。
+     */
+    ctx->factor = 1.0;
+    ctx->depth = ctx->pw;
+    ctx->coord_3d[0] = ctx->px;
+    ctx->coord_3d[1] = ctx->py;
+    ctx->coord_3d[2] = ctx->pz;
+    return lv_OK;
+}
+
+static int project_to_3d_stereographic(ProjectTo3dContext *ctx) {
+    /*
+     * 立体投影模式（stereographic）
+     *
+     * 将 4D 球面 S^3 的点 (x,y,z,w) 从南极点 (0,0,0,1) 投影到
+     * 赤道超平面 w=0：
+     *   x' = x / (1-w), y' = y / (1-w), z' = z / (1-w)
+     * 保角映射，无透视收缩。当 w 接近极点 1 时分母趋于 0，
+     * 使用最小阈值做奇点保护。
+     */
+    double denom = 1.0 - ctx->pw;
+    if (fabs(denom) < 1e-12) {
+        denom = (denom >= 0) ? 1e-12 : -1e-12;
+        lv_set_error(lv_OK, "4D立体投影：w=%.4f接近极点，已应用奇点保护。", ctx->pw);
+    }
+    ctx->factor = 1.0 / denom;
+    ctx->depth = ctx->factor;
+    ctx->coord_3d[0] = ctx->px * ctx->factor;
+    ctx->coord_3d[1] = ctx->py * ctx->factor;
+    ctx->coord_3d[2] = ctx->pz * ctx->factor;
+    return lv_OK;
+}
+
+/** @brief 投影模式 -> 投影实现函数 查找表（0=透视, 1=正交, 2=立体投影） */
+static const ProjectTo3dFn kProjectTo3dHandlers[] = {
+    [0] = project_to_3d_perspective,
+    [1] = project_to_3d_orthographic,
+    [2] = project_to_3d_stereographic,
+};
+
 int high_dim_project_to_3d_full(const double *coord_nd, int dim_count, double camera_distance, int projection_mode,
                                 const int *axis_keep, const double *rotation_4d, int fold_strategy,
                                 double *coord_3d, double *depth_out, double *proj_matrix, int *clip_result) {
@@ -370,80 +469,28 @@ int high_dim_project_to_3d_full(const double *coord_nd, int dim_count, double ca
     }
     double pw = (dim_count > w_axis) ? p4[w_axis] : 0.0;
 
-    double factor = 1.0;
-    double depth = 1.0;
-
-    if (projection_mode == 0) {
-        /*
-         * 透视投影模式
-         *
-         * 核心思想：将深度轴坐标 w 视为"与摄像机的距离"，
-         * 通过透视除法实现远小近大的效果。
-         * 退化处理：dim_count < 4 时 w=0，factor=1，直接取前三维。
-         */
-        if (camera_distance <= 0.0) {
-            lv_set_error(lv_ERROR_INVALID_PARAM, "4D透视投影失败：camera_distance=%.2f无效，必须大于0",
-                         camera_distance);
-            return lv_ERROR_INVALID_PARAM;
-        }
-        double denominator = camera_distance - pw;
-        if (fabs(denominator) < camera_distance * 1e-6 + 1e-12) {
-            double min_denom = camera_distance * 1e-6 + 1e-12;
-            denominator = (denominator >= 0) ? min_denom : -min_denom;
-            lv_set_error(lv_OK,
-                         "4D透视投影：w=%.4f接近摄像机距离d=%.4f，"
-                         "已应用奇点保护（截断因子=%.0fx）",
-                         pw, camera_distance, camera_distance / min_denom);
-        }
-        factor = camera_distance / denominator;
-        if (factor > 1e12) {
-            factor = 1e12;
-        }
-        if (factor < -1e12) {
-            factor = -1e12;
-        }
-        depth = factor;
-        coord_3d[0] = px * factor;
-        coord_3d[1] = py * factor;
-        coord_3d[2] = pz * factor;
-    } else if (projection_mode == 1) {
-        /*
-         * 正交投影模式
-         *
-         * 简单丢弃深度轴及以上的所有维度，是"轴对齐切片"。
-         * 没有透视效果，保距性好（保留 x,y,z 的真实比例）。
-         */
-        factor = 1.0;
-        depth = pw;
-        coord_3d[0] = px;
-        coord_3d[1] = py;
-        coord_3d[2] = pz;
-    } else if (projection_mode == 2) {
-        /*
-         * 立体投影模式（stereographic）
-         *
-         * 将 4D 球面 S^3 的点 (x,y,z,w) 从南极点 (0,0,0,1) 投影到
-         * 赤道超平面 w=0：
-         *   x' = x / (1-w), y' = y / (1-w), z' = z / (1-w)
-         * 保角映射，无透视收缩。当 w 接近极点 1 时分母趋于 0，
-         * 使用最小阈值做奇点保护。
-         */
-        double denom = 1.0 - pw;
-        if (fabs(denom) < 1e-12) {
-            denom = (denom >= 0) ? 1e-12 : -1e-12;
-            lv_set_error(lv_OK, "4D立体投影：w=%.4f接近极点，已应用奇点保护。", pw);
-        }
-        factor = 1.0 / denom;
-        depth = factor;
-        coord_3d[0] = px * factor;
-        coord_3d[1] = py * factor;
-        coord_3d[2] = pz * factor;
-    } else {
+    /* 按投影模式分发到对应投影实现函数（查找表替代 switch 分支链） */
+    ProjectTo3dContext ctx = {
+        .px = px,
+        .py = py,
+        .pz = pz,
+        .pw = pw,
+        .camera_distance = camera_distance,
+        .factor = 1.0,
+        .depth = 1.0,
+        .coord_3d = coord_3d,
+    };
+    if ((unsigned) projection_mode >= lv_ARRAY_SIZE(kProjectTo3dHandlers) || !kProjectTo3dHandlers[projection_mode]) {
         lv_set_error(lv_ERROR_INVALID_PARAM,
                      "3D投影失败：不支持的projection_mode=%d（有效值：0=透视, 1=正交, 2=立体投影）",
                      projection_mode);
         return lv_ERROR_INVALID_PARAM;
     }
+    int proj_rc = kProjectTo3dHandlers[projection_mode](&ctx);
+    if (proj_rc != lv_OK)
+        return proj_rc;
+    double factor = ctx.factor;
+    double depth = ctx.depth;
 
     /* 5D及以上维度的加权折叠 */
     if (fold_strategy == 1 && dim_count > 4) {

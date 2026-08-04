@@ -1168,6 +1168,29 @@ void lv_event_trace_clear(void) {
     lv_mutex_unlock(&g_event_system.mutex);
 }
 
+/** @brief 事件类型 -> Chrome trace 元信息 查找表（指定初始化器，编译器校验 lvEventType 对齐）
+ *  ph  - Chrome trace phase 字符（B=开始, E=结束；未列入的事件保持默认 X）
+ *  cat - 事件分类（proof 事件归 "proof"，其余归 "other"） */
+typedef struct {
+    const char *ph;  /**< phase 字符（NULL 表示无映射，使用默认 X/other） */
+    const char *cat; /**< 事件分类 */
+} lvEventTraceMeta;
+
+/** @brief 事件类型 -> trace 元信息 查找表（指定初始化器） */
+static const lvEventTraceMeta kEventTraceMeta[] = {
+    [EVENT_TYPE_PROOF_START] = {"B", "proof"},
+    [EVENT_TYPE_PROOF_END] = {"E", "proof"},
+    [EVENT_TYPE_SOLVE_START] = {"B", "other"},
+    [EVENT_TYPE_SOLVE_END] = {"E", "other"},
+};
+
+/* 编译期断言：4 个 trace 相关事件类型均在表内，防止枚举调整后漏配 */
+_Static_assert(EVENT_TYPE_PROOF_START < (int) lv_ARRAY_SIZE(kEventTraceMeta) &&
+                   EVENT_TYPE_PROOF_END < (int) lv_ARRAY_SIZE(kEventTraceMeta) &&
+                   EVENT_TYPE_SOLVE_START < (int) lv_ARRAY_SIZE(kEventTraceMeta) &&
+                   EVENT_TYPE_SOLVE_END < (int) lv_ARRAY_SIZE(kEventTraceMeta),
+               "kEventTraceMeta 表未覆盖全部 trace 相关事件类型");
+
 bool lv_event_trace_export_chrome(const char *path) {
     if (!g_event_system.initialized || !path) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_event_trace_export_chrome: not initialized or NULL path");
@@ -1188,21 +1211,11 @@ bool lv_event_trace_export_chrome(const char *path) {
         lvEventRecord *event = &g_event_system.events[i];
 
         const char *type_str = "X";
-        switch (event->type) {
-            case EVENT_TYPE_PROOF_START:
-            case EVENT_TYPE_SOLVE_START:
-                type_str = "B";
-                break;
-            case EVENT_TYPE_PROOF_END:
-            case EVENT_TYPE_SOLVE_END:
-                type_str = "E";
-                break;
-            default:
-                type_str = "X";
-                break;
+        const char *cat = "other";
+        if ((unsigned) event->type < lv_ARRAY_SIZE(kEventTraceMeta) && kEventTraceMeta[event->type].ph != NULL) {
+            type_str = kEventTraceMeta[event->type].ph;
+            cat = kEventTraceMeta[event->type].cat;
         }
-
-        const char *cat = (event->type == EVENT_TYPE_PROOF_START || event->type == EVENT_TYPE_PROOF_END) ? "proof" : "other";
 
         lv_json_buf_append_fmt(&buf,
                      "  {\"name\":\"%s\",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}%s\n",

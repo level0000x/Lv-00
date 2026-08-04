@@ -894,6 +894,16 @@ void meta_repr_get_stats(MetaReprEncoder *encoder, int *out_node_count, int *out
  * @param filepath      输出文件路径
  * @return true 成功，false 失败（参数无效或文件写入失败）
  */
+/** @brief 约束类型 -> 名称 查找表（指定初始化器，编译器校验 ConstraintType 对齐）
+ *  注：ANGLE 无历史标签，表项为 NULL，保持原 "?" 兜底语义。 */
+static const char *const kConstraintTypeLabels[] = {
+    [INCIDENCE] = "INCIDENCE",
+    [BETWEENNESS] = "BETWEENNESS",
+    [INTERSECTION] = "INTERSECTION",
+    [CONTAINMENT] = "CONTAINMENT",
+    [CONNECTION] = "CONNECTION",
+};
+
 bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *filepath) {
     if (!encoded_graph || !filepath)
         return false;
@@ -939,11 +949,9 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
         if (!con || !con->is_active)
             continue;
 
-        static const char *con_labels[] = {"INCIDENCE", "BETWEENNESS", "INTERSECTION", "CONTAINMENT", "CONNECTION"};
-
         const char *label = "?";
-        if (con->type >= 0 && con->type <= CONNECTION) {
-            label = con_labels[(int) con->type];
+        if ((unsigned) con->type < lv_ARRAY_SIZE(kConstraintTypeLabels) && kConstraintTypeLabels[con->type] != NULL) {
+            label = kConstraintTypeLabels[con->type];
         }
 
         int n = con->participant_count;

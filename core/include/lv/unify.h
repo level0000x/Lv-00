@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：合一检查 (unify)
  * 功能概述：提供构造图与命题图的匹配验证功能。包含基础版、坐标增强版、
  *          哈希预过滤版三种合一检查，以及详细失败报告、命题等价声明
@@ -74,6 +74,17 @@ typedef enum {
     COORD_VALUE_MISMATCH,                  /* 坐标值不匹配 */
     COORD_TYPE_MISMATCH                    /* 坐标类型不匹配 */
 } MismatchReason;
+
+/**
+ * @brief 获取 UnifyStatus 的人类可读中文原因
+ *
+ * 统一维护合一失败状态的中文文案（原 proof_proposition.c /
+ * engine_function.c 私有表收敛于此），同一状态全项目仅此一种说法。
+ *
+ * @param status 合一状态
+ * @return 静态字符串（如 "约束类型不匹配"），越界返回 "未知错误"
+ */
+lv_PUBLIC_API const char *unify_status_reason_zh(UnifyStatus status);
 
 /**
  * @brief 将构造图与命题图进行合一检查（基础版）

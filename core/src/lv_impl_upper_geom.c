@@ -112,18 +112,41 @@ int64_t geom_evol_destroy(lvEngine *ctx, int64_t evol_id) {
 
 /* ---- atp_backend: 自动定理证明后端 ---- */
 
+/** @brief 求解器名称关键词 → 后端类型 映射表条目 */
+typedef struct {
+    const char *keyword;    /**< 名称匹配关键词 */
+    ATPBackendType backend; /**< 对应后端类型 */
+} AtpSolverKeywordEntry;
+
+/** @brief 求解器名称关键词表（表序即匹配优先级，等价于原 strstr 链） */
+static const AtpSolverKeywordEntry kSolverKeywordMap[] = {
+    {"vampire",  ATP_BACKEND_VAMPIRE},
+    {"Vampire",  ATP_BACKEND_VAMPIRE},
+    {"eprover",  ATP_BACKEND_EPROVER},
+    {"E Prover", ATP_BACKEND_EPROVER},
+    {"iprover",  ATP_BACKEND_IPROVER},
+    {"iProver",  ATP_BACKEND_IPROVER},
+};
+
 /** 从名称解析 ATP 后端类型 */
 static ATPBackendType atp_parse_solver_name(const char *solver_name) {
     if (!solver_name)
-        return ATP_BACKEND_VAMPIRE;
-    if (strstr(solver_name, "vampire") || strstr(solver_name, "Vampire"))
-        return ATP_BACKEND_VAMPIRE;
-    if (strstr(solver_name, "eprover") || strstr(solver_name, "E Prover"))
-        return ATP_BACKEND_EPROVER;
-    if (strstr(solver_name, "iprover") || strstr(solver_name, "iProver"))
-        return ATP_BACKEND_IPROVER;
+        return ATP_BACKEND_VAMPIRE; /* 默认 */
+    /* 关键词表循环匹配；未匹配回退 VAMPIRE（对应原默认分支） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kSolverKeywordMap); i++) {
+        if (strstr(solver_name, kSolverKeywordMap[i].keyword))
+            return kSolverKeywordMap[i].backend;
+    }
     return ATP_BACKEND_VAMPIRE; /* 默认 */
 }
+
+/** @brief ATP 求解结果 → API 返回值 映射表（按枚举索引；越界值回退 -2，对应原 default 分支） */
+static const int kAtpResultReturnMap[] = {
+    [ATP_RESULT_SAT]     = -1, /* 反例 */
+    [ATP_RESULT_UNSAT]   = 1,  /* 已证明 */
+    [ATP_RESULT_UNKNOWN] = -2, /* 超时 */
+    [ATP_RESULT_ERROR]   = -2, /* 错误 */
+};
 
 /** 创建ATP后端,返回后端句柄ID */
 int64_t atp_backend_create(lvEngine *ctx, const char *solver_name) {
@@ -198,16 +221,11 @@ int64_t atp_backend_result(lvEngine *ctx, int64_t task_id) {
         if (s_upper_state.atp_task_table[i].task_id == task_id) {
             if (!s_upper_state.atp_task_table[i].completed)
                 return 0; /* 待处理 */
-            switch (s_upper_state.atp_task_table[i].result_info.result) {
-                case ATP_RESULT_UNSAT:
-                    return 1; /* 已证明 */
-                case ATP_RESULT_SAT:
-                    return -1; /* 反例 */
-                case ATP_RESULT_UNKNOWN:
-                case ATP_RESULT_ERROR:
-                default:
-                    return -2; /* 超时/错误 */
-            }
+            /* 结果映射表查询（越界值回退 -2，对应原 default 分支） */
+            unsigned r = (unsigned) s_upper_state.atp_task_table[i].result_info.result;
+            if (r < (unsigned) lv_ARRAY_SIZE(kAtpResultReturnMap))
+                return kAtpResultReturnMap[r];
+            return -2; /* 超时/错误 */
         }
     }
     return -2; /* 未找到任务 */

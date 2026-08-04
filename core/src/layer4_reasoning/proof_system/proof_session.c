@@ -22,6 +22,7 @@
 
 #include "lv.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
 #include "proof_rule_engine.h"
 
@@ -37,46 +38,23 @@ static void generate_session_id(char *buf, size_t buf_size) {
     snprintf(buf, buf_size, "sess_%llx", (unsigned long long) now);
 }
 
-/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
-static const char *const s_json_escape_table[256] = {
-    ['"'] = "\\\"",
-    ['\\'] = "\\\\",
-    ['\n'] = "\\n",
-    ['\r'] = "\\r",
-    ['\t'] = "\\t",
-};
-
 /**
  * @brief Escape a string for JSON output
  *
  * Writes the escaped version of src into dst. Ensures dst is null-terminated.
+ * 转义逻辑统一走公共 API lv_str_json_escape（snprintf 截断语义）。
  *
  * @param dst      Destination buffer
  * @param dst_size Size of destination buffer
  * @param src      Source string to escape
  */
 static void json_escape_string(char *dst, size_t dst_size, const char *src) {
-    size_t si = 0, di = 0;
     if (!src || dst_size == 0) {
         if (dst_size > 0)
             dst[0] = '\0';
         return;
     }
-
-    while (src[si] != '\0' && di + 2 < dst_size) {
-        const char *esc = s_json_escape_table[(unsigned char) src[si]];
-        if (esc) {
-            size_t esc_len = strlen(esc);
-            if (di + esc_len < dst_size) {
-                memcpy(dst + di, esc, esc_len);
-                di += esc_len;
-            }
-        } else {
-            dst[di++] = src[si];
-        }
-        si++;
-    }
-    dst[di] = '\0';
+    lv_str_json_escape(src, strlen(src), dst, dst_size);
 }
 
 /* ============== Session API Implementation ============== */

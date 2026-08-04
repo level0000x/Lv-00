@@ -63,15 +63,19 @@ typedef struct lvBlockConnection {
     int to_port_id;    /**< 目标端口ID */
 } lvBlockConnection;
 
-/** @brief 块类型颜色映射表 */
-static const char *block_type_colors[] = {
-    "#4CAF50", /* INPUT - 绿色 */
-    "#2196F3", /* OUTPUT - 蓝色 */
-    "#FF9800", /* PROCESS - 橙色 */
-    "#9C27B0", /* FUNCTION - 紫色 */
-    "#F44336", /* CONDITION - 红色 */
-    "#00BCD4"  /* LOOP - 青色 */
+/** @brief 块类型颜色映射表（指定初始化器，编译器校验 lvBlockType 对齐） */
+static const char *const block_type_colors[] = {
+    [lv_BLOCK_TYPE_INPUT] = "#4CAF50",     /* INPUT - 绿色 */
+    [lv_BLOCK_TYPE_OUTPUT] = "#2196F3",    /* OUTPUT - 蓝色 */
+    [lv_BLOCK_TYPE_PROCESS] = "#FF9800",   /* PROCESS - 橙色 */
+    [lv_BLOCK_TYPE_FUNCTION] = "#9C27B0",  /* FUNCTION - 紫色 */
+    [lv_BLOCK_TYPE_CONDITION] = "#F44336", /* CONDITION - 红色 */
+    [lv_BLOCK_TYPE_LOOP] = "#00BCD4"       /* LOOP - 青色 */
 };
+
+/* 编译期断言：颜色表大小与 lvBlockType 枚举一致，防止枚举插入后表错位 */
+_Static_assert(lv_BLOCK_TYPE_LOOP + 1 == (int) lv_ARRAY_SIZE(block_type_colors),
+               "block_type_colors 表大小与 lvBlockType 枚举不一致（新增块类型需同步扩展颜色表）");
 
 /** @brief 块画布内部结构 */
 typedef struct lvBlockCanvasView {
@@ -460,7 +464,9 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
     /* 绘制块 */
     for (int i = 0; i < canvas->blocks.count; i++) {
         lvVisualBlock *b = (lvVisualBlock *) lv_darray_get(&canvas->blocks, i);
-        const char *color = (b->type >= 0 && b->type <= lv_BLOCK_TYPE_LOOP) ? block_type_colors[b->type] : "#999999";
+        const char *color = ((unsigned) b->type < lv_ARRAY_SIZE(block_type_colors) && block_type_colors[b->type] != NULL)
+                                ? block_type_colors[b->type]
+                                : "#999999";
 
         /* 圆角矩形 */
         double rx = 8.0;

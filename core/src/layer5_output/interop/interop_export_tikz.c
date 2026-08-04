@@ -23,17 +23,25 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 
-/* ---- 约束类型 → TikZ 样式查找表 ---- */
-typedef struct {
-    const char *tikz_style;  /**< TikZ 绘制样式 */
-} ConstraintTikzEntry;
-
-static const ConstraintTikzEntry constraint_tikz_map[] = {
-    [INCIDENCE]   = { "constraint" },
-    [CONTAINMENT] = { "constraint, teal, densely dotted" },
-    [ANGLE]       = { "constraint, purple, densely dashed" },
-    [CONNECTION]  = { "connection" },
-};
+/* ---- 约束类型 → TikZ 样式窄适配（颜色/线型语义与公共核心表 kConstraintVisuals 一致） ---- */
+/**
+ * @brief 获取约束类型对应的 TikZ 绘制样式字符串
+ * @note 颜色与线型语义与公共核心表 kConstraintVisuals 保持一致：
+ *       INCIDENCE 灰虚线 / CONTAINMENT teal 点线 / ANGLE purple 虚线 /
+ *       CONNECTION orange 实线箭头。TikZ 使用预定义颜色名（teal/purple/orange），
+ *       无法从核心表 RGB 直接反推，故按类型返回与历史一致的 style 串。
+ * @param vis 公共核心表条目（非 NULL）
+ * @return TikZ 样式字符串
+ */
+static const char *tikz_constraint_style(const ConstraintVisual *vis) {
+    switch (vis->type) {
+        case INCIDENCE:   return "constraint";
+        case CONTAINMENT: return "constraint, teal, densely dotted";
+        case ANGLE:       return "constraint, purple, densely dashed";
+        case CONNECTION:  return "connection";
+        default:          return "constraint";
+    }
+}
 
 /* ---- 图例标志索引 ---- */
 enum {
@@ -348,15 +356,19 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
             }
 
             case INTERSECTION:
+                /* 与 SVG 同构的 2-case 特例；TikZ 语义本就简单（连线 + 圆点标记），
+                 * 无需线段求交，故不调用公共几何函数 segment_intersection */
                 TIKZ_FRAG_PRINTF("    \\draw[constraint, purple] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
                 TIKZ_FRAG_PRINTF("    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n", x0, y0);
                 break;
 
             default: {
-                /* 使用查找表 */
-                const ConstraintTikzEntry *entry = &constraint_tikz_map[c->type];
+                /* 使用公共核心表 + 本语法窄适配 */
+                const ConstraintVisual *vis = constraint_visual_find(c->type);
+                if (!vis)
+                    vis = &kConstraintVisuals[0]; /* 正常路径不会发生 */
                 TIKZ_FRAG_PRINTF("    \\draw[%s] (%.2f, %.2f) -- (%.2f, %.2f);\n",
-                                 entry->tikz_style, x0, y0, x1, y1);
+                                 tikz_constraint_style(vis), x0, y0, x1, y1);
                 break;
             }
         }

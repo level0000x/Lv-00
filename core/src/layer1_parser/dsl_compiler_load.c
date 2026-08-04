@@ -305,24 +305,18 @@ static bool handle_center_ops(ConstraintGraph *graph, const DslIROperation *op,
 static bool handle_constraint_ops(ConstraintGraph *graph, const DslIROperation *op,
                                   int **id_map, int *id_map_count, int *id_map_cap) {
     (void)id_map_cap;
-    ConstraintType ctype = CONNECTION;
-    switch (op->op) {
-        case IR_CONSTRAIN_PARALLEL:
-            ctype = CONNECTION;
-            break;
-        case IR_CONSTRAIN_PERPENDICULAR:
-            ctype = INCIDENCE;
-            break;
-        case IR_CONSTRAIN_COLLINEAR:
-            ctype = BETWEENNESS;
-            break;
-        case IR_CONSTRAIN_CONCYCLIC:
-            ctype = CONTAINMENT;
-            break;
-        default:
-            ctype = INCIDENCE;
-            break;
-    }
+    /* IR 约束操作 → 约束类型 映射表（designated initializer；
+     * 未列出的操作（如 IR_CONSTRAIN_EQUAL/IR_ADD_CONSTRAINT）与越界值回退 INCIDENCE，
+     * 对应原 switch 的 default 分支） */
+    static const ConstraintType kConstraintOpMap[] = {
+        [IR_CONSTRAIN_PARALLEL]      = CONNECTION,
+        [IR_CONSTRAIN_PERPENDICULAR] = INCIDENCE,
+        [IR_CONSTRAIN_COLLINEAR]     = BETWEENNESS,
+        [IR_CONSTRAIN_CONCYCLIC]     = CONTAINMENT,
+    };
+    ConstraintType ctype = INCIDENCE; /* 默认：INCIDENCE（原 default 分支） */
+    if ((unsigned)op->op < (unsigned)lv_ARRAY_SIZE(kConstraintOpMap))
+        ctype = kConstraintOpMap[op->op];
     int parts[8];
     int pc = 0;
     for (int j = 0; j < op->operand_count && pc < 8; j++) {

@@ -168,6 +168,49 @@ void lv_str_escape_json(lvStrBuf *sb, const char *str, size_t len);
  */
 void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len);
 
+/* ===== JSON/HTML 转义（统一公共 API，snprintf 语义） ===== */
+
+/**
+ * @brief 对字符串执行 JSON 转义（snprintf 语义）
+ *
+ * 转义 "、\\、\n、\r、\t、\b、\f 以及其它控制字符（编码为 \uXXXX）。
+ *
+ * @param src     源字符串（可为 NULL，按空串处理）
+ * @param src_len 源字符串长度（字节）
+ * @param dst     目标缓冲区（可为 NULL，此时仅计算所需长度）
+ * @param dst_cap 目标缓冲区容量（字节）
+ * @return 转义后所需长度（不含终止符 NUL）；若 dst 非空且 dst_cap>0，
+ *         则最多写入 dst_cap-1 字节并以 NUL 结尾（截断安全）
+ */
+size_t lv_str_json_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+
+/**
+ * @brief 对字符串执行 JSON 反转义（snprintf 语义）
+ *
+ * 解码 "、\\、\/、\b、\f、\n、\r、\t 及 \uXXXX（编码为 UTF-8）。
+ * 未声明的转义保留转义字符本身（如 \z → z）。
+ *
+ * @param src     源字符串（可为 NULL，按空串处理）
+ * @param src_len 源字符串长度（字节）
+ * @param dst     目标缓冲区（可为 NULL，此时仅计算所需长度）
+ * @param dst_cap 目标缓冲区容量（字节）
+ * @return 解码后所需长度（不含终止符 NUL）；截断语义同 lv_str_json_escape
+ */
+size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+
+/**
+ * @brief 对字符串执行 HTML 实体转义（snprintf 语义）
+ *
+ * 转义 & → &amp;、< → &lt;、> → &gt;、" → &quot;、' → &#39;。
+ *
+ * @param src     源字符串（可为 NULL，按空串处理）
+ * @param src_len 源字符串长度（字节）
+ * @param dst     目标缓冲区（可为 NULL，此时仅计算所需长度）
+ * @param dst_cap 目标缓冲区容量（字节）
+ * @return 转义后所需长度（不含终止符 NUL）；截断语义同 lv_str_json_escape
+ */
+size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+
 /* ===== 报告表格辅助 ===== */
 
 /**

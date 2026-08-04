@@ -21,6 +21,15 @@ void eval_csg_primitive(const CSGNode *node, CSGTriList *out) {
     csg_primitive_to_tris(node, out);
 }
 
+/* ── CSG 布尔运算：kind → BSP 求值函数 查找表（按 CSGNodeKind 值索引，同 s_eval_funcs 风格） ── */
+typedef void (*CSGBoolOpFunc)(const CSGTriList *list_a, const CSGTriList *list_b, CSGTriList *out);
+
+static CSGBoolOpFunc s_bool_op_funcs[] = {
+    [CSG_NODE_UNION] = csg_bsp_union_tri,
+    [CSG_NODE_DIFFERENCE] = csg_bsp_difference_tri,
+    [CSG_NODE_INTERSECTION] = csg_bsp_intersection_tri,
+};
+static const int s_bool_op_count = (int)(sizeof(s_bool_op_funcs) / sizeof(s_bool_op_funcs[0]));
 void eval_csg_bool(const CSGNode *node, CSGTriList *out) {
     if (node->child_count < 2) {
         if (node->child_count == 1) {
@@ -37,18 +46,9 @@ void eval_csg_bool(const CSGNode *node, CSGTriList *out) {
     csg_trilist_init(&tris_b, CSG_MAX_TRI_BUFFER);
     csg_evaluate(node->children[1], &tris_b);
 
-    switch (node->kind) {
-        case CSG_NODE_UNION:
-            csg_bsp_union_tri(&tris_a, &tris_b, out);
-            break;
-        case CSG_NODE_DIFFERENCE:
-            csg_bsp_difference_tri(&tris_a, &tris_b, out);
-            break;
-        case CSG_NODE_INTERSECTION:
-            csg_bsp_intersection_tri(&tris_a, &tris_b, out);
-            break;
-        default:
-            break;
+    /* 布尔运算 kind → BSP 求值函数，统一走查找表 */
+    if (node->kind >= 0 && node->kind < s_bool_op_count && s_bool_op_funcs[node->kind]) {
+        s_bool_op_funcs[node->kind](&tris_a, &tris_b, out);
     }
 
     csg_trilist_free(&tris_a);

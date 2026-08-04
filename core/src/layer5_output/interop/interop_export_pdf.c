@@ -26,23 +26,27 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 
-/* ---- 约束类型 → PDF 图形状态查找表 ---- */
+/* ---- 约束类型 → PDF 图形状态窄适配（颜色/线宽取自公共核心表 kConstraintVisuals） ---- */
 typedef struct {
-    const char *color_rg;      /**< 颜色设置 (e.g. "0.42 0.45 0.50 RG") */
-    const char *dash_pattern;  /**< dash 模式 (可为 NULL) */
-    double draw_width;         /**< 绘制线宽 */
-    bool reset_dash;           /**< 是否恢复实线 */
-    bool reset_width;          /**< 是否恢复默认线宽 */
-} ConstraintPdfEntry;
+    const char *dash_pattern; /**< dash 模式（可为 NULL） */
+    bool reset_dash;          /**< 是否恢复实线 */
+    bool reset_width;         /**< 是否恢复默认线宽 */
+} ConstraintPdfSyntax;
 
-static const ConstraintPdfEntry constraint_pdf_map[] = {
-    [INCIDENCE]    = { "0.42 0.45 0.50 RG", "[4.0 3.0] 0 d", 1.0, true,  true  },
-    [CONNECTION]   = { "0.96 0.62 0.04 RG", NULL,             1.5, false, false },
-    [BETWEENNESS]  = { "0.39 0.40 0.95 RG", "[2.0 2.0] 0 d", 1.0, true,  true  },
-    [INTERSECTION] = { "0.66 0.33 0.97 RG", NULL,             1.0, false, true  },
-    [CONTAINMENT]  = { "0.08 0.72 0.65 RG", "[6.0 3.0 1.0 3.0] 0 d", 1.0, true, true  },
-    [ANGLE]        = { "0.66 0.33 0.97 RG", "[4.0 2.0] 0 d", 1.0, true,  true  },
+static const ConstraintPdfSyntax constraint_pdf_syntax[] = {
+    [INCIDENCE]    = { "[4.0 3.0] 0 d", true,  true  },
+    [CONNECTION]   = { NULL,             false, false },
+    [BETWEENNESS]  = { "[2.0 2.0] 0 d",  true,  true  },
+    [INTERSECTION] = { NULL,             false, true  },
+    [CONTAINMENT]  = { "[6.0 3.0 1.0 3.0] 0 d", true, true },
+    [ANGLE]        = { "[4.0 2.0] 0 d",  true,  true  },
 };
+
+/** @brief 从公共核心表 rgb 生成 PDF 颜色三元组（如 "0.42 0.45 0.50"） */
+static void constraint_rgb_to_pdf_rg(const ConstraintVisual *vis, char *rg, size_t rg_size) {
+    snprintf(rg, rg_size, "%.2f %.2f %.2f",
+             vis->rgb[0] / 255.0, vis->rgb[1] / 255.0, vis->rgb[2] / 255.0);
+}
 
 /**
  * @brief 将约束图导出为 PDF 文档（最小化纯C实现，无外部库依赖）
@@ -136,18 +140,12 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         /*
          * 区域渲染：使用 f (fill) 填充 + S (stroke) 描边。
          * 先设置填充颜色（半透明），构建路径，然后 B (fill+stroke)。
+         * 颜色查公共信任颜色全字段表（GREEN 绿 / AMBER 橙（已修复） / 其余灰）。
          */
-        TrustColor trust = node->trust;
-        if (trust == TRUST_GREEN) {
-            BUF_APPEND("0.13 0.76 0.29 rg\n"); /* 填充色：绿色 */
-            BUF_APPEND("0.13 0.76 0.29 RG\n"); /* 描边色：绿色 */
-        } else if (trust == TRUST_AMBER) {
-            BUF_APPEND("0.94 0.27 0.27 rg\n"); /* 填充色：红色 */
-            BUF_APPEND("0.94 0.27 0.27 RG\n");
-        } else {
-            BUF_APPEND("0.61 0.64 0.69 rg\n"); /* 填充色：灰色 */
-            BUF_APPEND("0.61 0.64 0.69 RG\n");
-        }
+        const TrustColorEntry *tce = interop_trust_color_find(node->trust);
+        const char *pdf_rg = tce ? tce->pdf_rgba : "0.61 0.64 0.69";
+        BUF_APPEND("%s rg\n", pdf_rg); /* 填充色 */
+        BUF_APPEND("%s RG\n", pdf_rg); /* 描边色 */
 
         int first = 1;
         for (int s = 0; s < node->data.region.segment_count; s++) {
@@ -180,13 +178,16 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
         double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
 
-        TrustColor trust = node->trust;
-        if (trust == TRUST_GREEN)
-            BUF_APPEND("0.15 0.50 0.92 RG\n"); /* 蓝色：线段 */
-        else if (trust == TRUST_AMBER)
-            BUF_APPEND("0.94 0.27 0.27 RG\n"); /* 红色：不可信 */
-        else
-            BUF_APPEND("0.61 0.64 0.69 RG\n"); /* 灰色：中间状态 */
+        /* 线段颜色：GREEN 保持历史蓝色（与 SVG 的绿色存在历史漂移，此处维持原输出），
+         * 其余颜色查公共信任颜色全字段表（AMBER 已修复为橙色，其余维持灰色）。 */
+        const char *pdf_rg;
+        if (node->trust == TRUST_GREEN) {
+            pdf_rg = "0.15 0.50 0.92"; /* 蓝色：线段（历史行为） */
+        } else {
+            const TrustColorEntry *tce = interop_trust_color_find(node->trust);
+            pdf_rg = tce ? tce->pdf_rgba : "0.61 0.64 0.69";
+        }
+        BUF_APPEND("%s RG\n", pdf_rg);
 
         BUF_APPEND("%.2f w\n", 2.0);
 
@@ -201,19 +202,9 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
                 double px = symbolic_coord_to_double(node->symbolic_coords[(p - 1) * 2]);
                 double py = symbolic_coord_to_double(node->symbolic_coords[(p - 1) * 2 + 1]);
 
-                /* 计算两个控制点 */
-                double dx = sx - px, dy = sy - py;
-                double dist = sqrt(dx * dx + dy * dy);
-                double offset = 0.15 * dist;
-                if (offset < 0.01)
-                    offset = 5.0;
-                double nx = -dy / (dist + 0.001);
-                double ny = dx / (dist + 0.001);
-
-                double cp1x = px + 0.3 * dx + nx * offset;
-                double cp1y = py + 0.3 * dy + ny * offset;
-                double cp2x = sx - 0.3 * dx + nx * offset;
-                double cp2y = sy - 0.3 * dy + ny * offset;
+                /* 计算两个控制点（公共几何函数，与 SVG 共用） */
+                double cp1x, cp1y, cp2x, cp2y;
+                compute_bezier_control_points(px, py, sx, sy, &cp1x, &cp1y, &cp2x, &cp2y);
 
                 /* PDF c 操作符: x1 y1 x2 y2 x3 y3 c */
                 BUF_APPEND("%.2f %.2f %.2f %.2f %.2f %.2f c\n", GX(cp1x), GY(cp1y), GX(cp2x), GY(cp2y), GX(sx), GY(sy));
@@ -239,13 +230,9 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         double px = symbolic_coord_to_double(node->symbolic_coords[0]);
         double py = symbolic_coord_to_double(node->symbolic_coords[1]);
 
-        TrustColor trust = node->trust;
-        if (trust == TRUST_GREEN)
-            BUF_APPEND("0.13 0.76 0.29 RG\n"); /* 绿色：完全可信 */
-        else if (trust == TRUST_AMBER)
-            BUF_APPEND("0.94 0.27 0.27 RG\n"); /* 红色：不可信 */
-        else
-            BUF_APPEND("0.61 0.64 0.69 RG\n"); /* 灰色：中间状态 */
+        /* 点颜色：查公共信任颜色全字段表（GREEN 绿 / AMBER 橙（已修复） / 其余灰） */
+        const TrustColorEntry *ptce = interop_trust_color_find(node->trust);
+        BUF_APPEND("%s RG\n", ptce ? ptce->pdf_rgba : "0.61 0.64 0.69");
 
         /*
          * 点渲染：使用填充圆（filled circle）。
@@ -273,13 +260,9 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         double by = symbolic_coord_to_double(node->symbolic_coords[1]);
         double bw = 120.0, bh = 60.0;
 
-        TrustColor trust = node->trust;
-        if (trust == TRUST_GREEN)
-            BUF_APPEND("0.13 0.76 0.29 RG\n"); /* 绿色：完全可信 */
-        else if (trust == TRUST_AMBER)
-            BUF_APPEND("0.94 0.27 0.27 RG\n"); /* 红色：不可信 */
-        else
-            BUF_APPEND("0.61 0.64 0.69 RG\n"); /* 灰色：中间状态 */
+        /* 函数块颜色：查公共信任颜色全字段表（GREEN 绿 / AMBER 橙（已修复） / 其余灰） */
+        const TrustColorEntry *btce = interop_trust_color_find(node->trust);
+        BUF_APPEND("%s RG\n", btce ? btce->pdf_rgba : "0.61 0.64 0.69");
 
         BUF_APPEND("%.2f w\n", 2.0);
         BUF_APPEND("%.2f %.2f %.2f %.2f re B\n", GX(bx) - bw / 2.0, GY(by) - bh / 2.0, bw, bh);
@@ -311,17 +294,21 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
             case INTERSECTION:
             case CONTAINMENT:
             case ANGLE: {
-                const ConstraintPdfEntry *entry = &constraint_pdf_map[c->type];
-                BUF_APPEND("%s\n", entry->color_rg);
-                if (entry->dash_pattern)
-                    BUF_APPEND("%s\n", entry->dash_pattern);
-                BUF_APPEND("%.2f w\n", entry->draw_width);
+                /* 公共核心表（颜色/线宽）+ 本语法窄适配（dash/恢复标志） */
+                const ConstraintVisual *vis = constraint_visual_find(c->type);
+                const ConstraintPdfSyntax *syn = &constraint_pdf_syntax[c->type];
+                char rg[16];
+                constraint_rgb_to_pdf_rg(vis ? vis : &kConstraintVisuals[0], rg, sizeof(rg));
+                BUF_APPEND("%s RG\n", rg);
+                if (syn->dash_pattern)
+                    BUF_APPEND("%s\n", syn->dash_pattern);
+                BUF_APPEND("%.2f w\n", vis->line_width);
                 BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
                 BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
                 BUF_APPEND("S\n");
-                if (entry->reset_dash)
+                if (syn->reset_dash)
                     BUF_APPEND("[] 0 d\n");
-                if (entry->reset_width)
+                if (syn->reset_width)
                     BUF_APPEND("%.2f w\n", 1.5);
                 break;
             }

@@ -36,7 +36,7 @@
 typedef struct lvSyncProtocol lvSyncProtocol;
 lvSyncProtocol *lv_sync_protocol_create(void *graph);
 void lv_sync_protocol_destroy(lvSyncProtocol *proto);
-int lv_sync_propagate(lvSyncProtocol *proto, int source_view, void *change, int max_depth);
+int lv_sync_propagate(lvSyncProtocol *proto, lvViewType source_view, void *change, int max_depth);
 
 /* ============================================================
  * 前向声明：block_to_geometry.c 中未在头文件暴露的内部类型和 API
@@ -1435,11 +1435,11 @@ static void test_sp_propagate_block(void) {
     TEST_ASSERT_NOT_NULL(proto);
 
     /* 块视图传播 */
-    int count = lv_sync_propagate(proto, 2, bg, 10);
+    int count = lv_sync_propagate(proto, lv_VIEW_BLOCK_CANVAS, bg, 10);
     TEST_ASSERT(count >= 0, "块视图传播");
 
     /* 无效参数 */
-    count = lv_sync_propagate(NULL, 2, bg, 10);
+    count = lv_sync_propagate(NULL, lv_VIEW_BLOCK_CANVAS, bg, 10);
     TEST_ASSERT_EQ(count, -1);
 
     lv_sync_protocol_destroy(proto);
@@ -1454,7 +1454,7 @@ static void test_sp_propagate_text(void) {
     TEST_ASSERT_NOT_NULL(proto);
 
     const char *code = "block test { input port0 output port1 }";
-    int count = lv_sync_propagate(proto, 3, (void *) code, 10);
+    int count = lv_sync_propagate(proto, lv_VIEW_TEXT_CODE, (void *) code, 10);
     TEST_ASSERT(count >= 0, "文本视图传播");
 
     lv_sync_protocol_destroy(proto);
@@ -1472,7 +1472,7 @@ static void test_sp_propagate_node(void) {
     lvSyncProtocol *proto = lv_sync_protocol_create(bg);
     TEST_ASSERT_NOT_NULL(proto);
 
-    int count = lv_sync_propagate(proto, 1, res.output, 10);
+    int count = lv_sync_propagate(proto, lv_VIEW_NODE_GRAPH, res.output, 10);
     TEST_ASSERT(count >= 0, "节点图传播");
 
     lv_sync_protocol_destroy(proto);
@@ -1507,11 +1507,11 @@ static void test_sp_recursion_limit(void) {
     TEST_ASSERT_NOT_NULL(proto);
 
     /* 最大深度为 0 应触发递归保护 */
-    int count = lv_sync_propagate(proto, 2, bg, 0);
+    int count = lv_sync_propagate(proto, lv_VIEW_BLOCK_CANVAS, bg, 0);
     TEST_ASSERT_EQ(count, -1);
 
     /* 最大深度为 1 */
-    count = lv_sync_propagate(proto, 2, bg, 1);
+    count = lv_sync_propagate(proto, lv_VIEW_BLOCK_CANVAS, bg, 1);
     TEST_ASSERT(count >= 0, "深度 1 传播");
 
     lv_sync_protocol_destroy(proto);

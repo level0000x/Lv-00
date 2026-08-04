@@ -145,6 +145,38 @@ static char *read_file(const char *filepath, size_t *out_len) {
  * 处理 Declaration 节点，向引擎添加几何实体
  * ================================================================ */
 
+/** @brief 实体声明处理器函数指针类型 */
+typedef void (*EntityDeclHandler)(lvEngine *engine, const char *name);
+
+/** 注册为自由点（默认坐标 (0,1,0,1) 即 (0,0)） */
+static void decl_register_point(lvEngine *engine, const char *name) {
+    int id = lv_add_point(engine, 0, 1, 0, 1);
+    if (id >= 0)
+        loader_names_add(name, id);
+}
+
+/** 暂存名称（-1 表示尚未关联端点；未支持类型同样走暂存而非报错，保留原 default 折叠语义） */
+static void decl_stash(lvEngine *engine, const char *name) {
+    (void) engine;
+    loader_names_add(name, -1);
+}
+
+/** @brief 实体类型 → 声明处理器 VTable（按枚举索引；显式列出全部类型，未支持类型走暂存） */
+static const EntityDeclHandler kEntityDeclHandlers[] = {
+    [LV_ENTITY_POINT]       = decl_register_point,
+    [LV_ENTITY_LINE]        = decl_stash,
+    [LV_ENTITY_CIRCLE]      = decl_stash,
+    [LV_ENTITY_SEGMENT]     = decl_stash,
+    [LV_ENTITY_RAY]         = decl_stash,
+    [LV_ENTITY_ANGLE]       = decl_stash,
+    [LV_ENTITY_TRIANGLE]    = decl_stash,
+    [LV_ENTITY_POLYGON]     = decl_stash,
+    [LV_ENTITY_SCALAR]      = decl_stash,
+    [LV_ENTITY_BOOL]        = decl_stash,
+    [LV_ENTITY_PROPOSITION] = decl_stash,
+    [LV_ENTITY_PROOF]       = decl_stash,
+};
+
 /**
  * @brief 处理 AST 声明节点，向引擎添加几何实体
  *
@@ -165,32 +197,16 @@ static void process_declaration(lvEngine *engine, LvAstNode *node) {
     char buf[1024];
     lv_strncpy(buf, names, sizeof(buf));
 
+    /* VTable 调度（越界/未登记类型走暂存，对应原 default 分支） */
+    EntityDeclHandler handler = decl_stash;
+    if ((unsigned)etype < (unsigned)lv_ARRAY_SIZE(kEntityDeclHandlers))
+        handler = kEntityDeclHandlers[etype];
+
     /* 拆分逗号分隔的名称列表 */
     char *save;
     char *tok = lv_strtok_r(buf, ",", &save);
     while (tok) {
-        switch (etype) {
-            case LV_ENTITY_POINT: {
-                /* 使用默认坐标 (0,1,0,1) 即 (0,0) */
-                int id = lv_add_point(engine, 0, 1, 0, 1);
-                if (id >= 0) {
-                    loader_names_add(tok, id);
-                }
-                break;
-            }
-            case LV_ENTITY_LINE:
-            case LV_ENTITY_SEGMENT: {
-                /* Line/Segment: 暂存名称，等待端点声明后处理 */
-                /* 使用 -1 表示尚未关联端点 */
-                loader_names_add(tok, -1);
-                break;
-            }
-            default:
-                /* Circle, Ray, Triangle, Polygon, Scalar, Bool, Proposition, Proof */
-                /* 暂不处理 */
-                loader_names_add(tok, -1);
-                break;
-        }
+        handler(engine, tok);
         tok = lv_strtok_r(NULL, ",", &save);
     }
 }

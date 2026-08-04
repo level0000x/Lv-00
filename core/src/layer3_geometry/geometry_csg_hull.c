@@ -17,21 +17,10 @@
 
 void csg_primitive_to_tris(const CSGNode *node, CSGTriList *out) {
     int ptype = node->data.prim.type;
-    double *p = node->data.prim.params;
 
-    switch (ptype) {
-        case 0: /* 球体 */
-            csg_gen_sphere_tris(p[0], out);
-            break;
-        case 1: /* 立方体 */
-            csg_gen_cube_tris(p[0], p[1], p[2], out);
-            break;
-        case 2: /* 圆柱体 */
-            csg_gen_cylinder_tris(p[0], p[1], out);
-            break;
-        default:
-            /* 未知图元类型：不生成任何面 */
-            break;
+    /* 图元类型 → 三角面生成 统一走 vtable（见 s_prim_ops，定义于 geometry_csg_primitive.c） */
+    if (ptype >= 0 && ptype < s_prim_ops_count && s_prim_ops[ptype].gen_tris) {
+        s_prim_ops[ptype].gen_tris(node, out);
     }
 }
 

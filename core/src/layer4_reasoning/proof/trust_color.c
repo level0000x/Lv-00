@@ -111,6 +111,26 @@ const char *proof_color_name(ProofColor pc) {
     return lv_enum_to_str(s_proof_color_name_entries, lv_ARRAY_SIZE(s_proof_color_name_entries), (int) pc, "Unknown");
 }
 
+/** @brief proof_color_to_html_hex 名称表（按枚举值升序，自 proof_navigator_export.c 收敛） */
+static const lvStrToEnumEntry s_proof_color_html_names[] = {
+    {"#4CAF50", PROOF_COLOR_GREEN},
+    {"#2196F3", PROOF_COLOR_BLUE_UNEXPLORED},
+    {"#1976D2", PROOF_COLOR_BLUE_RESOURCE},
+    {"#0D47A1", PROOF_COLOR_BLUE_OUT_OF_RANGE},
+    {"#2E7D32", PROOF_COLOR_GREEN_VERIFIED},
+    {"#FFC107", PROOF_COLOR_YELLOW},
+    {"#FF9800", PROOF_COLOR_ORANGE_ORACLE},
+    {"#F57C00", PROOF_COLOR_ORANGE_EX_FALSO},
+    {"#FFB300", PROOF_COLOR_AMBER},
+    {"#E65100", PROOF_COLOR_DARK_ORANGE},
+    {"#1B5E20", PROOF_COLOR_GREEN_COMPLETE},
+    {"#D32F2F", PROOF_COLOR_RED_CONFLICT},
+};
+
+const char *proof_color_to_html_hex(ProofColor pc) {
+    return lv_enum_to_str(s_proof_color_html_names, lv_ARRAY_SIZE(s_proof_color_html_names), (int) pc, "#78909C");
+}
+
 /* ================================================================
  * 合并函数
  * ================================================================ */

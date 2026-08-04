@@ -114,6 +114,13 @@ static const lvStrToEnumEntry constraint_type_map[] = {
     lv_XMACRO_TO_ENUM_TABLE(LV_CONSTRAINT_TYPE_X)
 };
 
+/** @brief 坐标类型字符串↔枚举映射表（RATIONAL/ALGEBRAIC/QUADRATIC） */
+static const lvStrToEnumEntry coord_type_map[] = {
+    {"RATIONAL", RATIONAL},
+    {"ALGEBRAIC", ALGEBRAIC},
+    {"QUADRATIC", QUADRATIC},
+};
+
 /**
  * @brief 将几何节点类型枚举转换为字符串
  *
@@ -166,8 +173,8 @@ static void json_buf_append_coord(lvJsonBuf *buf, const SymbolicCoord *coord) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief trust_color_to_string 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_trust_color_to_string_entries[] = {
+/** @brief TrustColor 字符串↔枚举映射表（按枚举值升序，序列化/反序列化共用） */
+static const lvStrToEnumEntry trust_map[] = {
     {"GREEN", TRUST_GREEN},
     {"BLUE_UNEXPLORED", TRUST_BLUE_UNEXPLORED},
     {"BLUE_EXCEEDED", TRUST_BLUE_EXCEEDED},
@@ -181,7 +188,13 @@ static const lvStrToEnumEntry s_trust_color_to_string_entries[] = {
 };
 
 static const char *trust_color_to_string(TrustColor trust) {
-    return lv_enum_to_str(s_trust_color_to_string_entries, lv_ARRAY_SIZE(s_trust_color_to_string_entries), (int) trust, "UNKNOWN");
+    /* 复用 trust_map 表 + lv_enum_to_str 二分查找（替代 switch） */
+    return lv_enum_to_str(trust_map, lv_ARRAY_SIZE(trust_map), (int) trust, "UNKNOWN");
+}
+
+/** @brief 将信任颜色字符串反序列化为 TrustColor 枚举（未命中回退 TRUST_GREEN） */
+static TrustColor string_to_trust_color(const char *str) {
+    return (TrustColor) lv_str_to_enum(trust_map, lv_ARRAY_SIZE(trust_map), str, TRUST_GREEN);
 }
 
 /* 序列化单个节点 */
@@ -371,6 +384,11 @@ static ConstraintType string_to_constraint_type(const char *str) {
     return (ConstraintType)lv_str_to_enum(constraint_type_map, 6, str, INCIDENCE);
 }
 
+/** @brief 将坐标类型字符串反序列化为 CoordType 枚举（未命中返回 -1，保持原默认值语义） */
+static int string_to_coord_type(const char *str) {
+    return lv_str_to_enum(coord_type_map, lv_ARRAY_SIZE(coord_type_map), str, -1);
+}
+
 /* 解析数组中的整数列表 */
 static int *json_parser_parse_int_array(lvJsonParser *p, int *out_count) {
     if (!lv_json_expect(p, '[')) {
@@ -533,28 +551,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                     } else if (strcmp(node_key, "trust") == 0) {
                         char *trust_str = lv_json_parse_string(&p);
                         if (trust_str) {
-                            if (strcmp(trust_str, "GREEN") == 0)
-                                trust = TRUST_GREEN;
-                            else if (strcmp(trust_str, "BLUE_UNEXPLORED") == 0)
-                                trust = TRUST_BLUE_UNEXPLORED;
-                            else if (strcmp(trust_str, "BLUE_EXCEEDED") == 0)
-                                trust = TRUST_BLUE_EXCEEDED;
-                            else if (strcmp(trust_str, "BLUE_OUT_OF_SCOPE") == 0)
-                                trust = TRUST_BLUE_OUT_OF_SCOPE;
-                            else if (strcmp(trust_str, "YELLOW") == 0)
-                                trust = TRUST_YELLOW;
-                            else if (strcmp(trust_str, "LIGHT_ORANGE_ORACLE") == 0)
-                                trust = TRUST_LIGHT_ORANGE_ORACLE;
-                            else if (strcmp(trust_str, "LIGHT_ORANGE_EXPLOSION") == 0)
-                                trust = TRUST_LIGHT_ORANGE_EXPLOSION;
-                            else if (strcmp(trust_str, "AMBER") == 0)
-                                trust = TRUST_AMBER;
-                            else if (strcmp(trust_str, "DEEP_ORANGE") == 0)
-                                trust = TRUST_DEEP_ORANGE;
-                            else if (strcmp(trust_str, "RED") == 0)
-                                trust = TRUST_RED;
-                            else
-                                trust = TRUST_GREEN;
+                            /* 查表反序列化（替代 10 分支 strcmp 链） */
+                            trust = string_to_trust_color(trust_str);
                             lv_free((void **) &trust_str);
                         }
                     } else if (strcmp(node_key, "namespace_depth") == 0) {
@@ -608,12 +606,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                                         p.pos++; /* skip ':' */
                                         char *ct = lv_json_parse_string(&p);
                                         if (ct) {
-                                            if (strcmp(ct, "RATIONAL") == 0)
-                                                coord_type = 0;
-                                            else if (strcmp(ct, "ALGEBRAIC") == 0)
-                                                coord_type = 1;
-                                            else if (strcmp(ct, "QUADRATIC") == 0)
-                                                coord_type = 2;
+                                            /* 查表反序列化（替代 3 分支 strcmp 链） */
+                                            coord_type = string_to_coord_type(ct);
                                             lv_free((void **) &ct);
                                         }
                                         lv_free((void **) &coord_key);

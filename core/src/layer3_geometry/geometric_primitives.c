@@ -351,6 +351,20 @@ GeoResult geo_prove(ProofNavigator *nav, int strategy, int max_steps) {
                : geo_err(GEO_STATUS_NO_SOLUTION, "证明搜索失败");
 }
 
+/* ---------- 导出格式名 -> 导出函数 查找表（替代 strcmp 分支链） ---------- */
+
+/** @brief 导出函数签名：成功返回 true，失败返回 false */
+typedef bool (*ProofExportFn)(ProofNavigator *nav, const char *filepath);
+
+static const struct {
+    const char *name;
+    ProofExportFn fn;
+} kProofExportFns[] = {
+    {"html", proof_export_html},
+    {"latex", proof_export_latex},
+    {"coq", proof_export_coq},
+};
+
 /* 原语 10: geo_export -- 导出结果 (html/latex/coq) */
 GeoResult geo_export(ProofNavigator *nav, const char *format, const char *path) {
     if (!nav)
@@ -360,14 +374,16 @@ GeoResult geo_export(ProofNavigator *nav, const char *format, const char *path) 
     if (!path)
         return geo_err(GEO_STATUS_NULL_ARG, "路径 NULL");
 
-    bool ok;
-    if (strcmp(format, "html") == 0)
-        ok = proof_export_html(nav, path);
-    else if (strcmp(format, "latex") == 0)
-        ok = proof_export_latex(nav, path);
-    else if (strcmp(format, "coq") == 0)
-        ok = proof_export_coq(nav, path);
-    else
+    /* 按导出格式名查表分发（替代 strcmp 分支链） */
+    bool ok = false;
+    size_t i;
+    for (i = 0; i < lv_ARRAY_SIZE(kProofExportFns); i++) {
+        if (strcmp(format, kProofExportFns[i].name) == 0) {
+            ok = kProofExportFns[i].fn(nav, path);
+            break;
+        }
+    }
+    if (i >= lv_ARRAY_SIZE(kProofExportFns))
         return geo_err(GEO_STATUS_UNSUPPORTED, "不支持的导出格式");
 
     return ok ? s_ok : geo_err(GEO_STATUS_IO_ERROR, "导出写入失败");

@@ -23,6 +23,7 @@
 #include "lv/lv.h"
 #include "lv/lv_json.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 /* ════════════════════════════════════════════════════════════════
@@ -608,15 +609,6 @@ bool command_log_serialize_json(const CommandLog *log, const char *filepath) {
  *  JSON 反序列化 —— 最小 JSON 解析器
  * ════════════════════════════════════════════════════════════════ */
 
-/** @brief JSON 转义解码查找表（按转义符 ASCII 下标，0 表示无映射，保留原字符） */
-static const char s_json_unescape_table[256] = {
-    ['"'] = '"',
-    ['\\'] = '\\',
-    ['n'] = '\n',
-    ['r'] = '\r',
-    ['t'] = '\t',
-};
-
 /** 轻量 JSON 解析上下文 */
 typedef struct {
     const char *buf; /* 输入缓冲区 */
@@ -659,23 +651,31 @@ static bool json_expect(JsonCtx *j, char expected) {
 static bool json_parse_string(JsonCtx *j, char *dst, size_t dst_size) {
     if (json_next(j) != '"')
         return false;
-    size_t i = 0;
+
+    size_t start = j->pos;
+    size_t raw_len = 0;
+    bool closed = false;
+
+    /* 第一遍：定位结束引号，统计原始字节数（转义序列按原始长度计入） */
     while (j->pos < j->len) {
         char c = j->buf[j->pos++];
         if (c == '"') {
-            dst[i] = '\0';
-            return true;
+            closed = true;
+            break;
         }
         if (c == '\\' && j->pos < j->len) {
-            char esc = j->buf[j->pos++];
-            char decoded = s_json_unescape_table[(unsigned char) esc];
-            c = decoded ? decoded : esc;
+            j->pos++; /* 跳过转义字符（含 \uXXXX 由公共反转义函数统一解码） */
+            raw_len++;
         }
-        if (i < dst_size - 1)
-            dst[i++] = c;
+        raw_len++;
     }
-    dst[i] = '\0';
-    return false; /* 未闭合的字符串 */
+
+    /* 第二遍：公共反转义 API 解码（含 \uXXXX → UTF-8；缓冲区不足时安全截断） */
+    lv_str_json_unescape(j->buf + start, raw_len, dst, dst_size);
+
+    if (!closed)
+        return false; /* 未闭合的字符串（已尽力解码已读取内容） */
+    return true;
 }
 
 /** 解析 JSON 整数 */

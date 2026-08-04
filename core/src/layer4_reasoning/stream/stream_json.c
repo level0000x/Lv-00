@@ -5,6 +5,7 @@
 
 #include "stream_internal.h"
 
+#include "lv/lv_str_utils.h"
 
 /* ==================== 缓冲区管理 API（已有） ==================== */
 
@@ -37,48 +38,21 @@ int stream_buffer_size(const StreamContext *ctx) {
 
 /* ==================== JSON 序列化 API ==================== */
 
-/** @brief JSON 字符转义查找表（按 ASCII 下标，NULL 表示无需转义） */
-static const char *const s_json_escape_table[256] = {
-    ['"'] = "\\\"",
-    ['\\'] = "\\\\",
-    ['\n'] = "\\n",
-    ['\r'] = "\\r",
-    ['\t'] = "\\t",
-};
-
 /**
  * @brief JSON 字符串转义辅助函数
  *
- * 将需要转义的字符（双引号、反斜杠、换行、回车、制表符）写入输出缓冲区。
- * 其他字符直接写入。
+ * 将需要转义的字符（双引号、反斜杠、换行、回车、制表符、退格、换页及控制字符）写入输出缓冲区。
+ * 其他字符直接写入。转义逻辑统一走公共 API lv_str_json_escape。
  *
  * @param dest     输出缓冲区
  * @param src      源字符串
  * @param dest_size 输出缓冲区剩余大小
- * @return 写入的字符数（不含终止符）
+ * @return 转义后的期望长度（不含终止符；缓冲区不足时返回期望值，实际内容被截断）
  */
 static int stream_json_escape(char *dest, const char *src, size_t dest_size) {
     if (!src || dest_size == 0)
         return 0;
-
-    size_t written = 0;
-    while (*src && written + 1 < dest_size) {
-        const char *esc = s_json_escape_table[(unsigned char) *src];
-        if (esc) {
-            size_t esc_len = strlen(esc);
-            if (written + esc_len >= dest_size)
-                goto done;
-            memcpy(dest + written, esc, esc_len);
-            written += esc_len;
-        } else {
-            dest[written++] = *src;
-        }
-        src++;
-    }
-done:
-    if (written < dest_size)
-        dest[written] = '\0';
-    return (int) written;
+    return (int) lv_str_json_escape(src, strlen(src), dest, dest_size);
 }
 
 /**

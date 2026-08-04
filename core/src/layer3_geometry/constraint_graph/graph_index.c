@@ -849,17 +849,32 @@ ConstraintGraph *graph_create(void) {
  * 错误码转换函数
  * ============================================================ */
 
+/** @brief AddNodeResult -> lvErrorCode 查找表（按下标索引；lv_OK 为 0，越界即原 default 分支） */
+static const lvErrorCode kAddNodeResultErrors[] = {
+    [ADD_NODE_OK] = lv_OK,
+    [ADD_NODE_CONFLICT] = lv_ERROR_NODE_CONFLICT,
+    [ADD_NODE_INVALID_REGION] = lv_ERROR_INVALID_REGION,
+};
+
+/** @brief AddConstraintResult -> lvErrorCode 查找表（按下标索引） */
+static const lvErrorCode kAddConstraintResultErrors[] = {
+    [ADD_CONSTRAINT_OK] = lv_OK,
+    [ADD_CONSTRAINT_DUPLICATE] = lv_ERROR_CONSTRAINT_DUPLICATE,
+    [ADD_CONSTRAINT_CONFLICT] = lv_ERROR_CONSTRAINT_CONFLICT,
+};
+
+/** @brief RemoveNodeResult -> lvErrorCode 查找表（按下标索引） */
+static const lvErrorCode kRemoveNodeResultErrors[] = {
+    [REMOVE_NODE_OK] = lv_OK,
+    [REMOVE_NODE_NOT_FOUND] = lv_ERROR_NODE_NOT_FOUND,
+    [REMOVE_NODE_ERROR] = lv_ERROR_GRAPH_CORRUPTED,
+};
+
 lvErrorCode lv_add_node_result_to_error(AddNodeResult result) {
-    switch (result) {
-        case ADD_NODE_OK:
-            return lv_OK;
-        case ADD_NODE_CONFLICT:
-            return lv_ERROR_NODE_CONFLICT;
-        case ADD_NODE_INVALID_REGION:
-            return lv_ERROR_INVALID_REGION;
-        default:
-            return lv_ERROR_UNKNOWN;
-    }
+    /* lv_OK 为 0，仅做下标范围检查（越界对应原 default 分支） */
+    if ((unsigned) result < lv_ARRAY_SIZE(kAddNodeResultErrors))
+        return kAddNodeResultErrors[result];
+    return lv_ERROR_UNKNOWN;
 }
 
 /**
@@ -869,29 +884,17 @@ lvErrorCode lv_add_node_result_to_error(AddNodeResult result) {
  * @return 对应的错误码
  */
 lvErrorCode lv_add_constraint_result_to_error(AddConstraintResult result) {
-    switch (result) {
-        case ADD_CONSTRAINT_OK:
-            return lv_OK;
-        case ADD_CONSTRAINT_DUPLICATE:
-            return lv_ERROR_CONSTRAINT_DUPLICATE;
-        case ADD_CONSTRAINT_CONFLICT:
-            return lv_ERROR_CONSTRAINT_CONFLICT;
-        default:
-            return lv_ERROR_UNKNOWN;
-    }
+    /* lv_OK 为 0，仅做下标范围检查（越界对应原 default 分支） */
+    if ((unsigned) result < lv_ARRAY_SIZE(kAddConstraintResultErrors))
+        return kAddConstraintResultErrors[result];
+    return lv_ERROR_UNKNOWN;
 }
 
 lvErrorCode lv_remove_node_result_to_error(RemoveNodeResult result) {
-    switch (result) {
-        case REMOVE_NODE_OK:
-            return lv_OK;
-        case REMOVE_NODE_NOT_FOUND:
-            return lv_ERROR_NODE_NOT_FOUND;
-        case REMOVE_NODE_ERROR:
-            return lv_ERROR_GRAPH_CORRUPTED;
-        default:
-            return lv_ERROR_UNKNOWN;
-    }
+    /* lv_OK 为 0，仅做下标范围检查（越界对应原 default 分支） */
+    if ((unsigned) result < lv_ARRAY_SIZE(kRemoveNodeResultErrors))
+        return kRemoveNodeResultErrors[result];
+    return lv_ERROR_UNKNOWN;
 }
 
 /* ============================================================
