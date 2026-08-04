@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include "lv_utils.h" /* lv_calloc / lv_malloc / lv_free */
+#include "lv/autodiff_vtable.h"
 
 /* ============================================================
  * Internal helpers
@@ -83,18 +84,279 @@ static bool expr_set_unary_child(lvADExpr *expr, lvADExpr *child) {
 }
 
 /* ============================================================
- * Forward mode: evaluate value and derivative simultaneously
+ * Forward declarations of original dispatch functions
+ * (vtable handler functions call these for recursion)
+ * ============================================================ */
+static ForwardResult forward_eval(const lvADExpr *expr, int var_index, double var_value);
+static double reverse_forward_pass(const lvADExpr *expr, const double *var_values, size_t var_count);
+static void reverse_backward_pass(lvADExpr *expr, double adjoint);
+static void store_values(lvADExpr *expr, const double *var_values, size_t var_count);
+
+/* ============================================================
+ * Vtable handler functions (one set per ADKind)
  * ============================================================ */
 
-/**
- * @brief Forward mode evaluation.
- *
- * Returns a pair (value, tangent) for each node.
- */
-typedef struct {
-    double value;   /**< Primal value */
-    double tangent; /**< Tangent (derivative) value */
-} ForwardResult;
+/* ---- AD_CONST handlers ---- */
+static ForwardResult forward_eval_const(const lvADExpr *expr, int var_index, double var_value) {
+    (void)var_index;
+    (void)var_value;
+    ForwardResult result = {expr->value, 0.0};
+    return result;
+}
+static double reverse_forward_const(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    (void)var_values;
+    (void)var_count;
+    return expr->value;
+}
+static void reverse_backward_const(lvADExpr *expr, double adjoint) {
+    (void)expr;
+    (void)adjoint;
+    /* Leaf node: nothing to propagate */
+}
+static void store_values_const(lvADExpr *expr, const double *var_values, size_t var_count) {
+    (void)expr;
+    (void)var_values;
+    (void)var_count;
+    /* Value already set at creation */
+}
+
+/* ---- AD_VAR handlers ---- */
+static ForwardResult forward_eval_var(const lvADExpr *expr, int var_index, double var_value) {
+    ForwardResult result = {var_value, (expr->var_index == var_index) ? 1.0 : 0.0};
+    return result;
+}
+static double reverse_forward_var(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    if (expr->var_index >= 0 && (size_t)expr->var_index < var_count) {
+        return var_values[expr->var_index];
+    }
+    return 0.0;
+}
+static void reverse_backward_var(lvADExpr *expr, double adjoint) {
+    (void)expr;
+    (void)adjoint;
+    /* Leaf node: gradient already accumulated in original function */
+}
+static void store_values_var(lvADExpr *expr, const double *var_values, size_t var_count) {
+    if (expr->var_index >= 0 && (size_t)expr->var_index < var_count) {
+        expr->value = var_values[expr->var_index];
+    }
+}
+
+/* ---- AD_ADD handlers ---- */
+static ForwardResult forward_eval_add(const lvADExpr *expr, int var_index, double var_value) {
+    ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
+    ForwardResult b = forward_eval(expr->children[1], var_index, var_value);
+    ForwardResult result = {a.value + b.value, a.tangent + b.tangent};
+    return result;
+}
+static double reverse_forward_add(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    return reverse_forward_pass(expr->children[0], var_values, var_count) +
+           reverse_forward_pass(expr->children[1], var_values, var_count);
+}
+static void reverse_backward_add(lvADExpr *expr, double adjoint) {
+    reverse_backward_pass(expr->children[0], adjoint);
+    reverse_backward_pass(expr->children[1], adjoint);
+}
+static void store_values_add(lvADExpr *expr, const double *var_values, size_t var_count) {
+    store_values(expr->children[0], var_values, var_count);
+    store_values(expr->children[1], var_values, var_count);
+    expr->value = expr->children[0]->value + expr->children[1]->value;
+}
+
+/* ---- AD_MUL handlers ---- */
+static ForwardResult forward_eval_mul(const lvADExpr *expr, int var_index, double var_value) {
+    ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
+    ForwardResult b = forward_eval(expr->children[1], var_index, var_value);
+    ForwardResult result = {a.value * b.value, a.tangent * b.value + a.value * b.tangent};
+    return result;
+}
+static double reverse_forward_mul(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    return reverse_forward_pass(expr->children[0], var_values, var_count) *
+           reverse_forward_pass(expr->children[1], var_values, var_count);
+}
+static void reverse_backward_mul(lvADExpr *expr, double adjoint) {
+    double a_val = expr->children[0]->value;
+    double b_val = expr->children[1]->value;
+    reverse_backward_pass(expr->children[0], adjoint * b_val);
+    reverse_backward_pass(expr->children[1], adjoint * a_val);
+}
+static void store_values_mul(lvADExpr *expr, const double *var_values, size_t var_count) {
+    store_values(expr->children[0], var_values, var_count);
+    store_values(expr->children[1], var_values, var_count);
+    expr->value = expr->children[0]->value * expr->children[1]->value;
+}
+
+/* ---- AD_NEG handlers ---- */
+static ForwardResult forward_eval_neg(const lvADExpr *expr, int var_index, double var_value) {
+    ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
+    ForwardResult result = {-a.value, -a.tangent};
+    return result;
+}
+static double reverse_forward_neg(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    return -reverse_forward_pass(expr->children[0], var_values, var_count);
+}
+static void reverse_backward_neg(lvADExpr *expr, double adjoint) {
+    reverse_backward_pass(expr->children[0], -adjoint);
+}
+static void store_values_neg(lvADExpr *expr, const double *var_values, size_t var_count) {
+    store_values(expr->children[0], var_values, var_count);
+    expr->value = -expr->children[0]->value;
+}
+
+/* ---- AD_SIN handlers ---- */
+static ForwardResult forward_eval_sin(const lvADExpr *expr, int var_index, double var_value) {
+    ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
+    ForwardResult result = {sin(a.value), a.tangent * cos(a.value)};
+    return result;
+}
+static double reverse_forward_sin(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    return sin(reverse_forward_pass(expr->children[0], var_values, var_count));
+}
+static void reverse_backward_sin(lvADExpr *expr, double adjoint) {
+    double a_val = expr->children[0]->value;
+    reverse_backward_pass(expr->children[0], adjoint * cos(a_val));
+}
+static void store_values_sin(lvADExpr *expr, const double *var_values, size_t var_count) {
+    store_values(expr->children[0], var_values, var_count);
+    expr->value = sin(expr->children[0]->value);
+}
+
+/* ---- AD_COS handlers ---- */
+static ForwardResult forward_eval_cos(const lvADExpr *expr, int var_index, double var_value) {
+    ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
+    ForwardResult result = {cos(a.value), -a.tangent * sin(a.value)};
+    return result;
+}
+static double reverse_forward_cos(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    return cos(reverse_forward_pass(expr->children[0], var_values, var_count));
+}
+static void reverse_backward_cos(lvADExpr *expr, double adjoint) {
+    double a_val = expr->children[0]->value;
+    reverse_backward_pass(expr->children[0], -adjoint * sin(a_val));
+}
+static void store_values_cos(lvADExpr *expr, const double *var_values, size_t var_count) {
+    store_values(expr->children[0], var_values, var_count);
+    expr->value = cos(expr->children[0]->value);
+}
+
+/* ---- AD_POW handlers ---- */
+static ForwardResult forward_eval_pow(const lvADExpr *expr, int var_index, double var_value) {
+    ForwardResult base = forward_eval(expr->children[0], var_index, var_value);
+    ForwardResult exp = forward_eval(expr->children[1], var_index, var_value);
+    ForwardResult result = {0.0, 0.0};
+    /* 保护：负底数的非整数幂在实数域无定义 */
+    if (base.value < 0.0 && fabs(exp.value - round(exp.value)) > 1e-15) {
+        return result;
+    }
+    result.value = pow(base.value, exp.value);
+    /* d/dx (f^g) = f^g * (g' * ln(f) + g * f'/f) */
+    if (base.value > 0.0) {
+        result.tangent = result.value * (exp.tangent * log(base.value) + exp.value * base.tangent / base.value);
+    } else if (fabs(exp.tangent) < 1e-15) {
+        /* Exponent is effectively constant: d/dx (base^n) = n * base^(n-1) * dbase/dx */
+        if (base.value < 0.0 && fabs(exp.value - 1.0 - round(exp.value - 1.0)) > 1e-15) {
+            result.tangent = 0.0;
+        } else {
+            result.tangent = exp.value * pow(base.value, exp.value - 1.0) * base.tangent;
+        }
+    } else {
+        result.tangent = 0.0;
+    }
+    return result;
+}
+static double reverse_forward_pow(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    return pow(reverse_forward_pass(expr->children[0], var_values, var_count),
+               reverse_forward_pass(expr->children[1], var_values, var_count));
+}
+static void reverse_backward_pow(lvADExpr *expr, double adjoint) {
+    double a_val = expr->children[0]->value;
+    double b_val = expr->children[1]->value;
+    double f_val = expr->value;
+    reverse_backward_pass(expr->children[0], adjoint * b_val * pow(a_val, b_val - 1.0));
+    if (a_val > 0.0) {
+        reverse_backward_pass(expr->children[1], adjoint * f_val * log(a_val));
+    }
+}
+static void store_values_pow(lvADExpr *expr, const double *var_values, size_t var_count) {
+    store_values(expr->children[0], var_values, var_count);
+    store_values(expr->children[1], var_values, var_count);
+    expr->value = pow(expr->children[0]->value, expr->children[1]->value);
+}
+
+/* ============================================================
+ * Vtable instances (one per ADKind)
+ * ============================================================ */
+static const lvADExprOps lv_ad_const_ops = {
+    forward_eval_const,
+    reverse_forward_const,
+    reverse_backward_const,
+    store_values_const
+};
+static const lvADExprOps lv_ad_var_ops = {
+    forward_eval_var,
+    reverse_forward_var,
+    reverse_backward_var,
+    store_values_var
+};
+static const lvADExprOps lv_ad_add_ops = {
+    forward_eval_add,
+    reverse_forward_add,
+    reverse_backward_add,
+    store_values_add
+};
+static const lvADExprOps lv_ad_mul_ops = {
+    forward_eval_mul,
+    reverse_forward_mul,
+    reverse_backward_mul,
+    store_values_mul
+};
+static const lvADExprOps lv_ad_neg_ops = {
+    forward_eval_neg,
+    reverse_forward_neg,
+    reverse_backward_neg,
+    store_values_neg
+};
+static const lvADExprOps lv_ad_sin_ops = {
+    forward_eval_sin,
+    reverse_forward_sin,
+    reverse_backward_sin,
+    store_values_sin
+};
+static const lvADExprOps lv_ad_cos_ops = {
+    forward_eval_cos,
+    reverse_forward_cos,
+    reverse_backward_cos,
+    store_values_cos
+};
+static const lvADExprOps lv_ad_pow_ops = {
+    forward_eval_pow,
+    reverse_forward_pow,
+    reverse_backward_pow,
+    store_values_pow
+};
+
+/* ============================================================
+ * lv_ad_get_ops() — vtable lookup
+ * ============================================================ */
+const lvADExprOps *lv_ad_get_ops(lvADExprKind kind) {
+    static const lvADExprOps *lookup[] = {
+        [AD_CONST] = &lv_ad_const_ops,
+        [AD_VAR]   = &lv_ad_var_ops,
+        [AD_ADD]   = &lv_ad_add_ops,
+        [AD_MUL]   = &lv_ad_mul_ops,
+        [AD_NEG]   = &lv_ad_neg_ops,
+        [AD_SIN]   = &lv_ad_sin_ops,
+        [AD_COS]   = &lv_ad_cos_ops,
+        [AD_POW]   = &lv_ad_pow_ops,
+    };
+    if (kind < AD_CONST || kind > AD_POW)
+        return NULL;
+    return lookup[kind];
+}
+
+/* ============================================================
+ * Forward mode: evaluate value and derivative simultaneously
+ * ============================================================ */
 
 /**
  * @brief Recursively evaluate in forward mode.
@@ -105,90 +367,10 @@ typedef struct {
  * @return (value, derivative) pair
  */
 static ForwardResult forward_eval(const lvADExpr *expr, int var_index, double var_value) {
+    const lvADExprOps *ops = lv_ad_get_ops(expr->kind);
+    if (ops)
+        return ops->forward_eval(expr, var_index, var_value);
     ForwardResult result = {0.0, 0.0};
-
-    switch (expr->kind) {
-        case AD_CONST:
-            result.value = expr->value;
-            result.tangent = 0.0;
-            break;
-
-        case AD_VAR:
-            result.value = var_value;
-            result.tangent = (expr->var_index == var_index) ? 1.0 : 0.0;
-            break;
-
-        case AD_ADD: {
-            ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
-            ForwardResult b = forward_eval(expr->children[1], var_index, var_value);
-            result.value = a.value + b.value;
-            result.tangent = a.tangent + b.tangent;
-            break;
-        }
-
-        case AD_MUL: {
-            ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
-            ForwardResult b = forward_eval(expr->children[1], var_index, var_value);
-            result.value = a.value * b.value;
-            result.tangent = a.tangent * b.value + a.value * b.tangent;
-            break;
-        }
-
-        case AD_NEG: {
-            ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
-            result.value = -a.value;
-            result.tangent = -a.tangent;
-            break;
-        }
-
-        case AD_SIN: {
-            ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
-            result.value = sin(a.value);
-            result.tangent = a.tangent * cos(a.value);
-            break;
-        }
-
-        case AD_COS: {
-            ForwardResult a = forward_eval(expr->children[0], var_index, var_value);
-            result.value = cos(a.value);
-            result.tangent = -a.tangent * sin(a.value);
-            break;
-        }
-
-        case AD_POW: {
-            ForwardResult base = forward_eval(expr->children[0], var_index, var_value);
-            ForwardResult exp = forward_eval(expr->children[1], var_index, var_value);
-            /* 保护：负底数的非整数幂在实数域无定义 */
-            if (base.value < 0.0 && fabs(exp.value - round(exp.value)) > 1e-15) {
-                result.value = 0.0;
-                result.tangent = 0.0;
-                break;
-            }
-            result.value = pow(base.value, exp.value);
-            /* d/dx (f^g) = f^g * (g' * ln(f) + g * f'/f)
-             *
-             * When base > 0, the general formula applies.
-             * When base <= 0, the function x^y is only real-differentiable if
-             * the exponent is constant (exp.tangent == 0); otherwise the
-             * derivative is ill-defined in the real domain. */
-            if (base.value > 0.0) {
-                result.tangent = result.value * (exp.tangent * log(base.value) + exp.value * base.tangent / base.value);
-            } else if (fabs(exp.tangent) < 1e-15) {
-                /* Exponent is effectively constant: d/dx (base^n) = n * base^(n-1) * dbase/dx */
-                if (base.value < 0.0 && fabs(exp.value - 1.0 - round(exp.value - 1.0)) > 1e-15) {
-                    result.tangent = 0.0;
-                } else {
-                    result.tangent = exp.value * pow(base.value, exp.value - 1.0) * base.tangent;
-                }
-            } else {
-                /* Base <= 0 with varying exponent: derivative undefined in reals.
-                 * Return 0 to indicate non-differentiability. */
-                result.tangent = 0.0;
-            }
-            break;
-        }
-    }
-
     return result;
 }
 
@@ -216,38 +398,10 @@ static void reset_gradients(lvADExpr *expr) {
  * @param var_count   Number of variables
  * @return The primal value of this node
  */
-static double reverse_forward_pass(lvADExpr *expr, const double *var_values, size_t var_count) {
-    switch (expr->kind) {
-        case AD_CONST:
-            return expr->value;
-
-        case AD_VAR:
-            if (expr->var_index >= 0 && (size_t) expr->var_index < var_count) {
-                return var_values[expr->var_index];
-            }
-            return 0.0;
-
-        case AD_ADD:
-            return reverse_forward_pass(expr->children[0], var_values, var_count) +
-                   reverse_forward_pass(expr->children[1], var_values, var_count);
-
-        case AD_MUL:
-            return reverse_forward_pass(expr->children[0], var_values, var_count) *
-                   reverse_forward_pass(expr->children[1], var_values, var_count);
-
-        case AD_NEG:
-            return -reverse_forward_pass(expr->children[0], var_values, var_count);
-
-        case AD_SIN:
-            return sin(reverse_forward_pass(expr->children[0], var_values, var_count));
-
-        case AD_COS:
-            return cos(reverse_forward_pass(expr->children[0], var_values, var_count));
-
-        case AD_POW:
-            return pow(reverse_forward_pass(expr->children[0], var_values, var_count),
-                       reverse_forward_pass(expr->children[1], var_values, var_count));
-    }
+static double reverse_forward_pass(const lvADExpr *expr, const double *var_values, size_t var_count) {
+    const lvADExprOps *ops = lv_ad_get_ops(expr->kind);
+    if (ops)
+        return ops->reverse_forward(expr, var_values, var_count);
     return 0.0;
 }
 
@@ -261,62 +415,12 @@ static void reverse_backward_pass(lvADExpr *expr, double adjoint) {
     if (!expr)
         return;
 
-    /* Accumulate gradient */
+    /* Accumulate gradient (common to all node kinds) */
     expr->gradient += adjoint;
 
-    switch (expr->kind) {
-        case AD_CONST:
-        case AD_VAR:
-            /* Leaf nodes: no children to propagate to */
-            break;
-
-        case AD_ADD:
-            /* d(a+b)/da = 1, d(a+b)/db = 1 */
-            reverse_backward_pass(expr->children[0], adjoint);
-            reverse_backward_pass(expr->children[1], adjoint);
-            break;
-
-        case AD_MUL: {
-            /* d(a*b)/da = b, d(a*b)/db = a */
-            double a_val = expr->children[0]->value;
-            double b_val = expr->children[1]->value;
-            reverse_backward_pass(expr->children[0], adjoint * b_val);
-            reverse_backward_pass(expr->children[1], adjoint * a_val);
-            break;
-        }
-
-        case AD_NEG:
-            /* d(-a)/da = -1 */
-            reverse_backward_pass(expr->children[0], -adjoint);
-            break;
-
-        case AD_SIN: {
-            /* d(sin(a))/da = cos(a) */
-            double a_val = expr->children[0]->value;
-            reverse_backward_pass(expr->children[0], adjoint * cos(a_val));
-            break;
-        }
-
-        case AD_COS: {
-            /* d(cos(a))/da = -sin(a) */
-            double a_val = expr->children[0]->value;
-            reverse_backward_pass(expr->children[0], -adjoint * sin(a_val));
-            break;
-        }
-
-        case AD_POW: {
-            /* d(a^b)/da = b * a^(b-1) */
-            /* d(a^b)/db = a^b * ln(a) */
-            double a_val = expr->children[0]->value;
-            double b_val = expr->children[1]->value;
-            double f_val = expr->value;
-            reverse_backward_pass(expr->children[0], adjoint * b_val * pow(a_val, b_val - 1.0));
-            if (a_val > 0.0) {
-                reverse_backward_pass(expr->children[1], adjoint * f_val * log(a_val));
-            }
-            break;
-        }
-    }
+    const lvADExprOps *ops = lv_ad_get_ops(expr->kind);
+    if (ops)
+        ops->reverse_backward(expr, adjoint);
 }
 
 /**
@@ -326,43 +430,9 @@ static void store_values(lvADExpr *expr, const double *var_values, size_t var_co
     if (!expr)
         return;
 
-    switch (expr->kind) {
-        case AD_CONST:
-            /* value already set */
-            break;
-        case AD_VAR:
-            if (expr->var_index >= 0 && (size_t) expr->var_index < var_count) {
-                expr->value = var_values[expr->var_index];
-            }
-            break;
-        case AD_ADD:
-            store_values(expr->children[0], var_values, var_count);
-            store_values(expr->children[1], var_values, var_count);
-            expr->value = expr->children[0]->value + expr->children[1]->value;
-            break;
-        case AD_MUL:
-            store_values(expr->children[0], var_values, var_count);
-            store_values(expr->children[1], var_values, var_count);
-            expr->value = expr->children[0]->value * expr->children[1]->value;
-            break;
-        case AD_NEG:
-            store_values(expr->children[0], var_values, var_count);
-            expr->value = -expr->children[0]->value;
-            break;
-        case AD_SIN:
-            store_values(expr->children[0], var_values, var_count);
-            expr->value = sin(expr->children[0]->value);
-            break;
-        case AD_COS:
-            store_values(expr->children[0], var_values, var_count);
-            expr->value = cos(expr->children[0]->value);
-            break;
-        case AD_POW:
-            store_values(expr->children[0], var_values, var_count);
-            store_values(expr->children[1], var_values, var_count);
-            expr->value = pow(expr->children[0]->value, expr->children[1]->value);
-            break;
-    }
+    const lvADExprOps *ops = lv_ad_get_ops(expr->kind);
+    if (ops)
+        ops->store_values(expr, var_values, var_count);
 }
 
 /* ============================================================

@@ -96,6 +96,39 @@ static DslAST *parse_stmt(ParserCtx *ctx);
 static DslAST *parse_block(ParserCtx *ctx);
 
 /* ================================================================
+ *  Lookup tables for strategy pattern (replacing switch statements)
+ * ================================================================ */
+
+typedef DslAST *(*StmtParseFn)(ParserCtx *ctx);
+
+/** @brief 构造语句类型查找表：DSL_TOK_* → {ast_type, is_ternary} */
+static const struct {
+    DslASTType ast_type;
+    bool is_ternary;
+} kConstructTypeTable[] = {
+    [DSL_TOK_INTERSECT]    = {DSL_AST_INTERSECT, false},
+    [DSL_TOK_PARALLEL]     = {DSL_AST_PARALLEL, false},
+    [DSL_TOK_PERPENDICULAR] = {DSL_AST_PERPENDICULAR, false},
+    [DSL_TOK_MIDPOINT]     = {DSL_AST_MIDPOINT, false},
+    [DSL_TOK_CIRCUMCENTER] = {DSL_AST_CIRCUMCENTER, true},
+    [DSL_TOK_ORTHOCENTER]  = {DSL_AST_ORTHOCENTER, true},
+    [DSL_TOK_CENTROID]     = {DSL_AST_CENTROID, true},
+    [DSL_TOK_INCENTER]     = {DSL_AST_INCENTER, true},
+    [DSL_TOK_BISECTOR]     = {DSL_AST_BISECTOR, true},
+};
+
+/** @brief 声明语句类型查找表：DSL_TOK_* → DslASTType */
+static const DslASTType kDeclTypeTable[] = {
+    [DSL_TOK_POINT]   = DSL_AST_POINT_DECL,
+    [DSL_TOK_LINE]    = DSL_AST_LINE_DECL,
+    [DSL_TOK_CIRCLE]  = DSL_AST_CIRCLE_DECL,
+    [DSL_TOK_SEGMENT] = DSL_AST_SEGMENT_DECL,
+    [DSL_TOK_RAY]     = DSL_AST_RAY_DECL,
+    [DSL_TOK_POLYGON] = DSL_AST_POLYGON_DECL,
+    [DSL_TOK_TRIANGLE]= DSL_AST_TRIANGLE_DECL,
+};
+
+/* ================================================================
  *  Parser 递归下降：表达式与语句
  * ================================================================ */
 
@@ -160,48 +193,14 @@ static bool parse_arg_list(ParserCtx *ctx, DslAST *parent) {
  */
 static DslAST *parse_construct_stmt(ParserCtx *ctx, DSLTokenType kw_type, int line, int col) {
     DslASTType ast_type;
-    /* 二元构造（2 个参数）vs 三元构造（3 个参数） */
-    bool is_ternary = false;
+    bool is_ternary;
 
-    switch (kw_type) {
-        case DSL_TOK_INTERSECT:
-            ast_type = DSL_AST_INTERSECT;
-            is_ternary = false;
-            break;
-        case DSL_TOK_PARALLEL:
-            ast_type = DSL_AST_PARALLEL;
-            is_ternary = false;
-            break;
-        case DSL_TOK_PERPENDICULAR:
-            ast_type = DSL_AST_PERPENDICULAR;
-            is_ternary = false;
-            break;
-        case DSL_TOK_MIDPOINT:
-            ast_type = DSL_AST_MIDPOINT;
-            is_ternary = false;
-            break;
-        case DSL_TOK_CIRCUMCENTER:
-            ast_type = DSL_AST_CIRCUMCENTER;
-            is_ternary = true;
-            break;
-        case DSL_TOK_ORTHOCENTER:
-            ast_type = DSL_AST_ORTHOCENTER;
-            is_ternary = true;
-            break;
-        case DSL_TOK_CENTROID:
-            ast_type = DSL_AST_CENTROID;
-            is_ternary = true;
-            break;
-        case DSL_TOK_INCENTER:
-            ast_type = DSL_AST_INCENTER;
-            is_ternary = true;
-            break;
-        case DSL_TOK_BISECTOR:
-            ast_type = DSL_AST_BISECTOR;
-            is_ternary = true;
-            break;
-        default:
-            return NULL;
+    /* 二元构造（2 个参数）vs 三元构造（3 个参数） */
+    if (kw_type >= DSL_TOK_INTERSECT && kw_type <= DSL_TOK_BISECTOR) {
+        ast_type = kConstructTypeTable[kw_type].ast_type;
+        is_ternary = kConstructTypeTable[kw_type].is_ternary;
+    } else {
+        return NULL;
     }
 
     DslAST *node = ast_alloc(ast_type, line, col);
@@ -369,30 +368,10 @@ static DslAST *parse_constraint_stmt(ParserCtx *ctx, int line, int col) {
  */
 static DslAST *parse_decl_stmt(ParserCtx *ctx, DSLTokenType kw_type, int line, int col) {
     DslASTType ast_type;
-    switch (kw_type) {
-        case DSL_TOK_POINT:
-            ast_type = DSL_AST_POINT_DECL;
-            break;
-        case DSL_TOK_LINE:
-            ast_type = DSL_AST_LINE_DECL;
-            break;
-        case DSL_TOK_CIRCLE:
-            ast_type = DSL_AST_CIRCLE_DECL;
-            break;
-        case DSL_TOK_SEGMENT:
-            ast_type = DSL_AST_SEGMENT_DECL;
-            break;
-        case DSL_TOK_RAY:
-            ast_type = DSL_AST_RAY_DECL;
-            break;
-        case DSL_TOK_POLYGON:
-            ast_type = DSL_AST_POLYGON_DECL;
-            break;
-        case DSL_TOK_TRIANGLE:
-            ast_type = DSL_AST_TRIANGLE_DECL;
-            break;
-        default:
-            return NULL;
+    if (kw_type >= DSL_TOK_POINT && kw_type <= DSL_TOK_TRIANGLE) {
+        ast_type = kDeclTypeTable[kw_type];
+    } else {
+        return NULL;
     }
 
     DslAST *node = ast_alloc(ast_type, line, col);
@@ -499,6 +478,109 @@ static DslAST *parse_block(ParserCtx *ctx) {
     return block;
 }
 
+/* ================================================================
+ *  Wrapper functions & handler table for parse_stmt strategy pattern
+ * ================================================================ */
+
+static DslAST *parse_geom_decl_stmt(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    return parse_decl_stmt(ctx, t.type, t.line, t.col);
+}
+
+static DslAST *parse_construct_stmt_wrapper(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    return parse_construct_stmt(ctx, t.type, t.line, t.col);
+}
+
+static DslAST *parse_fix_stmt_wrapper(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    return parse_fix_stmt(ctx, t.line, t.col);
+}
+
+static DslAST *parse_free_stmt_wrapper(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    return parse_free_stmt(ctx, t.line, t.col);
+}
+
+static DslAST *parse_load_stmt_wrapper(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    return parse_load_stmt(ctx, t.line, t.col);
+}
+
+static DslAST *parse_prove_stmt_wrapper(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    return parse_prove_stmt(ctx, t.line, t.col);
+}
+
+static DslAST *parse_constraint_stmt_wrapper(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    return parse_constraint_stmt(ctx, t.line, t.col);
+}
+
+static DslAST *parse_let_stmt_wrapper(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    return parse_let_stmt(ctx, t.line, t.col);
+}
+
+static DslAST *parse_block_wrapper(ParserCtx *ctx) {
+    return parse_block(ctx);
+}
+
+static DslAST *parse_ident_stmt(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    DslAST *node = ast_alloc(DSL_AST_IDENT, t.line, t.col);
+    if (node)
+        node->name = lv_strdup(t.lexeme);
+    return node;
+}
+
+static DslAST *parse_number_stmt(ParserCtx *ctx) {
+    DslToken t = parser_peek(ctx);
+    parser_advance(ctx);
+    DslAST *node = ast_alloc(DSL_AST_NUMBER, t.line, t.col);
+    if (node)
+        node->num_value = strtod(t.lexeme, NULL);
+    return node;
+}
+
+/** @brief 语句解析函数指针表：DSL_TOK_* → StmtParseFn */
+static const StmtParseFn kParseStmtHandlers[] = {
+    [DSL_TOK_POINT]       = parse_geom_decl_stmt,
+    [DSL_TOK_LINE]        = parse_geom_decl_stmt,
+    [DSL_TOK_CIRCLE]      = parse_geom_decl_stmt,
+    [DSL_TOK_SEGMENT]     = parse_geom_decl_stmt,
+    [DSL_TOK_RAY]         = parse_geom_decl_stmt,
+    [DSL_TOK_POLYGON]     = parse_geom_decl_stmt,
+    [DSL_TOK_TRIANGLE]    = parse_geom_decl_stmt,
+    [DSL_TOK_INTERSECT]   = parse_construct_stmt_wrapper,
+    [DSL_TOK_PARALLEL]    = parse_construct_stmt_wrapper,
+    [DSL_TOK_PERPENDICULAR] = parse_construct_stmt_wrapper,
+    [DSL_TOK_MIDPOINT]    = parse_construct_stmt_wrapper,
+    [DSL_TOK_CIRCUMCENTER]= parse_construct_stmt_wrapper,
+    [DSL_TOK_ORTHOCENTER] = parse_construct_stmt_wrapper,
+    [DSL_TOK_CENTROID]    = parse_construct_stmt_wrapper,
+    [DSL_TOK_INCENTER]    = parse_construct_stmt_wrapper,
+    [DSL_TOK_BISECTOR]    = parse_construct_stmt_wrapper,
+    [DSL_TOK_FIX]         = parse_fix_stmt_wrapper,
+    [DSL_TOK_FREE]        = parse_free_stmt_wrapper,
+    [DSL_TOK_LOAD]        = parse_load_stmt_wrapper,
+    [DSL_TOK_PROVE]       = parse_prove_stmt_wrapper,
+    [DSL_TOK_CONSTRAINT]  = parse_constraint_stmt_wrapper,
+    [DSL_TOK_LET]         = parse_let_stmt_wrapper,
+    [DSL_TOK_LBRACE]      = parse_block_wrapper,
+    [DSL_TOK_IDENT]       = parse_ident_stmt,
+    [DSL_TOK_NUMBER]      = parse_number_stmt,
+};
+
 /**
  * @brief 解析单条语句
  *
@@ -514,83 +596,13 @@ static DslAST *parse_block(ParserCtx *ctx) {
 static DslAST *parse_stmt(ParserCtx *ctx) {
     DslToken t = parser_peek(ctx);
 
-    switch (t.type) {
-        /* 几何原语声明 */
-        case DSL_TOK_POINT:
-        case DSL_TOK_LINE:
-        case DSL_TOK_CIRCLE:
-        case DSL_TOK_SEGMENT:
-        case DSL_TOK_RAY:
-        case DSL_TOK_POLYGON:
-        case DSL_TOK_TRIANGLE:
-            parser_advance(ctx);
-            return parse_decl_stmt(ctx, t.type, t.line, t.col);
-
-        /* 构造语句 */
-        case DSL_TOK_INTERSECT:
-        case DSL_TOK_PARALLEL:
-        case DSL_TOK_PERPENDICULAR:
-        case DSL_TOK_MIDPOINT:
-        case DSL_TOK_CIRCUMCENTER:
-        case DSL_TOK_ORTHOCENTER:
-        case DSL_TOK_CENTROID:
-        case DSL_TOK_INCENTER:
-        case DSL_TOK_BISECTOR:
-            parser_advance(ctx);
-            return parse_construct_stmt(ctx, t.type, t.line, t.col);
-
-        /* 特殊声明 */
-        case DSL_TOK_FIX:
-            parser_advance(ctx);
-            return parse_fix_stmt(ctx, t.line, t.col);
-
-        case DSL_TOK_FREE:
-            parser_advance(ctx);
-            return parse_free_stmt(ctx, t.line, t.col);
-
-        case DSL_TOK_LOAD:
-            parser_advance(ctx);
-            return parse_load_stmt(ctx, t.line, t.col);
-
-        case DSL_TOK_PROVE:
-            parser_advance(ctx);
-            return parse_prove_stmt(ctx, t.line, t.col);
-
-        case DSL_TOK_CONSTRAINT:
-            parser_advance(ctx);
-            return parse_constraint_stmt(ctx, t.line, t.col);
-
-        case DSL_TOK_LET:
-            parser_advance(ctx);
-            return parse_let_stmt(ctx, t.line, t.col);
-
-        /* 语句块 */
-        case DSL_TOK_LBRACE:
-            return parse_block(ctx);
-
-        /* 裸标识符：作为引用 */
-        case DSL_TOK_IDENT:
-            parser_advance(ctx);
-            {
-                DslAST *node = ast_alloc(DSL_AST_IDENT, t.line, t.col);
-                if (node)
-                    node->name = lv_strdup(t.lexeme);
-                return node;
-            }
-
-        /* 裸数值 */
-        case DSL_TOK_NUMBER:
-            parser_advance(ctx);
-            {
-                DslAST *node = ast_alloc(DSL_AST_NUMBER, t.line, t.col);
-                if (node)
-                    node->num_value = strtod(t.lexeme, NULL);
-                return node;
-            }
-
-        default:
-            return NULL;
+    /* 使用策略模式查找表替换 switch 语句 */
+    if (t.type >= 0 && (size_t)t.type < sizeof(kParseStmtHandlers)/sizeof(kParseStmtHandlers[0])) {
+        StmtParseFn handler = kParseStmtHandlers[t.type];
+        if (handler)
+            return handler(ctx);
     }
+    return NULL;
 }
 
 /* ================================================================

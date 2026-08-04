@@ -18,6 +18,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/proof.h"
+#include "lv/proof_step_strategy.h"
 #include "lv/proof_trace.h"
 #include "lv/smt_backend.h"
 #include "lv/trust_color.h"
@@ -59,75 +60,14 @@ bool proof_interactive_step(ProofNavigator *nav, ProofStepType step_type, const 
         return false;
 
     /* 根据步骤类型验证并填充步骤数据 */
-    switch (step_type) {
-        case PROOF_STEP_ADD_NODE: {
-            if (!step_data) {
-                proof_step_destroy(step);
-                return false;
-            }
-            int node_id = *(const int *) step_data;
-            if (node_id < 0) {
-                proof_step_destroy(step);
-                return false;
-            }
-            step->node_id = node_id;
-            break;
-        }
-
-        case PROOF_STEP_ADD_CONSTRAINT: {
-            if (!step_data) {
-                proof_step_destroy(step);
-                return false;
-            }
-            int constraint_id = *(const int *) step_data;
-            if (constraint_id < 0) {
-                proof_step_destroy(step);
-                return false;
-            }
-            step->constraint_id = constraint_id;
-            break;
-        }
-
-        case PROOF_STEP_REWRITE: {
-            if (!step_data) {
-                proof_step_destroy(step);
-                return false;
-            }
-            const ProofStep *src = (const ProofStep *) step_data;
-            if (src->rule_id < 0) {
-                proof_step_destroy(step);
-                return false;
-            }
-            step->rule_id = src->rule_id;
-            step->node_id = src->node_id;
-            break;
-        }
-
-        case PROOF_STEP_FUNCTION_APP:
-        case PROOF_STEP_PACK_FUNCTION: {
-            if (!step_data) {
-                proof_step_destroy(step);
-                return false;
-            }
-            const ProofStep *src = (const ProofStep *) step_data;
-            if (src->func_block_id < 0) {
-                proof_step_destroy(step);
-                return false;
-            }
-            step->func_block_id = src->func_block_id;
-            break;
-        }
-
-        case PROOF_STEP_NORMALIZATION:
-        case PROOF_STEP_UNIFY:
-        case PROOF_STEP_EX_FALSO:
-        case PROOF_STEP_ORACLE:
-            /* 这些步骤类型不需要额外数据 */
-            break;
-
-        default:
-            proof_step_destroy(step);
-            return false;
+    const ProofStepStrategy *strategy = proof_step_get_strategy(step_type);
+    if (!strategy || !strategy->validate) {
+        proof_step_destroy(step);
+        return false;
+    }
+    if (!strategy->validate(step, step_data)) {
+        proof_step_destroy(step);
+        return false;
     }
 
     /* 如果当前步骤有前驱步骤，自动添加依赖 */

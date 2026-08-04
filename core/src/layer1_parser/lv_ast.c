@@ -681,33 +681,28 @@ const char *lv_entity_type_name(LvEntityType type) {
  * @param tok Token 类型
  * @return 对应的实体类型；若无法映射则返回 LV_ENTITY_COUNT（非法值）
  */
+/** LvTokenType → LvEntityType 查找表 */
+static const LvEntityType kTokenToEntityType[LV_TOKEN_COUNT] = {
+    [LV_TOKEN_KW_POINT]       = LV_ENTITY_POINT,
+    [LV_TOKEN_KW_LINE]        = LV_ENTITY_LINE,
+    [LV_TOKEN_KW_CIRCLE]      = LV_ENTITY_CIRCLE,
+    [LV_TOKEN_KW_SEGMENT]     = LV_ENTITY_SEGMENT,
+    [LV_TOKEN_KW_RAY]         = LV_ENTITY_RAY,
+    [LV_TOKEN_KW_ANGLE]       = LV_ENTITY_ANGLE,
+    [LV_TOKEN_KW_TRIANGLE]    = LV_ENTITY_TRIANGLE,
+    [LV_TOKEN_KW_POLYGON]     = LV_ENTITY_POLYGON,
+    [LV_TOKEN_KW_SCALAR]      = LV_ENTITY_SCALAR,
+    [LV_TOKEN_KW_BOOL]        = LV_ENTITY_BOOL,
+    [LV_TOKEN_KW_PROPOSITION] = LV_ENTITY_PROPOSITION,
+    [LV_TOKEN_KW_PROOF]       = LV_ENTITY_PROOF,
+};
+
 LvEntityType lv_entity_type_from_token(LvTokenType tok) {
-    switch (tok) {
-        case LV_TOKEN_KW_POINT:
-            return LV_ENTITY_POINT;
-        case LV_TOKEN_KW_LINE:
-            return LV_ENTITY_LINE;
-        case LV_TOKEN_KW_CIRCLE:
-            return LV_ENTITY_CIRCLE;
-        case LV_TOKEN_KW_SEGMENT:
-            return LV_ENTITY_SEGMENT;
-        case LV_TOKEN_KW_RAY:
-            return LV_ENTITY_RAY;
-        case LV_TOKEN_KW_ANGLE:
-            return LV_ENTITY_ANGLE;
-        case LV_TOKEN_KW_TRIANGLE:
-            return LV_ENTITY_TRIANGLE;
-        case LV_TOKEN_KW_POLYGON:
-            return LV_ENTITY_POLYGON;
-        case LV_TOKEN_KW_SCALAR:
-            return LV_ENTITY_SCALAR;
-        case LV_TOKEN_KW_BOOL:
-            return LV_ENTITY_BOOL;
-        case LV_TOKEN_KW_PROPOSITION:
-            return LV_ENTITY_PROPOSITION;
-        case LV_TOKEN_KW_PROOF:
-            return LV_ENTITY_PROOF;
-        default:
-            return LV_ENTITY_COUNT; /* 非法值 */
+    if ((unsigned)tok < LV_TOKEN_COUNT) {
+        LvEntityType result = kTokenToEntityType[tok];
+        /* 未显式初始化的条目为 0 (LV_ENTITY_POINT)，需排除非 LV_TOKEN_KW_POINT 的误匹配 */
+        if (result != LV_ENTITY_POINT || tok == LV_TOKEN_KW_POINT)
+            return result;
     }
+    return LV_ENTITY_COUNT; /* 非法值 */
 }

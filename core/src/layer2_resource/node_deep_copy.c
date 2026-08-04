@@ -43,6 +43,91 @@
  * @param orig 原始符号坐标指针
  * @return 新分配的坐标副本，失败返回 NULL
  */
+
+/* ── VTable 处理器函数 ── */
+
+/** 深拷贝处理器函数类型 */
+typedef bool (*CoordCopyHandler)(SymbolicCoord *copy, const SymbolicCoord *orig);
+
+/** 深拷贝 RATIONAL 坐标 */
+static bool copy_rational(SymbolicCoord *copy, const SymbolicCoord *orig) {
+    if (orig->data.rational) {
+        copy->data.rational = lv_calloc(1, sizeof(Rational));
+        if (!copy->data.rational)
+            return false;
+        mpq_init(copy->data.rational->value);
+        mpq_set(copy->data.rational->value, orig->data.rational->value);
+    } else {
+        copy->data.rational = NULL;
+    }
+    return true;
+}
+
+/** 深拷贝 ALGEBRAIC 坐标 */
+static bool copy_algebraic(SymbolicCoord *copy, const SymbolicCoord *orig) {
+    if (orig->data.algebraic) {
+        copy->data.algebraic =
+            algebraic_create(&orig->data.algebraic->minimal_poly, orig->data.algebraic->left_bound,
+                             orig->data.algebraic->right_bound);
+    } else {
+        copy->data.algebraic = NULL;
+    }
+    return true;
+}
+
+/** 深拷贝 QUADRATIC 坐标 */
+static bool copy_quadratic(SymbolicCoord *copy, const SymbolicCoord *orig) {
+    if (orig->data.quadratic) {
+        Rational *a_copy = lv_calloc(1, sizeof(Rational));
+        if (!a_copy)
+            return false;
+        mpq_init(a_copy->value);
+        mpq_set(a_copy->value, orig->data.quadratic->a->value);
+        Rational *b_copy = lv_calloc(1, sizeof(Rational));
+        if (!b_copy) {
+            mpq_clear(a_copy->value);
+            lv_free((void **) &a_copy);
+            return false;
+        }
+        mpq_init(b_copy->value);
+        mpq_set(b_copy->value, orig->data.quadratic->b->value);
+        copy->data.quadratic = quadratic_create(a_copy, b_copy, orig->data.quadratic->n);
+    } else {
+        copy->data.quadratic = NULL;
+    }
+    return true;
+}
+
+/** 深拷贝 TRANSCENDENTAL 坐标 */
+static bool copy_transcendental(SymbolicCoord *copy, const SymbolicCoord *orig) {
+    if (orig->data.transcendental) {
+        copy->data.transcendental = transcendental_create(orig->data.transcendental->name);
+        if (copy->data.transcendental && orig->data.transcendental->expr) {
+            TranscendentalExpr *src_expr = orig->data.transcendental->expr;
+            TranscendentalExpr *dst_expr = lv_calloc(1, sizeof(TranscendentalExpr));
+            if (dst_expr) {
+                dst_expr->expr_type = src_expr->expr_type;
+                lv_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
+                dst_expr->rational_operand =
+                    src_expr->rational_operand ? rational_copy(src_expr->rational_operand) : NULL;
+                dst_expr->out_of_scope = src_expr->out_of_scope;
+                copy->data.transcendental->expr = dst_expr;
+            }
+        }
+    } else {
+        copy->data.transcendental = NULL;
+    }
+    return true;
+}
+
+/** CoordType → 深拷贝处理器 VTable */
+static const CoordCopyHandler kCoordCopyHandlers[] = {
+    [RATIONAL]       = copy_rational,
+    [ALGEBRAIC]      = copy_algebraic,
+    [QUADRATIC]      = copy_quadratic,
+    [TRANSCENDENTAL] = copy_transcendental,
+};
+
 SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
     if (!orig)
         return NULL;
@@ -54,77 +139,14 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
     copy->type = orig->type;
     copy->trust = orig->trust;
 
-    switch (orig->type) {
-        case RATIONAL:
-            if (orig->data.rational) {
-                /* 通过 mpq_set 深拷贝，避免 mpz_get_si/mpz_get_ui 截断问题 */
-                copy->data.rational = lv_calloc(1, sizeof(Rational));
-                if (!copy->data.rational) {
-                    lv_free((void **) &copy);
-                    return NULL;
-                }
-                mpq_init(copy->data.rational->value);
-                mpq_set(copy->data.rational->value, orig->data.rational->value);
-            } else {
-                copy->data.rational = NULL;
-            }
-            break;
-        case ALGEBRAIC:
-            if (orig->data.algebraic) {
-                copy->data.algebraic =
-                    algebraic_create(&orig->data.algebraic->minimal_poly, orig->data.algebraic->left_bound,
-                                     orig->data.algebraic->right_bound);
-            } else {
-                copy->data.algebraic = NULL;
-            }
-            break;
-        case QUADRATIC:
-            if (orig->data.quadratic) {
-                /* 通过 mpq_set 深拷贝有理数分量，避免截断问题 */
-                Rational *a_copy = lv_calloc(1, sizeof(Rational));
-                if (!a_copy) {
-                    lv_free((void **) &copy);
-                    return NULL;
-                }
-                mpq_init(a_copy->value);
-                mpq_set(a_copy->value, orig->data.quadratic->a->value);
-                Rational *b_copy = lv_calloc(1, sizeof(Rational));
-                if (!b_copy) {
-                    mpq_clear(a_copy->value);
-                    lv_free((void **) &a_copy);
-                    lv_free((void **) &copy);
-                    return NULL;
-                }
-                mpq_init(b_copy->value);
-                mpq_set(b_copy->value, orig->data.quadratic->b->value);
-                copy->data.quadratic = quadratic_create(a_copy, b_copy, orig->data.quadratic->n);
-            } else {
-                copy->data.quadratic = NULL;
-            }
-            break;
-        case TRANSCENDENTAL:
-            if (orig->data.transcendental) {
-                copy->data.transcendental = transcendental_create(orig->data.transcendental->name);
-                /* 深拷贝表达式树 */
-                if (copy->data.transcendental && orig->data.transcendental->expr) {
-                    TranscendentalExpr *src_expr = orig->data.transcendental->expr;
-                    TranscendentalExpr *dst_expr = lv_calloc(1, sizeof(TranscendentalExpr));
-                    if (dst_expr) {
-                        dst_expr->expr_type = src_expr->expr_type;
-                        lv_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
-                        dst_expr->rational_operand =
-                            src_expr->rational_operand ? rational_copy(src_expr->rational_operand) : NULL;
-                        dst_expr->out_of_scope = src_expr->out_of_scope;
-                        copy->data.transcendental->expr = dst_expr;
-                    }
-                }
-            } else {
-                copy->data.transcendental = NULL;
-            }
-            break;
-        default:
-            copy->data.rational = NULL;
-            break;
+    if (orig->type >= 0 && orig->type < (int)(sizeof(kCoordCopyHandlers) / sizeof(kCoordCopyHandlers[0]))
+        && kCoordCopyHandlers[orig->type]) {
+        if (!kCoordCopyHandlers[orig->type](copy, orig)) {
+            lv_free((void **) &copy);
+            return NULL;
+        }
+    } else {
+        copy->data.rational = NULL;
     }
 
     return copy;

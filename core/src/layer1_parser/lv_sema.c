@@ -42,36 +42,27 @@ static void sema_error(LvSemaContext *ctx, LvSourceLoc loc, const char *fmt, ...
     ctx->error_count++;
 }
 
+/** LvEntityType → LvSemanticType 查找表 */
+static const LvSemanticType kEntityToSemanticType[] = {
+    [LV_ENTITY_POINT]       = LV_TYPE_POINT,
+    [LV_ENTITY_LINE]        = LV_TYPE_LINE,
+    [LV_ENTITY_CIRCLE]      = LV_TYPE_CIRCLE,
+    [LV_ENTITY_SEGMENT]     = LV_TYPE_SEGMENT,
+    [LV_ENTITY_RAY]         = LV_TYPE_RAY,
+    [LV_ENTITY_ANGLE]       = LV_TYPE_ANGLE,
+    [LV_ENTITY_TRIANGLE]    = LV_TYPE_TRIANGLE,
+    [LV_ENTITY_POLYGON]     = LV_TYPE_POLYGON,
+    [LV_ENTITY_SCALAR]      = LV_TYPE_SCALAR,
+    [LV_ENTITY_BOOL]        = LV_TYPE_BOOL,
+    [LV_ENTITY_PROPOSITION] = LV_TYPE_PROPOSITION,
+    [LV_ENTITY_PROOF]       = LV_TYPE_PROOF,
+};
+
 /** 将 LvEntityType 映射为 LvSemanticType */
 static LvSemanticType entity_to_semantic_type(LvEntityType etype) {
-    switch (etype) {
-        case LV_ENTITY_POINT:
-            return LV_TYPE_POINT;
-        case LV_ENTITY_LINE:
-            return LV_TYPE_LINE;
-        case LV_ENTITY_CIRCLE:
-            return LV_TYPE_CIRCLE;
-        case LV_ENTITY_SEGMENT:
-            return LV_TYPE_SEGMENT;
-        case LV_ENTITY_RAY:
-            return LV_TYPE_RAY;
-        case LV_ENTITY_ANGLE:
-            return LV_TYPE_ANGLE;
-        case LV_ENTITY_TRIANGLE:
-            return LV_TYPE_TRIANGLE;
-        case LV_ENTITY_POLYGON:
-            return LV_TYPE_POLYGON;
-        case LV_ENTITY_SCALAR:
-            return LV_TYPE_SCALAR;
-        case LV_ENTITY_BOOL:
-            return LV_TYPE_BOOL;
-        case LV_ENTITY_PROPOSITION:
-            return LV_TYPE_PROPOSITION;
-        case LV_ENTITY_PROOF:
-            return LV_TYPE_PROOF;
-        default:
-            return LV_TYPE_UNKNOWN;
-    }
+    if (etype >= 0 && etype < (int)(sizeof(kEntityToSemanticType) / sizeof(kEntityToSemanticType[0])))
+        return kEntityToSemanticType[etype];
+    return LV_TYPE_UNKNOWN;
 }
 
 /* ── 字符串↔枚举 X-macro 列表 ── */

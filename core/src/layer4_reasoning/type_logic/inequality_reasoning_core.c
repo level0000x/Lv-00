@@ -4,6 +4,7 @@
  */
 
 #include "inequality_reasoning_internal.h"
+#include "lv/expr_vtable.h"
 
 
 /* ============== 内部辅助函数 ============== */
@@ -44,7 +45,132 @@ bool ineq_is_less_family(lvInequalityType t) {
     return (t == INEQ_LESS_THAN || t == INEQ_LESS_EQUAL);
 }
 
-/** 结构性比较两个表达式（递归深度优先） */
+/* ============== lvExpr VTable 实现 ============== */
+
+/* ---- 结构性比较（per-type） ---- */
+
+static bool var_structurally_equal(const lvExpr *a, const lvExpr *b) {
+    return (a->data.variable.name && b->data.variable.name &&
+            strcmp(a->data.variable.name, b->data.variable.name) == 0);
+}
+
+static bool rational_structurally_equal(const lvExpr *a, const lvExpr *b) {
+    return (mpq_equal(a->data.rational.value, b->data.rational.value) != 0);
+}
+
+static bool power_structurally_equal(const lvExpr *a, const lvExpr *b) {
+    return (lv_expr_structurally_equal(a->data.power.base, b->data.power.base) &&
+            lv_expr_structurally_equal(a->data.power.exponent, b->data.power.exponent));
+}
+
+static bool composite_structurally_equal(const lvExpr *a, const lvExpr *b) {
+    if (a->data.composite.count != b->data.composite.count)
+        return false;
+    for (uint32_t i = 0; i < a->data.composite.count; i++) {
+        if (!lv_expr_structurally_equal(a->data.composite.operands[i], b->data.composite.operands[i]))
+            return false;
+    }
+    return true;
+}
+
+static bool function_structurally_equal(const lvExpr *a, const lvExpr *b) {
+    return (a->data.function.func_name && b->data.function.func_name &&
+            strcmp(a->data.function.func_name, b->data.function.func_name) == 0 &&
+            lv_expr_structurally_equal(a->data.function.argument, b->data.function.argument));
+}
+
+/* ---- 符号判定（per-type） ---- */
+
+static lvSign var_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
+    (void)expr;
+    (void)sys;
+    return SIGN_UNKNOWN;
+}
+
+static lvSign rational_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
+    (void)sys;
+    int cmp = mpq_sgn(expr->data.rational.value);
+    if (cmp > 0) return SIGN_POSITIVE;
+    if (cmp < 0) return SIGN_NEGATIVE;
+    return SIGN_ZERO;
+}
+
+static lvSign power_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
+    (void)expr;
+    (void)sys;
+    /* 简化：幂的符号由底数和指数共同决定，暂返回 UNKNOWN */
+    return SIGN_UNKNOWN;
+}
+
+static lvSign product_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
+    (void)expr;
+    (void)sys;
+    /* 简化：乘积的符号需要递归分析各因子，暂返回 UNKNOWN */
+    return SIGN_UNKNOWN;
+}
+
+static lvSign sum_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
+    (void)expr;
+    (void)sys;
+    /* 简化：和的符号需要分析各项，暂返回 UNKNOWN */
+    return SIGN_UNKNOWN;
+}
+
+static lvSign function_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
+    (void)expr;
+    (void)sys;
+    return SIGN_UNKNOWN;
+}
+
+/* ---- VTable 静态实例 ---- */
+
+static const lvExprOps var_ops = {
+    .structurally_equal = var_structurally_equal,
+    .sign = var_sign
+};
+
+static const lvExprOps rational_ops = {
+    .structurally_equal = rational_structurally_equal,
+    .sign = rational_sign
+};
+
+static const lvExprOps power_ops = {
+    .structurally_equal = power_structurally_equal,
+    .sign = power_sign
+};
+
+static const lvExprOps product_ops = {
+    .structurally_equal = composite_structurally_equal,
+    .sign = product_sign
+};
+
+static const lvExprOps sum_ops = {
+    .structurally_equal = composite_structurally_equal,
+    .sign = sum_sign
+};
+
+static const lvExprOps function_ops = {
+    .structurally_equal = function_structurally_equal,
+    .sign = function_sign
+};
+
+/** 表达式类型到 vtable 的查找表 */
+const lvExprOps *lv_expr_get_ops(lvExprType type) {
+    static const lvExprOps *const table[6] = {
+        [EXPR_TYPE_VARIABLE] = &var_ops,
+        [EXPR_TYPE_RATIONAL] = &rational_ops,
+        [EXPR_TYPE_POWER]    = &power_ops,
+        [EXPR_TYPE_PRODUCT]  = &product_ops,
+        [EXPR_TYPE_SUM]      = &sum_ops,
+        [EXPR_TYPE_FUNCTION] = &function_ops
+    };
+    unsigned int idx = (unsigned int)type;
+    if (idx >= 6)
+        return NULL;
+    return table[idx];
+}
+
+/** 结构性比较两个表达式（递归深度优先，vtable 分发） */
 bool lv_expr_structurally_equal(const lvExpr *a, const lvExpr *b) {
     /* 空指针处理 */
     if (a == b)
@@ -56,36 +182,10 @@ bool lv_expr_structurally_equal(const lvExpr *a, const lvExpr *b) {
     if (a->type != b->type)
         return false;
 
-    switch (a->type) {
-        case EXPR_TYPE_VARIABLE:
-            return (a->data.variable.name && b->data.variable.name &&
-                    strcmp(a->data.variable.name, b->data.variable.name) == 0);
-
-        case EXPR_TYPE_RATIONAL:
-            return (mpq_equal(a->data.rational.value, b->data.rational.value) != 0);
-
-        case EXPR_TYPE_POWER:
-            return (lv_expr_structurally_equal(a->data.power.base, b->data.power.base) &&
-                    lv_expr_structurally_equal(a->data.power.exponent, b->data.power.exponent));
-
-        case EXPR_TYPE_PRODUCT:
-        case EXPR_TYPE_SUM:
-            if (a->data.composite.count != b->data.composite.count)
-                return false;
-            for (uint32_t i = 0; i < a->data.composite.count; i++) {
-                if (!lv_expr_structurally_equal(a->data.composite.operands[i], b->data.composite.operands[i]))
-                    return false;
-            }
-            return true;
-
-        case EXPR_TYPE_FUNCTION:
-            return (a->data.function.func_name && b->data.function.func_name &&
-                    strcmp(a->data.function.func_name, b->data.function.func_name) == 0 &&
-                    lv_expr_structurally_equal(a->data.function.argument, b->data.function.argument));
-        default:
-            return false; /* 未知表达式类型视为不等 */
-    }
-    return false;
+    const lvExprOps *ops = lv_expr_get_ops(a->type);
+    if (!ops)
+        return false;
+    return ops->structurally_equal(a, b);
 }
 
 /** 结构性比较两个不等式 */

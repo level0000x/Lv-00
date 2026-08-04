@@ -18,6 +18,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/proof.h"
+#include "lv/proof_step_strategy.h"
 #include "lv/proof_trace.h"
 #include "lv/smt_backend.h"
 #include "lv/trust_color.h"
@@ -71,6 +72,147 @@ static const char *proof_color_to_html_hex(ProofColor c) {
     return lv_enum_to_str(s_proof_color_html_names, lv_ARRAY_SIZE(s_proof_color_html_names), (int) c, "#78909C");
 }
 
+/* ============== ProofStepStrategy 策略实例 ============== */
+
+/* --- Coq 导出回调 --- */
+
+static void export_coq_add_node(const ProofStep *step, FILE *f) {
+    const char *tactic = "pose proof";
+    const char *arg = step->note ? step->note : "H_new_node";
+    fprintf(f, "  %s (%s) as H%d;\n", tactic, arg, step->id);
+}
+
+static void export_coq_add_constraint(const ProofStep *step, FILE *f) {
+    const char *tactic = "assert";
+    const char *arg = step->note ? step->note : "constraint";
+    fprintf(f, "  %s (%s) as H%d;\n", tactic, arg, step->id);
+}
+
+static void export_coq_rewrite(const ProofStep *step, FILE *f) {
+    const char *tactic = "rewrite";
+    if (step->note) {
+        fprintf(f, "  %s %s;\n", tactic, step->note);
+    } else {
+        fprintf(f, "  %s H%d;\n", tactic, step->id);
+    }
+}
+
+static void export_coq_function_app(const ProofStep *step, FILE *f) {
+    const char *tactic = "apply";
+    if (step->note) {
+        fprintf(f, "  %s %s;\n", tactic, step->note);
+    } else {
+        fprintf(f, "  %s H%d;\n", tactic, step->id);
+    }
+}
+
+static void export_coq_pack_function(const ProofStep *step, FILE *f) {
+    fprintf(f, "  (* 打包函数块 step %d *)\n", step->id);
+    fprintf(f, "  pose proof (pack_function_step %d) as H%d;\n", step->id, step->id);
+}
+
+static void export_coq_normalization(const ProofStep *step, FILE *f) {
+    fprintf(f, "  (* 自动规范化 step %d *)\n", step->id);
+    fprintf(f, "  simpl;\n");
+    fprintf(f, "  auto;\n");
+}
+
+static void export_coq_unify(const ProofStep *step, FILE *f) {
+    fprintf(f, "  (* 合一检查 step %d *)\n", step->id);
+    if (step->note) {
+        fprintf(f, "  exact %s;\n", step->note);
+    } else {
+        fprintf(f, "  apply unification_result;\n");
+    }
+}
+
+static void export_coq_ex_falso(const ProofStep *step, FILE *f) {
+    fprintf(f, "  (* 爆炸原理步骤 step %d *)\n", step->id);
+    fprintf(f, "  exact (False_ind _ H_bottom);\n");
+}
+
+static void export_coq_oracle(const ProofStep *step, FILE *f) {
+    fprintf(f, "  (* Oracle step: verified by external solver *)\n");
+    fprintf(f, "  Lemma oracle_step_%d : True.\n", step->id);
+    fprintf(f, "  Proof.\n");
+    if (step->note) {
+        fprintf(f, "    (* Numerical verification: %s *)\n", step->note);
+    } else {
+        fprintf(f, "    (* Numerical verification: node_id = %d *)\n", step->node_id);
+    }
+    fprintf(f, "    exact I.\n");
+    fprintf(f, "  Qed.\n");
+}
+
+/* --- 验证回调 --- */
+
+static bool validate_add_node(ProofStep *step, const void *step_data) {
+    if (!step_data)
+        return false;
+    int node_id = *(const int *) step_data;
+    if (node_id < 0)
+        return false;
+    step->node_id = node_id;
+    return true;
+}
+
+static bool validate_add_constraint(ProofStep *step, const void *step_data) {
+    if (!step_data)
+        return false;
+    int constraint_id = *(const int *) step_data;
+    if (constraint_id < 0)
+        return false;
+    step->constraint_id = constraint_id;
+    return true;
+}
+
+static bool validate_rewrite(ProofStep *step, const void *step_data) {
+    if (!step_data)
+        return false;
+    const ProofStep *src = (const ProofStep *) step_data;
+    if (src->rule_id < 0)
+        return false;
+    step->rule_id = src->rule_id;
+    step->node_id = src->node_id;
+    return true;
+}
+
+static bool validate_function_app(ProofStep *step, const void *step_data) {
+    if (!step_data)
+        return false;
+    const ProofStep *src = (const ProofStep *) step_data;
+    if (src->func_block_id < 0)
+        return false;
+    step->func_block_id = src->func_block_id;
+    return true;
+}
+
+static bool validate_noop(ProofStep *step, const void *step_data) {
+    (void) step;
+    (void) step_data;
+    return true;
+}
+
+/* --- 策略查找表 --- */
+
+static const ProofStepStrategy s_step_strategies[] = {
+    [PROOF_STEP_ADD_NODE]       = { .validate = validate_add_node,       .export_coq = export_coq_add_node },
+    [PROOF_STEP_ADD_CONSTRAINT] = { .validate = validate_add_constraint, .export_coq = export_coq_add_constraint },
+    [PROOF_STEP_REWRITE]        = { .validate = validate_rewrite,        .export_coq = export_coq_rewrite },
+    [PROOF_STEP_FUNCTION_APP]   = { .validate = validate_function_app,   .export_coq = export_coq_function_app },
+    [PROOF_STEP_PACK_FUNCTION]  = { .validate = validate_function_app,   .export_coq = export_coq_pack_function },
+    [PROOF_STEP_NORMALIZATION]  = { .validate = validate_noop,           .export_coq = export_coq_normalization },
+    [PROOF_STEP_UNIFY]          = { .validate = validate_noop,           .export_coq = export_coq_unify },
+    [PROOF_STEP_EX_FALSO]       = { .validate = validate_noop,           .export_coq = export_coq_ex_falso },
+    [PROOF_STEP_ORACLE]         = { .validate = validate_noop,           .export_coq = export_coq_oracle },
+};
+
+const ProofStepStrategy *proof_step_get_strategy(ProofStepType type) {
+    if (type < PROOF_STEP_ADD_NODE || type > PROOF_STEP_ORACLE)
+        return NULL;
+    return &s_step_strategies[type];
+}
+
 
 bool proof_export_latex(ProofNavigator *nav, const char *filepath) {
     if (!nav || !filepath)
@@ -122,97 +264,11 @@ bool proof_export_coq(ProofNavigator *nav, const char *filepath) {
         ProofStep *step = nav->steps[i];
         if (!step)
             continue;
-        const char *tactic = NULL;
-        const char *arg = "";
-
-        switch (step->type) {
-            case PROOF_STEP_ADD_NODE:
-                /* 添加节点 -> "pose proof" 声明 */
-                tactic = "pose proof";
-                if (step->note)
-                    arg = step->note;
-                else
-                    arg = "H_new_node";
-                fprintf(f, "  %s (%s) as H%d;\n", tactic, arg, step->id);
-                break;
-
-            case PROOF_STEP_ADD_CONSTRAINT:
-                /* 添加约束 -> "assert" 断言 */
-                tactic = "assert";
-                if (step->note)
-                    arg = step->note;
-                else
-                    arg = "constraint";
-                fprintf(f, "  %s (%s) as H%d;\n", tactic, arg, step->id);
-                break;
-
-            case PROOF_STEP_REWRITE:
-                /* 重写 -> "rewrite" 重写 */
-                tactic = "rewrite";
-                if (step->note) {
-                    fprintf(f, "  %s %s;\n", tactic, step->note);
-                } else {
-                    fprintf(f, "  %s H%d;\n", tactic, step->id);
-                }
-                break;
-
-            case PROOF_STEP_FUNCTION_APP:
-                /* 函数应用 -> "apply" 应用 */
-                tactic = "apply";
-                if (step->note) {
-                    fprintf(f, "  %s %s;\n", tactic, step->note);
-                } else {
-                    fprintf(f, "  %s H%d;\n", tactic, step->id);
-                }
-                break;
-
-            case PROOF_STEP_PACK_FUNCTION:
-                /* 打包函数块 -> "pose proof" + "apply" */
-                fprintf(f, "  (* 打包函数块 step %d *)\n", step->id);
-                fprintf(f, "  pose proof (pack_function_step %d) as H%d;\n", step->id, step->id);
-                break;
-
-            case PROOF_STEP_NORMALIZATION:
-                /* 自动规范化 -> "simpl" 或 "auto" */
-                fprintf(f, "  (* 自动规范化 step %d *)\n", step->id);
-                fprintf(f, "  simpl;\n");
-                fprintf(f, "  auto;\n");
-                break;
-
-            case PROOF_STEP_UNIFY:
-                /* 合一检查 -> "exact" 或 "apply" */
-                fprintf(f, "  (* 合一检查 step %d *)\n", step->id);
-                if (step->note) {
-                    fprintf(f, "  exact %s;\n", step->note);
-                } else {
-                    fprintf(f, "  apply unification_result;\n");
-                }
-                break;
-
-            case PROOF_STEP_EX_FALSO:
-                /* 爆炸原理 -> "exact False_ind" */
-                fprintf(f, "  (* 爆炸原理步骤 step %d *)\n", step->id);
-                fprintf(f, "  exact (False_ind _ H_bottom);\n");
-                break;
-
-            case PROOF_STEP_ORACLE: {
-                /* Oracle依赖 -> 生成数值验证引理（替代 admit） */
-                fprintf(f, "  (* Oracle step: verified by external solver *)\n");
-                fprintf(f, "  Lemma oracle_step_%d : True.\n", step->id);
-                fprintf(f, "  Proof.\n");
-                if (step->note) {
-                    fprintf(f, "    (* Numerical verification: %s *)\n", step->note);
-                } else {
-                    fprintf(f, "    (* Numerical verification: node_id = %d *)\n", step->node_id);
-                }
-                fprintf(f, "    exact I.\n");
-                fprintf(f, "  Qed.\n");
-                break;
-            }
-
-            default:
-                fprintf(f, "  (* 未知步骤类型 step %d: %s *)\n", step->id, proof_step_type_to_string(step->type));
-                break;
+        const ProofStepStrategy *strategy = proof_step_get_strategy(step->type);
+        if (strategy && strategy->export_coq) {
+            strategy->export_coq(step, f);
+        } else {
+            fprintf(f, "  (* 未知步骤类型 step %d: %s *)\n", step->id, proof_step_type_to_string(step->type));
         }
 
         /* 输出步骤注释 */

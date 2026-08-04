@@ -4,6 +4,7 @@
  */
 
 #include "inequality_reasoning_internal.h"
+#include "lv/expr_vtable.h"
 
 
 lvSign lv_expr_sign(lvExpr *expr, const lvInequalitySystem *sys) {
@@ -306,28 +307,26 @@ bool lv_expr_sos_decompose(lvExpr *poly, lvSOSDecomposition **out_sos) {
     {
         lvSOSDecomposition *sos_fail = (lvSOSDecomposition *) lv_calloc(1, sizeof(lvSOSDecomposition));
         if (sos_fail) {
-            const char *type_name = "unknown";
-            switch (poly->type) {
-                case EXPR_TYPE_VARIABLE:
-                    type_name = "variable (needs squaring)";
-                    break;
-                case EXPR_TYPE_RATIONAL:
-                    type_name = "constant (consider sqrt decomposition)";
-                    break;
-                case EXPR_TYPE_FUNCTION:
-                    type_name = "function application (not directly decomposable)";
-                    break;
-                case EXPR_TYPE_PRODUCT:
-                    type_name = "product with != 2 factors (not a*a)";
-                    break;
-                default:
-                    break;
+            /* 使用 vtable 判定表达式符号，替代直接的类型 switch */
+            lvSign s = SIGN_UNKNOWN;
+            const lvExprOps *ops = lv_expr_get_ops(poly->type);
+            if (ops)
+                s = ops->sign(poly, NULL);
+
+            const char *sign_desc = "unknown";
+            switch (s) {
+                case SIGN_POSITIVE:    sign_desc = "positive"; break;
+                case SIGN_NEGATIVE:    sign_desc = "negative"; break;
+                case SIGN_ZERO:        sign_desc = "zero"; break;
+                case SIGN_NONNEGATIVE: sign_desc = "non-negative"; break;
+                case SIGN_NONPOSITIVE: sign_desc = "non-positive"; break;
+                default: break;
             }
             char buf[256];
             snprintf(buf, sizeof(buf),
-                     "Expression type '%s' is not directly decomposable into sum of squares. "
+                     "Expression is %s — not directly decomposable into sum of squares. "
                      "Consider rewriting as explicit a^2 + b^2 + ... form.",
-                     type_name);
+                     sign_desc);
             sos_fail->failure_reason = lv_strdup(buf);
             *out_sos = sos_fail;
         }

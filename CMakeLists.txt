@@ -1040,6 +1040,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_system/prop_verifier_api.c
     core/src/layer4_reasoning/proof_system/prop_verifier_checks.c
     core/src/layer4_reasoning/proof_system/prop_verifier_analysis.c
+    core/src/layer4_reasoning/proof_system/prop_formula_visitor.c
     core/src/layer4_reasoning/proof_system/prop_verifier_bhk.c
     core/src/layer4_reasoning/proof_system/prop_verifier_trust.c
     core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c
@@ -1821,6 +1822,7 @@ if(BUILD_TESTS)
         core/src/layer4_reasoning/proof_system/prop_verifier_api.c
         core/src/layer4_reasoning/proof_system/prop_verifier_checks.c
         core/src/layer4_reasoning/proof_system/prop_verifier_analysis.c
+        core/src/layer4_reasoning/proof_system/prop_formula_visitor.c
         core/src/layer4_reasoning/proof_system/prop_verifier_bhk.c
         core/src/layer4_reasoning/proof_system/prop_verifier_trust.c
         core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c)

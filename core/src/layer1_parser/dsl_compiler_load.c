@@ -26,6 +26,7 @@
 #include "lv/axiom_pkg.h"
 
 #include "lv_internal.h"
+#include "lv/lv_log.h"
 
 /* ================================================================
  *  IR → ConstraintGraph
@@ -97,6 +98,362 @@ static bool dsl_ctx_register_axiom_pkg(struct lvContext *ctx, AxiomPackage *pkg)
     return true;
 }
 
+/* ================================================================
+ *  IR 操作处理器 VTable
+ * ================================================================ */
+
+/**
+ * @brief IR 操作处理器函数指针类型
+ *
+ * 每个 handler 处理一种或多种 IR 操作类型。
+ *
+ * @param graph         约束图指针
+ * @param op            当前 IR 操作
+ * @param id_map        结果 ID → 约束图节点 ID 映射表（可 realloc）
+ * @param id_map_count  映射表有效条目数
+ * @param id_map_cap    映射表容量
+ * @return 成功返回 true
+ */
+typedef bool (*IROpHandler)(ConstraintGraph *graph, const DslIROperation *op,
+                            int **id_map, int *id_map_count, int *id_map_cap);
+
+/**
+ * @brief 确保 id_map 容量足够，不足则扩容
+ */
+static bool ensure_id_map_cap(int **id_map, int *id_map_cap, int *id_map_count, int needed) {
+    (void)id_map_count;
+    while (needed >= *id_map_cap) {
+        int new_cap = *id_map_cap == 0 ? 64 : *id_map_cap * 2;
+        int *np = lv_realloc(*id_map, sizeof(int) * (size_t) new_cap);
+        if (!np) {
+            lv_free((void **) id_map);
+            return false;
+        }
+        *id_map = np;
+        for (int _i = *id_map_cap; _i < new_cap; _i++)
+            (*id_map)[_i] = -1;
+        *id_map_cap = new_cap;
+    }
+    return true;
+}
+
+/* ---- 实体创建 handler ---- */
+
+/** IR_CREATE_POINT: 创建自由点 */
+static bool handle_create_point(ConstraintGraph *graph, const DslIROperation *op,
+                                int **id_map, int *id_map_count, int *id_map_cap) {
+    GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_POINT, NULL, 0);
+    if (node && op->result_id >= 0) {
+        if (!ensure_id_map_cap(id_map, id_map_cap, id_map_count, op->result_id + 1))
+            return false;
+        if (op->result_id >= *id_map_count)
+            *id_map_count = op->result_id + 1;
+        (*id_map)[op->result_id] = node->id;
+    }
+    return true;
+}
+
+/** IR_CREATE_POINT_FIXED: 创建固定坐标点 */
+static bool handle_create_point_fixed(ConstraintGraph *graph, const DslIROperation *op,
+                                      int **id_map, int *id_map_count, int *id_map_cap) {
+    double x = 0.0, y = 0.0;
+    resolve_fixed_coords(op, &x, &y);
+    GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_POINT, NULL, 0);
+    if (node && op->result_id >= 0) {
+        if (!ensure_id_map_cap(id_map, id_map_cap, id_map_count, op->result_id + 1))
+            return false;
+        if (op->result_id >= *id_map_count)
+            *id_map_count = op->result_id + 1;
+        (*id_map)[op->result_id] = node->id;
+    }
+    return true;
+}
+
+/** IR_CREATE_LINE / IR_CREATE_SEGMENT: 创建线段 */
+static bool handle_create_line_segment(ConstraintGraph *graph, const DslIROperation *op,
+                                       int **id_map, int *id_map_count, int *id_map_cap) {
+    GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_LINE_SEGMENT, NULL, 0);
+    if (node && op->result_id >= 0) {
+        if (!ensure_id_map_cap(id_map, id_map_cap, id_map_count, op->result_id + 1))
+            return false;
+        if (op->result_id >= *id_map_count)
+            *id_map_count = op->result_id + 1;
+        (*id_map)[op->result_id] = node->id;
+    }
+    return true;
+}
+
+/** IR_CREATE_CIRCLE: 创建圆 */
+static bool handle_create_circle(ConstraintGraph *graph, const DslIROperation *op,
+                                 int **id_map, int *id_map_count, int *id_map_cap) {
+    GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_CIRCLE, NULL, 0);
+    if (node && op->result_id >= 0) {
+        if (!ensure_id_map_cap(id_map, id_map_cap, id_map_count, op->result_id + 1))
+            return false;
+        if (op->result_id >= *id_map_count)
+            *id_map_count = op->result_id + 1;
+        (*id_map)[op->result_id] = node->id;
+        node->data.circle.center_node_id = -1;
+        node->data.circle.radius_node_id = -1;
+    }
+    return true;
+}
+
+/** IR_CREATE_RAY: 创建射线 */
+static bool handle_create_ray(ConstraintGraph *graph, const DslIROperation *op,
+                              int **id_map, int *id_map_count, int *id_map_cap) {
+    GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_LINE_SEGMENT, NULL, 0);
+    if (node && op->result_id >= 0) {
+        if (!ensure_id_map_cap(id_map, id_map_cap, id_map_count, op->result_id + 1))
+            return false;
+        if (op->result_id >= *id_map_count)
+            *id_map_count = op->result_id + 1;
+        (*id_map)[op->result_id] = node->id;
+        for (int j = 0; j < op->operand_count; j++) {
+            int pid = (op->operands[j] >= 0 && op->operands[j] < *id_map_count) ? (*id_map)[op->operands[j]] : -1;
+            if (pid >= 0) {
+                int parts[2] = {pid, node->id};
+                graph_add_constraint_with_id(graph, -1, INCIDENCE, parts, 2);
+            }
+        }
+    }
+    return true;
+}
+
+/** IR_CREATE_POLYGON / IR_CREATE_TRIANGLE: 创建多边形/三角形区域 */
+static bool handle_create_polygon_triangle(ConstraintGraph *graph, const DslIROperation *op,
+                                           int **id_map, int *id_map_count, int *id_map_cap) {
+    GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_REGION, NULL, 0);
+    if (node && op->result_id >= 0) {
+        if (!ensure_id_map_cap(id_map, id_map_cap, id_map_count, op->result_id + 1))
+            return false;
+        if (op->result_id >= *id_map_count)
+            *id_map_count = op->result_id + 1;
+        (*id_map)[op->result_id] = node->id;
+    }
+    return true;
+}
+
+/* ---- 构造操作 handler ---- */
+
+/** IR_INTERSECT: 创建交点 */
+static bool handle_intersect(ConstraintGraph *graph, const DslIROperation *op,
+                             int **id_map, int *id_map_count, int *id_map_cap) {
+    GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_POINT, NULL, 0);
+    if (node && op->result_id >= 0) {
+        if (!ensure_id_map_cap(id_map, id_map_cap, id_map_count, op->result_id + 1))
+            return false;
+        if (op->result_id >= *id_map_count)
+            *id_map_count = op->result_id + 1;
+        (*id_map)[op->result_id] = node->id;
+        if (op->operand_count >= 2 && op->operands[0] >= 0 && op->operands[1] >= 0) {
+            int p1_id = (op->operands[0] < *id_map_count) ? (*id_map)[op->operands[0]] : -1;
+            int p2_id = (op->operands[1] < *id_map_count) ? (*id_map)[op->operands[1]] : -1;
+            if (p1_id >= 0 && p2_id >= 0) {
+                int parts[3] = {p1_id, p2_id, node->id};
+                graph_add_constraint_with_id(graph, op->result_id, INTERSECTION, parts, 3);
+            }
+        }
+    }
+    return true;
+}
+
+/** IR_PARALLEL_THROUGH / IR_PERPENDICULAR_THROUGH: 平行/垂线约束 */
+static bool handle_parallel_perpendicular_through(ConstraintGraph *graph, const DslIROperation *op,
+                                                   int **id_map, int *id_map_count, int *id_map_cap) {
+    (void)id_map;
+    (void)id_map_count;
+    (void)id_map_cap;
+    if (op->operand_count >= 2 && op->operands[0] >= 0 && op->operands[1] >= 0) {
+        int p1_id = (op->operands[0] < *id_map_count) ? (*id_map)[op->operands[0]] : -1;
+        int p2_id = (op->operands[1] < *id_map_count) ? (*id_map)[op->operands[1]] : -1;
+        if (p1_id >= 0 && p2_id >= 0) {
+            int parts[2] = {p1_id, p2_id};
+            graph_add_constraint_with_id(
+                graph, op->result_id, (op->op == IR_PARALLEL_THROUGH) ? CONNECTION : INCIDENCE, parts, 2);
+        }
+    }
+    return true;
+}
+
+/** IR_MIDPOINT_OF / IR_CIRCUMCENTER_OF / IR_ORTHOCENTER_OF / IR_CENTROID_OF / IR_INCENTER_OF / IR_BISECTOR_OF */
+static bool handle_center_ops(ConstraintGraph *graph, const DslIROperation *op,
+                              int **id_map, int *id_map_count, int *id_map_cap) {
+    GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_POINT, NULL, 0);
+    if (node && op->result_id >= 0) {
+        if (!ensure_id_map_cap(id_map, id_map_cap, id_map_count, op->result_id + 1))
+            return false;
+        if (op->result_id >= *id_map_count)
+            *id_map_count = op->result_id + 1;
+        (*id_map)[op->result_id] = node->id;
+        if (op->operand_count > 0) {
+            for (int j = 0; j < op->operand_count; j++) {
+                int pid = (op->operands[j] >= 0 && op->operands[j] < *id_map_count) ? (*id_map)[op->operands[j]] : -1;
+                if (pid >= 0) {
+                    int parts[2] = {pid, node->id};
+                    graph_add_constraint_with_id(graph, -1, INCIDENCE, parts, 2);
+                }
+            }
+        }
+    }
+    return true;
+}
+
+/* ---- 约束操作 handler ---- */
+
+/** IR_ADD_CONSTRAINT / IR_CONSTRAIN_EQUAL / IR_CONSTRAIN_PARALLEL / IR_CONSTRAIN_PERPENDICULAR / IR_CONSTRAIN_COLLINEAR / IR_CONSTRAIN_CONCYCLIC */
+static bool handle_constraint_ops(ConstraintGraph *graph, const DslIROperation *op,
+                                  int **id_map, int *id_map_count, int *id_map_cap) {
+    (void)id_map_cap;
+    ConstraintType ctype = CONNECTION;
+    switch (op->op) {
+        case IR_CONSTRAIN_PARALLEL:
+            ctype = CONNECTION;
+            break;
+        case IR_CONSTRAIN_PERPENDICULAR:
+            ctype = INCIDENCE;
+            break;
+        case IR_CONSTRAIN_COLLINEAR:
+            ctype = BETWEENNESS;
+            break;
+        case IR_CONSTRAIN_CONCYCLIC:
+            ctype = CONTAINMENT;
+            break;
+        default:
+            ctype = INCIDENCE;
+            break;
+    }
+    int parts[8];
+    int pc = 0;
+    for (int j = 0; j < op->operand_count && pc < 8; j++) {
+        int pid = (op->operands[j] >= 0 && op->operands[j] < *id_map_count) ? (*id_map)[op->operands[j]] : -1;
+        if (pid >= 0)
+            parts[pc++] = pid;
+    }
+    if (pc > 0) {
+        graph_add_constraint_with_id(graph, op->result_id, ctype, parts, pc);
+    }
+    return true;
+}
+
+/** IR_REMOVE_CONSTRAINT: 移除约束 */
+static bool handle_remove_constraint(ConstraintGraph *graph, const DslIROperation *op,
+                                     int **id_map, int *id_map_count, int *id_map_cap) {
+    (void)id_map;
+    (void)id_map_count;
+    (void)id_map_cap;
+    for (int j = 0; j < op->operand_count; j++) {
+        int cid = op->operands[j];
+        int rc = graph_deactivate_constraint(graph, cid);
+        if (rc != lv_OK) {
+            char detail[128];
+            snprintf(detail, sizeof(detail), "约束 #%d 移除失败（错误码 %d）", cid, rc);
+            dsl_record_ir_result(graph, "remove_constraint", detail);
+        }
+    }
+    graph_sync_nodes(graph);
+    return true;
+}
+
+/* ---- 系统操作 handler ---- */
+
+/** IR_LOAD_AXIOM: 加载公理包 */
+static bool handle_load_axiom(ConstraintGraph *graph, const DslIROperation *op,
+                              int **id_map, int *id_map_count, int *id_map_cap) {
+    (void)id_map;
+    (void)id_map_count;
+    (void)id_map_cap;
+    const char *pkg_name = op->label ? op->label : "unnamed";
+    AxiomPackage *pkg = lv_axiom_package_create(pkg_name, "0.0.0");
+    if (!pkg) {
+        dsl_record_ir_result(graph, "load axiom", "公理包对象创建失败");
+        return true;
+    }
+    if (graph->context) {
+        if (!dsl_ctx_register_axiom_pkg(graph->context, pkg)) {
+            axiom_package_destroy(pkg);
+            dsl_record_ir_result(graph, "load axiom", "公理库登记失败（内存不足）");
+        }
+    } else {
+        axiom_package_destroy(pkg);
+        dsl_record_ir_result(graph, "load axiom", pkg_name);
+    }
+    return true;
+}
+
+/** IR_PROVE: 登记待证明目标 */
+static bool handle_prove(ConstraintGraph *graph, const DslIROperation *op,
+                         int **id_map, int *id_map_count, int *id_map_cap) {
+    (void)id_map;
+    (void)id_map_count;
+    (void)id_map_cap;
+    const char *goal = op->label ? op->label : "(unnamed)";
+    dsl_record_ir_result(graph, "prove", goal);
+    lvConstraintCompatibilityResult comp = {0};
+    if (graph_check_compatibility(graph, &comp)) {
+        if (graph->context)
+            graph->context->last_status = (int) comp.status;
+        if (comp.status == lv_CONSTRAINT_STATUS_INCONSISTENT)
+            dsl_record_ir_result(graph, "prove 预检",
+                                 comp.diagnostic ? comp.diagnostic : "约束矛盾，目标不可证明");
+    }
+    return true;
+}
+
+/** IR_CHECK_SAT: 可满足性检查 */
+static bool handle_check_sat(ConstraintGraph *graph, const DslIROperation *op,
+                             int **id_map, int *id_map_count, int *id_map_cap) {
+    (void)id_map;
+    (void)id_map_count;
+    (void)id_map_cap;
+    lvConstraintCompatibilityResult comp = {0};
+    if (!graph_check_compatibility(graph, &comp)) {
+        dsl_record_ir_result(graph, "check_sat", "检查失败：输入无效");
+        return true;
+    }
+    if (graph->context)
+        graph->context->last_status = (int) comp.status;
+    const char *verdict = (comp.status == lv_CONSTRAINT_STATUS_INCONSISTENT) ? "unsat" : "sat";
+    char detail[256];
+    snprintf(detail, sizeof(detail), "%s（status=%d，%s；冲突约束=%d，冗余=%d，自由度=%d）",
+             verdict, (int) comp.status, comp.diagnostic ? comp.diagnostic : "无诊断",
+             comp.conflicting_constraint_id, comp.redundant_constraint_count, comp.free_degree_count);
+    dsl_record_ir_result(graph, "check_sat", detail);
+    return true;
+}
+
+/** IR_LABEL: 标签操作 */
+static bool handle_label(ConstraintGraph *graph, const DslIROperation *op,
+                         int **id_map, int *id_map_count, int *id_map_cap) {
+    (void)id_map_cap;
+    const char *text = op->label ? op->label : "(unnamed)";
+    if (op->operand_count > 0 && op->operands[0] >= 0 && op->operands[0] < *id_map_count) {
+        int gid = (*id_map)[op->operands[0]];
+        GeomNode *node = (gid >= 0) ? graph_get_node(graph, gid) : NULL;
+        if (node && !node->numeric_assumption_declaration) {
+            char *s = lv_strdup(text);
+            if (s)
+                node->numeric_assumption_declaration = s;
+        } else {
+            char detail[192];
+            snprintf(detail, sizeof(detail), "实体#%d label=\"%s\"", gid, text);
+            dsl_record_ir_result(graph, "label", detail);
+        }
+    }
+    return true;
+}
+
+/** IR_NOOP: 空操作 */
+static bool handle_noop(ConstraintGraph *graph, const DslIROperation *op,
+                        int **id_map, int *id_map_count, int *id_map_cap) {
+    (void)graph;
+    (void)op;
+    (void)id_map;
+    (void)id_map_count;
+    (void)id_map_cap;
+    return true;
+}
+
 /**
  * @brief 将 IR 操作转换为约束图节点
  *
@@ -142,327 +499,50 @@ bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph) {
             id_map[i] = -1;
     }
 
+    /* IR 操作处理器 VTable（按枚举值索引，共 30 项：0..29） */
+    static const IROpHandler kIROpHandlers[] = {
+        handle_create_point,                    /* IR_CREATE_POINT (0) */
+        handle_create_point_fixed,              /* IR_CREATE_POINT_FIXED (1) */
+        handle_create_line_segment,             /* IR_CREATE_LINE (2) */
+        handle_create_circle,                   /* IR_CREATE_CIRCLE (3) */
+        handle_create_line_segment,             /* IR_CREATE_SEGMENT (4) */
+        handle_create_ray,                      /* IR_CREATE_RAY (5) */
+        handle_create_polygon_triangle,         /* IR_CREATE_POLYGON (6) */
+        handle_create_polygon_triangle,         /* IR_CREATE_TRIANGLE (7) */
+        handle_intersect,                       /* IR_INTERSECT (8) */
+        handle_parallel_perpendicular_through,  /* IR_PARALLEL_THROUGH (9) */
+        handle_parallel_perpendicular_through,  /* IR_PERPENDICULAR_THROUGH (10) */
+        handle_center_ops,                      /* IR_MIDPOINT_OF (11) */
+        handle_center_ops,                      /* IR_CIRCUMCENTER_OF (12) */
+        handle_center_ops,                      /* IR_ORTHOCENTER_OF (13) */
+        handle_center_ops,                      /* IR_CENTROID_OF (14) */
+        handle_center_ops,                      /* IR_INCENTER_OF (15) */
+        handle_center_ops,                      /* IR_BISECTOR_OF (16) */
+        NULL,                                   /* IR_ANGLE_BISECTOR (17) -> no-op */
+        handle_constraint_ops,                  /* IR_ADD_CONSTRAINT (18) */
+        handle_remove_constraint,               /* IR_REMOVE_CONSTRAINT (19) */
+        handle_constraint_ops,                  /* IR_CONSTRAIN_EQUAL (20) */
+        handle_constraint_ops,                  /* IR_CONSTRAIN_PARALLEL (21) */
+        handle_constraint_ops,                  /* IR_CONSTRAIN_PERPENDICULAR (22) */
+        handle_constraint_ops,                  /* IR_CONSTRAIN_COLLINEAR (23) */
+        handle_constraint_ops,                  /* IR_CONSTRAIN_CONCYCLIC (24) */
+        handle_load_axiom,                      /* IR_LOAD_AXIOM (25) */
+        handle_prove,                           /* IR_PROVE (26) */
+        handle_check_sat,                       /* IR_CHECK_SAT (27) */
+        handle_label,                           /* IR_LABEL (28) */
+        handle_noop,                            /* IR_NOOP (29) */
+    };
+
     /* 遍历 IR 操作 */
     for (int i = 0; i < ir->op_count; i++) {
         const DslIROperation *op = &ir->operations[i];
 
-        switch (op->op) {
-            /* ---- 实体创建 ---- */
-            case IR_CREATE_POINT: {
-                /* 创建自由点（无坐标） */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_POINT, NULL, 0);
-                if (node && op->result_id >= 0) {
-                    ENSURE_ID_MAP(op->result_id + 1);
-                    if (op->result_id >= id_map_count)
-                        id_map_count = op->result_id + 1;
-                    id_map[op->result_id] = node->id;
-                }
-                break;
-            }
-
-            case IR_CREATE_POINT_FIXED: {
-                /* 创建固定坐标点 */
-                double x = 0.0, y = 0.0;
-                resolve_fixed_coords(op, &x, &y);
-
-                /* 创建 SymbolicCoord 数组 */
-                SymbolicCoord *coords[2] = {NULL, NULL};
-                /* 使用简单的坐标值创建（实际使用 SymbolicCoord 构造） */
-                /* 这里简化为 NULL，因为 graph_add_node_with_id 接受 NULL */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_POINT, NULL, 0);
-                if (node && op->result_id >= 0) {
-                    ENSURE_ID_MAP(op->result_id + 1);
-                    if (op->result_id >= id_map_count)
-                        id_map_count = op->result_id + 1;
-                    id_map[op->result_id] = node->id;
-                }
-                break;
-            }
-
-            case IR_CREATE_LINE:
-            case IR_CREATE_SEGMENT: {
-                /* 创建线段（基于操作数中的前两个点） */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_LINE_SEGMENT, NULL, 0);
-                if (node && op->result_id >= 0) {
-                    ENSURE_ID_MAP(op->result_id + 1);
-                    if (op->result_id >= id_map_count)
-                        id_map_count = op->result_id + 1;
-                    id_map[op->result_id] = node->id;
-                }
-                break;
-            }
-
-            case IR_CREATE_CIRCLE: {
-                /* 圆 -> 创建 GEOM_CIRCLE 节点 */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_CIRCLE, NULL, 0);
-                if (node && op->result_id >= 0) {
-                    ENSURE_ID_MAP(op->result_id + 1);
-                    if (op->result_id >= id_map_count)
-                        id_map_count = op->result_id + 1;
-                    id_map[op->result_id] = node->id;
-                    /* 初始化圆心和半径端点为 -1，后续通过约束设置 */
-                    node->data.circle.center_node_id = -1;
-                    node->data.circle.radius_node_id = -1;
-                }
-                break;
-            }
-
-            case IR_CREATE_RAY: {
-                /* 射线：约束图 GeomType 没有 GEOM_RAY 类型，与 IR_CREATE_LINE /
-                 * IR_CREATE_SEGMENT 的处理一致，射线作为一维几何原语使用
-                 * GEOM_LINE_SEGMENT 表示；若 IR 携带定义点（原点/方向点），
-                 * 为每个定义点添加"点在射线上"的关联约束，使射线节点并非空占位。 */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_LINE_SEGMENT, NULL, 0);
-                if (node && op->result_id >= 0) {
-                    ENSURE_ID_MAP(op->result_id + 1);
-                    if (op->result_id >= id_map_count)
-                        id_map_count = op->result_id + 1;
-                    id_map[op->result_id] = node->id;
-
-                    /* 定义点（原点/方向点）关联到射线 */
-                    for (int j = 0; j < op->operand_count; j++) {
-                        int pid = (op->operands[j] >= 0 && op->operands[j] < id_map_count) ? id_map[op->operands[j]] : -1;
-                        if (pid >= 0) {
-                            int parts[2] = {pid, node->id};
-                            graph_add_constraint_with_id(graph, -1, INCIDENCE, parts, 2);
-                        }
-                    }
-                }
-                break;
-            }
-
-            case IR_CREATE_POLYGON:
-            case IR_CREATE_TRIANGLE: {
-                /* 多边形/三角形 -> 区域节点 */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_REGION, NULL, 0);
-                if (node && op->result_id >= 0) {
-                    ENSURE_ID_MAP(op->result_id + 1);
-                    if (op->result_id >= id_map_count)
-                        id_map_count = op->result_id + 1;
-                    id_map[op->result_id] = node->id;
-                }
-                break;
-            }
-
-            /* ---- 构造操作 ---- */
-            case IR_INTERSECT: {
-                /* 创建交点节点 + 相交约束 */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_POINT, NULL, 0);
-                if (node && op->result_id >= 0) {
-                    ENSURE_ID_MAP(op->result_id + 1);
-                    if (op->result_id >= id_map_count)
-                        id_map_count = op->result_id + 1;
-                    id_map[op->result_id] = node->id;
-
-                    /* 如果有两个操作数，添加相交约束 */
-                    if (op->operand_count >= 2 && op->operands[0] >= 0 && op->operands[1] >= 0) {
-                        int p1_id = (op->operands[0] < id_map_count) ? id_map[op->operands[0]] : -1;
-                        int p2_id = (op->operands[1] < id_map_count) ? id_map[op->operands[1]] : -1;
-                        if (p1_id >= 0 && p2_id >= 0) {
-                            int parts[3] = {p1_id, p2_id, node->id};
-                            graph_add_constraint_with_id(graph, op->result_id, INTERSECTION, parts, 3);
-                        }
-                    }
-                }
-                break;
-            }
-
-            case IR_PARALLEL_THROUGH:
-            case IR_PERPENDICULAR_THROUGH: {
-                /* 平行/垂线约束 */
-                if (op->operand_count >= 2 && op->operands[0] >= 0 && op->operands[1] >= 0) {
-                    int p1_id = (op->operands[0] < id_map_count) ? id_map[op->operands[0]] : -1;
-                    int p2_id = (op->operands[1] < id_map_count) ? id_map[op->operands[1]] : -1;
-                    if (p1_id >= 0 && p2_id >= 0) {
-                        int parts[2] = {p1_id, p2_id};
-                        graph_add_constraint_with_id(
-                            graph, op->result_id, (op->op == IR_PARALLEL_THROUGH) ? CONNECTION : INCIDENCE, parts, 2);
-                    }
-                }
-                break;
-            }
-
-            case IR_MIDPOINT_OF:
-            case IR_CIRCUMCENTER_OF:
-            case IR_ORTHOCENTER_OF:
-            case IR_CENTROID_OF:
-            case IR_INCENTER_OF:
-            case IR_BISECTOR_OF: {
-                /* 这些构造的结果都是点，创建点节点 */
-                GeomNode *node = graph_add_node_with_id(graph, op->result_id, GEOM_POINT, NULL, 0);
-                if (node && op->result_id >= 0) {
-                    ENSURE_ID_MAP(op->result_id + 1);
-                    if (op->result_id >= id_map_count)
-                        id_map_count = op->result_id + 1;
-                    id_map[op->result_id] = node->id;
-
-                    /* 如果有点操作数，添加关联约束 */
-                    if (op->operand_count > 0) {
-                        for (int j = 0; j < op->operand_count; j++) {
-                            int pid =
-                                (op->operands[j] >= 0 && op->operands[j] < id_map_count) ? id_map[op->operands[j]] : -1;
-                            if (pid >= 0) {
-                                int parts[2] = {pid, node->id};
-                                graph_add_constraint_with_id(graph, -1, INCIDENCE, parts, 2);
-                            }
-                        }
-                    }
-                }
-                break;
-            }
-
-            /* ---- 约束操作 ---- */
-            case IR_ADD_CONSTRAINT:
-            case IR_CONSTRAIN_EQUAL:
-            case IR_CONSTRAIN_PARALLEL:
-            case IR_CONSTRAIN_PERPENDICULAR:
-            case IR_CONSTRAIN_COLLINEAR:
-            case IR_CONSTRAIN_CONCYCLIC: {
-                ConstraintType ctype = CONNECTION;
-                switch (op->op) {
-                    case IR_CONSTRAIN_PARALLEL:
-                        ctype = CONNECTION;
-                        break;
-                    case IR_CONSTRAIN_PERPENDICULAR:
-                        ctype = INCIDENCE;
-                        break;
-                    case IR_CONSTRAIN_COLLINEAR:
-                        ctype = BETWEENNESS;
-                        break;
-                    case IR_CONSTRAIN_CONCYCLIC:
-                        ctype = CONTAINMENT;
-                        break;
-                    default:
-                        ctype = INCIDENCE;
-                        break;
-                }
-                int parts[8];
-                int pc = 0;
-                for (int j = 0; j < op->operand_count && pc < 8; j++) {
-                    int pid = (op->operands[j] >= 0 && op->operands[j] < id_map_count) ? id_map[op->operands[j]] : -1;
-                    if (pid >= 0)
-                        parts[pc++] = pid;
-                }
-                if (pc > 0) {
-                    graph_add_constraint_with_id(graph, op->result_id, ctype, parts, pc);
-                }
-                break;
-            }
-
-            /* ---- 系统操作 ---- */
-            case IR_LOAD_AXIOM: {
-                /* load 语句：创建公理包对象并登记到编译上下文（graph->context）的公理库。
-                 *
-                 * 当前 DSL 的 load 语句携带公理包名称（非文件路径），因此此处登记包的
-                 * 身份到上下文公理库；若后续支持文件路径形式，可进一步调用
-                 * axiom_package_load(pkg, path) 从文件解析公理内容。 */
-                const char *pkg_name = op->label ? op->label : "unnamed";
-                AxiomPackage *pkg = lv_axiom_package_create(pkg_name, "0.0.0");
-                if (!pkg) {
-                    dsl_record_ir_result(graph, "load axiom", "公理包对象创建失败");
-                    break;
-                }
-                if (graph->context) {
-                    /* 有编译上下文：登记进上下文公理库（公理包生命周期与上下文共存） */
-                    if (!dsl_ctx_register_axiom_pkg(graph->context, pkg)) {
-                        axiom_package_destroy(pkg);
-                        dsl_record_ir_result(graph, "load axiom", "公理库登记失败（内存不足）");
-                    }
-                } else {
-                    /* 无上下文可登记：释放对象，并在消息通道记录加载请求 */
-                    axiom_package_destroy(pkg);
-                    dsl_record_ir_result(graph, "load axiom", pkg_name);
-                }
-                break;
-            }
-
-            case IR_PROVE: {
-                /* prove 语句：登记待证明目标并对构造做一致性预检。
-                 *
-                 * 约束图加载阶段不执行完整证明——证明由调用方在加载完成后发起
-                 * （见 lv_convenience.c::lv_prove 的 engine_rewrite_and_solve 流水线）。
-                 * 此处把目标文本写入上下文消息通道，并把构造相容性预检状态写入
-                 * 上下文的 last_status（对应"上下文证明状态"）。 */
-                const char *goal = op->label ? op->label : "(unnamed)";
-                dsl_record_ir_result(graph, "prove", goal);
-                lvConstraintCompatibilityResult comp = {0};
-                if (graph_check_compatibility(graph, &comp)) {
-                    if (graph->context)
-                        graph->context->last_status = (int) comp.status;
-                    if (comp.status == lv_CONSTRAINT_STATUS_INCONSISTENT)
-                        dsl_record_ir_result(graph, "prove 预检",
-                                             comp.diagnostic ? comp.diagnostic : "约束矛盾，目标不可证明");
-                }
-                break;
-            }
-
-            case IR_CHECK_SAT: {
-                /* 可满足性检查：调用约束图相容性检查 API（graph_check_compatibility）
-                 * 判定当前约束集合是否可满足（SAT），状态码写入上下文 last_status，
-                 * 结果文本记录到消息通道。 */
-                lvConstraintCompatibilityResult comp = {0};
-                if (!graph_check_compatibility(graph, &comp)) {
-                    dsl_record_ir_result(graph, "check_sat", "检查失败：输入无效");
-                    break;
-                }
-                if (graph->context)
-                    graph->context->last_status = (int) comp.status;
-                const char *verdict = (comp.status == lv_CONSTRAINT_STATUS_INCONSISTENT) ? "unsat" : "sat";
-                char detail[256];
-                snprintf(detail, sizeof(detail), "%s（status=%d，%s；冲突约束=%d，冗余=%d，自由度=%d）",
-                         verdict, (int) comp.status, comp.diagnostic ? comp.diagnostic : "无诊断",
-                         comp.conflicting_constraint_id, comp.redundant_constraint_count, comp.free_degree_count);
-                dsl_record_ir_result(graph, "check_sat", detail);
-                break;
-            }
-
-            case IR_LABEL: {
-                /* 标签操作：将标签文本附加到目标节点。
-                 *
-                 * 约束图节点没有专用 label 字段；GeomNode 唯一的自有字符串槽位是
-                 * numeric_assumption_declaration（由 graph_destroy 统一释放）。
-                 * 该槽位未被数值假设占用时，将标签文本保存在节点上（最接近
-                 * "写入图中的 label 字段"）；否则（槽位已占用 / 节点不存在 /
-                 * 目标是约束）退化为消息通道记录。 */
-                const char *text = op->label ? op->label : "(unnamed)";
-                if (op->operand_count > 0 && op->operands[0] >= 0 && op->operands[0] < id_map_count) {
-                    int gid = id_map[op->operands[0]];
-                    GeomNode *node = (gid >= 0) ? graph_get_node(graph, gid) : NULL;
-                    if (node && !node->numeric_assumption_declaration) {
-                        char *s = lv_strdup(text);
-                        if (s)
-                            node->numeric_assumption_declaration = s;
-                    } else {
-                        char detail[192];
-                        snprintf(detail, sizeof(detail), "实体#%d label=\"%s\"", gid, text);
-                        dsl_record_ir_result(graph, "label", detail);
-                    }
-                }
-                break;
-            }
-
-            case IR_REMOVE_CONSTRAINT: {
-                /* 移除约束：按约束 ID 调用约束生命周期 API graph_deactivate_constraint
-                 * 惰性移除（标记不活跃、从活跃索引摘除并保留审计数据），随后调用
-                 * graph_sync_nodes 同步节点属性，传播约束移除的影响。 */
-                for (int j = 0; j < op->operand_count; j++) {
-                    int cid = op->operands[j];
-                    int rc = graph_deactivate_constraint(graph, cid);
-                    if (rc != lv_OK) {
-                        char detail[128];
-                        snprintf(detail, sizeof(detail), "约束 #%d 移除失败（错误码 %d）", cid, rc);
-                        dsl_record_ir_result(graph, "remove_constraint", detail);
-                    }
-                }
-                graph_sync_nodes(graph);
-                break;
-            }
-
-            case IR_NOOP:
-            default: {
-                break;
-            }
+        /* VTable 调度 */
+        if (op->op >= 0 && op->op < (int)(sizeof(kIROpHandlers)/sizeof(kIROpHandlers[0])) && kIROpHandlers[op->op]) {
+            if (!kIROpHandlers[op->op](graph, op, &id_map, &id_map_count, &id_map_cap))
+                return false;
         }
+        /* NULL handler 或越界值 = no-op（对应原始 default: break） */
     }
 
     lv_free((void **) &id_map);
