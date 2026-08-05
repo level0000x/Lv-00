@@ -122,6 +122,13 @@ bool lv_hashtable_find(const lvHashTable *ht, const void *key,
     return false;
 }
 
+/** 释放单个哈希节点（调用值销毁回调 + 释放节点内存） */
+static void hashtable_free_node(lvHashTable *ht, lvHashNode *node) {
+    if (ht->destroy_value)
+        ht->destroy_value(node->data + ht->key_size);
+    lv_free((void **)&node);
+}
+
 bool lv_hashtable_erase(lvHashTable *ht, const void *key) {
     if (!ht || !key)
         return false;
@@ -136,11 +143,7 @@ bool lv_hashtable_erase(lvHashTable *ht, const void *key) {
             lvHashNode *victim = *pp;
             *pp = victim->next;
 
-            /* 调用值销毁回调 */
-            if (ht->destroy_value)
-                ht->destroy_value(victim->data + ht->key_size);
-
-            lv_free((void **)&victim);
+            hashtable_free_node(ht, victim);
             ht->count--;
             return true;
         }
@@ -158,12 +161,7 @@ void lv_hashtable_clear(lvHashTable *ht) {
         lvHashNode *node = ht->buckets[i];
         while (node) {
             lvHashNode *next = node->next;
-
-            /* 调用值销毁回调 */
-            if (ht->destroy_value)
-                ht->destroy_value(node->data + ht->key_size);
-
-            lv_free((void **)&node);
+            hashtable_free_node(ht, node);
             node = next;
         }
         ht->buckets[i] = NULL;

@@ -569,11 +569,8 @@ int func_block_registry_unregister(const char *name) {
         if (g_registry.entries[i].name && strcmp(g_registry.entries[i].name, name) == 0) {
             /* 释放条目资源 */
             free_preset_entry(&g_registry.entries[i]);
-            /* 将后面的条目前移 */
-            if (i < g_registry.count - 1) {
-                memmove(&g_registry.entries[i], &g_registry.entries[i + 1],
-                        (size_t) (g_registry.count - i - 1) * sizeof(PresetEntry));
-            }
+            /* 将后面的条目前移（统一走 lv_shift_left 的 memmove 路径） */
+            lv_shift_left(g_registry.entries, sizeof(g_registry.entries[0]), (size_t) i, (size_t) g_registry.count);
             g_registry.count--;
             return 0;
         }

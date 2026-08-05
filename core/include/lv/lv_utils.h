@@ -346,6 +346,49 @@ void lv_insertion_sort(void *base, size_t n, size_t elem_size,
                        int (*cmp)(const void *a, const void *b, void *ctx), void *ctx);
 
 /**
+ * @brief 从紧凑数组中删除下标 index 处的元素（memmove 整体前移）
+ *
+ * 收敛散落各模块的手写"for 逐元素前移"样板（func_block_registry /
+ * high_dim_core / engine_scheduler / stream_context / debug_trace 等），
+ * 统一用单次 memmove 完成移位。计数由调用方维护并自行递减。
+ *
+ * @param base      数组起始地址
+ * @param elem_size 元素字节大小
+ * @param index     待删除下标（越界时为空操作）
+ * @param count     当前元素个数（不移除尾部残留，调用方负责递减）
+ */
+void lv_shift_left(void *base, size_t elem_size, size_t index, size_t count);
+
+/* ============================================================
+ * 位掩码内联助手（消除手写 1<<n 有符号移位的 UB 隐患）
+ * ============================================================ */
+
+/** @brief 生成单个位掩码（1u<<bit，避免 1<<31 符号位 UB） */
+static inline unsigned lv_bit_mask(unsigned bit) {
+    return 1u << bit;
+}
+
+/** @brief 生成低 nbits 位全 1 掩码（替代手写 (1<<N)-1；nbits>=32 时饱和为全 1） */
+static inline unsigned lv_mask_all(unsigned nbits) {
+    return nbits >= 32 ? 0xFFFFFFFFu : (1u << nbits) - 1u;
+}
+
+/** @brief 置位（mask 指向的掩码中设置 bit 位） */
+static inline void lv_mask_set(unsigned *mask, unsigned bit) {
+    *mask |= 1u << bit;
+}
+
+/** @brief 清位（mask 指向的掩码中清除 bit 位） */
+static inline void lv_mask_clear(unsigned *mask, unsigned bit) {
+    *mask &= ~(1u << bit);
+}
+
+/** @brief 测试位 */
+static inline bool lv_mask_test(unsigned mask, unsigned bit) {
+    return (mask & (1u << bit)) != 0;
+}
+
+/**
  * @brief 在数组中查找元素
  */
 lv_PUBLIC_API int lv_array_find(const lvArray *arr, const void *elem);

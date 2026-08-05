@@ -200,11 +200,10 @@ bool magic_array_remove_rune(MagicArray *array, int rune_index) {
         graph_remove_node(array->graph, rune_index);
     }
 
-    /* 从符文序列中移除并销毁符文，后续元素前移填补空缺 */
+    /* 从符文序列中移除并销毁符文，后续元素前移填补空缺（统一走 lv_shift_left） */
     rune_destroy(array->runes->runes[rune_index]);
-    for (int i = rune_index; i < array->runes->rune_count - 1; i++) {
-        array->runes->runes[i] = array->runes->runes[i + 1];
-    }
+    lv_shift_left(array->runes->runes, sizeof(array->runes->runes[0]), (size_t) rune_index,
+                  (size_t) array->runes->rune_count);
     array->runes->rune_count--;
 
     return true;

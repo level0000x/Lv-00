@@ -660,10 +660,8 @@ bool spellbook_remove_spell(SpellBook *book, const char *spell_name) {
     for (int i = 0; i < book->spell_count; i++) {
         if (strcmp(book->spells[i]->name, spell_name) == 0) {
             spell_destroy(book->spells[i]);
-            /* 后续元素前移填补空缺 */
-            for (int j = i; j < book->spell_count - 1; j++) {
-                book->spells[j] = book->spells[j + 1];
-            }
+            /* 后续元素前移填补空缺（统一走 lv_shift_left 的 memmove 路径） */
+            lv_shift_left(book->spells, sizeof(book->spells[0]), (size_t) i, (size_t) book->spell_count);
             book->spell_count--;
             return true;
         }

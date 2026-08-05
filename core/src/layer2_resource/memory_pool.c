@@ -618,21 +618,24 @@ lvObjectCache *lv_cache_create(size_t capacity, lvCacheCreateFunc create_func, l
     return cache;
 }
 
+/**
+ * 释放单个缓存条目（destroy_func 回调 + 原生 free）。
+ * 注意：CacheEntry 使用原生 malloc 分配，必须用 free 而非 lv_free。
+ */
+static void cache_entry_free(lvObjectCache *cache, CacheEntry *entry) {
+    if (cache->destroy_func && entry->value) {
+        cache->destroy_func(entry->value, cache->user_data);
+    }
+    free(entry);
+}
+
 void lv_cache_destroy(lvObjectCache *cache) {
     if (!cache) {
         return;
     }
 
-    /* 释放所有条目 */
-    CacheEntry *entry = cache->head;
-    while (entry) {
-        CacheEntry *next = entry->next;
-        if (cache->destroy_func && entry->value) {
-            cache->destroy_func(entry->value, cache->user_data);
-        }
-        free(entry);
-        entry = next;
-    }
+    /* 释放所有条目（复用 clear 的遍历循环），再释放容器本身 */
+    lv_cache_clear(cache);
 
     /* 注意：cache->hash_table 使用 calloc 分配，CacheEntry 使用 malloc 分配，
      * 此处用标准 free 释放而非 lv_free，因为这些内存在 cache 模块中
@@ -699,10 +702,7 @@ static void evict_lru(lvObjectCache *cache) {
     }
 
     /* 释放 */
-    if (cache->destroy_func && entry->value) {
-        cache->destroy_func(entry->value, cache->user_data);
-    }
-    free(entry);
+    cache_entry_free(cache, entry);
     cache->current_size--;
 }
 
@@ -797,10 +797,7 @@ bool lv_cache_remove(lvObjectCache *cache, lvCacheKey key) {
             }
 
             /* 释放 */
-            if (cache->destroy_func && entry->value) {
-                cache->destroy_func(entry->value, cache->user_data);
-            }
-            free(entry);
+            cache_entry_free(cache, entry);
             cache->current_size--;
 
             return true;
@@ -820,10 +817,7 @@ void lv_cache_clear(lvObjectCache *cache) {
     CacheEntry *entry = cache->head;
     while (entry) {
         CacheEntry *next = entry->next;
-        if (cache->destroy_func && entry->value) {
-            cache->destroy_func(entry->value, cache->user_data);
-        }
-        free(entry);
+        cache_entry_free(cache, entry);
         entry = next;
     }
 

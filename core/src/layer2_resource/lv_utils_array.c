@@ -53,16 +53,23 @@ lvArray *lv_array_create(size_t initial_capacity, size_t elem_size) {
     return arr;
 }
 
+/** 释放数组中所有元素（free_elements=true 时的公共循环体） */
+static void lv_array_free_elements(lvArray *arr) {
+    if (!arr->data)
+        return;
+    for (size_t i = 0; i < arr->count; i++) {
+        if (arr->data[i]) {
+            lv_free((void **) &arr->data[i]);
+        }
+    }
+}
+
 void lv_array_destroy(lvArray *arr, bool free_elements) {
     if (!arr)
         return;
 
-    if (free_elements && arr->data) {
-        for (size_t i = 0; i < arr->count; i++) {
-            if (arr->data[i]) {
-                lv_free((void **) &arr->data[i]);
-            }
-        }
+    if (free_elements) {
+        lv_array_free_elements(arr);
     }
 
     lv_free((void **) &arr->data);
@@ -157,11 +164,7 @@ void lv_array_clear(lvArray *arr, bool free_elements) {
         return;
 
     if (free_elements) {
-        for (size_t i = 0; i < arr->count; i++) {
-            if (arr->data[i]) {
-                lv_free((void **) &arr->data[i]);
-            }
-        }
+        lv_array_free_elements(arr);
     }
 
     memset(arr->data, 0, arr->capacity * sizeof(void *));
@@ -202,6 +205,27 @@ void lv_insertion_sort(void *base, size_t n, size_t elem_size,
 
     if (heap_tmp)
         lv_free((void **) &heap_tmp);
+}
+
+/**
+ * @brief 从紧凑数组中删除下标 index 处的元素，将后续元素整体前移
+ *
+ * 收敛散落各模块的手写"for 逐元素前移"样板（func_block_registry /
+ * high_dim_core / engine_scheduler / stream_context / debug_trace 等），
+ * 统一用单次 memmove 完成移位。计数由调用方维护并自行递减。
+ *
+ * @param base      数组起始地址
+ * @param elem_size 元素字节大小
+ * @param index     待删除下标（越界时为空操作）
+ * @param count     当前元素个数（不移除尾部残留，调用方负责递减）
+ */
+void lv_shift_left(void *base, size_t elem_size, size_t index, size_t count) {
+    if (!base || elem_size == 0 || index >= count)
+        return;
+    if (index + 1 < count) {
+        memmove((char *) base + index * elem_size, (char *) base + (index + 1) * elem_size,
+                (count - index - 1) * elem_size);
+    }
 }
 
 int lv_array_find(const lvArray *arr, const void *elem) {
@@ -369,10 +393,8 @@ bool int_array_remove(IntArray *arr, int value) {
     if (idx < 0)
         return false;
 
-    /* 移动后续元素 */
-    for (size_t i = (size_t) idx; i < arr->count - 1; i++) {
-        arr->data[i] = arr->data[i + 1];
-    }
+    /* 移动后续元素（统一走 lv_shift_left 的 memmove 路径） */
+    lv_shift_left(arr->data, sizeof(arr->data[0]), (size_t) idx, arr->count);
     arr->count--;
     return true;
 }

@@ -31,6 +31,22 @@ void lv_reasoning_stack_init(lvReasoningStack *stack) {
     stack->max_depth = lv_REASONING_STACK_MAX_DEPTH;
 }
 
+/** 释放单帧内资源（graph_snapshot + assumption_node_ids + target_node_ids；user_data 由外部管理） */
+static void reasoning_frame_release(lvReasoningFrame *frame) {
+    if (!frame)
+        return;
+    if (frame->graph_snapshot) {
+        graph_destroy((ConstraintGraph *) frame->graph_snapshot);
+        frame->graph_snapshot = NULL;
+    }
+    if (frame->assumption_node_ids) {
+        lv_free((void **) &frame->assumption_node_ids);
+    }
+    if (frame->target_node_ids) {
+        lv_free((void **) &frame->target_node_ids);
+    }
+}
+
 void lv_reasoning_stack_clear(lvReasoningStack *stack) {
     if (!stack) {
         return;
@@ -38,18 +54,7 @@ void lv_reasoning_stack_clear(lvReasoningStack *stack) {
 
     if (stack->frames) {
         for (int i = 0; i <= stack->top && i < stack->capacity; i++) {
-            lvReasoningFrame *frame = &stack->frames[i];
-            if (frame->graph_snapshot) {
-                graph_destroy((ConstraintGraph *) frame->graph_snapshot);
-                frame->graph_snapshot = NULL;
-            }
-            if (frame->assumption_node_ids) {
-                lv_free((void **) &frame->assumption_node_ids);
-            }
-            if (frame->target_node_ids) {
-                lv_free((void **) &frame->target_node_ids);
-            }
-            /* user_data 由外部管理，不释放 */
+            reasoning_frame_release(&stack->frames[i]);
         }
         lv_free((void **) &stack->frames);
     }
@@ -145,17 +150,8 @@ int lv_reasoning_stack_pop(lvReasoningStack *stack) {
 
     lvReasoningFrame *frame = &stack->frames[stack->top];
 
-    /* 释放帧内资源 */
-    if (frame->graph_snapshot) {
-        graph_destroy((ConstraintGraph *) frame->graph_snapshot);
-        frame->graph_snapshot = NULL;
-    }
-    if (frame->assumption_node_ids) {
-        lv_free((void **) &frame->assumption_node_ids);
-    }
-    if (frame->target_node_ids) {
-        lv_free((void **) &frame->target_node_ids);
-    }
+    /* 释放帧内资源（与 clear 循环体共用 reasoning_frame_release） */
+    reasoning_frame_release(frame);
 
     /* 清零帧 */
     memset(frame, 0, sizeof(lvReasoningFrame));

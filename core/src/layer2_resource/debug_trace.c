@@ -121,10 +121,9 @@ void debug_trace_remove_breakpoint(int index) {
     if (index < 0 || index >= state->breakpoint_count)
         return;
 
-    /* 移除断点：将后续元素前移 */
-    for (int i = index; i < state->breakpoint_count - 1; i++) {
-        state->breakpoints[i] = state->breakpoints[i + 1];
-    }
+    /* 移除断点：统一走 lv_shift_left 的 memmove 路径 */
+    lv_shift_left(state->breakpoints, sizeof(state->breakpoints[0]), (size_t) index,
+                  (size_t) state->breakpoint_count);
     state->breakpoint_count--;
 }
 

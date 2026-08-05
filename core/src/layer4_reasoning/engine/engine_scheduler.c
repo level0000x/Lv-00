@@ -409,10 +409,9 @@ int scheduler_unregister_backend(EngineScheduler *scheduler, SolverBackendType t
 
     for (int i = 0; i < scheduler->backend_count; i++) {
         if (scheduler->backends[i].type == type) {
-            /* 将后续条目前移 */
-            for (int j = i; j < scheduler->backend_count - 1; j++) {
-                scheduler->backends[j] = scheduler->backends[j + 1];
-            }
+            /* 将后续条目前移（统一走 lv_shift_left 的 memmove 路径） */
+            lv_shift_left(scheduler->backends, sizeof(scheduler->backends[0]), (size_t) i,
+                          (size_t) scheduler->backend_count);
             scheduler->backend_count--;
             memset(&scheduler->backends[scheduler->backend_count], 0, sizeof(SchedulerBackendEntry));
             return 0;

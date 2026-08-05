@@ -513,7 +513,7 @@ lvMetaVerifier *lv_meta_verifier_create(void) {
     lvMetaVerifier *v = lv_calloc(1, sizeof(lvMetaVerifier));
     if (!v)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_meta_verifier_create: failed to allocate meta verifier");
-    v->check_mask = (1 << lv_CHECK_COUNT) - 1; /* All checks enabled */
+    v->check_mask = lv_mask_all((unsigned) lv_CHECK_COUNT); /* All checks enabled */
     v->strict_mode = 0;
     return v;
 }
@@ -539,7 +539,7 @@ void lv_meta_verifier_destroy(lvMetaVerifier *verifier) {
  */
 void lv_meta_verifier_enable_check(lvMetaVerifier *verifier, lvVerifyCheck check) {
     if (verifier && check >= 0 && check < lv_CHECK_COUNT)
-        verifier->check_mask |= (1 << check);
+        verifier->check_mask |= lv_bit_mask((unsigned) check);
 }
 
 /**
@@ -552,7 +552,7 @@ void lv_meta_verifier_enable_check(lvMetaVerifier *verifier, lvVerifyCheck check
  */
 void lv_meta_verifier_disable_check(lvMetaVerifier *verifier, lvVerifyCheck check) {
     if (verifier && check >= 0 && check < lv_CHECK_COUNT)
-        verifier->check_mask &= ~(1 << check);
+        verifier->check_mask &= ~lv_bit_mask((unsigned) check);
 }
 
 /**
@@ -593,7 +593,7 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     report.total_checks = lv_CHECK_COUNT;
     for (int i = 0; i < lv_CHECK_COUNT; i++) {
         report.results[i].check = (lvVerifyCheck) i;
-        if (verifier->check_mask & (1 << i)) {
+        if (verifier->check_mask & lv_bit_mask((unsigned) i)) {
             /* 调用对应的检查函数，传入严格模式标记 */
             int passed =
                 g_check_funcs[i](session, verifier->strict_mode, report.results[i].description,
@@ -849,7 +849,7 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
 
     for (int i = 0; i < lv_CHECK_COUNT; i++) {
         report.results[i].check = (lvVerifyCheck) i;
-        if (!(verifier->check_mask & (1 << i))) {
+        if (!(verifier->check_mask & lv_bit_mask((unsigned) i))) {
             /* 严格模式下不允许跳过任何检查：被禁用的检查项视为失败 */
             if (verifier->strict_mode) {
                 snprintf(report.results[i].description, sizeof(report.results[i].description),

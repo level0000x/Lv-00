@@ -176,11 +176,8 @@ int high_dim_unregister_block(HighDimManager *manager, int block_id) {
         return lv_ERROR_NOT_FOUND;
     }
 
-    /* 移动后续元素：使用单次 memmove 替代循环，提高效率 */
-    if (index < manager->blocks.count - 1) {
-        memmove(&blocks_arr[index], &blocks_arr[index + 1],
-                (manager->blocks.count - index - 1) * sizeof(HighDimAbstractBlock));
-    }
+    /* 移动后续元素：统一走 lv_shift_left（单次 memmove 替代循环） */
+    lv_shift_left(blocks_arr, sizeof(blocks_arr[0]), (size_t) index, (size_t) manager->blocks.count);
 
     manager->blocks.count--;
 
