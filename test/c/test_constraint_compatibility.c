@@ -263,23 +263,20 @@ static void test_null_inputs_return_invalid(void) {
     graph_destroy(graph);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("约束相容性四态检测");
+TEST_MAIN_BEGIN("约束相容性四态检测")
 
     /* 原有测试 */
-    TEST_RUN(test_empty_graph_is_under_constrained);
-    TEST_RUN(test_single_segment_is_consistent);
-    TEST_RUN(test_degenerate_line_from_same_point_is_not_consistent);
-    TEST_RUN(test_duplicate_segment_constraint_is_over_constrained_or_redundant);
+    TEST_MAIN_RUN(test_empty_graph_is_under_constrained);
+    TEST_MAIN_RUN(test_single_segment_is_consistent);
+    TEST_MAIN_RUN(test_degenerate_line_from_same_point_is_not_consistent);
+    TEST_MAIN_RUN(test_duplicate_segment_constraint_is_over_constrained_or_redundant);
 
     /* v3.6.0: 新增测试 */
-    TEST_RUN(test_over_constrained_with_extra_incidence);
-    TEST_RUN(test_inactive_node_skipped);
-    TEST_RUN(test_all_inactive_nodes_is_under_constrained);
-    TEST_RUN(test_connection_constraint_zero_dof);
-    TEST_RUN(test_exactly_constrained_is_consistent);
-    TEST_RUN(test_null_inputs_return_invalid);
+    TEST_MAIN_RUN(test_over_constrained_with_extra_incidence);
+    TEST_MAIN_RUN(test_inactive_node_skipped);
+    TEST_MAIN_RUN(test_all_inactive_nodes_is_under_constrained);
+    TEST_MAIN_RUN(test_connection_constraint_zero_dof);
+    TEST_MAIN_RUN(test_exactly_constrained_is_consistent);
+    TEST_MAIN_RUN(test_null_inputs_return_invalid);
 
-    TEST_SUITE_END();
-    return g_fail_count == 0 ? 0 : 1;
-}
+TEST_MAIN_END()

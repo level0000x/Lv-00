@@ -1650,7 +1650,7 @@ int lv_cuda_device_count(void) {
  * @brief 获取 CUDA 工具箱版本字符串
  */
 const char *lv_cuda_backend_version(void) {
-    static char version_buf[128];
+    static lv_THREAD_LOCAL char version_buf[128];
     int driver_version = 0, runtime_version = 0;
     cudaError_t err_drv = cudaDriverGetVersion(&driver_version);
     cudaError_t err_rt  = cudaRuntimeGetVersion(&runtime_version);

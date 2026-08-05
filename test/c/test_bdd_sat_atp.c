@@ -1383,82 +1383,79 @@ static void test_prob_constraint_infer(void) {
  * Main
  * ======================================================================== */
 
-int main(void) {
-    TEST_SUITE_BEGIN("BDD / SAT / ATP / ApproxCounter / GroebnerParallel / Probabilistic");
+TEST_MAIN_BEGIN("BDD / SAT / ATP / ApproxCounter / GroebnerParallel / Probabilistic")
 
     /* Group 1-6: BDD */
-    TEST_RUN(test_bdd_manager_create_destroy);
-    TEST_RUN(test_bdd_new_var);
-    TEST_RUN(test_bdd_terminals);
-    TEST_RUN(test_bdd_literal);
-    TEST_RUN(test_bdd_and_or_not);
-    TEST_RUN(test_bdd_ite);
-    TEST_RUN(test_bdd_xor_nand);
-    TEST_RUN(test_bdd_ref_deref);
-    TEST_RUN(test_bdd_reorder_sift);
-    TEST_RUN(test_constraint_graph_to_bdd);
-    TEST_RUN(test_bdd_to_cnf);
+    TEST_MAIN_RUN(test_bdd_manager_create_destroy);
+    TEST_MAIN_RUN(test_bdd_new_var);
+    TEST_MAIN_RUN(test_bdd_terminals);
+    TEST_MAIN_RUN(test_bdd_literal);
+    TEST_MAIN_RUN(test_bdd_and_or_not);
+    TEST_MAIN_RUN(test_bdd_ite);
+    TEST_MAIN_RUN(test_bdd_xor_nand);
+    TEST_MAIN_RUN(test_bdd_ref_deref);
+    TEST_MAIN_RUN(test_bdd_reorder_sift);
+    TEST_MAIN_RUN(test_constraint_graph_to_bdd);
+    TEST_MAIN_RUN(test_bdd_to_cnf);
 
     /* Group 6: ADD */
-    TEST_RUN(test_add_manager_create_destroy);
-    TEST_RUN(test_add_operations);
+    TEST_MAIN_RUN(test_add_manager_create_destroy);
+    TEST_MAIN_RUN(test_add_operations);
 
     /* Group 7-8: SAT */
-    TEST_RUN(test_sat_encoding_create_destroy);
-    TEST_RUN(test_sat_var_register_lookup);
-    TEST_RUN(test_sat_clause_management);
-    TEST_RUN(test_sat_encoding_stats);
-    TEST_RUN(test_sat_unsat_core);
-    TEST_RUN(test_sat_export_dimacs);
-    TEST_RUN(test_sat_encode_collinearity);
-    TEST_RUN(test_sat_encode_parallelism);
-    TEST_RUN(test_sat_encode_perpendicularity);
-    TEST_RUN(test_sat_encode_distance_eq);
-    TEST_RUN(test_sat_encode_angle_eq);
-    TEST_RUN(test_sat_encode_containment);
-    TEST_RUN(test_sat_constraint_graph_to_sat);
-    TEST_RUN(test_sat_solve_and_decode);
+    TEST_MAIN_RUN(test_sat_encoding_create_destroy);
+    TEST_MAIN_RUN(test_sat_var_register_lookup);
+    TEST_MAIN_RUN(test_sat_clause_management);
+    TEST_MAIN_RUN(test_sat_encoding_stats);
+    TEST_MAIN_RUN(test_sat_unsat_core);
+    TEST_MAIN_RUN(test_sat_export_dimacs);
+    TEST_MAIN_RUN(test_sat_encode_collinearity);
+    TEST_MAIN_RUN(test_sat_encode_parallelism);
+    TEST_MAIN_RUN(test_sat_encode_perpendicularity);
+    TEST_MAIN_RUN(test_sat_encode_distance_eq);
+    TEST_MAIN_RUN(test_sat_encode_angle_eq);
+    TEST_MAIN_RUN(test_sat_encode_containment);
+    TEST_MAIN_RUN(test_sat_constraint_graph_to_sat);
+    TEST_MAIN_RUN(test_sat_solve_and_decode);
 
     /* Group 9: ATP */
-    TEST_RUN(test_atp_config_default);
-    TEST_RUN(test_atp_solver_create_destroy);
-    TEST_RUN(test_atp_encode_empty_graph);
-    TEST_RUN(test_atp_encode_with_goal);
-    TEST_RUN(test_atp_solver_load);
-    TEST_RUN(test_atp_solver_solve);
-    TEST_RUN(test_atp_solver_solve_no_problem);
-    TEST_RUN(test_atp_solve_graph);
-    TEST_RUN(test_atp_result_lifecycle);
-    TEST_RUN(test_atp_backend_names);
-    TEST_RUN(test_atp_registry);
+    TEST_MAIN_RUN(test_atp_config_default);
+    TEST_MAIN_RUN(test_atp_solver_create_destroy);
+    TEST_MAIN_RUN(test_atp_encode_empty_graph);
+    TEST_MAIN_RUN(test_atp_encode_with_goal);
+    TEST_MAIN_RUN(test_atp_solver_load);
+    TEST_MAIN_RUN(test_atp_solver_solve);
+    TEST_MAIN_RUN(test_atp_solver_solve_no_problem);
+    TEST_MAIN_RUN(test_atp_solve_graph);
+    TEST_MAIN_RUN(test_atp_result_lifecycle);
+    TEST_MAIN_RUN(test_atp_backend_names);
+    TEST_MAIN_RUN(test_atp_registry);
 
     /* Group 10: Approximate Counter */
-    TEST_RUN(test_approx_count_solutions);
-    TEST_RUN(test_approx_count_projected);
-    TEST_RUN(test_approx_count_to_sat);
-    TEST_RUN(test_approx_count_pac_bound);
-    TEST_RUN(test_is_approximately_constructible);
+    TEST_MAIN_RUN(test_approx_count_solutions);
+    TEST_MAIN_RUN(test_approx_count_projected);
+    TEST_MAIN_RUN(test_approx_count_to_sat);
+    TEST_MAIN_RUN(test_approx_count_pac_bound);
+    TEST_MAIN_RUN(test_is_approximately_constructible);
 
     /* Group 11: Groebner Parallel */
-    TEST_RUN(test_groebner_default_config);
-    TEST_RUN(test_groebner_parallel_create_destroy);
-    TEST_RUN(test_groebner_parallel_compute);
-    TEST_RUN(test_groebner_parallel_state);
-    TEST_RUN(test_groebner_poly_is_nonzero_constant);
+    TEST_MAIN_RUN(test_groebner_default_config);
+    TEST_MAIN_RUN(test_groebner_parallel_create_destroy);
+    TEST_MAIN_RUN(test_groebner_parallel_compute);
+    TEST_MAIN_RUN(test_groebner_parallel_state);
+    TEST_MAIN_RUN(test_groebner_poly_is_nonzero_constant);
 
     /* Group 12: Probabilistic Constraint */
-    TEST_RUN(test_prob_dist_create_uniform);
-    TEST_RUN(test_prob_dist_create_normal);
-    TEST_RUN(test_prob_dist_create_beta);
-    TEST_RUN(test_prob_dist_destroy_null);
-    TEST_RUN(test_prob_dist_pdf);
-    TEST_RUN(test_prob_dist_cdf);
-    TEST_RUN(test_prob_dist_sample);
-    TEST_RUN(test_prob_constraint_create_destroy);
-    TEST_RUN(test_prob_constraint_sample);
-    TEST_RUN(test_prob_constraint_infer);
+    TEST_MAIN_RUN(test_prob_dist_create_uniform);
+    TEST_MAIN_RUN(test_prob_dist_create_normal);
+    TEST_MAIN_RUN(test_prob_dist_create_beta);
+    TEST_MAIN_RUN(test_prob_dist_destroy_null);
+    TEST_MAIN_RUN(test_prob_dist_pdf);
+    TEST_MAIN_RUN(test_prob_dist_cdf);
+    TEST_MAIN_RUN(test_prob_dist_sample);
+    TEST_MAIN_RUN(test_prob_constraint_create_destroy);
+    TEST_MAIN_RUN(test_prob_constraint_sample);
+    TEST_MAIN_RUN(test_prob_constraint_infer);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

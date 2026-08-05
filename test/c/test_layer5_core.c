@@ -1277,54 +1277,51 @@ static void test_proof_trace_lifecycle(void) {
  * Main
  * ================================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Layer5 Core (Magic / Plugin System / Proof Compiler)");
+TEST_MAIN_BEGIN("Layer5 Core (Magic / Plugin System / Proof Compiler)")
 
     /* ── Magic 深度测试 ── */
     printf("\n--- Magic Edge & Stress ---\n");
-    TEST_RUN(test_rune_parse_edge);
-    TEST_RUN(test_rune_serialize_null);
-    TEST_RUN(test_rune_sequence_growth);
-    TEST_RUN(test_magic_array_all_constraint_types);
-    TEST_RUN(test_magic_array_stability_boundary);
-    TEST_RUN(test_magic_array_deep_copy);
-    TEST_RUN(test_magic_array_merge_edge);
-    TEST_RUN(test_magic_array_deserialize_complex);
-    TEST_RUN(test_magic_array_balance_deep);
-    TEST_RUN(test_spell_cast_paths);
-    TEST_RUN(test_spell_config_boundary);
-    TEST_RUN(test_spell_element_compatibility);
-    TEST_RUN(test_domain_deep);
-    TEST_RUN(test_incantation_all_goals);
-    TEST_RUN(test_helper_enum_boundaries);
-    TEST_RUN(test_spellbook_deep);
-    TEST_RUN(test_restriction_all_levels);
-    TEST_RUN(test_purity_threshold_boundary);
-    TEST_RUN(test_element_reaction_full_matrix);
+    TEST_MAIN_RUN(test_rune_parse_edge);
+    TEST_MAIN_RUN(test_rune_serialize_null);
+    TEST_MAIN_RUN(test_rune_sequence_growth);
+    TEST_MAIN_RUN(test_magic_array_all_constraint_types);
+    TEST_MAIN_RUN(test_magic_array_stability_boundary);
+    TEST_MAIN_RUN(test_magic_array_deep_copy);
+    TEST_MAIN_RUN(test_magic_array_merge_edge);
+    TEST_MAIN_RUN(test_magic_array_deserialize_complex);
+    TEST_MAIN_RUN(test_magic_array_balance_deep);
+    TEST_MAIN_RUN(test_spell_cast_paths);
+    TEST_MAIN_RUN(test_spell_config_boundary);
+    TEST_MAIN_RUN(test_spell_element_compatibility);
+    TEST_MAIN_RUN(test_domain_deep);
+    TEST_MAIN_RUN(test_incantation_all_goals);
+    TEST_MAIN_RUN(test_helper_enum_boundaries);
+    TEST_MAIN_RUN(test_spellbook_deep);
+    TEST_MAIN_RUN(test_restriction_all_levels);
+    TEST_MAIN_RUN(test_purity_threshold_boundary);
+    TEST_MAIN_RUN(test_element_reaction_full_matrix);
 
     /* ── 插件系统深度测试 ── */
     printf("\n--- Plugin System Deep ---\n");
-    TEST_RUN(test_plugin_interface_full);
-    TEST_RUN(test_plugin_event_handler);
-    TEST_RUN(test_plugin_dependency_deep);
-    TEST_RUN(test_plugin_version_deep);
-    TEST_RUN(test_plugin_config_deep);
-    TEST_RUN(test_plugin_search_path_deep);
-    TEST_RUN(test_plugin_json_info);
-    TEST_RUN(test_plugin_activate_deactivate);
+    TEST_MAIN_RUN(test_plugin_interface_full);
+    TEST_MAIN_RUN(test_plugin_event_handler);
+    TEST_MAIN_RUN(test_plugin_dependency_deep);
+    TEST_MAIN_RUN(test_plugin_version_deep);
+    TEST_MAIN_RUN(test_plugin_config_deep);
+    TEST_MAIN_RUN(test_plugin_search_path_deep);
+    TEST_MAIN_RUN(test_plugin_json_info);
+    TEST_MAIN_RUN(test_plugin_activate_deactivate);
 
     /* ── 证明编译器深度测试 ── */
     printf("\n--- Proof Compiler Deep ---\n");
-    TEST_RUN(test_proof_object_with_premises);
-    TEST_RUN(test_proof_object_invalid_chain);
-    TEST_RUN(test_proof_object_add_axiom_assumption);
-    TEST_RUN(test_proof_compiler_all_formats);
-    TEST_RUN(test_proof_compiler_null_objects);
-    TEST_RUN(test_proof_compiler_config);
-    TEST_RUN(test_proof_export_to_file);
-    TEST_RUN(test_proof_step_record_premises);
-    TEST_RUN(test_proof_trace_lifecycle);
+    TEST_MAIN_RUN(test_proof_object_with_premises);
+    TEST_MAIN_RUN(test_proof_object_invalid_chain);
+    TEST_MAIN_RUN(test_proof_object_add_axiom_assumption);
+    TEST_MAIN_RUN(test_proof_compiler_all_formats);
+    TEST_MAIN_RUN(test_proof_compiler_null_objects);
+    TEST_MAIN_RUN(test_proof_compiler_config);
+    TEST_MAIN_RUN(test_proof_export_to_file);
+    TEST_MAIN_RUN(test_proof_step_record_premises);
+    TEST_MAIN_RUN(test_proof_trace_lifecycle);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

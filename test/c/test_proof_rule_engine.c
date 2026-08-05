@@ -481,19 +481,16 @@ static void test_utility_string_functions(void) {
 
 /* ============== Main ============== */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Proof Rule Engine & Session Tests");
+TEST_MAIN_BEGIN("Proof Rule Engine & Session Tests")
 
-    TEST_RUN(test_rule_engine_create);
-    TEST_RUN(test_rule_engine_add_rule);
-    TEST_RUN(test_rule_engine_search_simple);
-    TEST_RUN(test_proof_session_create);
-    TEST_RUN(test_proof_session_submit_step);
-    TEST_RUN(test_proof_session_get_state_json);
-    TEST_RUN(test_proof_state_management);
-    TEST_RUN(test_utility_string_functions);
+    TEST_MAIN_RUN(test_rule_engine_create);
+    TEST_MAIN_RUN(test_rule_engine_add_rule);
+    TEST_MAIN_RUN(test_rule_engine_search_simple);
+    TEST_MAIN_RUN(test_proof_session_create);
+    TEST_MAIN_RUN(test_proof_session_submit_step);
+    TEST_MAIN_RUN(test_proof_session_get_state_json);
+    TEST_MAIN_RUN(test_proof_state_management);
+    TEST_MAIN_RUN(test_utility_string_functions);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

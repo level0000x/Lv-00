@@ -436,13 +436,13 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
                 /* If result is a new e-node, add to next worklist */
                 if (result_new) {
                     if (work_count >= worklist_cap) {
-                        worklist_cap *= 2;
-                        size_t *new_wl = (size_t *) lv_realloc(worklist, worklist_cap * sizeof(size_t));
-                        if (!new_wl) {
+                        /* worklist_cap is size_t; bridge via a local int for lv_ensure_capacity */
+                        int wl_cap = (int) worklist_cap;
+                        if (!lv_ensure_capacity((void **) &worklist, (int) work_count, &wl_cap, sizeof(size_t), 0)) {
                             lv_FREE_AND_NULL(result);
                             break;
                         }
-                        worklist = new_wl;
+                        worklist_cap = (size_t) wl_cap;
                     }
                     worklist[work_count++] = result_idx;
                 }
@@ -529,12 +529,12 @@ bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine, const char *name, con
 
     /* Grow array if needed */
     if (engine->rule_count >= engine->rule_capacity) {
-        size_t new_cap = engine->rule_capacity * 2;
-        lvRewriteRuleEx *new_rules = (lvRewriteRuleEx *) lv_realloc(engine->rules, new_cap * sizeof(lvRewriteRuleEx));
-        if (!new_rules)
+        /* rule_capacity is size_t; bridge via a local int for lv_ensure_capacity */
+        int rule_cap = (int) engine->rule_capacity;
+        if (!lv_ensure_capacity((void **) &engine->rules, (int) engine->rule_count, &rule_cap,
+                                sizeof(lvRewriteRuleEx), 0))
             return false;
-        engine->rules = new_rules;
-        engine->rule_capacity = new_cap;
+        engine->rule_capacity = (size_t) rule_cap;
     }
 
     lvRewriteRuleEx *rule = &engine->rules[engine->rule_count];

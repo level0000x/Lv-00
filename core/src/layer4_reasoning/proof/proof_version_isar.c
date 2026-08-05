@@ -135,18 +135,14 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
     if (!props || prop_count <= 0)
         return NULL;
 
-    /* 预估输出大小：每个命题约 768 字节 */
-    size_t est_size = (size_t) prop_count * 1024 + 256;
-    char *output = (char *) lv_calloc(1, est_size);
-    if (!output)
-        return NULL;
+    /* 用 lvStrBuf 累积输出（自动扩容，消除预估大小与截断逻辑；
+       lv_strbuf_to_string 返回 lv_malloc 分配的 NUL 结尾字符串） */
+    lvStrBuf sb = {0};
 
-    size_t offset = 0;
-
-    offset += (size_t) snprintf(output + offset, est_size - offset,
-                                "theory Exported_Proof\n"
-                                "  imports Main\n"
-                                "begin\n\n");
+    lv_strbuf_printf(&sb,
+                     "theory Exported_Proof\n"
+                     "  imports Main\n"
+                     "begin\n\n");
 
     for (int i = 0; i < prop_count; i++) {
         if (!props[i])
@@ -158,43 +154,28 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
         char safe_label[256];
         sanitize_isar_label(safe_label, sizeof(safe_label), label);
 
-        const char *proof_body;
-        lvStrBuf sb_2 = {0};
-
-        {
-            /* VTable 查找：根据命题类型派发到对应的 handler */
-            ProofGenHandler handler = proof_gen_default;
-            size_t type_idx = (size_t) prop->type;
-            if (type_idx < sizeof(proof_gen_handlers) / sizeof(proof_gen_handlers[0]) &&
-                proof_gen_handlers[type_idx] != NULL) {
-                handler = proof_gen_handlers[type_idx];
-            }
-            handler(prop, &sb_2, ptype);
-            proof_body = sb_2.data;
+        /* VTable 查找：根据命题类型派发到对应的 handler */
+        ProofGenHandler handler = proof_gen_default;
+        size_t type_idx = (size_t) prop->type;
+        if (type_idx < sizeof(proof_gen_handlers) / sizeof(proof_gen_handlers[0]) &&
+            proof_gen_handlers[type_idx] != NULL) {
+            handler = proof_gen_handlers[type_idx];
         }
-
-        lv_strbuf_destroy(&sb_2);
-
-        int n = snprintf(output + offset, est_size - offset,
+        lvStrBuf body = {0};
+        handler(prop, &body, ptype);
+        lv_strbuf_printf(&sb,
                          "lemma %s_%d:\n"
                          "  (* 命题 #%d, 类型: %s *)\n"
                          "  \"?thesis\"\n"
                          "  %s"
                          "qed\n\n",
-                         safe_label, prop->id, prop->id, ptype, proof_body);
-        if (n < 0)
-            break;
-        if ((size_t) n >= est_size - offset) {
-            /* 缓冲区不足，截断输出 */
-            offset = est_size - 1;
-            break;
-        }
-        offset += (size_t) n;
+                         safe_label, prop->id, prop->id, ptype, lv_strbuf_cstr(&body));
+        lv_strbuf_destroy(&body);
     }
 
-    offset += (size_t) snprintf(output + offset, est_size - offset, "end\n");
+    lv_strbuf_printf(&sb, "end\n");
 
-    return output;
+    return lv_strbuf_to_string(&sb);
 }
 
 

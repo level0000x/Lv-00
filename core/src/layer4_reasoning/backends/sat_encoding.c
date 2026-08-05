@@ -82,23 +82,18 @@ static int find_var_entry(const SatEncoding *enc, int arity, const int *atom_ids
  */
 static bool ensure_clause_capacity(SatEncoding *enc) {
     if (enc->clause_count >= enc->clause_capacity) {
-        int new_cap = (enc->clause_capacity == 0) ? CLAUSE_INITIAL_CAP : enc->clause_capacity * lv_ARRAY_GROWTH_FACTOR;
-        /* 整数溢出检查 */
-        if (new_cap <= 0 || new_cap < enc->clause_capacity) {
+        int old_cap = enc->clause_capacity;
+        /* 第一次：扩容 clauses（溢出检查由 lv_ensure_capacity 内部完成） */
+        if (!lv_ensure_capacity((void **) &enc->clauses, old_cap,
+                                &enc->clause_capacity, sizeof(int *), 1))
+            return false;
+        /* 第二次：扩容 clause_sizes。临时回退容量指针使扩容真实执行，保持双数组容量一致 */
+        enc->clause_capacity = old_cap;
+        if (!lv_ensure_capacity((void **) &enc->clause_sizes, old_cap,
+                                &enc->clause_capacity, sizeof(int), 1)) {
+            enc->clause_capacity = old_cap;
             return false;
         }
-        int **new_clauses = (int **) lv_realloc(enc->clauses, (size_t) new_cap * sizeof(int *));
-        int *new_sizes = (int *) lv_realloc(enc->clause_sizes, (size_t) new_cap * sizeof(int));
-        if (!new_clauses || !new_sizes) {
-            if (new_clauses)
-                lv_free((void **) &new_clauses);
-            if (new_sizes)
-                lv_free((void **) &new_sizes);
-            return false;
-        }
-        enc->clauses = new_clauses;
-        enc->clause_sizes = new_sizes;
-        enc->clause_capacity = new_cap;
     }
     return true;
 }
@@ -1218,16 +1213,16 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         if (!ve || ve->var_id != var_id)
                             continue;
                         if (true_atom_count >= true_atom_cap) {
-                            int new_cap = true_atom_cap * lv_ARRAY_GROWTH_FACTOR;
-                            int **new_ids = (int **) lv_realloc(true_atom_ids, (size_t) new_cap * sizeof(int *));
-                            if (!new_ids)
+                            int old_cap = true_atom_cap;
+                            /* 第一次：扩容 true_atom_ids（溢出检查由 lv_ensure_capacity 内部完成） */
+                            if (!lv_ensure_capacity((void **) &true_atom_ids, old_cap,
+                                                    &true_atom_cap, sizeof(int *), 1))
                                 break;
-                            true_atom_ids = new_ids;
-                            int *new_ar = (int *) lv_realloc(true_atom_arities, (size_t) new_cap * sizeof(int));
-                            if (!new_ar)
+                            /* 第二次：扩容 true_atom_arities。临时回退容量指针使扩容真实执行 */
+                            true_atom_cap = old_cap;
+                            if (!lv_ensure_capacity((void **) &true_atom_arities, old_cap,
+                                                    &true_atom_cap, sizeof(int), 1))
                                 break;
-                            true_atom_arities = new_ar;
-                            true_atom_cap = new_cap;
                         }
                         int *ids_copy = (int *) lv_malloc((size_t) ve->arity * sizeof(int));
                         if (ids_copy) {

@@ -1,4 +1,4 @@
-﻿#include <stdarg.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -197,15 +197,8 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                     func_block_set_output_ports(fb, outputs, out_cnt);
 
                 /* 添加到块图 */
-                if (sg->count >= sg->cap) {
-                    sg->cap *= 2;
-                    FuncBlock **tmp = lv_realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
-                    if (!tmp) {
-                        sg->cap /= 2; /* restore old capacity */
-                        break;
-                    }
-                    sg->blocks = tmp;
-                }
+                if (!lv_ensure_capacity((void **) &sg->blocks, sg->count, &sg->cap, sizeof(FuncBlock *), 0))
+                    break; /* lv_ensure_capacity 失败时指针/容量不变，无需回滚 */
                 sg->blocks[sg->count++] = fb;
             }
 

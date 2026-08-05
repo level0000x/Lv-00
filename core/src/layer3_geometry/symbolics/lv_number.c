@@ -449,28 +449,28 @@ static const lvNumberOps *ops_for_type(lvNumberType type) {
  * 工厂函数
  * ============================================================ */
 
-lv_PUBLIC_API lvNumber *lv_number_from_rational(int64_t num, uint64_t den) {
+lvNumber *lv_number_from_rational(int64_t num, uint64_t den) {
     if (den == 0) return NULL;
     lvRational *r = lv_rational_create_from_i64(num, den);
     lv_CHECK_ALLOC(r, NULL);
     return lv_number_alloc(&g_rational_ops, r);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_from_double(double val) {
+lvNumber *lv_number_from_double(double val) {
     FloatImpl *f = (FloatImpl *) lv_malloc(sizeof(FloatImpl));
     lv_CHECK_ALLOC(f, NULL);
     f->value = val;
     return lv_number_alloc(&g_float_ops, f);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_from_int(int64_t val) {
+lvNumber *lv_number_from_int(int64_t val) {
     IntImpl *in = (IntImpl *) lv_malloc(sizeof(IntImpl));
     lv_CHECK_ALLOC(in, NULL);
     in->value = val;
     return lv_number_alloc(&g_int_ops, in);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_from_string(const char *str) {
+lvNumber *lv_number_from_string(const char *str) {
     lv_CHECK_NULL(str, NULL);
 
     /* 尝试解析为有理数 */
@@ -496,31 +496,31 @@ lv_PUBLIC_API lvNumber *lv_number_from_string(const char *str) {
  * 算术运算（通过 ops vtable 分发，含类型提升）
  * ============================================================ */
 
-lv_PUBLIC_API lvNumber *lv_number_add(const lvNumber *a, const lvNumber *b) {
+lvNumber *lv_number_add(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, NULL);
     lv_CHECK_NULL(b, NULL);
     return a->ops->add(a, b);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_sub(const lvNumber *a, const lvNumber *b) {
+lvNumber *lv_number_sub(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, NULL);
     lv_CHECK_NULL(b, NULL);
     return a->ops->sub(a, b);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_mul(const lvNumber *a, const lvNumber *b) {
+lvNumber *lv_number_mul(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, NULL);
     lv_CHECK_NULL(b, NULL);
     return a->ops->mul(a, b);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_div(const lvNumber *a, const lvNumber *b) {
+lvNumber *lv_number_div(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, NULL);
     lv_CHECK_NULL(b, NULL);
     return a->ops->div(a, b);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_neg(const lvNumber *n) {
+lvNumber *lv_number_neg(const lvNumber *n) {
     lv_CHECK_NULL(n, NULL);
     /* 取负 = 0 - n */
     lvNumber *zero = lv_number_from_int(0);
@@ -530,7 +530,7 @@ lv_PUBLIC_API lvNumber *lv_number_neg(const lvNumber *n) {
     return result;
 }
 
-lv_PUBLIC_API lvNumber *lv_number_abs(const lvNumber *n) {
+lvNumber *lv_number_abs(const lvNumber *n) {
     lv_CHECK_NULL(n, NULL);
     if (n->ops->is_negative(n)) {
         return lv_number_neg(n);
@@ -538,7 +538,7 @@ lv_PUBLIC_API lvNumber *lv_number_abs(const lvNumber *n) {
     return n->ops->clone(n);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_pow(const lvNumber *base, int exp) {
+lvNumber *lv_number_pow(const lvNumber *base, int exp) {
     lv_CHECK_NULL(base, NULL);
 
     if (exp == 0) {
@@ -589,37 +589,37 @@ lv_PUBLIC_API lvNumber *lv_number_pow(const lvNumber *base, int exp) {
  * 比较运算
  * ============================================================ */
 
-lv_PUBLIC_API int lv_number_compare(const lvNumber *a, const lvNumber *b) {
+int lv_number_compare(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, 0);
     lv_CHECK_NULL(b, 0);
     return a->ops->compare(a, b);
 }
 
-lv_PUBLIC_API bool lv_number_eq(const lvNumber *a, const lvNumber *b) {
+bool lv_number_eq(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, false);
     lv_CHECK_NULL(b, false);
     return a->ops->compare(a, b) == 0;
 }
 
-lv_PUBLIC_API bool lv_number_lt(const lvNumber *a, const lvNumber *b) {
+bool lv_number_lt(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, false);
     lv_CHECK_NULL(b, false);
     return a->ops->compare(a, b) < 0;
 }
 
-lv_PUBLIC_API bool lv_number_gt(const lvNumber *a, const lvNumber *b) {
+bool lv_number_gt(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, false);
     lv_CHECK_NULL(b, false);
     return a->ops->compare(a, b) > 0;
 }
 
-lv_PUBLIC_API bool lv_number_lte(const lvNumber *a, const lvNumber *b) {
+bool lv_number_lte(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, false);
     lv_CHECK_NULL(b, false);
     return a->ops->compare(a, b) <= 0;
 }
 
-lv_PUBLIC_API bool lv_number_gte(const lvNumber *a, const lvNumber *b) {
+bool lv_number_gte(const lvNumber *a, const lvNumber *b) {
     lv_CHECK_NULL(a, false);
     lv_CHECK_NULL(b, false);
     return a->ops->compare(a, b) >= 0;
@@ -629,17 +629,17 @@ lv_PUBLIC_API bool lv_number_gte(const lvNumber *a, const lvNumber *b) {
  * 转换函数
  * ============================================================ */
 
-lv_PUBLIC_API double lv_number_to_double(const lvNumber *n) {
+double lv_number_to_double(const lvNumber *n) {
     lv_CHECK_NULL(n, 0.0);
     return n->ops->to_double(n);
 }
 
-lv_PUBLIC_API int64_t lv_number_to_int(const lvNumber *n) {
+int64_t lv_number_to_int(const lvNumber *n) {
     lv_CHECK_NULL(n, 0);
     return (int64_t) n->ops->to_double(n);
 }
 
-lv_PUBLIC_API char *lv_number_to_string(const lvNumber *n) {
+char *lv_number_to_string(const lvNumber *n) {
     lv_CHECK_NULL(n, NULL);
     return n->ops->to_string(n);
 }
@@ -648,28 +648,28 @@ lv_PUBLIC_API char *lv_number_to_string(const lvNumber *n) {
  * 查询函数
  * ============================================================ */
 
-lv_PUBLIC_API bool lv_number_is_zero(const lvNumber *n) {
+bool lv_number_is_zero(const lvNumber *n) {
     lv_CHECK_NULL(n, false);
     return n->ops->is_zero(n);
 }
 
-lv_PUBLIC_API bool lv_number_is_one(const lvNumber *n) {
+bool lv_number_is_one(const lvNumber *n) {
     lv_CHECK_NULL(n, false);
     return n->ops->is_one(n);
 }
 
-lv_PUBLIC_API bool lv_number_is_negative(const lvNumber *n) {
+bool lv_number_is_negative(const lvNumber *n) {
     lv_CHECK_NULL(n, false);
     return n->ops->is_negative(n);
 }
 
-lv_PUBLIC_API bool lv_number_is_positive(const lvNumber *n) {
+bool lv_number_is_positive(const lvNumber *n) {
     lv_CHECK_NULL(n, false);
     if (n->ops->is_zero(n)) return false;
     return !n->ops->is_negative(n);
 }
 
-lv_PUBLIC_API bool lv_number_is_integer(const lvNumber *n) {
+bool lv_number_is_integer(const lvNumber *n) {
     lv_CHECK_NULL(n, false);
     if (n->ops->type(n) == lv_NUMBER_INTEGER) return true;
     /* 对于有理数，检查分母是否为 1 */
@@ -677,22 +677,22 @@ lv_PUBLIC_API bool lv_number_is_integer(const lvNumber *n) {
     return fabs(d - (double)(int64_t)d) < 1e-15;
 }
 
-lv_PUBLIC_API lvNumberType lv_number_type(const lvNumber *n) {
+lvNumberType lv_number_type(const lvNumber *n) {
     lv_CHECK_NULL(n, lv_NUMBER_RATIONAL);
     return n->ops->type(n);
 }
 
-lv_PUBLIC_API uint64_t lv_number_hash(const lvNumber *n) {
+uint64_t lv_number_hash(const lvNumber *n) {
     lv_CHECK_NULL(n, 0);
     return n->ops->hash(n);
 }
 
-lv_PUBLIC_API lvNumber *lv_number_clone(const lvNumber *n) {
+lvNumber *lv_number_clone(const lvNumber *n) {
     lv_CHECK_NULL(n, NULL);
     return n->ops->clone(n);
 }
 
-lv_PUBLIC_API void lv_number_destroy(lvNumber *n) {
+void lv_number_destroy(lvNumber *n) {
     if (!n) return;
     if (n->ops && n->ops->destroy) {
         n->ops->destroy(n);
@@ -707,7 +707,7 @@ lv_PUBLIC_API void lv_number_destroy(lvNumber *n) {
  * 类型信息
  * ============================================================ */
 
-lv_PUBLIC_API const char *lv_number_type_name(lvNumberType type) {
+const char *lv_number_type_name(lvNumberType type) {
     static const char *kNumberTypeNames[] = {
         [lv_NUMBER_RATIONAL] = "Rational",
         [lv_NUMBER_ALGEBRAIC] = "Algebraic",

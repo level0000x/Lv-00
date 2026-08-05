@@ -32,50 +32,42 @@ static char *format_proof_step_nl(ProofStep *step, ProofNaturalLanguage lang) {
     if (!step)
         return NULL;
 
-    char result[4096];
-    result[0] = '\0';
+    /* 用 lvStrBuf 累积输出（自动扩容，消除 4096 固定缓冲截断风险；
+       lv_strbuf_to_string 返回 lv_malloc 分配的 NUL 结尾字符串） */
+    lvStrBuf sb = {0};
 
     /* 步骤编号 */
     if (lang == PROOF_NL_LANG_ZH_CN) {
-        snprintf(result, sizeof(result), "步骤 %d", step->id);
+        lv_strbuf_printf(&sb, "步骤 %d", step->id);
     } else {
-        snprintf(result, sizeof(result), "Step %d", step->id);
+        lv_strbuf_printf(&sb, "Step %d", step->id);
     }
 
     /* 附加用户注释 */
     if (step->note && step->note[0] != '\0') {
-        size_t len = strlen(result);
         if (lang == PROOF_NL_LANG_ZH_CN) {
-            snprintf(result + len, sizeof(result) - len, "  —— 注释：%s", step->note);
+            lv_strbuf_printf(&sb, "  —— 注释：%s", step->note);
         } else {
-            snprintf(result + len, sizeof(result) - len, "  -- Note: %s", step->note);
+            lv_strbuf_printf(&sb, "  -- Note: %s", step->note);
         }
     }
 
     /* 附加依赖信息 */
     if (step->dependency_count > 0) {
-        size_t len = strlen(result);
         if (lang == PROOF_NL_LANG_ZH_CN) {
-            snprintf(result + len, sizeof(result) - len, "\n  —— 依赖步骤：");
+            lv_strbuf_printf(&sb, "\n  —— 依赖步骤：");
         } else {
-            snprintf(result + len, sizeof(result) - len, "\n  -- Depends on: ");
+            lv_strbuf_printf(&sb, "\n  -- Depends on: ");
         }
         for (int d = 0; d < step->dependency_count && d < 8; d++) {
-            len = strlen(result);
             if (d > 0) {
-                lv_strncat(result, ", ", sizeof(result));
-                len = strlen(result);
+                lv_strbuf_printf(&sb, ", ");
             }
-            snprintf(result + len, sizeof(result) - len, "Step %d", step->dependency_step_ids[d]);
+            lv_strbuf_printf(&sb, "Step %d", step->dependency_step_ids[d]);
         }
     }
 
-    /* 使用安全的字符串复制函数，确保缓冲区零终止 */
-    char *output = lv_malloc(strlen(result) + 1);
-    if (!output)
-        return NULL;
-    lv_strlcpy(output, result, strlen(result) + 1);
-    return output;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**

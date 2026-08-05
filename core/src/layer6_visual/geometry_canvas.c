@@ -145,18 +145,10 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char
     if (!canvas || !coords || coord_count <= 0)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas, coords, or invalid coord_count");
 
-    /* 自动扩容 */
-    if (canvas->entity_count >= canvas->entity_capacity) {
-        /* [安全] 防止 entity_capacity * 2 整数溢出 */
-        if (canvas->entity_capacity > INT_MAX / 2)
-            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "entity capacity overflow");
-        int new_cap = canvas->entity_capacity * 2;
-        lvGeomEntity *new_arr = lv_realloc(canvas->entities, new_cap * sizeof(lvGeomEntity));
-        if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc entities");
-        canvas->entities = new_arr;
-        canvas->entity_capacity = new_cap;
-    }
+    /* 自动扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &canvas->entities, canvas->entity_count, &canvas->entity_capacity,
+                            sizeof(lvGeomEntity), 0))
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc entities");
 
     lvGeomEntity *ent = &canvas->entities[canvas->entity_count];
     ent->id = canvas->next_entity_id++;
@@ -255,18 +247,10 @@ int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas, int entity_a_id,
     if (!canvas || entity_a_id <= 0 || entity_b_id <= 0)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL canvas or invalid entity ids");
 
-    /* 自动扩容 */
-    if (canvas->constraint_count >= canvas->constraint_capacity) {
-        /* [安全] 防止 constraint_capacity * 2 整数溢出 */
-        if (canvas->constraint_capacity > INT_MAX / 2)
-            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "constraint capacity overflow");
-        int new_cap = canvas->constraint_capacity * 2;
-        lvGeomConstraint *new_arr = lv_realloc(canvas->constraints, new_cap * sizeof(lvGeomConstraint));
-        if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc constraints");
-        canvas->constraints = new_arr;
-        canvas->constraint_capacity = new_cap;
-    }
+    /* 自动扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &canvas->constraints, canvas->constraint_count, &canvas->constraint_capacity,
+                            sizeof(lvGeomConstraint), 0))
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc constraints");
 
     lvGeomConstraint *c = &canvas->constraints[canvas->constraint_count];
     c->id = canvas->next_constraint_id++;

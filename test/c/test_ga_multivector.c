@@ -903,23 +903,20 @@ void test_ga_geometric_product_full(void) {
  * Main
  * ======================================================================== */
 
-int main(void) {
-    TEST_SUITE_BEGIN("ga_multivector");
+TEST_MAIN_BEGIN("ga_multivector")
 
-    TEST_RUN(test_ga_mv_zero);
-    TEST_RUN(test_ga_mv_scalar);
-    TEST_RUN(test_ga_geometric_product);
-    TEST_RUN(test_ga_geometric_product_full);
-    TEST_RUN(test_ga_outer_product);
-    TEST_RUN(test_ga_outer_product_comprehensive);
-    TEST_RUN(test_ga_outer_product_anticommutativity);
-    TEST_RUN(test_ga_outer_product_associativity);
-    TEST_RUN(test_ga_reverse);
-    TEST_RUN(test_ga_embed_point_extract);
-    TEST_RUN(test_ga_three_points_collinear);
-    TEST_RUN(test_ga_four_points_coplanar);
-    TEST_RUN(test_ga_norm_squared);
+    TEST_MAIN_RUN(test_ga_mv_zero);
+    TEST_MAIN_RUN(test_ga_mv_scalar);
+    TEST_MAIN_RUN(test_ga_geometric_product);
+    TEST_MAIN_RUN(test_ga_geometric_product_full);
+    TEST_MAIN_RUN(test_ga_outer_product);
+    TEST_MAIN_RUN(test_ga_outer_product_comprehensive);
+    TEST_MAIN_RUN(test_ga_outer_product_anticommutativity);
+    TEST_MAIN_RUN(test_ga_outer_product_associativity);
+    TEST_MAIN_RUN(test_ga_reverse);
+    TEST_MAIN_RUN(test_ga_embed_point_extract);
+    TEST_MAIN_RUN(test_ga_three_points_collinear);
+    TEST_MAIN_RUN(test_ga_four_points_coplanar);
+    TEST_MAIN_RUN(test_ga_norm_squared);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

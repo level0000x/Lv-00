@@ -467,21 +467,18 @@ static void test_expr_to_string(void) {
 /* ============================================================
  * 主入口
  * ============================================================ */
-int main(void) {
-    TEST_SUITE_BEGIN("lvExprCanonical");
+TEST_MAIN_BEGIN("lvExprCanonical")
 
-    TEST_RUN(test_expr_create_destroy);
-    TEST_RUN(test_expr_add_term);
-    TEST_RUN(test_expr_canonicalize_merge);
-    TEST_RUN(test_expr_canonicalize_sort);
-    TEST_RUN(test_expr_canonicalize_remove_zero);
-    TEST_RUN(test_expr_is_canonical);
-    TEST_RUN(test_expr_clone);
-    TEST_RUN(test_expr_add);
-    TEST_RUN(test_expr_sub);
-    TEST_RUN(test_expr_compare_terms);
-    TEST_RUN(test_expr_to_string);
+    TEST_MAIN_RUN(test_expr_create_destroy);
+    TEST_MAIN_RUN(test_expr_add_term);
+    TEST_MAIN_RUN(test_expr_canonicalize_merge);
+    TEST_MAIN_RUN(test_expr_canonicalize_sort);
+    TEST_MAIN_RUN(test_expr_canonicalize_remove_zero);
+    TEST_MAIN_RUN(test_expr_is_canonical);
+    TEST_MAIN_RUN(test_expr_clone);
+    TEST_MAIN_RUN(test_expr_add);
+    TEST_MAIN_RUN(test_expr_sub);
+    TEST_MAIN_RUN(test_expr_compare_terms);
+    TEST_MAIN_RUN(test_expr_to_string);
 
-    TEST_SUITE_END();
-    return (g_fail_count > 0) ? 1 : 0;
-}
+TEST_MAIN_END()

@@ -429,43 +429,40 @@ static void test_factorize_prime(void) {
 /* ============================================================
  * Main
  * ============================================================ */
-int main(void) {
-    TEST_SUITE_BEGIN("NumberTheory");
+TEST_MAIN_BEGIN("NumberTheory")
 
     /* Lifecycle */
-    TEST_RUN(test_mod_context_init);
-    TEST_RUN(test_mod_context_set);
+    TEST_MAIN_RUN(test_mod_context_init);
+    TEST_MAIN_RUN(test_mod_context_set);
 
     /* Modular arithmetic */
-    TEST_RUN(test_mod_add);
-    TEST_RUN(test_mod_add_negative);
-    TEST_RUN(test_mod_mul);
-    TEST_RUN(test_mod_mul_zero);
-    TEST_RUN(test_mod_inv);
-    TEST_RUN(test_mod_inv_no_inverse);
-    TEST_RUN(test_mod_pow);
+    TEST_MAIN_RUN(test_mod_add);
+    TEST_MAIN_RUN(test_mod_add_negative);
+    TEST_MAIN_RUN(test_mod_mul);
+    TEST_MAIN_RUN(test_mod_mul_zero);
+    TEST_MAIN_RUN(test_mod_inv);
+    TEST_MAIN_RUN(test_mod_inv_no_inverse);
+    TEST_MAIN_RUN(test_mod_pow);
 
     /* GCD and LCM */
-    TEST_RUN(test_gcd);
-    TEST_RUN(test_gcd_coprime);
-    TEST_RUN(test_gcd_zero);
-    TEST_RUN(test_lcm);
-    TEST_RUN(test_lcm_zero);
+    TEST_MAIN_RUN(test_gcd);
+    TEST_MAIN_RUN(test_gcd_coprime);
+    TEST_MAIN_RUN(test_gcd_zero);
+    TEST_MAIN_RUN(test_lcm);
+    TEST_MAIN_RUN(test_lcm_zero);
 
     /* Primality */
-    TEST_RUN(test_miller_rabin_prime);
-    TEST_RUN(test_miller_rabin_composite);
-    TEST_RUN(test_miller_rabin_small);
-    TEST_RUN(test_miller_rabin_carmichael);
+    TEST_MAIN_RUN(test_miller_rabin_prime);
+    TEST_MAIN_RUN(test_miller_rabin_composite);
+    TEST_MAIN_RUN(test_miller_rabin_small);
+    TEST_MAIN_RUN(test_miller_rabin_carmichael);
 
     /* Next prime */
-    TEST_RUN(test_next_prime);
-    TEST_RUN(test_next_prime_from_prime);
+    TEST_MAIN_RUN(test_next_prime);
+    TEST_MAIN_RUN(test_next_prime_from_prime);
 
     /* Factorization */
-    TEST_RUN(test_factorize_trial_div);
-    TEST_RUN(test_factorize_prime);
+    TEST_MAIN_RUN(test_factorize_trial_div);
+    TEST_MAIN_RUN(test_factorize_prime);
 
-    TEST_SUITE_END();
-    return (g_fail_count > 0) ? 1 : 0;
-}
+TEST_MAIN_END()

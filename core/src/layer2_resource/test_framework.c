@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_framework.c
  * @brief 增强单元测试框架实现
  *
@@ -142,16 +142,14 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
         }
     }
 
-    /* 扩容 */
+    /* 扩容（统一委托 lv_ensure_capacity；case_capacity 为 uint32_t，经局部 int 桥接） */
     if (suite->case_count >= suite->case_capacity) {
-        uint32_t new_cap = suite->case_capacity * 2;
-        lvTestCase *new_cases = (lvTestCase *) lv_realloc(suite->cases, new_cap * sizeof(lvTestCase));
-        if (!new_cases) {
+        int case_cap = (int) suite->case_capacity;
+        if (!lv_ensure_capacity((void **) &suite->cases, (int) suite->case_count, &case_cap, sizeof(lvTestCase), 0)) {
             lv_mutex_unlock(&g_test_system.mutex);
             return false;
         }
-        suite->cases = new_cases;
-        suite->case_capacity = new_cap;
+        suite->case_capacity = (uint32_t) case_cap;
     }
 
     /* 添加测试用例 */

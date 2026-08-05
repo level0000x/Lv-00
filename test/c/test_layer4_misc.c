@@ -1217,70 +1217,67 @@ static void test_rewrite_strategy_create(void) {
 /* ============================================================
  *  测试主函数
  * ============================================================ */
-int main(void) {
+TEST_MAIN_BEGIN("Layer 4 Misc Modules")
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    TEST_SUITE_BEGIN("Layer 4 Misc Modules");
 
     /* 组1: Mini Kernel */
     fprintf(stderr, "\n--- Mini Kernel ---\n");
-    TEST_RUN(test_mini_kernel_create_destroy);
-    TEST_RUN(test_mini_kernel_null_config);
-    TEST_RUN(test_mini_kernel_config_default_values);
-    TEST_RUN(test_mini_kernel_add_statements);
-    TEST_RUN(test_mini_kernel_seal_reset);
-    TEST_RUN(test_mini_kernel_check_substitution);
-    TEST_RUN(test_mini_kernel_prove_theorem);
-    TEST_RUN(test_mini_kernel_verify_all);
-    TEST_RUN(test_mini_kernel_self_check);
-    TEST_RUN(test_mini_kernel_stats);
-    TEST_RUN(test_mini_kernel_find_and_bind);
-    TEST_RUN(test_mini_kernel_string_helpers);
-    TEST_RUN(test_mini_kernel_import_export_mm);
+    TEST_MAIN_RUN(test_mini_kernel_create_destroy);
+    TEST_MAIN_RUN(test_mini_kernel_null_config);
+    TEST_MAIN_RUN(test_mini_kernel_config_default_values);
+    TEST_MAIN_RUN(test_mini_kernel_add_statements);
+    TEST_MAIN_RUN(test_mini_kernel_seal_reset);
+    TEST_MAIN_RUN(test_mini_kernel_check_substitution);
+    TEST_MAIN_RUN(test_mini_kernel_prove_theorem);
+    TEST_MAIN_RUN(test_mini_kernel_verify_all);
+    TEST_MAIN_RUN(test_mini_kernel_self_check);
+    TEST_MAIN_RUN(test_mini_kernel_stats);
+    TEST_MAIN_RUN(test_mini_kernel_find_and_bind);
+    TEST_MAIN_RUN(test_mini_kernel_string_helpers);
+    TEST_MAIN_RUN(test_mini_kernel_import_export_mm);
 
     /* 组2: Relation Model */
     fprintf(stderr, "\n--- Relation Model ---\n");
-    /* TEST_RUN(test_rel_set_operations); */
-    /* TEST_RUN(test_rel_join_product_transpose); */
-    /* TEST_RUN(test_rel_closure); */
-    TEST_RUN(test_relation_model_from_graph);
-    TEST_RUN(test_relation_model_destroy_null);
-    TEST_RUN(test_relation_model_facts_assertions);
-    TEST_RUN(test_relation_model_satisfiability);
+    /* TEST_MAIN_RUN(test_rel_set_operations); */
+    /* TEST_MAIN_RUN(test_rel_join_product_transpose); */
+    /* TEST_MAIN_RUN(test_rel_closure); */
+    TEST_MAIN_RUN(test_relation_model_from_graph);
+    TEST_MAIN_RUN(test_relation_model_destroy_null);
+    TEST_MAIN_RUN(test_relation_model_facts_assertions);
+    TEST_MAIN_RUN(test_relation_model_satisfiability);
 
     /* 组3: Algebra Mode */
     fprintf(stderr, "\n--- Algebra Mode ---\n");
-    TEST_RUN(test_algebra_create_destroy);
-    TEST_RUN(test_algebra_point_construction);
-    TEST_RUN(test_algebra_line_construction);
-    TEST_RUN(test_algebra_circle_construction);
-    TEST_RUN(test_algebra_parallel_perpendicular);
-    TEST_RUN(test_algebra_transform);
-    TEST_RUN(test_algebra_selector);
-    TEST_RUN(test_algebra_constrain_and_prove);
-    TEST_RUN(test_algebra_build_and_query);
-    TEST_RUN(test_algebra_undo_redo);
-    TEST_RUN(test_algebra_snapshot_restore);
-    TEST_RUN(test_algebra_work_plane);
+    TEST_MAIN_RUN(test_algebra_create_destroy);
+    TEST_MAIN_RUN(test_algebra_point_construction);
+    TEST_MAIN_RUN(test_algebra_line_construction);
+    TEST_MAIN_RUN(test_algebra_circle_construction);
+    TEST_MAIN_RUN(test_algebra_parallel_perpendicular);
+    TEST_MAIN_RUN(test_algebra_transform);
+    TEST_MAIN_RUN(test_algebra_selector);
+    TEST_MAIN_RUN(test_algebra_constrain_and_prove);
+    TEST_MAIN_RUN(test_algebra_build_and_query);
+    TEST_MAIN_RUN(test_algebra_undo_redo);
+    TEST_MAIN_RUN(test_algebra_snapshot_restore);
+    TEST_MAIN_RUN(test_algebra_work_plane);
 
     /* 组4: Rewrite Match */
     fprintf(stderr, "\n--- Rewrite Match ---\n");
-    /* TEST_RUN(test_rewrite_internal_hash); */
-    /* TEST_RUN(test_rewrite_pattern_var_checks); */
-    TEST_RUN(test_vf2_state_basic);
-    TEST_RUN(test_wl_history);
-    TEST_RUN(test_graph_snapshot_lifecycle);
-    /* TEST_RUN(test_add_constraint_generic); */
+    /* TEST_MAIN_RUN(test_rewrite_internal_hash); */
+    /* TEST_MAIN_RUN(test_rewrite_pattern_var_checks); */
+    TEST_MAIN_RUN(test_vf2_state_basic);
+    TEST_MAIN_RUN(test_wl_history);
+    TEST_MAIN_RUN(test_graph_snapshot_lifecycle);
+    /* TEST_MAIN_RUN(test_add_constraint_generic); */
 
     /* 组5: Rewrite Apply */
     fprintf(stderr, "\n--- Rewrite Apply ---\n");
-    TEST_RUN(test_rewrite_rule_lifecycle);
-    TEST_RUN(test_rewrite_rule_null_pattern);
-    TEST_RUN(test_find_rewrite_match_empty);
-    TEST_RUN(test_rewrite_rule_load_unload);
-    TEST_RUN(test_rewrite_num_rule);
-    TEST_RUN(test_rewrite_strategy_create);
+    TEST_MAIN_RUN(test_rewrite_rule_lifecycle);
+    TEST_MAIN_RUN(test_rewrite_rule_null_pattern);
+    TEST_MAIN_RUN(test_find_rewrite_match_empty);
+    TEST_MAIN_RUN(test_rewrite_rule_load_unload);
+    TEST_MAIN_RUN(test_rewrite_num_rule);
+    TEST_MAIN_RUN(test_rewrite_strategy_create);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

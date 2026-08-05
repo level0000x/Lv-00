@@ -99,8 +99,6 @@ int bitreader_read_bit(BitReader *br);
 bool entropy_encode_real(const uint8_t *raw_data, size_t raw_size, uint8_t **out_data, size_t *out_size);
 bool entropy_decode_real(const uint8_t *data, size_t size, uint8_t **out_data, size_t *out_size);
 
-ConstraintGraph *graph_clone(const ConstraintGraph *graph);
-
 /* ---- cross-section helpers (defined in geometry_compress.c) ---- */
 int huff_heap_compare(const void *a, const void *b);
 CompressConfig compress_config_default(void);

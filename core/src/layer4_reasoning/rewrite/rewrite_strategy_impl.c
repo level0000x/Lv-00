@@ -595,6 +595,9 @@ static BuiltinNumRule g_builtin_rules[] = {
 
 #define BUILTIN_RULE_COUNT (sizeof(g_builtin_rules) / sizeof(g_builtin_rules[0]))
 
+/* Registered rule count: written only during rewrite_num_register_builtins()
+ * init phase; read-only afterwards. Use _Atomic if concurrent
+ * registration/query is ever introduced. */
 static int g_registered_rule_count = 0;
 
 RewriteNumRule *rewrite_num_rule_create(const char *name, const char *pattern, const char *replacement,

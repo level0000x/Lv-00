@@ -85,15 +85,9 @@ void trace_record_event(TraceSession *session, TraceEventType type, int step, co
     if (session == NULL || !session->active)
         return;
 
-    /* 容量检查，必要时扩容 */
-    if (session->event_count >= session->capacity) {
-        int new_cap = session->capacity * 2;
-        TraceEvent *new_events = (TraceEvent *) lv_realloc(session->events, (size_t) new_cap * sizeof(TraceEvent));
-        if (new_events == NULL)
-            return;
-        session->events = new_events;
-        session->capacity = new_cap;
-    }
+    /* 容量检查，必要时扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &session->events, session->event_count, &session->capacity, sizeof(TraceEvent), 0))
+        return;
 
     TraceEvent *evt = &session->events[session->event_count++];
     evt->type = type;

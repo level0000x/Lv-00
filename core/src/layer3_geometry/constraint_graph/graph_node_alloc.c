@@ -175,32 +175,16 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
         node->coord_count = coord_count;
     }
 
-    /* 扩展数组 */
-    if (graph->node_count >= graph->node_capacity) {
-        if (graph->node_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_free((void **) &node);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "graph_add_node_with_id: node_capacity overflow");
+    /* 扩展数组（统一委托 lv_ensure_capacity，内部含 INT_MAX/SIZE_MAX 溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &graph->nodes, graph->node_count, &graph->node_capacity, sizeof(GeomNode *), 0)) {
+        /* 清理已分配的坐标 */
+        for (int i = 0; i < coord_count; i++) {
+            if (node->symbolic_coords[i])
+                symbolic_coord_destroy(node->symbolic_coords[i]);
         }
-        int new_capacity =
-            graph->node_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY : graph->node_capacity * lv_ARRAY_GROWTH_FACTOR;
-        /* 检查 size_t 乘积溢出：new_capacity * sizeof(GeomNode *) 可能超过 SIZE_MAX */
-        if ((size_t) new_capacity > SIZE_MAX / sizeof(GeomNode *)) {
-            lv_free((void **) &node);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "graph_add_node_with_id: new_capacity overflow for node array");
-        }
-        GeomNode **new_nodes = lv_realloc(graph->nodes, (size_t) new_capacity * sizeof(GeomNode *));
-        if (!new_nodes) {
-            /* 清理已分配的坐标 */
-            for (int i = 0; i < coord_count; i++) {
-                if (node->symbolic_coords[i])
-                    symbolic_coord_destroy(node->symbolic_coords[i]);
-            }
-            lv_free((void **) &node->symbolic_coords);
-            lv_free((void **) &node);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: realloc nodes failed");
-        }
-        graph->nodes = new_nodes;
-        graph->node_capacity = new_capacity;
+        lv_free((void **) &node->symbolic_coords);
+        lv_free((void **) &node);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: realloc nodes failed");
     }
 
     graph->nodes[graph->node_count++] = node;
@@ -256,23 +240,12 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: malloc participants failed");
     }
 
-    /* 扩展数组 */
-    if (graph->constraint_count >= graph->constraint_capacity) {
-        if (graph->constraint_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_free((void **) &con->participants);
-            lv_free((void **) &con);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "graph_add_constraint_with_id: constraint_capacity overflow");
-        }
-        int new_capacity = graph->constraint_capacity == 0 ? lv_INITIAL_ARRAY_CAPACITY
-                                                           : graph->constraint_capacity * lv_ARRAY_GROWTH_FACTOR;
-        Constraint **new_constraints = lv_realloc(graph->constraints, (size_t) new_capacity * sizeof(Constraint *));
-        if (!new_constraints) {
-            lv_free((void **) &con->participants);
-            lv_free((void **) &con);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: realloc constraints failed");
-        }
-        graph->constraints = new_constraints;
-        graph->constraint_capacity = new_capacity;
+    /* 扩展数组（统一委托 lv_ensure_capacity，内部含 INT_MAX/SIZE_MAX 溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &graph->constraints, graph->constraint_count, &graph->constraint_capacity,
+                            sizeof(Constraint *), 0)) {
+        lv_free((void **) &con->participants);
+        lv_free((void **) &con);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: realloc constraints failed");
     }
 
     graph->constraints[graph->constraint_count++] = con;

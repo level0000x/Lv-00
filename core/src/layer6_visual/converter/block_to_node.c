@@ -1,4 +1,4 @@
-﻿#include <string.h>
+#include <string.h>
 
 #include "lv/func_block.h"
 #include "lv/lv_utils.h"
@@ -148,17 +148,12 @@ lvConvertResult lv_convert_block_to_node(void *block) {
             }
 
             if (src_idx >= 0 && dst_idx >= 0) {
-                /* 扩容检查 */
-                if (ng->edge_count >= ng->edge_cap) {
-                    ng->edge_cap *= 2;
-                    void *_tmp = lv_realloc(ng->edges, ng->edge_cap * sizeof(ng->edges[0]));
-                    if (!_tmp) {
-                        lv_convert_block_to_node_cleanup(ng);
-                        result.success = 0;
-                        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
-                        return result;
-                    }
-                    ng->edges = _tmp;
+                /* 扩容检查（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+                if (!lv_ensure_capacity((void **) &ng->edges, ng->edge_count, &ng->edge_cap, sizeof(ng->edges[0]), 0)) {
+                    lv_convert_block_to_node_cleanup(ng);
+                    result.success = 0;
+                    strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+                    return result;
                 }
                 ng->edges[ng->edge_count].src_node = src_idx;
                 ng->edges[ng->edge_count].src_port = dep->port_id;

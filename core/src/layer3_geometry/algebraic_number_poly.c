@@ -41,14 +41,14 @@ static void lv_alg_poly_normalize(AlgPoly *p) {
     }
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_zero(void) {
+AlgPoly lv_alg_poly_zero(void) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
     p.degree = 0;
     return p;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_const(int64_t c) {
+AlgPoly lv_alg_poly_const(int64_t c) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
     p.coef[0] = c;
@@ -57,7 +57,7 @@ lv_PUBLIC_API AlgPoly lv_alg_poly_const(int64_t c) {
     return p;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_linear(int64_t a, int64_t b) {
+AlgPoly lv_alg_poly_linear(int64_t a, int64_t b) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
     p.coef[1] = a;
@@ -67,7 +67,7 @@ lv_PUBLIC_API AlgPoly lv_alg_poly_linear(int64_t a, int64_t b) {
     return p;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_quadratic(int64_t a, int64_t b, int64_t c) {
+AlgPoly lv_alg_poly_quadratic(int64_t a, int64_t b, int64_t c) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
     p.coef[2] = a;
@@ -78,11 +78,11 @@ lv_PUBLIC_API AlgPoly lv_alg_poly_quadratic(int64_t a, int64_t b, int64_t c) {
     return p;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_x(void) {
+AlgPoly lv_alg_poly_x(void) {
     return lv_alg_poly_linear(1, 0);
 }
 
-lv_PUBLIC_API int64_t lv_alg_poly_eval_int(const AlgPoly *p, int64_t n, AlgPolyError *err) {
+int64_t lv_alg_poly_eval_int(const AlgPoly *p, int64_t n, AlgPolyError *err) {
     if (!p) {
         alg_set_error_poly(err, lv_alg_poly_ERR_NULL);
         return 0;
@@ -114,7 +114,7 @@ lv_PUBLIC_API int64_t lv_alg_poly_eval_int(const AlgPoly *p, int64_t n, AlgPolyE
     return result;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r, AlgPolyError *err) {
+AlgRational lv_alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r, AlgPolyError *err) {
     if (!p || !r) {
         alg_set_error_poly(err, lv_alg_poly_ERR_NULL);
         return lv_alg_rational_zero();
@@ -134,7 +134,7 @@ lv_PUBLIC_API AlgRational lv_alg_poly_eval_rational(const AlgPoly *p, const AlgR
     return result;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_add(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
+AlgPoly lv_alg_poly_add(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
     if (!p || !q) {
         alg_set_error_poly(err, lv_alg_poly_ERR_NULL);
         return lv_alg_poly_zero();
@@ -159,7 +159,7 @@ lv_PUBLIC_API AlgPoly lv_alg_poly_add(const AlgPoly *p, const AlgPoly *q, AlgPol
     return result;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_sub(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
+AlgPoly lv_alg_poly_sub(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
     if (!p || !q) {
         alg_set_error_poly(err, lv_alg_poly_ERR_NULL);
         return lv_alg_poly_zero();
@@ -184,7 +184,7 @@ lv_PUBLIC_API AlgPoly lv_alg_poly_sub(const AlgPoly *p, const AlgPoly *q, AlgPol
     return result;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_mul(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
+AlgPoly lv_alg_poly_mul(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
     if (!p || !q) {
         alg_set_error_poly(err, lv_alg_poly_ERR_NULL);
         return lv_alg_poly_zero();
@@ -221,7 +221,7 @@ lv_PUBLIC_API AlgPoly lv_alg_poly_mul(const AlgPoly *p, const AlgPoly *q, AlgPol
     return result;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_neg(const AlgPoly *p) {
+AlgPoly lv_alg_poly_neg(const AlgPoly *p) {
     AlgPoly result;
     for (int i = 0; i <= lv_alg_poly_MAX_DEGREE; i++) {
         result.coef[i] = -p->coef[i];
@@ -230,23 +230,23 @@ lv_PUBLIC_API AlgPoly lv_alg_poly_neg(const AlgPoly *p) {
     return result;
 }
 
-lv_PUBLIC_API int64_t lv_alg_poly_lead_coef(const AlgPoly *p) {
+int64_t lv_alg_poly_lead_coef(const AlgPoly *p) {
     return p->coef[p->degree];
 }
 
-lv_PUBLIC_API int64_t lv_alg_poly_const_coef(const AlgPoly *p) {
+int64_t lv_alg_poly_const_coef(const AlgPoly *p) {
     return p->coef[0];
 }
 
-lv_PUBLIC_API bool lv_alg_poly_is_zero(const AlgPoly *p) {
+bool lv_alg_poly_is_zero(const AlgPoly *p) {
     return p->degree == 0 && p->coef[0] == 0;
 }
 
-lv_PUBLIC_API bool lv_alg_poly_is_const(const AlgPoly *p) {
+bool lv_alg_poly_is_const(const AlgPoly *p) {
     return p->degree == 0;
 }
 
-lv_PUBLIC_API int64_t lv_alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err) {
+int64_t lv_alg_poly_discriminant(const AlgPoly *p, AlgPolyError *err) {
     if (!p) {
         alg_set_error_poly(err, lv_alg_poly_ERR_NULL);
         return 0;
@@ -277,7 +277,7 @@ lv_PUBLIC_API int64_t lv_alg_poly_discriminant(const AlgPoly *p, AlgPolyError *e
     }
 }
 
-lv_PUBLIC_API int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roots, AlgPolyError *err) {
+int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roots, AlgPolyError *err) {
     if (!p || !roots || max_roots <= 0) {
         alg_set_error_poly(err, lv_alg_poly_ERR_NULL);
         return 0;
@@ -413,7 +413,7 @@ lv_PUBLIC_API int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *root
     return found;
 }
 
-lv_PUBLIC_API AlgPoly lv_alg_poly_derivative(const AlgPoly *p, AlgPolyError *err) {
+AlgPoly lv_alg_poly_derivative(const AlgPoly *p, AlgPolyError *err) {
     if (!p) {
         alg_set_error_poly(err, lv_alg_poly_ERR_NULL);
         return lv_alg_poly_zero();
@@ -443,7 +443,7 @@ lv_PUBLIC_API AlgPoly lv_alg_poly_derivative(const AlgPoly *p, AlgPolyError *err
     return result;
 }
 
-lv_PUBLIC_API int lv_alg_poly_to_string(const AlgPoly *p, char *buf, size_t size) {
+int lv_alg_poly_to_string(const AlgPoly *p, char *buf, size_t size) {
     if (!p) {
         if (buf && size > 0) {
             snprintf(buf, size, "(null)");
@@ -520,7 +520,7 @@ static const lvStrToEnumEntry s_alg_poly_error_string_entries[] = {
     {"除以零多项式", lv_alg_poly_ERR_DIV_BY_ZERO},
 };
 
-lv_PUBLIC_API const char *lv_alg_poly_error_string(AlgPolyError err) {
+const char *lv_alg_poly_error_string(AlgPolyError err) {
     return lv_enum_to_str(s_alg_poly_error_string_entries, lv_ARRAY_SIZE(s_alg_poly_error_string_entries), (int) err, "未知错误");
 }
 

@@ -170,14 +170,9 @@ bool predictive_encode_parallelogram(ConstraintGraph *graph) {
             symbolic_coord_destroy(pred);
             if (residual) {
                 double r = symbolic_coord_to_double(residual);
-                if (residual_count >= residual_capacity) {
-                    residual_capacity *= 2;
-                    double *nr = (double *) lv_realloc(residuals, residual_capacity * sizeof(double));
-                    if (!nr) {
-                        symbolic_coord_destroy(residual);
-                        break;
-                    }
-                    residuals = nr;
+                if (!lv_ensure_capacity((void **) &residuals, residual_count, &residual_capacity, sizeof(double), 0)) {
+                    symbolic_coord_destroy(residual);
+                    break;
                 }
                 residuals[residual_count++] = r;
                 symbolic_coord_destroy(node_target->symbolic_coords[d]);

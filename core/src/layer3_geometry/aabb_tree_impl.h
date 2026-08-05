@@ -41,14 +41,9 @@
  * node_alloc — 完全一致
  * ======================================================================== */
 static int AABB_FUNC(node_alloc)(AABB_TREE_TYPE *tree) {
-    if (tree->node_count >= tree->node_capacity) {
-        int new_cap = (tree->node_capacity > 0) ? tree->node_capacity * 2 : lv_config_get_int(LV_CFG_AABB_INITIAL_CAPACITY, AABB_INITIAL_CAPACITY);
-        lvAABBNode *new_nodes = (lvAABBNode *) lv_realloc(tree->nodes, (size_t) new_cap * sizeof(lvAABBNode));
-        if (!new_nodes)
-            return AABB_INVALID_NODE;
-        tree->nodes = new_nodes;
-        tree->node_capacity = new_cap;
-    }
+    /* Unified growth via lv_ensure_capacity (overflow-checked doubling; 0 -> unified initial capacity) */
+    if (!lv_ensure_capacity((void **) &tree->nodes, tree->node_count, &tree->node_capacity, sizeof(lvAABBNode), 0))
+        return AABB_INVALID_NODE;
     int idx = tree->node_count++;
     memset(&tree->nodes[idx], 0, sizeof(lvAABBNode));
     tree->nodes[idx].left = AABB_INVALID_NODE;
@@ -138,14 +133,10 @@ static int AABB_FUNC(build_recursive)(AABB_TREE_TYPE *tree, int *prim_indices, i
         int old_size = tree->leaf_prim_capacity;
         int needed = old_size + count;
         if (needed > tree->leaf_prim_capacity) {
-            int new_cap = (tree->leaf_prim_capacity > 0) ? tree->leaf_prim_capacity * 2 : lv_config_get_int(LV_CFG_AABB_INITIAL_CAPACITY, AABB_INITIAL_CAPACITY);
-            while (new_cap < needed)
-                new_cap *= 2;
-            int *new_ids = (int *) lv_realloc(tree->leaf_prim_ids, (size_t) new_cap * sizeof(int));
-            if (!new_ids)
+            /* Unified growth via lv_ensure_capacity (overflow-checked doubling to >= needed) */
+            if (!lv_ensure_capacity((void **) &tree->leaf_prim_ids, needed, &tree->leaf_prim_capacity,
+                                    sizeof(int), 0))
                 return AABB_INVALID_NODE;
-            tree->leaf_prim_ids = new_ids;
-            tree->leaf_prim_capacity = new_cap;
         }
 
         for (int k = 0; k < count; k++) {

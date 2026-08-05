@@ -31,6 +31,7 @@
 #include "lv/lv_file.h"
 #include "lv/lv_platform.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv/sha256.h"
 
 #include <stdint.h>
@@ -439,10 +440,9 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
         return false;
 
     /* Compute file hashes and store objects */
-    char *hash_buf = (char *) lv_malloc(file_count * (lv_OID_LENGTH + 1));
-    if (!hash_buf)
-        return false;
-    memset(hash_buf, 0, file_count * (lv_OID_LENGTH + 1));
+    /* 用 lvStrBuf 累积哈希列表（自动扩容，消除手写大小计算），
+       完成后 lv_strbuf_to_string 转出供 compute_commit_oid 消费 */
+    lvStrBuf hash_sb = {0};
 
     char dir[lv_PATH_BUF_SIZE], obj_dir[lv_PATH_BUF_SIZE], obj_path[lv_PATH_BUF_SIZE];
     repo_dir_path(repo->path, dir, sizeof(dir));
@@ -462,13 +462,12 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
 
         /* Append to hash buffer */
         if (i > 0) {
-            /* hash_buf already has separator space from memset */
+            lv_strbuf_printf(&hash_sb, " ");
         }
-        lv_strncat(hash_buf, hash, file_count * (lv_OID_LENGTH + 1));
-        if (i + 1 < file_count) {
-            lv_strncat(hash_buf, " ", file_count * (lv_OID_LENGTH + 1));
-        }
+        lv_strbuf_printf(&hash_sb, "%s", hash);
     }
+
+    char *hash_buf = lv_strbuf_to_string(&hash_sb);
 
     /* Create commit */
     lvProofCommit commit;

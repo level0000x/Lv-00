@@ -1,4 +1,4 @@
-﻿#ifndef lv_BLOCK_SCHEDULER_H
+#ifndef lv_BLOCK_SCHEDULER_H
 #define lv_BLOCK_SCHEDULER_H
 
 #include "lv/effect_system.h"
@@ -35,6 +35,7 @@ typedef struct lvBlockScheduler {
     struct {
         int *dirty_blocks;
         int dirty_count;
+        int dirty_capacity; /**< dirty_blocks 数组容量（由 lv_ensure_capacity 管理） */
         void *cached_results;
     } incremental;
 

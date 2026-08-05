@@ -153,13 +153,11 @@ static void test_malloc_vs_pool(void) {
  * 测试套件
  * ================================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("Performance")
     printf("=== Performance Tests ===\n");
 
-    TEST_RUN(test_perf_profiler_basic);
-    TEST_RUN(test_pool_performance);
-    TEST_RUN(test_malloc_vs_pool);
+    TEST_MAIN_RUN(test_perf_profiler_basic);
+    TEST_MAIN_RUN(test_pool_performance);
+    TEST_MAIN_RUN(test_malloc_vs_pool);
 
-    TEST_SUMMARY();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

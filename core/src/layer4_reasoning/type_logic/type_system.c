@@ -402,6 +402,8 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
     /* 创建类型变量 */
     TypeVariable *tv = lv_calloc(1, sizeof(TypeVariable));
     if (tv) {
+        /* 线性 +1 扩容（TypeSystem 无 type_vars 容量字段，改动最小：保持原样，
+         * 不迁移到 lv_ensure_capacity） */
         int new_count = ts->type_var_count + 1;
         TypeVariable **new_arr = (TypeVariable **) lv_realloc(ts->type_vars, new_count * sizeof(TypeVariable *));
         if (!new_arr) {

@@ -54,14 +54,11 @@ static void test_partial_null_outputs(void) {
 
 /* ============== 测试入口 ============== */
 
-int main(void) {
+TEST_MAIN_BEGIN("Type Equivalence Explorer")
     lv_init();
-    TEST_SUITE_BEGIN("Type Equivalence Explorer");
 
-    TEST_RUN(test_null_inputs);
-    TEST_RUN(test_partial_null_outputs);
+    TEST_MAIN_RUN(test_null_inputs);
+    TEST_MAIN_RUN(test_partial_null_outputs);
 
-    TEST_SUITE_END();
     lv_cleanup();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

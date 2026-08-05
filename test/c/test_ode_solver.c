@@ -312,18 +312,15 @@ static void test_solution_dimensions(void) {
  * Main
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("ODE Solver");
+TEST_MAIN_BEGIN("ODE Solver")
 
-    TEST_RUN(test_euler_exponential_decay);
-    TEST_RUN(test_rk4_exponential_decay);
-    TEST_RUN(test_euler_fast_decay);
-    TEST_RUN(test_rk4_fast_decay);
-    TEST_RUN(test_rk4_more_accurate_than_euler);
-    TEST_RUN(test_ode_null_safety);
-    TEST_RUN(test_solution_dimensions);
+    TEST_MAIN_RUN(test_euler_exponential_decay);
+    TEST_MAIN_RUN(test_rk4_exponential_decay);
+    TEST_MAIN_RUN(test_euler_fast_decay);
+    TEST_MAIN_RUN(test_rk4_fast_decay);
+    TEST_MAIN_RUN(test_rk4_more_accurate_than_euler);
+    TEST_MAIN_RUN(test_ode_null_safety);
+    TEST_MAIN_RUN(test_solution_dimensions);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

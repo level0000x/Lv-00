@@ -108,21 +108,16 @@ int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type, c
     if (!layout)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "proof_widget_register: layout is NULL");
 
-    /* 容量不足时倍增扩容 */
+    /* 容量不足时倍增扩容（溢出检查由 lv_ensure_capacity 内部完成） */
     if (layout->widget_count >= layout->widget_capacity) {
-        if (layout->widget_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "proof_widget_register: capacity overflow");
-        int new_cap = layout->widget_capacity * lv_ARRAY_GROWTH_FACTOR;
-        ProofWidgetState *new_arr =
-            (ProofWidgetState *) lv_realloc(layout->widgets, (size_t) new_cap * sizeof(ProofWidgetState));
-        if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_register: realloc failed");
+        int old_cap = layout->widget_capacity;
+        if (!lv_ensure_capacity((void **) &layout->widgets, old_cap,
+                                &layout->widget_capacity, sizeof(ProofWidgetState), 1))
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_register: lv_ensure_capacity failed");
 
         /* 清零新增部分 */
-        memset(new_arr + layout->widget_capacity, 0,
-               (size_t) (new_cap - layout->widget_capacity) * sizeof(ProofWidgetState));
-        layout->widgets = new_arr;
-        layout->widget_capacity = new_cap;
+        memset(layout->widgets + old_cap, 0,
+               (size_t) (layout->widget_capacity - old_cap) * sizeof(ProofWidgetState));
     }
 
     int id = layout->widget_count;

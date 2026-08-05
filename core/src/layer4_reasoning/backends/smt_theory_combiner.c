@@ -67,21 +67,9 @@ static bool ensure_capacity(lvTheoryCombiner *combiner) {
     if (!combiner)
         return false;
 
-    if (combiner->entry_count < combiner->entry_capacity)
-        return true;
-
-    int new_capacity = combiner->entry_capacity * 2;
-    if (new_capacity < DEFAULT_CAPACITY)
-        new_capacity = DEFAULT_CAPACITY;
-
-    lvTheoryEntry *new_entries =
-        (lvTheoryEntry *) lv_realloc(combiner->entries, (size_t) new_capacity * sizeof(lvTheoryEntry));
-    if (!new_entries)
-        return false;
-
-    combiner->entries = new_entries;
-    combiner->entry_capacity = new_capacity;
-    return true;
+    /* Unified growth via lv_ensure_capacity (overflow-checked doubling; initial capacity == DEFAULT_CAPACITY == 8) */
+    return lv_ensure_capacity((void **) &combiner->entries, combiner->entry_count, &combiner->entry_capacity,
+                              sizeof(lvTheoryEntry), 0);
 }
 
 /* ========================================================================

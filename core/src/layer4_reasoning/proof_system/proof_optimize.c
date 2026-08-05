@@ -151,7 +151,7 @@ static void opt_compute_indegrees(const struct ProofOptimizer *ctx, int *indegre
  *  公共 API
  * ================================================================ */
 
-lv_PUBLIC_API ProofOptimizer *lv_proof_opt_create(void) {
+ProofOptimizer *lv_proof_opt_create(void) {
     struct ProofOptimizer *ctx = (struct ProofOptimizer *) calloc(1, sizeof(struct ProofOptimizer));
     if (!ctx)
         return NULL;
@@ -161,11 +161,11 @@ lv_PUBLIC_API ProofOptimizer *lv_proof_opt_create(void) {
     return ctx;
 }
 
-lv_PUBLIC_API void lv_proof_opt_destroy(ProofOptimizer *opt) {
+void lv_proof_opt_destroy(ProofOptimizer *opt) {
     free(opt);
 }
 
-lv_PUBLIC_API int lv_proof_opt_add_step(ProofOptimizer *opt, const char *rule, const int *deps, int dep_count) {
+int lv_proof_opt_add_step(ProofOptimizer *opt, const char *rule, const int *deps, int dep_count) {
     struct ProofOptimizer *ctx = (struct ProofOptimizer *) opt;
     OptStep *step;
     int i;
@@ -188,7 +188,7 @@ lv_PUBLIC_API int lv_proof_opt_add_step(ProofOptimizer *opt, const char *rule, c
     return step->step_id;
 }
 
-lv_PUBLIC_API int lv_proof_opt_dead_step_elimination(ProofOptimizer *opt, int final_step) {
+int lv_proof_opt_dead_step_elimination(ProofOptimizer *opt, int final_step) {
     struct ProofOptimizer *ctx = (struct ProofOptimizer *) opt;
     int i, count;
 
@@ -213,7 +213,7 @@ lv_PUBLIC_API int lv_proof_opt_dead_step_elimination(ProofOptimizer *opt, int fi
     return count;
 }
 
-lv_PUBLIC_API int lv_proof_opt_merge_steps(ProofOptimizer *opt) {
+int lv_proof_opt_merge_steps(ProofOptimizer *opt) {
     struct ProofOptimizer *ctx = (struct ProofOptimizer *) opt;
     int i, j, merge_count;
 
@@ -246,7 +246,7 @@ lv_PUBLIC_API int lv_proof_opt_merge_steps(ProofOptimizer *opt) {
     return merge_count;
 }
 
-lv_PUBLIC_API int lv_proof_opt_active_count(const ProofOptimizer *opt) {
+int lv_proof_opt_active_count(const ProofOptimizer *opt) {
     const struct ProofOptimizer *ctx = (const struct ProofOptimizer *) opt;
     int i, count = 0;
     if (!ctx)

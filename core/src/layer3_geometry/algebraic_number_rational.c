@@ -32,7 +32,7 @@ static void alg_set_error_rational(AlgRationalError *err, AlgRationalError code)
  * 第一层：有理数域 Q —— 实现
  * ============================================================ */
 
-lv_PUBLIC_API AlgRational lv_alg_rational_create(int64_t p, int64_t q, AlgRationalError *err) {
+AlgRational lv_alg_rational_create(int64_t p, int64_t q, AlgRationalError *err) {
     AlgRational result;
     if (q == 0) {
         alg_set_error_rational(err, lv_alg_rational_ERR_ZERO_DEN);
@@ -47,28 +47,28 @@ lv_PUBLIC_API AlgRational lv_alg_rational_create(int64_t p, int64_t q, AlgRation
     return result;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_zero(void) {
+AlgRational lv_alg_rational_zero(void) {
     AlgRational r;
     r.num = 0;
     r.den = 1;
     return r;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_one(void) {
+AlgRational lv_alg_rational_one(void) {
     AlgRational r;
     r.num = 1;
     r.den = 1;
     return r;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_from_int(int64_t n) {
+AlgRational lv_alg_rational_from_int(int64_t n) {
     AlgRational r;
     r.num = n;
     r.den = 1;
     return r;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_add(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
+AlgRational lv_alg_rational_add(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
     if (!a || !b) {
         alg_set_error_rational(err, lv_alg_rational_ERR_NULL);
         return lv_alg_rational_zero();
@@ -86,7 +86,7 @@ lv_PUBLIC_API AlgRational lv_alg_rational_add(const AlgRational *a, const AlgRat
     return lv_alg_rational_create(num1, denom, NULL);
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_sub(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
+AlgRational lv_alg_rational_sub(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
     if (!a || !b) {
         alg_set_error_rational(err, lv_alg_rational_ERR_NULL);
         return lv_alg_rational_zero();
@@ -103,7 +103,7 @@ lv_PUBLIC_API AlgRational lv_alg_rational_sub(const AlgRational *a, const AlgRat
     return lv_alg_rational_create(num1, denom, NULL);
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_mul(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
+AlgRational lv_alg_rational_mul(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
     if (!a || !b) {
         alg_set_error_rational(err, lv_alg_rational_ERR_NULL);
         return lv_alg_rational_zero();
@@ -131,7 +131,7 @@ lv_PUBLIC_API AlgRational lv_alg_rational_mul(const AlgRational *a, const AlgRat
     return result;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_div(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
+AlgRational lv_alg_rational_div(const AlgRational *a, const AlgRational *b, AlgRationalError *err) {
     if (!a || !b) {
         alg_set_error_rational(err, lv_alg_rational_ERR_NULL);
         return lv_alg_rational_zero();
@@ -153,21 +153,21 @@ lv_PUBLIC_API AlgRational lv_alg_rational_div(const AlgRational *a, const AlgRat
     return lv_alg_rational_mul(a, &inv_b, err);
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_neg(const AlgRational *a) {
+AlgRational lv_alg_rational_neg(const AlgRational *a) {
     AlgRational r;
     r.num = -a->num;
     r.den = a->den;
     return r;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_abs(const AlgRational *a) {
+AlgRational lv_alg_rational_abs(const AlgRational *a) {
     AlgRational r;
     r.num = (a->num < 0) ? -a->num : a->num;
     r.den = a->den;
     return r;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_inv(const AlgRational *a, AlgRationalError *err) {
+AlgRational lv_alg_rational_inv(const AlgRational *a, AlgRationalError *err) {
     if (!a) {
         alg_set_error_rational(err, lv_alg_rational_ERR_NULL);
         return lv_alg_rational_zero();
@@ -180,7 +180,7 @@ lv_PUBLIC_API AlgRational lv_alg_rational_inv(const AlgRational *a, AlgRationalE
     return lv_alg_rational_create(a->den, a->num, NULL);
 }
 
-lv_PUBLIC_API AlgRational lv_alg_rational_pow(const AlgRational *a, int n, AlgRationalError *err) {
+AlgRational lv_alg_rational_pow(const AlgRational *a, int n, AlgRationalError *err) {
     if (!a) {
         alg_set_error_rational(err, lv_alg_rational_ERR_NULL);
         return lv_alg_rational_zero();
@@ -234,7 +234,7 @@ lv_PUBLIC_API AlgRational lv_alg_rational_pow(const AlgRational *a, int n, AlgRa
     return result;
 }
 
-lv_PUBLIC_API int lv_alg_rational_cmp(const AlgRational *a, const AlgRational *b) {
+int lv_alg_rational_cmp(const AlgRational *a, const AlgRational *b) {
     /* a.num/a.den - b.num/b.den = (a.num * b.den - b.num * a.den) / (a.den * b.den) */
     /* 由于 den > 0，只需比较分子 */
     int64_t lhs, rhs;
@@ -259,15 +259,15 @@ lv_PUBLIC_API int lv_alg_rational_cmp(const AlgRational *a, const AlgRational *b
 #endif
 }
 
-lv_PUBLIC_API bool lv_alg_rational_eq(const AlgRational *a, const AlgRational *b) {
+bool lv_alg_rational_eq(const AlgRational *a, const AlgRational *b) {
     return lv_alg_rational_cmp(a, b) == 0;
 }
 
-lv_PUBLIC_API double lv_alg_rational_to_double(const AlgRational *r) {
+double lv_alg_rational_to_double(const AlgRational *r) {
     return (double) r->num / (double) r->den;
 }
 
-lv_PUBLIC_API int lv_alg_rational_to_string(const AlgRational *r, char *buf, size_t size) {
+int lv_alg_rational_to_string(const AlgRational *r, char *buf, size_t size) {
     int len;
     if (r->den == 1) {
         len = snprintf(buf, size, "%lld", (long long) r->num);
@@ -277,15 +277,15 @@ lv_PUBLIC_API int lv_alg_rational_to_string(const AlgRational *r, char *buf, siz
     return len;
 }
 
-lv_PUBLIC_API bool lv_alg_rational_is_zero(const AlgRational *r) {
+bool lv_alg_rational_is_zero(const AlgRational *r) {
     return r->num == 0;
 }
 
-lv_PUBLIC_API bool lv_alg_rational_is_positive(const AlgRational *r) {
+bool lv_alg_rational_is_positive(const AlgRational *r) {
     return r->num > 0;
 }
 
-lv_PUBLIC_API bool lv_alg_rational_is_negative(const AlgRational *r) {
+bool lv_alg_rational_is_negative(const AlgRational *r) {
     return r->num < 0;
 }
 
@@ -302,6 +302,6 @@ static const lvStrToEnumEntry s_alg_rational_error_string_entries[] = {
     {"无效参数", lv_alg_rational_ERR_INVALID},
 };
 
-lv_PUBLIC_API const char *lv_alg_rational_error_string(AlgRationalError err) {
+const char *lv_alg_rational_error_string(AlgRationalError err) {
     return lv_enum_to_str(s_alg_rational_error_string_entries, lv_ARRAY_SIZE(s_alg_rational_error_string_entries), (int) err, "未知错误");
 }

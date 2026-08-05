@@ -17,11 +17,30 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h> /* FILE */
 
-/* ── Size constants ── */
+/* ── Size constants ──
+ * 与 config.h 的 "test_framework.h compat" 段（#ifndef 保护）保持一致。
+ * 测试 TU 通常先包含 lv.h（→config.h）再包含本头，若此处无 #ifndef 保护
+ * 且替换文本不同，会触发 -Wmacro-redefined，故与 config.h 相同加 #ifndef 保护。 */
+#ifndef lv_TEST_MAX_SUITES
 #define lv_TEST_MAX_SUITES 256
+#endif
+#ifndef lv_TEST_MAX_CASES
 #define lv_TEST_MAX_CASES 4096
+#endif
+#ifndef lv_TEST_NAME_MAX_LEN
+#ifdef lv_CONFIG_TEST_NAME_MAX_LEN
+#define lv_TEST_NAME_MAX_LEN lv_CONFIG_TEST_NAME_MAX_LEN
+#else
 #define lv_TEST_NAME_MAX_LEN 256
+#endif
+#endif
+#ifndef lv_TEST_MSG_MAX_LEN
+#ifdef lv_CONFIG_TEST_MSG_MAX_LEN
+#define lv_TEST_MSG_MAX_LEN lv_CONFIG_TEST_MSG_MAX_LEN
+#else
 #define lv_TEST_MSG_MAX_LEN 512
+#endif
+#endif
 
 /* ── Test status ── */
 typedef enum {

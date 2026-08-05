@@ -84,31 +84,10 @@ void proposition_destroy(Proposition *prop) {
                         lv_free((void **) &destroy_stack);
                         return;
                     }
-                    int new_cap = stack_capacity * 2;
-                    if (new_cap <= stack_capacity) {
-                        /* 整数溢出保护：使用循环逐个释放子命题的基本资源，避免递归导致栈溢出 */
-                        for (int j = i; j < current->sub_prop_count; j++) {
-                            if (current->sub_props[j]) {
-                                Proposition *child = current->sub_props[j];
-                                lv_free((void **) &child->input_port_ids);
-                                lv_free((void **) &child->output_port_ids);
-                                lv_free((void **) &child->precondition_region_ids);
-                                lv_free((void **) &child->postcondition_constraint_ids);
-                                if (child->pattern)
-                                    graph_destroy(child->pattern);
-                                lv_free((void **) &child->sub_props);
-                                lv_free((void **) &child->name);
-                                lv_free((void **) &child->description);
-                                if (child->prop_type)
-                                    type_region_destroy(child->prop_type);
-                                lv_free((void **) &child);
-                            }
-                        }
-                        break;
-                    }
-                    Proposition **new_stack =
-                        (Proposition **) lv_realloc(destroy_stack, new_cap * sizeof(Proposition *));
-                    if (!new_stack) {
+                    int old_cap = stack_capacity;
+                    /* 统一倍增扩容（溢出保护仍由上方 stack_capacity > INT_MAX / 2 检查负责） */
+                    if (!lv_ensure_capacity((void **) &destroy_stack, old_cap,
+                                            &stack_capacity, sizeof(Proposition *), old_cap)) {
                         /* 栈扩容失败：使用循环安全释放所有子命题的内部资源 */
                         for (int j = i; j < current->sub_prop_count; j++) {
                             if (current->sub_props[j]) {
@@ -130,8 +109,6 @@ void proposition_destroy(Proposition *prop) {
                         }
                         break;
                     }
-                    destroy_stack = new_stack;
-                    stack_capacity = new_cap;
                 }
                 destroy_stack[stack_top++] = current->sub_props[i];
             }
@@ -311,6 +288,7 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child) {
     if (!parent || !child)
         return false;
 
+    /* 线性 +1 扩容（sub_props 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
     int new_count = parent->sub_prop_count + 1;
     Proposition **new_arr = lv_realloc(parent->sub_props, (size_t) new_count * sizeof(Proposition *));
     if (!new_arr)
@@ -659,6 +637,7 @@ static void update_dependent_steps(ProofNavigator *nav, int step_id, int dep_id)
 
     /* 将 step_id 添加到 dep_id 的 dependent_step_ids 中 */
     dep_step->dependent_count++;
+    /* 线性 +1 扩容（dependent_step_ids 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
     int *new_arr = lv_realloc(dep_step->dependent_step_ids, dep_step->dependent_count * sizeof(int));
     if (!new_arr) {
         dep_step->dependent_count--;
@@ -724,6 +703,7 @@ bool proof_step_add_dependency(ProofStep *step, int dep_step_id) {
     if (!step)
         return false;
 
+    /* 线性 +1 扩容（dependency_step_ids 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
     int new_count = step->dependency_count + 1;
     int *new_arr = lv_realloc(step->dependency_step_ids, (size_t) new_count * sizeof(int));
     if (!new_arr)
@@ -861,6 +841,7 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
         }
     }
 
+    /* 线性 +1 扩容（steps 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
     int new_count = nav->step_count + 1;
     ProofStep **new_arr = lv_realloc(nav->steps, (size_t) new_count * sizeof(ProofStep *));
     if (!new_arr)
@@ -882,6 +863,7 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
     /* 如果是断点，添加到断点列表 */
     if (step->is_breakpoint) {
         nav->breakpoint_count++;
+        /* 线性 +1 扩容（breakpoint_indices 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
         int *new_bp = lv_realloc(nav->breakpoint_indices, nav->breakpoint_count * sizeof(int));
         if (new_bp) {
             nav->breakpoint_indices = new_bp;

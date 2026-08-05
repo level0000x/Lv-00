@@ -938,64 +938,61 @@ static void test_proof_widget_dependency(void) {
  * Main
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Layer5 Output");
+TEST_MAIN_BEGIN("Layer5 Output")
 
     /* ── Magic ── */
     printf("\n--- Magic Module ---\n");
-    TEST_RUN(test_rune_lifecycle);
-    TEST_RUN(test_rune_power);
-    TEST_RUN(test_rune_copy);
-    TEST_RUN(test_rune_serialize_parse);
-    TEST_RUN(test_rune_sequence);
-    TEST_RUN(test_magic_array_lifecycle);
-    TEST_RUN(test_magic_array_analysis);
-    TEST_RUN(test_magic_array_merge_copy);
-    TEST_RUN(test_magic_array_serialize);
-    TEST_RUN(test_spell_lifecycle);
-    TEST_RUN(test_purity_threshold);
-    TEST_RUN(test_spellbook);
-    TEST_RUN(test_incantation);
-    TEST_RUN(test_restriction_domain);
-    TEST_RUN(test_magic_string_conversion);
+    TEST_MAIN_RUN(test_rune_lifecycle);
+    TEST_MAIN_RUN(test_rune_power);
+    TEST_MAIN_RUN(test_rune_copy);
+    TEST_MAIN_RUN(test_rune_serialize_parse);
+    TEST_MAIN_RUN(test_rune_sequence);
+    TEST_MAIN_RUN(test_magic_array_lifecycle);
+    TEST_MAIN_RUN(test_magic_array_analysis);
+    TEST_MAIN_RUN(test_magic_array_merge_copy);
+    TEST_MAIN_RUN(test_magic_array_serialize);
+    TEST_MAIN_RUN(test_spell_lifecycle);
+    TEST_MAIN_RUN(test_purity_threshold);
+    TEST_MAIN_RUN(test_spellbook);
+    TEST_MAIN_RUN(test_incantation);
+    TEST_MAIN_RUN(test_restriction_domain);
+    TEST_MAIN_RUN(test_magic_string_conversion);
 
     /* ── 插件系统 ── */
     printf("\n--- Plugin System ---\n");
-    TEST_RUN(test_plugin_system_lifecycle);
-    TEST_RUN(test_plugin_config);
-    TEST_RUN(test_plugin_queries);
-    TEST_RUN(test_plugin_interfaces);
-    TEST_RUN(test_plugin_events);
-    TEST_RUN(test_plugin_dependencies);
-    TEST_RUN(test_plugin_search_path);
-    TEST_RUN(test_plugin_version);
-    TEST_RUN(test_plugin_error);
-    TEST_RUN(test_plugin_info_json);
+    TEST_MAIN_RUN(test_plugin_system_lifecycle);
+    TEST_MAIN_RUN(test_plugin_config);
+    TEST_MAIN_RUN(test_plugin_queries);
+    TEST_MAIN_RUN(test_plugin_interfaces);
+    TEST_MAIN_RUN(test_plugin_events);
+    TEST_MAIN_RUN(test_plugin_dependencies);
+    TEST_MAIN_RUN(test_plugin_search_path);
+    TEST_MAIN_RUN(test_plugin_version);
+    TEST_MAIN_RUN(test_plugin_error);
+    TEST_MAIN_RUN(test_plugin_info_json);
 
     /* ── TikZ 导出 ── */
     printf("\n--- TikZ Export ---\n");
-    TEST_RUN(test_tikz_export_basic);
-    TEST_RUN(test_tikz_export_file);
+    TEST_MAIN_RUN(test_tikz_export_basic);
+    TEST_MAIN_RUN(test_tikz_export_file);
 
     /* ── 证明编译器 ── */
     printf("\n--- Proof Compiler ---\n");
-    TEST_RUN(test_proof_object);
-    TEST_RUN(test_proof_step_record);
-    TEST_RUN(test_proof_trace);
-    TEST_RUN(test_proof_compiler);
+    TEST_MAIN_RUN(test_proof_object);
+    TEST_MAIN_RUN(test_proof_step_record);
+    TEST_MAIN_RUN(test_proof_trace);
+    TEST_MAIN_RUN(test_proof_compiler);
 
     /* ── UI-Kernel 协议 ── */
     printf("\n--- UI-Kernel Protocol ---\n");
-    TEST_RUN(test_trust_color);
+    TEST_MAIN_RUN(test_trust_color);
 
     /* ── Proof Widget ── */
     printf("\n--- Proof Widget ---\n");
-    TEST_RUN(test_proof_widget_lifecycle);
-    TEST_RUN(test_proof_widget_goal);
-    TEST_RUN(test_proof_widget_suggest);
-    TEST_RUN(test_proof_widget_search_tree);
-    TEST_RUN(test_proof_widget_dependency);
+    TEST_MAIN_RUN(test_proof_widget_lifecycle);
+    TEST_MAIN_RUN(test_proof_widget_goal);
+    TEST_MAIN_RUN(test_proof_widget_suggest);
+    TEST_MAIN_RUN(test_proof_widget_search_tree);
+    TEST_MAIN_RUN(test_proof_widget_dependency);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

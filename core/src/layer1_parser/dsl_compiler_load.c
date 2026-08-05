@@ -89,6 +89,7 @@ static void dsl_record_ir_result(ConstraintGraph *graph, const char *kind, const
 static bool dsl_ctx_register_axiom_pkg(struct lvContext *ctx, AxiomPackage *pkg) {
     if (!ctx || !pkg)
         return false;
+    /* 线性 +1 扩容（ctx 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
     void **np = lv_realloc(ctx->axiom_pkg_refs, sizeof(void *) * (size_t) (ctx->axiom_pkg_ref_count + 1));
     if (!np)
         return false;
@@ -123,16 +124,17 @@ typedef bool (*IROpHandler)(ConstraintGraph *graph, const DslIROperation *op,
 static bool ensure_id_map_cap(int **id_map, int *id_map_cap, int *id_map_count, int needed) {
     (void)id_map_count;
     while (needed >= *id_map_cap) {
-        int new_cap = *id_map_cap == 0 ? 64 : *id_map_cap * 2;
-        int *np = lv_realloc(*id_map, sizeof(int) * (size_t) new_cap);
-        if (!np) {
+        int old_cap = *id_map_cap;
+        /* 失败时释放旧指针并置 NULL（与原始语义一致） */
+        if (!lv_ensure_capacity((void **) id_map, old_cap,
+                                id_map_cap, sizeof(int),
+                                needed - old_cap)) {
             lv_free((void **) id_map);
             return false;
         }
-        *id_map = np;
-        for (int _i = *id_map_cap; _i < new_cap; _i++)
+        /* 初始化新区域为 -1 */
+        for (int _i = old_cap; _i < *id_map_cap; _i++)
             (*id_map)[_i] = -1;
-        *id_map_cap = new_cap;
     }
     return true;
 }
@@ -451,17 +453,17 @@ static bool handle_noop(ConstraintGraph *graph, const DslIROperation *op,
 /* 确保 id_map 有足够的容量（原 ENSURE_ID_MAP 宏函数化） */
 static bool ensure_id_map(int **map, int *cap, int needed) {
     while (needed >= *cap) {
-        int new_cap = *cap == 0 ? 64 : *cap * 2;
-        int *np = lv_realloc(*map, sizeof(int) * (size_t) new_cap);
-        if (!np) {
+        int old_cap = *cap;
+        /* 失败时释放旧指针并置 NULL（与原始语义一致） */
+        if (!lv_ensure_capacity((void **) map, old_cap,
+                                cap, sizeof(int),
+                                needed - old_cap)) {
             lv_free((void **) map);
             return false;
         }
-        *map = np;
         /* 初始化新区域为 -1 */
-        for (int _i = *cap; _i < new_cap; _i++)
+        for (int _i = old_cap; _i < *cap; _i++)
             (*map)[_i] = -1;
-        *cap = new_cap;
     }
     return true;
 }

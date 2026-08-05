@@ -60,13 +60,13 @@ lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *pare
 bool lv_proof_tree_mark_contradiction(lvProofTreeNode *node);
 char *lv_proof_tree_export_text(const lvProofTree *tree, const char *opts);
 
-/* ── Proof Optimizer API ── */
-lv_PUBLIC_API ProofOptimizer *lv_proof_opt_create(void);
-lv_PUBLIC_API void lv_proof_opt_destroy(ProofOptimizer *opt);
-lv_PUBLIC_API int lv_proof_opt_add_step(ProofOptimizer *opt, const char *rule, const int *deps, int dep_count);
-lv_PUBLIC_API int lv_proof_opt_dead_step_elimination(ProofOptimizer *opt, int final_step);
-lv_PUBLIC_API int lv_proof_opt_merge_steps(ProofOptimizer *opt);
-lv_PUBLIC_API int lv_proof_opt_active_count(const ProofOptimizer *opt);
+/* ── Proof Optimizer API（内部模块 API，非公共导出）── */
+ProofOptimizer *lv_proof_opt_create(void);
+void lv_proof_opt_destroy(ProofOptimizer *opt);
+int lv_proof_opt_add_step(ProofOptimizer *opt, const char *rule, const int *deps, int dep_count);
+int lv_proof_opt_dead_step_elimination(ProofOptimizer *opt, int final_step);
+int lv_proof_opt_merge_steps(ProofOptimizer *opt);
+int lv_proof_opt_active_count(const ProofOptimizer *opt);
 
 #ifdef __cplusplus
 }

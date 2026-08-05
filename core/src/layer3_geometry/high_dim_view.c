@@ -359,18 +359,17 @@ static int high_dim_create_multi_projection_view_locked(HighDimManager *manager,
 
     HighDimAbstractBlock *block = high_dim_get_block(manager, block_id);
     if (!block) {
-        lv_set_error(lv_ERROR_NOT_FOUND, "创建多投影视图失败：未找到block_id=%d对应的高维抽象块", block_id);
-        return lv_ERROR_NOT_FOUND;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NOT_FOUND, lv_ERROR_NOT_FOUND,
+                            "创建多投影视图失败：未找到block_id=%d对应的高维抽象块", block_id);
     }
 
     /* 验证预设索引 */
     for (int i = 0; i < preset_count; i++) {
         if (preset_indices[i] < 0 || preset_indices[i] >= block->preset_count) {
-            lv_set_error(lv_ERROR_INVALID_PARAM,
-                         "创建多投影视图失败：第%d个预设索引=%d无效"
-                         "（有效范围：0-%d）",
-                         i, preset_indices[i], block->preset_count - 1);
-            return lv_ERROR_INVALID_PARAM;
+            lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM,
+                                "创建多投影视图失败：第%d个预设索引=%d无效"
+                                "（有效范围：0-%d）",
+                                i, preset_indices[i], block->preset_count - 1);
         }
     }
 
@@ -398,11 +397,10 @@ static int high_dim_create_multi_projection_view_locked(HighDimManager *manager,
                     g_multi_views[idx].is_active = false;
                 }
             }
-            lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED,
-                         "创建多投影视图失败：block_id=%d 的视图ID空间已耗尽"
-                         "（无法为preset_index=%d分配唯一ID）",
-                         block_id, preset_indices[i]);
-            return lv_ERROR_RESOURCE_EXHAUSTED;
+            lv_RETURN_ERROR_VAL(lv_ERROR_RESOURCE_EXHAUSTED, lv_ERROR_RESOURCE_EXHAUSTED,
+                                "创建多投影视图失败：block_id=%d 的视图ID空间已耗尽"
+                                "（无法为preset_index=%d分配唯一ID）",
+                                block_id, preset_indices[i]);
         }
 
         /* 分配视图槽位 */
@@ -415,11 +413,10 @@ static int high_dim_create_multi_projection_view_locked(HighDimManager *manager,
                     g_multi_views[idx].is_active = false;
                 }
             }
-            lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED,
-                         "创建多投影视图失败：全局视图槽位已满"
-                         "（最大=%d，当前=%d）",
-                         HIGH_DIM_MAX_ACTIVE_VIEWS, g_multi_view_count);
-            return lv_ERROR_RESOURCE_EXHAUSTED;
+            lv_RETURN_ERROR_VAL(lv_ERROR_RESOURCE_EXHAUSTED, lv_ERROR_RESOURCE_EXHAUSTED,
+                                "创建多投影视图失败：全局视图槽位已满"
+                                "（最大=%d，当前=%d）",
+                                HIGH_DIM_MAX_ACTIVE_VIEWS, g_multi_view_count);
         }
 
         view_ids[i] = vid;
@@ -476,18 +473,17 @@ static int high_dim_destroy_multi_projection_view_locked(HighDimManager *manager
 
     /* 验证 view_id 的基本有效性 */
     if (view_id <= 0) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "销毁视图失败：无效的视图ID=%d，ID必须为正值", view_id);
-        return lv_ERROR_INVALID_PARAM;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM,
+                            "销毁视图失败：无效的视图ID=%d，ID必须为正值", view_id);
     }
 
     /* 在全局视图数组中找到该视图 */
     int view_index = high_dim_find_view_index(view_id);
     if (view_index < 0) {
-        lv_set_error(lv_ERROR_NOT_FOUND,
-                     "销毁视图失败：未找到view_id=%d对应的活跃视图"
-                     "（可能已被销毁或从未创建）",
-                     view_id);
-        return lv_ERROR_NOT_FOUND;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NOT_FOUND, lv_ERROR_NOT_FOUND,
+                            "销毁视图失败：未找到view_id=%d对应的活跃视图"
+                            "（可能已被销毁或从未创建）",
+                            view_id);
     }
 
     HighDimMultiViewContext *view_ctx = &g_multi_views[view_index];
@@ -584,8 +580,8 @@ static int high_dim_link_highlight_locked(HighDimManager *manager, const int *vi
 
     /* 验证 element_id 有效性 */
     if (element_id < 0) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "联动高亮失败：无效的元素ID=%d", element_id);
-        return lv_ERROR_INVALID_PARAM;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM,
+                            "联动高亮失败：无效的元素ID=%d", element_id);
     }
 
     /* 遍历所有关联视图，记录高亮状态 */
@@ -663,9 +659,9 @@ static int high_dim_link_highlight_locked(HighDimManager *manager, const int *vi
 
     /* 汇总结果 */
     if (views_highlighted == 0) {
-        lv_set_error(lv_ERROR_NOT_FOUND, "联动高亮失败：所有%d个视图均未能记录高亮状态。跳过原因：%s", view_count,
-                     skipped_info[0] ? skipped_info : "所有视图未注册或无效");
-        return lv_ERROR_NOT_FOUND;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NOT_FOUND, lv_ERROR_NOT_FOUND,
+                            "联动高亮失败：所有%d个视图均未能记录高亮状态。跳过原因：%s", view_count,
+                            skipped_info[0] ? skipped_info : "所有视图未注册或无效");
     }
 
     if (views_skipped > 0) {
@@ -719,12 +715,14 @@ static int high_dim_mv_handler_list(HighDimManager *manager, int *view_ids, int 
     }
     *count = written;
     if (written > max_count) {
-        lv_set_error(lv_OK,
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
+    lv_set_error(lv_OK,
                      "列出视图：共%d个活跃视图，但输出数组容量仅%d，"
                      "实际写入%d个。请增大view_ids数组容量。",
                      written, max_count, max_count);
     } else {
-        lv_set_error(lv_OK, "列出视图：共%d个活跃视图，已全部写入view_ids数组。", written);
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
+    lv_set_error(lv_OK, "列出视图：共%d个活跃视图，已全部写入view_ids数组。", written);
     }
     return lv_OK;
 }
@@ -762,6 +760,7 @@ static int high_dim_mv_handler_clear(HighDimManager *manager, int *view_ids, int
     if (count) {
         *count = cleared;
     }
+    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
     lv_set_error(lv_OK,
                  "多视图管理：已清除%d个活跃视图。"
                  "UI层需同步关闭所有视图窗口并释放渲染资源。",
@@ -788,12 +787,14 @@ static int high_dim_mv_handler_list_by_block(HighDimManager *manager, int *view_
     }
     *count = written;
     if (written > capacity) {
-        lv_set_error(lv_OK,
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
+    lv_set_error(lv_OK,
                      "按block_id=%d过滤列出视图：共%d个匹配，但输出数组容量仅%d，"
                      "实际写入%d个。请增大view_ids数组容量。",
                      block_filter, written, capacity, capacity);
     } else {
-        lv_set_error(lv_OK, "按block_id=%d过滤列出视图：共%d个匹配，已全部写入view_ids数组。", block_filter,
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
+    lv_set_error(lv_OK, "按block_id=%d过滤列出视图：共%d个匹配，已全部写入view_ids数组。", block_filter,
                      written);
     }
     return lv_OK;
@@ -811,11 +812,10 @@ static int high_dim_mv_handler_export_json(HighDimManager *manager, int *view_id
     }
     int written = high_dim_views_export_json((char *)view_ids, (size_t)capacity);
     if (written < 0) {
-        lv_set_error(lv_ERROR_BUFFER_TOO_SMALL,
-                     "多视图导出失败：JSON序列化结果超过缓冲区容量%d字节。"
-                     "请使用 high_dim_export_views_json() 并传入足够大的缓冲区。",
-                     capacity);
-        return lv_ERROR_BUFFER_TOO_SMALL;
+        lv_RETURN_ERROR_VAL(lv_ERROR_BUFFER_TOO_SMALL, lv_ERROR_BUFFER_TOO_SMALL,
+                            "多视图导出失败：JSON序列化结果超过缓冲区容量%d字节。"
+                            "请使用 high_dim_export_views_json() 并传入足够大的缓冲区。",
+                            capacity);
     }
     *count = written;
     return lv_OK;
@@ -829,15 +829,15 @@ static int high_dim_mv_handler_query_layout(HighDimManager *manager, int *view_i
     }
     int arr_len = *count;
     if (arr_len < 6) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "查询视图布局失败：view_ids数组长度=%d，至少需要6个元素。",
-                     arr_len);
-        return lv_ERROR_INVALID_PARAM;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM,
+                            "查询视图布局失败：view_ids数组长度=%d，至少需要6个元素。",
+                            arr_len);
     }
     int target_vid = view_ids[0];
     int idx = high_dim_find_view_index(target_vid);
     if (idx < 0) {
-        lv_set_error(lv_ERROR_NOT_FOUND, "查询视图布局失败：未找到view_id=%d对应的活跃视图。", target_vid);
-        return lv_ERROR_NOT_FOUND;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NOT_FOUND, lv_ERROR_NOT_FOUND,
+                            "查询视图布局失败：未找到view_id=%d对应的活跃视图。", target_vid);
     }
     HighDimMultiViewContext *v = &g_multi_views[idx];
     view_ids[1] = v->layout_x;
@@ -861,9 +861,9 @@ static int high_dim_mv_handler_create_batch(HighDimManager *manager, int *view_i
     int batch_block_id = view_ids[0];
     int batch_preset_count = arr_len - 1;
     if (batch_preset_count > HIGH_DIM_MAX_ACTIVE_VIEWS) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "批量创建视图失败：预设数量=%d超过最大视图数%d。",
-                     batch_preset_count, HIGH_DIM_MAX_ACTIVE_VIEWS);
-        return lv_ERROR_INVALID_PARAM;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM,
+                            "批量创建视图失败：预设数量=%d超过最大视图数%d。",
+                            batch_preset_count, HIGH_DIM_MAX_ACTIVE_VIEWS);
     }
     int input_presets[HIGH_DIM_MAX_ACTIVE_VIEWS];
     for (int i = 0; i < batch_preset_count; i++) {
@@ -879,6 +879,7 @@ static int high_dim_mv_handler_create_batch(HighDimManager *manager, int *view_i
         view_ids[i] = out_ids[i];
     }
     *count = batch_preset_count;
+    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
     lv_set_error(lv_OK, "批量创建多投影视图：block_id=%d 成功创建%d个视图。", batch_block_id, batch_preset_count);
     return lv_OK;
 }
@@ -892,8 +893,8 @@ static int high_dim_mv_handler_clone(HighDimManager *manager, int *view_ids, int
     int src_vid = view_ids[0];
     int src_idx = high_dim_find_view_index(src_vid);
     if (src_idx < 0) {
-        lv_set_error(lv_ERROR_NOT_FOUND, "克隆视图失败：未找到源视图view_id=%d。", src_vid);
-        return lv_ERROR_NOT_FOUND;
+        lv_RETURN_ERROR_VAL(lv_ERROR_NOT_FOUND, lv_ERROR_NOT_FOUND,
+                            "克隆视图失败：未找到源视图view_id=%d。", src_vid);
     }
     HighDimMultiViewContext *src = &g_multi_views[src_idx];
     int base_vid = src->block_id * 1000 + src->preset_index;
@@ -904,13 +905,13 @@ static int high_dim_mv_handler_clone(HighDimManager *manager, int *view_ids, int
         new_vid = base_vid + offset * 10000;
     }
     if (offset >= 100) {
-        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "克隆视图失败：视图ID空间已耗尽。");
-        return lv_ERROR_RESOURCE_EXHAUSTED;
+        lv_RETURN_ERROR_VAL(lv_ERROR_RESOURCE_EXHAUSTED, lv_ERROR_RESOURCE_EXHAUSTED,
+                            "克隆视图失败：视图ID空间已耗尽。");
     }
     int slot = high_dim_allocate_view_slot(new_vid, src->block_id, src->preset_index);
     if (slot < 0) {
-        lv_set_error(lv_ERROR_RESOURCE_EXHAUSTED, "克隆视图失败：全局视图槽位已满。");
-        return lv_ERROR_RESOURCE_EXHAUSTED;
+        lv_RETURN_ERROR_VAL(lv_ERROR_RESOURCE_EXHAUSTED, lv_ERROR_RESOURCE_EXHAUSTED,
+                            "克隆视图失败：全局视图槽位已满。");
     }
     HighDimMultiViewContext *dst = &g_multi_views[slot];
     dst->z_order = src->z_order + 1;
@@ -937,20 +938,21 @@ static int high_dim_mv_handler_reorder(HighDimManager *manager, int *view_ids, i
     }
     int n = *count;
     if (n <= 0 || n > HIGH_DIM_MAX_ACTIVE_VIEWS) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "视图重排失败：数组长度=%d超出有效范围（1-%d）。", n,
-                     HIGH_DIM_MAX_ACTIVE_VIEWS);
-        return lv_ERROR_INVALID_PARAM;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM,
+                            "视图重排失败：数组长度=%d超出有效范围（1-%d）。", n,
+                            HIGH_DIM_MAX_ACTIVE_VIEWS);
     }
     for (int i = 0; i < n; i++) {
         if (high_dim_find_view_index(view_ids[i]) < 0) {
-            lv_set_error(lv_ERROR_NOT_FOUND, "视图重排失败：数组第%d个view_id=%d不存在。", i, view_ids[i]);
-            return lv_ERROR_NOT_FOUND;
+            lv_RETURN_ERROR_VAL(lv_ERROR_NOT_FOUND, lv_ERROR_NOT_FOUND,
+                                "视图重排失败：数组第%d个view_id=%d不存在。", i, view_ids[i]);
         }
     }
     for (int i = 0; i < n; i++) {
         int idx = high_dim_find_view_index(view_ids[i]);
         g_multi_views[idx].z_order = i + 1;
     }
+    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
     lv_set_error(lv_OK, "视图重排成功：%d个视图已按指定顺序重新排列。", n);
     return lv_OK;
 }
@@ -970,6 +972,7 @@ static int high_dim_mv_handler_snapshot_save(HighDimManager *manager, int *view_
     if (count) {
         *count = saved;
     }
+    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
     lv_set_error(lv_OK, "视图快照保存成功：已保存%d个活跃视图的状态。", saved);
     return lv_OK;
 }
@@ -1030,6 +1033,7 @@ static int high_dim_mv_handler_snapshot_restore(HighDimManager *manager, int *vi
     if (count) {
         *count = restored;
     }
+    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
     lv_set_error(lv_OK, "视图快照恢复成功：已恢复%d个视图的状态。", restored);
     return lv_OK;
 }
@@ -1040,12 +1044,11 @@ static int high_dim_mv_handler_unsupported(HighDimManager *manager, int *view_id
     (void)view_ids;
     (void)count;
     /* 从调用处获取 operation 值的方式：通过栈回溯不可行，直接返回错误 */
-    lv_set_error(lv_ERROR_UNSUPPORTED,
-                 "多视图管理失败：不支持的操作类型"
-                 "（有效值：0=LIST, 1=COUNT, 2=CLEAR, 3=LIST_BY_BLOCK, "
-                 "4=EXPORT_JSON, 5=QUERY_LAYOUT, 6=CREATE_BATCH, 7=CLONE, "
-                 "8=REORDER, 9=SNAPSHOT_SAVE, 10=SNAPSHOT_RESTORE）");
-    return lv_ERROR_UNSUPPORTED;
+    lv_RETURN_ERROR_VAL(lv_ERROR_UNSUPPORTED, lv_ERROR_UNSUPPORTED,
+                        "多视图管理失败：不支持的操作类型"
+                        "（有效值：0=LIST, 1=COUNT, 2=CLEAR, 3=LIST_BY_BLOCK, "
+                        "4=EXPORT_JSON, 5=QUERY_LAYOUT, 6=CREATE_BATCH, 7=CLONE, "
+                        "8=REORDER, 9=SNAPSHOT_SAVE, 10=SNAPSHOT_RESTORE）");
 }
 
 /** 多视图管理操作查找表：索引为 MULTIVIEW_OP_* 值，末项为 unsupported 兜底 */

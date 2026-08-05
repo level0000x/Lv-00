@@ -366,30 +366,28 @@ cleanup:
  * 测试套件
  * ================================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("Conflict Detector")
     printf("=== Conflict Detector Tests ===\n");
 
-    TEST_RUN(test_null_graph);
-    TEST_RUN(test_empty_graph);
-    TEST_RUN(test_report_lifecycle);
-    TEST_RUN(test_default_config);
-    TEST_RUN(test_type_names);
-    TEST_RUN(test_simple_triangle_no_conflict);
-    TEST_RUN(test_detects_missing_participant_node);
-    TEST_RUN(test_detects_degenerate_betweenness);
-    TEST_RUN(test_json_output);
-    TEST_RUN(test_convenience_functions);
+    TEST_MAIN_RUN(test_null_graph);
+    TEST_MAIN_RUN(test_empty_graph);
+    TEST_MAIN_RUN(test_report_lifecycle);
+    TEST_MAIN_RUN(test_default_config);
+    TEST_MAIN_RUN(test_type_names);
+    TEST_MAIN_RUN(test_simple_triangle_no_conflict);
+    TEST_MAIN_RUN(test_detects_missing_participant_node);
+    TEST_MAIN_RUN(test_detects_degenerate_betweenness);
+    TEST_MAIN_RUN(test_json_output);
+    TEST_MAIN_RUN(test_convenience_functions);
 
     /* v3.5.1: 新增矛盾检测测试 */
-    TEST_RUN(test_distance_conflict_detection);
-    /* TEST_RUN(test_distance_no_conflict_same_value); */
-    /* TEST_RUN(test_angle_conflict_detection); */
-    /* TEST_RUN(test_angle_no_conflict_supplementary); */
-    /* TEST_RUN(test_parallel_vs_perpendicular_conflict); */
-    /* TEST_RUN(test_horizontal_vs_vertical_conflict); */
-    /* TEST_RUN(test_transitive_equality_conflict); */
-    /* TEST_RUN(test_transitive_equality_no_conflict_zero_distance); */
+    TEST_MAIN_RUN(test_distance_conflict_detection);
+    /* TEST_MAIN_RUN(test_distance_no_conflict_same_value); */
+    /* TEST_MAIN_RUN(test_angle_conflict_detection); */
+    /* TEST_MAIN_RUN(test_angle_no_conflict_supplementary); */
+    /* TEST_MAIN_RUN(test_parallel_vs_perpendicular_conflict); */
+    /* TEST_MAIN_RUN(test_horizontal_vs_vertical_conflict); */
+    /* TEST_MAIN_RUN(test_transitive_equality_conflict); */
+    /* TEST_MAIN_RUN(test_transitive_equality_no_conflict_zero_distance); */
 
-    TEST_SUMMARY();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

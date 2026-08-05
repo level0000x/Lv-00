@@ -248,25 +248,29 @@ static bool mini_stmt_array_grow(MiniKernel *kernel) {
     if (kernel->statement_count >= new_cap)
         return false;
 
-    MiniStatement **new_arr = lv_realloc(kernel->statements, (size_t) new_cap * sizeof(MiniStatement *));
-    if (!new_arr)
+    int old_cap = kernel->statement_capacity;
+    /* min_growth 使 min_required = new_cap（钳制后的目标容量）。
+     * 注：lv_ensure_capacity 采用倍增策略，分配容量可能略大于 max_statements，
+     * 但语句数量仍受上方 statement_count 检查限制。 */
+    if (!lv_ensure_capacity((void **) &kernel->statements, old_cap,
+                            &kernel->statement_capacity, sizeof(MiniStatement *),
+                            new_cap - old_cap))
         return false;
+    int grown_cap = kernel->statement_capacity;
 
     /* 清零新增部分 */
-    for (int i = kernel->statement_capacity; i < new_cap; i++) {
-        new_arr[i] = NULL;
+    for (int i = old_cap; i < grown_cap; i++) {
+        kernel->statements[i] = NULL;
     }
-    kernel->statements = new_arr;
-    kernel->statement_capacity = new_cap;
 
-    /* 同步扩容节点映射 */
-    int *new_map = lv_realloc(kernel->stmt_to_node_map, (size_t) new_cap * sizeof(int));
-    if (new_map) {
-        for (int i = kernel->map_count; i < new_cap; i++) {
-            new_map[i] = -1;
+    /* 同步扩容节点映射（失败时保持旧映射，与原始语义一致） */
+    int map_old = kernel->map_count;
+    if (map_old < grown_cap &&
+        lv_ensure_capacity((void **) &kernel->stmt_to_node_map, map_old,
+                           &kernel->map_count, sizeof(int), grown_cap - map_old)) {
+        for (int i = map_old; i < kernel->map_count; i++) {
+            kernel->stmt_to_node_map[i] = -1;
         }
-        kernel->stmt_to_node_map = new_map;
-        kernel->map_count = new_cap;
     }
     return true;
 }
@@ -275,22 +279,28 @@ static bool mini_stmt_array_grow(MiniKernel *kernel) {
  * @brief 扩容符号表
  */
 static bool mini_symbol_table_grow(MiniKernel *kernel) {
-    int new_cap = kernel->symbol_capacity * 2;
+    int old_cap = kernel->symbol_capacity;
 
-    char **new_names = lv_realloc(kernel->symbol_names, (size_t) new_cap * sizeof(char *));
-    int *new_ids = lv_realloc(kernel->symbol_stmt_ids, (size_t) new_cap * sizeof(int));
-    if (!new_names || !new_ids) {
-        lv_free((void **) &new_names);
-        lv_free((void **) &new_ids);
+    /* 第一次：扩容 symbol_names */
+    if (!lv_ensure_capacity((void **) &kernel->symbol_names, old_cap,
+                            &kernel->symbol_capacity, sizeof(char *), old_cap))
+        return false;
+
+    /* 第二次：扩容 symbol_stmt_ids。临时回退容量指针使扩容真实执行，
+     * 保持双数组容量一致；失败时恢复旧容量（两数组旧指针均有效） */
+    kernel->symbol_capacity = old_cap;
+    if (!lv_ensure_capacity((void **) &kernel->symbol_stmt_ids, old_cap,
+                            &kernel->symbol_capacity, sizeof(int), old_cap)) {
+        kernel->symbol_capacity = old_cap;
         return false;
     }
-    for (int i = kernel->symbol_capacity; i < new_cap; i++) {
-        new_names[i] = NULL;
-        new_ids[i] = -1;
+    int new_cap = kernel->symbol_capacity;
+
+    /* 新区段初始化 */
+    for (int i = old_cap; i < new_cap; i++) {
+        kernel->symbol_names[i] = NULL;
+        kernel->symbol_stmt_ids[i] = -1;
     }
-    kernel->symbol_names = new_names;
-    kernel->symbol_stmt_ids = new_ids;
-    kernel->symbol_capacity = new_cap;
     return true;
 }
 
@@ -962,17 +972,14 @@ bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id) {
 
     /* 扩容映射表 */
     if (stmt_id >= kernel->map_count) {
-        int new_cap = kernel->map_count * 2;
-        while (stmt_id >= new_cap)
-            new_cap *= 2;
-        int *new_map = lv_realloc(kernel->stmt_to_node_map, (size_t) new_cap * sizeof(int));
-        if (!new_map)
+        int old_count = kernel->map_count;
+        if (!lv_ensure_capacity((void **) &kernel->stmt_to_node_map, old_count,
+                                &kernel->map_count, sizeof(int),
+                                stmt_id + 1 - old_count))
             return false;
-        for (int i = kernel->map_count; i < new_cap; i++) {
-            new_map[i] = -1;
+        for (int i = old_count; i < kernel->map_count; i++) {
+            kernel->stmt_to_node_map[i] = -1;
         }
-        kernel->stmt_to_node_map = new_map;
-        kernel->map_count = new_cap;
     }
 
     kernel->stmt_to_node_map[stmt_id] = node_id;

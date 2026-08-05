@@ -17,6 +17,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
+#include "lv/lv_strbuf.h"
 
 #define INITIAL_CHILD_CAPACITY 4
 #define INITIAL_NODE_CAPACITY 16
@@ -246,32 +247,18 @@ bool lv_proof_tree_mark_contradiction(lvProofTreeNode *node) {
  * @param len   当前写入长度
  * @param cap   当前缓冲区容量
  */
-static void export_node(const lvProofTreeNode *n, int indent, char **buf, size_t *len, size_t *cap) {
+static void export_node(const lvProofTreeNode *n, int indent, lvStrBuf *sb) {
     if (!n)
         return;
-    char line[512];
     int spaces = indent * 2;
     if (spaces > 40)
         spaces = 40;
-    int written = snprintf(line, sizeof(line), "%*s[%d] %s%s\n", spaces, "", n->id,
-                           n->axiom_used ? n->axiom_used : "(no axiom)", n->is_contradiction ? " [CONTRADICTION]" : "");
-    if (written < 0)
-        return;
-    size_t need = *len + (size_t) written + 1;
-    if (need > *cap) {
-        *cap = *cap * 2 > need ? *cap * 2 : need;
-        char *tmp = (char *) lv_realloc(*buf, *cap);
-        if (!tmp)
-            return;
-        *buf = tmp;
-    }
-    memcpy(*buf + *len, line, (size_t) written);
-    *len += (size_t) written;
-    (*buf)[*len] = '\0';
+    lv_strbuf_printf(sb, "%*s[%d] %s%s\n", spaces, "", n->id,
+                     n->axiom_used ? n->axiom_used : "(no axiom)", n->is_contradiction ? " [CONTRADICTION]" : "");
 
     for (int i = 0; i < n->children.count; i++) {
         lvProofTreeNode **child = (lvProofTreeNode **)lv_darray_get(&n->children, i);
-        export_node(*child, indent + 1, buf, len, cap);
+        export_node(*child, indent + 1, sb);
     }
 }
 
@@ -290,21 +277,13 @@ char *lv_proof_tree_export_text(const lvProofTree *tree, const char *opts) {
     if (!tree || !tree->root)
         return NULL;
 
-    size_t cap = 1024;
-    size_t len = 0;
-    char *buf = (char *) lv_malloc(cap);
-    if (!buf)
-        return NULL;
-    buf[0] = '\0';
+    /* 用 lvStrBuf 累积输出（自动扩容；lv_strbuf_to_string 返回 lv_malloc 分配的 NUL 结尾字符串） */
+    lvStrBuf sb = {0};
 
     /* Header */
-    int hdr =
-        snprintf(buf, cap, "Proof Tree: %s\nStrategy: %s\n---\n", tree->theorem_name ? tree->theorem_name : "(unnamed)",
-                 tree->proof_strategy ? tree->proof_strategy : "(none)");
-    if (hdr > 0) {
-        len = (size_t) hdr;
-    }
+    lv_strbuf_printf(&sb, "Proof Tree: %s\nStrategy: %s\n---\n", tree->theorem_name ? tree->theorem_name : "(unnamed)",
+                     tree->proof_strategy ? tree->proof_strategy : "(none)");
 
-    export_node(tree->root, 0, &buf, &len, &cap);
-    return buf;
+    export_node(tree->root, 0, &sb);
+    return lv_strbuf_to_string(&sb);
 }

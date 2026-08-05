@@ -440,51 +440,48 @@ static void test_destroy_null(void) {
 /* ============================================================
  * Main
  * ============================================================ */
-int main(void) {
-    TEST_SUITE_BEGIN("SymExpr");
+TEST_MAIN_BEGIN("SymExpr")
 
     /* Construction */
-    TEST_RUN(test_create_const);
-    TEST_RUN(test_create_const_zero);
-    TEST_RUN(test_create_var);
-    TEST_RUN(test_create_var_null);
-    TEST_RUN(test_add);
-    TEST_RUN(test_mul);
-    TEST_RUN(test_pow);
-    TEST_RUN(test_unary_neg);
-    TEST_RUN(test_unary_sin);
+    TEST_MAIN_RUN(test_create_const);
+    TEST_MAIN_RUN(test_create_const_zero);
+    TEST_MAIN_RUN(test_create_var);
+    TEST_MAIN_RUN(test_create_var_null);
+    TEST_MAIN_RUN(test_add);
+    TEST_MAIN_RUN(test_mul);
+    TEST_MAIN_RUN(test_pow);
+    TEST_MAIN_RUN(test_unary_neg);
+    TEST_MAIN_RUN(test_unary_sin);
 
     /* Simplification */
-    TEST_RUN(test_simplify_const_add);
-    TEST_RUN(test_simplify_add_zero);
-    TEST_RUN(test_simplify_mul_zero);
-    TEST_RUN(test_simplify_mul_one);
-    TEST_RUN(test_simplify_neg_neg);
-    TEST_RUN(test_simplify_pow_zero_exp);
-    TEST_RUN(test_simplify_sin_const);
+    TEST_MAIN_RUN(test_simplify_const_add);
+    TEST_MAIN_RUN(test_simplify_add_zero);
+    TEST_MAIN_RUN(test_simplify_mul_zero);
+    TEST_MAIN_RUN(test_simplify_mul_one);
+    TEST_MAIN_RUN(test_simplify_neg_neg);
+    TEST_MAIN_RUN(test_simplify_pow_zero_exp);
+    TEST_MAIN_RUN(test_simplify_sin_const);
 
     /* Evaluation */
-    TEST_RUN(test_eval);
-    TEST_RUN(test_eval_missing_var);
+    TEST_MAIN_RUN(test_eval);
+    TEST_MAIN_RUN(test_eval_missing_var);
 
     /* String */
-    TEST_RUN(test_to_string);
+    TEST_MAIN_RUN(test_to_string);
 
     /* Differentiation */
-    TEST_RUN(test_diff_const);
-    TEST_RUN(test_diff_var);
-    TEST_RUN(test_diff_var_other);
-    TEST_RUN(test_diff_add);
-    TEST_RUN(test_diff_x_squared);
-    TEST_RUN(test_diff_sin);
+    TEST_MAIN_RUN(test_diff_const);
+    TEST_MAIN_RUN(test_diff_var);
+    TEST_MAIN_RUN(test_diff_var_other);
+    TEST_MAIN_RUN(test_diff_add);
+    TEST_MAIN_RUN(test_diff_x_squared);
+    TEST_MAIN_RUN(test_diff_sin);
 
     /* Substitution */
-    TEST_RUN(test_substitute);
-    TEST_RUN(test_substitute_no_match);
+    TEST_MAIN_RUN(test_substitute);
+    TEST_MAIN_RUN(test_substitute_no_match);
 
     /* Safety */
-    TEST_RUN(test_destroy_null);
+    TEST_MAIN_RUN(test_destroy_null);
 
-    TEST_SUITE_END();
-    return (g_fail_count > 0) ? 1 : 0;
-}
+TEST_MAIN_END()

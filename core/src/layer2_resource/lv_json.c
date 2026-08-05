@@ -533,12 +533,13 @@ bool lv_json_buf_init(lvJsonBuf *buf, size_t initial_size) {
 
 static void lv_json_buf_grow(lvJsonBuf *buf) {
     size_t old_capacity = buf->capacity;
-    buf->capacity *= 2;
-    char *new_buf = lv_realloc(buf->buffer, buf->capacity);
-    if (new_buf)
-        buf->buffer = new_buf;
-    else
-        buf->capacity = old_capacity;
+    /* 统一扩容（capacity 以 int 镜像传递，倍增溢出由内部检查兜底） */
+    int cap = (int) old_capacity;
+    if (!lv_ensure_capacity((void **) &buf->buffer, cap, &cap, sizeof(char), cap)) {
+        buf->capacity = old_capacity; /* 失败回滚旧容量 */
+        return;
+    }
+    buf->capacity = (size_t) cap;
 }
 
 void lv_json_buf_ensure(lvJsonBuf *buf, size_t extra) {

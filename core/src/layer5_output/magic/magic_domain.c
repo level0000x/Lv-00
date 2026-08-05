@@ -132,17 +132,10 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
         }
     }
 
-    /* 规则数组容量不足时自动扩容 */
-    if (domain->rule_count >= domain->rule_capacity) {
-        if (domain->rule_capacity > 0 && domain->rule_capacity > INT_MAX / 2)
-            return false;
-        int new_cap = domain->rule_capacity == 0 ? 8 : domain->rule_capacity * 2;
-        DomainRule *new_rules = (DomainRule *) lv_realloc(domain->rules, new_cap * sizeof(DomainRule));
-        if (!new_rules)
-            return false;
-        domain->rules = new_rules;
-        domain->rule_capacity = new_cap;
-    }
+    /* 规则数组容量不足时自动扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增；0 → 8 与原一致） */
+    if (!lv_ensure_capacity((void **) &domain->rules, domain->rule_count, &domain->rule_capacity,
+                            sizeof(DomainRule), 0))
+        return false;
 
     /* 添加新规则并设置默认动作 */
     int idx = domain->rule_count;

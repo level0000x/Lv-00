@@ -110,6 +110,7 @@ static bool stream_ensure_capacity(StreamContext *ctx, int min_capacity) {
     if (min_capacity > STREAM_MAX_CALLBACKS)
         return false; /* 超过硬上限 */
 
+    /* 先计算目标容量：while 翻倍并钳制到硬上限 STREAM_MAX_CALLBACKS */
     int new_cap = ctx->callback_capacity;
     while (new_cap < min_capacity) {
         if (new_cap > STREAM_MAX_CALLBACKS / 2) {
@@ -118,16 +119,18 @@ static bool stream_ensure_capacity(StreamContext *ctx, int min_capacity) {
         }
         new_cap *= 2;
     }
-    /* 钳制到硬上限 */
     if (new_cap > STREAM_MAX_CALLBACKS)
         new_cap = STREAM_MAX_CALLBACKS;
 
-    CallbackEntry *new_arr = (CallbackEntry *) lv_realloc(ctx->callbacks, (size_t) new_cap * sizeof(CallbackEntry));
-    if (!new_arr)
+    int old_cap = ctx->callback_capacity;
+    /* 统一扩容（min_growth 使 min_required = 钳制后的目标容量；
+     * 注：倍增策略下分配容量可能略大于 STREAM_MAX_CALLBACKS，
+     * 硬上限仍由上方 min_capacity 检查保证） */
+    if (!lv_ensure_capacity((void **) &ctx->callbacks, old_cap,
+                            &ctx->callback_capacity, sizeof(CallbackEntry),
+                            new_cap - old_cap))
         return false;
 
-    ctx->callbacks = new_arr;
-    ctx->callback_capacity = new_cap;
     return true;
 }
 

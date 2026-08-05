@@ -235,32 +235,9 @@ static bool ensure_preset_registry_capacity(void) {
         return true;
     }
 
-    int new_capacity;
-    if (g_preset_registry.capacity == 0) {
-        /* 首次分配，使用初始容量 */
-        new_capacity = PRESET_REGISTRY_INITIAL_CAPACITY;
-    } else {
-        /* 整数溢出检查：确保 capacity * PRESET_REGISTRY_GROWTH_FACTOR 不超过 INT_MAX */
-        if (g_preset_registry.capacity > INT_MAX / PRESET_REGISTRY_GROWTH_FACTOR) {
-            return false; /* 溢出，无法继续扩容 */
-        }
-        new_capacity = g_preset_registry.capacity * PRESET_REGISTRY_GROWTH_FACTOR;
-    }
-
-    /* 检查 new_capacity * sizeof(InternalPresetEntry) 是否超过 SIZE_MAX */
-    if ((size_t) new_capacity > SIZE_MAX / sizeof(InternalPresetEntry)) {
-        return false; /* 内存大小溢出 */
-    }
-
-    InternalPresetEntry *new_entries =
-        lv_realloc(g_preset_registry.entries, (size_t) new_capacity * sizeof(InternalPresetEntry));
-    if (!new_entries) {
-        return false;
-    }
-
-    g_preset_registry.entries = new_entries;
-    g_preset_registry.capacity = new_capacity;
-    return true;
+    /* 统一委托 lv_ensure_capacity（内部含 INT_MAX/SIZE_MAX 溢出检查与倍增；失败时指针/容量不变） */
+    return lv_ensure_capacity((void **) &g_preset_registry.entries, g_preset_registry.count,
+                              &g_preset_registry.capacity, sizeof(InternalPresetEntry), 0);
 }
 
 /**

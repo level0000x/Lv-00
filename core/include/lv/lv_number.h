@@ -1,3 +1,5 @@
+/* 内部模块 API，非公共导出 */
+
 #ifndef lv_NUMBER_H
 #define lv_NUMBER_H
 
@@ -51,46 +53,46 @@ typedef struct lvNumber {
 } lvNumber;
 
 // ---- 工厂函数 ----
-lv_PUBLIC_API lvNumber *lv_number_from_rational(int64_t num, uint64_t den);
-lv_PUBLIC_API lvNumber *lv_number_from_double(double val);
-lv_PUBLIC_API lvNumber *lv_number_from_int(int64_t val);
-lv_PUBLIC_API lvNumber *lv_number_from_string(const char *str);
+lvNumber *lv_number_from_rational(int64_t num, uint64_t den);
+lvNumber *lv_number_from_double(double val);
+lvNumber *lv_number_from_int(int64_t val);
+lvNumber *lv_number_from_string(const char *str);
 
 // ---- 算术运算 ----
-lv_PUBLIC_API lvNumber *lv_number_add(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API lvNumber *lv_number_sub(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API lvNumber *lv_number_mul(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API lvNumber *lv_number_div(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API lvNumber *lv_number_neg(const lvNumber *n);
-lv_PUBLIC_API lvNumber *lv_number_abs(const lvNumber *n);
-lv_PUBLIC_API lvNumber *lv_number_pow(const lvNumber *base, int exp);
+lvNumber *lv_number_add(const lvNumber *a, const lvNumber *b);
+lvNumber *lv_number_sub(const lvNumber *a, const lvNumber *b);
+lvNumber *lv_number_mul(const lvNumber *a, const lvNumber *b);
+lvNumber *lv_number_div(const lvNumber *a, const lvNumber *b);
+lvNumber *lv_number_neg(const lvNumber *n);
+lvNumber *lv_number_abs(const lvNumber *n);
+lvNumber *lv_number_pow(const lvNumber *base, int exp);
 
 // ---- 比较 ----
-lv_PUBLIC_API int lv_number_compare(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API bool lv_number_eq(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API bool lv_number_lt(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API bool lv_number_gt(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API bool lv_number_lte(const lvNumber *a, const lvNumber *b);
-lv_PUBLIC_API bool lv_number_gte(const lvNumber *a, const lvNumber *b);
+int lv_number_compare(const lvNumber *a, const lvNumber *b);
+bool lv_number_eq(const lvNumber *a, const lvNumber *b);
+bool lv_number_lt(const lvNumber *a, const lvNumber *b);
+bool lv_number_gt(const lvNumber *a, const lvNumber *b);
+bool lv_number_lte(const lvNumber *a, const lvNumber *b);
+bool lv_number_gte(const lvNumber *a, const lvNumber *b);
 
 // ---- 转换 ----
-lv_PUBLIC_API double lv_number_to_double(const lvNumber *n);
-lv_PUBLIC_API int64_t lv_number_to_int(const lvNumber *n);
-lv_PUBLIC_API char *lv_number_to_string(const lvNumber *n);
+double lv_number_to_double(const lvNumber *n);
+int64_t lv_number_to_int(const lvNumber *n);
+char *lv_number_to_string(const lvNumber *n);
 
 // ---- 查询 ----
-lv_PUBLIC_API bool lv_number_is_zero(const lvNumber *n);
-lv_PUBLIC_API bool lv_number_is_one(const lvNumber *n);
-lv_PUBLIC_API bool lv_number_is_negative(const lvNumber *n);
-lv_PUBLIC_API bool lv_number_is_positive(const lvNumber *n);
-lv_PUBLIC_API bool lv_number_is_integer(const lvNumber *n);
-lv_PUBLIC_API lvNumberType lv_number_type(const lvNumber *n);
-lv_PUBLIC_API uint64_t lv_number_hash(const lvNumber *n);
-lv_PUBLIC_API lvNumber *lv_number_clone(const lvNumber *n);
-lv_PUBLIC_API void lv_number_destroy(lvNumber *n);
+bool lv_number_is_zero(const lvNumber *n);
+bool lv_number_is_one(const lvNumber *n);
+bool lv_number_is_negative(const lvNumber *n);
+bool lv_number_is_positive(const lvNumber *n);
+bool lv_number_is_integer(const lvNumber *n);
+lvNumberType lv_number_type(const lvNumber *n);
+uint64_t lv_number_hash(const lvNumber *n);
+lvNumber *lv_number_clone(const lvNumber *n);
+void lv_number_destroy(lvNumber *n);
 
 // ---- 类型信息 ----
-lv_PUBLIC_API const char *lv_number_type_name(lvNumberType type);
+const char *lv_number_type_name(lvNumberType type);
 
 #ifdef __cplusplus
 }

@@ -75,31 +75,31 @@ int lv_reasoning_stack_ensure_capacity(lvReasoningStack *stack) {
         return lv_ERROR_RESOURCE_EXHAUSTED;
     }
 
+    /* 上限钳制：先按倍增策略计算目标容量，再钳制到 max_depth
+     * （capacity==0 时使用默认初始容量） */
+    int old_capacity = stack->capacity;
     int new_capacity;
-    if (stack->capacity == 0) {
+    if (old_capacity == 0) {
         new_capacity = lv_REASONING_STACK_DEFAULT_CAPACITY;
     } else {
-        new_capacity = stack->capacity * 2;
+        new_capacity = old_capacity * 2;
     }
-
-    /* 不超过最大深度 */
     if (new_capacity > stack->max_depth) {
         new_capacity = stack->max_depth;
     }
 
-    lvReasoningFrame *new_frames =
-        (lvReasoningFrame *) lv_realloc(stack->frames, (size_t) new_capacity * sizeof(lvReasoningFrame));
-    if (!new_frames) {
+    /* 统一扩容（min_growth 使 min_required = 钳制后的目标容量；
+     * 注：倍增策略下分配容量可能略大于 max_depth，深度限制仍由
+     * stack->max_depth 与上方检查保证） */
+    if (!lv_ensure_capacity((void **) &stack->frames, old_capacity,
+                            &stack->capacity, sizeof(lvReasoningFrame),
+                            new_capacity - old_capacity))
         return lv_ERROR_OUT_OF_MEMORY;
-    }
 
     /* 清零新增部分 */
-    size_t old_size = (size_t) stack->capacity * sizeof(lvReasoningFrame);
-    size_t new_size = (size_t) new_capacity * sizeof(lvReasoningFrame);
-    memset((char *) new_frames + old_size, 0, new_size - old_size);
-
-    stack->frames = new_frames;
-    stack->capacity = new_capacity;
+    size_t old_size = (size_t) old_capacity * sizeof(lvReasoningFrame);
+    size_t new_size = (size_t) stack->capacity * sizeof(lvReasoningFrame);
+    memset((char *) stack->frames + old_size, 0, new_size - old_size);
 
     return lv_OK;
 }

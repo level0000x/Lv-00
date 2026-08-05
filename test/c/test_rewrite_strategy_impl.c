@@ -347,19 +347,18 @@ static void test_beta_reduce_strategy(void) {
  *  Main
  * ================================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("Rewrite Strategy Implementation")
     lv_init();
 
     printf("=== Rewrite Strategy Implementation Test ===\n\n");
 
-    TEST_RUN(test_strategy_construct);
-    TEST_RUN(test_strategy_exec_basic);
-    TEST_RUN(test_strategy_compound);
-    TEST_RUN(test_search_backward_empty);
-    TEST_RUN(test_num_rules);
-    TEST_RUN(test_beta_reduce_strategy);
+    TEST_MAIN_RUN(test_strategy_construct);
+    TEST_MAIN_RUN(test_strategy_exec_basic);
+    TEST_MAIN_RUN(test_strategy_compound);
+    TEST_MAIN_RUN(test_search_backward_empty);
+    TEST_MAIN_RUN(test_num_rules);
+    TEST_MAIN_RUN(test_beta_reduce_strategy);
 
     printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
            g_pass_count + g_fail_count);
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

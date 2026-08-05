@@ -162,7 +162,7 @@ const char *log_level_string(LogLevel level) {
 /* 获取主目录 */
 const char *get_home_dir(void) {
 #ifdef _WIN32
-    static char home_path[MAX_PATH] = {0};
+    static lv_THREAD_LOCAL char home_path[MAX_PATH] = {0};
     if (home_path[0] == '\0') {
         if (getenv("USERPROFILE")) {
             /* strncpy 不安全使用 → lv_strlcpy，自动保证零终止 */

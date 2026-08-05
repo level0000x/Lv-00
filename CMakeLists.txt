@@ -850,7 +850,6 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/geometry_compress_huffman.c
     core/src/layer3_geometry/geometry_compress_rle.c
     core/src/layer3_geometry/geometry_compress_entropy.c
-    core/src/layer3_geometry/geometry_compress_clone.c
     core/src/layer3_geometry/geometry_compress_main.c
     core/src/layer3_geometry/geometry_compress_decompress.c
     core/src/layer3_geometry/geometry_compress_io.c

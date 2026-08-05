@@ -124,37 +124,17 @@ static bool check_conflict_incidence(const ConstraintGraph *graph, const Constra
             Constraint *c = graph->constraints[i];
             if (c->type == INCIDENCE && c->participants[0] == point_id) {
                 /* v3.4.2: 动态扩容 */
-                if (line_count >= lines_capacity) {
-                    int new_cap = lines_capacity * 2;
-                    if (new_cap < lines_capacity) { /* 溢出检查 */
-                        lv_free((void **) &lines);
-                        return false;
-                    }
-                    int *new_lines = (int *) lv_realloc(lines, sizeof(int) * new_cap);
-                    if (!new_lines) {
-                        lv_free((void **) &lines);
-                        return false;
-                    }
-                    lines = new_lines;
-                    lines_capacity = new_cap;
+                if (!lv_ensure_capacity((void **) &lines, line_count, &lines_capacity, sizeof(int), 0)) {
+                    lv_free((void **) &lines);
+                    return false;
                 }
                 lines[line_count++] = c->participants[1];
             }
         }
         /* 包含新添加的线 */
-        if (line_count >= lines_capacity) {
-            int new_cap = lines_capacity * 2;
-            if (new_cap < lines_capacity) {
-                lv_free((void **) &lines);
-                return false;
-            }
-            int *new_lines = (int *) lv_realloc(lines, sizeof(int) * new_cap);
-            if (!new_lines) {
-                lv_free((void **) &lines);
-                return false;
-            }
-            lines = new_lines;
-            lines_capacity = new_cap;
+        if (!lv_ensure_capacity((void **) &lines, line_count, &lines_capacity, sizeof(int), 0)) {
+            lv_free((void **) &lines);
+            return false;
         }
         lines[line_count++] = line_id;
 

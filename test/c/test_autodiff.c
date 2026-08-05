@@ -392,22 +392,19 @@ static void test_ad_null_safety(void) {
  * Main
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Automatic Differentiation");
+TEST_MAIN_BEGIN("Automatic Differentiation")
 
-    TEST_RUN(test_ad_engine_lifecycle);
-    TEST_RUN(test_expr_construction);
-    TEST_RUN(test_forward_diff_x_squared);
-    TEST_RUN(test_reverse_diff_x_squared);
-    TEST_RUN(test_forward_diff_sin);
-    TEST_RUN(test_chain_rule);
-    TEST_RUN(test_ad_eval);
-    TEST_RUN(test_forward_diff_cos);
-    TEST_RUN(test_forward_diff_pow);
-    TEST_RUN(test_reverse_diff_multi_var);
-    TEST_RUN(test_ad_null_safety);
+    TEST_MAIN_RUN(test_ad_engine_lifecycle);
+    TEST_MAIN_RUN(test_expr_construction);
+    TEST_MAIN_RUN(test_forward_diff_x_squared);
+    TEST_MAIN_RUN(test_reverse_diff_x_squared);
+    TEST_MAIN_RUN(test_forward_diff_sin);
+    TEST_MAIN_RUN(test_chain_rule);
+    TEST_MAIN_RUN(test_ad_eval);
+    TEST_MAIN_RUN(test_forward_diff_cos);
+    TEST_MAIN_RUN(test_forward_diff_pow);
+    TEST_MAIN_RUN(test_reverse_diff_multi_var);
+    TEST_MAIN_RUN(test_ad_null_safety);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

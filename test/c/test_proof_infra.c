@@ -375,24 +375,21 @@ static void test_proof_navigator_breakpoints(void) {
     proposition_unref(prop);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Proof Infrastructure");
+TEST_MAIN_BEGIN("Proof Infrastructure")
 
     /* ── Command Log ── */
     printf("\n--- Command Log ---\n");
-    TEST_RUN(test_command_log_lifecycle);
-    TEST_RUN(test_command_log_append);
-    TEST_RUN(test_command_entry_create_all_types);
-    TEST_RUN(test_command_log_clear);
-    TEST_RUN(test_command_entry_serialize_json);
-    TEST_RUN(test_command_log_execute_replay);
+    TEST_MAIN_RUN(test_command_log_lifecycle);
+    TEST_MAIN_RUN(test_command_log_append);
+    TEST_MAIN_RUN(test_command_entry_create_all_types);
+    TEST_MAIN_RUN(test_command_log_clear);
+    TEST_MAIN_RUN(test_command_entry_serialize_json);
+    TEST_MAIN_RUN(test_command_log_execute_replay);
 
     /* ── Proof Navigator ── */
     printf("\n--- Proof Navigator ---\n");
-    TEST_RUN(test_proof_navigator_create_destroy);
-    TEST_RUN(test_proof_navigator_steps);
-    TEST_RUN(test_proof_navigator_breakpoints);
+    TEST_MAIN_RUN(test_proof_navigator_create_destroy);
+    TEST_MAIN_RUN(test_proof_navigator_steps);
+    TEST_MAIN_RUN(test_proof_navigator_breakpoints);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

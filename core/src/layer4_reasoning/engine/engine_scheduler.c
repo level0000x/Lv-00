@@ -651,7 +651,7 @@ const char *scheduler_feature_summary(const GraphFeatures *features) {
     if (!features)
         return "NULL features";
 
-    static char summary[512];
+    static lv_THREAD_LOCAL char summary[512];
     snprintf(summary, sizeof(summary),
              "nodes=%d pts=%d fixed=%d ports=%d blocks=%d "
              "constraints=%d inc=%d btw=%d int=%d cnt=%d ang=%d conn=%d "

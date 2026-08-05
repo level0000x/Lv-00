@@ -32,7 +32,7 @@ static void alg_set_error_quadratic(AlgQuadraticError *err, AlgQuadraticError co
  * 第二层：二次代数数域 Q(sqrt(d)) —— 实现
  * ============================================================ */
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_create(int64_t a_val, int64_t a_den, int64_t b_val, int64_t b_den, int64_t d,
+AlgQuadratic lv_alg_quadratic_create(int64_t a_val, int64_t a_den, int64_t b_val, int64_t b_den, int64_t d,
                                                 AlgQuadraticError *err) {
     AlgQuadratic result;
     memset(&result, 0, sizeof(result));
@@ -52,7 +52,7 @@ lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_create(int64_t a_val, int64_t a_den,
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_from_rational(const AlgRational *r, int64_t d) {
+AlgQuadratic lv_alg_quadratic_from_rational(const AlgRational *r, int64_t d) {
     AlgQuadratic q;
     q.a = *r;
     q.b = lv_alg_rational_zero();
@@ -60,11 +60,11 @@ lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_from_rational(const AlgRational *r, 
     return q;
 }
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_sqrt(int64_t b_val, int64_t b_den, int64_t d, AlgQuadraticError *err) {
+AlgQuadratic lv_alg_quadratic_sqrt(int64_t b_val, int64_t b_den, int64_t d, AlgQuadraticError *err) {
     return lv_alg_quadratic_create(0, 1, b_val, b_den, d, err);
 }
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_add(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
+AlgQuadratic lv_alg_quadratic_add(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, lv_alg_quadratic_ERR_NULL);
         AlgQuadratic z;
@@ -86,7 +86,7 @@ lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_add(const AlgQuadratic *x, const Alg
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_sub(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
+AlgQuadratic lv_alg_quadratic_sub(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, lv_alg_quadratic_ERR_NULL);
         AlgQuadratic z;
@@ -108,7 +108,7 @@ lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_sub(const AlgQuadratic *x, const Alg
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
+AlgQuadratic lv_alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, lv_alg_quadratic_ERR_NULL);
         AlgQuadratic z;
@@ -146,7 +146,7 @@ lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_mul(const AlgQuadratic *x, const Alg
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
+AlgQuadratic lv_alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, lv_alg_quadratic_ERR_NULL);
         AlgQuadratic z;
@@ -202,7 +202,7 @@ lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_div(const AlgQuadratic *x, const Alg
     return numerator;
 }
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_neg(const AlgQuadratic *x) {
+AlgQuadratic lv_alg_quadratic_neg(const AlgQuadratic *x) {
     AlgQuadratic result;
     result.a = lv_alg_rational_neg(&x->a);
     result.b = lv_alg_rational_neg(&x->b);
@@ -210,7 +210,7 @@ lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_neg(const AlgQuadratic *x) {
     return result;
 }
 
-lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_conj(const AlgQuadratic *x) {
+AlgQuadratic lv_alg_quadratic_conj(const AlgQuadratic *x) {
     AlgQuadratic result;
     result.a = x->a;
     result.b = lv_alg_rational_neg(&x->b);
@@ -218,7 +218,7 @@ lv_PUBLIC_API AlgQuadratic lv_alg_quadratic_conj(const AlgQuadratic *x) {
     return result;
 }
 
-lv_PUBLIC_API AlgRational lv_alg_quadratic_norm(const AlgQuadratic *x, AlgQuadraticError *err) {
+AlgRational lv_alg_quadratic_norm(const AlgQuadratic *x, AlgQuadraticError *err) {
     if (!x) {
         alg_set_error_quadratic(err, lv_alg_quadratic_ERR_NULL);
         return lv_alg_rational_zero();
@@ -239,7 +239,7 @@ lv_PUBLIC_API AlgRational lv_alg_quadratic_norm(const AlgQuadratic *x, AlgQuadra
     return norm;
 }
 
-lv_PUBLIC_API int lv_alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic *y) {
+int lv_alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic *y) {
     double dx = lv_alg_quadratic_to_double(x);
     double dy = lv_alg_quadratic_to_double(y);
     if (dx < dy)
@@ -249,7 +249,7 @@ lv_PUBLIC_API int lv_alg_quadratic_cmp(const AlgQuadratic *x, const AlgQuadratic
     return 0;
 }
 
-lv_PUBLIC_API int lv_alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
+int lv_alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y, AlgQuadraticError *err) {
     if (!x || !y) {
         alg_set_error_quadratic(err, lv_alg_quadratic_ERR_NULL);
         return 0;
@@ -287,7 +287,7 @@ lv_PUBLIC_API int lv_alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQua
     return lv_alg_quadratic_cmp(x, y);
 }
 
-lv_PUBLIC_API double lv_alg_quadratic_to_double(const AlgQuadratic *x) {
+double lv_alg_quadratic_to_double(const AlgQuadratic *x) {
     double a = lv_alg_rational_to_double(&x->a);
     double b = lv_alg_rational_to_double(&x->b);
     double sqrt_d;
@@ -302,7 +302,7 @@ lv_PUBLIC_API double lv_alg_quadratic_to_double(const AlgQuadratic *x) {
     return a + b * sqrt_d;
 }
 
-lv_PUBLIC_API int lv_alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size) {
+int lv_alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size) {
     lvStrBuf sb = {0};
 
     /* 有理部分 a */
@@ -346,11 +346,11 @@ lv_PUBLIC_API int lv_alg_quadratic_to_string(const AlgQuadratic *x, char *buf, s
     return len;
 }
 
-lv_PUBLIC_API bool lv_alg_quadratic_is_rational(const AlgQuadratic *x) {
+bool lv_alg_quadratic_is_rational(const AlgQuadratic *x) {
     return lv_alg_rational_is_zero(&x->b);
 }
 
-lv_PUBLIC_API AlgRational lv_alg_quadratic_rational_part(const AlgQuadratic *x) {
+AlgRational lv_alg_quadratic_rational_part(const AlgQuadratic *x) {
     return x->a;
 }
 
@@ -363,6 +363,6 @@ static const lvStrToEnumEntry s_alg_quadratic_error_string_entries[] = {
     {"无效参数", lv_alg_quadratic_ERR_INVALID},
 };
 
-lv_PUBLIC_API const char *lv_alg_quadratic_error_string(AlgQuadraticError err) {
+const char *lv_alg_quadratic_error_string(AlgQuadraticError err) {
     return lv_enum_to_str(s_alg_quadratic_error_string_entries, lv_ARRAY_SIZE(s_alg_quadratic_error_string_entries), (int) err, "未知错误");
 }

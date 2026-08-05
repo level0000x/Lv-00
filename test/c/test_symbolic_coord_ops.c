@@ -1204,75 +1204,72 @@ void test_large_numbers(void) {
  * 主函数
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Symbolic Coordinate Operations");
+TEST_MAIN_BEGIN("Symbolic Coordinate Operations")
 
     /* ── 第一层：有理数域 Q ── */
-    TEST_RUN(test_rational_create_and_simplify);
-    TEST_RUN(test_rational_arithmetic);
-    TEST_RUN(test_rational_power);
-    TEST_RUN(test_rational_comparison);
-    TEST_RUN(test_rational_error_strings);
+    TEST_MAIN_RUN(test_rational_create_and_simplify);
+    TEST_MAIN_RUN(test_rational_arithmetic);
+    TEST_MAIN_RUN(test_rational_power);
+    TEST_MAIN_RUN(test_rational_comparison);
+    TEST_MAIN_RUN(test_rational_error_strings);
 
     /* ── 第二层：二次代数数 Q(sqrt(d)) ── */
-    TEST_RUN(test_quadratic_create);
-    TEST_RUN(test_quadratic_arithmetic);
-    TEST_RUN(test_quadratic_compare_convert);
+    TEST_MAIN_RUN(test_quadratic_create);
+    TEST_MAIN_RUN(test_quadratic_arithmetic);
+    TEST_MAIN_RUN(test_quadratic_compare_convert);
 
     /* ── 第三层：区间运算 ── */
-    TEST_RUN(test_interval_create_basic);
-    TEST_RUN(test_interval_arithmetic);
-    TEST_RUN(test_interval_set_ops);
-    TEST_RUN(test_interval_from_quadratic);
+    TEST_MAIN_RUN(test_interval_create_basic);
+    TEST_MAIN_RUN(test_interval_arithmetic);
+    TEST_MAIN_RUN(test_interval_set_ops);
+    TEST_MAIN_RUN(test_interval_from_quadratic);
 
     /* ── 第四层：多项式系统 ── */
-    TEST_RUN(test_poly_create);
-    TEST_RUN(test_poly_eval);
-    TEST_RUN(test_poly_ops);
-    TEST_RUN(test_poly_discriminant_roots);
+    TEST_MAIN_RUN(test_poly_create);
+    TEST_MAIN_RUN(test_poly_eval);
+    TEST_MAIN_RUN(test_poly_ops);
+    TEST_MAIN_RUN(test_poly_discriminant_roots);
 
     /* ── 跨层转换 ── */
-    TEST_RUN(test_cross_layer_conversion);
+    TEST_MAIN_RUN(test_cross_layer_conversion);
 
     /* ── 符号坐标创建与生命周期 ── */
-    TEST_RUN(test_symbolic_coord_create);
-    TEST_RUN(test_symbolic_coord_cache);
+    TEST_MAIN_RUN(test_symbolic_coord_create);
+    TEST_MAIN_RUN(test_symbolic_coord_cache);
 
     /* ── 符号坐标算术 ── */
-    TEST_RUN(test_symbolic_coord_rational_arith);
-    TEST_RUN(test_symbolic_coord_compare);
-    TEST_RUN(test_symbolic_coord_queries);
-    TEST_RUN(test_symbolic_coord_pow_sqrt);
-    /* TEST_RUN(test_symbolic_coord_try_expand_nested_sqrt); */
+    TEST_MAIN_RUN(test_symbolic_coord_rational_arith);
+    TEST_MAIN_RUN(test_symbolic_coord_compare);
+    TEST_MAIN_RUN(test_symbolic_coord_queries);
+    TEST_MAIN_RUN(test_symbolic_coord_pow_sqrt);
+    /* TEST_MAIN_RUN(test_symbolic_coord_try_expand_nested_sqrt); */
 
     /* ── Trust Color ── */
-    TEST_RUN(test_trust_color_ops);
+    TEST_MAIN_RUN(test_trust_color_ops);
 
     /* ── 超越数 ── */
-    TEST_RUN(test_transcendental_ops);
-    TEST_RUN(test_transcendental_serialize);
+    TEST_MAIN_RUN(test_transcendental_ops);
+    TEST_MAIN_RUN(test_transcendental_serialize);
 
     /* ── 跨类型运算 ── */
-    TEST_RUN(test_cross_type_rational_quadratic);
-    TEST_RUN(test_cross_type_compare);
-    TEST_RUN(test_cross_type_rational_algebraic_compare);
+    TEST_MAIN_RUN(test_cross_type_rational_quadratic);
+    TEST_MAIN_RUN(test_cross_type_compare);
+    TEST_MAIN_RUN(test_cross_type_rational_algebraic_compare);
 
     /* ── 位电路熔断 ── */
-    TEST_RUN(test_circuit_operations);
-    TEST_RUN(test_circuit_callback);
+    TEST_MAIN_RUN(test_circuit_operations);
+    TEST_MAIN_RUN(test_circuit_callback);
 
     /* ── Plan Manager ── */
-    TEST_RUN(test_algebraic_plan_switching);
-    TEST_RUN(test_plan_manager);
+    TEST_MAIN_RUN(test_algebraic_plan_switching);
+    TEST_MAIN_RUN(test_plan_manager);
 
     /* ── 应力测试 ── */
-    TEST_RUN(test_algebraic_stress);
+    TEST_MAIN_RUN(test_algebraic_stress);
 
     /* ── 边角情况 ── */
-    TEST_RUN(test_null_safety);
-    TEST_RUN(test_zero_and_negative);
-    TEST_RUN(test_large_numbers);
+    TEST_MAIN_RUN(test_null_safety);
+    TEST_MAIN_RUN(test_zero_and_negative);
+    TEST_MAIN_RUN(test_large_numbers);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

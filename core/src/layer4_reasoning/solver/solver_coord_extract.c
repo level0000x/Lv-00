@@ -516,7 +516,6 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(term2);
                 }
                 if (equation_system_push(sys, poly, pt->id, 0) != 0) {
-                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     coeff_pool_clear(&poly);
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
@@ -524,7 +523,7 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(ly1_s);
                     mpz_clear(lx2_s);
                     mpz_clear(ly2_s);
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 }
                 coeff_pool_clear(&poly);
 
@@ -557,7 +556,6 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(term2);
                 }
                 if (equation_system_push(sys, poly, pt->id, 1) != 0) {
-                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     coeff_pool_clear(&poly);
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
@@ -565,7 +563,7 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(ly1_s);
                     mpz_clear(lx2_s);
                     mpz_clear(ly2_s);
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 }
                 coeff_pool_clear(&poly);
                 mpz_clear(dx_s);
@@ -591,9 +589,8 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
                     double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
                     if (equation_system_push(sys, poly, pt->id, 0) != 0) {
-                        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         coeff_pool_clear(&poly);
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     }
                     coeff_pool_clear(&poly);
 
@@ -609,9 +606,8 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     double_to_mpz_scaled(dx, poly.coeffs[1], scale);
                     double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
                     if (equation_system_push(sys, poly, pt->id, 1) != 0) {
-                        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         coeff_pool_clear(&poly);
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     }
                     coeff_pool_clear(&poly);
                 }
@@ -753,7 +749,6 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
                     mpz_set(poly.coeffs[1], D_s);
                     mpz_neg(poly.coeffs[0], x_num_s);
                     if (equation_system_push(sys, poly, rpt->id, 0) != 0) {
-                        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         coeff_pool_clear(&poly);
                         mpz_clear(D_s);
                         mpz_clear(x_num_s);
@@ -776,7 +771,7 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
                         mpz_clear(l2y1_s);
                         mpz_clear(l2x2_s);
                         mpz_clear(l2y2_s);
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     }
                     coeff_pool_clear(&poly);
                 } else {
@@ -792,7 +787,6 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
                     mpz_set(poly.coeffs[1], D_s);
                     mpz_neg(poly.coeffs[0], y_num_s);
                     if (equation_system_push(sys, poly, rpt->id, 1) != 0) {
-                        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         coeff_pool_clear(&poly);
                         mpz_clear(D_s);
                         mpz_clear(x_num_s);
@@ -815,7 +809,7 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
                         mpz_clear(l2y1_s);
                         mpz_clear(l2x2_s);
                         mpz_clear(l2y2_s);
-                        return -1;
+                        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     }
                     coeff_pool_clear(&poly);
                 } else {
@@ -913,9 +907,8 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
             double_to_mpz_scaled(D, poly.coeffs[1], scale);
             double_to_mpz_scaled(-x_numerator, poly.coeffs[0], scale);
             if (equation_system_push(sys, poly, rpt->id, 0) != 0) {
-                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 coeff_pool_clear(&poly);
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
             }
             coeff_pool_clear(&poly);
 
@@ -931,9 +924,8 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
             double_to_mpz_scaled(D, poly.coeffs[1], scale);
             double_to_mpz_scaled(-y_numerator, poly.coeffs[0], scale);
             if (equation_system_push(sys, poly, rpt->id, 1) != 0) {
-                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 coeff_pool_clear(&poly);
-                return -1;
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
             }
             coeff_pool_clear(&poly);
         }
@@ -989,7 +981,6 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
                 mpz_clear(term1);
                 mpz_clear(term2);
                 if (equation_system_push(sys, poly, p2->id, 0) != 0) {
-                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     coeff_pool_clear(&poly);
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
@@ -997,7 +988,7 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
                     mpz_clear(y1_s);
                     mpz_clear(x3_s);
                     mpz_clear(y3_s);
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 }
             }
             coeff_pool_clear(&poly);
@@ -1022,7 +1013,6 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
                 mpz_clear(term1);
                 mpz_clear(term2);
                 if (equation_system_push(sys, poly, p2->id, 1) != 0) {
-                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     coeff_pool_clear(&poly);
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
@@ -1030,7 +1020,7 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
                     mpz_clear(y1_s);
                     mpz_clear(x3_s);
                     mpz_clear(y3_s);
-                    return -1;
+                    lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 }
             }
             coeff_pool_clear(&poly);
@@ -1105,7 +1095,6 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
                         mpz_clear(term1);
                         mpz_clear(term2);
                         if (equation_system_push(sys, poly, inner->id, 0) != 0) {
-                            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                             coeff_pool_clear(&poly);
                             mpz_clear(dx_s);
                             mpz_clear(dy_s);
@@ -1113,7 +1102,7 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
                             mpz_clear(sy1_s);
                             mpz_clear(sx2_s);
                             mpz_clear(sy2_s);
-                            return -1;
+                            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         }
                     }
                     coeff_pool_clear(&poly);
@@ -1138,7 +1127,6 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
                         mpz_clear(term1);
                         mpz_clear(term2);
                         if (equation_system_push(sys, poly, inner->id, 1) != 0) {
-                            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                             coeff_pool_clear(&poly);
                             mpz_clear(dx_s);
                             mpz_clear(dy_s);
@@ -1146,7 +1134,7 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
                             mpz_clear(sy1_s);
                             mpz_clear(sx2_s);
                             mpz_clear(sy2_s);
-                            return -1;
+                            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         }
                     }
                     coeff_pool_clear(&poly);
@@ -1229,9 +1217,8 @@ static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys,
     double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
     double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
     if (equation_system_push(sys, poly, nodeB->id, 0) != 0) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
         coeff_pool_clear(&poly);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
     }
     coeff_pool_clear(&poly);
 
@@ -1249,9 +1236,8 @@ static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys,
     double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
     double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
     if (equation_system_push(sys, poly, nodeB->id, 1) != 0) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
         coeff_pool_clear(&poly);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
     }
     coeff_pool_clear(&poly);
     return 0;

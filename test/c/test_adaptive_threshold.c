@@ -448,23 +448,20 @@ void test_performance_overhead(void) {
 
 /* ==================== 测试套件入口 ==================== */
 
-int main(void) {
+TEST_MAIN_BEGIN("AdaptiveThreshold")
     printf("Running adaptive threshold tests...\n\n");
 
-    TEST_SUITE_BEGIN("AdaptiveThreshold");
 
-    TEST_RUN(test_init_cleanup);
-    TEST_RUN(test_complexity_computation);
-    TEST_RUN(test_vf2_threshold_computation);
-    TEST_RUN(test_buchberger_threshold_computation);
-    TEST_RUN(test_threshold_scaling);
-    TEST_RUN(test_progress_tracking_and_pruning);
-    TEST_RUN(test_custom_config);
-    TEST_RUN(test_backward_compatibility);
-    TEST_RUN(test_error_handling);
-    TEST_RUN(test_performance_overhead);
+    TEST_MAIN_RUN(test_init_cleanup);
+    TEST_MAIN_RUN(test_complexity_computation);
+    TEST_MAIN_RUN(test_vf2_threshold_computation);
+    TEST_MAIN_RUN(test_buchberger_threshold_computation);
+    TEST_MAIN_RUN(test_threshold_scaling);
+    TEST_MAIN_RUN(test_progress_tracking_and_pruning);
+    TEST_MAIN_RUN(test_custom_config);
+    TEST_MAIN_RUN(test_backward_compatibility);
+    TEST_MAIN_RUN(test_error_handling);
+    TEST_MAIN_RUN(test_performance_overhead);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

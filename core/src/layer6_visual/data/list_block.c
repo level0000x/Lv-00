@@ -22,9 +22,17 @@
  * @param op 列表操作类型（如映射、过滤、归约等）
  * @return 成功返回列表块指针，失败返回NULL
  */
-LV_SIMPLE_BLOCK_PARAM(lvListBlock, lv_list_block, (lvListOp op), ({
+lvListBlock *lv_list_block_create(lvListOp op) {
+    lvListBlock *block = lv_calloc(1, sizeof(lvListBlock));
+    if (!block)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate lvListBlock");
     block->operation = op;
-}))
+    return block;
+}
+
+void lv_list_block_destroy(lvListBlock *block) {
+    lv_free((void **)&block);
+}
 
 /**
  * @brief 销毁列表块
@@ -33,4 +41,4 @@ LV_SIMPLE_BLOCK_PARAM(lvListBlock, lv_list_block, (lvListOp op), ({
  *
  * @param block 列表块指针
  */
-/* destroy 由 LV_SIMPLE_BLOCK_PARAM 宏自动生成 */
+/* destroy 已在上方手写实现 */

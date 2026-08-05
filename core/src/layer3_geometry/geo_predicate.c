@@ -470,7 +470,7 @@ static const Orientation3dImplFn s_orientation_3d_impls[] = {
  * @param mode           精度模式
  * @return lvOrientation 方向枚举（LEFT / RIGHT / COPLANAR / DEGENERATE）
  */
-lv_PUBLIC_API lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
+lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
                                               double p3x, double p3y, double p3z, double p4x, double p4y, double p4z,
                                               lvPredicateMode mode) {
     /*
@@ -606,7 +606,7 @@ lv_PUBLIC_API lvLineSide lv_line_side(double px, double py, double lx1, double l
  * @param mode     精度模式
  * @return lvLineSide 点侧枚举（LEFT / RIGHT / ON / DEGENERATE）
  */
-lv_PUBLIC_API lvLineSide lv_segment_side(double px, double py, double sx1, double sy1, double sx2, double sy2,
+lvLineSide lv_segment_side(double px, double py, double sx1, double sy1, double sx2, double sy2,
                                          lvPredicateMode mode) {
     return side_of_line_impl(px, py, sx1, sy1, sx2, sy2, mode);
 }
@@ -782,7 +782,7 @@ lv_PUBLIC_API bool lv_same_side_of_line(double ax, double ay, double bx, double 
  * @param mode   精度模式
  * @return true 两点在圆同侧（或一点/两点在圆上）
  */
-lv_PUBLIC_API bool lv_same_side_of_circle(double ax, double ay, double bx, double by, double cx, double cy, double r,
+bool lv_same_side_of_circle(double ax, double ay, double bx, double by, double cx, double cy, double r,
                                           lvPredicateMode mode) {
     lvSideOfCircle side_a = lv_side_of_circle(ax, ay, cx, cy, r, mode);
     lvSideOfCircle side_b = lv_side_of_circle(bx, by, cx, cy, r, mode);
@@ -1163,7 +1163,7 @@ lv_PUBLIC_API bool lv_polygon_is_convex(const double *xs, const double *ys, int 
  * @param mode     精度模式
  * @return true 点在凸多边形内部或边界上
  */
-lv_PUBLIC_API bool lv_point_in_convex_polygon(double px, double py, const double *xs, const double *ys, int n,
+bool lv_point_in_convex_polygon(double px, double py, const double *xs, const double *ys, int n,
                                               lvPredicateMode mode) {
     if (n < 3 || xs == NULL || ys == NULL) {
         return false;

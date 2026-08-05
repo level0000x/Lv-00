@@ -294,14 +294,14 @@ int interop_server_start(InteropServer *server, int port) {
         return lv_ERROR_INVALID_PARAM;
 
     if (server->running) {
-        lv_set_error(lv_ERROR_INVALID_STATE, "服务器已在运行中，请先调用interop_server_stop停止当前服务器");
-        return lv_ERROR_INVALID_STATE;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_STATE, lv_ERROR_INVALID_STATE,
+                            "服务器已在运行中，请先调用interop_server_stop停止当前服务器");
     }
 
     /* 参数验证：端口号范围检查 */
     if (port < 0 || port > 65535) {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "无效的端口号=%d，端口范围为0-65535", port);
-        return lv_ERROR_INVALID_PARAM;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM,
+                            "无效的端口号=%d，端口范围为0-65535", port);
     }
 
     if (server->type == INTEROP_INTERFACE_WEBSOCKET && port > 0) {
@@ -314,11 +314,10 @@ int interop_server_start(InteropServer *server, int port) {
         WSADATA wsa_data;
         int wsa_result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
         if (wsa_result != 0) {
-            lv_set_error(lv_ERROR_IO,
-                         "Winsock初始化失败（错误码=%d）。"
-                         "请检查网络驱动是否正常安装。",
-                         wsa_result);
-            return lv_ERROR_IO;
+            lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                                "Winsock初始化失败（错误码=%d）。"
+                                "请检查网络驱动是否正常安装。",
+                                wsa_result);
         }
 
         /* 尝试创建监听套接字 */
@@ -327,8 +326,8 @@ int interop_server_start(InteropServer *server, int port) {
             int err = WSAGetLastError();
             WSACleanup();
             /* 修复：套接字创建失败时应返回错误码，不应设置 running=true */
-            lv_set_error(lv_ERROR_IO, "创建监听套接字失败（Winsock错误码=%d）。", err);
-            return lv_ERROR_IO;
+            lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                                "创建监听套接字失败（Winsock错误码=%d）。", err);
         }
 
         /* 绑定地址 */
@@ -343,8 +342,8 @@ int interop_server_start(InteropServer *server, int port) {
             closesocket(listen_sock);
             WSACleanup();
             /* 修复：绑定失败时应返回错误码，不应设置 running=true */
-            lv_set_error(lv_ERROR_IO, "套接字绑定失败（Winsock错误码=%d）。", err);
-            return lv_ERROR_IO;
+            lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                                "套接字绑定失败（Winsock错误码=%d）。", err);
         }
 
         /* 开始监听 */
@@ -353,8 +352,8 @@ int interop_server_start(InteropServer *server, int port) {
             closesocket(listen_sock);
             WSACleanup();
             /* 监听失败时应返回错误码，不应设置 running=true */
-            lv_set_error(lv_ERROR_IO, "套接字监听失败（Winsock错误码=%d）。", err);
-            return lv_ERROR_IO;
+            lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                                "套接字监听失败（Winsock错误码=%d）。", err);
         }
 
         /* 存储套接字句柄到internal_data */
@@ -366,8 +365,8 @@ int interop_server_start(InteropServer *server, int port) {
         /* 创建监听套接字 */
         int listen_sock = socket(AF_INET, SOCK_STREAM, 0);
         if (listen_sock < 0) {
-            lv_set_error(lv_ERROR_IO, "创建监听套接字失败（errno=%d）。", errno);
-            return lv_ERROR_IO;
+            lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                                "创建监听套接字失败（errno=%d）。", errno);
         }
 
         /* 设置 SO_REUSEADDR 选项，允许快速重用地址 */
@@ -375,8 +374,8 @@ int interop_server_start(InteropServer *server, int port) {
         if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
             int err = errno;
             close(listen_sock);
-            lv_set_error(lv_ERROR_IO, "设置套接字选项失败（errno=%d）。", err);
-            return lv_ERROR_IO;
+            lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                                "设置套接字选项失败（errno=%d）。", err);
         }
 
         /* 绑定地址 */
@@ -389,16 +388,16 @@ int interop_server_start(InteropServer *server, int port) {
         if (bind(listen_sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
             int err = errno;
             close(listen_sock);
-            lv_set_error(lv_ERROR_IO, "套接字绑定失败（errno=%d）。", err);
-            return lv_ERROR_IO;
+            lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                                "套接字绑定失败（errno=%d）。", err);
         }
 
         /* 开始监听 */
         if (listen(listen_sock, SOMAXCONN) < 0) {
             int err = errno;
             close(listen_sock);
-            lv_set_error(lv_ERROR_IO, "套接字监听失败（errno=%d）。", err);
-            return lv_ERROR_IO;
+            lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                                "套接字监听失败（errno=%d）。", err);
         }
 
         /* 存储套接字句柄到internal_data */
@@ -434,8 +433,7 @@ int interop_server_stop(InteropServer *server) {
         return lv_ERROR_INVALID_PARAM;
 
     if (!server->running) {
-        lv_set_error(lv_ERROR_INVALID_STATE, "服务器当前未运行，无需停止");
-        return lv_ERROR_INVALID_STATE;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_STATE, lv_ERROR_INVALID_STATE, "服务器当前未运行，无需停止");
     }
 
     /* 清理网络资源 */
@@ -1153,20 +1151,11 @@ static uint8_t *ws_msg_ensure(WsClient *client, size_t need) {
     if (need <= client->msg_cap) {
         return client->msg_buf;
     }
-    size_t new_cap = client->msg_cap ? client->msg_cap * 2 : 1024;
-    if (new_cap < need) {
-        new_cap = need;
-    }
-    if (new_cap > WS_MAX_MESSAGE_SIZE + 1) {
-        new_cap = WS_MAX_MESSAGE_SIZE + 1;
-    }
-    uint8_t *nb = (uint8_t *) lv_realloc(client->msg_buf, new_cap);
-    if (!nb) {
+    /* 统一扩容：lv_ensure_capacity 倍增策略（初始容量 lv_INITIAL_ARRAY_CAPACITY） */
+    if (!lv_ensure_capacity((void **) &client->msg_buf, (int) need, (int *) &client->msg_cap, 1, 0)) {
         return NULL;
     }
-    client->msg_buf = nb;
-    client->msg_cap = new_cap;
-    return nb;
+    return client->msg_buf;
 }
 
 /** 组装完成的完整消息：执行命令路由并把响应以文本帧发回 */
@@ -1185,6 +1174,8 @@ static int ws_message_dispatch(InteropServer *server, WsClient *client, int opco
     }
     buf[n] = '\0';
 
+    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
+
     lv_set_error(lv_OK, "WebSocket消息已收到（opcode=0x%02X，长度=%zu），正在处理...", opcode, client->msg_len);
 
     /* 文本/二进制消息均按与 STDIO 模式相同的命令逻辑处理 */
@@ -1193,8 +1184,7 @@ static int ws_message_dispatch(InteropServer *server, WsClient *client, int opco
     if (result == lv_OK || output[0] != '\0') {
         size_t out_len = strlen(output);
         if (ws_send_frame(client, WS_OP_TEXT, (const uint8_t *) output, out_len) < 0) {
-            lv_set_error(lv_ERROR_IO, "WebSocket响应发送失败（套接字=%lld）", (long long) client->sock);
-            return -1;
+            lv_RETURN_ERROR(lv_ERROR_IO, "WebSocket响应发送失败（套接字=%lld）", (long long) client->sock);
         }
     }
     return 1;
@@ -1228,6 +1218,7 @@ static int ws_frame_dispatch(InteropServer *server, WsClient *client) {
         uint8_t payload[2] = {(uint8_t) (code >> 8), (uint8_t) (code & 0xFF)};
         ws_send_frame(client, WS_OP_CLOSE, payload, sizeof(payload));
         client->ctl_len = 0;
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
         lv_set_error(lv_OK, "WebSocket客户端请求关闭连接（状态码=%u）", (unsigned) code);
         return -1;
     }
@@ -1514,10 +1505,12 @@ static bool ws_client_read(InteropServer *server, WsClient *client) {
         int n = ws_sock_recv(client->sock, client->recv_buf + client->recv_len,
                              sizeof(client->recv_buf) - client->recv_len);
         if (n < 0) {
+            /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
             lv_set_error(lv_OK, "WebSocket客户端读取失败（套接字=%lld）", (long long) client->sock);
             return false;
         }
         if (n == 0) {
+            /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
             lv_set_error(lv_OK, "WebSocket客户端断开（套接字=%lld）", (long long) client->sock);
             return false;
         }
@@ -1532,9 +1525,8 @@ static bool ws_client_read(InteropServer *server, WsClient *client) {
         if (!term) {
             /* 请求头未完整到达：若缓冲已超上限则判为非法请求，否则继续等待 */
             if (avail > WS_MAX_HEADER_SIZE) {
-                lv_set_error(lv_ERROR_PARSE, "WebSocket握手失败：请求头超过上限%d字节", WS_MAX_HEADER_SIZE);
                 ws_http_reply_error(client->sock, 400, "Bad Request");
-                return false;
+                lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "WebSocket握手失败：请求头超过上限%d字节", WS_MAX_HEADER_SIZE);
             }
             return true;
         }
@@ -1542,19 +1534,18 @@ static bool ws_client_read(InteropServer *server, WsClient *client) {
         size_t header_len = (size_t) (term - (client->recv_buf + client->recv_pos)) + 4;
         char req[WS_MAX_HEADER_SIZE + 1];
         if (header_len > WS_MAX_HEADER_SIZE) {
-            lv_set_error(lv_ERROR_PARSE, "WebSocket握手失败：请求头超过上限%d字节", WS_MAX_HEADER_SIZE);
             ws_http_reply_error(client->sock, 400, "Bad Request");
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "WebSocket握手失败：请求头超过上限%d字节", WS_MAX_HEADER_SIZE);
         }
         memcpy(req, client->recv_buf + client->recv_pos, header_len);
         req[header_len] = '\0';
         client->recv_pos += header_len; /* 越过请求头，剩余字节为帧数据 */
 
         if (!ws_http_handshake(client->sock, req)) {
-            lv_set_error(lv_ERROR_PARSE, "WebSocket握手失败（套接字=%lld）", (long long) client->sock);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "WebSocket握手失败（套接字=%lld）", (long long) client->sock);
         }
         client->handshake_done = true;
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
         lv_set_error(lv_OK, "WebSocket客户端握手成功（套接字=%lld）", (long long) client->sock);
     }
 
@@ -1597,6 +1588,7 @@ static void ws_accept_client(InteropServer *server, WsClient *clients, int max_c
             clients[i].msg_len = 0;
             clients[i].frag_opcode = -1;
             clients[i].ctl_len = 0;
+            /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
             lv_set_error(lv_OK, "WebSocket客户端已连接（套接字=%lld）", (long long) client_sock);
             return;
         }
@@ -1619,18 +1611,19 @@ static int interop_ws_run(InteropServer *server, WsSock listen_sock) {
 
     /* 防御性校验：监听套接字必须有效（INVALID_SOCKET 转 intptr_t 后为 -1） */
     if (listen_sock < 0) {
-        lv_set_error(lv_ERROR_IO,
-                     "WebSocket循环失败：监听套接字无效。"
-                     "请确认 interop_server_start 已成功绑定端口。");
-        return lv_ERROR_IO;
+        lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                            "WebSocket循环失败：监听套接字无效。"
+                            "请确认 interop_server_start 已成功绑定端口。");
     }
+
+    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
 
     lv_set_error(lv_OK, "WebSocket服务器主循环已启动（端口=%d）", server->port);
 
     WsClient *clients = (WsClient *) lv_calloc(WS_MAX_CLIENTS, sizeof(WsClient));
     if (!clients) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "WebSocket循环失败：无法分配客户端状态内存");
-        return lv_ERROR_OUT_OF_MEMORY;
+        lv_RETURN_ERROR_VAL(lv_ERROR_OUT_OF_MEMORY, lv_ERROR_OUT_OF_MEMORY,
+                            "WebSocket循环失败：无法分配客户端状态内存");
     }
     for (int i = 0; i < WS_MAX_CLIENTS; i++) {
         clients[i].sock = -1;
@@ -1644,6 +1637,7 @@ static int interop_ws_run(InteropServer *server, WsSock listen_sock) {
                          "WebSocket服务器正在端口%d上监听（最大%d个并发客户端），"
                          "同时接受STDIN命令",
                          server->port, WS_MAX_CLIENTS);
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
         lv_set_error(lv_OK, "%s", sb.data);
         lv_strbuf_destroy(&sb);
     }
@@ -1737,6 +1731,7 @@ static int interop_ws_run(InteropServer *server, WsSock listen_sock) {
             }
 #endif
             if (!ws_client_read(server, cl)) {
+                /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
                 lv_set_error(lv_OK, "WebSocket客户端连接已关闭（套接字=%lld）", (long long) cl->sock);
                 ws_client_cleanup(cl);
             }
@@ -1752,6 +1747,7 @@ static int interop_ws_run(InteropServer *server, WsSock listen_sock) {
         }
     }
     lv_free((void **) &clients);
+    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
     lv_set_error(lv_OK, "WebSocket主循环已退出，已关闭%d个客户端连接", closed_count);
 
     return lv_OK;
@@ -1798,14 +1794,16 @@ int interop_server_run(InteropServer *server) {
         return lv_ERROR_INVALID_PARAM;
 
     if (!server->running) {
-        lv_set_error(lv_ERROR_INVALID_STATE, "服务器未启动，请先调用 interop_server_start");
-        return lv_ERROR_INVALID_STATE;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_STATE, lv_ERROR_INVALID_STATE,
+                            "服务器未启动，请先调用 interop_server_start");
     }
 
     if (server->type == INTEROP_INTERFACE_STDIO) {
         /* ====== STDIO 模式：完整实现 ====== */
         char input[INTEROP_CMD_BUFFER_SIZE];
         char output[INTEROP_RESP_BUFFER_SIZE];
+
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
 
         lv_set_error(lv_OK, "STDIO互操作服务器已启动，等待标准输入命令...");
 
@@ -1814,6 +1812,7 @@ int interop_server_run(InteropServer *server) {
             if (!fgets(input, sizeof(input), stdin)) {
                 /* EOF 或读取错误 */
                 if (feof(stdin)) {
+                    /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
                     lv_set_error(lv_OK, "STDIO输入流已关闭（EOF），服务器退出");
                 } else {
                     lv_set_error(lv_ERROR_IO, "STDIO读取错误，服务器退出");
@@ -1845,6 +1844,7 @@ int interop_server_run(InteropServer *server) {
         }
     } else if (server->type == INTEROP_INTERFACE_WEBSOCKET) {
         /* ====== WebSocket 模式：完整实现（RFC 6455） ====== */
+        /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
         lv_set_error(lv_OK, "WebSocket服务器主循环已启动（端口=%d）", server->port);
 
 #if INTEROP_HAS_WINSOCK

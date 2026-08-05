@@ -304,20 +304,9 @@ static InstantiateResult instantiate_copy_internal_nodes(FuncBlock *fb, Constrai
         /* 将新节点注册到哈希索引，确保 graph_get_node 能通过 ID 查找到该节点 */
         graph_node_index_insert(graph, copy);
 
-        if (new_count >= capacity) {
-            /* 修复：防止 capacity *= 2 导致有符号整数溢出。
-             * 当 capacity > INT_MAX / 2 时翻倍会溢出，此时应终止操作。 */
-            if (capacity > INT_MAX / 2) {
-                lv_free((void **) &new_node_ids);
-                return INSTANTIATE_OUT_OF_MEMORY;
-            }
-            capacity *= 2;
-            int *tmp = lv_realloc(new_node_ids, (size_t) capacity * sizeof(int));
-            if (!tmp) {
-                lv_free((void **) &new_node_ids);
-                return INSTANTIATE_OUT_OF_MEMORY;
-            }
-            new_node_ids = tmp;
+        if (!lv_ensure_capacity((void **) &new_node_ids, new_count, &capacity, sizeof(int), 0)) {
+            lv_free((void **) &new_node_ids);
+            return INSTANTIATE_OUT_OF_MEMORY;
         }
         new_node_ids[new_count++] = copy->id;
     }
@@ -1092,15 +1081,10 @@ static bool detect_variable_capture(FuncBlock *block, const int *actual_arg_node
         /* 实参节点自身是一个自由变量引用 */
         bool already = is_id_in_array(arg_id, free_ids, free_count);
         if (!already) {
-            if (free_count >= free_capacity) {
-                free_capacity *= 2;
-                int *tmp = lv_realloc(free_ids, (size_t) free_capacity * sizeof(int));
-                if (!tmp) {
-                    lv_free((void **) &free_ids);
-                    lv_free((void **) &bound_ids);
-                    return false;
-                }
-                free_ids = tmp;
+            if (!lv_ensure_capacity((void **) &free_ids, free_count, &free_capacity, sizeof(int), 0)) {
+                lv_free((void **) &free_ids);
+                lv_free((void **) &bound_ids);
+                return false;
             }
             free_ids[free_count++] = arg_id;
         }
@@ -1118,16 +1102,11 @@ static bool detect_variable_capture(FuncBlock *block, const int *actual_arg_node
 
     for (int i = 0; i < free_count; i++) {
         if (is_id_in_array(free_ids[i], bound_ids, bound_count)) {
-            if (cap_count >= cap_capacity) {
-                cap_capacity *= 2;
-                int *tmp = lv_realloc(captured, (size_t) cap_capacity * sizeof(int));
-                if (!tmp) {
-                    lv_free((void **) &captured);
-                    lv_free((void **) &free_ids);
-                    lv_free((void **) &bound_ids);
-                    return false;
-                }
-                captured = tmp;
+            if (!lv_ensure_capacity((void **) &captured, cap_count, &cap_capacity, sizeof(int), 0)) {
+                lv_free((void **) &captured);
+                lv_free((void **) &free_ids);
+                lv_free((void **) &bound_ids);
+                return false;
             }
             captured[cap_count++] = free_ids[i];
         }

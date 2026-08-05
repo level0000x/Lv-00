@@ -166,15 +166,12 @@ static void test_differential(void) {
     graph_destroy(empty2);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Meta Verify");
+TEST_MAIN_BEGIN("Meta Verify")
 
-    TEST_RUN(test_null_input);
-    TEST_RUN(test_completeness);
-    TEST_RUN(test_soundness);
-    TEST_RUN(test_differential);
+    TEST_MAIN_RUN(test_null_input);
+    TEST_MAIN_RUN(test_completeness);
+    TEST_MAIN_RUN(test_soundness);
+    TEST_MAIN_RUN(test_differential);
 
-    TEST_SUITE_END();
 
-    return (g_fail_count > 0) ? 1 : 0;
-}
+TEST_MAIN_END()

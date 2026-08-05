@@ -165,22 +165,12 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
         stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "开始 TikZ 片段导出", 0);
     }
 
-    /* 使用 snprintf 逐步写入缓冲区 */
-    int total = 0;
-    int remaining = (int) size;
+    /* 用 lvStrBuf 累积输出（自动扩容），完成后一次拷回调用方缓冲 */
+    lvStrBuf sb = {0};
 
-#define TIKZ_FRAG_PRINTF(...)                                              \
-    do {                                                                   \
-        int n = snprintf(output + total, (size_t) remaining, __VA_ARGS__); \
-        if (n < 0)                                                         \
-            lv_RETURN_ERROR(lv_ERROR_IO, "tikz_fragment: snprintf failed");\
-        if (n >= remaining) {                                              \
-            total += remaining - 1;                                        \
-            remaining = 1;                                                 \
-        } else {                                                           \
-            total += n;                                                    \
-            remaining -= n;                                                \
-        }                                                                  \
+#define TIKZ_FRAG_PRINTF(...) \
+    do { \
+        lv_strbuf_printf(&sb, __VA_ARGS__); \
     } while (0)
 
     /* TikZ 样式定义和 tikzpicture 开始 */
@@ -484,19 +474,20 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
 
 #undef TIKZ_FRAG_PRINTF
 
-    /* 确保以 null 终止 */
-    if (total >= (int) size) {
-        output[size - 1] = '\0';
-        return (int) size - 1; /* 截断但仍返回写入量 */
+    /* 拷贝回调用方缓冲，保持原截断语义：空间不足时截断到 size-1 并返回截断长度 */
+    int written = (sb.len < size) ? (int) sb.len : (int) size - 1;
+    if (written > 0) {
+        memcpy(output, sb.data, (size_t) written);
     }
-    output[total] = '\0';
+    output[written] = '\0';
+    lv_strbuf_destroy(&sb);
 
     /* ---- 流式事件：TikZ 片段导出完成 ---- */
     if (interop_stream_ctx) {
         stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "TikZ 片段导出完成", 0);
     }
 
-    return total;
+    return written;
 }
 
 /**

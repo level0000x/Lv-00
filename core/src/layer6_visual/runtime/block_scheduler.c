@@ -1,4 +1,4 @@
-﻿#include "lv/block_scheduler.h"
+#include "lv/block_scheduler.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +96,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
                     int in_port = other->input_port_ids ? other->input_port_ids[ii] : -1;
                     if (in_port == out_port) {
                         /* 存在连接：i -> j */
+                        /* 线性增长：每次 +1 个元素直接 realloc（adj 无 cap 字段，不引入 lv_ensure_capacity） */
                         adj_count[i]++;
                         int *new_adj = lv_realloc(adj[i], adj_count[i] * sizeof(int));
                         if (new_adj) {
@@ -232,6 +233,7 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
                 for (int ii = 0; ii < in_count; ii++) {
                     int in_port = other->input_port_ids ? other->input_port_ids[ii] : -1;
                     if (in_port == out_port) {
+                        /* 线性增长：每次 +1 个元素直接 realloc（adj 无 cap 字段，不引入 lv_ensure_capacity） */
                         adj_count[i]++;
                         int *_tmp = lv_realloc(adj[i], adj_count[i] * sizeof(int));
                         if (_tmp) {
@@ -326,12 +328,10 @@ void lv_block_scheduler_mark_dirty(lvBlockScheduler *sched, int block_id) {
             return;
     }
 
-    /* 自动扩容 */
-    int new_cap = (sched->incremental.dirty_count + 1) * 2;
-    int *new_dirty = lv_realloc(sched->incremental.dirty_blocks, new_cap * sizeof(int));
-    if (!new_dirty)
+    /* 自动扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &sched->incremental.dirty_blocks, sched->incremental.dirty_count,
+                            &sched->incremental.dirty_capacity, sizeof(int), 0))
         return;
-    sched->incremental.dirty_blocks = new_dirty;
     sched->incremental.dirty_blocks[sched->incremental.dirty_count] = block_id;
     sched->incremental.dirty_count++;
 }
@@ -349,6 +349,7 @@ void lv_block_scheduler_mark_all_dirty(lvBlockScheduler *sched) {
     lv_free((void **) &sched->incremental.dirty_blocks);
     sched->incremental.dirty_blocks = NULL;
     sched->incremental.dirty_count = 0;
+    sched->incremental.dirty_capacity = 0;
 
     /* 分配新列表 */
     int n = bg->count;
@@ -367,4 +368,5 @@ void lv_block_scheduler_mark_all_dirty(lvBlockScheduler *sched) {
 
     sched->incremental.dirty_blocks = dirty;
     sched->incremental.dirty_count = n;
+    sched->incremental.dirty_capacity = n; /* 外部数组容量即 n，后续按需扩容 */
 }

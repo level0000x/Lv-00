@@ -92,20 +92,9 @@ static bool ensure_trigger_capacity(lvTriggerEngine *engine) {
     if (!engine)
         return false;
 
-    if (engine->trigger_count < engine->trigger_capacity)
-        return true;
-
-    int new_capacity = engine->trigger_capacity * 2;
-    if (new_capacity < DEFAULT_TRIGGER_CAPACITY)
-        new_capacity = DEFAULT_TRIGGER_CAPACITY;
-
-    lvTrigger *new_triggers = (lvTrigger *) lv_realloc(engine->triggers, (size_t) new_capacity * sizeof(lvTrigger));
-    if (!new_triggers)
-        return false;
-
-    engine->triggers = new_triggers;
-    engine->trigger_capacity = new_capacity;
-    return true;
+    /* Unified growth via lv_ensure_capacity (overflow-checked doubling; starts at DEFAULT_TRIGGER_CAPACITY) */
+    return lv_ensure_capacity((void **) &engine->triggers, engine->trigger_count, &engine->trigger_capacity,
+                              sizeof(lvTrigger), 0);
 }
 
 /**
@@ -115,21 +104,9 @@ static bool ensure_cache_capacity(lvTriggerEngine *engine) {
     if (!engine)
         return false;
 
-    if (engine->cache_count < engine->cache_capacity)
-        return true;
-
-    int new_capacity = engine->cache_capacity * 2;
-    if (new_capacity < DEFAULT_CACHE_CAPACITY)
-        new_capacity = DEFAULT_CACHE_CAPACITY;
-
-    lvInstanceEntry *new_cache =
-        (lvInstanceEntry *) lv_realloc(engine->instance_cache, (size_t) new_capacity * sizeof(lvInstanceEntry));
-    if (!new_cache)
-        return false;
-
-    engine->instance_cache = new_cache;
-    engine->cache_capacity = new_capacity;
-    return true;
+    /* Unified growth via lv_ensure_capacity (overflow-checked doubling; starts at DEFAULT_CACHE_CAPACITY) */
+    return lv_ensure_capacity((void **) &engine->instance_cache, engine->cache_count, &engine->cache_capacity,
+                              sizeof(lvInstanceEntry), 0);
 }
 
 /* ========================================================================

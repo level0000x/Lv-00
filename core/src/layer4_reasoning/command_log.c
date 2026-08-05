@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file command_log.c
  * @brief 命令日志系统实现
  *
@@ -807,14 +807,9 @@ static int json_parse_int_array(JsonCtx *j, int **out) {
     if (!arr)
         return 0;
     while (1) {
-        if (count >= cap) {
-            cap *= 2;
-            int *tmp = (int *) lv_realloc(arr, (size_t) cap * sizeof(int));
-            if (!tmp) {
-                lv_free((void **) &arr);
-                return 0;
-            }
-            arr = tmp;
+        if (!lv_ensure_capacity((void **) &arr, count, &cap, sizeof(int), 0)) {
+            lv_free((void **) &arr);
+            return 0;
         }
         if (!json_parse_int(j, &arr[count])) {
             lv_free((void **) &arr);
@@ -847,14 +842,9 @@ static int json_parse_double_array(JsonCtx *j, double **out) {
     if (!arr)
         return 0;
     while (1) {
-        if (count >= cap) {
-            cap *= 2;
-            double *tmp = (double *) lv_realloc(arr, (size_t) cap * sizeof(double));
-            if (!tmp) {
-                lv_free((void **) &arr);
-                return 0;
-            }
-            arr = tmp;
+        if (!lv_ensure_capacity((void **) &arr, count, &cap, sizeof(double), 0)) {
+            lv_free((void **) &arr);
+            return 0;
         }
         if (!json_parse_double(j, &arr[count])) {
             lv_free((void **) &arr);
@@ -887,14 +877,9 @@ static int json_parse_uint64_array(JsonCtx *j, uint64_t **out) {
     if (!arr)
         return 0;
     while (1) {
-        if (count >= cap) {
-            cap *= 2;
-            uint64_t *tmp = (uint64_t *) lv_realloc(arr, (size_t) cap * sizeof(uint64_t));
-            if (!tmp) {
-                lv_free((void **) &arr);
-                return 0;
-            }
-            arr = tmp;
+        if (!lv_ensure_capacity((void **) &arr, count, &cap, sizeof(uint64_t), 0)) {
+            lv_free((void **) &arr);
+            return 0;
         }
         /* JSON 无符号 → 解析为 int64 再转换 */
         int64_t v = 0;

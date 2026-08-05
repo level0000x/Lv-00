@@ -712,15 +712,13 @@ char *lv_storage_read_all(lvStorage *storage, int64_t *out_size) {
         int64_t nread;
         while ((nread = lv_storage_read(storage, chunk, lv_STORAGE_READALL_CHUNK)) > 0) {
             if (total + nread > cap) {
-                int64_t new_cap = cap > 0 ? cap * 2 : lv_STORAGE_READALL_CHUNK;
-                while (new_cap < total + nread) new_cap *= 2;
-                char *new_buf = (char *)lv_realloc(buf, (size_t)new_cap + 1);
-                if (!new_buf) {
-                    lv_free((void **)&buf);
+                /* 统一委托 lv_ensure_capacity（count 含 +1 结尾 NUL 语义；cap 为 int64_t，经局部 int 桥接） */
+                int cap_i = (int) cap;
+                if (!lv_ensure_capacity((void **) &buf, (int) (total + nread + 1), &cap_i, 1, 0)) {
+                    lv_free((void **) &buf);
                     return NULL;
                 }
-                buf = new_buf;
-                cap = new_cap;
+                cap = (int64_t) cap_i;
             }
             memcpy(buf + total, chunk, (size_t)nread);
             total += nread;

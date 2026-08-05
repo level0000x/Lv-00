@@ -366,21 +366,18 @@ static void test_proof_tree_multi_level(void) {
 /* ============================================================
  * 主入口
  * ============================================================ */
-int main(void) {
-    TEST_SUITE_BEGIN("lvProofTree");
+TEST_MAIN_BEGIN("lvProofTree")
 
-    TEST_RUN(test_proof_tree_create_destroy);
-    TEST_RUN(test_proof_tree_create_node);
-    TEST_RUN(test_proof_tree_set_root);
-    TEST_RUN(test_proof_tree_node_add_premise);
-    TEST_RUN(test_proof_tree_node_set_axiom);
-    TEST_RUN(test_proof_tree_node_set_conclusion);
-    TEST_RUN(test_proof_tree_node_add_child);
-    TEST_RUN(test_proof_tree_node_contradiction);
-    TEST_RUN(test_proof_tree_export_text);
-    TEST_RUN(test_proof_tree_multi_level);
+    TEST_MAIN_RUN(test_proof_tree_create_destroy);
+    TEST_MAIN_RUN(test_proof_tree_create_node);
+    TEST_MAIN_RUN(test_proof_tree_set_root);
+    TEST_MAIN_RUN(test_proof_tree_node_add_premise);
+    TEST_MAIN_RUN(test_proof_tree_node_set_axiom);
+    TEST_MAIN_RUN(test_proof_tree_node_set_conclusion);
+    TEST_MAIN_RUN(test_proof_tree_node_add_child);
+    TEST_MAIN_RUN(test_proof_tree_node_contradiction);
+    TEST_MAIN_RUN(test_proof_tree_export_text);
+    TEST_MAIN_RUN(test_proof_tree_multi_level);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

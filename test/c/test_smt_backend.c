@@ -745,57 +745,54 @@ static void test_trigger_get_count(void) {
  * Main
  * ======================================================================== */
 
-int main(void) {
-    TEST_SUITE_BEGIN("SMT Backend");
+TEST_MAIN_BEGIN("SMT Backend")
 
     /* Group 1: SMTSolver lifecycle */
-    TEST_RUN(test_solver_create_destroy);
-    TEST_RUN(test_solver_default_config);
-    TEST_RUN(test_solver_error_handling);
+    TEST_MAIN_RUN(test_solver_create_destroy);
+    TEST_MAIN_RUN(test_solver_default_config);
+    TEST_MAIN_RUN(test_solver_error_handling);
 
     /* Group 2: SMT-LIB2 encoding */
-    TEST_RUN(test_smtlib2_encoding_empty_graph);
-    TEST_RUN(test_smtlib2_encoding_simple_graph);
-    TEST_RUN(test_smtlib2_encoding_with_named_assertions);
-    TEST_RUN(test_smtlib2_encoding_buffer_too_small);
+    TEST_MAIN_RUN(test_smtlib2_encoding_empty_graph);
+    TEST_MAIN_RUN(test_smtlib2_encoding_simple_graph);
+    TEST_MAIN_RUN(test_smtlib2_encoding_with_named_assertions);
+    TEST_MAIN_RUN(test_smtlib2_encoding_buffer_too_small);
 
     /* Group 3: Solve pipeline */
-    TEST_RUN(test_solver_encode_check);
-    TEST_RUN(test_solver_encode_empty_input);
-    TEST_RUN(test_solver_solve_graph);
-    TEST_RUN(test_solver_solve_null_handles);
+    TEST_MAIN_RUN(test_solver_encode_check);
+    TEST_MAIN_RUN(test_solver_encode_empty_input);
+    TEST_MAIN_RUN(test_solver_solve_graph);
+    TEST_MAIN_RUN(test_solver_solve_null_handles);
 
     /* Group 4: Result management */
-    TEST_RUN(test_result_init_free_clear);
-    TEST_RUN(test_result_find_assignment);
+    TEST_MAIN_RUN(test_result_init_free_clear);
+    TEST_MAIN_RUN(test_result_find_assignment);
 
     /* Group 5: Utility queries */
-    TEST_RUN(test_backend_availability);
-    TEST_RUN(test_backend_type_names);
-    TEST_RUN(test_logic_names);
-    TEST_RUN(test_sat_result_names);
-    TEST_RUN(test_error_strings);
+    TEST_MAIN_RUN(test_backend_availability);
+    TEST_MAIN_RUN(test_backend_type_names);
+    TEST_MAIN_RUN(test_logic_names);
+    TEST_MAIN_RUN(test_sat_result_names);
+    TEST_MAIN_RUN(test_error_strings);
 
     /* Group 6: Backend registry */
-    TEST_RUN(test_registry_lifecycle);
-    TEST_RUN(test_registry_register_find);
+    TEST_MAIN_RUN(test_registry_lifecycle);
+    TEST_MAIN_RUN(test_registry_register_find);
 
     /* Group 7: Theory combiner */
-    TEST_RUN(test_combiner_create_destroy);
-    TEST_RUN(test_combiner_add_theory);
-    TEST_RUN(test_combiner_set_enabled);
-    TEST_RUN(test_combiner_solve);
-    TEST_RUN(test_combiner_dispatch_order);
+    TEST_MAIN_RUN(test_combiner_create_destroy);
+    TEST_MAIN_RUN(test_combiner_add_theory);
+    TEST_MAIN_RUN(test_combiner_set_enabled);
+    TEST_MAIN_RUN(test_combiner_solve);
+    TEST_MAIN_RUN(test_combiner_dispatch_order);
 
     /* Group 8: Trigger engine */
-    TEST_RUN(test_trigger_create_destroy);
-    TEST_RUN(test_trigger_add_pattern);
-    TEST_RUN(test_trigger_find_matches);
-    TEST_RUN(test_trigger_cache_clear);
-    TEST_RUN(test_trigger_instantiation_limit);
-    TEST_RUN(test_trigger_get_count);
+    TEST_MAIN_RUN(test_trigger_create_destroy);
+    TEST_MAIN_RUN(test_trigger_add_pattern);
+    TEST_MAIN_RUN(test_trigger_find_matches);
+    TEST_MAIN_RUN(test_trigger_cache_clear);
+    TEST_MAIN_RUN(test_trigger_instantiation_limit);
+    TEST_MAIN_RUN(test_trigger_get_count);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

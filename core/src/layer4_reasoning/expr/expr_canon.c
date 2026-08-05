@@ -23,6 +23,7 @@
 
 #include "lv_internal.h" /* lv_UNUSED */
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 /* 默认初始容量 */
 #define EXPR_CANON_DEFAULT_CAPACITY 16
@@ -189,27 +190,20 @@ static bool ensure_capacity(lvExprCanonical *expr, int needed) {
     if (expr->term_count + needed <= expr->term_capacity)
         return true;
 
-    /* 计算新容量 */
-    int new_cap = expr->term_capacity;
-    while (new_cap < expr->term_count + needed) {
-        if (new_cap > INT_MAX / 2)
-            return false;
-        new_cap *= 2;
-    }
+    /* 记录旧容量，扩容后初始化新增槽位 */
+    int old_cap = expr->term_capacity;
 
-    lvExprTerm *new_terms = (lvExprTerm *) lv_realloc(expr->terms, (size_t) new_cap * sizeof(lvExprTerm));
-    if (!new_terms)
+    /* 统一委托 lv_ensure_capacity（倍增策略/溢出检查/失败语义一致） */
+    if (!lv_ensure_capacity((void **) &expr->terms, expr->term_count + needed, &expr->term_capacity,
+                            sizeof(lvExprTerm), 1))
         return false;
 
     /* 初始化新槽位 */
-    for (int i = expr->term_capacity; i < new_cap; i++) {
-        new_terms[i].coeff = NULL;
-        new_terms[i].exponents = NULL;
-        new_terms[i].var_count = 0;
+    for (int i = old_cap; i < expr->term_capacity; i++) {
+        expr->terms[i].coeff = NULL;
+        expr->terms[i].exponents = NULL;
+        expr->terms[i].var_count = 0;
     }
-
-    expr->terms = new_terms;
-    expr->term_capacity = new_cap;
     return true;
 }
 
@@ -598,13 +592,8 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
         return zero;
     }
 
-    /* 使用动态增长的缓冲区。返回值由调用者用 free() 释放。 */
-    size_t buf_cap = 256;
-    size_t buf_len = 0;
-    char *buf = (char *) lv_malloc(buf_cap);
-    if (!buf)
-        return NULL;
-    buf[0] = '\0';
+    /* 用 lvStrBuf 累积输出（自动扩容；lv_strbuf_to_string 返回 lv_malloc 分配的 NUL 结尾字符串） */
+    lvStrBuf sb = {0};
 
     bool first = true;
 
@@ -616,27 +605,13 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
         if (sgn == 0)
             continue;
 
-        /* 构建项的字符串片段 */
-        char piece[512];
-        char *pos = piece;
-        size_t remain = sizeof(piece);
-
         /* 符号前缀 */
         if (first) {
-            if (sgn < 0) {
-                int w = snprintf(pos, remain, "-");
-                if (w > 0) {
-                    pos += w;
-                    remain -= (size_t) w;
-                }
-            }
+            if (sgn < 0)
+                lv_strbuf_printf(&sb, "-");
             first = false;
         } else {
-            int w = snprintf(pos, remain, sgn >= 0 ? " + " : " - ");
-            if (w > 0) {
-                pos += w;
-                remain -= (size_t) w;
-            }
+            lv_strbuf_printf(&sb, sgn >= 0 ? " + " : " - ");
         }
 
         /* 判断是否常数项 */
@@ -652,11 +627,7 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
             lvRational *abs_coeff = lv_rational_abs(coeff);
             char *cs = lv_rational_to_string(abs_coeff);
             if (cs) {
-                int w = snprintf(pos, remain, "%s", cs);
-                if (w > 0) {
-                    pos += w;
-                    remain -= (size_t) w;
-                }
+                lv_strbuf_printf(&sb, "%s", cs);
                 lv_free((void **)&(cs));
             }
             lv_rational_destroy(&abs_coeff);
@@ -668,11 +639,7 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
             if (!is_one) {
                 char *cs = lv_rational_to_string(abs_coeff);
                 if (cs) {
-                    int w = snprintf(pos, remain, "%s*", cs);
-                    if (w > 0) {
-                        pos += w;
-                        remain -= (size_t) w;
-                    }
+                    lv_strbuf_printf(&sb, "%s*", cs);
                     lv_free((void **)&(cs));
                 }
             }
@@ -684,55 +651,24 @@ char *lv_expr_canonical_to_string(const lvExprCanonical *expr) {
                 if (exp[k] == 0)
                     continue;
 
-                if (!first_var) {
-                    int w = snprintf(pos, remain, "*");
-                    if (w > 0) {
-                        pos += w;
-                        remain -= (size_t) w;
-                    }
-                }
+                if (!first_var)
+                    lv_strbuf_printf(&sb, "*");
                 first_var = false;
 
                 if (expr->var_names && expr->var_names[k]) {
-                    int w = snprintf(pos, remain, "%s", expr->var_names[k]);
-                    if (w > 0) {
-                        pos += w;
-                        remain -= (size_t) w;
-                    }
+                    lv_strbuf_printf(&sb, "%s", expr->var_names[k]);
                 } else {
-                    int w = snprintf(pos, remain, "x%d", k);
-                    if (w > 0) {
-                        pos += w;
-                        remain -= (size_t) w;
-                    }
+                    lv_strbuf_printf(&sb, "x%d", k);
                 }
 
                 if (exp[k] > 1) {
-                    int w = snprintf(pos, remain, "^%d", exp[k]);
-                    if (w > 0) {
-                        pos += w;
-                        remain -= (size_t) w;
-                    }
+                    lv_strbuf_printf(&sb, "^%d", exp[k]);
                 }
             }
         }
-
-        /* 确保 piece 的大小足够并扩展到 buf */
-        size_t piece_len = strlen(piece);
-        while (buf_len + piece_len + 1 > buf_cap) {
-            buf_cap *= 2;
-            char *new_buf = (char *) lv_realloc(buf, buf_cap);
-            if (!new_buf) {
-                lv_free((void **)&(buf));
-                return NULL;
-            }
-            buf = new_buf;
-        }
-        memcpy(buf + buf_len, piece, piece_len + 1);
-        buf_len += piece_len;
     }
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /* ========================================================================

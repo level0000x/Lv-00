@@ -946,17 +946,17 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph, cons
                         sp++;
                         /* 动态扩容检查 */
                         if (sp >= stack_cap) {
-                            stack_cap *= 2;
-                            int *new_stack = (int *) lv_realloc(stack, sizeof(int) * (size_t) stack_cap);
-                            if (!new_stack) {
+                            int old_cap = stack_cap;
+                            /* 第一次：扩容 stack */
+                            if (!lv_ensure_capacity((void **) &stack, old_cap,
+                                                    &stack_cap, sizeof(int), 1))
                                 goto cycle_detect_done;
-                            }
-                            stack = new_stack;
-                            int *new_iter = (int *) lv_realloc(iter, sizeof(int) * (size_t) stack_cap);
-                            if (!new_iter) {
+                            /* 第二次：扩容 iter。临时回退容量指针使扩容真实执行，
+                             * 保持双数组容量一致；任一失败 goto 清理（指针均有效） */
+                            stack_cap = old_cap;
+                            if (!lv_ensure_capacity((void **) &iter, old_cap,
+                                                    &stack_cap, sizeof(int), 1))
                                 goto cycle_detect_done;
-                            }
-                            iter = new_iter;
                         }
                         stack[sp] = nb;
                         iter[sp] = 0;

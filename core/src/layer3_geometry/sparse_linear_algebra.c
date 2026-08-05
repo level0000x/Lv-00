@@ -86,21 +86,22 @@ static bool sparse_grow(lvSparseMatrix *m, int needed) {
     if (m->nnz + needed <= m->nnz_cap)
         return true;
 
-    int new_cap = m->nnz_cap * 2;
-    while (new_cap < m->nnz + needed)
-        new_cap *= 2;
+    int old_cap = m->nnz_cap;
 
-    /* [安全] 先扩容 values，立即赋值以避免后续失败时 m->values 成为悬空指针 */
-    double *nv = lv_realloc(m->values, sizeof(double) * new_cap);
-    if (!nv)
+    /* 先扩容 values（失败时指针与容量均不变，旧指针仍有效） */
+    if (!lv_ensure_capacity((void **) &m->values, old_cap,
+                            &m->nnz_cap, sizeof(double), needed))
         return false;
-    m->values = nv;
 
-    int *nc = lv_realloc(m->col_idx, sizeof(int) * new_cap);
-    if (!nc)
-        return false; /* m->values 仍有效，m->col_idx 指向旧有效数据 */
-    m->col_idx = nc;
-    m->nnz_cap = new_cap;
+    /* 扩容 col_idx。临时回退容量指针使扩容真实执行；
+       失败时恢复旧容量，values 保持新块（容量 >= 需求）、
+       col_idx 保持旧有效数据，两数组旧指针均有效 */
+    m->nnz_cap = old_cap;
+    if (!lv_ensure_capacity((void **) &m->col_idx, old_cap,
+                            &m->nnz_cap, sizeof(int), needed)) {
+        m->nnz_cap = old_cap;
+        return false;
+    }
     return true;
 }
 

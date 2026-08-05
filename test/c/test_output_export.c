@@ -667,47 +667,44 @@ static void test_widget_layout_type_null(void) {
  * Main
  * ================================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Output Export (TikZ / Proof Widget / Protocol)");
+TEST_MAIN_BEGIN("Output Export (TikZ / Proof Widget / Protocol)")
 
     /* ── 颜色系统 ── */
     printf("\n--- Color System ---\n");
-    TEST_RUN(test_color_all_named);
-    TEST_RUN(test_color_mapping_all);
+    TEST_MAIN_RUN(test_color_all_named);
+    TEST_MAIN_RUN(test_color_mapping_all);
 
     /* ── 协议数据生成 ── */
     printf("\n--- Protocol (lv_proto_*) ---\n");
-    TEST_RUN(test_proto_draw_commands);
-    TEST_RUN(test_proto_table_rows);
-    TEST_RUN(test_proto_dsl_text);
-    TEST_RUN(test_proto_tree);
-    TEST_RUN(test_proto_topology);
-    TEST_RUN(test_proto_proof_navigator);
-    TEST_RUN(test_proto_engine_status);
-    TEST_RUN(test_proto_completions);
-    TEST_RUN(test_proto_terminal_exec);
+    TEST_MAIN_RUN(test_proto_draw_commands);
+    TEST_MAIN_RUN(test_proto_table_rows);
+    TEST_MAIN_RUN(test_proto_dsl_text);
+    TEST_MAIN_RUN(test_proto_tree);
+    TEST_MAIN_RUN(test_proto_topology);
+    TEST_MAIN_RUN(test_proto_proof_navigator);
+    TEST_MAIN_RUN(test_proto_engine_status);
+    TEST_MAIN_RUN(test_proto_completions);
+    TEST_MAIN_RUN(test_proto_terminal_exec);
 
     /* ── TikZ 导出 ── */
     printf("\n--- TikZ Export ---\n");
-    TEST_RUN(test_tikz_export_points_only);
-    TEST_RUN(test_tikz_export_segments_only);
-    TEST_RUN(test_tikz_export_file_safety);
-    TEST_RUN(test_tikz_export_empty_graph);
+    TEST_MAIN_RUN(test_tikz_export_points_only);
+    TEST_MAIN_RUN(test_tikz_export_segments_only);
+    TEST_MAIN_RUN(test_tikz_export_file_safety);
+    TEST_MAIN_RUN(test_tikz_export_empty_graph);
 
     /* ── Proof Widget ── */
     printf("\n--- Proof Widget ---\n");
-    TEST_RUN(test_widget_layout_negative_capacity);
-    TEST_RUN(test_widget_register_all_types);
-    TEST_RUN(test_widget_update_full);
-    TEST_RUN(test_widget_suggest_tactic);
-    TEST_RUN(test_widget_get_step_highlights);
-    TEST_RUN(test_widget_get_goal_hypotheses);
-    TEST_RUN(test_widget_search_tree_dep_graph);
-    TEST_RUN(test_widget_apply_tactic);
-    TEST_RUN(test_widget_export_layout_null);
-    TEST_RUN(test_widget_set_order_edge);
-    TEST_RUN(test_widget_layout_type_null);
+    TEST_MAIN_RUN(test_widget_layout_negative_capacity);
+    TEST_MAIN_RUN(test_widget_register_all_types);
+    TEST_MAIN_RUN(test_widget_update_full);
+    TEST_MAIN_RUN(test_widget_suggest_tactic);
+    TEST_MAIN_RUN(test_widget_get_step_highlights);
+    TEST_MAIN_RUN(test_widget_get_goal_hypotheses);
+    TEST_MAIN_RUN(test_widget_search_tree_dep_graph);
+    TEST_MAIN_RUN(test_widget_apply_tactic);
+    TEST_MAIN_RUN(test_widget_export_layout_null);
+    TEST_MAIN_RUN(test_widget_set_order_edge);
+    TEST_MAIN_RUN(test_widget_layout_type_null);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

@@ -332,21 +332,20 @@ static void test_constraint_graph_to_ideal(void) {
  *  Main
  * ================================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("Groebner Basis")
     printf("=== Groebner Basis Computation Test ===\n\n");
 
-    TEST_RUN(test_group1_right_triangle);
-    TEST_RUN(test_group2_overconstrained);
-    TEST_RUN(test_group3_well_constrained);
+    TEST_MAIN_RUN(test_group1_right_triangle);
+    TEST_MAIN_RUN(test_group2_overconstrained);
+    TEST_MAIN_RUN(test_group3_well_constrained);
 
     printf("\n[Groebner Engine API Direct Tests]\n");
-    TEST_RUN(test_engine_ring_lifecycle);
-    TEST_RUN(test_engine_poly_lifecycle);
-    TEST_RUN(test_engine_poly_arith);
-    TEST_RUN(test_engine_ideal_lifecycle);
-    TEST_RUN(test_constraint_graph_to_ideal);
+    TEST_MAIN_RUN(test_engine_ring_lifecycle);
+    TEST_MAIN_RUN(test_engine_poly_lifecycle);
+    TEST_MAIN_RUN(test_engine_poly_arith);
+    TEST_MAIN_RUN(test_engine_ideal_lifecycle);
+    TEST_MAIN_RUN(test_constraint_graph_to_ideal);
 
     printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
            g_pass_count + g_fail_count);
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

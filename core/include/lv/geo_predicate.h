@@ -1,4 +1,4 @@
-﻿#ifndef lv_GEO_PREDICATE_H
+#ifndef lv_GEO_PREDICATE_H
 #define lv_GEO_PREDICATE_H
 
 #ifdef __cplusplus
@@ -122,7 +122,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x
  *   < 0 -> RIGHT（负体积）
  *   = 0 -> COPLANAR（共面）
  */
-lv_PUBLIC_API lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
+lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
                                               double p3x, double p3y, double p3z, double p4x, double p4y, double p4z,
                                               lvPredicateMode mode);
 
@@ -144,7 +144,7 @@ lv_PUBLIC_API lvLineSide lv_line_side(double px, double py, double lx1, double l
 /**
  * @brief 判定点相对于有向线段的位置
  */
-lv_PUBLIC_API lvLineSide lv_segment_side(double px, double py, double sx1, double sy1, double sx2, double sy2,
+lvLineSide lv_segment_side(double px, double py, double sx1, double sy1, double sx2, double sy2,
                                          lvPredicateMode mode);
 
 /**
@@ -177,7 +177,7 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(double px, double py, double cx, 
 /**
  * @brief 判定两点是否在圆同侧
  */
-lv_PUBLIC_API bool lv_same_side_of_circle(double ax, double ay, double bx, double by, double cx, double cy, double r,
+bool lv_same_side_of_circle(double ax, double ay, double bx, double by, double cx, double cy, double r,
                                           lvPredicateMode mode);
 
 /**
@@ -215,7 +215,7 @@ lv_PUBLIC_API bool lv_polygon_is_convex(const double *xs, const double *ys, int 
  * 使用二分法，O(log n) 复杂度。
  * 要求多边形顶点按逆时针或顺时针顺序排列。
  */
-lv_PUBLIC_API bool lv_point_in_convex_polygon(double px, double py, const double *xs, const double *ys, int n,
+bool lv_point_in_convex_polygon(double px, double py, const double *xs, const double *ys, int n,
                                               lvPredicateMode mode);
 
 /**

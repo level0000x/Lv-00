@@ -269,27 +269,23 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
     if (!engine || !config)
         return lv_ERROR_INVALID_PARAM;
     if (!engine->main_graph) {
-        lv_set_error(lv_ERROR_INVALID_STATE, "GeoJSON导入失败：引擎的约束图未初始化");
-        return lv_ERROR_INVALID_STATE;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_STATE, lv_ERROR_INVALID_STATE, "GeoJSON导入失败：引擎的约束图未初始化");
     }
     if (config->input_path[0] == '\0') {
-        lv_set_error(lv_ERROR_INVALID_PARAM, "GeoJSON导入失败：未指定输入文件路径");
-        return lv_ERROR_INVALID_PARAM;
+        lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM, "GeoJSON导入失败：未指定输入文件路径");
     }
 
     /* --- 读取文件 --- */
     FILE *fp = lv_file_open(config->input_path, "r");
     if (!fp) {
-        lv_set_error(lv_ERROR_IO, "GeoJSON导入失败：无法打开文件'%s'", config->input_path);
-        return lv_ERROR_IO;
+        lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO, "GeoJSON导入失败：无法打开文件'%s'", config->input_path);
     }
     fseek(fp, 0, SEEK_END);
     long fsize = ftell(fp);
     fseek(fp, 0, SEEK_SET);
     if (fsize <= 0) {
         lv_file_close(fp);
-        lv_set_error(lv_ERROR_UNSUPPORTED, "GeoJSON文件'%s'为空", config->input_path);
-        return lv_ERROR_UNSUPPORTED;
+        lv_RETURN_ERROR_VAL(lv_ERROR_UNSUPPORTED, lv_ERROR_UNSUPPORTED, "GeoJSON文件'%s'为空", config->input_path);
     }
 
     char *json = (char *) lv_malloc((size_t) fsize + 1);
@@ -301,9 +297,9 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
     if (read_size != (size_t) fsize) {
         lv_file_close(fp);
         lv_free((void **) &json);
-        lv_set_error(lv_ERROR_IO, "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）", config->input_path, fsize,
-                     read_size);
-        return lv_ERROR_IO;
+        lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
+                            "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）", config->input_path, fsize,
+                            read_size);
     }
     lv_file_close(fp);
     json[read_size] = '\0';
@@ -345,16 +341,14 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
     GJ_SKIP_WS(s);
     if (*s != '{') {
         lv_free((void **) &json);
-        lv_set_error(lv_ERROR_PARSE, "GeoJSON导入失败：根元素不是JSON对象");
-        return lv_ERROR_PARSE;
+        lv_RETURN_ERROR_VAL(lv_ERROR_PARSE, lv_ERROR_PARSE, "GeoJSON导入失败：根元素不是JSON对象");
     }
 
     /* 查找 "type" 字段来识别根类型 */
     const char *type_tag = strstr(s, "\"type\"");
     if (!type_tag) {
         lv_free((void **) &json);
-        lv_set_error(lv_ERROR_PARSE, "GeoJSON导入失败：缺少type字段");
-        return lv_ERROR_PARSE;
+        lv_RETURN_ERROR_VAL(lv_ERROR_PARSE, lv_ERROR_PARSE, "GeoJSON导入失败：缺少type字段");
     }
     type_tag += 6;
     GJ_SKIP_WS(type_tag);
@@ -375,8 +369,7 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
         const char *features_tag = strstr(cursor, "\"features\"");
         if (!features_tag) {
             lv_free((void **) &json);
-            lv_set_error(lv_ERROR_PARSE, "GeoJSON导入失败：FeatureCollection缺少features数组");
-            return lv_ERROR_PARSE;
+            lv_RETURN_ERROR_VAL(lv_ERROR_PARSE, lv_ERROR_PARSE, "GeoJSON导入失败：FeatureCollection缺少features数组");
         }
         features_tag += 10;
         GJ_SKIP_WS(features_tag);
@@ -385,8 +378,7 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
         GJ_SKIP_WS(features_tag);
         if (*features_tag != '[') {
             lv_free((void **) &json);
-            lv_set_error(lv_ERROR_PARSE, "GeoJSON导入失败：features不是数组");
-            return lv_ERROR_PARSE;
+            lv_RETURN_ERROR_VAL(lv_ERROR_PARSE, lv_ERROR_PARSE, "GeoJSON导入失败：features不是数组");
         }
         cursor = features_tag + 1; /* 进入features数组 */
     }

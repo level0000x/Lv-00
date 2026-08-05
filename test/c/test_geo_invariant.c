@@ -147,13 +147,10 @@ void test_geo_invariant_attach(void) {
  * Main
  * ======================================================================== */
 
-int main(void) {
-    TEST_SUITE_BEGIN("geo_invariant");
+TEST_MAIN_BEGIN("geo_invariant")
 
-    TEST_RUN(test_geo_invariant_create);
-    TEST_RUN(test_geo_invariant_consistency);
-    TEST_RUN(test_geo_invariant_attach);
+    TEST_MAIN_RUN(test_geo_invariant_create);
+    TEST_MAIN_RUN(test_geo_invariant_consistency);
+    TEST_MAIN_RUN(test_geo_invariant_attach);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

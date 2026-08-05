@@ -224,47 +224,37 @@ void *lv_pool_alloc(lvObjectPool *pool) {
 
         /* 扩展内存块数组 */
         if (pool->block_count >= pool->block_capacity) {
-            /* [Bug修复] 溢出检查：确保 block_capacity * GROWTH_FACTOR 不会溢出 */
-            if (lv_SIZE_MUL_OVERFLOW(pool->block_capacity, lv_POOL_GROWTH_FACTOR)) {
-                if (pool->thread_safe) {
-                    lv_mutex_unlock(&pool->mutex);
-                }
-                return NULL;
-            }
-            size_t new_cap = pool->block_capacity * lv_POOL_GROWTH_FACTOR;
+            /* 溢出检查（双重检查由 lv_ensure_capacity 内部完成） */
+            int cap = (int) pool->block_capacity;
 
-            /* [Bug修复] 溢出检查：确保 new_cap * sizeof(void*) 不会溢出 */
-            if (lv_SIZE_MUL_OVERFLOW(new_cap, sizeof(void *))) {
+            /* 第一次：扩容 blocks */
+            if (!lv_ensure_capacity((void **) &pool->blocks, cap, &cap,
+                                    sizeof(void *), 1)) {
                 if (pool->thread_safe) {
                     lv_mutex_unlock(&pool->mutex);
                 }
                 return NULL;
             }
-            void **new_blocks = (void **) lv_realloc(pool->blocks, new_cap * sizeof(void *));
-            if (!new_blocks) {
-                if (pool->thread_safe) {
-                    lv_mutex_unlock(&pool->mutex);
-                }
-                return NULL;
-            }
-            pool->blocks = new_blocks;
+            int blocks_cap = cap; /* blocks 的新容量 */
 
-            /* [Bug修复] 同步扩展 block_capacities 数组 */
-            size_t *new_bcaps = (size_t *) lv_realloc(pool->block_capacities, new_cap * sizeof(size_t));
-            if (!new_bcaps) {
-                /* 回滚 blocks 扩容：使用 realloc 缩回原大小，若失败则保留 new_blocks（仍有效） */
-                void **shrunk = (void **) lv_realloc(new_blocks, pool->block_capacity * sizeof(void *));
+            /* 第二次：扩容 block_capacities 与 blocks 同步。
+             * 临时回退容量指针使扩容真实执行；失败时回滚 blocks：
+             * 缩回旧大小，若失败则保留新块（仍有效） */
+            cap = (int) pool->block_capacity;
+            if (!lv_ensure_capacity((void **) &pool->block_capacities, cap, &cap,
+                                    sizeof(size_t), blocks_cap - cap)) {
+                void **shrunk = (void **) lv_realloc(pool->blocks,
+                                                     pool->block_capacity * sizeof(void *));
                 if (shrunk) {
                     pool->blocks = shrunk;
                 }
-                /* pool->blocks 始终有效（要么是 shrunk，要么是 new_blocks） */
+                /* pool->blocks 始终有效（要么是 shrunk，要么是新块） */
                 if (pool->thread_safe) {
                     lv_mutex_unlock(&pool->mutex);
                 }
                 return NULL;
             }
-            pool->block_capacities = new_bcaps;
-            pool->block_capacity = new_cap;
+            pool->block_capacity = (size_t) blocks_cap;
         }
 
         /* 分配新内存块 */

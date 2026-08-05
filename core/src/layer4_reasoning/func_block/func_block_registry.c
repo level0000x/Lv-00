@@ -63,36 +63,16 @@ static bool ensure_registry_capacity(void) {
         return true;
     }
 
-    int new_capacity;
-    if (g_registry.capacity == 0) {
-        /* 首次分配，使用初始容量 */
-        new_capacity = REGISTRY_INITIAL_CAPACITY;
-    } else {
-        /* 整数溢出检查：确保 capacity * REGISTRY_GROWTH_FACTOR 不超过 INT_MAX */
-        if (g_registry.capacity > INT_MAX / REGISTRY_GROWTH_FACTOR) {
-            return false; /* 溢出，无法继续扩容 */
-        }
-        new_capacity = g_registry.capacity * REGISTRY_GROWTH_FACTOR;
-    }
-
-    /* 【修复】检查 new_capacity * sizeof(PresetEntry) 是否会溢出 size_t */
-    if ((size_t) new_capacity > SIZE_MAX / sizeof(PresetEntry)) {
-        return false; /* size_t 乘法将溢出，拒绝分配 */
-    }
-
+    /* 统一委托 lv_ensure_capacity（内部含 INT_MAX/SIZE_MAX 溢出检查与倍增；失败时 entries/capacity 不变） */
     PresetEntry *old_entries = g_registry.entries;
-    PresetEntry *new_entries = lv_realloc(g_registry.entries, (size_t) new_capacity * sizeof(PresetEntry));
-    if (!new_entries) {
-        /* 【修复】如果 lv_realloc 在失败时可能释放了原内存（非标准行为），
-         *         重置 entries 指针防止后续误用野指针 */
+    if (!lv_ensure_capacity((void **) &g_registry.entries, g_registry.count, &g_registry.capacity,
+                            sizeof(PresetEntry), 0)) {
+        /* 防御性重置：lv_ensure_capacity 失败保证不修改指针，此分支实际不会触发 */
         if (g_registry.entries != old_entries) {
             g_registry.entries = NULL;
         }
         return false;
     }
-
-    g_registry.entries = new_entries;
-    g_registry.capacity = new_capacity;
     return true;
 }
 

@@ -413,15 +413,10 @@ static int *json_parser_parse_int_array(lvJsonParser *p, int *out_count) {
     }
 
     while (lv_json_peek(p) != ']' && lv_json_peek(p) != '\0') {
-        if (count >= capacity) {
-            capacity *= 2;
-            int *new_result = lv_realloc(result, (size_t) capacity * sizeof(int));
-            if (!new_result) {
-                lv_free((void **) &result);
-                *out_count = 0;
-                lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json_parser_parse_int_array: realloc failed");
-            }
-            result = new_result;
+        if (!lv_ensure_capacity((void **) &result, count, &capacity, sizeof(int), 0)) {
+            lv_free((void **) &result);
+            *out_count = 0;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json_parser_parse_int_array: realloc failed");
         }
 
         if (lv_json_parse_int(p, &result[count])) {

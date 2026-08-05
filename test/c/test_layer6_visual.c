@@ -1536,102 +1536,99 @@ static void test_sp_unknown_view(void) {
 /* ============================================================
  * 测试主函数
  * ============================================================ */
-int main(void) {
+TEST_MAIN_BEGIN("Layer 6 Visual Modules")
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    TEST_SUITE_BEGIN("Layer 6 Visual Modules");
 
     /* ===== 组1: Block Canvas ===== */
     fprintf(stderr, "\n--- Block Canvas ---\n");
-    TEST_RUN(test_bc_create_destroy);
-    TEST_RUN(test_bc_add_block);
-    TEST_RUN(test_bc_add_many_blocks);
-    TEST_RUN(test_bc_remove_block);
-    TEST_RUN(test_bc_connect);
-    TEST_RUN(test_bc_render_svg);
+    TEST_MAIN_RUN(test_bc_create_destroy);
+    TEST_MAIN_RUN(test_bc_add_block);
+    TEST_MAIN_RUN(test_bc_add_many_blocks);
+    TEST_MAIN_RUN(test_bc_remove_block);
+    TEST_MAIN_RUN(test_bc_connect);
+    TEST_MAIN_RUN(test_bc_render_svg);
 
     /* ===== 组2: Geometry Canvas ===== */
     fprintf(stderr, "\n--- Geometry Canvas ---\n");
-    TEST_RUN(test_gc_create_destroy);
-    TEST_RUN(test_gc_add_entity);
-    TEST_RUN(test_gc_add_many_entities);
-    TEST_RUN(test_gc_remove_entity);
-    TEST_RUN(test_gc_add_constraint);
-    TEST_RUN(test_gc_add_many_constraints);
-    TEST_RUN(test_gc_fit_view);
-    TEST_RUN(test_gc_render_svg);
-    TEST_RUN(test_gc_render_svg_with_constraints);
+    TEST_MAIN_RUN(test_gc_create_destroy);
+    TEST_MAIN_RUN(test_gc_add_entity);
+    TEST_MAIN_RUN(test_gc_add_many_entities);
+    TEST_MAIN_RUN(test_gc_remove_entity);
+    TEST_MAIN_RUN(test_gc_add_constraint);
+    TEST_MAIN_RUN(test_gc_add_many_constraints);
+    TEST_MAIN_RUN(test_gc_fit_view);
+    TEST_MAIN_RUN(test_gc_render_svg);
+    TEST_MAIN_RUN(test_gc_render_svg_with_constraints);
 
     /* ===== 组3: Visual Editor ===== */
     fprintf(stderr, "\n--- Visual Editor ---\n");
-    TEST_RUN(test_ve_create_destroy);
-    TEST_RUN(test_ve_reset);
-    TEST_RUN(test_ve_switch_view);
-    TEST_RUN(test_ve_execute);
-    TEST_RUN(test_ve_state_error);
+    TEST_MAIN_RUN(test_ve_create_destroy);
+    TEST_MAIN_RUN(test_ve_reset);
+    TEST_MAIN_RUN(test_ve_switch_view);
+    TEST_MAIN_RUN(test_ve_execute);
+    TEST_MAIN_RUN(test_ve_state_error);
 
     /* ===== 组4: Node Graph ===== */
     fprintf(stderr, "\n--- Node Graph ---\n");
-    TEST_RUN(test_ng_create_destroy);
-    TEST_RUN(test_ng_add_find_remove_node);
-    TEST_RUN(test_ng_add_many_nodes);
-    TEST_RUN(test_ng_connections);
-    TEST_RUN(test_ng_add_many_connections);
-    TEST_RUN(test_ng_layout);
+    TEST_MAIN_RUN(test_ng_create_destroy);
+    TEST_MAIN_RUN(test_ng_add_find_remove_node);
+    TEST_MAIN_RUN(test_ng_add_many_nodes);
+    TEST_MAIN_RUN(test_ng_connections);
+    TEST_MAIN_RUN(test_ng_add_many_connections);
+    TEST_MAIN_RUN(test_ng_layout);
 
     /* ===== 组5: View Synchronizer ===== */
     fprintf(stderr, "\n--- View Synchronizer ---\n");
-    TEST_RUN(test_vs_create_destroy);
-    TEST_RUN(test_vs_enable_disable);
-    TEST_RUN(test_vs_propagate_flush);
-    TEST_RUN(test_vs_many_propagations);
+    TEST_MAIN_RUN(test_vs_create_destroy);
+    TEST_MAIN_RUN(test_vs_enable_disable);
+    TEST_MAIN_RUN(test_vs_propagate_flush);
+    TEST_MAIN_RUN(test_vs_many_propagations);
 
     /* ===== 组6: Block Scheduler ===== */
     fprintf(stderr, "\n--- Block Scheduler ---\n");
-    TEST_RUN(test_bs_create_destroy);
-    TEST_RUN(test_bs_strategy);
-    TEST_RUN(test_bs_run);
-    TEST_RUN(test_bs_run_edge_cases);
-    TEST_RUN(test_bs_mark_dirty);
-    TEST_RUN(test_bs_incremental);
+    TEST_MAIN_RUN(test_bs_create_destroy);
+    TEST_MAIN_RUN(test_bs_strategy);
+    TEST_MAIN_RUN(test_bs_run);
+    TEST_MAIN_RUN(test_bs_run_edge_cases);
+    TEST_MAIN_RUN(test_bs_mark_dirty);
+    TEST_MAIN_RUN(test_bs_incremental);
 
     /* ===== 组7: Text Code View ===== */
     fprintf(stderr, "\n--- Text Code View ---\n");
-    TEST_RUN(test_tc_create_destroy);
-    TEST_RUN(test_tc_set_get_text);
-    TEST_RUN(test_tc_insert_delete);
-    TEST_RUN(test_tc_many_operations);
-    TEST_RUN(test_tc_render);
+    TEST_MAIN_RUN(test_tc_create_destroy);
+    TEST_MAIN_RUN(test_tc_set_get_text);
+    TEST_MAIN_RUN(test_tc_insert_delete);
+    TEST_MAIN_RUN(test_tc_many_operations);
+    TEST_MAIN_RUN(test_tc_render);
 
     /* ===== 组8: Extended Types ===== */
     fprintf(stderr, "\n--- Extended Types ---\n");
-    TEST_RUN(test_list_type_lifecycle);
-    TEST_RUN(test_map_type_lifecycle);
-    TEST_RUN(test_function_type_lifecycle);
-    TEST_RUN(test_effect_type_lifecycle);
-    TEST_RUN(test_extended_type_compatible);
+    TEST_MAIN_RUN(test_list_type_lifecycle);
+    TEST_MAIN_RUN(test_map_type_lifecycle);
+    TEST_MAIN_RUN(test_function_type_lifecycle);
+    TEST_MAIN_RUN(test_effect_type_lifecycle);
+    TEST_MAIN_RUN(test_extended_type_compatible);
 
     /* ===== 组9: Converters ===== */
     fprintf(stderr, "\n--- Representation Converters ---\n");
-    TEST_RUN(test_convert_block_to_text);
-    TEST_RUN(test_convert_text_to_block);
-    TEST_RUN(test_convert_block_to_node);
-    TEST_RUN(test_convert_block_to_geometry);
-    TEST_RUN(test_convert_geometry_to_block);
-    TEST_RUN(test_convert_geometry_roundtrip);
-    TEST_RUN(test_convert_node_roundtrip);
-    TEST_RUN(test_convert_text_roundtrip);
+    TEST_MAIN_RUN(test_convert_block_to_text);
+    TEST_MAIN_RUN(test_convert_text_to_block);
+    TEST_MAIN_RUN(test_convert_block_to_node);
+    TEST_MAIN_RUN(test_convert_block_to_geometry);
+    TEST_MAIN_RUN(test_convert_geometry_to_block);
+    TEST_MAIN_RUN(test_convert_geometry_roundtrip);
+    TEST_MAIN_RUN(test_convert_node_roundtrip);
+    TEST_MAIN_RUN(test_convert_text_roundtrip);
 
     /* ===== 组10: Sync Protocol ===== */
     fprintf(stderr, "\n--- Sync Protocol ---\n");
-    TEST_RUN(test_sp_create_destroy);
-    TEST_RUN(test_sp_propagate_block);
-    TEST_RUN(test_sp_propagate_text);
-    TEST_RUN(test_sp_propagate_node);
-    TEST_RUN(test_sp_propagate_geometry);
-    TEST_RUN(test_sp_recursion_limit);
-    TEST_RUN(test_sp_unknown_view);
+    TEST_MAIN_RUN(test_sp_create_destroy);
+    TEST_MAIN_RUN(test_sp_propagate_block);
+    TEST_MAIN_RUN(test_sp_propagate_text);
+    TEST_MAIN_RUN(test_sp_propagate_node);
+    TEST_MAIN_RUN(test_sp_propagate_geometry);
+    TEST_MAIN_RUN(test_sp_recursion_limit);
+    TEST_MAIN_RUN(test_sp_unknown_view);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

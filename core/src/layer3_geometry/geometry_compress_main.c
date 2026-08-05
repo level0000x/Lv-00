@@ -25,7 +25,7 @@
 /* ========================================================================
  * Geometry compression main API
  *
- * 完整压缩流水线：graph_clone → edgebreaker → predict → entropy → pack
+ * 完整压缩流水线：graph_copy → edgebreaker → predict → entropy → pack
  * ======================================================================== */
 
 /**
@@ -168,7 +168,7 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
     size_t original_sz = estimate_original_size(graph);
 
     /* Step 2: Deep copy constraint graph for in-place modification (predictive encoding modifies coordinates) */
-    ConstraintGraph *work_graph = graph_clone(graph);
+    ConstraintGraph *work_graph = graph_copy(graph);
     if (!work_graph) {
         return false;
     }

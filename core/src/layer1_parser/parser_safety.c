@@ -144,20 +144,18 @@ bool lv_char_is_safe_ctrl(unsigned char c) {
 lvErrorCode lv_input_validate(const char *input, size_t len) {
     /* 检查1：非NULL且非空 */
     if (!input) {
-        lv_set_error(lv_ERROR_PARSER_NULL_INPUT, "输入字符串为NULL");
-        return lv_ERROR_PARSER_NULL_INPUT;
+        lv_RETURN_ERROR_VAL(lv_ERROR_PARSER_NULL_INPUT, lv_ERROR_PARSER_NULL_INPUT, "输入字符串为NULL");
     }
 
     if (len == 0) {
-        lv_set_error(lv_ERROR_PARSER_EMPTY_INPUT, "输入字符串为空");
-        return lv_ERROR_PARSER_EMPTY_INPUT;
+        lv_RETURN_ERROR_VAL(lv_ERROR_PARSER_EMPTY_INPUT, lv_ERROR_PARSER_EMPTY_INPUT, "输入字符串为空");
     }
 
     /* 检查2：长度上限（运行时配置 lvConfig.parser.parser_max_input_length，默认 1048576） */
     const lvConfig *lv_cfg = lv_config_current();
     if (len > (size_t) lv_cfg->parser.parser_max_input_length) {
-        lv_set_error(lv_ERROR_PARSER_INPUT_TOO_LONG, "输入长度 %zu 超过上限 %d", len, lv_cfg->parser.parser_max_input_length);
-        return lv_ERROR_PARSER_INPUT_TOO_LONG;
+        lv_RETURN_ERROR_VAL(lv_ERROR_PARSER_INPUT_TOO_LONG, lv_ERROR_PARSER_INPUT_TOO_LONG,
+                            "输入长度 %zu 超过上限 %d", len, lv_cfg->parser.parser_max_input_length);
     }
 
     /* 检查3：扫描非法字符 */
@@ -166,14 +164,14 @@ lvErrorCode lv_input_validate(const char *input, size_t len) {
 
         /* null字节检查 */
         if (c == 0x00) {
-            lv_set_error(lv_ERROR_PARSER_ILLEGAL_CHARS, "输入在位置 %zu 包含null字节", i);
-            return lv_ERROR_PARSER_ILLEGAL_CHARS;
+            lv_RETURN_ERROR_VAL(lv_ERROR_PARSER_ILLEGAL_CHARS, lv_ERROR_PARSER_ILLEGAL_CHARS,
+                                "输入在位置 %zu 包含null字节", i);
         }
 
         /* 不允许的控制字符检查 */
         if (is_disallowed_ctrl(c)) {
-            lv_set_error(lv_ERROR_PARSER_ILLEGAL_CHARS, "输入在位置 %zu 包含非法控制字符 0x%02X", i, (unsigned int) c);
-            return lv_ERROR_PARSER_ILLEGAL_CHARS;
+            lv_RETURN_ERROR_VAL(lv_ERROR_PARSER_ILLEGAL_CHARS, lv_ERROR_PARSER_ILLEGAL_CHARS,
+                                "输入在位置 %zu 包含非法控制字符 0x%02X", i, (unsigned int) c);
         }
     }
 
@@ -258,8 +256,8 @@ size_t lv_input_sanitize(char *input, size_t max_len) {
 lvErrorCode lv_check_ast_depth(int depth) {
     const lvConfig *lv_cfg = lv_config_current(); /* 运行时上限：parser_max_ast_depth（默认 256） */
     if (depth > lv_cfg->parser.parser_max_ast_depth) {
-        lv_set_error(lv_ERROR_PARSER_DEPTH_EXCEEDED, "AST深度 %d 超过上限 %d", depth, lv_cfg->parser.parser_max_ast_depth);
-        return lv_ERROR_PARSER_DEPTH_EXCEEDED;
+        lv_RETURN_ERROR_VAL(lv_ERROR_PARSER_DEPTH_EXCEEDED, lv_ERROR_PARSER_DEPTH_EXCEEDED,
+                            "AST深度 %d 超过上限 %d", depth, lv_cfg->parser.parser_max_ast_depth);
     }
     return lv_OK;
 }
@@ -273,8 +271,8 @@ lvErrorCode lv_check_ast_depth(int depth) {
 lvErrorCode lv_check_ast_node_count(int count) {
     const lvConfig *lv_cfg = lv_config_current(); /* 运行时上限：parser_max_ast_nodes（默认 500000） */
     if (count > lv_cfg->parser.parser_max_ast_nodes) {
-        lv_set_error(lv_ERROR_PARSER_NODE_LIMIT, "AST节点数 %d 超过上限 %d", count, lv_cfg->parser.parser_max_ast_nodes);
-        return lv_ERROR_PARSER_NODE_LIMIT;
+        lv_RETURN_ERROR_VAL(lv_ERROR_PARSER_NODE_LIMIT, lv_ERROR_PARSER_NODE_LIMIT,
+                            "AST节点数 %d 超过上限 %d", count, lv_cfg->parser.parser_max_ast_nodes);
     }
     return lv_OK;
 }
@@ -288,8 +286,8 @@ lvErrorCode lv_check_ast_node_count(int count) {
 lvErrorCode lv_check_token_length(size_t len) {
     const lvConfig *lv_cfg = lv_config_current(); /* 运行时上限：parser_max_token_length（默认 4096） */
     if (len > (size_t) lv_cfg->parser.parser_max_token_length) {
-        lv_set_error(lv_ERROR_PARSER_TOKEN_TOO_LONG, "Token长度 %zu 超过上限 %d", len, lv_cfg->parser.parser_max_token_length);
-        return lv_ERROR_PARSER_TOKEN_TOO_LONG;
+        lv_RETURN_ERROR_VAL(lv_ERROR_PARSER_TOKEN_TOO_LONG, lv_ERROR_PARSER_TOKEN_TOO_LONG,
+                            "Token长度 %zu 超过上限 %d", len, lv_cfg->parser.parser_max_token_length);
     }
     return lv_OK;
 }

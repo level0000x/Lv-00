@@ -32,7 +32,7 @@ static void alg_set_error_interval(AlgIntervalError *err, AlgIntervalError code)
  * 第三层：区间运算 —— 实现
  * ============================================================ */
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_create(int64_t lo_val, int64_t lo_den, int64_t hi_val, int64_t hi_den,
+AlgInterval lv_alg_interval_create(int64_t lo_val, int64_t lo_den, int64_t hi_val, int64_t hi_den,
                                               AlgIntervalError *err) {
     AlgInterval result;
     AlgRationalError r_err;
@@ -51,14 +51,14 @@ lv_PUBLIC_API AlgInterval lv_alg_interval_create(int64_t lo_val, int64_t lo_den,
     return result;
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_point(const AlgRational *r) {
+AlgInterval lv_alg_interval_point(const AlgRational *r) {
     AlgInterval iv;
     iv.lo = *r;
     iv.hi = *r;
     return iv;
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_from_quadratic(const AlgQuadratic *x, AlgIntervalError *err) {
+AlgInterval lv_alg_interval_from_quadratic(const AlgQuadratic *x, AlgIntervalError *err) {
     if (!x) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         AlgInterval iv;
@@ -95,7 +95,7 @@ lv_PUBLIC_API AlgInterval lv_alg_interval_from_quadratic(const AlgQuadratic *x, 
     return lv_alg_interval_create(lo_int, 1, hi_int, 1, NULL);
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_add(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
+AlgInterval lv_alg_interval_add(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         AlgInterval iv;
@@ -110,7 +110,7 @@ lv_PUBLIC_API AlgInterval lv_alg_interval_add(const AlgInterval *x, const AlgInt
     return result;
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_sub(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
+AlgInterval lv_alg_interval_sub(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         AlgInterval iv;
@@ -125,7 +125,7 @@ lv_PUBLIC_API AlgInterval lv_alg_interval_sub(const AlgInterval *x, const AlgInt
     return result;
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_mul(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
+AlgInterval lv_alg_interval_mul(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         AlgInterval iv;
@@ -160,7 +160,7 @@ lv_PUBLIC_API AlgInterval lv_alg_interval_mul(const AlgInterval *x, const AlgInt
     return result;
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_div(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
+AlgInterval lv_alg_interval_div(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         AlgInterval iv;
@@ -197,14 +197,14 @@ lv_PUBLIC_API AlgInterval lv_alg_interval_div(const AlgInterval *x, const AlgInt
     return lv_alg_interval_mul(x, &inv_y, err);
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_neg(const AlgInterval *x) {
+AlgInterval lv_alg_interval_neg(const AlgInterval *x) {
     AlgInterval result;
     result.lo = lv_alg_rational_neg(&x->hi);
     result.hi = lv_alg_rational_neg(&x->lo);
     return result;
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_intersect(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
+AlgInterval lv_alg_interval_intersect(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         AlgInterval iv;
@@ -232,7 +232,7 @@ lv_PUBLIC_API AlgInterval lv_alg_interval_intersect(const AlgInterval *x, const 
     return result;
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_interval_hull(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
+AlgInterval lv_alg_interval_hull(const AlgInterval *x, const AlgInterval *y, AlgIntervalError *err) {
     if (!x || !y) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         AlgInterval iv;
@@ -256,23 +256,23 @@ lv_PUBLIC_API AlgInterval lv_alg_interval_hull(const AlgInterval *x, const AlgIn
     return result;
 }
 
-lv_PUBLIC_API bool lv_alg_interval_contains(const AlgInterval *x, const AlgInterval *y) {
+bool lv_alg_interval_contains(const AlgInterval *x, const AlgInterval *y) {
     return lv_alg_rational_cmp(&x->lo, &y->lo) <= 0 && lv_alg_rational_cmp(&x->hi, &y->hi) >= 0;
 }
 
-lv_PUBLIC_API bool lv_alg_interval_contains_rational(const AlgInterval *x, const AlgRational *r) {
+bool lv_alg_interval_contains_rational(const AlgInterval *x, const AlgRational *r) {
     return lv_alg_rational_cmp(&x->lo, r) <= 0 && lv_alg_rational_cmp(&x->hi, r) >= 0;
 }
 
-lv_PUBLIC_API bool lv_alg_interval_is_empty(const AlgInterval *x) {
+bool lv_alg_interval_is_empty(const AlgInterval *x) {
     return lv_alg_rational_cmp(&x->lo, &x->hi) > 0;
 }
 
-lv_PUBLIC_API bool lv_alg_interval_is_point(const AlgInterval *x) {
+bool lv_alg_interval_is_point(const AlgInterval *x) {
     return lv_alg_rational_eq(&x->lo, &x->hi);
 }
 
-lv_PUBLIC_API AlgRational lv_alg_interval_width(const AlgInterval *x, AlgIntervalError *err) {
+AlgRational lv_alg_interval_width(const AlgInterval *x, AlgIntervalError *err) {
     if (!x) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         return lv_alg_rational_zero();
@@ -281,7 +281,7 @@ lv_PUBLIC_API AlgRational lv_alg_interval_width(const AlgInterval *x, AlgInterva
     return lv_alg_rational_sub(&x->hi, &x->lo, NULL);
 }
 
-lv_PUBLIC_API AlgRational lv_alg_interval_midpoint(const AlgInterval *x, AlgIntervalError *err) {
+AlgRational lv_alg_interval_midpoint(const AlgInterval *x, AlgIntervalError *err) {
     if (!x) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         return lv_alg_rational_zero();
@@ -292,7 +292,7 @@ lv_PUBLIC_API AlgRational lv_alg_interval_midpoint(const AlgInterval *x, AlgInte
     return lv_alg_rational_div(&sum, &two, NULL);
 }
 
-lv_PUBLIC_API void lv_alg_interval_bisect(const AlgInterval *x, AlgInterval *lower, AlgInterval *upper,
+void lv_alg_interval_bisect(const AlgInterval *x, AlgInterval *lower, AlgInterval *upper,
                                        AlgIntervalError *err) {
     if (!x) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
@@ -314,7 +314,7 @@ lv_PUBLIC_API void lv_alg_interval_bisect(const AlgInterval *x, AlgInterval *low
     alg_set_error_interval(err, lv_alg_interval_OK);
 }
 
-lv_PUBLIC_API int lv_alg_interval_to_string(const AlgInterval *x, char *buf, size_t size) {
+int lv_alg_interval_to_string(const AlgInterval *x, char *buf, size_t size) {
     lvStrBuf sb = {0};
 
     lv_strbuf_printf(&sb, "[");
@@ -353,7 +353,7 @@ static const lvStrToEnumEntry s_alg_interval_error_string_entries[] = {
     {"除以包含零的区间", lv_alg_interval_ERR_DIV_BY_ZERO},
 };
 
-lv_PUBLIC_API const char *lv_alg_interval_error_string(AlgIntervalError err) {
+const char *lv_alg_interval_error_string(AlgIntervalError err) {
     return lv_enum_to_str(s_alg_interval_error_string_entries, lv_ARRAY_SIZE(s_alg_interval_error_string_entries), (int) err, "未知错误");
 }
 

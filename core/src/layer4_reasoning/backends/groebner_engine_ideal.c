@@ -924,16 +924,9 @@ static lvPolynomial **ideal_intersection_extract(const lvPolynomialRing *orig_ri
         ep->total_degree = poly_internal_total_degree(ep, vc_orig);
         ep->is_homogeneous = p->is_homogeneous;
 
-        if (res_count >= res_cap) {
-            int new_cap = res_cap == 0 ? 8 : res_cap * 2;
-            lvPolynomial **new_res =
-                (lvPolynomial **) lv_realloc(result, (size_t) new_cap * sizeof(lvPolynomial *));
-            if (!new_res) {
-                poly_internal_destroy(ep);
-                goto extract_fail;
-            }
-            result = new_res;
-            res_cap = new_cap;
+        if (!lv_ensure_capacity((void **) &result, res_count, &res_cap, sizeof(lvPolynomial *), 0)) {
+            poly_internal_destroy(ep);
+            goto extract_fail;
         }
         result[res_count++] = ep;
     }

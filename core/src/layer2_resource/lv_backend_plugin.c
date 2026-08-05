@@ -89,19 +89,10 @@ bool lv_backend_plugin_register(lvBackendPluginRegistry *reg, lvBackendPlugin *p
         }
     }
 
-    /* 检查容量，必要时 2x 扩容 */
-    if (reg->count >= reg->capacity) {
-        int new_cap = reg->capacity > 0
-            ? reg->capacity * lv_PLUGIN_REGISTRY_GROW_FACTOR
-            : lv_PLUGIN_REGISTRY_DEFAULT_CAPACITY;
-        lvBackendPlugin **new_plugins = (lvBackendPlugin **)
-            lv_realloc(reg->plugins, (size_t) new_cap * sizeof(lvBackendPlugin *));
-        if (!new_plugins) {
-            lv_MUTEX_UNLOCK(&reg->mutex);
-            return false;
-        }
-        reg->plugins = new_plugins;
-        reg->capacity = new_cap;
+    /* 检查容量，必要时扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &reg->plugins, reg->count, &reg->capacity, sizeof(lvBackendPlugin *), 0)) {
+        lv_MUTEX_UNLOCK(&reg->mutex);
+        return false;
     }
 
     /* 添加新插件 */

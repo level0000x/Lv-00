@@ -414,28 +414,25 @@ static void test_geometry_config_sequential(void) {
  * 测试入口
  * ============================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("内存管理")
     printf("=== Lv-00 内存管理系统综合测试 ===\n\n");
 
     g_pass_count = 0;
     g_fail_count = 0;
 
-    TEST_SUITE_BEGIN("内存管理");
 
-    TEST_RUN(test_basic_alloc_free);
-    TEST_RUN(test_calloc_zero_fill);
-    TEST_RUN(test_realloc_grow);
-    TEST_RUN(test_pool_lifecycle);
-    TEST_RUN(test_poison_pattern);
-    TEST_RUN(test_magic_number_integrity);
-    TEST_RUN(test_leak_tracking);
-    TEST_RUN(test_bounded_allocation);
-    TEST_RUN(test_tracked_allocation);
-    TEST_RUN(test_resource_tracker);
-    TEST_RUN(test_linear_allocator);
-    TEST_RUN(test_geometry_config_sequential);
+    TEST_MAIN_RUN(test_basic_alloc_free);
+    TEST_MAIN_RUN(test_calloc_zero_fill);
+    TEST_MAIN_RUN(test_realloc_grow);
+    TEST_MAIN_RUN(test_pool_lifecycle);
+    TEST_MAIN_RUN(test_poison_pattern);
+    TEST_MAIN_RUN(test_magic_number_integrity);
+    TEST_MAIN_RUN(test_leak_tracking);
+    TEST_MAIN_RUN(test_bounded_allocation);
+    TEST_MAIN_RUN(test_tracked_allocation);
+    TEST_MAIN_RUN(test_resource_tracker);
+    TEST_MAIN_RUN(test_linear_allocator);
+    TEST_MAIN_RUN(test_geometry_config_sequential);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

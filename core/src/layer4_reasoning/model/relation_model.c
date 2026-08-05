@@ -21,6 +21,7 @@
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 /* ========================================================================
  * 内部常量
@@ -895,16 +896,13 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
 
         RelSignature *sig = *(RelSignature **)lv_darray_get(&model->sigs, sig_idx);
 
-        /* 扩容 atom 数组 */
+        /* 扩容 atom 数组（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
         if (sig->atom_count >= sig->atom_capacity) {
-            int new_cap = (sig->atom_capacity == 0) ? 16 : sig->atom_capacity * lv_ARRAY_GROWTH_FACTOR;
-            RelAtom **new_a = (RelAtom **) lv_realloc(sig->atoms, (size_t) new_cap * sizeof(RelAtom *));
-            if (!new_a) {
+            if (!lv_ensure_capacity((void **) &sig->atoms, sig->atom_count + 1, &sig->atom_capacity,
+                                    sizeof(RelAtom *), 1)) {
                 relation_model_destroy(model);
                 return NULL;
             }
-            sig->atoms = new_a;
-            sig->atom_capacity = new_cap;
         }
 
         RelAtom *atom = (RelAtom *) lv_calloc(1, sizeof(RelAtom));
@@ -979,7 +977,7 @@ bool relation_model_add_fact(RelModel *model, RelFormula *formula) {
     lv_CHECK_NULL(model, false);
     lv_CHECK_NULL(formula, false);
 
-    /* 简化：假设已分配足够空间 */
+    /* 线性 +1 扩容（facts 数量通常很小，保持最小改动；如需倍增可引入 fact_capacity 字段） */
     RelFormula **new_facts =
         (RelFormula **) lv_realloc(model->facts, (size_t) (model->fact_count + 1) * sizeof(RelFormula *));
     if (!new_facts)
@@ -993,6 +991,7 @@ bool relation_model_add_assertion(RelModel *model, RelFormula *formula) {
     lv_CHECK_NULL(model, false);
     lv_CHECK_NULL(formula, false);
 
+    /* 线性 +1 扩容（assertions 数量通常很小，保持最小改动；如需倍增可引入 assertion_capacity 字段） */
     RelFormula **new_asserts =
         (RelFormula **) lv_realloc(model->assertions, (size_t) (model->assertion_count + 1) * sizeof(RelFormula *));
     if (!new_asserts)
@@ -1321,10 +1320,8 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst, c
 char *relation_model_export_alloy(const RelModel *model) {
     lv_CHECK_NULL(model, NULL);
 
-    int buf_size = EXPORT_BUF_INITIAL_SIZE;
-    char *buf = (char *) lv_malloc((size_t) buf_size);
-    lv_CHECK_ALLOC(buf, NULL);
-    int pos = 0;
+    /* 用 lvStrBuf 累积输出（自动扩容；lv_strbuf_to_string 返回 lv_malloc 分配的 NUL 结尾字符串） */
+    lvStrBuf sb = {0};
 
     /* 导出签名声明 */
     for (int si = 0; si < model->sigs.count; si++) {
@@ -1332,55 +1329,39 @@ char *relation_model_export_alloy(const RelModel *model) {
         if (!sig)
             continue;
 
-        pos += snprintf(buf + pos, (size_t) (buf_size - pos), "%ssig %s {\n", sig->is_abstract ? "abstract " : "",
-                        sig->name);
+        lv_strbuf_printf(&sb, "%ssig %s {\n", sig->is_abstract ? "abstract " : "", sig->name);
 
         /* 导出关系字段 */
         if (model->relations) {
             for (int ri = 0; ri < model->relation_count; ri++) {
                 Relation *rel = model->relations[ri];
                 if (rel) {
-                    pos += snprintf(buf + pos, (size_t) (buf_size - pos), "  %s: set ", rel->name ? rel->name : "R");
-                    if (pos >= buf_size - 256)
-                        break;
+                    lv_strbuf_printf(&sb, "  %s: set ", rel->name ? rel->name : "R");
                     for (int di = 0; di < rel->arity; di++) {
-                        pos += snprintf(buf + pos, (size_t) (buf_size - pos), "%s%s", (di > 0 ? " -> " : ""),
-                                        rel->domains[di] ? rel->domains[di]->name : "univ");
-                        if (pos >= buf_size - 256)
-                            break;
+                        lv_strbuf_printf(&sb, "%s%s", (di > 0 ? " -> " : ""),
+                                         rel->domains[di] ? rel->domains[di]->name : "univ");
                     }
-                    pos += snprintf(buf + pos, (size_t) (buf_size - pos), "\n");
+                    lv_strbuf_printf(&sb, "\n");
                 }
             }
         }
-        pos += snprintf(buf + pos, (size_t) (buf_size - pos), "}\n\n");
-
-        /* 扩容检查 */
-        if (pos >= buf_size - 256) {
-            buf_size *= lv_ARRAY_GROWTH_FACTOR;
-            char *new_buf = (char *) lv_realloc(buf, (size_t) buf_size);
-            if (!new_buf) {
-                lv_free((void **) &buf);
-                return NULL;
-            }
-            buf = new_buf;
-        }
+        lv_strbuf_printf(&sb, "}\n\n");
     }
 
     /* 导出事实 */
     for (int fi = 0; fi < model->fact_count; fi++) {
-        pos += snprintf(buf + pos, (size_t) (buf_size - pos), "fact {\n  /* fact %d */\n}\n\n", fi);
+        lv_strbuf_printf(&sb, "fact {\n  /* fact %d */\n}\n\n", fi);
     }
 
     /* 导出断言 */
     for (int ai = 0; ai < model->assertion_count; ai++) {
-        pos += snprintf(buf + pos, (size_t) (buf_size - pos), "assert {\n  /* assertion %d */\n}\n", ai);
+        lv_strbuf_printf(&sb, "assert {\n  /* assertion %d */\n}\n", ai);
     }
 
     /* 导出范围配置 */
-    pos += snprintf(buf + pos, (size_t) (buf_size - pos), "\nrun {} for %d\n", model->max_point_count);
+    lv_strbuf_printf(&sb, "\nrun {} for %d\n", model->max_point_count);
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 char *relation_instance_export_xml(const RelInstance *inst) {

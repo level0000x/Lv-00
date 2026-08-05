@@ -67,13 +67,8 @@ lv_PUBLIC_API lvAABBTreeConfig lv_aabb_tree_default_config(void) {
  * 使用 2 倍扩容策略，初始容量为 16。
  */
 void result_push_back(lvAABBQueryResult *result, int id) {
-    if (result->count >= result->capacity) {
-        int new_cap = (result->capacity > 0) ? result->capacity * 2 : 16;
-        int *new_ids = (int *) lv_realloc(result->ids, (size_t) new_cap * sizeof(int));
-        if (!new_ids)
-            return;
-        result->ids = new_ids;
-        result->capacity = new_cap;
-    }
+    /* Unified growth via lv_ensure_capacity (overflow-checked doubling; 0 -> unified initial capacity) */
+    if (!lv_ensure_capacity((void **) &result->ids, result->count, &result->capacity, sizeof(int), 0))
+        return;
     result->ids[result->count++] = id;
 }

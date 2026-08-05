@@ -395,17 +395,14 @@ void test_bv_concat(void) {
  * Main
  * ======================================================================== */
 
-int main(void) {
-    TEST_SUITE_BEGIN("SMT Bitvector");
+TEST_MAIN_BEGIN("SMT Bitvector")
 
-    TEST_RUN(test_bv_create);
-    TEST_RUN(test_bv_not);
-    TEST_RUN(test_bv_and);
-    TEST_RUN(test_bv_add);
-    TEST_RUN(test_bv_extract);
-    TEST_RUN(test_bv_concat);
+    TEST_MAIN_RUN(test_bv_create);
+    TEST_MAIN_RUN(test_bv_not);
+    TEST_MAIN_RUN(test_bv_and);
+    TEST_MAIN_RUN(test_bv_add);
+    TEST_MAIN_RUN(test_bv_extract);
+    TEST_MAIN_RUN(test_bv_concat);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

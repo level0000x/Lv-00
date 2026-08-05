@@ -208,25 +208,34 @@ bool poly_ensure_capacity_ex(lvPolynomial *poly, int needed, int var_count) {
         }
     }
 
-    int *new_powers = (int *) lv_realloc(poly->powers, (size_t) new_cap * (size_t) var_count * sizeof(int));
-    if (!new_powers) {
-        return false;
-    }
-    /* 清零新分配的区域 */
-    memset(new_powers + poly->term_capacity * var_count, 0,
-           (size_t) (new_cap - poly->term_capacity) * (size_t) var_count * sizeof(int));
-    poly->powers = new_powers;
+    int old_cap = poly->term_capacity;
 
-    double *new_coeffs = (double *) lv_realloc(poly->coeffs, (size_t) new_cap * sizeof(double));
-    if (!new_coeffs) {
-        /* powers 已扩容成功，但 coeffs 失败了 —— 这是不太可能的情况，回滚 powers */
-        /* 为简化，不处理这种极端情况，假设 realloc 要么都成功要么都失败 */
+    /* 第一次：扩容 powers（元素大小为 var_count * sizeof(int)）。
+     * min_growth 使 min_required = new_cap（钳制后的目标容量） */
+    if (!lv_ensure_capacity((void **) &poly->powers, old_cap,
+                            &poly->term_capacity,
+                            (size_t) var_count * sizeof(int),
+                            new_cap - old_cap)) {
         return false;
     }
+    int grown_cap = poly->term_capacity;
+
+    /* 清零新分配的区域 */
+    memset(poly->powers + old_cap * var_count, 0,
+           (size_t) (grown_cap - old_cap) * (size_t) var_count * sizeof(int));
+
+    /* 第二次：扩容 coeffs 与 powers 同步。临时回退容量指针使扩容真实执行；
+     * 失败时保持 term_capacity 为旧值（与原始实现一致的简化处理） */
+    poly->term_capacity = old_cap;
+    if (!lv_ensure_capacity((void **) &poly->coeffs, old_cap,
+                            &poly->term_capacity, sizeof(double),
+                            new_cap - old_cap)) {
+        return false;
+    }
+    grown_cap = poly->term_capacity;
+
     /* 清零新系数 */
-    memset(new_coeffs + poly->term_capacity, 0, (size_t) (new_cap - poly->term_capacity) * sizeof(double));
-    poly->coeffs = new_coeffs;
-    poly->term_capacity = new_cap;
+    memset(poly->coeffs + old_cap, 0, (size_t) (grown_cap - old_cap) * sizeof(double));
 
     return true;
 }

@@ -1,4 +1,4 @@
-﻿#include <math.h>
+#include <math.h>
 #include <string.h>
 
 #include "lv/func_block.h"
@@ -392,17 +392,11 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
         if (out_cnt > 0)
             func_block_set_output_ports(fb, outputs, out_cnt);
 
-        if (sg->count >= sg->cap) {
-            int new_cap = sg->cap * 2;
-            FuncBlock **tmp = lv_realloc(sg->blocks, new_cap * sizeof(FuncBlock *));
-            if (!tmp) {
-                result.success = 0;
-                strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
-                /* 原始指针 sg->blocks 保持有效，可由调用者释放 */
-                return result;
-            }
-            sg->blocks = tmp;
-            sg->cap = new_cap;
+        if (!lv_ensure_capacity((void **) &sg->blocks, sg->count, &sg->cap, sizeof(FuncBlock *), 0)) {
+            result.success = 0;
+            strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+            /* 原始指针 sg->blocks 保持有效，可由调用者释放 */
+            return result;
         }
         sg->blocks[sg->count++] = fb;
     }

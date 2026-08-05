@@ -273,19 +273,16 @@ static void test_export_null_safety(void) {
  * Main
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Proof Export Enhanced");
+TEST_MAIN_BEGIN("Proof Export Enhanced")
 
-    TEST_RUN(test_export_html);
-    TEST_RUN(test_export_latex);
-    TEST_RUN(test_export_coq);
-    TEST_RUN(test_export_lean4);
-    TEST_RUN(test_export_json);
-    TEST_RUN(test_export_dot);
-    TEST_RUN(test_export_from_navigator);
-    TEST_RUN(test_export_null_safety);
+    TEST_MAIN_RUN(test_export_html);
+    TEST_MAIN_RUN(test_export_latex);
+    TEST_MAIN_RUN(test_export_coq);
+    TEST_MAIN_RUN(test_export_lean4);
+    TEST_MAIN_RUN(test_export_json);
+    TEST_MAIN_RUN(test_export_dot);
+    TEST_MAIN_RUN(test_export_from_navigator);
+    TEST_MAIN_RUN(test_export_null_safety);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

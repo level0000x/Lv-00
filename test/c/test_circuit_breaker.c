@@ -309,17 +309,14 @@ static void test_circuit_breaker_context_lifecycle(void) {
  * 主入口
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Circuit Breaker Module");
+TEST_MAIN_BEGIN("Circuit Breaker Module")
 
-    TEST_RUN(test_circuit_breaker_create);
-    TEST_RUN(test_circuit_breaker_initial_state);
-    TEST_RUN(test_circuit_breaker_trip);
-    TEST_RUN(test_circuit_breaker_reset);
-    TEST_RUN(test_circuit_breaker_state_name);
-    TEST_RUN(test_circuit_breaker_failure_count);
-    TEST_RUN(test_circuit_breaker_context_lifecycle);
+    TEST_MAIN_RUN(test_circuit_breaker_create);
+    TEST_MAIN_RUN(test_circuit_breaker_initial_state);
+    TEST_MAIN_RUN(test_circuit_breaker_trip);
+    TEST_MAIN_RUN(test_circuit_breaker_reset);
+    TEST_MAIN_RUN(test_circuit_breaker_state_name);
+    TEST_MAIN_RUN(test_circuit_breaker_failure_count);
+    TEST_MAIN_RUN(test_circuit_breaker_context_lifecycle);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

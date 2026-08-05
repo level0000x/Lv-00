@@ -82,14 +82,13 @@ static bool mp_encoder_init(MsgPackEncoder *enc, size_t initial_capacity) {
 }
 
 static bool mp_encoder_ensure(MsgPackEncoder *enc, size_t extra) {
-    while (enc->pos + extra > enc->capacity) {
-        size_t new_cap = enc->capacity * 2;
-        uint8_t *new_buf = (uint8_t *) lv_realloc(enc->buffer, new_cap);
-        if (!new_buf)
-            return false;
-        enc->buffer = new_buf;
-        enc->capacity = new_cap;
-    }
+    if (enc->pos + extra <= enc->capacity)
+        return true;
+    /* enc->capacity/pos 为 size_t，经局部 int 桥接后统一委托 lv_ensure_capacity（内部含溢出检查与倍增） */
+    int cap = (int) enc->capacity;
+    if (!lv_ensure_capacity((void **) &enc->buffer, (int) (enc->pos + extra), &cap, 1, 0))
+        return false;
+    enc->capacity = (size_t) cap;
     return true;
 }
 

@@ -263,15 +263,9 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
                 has_external = true;
         }
         if (has_internal && has_external) {
-            if (found >= capacity) {
-                capacity *= 2;
-                CrossBoundaryConstraint *new_results =
-                    lv_realloc(results, (size_t) capacity * sizeof(CrossBoundaryConstraint));
-                if (!new_results) {
-                    lv_free((void **) &results);
-                    lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "find_cross_boundary_constraints: realloc results failed");
-                }
-                results = new_results;
+            if (!lv_ensure_capacity((void **) &results, found, &capacity, sizeof(CrossBoundaryConstraint), 0)) {
+                lv_free((void **) &results);
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "find_cross_boundary_constraints: realloc results failed");
             }
             results[found].constraint_id = con->id;
             results[found].type = con->type;

@@ -634,15 +634,9 @@ bool spellbook_add_spell(SpellBook *book, Spell *spell) {
     if (!spell)
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spellbook_add_spell: spell is NULL");
 
-    /* 容量不足时自动扩容（翻倍策略） */
-    if (book->spell_count >= book->capacity) {
-        int new_capacity = book->capacity * MAGIC_SPELLBOOK_GROWTH;
-        Spell **new_spells = (Spell **) lv_realloc(book->spells, new_capacity * sizeof(Spell *));
-        if (!new_spells)
-            return false;
-        book->spells = new_spells;
-        book->capacity = new_capacity;
-    }
+    /* 容量不足时自动扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &book->spells, book->spell_count, &book->capacity, sizeof(Spell *), 0))
+        return false;
 
     /* 将咒语追加到书尾（咒语书获得所有权） */
     book->spells[book->spell_count++] = spell;

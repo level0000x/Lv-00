@@ -16,6 +16,7 @@
 
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv/stream.h"
 #include "lv/stream_context_util.h"
 
@@ -246,8 +247,8 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
         memset(goal_atoms, 0, sizeof(goal_atoms));
         int atom_count = collect_atoms(goal, goal_atoms, PROP_ATOM_COLLECT_MAX);
 
-        /* 检查哪些目标原子不在前提中 */
-        char missing[512] = {0};
+        /* 检查哪些目标原子不在前提中（lvStrBuf 累积，自动扩容，无 512 截断风险） */
+        lvStrBuf missing_sb = {0};
         int missing_count = 0;
         for (int i = 0; i < atom_count; i++) {
             bool found = false;
@@ -258,11 +259,8 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
                 }
             }
             if (!found) {
-                lvStrBuf sb = {0};
-                lv_strbuf_printf(&sb, "%s%s", missing_count > 0 ? ", " : "", goal_atoms[i]);
-                lv_strncat(missing, sb.data, sizeof(missing));
+                lv_strbuf_printf(&missing_sb, "%s%s", missing_count > 0 ? ", " : "", goal_atoms[i]);
                 missing_count++;
-                lv_strbuf_destroy(&sb);
             }
         }
 
@@ -273,7 +271,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
                      "缺少构造: 目标需要原子命题 [%s] 的构造，"
                      "但当前前提未提供。在 BHK 解释下，"
                      "每个原子命题都需要一个构造证据（点、线段或图形）。",
-                     missing);
+                     lv_strbuf_cstr(&missing_sb));
         } else {
             snprintf(analysis.reason, sizeof(analysis.reason),
                      "构造缺失: "
@@ -283,6 +281,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
                      detail.steps_used);
 #pragma GCC diagnostic pop
         }
+        lv_strbuf_destroy(&missing_sb);
     }
 
     /* 填写失败子目标信息 */

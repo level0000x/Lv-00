@@ -216,7 +216,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                  * 实际约束填充或已无效化）。占位符通常出现在方程系统被清空
                  * 后重新填充的过程中，不影响求解正确性。 */
                 if (debug_is_debug_mode()) {
-                    static int placeholder_skip_count = 0;
+                    static lv_THREAD_LOCAL int placeholder_skip_count = 0;
                     placeholder_skip_count++;
                     if (placeholder_skip_count == 1 || placeholder_skip_count % 100 == 0) {
                         debug_log(LOG_LEVEL_DEBUG, "solver",

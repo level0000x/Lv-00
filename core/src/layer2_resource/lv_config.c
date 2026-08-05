@@ -17,6 +17,7 @@
  */
 
 #include <ctype.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,10 +33,20 @@
 
 
 static lvConfig g_active_config;
-static int g_config_applied = 0;
+static _Atomic int g_config_applied = 0;
 
 static lvConfig def;
 static lv_once_t g_default_config_once = lv_ONCE_INIT;
+
+/* Lazy-init guard lock: shared by lv_config_current first-init and
+ * lv_config_apply / lv_config_reset writes to avoid check-then-set
+ * data races. The lock is lazily initialized via lv_once (thread-safe). */
+static lv_mutex_t g_config_lock;
+static lv_once_t g_config_lock_once = lv_ONCE_INIT;
+
+static void lv_config_lock_init(void) {
+    lv_mutex_init(&g_config_lock);
+}
 
 /** @brief 初始化默认配置（仅执行一次，由 lv_once 保证线程安全） */
 static void lv_config_default_init(void) {
@@ -188,9 +199,17 @@ const lvConfig *lv_config_default(void) {
  * @return 指向当前配置的常量指针
  */
 const lvConfig *lv_config_current(void) {
+    /* Fast path: atomic flag read avoids locking in the common case. */
     if (!g_config_applied) {
-        g_active_config = *lv_config_default();
-        g_config_applied = 1;
+        /* Slow path: lock + double-check so concurrent first calls
+         * cannot both run the lazy initialization. */
+        lv_once(&g_config_lock_once, lv_config_lock_init);
+        lv_mutex_lock(&g_config_lock);
+        if (!g_config_applied) {
+            g_active_config = *lv_config_default();
+            g_config_applied = 1;
+        }
+        lv_mutex_unlock(&g_config_lock);
     }
     return &g_active_config;
 }
@@ -206,8 +225,11 @@ const lvConfig *lv_config_current(void) {
 int lv_config_apply(const lvConfig *cfg) {
     if (!cfg)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "cfg is NULL");
+    lv_once(&g_config_lock_once, lv_config_lock_init);
+    lv_mutex_lock(&g_config_lock);
     g_active_config = *cfg;
     g_config_applied = 1;
+    lv_mutex_unlock(&g_config_lock);
     return 0;
 }
 
@@ -457,8 +479,11 @@ bool lv_config_set_double(const char *key, double val) {
  * @brief 重置配置为默认值
  */
 void lv_config_reset(void) {
+    lv_once(&g_config_lock_once, lv_config_lock_init);
+    lv_mutex_lock(&g_config_lock);
     g_active_config = *lv_config_default();
     g_config_applied = 1;
+    lv_mutex_unlock(&g_config_lock);
 }
 
 /* ---- JSON 配置加载辅助 —— 基于 lv_json.h ---- */

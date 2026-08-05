@@ -26,15 +26,15 @@
  * 跨层数域转换工具 —— 实现
  * ============================================================ */
 
-lv_PUBLIC_API AlgInterval lv_alg_quadratic_to_interval(const AlgQuadratic *x, AlgIntervalError *err) {
+AlgInterval lv_alg_quadratic_to_interval(const AlgQuadratic *x, AlgIntervalError *err) {
     return lv_alg_interval_from_quadratic(x, err);
 }
 
-lv_PUBLIC_API AlgInterval lv_alg_rational_to_interval(const AlgRational *r) {
+AlgInterval lv_alg_rational_to_interval(const AlgRational *r) {
     return lv_alg_interval_point(r);
 }
 
-lv_PUBLIC_API bool lv_alg_has_real_roots(int64_t a, int64_t b, int64_t c) {
+bool lv_alg_has_real_roots(int64_t a, int64_t b, int64_t c) {
     if (a == 0) {
         /* 退化为一次方程 bx + c = 0，总有实根（若 b != 0） */
         return b != 0;

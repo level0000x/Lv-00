@@ -11,6 +11,7 @@
 #include "lv/algebra_mode.h"
 
 #include <math.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,7 +42,7 @@ enum {
 };
 
 /** 全局 ID 计数器 */
-static int g_algebra_id_counter = 0;
+static _Atomic int g_algebra_id_counter = 0;
 
 /** 为 identity 矩阵赋值 */
 static void identity_matrix(double m[16]) {
@@ -97,7 +98,7 @@ AlgebraicGeom *algebra_create(lvPlane plane, const char *name) {
 
     geom->plane = (int) plane;
     geom->current_entity = -1;
-    geom->id = ++g_algebra_id_counter;
+    geom->id = atomic_fetch_add(&g_algebra_id_counter, 1) + 1;
 
     identity_matrix(geom->transform);
     geom->has_transform = false;

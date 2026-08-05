@@ -334,56 +334,53 @@ static void test_empty_arithmetic(void) {
 /* ============================================================
  * Main
  * ============================================================ */
-int main(void) {
-    TEST_SUITE_BEGIN("IntervalArithmetic");
+TEST_MAIN_BEGIN("IntervalArithmetic")
 
     /* Factory */
-    TEST_RUN(test_interval_create);
-    TEST_RUN(test_interval_point);
-    TEST_RUN(test_interval_empty);
-    TEST_RUN(test_interval_entire);
+    TEST_MAIN_RUN(test_interval_create);
+    TEST_MAIN_RUN(test_interval_point);
+    TEST_MAIN_RUN(test_interval_empty);
+    TEST_MAIN_RUN(test_interval_entire);
 
     /* Arithmetic */
-    TEST_RUN(test_interval_add);
-    TEST_RUN(test_interval_sub);
-    TEST_RUN(test_interval_mul);
-    TEST_RUN(test_interval_mul_positive);
-    TEST_RUN(test_interval_div);
-    TEST_RUN(test_interval_div_by_zero);
-    TEST_RUN(test_interval_div_negative);
-    TEST_RUN(test_interval_sqrt);
-    TEST_RUN(test_interval_sqrt_negative);
-    TEST_RUN(test_interval_sin);
-    TEST_RUN(test_interval_cos);
-    TEST_RUN(test_interval_exp);
-    TEST_RUN(test_interval_log);
-    TEST_RUN(test_interval_log_negative);
-    TEST_RUN(test_interval_abs);
-    TEST_RUN(test_interval_neg);
+    TEST_MAIN_RUN(test_interval_add);
+    TEST_MAIN_RUN(test_interval_sub);
+    TEST_MAIN_RUN(test_interval_mul);
+    TEST_MAIN_RUN(test_interval_mul_positive);
+    TEST_MAIN_RUN(test_interval_div);
+    TEST_MAIN_RUN(test_interval_div_by_zero);
+    TEST_MAIN_RUN(test_interval_div_negative);
+    TEST_MAIN_RUN(test_interval_sqrt);
+    TEST_MAIN_RUN(test_interval_sqrt_negative);
+    TEST_MAIN_RUN(test_interval_sin);
+    TEST_MAIN_RUN(test_interval_cos);
+    TEST_MAIN_RUN(test_interval_exp);
+    TEST_MAIN_RUN(test_interval_log);
+    TEST_MAIN_RUN(test_interval_log_negative);
+    TEST_MAIN_RUN(test_interval_abs);
+    TEST_MAIN_RUN(test_interval_neg);
 
     /* Properties */
-    TEST_RUN(test_interval_diam);
-    TEST_RUN(test_interval_mid);
-    TEST_RUN(test_interval_contains);
-    TEST_RUN(test_interval_is_subset);
-    TEST_RUN(test_interval_equals);
+    TEST_MAIN_RUN(test_interval_diam);
+    TEST_MAIN_RUN(test_interval_mid);
+    TEST_MAIN_RUN(test_interval_contains);
+    TEST_MAIN_RUN(test_interval_is_subset);
+    TEST_MAIN_RUN(test_interval_equals);
 
     /* Set operations */
-    TEST_RUN(test_interval_intersect);
-    TEST_RUN(test_interval_intersect_disjoint);
-    TEST_RUN(test_interval_union);
+    TEST_MAIN_RUN(test_interval_intersect);
+    TEST_MAIN_RUN(test_interval_intersect_disjoint);
+    TEST_MAIN_RUN(test_interval_union);
 
     /* Symbolic integration */
-    TEST_RUN(test_interval_from_symbolic);
-    TEST_RUN(test_interval_to_symbolic);
+    TEST_MAIN_RUN(test_interval_from_symbolic);
+    TEST_MAIN_RUN(test_interval_to_symbolic);
 
     /* Verification */
-    TEST_RUN(test_interval_verify_solution);
-    TEST_RUN(test_interval_verify_adaptive);
+    TEST_MAIN_RUN(test_interval_verify_solution);
+    TEST_MAIN_RUN(test_interval_verify_adaptive);
 
     /* Edge cases */
-    TEST_RUN(test_empty_arithmetic);
+    TEST_MAIN_RUN(test_empty_arithmetic);
 
-    TEST_SUITE_END();
-    return (g_fail_count > 0) ? 1 : 0;
-}
+TEST_MAIN_END()

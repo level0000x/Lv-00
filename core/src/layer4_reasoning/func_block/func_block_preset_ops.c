@@ -137,30 +137,20 @@ static bool ensure_chain_capacity(PresetChain *chain) {
     if (chain->count < chain->capacity)
         return true;
 
-    /* 【修复】检查 capacity * GROWTH_FACTOR 是否溢出 int 范围 */
-    if (chain->capacity > INT_MAX / PRESET_CHAIN_GROWTH_FACTOR) {
-        return false; /* 溢出，无法继续扩容 */
-    }
-    int new_capacity = chain->capacity * PRESET_CHAIN_GROWTH_FACTOR;
-
-    /* 【修复】检查 new_capacity * sizeof(ChainNode) 是否溢出 size_t */
-    if ((size_t) new_capacity > SIZE_MAX / sizeof(ChainNode)) {
-        return false; /* size_t 乘法将溢出，拒绝分配 */
-    }
-
-    ChainNode *new_nodes = lv_realloc(chain->nodes, (size_t) new_capacity * sizeof(ChainNode));
-    if (!new_nodes)
+    int old_capacity = chain->capacity;
+    /* 溢出检查（倍增溢出与 size_t 溢出）由 lv_ensure_capacity 内部完成 */
+    if (!lv_ensure_capacity((void **) &chain->nodes, old_capacity,
+                            &chain->capacity, sizeof(ChainNode), 1))
         return false;
+    int new_capacity = chain->capacity;
 
     /* 初始化新节点 */
-    for (int i = chain->capacity; i < new_capacity; i++) {
-        new_nodes[i].preset_name = NULL;
-        new_nodes[i].input_mapping = NULL;
-        new_nodes[i].mapping_count = 0;
+    for (int i = old_capacity; i < new_capacity; i++) {
+        chain->nodes[i].preset_name = NULL;
+        chain->nodes[i].input_mapping = NULL;
+        chain->nodes[i].mapping_count = 0;
     }
 
-    chain->nodes = new_nodes;
-    chain->capacity = new_capacity;
     return true;
 }
 

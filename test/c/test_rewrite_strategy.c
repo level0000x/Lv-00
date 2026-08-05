@@ -302,23 +302,20 @@ static void test_apply_null_params(void) {
  * Main
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Rewrite Strategy Engine");
+TEST_MAIN_BEGIN("Rewrite Strategy Engine")
 
-    TEST_RUN(test_rewrite_engine_create_destroy);
-    TEST_RUN(test_rewrite_engine_add_rule);
-    TEST_RUN(test_innermost_strategy);
-    TEST_RUN(test_outermost_strategy);
-    TEST_RUN(test_parallel_strategy);
-    TEST_RUN(test_egraph_strategy);
-    TEST_RUN(test_conditional_rules);
-    TEST_RUN(test_iteration_limit);
-    TEST_RUN(test_empty_engine);
-    TEST_RUN(test_multi_step_simplification);
-    TEST_RUN(test_result_destroy_null);
-    TEST_RUN(test_apply_null_params);
+    TEST_MAIN_RUN(test_rewrite_engine_create_destroy);
+    TEST_MAIN_RUN(test_rewrite_engine_add_rule);
+    TEST_MAIN_RUN(test_innermost_strategy);
+    TEST_MAIN_RUN(test_outermost_strategy);
+    TEST_MAIN_RUN(test_parallel_strategy);
+    TEST_MAIN_RUN(test_egraph_strategy);
+    TEST_MAIN_RUN(test_conditional_rules);
+    TEST_MAIN_RUN(test_iteration_limit);
+    TEST_MAIN_RUN(test_empty_engine);
+    TEST_MAIN_RUN(test_multi_step_simplification);
+    TEST_MAIN_RUN(test_result_destroy_null);
+    TEST_MAIN_RUN(test_apply_null_params);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

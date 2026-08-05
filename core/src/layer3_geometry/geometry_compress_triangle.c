@@ -55,14 +55,9 @@ bool extract_triangle_faces(const ConstraintGraph *graph, TriangleFace **faces, 
         if (!c)
             continue;
         if (c->participant_count == 3) {
-            if (count >= capacity) {
-                capacity *= 2;
-                TriangleFace *nf = (TriangleFace *) lv_realloc(f, capacity * sizeof(TriangleFace));
-                if (!nf) {
-                    lv_free((void **) &f);
-                    return false;
-                }
-                f = nf;
+            if (!lv_ensure_capacity((void **) &f, count, &capacity, sizeof(TriangleFace), 0)) {
+                lv_free((void **) &f);
+                return false;
             }
             f[count].verts[0] = c->participants[0];
             f[count].verts[1] = c->participants[1];

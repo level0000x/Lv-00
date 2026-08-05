@@ -363,20 +363,17 @@ static void test_multiple_commits(void) {
  * Main
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Proof Version Control");
+TEST_MAIN_BEGIN("Proof Version Control")
 
-    TEST_RUN(test_repo_init);
-    TEST_RUN(test_repo_open);
-    TEST_RUN(test_repo_commit);
-    TEST_RUN(test_repo_log);
-    TEST_RUN(test_repo_diff);
-    TEST_RUN(test_repo_branch);
-    TEST_RUN(test_repo_checkout);
-    TEST_RUN(test_null_safety);
-    TEST_RUN(test_multiple_commits);
+    TEST_MAIN_RUN(test_repo_init);
+    TEST_MAIN_RUN(test_repo_open);
+    TEST_MAIN_RUN(test_repo_commit);
+    TEST_MAIN_RUN(test_repo_log);
+    TEST_MAIN_RUN(test_repo_diff);
+    TEST_MAIN_RUN(test_repo_branch);
+    TEST_MAIN_RUN(test_repo_checkout);
+    TEST_MAIN_RUN(test_null_safety);
+    TEST_MAIN_RUN(test_multiple_commits);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

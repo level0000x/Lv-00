@@ -72,18 +72,10 @@ bool lv_registry_register(lvRegistry *reg, const char *name, void *(*create)(voi
         }
     }
 
-    /* 检查容量，必要时 2x 扩容 */
-    if (reg->count >= reg->capacity) {
-        int new_cap = reg->capacity > 0 ? reg->capacity * lv_REGISTRY_GROW_FACTOR
-                                        : lv_REGISTRY_DEFAULT_CAPACITY;
-        lvRegistryEntry *new_entries = (lvRegistryEntry *)
-            lv_realloc(reg->entries, (size_t) new_cap * sizeof(lvRegistryEntry));
-        if (!new_entries) {
-            lv_MUTEX_UNLOCK(&reg->mutex);
-            return false;
-        }
-        reg->entries = new_entries;
-        reg->capacity = new_cap;
+    /* 检查容量，必要时扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &reg->entries, reg->count, &reg->capacity, sizeof(lvRegistryEntry), 0)) {
+        lv_MUTEX_UNLOCK(&reg->mutex);
+        return false;
     }
 
     /* 添加新条目 */

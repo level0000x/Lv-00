@@ -87,20 +87,18 @@ static void sift_down(lvProofPriority *pq, int idx) {
 static int ensure_capacity(lvProofPriority *pq) {
     if (pq->count < pq->capacity)
         return 0;
-    int new_cap = pq->capacity * 2;
-    if (new_cap <= pq->capacity)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "ensure_capacity: integer overflow, new_cap=%d", new_cap);
 
-    int *new_ids = (int *) lv_realloc(pq->node_ids,
-                                       (size_t) new_cap * sizeof(int));
-    double *new_sc = (double *) lv_realloc(pq->scores,
-                                            (size_t) new_cap * sizeof(double));
-    if (!new_ids || !new_sc)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity: lv_realloc failed for new_cap=%d", new_cap);
+    int old_cap = pq->capacity;
+    /* 第一次：扩容 node_ids（溢出检查由 lv_ensure_capacity 内部完成） */
+    if (!lv_ensure_capacity((void **) &pq->node_ids, old_cap,
+                            &pq->capacity, sizeof(int), 1))
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity: lv_ensure_capacity failed for node_ids");
 
-    pq->node_ids = new_ids;
-    pq->scores = new_sc;
-    pq->capacity = new_cap;
+    /* 第二次：扩容 scores。临时回退容量指针使扩容真实执行，保持双数组容量一致 */
+    pq->capacity = old_cap;
+    if (!lv_ensure_capacity((void **) &pq->scores, old_cap,
+                            &pq->capacity, sizeof(double), 1))
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity: lv_ensure_capacity failed for scores");
     return 0;
 }
 

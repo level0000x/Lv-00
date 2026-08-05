@@ -23,11 +23,19 @@
  * @param effect 效果类型
  * @return 成功返回 UI 事件块指针，失败返回NULL
  */
-LV_SIMPLE_BLOCK_PARAM(lvUIEventBlock, lv_ui_event_block, (lvEffectType effect), ({
+lvUIEventBlock *lv_ui_event_block_create(lvEffectType effect) {
+    lvUIEventBlock *block = lv_calloc(1, sizeof(lvUIEventBlock));
+    if (!block)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate lvUIEventBlock");
     block->effect = effect;
     block->event_port = -1;
     block->action_port = -1;
-}))
+    return block;
+}
+
+void lv_ui_event_block_destroy(lvUIEventBlock *block) {
+    lv_free((void **)&block);
+}
 
 /**
  * @brief 销毁 UI 事件块
@@ -36,4 +44,4 @@ LV_SIMPLE_BLOCK_PARAM(lvUIEventBlock, lv_ui_event_block, (lvEffectType effect), 
  *
  * @param block UI 事件块指针
  */
-/* destroy 由 LV_SIMPLE_BLOCK_PARAM 宏自动生成 */
+/* destroy 已在上方手写实现 */

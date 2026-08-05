@@ -237,38 +237,35 @@ static void test_magic_head_tail_consistency(void) {
  * 测试入口
  * ============================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("错误处理")
     printf("=== Lv-00 边界条件与错误处理测试 ===\n\n");
 
     g_pass_count = 0;
     g_fail_count = 0;
 
-    TEST_SUITE_BEGIN("错误处理");
 
     /* NULL 指针处理 */
-    TEST_RUN(test_engine_create_normal);
-    TEST_RUN(test_engine_destroy_null);
-    TEST_RUN(test_solver_null_graph);
-    TEST_RUN(test_lv_malloc_zero_size);
-    TEST_RUN(test_lv_calloc_zero_params);
+    TEST_MAIN_RUN(test_engine_create_normal);
+    TEST_MAIN_RUN(test_engine_destroy_null);
+    TEST_MAIN_RUN(test_solver_null_graph);
+    TEST_MAIN_RUN(test_lv_malloc_zero_size);
+    TEST_MAIN_RUN(test_lv_calloc_zero_params);
 
     /* 无效输入到解析器 */
-    TEST_RUN(test_parser_empty_string);
-    TEST_RUN(test_parser_unmatched_brackets);
-    TEST_RUN(test_parser_very_long_input);
-    TEST_RUN(test_parser_null_input);
+    TEST_MAIN_RUN(test_parser_empty_string);
+    TEST_MAIN_RUN(test_parser_unmatched_brackets);
+    TEST_MAIN_RUN(test_parser_very_long_input);
+    TEST_MAIN_RUN(test_parser_null_input);
 
     /* 零大小分配 */
-    TEST_RUN(test_pool_alloc_zero_config);
+    TEST_MAIN_RUN(test_pool_alloc_zero_config);
 
     /* 双重释放检测 */
-    TEST_RUN(test_double_free_detection);
+    TEST_MAIN_RUN(test_double_free_detection);
 
     /* 缓冲区溢出检测 */
-    TEST_RUN(test_buffer_overflow_detection);
-    TEST_RUN(test_magic_head_tail_consistency);
+    TEST_MAIN_RUN(test_buffer_overflow_detection);
+    TEST_MAIN_RUN(test_magic_head_tail_consistency);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

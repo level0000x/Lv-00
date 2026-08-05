@@ -94,21 +94,19 @@ int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
 
     /* 新单项式 */
     if (p->term_count >= p->capacity) {
+        /* 双重溢出检查：倍增溢出与 size_t 乘积溢出（保留原错误码语义） */
         int new_cap = p->capacity == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
         if (new_cap > 0 && new_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
             lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "mv_poly_add_term: 容量溢出");
         }
         new_cap = new_cap == 0 ? lv_SOLVER_DYNARRAY_INIT_CAP : new_cap * lv_ARRAY_GROWTH_FACTOR;
-        /* 检查 size_t 乘积溢出：new_cap * sizeof(MVMonomial) 可能超过 SIZE_MAX */
         if ((size_t) new_cap > SIZE_MAX / sizeof(MVMonomial)) {
             lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "mv_poly_add_term: 容量溢出");
         }
-        p->capacity = new_cap;
-        MVMonomial *new_terms = lv_realloc(p->terms, p->capacity * sizeof(MVMonomial));
-        if (!new_terms) {
+        /* 统一扩容（GMP 元素 mpz_t 的初始化在下方 add_term 内完成，此处仅 realloc 样板） */
+        if (!lv_ensure_capacity((void **) &p->terms, p->term_count,
+                                &p->capacity, sizeof(MVMonomial), 1))
             lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "mv_poly_add_term: 扩容失败");
-        }
-        p->terms = new_terms;
     }
     MVMonomial *m = &p->terms[p->term_count];
     m->exponents = lv_calloc((size_t) p->var_count, sizeof(int));

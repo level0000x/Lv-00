@@ -290,21 +290,18 @@ static void test_null_safety(void) {
  * Main
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Geo Topology");
+TEST_MAIN_BEGIN("Geo Topology")
 
-    TEST_RUN(test_simplicial_create_destroy);
-    TEST_RUN(test_add_edge);
-    TEST_RUN(test_add_triangle);
-    TEST_RUN(test_euler_single_triangle);
-    TEST_RUN(test_euler_tetrahedron);
-    TEST_RUN(test_boundary_triangle);
-    TEST_RUN(test_connected_single);
-    TEST_RUN(test_connected_disconnected);
-    TEST_RUN(test_connected_isolated);
-    TEST_RUN(test_null_safety);
+    TEST_MAIN_RUN(test_simplicial_create_destroy);
+    TEST_MAIN_RUN(test_add_edge);
+    TEST_MAIN_RUN(test_add_triangle);
+    TEST_MAIN_RUN(test_euler_single_triangle);
+    TEST_MAIN_RUN(test_euler_tetrahedron);
+    TEST_MAIN_RUN(test_boundary_triangle);
+    TEST_MAIN_RUN(test_connected_single);
+    TEST_MAIN_RUN(test_connected_disconnected);
+    TEST_MAIN_RUN(test_connected_isolated);
+    TEST_MAIN_RUN(test_null_safety);
 
-    TEST_SUITE_END();
 
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

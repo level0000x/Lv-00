@@ -72,39 +72,45 @@ static void coord_clear(Coord *c) {
 }
 
 /* 分配 Coord 对象骨架:lv_malloc + NULL 检查 + 分配全局ID。
- * fn_name 为调用函数名字符串字面量,用于保留原有的错误消息文本。 */
-#define LV_COORD_ALLOC(c, fn_name) do { \
-    (c) = (Coord *) lv_malloc(sizeof(Coord)); \
-    if (!(c)) \
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, fn_name ": malloc failed"); \
-    (c)->id = native_id_alloc(); \
-} while (0)
+ * fn_name 为调用函数名字符串字面量,用于保留原有的错误消息文本。
+ * 失败时内部已通过 lv_RETURN_ERROR_NULL 记录错误,返回 NULL。 */
+static Coord *coord_alloc(const char *fn_name) {
+    Coord *c = (Coord *) lv_malloc(sizeof(Coord));
+    if (!c)
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "%s: malloc failed", fn_name);
+    c->id = native_id_alloc();
+    return c;
+}
 
-/* 二元坐标算子模板:"NULL 输入检查 → 分配骨架 → 逐坐标 mpq 运算"。
- * name 生成函数名(错误消息随之生成),MPQ_OP 为 mpq_add/mpq_sub 等二元 GMP 调用。 */
-#define LV_COORD_BINOP(name, MPQ_OP) \
-Coord *name(const Coord *a, const Coord *b) { \
-    if (!a || !b) \
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, #name ": NULL input"); \
-    Coord *c; \
-    LV_COORD_ALLOC(c, #name); \
-    mpq_init(c->x); \
-    MPQ_OP(c->x, a->x, b->x); /* GMP 精确运算 */ \
-    mpq_init(c->y); \
-    MPQ_OP(c->y, a->y, b->y); \
-    return c; \
+/* 二元坐标算子实现:"NULL 输入检查 → 分配骨架 → 逐坐标 mpq 运算"。
+ * op 为 mpq_add/mpq_sub 等二元 GMP 函数指针(签名与 GMP 宏一致)。
+ * 范式参照 mpz_poly.h 的 mpz_poly_binop。 */
+static Coord *coord_binop_impl(const Coord *a, const Coord *b,
+                               void (*op)(mpq_ptr, mpq_srcptr, mpq_srcptr)) {
+    if (!a || !b)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_binop: NULL input");
+    Coord *c = coord_alloc("coord_binop_impl");
+    if (!c)
+        return NULL;
+    mpq_init(c->x);
+    op(c->x, a->x, b->x); /* GMP 精确运算 */
+    mpq_init(c->y);
+    op(c->y, a->y, b->y);
+    return c;
 }
 
 Coord *coord_create(const char *x_str, const char *y_str) {
-    Coord *c;
-    LV_COORD_ALLOC(c, "coord_create");
+    Coord *c = coord_alloc("coord_create");
+    if (!c)
+        return NULL;
     coord_init(c, x_str, y_str);
     return c;
 }
 
 Coord *coord_create_si(long x_num, long y_num) {
-    Coord *c;
-    LV_COORD_ALLOC(c, "coord_create_si");
+    Coord *c = coord_alloc("coord_create_si");
+    if (!c)
+        return NULL;
     coord_init_si(c, x_num, y_num);
     return c;
 }
@@ -120,8 +126,9 @@ void coord_destroy(Coord *c) {
 Coord *coord_dup(const Coord *src) {
     if (!src)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_dup: NULL src");
-    Coord *c;
-    LV_COORD_ALLOC(c, "coord_dup");
+    Coord *c = coord_alloc("coord_dup");
+    if (!c)
+        return NULL;
     mpq_init(c->x);
     mpq_set(c->x, src->x);
     mpq_init(c->y);
@@ -129,31 +136,42 @@ Coord *coord_dup(const Coord *src) {
     return c;
 }
 
-LV_COORD_BINOP(coord_add, mpq_add)
-LV_COORD_BINOP(coord_sub, mpq_sub)
-
-/* 标量二元坐标算子模板："NULL/标量检查 → 分配骨架 → 逐坐标 mpq 运算（坐标 op 标量）"。
- * 与 LV_COORD_BINOP 同构，区别是第二操作数为标量 mpq_t（非 Coord），
- * 调用形式为 MPQ_OP(r->x, a->x, scalar)，第三参数即标量本身。
- * scalar_guard 为标量合法性检查表达式（以 " || ..." 形式拼接到 !a 之后；
- * coord_mul 允许 0 标量，传空串；coord_div 防除零，传 " || mpq_sgn(scalar) == 0"）。
- * err_code/err_msg 为对应错误码与错误消息（消息文本与旧实现逐字一致）。 */
-#define LV_COORD_SCALAR_BINOP(name, MPQ_OP, scalar_guard, err_code, err_msg) \
-Coord *name(const Coord *a, const mpq_t scalar) { \
-    if (!a scalar_guard) \
-        lv_RETURN_ERROR_NULL(err_code, err_msg); \
-    Coord *c; \
-    LV_COORD_ALLOC(c, #name); \
-    mpq_init(c->x); \
-    MPQ_OP(c->x, a->x, scalar); /* GMP 精确运算 */ \
-    mpq_init(c->y); \
-    MPQ_OP(c->y, a->y, scalar); \
-    return c; \
+Coord *coord_add(const Coord *a, const Coord *b) {
+    return coord_binop_impl(a, b, mpq_add);
 }
 
-LV_COORD_SCALAR_BINOP(coord_mul, mpq_mul, || 0, lv_ERROR_NULL_POINTER, "coord_mul: NULL input")
-LV_COORD_SCALAR_BINOP(coord_div, mpq_div, || mpq_sgn(scalar) == 0, lv_ERROR_INVALID_PARAM,
-                      "coord_div: NULL input or zero scalar")
+Coord *coord_sub(const Coord *a, const Coord *b) {
+    return coord_binop_impl(a, b, mpq_sub);
+}
+
+/* 标量二元坐标算子实现："NULL/标量检查 → 分配骨架 → 逐坐标 mpq 运算（坐标 op 标量）"。
+ * 与 coord_binop_impl 同构，区别是第二操作数为标量 mpq_t（非 Coord），
+ * 调用形式为 op(r->x, a->x, scalar)，第三参数即标量本身。
+ * allow_zero 为标量合法性开关：coord_mul 允许 0 标量（传 1）；
+ * coord_div 防除零（传 0，命中时按无效参数报错）。
+ * err_msg 为错误消息（消息文本与旧实现逐字一致）。 */
+static Coord *coord_scalar_binop_impl(const Coord *a, const mpq_t scalar,
+                                      void (*op)(mpq_ptr, mpq_srcptr, mpq_srcptr),
+                                      int allow_zero, const char *err_msg) {
+    if (!a || (!allow_zero && mpq_sgn(scalar) == 0))
+        lv_RETURN_ERROR_NULL(allow_zero ? lv_ERROR_NULL_POINTER : lv_ERROR_INVALID_PARAM, err_msg);
+    Coord *c = coord_alloc("coord_scalar_binop_impl");
+    if (!c)
+        return NULL;
+    mpq_init(c->x);
+    op(c->x, a->x, scalar); /* GMP 精确运算 */
+    mpq_init(c->y);
+    op(c->y, a->y, scalar);
+    return c;
+}
+
+Coord *coord_mul(const Coord *a, const mpq_t scalar) {
+    return coord_scalar_binop_impl(a, scalar, mpq_mul, 1, "coord_mul: NULL input");
+}
+
+Coord *coord_div(const Coord *a, const mpq_t scalar) {
+    return coord_scalar_binop_impl(a, scalar, mpq_div, 0, "coord_div: NULL input or zero scalar");
+}
 
 int coord_eq(const Coord *a, const Coord *b) {
     if (!a || !b)
@@ -201,8 +219,9 @@ void coord_dist_sq(mpq_t result, const Coord *a, const Coord *b) {
 Coord *coord_midpoint(const Coord *a, const Coord *b) {
     if (!a || !b)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_midpoint: NULL input");
-    Coord *c;
-    LV_COORD_ALLOC(c, "coord_midpoint");
+    Coord *c = coord_alloc("coord_midpoint");
+    if (!c)
+        return NULL;
     mpq_t two;
     mpq_init(two);
     mpq_set_si(two, 2, 1);
@@ -260,35 +279,46 @@ typedef struct {
 } Rational;
 
 /* 分配 Rational 对象骨架:lv_malloc + NULL 检查 + 分配全局ID。
- * fn_name 为调用函数名字符串字面量,用于保留原有的错误消息文本。 */
-#define LV_RATIONAL_ALLOC(r, fn_name) do { \
-    (r) = (Rational *) lv_malloc(sizeof(Rational)); \
-    if (!(r)) \
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, fn_name ": malloc failed"); \
-    (r)->id = native_id_alloc(); \
-} while (0)
-
-/* 二元有理数算子模板:"NULL 输入检查 → 分配骨架 → 单值 mpq 运算"。
- * modifier 保留原函数的链接属性(static 或空),name 生成函数名,
- * MPQ_OP 为 mpq_add/mpq_sub/mpq_mul 等二元 GMP 调用。 */
-#define LV_RATIONAL_BINOP(modifier, name, MPQ_OP) \
-modifier Rational *name(const Rational *a, const Rational *b) { \
-    if (!a || !b) \
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, #name ": NULL input"); \
-    Rational *r; \
-    LV_RATIONAL_ALLOC(r, #name); \
-    mpq_init(r->val); \
-    MPQ_OP(r->val, a->val, b->val); /* GMP 精确运算 */ \
-    return r; \
+ * fn_name 为调用函数名字符串字面量,用于保留原有的错误消息文本。
+ * 失败时内部已通过 lv_RETURN_ERROR_NULL 记录错误,返回 NULL。 */
+static Rational *rational_alloc(const char *fn_name) {
+    Rational *r = (Rational *) lv_malloc(sizeof(Rational));
+    if (!r)
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "%s: malloc failed", fn_name);
+    r->id = native_id_alloc();
+    return r;
 }
 
-LV_RATIONAL_BINOP(static, rational_add, mpq_add)
-LV_RATIONAL_BINOP(, rational_sub, mpq_sub)
-LV_RATIONAL_BINOP(, rational_mul, mpq_mul)
+/* 二元有理数算子实现:"NULL 输入检查 → 分配骨架 → 单值 mpq 运算"。
+ * op 为 mpq_add/mpq_sub/mpq_mul 等二元 GMP 函数指针(签名与 GMP 宏一致)。 */
+static Rational *rational_binop_impl(const Rational *a, const Rational *b,
+                                     void (*op)(mpq_ptr, mpq_srcptr, mpq_srcptr)) {
+    if (!a || !b)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_binop: NULL input");
+    Rational *r = rational_alloc("rational_binop_impl");
+    if (!r)
+        return NULL;
+    mpq_init(r->val);
+    op(r->val, a->val, b->val); /* GMP 精确运算 */
+    return r;
+}
+
+static Rational *rational_add(const Rational *a, const Rational *b) {
+    return rational_binop_impl(a, b, mpq_add);
+}
+
+Rational *rational_sub(const Rational *a, const Rational *b) {
+    return rational_binop_impl(a, b, mpq_sub);
+}
+
+Rational *rational_mul(const Rational *a, const Rational *b) {
+    return rational_binop_impl(a, b, mpq_mul);
+}
 
 Rational *rational_create_str(const char *s) {
-    Rational *r;
-    LV_RATIONAL_ALLOC(r, "rational_create_str");
+    Rational *r = rational_alloc("rational_create_str");
+    if (!r)
+        return NULL;
     mpq_init(r->val);
     mpq_set_str(r->val, s, 10); /* GMP 精确解析 "num/den" 或 "int" */
     mpq_canonicalize(r->val);
@@ -296,8 +326,9 @@ Rational *rational_create_str(const char *s) {
 }
 
 Rational *rational_create_si(long num, unsigned long den) {
-    Rational *r;
-    LV_RATIONAL_ALLOC(r, "rational_create_si");
+    Rational *r = rational_alloc("rational_create_si");
+    if (!r)
+        return NULL;
     mpq_init(r->val);
     mpq_set_si(r->val, num, den);
     mpq_canonicalize(r->val);
@@ -321,8 +352,9 @@ static void rational_destroy(Rational *r) {
 Rational *rational_div(const Rational *a, const Rational *b) {
     if (!a || !b || mpq_sgn(b->val) == 0)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "rational_div: NULL input or division by zero");
-    Rational *r;
-    LV_RATIONAL_ALLOC(r, "rational_div");
+    Rational *r = rational_alloc("rational_div");
+    if (!r)
+        return NULL;
     mpq_init(r->val);
     mpq_div(r->val, a->val, b->val); /* GMP 精确除法 */
     return r;
@@ -365,133 +397,115 @@ int rational_to_string(const Rational *r, char *buf, size_t bufsz) {
 }
 
 /* ================================================================
- *  ConstraintGraph  —  Constraints with GMP rational values
+ *  native_ConstraintGraph  —  Constraints with GMP rational values
  * ================================================================ */
 
 typedef struct {
     int64_t id;
     mpq_t value; /* GMP 精确值 */
     int pinned;
-} GraphNode;
+} native_GraphNode;
 
 typedef struct {
     int64_t id;
     int32_t from;
     int32_t to;
     mpq_t weight; /* GMP 精确权重 */
-} GraphEdge;
+} native_GraphEdge;
 
 typedef struct {
     int64_t id;
-    GraphNode *nodes;
+    native_GraphNode *nodes;
     int node_count;
     int node_cap;
-    GraphEdge *edges;
+    native_GraphEdge *edges;
     int edge_count;
     int edge_cap;
-} ConstraintGraph;
+} native_ConstraintGraph;
 
 /**
  * @brief 释放图节点的GMP值内存
  */
-static void graph_node_clear(GraphNode *n) {
+static void native_graph_node_clear(native_GraphNode *n) {
     if (n)
         mpq_clear(n->value);
 }
 /**
  * @brief 释放图边的GMP权重内存
  */
-static void graph_edge_clear(GraphEdge *e) {
+static void native_graph_edge_clear(native_GraphEdge *e) {
     if (e)
         mpq_clear(e->weight);
 }
 
-/* 节点数组容量翻倍扩容骨架(graph_add_node 使用)。
- * 错误消息保留原函数文本;失败时返回 -1(错误已记录)。 */
-static int graph_grow_nodes(ConstraintGraph *g) {
-    if (g->node_cap > INT_MAX / 2)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_add_node: node_cap overflow");
-    int new_cap_int = g->node_cap * 2;
-    size_t new_cap = (size_t) new_cap_int;
-    GraphNode *tmp = (GraphNode *) lv_realloc(g->nodes, new_cap * sizeof(GraphNode));
-    if (!tmp)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "graph_add_node: realloc failed");
-    g->node_cap = (int) new_cap_int;
-    g->nodes = tmp;
+/* 节点数组扩容骨架(graph_add_node 使用):复用公共 lv_ensure_capacity
+ * (倍增策略 + 溢出检查内置于 lv_utils;失败时错误已记录,返回 -1)。
+ * 新增槽位的 mpq_t 由 graph_add_node 的 add 路径逐个 mpq_init,此处不处理。 */
+static int native_graph_grow_nodes(native_ConstraintGraph *g) {
+    if (!lv_ensure_capacity((void **) &g->nodes, g->node_count, &g->node_cap,
+                            sizeof(native_GraphNode), 1))
+        return -1;
     return 0;
 }
 
-/* 边数组容量翻倍扩容骨架(graph_add_edge 使用) */
-static int graph_grow_edges(ConstraintGraph *g) {
-    if (g->edge_cap > SIZE_MAX / 2 / sizeof(GraphEdge))
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "graph_add_edge: edge_cap overflow");
-    size_t new_cap = (size_t) g->edge_cap * 2;
-    GraphEdge *tmp = (GraphEdge *) lv_realloc(g->edges, new_cap * sizeof(GraphEdge));
-    if (!tmp)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "graph_add_edge: realloc failed");
-    g->edge_cap = (int) new_cap;
-    g->edges = tmp;
+/* 边数组扩容骨架(graph_add_edge 使用):同上,复用 lv_ensure_capacity */
+static int native_graph_grow_edges(native_ConstraintGraph *g) {
+    if (!lv_ensure_capacity((void **) &g->edges, g->edge_count, &g->edge_cap,
+                            sizeof(native_GraphEdge), 1))
+        return -1;
     return 0;
 }
 
 /* swap-remove 骨架:释放 GMP 值后用末尾元素覆盖被删槽位并递减计数。
- * 注意:此处仅通过 graph_node_clear 释放一次 GMP 值(不得再手动 mpq_clear,否则双重 free)。 */
-static void graph_swap_remove_node(ConstraintGraph *g, int i) {
-    graph_node_clear(&g->nodes[i]);
+ * 注意:此处仅通过 native_graph_node_clear 释放一次 GMP 值(不得再手动 mpq_clear,否则双重 free)。 */
+static void native_graph_swap_remove_node(native_ConstraintGraph *g, int i) {
+    native_graph_node_clear(&g->nodes[i]);
     g->nodes[i] = g->nodes[--g->node_count];
 }
 
-static void graph_swap_remove_edge(ConstraintGraph *g, int i) {
-    graph_edge_clear(&g->edges[i]);
+static void native_graph_swap_remove_edge(native_ConstraintGraph *g, int i) {
+    native_graph_edge_clear(&g->edges[i]);
     g->edges[i] = g->edges[--g->edge_count];
 }
 
-/* 线性查找骨架:按 id 在数组中找下标,未找到返回 -1 */
-#define LV_GRAPH_LINEAR_FIND(g_ptr, id_val, array, cnt) \
-    do { \
-        if (!(g_ptr)) \
-            return -1; \
-        for (int i = 0; i < (cnt); i++) \
-            if ((array)[i].id == (id_val)) \
-                return i; \
-        return -1; \
-    } while (0)
+/* 线性查找辅助由 graph_find_node / graph_find_edge 直接展开实现
+ * (原 LV_GRAPH_LINEAR_FIND 宏函数化:数组元素类型不同,分别手写循环)。 */
 
 /**
  * @brief 创建约束图并分配初始缓冲区
  */
-static ConstraintGraph *graph_create(void) {
-    ConstraintGraph *g = (ConstraintGraph *) lv_calloc(1, sizeof(ConstraintGraph));
+static native_ConstraintGraph *native_graph_create(void) {
+    native_ConstraintGraph *g = (native_ConstraintGraph *) lv_calloc(1, sizeof(native_ConstraintGraph));
     if (!g)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_create: calloc failed");
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "native_graph_create: calloc failed");
     g->id = native_id_alloc();
     g->node_cap = 16;
     g->edge_cap = 16;
-    g->nodes = (GraphNode *) lv_calloc(g->node_cap, sizeof(GraphNode));
-    g->edges = (GraphEdge *) lv_calloc(g->edge_cap, sizeof(GraphEdge));
+    g->nodes = (native_GraphNode *) lv_calloc(g->node_cap, sizeof(native_GraphNode));
+    g->edges = (native_GraphEdge *) lv_calloc(g->edge_cap, sizeof(native_GraphEdge));
     return g;
 }
 
 /**
  * @brief 销毁约束图并释放所有内存
  */
-static void graph_destroy(ConstraintGraph *g) {
+static void native_graph_destroy(native_ConstraintGraph *g) {
     if (!g)
         return;
     for (int i = 0; i < g->node_count; i++)
-        graph_node_clear(&g->nodes[i]);
+        native_graph_node_clear(&g->nodes[i]);
     for (int i = 0; i < g->edge_count; i++)
-        graph_edge_clear(&g->edges[i]);
+        native_graph_edge_clear(&g->edges[i]);
     lv_free((void **) &g->nodes);
     lv_free((void **) &g->edges);
     lv_free((void **) &g);
 }
 
-int64_t graph_add_node(ConstraintGraph *g, const mpq_t value, int pinned) {
+int64_t graph_add_node(native_ConstraintGraph *g, const mpq_t value, int pinned) {
     if (!g)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_add_node: NULL graph");
     if (g->node_count >= g->node_cap) {
-        if (graph_grow_nodes(g) < 0)
+        if (native_graph_grow_nodes(g) < 0)
             return -1;
     }
     int idx = g->node_count++;
@@ -502,7 +516,7 @@ int64_t graph_add_node(ConstraintGraph *g, const mpq_t value, int pinned) {
     return g->nodes[idx].id;
 }
 
-int64_t graph_add_node_si(ConstraintGraph *g, long num, long den, int pinned) {
+int64_t graph_add_node_si(native_ConstraintGraph *g, long num, long den, int pinned) {
     mpq_t val;
     mpq_init(val);
     mpq_set_si(val, num, den);
@@ -514,25 +528,25 @@ int64_t graph_add_node_si(ConstraintGraph *g, long num, long den, int pinned) {
 /**
  * @brief 按ID删除约束图节点
  */
-static int graph_remove_node(ConstraintGraph *g, int64_t node_id) {
+static int native_graph_remove_node(native_ConstraintGraph *g, int64_t node_id) {
     if (!g)
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_remove_node: NULL graph");
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "native_graph_remove_node: NULL graph");
     for (int i = 0; i < g->node_count; i++) {
         if (g->nodes[i].id == node_id) {
-            graph_swap_remove_node(g, i); /* 内部仅 mpq_clear 一次(修复双重 free) */
+            native_graph_swap_remove_node(g, i); /* 内部仅 mpq_clear 一次(修复双重 free) */
             return 0;
         }
     }
     return -1; /* 未找到 */
 }
 
-int64_t graph_add_edge(ConstraintGraph *g, int from_idx, int to_idx, const mpq_t weight) {
+int64_t graph_add_edge(native_ConstraintGraph *g, int from_idx, int to_idx, const mpq_t weight) {
     if (!g || from_idx < 0 || to_idx < 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "graph_add_edge: NULL graph or invalid index");
     if (from_idx >= g->node_count || to_idx >= g->node_count)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "graph_add_edge: index out of range");
     if (g->edge_count >= g->edge_cap) {
-        if (graph_grow_edges(g) < 0)
+        if (native_graph_grow_edges(g) < 0)
             return -1;
     }
     int idx = g->edge_count++;
@@ -544,7 +558,7 @@ int64_t graph_add_edge(ConstraintGraph *g, int from_idx, int to_idx, const mpq_t
     return g->edges[idx].id;
 }
 
-int64_t graph_add_edge_si(ConstraintGraph *g, int from, int to, long wnum, long wden) {
+int64_t graph_add_edge_si(native_ConstraintGraph *g, int from, int to, long wnum, long wden) {
     mpq_t w;
     mpq_init(w);
     mpq_set_si(w, wnum, wden);
@@ -553,26 +567,26 @@ int64_t graph_add_edge_si(ConstraintGraph *g, int from, int to, long wnum, long 
     return id;
 }
 
-int graph_remove_edge(ConstraintGraph *g, int64_t edge_id) {
+int graph_remove_edge(native_ConstraintGraph *g, int64_t edge_id) {
     if (!g)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "graph_remove_edge: NULL graph");
     for (int i = 0; i < g->edge_count; i++) {
         if (g->edges[i].id == edge_id) {
-            graph_swap_remove_edge(g, i); /* 内部仅 mpq_clear 一次(修复双重 free) */
+            native_graph_swap_remove_edge(g, i); /* 内部仅 mpq_clear 一次(修复双重 free) */
             return 0;
         }
     }
     return -1; /* 未找到 */
 }
 
-const GraphEdge *graph_get_edge(const ConstraintGraph *g, int index) {
+const native_GraphEdge *graph_get_edge(const native_ConstraintGraph *g, int index) {
     if (!g || index < 0 || index >= g->edge_count)
         return NULL;
     return &g->edges[index];
 }
 
 /* graph_solve: 约束传播 — 使用 GMP 精确有理数比较 */
-int graph_solve(ConstraintGraph *g) {
+int graph_solve(native_ConstraintGraph *g) {
     if (!g || g->node_count == 0)
         return 0;
     mpq_t eps, propagated, diff;
@@ -606,7 +620,7 @@ int graph_solve(ConstraintGraph *g) {
 /**
  * @brief 将约束图中的值平移至非负
  */
-static void graph_normalize(ConstraintGraph *g) {
+static void native_graph_normalize(native_ConstraintGraph *g) {
     if (!g || g->node_count == 0)
         return;
     int min_idx = 0;
@@ -620,33 +634,43 @@ static void graph_normalize(ConstraintGraph *g) {
     }
 }
 
-void graph_clear(ConstraintGraph *g) {
+void graph_clear(native_ConstraintGraph *g) {
     if (!g)
         return;
     for (int i = 0; i < g->node_count; i++)
-        graph_node_clear(&g->nodes[i]);
+        native_graph_node_clear(&g->nodes[i]);
     for (int i = 0; i < g->edge_count; i++)
-        graph_edge_clear(&g->edges[i]);
+        native_graph_edge_clear(&g->edges[i]);
     g->node_count = 0;
     g->edge_count = 0;
 }
 
-int graph_node_count(const ConstraintGraph *g) {
+int graph_node_count(const native_ConstraintGraph *g) {
     return g ? g->node_count : 0;
 }
-int graph_edge_count(const ConstraintGraph *g) {
+int graph_edge_count(const native_ConstraintGraph *g) {
     return g ? g->edge_count : 0;
 }
 
-int graph_find_node(const ConstraintGraph *g, int64_t node_id) {
-    LV_GRAPH_LINEAR_FIND(g, node_id, g->nodes, g->node_count);
+static int graph_find_node(const native_ConstraintGraph *g, int64_t node_id) {
+    if (!g)
+        return -1;
+    for (int i = 0; i < g->node_count; i++)
+        if (g->nodes[i].id == node_id)
+            return i;
+    return -1;
 }
 
-int graph_find_edge(const ConstraintGraph *g, int64_t edge_id) {
-    LV_GRAPH_LINEAR_FIND(g, edge_id, g->edges, g->edge_count);
+static int graph_find_edge(const native_ConstraintGraph *g, int64_t edge_id) {
+    if (!g)
+        return -1;
+    for (int i = 0; i < g->edge_count; i++)
+        if (g->edges[i].id == edge_id)
+            return i;
+    return -1;
 }
 
-int graph_validate(const ConstraintGraph *g) {
+int graph_validate(const native_ConstraintGraph *g) {
     if (!g)
         return 0;
     for (int i = 0; i < g->edge_count; i++) {
@@ -757,22 +781,30 @@ static int eval_var(mpq_t result, Expr *e, const char **varnames, const mpq_t *v
     return -1; /* var not found */
 }
 
-/* EVAL 二元算子模板:左右子树求值后做一次 mpq 运算。
- * name 生成处理器函数名,MPQ_OP 为 mpq_add/mpq_sub/mpq_mul 等二元 GMP 调用。 */
-#define LV_EVAL_BINOP(name, MPQ_OP) \
-static int name(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) { \
-    mpq_t l, r; \
-    mpq_inits(l, r, NULL); \
-    expr_eval(l, e->left, varnames, values, nvars); \
-    expr_eval(r, e->right, varnames, values, nvars); \
-    MPQ_OP(result, l, r); \
-    mpq_clears(l, r, NULL); \
-    return 0; \
+/* EVAL 二元算子实现:左右子树求值后做一次 mpq 运算。
+ * op 为 mpq_add/mpq_sub/mpq_mul 等二元 GMP 函数指针(签名与 GMP 宏一致)。 */
+static int eval_binop_impl(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                           void (*op)(mpq_ptr, mpq_srcptr, mpq_srcptr)) {
+    mpq_t l, r;
+    mpq_inits(l, r, NULL);
+    expr_eval(l, e->left, varnames, values, nvars);
+    expr_eval(r, e->right, varnames, values, nvars);
+    op(result, l, r);
+    mpq_clears(l, r, NULL);
+    return 0;
 }
 
-LV_EVAL_BINOP(eval_add, mpq_add)
-LV_EVAL_BINOP(eval_sub, mpq_sub)
-LV_EVAL_BINOP(eval_mul, mpq_mul)
+static int eval_add(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    return eval_binop_impl(result, e, varnames, values, nvars, mpq_add);
+}
+
+static int eval_sub(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    return eval_binop_impl(result, e, varnames, values, nvars, mpq_sub);
+}
+
+static int eval_mul(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+    return eval_binop_impl(result, e, varnames, values, nvars, mpq_mul);
+}
 
 static int eval_div(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
     mpq_t l, r;
@@ -928,6 +960,9 @@ void pool_destroy(MemPool *p) {
  *  Debug  —  Trace / Breakpoint / Dump
  * ================================================================ */
 
+/* 调试级别进程级共享:debug_trace 读 / debug_set_level 无锁写。
+ * 多线程日志路径存在理论 data race,属已知低危(本文件无 lv_THREAD_LOCAL
+ * 线程安全惯例,保守起见保持现状,不引入 TLS 改动)。 */
 static int g_debug_level = 0;
 
 void debug_trace(const char *fmt, ...) {
@@ -982,8 +1017,8 @@ int native_self_test(void) {
     rational_destroy(r2);
     rational_destroy(rs);
 
-    /* ConstraintGraph GMP test */
-    ConstraintGraph *g = graph_create();
+    /* native_ConstraintGraph GMP test */
+    native_ConstraintGraph *g = native_graph_create();
     mpq_t v;
     mpq_init(v);
     mpq_set_si(v, 1, 2);
@@ -992,7 +1027,7 @@ int native_self_test(void) {
     int64_t n1 = graph_add_node(g, v, 0);
     assert(g->node_count == 2);
     mpq_clear(v);
-    graph_destroy(g);
+    native_graph_destroy(g);
 
     return 0;
 }
