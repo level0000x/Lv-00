@@ -24,6 +24,7 @@
 #include "lv/config.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_xmacro.h"
 
 #include "lv_utils.h"
 
@@ -845,10 +846,7 @@ double prob_dist_pdf(ProbDistribution *dist, double x) {
         return dist->pdf(x, dist->params, dist->param_count);
     }
 
-    if (dist->type >= 0 && dist->type < kPDFTableCount && kPDFTable[(int)dist->type]) {
-        return kPDFTable[(int)dist->type](dist, x);
-    }
-    return 0.0;
+    return LV_DISPATCH(kPDFTable, dist->type, 0.0, dist, x);
 }
 
 /* ── CDF 计算辅助函数（文件作用域，用于查找表）── */
@@ -889,10 +887,7 @@ double prob_dist_cdf(ProbDistribution *dist, double x) {
         return dist->cdf(x, dist->params, dist->param_count);
     }
 
-    if (dist->type >= 0 && dist->type < kCDFTableCount && kCDFTable[(int)dist->type]) {
-        return kCDFTable[(int)dist->type](dist, x);
-    }
-    return 0.0;
+    return LV_DISPATCH(kCDFTable, dist->type, 0.0, dist, x);
 }
 
 /* ── 采样辅助函数（文件作用域，用于查找表）── */
@@ -1001,11 +996,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
         return -1;
 
     for (int i = 0; i < n_samples; i++) {
-        if (dist->type >= 0 && dist->type < kSampleTableCount && kSampleTable[(int)dist->type]) {
-            samples[i] = kSampleTable[(int)dist->type](dist);
-        } else {
-            samples[i] = 0.0;
-        }
+        samples[i] = LV_DISPATCH(kSampleTable, dist->type, 0.0, dist);
     }
 
     *out_samples = samples;

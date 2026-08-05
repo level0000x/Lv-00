@@ -36,15 +36,8 @@
 static int json_escape_string(const char *src, char *dst, int dst_size) {
     if (!src || !dst || dst_size <= 0)
         return 0;
-    lvStrBuf sb = {0};
-    lv_str_escape_json(&sb, src, strlen(src));
-    size_t n = sb.len;
-    if (n >= (size_t) dst_size)
-        n = (size_t) dst_size - 1;
-    memcpy(dst, lv_strbuf_cstr(&sb), n);
-    dst[n] = '\0';
-    lv_strbuf_destroy(&sb);
-    return (int) n;
+    /* 直连公共 API lv_str_json_escape（snprintf 截断语义，省略 strbuf 中转） */
+    return (int) lv_str_json_escape(src, strlen(src), dst, (size_t) dst_size);
 }
 
 /* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */

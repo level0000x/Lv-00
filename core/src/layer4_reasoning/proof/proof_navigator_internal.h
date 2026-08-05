@@ -50,9 +50,6 @@ typedef struct ProofNavigatorState {
 
 extern ProofNavigatorState s_proof_state;
 
-/* Defined in proof_navigator.c */
-ConstraintGraph *deep_copy_graph(const ConstraintGraph *src);
-
 #ifdef __cplusplus
 }
 #endif

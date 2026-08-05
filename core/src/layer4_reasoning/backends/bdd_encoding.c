@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv/lv_xmacro.h"
 
 /* ========================================================================
  * 内部：唯一表哈希
@@ -863,10 +864,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
         if (!con || !con->is_active)
             continue;
 
-        BDDNode *sub = NULL;
-        if (con->type >= 0 && con->type < kBddEncodeTableCount) {
-            sub = kBddEncodeTable[(int)con->type](mgr, con, n, node_base_var, graph);
-        }
+        BDDNode *sub = LV_DISPATCH(kBddEncodeTable, con->type, NULL, mgr, con, n, node_base_var, graph);
 
         if (sub) {
             BDDNode *new_bdd = bdd_and(mgr, constraint_bdd, sub);
@@ -936,11 +934,7 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
         /* 优先使用已缓存的数值近似 */
         value = coord->cached_value;
     } else {
-        if (coord->type >= 0 && coord->type < kCoordValueTableCount) {
-            value = kCoordValueTable[(int)coord->type](coord);
-        } else {
-            value = 0.0;
-        }
+        value = LV_DISPATCH(kCoordValueTable, coord->type, 0.0, coord);
     }
 
     /* 将 double 的 64 位分别编码为 BDD 变量 */

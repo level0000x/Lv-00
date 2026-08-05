@@ -12,6 +12,7 @@
 #include "lv/lambda_to_graph.h"
 #include "lv/lv.h"
 #include "lv/rewrite.h"
+#include "lv/lv_xmacro.h"
 
 #include "lv_internal.h"
 
@@ -228,10 +229,7 @@ static bool strategy_execute(const ConstraintGraph *graph, const RewriteStrategy
     *out_graph = NULL;
     *out_steps = 0;
 
-    if ((unsigned)strategy->kind < sizeof(kStrategyExecutors)/sizeof(kStrategyExecutors[0]) && kStrategyExecutors[strategy->kind]) {
-        return kStrategyExecutors[strategy->kind](graph, strategy, rules, rule_count, out_graph, out_steps);
-    }
-    return false;
+    return LV_DISPATCH(kStrategyExecutors, strategy->kind, false, graph, strategy, rules, rule_count, out_graph, out_steps);
 }
 
 /* ================================================================

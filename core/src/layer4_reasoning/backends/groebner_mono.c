@@ -10,6 +10,7 @@
 #include "groebner_engine_internal.h"
 
 #include "lv/lv.h"
+#include "lv/lv_xmacro.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -149,12 +150,7 @@ int mono_compare(const lvPolynomialRing *ring, const int *powers_a, const int *p
         return 0;
     }
 
-    if (ring->order >= 0
-        && ring->order < (int)(sizeof(kMonomialCompareHandlers) / sizeof(kMonomialCompareHandlers[0]))
-        && kMonomialCompareHandlers[ring->order]) {
-        return kMonomialCompareHandlers[ring->order](ring, powers_a, powers_b);
-    }
-    return compare_grevlex(ring, powers_a, powers_b);
+    return LV_DISPATCH(kMonomialCompareHandlers, ring->order, compare_grevlex(ring, powers_a, powers_b), ring, powers_a, powers_b);
 }
 
 /**

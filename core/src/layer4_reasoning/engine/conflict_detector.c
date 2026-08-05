@@ -189,20 +189,14 @@ static bool conflict_report_ensure_capacity(ConflictReport *report) {
     if (report->conflict_count < report->capacity)
         return true;
 
-    if (report->capacity > INT_MAX / 2)
-        return false;
-    int new_capacity = report->capacity * 2;
-    ConflictRecord *new_conflicts =
-        (ConflictRecord *) lv_realloc(report->conflicts, sizeof(ConflictRecord) * new_capacity);
-
-    if (!new_conflicts)
+    /* 记录旧容量，扩容后清零新增槽位（倍增策略/溢出检查统一委托 lv_ensure_capacity） */
+    int old_cap = report->capacity;
+    if (!lv_ensure_capacity((void **) &report->conflicts, report->conflict_count,
+                            &report->capacity, sizeof(ConflictRecord), 1))
         return false;
 
     /* 清零新分配的内存 */
-    memset(&new_conflicts[report->capacity], 0, sizeof(ConflictRecord) * (new_capacity - report->capacity));
-
-    report->conflicts = new_conflicts;
-    report->capacity = new_capacity;
+    memset(&report->conflicts[old_cap], 0, sizeof(ConflictRecord) * (report->capacity - old_cap));
     return true;
 }
 

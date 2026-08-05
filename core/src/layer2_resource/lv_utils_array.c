@@ -76,40 +76,51 @@ void lv_array_destroy(lvArray *arr, bool free_elements) {
     lv_free((void **) &arr);
 }
 
-static bool lv_array_ensure_capacity(lvArray *arr, size_t min_capacity) {
-    if (!arr)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "ensure_capacity arr 为 NULL");
+/**
+ * @brief 统一「倍增直到不小于 min_capacity」扩容算法
+ *
+ * lvArray 与 IntArray 共用的扩容核心：按 lv_ARRAY_GROWTH_FACTOR 倍增直到满足
+ * 最小容量，含两步溢出检查（倍增值、分配大小）与统一的失败语义。
+ * zero_new 为 true 时清零新分配区域（lvArray 依赖 NULL 初始化的槽位）。
+ */
+static bool array_grow_to_fit(void **data, size_t *capacity, size_t min_capacity,
+                              size_t elem_size, bool zero_new) {
     /* 输入验证：容量为0时按最小默认容量处理，避免死循环 */
     if (min_capacity == 0)
         min_capacity = 1;
-    if (arr->capacity >= min_capacity)
+    if (*capacity >= min_capacity)
         return true;
 
-    size_t new_capacity = arr->capacity;
+    size_t new_capacity = *capacity;
     while (new_capacity < min_capacity) {
         /* 修复：检查两步溢出
          * 1. new_capacity * lv_ARRAY_GROWTH_FACTOR 不能超过 SIZE_MAX
-         * 2. new_capacity * sizeof(void*) 不能超过 SIZE_MAX（分配时使用） */
+         * 2. new_capacity * elem_size 不能超过 SIZE_MAX（分配时使用） */
         if (new_capacity > SIZE_MAX / lv_ARRAY_GROWTH_FACTOR)
-            lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity 溢出");
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "array_grow_to_fit 溢出");
         new_capacity *= lv_ARRAY_GROWTH_FACTOR;
     }
 
-    /* 修复：检查 new_capacity * sizeof(void*) 是否溢出 */
-    if (new_capacity > SIZE_MAX / sizeof(void *))
-        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity 分配大小溢出");
-    size_t alloc_size = new_capacity * sizeof(void *);
+    if (new_capacity > SIZE_MAX / elem_size)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "array_grow_to_fit 分配大小溢出");
+    size_t alloc_size = new_capacity * elem_size;
 
-    void **new_data = lv_realloc(arr->data, alloc_size);
+    void *new_data = lv_realloc(*data, alloc_size);
     if (!new_data)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity realloc 失败");
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "array_grow_to_fit realloc 失败");
 
-    /* 清零新分配的部分 */
-    memset(new_data + arr->capacity, 0, (new_capacity - arr->capacity) * sizeof(void *));
+    if (zero_new)
+        memset((char *) new_data + *capacity * elem_size, 0, (new_capacity - *capacity) * elem_size);
 
-    arr->data = new_data;
-    arr->capacity = new_capacity;
+    *data = new_data;
+    *capacity = new_capacity;
     return true;
+}
+
+static bool lv_array_ensure_capacity(lvArray *arr, size_t min_capacity) {
+    if (!arr)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "ensure_capacity arr 为 NULL");
+    return array_grow_to_fit((void **) &arr->data, &arr->capacity, min_capacity, sizeof(void *), true);
 }
 
 bool lv_array_push(lvArray *arr, void *elem) {
@@ -269,32 +280,7 @@ void int_array_destroy(IntArray *arr) {
 static bool int_array_ensure_capacity(IntArray *arr, size_t min_capacity) {
     if (!arr)
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "int_array_ensure_capacity arr 为 NULL");
-    /* 输入验证：容量为0时按最小默认容量处理，避免死循环 */
-    if (min_capacity == 0)
-        min_capacity = 1;
-    if (arr->capacity >= min_capacity)
-        return true;
-
-    size_t new_capacity = arr->capacity;
-    while (new_capacity < min_capacity) {
-        /* 修复：检查两步溢出（与 lv_array_ensure_capacity 相同） */
-        if (new_capacity > SIZE_MAX / lv_ARRAY_GROWTH_FACTOR)
-            lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "int_array_ensure_capacity 溢出");
-        new_capacity *= lv_ARRAY_GROWTH_FACTOR;
-    }
-
-    /* 修复：检查 new_capacity * sizeof(int) 是否溢出 */
-    if (new_capacity > SIZE_MAX / sizeof(int))
-        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "int_array_ensure_capacity 分配大小溢出");
-    size_t alloc_size = new_capacity * sizeof(int);
-
-    int *new_data = lv_realloc(arr->data, alloc_size);
-    if (!new_data)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "int_array_ensure_capacity realloc 失败");
-
-    arr->data = new_data;
-    arr->capacity = new_capacity;
-    return true;
+    return array_grow_to_fit((void **) &arr->data, &arr->capacity, min_capacity, sizeof(int), false);
 }
 
 bool int_array_push(IntArray *arr, int value) {

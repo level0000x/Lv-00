@@ -217,18 +217,21 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Collect all coordinate variables (point x,y pairs) */
     /* First, find all points referenced by INCIDENCE/BETWEENNESS constraints */
-    int *point_ids = lv_malloc((size_t) graph->node_count * sizeof(int));
-    if (!point_ids) {
-        lv_free((void **) &redundant);
-        return redundant;
-    }
+    /* Phase 2 资源统一提前声明，所有失败路径 goto cleanup 统一释放 */
+    int *point_ids = NULL;
+    bool *point_seen = NULL;
+    int *node_id_to_var_idx = NULL;
+    int *linear_constraint_indices = NULL;
+    mpq_t *matrix = NULL;
+    int *pivot_row = NULL;
+
+    point_ids = lv_malloc((size_t) graph->node_count * sizeof(int));
+    if (!point_ids)
+        goto cleanup;
     int point_count = 0;
-    bool *point_seen = lv_calloc(graph->node_count, sizeof(bool));
-    if (!point_seen) {
-        lv_free((void **) &point_ids);
-        lv_free((void **) &redundant);
-        return redundant;
-    }
+    point_seen = lv_calloc(graph->node_count, sizeof(bool));
+    if (!point_seen)
+        goto cleanup;
 
     /* Use a mapping from node id to variable index */
     int max_node_id = 0;
@@ -238,13 +241,9 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     }
 
     /* node_id_to_var_idx: maps node_id to variable index (-1 if not a variable) */
-    int *node_id_to_var_idx = lv_malloc((size_t) (max_node_id + 1) * sizeof(int));
-    if (!node_id_to_var_idx) {
-        lv_free((void **) &point_seen);
-        lv_free((void **) &point_ids);
-        lv_free((void **) &redundant);
-        return redundant;
-    }
+    node_id_to_var_idx = lv_malloc((size_t) (max_node_id + 1) * sizeof(int));
+    if (!node_id_to_var_idx)
+        goto cleanup;
     for (int i = 0; i <= max_node_id; i++)
         node_id_to_var_idx[i] = -1;
 
@@ -274,14 +273,9 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Count linear constraints */
     int num_linear = 0;
-    int *linear_constraint_indices = lv_malloc((size_t) graph->constraint_count * sizeof(int));
-    if (!linear_constraint_indices) {
-        lv_free((void **) &node_id_to_var_idx);
-        lv_free((void **) &point_seen);
-        lv_free((void **) &point_ids);
-        lv_free((void **) &redundant);
-        return redundant;
-    }
+    linear_constraint_indices = lv_malloc((size_t) graph->constraint_count * sizeof(int));
+    if (!linear_constraint_indices)
+        goto cleanup;
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (c->type == INCIDENCE || c->type == BETWEENNESS) {
@@ -292,11 +286,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     if (num_linear <= 1 || num_vars <= 0) {
         /* 约束数量不足，无法进行线性相关性检测 */
-        lv_free((void **) &point_ids);
-        lv_free((void **) &point_seen);
-        lv_free((void **) &node_id_to_var_idx);
-        lv_free((void **) &linear_constraint_indices);
-        return redundant;
+        goto cleanup;
     }
 
     /* 使用 GMP mpq_t 构建系数矩阵进行精确算术运算
@@ -305,20 +295,11 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     /* [安全] 防止乘法溢出：size_t 计算 */
     size_t matrix_size = (size_t) num_linear * (size_t) (num_vars + 1);
     if (num_linear > 0 && matrix_size / (size_t) num_linear != (size_t) (num_vars + 1)) {
-        lv_free((void **) &point_ids);
-        lv_free((void **) &point_seen);
-        lv_free((void **) &node_id_to_var_idx);
-        lv_free((void **) &linear_constraint_indices);
-        return redundant;
+        goto cleanup;
     }
-    mpq_t *matrix = lv_calloc(matrix_size, sizeof(mpq_t));
-    if (!matrix) {
-        lv_free((void **) &point_ids);
-        lv_free((void **) &point_seen);
-        lv_free((void **) &node_id_to_var_idx);
-        lv_free((void **) &linear_constraint_indices);
-        return redundant;
-    }
+    matrix = lv_calloc(matrix_size, sizeof(mpq_t));
+    if (!matrix)
+        goto cleanup;
 
     for (int i = 0; i < num_linear * (num_vars + 1); i++) {
         mpq_init(matrix[i]);
@@ -542,18 +523,9 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     }
 
     /* Gaussian elimination with partial pivoting using mpq_t */
-    int *pivot_row = lv_malloc((size_t) num_linear * sizeof(int)); /* maps row i -> original constraint index */
-    if (!pivot_row) {
-        for (int i = 0; i < num_linear * (num_vars + 1); i++)
-            mpq_clear(matrix[i]);
-        lv_free((void **) &matrix);
-        lv_free((void **) &linear_constraint_indices);
-        lv_free((void **) &node_id_to_var_idx);
-        lv_free((void **) &point_seen);
-        lv_free((void **) &point_ids);
-        lv_free((void **) &redundant);
-        return redundant;
-    }
+    pivot_row = lv_malloc((size_t) num_linear * sizeof(int)); /* maps row i -> original constraint index */
+    if (!pivot_row)
+        goto cleanup;
     for (int i = 0; i < num_linear; i++)
         pivot_row[i] = linear_constraint_indices[i];
 
@@ -676,11 +648,13 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
         }
     }
 
-    /* 清理 Phase 2 资源 */
-    for (int i = 0; i < num_linear * (num_vars + 1); i++) {
-        mpq_clear(matrix[i]);
+cleanup:
+    /* 统一清理 Phase 2 资源（matrix 的 GMP 逐个释放；NULL 保护保证任意失败点安全） */
+    if (matrix) {
+        for (int i = 0; i < num_linear * (num_vars + 1); i++)
+            mpq_clear(matrix[i]);
+        lv_free((void **) &matrix);
     }
-    lv_free((void **) &matrix);
     lv_free((void **) &pivot_row);
     lv_free((void **) &linear_constraint_indices);
     lv_free((void **) &node_id_to_var_idx);

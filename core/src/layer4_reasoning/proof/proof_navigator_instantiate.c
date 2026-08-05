@@ -220,9 +220,9 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
     /* 共享 prop_type 指针（类型区域对象本身不可变） */
     inst->prop_type = prop->prop_type;
 
-    /* ---- 2. 深拷贝模式图 ---- */
+    /* ---- 2. 深拷贝模式图（统一走公共入口 graph_copy） ---- */
     if (prop->pattern) {
-        inst->pattern = deep_copy_graph(prop->pattern);
+        inst->pattern = graph_copy(prop->pattern);
         if (!inst->pattern) {
             proposition_destroy(inst);
             return NULL;
@@ -402,7 +402,7 @@ static bool classical_matcher_heptagon(const ConstraintGraph *graph) {
     return graph->node_count >= 7;
 }
 
-static const bool (*kClassicalMatchers[])(const ConstraintGraph *) = {
+static bool (*kClassicalMatchers[])(const ConstraintGraph *) = {
     [CLASSICAL_PROBLEM_TRISECTION] = classical_matcher_trisection,
     [CLASSICAL_PROBLEM_DOUBLING]   = classical_matcher_doubling,
     [CLASSICAL_PROBLEM_SQUARING]   = classical_matcher_squaring,

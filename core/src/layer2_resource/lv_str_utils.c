@@ -285,13 +285,20 @@ bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, con
 
 /* ===== 字符串转义 ===== */
 
-/** @brief JSON 转义字符 → 转义对字符串 查找表（NULL 表示未声明，走 default 控制字符逻辑） */
-static const char *const s_str_escape_json_pairs[256] = {
+/**
+ * @brief JSON 转义字符 → 转义对字符串 查找表（按 ASCII 下标，NULL 表示非简单转义，走控制字符逻辑）
+ *
+ * lv_str_escape_json（strbuf 追加版）与 lv_str_json_escape（裸缓冲版）共用此唯一查找表，
+ * 保证两 API 转义行为完全一致（含 \b/\f，避免控制字符原样输出破坏 JSON）。
+ */
+static const char *const s_json_escape_pairs[256] = {
     ['"']  = "\\\"",
     ['\\'] = "\\\\",
     ['\n'] = "\\n",
     ['\r'] = "\\r",
     ['\t'] = "\\t",
+    ['\b'] = "\\b",
+    ['\f'] = "\\f",
 };
 
 /** @brief XML 转义字符 → 实体字符串 查找表（NULL 表示原样输出） */
@@ -308,7 +315,7 @@ void lv_str_escape_json(lvStrBuf *sb, const char *str, size_t len) {
     for (size_t i = 0; i < len; i++) {
         unsigned char c = (unsigned char) str[i];
         /* 查找表：转义字符 → 转义对字符串；未命中（NULL）走 default */
-        const char *pair = s_str_escape_json_pairs[c];
+        const char *pair = s_json_escape_pairs[c];
         if (pair) {
             lv_strbuf_printf(sb, "%s", pair);
         } else {
@@ -337,17 +344,6 @@ void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len) {
 }
 
 /* ===== JSON/HTML 转义（统一公共 API，snprintf 语义） ===== */
-
-/** @brief JSON 转义字符 → 转义对字符串 查找表（按 ASCII 下标，NULL 表示非简单转义，走控制字符逻辑） */
-static const char *const s_json_escape_pairs[256] = {
-    ['"']  = "\\\"",
-    ['\\'] = "\\\\",
-    ['\n'] = "\\n",
-    ['\r'] = "\\r",
-    ['\t'] = "\\t",
-    ['\b'] = "\\b",
-    ['\f'] = "\\f",
-};
 
 /** @brief HTML 转义字符 → 实体字符串 查找表（按 ASCII 下标，NULL 表示原样输出；' 用 &#39; 而非 XML 的 &apos;） */
 static const char *const s_html_escape_entities[256] = {

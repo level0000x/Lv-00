@@ -38,19 +38,6 @@
 
 /* lv_proof_tree_* 函数实现在 proof_tree.c 中，通过链接解析 */
 
-/** 深拷贝约束图（用于证明句柄内部复制） */
-ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
-    if (!src)
-        return NULL;
-    /* 通过 JSON 序列化/反序列化实现深拷贝 */
-    char *json = graph_serialize_to_json(src);
-    if (!json)
-        return NULL;
-    ConstraintGraph *copy = graph_deserialize_from_json(json);
-    lv_free((void **) &json);
-    return copy;
-}
-
 /**
  * @brief 计算证明导航器的最终颜色
  *

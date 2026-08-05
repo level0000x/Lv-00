@@ -58,28 +58,18 @@ lvHeMeshConfig lv_he_mesh_default_config(void) {
  * @return 成功返回 true，失败返回 false
  */
 static bool ensure_capacity(lvHeMesh *mesh) {
-    /* [安全] 防止整数溢出 */
-    if (mesh->vertex_capacity > INT_MAX / 2)
+    /* 双数组联动扩容：capacity 回退技巧保持两数组容量一致（同 proof_priority 模式）；
+     * 倍增策略/溢出检查/失败语义统一委托 lv_ensure_capacity。
+     * 注：旧实现的 INITIAL_CAPACITY 下限钳制在初始容量=64 后不可达，等价删除。 */
+    int old_cap = mesh->vertex_capacity;
+    if (!lv_ensure_capacity((void **) &mesh->vertex_data, old_cap,
+                            &mesh->vertex_capacity, sizeof(lvVertexData), 1))
         return false;
-    int new_cap = mesh->vertex_capacity * 2;
-    if (new_cap < INITIAL_CAPACITY)
-        new_cap = INITIAL_CAPACITY;
 
-    lvVertexData *new_vdata = (lvVertexData *) lv_realloc(mesh->vertex_data, new_cap * sizeof(lvVertexData));
-    lvHalfedge *new_vhe = (lvHalfedge *) lv_realloc(mesh->vertex_out_he, new_cap * sizeof(lvHalfedge));
-
-    if (!new_vdata || !new_vhe) {
-        /* [安全] 任一 realloc 失败时，原有指针仍有效，需释放已分配的部分 */
-        if (new_vdata)
-            lv_free((void **) &(new_vdata));
-        if (new_vhe)
-            lv_free((void **) &(new_vhe));
+    mesh->vertex_capacity = old_cap;
+    if (!lv_ensure_capacity((void **) &mesh->vertex_out_he, old_cap,
+                            &mesh->vertex_capacity, sizeof(lvHalfedge), 1))
         return false;
-    }
-
-    mesh->vertex_data = new_vdata;
-    mesh->vertex_out_he = new_vhe;
-    mesh->vertex_capacity = new_cap;
 
     return true;
 }

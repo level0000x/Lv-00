@@ -22,6 +22,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 
 /* ========================================================================
  * 内部常量
@@ -819,10 +820,7 @@ static Relation *eval_expr_composite(const RelModel *model, const RelInstance *i
     Relation *left_r = left ? relation_evaluate_expr(model, inst, left) : NULL;
     Relation *right_r = right ? relation_evaluate_expr(model, inst, right) : NULL;
 
-    Relation *result = NULL;
-    if (op >= 0 && (size_t)op < sizeof(rel_op_table) / sizeof(rel_op_table[0])) {
-        result = rel_op_table[op](left_r, right_r, model);
-    }
+    Relation *result = LV_DISPATCH(rel_op_table, op, NULL, left_r, right_r, model);
 
     if (left_r)
         rel_destroy(left_r);
@@ -1131,11 +1129,7 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
     lv_CHECK_NULL(expr, NULL);
 
     /* 使用 VTable 替代 switch (expr->type) */
-    if (expr->type >= 0 && (size_t)expr->type < sizeof(expr_eval_table) / sizeof(expr_eval_table[0])) {
-        return expr_eval_table[expr->type](model, inst, expr);
-    }
-
-    return NULL;
+    return LV_DISPATCH(expr_eval_table, expr->type, NULL, model, inst, expr);
 }
 
 /* ========================================================================
@@ -1199,10 +1193,7 @@ static bool eval_formula_quantifier(const RelModel *model, const RelInstance *in
     Relation *r = relation_evaluate_expr(model, inst, formula->expr);
     int count = r ? r->tuples.count : 0;
     /* 使用量词检查查找表替代内层 switch */
-    bool result = false;
-    if (formula->type >= 0 && (size_t)formula->type < sizeof(quant_check_table) / sizeof(quant_check_table[0])) {
-        result = quant_check_table[formula->type](count, r, formula);
-    }
+    bool result = LV_DISPATCH(quant_check_table, formula->type, false, count, r, formula);
     rel_destroy(r);
     return result;
 }
@@ -1306,11 +1297,7 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst, c
     lv_CHECK_NULL(formula, false);
 
     /* 使用 VTable 替代 switch (formula->type) */
-    if (formula->type >= 0 && (size_t)formula->type < sizeof(formula_eval_table) / sizeof(formula_eval_table[0])) {
-        return formula_eval_table[formula->type](model, inst, formula);
-    }
-
-    return false;
+    return LV_DISPATCH(formula_eval_table, formula->type, false, model, inst, formula);
 }
 
 /* ========================================================================

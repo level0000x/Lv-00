@@ -301,168 +301,6 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child) {
     return true;
 }
 
-
-/* ── 几何节点指针重映射查找表 ── */
-
-/** 节点指针重映射处理函数类型 */
-typedef void (*NodePtrRemapHandler)(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
-
-/* 前向声明 */
-static void remap_region_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
-static void remap_circle_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
-static void remap_func_block_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
-static void remap_port_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy);
-
-/**
- * @brief 按节点类型索引的指针重映射查找表
- *
- * 索引对应 GeomType 枚举值，NULL 条目表示该类型无需指针重映射。
- */
-static const NodePtrRemapHandler kNodePtrRemapHandlers[] = {
-    NULL,                      /* GEOM_POINT */
-    NULL,                      /* GEOM_LINE_SEGMENT */
-    remap_region_ptr,          /* GEOM_REGION */
-    remap_circle_ptr,          /* GEOM_CIRCLE */
-    remap_port_ptr,            /* GEOM_PORT */
-    remap_func_block_ptr       /* GEOM_FUNCTION_BLOCK */
-};
-
-/* ── 处理器函数实现 ── */
-
-static void remap_region_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy) {
-    (void)orig_node;
-    for (int j = 0; j < cn->data.region.segment_count; j++) {
-        if (cn->data.region.boundary_segments[j]) {
-            int old_id = cn->data.region.boundary_segments[j]->id;
-            GeomNode *new_node = graph_get_node(copy, old_id);
-            if (new_node) {
-                cn->data.region.boundary_segments[j] = new_node;
-            }
-        }
-    }
-}
-
-static void remap_circle_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy) {
-    (void)cn;
-    (void)orig_node;
-    (void)copy;
-    /* 圆节点的中心/半径为核心整数ID，无需指针重映射 */
-}
-
-static void remap_func_block_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy) {
-    (void)orig_node;
-    for (int j = 0; j < cn->data.func_block.internal_node_count; j++) {
-        if (cn->data.func_block.internal_nodes[j]) {
-            int old_id = cn->data.func_block.internal_nodes[j]->id;
-            GeomNode *new_node = graph_get_node(copy, old_id);
-            if (new_node) {
-                cn->data.func_block.internal_nodes[j] = new_node;
-            }
-        }
-    }
-}
-
-static void remap_port_ptr(GeomNode *cn, const GeomNode *orig_node, ConstraintGraph *copy) {
-    if (cn->data.port && orig_node->data.port && orig_node->data.port->connected_to) {
-        int old_id = orig_node->data.port->connected_to->id;
-        GeomNode *new_node = graph_get_node(copy, old_id);
-        if (new_node) {
-            cn->data.port->connected_to = new_node;
-        }
-    }
-}
-
-/**
- * 深拷贝整个 ConstraintGraph。
- * 返回一个完全独立的新图，规范化副本不会影响原图。
- *
- * 拷贝策略：
- * - GeomNode: 新结构体，共享 SymbolicCoord 对象（规范化不改坐标值）
- * - Port: 新结构体，connected_to 置 NULL
- * - Constraint: 新结构体，新 participants 数组
- * - 内部指针（boundary_segments, internal_nodes）指向新图中的节点
- */
-static ConstraintGraph *deep_copy_graph(const ConstraintGraph *orig) {
-    if (!orig)
-        return NULL;
-
-    ConstraintGraph *copy = graph_create();
-    if (!copy)
-        return NULL;
-
-    /* 拷贝元数据 */
-    copy->next_node_id = orig->next_node_id;
-    copy->next_constraint_id = orig->next_constraint_id;
-
-    /* ---- 第一遍：深拷贝所有节点 ---- */
-    if (orig->node_count > 0) {
-        copy->nodes = lv_malloc(orig->node_count * sizeof(GeomNode *));
-        if (!copy->nodes) {
-            graph_destroy(copy);
-            return NULL;
-        }
-        for (int i = 0; i < orig->node_count; i++) {
-            copy->nodes[i] = node_deep_copy_geom_node(orig->nodes[i], NULL);
-            if (!copy->nodes[i] && orig->nodes[i]) {
-                graph_destroy(copy);
-                return NULL;
-            }
-        }
-        copy->node_count = orig->node_count;
-    }
-
-    /* ---- 第二遍：更新内部指针到新图中的节点 ---- */
-    for (int i = 0; i < copy->node_count; i++) {
-        GeomNode *cn = copy->nodes[i];
-        /* 使用查找表分发指针重映射 */
-        {
-            size_t table_size = sizeof(kNodePtrRemapHandlers) / sizeof(kNodePtrRemapHandlers[0]);
-            if ((size_t)cn->type < table_size) {
-                NodePtrRemapHandler handler = kNodePtrRemapHandlers[cn->type];
-                if (handler) {
-                    handler(cn, orig->nodes[i], copy);
-                }
-            }
-        }
-    }
-
-    /* ---- 深拷贝所有约束 ---- */
-    if (orig->constraint_count > 0) {
-        copy->constraints = lv_malloc(orig->constraint_count * sizeof(Constraint *));
-        if (!copy->constraints) {
-            graph_destroy(copy);
-            return NULL;
-        }
-        for (int i = 0; i < orig->constraint_count; i++) {
-            Constraint *oc = orig->constraints[i];
-            Constraint *cc = lv_calloc(1, sizeof(Constraint));
-            if (!cc) {
-                graph_destroy(copy);
-                return NULL;
-            }
-            cc->id = oc->id;
-            cc->type = oc->type;
-            cc->template_id = oc->template_id;
-            cc->participant_count = oc->participant_count;
-            if (oc->participants && oc->participant_count > 0) {
-                cc->participants = lv_malloc(oc->participant_count * sizeof(int));
-                if (!cc->participants) {
-                    lv_free((void **) &cc);
-                    graph_destroy(copy);
-                    return NULL;
-                }
-                memcpy(cc->participants, oc->participants, oc->participant_count * sizeof(int));
-            } else {
-                cc->participants = NULL;
-            }
-            copy->constraints[i] = cc;
-        }
-        copy->constraint_count = orig->constraint_count;
-    }
-
-    return copy;
-}
-
 /* ============== 合一检查 ============== */
 
 /**
@@ -482,15 +320,15 @@ UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *propos
     if (!pattern)
         return UNIFY_STATUS_FAILED;
 
-    /* 始终深拷贝构造图，避免 unify 过程修改调用者的原图 */
-    ConstraintGraph *constr_copy = deep_copy_graph(construction);
+    /* 始终深拷贝构造图，避免 unify 过程修改调用者的原图（统一走公共入口 graph_copy） */
+    ConstraintGraph *constr_copy = graph_copy(construction);
     if (!constr_copy)
         return UNIFY_STATUS_FAILED;
 
     /* P-1 修复：深拷贝命题模式图，避免修改调用者的原始 pattern。
      * 之前的实现直接修改 pattern 中约束的 template_id，这是一个副作用。
      * 现在改为在副本上进行模板展开，保护调用者的数据不被修改。 */
-    ConstraintGraph *pattern_copy = deep_copy_graph(pattern);
+    ConstraintGraph *pattern_copy = graph_copy(pattern);
     if (!pattern_copy) {
         graph_destroy(constr_copy);
         return UNIFY_STATUS_FAILED;

@@ -14,6 +14,7 @@
 
 #include "func_block.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_xmacro.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -392,9 +393,5 @@ bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count
     }
 
     /* 按选择器类型分派到对应的选择策略 */
-    if ((unsigned)selector->type < sizeof(kSelectorApplyHandlers)/sizeof(kSelectorApplyHandlers[0]) &&
-        kSelectorApplyHandlers[selector->type]) {
-        return kSelectorApplyHandlers[selector->type](selector, candidates, count, out_selected_index);
-    }
-    return false;
+    return LV_DISPATCH(kSelectorApplyHandlers, selector->type, false, selector, candidates, count, out_selected_index);
 }
