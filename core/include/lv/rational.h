@@ -1,4 +1,4 @@
-﻿#ifndef lv_RATIONAL_H
+#ifndef lv_RATIONAL_H
 #define lv_RATIONAL_H
 
 #ifdef __cplusplus
@@ -17,8 +17,7 @@ extern "C" {
  * ======================================================================== */
 
 typedef struct lvRational {
-    mpz_t num;
-    mpz_t den;
+    mpq_t value; /* GMP 精确有理数（统一原语，与 symbolic_coord.h 的 Rational 同构） */
 } lvRational;
 
 /* ========================================================================

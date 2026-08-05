@@ -1,10 +1,14 @@
 /**
  * @file rational.c
- * @brief 精确有理数运算实现 —— 基于 GMP mpz_t
+ * @brief 精确有理数运算实现 —— 基于 GMP mpq_t（统一原语）
  *
  * @details lvRational 的有理数运算的完整实现。
- *          所有运算保证精确，无浮点舍入。与 symbolic_coord.h 中的
- *          Rational* (mpq_t 型) 可互操作。
+ *          所有运算保证精确，无浮点舍入；底层统一使用 GMP mpq_t，
+ *          与 symbolic_coord.h 中的 Rational* (mpq_t 型) 同构，可直接互操作。
+ *
+ *          位宽防护保留：inplace 运算超过 128 比特时转为 double 近似
+ *          （防止循环中无界增长）；mul_is_safe / den_is_safe / estimate_loss
+ *          提供显式的精度损失检查。
  *
  * @author Lv-00 Project
  * @version v1.0.0
@@ -22,6 +26,9 @@
 
 /* 用于 lv_rational_den_is_safe 的安全比特阈值 */
 #define RATIONAL_SAFE_BITS_DEFAULT 65536 /* 2^16 比特 */
+
+/* inplace 运算的位宽熔断阈值（分子/分母任一超限即转 double 近似） */
+#define RATIONAL_INPLACE_BIT_LIMIT 128
 
 /* 内部辅助: 计算 mpz 的近似比特数 */
 static uint64_t mpz_bit_size(const mpz_t x) {
@@ -42,8 +49,8 @@ lvRational *lv_rational_create(void) {
     lvRational *r = (lvRational *) lv_calloc(1, sizeof(lvRational));
     if (!r)
         return NULL;
-    mpz_init_set_si(r->num, 0);
-    mpz_init_set_si(r->den, 1);
+    mpq_init(r->value);
+    mpq_set_ui(r->value, 0, 1);
     return r;
 }
 
@@ -61,14 +68,12 @@ lvRational *lv_rational_create_from_mpz(const mpz_t num, const mpz_t den) {
     if (!r)
         return NULL;
 
-    mpz_init(r->num);
-    mpz_init(r->den);
-
-    mpz_set(r->num, num);
-    mpz_set(r->den, den);
+    mpq_init(r->value);
+    mpz_set(mpq_numref(r->value), num);
+    mpz_set(mpq_denref(r->value), den);
 
     /* 规范化: 化简 + 确保分母为正 */
-    lv_rational_simplify(r);
+    mpq_canonicalize(r->value);
 
     return r;
 }
@@ -87,12 +92,9 @@ lvRational *lv_rational_create_from_si(long num, unsigned long den) {
     if (!r)
         return NULL;
 
-    mpz_init(r->num);
-    mpz_init(r->den);
-    mpz_set_si(r->num, num);
-    mpz_set_ui(r->den, den);
-
-    lv_rational_simplify(r);
+    mpq_init(r->value);
+    mpq_set_si(r->value, num, (unsigned long) den);
+    mpq_canonicalize(r->value);
     return r;
 }
 
@@ -110,20 +112,19 @@ lvRational *lv_rational_create_from_i64(int64_t num, uint64_t den) {
     if (!r)
         return NULL;
 
-    mpz_init(r->num);
-    mpz_init(r->den);
+    mpq_init(r->value);
 
-    /* 将 int64_t 转为 mpz_t（通过字符串中转避免 Windows LLP64 下 unsigned long 32 位截断） */
+    /* 通过字符串中转，避免 Windows LLP64 下 unsigned long 32 位截断 */
     char num_str[32];
     snprintf(num_str, sizeof(num_str), "%lld", (long long) num);
-    mpz_set_str(r->num, num_str, 10);
+    mpz_set_str(mpq_numref(r->value), num_str, 10);
 
     char den_str[32];
     /* den 为 uint64_t，使用 %llu 避免大值输出为负数的符号错误 */
     snprintf(den_str, sizeof(den_str), "%llu", (unsigned long long) den);
-    mpz_set_str(r->den, den_str, 10);
+    mpz_set_str(mpq_denref(r->value), den_str, 10);
 
-    lv_rational_simplify(r);
+    mpq_canonicalize(r->value);
     return r;
 }
 
@@ -140,8 +141,8 @@ lvRational *lv_rational_clone(const lvRational *src) {
     if (!r)
         return NULL;
 
-    mpz_init_set(r->num, src->num);
-    mpz_init_set(r->den, src->den);
+    mpq_init(r->value);
+    mpq_set(r->value, src->value);
 
     return r;
 }
@@ -152,8 +153,7 @@ lvRational *lv_rational_clone(const lvRational *src) {
  */
 void lv_rational_destroy(lvRational **r) {
     if (r && *r) {
-        mpz_clear((*r)->num);
-        mpz_clear((*r)->den);
+        mpq_clear((*r)->value);
         lv_free((void **) r);
     }
 }
@@ -168,24 +168,21 @@ void lv_rational_destroy(lvRational **r) {
 void lv_rational_set(lvRational *dst, const lvRational *src) {
     if (!dst || !src)
         return;
-    mpz_set(dst->num, src->num);
-    mpz_set(dst->den, src->den);
+    mpq_set(dst->value, src->value);
 }
 
 /** @brief 将有理数置零 */
 void lv_rational_set_zero(lvRational *r) {
     if (!r)
         return;
-    mpz_set_si(r->num, 0);
-    mpz_set_si(r->den, 1);
+    mpq_set_ui(r->value, 0, 1);
 }
 
 /** @brief 将有理数置一 */
 void lv_rational_set_one(lvRational *r) {
     if (!r)
         return;
-    mpz_set_si(r->num, 1);
-    mpz_set_si(r->den, 1);
+    mpq_set_ui(r->value, 1, 1);
 }
 
 /**
@@ -198,9 +195,9 @@ bool lv_rational_set_mpz(lvRational *r, const mpz_t num, const mpz_t den) {
     if (mpz_sgn(den) == 0)
         return false;
 
-    mpz_set(r->num, num);
-    mpz_set(r->den, den);
-    lv_rational_simplify(r);
+    mpz_set(mpq_numref(r->value), num);
+    mpz_set(mpq_denref(r->value), den);
+    mpq_canonicalize(r->value);
     return true;
 }
 
@@ -214,60 +211,11 @@ bool lv_rational_set_mpz(lvRational *r, const mpz_t num, const mpz_t den) {
 void lv_rational_simplify(lvRational *r) {
     if (!r)
         return;
-
-    /* 处理分子为 0 的情况: 立即设为 0/1 */
-    if (mpz_sgn(r->num) == 0) {
-        mpz_set_si(r->den, 1);
-        return;
-    }
-
-    /* 确保分母为正 */
-    if (mpz_sgn(r->den) < 0) {
-        mpz_neg(r->num, r->num);
-        mpz_neg(r->den, r->den);
-    }
-
-    /* 计算 gcd 并化简 */
-    mpz_t g;
-    mpz_init(g);
-    mpz_gcd(g, r->num, r->den);
-
-    /* 仅当 gcd > 1 时才执行化简 */
-    if (mpz_cmp_si(g, 1) > 0) {
-        mpz_divexact(r->num, r->num, g);
-        mpz_divexact(r->den, r->den, g);
-    }
-
-    mpz_clear(g);
-}
-
-/**
- * @brief 位数熔断保护：当分子或分母比特位超出阈值时截断
- *
- * 防止循环中无界增长。默认阈值 1024 比特。
- */
-static void lv_rational_canonicalize(lvRational *r) {
-    if (!r)
-        return;
-
-    size_t num_bits = mpz_sizeinbase(r->num, 2);
-    size_t den_bits = mpz_sizeinbase(r->den, 2);
-    size_t limit = 1024;
-
-    if (num_bits > limit || den_bits > limit) {
-        /* 截断：将分子和分母同时右移，保留有效位数 */
-        int shift = (int) (num_bits > den_bits ? num_bits - limit : den_bits - limit);
-        if (shift > 0) {
-            mpz_tdiv_q_2exp(r->num, r->num, (unsigned int) shift);
-            mpz_tdiv_q_2exp(r->den, r->den, (unsigned int) shift);
-        }
-        /* 再次化简 */
-        lv_rational_simplify(r);
-    }
+    mpq_canonicalize(r->value);
 }
 
 /* ========================================================================
- * 算术运算
+ * 算术运算（返回新分配的有理数；mpq 运算后统一规范化）
  * ======================================================================== */
 
 /**
@@ -281,21 +229,8 @@ lvRational *lv_rational_add(const lvRational *a, const lvRational *b) {
     if (!r)
         return NULL;
 
-    /* result = (a.num*b.den + b.num*a.den) / (a.den * b.den) */
-    mpz_t t1, t2;
-    mpz_init(t1);
-    mpz_init(t2);
-
-    mpz_mul(t1, a->num, b->den); /* a.num * b.den */
-    mpz_mul(t2, b->num, a->den); /* b.num * a.den */
-    mpz_add(r->num, t1, t2);
-
-    mpz_mul(r->den, a->den, b->den);
-
-    mpz_clear(t1);
-    mpz_clear(t2);
-
-    lv_rational_simplify(r);
+    mpq_add(r->value, a->value, b->value);
+    mpq_canonicalize(r->value);
     return r;
 }
 
@@ -310,21 +245,8 @@ lvRational *lv_rational_sub(const lvRational *a, const lvRational *b) {
     if (!r)
         return NULL;
 
-    /* result = (a.num*b.den - b.num*a.den) / (a.den * b.den) */
-    mpz_t t1, t2;
-    mpz_init(t1);
-    mpz_init(t2);
-
-    mpz_mul(t1, a->num, b->den);
-    mpz_mul(t2, b->num, a->den);
-    mpz_sub(r->num, t1, t2);
-
-    mpz_mul(r->den, a->den, b->den);
-
-    mpz_clear(t1);
-    mpz_clear(t2);
-
-    lv_rational_simplify(r);
+    mpq_sub(r->value, a->value, b->value);
+    mpq_canonicalize(r->value);
     return r;
 }
 
@@ -339,10 +261,8 @@ lvRational *lv_rational_mul(const lvRational *a, const lvRational *b) {
     if (!r)
         return NULL;
 
-    mpz_mul(r->num, a->num, b->num);
-    mpz_mul(r->den, a->den, b->den);
-
-    lv_rational_simplify(r);
+    mpq_mul(r->value, a->value, b->value);
+    mpq_canonicalize(r->value);
     return r;
 }
 
@@ -359,10 +279,8 @@ lvRational *lv_rational_div(const lvRational *a, const lvRational *b) {
     if (!r)
         return NULL;
 
-    mpz_mul(r->num, a->num, b->den);
-    mpz_mul(r->den, a->den, b->num);
-
-    lv_rational_simplify(r);
+    mpq_div(r->value, a->value, b->value);
+    mpq_canonicalize(r->value);
     return r;
 }
 
@@ -375,7 +293,7 @@ lvRational *lv_rational_neg(const lvRational *a) {
 
     lvRational *r = lv_rational_clone(a);
     if (r) {
-        mpz_neg(r->num, r->num);
+        mpq_neg(r->value, r->value);
     }
     return r;
 }
@@ -393,15 +311,7 @@ lvRational *lv_rational_inv(const lvRational *a) {
     if (!r)
         return NULL;
 
-    mpz_set(r->num, a->den);
-    mpz_set(r->den, a->num);
-
-    /* 确保分母为正 */
-    if (mpz_sgn(r->den) < 0) {
-        mpz_neg(r->num, r->num);
-        mpz_neg(r->den, r->den);
-    }
-
+    mpq_inv(r->value, a->value);
     return r;
 }
 
@@ -414,8 +324,8 @@ lvRational *lv_rational_abs(const lvRational *a) {
 
     lvRational *r = lv_rational_clone(a);
     if (r) {
-        if (mpz_sgn(r->num) < 0) {
-            mpz_neg(r->num, r->num);
+        if (mpq_sgn(r->value) < 0) {
+            mpq_neg(r->value, r->value);
         }
     }
     return r;
@@ -426,43 +336,31 @@ lvRational *lv_rational_abs(const lvRational *a) {
  * ======================================================================== */
 
 /**
+ * @brief 位宽熔断保护：分子或分母比特位超出阈值时转换为 double 近似
+ *
+ * 防止循环中无界增长。与公共 bit_burning 电路熔断互补。
+ */
+static void lv_rational_bit_burn(lvRational *r) {
+    if (!r)
+        return;
+    if (mpz_sizeinbase(mpq_numref(r->value), 2) > RATIONAL_INPLACE_BIT_LIMIT ||
+        mpz_sizeinbase(mpq_denref(r->value), 2) > RATIONAL_INPLACE_BIT_LIMIT) {
+        double d = mpq_get_d(r->value);
+        mpq_set_d(r->value, d);
+        mpq_canonicalize(r->value);
+    }
+}
+
+/**
  * @brief 有理数原地加法：a += b
  */
 void lv_rational_add_inplace(lvRational *a, const lvRational *b) {
     if (!a || !b)
         return;
 
-    /* a = a + b:
-     * a.num = a.num*b.den + b.num*a.den
-     * a.den = a.den * b.den
-     */
-    mpz_t t1, t2;
-    mpz_init(t1);
-    mpz_init(t2);
-
-    mpz_mul(t1, a->num, b->den);
-    mpz_mul(t2, b->num, a->den);
-    mpz_add(a->num, t1, t2);
-
-    mpz_mul(a->den, a->den, b->den);
-
-    mpz_clear(t1);
-    mpz_clear(t2);
-
-    lv_rational_simplify(a);
-    /* 保护：分子或分母比特位超出阈值时转换为 double 近似（防止循环中无界增长） */
-    if (mpz_sizeinbase(a->num, 2) > 128 || mpz_sizeinbase(a->den, 2) > 128) {
-        mpq_t tmp;
-        mpq_init(tmp);
-        mpz_set(mpq_numref(tmp), a->num);
-        mpz_set(mpq_denref(tmp), a->den);
-        mpq_canonicalize(tmp);
-        double d = mpq_get_d(tmp);
-        mpq_set_d(tmp, d);
-        mpz_set(a->num, mpq_numref(tmp));
-        mpz_set(a->den, mpq_denref(tmp));
-        mpq_clear(tmp);
-    }
+    mpq_add(a->value, a->value, b->value);
+    mpq_canonicalize(a->value);
+    lv_rational_bit_burn(a);
 }
 
 /**
@@ -472,33 +370,9 @@ void lv_rational_sub_inplace(lvRational *a, const lvRational *b) {
     if (!a || !b)
         return;
 
-    mpz_t t1, t2;
-    mpz_init(t1);
-    mpz_init(t2);
-
-    mpz_mul(t1, a->num, b->den);
-    mpz_mul(t2, b->num, a->den);
-    mpz_sub(a->num, t1, t2);
-
-    mpz_mul(a->den, a->den, b->den);
-
-    mpz_clear(t1);
-    mpz_clear(t2);
-
-    lv_rational_simplify(a);
-    /* 保护：分子或分母比特位超出阈值时转换为 double 近似 */
-    if (mpz_sizeinbase(a->num, 2) > 128 || mpz_sizeinbase(a->den, 2) > 128) {
-        mpq_t tmp;
-        mpq_init(tmp);
-        mpz_set(mpq_numref(tmp), a->num);
-        mpz_set(mpq_denref(tmp), a->den);
-        mpq_canonicalize(tmp);
-        double d = mpq_get_d(tmp);
-        mpq_set_d(tmp, d);
-        mpz_set(a->num, mpq_numref(tmp));
-        mpz_set(a->den, mpq_denref(tmp));
-        mpq_clear(tmp);
-    }
+    mpq_sub(a->value, a->value, b->value);
+    mpq_canonicalize(a->value);
+    lv_rational_bit_burn(a);
 }
 
 /**
@@ -508,10 +382,9 @@ void lv_rational_mul_inplace(lvRational *a, const lvRational *b) {
     if (!a || !b)
         return;
 
-    mpz_mul(a->num, a->num, b->num);
-    mpz_mul(a->den, a->den, b->den);
-
-    lv_rational_simplify(a);
+    mpq_mul(a->value, a->value, b->value);
+    mpq_canonicalize(a->value);
+    lv_rational_bit_burn(a);
 }
 
 /**
@@ -524,24 +397,9 @@ bool lv_rational_div_inplace(lvRational *a, const lvRational *b) {
     if (lv_rational_is_zero(b))
         return false;
 
-    mpz_mul(a->num, a->num, b->den);
-    mpz_mul(a->den, a->den, b->num);
-
-    lv_rational_simplify(a);
-
-    /* 保护：分子或分母比特位超出阈值时转换为 double 近似（防止循环中无界增长） */
-    if (mpz_sizeinbase(a->num, 2) > 128 || mpz_sizeinbase(a->den, 2) > 128) {
-        mpq_t tmp;
-        mpq_init(tmp);
-        mpz_set(mpq_numref(tmp), a->num);
-        mpz_set(mpq_denref(tmp), a->den);
-        mpq_canonicalize(tmp);
-        double d = mpq_get_d(tmp);
-        mpq_set_d(tmp, d);
-        mpz_set(a->num, mpq_numref(tmp));
-        mpz_set(a->den, mpq_denref(tmp));
-        mpq_clear(tmp);
-    }
+    mpq_div(a->value, a->value, b->value);
+    mpq_canonicalize(a->value);
+    lv_rational_bit_burn(a);
     return true;
 }
 
@@ -551,7 +409,7 @@ bool lv_rational_div_inplace(lvRational *a, const lvRational *b) {
 void lv_rational_neg_inplace(lvRational *a) {
     if (!a)
         return;
-    mpz_neg(a->num, a->num);
+    mpq_neg(a->value, a->value);
 }
 
 /* ========================================================================
@@ -565,21 +423,7 @@ void lv_rational_neg_inplace(lvRational *a) {
 int lv_rational_cmp(const lvRational *a, const lvRational *b) {
     if (!a || !b)
         return 0;
-
-    /* 交叉乘法比较: a.num/a.den ? b.num/b.den <=> a.num*b.den ? b.num*a.den */
-    mpz_t left, right;
-    mpz_init(left);
-    mpz_init(right);
-
-    mpz_mul(left, a->num, b->den);
-    mpz_mul(right, b->num, a->den);
-
-    int result = mpz_cmp(left, right);
-
-    mpz_clear(left);
-    mpz_clear(right);
-
-    return result;
+    return mpq_cmp(a->value, b->value);
 }
 
 /** @brief 判断两个有理数是否相等 */
@@ -591,28 +435,28 @@ bool lv_rational_equal(const lvRational *a, const lvRational *b) {
 bool lv_rational_is_zero(const lvRational *a) {
     if (!a)
         return true;
-    return mpz_sgn(a->num) == 0;
+    return mpq_sgn(a->value) == 0;
 }
 
 /** @brief 判断有理数是否为一 */
 bool lv_rational_is_one(const lvRational *a) {
     if (!a)
         return false;
-    return mpz_cmp_si(a->num, 1) == 0 && mpz_cmp_si(a->den, 1) == 0;
+    return mpq_cmp_ui(a->value, 1, 1) == 0;
 }
 
 /** @brief 判断有理数是否为整数（分母为 1） */
 bool lv_rational_is_integer(const lvRational *a) {
     if (!a)
         return false;
-    return mpz_cmp_si(a->den, 1) == 0;
+    return mpz_cmp_ui(mpq_denref(a->value), 1) == 0;
 }
 
 /** @brief 获取有理数的符号：-1（负）、0（零）、1（正） */
 int lv_rational_sgn(const lvRational *a) {
     if (!a)
         return 0;
-    return mpz_sgn(a->num);
+    return mpq_sgn(a->value);
 }
 
 /* ========================================================================
@@ -629,21 +473,15 @@ bool lv_rational_to_double(const lvRational *r, double *out_lossy, int *out_loss
     if (!r || !out_lossy)
         return false;
 
-    /* 使用 GMP 的 mpz_get_d 获取最佳近似 */
-    double num_d = mpz_get_d(r->num);
-    double den_d = mpz_get_d(r->den);
-
-    if (den_d == 0.0) {
-        /* 分母为 0（不应发生，但此处防御） */
-        return false;
-    }
+    /* 使用 GMP 的 mpq_get_d 获取最佳近似 */
+    double d = mpq_get_d(r->value);
 
     /* 检查 double 转换是否产生 Inf/NaN */
-    if (!isfinite(num_d) || !isfinite(den_d)) {
+    if (!isfinite(d)) {
         return false;
     }
 
-    *out_lossy = num_d / den_d;
+    *out_lossy = d;
 
     if (out_loss_bits) {
         *out_loss_bits = lv_rational_estimate_loss(r);
@@ -661,8 +499,8 @@ int lv_rational_estimate_loss(const lvRational *r) {
         return 0;
 
     /* 预估精度损失：有效位的比特数是否超出 double 的 53 位尾数 */
-    uint64_t num_bits = mpz_bit_size(r->num);
-    uint64_t den_bits = mpz_bit_size(r->den);
+    uint64_t num_bits = mpz_bit_size(mpq_numref(r->value));
+    uint64_t den_bits = mpz_bit_size(mpq_denref(r->value));
     uint64_t total_bits = (num_bits > den_bits) ? num_bits : den_bits;
 
     /* double 的尾数为 53 位（含隐藏位） */
@@ -693,10 +531,10 @@ bool lv_rational_mul_is_safe(const lvRational *a, const lvRational *b, uint64_t 
     }
 
     /* 乘法后分子/分母的比特数约为各操作数比特数之和 */
-    uint64_t num_bits_a = mpz_bit_size(a->num);
-    uint64_t den_bits_a = mpz_bit_size(a->den);
-    uint64_t num_bits_b = mpz_bit_size(b->num);
-    uint64_t den_bits_b = mpz_bit_size(b->den);
+    uint64_t num_bits_a = mpz_bit_size(mpq_numref(a->value));
+    uint64_t den_bits_a = mpz_bit_size(mpq_denref(a->value));
+    uint64_t num_bits_b = mpz_bit_size(mpq_numref(b->value));
+    uint64_t den_bits_b = mpz_bit_size(mpq_denref(b->value));
 
     /* 检查分子和分母各自是否会溢出阈值 */
     if (num_bits_a + num_bits_b > max_bits)
@@ -723,127 +561,53 @@ bool lv_rational_den_is_safe(const mpz_t den) {
  * ======================================================================== */
 
 /**
- * @brief 将有理数转换为字符串（如 "3/4"、"-5/1"）
+ * @brief 将有理数转换为字符串
+ *
+ * mpq_get_str 在分母为 1 时输出整数形式（如 "3"），否则输出 "num/den"
+ * （如 "-5/4"），与原实现的 "整数无 /1" 行为一致。
+ *
  * @return 新分配的字符串，失败返回 NULL
  */
 char *lv_rational_to_string(const lvRational *r) {
     if (!r)
         return NULL;
 
-    /* 检查分母是否为 1 —— 使用标准 malloc 分配（调用者用 free 释放） */
-    if (mpz_cmp_si(r->den, 1) == 0) {
-        char *gmp_str = mpz_get_str(NULL, 10, r->num);
-        if (!gmp_str)
-            return NULL;
-        size_t slen = strlen(gmp_str);
-        char *result = (char *) lv_malloc(slen + 1);
-        if (!result) {
-            free(gmp_str);
-            return NULL;
-        }
-        memcpy(result, gmp_str, slen + 1);
-        free(gmp_str); /* GMP分配，用标准 free 释放 */
-        return result;
-    }
-
-    /* 输出 "num/den" 格式 */
-    char *num_str = mpz_get_str(NULL, 10, r->num);
-    char *den_str = mpz_get_str(NULL, 10, r->den);
-
-    if (!num_str || !den_str) {
-        free(num_str); /* GMP分配，用标准 free 释放 */
-        free(den_str); /* GMP分配，用标准 free 释放 */
+    char *gmp_str = mpq_get_str(NULL, 10, r->value);
+    if (!gmp_str)
         return NULL;
-    }
-
-    size_t len = strlen(num_str) + strlen(den_str) + 2; /* num + '/' + den + '\0' */
-    char *result = (char *) lv_malloc(len);
+    size_t slen = strlen(gmp_str);
+    char *result = (char *) lv_malloc(slen + 1);
     if (!result) {
-        free(num_str); /* GMP分配，用标准 free 释放 */
-        free(den_str); /* GMP分配，用标准 free 释放 */
+        free(gmp_str); /* GMP 分配，用标准 free 释放 */
         return NULL;
     }
-
-    snprintf(result, len, "%s/%s", num_str, den_str);
-
-    free(num_str); /* GMP分配，用标准 free 释放 */
-    free(den_str); /* GMP分配，用标准 free 释放 */
-
+    memcpy(result, gmp_str, slen + 1);
+    free(gmp_str); /* GMP 分配，用标准 free 释放 */
     return result;
 }
 
 /**
- * @brief 从字符串解析有理数（支持 "a/b"、"整数"、"小数" 格式）
+ * @brief 从字符串解析有理数（支持 "a/b"、"整数" 格式；mpq_set_str 统一处理）
  * @return 新分配的有理数，失败返回 NULL
  */
 lvRational *lv_rational_from_string(const char *s) {
     if (!s || !*s)
         return NULL;
 
-    const char *slash = strchr(s, '/');
+    lvRational *r = lv_rational_create();
+    if (!r)
+        return NULL;
 
-    if (slash) {
-        /* 格式: "num/den" */
-        size_t num_len = (size_t) (slash - s);
-        char *num_str = (char *) lv_malloc(num_len + 1);
-        if (!num_str)
-            return NULL;
-        memcpy(num_str, s, num_len);
-        num_str[num_len] = '\0';
-
-        mpz_t num, den;
-        mpz_init(num);
-        mpz_init(den);
-
-        if (mpz_set_str(num, num_str, 10) != 0) {
-            lv_free((void **) &num_str);
-            mpz_clear(num);
-            mpz_clear(den);
-            return NULL;
-        }
-
-        if (mpz_set_str(den, slash + 1, 10) != 0) {
-            lv_free((void **) &num_str);
-            mpz_clear(num);
-            mpz_clear(den);
-            return NULL;
-        }
-
-        lv_free((void **) &num_str);
-
-        if (mpz_sgn(den) == 0) {
-            mpz_clear(num);
-            mpz_clear(den);
-            return NULL;
-        }
-
-        lvRational *r = lv_rational_create_from_mpz(num, den);
-        mpz_clear(num);
-        mpz_clear(den);
-        return r;
-    } else {
-        /* 格式: "integer" */
-        mpz_t num, den;
-        mpz_init(num);
-        mpz_init(den);
-
-        if (mpz_set_str(num, s, 10) != 0) {
-            mpz_clear(num);
-            mpz_clear(den);
-            return NULL;
-        }
-
-        mpz_set_si(den, 1);
-
-        lvRational *r = lv_rational_create_from_mpz(num, den);
-        mpz_clear(num);
-        mpz_clear(den);
-        return r;
+    if (mpq_set_str(r->value, s, 10) != 0) {
+        lv_rational_destroy(&r);
+        return NULL;
     }
+    mpq_canonicalize(r->value);
+    return r;
 }
 
 /* ========================================================================
- * 与现有 Rational* (mpq_t) 类型的互操作
+ * 与 GMP mpq_t 的互操作（统一 mpq_t 原语后即为直接复制）
  * ======================================================================== */
 
 /**
@@ -854,31 +618,23 @@ lvRational *lv_rational_from_mpq(mpq_srcptr val) {
     if (!val)
         return NULL;
 
-    mpz_t num, den;
-    mpz_init(num);
-    mpz_init(den);
+    lvRational *r = lv_rational_create();
+    if (!r)
+        return NULL;
 
-    mpz_set(num, mpq_numref(val));
-    mpz_set(den, mpq_denref(val));
-
-    lvRational *r = lv_rational_create_from_mpz(num, den);
-
-    mpz_clear(num);
-    mpz_clear(den);
-
+    mpq_set(r->value, val);
     return r;
 }
 
 /**
  * @brief 将有理数导出到 GMP mpq_t
  * @param r 源有理数
- * @param out [输出] GMP 有理数
+ * @param out [输出] GMP 有理数（调用方需已初始化）
  */
 void lv_rational_to_mpq(const lvRational *r, mpq_t out) {
     if (!r || !out)
         return;
 
-    mpq_set_num(out, r->num);
-    mpq_set_den(out, r->den);
+    mpq_set(out, r->value);
     mpq_canonicalize(out);
 }

@@ -361,8 +361,7 @@ static void test_rational_simplify(void) {
     TEST_ASSERT_NOT_NULL(r);
 
     /* 直接设置分子为 2，分母为 4（未经化简） */
-    mpz_set_si(r->num, 2);
-    mpz_set_si(r->den, 4);
+    mpq_set_si(r->value, 2, 4);
 
     lv_rational_simplify(r);
 

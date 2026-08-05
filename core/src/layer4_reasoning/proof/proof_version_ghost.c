@@ -17,9 +17,9 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv.h"
+#include "lv/lv_thread.h"
 #include "lv/proof.h"
 #include "lv/smt_backend.h"
-#include "lv/lv_thread.h"
 #include "lv/thread_pool.h"
 
 #include "debug.h"
@@ -259,4 +259,3 @@ int proof_check_ghost_conflicts(void) {
 
     return conflicts;
 }
-
