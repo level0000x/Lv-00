@@ -156,10 +156,9 @@ int axiom_package_auto_degrade_invalidated(AxiomPackage *pkg, ConstraintGraph *g
         /* 在约束图中查找依赖节点 */
         GeomNode *node = graph_get_node(graph, ref->dependent_node_id);
         if (!node) {
-            fprintf(stderr,
-                    "[WARNING] axiom_package_auto_degrade_invalidated: "
-                    "依赖节点 %d 未在约束图中找到 (ref_id='%s')\n",
-                    ref->dependent_node_id, ref->ref_id);
+            lv_LOG_WARNING("[WARNING] axiom_package_auto_degrade_invalidated: "
+                           "依赖节点 %d 未在约束图中找到 (ref_id='%s')\n",
+                           ref->dependent_node_id, ref->ref_id);
             continue;
         }
 
@@ -168,12 +167,11 @@ int axiom_package_auto_degrade_invalidated(AxiomPackage *pkg, ConstraintGraph *g
             node->trust = TRUST_YELLOW;
             degraded_count++;
 
-            fprintf(stderr,
-                    "[WARNING] axiom_package_auto_degrade_invalidated: "
-                    "节点 %d 已从 GREEN 降级为 YELLOW "
-                    "(conditional unconstructible -- dependency invalidated, "
-                    "ref_id='%s')\n",
-                    ref->dependent_node_id, ref->ref_id);
+            lv_LOG_WARNING("[WARNING] axiom_package_auto_degrade_invalidated: "
+                           "节点 %d 已从 GREEN 降级为 YELLOW "
+                           "(conditional unconstructible -- dependency invalidated, "
+                           "ref_id='%s')\n",
+                           ref->dependent_node_id, ref->ref_id);
         }
     }
 
@@ -188,10 +186,9 @@ int axiom_package_auto_degrade_invalidated(AxiomPackage *pkg, ConstraintGraph *g
 
         GeomNode *node = graph_get_node(graph, ref->dependent_node_id);
         if (!node) {
-            fprintf(stderr,
-                    "[WARNING] axiom_package_auto_degrade_invalidated: "
-                    "作者断言依赖节点 %d 未在约束图中找到 (ref_id='%s')\n",
-                    ref->dependent_node_id, ref->ref_id);
+            lv_LOG_WARNING("[WARNING] axiom_package_auto_degrade_invalidated: "
+                           "作者断言依赖节点 %d 未在约束图中找到 (ref_id='%s')\n",
+                           ref->dependent_node_id, ref->ref_id);
             continue;
         }
 
@@ -199,11 +196,10 @@ int axiom_package_auto_degrade_invalidated(AxiomPackage *pkg, ConstraintGraph *g
         if (node->trust == TRUST_GREEN) {
             node->trust = TRUST_YELLOW;
             degraded_count++;
-            fprintf(stderr,
-                    "[WARNING] axiom_package_auto_degrade_invalidated: "
-                    "节点 %d 从 GREEN 降级为 YELLOW "
-                    "(author assertion -- no formal proof, ref_id='%s')\n",
-                    ref->dependent_node_id, ref->ref_id);
+            lv_LOG_WARNING("[WARNING] axiom_package_auto_degrade_invalidated: "
+                           "节点 %d 从 GREEN 降级为 YELLOW "
+                           "(author assertion -- no formal proof, ref_id='%s')\n",
+                           ref->dependent_node_id, ref->ref_id);
         }
     }
 

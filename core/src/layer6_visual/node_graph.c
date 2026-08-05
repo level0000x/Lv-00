@@ -358,7 +358,7 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
 
         /* 应用位移，受温度限制 */
         for (int i = 0; i < n; i++) {
-            double disp = geo_distance_2d(0.0, 0.0, dx[i], dy[i]);
+            double disp = geo_norm_2d(dx[i], dy[i]);
             if (disp < 0.01)
                 continue;
 

@@ -36,6 +36,10 @@
 
 /* ============================================================
  * 第11部分:L9 应用层(application: run/quick_verify/batch/get_version/destroy)
+ *
+ * 说明:lv_application_quick_verify/batch/destroy 经审计确认零外部
+ * 调用，已按死代码删除。lv_application_run / lv_application_get_version
+ * 不在删除清单，保留。
  * ============================================================ */
 
 /** 应用层结构(前向声明 + 定义) */
@@ -71,50 +75,8 @@ lvApplication *lv_application_run(lvEngine *ctx, const char *app_name) {
     return app;
 }
 
-/** 快速验证:检查输入是否合法(无内存分配) */
-int64_t lv_application_quick_verify(lvEngine *ctx, const char *input) {
-    (void) ctx;
-    if (!input || input[0] == '\0')
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_application_quick_verify: empty input");
-    return 0;      /* 0=合法 */
-}
-
-/** 批量运行多个会话 */
-int64_t lv_application_batch(lvEngine *ctx, const char **inputs, int64_t count) {
-    if (!ctx || !inputs || count <= 0)
-        return 0;
-
-    int64_t success_count = 0;
-    /* 为每个输入创建独立会话并运行 */
-    for (int64_t i = 0; i < count; i++) {
-        if (!inputs[i] || inputs[i][0] == '\0')
-            continue;
-
-        /* 创建独立的编排器实例来运行当前输入 */
-        lvOrchestrator *orch = lv_orchestrator_create(ctx);
-        if (!orch)
-            continue;
-
-        int64_t run_result = lv_orchestrator_run(orch, ctx, inputs[i]);
-        if (run_result >= 0)
-            success_count++;
-
-        lv_orchestrator_destroy(orch);
-    }
-    return success_count;
-}
-
 /** 获取版本号字符串 */
 const char *lv_application_get_version(lvEngine *ctx) {
     (void) ctx;
     return "Lv-00 v1.1.0 (GMP exact arithmetic)";
-}
-
-/** 销毁应用实例 */
-void lv_application_destroy(lvApplication *app) {
-    if (!app)
-        return;
-    lv_orchestrator_destroy(app->orch);
-    lv_free((void **) &app->app_name);
-    lv_free((void **) &app);
 }

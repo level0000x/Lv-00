@@ -333,83 +333,6 @@ static int select_by_degree(PropagationContext *ctx) {
     return best_node;
 }
 
-static int select_by_bfs(PropagationContext *ctx) {
-    double min_entropy = 1e30;
-    int best_node = -1;
-    int best_degree = -1;
-    bool found_bfs = false;
-
-    for (int i = 0; i < ctx->state_count; i++) {
-        NodeStateSpace *ss = &ctx->state_spaces[i];
-        if (ss->is_collapsed || ss->is_unbounded)
-            continue;
-        if (ss->candidates_da.count <= 0)
-            continue;
-
-        double entropy = propagation_compute_entropy(ss);
-        if (entropy < 0)
-            continue;
-
-        int constraints[MAX_NEIGHBOR_CONSTRAINTS];
-        int degree = graph_find_constraints_involving(ctx->graph, i, constraints, MAX_NEIGHBOR_CONSTRAINTS);
-
-        if (!found_bfs) {
-            /* 检查当前节点是否已坍缩，若是则从其开始 BFS */
-            const NodeStateSpace *ss_i = &ctx->state_spaces[i];
-            if (ss_i->is_collapsed) {
-                int bfs_cap = ctx->state_count > 256 ? ctx->state_count : 256;
-                int *bfs_queue = (int *) lv_malloc((size_t) bfs_cap * sizeof(int));
-                bool *visited = bfs_queue ? (bool *) lv_calloc((size_t) ctx->state_count, sizeof(bool)) : NULL;
-                if (bfs_queue && visited) {
-                    int bfs_head = 0, bfs_tail = 0;
-                    bfs_queue[bfs_tail++] = i;
-                    visited[i] = true;
-
-                    while (bfs_head < bfs_tail && !found_bfs) {
-                        int cur = bfs_queue[bfs_head++];
-                        int cids[128];
-                        int nc = graph_find_constraints_involving(ctx->graph, cur, cids, 128);
-                        for (int ci = 0; ci < nc && !found_bfs; ci++) {
-                            Constraint *cc = graph_get_constraint(ctx->graph, cids[ci]);
-                            if (!cc || !cc->is_active)
-                                continue;
-                            for (int p = 0; p < cc->participant_count; p++) {
-                                int nb = cc->participants[p];
-                                if (nb < 0 || nb >= ctx->state_count)
-                                    continue;
-                                if (visited[nb])
-                                    continue;
-                                visited[nb] = true;
-                                const NodeStateSpace *ss_nb = &ctx->state_spaces[nb];
-                                if (!ss_nb->is_collapsed && !ss_nb->is_unbounded && ss_nb->candidates_da.count > 0) {
-                                    best_node = nb;
-                                    found_bfs = true;
-                                    break;
-                                }
-                                if (bfs_tail >= bfs_cap)
-                                    continue;
-                                bfs_queue[bfs_tail++] = nb;
-                            }
-                        }
-                    }
-                }
-                lv_free((void **) &bfs_queue);
-                lv_free((void **) &visited);
-            }
-        }
-
-        /* 若 BFS 未找到，回退到最小熵 */
-        if (!found_bfs) {
-            if (entropy < min_entropy || (entropy == min_entropy && degree > best_degree)) {
-                min_entropy = entropy;
-                best_node = i;
-                best_degree = degree;
-            }
-        }
-    }
-    return best_node;
-}
-
 static int select_by_topological(PropagationContext *ctx) {
     double min_entropy = 1e30;
     int best_node = -1;
@@ -458,7 +381,6 @@ static const SelectNodeStrategyFn select_node_strategies[] = {
     [PROP_STRATEGY_MIN_ENTROPY]  = select_by_min_entropy,
     [PROP_STRATEGY_MRVS]         = select_by_min_entropy,  /* MRVS 与最小熵逻辑相同 */
     [PROP_STRATEGY_DEGREE]       = select_by_degree,
-    [PROP_STRATEGY_BFS]          = select_by_bfs,
     [PROP_STRATEGY_TOPOLOGICAL]  = select_by_topological,
 };
 

@@ -155,22 +155,16 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
             if (opposite_id >= 0 && !visited[opposite_id]) {
                 /* Opposite vertex unvisited -> C mode */
                 if (len >= capacity) {
-                    capacity *= 2;
-                    EdgebreakerMode *new_seq = (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                    if (!new_seq)
+                    if (!lv_ensure_capacity((void **) &seq, len + 1, &capacity, sizeof(EdgebreakerMode), 0))
                         break;
-                    seq = new_seq;
                 }
                 seq[len++] = EDGEBREAKER_C;
                 visited[opposite_id] = true;
 
                 /* Push new edges onto boundary stack */
                 if (boundary_top >= boundary_capacity) {
-                    boundary_capacity *= 2;
-                    Edge *new_b = (Edge *) lv_realloc(boundary, boundary_capacity * sizeof(Edge));
-                    if (!new_b)
+                    if (!lv_ensure_capacity((void **) &boundary, boundary_top + 1, &boundary_capacity, sizeof(Edge), 0))
                         break;
-                    boundary = new_b;
                 }
                 boundary[boundary_top].v0 = cur.v1;
                 boundary[boundary_top].v1 = opposite_id;
@@ -189,12 +183,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 if (!opp_in_boundary) {
                     /* Opposite vertex not in boundary -> S mode (split) */
                     if (len >= capacity) {
-                        capacity *= 2;
-                        EdgebreakerMode *new_seq =
-                            (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                        if (!new_seq)
+                        if (!lv_ensure_capacity((void **) &seq, len + 1, &capacity, sizeof(EdgebreakerMode), 0))
                             break;
-                        seq = new_seq;
                     }
                     seq[len++] = EDGEBREAKER_S;
                 } else {
@@ -204,12 +194,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                         if (next_edge.v0 == opposite_id) {
                             /* Opposite vertex IS the next boundary vertex -> S mode */
                             if (len >= capacity) {
-                                capacity *= 2;
-                                EdgebreakerMode *new_seq =
-                                    (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                                if (!new_seq)
+                                if (!lv_ensure_capacity((void **) &seq, len + 1, &capacity, sizeof(EdgebreakerMode), 0))
                                     break;
-                                seq = new_seq;
                             }
                             seq[len++] = EDGEBREAKER_S;
                         } else {
@@ -226,23 +212,15 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                             if (opp_is_v0) {
                                 /* Opposite is v0 of its boundary edge -> RIGHT side */
                                 if (len >= capacity) {
-                                    capacity *= 2;
-                                    EdgebreakerMode *new_seq =
-                                        (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                                    if (!new_seq)
+                                    if (!lv_ensure_capacity((void **) &seq, len + 1, &capacity, sizeof(EdgebreakerMode), 0))
                                         break;
-                                    seq = new_seq;
                                 }
                                 seq[len++] = EDGEBREAKER_R;
                             } else {
                                 /* Opposite is v1 of its boundary edge -> LEFT side */
                                 if (len >= capacity) {
-                                    capacity *= 2;
-                                    EdgebreakerMode *new_seq =
-                                        (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                                    if (!new_seq)
+                                    if (!lv_ensure_capacity((void **) &seq, len + 1, &capacity, sizeof(EdgebreakerMode), 0))
                                         break;
-                                    seq = new_seq;
                                 }
                                 seq[len++] = EDGEBREAKER_L;
                             }
@@ -250,12 +228,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                     } else {
                         /* No more boundary edges -> default to L */
                         if (len >= capacity) {
-                            capacity *= 2;
-                            EdgebreakerMode *new_seq =
-                                (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                            if (!new_seq)
+                            if (!lv_ensure_capacity((void **) &seq, len + 1, &capacity, sizeof(EdgebreakerMode), 0))
                                 break;
-                            seq = new_seq;
                         }
                         seq[len++] = EDGEBREAKER_L;
                     }
@@ -263,11 +237,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
             } else {
                 /* No opposite vertex -> E mode */
                 if (len >= capacity) {
-                    capacity *= 2;
-                    EdgebreakerMode *new_seq = (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                    if (!new_seq)
+                    if (!lv_ensure_capacity((void **) &seq, len + 1, &capacity, sizeof(EdgebreakerMode), 0))
                         break;
-                    seq = new_seq;
                 }
                 seq[len++] = EDGEBREAKER_E;
             }
@@ -276,11 +247,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
         if (!found_opposite) {
             /* No related constraint -> mark as E */
             if (len >= capacity) {
-                capacity *= 2;
-                EdgebreakerMode *new_seq = (EdgebreakerMode *) lv_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                if (!new_seq)
+                if (!lv_ensure_capacity((void **) &seq, len + 1, &capacity, sizeof(EdgebreakerMode), 0))
                     break;
-                seq = new_seq;
             }
             seq[len++] = EDGEBREAKER_E;
         }

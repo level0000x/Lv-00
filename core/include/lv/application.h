@@ -79,27 +79,10 @@ lvVerifyReport lv_meta_verify_session(void *verifier, lvSession *session);
 bool lv_verify_report_passed(const lvVerifyReport *report);
 
 /* ========================================================================
- * 日志宏（向后兼容）
- * ======================================================================== */
-
-#ifndef lv_LOG_ERROR
-#define lv_LOG_ERROR(...) fprintf(stderr, __VA_ARGS__)
-#endif
-
-#ifndef lv_LOG_WARN
-#define lv_LOG_WARN(...) fprintf(stderr, __VA_ARGS__)
-#endif
-
-#ifndef lv_LOG_INFO
-#define lv_LOG_INFO(...) fprintf(stdout, __VA_ARGS__)
-#endif
-
-#ifndef lv_LOG_DEBUG
-#define lv_LOG_DEBUG(...) ((void) 0)
-#endif
-
-/* ========================================================================
  * 应用 API 函数声明
+ *
+ * @note 日志宏统一使用 lv_internal.h 定义的 lv_LOG_*(fmt, ...) 版本
+ *       （经 lv_log_message() 分发），本头文件不再定义 lv_LOG_* 宏。
  * ======================================================================== */
 
 lvAppConfig lv_default_app_config(void);

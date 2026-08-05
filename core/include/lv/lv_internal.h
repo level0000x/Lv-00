@@ -212,46 +212,11 @@ extern void lv_log_message(int level, const char *file, int line, const char *fm
 
 /* ================================================================
  * 错误返回宏
+ *
+ * lv_ERROR_RETURN / lv_RETURN_ERROR / lv_RETURN_ERROR_NULL /
+ * lv_RETURN_ERROR_BOOL / lv_RETURN_ERROR_VAL 唯一定义于 error_codes.h
+ * （本头文件顶部已 #include "error_codes.h"），此处不再重复定义。
  * ================================================================ */
-
-/**
- * @brief 设置错误上下文并返回的复合宏
- *
- * 将 lv_set_error_ctx 和 return 合并为一步，减少遗漏 return 的风险。
- * 适用于函数错误路径中的快速退出。
- *
- * @param err_code  错误码（lv_ERROR_*）
- * @param ret_val   返回值
- * @param fmt       格式化错误消息
- * @param ...       可变参数
- */
-#define lv_ERROR_RETURN(err_code, ret_val, fmt, ...)                                      \
-    do {                                                                                  \
-        lv_set_error_ctx((err_code), __FILE__, __LINE__, __func__, (fmt), ##__VA_ARGS__); \
-        return (ret_val);                                                                 \
-    } while (0)
-
-/* ================================================================
- * 便捷错误返回宏（lv_ERROR_RETURN 的便捷别名）
- *
- * 常用返回类型的快捷写法，避免每次指定 ret_val。
- * - lv_RETURN_ERROR:    返回 -1（int 函数常用）
- * - lv_RETURN_ERROR_NULL: 返回 NULL（指针函数常用）
- * - lv_RETURN_ERROR_BOOL: 返回 false（bool 函数常用）
- * - lv_RETURN_ERROR_VAL:  返回任意值
- * ================================================================ */
-
-#define lv_RETURN_ERROR(code, fmt, ...) \
-    lv_ERROR_RETURN((code), -1, (fmt), ##__VA_ARGS__)
-
-#define lv_RETURN_ERROR_NULL(code, fmt, ...) \
-    lv_ERROR_RETURN((code), NULL, (fmt), ##__VA_ARGS__)
-
-#define lv_RETURN_ERROR_BOOL(code, fmt, ...) \
-    lv_ERROR_RETURN((code), false, (fmt), ##__VA_ARGS__)
-
-#define lv_RETURN_ERROR_VAL(code, val, fmt, ...) \
-    lv_ERROR_RETURN((code), (val), (fmt), ##__VA_ARGS__)
 
 /* ================================================================
  * 安全整数加法宏

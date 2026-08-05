@@ -104,20 +104,10 @@ extern UpperState s_upper_state;
 /* ---- cross-section internal APIs ---- */
 typedef struct lvOrchestrator lvOrchestrator;
 lvOrchestrator *lv_orchestrator_create(lvEngine *ctx);
-int64_t lv_orchestrator_run(lvOrchestrator *orch, lvEngine *ctx, const char *input);
-int64_t lv_orchestrator_get_stage(const lvOrchestrator *orch);
-int64_t lv_orchestrator_get_status(const lvOrchestrator *orch);
-int64_t lv_orchestrator_get_report(const lvOrchestrator *orch, char *buf, int64_t buf_size);
-void lv_orchestrator_destroy(lvOrchestrator *orch);
 
-int64_t meta_verify_consistency(lvEngine *ctx);
 int meta_verify_completeness(const ConstraintGraph *graph);
 int meta_verify_soundness(const ConstraintGraph *graph);
 int meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
-
-int64_t upper_interop_export_coq(lvEngine *ctx, int64_t proof_id, char *buf, int64_t buf_size);
-int64_t interop_export_lean4(lvEngine *ctx, int64_t proof_id, char *buf, int64_t buf_size);
-int64_t upper_interop_export_svg(lvEngine *ctx, int64_t graph_id, char *buf, int64_t buf_size);
 
 #ifdef __cplusplus
 }

@@ -70,8 +70,6 @@ typedef struct {
     int depth;
 } ProofStep;
 
-#define MAX_PROOF_STEPS 64
-
 static ExprNode *expr_const_node(double val) {
     ExprNode *n = (ExprNode *) lv_calloc(1, sizeof(ExprNode));
     if (n) {

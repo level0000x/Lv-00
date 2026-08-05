@@ -168,8 +168,8 @@ static bool graph_node_coords(const ConstraintGraph *graph, int node_id, double 
 static double compute_angle_degrees(double vx, double vy, double p1x, double p1y, double p2x, double p2y) {
     double ax = p1x - vx, ay = p1y - vy;
     double bx = p2x - vx, by = p2y - vy;
-    double la = geo_distance_2d(0.0, 0.0, ax, ay);
-    double lb = geo_distance_2d(0.0, 0.0, bx, by);
+    double la = geo_norm_2d(ax, ay);
+    double lb = geo_norm_2d(bx, by);
     if (la < META_PROOF_GEOM_EPS || lb < META_PROOF_GEOM_EPS)
         return -1.0; /* 向量退化 */
     double dot = (ax * bx + ay * by) / (la * lb);

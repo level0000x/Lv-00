@@ -76,6 +76,38 @@ AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segme
 }
 
 /**
+ * @brief 向约束图添加圆节点
+ *
+ * 创建 GEOM_CIRCLE 节点并设置 data.circle 的圆心/半径端点节点 ID，
+ * 与反序列化路径（graph_serialize.c 的 GEOM_CIRCLE 分支）创建的
+ * circle 语义保持一致。
+ *
+ * @param graph          约束图
+ * @param center_node_id 圆心节点 ID
+ * @param radius_node_id 半径端点节点 ID（圆心到此点的距离为半径）
+ * @return 添加结果状态
+ */
+AddNodeResult graph_add_circle(ConstraintGraph *graph, int center_node_id, int radius_node_id) {
+    if (!graph || center_node_id < 0 || radius_node_id < 0)
+        return ADD_NODE_CONFLICT;
+    GeomNode *node = graph_alloc_node(graph, GEOM_CIRCLE);
+    if (!node)
+        return ADD_NODE_CONFLICT;
+    node->coord_count = 0;
+    node->symbolic_coords = NULL;
+    /* 与反序列化创建的 circle 语义一致：设置圆心与半径端点节点 ID */
+    node->data.circle.center_node_id = center_node_id;
+    node->data.circle.radius_node_id = radius_node_id;
+    if (graph_stream_ctx) {
+        lvStrBuf sb_7 = {0};
+        lv_strbuf_printf(&sb_7, "添加圆节点: id=%d, center=%d, radius=%d", node->id, center_node_id, radius_node_id);
+        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_7.data, 0);
+        lv_strbuf_destroy(&sb_7);
+    }
+    return ADD_NODE_OK;
+}
+
+/**
  * @brief 向约束图添加端口节点（存根实现）
  *
  * @param graph            约束图

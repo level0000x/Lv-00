@@ -38,6 +38,8 @@ extern "C" {
  * ======================================================================== */
 
 lv_PUBLIC_API double geo_distance_2d(double x1, double y1, double x2, double y2);
+lv_PUBLIC_API double geo_distance_3d(double x1, double y1, double z1, double x2, double y2, double z2);
+lv_PUBLIC_API double geo_norm_2d(double dx, double dy);
 lv_PUBLIC_API int geo_approx_equal(double a, double b, double eps);
 lv_PUBLIC_API int geo_point_on_segment(double px, double py, double x1, double y1, double x2, double y2);
 lv_PUBLIC_API double geo_signed_area_2x(double x1, double y1, double x2, double y2, double x3, double y3);

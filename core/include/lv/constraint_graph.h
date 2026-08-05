@@ -424,6 +424,16 @@ lv_PUBLIC_API AddNodeResult graph_add_region(ConstraintGraph *graph, const int *
                                              int segment_count);
 
 /**
+ * @brief 向约束图添加圆节点
+ *
+ * @param[in] graph          约束图
+ * @param[in] center_node_id 圆心节点 ID
+ * @param[in] radius_node_id 半径端点节点 ID（圆心到此点的距离为半径）
+ * @return 操作结果状态码
+ */
+lv_PUBLIC_API AddNodeResult graph_add_circle(ConstraintGraph *graph, int center_node_id, int radius_node_id);
+
+/**
  * @brief 向约束图添加端口节点
  *
  * @param[in] graph            约束图
@@ -679,6 +689,10 @@ lv_PUBLIC_API ConstraintGraph *graph_create(void);
  * @brief 深拷贝约束图
  *
  * 遍历源图中的所有节点和约束，在新图中创建完全独立的副本。
+ * 高级类型（Region/Circle/Port/FunctionBlock）的类型特定数据
+ * （boundary_segments、center/radius_node_id、data.port、
+ * internal_nodes/input/output_port_ids）通过 vtable->clone 深拷贝，
+ * 内部指针引用通过 vtable->fixup_refs 重映射到新图。
  * 调用者负责对返回的图调用 graph_destroy() 释放。
  *
  * @param graph 源图（非 NULL）

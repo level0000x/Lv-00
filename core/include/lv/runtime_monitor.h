@@ -189,16 +189,15 @@ void lv_log_set_callback(lvLogCallback callback, void *user_data);
 void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line, const char *function, const char *fmt,
                   ...);
 
-/* 便捷日志宏 */
+/* 便捷日志宏
+ *
+ * @note lv_LOG_DEBUG/INFO/WARN/WARNING/ERROR 已统一由 lv_internal.h 定义
+ *       （签名 (fmt, ...)，经 lv_log_message() 分发），避免同名宏冲突；
+ *       本头文件仅保留带 tag 的 lv_LOG_TRACE / lv_LOG_WARN_NT / lv_LOG_FATAL。
+ */
 #define lv_LOG_TRACE(tag, fmt, ...) lv_log_write(LOG_LEVEL_TRACE, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_DEBUG(tag, fmt, ...) lv_log_write(LOG_LEVEL_DEBUG, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_INFO(tag, fmt, ...) lv_log_write(LOG_LEVEL_INFO, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_WARN(tag, fmt, ...) lv_log_write(LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_WARNING(tag, fmt, ...) \
-    lv_log_write(LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define lv_LOG_WARN_NT(fmt, ...) \
     lv_log_write(LOG_LEVEL_WARN, "runtime", __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define lv_LOG_ERROR(tag, fmt, ...) lv_log_write(LOG_LEVEL_ERROR, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define lv_LOG_FATAL(tag, fmt, ...) lv_log_write(LOG_LEVEL_FATAL, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
 /* ============== 性能监控 ============== */

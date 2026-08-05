@@ -15,24 +15,7 @@
  *
  * @author Lv-00 Project
  * @version 3.3.0
+ *
+ * 注意：本文件为纯容器文件，当前不含任何代码实体（已按功能域拆分完毕），
+ *       故不再保留 include；若后续补充实现，请按需添加对应头文件。
  */
-
-#include <float.h>
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv/constraint_graph.h"
-#include "lv/lv.h"
-#include "lv/proof.h"
-#include "lv/smt_backend.h"
-#include "lv/thread_pool.h"
-
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "lv/lv_str_utils.h"
-
-#include "lv/lv_strbuf.h"

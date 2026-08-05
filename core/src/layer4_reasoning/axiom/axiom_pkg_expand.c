@@ -122,8 +122,11 @@ void axiom_package_clear_expansion_cache(AxiomPackage *pkg) {
  * @brief 深拷贝约束图
  *
  * 遍历源图中的所有节点和约束，在新图中创建完全独立的副本。
- * 高级类型（Port、Region、FunctionBlock）通过 graph_add_node_with_id
- * 复制基础字段，调用者可后续设置特定字段。
+ * 高级类型（Region/Circle/Port/FunctionBlock）的类型特定数据
+ * （boundary_segments、center/radius_node_id、data.port、
+ * internal_nodes/input/output_port_ids）通过 vtable->clone 深拷贝，
+ * 内部指针引用通过 vtable->fixup_refs 重映射到新图
+ * （graph_add_node_with_id 保证新图节点 ID 与源图一致，故使用恒等 id_map）。
  */
 ConstraintGraph *graph_copy(const ConstraintGraph *graph) {
     if (!graph)
@@ -132,6 +135,8 @@ ConstraintGraph *graph_copy(const ConstraintGraph *graph) {
     ConstraintGraph *new_graph = graph_create();
     if (!new_graph)
         return NULL;
+
+    int max_id = -1; /* 源图最大节点 ID，用于构建恒等 id_map */
 
     /* 复制所有节点 */
     for (int i = 0; i < graph->node_count; i++) {
@@ -158,6 +163,44 @@ ConstraintGraph *graph_copy(const ConstraintGraph *graph) {
         if (src->numeric_assumption_declaration) {
             dst->numeric_assumption_declaration = lv_strdup_safe(src->numeric_assumption_declaration);
         }
+
+        /* 高级类型：通过 vtable->clone 深拷贝类型特定数据（union data）到 dst，
+         * 修复 graph_copy 之前丢失 Region/Circle/Port/FunctionBlock 类型数据的缺陷 */
+        if (src->vtable && src->vtable->clone) {
+            if (!src->vtable->clone(src, new_graph)) {
+                graph_destroy(new_graph);
+                return NULL;
+            }
+        }
+
+        if (src->id > max_id)
+            max_id = src->id;
+    }
+
+    /* 第二遍：修复类型特定数据中的交叉引用（此时所有节点均已就绪）。
+     * 由于 graph_add_node_with_id 保证新图节点 ID 与源图一致，
+     * id_map 为恒等映射（old_id -> 同一 ID）。 */
+    if (max_id >= 0) {
+        int *id_map = (int *) lv_calloc((size_t) (max_id + 1), sizeof(int));
+        if (!id_map) {
+            graph_destroy(new_graph);
+            return NULL;
+        }
+        for (int i = 0; i <= max_id; i++) {
+            id_map[i] = i;
+        }
+        for (int i = 0; i < graph->node_count; i++) {
+            GeomNode *src = graph->nodes[i];
+            if (!src)
+                continue;
+            if (src->vtable && src->vtable->fixup_refs) {
+                GeomNode *dst = graph_get_node(new_graph, src->id);
+                if (dst) {
+                    src->vtable->fixup_refs(dst, id_map, max_id, new_graph);
+                }
+            }
+        }
+        lv_free((void **) &id_map);
     }
 
     /* 复制所有约束 */

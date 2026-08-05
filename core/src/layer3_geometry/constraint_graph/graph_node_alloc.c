@@ -394,52 +394,135 @@ static void func_block_free(GeomNode *node) {
     node->data.func_block.output_count = 0;
 }
 
-/* ── 类型特定的 clone ──
- * 未实现存根：代码库当前没有任何 vtable->clone 调用方
- * （graph_copy 深拷贝走 graph_add_node_with_id / graph_add_constraint_with_id，仅复制基础字段），
- * 因此存根不会触发。若未来启用 vtable clone 路径，必须先为各类型补齐深拷贝实现（含 union data）。
- * 各实现返回 NULL 作为显式失败信号，调用方须检查返回值。 ── */
+/* ── 类型特定的 clone（深拷贝类型特定数据到目标图中的对应节点） ──
+ * 契约：调用方须先在 dst_graph 中创建 id 与 node->id 相同的节点
+ * （如 graph_copy 通过 graph_add_node_with_id 完成），clone 将源节点的
+ * union data 深拷贝到目标节点上并返回目标节点；失败返回 NULL。
+ * 指针类字段（region.boundary_segments / func_block.internal_nodes /
+ * port.connected_to）先拷贝源图引用，随后由调用方调用 vtable->fixup_refs
+ * 通过 id_map 重映射到 dst_graph 中的节点。
+ * 内存所有权：clone 分配的数组归目标节点所有，随图销毁走 vtable->free
+ * （region_free / func_block_free / port_free）释放。 */
 
 static GeomNode *point_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
-    (void)node;
-    (void)dst_graph;
-    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
-    return NULL;
+    /* GEOM_POINT: 无类型特定数据，返回目标节点表示成功 */
+    return graph_get_node(dst_graph, node->id);
 }
 
 static GeomNode *line_segment_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
-    (void)node;
-    (void)dst_graph;
-    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
-    return NULL;
+    /* GEOM_LINE_SEGMENT: 无类型特定数据，返回目标节点表示成功 */
+    return graph_get_node(dst_graph, node->id);
 }
 
 static GeomNode *region_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
-    (void)node;
-    (void)dst_graph;
-    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
-    return NULL;
+    GeomNode *dst = graph_get_node(dst_graph, node->id);
+    if (!dst)
+        return NULL;
+    dst->data.region.segment_count = node->data.region.segment_count;
+    dst->data.region.boundary_segments = NULL;
+    if (node->data.region.boundary_segments && node->data.region.segment_count > 0) {
+        dst->data.region.boundary_segments =
+            (GeomNode **) lv_malloc((size_t) node->data.region.segment_count * sizeof(GeomNode *));
+        if (!dst->data.region.boundary_segments) {
+            /* 分配失败：保持数据一致，避免 segment_count 非零而数组为 NULL */
+            dst->data.region.segment_count = 0;
+            return NULL;
+        }
+        /* 先拷贝源图引用，后续由 fixup_refs 重映射到新图 */
+        memcpy(dst->data.region.boundary_segments, node->data.region.boundary_segments,
+               (size_t) node->data.region.segment_count * sizeof(GeomNode *));
+    }
+    return dst;
 }
 
 static GeomNode *circle_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
-    (void)node;
-    (void)dst_graph;
-    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
-    return NULL;
+    GeomNode *dst = graph_get_node(dst_graph, node->id);
+    if (!dst)
+        return NULL;
+    /* 纯标量字段：圆心/半径端点节点 ID（ID 一致，无需 fixup 也可直接复制） */
+    dst->data.circle.center_node_id = node->data.circle.center_node_id;
+    dst->data.circle.radius_node_id = node->data.circle.radius_node_id;
+    return dst;
 }
 
 static GeomNode *port_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
-    (void)node;
-    (void)dst_graph;
-    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
-    return NULL;
+    GeomNode *dst = graph_get_node(dst_graph, node->id);
+    if (!dst)
+        return NULL;
+    /* 复用 graph_add_node_with_id -> port_alloc 已分配的 Port 结构体，避免泄漏 */
+    if (!dst->data.port) {
+        dst->data.port = (Port *) lv_calloc(1, sizeof(Port));
+        if (!dst->data.port)
+            return NULL;
+    }
+    if (!node->data.port)
+        return dst; /* 源无端口数据，保留目标默认值 */
+    Port *src_p = node->data.port;
+    Port *dst_p = dst->data.port;
+    dst_p->id = src_p->id;
+    dst_p->type = src_p->type;
+    dst_p->namespace_depth = src_p->namespace_depth;
+    dst_p->parent_block_id = src_p->parent_block_id;
+    dst_p->is_formal_param = src_p->is_formal_param;
+    dst_p->is_polymorphic = src_p->is_polymorphic;
+    /* type_region 浅拷贝：所有权由 TypeSystem 统一管理（同 node_deep_copy_port） */
+    dst_p->type_region = src_p->type_region;
+    /* connected_to 先拷贝源图引用，由 fixup_refs 重映射到新图 */
+    dst_p->connected_to = src_p->connected_to;
+    return dst;
 }
 
 static GeomNode *func_block_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
-    (void)node;
-    (void)dst_graph;
-    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
-    return NULL;
+    GeomNode *dst = graph_get_node(dst_graph, node->id);
+    if (!dst)
+        return NULL;
+    dst->data.func_block.internal_node_count = node->data.func_block.internal_node_count;
+    dst->data.func_block.input_count = node->data.func_block.input_count;
+    dst->data.func_block.output_count = node->data.func_block.output_count;
+    dst->data.func_block.determinism_state = node->data.func_block.determinism_state;
+    dst->data.func_block.internal_nodes = NULL;
+    dst->data.func_block.input_port_ids = NULL;
+    dst->data.func_block.output_port_ids = NULL;
+
+    if (node->data.func_block.internal_nodes && node->data.func_block.internal_node_count > 0) {
+        dst->data.func_block.internal_nodes =
+            (GeomNode **) lv_malloc((size_t) node->data.func_block.internal_node_count * sizeof(GeomNode *));
+        if (!dst->data.func_block.internal_nodes) {
+            dst->data.func_block.internal_node_count = 0;
+            return NULL;
+        }
+        /* 先拷贝源图引用，后续由 fixup_refs 重映射到新图 */
+        memcpy(dst->data.func_block.internal_nodes, node->data.func_block.internal_nodes,
+               (size_t) node->data.func_block.internal_node_count * sizeof(GeomNode *));
+    }
+    if (node->data.func_block.input_port_ids && node->data.func_block.input_count > 0) {
+        dst->data.func_block.input_port_ids = (int *) lv_malloc((size_t) node->data.func_block.input_count * sizeof(int));
+        if (!dst->data.func_block.input_port_ids) {
+            /* 分配失败：释放已分配数据并保持一致性，随图销毁走 func_block_free */
+            dst->data.func_block.input_count = 0;
+            lv_free((void **) &dst->data.func_block.internal_nodes);
+            dst->data.func_block.internal_node_count = 0;
+            return NULL;
+        }
+        memcpy(dst->data.func_block.input_port_ids, node->data.func_block.input_port_ids,
+               (size_t) node->data.func_block.input_count * sizeof(int));
+    }
+    if (node->data.func_block.output_port_ids && node->data.func_block.output_count > 0) {
+        dst->data.func_block.output_port_ids =
+            (int *) lv_malloc((size_t) node->data.func_block.output_count * sizeof(int));
+        if (!dst->data.func_block.output_port_ids) {
+            /* 分配失败：释放已分配数据并保持一致性，随图销毁走 func_block_free */
+            dst->data.func_block.output_count = 0;
+            lv_free((void **) &dst->data.func_block.input_port_ids);
+            dst->data.func_block.input_count = 0;
+            lv_free((void **) &dst->data.func_block.internal_nodes);
+            dst->data.func_block.internal_node_count = 0;
+            return NULL;
+        }
+        memcpy(dst->data.func_block.output_port_ids, node->data.func_block.output_port_ids,
+               (size_t) node->data.func_block.output_count * sizeof(int));
+    }
+    return dst;
 }
 
 /* ── 类型特定的 type_name ── */

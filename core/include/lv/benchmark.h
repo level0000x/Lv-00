@@ -198,35 +198,35 @@ typedef struct {
     uint64_t start; /**< 开始时间 */
     uint64_t end;   /**< 结束时间 */
     bool running;   /**< 是否运行中 */
-} lvTimer;
+} lvBenchTimer;
 /**
  * @brief 创建计时器
  */
-lvTimer lv_timer_create(void);
+lvBenchTimer lv_bench_timer_create(void);
 /**
  * @brief 开始计时
  */
-void lv_timer_start(lvTimer *timer);
+void lv_bench_timer_start(lvBenchTimer *timer);
 /**
  * @brief 停止计时
  */
-void lv_timer_stop(lvTimer *timer);
+void lv_bench_timer_stop(lvBenchTimer *timer);
 /**
  * @brief 重置计时器
  */
-void lv_timer_reset(lvTimer *timer);
+void lv_bench_timer_reset(lvBenchTimer *timer);
 /**
  * @brief 获取经过时间（微秒）
  */
-uint64_t lv_timer_elapsed_us(const lvTimer *timer);
+uint64_t lv_bench_timer_elapsed_us(const lvBenchTimer *timer);
 /**
  * @brief 获取经过时间（毫秒）
  */
-double lv_timer_elapsed_ms(const lvTimer *timer);
+double lv_bench_timer_elapsed_ms(const lvBenchTimer *timer);
 /**
  * @brief 获取经过时间（秒）
  */
-double lv_timer_elapsed_sec(const lvTimer *timer);
+double lv_bench_timer_elapsed_sec(const lvBenchTimer *timer);
 /* ============== 内存统计辅助 ============== */
 /**
  * @brief 获取当前内存使用量

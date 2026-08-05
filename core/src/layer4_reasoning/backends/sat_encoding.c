@@ -1280,13 +1280,9 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                                 if (tuple_equals(rel->arity, true_atom_ids[tai], rel->tuples[ti])) {
                                     /* 扩容 */
                                     if (binding->tuple_count >= binding->tuple_capacity) {
-                                        int new_cap = binding->tuple_capacity * lv_ARRAY_GROWTH_FACTOR;
-                                        int **new_tuples =
-                                            (int **) lv_realloc(binding->tuples, (size_t) new_cap * sizeof(int *));
-                                        if (!new_tuples)
+                                        if (!lv_ensure_capacity((void **) &binding->tuples, binding->tuple_count + 1,
+                                                                &binding->tuple_capacity, sizeof(int *), 0))
                                             break;
-                                        binding->tuples = new_tuples;
-                                        binding->tuple_capacity = new_cap;
                                     }
                                     binding->tuples[binding->tuple_count++] = true_atom_ids[tai];
                                     true_atom_ids[tai] = NULL; /* 所有权转移 */

@@ -57,6 +57,28 @@ double geo_distance_2d(double x1, double y1, double x2, double y2) {
 }
 
 /**
+ * @brief 计算两个三维点之间的欧几里得距离
+ * @param x1, y1, z1  第一个点坐标
+ * @param x2, y2, z2  第二个点坐标
+ * @return 距离值
+ */
+double geo_distance_3d(double x1, double y1, double z1, double x2, double y2, double z2) {
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    double dz = z2 - z1;
+    return sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+/**
+ * @brief 计算二维向量 (dx, dy) 的模长
+ * @param dx, dy  向量分量
+ * @return 向量模长
+ */
+double geo_norm_2d(double dx, double dy) {
+    return sqrt(dx * dx + dy * dy);
+}
+
+/**
  * @brief 判断两个双精度值是否近似相等
  * @param a, b  待比较的值
  * @param eps   容差

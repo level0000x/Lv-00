@@ -27,13 +27,10 @@ void lv_log_shutdown(void);
 #include "lv_internal.h"
 #include "lv/lv_event_bus.h"
 
-#include "config.h" /* lv_LOCALTIME */
+#include "config.h"
 #include "lv_utils.h"
 
 /* ============== 内部常量 ============== */
-
-/** 日志缓冲区大小 */
-#define LOG_BUFFER_SIZE 8192
 
 /** 最大计时器数量 */
 #define MAX_TIMERS 256
@@ -49,16 +46,6 @@ void lv_log_shutdown(void);
 #include "lv/lv_thread.h"
 
 /* ============== 日志系统实现 ============== */
-
-static const char *level_strings[] = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "OFF"};
-
-static const char *level_colors[] = {"\033[37m",   /* TRACE: 白色 */
-                                     "\033[36m",   /* DEBUG: 青色 */
-                                     "\033[32m",   /* INFO: 绿色 */
-                                     "\033[33m",   /* WARN: 黄色 */
-                                     "\033[31m",   /* ERROR: 红色 */
-                                     "\033[35;1m", /* FATAL: 紫色加粗 */
-                                     ""};
 
 /**
  * @brief 运行时监控模块全局状态（替代原有的 10 个分散 static 变量）
@@ -228,46 +215,23 @@ void lv_log_set_callback(lvLogCallback callback, void *user_data) {
     lv_mutex_unlock(&s_runtime_state.log.mutex);
 }
 
-static void rotate_log_file(void) {
-    if (!s_runtime_state.log.log_file || s_runtime_state.log.current_file_size < s_runtime_state.log.config.max_file_size) {
-        return;
+/** 将 LOG_LEVEL_* 级别映射为 lv_internal.h 的 lv_LOG_LEVEL_*（数值越大越详细） */
+static int runtime_log_level_to_lvlog(lvLogLevel level) {
+    switch (level) {
+        case LOG_LEVEL_TRACE: /* 追踪级别归入 DEBUG（主管道最低可输出级别） */
+        case LOG_LEVEL_DEBUG: return lv_LOG_LEVEL_DEBUG;
+        case LOG_LEVEL_INFO:  return lv_LOG_LEVEL_INFO;
+        case LOG_LEVEL_WARN:  return lv_LOG_LEVEL_WARNING;
+        case LOG_LEVEL_ERROR: /* ERROR/FATAL 归入 ERROR（主管道最高级别） */
+        case LOG_LEVEL_FATAL: return lv_LOG_LEVEL_ERROR;
+        default:              return lv_LOG_LEVEL_OFF;
     }
-
-    fclose(s_runtime_state.log.log_file);
-
-    /* 重命名现有文件 */
-    char old_path[512], new_path[512];
-    strncpy(old_path, s_runtime_state.log.config.file_path, sizeof(old_path) - 1);
-
-    for (int i = s_runtime_state.log.config.max_backup_files - 1; i >= 0; i--) {
-        if (i == 0) {
-            snprintf(new_path, sizeof(new_path), "%s.1", old_path);
-        } else {
-            snprintf(new_path, sizeof(new_path), "%s.%d", old_path, i + 1);
-        }
-
-        char prev_path[512];
-        if (i == 0) {
-            strncpy(prev_path, old_path, sizeof(prev_path) - 1);
-        } else {
-            snprintf(prev_path, sizeof(prev_path), "%s.%d", old_path, i);
-        }
-
-        /* 删除旧备份 */
-        remove(new_path);
-        rename(prev_path, new_path);
-    }
-
-    s_runtime_state.log.log_file = fopen(s_runtime_state.log.config.file_path, "a");
-    if (!s_runtime_state.log.log_file) {
-        /* 日志文件打开失败，不清除 current_file_size，后续写入将被丢弃 */
-        return;
-    }
-    s_runtime_state.log.current_file_size = 0;
 }
 
 void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line, const char *function, const char *fmt,
                   ...) {
+    (void) function; /* 位置信息由 file/line 提供（function 主管道暂不消费） */
+
     if (!s_runtime_state.log.initialized) {
         return;
     }
@@ -276,8 +240,6 @@ void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line,
         return;
     }
 
-    lv_mutex_lock(&s_runtime_state.log.mutex);
-
     /* 格式化消息 */
     char message[lv_LOG_MSG_MAX_LEN];
     va_list args;
@@ -285,93 +247,14 @@ void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line,
     vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
-    /* 构建日志记录 */
-    lvLogRecord record;
-    record.level = level;
-    record.line = line;
-    record.timestamp_ms = lv_get_time_ns() / 1000000;
-    record.thread_id = (int)lv_thread_id();
-
-    if (tag) {
-        strncpy(record.tag, tag, sizeof(record.tag) - 1);
+    /* 委托统一日志主管道（lv_log_message -> debug_log）：
+     * 级别过滤、时间戳、模块名、文件输出与环形缓冲区等均由主管道统一处理，
+     * 避免本模块的彩色/多目标/回调输出实现与主管道重复。tag 作为前缀并入消息。 */
+    if (tag && tag[0]) {
+        lv_log_message(runtime_log_level_to_lvlog(level), file, line, "[%s] %s", tag, message);
     } else {
-        record.tag[0] = '\0';
+        lv_log_message(runtime_log_level_to_lvlog(level), file, line, "%s", message);
     }
-    strncpy(record.message, message, sizeof(record.message) - 1);
-    strncpy(record.file, file ? file : "", sizeof(record.file) - 1);
-    strncpy(record.function, function ? function : "", sizeof(record.function) - 1);
-
-    /* 输出到回调 */
-    if ((s_runtime_state.log.config.targets & LOG_TARGET_CALLBACK) && s_runtime_state.log.config.callback) {
-        s_runtime_state.log.config.callback(&record, s_runtime_state.log.config.callback_user_data);
-    }
-
-    /* 构建输出字符串 */
-    char output[LOG_BUFFER_SIZE];
-    int pos = 0;
-
-    if (s_runtime_state.log.config.include_timestamp) {
-        time_t now = time(NULL);
-        struct tm tm_info;
-        if (lv_LOCALTIME(&now, &tm_info) == 0)
-            pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", &tm_info);
-        if (pos < (int) sizeof(output))
-            pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int) (record.timestamp_ms % 1000));
-    }
-
-    if (s_runtime_state.log.config.colored_output) {
-        if (pos < (int) sizeof(output))
-            pos += snprintf(output + pos, sizeof(output) - pos, "%s%-5s\033[0m ", level_colors[level],
-                            level_strings[level]);
-    } else {
-        if (pos < (int) sizeof(output))
-            pos += snprintf(output + pos, sizeof(output) - pos, "%-5s ", level_strings[level]);
-    }
-
-    if (record.tag[0] && pos < (int) sizeof(output)) {
-        pos += snprintf(output + pos, sizeof(output) - pos, "[%s] ", record.tag);
-    }
-
-    if (s_runtime_state.log.config.include_thread_id && pos < (int) sizeof(output)) {
-        pos += snprintf(output + pos, sizeof(output) - pos, "(T%d) ", record.thread_id);
-    }
-
-    if (pos < (int) sizeof(output))
-        pos += snprintf(output + pos, sizeof(output) - pos, "%s", record.message);
-
-    if (s_runtime_state.log.config.include_location && pos < (int) sizeof(output)) {
-        const char *basename = strrchr(record.file, '/');
-        if (!basename)
-            basename = strrchr(record.file, '\\');
-        basename = basename ? basename + 1 : record.file;
-        pos += snprintf(output + pos, sizeof(output) - pos, " (%s:%d in %s)", basename, record.line, record.function);
-    }
-
-    if (pos < (int) sizeof(output))
-        pos += snprintf(output + pos, sizeof(output) - pos, "\n");
-
-    /* 输出到标准输出/错误 */
-    if (s_runtime_state.log.config.targets & LOG_TARGET_STDOUT) {
-        fputs(output, stdout);
-    }
-    if (s_runtime_state.log.config.targets & LOG_TARGET_STDERR) {
-        fputs(output, stderr);
-    }
-
-    /* 输出到文件 */
-    if ((s_runtime_state.log.config.targets & LOG_TARGET_FILE) && s_runtime_state.log.log_file) {
-        size_t len = strlen(output);
-        size_t written = fwrite(output, 1, len, s_runtime_state.log.log_file);
-        if (written != len) {
-            lv_LOG_WARN_NT("日志文件写入不完整（期望 %zu, 实际 %zu）", len, written);
-        }
-        fflush(s_runtime_state.log.log_file);
-        s_runtime_state.log.current_file_size += len;
-
-        rotate_log_file();
-    }
-
-    lv_mutex_unlock(&s_runtime_state.log.mutex);
 }
 
 /* ============== 性能监控实现 ============== */

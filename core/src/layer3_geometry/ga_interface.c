@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ga_interface.c
  * @brief PGA 几何量的嵌入与提取接口
  * @details 实现 Cl(3,0,1) 投影几何代数中几何对象（点、向量、平面、射线、
@@ -17,6 +17,7 @@
 #include "lv/ga_multivector.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/geo_utils.h"
 
 /* ============================================================
  * Basis element indices (Cl(3,0,1))
@@ -230,7 +231,7 @@ int ga_extract_ray(const lvMultiVector *mv, lvMultiVector **out_origin, lvMultiV
  */
 lvMultiVector *ga_embed_rotation(double ax, double ay, double az, double angle) {
     /* Normalize axis */
-    double len = sqrt(ax * ax + ay * ay + az * az);
+    double len = geo_distance_3d(0.0, 0.0, 0.0, ax, ay, az);
     if (len < 1e-10)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "ga_embed_rotation: zero-length rotation axis");
 
@@ -272,7 +273,7 @@ int ga_extract_rotation(const lvMultiVector *rotor, double *out_ax, double *out_
     double bz = ga_mv_get(rotor, GA_E12);
 
     /* Extract angle */
-    *out_angle = 2.0 * atan2(sqrt(bx * bx + by * by + bz * bz), c);
+    *out_angle = 2.0 * atan2(geo_distance_3d(0.0, 0.0, 0.0, bx, by, bz), c);
 
     /* Extract axis */
     double s = sin(*out_angle / 2.0);

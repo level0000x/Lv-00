@@ -108,21 +108,14 @@ static bool equiv_ensure_class_capacity(EquivClassManager *mgr) {
 static bool equiv_ensure_node_mapping(EquivClassManager *mgr, int node_id) {
     if (node_id < mgr->node_to_class_capacity)
         return true;
-    int new_cap = mgr->node_to_class_capacity < 16 ? 16 : mgr->node_to_class_capacity * 2;
-    /* [安全] 防止整数溢出导致无限循环 */
-    while (new_cap <= node_id) {
-        if (new_cap > INT_MAX / 2)
-            return false;
-        new_cap *= 2;
-    }
-    int *new_map = (int *) lv_realloc(mgr->node_to_class, (size_t) new_cap * sizeof(int));
-    if (!new_map)
+    int old_cap = mgr->node_to_class_capacity;
+    /* 统一扩容（失败时 lv_ensure_capacity 内部已设置错误） */
+    if (!lv_ensure_capacity((void **) &mgr->node_to_class, node_id + 1, &mgr->node_to_class_capacity, sizeof(int), 0))
         return false;
-    for (int i = mgr->node_to_class_capacity; i < new_cap; i++) {
-        new_map[i] = -1;
+    /* 初始化新扩容区域为 -1 */
+    for (int i = old_cap; i < mgr->node_to_class_capacity; i++) {
+        mgr->node_to_class[i] = -1;
     }
-    mgr->node_to_class = new_map;
-    mgr->node_to_class_capacity = new_cap;
     return true;
 }
 
@@ -135,29 +128,15 @@ static bool equiv_ensure_proof_log(EquivClassManager *mgr) {
 static bool equiv_ensure_class_members(EquivClass *ec, int needed) {
     if (needed <= ec->capacity)
         return true;
-    int new_cap = ec->capacity < 4 ? 4 : ec->capacity * 2;
-    while (new_cap < needed)
-        new_cap *= 2;
-    int *new_members = (int *) lv_realloc(ec->member_ids, (size_t) new_cap * sizeof(int));
-    if (!new_members)
-        return false;
-    ec->member_ids = new_members;
-    ec->capacity = new_cap;
-    return true;
+    /* 统一扩容（失败时 lv_ensure_capacity 内部已设置错误） */
+    return lv_ensure_capacity((void **) &ec->member_ids, needed, &ec->capacity, sizeof(int), 0);
 }
 
 static bool equiv_ensure_class_proofs(EquivClass *ec, int needed) {
     if (needed <= ec->proof_capacity)
         return true;
-    int new_cap = ec->proof_capacity < 4 ? 4 : ec->proof_capacity * 2;
-    while (new_cap < needed)
-        new_cap *= 2;
-    EquivProof *new_proofs = (EquivProof *) lv_realloc(ec->proofs, (size_t) new_cap * sizeof(EquivProof));
-    if (!new_proofs)
-        return false;
-    ec->proofs = new_proofs;
-    ec->proof_capacity = new_cap;
-    return true;
+    /* 统一扩容（失败时 lv_ensure_capacity 内部已设置错误） */
+    return lv_ensure_capacity((void **) &ec->proofs, needed, &ec->proof_capacity, sizeof(EquivProof), 0);
 }
 
 /** @brief 记录等价证明 */

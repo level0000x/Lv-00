@@ -624,28 +624,10 @@ lv_PUBLIC_API bool proof_has_global_proposition(const ProofNavigator *nav, const
 lv_PUBLIC_API bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id);
 
 /**
- * 应用爆炸原理（带作用域限定）
- *
- * 在指定作用域内应用爆炸原理：从矛盾推出任意命题。
- * 该结论仅在给定作用域内有效，不得自动扩散到全局上下文。
- * 若 scope_id 为 lv_PROOF_SCOPE_GLOBAL，则要求 bottom_proof
- * 必须是在无额外假设下导出的全局矛盾。
- *
- * @param nav         证明导航器
- * @param bottom_proof ⊥的证物（矛盾约束图）
- * @param target_prop 目标命题
- * @param scope_id    作用域ID（限定结论有效性范围）
- * @return 是否成功
- */
-lv_PUBLIC_API bool proof_apply_ex_falso_scoped(ProofNavigator *nav, ConstraintGraph *bottom_proof,
-                                               Proposition *target_prop, lvProofScopeId scope_id);
-
-/**
  * 应用爆炸原理（兼容包装）
  *
  * 旧版无界爆炸原理的兼容接口。实现应默认拒绝无作用域的全局爆炸，
  * 或仅在 bottom_proof 明确标记为全局矛盾时允许。
- * 新代码应优先使用 proof_apply_ex_falso_scoped。
  *
  * @param nav         证明导航器
  * @param bottom_proof ⊥的证物

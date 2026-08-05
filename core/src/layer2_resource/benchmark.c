@@ -29,17 +29,17 @@
 /**
  * @brief 创建并初始化一个新的计时器对象
  *
- * @return 返回初始化的 lvTimer 结构体
+ * @return 返回初始化的 lvBenchTimer 结构体
  */
-lvTimer lv_timer_create(void) {
-    lvTimer timer;
+lvBenchTimer lv_bench_timer_create(void) {
+    lvBenchTimer timer;
     timer.start = 0;
     timer.end = 0;
     timer.running = false;
     return timer;
 }
 
-void lv_timer_start(lvTimer *timer) {
+void lv_bench_timer_start(lvBenchTimer *timer) {
     if (!timer)
         return;
     timer->start = lv_get_time_us();
@@ -51,7 +51,7 @@ void lv_timer_start(lvTimer *timer) {
  *
  * @param timer 计时器指针
  */
-void lv_timer_stop(lvTimer *timer) {
+void lv_bench_timer_stop(lvBenchTimer *timer) {
     if (!timer || !timer->running)
         return;
     timer->end = lv_get_time_us();
@@ -63,7 +63,7 @@ void lv_timer_stop(lvTimer *timer) {
  *
  * @param timer 计时器指针
  */
-void lv_timer_reset(lvTimer *timer) {
+void lv_bench_timer_reset(lvBenchTimer *timer) {
     if (!timer)
         return;
     timer->start = 0;
@@ -77,7 +77,7 @@ void lv_timer_reset(lvTimer *timer) {
  * @param timer 计时器指针
  * @return 已流逝的微秒数，如果 timer 为 NULL 返回 0
  */
-uint64_t lv_timer_elapsed_us(const lvTimer *timer) {
+uint64_t lv_bench_timer_elapsed_us(const lvBenchTimer *timer) {
     if (!timer)
         return 0;
     if (timer->running) {
@@ -92,8 +92,8 @@ uint64_t lv_timer_elapsed_us(const lvTimer *timer) {
  * @param timer 计时器指针
  * @return 已流逝的毫秒数
  */
-double lv_timer_elapsed_ms(const lvTimer *timer) {
-    return (double) lv_timer_elapsed_us(timer) / 1000.0;
+double lv_bench_timer_elapsed_ms(const lvBenchTimer *timer) {
+    return (double) lv_bench_timer_elapsed_us(timer) / 1000.0;
 }
 
 /**
@@ -102,8 +102,8 @@ double lv_timer_elapsed_ms(const lvTimer *timer) {
  * @param timer 计时器指针
  * @return 已流逝的秒数
  */
-double lv_timer_elapsed_sec(const lvTimer *timer) {
-    return (double) lv_timer_elapsed_us(timer) / 1000000.0;
+double lv_bench_timer_elapsed_sec(const lvBenchTimer *timer) {
+    return (double) lv_bench_timer_elapsed_us(timer) / 1000000.0;
 }
 
 /* ============ 基准测试套件 ============ */
@@ -220,16 +220,16 @@ lvBenchResult lv_benchmark_run(lvBenchFunc func, void *user_data, int min_iterat
     /* 正式测试 */
     int iterations = min_iterations;
     uint64_t total_us = 0;
-    lvTimer timer = lv_timer_create();
+    lvBenchTimer timer = lv_bench_timer_create();
 
     while (iterations <= lv_BENCH_MAX_ITERATIONS) {
-        lv_timer_start(&timer);
+        lv_bench_timer_start(&timer);
         total_us = func(iterations, user_data);
-        lv_timer_stop(&timer);
+        lv_bench_timer_stop(&timer);
 
         if (total_us == 0) {
             /* 函数未返回有效耗时，使用计时器 */
-            total_us = lv_timer_elapsed_us(&timer);
+            total_us = lv_bench_timer_elapsed_us(&timer);
         }
 
         if ((double) total_us / 1000000.0 >= target_time_sec)
@@ -467,20 +467,20 @@ size_t lv_get_peak_memory_usage(void) {
 
 static uint64_t bench_core_symbolic_coord(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         SymbolicCoord *c = symbolic_coord_create_rational(i % 100, 100);
         symbolic_coord_destroy(c);
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 static uint64_t bench_core_constraint_graph(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         ConstraintGraph *g = graph_create();
         if (g) {
@@ -491,20 +491,20 @@ static uint64_t bench_core_constraint_graph(int iterations, void *user_data) {
             graph_destroy(g);
         }
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 static uint64_t bench_core_memory_pool(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         void *p = lv_calloc(1, 64);
         lv_free((void **) &p);
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 /**
@@ -541,36 +541,36 @@ lvBenchSuite *lv_bench_run_core_tests(void) {
 
 static uint64_t bench_memory_malloc_small(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         void *p1 = lv_calloc(1, 64);
         void *p2 = lv_calloc(1, 256);
         lv_free((void **) &p2);
         lv_free((void **) &p1);
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 static uint64_t bench_memory_malloc_large(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         void *p1 = lv_calloc(1, 1024 * 1024);
         void *p2 = lv_calloc(1, 4 * 1024 * 1024);
         lv_free((void **) &p2);
         lv_free((void **) &p1);
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 static uint64_t bench_memory_realloc_growth(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         int *arr = (int *) lv_calloc(1, sizeof(int));
         if (!arr)
@@ -589,15 +589,15 @@ static uint64_t bench_memory_realloc_growth(int iterations, void *user_data) {
         if (arr)
             lv_free((void **) &arr);
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 static uint64_t bench_memory_alloc_free_stress(int iterations, void *user_data) {
     (void) user_data;
 #define STRESS_BLOCK_COUNT 20
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         void *blocks[STRESS_BLOCK_COUNT];
         for (int k = 0; k < STRESS_BLOCK_COUNT; k++) {
@@ -608,8 +608,8 @@ static uint64_t bench_memory_alloc_free_stress(int iterations, void *user_data) 
             lv_free((void **) &blocks[k]);
         }
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 #undef STRESS_BLOCK_COUNT
 }
 
@@ -652,7 +652,7 @@ lvBenchSuite *lv_bench_run_memory_tests(void) {
 
 static uint64_t bench_simd_vector_dot(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
+    lvBenchTimer timer = lv_bench_timer_create();
 
     /* 分配并初始化向量 */
     int dim = SIMD_VECTOR_DIM;
@@ -668,7 +668,7 @@ static uint64_t bench_simd_vector_dot(int iterations, void *user_data) {
         vb[i] = (double) (dim - i);
     }
 
-    lv_timer_start(&timer);
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         double dot = 0.0;
         for (int j = 0; j < dim; j += 4) {
@@ -681,16 +681,16 @@ static uint64_t bench_simd_vector_dot(int iterations, void *user_data) {
         if (dot < -1e30)
             (void) dot;
     }
-    lv_timer_stop(&timer);
+    lv_bench_timer_stop(&timer);
 
     lv_free((void **) &va);
     lv_free((void **) &vb);
-    return lv_timer_elapsed_us(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 static uint64_t bench_simd_vector_add(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
+    lvBenchTimer timer = lv_bench_timer_create();
 
     int dim = SIMD_VECTOR_DIM;
     double *va = (double *) lv_calloc((size_t) dim, sizeof(double));
@@ -707,7 +707,7 @@ static uint64_t bench_simd_vector_add(int iterations, void *user_data) {
         vb[i] = (double) (dim - i);
     }
 
-    lv_timer_start(&timer);
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         for (int j = 0; j < dim; j += 4) {
             lvVec4d a = lv_vec4d_load(&va[j]);
@@ -719,17 +719,17 @@ static uint64_t bench_simd_vector_add(int iterations, void *user_data) {
             vr[j + 3] = r.v[3];
         }
     }
-    lv_timer_stop(&timer);
+    lv_bench_timer_stop(&timer);
 
     lv_free((void **) &va);
     lv_free((void **) &vb);
     lv_free((void **) &vr);
-    return lv_timer_elapsed_us(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 static uint64_t bench_simd_vector_scale(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
+    lvBenchTimer timer = lv_bench_timer_create();
 
     int dim = SIMD_VECTOR_DIM;
     double *va = (double *) lv_calloc((size_t) dim, sizeof(double));
@@ -745,7 +745,7 @@ static uint64_t bench_simd_vector_scale(int iterations, void *user_data) {
 
     lvVec4d scalar = lv_vec4d_set1(2.5);
 
-    lv_timer_start(&timer);
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         for (int j = 0; j < dim; j += 4) {
             lvVec4d a = lv_vec4d_load(&va[j]);
@@ -756,32 +756,32 @@ static uint64_t bench_simd_vector_scale(int iterations, void *user_data) {
             vr[j + 3] = r.v[3];
         }
     }
-    lv_timer_stop(&timer);
+    lv_bench_timer_stop(&timer);
 
     lv_free((void **) &va);
     lv_free((void **) &vr);
-    return lv_timer_elapsed_us(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 static uint64_t bench_simd_matrix_vector(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
+    lvBenchTimer timer = lv_bench_timer_create();
 
     /* 4x4 矩阵（列主序）*/
     double mat[16] = {1.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 1.0, 2.0, 3.0, 1.0};
 
     lvVec4d vec = lv_vec4d_set(1.0, 2.0, 3.0, 1.0);
 
-    lv_timer_start(&timer);
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         lvVec4d result = lv_simd_mat4x4_vec4_mul(mat, vec);
         /* 防止编译器优化掉 */
         if (result.v[0] < -1e30)
             (void) result;
     }
-    lv_timer_stop(&timer);
+    lv_bench_timer_stop(&timer);
 
-    return lv_timer_elapsed_us(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 #undef SIMD_VECTOR_DIM
@@ -861,8 +861,8 @@ static uint64_t bench_thread_submit(int iterations, void *user_data) {
     if (!pool)
         return 0;
 
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         BenchTask *task = (BenchTask *) lv_calloc(1, sizeof(BenchTask));
         if (!task)
@@ -876,8 +876,8 @@ static uint64_t bench_thread_submit(int iterations, void *user_data) {
         }
         lv_thread_pool_wait_group(pool, wg, -1);
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 #define THREAD_PARALLEL_SIZE 100000
@@ -898,8 +898,8 @@ static uint64_t bench_thread_parallel_sum(int iterations, void *user_data) {
 
     int chunk_size = THREAD_PARALLEL_SIZE / THREAD_PARALLEL_CHUNKS;
 
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         BenchSumArg args[THREAD_PARALLEL_CHUNKS];
         BenchTask *tasks[THREAD_PARALLEL_CHUNKS];
@@ -939,10 +939,10 @@ static uint64_t bench_thread_parallel_sum(int iterations, void *user_data) {
         if (total < -1e30)
             (void) total;
     }
-    lv_timer_stop(&timer);
+    lv_bench_timer_stop(&timer);
 
     lv_free((void **) &array);
-    return lv_timer_elapsed_us(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 #undef THREAD_PARALLEL_SIZE
@@ -950,16 +950,16 @@ static uint64_t bench_thread_parallel_sum(int iterations, void *user_data) {
 
 static uint64_t bench_thread_create_destroy(int iterations, void *user_data) {
     (void) user_data;
-    lvTimer timer = lv_timer_create();
-    lv_timer_start(&timer);
+    lvBenchTimer timer = lv_bench_timer_create();
+    lv_bench_timer_start(&timer);
     for (int i = 0; i < iterations; i++) {
         lvThreadPool *pool = lv_thread_pool_create(2);
         if (pool) {
             lv_thread_pool_destroy(pool);
         }
     }
-    lv_timer_stop(&timer);
-    return lv_timer_elapsed_us(&timer);
+    lv_bench_timer_stop(&timer);
+    return lv_bench_timer_elapsed_us(&timer);
 }
 
 /**

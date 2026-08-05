@@ -79,7 +79,7 @@ typedef enum {
     PROP_STRATEGY_MIN_ENTROPY, /**< WFC: 选择状态空间最小的节点（熵最小化） */
     PROP_STRATEGY_MRVS,        /**< MRV: 最少剩余值启发式（约束满足术语） */
     PROP_STRATEGY_DEGREE,      /**< Degree: 选择度数（邻接约束数）最高的节点 */
-    PROP_STRATEGY_BFS,         /**< BFS: 从最近修改处广度优先传播 */
+    PROP_STRATEGY_BFS,         /**< BFS: 从最近修改处广度优先传播（未接线：无对应实现，保留以兼容旧 API） */
     PROP_STRATEGY_TOPOLOGICAL  /**< 拓扑序: 按依赖关系顺序选择 */
 } PropagationStrategy;
 /**

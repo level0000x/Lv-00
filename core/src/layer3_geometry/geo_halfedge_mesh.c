@@ -23,6 +23,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/geo_utils.h"
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
@@ -353,11 +354,7 @@ double lv_he_mesh_edge_length(const lvHeMesh *mesh, lvEdge e) {
     lvPoint3D p1 = mesh->vertex_data[v1].position;
     lvPoint3D p2 = mesh->vertex_data[v2].position;
 
-    double dx = p2.x - p1.x;
-    double dy = p2.y - p1.y;
-    double dz = p2.z - p1.z;
-
-    return sqrt(dx * dx + dy * dy + dz * dz);
+    return geo_distance_3d(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
 }
 
 void lv_he_mesh_edge_vertices(const lvHeMesh *mesh, lvEdge e, lvVertex *out_v1, lvVertex *out_v2) {
@@ -524,7 +521,7 @@ lvFace lv_he_mesh_add_face_triangle(lvHeMesh *mesh, lvVertex v1, lvVertex v2, lv
     double nx = ay * bz - az * by;
     double ny = az * bx - ax * bz;
     double nz = ax * by - ay * bx;
-    double len = sqrt(nx * nx + ny * ny + nz * nz);
+    double len = geo_distance_3d(0.0, 0.0, 0.0, nx, ny, nz);
 
     /* [安全] 防止零向量导致除零 */
     if (len > 1e-12) {

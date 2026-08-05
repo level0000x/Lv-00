@@ -448,10 +448,7 @@ static void AABB_FUNC(nearest_recursive)(const AABB_TREE_TYPE *tree, int node_id
         const AABB_PRIM_TYPE *prim_bb = &tree->primitives[node->primitive_id];
 #if AABB_DIMS == 3
         lvAABBPoint3D cp = AABB_FUNC(closest_point)(*prim_bb, px, py, pz);
-        double dx = px - cp.x;
-        double dy = py - cp.y;
-        double dz = pz - cp.z;
-        double dist = sqrt(dx * dx + dy * dy + dz * dz);
+        double dist = geo_distance_3d(px, py, pz, cp.x, cp.y, cp.z);
 #else
         lvAABBPoint2D cp = AABB_FUNC(closest_point)(*prim_bb, px, py);
         double dist = geo_distance_2d(px, py, cp.x, cp.y);

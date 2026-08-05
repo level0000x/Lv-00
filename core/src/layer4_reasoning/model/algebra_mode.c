@@ -17,6 +17,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_internal.h"
+#include "lv/geo_utils.h"
 
 /* ================================================================
  * 内部辅助
@@ -355,7 +356,7 @@ static int apply_rotate(double m[16], const double *params, int param_count) {
     rad = angle_deg * M_PI / 180.0;
     c = cos(rad);
     s = sin(rad);
-    len = sqrt(ax * ax + ay * ay + az * az);
+    len = geo_distance_3d(0.0, 0.0, 0.0, ax, ay, az);
     if (len < 1e-15)
         return 0;
     ux = ax / len;

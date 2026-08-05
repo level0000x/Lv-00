@@ -276,19 +276,13 @@ lvSolverVar lv_solver_new_vars(lvSolver *solver, int count) {
 
     int first_id = solver->next_var_id;
 
-    /* 扩容变量数组 */
-    while (solver->var_count + count > solver->var_capacity) {
-        /* 整数溢出检查：确保扩容不会超过 INT_MAX */
-        if (solver->var_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "lv_solver_new_vars: 变量容量溢出: current=%d", solver->var_capacity);
-        }
-        int new_cap = solver->var_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int *new_v = (int *) lv_realloc(solver->values, (size_t) new_cap * sizeof(int));
-        if (!new_v)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_solver_new_vars: values realloc failed");
-        memset(new_v + solver->var_capacity, 0, (size_t) (new_cap - solver->var_capacity) * sizeof(int));
-        solver->values = new_v;
-        solver->var_capacity = new_cap;
+    /* 扩容变量数组（新扩容区域清零，失败时 lv_ensure_capacity 内部已设置错误） */
+    if (solver->var_count + count > solver->var_capacity) {
+        int old_cap = solver->var_capacity;
+        if (!lv_ensure_capacity((void **) &solver->values, solver->var_count + count, &solver->var_capacity,
+                                sizeof(int), 0))
+            return -1;
+        memset(solver->values + old_cap, 0, (size_t) (solver->var_capacity - old_cap) * sizeof(int));
     }
 
     solver->var_count += count;
@@ -328,21 +322,13 @@ lvConstraintId lv_solver_add_constraint(lvSolver *solver, const lvSolverLit *lit
 
     /* 扩展 constraint_failed 数组（在添加子句之前，避免扩容失败时子句已添加但标记数组不完整） */
     if (cid >= solver->constraint_failed_cap) {
-        /* 整数溢出检查 */
-        if (solver->constraint_failed_cap > INT_MAX / lv_ARRAY_GROWTH_FACTOR) {
-            lv_set_error_ctx(lv_ERROR_OVERFLOW, __FILE__, __LINE__, __func__, "约束失败标记数组容量溢出: current=%d",
-                             solver->constraint_failed_cap);
+        int old_cap = solver->constraint_failed_cap;
+        /* 统一扩容（失败时 lv_ensure_capacity 内部已设置错误） */
+        if (!lv_ensure_capacity((void **) &solver->constraint_failed, cid + 1, &solver->constraint_failed_cap,
+                                sizeof(bool), 0))
             return lv_CONSTRAINT_ID_INVALID;
-        }
-        int new_cap = (solver->constraint_failed_cap == 0) ? DEFAULT_CLAUSE_CAPACITY
-                                                           : solver->constraint_failed_cap * lv_ARRAY_GROWTH_FACTOR;
-        bool *new_fail = (bool *) lv_realloc(solver->constraint_failed, (size_t) new_cap * sizeof(bool));
-        if (!new_fail)
-            return lv_CONSTRAINT_ID_INVALID;
-        memset(new_fail + solver->constraint_failed_cap, 0,
-               (size_t) (new_cap - solver->constraint_failed_cap) * sizeof(bool));
-        solver->constraint_failed = new_fail;
-        solver->constraint_failed_cap = new_cap;
+        memset(solver->constraint_failed + old_cap, 0,
+               (size_t) (solver->constraint_failed_cap - old_cap) * sizeof(bool));
     }
 
     /* 分配子句存储 */
@@ -833,15 +819,11 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
 
     /* 扩容冲突子句缓冲区以存储学习子句 */
     if (learned_size > ctx->conflict_capacity) {
-        int new_cap = learned_size * 2;
-        int *new_cc = (int *) lv_realloc(ctx->conflict_clause, (size_t) new_cap * sizeof(int));
-        if (!new_cc) {
+        if (!lv_ensure_capacity((void **) &ctx->conflict_clause, learned_size, &ctx->conflict_capacity, sizeof(int), 0)) {
             lv_free((void **) &seen);
             lv_free((void **) &resolving);
             return CDCL_UNSAT;
         }
-        ctx->conflict_clause = new_cc;
-        ctx->conflict_capacity = new_cap;
     }
 
     int write = 0;

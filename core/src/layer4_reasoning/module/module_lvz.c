@@ -186,28 +186,26 @@ void lvz_parser_advance(LvzParser *p) {
 
 bool lvz_parser_expect(LvzParser *p, LvzTokenType type) {
     if (p->current.type != type) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 token 类型 %d, 得到 %d", p->current.line,
-                     p->current.col, type, p->current.type);
         p->has_error = true;
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望 token 类型 %d, 得到 %d",
+                             p->current.line, p->current.col, type, p->current.type);
     }
     return true;
 }
 
 bool lvz_parser_expect_identifier(LvzParser *p, const char *name) {
     if (p->current.type != TOK_IDENTIFIER || strcmp(p->current.str_value, name) != 0) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'", p->current.line, p->current.col, name);
         p->has_error = true;
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'", p->current.line,
+                             p->current.col, name);
     }
     return true;
 }
 
 bool lvz_parser_expect_number(LvzParser *p, int *value) {
     if (p->current.type != TOK_NUMBER) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望数字", p->current.line, p->current.col);
         p->has_error = true;
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望数字", p->current.line, p->current.col);
     }
     if (value)
         *value = (int) p->current.num_value;
@@ -216,9 +214,8 @@ bool lvz_parser_expect_number(LvzParser *p, int *value) {
 
 bool lvz_parser_expect_string(LvzParser *p, char **out) {
     if (p->current.type != TOK_STRING) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望字符串", p->current.line, p->current.col);
         p->has_error = true;
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望字符串", p->current.line, p->current.col);
     }
     if (out)
         *out = lv_strdup_safe(p->current.str_value);
@@ -295,8 +292,7 @@ static bool lvz_parse_deps_section(LvzParser *p, Module *mod) {
     /* 解析每个依赖 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "dep")) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'dep' 关键字", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'dep' 关键字", p->current.line);
         }
         if (!lvz_parse_dep(p, mod))
             return false;
@@ -324,8 +320,7 @@ static bool lvz_parse_exports_section(LvzParser *p, Module *mod) {
     /* 解析函数块导出 */
     for (int i = 0; i < func_count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "func_block")) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'func_block' 关键字", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'func_block' 关键字", p->current.line);
         }
         lvz_parser_advance(p);
 
@@ -339,8 +334,7 @@ static bool lvz_parse_exports_section(LvzParser *p, Module *mod) {
     /* 解析类型区域导出 */
     for (int i = 0; i < type_count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "type_region")) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'type_region' 关键字", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'type_region' 关键字", p->current.line);
         }
         lvz_parser_advance(p);
 
@@ -367,8 +361,7 @@ static bool lvz_parse_axioms_section(LvzParser *p, Module *mod) {
     /* 解析每个公理包引用 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "axiom")) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'axiom' 关键字", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'axiom' 关键字", p->current.line);
         }
         lvz_parser_advance(p);
 
@@ -449,15 +442,13 @@ static bool lvz_node_circle(LvzParser *p, Module *mod, int node_id) {
 
     /* 圆心节点引用必须有效 */
     if (center < 0) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 的圆心节点 ID 无效 (%d)",
-                     p->current.line, node_id, center);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 的圆心节点 ID 无效 (%d)",
+                             p->current.line, node_id, center);
     }
     GeomNode *center_node = graph_get_node(mod->graph, center);
     if (!center_node) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 引用的圆心节点 #%d 不存在",
-                     p->current.line, node_id, center);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 引用的圆心节点 #%d 不存在",
+                             p->current.line, node_id, center);
     }
 
     /* 取圆心节点坐标，用于构造半径端点点 */
@@ -475,18 +466,16 @@ static bool lvz_node_circle(LvzParser *p, Module *mod, int node_id) {
     if (!srx || !sry) {
         symbolic_coord_destroy(srx);
         symbolic_coord_destroy(sry);
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法为圆节点 #%d 构造半径端点点坐标",
-                     p->current.line, node_id);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法为圆节点 #%d 构造半径端点点坐标",
+                             p->current.line, node_id);
     }
     SymbolicCoord *radius_coords[2] = {srx, sry};
     AddNodeResult add_result = graph_add_point(mod->graph, radius_coords, 2);
     symbolic_coord_destroy(srx);
     symbolic_coord_destroy(sry);
     if (add_result != ADD_NODE_OK) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d 的半径端点点节点",
-                     p->current.line, node_id);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d 的半径端点点节点",
+                             p->current.line, node_id);
     }
 
     /* 创建圆节点并关联圆心与半径端点（沿用自动分配 ID，与点/线节点一致） */
@@ -494,9 +483,8 @@ static bool lvz_node_circle(LvzParser *p, Module *mod, int node_id) {
     int circle_id = radius_point_id + 1;
     GeomNode *circle_node = graph_add_node_with_id(mod->graph, circle_id, GEOM_CIRCLE, NULL, 0);
     if (!circle_node) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d (节点 ID 冲突?)",
-                     p->current.line, circle_id);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d (节点 ID 冲突?)",
+                             p->current.line, circle_id);
     }
     circle_node->data.circle.center_node_id = center;
     circle_node->data.circle.radius_node_id = radius_point_id;
@@ -527,16 +515,14 @@ static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
     if (!mod->graph) {
         mod->graph = graph_create();
         if (!mod->graph) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "无法创建约束图");
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "无法创建约束图");
         }
     }
 
     /* 解析每个节点 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望节点类型", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望节点类型", p->current.line);
         }
 
         const char *node_type = p->current.str_value;
@@ -738,9 +724,8 @@ static bool lvz_expand_constraint_template(LvzParser *p, Module *mod, const char
 
     /* 原生约束类型走到此处说明参数不足，明确报错而非静默跳过 */
     if (lvz_is_native_constraint_type(constraint_type)) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 原生约束 '%s' 参数不足 (实际 %d 个)", p->current.line,
-                     constraint_type, param_count);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 原生约束 '%s' 参数不足 (实际 %d 个)",
+                             p->current.line, constraint_type, param_count);
     }
 
     /* 在模块声明的公理包中查找匹配约束类型的模板 */
@@ -753,9 +738,8 @@ static bool lvz_expand_constraint_template(LvzParser *p, Module *mod, const char
         }
     }
     if (!found_pkg) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 高级约束 '%s' 未在任何已声明公理包中找到对应模板",
-                     p->current.line, constraint_type);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 高级约束 '%s' 未在任何已声明公理包中找到对应模板",
+                             p->current.line, constraint_type);
     }
 
     /* 收集模板参数：参与者节点展开为其全部符号坐标，数值参数转换为有理数坐标 */
@@ -772,8 +756,7 @@ static bool lvz_expand_constraint_template(LvzParser *p, Module *mod, const char
     if (coord_total > 0) {
         tmpl_params = lv_calloc((size_t) coord_total, sizeof(SymbolicCoord *));
         if (!tmpl_params) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配模板参数数组", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配模板参数数组", p->current.line);
         }
         int idx = 0;
         for (int i = 0; i < param_count; i++) {
@@ -803,22 +786,19 @@ static bool lvz_expand_constraint_template(LvzParser *p, Module *mod, const char
     }
 
     if (!expanded) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开失败", p->current.line, constraint_type);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开失败", p->current.line, constraint_type);
     }
 
     /* 展开结果为空图：模板缺少可执行的展开体，属于明确错误而非静默跳过 */
     if (expanded->node_count == 0 && expanded->constraint_count == 0) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开结果为空（模板未提供可执行的展开体）",
-                     p->current.line, constraint_type);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开结果为空（模板未提供可执行的展开体）",
+                             p->current.line, constraint_type);
     }
 
     /* 将展开图的节点与约束合并进模块主图（处理 ID 冲突） */
     if (!lvz_merge_template_expansion(mod, expanded)) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开结果合并进主图失败", p->current.line,
-                     constraint_type);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 模板 '%s' 展开结果合并进主图失败",
+                             p->current.line, constraint_type);
     }
 
     return true;
@@ -895,16 +875,14 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
     if (!mod->graph) {
         mod->graph = graph_create();
         if (!mod->graph) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "无法创建约束图");
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "无法创建约束图");
         }
     }
 
     /* 解析每个约束 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望约束类型", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望约束类型", p->current.line);
         }
 
         /* 复制约束类型名：lvz_parser_advance 会释放 current.str_value，
@@ -912,8 +890,7 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
         char constraint_type_buf[64];
         size_t ct_len = strlen(p->current.str_value);
         if (ct_len >= sizeof(constraint_type_buf)) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 约束类型名过长", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 约束类型名过长", p->current.line);
         }
         memcpy(constraint_type_buf, p->current.str_value, ct_len + 1);
         const char *constraint_type = constraint_type_buf;
@@ -984,8 +961,7 @@ static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
     /* 解析每个函数块 */
     for (int i = 0; i < count && !p->has_error; i++) {
         if (!lvz_parser_expect_identifier(p, "func_block")) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'func_block' 关键字", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 'func_block' 关键字", p->current.line);
         }
         lvz_parser_advance(p);
 
@@ -1208,9 +1184,8 @@ static bool preset_field_inputs(LvzParser *p, LvzPresetCtx *ctx) {
     if (count > 0) {
         *ctx->out_types = (PresetType *) lv_malloc((size_t) count * sizeof(PresetType));
         if (!*ctx->out_types) {
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配输入类型数组", p->current.line);
             p->has_error = true;
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配输入类型数组", p->current.line);
         }
         for (int i = 0; i < count; i++) {
             if (!lvz_parser_expect(p, TOK_STRING)) {
@@ -1338,9 +1313,8 @@ static bool lvz_parse_preset_body(LvzParser *p, const char *name,
     /* 解析字段，直到遇到 } 或 EOF */
     while (p->current.type != TOK_RBRACE && p->current.type != TOK_EOF && !p->has_error) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 预设 '%s'): 期望字段名", p->current.line, name);
             p->has_error = true;
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d, 预设 '%s'): 期望字段名", p->current.line, name);
         }
 
         const char *field = p->current.str_value;
@@ -1356,10 +1330,9 @@ static bool lvz_parse_preset_body(LvzParser *p, const char *name,
             }
         }
         if (!matched) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 预设 '%s'): 未知字段 '%s'",
-                         p->current.line, name, field);
             p->has_error = true;
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d, 预设 '%s'): 未知字段 '%s'", p->current.line, name,
+                                 field);
         }
     }
 
@@ -1384,9 +1357,8 @@ static bool lvz_parse_presets_section(LvzParser *p, Module *mod) {
 
     /* 期望 { */
     if (p->current.type != TOK_LBRACE) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 '{' 开始预设节", p->current.line);
         p->has_error = true;
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望 '{' 开始预设节", p->current.line);
     }
     lvz_parser_advance(p);
 
@@ -1396,9 +1368,8 @@ static bool lvz_parse_presets_section(LvzParser *p, Module *mod) {
 
         /* 期望预设名称 (字符串) */
         if (!lvz_parser_expect(p, TOK_STRING)) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望预设名称字符串", p->current.line);
             p->has_error = true;
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望预设名称字符串", p->current.line);
         }
         char *preset_name = lv_strdup_safe(p->current.str_value);
         lvz_parser_advance(p);
@@ -1445,9 +1416,8 @@ static bool lvz_parse_presets_section(LvzParser *p, Module *mod) {
 
     /* 期望 } 结束 presets 节 */
     if (p->current.type != TOK_RBRACE) {
-        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 预设节缺少结束 '}'", p->current.line);
         p->has_error = true;
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 预设节缺少结束 '}'", p->current.line);
     }
     lvz_parser_advance(p);
 
@@ -1461,15 +1431,13 @@ bool lvz_parse(LvzParser *p, Module *mod) {
 
     /* 期望 'lvz' 关键字 */
     if (!lvz_parser_expect_identifier(p, "lvz")) {
-        lv_set_error(lv_ERROR_PARSE, "无效的 LVZ 文件: 缺少 'lvz' 头");
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "无效的 LVZ 文件: 缺少 'lvz' 头");
     }
     lvz_parser_advance(p);
 
     /* 期望版本号 */
     if (!lvz_parser_expect(p, TOK_NUMBER)) {
-        lv_set_error(lv_ERROR_PARSE, "无效的 LVZ 文件: 缺少版本号");
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "无效的 LVZ 文件: 缺少版本号");
     }
     int major = (int) p->current.num_value;
     lvz_parser_advance(p);
@@ -1487,16 +1455,14 @@ bool lvz_parse(LvzParser *p, Module *mod) {
 
     /* 检查版本兼容性 */
     if (major > LVZ_VERSION_MAJOR) {
-        lv_set_error(lv_ERROR_UNSUPPORTED, "不支持的 LVZ 版本: %d.%d (最高支持 %d.%d)", major, minor, LVZ_VERSION_MAJOR,
-                     LVZ_VERSION_MINOR);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_UNSUPPORTED, "不支持的 LVZ 版本: %d.%d (最高支持 %d.%d)", major, minor,
+                             LVZ_VERSION_MAJOR, LVZ_VERSION_MINOR);
     }
 
     /* 解析各个部分 */
     while (p->current.type != TOK_EOF && !p->has_error) {
         if (p->current.type != TOK_IDENTIFIER) {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 期望节名称", p->current.line);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 期望节名称", p->current.line);
         }
 
         const char *section = p->current.str_value;
@@ -1529,8 +1495,7 @@ bool lvz_parse(LvzParser *p, Module *mod) {
             lvz_parser_advance(p);
             break;
         } else {
-            lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 未知的节 '%s'", p->current.line, section);
-            return false;
+            lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d): 未知的节 '%s'", p->current.line, section);
         }
     }
 
@@ -1556,31 +1521,27 @@ bool dependency_exists(Module **visited, int count, Module *mod) {
  */
 bool lvz_load_presets_file(const char *filepath) {
     if (!filepath) {
-        lv_set_error(lv_ERROR_PARSE, "lvz_load_presets_file: 文件路径为空");
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "lvz_load_presets_file: 文件路径为空");
     }
 
     /* 读取文件内容 */
     FILE *fp = fopen(filepath, "rb");
     if (!fp) {
-        lv_set_error(lv_ERROR_IO, "lvz_load_presets_file: 无法打开文件 '%s'", filepath);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lvz_load_presets_file: 无法打开文件 '%s'", filepath);
     }
 
     fseek(fp, 0, SEEK_END);
     long file_size = ftell(fp);
     if (file_size <= 0) {
         fclose(fp);
-        lv_set_error(lv_ERROR_IO, "lvz_load_presets_file: 文件 '%s' 为空", filepath);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lvz_load_presets_file: 文件 '%s' 为空", filepath);
     }
 
     rewind(fp);
     char *source = (char *) lv_malloc((size_t) file_size + 1);
     if (!source) {
         fclose(fp);
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "lvz_load_presets_file: 无法分配内存");
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lvz_load_presets_file: 无法分配内存");
     }
 
     size_t read_size = fread(source, 1, (size_t) file_size, fp);
@@ -1588,8 +1549,7 @@ bool lvz_load_presets_file(const char *filepath) {
 
     if (read_size != (size_t) file_size) {
         lv_free((void **) &source);
-        lv_set_error(lv_ERROR_IO, "lvz_load_presets_file: 读取文件 '%s' 失败", filepath);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lvz_load_presets_file: 读取文件 '%s' 失败", filepath);
     }
     source[file_size] = '\0';
 
@@ -1619,8 +1579,7 @@ bool lvz_load_presets_file(const char *filepath) {
     lv_free((void **) &source);
 
     if (!ok) {
-        lv_set_error(lv_ERROR_PARSE, "lvz_load_presets_file: 解析 '%s' 失败", filepath);
-        return false;
+        lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "lvz_load_presets_file: 解析 '%s' 失败", filepath);
     }
 
     return true;

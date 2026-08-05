@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_internal.h" /* lv_LOG_WARNING 等统一日志宏 */
 #include "lv/config.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_numeric.h"
@@ -48,11 +49,6 @@
 /* ---- 内部：简单随机数生成器（线性同余发生器）---- */
 
 static unsigned long rand_state_lcg = 123456789UL;
-
-/** 设置随机种子 */
-static void rand_seed_lcg(unsigned long seed) {
-    rand_state_lcg = seed;
-}
 
 /** 生成 [0, 1) 的均匀随机数（线性同余） */
 static double rand_uniform_lcg(void) {
@@ -455,14 +451,14 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
                         int new_cap = queue_capacity * 2;
                         if (new_cap > PCTL_MAX_STATE_LIMIT) {
                             /* 超出合理上限，标记溢出 */
-                            fprintf(stderr, "[PCTL] BFS queue overflow at %d states (limit %d)\n", back,
-                                    PCTL_MAX_STATE_LIMIT);
+                            lv_LOG_WARNING("[PCTL] BFS queue overflow at %d states (limit %d)\n", back,
+                                            PCTL_MAX_STATE_LIMIT);
                             found = false; /* 标记失败 */
                             break;
                         }
                         int *new_queue = (int *) lv_realloc(queue, (size_t) new_cap * sizeof(int));
                         if (!new_queue) {
-                            fprintf(stderr, "[PCTL] BFS queue realloc failed\n");
+                            lv_LOG_WARNING("[PCTL] BFS queue realloc failed\n");
                             found = false;
                             break;
                         }
@@ -554,7 +550,7 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
                 if (back >= queue_capacity) {
                     int new_cap = queue_capacity * 2;
                     if (new_cap > PCTL_MAX_STATE_LIMIT) {
-                        fprintf(stderr, "[PCTL] Always BFS overflow at %d (limit %d)\n", back, PCTL_MAX_STATE_LIMIT);
+                        lv_LOG_WARNING("[PCTL] Always BFS overflow at %d (limit %d)\n", back, PCTL_MAX_STATE_LIMIT);
                         break;
                     }
                     int *new_queue = (int *) lv_realloc(queue, (size_t) new_cap * sizeof(int));
@@ -1132,7 +1128,8 @@ static bool pctl_eval_steady_state(SimpleDTMC *mc, const PCTLFormula *formula, d
             if (max_diff < convergence_threshold) { converged = true; break; }
         }
         if (!converged)
-            fprintf(stderr, "Warning: PCTL steady-state power iteration did not converge within %d iterations.\n", max_iter);
+            lv_LOG_WARNING("Warning: PCTL steady-state power iteration did not converge within %d iterations.\n",
+                           max_iter);
         double result = 0.0;
         for (int i = 0; i < n; i++)
             if (eval_state_predicate(formula->state_predicate, i)) result += pi[i];
