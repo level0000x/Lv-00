@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_numeric.c
  * @brief Lv-00 数值工具模块实现 - 基础数值计算工具
  *
@@ -99,18 +99,25 @@ double lv_clamp(double x, double lo, double hi) {
  * @brief 角度转弧度
  * @param deg 角度值（度数）
  * @return 对应的弧度值
+ *
+ * 运算顺序 deg * lv_PI / 180.0（先乘后除）与全库既有
+ * `deg * M_PI / 180.0` 魔法表达式保持一致（lv_PI 与 M_PI
+ * 在 double 精度下取值相同），替换后数值结果逐位一致。
  */
 double lv_deg_to_rad(double deg) {
-    return deg * (lv_PI / 180.0);
+    return deg * lv_PI / 180.0;
 }
 
 /**
  * @brief 弧度转角度
  * @param rad 弧度值
  * @return 对应的角度值（度数）
+ *
+ * 运算顺序 rad * 180.0 / lv_PI（先乘后除）与全库既有
+ * `rad * 180.0 / M_PI` 魔法表达式保持一致。
  */
 double lv_rad_to_deg(double rad) {
-    return rad * (180.0 / lv_PI);
+    return rad * 180.0 / lv_PI;
 }
 
 /* ============================================================

@@ -358,7 +358,6 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
 
     ConstraintTemplate tmpl = {0};
     tmpl.name = safe_lv_strdup_safe(p->current.str_value);
-    tmpl.verified = false;
 
     parser_advance(p);
 
@@ -370,6 +369,14 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
     tmpl.param_count = p->current.int_value;
 
     parser_advance(p);
+
+    /* 可选 verified 字段（新格式为第三个数字；旧格式文件无此字段，缺省 false） */
+    if (p->current.type == PKG_NUMBER) {
+        tmpl.verified = p->current.int_value != 0;
+        parser_advance(p);
+    } else {
+        tmpl.verified = false;
+    }
 
     /* 添加到包 */
     if (!axiom_package_register_template(pkg, &tmpl)) {

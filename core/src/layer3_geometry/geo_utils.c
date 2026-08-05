@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/geo_predicate.h"
 
 /* ========================================================================
  * 数值容差常量
@@ -161,29 +162,11 @@ double geo_angle(double x1, double y1, double x2, double y2) {
 /**
  * @brief 判断两条线段是否相交
  * @return 相交返回 1，不相交返回 0
+ *
+ * 收敛实现：委托给事实来源 lv_segments_intersect（geo_predicate.c，
+ * APPROX 浮点近似模式，含端点接触语义，与本地旧实现一致）。
  */
 int geo_segments_intersect(double ax1, double ay1, double ax2, double ay2, double bx1, double by1, double bx2,
                            double by2) {
-    double d1 = geo_signed_area_2x(bx1, by1, bx2, by2, ax1, ay1);
-    double d2 = geo_signed_area_2x(bx1, by1, bx2, by2, ax2, ay2);
-    double d3 = geo_signed_area_2x(ax1, ay1, ax2, ay2, bx1, by1);
-    double d4 = geo_signed_area_2x(ax1, ay1, ax2, ay2, bx2, by2);
-
-    /* 一般相交 */
-    if (((d1 > GEO_EPSILON && d2 < -GEO_EPSILON) || (d1 < -GEO_EPSILON && d2 > GEO_EPSILON)) &&
-        ((d3 > GEO_EPSILON && d4 < -GEO_EPSILON) || (d3 < -GEO_EPSILON && d4 > GEO_EPSILON))) {
-        return 1;
-    }
-
-    /* 退化情况：检查端点是否在另一条线段上 */
-    if (fabs(d1) < GEO_EPSILON && geo_point_on_segment(ax1, ay1, bx1, by1, bx2, by2))
-        return 1;
-    if (fabs(d2) < GEO_EPSILON && geo_point_on_segment(ax2, ay2, bx1, by1, bx2, by2))
-        return 1;
-    if (fabs(d3) < GEO_EPSILON && geo_point_on_segment(bx1, by1, ax1, ay1, ax2, ay2))
-        return 1;
-    if (fabs(d4) < GEO_EPSILON && geo_point_on_segment(bx2, by2, ax1, ay1, ax2, ay2))
-        return 1;
-
-    return 0;
+    return lv_segments_intersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2, lv_PREDICATE_APPROX) ? 1 : 0;
 }

@@ -34,20 +34,6 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_json.h"
 
-/* 前向声明 */
-static bool segments_intersect(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
-
-/* 包装函数：从 GeomNode* 段提取坐标并检测相交 */
-static bool segments_intersect_nodes(const GeomNode *s1, const GeomNode *s2) {
-    if (!s1 || !s2)
-        return false;
-    /* 段节点的 data.segment 中应包含端点坐标信息，
-       这里使用简化的 0 值检查，避免编译错误 */
-    (void) s1;
-    (void) s2;
-    return false;
-}
-
 /* graph_validate_region_closure: 实现在 graph_conflict.c 中 */
 
 /* ============================================================

@@ -171,10 +171,6 @@ static void lv_config_default_init(void) {
     def.propagation.prop_max_backtracks = 1000;
     def.propagation.prop_max_collaboration_iters = 10000;
     /* 高维几何 */
-    def.high_dim.high_dim_max_dimensions = 32;
-    def.high_dim.high_dim_max_depth = 32;
-    def.high_dim.high_dim_max_projection_presets = 64;
-    def.high_dim.high_dim_max_active_views = 16;
     def.high_dim.high_dim_default_fidelity_threshold = 0.85;
 }
 
@@ -383,18 +379,6 @@ void lv_config_set_prop_max_collaboration_iters(int val) {
     cfg_mut()->propagation.prop_max_collaboration_iters = val;
 }
 
-void lv_config_set_high_dim_max_dimensions(int val) {
-    cfg_mut()->high_dim.high_dim_max_dimensions = val;
-}
-void lv_config_set_high_dim_max_depth(int val) {
-    cfg_mut()->high_dim.high_dim_max_depth = val;
-}
-void lv_config_set_high_dim_max_projection_presets(int val) {
-    cfg_mut()->high_dim.high_dim_max_projection_presets = val;
-}
-void lv_config_set_high_dim_max_active_views(int val) {
-    cfg_mut()->high_dim.high_dim_max_active_views = val;
-}
 void lv_config_set_high_dim_default_fidelity_threshold(double val) {
     cfg_mut()->high_dim.high_dim_default_fidelity_threshold = val;
 }
@@ -570,6 +554,11 @@ int lv_config_load_json(const char *json_path) {
 /**
  * @brief 将当前配置导出为 JSON 字符串
  *
+ * 与 lv_config_load_json 对称：通过 X-macro 全量导出
+ * LV_CONFIG_INT_KEYS / LV_CONFIG_DOUBLE_KEYS 覆盖的全部配置键。
+ * double 使用 %.17g 输出，保证 save→load 无损往返。
+ * 输出结构保持原有风格：外层对象、每行 "  \"key\": value," 缩进。
+ *
  * @param buf      输出缓冲区
  * @param buf_size 缓冲区大小
  * @return 写入的字符数（不含结尾 null），失败返回 -1
@@ -580,64 +569,33 @@ int lv_config_to_json(char *buf, size_t buf_size) {
     if (buf_size < 64)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "buf_size < 64");
     const lvConfig *c = lv_config_current();
-    return snprintf(
-        buf, buf_size,
-        "{\n"
-        "  \"solver_max_var_id\": %d,\n"
-        "  \"solver_max_iterations\": %d,\n"
-        "  \"default_rewrite_limit\": %d,\n"
-        "  \"stream_async_queue_capacity\": %d,\n"
-        "  \"stream_max_callbacks\": %d,\n"
-        "  \"max_precision_bits\": %d,\n"
-        "  \"parser_max_input_length\": %d,\n"
-        "  \"parser_max_ast_depth\": %d,\n"
-        "  \"runtime_guard_max_recurse\": %d,\n"
-        "  \"proto_max_draw_cmds\": %d,\n"
-        "  \"proto_max_proof_steps\": %d,\n"
-        "  \"geo_max_objects\": %d,\n"
-        "  \"geo_max_constraints\": %d,\n"
-        "  \"geo_min_zoom\": %.2f,\n"
-        "  \"geo_max_zoom\": %.1f,\n"
-        "  \"geoevol_max_param_dim\": %d,\n"
-        "  \"max_recursion_depth\": %d,\n"
-        "  \"interop_ws_default_port\": %d,\n"
-        "  \"log_max_files\": %d,\n"
-        "  \"max_plugins\": %d,\n"
-        "  \"backend_step_limit\": %d,\n"
-        "  \"default_memory_limit_mb\": %d,\n"
-        "  \"vf2_max_depth\": %d,\n"
-        "  \"buchberger_max_steps\": %d,\n"
-        "  \"groebner_reduce_max_steps\": %d,\n"
-        "  \"circuit_overflow_threshold\": %d,\n"
-        "  \"smoke_test_step_limit\": %d,\n"
-        "  \"smoke_test_timeout_ms\": %d,\n"
-        "  \"context_timeout_ms\": %d,\n"
-        "  \"context_cooldown_ms\": %d,\n"
-        "  \"prop_max_iterations\": %d,\n"
-        "  \"prop_max_backtracks\": %d,\n"
-        "  \"prop_max_collaboration_iters\": %d,\n"
-        "  \"high_dim_max_dimensions\": %d,\n"
-        "  \"high_dim_max_depth\": %d,\n"
-        "  \"high_dim_max_projection_presets\": %d,\n"
-        "  \"high_dim_max_active_views\": %d,\n"
-        "  \"high_dim_default_fidelity_threshold\": %.2f\n"
-        "}\n",
-        c->solver.solver_max_var_id, c->solver.solver_max_iterations, c->engine.default_rewrite_limit,
-        c->stream.stream_async_queue_capacity, c->stream.stream_max_callbacks, c->precision.max_precision_bits,
-        c->parser.parser_max_input_length,
-        c->parser.parser_max_ast_depth, c->runtime_guard.runtime_guard_max_recurse,
-        c->protocol.proto_max_draw_cmds, c->protocol.proto_max_proof_steps,
-        c->geometry.geo_max_objects, c->geometry.geo_max_constraints, c->geometry.geo_min_zoom,
-        c->geometry.geo_max_zoom, c->geometry.geoevol_max_param_dim,
-        c->context.max_recursion_depth,
-        c->integration.interop_ws_default_port, c->diagnostics.log_max_files, c->integration.max_plugins,
-        c->integration.backend_step_limit, c->health.default_memory_limit_mb,
-        c->engine.vf2_max_depth, c->engine.buchberger_max_steps,
-        c->engine.groebner_reduce_max_steps,
-        c->health.circuit_overflow_threshold, c->test.smoke_test_step_limit,
-        c->test.smoke_test_timeout_ms, c->context.context_timeout_ms, c->context.context_cooldown_ms,
-        c->propagation.prop_max_iterations, c->propagation.prop_max_backtracks,
-        c->propagation.prop_max_collaboration_iters, c->high_dim.high_dim_max_dimensions,
-        c->high_dim.high_dim_max_depth, c->high_dim.high_dim_max_projection_presets,
-        c->high_dim.high_dim_max_active_views, c->high_dim.high_dim_default_fidelity_threshold);
+
+    lvJsonBuf jb;
+    if (!lv_json_buf_init(&jb, 4096))
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to init json buf");
+    lv_json_buf_append_raw(&jb, "{\n");
+#define TOJSON_INT(key, field) lv_json_buf_append_fmt(&jb, "  \"" key "\": %d,\n", c->field);
+#define TOJSON_DBL(key, field) lv_json_buf_append_fmt(&jb, "  \"" key "\": %.17g,\n", c->field);
+    LV_CONFIG_INT_KEYS(TOJSON_INT)
+    LV_CONFIG_DOUBLE_KEYS(TOJSON_DBL)
+#undef TOJSON_INT
+#undef TOJSON_DBL
+    /* 去掉最后一个键的尾部逗号，保证输出为合法 JSON（可被 lv_config_load_json 往返加载） */
+    if (jb.pos >= 2 && jb.buffer[jb.pos - 2] == ',' && jb.buffer[jb.pos - 1] == '\n') {
+        jb.buffer[jb.pos - 2] = '\n';
+        jb.pos -= 1;
+    }
+    lv_json_buf_append_raw(&jb, "}\n");
+
+    char *json = lv_json_buf_finalize(&jb);
+    if (!json)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to finalize json buf");
+    size_t len = strlen(json);
+    if (len >= buf_size) {
+        lv_free((void **) &json);
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "buf_size too small for config JSON");
+    }
+    memcpy(buf, json, len + 1);
+    lv_free((void **) &json);
+    return (int) len; /* 不含结尾 '\0' */
 }

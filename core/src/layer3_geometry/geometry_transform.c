@@ -20,6 +20,7 @@
 #include "geometry_transform.h"
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_numeric.h"
 #include "lv/lv_strbuf.h"
 #include "lv/symbolic_coord.h"
 #include "lv_utils.h"
@@ -204,7 +205,7 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
          * 再通过 mpq_set_d 转换为有理数近似。
          * 这保证了变换矩阵始终被正确设置，而非静默降级为单位矩阵。 */
         {
-            double angle_rad = (double) angle_num / (double) angle_denom * M_PI / 180.0;
+            double angle_rad = lv_deg_to_rad((double) angle_num / (double) angle_denom);
             double cos_d = cos(angle_rad);
             double sin_d = sin(angle_rad);
             mpq_set_d(t->params.params.rotation.cos_theta, cos_d);
@@ -831,6 +832,38 @@ bool lv_transform_sequence_apply(const lvTransformSequence *seq, mpq_t x, mpq_t 
 
 /* ============== 变换性质分析实现 ============== */
 
+/* ── 2x2 伴随矩阵/行列式辅助（mpq 精确运算） ── */
+
+/**
+ * @brief 计算 2x2 矩阵的伴随矩阵与行列式（mpq 精确运算）
+ *
+ * 对 M = [[m00, m01], [m10, m11]]：
+ *   det = m00*m11 - m01*m10
+ *   adj = [[m11, -m01], [-m10, m00]]   （伴随矩阵，未除以 det）
+ *
+ * 供 lv_transform_find_fixed_point 与 lv_transform_inverse 共用，
+ * 消除两处重复的 2x2 行列式/伴随计算。mpq 为精确有理数运算，
+ * 提取前后数值语义完全一致。
+ *
+ * @param m00, m01, m10, m11      矩阵元素
+ * @param det                     输出行列式
+ * @param adj00, adj01, adj10, adj11 输出伴随矩阵元素
+ */
+static void lv_mpq_2x2_adj_det(const mpq_t m00, const mpq_t m01, const mpq_t m10, const mpq_t m11, mpq_t det,
+                               mpq_t adj00, mpq_t adj01, mpq_t adj10, mpq_t adj11) {
+    mpq_t temp;
+    mpq_init(temp);
+    mpq_mul(det, m00, m11);
+    mpq_mul(temp, m01, m10);
+    mpq_sub(det, det, temp);
+    mpq_clear(temp);
+
+    mpq_set(adj00, m11);
+    mpq_neg(adj01, m01);
+    mpq_neg(adj10, m10);
+    mpq_set(adj11, m00);
+}
+
 bool lv_transform_is_isometry(const lvTransform *t) {
     return t ? t->is_isometry : false;
 }
@@ -847,14 +880,13 @@ bool lv_transform_find_fixed_point(const lvTransform *t, mpq_t out_x, mpq_t out_
     /* 求解 (x, y) = M * (x, y) */
     /* x = a*x + b*y + tx => (1-a)*x - b*y = tx */
     /* y = c*x + d*y + ty => -c*x + (1-d)*y = ty */
+    /* 系数矩阵 [[1-a, -b], [-c, 1-d]]，伴随/行列式由 lv_mpq_2x2_adj_det 统一计算 */
 
-    mpq_t det;
-    mpq_init(det);
-
-    /* det = (1-a)*(1-d) - b*c */
-    mpq_t one_minus_a, one_minus_d;
+    mpq_t one_minus_a, one_minus_d, neg_b, neg_c;
     mpq_init(one_minus_a);
     mpq_init(one_minus_d);
+    mpq_init(neg_b);
+    mpq_init(neg_c);
 
     mpq_set_ui(one_minus_a, 1, 1);
     mpq_sub(one_minus_a, one_minus_a, t->matrix.a);
@@ -862,36 +894,55 @@ bool lv_transform_find_fixed_point(const lvTransform *t, mpq_t out_x, mpq_t out_
     mpq_set_ui(one_minus_d, 1, 1);
     mpq_sub(one_minus_d, one_minus_d, t->matrix.d);
 
-    mpq_mul(det, one_minus_a, one_minus_d);
-    mpq_t temp;
-    mpq_init(temp);
-    mpq_mul(temp, t->matrix.b, t->matrix.c);
-    mpq_sub(det, det, temp);
+    mpq_neg(neg_b, t->matrix.b);
+    mpq_neg(neg_c, t->matrix.c);
+
+    /* det = (1-a)*(1-d) - (-b)*(-c) = (1-a)*(1-d) - b*c */
+    mpq_t det, adj00, adj01, adj10, adj11;
+    mpq_init(det);
+    mpq_init(adj00);
+    mpq_init(adj01);
+    mpq_init(adj10);
+    mpq_init(adj11);
+    lv_mpq_2x2_adj_det(one_minus_a, neg_b, neg_c, one_minus_d, det, adj00, adj01, adj10, adj11);
 
     if (mpq_cmp_ui(det, 0, 1) == 0) {
         /* 无唯一不动点 */
         mpq_clear(det);
+        mpq_clear(adj00);
+        mpq_clear(adj01);
+        mpq_clear(adj10);
+        mpq_clear(adj11);
         mpq_clear(one_minus_a);
         mpq_clear(one_minus_d);
-        mpq_clear(temp);
+        mpq_clear(neg_b);
+        mpq_clear(neg_c);
         return false;
     }
 
-    /* x = (tx*(1-d) + b*ty) / det */
-    mpq_mul(out_x, t->matrix.tx, one_minus_d);
-    mpq_mul(temp, t->matrix.b, t->matrix.ty);
+    /* x = (tx*(1-d) + b*ty) / det = (tx*adj00 + ty*adj01) / det */
+    mpq_mul(out_x, t->matrix.tx, adj00);
+    mpq_t temp;
+    mpq_init(temp);
+    mpq_mul(temp, t->matrix.ty, adj01);
     mpq_add(out_x, out_x, temp);
     mpq_div(out_x, out_x, det);
 
-    /* y = ((1-a)*ty + c*tx) / det */
-    mpq_mul(out_y, one_minus_a, t->matrix.ty);
-    mpq_mul(temp, t->matrix.c, t->matrix.tx);
+    /* y = ((1-a)*ty + c*tx) / det = (tx*adj10 + ty*adj11) / det */
+    mpq_mul(out_y, t->matrix.tx, adj10);
+    mpq_mul(temp, t->matrix.ty, adj11);
     mpq_add(out_y, out_y, temp);
     mpq_div(out_y, out_y, det);
 
     mpq_clear(det);
+    mpq_clear(adj00);
+    mpq_clear(adj01);
+    mpq_clear(adj10);
+    mpq_clear(adj11);
     mpq_clear(one_minus_a);
     mpq_clear(one_minus_d);
+    mpq_clear(neg_b);
+    mpq_clear(neg_c);
     mpq_clear(temp);
 
     return true;
@@ -917,32 +968,35 @@ lvTransform *lv_transform_inverse(const lvTransform *t) {
     mpq_init(inv->matrix.d);
     mpq_init(inv->matrix.ty);
 
-    /* 计算行列式 */
-    mpq_t det;
+    /* 计算行列式与伴随矩阵（mpq 精确运算，由 lv_mpq_2x2_adj_det 统一计算） */
+    mpq_t det, adj00, adj01, adj10, adj11;
     mpq_init(det);
-    mpq_mul(det, t->matrix.a, t->matrix.d);
-    mpq_t temp;
-    mpq_init(temp);
-    mpq_mul(temp, t->matrix.b, t->matrix.c);
-    mpq_sub(det, det, temp);
+    mpq_init(adj00);
+    mpq_init(adj01);
+    mpq_init(adj10);
+    mpq_init(adj11);
+    lv_mpq_2x2_adj_det(t->matrix.a, t->matrix.b, t->matrix.c, t->matrix.d, det, adj00, adj01, adj10, adj11);
 
     if (mpq_cmp_ui(det, 0, 1) == 0) {
         /* 不可逆 */
         mpq_clear(det);
-        mpq_clear(temp);
+        mpq_clear(adj00);
+        mpq_clear(adj01);
+        mpq_clear(adj10);
+        mpq_clear(adj11);
         lv_transform_destroy(inv);
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_transform_inverse: singular matrix, not invertible");
     }
 
-    /* 逆矩阵 */
-    mpq_div(inv->matrix.a, t->matrix.d, det);
-    mpq_neg(inv->matrix.b, t->matrix.b);
-    mpq_div(inv->matrix.b, inv->matrix.b, det);
-    mpq_neg(inv->matrix.c, t->matrix.c);
-    mpq_div(inv->matrix.c, inv->matrix.c, det);
-    mpq_div(inv->matrix.d, t->matrix.a, det);
+    /* 逆矩阵 = 伴随矩阵 / det */
+    mpq_div(inv->matrix.a, adj00, det);
+    mpq_div(inv->matrix.b, adj01, det);
+    mpq_div(inv->matrix.c, adj10, det);
+    mpq_div(inv->matrix.d, adj11, det);
 
     /* tx' = -(a'*tx + b'*ty) */
+    mpq_t temp;
+    mpq_init(temp);
     mpq_mul(inv->matrix.tx, inv->matrix.a, t->matrix.tx);
     mpq_mul(temp, inv->matrix.b, t->matrix.ty);
     mpq_add(inv->matrix.tx, inv->matrix.tx, temp);
@@ -955,6 +1009,10 @@ lvTransform *lv_transform_inverse(const lvTransform *t) {
     mpq_neg(inv->matrix.ty, inv->matrix.ty);
 
     mpq_clear(det);
+    mpq_clear(adj00);
+    mpq_clear(adj01);
+    mpq_clear(adj10);
+    mpq_clear(adj11);
     mpq_clear(temp);
 
     inv->matrix_valid = true;

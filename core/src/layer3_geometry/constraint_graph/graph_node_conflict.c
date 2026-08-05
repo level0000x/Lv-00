@@ -37,55 +37,6 @@
 #include "graph_node_internal.h"
 
 /* ================================================================
- *  线段相交测试（参数化）
- * ================================================================ */
-
-/**
- * @brief 检查两条线段是否在其内部相交
- * @param seg_a 第一个线段节点
- * @param seg_b 第二个线段节点
- * @return 线段内部相交（t,u 都在 (0,1) 区间内）返回 true
- *
- * 使用参数化线段相交算法：
- *   线段 A: P + t*(Q-P), t in [0,1]
- *   线段 B: R + u*(S-R), u in [0,1]
- */
-static bool segments_intersect(const GeomNode *seg_a, const GeomNode *seg_b) {
-    if (!seg_a || !seg_b)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "segments_intersect: NULL segment");
-    if (seg_a->type != GEOM_LINE_SEGMENT || seg_b->type != GEOM_LINE_SEGMENT)
-        return false;
-    if (seg_a->coord_count < 4 || seg_b->coord_count < 4)
-        return false;
-    if (!seg_a->symbolic_coords || !seg_b->symbolic_coords)
-        return false;
-
-    /* 提取端点坐标为双精度浮点数 */
-    double ax1 = symbolic_coord_to_double(seg_a->symbolic_coords[0]);
-    double ay1 = symbolic_coord_to_double(seg_a->symbolic_coords[1]);
-    double ax2 = symbolic_coord_to_double(seg_a->symbolic_coords[2]);
-    double ay2 = symbolic_coord_to_double(seg_a->symbolic_coords[3]);
-    double bx1 = symbolic_coord_to_double(seg_b->symbolic_coords[0]);
-    double by1 = symbolic_coord_to_double(seg_b->symbolic_coords[1]);
-    double bx2 = symbolic_coord_to_double(seg_b->symbolic_coords[2]);
-    double by2 = symbolic_coord_to_double(seg_b->symbolic_coords[3]);
-
-    double dx_a = ax2 - ax1, dy_a = ay2 - ay1;
-    double dx_b = bx2 - bx1, dy_b = by2 - by1;
-    double denom = dx_a * dy_b - dy_a * dx_b;
-
-    if (fabs(denom) < lv_EPSILON_DOUBLE)
-        return false; /* 平行或共线 */
-
-    double t = ((bx1 - ax1) * dy_b - (by1 - ay1) * dx_b) / denom;
-    double u = ((bx1 - ax1) * dy_a - (by1 - ay1) * dx_a) / denom;
-
-    /* 严格内部相交检查 */
-    return (t > lv_EPSILON_SEGMENT_INTERIOR && t < 1.0 - lv_EPSILON_SEGMENT_INTERIOR &&
-            u > lv_EPSILON_SEGMENT_INTERIOR && u < 1.0 - lv_EPSILON_SEGMENT_INTERIOR);
-}
-
-/* ================================================================
  *  增量代数冲突检测
  * ================================================================ */
 

@@ -59,7 +59,8 @@ AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const char *filepath
     /* 写入模板 */
     for (int i = 0; i < pkg->templates.count; i++) {
         ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
-        fprintf(f, "    template \"%s\" %d\n", t->name, t->param_count);
+        /* 追加 verified 字段，与 axiom_package_compute_content_hash 的覆盖范围保持一致 */
+        fprintf(f, "    template \"%s\" %d %d\n", t->name, t->param_count, t->verified ? 1 : 0);
     }
 
     /* 写入不可构造问题 */

@@ -308,6 +308,88 @@ bool config_load(ConfigManager *mgr) {
             snprintf(full_key, sizeof(full_key), "%s", raw_key);
         }
 
+        /* 解析字符串数组：key = ["a", "b", ...]（与 config_serialize_array 对称） */
+        if (*value == '[') {
+            ConfigItem *item = config_item_create(full_key, CONFIG_TYPE_ARRAY);
+            if (!item) {
+                lv_file_close(f);
+                lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 创建数组项失败");
+            }
+
+            size_t cap = 4;
+            size_t cnt = 0;
+            ConfigItem **arr = lv_calloc(cap, sizeof(ConfigItem *));
+            if (!arr) {
+                config_item_destroy(item);
+                lv_file_close(f);
+                lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 分配数组失败");
+            }
+
+            const char *p = value + 1;
+            while (*p) {
+                while (*p && isspace((unsigned char) *p))
+                    p++;
+                if (*p == '\0' || *p == ']')
+                    break;
+                if (*p == ',') {
+                    p++;
+                    continue;
+                }
+                if (*p == '"') {
+                    p++;
+                    const char *start = p;
+                    while (*p && *p != '"')
+                        p++;
+                    size_t elen = (size_t) (p - start);
+                    if (*p == '"')
+                        p++;
+
+                    if (cnt >= cap) {
+                        cap *= 2;
+                        ConfigItem **na = (ConfigItem **) lv_realloc(arr, cap * sizeof(ConfigItem *));
+                        if (!na) {
+                            for (size_t i = 0; i < cnt; i++)
+                                config_item_destroy(arr[i]);
+                            lv_free((void **) &arr);
+                            config_item_destroy(item);
+                            lv_file_close(f);
+                            lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 数组扩容失败");
+                        }
+                        arr = na;
+                    }
+                    ConfigItem *elem = lv_calloc(1, sizeof(ConfigItem));
+                    if (!elem) {
+                        for (size_t i = 0; i < cnt; i++)
+                            config_item_destroy(arr[i]);
+                        lv_free((void **) &arr);
+                        config_item_destroy(item);
+                        lv_file_close(f);
+                        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 数组元素分配失败");
+                    }
+                    /* 元素值存于 key（与 config_serialize_array 写出形态对称） */
+                    elem->type = CONFIG_TYPE_STRING;
+                    elem->key = (char *) lv_malloc(elen + 1);
+                    if (elem->key) {
+                        memcpy(elem->key, start, elen);
+                        elem->key[elen] = '\0';
+                    } else {
+                        elem->key = lv_strdup_safe("");
+                    }
+                    arr[cnt++] = elem;
+                } else {
+                    /* 非字符串元素：跳过到下一个逗号或结束 */
+                    while (*p && *p != ',' && *p != ']')
+                        p++;
+                }
+            }
+
+            item->value.array_val = arr;
+            item->array_count = cnt;
+            item->next = mgr->items;
+            mgr->items = item;
+            continue;
+        }
+
         /* 尝试解析为整数 */
         char *endptr;
         long int_val = strtol(value, &endptr, 10);
@@ -357,7 +439,8 @@ static void config_serialize_bool(FILE *f, const ConfigItem *item) {
 }
 
 static void config_serialize_double(FILE *f, const ConfigItem *item) {
-    fprintf(f, "%s = %.6f\n", item->key, item->value.double_val);
+    /* %.17g 保证 double 无损往返（如 1e-8 不会被 %.6f 截断成 0.000000） */
+    fprintf(f, "%s = %.17g\n", item->key, item->value.double_val);
 }
 
 static void config_serialize_string(FILE *f, const ConfigItem *item) {

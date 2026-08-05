@@ -214,13 +214,31 @@ bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out
         }
     }
 
-    /* 复杂度解析 */
+    /* 复杂度解析：从字符串反查枚举，字段缺失时回退默认 COMPLEXITY_O1 */
     meta.complexity = COMPLEXITY_O1;
+    char complexity_buf[128] = {0};
+    if (lv_json_get_string(json_copy, "complexity", complexity_buf, sizeof(complexity_buf)) && complexity_buf[0]) {
+        for (int c = 0; c <= COMPLEXITY_UNKNOWN; c++) {
+            const char *cname = func_block_preset_complexity_string((PresetComplexity) c);
+            if (cname && strcmp(cname, complexity_buf) == 0) {
+                meta.complexity = (PresetComplexity) c;
+                break;
+            }
+        }
+    }
 
-    /* 版本号 */
+    /* 版本号：解析 "M.m.p" 格式，字段缺失时回退 1.0.0 */
     meta.version_major = 1;
     meta.version_minor = 0;
     meta.version_patch = 0;
+    char version_buf[64] = {0};
+    if (lv_json_get_string(json_copy, "version", version_buf, sizeof(version_buf)) && version_buf[0]) {
+        if (sscanf(version_buf, "%d.%d.%d", &meta.version_major, &meta.version_minor, &meta.version_patch) != 3) {
+            meta.version_major = 1;
+            meta.version_minor = 0;
+            meta.version_patch = 0;
+        }
+    }
 
     lv_free((void **) &cat_str);
     lv_free((void **) &json_copy);

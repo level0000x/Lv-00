@@ -21,6 +21,7 @@
 #include "formula_renderer.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_numeric.h"
 #include "stream.h"
 #include "stream_context_util.h"
 

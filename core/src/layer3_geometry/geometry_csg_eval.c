@@ -14,6 +14,7 @@
 #include "geometry_csg_internal.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_numeric.h"
 
 void csg_evaluate(const CSGNode *node, CSGTriList *out);
 
@@ -363,7 +364,7 @@ void eval_csg_extrude_rotate(const CSGNode *node, CSGTriList *out) {
         axis.x /= axis_len; axis.y /= axis_len; axis.z /= axis_len;
     }
 
-    double angle_rad = angle_deg * M_PI / 180.0;
+    double angle_rad = lv_deg_to_rad(angle_deg);
     double angle_step = angle_rad / (double)segments;
 
     CSGVec3 *sec_verts = NULL;

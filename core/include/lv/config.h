@@ -410,10 +410,6 @@ typedef struct lvCfgPropagation {
 
 /** @brief 高维几何配置 */
 typedef struct lvCfgHighDim {
-    int high_dim_max_dimensions;                /**< 最大维度数（默认 32） */
-    int high_dim_max_depth;                     /**< 语义缩放深度栈深度（默认 32） */
-    int high_dim_max_projection_presets;        /**< 每块最大投影预设数（默认 64） */
-    int high_dim_max_active_views;              /**< 多投影并排视图最大活跃数（默认 16） */
     double high_dim_default_fidelity_threshold; /**< 保真度默认警告阈值（默认 0.85） */
 } lvCfgHighDim;
 
@@ -545,11 +541,7 @@ typedef struct lvConfig {
     X("view_sync_timeout_ms", context.view_sync_timeout_ms) \
     X("prop_max_iterations", propagation.prop_max_iterations) \
     X("prop_max_backtracks", propagation.prop_max_backtracks) \
-    X("prop_max_collaboration_iters", propagation.prop_max_collaboration_iters) \
-    X("high_dim_max_dimensions", high_dim.high_dim_max_dimensions) \
-    X("high_dim_max_depth", high_dim.high_dim_max_depth) \
-    X("high_dim_max_projection_presets", high_dim.high_dim_max_projection_presets) \
-    X("high_dim_max_active_views", high_dim.high_dim_max_active_views)
+    X("prop_max_collaboration_iters", propagation.prop_max_collaboration_iters)
 
 #define LV_CONFIG_DOUBLE_KEYS(X) \
     X("geo_min_zoom", geometry.geo_min_zoom) \
@@ -600,10 +592,6 @@ void lv_config_set_context_cooldown_ms(int val);
 void lv_config_set_prop_max_iterations(int val);
 void lv_config_set_prop_max_backtracks(int val);
 void lv_config_set_prop_max_collaboration_iters(int val);
-void lv_config_set_high_dim_max_dimensions(int val);
-void lv_config_set_high_dim_max_depth(int val);
-void lv_config_set_high_dim_max_projection_presets(int val);
-void lv_config_set_high_dim_max_active_views(int val);
 void lv_config_set_high_dim_default_fidelity_threshold(double val);
 void lv_config_set_geo_sym_coord_eps(double val);
 void lv_config_set_engine_max_collaboration_iterations(int val);

@@ -621,7 +621,12 @@ lvRule *lv_rule_from_json(const char *json) {
     /* 解析基本 JSON 字段 */
     lvRuleType rtype = RULE_TYPE_AXIOM;
     lvRulePriority prio = RULE_PRIORITY_NORMAL;
+    lvRuleStatus status = RULE_STATUS_ENABLED;
     char name_buf[lv_RULE_NAME_MAX_LEN] = "parsed_rule";
+    uint32_t id = 0;
+    uint32_t premise_count = 0;
+    uint32_t conclusion_count = 0;
+    uint32_t difficulty_level = 0;
 
     lv_json_get_string(json, "name", name_buf, sizeof(name_buf));
 
@@ -637,9 +642,33 @@ lvRule *lv_rule_from_json(const char *json) {
             prio = (lvRulePriority)pv;
     }
 
+    /* status：范围校验，非法值保持默认 RULE_STATUS_ENABLED */
+    int sv;
+    if (lv_json_get_int(json, "status", &sv)) {
+        if (sv >= RULE_STATUS_DISABLED && sv <= RULE_STATUS_EXPERIMENTAL)
+            status = (lvRuleStatus)sv;
+    }
+
+    /* id / premise_count / conclusion_count / difficulty_level：非负安全转换 */
+    int iv;
+    if (lv_json_get_int(json, "id", &iv) && iv >= 0)
+        id = (uint32_t)iv;
+    if (lv_json_get_int(json, "premise_count", &iv) && iv >= 0)
+        premise_count = (uint32_t)iv;
+    if (lv_json_get_int(json, "conclusion_count", &iv) && iv >= 0)
+        conclusion_count = (uint32_t)iv;
+    if (lv_json_get_int(json, "difficulty_level", &iv) && iv >= 0)
+        difficulty_level = (uint32_t)iv;
+
     lvRule *rule = lv_rule_create(name_buf, rtype);
-    if (rule)
+    if (rule) {
+        rule->id = id;
         rule->priority = prio;
+        rule->status = status;
+        rule->premise_count = premise_count;
+        rule->conclusion_count = conclusion_count;
+        rule->difficulty_level = difficulty_level;
+    }
     return rule;
 }
 

@@ -15,6 +15,7 @@
 
 #include "lv/lv.h"
 #include "lv/lv_file.h"
+#include "lv/lv_numeric.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
 
@@ -536,7 +537,7 @@ static void _poly_destroy_angle_ids(lvRingRegistry *registry, const int *ids, in
  */
 static int _poly_create_angle(lvRingRegistry *registry, int ring_id, const int *var_map, int a_id, int b_id, int c_id,
                               int var_count, double theta_deg) {
-    const double rad = theta_deg * M_PI / 180.0;
+    const double rad = lv_deg_to_rad(theta_deg);
     const double cos_t = cos(rad);
     const double sin_t = sin(rad);
 
