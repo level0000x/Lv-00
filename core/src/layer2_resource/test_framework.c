@@ -25,6 +25,8 @@
 
 
 #include "lv/lv_json.h"
+#include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 
 
@@ -855,22 +857,34 @@ char *lv_test_report_to_xml(const lvTestReport *report) {
 
     for (uint32_t i = 0; i < report->suite_count && pos < 16384; i++) {
         const lvTestSuite *suite = &report->suites[i];
+        /* suite->name 经 XML 实体转义后写入属性（防止 XML 注入） */
+        lvStrBuf esc_name = {0};
+        lv_str_escape_xml(&esc_name, suite->name, suite->name ? strlen(suite->name) : 0);
         pos +=
             snprintf(xml + pos, 16384 - pos, "  <testsuite name=\"%s\" tests=\"%u\" failures=\"%u\" skipped=\"%u\">\n",
-                     suite->name, suite->case_count, suite->failed_count, suite->skipped_count);
+                     lv_strbuf_cstr(&esc_name), suite->case_count, suite->failed_count, suite->skipped_count);
+        lv_strbuf_destroy(&esc_name);
         if (pos < 0)
             break;
 
         for (uint32_t j = 0; j < suite->case_count && pos < 16384; j++) {
             const lvTestCase *test = &suite->cases[j];
-            pos += snprintf(xml + pos, 16384 - pos, "    <testcase name=\"%s\" time=\"%.6f\"", test->name,
-                            (double) test->elapsed_ns / 1e9);
+            /* test->name 经 XML 实体转义后写入属性 */
+            lvStrBuf esc_tname = {0};
+            lv_str_escape_xml(&esc_tname, test->name, test->name ? strlen(test->name) : 0);
+            pos += snprintf(xml + pos, 16384 - pos, "    <testcase name=\"%s\" time=\"%.6f\"",
+                            lv_strbuf_cstr(&esc_tname), (double) test->elapsed_ns / 1e9);
+            lv_strbuf_destroy(&esc_tname);
             if (pos < 0)
                 break;
 
             if (test->status == TEST_STATUS_FAILED && pos < 16384) {
+                /* test->message 经 XML 实体转义后写入 <failure message> */
+                lvStrBuf esc_msg = {0};
+                lv_str_escape_xml(&esc_msg, test->message, test->message ? strlen(test->message) : 0);
                 pos += snprintf(xml + pos, 16384 - pos, ">\n      <failure message=\"%s\"/>\n    </testcase>\n",
-                                test->message);
+                                lv_strbuf_cstr(&esc_msg));
+                lv_strbuf_destroy(&esc_msg);
                 if (pos < 0)
                     break;
             } else if (test->status == TEST_STATUS_SKIPPED && pos < 16384) {
@@ -933,9 +947,25 @@ char *lv_test_report_to_html(const lvTestReport *report) {
                                       : test->status == TEST_STATUS_FAILED ? "FAILED"
                                                                            : "SKIPPED";
 
+            /* suite->name / test->name 经 HTML 实体转义（lv_str_html_escape 两遍法，防止 HTML 注入） */
+            size_t esc_slen = suite->name ? strlen(suite->name) : 0;
+            size_t need_s = lv_str_html_escape(suite->name, esc_slen, NULL, 0);
+            char *esc_suite = (char *) lv_malloc(need_s + 1);
+            size_t esc_tlen = test->name ? strlen(test->name) : 0;
+            size_t need_t = lv_str_html_escape(test->name, esc_tlen, NULL, 0);
+            char *esc_test = (char *) lv_malloc(need_t + 1);
+            if (esc_suite)
+                lv_str_html_escape(suite->name, esc_slen, esc_suite, need_s + 1);
+            if (esc_test)
+                lv_str_html_escape(test->name, esc_tlen, esc_test, need_t + 1);
+
             pos += snprintf(html + pos, 32768 - pos,
-                            "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n", suite->name,
-                            test->name, status_class, status_text, (double) test->elapsed_ns / 1e6);
+                            "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n",
+                            esc_suite ? esc_suite : (suite->name ? suite->name : ""),
+                            esc_test ? esc_test : (test->name ? test->name : ""), status_class, status_text,
+                            (double) test->elapsed_ns / 1e6);
+            lv_free((void **) &esc_suite);
+            lv_free((void **) &esc_test);
             if (pos < 0)
                 break;
         }

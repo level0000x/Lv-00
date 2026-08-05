@@ -84,13 +84,13 @@ static const AxiomTestTemplateExpectation k_templates[] = {
 
 /* Test 3：期望不可构造项 */
 static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
-    {"graph_isomorphism_problem", "undecidable", 4, true},
-    {"graph_coloring_decision", "undecidable", 4, true},
-    {"hamiltonian_cycle_decision", "undecidable", 4, true},
-    {"subgraph_isomorphism", "undecidable", 4, true},
-    {"ramsey_number_exact", "undecidable", 5, true},
-    {"permanent_computation", "undecidable", 4, true},
-    {"satisfiability_3sat", "undecidable", 3, true},
+    {"graph_isomorphism_problem", "quasi_polynomial", 3, true},
+    {"graph_coloring_decision", "np_complete", 3, true},
+    {"hamiltonian_cycle_decision", "np_complete", 5, true},
+    {"subgraph_isomorphism", "np_complete", 3, true},
+    {"ramsey_number_exact", "undecidable", 3, true},
+    {"permanent_computation", "sharp_p_hard", 2, true},
+    {"satisfiability_3sat", "np_complete", 2, true},
 };
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
@@ -188,21 +188,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Combinatorics");
+TEST_MAIN_BEGIN("Combinatorics")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

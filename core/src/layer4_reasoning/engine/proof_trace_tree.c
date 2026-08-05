@@ -20,6 +20,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_dot_writer.h"
 
 /* ============== 溯源树常量 ============== */
 
@@ -521,15 +522,12 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_trace_tree_export_dot: tree or path is NULL");
     }
 
-    FILE *fp = fopen(path, "w");
-    if (!fp) {
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_trace_tree_export_dot: cannot open file: %s", path);
-    }
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    fprintf(fp, "digraph ProofTraceTree {\n");
-    fprintf(fp, "    rankdir=TB;\n");
-    fprintf(fp, "    node [fontname=\"Helvetica\", fontsize=10];\n");
-    fprintf(fp, "    edge [fontname=\"Helvetica\", fontsize=8];\n\n");
+    lv_dot_begin(&sb, "ProofTraceTree", "TB",
+                 "fontname=\"Helvetica\", fontsize=10",
+                 "fontname=\"Helvetica\", fontsize=8");
 
     /* 节点颜色映射 */
     static const char *node_colors[] = {
@@ -554,7 +552,7 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
         "doublecircle" /* TRACE_NODE_GOAL */
     };
 
-    /* 输出所有节点 */
+    /* 输出所有节点（label 经 lv_dot_node 内部 JSON/DOT 转义，行为与原实现一致） */
     for (int i = 0; i < tree->all_nodes.count; i++) {
         lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&tree->all_nodes, i);
         lvProofTraceNode *node = *node_p;
@@ -562,27 +560,25 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
         if (type_idx > 7)
             type_idx = 0;
 
-        /* label 做 DOT 转义（DOT 字符串语法与 JSON 兼容），防引号/反斜杠注入 */
         const char *label = node->label[0] ? node->label : "";
-        size_t label_len = strlen(label);
-        size_t need = lv_str_json_escape(label, label_len, NULL, 0);
-        char *esc = (char *)lv_malloc(need + 1);
-        if (esc) {
-            lv_str_json_escape(label, label_len, esc, need + 1);
-        }
-        fprintf(fp,
-                "    n%d [shape=%s, style=filled, fillcolor=%s, "
-                "label=\"%s\\n[%s]\"];\n",
-                node->id, node_shapes[type_idx], node_colors[type_idx], esc ? esc : "",
+        lvStrBuf lbl;
+        lv_strbuf_init(&lbl);
+        lv_strbuf_printf(&lbl, "%s\n[%s]", label,
                 node->status == TRACE_STATUS_PROVED      ? "proved"
                 : node->status == TRACE_STATUS_DISPROVED ? "disproved"
                 : node->status == TRACE_STATUS_EXPLORING ? "exploring"
                 : node->status == TRACE_STATUS_BLOCKED   ? "blocked"
                                                          : "unexplored");
-        lv_free((void **)&esc);
+
+        char idbuf[32], extra[128];
+        snprintf(idbuf, sizeof(idbuf), "n%d", node->id);
+        snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=%s",
+                 node_shapes[type_idx], node_colors[type_idx]);
+        lv_dot_node(&sb, idbuf, lv_strbuf_cstr(&lbl), extra);
+        lv_strbuf_destroy(&lbl);
     }
 
-    fprintf(fp, "\n");
+    lv_strbuf_printf(&sb, "\n");
 
     /* 输出所有边 */
     for (int i = 0; i < tree->all_nodes.count; i++) {
@@ -591,12 +587,20 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
         for (int j = 0; j < node->children.count; j++) {
             lvProofTraceNode **child_p = (lvProofTraceNode **)lv_darray_get(&node->children, j);
             lvProofTraceNode *child = *child_p;
-            fprintf(fp, "    n%d -> n%d;\n", node->id, child->id);
+            char frombuf[32], tobuf[32];
+            snprintf(frombuf, sizeof(frombuf), "n%d", node->id);
+            snprintf(tobuf, sizeof(tobuf), "n%d", child->id);
+            lv_dot_edge(&sb, frombuf, tobuf, NULL, NULL);
         }
     }
 
-    fprintf(fp, "}\n");
-    fclose(fp);
+    lv_dot_end(&sb);
+
+    if (!lv_dot_write_file(path, sb.data, sb.len)) {
+        lv_strbuf_destroy(&sb);
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_trace_tree_export_dot: cannot open file: %s", path);
+    }
+    lv_strbuf_destroy(&sb);
 
     return true;
 }

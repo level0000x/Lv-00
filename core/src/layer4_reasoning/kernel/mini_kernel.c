@@ -674,31 +674,15 @@ MiniVerifyResult mini_kernel_verify_all(MiniKernel *kernel, int *out_passed, int
  * ======================================================================== */
 
 static bool mini_read_file_content(const char *filepath, char **out_content, size_t *out_len) {
-    FILE *fp = lv_file_open(filepath, "r");
-    if (!fp) {
-        lv_set_error_ctx(lv_ERROR_IO, __FILE__, __LINE__, __func__, "无法打开文件: %s", filepath);
-        return false;
-    }
-    fseek(fp, 0, SEEK_END);
-    long fsize = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    if (fsize < 0) {
-        lv_file_close(fp);
-        return false;
-    }
-
-    char *buf = lv_malloc((size_t) fsize + 1);
+    size_t len = 0;
+    char *buf = (char *) lv_file_read_all(filepath, &len);
     if (!buf) {
-        lv_file_close(fp);
+        lv_set_error_ctx(lv_ERROR_IO, __FILE__, __LINE__, __func__, "无法读取文件: %s", filepath);
         return false;
     }
-    size_t read_len = fread(buf, 1, (size_t) fsize, fp);
-    lv_file_close(fp);
-    buf[read_len] = '\0';
 
     *out_content = buf;
-    *out_len = read_len;
+    *out_len = len;
     return true;
 }
 

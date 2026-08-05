@@ -33,6 +33,8 @@
 #include "lv/lv_json.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_strbuf.h"
+#include "lv/lv_dot_writer.h"
 
 
 /* ============== 内部数据结构 ============== */
@@ -912,12 +914,10 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
     if (!encoded_graph || !filepath)
         return false;
 
-    FILE *fp = lv_file_open(filepath, "w");
-    if (!fp)
-        return false;
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    fprintf(fp, "digraph MetaRepr {\n");
-    fprintf(fp, "    rankdir=LR;\n\n");
+    lv_dot_begin(&sb, "MetaRepr", "LR", NULL, NULL);
 
     /* GeomType -> DOT shape 映射（6 项，与 GeomType 枚举严格对齐；
      * 原实现缺 CIRCLE 且 FUNCTION_BLOCK 下标越界，已修复） */
@@ -946,10 +946,14 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
             tname = type_names[(int) node->type];
         }
 
-        fprintf(fp, "    node%d [shape=%s, label=\"%s #%d\"];\n", node->id, shape, tname, node->id);
+        char idbuf[32], extra[64], lbuf[128];
+        snprintf(idbuf, sizeof(idbuf), "node%d", node->id);
+        snprintf(extra, sizeof(extra), "shape=%s", shape);
+        snprintf(lbuf, sizeof(lbuf), "%s #%d", tname, node->id);
+        lv_dot_node(&sb, idbuf, lbuf, extra);
     }
 
-    fprintf(fp, "\n");
+    lv_strbuf_printf(&sb, "\n");
 
     /* 输出约束为边 */
     for (int i = 0; i < encoded_graph->constraint_count; i++) {
@@ -965,16 +969,26 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
         int n = con->participant_count;
         if (n >= 2) {
             for (int j = 0; j < n - 1; j++) {
-                fprintf(fp, "    node%d -> node%d [label=\"%s\"];\n", con->participants[j], con->participants[j + 1],
-                        label);
+                char frombuf[32], tobuf[32];
+                snprintf(frombuf, sizeof(frombuf), "node%d", con->participants[j]);
+                snprintf(tobuf, sizeof(tobuf), "node%d", con->participants[j + 1]);
+                lv_dot_edge(&sb, frombuf, tobuf, label, NULL);
             }
         } else if (n == 1) {
-            fprintf(fp, "    node%d [label=\"%s(#%d)\"];\n", con->participants[0], label, con->id);
+            char idbuf[32], lbuf[128];
+            snprintf(idbuf, sizeof(idbuf), "node%d", con->participants[0]);
+            snprintf(lbuf, sizeof(lbuf), "%s(#%d)", label, con->id);
+            lv_dot_node(&sb, idbuf, lbuf, NULL);
         }
     }
 
-    fprintf(fp, "}\n");
-    lv_file_close(fp);
+    lv_dot_end(&sb);
+
+    if (!lv_dot_write_file(filepath, sb.data, sb.len)) {
+        lv_strbuf_destroy(&sb);
+        return false;
+    }
+    lv_strbuf_destroy(&sb);
     return true;
 }
 

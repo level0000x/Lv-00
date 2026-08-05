@@ -1111,9 +1111,12 @@ bool lv_event_trace_export_chrome(const char *path) {
             cat = kEventTraceMeta[event->type].cat;
         }
 
+        /* event->name 经 lv_json_buf_append_string 自动 JSON 转义，cat/ph 为内部固定串无需转义 */
+        lv_json_buf_append_raw(&buf, "  {\"name\":");
+        lv_json_buf_append_string(&buf, event->name);
         lv_json_buf_append_fmt(&buf,
-                     "  {\"name\":\"%s\",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}%s\n",
-                     event->name, cat, type_str,
+                     ",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}%s\n",
+                     cat, type_str,
                      (long long) (event->timestamp_ns / 1000),
                      (long long) (event->duration_ns / 1000),
                      event->thread_id,

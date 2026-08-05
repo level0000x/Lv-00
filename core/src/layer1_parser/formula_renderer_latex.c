@@ -35,6 +35,27 @@
  */
 int render_latex_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);
 
+/**
+ * @brief 将名称字符串做 LaTeX 特殊字符转义（lv_str_latex_escape 两遍法，堆分配）
+ *
+ * 转义后长度可能变长（如 \ → \textbackslash{}），故使用两遍法精确分配，
+ * 避免固定缓冲区截断破坏 LaTeX 结构。调用者需用 lv_free 释放。
+ *
+ * @param name 源字符串（可为 NULL）
+ * @return 转义后的堆字符串；失败（含 NULL 入参）返回 NULL
+ */
+static char *latex_escape_alloc(const char *name) {
+    if (!name)
+        return NULL;
+    size_t len = strlen(name);
+    size_t need = lv_str_latex_escape(name, len, NULL, 0);
+    char *esc = (char *) lv_malloc(need + 1);
+    if (!esc)
+        return NULL;
+    lv_str_latex_escape(name, len, esc, need + 1);
+    return esc;
+}
+
 static int helper_latex_number(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     int written = 0;
@@ -62,8 +83,12 @@ static int helper_latex_variable(const FormulaNode *node, char *buffer, size_t s
 
 static int helper_latex_identifier(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
+    (void) options;
     int written = 0;
-    written = snprintf(buffer, size, "%s", node->data.identifier.name);
+    /* NODE_IDENTIFIER 名称接入 LaTeX 转义，防止特殊字符破坏 LaTeX 结构 */
+    char *esc = latex_escape_alloc(node->data.identifier.name);
+    written = snprintf(buffer, size, "%s", esc ? esc : "");
+    lv_free((void **) &esc);
     return written;
 }
 
@@ -191,7 +216,9 @@ static int helper_latex_geom_point(const FormulaNode *node, char *buffer, size_t
     }
 
     if (node->data.geom_point.name) {
-        written = snprintf(buffer, size, "%s = \\left(%s\\right)", node->data.geom_point.name, coords_buf);
+        char *esc_name = latex_escape_alloc(node->data.geom_point.name);
+        written = snprintf(buffer, size, "%s = \\left(%s\\right)", esc_name ? esc_name : "", coords_buf);
+        lv_free((void **) &esc_name);
     } else {
         written = snprintf(buffer, size, "\\left(%s\\right)", coords_buf);
     }
@@ -204,7 +231,9 @@ static int helper_latex_geom_segment(const FormulaNode *node, char *buffer, size
 {
     int written = 0;
     if (node->data.geom_segment.name) {
-        written = snprintf(buffer, size, "\\overline{%s}", node->data.geom_segment.name);
+        char *esc_name = latex_escape_alloc(node->data.geom_segment.name);
+        written = snprintf(buffer, size, "\\overline{%s}", esc_name ? esc_name : "");
+        lv_free((void **) &esc_name);
     } else {
         /* STACK_SAFE: 端点名缓冲区 ≤64 字节，使用 snprintf 边界检查 */
         char ep1_buf[lv_FORMULA_BUF_SMALL] = {0};
@@ -235,7 +264,9 @@ static int helper_latex_geom_circle(const FormulaNode *node, char *buffer, size_
 
     if (node->data.geom_circle.center) {
         if (node->data.geom_circle.center->type == NODE_IDENTIFIER) {
-            snprintf(center_buf, sizeof(center_buf), "%s", node->data.geom_circle.center->data.identifier.name);
+            char *esc_name = latex_escape_alloc(node->data.geom_circle.center->data.identifier.name);
+            snprintf(center_buf, sizeof(center_buf), "%s", esc_name ? esc_name : "");
+            lv_free((void **) &esc_name);
         } else {
             int center_ret =
                 render_latex_internal(node->data.geom_circle.center, center_buf, sizeof(center_buf), options);
@@ -251,8 +282,13 @@ static int helper_latex_geom_circle(const FormulaNode *node, char *buffer, size_
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "radius sub-render failed");
     }
 
-    written = snprintf(buffer, size, "\\text{circle } %s \\text{ with center } %s \\text{ and radius } %s",
-                       node->data.geom_circle.name ? node->data.geom_circle.name : "O", center_buf, radius_buf);
+    {
+        const char *circle_name = node->data.geom_circle.name ? node->data.geom_circle.name : "O";
+        char *esc_name = latex_escape_alloc(circle_name);
+        written = snprintf(buffer, size, "\\text{circle } %s \\text{ with center } %s \\text{ and radius } %s",
+                           esc_name ? esc_name : circle_name, center_buf, radius_buf);
+        lv_free((void **) &esc_name);
+    }
     return written;
 }
 
@@ -260,7 +296,9 @@ static int helper_latex_geom_triangle(const FormulaNode *node, char *buffer, siz
 {
     int written = 0;
     if (node->data.geom_triangle.name) {
-        written = snprintf(buffer, size, "\\triangle %s", node->data.geom_triangle.name);
+        char *esc_name = latex_escape_alloc(node->data.geom_triangle.name);
+        written = snprintf(buffer, size, "\\triangle %s", esc_name ? esc_name : "");
+        lv_free((void **) &esc_name);
     } else {
         written = snprintf(buffer, size, "\\triangle");
     }

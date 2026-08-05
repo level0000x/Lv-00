@@ -330,8 +330,16 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
             char *sx = symbolic_coord_serialize(node->symbolic_coords[0]);
             char *sy = symbolic_coord_serialize(node->symbolic_coords[1]);
             if (sx && sy) {
+                /* 坐标串经 XML 实体转义后写入 <title>（SVG/XML 文本内容，防止注入） */
+                lvStrBuf esc_title = {0};
+                lv_strbuf_printf(&esc_title, "P%d = (", node->id);
+                lv_str_escape_xml(&esc_title, sx, strlen(sx));
+                lv_strbuf_printf(&esc_title, ", ");
+                lv_str_escape_xml(&esc_title, sy, strlen(sy));
+                lv_strbuf_printf(&esc_title, ")");
                 fprintf(fp, "  <g>\n");
-                fprintf(fp, "    <title>P%d = (%s, %s)</title>\n", node->id, sx, sy);
+                fprintf(fp, "    <title>%s</title>\n", lv_strbuf_cstr(&esc_title));
+                lv_strbuf_destroy(&esc_title);
                 fprintf(fp, "    <desc>Symbolic: P%d at rational/quadratic coords</desc>\n", node->id);
             }
             fprintf(fp,

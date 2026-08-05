@@ -54,7 +54,7 @@ static const AxiomTestTemplateExpectation k_templates[] = {
     {"limitation_of_size", 1},
     {"foundation", 1},
     /* Group V: Class Comprehension (2) */
-    {"class_comprehension", 1},
+    {"class_comprehension", 2},
     {"class_union", 1},
     /* Group VI: Proper Class Distinctions (6) */
     {"proper_class", 1},
@@ -214,21 +214,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("NBG Set Theory");
+TEST_MAIN_BEGIN("NBG Set Theory")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

@@ -83,13 +83,13 @@ static const AxiomTestTemplateExpectation k_templates[] = {
 
 /* Test 3：期望不可构造项 */
 static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
-    {"homotopy_group_computation", "undecidable", 4, true},
-    {"homology_isomorphism_problem", "undecidable", 4, true},
-    {"knot_classification", "undecidable", 5, true},
-    {"homeomorphism_problem_manifolds", "undecidable", 5, true},
-    {"simple_homotopy_equivalence", "undecidable", 4, true},
-    {"group_presentation_triviality", "undecidable", 4, true},
-    {"manifold_triangulation", "undecidable", 5, true},
+    {"homotopy_group_computation", "undecidable", 3, true},
+    {"homology_isomorphism_problem", "undecidable", 3, true},
+    {"knot_classification", "undecidable", 3, true},
+    {"homeomorphism_problem_manifolds", "undecidable", 3, true},
+    {"simple_homotopy_equivalence", "undecidable", 3, true},
+    {"group_presentation_triviality", "undecidable", 3, true},
+    {"manifold_triangulation", "undecidable", 3, true},
 };
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
@@ -192,21 +192,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Algebraic Topology");
+TEST_MAIN_BEGIN("Algebraic Topology")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

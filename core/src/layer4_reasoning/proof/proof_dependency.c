@@ -27,6 +27,7 @@
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_dot_writer.h"
 #include "proof_step_registry.h"
 #include "proof_classical.h"
 
@@ -705,8 +706,8 @@ static void backtrack_node_write_json_buf(lvJsonBuf *buf, const BacktrackNode *n
 /**
  * @brief 递归将节点及其子树写入DOT格式
  */
-static void backtrack_node_write_dot(FILE *f, const BacktrackNode *node, int parent_id) {
-    if (!f || !node)
+static void backtrack_node_write_dot(lvStrBuf *sb, const BacktrackNode *node, int parent_id) {
+    if (!sb || !node)
         return;
 
     /* 节点颜色映射（查找表替代 switch） */
@@ -731,48 +732,32 @@ static void backtrack_node_write_dot(FILE *f, const BacktrackNode *node, int par
         }
     }
 
-    /* 节点标签转义：双引号 -> 单引号，换行 -> 空格 */
-    char safe_label[512];
-    if (node->label) {
-        size_t len = strlen(node->label);
-        if (len > 500)
-            len = 500;
-        size_t j = 0;
-        for (size_t i = 0; i < len && j < 500; i++) {
-            if (node->label[i] == '"') {
-                safe_label[j++] = '\'';
-            } else if (node->label[i] == '\n') {
-                safe_label[j++] = ' ';
-            } else if (node->label[i] == '\\') {
-                safe_label[j++] = '/';
-            } else {
-                safe_label[j++] = node->label[i];
-            }
-        }
-        safe_label[j] = '\0';
-    } else {
-        safe_label[0] = '\0';
-    }
+    /* 节点 label 改由 lv_dot_node 内部 JSON/DOT 转义（覆盖 "、\、换行 且不丢失原文，
+     * 替代原 safe_label 净化与 500 字符截断） */
+    lvStrBuf lbl;
+    lv_strbuf_init(&lbl);
+    lv_strbuf_printf(&lbl, "[%d] %s", node->id, node->label ? node->label : "");
 
-    /* 已探索节点用更深的边框 */
-    if (node->explored) {
-        /* 保持颜色，边框用标准色 */
-    }
-
-    fprintf(f,
-            "  node%d [shape=%s, style=filled, fillcolor=\"%s\", color=\"%s\", "
-            "label=\"[%d] %s\"];\n",
-            node->id, shape, fill_color, border_color, node->id, safe_label);
+    char idbuf[32], extra[256];
+    snprintf(idbuf, sizeof(idbuf), "node%d", node->id);
+    snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=\"%s\", color=\"%s\"",
+             shape, fill_color, border_color);
+    lv_dot_node(sb, idbuf, lv_strbuf_cstr(&lbl), extra);
+    lv_strbuf_destroy(&lbl);
 
     /* 父边 */
     if (parent_id >= 0) {
         const char *edge_style = node->is_backtrack_point ? "dashed" : "solid";
-        fprintf(f, "  node%d -> node%d [style=%s];\n", parent_id, node->id, edge_style);
+        char frombuf[32], tobuf[32], edge_extra[32];
+        snprintf(frombuf, sizeof(frombuf), "node%d", parent_id);
+        snprintf(tobuf, sizeof(tobuf), "node%d", node->id);
+        snprintf(edge_extra, sizeof(edge_extra), "style=%s", edge_style);
+        lv_dot_edge(sb, frombuf, tobuf, NULL, edge_extra);
     }
 
     /* 递归处理子节点 */
     for (int i = 0; i < node->child_count; i++) {
-        backtrack_node_write_dot(f, node->children[i], node->id);
+        backtrack_node_write_dot(sb, node->children[i], node->id);
     }
 }
 
@@ -845,55 +830,59 @@ bool proof_search_tree_export_dot(const ProofSearchTree *tree, const char *filep
     if (!tree || !filepath)
         return false;
 
-    FILE *f = fopen(filepath, "w");
-    if (!f)
-        return false;
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    fprintf(f, "digraph ProofSearchTree {\n");
-    fprintf(f, "  rankdir=TB;\n");
-    fprintf(f, "  node [fontname=\"Arial\", fontsize=11];\n");
-    fprintf(f, "  edge [fontname=\"Arial\", fontsize=9];\n");
-    fprintf(f,
-            "  label=\"\\n"
-            "Proof Search Tree%s%s"
-            "\\n"
-            "Success: %d | Failure: %d | Backtrack: %d | Pruned: %d | Max Depth: %d"
-            "\";\n",
-            tree->current_strategy ? " - Strategy: " : "", tree->current_strategy ? tree->current_strategy : "",
-            tree->success_paths, tree->failure_paths, tree->backtrack_count, tree->pruned_branches, tree->max_depth);
-    fprintf(f, "  labelloc=t;\n");
-    fprintf(f, "  fontsize=14;\n\n");
+    lv_dot_begin(&sb, "ProofSearchTree", "TB",
+                 "fontname=\"Arial\", fontsize=11",
+                 "fontname=\"Arial\", fontsize=9");
+
+    /* 图级 label：多行标题 + 统计（current_strategy 经 JSON/DOT 转义） */
+    {
+        lvStrBuf lbl;
+        lv_strbuf_init(&lbl);
+        lv_strbuf_printf(&lbl, "\nProof Search Tree");
+        if (tree->current_strategy)
+            lv_strbuf_printf(&lbl, " - Strategy: %s", tree->current_strategy);
+        lv_strbuf_printf(&lbl, "\nSuccess: %d | Failure: %d | Backtrack: %d | Pruned: %d | Max Depth: %d",
+                         tree->success_paths, tree->failure_paths, tree->backtrack_count,
+                         tree->pruned_branches, tree->max_depth);
+        size_t need = lv_str_json_escape(lbl.data, lbl.len, NULL, 0);
+        char *esc = (char *) lv_malloc(need + 1);
+        if (esc) {
+            lv_str_json_escape(lbl.data, lbl.len, esc, need + 1);
+            lv_strbuf_printf(&sb, "    label=\"%s\";\n", esc);
+            lv_free((void **) &esc);
+        }
+        lv_strbuf_destroy(&lbl);
+    }
+    lv_strbuf_printf(&sb, "    labelloc=t;\n");
+    lv_strbuf_printf(&sb, "    fontsize=14;\n\n");
 
     if (tree->root) {
-        backtrack_node_write_dot(f, tree->root, -1);
+        backtrack_node_write_dot(&sb, tree->root, -1);
     }
 
     /* 图例 */
-    fprintf(f, "\n  /* Legend */\n");
-    fprintf(f, "  subgraph cluster_legend {\n");
-    fprintf(f, "    label=\"Legend\";\n");
-    fprintf(f, "    fontsize=10;\n");
-    fprintf(f, "    style=dashed;\n");
-    fprintf(f,
-            "    legend_success [shape=box, style=filled, fillcolor=\"#90EE90\", "
-            "label=\"Success\"];\n");
-    fprintf(f,
-            "    legend_failure [shape=box, style=filled, fillcolor=\"#FFB6C1\", "
-            "label=\"Failure\"];\n");
-    fprintf(f,
-            "    legend_choice [shape=box, style=filled, fillcolor=\"#87CEEB\", "
-            "label=\"Choice Point\"];\n");
-    fprintf(f,
-            "    legend_prune [shape=box, style=filled, fillcolor=\"#D3D3D3\", "
-            "label=\"Pruned\"];\n");
-    fprintf(f,
-            "    legend_backtrack [shape=diamond, style=filled, fillcolor=\"lightyellow\", "
-            "label=\"Backtrack\"];\n");
-    fprintf(f, "  }\n");
+    lv_strbuf_printf(&sb, "\n  /* Legend */\n");
+    lv_strbuf_printf(&sb, "  subgraph cluster_legend {\n");
+    lv_strbuf_printf(&sb, "    label=\"Legend\";\n");
+    lv_strbuf_printf(&sb, "    fontsize=10;\n");
+    lv_strbuf_printf(&sb, "    style=dashed;\n");
+    lv_dot_node(&sb, "legend_success", "Success", "shape=box, style=filled, fillcolor=\"#90EE90\"");
+    lv_dot_node(&sb, "legend_failure", "Failure", "shape=box, style=filled, fillcolor=\"#FFB6C1\"");
+    lv_dot_node(&sb, "legend_choice", "Choice Point", "shape=box, style=filled, fillcolor=\"#87CEEB\"");
+    lv_dot_node(&sb, "legend_prune", "Pruned", "shape=box, style=filled, fillcolor=\"#D3D3D3\"");
+    lv_dot_node(&sb, "legend_backtrack", "Backtrack", "shape=diamond, style=filled, fillcolor=\"lightyellow\"");
+    lv_strbuf_printf(&sb, "  }\n");
 
-    fprintf(f, "}\n");
+    lv_dot_end(&sb);
 
-    fclose(f);
+    if (!lv_dot_write_file(filepath, sb.data, sb.len)) {
+        lv_strbuf_destroy(&sb);
+        return false;
+    }
+    lv_strbuf_destroy(&sb);
     return true;
 }
 

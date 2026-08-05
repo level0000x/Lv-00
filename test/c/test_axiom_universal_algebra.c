@@ -226,21 +226,18 @@ static void test_template_categories(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Universal Algebra");
+TEST_MAIN_BEGIN("Universal Algebra")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructible_problems);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_round_trip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_refs);
-    TEST_RUN(test_template_categories);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_refs);
+    TEST_MAIN_RUN(test_template_categories);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

@@ -17,7 +17,7 @@ int g_pass_count = 0;
 #define AXIOM_PKG_PATH "module/axiom_packages/modal_logic.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/modal_logic_test_save.lvz"
 
-#define EXPECTED_TEMPLATE_COUNT 32
+#define EXPECTED_TEMPLATE_COUNT 27
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 7
 
 /* ============================================================
@@ -62,7 +62,7 @@ static void test_load_from_file(void) {
 }
 
 static void test_templates(void) {
-    axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 32 constraint templates",
+    axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 27 constraint templates",
                                     k_template_names, K_TEMPLATE_NAMES_COUNT);
 
     /* 文件特有：具体参数个数校验（差异部分，原样保留） */
@@ -412,21 +412,18 @@ static void test_key_axioms_present(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Modal Logic");
+TEST_MAIN_BEGIN("Modal Logic")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructible_problems);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_roundtrip_save_load);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_refs);
-    TEST_RUN(test_key_axioms_present);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_roundtrip_save_load);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_refs);
+    TEST_MAIN_RUN(test_key_axioms_present);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

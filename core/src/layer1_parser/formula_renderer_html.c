@@ -55,9 +55,20 @@ int render_html_internal(const FormulaNode *node, char *buffer, size_t size, con
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "latex sub-render failed");
     }
 
-    int written = snprintf(buffer, size, "<span class=\"mathjax-container\" data-formula=\"%s\">\\(%s\\)</span>",
-                           latex_buf, latex_buf);
+    /* latex_buf 为外部可注入内容：data-formula 属性与正文均经 HTML 实体转义（两遍法） */
+    size_t esc_len = strlen(latex_buf);
+    size_t need = lv_str_html_escape(latex_buf, esc_len, NULL, 0);
+    char *esc_buf = (char *) lv_malloc(need + 1);
+    if (!esc_buf) {
+        lv_free((void **) &latex_buf);
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate html escape buffer");
+    }
+    lv_str_html_escape(latex_buf, esc_len, esc_buf, need + 1);
 
+    int written = snprintf(buffer, size, "<span class=\"mathjax-container\" data-formula=\"%s\">\\(%s\\)</span>",
+                           esc_buf, esc_buf);
+
+    lv_free((void **) &esc_buf);
     lv_free((void **) &latex_buf);
     return written;
 }

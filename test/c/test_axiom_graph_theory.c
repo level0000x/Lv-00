@@ -356,21 +356,18 @@ static void test_unconstructible_dependencies(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Graph Theory Axiom Package");
+TEST_MAIN_BEGIN("Graph Theory Axiom Package")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_roundtrip_save_load);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_refs);
-    TEST_RUN(test_unconstructible_dependencies);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_roundtrip_save_load);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_refs);
+    TEST_MAIN_RUN(test_unconstructible_dependencies);
 
-    TEST_SUITE_END();
+TEST_MAIN_END()
 
-    return g_fail_count > 0 ? 1 : 0;
-}

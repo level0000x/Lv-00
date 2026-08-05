@@ -275,34 +275,12 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
         lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM, "GeoJSON导入失败：未指定输入文件路径");
     }
 
-    /* --- 读取文件 --- */
-    FILE *fp = lv_file_open(config->input_path, "r");
-    if (!fp) {
-        lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO, "GeoJSON导入失败：无法打开文件'%s'", config->input_path);
-    }
-    fseek(fp, 0, SEEK_END);
-    long fsize = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    if (fsize <= 0) {
-        lv_file_close(fp);
-        lv_RETURN_ERROR_VAL(lv_ERROR_UNSUPPORTED, lv_ERROR_UNSUPPORTED, "GeoJSON文件'%s'为空", config->input_path);
-    }
-
-    char *json = (char *) lv_malloc((size_t) fsize + 1);
+    /* --- 读取文件（lv_file_read_all：失败/空文件返回 NULL，成功时缓冲以 NUL 结尾） --- */
+    size_t fsize = 0;
+    char *json = (char *) lv_file_read_all(config->input_path, &fsize);
     if (!json) {
-        lv_file_close(fp);
-        return lv_ERROR_OUT_OF_MEMORY;
+        lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO, "GeoJSON导入失败：无法读取文件'%s'（不存在、为空或读取失败）", config->input_path);
     }
-    size_t read_size = fread(json, 1, (size_t) fsize, fp);
-    if (read_size != (size_t) fsize) {
-        lv_file_close(fp);
-        lv_free((void **) &json);
-        lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO,
-                            "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）", config->input_path, fsize,
-                            read_size);
-    }
-    lv_file_close(fp);
-    json[read_size] = '\0';
 
 /* --- 手写 JSON 解析辅助（不依赖外部 JSON 库） --- */
 /* 跳过空白 */

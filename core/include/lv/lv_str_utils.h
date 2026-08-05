@@ -203,6 +203,21 @@ size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t d
  */
 size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
 
+/**
+ * @brief 对字符串执行 LaTeX 特殊字符转义（snprintf 语义）
+ *
+ * 转义 \\ → \textbackslash{}、{ → \{、} → \}、_ → \_、& → \&、# → \#、
+ * $ → \$、% → \% 、^ → \^{}、~ → \~{}；
+ * 控制字符与 ASCII 打印字符原样输出。
+ *
+ * @param src     源字符串（可为 NULL，按空串处理）
+ * @param src_len 源字符串长度（字节）
+ * @param dst     目标缓冲区（可为 NULL，此时仅计算所需长度）
+ * @param dst_cap 目标缓冲区容量（字节）
+ * @return 转义后所需长度（不含终止符 NUL）；截断语义同 lv_str_json_escape
+ */
+size_t lv_str_latex_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+
 /* ===== 报告表格辅助 ===== */
 
 /**

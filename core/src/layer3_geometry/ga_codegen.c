@@ -19,6 +19,7 @@
 #include "lv/lv_numeric.h"
 #include "lv_internal.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_dot_writer.h"
 
 #define GA_CODEGEN_BUF_SIZE 512
 #define GA_CODEGEN_LATEX_BUF_SIZE 256
@@ -293,20 +294,17 @@ char *ga_render_dot(const lvMultiVector *mv) {
     if (mv == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "ga_render_dot: mv is NULL");
 
-    char *buf = (char *) lv_malloc(GA_CODEGEN_BUF_SIZE);
-    if (buf == NULL)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_render_dot: malloc failed");
+    /* 生成 Graphviz DOT 格式的多重向量分量图（返回 lv_malloc 分配的字符串，调用者 lv_free） */
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    /* 生成 Graphviz DOT 格式的多重向量分量图 */
-    snprintf(buf, GA_CODEGEN_BUF_SIZE,
-             "digraph GA_Multivector {\n"
-             "  rankdir=LR;\n"
-             "  node [shape=circle];\n"
-             "  mv [label=\"MV\", shape=doublecircle];\n"
-             "  mv -> blade_0 [label=\"scalar\"];\n"
-             "  mv -> blade_1 [label=\"e1\"];\n"
-             "  mv -> blade_2 [label=\"e2\"];\n"
-             "  mv -> blade_3 [label=\"e12\"];\n"
-             "}\n");
-    return buf;
+    lv_dot_begin(&sb, "GA_Multivector", "LR", "shape=circle", NULL);
+    lv_dot_node(&sb, "mv", "MV", "shape=doublecircle");
+    lv_dot_edge(&sb, "mv", "blade_0", "scalar", NULL);
+    lv_dot_edge(&sb, "mv", "blade_1", "e1", NULL);
+    lv_dot_edge(&sb, "mv", "blade_2", "e2", NULL);
+    lv_dot_edge(&sb, "mv", "blade_3", "e12", NULL);
+    lv_dot_end(&sb);
+
+    return lv_strbuf_to_string(&sb);
 }

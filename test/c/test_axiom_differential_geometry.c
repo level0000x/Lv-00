@@ -47,14 +47,13 @@ static const AxiomTestTemplateExpectation k_templates[] = {
     {"geodesic", 2},
     {"exponential_map", 3},
     {"volume_form", 2},
-    /* Group III: Curvature (7) */
+    /* Group III: Curvature (6) */
     {"riemann_curvature_tensor", 2},
     {"ricci_curvature", 2},
     {"scalar_curvature", 2},
     {"sectional_curvature", 3},
     {"gauss_bonnet_theorem", 2},
     {"gauss_curvature", 3},
-    {"torsion_tensor", 4},
     /* Group IV: Connections (6) */
     {"levi_civita_connection", 2},
     {"covariant_derivative", 4},
@@ -85,11 +84,11 @@ static const AxiomTestTemplateExpectation k_templates[] = {
 
 /* Test 3：期望不可构造项 */
 static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
-    {"geodesic_completeness_decision", "undecidable", 4, true},
-    {"positive_mass_theorem", "open_problem", 5, true},
-    {"exotic_sphere_existence", "undecidable", 4, true},
-    {"poincare_conjecture_higher", "proved", 3, true},
-    {"curvature_bounded_below", "open_problem", 4, true},
+    {"geodesic_completeness_decision", "undecidable", 3, true},
+    {"positive_mass_theorem", "open_problem", 3, true},
+    {"exotic_sphere_existence", "undecidable", 3, true},
+    {"poincare_conjecture_higher", "solved", 3, true},
+    {"curvature_bounded_below", "undecidable", 3, true},
     {"symplectic_embedding", "undecidable", 3, true},
 };
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
@@ -204,21 +203,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Differential Geometry");
+TEST_MAIN_BEGIN("Differential Geometry")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

@@ -269,21 +269,18 @@ static void test_functional_completeness(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Classical Propositional Logic");
+TEST_MAIN_BEGIN("Classical Propositional Logic")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructible_problems);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_round_trip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_axiom_systems_coverage);
-    TEST_RUN(test_functional_completeness);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_axiom_systems_coverage);
+    TEST_MAIN_RUN(test_functional_completeness);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

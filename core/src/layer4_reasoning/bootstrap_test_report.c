@@ -24,6 +24,7 @@
 #include "lv/engine.h"
 #include "lv/lv.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
@@ -104,9 +105,21 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
                     break;
             }
             if (results[i]->error_message) {
-                lv_strbuf_printf(&sb,
-                                "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\", \"error\": \"%s\"}",
-                                i, status, comp, results[i]->error_message);
+                /* error_message 经完整 JSON 转义（两遍法），status/comparison 为内部固定串无需转义 */
+                size_t err_len = strlen(results[i]->error_message);
+                size_t need = lv_str_json_escape(results[i]->error_message, err_len, NULL, 0);
+                char *esc_err = (char *) lv_malloc(need + 1);
+                if (esc_err) {
+                    lv_str_json_escape(results[i]->error_message, err_len, esc_err, need + 1);
+                    lv_strbuf_printf(&sb,
+                                    "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\", \"error\": \"%s\"}",
+                                    i, status, comp, esc_err);
+                    lv_free((void **) &esc_err);
+                } else {
+                    lv_strbuf_printf(&sb,
+                                    "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\", \"error\": \"%s\"}",
+                                    i, status, comp, results[i]->error_message);
+                }
             } else {
                 lv_strbuf_printf(&sb,
                                 "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\"}",

@@ -20,7 +20,7 @@ int g_pass_count = 0;
 #define AXIOM_PKG_PATH "module/axiom_packages/cartesian_closed_category.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/cartesian_closed_category_test_save.lvz"
 
-#define EXPECTED_TEMPLATE_COUNT 55
+#define EXPECTED_TEMPLATE_COUNT 59
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 7
 
 /* ============================================================
@@ -108,7 +108,7 @@ static const AxiomTestUcExpectation k_unconstructibles[] = {
     {"morphism_equality_free_ccc", "undecidable", 6, true},
     {"ccc_functor_preservation", "undecidable", 5, true},
     {"exponential_existence", "undecidable", 5, true},
-    {"local_cartesian_closedness", "exponential_existence", 5, true},
+    {"local_cartesian_closedness", "exponential_existence", 4, true},
     {"word_problem_free_ccc", "morphism_equality_free_ccc", 6, true},
     {"nno_existence", "undecidable", 4, true},
 };
@@ -135,7 +135,7 @@ static void test_load_from_file(void) {
 }
 
 static void test_templates(void) {
-    axiom_test_templates_with_params(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 55 constraint templates",
+    axiom_test_templates_with_params(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 59 constraint templates",
                                      k_templates, K_TEMPLATES_COUNT);
 }
 
@@ -231,21 +231,18 @@ static void test_template_group_coverage(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Cartesian Closed Category");
+TEST_MAIN_BEGIN("Cartesian Closed Category")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructible_problems);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_round_trip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_refs);
-    TEST_RUN(test_template_group_coverage);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_refs);
+    TEST_MAIN_RUN(test_template_group_coverage);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

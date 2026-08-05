@@ -82,7 +82,7 @@ static const AxiomTestTemplateExpectation k_templates[] = {
 
 /* Test 3：期望不可构造项 */
 static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
-    {"polynomial_root_by_radicals", "undecidable", 4, true},
+    {"polynomial_root_by_radicals", "abel_ruffini_theorem", 4, true},
     {"galois_group_computation", "undecidable", 4, true},
     {"field_isomorphism_problem", "undecidable", 3, true},
     {"algebraic_closure_uniqueness", "undecidable", 3, true},
@@ -194,21 +194,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Field Theory");
+TEST_MAIN_BEGIN("Field Theory")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

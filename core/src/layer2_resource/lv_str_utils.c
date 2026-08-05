@@ -398,6 +398,42 @@ size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst
     return need;
 }
 
+/** @brief LaTeX 特殊字符 → 转义字符串 查找表（按 ASCII 下标，NULL 表示原样输出）
+ *  % → \%：LaTeX 中 \% 才是百分号转义（\\%% 会让裸 % 起注释吞行） */
+static const char *const s_latex_escape_entities[256] = {
+    ['\\'] = "\\textbackslash{}",
+    ['{']  = "\\{",
+    ['}']  = "\\}",
+    ['_']  = "\\_",
+    ['&']  = "\\&",
+    ['#']  = "\\#",
+    ['%']  = "\\%",
+    ['$']  = "\\$",
+    ['^']  = "\\^{}",
+    ['~']  = "\\~{}",
+};
+
+size_t lv_str_latex_escape(const char *src, size_t src_len, char *dst, size_t dst_cap) {
+    if (!src)
+        src_len = 0;
+    size_t need = 0;    /* 转义后所需总长度（不含 NUL） */
+    size_t written = 0; /* 实际写入长度（<= dst_cap-1） */
+    for (size_t i = 0; i < src_len; i++) {
+        unsigned char c = (unsigned char) src[i];
+        const char *esc = s_latex_escape_entities[c];
+        if (esc) {
+            need += strlen(esc);
+            str_escape_write(dst, dst_cap, &written, esc, strlen(esc));
+        } else {
+            need++;
+            str_escape_write(dst, dst_cap, &written, (const char *) &src[i], 1);
+        }
+    }
+    if (dst && dst_cap > 0)
+        dst[written] = '\0';
+    return need;
+}
+
 size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t dst_cap) {
     if (!src)
         src_len = 0;

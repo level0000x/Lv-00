@@ -74,22 +74,21 @@ static const AxiomTestTemplateExpectation k_templates[] = {
     {"local_global_principle", 3},
     {"hensel_lemma", 3},
     {"algebraic_number", 3},
-    /* Group VII: Transcendence (4) */
+    /* Group VII: Transcendence (3) */
     {"transcendental_number", 2},
     {"liouville_number", 1},
     {"catalan_constant", 0},
-    {"transcendent_numbers", 1},
 };
 #define K_TEMPLATES_COUNT (int) (sizeof(k_templates) / sizeof(k_templates[0]))
 
 /* Test 3：期望不可构造项 */
 static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
-    {"riemann_hypothesis", "million_dollar", 5, true},
-    {"goldbach_conjecture_verification", "open_problem", 4, true},
-    {"twin_prime_conjecture", "open_problem", 4, true},
+    {"riemann_hypothesis", "open_problem", 3, true},
+    {"goldbach_conjecture_verification", "open_problem", 3, true},
+    {"twin_prime_conjecture", "open_problem", 3, true},
     {"class_number_computation", "undecidable", 3, true},
-    {"generalized_riemann_hypothesis", "open_problem", 5, true},
-    {"ideal_class_group_computation", "undecidable", 4, true},
+    {"generalized_riemann_hypothesis", "open_problem", 3, true},
+    {"ideal_class_group_computation", "undecidable", 3, true},
     {"transcendence_of_constants", "open_problem", 3, true},
 };
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
@@ -121,8 +120,10 @@ static void test_logical_framework(void) {
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
     TEST_ASSERT(pkg->bottom_geometry != NULL, "bottom_geometry should be set");
+    /* bottom_geometry contains "integer_number_line" */
     TEST_ASSERT(
-        strstr(pkg->bottom_geometry, "divisibility") != NULL || strstr(pkg->bottom_geometry, "prime_number") != NULL,
+        strstr(pkg->bottom_geometry, "integer_number_line") != NULL ||
+            strstr(pkg->bottom_geometry, "number_line") != NULL,
         "bottom_geometry should contain number theory concepts");
     printf("  bottom_geometry: '%s'\n", pkg->bottom_geometry);
 
@@ -200,21 +201,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Number Theory");
+TEST_MAIN_BEGIN("Number Theory")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

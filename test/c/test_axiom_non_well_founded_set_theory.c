@@ -20,7 +20,7 @@ int g_pass_count = 0;
 #define AXIOM_PKG_PATH "module/axiom_packages/non_well_founded_set_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/non_well_founded_test_save.lvz"
 
-#define EXPECTED_TEMPLATE_COUNT 42
+#define EXPECTED_TEMPLATE_COUNT 49
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
 /* ============================================================
@@ -123,7 +123,7 @@ static void test_load_from_file(void) {
 }
 
 static void test_templates(void) {
-    axiom_test_templates_with_params(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 42 constraint templates",
+    axiom_test_templates_with_params(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 49 constraint templates",
                                      k_templates, K_TEMPLATES_COUNT);
 }
 
@@ -242,22 +242,19 @@ static void test_afa_specific_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Non-Well-Founded Set Theory (AFA)");
+TEST_MAIN_BEGIN("Non-Well-Founded Set Theory (AFA)")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructible_problems);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_round_trip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_refs);
-    TEST_RUN(test_key_axioms_present);
-    TEST_RUN(test_afa_specific_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_refs);
+    TEST_MAIN_RUN(test_key_axioms_present);
+    TEST_MAIN_RUN(test_afa_specific_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

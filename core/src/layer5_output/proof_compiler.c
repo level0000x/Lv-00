@@ -20,6 +20,8 @@
 
 #include "lv/lv_internal.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_dot_writer.h"
+#include "lv/lv_str_utils.h"
 
 
 #include "circuit_breaker.h"
@@ -300,7 +302,17 @@ char *lv_proof_compiler_to_json(const lvProofObject *proof, const lvProofTrace *
 
     lv_strbuf_printf(&sb, "{\n");
     lv_strbuf_printf(&sb, "  \"proof_id\": %d,\n", proof->proof_id);
-    lv_strbuf_printf(&sb, "  \"theorem_name\": \"%s\",\n", proof->theorem_name ? proof->theorem_name : "unknown");
+    {
+        /* theorem_name 经 JSON 转义后写入（两遍法，防止 JSON 注入/破坏） */
+        const char *name = proof->theorem_name ? proof->theorem_name : "unknown";
+        size_t need = lv_str_json_escape(name, strlen(name), NULL, 0);
+        char *esc = (char *) lv_malloc(need + 1);
+        if (!esc)
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_json: theorem_name escape alloc failed");
+        lv_str_json_escape(name, strlen(name), esc, need + 1);
+        lv_strbuf_printf(&sb, "  \"theorem_name\": \"%s\",\n", esc);
+        lv_free((void **) &esc);
+    }
     lv_strbuf_printf(&sb, "  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
     lv_strbuf_printf(&sb, "  \"final_color\": %d,\n", proof->final_color);
     lv_strbuf_printf(&sb, "  \"step_count\": %d,\n", proof->step_count);
@@ -478,9 +490,7 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
     lvStrBuf sb;
     lv_strbuf_init(&sb);
 
-    lv_strbuf_printf(&sb, "digraph ProofTree {\n");
-    lv_strbuf_printf(&sb, "  rankdir=TB;\n");
-    lv_strbuf_printf(&sb, "  node [shape=box];\n");
+    lv_dot_begin(&sb, "ProofTree", "TB", "shape=box", NULL);
 
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -490,7 +500,10 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
                             : step->color == PROOF_COLOR_ORANGE_EX_FALSO ? "orange"
                                                                          : "lightblue";
 
-        lv_strbuf_printf(&sb, "  S%d [label=\"%s\", style=filled, fillcolor=%s];\n", step->step_id, label, color);
+        char idbuf[32], extra[128];
+        snprintf(idbuf, sizeof(idbuf), "S%d", step->step_id);
+        snprintf(extra, sizeof(extra), "style=filled, fillcolor=%s", color);
+        lv_dot_node(&sb, idbuf, label, extra);
     }
 
     /* 生成边 */
@@ -499,11 +512,14 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
             const char *rule_name = step->rule_name ? step->rule_name : "";
-            lv_strbuf_printf(&sb, "  S%d -> S%d [label=\"%s\"];\n", premise_id, step->step_id, rule_name);
+            char frombuf[32], tobuf[32];
+            snprintf(frombuf, sizeof(frombuf), "S%d", premise_id);
+            snprintf(tobuf, sizeof(tobuf), "S%d", step->step_id);
+            lv_dot_edge(&sb, frombuf, tobuf, rule_name, NULL);
         }
     }
 
-    lv_strbuf_printf(&sb, "}\n");
+    lv_dot_end(&sb);
 
     return lv_strbuf_to_string(&sb);
 }

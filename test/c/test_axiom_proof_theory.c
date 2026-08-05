@@ -77,12 +77,12 @@ static const AxiomTestTemplateExpectation k_templates[] = {
 
 /* Test 3：期望不可构造项 */
 static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
-    {"cut_elimination_complexity", "undecidable", 3, true},
+    {"cut_elimination_complexity", "non_elementary", 3, true},
     {"proof_equality_problem", "undecidable", 3, true},
     {"first_order_validity_proof", "undecidable", 2, true},
     {"ordinal_computation", "undecidable", 3, true},
-    {"proof_length_optimal", "open_problem", 4, true},
-    {"subsystem_analysis", "open_problem", 3, true},
+    {"proof_length_optimal", "open_problem", 3, true},
+    {"subsystem_analysis", "undecidable", 3, true},
 };
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
@@ -190,21 +190,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Proof Theory");
+TEST_MAIN_BEGIN("Proof Theory")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

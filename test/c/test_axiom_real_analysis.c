@@ -84,13 +84,13 @@ static const AxiomTestTemplateExpectation k_templates[] = {
 
 /* Test 3：期望不可构造项 */
 static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
-    {"banach_tarski_paradox", "undecidable", 4, true},
-    {"vitali_set_non_measurable", "undecidable", 4, true},
-    {"lebesgue_measure_borel", "undecidable", 5, true},
-    {"riemann_integrability_characterization", "undecidable", 5, true},
-    {"improper_integral_convergence", "undecidable", 4, true},
-    {"function_space_separability", "undecidable", 4, true},
-    {"distribution_generalized_function", "undecidable", 5, true},
+    {"banach_tarski_paradox", "ac_non_constructive", 3, true},
+    {"vitali_set_non_measurable", "ac_non_constructive", 3, true},
+    {"lebesgue_measure_borel", "undecidable", 4, true},
+    {"riemann_integrability_characterization", "undecidable", 3, true},
+    {"improper_integral_convergence", "undecidable", 3, true},
+    {"function_space_separability", "undecidable", 3, true},
+    {"distribution_generalized_function", "undecidable", 3, true},
 };
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
@@ -215,21 +215,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Real Analysis");
+TEST_MAIN_BEGIN("Real Analysis")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

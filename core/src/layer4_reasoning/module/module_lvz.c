@@ -17,6 +17,7 @@
 
 #include "lv/module.h"
 #include "lv/module_internal.h"
+#include "lv/lv_file.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -1524,34 +1525,12 @@ bool lvz_load_presets_file(const char *filepath) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "lvz_load_presets_file: 文件路径为空");
     }
 
-    /* 读取文件内容 */
-    FILE *fp = fopen(filepath, "rb");
-    if (!fp) {
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lvz_load_presets_file: 无法打开文件 '%s'", filepath);
-    }
-
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
-    if (file_size <= 0) {
-        fclose(fp);
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lvz_load_presets_file: 文件 '%s' 为空", filepath);
-    }
-
-    rewind(fp);
-    char *source = (char *) lv_malloc((size_t) file_size + 1);
+    /* 读取文件内容（lv_file_read_all：失败/空文件返回 NULL，成功时缓冲以 NUL 结尾） */
+    size_t file_size = 0;
+    char *source = (char *) lv_file_read_all(filepath, &file_size);
     if (!source) {
-        fclose(fp);
-        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lvz_load_presets_file: 无法分配内存");
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lvz_load_presets_file: 无法读取文件 '%s'（不存在、为空或读取失败）", filepath);
     }
-
-    size_t read_size = fread(source, 1, (size_t) file_size, fp);
-    fclose(fp);
-
-    if (read_size != (size_t) file_size) {
-        lv_free((void **) &source);
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lvz_load_presets_file: 读取文件 '%s' 失败", filepath);
-    }
-    source[file_size] = '\0';
 
     /* 解析 .lvz 内容（presets 节会自动注册预设） */
     LvzParser parser;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_loader.c
  * @brief .lv 文件加载与引擎集成实现
  *
@@ -114,31 +114,7 @@ static char *read_file(const char *filepath, size_t *out_len) {
     if (!filepath || !out_len)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "filepath or out_len is NULL");
 
-    FILE *fp = lv_file_open(filepath, "rb");
-    if (!fp)
-        lv_RETURN_ERROR_NULL(lv_ERROR_IO, "failed to open file: %s", filepath);
-
-    fseek(fp, 0, SEEK_END);
-    long len = ftell(fp);
-    rewind(fp);
-
-    if (len < 0) {
-        lv_file_close(fp);
-        lv_RETURN_ERROR_NULL(lv_ERROR_IO, "ftell failed for file: %s", filepath);
-    }
-
-    char *buf = (char *) lv_malloc((size_t) len + 1);
-    if (!buf) {
-        lv_file_close(fp);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate buffer for file: %s", filepath);
-    }
-
-    size_t read = fread(buf, 1, (size_t) len, fp);
-    lv_file_close(fp);
-
-    buf[read] = '\0';
-    *out_len = read;
-    return buf;
+    return (char *) lv_file_read_all(filepath, out_len);
 }
 
 /* ================================================================

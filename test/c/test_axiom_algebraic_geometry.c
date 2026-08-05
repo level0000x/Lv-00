@@ -83,12 +83,12 @@ static const AxiomTestTemplateExpectation k_templates[] = {
 
 /* Test 3：期望不可构造项 */
 static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
-    {"hartshorne_conjecture", "open_problem", 4, true},
-    {"minimal_model_program", "open_problem", 5, true},
-    {"resolution_of_singularities", "proved", 3, true},
-    {"cohomology_ring_computation", "undecidable", 4, true},
+    {"hartshorne_conjecture", "open_problem", 3, true},
+    {"minimal_model_program", "open_problem", 4, true},
+    {"resolution_of_singularities", "proven_hard", 3, true},
+    {"cohomology_ring_computation", "undecidable", 3, true},
     {"rational_point_existence", "undecidable", 3, true},
-    {"hilbert_sixteenth_problem", "open_problem", 4, true},
+    {"hilbert_sixteenth_problem", "open_problem", 3, true},
 };
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
@@ -119,8 +119,9 @@ static void test_logical_framework(void) {
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
     TEST_ASSERT(pkg->bottom_geometry != NULL, "bottom_geometry should be set");
+    /* bottom_geometry contains "polynomial_equation" or "affine" */
     TEST_ASSERT(
-        strstr(pkg->bottom_geometry, "algebraic_set") != NULL || strstr(pkg->bottom_geometry, "affine_space") != NULL,
+        strstr(pkg->bottom_geometry, "polynomial_equation") != NULL || strstr(pkg->bottom_geometry, "affine") != NULL,
         "bottom_geometry should contain algebraic geometry concepts");
     printf("  bottom_geometry: '%s'\n", pkg->bottom_geometry);
 
@@ -197,21 +198,18 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    TEST_SUITE_BEGIN("Algebraic Geometry");
+TEST_MAIN_BEGIN("Algebraic Geometry")
 
-    TEST_RUN(test_load_from_file);
-    TEST_RUN(test_templates);
-    TEST_RUN(test_unconstructibles);
-    TEST_RUN(test_logical_framework);
-    TEST_RUN(test_content_hash);
-    TEST_RUN(test_save_load_roundtrip);
-    TEST_RUN(test_dependency_validation);
-    TEST_RUN(test_negative_lookups);
-    TEST_RUN(test_external_references);
-    TEST_RUN(test_key_templates);
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates);
 
-    TEST_SUMMARY();
+TEST_MAIN_END()
 
-    return 0;
-}

@@ -40,6 +40,27 @@ static int json_escape_string(const char *src, char *dst, int dst_size) {
     return (int) lv_str_json_escape(src, strlen(src), dst, (size_t) dst_size);
 }
 
+/**
+ * @brief 完整 JSON 转义（两遍法，堆分配；调用者 lv_free）
+ *
+ * 与 json_escape_string 的固定缓冲截断语义不同，本函数精确计算转义后长度并分配，
+ * 保证字符串被完整转义（不会截断在转义序列中间产生非法 JSON）。
+ *
+ * @param src      源字符串（UTF-8，可为 NULL）
+ * @param src_len  源字符串长度
+ * @return 转义后的堆字符串，失败返回 NULL
+ */
+static char *json_escape_alloc(const char *src, size_t src_len) {
+    if (!src)
+        src_len = 0;
+    size_t need = lv_str_json_escape(src, src_len, NULL, 0);
+    char *buf = (char *) lv_malloc(need + 1);
+    if (!buf)
+        return NULL;
+    lv_str_json_escape(src, src_len, buf, need + 1);
+    return buf;
+}
+
 /* Lv-00 证明步骤类型枚举（与 lean4_bridge.c 相同；注意 coq_bridge.c 是 8 项子集且含 UNIFY/EX_FALSO，值定义不重叠时勿混用） */
 typedef enum {
     lv_STEP_ADD_NODE = 0,   /* 添加节点 */
@@ -161,10 +182,12 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
                 }
                 first_axiom = 0;
 
-                /* 写入公理条目 */
+                /* 写入公理条目（名称经完整 JSON 转义） */
                 lv_strbuf_printf(&sb, "      { \"name\": \"");
                 int ax_len = (int) (ax_end - ax);
-                lv_strbuf_printf(&sb, "%.*s", ax_len, ax);
+                char *esc_ax = json_escape_alloc(ax, (size_t) ax_len);
+                lv_strbuf_printf(&sb, "%s", esc_ax ? esc_ax : "");
+                lv_free((void **) &esc_ax);
                 lv_strbuf_printf(&sb, "\" }");
             }
             ax = ax_end;
@@ -198,16 +221,10 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
                          "        \"description\": \"",
                          step->id, step_type_name(step->type));
 
-        /* 写入描述（转义双引号和反斜杠） */
-        const char *desc = step->description;
-        while (*desc) {
-            if (*desc == '"' || *desc == '\\') {
-                lv_strbuf_printf(&sb, "\\%c", *desc);
-            } else {
-                lv_strbuf_append_n(&sb, *desc, 1);
-            }
-            desc++;
-        }
+        /* 写入描述（完整 JSON 转义：引号/反斜杠/控制字符，替代原先只转义 " 和 \ 的手写循环） */
+        char *esc_desc = json_escape_alloc(step->description, strlen(step->description));
+        lv_strbuf_printf(&sb, "%s", esc_desc ? esc_desc : "");
+        lv_free((void **) &esc_desc);
 
         lv_strbuf_printf(&sb, "\",\n");
 

@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "lv/lv_check.h"
+#include "lv/lv_json.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 
@@ -105,24 +106,23 @@ char *lv_plugin_get_info_json(const lvPlugin *plugin) {
     if (!plugin)
         return NULL;
 
-    size_t size = 1024;
-    char *json = (char *) lv_malloc(size);
-    if (!json)
+    /* 使用 lvJsonBuf 自动对字符串字段做 JSON 转义（name/version/author/description） */
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, 1024))
         return NULL;
 
-    snprintf(json, size,
-             "{"
-             "\"name\":\"%s\","
-             "\"version\":\"%s\","
-             "\"author\":\"%s\","
-             "\"description\":\"%s\","
-             "\"state\":%d,"
-             "\"type\":%d"
-             "}",
-             plugin->info.name, plugin->info.version, plugin->info.author, plugin->info.description, plugin->state,
-             plugin->info.type);
+    lv_json_buf_append_raw(&buf, "{");
+    lv_json_buf_append_raw(&buf, "\"name\":");
+    lv_json_buf_append_string(&buf, plugin->info.name);
+    lv_json_buf_append_raw(&buf, ",\"version\":");
+    lv_json_buf_append_string(&buf, plugin->info.version);
+    lv_json_buf_append_raw(&buf, ",\"author\":");
+    lv_json_buf_append_string(&buf, plugin->info.author);
+    lv_json_buf_append_raw(&buf, ",\"description\":");
+    lv_json_buf_append_string(&buf, plugin->info.description);
+    lv_json_buf_append_fmt(&buf, ",\"state\":%d,\"type\":%d}", plugin->state, plugin->info.type);
 
-    return json;
+    return lv_json_buf_finalize(&buf);
 }
 
 /**
@@ -134,52 +134,31 @@ char *lv_plugin_system_get_info_json(const lvPluginSystem *system) {
     if (!system)
         return NULL;
 
-    /* 防止整数溢出 */
-    size_t plugin_size;
-    if (system->plugin_count > (SIZE_MAX - 2048) / 512) {
-        return NULL; /* overflow */
-    }
-    size_t size = 2048 + system->plugin_count * 512;
-    char *json = (char *) lv_malloc(size);
-    if (!json)
+    /* 使用 lvJsonBuf 动态构建（自动转义 name/version 字符串字段，无固定缓冲截断风险） */
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, 2048))
         return NULL;
 
-    char *ptr = json;
-    size_t remaining = size;
-    int written = snprintf(ptr, remaining,
-                           "{"
-                           "\"version\":%u,"
+    lv_json_buf_append_fmt(&buf,
+                           "{\"version\":%u,"
                            "\"plugin_count\":%zu,"
                            "\"interface_count\":%zu,"
                            "\"plugins\":[",
                            system->version, system->plugin_count, system->interface_count);
-    if (written > 0) {
-        ptr += written;
-        remaining -= written;
-    }
 
     for (size_t i = 0; i < system->plugin_count; i++) {
-        if (remaining <= 0)
-            break;
-        written = snprintf(ptr, (size_t) remaining,
-                           "{"
-                           "\"name\":\"%s\","
-                           "\"version\":\"%s\","
-                           "\"state\":%d"
-                           "}%s",
-                           system->plugins[i]->info.name, system->plugins[i]->info.version, system->plugins[i]->state,
-                           (i < system->plugin_count - 1) ? "," : "");
-        if (written > 0) {
-            ptr += written;
-            remaining -= written;
-        }
+        lv_json_buf_append_raw(&buf, "{\"name\":");
+        lv_json_buf_append_string(&buf, system->plugins[i]->info.name);
+        lv_json_buf_append_raw(&buf, ",\"version\":");
+        lv_json_buf_append_string(&buf, system->plugins[i]->info.version);
+        lv_json_buf_append_fmt(&buf, ",\"state\":%d}", system->plugins[i]->state);
+        if (i < system->plugin_count - 1)
+            lv_json_buf_append_char(&buf, ',');
     }
 
-    if (remaining > 0) {
-        snprintf(ptr, (size_t) remaining, "]}");
-    }
+    lv_json_buf_append_raw(&buf, "]}");
 
-    return json;
+    return lv_json_buf_finalize(&buf);
 }
 
 /* ============ 错误处理 ============ */

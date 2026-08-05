@@ -542,20 +542,17 @@ static void test_local_equiv_matching(void) {
  * 主函数
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Rewrite System (Constraint Graph)");
+TEST_MAIN_BEGIN("Rewrite System (Constraint Graph)")
 
-    TEST_RUN(test_rewrite_rule_lifecycle);
-    TEST_RUN(test_real_pattern_matching);
-    TEST_RUN(test_real_rule_application);
-    TEST_RUN(test_multi_rule_rewrite);
-    TEST_RUN(test_graph_snapshot);
-    TEST_RUN(test_wl_hash);
-    TEST_RUN(test_rule_unload);
-    TEST_RUN(test_rule_destroy_null);
-    TEST_RUN(test_local_equiv_matching);
+    TEST_MAIN_RUN(test_rewrite_rule_lifecycle);
+    TEST_MAIN_RUN(test_real_pattern_matching);
+    TEST_MAIN_RUN(test_real_rule_application);
+    TEST_MAIN_RUN(test_multi_rule_rewrite);
+    TEST_MAIN_RUN(test_graph_snapshot);
+    TEST_MAIN_RUN(test_wl_hash);
+    TEST_MAIN_RUN(test_rule_unload);
+    TEST_MAIN_RUN(test_rule_destroy_null);
+    TEST_MAIN_RUN(test_local_equiv_matching);
 
-    TEST_SUITE_END();
+TEST_MAIN_END()
 
-    return g_fail_count > 0 ? 1 : 0;
-}

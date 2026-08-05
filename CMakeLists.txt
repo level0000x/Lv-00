@@ -779,6 +779,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_ringbuf.c
     # v3.8.0 统一字符串工具函数集
     core/src/layer2_resource/lv_str_utils.c
+    # v5.x 公共 DOT（Graphviz）写入器（统一 digraph 样板与 label 转义；仅依赖 L2 基础设施，供 L2~L5 复用）
+    core/src/layer2_resource/lv_dot_writer.c
     # v3.8.0 统一文件 I/O 抽象层
     core/src/layer2_resource/lv_file.c
     # v1.1.0 通用注册表（统一 ATP/SMT/Groebner 后端注册表模式）

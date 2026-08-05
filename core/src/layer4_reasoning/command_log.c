@@ -1057,31 +1057,15 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "command_log_deserialize_json: filepath is NULL");
     }
 
-    FILE *fp = lv_file_open(filepath, "rb");
-    if (!fp) {
-        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "command_log_deserialize_json: cannot open file");
-    }
-
-    /* 读取整个文件 */
-    fseek(fp, 0, SEEK_END);
-    long flen = ftell(fp);
-    if (flen <= 0) {
-        lv_file_close(fp);
-        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "command_log_deserialize_json: empty file");
-    }
-    fseek(fp, 0, SEEK_SET);
-
-    char *buf = (char *) lv_malloc((size_t) (flen + 1));
+    /* 读取整个文件（lv_file_read_all：失败/空文件返回 NULL，成功时缓冲以 NUL 结尾） */
+    size_t flen = 0;
+    char *buf = (char *) lv_file_read_all(filepath, &flen);
     if (!buf) {
-        lv_file_close(fp);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "command_log_deserialize_json: malloc failed");
+        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "command_log_deserialize_json: cannot read file (not found, empty or read error)");
     }
-    size_t nread = fread(buf, 1, (size_t) flen, fp);
-    lv_file_close(fp);
-    buf[nread] = '\0';
 
     lvJsonParser j;
-    lv_json_parser_init(&j, buf, nread);
+    lv_json_parser_init(&j, buf, flen);
 
     CommandLog *log = command_log_create(1024);
     if (!log) {

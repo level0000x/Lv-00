@@ -17,6 +17,8 @@
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 
 /* 几何画布视图 - 完整实现 */
 
@@ -374,10 +376,14 @@ static void geom_point_render(const lvGeomEntity *e, char *buf, int buf_size, in
                   "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
                   e->coords[0], e->coords[1], e->fill_color, e->stroke_color, e->stroke_width);
         if (e->label[0] != '\0') {
+            /* 标签经 XML 实体转义（SVG 文本内容，防止注入） */
+            lvStrBuf esc = {0};
+            lv_str_escape_xml(&esc, e->label, strlen(e->label));
             lv_SVG_WRITE(buf, *pos, buf_size,
                          "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
                          "text-anchor=\"middle\" dy=\"-8\">%s</text>\n",
-                      e->coords[0], e->coords[1], e->label);
+                      e->coords[0], e->coords[1], lv_strbuf_cstr(&esc));
+            lv_strbuf_destroy(&esc);
         }
     }
 }
@@ -392,10 +398,14 @@ static void geom_line_render(const lvGeomEntity *e, char *buf, int buf_size, int
         if (e->label[0] != '\0') {
             double mx = (e->coords[0] + e->coords[2]) / 2.0;
             double my = (e->coords[1] + e->coords[3]) / 2.0;
+            /* 标签经 XML 实体转义（SVG 文本内容，防止注入） */
+            lvStrBuf esc = {0};
+            lv_str_escape_xml(&esc, e->label, strlen(e->label));
             lv_SVG_WRITE(buf, *pos, buf_size,
                          "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
                          "text-anchor=\"middle\" dy=\"-6\">%s</text>\n",
-                      mx, my, e->label);
+                      mx, my, lv_strbuf_cstr(&esc));
+            lv_strbuf_destroy(&esc);
         }
     }
 }
@@ -408,10 +418,14 @@ static void geom_circle_render(const lvGeomEntity *e, char *buf, int buf_size, i
                   "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
                   e->coords[0], e->coords[1], e->coords[2], e->fill_color, e->stroke_color, e->stroke_width);
         if (e->label[0] != '\0') {
+            /* 标签经 XML 实体转义（SVG 文本内容，防止注入） */
+            lvStrBuf esc = {0};
+            lv_str_escape_xml(&esc, e->label, strlen(e->label));
             lv_SVG_WRITE(buf, *pos, buf_size,
                          "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
                          "text-anchor=\"middle\" dy=\"-%g\">%s</text>\n",
-                      e->coords[0], e->coords[1], e->coords[2] + 4, e->label);
+                      e->coords[0], e->coords[1], e->coords[2] + 4, lv_strbuf_cstr(&esc));
+            lv_strbuf_destroy(&esc);
         }
     }
 }
@@ -437,10 +451,14 @@ static void geom_polygon_render(const lvGeomEntity *e, char *buf, int buf_size, 
             }
             cx /= npts;
             cy /= npts;
+            /* 标签经 XML 实体转义（SVG 文本内容，防止注入） */
+            lvStrBuf esc = {0};
+            lv_str_escape_xml(&esc, e->label, strlen(e->label));
             lv_SVG_WRITE(buf, *pos, buf_size,
                          "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
                          "text-anchor=\"middle\">%s</text>\n",
-                      cx, cy, e->label);
+                      cx, cy, lv_strbuf_cstr(&esc));
+            lv_strbuf_destroy(&esc);
         }
     }
 }
@@ -616,10 +634,14 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
         if (c->label[0] != '\0') {
             double mx = (ax + bx) / 2.0;
             double my = (ay + by) / 2.0;
+            /* 标签经 XML 实体转义（SVG 文本内容，防止注入） */
+            lvStrBuf esc = {0};
+            lv_str_escape_xml(&esc, c->label, strlen(c->label));
             lv_SVG_WRITE(buf, pos, buf_size,
                          "  <text x=\"%g\" y=\"%g\" font-size=\"10\" "
                          "fill=\"%s\" text-anchor=\"middle\" dy=\"-4\">%s</text>\n",
-                      mx, my, c->color, c->label);
+                      mx, my, c->color, lv_strbuf_cstr(&esc));
+            lv_strbuf_destroy(&esc);
         }
     }
 

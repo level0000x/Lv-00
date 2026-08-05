@@ -19,7 +19,10 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_dot_writer.h"
+#include "lv/lv_strbuf.h"
 
 /* ================================================================
  * 错误结果工厂
@@ -102,7 +105,8 @@ static void sanitize_id(char *dst, size_t dst_sz, const char *src) {
 }
 
 /**
- * @brief JSON 字符串转义：在 str 前后加引号，转义 \\ 和 \"
+ * @brief JSON 字符串转义：在 str 前后加引号，经 lv_str_json_escape 两遍法完整转义
+ *        （覆盖 \\、\"、\n、\r、\t、\b、\f 及其它控制字符）
  * @param d   字符串构建器指针
  * @param str 要转义的字符串（可为 NULL，输出 "null"）
  * @return 0 成功，-1 失败
@@ -111,31 +115,65 @@ static int lv_dstr_append_json_string(lvDStr *d, const char *str) {
     if (!str) {
         return lv_dstr_append_fmt(d, "null");
     }
-    if (lv_dstr_append_fmt(d, "\"") != 0)
-        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append quote failed");
-    for (const char *p = str; *p; p++) {
-        if (*p == '\\') {
-            if (lv_dstr_append_fmt(d, "\\\\") != 0)
-                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append backslash failed");
-        } else if (*p == '"') {
-            if (lv_dstr_append_fmt(d, "\\\"") != 0)
-                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append quote escaped failed");
-        } else if (*p == '\n') {
-            if (lv_dstr_append_fmt(d, "\\n") != 0)
-                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append newline failed");
-        } else if (*p == '\t') {
-            if (lv_dstr_append_fmt(d, "\\t") != 0)
-                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append tab failed");
-        } else if (*p == '\r') {
-            if (lv_dstr_append_fmt(d, "\\r") != 0)
-                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append cr failed");
-        } else {
-            char tmp[2] = {*p, '\0'};
-            if (lv_dstr_append_str(d, tmp) != 0)
-                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append char failed");
-        }
-    }
-    return lv_dstr_append_fmt(d, "\"");
+    size_t len = strlen(str);
+    size_t need = lv_str_json_escape(str, len, NULL, 0);
+    char *buf = (char *) lv_malloc(need + 1);
+    if (!buf)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: escape buffer alloc failed");
+    lv_str_json_escape(str, len, buf, need + 1);
+    int rc = lv_dstr_append_fmt(d, "\"");
+    if (rc == 0)
+        rc = lv_dstr_append_raw(d, buf, need);
+    if (rc == 0)
+        rc = lv_dstr_append_fmt(d, "\"");
+    lv_free((void **) &buf);
+    if (rc != 0)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: append failed");
+    return 0;
+}
+
+/**
+ * @brief 将字符串 HTML 实体转义后写入 lvDStr（lv_str_html_escape 两遍法）
+ * @param d   字符串构建器指针
+ * @param str 要转义的字符串（可为 NULL，空操作）
+ * @return 0 成功，-1 失败
+ */
+static int lv_dstr_append_html_escaped(lvDStr *d, const char *str) {
+    if (!str)
+        return 0;
+    size_t len = strlen(str);
+    size_t need = lv_str_html_escape(str, len, NULL, 0);
+    char *buf = (char *) lv_malloc(need + 1);
+    if (!buf)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_html_escaped: escape buffer alloc failed");
+    lv_str_html_escape(str, len, buf, need + 1);
+    int rc = lv_dstr_append_raw(d, buf, need);
+    lv_free((void **) &buf);
+    if (rc != 0)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_html_escaped: append failed");
+    return 0;
+}
+
+/**
+ * @brief 将字符串 LaTeX 特殊字符转义后写入 lvDStr（lv_str_latex_escape 两遍法）
+ * @param d   字符串构建器指针
+ * @param str 要转义的字符串（可为 NULL，空操作）
+ * @return 0 成功，-1 失败
+ */
+static int lv_dstr_append_latex_escaped(lvDStr *d, const char *str) {
+    if (!str)
+        return 0;
+    size_t len = strlen(str);
+    size_t need = lv_str_latex_escape(str, len, NULL, 0);
+    char *buf = (char *) lv_malloc(need + 1);
+    if (!buf)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_latex_escaped: escape buffer alloc failed");
+    lv_str_latex_escape(str, len, buf, need + 1);
+    int rc = lv_dstr_append_raw(d, buf, need);
+    lv_free((void **) &buf);
+    if (rc != 0)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_latex_escaped: append failed");
+    return 0;
 }
 
 /* ================================================================
@@ -154,7 +192,9 @@ static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *c
     lv_dstr_append_fmt(&d, "<html lang=\"en\">%s", indent);
     lv_dstr_append_fmt(&d, "<head>%s", indent);
     lv_dstr_append_fmt(&d, "%s<meta charset=\"UTF-8\">%s", indent2, indent);
-    lv_dstr_append_fmt(&d, "%s<title>%s</title>%s", indent2, safe_str(proof->theorem), indent);
+    lv_dstr_append_fmt(&d, "%s<title>", indent2);
+    lv_dstr_append_html_escaped(&d, proof->theorem);
+    lv_dstr_append_fmt(&d, "</title>%s", indent);
     lv_dstr_append_fmt(&d, "%s<style>%s", indent2, indent);
     lv_dstr_append_fmt(&d, "%s  body { font-family: 'Segoe UI', sans-serif; margin: 2em; background: #f9f9f9; }%s", indent2,
                 indent);
@@ -172,7 +212,9 @@ static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *c
     lv_dstr_append_fmt(&d, "%s</style>%s", indent2, indent);
     lv_dstr_append_fmt(&d, "</head>%s", indent);
     lv_dstr_append_fmt(&d, "<body>%s", indent);
-    lv_dstr_append_fmt(&d, "%s<h1>%s</h1>%s", indent2, safe_str(proof->theorem), indent);
+    lv_dstr_append_fmt(&d, "%s<h1>", indent2);
+    lv_dstr_append_html_escaped(&d, proof->theorem);
+    lv_dstr_append_fmt(&d, "</h1>%s", indent);
     lv_dstr_append_fmt(&d, "%s<table>%s", indent2, indent);
     lv_dstr_append_fmt(
         &d, "%s  <thead><tr><th>Step</th><th>Rule</th><th>Premise</th><th>Conclusion</th><th>Depth</th></tr></thead>%s",
@@ -182,9 +224,19 @@ static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *c
         const lvProofStep *s = &proof->steps[i];
         lv_dstr_append_fmt(&d, "%s    <tr>", indent2);
         lv_dstr_append_fmt(&d, "<td>%d</td>", s->step_id);
-        lv_dstr_append_fmt(&d, "<td>%s</td>", safe_str(s->rule));
-        lv_dstr_append_fmt(&d, "<td>%s</td>", s->premise ? s->premise : "<em>none</em>");
-        lv_dstr_append_fmt(&d, "<td>%s</td>", safe_str(s->conclusion));
+        lv_dstr_append_fmt(&d, "<td>");
+        lv_dstr_append_html_escaped(&d, s->rule);
+        lv_dstr_append_fmt(&d, "</td>");
+        if (s->premise) {
+            lv_dstr_append_fmt(&d, "<td>");
+            lv_dstr_append_html_escaped(&d, s->premise);
+            lv_dstr_append_fmt(&d, "</td>");
+        } else {
+            lv_dstr_append_fmt(&d, "<td><em>none</em></td>");
+        }
+        lv_dstr_append_fmt(&d, "<td>");
+        lv_dstr_append_html_escaped(&d, s->conclusion);
+        lv_dstr_append_fmt(&d, "</td>");
         lv_dstr_append_fmt(&d, "<td>%d</td>", s->depth);
         lv_dstr_append_fmt(&d, "</tr>%s", indent);
     }
@@ -197,10 +249,16 @@ static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *c
         lv_dstr_append_fmt(&d, "%s  <p>Total steps: %d</p>%s", indent2, proof->n_steps, indent);
         for (int i = 0; i < proof->n_steps; i++) {
             const lvProofStep *s = &proof->steps[i];
-            lv_dstr_append_fmt(&d, "%s  <p>[%d] %s", indent2, s->step_id, safe_str(s->rule));
-            if (s->premise)
-                lv_dstr_append_fmt(&d, " (from %s)", s->premise);
-            lv_dstr_append_fmt(&d, " &rarr; %s</p>%s", safe_str(s->conclusion), indent);
+            lv_dstr_append_fmt(&d, "%s  <p>[%d] ", indent2, s->step_id);
+            lv_dstr_append_html_escaped(&d, s->rule);
+            if (s->premise) {
+                lv_dstr_append_fmt(&d, " (from ");
+                lv_dstr_append_html_escaped(&d, s->premise);
+                lv_dstr_append_fmt(&d, ")");
+            }
+            lv_dstr_append_fmt(&d, " &rarr; ");
+            lv_dstr_append_html_escaped(&d, s->conclusion);
+            lv_dstr_append_fmt(&d, "</p>%s", indent);
         }
         lv_dstr_append_fmt(&d, "%s</div>%s", indent2, indent);
     }
@@ -215,20 +273,6 @@ static lvExportResult *export_html(const lvProof *proof, const lvExportConfig *c
  * LaTeX 导出
  * ================================================================ */
 
-/** @brief LaTeX 特殊字符 → 转义字符串 查找表（NULL 表示原样输出） */
-static const char *const s_latex_escape_map[256] = {
-    ['\\'] = "\\textbackslash{}",
-    ['{']  = "\\{",
-    ['}']  = "\\}",
-    ['_']  = "\\_",
-    ['&']  = "\\&",
-    ['#']  = "\\#",
-    ['%']  = "\\%%",
-    ['$']  = "\\$",
-    ['^']  = "\\^{}",
-    ['~']  = "\\~{}",
-};
-
 static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *config) {
     lvDStr d;
     if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
@@ -242,20 +286,9 @@ static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *
     lv_dstr_append_fmt(&d, "\\usepackage{amssymb}%s", nl);
     lv_dstr_append_fmt(&d, "%s\\begin{document}%s", nl, nl);
 
-    /* 将定理名转义 LaTeX 特殊字符 */
-    const char *th = safe_str(proof->theorem);
+    /* 将定理名转义 LaTeX 特殊字符（\ → \textbackslash, { → \{, } → \}, _ → \_, & → \&, # → \#, % → \%, $ → \$, ^ → \^{}, ~ → \~{}） */
     lv_dstr_append_fmt(&d, "\\begin{proof}[");
-    /* 简单转义：\ → \textbackslash, { → \{, } → \}, _ → \_, & → \&, # → \#, % → \% */
-    for (const char *p = th; *p; p++) {
-        /* 查找表：特殊字符 → LaTeX 转义字符串；未命中（NULL）走 default 原样输出 */
-        const char *esc = s_latex_escape_map[(unsigned char)*p];
-        if (esc) {
-            lv_dstr_append_fmt(&d, "%s", esc);
-        } else {
-            char tmp[2] = {*p, '\0'};
-            lv_dstr_append_str(&d, tmp);
-        }
-    }
+    lv_dstr_append_latex_escaped(&d, proof->theorem);
     lv_dstr_append_fmt(&d, "]%s", nl);
 
     lv_dstr_append_fmt(&d, "\\begin{tabular}{|c|c|c|c|}%s", nl);
@@ -263,8 +296,17 @@ static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *
     lv_dstr_append_fmt(&d, "Step & Rule & Premise & Conclusion \\\\\\hline%s", nl);
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
-        lv_dstr_append_fmt(&d, "%d & %s & %s & %s \\\\\\hline%s", s->step_id, safe_str(s->rule),
-                    s->premise ? s->premise : "---", safe_str(s->conclusion), nl);
+        lv_dstr_append_fmt(&d, "%d & ", s->step_id);
+        lv_dstr_append_latex_escaped(&d, s->rule);
+        lv_dstr_append_fmt(&d, " & ");
+        if (s->premise) {
+            lv_dstr_append_latex_escaped(&d, s->premise);
+        } else {
+            lv_dstr_append_fmt(&d, "---");
+        }
+        lv_dstr_append_fmt(&d, " & ");
+        lv_dstr_append_latex_escaped(&d, s->conclusion);
+        lv_dstr_append_fmt(&d, " \\\\\\hline%s", nl);
     }
     lv_dstr_append_fmt(&d, "\\end{tabular}%s", nl);
 
@@ -389,33 +431,40 @@ static lvExportResult *export_json(const lvProof *proof, const lvExportConfig *c
  * ================================================================ */
 
 static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *config) {
-    lvDStr d;
-    if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "export_dot: lv_dstr_init failed");
+    (void) config; /* DOT 输出统一使用 lv_dot_writer 固定多行格式（不再区分 pretty_print 紧凑模式） */
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    const char *nl = config->pretty_print ? "\n" : "";
-    const char *sp = config->pretty_print ? "  " : "";
-    const char *sp2 = config->pretty_print ? "    " : "";
+    lv_dot_begin(&sb, "Proof", "TB", "shape=box, style=rounded", NULL);
 
-    lv_dstr_append_fmt(&d, "digraph Proof {%s", nl);
-    lv_dstr_append_fmt(&d, "%srankdir=TB;%s", sp, nl);
-    lv_dstr_append_fmt(&d, "%snode[shape=box, style=rounded];%s", sp, nl);
-    lv_dstr_append_fmt(&d, "%sfontname=\"Helvetica\";%s", sp, nl);
-    lv_dstr_append_fmt(&d, "%slabel=\"%s\";%s", sp, safe_str(proof->theorem), nl);
+    /* 图级 label：定理名（经 JSON/DOT 转义，原实现未转义） */
+    const char *theorem = safe_str(proof->theorem);
+    size_t t_len = strlen(theorem);
+    size_t t_need = lv_str_json_escape(theorem, t_len, NULL, 0);
+    char *t_esc = (char *) lv_malloc(t_need + 1);
+    if (t_esc) {
+        lv_str_json_escape(theorem, t_len, t_esc, t_need + 1);
+        lv_strbuf_printf(&sb, "    label=\"%s\";\n", t_esc);
+        lv_free((void **) &t_esc);
+    }
 
     /* 节点 */
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
-        lv_dstr_append_fmt(&d, "%sstep%d[label=\"[%d] %s\\n%s", sp, s->step_id, s->step_id, safe_str(s->rule),
-                    safe_str(s->conclusion));
+        lvStrBuf lbl;
+        lv_strbuf_init(&lbl);
+        lv_strbuf_printf(&lbl, "[%d] %s\n%s", s->step_id, safe_str(s->rule), safe_str(s->conclusion));
         if (s->premise) {
-            lv_dstr_append_fmt(&d, "\\n(from: %s)", s->premise);
+            lv_strbuf_printf(&lbl, "\n(from: %s)", s->premise);
         }
-        lv_dstr_append_fmt(&d, "\"];%s", nl);
+        char idbuf[32];
+        snprintf(idbuf, sizeof(idbuf), "step%d", s->step_id);
+        lv_dot_node(&sb, idbuf, lv_strbuf_cstr(&lbl), NULL);
+        lv_strbuf_destroy(&lbl);
     }
 
     /* 边：如果步骤 i 的 premise 等于步骤 j 的 conclusion，则添加 j → i */
-    lv_dstr_append_fmt(&d, "%s%s", sp, nl);
+    lv_strbuf_printf(&sb, "\n");
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *si = &proof->steps[i];
         if (!si->premise)
@@ -425,12 +474,23 @@ static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *co
                 continue;
             const lvProofStep *sj = &proof->steps[j];
             if (strcmp(si->premise, sj->conclusion) == 0) {
-                lv_dstr_append_fmt(&d, "%sstep%d -> step%d;%s", sp, sj->step_id, si->step_id, nl);
+                char frombuf[32], tobuf[32];
+                snprintf(frombuf, sizeof(frombuf), "step%d", sj->step_id);
+                snprintf(tobuf, sizeof(tobuf), "step%d", si->step_id);
+                lv_dot_edge(&sb, frombuf, tobuf, NULL, NULL);
             }
         }
     }
 
-    lv_dstr_append_fmt(&d, "}%s", nl);
+    lv_dot_end(&sb);
+
+    lvDStr d;
+    if (lv_dstr_init(&d, lv_DSTR_INIT_CAP) != 0) {
+        lv_strbuf_destroy(&sb);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "export_dot: lv_dstr_init failed");
+    }
+    lv_dstr_append_raw(&d, sb.data, sb.len);
+    lv_strbuf_destroy(&sb);
 
     return make_success(&d);
 }
