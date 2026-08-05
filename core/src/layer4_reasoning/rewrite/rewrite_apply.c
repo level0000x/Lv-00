@@ -74,18 +74,15 @@ typedef struct {
 } ParsedRule;
 
 /* 解析约束类型字符串 */
-/** @brief 约束类型名→枚举查找表（替代 5 分支 strcmp 链） */
+/** @brief 约束类型名→枚举查找表（由共享 X-macro 单一事实来源生成；原手写表缺 ANGLE 已修复） */
 static const lvStrToEnumEntry s_constraint_type_entries[] = {
-    {"incidence", INCIDENCE},
-    {"betweenness", BETWEENNESS},
-    {"intersection", INTERSECTION},
-    {"containment", CONTAINMENT},
-    {"connection", CONNECTION},
+    lv_XMACRO_TO_ENUM_TABLE(LV_CONSTRAINT_TYPE_X)
 };
 
 static ConstraintType parse_constraint_type(const char *str) {
-    return (ConstraintType) lv_str_to_enum(s_constraint_type_entries, lv_ARRAY_SIZE(s_constraint_type_entries),
-                                           str, INCIDENCE);
+    /* 规则文本用小写名（angle 等），用大小写不敏感查找兼容 */
+    return (ConstraintType) lv_str_to_enum_ci(s_constraint_type_entries, lv_ARRAY_SIZE(s_constraint_type_entries),
+                                              str, INCIDENCE);
 }
 
 /**
@@ -718,16 +715,14 @@ RewriteStatus apply_rewrite(ConstraintGraph *graph, RewriteRule *rule, RewriteMa
         return REWRITE_NO_MATCH;
     }
 
-#define TXN_PUSH(entry)                                                                          \
-    do {                                                                                         \
-        if (txn_count >= txn_cap) {                                                              \
-            txn_cap *= 2;                                                                        \
-            struct TxnEntry *_tmp = lv_realloc(txn, (size_t) txn_cap * sizeof(struct TxnEntry)); \
-            if (!_tmp)                                                                           \
-                goto txn_rollback;                                                               \
-            txn = _tmp;                                                                          \
-        }                                                                                        \
-        txn[txn_count++] = (entry);                                                              \
+#define TXN_PUSH(entry)                                                                      \
+    do {                                                                                     \
+        if (txn_count >= txn_cap) {                                                          \
+            if (!lv_ensure_capacity((void **) &txn, txn_count, &txn_cap,                     \
+                                    sizeof(struct TxnEntry), 1))                             \
+                goto txn_rollback;                                                           \
+        }                                                                                    \
+        txn[txn_count++] = (entry);                                                          \
     } while (0)
 
     RewriteStatus result = REWRITE_NO_MATCH;

@@ -176,14 +176,10 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
     }
 
     if (ideal->generator_count >= ideal->generator_capacity) {
-        int new_cap = ideal->generator_capacity * 2;
-        lvPolynomial **new_gens =
-            (lvPolynomial **) lv_realloc(ideal->generators, (size_t) new_cap * sizeof(lvPolynomial *));
-        if (!new_gens) {
+        if (!lv_ensure_capacity((void **) &ideal->generators, ideal->generator_count, &ideal->generator_capacity,
+                                sizeof(lvPolynomial *), 1)) {
             goto _gcleanup;
         }
-        ideal->generators = new_gens;
-        ideal->generator_capacity = new_cap;
     }
 
     ideal->generators[ideal->generator_count++] = poly;
@@ -375,22 +371,18 @@ static lvGroebnerBasis *groebner_internal_extend_basis(const lvPolynomialRing *r
             if (!poly_internal_is_zero(r)) {
                 /* 余式非零，加入基 */
                 if (basis->bases_count >= basis->bases_capacity) {
-                    int new_cap = basis->bases_capacity * 2;
-                    lvPolynomial **new_polys = (lvPolynomial **) lv_realloc(
-                        basis->basis_polys, (size_t) new_cap * sizeof(lvPolynomial *));
-                    if (!new_polys) {
+                    int old_cap = basis->bases_capacity;
+                    if (!lv_ensure_capacity((void **) &basis->basis_polys, basis->bases_count, &basis->bases_capacity,
+                                            sizeof(lvPolynomial *), 1)) {
                         poly_internal_destroy(r);
                         break;
                     }
-                    basis->basis_polys = new_polys;
-                    basis->bases_capacity = new_cap;
-
-                    int *new_ni = (int *) lv_realloc(new_indices, (size_t) new_cap * sizeof(int));
-                    if (!new_ni) {
+                    /* new_indices 与 basis 同步扩容（此前容量恒等于 old_cap） */
+                    int ni_cap = old_cap;
+                    if (!lv_ensure_capacity((void **) &new_indices, new_count, &ni_cap, sizeof(int), 1)) {
                         poly_internal_destroy(r);
                         break;
                     }
-                    new_indices = new_ni;
                 }
 
                 basis->basis_polys[basis->bases_count] = r;
@@ -441,14 +433,10 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
 
     /* 将新多项式添加到生成元列表 */
     if (ideal->generator_count >= ideal->generator_capacity) {
-        int new_cap = ideal->generator_capacity * 2;
-        lvPolynomial **new_gens =
-            (lvPolynomial **) lv_realloc(ideal->generators, (size_t) new_cap * sizeof(lvPolynomial *));
-        if (!new_gens) {
+        if (!lv_ensure_capacity((void **) &ideal->generators, ideal->generator_count, &ideal->generator_capacity,
+                                sizeof(lvPolynomial *), 1)) {
             goto _gcleanup;
         }
-        ideal->generators = new_gens;
-        ideal->generator_capacity = new_cap;
     }
     ideal->generators[ideal->generator_count++] = new_poly;
     ideal->basis_valid = false;

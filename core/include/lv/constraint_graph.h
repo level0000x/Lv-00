@@ -95,6 +95,22 @@ typedef enum {
 } GeomType;
 
 /**
+ * @brief GeomType 名称 X-macro 列表（枚举↔字符串双向映射的单一事实来源）
+ *
+ * 散落各文件的 GeomType 名称表（graph_serialize/meta_repr/interop_command/module_serialize）
+ * 统一由此列表生成，禁止在其它文件重复定义同枚举名称表。
+ * 用法：static const char *const kLabels[] = { lv_XMACRO_TO_NAME_ARRAY(LV_GEOM_TYPE_X) };
+ *       static const lvStrToEnumEntry kMap[] = { lv_XMACRO_TO_ENUM_TABLE(LV_GEOM_TYPE_X) };
+ */
+#define LV_GEOM_TYPE_X(x) \
+    x(GEOM_POINT, "POINT") \
+    x(GEOM_LINE_SEGMENT, "LINE_SEGMENT") \
+    x(GEOM_REGION, "REGION") \
+    x(GEOM_CIRCLE, "CIRCLE") \
+    x(GEOM_PORT, "PORT") \
+    x(GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK")
+
+/**
  * @brief 端口方向枚举
  *
  * 标识端口是函数块的输入还是输出。
@@ -118,6 +134,19 @@ typedef enum {
     CONNECTION,   /* 连接约束：端口之间的数据流连接 */
     ANGLE         /* 角度约束：两条线段之间的夹角 */
 } ConstraintType;
+
+/**
+ * @brief ConstraintType 名称 X-macro 列表（枚举↔字符串双向映射的单一事实来源）
+ *
+ * 用法与 LV_GEOM_TYPE_X 相同；权威名称表 lv_constraint_type_name（meta_repr.c）由此生成。
+ */
+#define LV_CONSTRAINT_TYPE_X(x) \
+    x(INCIDENCE, "INCIDENCE") \
+    x(BETWEENNESS, "BETWEENNESS") \
+    x(INTERSECTION, "INTERSECTION") \
+    x(CONTAINMENT, "CONTAINMENT") \
+    x(CONNECTION, "CONNECTION") \
+    x(ANGLE, "ANGLE")
 
 /**
  * @brief 获取约束类型的规范名称（与 ConstraintType 枚举严格对齐）

@@ -556,7 +556,6 @@ set(lv_HEADERS
     core/include/lv/geo_spec.h
     core/include/lv/logic_check.h
     core/include/lv/math_input.h
-    core/include/lv/math_protocol.h
     core/include/lv/proof_priority.h
     core/include/lv/proof_score.h
     core/include/lv/sparse_linear_algebra.h
@@ -756,7 +755,6 @@ set(lv_LAYER2_SOURCES
     # v3.5.0 stub→real: 8 new resource modules
     core/src/layer2_resource/fast_index.c
     # geo_spec.c / math_input.c 与上层重复，规范实现位于 layer3_geometry / layer1_parser
-    core/src/layer2_resource/math_protocol.c
     core/src/layer2_resource/proof_priority.c
     core/src/layer2_resource/proof_score.c
     core/src/layer2_resource/status_codes.c

@@ -66,11 +66,9 @@ lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolyn
     for (int i = 0; i < gen_count; i++) {
         if (generators[i] && !poly_internal_is_zero(generators[i])) {
             if (basis->bases_count >= basis->bases_capacity) {
-                int new_cap = basis->bases_capacity * 2;
-                lvPolynomial **new_polys =
-                    (lvPolynomial **) lv_realloc(basis->basis_polys, (size_t) new_cap * sizeof(lvPolynomial *));
-                if (!new_polys) {
-                    /* 清理已分配的内存 */
+                if (!lv_ensure_capacity((void **) &basis->basis_polys, basis->bases_count, &basis->bases_capacity,
+                                        sizeof(lvPolynomial *), 1)) {
+                    /* 清理已分配的内存（失败时 basis->basis_polys 保持不变） */
                     for (int j = 0; j < basis->bases_count; j++) {
                         poly_internal_destroy(basis->basis_polys[j]);
                     }
@@ -78,8 +76,6 @@ lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolyn
                     lv_free((void **) &basis);
                     return NULL;
                 }
-                basis->basis_polys = new_polys;
-                basis->bases_capacity = new_cap;
             }
             basis->basis_polys[basis->bases_count] = poly_internal_copy(generators[i], ring);
             if (!basis->basis_polys[basis->bases_count]) {
@@ -126,12 +122,10 @@ lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolyn
     for (int i = 0; i < basis->bases_count; i++) {
         for (int j = i + 1; j < basis->bases_count; j++) {
             if (pair_count >= pair_capacity) {
-                int new_cap = pair_capacity * 2;
-                int *new_i = (int *) lv_realloc(pairs_i, (size_t) new_cap * sizeof(int));
-                int *new_j = (int *) lv_realloc(pairs_j, (size_t) new_cap * sizeof(int));
-                if (!new_i || !new_j) {
-                    lv_free((void **) &new_i);
-                    lv_free((void **) &new_j);
+                int cap_i = pair_capacity, cap_j = pair_capacity;
+                if (!lv_ensure_capacity((void **) &pairs_i, pair_count, &cap_i, sizeof(int), 1) ||
+                    !lv_ensure_capacity((void **) &pairs_j, pair_count, &cap_j, sizeof(int), 1)) {
+                    /* 失败时各指针保持有效（成功的已更新、失败的未动） */
                     lv_free((void **) &pairs_i);
                     lv_free((void **) &pairs_j);
                     for (int k = 0; k < basis->bases_count; k++) {
@@ -141,9 +135,7 @@ lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolyn
                     lv_free((void **) &basis);
                     return NULL;
                 }
-                pairs_i = new_i;
-                pairs_j = new_j;
-                pair_capacity = new_cap;
+                pair_capacity = (cap_i > cap_j) ? cap_i : cap_j;
             }
             pairs_i[pair_count] = i;
             pairs_j[pair_count] = j;
@@ -206,15 +198,11 @@ lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolyn
         if (!poly_internal_is_zero(r)) {
             /* 扩容基数组 */
             if (basis->bases_count >= basis->bases_capacity) {
-                int new_cap = basis->bases_capacity * 2;
-                lvPolynomial **new_polys =
-                    (lvPolynomial **) lv_realloc(basis->basis_polys, (size_t) new_cap * sizeof(lvPolynomial *));
-                if (!new_polys) {
+                if (!lv_ensure_capacity((void **) &basis->basis_polys, basis->bases_count, &basis->bases_capacity,
+                                        sizeof(lvPolynomial *), 1)) {
                     poly_internal_destroy(r);
                     break;
                 }
-                basis->basis_polys = new_polys;
-                basis->bases_capacity = new_cap;
             }
 
             int new_idx = basis->bases_count;
@@ -224,18 +212,14 @@ lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolyn
             /* 添加新对 (existing_i, new_idx) 到 B */
             for (int i = 0; i < new_idx; i++) {
                 if (pair_count >= pair_capacity) {
-                    int new_cap = pair_capacity * 2;
-                    int *new_i = (int *) lv_realloc(pairs_i, (size_t) new_cap * sizeof(int));
-                    int *new_j = (int *) lv_realloc(pairs_j, (size_t) new_cap * sizeof(int));
-                    if (!new_i || !new_j) {
-                        lv_free((void **) &new_i);
-                        lv_free((void **) &new_j);
+                    int cap_i = pair_capacity, cap_j = pair_capacity;
+                    if (!lv_ensure_capacity((void **) &pairs_i, pair_count, &cap_i, sizeof(int), 1) ||
+                        !lv_ensure_capacity((void **) &pairs_j, pair_count, &cap_j, sizeof(int), 1)) {
+                        /* 失败时各指针保持有效，退出主循环（末尾统一释放） */
                         pair_count = 0;
                         break;
                     }
-                    pairs_i = new_i;
-                    pairs_j = new_j;
-                    pair_capacity = new_cap;
+                    pair_capacity = (cap_i > cap_j) ? cap_i : cap_j;
                 }
                 pairs_i[pair_count] = i;
                 pairs_j[pair_count] = new_idx;

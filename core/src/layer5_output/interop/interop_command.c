@@ -1075,7 +1075,9 @@ const char *interop_trust_color_to_tikz(TrustColor trust) {
  * @param type 几何类型枚举值
  * @return 对应的类型名称字符串（如 "point"、"line_segment"），未知类型返回 "unknown"
  */
-/** @brief interop_geom_type_name 名称表（按枚举值升序） */
+/** @brief interop_geom_type_name 名称表（按枚举值升序）
+ *  @note 对外命令协议要求小写名（"point"），与序列化格式的大写
+ *        （LV_GEOM_TYPE_X 生成）是两种对外格式，故不共用 X-macro 表。 */
 static const lvStrToEnumEntry s_interop_geom_type_name_entries[] = {
     {"point", GEOM_POINT},
     {"line_segment", GEOM_LINE_SEGMENT},

@@ -197,7 +197,12 @@ int geo_invariant_attach_to_type(GeoInvariant *inv, int type_id, const char *reg
     if (!lv_json_buf_init(&buf, 128 + region_len))
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "geo_invariant_attach_to_type: lv_json_buf_init failed");
 
-    lv_json_buf_append_fmt(&buf, "{\"type_id\": %d, \"region\": \"%s\"}", type_id, region_name);
+    /* region 名经 append_string 自动 JSON 转义，防引号/控制字符注入 */
+    lv_json_buf_append_raw(&buf, "{\"type_id\": ");
+    lv_json_buf_append_fmt(&buf, "%d", type_id);
+    lv_json_buf_append_raw(&buf, ", \"region\": ");
+    lv_json_buf_append_string(&buf, region_name);
+    lv_json_buf_append_raw(&buf, "}");
 
     char *meta = lv_json_buf_finalize(&buf);
     if (!meta)

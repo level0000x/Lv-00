@@ -276,9 +276,7 @@ static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, 
     if (!coord)
         return false;
     int type = coord->type;
-    if (type >= 0 && type < (int)(sizeof(coord_to_mpz_scaled_ops) / sizeof(coord_to_mpz_scaled_ops[0])) && coord_to_mpz_scaled_ops[type])
-        return coord_to_mpz_scaled_ops[type](coord, result, scale);
-    return false;
+    return LV_DISPATCH(coord_to_mpz_scaled_ops, type, false, coord, result, scale);
 }
 
 /*

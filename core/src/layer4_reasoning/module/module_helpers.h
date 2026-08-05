@@ -2,12 +2,12 @@
  * @file module_helpers.h
  * @brief 模块子系统共享内部类型和辅助函数声明
  *
- * 将 LvzTokenType/LvzToken/LvzParser、JsonReader 等类型定义
+ * 将 LvzTokenType/LvzToken/LvzParser 等类型定义
  * 和相关函数从 module.c / module_lvz.c / module_serialize.c 提取到此头文件，
  * 以便 module_delta.c 等兄弟文件也能使用。
  *
- * 说明：JSON 写入器（原 JsonWriter）已迁移至公共库 lv/lv_json.h 的 lvJsonBuf，
- *      模块内不再保留重复实现。
+ * 说明：JSON 写入器与 JSON 读取器均已迁移至公共库 lv/lv_json.h
+ *      （lvJsonBuf / lvJsonParser），模块内不再保留重复实现。
  *
  * 仅限模块子系统内部使用，外部代码不应包含此头文件。
  */
@@ -78,29 +78,6 @@ bool lvz_parser_expect(LvzParser *p, LvzTokenType type);
 bool lvz_parser_expect_identifier(LvzParser *p, const char *name);
 bool lvz_parser_expect_number(LvzParser *p, int *value);
 bool lvz_parser_expect_string(LvzParser *p, char **out);
-
-/* ============== JSON 读取器 ============== */
-
-/**
- * @brief 最小化 JSON 读取器
- *
- * 只读的 JSON 反序列化辅助结构。
- */
-typedef struct {
-    const char *data;
-    size_t size;
-    size_t pos;
-} JsonReader;
-
-/* JSON 读取器函数声明 */
-void json_reader_init(JsonReader *r, const char *data, size_t size);
-void json_reader_skip_whitespace(JsonReader *r);
-char json_reader_peek(JsonReader *r);
-char json_reader_next(JsonReader *r);
-bool json_reader_expect_char(JsonReader *r, char c);
-char *json_reader_read_string(JsonReader *r);
-bool json_reader_read_int(JsonReader *r, int64_t *out);
-int json_reader_count_array_elements(JsonReader *r);
 
 /* ============== LVZ 辅助词法分析函数 ============== */
 /* 这些函数在 lexer_shared.c 中实现，此处声明以便模块文件使用 */

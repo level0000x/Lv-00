@@ -12,6 +12,7 @@
  */
 
 #include "lv/lambda_type_check.h"
+#include "lv/lv_xmacro.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -136,13 +137,7 @@ TypeRegion *lambda_type_infer(LvLambdaTerm *term, LambdaTypingContext *ctx) {
     if (!term || !ctx || !ctx->ts)
         return NULL;
 
-    if (term->type >= 0 && term->type <= LV_LAMBDA_APP) {
-        InferHandler handler = infer_table[term->type];
-        if (handler)
-            return handler(term, ctx);
-    }
-
-    return NULL;
+    return LV_DISPATCH(infer_table, term->type, NULL, term, ctx);
 }
 
 /* ── 便捷函数 ── */

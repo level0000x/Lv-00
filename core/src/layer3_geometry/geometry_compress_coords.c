@@ -49,9 +49,6 @@ bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
     if (mode == PREDICT_NONE)
         return true;
 
-    if ((unsigned)mode < sizeof(kPredictHandlers)/sizeof(kPredictHandlers[0]) && kPredictHandlers[mode]) {
-        return kPredictHandlers[mode](graph);
-    }
-    return false;
+    return LV_DISPATCH(kPredictHandlers, mode, false, graph);
 }
 

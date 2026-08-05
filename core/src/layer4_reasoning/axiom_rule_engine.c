@@ -599,12 +599,19 @@ void lv_rule_recommendation_destroy(lvRuleRecommendation *rec) {
 char *lv_rule_to_json(const lvRule *rule) {
     if (!rule)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_to_json: NULL rule");
-    char *json = lv_asprintf(
-        "{\"id\":%u,\"name\":\"%s\",\"type\":%d,\"status\":%d,\"priority\":%d,"
-        "\"premise_count\":%u,\"conclusion_count\":%u,\"difficulty_level\":%u}",
-        rule->id, rule->name, (int) rule->type, (int) rule->status, (int) rule->priority, rule->premise_count,
-        rule->conclusion_count, rule->difficulty_level);
-    return json;
+    lvJsonBuf buf;
+    if (!lv_json_buf_init(&buf, 256))
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_rule_to_json: lv_json_buf_init failed");
+    /* name 经 append_string 自动 JSON 转义，防引号/控制字符注入 */
+    lv_json_buf_append_raw(&buf, "{\"id\":");
+    lv_json_buf_append_fmt(&buf, "%u", rule->id);
+    lv_json_buf_append_raw(&buf, ",\"name\":");
+    lv_json_buf_append_string(&buf, rule->name);
+    lv_json_buf_append_fmt(&buf, ",\"type\":%d,\"status\":%d,\"priority\":%d,"
+                             "\"premise_count\":%u,\"conclusion_count\":%u,\"difficulty_level\":%u}",
+                           (int) rule->type, (int) rule->status, (int) rule->priority, rule->premise_count,
+                           rule->conclusion_count, rule->difficulty_level);
+    return lv_json_buf_finalize(&buf);
 }
 
 lvRule *lv_rule_from_json(const char *json) {

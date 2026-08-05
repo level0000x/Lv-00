@@ -658,30 +658,24 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
 
     int vc = ring->var_count;
     double lc_f, lc_g;
-    int *lt_f = (int *) lv_calloc((size_t) vc, sizeof(int));
-    int *lt_g = (int *) lv_calloc((size_t) vc, sizeof(int));
-    int *lcm = (int *) lv_calloc((size_t) vc, sizeof(int));
-    int *quot_f = (int *) lv_calloc((size_t) vc, sizeof(int));
-    int *quot_g = (int *) lv_calloc((size_t) vc, sizeof(int));
+    int *lt_f = NULL, *lt_g = NULL, *lcm = NULL, *quot_f = NULL, *quot_g = NULL;
+    lvPolynomial *result = NULL;
 
-    if (!lt_f || !lt_g || !lcm || !quot_f || !quot_g) {
-        lv_free((void **) &lt_f);
-        lv_free((void **) &lt_g);
-        lv_free((void **) &lcm);
-        lv_free((void **) &quot_f);
-        lv_free((void **) &quot_g);
-        return NULL;
-    }
+    lt_f = (int *) lv_calloc((size_t) vc, sizeof(int));
+    lt_g = (int *) lv_calloc((size_t) vc, sizeof(int));
+    lcm = (int *) lv_calloc((size_t) vc, sizeof(int));
+    quot_f = (int *) lv_calloc((size_t) vc, sizeof(int));
+    quot_g = (int *) lv_calloc((size_t) vc, sizeof(int));
+
+    /* 任一分配失败：统一走 cleanup（NULL 保护释放） */
+    if (!lt_f || !lt_g || !lcm || !quot_f || !quot_g)
+        goto cleanup;
 
     /* 获取前导项 */
     if (poly_leading_term(f, ring, lt_f, &lc_f) != 0 || poly_leading_term(g, ring, lt_g, &lc_g) != 0) {
-        lv_free((void **) &lt_f);
-        lv_free((void **) &lt_g);
-        lv_free((void **) &lcm);
-        lv_free((void **) &quot_f);
-        lv_free((void **) &quot_g);
         /* 如果任一项为零多项式，S-多项式为零 */
-        return poly_internal_create(ring, 1, NULL);
+        result = poly_internal_create(ring, 1, NULL);
+        goto cleanup;
     }
 
     /* 计算 LCM 和商 */
@@ -692,7 +686,7 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     /* 构造 (lcm/lt_f) * f 部分 */
     lvPolynomial *term_f = poly_internal_create(ring, 1, NULL);
     if (!term_f) {
-        goto s_poly_cleanup;
+        goto cleanup;
     }
     lv_free((void **) &term_f->powers);
     lv_free((void **) &term_f->coeffs);
@@ -700,7 +694,7 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     term_f->coeffs = (double *) lv_calloc(1, sizeof(double));
     if (!term_f->powers || !term_f->coeffs) {
         poly_internal_destroy(term_f);
-        goto s_poly_cleanup;
+        goto cleanup;
     }
     term_f->term_capacity = 1;
     term_f->term_count = 1;
@@ -710,14 +704,14 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     lvPolynomial *part_f = poly_internal_multiply(term_f, f, ring);
     poly_internal_destroy(term_f);
     if (!part_f) {
-        goto s_poly_cleanup;
+        goto cleanup;
     }
 
     /* 构造 (lcm/lt_g) * g 部分 */
     lvPolynomial *term_g = poly_internal_create(ring, 1, NULL);
     if (!term_g) {
         poly_internal_destroy(part_f);
-        goto s_poly_cleanup;
+        goto cleanup;
     }
     lv_free((void **) &term_g->powers);
     lv_free((void **) &term_g->coeffs);
@@ -726,7 +720,7 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     if (!term_g->powers || !term_g->coeffs) {
         poly_internal_destroy(term_g);
         poly_internal_destroy(part_f);
-        goto s_poly_cleanup;
+        goto cleanup;
     }
     term_g->term_capacity = 1;
     term_g->term_count = 1;
@@ -737,7 +731,7 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     poly_internal_destroy(term_g);
     if (!part_g) {
         poly_internal_destroy(part_f);
-        goto s_poly_cleanup;
+        goto cleanup;
     }
 
     /* S = part_f - part_g */
@@ -745,21 +739,15 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     lvPolynomial *s_poly = poly_internal_add(part_f, part_g, ring);
     poly_internal_destroy(part_f);
     poly_internal_destroy(part_g);
+    result = s_poly;
 
+cleanup:
     lv_free((void **) &lt_f);
     lv_free((void **) &lt_g);
     lv_free((void **) &lcm);
     lv_free((void **) &quot_f);
     lv_free((void **) &quot_g);
-    return s_poly;
-
-s_poly_cleanup:
-    lv_free((void **) &lt_f);
-    lv_free((void **) &lt_g);
-    lv_free((void **) &lcm);
-    lv_free((void **) &quot_f);
-    lv_free((void **) &quot_g);
-    return NULL;
+    return result;
 }
 
 /* ================================================================

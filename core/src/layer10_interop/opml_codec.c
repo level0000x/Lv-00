@@ -40,7 +40,7 @@ static int json_escape_string(const char *src, char *dst, int dst_size) {
     return (int) lv_str_json_escape(src, strlen(src), dst, (size_t) dst_size);
 }
 
-/* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
+/* Lv-00 证明步骤类型枚举（与 lean4_bridge.c 相同；注意 coq_bridge.c 是 8 项子集且含 UNIFY/EX_FALSO，值定义不重叠时勿混用） */
 typedef enum {
     lv_STEP_ADD_NODE = 0,   /* 添加节点 */
     lv_STEP_ADD_CONSTRAINT, /* 添加约束 */

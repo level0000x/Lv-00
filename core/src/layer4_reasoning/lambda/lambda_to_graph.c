@@ -22,6 +22,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/func_block.h"
 #include "lv/lambda_term.h"
+#include "lv/lv_xmacro.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -482,14 +483,12 @@ static bool lambda_to_graph_internal(LvLambdaTerm *term, ConstraintGraph *graph,
         return false;
     *out_node_id = -1;
 
-    if (term->type >= 0 && term->type <= LV_LAMBDA_APP) {
-        LambdaToGraphHandler handler = lambda_to_graph_table[term->type];
-        if (handler)
-            return handler(term, graph, scope, depth, out_node_id);
+    /* 越界类型保留诊断日志；正常类型统一走 LV_DISPATCH（含 NULL 槽回退） */
+    if ((unsigned) term->type >= (unsigned) LV_LAMBDA_APP + 1) {
+        LOG_ERROR("lambda_to_graph", "未知 λ-项类型 %d", (int)term->type);
+        return false;
     }
-
-    LOG_ERROR("lambda_to_graph", "未知 λ-项类型 %d", (int)term->type);
-    return false;
+    return LV_DISPATCH(lambda_to_graph_table, term->type, false, term, graph, scope, depth, out_node_id);
 }
 
 /* ===========================================================================

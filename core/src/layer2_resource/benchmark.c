@@ -1074,14 +1074,15 @@ char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "json_buf_init failed");
 
     lv_json_buf_append_raw(&buf, "{\n");
-    lv_json_buf_append_fmt(&buf, "  \"name\": \"%s\",\n", suite->name);
-    lv_json_buf_append_raw(&buf, "  \"results\": [\n");
+    lv_json_buf_append_raw(&buf, "  \"name\": ");
+    lv_json_buf_append_string(&buf, suite->name);
+    lv_json_buf_append_raw(&buf, ",\n  \"results\": [\n");
     for (int i = 0; i < suite->results.count; i++) {
         const lvBenchResult *r = (const lvBenchResult *) lv_darray_get(&suite->results, i);
+        lv_json_buf_append_raw(&buf, "    {\n      \"name\": ");
+        lv_json_buf_append_string(&buf, r->name);
         lv_json_buf_append_fmt(&buf,
-                     "    {\n"
-                     "      \"name\": \"%s\",\n"
-                     "      \"iterations\": %d,\n"
+                     ",\n      \"iterations\": %d,\n"
                      "      \"mean_us\": %.3f,\n"
                      "      \"std_dev_us\": %.3f,\n"
                      "      \"min_us\": %.3f,\n"
@@ -1090,7 +1091,6 @@ char *lv_bench_suite_to_json(const lvBenchSuite *suite) {
                      "      \"total_time_us\": %llu,\n"
                      "      \"success\": %s\n"
                      "    }%s\n",
-                     r->name,
                      r->iterations,
                      r->mean_us,
                      r->std_dev_us,

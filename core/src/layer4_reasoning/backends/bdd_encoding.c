@@ -123,10 +123,8 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
 
     /* 创建终端 T 节点 */
     mgr->true_node = (BDDNode *) lv_calloc(1, sizeof(BDDNode));
-    if (!mgr->true_node) {
-        lv_free((void **) &mgr);
-        return NULL;
-    }
+    if (!mgr->true_node)
+        goto cleanup;
     mgr->true_node->var_id = -1;
     mgr->true_node->low = NULL;
     mgr->true_node->high = NULL;
@@ -135,11 +133,8 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
 
     /* 创建终端 F 节点 */
     mgr->false_node = (BDDNode *) lv_calloc(1, sizeof(BDDNode));
-    if (!mgr->false_node) {
-        lv_free((void **) &mgr->true_node);
-        lv_free((void **) &mgr);
-        return NULL;
-    }
+    if (!mgr->false_node)
+        goto cleanup;
     mgr->false_node->var_id = -1;
     mgr->false_node->low = NULL;
     mgr->false_node->high = NULL;
@@ -150,23 +145,14 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     if (unique_table_size < 1024)
         unique_table_size = 1024;
     mgr->unique_table = (BDDNode **) lv_calloc((size_t) unique_table_size, sizeof(BDDNode *));
-    if (!mgr->unique_table) {
-        lv_free((void **) &mgr->false_node);
-        lv_free((void **) &mgr->true_node);
-        lv_free((void **) &mgr);
-        return NULL;
-    }
+    if (!mgr->unique_table)
+        goto cleanup;
     mgr->unique_table_size = unique_table_size;
 
     /* 变量序数组 */
     mgr->var_order = (int *) lv_malloc((size_t) var_count * sizeof(int));
-    if (!mgr->var_order) {
-        lv_free((void **) &mgr->unique_table);
-        lv_free((void **) &mgr->false_node);
-        lv_free((void **) &mgr->true_node);
-        lv_free((void **) &mgr);
-        return NULL;
-    }
+    if (!mgr->var_order)
+        goto cleanup;
     for (int i = 0; i < var_count; i++) {
         mgr->var_order[i] = i;
     }
@@ -177,32 +163,28 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     /* 变量名称表和类型表 */
     mgr->var_names = (char **) lv_calloc((size_t) var_count, sizeof(char *));
     mgr->var_types = (BDDVarType *) lv_calloc((size_t) var_count, sizeof(BDDVarType));
-    if (!mgr->var_names || !mgr->var_types) {
-        lv_free((void **) &mgr->var_names);
-        lv_free((void **) &mgr->var_types);
-        lv_free((void **) &mgr->var_order);
-        lv_free((void **) &mgr->unique_table);
-        lv_free((void **) &mgr->false_node);
-        lv_free((void **) &mgr->true_node);
-        lv_free((void **) &mgr);
-        return NULL;
-    }
+    if (!mgr->var_names || !mgr->var_types)
+        goto cleanup;
 
     /* 分配 ITE 计算表（缓存 ITE 结果，大小 = 唯一表大小） */
     mgr->computed_table_size = unique_table_size;
     mgr->computed_table = (ITECacheEntry *) lv_calloc((size_t) unique_table_size, sizeof(ITECacheEntry));
-    if (!mgr->computed_table) {
-        lv_free((void **) &mgr->var_names);
-        lv_free((void **) &mgr->var_types);
-        lv_free((void **) &mgr->var_order);
-        lv_free((void **) &mgr->unique_table);
-        lv_free((void **) &mgr->false_node);
-        lv_free((void **) &mgr->true_node);
-        lv_free((void **) &mgr);
-        return NULL;
-    }
+    if (!mgr->computed_table)
+        goto cleanup;
 
     return mgr;
+
+cleanup:
+    /* 统一清理：lv_free 对 NULL 安全，未分配的字段直接跳过 */
+    lv_free((void **) &mgr->computed_table);
+    lv_free((void **) &mgr->var_names);
+    lv_free((void **) &mgr->var_types);
+    lv_free((void **) &mgr->var_order);
+    lv_free((void **) &mgr->unique_table);
+    lv_free((void **) &mgr->false_node);
+    lv_free((void **) &mgr->true_node);
+    lv_free((void **) &mgr);
+    return NULL;
 }
 
 /**
@@ -1280,10 +1262,8 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
         return NULL;
 
     mgr->zero_node = (ADDNode *) lv_calloc(1, sizeof(ADDNode));
-    if (!mgr->zero_node) {
-        lv_free((void **) &mgr);
-        return NULL;
-    }
+    if (!mgr->zero_node)
+        goto cleanup;
     mgr->zero_node->var_id = -1;
     mgr->zero_node->low = NULL;
     mgr->zero_node->high = NULL;
@@ -1291,11 +1271,8 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
     mgr->zero_node->is_constant = true;
 
     mgr->one_node = (ADDNode *) lv_calloc(1, sizeof(ADDNode));
-    if (!mgr->one_node) {
-        lv_free((void **) &mgr->zero_node);
-        lv_free((void **) &mgr);
-        return NULL;
-    }
+    if (!mgr->one_node)
+        goto cleanup;
     mgr->one_node->var_id = -1;
     mgr->one_node->low = NULL;
     mgr->one_node->high = NULL;
@@ -1305,12 +1282,8 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
     /* 分配 ADD 唯一表 */
     if (unique_table_size > 0) {
         mgr->unique_table = (ADDNode **) lv_calloc((size_t) unique_table_size, sizeof(ADDNode *));
-        if (!mgr->unique_table) {
-            lv_free((void **) &mgr->one_node);
-            lv_free((void **) &mgr->zero_node);
-            lv_free((void **) &mgr);
-            return NULL;
-        }
+        if (!mgr->unique_table)
+            goto cleanup;
     } else {
         mgr->unique_table = NULL;
     }
@@ -1325,6 +1298,15 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
     }
 
     return mgr;
+
+cleanup:
+    /* 统一清理：lv_free 对 NULL 安全（mgr 为 calloc 初始化，字段默认 NULL） */
+    lv_free((void **) &mgr->var_order);
+    lv_free((void **) &mgr->unique_table);
+    lv_free((void **) &mgr->one_node);
+    lv_free((void **) &mgr->zero_node);
+    lv_free((void **) &mgr);
+    return NULL;
 }
 
 /**

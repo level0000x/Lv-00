@@ -7,6 +7,7 @@
  */
 
 #include "lv/lambda_term.h"
+#include "lv/lv_xmacro.h"
 
 #include "lv/lv_strbuf.h"
 #include <stdio.h>
@@ -92,11 +93,8 @@ void lv_lambda_destroy(LvLambdaTerm *term) {
     if (!term)
         return;
 
-    if (term->type >= 0 && term->type <= LV_LAMBDA_APP) {
-        DestroyHandler handler = destroy_table[term->type];
-        if (handler)
-            handler(term);
-    }
+    /* 统一分发：边界/NULL 检查由 LV_DISPATCH_VOID 完成（void 返回表） */
+    LV_DISPATCH_VOID(destroy_table, term->type, term);
 
     lv_free((void **) &term);
 }
@@ -139,13 +137,7 @@ LvLambdaTerm *lv_lambda_copy(LvLambdaTerm *term) {
     if (!term)
         return NULL;
 
-    if (term->type >= 0 && term->type <= LV_LAMBDA_APP) {
-        CopyHandler handler = copy_table[term->type];
-        if (handler)
-            return handler(term);
-    }
-
-    return NULL;
+    return LV_DISPATCH(copy_table, term->type, NULL, term);
 }
 
 /* ===========================================================================
@@ -243,15 +235,8 @@ static char *lambda_to_string_internal(const LvLambdaTerm *term, size_t *out_len
         return NULL;
     }
 
-    if (term->type >= 0 && term->type <= LV_LAMBDA_APP) {
-        ToStringHandler handler = to_string_table[term->type];
-        if (handler)
-            return handler(term, out_len);
-    }
-
-    if (out_len)
-        *out_len = 0;
-    return NULL;
+    /* 统一分发：越界/NULL 槽时回退并清零 out_len（与旧行为一致） */
+    return LV_DISPATCH(to_string_table, term->type, (out_len ? (*out_len = 0, NULL) : NULL), term, out_len);
 }
 
 char *lv_lambda_to_string(LvLambdaTerm *term) {

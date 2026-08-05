@@ -786,8 +786,7 @@ static const StrategySetter strategy_table[] = {
 
 void meta_proof_set_strategy_enabled(MetaProofContext *ctx, PruneStrategy strategy, bool enable) {
     if (!ctx) return;
-    if ((unsigned)strategy < sizeof(strategy_table)/sizeof(strategy_table[0]) && strategy_table[strategy])
-        strategy_table[strategy](ctx, enable);
+    LV_DISPATCH_VOID(strategy_table, strategy, ctx, enable);
 }
 
 void meta_proof_set_max_propagation_steps(MetaProofContext *ctx, int max_steps) {

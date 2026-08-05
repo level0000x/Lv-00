@@ -31,6 +31,7 @@
 #include "lv/func_block.h"
 #include "lv/lv.h"
 #include "lv/lv_json.h"
+#include "lv/lv_xmacro.h"
 #include "lv/lv_utils.h"
 
 
@@ -894,16 +895,11 @@ void meta_repr_get_stats(MetaReprEncoder *encoder, int *out_node_count, int *out
  * @param filepath      输出文件路径
  * @return true 成功，false 失败（参数无效或文件写入失败）
  */
-/** @brief 约束类型 -> 名称 权威查找表（指定初始化器，编译器校验 ConstraintType 对齐）
- *  本表是 ConstraintType 名称的唯一权威定义，float_error.c / graph_node_alloc.c
- *  通过 lv_constraint_type_name() 引用，禁止在其他文件重复定义名称表。 */
+/** @brief 约束类型 -> 名称 权威查找表（由共享 X-macro LV_CONSTRAINT_TYPE_X 生成，
+ *  编译器校验与 ConstraintType 对齐；float_error.c / graph_node_alloc.c 通过
+ *  lv_constraint_type_name() 引用，禁止在其他文件重复定义名称表） */
 static const char *const kConstraintTypeLabels[] = {
-    [INCIDENCE] = "INCIDENCE",
-    [BETWEENNESS] = "BETWEENNESS",
-    [INTERSECTION] = "INTERSECTION",
-    [CONTAINMENT] = "CONTAINMENT",
-    [CONNECTION] = "CONNECTION",
-    [ANGLE] = "ANGLE",
+    lv_XMACRO_TO_NAME_ARRAY(LV_CONSTRAINT_TYPE_X)
 };
 
 const char *lv_constraint_type_name(ConstraintType type) {
@@ -933,7 +929,9 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
         "box",     /* GEOM_PORT */
         "box"      /* GEOM_FUNCTION_BLOCK */
     };
-    static const char *type_names[] = {"POINT", "LINE_SEGMENT", "REGION", "CIRCLE", "PORT", "FUNCTION_BLOCK"};
+    static const char *type_names[] = {
+        lv_XMACRO_TO_NAME_ARRAY(LV_GEOM_TYPE_X)
+    };
 
     /* 输出节点 */
     for (int i = 0; i < encoded_graph->node_count; i++) {
@@ -990,8 +988,15 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph) {
     if (!encoded_graph)
         return NULL;
 
-    static const char *type_names[] = {"GEOM_POINT", "GEOM_LINE_SEGMENT", "GEOM_REGION", "GEOM_PORT",
-                                       "GEOM_FUNCTION_BLOCK"};
+    /* 修复：旧表仅 5 项（缺 CIRCLE 且 FUNCTION_BLOCK 越界），补齐 6 项并用指定初始化器对齐枚举 */
+    static const char *type_names[] = {
+        [GEOM_POINT] = "GEOM_POINT",
+        [GEOM_LINE_SEGMENT] = "GEOM_LINE_SEGMENT",
+        [GEOM_REGION] = "GEOM_REGION",
+        [GEOM_CIRCLE] = "GEOM_CIRCLE",
+        [GEOM_PORT] = "GEOM_PORT",
+        [GEOM_FUNCTION_BLOCK] = "GEOM_FUNCTION_BLOCK",
+    };
 
     /* 预估缓冲区大小 */
     size_t est_size = 512 + (size_t) encoded_graph->node_count * 128 + (size_t) encoded_graph->constraint_count * 64;

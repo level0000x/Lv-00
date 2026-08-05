@@ -38,13 +38,15 @@ int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset, char *
     if (!lv_json_buf_init(&buf, 1024))
         return lv_ERROR_OUT_OF_MEMORY;
 
+    /* preset->name 经 append_string 自动 JSON 转义 */
+    lv_json_buf_append_raw(&buf, "{\n  \"name\": ");
+    lv_json_buf_append_string(&buf, preset->name);
     lv_json_buf_append_fmt(&buf,
-                           "{\n"
-                           "  \"name\": \"%s\",\n"
+                           ",\n"
                            "  \"dimension_count\": %d,\n"
                            "  \"mapping_count\": %d,\n"
                            "  \"mappings\": [\n",
-                           preset->name, preset->dimension_count, preset->mapping_count);
+                           preset->dimension_count, preset->mapping_count);
 
     /* 序列化映射配置 */
     for (int i = 0; i < preset->mapping_count; i++) {

@@ -882,8 +882,12 @@ char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_diagnostics_to_json: json_buf_init failed");
 
     lv_json_buf_append_raw(&buf, "{");
-    lv_json_buf_append_fmt(&buf, "\"version\":\"%s\",", diag->version);
-    lv_json_buf_append_fmt(&buf, "\"build_date\":\"%s\",", diag->build_date);
+    lv_json_buf_append_raw(&buf, "\"version\":");
+    lv_json_buf_append_string(&buf, diag->version);
+    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_raw(&buf, "\"build_date\":");
+    lv_json_buf_append_string(&buf, diag->build_date);
+    lv_json_buf_append_raw(&buf, ",");
     lv_json_buf_append_fmt(&buf, "\"uptime_ms\":%lld,", (long long) diag->uptime_ms);
     lv_json_buf_append_raw(&buf, "\"memory\":{");
     lv_json_buf_append_fmt(&buf, "\"total\":%llu,", (unsigned long long) diag->memory_total);
@@ -900,10 +904,13 @@ char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
     lv_json_buf_append_raw(&buf, "\"errors\":{");
     lv_json_buf_append_fmt(&buf, "\"count\":%llu,", (unsigned long long) diag->error_count);
     lv_json_buf_append_fmt(&buf, "\"warning_count\":%llu,", (unsigned long long) diag->warning_count);
-    lv_json_buf_append_fmt(&buf, "\"last_error\":\"%s\"", diag->last_error);
+    lv_json_buf_append_raw(&buf, "\"last_error\":");
+    lv_json_buf_append_string(&buf, diag->last_error);
     lv_json_buf_append_raw(&buf, "},");
     lv_json_buf_append_raw(&buf, "\"system\":{");
-    lv_json_buf_append_fmt(&buf, "\"os\":\"%s\",", diag->os_info);
+    lv_json_buf_append_raw(&buf, "\"os\":");
+    lv_json_buf_append_string(&buf, diag->os_info);
+    lv_json_buf_append_raw(&buf, ",");
     lv_json_buf_append_fmt(&buf, "\"cpu_cores\":%u,", diag->cpu_cores);
     lv_json_buf_append_fmt(&buf, "\"total_memory_mb\":%u", diag->total_memory_mb);
     lv_json_buf_append_raw(&buf, "}}");

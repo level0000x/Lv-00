@@ -143,17 +143,13 @@ static bool dtmc_add_transition(SimpleDTMC *mc, int from, int to, double prob) {
 
     /* 扩容 */
     if (mc->trans_count[from] >= mc->trans_capacity[from]) {
-        int new_cap = (mc->trans_capacity[from] > 0) ? mc->trans_capacity[from] * 2 : 4;
-        int *new_targets = (int *) lv_realloc(mc->trans_targets[from], (size_t) new_cap * sizeof(int));
-        double *new_probs = (double *) lv_realloc(mc->trans_probs[from], (size_t) new_cap * sizeof(double));
-        if (!new_targets || !new_probs) {
-            lv_free((void **) &new_targets);
-            lv_free((void **) &new_probs);
+        int cap_t = mc->trans_capacity[from], cap_p = mc->trans_capacity[from];
+        if (!lv_ensure_capacity((void **) &mc->trans_targets[from], mc->trans_count[from], &cap_t, sizeof(int), 1) ||
+            !lv_ensure_capacity((void **) &mc->trans_probs[from], mc->trans_count[from], &cap_p, sizeof(double), 1)) {
+            /* 失败时各指针保持有效（成功的已更新、失败的未动），由 dtmc_destroy 统一释放 */
             return false;
         }
-        mc->trans_targets[from] = new_targets;
-        mc->trans_probs[from] = new_probs;
-        mc->trans_capacity[from] = new_cap;
+        mc->trans_capacity[from] = (cap_t > cap_p) ? cap_t : cap_p;
     }
 
     int idx = mc->trans_count[from];
@@ -449,22 +445,18 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
                     visited[next] = true;
                     /* 队列满时动态扩容 */
                     if (back >= queue_capacity) {
-                        int new_cap = queue_capacity * 2;
-                        if (new_cap > PCTL_MAX_STATE_LIMIT) {
-                            /* 超出合理上限，标记溢出 */
+                        if (queue_capacity > PCTL_MAX_STATE_LIMIT / 2) {
+                            /* 超出合理上限，标记溢出（等价于原 new_cap = cap*2 超限判断） */
                             lv_LOG_WARNING("[PCTL] BFS queue overflow at %d states (limit %d)\n", back,
                                             PCTL_MAX_STATE_LIMIT);
                             found = false; /* 标记失败 */
                             break;
                         }
-                        int *new_queue = (int *) lv_realloc(queue, (size_t) new_cap * sizeof(int));
-                        if (!new_queue) {
+                        if (!lv_ensure_capacity((void **) &queue, back, &queue_capacity, sizeof(int), 1)) {
                             lv_LOG_WARNING("[PCTL] BFS queue realloc failed\n");
                             found = false;
                             break;
                         }
-                        queue = new_queue;
-                        queue_capacity = new_cap;
                     }
                     queue[back++] = next;
                     if (is_target[next]) {
@@ -518,14 +510,10 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
         if (mc->initial_dist[i] >= PCTL_EPSILON) {
             /* 动态扩容 */
             if (back >= queue_capacity) {
-                int new_cap = queue_capacity * 2;
-                if (new_cap > PCTL_MAX_STATE_LIMIT)
+                if (queue_capacity > PCTL_MAX_STATE_LIMIT / 2)
                     break;
-                int *new_queue = (int *) lv_realloc(queue, (size_t) new_cap * sizeof(int));
-                if (!new_queue)
+                if (!lv_ensure_capacity((void **) &queue, back, &queue_capacity, sizeof(int), 1))
                     break;
-                queue = new_queue;
-                queue_capacity = new_cap;
             }
             queue[back++] = i;
             visited[i] = true;
@@ -549,16 +537,12 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
                 visited[next] = true;
                 /* 动态扩容 */
                 if (back >= queue_capacity) {
-                    int new_cap = queue_capacity * 2;
-                    if (new_cap > PCTL_MAX_STATE_LIMIT) {
+                    if (queue_capacity > PCTL_MAX_STATE_LIMIT / 2) {
                         lv_LOG_WARNING("[PCTL] Always BFS overflow at %d (limit %d)\n", back, PCTL_MAX_STATE_LIMIT);
                         break;
                     }
-                    int *new_queue = (int *) lv_realloc(queue, (size_t) new_cap * sizeof(int));
-                    if (!new_queue)
+                    if (!lv_ensure_capacity((void **) &queue, back, &queue_capacity, sizeof(int), 1))
                         break;
-                    queue = new_queue;
-                    queue_capacity = new_cap;
                 }
                 queue[back++] = next;
             }

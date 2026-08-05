@@ -309,10 +309,14 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             ev.var_id = var_id;
             ev.description = "因式分解成功，可通过拆分求解";
             char detail[lv_SOLVER_DETAIL_BUF_SIZE];
+            /* 多项式字符串做 JSON 转义，防特殊字符破坏 detail_json */
+            char esc1[lv_SOLVER_DETAIL_BUF_SIZE / 2], esc2[lv_SOLVER_DETAIL_BUF_SIZE / 2];
+            lv_str_json_escape(f1_str ? f1_str : "", f1_str ? strlen(f1_str) : 0, esc1, sizeof(esc1));
+            lv_str_json_escape(f2_str ? f2_str : "", f2_str ? strlen(f2_str) : 0, esc2, sizeof(esc2));
             int _snw_fact;
             lv_SAFE_SNPRINTF(_snw_fact, detail, sizeof(detail),
                              "{\"diagnosis\":\"factorable\",\"resolvable\":true,\"factor1\":\"%s\",\"factor2\":\"%s\"}",
-                             f1_str, f2_str);
+                             esc1, esc2);
             lv_UNUSED(_snw_fact);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);

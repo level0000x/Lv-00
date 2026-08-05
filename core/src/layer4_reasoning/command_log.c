@@ -23,6 +23,7 @@
 #include "lv/engine.h"
 #include "lv/lv.h"
 #include "lv/lv_json.h"
+#include "lv/lv_xmacro.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
@@ -71,8 +72,8 @@ static const CleanupHandler cleanup_table[CMD_COUNT] = {
 static void command_entry_cleanup(CommandEntry *entry) {
     if (!entry)
         return;
-    CleanupHandler h = cleanup_table[entry->type];
-    if (h) h(entry);
+    /* 统一分发：边界/NULL 检查由 LV_DISPATCH_VOID 完成 */
+    LV_DISPATCH_VOID(cleanup_table, entry->type, entry);
     command_entry_destroy(entry->inverse);
     entry->inverse = NULL;
 }
@@ -382,8 +383,8 @@ static const ExecuteHandler execute_table[CMD_COUNT] = {
 static bool execute_command(CommandEntry *entry, lvEngine *engine) {
     if (!entry || !engine)
         return false;
-    ExecuteHandler h = execute_table[entry->type];
-    return h ? h(entry, engine) : false;
+    /* 统一分发：边界/NULL 槽回退 false（旧行为一致） */
+    return LV_DISPATCH(execute_table, entry->type, false, entry, engine);
 }
 
 bool command_log_execute(CommandLog *log, CommandEntry *entry, lvEngine *engine) {

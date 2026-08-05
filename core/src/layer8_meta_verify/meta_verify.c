@@ -21,6 +21,7 @@
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH：越界/NULL 槽安全分发 */
 #include "lv/proof.h"
 #include "lv/proof_compiler.h"
 #include "lv/lv_strbuf.h"
@@ -866,11 +867,7 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         int passed = 0;
         lvStrBuf sb = {0};
 
-        if ((unsigned)i < sizeof(kVerifyCheckHandlers)/sizeof(kVerifyCheckHandlers[0]) && kVerifyCheckHandlers[i]) {
-            passed = kVerifyCheckHandlers[i](p, &sb);
-        } else {
-            lv_strbuf_printf(&sb, "Unknown check");
-        }
+        passed = LV_DISPATCH(kVerifyCheckHandlers, i, (lv_strbuf_printf(&sb, "Unknown check"), 0), p, &sb);
 
         report.results[i].passed = passed;
         if (passed) {

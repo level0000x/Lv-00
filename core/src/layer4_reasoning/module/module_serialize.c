@@ -338,14 +338,9 @@ ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief geom_type_to_string 名称表（按枚举值升序） */
+/** @brief geom_type_to_string 名称表（由共享 X-macro 单一事实来源生成） */
 static const lvStrToEnumEntry s_geom_type_to_string_entries[] = {
-    {"POINT", GEOM_POINT},
-    {"LINE_SEGMENT", GEOM_LINE_SEGMENT},
-    {"REGION", GEOM_REGION},
-    {"CIRCLE", GEOM_CIRCLE},
-    {"PORT", GEOM_PORT},
-    {"FUNCTION_BLOCK", GEOM_FUNCTION_BLOCK},
+    lv_XMACRO_TO_ENUM_TABLE(LV_GEOM_TYPE_X)
 };
 
 static const char *geom_type_to_string(GeomType type) {
@@ -353,14 +348,9 @@ static const char *geom_type_to_string(GeomType type) {
 }
 
 /* 将约束类型转换为字符串 */
-/** @brief constraint_type_to_string 名称表（按枚举值升序） */
+/** @brief constraint_type_to_string 名称表（由共享 X-macro 单一事实来源生成） */
 static const lvStrToEnumEntry s_constraint_type_to_string_entries[] = {
-    {"INCIDENCE", INCIDENCE},
-    {"BETWEENNESS", BETWEENNESS},
-    {"INTERSECTION", INTERSECTION},
-    {"CONTAINMENT", CONTAINMENT},
-    {"CONNECTION", CONNECTION},
-    {"ANGLE", ANGLE},
+    lv_XMACRO_TO_ENUM_TABLE(LV_CONSTRAINT_TYPE_X)
 };
 
 static const char *constraint_type_to_string(ConstraintType type) {

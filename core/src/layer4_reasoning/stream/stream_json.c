@@ -5,7 +5,7 @@
 
 #include "stream_internal.h"
 
-#include "lv/lv_str_utils.h"
+#include "lv/lv_json.h"
 
 /* ==================== 缓冲区管理 API（已有） ==================== */
 
@@ -39,54 +39,11 @@ int stream_buffer_size(const StreamContext *ctx) {
 /* ==================== JSON 序列化 API ==================== */
 
 /**
- * @brief JSON 字符串转义辅助函数
- *
- * 将需要转义的字符（双引号、反斜杠、换行、回车、制表符、退格、换页及控制字符）写入输出缓冲区。
- * 其他字符直接写入。转义逻辑统一走公共 API lv_str_json_escape。
- *
- * @param dest     输出缓冲区
- * @param src      源字符串
- * @param dest_size 输出缓冲区剩余大小
- * @return 转义后的期望长度（不含终止符；缓冲区不足时返回期望值，实际内容被截断）
- */
-static int stream_json_escape(char *dest, const char *src, size_t dest_size) {
-    if (!src || dest_size == 0)
-        return 0;
-    return (int) lv_str_json_escape(src, strlen(src), dest, dest_size);
-}
-
-/**
- * @brief 向缓冲区追加格式化字符串（安全版本）
- *
- * 类似 snprintf，但返回追加后的总偏移量，并防止缓冲区溢出。
- *
- * @param buf      输出缓冲区
- * @param size     缓冲区总大小
- * @param offset   当前写入偏移量
- * @param fmt      printf 格式字符串
- * @param ...      可变参数
- * @return 新的偏移量（可能超过 size，表示截断）
- */
-static int stream_buf_append(char *buf, size_t size, int offset, const char *fmt, ...) {
-    if (offset < 0)
-        return offset;
-
-    va_list args;
-    va_start(args, fmt);
-    int written =
-        vsnprintf(buf ? buf + offset : NULL, (buf && (size_t) offset < size) ? size - (size_t) offset : 0, fmt, args);
-    va_end(args);
-
-    /* vsnprintf 返回期望写入的字符数（不含终止符），可能超过剩余空间 */
-    if (written < 0)
-        written = 0;
-    return offset + written;
-}
-
-/**
  * 将流式事件序列化为 JSON 字符串。
  *
- * 手工拼接 JSON，不依赖外部 JSON 库。输出包含以下字段：
+ * 统一使用公共写入器 lvJsonBuf；字符串字段经 append_string 自动 JSON 转义
+ * （此前自建的 stream_buf_append / stream_json_escape 已删除）。
+ * 输出包含以下字段：
  * type, type_name, color, timestamp_ms, step, total_steps,
  * node_id, constraint_id, rule_id, var_id, description, progress, numeric_value
  *
@@ -106,107 +63,52 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     const char *type_name = stream_event_type_name(event->type);
     const char *color = stream_event_color(event->type);
 
-    /* Adaptive buffer for escaped description field.
-     *
-     * Fast path: use a 2048-byte stack buffer for typical descriptions
-     * (< 200 bytes raw, < 400 bytes escaped). This covers all built-in
-     * event descriptions without any heap allocation.
-     *
-     * Slow path: if the raw description exceeds 1024 bytes (which after
-     * JSON escaping could approach or exceed the 2048-byte stack buffer),
-     * allocate a heap buffer of 2 * strlen(description) + 1 bytes to
-     * guarantee sufficient space for worst-case escaping (every character
-     * becomes 2 bytes). The heap buffer is freed before the function
-     * returns.
-     *
-     * desc_buf / desc_buf_size point to whichever buffer is active,
-     * and desc_heap tracks whether free() is needed. */
-    char desc_stack[2048];
-    char *desc_buf = desc_stack;
-    size_t desc_buf_size = sizeof(desc_stack);
-    bool desc_heap = false;
-
-    desc_buf[0] = '\0';
-    if (event->description) {
-        size_t raw_len = strlen(event->description);
-        if (raw_len > 1024) {
-            /* Slow path: allocate heap buffer sized for worst-case escaping */
-            size_t heap_size = raw_len * 2 + 1;
-            char *heap_buf = (char *) lv_malloc(heap_size);
-            if (heap_buf) {
-                desc_buf = heap_buf;
-                desc_buf_size = heap_size;
-                desc_heap = true;
-            }
-            /* If malloc fails, fall through with the stack buffer
-             * (truncation is safe — stream_json_escape handles it) */
-        }
-        stream_json_escape(desc_buf, event->description, desc_buf_size);
+    lvJsonBuf jb;
+    if (!lv_json_buf_init(&jb, 512)) {
+        if (buffer && size > 0)
+            buffer[0] = '\0';
+        return 0;
     }
 
-    /* 先用 NULL buffer 计算所需大小 */
-    int needed = 0;
-    needed = stream_buf_append(NULL, 0, needed, "{\n");
-    needed = stream_buf_append(NULL, 0, needed, "  \"type\": \"%s\",\n", type_id);
-    needed = stream_buf_append(NULL, 0, needed, "  \"type_name\": \"%s\",\n", type_name);
-    needed = stream_buf_append(NULL, 0, needed, "  \"color\": \"%s\",\n", color);
-    needed = stream_buf_append(NULL, 0, needed, "  \"timestamp_ms\": %ld,\n", event->timestamp_ms);
-    needed = stream_buf_append(NULL, 0, needed, "  \"step\": %d,\n", event->step_number);
-    needed = stream_buf_append(NULL, 0, needed, "  \"total_steps\": %d,\n", event->total_steps);
-    needed = stream_buf_append(NULL, 0, needed, "  \"node_id\": %d,\n", event->node_id);
-    needed = stream_buf_append(NULL, 0, needed, "  \"constraint_id\": %d,\n", event->constraint_id);
-    needed = stream_buf_append(NULL, 0, needed, "  \"rule_id\": %d,\n", event->rule_id);
-    needed = stream_buf_append(NULL, 0, needed, "  \"var_id\": %d,\n", event->var_id);
+    lv_json_buf_append_raw(&jb, "{\n");
+    lv_json_buf_append_raw(&jb, "  \"type\": ");
+    lv_json_buf_append_string(&jb, type_id);
+    lv_json_buf_append_raw(&jb, ",\n  \"type_name\": ");
+    lv_json_buf_append_string(&jb, type_name);
+    lv_json_buf_append_raw(&jb, ",\n  \"color\": ");
+    lv_json_buf_append_string(&jb, color);
+    lv_json_buf_append_fmt(&jb, ",\n  \"timestamp_ms\": %ld", event->timestamp_ms);
+    lv_json_buf_append_fmt(&jb, ",\n  \"step\": %d", event->step_number);
+    lv_json_buf_append_fmt(&jb, ",\n  \"total_steps\": %d", event->total_steps);
+    lv_json_buf_append_fmt(&jb, ",\n  \"node_id\": %d", event->node_id);
+    lv_json_buf_append_fmt(&jb, ",\n  \"constraint_id\": %d", event->constraint_id);
+    lv_json_buf_append_fmt(&jb, ",\n  \"rule_id\": %d", event->rule_id);
+    lv_json_buf_append_fmt(&jb, ",\n  \"var_id\": %d", event->var_id);
     if (event->description) {
-        needed = stream_buf_append(NULL, 0, needed, "  \"description\": \"%s\",\n", desc_buf);
+        lv_json_buf_append_raw(&jb, ",\n  \"description\": ");
+        lv_json_buf_append_string(&jb, event->description);
     } else {
-        needed = stream_buf_append(NULL, 0, needed, "  \"description\": null,\n");
+        lv_json_buf_append_raw(&jb, ",\n  \"description\": null");
     }
-    needed = stream_buf_append(NULL, 0, needed, "  \"progress\": %.6g,\n", event->progress);
-    needed = stream_buf_append(NULL, 0, needed, "  \"numeric_value\": %.6g\n", event->numeric_value);
-    needed = stream_buf_append(NULL, 0, needed, "}");
+    lv_json_buf_append_fmt(&jb, ",\n  \"progress\": %.6g", event->progress);
+    lv_json_buf_append_fmt(&jb, ",\n  \"numeric_value\": %.6g\n", event->numeric_value);
+    lv_json_buf_append_raw(&jb, "}");
 
-    /* 如果没有提供缓冲区或缓冲区太小，返回所需大小 */
-    if (!buffer || size == 0) {
-        if (desc_heap)
-            lv_free((void **) &desc_buf);
-        return needed;
+    char *json = lv_json_buf_finalize(&jb);
+    if (!json) {
+        if (buffer && size > 0)
+            buffer[0] = '\0';
+        return 0;
     }
-
-    /* 写入实际数据 */
-    int pos = 0;
-    pos = stream_buf_append(buffer, size, pos, "{\n");
-    pos = stream_buf_append(buffer, size, pos, "  \"type\": \"%s\",\n", type_id);
-    pos = stream_buf_append(buffer, size, pos, "  \"type_name\": \"%s\",\n", type_name);
-    pos = stream_buf_append(buffer, size, pos, "  \"color\": \"%s\",\n", color);
-    pos = stream_buf_append(buffer, size, pos, "  \"timestamp_ms\": %ld,\n", event->timestamp_ms);
-    pos = stream_buf_append(buffer, size, pos, "  \"step\": %d,\n", event->step_number);
-    pos = stream_buf_append(buffer, size, pos, "  \"total_steps\": %d,\n", event->total_steps);
-    pos = stream_buf_append(buffer, size, pos, "  \"node_id\": %d,\n", event->node_id);
-    pos = stream_buf_append(buffer, size, pos, "  \"constraint_id\": %d,\n", event->constraint_id);
-    pos = stream_buf_append(buffer, size, pos, "  \"rule_id\": %d,\n", event->rule_id);
-    pos = stream_buf_append(buffer, size, pos, "  \"var_id\": %d,\n", event->var_id);
-    if (event->description) {
-        pos = stream_buf_append(buffer, size, pos, "  \"description\": \"%s\",\n", desc_buf);
-    } else {
-        pos = stream_buf_append(buffer, size, pos, "  \"description\": null,\n");
+    size_t len = strlen(json);
+    /* 截断语义：缓冲区不足时写满 size-1 字节 + NUL，返回所需大小 */
+    if (buffer && size > 0) {
+        size_t copy = len < size ? len : size - 1;
+        memcpy(buffer, json, copy);
+        buffer[copy] = '\0';
     }
-    pos = stream_buf_append(buffer, size, pos, "  \"progress\": %.6g,\n", event->progress);
-    pos = stream_buf_append(buffer, size, pos, "  \"numeric_value\": %.6g\n", event->numeric_value);
-    pos = stream_buf_append(buffer, size, pos, "}");
-
-    /* 确保终止符 */
-    if ((size_t) pos < size) {
-        buffer[pos] = '\0';
-    } else if (size > 0) {
-        buffer[size - 1] = '\0';
-    }
-
-    /* Free heap-allocated description buffer if used */
-    if (desc_heap)
-        lv_free((void **) &desc_buf);
-
-    return pos;
+    lv_free((void **) &json);
+    return (int) len;
 }
 
 /**
@@ -245,24 +147,34 @@ int stream_event_to_jsonrpc(const StreamEvent *event, char *buffer, size_t size)
         stream_event_to_json(event, event_json_ptr, needed);
     }
 
-    /* 构建 JSON-RPC 外壳 */
-    int pos = 0;
-    pos = stream_buf_append(buffer, size, pos, "{\"jsonrpc\":\"2.0\",\"method\":\"stream.event\",\"params\":");
-    pos = stream_buf_append(buffer, size, pos, "%s", event_json_ptr);
-    pos = stream_buf_append(buffer, size, pos, "}");
-
-    /* 确保终止符 */
-    if ((size_t) pos < size) {
-        buffer[pos] = '\0';
-    } else if (size > 0) {
-        buffer[size - 1] = '\0';
+    /* 构建 JSON-RPC 外壳（lvJsonBuf 拼接，event_json 本身是合法 JSON 片段） */
+    lvJsonBuf jb;
+    if (!lv_json_buf_init(&jb, (size_t) event_json_len + 128)) {
+        if (event_json_ptr != event_json)
+            lv_free((void **) &event_json_ptr);
+        if (buffer && size > 0)
+            buffer[0] = '\0';
+        return 0;
     }
-
-    /* 释放动态分配的临时缓冲区 */
-    if (event_json_ptr != event_json) {
+    lv_json_buf_append_raw(&jb, "{\"jsonrpc\":\"2.0\",\"method\":\"stream.event\",\"params\":");
+    lv_json_buf_append_raw(&jb, event_json_ptr);
+    lv_json_buf_append_raw(&jb, "}");
+    char *shell = lv_json_buf_finalize(&jb);
+    if (!shell) {
+        if (event_json_ptr != event_json)
+            lv_free((void **) &event_json_ptr);
+        if (buffer && size > 0)
+            buffer[0] = '\0';
+        return 0;
+    }
+    size_t slen = strlen(shell);
+    if (buffer && size > 0) {
+        size_t copy = slen < size ? slen : size - 1;
+        memcpy(buffer, shell, copy);
+        buffer[copy] = '\0';
+    }
+    lv_free((void **) &shell);
+    if (event_json_ptr != event_json)
         lv_free((void **) &event_json_ptr);
-    }
-
-    return pos;
+    return (int) slen;
 }
-

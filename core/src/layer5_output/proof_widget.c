@@ -376,22 +376,25 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
     lvJsonBuf _jb;
     lv_json_buf_init(&_jb, (size_t) (JSON_BUF_INIT_SIZE + layout->widget_count * 160));
 
-    lv_json_buf_append_fmt(&_jb,
-        "{\"layout_type\":%d,\"columns\":%d,\"rows\":%d,"
-        "\"widget_count\":%d,\"persistence_key\":\"%s\",\"widgets\":[",
-        (int) layout->layout_type, layout->columns, layout->rows, layout->widget_count,
-        layout->persistence_key ? layout->persistence_key : "");
+    lv_json_buf_append_fmt(&_jb, "{\"layout_type\":%d,\"columns\":%d,\"rows\":%d,\"widget_count\":%d,",
+                           (int) layout->layout_type, layout->columns, layout->rows, layout->widget_count);
+    /* persistence_key 经 append_string 自动 JSON 转义 */
+    lv_json_buf_append_raw(&_jb, "\"persistence_key\":");
+    lv_json_buf_append_string(&_jb, layout->persistence_key ? layout->persistence_key : "");
+    lv_json_buf_append_raw(&_jb, ",\"widgets\":[");
 
     /* 逐个 Widget 序列化 */
     for (int i = 0; i < layout->widget_count; i++) {
         const ProofWidgetState *ws = &layout->widgets[i];
         if (i > 0)
             lv_json_buf_append_raw(&_jb, ",");
-        lv_json_buf_append_fmt(&_jb,
-            "{\"id\":%d,\"type\":%d,\"active\":%s,\"enabled\":%s,"
-            "\"label\":\"%s\",\"step\":%d}",
-            ws->widget_id, (int) ws->widget_type, ws->is_active ? "true" : "false",
-            ws->is_enabled ? "true" : "false", ws->display_label ? ws->display_label : "", ws->bound_step_id);
+        lv_json_buf_append_fmt(&_jb, "{\"id\":%d,\"type\":%d,\"active\":%s,\"enabled\":%s,",
+                               ws->widget_id, (int) ws->widget_type, ws->is_active ? "true" : "false",
+                               ws->is_enabled ? "true" : "false");
+        /* display_label 经 append_string 自动 JSON 转义 */
+        lv_json_buf_append_raw(&_jb, "\"label\":");
+        lv_json_buf_append_string(&_jb, ws->display_label ? ws->display_label : "");
+        lv_json_buf_append_fmt(&_jb, ",\"step\":%d}", ws->bound_step_id);
     }
 
     lv_json_buf_append_raw(&_jb, "]}");

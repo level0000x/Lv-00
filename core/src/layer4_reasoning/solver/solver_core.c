@@ -93,24 +93,13 @@ static int ensure_array_cap(void **arr, int *capacity, int required, size_t elem
 static bool ensure_clause_cap(lvSolver *s) {
     /* 注：ensure_clause_cap 需要同时扩容 clauses 和 clause_sizes 两个数组，
      * 无法直接使用 ensure_array_cap（通用函数只处理单数组）。
-     * 但 realloc 已使用临时变量模式，失败时不会丢失原指针。 */
+     * 分别委托 lv_ensure_capacity，失败时各指针保持有效。 */
     if (s->clause_count >= s->clause_capacity) {
-        /* 检查容量扩大的乘法是否会导致整数溢出 */
-        if (s->clause_capacity > INT_MAX / lv_ARRAY_GROWTH_FACTOR)
+        int cap_c = s->clause_capacity, cap_s = s->clause_capacity;
+        if (!lv_ensure_capacity((void **) &s->clauses, s->clause_count, &cap_c, sizeof(int *), 1) ||
+            !lv_ensure_capacity((void **) &s->clause_sizes, s->clause_count, &cap_s, sizeof(int), 1))
             return false;
-        int new_cap = (s->clause_capacity == 0) ? DEFAULT_CLAUSE_CAPACITY : s->clause_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int **new_c = (int **) lv_realloc(s->clauses, (size_t) new_cap * sizeof(int *));
-        int *new_s = (int *) lv_realloc(s->clause_sizes, (size_t) new_cap * sizeof(int));
-        if (!new_c || !new_s) {
-            if (new_c)
-                lv_free((void **) &new_c);
-            if (new_s)
-                lv_free((void **) &new_s);
-            return false;
-        }
-        s->clauses = new_c;
-        s->clause_sizes = new_s;
-        s->clause_capacity = new_cap;
+        s->clause_capacity = (cap_c > cap_s) ? cap_c : cap_s;
     }
     return true;
 }
@@ -500,23 +489,11 @@ static bool cdcl_init_clauses(CDCLContext *ctx, lvSolver *solver) {
 
     /* 扩容 */
     if (total > ctx->clause_capacity) {
-        int new_cap = total * 2;
-        /* 整数溢出检查 */
-        if (new_cap < total || new_cap <= 0) {
+        int cap_c = ctx->clause_capacity, cap_s = ctx->clause_capacity;
+        if (!lv_ensure_capacity((void **) &ctx->clauses, total, &cap_c, sizeof(int *), 1) ||
+            !lv_ensure_capacity((void **) &ctx->clause_sizes, total, &cap_s, sizeof(int), 1))
             return false;
-        }
-        int **new_clauses = (int **) lv_realloc(ctx->clauses, (size_t) new_cap * sizeof(int *));
-        int *new_sizes = (int *) lv_realloc(ctx->clause_sizes, (size_t) new_cap * sizeof(int));
-        if (!new_clauses || !new_sizes) {
-            if (new_clauses)
-                lv_free((void **) &new_clauses);
-            if (new_sizes)
-                lv_free((void **) &new_sizes);
-            return false;
-        }
-        ctx->clauses = new_clauses;
-        ctx->clause_sizes = new_sizes;
-        ctx->clause_capacity = new_cap;
+        ctx->clause_capacity = (cap_c > cap_s) ? cap_c : cap_s;
     }
 
     /* 复制子句 */
@@ -575,18 +552,14 @@ static bool cdcl_ensure_trail_lim(CDCLContext *ctx, int level) {
     /* trail_lim 需要至少 level+1 个槽位（决策层 0 不需要记录） */
     /* 我们用 trail_lim[decision_level] 记录当前决策层的起始位置 */
     int needed = level + 2;
-    /* 简单策略：每次需要时 realloc 到足够大 */
-    int *new_lim = (int *) lv_realloc(ctx->trail_lim, (size_t) needed * sizeof(int));
-    if (!new_lim)
-        return false;
-    /* 只初始化新增部分，保留已有数据 */
-    /* ctx->trail_lim_capacity 记录旧容量；首次分配时为 0，全部初始化 */
     int old_cap = ctx->trail_lim_capacity;
-    for (int i = old_cap; i < needed; i++) {
-        new_lim[i] = 0;
+    /* 委托 lv_ensure_capacity：需保证容量 >= needed（count = needed-1, min_growth = 1） */
+    if (!lv_ensure_capacity((void **) &ctx->trail_lim, needed - 1, &ctx->trail_lim_capacity, sizeof(int), 1))
+        return false;
+    /* 只初始化新增部分，保留已有数据（lv_ensure_capacity 只扩容不清零） */
+    for (int i = old_cap; i < ctx->trail_lim_capacity; i++) {
+        ctx->trail_lim[i] = 0;
     }
-    ctx->trail_lim = new_lim;
-    ctx->trail_lim_capacity = needed;
     return true;
 }
 
@@ -891,21 +864,13 @@ static CDCLState cdcl_step_learn(CDCLContext *ctx) {
     /* 扩容子句数组 */
     int total = ctx->orig_clause_count + ctx->learn_clause_count;
     if (total >= ctx->clause_capacity) {
-        int new_cap =
-            (ctx->clause_capacity == 0) ? DEFAULT_CLAUSE_CAPACITY : ctx->clause_capacity * lv_ARRAY_GROWTH_FACTOR;
-        int **new_cl = (int **) lv_realloc(ctx->clauses, (size_t) new_cap * sizeof(int *));
-        int *new_sz = (int *) lv_realloc(ctx->clause_sizes, (size_t) new_cap * sizeof(int));
-        if (!new_cl || !new_sz) {
-            if (new_cl)
-                lv_free((void **) &new_cl);
-            if (new_sz)
-                lv_free((void **) &new_sz);
+        int cap_c = ctx->clause_capacity, cap_s = ctx->clause_capacity;
+        if (!lv_ensure_capacity((void **) &ctx->clauses, total, &cap_c, sizeof(int *), 1) ||
+            !lv_ensure_capacity((void **) &ctx->clause_sizes, total, &cap_s, sizeof(int), 1)) {
             ctx->conflicts++;
             return CDCL_DECIDING;
         }
-        ctx->clauses = new_cl;
-        ctx->clause_sizes = new_sz;
-        ctx->clause_capacity = new_cap;
+        ctx->clause_capacity = (cap_c > cap_s) ? cap_c : cap_s;
     }
 
     /* 分配并复制学习子句 */
@@ -973,14 +938,11 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
 
     /* 记录当前 trail 位置 */
     int needed = ctx->decision_level + 1;
-    int *new_lim = (int *) lv_realloc(ctx->trail_lim, (size_t) needed * sizeof(int));
-    if (!new_lim) {
-        /* realloc 失败，回退决策层级 */
+    if (!lv_ensure_capacity((void **) &ctx->trail_lim, needed - 1, &ctx->trail_lim_capacity, sizeof(int), 1)) {
+        /* 扩容失败，回退决策层级 */
         ctx->decision_level--;
         return CDCL_CONFLICT; /* 内存不足，视为冲突处理 */
     }
-    ctx->trail_lim = new_lim;
-    ctx->trail_lim_capacity = needed;
     ctx->trail_lim[ctx->decision_level] = ctx->trail.count;
 
     /* 赋值：默认选正文字（可扩展为 VSIDS 等启发式） */

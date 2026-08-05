@@ -56,6 +56,19 @@ typedef struct {
 #define LV_X_TO_ENUM_ENTRY(name, str) { str, name },
 
 /**
+ * @brief 从 X 列表生成「枚举值 → 字符串」指定初始化器名称数组
+ *
+ * 用法：static const char *const kLabels[] = { lv_XMACRO_TO_NAME_ARRAY(LV_MY_ENUM_X) };
+ * 生成的数组按枚举值索引（设计指定初始化器），可配合 lv_ARRAY_SIZE 做边界检查，
+ * 替代散落各文件的同名重复 char* 数组。
+ */
+#define lv_XMACRO_TO_NAME_ARRAY(X_LIST) \
+    X_LIST(LV_X_TO_NAME_ENTRY)
+
+/* 内部辅助宏 */
+#define LV_X_TO_NAME_ENTRY(name, str) [name] = str,
+
+/**
  * @brief 安全分发调用：key 越界或表中槽位为 NULL 时返回 fallback，否则调用 table[key](...)
  *
  * 收敛散落各模块的手写"边界检查 + NULL 槽检查 + 调用"三行样板
@@ -70,6 +83,24 @@ typedef struct {
     (((unsigned)(key) < (unsigned)(sizeof(table) / sizeof((table)[0]))) && (table)[(key)] \
          ? (table)[(key)](__VA_ARGS__) \
          : (fallback))
+
+/**
+ * @brief 安全分发调用（void 返回表）：key 越界或表中槽位为 NULL 时直接返回，否则调用 table[key](...)
+ *
+ * C 语言 void 不能作为三元运算符操作数，故提供 if 语句版，供 void 返回类型的
+ * handler 表使用（LV_DISPATCH 无法处理）。边界/NULL 语义与 LV_DISPATCH 完全一致。
+ *
+ * @param table 函数指针数组（编译期数组，自动取大小）
+ * @param key   索引（自动做 unsigned 边界检查）
+ * @param ...   传给 handler 的参数
+ */
+#define LV_DISPATCH_VOID(table, key, ...)                         \
+    do {                                                          \
+        if ((unsigned)(key) < (unsigned)(sizeof(table) / sizeof((table)[0])) \
+            && (table)[(key)]) {                                  \
+            (table)[(key)](__VA_ARGS__);                          \
+        }                                                         \
+    } while (0)
 
 /**
  * @brief 在映射表中查找字符串对应的枚举值（大小写敏感）

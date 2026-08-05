@@ -88,23 +88,8 @@ static void set_serialize_error(ConstraintGraph *graph, const char *fmt, ...) {
 
 /* JSON 写入器辅助 —— 迁移至 lv_json.h/lv_json.c */
 
-/* ── 字符串↔枚举 X-macro 列表 ── */
-
-#define LV_GEOM_TYPE_X(x) \
-    x(GEOM_POINT, "POINT") \
-    x(GEOM_LINE_SEGMENT, "LINE_SEGMENT") \
-    x(GEOM_REGION, "REGION") \
-    x(GEOM_CIRCLE, "CIRCLE") \
-    x(GEOM_PORT, "PORT") \
-    x(GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK")
-
-#define LV_CONSTRAINT_TYPE_X(x) \
-    x(INCIDENCE, "INCIDENCE") \
-    x(BETWEENNESS, "BETWEENNESS") \
-    x(INTERSECTION, "INTERSECTION") \
-    x(CONTAINMENT, "CONTAINMENT") \
-    x(CONNECTION, "CONNECTION") \
-    x(ANGLE, "ANGLE")
+/* ── 字符串↔枚举 X-macro 列表（LV_GEOM_TYPE_X / LV_CONSTRAINT_TYPE_X 已提升至
+ *    constraint_graph.h 作为单一事实来源，此处直接复用） ── */
 
 static const lvStrToEnumEntry geom_type_map[] = {
     lv_XMACRO_TO_ENUM_TABLE(LV_GEOM_TYPE_X)

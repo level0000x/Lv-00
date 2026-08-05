@@ -201,9 +201,7 @@ static GeoResult (*kSolveHandlers[])(void) = {
 GeoResult geo_solve(lvEngine *engine) {
     CHECK_ENGINE(engine);
     EngineSolveResult esr = engine_solve(engine);
-    if ((unsigned)esr < lv_ARRAY_SIZE(kSolveHandlers) && kSolveHandlers[esr])
-        return kSolveHandlers[esr]();
-    return geo_err(GEO_STATUS_INTERNAL_ERROR, "求解错误");
+    return LV_DISPATCH(kSolveHandlers, esr, geo_err(GEO_STATUS_INTERNAL_ERROR, "求解错误"));
 }
 
 /* 原语 4: geo_normalize -- 约束图归一化 */
@@ -240,9 +238,7 @@ GeoResult geo_rewrite(ConstraintGraph *graph, void **rules, int rule_count, int 
         step_limit = 1000;
 
     RewriteStatus s = rewrite_with_rules(graph, (RewriteRule **) rules, rule_count, step_limit, true);
-    if ((unsigned)s < lv_ARRAY_SIZE(kRewriteHandlers) && kRewriteHandlers[s])
-        return kRewriteHandlers[s]();
-    return geo_err(GEO_STATUS_INTERNAL_ERROR, "重写错误");
+    return LV_DISPATCH(kRewriteHandlers, s, geo_err(GEO_STATUS_INTERNAL_ERROR, "重写错误"));
 }
 
 /* ── geo_unify 状态映射处理函数 ── */
@@ -303,9 +299,7 @@ GeoResult geo_pack(ConstraintGraph *graph, const int *internal_ids, int internal
         func_block_pack(graph, internal_ids, internal_count, in_ports, in_count, out_ports, out_count, NULL, 0, &fb);
     if (r == PACK_RESULT_OK)
         return handle_pack_ok(fb);
-    if ((unsigned)r < lv_ARRAY_SIZE(kPackHandlers) && kPackHandlers[r])
-        return kPackHandlers[r]();
-    return geo_err(GEO_STATUS_INTERNAL_ERROR, "打包错误");
+    return LV_DISPATCH(kPackHandlers, r, geo_err(GEO_STATUS_INTERNAL_ERROR, "打包错误"));
 }
 
 /* 原语 8: geo_instantiate -- 实例化函数块 */

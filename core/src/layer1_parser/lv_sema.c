@@ -514,8 +514,7 @@ static void check_stmt(LvSemaContext *ctx, LvAstNode *node) {
         return;
 
     LvAstNodeType t = node->type;
-    if (t >= 0 && t < LV_AST_COUNT && check_stmt_table[t])
-        check_stmt_table[t](ctx, node);
+    LV_DISPATCH_VOID(check_stmt_table, t, ctx, node);
 }
 
 /* ── 公共 API ── */

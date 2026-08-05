@@ -818,8 +818,11 @@ char *lv_test_report_to_json(const lvTestReport *report) {
 
     for (uint32_t i = 0; i < report->suite_count; i++) {
         const lvTestSuite *suite = &report->suites[i];
-        lv_json_buf_append_fmt(&buf, "{\"name\":\"%s\",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
-                        suite->name, suite->passed_count, suite->failed_count, suite->skipped_count);
+        /* suite->name 经 append_string 自动 JSON 转义 */
+        lv_json_buf_append_raw(&buf, "{\"name\":");
+        lv_json_buf_append_string(&buf, suite->name);
+        lv_json_buf_append_fmt(&buf, ",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
+                        suite->passed_count, suite->failed_count, suite->skipped_count);
         if (i < report->suite_count - 1) {
             lv_json_buf_append_char(&buf, ',');
         }

@@ -413,14 +413,10 @@ static void add_match_to_used(const RewriteMatch *match, int **used_ids, int *us
 
         /* 扩容 */
         if (*used_count >= *used_capacity) {
-            int new_cap = *used_capacity > 0 ? *used_capacity * 2 : 16;
-            int *new_arr = lv_realloc(*used_ids, (size_t) new_cap * sizeof(int));
-            if (!new_arr) {
+            if (!lv_ensure_capacity((void **) used_ids, *used_count, used_capacity, sizeof(int), 1)) {
                 debug_log_rewrite("内存分配失败：无法扩展 used_ids 数组");
                 return;
             }
-            *used_ids = new_arr;
-            *used_capacity = new_cap;
         }
         (*used_ids)[(*used_count)++] = graph_node_id;
     }
@@ -518,16 +514,12 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
 
         /* 找到一个有效的非重叠匹配 -- 保存它 */
         if (match_count >= match_capacity) {
-            int new_cap = match_capacity * 2;
-            RewriteMatch **new_arr = lv_realloc(matches, (size_t) new_cap * sizeof(RewriteMatch *));
-            if (!new_arr) {
+            if (!lv_ensure_capacity((void **) &matches, match_count, &match_capacity, sizeof(RewriteMatch *), 1)) {
                 lv_free((void **) &match->node_bindings);
                 lv_free((void **) &match->constraint_bindings);
                 lv_free((void **) &match);
                 break;
             }
-            matches = new_arr;
-            match_capacity = new_cap;
         }
         matches[match_count++] = match;
 
@@ -656,14 +648,11 @@ int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, Rewrite
                     continue;
 
                 if (modified_count >= modified_capacity) {
-                    int new_cap = modified_capacity * 2;
-                    int *new_arr = lv_realloc(modified_node_ids, (size_t) new_cap * sizeof(int));
-                    if (!new_arr) {
+                    if (!lv_ensure_capacity((void **) &modified_node_ids, modified_count, &modified_capacity,
+                                            sizeof(int), 1)) {
                         debug_log_rewrite("内存分配失败：无法扩展 modified_node_ids 数组");
                         break;
                     }
-                    modified_node_ids = new_arr;
-                    modified_capacity = new_cap;
                 }
                 modified_node_ids[modified_count++] = graph_node_id;
             }

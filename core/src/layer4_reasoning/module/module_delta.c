@@ -813,53 +813,53 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
 
     /* 解析 delta JSON */
     size_t json_len = strlen(delta->delta_data);
-    JsonReader r;
-    json_reader_init(&r, delta->delta_data, json_len);
+    lvJsonParser p;
+    lv_json_parser_init(&p, delta->delta_data, json_len);
 
-    if (json_reader_peek(&r) != '{') {
+    if (lv_json_peek(&p) != '{') {
         lv_set_error(lv_ERROR_PARSE, "module_apply_delta: 无效的 delta 数据格式");
         return false;
     }
-    r.pos++;
+    lv_json_next(&p);
 
-    while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
-        char *key = json_reader_read_string(&r);
+    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+        char *key = lv_json_parse_string(&p);
         if (!key)
             break;
-        if (!json_reader_expect_char(&r, ':')) {
+        if (!lv_json_expect(&p, ':')) {
             lv_free((void **) &key);
             break;
         }
 
         if (strcmp(key, "changes") == 0) {
-            if (json_reader_peek(&r) != '{') {
+            if (lv_json_peek(&p) != '{') {
                 lv_free((void **) &key);
                 break;
             }
-            r.pos++;
+            lv_json_next(&p);
 
-            while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
-                char *ck = json_reader_read_string(&r);
+            while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                char *ck = lv_json_parse_string(&p);
                 if (!ck)
                     break;
-                if (!json_reader_expect_char(&r, ':')) {
+                if (!lv_json_expect(&p, ':')) {
                     lv_free((void **) &ck);
                     break;
                 }
 
                 if (strcmp(ck, "name") == 0) {
                     /* 应用名称变更 */
-                    if (json_reader_peek(&r) == '{') {
-                        r.pos++;
-                        while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
-                            char *fk = json_reader_read_string(&r);
+                    if (lv_json_peek(&p) == '{') {
+                        lv_json_next(&p);
+                        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                            char *fk = lv_json_parse_string(&p);
                             if (!fk)
                                 break;
-                            if (!json_reader_expect_char(&r, ':')) {
+                            if (!lv_json_expect(&p, ':')) {
                                 lv_free((void **) &fk);
                                 break;
                             }
-                            char *val = json_reader_read_string(&r);
+                            char *val = lv_json_parse_string(&p);
                             if (strcmp(fk, "new") == 0 && val) {
                                 lv_free((void **) &mod->name);
                                 mod->name = val;
@@ -867,24 +867,24 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             }
                             lv_free((void **) &val);
                             lv_free((void **) &fk);
-                            if (json_reader_peek(&r) == ',')
-                                r.pos++;
+                            if (lv_json_peek(&p) == ',')
+                                lv_json_next(&p);
                         }
-                        if (json_reader_peek(&r) == '}')
-                            r.pos++;
+                        if (lv_json_peek(&p) == '}')
+                            lv_json_next(&p);
                     }
                 } else if (strcmp(ck, "version") == 0) {
-                    if (json_reader_peek(&r) == '{') {
-                        r.pos++;
-                        while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
-                            char *fk = json_reader_read_string(&r);
+                    if (lv_json_peek(&p) == '{') {
+                        lv_json_next(&p);
+                        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                            char *fk = lv_json_parse_string(&p);
                             if (!fk)
                                 break;
-                            if (!json_reader_expect_char(&r, ':')) {
+                            if (!lv_json_expect(&p, ':')) {
                                 lv_free((void **) &fk);
                                 break;
                             }
-                            char *val = json_reader_read_string(&r);
+                            char *val = lv_json_parse_string(&p);
                             if (strcmp(fk, "new") == 0 && val) {
                                 lv_free((void **) &mod->version);
                                 mod->version = val;
@@ -892,32 +892,32 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             }
                             lv_free((void **) &val);
                             lv_free((void **) &fk);
-                            if (json_reader_peek(&r) == ',')
-                                r.pos++;
+                            if (lv_json_peek(&p) == ',')
+                                lv_json_next(&p);
                         }
-                        if (json_reader_peek(&r) == '}')
-                            r.pos++;
+                        if (lv_json_peek(&p) == '}')
+                            lv_json_next(&p);
                     }
                 } else if (strcmp(ck, "dependencies_added") == 0) {
-                    if (json_reader_peek(&r) == '[') {
-                        r.pos++;
-                        while (json_reader_peek(&r) != ']' && json_reader_peek(&r) != '\0') {
-                            if (json_reader_peek(&r) == ',') {
-                                r.pos++;
+                    if (lv_json_peek(&p) == '[') {
+                        lv_json_next(&p);
+                        while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                            if (lv_json_peek(&p) == ',') {
+                                lv_json_next(&p);
                                 continue;
                             }
-                            if (json_reader_peek(&r) == '{') {
-                                r.pos++;
+                            if (lv_json_peek(&p) == '{') {
+                                lv_json_next(&p);
                                 char *dn = NULL, *dv = NULL;
-                                while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
-                                    char *fk = json_reader_read_string(&r);
+                                while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                                    char *fk = lv_json_parse_string(&p);
                                     if (!fk)
                                         break;
-                                    if (!json_reader_expect_char(&r, ':')) {
+                                    if (!lv_json_expect(&p, ':')) {
                                         lv_free((void **) &fk);
                                         break;
                                     }
-                                    char *val = json_reader_read_string(&r);
+                                    char *val = lv_json_parse_string(&p);
                                     if (strcmp(fk, "name") == 0) {
                                         lv_free((void **) &dn);
                                         dn = val;
@@ -927,32 +927,32 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                     } else
                                         lv_free((void **) &val);
                                     lv_free((void **) &fk);
-                                    if (json_reader_peek(&r) == ',')
-                                        r.pos++;
+                                    if (lv_json_peek(&p) == ',')
+                                        lv_json_next(&p);
                                 }
-                                if (json_reader_peek(&r) == '}')
-                                    r.pos++;
+                                if (lv_json_peek(&p) == '}')
+                                    lv_json_next(&p);
                                 if (dn) {
                                     module_add_dependency(mod, dn, dv ? dv : "");
                                 }
                                 lv_free((void **) &dn);
                                 lv_free((void **) &dv);
                             } else {
-                                r.pos++;
+                                lv_json_next(&p);
                             }
                         }
-                        if (json_reader_peek(&r) == ']')
-                            r.pos++;
+                        if (lv_json_peek(&p) == ']')
+                            lv_json_next(&p);
                     }
                 } else if (strcmp(ck, "dependencies_removed") == 0) {
-                    if (json_reader_peek(&r) == '[') {
-                        r.pos++;
-                        while (json_reader_peek(&r) != ']' && json_reader_peek(&r) != '\0') {
-                            if (json_reader_peek(&r) == ',') {
-                                r.pos++;
+                    if (lv_json_peek(&p) == '[') {
+                        lv_json_next(&p);
+                        while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                            if (lv_json_peek(&p) == ',') {
+                                lv_json_next(&p);
                                 continue;
                             }
-                            char *dep_name = json_reader_read_string(&r);
+                            char *dep_name = lv_json_parse_string(&p);
                             if (dep_name) {
                                 /* 查找并移除依赖 */
                                 for (int i = 0; i < mod->dependencies.count; i++) {
@@ -970,29 +970,29 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                 lv_free((void **) &dep_name);
                             }
                         }
-                        if (json_reader_peek(&r) == ']')
-                            r.pos++;
+                        if (lv_json_peek(&p) == ']')
+                            lv_json_next(&p);
                     }
                 } else if (strcmp(ck, "dependencies_modified") == 0) {
-                    if (json_reader_peek(&r) == '[') {
-                        r.pos++;
-                        while (json_reader_peek(&r) != ']' && json_reader_peek(&r) != '\0') {
-                            if (json_reader_peek(&r) == ',') {
-                                r.pos++;
+                    if (lv_json_peek(&p) == '[') {
+                        lv_json_next(&p);
+                        while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                            if (lv_json_peek(&p) == ',') {
+                                lv_json_next(&p);
                                 continue;
                             }
-                            if (json_reader_peek(&r) == '{') {
-                                r.pos++;
+                            if (lv_json_peek(&p) == '{') {
+                                lv_json_next(&p);
                                 char *dn = NULL, *nv = NULL;
-                                while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
-                                    char *fk = json_reader_read_string(&r);
+                                while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                                    char *fk = lv_json_parse_string(&p);
                                     if (!fk)
                                         break;
-                                    if (!json_reader_expect_char(&r, ':')) {
+                                    if (!lv_json_expect(&p, ':')) {
                                         lv_free((void **) &fk);
                                         break;
                                     }
-                                    char *val = json_reader_read_string(&r);
+                                    char *val = lv_json_parse_string(&p);
                                     if (strcmp(fk, "name") == 0) {
                                         lv_free((void **) &dn);
                                         dn = val;
@@ -1002,11 +1002,11 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                     } else
                                         lv_free((void **) &val);
                                     lv_free((void **) &fk);
-                                    if (json_reader_peek(&r) == ',')
-                                        r.pos++;
+                                    if (lv_json_peek(&p) == ',')
+                                        lv_json_next(&p);
                                 }
-                                if (json_reader_peek(&r) == '}')
-                                    r.pos++;
+                                if (lv_json_peek(&p) == '}')
+                                    lv_json_next(&p);
                                 if (dn && nv) {
                                     for (int i = 0; i < mod->dependencies.count; i++) {
                                         if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, dn) == 0) {
@@ -1019,18 +1019,28 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                 lv_free((void **) &dn);
                                 lv_free((void **) &nv);
                             } else {
-                                r.pos++;
+                                lv_json_next(&p);
                             }
                         }
-                        if (json_reader_peek(&r) == ']')
-                            r.pos++;
+                        if (lv_json_peek(&p) == ']')
+                            lv_json_next(&p);
                     }
                 } else if (strcmp(ck, "nodes_added") == 0 || strcmp(ck, "nodes_removed") == 0 ||
                            strcmp(ck, "nodes_modified") == 0 || strcmp(ck, "constraints_added") == 0 ||
                            strcmp(ck, "constraints_removed") == 0) {
                     /* 图增量字段：检测到图变化时回退到完整图重序列化 */
-                    if (json_reader_peek(&r) == '[') {
-                        int cnt = json_reader_count_array_elements(&r);
+                    if (lv_json_peek(&p) == '[') {
+                        /* 统计数组元素个数并跳过整个数组（替代原私有计数函数） */
+                        int cnt = 0;
+                        lv_json_next(&p); /* 跳过 '[' */
+                        while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                            lv_json_skip_value(&p);
+                            cnt++;
+                            if (lv_json_peek(&p) == ',')
+                                lv_json_next(&p);
+                        }
+                        if (lv_json_peek(&p) == ']')
+                            lv_json_next(&p);
                         if (cnt > 0 && mod->graph) {
                             /* 有图变化，记录警告并标记需要完整图替换 */
                             fprintf(stderr,
@@ -1041,88 +1051,89 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                     }
                 } else {
                     /* 跳过未知字段 */
-                    if (json_reader_peek(&r) == '"') {
-                        char *tmp = json_reader_read_string(&r);
+                    if (lv_json_peek(&p) == '"') {
+                        char *tmp = lv_json_parse_string(&p);
                         lv_free((void **) &tmp);
-                    } else if (json_reader_peek(&r) == '[') {
-                        int cnt = json_reader_count_array_elements(&r);
-                        (void) cnt;
-                    } else if (json_reader_peek(&r) == '{') {
-                        r.pos++;
+                    } else if (lv_json_peek(&p) == '[') {
+                        lv_json_skip_value(&p);
+                    } else if (lv_json_peek(&p) == '{') {
+                        /* 逐字符扫描（保留空白），不能用 lv_json_next 替代 */
+                        lv_json_next(&p);
                         int depth = 1;
-                        while (r.pos < r.size && depth > 0) {
-                            char c = r.data[r.pos];
+                        while (p.pos < p.size && depth > 0) {
+                            char c = p.data[p.pos];
                             if (c == '"') {
-                                r.pos++;
-                                while (r.pos < r.size && r.data[r.pos] != '"') {
-                                    if (r.data[r.pos] == '\\')
-                                        r.pos++;
-                                    r.pos++;
+                                p.pos++;
+                                while (p.pos < p.size && p.data[p.pos] != '"') {
+                                    if (p.data[p.pos] == '\\')
+                                        p.pos++;
+                                    p.pos++;
                                 }
-                                if (r.pos < r.size)
-                                    r.pos++;
+                                if (p.pos < p.size)
+                                    p.pos++;
                             } else if (c == '{') {
                                 depth++;
-                                r.pos++;
+                                p.pos++;
                             } else if (c == '}') {
                                 depth--;
-                                r.pos++;
+                                p.pos++;
                             } else {
-                                r.pos++;
+                                p.pos++;
                             }
                         }
                     } else {
-                        while (r.pos < r.size && json_reader_peek(&r) != ',' && json_reader_peek(&r) != '}') {
-                            r.pos++;
+                        while (lv_json_peek(&p) != ',' && lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                            lv_json_next(&p);
                         }
                     }
                 }
 
                 lv_free((void **) &ck);
-                if (json_reader_peek(&r) == ',')
-                    r.pos++;
+                if (lv_json_peek(&p) == ',')
+                    lv_json_next(&p);
             }
-            if (json_reader_peek(&r) == '}')
-                r.pos++;
+            if (lv_json_peek(&p) == '}')
+                lv_json_next(&p);
         } else {
             /* 跳过 base_hash 等其他字段 */
-            if (json_reader_peek(&r) == '"') {
-                char *tmp = json_reader_read_string(&r);
+            if (lv_json_peek(&p) == '"') {
+                char *tmp = lv_json_parse_string(&p);
                 lv_free((void **) &tmp);
-            } else if (json_reader_peek(&r) == '{') {
-                r.pos++;
+            } else if (lv_json_peek(&p) == '{') {
+                /* 逐字符扫描（保留空白），不能用 lv_json_next 替代 */
+                lv_json_next(&p);
                 int depth = 1;
-                while (r.pos < r.size && depth > 0) {
-                    char c = r.data[r.pos];
+                while (p.pos < p.size && depth > 0) {
+                    char c = p.data[p.pos];
                     if (c == '"') {
-                        r.pos++;
-                        while (r.pos < r.size && r.data[r.pos] != '"') {
-                            if (r.data[r.pos] == '\\')
-                                r.pos++;
-                            r.pos++;
+                        p.pos++;
+                        while (p.pos < p.size && p.data[p.pos] != '"') {
+                            if (p.data[p.pos] == '\\')
+                                p.pos++;
+                            p.pos++;
                         }
-                        if (r.pos < r.size)
-                            r.pos++;
+                        if (p.pos < p.size)
+                            p.pos++;
                     } else if (c == '{') {
                         depth++;
-                        r.pos++;
+                        p.pos++;
                     } else if (c == '}') {
                         depth--;
-                        r.pos++;
+                        p.pos++;
                     } else {
-                        r.pos++;
+                        p.pos++;
                     }
                 }
             } else {
-                while (r.pos < r.size && json_reader_peek(&r) != ',' && json_reader_peek(&r) != '}') {
-                    r.pos++;
+                while (lv_json_peek(&p) != ',' && lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                    lv_json_next(&p);
                 }
             }
         }
 
         lv_free((void **) &key);
-        if (json_reader_peek(&r) == ',')
-            r.pos++;
+        if (lv_json_peek(&p) == ',')
+            lv_json_next(&p);
     }
 
     return true;

@@ -170,146 +170,6 @@ bool module_deserialize_graph_from_json(Module *mod, const char *json) {
     return true;
 }
 
-/* ---------- JSON 解析器类型定义已提取至 module_helpers.h ---------- */
-
-void json_reader_init(JsonReader *r, const char *data, size_t size) {
-    r->data = data;
-    r->size = size;
-    r->pos = 0;
-}
-
-void json_reader_skip_whitespace(JsonReader *r) {
-    while (r->pos < r->size) {
-        char c = r->data[r->pos];
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            r->pos++;
-        } else {
-            break;
-        }
-    }
-}
-
-char json_reader_peek(JsonReader *r) {
-    json_reader_skip_whitespace(r);
-    return r->pos < r->size ? r->data[r->pos] : '\0';
-}
-
-char json_reader_next(JsonReader *r) {
-    json_reader_skip_whitespace(r);
-    return r->pos < r->size ? r->data[r->pos++] : '\0';
-}
-
-bool json_reader_expect_char(JsonReader *r, char c) {
-    char got = json_reader_next(r);
-    return got == c;
-}
-
-/* 读取 JSON 字符串（返回 malloc 分配的字符串） */
-char *json_reader_read_string(JsonReader *r) {
-    if (!json_reader_expect_char(r, '"'))
-        return NULL;
-
-    size_t start = r->pos;
-    size_t raw_len = 0;
-
-    /* 第一遍：定位结束引号，统计原始字节数（转义序列按原始长度计入） */
-    while (r->pos < r->size && r->data[r->pos] != '"') {
-        if (r->data[r->pos] == '\\' && r->pos + 1 < r->size) {
-            r->pos += 2;
-            raw_len += 2;
-        } else {
-            r->pos++;
-            raw_len++;
-        }
-    }
-
-    if (r->pos >= r->size)
-        return NULL;
-    r->pos++; /* 跳过结束引号 */
-
-    /* 第二遍：公共反转义 API 计算解码后长度并分配 */
-    size_t len = lv_str_json_unescape(r->data + start, raw_len, NULL, 0);
-    char *result = (char *) lv_calloc(len + 1, 1);
-    if (!result)
-        return NULL;
-
-    lv_str_json_unescape(r->data + start, raw_len, result, len + 1);
-    return result;
-}
-
-/* 读取 JSON 整数 */
-bool json_reader_read_int(JsonReader *r, int64_t *out) {
-    json_reader_skip_whitespace(r);
-    size_t start = r->pos;
-    bool negative = false;
-
-    if (r->pos < r->size && r->data[r->pos] == '-') {
-        negative = true;
-        r->pos++;
-    }
-
-    while (r->pos < r->size && r->data[r->pos] >= '0' && r->data[r->pos] <= '9') {
-        r->pos++;
-    }
-
-    if (r->pos == start || (r->pos == start + 1 && negative))
-        return false;
-
-    int64_t val = 0;
-    for (size_t i = start + (negative ? 1 : 0); i < r->pos; i++) {
-        val = val * 10 + (r->data[i] - '0');
-    }
-    *out = negative ? -val : val;
-    return true;
-}
-
-/* 读取 JSON 数组长度（仅计数，不解析内容） */
-int json_reader_count_array_elements(JsonReader *r) {
-    if (!json_reader_expect_char(r, '['))
-        return -1;
-
-    int count = 0;
-    json_reader_skip_whitespace(r);
-    if (json_reader_peek(r) == ']') {
-        r->pos++;
-        return 0;
-    }
-
-    /* 简单计数：通过跟踪括号/引号层级 */
-    int depth = 1;
-    while (r->pos < r->size && depth > 0) {
-        char c = r->data[r->pos];
-        if (c == '"') {
-            /* 跳过字符串 */
-            r->pos++;
-            while (r->pos < r->size && r->data[r->pos] != '"') {
-                if (r->data[r->pos] == '\\')
-                    r->pos++;
-                r->pos++;
-            }
-            if (r->pos < r->size)
-                r->pos++;
-        } else if (c == '[' || c == '{') {
-            depth++;
-            r->pos++;
-        } else if (c == ']' || c == '}') {
-            depth--;
-            if (c == ']' && depth == 0) {
-                r->pos++;
-                break;
-            }
-            r->pos++;
-        } else if (c == ',') {
-            if (depth == 1)
-                count++;
-            r->pos++;
-        } else {
-            r->pos++;
-        }
-    }
-    return count + 1;
-}
-
 ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_module) {
     if (!json || !out_module) {
         lv_set_error(lv_ERROR_INVALID_PARAM, "module_deserialize_from_json: 无效参数");
@@ -317,40 +177,40 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
     }
 
     size_t json_len = strlen(json);
-    JsonReader r;
-    json_reader_init(&r, json, json_len);
+    lvJsonParser p;
+    lv_json_parser_init(&p, json, json_len);
 
-    if (json_reader_peek(&r) != '{') {
+    if (lv_json_peek(&p) != '{') {
         lv_set_error(lv_ERROR_PARSE, "module_deserialize_from_json: 期望 JSON 对象");
         return MODULE_LOAD_PARSE_ERROR;
     }
-    r.pos++; /* 跳过 '{' */
+    lv_json_next(&p); /* 跳过 '{' */
 
     char *name = NULL;
     char *version = NULL;
     Module *mod = NULL;
 
-    while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
+    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
         /* 读取键 */
-        char *key = json_reader_read_string(&r);
+        char *key = lv_json_parse_string(&p);
         if (!key)
             break;
 
-        if (!json_reader_expect_char(&r, ':')) {
+        if (!lv_json_expect(&p, ':')) {
             lv_free((void **) &key);
             break;
         }
 
         if (strcmp(key, "name") == 0) {
             lv_free((void **) &name);
-            name = json_reader_read_string(&r);
+            name = lv_json_parse_string(&p);
             /* 如果模块尚未创建且已有 name，立即创建 */
             if (!mod && name) {
                 mod = module_create(name, version ? version : "0.0.0");
             }
         } else if (strcmp(key, "version") == 0) {
             lv_free((void **) &version);
-            version = json_reader_read_string(&r);
+            version = lv_json_parse_string(&p);
             /* 如果模块已创建，更新版本 */
             if (mod && version) {
                 lv_free((void **) &mod->version);
@@ -358,50 +218,50 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
             }
         } else if (strcmp(key, "dependencies") == 0) {
             /* 解析依赖数组 */
-            if (json_reader_peek(&r) == '[') {
-                r.pos++; /* 跳过 '[' */
-                while (json_reader_peek(&r) != ']' && json_reader_peek(&r) != '\0') {
-                    if (json_reader_peek(&r) == ',') {
-                        r.pos++;
+            if (lv_json_peek(&p) == '[') {
+                lv_json_next(&p); /* 跳过 '[' */
+                while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                    if (lv_json_peek(&p) == ',') {
+                        lv_json_next(&p);
                         continue;
                     }
-                    if (json_reader_peek(&r) != '{')
+                    if (lv_json_peek(&p) != '{')
                         break;
-                    r.pos++; /* 跳过 '{' */
+                    lv_json_next(&p); /* 跳过 '{' */
 
                     char *dep_name = NULL;
                     char *dep_ver = NULL;
 
-                    while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
-                        char *dk = json_reader_read_string(&r);
+                    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                        char *dk = lv_json_parse_string(&p);
                         if (!dk)
                             break;
-                        if (!json_reader_expect_char(&r, ':')) {
+                        if (!lv_json_expect(&p, ':')) {
                             lv_free((void **) &dk);
                             break;
                         }
 
                         if (strcmp(dk, "name") == 0) {
                             lv_free((void **) &dep_name);
-                            dep_name = json_reader_read_string(&r);
+                            dep_name = lv_json_parse_string(&p);
                         } else if (strcmp(dk, "version_constraint") == 0) {
                             lv_free((void **) &dep_ver);
-                            dep_ver = json_reader_read_string(&r);
+                            dep_ver = lv_json_parse_string(&p);
                         } else {
                             /* 跳过未知值 */
-                            if (json_reader_peek(&r) == '"') {
-                                char *tmp = json_reader_read_string(&r);
+                            if (lv_json_peek(&p) == '"') {
+                                char *tmp = lv_json_parse_string(&p);
                                 lv_free((void **) &tmp);
                             } else {
-                                while (r.pos < r.size && json_reader_peek(&r) != ',' && json_reader_peek(&r) != '}') {
-                                    r.pos++;
+                                while (lv_json_peek(&p) != ',' && lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                                    lv_json_next(&p);
                                 }
                             }
                         }
                         lv_free((void **) &dk);
                     }
-                    if (json_reader_peek(&r) == '}')
-                        r.pos++;
+                    if (lv_json_peek(&p) == '}')
+                        lv_json_next(&p);
 
                     if (mod && dep_name) {
                         module_add_dependency(mod, dep_name, dep_ver ? dep_ver : "");
@@ -409,86 +269,85 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                     lv_free((void **) &dep_name);
                     lv_free((void **) &dep_ver);
                 }
-                if (json_reader_peek(&r) == ']')
-                    r.pos++;
+                if (lv_json_peek(&p) == ']')
+                    lv_json_next(&p);
             }
         } else if (strcmp(key, "exports") == 0) {
-            if (json_reader_peek(&r) == '{') {
-                r.pos++; /* 跳过 '{' */
+            if (lv_json_peek(&p) == '{') {
+                lv_json_next(&p); /* 跳过 '{' */
 
-                while (json_reader_peek(&r) != '}' && json_reader_peek(&r) != '\0') {
-                    char *ek = json_reader_read_string(&r);
+                while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                    char *ek = lv_json_parse_string(&p);
                     if (!ek)
                         break;
-                    if (!json_reader_expect_char(&r, ':')) {
+                    if (!lv_json_expect(&p, ':')) {
                         lv_free((void **) &ek);
                         break;
                     }
 
                     if (strcmp(ek, "function_blocks") == 0 && mod) {
-                        if (json_reader_peek(&r) == '[') {
-                            r.pos++;
-                            while (json_reader_peek(&r) != ']' && json_reader_peek(&r) != '\0') {
-                                if (json_reader_peek(&r) == ',') {
-                                    r.pos++;
+                        if (lv_json_peek(&p) == '[') {
+                            lv_json_next(&p);
+                            while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                                if (lv_json_peek(&p) == ',') {
+                                    lv_json_next(&p);
                                     continue;
                                 }
                                 int64_t val = 0;
-                                if (json_reader_read_int(&r, &val)) {
+                                if (lv_json_parse_int64(&p, &val)) {
                                     module_export_function_block(mod, (int) val);
                                 } else {
-                                    r.pos++;
+                                    lv_json_next(&p);
                                 }
                             }
-                            if (json_reader_peek(&r) == ']')
-                                r.pos++;
+                            if (lv_json_peek(&p) == ']')
+                                lv_json_next(&p);
                         }
                     } else if (strcmp(ek, "type_regions") == 0 && mod) {
-                        if (json_reader_peek(&r) == '[') {
-                            r.pos++;
-                            while (json_reader_peek(&r) != ']' && json_reader_peek(&r) != '\0') {
-                                if (json_reader_peek(&r) == ',') {
-                                    r.pos++;
+                        if (lv_json_peek(&p) == '[') {
+                            lv_json_next(&p);
+                            while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                                if (lv_json_peek(&p) == ',') {
+                                    lv_json_next(&p);
                                     continue;
                                 }
                                 int64_t val = 0;
-                                if (json_reader_read_int(&r, &val)) {
+                                if (lv_json_parse_int64(&p, &val)) {
                                     module_export_type_region(mod, (int) val);
                                 } else {
-                                    r.pos++;
+                                    lv_json_next(&p);
                                 }
                             }
-                            if (json_reader_peek(&r) == ']')
-                                r.pos++;
+                            if (lv_json_peek(&p) == ']')
+                                lv_json_next(&p);
                         }
                     } else {
                         /* 跳过未知值 */
-                        if (json_reader_peek(&r) == '"') {
-                            char *tmp = json_reader_read_string(&r);
+                        if (lv_json_peek(&p) == '"') {
+                            char *tmp = lv_json_parse_string(&p);
                             lv_free((void **) &tmp);
-                        } else if (json_reader_peek(&r) == '[') {
-                            int count = json_reader_count_array_elements(&r);
-                            (void) count;
+                        } else if (lv_json_peek(&p) == '[') {
+                            lv_json_skip_value(&p);
                         } else {
-                            while (r.pos < r.size && json_reader_peek(&r) != ',' && json_reader_peek(&r) != '}') {
-                                r.pos++;
+                            while (lv_json_peek(&p) != ',' && lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                                lv_json_next(&p);
                             }
                         }
                     }
                     lv_free((void **) &ek);
                 }
-                if (json_reader_peek(&r) == '}')
-                    r.pos++;
+                if (lv_json_peek(&p) == '}')
+                    lv_json_next(&p);
             }
         } else if (strcmp(key, "axiom_packages") == 0) {
-            if (json_reader_peek(&r) == '[') {
-                r.pos++;
-                while (json_reader_peek(&r) != ']' && json_reader_peek(&r) != '\0') {
-                    if (json_reader_peek(&r) == ',') {
-                        r.pos++;
+            if (lv_json_peek(&p) == '[') {
+                lv_json_next(&p);
+                while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                    if (lv_json_peek(&p) == ',') {
+                        lv_json_next(&p);
                         continue;
                     }
-                    char *pkg_name = json_reader_read_string(&r);
+                    char *pkg_name = lv_json_parse_string(&p);
                     if (mod && pkg_name) {
                         AxiomPackage *pkg = lv_axiom_package_create(pkg_name, "0.0.0");
                         if (pkg) {
@@ -497,44 +356,45 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                     }
                     lv_free((void **) &pkg_name);
                 }
-                if (json_reader_peek(&r) == ']')
-                    r.pos++;
+                if (lv_json_peek(&p) == ']')
+                    lv_json_next(&p);
             }
         } else if (strcmp(key, "graph") == 0) {
             /* 反序列化约束图 */
-            if (json_reader_peek(&r) == '{') {
+            if (lv_json_peek(&p) == '{') {
                 /* 提取 graph 对象的字符串 */
-                r.pos++; /* 跳过 '{' */
-                size_t graph_start = r.pos;
+                lv_json_next(&p); /* 跳过 '{' */
+                size_t graph_start = p.pos;
                 int depth = 1;
-                while (r.pos < r.size && depth > 0) {
-                    char c = r.data[r.pos];
+                /* 逐字符扫描（保留空白），直到深度归零；不能用 lv_json_next 替代（会跳过空白） */
+                while (p.pos < p.size && depth > 0) {
+                    char c = p.data[p.pos];
                     if (c == '"') {
-                        r.pos++;
-                        while (r.pos < r.size && r.data[r.pos] != '"') {
-                            if (r.data[r.pos] == '\\')
-                                r.pos++;
-                            r.pos++;
+                        p.pos++;
+                        while (p.pos < p.size && p.data[p.pos] != '"') {
+                            if (p.data[p.pos] == '\\')
+                                p.pos++;
+                            p.pos++;
                         }
-                        if (r.pos < r.size)
-                            r.pos++;
+                        if (p.pos < p.size)
+                            p.pos++;
                     } else if (c == '{') {
                         depth++;
-                        r.pos++;
+                        p.pos++;
                     } else if (c == '}') {
                         depth--;
-                        r.pos++;
+                        p.pos++;
                     } else {
-                        r.pos++;
+                        p.pos++;
                     }
                 }
 
                 /* 创建 graph JSON 字符串的副本 */
-                size_t graph_len = r.pos - graph_start - 1;
+                size_t graph_len = p.pos - graph_start - 1;
                 char *graph_json = lv_calloc(graph_len + 1, 1);
                 if (graph_json) {
                     /* 使用 memcpy 进行精确长度复制（已分配 graph_len+1，手动零终止更安全） */
-                    memcpy(graph_json, r.data + graph_start, graph_len);
+                    memcpy(graph_json, p.data + graph_start, graph_len);
                     graph_json[graph_len] = '\0';
 
                     /* 反序列化图 */
@@ -546,55 +406,54 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
                     }
                     lv_free((void **) &graph_json);
                 }
-            } else if (json_reader_peek(&r) == 'n') {
+            } else if (lv_json_peek(&p) == 'n') {
                 /* null - 跳过 "null" */
-                r.pos += 4;
+                p.pos += 4;
             }
         } else {
             /* 跳过未知键的值 */
-            if (json_reader_peek(&r) == '"') {
-                char *tmp = json_reader_read_string(&r);
+            if (lv_json_peek(&p) == '"') {
+                char *tmp = lv_json_parse_string(&p);
                 lv_free((void **) &tmp);
-            } else if (json_reader_peek(&r) == '[') {
-                int count = json_reader_count_array_elements(&r);
-                (void) count;
-            } else if (json_reader_peek(&r) == '{') {
-                /* 跳过嵌套对象 */
-                r.pos++;
+            } else if (lv_json_peek(&p) == '[') {
+                lv_json_skip_value(&p);
+            } else if (lv_json_peek(&p) == '{') {
+                /* 跳过嵌套对象（逐字符扫描，保留空白） */
+                lv_json_next(&p);
                 int depth = 1;
-                while (r.pos < r.size && depth > 0) {
-                    char c = r.data[r.pos];
+                while (p.pos < p.size && depth > 0) {
+                    char c = p.data[p.pos];
                     if (c == '"') {
-                        r.pos++;
-                        while (r.pos < r.size && r.data[r.pos] != '"') {
-                            if (r.data[r.pos] == '\\')
-                                r.pos++;
-                            r.pos++;
+                        p.pos++;
+                        while (p.pos < p.size && p.data[p.pos] != '"') {
+                            if (p.data[p.pos] == '\\')
+                                p.pos++;
+                            p.pos++;
                         }
-                        if (r.pos < r.size)
-                            r.pos++;
+                        if (p.pos < p.size)
+                            p.pos++;
                     } else if (c == '{') {
                         depth++;
-                        r.pos++;
+                        p.pos++;
                     } else if (c == '}') {
                         depth--;
-                        r.pos++;
+                        p.pos++;
                     } else {
-                        r.pos++;
+                        p.pos++;
                     }
                 }
             } else {
                 /* 跳过数字/布尔/null */
-                while (r.pos < r.size && json_reader_peek(&r) != ',' && json_reader_peek(&r) != '}') {
-                    r.pos++;
+                while (lv_json_peek(&p) != ',' && lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                    lv_json_next(&p);
                 }
             }
         }
 
         lv_free((void **) &key);
 
-        if (json_reader_peek(&r) == ',')
-            r.pos++;
+        if (lv_json_peek(&p) == ',')
+            lv_json_next(&p);
     }
 
     /* 创建模块 */

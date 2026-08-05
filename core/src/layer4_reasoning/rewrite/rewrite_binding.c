@@ -181,10 +181,7 @@ static const AddConstraintFn kAddConstraintHandlers[] = {
 
 bool add_constraint_generic(ConstraintGraph *graph, ConstraintType type, const int *participants,
                             int participant_count) {
-    if ((unsigned)type < sizeof(kAddConstraintHandlers)/sizeof(kAddConstraintHandlers[0]) && kAddConstraintHandlers[type]) {
-        return kAddConstraintHandlers[type](graph, participants, participant_count);
-    }
-    return false;
+    return LV_DISPATCH(kAddConstraintHandlers, type, false, graph, participants, participant_count);
 }
 
 /**
