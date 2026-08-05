@@ -57,7 +57,7 @@ static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
     if (expr->var_name) {
         copy->var_name = lv_strdup_safe(expr->var_name);
         if (!copy->var_name) {
-            lv_free((void **)&(copy));
+            sym_expr_destroy(copy);
             lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_deep_copy: strdup var_name failed");
         }
     }
@@ -65,21 +65,15 @@ static lvSymExpr *sym_expr_deep_copy(const lvSymExpr *expr) {
     if (expr->child_count > 0 && expr->children) {
         copy->children = (lvSymExpr **) lv_calloc((size_t) expr->child_count, sizeof(lvSymExpr *));
         if (!copy->children) {
-            lv_free((void **)&(copy->var_name));
-            lv_free((void **)&(copy));
+            sym_expr_destroy(copy);
             lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_deep_copy: calloc children failed");
         }
         copy->child_count = expr->child_count;
         for (int i = 0; i < expr->child_count; i++) {
             copy->children[i] = sym_expr_deep_copy(expr->children[i]);
             if (!copy->children[i]) {
-                /* Cleanup partially built copy */
-                for (int j = 0; j < i; j++) {
-                    sym_expr_destroy(copy->children[j]);
-                }
-                lv_free((void **)&(copy->children));
-                lv_free((void **)&(copy->var_name));
-                lv_free((void **)&(copy));
+                /* Cleanup partially built copy（sym_expr_destroy 对 NULL 子项安全） */
+                sym_expr_destroy(copy);
                 lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_deep_copy: child copy failed");
             }
         }

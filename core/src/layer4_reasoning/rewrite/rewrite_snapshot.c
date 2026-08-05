@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/node_deep_copy.h"
 #include "lv/rewrite.h"
 
 #include "debug.h"
@@ -29,29 +30,18 @@
 /* ========================================================================
  * H4: Snapshot 操作 VTable — 替代 GeomType switch 语句
  * ======================================================================== */
-typedef bool (*SnapshotNodeCopyFn)(GeomNode *dst, const GeomNode *src);
 typedef void (*SnapshotNodeDestroyFn)(GeomNode *node);
 typedef void (*SnapshotNodeCleanupFn)(GeomNode *node);
 
 typedef struct {
-    SnapshotNodeCopyFn   deep_copy_data;
     SnapshotNodeDestroyFn destroy_data;
     SnapshotNodeCleanupFn cleanup_data;
 } SnapshotNodeOps;
 
-/* ---- 类型特定 handler 函数 ---- */
+/* ---- 类型特定 handler 函数（节点深拷贝统一走 node_deep_copy_geom_node，
+ *     原 copy_port_data/copy_region_data/copy_func_block_data 三套 handler
+ *     与其 DataCopyHandler 完全同构，已收敛删除） ---- */
 
-/* Port: 拷贝 Port 结构体，清空 connected_to 指针 */
-static bool copy_port_data(GeomNode *dst, const GeomNode *src) {
-    if (src->data.port) {
-        dst->data.port = lv_calloc(1, sizeof(Port));
-        if (dst->data.port) {
-            memcpy(dst->data.port, src->data.port, sizeof(Port));
-            dst->data.port->connected_to = NULL;
-        }
-    }
-    return true;
-}
 static void destroy_port_data(GeomNode *node) {
     lv_free((void **) &node->data.port);
 }
@@ -59,21 +49,6 @@ static void cleanup_port_data(GeomNode *node) {
     lv_free((void **) &node->data.port);
 }
 
-/* Region: 拷贝 boundary_segments 数组（指针清零，后续通过 ID 映射重绑定） */
-static bool copy_region_data(GeomNode *dst, const GeomNode *src) {
-    dst->data.region.boundary_segments = NULL;
-    dst->data.region.segment_count = 0;
-    if (src->data.region.segment_count > 0 && src->data.region.boundary_segments) {
-        dst->data.region.boundary_segments =
-            lv_malloc((size_t) src->data.region.segment_count * sizeof(GeomNode *));
-        if (dst->data.region.boundary_segments) {
-            dst->data.region.segment_count = src->data.region.segment_count;
-            memset(dst->data.region.boundary_segments, 0,
-                   (size_t) src->data.region.segment_count * sizeof(GeomNode *));
-        }
-    }
-    return true;
-}
 static void destroy_region_data(GeomNode *node) {
     lv_free((void **) &node->data.region.boundary_segments);
 }
@@ -81,45 +56,6 @@ static void cleanup_region_data(GeomNode *node) {
     lv_free((void **) &node->data.region.boundary_segments);
 }
 
-/* Function Block: 拷贝 internal_nodes / input_port_ids / output_port_ids */
-static bool copy_func_block_data(GeomNode *dst, const GeomNode *src) {
-    dst->data.func_block.internal_nodes = NULL;
-    dst->data.func_block.input_port_ids = NULL;
-    dst->data.func_block.output_port_ids = NULL;
-    dst->data.func_block.internal_node_count = 0;
-    dst->data.func_block.input_count = 0;
-    dst->data.func_block.output_count = 0;
-    dst->data.func_block.determinism_state = src->data.func_block.determinism_state;
-
-    if (src->data.func_block.internal_node_count > 0 && src->data.func_block.internal_nodes) {
-        dst->data.func_block.internal_nodes =
-            lv_malloc((size_t) src->data.func_block.internal_node_count * sizeof(GeomNode *));
-        if (dst->data.func_block.internal_nodes) {
-            dst->data.func_block.internal_node_count = src->data.func_block.internal_node_count;
-            memset(dst->data.func_block.internal_nodes, 0,
-                   (size_t) src->data.func_block.internal_node_count * sizeof(GeomNode *));
-        }
-    }
-    if (src->data.func_block.input_count > 0 && src->data.func_block.input_port_ids) {
-        dst->data.func_block.input_port_ids =
-            lv_malloc((size_t) src->data.func_block.input_count * sizeof(int));
-        if (dst->data.func_block.input_port_ids) {
-            memcpy(dst->data.func_block.input_port_ids, src->data.func_block.input_port_ids,
-                   (size_t) src->data.func_block.input_count * sizeof(int));
-            dst->data.func_block.input_count = src->data.func_block.input_count;
-        }
-    }
-    if (src->data.func_block.output_count > 0 && src->data.func_block.output_port_ids) {
-        dst->data.func_block.output_port_ids =
-            lv_malloc((size_t) src->data.func_block.output_count * sizeof(int));
-        if (dst->data.func_block.output_port_ids) {
-            memcpy(dst->data.func_block.output_port_ids, src->data.func_block.output_port_ids,
-                   (size_t) src->data.func_block.output_count * sizeof(int));
-            dst->data.func_block.output_count = src->data.func_block.output_count;
-        }
-    }
-    return true;
-}
 static void destroy_func_block_data(GeomNode *node) {
     lv_free((void **) &node->data.func_block.internal_nodes);
     lv_free((void **) &node->data.func_block.input_port_ids);
@@ -132,12 +68,12 @@ static void cleanup_func_block_data(GeomNode *node) {
 }
 
 /* ---- VTable 实例表 ---- */
-static const SnapshotNodeOps kPointSnapshotOps =           {NULL, NULL, NULL};
-static const SnapshotNodeOps kLineSegmentSnapshotOps =     {NULL, NULL, NULL};
-static const SnapshotNodeOps kRegionSnapshotOps =           {copy_region_data, destroy_region_data, cleanup_region_data};
-static const SnapshotNodeOps kCircleSnapshotOps =           {NULL, NULL, NULL};
-static const SnapshotNodeOps kPortSnapshotOps =             {copy_port_data, destroy_port_data, cleanup_port_data};
-static const SnapshotNodeOps kFuncBlockSnapshotOps =        {copy_func_block_data, destroy_func_block_data, cleanup_func_block_data};
+static const SnapshotNodeOps kPointSnapshotOps =           {NULL, NULL};
+static const SnapshotNodeOps kLineSegmentSnapshotOps =     {NULL, NULL};
+static const SnapshotNodeOps kRegionSnapshotOps =           {destroy_region_data, cleanup_region_data};
+static const SnapshotNodeOps kCircleSnapshotOps =           {NULL, NULL};
+static const SnapshotNodeOps kPortSnapshotOps =             {destroy_port_data, cleanup_port_data};
+static const SnapshotNodeOps kFuncBlockSnapshotOps =        {destroy_func_block_data, cleanup_func_block_data};
 
 static const SnapshotNodeOps *kSnapshotNodeOpsTable[] = {
     [GEOM_POINT]          = &kPointSnapshotOps,
@@ -157,78 +93,16 @@ static const SnapshotNodeOps *get_snapshot_ops(GeomType type) {
 
 /* 深拷贝单个 GeomNode
  *
- * 【内存管理策略】此函数对所有动态分配的字段执行深拷贝：
- *   - symbolic_coords: 对每个坐标调用 symbolic_coord_copy()（堆分配独立副本）
- *   - numeric_assumption_declaration: 通过 lv_strdup_safe() 复制字符串（堆分配独立副本）
- *   - data.port / data.region / data.func_block: 分配独立副本，但内部指针
- *     （如 connected_to、boundary_segments、internal_nodes）在拷贝时置为 NULL，
- *     需要在图快照恢复阶段通过 ID 映射重新绑定
- *
- * 所有权模型：返回的 GeomNode 由调用者拥有，需通过 free_geomnodes_and_data()
- * 或 graph_snapshot_destroy() 释放。可被部分失败的分配可通过返回前回滚已分配
- * 资源来保持无泄漏。
+ * 统一委托给 node_deep_copy_geom_node()（原 SnapshotNodeOps 三套
+ * copy_*_data handler 与其 DataCopyHandler 完全同构，已收敛删除）。
+ * node_deep_copy 对坐标/字符串/类型特定数据执行深拷贝；端口 connected_to
+ * 与区域/函数块内部引用置空/拷贝源引用后，在图快照恢复阶段通过 ID 映射重绑定。
  *
  * @param src 源节点（不修改）
  * @return 深拷贝的节点，失败返回 NULL（已分配资源已回滚）
  */
 static GeomNode *graph_node_deep_copy(const GeomNode *src) {
-    if (!src)
-        return NULL;
-    GeomNode *dst = lv_calloc(1, sizeof(GeomNode));
-    if (!dst)
-        return NULL;
-    memcpy(dst, src, sizeof(GeomNode));
-    /* 清零 union data，避免 GEOM_POINT 等类型继承源节点的悬垂指针 */
-    memset(&dst->data, 0, sizeof(dst->data));
-
-    /* 深拷贝符号坐标 */
-    dst->symbolic_coords = NULL;
-    if (src->coord_count > 0 && src->symbolic_coords) {
-        dst->symbolic_coords = lv_malloc((size_t) src->coord_count * sizeof(SymbolicCoord *));
-        if (dst->symbolic_coords) {
-            for (int c = 0; c < src->coord_count; c++) {
-                dst->symbolic_coords[c] = symbolic_coord_copy(src->symbolic_coords[c]);
-                if (!dst->symbolic_coords[c]) {
-                    for (int j = 0; j < c; j++)
-                        symbolic_coord_destroy(dst->symbolic_coords[j]);
-                    lv_free((void **) &dst->symbolic_coords);
-                    dst->symbolic_coords = NULL;
-                    dst->coord_count = 0;
-                    lv_free((void **) &dst);
-                    return NULL;
-                }
-            }
-        }
-    }
-
-    /* 深拷贝 numeric_assumption_declaration
-     * 【内存管理策略】strdup 在堆上分配独立副本，所有权转移给新节点 dst。
-     * 调用者无需关心源字符串的生命周期。若分配失败（返回 NULL），
-     * 整个深拷贝操作视为失败，需回滚已分配的所有资源。 */
-    dst->numeric_assumption_declaration = NULL;
-    if (src->numeric_assumption_declaration) {
-        dst->numeric_assumption_declaration = lv_strdup_safe(src->numeric_assumption_declaration);
-        if (!dst->numeric_assumption_declaration) {
-            /* strdup 分配失败：回滚已分配的符号坐标资源 */
-            if (dst->symbolic_coords) {
-                for (int j = 0; j < src->coord_count; j++) {
-                    if (dst->symbolic_coords[j])
-                        symbolic_coord_destroy(dst->symbolic_coords[j]);
-                }
-                lv_free((void **) &dst->symbolic_coords);
-            }
-            lv_free((void **) &dst);
-            return NULL;
-        }
-    }
-
-    /* 深拷贝类型特定数据（通过 VTable 分发） */
-    const SnapshotNodeOps *ops = get_snapshot_ops(src->type);
-    if (ops && ops->deep_copy_data) {
-        ops->deep_copy_data(dst, src);
-    }
-
-    return dst;
+    return node_deep_copy_geom_node(src, NULL);
 }
 
 /**
@@ -610,6 +484,10 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
             GeomNode *port_node = graph->nodes[ref->port_node_index];
             if (!port_node || port_node->type != GEOM_PORT || !port_node->data.port)
                 continue;
+            /* 先置空，再在新图中查找 connected_to_id 对应的节点。
+             * node_deep_copy_geom_node 复制时保留源引用，置空可避免
+             * 找不到目标时残留指向源图的悬垂指针。 */
+            port_node->data.port->connected_to = NULL;
             /* 在新图中查找 connected_to_id 对应的节点 */
             for (int i = 0; i < graph->node_count; i++) {
                 if (graph->nodes[i]->id == ref->connected_to_id) {
@@ -627,6 +505,9 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
             if (!region_node || region_node->type != GEOM_REGION)
                 continue;
             if (region_node->data.region.boundary_segments && ref->segment_ids) {
+                /* 先清零（node_deep_copy 复制时保留源引用），再按 segment_ids 重绑定 */
+                for (int s = 0; s < region_node->data.region.segment_count; s++)
+                    region_node->data.region.boundary_segments[s] = NULL;
                 for (int k = 0; k < ref->segment_count && k < region_node->data.region.segment_count; k++) {
                     if (ref->segment_ids[k] < 0)
                         continue;
@@ -648,6 +529,9 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
             if (!fb_node || fb_node->type != GEOM_FUNCTION_BLOCK)
                 continue;
             if (fb_node->data.func_block.internal_nodes && ref->internal_node_ids) {
+                /* 先清零（node_deep_copy 复制时保留源引用），再按 internal_node_ids 重绑定 */
+                for (int s = 0; s < fb_node->data.func_block.internal_node_count; s++)
+                    fb_node->data.func_block.internal_nodes[s] = NULL;
                 for (int k = 0; k < ref->internal_node_count && k < fb_node->data.func_block.internal_node_count; k++) {
                     if (ref->internal_node_ids[k] < 0)
                         continue;

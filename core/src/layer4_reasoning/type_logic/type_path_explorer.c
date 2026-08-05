@@ -34,12 +34,7 @@
  */
 extern lv_THREAD_LOCAL StreamContext *type_system_stream_ctx;
 
-/*
- * type_region_deep_copy 和 type_region_deep_free 在 type_system.c 中定义，
- * 通过 extern 链接到本文件。
- * type_region_deep_free 已在 type_system.h 中声明。
- */
-extern TypeRegion *type_region_deep_copy(const TypeRegion *src);
+/* type_region_deep_copy / type_region_deep_free 声明统一收口到 type_system.h */
 
 /* ============== 路径探索器 (PathExplorer) ============== */
 

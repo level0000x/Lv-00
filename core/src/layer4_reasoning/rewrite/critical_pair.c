@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 关键对计算引擎实现
  *
  * 核心算法：
@@ -41,35 +41,6 @@
  * ============================================================================ */
 
 /**
- * @brief 通过快照机制深拷贝一个约束图
- *
- * ConstraintGraph 没有内建 clone，使用 GraphSnapshot 间接实现：
- * 将源图序列化为快照，再恢复到新图中。
- *
- * @param src  源约束图（不可为 NULL）
- * @return 独立副本，调用者负责 graph_destroy；失败返回 NULL
- */
-static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
-    if (!src)
-        return NULL;
-    GraphSnapshot *snap = graph_snapshot_create(src);
-    if (!snap)
-        return NULL;
-    ConstraintGraph *copy = graph_create();
-    if (!copy) {
-        graph_snapshot_destroy(snap);
-        return NULL;
-    }
-    if (!graph_snapshot_restore(snap, copy)) {
-        graph_snapshot_destroy(snap);
-        graph_destroy(copy);
-        return NULL;
-    }
-    graph_snapshot_destroy(snap);
-    return copy;
-}
-
-/**
  * @brief 使用 VF2 在图模式中查找一个匹配
  *
  * @param graph       目标约束图
@@ -97,7 +68,7 @@ static ConstraintGraph *apply_rule_once(ConstraintGraph *graph, RewriteRule *rul
     if (!graph || !rule || !rule->pattern)
         return NULL;
 
-    ConstraintGraph *work = graph_deep_copy(graph);
+    ConstraintGraph *work = graph_copy(graph);
     if (!work)
         return NULL;
 
@@ -116,7 +87,7 @@ static ConstraintGraph *apply_rule_once(ConstraintGraph *graph, RewriteRule *rul
 
     /* 归约失败，返回未修改的副本并丢弃工作图 */
     graph_destroy(work);
-    return graph_deep_copy(graph);
+    return graph_copy(graph);
 }
 
 /**

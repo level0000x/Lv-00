@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  * 交互式类型等价探索器引擎实现
  *
  * 核心算法：BFS 双向搜索
@@ -24,9 +24,7 @@
 
 #include "lv/rewrite.h"
 
-/* ---- 外部函数声明（type_system.c 内部函数） ---- */
-extern TypeRegion *type_region_deep_copy(const TypeRegion *src);
-extern void type_region_deep_free(TypeRegion *tr);
+/* ---- 外部函数声明（type_region 深拷贝/释放声明已收口到 type_system.h） ---- */
 extern bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized);
 
 /* ---- 内部常量 ------------------------------------------------------------- */

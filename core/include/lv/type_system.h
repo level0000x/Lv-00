@@ -198,6 +198,21 @@ struct TypeVariable {
     bool is_polymorphic;    /* 是否为多态变量 */
 };
 
+/* ============== 类型区域深拷贝/释放（type_system.c 实现） ============== */
+
+/**
+ * @brief 深拷贝类型区域（递归复制子类型与字符串字段，供撤销栈/快照使用）
+ * @param src 源类型区域
+ * @return 新分配的深拷贝，失败返回 NULL
+ */
+TypeRegion *type_region_deep_copy(const TypeRegion *src);
+
+/**
+ * @brief 释放 type_region_deep_copy 产生的类型区域（递归释放子类型与字符串）
+ * @param tr 要释放的类型区域
+ */
+void type_region_deep_free(TypeRegion *tr);
+
 /* ============== 类型等价检查结果 ============== */
 typedef enum {
     TYPE_EQUIV_OK,               /* 类型等价 */
