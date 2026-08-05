@@ -27,6 +27,7 @@
 #include "lv/geometry_config.h"
 #include "lv/interval_arithmetic.h"
 #include "lv/lv_utils.h"
+#include "lv/geo_utils.h"
 
 /* 确保 lv_PUBLIC_API 已定义 */
 #ifndef lv_PUBLIC_API
@@ -267,7 +268,7 @@ static lvOrientation orientation_2d_approx(double p1x, double p1y, double p2x, d
                                            double eps) {
     g_predicate_stats.approx_count++;
 
-    double cross = (p2x - p1x) * (p3y - p1y) - (p3x - p1x) * (p2y - p1y);
+    double cross = geo_signed_area_2x(p1x, p1y, p2x, p2y, p3x, p3y);
 
     /*
      * 自适应阈值：当 |cross| 相对于输入坐标的量级足够大时，
@@ -361,7 +362,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x
 
     /* 自适应模式：先浮点，不确定时切换精确 */
     {
-        double cross = (p2x - p1x) * (p3y - p1y) - (p3x - p1x) * (p2y - p1y);
+        double cross = geo_signed_area_2x(p1x, p1y, p2x, p2y, p3x, p3y);
 
         /*
          * 自适应阈值：当 |cross| 相对于输入坐标的量级足够大时，

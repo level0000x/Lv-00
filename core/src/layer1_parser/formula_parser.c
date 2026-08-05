@@ -16,17 +16,13 @@
  */
 
 /* ============================================================
- * 魔法数字常量定义
+ * 上限常量
+ *
+ * 解析器各类上限统一由 lvConfig.parser.*（lv_config_current()）在
+ * 运行时提供（见 formula_dsl.c / formula_python.c / parser_safety.c）。
+ * 编译期数组维度常量定义于 formula_parser.h（lv_MAX_COORDINATES 等），
+ * 其值须 ≥ 对应配置默认值，保证配置调大时栈数组不越界。
  * ============================================================ */
-
-#define lv_MAX_COORDINATES 16      /**< 坐标列表最大元素数量 */
-#define lv_MAX_VERTICES 32         /**< 顶点列表最大元素数量 */
-#define lv_MAX_POLYGON_VERTICES 32 /**< 多边形顶点最大数量 */
-#define lv_MAX_STATEMENTS 64       /**< 复合语句最大子语句数量 */
-#define lv_MAX_ARGUMENTS 16        /**< 函数参数列表最大元素数量 */
-#define lv_MAX_PARTICIPANTS 16     /**< 约束参与者最大数量 */
-#define lv_MAX_BUFFER_SIZE 256     /**< 错误消息缓冲区大小 */
-#define lv_MAX_TEMP_MSG_SIZE 128   /**< 临时错误消息/诊断缓冲区大小 */
 
 #include "formula_parser.h"
 
@@ -213,7 +209,7 @@ bool formula_match_and_consume(ParserContext *ctx, const char *str) {
     }
     size_t len = strlen(str);
     for (size_t i = 0; i < len; i++) {
-        consume(ctx);
+        formula_consume(ctx);
     }
     return true;
 }
@@ -232,14 +228,14 @@ bool formula_match_and_consume(ParserContext *ctx, const char *str) {
 bool formula_expect_char(ParserContext *ctx, char c) {
     if (formula_peek(ctx) != c) {
         lvStrBuf sb = {0};
-        lv_strbuf_printf(&sb, "Expected '%c' but got '%s'", c, peek(ctx) ? "unexpected char" : "EOF");
+        lv_strbuf_printf(&sb, "Expected '%c' but got '%s'", c, formula_peek(ctx) ? "unexpected char" : "EOF");
         /* 使用 lv_strlcpy 替代不安全的 strncpy */
         lv_strlcpy(ctx->error_message, sb.data, sizeof(ctx->error_message));
         ctx->has_error = true;
         lv_strbuf_destroy(&sb);
         return false;
     }
-    consume(ctx);
+    formula_consume(ctx);
     return true;
 }
 
@@ -290,7 +286,7 @@ bool formula_is_alpha(char c) {
  * @brief 检查字符是否为字母或数字
  *
  * 判断字符是否为英文字母（a-z, A-Z）、数字（0-9）或下划线（_）。
- * 实质上等价于 is_alpha() 与数字检查的组合。
+ * 实质上等价于 formula_is_alpha() 与数字检查的组合。
  *
  * @param c 要检查的字符
  * @return true 字符是字母、数字或下划线

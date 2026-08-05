@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：DSL 编译器 (dsl_compiler)
  * 功能概述：借鉴 Ganja.js 的 AST 转译和 GCLC 几何构造语言，提供从
  *          DSL 源码到约束图的完整编译管线。包含词法分析、语法解析、
@@ -324,6 +324,8 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count);
  *
  * @param tokens token 数组
  * @param count  token 数量
+ * @note 数组销毁必须携带 count（token 数组不以哨兵终止），
+ *       与主流单对象约定 void xxx_destroy(T*) 不同，属数组释放变体。
  */
 void dsl_tokens_destroy(DslToken *tokens, int count);
 

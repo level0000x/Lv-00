@@ -371,6 +371,343 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
     return p;
 }
 
+/* ── func_block 反序列化字段分发（查找表 + 复用 lv_str_match_delimited，替代手写 strcmp 链） ── */
+
+/** @brief determinism 值→枚举 查找表（前缀匹配，替代 4 分支 strncmp 链） */
+static const struct {
+    const char *name;
+    size_t len;
+    DeterminismState state;
+} kDeterminismValueTable[] = {
+    {"VERIFIED", 8, DETERMINISM_VERIFIED},
+    {"NON_DETERMINISTIC", 17, DETERMINISM_NON_DETERMINISTIC},
+    {"PARTIALLY_VERIFIED", 19, DETERMINISM_PARTIALLY_VERIFIED},
+    {"UNVERIFIED", 10, DETERMINISM_UNVERIFIED},
+};
+
+/** @brief view_state 值→枚举 查找表（前缀匹配，替代 2 分支 strncmp 链，未命中回退 EXPANDED） */
+static const struct {
+    const char *name;
+    size_t len;
+    FuncBlockViewState state;
+} kViewStateValueTable[] = {
+    {"COLLAPSED", 9, FB_VIEW_COLLAPSED},
+    {"PINNED", 6, FB_VIEW_PINNED},
+};
+
+typedef void (*FuncBlockFieldHandler)(FuncBlock *fb, const char **pp);
+
+static void fb_field_id(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        int val;
+        p = parse_int(p, &val);
+        fb->id = val;
+    }
+    *pp = p;
+}
+
+static void fb_field_name(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        char *name;
+        p = parse_quoted_string(p, &name);
+        lv_free((void **) &fb->name);
+        fb->name = name;
+    }
+    *pp = p;
+}
+
+static void fb_field_description(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        char *desc;
+        p = parse_quoted_string(p, &desc);
+        lv_free((void **) &fb->description);
+        fb->description = desc;
+    }
+    *pp = p;
+}
+
+static void fb_field_determinism(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        p = skip_whitespace(p);
+        /* 值查表（替代 4 分支 strncmp 链） */
+        bool matched = false;
+        for (size_t i = 0; i < lv_ARRAY_SIZE(kDeterminismValueTable); i++) {
+            if (strncmp(p, kDeterminismValueTable[i].name, kDeterminismValueTable[i].len) == 0) {
+                fb->determinism = kDeterminismValueTable[i].state;
+                p += kDeterminismValueTable[i].len;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            /* 跳过未知值到行尾 */
+            while (*p && *p != '\n')
+                p++;
+        }
+    }
+    *pp = p;
+}
+
+static void fb_field_view_state(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        p = skip_whitespace(p);
+        /* 值查表（替代 2 分支 strncmp 链，未命中回退 EXPANDED） */
+        bool matched = false;
+        for (size_t i = 0; i < lv_ARRAY_SIZE(kViewStateValueTable); i++) {
+            if (strncmp(p, kViewStateValueTable[i].name, kViewStateValueTable[i].len) == 0) {
+                fb->view_state = kViewStateValueTable[i].state;
+                p += kViewStateValueTable[i].len;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            fb->view_state = FB_VIEW_EXPANDED;
+            while (*p && *p != '\n')
+                p++;
+        }
+    }
+    *pp = p;
+}
+
+static void fb_field_internal_nodes(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        int *arr = NULL;
+        int count = 0;
+        p = parse_int_array(p, &arr, &count);
+        func_block_set_internal_nodes(fb, arr, count);
+        lv_free((void **) &arr);
+    }
+    *pp = p;
+}
+
+static void fb_field_input_ports(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        int *arr = NULL;
+        int count = 0;
+        p = parse_int_array(p, &arr, &count);
+        func_block_set_input_ports(fb, arr, count);
+        lv_free((void **) &arr);
+    }
+    *pp = p;
+}
+
+static void fb_field_output_ports(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        int *arr = NULL;
+        int count = 0;
+        p = parse_int_array(p, &arr, &count);
+        func_block_set_output_ports(fb, arr, count);
+        lv_free((void **) &arr);
+    }
+    *pp = p;
+}
+
+/* selector 嵌套字段关键字表 */
+static const char *const kSelectorKeys[] = {"type", "reference_node_id", NULL};
+
+static void fb_field_selector(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '{') {
+        p++;
+        int sel_type = 0;
+        int ref_id = -1;
+        while (*p && *p != '}') {
+            p = skip_whitespace(p);
+            /* 嵌套字段查表（复用 lv_str_match_delimited，替代 2 分支手写链） */
+            int idx = lv_str_match_delimited(p, kSelectorKeys);
+            if (idx == 0) { /* type */
+                p += strlen("type");
+                p = skip_whitespace(p);
+                if (*p == '=') {
+                    p++;
+                    p = parse_int(p, &sel_type);
+                }
+            } else if (idx == 1) { /* reference_node_id */
+                p += strlen("reference_node_id");
+                p = skip_whitespace(p);
+                if (*p == '=') {
+                    p++;
+                    p = parse_int(p, &ref_id);
+                }
+            } else {
+                p++;
+            }
+        }
+        if (*p == '}')
+            p++;
+        SolutionSelector *sel = selector_create_with_reference((SelectorType) sel_type, ref_id);
+        if (sel)
+            func_block_set_selector(fb, sel);
+    }
+    *pp = p;
+}
+
+/* port_dep 嵌套字段关键字表 */
+static const char *const kPortDepKeys[] = {"type", "port_id", "external_node_id", "internal_node_id", NULL};
+
+static void fb_field_port_dep(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '{') {
+        p++;
+        PortDependency dep;
+        memset(&dep, 0, sizeof(dep));
+        dep.port_id = -1;
+        dep.external_node_id = -1;
+        dep.internal_node_id = -1;
+        while (*p && *p != '}') {
+            p = skip_whitespace(p);
+            /* 嵌套字段查表（复用 lv_str_match_delimited，替代 4 分支手写链） */
+            int idx = lv_str_match_delimited(p, kPortDepKeys);
+            if (idx == 0) { /* type */
+                p += strlen("type");
+                p = skip_whitespace(p);
+                if (*p == '=') {
+                    p++;
+                    p = skip_whitespace(p);
+                    /* 读取类型字符串 */
+                    const char *start = p;
+                    while (*p && *p != '\n' && *p != ' ' && *p != '}')
+                        p++;
+                    size_t len = (size_t) (p - start);
+                    char *type_str = lv_malloc(len + 1);
+                    if (type_str) {
+                        memcpy(type_str, start, len);
+                        type_str[len] = '\0';
+                        dep.type = port_dep_type_from_string(type_str);
+                        lv_free((void **) &type_str);
+                    }
+                }
+            } else if (idx == 1) { /* port_id */
+                p += strlen("port_id");
+                p = skip_whitespace(p);
+                if (*p == '=') {
+                    p++;
+                    p = parse_int(p, &dep.port_id);
+                }
+            } else if (idx == 2) { /* external_node_id */
+                p += strlen("external_node_id");
+                p = skip_whitespace(p);
+                if (*p == '=') {
+                    p++;
+                    p = parse_int(p, &dep.external_node_id);
+                }
+            } else if (idx == 3) { /* internal_node_id */
+                p += strlen("internal_node_id");
+                p = skip_whitespace(p);
+                if (*p == '=') {
+                    p++;
+                    p = parse_int(p, &dep.internal_node_id);
+                }
+            } else {
+                p++;
+            }
+        }
+        if (*p == '}')
+            p++;
+        func_block_add_port_dependency(fb, &dep);
+    }
+    *pp = p;
+}
+
+static void fb_field_preconditions(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '=') {
+        p++;
+        int *arr = NULL;
+        int count = 0;
+        p = parse_int_array(p, &arr, &count);
+        func_block_set_preconditions(fb, arr, count);
+        lv_free((void **) &arr);
+    }
+    *pp = p;
+}
+
+/* measure 嵌套字段关键字表 */
+static const char *const kMeasureKeys[] = {"node_id", NULL};
+
+static void fb_field_measure(FuncBlock *fb, const char **pp) {
+    const char *p = *pp;
+    p = skip_whitespace(p);
+    if (*p == '{') {
+        p++;
+        int node_id = -1;
+        while (*p && *p != '}') {
+            p = skip_whitespace(p);
+            /* 嵌套字段查表（复用 lv_str_match_delimited，替代单分支手写链） */
+            if (lv_str_match_delimited(p, kMeasureKeys) == 0) { /* node_id */
+                p += strlen("node_id");
+                p = skip_whitespace(p);
+                if (*p == '=') {
+                    p++;
+                    p = parse_int(p, &node_id);
+                }
+            } else {
+                p++;
+            }
+        }
+        if (*p == '}')
+            p++;
+        if (node_id >= 0) {
+            fb->has_measure = true;
+            fb->measure_node_id = node_id;
+        }
+    }
+    *pp = p;
+}
+
+/** @brief 函数块顶层字段关键字表（顺序与 kFuncBlockFieldTable 一致） */
+static const char *const kFuncBlockKeys[] = {
+    "id", "name", "description", "determinism", "view_state", "internal_nodes",
+    "input_ports", "output_ports", "selector", "port_dep", "preconditions", "measure", NULL
+};
+
+/** @brief 函数块字段名→处理函数 查找表（替代 12 分支手写关键字匹配链） */
+static const struct {
+    const char *name;
+    FuncBlockFieldHandler handler;
+} kFuncBlockFieldTable[] = {
+    {"id", fb_field_id},
+    {"name", fb_field_name},
+    {"description", fb_field_description},
+    {"determinism", fb_field_determinism},
+    {"view_state", fb_field_view_state},
+    {"internal_nodes", fb_field_internal_nodes},
+    {"input_ports", fb_field_input_ports},
+    {"output_ports", fb_field_output_ports},
+    {"selector", fb_field_selector},
+    {"port_dep", fb_field_port_dep},
+    {"preconditions", fb_field_preconditions},
+    {"measure", fb_field_measure},
+};
+
 /**
  * @brief 反序列化函数块状态
  *
@@ -399,253 +736,17 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
         if (*p == '}')
             break;
 
-/* 辅助宏：检查字符位置是否为键值分隔符或结束符 */
-#define IS_KEY_BOUNDARY(s, off) \
-    ((s)[off] == ' ' || (s)[off] == '=' || (s)[off] == '\t' || (s)[off] == '\0' || (s)[off] == '\n' || (s)[off] == '{')
-
-        /* 解析键名 */
-        if (strncmp(p, "id", 2) == 0 && IS_KEY_BOUNDARY(p, 2)) {
-            p += 2;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                int val;
-                p = parse_int(p, &val);
-                fb->id = val;
-            }
-        } else if (strncmp(p, "name", 4) == 0 && IS_KEY_BOUNDARY(p, 4)) {
-            p += 4;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                char *name;
-                p = parse_quoted_string(p, &name);
-                lv_free((void **) &fb->name);
-                fb->name = name;
-            }
-        } else if (strncmp(p, "description", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
-            p += 11;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                char *desc;
-                p = parse_quoted_string(p, &desc);
-                lv_free((void **) &fb->description);
-                fb->description = desc;
-            }
-        } else if (strncmp(p, "determinism", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
-            p += 11;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                p = skip_whitespace(p);
-                if (strncmp(p, "VERIFIED", 8) == 0) {
-                    fb->determinism = DETERMINISM_VERIFIED;
-                    p += 8;
-                } else if (strncmp(p, "NON_DETERMINISTIC", 17) == 0) {
-                    fb->determinism = DETERMINISM_NON_DETERMINISTIC;
-                    p += 17;
-                } else if (strncmp(p, "PARTIALLY_VERIFIED", 19) == 0) {
-                    fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
-                    p += 19;
-                } else if (strncmp(p, "UNVERIFIED", 10) == 0) {
-                    fb->determinism = DETERMINISM_UNVERIFIED;
-                    p += 10;
-                } else {
-                    /* 跳过未知值到行尾 */
-                    while (*p && *p != '\n')
-                        p++;
-                }
-            }
-        } else if (strncmp(p, "view_state", 10) == 0 && IS_KEY_BOUNDARY(p, 10)) {
-            p += 10;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                p = skip_whitespace(p);
-                if (strncmp(p, "COLLAPSED", 9) == 0) {
-                    fb->view_state = FB_VIEW_COLLAPSED;
-                    p += 9;
-                } else if (strncmp(p, "PINNED", 6) == 0) {
-                    fb->view_state = FB_VIEW_PINNED;
-                    p += 6;
-                } else {
-                    fb->view_state = FB_VIEW_EXPANDED;
-                    while (*p && *p != '\n')
-                        p++;
-                }
-            }
-        } else if (strncmp(p, "internal_nodes", 14) == 0 && IS_KEY_BOUNDARY(p, 14)) {
-            p += 14;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                int *arr = NULL;
-                int count = 0;
-                p = parse_int_array(p, &arr, &count);
-                func_block_set_internal_nodes(fb, arr, count);
-                lv_free((void **) &arr);
-            }
-        } else if (strncmp(p, "input_ports", 11) == 0 && IS_KEY_BOUNDARY(p, 11)) {
-            p += 11;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                int *arr = NULL;
-                int count = 0;
-                p = parse_int_array(p, &arr, &count);
-                func_block_set_input_ports(fb, arr, count);
-                lv_free((void **) &arr);
-            }
-        } else if (strncmp(p, "output_ports", 12) == 0 && IS_KEY_BOUNDARY(p, 12)) {
-            p += 12;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                int *arr = NULL;
-                int count = 0;
-                p = parse_int_array(p, &arr, &count);
-                func_block_set_output_ports(fb, arr, count);
-                lv_free((void **) &arr);
-            }
-        } else if (strncmp(p, "selector", 8) == 0 && IS_KEY_BOUNDARY(p, 8)) {
-            p += 8;
-            p = skip_whitespace(p);
-            if (*p == '{') {
-                p++;
-                int sel_type = 0;
-                int ref_id = -1;
-                while (*p && *p != '}') {
-                    p = skip_whitespace(p);
-                    if (strncmp(p, "type", 4) == 0 && IS_KEY_BOUNDARY(p, 4)) {
-                        p += 4;
-                        p = skip_whitespace(p);
-                        if (*p == '=') {
-                            p++;
-                            p = parse_int(p, &sel_type);
-                        }
-                    } else if (strncmp(p, "reference_node_id", 18) == 0 && IS_KEY_BOUNDARY(p, 18)) {
-                        p += 18;
-                        p = skip_whitespace(p);
-                        if (*p == '=') {
-                            p++;
-                            p = parse_int(p, &ref_id);
-                        }
-                    } else {
-                        p++;
-                    }
-                }
-                if (*p == '}')
-                    p++;
-                SolutionSelector *sel = selector_create_with_reference((SelectorType) sel_type, ref_id);
-                if (sel)
-                    func_block_set_selector(fb, sel);
-            }
-        } else if (strncmp(p, "port_dep", 8) == 0 && IS_KEY_BOUNDARY(p, 8)) {
-            p += 8;
-            p = skip_whitespace(p);
-            if (*p == '{') {
-                p++;
-                PortDependency dep;
-                memset(&dep, 0, sizeof(dep));
-                dep.port_id = -1;
-                dep.external_node_id = -1;
-                dep.internal_node_id = -1;
-                while (*p && *p != '}') {
-                    p = skip_whitespace(p);
-                    if (strncmp(p, "type", 4) == 0 && IS_KEY_BOUNDARY(p, 4)) {
-                        p += 4;
-                        p = skip_whitespace(p);
-                        if (*p == '=') {
-                            p++;
-                            p = skip_whitespace(p);
-                            /* 读取类型字符串 */
-                            const char *start = p;
-                            while (*p && *p != '\n' && *p != ' ' && *p != '}')
-                                p++;
-                            size_t len = (size_t) (p - start);
-                            char *type_str = lv_malloc(len + 1);
-                            if (type_str) {
-                                memcpy(type_str, start, len);
-                                type_str[len] = '\0';
-                                dep.type = port_dep_type_from_string(type_str);
-                                lv_free((void **) &type_str);
-                            }
-                        }
-                    } else if (strncmp(p, "port_id", 7) == 0 && IS_KEY_BOUNDARY(p, 7)) {
-                        p += 7;
-                        p = skip_whitespace(p);
-                        if (*p == '=') {
-                            p++;
-                            p = parse_int(p, &dep.port_id);
-                        }
-                    } else if (strncmp(p, "external_node_id", 17) == 0 && IS_KEY_BOUNDARY(p, 17)) {
-                        p += 17;
-                        p = skip_whitespace(p);
-                        if (*p == '=') {
-                            p++;
-                            p = parse_int(p, &dep.external_node_id);
-                        }
-                    } else if (strncmp(p, "internal_node_id", 17) == 0 && IS_KEY_BOUNDARY(p, 17)) {
-                        p += 17;
-                        p = skip_whitespace(p);
-                        if (*p == '=') {
-                            p++;
-                            p = parse_int(p, &dep.internal_node_id);
-                        }
-                    } else {
-                        p++;
-                    }
-                }
-                if (*p == '}')
-                    p++;
-                func_block_add_port_dependency(fb, &dep);
-            }
-        } else if (strncmp(p, "preconditions", 13) == 0 && IS_KEY_BOUNDARY(p, 13)) {
-            p += 13;
-            p = skip_whitespace(p);
-            if (*p == '=') {
-                p++;
-                int *arr = NULL;
-                int count = 0;
-                p = parse_int_array(p, &arr, &count);
-                func_block_set_preconditions(fb, arr, count);
-                lv_free((void **) &arr);
-            }
-        } else if (strncmp(p, "measure", 7) == 0 && IS_KEY_BOUNDARY(p, 7)) {
-            p += 7;
-            p = skip_whitespace(p);
-            if (*p == '{') {
-                p++;
-                int node_id = -1;
-                while (*p && *p != '}') {
-                    p = skip_whitespace(p);
-                    if (strncmp(p, "node_id", 7) == 0 && IS_KEY_BOUNDARY(p, 7)) {
-                        p += 7;
-                        p = skip_whitespace(p);
-                        if (*p == '=') {
-                            p++;
-                            p = parse_int(p, &node_id);
-                        }
-                    } else {
-                        p++;
-                    }
-                }
-                if (*p == '}')
-                    p++;
-                if (node_id >= 0) {
-                    fb->has_measure = true;
-                    fb->measure_node_id = node_id;
-                }
-            }
+        /* 字段名→handler 查表（复用 lv_str_match_delimited 公共关键字匹配，替代 12 分支手写链） */
+        int idx = lv_str_match_delimited(p, kFuncBlockKeys);
+        if (idx >= 0) {
+            p += strlen(kFuncBlockKeys[idx]);
+            kFuncBlockFieldTable[idx].handler(fb, &p);
         } else {
             /* 跳过未知键到行尾 */
             while (*p && *p != '\n')
                 p++;
         }
     }
-
-#undef IS_KEY_BOUNDARY
 
     return true;
 }

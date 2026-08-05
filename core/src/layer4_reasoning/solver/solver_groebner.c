@@ -84,7 +84,8 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
 
     bool changed = true;
     int safety = 0;
-    const int max_iterations = 10000;
+    /* 迭代上限来自 lvConfig.solver.solver_max_iterations（默认 10000） */
+    const int max_iterations = lv_config_current()->solver.solver_max_iterations;
 
     int stalled_rounds = 0;
     const int max_stalled_rounds = 10;

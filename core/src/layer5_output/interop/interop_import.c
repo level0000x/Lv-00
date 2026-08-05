@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop_import.c
  * @brief 导入（GeoGebra/SVG）
  *
@@ -23,6 +23,8 @@
 #include "lv/engine.h"
 #include "lv/interop.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/geo_utils.h"
+#include "lv/lv_numeric.h"
 
 
 #include "debug.h"
@@ -885,12 +887,12 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             for (int i = 1; i <= samples && *out_count < max_points; i++) {
                 double t = (double) i / (double) samples;
                 /* 线性插值 + 圆弧偏移近似 */
-                double lx = x_start + t * (dx - x_start);
-                double ly = y_start + t * (dy - y_start);
+                double lx = lv_lerp(x_start, dx, t);
+                double ly = lv_lerp(y_start, dy, t);
                 /* 添加圆弧离差 */
                 double arc_angle = t * M_PI;
                 double bulge = sin(arc_angle) * (sf ? 1.0 : -1.0);
-                double chord_len = sqrt((dx - x_start) * (dx - x_start) + (dy - y_start) * (dy - y_start));
+                double chord_len = geo_distance_2d(x_start, y_start, dx, dy);
                 double bulge_factor = (chord_len > 0.001) ? (rx / chord_len) * 0.5 : 0.0;
                 double nx = -(dy - y_start) / (chord_len > 0.001 ? chord_len : 1.0);
                 double ny = (dx - x_start) / (chord_len > 0.001 ? chord_len : 1.0);

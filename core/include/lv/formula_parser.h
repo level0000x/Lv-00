@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：公式解析器 (formula_parser)
  * 功能概述：提供几何元语言系统的 AST 结构与解析 API。支持多种语法格式
  *          （LaTeX、Python、DSL），包含数值、变量、运算符、方程以及
@@ -536,9 +536,9 @@ FormulaNode *parse_python_expression(ParserContext *ctx);
 #define lv_MAX_ARGUMENTS 32
 #endif
 
-/** @brief 坐标最大维度 */
+/** @brief 坐标最大维度（编译期数组维度，须 ≥ lvConfig.parser.parser_max_coordinates 默认值 16） */
 #ifndef lv_MAX_COORDINATES
-#define lv_MAX_COORDINATES 4
+#define lv_MAX_COORDINATES 16
 #endif
 
 /** @brief 多边形最大顶点数 */
@@ -561,25 +561,8 @@ FormulaNode *parse_python_expression(ParserContext *ctx);
 #define lv_MAX_STATEMENTS 256
 #endif
 
-/* 兼容宏：简化子模块中的调用 */
-#define set_error(ctx, msg) formula_set_error(ctx, msg)
-#define is_digit(c) formula_is_digit(c)
-#define is_alpha(c) formula_is_alpha(c)
-#define is_alnum(c) formula_is_alnum(c)
-#define peek(ctx) formula_peek(ctx)
-#define peek_next(ctx) formula_peek_next(ctx)
-#define consume(ctx) formula_consume(ctx)
-#define skip_whitespace(ctx) formula_skip_whitespace(ctx)
-#define expect_char(ctx, c) formula_expect_char(ctx, c)
-#define is_at_end(ctx) formula_is_at_end(ctx)
-#define match_string(ctx, str) formula_match_string(ctx, str)
-#define match_and_consume(ctx, str) formula_match_and_consume(ctx, str)
-#define track_node(ctx, node) formula_track_node(ctx, node)
-#define parse_number(ctx) formula_parse_number(ctx)
-#define parse_identifier_str(ctx) formula_parse_identifier_str(ctx)
-#define DSL_KEYWORDS formula_dsl_keywords
-#define LATEX_COMMANDS formula_latex_commands
-#define PYTHON_FEATURES formula_python_features
+/* 注：解析器内部辅助函数统一使用 formula_ 前缀（formula_peek、formula_consume 等），
+ * 不再提供无前缀兼容宏，避免污染包含本头文件的翻译单元。 */
 
 #ifdef __cplusplus
 }

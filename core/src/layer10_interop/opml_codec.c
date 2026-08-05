@@ -123,14 +123,15 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
     lvOpmlProof *p = (lvOpmlProof *) proof;
 
-    int pos = 0;
+    /* 使用 lvStrBuf 动态构建 JSON，替代手写 pos 游标 + snprintf 偏移 */
+    lvStrBuf sb = {0};
 
     /* 转义定理名称，防止 JSON 注入 */
     char escaped_name[lv_PATH_BUF_SIZE];
     json_escape_string(p->theorem_name, escaped_name, (int) sizeof(escaped_name));
 
     /* 写入 JSON 头部 */
-    pos += snprintf(output + pos, output_size - pos,
+    lv_strbuf_printf(&sb,
                     "{\n"
                     "  \"opml_version\": \"1.0.0\",\n"
                     "  \"source_system\": \"lv\",\n"
@@ -139,16 +140,12 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
                     "    \"date\": \"2026-06-04\"\n"
                     "  },\n",
                     escaped_name);
-    if (pos >= output_size)
-        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
 
     /* 生成 theory 段（包含公理） */
     if (lv_str_nonempty(p->axioms)) {
-        pos += snprintf(output + pos, output_size - pos,
-                                "  \"theory\": {\n"
-                                "    \"axioms\": [\n");
-        if (pos >= output_size)
-            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
+        lv_strbuf_printf(&sb,
+                         "  \"theory\": {\n"
+                         "    \"axioms\": [\n");
 
         /* 逐个输出公理 */
         const char *ax = p->axioms;
@@ -167,117 +164,86 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
             if (ax_end > ax) {
                 if (!first_axiom) {
-                    if (pos >= output_size)
-                        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-                    pos += snprintf(output + pos, output_size - pos, ",\n");
+                    lv_strbuf_printf(&sb, ",\n");
                 }
                 first_axiom = 0;
 
                 /* 写入公理条目 */
-                if (pos >= output_size)
-                    lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-                pos += snprintf(output + pos, output_size - pos, "      { \"name\": \"");
+                lv_strbuf_printf(&sb, "      { \"name\": \"");
                 int ax_len = (int) (ax_end - ax);
-                if (pos + ax_len + 32 < output_size) {
-                    memcpy(output + pos, ax, ax_len);
-                    pos += ax_len;
-                }
-                if (pos >= output_size)
-                    lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-                pos += snprintf(output + pos, output_size - pos, "\" }");
+                lv_strbuf_printf(&sb, "%.*s", ax_len, ax);
+                lv_strbuf_printf(&sb, "\" }");
             }
             ax = ax_end;
         }
 
-        if (pos >= output_size)
-            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-        pos += snprintf(output + pos, output_size - pos,
-                        "\n    ]\n"
-                        "  },\n");
+        lv_strbuf_printf(&sb,
+                         "\n    ]\n"
+                         "  },\n");
     } else {
-        if (pos >= output_size)
-            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-        pos += snprintf(output + pos, output_size - pos, "  \"theory\": {},\n");
+        lv_strbuf_printf(&sb, "  \"theory\": {},\n");
     }
 
     /* 生成 proof 段（包含步骤数组） */
-    if (pos >= output_size)
-        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-    pos += snprintf(output + pos, output_size - pos,
-                    "  \"proof\": {\n"
-                    "    \"method\": \"forward_chain\",\n"
-                    "    \"steps\": [\n");
+    lv_strbuf_printf(&sb,
+                     "  \"proof\": {\n"
+                     "    \"method\": \"forward_chain\",\n"
+                     "    \"steps\": [\n");
 
     /* 遍历每个步骤，生成 JSON 对象 */
     for (int i = 0; i < p->step_count; i++) {
         lvProofStep *step = &p->steps[i];
 
         if (i > 0) {
-            if (pos >= output_size)
-                lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-            pos += snprintf(output + pos, output_size - pos, ",\n");
+            lv_strbuf_printf(&sb, ",\n");
         }
 
-        if (pos >= output_size)
-            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-        pos += snprintf(output + pos, output_size - pos,
-                        "      {\n"
-                        "        \"id\": %d,\n"
-                        "        \"type\": \"%s\",\n"
-                        "        \"description\": \"",
-                        step->id, step_type_name(step->type));
+        lv_strbuf_printf(&sb,
+                         "      {\n"
+                         "        \"id\": %d,\n"
+                         "        \"type\": \"%s\",\n"
+                         "        \"description\": \"",
+                         step->id, step_type_name(step->type));
 
         /* 写入描述（转义双引号和反斜杠） */
         const char *desc = step->description;
-        while (*desc && pos < output_size - 4) {
+        while (*desc) {
             if (*desc == '"' || *desc == '\\') {
-                output[pos++] = '\\';
-                output[pos++] = *desc;
+                lv_strbuf_printf(&sb, "\\%c", *desc);
             } else {
-                output[pos++] = *desc;
+                lv_strbuf_append_n(&sb, *desc, 1);
             }
             desc++;
         }
 
-        if (pos >= output_size)
-            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-        pos += snprintf(output + pos, output_size - pos, "\",\n");
+        lv_strbuf_printf(&sb, "\",\n");
 
         /* 写入依赖列表 */
-        if (pos >= output_size)
-            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-        pos += snprintf(output + pos, output_size - pos, "        \"dependencies\": [");
+        lv_strbuf_printf(&sb, "        \"dependencies\": [");
 
         for (int d = 0; d < step->dep_count; d++) {
             if (d > 0) {
-                if (pos >= output_size)
-                    lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-                pos += snprintf(output + pos, output_size - pos, ", ");
+                lv_strbuf_printf(&sb, ", ");
             }
-            if (pos >= output_size)
-                lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-            pos += snprintf(output + pos, output_size - pos, "%d", step->dependencies[d]);
+            lv_strbuf_printf(&sb, "%d", step->dependencies[d]);
         }
 
-        if (pos >= output_size)
-            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-        pos += snprintf(output + pos, output_size - pos,
-                        "]\n"
-                        "      }");
+        lv_strbuf_printf(&sb,
+                         "]\n"
+                         "      }");
     }
 
     /* 写入 proof 段尾部和 JSON 结尾 */
-    if (pos >= output_size)
-        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-    pos += snprintf(output + pos, output_size - pos,
-                    "\n    ]\n"
-                    "  }\n"
-                    "}\n");
+    lv_strbuf_printf(&sb,
+                     "\n    ]\n"
+                     "  }\n"
+                     "}\n");
 
-    /* 确保以 null 结尾 */
-    if (pos >= output_size)
+    /* 拷贝到调用方缓冲区（lvStrBuf 保证 NUL 结尾），并清理 */
+    if (sb.len >= (size_t) output_size)
         lv_RETURN_ERROR(lv_ERROR_IO, "output buffer full during export");
-    output[pos] = '\0';
+    memcpy(output, lv_strbuf_cstr(&sb), sb.len + 1);
+    lv_strbuf_destroy(&sb);
     return 0;
 }
 

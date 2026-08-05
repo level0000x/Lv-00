@@ -67,11 +67,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
     int *topo_order = lv_calloc(n, sizeof(int)); /* 拓扑排序结果 */
 
     if (!in_degree || !adj_count || !adj || !queue_buf || !topo_order) {
-        lv_free((void **) &in_degree);
-        lv_free((void **) &adj_count);
-        lv_free((void **) &adj);
-        lv_free((void **) &queue_buf);
-        lv_free((void **) &topo_order);
+        lv_free_many(&in_degree, &adj_count, &adj, &queue_buf, &topo_order, NULL);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
@@ -167,11 +163,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
     /* 清理 */
     for (int i = 0; i < n; i++)
         lv_free((void **) &adj[i]);
-    lv_free((void **) &adj);
-    lv_free((void **) &adj_count);
-    lv_free((void **) &in_degree);
-    lv_free((void **) &queue_buf);
-    lv_free((void **) &topo_order);
+    lv_free_many(&adj, &adj_count, &in_degree, &queue_buf, &topo_order, NULL);
 
     return result;
 }
@@ -215,8 +207,7 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
     int *adj_count = lv_calloc(n, sizeof(int));
     int **adj = lv_calloc(n, sizeof(int *));
     if (!adj_count || !adj) {
-        lv_free((void **) &adj_count);
-        lv_free((void **) &adj);
+        lv_free_many(&adj_count, &adj, NULL);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
@@ -258,8 +249,7 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
     if (!need_exec) {
         for (int i = 0; i < n; i++)
             lv_free((void **) &adj[i]);
-        lv_free((void **) &adj);
-        lv_free((void **) &adj_count);
+        lv_free_many(&adj, &adj_count, NULL);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;

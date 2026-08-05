@@ -10,6 +10,7 @@
  */
 
 #include "solver_common.h"
+#include "lv/geo_utils.h"
 
 /* 前向声明 */
 
@@ -97,9 +98,9 @@ int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
                 if (!has_coords)
                     continue;
 
-                double ab_len = sqrt((xb - xa) * (xb - xa) + (yb - ya) * (yb - ya));
-                double bc_len = sqrt((xc - xb) * (xc - xb) + (yc - yb) * (yc - yb));
-                double ac_len = sqrt((xc - xa) * (xc - xa) + (yc - ya) * (yc - ya));
+                double ab_len = geo_distance_2d(xa, ya, xb, yb);
+                double bc_len = geo_distance_2d(xb, yb, xc, yc);
+                double ac_len = geo_distance_2d(xa, ya, xc, yc);
                 if (ab_len < lv_EPSILON_DOUBLE || bc_len < lv_EPSILON_DOUBLE || ac_len < lv_EPSILON_DOUBLE)
                     continue;
 
@@ -290,7 +291,7 @@ int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
             continue;
 
         double dx_i = x2_i - x1_i, dy_i = y2_i - y1_i;
-        double len_i = sqrt(dx_i * dx_i + dy_i * dy_i);
+        double len_i = geo_distance_2d(0.0, 0.0, dx_i, dy_i);
         if (len_i < lv_EPSILON_DOUBLE)
             continue;
         double nx_i = dx_i / len_i, ny_i = dy_i / len_i;
@@ -306,7 +307,7 @@ int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
                 continue;
 
             double dx_j = x2_j - x1_j, dy_j = y2_j - y1_j;
-            double len_j = sqrt(dx_j * dx_j + dy_j * dy_j);
+            double len_j = geo_distance_2d(0.0, 0.0, dx_j, dy_j);
             if (len_j < lv_EPSILON_DOUBLE)
                 continue;
             double nx_j = dx_j / len_j, ny_j = dy_j / len_j;
@@ -457,8 +458,8 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
             if (segs[j].p1 < 0 || fabs(segs[j].dx) + fabs(segs[j].dy) < lv_EPSILON_DOUBLE)
                 continue;
             double cross = segs[i].dx * segs[j].dy - segs[i].dy * segs[j].dx;
-            double len_i = sqrt(segs[i].dx * segs[i].dx + segs[i].dy * segs[i].dy);
-            double len_j = sqrt(segs[j].dx * segs[j].dx + segs[j].dy * segs[j].dy);
+            double len_i = geo_distance_2d(0.0, 0.0, segs[i].dx, segs[i].dy);
+            double len_j = geo_distance_2d(0.0, 0.0, segs[j].dx, segs[j].dy);
             if (fabs(cross) < 1e-6 * (len_i * len_j + 1.0)) {
                 for (int k = 0; k < seg_count && added < 10; k++) {
                     if (k == i || k == j)

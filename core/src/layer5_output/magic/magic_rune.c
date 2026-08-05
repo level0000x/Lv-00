@@ -298,6 +298,21 @@ int rune_serialize_to_buffer(const Rune *rune, char *buf, int buf_size) {
  * @param str 符文的字符串表示
  * @return 解析成功返回新创建的符文，失败返回 NULL
  */
+
+/** @brief 符文元素名→枚举查找表（大小写双写，替代 5 分支 strcmp 链） */
+static const lvStrToEnumEntry s_rune_element_entries[] = {
+    {"FIRE", ELEMENT_FIRE},
+    {"fire", ELEMENT_FIRE},
+    {"WATER", ELEMENT_WATER},
+    {"water", ELEMENT_WATER},
+    {"EARTH", ELEMENT_EARTH},
+    {"earth", ELEMENT_EARTH},
+    {"AIR", ELEMENT_AIR},
+    {"air", ELEMENT_AIR},
+    {"NONE", ELEMENT_NONE},
+    {"none", ELEMENT_NONE},
+};
+
 Rune *rune_parse(const char *str) {
     if (lv_str_is_empty(str)) {
         lv_LOG_WARNING("rune_parse: 输入字符串为空");
@@ -314,17 +329,9 @@ Rune *rune_parse(const char *str) {
     if (colon) {
         /* 解析元素类型 */
         const char *elem_str = colon + 1;
-        if (strcmp(elem_str, "FIRE") == 0 || strcmp(elem_str, "fire") == 0) {
-            element = ELEMENT_FIRE;
-        } else if (strcmp(elem_str, "WATER") == 0 || strcmp(elem_str, "water") == 0) {
-            element = ELEMENT_WATER;
-        } else if (strcmp(elem_str, "EARTH") == 0 || strcmp(elem_str, "earth") == 0) {
-            element = ELEMENT_EARTH;
-        } else if (strcmp(elem_str, "AIR") == 0 || strcmp(elem_str, "air") == 0) {
-            element = ELEMENT_AIR;
-        } else if (strcmp(elem_str, "NONE") == 0 || strcmp(elem_str, "none") == 0) {
-            element = ELEMENT_NONE;
-        }
+        /* 元素名查表（大小写双写，替代 5 分支 strcmp 链） */
+        element = (MagicElement) lv_str_to_enum(s_rune_element_entries, lv_ARRAY_SIZE(s_rune_element_entries),
+                                                elem_str, ELEMENT_NONE);
     }
 
     /* 检查是否为代数数格式 */

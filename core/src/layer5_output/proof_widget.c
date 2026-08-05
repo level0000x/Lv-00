@@ -403,6 +403,21 @@ char *proof_widget_export_layout(const lvWidgetLayout *layout) {
     return lv_json_buf_finalize(&_jb);
 }
 
+/** @brief 策略名→证明步骤类型 查找表（替代 7 分支 strcmp 链） */
+static const struct {
+    const char *name;
+    ProofStepType step_type;
+} kTacticStepTypeTable[] = {
+    {"intro", PROOF_STEP_ADD_NODE},
+    {"apply", PROOF_STEP_FUNCTION_APP},
+    {"rewrite", PROOF_STEP_REWRITE},
+    {"destruct", PROOF_STEP_NORMALIZATION},
+    {"reflexivity", PROOF_STEP_UNIFY},
+    {"assumption", PROOF_STEP_UNIFY},
+    {"exfalso", PROOF_STEP_EX_FALSO},
+    {"auto", PROOF_STEP_NORMALIZATION},
+};
+
 /**
  * @brief 应用策略到当前证明状态
  * @param navigator   证明导航器指针
@@ -422,23 +437,15 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
     *out_success = false;
     *out_feedback = NULL;
 
-    /* 策略名到步骤类型的映射 */
-    ProofStepType step_type;
-    if (strcmp(tactic_name, "intro") == 0) {
-        step_type = PROOF_STEP_ADD_NODE;
-    } else if (strcmp(tactic_name, "apply") == 0) {
-        step_type = PROOF_STEP_FUNCTION_APP;
-    } else if (strcmp(tactic_name, "rewrite") == 0) {
-        step_type = PROOF_STEP_REWRITE;
-    } else if (strcmp(tactic_name, "destruct") == 0) {
-        step_type = PROOF_STEP_NORMALIZATION;
-    } else if (strcmp(tactic_name, "reflexivity") == 0 || strcmp(tactic_name, "assumption") == 0) {
-        step_type = PROOF_STEP_UNIFY;
-    } else if (strcmp(tactic_name, "exfalso") == 0) {
-        step_type = PROOF_STEP_EX_FALSO;
-    } else if (strcmp(tactic_name, "auto") == 0) {
-        step_type = PROOF_STEP_NORMALIZATION;
-    } else {
+    /* 策略名到步骤类型的映射（查找表，替代 7 分支 strcmp 链） */
+    ProofStepType step_type = (ProofStepType) -1;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kTacticStepTypeTable); i++) {
+        if (strcmp(tactic_name, kTacticStepTypeTable[i].name) == 0) {
+            step_type = kTacticStepTypeTable[i].step_type;
+            break;
+        }
+    }
+    if (step_type == (ProofStepType) -1) {
         *out_feedback = lv_strdup("unknown tactic");
         if (!*out_feedback)
             lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_apply_tactic: strdup failed");

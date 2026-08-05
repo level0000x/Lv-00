@@ -21,6 +21,7 @@
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 #include "lv/interop_bridge_common.h"
 
@@ -75,6 +76,9 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
                       {lv_STEP_EX_FALSO, "contradiction"}, {lv_STEP_ORACLE, "admit (* oracle *)"}};
     int tactic_count = COQ_TACTIC_MAP_COUNT;
 
+    /* 使用 lvStrBuf 动态构建脚本，替代手写 pos 游标 + snprintf 偏移 */
+    lvStrBuf sb = {0};
+
     /* 输出头 */
     const char *header =
         "Require Import lv.\n\n"
@@ -82,25 +86,14 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
     const char *footer =
         ".\n"
         "Qed.\n";
-    int header_len = (int) strlen(header);
-    int footer_len = (int) strlen(footer);
 
-    /* 检查基本空间 */
-    if (header_len + footer_len + 64 >= output_size)
-        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for header/footer");
-
-    memcpy(output, header, header_len);
-    int pos = header_len;
+    lv_strbuf_printf(&sb, "%s", header);
 
     /* 写入定理名称 */
-    int name_len = (int) strlen(p->theorem_name);
-    if (pos + name_len + 16 >= output_size)
-        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for theorem name");
-    memcpy(output + pos, p->theorem_name, name_len);
-    pos += name_len;
+    lv_strbuf_printf(&sb, "%s", p->theorem_name);
 
     /* 写入 ": Prop." 和 "Proof." */
-    pos += snprintf(output + pos, output_size - pos, " : Prop.\nProof.\n");
+    lv_strbuf_printf(&sb, " : Prop.\nProof.\n");
 
     /* 遍历每个步骤，生成对应的 Coq tactic */
     for (int i = 0; i < p->steps_da.count; i++) {
@@ -115,19 +108,18 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
             }
         }
 
-        /* 检查剩余空间是否足够 */
-        int tac_len = (int) strlen(tac);
-        if (pos + tac_len + 8 >= output_size)
-            lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for tactic");
-
         /* 写入 tactic，以 "." 结尾 */
-        pos += snprintf(output + pos, output_size - pos, "  %s.\n", tac);
+        lv_strbuf_printf(&sb, "  %s.\n", tac);
     }
 
     /* 写入尾部 */
-    if (pos + footer_len + 1 >= output_size)
-        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for footer");
-    memcpy(output + pos, footer, footer_len + 1);
+    lv_strbuf_printf(&sb, "%s", footer);
+
+    /* 拷贝到调用方缓冲区（lvStrBuf 保证 NUL 结尾），并清理 */
+    if (sb.len >= (size_t) output_size)
+        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for export");
+    memcpy(output, lv_strbuf_cstr(&sb), sb.len + 1);
+    lv_strbuf_destroy(&sb);
     return 0;
 }
 

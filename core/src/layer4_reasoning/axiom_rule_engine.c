@@ -251,10 +251,8 @@ bool lv_rule_add_conclusion(lvRule *rule, const char *pattern, TrustColor trust_
 bool lv_rule_add_tag(lvRule *rule, const char *tag) {
     if (!rule || !tag)
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_add_tag: NULL rule or tag");
-    char **new_tags = lv_realloc(rule->tags, (rule->tag_count + 1) * sizeof(char *));
-    if (!new_tags)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_add_tag: realloc failed");
-    rule->tags = new_tags;
+    /* 扩容标签数组（倍增策略，避免逐个 realloc；统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(rule->tags, rule->tag_count, rule->tag_capacity, false);
     rule->tags[rule->tag_count] = lv_strdup(tag);
     if (!rule->tags[rule->tag_count])
         lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_add_tag: strdup failed");
@@ -649,6 +647,7 @@ lvRule *lv_rule_copy(const lvRule *rule) {
     copy->dependency_ids = NULL;
     copy->tags = NULL;
     copy->tag_count = 0;
+    copy->tag_capacity = 0;
     for (uint32_t i = 0; i < rule->premise_count; i++) {
         copy->premises[i].conditions = NULL;
     }

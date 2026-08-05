@@ -23,6 +23,7 @@
 #include "lv/cross_platform.h"
 #include "lv/engine.h"
 #include "lv/lv.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
@@ -177,39 +178,16 @@ char *random_generator_generate_dsl(RandomGenerator *gen) {
     /* 随机 DSL 生成：根据配置生成几何构造 DSL */
     uint32_t n_points = gen->config.min_points + (lv_random_int(0, gen->config.max_points - gen->config.min_points));
 
-    /* 预估最大需要的缓冲区大小 */
-    size_t max_buf_size = 4096;
-    /* 每个点最多 ~50 字节，每个约束最多 ~60 字节，加上固定开销 */
-    size_t estimated = 128 + (size_t) n_points * 60 + (size_t) (n_points / 2 + 1) * 80;
-    if (estimated > max_buf_size) {
-        max_buf_size = estimated;
-    }
+    /* 使用 lvStrBuf 动态构建 DSL，替代预估 buffer + pos/remaining 游标 */
+    lvStrBuf sb = {0};
 
-    char *buf = (char *) lv_malloc(max_buf_size);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "random_generator_generate_dsl: malloc failed");
-    size_t remaining = max_buf_size;
-    int pos = 0;
-
-    int written = snprintf(buf + pos, remaining, "#version 5.0.0\n");
-    if (written < 0 || (size_t) written >= remaining) {
-        lv_free((void **) &buf);
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "random_generator_generate_dsl: snprintf failed for version header");
-    }
-    pos += written;
-    remaining -= (size_t) written;
+    lv_strbuf_printf(&sb, "#version 5.0.0\n");
 
     /* 生成点声明 */
     for (uint32_t i = 0; i < n_points; i++) {
         double x = lv_random_double(gen->config.coord_min, gen->config.coord_max);
         double y = lv_random_double(gen->config.coord_min, gen->config.coord_max);
-        written = snprintf(buf + pos, remaining, "Point P%u = (%.2f, %.2f);\n", i, x, y);
-        if (written < 0 || (size_t) written >= remaining) {
-            lv_free((void **) &buf);
-            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "random_generator_generate_dsl: snprintf failed for point declaration");
-        }
-        pos += written;
-        remaining -= (size_t) written;
+        lv_strbuf_printf(&sb, "Point P%u = (%.2f, %.2f);\n", i, x, y);
     }
 
     /* 生成随机约束 */
@@ -221,22 +199,13 @@ char *random_generator_generate_dsl(RandomGenerator *gen) {
         int b = lv_random_int(0, (int) n_points - 1);
         if (a == b)
             b = (b + 1) % (int) n_points;
-        written = snprintf(buf + pos, remaining, "Constraint %s(P%u, P%u);\n", constraint_types[type_idx], a, b);
-        if (written < 0 || (size_t) written >= remaining) {
-            lv_free((void **) &buf);
-            lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "random_generator_generate_dsl: snprintf failed for constraint");
-        }
-        pos += written;
-        remaining -= (size_t) written;
+        lv_strbuf_printf(&sb, "Constraint %s(P%u, P%u);\n", constraint_types[type_idx], a, b);
     }
 
-    written = snprintf(buf + pos, remaining, "Prove;\n");
-    if (written < 0 || (size_t) written >= remaining) {
-        lv_free((void **) &buf);
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "random_generator_generate_dsl: snprintf failed for Prove directive");
-    }
+    lv_strbuf_printf(&sb, "Prove;\n");
 
-    return buf;
+    /* 转换为堆分配字符串并清理（调用者 lv_free） */
+    return lv_strbuf_to_string(&sb);
 }
 
 /**

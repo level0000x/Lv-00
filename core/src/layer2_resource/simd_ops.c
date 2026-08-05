@@ -12,6 +12,7 @@
 
 #include "lv_utils.h"
 #include "lv/lv_xmacro.h"
+#include "lv/geo_utils.h"
 
 #include <math.h>
 #include <stdatomic.h>
@@ -1700,9 +1701,7 @@ void lv_simd_distance_array(const double *x1, const double *y1, const double *x2
     lv_SIMD_STATS_ADD(elements_processed, count);
 
     for (size_t i = 0; i < count; i++) {
-        double dx = x2[i] - x1[i];
-        double dy = y2[i] - y1[i];
-        out[i] = sqrt(dx * dx + dy * dy);
+        out[i] = geo_distance_2d(x1[i], y1[i], x2[i], y2[i]);
     }
 }
 
@@ -1718,14 +1717,12 @@ void lv_simd_point_line_distance_array(const double *px, const double *py, doubl
     if (len_sq < 1e-12) {
         /* 线段退化为点 */
         for (size_t i = 0; i < count; i++) {
-            double ddx = px[i] - x1;
-            double ddy = py[i] - y1;
-            out[i] = sqrt(ddx * ddx + ddy * ddy);
+            out[i] = geo_distance_2d(x1, y1, px[i], py[i]);
         }
         return;
     }
 
-    double len = sqrt(len_sq);
+    double len = geo_distance_2d(x1, y1, x2, y2);
     double nx = -dy / len; /* 法向量 */
     double ny = dx / len;
 

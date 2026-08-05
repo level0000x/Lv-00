@@ -37,8 +37,9 @@ static int ir_add_symbol(DslIR *ir, const char *name, int result_id) {
     if (!ir || !name)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "IR or name is NULL");
 
-    ENSURE_CAP(ir->symbols, ir->symbol_count, ir->symbol_capacity, sizeof(char *), -1);
-    ENSURE_CAP(ir->symbol_to_ir_id, ir->symbol_count, ir->symbol_capacity, sizeof(int), -1);
+    /* 扩容符号表数组（统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(ir->symbols, ir->symbol_count, ir->symbol_capacity, -1);
+    lv_ENSURE_ARRAY_CAP(ir->symbol_to_ir_id, ir->symbol_count, ir->symbol_capacity, -1);
 
     ir->symbols[ir->symbol_count] = lv_strdup(name);
     ir->symbol_to_ir_id[ir->symbol_count] = result_id;
@@ -68,7 +69,8 @@ static int ir_add_op(DslIR *ir, DslIROp op, int result_id, const int *operands, 
     if (!ir)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "IR is NULL");
 
-    ENSURE_CAP(ir->operations, ir->op_count, ir->op_capacity, sizeof(DslIROperation), -1);
+    /* 扩容 IR 操作数组（统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(ir->operations, ir->op_count, ir->op_capacity, -1);
 
     DslIROperation *op_entry = &ir->operations[ir->op_count];
     memset(op_entry, 0, sizeof(*op_entry));

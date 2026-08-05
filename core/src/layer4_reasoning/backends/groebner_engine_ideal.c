@@ -121,9 +121,7 @@ int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
     return result;
 
 cleanup:
-    lv_free((void **) &ideal->generators);
-    lv_free((void **) &ideal->label);
-    lv_free((void **) &ideal);
+    lv_free_many((void **) &ideal->generators, (void **) &ideal->label, (void **) &ideal, NULL);
     lv_lock_guard_destroy(&_lg);
     lv_RETURN_ERROR(lv_ERROR_INTERNAL, "ideal_create: registry_data_ensure failed");
 }
@@ -1063,9 +1061,8 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
                 poly_internal_destroy(inter_gens[j]);
             }
             lv_free((void **) &inter_gens);
-            lv_free((void **) &result_ideal->generators);
-            lv_free((void **) &result_ideal->label);
-            lv_free((void **) &result_ideal);
+            lv_free_many((void **) &result_ideal->generators, (void **) &result_ideal->label,
+                         (void **) &result_ideal, NULL);
             goto cleanup;
         }
         result_ideal->generators[result_ideal->generator_count++] = inter_gens[k];
@@ -1075,9 +1072,8 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
     ret = ideal_internal_store(g_data, result_ideal);
     if (ret < 0) {
         /* 注册失败：释放理想结构（已注册的生成元由池持有并负责释放） */
-        lv_free((void **) &result_ideal->generators);
-        lv_free((void **) &result_ideal->label);
-        lv_free((void **) &result_ideal);
+        lv_free_many((void **) &result_ideal->generators, (void **) &result_ideal->label,
+                     (void **) &result_ideal, NULL);
     }
 
 cleanup:
@@ -1240,9 +1236,8 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
                 poly_internal_destroy(cur_gens[j]);
             }
             lv_free((void **) &cur_gens);
-            lv_free((void **) &result_ideal->generators);
-            lv_free((void **) &result_ideal->label);
-            lv_free((void **) &result_ideal);
+            lv_free_many((void **) &result_ideal->generators, (void **) &result_ideal->label,
+                         (void **) &result_ideal, NULL);
             goto cleanup;
         }
         result_ideal->generators[result_ideal->generator_count++] = cur_gens[k];
@@ -1252,9 +1247,8 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
     ret = ideal_internal_store(g_data, result_ideal);
     if (ret < 0) {
         /* 注册失败：释放理想结构（已注册的生成元由池持有并负责释放） */
-        lv_free((void **) &result_ideal->generators);
-        lv_free((void **) &result_ideal->label);
-        lv_free((void **) &result_ideal);
+        lv_free_many((void **) &result_ideal->generators, (void **) &result_ideal->label,
+                     (void **) &result_ideal, NULL);
     }
     goto cleanup;
 

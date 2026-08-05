@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file view_synchronizer.c
  * @brief 视图同步器实现
  *
@@ -115,18 +115,10 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
     if (!sync->sync_enabled)
         return 0;
 
-    /* 添加待处理变更记录 */
-    if (sync->pending_count >= sync->pending_capacity) {
-        /* [安全] 防止 pending_capacity * 2 整数溢出 */
-        if (sync->pending_capacity > INT_MAX / 2)
-            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "pending capacity overflow");
-        int new_cap = sync->pending_capacity * 2;
-        void *new_arr = lv_realloc(sync->pending_changes, new_cap * sizeof(sync->pending_changes[0]));
-        if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc pending changes");
-        sync->pending_changes = new_arr;
-        sync->pending_capacity = new_cap;
-    }
+    /* 添加待处理变更记录（扩容统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+    if (!lv_ensure_capacity((void **) &sync->pending_changes, sync->pending_count, &sync->pending_capacity,
+                            sizeof(sync->pending_changes[0]), 1))
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc pending changes");
     sync->pending_changes[sync->pending_count].source_view_id = source_view_id;
     strncpy(sync->pending_changes[sync->pending_count].change_type, change_type,
             sizeof(sync->pending_changes[0].change_type) - 1);
@@ -142,17 +134,9 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
         }
     }
     if (!already_dirty) {
-        if (sync->dirty_count >= sync->dirty_capacity) {
-            /* [安全] 防止 dirty_capacity * 2 整数溢出 */
-            if (sync->dirty_capacity > INT_MAX / 2)
-                lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "dirty capacity overflow");
-            int new_cap = sync->dirty_capacity * 2;
-            void *new_arr = lv_realloc(sync->dirty_views, new_cap * sizeof(int));
-            if (!new_arr)
-                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc dirty views");
-            sync->dirty_views = new_arr;
-            sync->dirty_capacity = new_cap;
-        }
+        /* 扩容脏视图列表（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+        if (!lv_ensure_capacity((void **) &sync->dirty_views, sync->dirty_count, &sync->dirty_capacity, sizeof(int), 1))
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc dirty views");
         sync->dirty_views[sync->dirty_count++] = source_view_id;
     }
 

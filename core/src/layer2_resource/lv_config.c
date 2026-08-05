@@ -44,9 +44,6 @@ static void lv_config_default_init(void) {
     /* 求解器 */
     def.solver.solver_max_var_id = 100000;
     def.solver.solver_max_iterations = 10000;
-    def.solver.cdcl_max_steps = 1000;
-    def.solver.cdcl_max_decisions = 1000;
-    def.solver.cdcl_max_restarts = 10;
     /* 引擎（约束图 + 重写） */
     def.engine.max_module_depth = 32;
     def.engine.graph_adj_max_per_node = 256;
@@ -75,18 +72,14 @@ static void lv_config_default_init(void) {
     def.mini_kernel.mini_kernel_verify_timeout_ms = 30000;
     /* 解析器 */
     def.parser.parser_max_input_length = 1048576;
-    def.parser.parser_max_tokens = 100000;
     def.parser.parser_max_ast_depth = 256;
     def.parser.parser_max_ast_nodes = 500000;
     def.parser.parser_max_token_length = 4096;
     def.parser.parser_max_coordinates = 16;
-    def.parser.parser_max_vertices = 32;
     def.parser.parser_max_polygon_vertices = 32;
     def.parser.parser_max_statements = 64;
     def.parser.parser_max_arguments = 16;
     def.parser.parser_max_participants = 16;
-    def.parser.type_infer_max_depth = 100;
-    def.parser.type_equiv_max_depth = 16;
     /* 防护 */
     def.runtime_guard.runtime_guard_max_recurse = 128;
     def.runtime_guard.runtime_guard_spin_attempts = 1024;
@@ -114,10 +107,8 @@ static void lv_config_default_init(void) {
     def.geometry.geoevol_pi_smooth_factor = 0.25;
     def.geometry.geo_sym_coord_eps = 1e-8;
     /* 证明 */
-    def.proof.proof_max_depth = 100;
     def.proof.proof_max_branches = 64;
     def.proof.proof_max_strategies = 16;
-    def.proof.trace_tree_max_depth = 50;
     /* 上下文 */
     def.context.max_recursion_depth = 128;
     def.context.context_default_max_depth = 100;
@@ -240,13 +231,6 @@ void lv_config_set_solver_max_var_id(int val) {
  */
 void lv_config_set_solver_max_iterations(int val) {
     cfg_mut()->solver.solver_max_iterations = val;
-}
-/**
- * @brief 设置证明最大深度
- * @param val 新值
- */
-void lv_config_set_proof_max_depth(int val) {
-    cfg_mut()->proof.proof_max_depth = val;
 }
 /**
  * @brief 设置证明最大分支数
@@ -580,7 +564,6 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         "  \"stream_max_callbacks\": %d,\n"
         "  \"max_precision_bits\": %d,\n"
         "  \"parser_max_input_length\": %d,\n"
-        "  \"parser_max_tokens\": %d,\n"
         "  \"parser_max_ast_depth\": %d,\n"
         "  \"runtime_guard_max_recurse\": %d,\n"
         "  \"proto_max_draw_cmds\": %d,\n"
@@ -590,7 +573,6 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         "  \"geo_min_zoom\": %.2f,\n"
         "  \"geo_max_zoom\": %.1f,\n"
         "  \"geoevol_max_param_dim\": %d,\n"
-        "  \"proof_max_depth\": %d,\n"
         "  \"max_recursion_depth\": %d,\n"
         "  \"interop_ws_default_port\": %d,\n"
         "  \"log_max_files\": %d,\n"
@@ -600,11 +582,6 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         "  \"vf2_max_depth\": %d,\n"
         "  \"buchberger_max_steps\": %d,\n"
         "  \"groebner_reduce_max_steps\": %d,\n"
-        "  \"cdcl_max_steps\": %d,\n"
-        "  \"cdcl_max_decisions\": %d,\n"
-        "  \"cdcl_max_restarts\": %d,\n"
-        "  \"type_infer_max_depth\": %d,\n"
-        "  \"type_equiv_max_depth\": %d,\n"
         "  \"circuit_overflow_threshold\": %d,\n"
         "  \"smoke_test_step_limit\": %d,\n"
         "  \"smoke_test_timeout_ms\": %d,\n"
@@ -621,18 +598,16 @@ int lv_config_to_json(char *buf, size_t buf_size) {
         "}\n",
         c->solver.solver_max_var_id, c->solver.solver_max_iterations, c->engine.default_rewrite_limit,
         c->stream.stream_async_queue_capacity, c->stream.stream_max_callbacks, c->precision.max_precision_bits,
-        c->parser.parser_max_input_length, c->parser.parser_max_tokens,
+        c->parser.parser_max_input_length,
         c->parser.parser_max_ast_depth, c->runtime_guard.runtime_guard_max_recurse,
         c->protocol.proto_max_draw_cmds, c->protocol.proto_max_proof_steps,
         c->geometry.geo_max_objects, c->geometry.geo_max_constraints, c->geometry.geo_min_zoom,
         c->geometry.geo_max_zoom, c->geometry.geoevol_max_param_dim,
-        c->proof.proof_max_depth, c->context.max_recursion_depth,
+        c->context.max_recursion_depth,
         c->integration.interop_ws_default_port, c->diagnostics.log_max_files, c->integration.max_plugins,
         c->integration.backend_step_limit, c->health.default_memory_limit_mb,
         c->engine.vf2_max_depth, c->engine.buchberger_max_steps,
-        c->engine.groebner_reduce_max_steps, c->solver.cdcl_max_steps, c->solver.cdcl_max_decisions,
-        c->solver.cdcl_max_restarts,
-        c->parser.type_infer_max_depth, c->parser.type_equiv_max_depth,
+        c->engine.groebner_reduce_max_steps,
         c->health.circuit_overflow_threshold, c->test.smoke_test_step_limit,
         c->test.smoke_test_timeout_ms, c->context.context_timeout_ms, c->context.context_cooldown_ms,
         c->propagation.prop_max_iterations, c->propagation.prop_max_backtracks,

@@ -487,8 +487,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         if (src_node->data.func_block.output_port_ids && src_node->data.func_block.output_count > 0) {
             new_output_ids = lv_calloc(src_node->data.func_block.output_count, sizeof(int));
             if (!new_output_ids) {
-                lv_free((void **) &new_internal_ids);
-                lv_free((void **) &new_input_ids);
+                lv_free_many(&new_internal_ids, &new_input_ids, NULL);
                 goto fail;
             }
             for (int j = 0; j < src_node->data.func_block.output_count; j++) {
@@ -503,9 +502,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         AddNodeResult r = graph_add_function_block(dst, new_internal_ids, new_internal_count, new_input_ids,
                                                    new_input_count, new_output_ids, new_output_count);
 
-        lv_free((void **) &new_internal_ids);
-        lv_free((void **) &new_input_ids);
-        lv_free((void **) &new_output_ids);
+        lv_free_many(&new_internal_ids, &new_input_ids, &new_output_ids, NULL);
 
         if (r != ADD_NODE_OK)
             goto fail;

@@ -42,8 +42,9 @@ FormulaNode *formula_track_node(ParserContext *ctx, FormulaNode *node) {
     if (!node)
         return NULL;
     ctx->node_count++;
-    if (ctx->node_count > lv_MAX_AST_NODES) {
-        set_error(ctx, "AST节点数超过安全上限");
+    /* 节点数上限来自 lvConfig.parser.parser_max_ast_nodes（默认 500000） */
+    if (ctx->node_count > (int) lv_config_current()->parser.parser_max_ast_nodes) {
+        formula_set_error(ctx, "AST节点数超过安全上限");
         formula_node_destroy(node);
         return NULL;
     }
@@ -77,32 +78,32 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
     bool has_exponent = false;
 
     /* 整数部分 */
-    while (is_digit(peek(ctx))) {
-        consume(ctx);
+    while (formula_is_digit(formula_peek(ctx))) {
+        formula_consume(ctx);
     }
 
     /* 小数部分 */
-    if (peek(ctx) == '.' && is_digit(peek_next(ctx))) {
+    if (formula_peek(ctx) == '.' && formula_is_digit(formula_peek_next(ctx))) {
         has_dot = true;
-        consume(ctx); /* 消费 '.' */
-        while (is_digit(peek(ctx))) {
-            consume(ctx);
+        formula_consume(ctx); /* 消费 '.' */
+        while (formula_is_digit(formula_peek(ctx))) {
+            formula_consume(ctx);
         }
     }
 
     /* 科学计数法 */
-    if (peek(ctx) == 'e' || peek(ctx) == 'E') {
+    if (formula_peek(ctx) == 'e' || formula_peek(ctx) == 'E') {
         has_exponent = true;
-        consume(ctx);
-        if (peek(ctx) == '+' || peek(ctx) == '-') {
-            consume(ctx);
+        formula_consume(ctx);
+        if (formula_peek(ctx) == '+' || formula_peek(ctx) == '-') {
+            formula_consume(ctx);
         }
-        if (!is_digit(peek(ctx))) {
-            set_error(ctx, "Expected digit after exponent");
+        if (!formula_is_digit(formula_peek(ctx))) {
+            formula_set_error(ctx, "Expected digit after exponent");
             return NULL;
         }
-        while (is_digit(peek(ctx))) {
-            consume(ctx);
+        while (formula_is_digit(formula_peek(ctx))) {
+            formula_consume(ctx);
         }
     }
 
@@ -110,7 +111,7 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
     size_t len = ctx->pos - start;
     char *num_str = lv_malloc(len + 1);
     if (!num_str) {
-        set_error(ctx, "Memory allocation failed");
+        formula_set_error(ctx, "Memory allocation failed");
         return NULL;
     }
     /* 使用 memcpy 进行精确长度复制（已分配 len+1 字节，手动零终止更安全） */
@@ -150,10 +151,10 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
         }
 
         /* 步骤1：解析符号后的整数部分 */
-        while (p < end && is_digit((unsigned char) *p)) {
+        while (p < end && formula_is_digit((unsigned char) *p)) {
             /* 溢出保护：int_part * 10 + digit 不得超过 INT64_MAX */
             if (int_part > (INT64_MAX - (*p - '0')) / 10) {
-                set_error(ctx, "整数部分溢出");
+                formula_set_error(ctx, "整数部分溢出");
                 return NULL;
             }
             int_part = int_part * 10 + (*p - '0');
@@ -163,16 +164,16 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
         /* 步骤2：解析小数点后数字并计算分母 */
         if (p < end && *p == '.') {
             p++;
-            while (p < end && is_digit((unsigned char) *p)) {
+            while (p < end && formula_is_digit((unsigned char) *p)) {
                 /* 溢出保护：frac_part * 10 + digit 不得超过 INT64_MAX */
                 if (frac_part > (INT64_MAX - (*p - '0')) / 10) {
-                    set_error(ctx, "小数部分溢出");
+                    formula_set_error(ctx, "小数部分溢出");
                     return NULL;
                 }
                 frac_part = frac_part * 10 + (*p - '0');
                 /* 溢出保护：frac_denom * 10 不得超过 INT64_MAX */
                 if (frac_denom > INT64_MAX / 10) {
-                    set_error(ctx, "小数分母溢出");
+                    formula_set_error(ctx, "小数分母溢出");
                     return NULL;
                 }
                 frac_denom *= 10; /* 每位小数使分母乘以10 */
@@ -191,7 +192,7 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
             } else if (p < end && *p == '+') {
                 p++;
             }
-            while (p < end && is_digit((unsigned char) *p)) {
+            while (p < end && formula_is_digit((unsigned char) *p)) {
                 exp_val = exp_val * 10 + (*p - '0');
                 p++;
             }
@@ -280,7 +281,7 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
             node->column = ctx->column;
         }
     }
-    return track_node(ctx, node);
+    return formula_track_node(ctx, node);
 }
 
 /* ============================================================
@@ -294,7 +295,7 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
  * 必须以字母或下划线开头。解析完成后指针会移动到标识符之后的位置。
  *
  * 算法步骤：
- * 1. 首先检查当前字符是否为有效的标识符起始字符（is_alpha）
+ * 1. 首先检查当前字符是否为有效的标识符起始字符（formula_is_alpha）
  * 2. 记录起始位置，然后连续消费所有字母数字字符
  * 3. 计算标识符长度并分配内存
  * 4. 使用 memcpy 复制标识符内容并添加 null 终止符
@@ -304,27 +305,27 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
  * @retval NULL 解析失败，错误信息已设置到上下文中
  */
 char *formula_parse_identifier_str(ParserContext *ctx) {
-    if (!is_alpha(peek(ctx))) {
-        set_error(ctx, "Expected identifier");
+    if (!formula_is_alpha(formula_peek(ctx))) {
+        formula_set_error(ctx, "Expected identifier");
         return NULL;
     }
 
     size_t start = ctx->pos;
-    while (is_alnum(peek(ctx))) {
-        consume(ctx);
+    while (formula_is_alnum(formula_peek(ctx))) {
+        formula_consume(ctx);
     }
 
     size_t len = ctx->pos - start;
 
-    /* 安全加固：检查token长度限制 */
-    if (len > lv_MAX_TOKEN_LENGTH) {
-        set_error(ctx, "Identifier too long");
+    /* 安全加固：检查token长度限制（上限来自 lvConfig.parser.parser_max_token_length，默认 4096） */
+    if (len > (size_t) lv_config_current()->parser.parser_max_token_length) {
+        formula_set_error(ctx, "Identifier too long");
         return NULL;
     }
 
     char *ident = lv_malloc(len + 1);
     if (!ident) {
-        set_error(ctx, "Memory allocation failed");
+        formula_set_error(ctx, "Memory allocation failed");
         return NULL;
     }
     /* 使用 memcpy 进行精确长度复制（已分配 len+1 字节，手动零终止更安全） */
@@ -336,7 +337,7 @@ char *formula_parse_identifier_str(ParserContext *ctx) {
 /**
  * @brief 检查字符串是否为 DSL 关键字
  *
- * 在 DSL_KEYWORDS 表中进行线性查找，判断给定字符串是否为
+ * 在 formula_dsl_keywords 表中进行线性查找，判断给定字符串是否为
  * 有效的 DSL 关键字（如 point, segment, circle 等几何元素
  * 或 perpendicular, parallel 等约束关键字）。
  *
@@ -345,8 +346,8 @@ char *formula_parse_identifier_str(ParserContext *ctx) {
  * @return false 字符串不是 DSL 关键字
  */
 static bool is_dsl_keyword(const char *str) {
-    for (int i = 0; DSL_KEYWORDS[i] != NULL; i++) {
-        if (strcmp(str, DSL_KEYWORDS[i]) == 0) {
+    for (int i = 0; formula_dsl_keywords[i] != NULL; i++) {
+        if (strcmp(str, formula_dsl_keywords[i]) == 0) {
             return true;
         }
     }
@@ -375,7 +376,7 @@ const char *formula_detect_syntax(const char *input) {
     }
 
     /* 检测 LaTeX 命令 */
-    if (lv_str_match_any(input, LATEX_COMMANDS) >= 0) {
+    if (lv_str_match_any(input, formula_latex_commands) >= 0) {
         return "latex";
     }
 
@@ -389,7 +390,7 @@ const char *formula_detect_syntax(const char *input) {
             break;
 
         /* 检查是否为关键字（命中后必须为空白或分隔符） */
-        if (lv_str_match_delimited(p, DSL_KEYWORDS) >= 0) {
+        if (lv_str_match_delimited(p, formula_dsl_keywords) >= 0) {
             return "dsl";
         }
 
@@ -399,7 +400,7 @@ const char *formula_detect_syntax(const char *input) {
     }
 
     /* 检测 Python 特征 */
-    if (lv_str_match_any(input, PYTHON_FEATURES) >= 0) {
+    if (lv_str_match_any(input, formula_python_features) >= 0) {
         return "python";
     }
 
@@ -434,34 +435,40 @@ static FormulaNode *parse_dsl_statement(ParserContext *ctx);
  * @return FormulaNode* 解析出的几何点节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_point(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析点名称 */
-    char *name = parse_identifier_str(ctx);
+    char *name = formula_parse_identifier_str(ctx);
     if (!name) {
-        set_error(ctx, "Expected point name");
+        formula_set_error(ctx, "Expected point name");
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '(' */
-    if (!expect_char(ctx, '(')) {
+    if (!formula_expect_char(ctx, '(')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析坐标列表 */
     FormulaNode *coords[lv_MAX_COORDINATES] = {NULL};
     int coord_count = 0;
+    /* 运行时上限来自 lvConfig.parser.parser_max_coordinates（默认 16），
+       并以编译期数组维度为硬上限，防止配置调大时栈数组越界 */
+    const lvConfig *lv_cfg = lv_config_current();
+    int coord_cap = lv_cfg->parser.parser_max_coordinates;
+    if (coord_cap > lv_MAX_COORDINATES)
+        coord_cap = lv_MAX_COORDINATES;
 
-    while (!is_at_end(ctx) && peek(ctx) != ')') {
-        skip_whitespace(ctx);
+    while (!formula_is_at_end(ctx) && formula_peek(ctx) != ')') {
+        formula_skip_whitespace(ctx);
 
-        if (coord_count >= lv_MAX_COORDINATES) {
-            set_error(ctx, "Too many coordinates");
+        if (coord_count >= coord_cap) {
+            formula_set_error(ctx, "Too many coordinates");
             lv_free((void **) &name);
             for (int i = 0; i < coord_count; i++)
                 formula_node_destroy(coords[i]);
@@ -477,12 +484,12 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
         }
         coord_count++;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
 
-        if (peek(ctx) == ',') {
-            consume(ctx);
-        } else if (peek(ctx) != ')') {
-            set_error(ctx, "Expected ',' or ')'");
+        if (formula_peek(ctx) == ',') {
+            formula_consume(ctx);
+        } else if (formula_peek(ctx) != ')') {
+            formula_set_error(ctx, "Expected ',' or ')'");
             lv_free((void **) &name);
             for (int i = 0; i < coord_count; i++)
                 formula_node_destroy(coords[i]);
@@ -491,7 +498,7 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
     }
 
     /* 期望 ')' */
-    if (!expect_char(ctx, ')')) {
+    if (!formula_expect_char(ctx, ')')) {
         lv_free((void **) &name);
         for (int i = 0; i < coord_count; i++)
             formula_node_destroy(coords[i]);
@@ -522,24 +529,24 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
  * @return FormulaNode* 解析出的几何线段节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析线段名称 */
-    char *name = parse_identifier_str(ctx);
+    char *name = formula_parse_identifier_str(ctx);
     if (!name) {
-        set_error(ctx, "Expected segment name");
+        formula_set_error(ctx, "Expected segment name");
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '(' */
-    if (!expect_char(ctx, '(')) {
+    if (!formula_expect_char(ctx, '(')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析起点 */
     FormulaNode *ep1 = parse_dsl_atom(ctx);
@@ -548,16 +555,16 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ',' */
-    if (!expect_char(ctx, ',')) {
+    if (!formula_expect_char(ctx, ',')) {
         lv_free((void **) &name);
         formula_node_destroy(ep1);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析终点 */
     FormulaNode *ep2 = parse_dsl_atom(ctx);
@@ -567,10 +574,10 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ')' */
-    if (!expect_char(ctx, ')')) {
+    if (!formula_expect_char(ctx, ')')) {
         lv_free((void **) &name);
         formula_node_destroy(ep1);
         formula_node_destroy(ep2);
@@ -598,24 +605,24 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
  * @return FormulaNode* 解析出的几何圆节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析圆名称 */
-    char *name = parse_identifier_str(ctx);
+    char *name = formula_parse_identifier_str(ctx);
     if (!name) {
-        set_error(ctx, "Expected circle name");
+        formula_set_error(ctx, "Expected circle name");
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '(' */
-    if (!expect_char(ctx, '(')) {
+    if (!formula_expect_char(ctx, '(')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析圆心 */
     FormulaNode *center = parse_dsl_atom(ctx);
@@ -624,16 +631,16 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ',' */
-    if (!expect_char(ctx, ',')) {
+    if (!formula_expect_char(ctx, ',')) {
         lv_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析半径 */
     FormulaNode *radius = parse_dsl_expression(ctx);
@@ -643,10 +650,10 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ')' */
-    if (!expect_char(ctx, ')')) {
+    if (!formula_expect_char(ctx, ')')) {
         lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
@@ -673,24 +680,24 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
  * @return FormulaNode* 解析出的几何三角形节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析三角形名称 */
-    char *name = parse_identifier_str(ctx);
+    char *name = formula_parse_identifier_str(ctx);
     if (!name) {
-        set_error(ctx, "Expected triangle name");
+        formula_set_error(ctx, "Expected triangle name");
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '(' */
-    if (!expect_char(ctx, '(')) {
+    if (!formula_expect_char(ctx, '(')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析三个顶点 */
     FormulaNode *vertices[3] = {NULL, NULL, NULL};
@@ -700,25 +707,25 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
             lv_free((void **) &name);
             for (int j = 0; j < i; j++)
                 formula_node_destroy(vertices[j]);
-            set_error(ctx, "Expected vertex");
+            formula_set_error(ctx, "Expected vertex");
             return NULL;
         }
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
 
         if (i < 2) {
-            if (!expect_char(ctx, ',')) {
+            if (!formula_expect_char(ctx, ',')) {
                 lv_free((void **) &name);
                 for (int j = 0; j <= i; j++)
                     formula_node_destroy(vertices[j]);
                 return NULL;
             }
-            skip_whitespace(ctx);
+            formula_skip_whitespace(ctx);
         }
     }
 
     /* 期望 ')' */
-    if (!expect_char(ctx, ')')) {
+    if (!formula_expect_char(ctx, ')')) {
         lv_free((void **) &name);
         for (int i = 0; i < 3; i++)
             formula_node_destroy(vertices[i]);
@@ -747,24 +754,24 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
  * @return FormulaNode* 解析出的几何弧节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析弧名称 */
-    char *name = parse_identifier_str(ctx);
+    char *name = formula_parse_identifier_str(ctx);
     if (!name) {
-        set_error(ctx, "Expected arc name");
+        formula_set_error(ctx, "Expected arc name");
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '(' */
-    if (!expect_char(ctx, '(')) {
+    if (!formula_expect_char(ctx, '(')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析圆心 */
     FormulaNode *center = parse_dsl_atom(ctx);
@@ -773,16 +780,16 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ',' */
-    if (!expect_char(ctx, ',')) {
+    if (!formula_expect_char(ctx, ',')) {
         lv_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析半径 */
     FormulaNode *radius = parse_dsl_expression(ctx);
@@ -792,17 +799,17 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ',' */
-    if (!expect_char(ctx, ',')) {
+    if (!formula_expect_char(ctx, ',')) {
         lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析起始角度 */
     FormulaNode *start_angle = parse_dsl_expression(ctx);
@@ -813,10 +820,10 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ',' */
-    if (!expect_char(ctx, ',')) {
+    if (!formula_expect_char(ctx, ',')) {
         lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
@@ -824,7 +831,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析结束角度 */
     FormulaNode *end_angle = parse_dsl_expression(ctx);
@@ -836,10 +843,10 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ')' */
-    if (!expect_char(ctx, ')')) {
+    if (!formula_expect_char(ctx, ')')) {
         lv_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
@@ -872,40 +879,46 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
  * @return FormulaNode* 解析出的几何多边形节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析多边形名称 */
-    char *name = parse_identifier_str(ctx);
+    char *name = formula_parse_identifier_str(ctx);
     if (!name) {
-        set_error(ctx, "Expected polygon name");
+        formula_set_error(ctx, "Expected polygon name");
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '(' */
-    if (!expect_char(ctx, '(')) {
+    if (!formula_expect_char(ctx, '(')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '[' */
-    if (!expect_char(ctx, '[')) {
+    if (!formula_expect_char(ctx, '[')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析顶点列表 */
     FormulaNode *vertices[lv_MAX_POLYGON_VERTICES] = {NULL};
     int vertex_count = 0;
+    /* 运行时上限来自 lvConfig.parser.parser_max_polygon_vertices（默认 32），
+       并以编译期数组维度为硬上限，防止配置调大时栈数组越界 */
+    const lvConfig *lv_cfg = lv_config_current();
+    int vertex_cap = lv_cfg->parser.parser_max_polygon_vertices;
+    if (vertex_cap > lv_MAX_POLYGON_VERTICES)
+        vertex_cap = lv_MAX_POLYGON_VERTICES;
 
-    while (!is_at_end(ctx) && peek(ctx) != ']') {
-        if (vertex_count >= lv_MAX_POLYGON_VERTICES) {
-            set_error(ctx, "Too many vertices in polygon");
+    while (!formula_is_at_end(ctx) && formula_peek(ctx) != ']') {
+        if (vertex_count >= vertex_cap) {
+            formula_set_error(ctx, "Too many vertices in polygon");
             lv_free((void **) &name);
             for (int i = 0; i < vertex_count; i++)
                 formula_node_destroy(vertices[i]);
@@ -921,13 +934,13 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
         }
         vertex_count++;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
 
-        if (peek(ctx) == ',') {
-            consume(ctx);
-            skip_whitespace(ctx);
-        } else if (peek(ctx) != ']') {
-            set_error(ctx, "Expected ',' or ']'");
+        if (formula_peek(ctx) == ',') {
+            formula_consume(ctx);
+            formula_skip_whitespace(ctx);
+        } else if (formula_peek(ctx) != ']') {
+            formula_set_error(ctx, "Expected ',' or ']'");
             lv_free((void **) &name);
             for (int i = 0; i < vertex_count; i++)
                 formula_node_destroy(vertices[i]);
@@ -936,17 +949,17 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
     }
 
     /* 期望 ']' */
-    if (!expect_char(ctx, ']')) {
+    if (!formula_expect_char(ctx, ']')) {
         lv_free((void **) &name);
         for (int i = 0; i < vertex_count; i++)
             formula_node_destroy(vertices[i]);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ')' */
-    if (!expect_char(ctx, ')')) {
+    if (!formula_expect_char(ctx, ')')) {
         lv_free((void **) &name);
         for (int i = 0; i < vertex_count; i++)
             formula_node_destroy(vertices[i]);
@@ -975,40 +988,46 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
  * @return FormulaNode* 解析出的几何区域节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_region(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析区域名称 */
-    char *name = parse_identifier_str(ctx);
+    char *name = formula_parse_identifier_str(ctx);
     if (!name) {
-        set_error(ctx, "Expected region name");
+        formula_set_error(ctx, "Expected region name");
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '(' */
-    if (!expect_char(ctx, '(')) {
+    if (!formula_expect_char(ctx, '(')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '[' */
-    if (!expect_char(ctx, '[')) {
+    if (!formula_expect_char(ctx, '[')) {
         lv_free((void **) &name);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析边界线段列表 */
     FormulaNode *segments[lv_MAX_POLYGON_VERTICES] = {NULL};
     int segment_count = 0;
+    /* 运行时上限来自 lvConfig.parser.parser_max_polygon_vertices（默认 32），
+       并以编译期数组维度为硬上限，防止配置调大时栈数组越界 */
+    const lvConfig *lv_cfg = lv_config_current();
+    int segment_cap = lv_cfg->parser.parser_max_polygon_vertices;
+    if (segment_cap > lv_MAX_POLYGON_VERTICES)
+        segment_cap = lv_MAX_POLYGON_VERTICES;
 
-    while (!is_at_end(ctx) && peek(ctx) != ']') {
-        if (segment_count >= lv_MAX_POLYGON_VERTICES) {
-            set_error(ctx, "Too many segments in region");
+    while (!formula_is_at_end(ctx) && formula_peek(ctx) != ']') {
+        if (segment_count >= segment_cap) {
+            formula_set_error(ctx, "Too many segments in region");
             lv_free((void **) &name);
             for (int i = 0; i < segment_count; i++)
                 formula_node_destroy(segments[i]);
@@ -1024,13 +1043,13 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
         }
         segment_count++;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
 
-        if (peek(ctx) == ',') {
-            consume(ctx);
-            skip_whitespace(ctx);
-        } else if (peek(ctx) != ']') {
-            set_error(ctx, "Expected ',' or ']'");
+        if (formula_peek(ctx) == ',') {
+            formula_consume(ctx);
+            formula_skip_whitespace(ctx);
+        } else if (formula_peek(ctx) != ']') {
+            formula_set_error(ctx, "Expected ',' or ']'");
             lv_free((void **) &name);
             for (int i = 0; i < segment_count; i++)
                 formula_node_destroy(segments[i]);
@@ -1039,17 +1058,17 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
     }
 
     /* 期望 ']' */
-    if (!expect_char(ctx, ']')) {
+    if (!formula_expect_char(ctx, ']')) {
         lv_free((void **) &name);
         for (int i = 0; i < segment_count; i++)
             formula_node_destroy(segments[i]);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 ')' */
-    if (!expect_char(ctx, ')')) {
+    if (!formula_expect_char(ctx, ')')) {
         lv_free((void **) &name);
         for (int i = 0; i < segment_count; i++)
             formula_node_destroy(segments[i]);
@@ -1124,12 +1143,12 @@ static NodeType get_constraint_type(const char *name) {
  * @return FormulaNode* 解析出的约束节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析约束类型 */
-    char *constraint_name = parse_identifier_str(ctx);
+    char *constraint_name = formula_parse_identifier_str(ctx);
     if (!constraint_name) {
-        set_error(ctx, "Expected constraint type");
+        formula_set_error(ctx, "Expected constraint type");
         return NULL;
     }
 
@@ -1137,30 +1156,36 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
     if ((int) constraint_type < 0) {
         char err_buf[lv_MAX_TEMP_MSG_SIZE];
         snprintf(err_buf, sizeof(err_buf), "未知的约束类型: %s", constraint_name);
-        set_error(ctx, err_buf);
+        formula_set_error(ctx, err_buf);
         lv_free((void **) &constraint_name);
         return NULL;
     }
     lv_free((void **) &constraint_name);
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '(' */
-    if (!expect_char(ctx, '(')) {
+    if (!formula_expect_char(ctx, '(')) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 解析参数列表 */
     FormulaNode *participants[lv_MAX_PARTICIPANTS] = {NULL};
     int participant_count = 0;
+    /* 运行时上限来自 lvConfig.parser.parser_max_participants（默认 16），
+       并以编译期数组维度为硬上限，防止配置调大时栈数组越界 */
+    const lvConfig *lv_cfg = lv_config_current();
+    int participant_cap = lv_cfg->parser.parser_max_participants;
+    if (participant_cap > lv_MAX_PARTICIPANTS)
+        participant_cap = lv_MAX_PARTICIPANTS;
 
-    while (!is_at_end(ctx) && peek(ctx) != ')') {
-        skip_whitespace(ctx);
+    while (!formula_is_at_end(ctx) && formula_peek(ctx) != ')') {
+        formula_skip_whitespace(ctx);
 
-        if (participant_count >= lv_MAX_PARTICIPANTS) {
-            set_error(ctx, "Too many participants");
+        if (participant_count >= participant_cap) {
+            formula_set_error(ctx, "Too many participants");
             for (int i = 0; i < participant_count; i++)
                 formula_node_destroy(participants[i]);
             return NULL;
@@ -1174,12 +1199,12 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
         }
         participant_count++;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
 
-        if (peek(ctx) == ',') {
-            consume(ctx);
-        } else if (peek(ctx) != ')') {
-            set_error(ctx, "Expected ',' or ')'");
+        if (formula_peek(ctx) == ',') {
+            formula_consume(ctx);
+        } else if (formula_peek(ctx) != ')') {
+            formula_set_error(ctx, "Expected ',' or ')'");
             for (int i = 0; i < participant_count; i++)
                 formula_node_destroy(participants[i]);
             return NULL;
@@ -1187,7 +1212,7 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
     }
 
     /* 期望 ')' */
-    if (!expect_char(ctx, ')')) {
+    if (!formula_expect_char(ctx, ')')) {
         for (int i = 0; i < participant_count; i++)
             formula_node_destroy(participants[i]);
         return NULL;
@@ -1197,6 +1222,49 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
     for (int i = 0; i < participant_count; i++)
         formula_node_destroy(participants[i]);
     return node;
+}
+
+/* ── 数学函数名→节点创建 分发表（formula_dsl / formula_python 共享） ── */
+
+/** @brief 数学函数分发表条目 */
+typedef struct {
+    const char *name;   /**< 函数名 */
+    int arg_count;      /**< 期望的参数个数 */
+    NodeType op;        /**< 对应运算符节点类型 */
+    bool is_binary;     /**< true=二元运算，false=一元运算 */
+} MathFuncEntry;
+
+/** @brief DSL 数学函数表（含 ln/log；DSL 不识别 pow） */
+static const MathFuncEntry kDslMathFuncTable[] = {
+    {"sqrt", 1, NODE_UNARY_OP_SQRT, false},
+    {"sin", 1, NODE_UNARY_OP_SIN, false},
+    {"cos", 1, NODE_UNARY_OP_COS, false},
+    {"tan", 1, NODE_UNARY_OP_TAN, false},
+    {"abs", 1, NODE_UNARY_OP_ABS, false},
+    {"ln", 1, NODE_UNARY_OP_LN, false},
+    {"log", 1, NODE_UNARY_OP_LOG, false},
+};
+
+/**
+ * @brief 按函数名查表创建数学函数节点（formula_dsl/formula_python 共享，
+ *        替代两处几乎一致的手写 strcmp 分发链）
+ * @param ident      函数名（如 "sqrt"、"pow"）
+ * @param args       已解析的参数节点数组
+ * @param arg_count  参数个数
+ * @param table      数学函数分发表（按解析器各自声明）
+ * @param table_size 表大小
+ * @return 命中且参数个数匹配时返回新创建的节点，否则返回 NULL（调用方回退为标识符/变量）
+ */
+FormulaNode *formula_apply_math_func(const char *ident, FormulaNode **args, int arg_count,
+                                     const MathFuncEntry *table, size_t table_size) {
+    for (size_t i = 0; i < table_size; i++) {
+        if (strcmp(ident, table[i].name) == 0 && arg_count == table[i].arg_count) {
+            if (table[i].is_binary)
+                return formula_create_binary_op(table[i].op, args[0], args[1]);
+            return formula_create_unary_op(table[i].op, args[0]);
+        }
+    }
+    return NULL;
 }
 
 /**
@@ -1215,23 +1283,23 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
  * @return FormulaNode* 解析出的原子节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
-    char c = peek(ctx);
+    char c = formula_peek(ctx);
 
     /* 数字 */
-    if (is_digit(c) || (c == '.' && is_digit(peek_next(ctx)))) {
-        return parse_number(ctx);
+    if (formula_is_digit(c) || (c == '.' && formula_is_digit(formula_peek_next(ctx)))) {
+        return formula_parse_number(ctx);
     }
 
     /* 括号表达式 */
     if (c == '(') {
-        consume(ctx);
+        formula_consume(ctx);
         FormulaNode *expr = parse_dsl_expression(ctx);
         if (!expr)
             return NULL;
-        skip_whitespace(ctx);
-        if (!expect_char(ctx, ')')) {
+        formula_skip_whitespace(ctx);
+        if (!formula_expect_char(ctx, ')')) {
             formula_node_destroy(expr);
             return NULL;
         }
@@ -1240,29 +1308,29 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
 
     /* 负号 */
     if (c == '-') {
-        consume(ctx);
+        formula_consume(ctx);
         FormulaNode *operand = parse_dsl_factor(ctx);
         if (!operand)
             return NULL;
-        return track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
+        return formula_track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
     }
 
     /* 正号 */
     if (c == '+') {
-        consume(ctx);
+        formula_consume(ctx);
         return parse_dsl_factor(ctx);
     }
 
     /* 标识符或关键字 */
-    if (is_alpha(c)) {
+    if (formula_is_alpha(c)) {
         size_t start = ctx->pos;
 
         /* 读取标识符 */
-        char *ident = parse_identifier_str(ctx);
+        char *ident = formula_parse_identifier_str(ctx);
         if (!ident)
             return NULL;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
 
         /* 检查是否为关键字 */
         if (strcmp(ident, "point") == 0) {
@@ -1301,16 +1369,22 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
         }
 
         /* 函数调用 */
-        if (peek(ctx) == '(') {
-            consume(ctx);
-            skip_whitespace(ctx);
+        if (formula_peek(ctx) == '(') {
+            formula_consume(ctx);
+            formula_skip_whitespace(ctx);
 
             /* 解析参数 */
             FormulaNode *args[lv_MAX_ARGUMENTS] = {NULL};
             int arg_count = 0;
-            while (!is_at_end(ctx) && peek(ctx) != ')') {
-                if (arg_count >= lv_MAX_ARGUMENTS) {
-                    set_error(ctx, "Too many arguments");
+            /* 运行时上限来自 lvConfig.parser.parser_max_arguments（默认 16），
+               并以编译期数组维度为硬上限，防止配置调大时栈数组越界 */
+            const lvConfig *lv_cfg = lv_config_current();
+            int arg_cap = lv_cfg->parser.parser_max_arguments;
+            if (arg_cap > lv_MAX_ARGUMENTS)
+                arg_cap = lv_MAX_ARGUMENTS;
+            while (!formula_is_at_end(ctx) && formula_peek(ctx) != ')') {
+                if (arg_count >= arg_cap) {
+                    formula_set_error(ctx, "Too many arguments");
                     lv_free((void **) &ident);
                     for (int i = 0; i < arg_count; i++)
                         formula_node_destroy(args[i]);
@@ -1326,15 +1400,15 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
                 }
                 arg_count++;
 
-                skip_whitespace(ctx);
+                formula_skip_whitespace(ctx);
 
-                if (peek(ctx) == ',') {
-                    consume(ctx);
-                    skip_whitespace(ctx);
+                if (formula_peek(ctx) == ',') {
+                    formula_consume(ctx);
+                    formula_skip_whitespace(ctx);
                 }
             }
 
-            if (!expect_char(ctx, ')')) {
+            if (!formula_expect_char(ctx, ')')) {
                 lv_free((void **) &ident);
                 for (int i = 0; i < arg_count; i++)
                     formula_node_destroy(args[i]);
@@ -1374,7 +1448,7 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
         return node;
     }
 
-    set_error(ctx, "Unexpected character");
+    formula_set_error(ctx, "Unexpected character");
     return NULL;
 }
 
@@ -1392,23 +1466,23 @@ static FormulaNode *parse_dsl_factor(ParserContext *ctx) {
     if (!left)
         return NULL;
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 处理幂运算 */
-    if (peek(ctx) == '^' || match_string(ctx, "**")) {
-        if (match_string(ctx, "**")) {
-            consume(ctx);
-            consume(ctx);
+    if (formula_peek(ctx) == '^' || formula_match_string(ctx, "**")) {
+        if (formula_match_string(ctx, "**")) {
+            formula_consume(ctx);
+            formula_consume(ctx);
         } else {
-            consume(ctx);
+            formula_consume(ctx);
         }
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_dsl_factor(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
-        return track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_POW, left, right));
+        return formula_track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_POW, left, right));
     }
 
     return left;
@@ -1429,20 +1503,20 @@ static FormulaNode *parse_dsl_term(ParserContext *ctx) {
         return NULL;
 
     while (true) {
-        skip_whitespace(ctx);
-        char c = peek(ctx);
+        formula_skip_whitespace(ctx);
+        char c = formula_peek(ctx);
 
         NodeType op_type;
         bool should_continue = false;
 
         if (c == '*') {
-            if (peek_next(ctx) == '*')
+            if (formula_peek_next(ctx) == '*')
                 break; /* 幂运算 */
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_MUL;
             should_continue = true;
         } else if (c == '/') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_DIV;
             should_continue = true;
         }
@@ -1450,14 +1524,14 @@ static FormulaNode *parse_dsl_term(ParserContext *ctx) {
         if (!should_continue)
             break;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_dsl_factor(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
 
-        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
+        left = formula_track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -1480,18 +1554,18 @@ static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
         return NULL;
 
     while (true) {
-        skip_whitespace(ctx);
-        char c = peek(ctx);
+        formula_skip_whitespace(ctx);
+        char c = formula_peek(ctx);
 
         NodeType op_type;
         bool should_continue = false;
 
         if (c == '+') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_ADD;
             should_continue = true;
         } else if (c == '-') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_SUB;
             should_continue = true;
         }
@@ -1499,14 +1573,14 @@ static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
         if (!should_continue)
             break;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_dsl_term(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
 
-        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
+        left = formula_track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -1524,27 +1598,27 @@ static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
  * @return FormulaNode* 解析出的语句节点，失败或到达末尾返回 NULL
  */
 static FormulaNode *parse_dsl_statement(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
-    if (is_at_end(ctx))
+    if (formula_is_at_end(ctx))
         return NULL;
 
     FormulaNode *left = parse_dsl_expression(ctx);
     if (!left)
         return NULL;
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 检查等式 */
-    if (peek(ctx) == '=' && peek_next(ctx) != '=') {
-        consume(ctx);
-        skip_whitespace(ctx);
+    if (formula_peek(ctx) == '=' && formula_peek_next(ctx) != '=') {
+        formula_consume(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_dsl_expression(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
-        return track_node(ctx, formula_create_equation(left, right));
+        return formula_track_node(ctx, formula_create_equation(left, right));
     }
 
     return left;
@@ -1562,14 +1636,20 @@ static FormulaNode *parse_dsl_statement(ParserContext *ctx) {
 FormulaNode *parse_dsl_compound(ParserContext *ctx) {
     FormulaNode *statements[lv_MAX_STATEMENTS] = {NULL};
     int statement_count = 0;
+    /* 运行时上限来自 lvConfig.parser.parser_max_statements（默认 64），
+       并以编译期数组维度为硬上限，防止配置调大时栈数组越界 */
+    const lvConfig *lv_cfg = lv_config_current();
+    int statement_cap = lv_cfg->parser.parser_max_statements;
+    if (statement_cap > lv_MAX_STATEMENTS)
+        statement_cap = lv_MAX_STATEMENTS;
 
-    while (!is_at_end(ctx)) {
-        skip_whitespace(ctx);
-        if (is_at_end(ctx))
+    while (!formula_is_at_end(ctx)) {
+        formula_skip_whitespace(ctx);
+        if (formula_is_at_end(ctx))
             break;
 
-        if (statement_count >= lv_MAX_STATEMENTS) {
-            set_error(ctx, "Too many statements");
+        if (statement_count >= statement_cap) {
+            formula_set_error(ctx, "Too many statements");
             for (int i = 0; i < statement_count; i++)
                 formula_node_destroy(statements[i]);
             return NULL;
@@ -1587,11 +1667,11 @@ FormulaNode *parse_dsl_compound(ParserContext *ctx) {
 
         statements[statement_count++] = stmt;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
 
         /* 语句分隔符 */
-        if (peek(ctx) == ';' || peek(ctx) == '\n') {
-            consume(ctx);
+        if (formula_peek(ctx) == ';' || formula_peek(ctx) == '\n') {
+            formula_consume(ctx);
         }
     }
 

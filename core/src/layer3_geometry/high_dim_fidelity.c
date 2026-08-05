@@ -15,6 +15,7 @@
 #include "lv/config.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_numeric.h"
 
 #include "debug.h"
 #include "error_codes.h"
@@ -436,8 +437,7 @@ static double high_dim_geometric_distortion(HighDimManager *manager, int block_i
                     continue;
                 }
                 cos_hi /= norm_hi;
-                if (cos_hi > 1.0) cos_hi = 1.0;
-                if (cos_hi < -1.0) cos_hi = -1.0;
+                cos_hi = lv_clamp(cos_hi, -1.0, 1.0);
 
                 /* 低维夹角余弦（顶点 j） */
                 double a_lo_x = lo[i][0] - lo[j][0];
@@ -450,8 +450,7 @@ static double high_dim_geometric_distortion(HighDimManager *manager, int block_i
                     continue;
                 }
                 double cos_lo = (a_lo_x * b_lo_x + a_lo_y * b_lo_y) / (n_lo_a * n_lo_b);
-                if (cos_lo > 1.0) cos_lo = 1.0;
-                if (cos_lo < -1.0) cos_lo = -1.0;
+                cos_lo = lv_clamp(cos_lo, -1.0, 1.0);
 
                 double diff = cos_hi - cos_lo;
                 if (diff < 0.0) diff = -diff;
@@ -464,8 +463,7 @@ static double high_dim_geometric_distortion(HighDimManager *manager, int block_i
     double angle_distortion = (angle_count > 0) ? (angle_loss_sum / angle_count) : 0.0;
 
     double distortion = 0.7 * distance_distortion + 0.3 * angle_distortion;
-    if (distortion < 0.0) distortion = 0.0;
-    if (distortion > 1.0) distortion = 1.0;
+    distortion = lv_clamp(distortion, 0.0, 1.0);
     return distortion;
 }
 
@@ -751,8 +749,7 @@ static double high_dim_mds_stress(HighDimManager *manager, int block_id, const C
     }
 
     double stress = sqrt(num / sum_lo2);
-    if (stress < 0.0) stress = 0.0;
-    if (stress > 1.0) stress = 1.0;
+    stress = lv_clamp(stress, 0.0, 1.0);
     return stress;
 }
 
@@ -875,8 +872,7 @@ static double high_dim_topology_preservation(HighDimManager *manager, int block_
     }
 
     double ratio = total_overlap / (double) sample_count;
-    if (ratio < 0.0) ratio = 0.0;
-    if (ratio > 1.0) ratio = 1.0;
+    ratio = lv_clamp(ratio, 0.0, 1.0);
     return ratio;
 }
 
@@ -948,8 +944,7 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const Const
 
     /* 综合加权 */
     double combined = 0.2 * dim_fidelity + 0.5 * constraint_fidelity + 0.3 * geometric_fidelity;
-    if (combined < 0.0) combined = 0.0;
-    if (combined > 1.0) combined = 1.0;
+    combined = lv_clamp(combined, 0.0, 1.0);
 
     /* 填充宏观统计 */
     stats->fidelity_ratio = combined;

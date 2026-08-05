@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/lv_file.h"
+#include "lv/lv_json.h"
 
 #include "lv/module.h"
 #include "lv/module_internal.h"
@@ -31,161 +32,105 @@
 /*  JSON 序列化 / 反序列化                                             */
 /* ================================================================== */
 
-/* JSON 写入器类型定义已提取至 module_helpers.h */
-
-bool json_writer_init(JsonWriter *w, size_t initial_capacity) {
-    w->buffer = (char *) lv_calloc(initial_capacity, 1);
-    if (!w->buffer)
-        return false;
-    w->capacity = initial_capacity;
-    w->pos = 0;
-    w->buffer[0] = '\0';
-    return true;
-}
-
-void json_writer_ensure(JsonWriter *w, size_t extra) {
-    while (w->pos + extra >= w->capacity) {
-        size_t new_cap = w->capacity * 2;
-        char *new_buf = (char *) lv_realloc(w->buffer, new_cap);
-        if (!new_buf)
-            return;
-        w->buffer = new_buf;
-        w->capacity = new_cap;
-    }
-}
-
-void json_writer_putc(JsonWriter *w, char c) {
-    json_writer_ensure(w, 2);
-    w->buffer[w->pos++] = c;
-    w->buffer[w->pos] = '\0';
-}
-
-void json_writer_puts(JsonWriter *w, const char *s) {
-    size_t len = strlen(s);
-    json_writer_ensure(w, len + 1);
-    memcpy(w->buffer + w->pos, s, len);
-    w->pos += len;
-    w->buffer[w->pos] = '\0';
-}
-
-/* 写入 JSON 转义字符串 */
-void json_writer_write_escaped_str(JsonWriter *w, const char *s) {
-    if (!s) {
-        json_writer_puts(w, "null");
-        return;
-    }
-    size_t len = strlen(s);
-    /* 统一走公共 API lv_str_json_escape：先计算所需长度，再一次性写入 */
-    size_t need = lv_str_json_escape(s, len, NULL, 0);
-    json_writer_ensure(w, need + 3); /* 2 引号 + NUL */
-    w->buffer[w->pos++] = '"';
-    w->pos += lv_str_json_escape(s, len, w->buffer + w->pos, w->capacity - w->pos);
-    w->buffer[w->pos++] = '"';
-    w->buffer[w->pos] = '\0';
-}
-
-void json_writer_destroy(JsonWriter *w) {
-    lv_free((void **) &w->buffer);
-    w->buffer = NULL;
-}
+/* 写入器统一使用公共库 lv/lv_json.h 的 lvJsonBuf（原 JsonWriter 已删除） */
 
 char *module_serialize_to_json(const Module *mod) {
     if (!mod)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "module_serialize_to_json: mod is NULL");
 
-    JsonWriter w;
-    if (!json_writer_init(&w, 2048))
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "module_serialize_to_json: json_writer_init failed");
+    lvJsonBuf w;
+    if (!lv_json_buf_init(&w, 2048))
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "module_serialize_to_json: lv_json_buf_init failed");
 
-    json_writer_putc(&w, '{');
+    lv_json_buf_append_char(&w, '{');
 
     /* name */
-    json_writer_puts(&w, "\"name\":");
-    json_writer_write_escaped_str(&w, mod->name);
-    json_writer_putc(&w, ',');
+    lv_json_buf_append_raw(&w, "\"name\":");
+    lv_json_buf_append_string(&w, mod->name);
+    lv_json_buf_append_char(&w, ',');
 
     /* version */
-    json_writer_puts(&w, "\"version\":");
-    json_writer_write_escaped_str(&w, mod->version);
-    json_writer_putc(&w, ',');
+    lv_json_buf_append_raw(&w, "\"version\":");
+    lv_json_buf_append_string(&w, mod->version);
+    lv_json_buf_append_char(&w, ',');
 
     /* dependencies */
-    json_writer_puts(&w, "\"dependencies\":[");
+    lv_json_buf_append_raw(&w, "\"dependencies\":[");
     for (int i = 0; i < mod->dependencies.count; i++) {
         if (i > 0)
-            json_writer_putc(&w, ',');
-        json_writer_putc(&w, '{');
-        json_writer_puts(&w, "\"name\":");
-        json_writer_write_escaped_str(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
-        json_writer_putc(&w, ',');
-        json_writer_puts(&w, "\"version_constraint\":");
-        json_writer_write_escaped_str(&w, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
-        json_writer_putc(&w, '}');
+            lv_json_buf_append_char(&w, ',');
+        lv_json_buf_append_char(&w, '{');
+        lv_json_buf_append_raw(&w, "\"name\":");
+        lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
+        lv_json_buf_append_char(&w, ',');
+        lv_json_buf_append_raw(&w, "\"version_constraint\":");
+        lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
+        lv_json_buf_append_char(&w, '}');
     }
-    json_writer_puts(&w, "],");
+    lv_json_buf_append_raw(&w, "],");
 
     /* exports */
-    json_writer_puts(&w, "\"exports\":{");
+    lv_json_buf_append_raw(&w, "\"exports\":{");
 
     /* function_blocks */
-    json_writer_puts(&w, "\"function_blocks\":[");
+    lv_json_buf_append_raw(&w, "\"function_blocks\":[");
     if (mod->exports) {
         for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
             if (i > 0)
-                json_writer_putc(&w, ',');
+                lv_json_buf_append_char(&w, ',');
             char buf[32];
             snprintf(buf, sizeof(buf), "%d", ((int *) mod->exports->function_block_ids.data)[i]);
-            json_writer_puts(&w, buf);
+            lv_json_buf_append_raw(&w, buf);
         }
     }
-    json_writer_puts(&w, "],");
+    lv_json_buf_append_raw(&w, "],");
 
     /* type_regions */
-    json_writer_puts(&w, "\"type_regions\":[");
+    lv_json_buf_append_raw(&w, "\"type_regions\":[");
     if (mod->exports) {
         for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
             if (i > 0)
-                json_writer_putc(&w, ',');
+                lv_json_buf_append_char(&w, ',');
             char buf[32];
             snprintf(buf, sizeof(buf), "%d", ((int *) mod->exports->type_region_ids.data)[i]);
-            json_writer_puts(&w, buf);
+            lv_json_buf_append_raw(&w, buf);
         }
     }
-    json_writer_puts(&w, "]");
+    lv_json_buf_append_raw(&w, "]");
 
-    json_writer_putc(&w, '}');
+    lv_json_buf_append_char(&w, '}');
 
     /* axiom_packages */
-    json_writer_puts(&w, ",\"axiom_packages\":[");
+    lv_json_buf_append_raw(&w, ",\"axiom_packages\":[");
     for (int i = 0; i < mod->axiom_packages.count; i++) {
         if (i > 0)
-            json_writer_putc(&w, ',');
+            lv_json_buf_append_char(&w, ',');
         if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
-            json_writer_write_escaped_str(&w, ((AxiomPackage **) mod->axiom_packages.data)[i]->name);
+            lv_json_buf_append_string(&w, ((AxiomPackage **) mod->axiom_packages.data)[i]->name);
         } else {
-            json_writer_puts(&w, "null");
+            lv_json_buf_append_raw(&w, "null");
         }
     }
-    json_writer_puts(&w, "]");
+    lv_json_buf_append_raw(&w, "]");
 
     /* graph - 序列化约束图 */
-    json_writer_puts(&w, ",\"graph\":");
+    lv_json_buf_append_raw(&w, ",\"graph\":");
     if (mod->graph) {
         char *graph_json = graph_serialize_to_json(mod->graph);
         if (graph_json) {
-            json_writer_puts(&w, graph_json);
+            lv_json_buf_append_raw(&w, graph_json);
             lv_free((void **) &graph_json);
         } else {
-            json_writer_puts(&w, "null");
+            lv_json_buf_append_raw(&w, "null");
         }
     } else {
-        json_writer_puts(&w, "null");
+        lv_json_buf_append_raw(&w, "null");
     }
 
-    json_writer_putc(&w, '}');
+    lv_json_buf_append_char(&w, '}');
 
     /* 返回 buffer（调用者负责 free） */
-    return w.buffer;
+    return lv_json_buf_finalize(&w);
 }
 
 /* ---------- 图序列化支持函数 ---------- */

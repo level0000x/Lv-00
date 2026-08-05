@@ -24,6 +24,7 @@
 #include "lv/engine.h"
 #include "lv/lv.h"
 #include "lv/lv_utils.h"
+#include "lv/geo_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
 
@@ -142,7 +143,7 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle, const void *graph, 
             double ay = symbolic_coord_to_double(na->symbolic_coords[1]);
             double bx = symbolic_coord_to_double(nb->symbolic_coords[0]);
             double by = symbolic_coord_to_double(nb->symbolic_coords[1]);
-            double dist = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+            double dist = geo_distance_2d(ax, ay, bx, by);
 
             if (fabs(dist - c->numeric_value) > 1e-6) {
                 return false;

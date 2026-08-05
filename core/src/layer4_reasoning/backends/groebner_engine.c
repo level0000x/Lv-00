@@ -174,15 +174,8 @@ int poly_internal_store(lvRegistryData *data, lvPolynomial *poly) {
         return -1;
     }
 
-    if (data->poly_count >= data->poly_capacity) {
-        int new_cap = data->poly_capacity == 0 ? lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY) : data->poly_capacity * 2;
-        lvPolynomial **new_polys = (lvPolynomial **) lv_realloc(data->polys, (size_t) new_cap * sizeof(lvPolynomial *));
-        if (!new_polys) {
-            return -1;
-        }
-        data->polys = new_polys;
-        data->poly_capacity = new_cap;
-    }
+    /* 扩容多项式池（count >= capacity 时倍增，统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(data->polys, data->poly_count, data->poly_capacity, -1);
 
     int id = data->next_poly_id++;
     poly->poly_id = id;
@@ -198,15 +191,8 @@ int ideal_internal_store(lvRegistryData *data, lvIdeal *ideal) {
         return -1;
     }
 
-    if (data->ideal_count >= data->ideal_capacity) {
-        int new_cap = data->ideal_capacity == 0 ? GROEBNER_IDEAL_INIT_GEN_CAPACITY : data->ideal_capacity * 2;
-        lvIdeal **new_ideals = (lvIdeal **) lv_realloc(data->ideals, (size_t) new_cap * sizeof(lvIdeal *));
-        if (!new_ideals) {
-            return -1;
-        }
-        data->ideals = new_ideals;
-        data->ideal_capacity = new_cap;
-    }
+    /* 扩容理想池（count >= capacity 时倍增，统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(data->ideals, data->ideal_count, data->ideal_capacity, -1);
 
     int id = data->next_ideal_id++;
     ideal->ideal_id = id;
@@ -222,15 +208,8 @@ int variety_internal_store(lvRegistryData *data, lvVariety *variety) {
         return -1;
     }
 
-    if (data->variety_count >= data->variety_capacity) {
-        int new_cap = data->variety_capacity == 0 ? 8 : data->variety_capacity * 2;
-        lvVariety **new_vars = (lvVariety **) lv_realloc(data->varieties, (size_t) new_cap * sizeof(lvVariety *));
-        if (!new_vars) {
-            return -1;
-        }
-        data->varieties = new_vars;
-        data->variety_capacity = new_cap;
-    }
+    /* 扩容代数簇池（count >= capacity 时倍增，统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(data->varieties, data->variety_count, data->variety_capacity, -1);
 
     int id = data->next_variety_id++;
     variety->variety_id = id;
@@ -480,8 +459,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     int *var_x = (int *)lv_calloc((size_t)map_size, sizeof(int));
     int *var_y = (int *)lv_calloc((size_t)map_size, sizeof(int));
     if (!var_x || !var_y) {
-        lv_free((void **)&var_x);
-        lv_free((void **)&var_y);
+        lv_free_many(&var_x, &var_y, NULL);
         goto cleanup;
     }
     memset(var_x, -1, (size_t)map_size * sizeof(int));
@@ -502,8 +480,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     /* 直接创建理想（已持有锁，避免调用 ideal_create 导致死锁） */
     lvIdeal *ideal = (lvIdeal *)lv_calloc(1, sizeof(lvIdeal));
     if (!ideal) {
-        lv_free((void **)&var_x);
-        lv_free((void **)&var_y);
+        lv_free_many(&var_x, &var_y, NULL);
         goto cleanup;
     }
     ideal->ring_id = ring_id;
@@ -512,9 +489,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         init_cap = GROEBNER_IDEAL_INIT_GEN_CAPACITY;
     ideal->generators = (lvPolynomial **)lv_calloc((size_t)init_cap, sizeof(lvPolynomial *));
     if (!ideal->generators) {
-        lv_free((void **)&var_x);
-        lv_free((void **)&var_y);
-        lv_free((void **)&ideal);
+        lv_free_many(&var_x, &var_y, &ideal, NULL);
         goto cleanup;
     }
     ideal->generator_capacity = init_cap;
@@ -590,15 +565,13 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         }
     }
 
-    lv_free((void **)&var_x);
-    lv_free((void **)&var_y);
+    lv_free_many(&var_x, &var_y, NULL);
 
     ret = ideal_internal_store(g_data, ideal);
     goto cleanup;
 
 gen_fail:
-    lv_free((void **)&var_x);
-    lv_free((void **)&var_y);
+    lv_free_many(&var_x, &var_y, NULL);
     /* 清理已分配的生成元 */
     for (int i = 0; i < ideal->generator_count; i++) {
         poly_internal_destroy(ideal->generators[i]);

@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_heap.h"
+#include "lv/geo_utils.h"
 
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -171,7 +172,7 @@ double triangle_face_area(const ConstraintGraph *graph, const TriangleFace *face
     double y2 = symbolic_coord_to_double(n2->symbolic_coords[1]);
 
     /* Area = 0.5 * |cross product| */
-    double cross = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+    double cross = geo_signed_area_2x(x0, y0, x1, y1, x2, y2);
     return cross < 0 ? -cross : cross;
 }
 

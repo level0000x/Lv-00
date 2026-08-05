@@ -347,8 +347,7 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
 
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
-        lv_free((void **) &variety->label);
-        lv_free((void **) &variety);
+        lv_free_many((void **) &variety->label, (void **) &variety, NULL);
         goto cleanup;
     }
 

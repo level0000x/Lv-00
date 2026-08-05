@@ -21,6 +21,7 @@
  */
 
 #include "lv/lv.h"
+#include "lv/geo_utils.h"
 
 /* ========================================================================
  * 宏连接辅助
@@ -430,9 +431,7 @@ static void AABB_FUNC(nearest_recursive)(const AABB_TREE_TYPE *tree, int node_id
 
             const lvAABB2D *prim_bb = &tree->primitives[pid];
             lvAABBPoint2D cp = aabb2d_closest_point(*prim_bb, px, py);
-            double dx = px - cp.x;
-            double dy = py - cp.y;
-            double dist = sqrt(dx * dx + dy * dy);
+            double dist = geo_distance_2d(px, py, cp.x, cp.y);
 
             if (dist < best->distance) {
                 best->distance = dist;
@@ -455,9 +454,7 @@ static void AABB_FUNC(nearest_recursive)(const AABB_TREE_TYPE *tree, int node_id
         double dist = sqrt(dx * dx + dy * dy + dz * dz);
 #else
         lvAABBPoint2D cp = AABB_FUNC(closest_point)(*prim_bb, px, py);
-        double dx = px - cp.x;
-        double dy = py - cp.y;
-        double dist = sqrt(dx * dx + dy * dy);
+        double dist = geo_distance_2d(px, py, cp.x, cp.y);
 #endif
 
         if (dist < best->distance) {

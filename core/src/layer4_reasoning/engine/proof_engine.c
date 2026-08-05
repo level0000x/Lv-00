@@ -142,8 +142,15 @@ bool lv_proof_engine_register_strategy(lvProofEngine *engine, const lvProofStrat
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_proof_engine_register_strategy: NULL param");
     }
 
-    if (engine->strategy_count >= lv_PROOF_MAX_STRATEGIES) {
-        lv_RETURN_ERROR_BOOL(lv_ERROR_RESOURCE_EXHAUSTED, "lv_proof_engine_register_strategy: strategy count exceeds max (%d)", lv_PROOF_MAX_STRATEGIES);
+    /* 策略数上限来自 lvConfig.proof.proof_max_strategies（默认 16），
+       并以编译期数组维度 lv_PROOF_MAX_STRATEGIES 为硬上限防止越界 */
+    const lvConfig *lv_cfg = lv_config_current();
+    int strategy_cap = lv_cfg->proof.proof_max_strategies;
+    if (strategy_cap > lv_PROOF_MAX_STRATEGIES)
+        strategy_cap = lv_PROOF_MAX_STRATEGIES;
+
+    if (engine->strategy_count >= strategy_cap) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_RESOURCE_EXHAUSTED, "lv_proof_engine_register_strategy: strategy count exceeds max (%d)", strategy_cap);
     }
 
     /* 按优先级插入（降序） */

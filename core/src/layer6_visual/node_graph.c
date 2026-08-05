@@ -17,6 +17,7 @@
 #include "lv/lv_utils.h"
 #include "lv/visual_editor.h"
 #include "lv/lv_internal.h"
+#include "lv/geo_utils.h"
 
 /* 节点图视图 - 完整实现
  * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
@@ -309,7 +310,7 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
             for (int j = i + 1; j < n; j++) {
                 double diff_x = nodes[i].x - nodes[j].x;
                 double diff_y = nodes[i].y - nodes[j].y;
-                double dist = sqrt(diff_x * diff_x + diff_y * diff_y);
+                double dist = geo_distance_2d(nodes[i].x, nodes[i].y, nodes[j].x, nodes[j].y);
                 if (dist < 0.01)
                     dist = 0.01; /* 避免除零 */
 
@@ -341,7 +342,7 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
 
             double diff_x = nodes[fi].x - nodes[ti].x;
             double diff_y = nodes[fi].y - nodes[ti].y;
-            double dist = sqrt(diff_x * diff_x + diff_y * diff_y);
+            double dist = geo_distance_2d(nodes[fi].x, nodes[fi].y, nodes[ti].x, nodes[ti].y);
             if (dist < 0.01)
                 dist = 0.01;
 
@@ -357,7 +358,7 @@ int lv_node_graph_layout(lvNodeGraphView *graph) {
 
         /* 应用位移，受温度限制 */
         for (int i = 0; i < n; i++) {
-            double disp = sqrt(dx[i] * dx[i] + dy[i] * dy[i]);
+            double disp = geo_distance_2d(0.0, 0.0, dx[i], dy[i]);
             if (disp < 0.01)
                 continue;
 

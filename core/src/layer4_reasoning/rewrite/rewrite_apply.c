@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_xmacro.h"
 #include "mpz_poly.h"
 
 /* rewrite_stream_ctx 定义在 rewrite.c 中，通过 getter 函数访问 */
@@ -73,18 +74,18 @@ typedef struct {
 } ParsedRule;
 
 /* 解析约束类型字符串 */
+/** @brief 约束类型名→枚举查找表（替代 5 分支 strcmp 链） */
+static const lvStrToEnumEntry s_constraint_type_entries[] = {
+    {"incidence", INCIDENCE},
+    {"betweenness", BETWEENNESS},
+    {"intersection", INTERSECTION},
+    {"containment", CONTAINMENT},
+    {"connection", CONNECTION},
+};
+
 static ConstraintType parse_constraint_type(const char *str) {
-    if (strcmp(str, "incidence") == 0)
-        return INCIDENCE;
-    if (strcmp(str, "betweenness") == 0)
-        return BETWEENNESS;
-    if (strcmp(str, "intersection") == 0)
-        return INTERSECTION;
-    if (strcmp(str, "containment") == 0)
-        return CONTAINMENT;
-    if (strcmp(str, "connection") == 0)
-        return CONNECTION;
-    return INCIDENCE; /* 默认 */
+    return (ConstraintType) lv_str_to_enum(s_constraint_type_entries, lv_ARRAY_SIZE(s_constraint_type_entries),
+                                           str, INCIDENCE);
 }
 
 /**

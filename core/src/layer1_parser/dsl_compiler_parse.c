@@ -86,7 +86,8 @@ static DslAST *ast_alloc(DslASTType type, int line, int col) {
 static bool ast_add_child(DslAST *parent, DslAST *child) {
     if (!parent || !child)
         return false;
-    ENSURE_CAP(parent->children, parent->child_count, parent->child_capacity, sizeof(DslAST *), false);
+    /* 扩容子节点数组（统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(parent->children, parent->child_count, parent->child_capacity, false);
     parent->children[parent->child_count++] = child;
     return true;
 }

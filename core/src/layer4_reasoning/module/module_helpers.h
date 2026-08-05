@@ -2,9 +2,12 @@
  * @file module_helpers.h
  * @brief 模块子系统共享内部类型和辅助函数声明
  *
- * 将 LvzTokenType/LvzToken/LvzParser、JsonWriter、JsonReader 等类型定义
+ * 将 LvzTokenType/LvzToken/LvzParser、JsonReader 等类型定义
  * 和相关函数从 module.c / module_lvz.c / module_serialize.c 提取到此头文件，
  * 以便 module_delta.c 等兄弟文件也能使用。
+ *
+ * 说明：JSON 写入器（原 JsonWriter）已迁移至公共库 lv/lv_json.h 的 lvJsonBuf，
+ *      模块内不再保留重复实现。
  *
  * 仅限模块子系统内部使用，外部代码不应包含此头文件。
  */
@@ -75,27 +78,6 @@ bool lvz_parser_expect(LvzParser *p, LvzTokenType type);
 bool lvz_parser_expect_identifier(LvzParser *p, const char *name);
 bool lvz_parser_expect_number(LvzParser *p, int *value);
 bool lvz_parser_expect_string(LvzParser *p, char **out);
-
-/* ============== JSON 写入器 ============== */
-
-/**
- * @brief 最小化 JSON 写入器
- *
- * 动态缓冲区的 JSON 序列化辅助结构。
- */
-typedef struct {
-    char *buffer;
-    size_t capacity;
-    size_t pos;
-} JsonWriter;
-
-/* JSON 写入器函数声明 */
-bool json_writer_init(JsonWriter *w, size_t initial_capacity);
-void json_writer_ensure(JsonWriter *w, size_t extra);
-void json_writer_putc(JsonWriter *w, char c);
-void json_writer_puts(JsonWriter *w, const char *s);
-void json_writer_write_escaped_str(JsonWriter *w, const char *s);
-void json_writer_destroy(JsonWriter *w);
 
 /* ============== JSON 读取器 ============== */
 

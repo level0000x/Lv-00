@@ -192,6 +192,9 @@ lv_PUBLIC_API bool lv_cache_context_switch(lvCacheManager *manager, uint32_t con
 lv_PUBLIC_API uint32_t lv_cache_context_current(const lvCacheManager *manager);
 /**
  * @brief 销毁缓存上下文
+ * @note 该函数销毁的是 manager 下的单个子上下文（由 context_id 指定），
+ *       返回 bool 表示销毁结果（如上下文不存在返回 false），
+ *       与主流 void xxx_destroy(T*) 约定不同，属子实体销毁 + 结果上报。
  */
 lv_PUBLIC_API bool lv_cache_context_destroy(lvCacheManager *manager, uint32_t context_id);
 /**

@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stddef.h>
 
 
 #include "lv/constraint_graph.h"
@@ -977,86 +978,203 @@ static void json_skip_value(JsonCtx *j) {
 /* ── json_parse_params 查找表 ── */
 typedef void (*JsonParseHandler)(JsonCtx *j, CommandEntry *e, const char *key);
 
+/* 通用字段解析器：解析 JSON 值并写入目标内存（字段名→handler 表用） */
+typedef void (*JsonFieldHandler)(JsonCtx *j, void *dst);
+
+static void json_field_int(JsonCtx *j, void *dst) { json_parse_int(j, (int *) dst); }
+static void json_field_bool(JsonCtx *j, void *dst) { json_parse_bool(j, (bool *) dst); }
+static void json_field_double(JsonCtx *j, void *dst) { json_parse_double(j, (double *) dst); }
+static void json_field_string_decl(JsonCtx *j, void *dst) { json_parse_string(j, (char *) dst, 256); }
+
+/** @brief 可空 double 数组（null 或数组，数组分配并接管） */
+static void json_field_nullable_double_array(JsonCtx *j, void *dst) {
+    double **out = (double **) dst;
+    if (json_peek(j) == 'n') json_parse_null(j);
+    else { lv_free((void **) out); json_parse_double_array(j, out); }
+}
+
+/** @brief 可空 uint64_t 数组（null 或数组，数组分配并接管） */
+static void json_field_nullable_u64_array(JsonCtx *j, void *dst) {
+    uint64_t **out = (uint64_t **) dst;
+    if (json_peek(j) == 'n') json_parse_null(j);
+    else { lv_free((void **) out); json_parse_uint64_array(j, out); }
+}
+
+/** @brief 可空 int 数组（null 或数组，数组分配并接管） */
+static void json_field_nullable_int_array(JsonCtx *j, void *dst) {
+    int **out = (int **) dst;
+    if (json_peek(j) == 'n') json_parse_null(j);
+    else { int *arr = NULL; (void) json_parse_int_array(j, &arr); lv_free((void **) out); *out = arr; }
+}
+
+/** @brief 固定长度 int 数组（最多复制 8 个，如 participant_ids） */
+static void json_field_participant_ids(JsonCtx *j, void *dst) {
+    int *arr = NULL;
+    int cnt = json_parse_int_array(j, &arr);
+    if (arr) {
+        int n = (cnt > 8) ? 8 : cnt;
+        memcpy(dst, arr, (size_t) n * sizeof(int));
+        lv_free((void **) &arr);
+    }
+}
+
+/** @brief 字段分发表条目：键名 + 目标字段偏移 + 解析器 */
+typedef struct {
+    const char *key;
+    size_t offset;          /* 相对参数结构体基址的偏移 */
+    JsonFieldHandler handler;
+} JsonFieldEntry;
+
+/** @brief 在字段表中查找键名对应的条目 */
+static const JsonFieldEntry *json_field_lookup(const JsonFieldEntry *table, size_t count, const char *key) {
+    for (size_t i = 0; i < count; i++) {
+        if (strcmp(table[i].key, key) == 0)
+            return &table[i];
+    }
+    return NULL;
+}
+
+/** @brief ADD_NODE 参数字段表（替代 8 分支 strcmp 链） */
+static const JsonFieldEntry kAddNodeFields[] = {
+    {"geom_type", offsetof(CmdAddNodeParams, geom_type), json_field_int},
+    {"node_id", offsetof(CmdAddNodeParams, node_id), json_field_int},
+    {"coord_count", offsetof(CmdAddNodeParams, coord_count), json_field_int},
+    {"namespace_depth", offsetof(CmdAddNodeParams, namespace_depth), json_field_int},
+    {"parent_block_id", offsetof(CmdAddNodeParams, parent_block_id), json_field_int},
+    {"is_formal_param", offsetof(CmdAddNodeParams, is_formal_param), json_field_bool},
+    {"coords_num", offsetof(CmdAddNodeParams, coords_num), json_field_nullable_double_array},
+    {"coords_den", offsetof(CmdAddNodeParams, coords_den), json_field_nullable_u64_array},
+};
+
 static void json_parse_add_node(JsonCtx *j, CommandEntry *e, const char *key) {
     CmdAddNodeParams *p = &e->params.add_node;
-    if (strcmp(key, "geom_type") == 0) json_parse_int(j, &p->geom_type);
-    else if (strcmp(key, "node_id") == 0) json_parse_int(j, &p->node_id);
-    else if (strcmp(key, "coord_count") == 0) json_parse_int(j, &p->coord_count);
-    else if (strcmp(key, "namespace_depth") == 0) json_parse_int(j, &p->namespace_depth);
-    else if (strcmp(key, "parent_block_id") == 0) json_parse_int(j, &p->parent_block_id);
-    else if (strcmp(key, "is_formal_param") == 0) json_parse_bool(j, &p->is_formal_param);
-    else if (strcmp(key, "coords_num") == 0) {
-        if (json_peek(j) == 'n') json_parse_null(j);
-        else { lv_free((void **) &p->coords_num); json_parse_double_array(j, &p->coords_num); }
-    } else if (strcmp(key, "coords_den") == 0) {
-        if (json_peek(j) == 'n') json_parse_null(j);
-        else { lv_free((void **) &p->coords_den); json_parse_uint64_array(j, &p->coords_den); }
-    } else json_skip_value(j);
+    const JsonFieldEntry *entry = json_field_lookup(kAddNodeFields, lv_ARRAY_SIZE(kAddNodeFields), key);
+    if (entry) {
+        entry->handler(j, (char *) p + entry->offset);
+        return;
+    }
+    json_skip_value(j);
 }
+
+/** @brief ADD_CONSTRAINT 参数字段表（替代 4 分支 strcmp 链） */
+static const JsonFieldEntry kAddConstraintFields[] = {
+    {"constraint_type", offsetof(CmdAddConstraintParams, constraint_type), json_field_int},
+    {"constraint_id", offsetof(CmdAddConstraintParams, constraint_id), json_field_int},
+    {"participant_count", offsetof(CmdAddConstraintParams, participant_count), json_field_int},
+    {"participant_ids", offsetof(CmdAddConstraintParams, participant_ids), json_field_participant_ids},
+};
 
 static void json_parse_add_constraint(JsonCtx *j, CommandEntry *e, const char *key) {
     CmdAddConstraintParams *p = &e->params.add_constraint;
-    if (strcmp(key, "constraint_type") == 0) json_parse_int(j, &p->constraint_type);
-    else if (strcmp(key, "constraint_id") == 0) json_parse_int(j, &p->constraint_id);
-    else if (strcmp(key, "participant_count") == 0) json_parse_int(j, &p->participant_count);
-    else if (strcmp(key, "participant_ids") == 0) {
-        int *arr = NULL;
-        int cnt = json_parse_int_array(j, &arr);
-        if (arr) {
-            int n = (cnt > 8) ? 8 : cnt;
-            memcpy(p->participant_ids, arr, (size_t) n * sizeof(int));
-            lv_free((void **) &arr);
-        }
-    } else json_skip_value(j);
+    const JsonFieldEntry *entry = json_field_lookup(kAddConstraintFields, lv_ARRAY_SIZE(kAddConstraintFields), key);
+    if (entry) {
+        entry->handler(j, (char *) p + entry->offset);
+        return;
+    }
+    json_skip_value(j);
 }
+
+/** @brief REMOVE_NODE 参数字段表 */
+static const JsonFieldEntry kRemoveNodeFields[] = {
+    {"node_id", offsetof(CmdRemoveNodeParams, node_id), json_field_int},
+};
 
 static void json_parse_remove_node(JsonCtx *j, CommandEntry *e, const char *key) {
-    if (strcmp(key, "node_id") == 0) json_parse_int(j, &e->params.remove_node.node_id);
-    else json_skip_value(j);
+    const JsonFieldEntry *entry = json_field_lookup(kRemoveNodeFields, lv_ARRAY_SIZE(kRemoveNodeFields), key);
+    if (entry) {
+        entry->handler(j, (char *) &e->params.remove_node + entry->offset);
+        return;
+    }
+    json_skip_value(j);
 }
 
+/** @brief REMOVE_CONSTRAINT 参数字段表 */
+static const JsonFieldEntry kRemoveConstraintFields[] = {
+    {"constraint_index", offsetof(CmdRemoveConstraintParams, constraint_index), json_field_int},
+};
+
 static void json_parse_remove_constraint(JsonCtx *j, CommandEntry *e, const char *key) {
-    if (strcmp(key, "constraint_index") == 0) json_parse_int(j, &e->params.remove_constraint.constraint_index);
-    else json_skip_value(j);
+    const JsonFieldEntry *entry =
+        json_field_lookup(kRemoveConstraintFields, lv_ARRAY_SIZE(kRemoveConstraintFields), key);
+    if (entry) {
+        entry->handler(j, (char *) &e->params.remove_constraint + entry->offset);
+        return;
+    }
+    json_skip_value(j);
 }
+
+/** @brief PACK_FUNCTION 参数字段表（替代 7 分支 strcmp 链） */
+static const JsonFieldEntry kPackFunctionFields[] = {
+    {"internal_count", offsetof(CmdPackFunctionParams, internal_count), json_field_int},
+    {"input_count", offsetof(CmdPackFunctionParams, input_count), json_field_int},
+    {"output_count", offsetof(CmdPackFunctionParams, output_count), json_field_int},
+    {"result_func_id", offsetof(CmdPackFunctionParams, result_func_id), json_field_int},
+    {"internal_node_ids", offsetof(CmdPackFunctionParams, internal_node_ids), json_field_nullable_int_array},
+    {"input_port_ids", offsetof(CmdPackFunctionParams, input_port_ids), json_field_nullable_int_array},
+    {"output_port_ids", offsetof(CmdPackFunctionParams, output_port_ids), json_field_nullable_int_array},
+};
 
 static void json_parse_pack_function(JsonCtx *j, CommandEntry *e, const char *key) {
     CmdPackFunctionParams *p = &e->params.pack_function;
-    if (strcmp(key, "internal_count") == 0) json_parse_int(j, &p->internal_count);
-    else if (strcmp(key, "input_count") == 0) json_parse_int(j, &p->input_count);
-    else if (strcmp(key, "output_count") == 0) json_parse_int(j, &p->output_count);
-    else if (strcmp(key, "result_func_id") == 0) json_parse_int(j, &p->result_func_id);
-    else if (strcmp(key, "internal_node_ids") == 0) {
-        if (json_peek(j) == 'n') json_parse_null(j);
-        else { int *arr = NULL; (void) json_parse_int_array(j, &arr); lv_free((void **) &p->internal_node_ids); p->internal_node_ids = arr; }
-    } else if (strcmp(key, "input_port_ids") == 0) {
-        if (json_peek(j) == 'n') json_parse_null(j);
-        else { int *arr = NULL; (void) json_parse_int_array(j, &arr); lv_free((void **) &p->input_port_ids); p->input_port_ids = arr; }
-    } else if (strcmp(key, "output_port_ids") == 0) {
-        if (json_peek(j) == 'n') json_parse_null(j);
-        else { int *arr = NULL; (void) json_parse_int_array(j, &arr); lv_free((void **) &p->output_port_ids); p->output_port_ids = arr; }
-    } else json_skip_value(j);
+    const JsonFieldEntry *entry =
+        json_field_lookup(kPackFunctionFields, lv_ARRAY_SIZE(kPackFunctionFields), key);
+    if (entry) {
+        entry->handler(j, (char *) p + entry->offset);
+        return;
+    }
+    json_skip_value(j);
 }
+
+/** @brief NORMALIZE_GRAPH 参数字段表（替代 2 分支 strcmp 链） */
+static const JsonFieldEntry kNormalizeGraphFields[] = {
+    {"scope_aware", offsetof(CmdNormalizeGraphParams, scope_aware), json_field_bool},
+    {"max_iterations", offsetof(CmdNormalizeGraphParams, max_iterations), json_field_int},
+};
 
 static void json_parse_normalize_graph(JsonCtx *j, CommandEntry *e, const char *key) {
-    if (strcmp(key, "scope_aware") == 0) json_parse_bool(j, &e->params.normalize_graph.scope_aware);
-    else if (strcmp(key, "max_iterations") == 0) json_parse_int(j, &e->params.normalize_graph.max_iterations);
-    else json_skip_value(j);
+    CmdNormalizeGraphParams *p = &e->params.normalize_graph;
+    const JsonFieldEntry *entry =
+        json_field_lookup(kNormalizeGraphFields, lv_ARRAY_SIZE(kNormalizeGraphFields), key);
+    if (entry) {
+        entry->handler(j, (char *) p + entry->offset);
+        return;
+    }
+    json_skip_value(j);
 }
 
+/** @brief UNIFY 参数字段表（替代 3 分支 strcmp 链） */
+static const JsonFieldEntry kUnifyFields[] = {
+    {"construction_graph_id", offsetof(CmdUnifyParams, construction_graph_id), json_field_int},
+    {"proposition_graph_id", offsetof(CmdUnifyParams, proposition_graph_id), json_field_int},
+    {"result", offsetof(CmdUnifyParams, result), json_field_bool},
+};
+
 static void json_parse_unify(JsonCtx *j, CommandEntry *e, const char *key) {
-    if (strcmp(key, "construction_graph_id") == 0) json_parse_int(j, &e->params.unify.construction_graph_id);
-    else if (strcmp(key, "proposition_graph_id") == 0) json_parse_int(j, &e->params.unify.proposition_graph_id);
-    else if (strcmp(key, "result") == 0) json_parse_bool(j, &e->params.unify.result);
-    else json_skip_value(j);
+    CmdUnifyParams *p = &e->params.unify;
+    const JsonFieldEntry *entry = json_field_lookup(kUnifyFields, lv_ARRAY_SIZE(kUnifyFields), key);
+    if (entry) {
+        entry->handler(j, (char *) p + entry->offset);
+        return;
+    }
+    json_skip_value(j);
 }
+
+/** @brief SET_NUMERIC_ASSUMPTION 参数字段表（替代 3 分支 strcmp 链） */
+static const JsonFieldEntry kSetNumericAssumptionFields[] = {
+    {"node_id", offsetof(CmdSetNumericAssumptionParams, node_id), json_field_int},
+    {"precision", offsetof(CmdSetNumericAssumptionParams, precision), json_field_double},
+    {"declaration", offsetof(CmdSetNumericAssumptionParams, declaration), json_field_string_decl},
+};
 
 static void json_parse_set_numeric_assumption(JsonCtx *j, CommandEntry *e, const char *key) {
     CmdSetNumericAssumptionParams *p = &e->params.set_numeric_assumption;
-    if (strcmp(key, "node_id") == 0) json_parse_int(j, &p->node_id);
-    else if (strcmp(key, "precision") == 0) json_parse_double(j, &p->precision);
-    else if (strcmp(key, "declaration") == 0) json_parse_string(j, p->declaration, sizeof(p->declaration));
-    else json_skip_value(j);
+    const JsonFieldEntry *entry =
+        json_field_lookup(kSetNumericAssumptionFields, lv_ARRAY_SIZE(kSetNumericAssumptionFields), key);
+    if (entry) {
+        entry->handler(j, (char *) p + entry->offset);
+        return;
+    }
+    json_skip_value(j);
 }
 
 static void json_parse_default(JsonCtx *j, CommandEntry *e, const char *key) { (void)e; json_skip_value(j); }
@@ -1095,6 +1213,49 @@ static void json_parse_params(JsonCtx *j, CommandEntry *e) {
         json_expect(j, '}'); /* 消费 '}' */
     }
 }
+
+/* ── 日志条目字段分发（查找表，替代 4 分支 strcmp 链） ── */
+
+typedef void (*EntryFieldHandler)(JsonCtx *j, CommandEntry *e);
+
+static void entry_field_type(JsonCtx *j, CommandEntry *e) {
+    char t[32];
+    if (json_parse_string(j, t, sizeof(t))) {
+        for (int ti = 0; ti < CMD_COUNT; ti++) {
+            if (strcmp(t, g_command_type_names[ti]) == 0) {
+                e->type = (CommandType) ti;
+                break;
+            }
+        }
+    }
+}
+
+static void entry_field_seq(JsonCtx *j, CommandEntry *e) {
+    int64_t seq_val;
+    if (json_parse_int64(j, &seq_val))
+        e->seq = seq_val;
+}
+
+static void entry_field_timestamp_ms(JsonCtx *j, CommandEntry *e) {
+    int64_t ts;
+    if (json_parse_int64(j, &ts))
+        e->timestamp_ms = ts;
+}
+
+static void entry_field_params(JsonCtx *j, CommandEntry *e) {
+    json_parse_params(j, e);
+}
+
+/** @brief 日志条目字段名→处理函数 查找表（替代 4 分支 strcmp 链） */
+static const struct {
+    const char *key;
+    EntryFieldHandler handler;
+} kEntryFieldTable[] = {
+    {"type", entry_field_type},
+    {"seq", entry_field_seq},
+    {"timestamp_ms", entry_field_timestamp_ms},
+    {"params", entry_field_params},
+};
 
 CommandLog *command_log_deserialize_json(const char *filepath) {
     if (!filepath) {
@@ -1171,29 +1332,18 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
                     if (!json_expect(&j, ':'))
                         break;
 
-                    if (strcmp(k, "type") == 0) {
-                        char t[32];
-                        if (json_parse_string(&j, t, sizeof(t))) {
-                            for (int ti = 0; ti < CMD_COUNT; ti++) {
-                                if (strcmp(t, g_command_type_names[ti]) == 0) {
-                                    e->type = (CommandType) ti;
-                                    break;
-                                }
-                            }
+                    /* 条目字段查表分发（替代 4 分支 strcmp 链） */
+                    EntryFieldHandler eh = NULL;
+                    for (size_t fi = 0; fi < lv_ARRAY_SIZE(kEntryFieldTable); fi++) {
+                        if (strcmp(k, kEntryFieldTable[fi].key) == 0) {
+                            eh = kEntryFieldTable[fi].handler;
+                            break;
                         }
-                    } else if (strcmp(k, "seq") == 0) {
-                        int64_t seq_val;
-                        if (json_parse_int64(&j, &seq_val))
-                            e->seq = seq_val;
-                    } else if (strcmp(k, "timestamp_ms") == 0) {
-                        int64_t ts;
-                        if (json_parse_int64(&j, &ts))
-                            e->timestamp_ms = ts;
-                    } else if (strcmp(k, "params") == 0) {
-                        json_parse_params(&j, e);
-                    } else {
-                        json_skip_value(&j);
                     }
+                    if (eh)
+                        eh(&j, e);
+                    else
+                        json_skip_value(&j);
 
                     if (json_peek(&j) == ',')
                         json_next(&j);

@@ -15,6 +15,7 @@
 #include "lv/config.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_numeric.h"
 
 #include "debug.h"
 #include "error_codes.h"
@@ -344,7 +345,7 @@ static int project_to_3d_stereographic(ProjectTo3dContext *ctx) {
      * 使用最小阈值做奇点保护。
      */
     double denom = 1.0 - ctx->pw;
-    if (fabs(denom) < 1e-12) {
+    if (lv_is_zero(denom, 1e-12)) {
         denom = (denom >= 0) ? 1e-12 : -1e-12;
         lv_set_error(lv_OK, "4D立体投影：w=%.4f接近极点，已应用奇点保护。", ctx->pw);
     }

@@ -7,6 +7,7 @@
  */
 
 #include "lv/lv_render_visitor.h"
+#include "lv/geo_utils.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -77,7 +78,7 @@ static bool render_line(const lvVisualObject *obj, const lvVisualScene *scene, c
     /* 无限延伸直线：从端点沿方向扩展到场景范围 */
     double dx = cache[2] - cache[0];
     double dy = cache[3] - cache[1];
-    double len = sqrt(dx * dx + dy * dy);
+    double len = geo_distance_2d(cache[0], cache[1], cache[2], cache[3]);
     if (len < 1e-12)
         return true;
     double ux = dx / len, uy = dy / len;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_utils.h
  * @brief 几何工具函数 —— 便捷聚合头文件
  *
@@ -28,6 +28,22 @@ extern "C" {
  * 均声明在 constraint_graph.h 中。
  */
 #include "constraint_graph.h"
+
+#ifndef lv_PUBLIC_API
+#define lv_PUBLIC_API
+#endif
+
+/* ========================================================================
+ * 几何计算工具函数（实现位于 layer3_geometry/geo_utils.c）
+ * ======================================================================== */
+
+lv_PUBLIC_API double geo_distance_2d(double x1, double y1, double x2, double y2);
+lv_PUBLIC_API int geo_approx_equal(double a, double b, double eps);
+lv_PUBLIC_API int geo_point_on_segment(double px, double py, double x1, double y1, double x2, double y2);
+lv_PUBLIC_API double geo_signed_area_2x(double x1, double y1, double x2, double y2, double x3, double y3);
+lv_PUBLIC_API double geo_angle(double x1, double y1, double x2, double y2);
+lv_PUBLIC_API int geo_segments_intersect(double ax1, double ay1, double ax2, double ay2, double bx1, double by1,
+                                         double bx2, double by2);
 
 #ifdef __cplusplus
 }

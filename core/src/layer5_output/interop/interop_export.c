@@ -17,6 +17,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
+#include "lv/geo_utils.h"
 #include "lv/interop.h"
 #include "lv/lv_json.h"
 
@@ -107,7 +108,7 @@ void compute_bezier_control_points(double p1x, double p1y, double p2x, double p2
                                    double *cp1x, double *cp1y, double *cp2x, double *cp2y) {
     double dx = p2x - p1x;
     double dy = p2y - p1y;
-    double dist = sqrt(dx * dx + dy * dy);
+    double dist = geo_distance_2d(p1x, p1y, p2x, p2y);
 
     double offset = 0.15 * dist;
     if (offset < 0.01)

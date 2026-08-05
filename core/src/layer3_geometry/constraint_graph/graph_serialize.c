@@ -439,6 +439,304 @@ static int *json_parser_parse_int_array(lvJsonParser *p, int *out_count) {
     return result;
 }
 
+/* ── 节点/约束 JSON 反序列化字段分发（查找表，替代手写 strcmp 链） ── */
+
+/** @brief 节点反序列化上下文：收集 JSON 字段解析结果 */
+typedef struct {
+    int node_id;
+    int coord_count;
+    GeomType node_type;
+    TrustColor trust;
+    int ns_depth;
+    int parent_block_id;
+    int *boundary_segs;
+    int boundary_seg_count;
+    int *internal_nodes;
+    int internal_node_count;
+    int *input_port_ids;
+    int input_port_count;
+    int *output_port_ids;
+    int output_port_count;
+    PortType port_type;
+    bool is_formal_param;
+    bool is_polymorphic;
+    int circle_center_id;
+    int circle_radius_id;
+    SymbolicCoord **coords;
+} NodeDeserCtx;
+
+typedef void (*NodeFieldHandler)(lvJsonParser *p, NodeDeserCtx *ctx);
+
+static void node_field_id(lvJsonParser *p, NodeDeserCtx *ctx) { lv_json_parse_int(p, &ctx->node_id); }
+
+static void node_field_type(lvJsonParser *p, NodeDeserCtx *ctx) {
+    char *type_str = lv_json_parse_string(p);
+    if (type_str) {
+        ctx->node_type = string_to_geom_type(type_str);
+        lv_free((void **) &type_str);
+    }
+}
+
+static void node_field_trust(lvJsonParser *p, NodeDeserCtx *ctx) {
+    char *trust_str = lv_json_parse_string(p);
+    if (trust_str) {
+        /* 查表反序列化（替代 10 分支 strcmp 链） */
+        ctx->trust = string_to_trust_color(trust_str);
+        lv_free((void **) &trust_str);
+    }
+}
+
+static void node_field_ns_depth(lvJsonParser *p, NodeDeserCtx *ctx) { lv_json_parse_int(p, &ctx->ns_depth); }
+
+static void node_field_parent_block_id(lvJsonParser *p, NodeDeserCtx *ctx) {
+    lv_json_parse_int(p, &ctx->parent_block_id);
+}
+
+static void node_field_center_node_id(lvJsonParser *p, NodeDeserCtx *ctx) {
+    lv_json_parse_int(p, &ctx->circle_center_id);
+}
+
+static void node_field_radius_node_id(lvJsonParser *p, NodeDeserCtx *ctx) {
+    lv_json_parse_int(p, &ctx->circle_radius_id);
+}
+
+static void node_field_boundary_segments(lvJsonParser *p, NodeDeserCtx *ctx) {
+    ctx->boundary_segs = json_parser_parse_int_array(p, &ctx->boundary_seg_count);
+}
+
+static void node_field_internal_nodes(lvJsonParser *p, NodeDeserCtx *ctx) {
+    ctx->internal_nodes = json_parser_parse_int_array(p, &ctx->internal_node_count);
+}
+
+static void node_field_input_port_ids(lvJsonParser *p, NodeDeserCtx *ctx) {
+    ctx->input_port_ids = json_parser_parse_int_array(p, &ctx->input_port_count);
+}
+
+static void node_field_output_port_ids(lvJsonParser *p, NodeDeserCtx *ctx) {
+    ctx->output_port_ids = json_parser_parse_int_array(p, &ctx->output_port_count);
+}
+
+static void node_field_port_type(lvJsonParser *p, NodeDeserCtx *ctx) {
+    char *pt = lv_json_parse_string(p);
+    if (pt) {
+        ctx->port_type = (strcmp(pt, "OUTPUT") == 0) ? PORT_OUTPUT : PORT_INPUT;
+        lv_free((void **) &pt);
+    }
+}
+
+static void node_field_is_formal_param(lvJsonParser *p, NodeDeserCtx *ctx) {
+    lv_json_parse_bool(p, &ctx->is_formal_param);
+}
+
+static void node_field_is_polymorphic(lvJsonParser *p, NodeDeserCtx *ctx) {
+    lv_json_parse_bool(p, &ctx->is_polymorphic);
+}
+
+static void node_field_coords(lvJsonParser *p, NodeDeserCtx *ctx) {
+    if (!lv_json_expect(p, '['))
+        return;
+    /* 计数 */
+    int temp_count = 0;
+    lvJsonParser temp_p = *p;
+    while (temp_p.pos < temp_p.size && temp_p.data[temp_p.pos] != ']') {
+        if (temp_p.data[temp_p.pos] == ',') {
+            temp_count++;
+            temp_p.pos++;
+        } else if (temp_p.data[temp_p.pos] != ' ' && temp_p.data[temp_p.pos] != '\t') {
+            temp_count++;
+        }
+        lv_json_skip_value(&temp_p);
+        lv_json_skip_ws(&temp_p);
+    }
+    ctx->coord_count = temp_count;
+
+    /* 解析坐标 */
+    if (ctx->coord_count > 0) {
+        ctx->coords = lv_malloc((size_t) ctx->coord_count * sizeof(SymbolicCoord *));
+        if (!ctx->coords) {
+            ctx->coord_count = 0;
+        } else {
+            for (int i = 0; i < ctx->coord_count; i++) {
+                ctx->coords[i] = NULL;
+            }
+        }
+    }
+
+    for (int i = 0; i < ctx->coord_count && lv_json_peek(p) != ']' && lv_json_peek(p) != '\0'; i++) {
+        if (lv_json_peek(p) == ',')
+            p->pos++;
+
+        if (lv_json_peek(p) == 'n') {
+            lv_json_skip_value(p);
+            continue;
+        }
+
+        if (lv_json_peek(p) == '{') {
+            p->pos++; /* skip '{' */
+            char *coord_key = lv_json_parse_string(p);
+            int coord_type = -1; /* 0=RATIONAL, 1=ALGEBRAIC, 2=QUADRATIC */
+            if (coord_key && strcmp(coord_key, "type") == 0) {
+                p->pos++; /* skip ':' */
+                char *ct = lv_json_parse_string(p);
+                if (ct) {
+                    /* 查表反序列化（替代 3 分支 strcmp 链） */
+                    coord_type = string_to_coord_type(ct);
+                    lv_free((void **) &ct);
+                }
+                lv_free((void **) &coord_key);
+
+                /* 继续解析值 */
+                while (lv_json_peek(p) != '}' && lv_json_peek(p) != '\0') {
+                    coord_key = lv_json_parse_string(p);
+                    if (!coord_key)
+                        break;
+                    lv_json_skip_ws(p);
+                    if (p->pos < p->size && p->data[p->pos] == ':')
+                        p->pos++;
+
+                    if (coord_type == 0 && strcmp(coord_key, "num") == 0) {
+                        int64_t num, den = 1;
+                        /* 手动解析 int64_t 值，避免 int* 截断 */
+                        {
+                            lv_json_skip_ws(p);
+                            char *end;
+                            long long val = strtoll((const char *) p->data + p->pos, &end, 10);
+                            num = (int64_t) val;
+                            p->pos = (size_t) (end - (const char *) p->data);
+                        }
+                        /* 查找 den */
+                        lv_json_skip_ws(p);
+                        if (lv_json_peek(p) == ',') {
+                            p->pos++;
+                            char *dk = lv_json_parse_string(p);
+                            if (dk && strcmp(dk, "den") == 0) {
+                                p->pos++;
+                                if (p->pos < p->size && p->data[p->pos] == ':')
+                                    p->pos++;
+                                /* 手动解析 int64_t 值，避免 int* 截断 */
+                                {
+                                    lv_json_skip_ws(p);
+                                    char *end;
+                                    long long val =
+                                        strtoll((const char *) p->data + p->pos, &end, 10);
+                                    den = (int64_t) val;
+                                    p->pos = (size_t) (end - (const char *) p->data);
+                                }
+                            }
+                            lv_free((void **) &dk);
+                        }
+                        ctx->coords[i] = symbolic_coord_create_rational(num, den);
+                    }
+                    lv_free((void **) &coord_key);
+                    lv_json_skip_ws(p);
+                }
+            } else {
+                lv_free((void **) &coord_key);
+                lv_json_skip_value(p);
+                while (lv_json_peek(p) != '}')
+                    lv_json_skip_value(p);
+            }
+            if (lv_json_peek(p) == '}')
+                p->pos++;
+        } else {
+            lv_json_skip_value(p);
+        }
+    }
+
+    lv_json_expect(p, ']');
+}
+
+/** @brief 节点字段名→处理函数 查找表（替代 15 分支 strcmp 链） */
+static const struct {
+    const char *key;
+    NodeFieldHandler handler;
+} kNodeFieldTable[] = {
+    {"id", node_field_id},
+    {"type", node_field_type},
+    {"trust", node_field_trust},
+    {"namespace_depth", node_field_ns_depth},
+    {"parent_block_id", node_field_parent_block_id},
+    {"coords", node_field_coords},
+    {"center_node_id", node_field_center_node_id},
+    {"radius_node_id", node_field_radius_node_id},
+    {"boundary_segments", node_field_boundary_segments},
+    {"internal_nodes", node_field_internal_nodes},
+    {"input_port_ids", node_field_input_port_ids},
+    {"output_port_ids", node_field_output_port_ids},
+    {"port_type", node_field_port_type},
+    {"is_formal_param", node_field_is_formal_param},
+    {"is_polymorphic", node_field_is_polymorphic},
+};
+
+/** @brief 在节点字段表中查找键名对应的 handler */
+static NodeFieldHandler node_field_lookup(const char *key) {
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kNodeFieldTable); i++) {
+        if (strcmp(kNodeFieldTable[i].key, key) == 0)
+            return kNodeFieldTable[i].handler;
+    }
+    return NULL;
+}
+
+/** @brief 约束反序列化上下文：收集 JSON 字段解析结果 */
+typedef struct {
+    int constraint_id;
+    int template_id;
+    double numeric_value;
+    ConstraintType constraint_type;
+    int *participants;
+    int participant_count;
+} ConstraintDeserCtx;
+
+typedef void (*ConstraintFieldHandler)(lvJsonParser *p, ConstraintDeserCtx *ctx);
+
+static void constraint_field_id(lvJsonParser *p, ConstraintDeserCtx *ctx) {
+    lv_json_parse_int(p, &ctx->constraint_id);
+}
+
+static void constraint_field_type(lvJsonParser *p, ConstraintDeserCtx *ctx) {
+    char *type_str = lv_json_parse_string(p);
+    if (type_str) {
+        ctx->constraint_type = string_to_constraint_type(type_str);
+        lv_free((void **) &type_str);
+    }
+}
+
+static void constraint_field_participants(lvJsonParser *p, ConstraintDeserCtx *ctx) {
+    ctx->participants = json_parser_parse_int_array(p, &ctx->participant_count);
+}
+
+static void constraint_field_template_id(lvJsonParser *p, ConstraintDeserCtx *ctx) {
+    lv_json_parse_int(p, &ctx->template_id);
+}
+
+static void constraint_field_numeric_value(lvJsonParser *p, ConstraintDeserCtx *ctx) {
+    lv_json_skip_ws(p);
+    char *end;
+    ctx->numeric_value = strtod(p->data + p->pos, &end);
+    p->pos = (size_t) (end - p->data);
+}
+
+/** @brief 约束字段名→处理函数 查找表（替代 5 分支 strcmp 链） */
+static const struct {
+    const char *key;
+    ConstraintFieldHandler handler;
+} kConstraintFieldTable[] = {
+    {"id", constraint_field_id},
+    {"constraint_type", constraint_field_type},
+    {"participants", constraint_field_participants},
+    {"template_id", constraint_field_template_id},
+    {"numeric_value", constraint_field_numeric_value},
+};
+
+/** @brief 在约束字段表中查找键名对应的 handler */
+static ConstraintFieldHandler constraint_field_lookup(const char *key) {
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kConstraintFieldTable); i++) {
+        if (strcmp(kConstraintFieldTable[i].key, key) == 0)
+            return kConstraintFieldTable[i].handler;
+    }
+    return NULL;
+}
+
 /* 反序列化图 */
 ConstraintGraph *graph_deserialize_from_json(const char *json) {
     if (!json) {
@@ -506,27 +804,13 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 }
                 p.pos++; /* skip '{' */
 
-                /* 解析节点 */
-                int node_id = 0, coord_count = 0;
-                GeomType node_type = GEOM_POINT;
-                TrustColor trust = TRUST_GREEN;
-                int ns_depth = 0, parent_block_id = -1;
-
-                /* 存储临时数据 */
-                int *boundary_segs = NULL;
-                int boundary_seg_count = 0;
-                int *internal_nodes = NULL;
-                int internal_node_count = 0;
-                int *input_port_ids = NULL;
-                int input_port_count = 0;
-                int *output_port_ids = NULL;
-                int output_port_count = 0;
-                PortType port_type = PORT_INPUT;
-                bool is_formal_param = false;
-                bool is_polymorphic = false;
-                int circle_center_id = -1;
-                int circle_radius_id = -1;
-                SymbolicCoord **coords = NULL;
+                /* 解析节点（字段分发查找表，替代 15 分支 strcmp 链） */
+                NodeDeserCtx ctx;
+                memset(&ctx, 0, sizeof(ctx));
+                ctx.parent_block_id = -1;
+                ctx.circle_center_id = -1;
+                ctx.circle_radius_id = -1;
+                ctx.port_type = PORT_INPUT;
 
                 while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
                     char *node_key = lv_json_parse_string(&p);
@@ -540,174 +824,12 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                     }
                     p.pos++;
 
-                    if (strcmp(node_key, "id") == 0) {
-                        lv_json_parse_int(&p, &node_id);
-                    } else if (strcmp(node_key, "type") == 0) {
-                        char *type_str = lv_json_parse_string(&p);
-                        if (type_str) {
-                            node_type = string_to_geom_type(type_str);
-                            lv_free((void **) &type_str);
-                        }
-                    } else if (strcmp(node_key, "trust") == 0) {
-                        char *trust_str = lv_json_parse_string(&p);
-                        if (trust_str) {
-                            /* 查表反序列化（替代 10 分支 strcmp 链） */
-                            trust = string_to_trust_color(trust_str);
-                            lv_free((void **) &trust_str);
-                        }
-                    } else if (strcmp(node_key, "namespace_depth") == 0) {
-                        lv_json_parse_int(&p, &ns_depth);
-                    } else if (strcmp(node_key, "parent_block_id") == 0) {
-                        lv_json_parse_int(&p, &parent_block_id);
-                    } else if (strcmp(node_key, "coords") == 0) {
-                        if (lv_json_expect(&p, '[')) {
-                            /* 计数 */
-                            int temp_count = 0;
-                            lvJsonParser temp_p = p;
-                            while (temp_p.pos < temp_p.size && temp_p.data[temp_p.pos] != ']') {
-                                if (temp_p.data[temp_p.pos] == ',') {
-                                    temp_count++;
-                                    temp_p.pos++;
-                                } else if (temp_p.data[temp_p.pos] != ' ' && temp_p.data[temp_p.pos] != '\t') {
-                                    temp_count++;
-                                }
-                                lv_json_skip_value(&temp_p);
-                                lv_json_skip_ws(&temp_p);
-                            }
-                            coord_count = temp_count;
-
-                            /* 解析坐标 */
-                            if (coord_count > 0) {
-                                coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
-                                if (!coords) {
-                                    coord_count = 0;
-                                } else {
-                                    for (int i = 0; i < coord_count; i++) {
-                                        coords[i] = NULL;
-                                    }
-                                }
-                            }
-
-                            for (int i = 0;
-                                 i < coord_count && lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0'; i++) {
-                                if (lv_json_peek(&p) == ',')
-                                    p.pos++;
-
-                                if (lv_json_peek(&p) == 'n') {
-                                    lv_json_skip_value(&p);
-                                    continue;
-                                }
-
-                                if (lv_json_peek(&p) == '{') {
-                                    p.pos++; /* skip '{' */
-                                    char *coord_key = lv_json_parse_string(&p);
-                                    int coord_type = -1; /* 0=RATIONAL, 1=ALGEBRAIC, 2=QUADRATIC */
-                                    if (coord_key && strcmp(coord_key, "type") == 0) {
-                                        p.pos++; /* skip ':' */
-                                        char *ct = lv_json_parse_string(&p);
-                                        if (ct) {
-                                            /* 查表反序列化（替代 3 分支 strcmp 链） */
-                                            coord_type = string_to_coord_type(ct);
-                                            lv_free((void **) &ct);
-                                        }
-                                        lv_free((void **) &coord_key);
-
-                                        /* 继续解析值 */
-                                        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                                            coord_key = lv_json_parse_string(&p);
-                                            if (!coord_key)
-                                                break;
-                                            lv_json_skip_ws(&p);
-                                            if (p.pos < p.size && p.data[p.pos] == ':')
-                                                p.pos++;
-
-                                            if (coord_type == 0 && strcmp(coord_key, "num") == 0) {
-                                                int64_t num, den = 1;
-                                                /* 手动解析 int64_t 值，避免 int* 截断 */
-                                                {
-                                                    lv_json_skip_ws(&p);
-                                                    char *end;
-                                                    long long val = strtoll((const char *) p.data + p.pos, &end, 10);
-                                                    num = (int64_t) val;
-                                                    p.pos = (size_t) (end - (const char *) p.data);
-                                                }
-                                                /* 查找 den */
-                                                lv_json_skip_ws(&p);
-                                                if (lv_json_peek(&p) == ',') {
-                                                    p.pos++;
-                                                    char *dk = lv_json_parse_string(&p);
-                                                    if (dk && strcmp(dk, "den") == 0) {
-                                                        p.pos++;
-                                                        if (p.pos < p.size && p.data[p.pos] == ':')
-                                                            p.pos++;
-                                                        /* 手动解析 int64_t 值，避免 int* 截断 */
-                                                        {
-                                                            lv_json_skip_ws(&p);
-                                                            char *end;
-                                                            long long val =
-                                                                strtoll((const char *) p.data + p.pos, &end, 10);
-                                                            den = (int64_t) val;
-                                                            p.pos = (size_t) (end - (const char *) p.data);
-                                                        }
-                                                    }
-                                                    lv_free((void **) &dk);
-                                                }
-                                                coords[i] = symbolic_coord_create_rational(num, den);
-                                            } else if (coord_type == 0 && strcmp(coord_key, "num") == 0) {
-                                                int64_t num = 0, den = 1;
-                                                /* 手动解析 int64_t 值，避免 int* 截断 */
-                                                {
-                                                    lv_json_skip_ws(&p);
-                                                    char *end;
-                                                    long long val = strtoll((const char *) p.data + p.pos, &end, 10);
-                                                    num = (int64_t) val;
-                                                    p.pos = (size_t) (end - (const char *) p.data);
-                                                }
-                                                coords[i] = symbolic_coord_create_rational(num, den);
-                                            }
-                                            lv_free((void **) &coord_key);
-                                            lv_json_skip_ws(&p);
-                                        }
-                                    } else {
-                                        lv_free((void **) &coord_key);
-                                        lv_json_skip_value(&p);
-                                        while (lv_json_peek(&p) != '}')
-                                            lv_json_skip_value(&p);
-                                    }
-                                    if (lv_json_peek(&p) == '}')
-                                        p.pos++;
-                                } else {
-                                    lv_json_skip_value(&p);
-                                }
-                            }
-
-                            lv_json_expect(&p, ']');
-                        }
-                    } else if (strcmp(node_key, "center_node_id") == 0) {
-                        lv_json_parse_int(&p, &circle_center_id);
-                    } else if (strcmp(node_key, "radius_node_id") == 0) {
-                        lv_json_parse_int(&p, &circle_radius_id);
-                    } else if (strcmp(node_key, "boundary_segments") == 0) {
-                        boundary_segs = json_parser_parse_int_array(&p, &boundary_seg_count);
-                    } else if (strcmp(node_key, "internal_nodes") == 0) {
-                        internal_nodes = json_parser_parse_int_array(&p, &internal_node_count);
-                    } else if (strcmp(node_key, "input_port_ids") == 0) {
-                        input_port_ids = json_parser_parse_int_array(&p, &input_port_count);
-                    } else if (strcmp(node_key, "output_port_ids") == 0) {
-                        output_port_ids = json_parser_parse_int_array(&p, &output_port_count);
-                    } else if (strcmp(node_key, "port_type") == 0) {
-                        char *pt = lv_json_parse_string(&p);
-                        if (pt) {
-                            port_type = (strcmp(pt, "OUTPUT") == 0) ? PORT_OUTPUT : PORT_INPUT;
-                            lv_free((void **) &pt);
-                        }
-                    } else if (strcmp(node_key, "is_formal_param") == 0) {
-                        lv_json_parse_bool(&p, &is_formal_param);
-                    } else if (strcmp(node_key, "is_polymorphic") == 0) {
-                        lv_json_parse_bool(&p, &is_polymorphic);
-                    } else {
+                    /* 字段查表分发（替代 15 分支 strcmp 链） */
+                    NodeFieldHandler fh = node_field_lookup(node_key);
+                    if (fh)
+                        fh(&p, &ctx);
+                    else
                         lv_json_skip_value(&p);
-                    }
 
                     lv_free((void **) &node_key);
                     lv_json_skip_ws(&p);
@@ -719,84 +841,84 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 /* 对于 LINE_SEGMENT，需要先确保端点节点存在 */
                 /* 我们先跳过 LINE_SEGMENT 和 REGION，在第二轮处理 */
                 /* 暂时存储节点信息以便后续处理 */
-                GeomNode *node = graph_add_node_with_id(graph, node_id, node_type, coords, coord_count);
+                GeomNode *node = graph_add_node_with_id(graph, ctx.node_id, ctx.node_type, ctx.coords, ctx.coord_count);
                 if (node) {
-                    node->trust = trust;
-                    node->namespace_depth = ns_depth;
-                    node->parent_block_id = parent_block_id;
+                    node->trust = ctx.trust;
+                    node->namespace_depth = ctx.ns_depth;
+                    node->parent_block_id = ctx.parent_block_id;
 
                     /* 设置类型特定数据 */
-                    if (node_type == GEOM_REGION && boundary_segs && boundary_seg_count > 0) {
+                    if (ctx.node_type == GEOM_REGION && ctx.boundary_segs && ctx.boundary_seg_count > 0) {
                         node->data.region.boundary_segments =
-                            lv_malloc((size_t) boundary_seg_count * sizeof(GeomNode *));
+                            lv_malloc((size_t) ctx.boundary_seg_count * sizeof(GeomNode *));
                         if (node->data.region.boundary_segments) {
-                            for (int i = 0; i < boundary_seg_count; i++) {
-                                node->data.region.boundary_segments[i] = graph_get_node(graph, boundary_segs[i]);
+                            for (int i = 0; i < ctx.boundary_seg_count; i++) {
+                                node->data.region.boundary_segments[i] = graph_get_node(graph, ctx.boundary_segs[i]);
                             }
-                            node->data.region.segment_count = boundary_seg_count;
+                            node->data.region.segment_count = ctx.boundary_seg_count;
                         }
-                    } else if (node_type == GEOM_CIRCLE) {
-                        node->data.circle.center_node_id = circle_center_id;
-                        node->data.circle.radius_node_id = circle_radius_id;
-                    } else if (node_type == GEOM_PORT) {
+                    } else if (ctx.node_type == GEOM_CIRCLE) {
+                        node->data.circle.center_node_id = ctx.circle_center_id;
+                        node->data.circle.radius_node_id = ctx.circle_radius_id;
+                    } else if (ctx.node_type == GEOM_PORT) {
                         Port *port = lv_calloc(1, sizeof(Port));
                         if (port) {
-                            port->id = node_id;
-                            port->type = port_type;
-                            port->namespace_depth = ns_depth;
-                            port->parent_block_id = parent_block_id;
-                            port->is_formal_param = is_formal_param;
-                            port->is_polymorphic = is_polymorphic;
+                            port->id = ctx.node_id;
+                            port->type = ctx.port_type;
+                            port->namespace_depth = ctx.ns_depth;
+                            port->parent_block_id = ctx.parent_block_id;
+                            port->is_formal_param = ctx.is_formal_param;
+                            port->is_polymorphic = ctx.is_polymorphic;
                             port->connected_to = NULL;
                             node->data.port = port;
                         }
-                    } else if (node_type == GEOM_FUNCTION_BLOCK) {
-                        node->data.func_block.internal_node_count = internal_node_count;
-                        node->data.func_block.input_count = input_port_count;
-                        node->data.func_block.output_count = output_port_count;
-                        if (internal_nodes && internal_node_count > 0) {
+                    } else if (ctx.node_type == GEOM_FUNCTION_BLOCK) {
+                        node->data.func_block.internal_node_count = ctx.internal_node_count;
+                        node->data.func_block.input_count = ctx.input_port_count;
+                        node->data.func_block.output_count = ctx.output_port_count;
+                        if (ctx.internal_nodes && ctx.internal_node_count > 0) {
                             node->data.func_block.internal_nodes =
-                                lv_malloc((size_t) internal_node_count * sizeof(GeomNode *));
+                                lv_malloc((size_t) ctx.internal_node_count * sizeof(GeomNode *));
                             if (node->data.func_block.internal_nodes) {
-                                for (int i = 0; i < internal_node_count; i++) {
-                                    node->data.func_block.internal_nodes[i] = graph_get_node(graph, internal_nodes[i]);
+                                for (int i = 0; i < ctx.internal_node_count; i++) {
+                                    node->data.func_block.internal_nodes[i] = graph_get_node(graph, ctx.internal_nodes[i]);
                                 }
                             }
                         }
-                        if (input_port_ids && input_port_count > 0) {
-                            node->data.func_block.input_port_ids = lv_malloc((size_t) input_port_count * sizeof(int));
+                        if (ctx.input_port_ids && ctx.input_port_count > 0) {
+                            node->data.func_block.input_port_ids = lv_malloc((size_t) ctx.input_port_count * sizeof(int));
                             if (node->data.func_block.input_port_ids) {
-                                memcpy(node->data.func_block.input_port_ids, input_port_ids,
-                                       input_port_count * sizeof(int));
+                                memcpy(node->data.func_block.input_port_ids, ctx.input_port_ids,
+                                       ctx.input_port_count * sizeof(int));
                             }
                         }
-                        if (output_port_ids && output_port_count > 0) {
-                            node->data.func_block.output_port_ids = lv_malloc((size_t) output_port_count * sizeof(int));
+                        if (ctx.output_port_ids && ctx.output_port_count > 0) {
+                            node->data.func_block.output_port_ids = lv_malloc((size_t) ctx.output_port_count * sizeof(int));
                             if (node->data.func_block.output_port_ids) {
-                                memcpy(node->data.func_block.output_port_ids, output_port_ids,
-                                       output_port_count * sizeof(int));
+                                memcpy(node->data.func_block.output_port_ids, ctx.output_port_ids,
+                                       ctx.output_port_count * sizeof(int));
                             }
                         }
                         node->data.func_block.determinism_state = UNVERIFIED;
                     }
 
                     /* 更新 next_node_id */
-                    if (node_id >= graph->next_node_id) {
-                        graph->next_node_id = node_id + 1;
+                    if (ctx.node_id >= graph->next_node_id) {
+                        graph->next_node_id = ctx.node_id + 1;
                     }
                 }
 
                 /* 释放临时数据 */
-                lv_free((void **) &boundary_segs);
-                lv_free((void **) &internal_nodes);
-                lv_free((void **) &input_port_ids);
-                lv_free((void **) &output_port_ids);
-                if (coords) {
-                    for (int i = 0; i < coord_count; i++) {
-                        if (coords[i])
-                            symbolic_coord_destroy(coords[i]);
+                lv_free((void **) &ctx.boundary_segs);
+                lv_free((void **) &ctx.internal_nodes);
+                lv_free((void **) &ctx.input_port_ids);
+                lv_free((void **) &ctx.output_port_ids);
+                if (ctx.coords) {
+                    for (int i = 0; i < ctx.coord_count; i++) {
+                        if (ctx.coords[i])
+                            symbolic_coord_destroy(ctx.coords[i]);
                     }
-                    lv_free((void **) &coords);
+                    lv_free((void **) &ctx.coords);
                 }
             }
 
@@ -826,11 +948,11 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 }
                 p.pos++; /* skip '{' */
 
-                int constraint_id = 0, template_id = -1;
-                double numeric_value = 0.0;
-                ConstraintType constraint_type = INCIDENCE;
-                int *participants = NULL;
-                int participant_count = 0;
+                /* 解析约束（字段分发查找表，替代 5 分支 strcmp 链） */
+                ConstraintDeserCtx cctx;
+                memset(&cctx, 0, sizeof(cctx));
+                cctx.template_id = -1;
+                cctx.constraint_type = INCIDENCE;
 
                 while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
                     char *ckey = lv_json_parse_string(&p);
@@ -844,26 +966,12 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                     }
                     p.pos++;
 
-                    if (strcmp(ckey, "id") == 0) {
-                        lv_json_parse_int(&p, &constraint_id);
-                    } else if (strcmp(ckey, "constraint_type") == 0) {
-                        char *type_str = lv_json_parse_string(&p);
-                        if (type_str) {
-                            constraint_type = string_to_constraint_type(type_str);
-                            lv_free((void **) &type_str);
-                        }
-                    } else if (strcmp(ckey, "participants") == 0) {
-                        participants = json_parser_parse_int_array(&p, &participant_count);
-                    } else if (strcmp(ckey, "template_id") == 0) {
-                        lv_json_parse_int(&p, &template_id);
-                    } else if (strcmp(ckey, "numeric_value") == 0) {
-                        lv_json_skip_ws(&p);
-                        char *end;
-                        numeric_value = strtod(p.data + p.pos, &end);
-                        p.pos = (size_t)(end - p.data);
-                    } else {
+                    /* 字段查表分发（替代 5 分支 strcmp 链） */
+                    ConstraintFieldHandler cfh = constraint_field_lookup(ckey);
+                    if (cfh)
+                        cfh(&p, &cctx);
+                    else
                         lv_json_skip_value(&p);
-                    }
 
                     lv_free((void **) &ckey);
                     lv_json_skip_ws(&p);
@@ -873,19 +981,20 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                     p.pos++;
 
                 /* 使用带ID的接口添加约束 */
-                if (participants && participant_count > 0) {
-                    Constraint *constraint = graph_add_constraint_with_id(graph, constraint_id, constraint_type,
-                                                                          participants, participant_count);
+                if (cctx.participants && cctx.participant_count > 0) {
+                    Constraint *constraint =
+                        graph_add_constraint_with_id(graph, cctx.constraint_id, cctx.constraint_type,
+                                                     cctx.participants, cctx.participant_count);
                     if (constraint) {
-                        constraint->template_id = template_id;
-                        constraint->numeric_value = numeric_value;
-                        if (constraint_id >= graph->next_constraint_id) {
-                            graph->next_constraint_id = constraint_id + 1;
+                        constraint->template_id = cctx.template_id;
+                        constraint->numeric_value = cctx.numeric_value;
+                        if (cctx.constraint_id >= graph->next_constraint_id) {
+                            graph->next_constraint_id = cctx.constraint_id + 1;
                         }
                     }
                 }
 
-                lv_free((void **) &participants);
+                lv_free((void **) &cctx.participants);
             }
 
             lv_json_expect(&p, ']');

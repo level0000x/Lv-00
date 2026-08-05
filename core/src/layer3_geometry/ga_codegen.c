@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/lv_utils.h"
+#include "lv/lv_numeric.h"
 #include "lv_internal.h"
 
 #define GA_CODEGEN_BUF_SIZE 512
@@ -257,7 +258,7 @@ char *ga_render_latex(const lvMultiVector *mv) {
     /* 逐分量遍历，输出每个非零基元素的系数与基名称 */
     for (int i = 0; i < GA_MV_DIM; i++) {
         double c = ga_mv_get(mv, i);
-        if (fabs(c) < 1e-12)
+        if (lv_is_zero(c, 1e-12))
             continue;
         double a = fabs(c);
         int neg = (c < 0.0);
@@ -266,11 +267,11 @@ char *ga_render_latex(const lvMultiVector *mv) {
         char term[64];
         if (i == 0) {
             /* 标量分量直接输出数值 */
-            if (fabs(a - 1.0) < 1e-12)
+            if (lv_is_equal(a, 1.0, 1e-12))
                 snprintf(term, sizeof(term), "1");
             else
                 snprintf(term, sizeof(term), "%.12g", a);
-        } else if (fabs(a - 1.0) < 1e-12) {
+        } else if (lv_is_equal(a, 1.0, 1e-12)) {
             snprintf(term, sizeof(term), "\\mathbf{%s}", blade_names[i]);
         } else {
             snprintf(term, sizeof(term), "%.12g\\mathbf{%s}", a, blade_names[i]);

@@ -23,18 +23,8 @@
 /** @brief 检查两 Token 类型是否匹配并前进 */
 #define TOKEN_IS(tok, tp) ((tok).type == (tp))
 
-/** @brief 安全扩容宏：通用动态数组扩容 */
-#define ENSURE_CAP(arr, count, cap, elem_sz, ret_on_fail)          \
-    do {                                                           \
-        if ((count) >= (cap)) {                                    \
-            size_t _new_cap = (cap) == 0 ? 8 : (size_t) (cap) * 2; \
-            void *_np = lv_realloc((arr), _new_cap * (elem_sz));   \
-            if (!_np)                                              \
-                return (ret_on_fail);                              \
-            (arr) = _np;                                           \
-            (cap) = (int) _new_cap;                                \
-        }                                                          \
-    } while (0)
+/* 注：动态数组扩容统一使用 lv/lv_utils.h 中的 lv_ENSURE_ARRAY_CAP，
+ * 不再在此重复定义 ENSURE_CAP（原定义已移除）。 */
 
 /* ================================================================
  *  Tokenizer 内部辅助
@@ -45,7 +35,8 @@
  */
 static bool token_append(DslToken **tokens, int *count, int *capacity, DSLTokenType type, const char *lexeme, int line,
                          int col) {
-    ENSURE_CAP(*tokens, *count, *capacity, sizeof(DslToken), false);
+    /* 扩容 Token 数组（统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(*tokens, *count, *capacity, false);
     DslToken *t = &(*tokens)[*count];
     t->type = type;
     t->lexeme = lexeme;

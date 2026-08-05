@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "func_block.h"
+#include "lv/lv_numeric.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -118,7 +119,7 @@ static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *
             /* 检查水平射线 (px, py) -> (+inf, py) 是否与线段相交 */
             double dy = y2 - y1;
             /* 【修复】使用 fabs 统一做除零检查，避免浮点数直接用 == 比较的不可靠性 */
-            if (fabs(dy) < 1e-12)
+            if (lv_is_zero(dy, 1e-12))
                 continue;
             if ((y1 <= py && y2 > py) || (y2 <= py && y1 > py)) {
                 double t = (py - y1) / dy;

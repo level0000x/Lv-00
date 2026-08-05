@@ -318,6 +318,120 @@ static int64_t mp_decoder_read_i64(MsgPackDecoder *dec) {
     return (int64_t) mp_decoder_read_u64(dec);
 }
 
+/* ── MSGPACK 类型分发查找表（替代手写 type == 相等判断链） ── */
+
+/** @brief 带长度字段的 msgpack 类型表条目：type → 长度字段字节数 */
+typedef struct {
+    uint8_t type;
+    uint8_t len_bytes;
+} MpLenEntry;
+
+/** @brief 在长度类型表中查找类型对应的长度字段字节数 */
+static bool mp_decoder_find_len(const MpLenEntry *table, size_t count, uint8_t type, uint8_t *len_bytes) {
+    for (size_t i = 0; i < count; i++) {
+        if (table[i].type == type) {
+            *len_bytes = table[i].len_bytes;
+            return true;
+        }
+    }
+    return false;
+}
+
+/** @brief 字符串长度类型表（替代 STR8/16/32 相等分发） */
+static const MpLenEntry kStrLenTable[] = {
+    {MSGPACK_STR8, 1},
+    {MSGPACK_STR16, 2},
+    {MSGPACK_STR32, 4},
+};
+
+/** @brief 二进制长度类型表（替代 BIN8/16/32 相等分发） */
+static const MpLenEntry kBinLenTable[] = {
+    {MSGPACK_BIN8, 1},
+    {MSGPACK_BIN16, 2},
+    {MSGPACK_BIN32, 4},
+};
+
+/** @brief 数组长度类型表（替代 ARRAY16 相等分发） */
+static const MpLenEntry kArrayLenTable[] = {
+    {MSGPACK_ARRAY16, 2},
+};
+
+/** @brief map 长度类型表（替代 MAP16 相等分发） */
+static const MpLenEntry kMapLenTable[] = {
+    {MSGPACK_MAP16, 2},
+};
+
+/** @brief 按长度字段字节数读取 msgpack 长度（1/2/4 字节） */
+static bool mp_decoder_read_len_field(MsgPackDecoder *dec, uint8_t len_bytes, uint32_t *len) {
+    if (len_bytes == 1) {
+        *len = mp_decoder_read_byte(dec);
+        return true;
+    }
+    if (len_bytes == 2) {
+        *len = mp_decoder_read_u16(dec);
+        return true;
+    }
+    *len = mp_decoder_read_u32(dec);
+    return true;
+}
+
+typedef bool (*IntDecoder)(MsgPackDecoder *dec, int64_t *out);
+
+static bool mp_decode_int8(MsgPackDecoder *dec, int64_t *out) {
+    *out = (int64_t) (int8_t) mp_decoder_read_byte(dec);
+    return true;
+}
+
+static bool mp_decode_int16(MsgPackDecoder *dec, int64_t *out) {
+    *out = (int64_t) (int16_t) mp_decoder_read_u16(dec);
+    return true;
+}
+
+static bool mp_decode_int32(MsgPackDecoder *dec, int64_t *out) {
+    *out = (int64_t) (int32_t) mp_decoder_read_u32(dec);
+    return true;
+}
+
+static bool mp_decode_int64(MsgPackDecoder *dec, int64_t *out) {
+    *out = mp_decoder_read_i64(dec);
+    return true;
+}
+
+static bool mp_decode_uint8(MsgPackDecoder *dec, int64_t *out) {
+    *out = (int64_t) mp_decoder_read_byte(dec);
+    return true;
+}
+
+static bool mp_decode_uint16(MsgPackDecoder *dec, int64_t *out) {
+    *out = (int64_t) mp_decoder_read_u16(dec);
+    return true;
+}
+
+static bool mp_decode_uint32(MsgPackDecoder *dec, int64_t *out) {
+    *out = (int64_t) mp_decoder_read_u32(dec);
+    return true;
+}
+
+static bool mp_decode_uint64(MsgPackDecoder *dec, int64_t *out) {
+    *out = (int64_t) mp_decoder_read_u64(dec);
+    return true;
+}
+
+/** @brief 整数类型→解码函数 查找表（替代 INT8/16/32/64、UINT8/16/32/64 相等分发） */
+static const struct {
+    uint8_t type;
+    IntDecoder decoder;
+} kIntDecodeTable[] = {
+    {MSGPACK_INT8, mp_decode_int8},
+    {MSGPACK_INT16, mp_decode_int16},
+    {MSGPACK_INT32, mp_decode_int32},
+    {MSGPACK_INT64, mp_decode_int64},
+    {MSGPACK_UINT8, mp_decode_uint8},
+    {MSGPACK_UINT16, mp_decode_uint16},
+    {MSGPACK_UINT32, mp_decode_uint32},
+    {MSGPACK_UINT64, mp_decode_uint64},
+};
+
 /* 解码整数 */
 static bool mp_decoder_read_int(MsgPackDecoder *dec, int64_t *out) {
     if (!mp_decoder_has_data(dec))
@@ -331,25 +445,12 @@ static bool mp_decoder_read_int(MsgPackDecoder *dec, int64_t *out) {
     } else if (type >= 0xe0) {
         /* fixint negative */
         *out = (int64_t) (int8_t) type;
-    } else if (type == MSGPACK_INT8) {
-        *out = (int64_t) (int8_t) mp_decoder_read_byte(dec);
-    } else if (type == MSGPACK_INT16) {
-        int16_t v = (int16_t) mp_decoder_read_u16(dec);
-        *out = (int64_t) v;
-    } else if (type == MSGPACK_INT32) {
-        int32_t v = (int32_t) mp_decoder_read_u32(dec);
-        *out = (int64_t) v;
-    } else if (type == MSGPACK_INT64) {
-        *out = mp_decoder_read_i64(dec);
-    } else if (type == MSGPACK_UINT8) {
-        *out = (int64_t) mp_decoder_read_byte(dec);
-    } else if (type == MSGPACK_UINT16) {
-        *out = (int64_t) mp_decoder_read_u16(dec);
-    } else if (type == MSGPACK_UINT32) {
-        *out = (int64_t) mp_decoder_read_u32(dec);
-    } else if (type == MSGPACK_UINT64) {
-        *out = (int64_t) mp_decoder_read_u64(dec);
     } else {
+        /* 查表分发（替代 8 分支相等判断链） */
+        for (size_t i = 0; i < lv_ARRAY_SIZE(kIntDecodeTable); i++) {
+            if (kIntDecodeTable[i].type == type)
+                return kIntDecodeTable[i].decoder(dec, out);
+        }
         return false;
     }
     return true;
@@ -365,14 +466,14 @@ static bool mp_decoder_read_str(MsgPackDecoder *dec, char **out) {
     size_t len = 0;
     if (type >= 0xa0 && type <= 0xbf) {
         len = type & 0x1f;
-    } else if (type == MSGPACK_STR8) {
-        len = mp_decoder_read_byte(dec);
-    } else if (type == MSGPACK_STR16) {
-        len = mp_decoder_read_u16(dec);
-    } else if (type == MSGPACK_STR32) {
-        len = mp_decoder_read_u32(dec);
     } else {
-        return false;
+        /* 长度类型查表（替代 STR8/16/32 相等分发） */
+        uint8_t len_bytes = 0;
+        uint32_t raw_len = 0;
+        if (!mp_decoder_find_len(kStrLenTable, lv_ARRAY_SIZE(kStrLenTable), type, &len_bytes) ||
+            !mp_decoder_read_len_field(dec, len_bytes, &raw_len))
+            return false;
+        len = raw_len;
     }
 
     if (dec->pos + len > dec->size)
@@ -396,15 +497,13 @@ static bool mp_decoder_read_bin(MsgPackDecoder *dec, uint8_t **out, size_t *out_
     mp_decoder_read_byte(dec);
 
     size_t len = 0;
-    if (type == MSGPACK_BIN8) {
-        len = mp_decoder_read_byte(dec);
-    } else if (type == MSGPACK_BIN16) {
-        len = mp_decoder_read_u16(dec);
-    } else if (type == MSGPACK_BIN32) {
-        len = mp_decoder_read_u32(dec);
-    } else {
+    /* 长度类型查表（替代 BIN8/16/32 相等分发） */
+    uint8_t len_bytes = 0;
+    uint32_t raw_len = 0;
+    if (!mp_decoder_find_len(kBinLenTable, lv_ARRAY_SIZE(kBinLenTable), type, &len_bytes) ||
+        !mp_decoder_read_len_field(dec, len_bytes, &raw_len))
         return false;
-    }
+    len = raw_len;
 
     if (dec->pos + len > dec->size)
         return false;
@@ -428,10 +527,14 @@ static bool mp_decoder_read_array_header(MsgPackDecoder *dec, uint16_t *count) {
 
     if (type >= 0x90 && type <= 0x9f) {
         *count = type & 0x0f;
-    } else if (type == MSGPACK_ARRAY16) {
-        *count = mp_decoder_read_u16(dec);
     } else {
-        return false;
+        /* 长度类型查表（替代 ARRAY16 相等分发） */
+        uint8_t len_bytes = 0;
+        uint32_t raw = 0;
+        if (!mp_decoder_find_len(kArrayLenTable, lv_ARRAY_SIZE(kArrayLenTable), type, &len_bytes) ||
+            !mp_decoder_read_len_field(dec, len_bytes, &raw))
+            return false;
+        *count = (uint16_t) raw;
     }
     return true;
 }
@@ -445,10 +548,14 @@ static bool mp_decoder_read_map_header(MsgPackDecoder *dec, uint16_t *count) {
 
     if (type >= 0x80 && type <= 0x8f) {
         *count = type & 0x0f;
-    } else if (type == MSGPACK_MAP16) {
-        *count = mp_decoder_read_u16(dec);
     } else {
-        return false;
+        /* 长度类型查表（替代 MAP16 相等分发） */
+        uint8_t len_bytes = 0;
+        uint32_t raw = 0;
+        if (!mp_decoder_find_len(kMapLenTable, lv_ARRAY_SIZE(kMapLenTable), type, &len_bytes) ||
+            !mp_decoder_read_len_field(dec, len_bytes, &raw))
+            return false;
+        *count = (uint16_t) raw;
     }
     return true;
 }

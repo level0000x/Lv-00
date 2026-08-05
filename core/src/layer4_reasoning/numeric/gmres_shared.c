@@ -28,6 +28,7 @@
 
 #include "lv/config.h"
 #include "lv/lv_utils.h"
+#include "lv/geo_utils.h"
 
 #ifndef lv_NUM_EPSILON
 #define lv_NUM_EPSILON lv_EPSILON_MEDIUM
@@ -174,7 +175,7 @@ int lv_gmres_solve(const lvGmresOps *ops, const lvMatrix *a,
             /* ---- 计算新的 Givens 旋转 ---- */
             double h_kk = H[k * m + k];
             double h_k1k = H[(k + 1) * m + k];
-            double h_norm = sqrt(h_kk * h_kk + h_k1k * h_k1k);
+            double h_norm = geo_distance_2d(0.0, 0.0, h_kk, h_k1k);
             if (h_norm < breakdown_eps) {
                 cs[k] = 1.0;
                 sn[k] = 0.0;

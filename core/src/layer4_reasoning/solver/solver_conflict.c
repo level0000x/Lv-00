@@ -98,8 +98,10 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
         if (graph->nodes[i]->id > max_id)
             max_id = graph->nodes[i]->id;
     }
-    if (max_id > SOLVER_MAX_VAR_ID) {
-        max_id = SOLVER_MAX_VAR_ID;
+    /* 变量 ID 上限来自 lvConfig.solver.solver_max_var_id（默认 100000，即原 SOLVER_MAX_VAR_ID） */
+    const lvConfig *lv_cfg = lv_config_current();
+    if (max_id > lv_cfg->solver.solver_max_var_id) {
+        max_id = lv_cfg->solver.solver_max_var_id;
     }
     if (max_id > 0) {
         int *eq_count_per_point = lv_calloc((size_t) (max_id + 1), sizeof(int));

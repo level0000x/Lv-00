@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_python.c
  * @brief Python 语法解析器
  *
@@ -25,6 +25,30 @@ static FormulaNode *parse_python_term(ParserContext *ctx);
 static FormulaNode *parse_python_factor(ParserContext *ctx);
 static FormulaNode *parse_python_atom(ParserContext *ctx);
 
+/* ── 数学函数名→节点创建 分发表（与 formula_dsl.c 共享查找函数） ── */
+
+/** @brief 数学函数分发表条目（定义与 formula_dsl.c 一致） */
+typedef struct {
+    const char *name;   /**< 函数名 */
+    int arg_count;      /**< 期望的参数个数 */
+    NodeType op;        /**< 对应运算符节点类型 */
+    bool is_binary;     /**< true=二元运算，false=一元运算 */
+} MathFuncEntry;
+
+/* 共享查找函数（实现在 formula_dsl.c） */
+FormulaNode *formula_apply_math_func(const char *ident, FormulaNode **args, int arg_count,
+                                     const MathFuncEntry *table, size_t table_size);
+
+/** @brief Python 数学函数表（含 pow；Python 不识别 ln/log） */
+static const MathFuncEntry kPythonMathFuncTable[] = {
+    {"sqrt", 1, NODE_UNARY_OP_SQRT, false},
+    {"sin", 1, NODE_UNARY_OP_SIN, false},
+    {"cos", 1, NODE_UNARY_OP_COS, false},
+    {"tan", 1, NODE_UNARY_OP_TAN, false},
+    {"abs", 1, NODE_UNARY_OP_ABS, false},
+    {"pow", 2, NODE_BINARY_OP_POW, true},
+};
+
 /**
  * @brief 解析 Python 原子
  *
@@ -39,24 +63,24 @@ static FormulaNode *parse_python_atom(ParserContext *ctx);
  * @return FormulaNode* 解析出的原子节点，失败返回 NULL
  */
 static FormulaNode *parse_python_atom(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
-    char c = peek(ctx);
+    char c = formula_peek(ctx);
 
     /* 数字 */
-    if (is_digit(c) || (c == '.' && is_digit(peek_next(ctx)))) {
-        return parse_number(ctx);
+    if (formula_is_digit(c) || (c == '.' && formula_is_digit(formula_peek_next(ctx)))) {
+        return formula_parse_number(ctx);
     }
 
     /* 括号表达式 */
     if (c == '(') {
-        consume(ctx);
-        skip_whitespace(ctx);
+        formula_consume(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *expr = parse_python_expression(ctx);
         if (!expr)
             return NULL;
-        skip_whitespace(ctx);
-        if (!expect_char(ctx, ')')) {
+        formula_skip_whitespace(ctx);
+        if (!formula_expect_char(ctx, ')')) {
             formula_node_destroy(expr);
             return NULL;
         }
@@ -65,26 +89,26 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
 
     /* 负号 */
     if (c == '-') {
-        consume(ctx);
+        formula_consume(ctx);
         FormulaNode *operand = parse_python_factor(ctx);
         if (!operand)
             return NULL;
-        return track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
+        return formula_track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
     }
 
     /* 正号 */
     if (c == '+') {
-        consume(ctx);
+        formula_consume(ctx);
         return parse_python_factor(ctx);
     }
 
     /* 标识符 */
-    if (is_alpha(c)) {
-        char *ident = parse_identifier_str(ctx);
+    if (formula_is_alpha(c)) {
+        char *ident = formula_parse_identifier_str(ctx);
         if (!ident)
             return NULL;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
 
         /* 检查布尔值 */
         if (strcmp(ident, "True") == 0 || strcmp(ident, "False") == 0) {
@@ -102,16 +126,22 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
         }
 
         /* 函数调用 */
-        if (peek(ctx) == '(') {
-            consume(ctx);
-            skip_whitespace(ctx);
+        if (formula_peek(ctx) == '(') {
+            formula_consume(ctx);
+            formula_skip_whitespace(ctx);
 
             /* 解析参数 */
             FormulaNode *args[lv_MAX_ARGUMENTS] = {NULL};
             int arg_count = 0;
-            while (!is_at_end(ctx) && peek(ctx) != ')') {
-                if (arg_count >= lv_MAX_ARGUMENTS) {
-                    set_error(ctx, "Too many arguments");
+            /* 运行时上限来自 lvConfig.parser.parser_max_arguments（默认 16），
+               并以编译期数组维度为硬上限，防止配置调大时栈数组越界 */
+            const lvConfig *lv_cfg = lv_config_current();
+            int arg_cap = lv_cfg->parser.parser_max_arguments;
+            if (arg_cap > lv_MAX_ARGUMENTS)
+                arg_cap = lv_MAX_ARGUMENTS;
+            while (!formula_is_at_end(ctx) && formula_peek(ctx) != ')') {
+                if (arg_count >= arg_cap) {
+                    formula_set_error(ctx, "Too many arguments");
                     lv_free((void **) &ident);
                     for (int i = 0; i < arg_count; i++)
                         formula_node_destroy(args[i]);
@@ -127,15 +157,15 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
                 }
                 arg_count++;
 
-                skip_whitespace(ctx);
+                formula_skip_whitespace(ctx);
 
-                if (peek(ctx) == ',') {
-                    consume(ctx);
-                    skip_whitespace(ctx);
+                if (formula_peek(ctx) == ',') {
+                    formula_consume(ctx);
+                    formula_skip_whitespace(ctx);
                 }
             }
 
-            if (!expect_char(ctx, ')')) {
+            if (!formula_expect_char(ctx, ')')) {
                 lv_free((void **) &ident);
                 for (int i = 0; i < arg_count; i++)
                     formula_node_destroy(args[i]);
@@ -171,7 +201,7 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
         return node;
     }
 
-    set_error(ctx, "Unexpected character in Python expression");
+    formula_set_error(ctx, "Unexpected character in Python expression");
     return NULL;
 }
 
@@ -189,13 +219,13 @@ static FormulaNode *parse_python_power(ParserContext *ctx) {
     if (!left)
         return NULL;
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 处理幂运算 ** */
-    if (match_string(ctx, "**")) {
-        consume(ctx);
-        consume(ctx);
-        skip_whitespace(ctx);
+    if (formula_match_string(ctx, "**")) {
+        formula_consume(ctx);
+        formula_consume(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_python_factor(ctx);
         if (!right) {
             formula_node_destroy(left);
@@ -236,37 +266,37 @@ static FormulaNode *parse_python_term(ParserContext *ctx) {
         return NULL;
 
     while (true) {
-        skip_whitespace(ctx);
-        char c = peek(ctx);
+        formula_skip_whitespace(ctx);
+        char c = formula_peek(ctx);
 
         NodeType op_type = NODE_BINARY_OP_MUL;
         bool should_continue = false;
 
         if (c == '*') {
-            if (peek_next(ctx) == '*')
+            if (formula_peek_next(ctx) == '*')
                 break; /* 幂运算 */
-            consume(ctx);
+            formula_consume(ctx);
             should_continue = true;
         } else if (c == '/') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_DIV;
             should_continue = true;
         } else if (c == '%') {
-            consume(ctx);
+            formula_consume(ctx);
             should_continue = true;
         }
 
         if (!should_continue)
             break;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_python_factor(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
 
-        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
+        left = formula_track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -289,18 +319,18 @@ FormulaNode *parse_python_expression(ParserContext *ctx) {
         return NULL;
 
     while (true) {
-        skip_whitespace(ctx);
-        char c = peek(ctx);
+        formula_skip_whitespace(ctx);
+        char c = formula_peek(ctx);
 
         NodeType op_type;
         bool should_continue = false;
 
         if (c == '+') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_ADD;
             should_continue = true;
         } else if (c == '-') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_SUB;
             should_continue = true;
         }
@@ -308,28 +338,28 @@ FormulaNode *parse_python_expression(ParserContext *ctx) {
         if (!should_continue)
             break;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_python_term(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
 
-        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
+        left = formula_track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
 
     /* 检查等式 */
-    skip_whitespace(ctx);
-    if (match_and_consume(ctx, "==")) {
-        skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
+    if (formula_match_and_consume(ctx, "==")) {
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_python_expression(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
-        return track_node(ctx, formula_create_equation(left, right));
+        return formula_track_node(ctx, formula_create_equation(left, right));
     }
 
     return left;

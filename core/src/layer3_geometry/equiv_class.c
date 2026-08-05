@@ -20,6 +20,7 @@
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/geo_utils.h"
 
 /* Missing enum/field aliases */
 #define EQUIV_MERGE_INVALID EQUIV_MERGE_ERROR
@@ -99,14 +100,8 @@ static void uf_union(EquivClassManager *mgr, int x, int y) {
  * ================================================================ */
 
 static bool equiv_ensure_class_capacity(EquivClassManager *mgr) {
-    if (mgr->class_count < mgr->class_capacity)
-        return true;
-    int new_cap = mgr->class_capacity < 8 ? 8 : mgr->class_capacity * 2;
-    EquivClass *new_classes = (EquivClass *) lv_realloc(mgr->classes, (size_t) new_cap * sizeof(EquivClass));
-    if (!new_classes)
-        return false;
-    mgr->classes = new_classes;
-    mgr->class_capacity = new_cap;
+    /* 扩容等价类数组（count >= capacity 时倍增，统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(mgr->classes, mgr->class_count, mgr->class_capacity, false);
     return true;
 }
 
@@ -132,14 +127,8 @@ static bool equiv_ensure_node_mapping(EquivClassManager *mgr, int node_id) {
 }
 
 static bool equiv_ensure_proof_log(EquivClassManager *mgr) {
-    if (mgr->proof_log_count < mgr->proof_log_capacity)
-        return true;
-    int new_cap = mgr->proof_log_capacity < 16 ? 16 : mgr->proof_log_capacity * 2;
-    EquivProof *new_log = (EquivProof *) lv_realloc(mgr->proof_log, (size_t) new_cap * sizeof(EquivProof));
-    if (!new_log)
-        return false;
-    mgr->proof_log = new_log;
-    mgr->proof_log_capacity = new_cap;
+    /* 扩容证明日志数组（count >= capacity 时倍增，统一走 lv_ENSURE_ARRAY_CAP） */
+    lv_ENSURE_ARRAY_CAP(mgr->proof_log, mgr->proof_log_count, mgr->proof_log_capacity, false);
     return true;
 }
 
@@ -634,8 +623,8 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
                 double kx = symbolic_coord_to_double(nk->symbolic_coords[0]);
                 double ky = symbolic_coord_to_double(nk->symbolic_coords[1]);
 
-                double di = sqrt((kx - ax) * (kx - ax) + (ky - ay) * (ky - ay));
-                double dj = sqrt((kx - bx) * (kx - bx) + (ky - by) * (ky - by));
+                double di = geo_distance_2d(ax, ay, kx, ky);
+                double dj = geo_distance_2d(bx, by, kx, ky);
 
                 dists_i[idx] = di;
                 dists_j[idx] = dj;

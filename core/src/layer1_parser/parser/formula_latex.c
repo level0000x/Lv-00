@@ -36,45 +36,45 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx);
  * @return FormulaNode* 分数节点（DIV 运算），失败返回 NULL
  */
 static FormulaNode *parse_latex_frac(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 期望 '{' */
-    if (!expect_char(ctx, '{')) {
+    if (!formula_expect_char(ctx, '{')) {
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
     FormulaNode *numerator = parse_latex_expression(ctx);
     if (!numerator)
         return NULL;
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
-    if (!expect_char(ctx, '}')) {
+    if (!formula_expect_char(ctx, '}')) {
         formula_node_destroy(numerator);
         return NULL;
     }
 
-    skip_whitespace(ctx);
-    if (!expect_char(ctx, '{')) {
+    formula_skip_whitespace(ctx);
+    if (!formula_expect_char(ctx, '{')) {
         formula_node_destroy(numerator);
         return NULL;
     }
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
     FormulaNode *denominator = parse_latex_expression(ctx);
     if (!denominator) {
         formula_node_destroy(numerator);
         return NULL;
     }
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
-    if (!expect_char(ctx, '}')) {
+    if (!formula_expect_char(ctx, '}')) {
         formula_node_destroy(numerator);
         formula_node_destroy(denominator);
         return NULL;
     }
 
-    return track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_DIV, numerator, denominator));
+    return formula_track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_DIV, numerator, denominator));
 }
 
 /**
@@ -89,16 +89,16 @@ static FormulaNode *parse_latex_frac(ParserContext *ctx) {
  * @return FormulaNode* 根号节点（SQRT 运算），失败返回 NULL
  */
 static FormulaNode *parse_latex_sqrt(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
-    if (peek(ctx) == '{') {
-        consume(ctx);
-        skip_whitespace(ctx);
+    if (formula_peek(ctx) == '{') {
+        formula_consume(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *operand = parse_latex_expression(ctx);
         if (!operand)
             return NULL;
-        skip_whitespace(ctx);
-        if (!expect_char(ctx, '}')) {
+        formula_skip_whitespace(ctx);
+        if (!formula_expect_char(ctx, '}')) {
             formula_node_destroy(operand);
             return NULL;
         }
@@ -124,9 +124,9 @@ static FormulaNode *parse_latex_sqrt(ParserContext *ctx) {
  */
 static FormulaNode *parse_latex_command(ParserContext *ctx) {
     /* 已经匹配了 '\' */
-    char *cmd = parse_identifier_str(ctx);
+    char *cmd = formula_parse_identifier_str(ctx);
     if (!cmd) {
-        set_error(ctx, "Expected LaTeX command after '\\'");
+        formula_set_error(ctx, "Expected LaTeX command after '\\'");
         return NULL;
     }
 
@@ -142,14 +142,14 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
     }
     if (strcmp(cmd, "sin") == 0) {
         lv_free((void **) &cmd);
-        skip_whitespace(ctx);
-        if (peek(ctx) == '{') {
-            consume(ctx);
-            skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
+        if (formula_peek(ctx) == '{') {
+            formula_consume(ctx);
+            formula_skip_whitespace(ctx);
             FormulaNode *arg = parse_latex_expression(ctx);
             if (arg) {
-                skip_whitespace(ctx);
-                if (expect_char(ctx, '}')) {
+                formula_skip_whitespace(ctx);
+                if (formula_expect_char(ctx, '}')) {
                     result = formula_create_unary_op(NODE_UNARY_OP_SIN, arg);
                 } else {
                     formula_node_destroy(arg);
@@ -164,14 +164,14 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
     }
     if (strcmp(cmd, "cos") == 0) {
         lv_free((void **) &cmd);
-        skip_whitespace(ctx);
-        if (peek(ctx) == '{') {
-            consume(ctx);
-            skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
+        if (formula_peek(ctx) == '{') {
+            formula_consume(ctx);
+            formula_skip_whitespace(ctx);
             FormulaNode *arg = parse_latex_expression(ctx);
             if (arg) {
-                skip_whitespace(ctx);
-                if (expect_char(ctx, '}')) {
+                formula_skip_whitespace(ctx);
+                if (formula_expect_char(ctx, '}')) {
                     result = formula_create_unary_op(NODE_UNARY_OP_COS, arg);
                 } else {
                     formula_node_destroy(arg);
@@ -186,14 +186,14 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
     }
     if (strcmp(cmd, "tan") == 0) {
         lv_free((void **) &cmd);
-        skip_whitespace(ctx);
-        if (peek(ctx) == '{') {
-            consume(ctx);
-            skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
+        if (formula_peek(ctx) == '{') {
+            formula_consume(ctx);
+            formula_skip_whitespace(ctx);
             FormulaNode *arg = parse_latex_expression(ctx);
             if (arg) {
-                skip_whitespace(ctx);
-                if (expect_char(ctx, '}')) {
+                formula_skip_whitespace(ctx);
+                if (formula_expect_char(ctx, '}')) {
                     result = formula_create_unary_op(NODE_UNARY_OP_TAN, arg);
                 } else {
                     formula_node_destroy(arg);
@@ -232,23 +232,23 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
  * @return FormulaNode* 解析出的原子节点，失败返回 NULL
  */
 static FormulaNode *parse_latex_atom(ParserContext *ctx) {
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
-    char c = peek(ctx);
+    char c = formula_peek(ctx);
 
     /* 数字 */
-    if (is_digit(c) || (c == '.' && is_digit(peek_next(ctx)))) {
-        return parse_number(ctx);
+    if (formula_is_digit(c) || (c == '.' && formula_is_digit(formula_peek_next(ctx)))) {
+        return formula_parse_number(ctx);
     }
 
     /* 括号表达式 */
     if (c == '(') {
-        consume(ctx);
+        formula_consume(ctx);
         FormulaNode *expr = parse_latex_expression(ctx);
         if (!expr)
             return NULL;
-        skip_whitespace(ctx);
-        if (!expect_char(ctx, ')')) {
+        formula_skip_whitespace(ctx);
+        if (!formula_expect_char(ctx, ')')) {
             formula_node_destroy(expr);
             return NULL;
         }
@@ -257,19 +257,19 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
 
     /* LaTeX 命令 */
     if (c == '\\') {
-        consume(ctx);
+        formula_consume(ctx);
         return parse_latex_command(ctx);
     }
 
     /* 花括号分组 */
     if (c == '{') {
-        consume(ctx);
-        skip_whitespace(ctx);
+        formula_consume(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *expr = parse_latex_expression(ctx);
         if (!expr)
             return NULL;
-        skip_whitespace(ctx);
-        if (!expect_char(ctx, '}')) {
+        formula_skip_whitespace(ctx);
+        if (!formula_expect_char(ctx, '}')) {
             formula_node_destroy(expr);
             return NULL;
         }
@@ -278,31 +278,31 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
 
     /* 负号 */
     if (c == '-') {
-        consume(ctx);
+        formula_consume(ctx);
         FormulaNode *operand = parse_latex_factor(ctx);
         if (!operand)
             return NULL;
-        return track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
+        return formula_track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
     }
 
     /* 正号 */
     if (c == '+') {
-        consume(ctx);
+        formula_consume(ctx);
         return parse_latex_factor(ctx);
     }
 
     /* 标识符 */
-    if (is_alpha(c)) {
-        char *ident = parse_identifier_str(ctx);
+    if (formula_is_alpha(c)) {
+        char *ident = formula_parse_identifier_str(ctx);
         if (!ident)
             return NULL;
 
-        FormulaNode *node = track_node(ctx, formula_create_variable(ident));
+        FormulaNode *node = formula_track_node(ctx, formula_create_variable(ident));
         lv_free((void **) &ident);
         return node;
     }
 
-    set_error(ctx, "Unexpected character in LaTeX expression");
+    formula_set_error(ctx, "Unexpected character in LaTeX expression");
     return NULL;
 }
 
@@ -320,20 +320,20 @@ static FormulaNode *parse_latex_factor(ParserContext *ctx) {
     if (!left)
         return NULL;
 
-    skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
 
     /* 处理上标 */
-    if (peek(ctx) == '^') {
-        consume(ctx);
-        skip_whitespace(ctx);
+    if (formula_peek(ctx) == '^') {
+        formula_consume(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *exponent = NULL;
-        if (peek(ctx) == '{') {
-            consume(ctx);
-            skip_whitespace(ctx);
+        if (formula_peek(ctx) == '{') {
+            formula_consume(ctx);
+            formula_skip_whitespace(ctx);
             exponent = parse_latex_expression(ctx);
             if (exponent) {
-                skip_whitespace(ctx);
-                if (!expect_char(ctx, '}')) {
+                formula_skip_whitespace(ctx);
+                if (!formula_expect_char(ctx, '}')) {
                     formula_node_destroy(left);
                     formula_node_destroy(exponent);
                     return NULL;
@@ -346,7 +346,7 @@ static FormulaNode *parse_latex_factor(ParserContext *ctx) {
             formula_node_destroy(left);
             return NULL;
         }
-        return track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_POW, left, exponent));
+        return formula_track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_POW, left, exponent));
     }
 
     return left;
@@ -371,24 +371,24 @@ static FormulaNode *parse_latex_term(ParserContext *ctx) {
         return NULL;
 
     while (true) {
-        skip_whitespace(ctx);
-        char c = peek(ctx);
+        formula_skip_whitespace(ctx);
+        char c = formula_peek(ctx);
 
         NodeType op_type = NODE_BINARY_OP_MUL;
         bool should_continue = false;
 
         if (c == '*') {
-            consume(ctx);
+            formula_consume(ctx);
             should_continue = true;
         } else if (c == '/') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_DIV;
             should_continue = true;
-        } else if (match_and_consume(ctx, "\\cdot")) {
+        } else if (formula_match_and_consume(ctx, "\\cdot")) {
             should_continue = true;
-        } else if (match_and_consume(ctx, "\\times")) {
+        } else if (formula_match_and_consume(ctx, "\\times")) {
             should_continue = true;
-        } else if (match_and_consume(ctx, "\\div")) {
+        } else if (formula_match_and_consume(ctx, "\\div")) {
             op_type = NODE_BINARY_OP_DIV;
             should_continue = true;
         }
@@ -396,14 +396,14 @@ static FormulaNode *parse_latex_term(ParserContext *ctx) {
         if (!should_continue)
             break;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_latex_factor(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
 
-        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
+        left = formula_track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -426,18 +426,18 @@ FormulaNode *parse_latex_expression(ParserContext *ctx) {
         return NULL;
 
     while (true) {
-        skip_whitespace(ctx);
-        char c = peek(ctx);
+        formula_skip_whitespace(ctx);
+        char c = formula_peek(ctx);
 
         NodeType op_type;
         bool should_continue = false;
 
         if (c == '+') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_ADD;
             should_continue = true;
         } else if (c == '-') {
-            consume(ctx);
+            formula_consume(ctx);
             op_type = NODE_BINARY_OP_SUB;
             should_continue = true;
         }
@@ -445,29 +445,29 @@ FormulaNode *parse_latex_expression(ParserContext *ctx) {
         if (!should_continue)
             break;
 
-        skip_whitespace(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_latex_term(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
 
-        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
+        left = formula_track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
 
     /* 检查等式 */
-    skip_whitespace(ctx);
-    if (peek(ctx) == '=' && peek_next(ctx) != '=') {
-        consume(ctx);
-        skip_whitespace(ctx);
+    formula_skip_whitespace(ctx);
+    if (formula_peek(ctx) == '=' && formula_peek_next(ctx) != '=') {
+        formula_consume(ctx);
+        formula_skip_whitespace(ctx);
         FormulaNode *right = parse_latex_expression(ctx);
         if (!right) {
             formula_node_destroy(left);
             return NULL;
         }
-        return track_node(ctx, formula_create_equation(left, right));
+        return formula_track_node(ctx, formula_create_equation(left, right));
     }
 
     return left;

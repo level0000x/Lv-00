@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file axiom_rule_engine.h
  * @brief 公理规则引擎 —— 可配置规则库与难度分级
  *
@@ -165,8 +165,9 @@ struct lvRule {
     uint32_t *dependency_ids;  /**< 依赖规则 ID */
     uint32_t dependency_count; /**< 依赖数量 */
     /* 标签 */
-    char **tags;        /**< 标签数组 */
-    uint32_t tag_count; /**< 标签数量 */
+    char **tags;            /**< 标签数组 */
+    uint32_t tag_count;     /**< 标签数量 */
+    uint32_t tag_capacity;  /**< 标签数组容量 */
     /* 所属包 */
     char package_name[64]; /**< 所属公理包名称 */
 };

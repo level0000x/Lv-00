@@ -19,7 +19,6 @@
 #include "lv/lv_json.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "lv/lv_strbuf.h"
 
 /* ============================================================
  * 元素反应矩阵
@@ -522,176 +521,13 @@ char *magic_array_serialize(const MagicArray *array) {
  * 支持的 JSON 格式：
  *   {"name":"阵名","runes":[{"type":"rational","num":1,"denom":2,"element":"FIRE"},...]}
  *
- * JSON 解析器说明：
- *   本解析器采用手写实现，不依赖外部 JSON 库。使用 strstr 进行字段查找，
- *   并通过跳过字符串值内部内容来避免误匹配。
- *
- *   已知限制：
- *   - 不支持 JSON 字符串中的 unicode 转义（\uXXXX），遇到时将跳过
- *   - 不支持嵌套超过一层的对象/数组（runes 数组内的对象应为扁平结构）
- *   - 字段查找基于 strstr，如果字符串值中包含与关键字相同的文本可能误匹配
- *     （已通过跳过字符串值的机制缓解此问题）
- *
- *   对于复杂的 JSON 输入，建议使用标准 JSON 库（如 cJSON）替代。
+ * 解析基于统一 JSON 解析器 lvJsonParser（lv/lv_json.h）：
+ * 支持 unicode 转义、任意嵌套层级，字段查找不存在字符串值误匹配问题。
+ * （原手写 strstr 实现 json_find_key_safe 等已删除）
  *
  * @param json JSON 格式字符串
  * @return 反序列化成功返回新创建的魔法阵，失败返回 NULL
  */
-
-/**
- * @brief 在 JSON 文本中安全地查找键名（跳过字符串值内部）
- *
- * 从位置 start 开始向后搜索 "key" 模式，但跳过所有 JSON 字符串值
- * 的内部内容（包括转义字符），避免在字符串值中误匹配键名。
- *
- * @param start 搜索起始位置
- * @param key   要查找的键名（不含引号，如 "type"）
- * @return 找到返回键名起始位置的指针，未找到返回 NULL
- */
-static const char *json_find_key_safe(const char *start, const char *key) {
-    if (!start || !key)
-        return NULL;
-
-    /* 构造搜索模式: "key" */
-    lvStrBuf sb = {0};
-    lv_strbuf_printf(&sb, "\"%s\"", key);
-
-    const char *p = start;
-    while (*p) {
-        /* 检查是否匹配目标键名 */
-        if (strncmp(p, sb.data, strlen(sb.data)) == 0) {
-            lv_strbuf_destroy(&sb);
-            return p;
-        }
-
-        /* 如果当前字符是双引号，跳过整个字符串值 */
-        if (*p == '"') {
-            p++;
-            while (*p && *p != '"') {
-                if (*p == '\\' && *(p + 1)) {
-                    /* 跳过转义字符：\", \\, \/, \b, \f, \n, \r, \t, \uXXXX */
-                    p++;
-                    if (*p == 'u' && *(p + 1) && *(p + 2) && *(p + 3) && *(p + 4)) {
-                        /* 跳过 \uXXXX unicode 转义（4个十六进制数字） */
-                        p += 5;
-                    } else {
-                        p++; /* 跳过转义后的单个字符 */
-                    }
-                } else {
-                    p++;
-                }
-            }
-            if (*p == '"')
-                p++;
-        } else {
-            p++;
-        }
-    }
-
-    return NULL;
-}
-
-/**
- * @brief 从 JSON 字符串值中提取解码后的文本
- *
- * 处理常见的 JSON 转义序列：\", \\, \/, \b, \f, \n, \r, \t。
- * 不处理 \uXXXX unicode 转义（遇到时保留原始转义文本）。
- *
- * @param src  指向字符串值第一个字符（引号后）的指针
- * @param dst  目标缓冲区
- * @param dst_cap 目标缓冲区容量
- * @return 写入的字符数（不含终止符），-1 表示错误
- */
-static int json_decode_string(const char *src, char *dst, size_t dst_cap) {
-    if (!src || !dst || dst_cap == 0)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "json_decode_string: invalid parameters");
-
-    size_t written = 0;
-    const char *p = src;
-
-    while (*p && *p != '"' && written < dst_cap - 1) {
-        if (*p == '\\') {
-            p++;
-            /* JSON 标准转义字符映射表 */
-            static const struct {
-                char escape;
-                char actual;
-            } s_json_escape_table[] = {
-                {'"', '"'},
-                {'\\', '\\'},
-                {'/', '/'},
-                {'b', '\b'},
-                {'f', '\f'},
-                {'n', '\n'},
-                {'r', '\r'},
-                {'t', '\t'},
-            };
-            int found = 0;
-            for (size_t i = 0; i < sizeof(s_json_escape_table) / sizeof(s_json_escape_table[0]); i++) {
-                if (*p == s_json_escape_table[i].escape) {
-                    dst[written++] = s_json_escape_table[i].actual;
-                    found = 1;
-                    break;
-                }
-            }
-            if (!found) {
-                if (*p == 'u') {
-                    /* \uXXXX unicode 转义：当前不解码，保留为原始文本 */
-                    if (written + 6 < dst_cap - 1) {
-                        dst[written++] = '\\';
-                        dst[written++] = 'u';
-                        if (p[1])
-                            dst[written++] = p[1];
-                        if (p[2])
-                            dst[written++] = p[2];
-                        if (p[3])
-                            dst[written++] = p[3];
-                        if (p[4])
-                            dst[written++] = p[4];
-                        p += 4;
-                    }
-                } else {
-                    /* 未知转义序列，保留原样 */
-                    if (written + 1 < dst_cap - 1) {
-                        dst[written++] = '\\';
-                        dst[written++] = *p;
-                    }
-                }
-            }
-            p++;
-        } else {
-            dst[written++] = *p;
-            p++;
-        }
-    }
-
-    dst[written] = '\0';
-    return (int) written;
-}
-
-/**
- * @brief 跳过 JSON 字符串值
- *
- * 从当前位置（应在引号上）跳过整个字符串值，包括转义字符。
- *
- * @param p 指向字符串起始引号的指针
- * @return 跳过字符串后的下一个字符位置
- */
-static const char *json_skip_string(const char *p) {
-    if (!p || *p != '"')
-        return p;
-    p++; /* 跳过起始引号 */
-    while (*p && *p != '"') {
-        if (*p == '\\' && *(p + 1)) {
-            p += 2; /* 跳过转义序列 */
-        } else {
-            p++;
-        }
-    }
-    if (*p == '"')
-        p++; /* 跳过结束引号 */
-    return p;
-}
 
 MagicArray *magic_array_deserialize(const char *json) {
     if (!json || json[0] == '\0') {
@@ -699,15 +535,17 @@ MagicArray *magic_array_deserialize(const char *json) {
         return NULL;
     }
 
-    /* 跳过前导空白 */
-    while (*json == ' ' || *json == '\t' || *json == '\n' || *json == '\r')
-        json++;
+    /* 初始化统一解析器 */
+    size_t json_len = strlen(json);
+    lvJsonParser p;
+    lv_json_parser_init(&p, json, json_len);
 
-    /* 检查 JSON 对象起始 */
-    if (json[0] != '{') {
+    /* 检查 JSON 对象起始（lv_json_peek 自动跳过前导空白） */
+    if (lv_json_peek(&p) != '{') {
         lv_LOG_WARNING("magic_array_deserialize: JSON 格式无效，期望 '{'");
         return NULL;
     }
+    p.pos++; /* 跳过 '{' */
 
     /* 创建空的魔法阵 */
     MagicArray *array = magic_array_create();
@@ -716,141 +554,155 @@ MagicArray *magic_array_deserialize(const char *json) {
         return NULL;
     }
 
-    /* 查找 runes 数组（使用安全查找，避免误匹配字符串值内的 "runes"） */
-    const char *runes_key = json_find_key_safe(json, "runes");
-    if (!runes_key) {
-        /* 没有 runes 字段，返回空魔法阵 */
-        return array;
-    }
-
-    /* 查找数组起始 */
-    const char *array_start = strchr(runes_key, '[');
-    if (!array_start) {
-        lv_LOG_WARNING("magic_array_deserialize: runes 不是数组格式");
-        return array;
-    }
-
-    /* 遍历数组元素 */
-    const char *ptr = array_start + 1;
-    while (*ptr && *ptr != ']') {
-        /* 跳过空白和逗号 */
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == '\n' || *ptr == ',' || *ptr == '\r')
-            ptr++;
-        if (*ptr == ']')
+    /* 遍历顶层对象字段 */
+    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+        char *key = lv_json_parse_string(&p);
+        if (!key)
             break;
-
-        /* 查找对象起始 */
-        if (*ptr != '{') {
-            ptr++;
-            continue;
-        }
-
-        /* 使用安全查找提取字段，避免嵌套对象/字符串值中的误匹配 */
-        const char *obj_end = strchr(ptr, '}');
-        if (!obj_end)
+        bool colon_ok = lv_json_expect(&p, ':');
+        if (!colon_ok) {
+            lv_free((void **) &key);
             break;
-
-        /* 计算当前对象的范围，限制字段搜索在此范围内 */
-        const char *type_key = json_find_key_safe(ptr, "type");
-        const char *num_key = json_find_key_safe(ptr, "num");
-        const char *denom_key = json_find_key_safe(ptr, "denom");
-        const char *value_key = json_find_key_safe(ptr, "value");
-        const char *element_key = json_find_key_safe(ptr, "element");
-
-        /* 确保找到的键在当前对象范围内 */
-        if (type_key && type_key > obj_end)
-            type_key = NULL;
-        if (num_key && num_key > obj_end)
-            num_key = NULL;
-        if (denom_key && denom_key > obj_end)
-            denom_key = NULL;
-        if (value_key && value_key > obj_end)
-            value_key = NULL;
-        if (element_key && element_key > obj_end)
-            element_key = NULL;
-
-        Rune *rune = NULL;
-        MagicElement element = ELEMENT_NONE;
-
-        /* 解析元素类型 */
-        if (element_key) {
-            const char *elem_val_start = strchr(element_key + 8, ':');
-            if (elem_val_start) {
-                elem_val_start++;
-                while (*elem_val_start == ' ' || *elem_val_start == '"')
-                    elem_val_start++;
-                if (strncmp(elem_val_start, "FIRE", 4) == 0)
-                    element = ELEMENT_FIRE;
-                else if (strncmp(elem_val_start, "WATER", 5) == 0)
-                    element = ELEMENT_WATER;
-                else if (strncmp(elem_val_start, "EARTH", 5) == 0)
-                    element = ELEMENT_EARTH;
-                else if (strncmp(elem_val_start, "AIR", 3) == 0)
-                    element = ELEMENT_AIR;
-            }
         }
 
-        /* 根据类型创建符文 */
-        if (type_key && strstr(type_key, "\"rational\"")) {
-            /* 有理数类型 */
-            int64_t num = 0;
-            uint64_t denom = 1;
+        if (strcmp(key, "runes") == 0) {
+            /* 解析 runes 数组 */
+            if (lv_json_peek(&p) == '[') {
+                p.pos++; /* 跳过 '[' */
+                while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
+                    lv_json_skip_ws(&p);
+                    if (lv_json_peek(&p) == ',') {
+                        p.pos++;
+                        continue;
+                    }
+                    if (lv_json_peek(&p) != '{') {
+                        /* 跳过异常 token；若指针未推进（如到达字符串结尾 \0），
+                         * 继续循环将陷入死循环，必须终止 */
+                        size_t prev = p.pos;
+                        lv_json_skip_value(&p);
+                        if (p.pos == prev)
+                            break;
+                        continue;
+                    }
+                    p.pos++; /* 跳过 '{' */
 
-            if (num_key) {
-                const char *num_val = strchr(num_key + 5, ':');
-                if (num_val)
-                    num = strtoll(num_val + 1, NULL, 10);
-            }
-            if (denom_key) {
-                const char *denom_val = strchr(denom_key + 7, ':');
-                if (denom_val)
-                    denom = strtoull(denom_val + 1, NULL, 10);
-            }
-            if (denom == 0)
-                denom = 1;
+                    Rune *rune = NULL;
+                    MagicElement element = ELEMENT_NONE;
+                    bool is_rational = false;
+                    bool is_algebraic = false;
+                    int64_t num = 0;
+                    uint64_t denom = 1;
+                    double value = 0.0;
 
-            rune = rune_create_rational(num, denom, element);
-        } else if (type_key && strstr(type_key, "\"algebraic\"")) {
-            /* 代数数类型 */
-            double value = 0.0;
-            if (value_key) {
-                const char *val_start = strchr(value_key + 7, ':');
-                if (val_start)
-                    value = strtod(val_start + 1, NULL);
-            }
-            rune = rune_create_algebraic(value, element);
-        }
+                    /* 遍历符文对象的字段 */
+                    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+                        char *fk = lv_json_parse_string(&p);
+                        if (!fk)
+                            break;
+                        bool fk_colon = lv_json_expect(&p, ':');
+                        if (!fk_colon) {
+                            lv_free((void **) &fk);
+                            break;
+                        }
+                        if (strcmp(fk, "type") == 0) {
+                            char *s = lv_json_parse_string(&p);
+                            if (s) {
+                                if (strcmp(s, "rational") == 0)
+                                    is_rational = true;
+                                else if (strcmp(s, "algebraic") == 0)
+                                    is_algebraic = true;
+                                lv_free((void **) &s);
+                            }
+                        } else if (strcmp(fk, "num") == 0) {
+                            /* lv_json.h 仅提供 int 解析，num 为 int64_t，
+                             * 此处提取数字文本用 strtoll 解析（保持与原实现精度一致） */
+                            lv_json_skip_ws(&p);
+                            const char *tok = p.data + p.pos;
+                            const char *scan = tok;
+                            if (scan < p.data + p.size && *scan == '-')
+                                scan++;
+                            while (scan < p.data + p.size && *scan >= '0' && *scan <= '9')
+                                scan++;
+                            if (scan != tok) {
+                                num = strtoll(tok, NULL, 10);
+                                p.pos = (size_t) (scan - p.data);
+                            } else {
+                                /* 值不是数字，跳过（与 strtoll 对非法输入返回 0 的语义对齐） */
+                                lv_json_skip_value(&p);
+                            }
+                        } else if (strcmp(fk, "denom") == 0) {
+                            lv_json_skip_ws(&p);
+                            const char *tok = p.data + p.pos;
+                            const char *scan = tok;
+                            while (scan < p.data + p.size && *scan >= '0' && *scan <= '9')
+                                scan++;
+                            if (scan != tok) {
+                                denom = strtoull(tok, NULL, 10);
+                                p.pos = (size_t) (scan - p.data);
+                            } else {
+                                lv_json_skip_value(&p);
+                            }
+                        } else if (strcmp(fk, "value") == 0) {
+                            lv_json_parse_double(&p, &value);
+                        } else if (strcmp(fk, "element") == 0) {
+                            char *s = lv_json_parse_string(&p);
+                            if (s) {
+                                if (strcmp(s, "FIRE") == 0)
+                                    element = ELEMENT_FIRE;
+                                else if (strcmp(s, "WATER") == 0)
+                                    element = ELEMENT_WATER;
+                                else if (strcmp(s, "EARTH") == 0)
+                                    element = ELEMENT_EARTH;
+                                else if (strcmp(s, "AIR") == 0)
+                                    element = ELEMENT_AIR;
+                                lv_free((void **) &s);
+                            }
+                        } else {
+                            /* 跳过未知字段 */
+                            lv_json_skip_value(&p);
+                        }
+                        lv_free((void **) &fk);
+                        if (lv_json_peek(&p) == ',')
+                            p.pos++;
+                    }
+                    if (lv_json_peek(&p) == '}')
+                        p.pos++;
 
-        if (rune) {
-            magic_array_add_rune(array, rune);
-        }
+                    /* 根据类型创建符文 */
+                    if (is_rational) {
+                        if (denom == 0)
+                            denom = 1;
+                        rune = rune_create_rational(num, denom, element);
+                    } else if (is_algebraic) {
+                        rune = rune_create_algebraic(value, element);
+                    }
 
-        ptr = obj_end + 1;
-    }
-
-    /* 尝试解析名称字段（使用安全查找） */
-    const char *name_key = json_find_key_safe(json, "name");
-    if (name_key) {
-        const char *name_start = strchr(name_key + 6, ':');
-        if (name_start) {
-            name_start++;
-            while (*name_start == ' ')
-                name_start++;
-            if (*name_start == '"') {
-                name_start++; /* 跳过起始引号 */
-                char name_buf[256];
-                int name_len = json_decode_string(name_start, name_buf, sizeof(name_buf));
-                if (name_len > 0) {
-                    char *name_copy = (char *) lv_malloc((size_t) name_len + 1);
-                    if (name_copy) {
-                        lv_strlcpy(name_copy, name_buf, (size_t) name_len + 1);
-                        if (array->name)
-                            lv_free((void **) &array->name);
-                        array->name = name_copy;
+                    if (rune) {
+                        magic_array_add_rune(array, rune);
                     }
                 }
+                if (lv_json_peek(&p) == ']')
+                    p.pos++;
             }
+        } else if (strcmp(key, "name") == 0) {
+            /* 解析名称字段 */
+            char *name = lv_json_parse_string(&p);
+            if (name && name[0] != '\0') {
+                if (array->name)
+                    lv_free((void **) &array->name);
+                array->name = name;
+                name = NULL;
+            }
+            lv_free((void **) &name);
+        } else {
+            /* 跳过未知字段 */
+            lv_json_skip_value(&p);
         }
+
+        lv_free((void **) &key);
+
+        if (lv_json_peek(&p) == ',')
+            p.pos++;
     }
 
     return array;

@@ -90,6 +90,29 @@ static const size_t kCommandHandlerCount = sizeof(kCommandHandlers) / sizeof(kCo
 
 /* ── 命令解析与执行 ── */
 
+/** @brief 命令名→命令类型 查找表（替代 19 分支 strcmp 链） */
+static const lvStrToEnumEntry kCommandNameToTypeTable[] = {
+    {"AddNode", INTEROP_CMD_ADD_NODE},
+    {"RemoveNode", INTEROP_CMD_REMOVE_NODE},
+    {"AddConstraint", INTEROP_CMD_ADD_CONSTRAINT},
+    {"RemoveConstraint", INTEROP_CMD_REMOVE_CONSTRAINT},
+    {"PackFunction", INTEROP_CMD_PACK_FUNCTION},
+    {"Instantiate", INTEROP_CMD_INSTANTIATE},
+    {"Solve", INTEROP_CMD_SOLVE},
+    {"Rewrite", INTEROP_CMD_REWRITE},
+    {"Unify", INTEROP_CMD_UNIFY},
+    {"GetGraph", INTEROP_CMD_GET_GRAPH},
+    {"ExportGraph", INTEROP_CMD_EXPORT_GRAPH},
+    {"GetStatus", INTEROP_CMD_GET_STATUS},
+    {"Ping", INTEROP_CMD_PING},
+    {"Shutdown", INTEROP_CMD_SHUTDOWN},
+    {"StreamStart", INTEROP_CMD_STREAM_START},
+    {"StreamStop", INTEROP_CMD_STREAM_STOP},
+    {"StreamFilter", INTEROP_CMD_STREAM_FILTER},
+    {"StreamStats", INTEROP_CMD_STREAM_STATS},
+    {"StreamFlush", INTEROP_CMD_STREAM_FLUSH},
+};
+
 /**
  * @brief 解析输入字符串为互操作命令结构
  * @details 按空格分割输入字符串，第一个 token 为命令名称，后续为参数。
@@ -118,47 +141,11 @@ int interop_parse_command(const char *input, InteropCommand *cmd) {
     /* 保存原始命令名称用于错误报告 */
     lv_strlcpy(cmd->command_name, token, sizeof(cmd->command_name));
 
-    if (strcmp(token, "AddNode") == 0) {
-        cmd->type = INTEROP_CMD_ADD_NODE;
-    } else if (strcmp(token, "RemoveNode") == 0) {
-        cmd->type = INTEROP_CMD_REMOVE_NODE;
-    } else if (strcmp(token, "AddConstraint") == 0) {
-        cmd->type = INTEROP_CMD_ADD_CONSTRAINT;
-    } else if (strcmp(token, "RemoveConstraint") == 0) {
-        cmd->type = INTEROP_CMD_REMOVE_CONSTRAINT;
-    } else if (strcmp(token, "PackFunction") == 0) {
-        cmd->type = INTEROP_CMD_PACK_FUNCTION;
-    } else if (strcmp(token, "Instantiate") == 0) {
-        cmd->type = INTEROP_CMD_INSTANTIATE;
-    } else if (strcmp(token, "Solve") == 0) {
-        cmd->type = INTEROP_CMD_SOLVE;
-    } else if (strcmp(token, "Rewrite") == 0) {
-        cmd->type = INTEROP_CMD_REWRITE;
-    } else if (strcmp(token, "Unify") == 0) {
-        cmd->type = INTEROP_CMD_UNIFY;
-    } else if (strcmp(token, "GetGraph") == 0) {
-        cmd->type = INTEROP_CMD_GET_GRAPH;
-    } else if (strcmp(token, "ExportGraph") == 0) {
-        cmd->type = INTEROP_CMD_EXPORT_GRAPH;
-    } else if (strcmp(token, "GetStatus") == 0) {
-        cmd->type = INTEROP_CMD_GET_STATUS;
-    } else if (strcmp(token, "Ping") == 0) {
-        cmd->type = INTEROP_CMD_PING;
-    } else if (strcmp(token, "Shutdown") == 0) {
-        cmd->type = INTEROP_CMD_SHUTDOWN;
-    } else if (strcmp(token, "StreamStart") == 0) {
-        cmd->type = INTEROP_CMD_STREAM_START;
-    } else if (strcmp(token, "StreamStop") == 0) {
-        cmd->type = INTEROP_CMD_STREAM_STOP;
-    } else if (strcmp(token, "StreamFilter") == 0) {
-        cmd->type = INTEROP_CMD_STREAM_FILTER;
-    } else if (strcmp(token, "StreamStats") == 0) {
-        cmd->type = INTEROP_CMD_STREAM_STATS;
-    } else if (strcmp(token, "StreamFlush") == 0) {
-        cmd->type = INTEROP_CMD_STREAM_FLUSH;
-    } else {
+    /* 命令名→类型查表（替代 19 分支 strcmp 链） */
+    cmd->type = (InteropCommandType) lv_str_to_enum(kCommandNameToTypeTable, lv_ARRAY_SIZE(kCommandNameToTypeTable),
+                                                    token, -1);
+    if ((int) cmd->type < 0)
         return lv_ERROR_PARSE;
-    }
 
     /* 解析参数 */
     while ((token = strtok_s(NULL, " ", &save_ptr)) != NULL && cmd->param_count < INTEROP_MAX_PARAMS) {
@@ -257,138 +244,30 @@ static int handle_cmd_get_graph(lvEngine *engine, const InteropCommand *cmd, Int
     return lv_OK;
 }
 
-static int handle_cmd_add_node(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
-    if (cmd->param_count < 3) {
-        resp->status_code = lv_ERROR_INVALID_PARAM;
-        lv_strlcpy(resp->data, "Usage: AddNode <type> <x> <y> [extra...]", sizeof(resp->data));
-        return lv_OK;
+/* ── AddNode 节点类型分发（查找表，替代 4 分支 strcmp 链） ── */
+
+static int interop_add_node_point(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    SymbolicCoord *coords[3] = {NULL, NULL, NULL};
+    int coord_count = 0;
+    for (int i = 1; i < cmd->param_count && (i - 1) < 3; i++) {
+        double val = 0.0;
+        if (lv_parse_double(cmd->params[i], &val) != 0) {
+            val = 0.0;
+        }
+        int64_t num = (int64_t) (val * 1000000.0);
+        coords[i - 1] = symbolic_coord_create_rational(num, 1000000UL);
+        if (coords[i - 1])
+            coord_count++;
     }
-    if (!engine->main_graph) {
-        resp->status_code = lv_ERROR_INVALID_STATE;
-        lv_strlcpy(resp->data, "No graph initialized - create a graph first", sizeof(resp->data));
-        return lv_OK;
-    }
-    const char *type_str = cmd->params[0];
-    if (strcmp(type_str, "Point") == 0 || strcmp(type_str, "point") == 0) {
-        SymbolicCoord *coords[3] = {NULL, NULL, NULL};
-        int coord_count = 0;
-        for (int i = 1; i < cmd->param_count && (i - 1) < 3; i++) {
-            double val = 0.0;
-            if (lv_parse_double(cmd->params[i], &val) != 0) {
-                val = 0.0;
-            }
-            int64_t num = (int64_t) (val * 1000000.0);
-            coords[i - 1] = symbolic_coord_create_rational(num, 1000000UL);
-            if (coords[i - 1])
-                coord_count++;
+    if (coord_count > 0) {
+        AddNodeResult result = graph_add_point(engine->main_graph, coords, coord_count);
+        for (int i = 0; i < 3 && coords[i]; i++) {
+            symbolic_coord_destroy(coords[i]);
         }
-        if (coord_count > 0) {
-            AddNodeResult result = graph_add_point(engine->main_graph, coords, coord_count);
-            for (int i = 0; i < 3 && coords[i]; i++) {
-                symbolic_coord_destroy(coords[i]);
-            }
-            if (result == ADD_NODE_OK) {
-                lvJsonBuf _jb;
-                lv_json_buf_init(&_jb, 128);
-                lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d}",
-                                       engine->main_graph->next_node_id - 1);
-                char *_js = lv_json_buf_finalize(&_jb);
-                if (_js) {
-                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free((void **)&_js);
-                }
-            } else {
-                resp->status_code = lv_ERROR_UNSUPPORTED;
-                lvJsonBuf _jb;
-                lv_json_buf_init(&_jb, 128);
-                lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
-                char *_js = lv_json_buf_finalize(&_jb);
-                if (_js) {
-                    lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                    lv_free((void **)&_js);
-                }
-            }
-        } else {
-            resp->status_code = lv_ERROR_UNSUPPORTED;
-            lv_strlcpy(resp->data, "Failed to create coordinate objects from input", sizeof(resp->data));
-        }
-    } else if (strcmp(type_str, "LineSegment") == 0 || strcmp(type_str, "line_segment") == 0) {
-        if (cmd->param_count < 3) {
-            resp->status_code = lv_ERROR_INVALID_PARAM;
-            lv_strlcpy(resp->data, "Usage: AddNode LineSegment <endpoint1_id> <endpoint2_id>",
-                       sizeof(resp->data));
-            return lv_OK;
-        }
-        int ep1 = lv_parse_int_default(cmd->params[1], 0);
-        int ep2 = lv_parse_int_default(cmd->params[2], 0);
-        AddNodeResult result = graph_add_line_segment(engine->main_graph, ep1, ep2);
         if (result == ADD_NODE_OK) {
             lvJsonBuf _jb;
             lv_json_buf_init(&_jb, 128);
-            lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"line_segment\"}",
-                                   engine->main_graph->next_node_id - 1);
-            char *_js = lv_json_buf_finalize(&_jb);
-            if (_js) {
-                lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                lv_free((void **)&_js);
-            }
-        } else {
-            resp->status_code = lv_ERROR_UNSUPPORTED;
-            lvJsonBuf _jb;
-            lv_json_buf_init(&_jb, 128);
-            lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
-            char *_js = lv_json_buf_finalize(&_jb);
-            if (_js) {
-                lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                lv_free((void **)&_js);
-            }
-        }
-    } else if (strcmp(type_str, "Circle") == 0 || strcmp(type_str, "circle") == 0) {
-        if (cmd->param_count < 3) {
-            resp->status_code = lv_ERROR_INVALID_PARAM;
-            lv_strlcpy(resp->data, "Usage: AddNode Circle <center_id> <radius_point_id>", sizeof(resp->data));
-            return lv_OK;
-        }
-        int center_id = lv_parse_int_default(cmd->params[1], 0);
-        int radius_pt_id = lv_parse_int_default(cmd->params[2], 0);
-        AddNodeResult result = graph_add_line_segment(engine->main_graph, center_id, radius_pt_id);
-        if (result == ADD_NODE_OK) {
-            lvJsonBuf _jb;
-            lv_json_buf_init(&_jb, 128);
-            lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"circle\"}",
-                                   engine->main_graph->next_node_id - 1);
-            char *_js = lv_json_buf_finalize(&_jb);
-            if (_js) {
-                lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                lv_free((void **)&_js);
-            }
-        } else {
-            resp->status_code = lv_ERROR_UNSUPPORTED;
-            lvJsonBuf _jb;
-            lv_json_buf_init(&_jb, 128);
-            lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
-            char *_js = lv_json_buf_finalize(&_jb);
-            if (_js) {
-                lv_strlcpy(resp->data, _js, sizeof(resp->data));
-                lv_free((void **)&_js);
-            }
-        }
-    } else if (strcmp(type_str, "Region") == 0 || strcmp(type_str, "region") == 0) {
-        if (cmd->param_count < 2) {
-            resp->status_code = lv_ERROR_INVALID_PARAM;
-            lv_strlcpy(resp->data, "Usage: AddNode Region <seg_id1> <seg_id2> ...", sizeof(resp->data));
-            return lv_OK;
-        }
-        int seg_ids[INTEROP_MAX_PARAMS];
-        int seg_count = 0;
-        for (int i = 1; i < cmd->param_count && i < INTEROP_MAX_PARAMS; i++) {
-            seg_ids[seg_count++] = lv_parse_int_default(cmd->params[i], 0);
-        }
-        AddNodeResult result = graph_add_region(engine->main_graph, seg_ids, seg_count);
-        if (result == ADD_NODE_OK) {
-            lvJsonBuf _jb;
-            lv_json_buf_init(&_jb, 128);
-            lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"region\"}",
+            lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d}",
                                    engine->main_graph->next_node_id - 1);
             char *_js = lv_json_buf_finalize(&_jb);
             if (_js) {
@@ -408,10 +287,150 @@ static int handle_cmd_add_node(lvEngine *engine, const InteropCommand *cmd, Inte
         }
     } else {
         resp->status_code = lv_ERROR_UNSUPPORTED;
-        lv_strlcpy(resp->data,
-                   "Unsupported node type for AddNode. Supported: Point, LineSegment, Circle, Region",
-                   sizeof(resp->data));
+        lv_strlcpy(resp->data, "Failed to create coordinate objects from input", sizeof(resp->data));
     }
+    return lv_OK;
+}
+
+static int interop_add_node_line_segment(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    if (cmd->param_count < 3) {
+        resp->status_code = lv_ERROR_INVALID_PARAM;
+        lv_strlcpy(resp->data, "Usage: AddNode LineSegment <endpoint1_id> <endpoint2_id>",
+                   sizeof(resp->data));
+        return lv_OK;
+    }
+    int ep1 = lv_parse_int_default(cmd->params[1], 0);
+    int ep2 = lv_parse_int_default(cmd->params[2], 0);
+    AddNodeResult result = graph_add_line_segment(engine->main_graph, ep1, ep2);
+    if (result == ADD_NODE_OK) {
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 128);
+        lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"line_segment\"}",
+                               engine->main_graph->next_node_id - 1);
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (_js) {
+            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+            lv_free((void **)&_js);
+        }
+    } else {
+        resp->status_code = lv_ERROR_UNSUPPORTED;
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 128);
+        lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (_js) {
+            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+            lv_free((void **)&_js);
+        }
+    }
+    return lv_OK;
+}
+
+static int interop_add_node_circle(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    if (cmd->param_count < 3) {
+        resp->status_code = lv_ERROR_INVALID_PARAM;
+        lv_strlcpy(resp->data, "Usage: AddNode Circle <center_id> <radius_point_id>", sizeof(resp->data));
+        return lv_OK;
+    }
+    int center_id = lv_parse_int_default(cmd->params[1], 0);
+    int radius_pt_id = lv_parse_int_default(cmd->params[2], 0);
+    AddNodeResult result = graph_add_line_segment(engine->main_graph, center_id, radius_pt_id);
+    if (result == ADD_NODE_OK) {
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 128);
+        lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"circle\"}",
+                               engine->main_graph->next_node_id - 1);
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (_js) {
+            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+            lv_free((void **)&_js);
+        }
+    } else {
+        resp->status_code = lv_ERROR_UNSUPPORTED;
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 128);
+        lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (_js) {
+            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+            lv_free((void **)&_js);
+        }
+    }
+    return lv_OK;
+}
+
+static int interop_add_node_region(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    if (cmd->param_count < 2) {
+        resp->status_code = lv_ERROR_INVALID_PARAM;
+        lv_strlcpy(resp->data, "Usage: AddNode Region <seg_id1> <seg_id2> ...", sizeof(resp->data));
+        return lv_OK;
+    }
+    int seg_ids[INTEROP_MAX_PARAMS];
+    int seg_count = 0;
+    for (int i = 1; i < cmd->param_count && i < INTEROP_MAX_PARAMS; i++) {
+        seg_ids[seg_count++] = lv_parse_int_default(cmd->params[i], 0);
+    }
+    AddNodeResult result = graph_add_region(engine->main_graph, seg_ids, seg_count);
+    if (result == ADD_NODE_OK) {
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 128);
+        lv_json_buf_append_fmt(&_jb, "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"region\"}",
+                               engine->main_graph->next_node_id - 1);
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (_js) {
+            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+            lv_free((void **)&_js);
+        }
+    } else {
+        resp->status_code = lv_ERROR_UNSUPPORTED;
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 128);
+        lv_json_buf_append_fmt(&_jb, "{\"result\": \"failed\", \"code\": %d}", result);
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (_js) {
+            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+            lv_free((void **)&_js);
+        }
+    }
+    return lv_OK;
+}
+
+/** @brief AddNode 节点类型名→处理函数 查找表（大小写双写，替代 4 分支 strcmp 链） */
+static const struct {
+    const char *name;
+    InteropCmdHandler handler;
+} kAddNodeTypeHandlers[] = {
+    {"Point", interop_add_node_point},
+    {"point", interop_add_node_point},
+    {"LineSegment", interop_add_node_line_segment},
+    {"line_segment", interop_add_node_line_segment},
+    {"Circle", interop_add_node_circle},
+    {"circle", interop_add_node_circle},
+    {"Region", interop_add_node_region},
+    {"region", interop_add_node_region},
+};
+
+static int handle_cmd_add_node(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    if (cmd->param_count < 3) {
+        resp->status_code = lv_ERROR_INVALID_PARAM;
+        lv_strlcpy(resp->data, "Usage: AddNode <type> <x> <y> [extra...]", sizeof(resp->data));
+        return lv_OK;
+    }
+    if (!engine->main_graph) {
+        resp->status_code = lv_ERROR_INVALID_STATE;
+        lv_strlcpy(resp->data, "No graph initialized - create a graph first", sizeof(resp->data));
+        return lv_OK;
+    }
+    const char *type_str = cmd->params[0];
+    /* 节点类型→处理函数 查表（替代 4 分支 strcmp 链） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kAddNodeTypeHandlers); i++) {
+        if (strcmp(type_str, kAddNodeTypeHandlers[i].name) == 0)
+            return kAddNodeTypeHandlers[i].handler(engine, cmd, resp);
+    }
+    resp->status_code = lv_ERROR_UNSUPPORTED;
+    lv_strlcpy(resp->data,
+               "Unsupported node type for AddNode. Supported: Point, LineSegment, Circle, Region",
+               sizeof(resp->data));
     return lv_OK;
 }
 
@@ -452,6 +471,103 @@ static int handle_cmd_remove_node(lvEngine *engine, const InteropCommand *cmd, I
     return lv_OK;
 }
 
+/* ── AddConstraint 约束类型分发（查找表，替代 6 分支 strcmp 链） ── */
+
+/** @brief 输出约束添加结果并返回 lv_OK（原 if(ok) 公共尾部） */
+static int interop_add_constraint_finish(bool ok, InteropResponse *resp) {
+    if (ok) {
+        lvJsonBuf _jb;
+        lv_json_buf_init(&_jb, 64);
+        lv_json_buf_append_raw(&_jb, "{\"result\": \"ok\"}");
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (_js) {
+            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+            lv_free((void **)&_js);
+        }
+    } else {
+        resp->status_code = lv_ERROR_UNSUPPORTED;
+        lv_strlcpy(resp->data, "{\"result\": \"failed\"}", sizeof(resp->data));
+    }
+    return lv_OK;
+}
+
+static int interop_add_constraint_incidence(lvEngine *engine, const int *participants, int pcount,
+                                            InteropResponse *resp) {
+    (void) pcount;
+    bool ok = (graph_add_incidence(engine->main_graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK);
+    return interop_add_constraint_finish(ok, resp);
+}
+
+static int interop_add_constraint_betweenness(lvEngine *engine, const int *participants, int pcount,
+                                              InteropResponse *resp) {
+    bool ok = (graph_add_betweenness(engine->main_graph, participants[0], participants[1],
+                                     pcount > 2 ? participants[2] : participants[1]) == ADD_CONSTRAINT_OK);
+    return interop_add_constraint_finish(ok, resp);
+}
+
+static int interop_add_constraint_parallel(lvEngine *engine, const int *participants, int pcount,
+                                           InteropResponse *resp) {
+    bool ok = false;
+    if (pcount >= 2) {
+        Constraint *c = graph_add_constraint_with_id(
+            engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
+        ok = (c != NULL);
+    }
+    return interop_add_constraint_finish(ok, resp);
+}
+
+static int interop_add_constraint_perpendicular(lvEngine *engine, const int *participants, int pcount,
+                                                InteropResponse *resp) {
+    bool ok = false;
+    if (pcount >= 2) {
+        Constraint *c = graph_add_constraint_with_id(
+            engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
+        ok = (c != NULL);
+    }
+    return interop_add_constraint_finish(ok, resp);
+}
+
+static int interop_add_constraint_equal_length(lvEngine *engine, const int *participants, int pcount,
+                                               InteropResponse *resp) {
+    bool ok = false;
+    if (pcount >= 2) {
+        Constraint *c = graph_add_constraint_with_id(
+            engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
+        ok = (c != NULL);
+    }
+    return interop_add_constraint_finish(ok, resp);
+}
+
+static int interop_add_constraint_angle(lvEngine *engine, const int *participants, int pcount,
+                                        InteropResponse *resp) {
+    bool ok = false;
+    if (pcount >= 3) {
+        Constraint *c = graph_add_constraint_with_id(
+            engine->main_graph, engine->main_graph->next_constraint_id, BETWEENNESS, participants, 3);
+        ok = (c != NULL);
+    }
+    return interop_add_constraint_finish(ok, resp);
+}
+
+/** @brief AddConstraint 约束类型名→处理函数 查找表（大小写双写，替代 6 分支 strcmp 链） */
+static const struct {
+    const char *name;
+    int (*handler)(lvEngine *engine, const int *participants, int pcount, InteropResponse *resp);
+} kAddConstraintTypeHandlers[] = {
+    {"incidence", interop_add_constraint_incidence},
+    {"Incidence", interop_add_constraint_incidence},
+    {"betweenness", interop_add_constraint_betweenness},
+    {"Betweenness", interop_add_constraint_betweenness},
+    {"parallel", interop_add_constraint_parallel},
+    {"Parallel", interop_add_constraint_parallel},
+    {"perpendicular", interop_add_constraint_perpendicular},
+    {"Perpendicular", interop_add_constraint_perpendicular},
+    {"equal_length", interop_add_constraint_equal_length},
+    {"EqualLength", interop_add_constraint_equal_length},
+    {"angle", interop_add_constraint_angle},
+    {"Angle", interop_add_constraint_angle},
+};
+
 static int handle_cmd_add_constraint(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
     if (cmd->param_count < 3) {
         resp->status_code = lv_ERROR_INVALID_PARAM;
@@ -470,54 +586,13 @@ static int handle_cmd_add_constraint(lvEngine *engine, const InteropCommand *cmd
         participants[i - 1] = lv_parse_int_default(cmd->params[i], 0);
         pcount++;
     }
-    int ok = 0;
-    if (strcmp(ct, "incidence") == 0 || strcmp(ct, "Incidence") == 0) {
-        ok = (graph_add_incidence(engine->main_graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK);
-    } else if (strcmp(ct, "betweenness") == 0 || strcmp(ct, "Betweenness") == 0) {
-        ok = (graph_add_betweenness(engine->main_graph, participants[0], participants[1],
-                                    pcount > 2 ? participants[2] : participants[1]) == ADD_CONSTRAINT_OK);
-    } else if (strcmp(ct, "parallel") == 0 || strcmp(ct, "Parallel") == 0) {
-        if (pcount >= 2) {
-            Constraint *c = graph_add_constraint_with_id(
-                engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
-            ok = (c != NULL);
-        }
-    } else if (strcmp(ct, "perpendicular") == 0 || strcmp(ct, "Perpendicular") == 0) {
-        if (pcount >= 2) {
-            Constraint *c = graph_add_constraint_with_id(
-                engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
-            ok = (c != NULL);
-        }
-    } else if (strcmp(ct, "equal_length") == 0 || strcmp(ct, "EqualLength") == 0) {
-        if (pcount >= 2) {
-            Constraint *c = graph_add_constraint_with_id(
-                engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
-            ok = (c != NULL);
-        }
-    } else if (strcmp(ct, "angle") == 0 || strcmp(ct, "Angle") == 0) {
-        if (pcount >= 3) {
-            Constraint *c = graph_add_constraint_with_id(
-                engine->main_graph, engine->main_graph->next_constraint_id, BETWEENNESS, participants, 3);
-            ok = (c != NULL);
-        }
-    } else {
-        resp->status_code = lv_ERROR_UNSUPPORTED;
-        lv_strlcpy(resp->data, "Unsupported constraint type", sizeof(resp->data));
-        return lv_OK;
+    /* 约束类型→处理函数 查表（替代 6 分支 strcmp 链） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kAddConstraintTypeHandlers); i++) {
+        if (strcmp(ct, kAddConstraintTypeHandlers[i].name) == 0)
+            return kAddConstraintTypeHandlers[i].handler(engine, participants, pcount, resp);
     }
-    if (ok) {
-        lvJsonBuf _jb;
-        lv_json_buf_init(&_jb, 64);
-        lv_json_buf_append_raw(&_jb, "{\"result\": \"ok\"}");
-        char *_js = lv_json_buf_finalize(&_jb);
-        if (_js) {
-            lv_strlcpy(resp->data, _js, sizeof(resp->data));
-            lv_free((void **)&_js);
-        }
-    } else {
-        resp->status_code = lv_ERROR_UNSUPPORTED;
-        lv_strlcpy(resp->data, "{\"result\": \"failed\"}", sizeof(resp->data));
-    }
+    resp->status_code = lv_ERROR_UNSUPPORTED;
+    lv_strlcpy(resp->data, "Unsupported constraint type", sizeof(resp->data));
     return lv_OK;
 }
 
@@ -664,6 +739,131 @@ static int handle_cmd_unify(lvEngine *engine, const InteropCommand *cmd, Interop
     return lv_OK;
 }
 
+/* ── ExportGraph 导出格式分发（查找表，替代 4 分支 strcmp 链） ── */
+
+static int interop_export_graph_json(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    (void) cmd;
+    char *json_str = graph_serialize_to_json(engine->main_graph);
+    if (json_str) {
+        lv_strlcpy(resp->data, json_str, sizeof(resp->data));
+        lv_free((void **) &json_str);
+    } else {
+        lv_strlcpy(resp->data, "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
+    }
+    return lv_OK;
+}
+
+static int interop_export_graph_svg(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    (void) cmd;
+    int offset = snprintf(resp->data, sizeof(resp->data),
+                          "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n"
+                          "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
+    if (offset < 0)
+        offset = 0;
+    if (engine->main_graph) {
+        for (int i = 0; i < engine->main_graph->node_count && offset < (int) sizeof(resp->data) - 256; i++) {
+            GeomNode *node = engine->main_graph->nodes[i];
+            if (node->type == GEOM_POINT && node->coord_count >= 2) {
+                double x = symbolic_coord_to_double(node->symbolic_coords[0]);
+                double y = symbolic_coord_to_double(node->symbolic_coords[1]);
+                if (offset < (int) sizeof(resp->data))
+                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
+                                       "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
+                if (offset < 0)
+                    break;
+            } else if (node->type == GEOM_LINE_SEGMENT && offset < (int) sizeof(resp->data)) {
+                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
+                                   "  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"#22c55e\" "
+                                   "stroke-width=\"2\"/>\n");
+                if (offset < 0)
+                    break;
+            }
+        }
+    }
+    if (offset >= 0 && offset < (int) sizeof(resp->data))
+        offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "</svg>");
+    return lv_OK;
+}
+
+static int interop_export_graph_tikz(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    (void) cmd;
+    int offset = snprintf(resp->data, sizeof(resp->data), "\\begin{tikzpicture}\n");
+    if (offset < 0)
+        offset = 0;
+    if (engine->main_graph) {
+        for (int i = 0; i < engine->main_graph->node_count && offset < (int) sizeof(resp->data) - 256; i++) {
+            GeomNode *node = engine->main_graph->nodes[i];
+            if (node->type == GEOM_POINT && node->coord_count >= 2) {
+                double x = symbolic_coord_to_double(node->symbolic_coords[0]);
+                double y = symbolic_coord_to_double(node->symbolic_coords[1]);
+                if (offset < (int) sizeof(resp->data))
+                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
+                                       "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
+                if (offset < 0)
+                    break;
+            } else if (node->type == GEOM_LINE_SEGMENT && offset < (int) sizeof(resp->data)) {
+                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
+                                   "  \\draw (0,0) -- (1,1);\n");
+                if (offset < 0)
+                    break;
+            }
+        }
+    }
+    if (offset >= 0 && offset < (int) sizeof(resp->data))
+        offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "\\end{tikzpicture}");
+    return lv_OK;
+}
+
+static int interop_export_graph_json_pretty(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    (void) cmd;
+    char *json_str = graph_serialize_to_json(engine->main_graph);
+    if (json_str) {
+        int offset = 0;
+        int indent = 0;
+        for (size_t i = 0; json_str[i] && offset < (int) sizeof(resp->data) - 4; i++) {
+            char ch = json_str[i];
+            if (ch == '{' || ch == '[') {
+                resp->data[offset++] = ch;
+                resp->data[offset++] = '\n';
+                indent += 2;
+                for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
+                    resp->data[offset++] = ' ';
+            } else if (ch == '}' || ch == ']') {
+                resp->data[offset++] = '\n';
+                indent -= 2;
+                if (indent < 0) indent = 0;
+                for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
+                    resp->data[offset++] = ' ';
+                resp->data[offset++] = ch;
+            } else if (ch == ',') {
+                resp->data[offset++] = ch;
+                resp->data[offset++] = '\n';
+                for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
+                    resp->data[offset++] = ' ';
+            } else {
+                resp->data[offset++] = ch;
+            }
+        }
+        resp->data[offset] = '\0';
+        lv_free((void **) &json_str);
+    } else {
+        lv_strlcpy(resp->data, "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
+    }
+    return lv_OK;
+}
+
+/** @brief ExportGraph 导出格式名→处理函数 查找表（替代 4 分支 strcmp 链） */
+static const struct {
+    const char *name;
+    InteropCmdHandler handler;
+} kExportFormatHandlers[] = {
+    {"json", interop_export_graph_json},
+    {"canonical", interop_export_graph_json},
+    {"svg", interop_export_graph_svg},
+    {"tikz", interop_export_graph_tikz},
+    {"json-pretty", interop_export_graph_json_pretty},
+};
+
 static int handle_cmd_export_graph(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
     const char *fmt = (cmd->param_count > 0) ? cmd->params[0] : "json";
     if (!engine->main_graph) {
@@ -671,105 +871,13 @@ static int handle_cmd_export_graph(lvEngine *engine, const InteropCommand *cmd, 
         lv_strlcpy(resp->data, "No graph to export", sizeof(resp->data));
         return lv_OK;
     }
-    if (strcmp(fmt, "json") == 0 || strcmp(fmt, "canonical") == 0) {
-        char *json_str = graph_serialize_to_json(engine->main_graph);
-        if (json_str) {
-            lv_strlcpy(resp->data, json_str, sizeof(resp->data));
-            lv_free((void **) &json_str);
-        } else {
-            lv_strlcpy(resp->data, "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
-        }
-    } else if (strcmp(fmt, "svg") == 0) {
-        int offset = snprintf(resp->data, sizeof(resp->data),
-                              "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n"
-                              "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
-        if (offset < 0)
-            offset = 0;
-        if (engine->main_graph) {
-            for (int i = 0; i < engine->main_graph->node_count && offset < (int) sizeof(resp->data) - 256; i++) {
-                GeomNode *node = engine->main_graph->nodes[i];
-                if (node->type == GEOM_POINT && node->coord_count >= 2) {
-                    double x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                    double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                    if (offset < (int) sizeof(resp->data))
-                        offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                           "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
-                    if (offset < 0)
-                        break;
-                } else if (node->type == GEOM_LINE_SEGMENT && offset < (int) sizeof(resp->data)) {
-                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                       "  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"#22c55e\" "
-                                       "stroke-width=\"2\"/>\n");
-                    if (offset < 0)
-                        break;
-                }
-            }
-        }
-        if (offset >= 0 && offset < (int) sizeof(resp->data))
-            offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "</svg>");
-    } else if (strcmp(fmt, "tikz") == 0) {
-        int offset = snprintf(resp->data, sizeof(resp->data), "\\begin{tikzpicture}\n");
-        if (offset < 0)
-            offset = 0;
-        if (engine->main_graph) {
-            for (int i = 0; i < engine->main_graph->node_count && offset < (int) sizeof(resp->data) - 256; i++) {
-                GeomNode *node = engine->main_graph->nodes[i];
-                if (node->type == GEOM_POINT && node->coord_count >= 2) {
-                    double x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                    double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                    if (offset < (int) sizeof(resp->data))
-                        offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                           "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
-                    if (offset < 0)
-                        break;
-                } else if (node->type == GEOM_LINE_SEGMENT && offset < (int) sizeof(resp->data)) {
-                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                       "  \\draw (0,0) -- (1,1);\n");
-                    if (offset < 0)
-                        break;
-                }
-            }
-        }
-        if (offset >= 0 && offset < (int) sizeof(resp->data))
-            offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "\\end{tikzpicture}");
-    } else if (strcmp(fmt, "json-pretty") == 0) {
-        char *json_str = graph_serialize_to_json(engine->main_graph);
-        if (json_str) {
-            int offset = 0;
-            int indent = 0;
-            for (size_t i = 0; json_str[i] && offset < (int) sizeof(resp->data) - 4; i++) {
-                char ch = json_str[i];
-                if (ch == '{' || ch == '[') {
-                    resp->data[offset++] = ch;
-                    resp->data[offset++] = '\n';
-                    indent += 2;
-                    for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
-                        resp->data[offset++] = ' ';
-                } else if (ch == '}' || ch == ']') {
-                    resp->data[offset++] = '\n';
-                    indent -= 2;
-                    if (indent < 0) indent = 0;
-                    for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
-                        resp->data[offset++] = ' ';
-                    resp->data[offset++] = ch;
-                } else if (ch == ',') {
-                    resp->data[offset++] = ch;
-                    resp->data[offset++] = '\n';
-                    for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
-                        resp->data[offset++] = ' ';
-                } else {
-                    resp->data[offset++] = ch;
-                }
-            }
-            resp->data[offset] = '\0';
-            lv_free((void **) &json_str);
-        } else {
-            lv_strlcpy(resp->data, "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
-        }
-    } else {
-        resp->status_code = lv_ERROR_UNSUPPORTED;
-        snprintf(resp->data, sizeof(resp->data), "Unsupported export format: %s", fmt);
+    /* 导出格式→处理函数 查表（替代 4 分支 strcmp 链） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kExportFormatHandlers); i++) {
+        if (strcmp(fmt, kExportFormatHandlers[i].name) == 0)
+            return kExportFormatHandlers[i].handler(engine, cmd, resp);
     }
+    resp->status_code = lv_ERROR_UNSUPPORTED;
+    snprintf(resp->data, sizeof(resp->data), "Unsupported export format: %s", fmt);
     return lv_OK;
 }
 

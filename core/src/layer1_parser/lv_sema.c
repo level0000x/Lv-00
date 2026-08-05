@@ -164,6 +164,101 @@ static void check_let(LvSemaContext *ctx, LvAstNode *node) {
     }
 }
 
+/* ── check_call 关键字表（替代手写 strcmp 链） ── */
+
+/** @brief 在 NULL 结尾关键字表中精确匹配（strcmp 语义，避免 strstr 子串误匹配） */
+static bool lv_sema_match_name(const char *fname, const char *const *names) {
+    for (int i = 0; names[i] != NULL; i++) {
+        if (strcmp(fname, names[i]) == 0)
+            return true;
+    }
+    return false;
+}
+
+/** @brief 关系调用函数名表（collinear 等，参数须为 Point 类型） */
+static const char *const kRelationCallNames[] = {
+    "collinear", "parallel", "perpendicular", "congruent", "tangent", NULL
+};
+
+/** @brief 度量调用函数名表（length 等，参数须为 Point 类型） */
+static const char *const kMeasureCallNames[] = {
+    "length", "distance", "angle", "measure", "area", "radius", NULL
+};
+
+typedef LvSemanticType (*GeomCallCheckFn)(LvSemaContext *ctx, LvAstNode *node);
+
+/* 几何构造检查（查找表 handler） */
+
+static LvSemanticType check_geom_point(LvSemaContext *ctx, LvAstNode *node) {
+    for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+        check_expr(ctx, a);
+    }
+    return LV_TYPE_POINT;
+}
+
+static LvSemanticType check_geom_line(LvSemaContext *ctx, LvAstNode *node) {
+    for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+        LvSemanticType at = check_expr(ctx, a);
+        if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
+            sema_error(ctx, a->loc, "line() expects Point arguments");
+        }
+    }
+    return LV_TYPE_LINE;
+}
+
+static LvSemanticType check_geom_segment(LvSemaContext *ctx, LvAstNode *node) {
+    for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+        LvSemanticType at = check_expr(ctx, a);
+        if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
+            sema_error(ctx, a->loc, "segment() expects Point arguments");
+        }
+    }
+    return LV_TYPE_SEGMENT;
+}
+
+static LvSemanticType check_geom_circle(LvSemaContext *ctx, LvAstNode *node) {
+    LvAstNode *args = node->data.call.args;
+    if (args) {
+        check_expr(ctx, args);
+        if (args->next)
+            check_expr(ctx, args->next);
+    }
+    return LV_TYPE_CIRCLE;
+}
+
+static LvSemanticType check_geom_ray(LvSemaContext *ctx, LvAstNode *node) {
+    for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+        LvSemanticType at = check_expr(ctx, a);
+        if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
+            sema_error(ctx, a->loc, "ray() expects Point arguments");
+        }
+    }
+    return LV_TYPE_RAY;
+}
+
+static LvSemanticType check_geom_triangle(LvSemaContext *ctx, LvAstNode *node) {
+    for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+        LvSemanticType at = check_expr(ctx, a);
+        if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
+            sema_error(ctx, a->loc, "triangle() expects Point arguments");
+        }
+    }
+    return LV_TYPE_TRIANGLE;
+}
+
+/** @brief 几何构造函数名→检查函数 查找表（替代 6 段 if 链） */
+static const struct {
+    const char *name;
+    GeomCallCheckFn handler;
+} kGeomConstructorTable[] = {
+    {"point", check_geom_point},
+    {"line", check_geom_line},
+    {"segment", check_geom_segment},
+    {"circle", check_geom_circle},
+    {"ray", check_geom_ray},
+    {"triangle", check_geom_triangle},
+};
+
 /** 检查函数/关系/度量/几何调用 */
 static LvSemanticType check_call(LvSemaContext *ctx, LvAstNode *node) {
     const char *fname = node->data.call.func_name;
@@ -171,8 +266,7 @@ static LvSemanticType check_call(LvSemaContext *ctx, LvAstNode *node) {
         return LV_TYPE_ERROR;
 
     /* 关系调用：collinear, parallel, perpendicular, congruent, tangent */
-    if (strcmp(fname, "collinear") == 0 || strcmp(fname, "parallel") == 0 || strcmp(fname, "perpendicular") == 0 ||
-        strcmp(fname, "congruent") == 0 || strcmp(fname, "tangent") == 0) {
+    if (lv_sema_match_name(fname, kRelationCallNames)) {
         /* 参数必须是 Point 类型 */
         for (LvAstNode *a = node->data.call.args; a; a = a->next) {
             LvSemanticType at = check_expr(ctx, a);
@@ -184,8 +278,7 @@ static LvSemanticType check_call(LvSemaContext *ctx, LvAstNode *node) {
     }
 
     /* 度量调用：length, distance, angle, measure, area, radius */
-    if (strcmp(fname, "length") == 0 || strcmp(fname, "distance") == 0 || strcmp(fname, "angle") == 0 ||
-        strcmp(fname, "measure") == 0 || strcmp(fname, "area") == 0 || strcmp(fname, "radius") == 0) {
+    if (lv_sema_match_name(fname, kMeasureCallNames)) {
         for (LvAstNode *a = node->data.call.args; a; a = a->next) {
             LvSemanticType at = check_expr(ctx, a);
             if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
@@ -195,57 +288,11 @@ static LvSemanticType check_call(LvSemaContext *ctx, LvAstNode *node) {
         return LV_TYPE_SCALAR;
     }
 
-    /* 几何构造：point, line, circle, segment, ray, triangle */
-    if (strcmp(fname, "point") == 0) {
-        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
-            check_expr(ctx, a);
+    /* 几何构造：point, line, circle, segment, ray, triangle（查找表） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kGeomConstructorTable); i++) {
+        if (strcmp(fname, kGeomConstructorTable[i].name) == 0) {
+            return kGeomConstructorTable[i].handler(ctx, node);
         }
-        return LV_TYPE_POINT;
-    }
-    if (strcmp(fname, "line") == 0) {
-        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
-            LvSemanticType at = check_expr(ctx, a);
-            if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
-                sema_error(ctx, a->loc, "line() expects Point arguments");
-            }
-        }
-        return LV_TYPE_LINE;
-    }
-    if (strcmp(fname, "segment") == 0) {
-        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
-            LvSemanticType at = check_expr(ctx, a);
-            if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
-                sema_error(ctx, a->loc, "segment() expects Point arguments");
-            }
-        }
-        return LV_TYPE_SEGMENT;
-    }
-    if (strcmp(fname, "circle") == 0) {
-        LvAstNode *args = node->data.call.args;
-        if (args) {
-            check_expr(ctx, args);
-            if (args->next)
-                check_expr(ctx, args->next);
-        }
-        return LV_TYPE_CIRCLE;
-    }
-    if (strcmp(fname, "ray") == 0) {
-        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
-            LvSemanticType at = check_expr(ctx, a);
-            if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
-                sema_error(ctx, a->loc, "ray() expects Point arguments");
-            }
-        }
-        return LV_TYPE_RAY;
-    }
-    if (strcmp(fname, "triangle") == 0) {
-        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
-            LvSemanticType at = check_expr(ctx, a);
-            if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {
-                sema_error(ctx, a->loc, "triangle() expects Point arguments");
-            }
-        }
-        return LV_TYPE_TRIANGLE;
     }
 
     /* 普通函数调用：未知类型 */

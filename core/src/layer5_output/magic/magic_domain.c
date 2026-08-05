@@ -334,23 +334,27 @@ const char *element_to_string(MagicElement element) {
  * @param str 元素名称字符串（如 "FIRE"、"火"）
  * @return 对应的魔法元素类型，无法识别时返回 ELEMENT_NONE
  */
+/** @brief string_to_element 字符串→元素查找表（中文名 + 英文名双写，替代 5 分支 strcmp 链） */
+static const lvStrToEnumEntry s_string_to_element_entries[] = {
+    {"FIRE", ELEMENT_FIRE},
+    {"火", ELEMENT_FIRE},
+    {"WATER", ELEMENT_WATER},
+    {"水", ELEMENT_WATER},
+    {"AIR", ELEMENT_AIR},
+    {"风", ELEMENT_AIR},
+    {"EARTH", ELEMENT_EARTH},
+    {"土", ELEMENT_EARTH},
+    {"ETHER", ELEMENT_ETHER},
+    {"以太", ELEMENT_ETHER},
+};
+
 MagicElement string_to_element(const char *str) {
     if (!str)
         return ELEMENT_NONE;
 
-    /* 支持中英文名称匹配 */
-    if (strcmp(str, "FIRE") == 0 || strcmp(str, "火") == 0)
-        return ELEMENT_FIRE;
-    if (strcmp(str, "WATER") == 0 || strcmp(str, "水") == 0)
-        return ELEMENT_WATER;
-    if (strcmp(str, "AIR") == 0 || strcmp(str, "风") == 0)
-        return ELEMENT_AIR;
-    if (strcmp(str, "EARTH") == 0 || strcmp(str, "土") == 0)
-        return ELEMENT_EARTH;
-    if (strcmp(str, "ETHER") == 0 || strcmp(str, "以太") == 0)
-        return ELEMENT_ETHER;
-
-    return ELEMENT_NONE;
+    /* 中英文名称查表（未命中回退 ELEMENT_NONE） */
+    return (MagicElement) lv_str_to_enum(s_string_to_element_entries, lv_ARRAY_SIZE(s_string_to_element_entries),
+                                         str, ELEMENT_NONE);
 }
 
 /**

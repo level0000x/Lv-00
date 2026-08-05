@@ -23,6 +23,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/groebner_engine.h"
 #include "lv/lv.h"
+#include "lv/geo_utils.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/propagation.h"
@@ -167,8 +168,8 @@ static bool graph_node_coords(const ConstraintGraph *graph, int node_id, double 
 static double compute_angle_degrees(double vx, double vy, double p1x, double p1y, double p2x, double p2y) {
     double ax = p1x - vx, ay = p1y - vy;
     double bx = p2x - vx, by = p2y - vy;
-    double la = sqrt(ax * ax + ay * ay);
-    double lb = sqrt(bx * bx + by * by);
+    double la = geo_distance_2d(0.0, 0.0, ax, ay);
+    double lb = geo_distance_2d(0.0, 0.0, bx, by);
     if (la < META_PROOF_GEOM_EPS || lb < META_PROOF_GEOM_EPS)
         return -1.0; /* 向量退化 */
     double dot = (ax * bx + ay * by) / (la * lb);
@@ -251,8 +252,8 @@ static bool point_on_circle(const ConstraintGraph *graph, double px, double py, 
     double ox, oy, rx, ry;
     if (!graph_node_coords(graph, obj->data.circle.center_node_id, &ox, &oy)) return false;
     if (!graph_node_coords(graph, obj->data.circle.radius_node_id, &rx, &ry)) return false;
-    double radius = sqrt((rx - ox) * (rx - ox) + (ry - oy) * (ry - oy));
-    double dist = sqrt((px - ox) * (px - ox) + (py - oy) * (py - oy));
+    double radius = geo_distance_2d(ox, oy, rx, ry);
+    double dist = geo_distance_2d(ox, oy, px, py);
     return fabs(dist - radius) <= META_PROOF_GEOM_EPS;
 }
 
@@ -1071,15 +1072,13 @@ static bool meta_groebner_candidate_excluded(const ConstraintGraph *graph, int n
             continue;
         char name[64];
         snprintf(name, sizeof(name), "p%d_x", node->id);
-        var_names[vi] = (char *) lv_calloc(1, strlen(name) + 1);
+        var_names[vi] = lv_strdup(name);
         if (!var_names[vi])
             goto fail;
-        strcpy(var_names[vi], name);
         snprintf(name, sizeof(name), "p%d_y", node->id);
-        var_names[vi + 1] = (char *) lv_calloc(1, strlen(name) + 1);
+        var_names[vi + 1] = lv_strdup(name);
         if (!var_names[vi + 1])
             goto fail;
-        strcpy(var_names[vi + 1], name);
         if (node->id == node_id)
             node_vi = vi;
         vi += 2;

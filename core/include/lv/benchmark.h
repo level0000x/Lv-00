@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file benchmark.h
  * @brief 性能基准测试框架
  *
@@ -282,6 +282,10 @@ void lv_perf_record_error(lvPerfMonitor *monitor);
 void lv_perf_record_alloc(lvPerfMonitor *monitor, size_t size);
 /**
  * @brief 记录内存释放
+ * @note 该函数并非销毁 monitor 本身，而是向性能监控器记录一次
+ *       内存释放事件（size 为释放的字节数），用于统计分配/释放平衡。
+ *       函数名中的 destroy 指"被释放的对象"，与主流 void xxx_destroy(T*)
+ *       约定不同，属历史命名，签名保持不变。
  */
 void lv_perf_record_destroy(lvPerfMonitor *monitor, size_t size);
 /**

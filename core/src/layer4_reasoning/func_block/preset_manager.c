@@ -64,19 +64,13 @@ void clear_error(void);
  * ============================================================ */
 
 /**
- * @brief 字符串哈希函数（FNV-1a）
+ * @brief 字符串哈希函数（FNV-1a，复用统一实现 lv_fnv1a_hash_str）
  */
 uint32_t hash_string(const char *str) {
     if (str == NULL) {
         return 0;
     }
-
-    uint32_t hash = 2166136261U;
-    while (*str) {
-        hash ^= (uint32_t) (unsigned char) *str++;
-        hash *= 16777619U;
-    }
-    return hash;
+    return (uint32_t) lv_fnv1a_hash_str(str);
 }
 
 /* ============================================================

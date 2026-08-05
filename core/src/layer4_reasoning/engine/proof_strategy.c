@@ -318,7 +318,10 @@ static bool execute_strategy_cases(lvProofEngine *engine, const Proposition *goa
 
     bool all_proved = true;
 
-    for (int c = 0; c < num_cases && c < (int) lv_PROOF_MAX_BRANCHES; c++) {
+    /* 分支数上限来自 lvConfig.proof.proof_max_branches（默认 64，即原 lv_PROOF_MAX_BRANCHES） */
+    const int branch_cap = lv_config_current()->proof.proof_max_branches;
+
+    for (int c = 0; c < num_cases && c < branch_cap; c++) {
         char case_label[128];
         snprintf(case_label, sizeof(case_label), "Case %d", c + 1);
 

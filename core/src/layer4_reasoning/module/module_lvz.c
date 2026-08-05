@@ -387,6 +387,132 @@ static bool lvz_parse_axioms_section(LvzParser *p, Module *mod) {
     return true;
 }
 
+/* ── 节点类型分发（查找表，替代 3 分支 strcmp 链） ── */
+
+typedef bool (*LvzNodeHandler)(LvzParser *p, Module *mod, int node_id);
+
+static bool lvz_node_point(LvzParser *p, Module *mod, int node_id) {
+    (void) node_id;
+    /* 点节点: point id x y */
+    double x = 0, y = 0;
+    if (p->current.type == TOK_NUMBER) {
+        x = p->current.num_value;
+        lvz_parser_advance(p);
+    }
+    if (p->current.type == TOK_NUMBER) {
+        y = p->current.num_value;
+        lvz_parser_advance(p);
+    }
+    /* 创建点节点 (简化实现 - 使用有理数坐标) */
+    SymbolicCoord *sx = symbolic_coord_from_double_rounded(x, 10000);
+    SymbolicCoord *sy = symbolic_coord_from_double_rounded(y, 10000);
+    SymbolicCoord *coords[2] = {sx, sy};
+    if (sx && sy) {
+        graph_add_point(mod->graph, coords, 2);
+        symbolic_coord_destroy(sx);
+        symbolic_coord_destroy(sy);
+    }
+    return true;
+}
+
+static bool lvz_node_line(LvzParser *p, Module *mod, int node_id) {
+    (void) node_id;
+    /* 线节点: line id p1 p2 */
+    int p1 = 0, p2 = 0;
+    if (p->current.type == TOK_NUMBER) {
+        p1 = (int) p->current.num_value;
+        lvz_parser_advance(p);
+    }
+    if (p->current.type == TOK_NUMBER) {
+        p2 = (int) p->current.num_value;
+        lvz_parser_advance(p);
+    }
+    /* 创建线节点 (简化实现 - 使用端点ID) */
+    if (p1 >= 0 && p2 >= 0) {
+        graph_add_line_segment(mod->graph, p1, p2);
+    }
+    return true;
+}
+
+static bool lvz_node_circle(LvzParser *p, Module *mod, int node_id) {
+    /* 圆节点: circle id center radius */
+    int center = 0;
+    double radius = 0;
+    if (p->current.type == TOK_NUMBER) {
+        center = (int) p->current.num_value;
+        lvz_parser_advance(p);
+    }
+    if (p->current.type == TOK_NUMBER) {
+        radius = p->current.num_value;
+        lvz_parser_advance(p);
+    }
+
+    /* 圆心节点引用必须有效 */
+    if (center < 0) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 的圆心节点 ID 无效 (%d)",
+                     p->current.line, node_id, center);
+        return false;
+    }
+    GeomNode *center_node = graph_get_node(mod->graph, center);
+    if (!center_node) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 引用的圆心节点 #%d 不存在",
+                     p->current.line, node_id, center);
+        return false;
+    }
+
+    /* 取圆心节点坐标，用于构造半径端点点 */
+    double cx = 0.0, cy = 0.0;
+    if (center_node->symbolic_coords && center_node->coord_count >= 1) {
+        cx = symbolic_coord_to_double(center_node->symbolic_coords[0]);
+    }
+    if (center_node->symbolic_coords && center_node->coord_count >= 2) {
+        cy = symbolic_coord_to_double(center_node->symbolic_coords[1]);
+    }
+
+    /* 创建半径端点点节点 (cx + radius, cy)，使圆心到此点的距离恰为半径 */
+    SymbolicCoord *srx = symbolic_coord_from_double_rounded(cx + radius, 10000);
+    SymbolicCoord *sry = symbolic_coord_from_double_rounded(cy, 10000);
+    if (!srx || !sry) {
+        symbolic_coord_destroy(srx);
+        symbolic_coord_destroy(sry);
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法为圆节点 #%d 构造半径端点点坐标",
+                     p->current.line, node_id);
+        return false;
+    }
+    SymbolicCoord *radius_coords[2] = {srx, sry};
+    AddNodeResult add_result = graph_add_point(mod->graph, radius_coords, 2);
+    symbolic_coord_destroy(srx);
+    symbolic_coord_destroy(sry);
+    if (add_result != ADD_NODE_OK) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d 的半径端点点节点",
+                     p->current.line, node_id);
+        return false;
+    }
+
+    /* 创建圆节点并关联圆心与半径端点（沿用自动分配 ID，与点/线节点一致） */
+    int radius_point_id = graph_get_last_added_node_id(mod->graph);
+    int circle_id = radius_point_id + 1;
+    GeomNode *circle_node = graph_add_node_with_id(mod->graph, circle_id, GEOM_CIRCLE, NULL, 0);
+    if (!circle_node) {
+        lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d (节点 ID 冲突?)",
+                     p->current.line, circle_id);
+        return false;
+    }
+    circle_node->data.circle.center_node_id = center;
+    circle_node->data.circle.radius_node_id = radius_point_id;
+    return true;
+}
+
+/** @brief 节点类型名→处理函数 查找表（替代 3 分支 strcmp 链） */
+static const struct {
+    const char *name;
+    LvzNodeHandler handler;
+} kNodeTypeHandlers[] = {
+    {"point", lvz_node_point},
+    {"line", lvz_node_line},
+    {"circle", lvz_node_circle},
+};
+
 /* 解析节点部分: nodes N { point/line/... } */
 static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
     lvz_parser_advance(p); /* 跳过 'nodes' */
@@ -422,108 +548,17 @@ static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
             return false;
         lvz_parser_advance(p);
 
-        if (strcmp(node_type, "point") == 0) {
-            /* 点节点: point id x y */
-            double x = 0, y = 0;
-            if (p->current.type == TOK_NUMBER) {
-                x = p->current.num_value;
-                lvz_parser_advance(p);
+        /* 节点类型→处理函数 查表（替代 3 分支 strcmp 链） */
+        bool handled = false;
+        for (size_t i = 0; i < lv_ARRAY_SIZE(kNodeTypeHandlers); i++) {
+            if (strcmp(node_type, kNodeTypeHandlers[i].name) == 0) {
+                handled = true;
+                if (!kNodeTypeHandlers[i].handler(p, mod, node_id))
+                    return false;
+                break;
             }
-            if (p->current.type == TOK_NUMBER) {
-                y = p->current.num_value;
-                lvz_parser_advance(p);
-            }
-            /* 创建点节点 (简化实现 - 使用有理数坐标) */
-            SymbolicCoord *sx = symbolic_coord_from_double_rounded(x, 10000);
-            SymbolicCoord *sy = symbolic_coord_from_double_rounded(y, 10000);
-            SymbolicCoord *coords[2] = {sx, sy};
-            if (sx && sy) {
-                graph_add_point(mod->graph, coords, 2);
-                symbolic_coord_destroy(sx);
-                symbolic_coord_destroy(sy);
-            }
-        } else if (strcmp(node_type, "line") == 0) {
-            /* 线节点: line id p1 p2 */
-            int p1 = 0, p2 = 0;
-            if (p->current.type == TOK_NUMBER) {
-                p1 = (int) p->current.num_value;
-                lvz_parser_advance(p);
-            }
-            if (p->current.type == TOK_NUMBER) {
-                p2 = (int) p->current.num_value;
-                lvz_parser_advance(p);
-            }
-            /* 创建线节点 (简化实现 - 使用端点ID) */
-            if (p1 >= 0 && p2 >= 0) {
-                graph_add_line_segment(mod->graph, p1, p2);
-            }
-        } else if (strcmp(node_type, "circle") == 0) {
-            /* 圆节点: circle id center radius */
-            int center = 0;
-            double radius = 0;
-            if (p->current.type == TOK_NUMBER) {
-                center = (int) p->current.num_value;
-                lvz_parser_advance(p);
-            }
-            if (p->current.type == TOK_NUMBER) {
-                radius = p->current.num_value;
-                lvz_parser_advance(p);
-            }
-
-            /* 圆心节点引用必须有效 */
-            if (center < 0) {
-                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 的圆心节点 ID 无效 (%d)",
-                             p->current.line, node_id, center);
-                return false;
-            }
-            GeomNode *center_node = graph_get_node(mod->graph, center);
-            if (!center_node) {
-                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 圆节点 #%d 引用的圆心节点 #%d 不存在",
-                             p->current.line, node_id, center);
-                return false;
-            }
-
-            /* 取圆心节点坐标，用于构造半径端点点 */
-            double cx = 0.0, cy = 0.0;
-            if (center_node->symbolic_coords && center_node->coord_count >= 1) {
-                cx = symbolic_coord_to_double(center_node->symbolic_coords[0]);
-            }
-            if (center_node->symbolic_coords && center_node->coord_count >= 2) {
-                cy = symbolic_coord_to_double(center_node->symbolic_coords[1]);
-            }
-
-            /* 创建半径端点点节点 (cx + radius, cy)，使圆心到此点的距离恰为半径 */
-            SymbolicCoord *srx = symbolic_coord_from_double_rounded(cx + radius, 10000);
-            SymbolicCoord *sry = symbolic_coord_from_double_rounded(cy, 10000);
-            if (!srx || !sry) {
-                symbolic_coord_destroy(srx);
-                symbolic_coord_destroy(sry);
-                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法为圆节点 #%d 构造半径端点点坐标",
-                             p->current.line, node_id);
-                return false;
-            }
-            SymbolicCoord *radius_coords[2] = {srx, sry};
-            AddNodeResult add_result = graph_add_point(mod->graph, radius_coords, 2);
-            symbolic_coord_destroy(srx);
-            symbolic_coord_destroy(sry);
-            if (add_result != ADD_NODE_OK) {
-                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d 的半径端点点节点",
-                             p->current.line, node_id);
-                return false;
-            }
-
-            /* 创建圆节点并关联圆心与半径端点（沿用自动分配 ID，与点/线节点一致） */
-            int radius_point_id = graph_get_last_added_node_id(mod->graph);
-            int circle_id = radius_point_id + 1;
-            GeomNode *circle_node = graph_add_node_with_id(mod->graph, circle_id, GEOM_CIRCLE, NULL, 0);
-            if (!circle_node) {
-                lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 无法创建圆节点 #%d (节点 ID 冲突?)",
-                             p->current.line, circle_id);
-                return false;
-            }
-            circle_node->data.circle.center_node_id = center;
-            circle_node->data.circle.radius_node_id = radius_point_id;
-        } else {
+        }
+        if (!handled) {
             /* 未知节点类型，跳过参数 */
             while (p->current.type == TOK_NUMBER) {
                 lvz_parser_advance(p);
@@ -790,6 +825,63 @@ static bool lvz_expand_constraint_template(LvzParser *p, Module *mod, const char
 }
 
 /* 解析约束部分: constraints N { constraint_type ... } */
+/* ── 原生约束类型分发（查找表，替代 5 分支 strcmp 链；未命中走模板展开） ── */
+
+typedef void (*LvzNativeConstraintFn)(Module *mod, const int *params, int param_count);
+
+static void lvz_constraint_incidence(Module *mod, const int *params, int param_count) {
+    (void) param_count;
+    /* incidence point_id line_id */
+    if (params[0] >= 0 && params[1] >= 0) {
+        graph_add_incidence(mod->graph, params[0], params[1]);
+    }
+}
+
+static void lvz_constraint_betweenness(Module *mod, const int *params, int param_count) {
+    (void) param_count;
+    /* betweenness p1 p2 p3 */
+    if (params[0] >= 0 && params[1] >= 0 && params[2] >= 0) {
+        graph_add_betweenness(mod->graph, params[0], params[1], params[2]);
+    }
+}
+
+static void lvz_constraint_intersection(Module *mod, const int *params, int param_count) {
+    (void) param_count;
+    /* intersection line1 line2 result_point */
+    if (params[0] >= 0 && params[1] >= 0 && params[2] >= 0) {
+        graph_add_intersection(mod->graph, params[0], params[1], params[2]);
+    }
+}
+
+static void lvz_constraint_containment(Module *mod, const int *params, int param_count) {
+    (void) param_count;
+    /* containment inner outer */
+    if (params[0] >= 0 && params[1] >= 0) {
+        graph_add_containment(mod->graph, params[0], params[1]);
+    }
+}
+
+static void lvz_constraint_connection(Module *mod, const int *params, int param_count) {
+    (void) param_count;
+    /* connection src_port dst_port */
+    if (params[0] >= 0 && params[1] >= 0) {
+        graph_add_connection(mod->graph, params[0], params[1]);
+    }
+}
+
+/** @brief 原生约束类型表：名称 + 最少参数数 + 构造函数（替代 5 分支 strcmp 链） */
+static const struct {
+    const char *name;
+    int min_params;
+    LvzNativeConstraintFn fn;
+} kNativeConstraintTable[] = {
+    {"incidence", 2, lvz_constraint_incidence},
+    {"betweenness", 3, lvz_constraint_betweenness},
+    {"intersection", 3, lvz_constraint_intersection},
+    {"containment", 2, lvz_constraint_containment},
+    {"connection", 2, lvz_constraint_connection},
+};
+
 static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
     lvz_parser_advance(p); /* 跳过 'constraints' */
 
@@ -836,33 +928,17 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
             lvz_parser_advance(p);
         }
 
-        /* 创建约束 (简化实现) */
-        if (strcmp(constraint_type, "incidence") == 0 && param_count >= 2) {
-            /* incidence point_id line_id */
-            if (params[0] >= 0 && params[1] >= 0) {
-                graph_add_incidence(mod->graph, params[0], params[1]);
+        /* 创建约束：原生约束查表（替代 5 分支 strcmp 链；未命中走模板展开） */
+        bool native = false;
+        for (size_t i = 0; i < lv_ARRAY_SIZE(kNativeConstraintTable); i++) {
+            if (strcmp(constraint_type, kNativeConstraintTable[i].name) == 0 &&
+                param_count >= kNativeConstraintTable[i].min_params) {
+                kNativeConstraintTable[i].fn(mod, params, param_count);
+                native = true;
+                break;
             }
-        } else if (strcmp(constraint_type, "betweenness") == 0 && param_count >= 3) {
-            /* betweenness p1 p2 p3 */
-            if (params[0] >= 0 && params[1] >= 0 && params[2] >= 0) {
-                graph_add_betweenness(mod->graph, params[0], params[1], params[2]);
-            }
-        } else if (strcmp(constraint_type, "intersection") == 0 && param_count >= 3) {
-            /* intersection line1 line2 result_point */
-            if (params[0] >= 0 && params[1] >= 0 && params[2] >= 0) {
-                graph_add_intersection(mod->graph, params[0], params[1], params[2]);
-            }
-        } else if (strcmp(constraint_type, "containment") == 0 && param_count >= 2) {
-            /* containment inner outer */
-            if (params[0] >= 0 && params[1] >= 0) {
-                graph_add_containment(mod->graph, params[0], params[1]);
-            }
-        } else if (strcmp(constraint_type, "connection") == 0 && param_count >= 2) {
-            /* connection src_port dst_port */
-            if (params[0] >= 0 && params[1] >= 0) {
-                graph_add_connection(mod->graph, params[0], params[1]);
-            }
-        } else {
+        }
+        if (!native) {
             /* 其他约束类型 (distance, angle, parallel, perpendicular, tangent)
                是公理包定义的高级约束，通过公理包模板展开实现 */
             if (!lvz_expand_constraint_template(p, mod, constraint_type, params, param_count))
@@ -872,6 +948,28 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
 
     return true;
 }
+
+/* ── func_blocks 块字段分发（查找表，替代 3 分支 strcmp 链） ── */
+
+typedef bool (*LvzIntFieldFn)(LvzParser *p, int *dst);
+
+static bool lvz_field_int(LvzParser *p, int *dst) {
+    lvz_parser_advance(p);
+    if (!lvz_parser_expect_number(p, dst))
+        return false;
+    lvz_parser_advance(p);
+    return true;
+}
+
+/** @brief func_blocks 块字段表（inputs/outputs/internal，顺序与调用方目标数组一致） */
+static const struct {
+    const char *name;
+    LvzIntFieldFn fn;
+} kFuncBlockIntFields[] = {
+    {"inputs", lvz_field_int},
+    {"outputs", lvz_field_int},
+    {"internal", lvz_field_int},
+};
 
 /* 解析函数块部分: func_blocks N { func_block ... } */
 static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
@@ -903,28 +1001,22 @@ static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
             return false;
         lvz_parser_advance(p);
 
-        /* 解析 inputs/outputs/internal */
+        /* 解析 inputs/outputs/internal（字段查表，替代 3 分支 strcmp 链） */
         int inputs = 0, outputs = 0, internal = 0;
+        int *field_dst[] = {&inputs, &outputs, &internal}; /* 顺序与 kFuncBlockIntFields 一致 */
 
         while (p->current.type == TOK_IDENTIFIER && !p->has_error) {
-            if (strcmp(p->current.str_value, "inputs") == 0) {
-                lvz_parser_advance(p);
-                if (!lvz_parser_expect_number(p, &inputs))
+            bool matched = false;
+            for (size_t fi = 0; fi < lv_ARRAY_SIZE(kFuncBlockIntFields); fi++) {
+                if (strcmp(p->current.str_value, kFuncBlockIntFields[fi].name) == 0) {
+                    if (!kFuncBlockIntFields[fi].fn(p, field_dst[fi]))
+                        break; /* 解析失败：跳出循环（与手写链的 break 行为一致） */
+                    matched = true;
                     break;
-                lvz_parser_advance(p);
-            } else if (strcmp(p->current.str_value, "outputs") == 0) {
-                lvz_parser_advance(p);
-                if (!lvz_parser_expect_number(p, &outputs))
-                    break;
-                lvz_parser_advance(p);
-            } else if (strcmp(p->current.str_value, "internal") == 0) {
-                lvz_parser_advance(p);
-                if (!lvz_parser_expect_number(p, &internal))
-                    break;
-                lvz_parser_advance(p);
-            } else {
-                break;
+                }
             }
+            if (!matched)
+                break;
         }
 
         /* 期望 'end' */
@@ -1071,6 +1163,126 @@ static PresetType lvz_type_from_string(const char *name) {
 
 /* ==================== 预设节解析 ==================== */
 
+/* ── preset 块字段分发（查找表，替代 8 分支 strcmp 链） ── */
+
+/** @brief 预设体解析上下文：聚合全部输出字段指针 */
+typedef struct {
+    char **out_desc;
+    PresetCategory *out_category;
+    PresetType **out_types;
+    int *out_type_count;
+    PresetType *out_output;
+    char **out_math;
+    char **out_complexity;
+    bool *out_constructive;
+    bool *out_reversible;
+} LvzPresetCtx;
+
+typedef bool (*LvzPresetFieldFn)(LvzParser *p, LvzPresetCtx *ctx);
+
+static bool preset_field_description(LvzParser *p, LvzPresetCtx *ctx) {
+    lvz_parser_advance(p);
+    if (!lvz_parser_expect_string(p, ctx->out_desc))
+        return false;
+    lvz_parser_advance(p);
+    return true;
+}
+
+static bool preset_field_category(LvzParser *p, LvzPresetCtx *ctx) {
+    lvz_parser_advance(p);
+    if (!lvz_parser_expect(p, TOK_STRING))
+        return false;
+    *ctx->out_category = lvz_category_from_string(p->current.str_value);
+    lvz_parser_advance(p);
+    return true;
+}
+
+static bool preset_field_inputs(LvzParser *p, LvzPresetCtx *ctx) {
+    lvz_parser_advance(p);
+    /* 期望输入类型数量 */
+    if (!lvz_parser_expect(p, TOK_NUMBER))
+        return false;
+    int count = (int) p->current.num_value;
+    lvz_parser_advance(p);
+
+    if (count > 0) {
+        *ctx->out_types = (PresetType *) lv_malloc((size_t) count * sizeof(PresetType));
+        if (!*ctx->out_types) {
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配输入类型数组", p->current.line);
+            p->has_error = true;
+            return false;
+        }
+        for (int i = 0; i < count; i++) {
+            if (!lvz_parser_expect(p, TOK_STRING)) {
+                lv_free((void **) ctx->out_types);
+                return false;
+            }
+            (*ctx->out_types)[i] = lvz_type_from_string(p->current.str_value);
+            lvz_parser_advance(p);
+        }
+    }
+    *ctx->out_type_count = count;
+    return true;
+}
+
+static bool preset_field_output(LvzParser *p, LvzPresetCtx *ctx) {
+    lvz_parser_advance(p);
+    if (!lvz_parser_expect(p, TOK_STRING))
+        return false;
+    *ctx->out_output = lvz_type_from_string(p->current.str_value);
+    lvz_parser_advance(p);
+    return true;
+}
+
+static bool preset_field_math_def(LvzParser *p, LvzPresetCtx *ctx) {
+    lvz_parser_advance(p);
+    if (!lvz_parser_expect_string(p, ctx->out_math))
+        return false;
+    lvz_parser_advance(p);
+    return true;
+}
+
+static bool preset_field_complexity(LvzParser *p, LvzPresetCtx *ctx) {
+    lvz_parser_advance(p);
+    if (!lvz_parser_expect_string(p, ctx->out_complexity))
+        return false;
+    lvz_parser_advance(p);
+    return true;
+}
+
+static bool preset_field_constructive(LvzParser *p, LvzPresetCtx *ctx) {
+    lvz_parser_advance(p);
+    if (p->current.type == TOK_IDENTIFIER) {
+        *ctx->out_constructive = (strcmp(p->current.str_value, "true") == 0);
+        lvz_parser_advance(p);
+    }
+    return true;
+}
+
+static bool preset_field_reversible(LvzParser *p, LvzPresetCtx *ctx) {
+    lvz_parser_advance(p);
+    if (p->current.type == TOK_IDENTIFIER) {
+        *ctx->out_reversible = (strcmp(p->current.str_value, "true") == 0);
+        lvz_parser_advance(p);
+    }
+    return true;
+}
+
+/** @brief preset 块字段名→处理函数 查找表（替代 8 分支 strcmp 链） */
+static const struct {
+    const char *name;
+    LvzPresetFieldFn fn;
+} kPresetFieldTable[] = {
+    {"description", preset_field_description},
+    {"category", preset_field_category},
+    {"inputs", preset_field_inputs},
+    {"output", preset_field_output},
+    {"math_def", preset_field_math_def},
+    {"complexity", preset_field_complexity},
+    {"constructive", preset_field_constructive},
+    {"reversible", preset_field_reversible},
+};
+
 /**
  * @brief 解析 preset 块体内的单个字段
  *
@@ -1106,6 +1318,18 @@ static bool lvz_parse_preset_body(LvzParser *p, const char *name,
     *out_constructive = true;
     *out_reversible = false;
 
+    /* 构建字段解析上下文 */
+    LvzPresetCtx ctx;
+    ctx.out_desc = out_desc;
+    ctx.out_category = out_category;
+    ctx.out_types = out_types;
+    ctx.out_type_count = out_type_count;
+    ctx.out_output = out_output;
+    ctx.out_math = out_math;
+    ctx.out_complexity = out_complexity;
+    ctx.out_constructive = out_constructive;
+    ctx.out_reversible = out_reversible;
+
     /* 跳过 { */
     if (p->current.type == TOK_LBRACE) {
         lvz_parser_advance(p);
@@ -1121,79 +1345,17 @@ static bool lvz_parse_preset_body(LvzParser *p, const char *name,
 
         const char *field = p->current.str_value;
 
-        if (strcmp(field, "description") == 0) {
-            lvz_parser_advance(p);
-            if (!lvz_parser_expect_string(p, out_desc))
-                return false;
-            lvz_parser_advance(p);
-
-        } else if (strcmp(field, "category") == 0) {
-            lvz_parser_advance(p);
-            if (!lvz_parser_expect(p, TOK_STRING))
-                return false;
-            *out_category = lvz_category_from_string(p->current.str_value);
-            lvz_parser_advance(p);
-
-        } else if (strcmp(field, "inputs") == 0) {
-            lvz_parser_advance(p);
-            /* 期望输入类型数量 */
-            if (!lvz_parser_expect(p, TOK_NUMBER))
-                return false;
-            int count = (int) p->current.num_value;
-            lvz_parser_advance(p);
-
-            if (count > 0) {
-                *out_types = (PresetType *) lv_malloc((size_t) count * sizeof(PresetType));
-                if (!*out_types) {
-                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配输入类型数组", p->current.line);
-                    p->has_error = true;
+        /* 字段查表（替代 8 分支 strcmp 链） */
+        bool matched = false;
+        for (size_t i = 0; i < lv_ARRAY_SIZE(kPresetFieldTable); i++) {
+            if (strcmp(field, kPresetFieldTable[i].name) == 0) {
+                if (!kPresetFieldTable[i].fn(p, &ctx))
                     return false;
-                }
-                for (int i = 0; i < count; i++) {
-                    if (!lvz_parser_expect(p, TOK_STRING)) {
-                        lv_free((void **) out_types);
-                        return false;
-                    }
-                    (*out_types)[i] = lvz_type_from_string(p->current.str_value);
-                    lvz_parser_advance(p);
-                }
+                matched = true;
+                break;
             }
-            *out_type_count = count;
-
-        } else if (strcmp(field, "output") == 0) {
-            lvz_parser_advance(p);
-            if (!lvz_parser_expect(p, TOK_STRING))
-                return false;
-            *out_output = lvz_type_from_string(p->current.str_value);
-            lvz_parser_advance(p);
-
-        } else if (strcmp(field, "math_def") == 0) {
-            lvz_parser_advance(p);
-            if (!lvz_parser_expect_string(p, out_math))
-                return false;
-            lvz_parser_advance(p);
-
-        } else if (strcmp(field, "complexity") == 0) {
-            lvz_parser_advance(p);
-            if (!lvz_parser_expect_string(p, out_complexity))
-                return false;
-            lvz_parser_advance(p);
-
-        } else if (strcmp(field, "constructive") == 0) {
-            lvz_parser_advance(p);
-            if (p->current.type == TOK_IDENTIFIER) {
-                *out_constructive = (strcmp(p->current.str_value, "true") == 0);
-                lvz_parser_advance(p);
-            }
-
-        } else if (strcmp(field, "reversible") == 0) {
-            lvz_parser_advance(p);
-            if (p->current.type == TOK_IDENTIFIER) {
-                *out_reversible = (strcmp(p->current.str_value, "true") == 0);
-                lvz_parser_advance(p);
-            }
-
-        } else {
+        }
+        if (!matched) {
             lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 预设 '%s'): 未知字段 '%s'",
                          p->current.line, name, field);
             p->has_error = true;

@@ -450,16 +450,11 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
 
     /* 复制外部传入的已使用节点 */
     for (int i = 0; i < used_count; i++) {
-        if (local_used_count >= local_used_capacity) {
-            int new_cap = local_used_capacity * 2;
-            int *new_arr = lv_realloc(local_used, (size_t) new_cap * sizeof(int));
-            if (!new_arr) {
-                lv_free((void **) &local_used);
-                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY,
-                                "find_all_non_overlapping_matches: lv_realloc for local_used failed (new_cap=%d)", new_cap);
-            }
-            local_used = new_arr;
-            local_used_capacity = new_cap;
+        /* 扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
+        if (!lv_ensure_capacity((void **) &local_used, local_used_count, &local_used_capacity, sizeof(int), 1)) {
+            lv_free((void **) &local_used);
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY,
+                            "find_all_non_overlapping_matches: lv_realloc for local_used failed");
         }
         local_used[local_used_count++] = used_node_ids[i];
     }

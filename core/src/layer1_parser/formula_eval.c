@@ -15,6 +15,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_numeric.h"
+#include "lv/geo_utils.h"
 #include "lv_utils.h"
 
 double eval_node(const FormulaNode *node, double x, double y);
@@ -166,7 +167,7 @@ static double eval_g_segment(const FormulaNode *node, double x, double y) {
             double x1, y1, x2, y2;
             eval_point_xy(node->data.geom_segment.endpoint1, x, y, &x1, &y1);
             eval_point_xy(node->data.geom_segment.endpoint2, x, y, &x2, &y2);
-            return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+            return geo_distance_2d(x1, y1, x2, y2);
         }
 
 static double eval_g_circle(const FormulaNode *node, double x, double y) {

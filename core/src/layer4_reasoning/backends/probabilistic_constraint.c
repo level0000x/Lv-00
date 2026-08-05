@@ -22,6 +22,7 @@
 #include "lv/lv.h"
 #include "lv/config.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_numeric.h"
 
 #include "lv_utils.h"
 
@@ -184,10 +185,7 @@ static double prob_from_satisfaction(const Constraint *con) {
     }
     /* satisfaction ∈ [0,1] → 直接用作转移概率 */
     double p = con->satisfaction;
-    if (p < 0.0)
-        p = 0.0;
-    if (p > 1.0)
-        p = 1.0;
+    p = lv_clamp(p, 0.0, 1.0);
     return p;
 }
 
@@ -491,10 +489,7 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
     lv_free((void **) &queue);
 
     /* 限制在 [0, 1] */
-    if (total_prob > 1.0)
-        total_prob = 1.0;
-    if (total_prob < 0.0)
-        total_prob = 0.0;
+    total_prob = lv_clamp(total_prob, 0.0, 1.0);
 
     return total_prob;
 }
@@ -668,10 +663,7 @@ static double pctl_compute_until(const SimpleDTMC *mc, const char *phi_predicate
     lv_free((void **) &prob);
     lv_free((void **) &next_prob);
 
-    if (result > 1.0)
-        result = 1.0;
-    if (result < 0.0)
-        result = 0.0;
+    result = lv_clamp(result, 0.0, 1.0);
 
     return result;
 }
@@ -976,8 +968,7 @@ static double sample_beta(ProbDistribution *dist) {
         }
     }
     double result = x_gamma / (x_gamma + y_gamma);
-    if (result < 0.0) result = 0.0;
-    if (result > 1.0) result = 1.0;
+    result = lv_clamp(result, 0.0, 1.0);
     return result;
 }
 static double sample_discrete(ProbDistribution *dist) {

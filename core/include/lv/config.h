@@ -246,9 +246,6 @@ extern "C" {
 typedef struct lvCfgSolver {
     int solver_max_var_id;           /**< 求解器最大变量 ID（默认 100000） */
     int solver_max_iterations;       /**< 求解器最大迭代次数（默认 10000） */
-    int cdcl_max_steps;              /**< CDCL 最大步数（默认 1000） */
-    int cdcl_max_decisions;          /**< CDCL 最大决策数（默认 1000） */
-    int cdcl_max_restarts;           /**< CDCL 最大重启次数（默认 10） */
 } lvCfgSolver;
 
 /** @brief 引擎配置（约束图 + 重写引擎） */
@@ -269,18 +266,14 @@ typedef struct lvCfgEngine {
 /** @brief 解析器与类型系统配置 */
 typedef struct lvCfgParser {
     int parser_max_input_length;     /**< 解析器最大输入长度（默认 1048576） */
-    int parser_max_tokens;           /**< 解析器最大 Token 数（默认 100000） */
     int parser_max_ast_depth;        /**< 解析器最大 AST 深度（默认 256） */
     int parser_max_ast_nodes;        /**< 解析器最大 AST 节点数（默认 500000） */
     int parser_max_token_length;     /**< 解析器最大 Token 长度（默认 4096） */
     int parser_max_coordinates;      /**< 解析器最大坐标数（默认 16） */
-    int parser_max_vertices;         /**< 解析器最大顶点数（默认 32） */
     int parser_max_polygon_vertices; /**< 解析器最大多边形顶点数（默认 32） */
     int parser_max_statements;       /**< 解析器最大语句数（默认 64） */
     int parser_max_arguments;        /**< 解析器最大参数数（默认 16） */
     int parser_max_participants;     /**< 解析器最大参与者数（默认 16） */
-    int type_infer_max_depth;        /**< 类型推断最大深度（默认 100） */
-    int type_equiv_max_depth;        /**< 类型等价最大深度（默认 16） */
 } lvCfgParser;
 
 /** @brief 流式输出配置 */
@@ -336,10 +329,8 @@ typedef struct lvCfgGeometry {
 
 /** @brief 证明引擎配置 */
 typedef struct lvCfgProof {
-    int proof_max_depth;                 /**< 证明最大深度（默认 100） */
     int proof_max_branches;              /**< 证明最大分支数（默认 64） */
     int proof_max_strategies;            /**< 证明最大策略数（默认 16） */
-    int trace_tree_max_depth;            /**< 跟踪树最大深度（默认 50） */
 } lvCfgProof;
 
 /** @brief 上下文与运行时防护配置 */
@@ -463,9 +454,6 @@ typedef struct lvConfig {
 #define LV_CONFIG_INT_KEYS(X) \
     X("solver_max_var_id", solver.solver_max_var_id) \
     X("solver_max_iterations", solver.solver_max_iterations) \
-    X("cdcl_max_steps", solver.cdcl_max_steps) \
-    X("cdcl_max_decisions", solver.cdcl_max_decisions) \
-    X("cdcl_max_restarts", solver.cdcl_max_restarts) \
     X("max_module_depth", engine.max_module_depth) \
     X("graph_adj_max_per_node", engine.graph_adj_max_per_node) \
     X("default_rewrite_limit", engine.default_rewrite_limit) \
@@ -489,18 +477,14 @@ typedef struct lvConfig {
     X("mini_kernel_max_proof_depth", mini_kernel.mini_kernel_max_proof_depth) \
     X("mini_kernel_verify_timeout_ms", mini_kernel.mini_kernel_verify_timeout_ms) \
     X("parser_max_input_length", parser.parser_max_input_length) \
-    X("parser_max_tokens", parser.parser_max_tokens) \
     X("parser_max_ast_depth", parser.parser_max_ast_depth) \
     X("parser_max_ast_nodes", parser.parser_max_ast_nodes) \
     X("parser_max_token_length", parser.parser_max_token_length) \
     X("parser_max_coordinates", parser.parser_max_coordinates) \
-    X("parser_max_vertices", parser.parser_max_vertices) \
     X("parser_max_polygon_vertices", parser.parser_max_polygon_vertices) \
     X("parser_max_statements", parser.parser_max_statements) \
     X("parser_max_arguments", parser.parser_max_arguments) \
     X("parser_max_participants", parser.parser_max_participants) \
-    X("type_infer_max_depth", parser.type_infer_max_depth) \
-    X("type_equiv_max_depth", parser.type_equiv_max_depth) \
     X("runtime_guard_max_recurse", runtime_guard.runtime_guard_max_recurse) \
     X("runtime_guard_spin_attempts", runtime_guard.runtime_guard_spin_attempts) \
     X("runtime_guard_write_warn_us", runtime_guard.runtime_guard_write_warn_us) \
@@ -518,10 +502,8 @@ typedef struct lvConfig {
     X("geoevol_max_param_dim", geometry.geoevol_max_param_dim) \
     X("geoevol_adams_max_order", geometry.geoevol_adams_max_order) \
     X("geoevol_max_rejections", geometry.geoevol_max_rejections) \
-    X("proof_max_depth", proof.proof_max_depth) \
     X("proof_max_branches", proof.proof_max_branches) \
     X("proof_max_strategies", proof.proof_max_strategies) \
-    X("trace_tree_max_depth", proof.trace_tree_max_depth) \
     X("max_recursion_depth", context.max_recursion_depth) \
     X("context_default_max_depth", context.context_default_max_depth) \
     X("context_max_recursion_depth", context.context_max_recursion_depth) \
@@ -597,7 +579,6 @@ int lv_config_to_json(char *buf, size_t buf_size);
 /* ---- 类型安全 setter（高频字段，IDE 自动补全） ---- */
 void lv_config_set_solver_max_var_id(int val);
 void lv_config_set_solver_max_iterations(int val);
-void lv_config_set_proof_max_depth(int val);
 void lv_config_set_proof_max_branches(int val);
 void lv_config_set_proto_max_draw_cmds(int val);
 void lv_config_set_proto_max_proof_steps(int val);

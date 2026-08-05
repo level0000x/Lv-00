@@ -23,6 +23,7 @@
 #include "lv/cross_platform.h"
 #include "lv/engine.h"
 #include "lv/lv.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
@@ -63,14 +64,10 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
     }
 
     if (json_format) {
-        /* 生成 JSON 格式报告 */
-        size_t buf_size = 1024 + (size_t) count * 256;
-        char *report = (char *) lv_malloc(buf_size);
-        if (!report)
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bootstrap_test_generate_report: malloc for JSON report failed");
+        /* 生成 JSON 格式报告（lvStrBuf 动态构建，替代预估 buffer + pos 游标） */
+        lvStrBuf sb = {0};
 
-        int pos = 0;
-        pos += snprintf(report + pos, buf_size - (size_t) pos,
+        lv_strbuf_printf(&sb,
                         "{\n"
                         "  \"report_type\": \"bootstrap_test\",\n"
                         "  \"summary\": {\n"
@@ -83,11 +80,11 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
                         "  \"details\": [\n",
                         count, passed, failed, errors, count > 0 ? (double) passed / (double) count * 100.0 : 0.0);
 
-        for (uint32_t i = 0; i < count && (size_t) pos < buf_size - 256; i++) {
+        for (uint32_t i = 0; i < count; i++) {
             if (i > 0)
-                pos += snprintf(report + pos, buf_size - (size_t) pos, ",\n");
+                lv_strbuf_printf(&sb, ",\n");
             if (!results[i]) {
-                pos += snprintf(report + pos, buf_size - (size_t) pos,
+                lv_strbuf_printf(&sb,
                                 "    {\"index\": %u, \"status\": \"ERROR\", \"error\": \"result is NULL\"}", i);
                 continue;
             }
@@ -107,28 +104,24 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
                     break;
             }
             if (results[i]->error_message) {
-                pos += snprintf(report + pos, buf_size - (size_t) pos,
+                lv_strbuf_printf(&sb,
                                 "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\", \"error\": \"%s\"}",
                                 i, status, comp, results[i]->error_message);
             } else {
-                pos += snprintf(report + pos, buf_size - (size_t) pos,
+                lv_strbuf_printf(&sb,
                                 "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\"}",
                                 i, status, comp);
             }
         }
 
-        pos += snprintf(report + pos, buf_size - (size_t) pos, "\n  ]\n}\n");
-        return report;
+        lv_strbuf_printf(&sb, "\n  ]\n}\n");
+        return lv_strbuf_to_string(&sb);
     }
 
     /* 默认/文本格式（format == NULL 或 "text" 或其他值）：生成文本格式报告 */
-    size_t buf_size = 1024 + (size_t) count * 128;
-    char *report = (char *) lv_malloc(buf_size);
-    if (!report)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "bootstrap_test_generate_report: malloc for text report failed");
+    lvStrBuf sb = {0};
 
-    int pos = 0;
-    pos += snprintf(report + pos, buf_size - (size_t) pos,
+    lv_strbuf_printf(&sb,
                     "Bootstrap Test Report\n"
                     "=====================\n"
                     "Total tests: %u\n"
@@ -139,9 +132,9 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
                     "\n--- Test Details ---\n",
                     count, passed, failed, errors, count > 0 ? (double) passed / (double) count * 100.0 : 0.0);
 
-    for (uint32_t i = 0; i < count && (size_t) pos < buf_size - 128; i++) {
+    for (uint32_t i = 0; i < count; i++) {
         if (!results[i]) {
-            pos += snprintf(report + pos, buf_size - (size_t) pos, "[%u] ERROR: result is NULL\n", i);
+            lv_strbuf_printf(&sb, "[%u] ERROR: result is NULL\n", i);
             continue;
         }
         const char *status = results[i]->passed ? "PASS" : "FAIL";
@@ -159,15 +152,15 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
             default:
                 break;
         }
-        pos += snprintf(report + pos, buf_size - (size_t) pos, "[%u] %s (comparison: %s)\n", i, status, comp);
+        lv_strbuf_printf(&sb, "[%u] %s (comparison: %s)\n", i, status, comp);
         if (results[i]->error_message) {
-            pos += snprintf(report + pos, buf_size - (size_t) pos, "    Error: %s\n", results[i]->error_message);
+            lv_strbuf_printf(&sb, "    Error: %s\n", results[i]->error_message);
         }
     }
 
-    pos += snprintf(report + pos, buf_size - (size_t) pos, "\n--- End of Report ---\n");
+    lv_strbuf_printf(&sb, "\n--- End of Report ---\n");
 
-    return report;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**

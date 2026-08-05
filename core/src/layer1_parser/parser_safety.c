@@ -153,9 +153,10 @@ lvErrorCode lv_input_validate(const char *input, size_t len) {
         return lv_ERROR_PARSER_EMPTY_INPUT;
     }
 
-    /* 检查2：长度上限 */
-    if (len > lv_MAX_INPUT_LENGTH) {
-        lv_set_error(lv_ERROR_PARSER_INPUT_TOO_LONG, "输入长度 %zu 超过上限 %d", len, lv_MAX_INPUT_LENGTH);
+    /* 检查2：长度上限（运行时配置 lvConfig.parser.parser_max_input_length，默认 1048576） */
+    const lvConfig *lv_cfg = lv_config_current();
+    if (len > (size_t) lv_cfg->parser.parser_max_input_length) {
+        lv_set_error(lv_ERROR_PARSER_INPUT_TOO_LONG, "输入长度 %zu 超过上限 %d", len, lv_cfg->parser.parser_max_input_length);
         return lv_ERROR_PARSER_INPUT_TOO_LONG;
     }
 
@@ -255,8 +256,9 @@ size_t lv_input_sanitize(char *input, size_t max_len) {
  * @return lv_OK 深度在安全范围内，其他值为错误码
  */
 lvErrorCode lv_check_ast_depth(int depth) {
-    if (depth > lv_MAX_AST_DEPTH) {
-        lv_set_error(lv_ERROR_PARSER_DEPTH_EXCEEDED, "AST深度 %d 超过上限 %d", depth, lv_MAX_AST_DEPTH);
+    const lvConfig *lv_cfg = lv_config_current(); /* 运行时上限：parser_max_ast_depth（默认 256） */
+    if (depth > lv_cfg->parser.parser_max_ast_depth) {
+        lv_set_error(lv_ERROR_PARSER_DEPTH_EXCEEDED, "AST深度 %d 超过上限 %d", depth, lv_cfg->parser.parser_max_ast_depth);
         return lv_ERROR_PARSER_DEPTH_EXCEEDED;
     }
     return lv_OK;
@@ -269,8 +271,9 @@ lvErrorCode lv_check_ast_depth(int depth) {
  * @return lv_OK 节点数在安全范围内，其他值为错误码
  */
 lvErrorCode lv_check_ast_node_count(int count) {
-    if (count > lv_MAX_AST_NODES) {
-        lv_set_error(lv_ERROR_PARSER_NODE_LIMIT, "AST节点数 %d 超过上限 %d", count, lv_MAX_AST_NODES);
+    const lvConfig *lv_cfg = lv_config_current(); /* 运行时上限：parser_max_ast_nodes（默认 500000） */
+    if (count > lv_cfg->parser.parser_max_ast_nodes) {
+        lv_set_error(lv_ERROR_PARSER_NODE_LIMIT, "AST节点数 %d 超过上限 %d", count, lv_cfg->parser.parser_max_ast_nodes);
         return lv_ERROR_PARSER_NODE_LIMIT;
     }
     return lv_OK;
@@ -283,8 +286,9 @@ lvErrorCode lv_check_ast_node_count(int count) {
  * @return lv_OK Token 长度在安全范围内，其他值为错误码
  */
 lvErrorCode lv_check_token_length(size_t len) {
-    if (len > lv_MAX_TOKEN_LENGTH) {
-        lv_set_error(lv_ERROR_PARSER_TOKEN_TOO_LONG, "Token长度 %zu 超过上限 %d", len, lv_MAX_TOKEN_LENGTH);
+    const lvConfig *lv_cfg = lv_config_current(); /* 运行时上限：parser_max_token_length（默认 4096） */
+    if (len > (size_t) lv_cfg->parser.parser_max_token_length) {
+        lv_set_error(lv_ERROR_PARSER_TOKEN_TOO_LONG, "Token长度 %zu 超过上限 %d", len, lv_cfg->parser.parser_max_token_length);
         return lv_ERROR_PARSER_TOKEN_TOO_LONG;
     }
     return lv_OK;

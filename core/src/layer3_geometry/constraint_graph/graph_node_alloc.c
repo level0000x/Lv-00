@@ -394,42 +394,52 @@ static void func_block_free(GeomNode *node) {
     node->data.func_block.output_count = 0;
 }
 
-/* ── 类型特定的 clone（存根，完整实现需深拷贝类型特定数据） ── */
+/* ── 类型特定的 clone ──
+ * 未实现存根：代码库当前没有任何 vtable->clone 调用方
+ * （graph_copy 深拷贝走 graph_add_node_with_id / graph_add_constraint_with_id，仅复制基础字段），
+ * 因此存根不会触发。若未来启用 vtable clone 路径，必须先为各类型补齐深拷贝实现（含 union data）。
+ * 各实现返回 NULL 作为显式失败信号，调用方须检查返回值。 ── */
 
 static GeomNode *point_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
     (void)node;
     (void)dst_graph;
-    return NULL; /* 存根 */
+    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
+    return NULL;
 }
 
 static GeomNode *line_segment_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
     (void)node;
     (void)dst_graph;
-    return NULL; /* 存根 */
+    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
+    return NULL;
 }
 
 static GeomNode *region_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
     (void)node;
     (void)dst_graph;
-    return NULL; /* 存根 */
+    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
+    return NULL;
 }
 
 static GeomNode *circle_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
     (void)node;
     (void)dst_graph;
-    return NULL; /* 存根 */
+    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
+    return NULL;
 }
 
 static GeomNode *port_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
     (void)node;
     (void)dst_graph;
-    return NULL; /* 存根 */
+    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
+    return NULL;
 }
 
 static GeomNode *func_block_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
     (void)node;
     (void)dst_graph;
-    return NULL; /* 存根 */
+    /* 未实现：当前无 vtable->clone 调用方，启用前须实现类型特定深拷贝；返回 NULL 作为显式失败信号 */
+    return NULL;
 }
 
 /* ── 类型特定的 type_name ── */
@@ -573,42 +583,57 @@ static bool func_block_serialize(const GeomNode *node, void *buf) {
     return true;
 }
 
-/* ── 类型特定的 detect_conflict（存根） ── */
+/* ── 类型特定的 detect_conflict ──
+ * 未实现存根：代码库当前没有任何 vtable->detect_conflict 调用方
+ * （冲突检测由 graph_conflict.c 的 graph_detect_conflicts 基于约束关系独立实现，不走 vtable），
+ * 因此存根不会触发。若未来启用该路径，须先补齐类型特定冲突检测；当前返回 false（无冲突）为保守默认。 ── */
 
 static bool point_detect_conflict(const GeomNode *a, const GeomNode *b) {
     (void)a;
     (void)b;
-    return false; /* 存根 */
+    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
+     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
+    return false;
 }
 
 static bool line_segment_detect_conflict(const GeomNode *a, const GeomNode *b) {
     (void)a;
     (void)b;
-    return false; /* 存根 */
+    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
+     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
+    return false;
 }
 
 static bool region_detect_conflict(const GeomNode *a, const GeomNode *b) {
     (void)a;
     (void)b;
-    return false; /* 存根 */
+    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
+     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
+    return false;
 }
 
 static bool circle_detect_conflict(const GeomNode *a, const GeomNode *b) {
     (void)a;
     (void)b;
-    return false; /* 存根 */
+    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
+     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
+    return false;
 }
 
 static bool port_detect_conflict(const GeomNode *a, const GeomNode *b) {
     (void)a;
     (void)b;
-    return false; /* 存根 */
+    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
+     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
+    return false;
 }
 
 static bool func_block_detect_conflict(const GeomNode *a, const GeomNode *b) {
     (void)a;
     (void)b;
-    return false; /* 存根 */
+    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
+     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
+    return false;
 }
 
 /* ── 类型特定的 hash（计算类型特定数据的哈希值） ── */

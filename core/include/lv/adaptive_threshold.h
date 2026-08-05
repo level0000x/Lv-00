@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file adaptive_threshold.h
  * @brief Lv-00 自适应阈值框架 —— 动态阈值计算与启发式剪枝
  *
@@ -131,6 +131,9 @@ lv_PUBLIC_API lvError lv_adaptive_threshold_default_config(lvAlgorithmType algo,
 /**
  * @brief 销毁阈值上下文
  * @param ctx 上下文指针的指针（销毁后 *ctx 置 NULL）
+ * @note 签名采用双指针（lvAdaptiveThresholdCtx **ctx），与主流约定
+ *       void xxx_destroy(T*) 不同：这是有意设计 —— 销毁后把调用方持有的
+ *       指针置 NULL，避免悬挂指针。销毁语义等同主流约定（NULL 安全）。
  */
 lv_PUBLIC_API void lv_adaptive_threshold_destroy(lvAdaptiveThresholdCtx **ctx);
 

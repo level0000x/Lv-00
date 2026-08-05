@@ -413,38 +413,18 @@ InteropExportFormat interop_parse_export_format(const char *str) {
     if (!str)
         return (InteropExportFormat) -1;
 
-    if (strcmp(str, "coq") == 0)
-        return INTEROP_EXPORT_COQ;
-    if (strcmp(str, "lean") == 0)
-        return INTEROP_EXPORT_LEAN;
-    if (strcmp(str, "html") == 0)
-        return INTEROP_EXPORT_HTML;
-    if (strcmp(str, "svg") == 0)
-        return INTEROP_EXPORT_SVG;
-    if (strcmp(str, "pdf") == 0)
-        return INTEROP_EXPORT_PDF;
-    if (strcmp(str, "tikz") == 0)
-        return INTEROP_EXPORT_TIKZ;
-    if (strcmp(str, "geojson") == 0)
-        return INTEROP_EXPORT_GEOJSON;
-    if (strcmp(str, "canonical") == 0)
-        return INTEROP_EXPORT_CANONICAL;
-
-    return (InteropExportFormat) -1;
+    /* 复用名称表反向查找（替代 8 分支 strcmp 链） */
+    return (InteropExportFormat) lv_str_to_enum(s_interop_export_format_name_entries,
+                                                lv_ARRAY_SIZE(s_interop_export_format_name_entries), str, -1);
 }
 
 InteropImportFormat interop_parse_import_format(const char *str) {
     if (!str)
         return (InteropImportFormat) -1;
 
-    if (strcmp(str, "geogebra") == 0)
-        return INTEROP_IMPORT_GEOGEBRA;
-    if (strcmp(str, "geojson") == 0)
-        return INTEROP_IMPORT_GEOJSON;
-    if (strcmp(str, "svg") == 0)
-        return INTEROP_IMPORT_SVG;
-
-    return (InteropImportFormat) -1;
+    /* 复用名称表反向查找（替代 3 分支 strcmp 链） */
+    return (InteropImportFormat) lv_str_to_enum(s_interop_import_format_name_entries,
+                                                lv_ARRAY_SIZE(s_interop_import_format_name_entries), str, -1);
 }
 
 int interop_validate_path(const char *path) {
