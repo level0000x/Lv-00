@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_projective_geometry.c
  * @brief Projective Geometry Axiom Package Test
  *
@@ -13,7 +13,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
+static int g_fail_count = 0;
+static int g_pass_count = 0;
+
+/* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
+ * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
+#define AXIOM_TEST_NON_RETURNING 1
+
+#include "axiom_test_common.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/projective_geometry.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/projective_geometry_test_save.lvz"
@@ -21,97 +28,66 @@
 #define EXPECTED_TEMPLATE_COUNT 38
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 7
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
+/* ============================================================
+ * 共享测试数据表（各文件差异部分，原样保留）
+ * ============================================================ */
 
-#define TEST_ASSERT(cond, msg)           \
-    do {                                 \
-        if (!(cond)) {                   \
-            printf("  FAIL: %s\n", msg); \
-            g_fail_count++;              \
-        } else {                         \
-            g_pass_count++;              \
-        }                                \
-    } while (0)
+/* Test 2：期望模板名 */
+static const char *const k_template_names[] = {
+    /* Group I: Incidence Axioms (3) */
+    "join_of_two_points", "meet_of_two_lines", "existence_of_triangle_projective",
+    /* Group II: Dimension and Extension Axioms (4) */
+    "existence_of_complete_quadrangle", "line_has_three_points", "point_has_three_lines", "veblen_axiom",
+    /* Group III: Desargues' Theorem (1) */
+    "desargues_theorem",
+    /* Group IV: Pappus's Hexagon Theorem (1) */
+    "pappus_hexagon_theorem",
+    /* Group V: Fundamental Constructors (8) */
+    "line_through_point_meeting_line", "harmonic_conjugate", "intersection_of_line_with_line", "cross_ratio",
+    "perspectivity", "diagonal_triangle_of_quadrangle", "dual_configuration", "pole_polar_construction",
+    /* Group VI: Projective Transformations (5) */
+    "projectivity", "fundamental_theorem_uniqueness", "collineation", "correlation", "elation",
+    /* Group VII: Conic Sections (4) */
+    "conic_through_five_points", "tangent_to_conic", "pascal_theorem", "brianchon_theorem",
+    /* Group VIII: Coordinate Field Construction (4) */
+    "field_addition_geometric", "field_multiplication_geometric", "field_additive_inverse",
+    "field_multiplicative_inverse",
+    /* Group IX: Higher-Dimensional (3) */
+    "join_point_line_to_plane", "meet_of_two_planes", "desargues_provable_in_3d",
+    /* Group X: Derived Theorems (5) */
+    "dual_desargues_theorem", "harmonic_conjugate_uniqueness", "complete_quadrilateral_theorem",
+    "projectivity_uniqueness", "cross_ratio_invariance",
+};
+#define K_TEMPLATE_NAMES_COUNT (int) (sizeof(k_template_names) / sizeof(k_template_names[0]))
 
-/* ------------------------------------------------------------------ */
-/* Test 1: Load from file                                              */
-/* ------------------------------------------------------------------ */
+/* Test 3：期望不可构造项 */
+static const AxiomTestUcExpectation k_unconstructibles[] = {
+    {"existence_of_finite_projective_plane_non_prime_power", "open_problem", 3, true},
+    {"classification_of_finite_projective_planes", "wildly_open", 2, true},
+    {"coordinate_field_of_non_desarguesian_plane", "non_associative_algebra", 2, true},
+    {"constructing_midpoint_with_straightedge_only", "metric_construction", 2, true},
+    {"trisection_of_angle_projective", "cubic_equation_solving", 2, true},
+    {"pappus_implies_field_commutativity", "algebraic_equivalence", 3, true},
+    {"order_of_largest_unknown_finite_projective_plane", "open_problem", 2, true},
+};
+#define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
+
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
+
 static void test_load_from_file(void) {
-    printf("Test 1: Load projective_geometry.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "projective_geometry") == 0,
-                "package name should be 'projective_geometry'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "projective_geometry");
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 2: Verify constraint templates                                 */
-/* ------------------------------------------------------------------ */
 static void test_templates(void) {
-    printf("Test 2: Verify constraint templates...\n");
+    axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 38 constraint templates",
+                                    k_template_names, K_TEMPLATE_NAMES_COUNT);
 
+    /* 文件特有：具体参数个数校验（差异部分，原样保留） */
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 38 constraint templates");
-    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
-
-    /* All 42 expected template names */
-    const char *expected_templates[] = {
-        /* Group I: Incidence Axioms (3) */
-        "join_of_two_points", "meet_of_two_lines", "existence_of_triangle_projective",
-        /* Group II: Dimension and Extension Axioms (4) */
-        "existence_of_complete_quadrangle", "line_has_three_points", "point_has_three_lines", "veblen_axiom",
-        /* Group III: Desargues' Theorem (1) */
-        "desargues_theorem",
-        /* Group IV: Pappus's Hexagon Theorem (1) */
-        "pappus_hexagon_theorem",
-        /* Group V: Fundamental Constructors (8) */
-        "line_through_point_meeting_line", "harmonic_conjugate", "intersection_of_line_with_line", "cross_ratio",
-        "perspectivity", "diagonal_triangle_of_quadrangle", "dual_configuration", "pole_polar_construction",
-        /* Group VI: Projective Transformations (5) */
-        "projectivity", "fundamental_theorem_uniqueness", "collineation", "correlation", "elation",
-        /* Group VII: Conic Sections (4) */
-        "conic_through_five_points", "tangent_to_conic", "pascal_theorem", "brianchon_theorem",
-        /* Group VIII: Coordinate Field Construction (4) */
-        "field_addition_geometric", "field_multiplication_geometric", "field_additive_inverse",
-        "field_multiplicative_inverse",
-        /* Group IX: Higher-Dimensional (3) */
-        "join_point_line_to_plane", "meet_of_two_planes", "desargues_provable_in_3d",
-        /* Group X: Derived Theorems (5) */
-        "dual_desargues_theorem", "harmonic_conjugate_uniqueness", "complete_quadrilateral_theorem",
-        "projectivity_uniqueness", "cross_ratio_invariance", NULL};
-
-    int found_count = 0;
-    for (int i = 0; expected_templates[i] != NULL; i++) {
-        ConstraintTemplate *tmpl = axiom_package_get_template(pkg, expected_templates[i]);
-        if (tmpl) {
-            found_count++;
-        } else {
-            printf("  MISSING template: '%s'\n", expected_templates[i]);
-            g_fail_count++;
-        }
-    }
-    TEST_ASSERT(found_count == EXPECTED_TEMPLATE_COUNT, "all expected templates should be found");
-    printf("  Found %d / %d templates\n", found_count, EXPECTED_TEMPLATE_COUNT);
-
-    /* Verify specific parameter counts */
     ConstraintTemplate *t;
 
     t = axiom_package_get_template(pkg, "join_of_two_points");
@@ -165,78 +141,18 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 3: Verify known unconstructible problems                       */
-/* ------------------------------------------------------------------ */
 static void test_unconstructible_problems(void) {
-    printf("Test 3: Verify known unconstructible problems...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 7 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
-
-    struct {
-        const char *name;
-        const char *reduces_to;
-        int dep_count;
-        bool green_verified;
-    } expected[] = {
-        {"existence_of_finite_projective_plane_non_prime_power", "open_problem", 3, true},
-        {"classification_of_finite_projective_planes", "wildly_open", 2, true},
-        {"coordinate_field_of_non_desarguesian_plane", "non_associative_algebra", 2, true},
-        {"constructing_midpoint_with_straightedge_only", "metric_construction", 2, true},
-        {"trisection_of_angle_projective", "cubic_equation_solving", 2, true},
-        {"pappus_implies_field_commutativity", "algebraic_equivalence", 3, true},
-        {"order_of_largest_unknown_finite_projective_plane", "open_problem", 2, true},
-    };
-
-    for (int i = 0; i < (int) (sizeof(expected) / sizeof(expected[0])); i++) {
-        KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, expected[i].name);
-        TEST_ASSERT(uc != NULL, expected[i].name);
-
-        if (uc) {
-            TEST_ASSERT(uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0,
-                        expected[i].name);
-            TEST_ASSERT(uc->dependency_chain.count == expected[i].dep_count, expected[i].name);
-            TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);
-            TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
-            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
-                   uc->green_verified ? "true" : "false");
-        }
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_unconstructible_problems(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
+                                        "should have 7 unconstructible problems", k_unconstructibles,
+                                        K_UNCONSTRUCTIBLES_COUNT);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 4: Verify bottom geometry and logical framework                */
-/* ------------------------------------------------------------------ */
 static void test_logical_framework(void) {
-    printf("Test 4: Verify bottom geometry and logical framework...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(pkg->bottom_geometry != NULL && strcmp(pkg->bottom_geometry, "projective_plane_incidence") == 0,
-                "bottom_geometry should be 'projective_plane_incidence'");
-    printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
-
-    TEST_ASSERT(pkg->negation_encoding != NULL && strcmp(pkg->negation_encoding, "classical_equality") == 0,
-                "negation_encoding should be 'classical_equality'");
-    printf("  negation_encoding: %s\n", pkg->negation_encoding);
-
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_logical_framework(AXIOM_PKG_PATH, "projective_plane_incidence", "classical_equality",
+                                 PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 5: Content hash                                                */
-/* ------------------------------------------------------------------ */
+/* Test 5：内容哈希（文件特有：两次加载对比 + MATCH/MISMATCH 打印，保留原体） */
 static void test_content_hash(void) {
     printf("Test 5: Verify content hash...\n");
 
@@ -264,9 +180,7 @@ static void test_content_hash(void) {
     axiom_package_destroy(pkg2);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 6: Round-trip save/load                                       */
-/* ------------------------------------------------------------------ */
+/* Test 6：往返保存/加载（文件特有：Save/Load 状态打印 + negation_encoding 校验，保留原体） */
 static void test_round_trip_save_load(void) {
     printf("Test 6: Round-trip save/load...\n");
 
@@ -319,9 +233,7 @@ static void test_round_trip_save_load(void) {
     axiom_package_destroy(pkg2);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 7: Dependency validation                                      */
-/* ------------------------------------------------------------------ */
+/* Test 7：依赖验证（文件特有：NULL 列表 + self 列表两次验证，保留原体） */
 static void test_dependency_validation(void) {
     printf("Test 7: Dependency validation...\n");
 
@@ -345,38 +257,11 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 8: Negative lookups                                           */
-/* ------------------------------------------------------------------ */
 static void test_negative_lookups(void) {
-    printf("Test 8: Negative lookups...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    /* Template that doesn't exist */
-    ConstraintTemplate *t = axiom_package_get_template(pkg, "nonexistent_template");
-    TEST_ASSERT(t == NULL, "nonexistent template should return NULL");
-
-    /* Unconstructible problem that doesn't exist */
-    KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, "nonexistent_problem");
-    TEST_ASSERT(uc == NULL, "nonexistent unconstructible should return NULL");
-
-    /* Empty string lookups */
-    t = axiom_package_get_template(pkg, "");
-    TEST_ASSERT(t == NULL, "empty template name should return NULL");
-
-    uc = axiom_package_lookup_unconstructible(pkg, "");
-    TEST_ASSERT(uc == NULL, "empty unconstructible name should return NULL");
-
-    printf("  All negative lookups returned NULL as expected\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_EMPTY);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 9: External references format validation                      */
-/* ------------------------------------------------------------------ */
+/* Test 9：外部引用（文件特有：https 计数 + 逐条 URL 打印，保留原体） */
 static void test_external_refs(void) {
     printf("Test 9: External references format validation...\n");
 

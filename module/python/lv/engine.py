@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 引擎模块
 
 提供 Lv-00 主引擎的高级 Python 接口，用于：
@@ -23,6 +23,8 @@ Lv-00 引擎模块
 import ctypes
 import logging
 import os
+from dataclasses import dataclass, field
+from enum import IntEnum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .core import lvBaseError
@@ -30,7 +32,8 @@ from .core import lvBaseError
 from ._ctypes_binding import (
     _lib, _lvEngine,
     ENGINE_OK, ENGINE_OUT_OF_MEMORY, ENGINE_INVALID_STATE,
-    ENGINE_CONSTRAINT_CONFLICT, ENGINE_MODULE_ERROR,
+    ENGINE_INVALID_ARGUMENT, ENGINE_CONSTRAINT_CONFLICT, ENGINE_MODULE_ERROR,
+    ENGINE_ERROR_INTERNAL,
     ENGINE_SOLVE_OK, ENGINE_SOLVE_CONFLICT, ENGINE_SOLVE_TIMEOUT, ENGINE_SOLVE_ERROR,
     LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_WARN, LOG_LEVEL_ERROR,
     # 重写相关常量
@@ -86,6 +89,86 @@ class EngineModuleError(EngineError):
     当模块或公理包文件加载、解析失败时抛出。
     """
     pass
+
+
+# ============================================================
+# 枚举定义（附加导出，供新代码使用）
+# ============================================================
+# 以下 IntEnum 为原 optimized 版增量，数值与 _ctypes_binding 导出的
+# 常量保持一致（ENGINE_* / UNIFY_* 常量由 _ctypes_binding 统一修正）。
+
+class EngineStatus(IntEnum):
+    """引擎状态码枚举。"""
+    OK = ENGINE_OK
+    OUT_OF_MEMORY = ENGINE_OUT_OF_MEMORY
+    INVALID_STATE = ENGINE_INVALID_STATE
+    INVALID_ARGUMENT = ENGINE_INVALID_ARGUMENT
+    CONSTRAINT_CONFLICT = ENGINE_CONSTRAINT_CONFLICT
+    MODULE_ERROR = ENGINE_MODULE_ERROR
+    ERROR_INTERNAL = ENGINE_ERROR_INTERNAL
+
+
+class SolveResult(IntEnum):
+    """求解结果枚举。"""
+    OK = ENGINE_SOLVE_OK
+    CONFLICT = ENGINE_SOLVE_CONFLICT
+    TIMEOUT = ENGINE_SOLVE_TIMEOUT
+    ERROR = ENGINE_SOLVE_ERROR
+
+
+class UnifyResult(IntEnum):
+    """合一检查结果枚举。"""
+    OK = UNIFY_OK
+    FAILED = UNIFY_FAILED
+    TYPE_MISMATCH = UNIFY_TYPE_MISMATCH
+
+
+class CircuitAction(IntEnum):
+    """位电路跳闸处理动作枚举。"""
+    IGNORE = 0
+    ROLLBACK = 1
+    DEGRADE = 2
+
+
+# ============================================================
+# 数据类定义（附加导出，供新代码使用）
+# ============================================================
+
+@dataclass(frozen=True)
+class EngineConfig:
+    """
+    引擎配置数据类。
+
+    属性：
+        rewrite_step_limit: 最大重写步数
+        solve_step_limit: 最大求解步数
+        streaming_enabled: 是否启用流式输出
+    """
+    rewrite_step_limit: int = 1000
+    solve_step_limit: int = 1000
+    streaming_enabled: bool = True
+
+    def __post_init__(self) -> None:
+        """验证配置值。"""
+        if self.rewrite_step_limit <= 0:
+            raise ValueError("rewrite_step_limit 必须大于 0")
+        if self.solve_step_limit <= 0:
+            raise ValueError("solve_step_limit 必须大于 0")
+
+
+@dataclass
+class FunctionBlockSpec:
+    """
+    函数块规格数据类。
+
+    属性：
+        internal_nodes: 内部节点 ID 列表
+        input_ports: 输入端口 ID 列表
+        output_ports: 输出端口 ID 列表
+    """
+    internal_nodes: List[int] = field(default_factory=list)
+    input_ports: List[int] = field(default_factory=list)
+    output_ports: List[int] = field(default_factory=list)
 
 
 # ============================================================
@@ -191,16 +274,19 @@ class Engine:
         """
         if status == ENGINE_OK:
             return
-        elif status == ENGINE_OUT_OF_MEMORY:
-            raise EngineMemoryError("内存不足")
-        elif status == ENGINE_INVALID_STATE:
-            raise EngineStateError("引擎状态无效")
-        elif status == ENGINE_CONSTRAINT_CONFLICT:
-            raise EngineConflictError("约束冲突")
-        elif status == ENGINE_MODULE_ERROR:
-            raise EngineModuleError("模块错误")
-        else:
-            raise EngineError(f"未知错误: {status}")
+        # 状态码 -> 异常映射表（引用 _ctypes_binding 常量，数值自动跟随修正）
+        status_map = {
+            ENGINE_OUT_OF_MEMORY: EngineMemoryError("内存不足"),
+            ENGINE_INVALID_STATE: EngineStateError("引擎状态无效"),
+            ENGINE_INVALID_ARGUMENT: EngineError("无效参数"),
+            ENGINE_CONSTRAINT_CONFLICT: EngineConflictError("约束冲突"),
+            ENGINE_MODULE_ERROR: EngineModuleError("模块错误"),
+            ENGINE_ERROR_INTERNAL: EngineError("内部错误"),
+        }
+        error = status_map.get(status)
+        if error:
+            raise error
+        raise EngineError(f"未知错误: {status}")
     
     # ============================================================
     # 求解
@@ -874,11 +960,20 @@ __all__ = [
     'EngineStateError',
     'EngineConflictError',
     'EngineModuleError',
+    # 附加导出：枚举与数据类（合并自 optimized 版）
+    'EngineStatus',
+    'SolveResult',
+    'UnifyResult',
+    'CircuitAction',
+    'EngineConfig',
+    'FunctionBlockSpec',
     'ENGINE_OK',
     'ENGINE_OUT_OF_MEMORY',
     'ENGINE_INVALID_STATE',
+    'ENGINE_INVALID_ARGUMENT',
     'ENGINE_CONSTRAINT_CONFLICT',
     'ENGINE_MODULE_ERROR',
+    'ENGINE_ERROR_INTERNAL',
     'ENGINE_SOLVE_OK',
     'ENGINE_SOLVE_CONFLICT',
     'ENGINE_SOLVE_TIMEOUT',

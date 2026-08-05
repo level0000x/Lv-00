@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 函数块模块
 
 提供函数块系统的 Python 接口，支持：
@@ -21,6 +21,7 @@ Lv-00 函数块模块
 
 import ctypes
 from ctypes import c_int, c_void_p, POINTER
+from enum import IntEnum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .core import lvBaseError
@@ -28,7 +29,7 @@ from .core import lvBaseError
 from ._ctypes_binding import (
     _lib, _FuncBlock, _SymbolicCoord,
     PACK_OK, PACK_CROSS_BOUNDARY_CONFLICT, PACK_INVALID_NODES, 
-    PACK_INVALID_PORTS, PACK_OUT_OF_MEMORY, PACK_CANCELLED,
+    PACK_INVALID_PORTS, PACK_INVALID_GRAPH, PACK_OUT_OF_MEMORY, PACK_CANCELLED,
     INSTANTIATE_OK, INSTANTIATE_NO_SOLUTION, INSTANTIATE_MULTIPLE_SOLUTIONS,
     INSTANTIATE_SELECTOR_NEEDED, INSTANTIATE_PRECONDITION_FAILED, INSTANTIATE_OUT_OF_MEMORY,
     DETERMINISM_UNVERIFIED, DETERMINISM_VERIFIED, 
@@ -211,6 +212,7 @@ class PackResult:
         CROSS_BOUNDARY_CONFLICT: 跨边界约束冲突
         INVALID_NODES: 无效节点
         INVALID_PORTS: 无效端口
+        INVALID_GRAPH: 无效图
         OUT_OF_MEMORY: 内存不足
         CANCELLED: 已取消
     """
@@ -219,6 +221,7 @@ class PackResult:
     CROSS_BOUNDARY_CONFLICT = PACK_CROSS_BOUNDARY_CONFLICT
     INVALID_NODES = PACK_INVALID_NODES
     INVALID_PORTS = PACK_INVALID_PORTS
+    INVALID_GRAPH = PACK_INVALID_GRAPH
     OUT_OF_MEMORY = PACK_OUT_OF_MEMORY
     CANCELLED = PACK_CANCELLED
 
@@ -238,6 +241,7 @@ class PackResult:
             cls.CROSS_BOUNDARY_CONFLICT: "跨边界约束冲突",
             cls.INVALID_NODES: "无效节点",
             cls.INVALID_PORTS: "无效端口",
+            cls.INVALID_GRAPH: "无效图",
             cls.OUT_OF_MEMORY: "内存不足",
             cls.CANCELLED: "已取消"
         })
@@ -299,6 +303,102 @@ class InstantiateResult:
             cls.PRECONDITION_FAILED: "前置条件不满足",
             cls.OUT_OF_MEMORY: "内存不足"
         })
+
+
+# ============================================================
+# IntEnum 别名类（与旧版类常量共存，供新代码使用）
+# ============================================================
+# 旧版常量类（DeterminismState 等）以类属性形式暴露 int 常量并附带
+# to_string() 类方法；以下 IntEnum 别名类数值与旧类完全一致，提供标准
+# 枚举 API（成员比较、str() 中文描述、is_success 属性等），两者互不
+# 影响、可共存。新代码可导入 *_Enum 别名类使用标准枚举语义。
+
+class DeterminismStateEnum(IntEnum):
+    """确定性状态枚举（IntEnum 别名，数值与 DeterminismState 一致）。"""
+    UNVERIFIED = DETERMINISM_UNVERIFIED          # 未验证
+    VERIFIED = DETERMINISM_VERIFIED              # 已验证（唯一解）
+    NON_DETERMINISTIC = DETERMINISM_NON_DETERMINISTIC  # 非确定性（多解）
+    PARTIALLY_VERIFIED = DETERMINISM_PARTIALLY_VERIFIED  # 部分验证
+
+    def __str__(self) -> str:
+        """返回状态的中文描述。"""
+        return {
+            self.UNVERIFIED: "未验证",
+            self.VERIFIED: "已验证（唯一解）",
+            self.NON_DETERMINISTIC: "非确定性（多解）",
+            self.PARTIALLY_VERIFIED: "部分验证",
+        }.get(self, "未知状态")
+
+
+class SelectorTypeEnum(IntEnum):
+    """选择器类型枚举（IntEnum 别名，数值与 SelectorType 一致）。"""
+    POSITIVE_ROOT = SELECTOR_POSITIVE_ROOT       # 取正根
+    NEGATIVE_ROOT = SELECTOR_NEGATIVE_ROOT       # 取负根
+    IN_REGION = SELECTOR_IN_REGION               # 取区域内的解
+    NEAREST_TO_POINT = SELECTOR_NEAREST_TO_POINT  # 取最近的解
+    CUSTOM = SELECTOR_CUSTOM                     # 自定义选择器
+
+    def __str__(self) -> str:
+        """返回选择器类型的中文描述。"""
+        return {
+            self.POSITIVE_ROOT: "取正根",
+            self.NEGATIVE_ROOT: "取负根",
+            self.IN_REGION: "取区域内的解",
+            self.NEAREST_TO_POINT: "取最近的解",
+            self.CUSTOM: "自定义",
+        }.get(self, "未知类型")
+
+
+class PackResultEnum(IntEnum):
+    """打包结果枚举（IntEnum 别名，数值与 PackResult 一致）。"""
+    OK = PACK_OK                                 # 打包成功
+    CROSS_BOUNDARY_CONFLICT = PACK_CROSS_BOUNDARY_CONFLICT  # 跨边界约束冲突
+    INVALID_NODES = PACK_INVALID_NODES           # 无效节点
+    INVALID_PORTS = PACK_INVALID_PORTS           # 无效端口
+    OUT_OF_MEMORY = PACK_OUT_OF_MEMORY           # 内存不足
+    CANCELLED = PACK_CANCELLED                   # 已取消
+
+    def __str__(self) -> str:
+        """返回结果的中文描述。"""
+        return {
+            self.OK: "成功",
+            self.CROSS_BOUNDARY_CONFLICT: "跨边界约束冲突",
+            self.INVALID_NODES: "无效节点",
+            self.INVALID_PORTS: "无效端口",
+            self.OUT_OF_MEMORY: "内存不足",
+            self.CANCELLED: "已取消",
+        }.get(self, "未知结果")
+
+    @property
+    def is_success(self) -> bool:
+        """判断打包操作是否成功。"""
+        return self == self.OK
+
+
+class InstantiateResultEnum(IntEnum):
+    """实例化结果枚举（IntEnum 别名，数值与 InstantiateResult 一致）。"""
+    OK = INSTANTIATE_OK                          # 实例化成功
+    NO_SOLUTION = INSTANTIATE_NO_SOLUTION        # 无解
+    MULTIPLE_SOLUTIONS = INSTANTIATE_MULTIPLE_SOLUTIONS  # 多解
+    SELECTOR_NEEDED = INSTANTIATE_SELECTOR_NEEDED  # 需要选择器
+    PRECONDITION_FAILED = INSTANTIATE_PRECONDITION_FAILED  # 前置条件不满足
+    OUT_OF_MEMORY = INSTANTIATE_OUT_OF_MEMORY    # 内存不足
+
+    def __str__(self) -> str:
+        """返回结果的中文描述。"""
+        return {
+            self.OK: "成功",
+            self.NO_SOLUTION: "无解",
+            self.MULTIPLE_SOLUTIONS: "多解",
+            self.SELECTOR_NEEDED: "需要选择器",
+            self.PRECONDITION_FAILED: "前置条件不满足",
+            self.OUT_OF_MEMORY: "内存不足",
+        }.get(self, "未知结果")
+
+    @property
+    def is_success(self) -> bool:
+        """判断实例化操作是否成功。"""
+        return self == self.OK
 
 
 # ============================================================
@@ -1201,5 +1301,10 @@ __all__ = [
     'SelectorType',
     'PackResult',
     'InstantiateResult',
+    # IntEnum 别名类（附加导出）
+    'DeterminismStateEnum',
+    'SelectorTypeEnum',
+    'PackResultEnum',
+    'InstantiateResultEnum',
     'func_block_pack'
 ]

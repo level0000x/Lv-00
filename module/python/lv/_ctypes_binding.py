@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 底层 C 库 ctypes 绑定模块
 
 负责加载 Lv-00 动态链接库并定义所有 C 函数的签名。
@@ -1129,11 +1129,13 @@ REMOVE_CONSTRAINT_ERROR = 2        # 移除过程发生错误
 
 # ===== 几何节点类型常量 =====
 # 约束图中节点的几何类型标识
+# 与 C 头文件 core/include/lv/constraint_graph.h 中 GeomType 枚举（87-94 行）保持一致
 GEOM_POINT = 0              # 点：由 (x, y) 坐标定义
 GEOM_LINE_SEGMENT = 1       # 线段：由两个端点定义
 GEOM_REGION = 2             # 区域：由闭合边界线段定义
-GEOM_PORT = 3               # 端口：函数块系统的输入/输出接口
-GEOM_FUNCTION_BLOCK = 4     # 函数块：可重用的几何构造模板
+GEOM_CIRCLE = 3             # 圆：由圆心和半径定义的二维几何对象
+GEOM_PORT = 4               # 端口：函数块系统的输入/输出接口
+GEOM_FUNCTION_BLOCK = 5     # 函数块：可重用的几何构造模板
 
 # ===== 端口类型常量 =====
 PORT_INPUT = 0              # 输入端口：接收外部数据/参数
@@ -1141,11 +1143,13 @@ PORT_OUTPUT = 1             # 输出端口：产生结果/返回值
 
 # ===== 约束类型常量 =====
 # 约束图中节点之间关系的类型枚举
+# 与 C 头文件 core/include/lv/constraint_graph.h 中 ConstraintType 枚举（112-119 行）保持一致
 CONSTRAINT_INCIDENCE = 0    # 关联约束：点位于线段或区域上
 CONSTRAINT_BETWEENNESS = 1  # 介子约束：三点共线，一点在另两点之间
 CONSTRAINT_INTERSECTION = 2 # 交点约束：两条线交于一点
 CONSTRAINT_CONTAINMENT = 3  # 包含约束：一个区域包含另一个区域
 CONSTRAINT_CONNECTION = 4   # 连接约束：端口间的数据流连接
+CONSTRAINT_ANGLE = 5        # 角度约束：两条线段之间的夹角
 
 # ===== 合一状态常量 =====
 # 证明系统中合一检查的结果码
@@ -1162,14 +1166,18 @@ SOLVER_NO_SOLUTION = 3     # 无解
 SOLVER_OVERCONSTRAINED = 4 # 过约束（约束过多）
 SOLVER_OUT_OF_SCOPE = 5    # 超出求解范围
 SOLVER_TIMEOUT = 6         # 求解超时
+SOLVER_OUT_OF_MEMORY = 7   # 内存不足（对应 solver.h 93 行 SOLVER_STATUS_OUT_OF_MEMORY）
 
 # ===== 引擎状态常量 =====
 # 引擎操作的返回状态码
+# 与 C 头文件 core/include/lv/engine_status.h 中 EngineStatus 枚举（14-22 行）保持一致
 ENGINE_OK = 0                 # 操作成功
 ENGINE_OUT_OF_MEMORY = 1      # 内存不足
 ENGINE_INVALID_STATE = 2      # 引擎状态无效
-ENGINE_CONSTRAINT_CONFLICT = 3 # 约束冲突
-ENGINE_MODULE_ERROR = 4       # 模块加载/解析错误
+ENGINE_INVALID_ARGUMENT = 3   # 传入参数无效（空指针、越界等）
+ENGINE_CONSTRAINT_CONFLICT = 4 # 约束冲突
+ENGINE_MODULE_ERROR = 5       # 模块加载/解析错误
+ENGINE_ERROR_INTERNAL = 6     # 内部错误
 
 # ===== 引擎求解结果常量 =====
 ENGINE_SOLVE_OK = 0       # 求解成功
@@ -1183,8 +1191,9 @@ PACK_OK = 0                     # 打包成功
 PACK_CROSS_BOUNDARY_CONFLICT = 1 # 跨边界约束冲突（跨作用域）
 PACK_INVALID_NODES = 2          # 无效节点（节点不存在或类型错误）
 PACK_INVALID_PORTS = 3          # 无效端口（端口定义不正确）
-PACK_OUT_OF_MEMORY = 4          # 内存不足
-PACK_CANCELLED = 5              # 打包被取消
+PACK_INVALID_GRAPH = 4          # 无效图（打包目标不是有效子图）
+PACK_OUT_OF_MEMORY = 5          # 内存不足
+PACK_CANCELLED = 6              # 打包被取消
 
 # ===== 函数块实例化结果常量 =====
 # 函数块实例化操作的返回码
@@ -1249,11 +1258,14 @@ RECURSION_CHECK_RESULT_ERROR = 5            # 检查过程发生错误
 
 # ===== 日志级别常量 =====
 # 调试日志输出级别，从最详细到最简洁
-LOG_LEVEL_DEBUG = 0  # 调试级别：输出所有调试信息
-LOG_LEVEL_INFO = 1   # 信息级别：输出一般运行信息
-LOG_LEVEL_WARN = 2   # 警告级别：输出警告和重要信息
-LOG_LEVEL_ERROR = 3  # 错误级别：仅输出错误信息
-LOG_LEVEL_NONE = 4   # 关闭日志：不输出任何日志
+# 与 C 头文件 core/include/lv/debug.h 中 LogLevel 枚举（76-84 行，主定义源）保持一致
+LOG_LEVEL_TRACE = -1  # 追踪级别：最详细的逐步骤日志（函数进入/退出、参数转储）
+LOG_LEVEL_DEBUG = 0   # 调试级别：输出所有调试信息
+LOG_LEVEL_INFO = 1    # 信息级别：输出一般运行信息
+LOG_LEVEL_WARN = 2    # 警告级别：输出警告和重要信息
+LOG_LEVEL_ERROR = 3   # 错误级别：仅输出错误信息
+LOG_LEVEL_FATAL = 4   # 致命级别：不可恢复错误，记录后触发保护性动作
+LOG_LEVEL_NONE = 5    # 关闭日志：不输出任何日志
 
 # ===== 信任颜色常量 =====
 # 几何元素的信任级别，颜色表示可信任程度

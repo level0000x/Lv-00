@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_quantum_information_theory.c
  * @brief Quantum Information Theory Axiom Package Test
  *
@@ -16,9 +16,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "axiom_pkg.h"
-#include "lv_utils.h"
 #include "test_helpers.h"
+#include "axiom_test_common.h"
 
 int g_fail_count = 0;
 int g_pass_count = 0;
@@ -29,29 +28,15 @@ int g_pass_count = 0;
 #define EXPECTED_TEMPLATE_COUNT 106
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
+
 static void test_load_from_file(void) {
-    printf("Test 1: Load quantum_information_theory.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "quantum_information_theory") == 0,
-                "package name should be 'quantum_information_theory'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "quantum_information_theory");
 }
 
+/* Test 2：约束模板（文件特有：WARNING 打印不计数，保留原体） */
 static void test_templates(void) {
     printf("Test 2: Verify constraint templates...\n");
 
@@ -208,6 +193,7 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 3：不可构造项（文件特有：WARNING 打印 + 特定条目校验，保留原体） */
 static void test_unconstructibles(void) {
     printf("Test 3: Verify known unconstructible problems...\n");
 
@@ -253,28 +239,12 @@ static void test_unconstructibles(void) {
 }
 
 static void test_logical_framework(void) {
-    printf("Test 4: Verify logical framework settings...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(pkg->bottom_geometry != NULL, "bottom_geometry should be set");
-    TEST_ASSERT(strcmp(pkg->bottom_geometry, "hilbert_space_density_operators") == 0,
-                "bottom_geometry should be 'hilbert_space_density_operators'");
-    printf("  bottom_geometry: '%s'\n", pkg->bottom_geometry);
-
-    TEST_ASSERT(pkg->negation_encoding != NULL, "negation_encoding should be set");
-    TEST_ASSERT(strcmp(pkg->negation_encoding, "hilbert_space_orthogonal_complement") == 0,
-                "negation_encoding should be 'hilbert_space_orthogonal_complement'");
-    printf("  negation_encoding: '%s'\n", pkg->negation_encoding);
-
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_logical_framework_checked(AXIOM_PKG_PATH, "Test 4: Verify logical framework settings...",
+                                         "hilbert_space_density_operators", "hilbert_space_orthogonal_complement",
+                                         PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 }
 
+/* Test 5：内容哈希（文件特有：两行 %s 打印格式，保留原体） */
 static void test_content_hash(void) {
     printf("Test 5: Compute and verify content hash...\n");
 
@@ -292,6 +262,7 @@ static void test_content_hash(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 6：往返保存/加载（文件特有：Round-trip successful 打印，保留原体） */
 static void test_round_trip_save_load(void) {
     printf("Test 6: Round-trip save and load...\n");
 
@@ -323,6 +294,7 @@ static void test_round_trip_save_load(void) {
     axiom_package_destroy(pkg2);
 }
 
+/* Test 7：依赖验证（文件特有：dependency_chain 校验，保留原体） */
 static void test_dependency_validation(void) {
     printf("Test 7: Verify dependency references...\n");
 
@@ -345,6 +317,7 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 8：负向查找（文件特有：non_existent 命名，保留原体） */
 static void test_negative_lookups(void) {
     printf("Test 8: Test negative lookups...\n");
 
@@ -363,6 +336,10 @@ static void test_negative_lookups(void) {
 
     axiom_package_destroy(pkg);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 static void test_key_templates_present(void) {
     printf("Test 9: Verify key quantum information templates...\n");

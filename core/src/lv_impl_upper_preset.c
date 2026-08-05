@@ -301,14 +301,26 @@ int64_t func_block_preset_is_reversible(lvEngine *ctx, const char *name) {
     return func_block_preset_has_property(ctx, name, (int64_t) PRESET_PROPERTY_REVERSIBLE);
 }
 
-/** 获取预设的逆预设名称(模拟:返回 "inverse_<name>") */
-const char *func_block_preset_inverse_name(lvEngine *ctx, const char *name) {
+/** 获取预设的逆预设名称(格式: "inverse_<name>") -- 线程安全版
+ *
+ * 原实现返回 static char inv_buf[128] 静态缓冲，并发调用会互相覆盖
+ * （数据竞争）。现改为由调用方传入输出缓冲区，彻底消除共享可变状态。
+ * 字符串内容语义保持不变：name 为 NULL 时输出 "inverse_unknown"。
+ *
+ * @param ctx      引擎上下文（保留参数，未使用）
+ * @param name     预设名称
+ * @param out_buf  调用方提供的输出缓冲区（线程隔离由调用方保证）
+ * @param buf_size 缓冲区大小
+ * @return 写入成功返回 out_buf；out_buf/buf_size 非法时返回 NULL
+ */
+const char *func_block_preset_inverse_name(lvEngine *ctx, const char *name, char *out_buf, size_t buf_size) {
     (void) ctx;
-    static char inv_buf[128];
-    if (!name)
-        return "inverse_unknown";
-    snprintf(inv_buf, sizeof(inv_buf), "inverse_%s", name);
-    return inv_buf;
+    if (!out_buf || buf_size == 0)
+        return NULL;
+    const char *base = name ? name : "unknown";
+    snprintf(out_buf, buf_size, "inverse_%s", base);
+    out_buf[buf_size - 1] = '\0'; /* snprintf 已保证，防御性收尾 */
+    return out_buf;
 }
 
 /** 获取预设的复杂度等级枚举值 -- 从 metadata 获取 */
@@ -319,12 +331,12 @@ int64_t func_block_preset_complexity_enum(lvEngine *ctx, const char *name) {
 /** 获取预设参数是否为可选参数 -- 从 input_params 数组中按索引查询 */
 int64_t func_block_preset_is_optional(lvEngine *ctx, const char *name, int64_t param_idx) {
     if (param_idx < 0)
-        return 0;
+        return -1;
     PresetEntry *entry = preset_entry_lookup(ctx, name, NULL);
     if (!entry)
-        return 0;
+        return -1;
     if (param_idx >= entry->metadata.input_count)
-        return 0;
+        return -1;
     return entry->metadata.input_params[param_idx].is_optional ? 1 : 0;
 }
 
@@ -389,16 +401,8 @@ int64_t func_block_preset_metadata(lvEngine *ctx, const char *name, char *buf, i
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "func_block_preset_metadata: NULL buf or small buf_size");
     const char *sname = name ? name : "unknown";
     PresetEntry *entry = func_block_registry_find(name);
-    if (!entry) {
-        lvJsonBuf _jb;
-        lv_json_buf_init(&_jb, 64);
-        lv_json_buf_append_raw(&_jb, "{\"name\":");
-        lv_json_buf_append_string(&_jb, sname);
-        lv_json_buf_append_raw(&_jb, ",\"error\":\"not_found\"}");
-        int64_t _len = lv_json_buf_commit(&_jb, buf, buf_size);
-        if (_len < 0) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_metadata: json_buf_finalize failed");
-        return _len;
-    }
+    if (!entry)
+        return -1; /* 未找到：错误信号统一为 -1（与同族查询 API 一致），不再输出 JSON 错误文档 */
     PresetMetadata *m = &entry->metadata;
     const char *cat_str = func_block_preset_category_name(ctx, (int64_t) m->category);
     const char *ver_str = func_block_preset_version(ctx, name);

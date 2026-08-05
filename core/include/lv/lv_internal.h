@@ -161,6 +161,36 @@ extern void lv_log_message(int level, const char *file, int line, const char *fm
         (retvar) = ((_sn_rc) < 0) ? 0 : (((size_t) (_sn_rc) >= (size)) ? (int) ((size) - 1) : (_sn_rc)); \
     } while (0)
 
+/**
+ * @brief 安全增量写入宏（SVG 渲染等流式拼接场景）
+ *
+ * 在 _pos 处调用 snprintf 追加格式化内容并推进 _pos；_pos 始终钳位在
+ * [0, _size-1]，且仅当 _pos 处于有效范围时才写入，防止越界写入。
+ *
+ * 与 lv_SAFE_SNPRINTF 的区别：本宏面向"逐步拼接"场景，调用后 _pos 被
+ * 推进（_pos 必须为 int 左值，支持变量或 *int 指针解引用）；
+ * lv_SAFE_SNPRINTF 仅将规范化写入字符数存入 retvar，不推进位置。
+ * 本宏统一了 block_canvas.c / geometry_canvas.c 中曾各自定义的
+ * SVG_SAFE_SNPRINTF / SVG_WRITE 两份本地副本（语义取两者之并集：
+ * 含 _pos >= 0 防御检查），保证两处渲染输出完全一致。
+ *
+ * @param _pos   写入位置（int 左值，可为变量或 *int 指针）
+ * @param _buf   目标缓冲区
+ * @param _size  缓冲区大小
+ * @param ...    格式化字符串及参数
+ */
+#define lv_SVG_WRITE(_buf, _pos, _size, ...)                                                      \
+    do {                                                                                          \
+        if ((_pos) >= 0 && (_pos) < (_size)) {                                                    \
+            int _lv_w = snprintf((_buf) + (_pos), (size_t) ((_size) - (_pos)), __VA_ARGS__);      \
+            if (_lv_w > 0) {                                                                      \
+                (_pos) += _lv_w;                                                                  \
+                if ((_pos) >= (_size))                                                            \
+                    (_pos) = (_size) - 1;                                                         \
+            }                                                                                     \
+        }                                                                                         \
+    } while (0)
+
 /* ================================================================
  * 流上下文声明宏
  * ================================================================ */
@@ -240,6 +270,23 @@ extern void lv_log_message(int level, const char *file, int line, const char *fm
     (((a) >= 0 && (b) > 0 && (a) > INT_MAX - (b))  ? (overflow_val) \
      : ((a) < 0 && (b) < 0 && (a) < INT_MIN - (b)) ? (overflow_val) \
                                                    : (int) ((a) + (b)))
+
+/* ================================================================
+ * 内存对齐工具
+ * ================================================================ */
+
+/**
+ * @brief 将 size 向上对齐到 alignment（alignment 必须是 2 的幂）
+ *
+ * 内存池、竞技场分配器等底层分配模块共用此实现，
+ * 避免各模块重复定义同义的静态内联函数。
+ */
+#ifndef lv_ALIGN_UP_DEFINED
+#define lv_ALIGN_UP_DEFINED
+static inline size_t align_up(size_t size, size_t alignment) {
+    return (size + alignment - 1) & ~(alignment - 1);
+}
+#endif
 
 /* ================================================================
  * 规范错误表查询（内部）

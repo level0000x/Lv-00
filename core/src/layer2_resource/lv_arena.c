@@ -35,11 +35,6 @@
  * 内部辅助函数
  * ============================================================ */
 
-/** @brief 将 size 向上对齐到 alignment（必须是 2 的幂） */
-static inline size_t align_up(size_t size, size_t alignment) {
-    return (size + alignment - 1) & ~(alignment - 1);
-}
-
 /** @brief 将 size 向上对齐到页大小 */
 static inline size_t align_to_page(size_t size) {
     return align_up(size, LV_ARENA_PAGE_SIZE);

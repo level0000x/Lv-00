@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_information_theory.c
  * @brief Information Theory Axiom Package Test
  *
@@ -18,8 +18,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "axiom_pkg.h"
-#include "lv_utils.h"
+static int g_fail_count = 0;
+static int g_pass_count = 0;
+
+/* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
+ * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
+#define AXIOM_TEST_NON_RETURNING 1
+
+#include "axiom_test_common.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/information_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/information_theory_test_save.lvz"
@@ -27,42 +33,15 @@
 #define EXPECTED_TEMPLATE_COUNT 106
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
-
-#define TEST_ASSERT(cond, msg)           \
-    do {                                 \
-        if (!(cond)) {                   \
-            printf("  FAIL: %s\n", msg); \
-            g_fail_count++;              \
-        } else {                         \
-            g_pass_count++;              \
-        }                                \
-    } while (0)
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
 
 static void test_load_from_file(void) {
-    printf("Test 1: Load information_theory.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "information_theory") == 0,
-                "package name should be 'information_theory'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "information_theory");
 }
 
+/* Test 2：约束模板（文件特有：Checking/Found 打印格式，保留原体） */
 static void test_templates(void) {
     printf("Test 2: Verify constraint templates...\n");
 
@@ -215,6 +194,7 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 3：不可构造项（文件特有：3 字段 + OK 打印格式，保留原体） */
 static void test_unconstructibles(void) {
     printf("Test 3: Verify known unconstructible problems...\n");
 
@@ -255,6 +235,7 @@ static void test_unconstructibles(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 4：逻辑框架（文件特有：首字母大写打印格式，保留原体） */
 static void test_logical_framework(void) {
     printf("Test 4: Verify logical framework settings...\n");
 
@@ -276,6 +257,7 @@ static void test_logical_framework(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 5：内容哈希（文件特有：Content hash 打印格式，保留原体） */
 static void test_content_hash(void) {
     printf("Test 5: Verify content hash computation...\n");
 
@@ -294,6 +276,7 @@ static void test_content_hash(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 6：往返保存/加载（文件特有：计数转移打印，保留原体） */
 static void test_round_trip_save_load(void) {
     printf("Test 6: Round-trip save/load test...\n");
 
@@ -342,6 +325,7 @@ static void test_round_trip_save_load(void) {
     axiom_package_destroy(pkg2);
 }
 
+/* Test 7：依赖验证（文件特有：无依赖 + 空数组两次验证，保留原体） */
 static void test_dependency_validation(void) {
     printf("Test 7: Dependency validation...\n");
 
@@ -364,6 +348,7 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 8：负向查找（文件特有：PASSED 收尾打印，保留原体） */
 static void test_negative_lookups(void) {
     printf("Test 8: Negative lookups (non-existent entries)...\n");
 
@@ -383,6 +368,7 @@ static void test_negative_lookups(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 9：外部引用（文件特有：计数 + 全部条目断言，保留原体） */
 static void test_external_refs(void) {
     printf("Test 9: External references verification...\n");
 
@@ -404,6 +390,10 @@ static void test_external_refs(void) {
 
     axiom_package_destroy(pkg);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 static void test_template_coverage(void) {
     printf("Test 10: Template coverage across information theory domains...\n");

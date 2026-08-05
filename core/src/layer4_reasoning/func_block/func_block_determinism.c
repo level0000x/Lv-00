@@ -312,12 +312,24 @@ void determinism_cleanup_groebner(void *gresult) {
 }
 
 /**
- * @brief 静态确定性检查
+ * @brief 静态确定性检查（旧版，已弃用，仅供 func_block_verify_determinism 内部使用）
+ *
+ * @deprecated 本函数为早期实现，已由新版 func_block_determinism_check_static()
+ *             取代（依据设计文档 8.2 节，返回 DeterminismStatus，且不做图内
+ *             方程提取分析）。两版算法存在实质差异：
+ *             - 旧版含"方程提取增强逻辑"（高次方程检测 → OUT_OF_RANGE；
+ *               按全图变量数-方程数计算精确自由度），新版不含；
+ *             - 旧版二次约束路径在求解器返回 MULTIPLE/NO_SOLUTION 时仍会
+ *               继续走 quadratic_count <= input_count 判断（可能回退为
+ *               VERIFIED），新版则直接映射为 NON_DETERMINISTIC。
+ *             为避免改变 func_block_verify_determinism 的既有确定性结果，
+ *             保守保留本实现及其专属映射表，仅标记弃用关系。
+ *             新增代码请使用 func_block_determinism_check_static()。
  *
  * @param fb         函数块
  * @param graph      约束图
  * @param step_limit 步数上限
- * @return 确定性检查结果
+ * @return 确定性检查结果（DeterminismCheckResult 详细结果枚举）
  */
 DeterminismCheckResult func_block_check_determinism_static(FuncBlock *fb, ConstraintGraph *graph, int step_limit) {
     if (!fb || !graph)
@@ -829,7 +841,15 @@ DeterminismState func_block_verify_determinism(FuncBlock *fb, ConstraintGraph *g
                            -1);
     }
 
-    /* 第1步：静态分析 */
+    /* 第1步：静态分析
+     *
+     * 【有意使用旧版】此处保留调用旧版 func_block_check_determinism_static()：
+     * 该函数含方程提取增强逻辑（高次方程检测、按全图变量数-方程数计算精确
+     * 自由度），且二次约束路径在求解器返回 MULTIPLE/NO_SOLUTION 时仍会走
+     * quadratic_count <= input_count 回退判断，与新版
+     * func_block_determinism_check_static() 结果存在实质差异。
+     * 为不改变本流水线既有确定性结果，保守保留旧版调用；
+     * 若需对齐新版语义，请评估结果变化后再切换。 */
     DeterminismCheckResult static_result = func_block_check_determinism_static(fb, graph, step_limit);
 
     if ((unsigned) static_result < lv_CHECK_RESULT_TO_STATE_COUNT) {

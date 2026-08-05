@@ -118,4 +118,5 @@ jobs:
           python -m py_compile module/python/lv/ws_server.py
           python -m py_compile module/python/lv/stream_bridge.py
           python -m py_compile module/python/lv/core.py
-          python -m py_compile module/python/lv/core_optimized.py
+          python -m py_compile module/python/lv/engine.py
+          python -m py_compile module/python/lv/func_block.py

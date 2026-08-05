@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_computability_theory.c
  * @brief Computability Theory (Recursion Theory) Axiom Package Test
  *
@@ -13,7 +13,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
+static int g_fail_count = 0;
+static int g_pass_count = 0;
+
+/* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
+ * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
+#define AXIOM_TEST_NON_RETURNING 1
+
+#include "axiom_test_common.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/computability_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/computability_theory_test_save.lvz"
@@ -21,97 +28,57 @@
 #define EXPECTED_TEMPLATE_COUNT 55
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 14
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
+/* ============================================================
+ * 共享测试数据表（各文件差异部分，原样保留）
+ * ============================================================ */
 
-#define TEST_ASSERT(cond, msg)           \
-    do {                                 \
-        if (!(cond)) {                   \
-            printf("  FAIL: %s\n", msg); \
-            g_fail_count++;              \
-        } else {                         \
-            g_pass_count++;              \
-        }                                \
-    } while (0)
+/* Test 2：期望模板名 */
+static const char *const k_template_names[] = {
+    /* Group I: Initial Functions */
+    "zero_function", "successor_function", "projection_function",
+    /* Group II: Operators */
+    "composition", "primitive_recursion", "minimization_operator",
+    /* Group III: Fundamental Constructions */
+    "universal_turing_machine", "kleene_T_predicate", "result_extraction",
+    /* Group IV: Fundamental Theorems */
+    "kleene_normal_form", "smn_theorem", "kleene_recursion_theorem", "rice_theorem",
+    /* Group V: Computable and c.e. Sets */
+    "computable_set", "computably_enumerable_set", "halting_set_K", "complement_halting_set",
+    /* Group VI: Reducibilities and Degrees */
+    "many_one_reducibility", "turing_reducibility", "turing_equivalence", "turing_degree", "turing_jump",
+    /* Group VII: Arithmetical Hierarchy */
+    "sigma_1_set", "pi_1_set", "sigma_n_set", "pi_n_set", "delta_n_set", "post_theorem",
+    /* Group VIII: Core Constructors */
+    "cantor_pairing", "cantor_unpairing", "godel_numbering", "program_enumeration", "diagonalization",
+    "oracle_turing_machine", "relative_computability", "finite_injury_priority", "infinite_injury_priority",
+    /* Group IX: Primitive Recursive Functions */
+    "primitive_addition", "primitive_multiplication", "primitive_exponentiation", "primitive_factorial",
+    "primitive_predecessor", "primitive_subtraction", "primitive_sign", "primitive_absolute_difference",
+    "bounded_minimization", "bounded_existential", "bounded_universal",
+    /* Group X: Advanced Constructions */
+    "ackermann_function", "busy_beaver_function", "kolmogorov_complexity", "martin_lof_randomness_test",
+    "friedberg_muchnik_theorem",
+    /* Group XI: Computable Reals */
+    "computable_real_number", "computable_function_on_reals",
+};
+#define K_TEMPLATE_NAMES_COUNT (int) (sizeof(k_template_names) / sizeof(k_template_names[0]))
 
-/* ---- Test 1: Load from file ---- */
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
 
 static void test_load_from_file(void) {
-    printf("Test 1: Load computability_theory.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "computability_theory") == 0,
-                "package name should be 'computability_theory'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "computability_theory");
 }
 
-/* ---- Test 2: Verify constraint templates ---- */
-
 static void test_templates(void) {
-    printf("Test 2: Verify constraint templates...\n");
+    axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 55 constraint templates",
+                                    k_template_names, K_TEMPLATE_NAMES_COUNT);
 
+    /* 文件特有：具体参数个数校验（差异部分，原样保留） */
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 55 constraint templates");
-    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
-
-    const char *expected_templates[] = {
-        /* Group I: Initial Functions */
-        "zero_function", "successor_function", "projection_function",
-        /* Group II: Operators */
-        "composition", "primitive_recursion", "minimization_operator",
-        /* Group III: Fundamental Constructions */
-        "universal_turing_machine", "kleene_T_predicate", "result_extraction",
-        /* Group IV: Fundamental Theorems */
-        "kleene_normal_form", "smn_theorem", "kleene_recursion_theorem", "rice_theorem",
-        /* Group V: Computable and c.e. Sets */
-        "computable_set", "computably_enumerable_set", "halting_set_K", "complement_halting_set",
-        /* Group VI: Reducibilities and Degrees */
-        "many_one_reducibility", "turing_reducibility", "turing_equivalence", "turing_degree", "turing_jump",
-        /* Group VII: Arithmetical Hierarchy */
-        "sigma_1_set", "pi_1_set", "sigma_n_set", "pi_n_set", "delta_n_set", "post_theorem",
-        /* Group VIII: Core Constructors */
-        "cantor_pairing", "cantor_unpairing", "godel_numbering", "program_enumeration", "diagonalization",
-        "oracle_turing_machine", "relative_computability", "finite_injury_priority", "infinite_injury_priority",
-        /* Group IX: Primitive Recursive Functions */
-        "primitive_addition", "primitive_multiplication", "primitive_exponentiation", "primitive_factorial",
-        "primitive_predecessor", "primitive_subtraction", "primitive_sign", "primitive_absolute_difference",
-        "bounded_minimization", "bounded_existential", "bounded_universal",
-        /* Group X: Advanced Constructions */
-        "ackermann_function", "busy_beaver_function", "kolmogorov_complexity", "martin_lof_randomness_test",
-        "friedberg_muchnik_theorem",
-        /* Group XI: Computable Reals */
-        "computable_real_number", "computable_function_on_reals", NULL};
-
-    int found_count = 0;
-    for (int i = 0; expected_templates[i] != NULL; i++) {
-        ConstraintTemplate *tmpl = axiom_package_get_template(pkg, expected_templates[i]);
-        if (tmpl) {
-            found_count++;
-        } else {
-            printf("  MISSING template: '%s'\n", expected_templates[i]);
-            g_fail_count++;
-        }
-    }
-    TEST_ASSERT(found_count == EXPECTED_TEMPLATE_COUNT, "all expected templates should be found");
-    printf("  Found %d / %d templates\n", found_count, EXPECTED_TEMPLATE_COUNT);
-
-    /* Verify specific param counts */
     ConstraintTemplate *t;
 
     t = axiom_package_get_template(pkg, "zero_function");
@@ -177,8 +144,7 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ---- Test 3: Verify known unconstructible problems ---- */
-
+/* Test 3：不可构造项（文件特有：printf 为 [%2d] 对齐格式，保留原体） */
 static void test_unconstructible_problems(void) {
     printf("Test 3: Verify known unconstructible problems...\n");
 
@@ -229,127 +195,29 @@ static void test_unconstructible_problems(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ---- Test 4: Verify logical framework ---- */
-
 static void test_logical_framework(void) {
-    printf("Test 4: Verify bottom geometry and logical framework...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(pkg->bottom_geometry != NULL && strcmp(pkg->bottom_geometry, "turing_machine_configuration_space") == 0,
-                "bottom_geometry should be 'turing_machine_configuration_space'");
-    printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
-
-    TEST_ASSERT(pkg->negation_encoding != NULL && strcmp(pkg->negation_encoding, "complement_in_natural_numbers") == 0,
-                "negation_encoding should be 'complement_in_natural_numbers'");
-    printf("  negation_encoding: %s\n", pkg->negation_encoding);
-
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_logical_framework(AXIOM_PKG_PATH, "turing_machine_configuration_space", "complement_in_natural_numbers",
+                                 PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 }
-
-/* ---- Test 5: Content hash computation ---- */
 
 static void test_content_hash(void) {
-    printf("Test 5: Content hash computation...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    char *hash = axiom_package_compute_content_hash(pkg);
-    TEST_ASSERT(hash != NULL, "content hash should not be NULL");
-    TEST_ASSERT(strlen(hash) == 64, "SHA-256 hash should be 64 hex chars");
-
-    if (hash) {
-        printf("  SHA-256: %s\n", hash);
-        lv_free_ptr(hash);
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_content_hash(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE_PTR);
 }
-
-/* ---- Test 6: Round-trip save/load ---- */
 
 static void test_round_trip(void) {
-    printf("Test 6: Round-trip save/load...\n");
-
-    AxiomPackage *pkg1 = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg1, AXIOM_PKG_PATH);
-
-    AxiomSaveStatus save_status = axiom_package_save(pkg1, SAVE_TEST_PATH);
-    TEST_ASSERT(save_status == AXIOM_SAVE_OK, "save should succeed");
-
-    AxiomPackage *pkg2 = axiom_package_create("placeholder", "0.0.0");
-    AxiomLoadStatus load_status = axiom_package_load(pkg2, SAVE_TEST_PATH);
-    TEST_ASSERT(load_status == AXIOM_LOAD_OK, "re-load from saved file should succeed");
-
-    TEST_ASSERT(axiom_package_get_template_count(pkg2) == axiom_package_get_template_count(pkg1), "template count should match after round-trip");
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == axiom_package_get_unconstructible_count(pkg1),
-                "unconstructible count should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->name, pkg1->name) == 0, "name should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->version, pkg1->version) == 0, "version should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->bottom_geometry, pkg1->bottom_geometry) == 0,
-                "bottom_geometry should match after round-trip");
-    TEST_ASSERT(pkg2->contradiction_behavior == pkg1->contradiction_behavior,
-                "contradiction_behavior should match after round-trip");
-
-    printf("  Round-trip: templates=%d, unconstructibles=%d\n", axiom_package_get_template_count(pkg2), axiom_package_get_unconstructible_count(pkg2));
-
-    char *hash1 = axiom_package_compute_content_hash(pkg1);
-    char *hash2 = axiom_package_compute_content_hash(pkg2);
-    TEST_ASSERT(hash1 && hash2 && strcmp(hash1, hash2) == 0, "content hashes should match after round-trip");
-    printf("  Hash match: %s\n", (hash1 && hash2 && strcmp(hash1, hash2) == 0) ? "YES" : "NO");
-
-    lv_free_ptr(hash1);
-    lv_free_ptr(hash2);
-    axiom_package_destroy(pkg1);
-    axiom_package_destroy(pkg2);
+    axiom_test_round_trip(AXIOM_PKG_PATH, SAVE_TEST_PATH, AXIOM_TEST_FREE_LV_FREE_PTR);
 }
-
-/* ---- Test 7: Dependency validation ---- */
 
 static void test_dependency_validation(void) {
-    printf("Test 7: Dependency validation...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    bool valid = axiom_package_validate_dependencies(pkg, &pkg, 1);
-    /* Self-validation: reduces_to targets like "non_computable_set" are
-       mathematical descriptions, not references to other unconstructible
-       entries. Some dependency references may not resolve within the
-       same package. */
-    printf("  Self-validation: %s (expected: may fail for cross-reference reduces_to)\n",
-           valid ? "PASS" : "FAIL (acceptable)");
-
-    axiom_package_destroy(pkg);
+    axiom_test_dependency_validation(AXIOM_PKG_PATH, "FAIL (acceptable)",
+                                     " (expected: may fail for cross-reference reduces_to)");
 }
-
-/* ---- Test 8: Negative lookups ---- */
 
 static void test_negative_lookups(void) {
-    printf("Test 8: Negative lookups...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    ConstraintTemplate *tmpl = axiom_package_get_template(pkg, "nonexistent_template");
-    TEST_ASSERT(tmpl == NULL, "non-existent template should return NULL");
-
-    KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, "nonexistent_problem");
-    TEST_ASSERT(uc == NULL, "non-existent unconstructible should return NULL");
-
-    printf("  Negative lookups: correct\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_BASIC);
 }
 
-/* ---- Test 9: Verify external references are valid URLs ---- */
-
+/* Test 9：外部引用（文件特有：https 计数格式，保留原体） */
 static void test_external_references(void) {
     printf("Test 9: Verify external references...\n");
 
@@ -371,6 +239,10 @@ static void test_external_references(void) {
 
     axiom_package_destroy(pkg);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 /* ---- Test 10: Template group coverage ---- */
 

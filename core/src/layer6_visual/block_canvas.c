@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file block_canvas.c
  * @brief 块画布视图实现
  *
@@ -98,7 +98,7 @@ typedef struct lvBlockCanvasView {
 lvBlockCanvasView *lv_block_canvas_create(void) {
     lvBlockCanvasView *canvas = lv_calloc(1, sizeof(lvBlockCanvasView));
     if (!canvas)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate block canvas");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_block_canvas_create: failed to allocate block canvas");
     canvas->view_type = lv_VIEW_BLOCK_CANVAS;
     lv_darray_init(&canvas->blocks, sizeof(lvVisualBlock));
     lv_darray_init(&canvas->connections, sizeof(lvBlockConnection));
@@ -106,7 +106,7 @@ lvBlockCanvasView *lv_block_canvas_create(void) {
         lv_darray_free(&canvas->blocks);
         lv_darray_free(&canvas->connections);
         lv_free((void **) &canvas);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate block canvas arrays");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_block_canvas_create: failed to allocate block canvas arrays");
     }
     canvas->next_block_id = 1;
     canvas->next_port_id = 1;
@@ -174,7 +174,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
     if (total_ports > 0) {
         block.ports = lv_calloc(total_ports, sizeof(lvBlockPort));
         if (!block.ports)
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to allocate block ports");
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_block_canvas_add_block: failed to allocate block ports");
 
         /* 输入端口在左侧均匀分布 */
         for (int i = 0; i < input_count; i++) {
@@ -201,7 +201,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
     int idx = lv_darray_push(&canvas->blocks, &block);
     if (idx < 0) {
         lv_free((void **) &block.ports);
-        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push block");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_block_canvas_add_block: failed to push block");
     }
     return block.id;
 }
@@ -228,7 +228,7 @@ int lv_block_canvas_remove_block(lvBlockCanvasView *canvas, int block_id) {
         }
     }
     if (found < 0)
-        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "block not found");
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_block_canvas_remove_block: block not found");
 
     /* 释放端口 */
     {
@@ -324,13 +324,13 @@ int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id,
     lv_CHECK_ARG(from_block_id > 0 && to_block_id > 0, lv_ERROR_INVALID_PARAM,
                  "invalid block id (from=%d, to=%d)", from_block_id, to_block_id);
     if (from_block_id == to_block_id)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "self-connection not allowed");
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_block_canvas_connect_blocks: self-connection not allowed");
 
     /* 验证端口存在 */
     lvVisualBlock *from_block = find_block(canvas, from_block_id);
     lvVisualBlock *to_block = find_block(canvas, to_block_id);
     if (!from_block || !to_block)
-        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "source or target block not found");
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_block_canvas_connect_blocks: source or target block not found");
 
     int from_found = 0, to_found = 0;
     for (int i = 0; i < from_block->port_count; i++) {
@@ -346,7 +346,7 @@ int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id,
         }
     }
     if (!from_found || !to_found)
-        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "source or target port not found");
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_block_canvas_connect_blocks: source or target port not found");
 
     lvBlockConnection conn;
     conn.id = canvas->next_connection_id++;
@@ -357,27 +357,9 @@ int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id,
 
     int idx = lv_darray_push(&canvas->connections, &conn);
     if (idx < 0)
-        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push connection");
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_block_canvas_connect_blocks: failed to push connection");
     return conn.id;
 }
-
-/**
- * @brief 安全写入 SVG 内容的辅助宏
- *
- * 检查缓冲区剩余空间后调用 snprintf，防止缓冲区溢出。
- * 自动将 pos 限制在 [0, buf_size-1] 范围内。
- */
-#define SVG_SAFE_SNPRINTF(_buf, _pos, _size, ...)                                         \
-    do {                                                                                  \
-        if ((_pos) >= 0 && (_pos) < (_size)) {                                            \
-            int _w = snprintf((_buf) + (_pos), (size_t) ((_size) - (_pos)), __VA_ARGS__); \
-            if (_w > 0) {                                                                 \
-                (_pos) += _w;                                                             \
-                if ((_pos) >= (_size))                                                    \
-                    (_pos) = (_size) - 1;                                                 \
-            }                                                                             \
-        }                                                                                 \
-    } while (0)
 
 /**
  * @brief 生成 SVG 输出
@@ -391,7 +373,7 @@ int lv_block_canvas_connect_blocks(lvBlockCanvasView *canvas, int from_block_id,
  */
 char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
     if (!canvas)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "NULL canvas");
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_block_canvas_render_svg: NULL canvas");
 
     /* 计算包围盒 */
     double min_x = 1e18, min_y = 1e18, max_x = -1e18, max_y = -1e18;
@@ -427,15 +409,15 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
     int buf_size = (int) est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate SVG buffer");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_block_canvas_render_svg: failed to allocate SVG buffer");
 
     int pos = 0;
 
-    SVG_SAFE_SNPRINTF(buf, pos, buf_size,
-                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                      "<svg xmlns=\"http://www.w3.org/2000/svg\" "
-                      "viewBox=\"%g %g %g %g\" width=\"800\" height=\"600\">\n",
-                      min_x, min_y, max_x - min_x, max_y - min_y);
+    lv_SVG_WRITE(buf, pos, buf_size,
+                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                 "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+                 "viewBox=\"%g %g %g %g\" width=\"800\" height=\"600\">\n",
+                 min_x, min_y, max_x - min_x, max_y - min_y);
 
     /* 绘制连接（贝塞尔曲线） */
     for (int i = 0; i < canvas->connections.count; i++) {
@@ -455,10 +437,10 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
         double cx2 = x2 - dx;
         double cy2 = y2;
 
-        SVG_SAFE_SNPRINTF(buf, pos, buf_size,
-                          "  <path d=\"M %g,%g C %g,%g %g,%g %g,%g\" "
-                          "fill=\"none\" stroke=\"#666666\" stroke-width=\"2\"/>\n",
-                          x1, y1, cx1, cy1, cx2, cy2, x2, y2);
+        lv_SVG_WRITE(buf, pos, buf_size,
+                     "  <path d=\"M %g,%g C %g,%g %g,%g %g,%g\" "
+                     "fill=\"none\" stroke=\"#666666\" stroke-width=\"2\"/>\n",
+                     x1, y1, cx1, cy1, cx2, cy2, x2, y2);
     }
 
     /* 绘制块 */
@@ -470,18 +452,18 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
 
         /* 圆角矩形 */
         double rx = 8.0;
-        SVG_SAFE_SNPRINTF(buf, pos, buf_size,
-                          "  <rect x=\"%g\" y=\"%g\" width=\"%g\" height=\"%g\" "
-                          "rx=\"%g\" ry=\"%g\" fill=\"%s\" stroke=\"#333333\" "
-                          "stroke-width=\"2\" opacity=\"0.9\"/>\n",
-                          b->x, b->y, b->width, b->height, rx, rx, color);
+        lv_SVG_WRITE(buf, pos, buf_size,
+                     "  <rect x=\"%g\" y=\"%g\" width=\"%g\" height=\"%g\" "
+                     "rx=\"%g\" ry=\"%g\" fill=\"%s\" stroke=\"#333333\" "
+                     "stroke-width=\"2\" opacity=\"0.9\"/>\n",
+                     b->x, b->y, b->width, b->height, rx, rx, color);
 
         /* 标签 */
-        SVG_SAFE_SNPRINTF(buf, pos, buf_size,
-                          "  <text x=\"%g\" y=\"%g\" font-size=\"13\" fill=\"white\" "
-                          "text-anchor=\"middle\" dominant-baseline=\"middle\" "
-                          "font-weight=\"bold\">%s</text>\n",
-                          b->x + b->width / 2.0, b->y + b->height / 2.0, b->label);
+        lv_SVG_WRITE(buf, pos, buf_size,
+                     "  <text x=\"%g\" y=\"%g\" font-size=\"13\" fill=\"white\" "
+                     "text-anchor=\"middle\" dominant-baseline=\"middle\" "
+                     "font-weight=\"bold\">%s</text>\n",
+                     b->x + b->width / 2.0, b->y + b->height / 2.0, b->label);
 
         /* 绘制端口（小圆圈） */
         for (int j = 0; j < b->port_count; j++) {
@@ -490,15 +472,13 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
             double py = b->y + p->rel_y;
             const char *port_color = p->is_input ? "#E8F4FD" : "#FFF3E0";
             const char *port_stroke = p->is_input ? "#2196F3" : "#FF9800";
-            SVG_SAFE_SNPRINTF(buf, pos, buf_size,
-                              "  <circle cx=\"%g\" cy=\"%g\" r=\"5\" "
-                              "fill=\"%s\" stroke=\"%s\" stroke-width=\"1.5\"/>\n",
-                              px, py, port_color, port_stroke);
+            lv_SVG_WRITE(buf, pos, buf_size,
+                         "  <circle cx=\"%g\" cy=\"%g\" r=\"5\" "
+                         "fill=\"%s\" stroke=\"%s\" stroke-width=\"1.5\"/>\n",
+                         px, py, port_color, port_stroke);
         }
     }
 
-    SVG_SAFE_SNPRINTF(buf, pos, buf_size, "</svg>\n");
+    lv_SVG_WRITE(buf, pos, buf_size, "</svg>\n");
     return buf;
 }
-
-#undef SVG_SAFE_SNPRINTF

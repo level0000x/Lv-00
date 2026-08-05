@@ -13,7 +13,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
+static int g_fail_count = 0;
+static int g_pass_count = 0;
+
+/* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
+ * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
+#define AXIOM_TEST_NON_RETURNING 1
+
+#include "axiom_test_common.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/affine_geometry.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/affine_geometry_test_save.lvz"
@@ -21,105 +28,84 @@
 #define EXPECTED_TEMPLATE_COUNT 56
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 7
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
+/* ============================================================
+ * 共享测试数据表（各文件差异部分，原样保留）
+ * ============================================================ */
 
-#define TEST_ASSERT(cond, msg)           \
-    do {                                 \
-        if (!(cond)) {                   \
-            printf("  FAIL: %s\n", msg); \
-            g_fail_count++;              \
-        } else {                         \
-            g_pass_count++;              \
-        }                                \
-    } while (0)
+/* Test 2：期望模板名 */
+static const char *const k_template_names[] = {
+    /* Group I: Incidence Axioms (4) */
+    "line_through_two_points", "line_has_two_points", "existence_of_triangle", "existence_of_affine_frame_3d",
+    /* Group II: Parallelism Axioms (4) */
+    "parallel_through_point", "parallelism_reflexive", "parallelism_transitive", "parallelism_no_intersection",
+    /* Group III: Vector Space of Displacements (11) */
+    "point_subtraction", "point_translation", "vector_addition_associative", "vector_addition_commutative",
+    "zero_vector_exists", "vector_negation", "scalar_multiplication", "scalar_distributivity_vectors",
+    "scalar_distributivity_scalars", "scalar_multiplication_associative", "scalar_unit",
+    /* Group IV: Affine Structure Axioms (4) */
+    "subtraction_identity", "subtraction_chain", "translation_subtraction_compat", "subtraction_translation_compat",
+    /* Group V: Affine Combinations (7) */
+    "affine_combination_two", "midpoint", "centroid_three_points", "general_barycenter",
+    "affine_combination_associative", "affine_combination_commutative", "affine_combination_idempotent",
+    /* Group VI: Affine Transformations (8) */
+    "affine_map_preserves_combination", "translation_map", "affine_map_decomposition",
+    "affine_map_preserves_parallelism", "affine_map_preserves_ratio", "affine_map_preserves_midpoint",
+    "affine_map_preserves_centroid", "affine_map_preserves_barycenter",
+    /* Group VII: Desargues' Theorem (1) */
+    "desargues_theorem_affine",
+    /* Group VIII: Pappus's Theorem (1) */
+    "pappus_theorem_affine",
+    /* Group IX: Affine Subspaces (5) */
+    "affine_subspace_check", "affine_span_two_points", "affine_span_three_points", "affine_subspace_dimension",
+    "affine_subspaces_parallel",
+    /* Group X: Ratio and Division (4) */
+    "simple_ratio", "thales_intercept_theorem", "ceva_theorem", "menelaus_theorem",
+    /* Group XI: Parallelogram and Affine Quadrilaterals (4) */
+    "parallelogram_fourth_vertex", "parallelogram_law", "parallelogram_diagonal_bisect",
+    "affine_map_preserves_parallelogram",
+    /* Group XII: Projective Connection (3) */
+    "projective_completion", "line_at_infinity", "affine_patch_from_projective",
+};
+#define K_TEMPLATE_NAMES_COUNT (int) (sizeof(k_template_names) / sizeof(k_template_names[0]))
 
-/* ------------------------------------------------------------------ */
-/* Test 1: Load from file                                              */
-/* ------------------------------------------------------------------ */
+/* Test 3：期望不可构造项 */
+static const AxiomTestUcExpectation k_unconstructibles[] = {
+    {"perpendicular_bisector", "orthogonality requires metric structure", 2, true},
+    {"angle_trisection", "requires metric structure and solving cubic equations", 2, true},
+    {"circle_construction", "circles require metric distance notion absent in affine geometry", 2, true},
+    {"finite_affine_plane_non_prime_power",
+     "existence of finite affine planes of non-prime-power order is an open problem in combinatorics; equivalent "
+     "to existence of finite projective planes",
+     3, false},
+    {"non_desarguesian_classification",
+     "classification of non-Desarguesian affine planes is wildly open; only partial results known", 2, false},
+    {"metric_recovery_from_affine",
+     "an affine space admits infinitely many inequivalent metric structures; no canonical choice without "
+     "additional data",
+     2, true},
+    {"area_computation",
+     "area requires a notion of determinant or metric; only ratios of areas on parallel lines are affine "
+     "invariants",
+     2, true},
+};
+#define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
+
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
+
 static void test_load_from_file(void) {
-    printf("Test 1: Load affine_geometry.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "affine_geometry") == 0,
-                "package name should be 'affine_geometry'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "affine_geometry");
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 2: Verify constraint templates                                 */
-/* ------------------------------------------------------------------ */
 static void test_templates(void) {
-    printf("Test 2: Verify constraint templates...\n");
+    axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 56 constraint templates",
+                                    k_template_names, K_TEMPLATE_NAMES_COUNT);
 
+    /* 文件特有：具体参数个数校验（差异部分，原样保留） */
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 56 constraint templates");
-    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
-
-    /* All 50 expected template names */
-    const char *expected_templates[] = {
-        /* Group I: Incidence Axioms (4) */
-        "line_through_two_points", "line_has_two_points", "existence_of_triangle", "existence_of_affine_frame_3d",
-        /* Group II: Parallelism Axioms (4) */
-        "parallel_through_point", "parallelism_reflexive", "parallelism_transitive", "parallelism_no_intersection",
-        /* Group III: Vector Space of Displacements (11) */
-        "point_subtraction", "point_translation", "vector_addition_associative", "vector_addition_commutative",
-        "zero_vector_exists", "vector_negation", "scalar_multiplication", "scalar_distributivity_vectors",
-        "scalar_distributivity_scalars", "scalar_multiplication_associative", "scalar_unit",
-        /* Group IV: Affine Structure Axioms (4) */
-        "subtraction_identity", "subtraction_chain", "translation_subtraction_compat", "subtraction_translation_compat",
-        /* Group V: Affine Combinations (7) */
-        "affine_combination_two", "midpoint", "centroid_three_points", "general_barycenter",
-        "affine_combination_associative", "affine_combination_commutative", "affine_combination_idempotent",
-        /* Group VI: Affine Transformations (8) */
-        "affine_map_preserves_combination", "translation_map", "affine_map_decomposition",
-        "affine_map_preserves_parallelism", "affine_map_preserves_ratio", "affine_map_preserves_midpoint",
-        "affine_map_preserves_centroid", "affine_map_preserves_barycenter",
-        /* Group VII: Desargues' Theorem (1) */
-        "desargues_theorem_affine",
-        /* Group VIII: Pappus's Theorem (1) */
-        "pappus_theorem_affine",
-        /* Group IX: Affine Subspaces (5) */
-        "affine_subspace_check", "affine_span_two_points", "affine_span_three_points", "affine_subspace_dimension",
-        "affine_subspaces_parallel",
-        /* Group X: Ratio and Division (4) */
-        "simple_ratio", "thales_intercept_theorem", "ceva_theorem", "menelaus_theorem",
-        /* Group XI: Parallelogram and Affine Quadrilaterals (4) */
-        "parallelogram_fourth_vertex", "parallelogram_law", "parallelogram_diagonal_bisect",
-        "affine_map_preserves_parallelogram",
-        /* Group XII: Projective Connection (3) */
-        "projective_completion", "line_at_infinity", "affine_patch_from_projective", NULL};
-
-    int found_count = 0;
-    for (int i = 0; expected_templates[i] != NULL; i++) {
-        ConstraintTemplate *tmpl = axiom_package_get_template(pkg, expected_templates[i]);
-        if (tmpl) {
-            found_count++;
-        } else {
-            printf("  MISSING template: '%s'\n", expected_templates[i]);
-            g_fail_count++;
-        }
-    }
-    TEST_ASSERT(found_count == EXPECTED_TEMPLATE_COUNT, "all expected templates should be found");
-    printf("  Found %d / %d templates\n", found_count, EXPECTED_TEMPLATE_COUNT);
-
-    /* Verify specific parameter counts */
     ConstraintTemplate *t;
 
     t = axiom_package_get_template(pkg, "line_through_two_points");
@@ -203,88 +189,18 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 3: Verify known unconstructible problems                       */
-/* ------------------------------------------------------------------ */
 static void test_unconstructible_problems(void) {
-    printf("Test 3: Verify known unconstructible problems...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 7 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
-
-    struct {
-        const char *name;
-        const char *reduces_to;
-        int dep_count;
-        bool green_verified;
-    } expected[] = {
-        {"perpendicular_bisector", "orthogonality requires metric structure", 2, true},
-        {"angle_trisection", "requires metric structure and solving cubic equations", 2, true},
-        {"circle_construction", "circles require metric distance notion absent in affine geometry", 2, true},
-        {"finite_affine_plane_non_prime_power",
-         "existence of finite affine planes of non-prime-power order is an open problem in combinatorics; equivalent "
-         "to existence of finite projective planes",
-         3, false},
-        {"non_desarguesian_classification",
-         "classification of non-Desarguesian affine planes is wildly open; only partial results known", 2, false},
-        {"metric_recovery_from_affine",
-         "an affine space admits infinitely many inequivalent metric structures; no canonical choice without "
-         "additional data",
-         2, true},
-        {"area_computation",
-         "area requires a notion of determinant or metric; only ratios of areas on parallel lines are affine "
-         "invariants",
-         2, true},
-    };
-
-    for (int i = 0; i < (int) (sizeof(expected) / sizeof(expected[0])); i++) {
-        KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, expected[i].name);
-        TEST_ASSERT(uc != NULL, expected[i].name);
-
-        if (uc) {
-            TEST_ASSERT(uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0,
-                        expected[i].name);
-            TEST_ASSERT(uc->dependency_chain.count == expected[i].dep_count, expected[i].name);
-            TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);
-            TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
-            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
-                   uc->green_verified ? "true" : "false");
-        }
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_unconstructible_problems(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
+                                        "should have 7 unconstructible problems", k_unconstructibles,
+                                        K_UNCONSTRUCTIBLES_COUNT);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 4: Verify bottom geometry and logical framework                */
-/* ------------------------------------------------------------------ */
 static void test_logical_framework(void) {
-    printf("Test 4: Verify bottom geometry and logical framework...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(pkg->bottom_geometry != NULL && strcmp(pkg->bottom_geometry, "affine_space") == 0,
-                "bottom_geometry should be 'affine_space'");
-    printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
-
-    TEST_ASSERT(pkg->negation_encoding != NULL && strcmp(pkg->negation_encoding, "classical_material_implication") == 0,
-                "negation_encoding should be 'classical_material_implication'");
-    printf("  negation_encoding: %s\n", pkg->negation_encoding);
-
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_logical_framework(AXIOM_PKG_PATH, "affine_space", "classical_material_implication",
+                                 PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 5: Content hash                                                */
-/* ------------------------------------------------------------------ */
+/* Test 5：内容哈希（文件特有：两次加载对比 + MATCH/MISMATCH 打印，保留原体） */
 static void test_content_hash(void) {
     printf("Test 5: Verify content hash...\n");
 
@@ -312,9 +228,7 @@ static void test_content_hash(void) {
     axiom_package_destroy(pkg2);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 6: Round-trip save/load                                       */
-/* ------------------------------------------------------------------ */
+/* Test 6：往返保存/加载（文件特有：Save/Load 状态打印 + negation_encoding 校验，保留原体） */
 static void test_round_trip_save_load(void) {
     printf("Test 6: Round-trip save/load...\n");
 
@@ -367,9 +281,7 @@ static void test_round_trip_save_load(void) {
     axiom_package_destroy(pkg2);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 7: Dependency validation                                      */
-/* ------------------------------------------------------------------ */
+/* Test 7：依赖验证（文件特有：NULL 列表 + self 列表两次验证，保留原体） */
 static void test_dependency_validation(void) {
     printf("Test 7: Dependency validation...\n");
 
@@ -393,38 +305,11 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 8: Negative lookups                                           */
-/* ------------------------------------------------------------------ */
 static void test_negative_lookups(void) {
-    printf("Test 8: Negative lookups...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    /* Template that doesn't exist */
-    ConstraintTemplate *t = axiom_package_get_template(pkg, "nonexistent_template");
-    TEST_ASSERT(t == NULL, "nonexistent template should return NULL");
-
-    /* Unconstructible problem that doesn't exist */
-    KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, "nonexistent_problem");
-    TEST_ASSERT(uc == NULL, "nonexistent unconstructible should return NULL");
-
-    /* Empty string lookups */
-    t = axiom_package_get_template(pkg, "");
-    TEST_ASSERT(t == NULL, "empty template name should return NULL");
-
-    uc = axiom_package_lookup_unconstructible(pkg, "");
-    TEST_ASSERT(uc == NULL, "empty unconstructible name should return NULL");
-
-    printf("  All negative lookups returned NULL as expected\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_EMPTY);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 9: External references format validation                      */
-/* ------------------------------------------------------------------ */
+/* Test 9：外部引用（文件特有：https 计数 + 逐条 URL 打印，保留原体） */
 static void test_external_refs(void) {
     printf("Test 9: External references format validation...\n");
 
@@ -450,6 +335,10 @@ static void test_external_refs(void) {
 
     axiom_package_destroy(pkg);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 /* ------------------------------------------------------------------ */
 /* Test 10: Verify template group distribution                        */

@@ -236,6 +236,74 @@ static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a 
     } while (0)
 
 /**
+ * @brief 浮点近似相等断言宏（无消息参数的简版）
+ *
+ * 与 TEST_ASSERT_NEAR 功能相同，但省略消息参数，用于收敛测试中
+ * 大量手写的 fabs(a - b) < 1e-N 判断。失败时打印实际值、期望值和差值。
+ *
+ * @param actual    实际值
+ * @param expected  期望值
+ * @param tol       容差
+ */
+#define TEST_ASSERT_DOUBLE(actual, expected, tol)                                                               \
+    do {                                                                                                        \
+        double _td_actual = (double) (actual);                                                                  \
+        double _td_expected = (double) (expected);                                                              \
+        double _td_diff = _td_actual - _td_expected;                                                            \
+        if (_td_diff < 0.0)                                                                                     \
+            _td_diff = -_td_diff;                                                                               \
+        if (_td_diff > (tol)) {                                                                                 \
+            fprintf(stderr, "  FAIL [%s:%d] (actual=%.12f, expected=%.12f, diff=%.12e)\n", __FILE__, __LINE__,  \
+                    _td_actual, _td_expected, _td_diff);                                                        \
+            g_fail_count++;                                                                                     \
+            return;                                                                                             \
+        }                                                                                                       \
+        g_pass_count++;                                                                                         \
+    } while (0)
+
+/**
+ * @brief 失败不返回的断言宏（失败后继续执行）
+ *
+ * 与 TEST_ASSERT 不同：断言失败时仅打印失败信息并递增失败计数，
+ * 不立即从当前函数返回。适用于"单个测试函数内连续多条断言、失败后
+ * 仍希望继续执行后续断言"的场景（部分旧测试文件的既有语义）。
+ *
+ * @param cond  条件表达式
+ * @param msg   失败消息字符串
+ */
+#define TEST_ASSERT_CONTINUE(cond, msg)                                                      \
+    do {                                                                                     \
+        if (!(cond)) {                                                                       \
+            fprintf(stderr, "  FAIL [%s:%d] %s\n", __FILE__, __LINE__, (msg));               \
+            g_fail_count++;                                                                  \
+        } else {                                                                             \
+            g_pass_count++;                                                                  \
+        }                                                                                    \
+    } while (0)
+
+/**
+ * @brief 相等断言宏（失败不返回，无消息参数）
+ *
+ * 与 TEST_ASSERT_EQ 功能相同，但断言失败时不 return，继续执行后续代码。
+ *
+ * @param actual    实际值
+ * @param expected  期望值
+ */
+#define TEST_ASSERT_EQ_CONTINUE(actual, expected)                                          \
+    do {                                                                                   \
+        intptr_t _th_actual = (intptr_t) (actual);                                         \
+        intptr_t _th_expected = (intptr_t) (expected);                                     \
+        if (_th_actual != _th_expected) {                                                  \
+            fprintf(stderr, "  FAIL [%s:%d] %s != %s (actual=%ld, expected=%ld)\n",        \
+                    __FILE__, __LINE__, #actual, #expected, (long) _th_actual,             \
+                    (long) _th_expected);                                                  \
+            g_fail_count++;                                                                \
+        } else {                                                                           \
+            g_pass_count++;                                                                \
+        }                                                                                  \
+    } while (0)
+
+/**
  * @brief 空指针断言宏 - 检查指针是否为 NULL
  *
  * 如果指针不为 NULL，打印失败信息并返回。
@@ -330,6 +398,49 @@ static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a 
         fprintf(stderr, "====== Test Suite Complete ======\n"); \
         TEST_SUMMARY();                                         \
     } while (0)
+
+/**
+ * @brief 标准 main() 骨架：开始部分
+ *
+ * 与 TEST_MAIN_RUN / TEST_MAIN_END 配合，将大量测试文件中重复的
+ * main() 骨架（TEST_SUITE_BEGIN + TEST_RUN 列表 + 汇总 + 退出码）
+ * 收敛为三行调用，保持原有输出格式与退出码行为一致：
+ *
+ *     TEST_MAIN_BEGIN("suite name")
+ *         TEST_MAIN_RUN(test_func1);
+ *         TEST_MAIN_RUN(test_func2);
+ *     TEST_MAIN_END()
+ *
+ * 注意：文件级计数器 int g_pass_count / int g_fail_count 仍需在
+ * 测试文件顶部自行定义（与现有测试文件保持一致）。
+ *
+ * @param suite_name  测试套件名称字符串
+ */
+#define TEST_MAIN_BEGIN(suite_name)   \
+    int main(void) {                  \
+        TEST_SUITE_BEGIN(suite_name); \
+        {
+
+/**
+ * @brief 标准 main() 骨架：运行单个测试函数
+ *
+ * TEST_RUN 的语义化别名，用法为 TEST_MAIN_RUN(test_func);
+ *
+ * @param test_func  测试函数名（无参数、返回 void 的函数）
+ */
+#define TEST_MAIN_RUN(test_func) TEST_RUN(test_func)
+
+/**
+ * @brief 标准 main() 骨架：结束部分
+ *
+ * 输出测试套件完成标记与测试汇总，并以失败计数决定退出码
+ * （等价于 TEST_SUITE_END(); return g_fail_count > 0 ? 1 : 0;）。
+ */
+#define TEST_MAIN_END()                  \
+        }                                \
+        TEST_SUITE_END();                \
+        return g_fail_count > 0 ? 1 : 0; \
+    }
 
 /* ============================================================
  * 传统 TEST/PASS/FAIL 输出宏（旧式测试文件兼容层）

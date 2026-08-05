@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file memory_pool.c
  * @brief 内存池系统实现
  *
@@ -107,10 +107,7 @@ struct lvObjectPool {
     lv_mutex_t mutex; /**< 互斥锁 */
 };
 
-/* 对齐辅助函数 */
-static inline size_t align_up(size_t size, size_t alignment) {
-    return (size + alignment - 1) & ~(alignment - 1);
-}
+/* 对齐辅助函数（共享定义见 lv_internal.h 的 align_up） */
 
 lvObjectPool *lv_pool_create(const lvPoolConfig *config) {
     if (!config || config->object_size == 0) {

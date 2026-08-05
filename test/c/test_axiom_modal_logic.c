@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_modal_logic.c
  * @brief Modal Logic (Normal Modal Logics K, T, S4, S5) Axiom Package Test
  */
@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
 #include "test_helpers.h"
+#include "axiom_test_common.h"
 
 int g_fail_count = 0;
 int g_pass_count = 0;
@@ -20,77 +20,55 @@ int g_pass_count = 0;
 #define EXPECTED_TEMPLATE_COUNT 32
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 7
 
+/* ============================================================
+ * 共享测试数据表（各文件差异部分，原样保留）
+ * ============================================================ */
+
+/* Test 2：期望模板名 */
+static const char *const k_template_names[] = {
+    /* Group I: Classical Propositional Foundation */
+    "classical_tautology", "modus_ponens",
+    /* Group II: Core Modal Axioms (System K) */
+    "kripke_schema", "necessitation",
+    /* Group III: Modal Operator Duality */
+    "possibility_dual", "necessity_dual",
+    /* Group IV: Reflexivity Axioms (System T) */
+    "reflexivity_T",
+    /* Group V: Transitivity Axioms (System K4/S4) */
+    "transitivity_4",
+    /* Group VI: Symmetry Axioms (System S5) */
+    "symmetry_B", "euclidean_5",
+    /* Group VII: Seriality Axioms (System D) */
+    "seriality_D",
+    /* Group VIII: Provability Logic (GL) */
+    "lob_axiom",
+    /* Group IX: Modal System Constructors */
+    "kripke_frame", "kripke_model", "satisfaction_at_world", "validity_in_frame",
+    /* Group X: Derived Modal Principles */
+    "modal_modus_tollens", "box_distributes_over_and", "diamond_monotonicity", "modal_negation",
+    /* Group XI: Epistemic/Doxastic Variants */
+    "knowledge_axiom", "positive_introspection", "negative_introspection",
+    /* Group XII: Temporal Logic Variants */
+    "always_operator", "eventually_operator", "next_operator", "until_operator",
+};
+#define K_TEMPLATE_NAMES_COUNT (int) (sizeof(k_template_names) / sizeof(k_template_names[0]))
+
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
+
 static void test_load_from_file(void) {
-    printf("Test 1: Load modal_logic.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "modal_logic") == 0, "package name should be 'modal_logic'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "modal_logic");
 }
 
 static void test_templates(void) {
-    printf("Test 2: Verify constraint templates...\n");
+    axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 32 constraint templates",
+                                    k_template_names, K_TEMPLATE_NAMES_COUNT);
 
+    /* 文件特有：具体参数个数校验（差异部分，原样保留） */
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 32 constraint templates");
-    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
-
-    const char *expected_templates[] = {
-        /* Group I: Classical Propositional Foundation */
-        "classical_tautology", "modus_ponens",
-        /* Group II: Core Modal Axioms (System K) */
-        "kripke_schema", "necessitation",
-        /* Group III: Modal Operator Duality */
-        "possibility_dual", "necessity_dual",
-        /* Group IV: Reflexivity Axioms (System T) */
-        "reflexivity_T",
-        /* Group V: Transitivity Axioms (System K4/S4) */
-        "transitivity_4",
-        /* Group VI: Symmetry Axioms (System S5) */
-        "symmetry_B", "euclidean_5",
-        /* Group VII: Seriality Axioms (System D) */
-        "seriality_D",
-        /* Group VIII: Provability Logic (GL) */
-        "lob_axiom",
-        /* Group IX: Modal System Constructors */
-        "kripke_frame", "kripke_model", "satisfaction_at_world", "validity_in_frame",
-        /* Group X: Derived Modal Principles */
-        "modal_modus_tollens", "box_distributes_over_and", "diamond_monotonicity", "modal_negation",
-        /* Group XI: Epistemic/Doxastic Variants */
-        "knowledge_axiom", "positive_introspection", "negative_introspection",
-        /* Group XII: Temporal Logic Variants */
-        "always_operator", "eventually_operator", "next_operator", "until_operator", NULL};
-
-    int found_count = 0;
-    for (int i = 0; expected_templates[i] != NULL; i++) {
-        ConstraintTemplate *tmpl = axiom_package_get_template(pkg, expected_templates[i]);
-        if (tmpl) {
-            found_count++;
-        } else {
-            printf("  MISSING template: '%s'\n", expected_templates[i]);
-            g_fail_count++;
-        }
-    }
-    TEST_ASSERT(found_count == EXPECTED_TEMPLATE_COUNT, "all expected templates should be found");
-    printf("  Found %d / %d templates\n", found_count, EXPECTED_TEMPLATE_COUNT);
-
-    /* Verify specific parameter counts */
     ConstraintTemplate *t;
 
     /* Core modal axioms */
@@ -171,6 +149,7 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 3：不可构造项（文件特有：3 字段 + 外部引用特例检查，保留原体） */
 static void test_unconstructible_problems(void) {
     printf("Test 3: Verify known unconstructible problems...\n");
 
@@ -227,6 +206,7 @@ static void test_unconstructible_problems(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 4：逻辑框架（文件特有：if 包裹结构，保留原体） */
 static void test_logical_framework(void) {
     printf("Test 4: Verify logical framework configuration...\n");
 
@@ -257,6 +237,7 @@ static void test_logical_framework(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 5：内容哈希（文件特有：hex 校验循环，保留原体） */
 static void test_content_hash(void) {
     printf("Test 5: Verify content hash computation...\n");
 
@@ -287,6 +268,7 @@ static void test_content_hash(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 6：往返保存/加载（文件特有：先哈希 + 哈希匹配打印，保留原体） */
 static void test_roundtrip_save_load(void) {
     printf("Test 6: Verify round-trip save/load...\n");
 
@@ -327,6 +309,7 @@ static void test_roundtrip_save_load(void) {
     axiom_package_destroy(pkg2);
 }
 
+/* Test 7：依赖验证（文件特有：Verify 打印格式，保留原体） */
 static void test_dependency_validation(void) {
     printf("Test 7: Verify dependency validation...\n");
 
@@ -343,6 +326,7 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 8：负向查找（文件特有：Verify 打印格式，保留原体） */
 static void test_negative_lookups(void) {
     printf("Test 8: Verify negative lookups...\n");
 
@@ -362,6 +346,7 @@ static void test_negative_lookups(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 9：外部引用（文件特有：http/https 计数格式，保留原体） */
 static void test_external_refs(void) {
     printf("Test 9: Verify external references...\n");
 
@@ -389,6 +374,10 @@ static void test_external_refs(void) {
 
     axiom_package_destroy(pkg);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 static void test_key_axioms_present(void) {
     printf("Test 10: Verify key modal axioms are present...\n");

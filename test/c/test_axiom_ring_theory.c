@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_ring_theory.c
  * @brief Ring Theory Axiom Package Test
  *
@@ -11,9 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "axiom_pkg.h"
-#include "lv_utils.h"
 #include "test_helpers.h"
+#include "axiom_test_common.h"
 
 int g_fail_count = 0;
 int g_pass_count = 0;
@@ -24,313 +23,149 @@ int g_pass_count = 0;
 #define EXPECTED_TEMPLATE_COUNT 54
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
+/* ============================================================
+ * 共享测试数据表（各文件差异部分，原样保留）
+ * ============================================================ */
+
+/* Test 2：期望模板 {名称, 参数个数} */
+static const AxiomTestTemplateExpectation k_templates[] = {
+    /* Group A: Additive Abelian Group Axioms (5) */
+    {"additive_closure", 2},
+    {"additive_associativity", 3},
+    {"additive_identity", 1},
+    {"additive_inverse", 1},
+    {"additive_commutativity", 2},
+    /* Group M: Multiplicative Monoid Axioms (3) */
+    {"multiplicative_closure", 2},
+    {"multiplicative_associativity", 3},
+    {"multiplicative_identity", 1},
+    /* Group D: Distributive Laws (2) */
+    {"left_distributivity", 3},
+    {"right_distributivity", 3},
+    /* Elementary Consequences (12) */
+    {"additive_identity_uniqueness", 0},
+    {"additive_inverse_uniqueness", 1},
+    {"multiplicative_identity_uniqueness", 0},
+    {"zero_multiplication", 1},
+    {"negative_multiplication", 2},
+    {"negative_negative_product", 2},
+    {"zero_ring_condition", 0},
+    {"additive_cancellation", 3},
+    {"double_additive_inverse", 1},
+    {"negative_of_sum", 2},
+    {"zero_is_own_add_inverse", 0},
+    {"negative_one_times", 1},
+    /* Core Constructors (6) */
+    {"add", 2},
+    {"multiply", 2},
+    {"negate", 1},
+    {"zero", 0},
+    {"one", 0},
+    {"subtract", 2},
+    /* Derived Constructors (26) */
+    {"characteristic", 1},
+    {"power_positive", 2},
+    {"scalar_multiple", 2},
+    {"binomial_theorem", 3},
+    {"unit", 1},
+    {"multiplicative_inverse", 1},
+    {"zero_divisor", 2},
+    {"nilpotent", 1},
+    {"idempotent", 1},
+    {"subring_test", 2},
+    {"left_ideal", 2},
+    {"right_ideal", 2},
+    {"two_sided_ideal", 2},
+    {"principal_ideal", 1},
+    {"quotient_ring", 2},
+    {"homomorphism", 3},
+    {"kernel", 1},
+    {"image", 1},
+    {"first_isomorphism_theorem", 1},
+    {"direct_product", 2},
+    {"polynomial_ring", 1},
+    {"matrix_ring", 2},
+    {"commutator", 2},
+    {"center", 0},
+    {"unit_group", 0},
+    {"jacobson_radical", 1},
+};
+#define K_TEMPLATES_COUNT (int) (sizeof(k_templates) / sizeof(k_templates[0]))
+
+/* Test 3：期望不可构造项 */
+static const AxiomTestUcExpectation k_unconstructibles[] = {
+    {"hilberts_tenth_problem", "undecidable", 5, true},
+    {"word_problem_for_rings", "undecidable", 9, true},
+    {"ring_isomorphism_problem", "undecidable", 7, true},
+    {"triviality_problem_rings", "undecidable", 5, true},
+    {"zero_divisor_recognition", "undecidable", 5, true},
+    {"nilpotent_element_recognition", "undecidable", 4, true},
+    {"commutativity_recognition", "undecidable", 4, true},
+    {"ideal_membership_unrestricted", "undecidable", 7, true},
+};
+#define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
+
+/* Test 9：期望外部引用 URL 前缀 */
+static const AxiomTestExtRefExpectation k_external_refs[] = {
+    {"hilberts_tenth_problem", "https://en.wikipedia.org/wiki/Hilbert%27s_tenth_problem"},
+    {"word_problem_for_rings", "https://en.wikipedia.org/wiki/Word_problem_for_groups"},
+    {"ring_isomorphism_problem", "https://en.wikipedia.org/wiki/Ring_isomorphism"},
+    {"triviality_problem_rings", "https://en.wikipedia.org/wiki/Word_problem_for_groups"},
+    {"zero_divisor_recognition", "https://en.wikipedia.org/wiki/Zero_divisor"},
+    {"nilpotent_element_recognition", "https://en.wikipedia.org/wiki/Nilpotent"},
+    {"commutativity_recognition", "https://en.wikipedia.org/wiki/Commutative_ring"},
+    {"ideal_membership_unrestricted", "https://en.wikipedia.org/wiki/Ideal_(ring_theory)"},
+};
+#define K_EXTERNAL_REFS_COUNT (int) (sizeof(k_external_refs) / sizeof(k_external_refs[0]))
+
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
+
 static void test_load_from_file(void) {
-    printf("Test 1: Load ring_theory.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "ring_theory") == 0, "package name should be 'ring_theory'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "ring_theory");
 }
 
 static void test_templates(void) {
-    printf("Test 2: Verify constraint templates...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 54 constraint templates");
-    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
-
-    struct {
-        const char *name;
-        int params;
-    } expected[] = {
-        /* Group A: Additive Abelian Group Axioms (5) */
-        {"additive_closure", 2},
-        {"additive_associativity", 3},
-        {"additive_identity", 1},
-        {"additive_inverse", 1},
-        {"additive_commutativity", 2},
-        /* Group M: Multiplicative Monoid Axioms (3) */
-        {"multiplicative_closure", 2},
-        {"multiplicative_associativity", 3},
-        {"multiplicative_identity", 1},
-        /* Group D: Distributive Laws (2) */
-        {"left_distributivity", 3},
-        {"right_distributivity", 3},
-        /* Elementary Consequences (12) */
-        {"additive_identity_uniqueness", 0},
-        {"additive_inverse_uniqueness", 1},
-        {"multiplicative_identity_uniqueness", 0},
-        {"zero_multiplication", 1},
-        {"negative_multiplication", 2},
-        {"negative_negative_product", 2},
-        {"zero_ring_condition", 0},
-        {"additive_cancellation", 3},
-        {"double_additive_inverse", 1},
-        {"negative_of_sum", 2},
-        {"zero_is_own_add_inverse", 0},
-        {"negative_one_times", 1},
-        /* Core Constructors (6) */
-        {"add", 2},
-        {"multiply", 2},
-        {"negate", 1},
-        {"zero", 0},
-        {"one", 0},
-        {"subtract", 2},
-        /* Derived Constructors (26) */
-        {"characteristic", 1},
-        {"power_positive", 2},
-        {"scalar_multiple", 2},
-        {"binomial_theorem", 3},
-        {"unit", 1},
-        {"multiplicative_inverse", 1},
-        {"zero_divisor", 2},
-        {"nilpotent", 1},
-        {"idempotent", 1},
-        {"subring_test", 2},
-        {"left_ideal", 2},
-        {"right_ideal", 2},
-        {"two_sided_ideal", 2},
-        {"principal_ideal", 1},
-        {"quotient_ring", 2},
-        {"homomorphism", 3},
-        {"kernel", 1},
-        {"image", 1},
-        {"first_isomorphism_theorem", 1},
-        {"direct_product", 2},
-        {"polynomial_ring", 1},
-        {"matrix_ring", 2},
-        {"commutator", 2},
-        {"center", 0},
-        {"unit_group", 0},
-        {"jacobson_radical", 1},
-    };
-
-    int total = (int) (sizeof(expected) / sizeof(expected[0]));
-    TEST_ASSERT(total == EXPECTED_TEMPLATE_COUNT, "expected array size should match EXPECTED_TEMPLATE_COUNT");
-
-    int found_count = 0;
-    for (int i = 0; i < total; i++) {
-        ConstraintTemplate *tmpl = axiom_package_get_template(pkg, expected[i].name);
-        if (tmpl) {
-            found_count++;
-            if (tmpl->param_count != expected[i].params) {
-                printf("  FAIL: '%s' has %d params, expected %d\n", expected[i].name, tmpl->param_count,
-                       expected[i].params);
-                g_fail_count++;
-            } else {
-                g_pass_count++;
-            }
-        } else {
-            printf("  MISSING template: '%s'\n", expected[i].name);
-            g_fail_count++;
-        }
-    }
-    TEST_ASSERT(found_count == EXPECTED_TEMPLATE_COUNT, "all expected templates should be found");
-    printf("  Found %d / %d templates\n", found_count, EXPECTED_TEMPLATE_COUNT);
-
-    axiom_package_destroy(pkg);
+    axiom_test_templates_with_params(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 54 constraint templates",
+                                     k_templates, K_TEMPLATES_COUNT);
 }
 
 static void test_unconstructible_problems(void) {
-    printf("Test 3: Verify known unconstructible problems...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 8 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
-
-    struct {
-        const char *name;
-        const char *reduces_to;
-        int dep_count;
-        bool green_verified;
-    } expected[] = {
-        {"hilberts_tenth_problem", "undecidable", 5, true},
-        {"word_problem_for_rings", "undecidable", 9, true},
-        {"ring_isomorphism_problem", "undecidable", 7, true},
-        {"triviality_problem_rings", "undecidable", 5, true},
-        {"zero_divisor_recognition", "undecidable", 5, true},
-        {"nilpotent_element_recognition", "undecidable", 4, true},
-        {"commutativity_recognition", "undecidable", 4, true},
-        {"ideal_membership_unrestricted", "undecidable", 7, true},
-    };
-
-    for (int i = 0; i < (int) (sizeof(expected) / sizeof(expected[0])); i++) {
-        KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, expected[i].name);
-        TEST_ASSERT(uc != NULL, expected[i].name);
-
-        if (uc) {
-            TEST_ASSERT(uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0,
-                        expected[i].name);
-            TEST_ASSERT(uc->dependency_chain.count == expected[i].dep_count, expected[i].name);
-            TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);
-            TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
-            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
-                   uc->green_verified ? "true" : "false");
-        }
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_unconstructible_problems(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
+                                        "should have 8 unconstructible problems", k_unconstructibles,
+                                        K_UNCONSTRUCTIBLES_COUNT);
 }
 
 static void test_logical_framework(void) {
-    printf("Test 4: Verify bottom geometry and logical framework...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(pkg->bottom_geometry != NULL && strcmp(pkg->bottom_geometry, "ring_theory_abstract") == 0,
-                "bottom_geometry should be 'ring_theory_abstract'");
-    printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
-
-    TEST_ASSERT(pkg->negation_encoding != NULL && strcmp(pkg->negation_encoding, "classical_equality") == 0,
-                "negation_encoding should be 'classical_equality'");
-    printf("  negation_encoding: %s\n", pkg->negation_encoding);
-
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_logical_framework(AXIOM_PKG_PATH, "ring_theory_abstract", "classical_equality",
+                                 PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 }
 
 static void test_content_hash(void) {
-    printf("Test 5: Content hash computation...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    char *hash = axiom_package_compute_content_hash(pkg);
-    TEST_ASSERT(hash != NULL, "content hash should not be NULL");
-    TEST_ASSERT(strlen(hash) == 64, "SHA-256 hash should be 64 hex chars");
-
-    if (hash) {
-        printf("  SHA-256: %s\n", hash);
-        /* Use lv_free for memory allocated by axiom_package_compute_content_hash,
-         * which internally uses lv_malloc. Using standard free() causes heap
-         * corruption because lv_malloc prepends an AllocHeader. */
-        lv_free((void **) &hash);
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_content_hash(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE);
 }
 
 static void test_round_trip(void) {
-    printf("Test 6: Round-trip save/load...\n");
-
-    AxiomPackage *pkg1 = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg1, AXIOM_PKG_PATH);
-
-    AxiomSaveStatus save_status = axiom_package_save(pkg1, SAVE_TEST_PATH);
-    TEST_ASSERT(save_status == AXIOM_SAVE_OK, "save should succeed");
-
-    AxiomPackage *pkg2 = axiom_package_create("placeholder", "0.0.0");
-    AxiomLoadStatus load_status = axiom_package_load(pkg2, SAVE_TEST_PATH);
-    TEST_ASSERT(load_status == AXIOM_LOAD_OK, "re-load from saved file should succeed");
-
-    TEST_ASSERT(axiom_package_get_template_count(pkg2) == axiom_package_get_template_count(pkg1), "template count should match after round-trip");
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == axiom_package_get_unconstructible_count(pkg1),
-                "unconstructible count should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->name, pkg1->name) == 0, "name should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->version, pkg1->version) == 0, "version should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->bottom_geometry, pkg1->bottom_geometry) == 0,
-                "bottom_geometry should match after round-trip");
-    TEST_ASSERT(pkg2->contradiction_behavior == pkg1->contradiction_behavior,
-                "contradiction_behavior should match after round-trip");
-
-    printf("  Round-trip: templates=%d, unconstructibles=%d\n", axiom_package_get_template_count(pkg2), axiom_package_get_unconstructible_count(pkg2));
-
-    char *hash1 = axiom_package_compute_content_hash(pkg1);
-    char *hash2 = axiom_package_compute_content_hash(pkg2);
-    TEST_ASSERT(hash1 && hash2 && strcmp(hash1, hash2) == 0, "content hashes should match after round-trip");
-    printf("  Hash match: %s\n", (hash1 && hash2 && strcmp(hash1, hash2) == 0) ? "YES" : "NO");
-
-    lv_free((void **) &hash1);
-    lv_free((void **) &hash2);
-    axiom_package_destroy(pkg1);
-    axiom_package_destroy(pkg2);
+    axiom_test_round_trip(AXIOM_PKG_PATH, SAVE_TEST_PATH, AXIOM_TEST_FREE_LV_FREE);
 }
 
 static void test_dependency_validation(void) {
-    printf("Test 7: Dependency validation...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    bool valid = axiom_package_validate_dependencies(pkg, &pkg, 1);
-    printf("  Self-validation: %s (expected: may fail for cross-reference reduces_to)\n",
-           valid ? "PASS" : "FAIL (acceptable)");
-
-    axiom_package_destroy(pkg);
+    axiom_test_dependency_validation(AXIOM_PKG_PATH, "FAIL (acceptable)",
+                                     " (expected: may fail for cross-reference reduces_to)");
 }
 
 static void test_negative_lookups(void) {
-    printf("Test 8: Negative lookups...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    ConstraintTemplate *tmpl = axiom_package_get_template(pkg, "nonexistent_template");
-    TEST_ASSERT(tmpl == NULL, "non-existent template should return NULL");
-
-    KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, "nonexistent_problem");
-    TEST_ASSERT(uc == NULL, "non-existent unconstructible should return NULL");
-
-    printf("  Negative lookups: correct\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_BASIC);
 }
 
 static void test_external_refs(void) {
-    printf("Test 9: Verify external reference URLs...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    struct {
-        const char *name;
-        const char *expected_url_prefix;
-    } ref_checks[] = {
-        {"hilberts_tenth_problem", "https://en.wikipedia.org/wiki/Hilbert%27s_tenth_problem"},
-        {"word_problem_for_rings", "https://en.wikipedia.org/wiki/Word_problem_for_groups"},
-        {"ring_isomorphism_problem", "https://en.wikipedia.org/wiki/Ring_isomorphism"},
-        {"triviality_problem_rings", "https://en.wikipedia.org/wiki/Word_problem_for_groups"},
-        {"zero_divisor_recognition", "https://en.wikipedia.org/wiki/Zero_divisor"},
-        {"nilpotent_element_recognition", "https://en.wikipedia.org/wiki/Nilpotent"},
-        {"commutativity_recognition", "https://en.wikipedia.org/wiki/Commutative_ring"},
-        {"ideal_membership_unrestricted", "https://en.wikipedia.org/wiki/Ideal_(ring_theory)"},
-    };
-
-    for (int i = 0; i < (int) (sizeof(ref_checks) / sizeof(ref_checks[0])); i++) {
-        KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, ref_checks[i].name);
-        TEST_ASSERT(uc != NULL, ref_checks[i].name);
-        if (uc) {
-            int url_ok = (uc->external_ref != NULL && strncmp(uc->external_ref, ref_checks[i].expected_url_prefix,
-                                                              strlen(ref_checks[i].expected_url_prefix)) == 0);
-            TEST_ASSERT(url_ok, ref_checks[i].name);
-            printf("  [%d] %s -> %s\n", i, uc->name, uc->external_ref);
-        }
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_external_refs(AXIOM_PKG_PATH, k_external_refs, K_EXTERNAL_REFS_COUNT);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 static void test_ring_axiom_coherence(void) {
     printf("Test 10: Verify ring axiom coherence...\n");

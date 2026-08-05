@@ -16,7 +16,8 @@
 #include <stdlib.h>   /* qsort */
 #include <string.h>
 
-#include "lv/lv_utils.h"   /* lv_malloc, lv_calloc, lv_realloc, lv_free */
+#include "lv/lv_thread.h"   /* lv_once, lv_once_t, lv_ONCE_INIT */
+#include "lv/lv_utils.h"    /* lv_malloc, lv_calloc, lv_realloc, lv_free */
 
 /* ============================================================
  * 内部常量
@@ -32,14 +33,16 @@
  * 全局单例状态
  * ============================================================ */
 
-/** @brief 全局注册表单例状态 */
-typedef struct {
-    lvBackendPluginRegistry registry; /**< 全局注册表 */
-    bool inited;                      /**< 是否已初始化 */
-} lvGlobalPluginRegistryState;
+/** @brief 全局注册表单例（懒初始化，由 lv_once 保证线程安全） */
+static lvBackendPluginRegistry s_global_plugin_registry;
 
-/** @brief 全局注册表单例 */
-static lvGlobalPluginRegistryState s_global_plugin_registry = {0};
+/** @brief 全局注册表一次性初始化守卫（消除无锁 inited 标志的检查-设置竞态） */
+static lv_once_t s_plugin_registry_once = lv_ONCE_INIT;
+
+/** @brief 全局注册表一次性初始化回调（仅由 lv_once 调用一次） */
+static void plugin_registry_init_once(void) {
+    lv_backend_plugin_registry_init(&s_global_plugin_registry);
+}
 
 /* ============================================================
  * 注册表生命周期 API
@@ -231,9 +234,6 @@ void lv_backend_plugin_cleanup_all(lvBackendPluginRegistry *reg) {
  * ============================================================ */
 
 lvBackendPluginRegistry *lv_backend_plugin_registry_global(void) {
-    if (!s_global_plugin_registry.inited) {
-        lv_backend_plugin_registry_init(&s_global_plugin_registry.registry);
-        s_global_plugin_registry.inited = true;
-    }
-    return &s_global_plugin_registry.registry;
+    lv_once(&s_plugin_registry_once, plugin_registry_init_once);
+    return &s_global_plugin_registry;
 }

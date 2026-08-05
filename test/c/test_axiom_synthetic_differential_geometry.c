@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_synthetic_differential_geometry.c
  * @brief Synthetic Differential Geometry Axiom Package Test
  *
@@ -15,9 +15,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "axiom_pkg.h"
-#include "lv_utils.h"
 #include "test_helpers.h"
+#include "axiom_test_common.h"
 
 int g_fail_count = 0;
 int g_pass_count = 0;
@@ -28,35 +27,15 @@ int g_pass_count = 0;
 #define EXPECTED_TEMPLATE_COUNT 33
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 4
 
-/* ──────────────────────────────────────────────
- * Test 1: Load from file
- * ────────────────────────────────────────────── */
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
+
 static void test_load_from_file(void) {
-    printf("Test 1: Load synthetic_differential_geometry.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "synthetic_differential_geometry") == 0,
-                "package name should be 'synthetic_differential_geometry'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "synthetic_differential_geometry");
 }
 
-/* ──────────────────────────────────────────────
- * Test 2: Verify constraint templates
- * ────────────────────────────────────────────── */
+/* Test 2：约束模板（文件特有：混合式循环，保留原体） */
 static void test_templates(void) {
     printf("Test 2: Verify constraint templates...\n");
 
@@ -137,17 +116,17 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ──────────────────────────────────────────────
- * Test 3: Verify unconstructible problems
- * ────────────────────────────────────────────── */
+/* Test 3：不可构造项（文件特有：含 green_verified 差异字段，保留原体） */
 static void test_unconstructibles(void) {
     printf("Test 3: Verify unconstructible problems...\n");
 
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 4 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT,
+                "should have 4 unconstructible problems");
+    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg),
+           EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
     /* Verify each expected unconstructible */
     struct {
@@ -186,9 +165,7 @@ static void test_unconstructibles(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ──────────────────────────────────────────────
- * Test 4: Verify logical framework
- * ────────────────────────────────────────────── */
+/* Test 4：逻辑框架（文件特有：strstr 检查，保留原体） */
 static void test_logical_framework(void) {
     printf("Test 4: Verify logical framework settings...\n");
 
@@ -211,33 +188,11 @@ static void test_logical_framework(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ──────────────────────────────────────────────
- * Test 5: Content hash computation
- * ────────────────────────────────────────────── */
 static void test_content_hash(void) {
-    printf("Test 5: Content hash computation...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    char *hash1 = axiom_package_compute_content_hash(pkg);
-    TEST_ASSERT(hash1 != NULL, "content hash should not be NULL");
-    TEST_ASSERT(strlen(hash1) == 64, "SHA-256 hash should be 64 hex chars");
-    printf("  Hash: %.8s...%.8s (len=%zu)\n", hash1, hash1 + 56, strlen(hash1));
-
-    /* Hash should be deterministic */
-    char *hash2 = axiom_package_compute_content_hash(pkg);
-    TEST_ASSERT(hash2 != NULL, "second hash should not be NULL");
-    TEST_ASSERT(strcmp(hash1, hash2) == 0, "content hash should be deterministic");
-
-    lv_free((void **) &hash1);
-    lv_free((void **) &hash2);
-    axiom_package_destroy(pkg);
+    axiom_test_content_hash_deterministic(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE);
 }
 
-/* ──────────────────────────────────────────────
- * Test 6: Round-trip save/load
- * ────────────────────────────────────────────── */
+/* Test 6：往返保存/加载（文件特有：无哈希校验，保留原体） */
 static void test_save_load_roundtrip(void) {
     printf("Test 6: Round-trip save/load...\n");
 
@@ -261,16 +216,20 @@ static void test_save_load_roundtrip(void) {
     /* Verify name and version */
     TEST_ASSERT(strcmp(pkg->name, pkg2->name) == 0, "name should be preserved");
     TEST_ASSERT(strcmp(pkg->version, pkg2->version) == 0, "version should be preserved");
-    TEST_ASSERT(axiom_package_get_template_count(pkg) == axiom_package_get_template_count(pkg2), "template count should match");
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == axiom_package_get_unconstructible_count(pkg2), "unconstructible count should match");
+    TEST_ASSERT(axiom_package_get_template_count(pkg) == axiom_package_get_template_count(pkg2),
+                "template count should match");
+    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == axiom_package_get_unconstructible_count(pkg2),
+                "unconstructible count should match");
 
     axiom_package_destroy(pkg);
     axiom_package_destroy(pkg2);
 }
 
-/* ──────────────────────────────────────────────
- * Test 7: Template retrieval
- * ────────────────────────────────────────────── */
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
+
+/* Test 7: Template retrieval */
 static void test_template_retrieval(void) {
     printf("Test 7: Template retrieval...\n");
 
@@ -291,9 +250,7 @@ static void test_template_retrieval(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ──────────────────────────────────────────────
- * Test 8: Unconstructible lookup
- * ────────────────────────────────────────────── */
+/* Test 8: Unconstructible lookup */
 static void test_unconstructible_lookup(void) {
     printf("Test 8: Unconstructible lookup...\n");
 
@@ -315,9 +272,7 @@ static void test_unconstructible_lookup(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ──────────────────────────────────────────────
- * Test 9: Dependency validation
- * ────────────────────────────────────────────── */
+/* Test 9: Dependency validation */
 static void test_dependency_validation(void) {
     printf("Test 9: Dependency validation...\n");
 
@@ -338,9 +293,7 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ──────────────────────────────────────────────
- * Main entry point
- * ────────────────────────────────────────────── */
+/* Main entry point */
 int main(void) {
     printf("==============================================\n");
     printf("  Synthetic Differential Geometry Test Suite\n");

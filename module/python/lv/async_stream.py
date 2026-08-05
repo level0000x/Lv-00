@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Lv-00 异步流式迭代器模块
@@ -30,7 +30,7 @@ Lv-00 异步流式迭代器模块
 版本：3.3.0
 作者：Lv-00 开发团队
 """
-[QA] Has broad except Exception: blocks — consider narrowing to specific types.
+# [QA] Has broad except Exception: blocks — consider narrowing to specific types.
 
 import asyncio
 import sys

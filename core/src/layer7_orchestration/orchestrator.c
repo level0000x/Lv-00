@@ -69,7 +69,7 @@ lvSessionConfig lv_default_session_config(void) {
 lvSession *lv_session_create(const char *name) {
     lvSession *session = lv_calloc(1, sizeof(lvSession));
     if (!session)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate session");
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_session_create: failed to allocate session");
     session->session_id = atomic_fetch_add(&session_counter, 1) + 1;
     if (name) {
         strncpy(session->session_name, name, sizeof(session->session_name));
@@ -489,7 +489,7 @@ int lv_session_run(lvSession *session, const char *input) {
             session->final_error[sizeof(session->final_error) - 1] = '\0';
         }
         session->success = 0;
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "pipeline execution failed: %s",
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_session_run: pipeline execution failed: %s",
                         err ? err : "unknown error");
     }
 
@@ -517,7 +517,7 @@ int lv_session_run_stage(lvSession *session, lvSessionStage stage) {
             session->stages[stage].status = lv_STAGE_FAILED;
             snprintf(session->stages[stage].error_msg, sizeof(session->stages[stage].error_msg),
                      "前置阶段 %d 未完成，无法执行阶段 %d", stage - 1, stage);
-            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "prerequisite stage %d not completed", stage - 1);
+            lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_session_run_stage: prerequisite stage %d not completed", stage - 1);
         }
     }
 

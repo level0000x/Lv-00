@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_ergodic_theory.c
  * @brief Ergodic Theory Axiom Package Test
  *
@@ -29,7 +29,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
+static int g_fail_count = 0;
+static int g_pass_count = 0;
+
+/* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
+ * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
+#define AXIOM_TEST_NON_RETURNING 1
+
+#include "axiom_test_common.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/ergodic_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/ergodic_theory_test_save.lvz"
@@ -49,48 +56,15 @@
 #define EXPECTED_TEMPLATE_COUNT 49
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
 
-#define TEST_ASSERT(cond, msg)           \
-    do {                                 \
-        if (!(cond)) {                   \
-            printf("  FAIL: %s\n", msg); \
-            g_fail_count++;              \
-        } else {                         \
-            g_pass_count++;              \
-        }                                \
-    } while (0)
-
-/* ------------------------------------------------------------------ */
-/* Test 1: Load from file                                              */
-/* ------------------------------------------------------------------ */
 static void test_load_from_file(void) {
-    printf("Test 1: Load ergodic_theory.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "ergodic_theory") == 0,
-                "package name should be 'ergodic_theory'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "ergodic_theory");
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 2: Verify constraint templates                                 */
-/* ------------------------------------------------------------------ */
+/* Test 2：约束模板（文件特有：单条断言 + 动态消息，保留原体） */
 static void test_templates(void) {
     printf("Test 2: Verify constraint templates...\n");
 
@@ -189,9 +163,7 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 3: Verify unconstructible problems                             */
-/* ------------------------------------------------------------------ */
+/* Test 3：不可构造项（文件特有：名称数组 + green_verified 特例检查，保留原体） */
 static void test_unconstructible_problems(void) {
     printf("Test 3: Verify unconstructible problems...\n");
 
@@ -236,35 +208,13 @@ static void test_unconstructible_problems(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 4: Verify logical framework                                    */
-/* ------------------------------------------------------------------ */
 static void test_logical_framework(void) {
-    printf("Test 4: Verify logical framework...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(pkg->bottom_geometry != NULL, "bottom_geometry should be set");
-    TEST_ASSERT(strcmp(pkg->bottom_geometry, "measure_preserving_dynamical_system") == 0,
-                "bottom_geometry should be 'measure_preserving_dynamical_system'");
-    printf("  bottom_geometry: '%s'\n", pkg->bottom_geometry);
-
-    TEST_ASSERT(pkg->negation_encoding != NULL, "negation_encoding should be set");
-    TEST_ASSERT(strcmp(pkg->negation_encoding, "classical_equality") == 0,
-                "negation_encoding should be 'classical_equality'");
-    printf("  negation_encoding: '%s'\n", pkg->negation_encoding);
-
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_logical_framework_checked(AXIOM_PKG_PATH, "Test 4: Verify logical framework...",
+                                         "measure_preserving_dynamical_system", "classical_equality",
+                                         PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 5: Content hash                                                */
-/* ------------------------------------------------------------------ */
+/* Test 5：内容哈希（文件特有：%.16s 打印 + 确定性校验，保留原体） */
 static void test_content_hash(void) {
     printf("Test 5: Verify content hash...\n");
 
@@ -287,9 +237,7 @@ static void test_content_hash(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 6: Round-trip save and reload                                  */
-/* ------------------------------------------------------------------ */
+/* Test 6：往返保存/加载（文件特有：hash_orig 流程 + 无 remove 清理，保留原体） */
 static void test_round_trip(void) {
     printf("Test 6: Round-trip save and reload...\n");
 
@@ -332,9 +280,7 @@ static void test_round_trip(void) {
     axiom_package_destroy(pkg2);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 7: Dependency validation                                       */
-/* ------------------------------------------------------------------ */
+/* Test 7：依赖验证（文件特有：NULL 列表 + self 列表，保留原体） */
 static void test_dependency_validation(void) {
     printf("Test 7: Dependency validation...\n");
 
@@ -357,9 +303,7 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 8: Negative lookups                                            */
-/* ------------------------------------------------------------------ */
+/* Test 8：负向查找（文件特有：non_existent 命名且无收尾打印，保留原体） */
 static void test_negative_lookups(void) {
     printf("Test 8: Negative lookups...\n");
 
@@ -374,6 +318,10 @@ static void test_negative_lookups(void) {
 
     axiom_package_destroy(pkg);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 /* ------------------------------------------------------------------ */
 /* Test 9: Cross-group consistency checks                              */

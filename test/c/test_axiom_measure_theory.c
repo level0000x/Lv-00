@@ -31,7 +31,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
+static int g_fail_count = 0;
+static int g_pass_count = 0;
+
+/* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
+ * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
+#define AXIOM_TEST_NON_RETURNING 1
+
+#include "axiom_test_common.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/measure_theory.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/measure_theory_test_save.lvz"
@@ -39,50 +46,32 @@
 #define EXPECTED_TEMPLATE_COUNT 66
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
+/* ============================================================
+ * 共享测试数据表（各文件差异部分，原样保留）
+ * ============================================================ */
 
-#define TEST_ASSERT(cond, msg)           \
-    do {                                 \
-        if (!(cond)) {                   \
-            printf("  FAIL: %s\n", msg); \
-            g_fail_count++;              \
-        } else {                         \
-            g_pass_count++;              \
-        }                                \
-    } while (0)
+/* Test 3：期望不可构造项 */
+static const AxiomTestUcExpectation k_unconstructibles[] = {
+    {"vitali_set_non_measurable", "axiom_of_choice", 2, true},
+    {"banach_tarski_paradox", "non_measurable_decomposition", 2, true},
+    {"universal_measure_on_all_subsets", "non_measurable_set_existence", 2, true},
+    {"all_sets_measurable_consistency", "independence_from_ZF_DC", 2, true},
+    {"hausdorff_dimension_computation", "algorithmic_undecidability", 2, false},
+    {"measure_space_isomorphism_classification", "isomorphism_problem", 2, false},
+    {"measure_extension_uniqueness_without_sigma_finite", "non_uniqueness_of_extension", 2, true},
+    {"riemann_integrability_decision", "lebesgue_measure_zero_set", 2, true},
+};
+#define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
-/* ------------------------------------------------------------------ */
-/* Test 1: Load from file                                             */
-/* ------------------------------------------------------------------ */
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
 
 static void test_load_from_file(void) {
-    printf("Test 1: Load measure_theory.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "measure_theory") == 0,
-                "package name should be 'measure_theory'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "measure_theory");
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 2: Verify constraint templates                                */
-/* ------------------------------------------------------------------ */
-
+/* Test 2：约束模板（文件特有：仅名称数组 + 大量尾部参数校验，保留原体） */
 static void test_templates(void) {
     printf("Test 2: Verify constraint templates...\n");
 
@@ -273,185 +262,35 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 3: Verify known unconstructible problems                       */
-/* ------------------------------------------------------------------ */
-
 static void test_unconstructible_problems(void) {
-    printf("Test 3: Verify known unconstructible problems...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 8 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
-
-    struct {
-        const char *name;
-        const char *reduces_to;
-        int dep_count;
-        bool green_verified;
-    } expected[] = {
-        {"vitali_set_non_measurable", "axiom_of_choice", 2, true},
-        {"banach_tarski_paradox", "non_measurable_decomposition", 2, true},
-        {"universal_measure_on_all_subsets", "non_measurable_set_existence", 2, true},
-        {"all_sets_measurable_consistency", "independence_from_ZF_DC", 2, true},
-        {"hausdorff_dimension_computation", "algorithmic_undecidability", 2, false},
-        {"measure_space_isomorphism_classification", "isomorphism_problem", 2, false},
-        {"measure_extension_uniqueness_without_sigma_finite", "non_uniqueness_of_extension", 2, true},
-        {"riemann_integrability_decision", "lebesgue_measure_zero_set", 2, true},
-    };
-
-    for (int i = 0; i < (int) (sizeof(expected) / sizeof(expected[0])); i++) {
-        KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, expected[i].name);
-        TEST_ASSERT(uc != NULL, expected[i].name);
-
-        if (uc) {
-            TEST_ASSERT(uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0,
-                        expected[i].name);
-            TEST_ASSERT(uc->dependency_chain.count == expected[i].dep_count, expected[i].name);
-            TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);
-            TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
-            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
-                   uc->green_verified ? "true" : "false");
-        }
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_unconstructible_problems(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
+                                        "should have 8 unconstructible problems", k_unconstructibles,
+                                        K_UNCONSTRUCTIBLES_COUNT);
 }
-
-/* ------------------------------------------------------------------ */
-/* Test 4: Verify bottom geometry and logical framework                */
-/* ------------------------------------------------------------------ */
 
 static void test_logical_framework(void) {
-    printf("Test 4: Verify bottom geometry and logical framework...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(pkg->bottom_geometry != NULL && strcmp(pkg->bottom_geometry, "measure_space_extended_reals") == 0,
-                "bottom_geometry should be 'measure_space_extended_reals'");
-    printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
-
-    TEST_ASSERT(pkg->negation_encoding != NULL && strcmp(pkg->negation_encoding, "classical_equality") == 0,
-                "negation_encoding should be 'classical_equality'");
-    printf("  negation_encoding: %s\n", pkg->negation_encoding);
-
-    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_logical_framework(AXIOM_PKG_PATH, "measure_space_extended_reals", "classical_equality",
+                                 PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 }
-
-/* ------------------------------------------------------------------ */
-/* Test 5: Content hash computation                                   */
-/* ------------------------------------------------------------------ */
 
 static void test_content_hash(void) {
-    printf("Test 5: Content hash computation...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    char *hash = axiom_package_compute_content_hash(pkg);
-    TEST_ASSERT(hash != NULL, "content hash should not be NULL");
-    TEST_ASSERT(strlen(hash) == 64, "SHA-256 hash should be 64 hex chars");
-
-    if (hash) {
-        printf("  SHA-256: %s\n", hash);
-        lv_free_ptr(hash);
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_content_hash(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE_PTR);
 }
-
-/* ------------------------------------------------------------------ */
-/* Test 6: Round-trip save/load                                       */
-/* ------------------------------------------------------------------ */
 
 static void test_round_trip(void) {
-    printf("Test 6: Round-trip save/load...\n");
-
-    AxiomPackage *pkg1 = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg1, AXIOM_PKG_PATH);
-
-    AxiomSaveStatus save_status = axiom_package_save(pkg1, SAVE_TEST_PATH);
-    TEST_ASSERT(save_status == AXIOM_SAVE_OK, "save should succeed");
-
-    AxiomPackage *pkg2 = axiom_package_create("placeholder", "0.0.0");
-    AxiomLoadStatus load_status = axiom_package_load(pkg2, SAVE_TEST_PATH);
-    TEST_ASSERT(load_status == AXIOM_LOAD_OK, "re-load from saved file should succeed");
-
-    TEST_ASSERT(axiom_package_get_template_count(pkg2) == axiom_package_get_template_count(pkg1), "template count should match after round-trip");
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg2) == axiom_package_get_unconstructible_count(pkg1),
-                "unconstructible count should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->name, pkg1->name) == 0, "name should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->version, pkg1->version) == 0, "version should match after round-trip");
-    TEST_ASSERT(strcmp(pkg2->bottom_geometry, pkg1->bottom_geometry) == 0,
-                "bottom_geometry should match after round-trip");
-    TEST_ASSERT(pkg2->contradiction_behavior == pkg1->contradiction_behavior,
-                "contradiction_behavior should match after round-trip");
-
-    printf("  Round-trip: templates=%d, unconstructibles=%d\n", axiom_package_get_template_count(pkg2), axiom_package_get_unconstructible_count(pkg2));
-
-    char *hash1 = axiom_package_compute_content_hash(pkg1);
-    char *hash2 = axiom_package_compute_content_hash(pkg2);
-    TEST_ASSERT(hash1 && hash2 && strcmp(hash1, hash2) == 0, "content hashes should match after round-trip");
-    printf("  Hash match: %s\n", (hash1 && hash2 && strcmp(hash1, hash2) == 0) ? "YES" : "NO");
-
-    lv_free_ptr(hash1);
-    lv_free_ptr(hash2);
-    axiom_package_destroy(pkg1);
-    axiom_package_destroy(pkg2);
+    axiom_test_round_trip(AXIOM_PKG_PATH, SAVE_TEST_PATH, AXIOM_TEST_FREE_LV_FREE_PTR);
 }
-
-/* ------------------------------------------------------------------ */
-/* Test 7: Dependency validation                                      */
-/* ------------------------------------------------------------------ */
 
 static void test_dependency_validation(void) {
-    printf("Test 7: Dependency validation...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    bool valid = axiom_package_validate_dependencies(pkg, &pkg, 1);
-    /* Note: self-validation may fail because reduces_to targets like
-       "axiom_of_choice" are mathematical reduction descriptions,
-       not references to other unconstructible entries. */
-    printf("  Self-validation: %s (expected: may fail for cross-reference reduces_to)\n",
-           valid ? "PASS" : "FAIL (acceptable)");
-
-    axiom_package_destroy(pkg);
+    axiom_test_dependency_validation(AXIOM_PKG_PATH, "FAIL (acceptable)",
+                                     " (expected: may fail for cross-reference reduces_to)");
 }
-
-/* ------------------------------------------------------------------ */
-/* Test 8: Negative lookups                                           */
-/* ------------------------------------------------------------------ */
 
 static void test_negative_lookups(void) {
-    printf("Test 8: Negative lookups...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    ConstraintTemplate *tmpl = axiom_package_get_template(pkg, "nonexistent_template");
-    TEST_ASSERT(tmpl == NULL, "non-existent template should return NULL");
-
-    KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, "nonexistent_problem");
-    TEST_ASSERT(uc == NULL, "non-existent unconstructible should return NULL");
-
-    printf("  Negative lookups: correct\n");
-
-    axiom_package_destroy(pkg);
+    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_BASIC);
 }
 
-/* ------------------------------------------------------------------ */
-/* Test 9: Verify external references are valid URLs                  */
-/* ------------------------------------------------------------------ */
-
+/* Test 9：外部引用（文件特有：URL 精确匹配数组，保留原体） */
 static void test_external_refs(void) {
     printf("Test 9: Verify external references...\n");
 
@@ -484,10 +323,6 @@ static void test_external_refs(void) {
 
     axiom_package_destroy(pkg);
 }
-
-/* ------------------------------------------------------------------ */
-/* Main                                                                */
-/* ------------------------------------------------------------------ */
 
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);

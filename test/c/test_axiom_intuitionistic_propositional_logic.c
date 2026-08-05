@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_intuitionistic_propositional_logic.c
  * @brief Intuitionistic Propositional Logic (Heyting 1930) Axiom Package Test
  *
@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
 #include "test_helpers.h"
+#include "axiom_test_common.h"
 
 int g_fail_count = 0;
 int g_pass_count = 0;

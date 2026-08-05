@@ -26,6 +26,10 @@ extern "C" {
 
 #include "error_codes.h"
 
+/* lv_str_trim 等字符串工具函数的规范声明位于 lv_str_utils.h，
+ * 此处包含以保持 lv_utils.h 使用方的既有可见性（避免重复声明）。 */
+#include "lv_str_utils.h"
+
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
 #endif
@@ -216,13 +220,6 @@ lv_PUBLIC_API char *lv_asprintf(const char *fmt, ...);
  * @brief 检查字符串是否为空或仅包含空白
  */
 lv_PUBLIC_API bool lv_str_is_blank(const char *str);
-
-/**
- * @brief 去除字符串首尾空白
- * @param str 原字符串（会被修改）
- * @return 去除空白后的字符串指针（可能在原位置）
- */
-lv_PUBLIC_API char *lv_str_trim(char *str);
 
 /**
  * @brief 安全字符串复制 —— 保证 \0 终止并检查参数有效性

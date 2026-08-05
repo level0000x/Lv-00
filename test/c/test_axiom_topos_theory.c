@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_topos_theory.c
  * @brief Topos Theory Axiom Package Test
  *
@@ -18,9 +18,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "axiom_pkg.h"
-#include "lv_utils.h"
 #include "test_helpers.h"
+#include "axiom_test_common.h"
 
 int g_fail_count = 0;
 int g_pass_count = 0;
@@ -31,6 +30,7 @@ int g_pass_count = 0;
 #define EXPECTED_TEMPLATE_COUNT 81
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 10
 
+/* Test 1：加载（文件特有：name-set 断言形态，保留原体） */
 static void test_load_from_file(void) {
     printf("Test 1: Load topos_theory.lvz from file...\n");
 
@@ -53,6 +53,7 @@ static void test_load_from_file(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 2：约束模板（文件特有：无 count 断言 + 核心模板检查，保留原体） */
 static void test_templates(void) {
     printf("Test 2: Verify constraint templates...\n");
 
@@ -177,6 +178,7 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 3：不可构造项（文件特有：手动计数 + 逐条 OK/FAIL 打印，保留原体） */
 static void test_unconstructible_problems(void) {
     printf("Test 3: Verify known unconstructible problems...\n");
 
@@ -236,6 +238,7 @@ static void test_unconstructible_problems(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 4：逻辑框架（文件特有：if 包裹 + %d 输出，保留原体） */
 static void test_logical_framework(void) {
     printf("Test 4: Verify logical framework settings...\n");
 
@@ -264,6 +267,7 @@ static void test_logical_framework(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 5：内容哈希（文件特有：%.16s 两段打印，保留原体） */
 static void test_content_hash(void) {
     printf("Test 5: Compute content hash...\n");
 
@@ -280,6 +284,7 @@ static void test_content_hash(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 6：往返保存/加载（文件特有：Round-trip OK 打印 + 无哈希校验，保留原体） */
 static void test_round_trip_save_load(void) {
     printf("Test 6: Round-trip save and load...\n");
 
@@ -309,6 +314,7 @@ static void test_round_trip_save_load(void) {
     axiom_package_destroy(pkg2);
 }
 
+/* Test 7：负向查找（文件特有：_xyz 命名 + OK 收尾打印，保留原体） */
 static void test_negative_lookups(void) {
     printf("Test 7: Negative lookups...\n");
 

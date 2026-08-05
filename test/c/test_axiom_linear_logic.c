@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_linear_logic.c
  * @brief Linear Logic Axiom Package Test
  *
@@ -13,7 +13,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv.h"
+static int g_fail_count = 0;
+static int g_pass_count = 0;
+
+/* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
+ * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
+#define AXIOM_TEST_NON_RETURNING 1
+
+#include "axiom_test_common.h"
 
 #define AXIOM_PKG_PATH "module/axiom_packages/linear_logic.lvz"
 #define SAVE_TEST_PATH "module/axiom_packages/linear_logic_test_save.lvz"
@@ -21,92 +28,66 @@
 #define EXPECTED_TEMPLATE_COUNT 54
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 10
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
+/* ============================================================
+ * 共享测试数据表（各文件差异部分，原样保留）
+ * ============================================================ */
 
-#define TEST_ASSERT(cond, msg)           \
-    do {                                 \
-        if (!(cond)) {                   \
-            printf("  FAIL: %s\n", msg); \
-            g_fail_count++;              \
-        } else {                         \
-            g_pass_count++;              \
-        }                                \
-    } while (0)
+/* Test 2：期望模板名 */
+static const char *const k_template_names[] = {
+    /* Identity & Structural */
+    "identity_init", "cut_rule", "exchange",
+    /* Negation */
+    "negation_left", "negation_right", "double_negation_involution", "demorgan_tensor_par", "demorgan_par_tensor",
+    "demorgan_with_plus", "demorgan_plus_with", "demorgan_bang_quest", "demorgan_quest_bang",
+    /* Multiplicative */
+    "tensor_left", "tensor_right", "par_left", "par_right", "one_left", "one_right", "bottom_mult_left",
+    "bottom_mult_right", "linear_implication_left", "linear_implication_right",
+    /* Additive */
+    "with_left", "with_right", "plus_left", "plus_right", "top_right", "zero_left",
+    /* Exponential */
+    "bang_weakening", "bang_contraction", "bang_dereliction", "bang_promotion", "quest_weakening",
+    "quest_contraction", "quest_dereliction", "quest_promotion",
+    /* Exponential equivalences */
+    "bang_distributes_tensor", "bang_top_equivalence", "quest_distributes_par", "quest_zero_equivalence",
+    "bang_to_linear", "bang_comultiplication", "bang_counit",
+    /* Derived constructors */
+    "intuitionistic_implication_encoding", "classical_conjunction_encoding", "classical_disjunction_encoding",
+    "excluded_middle_multiplicative", "asynchronous_phase", "synchronous_phase", "focus_decision",
+    "linear_to_intuitionistic_translation", "resource_split", "resource_merge", "resource_consume",
+};
+#define K_TEMPLATE_NAMES_COUNT (int) (sizeof(k_template_names) / sizeof(k_template_names[0]))
 
-/* ------------------------------------------------------------------ */
-/*  Test 1: Load from file                                            */
-/* ------------------------------------------------------------------ */
+/* Test 3：期望不可构造项 */
+static const AxiomTestUcExpectation k_unconstructibles[] = {
+    {"provability_full_propositional_linear_logic", "undecidable", 5, true},
+    {"provability_MELL", "open_problem", 5, false},
+    {"proof_net_normalization", "undecidable", 3, true},
+    {"type_inhabitation_full_linear_logic", "undecidable", 4, true},
+    {"proof_net_equality", "undecidable", 3, true},
+    {"provability_noncommutative_linear_logic", "undecidable", 3, true},
+    {"additive_excluded_middle", "not_provable", 3, true},
+    {"provability_MALL_PSPACE_complete", "PSPACE_complete", 4, true},
+    {"provability_MLL_NP_complete", "NP_complete", 3, true},
+    {"cut_elimination_termination", "undecidable_for_full_linear_logic", 3, true},
+};
+#define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
+
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
+
 static void test_load_from_file(void) {
-    printf("Test 1: Load linear_logic.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "linear_logic") == 0, "package name should be 'linear_logic'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "linear_logic");
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test 2: Verify constraint templates                               */
-/* ------------------------------------------------------------------ */
 static void test_templates(void) {
-    printf("Test 2: Verify constraint templates...\n");
+    axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 54 constraint templates",
+                                    k_template_names, K_TEMPLATE_NAMES_COUNT);
 
+    /* 文件特有：具体参数个数校验（差异部分，原样保留） */
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(axiom_package_get_template_count(pkg) == EXPECTED_TEMPLATE_COUNT, "should have 54 constraint templates");
-    printf("  Template count: %d (expected %d)\n", axiom_package_get_template_count(pkg), EXPECTED_TEMPLATE_COUNT);
-
-    const char *expected_templates[] = {
-        /* Identity & Structural */
-        "identity_init", "cut_rule", "exchange",
-        /* Negation */
-        "negation_left", "negation_right", "double_negation_involution", "demorgan_tensor_par", "demorgan_par_tensor",
-        "demorgan_with_plus", "demorgan_plus_with", "demorgan_bang_quest", "demorgan_quest_bang",
-        /* Multiplicative */
-        "tensor_left", "tensor_right", "par_left", "par_right", "one_left", "one_right", "bottom_mult_left",
-        "bottom_mult_right", "linear_implication_left", "linear_implication_right",
-        /* Additive */
-        "with_left", "with_right", "plus_left", "plus_right", "top_right", "zero_left",
-        /* Exponential */
-        "bang_weakening", "bang_contraction", "bang_dereliction", "bang_promotion", "quest_weakening",
-        "quest_contraction", "quest_dereliction", "quest_promotion",
-        /* Exponential equivalences */
-        "bang_distributes_tensor", "bang_top_equivalence", "quest_distributes_par", "quest_zero_equivalence",
-        "bang_to_linear", "bang_comultiplication", "bang_counit",
-        /* Derived constructors */
-        "intuitionistic_implication_encoding", "classical_conjunction_encoding", "classical_disjunction_encoding",
-        "excluded_middle_multiplicative", "asynchronous_phase", "synchronous_phase", "focus_decision",
-        "linear_to_intuitionistic_translation", "resource_split", "resource_merge", "resource_consume", NULL};
-
-    int found_count = 0;
-    for (int i = 0; expected_templates[i] != NULL; i++) {
-        ConstraintTemplate *tmpl = axiom_package_get_template(pkg, expected_templates[i]);
-        if (tmpl) {
-            found_count++;
-        } else {
-            printf("  MISSING template: '%s'\n", expected_templates[i]);
-            g_fail_count++;
-        }
-    }
-    TEST_ASSERT(found_count == EXPECTED_TEMPLATE_COUNT, "all expected templates should be found");
-    printf("  Found %d / %d templates\n", found_count, EXPECTED_TEMPLATE_COUNT);
-
-    /* Spot-check parameter counts for key templates */
     ConstraintTemplate *t;
 
     t = axiom_package_get_template(pkg, "identity_init");
@@ -139,58 +120,13 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test 3: Verify known unconstructible problems                     */
-/* ------------------------------------------------------------------ */
 static void test_unconstructible_problems(void) {
-    printf("Test 3: Verify known unconstructible problems...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    TEST_ASSERT(axiom_package_get_unconstructible_count(pkg) == EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                "should have 10 unconstructible problems");
-    printf("  Unconstructible count: %d (expected %d)\n", axiom_package_get_unconstructible_count(pkg), EXPECTED_UNCONSTRUCTIBLE_COUNT);
-
-    struct {
-        const char *name;
-        const char *reduces_to;
-        int dep_count;
-        bool green_verified;
-    } expected[] = {
-        {"provability_full_propositional_linear_logic", "undecidable", 5, true},
-        {"provability_MELL", "open_problem", 5, false},
-        {"proof_net_normalization", "undecidable", 3, true},
-        {"type_inhabitation_full_linear_logic", "undecidable", 4, true},
-        {"proof_net_equality", "undecidable", 3, true},
-        {"provability_noncommutative_linear_logic", "undecidable", 3, true},
-        {"additive_excluded_middle", "not_provable", 3, true},
-        {"provability_MALL_PSPACE_complete", "PSPACE_complete", 4, true},
-        {"provability_MLL_NP_complete", "NP_complete", 3, true},
-        {"cut_elimination_termination", "undecidable_for_full_linear_logic", 3, true},
-    };
-
-    for (int i = 0; i < (int) (sizeof(expected) / sizeof(expected[0])); i++) {
-        KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, expected[i].name);
-        TEST_ASSERT(uc != NULL, expected[i].name);
-
-        if (uc) {
-            TEST_ASSERT(uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0,
-                        expected[i].name);
-            TEST_ASSERT(uc->dependency_chain.count == expected[i].dep_count, expected[i].name);
-            TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);
-            TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
-            printf("  [%d] %s -> %s (deps=%d, verified=%s)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
-                   uc->green_verified ? "true" : "false");
-        }
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_unconstructible_problems(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
+                                        "should have 10 unconstructible problems", k_unconstructibles,
+                                        K_UNCONSTRUCTIBLES_COUNT);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test 4: Verify bottom geometry and logical framework              */
-/* ------------------------------------------------------------------ */
+/* Test 4：逻辑框架（文件特有：CONSTRUCTIVE 断言消息不同，保留原体） */
 static void test_logical_framework(void) {
     printf("Test 4: Verify bottom geometry and logical framework...\n");
 
@@ -212,30 +148,11 @@ static void test_logical_framework(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test 5: Content hash computation                                  */
-/* ------------------------------------------------------------------ */
 static void test_content_hash(void) {
-    printf("Test 5: Content hash computation...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    axiom_package_load(pkg, AXIOM_PKG_PATH);
-
-    char *hash = axiom_package_compute_content_hash(pkg);
-    TEST_ASSERT(hash != NULL, "content hash should not be NULL");
-    TEST_ASSERT(strlen(hash) == 64, "SHA-256 hash should be 64 hex chars");
-
-    if (hash) {
-        printf("  SHA-256: %s\n", hash);
-        lv_free_ptr(hash);
-    }
-
-    axiom_package_destroy(pkg);
+    axiom_test_content_hash(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE_PTR);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test 6: Round-trip save/load                                      */
-/* ------------------------------------------------------------------ */
+/* Test 6：往返保存/加载（文件特有：printf 格式不同且无哈希校验，保留原体） */
 static void test_round_trip(void) {
     printf("Test 6: Round-trip save/load...\n");
 
@@ -267,9 +184,7 @@ static void test_round_trip(void) {
     axiom_package_destroy(pkg2);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test 7: Dependency validation                                     */
-/* ------------------------------------------------------------------ */
+/* Test 7：依赖验证（文件特有：PASS/FAIL 分支 + 外部引用遍历，保留原体） */
 static void test_dependency_validation(void) {
     printf("Test 7: Dependency validation...\n");
 
@@ -297,9 +212,7 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test 8: Negative lookups                                          */
-/* ------------------------------------------------------------------ */
+/* Test 8：负向查找（文件特有：header 与收尾打印不同，保留原体） */
 static void test_negative_lookups(void) {
     printf("Test 8: Negative lookups (non-existent entries)...\n");
 
@@ -316,6 +229,10 @@ static void test_negative_lookups(void) {
 
     axiom_package_destroy(pkg);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 /* ------------------------------------------------------------------ */
 /*  Test 9: Key structural properties of linear logic                 */

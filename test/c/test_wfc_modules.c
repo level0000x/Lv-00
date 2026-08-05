@@ -29,6 +29,7 @@
 #include "lv.h"
 #include "meta_proof.h"
 #include "propagation.h"
+#include "test_helpers.h"
 
 /* Helper macros */
 #define TEST_START(name)                 \
@@ -73,14 +74,6 @@
             TEST_FAIL(#a " == " #b); \
             return;                  \
         }                            \
-    } while (0)
-
-#define TEST_ASSERT(cond, msg) \
-    do {                       \
-        if (!(cond)) {         \
-            TEST_FAIL(msg);    \
-            return;            \
-        }                      \
     } while (0)
 
 /* 全局测试计数器 */

@@ -2037,6 +2037,10 @@ endif()
 if(BUILD_EXAMPLES)
     function(add_lv_example name source)
         add_executable(${name} ${source})
+        # 示例程序通过 examples_common.h 复用 test_helpers.h（含 add_point 等）
+        target_include_directories(${name} PRIVATE
+            ${CMAKE_SOURCE_DIR}/test/c
+        )
         target_link_libraries(${name} lv ${GMP_LIBRARIES})
     endfunction()
 

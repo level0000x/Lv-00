@@ -132,29 +132,28 @@ Coord *coord_dup(const Coord *src) {
 LV_COORD_BINOP(coord_add, mpq_add)
 LV_COORD_BINOP(coord_sub, mpq_sub)
 
-Coord *coord_mul(const Coord *a, const mpq_t scalar) {
-    if (!a)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_mul: NULL input");
-    Coord *c;
-    LV_COORD_ALLOC(c, "coord_mul");
-    mpq_init(c->x);
-    mpq_mul(c->x, a->x, scalar); /* GMP 精确乘法 */
-    mpq_init(c->y);
-    mpq_mul(c->y, a->y, scalar);
-    return c;
+/* 标量二元坐标算子模板："NULL/标量检查 → 分配骨架 → 逐坐标 mpq 运算（坐标 op 标量）"。
+ * 与 LV_COORD_BINOP 同构，区别是第二操作数为标量 mpq_t（非 Coord），
+ * 调用形式为 MPQ_OP(r->x, a->x, scalar)，第三参数即标量本身。
+ * scalar_guard 为标量合法性检查表达式（以 " || ..." 形式拼接到 !a 之后；
+ * coord_mul 允许 0 标量，传空串；coord_div 防除零，传 " || mpq_sgn(scalar) == 0"）。
+ * err_code/err_msg 为对应错误码与错误消息（消息文本与旧实现逐字一致）。 */
+#define LV_COORD_SCALAR_BINOP(name, MPQ_OP, scalar_guard, err_code, err_msg) \
+Coord *name(const Coord *a, const mpq_t scalar) { \
+    if (!a scalar_guard) \
+        lv_RETURN_ERROR_NULL(err_code, err_msg); \
+    Coord *c; \
+    LV_COORD_ALLOC(c, #name); \
+    mpq_init(c->x); \
+    MPQ_OP(c->x, a->x, scalar); /* GMP 精确运算 */ \
+    mpq_init(c->y); \
+    MPQ_OP(c->y, a->y, scalar); \
+    return c; \
 }
 
-Coord *coord_div(const Coord *a, const mpq_t scalar) {
-    if (!a || mpq_sgn(scalar) == 0)
-        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "coord_div: NULL input or zero scalar");
-    Coord *c;
-    LV_COORD_ALLOC(c, "coord_div");
-    mpq_init(c->x);
-    mpq_div(c->x, a->x, scalar); /* GMP 精确除法 */
-    mpq_init(c->y);
-    mpq_div(c->y, a->y, scalar);
-    return c;
-}
+LV_COORD_SCALAR_BINOP(coord_mul, mpq_mul, || 0, lv_ERROR_NULL_POINTER, "coord_mul: NULL input")
+LV_COORD_SCALAR_BINOP(coord_div, mpq_div, || mpq_sgn(scalar) == 0, lv_ERROR_INVALID_PARAM,
+                      "coord_div: NULL input or zero scalar")
 
 int coord_eq(const Coord *a, const Coord *b) {
     if (!a || !b)

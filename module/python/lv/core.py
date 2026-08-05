@@ -18,7 +18,7 @@ Lv-00 核心模块
     3. 类型安全：完整的类型提示和参数验证
     4. 异常处理：清晰的错误消息和错误码
 
-版本：3.3.0
+版本：1.1.0（与包级 __version__ 统一）
 作者：Lv-00 开发团队
 """
 # [QA] Has broad except Exception: blocks -- consider narrowing to specific types.
@@ -34,11 +34,15 @@ from ._ctypes_binding import (
     _lib, _SymbolicCoord, _ConstraintGraph, _NormalizationResult,
     ADD_NODE_OK, ADD_CONSTRAINT_OK, GEOM_POINT, GEOM_LINE_SEGMENT,
     # 新增的常量
-    GEOM_PORT, GEOM_FUNCTION_BLOCK, PORT_INPUT, PORT_OUTPUT,
+    GEOM_REGION, GEOM_CIRCLE, GEOM_PORT, GEOM_FUNCTION_BLOCK, PORT_INPUT, PORT_OUTPUT,
     CONSTRAINT_INCIDENCE, CONSTRAINT_BETWEENNESS, CONSTRAINT_INTERSECTION,
     CONSTRAINT_CONTAINMENT, CONSTRAINT_CONNECTION,
     LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_WARN, LOG_LEVEL_ERROR
 )
+
+# 模块级版本号：与包级 lv.__version__ 保持一致（唯一来源见 lv/__init__.py）。
+# 此处使用 from . import 而非重复字面量，确保版本号单一来源。
+from . import __version__  # noqa: E402
 
 
 # ============================================================
@@ -507,10 +511,10 @@ class SymbolicCoord:
     
     def __pow__(self, other: Union['SymbolicCoord', int, float, Fraction]) -> 'SymbolicCoord':
         """
-        幂运算。
+        幂运算（支持整数和 1/2、1/3 分数指数）。
         
         参数：
-            other: 指数（目前仅支持整数指数）
+            other: 指数（支持 SymbolicCoord、int、float、Fraction）
         
         返回：
             SymbolicCoord: self ** other
@@ -519,39 +523,155 @@ class SymbolicCoord:
             lvError: 计算失败或不支持的指数类型
         
         注意：
-            当前实现仅支持整数指数。对于分数指数（如平方根），
-            需要使用专门的代数数构造函数。
+            分数指数仅支持 1/2（平方根）和 1/3（立方根），
+            由 _sqrt() / _nth_root() 实现精确或符号化求值。
         """
-        # 转换指数为整数
+        # 转换指数为 Fraction
         if isinstance(other, SymbolicCoord):
-            # 尝试转换为整数
             try:
-                exp = int(other.to_fraction())
+                exp_frac = other.to_fraction()
             except (ValueError, lvError):
-                raise lvError("幂运算仅支持整数指数")
+                raise lvError("幂运算仅支持有理数指数")
+        elif isinstance(other, Fraction):
+            exp_frac = other
+        elif isinstance(other, float):
+            exp_frac = Fraction(other).limit_denominator(1000000)
         else:
-            exp = int(other)
+            exp_frac = Fraction(int(other), 1)
+
+        # 整数指数：使用快速幂算法
+        if exp_frac.denominator == 1:
+            exp = exp_frac.numerator
+            if exp == 0:
+                return SymbolicCoord.from_rational(1)
+            if exp == 1:
+                return SymbolicCoord(self)
+            if exp > 0:
+                result = SymbolicCoord.from_rational(1)
+                base = SymbolicCoord(self)
+                while exp > 0:
+                    if exp % 2 == 1:
+                        result = result * base
+                    base = base * base
+                    exp //= 2
+                return result
+            # 负整数幂：计算倒数
+            positive_result = self ** (-exp)
+            return SymbolicCoord.from_rational(1) / positive_result
+
+        # 分数指数：仅支持 1/2（平方根）与 1/3（立方根）
+        if exp_frac == Fraction(1, 2):
+            return self._sqrt()
+        if exp_frac == Fraction(1, 3):
+            return self._nth_root(3)
+
+        raise lvError(
+            f"幂运算不支持分数指数 {exp_frac}，"
+            f"仅支持整数指数和 1/2（平方根）、1/3（立方根）"
+        )
+
+    def _sqrt(self) -> 'SymbolicCoord':
+        """
+        计算平方根。
         
-        # 处理特殊情况
-        if exp == 0:
-            return SymbolicCoord.from_rational(1)
-        if exp == 1:
-            return SymbolicCoord(self)
+        对完全平方有理数返回精确值，否则尝试构造符号表示；
+        无法构造时回退到浮点近似。
         
-        # 正整数幂：使用快速幂算法
-        if exp > 0:
-            result = SymbolicCoord.from_rational(1)
-            base = SymbolicCoord(self)
-            while exp > 0:
-                if exp % 2 == 1:
-                    result = result * base
-                base = base * base
-                exp //= 2
-            return result
+        返回：
+            SymbolicCoord: 平方根
         
-        # 负整数幂：计算倒数
-        positive_result = self ** (-exp)
-        return SymbolicCoord.from_rational(1) / positive_result
+        异常：
+            lvError: 无法计算负数或非有理数的平方根
+        """
+        import math as _math
+
+        try:
+            frac = self.to_fraction()
+        except (ValueError, lvError):
+            # 非有理数：尝试通过字符串构造 sqrt 表达式
+            s = _lib.symbolic_coord_serialize(self._ptr)
+            if s:
+                raw = s.decode('utf-8')
+                _lib.lv_free_ptr(s)
+                try:
+                    return SymbolicCoord(f"sqrt({raw})")
+                except lvError:
+                    pass
+            raise lvError(f"无法计算 {self} 的平方根")
+
+        # 有理数 a/b 的平方根
+        num, den = frac.numerator, frac.denominator
+
+        # 处理负数
+        if num < 0:
+            raise lvError(f"无法对负数 {frac} 计算实数平方根")
+
+        # 检查分子和分母是否都是完全平方数
+        sqrt_num = _math.isqrt(num)
+        sqrt_den = _math.isqrt(den)
+        if sqrt_num * sqrt_num == num and sqrt_den * sqrt_den == den:
+            # 完全平方：返回精确有理数结果
+            return SymbolicCoord.from_rational(sqrt_num, sqrt_den)
+
+        # 非完全平方：尝试通过字符串构造符号 sqrt 表达式
+        if den == 1:
+            expr = f"sqrt({num})"
+        else:
+            expr = f"sqrt({num}/{den})"
+        try:
+            return SymbolicCoord(expr)
+        except lvError:
+            pass
+
+        # 回退：使用浮点近似
+        approx = _math.sqrt(float(frac))
+        return SymbolicCoord(approx)
+
+    def _nth_root(self, n: int) -> 'SymbolicCoord':
+        """
+        计算 n 次方根。
+        
+        对完全 n 次幂有理数返回精确值，否则回退到浮点近似。
+        
+        参数：
+            n: 根次数（正整数）
+        
+        返回：
+            SymbolicCoord: n 次方根
+        
+        异常：
+            lvError: 无法计算负数的偶数次实数根
+        """
+        import math as _math
+
+        try:
+            frac = self.to_fraction()
+        except (ValueError, lvError):
+            s = _lib.symbolic_coord_serialize(self._ptr)
+            if s:
+                raw = s.decode('utf-8')
+                _lib.lv_free_ptr(s)
+                try:
+                    return SymbolicCoord(f"root({raw},{n})")
+                except lvError:
+                    pass
+            raise lvError(f"无法计算 {self} 的 {n} 次方根")
+
+        num, den = frac.numerator, frac.denominator
+        if num < 0 and n % 2 == 0:
+            raise lvError(f"无法对负数 {frac} 计算偶数次实数根")
+
+        # 检查是否为完全 n 次幂
+        root_num = round(abs(num) ** (1.0 / n))
+        root_den = round(den ** (1.0 / n))
+        if root_num ** n == abs(num) and root_den ** n == den:
+            if num < 0:
+                root_num = -root_num
+            return SymbolicCoord.from_rational(root_num, root_den)
+
+        # 回退：使用浮点近似
+        approx = _math.pow(float(frac), 1.0 / n)
+        return SymbolicCoord(approx)
     
     # ============================================================
     # 比较运算
@@ -1231,6 +1351,8 @@ class GeomNode:
         names = {
             GEOM_POINT: "点",
             GEOM_LINE_SEGMENT: "线段",
+            GEOM_REGION: "区域",
+            GEOM_CIRCLE: "圆",
             GEOM_PORT: "端口",
             GEOM_FUNCTION_BLOCK: "函数块"
         }
@@ -1502,6 +1624,28 @@ class Graph:
         elif isinstance(item, int):
             return self.get_node(item) is not None
         return False
+
+    def __enter__(self) -> 'Graph':
+        """
+        上下文管理器入口。
+
+        支持 with 语句，确保 C 资源在退出 with 块时自动释放。
+
+        返回：
+            Graph: 图自身
+        """
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """
+        上下文管理器出口：自动释放底层 C 资源。
+
+        参数：
+            exc_type: 异常类型（无异常时为 None）
+            exc_val: 异常值（无异常时为 None）
+            exc_tb: 异常回溯（无异常时为 None）
+        """
+        self.__del__()
 
     def _sync_id_from_c(self) -> int:
         """
@@ -2304,3 +2448,57 @@ def get_counter_report() -> str:
         _lib.lv_free_ptr(report)
         return result
     return ""
+
+
+# ============================================================
+# 导出列表
+# ============================================================
+
+__all__ = [
+    # 版本信息
+    '__version__',
+
+    # 核心类
+    'SymbolicCoord',
+    'Point',
+    'LineSegment',
+    'Graph',
+    'GeomNode',
+    'NormalizationResult',
+
+    # 异常类
+    'lvBaseError',
+    'lvError',
+    'lvLibraryError',
+    'lvArgumentError',
+    'lvConstraintError',
+    'lvSolverError',
+
+    # 工具函数
+    'init',
+    'cleanup',
+    'get_version',
+    'get_last_error',
+    'set_debug_mode',
+    'set_log_level',
+    'reset_counters',
+    'get_counter_report',
+
+    # 常量
+    'LOG_LEVEL_DEBUG',
+    'LOG_LEVEL_INFO',
+    'LOG_LEVEL_WARN',
+    'LOG_LEVEL_ERROR',
+    'GEOM_POINT',
+    'GEOM_LINE_SEGMENT',
+    'GEOM_REGION',
+    'GEOM_CIRCLE',
+    'GEOM_PORT',
+    'GEOM_FUNCTION_BLOCK',
+    'CONSTRAINT_INCIDENCE',
+    'CONSTRAINT_BETWEENNESS',
+    'CONSTRAINT_INTERSECTION',
+    'CONSTRAINT_CONTAINMENT',
+    'CONSTRAINT_CONNECTION',
+    'CONSTRAINT_ANGLE',
+]

@@ -11913,7 +11913,7 @@ build CMakeFiles/example_triangle.dir/test/examples/triangle_construction.c.obj:
   CONFIG = Debug
   DEP_FILE = CMakeFiles\example_triangle.dir\test\examples\triangle_construction.c.obj.d
   FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
-  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
   OBJECT_DIR = CMakeFiles\example_triangle.dir
   OBJECT_FILE_DIR = CMakeFiles\example_triangle.dir\test\examples
   TARGET_SUPPORT_DIR = CMakeFiles\example_triangle.dir
@@ -11951,7 +11951,7 @@ build CMakeFiles/example_circle.dir/test/examples/circle_intersection.c.obj: C_C
   CONFIG = Debug
   DEP_FILE = CMakeFiles\example_circle.dir\test\examples\circle_intersection.c.obj.d
   FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
-  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
   OBJECT_DIR = CMakeFiles\example_circle.dir
   OBJECT_FILE_DIR = CMakeFiles\example_circle.dir\test\examples
   TARGET_SUPPORT_DIR = CMakeFiles\example_circle.dir
@@ -11989,7 +11989,7 @@ build CMakeFiles/example_composition.dir/test/examples/function_composition.c.ob
   CONFIG = Debug
   DEP_FILE = CMakeFiles\example_composition.dir\test\examples\function_composition.c.obj.d
   FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
-  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
   OBJECT_DIR = CMakeFiles\example_composition.dir
   OBJECT_FILE_DIR = CMakeFiles\example_composition.dir\test\examples
   TARGET_SUPPORT_DIR = CMakeFiles\example_composition.dir
@@ -12027,7 +12027,7 @@ build CMakeFiles/example_high_dim.dir/test/examples/high_dim_demo.c.obj: C_COMPI
   CONFIG = Debug
   DEP_FILE = CMakeFiles\example_high_dim.dir\test\examples\high_dim_demo.c.obj.d
   FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
-  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
   OBJECT_DIR = CMakeFiles\example_high_dim.dir
   OBJECT_FILE_DIR = CMakeFiles\example_high_dim.dir\test\examples
   TARGET_SUPPORT_DIR = CMakeFiles\example_high_dim.dir
@@ -12065,7 +12065,7 @@ build CMakeFiles/example_streaming.dir/test/examples/streaming_demo.c.obj: C_COM
   CONFIG = Debug
   DEP_FILE = CMakeFiles\example_streaming.dir\test\examples\streaming_demo.c.obj.d
   FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
-  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
   OBJECT_DIR = CMakeFiles\example_streaming.dir
   OBJECT_FILE_DIR = CMakeFiles\example_streaming.dir\test\examples
   TARGET_SUPPORT_DIR = CMakeFiles\example_streaming.dir
@@ -12103,7 +12103,7 @@ build CMakeFiles/example_stream_advanced.dir/test/examples/stream_advanced_demo.
   CONFIG = Debug
   DEP_FILE = CMakeFiles\example_stream_advanced.dir\test\examples\stream_advanced_demo.c.obj.d
   FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
-  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
   OBJECT_DIR = CMakeFiles\example_stream_advanced.dir
   OBJECT_FILE_DIR = CMakeFiles\example_stream_advanced.dir\test\examples
   TARGET_SUPPORT_DIR = CMakeFiles\example_stream_advanced.dir
@@ -12141,7 +12141,7 @@ build CMakeFiles/example_type_system.dir/test/examples/type_system_demo.c.obj: C
   CONFIG = Debug
   DEP_FILE = CMakeFiles\example_type_system.dir\test\examples\type_system_demo.c.obj.d
   FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
-  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
   OBJECT_DIR = CMakeFiles\example_type_system.dir
   OBJECT_FILE_DIR = CMakeFiles\example_type_system.dir\test\examples
   TARGET_SUPPORT_DIR = CMakeFiles\example_type_system.dir
@@ -12179,7 +12179,7 @@ build CMakeFiles/example_recursion.dir/test/examples/recursion_demo.c.obj: C_COM
   CONFIG = Debug
   DEP_FILE = CMakeFiles\example_recursion.dir\test\examples\recursion_demo.c.obj.d
   FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
-  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
   OBJECT_DIR = CMakeFiles\example_recursion.dir
   OBJECT_FILE_DIR = CMakeFiles\example_recursion.dir\test\examples
   TARGET_SUPPORT_DIR = CMakeFiles\example_recursion.dir

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_graph_theory.c
  * @brief Graph Theory Axiom Package Test
  *
@@ -11,9 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "axiom_pkg.h"
-#include "lv_utils.h"
 #include "test_helpers.h"
+#include "axiom_test_common.h"
 
 int g_fail_count = 0;
 int g_pass_count = 0;
@@ -24,28 +23,15 @@ int g_pass_count = 0;
 #define EXPECTED_TEMPLATE_COUNT 70
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 14
 
+/* ============================================================
+ * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * ============================================================ */
+
 static void test_load_from_file(void) {
-    printf("Test 1: Load graph_theory.lvz from file...\n");
-
-    AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
-    TEST_ASSERT(pkg != NULL, "package creation should succeed");
-
-    AxiomLoadStatus status = axiom_package_load(pkg, AXIOM_PKG_PATH);
-    TEST_ASSERT(status == AXIOM_LOAD_OK, "axiom_package_load should return AXIOM_LOAD_OK");
-
-    if (status != AXIOM_LOAD_OK) {
-        const char *err = axiom_package_get_last_error();
-        printf("  Error: %s\n", err ? err : "(unknown)");
-    }
-
-    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "graph_theory") == 0, "package name should be 'graph_theory'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
-
-    printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
-
-    axiom_package_destroy(pkg);
+    axiom_test_load_from_file(AXIOM_PKG_PATH, "graph_theory");
 }
 
+/* Test 2：约束模板（文件特有：存在性 + 参数双断言结构，保留原体） */
 static void test_templates(void) {
     printf("Test 2: Verify constraint templates...\n");
 
@@ -154,6 +140,7 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 3：不可构造项（文件特有：名称数组 + green/external_ref 检查，保留原体） */
 static void test_unconstructibles(void) {
     printf("Test 3: Verify known unconstructible problems...\n");
 
@@ -192,6 +179,7 @@ static void test_unconstructibles(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 4：逻辑框架（文件特有：%d 数字输出，保留原体） */
 static void test_logical_framework(void) {
     printf("Test 4: Verify logical framework settings...\n");
 
@@ -213,6 +201,7 @@ static void test_logical_framework(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 5：内容哈希（文件特有：两次计算 + 整串 Hash 打印，保留原体） */
 static void test_content_hash(void) {
     printf("Test 5: Verify content hash computation...\n");
 
@@ -235,6 +224,7 @@ static void test_content_hash(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 6：往返保存/加载（文件特有：placeholder2 + 无 hash 匹配打印，保留原体） */
 static void test_roundtrip_save_load(void) {
     printf("Test 6: Round-trip save/load...\n");
 
@@ -276,6 +266,7 @@ static void test_roundtrip_save_load(void) {
     axiom_package_destroy(pkg2);
 }
 
+/* Test 7：依赖验证（文件特有：无打印，保留原体） */
 static void test_dependency_validation(void) {
     printf("Test 7: Dependency validation...\n");
 
@@ -292,6 +283,7 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 8：负向查找（文件特有：无收尾打印，保留原体） */
 static void test_negative_lookups(void) {
     printf("Test 8: Negative lookups...\n");
 
@@ -309,6 +301,7 @@ static void test_negative_lookups(void) {
     axiom_package_destroy(pkg);
 }
 
+/* Test 9：外部引用（文件特有：https 计数打印，保留原体） */
 static void test_external_refs(void) {
     printf("Test 9: External references validation...\n");
 
@@ -326,6 +319,10 @@ static void test_external_refs(void) {
 
     axiom_package_destroy(pkg);
 }
+
+/* ============================================================
+ * 文件特有测试（原样保留）
+ * ============================================================ */
 
 static void test_unconstructible_dependencies(void) {
     printf("Test 10: Unconstructible dependency chains...\n");

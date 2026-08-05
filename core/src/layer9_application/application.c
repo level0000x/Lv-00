@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file application.c
  * @brief 应用层实现
  *
@@ -54,7 +54,7 @@ lvApplication *lv_app_create(const lvAppConfig *config) {
     /* 分配主结构体，用 calloc 确保所有字段初始为零 */
     lvApplication *app = lv_calloc(1, sizeof(lvApplication));
     if (!app)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate application");
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_app_create: failed to allocate application");
     /* 使用传入配置或默认配置 */
     if (config)
         app->config = *config;
@@ -102,13 +102,13 @@ void lv_app_destroy(lvApplication *app) {
  */
 lvSession *lv_app_create_session(lvApplication *app, const char *name) {
     if (!app)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "NULL app");
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_app_create_session: NULL app");
     /* 创建新会话并注册到应用实例中（lvDArray 自动扩容） */
     lvSession *session = lv_session_create(name);
     if (session) {
         if (lv_darray_push(&app->sessions, &session) < 0) {
             lv_session_destroy(session);
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "failed to push session to array");
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_app_create_session: failed to push session to array");
         }
     }
     return session;
@@ -170,7 +170,7 @@ int lv_app_remove_session(lvApplication *app, int session_id) {
             return 0;
         }
     }
-    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "session %d not found", session_id);
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_app_remove_session: session %d not found", session_id);
 }
 
 /**

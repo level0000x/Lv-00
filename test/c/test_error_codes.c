@@ -16,31 +16,18 @@
 
 #include "error_codes.h"
 #include "lv.h"
+#include "test_helpers.h"
 
-/** 统计通过的测试数 */
-static int g_passed = 0;
-/** 统计失败的测试数 */
-static int g_failed = 0;
+/** 全局测试计数器（test_helpers.h 声明 extern） */
+int g_pass_count = 0;
+int g_fail_count = 0;
 
-#define TEST_ASSERT(cond, msg)                                       \
-    do {                                                             \
-        if (cond) {                                                  \
-            g_passed++;                                              \
-        } else {                                                     \
-            g_failed++;                                              \
-            printf("  失败 [%s:%d]: %s\n", __FILE__, __LINE__, msg); \
-        }                                                            \
-    } while (0)
-
-#define TEST_ASSERT_EQ(a, b)                                                                  \
-    do {                                                                                      \
-        if ((a) == (b)) {                                                                     \
-            g_passed++;                                                                       \
-        } else {                                                                              \
-            g_failed++;                                                                       \
-            printf("  失败 [%s:%d]: 期望=%d, 实际=%d\n", __FILE__, __LINE__, (int) (b), (int) (a)); \
-        }                                                                                     \
-    } while (0)
+/* 本文件断言语义为"失败继续"（单测函数内连续多条断言，失败后仍继续执行后续断言），
+ * 统一委托公共宏 TEST_ASSERT_CONTINUE / TEST_ASSERT_EQ_CONTINUE（先取消公共定义避免重定义告警） */
+#undef TEST_ASSERT
+#define TEST_ASSERT(cond, msg) TEST_ASSERT_CONTINUE(cond, msg)
+#undef TEST_ASSERT_EQ
+#define TEST_ASSERT_EQ(a, b) TEST_ASSERT_EQ_CONTINUE(a, b)
 
 /* ============== 测试用例 ============== */
 
@@ -216,12 +203,12 @@ static void test_all_codes_mapped(void) {
 
         if (!msg || strlen(msg) == 0) {
             printf("  失败: 错误码 %d 的错误信息为空\n", (int) sample_codes[i]);
-            g_failed++;
+            g_fail_count++;
         } else if (!name || strlen(name) == 0) {
             printf("  失败: 错误码 %d 的名称信息为空\n", (int) sample_codes[i]);
-            g_failed++;
+            g_fail_count++;
         } else {
-            g_passed++;
+            g_pass_count++;
         }
     }
     printf("    已检查 %d 个错误码\n", count);
@@ -232,9 +219,6 @@ static void test_all_codes_mapped(void) {
 int main(void) {
     printf("=== Lv-00 错误码系统测试 ===\n\n");
 
-    g_passed = 0;
-    g_failed = 0;
-
     test_error_strings();
     test_error_names();
     test_error_state();
@@ -243,6 +227,6 @@ int main(void) {
     test_error_code_conversion();
     test_all_codes_mapped();
 
-    printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", g_passed, g_failed);
-    return g_failed > 0 ? 1 : 0;
+    printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", g_pass_count, g_fail_count);
+    return g_fail_count > 0 ? 1 : 0;
 }

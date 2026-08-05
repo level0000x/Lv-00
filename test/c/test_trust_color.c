@@ -19,20 +19,16 @@
 #include "lv/lv.h"
 #include "lv/lv_protocol.h"
 #include "lv/trust_color.h"
+#include "test_helpers.h"
 
-/* 测试通过/失败计数 */
-static int g_pass = 0;
-static int g_fail = 0;
+/* 全局测试计数器（test_helpers.h 声明 extern） */
+int g_pass_count = 0;
+int g_fail_count = 0;
 
-#define TEST_ASSERT(cond, msg)                                        \
-    do {                                                              \
-        if (!(cond)) {                                                \
-            fprintf(stderr, "  FAIL: %s (line %d)\n", msg, __LINE__); \
-            g_fail++;                                                 \
-        } else {                                                      \
-            g_pass++;                                                 \
-        }                                                             \
-    } while (0)
+/* 本文件断言语义为"失败继续"（单测函数内连续多条断言，失败后仍继续执行后续断言），
+ * 统一委托公共宏 TEST_ASSERT_CONTINUE（先取消公共定义避免重定义告警） */
+#undef TEST_ASSERT
+#define TEST_ASSERT(cond, msg) TEST_ASSERT_CONTINUE(cond, msg)
 
 /* ================================================================
  * 测试 1: TrustColor → ProofColor 映射
@@ -111,10 +107,10 @@ static void test_roundtrip(void) {
         TrustColor back = proof_color_to_trust(mid);
         /* 不完全一致是允许的（如 VERIFIED → GREEN），但不应回退到未知 */
         if (back == TRUST_BLUE_UNEXPLORED && trust_inputs[i] != TRUST_BLUE_UNEXPLORED) {
-            g_fail++;
+            g_fail_count++;
             fprintf(stderr, "  FAIL: 往返后丢失语义 (input=%d)\n", (int) trust_inputs[i]);
         } else {
-            g_pass++;
+            g_pass_count++;
         }
     }
 }
@@ -197,6 +193,6 @@ int main(void) {
     test_color_names();
     test_trust_to_lv();
 
-    printf("\n===== 结果: %d 通过, %d 失败 =====\n", g_pass, g_fail);
-    return g_fail > 0 ? 1 : 0;
+    printf("\n===== 结果: %d 通过, %d 失败 =====\n", g_pass_count, g_fail_count);
+    return g_fail_count > 0 ? 1 : 0;
 }
