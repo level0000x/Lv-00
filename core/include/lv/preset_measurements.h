@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define MEASUREMENTS_PRESET_COUNT 15
-bool preset_measurements_register(void);
 
 #ifdef __cplusplus
 }

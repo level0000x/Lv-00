@@ -26,6 +26,9 @@
 /* rewrite_stream_ctx 定义在 rewrite.c 中，通过 getter 函数访问 */
 StreamContext *rewrite_get_stream_context(void);
 
+/* ConstraintType 枚举成员数（INCIDENCE=0 .. ANGLE=5，连续） */
+enum { CONSTRAINT_TYPE_COUNT = ANGLE + 1 };
+
 /**
  * 执行带坐标验证的子图同构匹配。
  * 在 VF2 匹配基础上增加坐标相等性检查。
@@ -264,33 +267,15 @@ static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_coun
         uint64_t label = (uint64_t) (n->type + 1) * 65599 + (uint64_t) (n->trust) + ((uint64_t) (n->lo_subtype) << 8);
 
         /* 统计该节点参与的每种约束类型的数量（拓扑信息） */
-        int incidence_count = 0, betweenness_count = 0;
-        int intersection_count = 0, containment_count = 0, angle_count = 0;
-        int connection_count = 0;
+        uint64_t constraint_counts[CONSTRAINT_TYPE_COUNT] = {0};
 
         for (int c = 0; c < graph->constraint_count; c++) {
             Constraint *con = graph->constraints[c];
             for (int p = 0; p < con->participant_count; p++) {
                 if (con->participants[p] == n->id) {
-                    switch (con->type) {
-                        case INCIDENCE:
-                            incidence_count++;
-                            break;
-                        case BETWEENNESS:
-                            betweenness_count++;
-                            break;
-                        case INTERSECTION:
-                            intersection_count++;
-                            break;
-                        case CONTAINMENT:
-                            containment_count++;
-                            break;
-                        case ANGLE:
-                            angle_count++;
-                            break;
-                        case CONNECTION:
-                            connection_count++;
-                            break;
+                    /* 按类型索引计数（越界类型不计数，与原无 default 行为一致） */
+                    if ((unsigned) con->type < CONSTRAINT_TYPE_COUNT) {
+                        constraint_counts[con->type]++;
                     }
                     break;
                 }
@@ -298,12 +283,12 @@ static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_coun
         }
 
         /* 将约束计数信息混入标签 */
-        label = label * 31 + (uint64_t) incidence_count;
-        label = label * 31 + (uint64_t) betweenness_count;
-        label = label * 31 + (uint64_t) intersection_count;
-        label = label * 31 + (uint64_t) containment_count;
-        label = label * 31 + (uint64_t) angle_count;
-        label = label * 31 + (uint64_t) connection_count;
+        label = label * 31 + constraint_counts[INCIDENCE];
+        label = label * 31 + constraint_counts[BETWEENNESS];
+        label = label * 31 + constraint_counts[INTERSECTION];
+        label = label * 31 + constraint_counts[CONTAINMENT];
+        label = label * 31 + constraint_counts[ANGLE];
+        label = label * 31 + constraint_counts[CONNECTION];
 
         labels[i] = label;
     }

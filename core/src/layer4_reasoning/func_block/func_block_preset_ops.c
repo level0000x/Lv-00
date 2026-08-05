@@ -943,6 +943,14 @@ void preset_search_result_destroy(PresetSearchResult *result) {
  * 预设组合操作实现
  * ================================================================ */
 
+/* 组合模式 → 组合名称前缀（指定初始化器；PRESET_COMPOSE_PIPE 未列出为 NULL，走 default 失败分支） */
+static const char *const kComposeNamePrefix[] = {
+    [PRESET_COMPOSE_SEQUENCE] = "composed_seq_",
+    [PRESET_COMPOSE_PARALLEL] = "composed_par_",
+    [PRESET_COMPOSE_FEEDBACK] = "composed_fb_",
+    [PRESET_COMPOSE_BRANCH]   = "composed_br_",
+};
+
 static bool preset_compose(const char *preset_a, const char *preset_b, PresetComposeMode mode,
                            char **out_composed_name) {
     if (!preset_a || !preset_b || !out_composed_name)
@@ -963,24 +971,15 @@ static bool preset_compose(const char *preset_a, const char *preset_b, PresetCom
     /* 生成新名称 */
     char new_name[MAX_PRESET_NAME_LENGTH];
 
-    switch (mode) {
-        case PRESET_COMPOSE_SEQUENCE:
-            snprintf(new_name, sizeof(new_name), "composed_seq_%d", atomic_fetch_add(&g_compose_counter, 1));
-            break;
-        case PRESET_COMPOSE_PARALLEL:
-            snprintf(new_name, sizeof(new_name), "composed_par_%d", atomic_fetch_add(&g_compose_counter, 1));
-            break;
-        case PRESET_COMPOSE_FEEDBACK:
-            snprintf(new_name, sizeof(new_name), "composed_fb_%d", atomic_fetch_add(&g_compose_counter, 1));
-            break;
-        case PRESET_COMPOSE_BRANCH:
-            snprintf(new_name, sizeof(new_name), "composed_br_%d", atomic_fetch_add(&g_compose_counter, 1));
-            break;
-        default:
-            func_block_destroy(fb_a);
-            func_block_destroy(fb_b);
-            return false;
+    /* 组合模式 → 前缀查找（PIPE/越界为 NULL，走 default 失败分支） */
+    const char *compose_prefix =
+        (unsigned) mode < sizeof(kComposeNamePrefix) / sizeof(kComposeNamePrefix[0]) ? kComposeNamePrefix[mode] : NULL;
+    if (!compose_prefix) {
+        func_block_destroy(fb_a);
+        func_block_destroy(fb_b);
+        return false;
     }
+    snprintf(new_name, sizeof(new_name), "%s%d", compose_prefix, atomic_fetch_add(&g_compose_counter, 1));
 
     /* 使用现有的组合函数 */
     FuncBlock *composed = NULL;

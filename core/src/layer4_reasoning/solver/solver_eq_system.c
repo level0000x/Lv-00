@@ -9,16 +9,6 @@
 
 #include "solver_common.h"
 
-#ifndef EQUATION_PUSH_OR_GOTO
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-#endif
-
 /* ── PolyEquation + EquationSystem（类型定义见 solver_types.h）── */
 
 
@@ -34,22 +24,6 @@
 void equation_system_init(EquationSystem *sys) {
     lv_darray_init(&sys->eqs, sizeof(PolyEquation));
 }
-
-/**
- * @brief 检查 equation_system_push 返回值的辅助宏
- *
- * 当 push 失败（OOM）时，设置错误状态并跳转到指定的清理标签。
- * 用于避免在37个调用点重复相同的错误检查代码。
- */
-#ifndef EQUATION_PUSH_OR_GOTO
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)                                            \
-    do {                                                                                            \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {                                \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "equation_system_push: 方程添加失败（内存不足）"); \
-            goto label;                                                                             \
-        }                                                                                           \
-    } while (0)
-#endif
 
 /**
  * @brief 向方程系统中添加一个多项式方程

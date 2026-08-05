@@ -20,8 +20,10 @@
 #include "lv/lv_utils.h"
 #include "lv/lv_xmacro.h"
 
-/** 全局消息序列号计数器，每创建一条消息自增一次 */
-static uint32_t g_msg_sequence = 0;
+/** 消息序列号分配状态（模块级封装，替代裸全局计数器） */
+static struct {
+    uint32_t seq; /**< 消息序列号，每创建一条消息自增一次 */
+} s_msg_state = {0};
 
 /* ---- 消息类型名称映射 ---- */
 
@@ -119,6 +121,6 @@ void lv_msg_destroy(lvLayerMessage *msg) {
 void lv_msg_sign(lvLayerMessage *msg) {
     if (!msg)
         return;
-    msg->msg_id = ++g_msg_sequence;
+    msg->msg_id = ++s_msg_state.seq;
     snprintf(msg->name, sizeof(msg->name), "%s#%u", msg_type_name(msg->type), msg->msg_id);
 }

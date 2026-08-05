@@ -196,18 +196,21 @@ static ExtendedPresetRegistry g_preset_registry = {
  * LOCK() 宏不再执行惰性初始化，避免多线程竞态。
  */
 #include "lv/lv_platform.h"
+#include "lv/lv_thread.h"
 
 static lvMutex g_preset_registry_lock;
-static volatile int g_preset_registry_lock_initialized = 0;
+static lv_once_t g_preset_registry_lock_once = lv_ONCE_INIT;
+
+/** @brief 预设注册表锁一次性初始化回调（lv_once 保证仅执行一次且同步完成） */
+static void preset_registry_lock_init_impl(void) {
+    lv_MUTEX_INIT(&g_preset_registry_lock);
+}
 
 /**
  * @brief 初始化预设注册表锁（线程安全，仅执行一次）
  */
 static void preset_registry_lock_init_once(void) {
-    if (!g_preset_registry_lock_initialized) {
-        lv_MUTEX_INIT(&g_preset_registry_lock);
-        lv_ATOMIC_EXCHANGE(&g_preset_registry_lock_initialized, 1);
-    }
+    lv_once(&g_preset_registry_lock_once, preset_registry_lock_init_impl);
 }
 
 #define PRESET_REGISTRY_LOCK()                         \
@@ -349,12 +352,8 @@ void lv_preset_blocks_cleanup(void) {
     g_preset_registry.next_preset_id = PRESET_FB_ID_OFFSET;
 
     PRESET_REGISTRY_UNLOCK();
-
-    /* 检查锁是否已初始化，若是则销毁 */
-    if (g_preset_registry_lock_initialized) {
-        lv_MUTEX_DESTROY(&g_preset_registry_lock);
-        lv_ATOMIC_EXCHANGE(&g_preset_registry_lock_initialized, 0);
-    }
+    /* 注：注册表互斥锁由 lv_once 一次性初始化，生命周期与进程一致，
+     * 不在此销毁；lv_once 不可重置，清理后系统仍可安全继续使用。 */
 }
 
 PresetBlockMetadata *preset_blocks_get_metadata(const char *name) {

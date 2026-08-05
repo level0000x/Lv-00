@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define ALGEBRAIC_PRESET_COUNT 16
-bool preset_algebraic_register(void);
 
 #ifdef __cplusplus
 }

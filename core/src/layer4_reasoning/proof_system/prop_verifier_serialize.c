@@ -15,6 +15,7 @@
 
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv/stream.h"
 #include "lv/stream_context_util.h"
 
@@ -74,15 +75,15 @@ static int formula_precedence(const PropFormula *f) {
     return s_precedence_table[f->type];
 }
 
-/* 内部递归序列化 */
-static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
-    if (!f || size == 0)
+/* 内部递归序列化（lvStrBuf 版本，无固定缓冲截断风险） */
+static void formula_to_string_buf(const PropFormula *f, lvStrBuf *sb, int parent_prec) {
+    if (!f)
         return;
     int prec = formula_precedence(f);
     bool need_parens = (parent_prec > prec);
 
     if (need_parens) {
-        lv_strncat(buf, "(", size);
+        lv_strbuf_printf(sb, "(");
     }
 
     if ((unsigned)f->type < sizeof(s_string_format_spec) / sizeof(s_string_format_spec[0])) {
@@ -90,30 +91,30 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
         switch (spec->arity) {
             case 0: /* 叶子类型 */
                 if (f->type == PROP_ATOM) {
-                    lv_strncat(buf, f->data.atom.name, size);
+                    lv_strbuf_printf(sb, "%s", f->data.atom.name);
                 } else if (spec->op_str) {
-                    lv_strncat(buf, spec->op_str, size);
+                    lv_strbuf_printf(sb, "%s", spec->op_str);
                 }
                 break;
             case 1: /* 一元运算符 */
                 if (spec->op_str) {
-                    lv_strncat(buf, spec->op_str, size);
+                    lv_strbuf_printf(sb, "%s", spec->op_str);
                 }
-                formula_to_string_buf(f->data.unary.operand, buf, size, prec);
+                formula_to_string_buf(f->data.unary.operand, sb, prec);
                 break;
             case 2: /* 二元运算符 */
-                formula_to_string_buf(f->data.binary.left, buf, size, prec);
+                formula_to_string_buf(f->data.binary.left, sb, prec);
                 if (spec->op_str) {
-                    lv_strncat(buf, spec->op_str, size);
+                    lv_strbuf_printf(sb, "%s", spec->op_str);
                 }
-                formula_to_string_buf(f->data.binary.right, buf, size,
+                formula_to_string_buf(f->data.binary.right, sb,
                                       spec->right_inc_prec ? prec + 1 : prec);
                 break;
         }
     }
 
     if (need_parens) {
-        lv_strncat(buf, ")", size);
+        lv_strbuf_printf(sb, ")");
     }
 }
 
@@ -126,11 +127,10 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
 char *prop_formula_to_string(const PropFormula *f) {
     if (!f)
         return NULL;
-    char *buf = (char *) lv_calloc(MAX_FORMULA_STR, sizeof(char)); /* 零初始化分配 */
-    if (!buf)
-        return NULL;
-    formula_to_string_buf(f, buf, MAX_FORMULA_STR, 0);
-    return buf;
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
+    formula_to_string_buf(f, &sb, 0);
+    return lv_strbuf_to_string(&sb);
 }
 
 /* LaTeX 序列化 */

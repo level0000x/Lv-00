@@ -120,6 +120,26 @@ void groebner_mutex_ensure(void);
 void groebner_lock_guard_init(lvLockGuard *g);
 
 /* ================================================================
+ *  锁守卫样板宏（groebner_engine_*.c 共享，收敛 goto cleanup 样板）
+ *
+ * 用法：
+ *   int ret = -1;
+ *   GROEBNER_LOCK_GUARD_BEGIN();   // 声明 _lg 并加锁 + g_data 空检查
+ *   ...业务代码（失败路径 goto _gcleanup）...
+ * GROEBNER_LOCK_GUARD_END();       // _gcleanup 标签 + 解锁
+ *   return <表达式>;                // 返回由调用函数自行书写
+ *
+ * 注意：
+ *   - BEGIN 宏内定义局部变量 _lg，函数内不得再声明同名变量；
+ *   - 仅适用于清理段只含解锁 + 返回（或函数尾 return）的函数，
+ *     清理段含额外 free/错误上报的保持原样；
+ *   - 宏为语句序列（非 do-while），调用处务必以分号结尾，
+ *     不得放在 if/else 等无大括号语句之后（避免悬空 else）。
+ * ================================================================ */
+#define GROEBNER_LOCK_GUARD_BEGIN() lvLockGuard _lg; groebner_lock_guard_init(&_lg); if (!g_data) goto _gcleanup;
+#define GROEBNER_LOCK_GUARD_END() _gcleanup: lv_lock_guard_destroy(&_lg);
+
+/* ================================================================
  *  注册存储与查询（groebner_engine.c 实现）
  * ================================================================ */
 lvRegistryData *registry_data_ensure(void);

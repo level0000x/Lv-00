@@ -181,6 +181,105 @@ void measure_system_set_default(MeasureSystem *ms, Measure *m) {
  * @param graph 约束图指针
  * @return 计算结果的符号坐标，失败返回 NULL
  */
+/* 测度种类 → 计算函数（函数指针表分发；CUSTOM 未列出 → 走 default 返回 NULL） */
+typedef SymbolicCoord *(*MeasureValueFn)(Measure *m, GeomNode *node, ConstraintGraph *graph);
+
+static SymbolicCoord *measure_value_length(Measure *m, GeomNode *node, ConstraintGraph *graph) {
+    (void) m;
+    (void) graph;
+    /*
+     * 计算线段长度（返回平方距离）
+     *
+     * 计算过程：dx = x2 - x1, dy = y2 - y1
+     *           result = dx^2 + dy^2
+     *
+     * 使用 goto cleanup 模式确保所有中间 SymbolicCoord 对象
+     * 在运算失败时被正确销毁，避免资源泄漏。
+     */
+    if (node->type == GEOM_LINE_SEGMENT && node->coord_count >= 4 && node->symbolic_coords) {
+        /* 两端点坐标：(x1, y1), (x2, y2) */
+        SymbolicCoord *x1 = node->symbolic_coords[0];
+        SymbolicCoord *y1 = node->symbolic_coords[1];
+        SymbolicCoord *x2 = node->symbolic_coords[2];
+        SymbolicCoord *y2 = node->symbolic_coords[3];
+
+        SymbolicCoord *dx = NULL;
+        SymbolicCoord *dy = NULL;
+        SymbolicCoord *dx2 = NULL;
+        SymbolicCoord *dy2 = NULL;
+        SymbolicCoord *sum = NULL;
+
+        /* 计算距离：sqrt((x2-x1)^2 + (y2-y1)^2) */
+        dx = symbolic_coord_subtract(x2, x1);
+        dy = symbolic_coord_subtract(y2, y1);
+        if (!dx || !dy)
+            goto length_val_cleanup;
+
+        dx2 = symbolic_coord_multiply(dx, dx);
+        dy2 = symbolic_coord_multiply(dy, dy);
+        if (!dx2 || !dy2)
+            goto length_val_cleanup;
+
+        sum = symbolic_coord_add(dx2, dy2);
+        if (!sum)
+            goto length_val_cleanup;
+
+        /* 计算成功，只释放中间变量，返回 sum */
+        symbolic_coord_destroy(dx);
+        symbolic_coord_destroy(dy);
+        symbolic_coord_destroy(dx2);
+        symbolic_coord_destroy(dy2);
+        return sum; /* 返回平方距离，避免开方 */
+
+    length_val_cleanup:
+        /*
+         * 【清理标签 —— 所有提前退出路径必须经过此处】
+         *
+         * 本标签是 MEASURE_KIND_LENGTH 计算分支的统一清理点。
+         * 使用规则：
+         *   1. 任何 goto length_val_cleanup 之前，所有中间 SymbolicCoord*
+         *      变量必须已被初始化（至少为 NULL），确保 symbolic_coord_destroy
+         *      对 NULL 指针安全（无操作）。
+         *   2. 此标签处统一销毁 dx, dy, dx2, dy2, sum 共五个中间变量。
+         *      如果后续新增中间变量，必须同步更新此处的清理列表。
+         *   3. 正常成功路径（计算完成）在 return 之前手动清理非目标变量，
+         *      不会分支到此处，避免 double-free。
+         *
+         * 【静态分析友好标记】Coverity / clang-analyzer 提示：
+         *   - 此 goto 标签确保所有路径最终到达统一的清理点，
+         *     无"goto 跳过初始化"的缺陷模式（所有变量在进入分支前已初始化）。
+         *   - symbolic_coord_destroy(NULL) 是安全操作，不会产生假阳性警告。
+         */
+        /* 统一清理所有已创建的非 NULL 中间变量 */
+        symbolic_coord_destroy(dx);
+        symbolic_coord_destroy(dy);
+        symbolic_coord_destroy(dx2);
+        symbolic_coord_destroy(dy2);
+        symbolic_coord_destroy(sum);
+        return NULL;
+    }
+    return NULL;
+}
+
+static SymbolicCoord *measure_value_delegate(Measure *m, GeomNode *node, ConstraintGraph *graph) {
+    /* 区域面积 / 角度 —— 委托给纯符号版本 */
+    return measure_compute_value_symbolic(m, node, graph);
+}
+
+static SymbolicCoord *measure_value_depth(Measure *m, GeomNode *node, ConstraintGraph *graph) {
+    (void) m;
+    (void) graph;
+    /* 返回嵌套深度 */
+    return symbolic_coord_create_rational(node->namespace_depth, 1);
+}
+
+static const MeasureValueFn kMeasureValueFns[] = {
+    [MEASURE_KIND_LENGTH] = measure_value_length,
+    [MEASURE_KIND_AREA]   = measure_value_delegate,
+    [MEASURE_KIND_DEPTH]  = measure_value_depth,
+    [MEASURE_KIND_ANGLE]  = measure_value_delegate,
+};
+
 SymbolicCoord *measure_compute_value(Measure *m, GeomNode *node, ConstraintGraph *graph) {
     if (!m || !node)
         return NULL;
@@ -190,97 +289,10 @@ SymbolicCoord *measure_compute_value(Measure *m, GeomNode *node, ConstraintGraph
         return NULL;
     }
 
-    switch (m->kind) {
-        case MEASURE_KIND_LENGTH: {
-            /*
-             * 计算线段长度（返回平方距离）
-             *
-             * 计算过程：dx = x2 - x1, dy = y2 - y1
-             *           result = dx^2 + dy^2
-             *
-             * 使用 goto cleanup 模式确保所有中间 SymbolicCoord 对象
-             * 在运算失败时被正确销毁，避免资源泄漏。
-             */
-            if (node->type == GEOM_LINE_SEGMENT && node->coord_count >= 4 && node->symbolic_coords) {
-                /* 两端点坐标：(x1, y1), (x2, y2) */
-                SymbolicCoord *x1 = node->symbolic_coords[0];
-                SymbolicCoord *y1 = node->symbolic_coords[1];
-                SymbolicCoord *x2 = node->symbolic_coords[2];
-                SymbolicCoord *y2 = node->symbolic_coords[3];
-
-                SymbolicCoord *dx = NULL;
-                SymbolicCoord *dy = NULL;
-                SymbolicCoord *dx2 = NULL;
-                SymbolicCoord *dy2 = NULL;
-                SymbolicCoord *sum = NULL;
-
-                /* 计算距离：sqrt((x2-x1)^2 + (y2-y1)^2) */
-                dx = symbolic_coord_subtract(x2, x1);
-                dy = symbolic_coord_subtract(y2, y1);
-                if (!dx || !dy)
-                    goto length_val_cleanup;
-
-                dx2 = symbolic_coord_multiply(dx, dx);
-                dy2 = symbolic_coord_multiply(dy, dy);
-                if (!dx2 || !dy2)
-                    goto length_val_cleanup;
-
-                sum = symbolic_coord_add(dx2, dy2);
-                if (!sum)
-                    goto length_val_cleanup;
-
-                /* 计算成功，只释放中间变量，返回 sum */
-                symbolic_coord_destroy(dx);
-                symbolic_coord_destroy(dy);
-                symbolic_coord_destroy(dx2);
-                symbolic_coord_destroy(dy2);
-                return sum; /* 返回平方距离，避免开方 */
-
-            length_val_cleanup:
-                /*
-                 * 【清理标签 —— 所有提前退出路径必须经过此处】
-                 *
-                 * 本标签是 MEASURE_KIND_LENGTH 计算分支的统一清理点。
-                 * 使用规则：
-                 *   1. 任何 goto length_val_cleanup 之前，所有中间 SymbolicCoord*
-                 *      变量必须已被初始化（至少为 NULL），确保 symbolic_coord_destroy
-                 *      对 NULL 指针安全（无操作）。
-                 *   2. 此标签处统一销毁 dx, dy, dx2, dy2, sum 共五个中间变量。
-                 *      如果后续新增中间变量，必须同步更新此处的清理列表。
-                 *   3. 正常成功路径（计算完成）在 return 之前手动清理非目标变量，
-                 *      不会分支到此处，避免 double-free。
-                 *
-                 * 【静态分析友好标记】Coverity / clang-analyzer 提示：
-                 *   - 此 goto 标签确保所有路径最终到达统一的清理点，
-                 *     无"goto 跳过初始化"的缺陷模式（所有变量在进入分支前已初始化）。
-                 *   - symbolic_coord_destroy(NULL) 是安全操作，不会产生假阳性警告。
-                 */
-                /* 统一清理所有已创建的非 NULL 中间变量 */
-                symbolic_coord_destroy(dx);
-                symbolic_coord_destroy(dy);
-                symbolic_coord_destroy(dx2);
-                symbolic_coord_destroy(dy2);
-                symbolic_coord_destroy(sum);
-                return NULL;
-            }
-            break;
-        }
-
-        case MEASURE_KIND_AREA:
-            /* 计算区域面积 - 委托给纯符号版本 */
-            return measure_compute_value_symbolic(m, node, graph);
-
-        case MEASURE_KIND_DEPTH:
-            /* 返回嵌套深度 */
-            return symbolic_coord_create_rational(node->namespace_depth, 1);
-
-        case MEASURE_KIND_ANGLE:
-            /* 角度测度委托给纯符号版本 */
-            return measure_compute_value_symbolic(m, node, graph);
-
-        default:
-            break;
+    /* 测度种类 → 计算函数表分发（CUSTOM/越界走 default → NULL） */
+    if ((unsigned) m->kind < sizeof(kMeasureValueFns) / sizeof(kMeasureValueFns[0]) &&
+        kMeasureValueFns[m->kind]) {
+        return kMeasureValueFns[m->kind](m, node, graph);
     }
-
     return NULL;
 }

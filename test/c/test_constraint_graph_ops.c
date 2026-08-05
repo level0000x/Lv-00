@@ -11,12 +11,13 @@
 #include "lv/symbolic_coord.h"
 
 /* 使用共享 TEST/PASS/FAIL 宏；计数挂钩保持原有 P/F 计数行为 */
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -305,6 +306,6 @@ int main(void) {
         PASS();
     }
 
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
+    printf("\n=== %d passed, %d failed ===\n", g_pass_count, g_fail_count);
+    return g_fail_count > 0 ? 1 : 0;
 }

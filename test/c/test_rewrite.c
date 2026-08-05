@@ -19,45 +19,14 @@
 
 #include "lv.h"
 #include "test_helpers.h"
+#include "lv_test_geom_graph_builder.h"
 
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-/* ============== 辅助：创建一条带 incidence 的线段图 ============== */
-
-/**
- * @brief 创建一个包含两个点和一条线段的简单约束图
- *
- * 图结构：
- *   p0 --s01-- p1
- *   两个 POINT 节点 p0、p1，一条 LINE_SEGMENT s01，
- *   两条 INCIDENCE 约束：inc(p0, s01)、inc(p1, s01)
- *
- * @param[out] out_p0  输出 p0 的节点 ID
- * @param[out] out_p1  输出 p1 的节点 ID
- * @param[out] out_s   输出线段的节点 ID
- * @return 创建的约束图指针，失败返回 NULL
- */
-static ConstraintGraph *create_line_graph(void) {
-    ConstraintGraph *g = graph_create();
-    if (!g) return NULL;
-
-    int p0 = add_point(g, 0, 1, 0, 1);
-    int p1 = add_point(g, 1, 1, 0, 1);
-    if (p0 < 0 || p1 < 0) { graph_destroy(g); return NULL; }
-
-    graph_add_line_segment(g, p0, p1);
-
-    /* 获取线段 ID（最后添加的节点） */
-    int s = g->next_node_id - 1;
-    if (s < 0) { graph_destroy(g); return NULL; }
-
-    graph_add_incidence(g, p0, s);
-    graph_add_incidence(g, p1, s);
-
-    return g;
-}
-
+/* ============== 辅助：线段图（共享构造器） ============== */
+/* 收敛：使用 lv_test_geom_graph_builder.h 的 lv_test_line_graph(NULL, 0, 0, 1, 0, true)
+ * 创建含两 POINT 节点 (0,0)(1,0) + 一条线段 + 两条 incidence 的图（与本地 create_line_graph 语义一致）*/
 /* ============== 辅助：创建模式约束结构体 ============== */
 
 /**
@@ -141,7 +110,7 @@ static void test_rewrite_rule_lifecycle(void) {
  * ============================================================ */
 
 static void test_real_pattern_matching(void) {
-    ConstraintGraph *g = create_line_graph();
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, true);
     TEST_ASSERT_NOT_NULL(g);
 
     /* 模式：3 个变量 (-1=point, -2=line, -3=point) */
@@ -217,7 +186,7 @@ static void test_real_pattern_matching(void) {
  * ============================================================ */
 
 static void test_real_rule_application(void) {
-    ConstraintGraph *g = create_line_graph();
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, true);
     TEST_ASSERT_NOT_NULL(g);
 
     /* 记录初始状态 */
@@ -336,7 +305,7 @@ static void test_real_rule_application(void) {
  * ============================================================ */
 
 static void test_multi_rule_rewrite(void) {
-    ConstraintGraph *g = create_line_graph();
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, true);
     TEST_ASSERT_NOT_NULL(g);
 
     /* 规则 1：匹配 2 个点和 1 条线段（含 incidence），移除线段 */
@@ -409,7 +378,7 @@ static void test_multi_rule_rewrite(void) {
  * ============================================================ */
 
 static void test_graph_snapshot(void) {
-    ConstraintGraph *g = create_line_graph();
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, true);
     TEST_ASSERT_NOT_NULL(g);
 
     /* 创建快照 */
@@ -446,11 +415,11 @@ static void test_graph_snapshot(void) {
 
 static void test_wl_hash(void) {
     /* 创建第一个图：p0--p1 */
-    ConstraintGraph *g1 = create_line_graph();
+    ConstraintGraph *g1 = lv_test_line_graph(NULL, 0, 0, 1, 0, true);
     TEST_ASSERT_NOT_NULL(g1);
 
     /* 创建相同结构的图 */
-    ConstraintGraph *g2 = create_line_graph();
+    ConstraintGraph *g2 = lv_test_line_graph(NULL, 0, 0, 1, 0, true);
     TEST_ASSERT_NOT_NULL(g2);
 
     /* 计算 WL 哈希 */

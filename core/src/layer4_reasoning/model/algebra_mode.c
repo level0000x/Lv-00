@@ -698,6 +698,22 @@ AlgebraicGeom *algebra_undo(AlgebraicGeom *geom) {
     return geom;
 }
 
+/* REDO 动作分类（HISTORY_* 为显式大整数编号，未列出的步骤归 REDO_NONE） */
+enum {
+    REDO_NONE = 0,   /* 无操作：约束操作（INCIDENCE）、平面切换（PLANE）等 */
+    REDO_ENTITY,     /* 实体构造：更新 current_entity 为图中最后添加的节点 */
+    REDO_TRANSFORM   /* 变换操作：恢复变换累积状态 */
+};
+
+static const int kRedoActionByStep[HISTORY_PLANE + 1] = {
+    [HISTORY_POINT]        = REDO_ENTITY,
+    [HISTORY_LINE_SEGMENT] = REDO_ENTITY,
+    [HISTORY_CIRCLE]       = REDO_ENTITY,
+    [HISTORY_RAY]          = REDO_ENTITY,
+    [HISTORY_INCIDENCE]    = REDO_NONE,
+    [HISTORY_TRANSFORM]    = REDO_TRANSFORM,
+};
+
 AlgebraicGeom *algebra_redo(AlgebraicGeom *geom) {
     if (!geom || geom->redo_count == 0)
         return NULL;
@@ -705,29 +721,26 @@ AlgebraicGeom *algebra_redo(AlgebraicGeom *geom) {
     int step = geom->redo_stack[--geom->redo_count];
     history_push(geom, step);
 
-    /* 根据步骤类型重新执行几何构造 */
-    switch (step) {
-        case HISTORY_POINT:
-        case HISTORY_LINE_SEGMENT:
-        case HISTORY_CIRCLE:
-        case HISTORY_RAY:
+    /* 根据步骤类型重新执行几何构造（REDO 动作查找表，未列出/越界值归 REDO_NONE） */
+    int redo_action = (unsigned) step < sizeof(kRedoActionByStep) / sizeof(kRedoActionByStep[0])
+                          ? kRedoActionByStep[step]
+                          : REDO_NONE;
+    switch (redo_action) {
+        case REDO_ENTITY:
             /* 点、线段、圆、射线的构造：更新 current_entity 为图中最后一个节点 */
             if (geom->graph && geom->graph->node_count > 0) {
                 geom->current_entity = graph_get_last_added_node_id(geom->graph);
             }
             break;
 
-        case HISTORY_INCIDENCE:
-            /* 约束操作不改变 current_entity，保持已有值即可 */
-            break;
-
-        case HISTORY_TRANSFORM:
+        case REDO_TRANSFORM:
             /* 变换操作：恢复变换累积状态 */
             geom->has_transform = true;
             break;
 
+        case REDO_NONE:
         default:
-            /* HISTORY_PLANE 等平面切换：current_entity 不受影响 */
+            /* 约束操作（HISTORY_INCIDENCE）不改变 current_entity；HISTORY_PLANE 等平面切换亦不受影响 */
             break;
     }
 

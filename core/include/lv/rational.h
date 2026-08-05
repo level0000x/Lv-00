@@ -112,14 +112,12 @@ void lv_rational_to_mpq(const lvRational *r, mpq_t out);
  * 兼容宏
  * ======================================================================== */
 
-#ifndef SAFE_FREE_STR
-#define SAFE_FREE_STR(p)             \
-    do {                             \
-        if (p) {                     \
-            lv_free((void **) &(p)); \
-        }                            \
-    } while (0)
-#endif
+/** 安全释放字符串指针（lv_free 内建置 NULL；函数化以消除宏对左值实参的取址要求） */
+static inline void lv_safe_free_str(void **pp) {
+    if (pp && *pp) {
+        lv_free(pp);
+    }
+}
 
 #ifdef __cplusplus
 }

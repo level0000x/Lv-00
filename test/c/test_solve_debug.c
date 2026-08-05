@@ -12,11 +12,12 @@
 #include "engine.h"
 #include "lv.h"
 
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 /* 超时信号处理 */
 static volatile int timeout_flag = 0;
@@ -26,21 +27,8 @@ static void alarm_handler(int sig) {
     printf("  *** 超时！lv_solve() 似乎挂起了 ***\n");
 }
 
-#define TEST(n)                    \
-    printf("  [TEST] %s ... ", n); \
-    fflush(stdout)
-#define PASS()            \
-    do {                  \
-        printf("PASS\n"); \
-        P++;              \
-        fflush(stdout);   \
-    } while (0)
-#define FAIL(m)                  \
-    do {                         \
-        printf("FAIL: %s\n", m); \
-        F++;                     \
-        fflush(stdout);          \
-    } while (0)
+/* TEST/PASS/FAIL 宏已由 test_helpers.h 兼容层提供（无 fflush；本文件 main 已 setvbuf(_IONBF) 无缓冲，
+ * 输出顺序不变），删除本地自定义宏以避免重定义警告。*/
 
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -315,7 +303,7 @@ int main(void) {
     t7_end:;
     }
 
-    printf("\n=== 结果: %d PASS, %d FAIL ===\n", P, F);
+    printf("\n=== 结果: %d PASS, %d FAIL ===\n", g_pass_count, g_fail_count);
     lv_cleanup();
-    return F > 0 ? 1 : 0;
+    return g_fail_count > 0 ? 1 : 0;
 }

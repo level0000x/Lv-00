@@ -6,8 +6,10 @@
  *          支持四种演化方法（Euler/RK4/Adams/BDF）和 PI 步长控制器，
  *          提供单步演化与主演化循环。
  *
- *          Adams-Bashforth-Moulton 实现为变阶（1~5阶）预测-校正法，
+ *          Adams-Bashforth-Moulton 实现为变阶（1~5阶，系数表支持范围）预测-校正法，
  *          BDF 实现为变阶（1~5阶）隐式多步法（Newton 迭代求解）。
+ *          实际阶数由内置系数表限制为 1~5；GEOEVOL_ADAMS_MAX_ORDER（geom_evol.h，12）
+ *          为多步法历史缓冲区容量。
  *
  * @author Lv-00 Project
  * @version v3.3.0
@@ -56,10 +58,7 @@
 /** @brief 误差测试阈值：error <= 1.0 则接受步 */
 #define GEOEVOL_ERROR_THRESHOLD 1.0
 
-/** @brief Adams 方法最大历史步数 */
-#ifndef GEOEVOL_ADAMS_MAX_ORDER
-#define GEOEVOL_ADAMS_MAX_ORDER 5
-#endif
+/** @brief Adams 方法最大历史步数（由 geom_evol.h 统一定义，此处不再重复） */
 
 /* ========================================================================
  * 静态辅助函数的前向声明

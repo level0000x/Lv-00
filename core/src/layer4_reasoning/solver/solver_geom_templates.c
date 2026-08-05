@@ -372,7 +372,7 @@ int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
                         if (fabs(coeff) > lv_EPSILON_NUMERIC_COMPARE) {
                             double_to_mpz_scaled(len_j, poly.coeffs[1], scale);
                             double_to_mpz_scaled(-t_j * len_i, poly.coeffs[0], scale);
-                            EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 0, push_error);
+                            if (lv_equation_push_checked(sys, poly, pt->id, 0) != 0) goto push_error;
                             mpz_poly_clear(&poly);
                             added++;
                         } else {

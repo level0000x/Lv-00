@@ -23,11 +23,12 @@
 #include "lv/lv_utils.h"
 #include "lv/proof.h"
 
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 /* ── Church 编码辅助函数（通过公共 API） ── */
 
@@ -961,104 +962,60 @@ static void test_church_fib_compile(void) {
 /* ====================================================================
  * main
  * ==================================================================== */
-int main(void) {
+TEST_MAIN_BEGIN("λ-演算端到端测试")
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("=== λ-演算端到端测试 ===\n\n");
 
     printf("[Church 编码公共 API]\n");
-    TEST("公共 API 完整性");
-    test_church_public_api();
-
+    TEST_MAIN_RUN(test_church_public_api);
     printf("\n[Church 编码扩展]\n");
-    TEST("add 2 3 roundtrip");
-    test_church_add_roundtrip();
-    TEST("sub 5 2 roundtrip");
-    test_church_sub_roundtrip();
-    TEST("pred 3 roundtrip");
-    test_church_pred_roundtrip();
-    TEST("pair 编译");
-    test_church_pair_compile();
-    TEST("nil 编译");
-    test_church_nil_compile();
-    TEST("cons 编译");
-    test_church_cons_compile();
-
+    TEST_MAIN_RUN(test_church_add_roundtrip);
+    TEST_MAIN_RUN(test_church_sub_roundtrip);
+    TEST_MAIN_RUN(test_church_pred_roundtrip);
+    TEST_MAIN_RUN(test_church_pair_compile);
+    TEST_MAIN_RUN(test_church_nil_compile);
+    TEST_MAIN_RUN(test_church_cons_compile);
     printf("\n[Church 布尔运算]\n");
-    TEST("not 编译");     test_church_not_compile();
-    TEST("and 编译");     test_church_and_compile();
-    TEST("or 编译");      test_church_or_compile();
-    TEST("xor 编译");     test_church_xor_compile();
-
+    TEST_MAIN_RUN(test_church_not_compile);
+    TEST_MAIN_RUN(test_church_and_compile);
+    TEST_MAIN_RUN(test_church_or_compile);
+    TEST_MAIN_RUN(test_church_xor_compile);
     printf("\n[Church 列表操作]\n");
-    TEST("isnil 编译");   test_church_isnil_compile();
-    TEST("head 编译");    test_church_head_compile();
-    TEST("foldr 编译");   test_church_foldr_compile();
-    TEST("length 编译");  test_church_length_compile();
-    TEST("append 编译");  test_church_append_compile();
-
+    TEST_MAIN_RUN(test_church_isnil_compile);
+    TEST_MAIN_RUN(test_church_head_compile);
+    TEST_MAIN_RUN(test_church_foldr_compile);
+    TEST_MAIN_RUN(test_church_length_compile);
+    TEST_MAIN_RUN(test_church_append_compile);
     printf("\n[Church 比较运算]\n");
-    TEST("leq 编译");     test_church_leq_compile();
-    TEST("eq 编译");      test_church_eq_compile();
-    TEST("gt 编译");      test_church_gt_compile();
-
+    TEST_MAIN_RUN(test_church_leq_compile);
+    TEST_MAIN_RUN(test_church_eq_compile);
+    TEST_MAIN_RUN(test_church_gt_compile);
     printf("\n[Church 数字编译与还原]\n");
-    TEST("Church 0: λf.λx.x");
-    test_church_zero();
-    TEST("Church 1: λf.λx.(f x)");
-    test_church_one();
-    TEST("Church 2: λf.λx.(f (f x))");
-    test_church_two();
-    TEST("Church 3: 通用构造");
-    test_church_three();
-    TEST("Church 4: 通用构造");
-    test_church_four();
-
+    TEST_MAIN_RUN(test_church_zero);
+    TEST_MAIN_RUN(test_church_one);
+    TEST_MAIN_RUN(test_church_two);
+    TEST_MAIN_RUN(test_church_three);
+    TEST_MAIN_RUN(test_church_four);
     printf("\n[β-归约]\n");
-    TEST("(λx.x) y 编译+归约");
-    test_beta_id();
-    TEST("(λx.λy.x) a b 编译+归约");
-    test_beta_abs();
-    TEST("Church succ 编译");
-    test_church_succ();
-    TEST("Church mul 编译");
-    test_church_mul();
-    TEST("Church pow 2 2 编译");
-    test_church_pow();
-
+    TEST_MAIN_RUN(test_beta_id);
+    TEST_MAIN_RUN(test_beta_abs);
+    TEST_MAIN_RUN(test_church_succ);
+    TEST_MAIN_RUN(test_church_mul);
+    TEST_MAIN_RUN(test_church_pow);
     printf("\n[Y 组合子]\n");
-    TEST("YF 编译+归约");
-    test_y_combinator_step();
-    TEST("Y 组合子阶乘编译");
-    test_y_combinator_factorial();
-
+    TEST_MAIN_RUN(test_y_combinator_step);
+    TEST_MAIN_RUN(test_y_combinator_factorial);
     printf("\n[Church 扩展运算]\n");
-    TEST("div 编译");
-    test_church_div_compile();
-    TEST("factorial 编译");
-    test_church_factorial_direct_compile();
-    TEST("fib 编译");
-    test_church_fib_compile();
-
+    TEST_MAIN_RUN(test_church_div_compile);
+    TEST_MAIN_RUN(test_church_factorial_direct_compile);
+    TEST_MAIN_RUN(test_church_fib_compile);
     printf("\n[集成测试]\n");
-    TEST("beta_reduce 公共 API");
-    test_beta_reduce_public_api();
-    TEST("引擎管线集成");
-    test_engine_lambda_integration();
-    TEST("λ-演算策略注册");
-    test_proof_strategy_lambda();
-    TEST("HOL Light 策略注册");
-    test_proof_strategy_hol_light();
-    TEST("HOL Light verify API");
-    test_hol_light_verify_api();
-
+    TEST_MAIN_RUN(test_beta_reduce_public_api);
+    TEST_MAIN_RUN(test_engine_lambda_integration);
+    TEST_MAIN_RUN(test_proof_strategy_lambda);
+    TEST_MAIN_RUN(test_proof_strategy_hol_light);
+    TEST_MAIN_RUN(test_hol_light_verify_api);
     printf("\n[λ-项类型检查]\n");
-    TEST("λx.x 类型推断");
-    test_type_infer_id();
-    TEST("λx.λy.x 类型推断");
-    test_type_infer_k();
-    TEST("(λx.x)(λy.y) 类型检查");
-    test_type_check_app_id();
-
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
-}
+    TEST_MAIN_RUN(test_type_infer_id);
+    TEST_MAIN_RUN(test_type_infer_k);
+    TEST_MAIN_RUN(test_type_check_app_id);
+TEST_MAIN_END()

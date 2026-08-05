@@ -109,32 +109,30 @@ static inline void mpz_poly_normalize(mpz_poly_t *result) {
     }
 }
 
-/* 二元多项式操作宏：简化add/sub的重复代码。
- *
- * 警告：此宏内部包含 return 语句，因此只能在返回类型为 void 的函数中使用。
- * 在非 void 函数中展开此宏将导致编译错误或未定义行为。
- */
-#define MPZ_POLY_BINARY_OP(result, a, b, op)                                 \
-    do {                                                                     \
-        mpz_poly_clear(result);                                              \
-        int max_deg = (a)->degree > (b)->degree ? (a)->degree : (b)->degree; \
-        if (!mpz_poly_alloc_result(result, max_deg))                         \
-            return;                                                          \
-        for (int i = 0; i <= (a)->degree; i++) {                             \
-            mpz_set(result->coeffs[i], (a)->coeffs[i]);                      \
-        }                                                                    \
-        for (int i = 0; i <= (b)->degree; i++) {                             \
-            op(result->coeffs[i], result->coeffs[i], (b)->coeffs[i]);        \
-        }                                                                    \
-        mpz_poly_normalize(result);                                          \
-    } while (0)
+/* 二元多项式操作：简化 add/sub 的重复代码（原 MPZ_POLY_BINARY_OP 宏函数化）。
+ * 分配失败时返回 false（原宏为提前 return，行为等价）。 */
+static inline bool mpz_poly_binop(mpz_poly_t *result, const mpz_poly_t *a, const mpz_poly_t *b,
+                                  void (*op)(mpz_ptr, mpz_srcptr, mpz_srcptr)) {
+    mpz_poly_clear(result);
+    int max_deg = a->degree > b->degree ? a->degree : b->degree;
+    if (!mpz_poly_alloc_result(result, max_deg))
+        return false;
+    for (int i = 0; i <= a->degree; i++) {
+        mpz_set(result->coeffs[i], a->coeffs[i]);
+    }
+    for (int i = 0; i <= b->degree; i++) {
+        op(result->coeffs[i], result->coeffs[i], b->coeffs[i]);
+    }
+    mpz_poly_normalize(result);
+    return true;
+}
 
 static inline void mpz_poly_add(mpz_poly_t *result, const mpz_poly_t *a, const mpz_poly_t *b) {
-    MPZ_POLY_BINARY_OP(result, a, b, mpz_add);
+    (void) mpz_poly_binop(result, a, b, mpz_add);
 }
 
 static inline void mpz_poly_sub(mpz_poly_t *result, const mpz_poly_t *a, const mpz_poly_t *b) {
-    MPZ_POLY_BINARY_OP(result, a, b, mpz_sub);
+    (void) mpz_poly_binop(result, a, b, mpz_sub);
 }
 
 static inline void mpz_poly_mul(mpz_poly_t *result, const mpz_poly_t *a, const mpz_poly_t *b) {

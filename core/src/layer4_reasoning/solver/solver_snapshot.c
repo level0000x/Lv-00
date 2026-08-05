@@ -10,14 +10,6 @@
 #include "../solver_snapshot.h"
 #include "solver_common.h"
 
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
 /* ── SolverSnapshot 定义见 ../solver_snapshot.h ── */
 
 bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot) {

@@ -34,6 +34,15 @@
 /*  端口不变量断言（完整版）实现                                        */
 /* ================================================================== */
 
+/* 类型等价结果 → 端口兼容判定（0=兼容，1=不兼容；ERROR=-1 哨兵 → 错误路径） */
+static const int kEquivCompat[] = {
+    [TYPE_EQUIV_OK]                = 0,  /* 兼容 */
+    [TYPE_EQUIV_NOT_EQUIV]         = 1,  /* 不兼容 */
+    [TYPE_EQUIV_UNKNOWN]           = 0,  /* 无法证明不兼容，视为兼容 */
+    [TYPE_EQUIV_NEEDS_INTERACTION] = 0,  /* 无法证明不兼容，视为兼容 */
+    [TYPE_EQUIV_ERROR]             = -1, /* 检查出错 */
+};
+
 /**
  * @brief 端口与其连接节点之间的深度类型兼容性检查。
  *
@@ -84,18 +93,12 @@ static int check_port_type_deep_compatible(const ConstraintGraph *graph, int por
     /* 双方都有类型且类型系统可用：使用深度等价检查 */
     TypeEquivResult equiv = type_check_equivalence(ts, port_type, connected_type, true);
 
-    switch (equiv) {
-        case TYPE_EQUIV_OK:
-            return 0; /* 兼容 */
-        case TYPE_EQUIV_NOT_EQUIV:
-            return 1; /* 不兼容 */
-        case TYPE_EQUIV_UNKNOWN:
-        case TYPE_EQUIV_NEEDS_INTERACTION:
-            return 0; /* 无法证明不兼容，视为兼容 */
-        case TYPE_EQUIV_ERROR:
-        default:
-            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "类型等价检查出错");
+    /* 类型等价结果 → 端口兼容判定（0=兼容，1=不兼容；ERROR/越界走错误路径） */
+    int compat = (unsigned) equiv < sizeof(kEquivCompat) / sizeof(kEquivCompat[0]) ? kEquivCompat[equiv] : -1;
+    if (compat < 0) {
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "类型等价检查出错");
     }
+    return compat;
 }
 
 PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {

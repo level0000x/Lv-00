@@ -265,14 +265,10 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
         if (config->order == lv_TRAVERSAL_DFS_POST) {
             /* 扩展栈 */
             if (stack_top >= stack_cap) {
-                stack_cap *= 2;
-                DFSFrame *new_stack = (DFSFrame *)lv_realloc(stack,
-                    (size_t)stack_cap * sizeof(DFSFrame));
-                if (!new_stack) {
+                if (!lv_ensure_capacity((void **)&stack, stack_top, &stack_cap, sizeof(DFSFrame), 0)) {
                     lv_free((void **)&stack);
                     lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "dfs_traverse_from: stack realloc failed");
                 }
-                stack = new_stack;
             }
             /* 压入退出帧 */
             stack[stack_top].node_id = frame.node_id;
@@ -294,14 +290,10 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
 
             /* 扩展栈 */
             if (stack_top >= stack_cap) {
-                stack_cap *= 2;
-                DFSFrame *new_stack = (DFSFrame *)lv_realloc(stack,
-                    (size_t)stack_cap * sizeof(DFSFrame));
-                if (!new_stack) {
+                if (!lv_ensure_capacity((void **)&stack, stack_top, &stack_cap, sizeof(DFSFrame), 0)) {
                     lv_free((void **)&stack);
                     lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "dfs_traverse_from: stack realloc failed");
                 }
-                stack = new_stack;
             }
 
             stack[stack_top].node_id = nid;
@@ -595,19 +587,13 @@ int lv_tree_traverse(void *root,
 
             for (int i = 0; i < child_count; i++) {
                 if (tail >= cap) {
-                    cap *= 2;
-                    void **new_q = (void **)lv_realloc(queue, (size_t)cap * sizeof(void *));
-                    int *new_d = (int *)lv_realloc(depths, (size_t)cap * sizeof(int));
-                    if (!new_q || !new_d) {
+                    if (!lv_ensure_capacity((void **)&queue, tail, &cap, sizeof(void *), 0) ||
+                        !lv_ensure_capacity((void **)&depths, tail, &cap, sizeof(int), 0)) {
                         lv_free((void **)&queue);
                         lv_free((void **)&depths);
-                        lv_free((void **)&new_q);
-                        lv_free((void **)&new_d);
                         lv_free((void **)&children);
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tree_traverse: queue realloc failed");
                     }
-                    queue = new_q;
-                    depths = new_d;
                 }
                 queue[tail] = children[i];
                 depths[tail] = depth + 1;
@@ -670,14 +656,11 @@ int lv_tree_traverse(void *root,
             if (config->order == lv_TRAVERSAL_DFS_POST && child_count > 0) {
                 /* 后序：先压入退出帧，再压入子节点 */
                 if (top >= cap) {
-                    cap *= 2;
-                    TreeFrame *new_s = (TreeFrame *)lv_realloc(stack, (size_t)cap * sizeof(TreeFrame));
-                    if (!new_s) {
+                    if (!lv_ensure_capacity((void **)&stack, top, &cap, sizeof(TreeFrame), 0)) {
                         lv_free((void **)&stack);
                         lv_free((void **)&children);
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tree_traverse: stack realloc failed");
                     }
-                    stack = new_s;
                 }
                 stack[top].node = frame.node;
                 stack[top].depth = frame.depth;
@@ -688,14 +671,11 @@ int lv_tree_traverse(void *root,
             /* 逆序压入子节点（保证从左到右遍历） */
             for (int i = child_count - 1; i >= 0; i--) {
                 if (top >= cap) {
-                    cap *= 2;
-                    TreeFrame *new_s = (TreeFrame *)lv_realloc(stack, (size_t)cap * sizeof(TreeFrame));
-                    if (!new_s) {
+                    if (!lv_ensure_capacity((void **)&stack, top, &cap, sizeof(TreeFrame), 0)) {
                         lv_free((void **)&stack);
                         lv_free((void **)&children);
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tree_traverse: stack realloc failed");
                     }
-                    stack = new_s;
                 }
                 stack[top].node = children[i];
                 stack[top].depth = frame.depth + 1;
@@ -802,15 +782,11 @@ bool lv_graph_has_cycle(ConstraintGraph *graph) {
 
             /* 压入退出帧 */
             if (top >= stack_cap) {
-                stack_cap *= 2;
-                CycleFrame *new_s = (CycleFrame *)lv_realloc(stack,
-                    (size_t)stack_cap * sizeof(CycleFrame));
-                if (!new_s) {
+                if (!lv_ensure_capacity((void **)&stack, top, &stack_cap, sizeof(CycleFrame), 0)) {
                     lv_free((void **)&stack);
                     lv_free((void **)&color);
                     return false;
                 }
-                stack = new_s;
             }
             stack[top].node_id = f.node_id;
             stack[top].state = 1;
@@ -829,15 +805,11 @@ bool lv_graph_has_cycle(ConstraintGraph *graph) {
                     continue;
 
                 if (top >= stack_cap) {
-                    stack_cap *= 2;
-                    CycleFrame *new_s = (CycleFrame *)lv_realloc(stack,
-                        (size_t)stack_cap * sizeof(CycleFrame));
-                    if (!new_s) {
+                    if (!lv_ensure_capacity((void **)&stack, top, &stack_cap, sizeof(CycleFrame), 0)) {
                         lv_free((void **)&stack);
                         lv_free((void **)&color);
                         return false;
                     }
-                    stack = new_s;
                 }
                 stack[top].node_id = nb;
                 stack[top].state = 0;

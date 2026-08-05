@@ -215,17 +215,24 @@ void lv_log_set_callback(lvLogCallback callback, void *user_data) {
     lv_mutex_unlock(&s_runtime_state.log.mutex);
 }
 
+/* LogLevel 含负数（TRACE=-1），查找表下标需偏移：表下标 = level + LOG_LEVEL_INDEX_OFFSET。
+ * 未显式列出的级别（如 LOG_LEVEL_OFF/LOG_LEVEL_ENUM_GUARD）默认 0 = lv_LOG_LEVEL_OFF，与 default 一致。 */
+#define LOG_LEVEL_INDEX_OFFSET 1
+static const int kLogLevelToLvLog[LOG_LEVEL_OFF + LOG_LEVEL_INDEX_OFFSET + 1] = {
+    [LOG_LEVEL_TRACE + LOG_LEVEL_INDEX_OFFSET] = lv_LOG_LEVEL_DEBUG,  /* 追踪级别归入 DEBUG（主管道最低可输出级别） */
+    [LOG_LEVEL_DEBUG + LOG_LEVEL_INDEX_OFFSET] = lv_LOG_LEVEL_DEBUG,
+    [LOG_LEVEL_INFO + LOG_LEVEL_INDEX_OFFSET]  = lv_LOG_LEVEL_INFO,
+    [LOG_LEVEL_WARN + LOG_LEVEL_INDEX_OFFSET]  = lv_LOG_LEVEL_WARNING,
+    [LOG_LEVEL_ERROR + LOG_LEVEL_INDEX_OFFSET] = lv_LOG_LEVEL_ERROR,  /* ERROR/FATAL 归入 ERROR（主管道最高级别） */
+    [LOG_LEVEL_FATAL + LOG_LEVEL_INDEX_OFFSET] = lv_LOG_LEVEL_ERROR,
+};
+
 /** 将 LOG_LEVEL_* 级别映射为 lv_internal.h 的 lv_LOG_LEVEL_*（数值越大越详细） */
 static int runtime_log_level_to_lvlog(lvLogLevel level) {
-    switch (level) {
-        case LOG_LEVEL_TRACE: /* 追踪级别归入 DEBUG（主管道最低可输出级别） */
-        case LOG_LEVEL_DEBUG: return lv_LOG_LEVEL_DEBUG;
-        case LOG_LEVEL_INFO:  return lv_LOG_LEVEL_INFO;
-        case LOG_LEVEL_WARN:  return lv_LOG_LEVEL_WARNING;
-        case LOG_LEVEL_ERROR: /* ERROR/FATAL 归入 ERROR（主管道最高级别） */
-        case LOG_LEVEL_FATAL: return lv_LOG_LEVEL_ERROR;
-        default:              return lv_LOG_LEVEL_OFF;
-    }
+    int idx = (int) level + LOG_LEVEL_INDEX_OFFSET;
+    if (idx >= 0 && idx < (int) (sizeof(kLogLevelToLvLog) / sizeof(kLogLevelToLvLog[0])))
+        return kLogLevelToLvLog[idx];
+    return lv_LOG_LEVEL_OFF;
 }
 
 void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line, const char *function, const char *fmt,

@@ -807,12 +807,6 @@ lv_PUBLIC_API FuncBlockViewState func_block_get_view_state(const FuncBlock *fb);
 
 /* ============== 打包冲突对话框（API层） ============== */
 
-/**
- * @brief 设置跨边界约束处理回调
- * @param cb 回调函数，传NULL取消回调
- * @param user_data 传递给回调的用户数据
- */
-lv_PUBLIC_API void func_block_set_cross_boundary_callback(CrossBoundaryCallback cb, void *user_data);
 
 /**
  * @brief 执行跨边界约束的处理动作

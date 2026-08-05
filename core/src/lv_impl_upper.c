@@ -61,14 +61,4 @@
 #include "lv_impl_upper_internal.h"
 #include "lv/lv_strbuf.h"
 
-/** 前向声明 -- 本文件内部使用的轻量级编配器 */
-typedef struct lvOrchestrator lvOrchestrator;
-
-/* ============================================================
- * 文件级静态内部表 -- 用于 L3 实现中的 ID→object 映射
- * ============================================================ */
-
-
-UpperState s_upper_state = {0};
-
 

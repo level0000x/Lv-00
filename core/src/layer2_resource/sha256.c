@@ -23,13 +23,27 @@ static const uint32_t sha256_k[64] = {
     0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
-#define SHA256_ROTR(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
-#define SHA256_CH(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
-#define SHA256_MAJ(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
-#define SHA256_SIGMA0(x) (SHA256_ROTR(x, 2) ^ SHA256_ROTR(x, 13) ^ SHA256_ROTR(x, 22))
-#define SHA256_SIGMA1(x) (SHA256_ROTR(x, 6) ^ SHA256_ROTR(x, 11) ^ SHA256_ROTR(x, 25))
-#define SHA256_sigma0(x) (SHA256_ROTR(x, 7) ^ SHA256_ROTR(x, 18) ^ ((x) >> 3))
-#define SHA256_sigma1(x) (SHA256_ROTR(x, 17) ^ SHA256_ROTR(x, 19) ^ ((x) >> 10))
+static inline uint32_t sha256_rotr(uint32_t x, unsigned int n) {
+    return (x >> n) | (x << (32 - n));
+}
+static inline uint32_t sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
+    return (x & y) ^ (~x & z);
+}
+static inline uint32_t sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
+    return (x & y) ^ (x & z) ^ (y & z);
+}
+static inline uint32_t sha256_big_sigma0(uint32_t x) {
+    return sha256_rotr(x, 2) ^ sha256_rotr(x, 13) ^ sha256_rotr(x, 22);
+}
+static inline uint32_t sha256_big_sigma1(uint32_t x) {
+    return sha256_rotr(x, 6) ^ sha256_rotr(x, 11) ^ sha256_rotr(x, 25);
+}
+static inline uint32_t sha256_small_sigma0(uint32_t x) {
+    return sha256_rotr(x, 7) ^ sha256_rotr(x, 18) ^ (x >> 3);
+}
+static inline uint32_t sha256_small_sigma1(uint32_t x) {
+    return sha256_rotr(x, 17) ^ sha256_rotr(x, 19) ^ (x >> 10);
+}
 
 /* ============== 内部变换函数 ============== */
 
@@ -43,7 +57,7 @@ static void sha256_transform(lvSha256Context *ctx, const uint8_t block[64]) {
                ((uint32_t) block[i * 4 + 2] << 8) | ((uint32_t) block[i * 4 + 3]);
     }
     for (i = 16; i < 64; i++) {
-        w[i] = SHA256_sigma1(w[i - 2]) + w[i - 7] + SHA256_sigma0(w[i - 15]) + w[i - 16];
+        w[i] = sha256_small_sigma1(w[i - 2]) + w[i - 7] + sha256_small_sigma0(w[i - 15]) + w[i - 16];
     }
 
     /* 初始化工作变量 */
@@ -58,8 +72,8 @@ static void sha256_transform(lvSha256Context *ctx, const uint8_t block[64]) {
 
     /* 主压缩循环 */
     for (i = 0; i < 64; i++) {
-        uint32_t t1 = h + SHA256_SIGMA1(e) + SHA256_CH(e, f, g) + sha256_k[i] + w[i];
-        uint32_t t2 = SHA256_SIGMA0(a) + SHA256_MAJ(a, b, c);
+        uint32_t t1 = h + sha256_big_sigma1(e) + sha256_ch(e, f, g) + sha256_k[i] + w[i];
+        uint32_t t2 = sha256_big_sigma0(a) + sha256_maj(a, b, c);
         h = g;
         g = f;
         f = e;

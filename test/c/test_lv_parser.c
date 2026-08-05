@@ -3,11 +3,12 @@
 
 #include "lv/lv_parser.h"
 
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 static const char *dbg_ast_type(LvAstNodeType t) {
     switch (t) {
@@ -769,38 +770,34 @@ static void test_ast_creation(void) {
     }
 }
 
-int main(void) {
+TEST_MAIN_BEGIN("lv parser test")
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("=== lv parser test ===\n\n");
 
-    test_ast_creation();
+    TEST_MAIN_RUN(test_ast_creation);
     printf("\n");
-    test_declaration();
+    TEST_MAIN_RUN(test_declaration);
     printf("\n");
-    test_constraint();
+    TEST_MAIN_RUN(test_constraint);
     printf("\n");
-    test_prove();
+    TEST_MAIN_RUN(test_prove);
     printf("\n");
-    test_quantifier();
+    TEST_MAIN_RUN(test_quantifier);
     printf("\n");
-    test_let();
+    TEST_MAIN_RUN(test_let);
     printf("\n");
-    test_module_import();
+    TEST_MAIN_RUN(test_module_import);
     printf("\n");
-    test_normalize();
+    TEST_MAIN_RUN(test_normalize);
     printf("\n");
-    test_theorem();
+    TEST_MAIN_RUN(test_theorem);
     printf("\n");
-    test_logical_ops();
+    TEST_MAIN_RUN(test_logical_ops);
     printf("\n");
-    test_axiom();
+    TEST_MAIN_RUN(test_axiom);
     printf("\n");
-    test_compute_export();
+    TEST_MAIN_RUN(test_compute_export);
     printf("\n");
-    test_error_recovery();
+    TEST_MAIN_RUN(test_error_recovery);
     printf("\n");
-    test_full_program();
-
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
-}
+    TEST_MAIN_RUN(test_full_program);
+TEST_MAIN_END()

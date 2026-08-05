@@ -151,6 +151,7 @@ static void lv_config_default_init(void) {
     def.health.health_memory_leak_penalty = 20;
     def.health.health_recent_error_penalty = 5;
     def.health.circuit_overflow_threshold = 3;
+    def.health.max_consecutive_trips = 3;
     def.health.value_too_large = 1048576;
     def.health.downgrade_denominator = 100000;
     def.health.default_memory_limit_mb = 0;

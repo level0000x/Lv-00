@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_rational.c
  * @brief lvRational 模块测试套件
  *
@@ -41,7 +41,7 @@ int g_fail_count = 0;
 #define SAFE_FREE_STR(s) \
     do {                 \
         if (s)           \
-            free((s));   \
+            lv_free((void **)&(s)); \
     } while (0)
 #endif
 
@@ -489,27 +489,24 @@ static void test_rational_inplace_ops(void) {
 /* ============================================================
  * 主入口
  * ============================================================ */
-int main(void) {
-    TEST_SUITE_BEGIN("lvRational");
+TEST_MAIN_BEGIN("lvRational")
 
-    TEST_RUN(test_rational_create);
-    TEST_RUN(test_rational_create_from_si);
-    TEST_RUN(test_rational_set_zero_one);
-    TEST_RUN(test_rational_clone);
-    TEST_RUN(test_rational_add);
-    TEST_RUN(test_rational_sub);
-    TEST_RUN(test_rational_mul);
-    TEST_RUN(test_rational_div);
-    TEST_RUN(test_rational_neg);
-    TEST_RUN(test_rational_inv);
-    TEST_RUN(test_rational_abs);
-    TEST_RUN(test_rational_compare);
-    TEST_RUN(test_rational_is_functions);
-    TEST_RUN(test_rational_simplify);
-    TEST_RUN(test_rational_to_double);
-    TEST_RUN(test_rational_div_by_zero);
-    TEST_RUN(test_rational_inplace_ops);
+    TEST_MAIN_RUN(test_rational_create);
+    TEST_MAIN_RUN(test_rational_create_from_si);
+    TEST_MAIN_RUN(test_rational_set_zero_one);
+    TEST_MAIN_RUN(test_rational_clone);
+    TEST_MAIN_RUN(test_rational_add);
+    TEST_MAIN_RUN(test_rational_sub);
+    TEST_MAIN_RUN(test_rational_mul);
+    TEST_MAIN_RUN(test_rational_div);
+    TEST_MAIN_RUN(test_rational_neg);
+    TEST_MAIN_RUN(test_rational_inv);
+    TEST_MAIN_RUN(test_rational_abs);
+    TEST_MAIN_RUN(test_rational_compare);
+    TEST_MAIN_RUN(test_rational_is_functions);
+    TEST_MAIN_RUN(test_rational_simplify);
+    TEST_MAIN_RUN(test_rational_to_double);
+    TEST_MAIN_RUN(test_rational_div_by_zero);
+    TEST_MAIN_RUN(test_rational_inplace_ops);
 
-    TEST_SUITE_END();
-    return (g_fail_count > 0) ? 1 : 0;
-}
+TEST_MAIN_END()

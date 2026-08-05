@@ -263,7 +263,7 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
         lv_strbuf_printf(&buf, "  \\textit{%s}\n\n", trace->root->description);
     }
 
-    /* 信任颜色映射到 LaTeX 颜色 */
+    /* 信任颜色映射到 LaTeX 颜色（LaTeX 格式派生态；TrustColor 权威名称见 trust_color.c trust_color_name()） */
     static const char *color_map[] = {
         "\\textcolor{green}{}",     /* TRUST_GREEN */
         "\\textcolor{blue}{}",      /* TRUST_BLUE_UNEXPLORED */

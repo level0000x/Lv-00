@@ -9,14 +9,6 @@
 
 #include "solver_common.h"
 
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
-
 /* ── 数值求解器 ── */
 
 bool solve_linear(const mpz_poly_t *poly, double *x_out) {

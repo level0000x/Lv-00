@@ -38,25 +38,28 @@
  * 一、颜色系统实现
  * ================================================================ */
 
-/** 信任颜色名称表，与 lvTrustColor 枚举一一对应 */
+/** 信任颜色名称表，与 lvTrustColor 枚举一一对应
+ * 注：本表服务于 lvTrustColor 协议枚举（12 色，与 TrustColor 枚举不同），
+ *     且被 test_output_export.c / test_layer5_output.c 精确断言，故保留原样；
+ *     TrustColor 枚举的权威名称见 trust_color.c 的 trust_color_name()。 */
 static const char *kTrustColorName[] = {
     "Green",  "Blue",       "BlueRange", "Yellow", "Amber",  "LightOrange",
     "Orange", "DarkOrange", "Red",       "Grey",   "Purple", "Cyan",
 };
 
-/** 信任颜色 RGBA 值表（格式：0xAARRGGBB），与 lvTrustColor 枚举一一对应 */
+/** 信任颜色 RGBA 值表（格式：0xAARRGGBB），与 lvTrustColor 枚举一一对应（格式派生态；名称权威表见 trust_color.c） */
 static const uint32_t kTrustColorRGBA[] = {
     0xFF3fb950, 0xFF58a6ff, 0xFF90caf9, 0xFFd29922, 0xFFffc107, 0xFFff9800,
     0xFFf0883e, 0xFFdb6d28, 0xFFf85149, 0xFF8b949e, 0xFFbc8cff, 0xFF39c5cf,
 };
 
-/** 信任颜色 SVG/CSS 颜色字符串表，与 lvTrustColor 枚举一一对应 */
+/** 信任颜色 SVG/CSS 颜色字符串表，与 lvTrustColor 枚举一一对应（格式派生态；名称权威表见 trust_color.c） */
 static const char *kTrustColorSVG[] = {
     "#3fb950", "#58a6ff", "#90caf9", "#d29922", "#ffc107", "#ff9800",
     "#f0883e", "#db6d28", "#f85149", "#8b949e", "#bc8cff", "#39c5cf",
 };
 
-/** 信任颜色 TikZ/LaTeX 颜色字符串表，与 lvTrustColor 枚举一一对应 */
+/** 信任颜色 TikZ/LaTeX 颜色字符串表，与 lvTrustColor 枚举一一对应（格式派生态；名称权威表见 trust_color.c） */
 static const char *kTrustColorTikZ[] = {
     "{HTML}{3FB950}", "{HTML}{58A6FF}", "{HTML}{90CAF9}", "{HTML}{D29922}", "{HTML}{FFC107}", "{HTML}{FF9800}",
     "{HTML}{F0883E}", "{HTML}{DB6D28}", "{HTML}{F85149}", "{HTML}{8B949E}", "{HTML}{BC8CFF}", "{HTML}{39C5CF}",

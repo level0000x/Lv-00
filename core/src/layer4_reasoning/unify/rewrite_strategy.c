@@ -563,6 +563,96 @@ bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine, const char *name, con
  * API implementation: Rewrite execution
  * ============================================================ */
 
+/* 按重写策略应用规则 —— 函数指针表分发（INNERMOST/OUTERMOST 仅 use_last 参数不同，合并实现） */
+typedef bool (*RewriteApplyFn)(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result);
+
+static bool strategy_apply_ordered(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result,
+                                   bool use_last) {
+    char *current = str_dup(input);
+    if (!current)
+        return false;
+
+    for (int i = 0; i < engine->max_iterations; i++) {
+        bool any_applied = false;
+        for (size_t r = 0; r < engine->rule_count; r++) {
+            char *next = apply_single_rule(current, &engine->rules[r], use_last);
+            if (next) {
+                if (strcmp(next, current) != 0) {
+                    any_applied = true;
+                    lv_FREE_AND_NULL(current);
+                    current = next;
+                    break; /* Restart from highest priority rule */
+                }
+                lv_FREE_AND_NULL(next);
+            }
+        }
+        result->iterations = i + 1;
+        if (!any_applied) {
+            result->converged = true;
+            break;
+        }
+    }
+    if (!result->converged) {
+        result->hit_limit = true;
+    }
+    result->output = current;
+    return true;
+}
+
+static bool strategy_apply_inner(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result) {
+    return strategy_apply_ordered(engine, input, result, true);
+}
+
+static bool strategy_apply_outer(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result) {
+    return strategy_apply_ordered(engine, input, result, false);
+}
+
+static bool strategy_apply_parallel(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result) {
+    char *current = str_dup(input);
+    if (!current)
+        return false;
+
+    for (int i = 0; i < engine->max_iterations; i++) {
+        char *next = apply_parallel_rules(current, engine->rules, engine->rule_count);
+        if (!next) {
+            result->iterations = i + 1;
+            result->converged = true;
+            break;
+        }
+        if (strcmp(next, current) == 0) {
+            lv_FREE_AND_NULL(next);
+            result->iterations = i + 1;
+            result->converged = true;
+            break;
+        }
+        lv_FREE_AND_NULL(current);
+        current = next;
+        result->iterations = i + 1;
+    }
+    if (!result->converged) {
+        result->hit_limit = true;
+    }
+    result->output = current;
+    return true;
+}
+
+static bool strategy_apply_egraph(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result) {
+    char *current = apply_egraph_rules(input, engine->rules, engine->rule_count, engine->max_iterations);
+    if (!current)
+        return false;
+    result->output = current;
+    result->converged = true;
+    result->iterations = 1;
+    return true;
+}
+
+static const RewriteApplyFn kStrategyApps[] = {
+    [lv_RWS_INNERMOST] = strategy_apply_inner,
+    [lv_RWS_OUTERMOST] = strategy_apply_outer,
+    [lv_RWS_PARALLEL]  = strategy_apply_parallel,
+    [lv_RWS_EGRAPH]    = strategy_apply_egraph,
+};
+
 bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result) {
     if (!engine || !input || !result)
         return false;
@@ -581,113 +671,12 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRew
     /* Sort rules by priority */
     sort_rules_by_priority(engine->rules, engine->rule_count);
 
-    switch (engine->strategy) {
-        case REWRITE_INNERMOST: {
-            char *current = str_dup(input);
-            if (!current)
-                return false;
-
-            for (int i = 0; i < engine->max_iterations; i++) {
-                bool any_applied = false;
-                for (size_t r = 0; r < engine->rule_count; r++) {
-                    char *next = apply_single_rule(current, &engine->rules[r], true);
-                    if (next) {
-                        if (strcmp(next, current) != 0) {
-                            any_applied = true;
-                            lv_FREE_AND_NULL(current);
-                            current = next;
-                            break; /* Restart from highest priority rule */
-                        }
-                        lv_FREE_AND_NULL(next);
-                    }
-                }
-                result->iterations = i + 1;
-                if (!any_applied) {
-                    result->converged = true;
-                    break;
-                }
-            }
-            if (!result->converged) {
-                result->hit_limit = true;
-            }
-            result->output = current;
-            return true;
-        }
-
-        case REWRITE_OUTERMOST: {
-            char *current = str_dup(input);
-            if (!current)
-                return false;
-
-            for (int i = 0; i < engine->max_iterations; i++) {
-                bool any_applied = false;
-                for (size_t r = 0; r < engine->rule_count; r++) {
-                    char *next = apply_single_rule(current, &engine->rules[r], false);
-                    if (next) {
-                        if (strcmp(next, current) != 0) {
-                            any_applied = true;
-                            lv_FREE_AND_NULL(current);
-                            current = next;
-                            break; /* Restart from highest priority rule */
-                        }
-                        lv_FREE_AND_NULL(next);
-                    }
-                }
-                result->iterations = i + 1;
-                if (!any_applied) {
-                    result->converged = true;
-                    break;
-                }
-            }
-            if (!result->converged) {
-                result->hit_limit = true;
-            }
-            result->output = current;
-            return true;
-        }
-
-        case REWRITE_PARALLEL: {
-            char *current = str_dup(input);
-            if (!current)
-                return false;
-
-            for (int i = 0; i < engine->max_iterations; i++) {
-                char *next = apply_parallel_rules(current, engine->rules, engine->rule_count);
-                if (!next) {
-                    result->iterations = i + 1;
-                    result->converged = true;
-                    break;
-                }
-                if (strcmp(next, current) == 0) {
-                    lv_FREE_AND_NULL(next);
-                    result->iterations = i + 1;
-                    result->converged = true;
-                    break;
-                }
-                lv_FREE_AND_NULL(current);
-                current = next;
-                result->iterations = i + 1;
-            }
-            if (!result->converged) {
-                result->hit_limit = true;
-            }
-            result->output = current;
-            return true;
-        }
-
-        case REWRITE_EGRAPH: {
-            char *current = apply_egraph_rules(input, engine->rules, engine->rule_count, engine->max_iterations);
-            if (!current)
-                return false;
-            result->output = current;
-            result->converged = true;
-            result->iterations = 1;
-            return true;
-        }
-
-        default:
-            return false;
+    /* 策略 → 应用函数表分发（未列出策略/FIRST/BEST/BREADTH/DEPTH 走 default → false） */
+    if ((unsigned) engine->strategy < sizeof(kStrategyApps) / sizeof(kStrategyApps[0]) &&
+        kStrategyApps[engine->strategy]) {
+        return kStrategyApps[engine->strategy](engine, input, result);
     }
+    return false;
 }
 
 void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result) {

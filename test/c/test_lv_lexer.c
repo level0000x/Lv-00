@@ -3,11 +3,12 @@
 
 #include "lv/lv_lexer.h"
 
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 static void test_single_token(const char *src, LvTokenType expected) {
     LvLexer *lex = lv_lexer_create(src, strlen(src));
@@ -186,6 +187,6 @@ int main(void) {
         lv_lexer_destroy(lex);
     }
 
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
+    printf("\n=== %d passed, %d failed ===\n", g_pass_count, g_fail_count);
+    return g_fail_count > 0 ? 1 : 0;
 }

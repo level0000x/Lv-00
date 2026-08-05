@@ -22,6 +22,7 @@
 #include "func_block_registry.h"
 #include "lv_internal.h"
 #include "lv/lv_json.h"
+#include "lv/lv_thread.h"
 #include "lv_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
@@ -77,13 +78,17 @@ uint32_t hash_string(const char *str) {
  * 线程安全实现
  * ============================================================ */
 
+/** @brief 预设库互斥锁一次性初始化控件（模块级，供 lock_library 与 DllMain 共用） */
+static lv_once_t s_library_mutex_once = lv_ONCE_INIT;
+
+/** @brief 预设库互斥锁一次性初始化回调（lv_once 保证仅执行一次且同步完成） */
+static void library_mutex_init_impl(void) {
+    lv_MUTEX_INIT(&g_library.mutex);
+}
+
 void lock_library(void) {
     /* 惰性初始化：静态库链接时 DllMain/constructor 不会被调用 */
-    static volatile long g_mutex_initialized = 0;
-    if (!g_mutex_initialized) {
-        lv_MUTEX_INIT(&g_library.mutex);
-        lv_ATOMIC_EXCHANGE(&g_mutex_initialized, 1);
-    }
+    lv_once(&s_library_mutex_once, library_mutex_init_impl);
     lv_MUTEX_LOCK(&g_library.mutex);
 }
 
@@ -715,8 +720,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH:
-            /* 仅初始化互斥锁，不做其他复杂操作 */
-            lv_MUTEX_INIT(&g_library.mutex);
+            /* 仅初始化互斥锁，不做其他复杂操作（lv_once 幂等，避免重复初始化） */
+            lv_once(&s_library_mutex_once, library_mutex_init_impl);
             DisableThreadLibraryCalls(hModule);
             break;
 

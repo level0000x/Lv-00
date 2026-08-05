@@ -14,13 +14,16 @@
 #include "lv.h"
 
 /* 使用共享 TEST/PASS/FAIL 宏；计数挂钩保持原有 P/F 计数行为 */
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
+/* 收敛说明：本文件图构造需使用 graph_add_node_with_id 指定自定义节点 ID（用于哈希行为测试），
+ * 与 lv_test_geom_graph_builder.h 的共享构造器（自动分配 ID）语义不匹配，故保留本地实现。*/
 /* ── 辅助：创建含 2 个 POINT 节点的图（使用 graph_add_node_with_id 指定 ID）── */
 static ConstraintGraph *create_graph_with_ids(int id1, int id2) {
     ConstraintGraph *g = graph_create();
@@ -97,7 +100,7 @@ static void test_empty_graph_hash(void) {
     ConstraintGraph *g = graph_create();
     if (!g) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -131,7 +134,7 @@ static void test_determinism(void) {
     ConstraintGraph *g = graph_create();
     if (!g) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -141,7 +144,7 @@ static void test_determinism(void) {
     if (p0 < 0 || p1 < 0) {
         FAIL("add_point");
         graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -149,7 +152,7 @@ static void test_determinism(void) {
     if (!h1) {
         FAIL("h1 NULL");
         graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -158,7 +161,7 @@ static void test_determinism(void) {
         FAIL("h2 NULL");
         graph_hash_destroy(h1);
         graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -205,7 +208,7 @@ static void test_diff_ids_diff_hash(void) {
             graph_destroy(g1);
         if (g2)
             graph_destroy(g2);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -238,7 +241,7 @@ static void test_hash_equal(void) {
     ConstraintGraph *g = graph_create();
     if (!g) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -252,7 +255,7 @@ static void test_hash_equal(void) {
     if (!h1 || !h2) {
         FAIL("hash NULL");
         graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -317,14 +320,14 @@ static void test_hash_destroy(void) {
     ConstraintGraph *g = graph_create();
     if (!g) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
     GraphHash *h = compute_complete_graph_hash(g);
     if (!h) {
         FAIL("hash NULL");
         graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
     graph_hash_destroy(h);
@@ -345,7 +348,7 @@ static void test_quick_hash(void) {
     ConstraintGraph *g = graph_create();
     if (!g) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -382,31 +385,22 @@ static void test_quick_hash(void) {
 /* ============================================================
  * Main
  * ============================================================ */
-int main(void) {
+TEST_MAIN_BEGIN("GraphHash 测试套件")
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("=== GraphHash 测试套件 ===\n\n");
 
     lv_init();
 
     printf("[组 1] 空图哈希\n");
-    test_empty_graph_hash();
-
+    TEST_MAIN_RUN(test_empty_graph_hash);
     printf("[组 2] 确定性\n");
-    test_determinism();
-
+    TEST_MAIN_RUN(test_determinism);
     printf("[组 3] 不同 ID 的哈希行为\n");
-    test_diff_ids_diff_hash();
-
+    TEST_MAIN_RUN(test_diff_ids_diff_hash);
     printf("[组 4] graph_hash_equal\n");
-    test_hash_equal();
-
+    TEST_MAIN_RUN(test_hash_equal);
     printf("[组 5] graph_hash_destroy\n");
-    test_hash_destroy();
-
+    TEST_MAIN_RUN(test_hash_destroy);
     printf("[组 6] compute_quick_graph_hash\n");
-    test_quick_hash();
-
+    TEST_MAIN_RUN(test_quick_hash);
     lv_cleanup();
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

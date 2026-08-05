@@ -1014,67 +1014,64 @@ void test_compress_null_safety(void) {
  * 主函数
  * ============================================================ */
 
-int main(void) {
-    TEST_SUITE_BEGIN("Geometry Core — CSG, Euclidean, Compression");
+TEST_MAIN_BEGIN("Geometry Core — CSG, Euclidean, Compression")
 
     /* ── CSG 节点生命周期 ── */
-    TEST_RUN(test_csg_node_create_destroy);
-    TEST_RUN(test_csg_node_children);
+    TEST_MAIN_RUN(test_csg_node_create_destroy);
+    TEST_MAIN_RUN(test_csg_node_children);
 
     /* ── CSG 基本图元 ── */
-    TEST_RUN(test_csg_sphere);
-    TEST_RUN(test_csg_box);
-    TEST_RUN(test_csg_cylinder);
-    TEST_RUN(test_csg_cone);
+    TEST_MAIN_RUN(test_csg_sphere);
+    TEST_MAIN_RUN(test_csg_box);
+    TEST_MAIN_RUN(test_csg_cylinder);
+    TEST_MAIN_RUN(test_csg_cone);
 
     /* ── CSG 布尔运算 ── */
-    TEST_RUN(test_csg_union);
-    TEST_RUN(test_csg_difference);
-    TEST_RUN(test_csg_intersection);
+    TEST_MAIN_RUN(test_csg_union);
+    TEST_MAIN_RUN(test_csg_difference);
+    TEST_MAIN_RUN(test_csg_intersection);
 
     /* ── CSG 包围盒 ── */
-    TEST_RUN(test_csg_bbox);
+    TEST_MAIN_RUN(test_csg_bbox);
 
     /* ── CSG 树结构与导出 ── */
-    TEST_RUN(test_csg_tree_structure);
+    TEST_MAIN_RUN(test_csg_tree_structure);
     /* TEST_RUN(test_csg_example_taj_mahal); */
 
     /* ── Euclidean 上下文 ── */
-    TEST_RUN(test_euclidean_init_destroy);
-    TEST_RUN(test_euclidean_with_graph);
-    TEST_RUN(test_euclidean_axiom_system);
-    TEST_RUN(test_euclidean_bind_graph);
+    TEST_MAIN_RUN(test_euclidean_init_destroy);
+    TEST_MAIN_RUN(test_euclidean_with_graph);
+    TEST_MAIN_RUN(test_euclidean_axiom_system);
+    TEST_MAIN_RUN(test_euclidean_bind_graph);
 
     /* ── Euclidean 实体声明 ── */
-    TEST_RUN(test_euclidean_declare_point);
-    TEST_RUN(test_euclidean_declare_line);
-    TEST_RUN(test_euclidean_declare_circle);
+    TEST_MAIN_RUN(test_euclidean_declare_point);
+    TEST_MAIN_RUN(test_euclidean_declare_line);
+    TEST_MAIN_RUN(test_euclidean_declare_circle);
 
     /* ── Euclidean 谓词断言 ── */
-    TEST_RUN(test_euclidean_assert_collinear);
-    TEST_RUN(test_euclidean_assert_between);
-    TEST_RUN(test_euclidean_assert_congruent);
+    TEST_MAIN_RUN(test_euclidean_assert_collinear);
+    TEST_MAIN_RUN(test_euclidean_assert_between);
+    TEST_MAIN_RUN(test_euclidean_assert_congruent);
 
     /* ── Euclidean 等价性证明链 ── */
-    TEST_RUN(test_euclidean_equivalence_chain);
-    TEST_RUN(test_euclidean_destroy_equivalence_chain);
+    TEST_MAIN_RUN(test_euclidean_equivalence_chain);
+    TEST_MAIN_RUN(test_euclidean_destroy_equivalence_chain);
 
     /* ── Euclidean 导出与一致性 ── */
     /* TEST_RUN(test_euclidean_export); */
-    TEST_RUN(test_euclidean_consistency);
+    TEST_MAIN_RUN(test_euclidean_consistency);
 
     /* ── 几何压缩 ── */
-    TEST_RUN(test_compress_config_default);
-    TEST_RUN(test_predictive_encode);
-    TEST_RUN(test_edgebreaker_encode);
+    TEST_MAIN_RUN(test_compress_config_default);
+    TEST_MAIN_RUN(test_predictive_encode);
+    TEST_MAIN_RUN(test_edgebreaker_encode);
     /* TEST_RUN(test_compress_decompress_roundtrip); */
     /* TEST_RUN(test_compress_lvzd_io); */
 
     /* ── 边角情况 ── */
     /* TEST_RUN(test_csg_null_safety); */
-    TEST_RUN(test_euclidean_null_safety);
-    TEST_RUN(test_compress_null_safety);
+    TEST_MAIN_RUN(test_euclidean_null_safety);
+    TEST_MAIN_RUN(test_compress_null_safety);
 
-    TEST_SUITE_END();
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

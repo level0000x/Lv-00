@@ -367,61 +367,35 @@ static const char *constraint_type_to_string(ConstraintType type) {
     return lv_enum_to_str(s_constraint_type_to_string_entries, lv_ARRAY_SIZE(s_constraint_type_to_string_entries), (int) type, "UNKNOWN");
 }
 
+/** @brief CoordType → 序列化前缀与缓冲区余量 查找表 */
+static const struct {
+    const char *prefix;
+    int extra;
+} kCoordPrefix[] = {
+    [RATIONAL]       = {"rational ", 16},
+    [QUADRATIC]      = {"quadratic ", 16},
+    [ALGEBRAIC]      = {"algebraic ", 16},
+    [TRANSCENDENTAL] = {"transcendental ", 20},
+};
+
 /* 将符号坐标序列化为字符串（调用者需释放返回的字符串） */
 static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
     if (!coord)
         return NULL;
 
     char *result = NULL;
-    switch (coord->type) {
-        case RATIONAL: {
-            /* 有理数格式: "rational 分子/分母" */
-            char *str = symbolic_coord_serialize(coord);
-            if (str) {
-                /* 安全：使用 snprintf 并分配足够大的缓冲区 */
-                result = lv_calloc(strlen(str) + 16, 1);
-                if (result)
-                    snprintf(result, strlen(str) + 16, "rational %s", str);
-                lv_free((void **) &str);
-            }
-            break;
+    if ((unsigned) coord->type < lv_ARRAY_SIZE(kCoordPrefix)) {
+        /* 安全：使用 snprintf 并分配足够大的缓冲区 */
+        char *str = symbolic_coord_serialize(coord);
+        if (str) {
+            result = lv_calloc(strlen(str) + kCoordPrefix[coord->type].extra, 1);
+            if (result)
+                snprintf(result, strlen(str) + kCoordPrefix[coord->type].extra, "%s%s",
+                         kCoordPrefix[coord->type].prefix, str);
+            lv_free((void **) &str);
         }
-        case QUADRATIC: {
-            /* 二次根式格式: "quadratic a,b,n" */
-            char *str = symbolic_coord_serialize(coord);
-            if (str) {
-                result = lv_calloc(strlen(str) + 16, 1);
-                if (result)
-                    snprintf(result, strlen(str) + 16, "quadratic %s", str);
-                lv_free((void **) &str);
-            }
-            break;
-        }
-        case ALGEBRAIC: {
-            /* 代数数格式: "algebraic 多项式系数... 左边界 右边界" */
-            char *str = symbolic_coord_serialize(coord);
-            if (str) {
-                result = lv_calloc(strlen(str) + 16, 1);
-                if (result)
-                    snprintf(result, strlen(str) + 16, "algebraic %s", str);
-                lv_free((void **) &str);
-            }
-            break;
-        }
-        case TRANSCENDENTAL: {
-            /* 超越常数格式: "transcendental pi" 或 "transcendental e" */
-            char *str = symbolic_coord_serialize(coord);
-            if (str) {
-                result = lv_calloc(strlen(str) + 20, 1);
-                if (result)
-                    snprintf(result, strlen(str) + 20, "transcendental %s", str);
-                lv_free((void **) &str);
-            }
-            break;
-        }
-        default:
-            result = lv_strdup_safe("unknown");
-            break;
+    } else {
+        result = lv_strdup_safe("unknown");
     }
     return result ? result : lv_strdup_safe("unknown");
 }

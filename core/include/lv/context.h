@@ -657,62 +657,6 @@ lv_PUBLIC_API lvContext *lv_context_create(void);
  */
 lv_PUBLIC_API void lv_context_destroy(lvContext *ctx);
 
-/**
- * @brief 创建当前上下文的完整快照（深拷贝）
- *
- * 快照包含当前上下文的完整状态副本：
- * - 约束图的深拷贝（包括所有节点和约束）
- * - 推理栈的深拷贝（包括每帧的约束图快照）
- * - 熔断器状态的拷贝
- * - 状态机状态的拷贝
- * - 缓存状态标记（但不深拷贝缓存内容）
- *
- * 快照的典型用途：
- * 1. 分支推理前保存状态，分支失败时回滚
- * 2. 试验性操作前的保存点
- * 3. Undo/Redo 栈的构造
- *
- * @param ctx 源上下文（不能为 NULL）
- * @return 新分配的不可变快照（lvContext*，与源上下文类型相同）。
- *         失败返回 NULL，错误码通过 lv_get_last_error_code() 获取。
- *
- * @note 快照也是完整的 lvContext 结构体，可以通过
- *       lv_context_rollback() 恢复到快照状态。
- *       快照的 snapshot_refcount 和 parent_snapshot 会自动设置。
- *
- * @warning 快照是深拷贝操作，对于大规模约束图可能开销较大。
- *          未来版本可能实现写时复制（Copy-on-Write）优化。
- */
-lv_PUBLIC_API lvContext *lv_context_snapshot(lvContext *ctx);
-
-/**
- * @brief 将上下文状态回滚到指定的快照
- *
- * 用快照中的状态替换上下文的当前状态：
- * - 释放当前上下文的约束图，替换为快照的约束图副本
- * - 释放当前推理栈，替换为快照的推理栈副本
- * - 恢复熔断器状态（但熔断计数保留）
- * - 恢复状态机状态
- * - 缓存失效标记设置为脏
- *
- * @param ctx      要回滚的上下文（非 NULL）
- * @param snapshot 之前通过 lv_context_snapshot() 创建的快照（非 NULL）
- * @return true 成功，false 失败（参数为空或回滚过程中资源分配失败）。
- *         失败时上下文保持原状态不变，错误码已设置。
- *
- * @note 回滚成功后，snapshot 不会被自动释放。调用者如果需要释放快照，
- *       应调用 lv_context_destroy(snapshot)。
- *
- * @note 回滚操作保留以下字段不受影响：
- *       - context_id（保持唯一性）
- *       - problems_processed（不减少）
- *       - trip_count（熔断次数累计保留，不过度乐观）
- *
- * @warning 如果 ctx 和 snapshot 不是从同一快照链派生的，
- *          回滚可能导致不一致状态。调用者应确保 snapshot 是
- *          ctx 或 ctx 祖先的直接快照。
- */
-lv_PUBLIC_API bool lv_context_rollback(lvContext *ctx, lvContext *snapshot);
 
 /**
  * @brief 重置上下文，清除所有问题特定状态

@@ -33,14 +33,19 @@
  * @param vis 公共核心表条目（非 NULL）
  * @return TikZ 样式字符串
  */
+/* 约束类型 → TikZ 样式静态查找表（指定初始化器；未列出的枚举值为 NULL，走 default） */
+static const char *const kConstraintStyleByType[] = {
+    [INCIDENCE]   = "constraint",
+    [CONTAINMENT] = "constraint, teal, densely dotted",
+    [ANGLE]       = "constraint, purple, densely dashed",
+    [CONNECTION]  = "connection",
+};
+
 static const char *tikz_constraint_style(const ConstraintVisual *vis) {
-    switch (vis->type) {
-        case INCIDENCE:   return "constraint";
-        case CONTAINMENT: return "constraint, teal, densely dotted";
-        case ANGLE:       return "constraint, purple, densely dashed";
-        case CONNECTION:  return "connection";
-        default:          return "constraint";
-    }
+    if ((unsigned) vis->type < sizeof(kConstraintStyleByType) / sizeof(kConstraintStyleByType[0]) &&
+        kConstraintStyleByType[vis->type])
+        return kConstraintStyleByType[vis->type];
+    return "constraint"; /* default：与 INCIDENCE 一致的样式 */
 }
 
 /* ---- 图例标志索引 ---- */

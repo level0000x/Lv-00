@@ -73,17 +73,15 @@ cleanup:
  */
 void poly_destroy(lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
-    if (!g_data || poly_id < 0 || poly_id >= g_data->poly_count)
-        goto cleanup;
+    GROEBNER_LOCK_GUARD_BEGIN();
+    if (poly_id < 0 || poly_id >= g_data->poly_count)
+        goto _gcleanup;
 
     if (g_data->polys[poly_id]) {
         poly_internal_destroy(g_data->polys[poly_id]);
         g_data->polys[poly_id] = NULL;
     }
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return;
 }
 
@@ -95,36 +93,32 @@ int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char 
         return -1;
 
     int ret = -1;
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
-    if (!g_data)
-        goto cleanup;
+    GROEBNER_LOCK_GUARD_BEGIN();
     if (poly_id_f < 0 || poly_id_g < 0)
-        goto cleanup;
+        goto _gcleanup;
     if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count)
-        goto cleanup;
+        goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id_f];
     lvPolynomial *g = g_data->polys[poly_id_g];
     if (!f || !g)
-        goto cleanup;
+        goto _gcleanup;
 
     if (f->ring_id != g->ring_id)
-        goto cleanup;
+        goto _gcleanup;
     lvPolynomialRing *ring = registry->rings[f->ring_id];
     if (!ring)
-        goto cleanup;
+        goto _gcleanup;
 
     lvPolynomial *result = poly_internal_add(f, g, ring);
     if (!result)
-        goto cleanup;
+        goto _gcleanup;
 
     lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
     ret = poly_internal_store(g_data, result);
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return ret;
 }
 
@@ -136,36 +130,32 @@ int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const 
         return -1;
 
     int ret = -1;
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
-    if (!g_data)
-        goto cleanup;
+    GROEBNER_LOCK_GUARD_BEGIN();
     if (poly_id_f < 0 || poly_id_g < 0)
-        goto cleanup;
+        goto _gcleanup;
     if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count)
-        goto cleanup;
+        goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id_f];
     lvPolynomial *g = g_data->polys[poly_id_g];
     if (!f || !g)
-        goto cleanup;
+        goto _gcleanup;
 
     if (f->ring_id != g->ring_id)
-        goto cleanup;
+        goto _gcleanup;
     lvPolynomialRing *ring = registry->rings[f->ring_id];
     if (!ring)
-        goto cleanup;
+        goto _gcleanup;
 
     lvPolynomial *result = poly_internal_multiply(f, g, ring);
     if (!result)
-        goto cleanup;
+        goto _gcleanup;
 
     lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
     ret = poly_internal_store(g_data, result);
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return ret;
 }
 
@@ -177,36 +167,32 @@ int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int su
         return -1;
 
     int ret = -1;
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
-    if (!g_data)
-        goto cleanup;
+    GROEBNER_LOCK_GUARD_BEGIN();
     if (poly_id < 0 || subst_poly_id < 0)
-        goto cleanup;
+        goto _gcleanup;
     if (poly_id >= g_data->poly_count || subst_poly_id >= g_data->poly_count)
-        goto cleanup;
+        goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id];
     lvPolynomial *subst = g_data->polys[subst_poly_id];
     if (!f || !subst)
-        goto cleanup;
+        goto _gcleanup;
 
     if (f->ring_id != subst->ring_id)
-        goto cleanup;
+        goto _gcleanup;
     lvPolynomialRing *ring = registry->rings[f->ring_id];
     if (!ring)
-        goto cleanup;
+        goto _gcleanup;
 
     lvPolynomial *result = poly_internal_substitute(f, var_index, subst, ring);
     if (!result)
-        goto cleanup;
+        goto _gcleanup;
 
     lv_free((void **) &result->label);
     result->label = groebner_strdup_safe(result_label);
 
     ret = poly_internal_store(g_data, result);
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return ret;
 }
 
@@ -216,13 +202,11 @@ cleanup:
 const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
     const lvPolynomial *p = NULL;
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
-    if (!g_data || poly_id < 0 || poly_id >= g_data->poly_count)
-        goto cleanup;
+    GROEBNER_LOCK_GUARD_BEGIN();
+    if (poly_id < 0 || poly_id >= g_data->poly_count)
+        goto _gcleanup;
     p = g_data->polys[poly_id];
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return p;
 }
 

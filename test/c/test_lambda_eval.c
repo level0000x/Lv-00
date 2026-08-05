@@ -20,11 +20,12 @@
 #include "lv/lambda_term.h"
 #include "lv/lambda_to_graph.h"
 
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 /* ── 图结构指纹 ── */
 
@@ -361,32 +362,18 @@ static void test_reduction_steps_reasonable(void) {
 /* ====================================================================
  * main
  * ==================================================================== */
-int main(void) {
+TEST_MAIN_BEGIN("λ-演算 β-归约结果验证")
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("=== λ-演算 β-归约结果验证 ===\n\n");
 
     printf("[β-归约步数验证]\n");
-    TEST("Church 5 零归约步");
-    test_church_5_no_redex();
-
+    TEST_MAIN_RUN(test_church_5_no_redex);
     printf("\n[图结构比对]\n");
-    TEST("succ 0 → 归约");
-    test_succ_0_reduces();
-    TEST("succ 1 → 归约");
-    test_succ_1_reduces();
-    TEST("add 1 1 → 归约");
-    test_add_11_reduces();
-    TEST("add 2 3 → 归约");
-    test_add_23_reduces();
-    TEST("mul 2 3 → 归约");
-    test_mul_23_reduces();
-    TEST("pow 2 3 → 归约");
-    test_pow_23_reduces();
-
+    TEST_MAIN_RUN(test_succ_0_reduces);
+    TEST_MAIN_RUN(test_succ_1_reduces);
+    TEST_MAIN_RUN(test_add_11_reduces);
+    TEST_MAIN_RUN(test_add_23_reduces);
+    TEST_MAIN_RUN(test_mul_23_reduces);
+    TEST_MAIN_RUN(test_pow_23_reduces);
     printf("\n[归约步数合理性]\n");
-    TEST("归约步数合理性");
-    test_reduction_steps_reasonable();
-
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
-}
+    TEST_MAIN_RUN(test_reduction_steps_reasonable);
+TEST_MAIN_END()

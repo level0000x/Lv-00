@@ -636,60 +636,6 @@ lv_PUBLIC_API bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_
  */
 lv_PUBLIC_API bool proof_apply_ex_falso(ProofNavigator *nav, ConstraintGraph *bottom_proof, Proposition *target_prop);
 
-/* ============== 反证法证明 ============== */
-
-/**
- * @brief 反证法证明结果 —— 包含矛盾路径和证明追踪树
- *
- * 当反证法成功时，该结构记录完整的矛盾推导路径。
- * 失败的证明也记录尝试的路径，用于调试和学习。
- */
-typedef struct lvProofTree lvProofTree; /* 前向声明，完整定义见 proof_trace.h */
-
-typedef struct {
-    bool success;                    /**< 反证法是否成功 */
-    char *contradiction_desc;        /**< 矛盾的描述（如"P ∧ ¬P 同时成立"） */
-    int contradiction_step;          /**< 发现矛盾的步骤索引（-1 = 未发现） */
-    struct lvProofTree *proof_trace; /**< 完整的证明追踪树（成功时记录完整路径，失败时也记录已探索路径） */
-    int total_steps;                 /**< 反证法证明的总步骤数 */
-    int forward_steps;               /**< 正向推理步骤数 */
-    char *error_message;             /**< 错误消息（失败时有效，可为 NULL） */
-} lvContradictionResult;
-
-/**
- * @brief 执行反证法证明
- *
- * 反证法（归谬法）工作流程：
- * 1. 假设目标命题的否定成立（¬goal）
- * 2. 将否定假设作为临时前提加入证明环境
- * 3. 正向推理：从否定的假设出发，尽可能多地推导出结论
- * 4. 矛盾检测：检查推导出的结论是否与已知公理或已证定理冲突
- * 5. 如果发现矛盾，则反证法成功，原命题得证
- * 6. 记录整个矛盾推导路径到 proof_trace 中
- *
- * 关键设计原则：
- * - 矛盾分支与主证明隔离：否定假设只在矛盾分支内有效，
- *   不会污染主证明上下文。使用独立的 ProofNavigator 实例。
- * - 记录完整路径：成功和失败的情况都记录已探索的推导路径，
- *   方便用户理解证明过程和排查失败原因。
- *
- * @param nav         主证明导航器（不会被修改，仅用于获取引擎上下文和已证定理）
- * @param goal_prop   待证明的目标命题
- * @param max_steps   最大允许的正向推理步骤数（0 = 无限制）
- * @return 反证法结果，包含成功标志和矛盾路径。调用者需用 lv_contradiction_result_destroy 释放。
- */
-lv_PUBLIC_API lvContradictionResult *lv_proof_by_contradiction(ProofNavigator *nav, const Proposition *goal_prop,
-                                                               int max_steps);
-
-/**
- * @brief 释放反证法结果
- *
- * 释放 lvContradictionResult 中所有动态分配的内存，
- * 包括证明追踪树、矛盾描述和错误消息。
- *
- * @param result  反证法结果（可为 NULL）
- */
-lv_PUBLIC_API void lv_contradiction_result_destroy(lvContradictionResult *result);
 
 /**
  * 交互式证明步骤
@@ -718,62 +664,6 @@ lv_PUBLIC_API bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id)
  * @return true 成功，false 失败
  */
 lv_PUBLIC_API bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id);
-
-/* ============== 断点存储管理（v3.4.1 新增） ============== */
-
-/**
- * @brief 初始化断点存储系统
- *
- * 在使用断点功能前必须调用此函数（通常在引擎初始化时）。
- * 线程安全：使用线程局部存储，每个线程有独立的存储实例。
- * 可重复调用，后续调用会重置存储状态。
- *
- * @note 此函数在 proof.c 中使用静态局部变量确保线程安全初始化，
- *       无需外部同步机制。
- */
-lv_PUBLIC_API void proof_breakpoint_storage_init(void);
-
-/**
- * @brief 清理断点存储系统
- *
- * 释放所有断点存储相关资源，重置存储状态。
- *
- * @note 线程安全：仅清理当前线程的存储实例。
- *       不会影响其他线程的断点存储。
- */
-lv_PUBLIC_API void lv_proof_breakpoint_storage_cleanup(void);
-
-/**
- * @brief 重置断点存储系统
- *
- * 清除所有已保存的断点快照，释放相关资源。
- * 调用后断点存储回到初始状态。
- *
- * @note 线程安全：仅重置当前线程的存储实例。
- *       不会影响其他线程的断点存储。
- */
-lv_PUBLIC_API void proof_breakpoint_storage_reset(void);
-
-/**
- * @brief 获取当前断点存储中的断点数量
- *
- * @return 当前存储的断点数量
- *
- * @note 线程安全：返回当前线程存储中的断点数量。
- */
-lv_PUBLIC_API int proof_breakpoint_storage_count(void);
-
-/**
- * @brief 删除指定的断点快照
- *
- * 从存储中移除指定ID的断点快照。
- *
- * @param breakpoint_id 要删除的断点ID
- * @return true 成功删除，false 未找到该断点
- *
- * @note 线程安全：仅操作当前线程的存储实例。
- */
-lv_PUBLIC_API bool proof_breakpoint_delete(int breakpoint_id);
 
 /* ============== 导出功能 ============== */
 
@@ -1648,5 +1538,4 @@ lv_PUBLIC_API void refinement_check_report_destroy(RefinementCheckReport *report
 /* ============================================================
  * 向后兼容别名（旧名称 → lv_ 前缀新名称）
  * ============================================================ */
-#define proof_breakpoint_storage_cleanup lv_proof_breakpoint_storage_cleanup
 #endif /* lv_PROOF_H */

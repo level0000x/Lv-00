@@ -69,6 +69,7 @@ static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk, Verif
  * @brief ��ȡ TrustColor ����������
  */
 /** @brief TrustColor→中文名称静态查找表 */
+/* Chinese log names for stream events (not authoritative); authoritative English names: trust_color.c trust_color_name() */
 static const char *s_trust_color_names[] = {
     [TRUST_GREEN]                = "绿色：完全可信",
     [TRUST_BLUE_UNEXPLORED]      = "蓝色-未探索",

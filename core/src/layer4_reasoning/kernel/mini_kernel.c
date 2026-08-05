@@ -55,6 +55,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_strbuf.h"
 
 
 /* ========================================================================
@@ -463,43 +464,36 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel, const Substi
 
     /* 3. 执行替换并输出结果 */
     if (out_result) {
-        size_t buflen = strlen(base_formula) + 1024;
-        char *result = lv_malloc(buflen);
-        if (!result)
-            return MINI_VERIFY_FAIL_MEMORY;
+        lvStrBuf result;
+        lv_strbuf_init(&result);
+        lv_strbuf_printf(&result, "%s", base_formula);
 
-        strncpy(result, base_formula, buflen - 1);
-        result[buflen - 1] = '\0';
-
-        /* 逐条执行简单字符串替换 */
+        /* 逐条执行简单字符串替换（lvStrBuf 无固定缓冲截断风险） */
         for (int i = 0; i < subst_count; i++) {
             const char *var = substitutions[i].variable_name;
             const char *repl = substitutions[i].replacement_term;
 
-            char *tmp = lv_malloc(buflen);
-            if (!tmp) {
-                lv_free((void **) &result);
-                return MINI_VERIFY_FAIL_MEMORY;
-            }
-            tmp[0] = '\0';
+            lvStrBuf tmp;
+            lv_strbuf_init(&tmp);
 
-            const char *pos = result;
+            const char *pos = lv_strbuf_cstr(&result);
             size_t var_len = strlen(var);
             while (*pos) {
                 if (strncmp(pos, var, var_len) == 0) {
-                    lv_strncat(tmp, repl, buflen);
+                    lv_strbuf_printf(&tmp, "%s", repl);
                     pos += var_len;
                 } else {
-                    size_t cur = strlen(tmp);
-                    tmp[cur] = *pos;
-                    tmp[cur + 1] = '\0';
+                    lv_strbuf_printf(&tmp, "%c", *pos);
                     pos++;
                 }
             }
-            lv_free((void **) &result);
-            result = tmp;
+
+            /* 本轮结果写回 result（避免结构体浅拷贝导致 SSO 栈指针悬空） */
+            lv_strbuf_reset(&result);
+            lv_strbuf_printf(&result, "%s", lv_strbuf_cstr(&tmp));
+            lv_strbuf_destroy(&tmp);
         }
-        *out_result = result;
+        *out_result = lv_strbuf_to_string(&result);
     }
     return MINI_VERIFY_OK;
 }

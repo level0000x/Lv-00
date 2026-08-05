@@ -15,6 +15,15 @@ static const char *const kSignDescriptionTable[] = {
     [SIGN_NONPOSITIVE] = "non-positive",
 };
 
+/** 不等式类型 → 表达式符号 静态查找表（未映射类型以 SIGN_UNKNOWN 为哨兵） */
+static const lvSign kSignByIneq[] = {
+    [INEQ_GREATER_THAN] = SIGN_POSITIVE,
+    [INEQ_GREATER_EQUAL] = SIGN_NONNEGATIVE,
+    [INEQ_LESS_THAN] = SIGN_NEGATIVE,
+    [INEQ_LESS_EQUAL] = SIGN_NONPOSITIVE,
+    [INEQ_NOT_EQUAL] = SIGN_UNKNOWN,
+};
+
 
 lvSign lv_expr_sign(lvExpr *expr, const lvInequalitySystem *sys) {
     if (!expr)
@@ -30,18 +39,8 @@ lvSign lv_expr_sign(lvExpr *expr, const lvInequalitySystem *sys) {
 
             /* 检查 expr == c->left 且 c->right 为零/常量 */
             if (c->left == expr) {
-                switch (c->type) {
-                    case INEQ_GREATER_THAN:
-                        return SIGN_POSITIVE;
-                    case INEQ_GREATER_EQUAL:
-                        return SIGN_NONNEGATIVE;
-                    case INEQ_LESS_THAN:
-                        return SIGN_NEGATIVE;
-                    case INEQ_LESS_EQUAL:
-                        return SIGN_NONPOSITIVE;
-                    default:
-                        break;
-                }
+                if ((unsigned) c->type < lv_ARRAY_SIZE(kSignByIneq) && kSignByIneq[c->type] != SIGN_UNKNOWN)
+                    return kSignByIneq[c->type];
             }
         }
     }

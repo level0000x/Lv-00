@@ -30,13 +30,17 @@ extern "C" {
 /** 模块内部 API（同层内可见，通过 static 限制链接作用域） */
 #define lv_INTERNAL static
 
-/** 已废弃 API（编译器会发出警告） */
+/** 已废弃 API（编译器会发出警告）
+ *  注：lv_DEPRECATED 的权威定义位于 lv.h（带 #ifndef 保护并支持 __clang__）；
+ *  此处保留同名 #ifndef 保护版兜底，供单独包含本头（未经过 lv.h）的轻量头文件使用。 */
+#ifndef lv_DEPRECATED
 #ifdef __GNUC__
 #define lv_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #elif defined(_MSC_VER)
 #define lv_DEPRECATED(msg) __declspec(deprecated(msg))
 #else
 #define lv_DEPRECATED(msg)
+#endif
 #endif
 
 /* ============================================================

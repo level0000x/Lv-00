@@ -51,7 +51,7 @@ extern "C" {
  * 当任何递归调用深度超过此值时，触发熔断机制（circuit breaker），
  * 自动终止当前递归链。默认值 128，足够覆盖绝大多数合法递归场景。
  *
- * 与 lv_MAX_RECURSION_DEPTH_LIMIT (100000, 定义在 lv_internal.h) 的关系：
+ * 与 lv_MAX_RECURSION_DEPTH_LIMIT (100000, 定义于本文件 recursion.h，见下方) 的关系：
  * - lv_MAX_RECURSION_DEPTH (128): 全局熔断阈值，由 lv_recursion_enter/leave 管理
  * - lv_MAX_RECURSION_DEPTH_LIMIT (100000): 单个 RecursionContext 的硬上限
  */

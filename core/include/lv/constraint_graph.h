@@ -119,6 +119,14 @@ typedef enum {
     ANGLE         /* 角度约束：两条线段之间的夹角 */
 } ConstraintType;
 
+/**
+ * @brief 获取约束类型的规范名称（与 ConstraintType 枚举严格对齐）
+ * @param type 约束类型
+ * @return 类型名称字符串（如 "INCIDENCE"）；非法/越界返回 NULL
+ * @note 权威名称表定义于 meta_repr.c（kConstraintTypeLabels）
+ */
+lv_PUBLIC_API const char *lv_constraint_type_name(ConstraintType type);
+
 typedef struct GeomNode GeomNode;
 typedef struct GeomNodeVTable GeomNodeVTable;
 typedef struct Constraint Constraint;

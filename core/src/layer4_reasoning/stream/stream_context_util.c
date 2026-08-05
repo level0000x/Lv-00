@@ -18,6 +18,8 @@
 
 #include <stddef.h>
 
+#include "lv/lv_thread.h"
+
 /* ---- 依赖前向声明：内置模块的 setter 函数 ---- */
 
 /* 各模块已在对应头文件中声明了 void xxx_set_stream_context(StreamContext *ctx)。
@@ -126,14 +128,8 @@ void stream_context_clear_all(void) {
  * 新增模块时，在此函数末尾追加一行 stream_context_register_setter()
  * 调用即可，无需修改 engine.c。
  */
-void stream_context_register_builtins(StreamContext *ctx) {
-    (void) ctx;
-    /* 使用 static 标志确保只注册一次 */
-    static int builtins_registered = 0;
-    if (builtins_registered)
-        return;
-    builtins_registered = 1;
-
+/** @brief 内置模块 setter 一次性注册回调（lv_once 保证仅执行一次且同步完成） */
+static void register_builtins_once(void) {
     /* ---- 核心求解/变换模块 ---- */
     stream_context_register_setter(solver_set_stream_context);
     stream_context_register_setter(rewrite_set_stream_context);
@@ -162,4 +158,11 @@ void stream_context_register_builtins(StreamContext *ctx) {
 
     /* ---- 互操作模块 ---- */
     stream_context_register_setter(interop_set_stream_context);
+}
+
+void stream_context_register_builtins(StreamContext *ctx) {
+    (void) ctx;
+    /* 使用 lv_once 确保只注册一次（线程安全） */
+    static lv_once_t s_builtins_once = lv_ONCE_INIT;
+    lv_once(&s_builtins_once, register_builtins_once);
 }

@@ -11,11 +11,12 @@
 #include "engine.h"
 #include "lv.h"
 
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 /* ── 辅助：解析字符串并返回结果 ── */
 static LvParseResult parse_string(const char *src) {
@@ -354,16 +355,12 @@ static void test_full_pipeline(void) {
         engine_destroy(engine);
 }
 
-int main(void) {
+TEST_MAIN_BEGIN("lv bootstrap test")
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("=== lv bootstrap test ===\n");
 
-    test_parse_full_program();
-    test_semantic_analysis();
-    test_engine_apply();
-    test_load_file();
-    test_full_pipeline();
-
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
-}
+    TEST_MAIN_RUN(test_parse_full_program);
+    TEST_MAIN_RUN(test_semantic_analysis);
+    TEST_MAIN_RUN(test_engine_apply);
+    TEST_MAIN_RUN(test_load_file);
+    TEST_MAIN_RUN(test_full_pipeline);
+TEST_MAIN_END()

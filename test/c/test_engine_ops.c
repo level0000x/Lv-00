@@ -12,12 +12,13 @@
 #include "lv.h"
 
 /* 使用共享 TEST/PASS/FAIL 宏；计数挂钩保持原有 P/F 计数行为 */
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -50,7 +51,7 @@ int main(void) {
         lvEngine *e = lv_engine_create();
         if (!e) {
             FAIL("create");
-            F = 99;
+            g_fail_count = 99;
             goto g2_end;
         }
 
@@ -115,7 +116,7 @@ int main(void) {
         lvEngine *e = lv_engine_create();
         if (!e) {
             FAIL("create");
-            F = 99;
+            g_fail_count = 99;
             goto g3_end;
         }
 
@@ -171,7 +172,7 @@ int main(void) {
         lvEngine *e = lv_engine_create();
         if (!e) {
             FAIL("create");
-            F = 99;
+            g_fail_count = 99;
             goto g4_end;
         }
 
@@ -247,7 +248,7 @@ int main(void) {
         lvEngine *e = lv_engine_create();
         if (!e) {
             FAIL("create");
-            F = 99;
+            g_fail_count = 99;
             goto g6_end;
         }
 
@@ -278,7 +279,7 @@ int main(void) {
         e = lv_engine_create();
         if (!e) {
             FAIL("create2");
-            F = 99;
+            g_fail_count = 99;
             goto g6_end;
         }
 
@@ -311,7 +312,7 @@ int main(void) {
         lvEngine *e = lv_engine_create();
         if (!e) {
             FAIL("create");
-            F = 99;
+            g_fail_count = 99;
             goto g7_end;
         }
 
@@ -343,7 +344,7 @@ int main(void) {
         e = lv_engine_create();
         if (!e) {
             FAIL("create2");
-            F = 99;
+            g_fail_count = 99;
             goto g7_end;
         }
 
@@ -384,7 +385,7 @@ int main(void) {
         lvEngine *e = lv_engine_create();
         if (!e) {
             FAIL("create");
-            F = 99;
+            g_fail_count = 99;
             goto g8_end;
         }
 
@@ -435,6 +436,6 @@ int main(void) {
     }
 
     lv_cleanup();
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
+    printf("\n=== %d passed, %d failed ===\n", g_pass_count, g_fail_count);
+    return g_fail_count > 0 ? 1 : 0;
 }

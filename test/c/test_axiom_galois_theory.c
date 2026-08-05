@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_galois_theory.c
  * @brief Test suite for Galois Theory axiom package
  *
@@ -14,6 +14,10 @@
 
 #include "axiom_pkg.h"
 #include "lv_utils.h"
+#include "test_helpers.h"
+
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 /* Test counters */
 static int tests_run = 0;
@@ -38,58 +42,43 @@ static int assertions_total = 0;
         printf("FAIL: %s\n", msg); \
     } while (0)
 
-#define ASSERT_TRUE(cond)                 \
-    do {                                  \
-        assertions_total++;               \
-        if (!(cond)) {                    \
-            TEST_FAIL(#cond " is false"); \
-            return;                       \
-        }                                 \
+/* 收敛：自造断言宏映射到 test_helpers.h 的共享断言宏（TEST_ASSERT_*）。
+ * 保留 assertions_total 递增以维持 main 汇总输出；失败/成功路径语义等价：
+ * 失败时打印 FAIL 并 return（g_fail_count++），成功时 g_pass_count++。 */
+#define ASSERT_TRUE(cond)          \
+    do {                           \
+        assertions_total++;        \
+        TEST_ASSERT(cond, #cond " is false"); \
     } while (0)
 
-#define ASSERT_EQ(a, b)              \
-    do {                             \
-        assertions_total++;          \
-        if ((a) != (b)) {            \
-            TEST_FAIL(#a " != " #b); \
-            return;                  \
-        }                            \
+#define ASSERT_EQ(a, b)            \
+    do {                           \
+        assertions_total++;        \
+        TEST_ASSERT_EQ(a, b);      \
     } while (0)
 
-#define ASSERT_NE(a, b)              \
-    do {                             \
-        assertions_total++;          \
-        if ((a) == (b)) {            \
-            TEST_FAIL(#a " == " #b); \
-            return;                  \
-        }                            \
+#define ASSERT_NE(a, b)            \
+    do {                           \
+        assertions_total++;        \
+        TEST_ASSERT_NE(a, b);      \
     } while (0)
 
-#define ASSERT_NOT_NULL(p)            \
-    do {                              \
-        assertions_total++;           \
-        if ((p) == NULL) {            \
-            TEST_FAIL(#p " is NULL"); \
-            return;                   \
-        }                             \
+#define ASSERT_NOT_NULL(p)         \
+    do {                           \
+        assertions_total++;        \
+        TEST_ASSERT_NOT_NULL(p);   \
     } while (0)
 
-#define ASSERT_NULL(p)                    \
-    do {                                  \
-        assertions_total++;               \
-        if ((p) != NULL) {                \
-            TEST_FAIL(#p " is not NULL"); \
-            return;                       \
-        }                                 \
+#define ASSERT_NULL(p)             \
+    do {                           \
+        assertions_total++;        \
+        TEST_ASSERT_NULL(p);       \
     } while (0)
 
-#define ASSERT_STR_EQ(a, b)                              \
-    do {                                                 \
-        assertions_total++;                              \
-        if (strcmp((a), (b)) != 0) {                     \
-            TEST_FAIL("string mismatch: " #a " != " #b); \
-            return;                                      \
-        }                                                \
+#define ASSERT_STR_EQ(a, b)        \
+    do {                           \
+        assertions_total++;        \
+        TEST_ASSERT_STR_EQ(a, b);  \
     } while (0)
 
 /* Path to axiom package file */

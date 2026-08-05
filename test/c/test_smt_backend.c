@@ -37,6 +37,8 @@ int g_fail_count = 0;
 /* ========================================================================
  * Helper: create a simple constraint graph with two points and a segment
  * ======================================================================== */
+/* 收敛说明：本地 create_simple_graph 仅创建两个 POINT 节点 (0,0)(3,0)、不添加线段，
+ * 与 lv_test_geom_graph_builder.h 的 lv_test_line_graph（会添加线段）语义不匹配，故保留本地实现。*/
 static ConstraintGraph *create_simple_graph(void) {
     ConstraintGraph *g = graph_create();
     if (!g)

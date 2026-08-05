@@ -38,9 +38,9 @@
 #define AABB_AXIS_SWITCH(axis, body_x, body_y, body_z) \
     if ((axis) == 0) { body_x } else { body_y }
 
-#define AABB_EMPTY() lv_aabb3d_empty()
+#define AABB_EMPTY() lv_aabb3d_empty()  /* 有意为之: aabb_tree_impl.h 模板内 node_bbox 为 lvAABB3D, 2D 树内部以 z=0 提升为 3D 表示 */
 #define AABB_EMPTY_PRIM lv_aabb2d_empty()
-#define AABB_MERGE(a, b) lv_aabb3d_merge(a, b)
+#define AABB_MERGE(a, b) lv_aabb3d_merge(a, b)  /* 同上: 模板内 AABB_MERGE 接收 lvAABB3D */
 
 #define AABB_PREFIX 2d
 

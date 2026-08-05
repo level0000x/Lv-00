@@ -14,37 +14,19 @@
 
 #include "lv.h"
 
-/* 使用共享 TEST/PASS/FAIL 宏；计数挂钩保持原有 P/F 计数行为 */
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+/* 使用共享 TEST/PASS/FAIL 宏；计数挂钩递增全局计数器 g_pass_count/g_fail_count */
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 
 #include "test_helpers.h"
+#include "lv_test_geom_graph_builder.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
-/* ── 辅助：创建含 2 个 POINT 节点 + 1 个 INCIDENCE 约束的简单图 ── */
-static ConstraintGraph *create_simple_graph(void) {
-    ConstraintGraph *g = graph_create();
-    if (!g)
-        return NULL;
-
-    /* 两个 POINT 节点 */
-    int p0 = add_point(g, 0, 1, 0, 1);
-    int p1 = add_point(g, 1, 1, 0, 1);
-    if (p0 < 0 || p1 < 0) {
-        graph_destroy(g);
-        return NULL;
-    }
-
-    /* 一条线段 */
-    AddNodeResult ar = graph_add_line_segment(g, p0, p1);
-    if (ar != ADD_NODE_OK) {
-        graph_destroy(g);
-        return NULL;
-    }
-
-    return g;
-}
+/* ── 辅助：线段图（共享构造器） ── */
+/* 收敛：使用 lv_test_geom_graph_builder.h 的 lv_test_line_graph(NULL, 0, 0, 1, 0, false)
+ * （两点 (0,0)(1,0) + 一条线段，与本地 create_simple_graph 语义一致）*/
 
 /* ============================================================
  * 测试 1: 生命周期 - scheduler_create / scheduler_destroy
@@ -74,7 +56,7 @@ static void test_register_backend(void) {
     EngineScheduler *s = scheduler_create();
     if (!s) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -126,14 +108,14 @@ cleanup:
  * ============================================================ */
 static void test_analyze_graph(void) {
     EngineScheduler *s = scheduler_create();
-    ConstraintGraph *g = create_simple_graph();
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, false);
     if (!s || !g) {
         FAIL("setup");
         if (s)
             scheduler_destroy(s);
         if (g)
             graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -174,7 +156,7 @@ static void test_preset_rules(void) {
     EngineScheduler *s = scheduler_create();
     if (!s) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -208,14 +190,14 @@ cleanup:
  * ============================================================ */
 static void test_select_backend(void) {
     EngineScheduler *s = scheduler_create();
-    ConstraintGraph *g = create_simple_graph();
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, false);
     if (!s || !g) {
         FAIL("setup");
         if (s)
             scheduler_destroy(s);
         if (g)
             graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -246,14 +228,14 @@ cleanup:
  * ============================================================ */
 static void test_solve(void) {
     EngineScheduler *s = scheduler_create();
-    ConstraintGraph *g = create_simple_graph();
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, false);
     if (!s || !g) {
         FAIL("setup");
         if (s)
             scheduler_destroy(s);
         if (g)
             graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -288,14 +270,14 @@ cleanup:
  * ============================================================ */
 static void test_stats(void) {
     EngineScheduler *s = scheduler_create();
-    ConstraintGraph *g = create_simple_graph();
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, false);
     if (!s || !g) {
         FAIL("setup");
         if (s)
             scheduler_destroy(s);
         if (g)
             graph_destroy(g);
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -343,7 +325,7 @@ static void test_diagnose(void) {
     EngineScheduler *s = scheduler_create();
     if (!s) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -376,7 +358,7 @@ static void test_config(void) {
     EngineScheduler *s = scheduler_create();
     if (!s) {
         FAIL("create");
-        F++;
+        g_fail_count++;
         return;
     }
 
@@ -516,43 +498,30 @@ static void test_null_safety(void) {
 /* ============================================================
  * Main
  * ============================================================ */
-int main(void) {
+TEST_MAIN_BEGIN("EngineScheduler 测试套件")
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("=== EngineScheduler 测试套件 ===\n\n");
 
     lv_init();
 
     printf("[组 1] 生命周期\n");
-    test_lifecycle();
-
+    TEST_MAIN_RUN(test_lifecycle);
     printf("[组 2] 后端注册\n");
-    test_register_backend();
-
+    TEST_MAIN_RUN(test_register_backend);
     printf("[组 3] 图特征分析\n");
-    test_analyze_graph();
-
+    TEST_MAIN_RUN(test_analyze_graph);
     printf("[组 4] 预设路由规则\n");
-    test_preset_rules();
-
+    TEST_MAIN_RUN(test_preset_rules);
     printf("[组 5] 后端选择\n");
-    test_select_backend();
-
+    TEST_MAIN_RUN(test_select_backend);
     printf("[组 6] 分发求解\n");
-    test_solve();
-
+    TEST_MAIN_RUN(test_solve);
     printf("[组 7] 统计\n");
-    test_stats();
-
+    TEST_MAIN_RUN(test_stats);
     printf("[组 8] 诊断\n");
-    test_diagnose();
-
+    TEST_MAIN_RUN(test_diagnose);
     printf("[组 9] 配置更改\n");
-    test_config();
-
+    TEST_MAIN_RUN(test_config);
     printf("[组 10] NULL 输入安全\n");
-    test_null_safety();
-
+    TEST_MAIN_RUN(test_null_safety);
     lv_cleanup();
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

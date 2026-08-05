@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define POLYGONS_PRESET_COUNT 16
-bool preset_polygons_register(void);
 
 #ifdef __cplusplus
 }

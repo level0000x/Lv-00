@@ -261,33 +261,28 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
     if (!registry)
         return -1;
 
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
     int ret = -1;
-
-    if (!g_data) {
-        goto cleanup;
-    }
+    GROEBNER_LOCK_GUARD_BEGIN();
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        goto cleanup;
+        goto _gcleanup;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     if (!ideal) {
-        goto cleanup;
+        goto _gcleanup;
     }
 
     /* 确保 Groebner 基已计算（直接调用内部函数，已持有锁） */
     if (!ideal->basis_valid || !ideal->cached_basis) {
         lvPolynomialRing *ring_for_basis = registry->rings[ideal->ring_id];
         if (!ring_for_basis) {
-            goto cleanup;
+            goto _gcleanup;
         }
 
         lvGroebnerBasis *basis =
             groebner_internal_compute(ring_for_basis, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
         if (!basis) {
-            goto cleanup;
+            goto _gcleanup;
         }
 
         /* 释放旧缓存 */
@@ -298,12 +293,12 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
-        goto cleanup;
+        goto _gcleanup;
     }
 
     lvVariety *variety = (lvVariety *) lv_calloc(1, sizeof(lvVariety));
     if (!variety) {
-        goto cleanup;
+        goto _gcleanup;
     }
 
     variety->ideal_id = ideal_id;
@@ -348,13 +343,12 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
         lv_free_many((void **) &variety->label, (void **) &variety, NULL);
-        goto cleanup;
+        goto _gcleanup;
     }
 
     ret = variety_internal_store(data, variety);
 
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return ret;
 }
 
@@ -363,18 +357,15 @@ cleanup:
  */
 int variety_dimension(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
     int ret = -1;
-
-    if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
-        goto cleanup;
+    GROEBNER_LOCK_GUARD_BEGIN();
+    if (variety_id < 0 || variety_id >= g_data->variety_count) {
+        goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
     ret = v ? v->variety_dimension : -1;
 
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return ret;
 }
 
@@ -383,18 +374,15 @@ cleanup:
  */
 bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
     bool ok = false;
-
-    if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
-        goto cleanup;
+    GROEBNER_LOCK_GUARD_BEGIN();
+    if (variety_id < 0 || variety_id >= g_data->variety_count) {
+        goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
     ok = v ? v->is_zero_dimensional : false;
 
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return ok;
 }
 
@@ -407,20 +395,18 @@ bool variety_get_solution_point(lvRingRegistry *registry, int variety_id, int po
     if (!out_coords || coord_count <= 0)
         return false;
 
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
     bool ok = false;
-
-    if (!g_data || variety_id < 0 || variety_id >= g_data->variety_count) {
-        goto cleanup;
+    GROEBNER_LOCK_GUARD_BEGIN();
+    if (variety_id < 0 || variety_id >= g_data->variety_count) {
+        goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
     if (!v || !v->solution_points || !v->is_zero_dimensional || point_idx < 0 || point_idx >= v->solution_count) {
-        goto cleanup;
+        goto _gcleanup;
     }
     double *src = v->solution_points[point_idx];
     if (!src) {
-        goto cleanup;
+        goto _gcleanup;
     }
     /* 复制坐标值到输出缓冲区 */
     for (int i = 0; i < coord_count; i++) {
@@ -428,7 +414,6 @@ bool variety_get_solution_point(lvRingRegistry *registry, int variety_id, int po
     }
     ok = true;
 
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return ok;
 }

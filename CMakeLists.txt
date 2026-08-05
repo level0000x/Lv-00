@@ -511,7 +511,6 @@ set(lv_HEADERS
     core/include/lv/exact_arithmetic.h
     core/include/lv/sha256.h
     # v3.7.0 新增头文件（原 Pending header additions）
-    core/include/lv/adaptive_pruning.h
     core/include/lv/autodiff.h
     core/include/lv/cache_manager.h
     core/include/lv/conflict_detector.h
@@ -644,7 +643,6 @@ set(lv_HEADERS
     # 脏变量追踪（增量求解支持，从 solver.c 提取）
     core/include/lv/solver_dirty_set.h
     # v5.0.0 流水线抽象层
-    core/include/lv/lv_pipeline.h
     # v5.0.0 统一存储抽象层
     core/include/lv/lv_storage.h
     # 图/树遍历抽象层
@@ -815,10 +813,7 @@ set(lv_CORE_SOURCES
     core/src/lv_impl_upper_preset.c
     core/src/lv_impl_upper_utils.c
     # 提取的预设实现（从 lv_impl_upper.c 拆分）
-    core/src/impl_preset_basic_geometry.c
     core/src/impl_preset_transformations.c
-    core/src/impl_preset_measurements.c
-    core/src/impl_preset_polygons.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -1129,7 +1124,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/type_logic/inequality_reasoning_geo.c
     core/src/layer4_reasoning/type_logic/inequality_reasoning_serialize.c
     # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
-    core/src/layer4_reasoning/engine/adaptive_pruning.c
     # v5.0.0 新增：并行 Groebner 引擎（并发优化）
     core/src/layer4_reasoning/backends/groebner_parallel.c
     # 公理包
@@ -1209,7 +1203,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof/proof_navigator.c
     core/src/layer4_reasoning/proof/proof_navigator_dependency.c
     core/src/layer4_reasoning/proof/proof_navigator_exfalso.c
-    core/src/layer4_reasoning/proof/proof_navigator_contradiction.c
     core/src/layer4_reasoning/proof/proof_navigator_interactive.c
     core/src/layer4_reasoning/proof/proof_navigator_breakpoint.c
     core/src/layer4_reasoning/proof/proof_navigator_export.c
@@ -1455,16 +1448,8 @@ lv_setup_layer(lv_layer6_visual 6)
 target_link_libraries(lv_layer6_visual lv_layer5_output lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
 
 # ── Layer 7: 编排调度层 (Orchestration Layer) ──
-set(lv_LAYER7_SOURCES
-    core/src/layer7_orchestration/orchestrator.c
-    core/src/layer7_orchestration/lv_pipeline.c
-)
-set(lv_LAYER7_HEADERS
-    core/include/lv/orchestrator.h
-)
-add_library(lv_layer7_orchestration OBJECT ${lv_LAYER7_SOURCES} ${lv_LAYER7_HEADERS})
-lv_setup_layer(lv_layer7_orchestration 7)
-target_link_libraries(lv_layer7_orchestration lv_layer6_visual lv_layer5_output lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
+# 注: orchestrator.c / lv_pipeline.c 已随死代码清理移除；orchestrator.h 保留在
+# core/include/lv/ 供 meta_verify.h include（其类型被 meta_verify.c 消费）。
 
 # ── Layer 8: 元验证层 (Meta-Verification Layer) ──
 set(lv_LAYER8_SOURCES
@@ -1475,18 +1460,10 @@ set(lv_LAYER8_HEADERS
 )
 add_library(lv_layer8_meta_verify OBJECT ${lv_LAYER8_SOURCES} ${lv_LAYER8_HEADERS})
 lv_setup_layer(lv_layer8_meta_verify 8)
-target_link_libraries(lv_layer8_meta_verify lv_layer7_orchestration)
+target_link_libraries(lv_layer8_meta_verify lv_layer6_visual)
 
 # ── Layer 9: 应用入口层 (Application Layer) ──
-set(lv_LAYER9_SOURCES
-    core/src/layer9_application/application.c
-)
-set(lv_LAYER9_HEADERS
-    core/include/lv/application.h
-)
-add_library(lv_layer9_application OBJECT ${lv_LAYER9_SOURCES} ${lv_LAYER9_HEADERS})
-lv_setup_layer(lv_layer9_application 9)
-target_link_libraries(lv_layer9_application lv_layer8_meta_verify)
+# 注: application.c / application.h 已随死代码清理移除，本层暂无内容。
 
 # ── Layer 10: 外部集成层 (Interop Layer) ──
 set(lv_LAYER10_SOURCES
@@ -1499,7 +1476,7 @@ set(lv_LAYER10_HEADERS
 )
 add_library(lv_layer10_interop OBJECT ${lv_LAYER10_SOURCES} ${lv_LAYER10_HEADERS})
 lv_setup_layer(lv_layer10_interop 10)
-target_link_libraries(lv_layer10_interop lv_layer9_application)
+target_link_libraries(lv_layer10_interop lv_layer8_meta_verify)
 
 # ── 聚合静态库（向后兼容 lv_static）──
 # 将所有层的 OBJECT 文件聚合到一个静态库中
@@ -1511,9 +1488,7 @@ add_library(lv_static STATIC
     $<TARGET_OBJECTS:lv_layer4_reasoning>
     $<TARGET_OBJECTS:lv_layer5_output>
     $<TARGET_OBJECTS:lv_layer6_visual>
-    $<TARGET_OBJECTS:lv_layer7_orchestration>
     $<TARGET_OBJECTS:lv_layer8_meta_verify>
-    $<TARGET_OBJECTS:lv_layer9_application>
     $<TARGET_OBJECTS:lv_layer10_interop>
 )
 target_include_directories(lv_static PUBLIC
@@ -1540,9 +1515,7 @@ if(BUILD_SHARED_LIBS)
         $<TARGET_OBJECTS:lv_layer4_reasoning>
         $<TARGET_OBJECTS:lv_layer5_output>
         $<TARGET_OBJECTS:lv_layer6_visual>
-        $<TARGET_OBJECTS:lv_layer7_orchestration>
         $<TARGET_OBJECTS:lv_layer8_meta_verify>
-        $<TARGET_OBJECTS:lv_layer9_application>
         $<TARGET_OBJECTS:lv_layer10_interop>
     )
     target_include_directories(lv_shared PUBLIC

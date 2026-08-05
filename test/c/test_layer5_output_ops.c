@@ -13,11 +13,12 @@
 #include "proof_compiler.h"
 #include "tikz_export.h"
 
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -30,7 +31,7 @@ int main(void) {
         lvEngine *e = lv_engine_create();
         if (!e) {
             FAIL("create");
-            F = 99;
+            g_fail_count = 99;
             goto g1_end;
         }
 
@@ -300,6 +301,6 @@ int main(void) {
             FAIL("!负值");
     }
 
-    printf("\n=== %d passed, %d failed ===\n", P, F);
-    return F > 0 ? 1 : 0;
+    printf("\n=== %d passed, %d failed ===\n", g_pass_count, g_fail_count);
+    return g_fail_count > 0 ? 1 : 0;
 }

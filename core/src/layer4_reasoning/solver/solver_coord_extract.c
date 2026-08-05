@@ -1363,7 +1363,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 mpz_set_si(poly.coeffs[2], scale);                                        /* x^2 系数 */
                 double_to_mpz_scaled(-2.0 * x1, poly.coeffs[1], scale);                   /* x 系数 */
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
-                EQUATION_PUSH_OR_GOTO(sys, poly, node->id, 0, push_error);
+                if (lv_equation_push_checked(sys, poly, node->id, 0) != 0) goto push_error;
                 coeff_pool_clear(&poly);
 
                 /* 同理对 y 建立方程：y^2 - 2*y1*y + (x1^2 + y1^2 - dist_sq) = 0 */
@@ -1381,7 +1381,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * y1, poly.coeffs[1], scale);
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
-                EQUATION_PUSH_OR_GOTO(sys, poly, node->id, 1, push_error);
+                if (lv_equation_push_checked(sys, poly, node->id, 1) != 0) goto push_error;
                 coeff_pool_clear(&poly);
             }
         }

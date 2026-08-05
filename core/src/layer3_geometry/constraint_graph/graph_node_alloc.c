@@ -285,17 +285,10 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
 
     /* 流式事件: 约束添加 */
     if (graph_stream_ctx) {
-        /* 约束类型名称数组 —— 与 ConstraintType 枚举严格对齐 */
-        static const char *ctype_names[] = {
-            "INCIDENCE",    /* 关联约束 */
-            "BETWEENNESS",  /* 介于约束 */
-            "INTERSECTION", /* 相交约束 */
-            "CONTAINMENT",  /* 包含约束 */
-            "CONNECTION",   /* 连接约束 */
-            "ANGLE"         /* 角度约束 */
-        };
         lvStrBuf sb_2 = {0};
-        const char *cname = (type >= 0 && type <= 5) ? ctype_names[type] : "UNKNOWN";
+        const char *cname = lv_constraint_type_name(type);
+        if (!cname)
+            cname = "UNKNOWN";
         lv_strbuf_printf(&sb_2, "添加约束 #%d (类型: %s, 参与者: %d个)", constraint_id, cname, participant_count);
         stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, sb_2.data, constraint_id);
         lv_strbuf_destroy(&sb_2);

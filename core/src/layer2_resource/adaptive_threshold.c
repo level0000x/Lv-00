@@ -430,7 +430,7 @@ size_t lv_get_vf2_max_depth(const lvConstraintGraph *graph) {
     lvAdaptiveThresholdCtx *ctx = NULL;
     lvError err = lv_adaptive_threshold_create(lv_ALGO_VF2_MATCH, graph, NULL, &ctx);
     if (err != lv_OK)
-        return 100; /* fallback */
+        return (size_t) lv_config_current()->engine.vf2_max_depth;
 
     size_t threshold = lv_adaptive_threshold_compute(ctx);
     lv_adaptive_threshold_destroy(&ctx);
@@ -441,7 +441,7 @@ size_t lv_get_buchberger_max_steps(const lvConstraintGraph *graph) {
     lvAdaptiveThresholdCtx *ctx = NULL;
     lvError err = lv_adaptive_threshold_create(lv_ALGO_BUCHBERGER, graph, NULL, &ctx);
     if (err != lv_OK)
-        return 20000; /* fallback */
+        return (size_t) lv_config_current()->engine.buchberger_max_steps;
 
     size_t threshold = lv_adaptive_threshold_compute(ctx);
     lv_adaptive_threshold_destroy(&ctx);
@@ -452,7 +452,7 @@ size_t lv_get_rewrite_solve_max_iterations(const lvConstraintGraph *graph) {
     lvAdaptiveThresholdCtx *ctx = NULL;
     lvError err = lv_adaptive_threshold_create(lv_ALGO_REWRITE_SOLVE, graph, NULL, &ctx);
     if (err != lv_OK)
-        return 10000; /* fallback */
+        return (size_t) lv_config_current()->engine.rewrite_default_max_iterations;
 
     size_t threshold = lv_adaptive_threshold_compute(ctx);
     lv_adaptive_threshold_destroy(&ctx);

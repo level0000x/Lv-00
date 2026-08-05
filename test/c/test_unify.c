@@ -16,17 +16,10 @@
 #include "lv/constraint_graph.h"
 #include "lv/unify.h"
 #include "test_helpers.h"
+#include "lv_test_geom_graph_builder.h"
 
-/* 创建简单构造：两点一线 */
-static ConstraintGraph *create_line_graph(void) {
-    ConstraintGraph *g = graph_create();
-    if (!g)
-        return NULL;
-    int p0 = add_point(g, 0, 1, 0, 1);
-    int p1 = add_point(g, 3, 1, 4, 1);
-    graph_add_line_segment(g, p0, p1);
-    return g;
-}
+/* 创建简单构造：两点一线（收敛：使用共享构造器 lv_test_line_graph(NULL, 0, 0, 3, 4, false)，
+ * 即 (0,0)(3,4) 两点 + 一线段、无 incidence，与本地 create_line_graph 语义一致）*/
 
 /* 测试命题创建 */
 static int test_proposition_create(void) {
@@ -44,7 +37,7 @@ static int test_proposition_create(void) {
            prop->output_count);
 
     /* 设置模式 */
-    prop->pattern = create_line_graph();
+    prop->pattern = lv_test_line_graph(NULL, 0, 0, 3, 4, false);
 
     printf("  Pattern set: PASSED\n");
     simple_proposition_destroy(prop);
@@ -55,13 +48,13 @@ static int test_proposition_create(void) {
 static int test_successful_unify(void) {
     printf("\n=== Testing Successful Unify ===\n");
 
-    ConstraintGraph *construction = create_line_graph();
+    ConstraintGraph *construction = lv_test_line_graph(NULL, 0, 0, 3, 4, false);
     if (!construction) {
         printf("  FAILED: Could not create construction\n");
         return -1;
     }
 
-    ConstraintGraph *pattern = create_line_graph();
+    ConstraintGraph *pattern = lv_test_line_graph(NULL, 0, 0, 3, 4, false);
 
     UnifyStatus status = unify_construction_with_proposition(construction, pattern);
     printf("  Unify status: %d\n", status);
@@ -89,7 +82,7 @@ static int test_constraint_missing(void) {
     add_point(construction, 3, 1, 4, 1);
 
     /* 命题：期望有线段 */
-    ConstraintGraph *pattern = create_line_graph();
+    ConstraintGraph *pattern = lv_test_line_graph(NULL, 0, 0, 3, 4, false);
 
     UnifyStatus status = unify_construction_with_proposition(construction, pattern);
     printf("  Unify status: %d (expected non-OK)\n", status);
@@ -116,7 +109,7 @@ static int test_coord_mismatch(void) {
     graph_add_line_segment(construction, 0, 1);
 
     /* 命题：点在 (0,0) 和 (3,4) */
-    ConstraintGraph *pattern = create_line_graph();
+    ConstraintGraph *pattern = lv_test_line_graph(NULL, 0, 0, 3, 4, false);
 
     UnifyStatus status = unify_construction_with_proposition(construction, pattern);
     printf("  Unify status: %d\n", status);
@@ -135,9 +128,9 @@ static int test_simple_proof(void) {
     int inputs[] = {0, 1};
     int outputs[] = {2};
     SimpleProposition *prop = simple_proposition_create("line_proof", inputs, 2, outputs, 1);
-    prop->pattern = create_line_graph();
+    prop->pattern = lv_test_line_graph(NULL, 0, 0, 3, 4, false);
 
-    ConstraintGraph *construction = create_line_graph();
+    ConstraintGraph *construction = lv_test_line_graph(NULL, 0, 0, 3, 4, false);
 
     SimpleProof *proof = simple_proof_create(prop, construction);
     if (!proof) {
@@ -169,7 +162,7 @@ static int test_proof_normalize(void) {
     int inputs[] = {0, 1};
     int outputs[] = {2};
     SimpleProposition *prop = simple_proposition_create("norm_proof", inputs, 2, outputs, 1);
-    prop->pattern = create_line_graph();
+    prop->pattern = lv_test_line_graph(NULL, 0, 0, 3, 4, false);
 
     /* 构造包含重复点 */
     ConstraintGraph *construction = graph_create();

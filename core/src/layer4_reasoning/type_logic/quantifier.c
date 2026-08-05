@@ -81,29 +81,8 @@ static void init_quant_result(lvQuantifiedResult *result);
  * @return true 成功，false 失败（内存不足）
  */
 static bool domain_ensure_capacity(lvDomain *domain, int needed) {
-    int new_capacity;
-
-    if (needed <= domain->element_capacity) {
-        return true;
-    }
-
-    new_capacity = domain->element_capacity == 0 ? DOMAIN_INITIAL_CAPACITY : domain->element_capacity * 2;
-    while (new_capacity < needed) {
-        /* 整数溢出保护：翻倍后若变为负数或超过 INT_MAX/2，则无法继续扩容 */
-        if (new_capacity < 0 || new_capacity > INT_MAX / 2) {
-            return false;
-        }
-        new_capacity *= 2;
-    }
-
-    int *new_elements = (int *) lv_realloc(domain->domain_elements, (size_t) new_capacity * sizeof(int));
-    if (!new_elements) {
-        return false;
-    }
-
-    domain->domain_elements = new_elements;
-    domain->element_capacity = new_capacity;
-    return true;
+    /* 统一迁移至 lv_ensure_capacity（倍增策略/溢出检查/失败语义一致） */
+    return lv_ensure_capacity((void **) &domain->domain_elements, needed, &domain->element_capacity, sizeof(int), 0);
 }
 
 /**
@@ -114,28 +93,8 @@ static bool domain_ensure_capacity(lvDomain *domain, int needed) {
  * @return true 成功，false 失败
  */
 static bool instantiate_ensure_capacity(lvQuantifiedExpr *expr, int needed) {
-    int new_capacity;
-
-    if (needed <= expr->instantiated_capacity) {
-        /* 已分配容量足够 */
-        return true;
-    }
-
-    new_capacity = expr->instantiated_capacity == 0 ? INSTANTIATE_INITIAL_CAPACITY : expr->instantiated_capacity * 2;
-    while (new_capacity < needed) {
-        new_capacity *= 2;
-        if (new_capacity <= 0 || new_capacity > INT_MAX / 2)
-            return false;
-    }
-
-    int *new_ids = (int *) lv_realloc(expr->instantiated_ids, (size_t) new_capacity * sizeof(int));
-    if (!new_ids) {
-        return false;
-    }
-
-    expr->instantiated_ids = new_ids;
-    expr->instantiated_capacity = new_capacity;
-    return true;
+    /* 统一迁移至 lv_ensure_capacity（倍增策略/溢出检查/失败语义一致） */
+    return lv_ensure_capacity((void **) &expr->instantiated_ids, needed, &expr->instantiated_capacity, sizeof(int), 0);
 }
 
 /**

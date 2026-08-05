@@ -41,14 +41,15 @@ int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, 
 /** @brief 清空方程系统（释放所有方程资源） */
 void equation_system_clear(EquationSystem *sys);
 
-/** @brief 宏：push 方程，失败时 goto 标签 */
-#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label)               \
-    do {                                                               \
-        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) {   \
-            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)"); \
-            goto label;                                                \
-        }                                                              \
-    } while (0)
+/** @brief push 方程，失败时设置 OOM 错误并返回非零
+ *          （原 EQUATION_PUSH_OR_GOTO 宏函数化；调用点通过返回值分支保持 goto label 语义） */
+static inline int lv_equation_push_checked(EquationSystem *sys, mpz_poly_t poly, int vid, int ci) {
+    int rc = equation_system_push(sys, poly, vid, ci);
+    if (rc != 0) {
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+    }
+    return rc;
+}
 
 /**
  * @brief solver 模块的全局流式上下文（集中定义在 solver_engine.c，其余文件通过 extern 引用）

@@ -19,11 +19,12 @@
 #include "lv/lambda_unify.h"
 #include "lv/lv_utils.h"
 
-#define TEST_PASS_STATEMENT P++
-#define TEST_FAIL_STATEMENT F++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
 
-static int P = 0, F = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 /* ================================================================
  * 句法合一测试
@@ -149,7 +150,7 @@ static void test_unify_occurs_check(void) {
         /* 从语义上，绑定 X ↦ λx.(X x) 会导致无限展开，
            但我们的 occurs_check 可能漏检，这里记为 WARN 而非 FAIL */
         printf("WARN: 预期 OCCURS_CHECK 但得到 OK\n");
-        P++;
+        g_pass_count++;
         /* 手动检查：替换后应有 X 出现在自身中 */
         if (subs) {
             char buf[256];
@@ -342,26 +343,21 @@ static void test_subs_snprint(void) {
  * main
  * ================================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("Test Lambda Unify")
     printf("[Test Lambda Unify]\n");
 
     printf("\n--- 句法合一 ---\n");
-    test_unify_alpha_equiv();
-    test_unify_var_abs();
-    test_unify_abs_diff();
-    test_unify_app_app();
-    test_unify_occurs_check();
-    test_unify_nested_abs();
-    test_unify_apply_substitution();
-
+    TEST_MAIN_RUN(test_unify_alpha_equiv);
+    TEST_MAIN_RUN(test_unify_var_abs);
+    TEST_MAIN_RUN(test_unify_abs_diff);
+    TEST_MAIN_RUN(test_unify_app_app);
+    TEST_MAIN_RUN(test_unify_occurs_check);
+    TEST_MAIN_RUN(test_unify_nested_abs);
+    TEST_MAIN_RUN(test_unify_apply_substitution);
     printf("\n--- 模式合一 ---\n");
-    test_pattern_is_pattern();
-    test_pattern_non_pattern();
-    test_pattern_fv_fv();
-
+    TEST_MAIN_RUN(test_pattern_is_pattern);
+    TEST_MAIN_RUN(test_pattern_non_pattern);
+    TEST_MAIN_RUN(test_pattern_fv_fv);
     printf("\n--- 工具函数 ---\n");
-    test_subs_snprint();
-
-    printf("\n结果: %d 通过, %d 失败\n", P, F);
-    return F > 0 ? 1 : 0;
-}
+    TEST_MAIN_RUN(test_subs_snprint);
+TEST_MAIN_END()

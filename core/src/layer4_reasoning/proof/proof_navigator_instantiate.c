@@ -366,6 +366,49 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 /*  PUBLIC API: 不可构造性证明流程                                     */
 /* ================================================================== */
 
+/* 经典不可构造问题 → 构造图特征谓词（函数指针表分发；NONE/越界走 default → pattern_match 保持 false） */
+static bool classical_matcher_trisection(const ConstraintGraph *graph) {
+    /* 三等分角问题：通常涉及角度构造 */
+    /* 检查图中是否有角度相关的约束 */
+    for (int k = 0; k < graph->constraint_count; k++) {
+        if (graph->constraints[k]->type == BETWEENNESS) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool classical_matcher_doubling(const ConstraintGraph *graph) {
+    /* 倍立方问题：涉及特定比例 */
+    return graph->node_count >= 3 && graph->node_count <= 8;
+}
+
+static bool classical_matcher_squaring(const ConstraintGraph *graph) {
+    /* 化圆为方：涉及圆和正方形 */
+    int circle_count = 0, region_count = 0;
+    for (int k = 0; k < graph->node_count; k++) {
+        if (graph->nodes[k]->type == GEOM_POINT) {
+            /* 圆通常由中心点和半径定义 */
+            circle_count++;
+        } else if (graph->nodes[k]->type == GEOM_REGION) {
+            region_count++;
+        }
+    }
+    return circle_count >= 2 && region_count >= 1;
+}
+
+static bool classical_matcher_heptagon(const ConstraintGraph *graph) {
+    /* 正七边形构造 */
+    return graph->node_count >= 7;
+}
+
+static const bool (*kClassicalMatchers[])(const ConstraintGraph *) = {
+    [CLASSICAL_PROBLEM_TRISECTION] = classical_matcher_trisection,
+    [CLASSICAL_PROBLEM_DOUBLING]   = classical_matcher_doubling,
+    [CLASSICAL_PROBLEM_SQUARING]   = classical_matcher_squaring,
+    [CLASSICAL_PROBLEM_HEPTAGON]   = classical_matcher_heptagon,
+};
+
 /**
  * @brief 检查构造是否匹配已知不可构造问题
  *
@@ -412,41 +455,10 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
                 bool pattern_match = false;
 
                 /* 经典不可构造问题的启发式匹配（统一走 proof_classical.h 查找表） */
-                switch (lv_classical_problem_match(ku->name)) {
-                case CLASSICAL_PROBLEM_TRISECTION:
-                    /* 三等分角问题：通常涉及角度构造 */
-                    /* 检查图中是否有角度相关的约束 */
-                    for (int k = 0; k < graph->constraint_count; k++) {
-                        if (graph->constraints[k]->type == BETWEENNESS) {
-                            pattern_match = true;
-                            break;
-                        }
-                    }
-                    break;
-                case CLASSICAL_PROBLEM_DOUBLING:
-                    /* 倍立方问题：涉及特定比例 */
-                    pattern_match = (graph->node_count >= 3 && graph->node_count <= 8);
-                    break;
-                case CLASSICAL_PROBLEM_SQUARING: {
-                    /* 化圆为方：涉及圆和正方形 */
-                    int circle_count = 0, region_count = 0;
-                    for (int k = 0; k < graph->node_count; k++) {
-                        if (graph->nodes[k]->type == GEOM_POINT) {
-                            /* 圆通常由中心点和半径定义 */
-                            circle_count++;
-                        } else if (graph->nodes[k]->type == GEOM_REGION) {
-                            region_count++;
-                        }
-                    }
-                    pattern_match = (circle_count >= 2 && region_count >= 1);
-                    break;
-                }
-                case CLASSICAL_PROBLEM_HEPTAGON:
-                    /* 正七边形构造 */
-                    pattern_match = (graph->node_count >= 7);
-                    break;
-                default:
-                    break;
+                int classical_problem = lv_classical_problem_match(ku->name);
+                if ((unsigned) classical_problem < sizeof(kClassicalMatchers) / sizeof(kClassicalMatchers[0]) &&
+                    kClassicalMatchers[classical_problem]) {
+                    pattern_match = kClassicalMatchers[classical_problem](graph);
                 }
 
                 if (pattern_match) {

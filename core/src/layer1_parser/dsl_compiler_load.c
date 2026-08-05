@@ -448,6 +448,24 @@ static bool handle_noop(ConstraintGraph *graph, const DslIROperation *op,
     return true;
 }
 
+/* 确保 id_map 有足够的容量（原 ENSURE_ID_MAP 宏函数化） */
+static bool ensure_id_map(int **map, int *cap, int needed) {
+    while (needed >= *cap) {
+        int new_cap = *cap == 0 ? 64 : *cap * 2;
+        int *np = lv_realloc(*map, sizeof(int) * (size_t) new_cap);
+        if (!np) {
+            lv_free((void **) map);
+            return false;
+        }
+        *map = np;
+        /* 初始化新区域为 -1 */
+        for (int _i = *cap; _i < new_cap; _i++)
+            (*map)[_i] = -1;
+        *cap = new_cap;
+    }
+    return true;
+}
+
 /**
  * @brief 将 IR 操作转换为约束图节点
  *
@@ -467,27 +485,10 @@ bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph) {
     int id_map_count = 0;
     int id_map_cap = 0;
 
-    /* 确保 id_map 有足够的容量 */
-#define ENSURE_ID_MAP(cap_needed)                                         \
-    do {                                                                  \
-        while ((cap_needed) >= id_map_cap) {                              \
-            int new_cap = id_map_cap == 0 ? 64 : id_map_cap * 2;          \
-            int *np = lv_realloc(id_map, sizeof(int) * (size_t) new_cap); \
-            if (!np) {                                                    \
-                lv_free((void **) &id_map);                               \
-                return false;                                             \
-            }                                                             \
-            id_map = np;                                                  \
-            /* 初始化新区域为 -1 */                                       \
-            for (int _i = id_map_cap; _i < new_cap; _i++)                 \
-                id_map[_i] = -1;                                          \
-            id_map_cap = new_cap;                                         \
-        }                                                                 \
-    } while (0)
-
     /* 初始化 id_map */
     if (ir->next_id > 0) {
-        ENSURE_ID_MAP(ir->next_id + 1);
+        if (!ensure_id_map(&id_map, &id_map_cap, ir->next_id + 1))
+            return false;
         id_map_count = ir->next_id + 1;
         for (int i = 0; i < id_map_count; i++)
             id_map[i] = -1;

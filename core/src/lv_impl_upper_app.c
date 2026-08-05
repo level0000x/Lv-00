@@ -37,46 +37,7 @@
 /* ============================================================
  * 第11部分:L9 应用层(application: run/quick_verify/batch/get_version/destroy)
  *
- * 说明:lv_application_quick_verify/batch/destroy 经审计确认零外部
- * 调用，已按死代码删除。lv_application_run / lv_application_get_version
- * 不在删除清单，保留。
+ * 说明:lv_application_run / lv_application_get_version 及此前的
+ * lv_application_quick_verify/batch/destroy 经审计确认全库零调用，
+ * 已按死代码删除。本文件仅保留占位注释与 include 集。
  * ============================================================ */
-
-/** 应用层结构(前向声明 + 定义) */
-typedef struct lvApplication {
-    int64_t app_id;
-    char *app_name;
-    int64_t session_count;
-    lvEngine *engine;
-    lvOrchestrator *orch;
-} lvApplication;
-
-/** 运行应用 */
-lvApplication *lv_application_run(lvEngine *ctx, const char *app_name) {
-    (void) ctx;
-    lvApplication *app = lv_calloc(1, sizeof(lvApplication));
-    if (!app)
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_application_run: calloc app failed");
-    app->app_id = s_upper_state.upper_id++;
-    app->app_name = lv_strdup_safe(app_name ? app_name : "default");
-    if (!app->app_name) {
-        lv_free((void **) &app);
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_application_run: strdup app_name failed");
-    }
-    app->session_count = 0;
-    app->engine = ctx;
-    /* 创建编排器并执行默认管线 */
-    app->orch = lv_orchestrator_create(ctx);
-    if (!app->orch) {
-        lv_free((void **) &app->app_name);
-        lv_free((void **) &app);
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "lv_application_run: orchestrator_create failed");
-    }
-    return app;
-}
-
-/** 获取版本号字符串 */
-const char *lv_application_get_version(lvEngine *ctx) {
-    (void) ctx;
-    return "Lv-00 v1.1.0 (GMP exact arithmetic)";
-}

@@ -992,20 +992,9 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
         /* 构造表达式描述字符串 */
         /* 格式："constraint_N: type=X, vars=[a,b,c]" */
-        static const char *kConstraintTypeNames[] = {
-            "INCIDENCE",    /* INCIDENCE = 0 */
-            "BETWEENNESS",  /* BETWEENNESS = 1 */
-            "INTERSECTION", /* INTERSECTION = 2 */
-            "CONTAINMENT",  /* CONTAINMENT = 3 */
-            "CONNECTION",   /* CONNECTION = 4 */
-            "ANGLE"         /* ANGLE = 5 */
-        };
-        static const int kConstraintTypeNamesCount =
-            (int)(sizeof(kConstraintTypeNames) / sizeof(kConstraintTypeNames[0]));
-        const char *type_str = "UNKNOWN";
-        if (c->type >= 0 && c->type < kConstraintTypeNamesCount) {
-            type_str = kConstraintTypeNames[(int)c->type];
-        }
+        const char *type_str = lv_constraint_type_name(c->type);
+        if (!type_str)
+            type_str = "UNKNOWN";
 
         char buf[EXPR_BUFFER_INITIAL];
         int off = snprintf(buf, sizeof(buf), "constraint_%d: type=%s, vars=[", c->id, type_str);

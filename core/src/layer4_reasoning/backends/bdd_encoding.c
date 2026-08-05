@@ -958,29 +958,30 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
             /* 检查 var_order 容量，不足时扩容 */
             int needed = var_id + 1;
             if (needed > mgr->var_capacity) {
-                int new_capacity = (mgr->var_capacity > 0) ? mgr->var_capacity * 2 : 16;
-                if (new_capacity < needed)
-                    new_capacity = needed;
-                int *new_order = (int *) lv_realloc(mgr->var_order, (size_t) new_capacity * sizeof(int));
-                char **new_names = (char **) lv_realloc(mgr->var_names, (size_t) new_capacity * sizeof(char *));
-                BDDVarType *new_types =
-                    (BDDVarType *) lv_realloc(mgr->var_types, (size_t) new_capacity * sizeof(BDDVarType));
-                if (!new_order || !new_names || !new_types) {
-                    /* 某些 realloc 成功了但 mgr-> 指针尚未更新，
-                     * 所以 mgr->var_order 等仍指向旧内存（有效）。
-                     * 释放成功分配的新内存以避免泄漏。 */
-                    if (new_order)
+                /* 三数组同步扩容至 lv_ensure_capacity（独立容量变量保证三数组容量一致） */
+                int *new_order = mgr->var_order;
+                char **new_names = mgr->var_names;
+                BDDVarType *new_types = mgr->var_types;
+                int order_cap = mgr->var_capacity;
+                int names_cap = mgr->var_capacity;
+                int types_cap = mgr->var_capacity;
+                if (!lv_ensure_capacity((void **) &new_order, needed, &order_cap, sizeof(int), 0) ||
+                    !lv_ensure_capacity((void **) &new_names, needed, &names_cap, sizeof(char *), 0) ||
+                    !lv_ensure_capacity((void **) &new_types, needed, &types_cap, sizeof(BDDVarType), 0)) {
+                    /* 部分失败：已成功扩容的临时指针指向新内存，释放以免泄漏；
+                     * 失败/未执行的调用保持旧指针（与 mgr-> 相同），不可释放。 */
+                    if (new_order != mgr->var_order)
                         lv_free((void **) &new_order);
-                    if (new_names)
+                    if (new_names != mgr->var_names)
                         lv_free((void **) &new_names);
-                    if (new_types)
+                    if (new_types != mgr->var_types)
                         lv_free((void **) &new_types);
                     return -1;
                 }
                 mgr->var_order = new_order;
                 mgr->var_names = new_names;
                 mgr->var_types = new_types;
-                mgr->var_capacity = new_capacity;
+                mgr->var_capacity = order_cap; /* 三数组容量一致 */
             }
             /* 初始化新增的变量条目 */
             for (int v = mgr->var_count; v < needed; v++) {

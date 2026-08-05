@@ -1490,7 +1490,7 @@ static void test_sp_propagate_geometry(void) {
     lvSyncProtocol *proto = lv_sync_protocol_create(bg);
     TEST_ASSERT_NOT_NULL(proto);
 
-    int count = lv_sync_propagate(proto, 0, res.output, 10);
+    int count = lv_sync_propagate(proto, lv_VIEW_GEOMETRY_CANVAS, res.output, 10);
     TEST_ASSERT(count >= 0, "几何画布传播");
 
     GeometryEncoding *enc = (GeometryEncoding *) res.output;

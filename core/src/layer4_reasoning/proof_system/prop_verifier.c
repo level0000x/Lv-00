@@ -39,7 +39,6 @@ lv_THREAD_LOCAL StreamContext *prop_verifier_stream_ctx = NULL;
 #define MAX_PREMISES 64       /**< 最大前提数 */
 #define MAX_GOALS 64          /**< 最大目标数 */
 #define MAX_MEMO_ENTRIES 1024 /**< 记忆化条目数 */
-#define MAX_FORMULA_STR 2048  /**< 公式字符串最大长度 */
 #define MAX_COPY_DEPTH 200    /**< 公式深拷贝递归深度（防止栈溢出） */
 #define MAX_DESTROY_DEPTH 200 /**< 公式销毁递归深度（防止栈溢出） */
 

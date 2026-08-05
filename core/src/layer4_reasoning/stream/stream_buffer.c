@@ -116,6 +116,41 @@ static void stream_update_stats(StreamContext *ctx, const StreamEvent *event) {
     ctx->total_count++;
 }
 
+/* 发射模式 → 事件处理函数（函数指针表分发） */
+typedef void (*StreamEmitHandler)(StreamContext *ctx, const StreamEvent *event);
+
+static void emit_mode_immediate(StreamContext *ctx, const StreamEvent *event) {
+    stream_dispatch(ctx, event);
+}
+
+static void emit_mode_buffered(StreamContext *ctx, const StreamEvent *event) {
+    stream_buffer_push(ctx, event);
+}
+
+static void emit_mode_throttled(StreamContext *ctx, const StreamEvent *event) {
+    stream_buffer_push(ctx, event);
+    if (stream_throttle_expired(ctx)) {
+        stream_flush(ctx);
+    }
+}
+
+static void emit_mode_lazy(StreamContext *ctx, const StreamEvent *event) {
+    /* 惰性模式：事件仅入队到 lazy_queue，
+     * 由消费者通过 stream_lazy_next / stream_lazy_drain 主动拉取。
+     * 当队列达到阈值时自动触发刷新。 */
+    stream_lazy_enqueue(ctx, event);
+    if (ctx->lazy_threshold > 0 && ctx->lazy_count >= ctx->lazy_threshold) {
+        stream_flush(ctx);
+    }
+}
+
+static const StreamEmitHandler kEmitHandlers[] = {
+    [STREAM_EMIT_IMMEDIATE] = emit_mode_immediate,
+    [STREAM_EMIT_BUFFERED]  = emit_mode_buffered,
+    [STREAM_EMIT_THROTTLED] = emit_mode_throttled,
+    [STREAM_EMIT_LAZY]      = emit_mode_lazy,
+};
+
 /* ==================== 事件发射 ==================== */
 
 /**
@@ -153,31 +188,10 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event) {
         return;
     }
 
-    switch (ctx->emit_mode) {
-        case STREAM_EMIT_IMMEDIATE:
-            stream_dispatch(ctx, event);
-            break;
-
-        case STREAM_EMIT_BUFFERED:
-            stream_buffer_push(ctx, event);
-            break;
-
-        case STREAM_EMIT_THROTTLED:
-            stream_buffer_push(ctx, event);
-            if (stream_throttle_expired(ctx)) {
-                stream_flush(ctx);
-            }
-            break;
-
-        case STREAM_EMIT_LAZY:
-            /* 惰性模式：事件仅入队到 lazy_queue，
-             * 由消费者通过 stream_lazy_next / stream_lazy_drain 主动拉取。
-             * 当队列达到阈值时自动触发刷新。 */
-            stream_lazy_enqueue(ctx, event);
-            if (ctx->lazy_threshold > 0 && ctx->lazy_count >= ctx->lazy_threshold) {
-                stream_flush(ctx);
-            }
-            break;
+    /* 发射模式 → 处理函数表分发（未知模式不处理，与原无 default 行为一致） */
+    if ((unsigned) ctx->emit_mode < sizeof(kEmitHandlers) / sizeof(kEmitHandlers[0]) &&
+        kEmitHandlers[ctx->emit_mode]) {
+        kEmitHandlers[ctx->emit_mode](ctx, event);
     }
 }
 

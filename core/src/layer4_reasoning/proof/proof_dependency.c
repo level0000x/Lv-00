@@ -26,6 +26,7 @@
 #include "lv/lv_json.h"
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_strbuf.h"
 #include "proof_step_registry.h"
 #include "proof_classical.h"
 
@@ -919,52 +920,48 @@ static const char *step_type_verb_en(ProofStepType type) {
 }
 
 /**
- * @brief 生成步骤的几何对象描述（中文）
+ * @brief 生成步骤的几何对象描述（按语言参数化）
+ *
+ * 中英文案与分隔符走查找表，输出与原 describe_objects_zh/en 逐字节一致；
+ * 改用 lvStrBuf 消除固定缓冲截断风险。
  */
-static void describe_objects_zh(const ProofStep *step, char *buf, size_t buf_size) {
-    buf[0] = '\0';
-    if (step->node_id >= 0) {
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), "节点 %d", step->node_id);
-    }
-    if (step->constraint_id >= 0) {
-        if (buf[0] != '\0')
-            lv_strncat(buf, "，", buf_size);
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), "约束 %d", step->constraint_id);
-    }
-    if (step->rule_id >= 0) {
-        if (buf[0] != '\0')
-            lv_strncat(buf, "，", buf_size);
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), "规则 %d", step->rule_id);
-    }
-    if (step->func_block_id >= 0) {
-        if (buf[0] != '\0')
-            lv_strncat(buf, "，", buf_size);
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), "函数块 %d", step->func_block_id);
-    }
-}
+typedef struct {
+    const char *sep;            /**< 分隔符 */
+    const char *node_fmt;       /**< 节点格式 */
+    const char *constraint_fmt; /**< 约束格式 */
+    const char *rule_fmt;       /**< 规则格式 */
+    const char *func_block_fmt; /**< 函数块格式 */
+} ObjectDescText;
 
-/**
- * @brief 生成步骤的几何对象描述（英文）
- */
-static void describe_objects_en(const ProofStep *step, char *buf, size_t buf_size) {
-    buf[0] = '\0';
+/** @brief 中文对象描述文案 */
+static const ObjectDescText kObjectDescTextZh = {
+    "，", "节点 %d", "约束 %d", "规则 %d", "函数块 %d",
+};
+
+/** @brief 英文对象描述文案 */
+static const ObjectDescText kObjectDescTextEn = {
+    ", ", "node %d", "constraint %d", "rule %d", "function block %d",
+};
+
+static void describe_objects(const ProofStep *step, ProofNaturalLanguage lang, lvStrBuf *out) {
+    const ObjectDescText *txt = (lang == PROOF_NL_LANG_ZH_CN) ? &kObjectDescTextZh : &kObjectDescTextEn;
     if (step->node_id >= 0) {
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), "node %d", step->node_id);
+        lv_strbuf_printf(out, txt->node_fmt, step->node_id);
     }
     if (step->constraint_id >= 0) {
-        if (buf[0] != '\0')
-            lv_strncat(buf, ", ", buf_size);
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), "constraint %d", step->constraint_id);
+        if (out->len > 0)
+            lv_strbuf_printf(out, "%s", txt->sep);
+        lv_strbuf_printf(out, txt->constraint_fmt, step->constraint_id);
     }
     if (step->rule_id >= 0) {
-        if (buf[0] != '\0')
-            lv_strncat(buf, ", ", buf_size);
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), "rule %d", step->rule_id);
+        if (out->len > 0)
+            lv_strbuf_printf(out, "%s", txt->sep);
+        lv_strbuf_printf(out, txt->rule_fmt, step->rule_id);
     }
     if (step->func_block_id >= 0) {
-        if (buf[0] != '\0')
-            lv_strncat(buf, ", ", buf_size);
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), "function block %d", step->func_block_id);
+        if (out->len > 0)
+            lv_strbuf_printf(out, "%s", txt->sep);
+        lv_strbuf_printf(out, txt->func_block_fmt, step->func_block_id);
     }
 }
 
@@ -995,27 +992,29 @@ char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguag
     if (!step)
         return NULL;
 
-    char obj_desc[256];
-    char result[1024];
+    lvStrBuf obj_desc;
+    lvStrBuf result;
+    lv_strbuf_init(&obj_desc);
+    lv_strbuf_init(&result);
     const char *verb, *why, *step_type_name, *color_name;
 
     if (lang == PROOF_NL_LANG_ZH_CN) {
         verb = step_type_verb_zh(step->type);
-        describe_objects_zh(step, obj_desc, sizeof(obj_desc));
+        describe_objects(step, lang, &obj_desc);
         why = explain_why_zh(step->type);
         step_type_name = proof_step_type_to_string(step->type);
         color_name = proof_color_to_string(step->color);
 
-        if (obj_desc[0] != '\0') {
-            snprintf(result, sizeof(result),
+        if (obj_desc.len > 0) {
+            lv_strbuf_printf(&result,
                      "步骤 %d：%s%s。\n"
                      "  —— 涉及对象：%s\n"
                      "  —— 推理依据：%s\n"
                      "  —— 信任状态：%s",
-                     step->id, verb, (step->type == PROOF_STEP_ADD_NODE) ? "新的几何对象" : "", obj_desc, why,
-                     color_name);
+                     step->id, verb, (step->type == PROOF_STEP_ADD_NODE) ? "新的几何对象" : "",
+                     lv_strbuf_cstr(&obj_desc), why, color_name);
         } else {
-            snprintf(result, sizeof(result),
+            lv_strbuf_printf(&result,
                      "步骤 %d：%s。\n"
                      "  —— 推理依据：%s\n"
                      "  —— 信任状态：%s",
@@ -1023,20 +1022,20 @@ char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguag
         }
     } else {
         verb = step_type_verb_en(step->type);
-        describe_objects_en(step, obj_desc, sizeof(obj_desc));
+        describe_objects(step, lang, &obj_desc);
         why = explain_why_en(step->type);
         step_type_name = proof_step_type_to_string(step->type);
         color_name = proof_color_to_string(step->color);
 
-        if (obj_desc[0] != '\0') {
-            snprintf(result, sizeof(result),
+        if (obj_desc.len > 0) {
+            lv_strbuf_printf(&result,
                      "Step %d: %s.\n"
                      "  -- Objects involved: %s\n"
                      "  -- Reasoning: %s\n"
                      "  -- Trust status: %s",
-                     step->id, verb, obj_desc, why, color_name);
+                     step->id, verb, lv_strbuf_cstr(&obj_desc), why, color_name);
         } else {
-            snprintf(result, sizeof(result),
+            lv_strbuf_printf(&result,
                      "Step %d: %s.\n"
                      "  -- Reasoning: %s\n"
                      "  -- Trust status: %s",
@@ -1044,5 +1043,6 @@ char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguag
         }
     }
 
-    return lv_strdup(result);
+    lv_strbuf_destroy(&obj_desc);
+    return lv_strbuf_to_string(&result);
 }

@@ -1257,18 +1257,6 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
     return result;
 }
 
-/* ============== 打包冲突对话框（API层） ============== */
-
-/**
- * @brief 设置跨边界回调
- *
- * @param cb        回调函数
- * @param user_data 用户数据
- */
-void func_block_set_cross_boundary_callback(CrossBoundaryCallback cb, void *user_data) {
-    g_cross_boundary_ctx.callback = cb;
-    g_cross_boundary_ctx.user_data = user_data;
-}
 
 /* ============== 深拷贝 ============== */
 

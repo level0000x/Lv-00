@@ -6,57 +6,12 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/representation_converter.h"
+#include "lv/lv_strbuf.h"
 
 /* layer6 新实现接管：屏蔽 layer2 旧桩的同名直接转换 API */
 #define LV_HAS_LAYER6_CONVERTER
 
-/* 内部辅助：追加字符串到动态缓冲区 */
-typedef struct {
-    char *data;
-    int len;
-    int cap;
-} TextBuf;
-
-static void buf_init(TextBuf *b) {
-    b->cap = 1024;
-    b->data = lv_calloc(b->cap, 1);
-    if (!b->data) {
-        b->cap = 0;
-        return;
-    }
-    b->len = 0;
-}
-
-static void buf_append(TextBuf *b, const char *s) {
-    int slen = (int) strlen(s);
-    while (b->len + slen + 1 > b->cap) {
-        b->cap *= 2;
-        char *tmp = lv_realloc(b->data, b->cap);
-        if (!tmp) {
-            b->cap /= 2; /* restore old capacity */
-            return;
-        }
-        b->data = tmp;
-    }
-    memcpy(b->data + b->len, s, slen + 1);
-    b->len += slen;
-}
-
-static void buf_appendf(TextBuf *b, const char *fmt, ...) {
-    char tmp[512];
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(tmp, sizeof(tmp), fmt, ap);
-    va_end(ap);
-    buf_append(b, tmp);
-}
-
-/* 内部辅助：生成缩进字符串 */
-static void append_indent(TextBuf *buf, int level) {
-    for (int i = 0; i < level; i++) {
-        buf_append(buf, "  ");
-    }
-}
+/* 内部辅助：统一使用 lvStrBuf 标准字符串构建器（原 TextBuf 手写 String Builder 已收敛至 lv/lv_strbuf.h） */
 
 /* 将函数块图转换为 Lv-00 DSL 文本 */
 /* 按拓扑序遍历块图，为每个 FuncBlock 生成 DSL 声明 */
@@ -76,8 +31,7 @@ lvConvertResult lv_convert_block_to_text(void *graph) {
     } BlockGraphView;
 
     BlockGraphView *bg = (BlockGraphView *) graph;
-    TextBuf buf;
-    buf_init(&buf);
+    lvStrBuf buf = {0};
 
     /* 遍历所有函数块（假设已按拓扑序排列） */
     for (int i = 0; i < bg->count; i++) {
@@ -90,30 +44,30 @@ lvConvertResult lv_convert_block_to_text(void *graph) {
             name = "unnamed";
 
         /* 生成块声明头部 */
-        buf_appendf(&buf, "block %s {\n", name);
+        lv_strbuf_printf(&buf, "block %s {\n", name);
 
         /* 生成输入端口声明 */
         int in_count = func_block_get_input_count(fb);
         for (int j = 0; j < in_count; j++) {
-            append_indent(&buf, 1);
-            buf_appendf(&buf, "input port%d\n", fb->input_port_ids ? fb->input_port_ids[j] : j);
+            lv_strbuf_append_n(&buf, ' ', 2);
+            lv_strbuf_printf(&buf, "input port%d\n", fb->input_port_ids ? fb->input_port_ids[j] : j);
         }
 
         /* 生成输出端口声明 */
         int out_count = func_block_get_output_count(fb);
         for (int j = 0; j < out_count; j++) {
-            append_indent(&buf, 1);
-            buf_appendf(&buf, "output port%d\n", fb->output_port_ids ? fb->output_port_ids[j] : j);
+            lv_strbuf_append_n(&buf, ' ', 2);
+            lv_strbuf_printf(&buf, "output port%d\n", fb->output_port_ids ? fb->output_port_ids[j] : j);
         }
 
         /* 生成块体占位 */
-        append_indent(&buf, 1);
-        buf_append(&buf, "// block body\n");
+        lv_strbuf_append_n(&buf, ' ', 2);
+        lv_strbuf_printf(&buf, "// block body\n");
 
-        buf_append(&buf, "}\n\n");
+        lv_strbuf_printf(&buf, "}\n\n");
     }
 
-    result.output = buf.data;
+    result.output = lv_strbuf_to_string(&buf);
     result.success = 1;
     return result;
 }

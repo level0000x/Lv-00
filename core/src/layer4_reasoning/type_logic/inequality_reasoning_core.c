@@ -9,20 +9,20 @@
 
 /* ============== 内部辅助函数 ============== */
 
+/** 不等式类型翻转映射表 */
+static const lvInequalityType kIneqNegate[] = {
+    [INEQ_LESS_THAN] = INEQ_GREATER_THAN,
+    [INEQ_LESS_EQUAL] = INEQ_GREATER_EQUAL,
+    [INEQ_GREATER_THAN] = INEQ_LESS_THAN,
+    [INEQ_GREATER_EQUAL] = INEQ_LESS_EQUAL,
+    [INEQ_NOT_EQUAL] = INEQ_NOT_EQUAL, /* NOT_EQUAL 保持原值 */
+};
+
 /** 不等式类型翻转映射 */
 lvInequalityType ineq_negate_type(lvInequalityType t) {
-    switch (t) {
-        case INEQ_LESS_THAN:
-            return INEQ_GREATER_THAN;
-        case INEQ_LESS_EQUAL:
-            return INEQ_GREATER_EQUAL;
-        case INEQ_GREATER_THAN:
-            return INEQ_LESS_THAN;
-        case INEQ_GREATER_EQUAL:
-            return INEQ_LESS_EQUAL;
-        default:
-            return t;
-    }
+    if ((unsigned) t < lv_ARRAY_SIZE(kIneqNegate) && kIneqNegate[t] != t)
+        return kIneqNegate[t];
+    return t;
 }
 
 /** 判断两个不等式是否同向（可合并） */

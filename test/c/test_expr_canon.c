@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_expr_canon.c
  * @brief lvExprCanonical 模块测试套件
  *
@@ -38,7 +38,7 @@ int g_fail_count = 0;
 #define SAFE_FREE_STR(s) \
     do {                 \
         if (s)           \
-            free((s));   \
+            lv_free((void **)&(s)); \
     } while (0)
 #endif
 

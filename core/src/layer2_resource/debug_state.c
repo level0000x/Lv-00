@@ -30,35 +30,6 @@
 #include "lv/lv_strbuf.h"
 #include "debug_internal.h"
 
-/* ==================== 命名常量（消除魔术数字） ==================== */
-
-/** 错误诊断消息缓冲区的默认大小 */
-#define lv_DEBUG_MSG_BUF_SIZE 512
-
-/** 时间戳格式化缓冲区大小 */
-#define lv_DEBUG_TIMESTAMP_BUF_SIZE 32
-
-/** GC 及内存池的默认块大小 */
-#define lv_DEBUG_GC_BLOCK_SIZE 2048
-
-/** 默认日志文件基本名称 */
-#define lv_DEBUG_LOG_BASENAME "lv.log"
-
-/** 日志消息格式化缓冲区大小 */
-#define lv_DEBUG_LOG_MESSAGE_BUF_SIZE 4096
-
-/** 日志行拼接缓冲区大小（含时间戳、级别、模块名、消息） */
-#define lv_DEBUG_LOG_LINE_BUF_SIZE 8192
-
-/** 追踪会话初始事件容量 */
-#define lv_DEBUG_TRACE_INITIAL_CAPACITY 64
-
-/** 空 JSON 导出缓冲区大小 */
-#define lv_DEBUG_EMPTY_JSON_BUF_SIZE 32
-
-/** JSON 导出初始缓冲区容量 */
-#define lv_DEBUG_JSON_INITIAL_CAPACITY 1024
-
 /*=== 线程安全策略 ===
  *
  * 本模块的全局状态分为以下几类，各自有不同的保护策略：
@@ -90,9 +61,6 @@
  * 注意：g_log_file 是全局共享的（非线程局部），因为日志系统本身
  * 应该是全局共享的。关键是确保所有访问都在互斥锁保护下进行。
  */
-
-/** 紧急日志缓冲区大小 */
-#define lv_EMERGENCY_LOG_BUFFER_SIZE 256
 
 /** 模块级唯一状态实例（替代原有的 17 个分散 static 变量） */
 DebugState s_debug_state = {0};

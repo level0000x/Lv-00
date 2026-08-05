@@ -425,13 +425,12 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "constraint_graph_to_ideal: ring_id=%d (max=%d)",
                         ring_id, registry->ring_count);
 
-    lvLockGuard _lg;
-    groebner_lock_guard_init(&_lg);
     int ret = -1;
+    GROEBNER_LOCK_GUARD_BEGIN();
 
     lvPolynomialRing *ring = registry->rings[ring_id];
     if (!ring) {
-        goto cleanup;
+        goto _gcleanup;
     }
 
     /* 第一遍：统计 POINT 节点数，建立 ID → 变量索引映射 */
@@ -449,7 +448,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     if (ring->var_count < needed_vars) {
         LOG_ERROR("groebner", "constraint_graph_to_ideal: 环变量数 %d 不足，需要至少 %d",
                   ring->var_count, needed_vars);
-        goto cleanup;
+        goto _gcleanup;
     }
 
     /* 构建节点 ID → 变量索引映射（线性扫描，节点数通常不大） */
@@ -460,7 +459,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     int *var_y = (int *)lv_calloc((size_t)map_size, sizeof(int));
     if (!var_x || !var_y) {
         lv_free_many(&var_x, &var_y, NULL);
-        goto cleanup;
+        goto _gcleanup;
     }
     memset(var_x, -1, (size_t)map_size * sizeof(int));
     memset(var_y, -1, (size_t)map_size * sizeof(int));
@@ -481,7 +480,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     lvIdeal *ideal = (lvIdeal *)lv_calloc(1, sizeof(lvIdeal));
     if (!ideal) {
         lv_free_many(&var_x, &var_y, NULL);
-        goto cleanup;
+        goto _gcleanup;
     }
     ideal->ring_id = ring_id;
     int init_cap = point_count * 2 + graph->constraint_count;
@@ -490,7 +489,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     ideal->generators = (lvPolynomial **)lv_calloc((size_t)init_cap, sizeof(lvPolynomial *));
     if (!ideal->generators) {
         lv_free_many(&var_x, &var_y, &ideal, NULL);
-        goto cleanup;
+        goto _gcleanup;
     }
     ideal->generator_capacity = init_cap;
     ideal->generator_count = 0;
@@ -568,7 +567,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     lv_free_many(&var_x, &var_y, NULL);
 
     ret = ideal_internal_store(g_data, ideal);
-    goto cleanup;
+    goto _gcleanup;
 
 gen_fail:
     lv_free_many(&var_x, &var_y, NULL);
@@ -578,10 +577,9 @@ gen_fail:
     }
     lv_free((void **)&ideal->generators);
     lv_free((void **)&ideal);
-    goto cleanup;
+    goto _gcleanup;
 #undef ADD_GENERATOR_LOCKED
 
-cleanup:
-    lv_lock_guard_destroy(&_lg);
+GROEBNER_LOCK_GUARD_END();
     return ret;
 }

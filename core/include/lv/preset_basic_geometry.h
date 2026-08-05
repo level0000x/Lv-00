@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define BASIC_GEOMETRY_PRESET_COUNT 25
-bool preset_basic_geometry_register(void);
 
 #ifdef __cplusplus
 }

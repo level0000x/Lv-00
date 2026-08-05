@@ -36,30 +36,16 @@
 static int nt_poly_ensure_capacity(lvPoly *p, int deg) {
     if (deg < 0)
         return 0;
-    if (deg < p->capacity)
-        return 0;
 
-    int new_cap = p->capacity;
-    if (new_cap <= 0)
-        new_cap = NT_POLY_DEFAULT_CAPACITY;
-    while (new_cap <= deg) {
-        if (new_cap > INT_MAX / 2)
-            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "nt_poly_ensure_capacity: capacity overflow");
-        new_cap *= 2;
-    }
+    int old_cap = p->capacity;
+    if (!lv_ensure_capacity((void **) &p->coeffs, deg, &p->capacity, sizeof(mpz_t), 0))
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_ensure_capacity: ensure_capacity failed");
 
-    mpz_t *new_coeffs = (mpz_t *) lv_realloc(p->coeffs, (size_t) new_cap * sizeof(mpz_t));
-    if (!new_coeffs)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_ensure_capacity: realloc failed");
-
-    p->coeffs = new_coeffs;
-
-    /* Initialize newly allocated slots */
-    for (int i = p->capacity; i < new_cap; i++) {
+    /* Initialize newly allocated slots (realloc 新槽位未初始化，须逐个 mpz_init) */
+    for (int i = old_cap; i < p->capacity; i++) {
         mpz_init(p->coeffs[i]);
     }
 
-    p->capacity = new_cap;
     return 0;
 }
 

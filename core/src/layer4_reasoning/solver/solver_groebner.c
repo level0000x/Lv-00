@@ -777,7 +777,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
             int node_id = var_id_map[best_var];
             int coord_index = coord_map ? coord_map[best_var] : 0;
 
-            EQUATION_PUSH_OR_GOTO(system, poly, node_id, coord_index, push_error);
+            if (lv_equation_push_checked(system, poly, node_id, coord_index) != 0) goto push_error;
             mpz_poly_clear(&poly);
         }
 

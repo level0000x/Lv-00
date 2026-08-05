@@ -22,6 +22,7 @@
 
 #include "lv/lv_utils.h"   /* lv_malloc, lv_free, lv_calloc, lv_realloc */
 #include "lv/lv_log.h"     /* lv_ERROR, lv_WARN, lv_DEBUG */
+#include "lv/lv_thread.h"  /* lv_once_t / lv_once 一次性初始化 */
 
 /* ═══════════════════════════════════════════════════════════════════
  * 内部常量
@@ -448,12 +449,29 @@ static struct {
     BackendEntry entries[lv_STORAGE_MAX_BACKENDS];
     int          count;
     lvMutex      mutex;
-    bool         initialized;
 } s_backend_registry = {0};
 
-/** @brief 检查注册表是否已初始化 */
-static bool is_registry_initialized(void) {
-    return s_backend_registry.initialized;
+/** @brief 后端注册表一次性初始化控件（lv_once 保证仅执行一次且同步完成） */
+static lv_once_t s_backend_registry_once = lv_ONCE_INIT;
+
+/** @brief 后端注册表一次性初始化回调：初始化互斥锁并注册默认后端 */
+static void backend_registry_init_once(void) {
+    lv_MUTEX_INIT(&s_backend_registry.mutex);
+    s_backend_registry.count = 0;
+
+    /* 注册 file:// 后端 */
+    s_backend_registry.entries[s_backend_registry.count].scheme      = "file";
+    s_backend_registry.entries[s_backend_registry.count].ops         = &g_file_ops;
+    s_backend_registry.entries[s_backend_registry.count].create_ctx  = file_create_ctx;
+    s_backend_registry.entries[s_backend_registry.count].destroy_ctx = file_destroy_ctx;
+    s_backend_registry.count++;
+
+    /* 注册 mem:// 后端 */
+    s_backend_registry.entries[s_backend_registry.count].scheme      = "mem";
+    s_backend_registry.entries[s_backend_registry.count].ops         = &g_mem_ops;
+    s_backend_registry.entries[s_backend_registry.count].create_ctx  = mem_create_ctx;
+    s_backend_registry.entries[s_backend_registry.count].destroy_ctx = mem_destroy_ctx;
+    s_backend_registry.count++;
 }
 
 /** @brief 根据 URI 提取 scheme 部分 */
@@ -498,32 +516,8 @@ static BackendEntry *find_backend(const char *scheme) {
  * ═══════════════════════════════════════════════════════════════════ */
 
 void lv_storage_system_init(void) {
-    lv_MUTEX_INIT(&s_backend_registry.mutex);
-    lv_MUTEX_LOCK(&s_backend_registry.mutex);
-
-    if (s_backend_registry.initialized) {
-        lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
-        return;
-    }
-
-    s_backend_registry.count = 0;
-
-    /* 注册 file:// 后端 */
-    s_backend_registry.entries[s_backend_registry.count].scheme      = "file";
-    s_backend_registry.entries[s_backend_registry.count].ops         = &g_file_ops;
-    s_backend_registry.entries[s_backend_registry.count].create_ctx  = file_create_ctx;
-    s_backend_registry.entries[s_backend_registry.count].destroy_ctx = file_destroy_ctx;
-    s_backend_registry.count++;
-
-    /* 注册 mem:// 后端 */
-    s_backend_registry.entries[s_backend_registry.count].scheme      = "mem";
-    s_backend_registry.entries[s_backend_registry.count].ops         = &g_mem_ops;
-    s_backend_registry.entries[s_backend_registry.count].create_ctx  = mem_create_ctx;
-    s_backend_registry.entries[s_backend_registry.count].destroy_ctx = mem_destroy_ctx;
-    s_backend_registry.count++;
-
-    s_backend_registry.initialized = true;
-    lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
+    /* 线程安全的一次性初始化：互斥锁初始化与默认后端注册仅首次调用时执行 */
+    lv_once(&s_backend_registry_once, backend_registry_init_once);
 }
 
 void lv_storage_system_cleanup(void) {
@@ -538,19 +532,17 @@ void lv_storage_system_cleanup(void) {
         s_backend_registry.entries[i].destroy_ctx  = NULL;
     }
     s_backend_registry.count = 0;
-    s_backend_registry.initialized = false;
 
     lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
-    lv_MUTEX_DESTROY(&s_backend_registry.mutex);
+    /* 注：注册表互斥锁由 lv_once 一次性初始化，生命周期与进程一致，
+     * 不在此销毁；lv_once 不可重置，清理后系统仍可安全继续使用。 */
 }
 
 bool lv_storage_register_backend(const lvStorageBackendInfo *info) {
     if (!info || !info->scheme || !info->ops) return false;
 
-    /* 延迟初始化 */
-    if (!is_registry_initialized()) {
-        lv_storage_system_init();
-    }
+    /* 延迟初始化（lv_once 幂等，仅首次生效） */
+    lv_storage_system_init();
 
     lv_MUTEX_LOCK(&s_backend_registry.mutex);
 
@@ -582,10 +574,8 @@ bool lv_storage_register_backend(const lvStorageBackendInfo *info) {
 lvStorage *lv_storage_open(const char *uri, int mode) {
     if (!uri) return NULL;
 
-    /* 延迟初始化 */
-    if (!is_registry_initialized()) {
-        lv_storage_system_init();
-    }
+    /* 延迟初始化（lv_once 幂等，仅首次生效） */
+    lv_storage_system_init();
 
     /* 提取 URI scheme */
     char scheme_buf[64] = {0};
@@ -778,16 +768,20 @@ static struct {
     SerializeEntry entries[lv_SERIALIZE_MAX_ENTRIES];
     int            count;
     lvMutex        mutex;
-    bool           initialized;
 } s_serialize_registry = {0};
+
+/** @brief 序列化注册表一次性初始化控件（lv_once 保证仅执行一次且同步完成） */
+static lv_once_t s_serialize_registry_once = lv_ONCE_INIT;
+
+/** @brief 序列化注册表一次性初始化回调 */
+static void serialize_registry_init_once(void) {
+    lv_MUTEX_INIT(&s_serialize_registry.mutex);
+    s_serialize_registry.count = 0;
+}
 
 /** @brief 确保序列化注册表已初始化 */
 static void serialize_registry_init(void) {
-    if (!s_serialize_registry.initialized) {
-        lv_MUTEX_INIT(&s_serialize_registry.mutex);
-        s_serialize_registry.count = 0;
-        s_serialize_registry.initialized = true;
-    }
+    lv_once(&s_serialize_registry_once, serialize_registry_init_once);
 }
 
 bool lv_serialize_register(const char *type_name,
