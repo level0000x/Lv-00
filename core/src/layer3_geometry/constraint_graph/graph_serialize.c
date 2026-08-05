@@ -143,11 +143,9 @@ static const char *geom_type_to_string(GeomType type) {
  * @return 类型名称字符串（静态常量，无需释放）
  */
 static const char *constraint_type_to_string(ConstraintType type) {
-    switch (type) {
-        lv_XMACRO_TO_STR(LV_CONSTRAINT_TYPE_X)
-        default:
-            return "UNKNOWN";
-    }
+    /* 委托权威名称表 lv_constraint_type_name（meta_repr.c），保持越界回退 "UNKNOWN" 语义 */
+    const char *name = lv_constraint_type_name(type);
+    return name ? name : "UNKNOWN";
 }
 
 /* 序列化符号坐标 */

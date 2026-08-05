@@ -546,59 +546,10 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
         }
     }
 
-    /* 3. 重建哈希索引 */
-    /* 重建节点哈希索引 */
-    graph->node_index = NULL;
-    graph->node_index_capacity = 0;
-    if (graph->node_count > 0) {
-        /* 计算合适的哈希表大小（至少是节点数的 2 倍，且为 2 的幂） */
-        int cap = 4;
-        while (cap < graph->node_count * 2)
-            cap *= 2;
-        graph->node_index = lv_malloc((size_t) cap * sizeof(GeomNode *));
-        if (graph->node_index) {
-            memset(graph->node_index, 0, (size_t) cap * sizeof(GeomNode *));
-            graph->node_index_capacity = cap;
-            for (int i = 0; i < graph->node_count; i++) {
-                GeomNode *node = graph->nodes[i];
-                unsigned idx = (unsigned) node->id * 2654435769u & (unsigned) (cap - 1);
-                while (graph->node_index[idx] != NULL) {
-                    idx = (idx + 1) & (unsigned) (cap - 1);
-                }
-                graph->node_index[idx] = node;
-            }
-        } else {
-            /* calloc 失败：节点索引不可用，但图数据已恢复，仍视为成功。
-             * 后续按 ID 查找节点将退化为线性搜索。 */
-            LOG_WARN("rewrite", "graph_snapshot_restore: 节点哈希索引分配失败 (cap=%d)", cap);
-        }
-    }
-
-    /* 重建约束哈希索引 */
-    graph->constraint_index = NULL;
-    graph->constraint_index_capacity = 0;
-    if (graph->constraint_count > 0) {
-        int cap = 4;
-        while (cap < graph->constraint_count * 2)
-            cap *= 2;
-        graph->constraint_index = lv_malloc((size_t) cap * sizeof(Constraint *));
-        if (graph->constraint_index) {
-            memset(graph->constraint_index, 0, (size_t) cap * sizeof(Constraint *));
-            graph->constraint_index_capacity = cap;
-            for (int i = 0; i < graph->constraint_count; i++) {
-                Constraint *con = graph->constraints[i];
-                unsigned idx = (unsigned) con->id * 2654435769u & (unsigned) (cap - 1);
-                while (graph->constraint_index[idx] != NULL) {
-                    idx = (idx + 1) & (unsigned) (cap - 1);
-                }
-                graph->constraint_index[idx] = con;
-            }
-        } else {
-            /* calloc 失败：约束索引不可用，但图数据已恢复，仍视为成功。
-             * 后续按 ID 查找约束将退化为线性搜索。 */
-            LOG_WARN("rewrite", "graph_snapshot_restore: 约束哈希索引分配失败 (cap=%d)", cap);
-        }
-    }
+    /* 3. 重建哈希索引（统一走 graph_index_rebuild：使用与 graph_get_node
+     *    一致的 FNV 哈希；此前此处用 Knuth 乘数 2654435769u 重建，导致恢复后
+     *    按 ID 查询出现假阴性，已修复） */
+    graph_index_rebuild(graph);
 
     return true;
 }

@@ -31,19 +31,14 @@
  * @brief 计算参数的简单哈希值（用于缓存键）
  */
 static uint64_t compute_param_hash(SymbolicCoord **params, int param_count) {
-    /* 使用 FNV-1a 基于序列化内容计算参数哈希（仅用于缓存键，非加密用途） */
-    uint64_t hash = 14695981039346656037ULL; /* FNV offset basis */
-
-    hash ^= (uint64_t) param_count;
-    hash *= 1099511628211ULL; /* FNV prime */
+    /* FNV-1a 基于序列化内容计算参数哈希（委托统一 lv_fnv1a_hash/lv_fnv1a_update，
+     * 仅用于缓存键，非加密用途） */
+    uint64_t hash = lv_fnv1a_hash(&param_count, sizeof(param_count));
 
     for (int i = 0; i < param_count && params && params[i]; i++) {
         char *ser = symbolic_coord_serialize(params[i]);
         if (ser) {
-            for (const char *p = ser; *p; p++) {
-                hash ^= (uint64_t) (unsigned char) *p;
-                hash *= 1099511628211ULL; /* FNV prime */
-            }
+            hash = lv_fnv1a_update(hash, ser, strlen(ser));
             lv_free((void **) &ser);
         }
     }

@@ -659,6 +659,17 @@ lv_PUBLIC_API void graph_node_index_insert(ConstraintGraph *graph, GeomNode *nod
 lv_PUBLIC_API void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
 
 /**
+ * @brief 重建图的节点/约束哈希索引
+ *
+ * 用于绕过 graph_add_node_with_id 自动索引维护的整图深拷贝路径
+ * （如 rewrite_snapshot 事务恢复）。统一使用与 graph_get_node 一致的
+ * FNV 哈希，确保恢复后按 ID 查询正确命中。
+ *
+ * @param graph 目标图（非 NULL）
+ */
+lv_PUBLIC_API void graph_index_rebuild(ConstraintGraph *graph);
+
+/**
  * @brief 使用指定 ID 添加节点（用于反序列化）
  *
  * @param[in] graph       约束图

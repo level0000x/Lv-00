@@ -194,6 +194,7 @@ Rational *rational_add(const Rational *a, const Rational *b);
 Rational *rational_subtract(const Rational *a, const Rational *b);
 Rational *rational_multiply(const Rational *a, const Rational *b);
 Rational *rational_divide(const Rational *a, const Rational *b);
+Rational *rational_negate(const Rational *a);
 char *rational_serialize(const Rational *r);
 Rational *rational_parse(const char *str);
 double rational_to_double(const Rational *r);

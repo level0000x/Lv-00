@@ -56,6 +56,22 @@ typedef struct {
 #define LV_X_TO_ENUM_ENTRY(name, str) { str, name },
 
 /**
+ * @brief 安全分发调用：key 越界或表中槽位为 NULL 时返回 fallback，否则调用 table[key](...)
+ *
+ * 收敛散落各模块的手写"边界检查 + NULL 槽检查 + 调用"三行样板
+ * （此前 ~30 处逐字同构）。fallback 须与表项返回类型一致。
+ *
+ * @param table    函数指针数组（编译期数组，自动取大小）
+ * @param key      索引（自动做 unsigned 边界检查）
+ * @param fallback 越界/NULL 槽时的返回值
+ * @param ...      传给 handler 的参数
+ */
+#define LV_DISPATCH(table, key, fallback, ...) \
+    (((unsigned)(key) < (unsigned)(sizeof(table) / sizeof((table)[0]))) && (table)[(key)] \
+         ? (table)[(key)](__VA_ARGS__) \
+         : (fallback))
+
+/**
  * @brief 在映射表中查找字符串对应的枚举值（大小写敏感）
  * @param table     映射表
  * @param count     表大小

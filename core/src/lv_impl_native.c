@@ -270,134 +270,7 @@ int coord_to_string(const Coord *c, char *buf, size_t bufsz) {
 }
 
 /* ================================================================
- *  Rational  —  GMP Rational Numbers (mpq_t wrapper)
- * ================================================================ */
-
-typedef struct {
-    int64_t id;
-    mpq_t val;
-} Rational;
-
-/* 分配 Rational 对象骨架:lv_malloc + NULL 检查 + 分配全局ID。
- * fn_name 为调用函数名字符串字面量,用于保留原有的错误消息文本。
- * 失败时内部已通过 lv_RETURN_ERROR_NULL 记录错误,返回 NULL。 */
-static Rational *rational_alloc(const char *fn_name) {
-    Rational *r = (Rational *) lv_malloc(sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "%s: malloc failed", fn_name);
-    r->id = native_id_alloc();
-    return r;
-}
-
-/* 二元有理数算子实现:"NULL 输入检查 → 分配骨架 → 单值 mpq 运算"。
- * op 为 mpq_add/mpq_sub/mpq_mul 等二元 GMP 函数指针(签名与 GMP 宏一致)。 */
-static Rational *rational_binop_impl(const Rational *a, const Rational *b,
-                                     void (*op)(mpq_ptr, mpq_srcptr, mpq_srcptr)) {
-    if (!a || !b)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_binop: NULL input");
-    Rational *r = rational_alloc("rational_binop_impl");
-    if (!r)
-        return NULL;
-    mpq_init(r->val);
-    op(r->val, a->val, b->val); /* GMP 精确运算 */
-    return r;
-}
-
-static Rational *rational_add(const Rational *a, const Rational *b) {
-    return rational_binop_impl(a, b, mpq_add);
-}
-
-Rational *rational_sub(const Rational *a, const Rational *b) {
-    return rational_binop_impl(a, b, mpq_sub);
-}
-
-Rational *rational_mul(const Rational *a, const Rational *b) {
-    return rational_binop_impl(a, b, mpq_mul);
-}
-
-Rational *rational_create_str(const char *s) {
-    Rational *r = rational_alloc("rational_create_str");
-    if (!r)
-        return NULL;
-    mpq_init(r->val);
-    mpq_set_str(r->val, s, 10); /* GMP 精确解析 "num/den" 或 "int" */
-    mpq_canonicalize(r->val);
-    return r;
-}
-
-Rational *rational_create_si(long num, unsigned long den) {
-    Rational *r = rational_alloc("rational_create_si");
-    if (!r)
-        return NULL;
-    mpq_init(r->val);
-    mpq_set_si(r->val, num, den);
-    mpq_canonicalize(r->val);
-    return r;
-}
-
-Rational *rational_from_int(long n) {
-    return rational_create_si(n, 1);
-}
-
-/**
- * @brief 销毁有理数对象并释放内存
- */
-static void rational_destroy(Rational *r) {
-    if (r) {
-        mpq_clear(r->val);
-        lv_free((void **) &r);
-    }
-}
-
-Rational *rational_div(const Rational *a, const Rational *b) {
-    if (!a || !b || mpq_sgn(b->val) == 0)
-        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "rational_div: NULL input or division by zero");
-    Rational *r = rational_alloc("rational_div");
-    if (!r)
-        return NULL;
-    mpq_init(r->val);
-    mpq_div(r->val, a->val, b->val); /* GMP 精确除法 */
-    return r;
-}
-
-int rational_cmp(const Rational *a, const Rational *b) {
-    if (!a || !b)
-        return 0;
-    return mpq_cmp(a->val, b->val); /* GMP 精确比较 */
-}
-
-int rational_eq(const Rational *a, const Rational *b) {
-    return rational_cmp(a, b) == 0;
-}
-int rational_ne(const Rational *a, const Rational *b) {
-    return rational_cmp(a, b) != 0;
-}
-int rational_lt(const Rational *a, const Rational *b) {
-    return rational_cmp(a, b) < 0;
-}
-int rational_le(const Rational *a, const Rational *b) {
-    return rational_cmp(a, b) <= 0;
-}
-int rational_gt(const Rational *a, const Rational *b) {
-    return rational_cmp(a, b) > 0;
-}
-int rational_ge(const Rational *a, const Rational *b) {
-    return rational_cmp(a, b) >= 0;
-}
-
-int rational_to_string(const Rational *r, char *buf, size_t bufsz) {
-    if (!r || !buf || bufsz == 0)
-        return 0;
-    char *s = mpq_get_str(NULL, 10, r->val);
-    if (!s)
-        return snprintf(buf, bufsz, "(null)");
-    int n = snprintf(buf, bufsz, "%s", s);
-    lv_free_external((void **) &s);
-    return n;
-}
-
-/* ================================================================
- *  native_ConstraintGraph  —  Constraints with GMP rational values
+ *  native_ConstraintGraph  -  Constraints with GMP rational values
  * ================================================================ */
 
 typedef struct {
@@ -1008,14 +881,14 @@ int native_self_test(void) {
     coord_destroy(a);
     coord_destroy(b);
 
-    /* Rational GMP test */
-    Rational *r1 = rational_create_si(1, 3);
-    Rational *r2 = rational_create_si(2, 3);
-    Rational *rs = rational_add(r1, r2);
-    assert(mpq_cmp_si(rs->val, 1, 1) == 0); /* 1/3+2/3=1 */
-    rational_destroy(r1);
-    rational_destroy(r2);
-    rational_destroy(rs);
+    /* Rational GMP test（有理数原语统一走公共 rational.c / lvRational，此处仅验证 GMP 精确性） */
+    mpq_t r1, r2, rs;
+    mpq_inits(r1, r2, rs, NULL);
+    mpq_set_si(r1, 1, 3);
+    mpq_set_si(r2, 2, 3);
+    mpq_add(rs, r1, r2);
+    assert(mpq_cmp_si(rs, 1, 1) == 0); /* 1/3+2/3=1 */
+    mpq_clears(r1, r2, rs, NULL);
 
     /* native_ConstraintGraph GMP test */
     native_ConstraintGraph *g = native_graph_create();

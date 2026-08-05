@@ -19,6 +19,7 @@ extern "C" {
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* ===== JSON 解析器 ===== */
 
@@ -79,6 +80,30 @@ char *lv_json_parse_string(lvJsonParser *p);
 bool lv_json_parse_int(lvJsonParser *p, int *out);
 
 /**
+ * @brief 解析 JSON 64 位整数值（支持负号）
+ *
+ * 基于 lv_json_parse_int 的骨架扩展为 64 位，带溢出检测：
+ * 数字超出 int64_t 范围时返回 false。
+ *
+ * @param p   解析器指针
+ * @param out 输出解析结果
+ * @return true 解析成功，false 解析失败（含溢出）
+ */
+bool lv_json_parse_int64(lvJsonParser *p, int64_t *out);
+
+/**
+ * @brief 解析 JSON 无符号 64 位整数值
+ *
+ * 不接受负号（遇到 '-' 返回 false），带溢出检测：
+ * 数字超出 uint64_t 范围时返回 false。
+ *
+ * @param p   解析器指针
+ * @param out 输出解析结果
+ * @return true 解析成功，false 解析失败（含溢出）
+ */
+bool lv_json_parse_uint64(lvJsonParser *p, uint64_t *out);
+
+/**
  * @brief 解析 JSON 浮点数值
  * @param p   解析器指针
  * @param out 输出解析结果
@@ -116,6 +141,36 @@ const char *lv_json_find_key(const char *json, const char *key, size_t key_len);
  * @param p 解析器指针
  */
 void lv_json_skip_value(lvJsonParser *p);
+
+/**
+ * @brief 解析 JSON 整数数组（形如 [1,2,3]）
+ *
+ * 解析器应位于 '[' 处。解析过程中自动跳过空白；遇到 ']' 或
+ * 元素数量达到 max_count（越界）时停止收集。越界时剩余元素会被
+ * 跳过，解析器停在数组结束位置之后。
+ *
+ * @param p         解析器指针
+ * @param out       输出整数数组缓冲区（元素数量不超过 max_count）
+ * @param max_count 输出缓冲区可容纳的最大元素数
+ * @param out_count 实际解析的元素数量（可为 NULL）
+ * @return true 数组结构合法，false 数组未闭合或元素类型不匹配
+ */
+bool lv_json_parse_int_array(lvJsonParser *p, int *out, size_t max_count, size_t *out_count);
+
+/**
+ * @brief 解析 JSON 浮点数组（形如 [1.5,2.5]）
+ *
+ * 解析器应位于 '[' 处。解析过程中自动跳过空白；遇到 ']' 或
+ * 元素数量达到 max_count（越界）时停止收集。越界时剩余元素会被
+ * 跳过，解析器停在数组结束位置之后。
+ *
+ * @param p         解析器指针
+ * @param out       输出浮点数组缓冲区（元素数量不超过 max_count）
+ * @param max_count 输出缓冲区可容纳的最大元素数
+ * @param out_count 实际解析的元素数量（可为 NULL）
+ * @return true 数组结构合法，false 数组未闭合或元素类型不匹配
+ */
+bool lv_json_parse_double_array(lvJsonParser *p, double *out, size_t max_count, size_t *out_count);
 
 /* ===== JSON 写入器 ===== */
 

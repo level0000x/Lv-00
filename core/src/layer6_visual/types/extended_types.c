@@ -6,6 +6,7 @@
 #include "lv/lv_utils.h"
 #include "lv/type_system.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_xmacro.h"
 
 lvListTypeRegion *lv_list_type_create(void *elem_type) {
     lvListTypeRegion *t = lv_calloc(1, sizeof(lvListTypeRegion));
@@ -210,8 +211,6 @@ int lv_extended_type_compatible(void *a, void *b) {
         [TYPE_KIND_PREDICATE_SUBTYPE]= compat_predicate_subtype,
     };
 
-    if (ta->kind >= 0 && ta->kind < (int)(sizeof(kTypeCompatibleHandlers)/sizeof(kTypeCompatibleHandlers[0])) && kTypeCompatibleHandlers[ta->kind]) {
-        return kTypeCompatibleHandlers[ta->kind](ta, tb);
-    }
-    return 0;
+    /* 安全分发（越界/NULL 槽返回 0，统一走 LV_DISPATCH 样板） */
+    return LV_DISPATCH(kTypeCompatibleHandlers, (unsigned) ta->kind, 0, ta, tb);
 }

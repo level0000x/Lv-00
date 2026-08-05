@@ -702,6 +702,58 @@ static SymbolicCoord *promote_cross_type_dispatch(const SymbolicCoord *a, const 
 }
 
 /* ============================================================
+ * TRANSCENDENTAL 混合运算公共 helper
+ * （收敛 add/sub/mul/div 四套 ~100 行同构块的创建/包装/系数合并样板）
+ * ============================================================ */
+
+/** 创建 (Transcendental, TranscendentalExpr) 组合；expr 挂载到 t 上，失败时清理并返回 NULL */
+static Transcendental *trans_expr_alloc(const char *base_name) {
+    Transcendental *t = transcendental_create(base_name);
+    if (!t)
+        return NULL;
+    TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
+    if (!expr) {
+        transcendental_destroy(t);
+        return NULL;
+    }
+    lv_strlcpy(expr->base_name, base_name, sizeof(expr->base_name));
+    t->expr = expr;
+    return t;
+}
+
+/** 将 (t, expr) 包装为 TRANSCENDENTAL SymbolicCoord；失败时清理 t */
+static SymbolicCoord *trans_wrap_result(Transcendental *t, TrustColor trust) {
+    SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
+    if (!result) {
+        transcendental_destroy(t);
+        return NULL;
+    }
+    result->type = TRANSCENDENTAL;
+    result->trust = trust;
+    result->data.transcendental = t;
+    return result;
+}
+
+/**
+ * 合并同底数 MUL_RATIONAL 系数：a*T op b*T = (a op b)*T。
+ * ta/tb 缺省 expr 时视为系数 1；为补齐系数而临时创建的 1 会被释放。
+ * 返回合并结果，op 失败时返回 NULL（临时系数已清理）。
+ */
+static Rational *trans_merge_mul_coeffs(const Transcendental *ta, const Transcendental *tb,
+                                        Rational *(*op)(const Rational *, const Rational *)) {
+    Rational *rat_a = (ta->expr && ta->expr->rational_operand) ? ta->expr->rational_operand : rational_create(1, 1);
+    Rational *rat_b = (tb->expr && tb->expr->rational_operand) ? tb->expr->rational_operand : rational_create(1, 1);
+    Rational *own_a = (!ta->expr) ? rat_a : NULL;
+    Rational *own_b = (!tb->expr) ? rat_b : NULL;
+    Rational *merged = op(rat_a, rat_b);
+    if (own_a)
+        rational_destroy(own_a);
+    if (own_b)
+        rational_destroy(own_b);
+    return merged;
+}
+
+/* ============================================================
  * Cross-type Arithmetic Operations
  * ============================================================ */
 
@@ -721,59 +773,25 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
         const SymbolicCoord *other_coord = (a->type == TRANSCENDENTAL) ? b : a;
 
         if (other_coord->type == RATIONAL) {
-            Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+            Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
             if (!t)
-                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: transcendental_create failed");
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
                 return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_ADD_RATIONAL;
-            lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = rational_copy(other_coord->data.rational);
             expr->out_of_scope = false;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = trans_coord->trust;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, trans_coord->trust);
         }
 
         if (other_coord->type == ALGEBRAIC || other_coord->type == QUADRATIC) {
-            Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+            Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_ADD_ALGEBRAIC;
-            lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = NULL;
             expr->out_of_scope = true;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = TRUST_AMBER;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, TRUST_AMBER);
         }
 
         {
@@ -782,41 +800,22 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             const char *base_a = ta->expr ? ta->expr->base_name : ta->name;
             const char *base_b = tb->expr ? tb->expr->base_name : tb->name;
 
-            Transcendental *t = transcendental_create(base_a);
+            Transcendental *t = trans_expr_alloc(base_a);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->out_of_scope = false;
-            lv_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
             if (strcmp(base_a, base_b) == 0) {
                 bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
                 bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 
                 if (a_is_mul && b_is_mul) {
-                    Rational *rat_a =
-                        (ta->expr && ta->expr->rational_operand) ? ta->expr->rational_operand : rational_create(1, 1);
-                    Rational *rat_b =
-                        (tb->expr && tb->expr->rational_operand) ? tb->expr->rational_operand : rational_create(1, 1);
-                    Rational *own_a = (!ta->expr) ? rat_a : NULL;
-                    Rational *own_b = (!tb->expr) ? rat_b : NULL;
-
                     expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
-                    expr->rational_operand = rational_add(rat_a, rat_b);
-
-                    if (own_a)
-                        rational_destroy(own_a);
-                    if (own_b)
-                        rational_destroy(own_b);
-
+                    expr->rational_operand = trans_merge_mul_coeffs(ta, tb, rational_add);
                     if (!expr->rational_operand) {
                         lv_free((void **) &expr);
                         transcendental_destroy(t);
-                        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: rational_operand allocation failed");
+                        return NULL;
                     }
                 } else {
                     expr->expr_type = TRANS_EXPR_ADD_ALGEBRAIC;
@@ -828,18 +827,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                 expr->rational_operand = NULL;
                 expr->out_of_scope = true;
             }
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE_UNEXPLORED;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE_UNEXPLORED);
         }
     }
 
@@ -867,88 +855,36 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
         if (other_coord->type == RATIONAL) {
             if (inverted) {
-                Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+                /* T - r 之外的顺序（r - T）语义不支持：回退为 AMBER 抽象表达式 */
+                Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
                 if (!t)
                     return NULL;
-
-                TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-                if (!expr) {
-                    transcendental_destroy(t);
-                    return NULL;
-                }
+                TranscendentalExpr *expr = t->expr;
                 expr->expr_type = TRANS_EXPR_ADD_ALGEBRAIC;
-                lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
                 expr->rational_operand = NULL;
                 expr->out_of_scope = true;
-
-                t->expr = expr;
-
-                SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-                if (!result) {
-                    transcendental_destroy(t);
-                    return NULL;
-                }
-                result->type = TRANSCENDENTAL;
-                result->trust = TRUST_AMBER;
-                result->data.transcendental = t;
-                return result;
+                return trans_wrap_result(t, TRUST_AMBER);
             }
 
-            Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+            Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_ADD_RATIONAL;
-            lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
-            Rational *neg_r = rational_create(0, 1);
-            mpq_neg(neg_r->value, other_coord->data.rational->value);
-            expr->rational_operand = neg_r;
+            expr->rational_operand = rational_negate(other_coord->data.rational);
             expr->out_of_scope = false;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = trans_coord->trust;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, trans_coord->trust);
         }
 
         if (other_coord->type == ALGEBRAIC || other_coord->type == QUADRATIC) {
-            Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+            Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_ADD_ALGEBRAIC;
-            lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = NULL;
             expr->out_of_scope = true;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = TRUST_AMBER;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, TRUST_AMBER);
         }
 
         {
@@ -957,41 +893,22 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             const char *base_a = ta->expr ? ta->expr->base_name : ta->name;
             const char *base_b = tb->expr ? tb->expr->base_name : tb->name;
 
-            Transcendental *t = transcendental_create(base_a);
+            Transcendental *t = trans_expr_alloc(base_a);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->out_of_scope = false;
-            lv_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
             if (strcmp(base_a, base_b) == 0) {
                 bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
                 bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 
                 if (a_is_mul && b_is_mul) {
-                    Rational *rat_a =
-                        (ta->expr && ta->expr->rational_operand) ? ta->expr->rational_operand : rational_create(1, 1);
-                    Rational *rat_b =
-                        (tb->expr && tb->expr->rational_operand) ? tb->expr->rational_operand : rational_create(1, 1);
-                    Rational *own_a = (!ta->expr) ? rat_a : NULL;
-                    Rational *own_b = (!tb->expr) ? rat_b : NULL;
-
                     expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
-                    expr->rational_operand = rational_subtract(rat_a, rat_b);
-
-                    if (own_a)
-                        rational_destroy(own_a);
-                    if (own_b)
-                        rational_destroy(own_b);
-
+                    expr->rational_operand = trans_merge_mul_coeffs(ta, tb, rational_subtract);
                     if (!expr->rational_operand) {
                         lv_free((void **) &expr);
                         transcendental_destroy(t);
-                        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_add: rational_operand allocation failed");
+                        return NULL;
                     }
                 } else {
                     expr->expr_type = TRANS_EXPR_ADD_ALGEBRAIC;
@@ -1003,18 +920,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 expr->rational_operand = NULL;
                 expr->out_of_scope = true;
             }
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE_UNEXPLORED;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE_UNEXPLORED);
         }
     }
 
@@ -1040,92 +946,40 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
         const SymbolicCoord *other_coord = (a->type == TRANSCENDENTAL) ? b : a;
 
         if (other_coord->type == RATIONAL) {
-            Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+            Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
-            lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = rational_copy(other_coord->data.rational);
             expr->out_of_scope = false;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = trans_coord->trust;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, trans_coord->trust);
         }
 
         if (other_coord->type == ALGEBRAIC || other_coord->type == QUADRATIC) {
-            Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+            Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_MUL_ALGEBRAIC;
-            lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = NULL;
             expr->out_of_scope = true;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = TRUST_AMBER;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, TRUST_AMBER);
         }
 
         {
+            /* T * T：不同底数乘积无法化简，统一回退为 MUL_ALGEBRAIC 抽象表达式 */
             const Transcendental *ta = a->data.transcendental;
-            const Transcendental *tb = b->data.transcendental;
             const char *base_a = ta->expr ? ta->expr->base_name : ta->name;
-            const char *base_b = tb->expr ? tb->expr->base_name : tb->name;
 
-            Transcendental *t = transcendental_create(base_a);
+            Transcendental *t = trans_expr_alloc(base_a);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_MUL_ALGEBRAIC;
-            lv_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
             expr->rational_operand = NULL;
             expr->out_of_scope = true;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = TRUST_AMBER;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, TRUST_AMBER);
         }
     }
 
@@ -1180,70 +1034,32 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
         bool inverted = (b->type == TRANSCENDENTAL);
 
         if (other_coord->type == RATIONAL) {
-            Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+            if (inverted)
+                return NULL; /* r / T 语义不支持 */
+            Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
-            lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
-            if (inverted) {
-                transcendental_destroy(t);
+            expr->rational_operand = rational_divide(rational_create(1, 1), other_coord->data.rational);
+            if (!expr->rational_operand) {
                 lv_free((void **) &expr);
+                transcendental_destroy(t);
                 return NULL;
-            } else {
-                expr->rational_operand = rational_divide(rational_create(1, 1), other_coord->data.rational);
-                if (!expr->rational_operand) {
-                    transcendental_destroy(t);
-                    lv_free((void **) &expr);
-                    return NULL;
-                }
             }
             expr->out_of_scope = false;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = trans_coord->trust;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, trans_coord->trust);
         }
 
         if (other_coord->type == ALGEBRAIC || other_coord->type == QUADRATIC) {
-            Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
+            Transcendental *t = trans_expr_alloc(trans_coord->data.transcendental->name);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_MUL_ALGEBRAIC;
-            lv_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = NULL;
             expr->out_of_scope = true;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = TRUST_AMBER;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, TRUST_AMBER);
         }
 
         {
@@ -1252,28 +1068,15 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             const char *base_a = ta->expr ? ta->expr->base_name : ta->name;
             const char *base_b = tb->expr ? tb->expr->base_name : tb->name;
 
+            /* T / T：同底数且双 MUL_RATIONAL 时系数相除可化简为有理数 */
             if (strcmp(base_a, base_b) == 0) {
                 bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
                 bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 
                 if (a_is_mul && b_is_mul) {
-                    Rational *rat_a =
-                        (ta->expr && ta->expr->rational_operand) ? ta->expr->rational_operand : rational_create(1, 1);
-                    Rational *rat_b =
-                        (tb->expr && tb->expr->rational_operand) ? tb->expr->rational_operand : rational_create(1, 1);
-                    Rational *own_a = (!ta->expr) ? rat_a : NULL;
-                    Rational *own_b = (!tb->expr) ? rat_b : NULL;
-
-                    Rational *result_rat = rational_divide(rat_a, rat_b);
-
-                    if (own_a)
-                        rational_destroy(own_a);
-                    if (own_b)
-                        rational_destroy(own_b);
-
+                    Rational *result_rat = trans_merge_mul_coeffs(ta, tb, rational_divide);
                     if (!result_rat)
                         return NULL;
-
                     SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                     if (!result) {
                         rational_destroy(result_rat);
@@ -1286,31 +1089,14 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                 }
             }
 
-            Transcendental *t = transcendental_create(base_a);
+            Transcendental *t = trans_expr_alloc(base_a);
             if (!t)
                 return NULL;
-
-            TranscendentalExpr *expr = lv_calloc(1, sizeof(TranscendentalExpr));
-            if (!expr) {
-                transcendental_destroy(t);
-                return NULL;
-            }
+            TranscendentalExpr *expr = t->expr;
             expr->expr_type = TRANS_EXPR_MUL_ALGEBRAIC;
-            lv_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
             expr->rational_operand = NULL;
             expr->out_of_scope = true;
-
-            t->expr = expr;
-
-            SymbolicCoord *result = lv_calloc(1, sizeof(SymbolicCoord));
-            if (!result) {
-                transcendental_destroy(t);
-                return NULL;
-            }
-            result->type = TRANSCENDENTAL;
-            result->trust = TRUST_AMBER;
-            result->data.transcendental = t;
-            return result;
+            return trans_wrap_result(t, TRUST_AMBER);
         }
     }
 

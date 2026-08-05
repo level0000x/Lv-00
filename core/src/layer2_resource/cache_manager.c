@@ -31,22 +31,16 @@
  * ======================================================================== */
 #define DEFAULT_BUCKET_COUNT 256
 #define DEFAULT_CONTEXT_CAPACITY 32
-#define HASH_PRIME 0x0100000001B3ULL
 
 /* ========================================================================
  * 内部辅助函数
  * ======================================================================== */
 
-/** 计算键的哈希值 */
+/** 计算键的哈希值（委托统一 lv_fnv1a_hash_str，替代私有 HASH_PRIME 常量实现） */
 static uint32_t hash_key(const char *key, int bucket_count) {
     if (key == NULL)
         return 0;
-    uint64_t h = 0xCBF29CE484222325ULL;
-    while (*key) {
-        h ^= (uint64_t) (unsigned char) *key++;
-        h *= HASH_PRIME;
-    }
-    return (uint32_t) (h % (uint64_t) bucket_count);
+    return (uint32_t) (lv_fnv1a_hash_str(key) % (uint64_t) bucket_count);
 }
 
 /** 将条目移到 LRU 链表头部（最近使用） */

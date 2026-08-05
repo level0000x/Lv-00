@@ -142,12 +142,9 @@ lvVerifyResult lv_verify_proof_step(const ProofStep *step, const ConstraintGraph
         return lv_VERIFY_INCOMPLETE;
     }
 
-    /* 检查关联的约束是否存在 */
+    /* 检查关联的约束是否存在（走哈希索引查询，而非直索引下标） */
     if (graph && step->constraint_id >= 0) {
-        bool found = false;
-        if (step->constraint_id < graph->constraint_index_capacity) {
-            found = (graph->constraint_index[step->constraint_id] != NULL);
-        }
+        bool found = (graph_get_constraint(graph, step->constraint_id) != NULL);
         if (!found) {
             if (out_error) {
                 snprintf(out_error, 512, "步骤 %d 引用的约束 %d 在约束图中不存在", step->id, step->constraint_id);

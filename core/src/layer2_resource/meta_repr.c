@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file meta_repr.c
  * @brief Lv-00 元表示层实现
  *
@@ -923,15 +923,17 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
     fprintf(fp, "digraph MetaRepr {\n");
     fprintf(fp, "    rankdir=LR;\n\n");
 
-    /* GeomType -> DOT shape 映射 */
+    /* GeomType -> DOT shape 映射（6 项，与 GeomType 枚举严格对齐；
+     * 原实现缺 CIRCLE 且 FUNCTION_BLOCK 下标越界，已修复） */
     static const char *type_shapes[] = {
         "ellipse", /* GEOM_POINT */
         "diamond", /* GEOM_LINE_SEGMENT */
         "box",     /* GEOM_REGION */
-        "circle",  /* GEOM_PORT */
+        "circle",  /* GEOM_CIRCLE */
+        "box",     /* GEOM_PORT */
         "box"      /* GEOM_FUNCTION_BLOCK */
     };
-    static const char *type_names[] = {"POINT", "LINE_SEGMENT", "REGION", "PORT", "FUNC_BLOCK"};
+    static const char *type_names[] = {"POINT", "LINE_SEGMENT", "REGION", "CIRCLE", "PORT", "FUNCTION_BLOCK"};
 
     /* 输出节点 */
     for (int i = 0; i < encoded_graph->node_count; i++) {

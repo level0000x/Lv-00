@@ -221,13 +221,9 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
                 GeomNode *node_a = NULL;
                 GeomNode *node_b = NULL;
 
-                /* 通过哈希索引查找节点 */
-                if (node_id_a >= 0 && node_id_a < graph->node_index_capacity) {
-                    node_a = graph->node_index[node_id_a];
-                }
-                if (node_id_b >= 0 && node_id_b < graph->node_index_capacity) {
-                    node_b = graph->node_index[node_id_b];
-                }
+                /* 通过哈希索引查找节点（走 graph_get_node，避免直索引越界） */
+                node_a = graph_get_node(graph, node_id_a);
+                node_b = graph_get_node(graph, node_id_b);
 
                 if (node_a && node_b && node_a->type == GEOM_PORT && node_b->type == GEOM_PORT) {
                     Port *port_a = node_a->data.port;

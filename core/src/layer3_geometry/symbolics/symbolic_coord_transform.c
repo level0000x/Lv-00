@@ -125,8 +125,7 @@ mpz_t *mpz_perfect_sqrt(mpz_t n) {
 
 static SymbolicCoord *negate_rational(const SymbolicCoord *coord, unsigned int unused) {
     (void)unused;
-    Rational *neg = rational_create(0, 1);
-    mpq_neg(neg->value, coord->data.rational->value);
+    Rational *neg = rational_negate(coord->data.rational);
     SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
     if (result) {
         rational_destroy(result->data.rational);
@@ -136,6 +135,14 @@ static SymbolicCoord *negate_rational(const SymbolicCoord *coord, unsigned int u
         rational_destroy(neg);
     }
     return result;
+}
+
+/** 计算隔离区间容差：fabs(v)*factor，下限 floor_eps（收敛散落 8 处的 margin 计算样板） */
+static double margin_floor(double v, double factor, double floor_eps) {
+    double margin = fabs(v) * factor;
+    if (margin < floor_eps)
+        margin = floor_eps;
+    return margin;
 }
 
 static SymbolicCoord *negate_algebraic(const SymbolicCoord *coord, unsigned int unused) {
@@ -176,10 +183,8 @@ static SymbolicCoord *negate_algebraic(const SymbolicCoord *coord, unsigned int 
 static SymbolicCoord *negate_quadratic(const SymbolicCoord *coord, unsigned int unused) {
     (void)unused;
     Quadratic *q = coord->data.quadratic;
-    Rational *neg_a = rational_create(0, 1);
-    mpq_neg(neg_a->value, q->a->value);
-    Rational *neg_b = rational_create(0, 1);
-    mpq_neg(neg_b->value, q->b->value);
+    Rational *neg_a = rational_negate(q->a);
+    Rational *neg_b = rational_negate(q->b);
     SymbolicCoord *result = symbolic_coord_create_quadratic(neg_a, neg_b, q->n);
     if (result)
         result->trust = coord->trust;
@@ -206,13 +211,12 @@ static SymbolicCoord *negate_transcendental(const SymbolicCoord *coord, unsigned
     if (src_t->expr && src_t->expr->rational_operand) {
         /* Negate the existing rational operand */
         expr->expr_type = src_t->expr->expr_type;
-        Rational *neg_r = rational_create(0, 1);
+        Rational *neg_r = rational_negate(src_t->expr->rational_operand);
         if (!neg_r) {
             lv_free((void **) &expr);
             transcendental_destroy(t);
             return NULL;
         }
-        mpq_neg(neg_r->value, src_t->expr->rational_operand->value);
         expr->rational_operand = neg_r;
     } else {
         /* Bare constant: -pi = -1*pi */
@@ -459,9 +463,7 @@ static SymbolicCoord *pow_algebraic(const SymbolicCoord *base, unsigned int expo
                 mpz_set(sq_poly.coeffs[2], c2_sq);
 
                 double result_val = val * val;
-                double margin = fabs(result_val) * lv_EPSILON_NEWTON * 100.0;
-                if (margin < lv_EPSILON_NEWTON)
-                    margin = lv_EPSILON_NEWTON;
+                double margin = margin_floor(result_val, lv_EPSILON_NEWTON * 100.0, lv_EPSILON_NEWTON);
 
                 SymbolicCoord *result =
                     symbolic_coord_create_algebraic(&sq_poly, result_val - margin, result_val + margin);
@@ -498,9 +500,7 @@ static SymbolicCoord *pow_algebraic(const SymbolicCoord *base, unsigned int expo
     double result_val = pow(val, (double) exponent);
 
     {
-        double margin_cf = fabs(result_val) * lv_EPSILON_NUMERIC_COMPARE;
-        if (margin_cf < lv_EPSILON_SUPERTINY)
-            margin_cf = lv_EPSILON_SUPERTINY;
+        double margin_cf = margin_floor(result_val, lv_EPSILON_NUMERIC_COMPARE, lv_EPSILON_SUPERTINY);
 
         mpq_t approx;
         mpq_init(approx);
@@ -520,9 +520,7 @@ static SymbolicCoord *pow_algebraic(const SymbolicCoord *base, unsigned int expo
                 mpz_neg(check_poly.coeffs[0], mpq_numref(approx));
                 mpz_set(check_poly.coeffs[1], mpq_denref(approx));
 
-                double tight_margin = fabs(result_val) * lv_EPSILON_NEWTON;
-                if (tight_margin < lv_EPSILON_NEWTON)
-                    tight_margin = lv_EPSILON_NEWTON;
+                double tight_margin = margin_floor(result_val, lv_EPSILON_NEWTON, lv_EPSILON_NEWTON);
 
                 SymbolicCoord *result = symbolic_coord_create_algebraic(&check_poly, result_val - tight_margin,
                                                                         result_val + tight_margin);
@@ -551,9 +549,7 @@ static SymbolicCoord *pow_algebraic(const SymbolicCoord *base, unsigned int expo
     }
 
     /* Final fallback: create algebraic number from numerical value */
-    double margin = fabs(result_val) * lv_EPSILON_NUMERIC_COMPARE;
-    if (margin < lv_EPSILON_NUMERIC_COMPARE)
-        margin = lv_EPSILON_NUMERIC_COMPARE;
+    double margin = margin_floor(result_val, lv_EPSILON_NUMERIC_COMPARE, lv_EPSILON_NUMERIC_COMPARE);
 
     mpz_poly_t poly;
     mpz_poly_init(&poly);
@@ -602,9 +598,7 @@ static SymbolicCoord *pow_transcendental(const SymbolicCoord *base, unsigned int
     mpz_set(poly.coeffs[1], mpq_denref(approx));
     mpq_clear(approx);
 
-    double margin = fabs(result_val) * lv_EPSILON_NEWTON * 100.0;
-    if (margin < lv_EPSILON_NEWTON)
-        margin = lv_EPSILON_NEWTON;
+    double margin = margin_floor(result_val, lv_EPSILON_NEWTON * 100.0, lv_EPSILON_NEWTON);
 
     SymbolicCoord *result =
         symbolic_coord_create_algebraic(&poly, result_val - margin, result_val + margin);
@@ -954,9 +948,7 @@ static SymbolicCoord *sqrt_quadratic(const SymbolicCoord *coord, unsigned int un
         mpz_clear(term1);
         mpz_clear(term2);
 
-        double margin = fabs(result_val) * lv_EPSILON_NEWTON * 10.0;
-        if (margin < lv_EPSILON_NEWTON)
-            margin = lv_EPSILON_NEWTON;
+        double margin = margin_floor(result_val, lv_EPSILON_NEWTON * 10.0, lv_EPSILON_NEWTON);
 
         SymbolicCoord *result =
             symbolic_coord_create_algebraic(&poly, result_val - margin, result_val + margin);
@@ -1026,9 +1018,7 @@ static SymbolicCoord *sqrt_algebraic(const SymbolicCoord *coord, unsigned int un
     double val = (a->left_bound + a->right_bound) / 2.0;
     double sqrt_val = sqrt(fabs(val));
 
-    double margin = fabs(sqrt_val) * lv_EPSILON_NEWTON * 10.0;
-    if (margin < lv_EPSILON_NEWTON)
-        margin = lv_EPSILON_NEWTON;
+    double margin = margin_floor(sqrt_val, lv_EPSILON_NEWTON * 10.0, lv_EPSILON_NEWTON);
 
     SymbolicCoord *result = symbolic_coord_create_algebraic(&sqrt_poly, sqrt_val - margin, sqrt_val + margin);
     coeff_pool_clear(&sqrt_poly);
@@ -1063,9 +1053,7 @@ static SymbolicCoord *sqrt_transcendental(const SymbolicCoord *coord, unsigned i
     mpz_set(poly.coeffs[1], mpq_denref(approx));
     mpq_clear(approx);
 
-    double margin = fabs(sqrt_val) * lv_EPSILON_NEWTON * 100.0;
-    if (margin < lv_EPSILON_NEWTON)
-        margin = lv_EPSILON_NEWTON;
+    double margin = margin_floor(sqrt_val, lv_EPSILON_NEWTON * 100.0, lv_EPSILON_NEWTON);
 
     SymbolicCoord *result = symbolic_coord_create_algebraic(&poly, sqrt_val - margin, sqrt_val + margin);
     coeff_pool_clear(&poly);

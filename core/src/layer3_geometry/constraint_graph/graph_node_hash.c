@@ -305,3 +305,62 @@ void constraint_index_remove(ConstraintGraph *graph, int constraint_id) {
     }
     graph->constraint_index[j] = NULL;
 }
+
+/**
+ * @brief 重建图的节点/约束哈希索引（公共 API）
+ *
+ * 释放现有索引后，使用与 graph_get_node/graph_get_constraint 完全一致的
+ * FNV 哈希（node_id_hash / constraint_id_hash）重新插入全部节点与约束。
+ *
+ * 用途：graph_copy 之外的整图深拷贝路径（如 rewrite_snapshot 的事务恢复）
+ * 绕过了 graph_add_node_with_id 的自动索引维护，须在恢复后调用本函数重建。
+ * 此前 rewrite_snapshot 使用不同哈希乘数（Knuth 2654435769u）重建，导致
+ * 恢复后按 ID 查询出现假阴性（空槽即 NULL）——统一到本函数即修复。
+ *
+ * @param graph 目标图（非 NULL）
+ */
+void graph_index_rebuild(ConstraintGraph *graph) {
+    if (!graph)
+        return;
+
+    lv_free((void **) &graph->node_index);
+    graph->node_index = NULL;
+    graph->node_index_capacity = 0;
+    lv_free((void **) &graph->constraint_index);
+    graph->constraint_index = NULL;
+    graph->constraint_index_capacity = 0;
+
+    /* 重建 node_index（容量为 2 的幂，保持负载率 < 0.5） */
+    if (graph->node_count > 0) {
+        int cap = lv_NODE_INDEX_INITIAL_SIZE;
+        while (cap < graph->node_count * 2)
+            cap *= 2;
+        graph->node_index = lv_calloc((size_t) cap, sizeof(GeomNode *));
+        if (graph->node_index) {
+            graph->node_index_capacity = cap;
+            for (int i = 0; i < graph->node_count; i++) {
+                unsigned idx = node_id_hash(graph->nodes[i]->id, cap);
+                while (graph->node_index[idx] != NULL)
+                    idx = (idx + 1) & (unsigned) (cap - 1);
+                graph->node_index[idx] = graph->nodes[i];
+            }
+        }
+    }
+
+    /* 重建 constraint_index */
+    if (graph->constraint_count > 0) {
+        int cap = lv_CONSTRAINT_INDEX_INITIAL_SIZE;
+        while (cap < graph->constraint_count * 2)
+            cap *= 2;
+        graph->constraint_index = lv_calloc((size_t) cap, sizeof(Constraint *));
+        if (graph->constraint_index) {
+            graph->constraint_index_capacity = cap;
+            for (int i = 0; i < graph->constraint_count; i++) {
+                unsigned idx = constraint_id_hash(graph->constraints[i]->id, cap);
+                while (graph->constraint_index[idx] != NULL)
+                    idx = (idx + 1) & (unsigned) (cap - 1);
+                graph->constraint_index[idx] = graph->constraints[i];
+            }
+        }
+    }
+}

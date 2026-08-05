@@ -578,15 +578,9 @@ struct lvObjectCache {
     size_t current_size;
 };
 
-/* FNV-1a 哈希函数（使用项目统一的 lv_FNV64_* 常量，定义在 lv_internal.h） */
+/* FNV-1a 哈希函数（委托统一 lv_hash_bytes，替代手写 8 字节混合循环） */
 static inline size_t hash_key(lvCacheKey key, size_t capacity) {
-    uint64_t hash = lv_FNV64_OFFSET_BASIS;
-    /* 对 8 字节 key 逐字节进行 FNV-1a 混合 */
-    const unsigned char *bytes = (const unsigned char *) &key;
-    for (size_t i = 0; i < sizeof(key); i++) {
-        hash ^= bytes[i];
-        hash *= lv_FNV64_PRIME;
-    }
+    uint64_t hash = lv_hash_bytes(&key, sizeof(key));
     return (size_t) (hash % capacity);
 }
 

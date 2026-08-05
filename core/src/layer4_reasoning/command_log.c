@@ -610,196 +610,64 @@ bool command_log_serialize_json(const CommandLog *log, const char *filepath) {
  *  JSON 反序列化 —— 最小 JSON 解析器
  * ════════════════════════════════════════════════════════════════ */
 
-/** 轻量 JSON 解析上下文 */
-typedef struct {
-    const char *buf; /* 输入缓冲区 */
-    size_t pos;      /* 当前解析位置 */
-    size_t len;      /* 缓冲区长度 */
-} JsonCtx;
+/* ════════════════════════════════════════════════════════════════
+ *  JSON 反序列化 —— 基于公共 lvJsonParser（lv_json.h）
+ * ════════════════════════════════════════════════════════════════
+ *
+ * 基础原语（skip_ws/peek/next/expect/int/int64/uint64/double/bool/skip_value）
+ * 统一委托公共 lvJsonParser，避免与 lv_json.c 重复；
+ * 此处仅保留 command_log 特有的值形状解析：
+ * 固定缓冲字符串、动态 int/double/uint64 数组、null 判定。
+ */
 
-/** 跳过空白字符 */
-static void json_skip_ws(JsonCtx *j) {
-    while (j->pos < j->len) {
-        char c = j->buf[j->pos];
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r')
-            j->pos++;
-        else
-            break;
-    }
-}
-
-/** 查看当前字符（不推进） */
-static char json_peek(JsonCtx *j) {
-    json_skip_ws(j);
-    return (j->pos < j->len) ? j->buf[j->pos] : '\0';
-}
-
-/** 消费一个字符 */
-static char json_next(JsonCtx *j) {
-    json_skip_ws(j);
-    return (j->pos < j->len) ? j->buf[j->pos++] : '\0';
-}
-
-/** 期望特定字符，返回 true 成功 */
-static bool json_expect(JsonCtx *j, char expected) {
-    char c = json_next(j);
-    if (c != expected)
-        return false;
-    return true;
-}
-
-/** 解析 JSON 字符串字面量，写入 dst 缓冲区 */
-static bool json_parse_string(JsonCtx *j, char *dst, size_t dst_size) {
-    if (json_next(j) != '"')
+/** 解析 JSON 字符串字面量，解码写入 dst 缓冲区（公共反转义 API 统一 \uXXXX 语义） */
+static bool json_parse_string(lvJsonParser *p, char *dst, size_t dst_size) {
+    if (lv_json_next(p) != '"')
         return false;
 
-    size_t start = j->pos;
+    size_t start = p->pos;
     size_t raw_len = 0;
     bool closed = false;
 
     /* 第一遍：定位结束引号，统计原始字节数（转义序列按原始长度计入） */
-    while (j->pos < j->len) {
-        char c = j->buf[j->pos++];
+    while (p->pos < p->size) {
+        char c = p->data[p->pos++];
         if (c == '"') {
             closed = true;
             break;
         }
-        if (c == '\\' && j->pos < j->len) {
-            j->pos++; /* 跳过转义字符（含 \uXXXX 由公共反转义函数统一解码） */
+        if (c == '\\' && p->pos < p->size) {
+            p->pos++; /* 跳过转义字符（含 \uXXXX 由公共反转义函数统一解码） */
             raw_len++;
         }
         raw_len++;
     }
 
     /* 第二遍：公共反转义 API 解码（含 \uXXXX → UTF-8；缓冲区不足时安全截断） */
-    lv_str_json_unescape(j->buf + start, raw_len, dst, dst_size);
+    lv_str_json_unescape(p->data + start, raw_len, dst, dst_size);
 
     if (!closed)
         return false; /* 未闭合的字符串（已尽力解码已读取内容） */
     return true;
 }
 
-/** 解析 JSON 整数 */
-static bool json_parse_int(JsonCtx *j, int *out) {
-    json_skip_ws(j);
-    if (j->pos >= j->len)
-        return false;
-    long val = 0;
-    int sign = 1;
-    size_t start = j->pos;
-    if (j->buf[j->pos] == '-') {
-        sign = -1;
-        j->pos++;
-    }
-    if (j->pos >= j->len || j->buf[j->pos] < '0' || j->buf[j->pos] > '9')
-        return false;
-    while (j->pos < j->len && j->buf[j->pos] >= '0' && j->buf[j->pos] <= '9') {
-        val = val * 10 + (j->buf[j->pos] - '0');
-        j->pos++;
-    }
-    *out = (int) (sign * val);
-    return j->pos > start + (sign == -1 ? 1 : 0);
-}
-
-/** 解析 JSON 长整数 */
-static bool json_parse_int64(JsonCtx *j, int64_t *out) {
-    json_skip_ws(j);
-    if (j->pos >= j->len)
-        return false;
-    long long val = 0;
-    int sign = 1;
-    size_t start = j->pos;
-    if (j->buf[j->pos] == '-') {
-        sign = -1;
-        j->pos++;
-    }
-    if (j->pos >= j->len || j->buf[j->pos] < '0' || j->buf[j->pos] > '9')
-        return false;
-    while (j->pos < j->len && j->buf[j->pos] >= '0' && j->buf[j->pos] <= '9') {
-        val = val * 10 + (j->buf[j->pos] - '0');
-        j->pos++;
-    }
-    *out = (int64_t) (sign * val);
-    return true;
-}
-
-/** 解析 JSON 浮点数 */
-static bool json_parse_double(JsonCtx *j, double *out) {
-    json_skip_ws(j);
-    if (j->pos >= j->len)
-        return false;
-    size_t start = j->pos;
-    /* 处理可能的负号 */
-    if (j->buf[j->pos] == '-')
-        j->pos++;
-    /* 数字部分 */
-    bool has_digit = false;
-    while (j->pos < j->len && j->buf[j->pos] >= '0' && j->buf[j->pos] <= '9') {
-        has_digit = true;
-        j->pos++;
-    }
-    if (j->pos < j->len && j->buf[j->pos] == '.') {
-        j->pos++;
-        while (j->pos < j->len && j->buf[j->pos] >= '0' && j->buf[j->pos] <= '9') {
-            has_digit = true;
-            j->pos++;
-        }
-    }
-    /* 科学计数法 */
-    if (has_digit && j->pos < j->len && (j->buf[j->pos] == 'e' || j->buf[j->pos] == 'E')) {
-        j->pos++;
-        if (j->pos < j->len && (j->buf[j->pos] == '+' || j->buf[j->pos] == '-'))
-            j->pos++;
-        while (j->pos < j->len && j->buf[j->pos] >= '0' && j->buf[j->pos] <= '9')
-            j->pos++;
-    }
-    if (!has_digit)
-        return false;
-    /* 用 sscanf 转换，需要临时缓冲区 */
-    size_t len = j->pos - start;
-    char tmp[128];
-    if (len >= sizeof(tmp))
-        return false;
-    memcpy(tmp, j->buf + start, len);
-    tmp[len] = '\0';
-    *out = strtod(tmp, NULL);
-    return true;
-}
-
-/** 解析 JSON true/false */
-static bool json_parse_bool(JsonCtx *j, bool *out) {
-    json_skip_ws(j);
-    if (j->pos + 4 <= j->len && memcmp(j->buf + j->pos, "true", 4) == 0) {
-        *out = true;
-        j->pos += 4;
-        return true;
-    }
-    if (j->pos + 5 <= j->len && memcmp(j->buf + j->pos, "false", 5) == 0) {
-        *out = false;
-        j->pos += 5;
-        return true;
-    }
-    return false;
-}
-
 /** 解析 JSON null */
-static bool json_parse_null(JsonCtx *j) {
-    json_skip_ws(j);
-    if (j->pos + 4 <= j->len && memcmp(j->buf + j->pos, "null", 4) == 0) {
-        j->pos += 4;
+static bool json_parse_null(lvJsonParser *p) {
+    lv_json_skip_ws(p);
+    if (p->pos + 4 <= p->size && memcmp(p->data + p->pos, "null", 4) == 0) {
+        p->pos += 4;
         return true;
     }
     return false;
 }
 
-/** 解析 JSON int 数组 [...] */
-static int json_parse_int_array(JsonCtx *j, int **out) {
+/** 解析 JSON int 数组 [...]（动态分配，返回元素个数；空数组返回 0 且 *out 为 NULL） */
+static int json_parse_int_array(lvJsonParser *p, int **out) {
     *out = NULL;
-    if (json_next(j) != '[')
+    if (lv_json_next(p) != '[')
         return 0;
-    /* 空数组 */
-    if (json_peek(j) == ']') {
-        json_next(j);
+    if (lv_json_peek(p) == ']') {
+        lv_json_next(p);
         return 0;
     }
     int cap = 16, count = 0;
@@ -811,30 +679,30 @@ static int json_parse_int_array(JsonCtx *j, int **out) {
             lv_free((void **) &arr);
             return 0;
         }
-        if (!json_parse_int(j, &arr[count])) {
+        if (!lv_json_parse_int(p, &arr[count])) {
             lv_free((void **) &arr);
             return 0;
         }
         count++;
-        if (json_peek(j) == ']')
+        if (lv_json_peek(p) == ']')
             break;
-        if (!json_expect(j, ',')) {
+        if (!lv_json_expect(p, ',')) {
             lv_free((void **) &arr);
             return 0;
         }
     }
-    json_next(j); /* 消费 ']' */
+    lv_json_next(p); /* 消费 ']' */
     *out = arr;
     return count;
 }
 
-/** 解析 JSON double 数组 [...] */
-static int json_parse_double_array(JsonCtx *j, double **out) {
+/** 解析 JSON double 数组 [...]（动态分配，返回元素个数；空数组返回 0 且 *out 为 NULL） */
+static int json_parse_double_array(lvJsonParser *p, double **out) {
     *out = NULL;
-    if (json_next(j) != '[')
+    if (lv_json_next(p) != '[')
         return 0;
-    if (json_peek(j) == ']') {
-        json_next(j);
+    if (lv_json_peek(p) == ']') {
+        lv_json_next(p);
         return 0;
     }
     int cap = 16, count = 0;
@@ -846,30 +714,30 @@ static int json_parse_double_array(JsonCtx *j, double **out) {
             lv_free((void **) &arr);
             return 0;
         }
-        if (!json_parse_double(j, &arr[count])) {
+        if (!lv_json_parse_double(p, &arr[count])) {
             lv_free((void **) &arr);
             return 0;
         }
         count++;
-        if (json_peek(j) == ']')
+        if (lv_json_peek(p) == ']')
             break;
-        if (!json_expect(j, ',')) {
+        if (!lv_json_expect(p, ',')) {
             lv_free((void **) &arr);
             return 0;
         }
     }
-    json_next(j); /* 消费 ']' */
+    lv_json_next(p); /* 消费 ']' */
     *out = arr;
     return count;
 }
 
-/** 解析 JSON uint64_t 数组 [...] */
-static int json_parse_uint64_array(JsonCtx *j, uint64_t **out) {
+/** 解析 JSON uint64_t 数组 [...]（动态分配，返回元素个数；空数组返回 0 且 *out 为 NULL） */
+static int json_parse_uint64_array(lvJsonParser *p, uint64_t **out) {
     *out = NULL;
-    if (json_next(j) != '[')
+    if (lv_json_next(p) != '[')
         return 0;
-    if (json_peek(j) == ']') {
-        json_next(j);
+    if (lv_json_peek(p) == ']') {
+        lv_json_next(p);
         return 0;
     }
     int cap = 16, count = 0;
@@ -881,121 +749,62 @@ static int json_parse_uint64_array(JsonCtx *j, uint64_t **out) {
             lv_free((void **) &arr);
             return 0;
         }
-        /* JSON 无符号 → 解析为 int64 再转换 */
-        int64_t v = 0;
-        if (!json_parse_int64(j, &v)) {
+        uint64_t v = 0;
+        if (!lv_json_parse_uint64(p, &v)) {
             lv_free((void **) &arr);
             return 0;
         }
-        arr[count++] = (uint64_t) v;
-        if (json_peek(j) == ']')
+        arr[count++] = v;
+        if (lv_json_peek(p) == ']')
             break;
-        if (!json_expect(j, ',')) {
+        if (!lv_json_expect(p, ',')) {
             lv_free((void **) &arr);
             return 0;
         }
     }
-    json_next(j); /* 消费 ']' */
+    lv_json_next(p); /* 消费 ']' */
     *out = arr;
     return count;
 }
 
-/** 跳过 JSON 值（对象/数组/字符串/数字/布尔/null） */
-static void json_skip_value(JsonCtx *j) {
-    json_skip_ws(j);
-    if (j->pos >= j->len)
-        return;
-    char c = j->buf[j->pos];
-    if (c == '{') {
-        /* 跳过整个对象 */
-        int depth = 0;
-        do {
-            if (c == '{')
-                depth++;
-            if (c == '}')
-                depth--;
-            j->pos++;
-            if (j->pos >= j->len)
-                return;
-            c = j->buf[j->pos];
-        } while (depth > 0);
-    } else if (c == '[') {
-        int depth = 0;
-        do {
-            if (c == '[')
-                depth++;
-            if (c == ']')
-                depth--;
-            j->pos++;
-            if (j->pos >= j->len)
-                return;
-            c = j->buf[j->pos];
-        } while (depth > 0);
-    } else if (c == '"') {
-        j->pos++;
-        while (j->pos < j->len) {
-            if (j->buf[j->pos] == '"') {
-                j->pos++;
-                return;
-            }
-            if (j->buf[j->pos] == '\\' && j->pos + 1 < j->len)
-                j->pos++;
-            j->pos++;
-        }
-    } else if (c == 't' || c == 'f') {
-        if (memcmp(j->buf + j->pos, "true", 4) == 0)
-            j->pos += 4;
-        else if (memcmp(j->buf + j->pos, "false", 5) == 0)
-            j->pos += 5;
-        else
-            j->pos++;
-    } else if (c == 'n') {
-        j->pos += 4; /* null */
-    } else {
-        /* 数字 */
-        while (j->pos < j->len &&
-               (j->buf[j->pos] == '-' || j->buf[j->pos] == '+' || j->buf[j->pos] == '.' || j->buf[j->pos] == 'e' ||
-                j->buf[j->pos] == 'E' || (j->buf[j->pos] >= '0' && j->buf[j->pos] <= '9')))
-            j->pos++;
-    }
-}
+/** 跳过 JSON 值：委托公共 lv_json_skip_value（递归跳过对象/数组/字符串/数字/布尔/null） */
 
 /* ── json_parse_params 查找表 ── */
-typedef void (*JsonParseHandler)(JsonCtx *j, CommandEntry *e, const char *key);
+typedef void (*JsonParseHandler)(lvJsonParser *p, CommandEntry *e, const char *key);
 
 /* 通用字段解析器：解析 JSON 值并写入目标内存（字段名→handler 表用） */
-typedef void (*JsonFieldHandler)(JsonCtx *j, void *dst);
+typedef void (*JsonFieldHandler)(lvJsonParser *p, void *dst);
 
-static void json_field_int(JsonCtx *j, void *dst) { json_parse_int(j, (int *) dst); }
-static void json_field_bool(JsonCtx *j, void *dst) { json_parse_bool(j, (bool *) dst); }
-static void json_field_double(JsonCtx *j, void *dst) { json_parse_double(j, (double *) dst); }
-static void json_field_string_decl(JsonCtx *j, void *dst) { json_parse_string(j, (char *) dst, 256); }
+static void json_field_int(lvJsonParser *p, void *dst) { lv_json_parse_int(p, (int *) dst); }
+static void json_field_bool(lvJsonParser *p, void *dst) { lv_json_parse_bool(p, (bool *) dst); }
+static void json_field_double(lvJsonParser *p, void *dst) { lv_json_parse_double(p, (double *) dst); }
+static void json_field_string_decl(lvJsonParser *p, void *dst) { json_parse_string(p, (char *) dst, 256); }
 
 /** @brief 可空 double 数组（null 或数组，数组分配并接管） */
-static void json_field_nullable_double_array(JsonCtx *j, void *dst) {
+static void json_field_nullable_double_array(lvJsonParser *p, void *dst) {
     double **out = (double **) dst;
-    if (json_peek(j) == 'n') json_parse_null(j);
-    else { lv_free((void **) out); json_parse_double_array(j, out); }
+    if (lv_json_peek(p) == 'n') json_parse_null(p);
+    else { lv_free((void **) out); json_parse_double_array(p, out); }
 }
 
 /** @brief 可空 uint64_t 数组（null 或数组，数组分配并接管） */
-static void json_field_nullable_u64_array(JsonCtx *j, void *dst) {
+static void json_field_nullable_u64_array(lvJsonParser *p, void *dst) {
     uint64_t **out = (uint64_t **) dst;
-    if (json_peek(j) == 'n') json_parse_null(j);
-    else { lv_free((void **) out); json_parse_uint64_array(j, out); }
+    if (lv_json_peek(p) == 'n') json_parse_null(p);
+    else { lv_free((void **) out); json_parse_uint64_array(p, out); }
 }
 
 /** @brief 可空 int 数组（null 或数组，数组分配并接管） */
-static void json_field_nullable_int_array(JsonCtx *j, void *dst) {
+static void json_field_nullable_int_array(lvJsonParser *p, void *dst) {
     int **out = (int **) dst;
-    if (json_peek(j) == 'n') json_parse_null(j);
-    else { int *arr = NULL; (void) json_parse_int_array(j, &arr); lv_free((void **) out); *out = arr; }
+    if (lv_json_peek(p) == 'n') json_parse_null(p);
+    else { int *arr = NULL; (void) json_parse_int_array(p, &arr); lv_free((void **) out); *out = arr; }
 }
 
 /** @brief 固定长度 int 数组（最多复制 8 个，如 participant_ids） */
-static void json_field_participant_ids(JsonCtx *j, void *dst) {
+static void json_field_participant_ids(lvJsonParser *p, void *dst) {
     int *arr = NULL;
-    int cnt = json_parse_int_array(j, &arr);
+    int cnt = json_parse_int_array(p, &arr);
     if (arr) {
         int n = (cnt > 8) ? 8 : cnt;
         memcpy(dst, arr, (size_t) n * sizeof(int));
@@ -1031,14 +840,14 @@ static const JsonFieldEntry kAddNodeFields[] = {
     {"coords_den", offsetof(CmdAddNodeParams, coords_den), json_field_nullable_u64_array},
 };
 
-static void json_parse_add_node(JsonCtx *j, CommandEntry *e, const char *key) {
+static void json_parse_add_node(lvJsonParser *j, CommandEntry *e, const char *key) {
     CmdAddNodeParams *p = &e->params.add_node;
     const JsonFieldEntry *entry = json_field_lookup(kAddNodeFields, lv_ARRAY_SIZE(kAddNodeFields), key);
     if (entry) {
         entry->handler(j, (char *) p + entry->offset);
         return;
     }
-    json_skip_value(j);
+    lv_json_skip_value(j);
 }
 
 /** @brief ADD_CONSTRAINT 参数字段表（替代 4 分支 strcmp 链） */
@@ -1049,14 +858,14 @@ static const JsonFieldEntry kAddConstraintFields[] = {
     {"participant_ids", offsetof(CmdAddConstraintParams, participant_ids), json_field_participant_ids},
 };
 
-static void json_parse_add_constraint(JsonCtx *j, CommandEntry *e, const char *key) {
+static void json_parse_add_constraint(lvJsonParser *j, CommandEntry *e, const char *key) {
     CmdAddConstraintParams *p = &e->params.add_constraint;
     const JsonFieldEntry *entry = json_field_lookup(kAddConstraintFields, lv_ARRAY_SIZE(kAddConstraintFields), key);
     if (entry) {
         entry->handler(j, (char *) p + entry->offset);
         return;
     }
-    json_skip_value(j);
+    lv_json_skip_value(j);
 }
 
 /** @brief REMOVE_NODE 参数字段表 */
@@ -1064,13 +873,13 @@ static const JsonFieldEntry kRemoveNodeFields[] = {
     {"node_id", offsetof(CmdRemoveNodeParams, node_id), json_field_int},
 };
 
-static void json_parse_remove_node(JsonCtx *j, CommandEntry *e, const char *key) {
+static void json_parse_remove_node(lvJsonParser *j, CommandEntry *e, const char *key) {
     const JsonFieldEntry *entry = json_field_lookup(kRemoveNodeFields, lv_ARRAY_SIZE(kRemoveNodeFields), key);
     if (entry) {
         entry->handler(j, (char *) &e->params.remove_node + entry->offset);
         return;
     }
-    json_skip_value(j);
+    lv_json_skip_value(j);
 }
 
 /** @brief REMOVE_CONSTRAINT 参数字段表 */
@@ -1078,14 +887,14 @@ static const JsonFieldEntry kRemoveConstraintFields[] = {
     {"constraint_index", offsetof(CmdRemoveConstraintParams, constraint_index), json_field_int},
 };
 
-static void json_parse_remove_constraint(JsonCtx *j, CommandEntry *e, const char *key) {
+static void json_parse_remove_constraint(lvJsonParser *j, CommandEntry *e, const char *key) {
     const JsonFieldEntry *entry =
         json_field_lookup(kRemoveConstraintFields, lv_ARRAY_SIZE(kRemoveConstraintFields), key);
     if (entry) {
         entry->handler(j, (char *) &e->params.remove_constraint + entry->offset);
         return;
     }
-    json_skip_value(j);
+    lv_json_skip_value(j);
 }
 
 /** @brief PACK_FUNCTION 参数字段表（替代 7 分支 strcmp 链） */
@@ -1099,7 +908,7 @@ static const JsonFieldEntry kPackFunctionFields[] = {
     {"output_port_ids", offsetof(CmdPackFunctionParams, output_port_ids), json_field_nullable_int_array},
 };
 
-static void json_parse_pack_function(JsonCtx *j, CommandEntry *e, const char *key) {
+static void json_parse_pack_function(lvJsonParser *j, CommandEntry *e, const char *key) {
     CmdPackFunctionParams *p = &e->params.pack_function;
     const JsonFieldEntry *entry =
         json_field_lookup(kPackFunctionFields, lv_ARRAY_SIZE(kPackFunctionFields), key);
@@ -1107,7 +916,7 @@ static void json_parse_pack_function(JsonCtx *j, CommandEntry *e, const char *ke
         entry->handler(j, (char *) p + entry->offset);
         return;
     }
-    json_skip_value(j);
+    lv_json_skip_value(j);
 }
 
 /** @brief NORMALIZE_GRAPH 参数字段表（替代 2 分支 strcmp 链） */
@@ -1116,7 +925,7 @@ static const JsonFieldEntry kNormalizeGraphFields[] = {
     {"max_iterations", offsetof(CmdNormalizeGraphParams, max_iterations), json_field_int},
 };
 
-static void json_parse_normalize_graph(JsonCtx *j, CommandEntry *e, const char *key) {
+static void json_parse_normalize_graph(lvJsonParser *j, CommandEntry *e, const char *key) {
     CmdNormalizeGraphParams *p = &e->params.normalize_graph;
     const JsonFieldEntry *entry =
         json_field_lookup(kNormalizeGraphFields, lv_ARRAY_SIZE(kNormalizeGraphFields), key);
@@ -1124,7 +933,7 @@ static void json_parse_normalize_graph(JsonCtx *j, CommandEntry *e, const char *
         entry->handler(j, (char *) p + entry->offset);
         return;
     }
-    json_skip_value(j);
+    lv_json_skip_value(j);
 }
 
 /** @brief UNIFY 参数字段表（替代 3 分支 strcmp 链） */
@@ -1134,14 +943,14 @@ static const JsonFieldEntry kUnifyFields[] = {
     {"result", offsetof(CmdUnifyParams, result), json_field_bool},
 };
 
-static void json_parse_unify(JsonCtx *j, CommandEntry *e, const char *key) {
+static void json_parse_unify(lvJsonParser *j, CommandEntry *e, const char *key) {
     CmdUnifyParams *p = &e->params.unify;
     const JsonFieldEntry *entry = json_field_lookup(kUnifyFields, lv_ARRAY_SIZE(kUnifyFields), key);
     if (entry) {
         entry->handler(j, (char *) p + entry->offset);
         return;
     }
-    json_skip_value(j);
+    lv_json_skip_value(j);
 }
 
 /** @brief SET_NUMERIC_ASSUMPTION 参数字段表（替代 3 分支 strcmp 链） */
@@ -1151,7 +960,7 @@ static const JsonFieldEntry kSetNumericAssumptionFields[] = {
     {"declaration", offsetof(CmdSetNumericAssumptionParams, declaration), json_field_string_decl},
 };
 
-static void json_parse_set_numeric_assumption(JsonCtx *j, CommandEntry *e, const char *key) {
+static void json_parse_set_numeric_assumption(lvJsonParser *j, CommandEntry *e, const char *key) {
     CmdSetNumericAssumptionParams *p = &e->params.set_numeric_assumption;
     const JsonFieldEntry *entry =
         json_field_lookup(kSetNumericAssumptionFields, lv_ARRAY_SIZE(kSetNumericAssumptionFields), key);
@@ -1159,10 +968,10 @@ static void json_parse_set_numeric_assumption(JsonCtx *j, CommandEntry *e, const
         entry->handler(j, (char *) p + entry->offset);
         return;
     }
-    json_skip_value(j);
+    lv_json_skip_value(j);
 }
 
-static void json_parse_default(JsonCtx *j, CommandEntry *e, const char *key) { (void)e; json_skip_value(j); }
+static void json_parse_default(lvJsonParser *j, CommandEntry *e, const char *key) { (void)e; lv_json_skip_value(j); }
 
 static const JsonParseHandler json_parse_table[CMD_COUNT] = {
     [CMD_ADD_NODE]             = json_parse_add_node,
@@ -1176,34 +985,34 @@ static const JsonParseHandler json_parse_table[CMD_COUNT] = {
 };
 
 /** 查找并解析命令参数字段 */
-static void json_parse_params(JsonCtx *j, CommandEntry *e) {
+static void json_parse_params(lvJsonParser *j, CommandEntry *e) {
     /* 调用方已消费 "params": 并定位到 '{'，直接检查并消费 */
-    if (json_peek(j) == '{') {
-        json_next(j); /* 消费 '{' */
+    if (lv_json_peek(j) == '{') {
+        lv_json_next(j); /* 消费 '{' */
 
-        while (json_peek(j) != '}') {
+        while (lv_json_peek(j) != '}') {
             char k[64];
             if (!json_parse_string(j, k, sizeof(k)))
                 break;
-            if (!json_expect(j, ':'))
+            if (!lv_json_expect(j, ':'))
                 break;
 
             JsonParseHandler h = json_parse_table[e->type];
             if (h) h(j, e, k);
-            else json_skip_value(j);
+            else lv_json_skip_value(j);
 
-            if (json_peek(j) == ',')
-                json_next(j);
+            if (lv_json_peek(j) == ',')
+                lv_json_next(j);
         }
-        json_expect(j, '}'); /* 消费 '}' */
+        lv_json_expect(j, '}'); /* 消费 '}' */
     }
 }
 
 /* ── 日志条目字段分发（查找表，替代 4 分支 strcmp 链） ── */
 
-typedef void (*EntryFieldHandler)(JsonCtx *j, CommandEntry *e);
+typedef void (*EntryFieldHandler)(lvJsonParser *j, CommandEntry *e);
 
-static void entry_field_type(JsonCtx *j, CommandEntry *e) {
+static void entry_field_type(lvJsonParser *j, CommandEntry *e) {
     char t[32];
     if (json_parse_string(j, t, sizeof(t))) {
         for (int ti = 0; ti < CMD_COUNT; ti++) {
@@ -1215,19 +1024,19 @@ static void entry_field_type(JsonCtx *j, CommandEntry *e) {
     }
 }
 
-static void entry_field_seq(JsonCtx *j, CommandEntry *e) {
+static void entry_field_seq(lvJsonParser *j, CommandEntry *e) {
     int64_t seq_val;
-    if (json_parse_int64(j, &seq_val))
+    if (lv_json_parse_int64(j, &seq_val))
         e->seq = seq_val;
 }
 
-static void entry_field_timestamp_ms(JsonCtx *j, CommandEntry *e) {
+static void entry_field_timestamp_ms(lvJsonParser *j, CommandEntry *e) {
     int64_t ts;
-    if (json_parse_int64(j, &ts))
+    if (lv_json_parse_int64(j, &ts))
         e->timestamp_ms = ts;
 }
 
-static void entry_field_params(JsonCtx *j, CommandEntry *e) {
+static void entry_field_params(lvJsonParser *j, CommandEntry *e) {
     json_parse_params(j, e);
 }
 
@@ -1270,10 +1079,8 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
     lv_file_close(fp);
     buf[nread] = '\0';
 
-    JsonCtx j;
-    j.buf = buf;
-    j.pos = 0;
-    j.len = nread;
+    lvJsonParser j;
+    lv_json_parser_init(&j, buf, nread);
 
     CommandLog *log = command_log_create(1024);
     if (!log) {
@@ -1282,39 +1089,39 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
     }
 
     /* 解析顶层对象 */
-    if (!json_expect(&j, '{')) {
+    if (!lv_json_expect(&j, '{')) {
         lv_free((void **) &buf);
         return log;
     }
 
-    while (json_peek(&j) != '}') {
+    while (lv_json_peek(&j) != '}') {
         char key[64];
         if (!json_parse_string(&j, key, sizeof(key)))
             break;
-        if (!json_expect(&j, ':'))
+        if (!lv_json_expect(&j, ':'))
             break;
 
         if (strcmp(key, "version") == 0) {
             int ver;
-            json_parse_int(&j, &ver);
+            lv_json_parse_int(&j, &ver);
         } else if (strcmp(key, "entries") == 0) {
             /* 解析 entries 数组 */
-            if (!json_expect(&j, '['))
+            if (!lv_json_expect(&j, '['))
                 break;
 
-            while (json_peek(&j) != ']') {
-                if (!json_expect(&j, '{'))
+            while (lv_json_peek(&j) != ']') {
+                if (!lv_json_expect(&j, '{'))
                     break;
 
                 CommandEntry *e = (CommandEntry *) lv_calloc(1, sizeof(CommandEntry));
                 if (!e)
                     break;
 
-                while (json_peek(&j) != '}') {
+                while (lv_json_peek(&j) != '}') {
                     char k[64];
                     if (!json_parse_string(&j, k, sizeof(k)))
                         break;
-                    if (!json_expect(&j, ':'))
+                    if (!lv_json_expect(&j, ':'))
                         break;
 
                     /* 条目字段查表分发（替代 4 分支 strcmp 链） */
@@ -1328,28 +1135,28 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
                     if (eh)
                         eh(&j, e);
                     else
-                        json_skip_value(&j);
+                        lv_json_skip_value(&j);
 
-                    if (json_peek(&j) == ',')
-                        json_next(&j);
+                    if (lv_json_peek(&j) == ',')
+                        lv_json_next(&j);
                 }
-                json_expect(&j, '}'); /* 消费 '}' */
+                lv_json_expect(&j, '}'); /* 消费 '}' */
 
                 /* 用序列号方式恢复 next_seq */
                 if (!command_log_append(log, e)) {
                     command_entry_destroy(e);
                 }
 
-                if (json_peek(&j) == ',')
-                    json_next(&j);
+                if (lv_json_peek(&j) == ',')
+                    lv_json_next(&j);
             }
-            json_expect(&j, ']'); /* 消费 ']' */
+            lv_json_expect(&j, ']'); /* 消费 ']' */
         } else {
-            json_skip_value(&j);
+            lv_json_skip_value(&j);
         }
 
-        if (json_peek(&j) == ',')
-            json_next(&j);
+        if (lv_json_peek(&j) == ',')
+            lv_json_next(&j);
     }
 
     lv_free((void **) &buf);

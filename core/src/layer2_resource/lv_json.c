@@ -10,6 +10,7 @@
 
 #include <ctype.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -224,6 +225,78 @@ bool lv_json_parse_int(lvJsonParser *p, int *out) {
         val = val * 10 + (*s - '0');
     }
     *out = negative ? (int)(-val) : (int)val;
+    return true;
+}
+
+bool lv_json_parse_int64(lvJsonParser *p, int64_t *out) {
+    lv_json_skip_ws(p);
+    size_t start = p->pos;
+    bool negative = false;
+
+    if (p->pos < p->size && p->data[p->pos] == '-') {
+        negative = true;
+        p->pos++;
+    }
+
+    if (p->pos >= p->size || p->data[p->pos] < '0' || p->data[p->pos] > '9') {
+        return false;
+    }
+
+    while (p->pos < p->size && p->data[p->pos] >= '0' && p->data[p->pos] <= '9') {
+        p->pos++;
+    }
+
+    if (p->pos == start || (p->pos == start + 1 && negative))
+        return false;
+
+    /* 用无符号累加避免有符号溢出未定义行为 */
+    uint64_t val = 0;
+    for (const char *s = p->data + start + (negative ? 1 : 0); s < p->data + p->pos; s++) {
+        uint64_t digit = (uint64_t)(*s - '0');
+        if (val > (UINT64_MAX - digit) / 10)
+            return false; /* 溢出 */
+        val = val * 10 + digit;
+    }
+
+    if (negative) {
+        if (val > (uint64_t)INT64_MAX + 1)
+            return false; /* 小于 INT64_MIN */
+        *out = (val == (uint64_t)INT64_MAX + 1) ? INT64_MIN : -(int64_t)val;
+    } else {
+        if (val > (uint64_t)INT64_MAX)
+            return false; /* 大于 INT64_MAX */
+        *out = (int64_t)val;
+    }
+    return true;
+}
+
+bool lv_json_parse_uint64(lvJsonParser *p, uint64_t *out) {
+    lv_json_skip_ws(p);
+    size_t start = p->pos;
+
+    if (p->pos < p->size && p->data[p->pos] == '-') {
+        return false; /* 无符号数不接受负号 */
+    }
+
+    if (p->pos >= p->size || p->data[p->pos] < '0' || p->data[p->pos] > '9') {
+        return false;
+    }
+
+    while (p->pos < p->size && p->data[p->pos] >= '0' && p->data[p->pos] <= '9') {
+        p->pos++;
+    }
+
+    if (p->pos == start)
+        return false;
+
+    uint64_t val = 0;
+    for (const char *s = p->data + start; s < p->data + p->pos; s++) {
+        uint64_t digit = (uint64_t)(*s - '0');
+        if (val > (UINT64_MAX - digit) / 10)
+            return false; /* 溢出 */
+        val = val * 10 + digit;
+    }
+    *out = val;
     return true;
 }
 
@@ -461,6 +534,94 @@ void lv_json_skip_value(lvJsonParser *p) {
             p->pos++;
         }
     }
+}
+
+bool lv_json_parse_int_array(lvJsonParser *p, int *out, size_t max_count, size_t *out_count) {
+    lv_json_skip_ws(p);
+    if (out_count)
+        *out_count = 0;
+    if (p->pos >= p->size || p->data[p->pos] != '[')
+        return false;
+    p->pos++;
+
+    size_t count = 0;
+    for (;;) {
+        lv_json_skip_ws(p);
+        if (p->pos >= p->size)
+            return false; /* 数组未闭合 */
+        if (p->data[p->pos] == ']') {
+            p->pos++;
+            break; /* 正常结束 */
+        }
+
+        if (count < max_count) {
+            int v = 0;
+            if (!lv_json_parse_int(p, &v))
+                return false;
+            out[count++] = v;
+        } else {
+            /* 缓冲区已满（越界）：跳过剩余元素，不收集 */
+            lv_json_skip_value(p);
+        }
+
+        lv_json_skip_ws(p);
+        if (p->pos < p->size && p->data[p->pos] == ',') {
+            p->pos++;
+        } else if (p->pos < p->size && p->data[p->pos] == ']') {
+            p->pos++;
+            break;
+        } else {
+            return false; /* 期望 ',' 或 ']' */
+        }
+    }
+
+    if (out_count)
+        *out_count = count;
+    return true;
+}
+
+bool lv_json_parse_double_array(lvJsonParser *p, double *out, size_t max_count, size_t *out_count) {
+    lv_json_skip_ws(p);
+    if (out_count)
+        *out_count = 0;
+    if (p->pos >= p->size || p->data[p->pos] != '[')
+        return false;
+    p->pos++;
+
+    size_t count = 0;
+    for (;;) {
+        lv_json_skip_ws(p);
+        if (p->pos >= p->size)
+            return false; /* 数组未闭合 */
+        if (p->data[p->pos] == ']') {
+            p->pos++;
+            break; /* 正常结束 */
+        }
+
+        if (count < max_count) {
+            double v = 0.0;
+            if (!lv_json_parse_double(p, &v))
+                return false;
+            out[count++] = v;
+        } else {
+            /* 缓冲区已满（越界）：跳过剩余元素，不收集 */
+            lv_json_skip_value(p);
+        }
+
+        lv_json_skip_ws(p);
+        if (p->pos < p->size && p->data[p->pos] == ',') {
+            p->pos++;
+        } else if (p->pos < p->size && p->data[p->pos] == ']') {
+            p->pos++;
+            break;
+        } else {
+            return false; /* 期望 ',' 或 ']' */
+        }
+    }
+
+    if (out_count)
+        *out_count = count;
+    return true;
 }
 
 /* ==================================================================

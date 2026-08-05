@@ -220,14 +220,9 @@ static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules
  * E-graph: simple hash set + union-find for e-class management
  * ============================================================ */
 
-/** @brief FNV-1a hash for strings */
+/** @brief FNV-1a hash for strings（委托统一实现 lv_fnv1a_hash_str） */
 static size_t egraph_str_hash(const char *s) {
-    size_t hash = 14695981039346656037ULL;
-    while (*s) {
-        hash ^= (unsigned char) *s++;
-        hash *= 1099511628211ULL;
-    }
-    return hash;
+    return (size_t) lv_fnv1a_hash_str(s);
 }
 
 /** @brief E-node table entry (hash set + e-class via union-find) */

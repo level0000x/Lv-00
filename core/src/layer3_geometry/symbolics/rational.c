@@ -202,6 +202,23 @@ Rational *rational_divide(const Rational *a, const Rational *b) {
 }
 
 /**
+ * 有理数取负：计算 -a。
+ *
+ * @param a 有理数（不能为 NULL）
+ * @return 新的有理数对象表示 -a，失败时返回 NULL；调用者需负责释放
+ */
+Rational *rational_negate(const Rational *a) {
+    if (!a)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_negate: a is NULL");
+    Rational *r = lv_calloc(1, sizeof(Rational));
+    if (!r)
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_negate: allocation failed");
+    mpq_init(r->value);
+    mpq_neg(r->value, a->value);
+    return r;
+}
+
+/**
  * 将有理数序列化为 "分子/分母" 格式的字符串。
  *
  * 缓冲区大小 = 分子十进制位数 + 分母十进制位数 + 4（符号、斜杠、空终止符）

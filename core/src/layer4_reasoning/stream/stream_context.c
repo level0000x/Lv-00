@@ -227,10 +227,8 @@ bool stream_unregister_callback_by_id(StreamContext *ctx, int callback_id) {
 
     for (int i = 0; i < ctx->callback_count; i++) {
         if (ctx->callbacks[i].id == callback_id) {
-            /* 将后续回调前移一位 */
-            for (int j = i; j < ctx->callback_count - 1; j++) {
-                ctx->callbacks[j] = ctx->callbacks[j + 1];
-            }
+            /* 将后续回调前移一位（与 stream_unregister_callback 统一走 lv_shift_left） */
+            lv_shift_left(ctx->callbacks, sizeof(ctx->callbacks[0]), (size_t) i, (size_t) ctx->callback_count);
             ctx->callback_count--;
             return true;
         }
