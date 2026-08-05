@@ -150,6 +150,41 @@ lv_PUBLIC_API bool lv_error_set_with_cause(lvErrorContext *ctx, int code,
     lv_FORMAT_PRINTF(4, 5);
 
 /**
+ * @brief 带调用位置的错误设置（供 lv_ERROR_CTX_RETURN 系列宏使用）
+ *
+ * 宏内展开 __FILE__/__LINE__/__func__ 传入，使新式帧栈获得真实位置信息。
+ *
+ * @param ctx    错误上下文
+ * @param code   错误码
+ * @param file   源文件名（__FILE__）
+ * @param line   行号（__LINE__）
+ * @param func   函数名（__func__）
+ * @param format 格式化字符串（类似 printf）
+ * @param ...    可变参数
+ * @return false（方便在 return 语句中链式使用）
+ */
+lv_PUBLIC_API bool lv_error_set_at(lvErrorContext *ctx, int code, const char *file, int line,
+                                   const char *func, const char *format, ...)
+    lv_FORMAT_PRINTF(6, 7);
+
+/**
+ * @brief 从旧式错误体系推入帧（桥接入口，供 error_codes.c 调用）
+ *
+ * 旧式 lv_RETURN_ERROR 宏系经 lv_set_error_ctx/lv_set_error 设置错误时，
+ * 由 error_codes.c 调用本函数把同一错误推入新式 TLS 帧栈，使全部旧写端
+ * 零改动获得 8 帧回溯、cause 链与根因优先输出能力。
+ *
+ * @param code    错误码
+ * @param file    源文件名（可为 NULL）
+ * @param line    行号（可为 0）
+ * @param func    函数名（可为 NULL）
+ * @param message 已格式化的错误消息（可为 NULL）
+ * @return true 成功，false 帧栈已满
+ */
+lv_PUBLIC_API bool lv_error_push(lvErrorCode code, const char *file, int line, const char *func,
+                                 const char *message);
+
+/**
  * @brief 获取当前错误码
  *
  * @param ctx 错误上下文
@@ -243,7 +278,7 @@ lv_PUBLIC_API int lv_error_line(lvErrorContext *ctx);
  */
 #define lv_ERROR_CTX_RETURN(ctx, code, ...) \
     do { \
-        lv_error_set(ctx, code, __VA_ARGS__); \
+        lv_error_set_at(ctx, code, __FILE__, __LINE__, __func__, __VA_ARGS__); \
         return false; \
     } while(0)
 
@@ -258,7 +293,7 @@ lv_PUBLIC_API int lv_error_line(lvErrorContext *ctx);
  */
 #define lv_ERROR_CTX_RETURN_NULL(ctx, code, ...) \
     do { \
-        lv_error_set(ctx, code, __VA_ARGS__); \
+        lv_error_set_at(ctx, code, __FILE__, __LINE__, __func__, __VA_ARGS__); \
         return NULL; \
     } while(0)
 
@@ -273,7 +308,7 @@ lv_PUBLIC_API int lv_error_line(lvErrorContext *ctx);
  */
 #define lv_ERROR_CTX_RETURN_NEG1(ctx, code, ...) \
     do { \
-        lv_error_set(ctx, code, __VA_ARGS__); \
+        lv_error_set_at(ctx, code, __FILE__, __LINE__, __func__, __VA_ARGS__); \
         return -1; \
     } while(0)
 

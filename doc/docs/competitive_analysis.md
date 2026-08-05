@@ -1,4 +1,4 @@
-﻿# Lv-00 竞品分析与生态定位
+# Lv-00 竞品分析与生态定位
 
 > 本文档记录了 Lv-00 项目在几何计算、形式化验证、自动证明等交叉领域的竞品调研结果，
 > 明确了 Lv-00 在生态中的独特定位，以及从各标杆项目中可借鉴的设计理念。
@@ -451,7 +451,6 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 | P3 | clifford | flat array 存储 | `include/lv/geometry_types.h`（已借鉴 flat array 策略） | ✅ 已有 |
 | P3 | **mathlib4 EuclideanGeometry** | Lean 4 几何形式化最佳实践 | `include/lv/euclidean_geometry.h`（441行：5公理组/5几何谓词/等价性验证/14 API） | ✅ 落地 |
 | P3 | **MathLive** | Web 数学公式输入 UX | `include/lv/math_input.h`（391行：3输入模式/5键盘布局/20+几何宏/自动补全/18 API） | ✅ 落地 |
-| P3 | **CortexJS / MathJSON** | 结构性数学中间表示 | `include/lv/math_protocol.h`（402行：32表达式类型/MathJSON序列化/可扩展字典/14 API） | ✅ 落地 |
 | P4 | OpenGeometry Group | 联盟共建生态 | `include/lv/ecosystem.h`（527行：包注册表/兼容性矩阵/Docker一键体验/生态统计/16 API） | ✅ 落地 |
 | P4 | **Arend** | 路径类型语法 / HoTT 直觉 | `include/lv/path_type.h`（341行：区间I/6路径类型/coe消去/路径拼接/15 API） | ✅ 落地 |
 | P4 | **Singular / Macaulay2** | Gröbner 基计算 / 环声明范式 | `include/lv/groebner_engine.h`（461行：多项式环/F4-F5算法/理想/代数簇/24 API） | ✅ 落地 |

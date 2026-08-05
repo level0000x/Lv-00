@@ -168,6 +168,69 @@ bool lv_error_set_with_cause(lvErrorContext *ctx, int code,
     return false;
 }
 
+/**
+ * @brief 带调用位置的错误设置（修复 lv_error_set 系列不填 file/func/line 的缺陷）
+ *
+ * 供 lv_error.h 的 lv_ERROR_CTX_RETURN 系列宏使用：宏内展开 __FILE__/__LINE__/__func__，
+ * 使新式帧栈获得真实的位置信息（此前恒为 NULL/0，format_chain 输出 [?:0]）。
+ */
+bool lv_error_set_at(lvErrorContext *ctx, int code, const char *file, int line, const char *func,
+                     const char *format, ...)
+{
+    if (!ctx) return false;
+
+    ensure_context_initialized(ctx);
+
+    lvErrorFrame *frame = push_frame(ctx, code);
+    if (!frame) return false;
+
+    frame->file = file;
+    frame->func = func;
+    frame->line = line;
+    frame->code = code;
+
+    /* 格式化错误消息 */
+    if (format) {
+        va_list args;
+        va_start(args, format);
+        vsnprintf(frame->message, lv_ERROR_MSG_MAX, format, args);
+        va_end(args);
+    }
+
+    return false;
+}
+
+/**
+ * @brief 从旧式错误体系推入帧（桥接入口）
+ *
+ * 旧式 lv_RETURN_ERROR 宏系经 lv_set_error_ctx/lv_set_error 设置错误时，
+ * 由 error_codes.c 调用本函数把同一错误（含位置）推入新式 TLS 帧栈，
+ * 使全部旧写端零改动获得 8 帧回溯、cause 链与根因优先输出能力。
+ * 两个错误体系从此连通为单一错误模块。
+ *
+ * @param code    错误码（与旧式 g_last_error_code 同值）
+ * @param file    源文件名（可为 NULL）
+ * @param line    行号（可为 0）
+ * @param func    函数名（可为 NULL）
+ * @param message 已格式化的错误消息（可为 NULL）
+ * @return true 成功，false 帧栈已满
+ */
+bool lv_error_push(lvErrorCode code, const char *file, int line, const char *func,
+                   const char *message)
+{
+    lvErrorContext *ctx = lv_error_context_current();
+    lvErrorFrame *frame = push_frame(ctx, code);
+    if (!frame) return false;
+
+    frame->file = file;
+    frame->func = func;
+    frame->line = line;
+    frame->code = code;
+    if (message)
+        lv_strlcpy(frame->message, message, sizeof(frame->message));
+    return true;
+}
+
 int lv_error_code(lvErrorContext *ctx)
 {
     if (!ctx || ctx->frame_count <= 0) return lv_OK;
@@ -225,14 +288,16 @@ char *lv_error_format_chain(lvErrorContext *ctx)
         int line = frame->line;
 
         int written;
+        /* 补全错误码名称（接回旧式权威错误表），提升可读性 */
+        const char *name = lv_error_name(frame->code);
         if (i == 0) {
             written = snprintf(result + pos, total_size - pos,
-                "[%s:%d] %s: %s (code=%d)",
-                file, line, func, frame->message, frame->code);
+                "[%s:%d] %s: %s (code=%d, %s)",
+                file, line, func, frame->message, frame->code, name ? name : "?");
         } else {
             written = snprintf(result + pos, total_size - pos,
-                "\n  caused by -> [%s:%d] %s: %s (code=%d)",
-                file, line, func, frame->message, frame->code);
+                "\n  caused by -> [%s:%d] %s: %s (code=%d, %s)",
+                file, line, func, frame->message, frame->code, name ? name : "?");
         }
 
         if (written > 0 && (size_t)written < total_size - pos) {

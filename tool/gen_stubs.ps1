@@ -1,4 +1,4 @@
-﻿# Batch-generate stub .c source files for CMake build
+# Batch-generate stub .c source files for CMake build
 # Run: powershell -File gen_stubs.ps1
 
 $base = Split-Path $PSScriptRoot -Parent
@@ -7,7 +7,6 @@ $files = @(
     'core/src/layer1_parser/formula_converter.c',
     'core/src/layer1_parser/lexer_shared.c',
     'core/src/layer1_parser/math_input.c',
-    'core/src/layer2_resource/cache_manager.c',
     'core/src/layer2_resource/debug_trace.c',
     'core/src/layer2_resource/error_messages_cn.c',
     'core/src/layer2_resource/geometry_config.c',

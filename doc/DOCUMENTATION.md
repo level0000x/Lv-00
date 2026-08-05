@@ -245,7 +245,6 @@ Lv-00 具有双重语言特性：
 | `runtime_guard` | 运行时安全守卫（熔断机制、超时控制） |
 | `context` | 隔离上下文系统 |
 | `cross_platform` | 跨平台抽象 |
-| `cache_manager` | LRU 对象缓存 |
 | `global_state` | 全局状态管理 |
 | `debug_trace` | 调试追踪系统 |
 | `config` | 集中化配置系统（`lv_CONFIG_*` 前缀） |
@@ -735,7 +734,6 @@ core/src/
 │   ├── memory_pool.c           #   内存池
 │   ├── runtime_guard.c         #   运行时守卫
 │   ├── context.c               #   上下文管理
-│   ├── cache_manager.c          #   缓存管理
 │   ├── global_state.c          #   全局状态
 │   ├── config.c                #   配置系统
 │   ├── debug_trace.c           #   调试追踪

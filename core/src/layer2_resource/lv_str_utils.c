@@ -288,8 +288,7 @@ bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, con
 /**
  * @brief JSON 转义字符 → 转义对字符串 查找表（按 ASCII 下标，NULL 表示非简单转义，走控制字符逻辑）
  *
- * lv_str_escape_json（strbuf 追加版）与 lv_str_json_escape（裸缓冲版）共用此唯一查找表，
- * 保证两 API 转义行为完全一致（含 \b/\f，避免控制字符原样输出破坏 JSON）。
+ * lv_str_json_escape 使用此唯一查找表（含 \b/\f，避免控制字符原样输出破坏 JSON）。
  */
 static const char *const s_json_escape_pairs[256] = {
     ['"']  = "\\\"",
@@ -309,25 +308,6 @@ static const char *const s_str_escape_xml_entities[256] = {
     ['"']  = "&quot;",
     ['\''] = "&apos;",
 };
-
-void lv_str_escape_json(lvStrBuf *sb, const char *str, size_t len) {
-    if (!sb || !str) return;
-    for (size_t i = 0; i < len; i++) {
-        unsigned char c = (unsigned char) str[i];
-        /* 查找表：转义字符 → 转义对字符串；未命中（NULL）走 default */
-        const char *pair = s_json_escape_pairs[c];
-        if (pair) {
-            lv_strbuf_printf(sb, "%s", pair);
-        } else {
-            /* default：其他控制字符 \u00XX，其余原样输出 */
-            if (c < 0x20) {
-                lv_strbuf_printf(sb, "\\u%04x", c);
-            } else {
-                lv_strbuf_append_n(sb, (char) c, 1);
-            }
-        }
-    }
-}
 
 void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len) {
     if (!sb || !str) return;

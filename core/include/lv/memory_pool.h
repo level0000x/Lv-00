@@ -1,13 +1,14 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：内存池系统 (memory_pool)
- * 功能概述：提供三种高性能内存管理策略：固定大小对象池、线性分配器
- *          和 LRU 对象缓存。旨在减少内存碎片、提高分配速度，
+ * 功能概述：提供高性能内存管理策略：固定大小对象池。
+ *          旨在减少内存碎片、提高分配速度，
  *          支持内存使用统计和线程安全（可选）。
+ *          说明：线性分配器（lvLinearAllocator）已移除，由 lv_arena
+ *          （支持自定义对齐）承接；LRU 对象缓存（lvObjectCache）已移除，
+ *          缓存职责由 cache_manager 模块承担。
  *
  * 主要 API：
  *   - lv_pool_create / alloc / free / destroy  — 固定大小对象池
- *   - lv_linear_allocator_create / alloc / reset — 线性分配器
- *   - lv_cache_create / get / remove / destroy  — LRU 对象缓存
  *   - lv_mem_register_type / record_alloc/free  — 全局内存统计
  *   - lv_init_preset_pools / cleanup            — 预定义对象池
  *
@@ -44,16 +45,6 @@ extern "C" {
 #define lv_POOL_DEFAULT_CAPACITY 1024
 #endif
 
-/** 线性分配器默认块大小 (64KB) */
-#ifndef lv_LINEAR_ALLOCATOR_BLOCK_SIZE
-#define lv_LINEAR_ALLOCATOR_BLOCK_SIZE (64 * 1024)
-#endif
-
-/** LRU 缓存默认容量 */
-#ifndef lv_LRU_CACHE_DEFAULT_CAPACITY
-#define lv_LRU_CACHE_DEFAULT_CAPACITY 256
-#endif
-
 /** 内存统计最大追踪类型数 */
 #ifndef lv_MEM_STAT_MAX_TYPES
 #define lv_MEM_STAT_MAX_TYPES 64
@@ -62,8 +53,6 @@ extern "C" {
 /* ============== 前向声明 ============== */
 
 typedef struct lvObjectPool lvObjectPool;
-typedef struct lvLinearAllocator lvLinearAllocator;
-typedef struct lvObjectCache lvObjectCache;
 typedef struct lvMemoryStats lvMemoryStats;
 
 /* ============== 对象池（固定大小） ============== */
@@ -122,116 +111,6 @@ void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t 
  * @param pool 对象池
  */
 void lv_pool_clear(lvObjectPool *pool);
-
-/* ============== 线性分配器 ============== */
-
-/**
- * @brief 创建线性分配器
- * @param block_size 每个内存块的大小（字节）
- * @return 新创建的线性分配器，失败返回 NULL
- */
-lvLinearAllocator *lv_linear_allocator_create(size_t block_size);
-
-/**
- * @brief 销毁线性分配器
- * @param allocator 线性分配器指针
- */
-void lv_linear_allocator_destroy(lvLinearAllocator *allocator);
-
-/**
- * @brief 从线性分配器分配内存
- * @param allocator 线性分配器
- * @param size 分配大小
- * @param alignment 对齐要求（必须为 2 的幂，0 表示默认对齐）
- * @return 内存指针，失败返回 NULL
- */
-void *lv_linear_alloc(lvLinearAllocator *allocator, size_t size, size_t alignment);
-
-/**
- * @brief 重置线性分配器（释放所有分配，保留内存块）
- * @param allocator 线性分配器
- */
-void lv_linear_allocator_reset(lvLinearAllocator *allocator);
-
-/**
- * @brief 获取线性分配器内存使用统计
- * @param allocator 线性分配器
- * @param out_total_blocks 输出：总块数
- * @param out_used_bytes 输出：已使用字节数
- * @param out_capacity_bytes 输出：总容量字节数
- */
-void lv_linear_allocator_get_stats(const lvLinearAllocator *allocator, size_t *out_total_blocks, size_t *out_used_bytes,
-                                   size_t *out_capacity_bytes);
-
-/* ============== 对象缓存（LRU） ============== */
-
-/**
- * @brief 对象缓存键类型
- */
-typedef uint64_t lvCacheKey;
-
-/**
- * @brief 对象创建回调
- * @param key 对象键
- * @param user_data 用户数据
- * @return 新创建的对象
- */
-typedef void *(*lvCacheCreateFunc)(lvCacheKey key, void *user_data);
-
-/**
- * @brief 对象销毁回调
- * @param obj 对象指针
- * @param user_data 用户数据
- */
-typedef void (*lvCacheDestroyFunc)(void *obj, void *user_data);
-
-/**
- * @brief 创建对象缓存
- * @param capacity 最大容量
- * @param create_func 创建回调
- * @param destroy_func 销毁回调
- * @param user_data 用户数据
- * @return 新创建的对象缓存，失败返回 NULL
- */
-lvObjectCache *lv_cache_create(size_t capacity, lvCacheCreateFunc create_func, lvCacheDestroyFunc destroy_func,
-                               void *user_data);
-
-/**
- * @brief 销毁对象缓存
- * @param cache 对象缓存指针
- */
-void lv_cache_destroy(lvObjectCache *cache);
-
-/**
- * @brief 从缓存获取对象
- * @param cache 对象缓存
- * @param key 对象键
- * @return 对象指针，不存在则自动创建
- */
-void *lv_cache_get(lvObjectCache *cache, lvCacheKey key);
-
-/**
- * @brief 从缓存移除对象
- * @param cache 对象缓存
- * @param key 对象键
- * @return 是否成功移除
- */
-bool lv_cache_remove(lvObjectCache *cache, lvCacheKey key);
-
-/**
- * @brief 清空缓存
- * @param cache 对象缓存
- */
-void lv_cache_clear(lvObjectCache *cache);
-
-/**
- * @brief 获取缓存统计信息
- * @param cache 对象缓存
- * @param out_hits 输出：命中次数
- * @param out_misses 输出：未命中次数
- * @param out_current_size 输出：当前大小
- */
-void lv_cache_get_stats(const lvObjectCache *cache, uint64_t *out_hits, uint64_t *out_misses, size_t *out_current_size);
 
 /* ============== 全局内存统计 ============== */
 

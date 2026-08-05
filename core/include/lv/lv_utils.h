@@ -272,69 +272,6 @@ lv_PUBLIC_API int lv_snprintf(char *buf, size_t size, const char *fmt, ...);
  * ============================================================ */
 
 /**
- * @brief 动态数组结构
- */
-typedef struct {
-    void **data;         /* 元素指针数组 */
-    size_t count;        /* 当前元素数 */
-    size_t capacity;     /* 容量 */
-    size_t elem_size;    /* 元素大小（用于值类型数组） */
-    bool store_pointers; /* 是否存储指针 */
-} lvArray;
-
-/**
- * @brief 创建动态数组
- * @param initial_capacity 初始容量
- * @param elem_size 元素大小（值类型数组使用，指针数组传0）
- * @return 动态数组对象
- */
-lv_PUBLIC_API lvArray *lv_array_create(size_t initial_capacity, size_t elem_size);
-
-/**
- * @brief 销毁动态数组
- * @param arr 数组对象
- * @param free_elements 是否同时释放元素
- */
-lv_PUBLIC_API void lv_array_destroy(lvArray *arr, bool free_elements);
-
-/**
- * @brief 添加元素到数组
- * @param arr 数组对象
- * @param elem 元素指针
- * @return 是否成功
- */
-lv_PUBLIC_API bool lv_array_push(lvArray *arr, void *elem);
-
-/**
- * @brief 从数组移除元素
- * @param arr 数组对象
- * @param index 索引
- * @param free_elem 是否释放元素
- * @return 是否成功
- */
-lv_PUBLIC_API bool lv_array_remove(lvArray *arr, size_t index, bool free_elem);
-
-/**
- * @brief 获取数组元素
- */
-lv_PUBLIC_API void *lv_array_get(const lvArray *arr, size_t index);
-
-/**
- * @brief 设置数组元素
- */
-lv_PUBLIC_API bool lv_array_set(lvArray *arr, size_t index, void *elem);
-
-/**
- * @brief 清空数组
- */
-lv_PUBLIC_API void lv_array_clear(lvArray *arr, bool free_elements);
-
-/**
- * @brief 数组排序
- */
-void lv_array_sort(lvArray *arr, int (*cmp)(const void *, const void *));
-
-/**
  * @brief 通用插入排序（小数组，n 通常很小）
  * @param base 数组起始地址
  * @param n    元素个数
@@ -387,11 +324,6 @@ static inline void lv_mask_clear(unsigned *mask, unsigned bit) {
 static inline bool lv_mask_test(unsigned mask, unsigned bit) {
     return (mask & (1u << bit)) != 0;
 }
-
-/**
- * @brief 在数组中查找元素
- */
-lv_PUBLIC_API int lv_array_find(const lvArray *arr, const void *elem);
 
 /* ============================================================
  * 整数数组便捷操作

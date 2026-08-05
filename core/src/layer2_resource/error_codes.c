@@ -18,6 +18,7 @@
 
 #include "lv.h"
 #include "lv_internal.h"
+#include "lv/lv_error.h"
 
 /* 命名常量 */
 #define lv_ERROR_MSG_BUFFER_SIZE 512   /**< 线程局部错误消息缓冲区大小 */
@@ -324,6 +325,10 @@ void lv_set_error(lvErrorCode code, const char *format, ...) {
     g_error_file[0] = '\0';
     g_error_line = 0;
     g_error_func[0] = '\0';
+
+    /* 桥接：同步推入新式帧栈（无位置信息；lv_OK 日志通道帧跳过） */
+    if (code != lv_OK)
+        lv_error_push(code, NULL, 0, NULL, g_error_message);
 }
 
 void lv_set_error_ctx(lvErrorCode code, const char *file, int line, const char *func, const char *format, ...) {
@@ -346,6 +351,10 @@ void lv_set_error_ctx(lvErrorCode code, const char *file, int line, const char *
     } else {
         lv_strlcpy(g_error_message, lv_error_string(code), lv_ERROR_MSG_BUFFER_SIZE);
     }
+
+    /* 桥接：同步推入新式帧栈（lv_OK 是日志通道帧，跳过），旧写端零改动获得链式追踪 */
+    if (code != lv_OK)
+        lv_error_push(code, file, line, func, g_error_message);
 }
 
 /**
@@ -358,6 +367,8 @@ void lv_clear_error(void) {
     g_error_file[0] = '\0';
     g_error_line = 0;
     g_error_func[0] = '\0';
+    /* 桥接：同步清空新式帧栈，两套状态保持一致 */
+    lv_error_clear(lv_error_context_current());
 }
 
 /**

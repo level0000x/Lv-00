@@ -1,6 +1,6 @@
 /**
  * @file lv_utils_array.c
- * @brief lvArray 与 IntArray 动态数组
+ * @brief IntArray 整数动态数组工具
  *
  * @details 从 lv_utils.c 拆分的子模块（Lv-00 项目 v3.3.0+）。
  *
@@ -26,62 +26,15 @@
 #include "lv_internal.h"
 
 /* ============================================================
- * 动态数组
+ * 数组通用工具
  * ============================================================ */
-
-lvArray *lv_array_create(size_t initial_capacity, size_t elem_size) {
-    /* 修复：验证 elem_size，避免后续操作中出现除零或无意义的零大小元素 */
-    if (elem_size == 0)
-        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "array_create elem_size 为 0");
-
-    lvArray *arr = lv_calloc(1, sizeof(lvArray));
-    if (!arr)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "array_create calloc 失败");
-
-    arr->count = 0;
-    arr->capacity = initial_capacity > 0 ? initial_capacity : lv_INITIAL_ARRAY_CAPACITY;
-    arr->elem_size = elem_size;
-    arr->store_pointers = false; /* 修复：elem_size 已验证非零，不再需要 store_pointers 回退逻辑 */
-
-    arr->data = lv_calloc(arr->capacity, sizeof(void *));
-    if (!arr->data) {
-        /* 修复：lv_calloc 失败时释放已分配的 arr，防止资源泄漏 */
-        lv_free((void **) &arr);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "array_create data calloc 失败");
-    }
-
-    return arr;
-}
-
-/** 释放数组中所有元素（free_elements=true 时的公共循环体） */
-static void lv_array_free_elements(lvArray *arr) {
-    if (!arr->data)
-        return;
-    for (size_t i = 0; i < arr->count; i++) {
-        if (arr->data[i]) {
-            lv_free((void **) &arr->data[i]);
-        }
-    }
-}
-
-void lv_array_destroy(lvArray *arr, bool free_elements) {
-    if (!arr)
-        return;
-
-    if (free_elements) {
-        lv_array_free_elements(arr);
-    }
-
-    lv_free((void **) &arr->data);
-    lv_free((void **) &arr);
-}
 
 /**
  * @brief 统一「倍增直到不小于 min_capacity」扩容算法
  *
- * lvArray 与 IntArray 共用的扩容核心：按 lv_ARRAY_GROWTH_FACTOR 倍增直到满足
+ * IntArray 的扩容核心：按 lv_ARRAY_GROWTH_FACTOR 倍增直到满足
  * 最小容量，含两步溢出检查（倍增值、分配大小）与统一的失败语义。
- * zero_new 为 true 时清零新分配区域（lvArray 依赖 NULL 初始化的槽位）。
+ * zero_new 为 true 时清零新分配区域。
  */
 static bool array_grow_to_fit(void **data, size_t *capacity, size_t min_capacity,
                               size_t elem_size, bool zero_new) {
@@ -115,77 +68,6 @@ static bool array_grow_to_fit(void **data, size_t *capacity, size_t min_capacity
     *data = new_data;
     *capacity = new_capacity;
     return true;
-}
-
-static bool lv_array_ensure_capacity(lvArray *arr, size_t min_capacity) {
-    if (!arr)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "ensure_capacity arr 为 NULL");
-    return array_grow_to_fit((void **) &arr->data, &arr->capacity, min_capacity, sizeof(void *), true);
-}
-
-bool lv_array_push(lvArray *arr, void *elem) {
-    if (!arr)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "array_push arr 为 NULL");
-
-    if (!lv_array_ensure_capacity(arr, arr->count + 1)) {
-        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "array_push 扩容失败");
-    }
-
-    arr->data[arr->count++] = elem;
-    return true;
-}
-
-bool lv_array_remove(lvArray *arr, size_t index, bool free_elem) {
-    if (!arr)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "array_remove arr 为 NULL");
-    if (index >= arr->count)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_INDEX_OUT_OF_RANGE, "array_remove 索引越界");
-
-    if (free_elem && arr->data[index]) {
-        lv_free((void **) &arr->data[index]);
-    }
-
-    /* 移动后续元素 */
-    for (size_t i = index; i < arr->count - 1; i++) {
-        arr->data[i] = arr->data[i + 1];
-    }
-    arr->count--;
-    arr->data[arr->count] = NULL;
-
-    return true;
-}
-
-void *lv_array_get(const lvArray *arr, size_t index) {
-    if (!arr || index >= arr->count)
-        return NULL;
-    return arr->data[index];
-}
-
-bool lv_array_set(lvArray *arr, size_t index, void *elem) {
-    if (!arr)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "array_set arr 为 NULL");
-    if (index >= arr->count)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_INDEX_OUT_OF_RANGE, "array_set 索引越界");
-    arr->data[index] = elem;
-    return true;
-}
-
-void lv_array_clear(lvArray *arr, bool free_elements) {
-    if (!arr)
-        return;
-
-    if (free_elements) {
-        lv_array_free_elements(arr);
-    }
-
-    memset(arr->data, 0, arr->capacity * sizeof(void *));
-    arr->count = 0;
-}
-
-void lv_array_sort(lvArray *arr, int (*cmp)(const void *, const void *)) {
-    if (!arr || !cmp || arr->count < 2)
-        return;
-    qsort(arr->data, arr->count, sizeof(void *), cmp);
 }
 
 void lv_insertion_sort(void *base, size_t n, size_t elem_size,
@@ -237,16 +119,6 @@ void lv_shift_left(void *base, size_t elem_size, size_t index, size_t count) {
         memmove((char *) base + index * elem_size, (char *) base + (index + 1) * elem_size,
                 (count - index - 1) * elem_size);
     }
-}
-
-int lv_array_find(const lvArray *arr, const void *elem) {
-    if (!arr)
-        return -1;
-    for (size_t i = 0; i < arr->count; i++) {
-        if (arr->data[i] == elem)
-            return (int) i;
-    }
-    return -1;
 }
 
 /* ============================================================

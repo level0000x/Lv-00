@@ -153,14 +153,6 @@ bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, con
 /* ===== 字符串转义 ===== */
 
 /**
- * @brief 对字符串进行 JSON 转义并追加到 lvStrBuf
- * @param sb  目标 lvStrBuf（追加模式）
- * @param str 要转义的源字符串
- * @param len 源字符串长度
- */
-void lv_str_escape_json(lvStrBuf *sb, const char *str, size_t len);
-
-/**
  * @brief 对字符串进行 XML 转义并追加到 lvStrBuf
  * @param sb  目标 lvStrBuf（追加模式）
  * @param str 要转义的源字符串

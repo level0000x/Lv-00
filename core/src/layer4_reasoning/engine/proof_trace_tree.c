@@ -563,18 +563,23 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
             type_idx = 0;
 
         /* label 做 DOT 转义（DOT 字符串语法与 JSON 兼容），防引号/反斜杠注入 */
-        lvStrBuf esc = {0};
-        lv_str_escape_json(&esc, node->label ? node->label : "", node->label ? strlen(node->label) : 0);
+        const char *label = node->label[0] ? node->label : "";
+        size_t label_len = strlen(label);
+        size_t need = lv_str_json_escape(label, label_len, NULL, 0);
+        char *esc = (char *)lv_malloc(need + 1);
+        if (esc) {
+            lv_str_json_escape(label, label_len, esc, need + 1);
+        }
         fprintf(fp,
                 "    n%d [shape=%s, style=filled, fillcolor=%s, "
                 "label=\"%s\\n[%s]\"];\n",
-                node->id, node_shapes[type_idx], node_colors[type_idx], esc.data,
+                node->id, node_shapes[type_idx], node_colors[type_idx], esc ? esc : "",
                 node->status == TRACE_STATUS_PROVED      ? "proved"
                 : node->status == TRACE_STATUS_DISPROVED ? "disproved"
                 : node->status == TRACE_STATUS_EXPLORING ? "exploring"
                 : node->status == TRACE_STATUS_BLOCKED   ? "blocked"
                                                          : "unexplored");
-        lv_strbuf_destroy(&esc);
+        lv_free((void **)&esc);
     }
 
     fprintf(fp, "\n");
@@ -637,12 +642,32 @@ char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
         lv_strbuf_printf(&buf, "      \"id\": %u,\n", node->id);
         lv_strbuf_printf(&buf, "      \"type\": %d,\n", (int) node->type);
         lv_strbuf_printf(&buf, "      \"status\": %d,\n", (int) node->status);
-        lv_strbuf_printf(&buf, "      \"label\": ");
-        lv_str_escape_json(&buf, node->label ? node->label : "", node->label ? strlen(node->label) : 0);
-        lv_strbuf_printf(&buf, ",\n");
-        lv_strbuf_printf(&buf, "      \"description\": ");
-        lv_str_escape_json(&buf, node->description ? node->description : "", node->description ? strlen(node->description) : 0);
-        lv_strbuf_printf(&buf, ",\n");
+        lv_strbuf_printf(&buf, "      \"label\": \"");
+        {
+            const char *s = node->label[0] ? node->label : "";
+            size_t slen = strlen(s);
+            size_t need = lv_str_json_escape(s, slen, NULL, 0);
+            char *esc = (char *)lv_malloc(need + 1);
+            if (esc) {
+                lv_str_json_escape(s, slen, esc, need + 1);
+            }
+            lv_strbuf_printf(&buf, "%s", esc ? esc : "");
+            lv_free((void **)&esc);
+        }
+        lv_strbuf_printf(&buf, "\",\n");
+        lv_strbuf_printf(&buf, "      \"description\": \"");
+        {
+            const char *s = node->description[0] ? node->description : "";
+            size_t slen = strlen(s);
+            size_t need = lv_str_json_escape(s, slen, NULL, 0);
+            char *esc = (char *)lv_malloc(need + 1);
+            if (esc) {
+                lv_str_json_escape(s, slen, esc, need + 1);
+            }
+            lv_strbuf_printf(&buf, "%s", esc ? esc : "");
+            lv_free((void **)&esc);
+        }
+        lv_strbuf_printf(&buf, "\",\n");
         lv_strbuf_printf(&buf, "      \"depth\": %d,\n", node->depth);
         lv_strbuf_printf(&buf, "      \"child_count\": %d,\n", node->children.count);
         lv_strbuf_printf(&buf, "      \"elapsed_ms\": %.3f\n", node->elapsed_ms);

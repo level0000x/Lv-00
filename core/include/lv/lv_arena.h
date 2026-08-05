@@ -68,6 +68,11 @@ void lv_arena_destroy(lvArena *arena);
 // 返回对齐到 8 字节的内存指针
 void *lv_arena_alloc(lvArena *arena, size_t size);
 
+// 从竞技场分配内存（自定义对齐）
+// alignment: 对齐要求（必须为 2 的幂，0 表示默认 8 字节对齐）
+// 返回按 alignment 对齐的内存指针
+void *lv_arena_alloc_aligned(lvArena *arena, size_t size, size_t alignment);
+
 // 从竞技场分配并清零内存
 void *lv_arena_calloc(lvArena *arena, size_t size);
 

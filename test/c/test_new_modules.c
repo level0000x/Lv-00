@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "geometry_transform.h"
+#include "lv/lv_arena.h"
 #include "lv/lv_log.h"
 #include "memory_pool.h"
 #include "runtime_monitor.h"
@@ -76,30 +77,30 @@ lv_TEST(MemoryPool, AutoGrow) {
     lv_pool_destroy(pool);
 }
 
-lv_TEST(MemoryPool, LinearAllocator) {
-    lvLinearAllocator *alloc = lv_linear_allocator_create(1024);
-    lv_ASSERT_NOT_NULL(alloc);
+lv_TEST(MemoryPool, ArenaAllocator) {
+    lvArena *arena = lv_arena_create(1024, false);
+    lv_ASSERT_NOT_NULL(arena);
 
-    /* 分配内存 */
-    void *p1 = lv_linear_alloc(alloc, 100, 8);
+    /* 分配内存（自定义对齐） */
+    void *p1 = lv_arena_alloc_aligned(arena, 100, 8);
     lv_ASSERT_NOT_NULL(p1);
+    lv_ASSERT_EQ(0, (size_t) p1 % 8);
 
-    void *p2 = lv_linear_alloc(alloc, 200, 16);
+    void *p2 = lv_arena_alloc_aligned(arena, 200, 16);
     lv_ASSERT_NOT_NULL(p2);
+    lv_ASSERT_EQ(0, (size_t) p2 % 16);
 
-    /* 重置 */
-    lv_linear_allocator_reset(alloc);
+    /* 重置（arena 语义：释放全部块，回到初始状态） */
+    lv_arena_reset(arena);
 
     /* 再次分配 */
-    void *p3 = lv_linear_alloc(alloc, 50, 8);
+    void *p3 = lv_arena_alloc_aligned(arena, 50, 8);
     lv_ASSERT_NOT_NULL(p3);
 
     /* 统计 */
-    size_t blocks, used, capacity;
-    lv_linear_allocator_get_stats(alloc, &blocks, &used, &capacity);
-    lv_ASSERT_EQ(1ULL, blocks);
+    lv_ASSERT_EQ(1, lv_arena_block_count(arena));
 
-    lv_linear_allocator_destroy(alloc);
+    lv_arena_destroy(arena);
 }
 
 /* ============== 几何变换测试 ============== */

@@ -29,17 +29,6 @@
  * 命题的实例化
  * ------------------------------------------------------------------------- */
 
-/* ---------------------------------------------------------------------------
- * 命题的实例化
- * ------------------------------------------------------------------------- */
-
-static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
-    /* 统一委托公共深拷贝入口 graph_copy（保 ID + vtable clone + fixup_refs）。
-     * 旧五阶段 ID 重映射实现会重分配节点 ID，而调用方 unify_instantiate_proposition
-     * 按原始 ID 查找节点，旧实现仅当新 ID 与原 ID 巧合时才能命中，存在隐性缺陷。 */
-    return graph_copy(src);
-}
-
 /**
  * @brief 实例化命题图中的多态类型变量
  *
@@ -90,9 +79,9 @@ bool unify_instantiate_proposition(ConstraintGraph *proposition, int type_var_no
     *out_instantiated = NULL;
 
     /* 深拷贝命题图 */
-    ConstraintGraph *inst = deep_copy_graph(proposition);
+    ConstraintGraph *inst = graph_copy(proposition);
     if (!inst)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "unify_instantiate_proposition: deep_copy_graph failed");
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "unify_instantiate_proposition: graph_copy failed");
 
     /* 查找类型变量节点 */
     GeomNode *type_var_node = NULL;

@@ -11,7 +11,7 @@
  * 6. 有界分配（请求过大内存，应失败）
  * 7. 追踪分配（带文件/行号追踪的分配）
  * 8. 资源追踪器（追踪多个资源，统一清理）
- * 9. 线性分配器（创建、分配、重置、销毁）
+ * 9. 竞技场分配器 lv_arena（创建、对齐分配、重置、销毁）
  * 10. 几何配置的线程安全（顺序 set/get 验证）
  */
 
@@ -22,6 +22,7 @@
 
 #include "geometry_config.h"
 #include "lv.h"
+#include "lv/lv_arena.h"
 #include "lv_utils.h"
 #include "memory_pool.h"
 #include "test_helpers.h"
@@ -319,41 +320,40 @@ static void test_resource_tracker(void) {
 }
 
 /* ============================================================
- * 测试 9：线性分配器
+ * 测试 9：竞技场分配器（lv_arena，承接原线性分配器语义）
  * ============================================================ */
 
 static void test_linear_allocator(void) {
-    /* 创建 */
-    lvLinearAllocator *la = lv_linear_allocator_create(4096);
+    /* 创建（lv_arena 替代已移除的 lvLinearAllocator） */
+    lvArena *la = lv_arena_create(4096, false);
     TEST_ASSERT_NOT_NULL(la);
 
-    /* 分配 */
-    void *p1 = lv_linear_alloc(la, 128, 16);
+    /* 分配（自定义对齐） */
+    void *p1 = lv_arena_alloc_aligned(la, 128, 16);
     TEST_ASSERT_NOT_NULL(p1);
+    TEST_ASSERT((size_t) p1 % 16 == 0, "16 字节对齐应满足");
 
-    void *p2 = lv_linear_alloc(la, 256, 16);
+    void *p2 = lv_arena_alloc_aligned(la, 256, 16);
     TEST_ASSERT_NOT_NULL(p2);
+    TEST_ASSERT((size_t) p2 % 16 == 0, "16 字节对齐应满足");
 
     /* p2 应在 p1 之后 */
     TEST_ASSERT((char *) p2 > (char *) p1, "后续分配地址应递增");
 
     /* 统计 */
-    size_t total_blocks = 0, used_bytes = 0, capacity_bytes = 0;
-    lv_linear_allocator_get_stats(la, &total_blocks, &used_bytes, &capacity_bytes);
-    TEST_ASSERT(total_blocks >= 1, "至少应有 1 个内存块");
-    TEST_ASSERT(used_bytes >= 384, "已使用字节数应 >= 384 (128+256)");
+    TEST_ASSERT(lv_arena_total_used(la) >= 384, "已使用字节数应 >= 384 (128+256)");
+    TEST_ASSERT(lv_arena_block_count(la) >= 1, "至少应有 1 个内存块");
 
-    /* 重置 */
-    lv_linear_allocator_reset(la);
-    lv_linear_allocator_get_stats(la, &total_blocks, &used_bytes, &capacity_bytes);
-    TEST_ASSERT(used_bytes == 0, "重置后已使用字节数应为 0");
+    /* 重置（arena 语义：释放全部块，回到初始状态） */
+    lv_arena_reset(la);
+    TEST_ASSERT(lv_arena_total_used(la) == 0, "重置后已使用字节数应为 0");
 
     /* 重置后可重新分配 */
-    void *p3 = lv_linear_alloc(la, 64, 16);
+    void *p3 = lv_arena_alloc_aligned(la, 64, 16);
     TEST_ASSERT_NOT_NULL(p3);
 
     /* 销毁 */
-    lv_linear_allocator_destroy(la);
+    lv_arena_destroy(la);
 }
 
 /* ============================================================

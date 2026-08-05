@@ -405,6 +405,181 @@ static int traverse_all_components(ConstraintGraph *graph,
     return lv_OK;
 }
 
+/**
+ * @brief 按拓扑序（或逆拓扑序）回调节点（拓扑遍历核心循环）
+ *
+ * 第一段按 lv_graph_topological_sort 输出的节点顺序（逆拓扑则反序）回调；
+ * 第二段按数组序补访拓扑序未覆盖的节点 —— 拓扑排序仅覆盖活跃节点，
+ * 当 skip_disabled=false 时 disabled 节点不会出现在拓扑序中，需补访以保证
+ * 全图节点均被回调。拓扑遍历没有分层的概念，depth 统一为 0。
+ * visitor 返回 lv_TRAVERSAL_STOP 时立即终止整个遍历。
+ *
+ * @param reachable 若非 NULL，仅回调该数组中标记为 true 的节点
+ *                  （lv_graph_traverse_from 的起点可达性过滤）
+ */
+static int topological_traverse(ConstraintGraph *graph, bool *visited, int visited_size,
+                                const int *order, int count, bool reverse,
+                                const bool *reachable,
+                                lvGraphNodeVisitor visitor, void *user_data,
+                                const lvGraphTraversalConfig *config) {
+    /* 第一段：按拓扑序（或逆拓扑序）回调 */
+    for (int i = 0; i < count; i++) {
+        int idx = reverse ? (count - 1 - i) : i;
+        int nid = order[idx];
+        if (nid < 0 || nid >= visited_size || visited[nid])
+            continue;
+        if (reachable && !reachable[nid])
+            continue;
+        if (should_skip_node(graph, nid, config))
+            continue;
+        visited[nid] = true;
+        GeomNode *node = graph_get_node(graph, nid);
+        if (!node)
+            continue;
+        lvTraversalResult tr = visitor(node, 0, user_data);
+        if (tr == lv_TRAVERSAL_STOP)
+            return lv_OK;
+    }
+
+    /* 第二段：补访拓扑序未覆盖的节点（skip_disabled=false 时的 disabled 节点等） */
+    for (int j = 0; j < graph->node_count; j++) {
+        GeomNode *node = graph->nodes[j];
+        if (!node)
+            continue;
+        int nid = node->id;
+        if (nid < 0 || nid >= visited_size || visited[nid])
+            continue;
+        if (reachable && !reachable[nid])
+            continue;
+        if (should_skip_node(graph, nid, config))
+            continue;
+        visited[nid] = true;
+        lvTraversalResult tr = visitor(node, 0, user_data);
+        if (tr == lv_TRAVERSAL_STOP)
+            break;
+    }
+    return lv_OK;
+}
+
+/**
+ * @brief 全图拓扑（或逆拓扑）遍历：lv_graph_traverse 的拓扑分支
+ *
+ * 拓扑语义说明：该图是约束超图 —— 每个约束连接其全部参与者（超边），
+ * 拓扑排序基于约束参与者之间的"星型近似"依赖（参与者索引高的节点依赖
+ * 索引低的节点，见 lv_graph_topological_sort），并非有向边意义的偏序。
+ * 因此此处按 Kahn 算法输出的全图节点顺序依次回调，depth 统一为 0。
+ * 若图含环，lv_graph_topological_sort 返回 lv_ERROR_INVALID_STATE，本函数
+ * 原样向上传递该错误（拓扑序在含环图上无定义，不再降级为 DFS 前序）。
+ */
+static int topological_order_traverse(ConstraintGraph *graph, bool *visited, int visited_size,
+                                      lvGraphNodeVisitor visitor, void *user_data,
+                                      const lvGraphTraversalConfig *config) {
+    int *order = NULL;
+    int count = 0;
+    int result = lv_graph_topological_sort(graph, &order, &count);
+    if (result != lv_OK)
+        return result;
+
+    bool reverse = (config->order == lv_TRAVERSAL_REVERSE_TOPOLOGICAL);
+    result = topological_traverse(graph, visited, visited_size, order, count, reverse,
+                                  NULL, visitor, user_data, config);
+
+    lv_free((void **)&order);
+    return result;
+}
+
+/**
+ * @brief 从 start_id 出发标记所有可达节点（无向超边邻居语义，与 BFS/DFS 一致）
+ *
+ * 用于 lv_graph_traverse_from 的拓扑分支：拓扑序是全局序，需要按"从起点可达"
+ * 过滤，以保持与 BFS/DFS 相同的起点语义。
+ * @return lv_OK 成功；内存不足返回错误码（此时 reachable 状态不可靠，调用方应中止）
+ */
+static int mark_reachable_from(ConstraintGraph *graph, int start_id,
+                               bool *reachable, int reachable_size,
+                               const lvGraphTraversalConfig *config) {
+    if (start_id < 0 || start_id >= reachable_size)
+        return lv_OK;
+    if (reachable[start_id])
+        return lv_OK;
+    if (should_skip_node(graph, start_id, config))
+        return lv_OK;
+
+    int stack_cap = 64;
+    int *stack = (int *)lv_malloc((size_t)stack_cap * sizeof(int));
+    if (!stack)
+        return lv_ERROR_OUT_OF_MEMORY;
+
+    int top = 0;
+    stack[top++] = start_id;
+    reachable[start_id] = true;
+
+    int result = lv_OK;
+    while (top > 0) {
+        int nid = stack[--top];
+        int neighbors[256];
+        int ncount = find_neighbors(graph, nid, neighbors, 256, config);
+        for (int i = 0; i < ncount; i++) {
+            int nb = neighbors[i];
+            if (nb < 0 || nb >= reachable_size || reachable[nb])
+                continue;
+            if (should_skip_node(graph, nb, config))
+                continue;
+            reachable[nb] = true;
+            if (top >= stack_cap) {
+                if (!lv_ensure_capacity((void **)&stack, top, &stack_cap, sizeof(int), 0)) {
+                    result = lv_ERROR_OUT_OF_MEMORY;
+                    goto cleanup;
+                }
+            }
+            stack[top++] = nb;
+        }
+    }
+
+cleanup:
+    lv_free((void **)&stack);
+    return result;
+}
+
+/**
+ * @brief lv_graph_traverse_from 的拓扑分支：从指定节点按拓扑（或逆拓扑）序遍历
+ *
+ * visit_all=true 时输出全图拓扑序（与 lv_graph_traverse 的拓扑分支一致）；
+ * 否则仅输出从 start_node_id 可达的节点（按全局拓扑序过滤后的顺序回调）。
+ */
+static int traverse_from_topological(ConstraintGraph *graph, int start_node_id,
+                                     bool *visited, int visited_size,
+                                     lvGraphNodeVisitor visitor, void *user_data,
+                                     const lvGraphTraversalConfig *config) {
+    int *order = NULL;
+    int count = 0;
+    int result = lv_graph_topological_sort(graph, &order, &count);
+    if (result != lv_OK)
+        return result;
+
+    bool reverse = (config->order == lv_TRAVERSAL_REVERSE_TOPOLOGICAL);
+
+    if (config->visit_all) {
+        result = topological_traverse(graph, visited, visited_size, order, count, reverse,
+                                      NULL, visitor, user_data, config);
+    } else {
+        bool *reachable = (bool *)lv_calloc((size_t)visited_size, sizeof(bool));
+        if (!reachable) {
+            lv_free((void **)&order);
+            return lv_ERROR_OUT_OF_MEMORY;
+        }
+        result = mark_reachable_from(graph, start_node_id, reachable, visited_size, config);
+        if (result == lv_OK) {
+            result = topological_traverse(graph, visited, visited_size, order, count, reverse,
+                                          reachable, visitor, user_data, config);
+        }
+        lv_free((void **)&reachable);
+    }
+
+    lv_free((void **)&order);
+    return result;
+}
+
 /* ============================================================
  * 图遍历 API 实现
  * ============================================================ */
@@ -430,7 +605,14 @@ int lv_graph_traverse(ConstraintGraph *graph,
 
     int result = lv_OK;
 
-    if (config->visit_all) {
+    if (config->order == lv_TRAVERSAL_TOPOLOGICAL ||
+        config->order == lv_TRAVERSAL_REVERSE_TOPOLOGICAL) {
+        /* 拓扑序（或逆拓扑序）：全图序遍历。
+         * 拓扑序是全局序，天然覆盖全部活跃节点，visit_all 不再有意义；
+         * skip_disabled=false 时由补访逻辑兜底 disabled 节点。 */
+        result = topological_order_traverse(graph, visited, visited_size,
+                                            visitor, user_data, config);
+    } else if (config->visit_all) {
         /* 遍历所有连通分量 */
         result = traverse_all_components(graph, visited, visited_size,
                                           visitor, user_data, config);
@@ -486,18 +668,27 @@ int lv_graph_traverse_from(ConstraintGraph *graph, int start_node_id,
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_graph_traverse_from: visited alloc failed");
 
     int result;
-    if (config->order == lv_TRAVERSAL_BFS) {
+    if (config->order == lv_TRAVERSAL_TOPOLOGICAL ||
+        config->order == lv_TRAVERSAL_REVERSE_TOPOLOGICAL) {
+        /* 拓扑分支：内部自行处理 visit_all 与起点可达性语义 */
+        result = traverse_from_topological(graph, start_node_id, visited, visited_size,
+                                           visitor, user_data, config);
+    } else if (config->order == lv_TRAVERSAL_BFS) {
         result = bfs_traverse_from(graph, start_node_id, visited, visited_size,
                                     visitor, user_data, config, 0);
+        /* 如果 visit_all，遍历其余未访问的节点 */
+        if (result == lv_OK && config->visit_all) {
+            result = traverse_all_components(graph, visited, visited_size,
+                                              visitor, user_data, config);
+        }
     } else {
         result = dfs_traverse_from(graph, start_node_id, visited, visited_size,
                                     visitor, user_data, config, 0);
-    }
-
-    /* 如果 visit_all，遍历其余未访问的节点 */
-    if (result == lv_OK && config->visit_all) {
-        result = traverse_all_components(graph, visited, visited_size,
-                                          visitor, user_data, config);
+        /* 如果 visit_all，遍历其余未访问的节点 */
+        if (result == lv_OK && config->visit_all) {
+            result = traverse_all_components(graph, visited, visited_size,
+                                              visitor, user_data, config);
+        }
     }
 
     lv_free((void **)&visited);

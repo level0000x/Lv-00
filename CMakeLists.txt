@@ -512,7 +512,6 @@ set(lv_HEADERS
     core/include/lv/sha256.h
     # v3.7.0 新增头文件（原 Pending header additions）
     core/include/lv/autodiff.h
-    core/include/lv/cache_manager.h
     core/include/lv/conflict_detector.h
     core/include/lv/ga_codegen.h
     core/include/lv/ga_interface.h
@@ -740,8 +739,7 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_mempool_utils.c
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
-    # 补全遗漏文件：缓存管理、全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息
-    core/src/layer2_resource/cache_manager.c
+    # 补全遗漏文件：全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息
     # 泛型容器：哈希表和二叉堆
     core/src/layer2_resource/lv_hashtable.c
     core/src/layer2_resource/lv_heap.c

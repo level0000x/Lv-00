@@ -14,6 +14,7 @@
 
 #include "lv/adaptive_threshold.h"
 #include "lv/lv.h"
+#include "lv/lv_graph_traversal.h"
 #include "lv/lv_thread.h"
 
 #include <float.h>
@@ -133,83 +134,57 @@ static void threshold_mutex_init_func(void) {
  * ================================================================ */
 
 /**
+ * @brief 连通分量计数回调数据
+ *
+ * lv_graph_traverse 的回调拿不到"新分量开始"事件，但 visit_all 模式下
+ * 每个连通分量的起始节点 depth == 0（其余节点 depth >= 1），
+ * 因此统计 depth == 0 的回调次数即为连通分量数。
+ */
+typedef struct {
+    int components; /**< depth==0 回调次数，即连通分量数 */
+} ConnectedComponentCounter;
+
+/** @brief 连通分量计数访问器：depth==0 即新分量的起始节点 */
+static lvTraversalResult count_components_visitor(GeomNode *node, int depth, void *user_data) {
+    (void)node;
+    ConnectedComponentCounter *counter = (ConnectedComponentCounter *)user_data;
+    if (depth == 0)
+        counter->components++;
+    return lv_TRAVERSAL_CONTINUE;
+}
+
+/**
  * @brief BFS 计算连通分量数
  *
  * 将图中每个约束视为连接其所有参与者的一条超边，
- * 连通分量定义为通过约束可达的节点集合。
+ * 连通分量定义为通过活跃约束可达的节点集合。
+ *
+ * 复用 lv_graph_traverse（BFS + visit_all + skip_disabled=false）：
+ * 与原手写 BFS 语义等价 —— 均以活跃约束为超边、对全部节点（含 disabled）
+ * 划分连通分量。visited 语义采用 lv 的按 node->id 索引（get_max_node_id
+ * 取 max(node_count, next_node_id)）；节点 id 与数组下标在删除节点或
+ * 反序列化（graph_add_node_with_id 指定 ID）后可能错位，但分量划分只依赖
+ * 约束参与者关系，与索引方式无关，两种实现计数结果一致。
  */
 static int count_connected_components(const ConstraintGraph *graph) {
     if (!graph || graph->node_count == 0)
         return 0;
 
-    int n = graph->node_count;
+    /* BFS + visit_all：遍历所有连通分量；
+     * skip_disabled=false：lvGraphTraversal 默认跳过 disabled 节点，
+     * 原实现不跳过，须在配置中显式关闭。 */
+    lvGraphTraversalConfig cfg = lv_GRAPH_TRAVERSAL_DEFAULT_CONFIG;
+    cfg.order = lv_TRAVERSAL_BFS;
+    cfg.max_depth = 0;
+    cfg.visit_all = true;
+    cfg.reverse_edges = false;
+    cfg.skip_disabled = false;
 
-    /* 构建 node_id → 索引 映射的快速查找表 */
-    /* 使用 graph 的 node_index 作为查找 */
-    /* 为每个节点分配一个 visited 标记 */
-    int *visited = (int *) lv_calloc((size_t) n, sizeof(int));
-    if (!visited)
-        return 0;
-
-    /* 为 BFS 分配队列 */
-    int *queue = (int *) lv_malloc((size_t) n * sizeof(int));
-    if (!queue) {
-        lv_free((void **) &visited);
-        return 0;
-    }
-
-    int components = 0;
-
-    for (int i = 0; i < n; i++) {
-        if (visited[i])
-            continue;
-        components++;
-
-        /* BFS from node i */
-        int qhead = 0, qtail = 0;
-        queue[qtail++] = i;
-        visited[i] = 1;
-
-        while (qhead < qtail) {
-            int cur = queue[qhead++];
-            int cur_id = graph->nodes[cur]->id;
-
-            /* 遍历所有约束，找包含当前节点的约束 */
-            for (int c = 0; c < graph->constraint_count; c++) {
-                const Constraint *con = graph->constraints[c];
-                if (!con || !con->is_active)
-                    continue;
-
-                /* 检查当前节点是否为该约束的参与者 */
-                int has_cur = 0;
-                for (int p = 0; p < con->participant_count; p++) {
-                    if (con->participants[p] == cur_id) {
-                        has_cur = 1;
-                        break;
-                    }
-                }
-                if (!has_cur)
-                    continue;
-
-                /* 将该约束的所有参与者加入队列 */
-                for (int p = 0; p < con->participant_count; p++) {
-                    int pid = con->participants[p];
-                    /* 查找 pid 对应的数组索引 */
-                    for (int j = 0; j < n; j++) {
-                        if (graph->nodes[j] && graph->nodes[j]->id == pid && !visited[j]) {
-                            visited[j] = 1;
-                            queue[qtail++] = j;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    lv_free((void **) &queue);
-    lv_free((void **) &visited);
-    return components;
+    ConnectedComponentCounter counter = {0};
+    int err = lv_graph_traverse((ConstraintGraph *)graph, count_components_visitor, &counter, &cfg);
+    if (err != lv_OK)
+        return 0; /* 与原有分配失败返回 0 的行为一致 */
+    return counter.components;
 }
 
 /* ================================================================
