@@ -29,24 +29,6 @@ uint32_t compute_graph_hash(ConstraintGraph *graph);
 /* 聚合公共 API 头 */
 #include "lv/lv.h"
 
-/**
- * @brief 检测重写循环：计算当前图哈希并与历史记录比较
- *
- * @param graph         约束图指针
- * @param history_hashes 历史哈希值数组
- * @param history_count  历史哈希值数量
- * @return true 检测到循环，false 无循环
- */
-static bool detect_rewrite_loop(ConstraintGraph *graph, int *history_hashes, int history_count) {
-    uint32_t current_hash = compute_graph_hash(graph);
-    for (int i = 0; i < history_count; i++) {
-        if (history_hashes[i] == current_hash) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /* ===========================================================================
  * VF2 子图同构匹配算法
  *

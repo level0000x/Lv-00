@@ -213,6 +213,25 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src);
  */
 void type_region_deep_free(TypeRegion *tr);
 
+/**
+ * @brief 遍历 TypeRegion 的全部子类型节点字段
+ *
+ * 子类型节点字段的唯一清单来源（9 个 TypeRegion* 指针字段）：
+ * input_type / output_type / left_type / right_type / first_type / second_type /
+ * body_type / aliased_type / base_type。
+ * type_region_deep_copy / type_region_deep_free / type_print 等均以此清单为准，
+ * 避免各处各自维护字段清单导致分叉（曾漏拷/漏释放 predicate_* 与 base_type）。
+ *
+ * @note 本迭代器只遍历 TypeRegion* 子节点字段，不涉及字符串字段
+ *       （variable_name / alias_name / predicate_name / predicate_expr）
+ *       与数组字段（contained_node_ids / constraint_ids）。
+ *
+ * @param tr  类型区域（可为 NULL，此时不调用回调）
+ * @param cb  回调，签名 void (*cb)(TypeRegion *child, void *ctx)，child 可能为 NULL
+ * @param ctx 透传上下文（可为 NULL）
+ */
+void type_region_foreach_child(const TypeRegion *tr, void (*cb)(TypeRegion *child, void *ctx), void *ctx);
+
 /* ============== 类型等价检查结果 ============== */
 typedef enum {
     TYPE_EQUIV_OK,               /* 类型等价 */

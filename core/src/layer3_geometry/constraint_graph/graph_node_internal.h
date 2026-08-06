@@ -27,6 +27,10 @@ void node_index_remove(ConstraintGraph *graph, int node_id);
 /* graph_index.c 实现，供 alloc 模块反序列化复用 */
 bool graph_constraint_assign_participants(Constraint *con, const int *participants, int count);
 
+/* graph_index.c 实现：按约束类型分发到 typed graph_add_*（收敛 rewrite/module 三处平行分发） */
+AddConstraintResult graph_add_constraint_dispatch(ConstraintGraph *graph, ConstraintType type,
+                                                  const int *participants, int count, double numeric_value);
+
 /* graph_index.c 实现：统一节点释放路径（含内部字段与 vtable->free），
  * 供 conflict 模块回滚等释放场景复用，避免绕过统一释放路径 */
 void node_destroy(GeomNode *node);

@@ -75,6 +75,27 @@ uint32_t compute_graph_hash(ConstraintGraph *graph) {
     return (int) h;
 }
 
+/**
+ * @brief 检测重写循环：判断当前图哈希是否在历史中出现过
+ *
+ * 计算当前约束图的结构哈希值，与历史哈希记录逐一比对。
+ * 若匹配则说明图状态已出现过，形成重写循环。
+ *
+ * @param graph          当前约束图指针
+ * @param history_hashes 历史哈希值数组
+ * @param history_count  历史记录数量
+ * @return true 表示检测到循环，false 表示未检测到
+ */
+bool detect_rewrite_loop(ConstraintGraph *graph, const int *history_hashes, int history_count) {
+    uint32_t current_hash = compute_graph_hash(graph);
+    for (int i = 0; i < history_count; i++) {
+        if (history_hashes[i] == current_hash) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* ===========================================================================
  * WL 图核哈希（公开接口）
  *

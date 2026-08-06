@@ -29,7 +29,6 @@ extern lv_THREAD_LOCAL StreamContext *debug_stream_ctx;
 #define lv_DEBUG_TRACE_INITIAL_CAPACITY 64
 #define lv_DEBUG_EMPTY_JSON_BUF_SIZE 32
 #define lv_DEBUG_JSON_INITIAL_CAPACITY 1024
-#define lv_EMERGENCY_LOG_BUFFER_SIZE 256
 
 /* ---- shared global state ---- */
 typedef struct DebugState {
@@ -52,11 +51,6 @@ typedef struct DebugState {
     /* 环形日志缓冲区 */
     lvLogRingBuffer *log_ring_buffer;                 /**< 环形日志缓冲区指针 */
     int log_ring_buffer_capacity;                     /**< 环形日志缓冲区容量 */
-
-    /* 紧急保存日志缓冲区 */
-    char *log_buffer[lv_EMERGENCY_LOG_BUFFER_SIZE];   /**< 紧急日志缓冲条目 */
-    int log_buffer_head;                              /**< 环形缓冲头部索引 */
-    int log_buffer_count;                             /**< 缓冲中条目数 */
 
     /* 追踪会话 */
     TraceSession *trace_session;                      /**< 追踪会话指针 */
@@ -84,9 +78,6 @@ int create_directory(const char *path);
 void get_timestamp(char *buf, size_t size);
 void rotate_logs(void);
 void check_rotation(void);
-
-/* emergency buffer helper (defined in debug_emergency.c) */
-void log_buffer_append(const char *line);
 
 #ifdef __cplusplus
 }

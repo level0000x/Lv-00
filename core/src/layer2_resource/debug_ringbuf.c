@@ -95,6 +95,7 @@ void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level, const char *m
     lvLogEntry entry;
     entry.level = level;
     entry.timestamp_us = lv_get_time_us();
+    get_timestamp(entry.timestamp_str, sizeof(entry.timestamp_str));
     entry.module_name = module_name;
     entry.function_name = function_name;
     entry.file_name = file_name;

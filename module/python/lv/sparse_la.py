@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 稀疏线性代数模块
 
 提供稀疏线性代数后端的 Python 接口，借鉴 SuiteSparse/GraphBLAS
@@ -23,6 +23,7 @@ from typing import Any, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, _ConstraintGraph, c_int, c_double, c_char_p, c_void_p, c_bool, POINTER
 from .core import lvBaseError
+from ._ptr_owner import _PtrOwner, _call_truthy, _str_enc
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ class SparseLAError(lvBaseError):
 # SparseMatrix 类
 # ============================================================
 
-class SparseMatrix:
+class SparseMatrix(_PtrOwner):
     """稀疏矩阵包装类。
 
     封装 CSR/CSC/COO 格式的稀疏矩阵。
@@ -125,15 +126,8 @@ class SparseMatrix:
         self._ptr = _lib.sparse_matrix_create(rows, cols, fmt)
         if not self._ptr:
             raise SparseLAError(f"创建稀疏矩阵失败 ({rows}x{cols})")
-
-    def __del__(self) -> None:
-        """析构：释放稀疏矩阵资源。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.sparse_matrix_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.sparse_matrix_destroy, True)
 
     @classmethod
     def from_ptr(cls, ptr, owns: bool = True) -> 'SparseMatrix':
@@ -148,11 +142,10 @@ class SparseMatrix:
         """
         # 尝试获取矩阵维度信息（从已知属性推断）
         mat = cls.__new__(cls)
-        mat._ptr = ptr
+        _PtrOwner.__init__(mat, ptr, _lib.sparse_matrix_destroy, owns)
         mat.rows = 0
         mat.cols = 0
         mat.fmt = SparseFormat.CSR
-        mat._owns = owns
         return mat
 
     def clone(self) -> 'SparseMatrix':
@@ -181,7 +174,7 @@ class SparseMatrix:
         """
         if self._ptr is None:
             raise SparseLAError("矩阵已释放，无法打印")
-        c_name = name.encode('utf-8') if name else None
+        c_name = _str_enc(name) if name else None
         _lib.sparse_matrix_print(self._ptr, c_name)
 
 

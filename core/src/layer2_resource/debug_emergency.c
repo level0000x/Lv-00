@@ -37,32 +37,6 @@
 /* 全局紧急保存处理器 (线程局部) */
 static lv_THREAD_LOCAL EmergencySaveHandler g_emergency_handler = NULL;
 
-/* 日志缓冲区：保存最近的日志条目用于紧急保存 */
-
-/* 在 debug_log 中追加日志到缓冲区。
- * 注意：调用者（debug_log）在调用此函数前必须已持有 log_lock()，
- * 因此此函数本身不再加锁，以避免死锁。
- * 若从非 debug_log 路径调用，需确保外部已加锁。 */
-void log_buffer_append(const char *line) {
-    if (!line)
-        return;
-    /* 修复：使用 lv_strdup_safe 替代 strdup，统一使用项目内存管理函数 */
-    char *copy = lv_strdup_safe(line);
-    if (!copy)
-        return;
-
-    /* 环形缓冲区：覆盖最旧的条目 */
-    if (s_debug_state.log_buffer[s_debug_state.log_buffer_head]) {
-        /* 修复：使用 lv_free 替代 free，统一内存释放 */
-        lv_free((void **) &s_debug_state.log_buffer[s_debug_state.log_buffer_head]);
-    }
-    s_debug_state.log_buffer[s_debug_state.log_buffer_head] = copy;
-    s_debug_state.log_buffer_head = (s_debug_state.log_buffer_head + 1) % lv_EMERGENCY_LOG_BUFFER_SIZE;
-    if (s_debug_state.log_buffer_count < lv_EMERGENCY_LOG_BUFFER_SIZE) {
-        s_debug_state.log_buffer_count++;
-    }
-}
-
 void debug_set_emergency_handler(EmergencySaveHandler handler) {
     g_emergency_handler = handler;
 }
@@ -80,11 +54,8 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
         return false;
 
     /* 写入时间戳 */
-    time_t now = time(NULL);
-    struct tm tm_buf;
-    lv_LOCALTIME(&now, &tm_buf);
     char time_buf[lv_DEBUG_TIMESTAMP_BUF_SIZE];
-    strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_buf);
+    get_timestamp(time_buf, sizeof(time_buf));
     fprintf(f, "=== Lv-00 Emergency Save ===\n");
     fprintf(f, "Timestamp: %s\n\n", time_buf);
 
@@ -109,17 +80,19 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
         fprintf(f, "\n");
     }
 
-    /* 写入日志缓冲区（最近的 N 条日志） */
+    /* 写入日志缓冲区（最近 N 条日志，由环形日志缓冲区导出，格式与原 log_buffer 一致） */
     if (config && config->include_log_buffer) {
-        fprintf(f, "[Recent Log Buffer (%d entries)]\n", s_debug_state.log_buffer_count);
-        /* 按时间顺序输出：从最旧到最新 */
-        int start =
-            (s_debug_state.log_buffer_head - s_debug_state.log_buffer_count + lv_EMERGENCY_LOG_BUFFER_SIZE) % lv_EMERGENCY_LOG_BUFFER_SIZE;
-        for (int i = 0; i < s_debug_state.log_buffer_count; i++) {
-            int idx = (start + i) % lv_EMERGENCY_LOG_BUFFER_SIZE;
-            if (s_debug_state.log_buffer[idx]) {
-                fprintf(f, "%s", s_debug_state.log_buffer[idx]);
+        int count = 0;
+        lvLogEntry *entries = lv_log_ring_buffer_export(s_debug_state.log_ring_buffer, &count);
+        fprintf(f, "[Recent Log Buffer (%d entries)]\n", count);
+        /* 按时间顺序输出：导出结果已按插入顺序排列（最旧在前） */
+        if (entries) {
+            for (int i = 0; i < count; i++) {
+                const char *mod = entries[i].module_name ? entries[i].module_name : "unknown";
+                fprintf(f, "[%s] [%s] [%s] %s\n", entries[i].timestamp_str,
+                        log_level_string(entries[i].level), mod, entries[i].message);
             }
+            lv_free((void **) &entries);
         }
         fprintf(f, "\n");
     }

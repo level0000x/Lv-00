@@ -44,6 +44,12 @@ from ._ctypes_binding import (
 # 此处使用 from . import 而非重复字面量，确保版本号单一来源。
 from . import __version__  # noqa: E402
 
+# 绑定层收敛公共辅助：生命周期管理（_PtrOwner）、错误码检查、ctypes 数据转换。
+# 见 _ptr_owner.py 的模块文档。
+from ._ptr_owner import (  # noqa: E402
+    _PtrOwner, _call_ok, _int_arr, _c_arr_to_list, _str_enc,
+)
+
 
 # ============================================================
 # 模块级工具函数
@@ -188,7 +194,7 @@ class lvSolverError(lvError):
 # SymbolicCoord 类
 # ============================================================
 
-class SymbolicCoord:
+class SymbolicCoord(_PtrOwner):
     """
     符号坐标类，Lv-00 精确几何计算的基础数值类型。
 
@@ -237,6 +243,9 @@ class SymbolicCoord:
         >>> print(a < b)                      # 比较 → True
         >>> print(a.to_double())              # 近似值 → 0.5
     """
+
+    # 析构失败时通过 logging 记录警告（保持原行为）
+    _PTR_LOG = "logging"
     
     def __init__(self, value: Union[Fraction, int, float, str, 'SymbolicCoord']) -> None:
         """
@@ -299,23 +308,8 @@ class SymbolicCoord:
         
         if not self._ptr:
             raise lvError("创建符号坐标失败")
-    
-    def __del__(self) -> None:
-        """
-        析构函数：释放 C 分配的内存。
-        
-        注意：解释器关闭时 _lib 可能已不可用，因此捕获所有异常。
-        使用 module-level 弱引用来确保安全性。
-        """
-        try:
-            if hasattr(self, '_ptr') and self._ptr is not None:
-                _lib.symbolic_coord_destroy(self._ptr)
-                self._ptr = None
-        except Exception as e:
-            # 解释器关闭时模块可能已被垃圾回收，此时静默忽略
-            # 其他情况通过 logging 记录警告，避免使用 print 直接输出到 stderr
-            if not _is_interpreter_shutting_down():
-                logging.warning("SymbolicCoord 析构失败：%s", e)
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.symbolic_coord_destroy, True)
     
     def __repr__(self) -> str:
         """
@@ -1363,7 +1357,7 @@ class GeomNode:
 # NormalizationResult 类
 # ============================================================
 
-class NormalizationResult:
+class NormalizationResult(_PtrOwner):
     """
     图规范化操作的结果封装类。
 
@@ -1392,6 +1386,9 @@ class NormalizationResult:
         >>> # result 内部已包含合并统计信息
     """
     
+    # 析构失败时打印到 stderr（保持原行为）
+    _PTR_LOG = "stderr"
+
     def __init__(self, ptr: Any) -> None:
         """
         内部构造函数。
@@ -1399,7 +1396,7 @@ class NormalizationResult:
         参数：
             ptr: 底层 C 指针（POINTER(_NormalizationResult)）
         """
-        self._ptr = ptr
+        _PtrOwner.__init__(self, ptr, _lib.normalization_result_destroy, True)
 
     @property
     def merged_count(self) -> int:
@@ -1486,24 +1483,13 @@ class NormalizationResult:
         except Exception:
             logger.debug("Property access failed", exc_info=True)
             return False
-    
-    def __del__(self) -> None:
-        """析构函数：释放 C 分配的内存。"""
-        try:
-            if hasattr(self, '_ptr') and self._ptr is not None:
-                _lib.normalization_result_destroy(self._ptr)
-                self._ptr = None
-        except Exception as e:
-            if not _is_interpreter_shutting_down():
-                import sys
-                print(f"[lv] 警告：NormalizationResult 析构失败：{e}", file=sys.stderr)
 
 
 # ============================================================
 # Graph 类
 # ============================================================
 
-class Graph:
+class Graph(_PtrOwner):
     """
     约束图类，Lv-00 几何构造的核心数据结构。
 
@@ -1540,6 +1526,9 @@ class Graph:
         >>> print(g.get_node_count())         # 节点总数
         >>> print(g.to_dsl())                 # 导出为 DSL 文本
     """
+
+    # 析构失败时打印到 stderr（保持原行为）
+    _PTR_LOG = "stderr"
     
     def __init__(self) -> None:
         """
@@ -1556,6 +1545,8 @@ class Graph:
         self._ptr = _lib.graph_create()
         if not self._ptr:
             raise lvLibraryError("创建约束图失败")
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.graph_destroy, True)
         self._points: List[Point] = []
         self._segments: List[LineSegment] = []
         self._regions: List[int] = []
@@ -1568,19 +1559,6 @@ class Graph:
         # 不取代 C 层 graph_get_node_count() 的权威 ID 管理。
         # 同步策略：初始化时从 C 层获取当前节点数作为基线。
         self._next_id = _lib.graph_get_node_count(self._ptr)
-    
-    def __del__(self) -> None:
-        """
-        析构函数：释放 C 分配的内存。
-        """
-        try:
-            if hasattr(self, '_ptr') and self._ptr is not None:
-                _lib.graph_destroy(self._ptr)
-                self._ptr = None
-        except Exception as e:
-            if not _is_interpreter_shutting_down():
-                import sys
-                print(f"[lv] 警告：Graph 析构失败：{e}", file=sys.stderr)
     
     def __repr__(self) -> str:
         """
@@ -1645,7 +1623,7 @@ class Graph:
             exc_val: 异常值（无异常时为 None）
             exc_tb: 异常回溯（无异常时为 None）
         """
-        self.__del__()
+        self._release()
 
     def _sync_id_from_c(self) -> int:
         """
@@ -1709,9 +1687,8 @@ class Graph:
         coords[0] = point.x._ptr
         coords[1] = point.y._ptr
         
-        result = _lib.graph_add_point(self._ptr, coords, 2)
-        if result != ADD_NODE_OK:
-            raise lvConstraintError(f"添加点失败: 错误码 {result}")
+        _call_ok(_lib.graph_add_point, self._ptr, coords, 2,
+                 exc_cls=lvConstraintError, msg="添加点失败")
         
         point._id = self._next_id
         self._next_id += 1
@@ -1757,9 +1734,8 @@ class Graph:
         
         segment = LineSegment(p1, p2)
         
-        result = _lib.graph_add_line_segment(self._ptr, p1._id, p2._id)
-        if result != ADD_NODE_OK:
-            raise lvConstraintError(f"添加线段失败: 错误码 {result}")
+        _call_ok(_lib.graph_add_line_segment, self._ptr, p1._id, p2._id,
+                 exc_cls=lvConstraintError, msg="添加线段失败")
         
         segment._id = self._next_id
         self._next_id += 1
@@ -1776,10 +1752,9 @@ class Graph:
         返回：
             int: 区域节点 ID
         """
-        arr = (ctypes.c_int * len(boundary_segment_ids))(*boundary_segment_ids)
-        result = _lib.graph_add_region(self._ptr, arr, len(boundary_segment_ids))
-        if result != ADD_NODE_OK:
-            raise lvConstraintError(f"添加区域失败: 错误码 {result}")
+        arr = _int_arr(boundary_segment_ids)
+        _call_ok(_lib.graph_add_region, self._ptr, arr, len(boundary_segment_ids),
+                 exc_cls=lvConstraintError, msg="添加区域失败")
         
         region_id = self._next_id
         self._next_id += 1
@@ -1798,9 +1773,8 @@ class Graph:
         返回：
             int: 端口节点 ID
         """
-        result = _lib.graph_add_port(self._ptr, port_type, namespace_depth, parent_block_id)
-        if result != ADD_NODE_OK:
-            raise lvConstraintError(f"添加端口失败: 错误码 {result}")
+        _call_ok(_lib.graph_add_port, self._ptr, port_type, namespace_depth, parent_block_id,
+                 exc_cls=lvConstraintError, msg="添加端口失败")
         
         port_id = self._next_id
         self._next_id += 1
@@ -1871,17 +1845,17 @@ class Graph:
         异常：
             lvConstraintError: 添加失败
         """
-        internal_arr = (ctypes.c_int * len(internal_ids))(*internal_ids)
-        input_arr = (ctypes.c_int * len(input_ids))(*input_ids)
-        output_arr = (ctypes.c_int * len(output_ids))(*output_ids)
-        result = _lib.graph_add_function_block(
+        internal_arr = _int_arr(internal_ids)
+        input_arr = _int_arr(input_ids)
+        output_arr = _int_arr(output_ids)
+        _call_ok(
+            _lib.graph_add_function_block,
             self._ptr,
             internal_arr, len(internal_ids),
             input_arr, len(input_ids),
-            output_arr, len(output_ids)
+            output_arr, len(output_ids),
+            exc_cls=lvConstraintError, msg="添加函数块失败"
         )
-        if result != ADD_NODE_OK:
-            raise lvConstraintError(f"添加函数块失败: 错误码 {result}")
         block_id = self._next_id
         self._next_id += 1
         return block_id
@@ -1932,7 +1906,7 @@ class Graph:
         异常：
             lvConstraintError: 添加失败
         """
-        arr = (ctypes.c_int * len(participants))(*participants)
+        arr = _int_arr(participants)
         ptr = _lib.graph_add_constraint_with_id(
             self._ptr, constraint_id, constraint_type,
             arr, len(participants)
@@ -1967,8 +1941,8 @@ class Graph:
             List: 跨边界约束列表
         """
         from ._ctypes_binding import find_cross_boundary_constraints as _find_cross
-        internal_arr = (ctypes.c_int * len(internal_node_ids))(*internal_node_ids)
-        port_arr = (ctypes.c_int * len(port_ids))(*port_ids)
+        internal_arr = _int_arr(internal_node_ids)
+        port_arr = _int_arr(port_ids)
         out_count = ctypes.c_int()
         result_ptr = _find_cross(
             self._ptr, internal_arr, len(internal_node_ids),
@@ -1977,9 +1951,7 @@ class Graph:
         )
         if not result_ptr:
             return []
-        result = [result_ptr[i] for i in range(out_count.value)]
-        _lib.lv_free_ptr(result_ptr)
-        return result
+        return _c_arr_to_list(result_ptr, out_count.value, _lib.lv_free_ptr)
 
     def find_constraints_involving(self, node_id: int,
                                    max_results: int = 64) -> List[int]:
@@ -2030,7 +2002,7 @@ class Graph:
         异常：
             lvError: 反序列化失败
         """
-        b = json_str.encode('utf-8')
+        b = _str_enc(json_str)
         new_ptr = _lib.graph_deserialize_from_json(b)
         if not new_ptr:
             raise lvError("从 JSON 反序列化图失败")
@@ -2068,7 +2040,7 @@ class Graph:
         返回：
             int: 1 表示存在冗余，0 表示不存在，-1 表示错误
         """
-        arr = (ctypes.c_int * len(participants))(*participants)
+        arr = _int_arr(participants)
         return _lib.graph_detect_redundancy(
             self._ptr, constraint_type, arr, len(participants)
         )
@@ -2137,9 +2109,8 @@ class Graph:
             >>> p3 = g.add_point(2, 0)
             >>> g.add_incidence(p3._id, seg._id)  # p3 在线段 seg 上
         """
-        result = _lib.graph_add_incidence(self._ptr, point_id, line_or_region_id)
-        if result != ADD_CONSTRAINT_OK:
-            raise lvConstraintError(f"添加关联约束失败: 错误码 {result}")
+        _call_ok(_lib.graph_add_incidence, self._ptr, point_id, line_or_region_id,
+                 exc_cls=lvConstraintError, msg="添加关联约束失败")
     
     def add_betweenness(self, p1_id: int, p2_id: int, p3_id: int) -> None:
         """
@@ -2167,9 +2138,8 @@ class Graph:
             >>> p3 = g.add_point(2, 0)
             >>> g.add_betweenness(p1._id, p2._id, p3._id)  # p2 在 p1-p3 之间
         """
-        result = _lib.graph_add_betweenness(self._ptr, p1_id, p2_id, p3_id)
-        if result != ADD_CONSTRAINT_OK:
-            raise lvConstraintError(f"添加中间约束失败: 错误码 {result}")
+        _call_ok(_lib.graph_add_betweenness, self._ptr, p1_id, p2_id, p3_id,
+                 exc_cls=lvConstraintError, msg="添加中间约束失败")
     
     def add_intersection(self, line1_id: int, line2_id: int, 
                          result_point_id: int) -> None:
@@ -2201,9 +2171,8 @@ class Graph:
             >>> inter = g.add_point(2, 0)
             >>> g.add_intersection(seg1._id, seg2._id, inter._id)
         """
-        result = _lib.graph_add_intersection(self._ptr, line1_id, line2_id, result_point_id)
-        if result != ADD_CONSTRAINT_OK:
-            raise lvConstraintError(f"添加相交约束失败: 错误码 {result}")
+        _call_ok(_lib.graph_add_intersection, self._ptr, line1_id, line2_id, result_point_id,
+                 exc_cls=lvConstraintError, msg="添加相交约束失败")
     
     def add_containment(self, inner_id: int, outer_id: int) -> None:
         """
@@ -2223,9 +2192,8 @@ class Graph:
                                   - 内区域无法被外区域完全包含
                                   - 与已有约束冲突（如循环包含）
         """
-        result = _lib.graph_add_containment(self._ptr, inner_id, outer_id)
-        if result != ADD_CONSTRAINT_OK:
-            raise lvConstraintError(f"添加包含约束失败: 错误码 {result}")
+        _call_ok(_lib.graph_add_containment, self._ptr, inner_id, outer_id,
+                 exc_cls=lvConstraintError, msg="添加包含约束失败")
     
     def add_connection(self, src_port_id: int, dst_port_id: int) -> None:
         """
@@ -2245,9 +2213,8 @@ class Graph:
                                   - 端口类型不匹配（如输出→输出）
                                   - 连接与已有约束冲突
         """
-        result = _lib.graph_add_connection(self._ptr, src_port_id, dst_port_id)
-        if result != ADD_CONSTRAINT_OK:
-            raise lvConstraintError(f"添加连接约束失败: 错误码 {result}")
+        _call_ok(_lib.graph_add_connection, self._ptr, src_port_id, dst_port_id,
+                 exc_cls=lvConstraintError, msg="添加连接约束失败")
     
     # ============================================================
     # 规范化
@@ -2292,12 +2259,8 @@ class Graph:
         if not result_ptr:
             return []
         
-        try:
-            # 使用 try-finally 确保异常路径也能正确释放内存
-            redundant = [result_ptr[i] for i in range(count.value)]
-        finally:
-            _lib.lv_free_ptr(result_ptr)
-        return redundant
+        # _c_arr_to_list 内部以 try-finally 释放，与原模式一致
+        return _c_arr_to_list(result_ptr, count.value, _lib.lv_free_ptr)
     
     def detect_conflicts(self) -> Tuple[List[List[int]], List[int]]:
         """

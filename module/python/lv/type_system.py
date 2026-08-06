@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 类型系统模块
 
 提供类型系统的 Python 接口，支持宇宙层级、类型等价检查、类型推断。
@@ -29,6 +29,9 @@ from typing import Any, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, _ConstraintGraph, c_int, c_char_p, c_void_p, c_bool, POINTER
 from .core import lvBaseError
+from ._ptr_owner import (
+    _PtrOwner, _call_truthy, _int_arr, _c_arr_to_list, _str_enc,
+)
 
 __all__ = [
     "TypeKind", "TypeEquivResult", "TypeCheckResult",
@@ -130,7 +133,7 @@ class TypeSystemError(lvBaseError):
 # TypeRegion 类
 # ============================================================
 
-class TypeRegion:
+class TypeRegion(_PtrOwner):
     """类型区域包装类。
 
     表示类型系统中的一个类型区域节点，封装底层 C 指针。
@@ -148,17 +151,7 @@ class TypeRegion:
             ptr: 底层 C TypeRegion 指针
             owns: 是否拥有所有权（默认 True）
         """
-        self._ptr = ptr
-        self._owns_ptr: bool = owns
-
-    def __del__(self) -> None:
-        """析构：释放底层 C 类型区域资源。"""
-        if hasattr(self, '_ptr') and self._ptr and getattr(self, '_owns_ptr', False):
-            try:
-                _lib.type_region_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        _PtrOwner.__init__(self, ptr, _lib.type_region_destroy, owns)
 
     def add_alias(self, alias: str) -> bool:
         """添加类型别名。
@@ -169,7 +162,7 @@ class TypeRegion:
         返回:
             bool: 成功返回 True
         """
-        return _lib.type_add_alias(self._ptr, alias.encode('utf-8'))
+        return _lib.type_add_alias(self._ptr, _str_enc(alias))
 
     def get_level(self) -> int:
         """获取类型的宇宙层级。
@@ -184,7 +177,7 @@ class TypeRegion:
 # TypeSystem 类
 # ============================================================
 
-class TypeSystem:
+class TypeSystem(_PtrOwner):
     """类型系统上下文类。
 
     封装 Lv-00 类型系统的完整功能，包括类型区域管理、
@@ -203,15 +196,8 @@ class TypeSystem:
         self._ptr = _lib.type_system_create()
         if not self._ptr:
             raise TypeSystemError("创建类型系统失败")
-
-    def __del__(self) -> None:
-        """析构：释放类型系统资源。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.type_system_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.type_system_destroy, True)
 
     def set_well_founded(self, well_founded: bool) -> None:
         """设置良基模式。
@@ -237,9 +223,8 @@ class TypeSystem:
         返回:
             TypeRegion: 点类型区域
         """
-        ptr = _lib.type_create_point(self._ptr)
-        if not ptr:
-            raise TypeSystemError("创建点类型失败")
+        ptr = _call_truthy(_lib.type_create_point, self._ptr,
+                           exc_cls=TypeSystemError, msg="创建点类型失败")
         return TypeRegion(ptr)
 
     def create_line_segment(self) -> TypeRegion:
@@ -248,9 +233,8 @@ class TypeSystem:
         返回:
             TypeRegion: 线段类型区域
         """
-        ptr = _lib.type_create_line_segment(self._ptr)
-        if not ptr:
-            raise TypeSystemError("创建线段类型失败")
+        ptr = _call_truthy(_lib.type_create_line_segment, self._ptr,
+                           exc_cls=TypeSystemError, msg="创建线段类型失败")
         return TypeRegion(ptr)
 
     def create_region(self, contained_ids: List[int]) -> TypeRegion:
@@ -262,10 +246,9 @@ class TypeSystem:
         返回:
             TypeRegion: 区域类型区域
         """
-        arr = (c_int * len(contained_ids))(*contained_ids)
-        ptr = _lib.type_create_region(self._ptr, arr, len(contained_ids))
-        if not ptr:
-            raise TypeSystemError("创建区域类型失败")
+        arr = _int_arr(contained_ids)
+        ptr = _call_truthy(_lib.type_create_region, self._ptr, arr, len(contained_ids),
+                           exc_cls=TypeSystemError, msg="创建区域类型失败")
         return TypeRegion(ptr)
 
     def create_function(self, input_type: TypeRegion, output_type: TypeRegion) -> TypeRegion:
@@ -278,9 +261,8 @@ class TypeSystem:
         返回:
             TypeRegion: 函数类型区域
         """
-        ptr = _lib.type_create_function(self._ptr, input_type._ptr, output_type._ptr)
-        if not ptr:
-            raise TypeSystemError("创建函数类型失败")
+        ptr = _call_truthy(_lib.type_create_function, self._ptr, input_type._ptr, output_type._ptr,
+                           exc_cls=TypeSystemError, msg="创建函数类型失败")
         return TypeRegion(ptr)
 
     def create_product(self, left: TypeRegion, right: TypeRegion) -> TypeRegion:
@@ -293,9 +275,8 @@ class TypeSystem:
         返回:
             TypeRegion: 乘积类型区域
         """
-        ptr = _lib.type_create_product(self._ptr, left._ptr, right._ptr)
-        if not ptr:
-            raise TypeSystemError("创建乘积类型失败")
+        ptr = _call_truthy(_lib.type_create_product, self._ptr, left._ptr, right._ptr,
+                           exc_cls=TypeSystemError, msg="创建乘积类型失败")
         return TypeRegion(ptr)
 
     def create_sum(self, first: TypeRegion, second: TypeRegion) -> TypeRegion:
@@ -308,9 +289,8 @@ class TypeSystem:
         返回:
             TypeRegion: 和类型区域
         """
-        ptr = _lib.type_create_sum(self._ptr, first._ptr, second._ptr)
-        if not ptr:
-            raise TypeSystemError("创建和类型失败")
+        ptr = _call_truthy(_lib.type_create_sum, self._ptr, first._ptr, second._ptr,
+                           exc_cls=TypeSystemError, msg="创建和类型失败")
         return TypeRegion(ptr)
 
     def create_variable(self, name: str) -> TypeRegion:
@@ -322,9 +302,8 @@ class TypeSystem:
         返回:
             TypeRegion: 类型变量区域
         """
-        ptr = _lib.type_create_variable(self._ptr, name.encode('utf-8'))
-        if not ptr:
-            raise TypeSystemError("创建类型变量失败")
+        ptr = _call_truthy(_lib.type_create_variable, self._ptr, _str_enc(name),
+                           exc_cls=TypeSystemError, msg="创建类型变量失败")
         return TypeRegion(ptr)
 
     def create_dependent(self, param_id: int, body: TypeRegion) -> TypeRegion:
@@ -337,9 +316,8 @@ class TypeSystem:
         返回:
             TypeRegion: 依赖类型区域
         """
-        ptr = _lib.type_create_dependent(self._ptr, param_id, body._ptr)
-        if not ptr:
-            raise TypeSystemError("创建依赖类型失败")
+        ptr = _call_truthy(_lib.type_create_dependent, self._ptr, param_id, body._ptr,
+                           exc_cls=TypeSystemError, msg="创建依赖类型失败")
         return TypeRegion(ptr)
 
     def create_bottom(self) -> TypeRegion:
@@ -348,9 +326,8 @@ class TypeSystem:
         返回:
             TypeRegion: 底部类型区域
         """
-        ptr = _lib.type_create_bottom(self._ptr)
-        if not ptr:
-            raise TypeSystemError("创建底部类型失败")
+        ptr = _call_truthy(_lib.type_create_bottom, self._ptr,
+                           exc_cls=TypeSystemError, msg="创建底部类型失败")
         return TypeRegion(ptr)
 
     # ---- 宇宙层级 ----
@@ -595,7 +572,7 @@ class TypeSystem:
         """
         return _lib.type_system_register_inference_rule(
             self._ptr, source_node_type, target_type_kind, priority,
-            description.encode('utf-8'))
+            _str_enc(description))
 
     def clear_inference_rules(self) -> None:
         """清除所有自定义推断规则（恢复为默认规则集）。"""
@@ -650,7 +627,7 @@ class TypeSystem:
 # PathExplorer 类
 # ============================================================
 
-class PathExplorer:
+class PathExplorer(_PtrOwner):
     """路径探索器——交互式类型重写路径搜索。
 
     提供在 TypeSystem 中从当前类型区域探索到目标类型区域的
@@ -674,15 +651,8 @@ class PathExplorer:
         self._ptr = _lib.path_explorer_create(ts._ptr, current._ptr, target._ptr)
         if not self._ptr:
             raise TypeSystemError("创建路径探索器失败")
-
-    def __del__(self) -> None:
-        """析构：释放路径探索器资源。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.path_explorer_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.path_explorer_destroy, True)
 
     def get_applicable_rules(self) -> List[int]:
         """获取当前状态下可应用的规则列表。
@@ -695,9 +665,7 @@ class PathExplorer:
         _lib.path_explorer_get_applicable_rules(self._ptr, ctypes.byref(indices_ptr), ctypes.byref(count))
         if not indices_ptr or count.value == 0:
             return []
-        result = [indices_ptr[i] for i in range(count.value)]
-        _lib.lv_free_ptr(indices_ptr)
-        return result
+        return _c_arr_to_list(indices_ptr, count.value, _lib.lv_free_ptr)
 
     def preview_rule(self, rule_index: int) -> Optional[TypeRegion]:
         """预览规则应用效果（不修改状态）。

@@ -41,9 +41,10 @@ struct CommandLog {
  *  命令类型名称表
  * ════════════════════════════════════════════════════════════════ */
 
+/* 由 LV_COMMAND_TYPE_X 生成（[枚举] = "序列化名" 指定初始化器，与枚举值一一对应） */
 const char *g_command_type_names[CMD_COUNT] = {
-    "ADD_NODE",      "ADD_CONSTRAINT",  "REMOVE_NODE", "REMOVE_CONSTRAINT",
-    "PACK_FUNCTION", "NORMALIZE_GRAPH", "UNIFY",       "SET_NUMERIC_ASSUMPTION"};
+    lv_XMACRO_TO_NAME_ARRAY(LV_COMMAND_TYPE_X)
+};
 
 /* ════════════════════════════════════════════════════════════════
  *  辅助函数
@@ -428,35 +429,29 @@ bool command_log_replay_from(CommandLog *log, lvEngine *engine, int64_t from_seq
  *  JSON 序列化 —— 输出完整命令参数
  * ════════════════════════════════════════════════════════════════ */
 
-/** 输出一个 int 数组作为 JSON 数组（lvJsonBuf 版本） */
-static void json_buf_int_array(lvJsonBuf *buf, const int *arr, int count) {
-    lv_json_buf_append_char(buf, '[');
-    for (int i = 0; i < count; i++) {
-        if (i > 0)
-            lv_json_buf_append_raw(buf, ", ");
-        lv_json_buf_append_fmt(buf, "%d", arr[i]);
-    }
-    lv_json_buf_append_char(buf, ']');
+/** JSON 数组元素写出器：将单个元素格式化为 JSON 数值并追加 */
+typedef void (*JsonArrayElemWriter)(lvJsonBuf *buf, const void *elem);
+
+static void json_buf_elem_int(lvJsonBuf *buf, const void *elem) {
+    lv_json_buf_append_fmt(buf, "%d", *(const int *) elem);
 }
 
-/** 输出一个 double 数组作为 JSON 数组（lvJsonBuf 版本） */
-static void json_buf_double_array(lvJsonBuf *buf, const double *arr, int count) {
-    lv_json_buf_append_char(buf, '[');
-    for (int i = 0; i < count; i++) {
-        if (i > 0)
-            lv_json_buf_append_raw(buf, ", ");
-        lv_json_buf_append_fmt(buf, "%.17g", arr[i]);
-    }
-    lv_json_buf_append_char(buf, ']');
+static void json_buf_elem_double(lvJsonBuf *buf, const void *elem) {
+    lv_json_buf_append_fmt(buf, "%.17g", *(const double *) elem);
 }
 
-/** 输出一个 uint64_t 数组作为 JSON 数组（lvJsonBuf 版本） */
-static void json_buf_uint64_array(lvJsonBuf *buf, const uint64_t *arr, int count) {
+static void json_buf_elem_uint64(lvJsonBuf *buf, const void *elem) {
+    lv_json_buf_append_fmt(buf, "%llu", (unsigned long long) *(const uint64_t *) elem);
+}
+
+/** 泛型 JSON 数组写出器（元素大小 + 元素格式化函数指针），格式与旧三函数逐位一致 */
+static void json_buf_array(lvJsonBuf *buf, const void *arr, int count, size_t elem_size,
+                           JsonArrayElemWriter writer) {
     lv_json_buf_append_char(buf, '[');
     for (int i = 0; i < count; i++) {
         if (i > 0)
             lv_json_buf_append_raw(buf, ", ");
-        lv_json_buf_append_fmt(buf, "%llu", (unsigned long long) arr[i]);
+        writer(buf, (const char *) arr + (size_t) i * elem_size);
     }
     lv_json_buf_append_char(buf, ']');
 }
@@ -474,13 +469,13 @@ static void json_write_add_node(lvJsonBuf *buf, const CommandEntry *e) {
     lv_json_buf_append_fmt(buf, "      \"is_formal_param\": %s,\n", p->is_formal_param ? "true" : "false");
     lv_json_buf_append_raw(buf, "      \"coords_num\": ");
     if (p->coords_num && p->coord_count > 0)
-        json_buf_double_array(buf, p->coords_num, p->coord_count);
+        json_buf_array(buf, p->coords_num, p->coord_count, sizeof(double), json_buf_elem_double);
     else
         lv_json_buf_append_raw(buf, "null");
     lv_json_buf_append_raw(buf, ",\n");
     lv_json_buf_append_raw(buf, "      \"coords_den\": ");
     if (p->coords_den && p->coord_count > 0)
-        json_buf_uint64_array(buf, p->coords_den, p->coord_count);
+        json_buf_array(buf, p->coords_den, p->coord_count, sizeof(uint64_t), json_buf_elem_uint64);
     else
         lv_json_buf_append_raw(buf, "null");
 }
@@ -491,7 +486,7 @@ static void json_write_add_constraint(lvJsonBuf *buf, const CommandEntry *e) {
     lv_json_buf_append_fmt(buf, "      \"constraint_id\": %d,\n", p->constraint_id);
     lv_json_buf_append_fmt(buf, "      \"participant_count\": %d,\n", p->participant_count);
     lv_json_buf_append_raw(buf, "      \"participant_ids\": ");
-    json_buf_int_array(buf, p->participant_ids, p->participant_count);
+    json_buf_array(buf, p->participant_ids, p->participant_count, sizeof(int), json_buf_elem_int);
 }
 
 static void json_write_remove_node(lvJsonBuf *buf, const CommandEntry *e) {
@@ -510,19 +505,19 @@ static void json_write_pack_function(lvJsonBuf *buf, const CommandEntry *e) {
     lv_json_buf_append_fmt(buf, "      \"result_func_id\": %d,\n", p->result_func_id);
     lv_json_buf_append_raw(buf, "      \"internal_node_ids\": ");
     if (p->internal_node_ids && p->internal_count > 0)
-        json_buf_int_array(buf, p->internal_node_ids, p->internal_count);
+        json_buf_array(buf, p->internal_node_ids, p->internal_count, sizeof(int), json_buf_elem_int);
     else
         lv_json_buf_append_raw(buf, "null");
     lv_json_buf_append_raw(buf, ",\n");
     lv_json_buf_append_raw(buf, "      \"input_port_ids\": ");
     if (p->input_port_ids && p->input_count > 0)
-        json_buf_int_array(buf, p->input_port_ids, p->input_count);
+        json_buf_array(buf, p->input_port_ids, p->input_count, sizeof(int), json_buf_elem_int);
     else
         lv_json_buf_append_raw(buf, "null");
     lv_json_buf_append_raw(buf, ",\n");
     lv_json_buf_append_raw(buf, "      \"output_port_ids\": ");
     if (p->output_port_ids && p->output_count > 0)
-        json_buf_int_array(buf, p->output_port_ids, p->output_count);
+        json_buf_array(buf, p->output_port_ids, p->output_count, sizeof(int), json_buf_elem_int);
     else
         lv_json_buf_append_raw(buf, "null");
 }
@@ -662,110 +657,65 @@ static bool json_parse_null(lvJsonParser *p) {
     return false;
 }
 
-/** 解析 JSON int 数组 [...]（动态分配，返回元素个数；空数组返回 0 且 *out 为 NULL） */
+/** JSON 数组元素解析器：从解析器读取单个元素写入 dst */
+typedef bool (*JsonArrayElemParser)(lvJsonParser *p, void *dst);
+
+static bool json_parse_elem_int(lvJsonParser *p, void *dst) { return lv_json_parse_int(p, (int *) dst); }
+static bool json_parse_elem_double(lvJsonParser *p, void *dst) { return lv_json_parse_double(p, (double *) dst); }
+static bool json_parse_elem_uint64(lvJsonParser *p, void *dst) { return lv_json_parse_uint64(p, (uint64_t *) dst); }
+
+/**
+ * 泛型 JSON 数组解析器 [...]
+ * 动态分配，返回元素个数；空数组返回 0 且 *out 为 NULL。
+ * 解析失败返回 0 并释放已分配内存。语义与旧三函数逐位一致。
+ */
+static int json_parse_array(lvJsonParser *p, void **out, size_t elem_size, JsonArrayElemParser parse_elem) {
+    *out = NULL;
+    if (lv_json_next(p) != '[')
+        return 0;
+    if (lv_json_peek(p) == ']') {
+        lv_json_next(p);
+        return 0;
+    }
+    int cap = 16, count = 0;
+    void *arr = lv_malloc((size_t) cap * elem_size);
+    if (!arr)
+        return 0;
+    while (1) {
+        if (!lv_ensure_capacity(&arr, count, &cap, elem_size, 0)) {
+            lv_free(&arr);
+            return 0;
+        }
+        if (!parse_elem(p, (char *) arr + (size_t) count * elem_size)) {
+            lv_free(&arr);
+            return 0;
+        }
+        count++;
+        if (lv_json_peek(p) == ']')
+            break;
+        if (!lv_json_expect(p, ',')) {
+            lv_free(&arr);
+            return 0;
+        }
+    }
+    lv_json_next(p); /* 消费 ']' */
+    *out = arr;
+    return count;
+}
+
+/** 类型化薄包装：int 数组 */
 static int json_parse_int_array(lvJsonParser *p, int **out) {
-    *out = NULL;
-    if (lv_json_next(p) != '[')
-        return 0;
-    if (lv_json_peek(p) == ']') {
-        lv_json_next(p);
-        return 0;
-    }
-    int cap = 16, count = 0;
-    int *arr = (int *) lv_malloc((size_t) cap * sizeof(int));
-    if (!arr)
-        return 0;
-    while (1) {
-        if (!lv_ensure_capacity((void **) &arr, count, &cap, sizeof(int), 0)) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-        if (!lv_json_parse_int(p, &arr[count])) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-        count++;
-        if (lv_json_peek(p) == ']')
-            break;
-        if (!lv_json_expect(p, ',')) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-    }
-    lv_json_next(p); /* 消费 ']' */
-    *out = arr;
-    return count;
+    return json_parse_array(p, (void **) out, sizeof(int), json_parse_elem_int);
 }
 
-/** 解析 JSON double 数组 [...]（动态分配，返回元素个数；空数组返回 0 且 *out 为 NULL） */
+/** 类型化薄包装：double 数组 */
 static int json_parse_double_array(lvJsonParser *p, double **out) {
-    *out = NULL;
-    if (lv_json_next(p) != '[')
-        return 0;
-    if (lv_json_peek(p) == ']') {
-        lv_json_next(p);
-        return 0;
-    }
-    int cap = 16, count = 0;
-    double *arr = (double *) lv_malloc((size_t) cap * sizeof(double));
-    if (!arr)
-        return 0;
-    while (1) {
-        if (!lv_ensure_capacity((void **) &arr, count, &cap, sizeof(double), 0)) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-        if (!lv_json_parse_double(p, &arr[count])) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-        count++;
-        if (lv_json_peek(p) == ']')
-            break;
-        if (!lv_json_expect(p, ',')) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-    }
-    lv_json_next(p); /* 消费 ']' */
-    *out = arr;
-    return count;
+    return json_parse_array(p, (void **) out, sizeof(double), json_parse_elem_double);
 }
 
-/** 解析 JSON uint64_t 数组 [...]（动态分配，返回元素个数；空数组返回 0 且 *out 为 NULL） */
+/** 类型化薄包装：uint64_t 数组 */
 static int json_parse_uint64_array(lvJsonParser *p, uint64_t **out) {
-    *out = NULL;
-    if (lv_json_next(p) != '[')
-        return 0;
-    if (lv_json_peek(p) == ']') {
-        lv_json_next(p);
-        return 0;
-    }
-    int cap = 16, count = 0;
-    uint64_t *arr = (uint64_t *) lv_malloc((size_t) cap * sizeof(uint64_t));
-    if (!arr)
-        return 0;
-    while (1) {
-        if (!lv_ensure_capacity((void **) &arr, count, &cap, sizeof(uint64_t), 0)) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-        uint64_t v = 0;
-        if (!lv_json_parse_uint64(p, &v)) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-        arr[count++] = v;
-        if (lv_json_peek(p) == ']')
-            break;
-        if (!lv_json_expect(p, ',')) {
-            lv_free((void **) &arr);
-            return 0;
-        }
-    }
-    lv_json_next(p); /* 消费 ']' */
-    *out = arr;
-    return count;
+    return json_parse_array(p, (void **) out, sizeof(uint64_t), json_parse_elem_uint64);
 }
 
 /** 跳过 JSON 值：委托公共 lv_json_skip_value（递归跳过对象/数组/字符串/数字/布尔/null） */
@@ -1013,15 +963,16 @@ static void json_parse_params(lvJsonParser *j, CommandEntry *e) {
 
 typedef void (*EntryFieldHandler)(lvJsonParser *j, CommandEntry *e);
 
+/* 命令类型字符串→枚举映射表（由 LV_COMMAND_TYPE_X 生成，供 lv_str_to_enum 线性查找） */
+static const lvStrToEnumEntry kCommandTypeMap[] = {
+    lv_XMACRO_TO_ENUM_TABLE(LV_COMMAND_TYPE_X)
+};
+
 static void entry_field_type(lvJsonParser *j, CommandEntry *e) {
     char t[32];
     if (json_parse_string(j, t, sizeof(t))) {
-        for (int ti = 0; ti < CMD_COUNT; ti++) {
-            if (strcmp(t, g_command_type_names[ti]) == 0) {
-                e->type = (CommandType) ti;
-                break;
-            }
-        }
+        /* 未匹配时保持 0（CMD_ADD_NODE），与旧实现未匹配不赋值（calloc 后为 0）行为一致 */
+        e->type = (CommandType) lv_str_to_enum(kCommandTypeMap, lv_ARRAY_SIZE(kCommandTypeMap), t, 0);
     }
 }
 

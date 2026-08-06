@@ -27,6 +27,10 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
+
+/* graph_index.c 实现：按约束类型分发到 typed graph_add_*（收敛三处平行分发） */
+AddConstraintResult graph_add_constraint_dispatch(ConstraintGraph *graph, ConstraintType type,
+                                                  const int *participants, int count, double numeric_value);
 /**
  * @brief 从匹配绑定表中解析模式变量对应的实际图节点 ID
  *
@@ -135,7 +139,7 @@ int resolve_replacement_participant(int participant_id, const int *match_binding
  * @brief 向约束图中添加通用约束
  *
  * 根据约束类型和已解析的参与者 ID 数组，
- * 调用对应的图添加函数。支持关联、中间、交点、包含、连接五种约束类型。
+ * 经 graph_add_constraint_dispatch 统一分发到对应的 graph_add_* 函数。
  *
  * @param graph             目标约束图
  * @param type              约束类型
@@ -143,45 +147,9 @@ int resolve_replacement_participant(int participant_id, const int *match_binding
  * @param participant_count 参与者数量
  * @return true 添加成功，false 失败（类型不支持或参数不匹配）
  */
-typedef bool (*AddConstraintFn)(ConstraintGraph *graph, const int *participants, int participant_count);
-
-static bool add_incidence_impl(ConstraintGraph *graph, const int *participants, int count) {
-    if (count == 2) return graph_add_incidence(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
-    return false;
-}
-static bool add_betweenness_impl(ConstraintGraph *graph, const int *participants, int count) {
-    if (count == 3) return graph_add_betweenness(graph, participants[0], participants[1], participants[2]) == ADD_CONSTRAINT_OK;
-    return false;
-}
-static bool add_intersection_impl(ConstraintGraph *graph, const int *participants, int count) {
-    if (count == 3) return graph_add_intersection(graph, participants[0], participants[1], participants[2]) == ADD_CONSTRAINT_OK;
-    return false;
-}
-static bool add_containment_impl(ConstraintGraph *graph, const int *participants, int count) {
-    if (count == 2) return graph_add_containment(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
-    return false;
-}
-static bool add_angle_impl(ConstraintGraph *graph, const int *participants, int count) {
-    if (count >= 2) return graph_add_angle(graph, participants[0], participants[1], 0.0) == ADD_CONSTRAINT_OK;
-    return false;
-}
-static bool add_connection_impl(ConstraintGraph *graph, const int *participants, int count) {
-    if (count == 2) return graph_add_connection(graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK;
-    return false;
-}
-
-static const AddConstraintFn kAddConstraintHandlers[] = {
-    [INCIDENCE] = add_incidence_impl,
-    [BETWEENNESS] = add_betweenness_impl,
-    [INTERSECTION] = add_intersection_impl,
-    [CONTAINMENT] = add_containment_impl,
-    [ANGLE] = add_angle_impl,
-    [CONNECTION] = add_connection_impl,
-};
-
 bool add_constraint_generic(ConstraintGraph *graph, ConstraintType type, const int *participants,
                             int participant_count) {
-    return LV_DISPATCH(kAddConstraintHandlers, type, false, graph, participants, participant_count);
+    return graph_add_constraint_dispatch(graph, type, participants, participant_count, 0.0) == ADD_CONSTRAINT_OK;
 }
 
 /**

@@ -43,8 +43,9 @@
  * 流程：
  * 1. 如果上下文有效，提取 context_id 用于追踪
  * 2. 调用 debug_log() 写入标准日志流（受级别过滤控制）
- * 3. 如果全局环形缓冲区存在，写入结构化记录
- * 4. FATAL 级别日志触发紧急保存（在 debug_log 内部处理）
+ * 3. 环形缓冲区由 debug_log() 统一写入（双缓冲合一后不再重复写）
+ * 4. 若上下文有效，将刚写入条目的 context_id 关联到上下文
+ * 5. FATAL 级别日志触发紧急保存（在 debug_log 内部处理）
  *
  * @param ctx           上下文指针（可为 NULL）
  * @param level         日志级别
@@ -64,28 +65,25 @@ void lv_log_with_context(struct lvContext *ctx, LogLevel level, const char *modu
     vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
-    /* 2. 写入标准日志流（debug_log 负责级别过滤和文件/控制台输出） */
+    /* 2. 写入标准日志流（debug_log 负责级别过滤、文件/控制台输出及环形缓冲区写入） */
     debug_log(level, module_name, "%s [%s:%d]", message, function_name, line_number);
 
-    /* 3. 写入全局环形缓冲区 */
-    if (s_debug_state.log_ring_buffer) {
-        lv_log_ring_buffer_write(s_debug_state.log_ring_buffer, level, module_name, function_name, file_name, line_number, "%s",
-                                 message);
-        /* 覆盖自动设置的 context_id 为实际的上下文 ID */
+    /* 3. 若上下文有效，将环形缓冲区中刚写入条目的 context_id 关联到上下文 */
+    if (s_debug_state.log_ring_buffer && ctx && ctx->context_id > 0) {
         log_lock();
-        if (lv_ringbuf_count(&s_debug_state.log_ring_buffer->base) > 0) {
-            /* 获取刚写入的条目（最新的，索引 count-1）并更新 context_id */
+        /* debug_log 仅在级别过滤通过时写入环形缓冲区，此处需同样校验，
+         * 避免过滤未通过的调用错误覆盖前一条日志的 context_id */
+        if (level >= g_log_level) {
             int last_idx = lv_ringbuf_count(&s_debug_state.log_ring_buffer->base) - 1;
-            lvLogEntry *last_entry = (lvLogEntry *) lv_ringbuf_get(&s_debug_state.log_ring_buffer->base, last_idx);
-            if (last_entry && ctx && ctx->context_id > 0) {
-                last_entry->context_id = ctx->context_id;
+            if (last_idx >= 0) {
+                lvLogEntry *last_entry = (lvLogEntry *) lv_ringbuf_get(&s_debug_state.log_ring_buffer->base, last_idx);
+                if (last_entry) {
+                    last_entry->context_id = ctx->context_id;
+                }
             }
         }
         log_unlock();
     }
-
-    /* 4. 使用上下文信息（防止未使用参数警告） */
-    (void) ctx;
 }
 
 /*=== Performance Counters Implementation ===*/

@@ -475,7 +475,6 @@ set(lv_HEADERS
     # v1.1.0 性能优化模块
     core/include/lv/thread_pool.h
     core/include/lv/simd_ops.h
-    core/include/lv/benchmark.h
     # v1.1.0 新增核心模块（整改实施）
     core/include/lv/memory_pool.h
     core/include/lv/expr_canonical.h
@@ -527,9 +526,8 @@ set(lv_HEADERS
     core/include/lv/proof_contradiction.h
     # v3.0.0 UI-Kernel 通信协议（替代 view_projection）
     core/include/lv/lv_protocol.h
-    # v3.0.0 API 版式规范 + 层间通信
+    # v3.0.0 API 版式规范
     core/include/lv/lv_api_spec.h
-    core/include/lv/lv_layer_msg.h
     # stubs→headers: 17 semi-finished headers
     core/include/lv/adaptive_threshold.h
     core/include/lv/gappa_dsl.h
@@ -756,9 +754,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/proof_priority.c
     core/src/layer2_resource/proof_score.c
     core/src/layer2_resource/status_codes.c
-    # v1.1.0 补全遗漏：运行时守卫、基准测试、性能分析、表示转换、自适应阈值、元表示
+    # v1.1.0 补全遗漏：运行时守卫、性能分析、表示转换、自适应阈值、元表示
     core/src/layer2_resource/runtime_guard.c
-    core/src/layer2_resource/benchmark.c
     core/src/layer2_resource/performance_profiler.c
     core/src/layer2_resource/representation_converter.c
     core/src/layer2_resource/adaptive_threshold.c
@@ -1292,8 +1289,6 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/lv_render_visitor_tikz.c
     # UI-Kernel 通信协议
     core/src/layer5_output/lv_protocol.c
-    # 层间通信消息
-    core/src/layer5_output/lv_layer_msg.c
     # v1.1.0 补全遗漏：插件系统、证明编译器
     core/src/layer5_output/plugin_system.c
     core/src/layer5_output/plugin_system_core.c
@@ -1862,9 +1857,6 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_groebner_parallel)
     add_lv_test_auto(test_proof_rule_numeric)
     add_lv_test_auto(test_proof_strategy_legacy)
-
-    # 基准测试（构建但不注册到 CTest，手动运行）
-    add_lv_test(test_benchmark test/c/test_benchmark.c)
 endif()
 
 # ============================================================

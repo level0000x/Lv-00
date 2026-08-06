@@ -27,6 +27,10 @@
 
 #include "lv/preset_blocks.h" /* 用于 preset 注册 */
 
+/* graph_index.c 实现：按约束类型分发到 typed graph_add_*（收敛三处平行分发） */
+AddConstraintResult graph_add_constraint_dispatch(ConstraintGraph *graph, ConstraintType type,
+                                                  const int *participants, int count, double numeric_value);
+
 /* LVZ 格式版本（与 module.c 保持一致） */
 #ifndef LVZ_VERSION_MAJOR
 #define LVZ_VERSION_MAJOR 1
@@ -815,7 +819,7 @@ static void lvz_constraint_incidence(Module *mod, const int *params, int param_c
     (void) param_count;
     /* incidence point_id line_id */
     if (params[0] >= 0 && params[1] >= 0) {
-        graph_add_incidence(mod->graph, params[0], params[1]);
+        graph_add_constraint_dispatch(mod->graph, INCIDENCE, params, 2, 0.0);
     }
 }
 
@@ -823,7 +827,7 @@ static void lvz_constraint_betweenness(Module *mod, const int *params, int param
     (void) param_count;
     /* betweenness p1 p2 p3 */
     if (params[0] >= 0 && params[1] >= 0 && params[2] >= 0) {
-        graph_add_betweenness(mod->graph, params[0], params[1], params[2]);
+        graph_add_constraint_dispatch(mod->graph, BETWEENNESS, params, 3, 0.0);
     }
 }
 
@@ -831,7 +835,7 @@ static void lvz_constraint_intersection(Module *mod, const int *params, int para
     (void) param_count;
     /* intersection line1 line2 result_point */
     if (params[0] >= 0 && params[1] >= 0 && params[2] >= 0) {
-        graph_add_intersection(mod->graph, params[0], params[1], params[2]);
+        graph_add_constraint_dispatch(mod->graph, INTERSECTION, params, 3, 0.0);
     }
 }
 
@@ -839,7 +843,7 @@ static void lvz_constraint_containment(Module *mod, const int *params, int param
     (void) param_count;
     /* containment inner outer */
     if (params[0] >= 0 && params[1] >= 0) {
-        graph_add_containment(mod->graph, params[0], params[1]);
+        graph_add_constraint_dispatch(mod->graph, CONTAINMENT, params, 2, 0.0);
     }
 }
 
@@ -847,7 +851,7 @@ static void lvz_constraint_connection(Module *mod, const int *params, int param_
     (void) param_count;
     /* connection src_port dst_port */
     if (params[0] >= 0 && params[1] >= 0) {
-        graph_add_connection(mod->graph, params[0], params[1]);
+        graph_add_constraint_dispatch(mod->graph, CONNECTION, params, 2, 0.0);
     }
 }
 

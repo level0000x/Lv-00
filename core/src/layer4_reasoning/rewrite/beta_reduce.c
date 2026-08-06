@@ -25,6 +25,10 @@
 #include "debug.h"
 #include "lv_internal.h"
 
+/* graph_index.c 实现：按约束类型分发到 typed graph_add_*（收敛三处平行分发） */
+AddConstraintResult graph_add_constraint_dispatch(ConstraintGraph *graph, ConstraintType type,
+                                                  const int *participants, int count, double numeric_value);
+
 /* ===========================================================================
  * 内部辅助：获取约束数组中某约束的索引位置
  * =========================================================================== */
@@ -315,61 +319,6 @@ static int build_id_mapping(ConstraintGraph *graph, int func_block_id, const int
  * =========================================================================== */
 
 /**
- * @brief 约束重建函数指针类型
- */
-typedef AddConstraintResult (*RemapConstraintFunc)(ConstraintGraph *graph, const int *participants, int participant_count, double numeric_value);
-
-/* 各约束类型的重建函数实现 */
-static AddConstraintResult remap_incidence(ConstraintGraph *graph, const int *participants, int count, double val) {
-    if (count == 2)
-        return graph_add_incidence(graph, participants[0], participants[1]);
-    return ADD_CONSTRAINT_OK;
-}
-
-static AddConstraintResult remap_betweenness(ConstraintGraph *graph, const int *participants, int count, double val) {
-    if (count == 3)
-        return graph_add_betweenness(graph, participants[0], participants[1], participants[2]);
-    return ADD_CONSTRAINT_OK;
-}
-
-static AddConstraintResult remap_intersection(ConstraintGraph *graph, const int *participants, int count, double val) {
-    if (count == 3)
-        return graph_add_intersection(graph, participants[0], participants[1], participants[2]);
-    return ADD_CONSTRAINT_OK;
-}
-
-static AddConstraintResult remap_containment(ConstraintGraph *graph, const int *participants, int count, double val) {
-    if (count == 2)
-        return graph_add_containment(graph, participants[0], participants[1]);
-    return ADD_CONSTRAINT_OK;
-}
-
-static AddConstraintResult remap_connection(ConstraintGraph *graph, const int *participants, int count, double val) {
-    if (count == 2)
-        return graph_add_connection(graph, participants[0], participants[1]);
-    return ADD_CONSTRAINT_OK;
-}
-
-static AddConstraintResult remap_angle(ConstraintGraph *graph, const int *participants, int count, double val) {
-    if (count == 2)
-        return graph_add_angle(graph, participants[0], participants[1], val);
-    return ADD_CONSTRAINT_OK;
-}
-
-/**
- * @brief 约束重建 VTable
- */
-static const RemapConstraintFunc s_remap_vtable[] = {
-    [INCIDENCE]    = remap_incidence,
-    [BETWEENNESS]  = remap_betweenness,
-    [INTERSECTION] = remap_intersection,
-    [CONTAINMENT]  = remap_containment,
-    [CONNECTION]   = remap_connection,
-    [ANGLE]        = remap_angle,
-};
-#define S_REMAP_VTABLE_SIZE (sizeof(s_remap_vtable) / sizeof(s_remap_vtable[0]))
-
-/**
  * @brief 查找并重建涉及内部节点的所有约束
  *
  * 遍历图中所有约束，对每个参与者包含内部节点的约束：
@@ -450,11 +399,12 @@ static bool remap_internal_constraints(ConstraintGraph *graph, const int *intern
         if (skip_constraint)
             continue;
 
-        /* 添加重建后的约束（通过 VTable 分发） */
+        /* 添加重建后的约束（通过公共分发函数） */
         ConstraintType ctype = con->type;
         AddConstraintResult ar = ADD_CONSTRAINT_OK;
-        if ((size_t)ctype < S_REMAP_VTABLE_SIZE && s_remap_vtable[ctype]) {
-            ar = s_remap_vtable[ctype](graph, resolved_participants, con->participant_count, con->numeric_value);
+        if ((unsigned) ctype <= (unsigned) ANGLE) {
+            ar = graph_add_constraint_dispatch(graph, ctype, resolved_participants, con->participant_count,
+                                               con->numeric_value);
         } else {
             LOG_WARN("beta_reduce", "未知约束类型 %d", (int) ctype);
             continue;

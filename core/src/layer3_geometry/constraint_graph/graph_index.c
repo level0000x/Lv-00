@@ -369,6 +369,52 @@ AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id
 }
 
 /**
+ * @brief 按约束类型分发到对应的 typed graph_add_* 添加函数
+ *
+ * 收敛 rewrite_binding.c / beta_reduce.c / module_lvz.c 中
+ * 平行重复的"类型→graph_add_* 分发"逻辑（switch / vtable / 查表 三套）。
+ * 参与者数量与类型不匹配或类型未知时返回 ADD_CONSTRAINT_CONFLICT。
+ *
+ * @param graph          约束图指针
+ * @param type           约束类型
+ * @param participants   参与者节点 ID 数组
+ * @param count          参与者数量
+ * @param numeric_value  数值参数（仅 ANGLE 使用，其余类型忽略）
+ * @return 添加结果状态码
+ */
+AddConstraintResult graph_add_constraint_dispatch(ConstraintGraph *graph, ConstraintType type,
+                                                  const int *participants, int count, double numeric_value) {
+    switch (type) {
+    case INCIDENCE:
+        if (count == 2)
+            return graph_add_incidence(graph, participants[0], participants[1]);
+        return ADD_CONSTRAINT_CONFLICT;
+    case BETWEENNESS:
+        if (count == 3)
+            return graph_add_betweenness(graph, participants[0], participants[1], participants[2]);
+        return ADD_CONSTRAINT_CONFLICT;
+    case INTERSECTION:
+        if (count == 3)
+            return graph_add_intersection(graph, participants[0], participants[1], participants[2]);
+        return ADD_CONSTRAINT_CONFLICT;
+    case CONTAINMENT:
+        if (count == 2)
+            return graph_add_containment(graph, participants[0], participants[1]);
+        return ADD_CONSTRAINT_CONFLICT;
+    case ANGLE:
+        if (count >= 2)
+            return graph_add_angle(graph, participants[0], participants[1], numeric_value);
+        return ADD_CONSTRAINT_CONFLICT;
+    case CONNECTION:
+        if (count == 2)
+            return graph_add_connection(graph, participants[0], participants[1]);
+        return ADD_CONSTRAINT_CONFLICT;
+    default:
+        return ADD_CONSTRAINT_CONFLICT;
+    }
+}
+
+/**
  * @brief 从所有约束的参与者列表中移除对指定节点的引用
  *
  * 遍历约束图中的所有约束，将参与者列表中匹配 node_id 的条目

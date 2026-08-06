@@ -26,6 +26,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .core import lvBaseError
 
+from ._ptr_owner import (
+    _PtrOwner, _call_ok, _call_truthy, _int_arr, _str_enc,
+)
+
 from ._ctypes_binding import (
     _lib, _FuncBlock, _SymbolicCoord,
     PACK_OK, PACK_CROSS_BOUNDARY_CONFLICT, PACK_INVALID_NODES, 
@@ -405,7 +409,7 @@ class InstantiateResultEnum(IntEnum):
 # SolutionSelector 类
 # ============================================================
 
-class SolutionSelector:
+class SolutionSelector(_PtrOwner):
     """
     多解选择器类。
     
@@ -440,6 +444,8 @@ class SolutionSelector:
         self._ptr = _lib.selector_create(selector_type)
         if not self._ptr:
             raise FuncBlockError(f"创建选择器失败，类型={selector_type}")
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.selector_destroy, True)
 
     def _recreate_selector(self) -> None:
         """
@@ -518,26 +524,18 @@ class SolutionSelector:
         arr = (ctypes.POINTER(_FuncBlock) * len(candidates))(*candidates)
         selected = c_int()
 
-        if not _lib.selector_apply(self._ptr, arr, len(candidates), ctypes.byref(selected)):
-            raise FuncBlockError("应用选择器失败")
+        _call_truthy(_lib.selector_apply, self._ptr, arr, len(candidates),
+                     ctypes.byref(selected),
+                     exc_cls=FuncBlockError, msg="应用选择器失败")
 
         return selected.value
-    
-    def __del__(self) -> None:
-        """析构函数：释放底层 C 选择器资源。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.selector_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
 
 
 # ============================================================
 # FuncBlock 类
 # ============================================================
 
-class FuncBlock:
+class FuncBlock(_PtrOwner):
     """
     函数块类。
 
@@ -575,8 +573,8 @@ class FuncBlock:
             fb_id: 函数块 ID（若为 -1，则创建新的空函数块）
         """
         self.id = fb_id
-        self._ptr = None
-        self._owns_ptr = False
+        # 登记生命周期管理：默认不拥有指针（from_ptr 可移交所有权）
+        _PtrOwner.__init__(self, None, _lib.func_block_destroy, False)
         self.selector = None
         self.determinism = DETERMINISM_UNVERIFIED
         self._input_count: int = 0
@@ -600,22 +598,6 @@ class FuncBlock:
         fb._input_count = 0
         fb._output_count = 0
         return fb
-    
-    def __del__(self) -> None:
-        """析构函数：释放底层 C 函数块资源。
-
-        注意：若 __init__ 未正常完成（例如子类 __init__ 抛出异常），
-        _ptr 属性可能尚未被创建，因此需要 hasattr 保护。
-        """
-        # 防止 _ptr 属性未初始化时引发 AttributeError（例如子类构造失败）
-        if not hasattr(self, '_ptr'):
-            return
-        if self._ptr and self._owns_ptr:
-            try:
-                _lib.func_block_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
     
     @property
     def input_count(self) -> int:
@@ -839,7 +821,7 @@ class FuncBlock:
         if not self._ptr:
             raise FuncBlockInstantiateError("函数块未初始化")
         
-        mappings_arr = (ctypes.c_int * len(arg_mappings))(*arg_mappings)
+        mappings_arr = _int_arr(arg_mappings)
         count = c_int()
         
         result_ptr = _lib.func_block_instantiate(
@@ -931,9 +913,9 @@ class FuncBlock:
         """
         if not self._ptr:
             raise FuncBlockError("函数块未初始化")
-        arr = (ctypes.c_int * len(node_ids))(*node_ids)
-        if not _lib.func_block_set_internal_nodes(self._ptr, arr, len(node_ids)):
-            raise FuncBlockError("设置内部节点失败")
+        arr = _int_arr(node_ids)
+        _call_truthy(_lib.func_block_set_internal_nodes, self._ptr, arr, len(node_ids),
+                     exc_cls=FuncBlockError, msg="设置内部节点失败")
         return True
 
     def set_input_ports(self, port_ids: List[int]) -> bool:
@@ -954,9 +936,9 @@ class FuncBlock:
         """
         if not self._ptr:
             raise FuncBlockError("函数块未初始化")
-        arr = (ctypes.c_int * len(port_ids))(*port_ids)
-        if not _lib.func_block_set_input_ports(self._ptr, arr, len(port_ids)):
-            raise FuncBlockError("设置输入端口失败")
+        arr = _int_arr(port_ids)
+        _call_truthy(_lib.func_block_set_input_ports, self._ptr, arr, len(port_ids),
+                     exc_cls=FuncBlockError, msg="设置输入端口失败")
         self._input_count = len(port_ids)
         return True
 
@@ -978,9 +960,9 @@ class FuncBlock:
         """
         if not self._ptr:
             raise FuncBlockError("函数块未初始化")
-        arr = (ctypes.c_int * len(port_ids))(*port_ids)
-        if not _lib.func_block_set_output_ports(self._ptr, arr, len(port_ids)):
-            raise FuncBlockError("设置输出端口失败")
+        arr = _int_arr(port_ids)
+        _call_truthy(_lib.func_block_set_output_ports, self._ptr, arr, len(port_ids),
+                     exc_cls=FuncBlockError, msg="设置输出端口失败")
         self._output_count = len(port_ids)
         return True
 
@@ -1004,8 +986,8 @@ class FuncBlock:
             raise FuncBlockError("函数块未初始化")
         # 支持 PortDependency 对象和底层 C 指针
         dep_ptr = dependency._ptr if hasattr(dependency, '_ptr') else dependency
-        if not _lib.func_block_add_port_dependency(self._ptr, dep_ptr):
-            raise FuncBlockError("添加端口依赖失败")
+        _call_truthy(_lib.func_block_add_port_dependency, self._ptr, dep_ptr,
+                     exc_cls=FuncBlockError, msg="添加端口依赖失败")
         return True
 
     def set_preconditions(self, region_ids: List[int]) -> bool:
@@ -1026,9 +1008,9 @@ class FuncBlock:
         """
         if not self._ptr:
             raise FuncBlockError("函数块未初始化")
-        arr = (ctypes.c_int * len(region_ids))(*region_ids)
-        if not _lib.func_block_set_preconditions(self._ptr, arr, len(region_ids)):
-            raise FuncBlockError("设置前置条件失败")
+        arr = _int_arr(region_ids)
+        _call_truthy(_lib.func_block_set_preconditions, self._ptr, arr, len(region_ids),
+                     exc_cls=FuncBlockError, msg="设置前置条件失败")
         return True
 
     def set_name(self, name: str) -> bool:
@@ -1048,9 +1030,9 @@ class FuncBlock:
         """
         if not self._ptr:
             raise FuncBlockError("函数块未初始化")
-        b = name.encode('utf-8')
-        if not _lib.func_block_set_name(self._ptr, b):
-            raise FuncBlockError("设置函数块名称失败")
+        b = _str_enc(name)
+        _call_truthy(_lib.func_block_set_name, self._ptr, b,
+                     exc_cls=FuncBlockError, msg="设置函数块名称失败")
         return True
 
     def set_description(self, description: str) -> bool:
@@ -1070,9 +1052,9 @@ class FuncBlock:
         """
         if not self._ptr:
             raise FuncBlockError("函数块未初始化")
-        b = description.encode('utf-8')
-        if not _lib.func_block_set_description(self._ptr, b):
-            raise FuncBlockError("设置函数块描述失败")
+        b = _str_enc(description)
+        _call_truthy(_lib.func_block_set_description, self._ptr, b,
+                     exc_cls=FuncBlockError, msg="设置函数块描述失败")
         return True
 
     def copy(self) -> 'FuncBlock':
@@ -1090,9 +1072,8 @@ class FuncBlock:
         """
         if not self._ptr:
             raise FuncBlockError("函数块未初始化")
-        new_ptr = _lib.func_block_copy(self._ptr)
-        if not new_ptr:
-            raise FuncBlockError("拷贝函数块失败")
+        new_ptr = _call_truthy(_lib.func_block_copy, self._ptr,
+                               exc_cls=FuncBlockError, msg="拷贝函数块失败")
         fb = FuncBlock.from_ptr(new_ptr, owns_ptr=True)
         fb.determinism = self.determinism
         fb.selector = self.selector
@@ -1175,9 +1156,11 @@ class FuncBlock:
         """
         config_ptr = config._ptr if hasattr(config, '_ptr') else config
         fb_ptr = ctypes.POINTER(_FuncBlock)()
-        result = _lib.func_block_pack_ex(graph._ptr, config_ptr, ctypes.byref(fb_ptr))
-        if result != PACK_OK:
-            raise FuncBlockPackError(f"扩展打包失败: {PackResult.to_string(result)}")
+        result = _call_ok(
+            _lib.func_block_pack_ex, graph._ptr, config_ptr, ctypes.byref(fb_ptr),
+            ok=PACK_OK, exc_cls=FuncBlockPackError, msg="扩展打包失败",
+            errfmt=lambda r: f"扩展打包失败: {PackResult.to_string(r)}"
+        )
         fb = FuncBlock.from_ptr(fb_ptr, owns_ptr=True)
         return (result, fb)
 
@@ -1249,14 +1232,14 @@ def func_block_pack(graph: Any,
     异常：
         FuncBlockPackError: 打包失败，错误消息包含详细原因
     """
-    internal_arr = (ctypes.c_int * len(internal_node_ids))(*internal_node_ids)
-    input_arr = (ctypes.c_int * len(input_port_ids))(*input_port_ids)
-    output_arr = (ctypes.c_int * len(output_port_ids))(*output_port_ids)
+    internal_arr = _int_arr(internal_node_ids)
+    input_arr = _int_arr(input_port_ids)
+    output_arr = _int_arr(output_port_ids)
     
     fb_ptr = ctypes.POINTER(_FuncBlock)()
     
     if cross_boundary_actions:
-        actions_arr = (ctypes.c_int * len(cross_boundary_actions))(*cross_boundary_actions)
+        actions_arr = _int_arr(cross_boundary_actions)
         result = _lib.func_block_pack(
             graph._ptr,
             internal_arr, len(internal_node_ids),

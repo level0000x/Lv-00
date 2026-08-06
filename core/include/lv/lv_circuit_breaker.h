@@ -227,6 +227,31 @@ void lv_circuit_breaker_reset(lvCircuitBreaker *cb);
  */
 lvCircuitBreakerState lv_circuit_breaker_state(const lvCircuitBreaker *cb);
 
+/**
+ * @brief 检查熔断器并执行状态迁移，维度超限时自动跳闸
+ *
+ * 与 lv_circuit_breaker_is_tripped() 的区别：
+ *  - 各维度超限（总运行时间/深度/步数/连续错误）时直接触发跳闸并记录原因
+ *  - 冷却结束后自动将状态从 OPEN 迁移到 HALF_OPEN（允许一次试探）
+ *  - 总运行时间检查尊重 uncancellable_refcount（不可取消区域不触发超时熔断）
+ *
+ * @param cb 熔断器指针（非 NULL）
+ * @return true  可以继续操作
+ *         false 熔断器打开（已跳闸），拒绝执行
+ */
+bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb);
+
+/**
+ * @brief 触发熔断器跳闸（状态置为 OPEN）
+ *
+ * 记录跳闸时间、累计熔断次数与跳闸原因（内部复制）。
+ * 等价于内部跳闸动作，供外部在检测到超时/步数超限等场景直接调用。
+ *
+ * @param cb     熔断器指针（非 NULL）
+ * @param reason 跳闸原因的可读描述（可为 NULL，此时使用 "未知原因"）
+ */
+void lv_circuit_breaker_do_trip(lvCircuitBreaker *cb, const char *reason);
+
 #ifdef __cplusplus
 }
 #endif

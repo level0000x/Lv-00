@@ -57,9 +57,9 @@ jobs:
       - name: Syntax check (runtime)
         run: |
           gcc -fsyntax-only -std=c11 \
-            -Icore/include -Icore/include/lv -Ibootstrap/runtime \
+            -Icore/include -Icore/include/lv -Ibootstrap/archive \
             -include gmp.h \
-            bootstrap/runtime/primitive_runtime.c
+            bootstrap/archive/primitive_runtime.c
 
       - name: CMake configure
         run: |

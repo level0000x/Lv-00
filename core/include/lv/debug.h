@@ -137,10 +137,7 @@ typedef struct PerformanceCounters {
 
 /* 调试上下文，用于断言和追踪 */
 typedef struct DebugContext {
-    bool normalization_assertions;
     bool port_invariant_checks;
-    bool rewrite_trace;
-    bool solver_trace;
     bool abort_on_violation;
     int violation_count;
 } DebugContext;
@@ -153,9 +150,7 @@ lv_PUBLIC_API void debug_context_destroy(DebugContext *ctx);
 lv_PUBLIC_API int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx);
 
 /*=== 遗留日志函数（向后兼容） ===*/
-lv_PUBLIC_API void debug_log_normalization(const char *fmt, ...);
 lv_PUBLIC_API void debug_log_rewrite(const char *fmt, ...);
-lv_PUBLIC_API void debug_log_solver(const char *fmt, ...);
 
 /*=== 新日志系统 ===*/
 
@@ -294,9 +289,14 @@ lv_PUBLIC_API void debug_log(LogLevel level, const char *module, const char *fmt
  * - 日志分析工具的解析（结构化字段）
  * - 性能分析（记录时间戳和耗时）
  */
+
+/** 结构化日志的时间戳字符串长度（"YYYY-MM-DD HH:MM:SS"） */
+#define lv_DEBUG_TIMESTAMP_STR_LEN 32
+
 typedef struct lvLogEntry {
     LogLevel level;            /**< 日志级别 */
-    uint64_t timestamp_us;     /**< 时间戳（微秒精度） */
+    uint64_t timestamp_us;     /**< 时间戳（微秒精度，平台相关时钟） */
+    char timestamp_str[lv_DEBUG_TIMESTAMP_STR_LEN]; /**< 格式化的墙钟时间戳（YYYY-MM-DD HH:MM:SS） */
     const char *module_name;   /**< 模块名称（如 "solver", "engine", "graph"） */
     const char *function_name; /**< 函数名称（__func__） */
     int line_number;           /**< 源文件行号（__LINE__） */

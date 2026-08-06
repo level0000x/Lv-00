@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 交互几何模块
 
 提供交互几何系统的 Python 接口，借鉴 Cinderella 与 Dr. Geo 的交互几何 UX 设计。
@@ -21,6 +21,7 @@ from typing import Any, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, c_int, c_double, c_char_p, c_void_p, c_bool, POINTER
 from .core import lvBaseError
+from ._ptr_owner import _PtrOwner, _str_enc
 
 __all__ = [
     "InteractiveGeoMode", "ConfigClassification", "ScriptLanguage",
@@ -138,7 +139,7 @@ class InteractiveGeoError(lvBaseError):
 # InteractiveGeo 类
 # ============================================================
 
-class InteractiveGeo:
+class InteractiveGeo(_PtrOwner):
     """交互几何主上下文类。
 
     聚合所有交互几何子系统的顶层结构，是交互几何模块的入口。
@@ -161,15 +162,8 @@ class InteractiveGeo:
         self._ptr = _lib.interactive_geo_init(eh if eh else None)
         if not self._ptr:
             raise InteractiveGeoError("初始化交互几何系统失败")
-
-    def __del__(self) -> None:
-        """析构：释放交互几何系统资源。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.interactive_geo_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.interactive_geo_destroy, True)
 
     # ---- 模式管理 ----
 
@@ -269,7 +263,7 @@ class InteractiveGeo:
         返回:
             Tuple[int, Any]: (RandomizedCheckResult 枚举值, 结果详情指针)
         """
-        c_expr = theorem_expr.encode('utf-8') if theorem_expr else None
+        c_expr = _str_enc(theorem_expr) if theorem_expr else None
         result = _lib.interactive_geo_randomized_check(
             self._ptr, sample_count, tolerance, c_expr, None)
         return (result, None)
@@ -348,7 +342,7 @@ class InteractiveGeo:
         返回:
             int: 0 成功，-1 格式错误，-2 数据不一致
         """
-        return _lib.interactive_geo_import_state(self._ptr, json_str.encode('utf-8'))
+        return _lib.interactive_geo_import_state(self._ptr, _str_enc(json_str))
 
     # ---- 对象查询 ----
 

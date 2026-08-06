@@ -48,8 +48,13 @@ static void set_trip_reason(lvCircuitBreaker *cb, const char *reason) {
 
 /**
  * @brief 将熔断器跳闸到 OPEN 状态
+ *
+ * 记录跳闸时间、累计熔断次数并更新跳闸原因（内部复制）。
  */
-static void trip_breaker(lvCircuitBreaker *cb, const char *reason) {
+void lv_circuit_breaker_do_trip(lvCircuitBreaker *cb, const char *reason) {
+    if (!cb) {
+        return;
+    }
     cb->state = lv_CB_OPEN;
     cb->tripped_at_us = now_us();
     cb->trip_count++;
@@ -149,7 +154,7 @@ bool lv_circuit_breaker_record_error(lvCircuitBreaker *cb) {
 
     /* 在半开态下，失败意味着重新打开熔断器 */
     if (cb->state == lv_CB_HALF_OPEN) {
-        trip_breaker(cb, "半开态试探失败");
+        lv_circuit_breaker_do_trip(cb, "半开态试探失败");
         return false;
     }
 
@@ -158,7 +163,7 @@ bool lv_circuit_breaker_record_error(lvCircuitBreaker *cb) {
 
     /* 检查是否超过连续错误上限 */
     if (cb->max_consecutive_errors > 0 && cb->consecutive_errors >= cb->max_consecutive_errors) {
-        trip_breaker(cb, "连续错误数超限");
+        lv_circuit_breaker_do_trip(cb, "连续错误数超限");
         return false;
     }
 
@@ -198,4 +203,67 @@ lvCircuitBreakerState lv_circuit_breaker_state(const lvCircuitBreaker *cb) {
         return lv_CB_CLOSED;
     }
     return cb->state;
+}
+
+bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb) {
+    if (!cb) {
+        return false;
+    }
+
+    uint64_t now_us = lv_get_time_us();
+
+    /* 检查总运行时间超时（不可取消区域不触发超时熔断） */
+    if (cb->total_timeout_ms > 0) {
+        uint64_t uptime_ms = (now_us > cb->start_time_us) ? (now_us - cb->start_time_us) / 1000 : 0;
+        if (uptime_ms > cb->total_timeout_ms && cb->uncancellable_refcount == 0) {
+            lv_circuit_breaker_do_trip(cb, "总运行时间超时");
+            return false;
+        }
+    }
+
+    /* 检查深度限制 */
+    if (cb->max_depth > 0 && cb->current_depth > cb->max_depth) {
+        lv_circuit_breaker_do_trip(cb, "推理深度超限");
+        return false;
+    }
+
+    /* 检查步骤数限制 */
+    if (cb->max_steps > 0 && cb->total_steps > cb->max_steps) {
+        lv_circuit_breaker_do_trip(cb, "推理步骤数超限");
+        return false;
+    }
+
+    /* 检查连续错误数限制 */
+    if (cb->max_consecutive_errors > 0 && cb->consecutive_errors >= cb->max_consecutive_errors) {
+        lv_circuit_breaker_do_trip(cb, "连续错误数超限");
+        return false;
+    }
+
+    /* 状态机逻辑 */
+    switch (cb->state) {
+        case lv_CB_CLOSED:
+            /* 正常状态，允许执行 */
+            return true;
+
+        case lv_CB_OPEN: {
+            /* 检查冷却时间是否已过 */
+            if (cb->cooldown_ms > 0 && cb->tripped_at_us > 0) {
+                uint64_t elapsed_ms = (now_us - cb->tripped_at_us) / 1000;
+                if (elapsed_ms >= cb->cooldown_ms) {
+                    /* 冷却完成，进入半开态 */
+                    cb->state = lv_CB_HALF_OPEN;
+                    return true;
+                }
+            }
+            /* 冷却未完成，拒绝执行 */
+            return false;
+        }
+
+        case lv_CB_HALF_OPEN:
+            /* 半开态允许一次试探性调用 */
+            return true;
+
+        default:
+            return false;
+    }
 }

@@ -8,7 +8,7 @@
  * 【中文模块说明】
  * stream.h 是 Lv-00 系统的实时事件推送模块，为 Web 前端提供引擎内部
  * 状态的实时可视化数据。主要功能包括：
- * - 事件类型体系：47 种事件类型，覆盖引擎全生命周期
+ * - 事件类型体系：48 种事件类型，覆盖引擎全生命周期
  *   （引擎启动/完成、归一化、重写、求解、证明、函数块、预设、冲突/错误等）
  * - 回调注册：支持多回调，按注册顺序调用，可按事件类型掩码过滤
  * - 发射模式：立即同步、缓冲、节流、惰性四种模式
@@ -19,7 +19,7 @@
  * - 便捷发射函数：针对节点、约束、进度、数值、图快照等场景的快捷方法
  *
  * 功能概览:
- *   - 事件类型体系：30+ 种事件类型，覆盖引擎全生命周期
+ *   - 事件类型体系：48 种事件类型，覆盖引擎全生命周期
  *   - 回调注册：支持多回调，按注册顺序调用
  *   - 事件过滤：按事件类型掩码过滤，减少不必要的事件处理
  *   - JSON 序列化：将 StreamEvent 序列化为 JSON 字符串，用于 interop 输出
@@ -67,15 +67,6 @@ extern "C" {
 
 /* ============== 常量 ============== */
 
-/**
- * 事件类型总数（用于位掩码计算，值 = 最后一个枚举值 + 1）。
- *
- * 注意 —— 该值与 StreamEventType 枚举强耦合：每次在枚举末尾新增事件类型时，
- * 必须同步更新此宏的值，否则位掩码过滤和事件统计将出现偏差。
- * 建议在 CI 中使用 static_assert 校验一致性。
- */
-#define STREAM_EVENT_TYPE_COUNT 48
-
 /** 全部事件掩码（接收所有事件） */
 #define STREAM_FILTER_ALL ((uint64_t) 0xFFFFFFFFFFFFFFFFULL)
 
@@ -107,83 +98,116 @@ typedef enum {
 
 /* ============== 流式事件类型 ============== */
 
+/**
+ * @brief Lv-00 流式事件类型 X-macro 列表 —— 事件类型体系的单一事实来源
+ *
+ * 条目形态：x(枚举名, 中文名称, 英文标识符, 颜色)
+ *
+ * 由本列表自动生成：
+ * - StreamEventType 枚举（成员顺序 = 列表顺序 = 枚举值升序 0..N-1，
+ *   首个成员显式 = 0，其余自动递增，保证位掩码与 O(1) 表索引的连续性）
+ * - STREAM_EVENT_TYPE_COUNT（条目计数，宏展开自动求和，与枚举强同步）
+ * - stream_utils.c 的 s_event_type_table（中文名/英文标识符/颜色映射表）
+ *
+ * 约束：
+ * - 条目必须按枚举值升序排列（映射表按值索引、位掩码按位移位均依赖连续值）
+ * - 新增事件类型只需在此追加一条，枚举/计数/名称表自动同步，无需再改任何函数
+ * - 颜色参数引用 stream_internal.h 的 STREAM_COLOR_* 宏：仅在 stream_utils.c
+ *   展开映射表时求值（该处已包含 stream_internal.h），枚举与计数展开不使用此参数
+ */
+#define LV_STREAM_EVENT_X(x) \
+    /* ---- 引擎生命周期 ---- */ \
+    x(STREAM_EVENT_ENGINE_START,              "引擎启动",     "ENGINE_START",              STREAM_COLOR_GREEN)      /* 引擎开始工作 */ \
+    x(STREAM_EVENT_ENGINE_DONE,               "引擎完成",     "ENGINE_DONE",               STREAM_COLOR_GREEN)      /* 引擎完成工作 */ \
+    x(STREAM_EVENT_ENGINE_PAUSED,             "引擎暂停",     "ENGINE_PAUSED",             STREAM_COLOR_LIGHT_GRAY) /* 引擎暂停（断点触发） */ \
+    /* ---- 归一化 ---- */ \
+    x(STREAM_EVENT_NORMALIZE_START,           "归一化开始",   "NORMALIZE_START",           STREAM_COLOR_LIGHT_GRAY) /* 归一化阶段开始 */ \
+    x(STREAM_EVENT_NORMALIZE_MERGE,           "节点合并",     "NORMALIZE_MERGE",           STREAM_COLOR_PURPLE)     /* 节点合并事件（含合并前后 ID） */ \
+    x(STREAM_EVENT_NORMALIZE_DONE,            "归一化完成",   "NORMALIZE_DONE",            STREAM_COLOR_LIGHT_GRAY) /* 归一化完成（含合并计数） */ \
+    /* ---- 重写引擎 ---- */ \
+    x(STREAM_EVENT_REWRITE_START,             "重写开始",     "REWRITE_START",             STREAM_COLOR_LIGHT_GRAY) /* 重写阶段开始 */ \
+    x(STREAM_EVENT_REWRITE_RULE_LOADED,       "规则加载",     "REWRITE_RULE_LOADED",       STREAM_COLOR_LIGHT_GRAY) /* 规则加载成功 */ \
+    x(STREAM_EVENT_REWRITE_MATCH_FOUND,       "匹配找到",     "REWRITE_MATCH_FOUND",       STREAM_COLOR_PURPLE)     /* 找到匹配 */ \
+    x(STREAM_EVENT_REWRITE_APPLIED,           "规则应用",     "REWRITE_APPLIED",           STREAM_COLOR_PURPLE)     /* 规则应用成功 */ \
+    x(STREAM_EVENT_REWRITE_ROLLBACK,          "规则回滚",     "REWRITE_ROLLBACK",          STREAM_COLOR_LIGHT_GRAY) /* 规则回滚 */ \
+    x(STREAM_EVENT_REWRITE_DONE,              "重写完成",     "REWRITE_DONE",              STREAM_COLOR_LIGHT_GRAY) /* 重写阶段完成 */ \
+    /* ---- 代数求解 ---- */ \
+    x(STREAM_EVENT_SOLVE_START,               "求解开始",     "SOLVE_START",               STREAM_COLOR_LIGHT_GRAY) /* 求解阶段开始 */ \
+    x(STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,  "方程提取",     "SOLVE_EQUATION_EXTRACTED",  STREAM_COLOR_LIGHT_GRAY) /* 提取到方程 */ \
+    x(STREAM_EVENT_SOLVE_GROEBNER_STEP,       "Gröbner基步骤", "SOLVE_GROEBNER_STEP",      STREAM_COLOR_LIGHT_GRAY) /* Gröbner 基计算步骤 */ \
+    x(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,   "变量解得",     "SOLVE_VARIABLE_RESOLVED",   STREAM_COLOR_PURPLE)     /* 变量解得 */ \
+    x(STREAM_EVENT_SOLVE_DONE,                "求解完成",     "SOLVE_DONE",                STREAM_COLOR_LIGHT_GRAY) /* 求解完成 */ \
+    /* ---- 证明系统 ---- */ \
+    x(STREAM_EVENT_PROOF_STEP_ADDED,          "证明步骤添加", "PROOF_STEP_ADDED",          STREAM_COLOR_LIGHT_GRAY) /* 证明步骤添加 */ \
+    x(STREAM_EVENT_PROOF_STEP_APPLIED,        "证明步骤应用", "PROOF_STEP_APPLIED",        STREAM_COLOR_PURPLE)     /* 证明步骤应用 */ \
+    x(STREAM_EVENT_PROOF_UNIFY,               "合一检查",     "PROOF_UNIFY",               STREAM_COLOR_LIGHT_GRAY) /* 合一检查 */ \
+    x(STREAM_EVENT_PROOF_COLOR_UPDATE,        "颜色更新",     "PROOF_COLOR_UPDATE",        STREAM_COLOR_LIGHT_GRAY) /* 颜色更新 */ \
+    x(STREAM_EVENT_PROOF_DEPENDENCY_CHANGE,   "依赖链变化",   "PROOF_DEPENDENCY_CHANGE",   STREAM_COLOR_LIGHT_GRAY) /* 依赖链变化 */ \
+    /* ---- 函数块系统 ---- */ \
+    x(STREAM_EVENT_FUNC_BLOCK_PACK_START,        "函数打包开始",   "FUNC_BLOCK_PACK_START",        STREAM_COLOR_LIGHT_GRAY) /* 函数打包开始 */ \
+    x(STREAM_EVENT_FUNC_BLOCK_PACK_DONE,         "函数打包完成",   "FUNC_BLOCK_PACK_DONE",         STREAM_COLOR_LIGHT_GRAY) /* 函数打包完成 */ \
+    x(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START, "函数实例化开始", "FUNC_BLOCK_INSTANTIATE_START", STREAM_COLOR_LIGHT_GRAY) /* 函数实例化开始 */ \
+    x(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE,  "函数实例化完成", "FUNC_BLOCK_INSTANTIATE_DONE",  STREAM_COLOR_LIGHT_GRAY) /* 函数实例化完成 */ \
+    x(STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY,     "部分应用",       "FUNC_BLOCK_PARTIAL_APPLY",     STREAM_COLOR_LIGHT_GRAY) /* 部分应用 */ \
+    x(STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, "确定性检查",     "FUNC_BLOCK_DETERMINISM_CHECK", STREAM_COLOR_LIGHT_GRAY) /* 确定性检查 */ \
+    x(STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID,     "捕获避免",       "FUNC_BLOCK_CAPTURE_AVOID",     STREAM_COLOR_LIGHT_GRAY) /* 捕获避免 */ \
+    x(STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY,    "跨边界操作",     "FUNC_BLOCK_CROSS_BOUNDARY",    STREAM_COLOR_LIGHT_GRAY) /* 跨边界操作 */ \
+    /* ---- 预设函数块系统（v12.0 新增）---- */ \
+    x(STREAM_EVENT_PRESET_REGISTER_START,  "预设注册开始", "PRESET_REGISTER_START",  STREAM_COLOR_LIGHT_GRAY) /* 预设注册开始 */ \
+    x(STREAM_EVENT_PRESET_REGISTER_DONE,   "预设注册完成", "PRESET_REGISTER_DONE",   STREAM_COLOR_LIGHT_GRAY) /* 预设注册完成 */ \
+    x(STREAM_EVENT_PRESET_REGISTER_FAILED, "预设注册失败", "PRESET_REGISTER_FAILED", STREAM_COLOR_LIGHT_GRAY) /* 预设注册失败 */ \
+    x(STREAM_EVENT_PRESET_LOOKUP,          "预设查找",     "PRESET_LOOKUP",          STREAM_COLOR_LIGHT_GRAY) /* 预设查找 */ \
+    x(STREAM_EVENT_PRESET_INSTANTIATE,     "预设实例化",   "PRESET_INSTANTIATE",     STREAM_COLOR_LIGHT_GRAY) /* 预设实例化 */ \
+    x(STREAM_EVENT_PRESET_VALIDATE,        "预设验证",     "PRESET_VALIDATE",        STREAM_COLOR_LIGHT_GRAY) /* 预设验证 */ \
+    x(STREAM_EVENT_PRESET_CATEGORY_LOADED, "预设类别加载", "PRESET_CATEGORY_LOADED", STREAM_COLOR_LIGHT_GRAY) /* 预设类别加载完成 */ \
+    x(STREAM_EVENT_PRESET_MODULE_LOADED,   "预设模块加载", "PRESET_MODULE_LOADED",   STREAM_COLOR_LIGHT_GRAY) /* 预设模块加载完成 */ \
+    /* ---- 冲突与错误 ---- */ \
+    x(STREAM_EVENT_CONFLICT_DETECTED, "冲突检测", "CONFLICT_DETECTED", STREAM_COLOR_LIGHT_GRAY) /* 冲突检测到 */ \
+    x(STREAM_EVENT_CONSTRAINT_ADDED,  "约束添加", "CONSTRAINT_ADDED",  STREAM_COLOR_LIGHT_GRAY) /* 约束添加 */ \
+    x(STREAM_EVENT_NODE_ADDED,        "节点添加", "NODE_ADDED",        STREAM_COLOR_LIGHT_GRAY) /* 节点添加 */ \
+    x(STREAM_EVENT_CIRCUIT_TRIP,      "位数熔断", "CIRCUIT_TRIP",      STREAM_COLOR_ORANGE)     /* 位数熔断触发 */ \
+    x(STREAM_EVENT_ERROR,             "错误",     "ERROR",             STREAM_COLOR_RED)        /* 错误 */ \
+    x(STREAM_EVENT_WARNING,           "警告",     "WARNING",           STREAM_COLOR_YELLOW)     /* 警告 */ \
+    /* ---- 信息 ---- */ \
+    x(STREAM_EVENT_INFO,           "信息",   "INFO",           STREAM_COLOR_GRAY)      /* 一般信息 */ \
+    x(STREAM_EVENT_PROGRESS,       "进度",   "PROGRESS",       STREAM_COLOR_BLUE)      /* 进度更新（百分比） */ \
+    x(STREAM_EVENT_GRAPH_SNAPSHOT, "图快照", "GRAPH_SNAPSHOT", STREAM_COLOR_LIGHT_GRAY) /* 图快照（用于前端同步） */ \
+    /* ---- 事件总线桥接 ---- */ \
+    x(STREAM_EVENT_BUS_EVENT, "事件总线", "BUS_EVENT", STREAM_COLOR_GRAY) /* lvEventBus 通用事件（详见 rule_id 中的原始 event_type） */
+
+/** @brief 枚举生成辅助宏（LV_STREAM_EVENT_X → `枚举名,`） */
+#define LV_X_STREAM_ENUM_ITEM(name, name_str, id_str, color) name,
+
+/**
+ * @brief Lv-00 流式事件类型枚举（由 LV_STREAM_EVENT_X 宏生成）
+ *
+ * 成员顺序与数值即列表顺序（0..N-1 连续），覆盖引擎全生命周期。
+ * 成员数值被外部依赖：STREAM_EVENT_MASK 位掩码、s_event_type_table
+ * O(1) 直接索引、stream_filter 反向遍历，均要求值连续且从 0 开始。
+ */
 typedef enum {
-    /* ---- 引擎生命周期 ---- */
-    STREAM_EVENT_ENGINE_START = 0, /* 引擎开始工作 */
-    STREAM_EVENT_ENGINE_DONE,      /* 引擎完成工作 */
-    STREAM_EVENT_ENGINE_PAUSED,    /* 引擎暂停（断点触发） */
-
-    /* ---- 归一化 ---- */
-    STREAM_EVENT_NORMALIZE_START, /* 归一化阶段开始 */
-    STREAM_EVENT_NORMALIZE_MERGE, /* 节点合并事件（含合并前后 ID） */
-    STREAM_EVENT_NORMALIZE_DONE,  /* 归一化完成（含合并计数） */
-
-    /* ---- 重写引擎 ---- */
-    STREAM_EVENT_REWRITE_START,       /* 重写阶段开始 */
-    STREAM_EVENT_REWRITE_RULE_LOADED, /* 规则加载成功 */
-    STREAM_EVENT_REWRITE_MATCH_FOUND, /* 找到匹配 */
-    STREAM_EVENT_REWRITE_APPLIED,     /* 规则应用成功 */
-    STREAM_EVENT_REWRITE_ROLLBACK,    /* 规则回滚 */
-    STREAM_EVENT_REWRITE_DONE,        /* 重写阶段完成 */
-
-    /* ---- 代数求解 ---- */
-    STREAM_EVENT_SOLVE_START,              /* 求解阶段开始 */
-    STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, /* 提取到方程 */
-    STREAM_EVENT_SOLVE_GROEBNER_STEP,      /* Gröbner 基计算步骤 */
-    STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,  /* 变量解得 */
-    STREAM_EVENT_SOLVE_DONE,               /* 求解完成 */
-
-    /* ---- 证明系统 ---- */
-    STREAM_EVENT_PROOF_STEP_ADDED,        /* 证明步骤添加 */
-    STREAM_EVENT_PROOF_STEP_APPLIED,      /* 证明步骤应用 */
-    STREAM_EVENT_PROOF_UNIFY,             /* 合一检查 */
-    STREAM_EVENT_PROOF_COLOR_UPDATE,      /* 颜色更新 */
-    STREAM_EVENT_PROOF_DEPENDENCY_CHANGE, /* 依赖链变化 */
-
-    /* ---- 函数块系统 ---- */
-    STREAM_EVENT_FUNC_BLOCK_PACK_START,        /* 函数打包开始 */
-    STREAM_EVENT_FUNC_BLOCK_PACK_DONE,         /* 函数打包完成 */
-    STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START, /* 函数实例化开始 */
-    STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE,  /* 函数实例化完成 */
-    STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY,     /* 部分应用 */
-    STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, /* 确定性检查 */
-    STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID,     /* 捕获避免 */
-    STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY,    /* 跨边界操作 */
-
-    /* ---- 预设函数块系统（v12.0 新增）---- */
-    STREAM_EVENT_PRESET_REGISTER_START,  /* 预设注册开始 */
-    STREAM_EVENT_PRESET_REGISTER_DONE,   /* 预设注册完成 */
-    STREAM_EVENT_PRESET_REGISTER_FAILED, /* 预设注册失败 */
-    STREAM_EVENT_PRESET_LOOKUP,          /* 预设查找 */
-    STREAM_EVENT_PRESET_INSTANTIATE,     /* 预设实例化 */
-    STREAM_EVENT_PRESET_VALIDATE,        /* 预设验证 */
-    STREAM_EVENT_PRESET_CATEGORY_LOADED, /* 预设类别加载完成 */
-    STREAM_EVENT_PRESET_MODULE_LOADED,   /* 预设模块加载完成 */
-
-    /* ---- 冲突与错误 ---- */
-    STREAM_EVENT_CONFLICT_DETECTED, /* 冲突检测到 */
-    STREAM_EVENT_CONSTRAINT_ADDED,  /* 约束添加 */
-    STREAM_EVENT_NODE_ADDED,        /* 节点添加 */
-    STREAM_EVENT_CIRCUIT_TRIP,      /* 位数熔断触发 */
-    STREAM_EVENT_ERROR,             /* 错误 */
-    STREAM_EVENT_WARNING,           /* 警告 */
-
-    /* ---- 信息 ---- */
-    STREAM_EVENT_INFO,           /* 一般信息 */
-    STREAM_EVENT_PROGRESS,       /* 进度更新（百分比） */
-    STREAM_EVENT_GRAPH_SNAPSHOT, /* 图快照（用于前端同步） */
-
-    /* ---- 事件总线桥接 ---- */
-    STREAM_EVENT_BUS_EVENT,      /* lvEventBus 通用事件（详见 rule_id 中的原始 event_type） */
+    LV_STREAM_EVENT_X(LV_X_STREAM_ENUM_ITEM)
 } StreamEventType;
 
-/*
- * 编译期校验：确保 STREAM_EVENT_TYPE_COUNT 与枚举值数量一致。
- * 使用枚举末尾值 + 1 而非硬编码数字，这样在新增事件类型时，
- * 若忘记同步更新宏值，编译器会立即报错。
+#undef LV_X_STREAM_ENUM_ITEM
+
+/**
+ * @brief 事件类型计数生成辅助宏（LV_STREAM_EVENT_X → `+ 1` 累加条目数）
+ *
+ * 注意：该宏必须保留定义，不能像枚举辅助宏那样用完即 #undef ——
+ * STREAM_EVENT_TYPE_COUNT 的展开发生在其他编译单元的使用处
+ * （数组大小、循环边界等），使用处展开时才以 LV_X_STREAM_COUNT_ITEM(...)
+ * 形式再次展开，故此处撤销会导致计数宏失效。
  */
-_Static_assert(STREAM_EVENT_TYPE_COUNT == STREAM_EVENT_BUS_EVENT + 1,
-               "STREAM_EVENT_TYPE_COUNT 与 StreamEventType 枚举值数量不一致，请同步更新");
+#define LV_X_STREAM_COUNT_ITEM(name, name_str, id_str, color) + 1
+
+/**
+ * 事件类型总数（由 LV_STREAM_EVENT_X 条目数自动生成，值 = 最后一个枚举值 + 1）。
+ *
+ * 由宏展开自动与枚举强同步：新增/删除事件类型时无需手工维护此值，
+ * 位掩码过滤（STREAM_EVENT_MASK）和事件统计数组大小直接依赖此值。
+ */
+#define STREAM_EVENT_TYPE_COUNT (0 LV_STREAM_EVENT_X(LV_X_STREAM_COUNT_ITEM))
 
 /* ============== 流式事件数据 ============== */
 

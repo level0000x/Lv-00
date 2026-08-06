@@ -39,6 +39,7 @@ bool pattern_var_in_replacement_bindings(const RewriteReplacement *repl, int pat
 bool is_matched_constraint(const RewriteMatch *match, int constraint_id);
 bool check_graph_consistency(ConstraintGraph *graph);
 uint32_t compute_graph_hash(ConstraintGraph *graph);
+bool detect_rewrite_loop(ConstraintGraph *graph, const int *history_hashes, int history_count);
 
 /* 解析后的重写规则结构体 */
 typedef struct {
@@ -1186,14 +1187,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
 
     while (steps < step_limit) {
         /* 通过图哈希检测重写循环 */
-        uint32_t current_hash = compute_graph_hash(graph);
-        bool loop_detected = false;
-        for (int i = 0; i < history_count; i++) {
-            if (history_hashes[i] == current_hash) {
-                loop_detected = true;
-                break;
-            }
-        }
+        bool loop_detected = detect_rewrite_loop(graph, history_hashes, history_count);
         if (loop_detected) {
             { StreamContext *rctx2 = rewrite_get_stream_context(); if (rctx2) {
                 stream_emit_simple(rctx2, STREAM_EVENT_ERROR, "rewrite loop detected, terminating", steps); }
@@ -1202,7 +1196,9 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
             break;
         }
         if (history_count < step_limit) {
-            history_hashes[history_count++] = current_hash;
+            /* detect_rewrite_loop 内部已计算过哈希，此处为记录历史重算一次
+             * （检测与记录之间图未被修改，哈希值一致） */
+            history_hashes[history_count++] = compute_graph_hash(graph);
         }
 
         /* 按优先级依次尝试每条规则 */
@@ -1268,30 +1264,4 @@ done:
     lv_free((void **) &history_hashes);
     lv_free((void **) &sorted);
     return final_status;
-}
-
-/* ===========================================================================
- * 循环检测
- * ===========================================================================
- */
-
-/**
- * @brief 检测重写循环：判断当前图哈希是否在历史中出现过
- *
- * 计算当前约束图的结构哈希值，与历史哈希记录逐一比对。
- * 若匹配则说明图状态已出现过，形成重写循环。
- *
- * @param graph          当前约束图指针
- * @param history_hashes 历史哈希值数组
- * @param history_count  历史记录数量
- * @return true 表示检测到循环，false 表示未检测到
- */
-static bool detect_rewrite_loop(ConstraintGraph *graph, int *history_hashes, int history_count) {
-    uint32_t current_hash = compute_graph_hash(graph);
-    for (int i = 0; i < history_count; i++) {
-        if (history_hashes[i] == current_hash) {
-            return true;
-        }
-    }
-    return false;
 }

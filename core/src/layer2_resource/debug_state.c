@@ -293,10 +293,7 @@ DebugContext *debug_context_create(void) {
     DebugContext *ctx = lv_calloc(1, sizeof(DebugContext));
     if (!ctx)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配 DebugContext 失败");
-    ctx->normalization_assertions = false;
     ctx->port_invariant_checks = false;
-    ctx->rewrite_trace = false;
-    ctx->solver_trace = false;
     ctx->abort_on_violation = false;
     ctx->violation_count = 0;
     return ctx;

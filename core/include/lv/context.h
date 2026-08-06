@@ -285,40 +285,6 @@ typedef struct lvContext {
     void *ast_root;
 
     /* ==================================================================
-     * 3. 代数计算缓存
-     *
-     * 缓存中间代数计算结果：
-     *   - Groebner 基计算结果（多项式理想基）
-     *   - 符号化简结果（代数数、二次根式化简）
-     *   - 数值近似表（用于快速数值验证）
-     *   - 合一（unification）绑定表
-     *
-     * 缓存通过 lv_context_invalidate_cache() 标记为脏，
-     * 在下次需要时重新计算。这样可以避免约束图修改后使用过期结果。
-     * ================================================================== */
-
-    /** Groebner 基计算结果的缓存（不透明指针，由 solver 模块管理） */
-    void *groebner_cache;
-
-    /** 符号化简单布尔/代数结果缓存（不透明指针） */
-    void *symbolic_cache;
-
-    /** 数值近似值缓存表（不透明指针） */
-    void *numeric_cache;
-
-    /** 合一绑定表缓存（不透明指针，由 unify 模块管理） */
-    void *unification_cache;
-
-    /** 缓存是否有效（false = 约束图已修改，需要重新计算） */
-    bool cache_valid;
-
-    /** 缓存命中次数（用于统计和调优） */
-    int64_t cache_hits;
-
-    /** 缓存未命中次数 */
-    int64_t cache_misses;
-
-    /* ==================================================================
      * 4. 推理分支栈
      *
      * 管理多路径推理的状态切换。
@@ -893,33 +859,6 @@ lv_PUBLIC_API const char *lv_context_get_name(const lvContext *ctx);
  * @return 上下文唯一 ID
  */
 lv_PUBLIC_API uint64_t lv_context_get_id(const lvContext *ctx);
-
-/* ============================================================
- * 第十一部分：缓存管理 API
- * ============================================================ */
-
-/**
- * @brief 标记所有缓存为无效
- *
- * 当约束图被修改后调用此函数，
- * 确保下次查询时重新计算而非使用过期结果。
- *
- * @param ctx 上下文（非 NULL）
- */
-lv_PUBLIC_API void lv_context_invalidate_cache(lvContext *ctx);
-
-/**
- * @brief 检查缓存是否有效
- * @param ctx 上下文（非 NULL）
- * @return true 缓存有效可用，false 需要重新计算
- */
-lv_PUBLIC_API bool lv_context_is_cache_valid(const lvContext *ctx);
-
-/**
- * @brief 清除所有缓存内容（释放内存但保留缓存结构）
- * @param ctx 上下文（非 NULL）
- */
-lv_PUBLIC_API void lv_context_clear_cache(lvContext *ctx);
 
 /* ============================================================
  * 第十二部分：错误管理 API

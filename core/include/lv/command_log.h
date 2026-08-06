@@ -24,6 +24,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+#include "lv/lv_xmacro.h"
+
 /* 前向声明 */
 struct lvEngine;
 typedef struct lvEngine lvEngine;
@@ -33,21 +35,43 @@ typedef struct lvEngine lvEngine;
  * ════════════════════════════════════════════════════════════════ */
 
 /**
+ * @brief 原子命令类型 X 列表（命令族唯一真相源）
+ *
+ * 二元组 (枚举名, 序列化名称)，覆盖设计文档第 9 节定义的 8 种原子命令。
+ * 由本列表生成：CommandType 枚举、g_command_type_names 名称表、
+ * 字符串→枚举映射表。新增命令时在此追加一行即可同步上述三处，
+ * 其余分发表（cleanup/execute/json_write/json_parse）按指定初始化器
+ * 补一行，编译器自动校验缺项。
+ *
+ * 语义：
+ * - CMD_ADD_NODE            添加节点（点/线段/区域/端口等）
+ * - CMD_ADD_CONSTRAINT      添加约束
+ * - CMD_REMOVE_NODE         移除节点
+ * - CMD_REMOVE_CONSTRAINT   移除约束
+ * - CMD_PACK_FUNCTION       打包函数块
+ * - CMD_NORMALIZE_GRAPH     图规范化
+ * - CMD_UNIFY               合一判定
+ * - CMD_SET_NUMERIC_ASSUMPTION 设置数值假设降级
+ */
+#define LV_COMMAND_TYPE_X(x)                      \
+    x(CMD_ADD_NODE, "ADD_NODE")                   \
+    x(CMD_ADD_CONSTRAINT, "ADD_CONSTRAINT")       \
+    x(CMD_REMOVE_NODE, "REMOVE_NODE")             \
+    x(CMD_REMOVE_CONSTRAINT, "REMOVE_CONSTRAINT") \
+    x(CMD_PACK_FUNCTION, "PACK_FUNCTION")         \
+    x(CMD_NORMALIZE_GRAPH, "NORMALIZE_GRAPH")     \
+    x(CMD_UNIFY, "UNIFY")                         \
+    x(CMD_SET_NUMERIC_ASSUMPTION, "SET_NUMERIC_ASSUMPTION")
+
+/**
  * @brief 原子命令类型枚举
  *
- * 覆盖设计文档第 9 节定义的 8 种原子命令。
+ * 由 LV_COMMAND_TYPE_X 生成，枚举值顺序即列表顺序（保持历史索引值不变）。
  * 所有图编辑操作必须通过内核 API 执行，每个调用对应一条命令日志条目。
  */
 typedef enum {
-    CMD_ADD_NODE,               /**< 添加节点（点/线段/区域/端口等） */
-    CMD_ADD_CONSTRAINT,         /**< 添加约束 */
-    CMD_REMOVE_NODE,            /**< 移除节点 */
-    CMD_REMOVE_CONSTRAINT,      /**< 移除约束 */
-    CMD_PACK_FUNCTION,          /**< 打包函数块 */
-    CMD_NORMALIZE_GRAPH,        /**< 图规范化 */
-    CMD_UNIFY,                  /**< 合一判定 */
-    CMD_SET_NUMERIC_ASSUMPTION, /**< 设置数值假设降级 */
-    CMD_COUNT                   /**< 命令类型总数（用于数组大小） */
+    lv_XMACRO_ENUM(LV_COMMAND_TYPE_X)
+    CMD_COUNT /**< 命令类型总数（用于数组大小） */
 } CommandType;
 
 /**

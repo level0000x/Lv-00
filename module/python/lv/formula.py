@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 公式编程模块
 
 提供数学公式的解析、渲染和转换功能。
@@ -21,6 +21,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 # 导入 lvBaseError，供 FormulaParseError 继承使用
 from .core import lvBaseError
+
+from ._ptr_owner import _PtrOwner, _str_enc
 
 from ._ctypes_binding import _lib, c_int, c_char_p, c_void_p, POINTER
 
@@ -190,7 +192,7 @@ class _FormulaToGraphResult(ctypes.Structure):
     ]
 
 
-class FormulaAST:
+class FormulaAST(_PtrOwner):
     """
     公式抽象语法树。
 
@@ -209,17 +211,7 @@ class FormulaAST:
         参数：
             ptr: C 库返回的公式 AST 指针（c_void_p）
         """
-        self._ptr = ptr
-        self._owned = True  # 是否拥有内存（需要释放）
-
-    def __del__(self) -> None:
-        """释放 C 内存资源。"""
-        try:
-            if hasattr(self, '_ptr') and self._ptr and hasattr(self, '_owned') and self._owned:
-                _lib.formula_node_destroy(self._ptr)
-                self._ptr = None
-        except Exception:
-            pass  # 解释器关闭时 _lib 可能已不可用
+        _PtrOwner.__init__(self, ptr, _lib.formula_node_destroy, True)
 
     @classmethod
     def _from_ptr(cls, ptr, owned: bool = True) -> 'FormulaAST':
@@ -234,8 +226,7 @@ class FormulaAST:
             FormulaAST: 新创建的 AST 对象
         """
         ast = cls.__new__(cls)
-        ast._ptr = ptr
-        ast._owned = owned
+        _PtrOwner.__init__(ast, ptr, _lib.formula_node_destroy, owned)
         return ast
 
     def _render_to(self, format_code: int) -> Optional[str]:
@@ -473,7 +464,7 @@ class FormulaParser:
         syntax_code = FormulaParser._get_syntax_code(syntax)
         
         # 调用 C 库解析
-        formula_bytes = formula.encode('utf-8')
+        formula_bytes = _str_enc(formula)
         # 注意：formula_parse 直接返回 FormulaNode* 指针，而非 ParseResult*
         # 因此无需调用 parse_result_get_ast 和 parse_result_destroy
         ast_ptr = _lib.formula_parse(formula_bytes, syntax_code)

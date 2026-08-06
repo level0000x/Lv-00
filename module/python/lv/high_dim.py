@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 高维模块
 
 提供高维结构表示与交互的 Python 接口，支持：
@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, _SymbolicCoord, _ConstraintGraph
 from .core import lvBaseError
+from ._ptr_owner import _PtrOwner, _call_ok, _int_arr, _str_enc
 
 
 # ============================================================
@@ -90,7 +91,7 @@ class HighDimFidelityError(HighDimError):
 # HighDimManager 类
 # ============================================================
 
-class HighDimManager:
+class HighDimManager(_PtrOwner):
     """高维块管理器。
 
     管理高维抽象块的生命周期，提供投影预设管理和语义缩放功能。
@@ -108,16 +109,9 @@ class HighDimManager:
         self._ptr = _lib.high_dim_manager_create()
         if not self._ptr:
             raise HighDimError("创建高维管理器失败")
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.high_dim_manager_destroy, True)
         _lib.high_dim_manager_init(self._ptr)
-
-    def __del__(self) -> None:
-        """析构函数：释放 C 分配的内存。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.high_dim_manager_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
 
     # ============================================================
     # 高维块操作
@@ -136,10 +130,9 @@ class HighDimManager:
         异常：
             HighDimError: 注册失败
         """
-        result = _lib.high_dim_register_block(self._ptr, block_id, dimension_count)
-        if result != 0:
-            raise HighDimError(f"注册高维块失败: 错误码 {result}")
-        return result
+        _call_ok(_lib.high_dim_register_block, self._ptr, block_id, dimension_count,
+                 exc_cls=HighDimError, msg="注册高维块失败")
+        return 0
 
     def unregister_block(self, block_id: int) -> int:
         """注销高维抽象块。
@@ -230,9 +223,8 @@ class HighDimManager:
         preset_ptr = ctypes.create_string_buffer(
             ctypes.sizeof(ctypes.c_void_p) * HIGH_DIM_MAX_PROJECTION_PRESETS
         )
-        result = _lib.high_dim_create_default_preset(dimension_count, preset_ptr)
-        if result != 0:
-            raise HighDimError(f"创建默认投影预设失败: 错误码 {result}")
+        _call_ok(_lib.high_dim_create_default_preset, dimension_count, preset_ptr,
+                 exc_cls=HighDimError, msg="创建默认投影预设失败")
         return preset_ptr
 
     # ============================================================
@@ -260,11 +252,9 @@ class HighDimManager:
             coord_ptrs[i] = high_dim_coords[i]._ptr if hasattr(high_dim_coords[i], '_ptr') else high_dim_coords[i]
 
         projected = ctypes.create_string_buffer(48)  # HighDimProjectedCoord 大小
-        result = _lib.high_dim_project_coordinates(
-            self._ptr, block_id, coord_ptrs, coord_count, projected
-        )
-        if result != 0:
-            raise HighDimProjectionError(f"坐标投影失败: 错误码 {result}")
+        _call_ok(_lib.high_dim_project_coordinates,
+                 self._ptr, block_id, coord_ptrs, coord_count, projected,
+                 exc_cls=HighDimProjectionError, msg="坐标投影失败")
         return projected
 
     # ============================================================
@@ -438,13 +428,11 @@ class HighDimManager:
         返回：
             List[int]: 视图 ID 列表
         """
-        indices_arr = (c_int * len(preset_indices))(*preset_indices)
+        indices_arr = _int_arr(preset_indices)
         view_ids = (c_int * len(preset_indices))()
-        result = _lib.high_dim_create_multi_projection_view(
-            self._ptr, block_id, indices_arr, len(preset_indices), view_ids
-        )
-        if result != 0:
-            raise HighDimError(f"创建多投影视图失败: 错误码 {result}")
+        _call_ok(_lib.high_dim_create_multi_projection_view,
+                 self._ptr, block_id, indices_arr, len(preset_indices), view_ids,
+                 exc_cls=HighDimError, msg="创建多投影视图失败")
         return [view_ids[i] for i in range(len(preset_indices))]
 
     def destroy_multi_projection_view(self, view_id: int) -> int:
@@ -470,7 +458,7 @@ class HighDimManager:
         返回：
             int: 0 表示成功
         """
-        ids_arr = (c_int * len(view_ids))(*view_ids)
+        ids_arr = _int_arr(view_ids)
         return _lib.high_dim_link_highlight(self._ptr, ids_arr, len(view_ids), element_id)
 
     def manage_multi_views(self, operation: int,
@@ -486,7 +474,7 @@ class HighDimManager:
         返回：
             Tuple[int, int]: (操作返回码, 计数)
         """
-        ids_arr = (c_int * len(view_ids))(*view_ids) if view_ids else None
+        ids_arr = _int_arr(view_ids) if view_ids else None
         count_val = c_int(count)
         result = _lib.high_dim_manage_multi_views(
             self._ptr, operation, ids_arr if view_ids else None, byref(count_val)
@@ -536,7 +524,7 @@ def mapping_type_from_string(s: str) -> int:
     返回：
         int: 映射类型，无效返回 -1
     """
-    return _lib.high_dim_mapping_type_from_string(s.encode('utf-8'))
+    return _lib.high_dim_mapping_type_from_string(_str_enc(s))
 
 
 # ============================================================

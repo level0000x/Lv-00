@@ -21,13 +21,14 @@ Lv-00 引擎模块
 """
 
 import ctypes
-import logging
 import os
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .core import lvBaseError
+
+from ._ptr_owner import _PtrOwner, _int_arr, _c_arr_to_list
 
 from ._ctypes_binding import (
     _lib, _lvEngine,
@@ -175,7 +176,7 @@ class FunctionBlockSpec:
 # 引擎类
 # ============================================================
 
-class Engine:
+class Engine(_PtrOwner):
     """
     Lv-00 主引擎类。
     
@@ -199,30 +200,10 @@ class Engine:
         self._ptr = _lib.engine_create()
         if not self._ptr:
             raise EngineError("创建引擎失败")
-        self._owns_ptr = True
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理；
+        # 原实现以 logging.debug 静默记录，故保持 silent 策略）
+        _PtrOwner.__init__(self, self._ptr, _lib.engine_destroy, True)
     
-    def _cleanup(self) -> None:
-        """
-        释放引擎资源的内部方法。
-
-        释放底层 C 引擎指针，仅在引擎拥有指针所有权时执行。
-        被 __del__ 和 __exit__ 共同调用，避免重复逻辑。
-        """
-        if hasattr(self, '_ptr') and self._ptr and getattr(self, '_owns_ptr', True):
-            try:
-                _lib.engine_destroy(self._ptr)
-            except Exception as e:
-                logging.getLogger(__name__).debug("引擎清理时发生异常: %s", e)
-            self._ptr = None
-
-    def __del__(self) -> None:
-        """
-        析构函数：释放引擎资源。
-
-        释放底层 C 引擎指针，仅在引擎拥有指针所有权时执行。
-        """
-        self._cleanup()
-
     def __enter__(self) -> 'Engine':
         """
         上下文管理器入口，支持 with 语句。
@@ -255,7 +236,7 @@ class Engine:
         返回：
             None: 不抑制异常，让异常正常传播
         """
-        self._cleanup()
+        self._release()
         # 不抑制异常，返回 None 让异常继续传播
         return None
 
@@ -467,9 +448,9 @@ class Engine:
         异常：
             EngineError: 打包失败，可通过 get_last_error() 获取详细原因
         """
-        internal_arr = (ctypes.c_int * len(internal_node_ids))(*internal_node_ids)
-        input_arr = (ctypes.c_int * len(input_port_ids))(*input_port_ids)
-        output_arr = (ctypes.c_int * len(output_port_ids))(*output_port_ids)
+        internal_arr = _int_arr(internal_node_ids)
+        input_arr = _int_arr(input_port_ids)
+        output_arr = _int_arr(output_port_ids)
         
         fb_id = ctypes.c_int()
         success = _lib.engine_pack_function(
@@ -504,7 +485,7 @@ class Engine:
         异常：
             EngineError: 实例化失败，可通过 get_last_error() 获取详细原因
         """
-        mappings_arr = (ctypes.c_int * len(arg_mappings))(*arg_mappings)
+        mappings_arr = _int_arr(arg_mappings)
         count = ctypes.c_int()
         
         result_ptr = _lib.engine_instantiate_function(
@@ -516,10 +497,7 @@ class Engine:
         if not result_ptr:
             raise EngineError(f"实例化函数块失败: {self.get_last_error()}")
         
-        result = [result_ptr[i] for i in range(count.value)]
-        _lib.lv_free_ptr(result_ptr)
-        
-        return result
+        return _c_arr_to_list(result_ptr, count.value, _lib.lv_free_ptr)
     
     # ============================================================
     # 重写规则管理
@@ -608,7 +586,7 @@ class Engine:
         """
         _lib.engine_emit_stream_event(
             self._ptr, event_type,
-            description.encode('utf-8'),
+            _str_enc(description),
             step_number, node_id, constraint_id
         )
 

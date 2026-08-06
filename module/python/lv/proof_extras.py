@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 扩展证明模块
 
 提供证明搜索树、多策略引擎、交互式证明和高级证明功能的 Python 接口。
@@ -28,6 +28,7 @@ from ._ctypes_binding import (
     c_int, c_char_p, c_void_p, c_bool, POINTER,
 )
 from .core import lvBaseError
+from ._ptr_owner import _PtrOwner, _int_arr, _str_enc
 
 __all__ = [
     "BacktrackNodeType", "ProofStrategyType", "ProofStrategyStatus",
@@ -165,7 +166,7 @@ class ProofExtrasError(lvBaseError):
 # 证明搜索树
 # ============================================================
 
-class ProofSearchTree:
+class ProofSearchTree(_PtrOwner):
     """证明搜索树（Newclid 风格）。
 
     展示证明搜索过程中尝试了哪些路径，标注回溯节点，
@@ -184,15 +185,8 @@ class ProofSearchTree:
         self._ptr = _lib.proof_search_tree_create()
         if not self._ptr:
             raise ProofExtrasError("创建证明搜索树失败")
-
-    def __del__(self) -> None:
-        """析构：递归释放所有节点。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.proof_search_tree_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.proof_search_tree_destroy, True)
 
     def add_child(self, parent: Any, child: Any) -> bool:
         """向搜索树添加子节点。
@@ -214,7 +208,7 @@ class ProofSearchTree:
         参数:
             strategy_name: 策略名称
         """
-        _lib.proof_search_tree_register_strategy(self._ptr, strategy_name.encode('utf-8'))
+        _lib.proof_search_tree_register_strategy(self._ptr, _str_enc(strategy_name))
 
     def set_strategy(self, strategy_name: str) -> None:
         """设置当前策略。
@@ -222,7 +216,7 @@ class ProofSearchTree:
         参数:
             strategy_name: 策略名称
         """
-        _lib.proof_search_tree_set_strategy(self._ptr, strategy_name.encode('utf-8'))
+        _lib.proof_search_tree_set_strategy(self._ptr, _str_enc(strategy_name))
 
     def export_json(self, filepath: str) -> bool:
         """导出搜索树为 JSON（用于 Web GUI 可视化）。
@@ -233,7 +227,7 @@ class ProofSearchTree:
         返回:
             bool: 成功返回 True
         """
-        return _lib.proof_search_tree_export_json(self._ptr, filepath.encode('utf-8'))
+        return _lib.proof_search_tree_export_json(self._ptr, _str_enc(filepath))
 
     def export_dot(self, filepath: str) -> bool:
         """导出搜索树为 DOT 格式（Graphviz）。
@@ -244,7 +238,7 @@ class ProofSearchTree:
         返回:
             bool: 成功返回 True
         """
-        return _lib.proof_search_tree_export_dot(self._ptr, filepath.encode('utf-8'))
+        return _lib.proof_search_tree_export_dot(self._ptr, _str_enc(filepath))
 
 
 def backtrack_node_create(node_type: int, label: str) -> Any:
@@ -261,7 +255,7 @@ def backtrack_node_create(node_type: int, label: str) -> Any:
         此函数返回裸 C 指针，调用者负责在适当时机调用对应的 _destroy 函数释放内存。
         建议使用 try/finally 确保资源释放。
     """
-    return _lib.backtrack_node_create(node_type, label.encode('utf-8'))
+    return _lib.backtrack_node_create(node_type, _str_enc(label))
 
 
 def proof_search_tree_create() -> ProofSearchTree:
@@ -277,7 +271,7 @@ def proof_search_tree_create() -> ProofSearchTree:
 # 多策略证明引擎
 # ============================================================
 
-class ProofMultiStrategy:
+class ProofMultiStrategy(_PtrOwner):
     """多策略证明引擎（借鉴 JGEX 架构）。
 
     管理多种证明方法的注册、切换、组合执行。
@@ -299,15 +293,8 @@ class ProofMultiStrategy:
         self._ptr = _lib.proof_multi_strategy_create(nav_ptr)
         if not self._ptr:
             raise ProofExtrasError("创建多策略引擎失败")
-
-    def __del__(self) -> None:
-        """析构：释放多策略引擎资源。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.proof_multi_strategy_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.proof_multi_strategy_destroy, True)
 
     def activate(self, strategy_type: int) -> bool:
         """激活指定策略。
@@ -374,7 +361,7 @@ class ProofMultiStrategy:
         返回:
             bool: 全部成功返回 True
         """
-        arr = (c_int * len(pipeline_types))(*pipeline_types)
+        arr = _int_arr(pipeline_types)
         return _lib.proof_multi_strategy_pipeline(self._ptr, arr, len(pipeline_types))
 
     def set_fallback_order(self, fallback_order: List[int]) -> None:
@@ -383,7 +370,7 @@ class ProofMultiStrategy:
         参数:
             fallback_order: 策略索引数组（按优先级排序）
         """
-        arr = (c_int * len(fallback_order))(*fallback_order)
+        arr = _int_arr(fallback_order)
         _lib.proof_multi_strategy_set_fallback_order(self._ptr, arr, len(fallback_order))
 
     def switch(self, strategy_type: int) -> bool:
@@ -550,9 +537,9 @@ def proof_minimal_verify(rule: int, premises: List[str],
     # 将前提列表转换为 C 字符串数组（NULL-terminated）
     c_premises = (c_char_p * (len(premises) + 1))()
     for i, p in enumerate(premises):
-        c_premises[i] = p.encode('utf-8')
+        c_premises[i] = _str_enc(p)
     c_premises[len(premises)] = None  # NULL terminator
-    c_conclusion = conclusion.encode('utf-8')
+    c_conclusion = _str_enc(conclusion)
     out_trace = c_char_p()
     result = _lib.proof_minimal_verify(
         rule, c_premises, c_conclusion, ctypes.byref(out_trace))

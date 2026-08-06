@@ -25,16 +25,6 @@ typedef struct lvView {
     bool (*render_svg)(struct lvView *view, char *buf, size_t size);
 } lvView;
 
-/**
- * @brief 初始化视图基类
- */
-void lv_view_init(lvView *view, lvViewType type, void (*destroy)(lvView*), bool (*render_svg)(lvView*, char*, size_t));
-
-/**
- * @brief 销毁视图
- */
-void lv_view_destroy(lvView *view);
-
 /** @brief 统一导出格式枚举（覆盖 interop / tikz / proof 三套导出系统） */
 typedef enum {
     lv_EXPORT_COQ,             /**< Coq 证明脚本 */

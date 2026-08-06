@@ -508,11 +508,100 @@ TypeRegion *type_predicate_subtype_get_base(TypeRegion *subtype) {
     return subtype->base_type;
 }
 
+/* ============== TypeRegion 字段清单（子节点/字符串/数组的统一来源） ==============
+ *
+ * 以下清单是 TypeRegion 全部动态字段的唯一事实来源，供
+ * type_region_foreach_child / type_region_deep_copy / type_region_deep_free /
+ * type_region_destroy / type_print 统一使用，避免各处各自维护字段清单
+ * 导致分叉（曾漏拷/漏释放 predicate_* 与 base_type）。
+ *
+ * 字段分类：
+ *   - 子类型节点（TypeRegion*，9 个）：copy 时递归复制，free 时递归释放。
+ *     predicate 子类型的 base_type 是 TypeRegion* 子节点，归属本类；
+ *     predicate_name / predicate_expr 是 char* 字符串，归属字符串类。
+ *   - 字符串字段（char*，4 个）      ：copy 时 strdup，free 时释放。
+ *   - 数组字段（int*，2 个）         ：copy 时按 count 复制，free 时释放。
+ */
+
+/** 子类型节点字段清单（含 predicate 子类型的 base_type） */
+typedef struct {
+    size_t field_offset; /* 字段在 TypeRegion 中的字节偏移 */
+    const char *label;   /* type_print 打印标签 */
+} TypeRegionChildField;
+
+static const TypeRegionChildField k_type_region_child_fields[] = {
+    {offsetof(TypeRegion, input_type),   "Input"},
+    {offsetof(TypeRegion, output_type),  "Output"},
+    {offsetof(TypeRegion, left_type),    "Left"},
+    {offsetof(TypeRegion, right_type),   "Right"},
+    {offsetof(TypeRegion, first_type),   "First"},
+    {offsetof(TypeRegion, second_type),  "Second"},
+    {offsetof(TypeRegion, body_type),    "Body"},
+    {offsetof(TypeRegion, aliased_type), "Aliased"},
+    {offsetof(TypeRegion, base_type),    "Base"},
+};
+
+/** 字符串字段清单（含 predicate 子类型的 predicate_name / predicate_expr） */
+static const size_t k_type_region_str_fields[] = {
+    offsetof(TypeRegion, variable_name),
+    offsetof(TypeRegion, alias_name),
+    offsetof(TypeRegion, predicate_name),
+    offsetof(TypeRegion, predicate_expr),
+};
+
+/** 读取 TypeRegion 的子类型节点字段（按偏移） */
+static TypeRegion *type_region_get_child(const TypeRegion *tr, size_t field_offset) {
+    return *(TypeRegion *const *) ((const char *) tr + field_offset);
+}
+
+/**
+ * @brief 遍历 TypeRegion 的全部子类型节点字段（统一子节点清单来源）
+ *
+ * @param tr  类型区域（可为 NULL，此时不调用回调）
+ * @param cb  回调，child 可能为 NULL
+ * @param ctx 透传上下文（可为 NULL）
+ */
+void type_region_foreach_child(const TypeRegion *tr, void (*cb)(TypeRegion *child, void *ctx), void *ctx) {
+    if (!tr || !cb)
+        return;
+
+    for (size_t i = 0; i < lv_ARRAY_SIZE(k_type_region_child_fields); i++) {
+        TypeRegion *child = type_region_get_child(tr, k_type_region_child_fields[i].field_offset);
+        cb(child, ctx);
+    }
+}
+
+/** 复制数组字段（contained_node_ids / constraint_ids，按 count 复制） */
+static void type_region_copy_arrays(TypeRegion *dst, const TypeRegion *src) {
+    if (src->contained_count > 0 && src->contained_node_ids) {
+        dst->contained_node_ids = (int *) lv_calloc((size_t) src->contained_count, sizeof(int));
+        if (dst->contained_node_ids) {
+            memcpy(dst->contained_node_ids, src->contained_node_ids, (size_t) src->contained_count * sizeof(int));
+        } else {
+            dst->contained_count = 0;
+        }
+    }
+    if (src->constraint_count > 0 && src->constraint_ids) {
+        dst->constraint_ids = (int *) lv_calloc((size_t) src->constraint_count, sizeof(int));
+        if (dst->constraint_ids) {
+            memcpy(dst->constraint_ids, src->constraint_ids, (size_t) src->constraint_count * sizeof(int));
+        } else {
+            dst->constraint_count = 0;
+        }
+    }
+}
+
+/** 释放数组字段 */
+static void type_region_free_arrays(TypeRegion *tr) {
+    lv_free((void **) &tr->contained_node_ids);
+    lv_free((void **) &tr->constraint_ids);
+}
+
 /**
  * @brief 销毁类型区域并释放其资源
  *
- * 释放类型区域内部的动态数组（包含节点 ID、变量名、别名、约束 ID）。
- * 注意：不递归销毁关联的类型（input/output/left/right/body 等），
+ * 释放类型区域内部的动态数组（包含节点 ID、变量名、别名、谓词名/表达式、约束 ID）。
+ * 注意：不递归销毁关联的类型（input/output/left/right/body/base 等），
  * 因为它们可能被多个类型区域共享。
  *
  * @param tr 类型区域指针（可为 NULL）
@@ -521,12 +610,14 @@ void type_region_destroy(TypeRegion *tr) {
     if (!tr)
         return;
 
-    lv_free((void **) &tr->contained_node_ids);
-    lv_free((void **) &tr->variable_name);
-    lv_free((void **) &tr->alias_name);
-    lv_free((void **) &tr->constraint_ids);
-    lv_free((void **) &tr->predicate_name);
-    lv_free((void **) &tr->predicate_expr);
+    /* 释放数组字段 */
+    type_region_free_arrays(tr);
+
+    /* 释放字符串字段（含 predicate_name / predicate_expr） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(k_type_region_str_fields); i++) {
+        char **field = (char **) ((char *) tr + k_type_region_str_fields[i]);
+        lv_free((void **) field);
+    }
 
     /* 注意：不递归销毁关联的类型，因为它们可能被共享 */
     lv_free((void **) &tr);
@@ -890,7 +981,9 @@ const char *type_check_result_to_string(TypeCheckResult result) {
 /**
  * @brief 打印类型结构（调试用）
  *
- * 递归打印类型区域的种类、层级、别名和子类型信息。
+ * 递归打印类型区域的种类、层级、别名/变量名、谓词字段和全部子类型信息。
+ * 子类型节点基于统一字段清单遍历（含 Sum 的 First/Second、Dependent 的 Body、
+ * 别名的 Aliased、谓词子类型的 Base）。
  *
  * @param tr     类型区域指针（可为 NULL）
  * @param indent 缩进层级（空格数）
@@ -907,33 +1000,29 @@ void type_print(const TypeRegion *tr, int indent) {
     if (tr->alias_name) {
         printf(" (alias: %s)", tr->alias_name);
     }
+    if (tr->variable_name) {
+        printf(" (var: %s)", tr->variable_name);
+    }
+    if (tr->kind == TYPE_KIND_PREDICATE_SUBTYPE) {
+        if (tr->predicate_name) {
+            printf(" (predicate: %s)", tr->predicate_name);
+        }
+        if (tr->predicate_expr) {
+            printf(" [%s]", tr->predicate_expr);
+        }
+    }
 
     printf("\n");
 
-    /* 递归打印子类型 */
-    if (tr->input_type) {
-        for (int i = 0; i < indent + 1; i++)
-            printf("  ");
-        printf("Input:\n");
-        type_print(tr->input_type, indent + 2);
-    }
-    if (tr->output_type) {
-        for (int i = 0; i < indent + 1; i++)
-            printf("  ");
-        printf("Output:\n");
-        type_print(tr->output_type, indent + 2);
-    }
-    if (tr->left_type) {
-        for (int i = 0; i < indent + 1; i++)
-            printf("  ");
-        printf("Left:\n");
-        type_print(tr->left_type, indent + 2);
-    }
-    if (tr->right_type) {
-        for (int i = 0; i < indent + 1; i++)
-            printf("  ");
-        printf("Right:\n");
-        type_print(tr->right_type, indent + 2);
+    /* 递归打印全部子类型节点 */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(k_type_region_child_fields); i++) {
+        TypeRegion *child = type_region_get_child(tr, k_type_region_child_fields[i].field_offset);
+        if (child) {
+            for (int j = 0; j < indent + 1; j++)
+                printf("  ");
+            printf("%s:\n", k_type_region_child_fields[i].label);
+            type_print(child, indent + 2);
+        }
     }
 }
 
@@ -1242,7 +1331,8 @@ TypeEquivResult type_infer_by_rules(TypeSystem *ts, ConstraintGraph *graph, int 
  * @brief 深拷贝类型区域
  *
  * 创建 TypeRegion 的递归深拷贝，用于撤销栈。
- * 仅拷贝关键字段（kind, level, id, alias_name, variable_name 等）。
+ * 基于统一字段清单复制全部动态字段（子类型节点 9 个、字符串 4 个、数组 2 个），
+ * 包括 predicate 子类型的 predicate_name / predicate_expr / base_type。
  *
  * @param src 源类型区域
  * @return 新分配的深拷贝，失败返回 NULL
@@ -1255,62 +1345,35 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src) {
     if (!dst)
         return NULL;
 
-    /* 复制基本字段 */
+    /* 复制基本字段（含 dependent 的 param_node_id 与 predicate 的
+     * predicate_constraint_id——原实现仅拷贝 variable_id，快照会丢失这两个字段） */
     dst->id = src->id;
     dst->kind = src->kind;
     dst->level = src->level;
     dst->variable_id = src->variable_id;
+    dst->param_node_id = src->param_node_id;
+    dst->predicate_constraint_id = src->predicate_constraint_id;
+    dst->contained_count = src->contained_count;
+    dst->constraint_count = src->constraint_count;
 
-    /* 复制 contained_node_ids */
-    if (src->contained_count > 0 && src->contained_node_ids) {
-        dst->contained_node_ids = (int *) lv_calloc(src->contained_count, sizeof(int));
-        if (dst->contained_node_ids) {
-            memcpy(dst->contained_node_ids, src->contained_node_ids, src->contained_count * sizeof(int));
-            dst->contained_count = src->contained_count;
+    /* 复制数组字段 */
+    type_region_copy_arrays(dst, src);
+
+    /* 复制字符串字段（含 predicate_name / predicate_expr） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(k_type_region_str_fields); i++) {
+        const char *s = *(char *const *) ((const char *) src + k_type_region_str_fields[i]);
+        if (s) {
+            *(char **) ((char *) dst + k_type_region_str_fields[i]) = lv_strdup(s);
         }
     }
 
-    /* 复制 constraint_ids */
-    if (src->constraint_count > 0 && src->constraint_ids) {
-        dst->constraint_ids = (int *) lv_calloc(src->constraint_count, sizeof(int));
-        if (dst->constraint_ids) {
-            memcpy(dst->constraint_ids, src->constraint_ids, src->constraint_count * sizeof(int));
-            dst->constraint_count = src->constraint_count;
+    /* 递归复制全部子类型节点（含 predicate 子类型的 base_type） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(k_type_region_child_fields); i++) {
+        size_t off = k_type_region_child_fields[i].field_offset;
+        TypeRegion *child = type_region_get_child(src, off);
+        if (child) {
+            *(TypeRegion **) ((char *) dst + off) = type_region_deep_copy(child);
         }
-    }
-
-    /* 复制字符串字段 */
-    if (src->alias_name) {
-        dst->alias_name = lv_strdup(src->alias_name);
-    }
-    if (src->variable_name) {
-        dst->variable_name = lv_strdup(src->variable_name);
-    }
-
-    /* 递归复制子类型（仅一层，避免循环引用） */
-    if (src->input_type) {
-        dst->input_type = type_region_deep_copy(src->input_type);
-    }
-    if (src->output_type) {
-        dst->output_type = type_region_deep_copy(src->output_type);
-    }
-    if (src->left_type) {
-        dst->left_type = type_region_deep_copy(src->left_type);
-    }
-    if (src->right_type) {
-        dst->right_type = type_region_deep_copy(src->right_type);
-    }
-    if (src->first_type) {
-        dst->first_type = type_region_deep_copy(src->first_type);
-    }
-    if (src->second_type) {
-        dst->second_type = type_region_deep_copy(src->second_type);
-    }
-    if (src->body_type) {
-        dst->body_type = type_region_deep_copy(src->body_type);
-    }
-    if (src->aliased_type) {
-        dst->aliased_type = type_region_deep_copy(src->aliased_type);
     }
 
     return dst;
@@ -1319,7 +1382,8 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src) {
 /**
  * @brief 释放深拷贝的类型区域
  *
- * 与 type_region_deep_copy 配对使用，递归释放所有子类型和字符串。
+ * 与 type_region_deep_copy 配对使用，基于统一字段清单递归释放
+ * 全部子类型节点（含 base_type）与字符串（含 predicate_name / predicate_expr）。
  *
  * @param tr 要释放的类型区域
  */
@@ -1327,23 +1391,22 @@ void type_region_deep_free(TypeRegion *tr) {
     if (!tr)
         return;
 
-    /* 递归释放子类型 */
-    type_region_deep_free(tr->input_type);
-    type_region_deep_free(tr->output_type);
-    type_region_deep_free(tr->left_type);
-    type_region_deep_free(tr->right_type);
-    type_region_deep_free(tr->first_type);
-    type_region_deep_free(tr->second_type);
-    type_region_deep_free(tr->body_type);
-    type_region_deep_free(tr->aliased_type);
+    /* 递归释放全部子类型节点（含 predicate 子类型的 base_type） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(k_type_region_child_fields); i++) {
+        size_t off = k_type_region_child_fields[i].field_offset;
+        TypeRegion **field = (TypeRegion **) ((char *) tr + off);
+        type_region_deep_free(*field);
+        *field = NULL;
+    }
 
-    /* 释放数组 */
-    lv_free((void **) &tr->contained_node_ids);
-    lv_free((void **) &tr->constraint_ids);
+    /* 释放数组字段 */
+    type_region_free_arrays(tr);
 
-    /* 释放字符串 */
-    lv_free((void **) &tr->alias_name);
-    lv_free((void **) &tr->variable_name);
+    /* 释放字符串字段（含 predicate_name / predicate_expr） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(k_type_region_str_fields); i++) {
+        char **field = (char **) ((char *) tr + k_type_region_str_fields[i]);
+        lv_free((void **) field);
+    }
 
     lv_free((void **) &tr);
 }

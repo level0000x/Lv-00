@@ -38,7 +38,7 @@
  * @brief 遗留日志实现：直接输出到控制台和日志文件
  *
  * 不经过级别过滤，始终以 DEBUG 语义输出。
- * 由 debug_log_normalization / debug_log_rewrite / debug_log_solver 调用。
+ * 由 debug_log_rewrite 调用。
  */
 static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_list args) {
     log_lock();
@@ -65,24 +65,10 @@ static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_lis
     log_unlock();
 }
 
-void debug_log_normalization(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    debug_log_legacy_impl("normalization", fmt, args);
-    va_end(args);
-}
-
 void debug_log_rewrite(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     debug_log_legacy_impl("rewrite", fmt, args);
-    va_end(args);
-}
-
-void debug_log_solver(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    debug_log_legacy_impl("solver", fmt, args);
     va_end(args);
 }
 
@@ -255,10 +241,13 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
         s_debug_state.current_log_size += (size_t) len;
     }
 
-    /* 追加到紧急保存日志缓冲区 */
-    log_buffer_append(log_line);
-
     log_unlock();
+
+    /* 【v3.3.0】写入全局环形日志缓冲区（替代原 log_buffer；锁外调用，wrapper 内部自行加锁） */
+    if (s_debug_state.log_ring_buffer) {
+        lv_log_ring_buffer_write(s_debug_state.log_ring_buffer, level, module ? module : "unknown", NULL, NULL, 0,
+                                 "%s", message);
+    }
 
     /* 【v3.3.0】FATAL 级别额外处理：触发紧急保存 */
     if (level == LOG_LEVEL_FATAL) {

@@ -12,16 +12,7 @@
 /** 当前日志级别，低于此级别的不输出 */
 static lvLogLevel g_min_level = lv_LOG_INFO;
 
-/** 日志输出目标，默认 stderr（重定向到主管道后不再实际生效，保留兼容） */
-static FILE *g_output = NULL;
-
-/** 是否输出时间戳（重定向到主管道后不再实际生效，保留兼容） */
-static bool g_timestamp_enabled = false;
-
-/** 是否输出源位置（重定向到主管道后不再实际生效，保留兼容） */
-static bool g_source_enabled = false;
-
-/** 全局状态互斥锁：保护上述 4 个配置项的并发读写（惰性初始化，首次加锁时自动完成） */
+/** 全局状态互斥锁：保护上述配置项的并发读写（惰性初始化，首次加锁时自动完成） */
 lv_LAZY_LOCK_DEFINE(g_log_state_lock);
 
 /**
@@ -78,19 +69,17 @@ lvLogLevel lv_log_get_level(void) {
 }
 
 void lv_log_set_output(FILE *fp) {
-    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
-    g_output = fp;
-    lv_lazy_lock_unlock(&g_log_state_lock);
+    /* 已委托统一日志主管道（lv_log_message -> debug_log），
+     * 输出目标配置不再实际生效，保留空实现以兼容旧 API。 */
+    (void) fp;
 }
 
 void lv_log_enable_timestamp(bool enable) {
-    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
-    g_timestamp_enabled = enable;
-    lv_lazy_lock_unlock(&g_log_state_lock);
+    /* 已委托统一日志主管道，时间戳配置不再实际生效，保留空实现以兼容旧 API。 */
+    (void) enable;
 }
 
 void lv_log_enable_source(bool enable) {
-    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
-    g_source_enabled = enable;
-    lv_lazy_lock_unlock(&g_log_state_lock);
+    /* 已委托统一日志主管道，源位置配置不再实际生效，保留空实现以兼容旧 API。 */
+    (void) enable;
 }

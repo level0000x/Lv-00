@@ -62,24 +62,12 @@ lvContext *lv_context_create(void) {
     ctx->previous_state = lv_CONTEXT_IDLE;
     ctx->state_transition_count = 0;
 
-    /* 7. 熔断器 —— 设置默认值 */
-    ctx->circuit_breaker.state = CIRCUIT_BREAKER_CLOSED;
+    /* 7. 熔断器 —— 由核心模块统一初始化 */
+    lv_circuit_breaker_init(&ctx->circuit_breaker);
+
+    /* 单次超时与冷却时间由配置驱动（lv_CONTEXT_DEFAULT_* 取自 lv_config_current()） */
     ctx->circuit_breaker.timeout_ms = lv_CONTEXT_DEFAULT_TIMEOUT_MS;
-    ctx->circuit_breaker.total_timeout_ms = 0; /* 不限制总运行时间 */
-    ctx->circuit_breaker.uncancellable_refcount = 0;
-    ctx->circuit_breaker.current_depth = 0;
-    ctx->circuit_breaker.max_depth = lv_CONTEXT_DEFAULT_MAX_DEPTH;
-    ctx->circuit_breaker.total_steps = 0;
-    ctx->circuit_breaker.max_steps = lv_CONTEXT_DEFAULT_MAX_STEPS;
-    ctx->circuit_breaker.consecutive_errors = 0;
-    ctx->circuit_breaker.max_consecutive_errors = lv_CONTEXT_DEFAULT_MAX_CONSECUTIVE_ERRORS;
-    ctx->circuit_breaker.max_memory_bytes = 0; /* 不限制 */
-    ctx->circuit_breaker.start_time_us = lv_get_time_us();
-    ctx->circuit_breaker.operation_start_us = 0;
     ctx->circuit_breaker.cooldown_ms = lv_CONTEXT_DEFAULT_COOLDOWN_MS;
-    ctx->circuit_breaker.tripped_at_us = 0;
-    ctx->circuit_breaker.trip_reason = NULL;
-    ctx->circuit_breaker.trip_count = 0;
 
     /* 8. 递归深度追踪 */
     ctx->recursion_depth = 0;
@@ -88,11 +76,6 @@ lvContext *lv_context_create(void) {
 
     /* 4. 推理分支栈 —— 初始化为空栈 */
     lv_reasoning_stack_init(&ctx->reasoning_stack);
-
-    /* 3. 缓存状态 */
-    ctx->cache_valid = false;
-    ctx->cache_hits = 0;
-    ctx->cache_misses = 0;
 
     /* 13. 快照/回滚支持 */
     ctx->snapshot_refcount = 0;
@@ -114,7 +97,7 @@ lvContext *lv_context_create(void) {
  * @brief 销毁上下文，释放所有关联资源
  *
  * 按顺序释放上下文持有的资源，最后释放结构体本身。
- * 释放顺序：推理栈帧 → 缓存 → 约束图 → 流式上下文 → 规范化结果 → 名称 → 熔断器
+ * 释放顺序：推理栈帧 → 约束图 → 流式上下文 → 规范化结果 → 名称 → 熔断器
  */
 void lv_context_destroy(lvContext *ctx) {
     if (!ctx) {
@@ -124,21 +107,7 @@ void lv_context_destroy(lvContext *ctx) {
     /* 1. 释放推理栈帧数组（含每帧的子资源） */
     lv_reasoning_stack_clear(&ctx->reasoning_stack);
 
-    /* 2. 释放代数计算缓存 */
-    if (ctx->groebner_cache) {
-        lv_free((void **) &ctx->groebner_cache);
-    }
-    if (ctx->symbolic_cache) {
-        lv_free((void **) &ctx->symbolic_cache);
-    }
-    if (ctx->numeric_cache) {
-        lv_free((void **) &ctx->numeric_cache);
-    }
-    if (ctx->unification_cache) {
-        lv_free((void **) &ctx->unification_cache);
-    }
-
-    /* 3. 释放主约束图 */
+    /* 2. 释放主约束图 */
     if (ctx->main_graph) {
         graph_destroy((ConstraintGraph *) ctx->main_graph);
         ctx->main_graph = NULL;
@@ -425,39 +394,8 @@ bool lv_context_is_circuit_open(const lvContext *ctx) {
         return true; /* 无上下文视为熔断 */
     }
 
-    /* 检查熔断器状态 */
-    if (ctx->circuit_breaker.state == CIRCUIT_BREAKER_OPEN) {
-        /* 检查冷却时间，自动转入半开态 */
-        uint64_t now = lv_get_time_us();
-        uint64_t elapsed_ms = (now - ctx->circuit_breaker.tripped_at_us) / 1000;
-        if (elapsed_ms >= ctx->circuit_breaker.cooldown_ms) {
-            /* 冷却期已过，允许半开态（但不修改 const 指针的字段）。
-               实际的 HALF_OPEN 转换应在 begin_operation 中进行。 */
-            return false;
-        }
-        return true;
-    }
-
-    /* 检查总运行时间超限 */
-    if (ctx->circuit_breaker.total_timeout_ms > 0) {
-        uint64_t now = lv_get_time_us();
-        uint64_t uptime_ms = (now - ctx->circuit_breaker.start_time_us) / 1000;
-        if (uptime_ms >= ctx->circuit_breaker.total_timeout_ms) {
-            return true;
-        }
-    }
-
-    /* 深度超限 */
-    if (ctx->circuit_breaker.max_depth > 0 && ctx->circuit_breaker.current_depth > ctx->circuit_breaker.max_depth) {
-        return true;
-    }
-
-    /* 步数超限 */
-    if (ctx->circuit_breaker.max_steps > 0 && ctx->circuit_breaker.total_steps >= ctx->circuit_breaker.max_steps) {
-        return true;
-    }
-
-    return false;
+    /* 委托核心熔断器的纯判断（is_tripped 只判断不迁移状态） */
+    return lv_circuit_breaker_is_tripped(&ctx->circuit_breaker);
 }
 
 /**
@@ -470,11 +408,8 @@ void lv_context_begin_operation(lvContext *ctx) {
         return;
     }
 
-    /* 半开态 → 关闭态（试探成功） */
-    if (ctx->circuit_breaker.state == CIRCUIT_BREAKER_HALF_OPEN) {
-        ctx->circuit_breaker.state = CIRCUIT_BREAKER_CLOSED;
-        ctx->circuit_breaker.consecutive_errors = 0;
-    }
+    /* 半开态 → 关闭态（试探成功），并重置连续错误计数 */
+    lv_circuit_breaker_record_success(&ctx->circuit_breaker);
 
     ctx->circuit_breaker.operation_start_us = lv_get_time_us();
 }
@@ -504,16 +439,8 @@ bool lv_context_check_timeout(lvContext *ctx) {
     uint64_t elapsed_ms = (now - ctx->circuit_breaker.operation_start_us) / 1000;
 
     if (elapsed_ms >= ctx->circuit_breaker.timeout_ms) {
-        /* 触发熔断 */
-        ctx->circuit_breaker.state = CIRCUIT_BREAKER_OPEN;
-        ctx->circuit_breaker.tripped_at_us = now;
-        ctx->circuit_breaker.trip_count++;
-
-        /* 记录熔断原因 */
-        if (ctx->circuit_breaker.trip_reason) {
-            lv_free((void **) &ctx->circuit_breaker.trip_reason);
-        }
-        ctx->circuit_breaker.trip_reason = lv_strdup_safe("操作超时熔断");
+        /* 触发熔断（状态/时间/计数/原因由核心熔断器记录） */
+        lv_circuit_breaker_do_trip(&ctx->circuit_breaker, "操作超时熔断");
 
         /* 转入错误状态 */
         ctx->previous_state = ctx->state;
@@ -570,15 +497,8 @@ bool lv_context_record_step(lvContext *ctx) {
 
     /* 检查步数限制 */
     if (ctx->circuit_breaker.max_steps > 0 && ctx->circuit_breaker.total_steps >= ctx->circuit_breaker.max_steps) {
-        /* 触发熔断 */
-        ctx->circuit_breaker.state = CIRCUIT_BREAKER_OPEN;
-        ctx->circuit_breaker.tripped_at_us = lv_get_time_us();
-        ctx->circuit_breaker.trip_count++;
-
-        if (ctx->circuit_breaker.trip_reason) {
-            lv_free((void **) &ctx->circuit_breaker.trip_reason);
-        }
-        ctx->circuit_breaker.trip_reason = lv_strdup_safe("推理步数超限熔断");
+        /* 触发熔断（状态/时间/计数/原因由核心熔断器记录） */
+        lv_circuit_breaker_do_trip(&ctx->circuit_breaker, "推理步数超限熔断");
 
         ctx->previous_state = ctx->state;
         ctx->state = lv_CONTEXT_ERROR;
@@ -599,7 +519,7 @@ void lv_context_record_success(lvContext *ctx) {
     if (!ctx) {
         return;
     }
-    ctx->circuit_breaker.consecutive_errors = 0;
+    lv_circuit_breaker_record_success(&ctx->circuit_breaker);
 }
 
 /**
@@ -616,15 +536,8 @@ bool lv_context_record_error(lvContext *ctx) {
     ctx->circuit_breaker.consecutive_errors++;
 
     if (ctx->circuit_breaker.consecutive_errors >= ctx->circuit_breaker.max_consecutive_errors) {
-        /* 触发熔断 */
-        ctx->circuit_breaker.state = CIRCUIT_BREAKER_OPEN;
-        ctx->circuit_breaker.tripped_at_us = lv_get_time_us();
-        ctx->circuit_breaker.trip_count++;
-
-        if (ctx->circuit_breaker.trip_reason) {
-            lv_free((void **) &ctx->circuit_breaker.trip_reason);
-        }
-        ctx->circuit_breaker.trip_reason = lv_strdup_safe("连续错误超限熔断");
+        /* 触发熔断（状态/时间/计数/原因由核心熔断器记录） */
+        lv_circuit_breaker_do_trip(&ctx->circuit_breaker, "连续错误超限熔断");
 
         ctx->previous_state = ctx->state;
         ctx->state = lv_CONTEXT_ERROR;
@@ -751,54 +664,6 @@ uint64_t lv_context_get_id(const lvContext *ctx) {
 }
 
 /* ============================================================
- * 第十一部分：缓存管理 API
- * ============================================================ */
-
-/**
- * @brief 标记所有缓存为无效
- */
-void lv_context_invalidate_cache(lvContext *ctx) {
-    if (!ctx) {
-        return;
-    }
-    ctx->cache_valid = false;
-}
-
-/**
- * @brief 检查缓存是否有效
- */
-bool lv_context_is_cache_valid(const lvContext *ctx) {
-    if (!ctx) {
-        return false;
-    }
-    return ctx->cache_valid;
-}
-
-/**
- * @brief 清除所有缓存内容（释放内存但保留缓存结构）
- */
-void lv_context_clear_cache(lvContext *ctx) {
-    if (!ctx) {
-        return;
-    }
-
-    if (ctx->groebner_cache) {
-        lv_free((void **) &ctx->groebner_cache);
-    }
-    if (ctx->symbolic_cache) {
-        lv_free((void **) &ctx->symbolic_cache);
-    }
-    if (ctx->numeric_cache) {
-        lv_free((void **) &ctx->numeric_cache);
-    }
-    if (ctx->unification_cache) {
-        lv_free((void **) &ctx->unification_cache);
-    }
-
-    ctx->cache_valid = false;
-}
-
-/* ============================================================
  * 第十二部分：错误管理 API（补充函数）
  * ============================================================ */
 
@@ -854,13 +719,6 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
     }
     uint64_t uptime_ms = uptime_us / 1000;
 
-    /* 计算缓存命中率 */
-    int64_t total_cache_access = ctx->cache_hits + ctx->cache_misses;
-    double cache_hit_rate = 0.0;
-    if (total_cache_access > 0) {
-        cache_hit_rate = (double) ctx->cache_hits / (double) total_cache_access * 100.0;
-    }
-
     /* 格式化统计信息 */
     int written =
         snprintf(buf, buf_size,
@@ -880,7 +738,6 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
                  (unsigned long long) ctx->context_id, ctx->name ? ctx->name : "(无名)",
                  lv_context_state_name(ctx->state), ctx->reasoning_stack.top + 1, ctx->reasoning_stack.max_depth,
                  (long long) ctx->circuit_breaker.total_steps, (long long) ctx->circuit_breaker.max_steps,
-                 cache_hit_rate, (long long) ctx->cache_hits, (long long) total_cache_access,
                  ctx->circuit_breaker.state == CIRCUIT_BREAKER_CLOSED      ? "关闭（正常）"
                  : ctx->circuit_breaker.state == CIRCUIT_BREAKER_HALF_OPEN ? "半开（试探）"
                                                                            : "打开（熔断）",
@@ -931,12 +788,7 @@ void lv_context_reset(lvContext *ctx) {
     /* 1. 释放推理栈帧 */
     lv_reasoning_stack_clear(&ctx->reasoning_stack);
 
-    /* 2. 清除缓存 */
-    lv_context_clear_cache(ctx);
-    ctx->cache_hits = 0;
-    ctx->cache_misses = 0;
-
-    /* 3. 重建主约束图 */
+    /* 2. 重建主约束图 */
     if (ctx->main_graph) {
         graph_destroy((ConstraintGraph *) ctx->main_graph);
     }

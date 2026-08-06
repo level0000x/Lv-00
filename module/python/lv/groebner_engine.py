@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 Groebner 引擎模块
 
 提供 Groebner 基计算的 Python 接口，借鉴 Singular/Macaulay2
@@ -21,6 +21,9 @@ from typing import List, Optional, Tuple
 
 from ._ctypes_binding import _lib, _ConstraintGraph, c_int, c_char_p, c_void_p, c_bool, POINTER
 from .core import lvBaseError
+from ._ptr_owner import (
+    _PtrOwner, _call_truthy, _str_enc,
+)
 
 __all__ = [
     "RingFieldType", "MonomialOrder", "GroebnerAlgorithm",
@@ -111,7 +114,7 @@ class GroebnerEngineError(lvBaseError):
 # 环注册表
 # ============================================================
 
-class RingRegistry:
+class RingRegistry(_PtrOwner):
     """多项式环注册表。
 
     管理多个多项式环的全局注册表，借鉴 Singular 的"多环共存"范式。
@@ -133,15 +136,8 @@ class RingRegistry:
         self._ptr = _lib.ring_registry_create(capacity)
         if not self._ptr:
             raise GroebnerEngineError("创建环注册表失败")
-
-    def __del__(self) -> None:
-        """析构函数：释放底层 C 注册表资源。"""
-        if hasattr(self, '_ptr') and self._ptr:
-            try:
-                _lib.ring_registry_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        # 登记生命周期管理（析构由 _PtrOwner 统一处理）
+        _PtrOwner.__init__(self, self._ptr, _lib.ring_registry_destroy, True)
 
     def create_ring(self, var_names: List[str], field: int,
                     order: int, label: Optional[str] = None) -> int:
@@ -163,8 +159,8 @@ class RingRegistry:
         """
         c_names = (c_char_p * len(var_names))()
         for i, name in enumerate(var_names):
-            c_names[i] = name.encode('utf-8')
-        c_label = label.encode('utf-8') if label else None
+            c_names[i] = _str_enc(name)
+        c_label = _str_enc(label) if label else None
         ring_id = _lib.ring_create(self._ptr, c_names, len(var_names), field, order, c_label)
         if ring_id < 0:
             raise GroebnerEngineError(f"创建环失败（变量: {var_names}）")
@@ -190,9 +186,8 @@ class RingRegistry:
         异常:
             GroebnerEngineError: 环不存在
         """
-        ptr = _lib.ring_find(self._ptr, ring_id)
-        if not ptr:
-            raise GroebnerEngineError(f"环 ID={ring_id} 不存在")
+        ptr = _call_truthy(_lib.ring_find, self._ptr, ring_id,
+                           exc_cls=GroebnerEngineError, msg=f"环 ID={ring_id} 不存在")
         return PolynomialRing(ptr, ring_id)
 
 
@@ -281,7 +276,7 @@ def poly_create(registry: RingRegistry, ring_id: int,
     异常:
         GroebnerEngineError: 创建失败
     """
-    c_label = label.encode('utf-8') if label else None
+    c_label = _str_enc(label) if label else None
     poly_id = _lib.poly_create(registry._ptr, ring_id, capacity, c_label)
     if poly_id < 0:
         raise GroebnerEngineError(f"创建多项式失败（环 ID={ring_id}）")
@@ -301,7 +296,7 @@ def poly_add(registry: RingRegistry, poly_id_f: int, poly_id_g: int,
     返回:
         int: 结果多项式 ID
     """
-    c_label = label.encode('utf-8') if label else None
+    c_label = _str_enc(label) if label else None
     result = _lib.poly_add(registry._ptr, poly_id_f, poly_id_g, c_label)
     if result < 0:
         raise GroebnerEngineError("多项式加法失败")
@@ -321,7 +316,7 @@ def poly_multiply(registry: RingRegistry, poly_id_f: int, poly_id_g: int,
     返回:
         int: 结果多项式 ID
     """
-    c_label = label.encode('utf-8') if label else None
+    c_label = _str_enc(label) if label else None
     result = _lib.poly_multiply(registry._ptr, poly_id_f, poly_id_g, c_label)
     if result < 0:
         raise GroebnerEngineError("多项式乘法失败")
@@ -346,7 +341,7 @@ def ideal_create(registry: RingRegistry, ring_id: int,
     返回:
         int: 理想 ID（>= 0）
     """
-    c_label = label.encode('utf-8') if label else None
+    c_label = _str_enc(label) if label else None
     ideal_id = _lib.ideal_create(registry._ptr, ring_id, c_label)
     if ideal_id < 0:
         raise GroebnerEngineError(f"创建理想失败（环 ID={ring_id}）")
@@ -420,7 +415,7 @@ def ideal_intersection(registry: RingRegistry, ideal_id_a: int, ideal_id_b: int,
     返回:
         int: 结果理想 ID（>= 0）
     """
-    c_label = label.encode('utf-8') if label else None
+    c_label = _str_enc(label) if label else None
     result = _lib.ideal_intersection(registry._ptr, ideal_id_a, ideal_id_b, c_label)
     if result < 0:
         raise GroebnerEngineError("理想交计算失败")
@@ -440,7 +435,7 @@ def ideal_quotient(registry: RingRegistry, ideal_id_a: int, ideal_id_b: int,
     返回:
         int: 结果理想 ID（>= 0）
     """
-    c_label = label.encode('utf-8') if label else None
+    c_label = _str_enc(label) if label else None
     result = _lib.ideal_quotient(registry._ptr, ideal_id_a, ideal_id_b, c_label)
     if result < 0:
         raise GroebnerEngineError("理想商计算失败")
@@ -465,7 +460,7 @@ def variety_compute(registry: RingRegistry, ideal_id: int,
     返回:
         int: 簇 ID（>= 0）
     """
-    c_label = label.encode('utf-8') if label else None
+    c_label = _str_enc(label) if label else None
     variety_id = _lib.variety_compute(registry._ptr, ideal_id, c_label)
     if variety_id < 0:
         raise GroebnerEngineError(f"代数簇计算失败（理想 ID={ideal_id}）")
@@ -497,7 +492,7 @@ def constraint_graph_to_ideal(registry: RingRegistry, graph, ring_id: int,
     """
     if not hasattr(graph, '_ptr') or not graph._ptr:
         raise TypeError("graph 必须具有有效的 _ptr 属性")
-    c_label = label.encode('utf-8') if label else None
+    c_label = _str_enc(label) if label else None
     ideal_id = _lib.constraint_graph_to_ideal(registry._ptr, graph._ptr, ring_id, c_label)
     if ideal_id < 0:
         raise GroebnerEngineError("约束图转理想失败")
