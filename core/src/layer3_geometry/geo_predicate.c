@@ -22,6 +22,7 @@
 #include <float.h>
 #include <math.h>
 #include <string.h>
+#include <stdatomic.h>
 
 #include "lv/config.h"
 #include "lv/geometry_config.h"
@@ -60,8 +61,23 @@
 /** @brief 全局默认精度模式，初始为自适应 */
 static lvPredicateMode g_predicate_mode = lv_PREDICATE_ADAPTIVE;
 
-/** @brief 全局谓词统计信息 */
-static lvPredicateStats g_predicate_stats = {0, 0, 0};
+/**
+ * @brief 全局谓词统计信息（原子计数，多线程热路径安全）
+ *
+ * 字段类型与头文件 lvPredicateStats 一致（3 × size_t），
+ * 声明为 _Atomic 供多线程原子自增/读取/清零。
+ */
+typedef struct {
+    _Atomic size_t approx_count;      /**< 近似模式调用次数 */
+    _Atomic size_t exact_count;       /**< 精确模式调用次数 */
+    _Atomic size_t adaptive_fallback; /**< 自适应回退次数 */
+} AtomicPredicateStats;
+
+static AtomicPredicateStats g_predicate_stats = {0, 0, 0};
+
+/** @brief 原子递增统计计数（热路径，relaxed 内存序即可） */
+#define lv_PREDICATE_STAT_INC(field) \
+    atomic_fetch_add_explicit(&g_predicate_stats.field, 1, memory_order_relaxed)
 
 /* ========================================================================
  * 内部辅助函数
@@ -267,7 +283,7 @@ typedef lvOrientation (*Orientation2dImplFn)(double p1x, double p1y, double p2x,
 /** @brief 近似模式实现：直接浮点叉积 + 自适应阈值 */
 static lvOrientation orientation_2d_approx(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y,
                                            double eps) {
-    g_predicate_stats.approx_count++;
+    lv_PREDICATE_STAT_INC(approx_count);
 
     double cross = geo_signed_area_2x(p1x, p1y, p2x, p2y, p3x, p3y);
 
@@ -295,7 +311,7 @@ static lvOrientation orientation_2d_approx(double p1x, double p1y, double p2x, d
 static lvOrientation orientation_2d_exact(double p1x, double p1y, double p2x, double p2y, double p3x, double p3y,
                                           double eps) {
     (void) eps;
-    g_predicate_stats.exact_count++;
+    lv_PREDICATE_STAT_INC(exact_count);
 
     lvInterval result = orientation_2d_exact_interval(p1x, p1y, p2x, p2y, p3x, p3y);
 
@@ -383,15 +399,15 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x
         }
 
         if (cross > threshold) {
-            g_predicate_stats.approx_count++;
+            lv_PREDICATE_STAT_INC(approx_count);
             return lv_ORIENTATION_LEFT;
         } else if (cross < -threshold) {
-            g_predicate_stats.approx_count++;
+            lv_PREDICATE_STAT_INC(approx_count);
             return lv_ORIENTATION_RIGHT;
         } else {
             /* 回退到精确模式 */
-            g_predicate_stats.adaptive_fallback++;
-            g_predicate_stats.exact_count++;
+            lv_PREDICATE_STAT_INC(adaptive_fallback);
+            lv_PREDICATE_STAT_INC(exact_count);
 
             lvInterval result = orientation_2d_exact_interval(p1x, p1y, p2x, p2y, p3x, p3y);
 
@@ -417,7 +433,7 @@ typedef lvOrientation (*Orientation3dImplFn)(double p1x, double p1y, double p1z,
 static lvOrientation orientation_3d_approx(double p1x, double p1y, double p1z, double p2x, double p2y, double p2z,
                                            double p3x, double p3y, double p3z, double p4x, double p4y, double p4z,
                                            double eps) {
-    g_predicate_stats.approx_count++;
+    lv_PREDICATE_STAT_INC(approx_count);
 
     /* 3x3 行列式：det(a, b, c) = a . (b x c) */
     double ax = p2x - p1x, ay = p2y - p1y, az = p2z - p1z;
@@ -440,7 +456,7 @@ static lvOrientation orientation_3d_exact(double p1x, double p1y, double p1z, do
                                           double p3x, double p3y, double p3z, double p4x, double p4y, double p4z,
                                           double eps) {
     (void) eps;
-    g_predicate_stats.exact_count++;
+    lv_PREDICATE_STAT_INC(exact_count);
 
     lvInterval result = orientation_3d_exact_interval(p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z);
 
@@ -523,14 +539,14 @@ lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, 
         }
 
         if (det > threshold) {
-            g_predicate_stats.approx_count++;
+            lv_PREDICATE_STAT_INC(approx_count);
             return lv_ORIENTATION_LEFT;
         } else if (det < -threshold) {
-            g_predicate_stats.approx_count++;
+            lv_PREDICATE_STAT_INC(approx_count);
             return lv_ORIENTATION_RIGHT;
         } else {
-            g_predicate_stats.adaptive_fallback++;
-            g_predicate_stats.exact_count++;
+            lv_PREDICATE_STAT_INC(adaptive_fallback);
+            lv_PREDICATE_STAT_INC(exact_count);
 
             lvInterval result =
                 orientation_3d_exact_interval(p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z);
@@ -619,7 +635,7 @@ typedef lvSideOfCircle (*SideOfCircleImplFn)(double px, double py, double cx, do
 
 /** @brief 近似模式实现：直接浮点距离平方差 */
 static lvSideOfCircle side_of_circle_approx(double px, double py, double cx, double cy, double r, double eps) {
-    g_predicate_stats.approx_count++;
+    lv_PREDICATE_STAT_INC(approx_count);
 
     double dx = px - cx;
     double dy = py - cy;
@@ -639,7 +655,7 @@ static lvSideOfCircle side_of_circle_approx(double px, double py, double cx, dou
 /** @brief 精确模式实现：区间算术 */
 static lvSideOfCircle side_of_circle_exact(double px, double py, double cx, double cy, double r, double eps) {
     (void) eps;
-    g_predicate_stats.exact_count++;
+    lv_PREDICATE_STAT_INC(exact_count);
 
     lvInterval result = side_of_circle_exact_interval(px, py, cx, cy, r);
 
@@ -711,14 +727,14 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(double px, double py, double cx, 
         }
 
         if (diff < -threshold) {
-            g_predicate_stats.approx_count++;
+            lv_PREDICATE_STAT_INC(approx_count);
             return lv_SIDE_INSIDE;
         } else if (diff > threshold) {
-            g_predicate_stats.approx_count++;
+            lv_PREDICATE_STAT_INC(approx_count);
             return lv_SIDE_OUTSIDE;
         } else {
-            g_predicate_stats.adaptive_fallback++;
-            g_predicate_stats.exact_count++;
+            lv_PREDICATE_STAT_INC(adaptive_fallback);
+            lv_PREDICATE_STAT_INC(exact_count);
 
             lvInterval result = side_of_circle_exact_interval(px, py, cx, cy, r);
 
@@ -968,7 +984,7 @@ typedef bool (*FourPointsConcyclicImplFn)(double ax, double ay, double bx, doubl
 /** @brief 近似模式实现：直接浮点 4x4 行列式（归一化后与 eps 比较） */
 static bool four_points_concyclic_approx(double ax, double ay, double bx, double by, double cx, double cy, double dx,
                                          double dy, double eps) {
-    g_predicate_stats.approx_count++;
+    lv_PREDICATE_STAT_INC(approx_count);
 
     double a2 = ax * ax + ay * ay;
     double b2 = bx * bx + by * by;
@@ -1015,7 +1031,7 @@ static bool four_points_concyclic_approx(double ax, double ay, double bx, double
 static bool four_points_concyclic_exact(double ax, double ay, double bx, double by, double cx, double cy, double dx,
                                         double dy, double eps) {
     (void) eps;
-    g_predicate_stats.exact_count++;
+    lv_PREDICATE_STAT_INC(exact_count);
 
     lvInterval result = four_points_concyclic_exact_interval(ax, ay, bx, by, cx, cy, dx, dy);
 
@@ -1087,11 +1103,11 @@ lv_PUBLIC_API bool lv_four_points_concyclic(double ax, double ay, double bx, dou
         }
 
         if (fabs(det) > threshold) {
-            g_predicate_stats.approx_count++;
+            lv_PREDICATE_STAT_INC(approx_count);
             return false; /* 明确不为零，不共圆 */
         } else {
-            g_predicate_stats.adaptive_fallback++;
-            g_predicate_stats.exact_count++;
+            lv_PREDICATE_STAT_INC(adaptive_fallback);
+            lv_PREDICATE_STAT_INC(exact_count);
 
             lvInterval result = four_points_concyclic_exact_interval(ax, ay, bx, by, cx, cy, dx, dy);
 
@@ -1312,7 +1328,9 @@ lv_PUBLIC_API bool lv_point_in_polygon(double px, double py, const double *xs, c
  */
 lv_PUBLIC_API void lv_predicate_get_stats(lvPredicateStats *stats) {
     if (stats != NULL) {
-        memcpy(stats, &g_predicate_stats, sizeof(lvPredicateStats));
+        stats->approx_count = atomic_load_explicit(&g_predicate_stats.approx_count, memory_order_relaxed);
+        stats->exact_count = atomic_load_explicit(&g_predicate_stats.exact_count, memory_order_relaxed);
+        stats->adaptive_fallback = atomic_load_explicit(&g_predicate_stats.adaptive_fallback, memory_order_relaxed);
     }
 }
 
@@ -1322,7 +1340,9 @@ lv_PUBLIC_API void lv_predicate_get_stats(lvPredicateStats *stats) {
  * 将统计计数器清零，通常在开始新的测试或算例前调用。
  */
 lv_PUBLIC_API void lv_predicate_reset_stats(void) {
-    memset(&g_predicate_stats, 0, sizeof(lvPredicateStats));
+    atomic_store_explicit(&g_predicate_stats.approx_count, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_predicate_stats.exact_count, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_predicate_stats.adaptive_fallback, 0, memory_order_relaxed);
 }
 
 /**

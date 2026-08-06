@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "lv/constraint_graph.h"
 #include "lv/context.h"
 #include "lv/dsl_compiler.h"
 #include "lv/engine.h"
@@ -117,13 +118,24 @@ int lv_prove(lvContext *ctx, const char *goal) {
         lv_context_reset(ctx);
     }
 
+    /* 确保上下文中存在主约束图：新建的 lvContext 在首次 lv_context_reset()
+     * 之前 main_graph 为 NULL，缺图会导致后续解析和引擎推理无法进行。 */
+    if (ctx->main_graph == NULL) {
+        ctx->main_graph = graph_create();
+        if (!ctx->main_graph) {
+            ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
+            snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 创建约束图失败");
+            return -3;
+        }
+    }
+
     /* ---- 解析阶段 ---- */
     if (!safe_transition(ctx, lv_CONTEXT_PARSING, "lv_prove")) {
         return -2;
     }
 
     /* goal 非空时，解析目标字符串为约束图 */
-    if (lv_str_nonempty(goal) && ctx->main_graph != NULL) {
+    if (lv_str_nonempty(goal)) {
         DslCompileConfig cfg;
         dsl_compile_config_default(&cfg);
         if (!dsl_compile_and_load(goal, &cfg, ctx->main_graph)) {
@@ -141,8 +153,29 @@ int lv_prove(lvContext *ctx, const char *goal) {
 
     /* 调用引擎重写-求解流水线。
      * 这里使用重写-求解协作模式：先重写简化约束，再调用求解器。
-     * max_rewrite_steps=1000, max_solve_steps=1000 为默认值。 */
-    int steps = engine_rewrite_and_solve(NULL, 1000, 1000);
+     * max_rewrite_steps=1000, max_solve_steps=1000 为默认值。
+     *
+     * 引擎实例在此本地构造：engine_create() 会自建一个空白的 main_graph，
+     * 这里将其释放并替换为 ctx->main_graph，使引擎直接作用于上下文中
+     * 已解析好的约束图。引擎不拥有该图的所有权，因此求解结束后先把
+     * engine->main_graph 置回 NULL，再调用 engine_destroy()，避免引擎
+     * 销毁时释放本应属于上下文的约束图（双重释放）。 */
+    lvEngine *engine = engine_create();
+    if (!engine) {
+        ctx->state = lv_CONTEXT_ERROR;
+        ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 创建引擎失败");
+        return -4;
+    }
+
+    graph_destroy(engine->main_graph);
+    engine->main_graph = ctx->main_graph;
+
+    int steps = engine_rewrite_and_solve(engine, 1000, 1000);
+
+    /* 解除引擎对上下文约束图的引用后再销毁引擎 */
+    engine->main_graph = NULL;
+    engine_destroy(engine);
 
     /* ---- 结果判定 ---- */
     if (steps >= 0) {
@@ -202,17 +235,20 @@ int lv_preset_load(lvContext *ctx, const char *name) {
 
     /* ---- 注册到上下文的模块引用 ----
      * 将预设条目作为模块引用记录在上下文中，
-     * 方便后续 lv_preset_apply() 使用。 */
-    if (ctx->module_ref_count < 256) { /* 防止引用数组溢出 */
-        ctx->module_refs[ctx->module_ref_count] = (void *) entry;
-        ctx->module_ref_count++;
-    } else {
-        preset_release(entry);
-        ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 模块引用数组已满（%d 个）",
-                 ctx->module_ref_count);
-        return -4;
+     * 方便后续 lv_preset_apply() 使用。
+     * module_refs 为动态数组：写入前按需扩容（参照 dsl_compiler_load.c 的做法）。 */
+    {
+        void **np = lv_realloc(ctx->module_refs, sizeof(void *) * (size_t) (ctx->module_ref_count + 1));
+        if (!np) {
+            preset_release(entry);
+            ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
+            snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 模块引用数组扩容失败");
+            return -4;
+        }
+        ctx->module_refs = np;
     }
+    ctx->module_refs[ctx->module_ref_count] = (void *) entry;
+    ctx->module_ref_count++;
 
     ctx->error_code = lv_OK;
     ctx->error_message[0] = '\0';

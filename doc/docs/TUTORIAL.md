@@ -287,13 +287,13 @@ int main(void) {
 
     /* 处理结果 */
     switch (result) {
-        case lv_SOLVE_SUCCESS:
+        case ENGINE_SOLVE_OK:
             printf("求解成功!\n");
             break;
-        case lv_SOLVE_TIMEOUT:
+        case ENGINE_SOLVE_TIMEOUT:
             printf("求解超时\n");
             break;
-        case lv_SOLVE_INCONSISTENT:
+        case ENGINE_SOLVE_CONFLICT:
             printf("约束矛盾\n");
             break;
         default:
@@ -323,17 +323,8 @@ int main(void) {
 
     /* 构建复杂问题... */
 
-    /* 使用自定义选项求解 */
-    SolverOptions options = {
-        .timeout_ms = 30000,
-        .max_iterations = 1000,
-        .enable_groebner = true,
-        .enable_smt = true,
-        .enable_atp = false,
-        .log_level = 2
-    };
-
-    EngineSolveResult result = lv_solve_with_options(ctx, &options);
+    /* 求解（引擎内部按配置执行重写-求解协作流水线） */
+    EngineSolveResult result = lv_solve(ctx);
     printf("求解结果: %d\n", result);
 
     lv_engine_destroy(ctx);
@@ -349,89 +340,56 @@ int main(void) {
 
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
-#include <stdlib.h>
 
 int main(void) {
-    lv_engine_create();
-    lvEngine *ctx = lv_engine_create();
+    lvContext *ctx = lv_context_create();
 
-    /* 创建等边三角形 */
-    int A = lv_add_point_i(ctx, 0, 0);
-    int B = lv_add_point_i(ctx, 2, 0);
-
-    /* 构造等边三角形第三点 */
-    /* 使用圆交点构造 */
-    /* ... 构造代码 ... */
-
-    /* 创建命题：三边相等 */
-    /* 假设我们已经计算出边长 */
-    Expr *ab = /* 边 AB 长度 */;
-    Expr *bc = /* 边 BC 长度 */;
-    Expr *ca = /* 边 CA 长度 */;
-
-    Proposition *eq1 = lv_proposition_eq(ab, bc);
-    Proposition *eq2 = lv_proposition_eq(bc, ca);
-    Proposition *goal = lv_proposition_and(eq1, eq2);
+    /* 解析目标：等边三角形的三条边相等 */
+    /* 目标使用 DSL 文本描述，由 lv_prove 解析并调用引擎证明 */
 
     /* 执行证明 */
     printf("开始证明...\n");
-    Proof *proof = lv_prove(ctx, goal);
+    int rc = lv_prove(ctx, "triangle ABC is equilateral");
 
-    if (proof && lv_proof_valid(proof)) {
+    if (rc == 0) {
         printf("证明成功!\n");
-        printf("证明步骤数: %zu\n", lv_proof_get_step_count(proof));
-
-        /* 导出证明 */
-        lv_proof_export_lean(proof, "equilateral.lean");
-        lv_proof_export_latex(proof, "equilateral.tex");
-        printf("证明已导出到 equilateral.lean 和 equilateral.tex\n");
     } else {
         printf("证明失败\n");
     }
 
-    /* 清理 */
-    /* ... 销毁命题和证明 ... */
-
-    lv_engine_destroy(ctx);
+    lv_context_destroy(ctx);
     return 0;
 }
 ```
 
 ### 5.2 使用特定证明策略
 
+Lv-00 的引擎会在重写-求解协作流水线中自动选择合适的推理路径。
+需要针对反证法、Groebner 基等具体策略时，可通过预设（preset）与
+DSL 目标描述组合实现：
+
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 int main(void) {
-    lv_engine_create();
-    lvEngine *ctx = lv_engine_create();
+    lvContext *ctx = lv_context_create();
 
-    /* 构建问题... */
+    /* 构建问题（DSL 目标文本）... */
 
-    /* 创建命题 */
-    Proposition *goal = /* ... */;
+    /* 反证法风格目标 */
+    int rc = lv_prove(ctx, "by contradiction: triangle ABC is isosceles");
 
-    /* 使用反证法 */
-    Proof *proof = lv_prove_with_strategy(
-        ctx, goal, PROOF_STRATEGY_CONTRADICTION
-    );
-
-    if (proof && lv_proof_valid(proof)) {
-        printf("反证成功!\n");
+    if (rc == 0) {
+        printf("证明成功!\n");
+    } else {
+        printf("证明失败\n");
     }
 
-    /* 使用 Groebner 基 */
-    proof = lv_prove_with_strategy(
-        ctx, goal, PROOF_STRATEGY_GROEBNER
-    );
-
-    if (proof && lv_proof_valid(proof)) {
-        printf("代数证明成功!\n");
-    }
-
-    lv_engine_destroy(ctx);
+    lv_context_destroy(ctx);
     return 0;
 }
 ```
@@ -444,73 +402,67 @@ int main(void) {
 
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 int main(void) {
-    lv_engine_create();
-    lvEngine *ctx = lv_engine_create();
+    lvContext *ctx = lv_context_create();
 
     /* 加载欧氏几何预设 */
-    if (!lv_preset_load(ctx, "euclidean_geometry")) {
+    if (lv_preset_load(ctx, "euclidean_geometry") != 0) {
         fprintf(stderr, "加载预设失败\n");
-        lv_engine_destroy(ctx);
+        lv_context_destroy(ctx);
         return 1;
     }
     printf("欧氏几何预设加载成功\n");
 
-    /* 创建 3-4-5 直角三角形 */
-    int A = lv_add_point_i(ctx, 0, 0);
-    int B = lv_add_point_i(ctx, 3, 0);
-    int C = lv_add_point_i(ctx, 0, 4);
-
     /* 应用勾股定理预设 */
-    Proposition *prop = lv_preset_apply(
-        ctx, "pythagorean_theorem", A, B, C
-    );
+    lv_preset_apply(ctx, "pythagorean_theorem");
 
     /* 证明 */
-    Proof *proof = lv_prove(ctx, prop);
+    int rc = lv_prove(ctx, "triangle ABC is right-angled at A");
 
-    if (proof && lv_proof_valid(proof)) {
+    if (rc == 0) {
         printf("勾股定理验证成功!\n");
-        lv_proof_export_tikz(proof, "pythagorean.tex");
     }
 
     lv_preset_unload(ctx, "euclidean_geometry");
-    lv_engine_destroy(ctx);
+    lv_context_destroy(ctx);
     return 0;
 }
 ```
 
-### 6.2 列出可用预设
+### 6.2 预设的加载与应用流程
+
+预设库由内部管理器维护；对外可通过 `lv_preset_load()`、
+`lv_preset_apply()` 与 `lv_preset_unload()` 操作预设：
 
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 int main(void) {
-    lv_engine_create();
+    lvContext *ctx = lv_context_create();
 
-    size_t count;
-    char **presets = lv_preset_list(&count);
-
-    printf("可用预设模块 (%zu 个):\n", count);
-    for (size_t i = 0; i < count; i++) {
-        printf("  - %s\n", presets[i]);
-
-        /* 获取预设信息 */
-        PresetInfo *info = lv_preset_get_info(presets[i]);
-        if (info) {
-            printf("    描述: %s\n", info->description);
-            printf("    版本: %s\n", info->version);
-            free(info);
-        }
-
-        free(presets[i]);
+    /* 加载预设 */
+    if (lv_preset_load(ctx, "midpoint") != 0) {
+        fprintf(stderr, "预设加载失败\n");
+        lv_context_destroy(ctx);
+        return 1;
     }
-    free(presets);
 
-    lv_engine_destroy(ctx);
+    /* 应用预设 */
+    if (lv_preset_apply(ctx, "midpoint") != 0) {
+        fprintf(stderr, "预设应用失败\n");
+    } else {
+        printf("预设应用成功\n");
+    }
+
+    /* 卸载预设 */
+    lv_preset_unload(ctx, "midpoint");
+
+    lv_context_destroy(ctx);
     return 0;
 }
 ```
@@ -535,7 +487,7 @@ int main(void) {
     lv_engine_create();
 
     /* 设置内存上限 */
-    lv_set_memory_limit_ex(256 * 1024 * 1024);  /* 256 MB */
+    lv_set_memory_limit(256 * 1024 * 1024);  /* 256 MB */
 
     Problem problems[] = {
         {"直角三角形",     {{0,0}, {3,0}, {0,4}}},
@@ -565,7 +517,7 @@ int main(void) {
 
         /* 求解 */
         lv_normalize(ctx, true);
-        if (lv_solve(ctx) == lv_SOLVE_SUCCESS) {
+        if (lv_solve(ctx) == ENGINE_SOLVE_OK) {
             printf("成功\n");
             success++;
         } else {
@@ -578,12 +530,10 @@ int main(void) {
     printf("\n总计: %d/%d 成功\n", success, n);
 
     /* 查看内存统计 */
-    lvMemoryStats stats;
-    if (lv_get_memory_stats_ex(&stats)) {
-        printf("内存峰值: %zu 字节\n", stats.peak_bytes);
-    }
+    MemoryStats stats;
+    lv_get_memory_stats(&stats);
+    printf("内存峰值: %zu 字节\n", stats.peak_used);
 
-    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -648,11 +598,9 @@ int main(void) {
     for (int i = 0; i < NUM_THREADS; i++) {
         pthread_join(threads[i], NULL);
         printf("线程 %d: %s\n", i,
-               tdata[i].result == lv_SOLVE_SUCCESS ? "成功" : "失败");
+               tdata[i].result == ENGINE_SOLVE_OK ? "成功" : "失败");
     }
 
-    /* 主线程清理 */
-    lv_engine_destroy(ctx);
     return 0;
 }
 ```
@@ -696,23 +644,23 @@ int main(void) {
     lv_engine_create();
 
     /* 设置内存限制 */
-    lv_set_memory_limit_ex(100 * 1024 * 1024);  /* 100 MB */
+    lv_set_memory_limit(100 * 1024 * 1024);  /* 100 MB */
 
     /* 获取初始内存状态 */
-    lvMemoryStats stats_before;
-    lv_get_memory_stats_ex(&stats_before);
+    MemoryStats stats_before;
+    lv_get_memory_stats(&stats_before);
 
     /* 执行操作... */
     lvEngine *ctx = lv_engine_create();
     /* ... */
 
     /* 获取最终内存状态 */
-    lvMemoryStats stats_after;
-    lv_get_memory_stats_ex(&stats_after);
+    MemoryStats stats_after;
+    lv_get_memory_stats(&stats_after);
 
     printf("内存使用: %zu 字节\n",
-           stats_after.current_bytes - stats_before.current_bytes);
-    printf("内存峰值: %zu 字节\n", stats_after.peak_bytes);
+           stats_after.current_used - stats_before.current_used);
+    printf("内存峰值: %zu 字节\n", stats_after.peak_used);
 
     lv_engine_destroy(ctx);
     return 0;
@@ -738,7 +686,7 @@ int solve_problem_safely(void) {
     lvEngine *ctx = lv_engine_create();
     if (!ctx) {
         fprintf(stderr, "ERROR: 上下文创建失败: %s\n",
-                lv_get_last_error_string());
+                lv_get_last_error_message());
         lv_engine_destroy(ctx);
         return -1;
     }
@@ -760,14 +708,14 @@ int solve_problem_safely(void) {
     lv_normalize(ctx, true);
     EngineSolveResult result = lv_solve(ctx);
 
-    if (result != lv_SOLVE_SUCCESS) {
+    if (result != ENGINE_SOLVE_OK) {
         fprintf(stderr, "WARNING: 求解未完全成功: %s\n",
-                lv_get_last_error_string());
+                lv_get_last_error_message());
         /* 即使失败也可能有部分结果 */
     }
 
     lv_engine_destroy(ctx);
-    return (result == lv_SOLVE_SUCCESS) ? 0 : 1;
+    return (result == ENGINE_SOLVE_OK) ? 0 : 1;
 
 cleanup:
     lv_engine_destroy(ctx);

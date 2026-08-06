@@ -87,6 +87,13 @@ lvContext *lv_context_create(void) {
     ctx->created_at_us = lv_get_time_us();
     ctx->problems_processed = 0;
 
+    /* 3. 主约束图 —— 初始化为空图（头文件契约：create 后必须可用） */
+    ctx->main_graph = graph_create();
+    if (!ctx->main_graph) {
+        lv_free((void **) &ctx);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_create: 创建主约束图失败");
+    }
+
     /* 12. 公理与规则引用 */
     ctx->rewrite_step_limit = lv_DEFAULT_REWRITE_STEP_LIMIT;
 
@@ -780,6 +787,13 @@ void lv_context_reset(lvContext *ctx) {
         graph_destroy((ConstraintGraph *) ctx->main_graph);
     }
     ctx->main_graph = graph_create();
+    if (!ctx->main_graph) {
+        ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_context_reset: 创建主约束图失败");
+        ctx->state = lv_CONTEXT_ERROR;
+        lv_context_leave_uncancellable(ctx);
+        return;
+    }
 
     /* 4. 释放规范化结果 */
     if (ctx->last_normalization) {
@@ -798,21 +812,27 @@ void lv_context_reset(lvContext *ctx) {
     ctx->snapshot_refcount = 0;
     ctx->snapshot_depth = 0;
 
-    /* 6. 重置状态机 */
+    /* 6. 更新统计 —— 必须在状态机重置之前读取 previous_state
+     * （原顺序先清零后判断，导致统计恒不更新） */
+    if (ctx->previous_state == lv_CONTEXT_COMPLETE) {
+        ctx->problems_processed++;
+    }
+
+    /* 7. 重置状态机 */
     ctx->state = lv_CONTEXT_IDLE;
     ctx->previous_state = lv_CONTEXT_IDLE;
     ctx->state_transition_count = 0;
 
-    /* 7. 重置错误状态 */
+    /* 8. 重置错误状态 */
     ctx->error_code = lv_OK;
     ctx->error_message[0] = '\0';
     ctx->last_status = 0;
 
-    /* 8. 重置递归深度 */
+    /* 9. 重置递归深度 */
     ctx->recursion_depth = 0;
     ctx->recursion_policy = lv_RECURSION_POLICY_ERROR;
 
-    /* 9. 重置熔断器（保留 trip_count） */
+    /* 10. 重置熔断器（保留 trip_count） */
     int preserved_trip_count = ctx->circuit_breaker.trip_count;
     ctx->circuit_breaker.state = CIRCUIT_BREAKER_CLOSED;
     ctx->circuit_breaker.uncancellable_refcount = 0;
@@ -828,17 +848,12 @@ void lv_context_reset(lvContext *ctx) {
         ctx->circuit_breaker.trip_reason = NULL;
     }
 
-    /* 10. 重置 AST */
+    /* 11. 重置 AST */
     ctx->ast_root = NULL;
 
-    /* 11. 释放名称 */
+    /* 12. 释放名称 */
     if (ctx->name) {
         lv_free((void **) &ctx->name);
-    }
-
-    /* 12. 更新统计 */
-    if (ctx->previous_state == lv_CONTEXT_COMPLETE) {
-        ctx->problems_processed++;
     }
 
     /* 离开不可取消区域 */

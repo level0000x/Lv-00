@@ -191,7 +191,8 @@ double lv_proof_score_evaluate(int proof_id, void *engine) {
             if (redundant_ids) {
                 double redundancy_ratio = (double) redundant_count / (double) active_constraint_count;
                 simplicity -= 0.3 * redundancy_ratio;
-                free(redundant_ids);
+                /* graph_detect_redundant_constraints 使用 lv_malloc 分配，须用 lv_free 释放 */
+                lv_free((void **) &redundant_ids);
             }
             simplicity = clamp_score(simplicity);
         } else {

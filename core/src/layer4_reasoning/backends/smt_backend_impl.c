@@ -60,14 +60,18 @@
 
 /** @brief SMT 后端注册表单例状态 */
 typedef struct {
-    lvRegistry lock;                  /**< 注册表互斥锁（lvRegistry 统一管理） */
-    bool lock_inited;                 /**< 锁是否已初始化 */
+    lv_lazy_lock lock;                /**< 注册表访问锁（lv_once 惰性初始化，消除锁初始化竞态） */
     SMTBackendRegistry registry;      /**< 后端完整元数据（兼容 SMTBackendRegistry 结构） */
     bool registry_inited;             /**< 注册表数据是否已初始化 */
 } SMTRegistryState;
 
 /** @brief SMT 后端注册表全局单例 */
 static SMTRegistryState s_smt_registry_state = {0};
+
+/** @brief 注册表互斥锁的一次性初始化回调（由 lv_lazy_lock 触发，线程安全） */
+static void smtsolver_registry_lock_init_once(void) {
+    lv_mutex_init(&s_smt_registry_state.lock.mutex);
+}
 
 
 /* ============================================================
@@ -480,17 +484,18 @@ const char *smtsolver_error_string(SMTErrorCode code) {
 
 /**
  * @brief 获取全局后端注册表（惰性初始化）
+ *
+ * 惰性锁保证首次初始化仅执行一次且 happens-before 后续访问，
+ * 消除原先无锁标志检查-设置造成的锁初始化竞态。
  */
 SMTBackendRegistry *smtsolver_get_registry(void) {
-    if (!s_smt_registry_state.lock_inited) {
-        lv_registry_init(&s_smt_registry_state.lock, 0);
-        s_smt_registry_state.lock_inited = true;
-    }
+    lv_lazy_lock_lock(&s_smt_registry_state.lock, smtsolver_registry_lock_init_once);
     if (!s_smt_registry_state.registry_inited) {
         memset(&s_smt_registry_state.registry, 0, sizeof(s_smt_registry_state.registry));
         s_smt_registry_state.registry.count = 0;
         s_smt_registry_state.registry_inited = true;
     }
+    lv_lazy_lock_unlock(&s_smt_registry_state.lock);
     return &s_smt_registry_state.registry;
 }
 
@@ -501,23 +506,18 @@ int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEnt
     lv_CHECK_NULL(registry, -1);
     lv_CHECK_NULL(entry, -1);
 
-    if (!s_smt_registry_state.lock_inited) {
-        lv_registry_init(&s_smt_registry_state.lock, 0);
-        s_smt_registry_state.lock_inited = true;
-    }
-
-    /* 使用 lvRegistry 的互斥锁保护临界区 */
-    lv_MUTEX_LOCK(&s_smt_registry_state.lock.mutex);
+    /* 惰性锁首次使用时自动完成互斥锁初始化（消除对未初始化锁的加锁） */
+    lv_lazy_lock_lock(&s_smt_registry_state.lock, smtsolver_registry_lock_init_once);
 
     if (registry->count >= SMT_BACKEND_REGISTRY_CAPACITY) {
-        lv_MUTEX_UNLOCK(&s_smt_registry_state.lock.mutex);
+        lv_lazy_lock_unlock(&s_smt_registry_state.lock);
         return -1;
     }
 
     registry->entries[registry->count] = *entry;
     registry->count++;
 
-    lv_MUTEX_UNLOCK(&s_smt_registry_state.lock.mutex);
+    lv_lazy_lock_unlock(&s_smt_registry_state.lock);
     return 0;
 }
 

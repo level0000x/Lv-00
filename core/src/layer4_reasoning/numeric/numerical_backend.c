@@ -85,12 +85,17 @@ typedef struct {
 typedef struct {
     BackendEntry entries[lv_MAX_BACKENDS]; /**< 后端注册表 */
     int count;                             /**< 已注册后端数量 */
-    lvMutex mutex;                         /**< 注册表互斥锁 */
+    lv_lazy_lock lock;                     /**< 注册表互斥锁（惰性初始化，首次使用自动初始化） */
     bool initialized;                      /**< 注册表是否已初始化 */
 } NumericBackendState;
 
 /** @brief 数值后端注册表全局单例 */
 static NumericBackendState s_numeric_state = {0};
+
+/** @brief 注册表互斥锁的一次性初始化回调（由 lv_lazy_lock 触发，线程安全） */
+static void numeric_state_lock_init_once(void) {
+    lv_mutex_init(&s_numeric_state.lock.mutex);
+}
 
 /* 前向声明（用于下方 SERIAL 操作表）
  * 主机端数据搬移 ops 由 default_host_ops.c 提供（default_*），
@@ -143,27 +148,11 @@ static const lvLinearSolverOps serial_dense_linsol_ops = {
     serial_linsol_destroy,
 };
 
-/**
- * @brief 初始化注册表并注册内置后端
- */
-static void numerical_backend_init_registry(void) {
-    if (s_numeric_state.initialized) return;
-    lv_MUTEX_INIT(&s_numeric_state.mutex);
-    lv_numerical_backend_register(lv_BACKEND_SERIAL, &serial_vector_ops,
-                                   &serial_dense_matrix_ops, &serial_dense_linsol_ops);
-    lv_numerical_backend_register(lv_BACKEND_OPENMP, &serial_vector_ops,
-                                   &serial_dense_matrix_ops, &serial_dense_linsol_ops);
-    s_numeric_state.initialized = true;
-}
-
-/**
- * @brief 注册数值后端操作集
- */
-void lv_numerical_backend_register(lvBackendType backend_type,
-                                   const lvVectorOps *vector_ops,
-                                   const lvMatrixOps *matrix_ops,
-                                   const lvLinearSolverOps *linsol_ops) {
-    lv_MUTEX_LOCK(&s_numeric_state.mutex);
+/** @brief 注册后端操作集（调用方须持有 s_numeric_state.lock） */
+static void numerical_backend_register_locked(lvBackendType backend_type,
+                                              const lvVectorOps *vector_ops,
+                                              const lvMatrixOps *matrix_ops,
+                                              const lvLinearSolverOps *linsol_ops) {
     if (s_numeric_state.count < lv_MAX_BACKENDS) {
         s_numeric_state.entries[s_numeric_state.count].type       = backend_type;
         s_numeric_state.entries[s_numeric_state.count].vector_ops = vector_ops;
@@ -171,7 +160,40 @@ void lv_numerical_backend_register(lvBackendType backend_type,
         s_numeric_state.entries[s_numeric_state.count].linsol_ops = linsol_ops;
         s_numeric_state.count++;
     }
-    lv_MUTEX_UNLOCK(&s_numeric_state.mutex);
+}
+
+/**
+ * @brief 初始化注册表并注册内置后端
+ *
+ * 持锁重查 initialized，消除并发首次调用时的双重初始化竞态；
+ * 内置注册走无锁内部函数，避免嵌套加锁。
+ */
+static void numerical_backend_init_registry(void) {
+    lv_lazy_lock_lock(&s_numeric_state.lock, numeric_state_lock_init_once);
+    if (!s_numeric_state.initialized) {
+        numerical_backend_register_locked(lv_BACKEND_SERIAL, &serial_vector_ops,
+                                          &serial_dense_matrix_ops, &serial_dense_linsol_ops);
+        numerical_backend_register_locked(lv_BACKEND_OPENMP, &serial_vector_ops,
+                                          &serial_dense_matrix_ops, &serial_dense_linsol_ops);
+        s_numeric_state.initialized = true;
+    }
+    lv_lazy_lock_unlock(&s_numeric_state.lock);
+}
+
+/**
+ * @brief 注册数值后端操作集
+ *
+ * 惰性锁首次使用时自动完成互斥锁初始化（此前 mutex 仅在
+ * numerical_backend_init_registry 中初始化，外部后端（如 Singular）
+ * 直接调用本函数会锁定未初始化的互斥锁）。
+ */
+void lv_numerical_backend_register(lvBackendType backend_type,
+                                   const lvVectorOps *vector_ops,
+                                   const lvMatrixOps *matrix_ops,
+                                   const lvLinearSolverOps *linsol_ops) {
+    lv_lazy_lock_lock(&s_numeric_state.lock, numeric_state_lock_init_once);
+    numerical_backend_register_locked(backend_type, vector_ops, matrix_ops, linsol_ops);
+    lv_lazy_lock_unlock(&s_numeric_state.lock);
 }
 
 /**

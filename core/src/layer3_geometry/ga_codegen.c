@@ -185,7 +185,7 @@ GACodegenResult *ga_codegen_compile(const lvMultiVector *mv, const GACodegenOpti
         options = &default_opts;
     }
 
-    GACodegenResult *res = (GACodegenResult *) calloc(1, sizeof(GACodegenResult));
+    GACodegenResult *res = (GACodegenResult *) lv_calloc(1, sizeof(GACodegenResult));
     if (res == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "ga_codegen_compile: calloc failed");
 
@@ -217,7 +217,7 @@ void ga_codegen_result_destroy(GACodegenResult *result) {
     if (result->error_msg != NULL) {
         lv_free_ptr(result->error_msg);
     }
-    lv_free(result);
+    lv_free((void **) &result);
 }
 
 /* ========================================================================

@@ -84,6 +84,7 @@ struct ATPBackendSolver {
 
 /** @brief ATP 后端注册表单例状态 */
 typedef struct {
+    lv_lazy_lock lock;                             /**< 注册表访问锁（惰性初始化，线程安全） */
     lvRegistry registry;                           /**< 全局注册表（单例） */
     bool registry_inited;                          /**< 注册表是否已初始化 */
     ATPBackendRegistry public_registry;            /**< 公开注册表（兼容 ATPBackendRegistry 布局） */
@@ -91,6 +92,19 @@ typedef struct {
 
 /** @brief ATP 后端注册表全局单例 */
 static ATPRegistryState s_atp_registry_state = {0};
+
+/** @brief 注册表互斥锁的一次性初始化回调（由 lv_lazy_lock 触发，线程安全） */
+static void atp_registry_lock_init_once(void) {
+    lv_mutex_init(&s_atp_registry_state.lock.mutex);
+}
+
+/** @brief 确保注册表已初始化（调用方须持有 s_atp_registry_state.lock） */
+static void atp_registry_ensure_inited_locked(void) {
+    if (!s_atp_registry_state.registry_inited) {
+        lv_registry_init(&s_atp_registry_state.registry, ATP_BACKEND_COUNT);
+        s_atp_registry_state.registry_inited = true;
+    }
+}
 
 /* ============================================================
  * 默认配置
@@ -945,12 +959,12 @@ int atp_proof_to_lv(const ATPResultInfo *result, Proof *proof, int *step_count) 
  * @brief 获取全局 ATP 后端注册表（返回保留的私有指针，用于外部只读访问）
  *
  * 返回的指针指向内部的 ATPBackendRegistry，可用于遍历已注册的后端。
+ * 惰性锁保护首次初始化（此前为无锁标志检查-设置，存在双重初始化竞态）。
  */
 const ATPBackendRegistry *atp_get_registry(void) {
-    if (!s_atp_registry_state.registry_inited) {
-        lv_registry_init(&s_atp_registry_state.registry, ATP_BACKEND_COUNT);
-        s_atp_registry_state.registry_inited = true;
-    }
+    lv_lazy_lock_lock(&s_atp_registry_state.lock, atp_registry_lock_init_once);
+    atp_registry_ensure_inited_locked();
+    lv_lazy_lock_unlock(&s_atp_registry_state.lock);
     return &s_atp_registry_state.public_registry;
 }
 
@@ -960,30 +974,30 @@ const ATPBackendRegistry *atp_get_registry(void) {
 int atp_register_backend(const ATPBackendEntry *entry) {
     lv_CHECK_NULL(entry, (int) lv_ERROR_NULL_POINTER);
 
-    if (!s_atp_registry_state.registry_inited) {
-        lv_registry_init(&s_atp_registry_state.registry, ATP_BACKEND_COUNT);
-        s_atp_registry_state.registry_inited = true;
-    }
-
     /* 使用 atp_backend_type_name 获取后端名称 */
     const char *name = atp_backend_type_name(entry->type);
     if (!name) {
         return (int) lv_ERROR_INVALID_PARAM;
     }
 
+    lv_lazy_lock_lock(&s_atp_registry_state.lock, atp_registry_lock_init_once);
+    atp_registry_ensure_inited_locked();
+
+    int rc = (int) lv_OK;
     /* 注册到通用注册表（名称 + 工厂函数），检查重复 */
     if (!lv_registry_register(&s_atp_registry_state.registry, name, (void *(*)(void)) entry->create)) {
         /* 名称已存在 */
-        return (int) lv_ERROR_ALREADY_EXISTS;
+        rc = (int) lv_ERROR_ALREADY_EXISTS;
+    } else {
+        /* 保存完整元数据到并行数组 */
+        if (s_atp_registry_state.public_registry.count < ATP_BACKEND_COUNT) {
+            s_atp_registry_state.public_registry.entries[s_atp_registry_state.public_registry.count] = *entry;
+            s_atp_registry_state.public_registry.count++;
+        }
     }
+    lv_lazy_lock_unlock(&s_atp_registry_state.lock);
 
-    /* 保存完整元数据到并行数组 */
-    if (s_atp_registry_state.public_registry.count < ATP_BACKEND_COUNT) {
-        s_atp_registry_state.public_registry.entries[s_atp_registry_state.public_registry.count] = *entry;
-        s_atp_registry_state.public_registry.count++;
-    }
-
-    return (int) lv_OK;
+    return rc;
 }
 
 /**
@@ -1000,18 +1014,20 @@ bool atp_is_backend_available(ATPBackendType type) {
 
 /**
  * @brief 查找后端条目
+ *
+ * 持锁遍历公开注册表，避免与并发注册（atp_register_backend）读写竞争。
  */
 const ATPBackendEntry *atp_find_backend(ATPBackendType type) {
-    if (!s_atp_registry_state.registry_inited) {
-        return NULL;
-    }
-
+    const ATPBackendEntry *found = NULL;
+    lv_lazy_lock_lock(&s_atp_registry_state.lock, atp_registry_lock_init_once);
     for (int i = 0; i < s_atp_registry_state.public_registry.count; i++) {
         if (s_atp_registry_state.public_registry.entries[i].type == type) {
-            return &s_atp_registry_state.public_registry.entries[i];
+            found = &s_atp_registry_state.public_registry.entries[i];
+            break;
         }
     }
-    return NULL;
+    lv_lazy_lock_unlock(&s_atp_registry_state.lock);
+    return found;
 }
 
 /**

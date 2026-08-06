@@ -603,7 +603,7 @@ bool lv_constraint_graph_add_edge(lvConstraintGraph *graph, int node1, int node2
 #### lv_normalize
 
 ```c
-NormalizationResult *lv_normalize(lvContext *ctx, bool scope_aware);
+NormalizationResult *lv_normalize(lvEngine *engine, bool scope_aware);
 ```
 
 执行图归一化。
@@ -623,26 +623,23 @@ NormalizationResult *lv_normalize(lvContext *ctx, bool scope_aware);
 #### lv_solve
 
 ```c
-EngineSolveResult lv_solve(lvContext *ctx);
+EngineSolveResult lv_solve(lvEngine *engine);
 ```
 
-执行求解流水线。
+执行求解流水线（重写-求解协作）。
 
 **参数**:
 - `engine` - 引擎实例
 
 **返回值**: 求解结果状态码
 
-**EngineSolveResult 枚举**:
+**EngineSolveResult 枚举**（见 `lv/engine.h`）:
 ```c
 typedef enum {
-    lv_SOLVE_SUCCESS = 0,        /* 求解成功 */
-    lv_SOLVE_TIMEOUT,            /* 计算超时 */
-    lv_SOLVE_INCONSISTENT,       /* 约束矛盾 */
-    lv_SOLVE_UNDER_CONSTRAINED,  /* 欠约束 */
-    lv_SOLVE_OVER_CONSTRAINED,   /* 过约束 */
-    lv_SOLVE_MEMORY_ERROR,       /* 内存不足 */
-    lv_SOLVE_INTERNAL_ERROR      /* 内部错误 */
+    ENGINE_SOLVE_OK,      /* 求解成功 */
+    ENGINE_SOLVE_CONFLICT,/* 约束矛盾 */
+    ENGINE_SOLVE_TIMEOUT, /* 计算超时 */
+    ENGINE_SOLVE_ERROR    /* 求解器错误 */
 } EngineSolveResult;
 ```
 
@@ -650,27 +647,17 @@ typedef enum {
 
 ### 4.3 高级求解
 
-#### lv_solve_with_options
+求解参数通过引擎配置 API 控制（如 `lv_config_set_int("rewrite.step_limit", ...)`、
+`engine_set_rewrite_step_limit()` 等），无需单独的"带选项求解"入口：
 
 ```c
-EngineSolveResult lv_solve_with_options(
-    lvContext *ctx,
-    const SolverOptions *options
-);
-```
+#include "lv/lv.h"
 
-使用自定义选项求解。
-
-**SolverOptions 结构**:
-```c
-typedef struct SolverOptions {
-    uint32_t timeout_ms;           /* 超时时间（毫秒），0 表示无限制 */
-    uint32_t max_iterations;       /* 最大迭代次数 */
-    bool enable_groebner;          /* 启用 Groebner 基 */
-    bool enable_smt;               /* 启用 SMT 后端 */
-    bool enable_atp;               /* 启用 ATP */
-    uint8_t log_level;             /* 日志级别 */
-} SolverOptions;
+lvEngine *engine = lv_engine_create();
+lv_config_set_int("rewrite.step_limit", 5000); /* 重写步数上限 */
+lv_config_set_int("solver.timeout_ms", 60000); /* 求解超时 */
+EngineSolveResult result = lv_solve(engine);
+lv_engine_destroy(engine);
 ```
 
 ---
@@ -679,63 +666,40 @@ typedef struct SolverOptions {
 
 ### 5.1 命题创建
 
-#### lv_proposition_eq
+命题（Proposition）表示一个可证明的数学断言。命题通过
+`proposition_create()` 创建（见 `lv/proof.h`），并通过
+`proposition_set_*` / `proposition_add_sub_proposition()` 系列函数
+设置内容与结构；复合命题（合取、析取、蕴含等）通过
+`PropositionType` 枚举区分：
 
 ```c
-Proposition *lv_proposition_eq(Expr *lhs, Expr *rhs);
+#include "lv/proof.h"
+
+/* 创建一个原子命题 */
+Proposition *p = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
+
+/* 创建合取命题 p1 ∧ p2 */
+Proposition *p1 = proposition_create(2, PROPOSITION_TYPE_ATOMIC);
+Proposition *p2 = proposition_create(3, PROPOSITION_TYPE_ATOMIC);
+Proposition *conj = proposition_create(4, PROPOSITION_TYPE_CONJUNCTION);
+proposition_add_sub_proposition(conj, p1);
+proposition_add_sub_proposition(conj, p2);
 ```
 
-创建相等命题（lhs = rhs）。
-
----
-
-#### lv_proposition_lt
-
+**PropositionType 枚举**（节选，见 `lv/proof.h`）:
 ```c
-Proposition *lv_proposition_lt(Expr *lhs, Expr *rhs);
+typedef enum {
+    PROPOSITION_TYPE_ATOMIC,      /* 原子命题 */
+    PROPOSITION_TYPE_CONJUNCTION, /* 合取 ∧ */
+    PROPOSITION_TYPE_DISJUNCTION, /* 析取 ∨ */
+    PROPOSITION_TYPE_IMPLICATION, /* 蕴含 → */
+    PROPOSITION_TYPE_NEGATION,    /* 否定 ¬ */
+    PROPOSITION_TYPE_BOTTOM       /* 矛盾 ⊥ */
+} PropositionType;
 ```
 
-创建小于命题（lhs < rhs）。
-
----
-
-#### lv_proposition_and
-
-```c
-Proposition *lv_proposition_and(Proposition *p1, Proposition *p2);
-```
-
-创建合取命题（p1 ∧ p2）。
-
----
-
-#### lv_proposition_or
-
-```c
-Proposition *lv_proposition_or(Proposition *p1, Proposition *p2);
-```
-
-创建析取命题（p1 ∨ p2）。
-
----
-
-#### lv_proposition_not
-
-```c
-Proposition *lv_proposition_not(Proposition *p);
-```
-
-创建否定命题（¬p）。
-
----
-
-#### lv_proposition_implies
-
-```c
-Proposition *lv_proposition_implies(Proposition *premise, Proposition *conclusion);
-```
-
-创建蕴含命题（premise → conclusion）。
+> 注：便捷证明场景下通常无需手工构造命题——直接使用 `lv_prove()`
+> 传入 DSL 目标文本即可，解析器会自动生成命题与约束。
 
 ---
 
@@ -744,116 +708,141 @@ Proposition *lv_proposition_implies(Proposition *premise, Proposition *conclusio
 #### lv_prove
 
 ```c
-Proof *lv_prove(lvContext *ctx, Proposition *goal);
+int lv_prove(lvContext *ctx, const char *goal);
 ```
 
-执行自动证明。
+执行自动证明。将 goal 文本解析为约束图，再调用引擎的重写-求解
+流水线完成推理。
 
 **参数**:
-- `engine` - 引擎实例
-- `goal` - 证明目标
+- `ctx` - 上下文实例（必须处于 IDLE 或 COMPLETE 状态）
+- `goal` - 证明目标的 DSL 文本描述（可为 NULL，表示使用上下文中已有的约束图）
 
-**返回值**: 证明对象，失败返回 NULL
+**返回值**:
+- `0` - 证明成功
+- `-1` - 参数无效（ctx 为 NULL）
+- `-2` - 上下文状态不合法
+- `-3` - 解析阶段失败
+- `-4` - 推理阶段失败（矛盾、超时或熔断）
+
+**示例**:
+```c
+#include "lv/lv.h"
+#include "lv/lv_convenience.h"
+#include <stdio.h>
+
+lvContext *ctx = lv_context_create();
+if (lv_prove(ctx, "triangle ABC is equilateral") == 0) {
+    printf("证明成功\n");
+}
+lv_context_destroy(ctx);
+```
+
+> 需要针对性证明策略（反证法、Groebner 基等）时，可在 goal 文本中
+> 声明策略关键字，或通过加载对应预设（见第 6 章）组合实现。
 
 ---
 
-#### lv_prove_with_strategy
+### 5.3 证明验证与统计
+
+证明对象（`lvProofObject`，见 `lv/proof_compiler.h`）保存完整的证明链，
+可用于机器复核：
+
+#### lv_proof_object_is_valid
 
 ```c
-Proof *lv_prove_with_strategy(
-    lvContext *ctx,
-    Proposition *goal,
-    ProofStrategy strategy
-);
+bool lv_proof_object_is_valid(const lvProofObject *obj);
 ```
 
-使用指定策略证明。
-
-**ProofStrategy 枚举**:
-```c
-typedef enum {
-    PROOF_STRATEGY_AUTO,           /* 自动选择 */
-    PROOF_STRATEGY_FORWARD,        /* 正向演绎 */
-    PROOF_STRATEGY_BACKWARD,       /* 反向溯源 */
-    PROOF_STRATEGY_CONTRADICTION,  /* 反证法 */
-    PROOF_STRATEGY_GROEBNER,       /* Groebner 基 */
-    PROOF_STRATEGY_SMT             /* SMT 求解 */
-} ProofStrategy;
-```
+检查证明对象的结构是否有效。
 
 ---
 
-### 5.3 证明验证
-
-#### lv_proof_valid
+#### lv_proof_object_verify
 
 ```c
-bool lv_proof_valid(const Proof *proof);
+bool lv_proof_object_verify(const lvProofObject *obj);
 ```
 
-检查证明是否有效。
+复核证明对象的证明链是否闭合（每一步的前提都得到满足）。
 
 ---
 
-#### lv_proof_get_step_count
+#### lv_proof_object_get_step_count
 
 ```c
-size_t lv_proof_get_step_count(const Proof *proof);
+int lv_proof_object_get_step_count(const lvProofObject *obj);
 ```
 
 获取证明步骤数。
+
+**示例**:
+```c
+#include "lv/lv.h"
+#include "lv/proof_compiler.h"
+
+lvProofObject *obj = lv_proof_object_create();
+/* ... 填充证明步骤 ... */
+if (lv_proof_object_verify(obj)) {
+    printf("步骤数: %d\n", lv_proof_object_get_step_count(obj));
+}
+lv_proof_object_destroy(obj);
+```
 
 ---
 
 ### 5.4 证明导出
 
-#### lv_proof_export_lean
+证明对象可通过证明编译器（`lvProofCompiler`）导出为多种格式，
+或直接写入文件：
+
+#### lv_proof_export_to_file
 
 ```c
-bool lv_proof_export_lean(const Proof *proof, const char *filename);
+bool lv_proof_export_to_file(const lvProofObject *proof, const lvProofTrace *trace,
+                             lvOutputFormat format, const char *filename);
 ```
 
-导出为 Lean 证明脚本。
+将证明写入文件。
+
+**lvOutputFormat 枚举**:
+```c
+typedef enum {
+    OUTPUT_FORMAT_JSON,    /* JSON 格式 */
+    OUTPUT_FORMAT_LATEX,   /* LaTeX 格式 */
+    OUTPUT_FORMAT_TIKZ,    /* TikZ 几何图形 */
+    OUTPUT_FORMAT_TEXT,    /* 纯文本格式 */
+    OUTPUT_FORMAT_XML,     /* XML 格式 */
+    OUTPUT_FORMAT_GRAPHVIZ /* Graphviz 格式 */
+} lvOutputFormat;
+```
+
+**示例**:
+```c
+#include "lv/lv.h"
+#include "lv/proof_compiler.h"
+
+/* LaTeX 导出 */
+lv_proof_export_to_file(obj, trace, OUTPUT_FORMAT_LATEX, "proof.tex");
+/* JSON 导出 */
+lv_proof_export_to_file(obj, trace, OUTPUT_FORMAT_JSON, "proof.json");
+```
 
 ---
 
-#### lv_proof_export_coq
+#### lv_proof_compiler_to_latex / lv_proof_compiler_to_json / lv_proof_compiler_to_tikz / lv_proof_compiler_to_text
 
 ```c
-bool lv_proof_export_coq(const Proof *proof, const char *filename);
+lvProofCompiler *lv_proof_compiler_create(const lvCompilerConfig *config);
+char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *language);
+char *lv_proof_compiler_to_json(const lvProofObject *proof, const lvProofTrace *trace);
+char *lv_proof_compiler_to_tikz(const lvProofObject *proof);
+char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language);
 ```
 
-导出为 Coq 证明脚本。
-
----
-
-#### lv_proof_export_latex
-
-```c
-bool lv_proof_export_latex(const Proof *proof, const char *filename);
-```
-
-导出为 LaTeX 文档。
-
----
-
-#### lv_proof_export_tikz
-
-```c
-bool lv_proof_export_tikz(const Proof *proof, const char *filename);
-```
-
-导出为 TikZ 几何图形。
-
----
-
-#### lv_proof_export_json
-
-```c
-char *lv_proof_export_json(const Proof *proof);
-```
-
-导出为 JSON 字符串（调用者负责释放）。
+将证明对象编译为对应格式的字符串（调用者负责释放返回的字符串）。
+Lean/Coq 脚本不在内置输出格式之列；需要时可通过
+`lv_proof_compiler_to_text()` 导出为纯文本证明脚本后再转换。
 
 ---
 
@@ -864,28 +853,36 @@ char *lv_proof_export_json(const Proof *proof);
 #### lv_preset_load
 
 ```c
-bool lv_preset_load(lvContext *ctx, const char *preset_name);
+int lv_preset_load(lvContext *ctx, const char *name);
 ```
 
-加载预设模块。
+加载预设模块，将指定名称的预设注册到上下文中。
 
 **参数**:
-- `engine` - 引擎实例
-- `preset_name` - 预设名称（如 "euclidean_geometry"）
+- `ctx` - 上下文实例
+- `name` - 预设名称（如 "euclidean_geometry"）
 
 **返回值**:
-- `true` - 成功
-- `false` - 失败
+- `0` - 成功
+- `-1` - 参数无效（ctx 或 name 为 NULL）
+- `-2` - 预设库未初始化
+- `-3` - 指定名称的预设不存在
+- `-4` - 内存分配失败
 
 ---
 
 #### lv_preset_unload
 
 ```c
-bool lv_preset_unload(lvContext *ctx, const char *preset_name);
+int lv_preset_unload(lvContext *ctx, const char *name);
 ```
 
-卸载预设模块。
+卸载预设模块（从上下文中移除加载标记）。
+
+**返回值**:
+- `0` - 成功
+- `-1` - 参数无效
+- `-3` - 上下文中未找到该预设的加载记录
 
 ---
 
@@ -894,66 +891,54 @@ bool lv_preset_unload(lvContext *ctx, const char *preset_name);
 #### lv_preset_apply
 
 ```c
-Proposition *lv_preset_apply(
-    lvContext *ctx,
-    const char *theorem_name,
-    ...
-);
+int lv_preset_apply(lvContext *ctx, const char *name);
 ```
 
-应用预设定理。
+将指定预设实例化并应用到当前约束图（预设必须已通过
+`lv_preset_load()` 加载）。
 
 **参数**:
-- `engine` - 引擎实例
-- `theorem_name` - 定理名称
-- `...` - 变参，几何实体参数
+- `ctx` - 上下文实例（应处于 IDLE 或 PARSING 状态）
+- `name` - 预设名称
 
-**返回值**: 命题对象
+**返回值**:
+- `0` - 应用成功
+- `-1` - 参数无效
+- `-2` - 上下文状态不允许应用预设
+- `-3` - 指定预设未加载
+- `-4` - 实例化失败
 
 **示例**:
 ```c
-Proposition *prop = lv_preset_apply(
-    engine, "pythagorean_theorem", A, B, C
-);
+#include "lv/lv.h"
+#include "lv/lv_convenience.h"
+
+lvContext *ctx = lv_context_create();
+lv_preset_load(ctx, "euclidean_geometry");
+lv_preset_apply(ctx, "pythagorean_theorem");
+if (lv_prove(ctx, "triangle ABC is right-angled at A") == 0) {
+    printf("验证成功\n");
+}
+lv_preset_unload(ctx, "euclidean_geometry");
+lv_context_destroy(ctx);
 ```
 
 ---
 
 ### 6.3 预设查询
 
-#### lv_preset_list
+预设库的注册与查询通过预设函数块系统公开接口完成
+（见 `lv/func_block_preset.h`）：
 
 ```c
-char **lv_preset_list(size_t *count);
+bool func_block_preset_library_init(void);   /* 初始化预设库 */
+const PresetMetadata *func_block_preset_get_metadata(const char *preset_name); /* 查询预设元数据 */
+int func_block_preset_count(void);           /* 预设总数 */
+bool func_block_preset_exists(const char *preset_name); /* 判断预设是否存在 */
 ```
 
-获取可用预设列表。
-
-**参数**:
-- `count` - 输出预设数量
-
-**返回值**: 预设名称数组（调用者负责释放）
-
----
-
-#### lv_preset_get_info
-
-```c
-PresetInfo *lv_preset_get_info(const char *preset_name);
-```
-
-获取预设信息。
-
-**PresetInfo 结构**:
-```c
-typedef struct PresetInfo {
-    char *name;
-    char *description;
-    char *version;
-    char **dependencies;
-    size_t dependency_count;
-} PresetInfo;
-```
+对外的高层预设操作入口为 `lv_preset_load()`、`lv_preset_apply()`
+与 `lv_preset_unload()`。
 
 ---
 
@@ -1181,40 +1166,52 @@ log.level                - 日志级别（0-4，默认 2）
 
 ### 10.2 内存管理
 
-#### lv_get_memory_stats_ex
+#### lv_get_memory_stats
 
 ```c
-bool lv_get_memory_stats_ex(lvMemoryStats *stats);
+void lv_get_memory_stats(MemoryStats *stats);
 ```
 
-获取内存统计。
+获取内存统计（见 `lv/lv_utils.h`）。
 
-**lvMemoryStats 结构**:
+**MemoryStats 结构**:
 ```c
-typedef struct lvMemoryStats {
-    size_t current_bytes;   /* 当前分配量 */
-    size_t peak_bytes;      /* 峰值分配量 */
-    size_t alloc_count;     /* 分配次数 */
-    size_t free_count;      /* 释放次数 */
-} lvMemoryStats;
+typedef struct {
+    size_t total_allocated;  /* 总分配内存 */
+    size_t total_freed;      /* 总释放内存 */
+    size_t current_used;     /* 当前使用内存 */
+    size_t peak_used;        /* 峰值使用内存 */
+    size_t allocation_count; /* 分配次数 */
+    size_t free_count;       /* 释放次数 */
+} MemoryStats;
 ```
 
 ---
 
-#### lv_set_memory_limit_ex
+#### lv_reset_memory_stats
 
 ```c
-void lv_set_memory_limit_ex(size_t limit_bytes);
+void lv_reset_memory_stats(void);
 ```
 
-设置内存上限。
+重置内存统计。
 
 ---
 
-#### lv_get_memory_limit_ex
+#### lv_set_memory_limit
 
 ```c
-size_t lv_get_memory_limit_ex(void);
+void lv_set_memory_limit(size_t limit);
+```
+
+设置内存上限（字节，0 表示无限制）。
+
+---
+
+#### lv_get_memory_limit
+
+```c
+size_t lv_get_memory_limit(void);
 ```
 
 获取内存上限。
@@ -1243,20 +1240,20 @@ size_t lv_get_memory_limit_ex(void);
 
 ### 11.2 错误查询
 
-#### lv_get_last_error
+#### lv_get_last_error_code
 
 ```c
-lvErrorCode lv_get_last_error(void);
+lvErrorCode lv_get_last_error_code(void);
 ```
 
 获取最后错误码。
 
 ---
 
-#### lv_get_last_error_string
+#### lv_get_last_error_message
 
 ```c
-const char *lv_get_last_error_string(void);
+const char *lv_get_last_error_message(void);
 ```
 
 获取最后错误描述。

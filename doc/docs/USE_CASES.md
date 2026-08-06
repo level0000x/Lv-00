@@ -1,4 +1,4 @@
-﻿# Lv-00 应用场景文档
+# Lv-00 应用场景文档
 
 > **版本**: 1.1.0  
 > **最后更新**: 2026-06-27  
@@ -29,37 +29,25 @@ Lv-00 可用于验证微积分中的基本定理和性质。
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证中值定理 */
 int verify_mean_value_theorem(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
-    /* 加载分析学预设 */
+    /* 加载分析学预设并应用 */
     lv_preset_load(ctx, "calculus");
+    lv_preset_apply(ctx, "mean_value_theorem");
 
-    /* 定义函数 f(x) = x^2 在区间 [0, 2] */
-    int a = lv_add_point_i(ctx, 0, 0);
-    int b = lv_add_point_i(ctx, 2, 0);
-
-    /* 应用中值定理预设 */
-    Proposition *mvt = lv_preset_apply(
-        ctx, "mean_value_theorem", a, b
-    );
-
-    /* 证明 */
-    Proof *proof = lv_prove(ctx, mvt);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    /* 证明目标（DSL 文本，由 lv_prove 解析并调用引擎推理） */
+    int result = (lv_prove(ctx, "mean value theorem holds") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("中值定理验证成功!\n");
-        lv_proof_export_latex(proof, "mvt_proof.tex");
     }
 
     lv_preset_unload(ctx, "calculus");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -73,40 +61,21 @@ int verify_mean_value_theorem(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证矩阵乘法结合律 */
 int verify_matrix_associativity(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
-    /* 加载线性代数预设 */
+    /* 加载线性代数预设并应用 */
     lv_preset_load(ctx, "linear_algebra");
+    lv_preset_apply(ctx, "matrix_multiplication_associative");
 
-    /* 定义三个矩阵（使用点表示矩阵元素） */
-    int A[2][2], B[2][2], C[2][2];
-
-    /* 构造 2x2 矩阵 */
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < 2; j++) {
-            A[i][j] = lv_add_point_i(ctx, i+1, j+1);
-            B[i][j] = lv_add_point_i(ctx, i+2, j+2);
-            C[i][j] = lv_add_point_i(ctx, i+3, j+3);
-        }
-    }
-
-    /* 应用矩阵结合律预设 */
-    Proposition *assoc = lv_preset_apply(
-        ctx, "matrix_multiplication_associative",
-        A[0][0], B[0][0], C[0][0]
-    );
-
-    Proof *proof = lv_prove(ctx, assoc);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    /* 证明矩阵乘法结合律 */
+    int result = (lv_prove(ctx, "matrix multiplication is associative") == 0) ? 0 : 1;
 
     lv_preset_unload(ctx, "linear_algebra");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -120,35 +89,25 @@ int verify_matrix_associativity(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证常微分方程解 */
 int verify_ode_solution(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载微分方程预设并应用 */
     lv_preset_load(ctx, "differential_equations");
+    lv_preset_apply(ctx, "ode_solution_verification");
 
-    /* 定义微分方程 dy/dx = y, y(0) = 1 */
     /* 验证解 y = e^x */
-
-    int initial_point = lv_add_point_i(ctx, 0, 1);
-
-    Proposition *solution = lv_preset_apply(
-        ctx, "ode_solution_verification",
-        initial_point
-    );
-
-    Proof *proof = lv_prove(ctx, solution);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "y = e^x is the solution of dy/dx = y, y(0) = 1") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("ODE 解验证成功!\n");
     }
 
     lv_preset_unload(ctx, "differential_equations");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -166,40 +125,25 @@ int verify_ode_solution(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证图的连通性 */
 int verify_graph_connectivity(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载图论预设并应用 */
     lv_preset_load(ctx, "graph_theory");
+    lv_preset_apply(ctx, "graph_connected");
 
-    /* 创建一个图：三角形 */
-    int v1 = lv_add_point_i(ctx, 0, 0);
-    int v2 = lv_add_point_i(ctx, 1, 0);
-    int v3 = lv_add_point_i(ctx, 0, 1);
-
-    /* 添加边 */
-    lv_add_line_segment(ctx, v1, v2);
-    lv_add_line_segment(ctx, v2, v3);
-    lv_add_line_segment(ctx, v3, v1);
-
-    /* 验证连通性 */
-    Proposition *connected = lv_preset_apply(
-        ctx, "graph_connected", v1, v2, v3
-    );
-
-    Proof *proof = lv_prove(ctx, connected);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    /* 验证三角形图的连通性 */
+    int result = (lv_prove(ctx, "the triangle graph is connected") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("图连通性验证成功!\n");
     }
 
     lv_preset_unload(ctx, "graph_theory");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -213,31 +157,25 @@ int verify_graph_connectivity(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证组合恒等式 C(n,k) = C(n,n-k) */
 int verify_combinatorial_identity(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载组合数学预设并应用 */
     lv_preset_load(ctx, "combinatorics");
+    lv_preset_apply(ctx, "pascal_identity");
 
     /* 验证帕斯卡恒等式 */
-    Proposition *identity = lv_preset_apply(
-        ctx, "pascal_identity"
-    );
-
-    Proof *proof = lv_prove(ctx, identity);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "C(n,k) = C(n,n-k)") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("组合恒等式验证成功!\n");
-        lv_proof_export_latex(proof, "combinatorial_proof.tex");
     }
 
     lv_preset_unload(ctx, "combinatorics");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -251,30 +189,25 @@ int verify_combinatorial_identity(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证逻辑推理规则 */
 int verify_logical_inference(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载数理逻辑预设并应用 */
     lv_preset_load(ctx, "mathematical_logic");
+    lv_preset_apply(ctx, "modus_ponens");
 
     /* 验证假言推理 (Modus Ponens): (P ∧ (P→Q)) → Q */
-    Proposition *modus_ponens = lv_preset_apply(
-        ctx, "modus_ponens"
-    );
-
-    Proof *proof = lv_prove(ctx, modus_ponens);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "(P and (P implies Q)) implies Q") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("假言推理验证成功!\n");
     }
 
     lv_preset_unload(ctx, "mathematical_logic");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -292,35 +225,25 @@ int verify_logical_inference(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证欧几里得算法正确性 */
 int verify_euclidean_algorithm(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载数论预设并应用 */
     lv_preset_load(ctx, "number_theory");
-
-    /* 定义两个数 */
-    int a = lv_add_point_i(ctx, 48, 0);
-    int b = lv_add_point_i(ctx, 18, 0);
+    lv_preset_apply(ctx, "euclidean_algorithm_correctness");
 
     /* 验证 gcd(48, 18) = 6 */
-    Proposition *gcd_correct = lv_preset_apply(
-        ctx, "euclidean_algorithm_correctness", a, b
-    );
-
-    Proof *proof = lv_prove(ctx, gcd_correct);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "gcd(48, 18) = 6") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("欧几里得算法正确性验证成功!\n");
-        lv_proof_export_lean(proof, "euclidean_correct.lean");
     }
 
     lv_preset_unload(ctx, "number_theory");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -334,34 +257,25 @@ int verify_euclidean_algorithm(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证简单认证协议 */
 int verify_authentication_protocol(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载高级逻辑预设并应用 */
     lv_preset_load(ctx, "logic_advanced");
-
-    /* 定义协议参与者 */
-    int alice = lv_add_point_i(ctx, 1, 0);
-    int bob = lv_add_point_i(ctx, 2, 0);
+    lv_preset_apply(ctx, "protocol_authentication");
 
     /* 验证协议安全性 */
-    Proposition *security = lv_preset_apply(
-        ctx, "protocol_authentication", alice, bob
-    );
-
-    Proof *proof = lv_prove(ctx, security);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "the authentication protocol is secure") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("协议安全性验证成功!\n");
     }
 
     lv_preset_unload(ctx, "logic_advanced");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -375,35 +289,25 @@ int verify_authentication_protocol(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证加法器正确性 */
 int verify_adder_correctness(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载布尔代数预设并应用 */
     lv_preset_load(ctx, "boolean_algebra");
-
-    /* 定义输入 */
-    int a = lv_add_point_i(ctx, 1, 0);
-    int b = lv_add_point_i(ctx, 1, 0);
-    int cin = lv_add_point_i(ctx, 0, 0);
+    lv_preset_apply(ctx, "full_adder_correctness");
 
     /* 验证全加器 */
-    Proposition *adder = lv_preset_apply(
-        ctx, "full_adder_correctness", a, b, cin
-    );
-
-    Proof *proof = lv_prove(ctx, adder);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "the full adder computes sum and carry correctly") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("加法器正确性验证成功!\n");
     }
 
     lv_preset_unload(ctx, "boolean_algebra");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -421,31 +325,25 @@ int verify_adder_correctness(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证 RSA 算法的数学基础 */
 int verify_rsa_mathematics(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载数论预设并应用 */
     lv_preset_load(ctx, "number_theory");
+    lv_preset_apply(ctx, "euler_theorem");
 
     /* 验证欧拉定理：a^φ(n) ≡ 1 (mod n) */
-    Proposition *euler_theorem = lv_preset_apply(
-        ctx, "euler_theorem"
-    );
-
-    Proof *proof = lv_prove(ctx, euler_theorem);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "a^phi(n) = 1 (mod n)") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("欧拉定理验证成功（RSA 数学基础）!\n");
-        lv_proof_export_latex(proof, "rsa_math.tex");
     }
 
     lv_preset_unload(ctx, "number_theory");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -459,40 +357,29 @@ int verify_rsa_mathematics(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 验证零知识证明的完备性和可靠性 */
 int verify_zk_properties(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载概率预设并应用 */
     lv_preset_load(ctx, "probability");
+    lv_preset_apply(ctx, "zk_completeness");
+    lv_preset_apply(ctx, "zk_soundness");
+    lv_preset_apply(ctx, "zk_zero_knowledge");
 
     /* 验证零知识证明的三个性质 */
-    Proposition *completeness = lv_preset_apply(
-        ctx, "zk_completeness"
-    );
-    Proposition *soundness = lv_preset_apply(
-        ctx, "zk_soundness"
-    );
-    Proposition *zero_knowledge = lv_preset_apply(
-        ctx, "zk_zero_knowledge"
-    );
-
-    Proof *proof1 = lv_prove(ctx, completeness);
-    Proof *proof2 = lv_prove(ctx, soundness);
-    Proof *proof3 = lv_prove(ctx, zero_knowledge);
-
-    int result = ((proof1 && lv_proof_valid(proof1)) &&
-                  (proof2 && lv_proof_valid(proof2)) &&
-                  (proof3 && lv_proof_valid(proof3))) ? 0 : 1;
+    int result = ((lv_prove(ctx, "the zero-knowledge proof is complete") == 0) &&
+                  (lv_prove(ctx, "the zero-knowledge proof is sound") == 0) &&
+                  (lv_prove(ctx, "the zero-knowledge proof leaks no information") == 0)) ? 0 : 1;
 
     if (result == 0) {
         printf("零知识证明性质验证成功!\n");
     }
 
     lv_preset_unload(ctx, "probability");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -510,42 +397,27 @@ int verify_zk_properties(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 知识图谱推理示例 */
 int knowledge_graph_reasoning(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载高级逻辑预设并应用 */
     lv_preset_load(ctx, "logic_advanced");
-
-    /* 定义知识图谱中的实体和关系 */
-    int human = lv_add_point_i(ctx, 1, 0);
-    int mortal = lv_add_point_i(ctx, 2, 0);
-    int socrates = lv_add_point_i(ctx, 3, 0);
+    lv_preset_apply(ctx, "all_humans_mortal");
+    lv_preset_apply(ctx, "socrates_is_human");
+    lv_preset_apply(ctx, "socrates_is_mortal");
 
     /* 定义规则：所有人都是会死的，苏格拉底是人，所以苏格拉底会死 */
-    Proposition *syllogism = lv_proposition_and(
-        lv_preset_apply(ctx, "all_humans_mortal", human, mortal),
-        lv_preset_apply(ctx, "socrates_is_human", socrates, human)
-    );
-
-    Proposition *conclusion = lv_preset_apply(
-        ctx, "socrates_is_mortal", socrates, mortal
-    );
-
-    Proposition *reasoning = lv_proposition_implies(syllogism, conclusion);
-
-    Proof *proof = lv_prove(ctx, reasoning);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "socrates is mortal") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("知识图谱推理成功!\n");
     }
 
     lv_preset_unload(ctx, "logic_advanced");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;
@@ -559,38 +431,25 @@ int knowledge_graph_reasoning(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 自动发现几何定理 */
 int auto_discover_theorems(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载欧氏几何预设并应用 */
     lv_preset_load(ctx, "euclidean_geometry");
-
-    /* 构造几何图形 */
-    int A = lv_add_point_i(ctx, 0, 0);
-    int B = lv_add_point_i(ctx, 4, 0);
-    int C = lv_add_point_i(ctx, 2, 3);
-
-    lv_add_line_segment(ctx, A, B);
-    lv_add_line_segment(ctx, B, C);
-    lv_add_line_segment(ctx, C, A);
+    lv_preset_apply(ctx, "auto_discover_properties");
 
     /* 自动发现定理 */
-    Proposition *discovered = lv_preset_apply(
-        ctx, "auto_discover_properties", A, B, C
-    );
+    int rc = lv_prove(ctx, "the triangle has some special property");
 
-    Proof *proof = lv_prove(ctx, discovered);
-
-    if (proof && lv_proof_valid(proof)) {
+    if (rc == 0) {
         printf("发现新定理!\n");
-        lv_proof_export_latex(proof, "discovered_theorem.tex");
     }
 
     lv_preset_unload(ctx, "euclidean_geometry");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return 0;
@@ -604,35 +463,28 @@ int auto_discover_theorems(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 解决数独问题 */
 int solve_sudoku(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载约束满足预设并应用 */
     lv_preset_load(ctx, "constraint_satisfaction");
-
-    /* 定义数独约束 */
-    /* 每行、每列、每个 3x3 宫格都包含 1-9 */
-
-    Proposition *sudoku_constraints = lv_preset_apply(
-        ctx, "sudoku_rules"
-    );
+    lv_preset_apply(ctx, "sudoku_rules");
 
     /* 添加已知数字作为约束 */
     /* ... */
 
-    Proof *proof = lv_prove(ctx, sudoku_constraints);
+    /* 求解数独 */
+    int rc = lv_prove(ctx, "the sudoku grid has a valid solution");
 
-    if (proof && lv_proof_valid(proof)) {
+    if (rc == 0) {
         printf("数独求解成功!\n");
-        /* 导出解 */
-        lv_proof_export_json(proof, "sudoku_solution.json");
     }
 
     lv_preset_unload(ctx, "constraint_satisfaction");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return 0;
@@ -650,45 +502,26 @@ int solve_sudoku(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 交互式几何演示 */
 int interactive_geometry_demo(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载欧氏几何预设并应用 */
     lv_preset_load(ctx, "euclidean_geometry");
-
-    /* 创建可交互的几何图形 */
-    int A = lv_add_point_i(ctx, 0, 0);
-    int B = lv_add_point_i(ctx, 4, 0);
-    int C = lv_add_point_i(ctx, 2, 3);
-
-    /* 构造三角形 */
-    lv_add_line_segment(ctx, A, B);
-    lv_add_line_segment(ctx, B, C);
-    lv_add_line_segment(ctx, C, A);
-
-    /* 构造重心 */
-    int centroid = lv_preset_apply(
-        ctx, "triangle_centroid", A, B, C
-    );
+    lv_preset_apply(ctx, "triangle_centroid");
+    lv_preset_apply(ctx, "centroid_property");
 
     /* 验证重心性质 */
-    Proposition *centroid_prop = lv_preset_apply(
-        ctx, "centroid_property", A, B, C, centroid
-    );
+    int rc = lv_prove(ctx, "the centroid divides each median in ratio 2:1");
 
-    Proof *proof = lv_prove(ctx, centroid_prop);
-
-    if (proof && lv_proof_valid(proof)) {
+    if (rc == 0) {
         printf("重心性质验证成功!\n");
-        /* 导出为可视化格式 */
-        lv_proof_export_tikz(proof, "centroid_demo.tex");
     }
 
     lv_preset_unload(ctx, "euclidean_geometry");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return 0;
@@ -702,34 +535,22 @@ int interactive_geometry_demo(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 自动批改几何证明题 */
 int auto_grade_geometry_proof(const char *student_proof) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载欧氏几何预设 */
     lv_preset_load(ctx, "euclidean_geometry");
 
-    /* 解析学生证明 */
-    /* ... */
-
-    /* 验证证明步骤 */
-    Proposition *student_proposition = /* 解析结果 */;
-
-    Proof *proof = lv_prove(ctx, student_proposition);
-
-    int score = 0;
-    if (proof && lv_proof_valid(proof)) {
-        /* 根据证明质量评分 */
-        score = 100 - (int)lv_proof_get_step_count(proof);
-        if (score < 60) score = 60;  /* 最低及格分 */
-    }
+    /* 解析学生证明：将证明文本作为目标交给 lv_prove 验证 */
+    int score = (lv_prove(ctx, student_proof) == 0) ? 100 : 0;
 
     printf("学生证明得分: %d\n", score);
 
     lv_preset_unload(ctx, "euclidean_geometry");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return score;
@@ -751,40 +572,25 @@ int auto_grade_geometry_proof(const char *student_proof) {
 
 /* CAD 几何约束求解 */
 int cad_constraint_solving(void) {
-    lv_context_create();
-    lvContext *ctx = lv_context_create();
-
-    lv_preset_load(ctx, "euclidean_geometry");
+    lvEngine *ctx = lv_engine_create();
 
     /* 定义机械零件几何 */
     int center = lv_add_point_i(ctx, 0, 0);
     int radius_point = lv_add_point_i(ctx, 5, 0);
 
-    /* 圆约束 */
-    /* 圆心在 center，半径为 5 */
-
-    /* 添加切线约束 */
+    /* 添加切线约束点 */
     int tangent_point = lv_add_point_i(ctx, 5, 5);
-
-    Proposition *tangent_constraint = lv_preset_apply(
-        ctx, "tangent_constraint", center, radius_point, tangent_point
-    );
 
     /* 求解约束 */
     lv_normalize(ctx, true);
     EngineSolveResult result = lv_solve(ctx);
 
-    if (result == lv_SOLVE_SUCCESS) {
+    if (result == ENGINE_SOLVE_OK) {
         printf("CAD 约束求解成功!\n");
-        /* 导出几何数据 */
-        /* ... */
     }
 
-    lv_preset_unload(ctx, "euclidean_geometry");
-    lv_context_destroy(ctx);
-    lv_context_destroy(ctx);
-
-    return (result == lv_SOLVE_SUCCESS) ? 0 : 1;
+    lv_engine_destroy(ctx);
+    return (result == ENGINE_SOLVE_OK) ? 0 : 1;
 }
 ```
 
@@ -795,41 +601,25 @@ int cad_constraint_solving(void) {
 **示例代码**:
 ```c
 #include "lv/lv.h"
+#include "lv/lv_convenience.h"
 #include <stdio.h>
 
 /* 机器人路径规划验证 */
 int robot_path_verification(void) {
-    lv_context_create();
     lvContext *ctx = lv_context_create();
 
+    /* 加载欧氏几何预设并应用 */
     lv_preset_load(ctx, "euclidean_geometry");
-
-    /* 定义路径点 */
-    int start = lv_add_point_i(ctx, 0, 0);
-    int waypoint1 = lv_add_point_i(ctx, 2, 2);
-    int waypoint2 = lv_add_point_i(ctx, 4, 1);
-    int goal = lv_add_point_i(ctx, 5, 3);
-
-    /* 连接路径 */
-    lv_add_line_segment(ctx, start, waypoint1);
-    lv_add_line_segment(ctx, waypoint1, waypoint2);
-    lv_add_line_segment(ctx, waypoint2, goal);
+    lv_preset_apply(ctx, "path_collision_free");
 
     /* 验证路径无碰撞 */
-    Proposition *collision_free = lv_preset_apply(
-        ctx, "path_collision_free", start, waypoint1, waypoint2, goal
-    );
-
-    Proof *proof = lv_prove(ctx, collision_free);
-
-    int result = (proof && lv_proof_valid(proof)) ? 0 : 1;
+    int result = (lv_prove(ctx, "the planned path is collision-free") == 0) ? 0 : 1;
 
     if (result == 0) {
         printf("路径无碰撞验证成功!\n");
     }
 
     lv_preset_unload(ctx, "euclidean_geometry");
-    lv_context_destroy(ctx);
     lv_context_destroy(ctx);
 
     return result;

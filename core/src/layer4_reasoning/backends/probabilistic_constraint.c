@@ -49,7 +49,9 @@
 
 /* ---- 内部：简单随机数生成器（线性同余发生器）---- */
 
-static unsigned long rand_state_lcg = 123456789UL;
+/* 线程局部 RNG 状态：多线程并发采样时各线程持有独立序列，
+ * 避免共享静态状态导致的读写数据竞争与非确定性。 */
+static lv_THREAD_LOCAL unsigned long rand_state_lcg = 123456789UL;
 
 /** 生成 [0, 1) 的均匀随机数（线性同余） */
 static double rand_uniform_lcg(void) {
