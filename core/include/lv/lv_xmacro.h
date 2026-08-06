@@ -42,6 +42,8 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "lv_str_utils.h" /* lv_str_icmp */
+
 /** @brief 字符串→枚举映射表条目 */
 typedef struct {
     const char *name;
@@ -130,7 +132,7 @@ static inline int lv_str_to_enum(const lvStrToEnumEntry *table, size_t count,
 static inline int lv_str_to_enum_ci(const lvStrToEnumEntry *table, size_t count,
                                      const char *str, int default_value) {
     for (size_t i = 0; i < count; i++) {
-        if (strcasecmp(table[i].name, str) == 0)
+        if (lv_str_icmp(table[i].name, str) == 0)
             return table[i].value;
     }
     return default_value;

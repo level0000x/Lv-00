@@ -198,6 +198,7 @@ bool lv_log_set_file(const char *path) {
     }
 
     strncpy(s_runtime_state.log.config.file_path, path, sizeof(s_runtime_state.log.config.file_path) - 1);
+    s_runtime_state.log.config.file_path[sizeof(s_runtime_state.log.config.file_path) - 1] = '\0';
     s_runtime_state.log.log_file = new_file;
     s_runtime_state.log.current_file_size = 0;
 

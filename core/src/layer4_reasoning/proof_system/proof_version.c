@@ -221,19 +221,13 @@ static bool read_commit_file(const char *path, lvProofCommit *commit) {
 
 /**
  * @brief Get the current time as a Unix timestamp.
+ *
+ * 统一走 lv_get_wallclock_ms()（cross_platform 时间基准，Windows 上基于
+ * GetSystemTimeAsFileTime 并完成 1601→1970 转换），消除本文件手写的
+ * 平台双分支时间戳逻辑。
  */
 static int64_t get_timestamp(void) {
-#ifdef _WIN32
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    int64_t tt = ((int64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime;
-    /* Convert from 100-nanosecond intervals since 1601-01-01 to Unix epoch */
-    return (tt - 116444736000000000LL) / 10000000LL;
-#else
-#include <time.h>
-
-    return (int64_t) time(NULL);
-#endif
+    return (int64_t) (lv_get_wallclock_ms() / 1000);
 }
 
 /* ============================================================

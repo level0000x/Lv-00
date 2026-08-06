@@ -156,13 +156,12 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
         return NULL;
     match->node_bindings = lv_malloc(pat->var_count * 2 * sizeof(int));
     if (!match->node_bindings) {
-        lv_free((void **) &match);
+        rewrite_match_destroy(match);
         return NULL;
     }
     match->constraint_bindings = lv_malloc(pat->pattern_constraint_count * sizeof(int));
     if (!match->constraint_bindings) {
-        lv_free((void **) &match->node_bindings);
-        lv_free((void **) &match);
+        rewrite_match_destroy(match);
         return NULL;
     }
     match->binding_count = 0;
@@ -176,9 +175,7 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
     if (pat->var_count > 0) {
         type_masks = lv_malloc((size_t) pat->var_count * sizeof(unsigned));
         if (!type_masks) {
-            lv_free((void **) &match->node_bindings);
-            lv_free((void **) &match->constraint_bindings);
-            lv_free((void **) &match);
+            rewrite_match_destroy(match);
             return NULL;
         }
         rewrite_pattern_var_type_masks(pat, type_masks, pat->var_count);
@@ -278,9 +275,7 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
         if (!bound) {
             /* 无法绑定此模式变量 */
             lv_free((void **) &type_masks);
-            lv_free((void **) &match->node_bindings);
-            lv_free((void **) &match->constraint_bindings);
-            lv_free((void **) &match);
+            rewrite_match_destroy(match);
             return NULL;
         }
     }
@@ -309,9 +304,7 @@ RewriteMatch *find_rewrite_match(ConstraintGraph *graph, RewriteRule *rule, bool
 
     if (constraint_match_count != pat->pattern_constraint_count) {
         lv_free((void **) &type_masks);
-        lv_free((void **) &match->node_bindings);
-        lv_free((void **) &match->constraint_bindings);
-        lv_free((void **) &match);
+        rewrite_match_destroy(match);
         return NULL;
     }
 
@@ -490,9 +483,7 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
 
         /* 检查前置条件 */
         if (!evaluate_precondition(graph, rule, match)) {
-            lv_free((void **) &match->node_bindings);
-            lv_free((void **) &match->constraint_bindings);
-            lv_free((void **) &match);
+            rewrite_match_destroy(match);
             break; /* 前置条件失败，停止搜索 */
         }
 
@@ -506,18 +497,14 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
             /* 清空本地已使用集合（已从图中移除） */
             local_used_count = 0;
 
-            lv_free((void **) &match->node_bindings);
-            lv_free((void **) &match->constraint_bindings);
-            lv_free((void **) &match);
+            rewrite_match_destroy(match);
             continue;
         }
 
         /* 找到一个有效的非重叠匹配 -- 保存它 */
         if (match_count >= match_capacity) {
             if (!lv_ensure_capacity((void **) &matches, match_count, &match_capacity, sizeof(RewriteMatch *), 1)) {
-                lv_free((void **) &match->node_bindings);
-                lv_free((void **) &match->constraint_bindings);
-                lv_free((void **) &match);
+                rewrite_match_destroy(match);
                 break;
             }
         }
@@ -542,9 +529,7 @@ int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, 
         LOG_ERROR("rewrite", "find_all_non_overlapping_matches: 图快照恢复失败，图已被重置为空图");
         graph_snapshot_destroy(snapshot);
         for (int i = 0; i < match_count; i++) {
-            lv_free((void **) &matches[i]->node_bindings);
-            lv_free((void **) &matches[i]->constraint_bindings);
-            lv_free((void **) &matches[i]);
+            rewrite_match_destroy(matches[i]);
         }
         lv_free((void **) &matches);
         lv_free((void **) &local_used);

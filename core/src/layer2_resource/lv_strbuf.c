@@ -14,8 +14,16 @@ void lv_strbuf_init(lvStrBuf *sb) {
 
 static void lv_strbuf_grow(lvStrBuf *sb, size_t needed) {
     if (needed < sb->cap) return;
+    /* 防倍增溢出：容量超过可表示上限的一半时不再扩容（返回保持原状，
+     * 上层 vsnprintf 会按剩余容量截断），避免 new_cap *= 2 回绕成小值导致越界写 */
+    if (sb->cap > SIZE_MAX / 2)
+        return;
     size_t new_cap = sb->cap ? sb->cap * 2 : lv_STRBUF_SSO_SIZE;
-    while (new_cap < needed) new_cap *= 2;
+    while (new_cap < needed) {
+        if (new_cap > SIZE_MAX / 2)
+            return; /* 已无法继续倍增（再倍将回绕），放弃扩容 */
+        new_cap *= 2;
+    }
     char *new_data = (char *)lv_malloc(new_cap);
     if (!new_data) return;
     if (sb->len > 0 && sb->data) {

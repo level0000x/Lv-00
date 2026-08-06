@@ -13,6 +13,7 @@
 
 #include "lv/allocator.h"
 #include "lv/lv_file.h"
+#include "lv/lv_path.h"
 
 #include <ctype.h>
 #include <math.h>

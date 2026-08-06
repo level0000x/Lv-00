@@ -26,6 +26,22 @@
  * 公共 API
  * ------------------------------------------------------------------------- */
 
+/**
+ * @brief 销毁重写匹配，释放 node_bindings / constraint_bindings 与结构体本身
+ *
+ * NULL 安全：match 或任一内部字段为 NULL 时对应释放直接跳过
+ * （lv_free 对 NULL 安全），集中收敛散落各文件的
+ * lv_free(node_bindings) → lv_free(constraint_bindings) → lv_free(match)
+ * 三连释放样板。先例：axiom_rule_engine.c 的 lv_rule_match_destroy。
+ */
+void rewrite_match_destroy(RewriteMatch *match) {
+    if (!match)
+        return;
+    lv_free((void **) &match->node_bindings);
+    lv_free((void **) &match->constraint_bindings);
+    lv_free((void **) &match);
+}
+
 RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern, RewriteReplacement *replacement,
                                  int measure) {
     RewriteRule *rule = lv_calloc(1, sizeof(RewriteRule));

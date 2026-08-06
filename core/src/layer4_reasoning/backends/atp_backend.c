@@ -1054,7 +1054,7 @@ bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type) {
     }
 
     /* 兼容 "e" 缩写和 "eprover" 别名 */
-    if (strcasecmp(name, "e") == 0 || strcasecmp(name, "eprover") == 0) {
+    if (lv_str_icmp(name, "e") == 0 || lv_str_icmp(name, "eprover") == 0) {
         *out_type = ATP_BACKEND_EPROVER;
         return true;
     }

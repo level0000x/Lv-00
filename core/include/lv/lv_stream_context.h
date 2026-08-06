@@ -24,24 +24,10 @@ extern "C" {
 
 #include <stdbool.h>
 
-/* lv_PUBLIC_API —— 若未定义则提供默认实现 */
-#ifndef lv_PUBLIC_API
-#if defined(_WIN32) || defined(_MSC_VER)
-#ifdef lv_BUILD_SHARED
-#define lv_PUBLIC_API __declspec(dllexport)
-#else
-#define lv_PUBLIC_API
-#endif
-#elif defined(__GNUC__) || defined(__clang__)
-#ifdef lv_BUILD_SHARED
-#define lv_PUBLIC_API __attribute__((visibility("default")))
-#else
-#define lv_PUBLIC_API
-#endif
-#else
-#define lv_PUBLIC_API
-#endif
-#endif
+/* lv_PUBLIC_API —— 权威定义位于 lv.h（完整版，含 lv_USE_SHARED→dllimport 处理）。
+ * 此处 include lv_api_spec.h 获取防御性兜底（独立包含本头时展开为空），
+ * 避免与权威版产生语义分叉。 */
+#include "lv_api_spec.h"
 
 /* 前向声明 —— StreamContext 在 stream.h 中定义 */
 struct StreamContext;

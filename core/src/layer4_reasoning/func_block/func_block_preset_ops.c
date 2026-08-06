@@ -767,10 +767,14 @@ bool preset_partial_bind(const char *preset_name, const PresetParamBinding *bind
  * 预设搜索与推荐实现
  * ================================================================ */
 
-int preset_search_by_signature(int input_count, int output_count, PresetSearchResult *out_result) {
-    if (!out_result)
-        return 0;
+/* 搜索计分回调：meta 为当前候选预设，name 为其名称；命中返回 true 并写 out_score */
+typedef bool (*PresetSearchScorer)(const PresetBlockMetadata *meta, const char *name, void *ctx, double *out_score);
 
+/* 公共搜索骨架：遍历 256 预设 → 计分回调 → 命中提交 / 否则释放。
+ * 收敛 preset_search_by_signature 与 preset_recommend_related 的同构实现
+ *（分配 names[64]+scores[64] → 遍历全部预设 → 计分 → count>0 提交否则释放），
+ * 先例：本文件 preset_batch_execute（iter_fn 回调 + cleanup）。 */
+static int preset_search_collect(PresetSearchResult *out_result, PresetSearchScorer scorer, void *ctx) {
     out_result->names = NULL;
     out_result->relevance_scores = NULL;
     out_result->count = 0;
@@ -796,28 +800,8 @@ int preset_search_by_signature(int input_count, int output_count, PresetSearchRe
         if (!meta)
             continue;
 
-        bool match = true;
-        double score = 1.0;
-
-        /* 检查输入数量 */
-        if (input_count >= 0) {
-            if (meta->input_count == input_count) {
-                score += 1.0;
-            } else if (meta->input_count != -1) {
-                match = false;
-            }
-        }
-
-        /* 检查输出数量 */
-        if (output_count >= 0) {
-            if (meta->output_count == output_count) {
-                score += 1.0;
-            } else if (meta->output_count != -1) {
-                match = false;
-            }
-        }
-
-        if (match && count < capacity) {
+        double score = 0.0;
+        if (count < capacity && scorer(meta, all_names[i], ctx, &score)) {
             names[count] = lv_strdup(meta->name);
             scores[count] = score;
             count++;
@@ -836,80 +820,105 @@ int preset_search_by_signature(int input_count, int output_count, PresetSearchRe
     return count;
 }
 
+/* ---- preset_search_by_signature：按输入输出数量匹配 ---- */
+
+typedef struct {
+    int input_count;
+    int output_count;
+} PresetSignatureSearchCtx;
+
+static bool preset_signature_search_scorer(const PresetBlockMetadata *meta, const char *name, void *ctx_v,
+                                           double *out_score) {
+    (void) name;
+    const PresetSignatureSearchCtx *ctx = (const PresetSignatureSearchCtx *) ctx_v;
+
+    bool match = true;
+    double score = 1.0;
+
+    /* 检查输入数量 */
+    if (ctx->input_count >= 0) {
+        if (meta->input_count == ctx->input_count) {
+            score += 1.0;
+        } else if (meta->input_count != -1) {
+            match = false;
+        }
+    }
+
+    /* 检查输出数量 */
+    if (ctx->output_count >= 0) {
+        if (meta->output_count == ctx->output_count) {
+            score += 1.0;
+        } else if (meta->output_count != -1) {
+            match = false;
+        }
+    }
+
+    if (!match)
+        return false;
+    *out_score = score;
+    return true;
+}
+
+int preset_search_by_signature(int input_count, int output_count, PresetSearchResult *out_result) {
+    if (!out_result)
+        return 0;
+
+    PresetSignatureSearchCtx ctx = {.input_count = input_count, .output_count = output_count};
+    return preset_search_collect(out_result, preset_signature_search_scorer, &ctx);
+}
+
+/* ---- preset_recommend_related：按类别/数量/名称相似度排序 ---- */
+
+typedef struct {
+    const char *preset_name;
+    const PresetBlockMetadata *ref_meta;
+} PresetRecommendRelatedCtx;
+
+static bool preset_recommend_related_scorer(const PresetBlockMetadata *meta, const char *name, void *ctx_v,
+                                            double *out_score) {
+    const PresetRecommendRelatedCtx *ctx = (const PresetRecommendRelatedCtx *) ctx_v;
+
+    /* 跳过参考预设自身 */
+    if (strcmp(name, ctx->preset_name) == 0)
+        return false;
+
+    double score = 0.0;
+
+    /* 同类别加分 */
+    if (meta->category == ctx->ref_meta->category) {
+        score += 2.0;
+    }
+
+    /* 相同输入输出数量加分 */
+    if (meta->input_count == ctx->ref_meta->input_count) {
+        score += 0.5;
+    }
+    if (meta->output_count == ctx->ref_meta->output_count) {
+        score += 0.5;
+    }
+
+    /* 名称相似性 */
+    if (strstr(meta->name, ctx->preset_name) || strstr(ctx->preset_name, meta->name)) {
+        score += 1.0;
+    }
+
+    if (score <= 1.0)
+        return false;
+    *out_score = score;
+    return true;
+}
+
 int preset_recommend_related(const char *preset_name, PresetSearchResult *out_result) {
     if (!preset_name || !out_result)
         return 0;
-
-    out_result->names = NULL;
-    out_result->relevance_scores = NULL;
-    out_result->count = 0;
 
     /* 获取参考预设 */
     const PresetBlockMetadata *ref_meta = preset_blocks_get_metadata(preset_name);
     if (!ref_meta)
         return 0;
 
-    /* 临时存储 */
-    char **names = lv_malloc(64 * sizeof(char *));
-    double *scores = lv_malloc(64 * sizeof(double));
-    if (!names || !scores) {
-        lv_free((void **) &names);
-        lv_free((void **) &scores);
-        return 0;
-    }
-
-    int count = 0;
-    int capacity = 64;
-
-    /* 遍历所有预设 */
-    const char *all_names[256];
-    int total = preset_blocks_get_all_names(all_names, 256);
-
-    for (int i = 0; i < total; i++) {
-        if (strcmp(all_names[i], preset_name) == 0)
-            continue;
-
-        const PresetBlockMetadata *meta = preset_blocks_get_metadata(all_names[i]);
-        if (!meta)
-            continue;
-
-        double score = 0.0;
-
-        /* 同类别加分 */
-        if (meta->category == ref_meta->category) {
-            score += 2.0;
-        }
-
-        /* 相同输入输出数量加分 */
-        if (meta->input_count == ref_meta->input_count) {
-            score += 0.5;
-        }
-        if (meta->output_count == ref_meta->output_count) {
-            score += 0.5;
-        }
-
-        /* 名称相似性 */
-        if (strstr(meta->name, preset_name) || strstr(preset_name, meta->name)) {
-            score += 1.0;
-        }
-
-        if (score > 1.0 && count < capacity) {
-            names[count] = lv_strdup(meta->name);
-            scores[count] = score;
-            count++;
-        }
-    }
-
-    if (count > 0) {
-        out_result->names = names;
-        out_result->relevance_scores = scores;
-        out_result->count = count;
-    } else {
-        lv_free((void **) &names);
-        lv_free((void **) &scores);
-    }
-
-    return count;
+    PresetRecommendRelatedCtx ctx = {.preset_name = preset_name, .ref_meta = ref_meta};
+    return preset_search_collect(out_result, preset_recommend_related_scorer, &ctx);
 }
 
 void preset_search_result_destroy(PresetSearchResult *result) {

@@ -628,39 +628,12 @@ bool lv_get_version_info(lvVersionInfo *info) {
     info->patch = lv_VERSION_PATCH;
     info->version_string = lv_get_version_string();
 
-#if defined(_WIN32) || defined(_WIN64)
-    info->platform = "Windows";
-#elif defined(__APPLE__)
-    info->platform = "macOS";
-#elif defined(__linux__)
-    info->platform = "Linux";
-#elif defined(__FreeBSD__)
-    info->platform = "FreeBSD";
-#else
-    info->platform = "Unknown";
-#endif
-
-#if defined(_MSC_VER)
-    info->compiler = "MSVC";
-#elif defined(__GNUC__)
-    info->compiler = "GCC";
-#elif defined(__clang__)
-    info->compiler = "Clang";
-#else
-    info->compiler = "Unknown";
-#endif
-
-#if defined(_WIN64) || defined(__x86_64__)
-    info->arch = "x86_64";
-#elif defined(__aarch64__)
-    info->arch = "ARM64";
-#elif defined(_WIN32) || defined(__i386__)
-    info->arch = "x86";
-#elif defined(__arm__)
-    info->arch = "ARM";
-#else
-    info->arch = "Unknown";
-#endif
+    /* 平台/编译器/架构信息统一走 cross_platform.h 的运行时查询函数
+     * （lv_platform_name/lv_compiler_name/lv_arch_name），
+     * 消除本文件与跨平台层重复的 if/elif 检测链。 */
+    info->platform = lv_platform_name();
+    info->compiler = lv_compiler_name();
+    info->arch = lv_arch_name();
 
     info->build_date = __DATE__;
     info->build_time = __TIME__;

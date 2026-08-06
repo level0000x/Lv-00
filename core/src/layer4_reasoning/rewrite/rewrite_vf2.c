@@ -815,7 +815,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
 
         match->node_bindings = lv_malloc((size_t) pattern->var_count * 2 * sizeof(int));
         if (!match->node_bindings) {
-            lv_free((void **) &match);
+            rewrite_match_destroy(match);
             vf2_state_destroy(&state);
             graph_destroy(pattern_graph);
             lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_malloc for node_bindings failed");
@@ -823,8 +823,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
 
         match->constraint_bindings = lv_malloc((size_t) pattern->pattern_constraint_count * sizeof(int));
         if (!match->constraint_bindings) {
-            lv_free((void **) &match->node_bindings);
-            lv_free((void **) &match);
+            rewrite_match_destroy(match);
             vf2_state_destroy(&state);
             graph_destroy(pattern_graph);
             lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_malloc for constraint_bindings failed");

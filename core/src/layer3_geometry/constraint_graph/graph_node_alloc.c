@@ -35,6 +35,7 @@
 #include "stream_context_util.h"
 #include "lv/lv_json.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 
 #include "graph_node_internal.h"
 
@@ -511,28 +512,34 @@ static GeomNode *func_block_clone(const GeomNode *node, ConstraintGraph *dst_gra
 
 /* ── 类型特定的 type_name ── */
 
+/* GeomType → 名称静态表：由 LV_GEOM_TYPE_X 权威表（constraint_graph.h）生成，
+ * 收敛 6 个仅 return 字符串常量的单行函数（返回字符串逐字一致）。 */
+static const char *const kGeomTypeNames[] = {
+    lv_XMACRO_TO_NAME_ARRAY(LV_GEOM_TYPE_X)
+};
+
 static const char *point_type_name(void) {
-    return "POINT";
+    return kGeomTypeNames[GEOM_POINT];
 }
 
 static const char *line_segment_type_name(void) {
-    return "LINE_SEGMENT";
+    return kGeomTypeNames[GEOM_LINE_SEGMENT];
 }
 
 static const char *region_type_name(void) {
-    return "REGION";
+    return kGeomTypeNames[GEOM_REGION];
 }
 
 static const char *circle_type_name(void) {
-    return "CIRCLE";
+    return kGeomTypeNames[GEOM_CIRCLE];
 }
 
 static const char *port_type_name(void) {
-    return "PORT";
+    return kGeomTypeNames[GEOM_PORT];
 }
 
 static const char *func_block_type_name(void) {
-    return "FUNCTION_BLOCK";
+    return kGeomTypeNames[GEOM_FUNCTION_BLOCK];
 }
 
 /* ── 类型特定的 serialize（追加类型特定数据到 JSON 缓冲区） ── */
@@ -839,10 +846,11 @@ static void region_fixup_refs(GeomNode *node, const int *id_map, int max_id, Con
     for (int j = 0; j < node->data.region.segment_count; j++) {
         if (node->data.region.boundary_segments[j]) {
             int old_sid = node->data.region.boundary_segments[j]->id;
+            /* graph_get_node 可能返回 NULL（目标节点缺失），先置 NULL 再尝试解析：
+             * 任何失败路径均保持 NULL，与下方容错分支行为一致 */
+            node->data.region.boundary_segments[j] = NULL;
             if (id_map && old_sid >= 0 && old_sid <= max_id && id_map[old_sid] >= 0) {
                 node->data.region.boundary_segments[j] = graph_get_node(dst_graph, id_map[old_sid]);
-            } else {
-                node->data.region.boundary_segments[j] = NULL;
             }
         }
     }
@@ -865,10 +873,10 @@ static void circle_fixup_refs(GeomNode *node, const int *id_map, int max_id, Con
 static void port_fixup_refs(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph) {
     if (node->data.port && node->data.port->connected_to) {
         int old_cid = node->data.port->connected_to->id;
+        /* graph_get_node 可能返回 NULL（目标节点缺失），失败路径统一置 NULL */
+        node->data.port->connected_to = NULL;
         if (id_map && old_cid >= 0 && old_cid <= max_id && id_map[old_cid] >= 0) {
             node->data.port->connected_to = graph_get_node(dst_graph, id_map[old_cid]);
-        } else {
-            node->data.port->connected_to = NULL;
         }
     }
 }
@@ -877,10 +885,10 @@ static void func_block_fixup_refs(GeomNode *node, const int *id_map, int max_id,
     for (int j = 0; j < node->data.func_block.internal_node_count; j++) {
         if (node->data.func_block.internal_nodes[j]) {
             int old_iid = node->data.func_block.internal_nodes[j]->id;
+            /* graph_get_node 可能返回 NULL（目标节点缺失），失败路径统一置 NULL */
+            node->data.func_block.internal_nodes[j] = NULL;
             if (id_map && old_iid >= 0 && old_iid <= max_id && id_map[old_iid] >= 0) {
                 node->data.func_block.internal_nodes[j] = graph_get_node(dst_graph, id_map[old_iid]);
-            } else {
-                node->data.func_block.internal_nodes[j] = NULL;
             }
         }
     }

@@ -36,6 +36,17 @@ bool lv_str_is_empty(const char *s);
 bool lv_str_nonempty(const char *s);
 
 /**
+ * @brief 大小写不敏感比较两个字符串（NULL 安全）
+ * @param a 字符串（可为 NULL）
+ * @param b 字符串（可为 NULL）
+ * @return 与 strcmp 同符号：相等返回 0，a<b 为负，a>b 为正；
+ *         NULL 视为小于任何非 NULL 字符串，两者均 NULL 视为相等
+ * @note 内部按平台映射到 _stricmp（Windows）/ strcasecmp（POSIX），
+ *       调用方无需再关心平台差异
+ */
+int lv_str_icmp(const char *a, const char *b);
+
+/**
  * @brief 在关键字表中查找第一个 strstr 命中的索引
  * @param input    输入字符串
  * @param keywords NULL 结尾的关键字数组

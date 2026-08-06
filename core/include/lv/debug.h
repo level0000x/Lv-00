@@ -9,19 +9,11 @@
 #ifndef lv_DEBUG_H
 #define lv_DEBUG_H
 
-/* Safe fallback if lv.h was not included first */
-#ifndef lv_PUBLIC_API
-#define lv_PUBLIC_API
-#endif
-#ifndef lv_THREAD_LOCAL
-#ifdef _MSC_VER
-#define lv_THREAD_LOCAL __declspec(thread)
-#elif defined(__GNUC__) || defined(__clang__)
-#define lv_THREAD_LOCAL __thread
-#else
-#define lv_THREAD_LOCAL _Thread_local
-#endif
-#endif
+/* lv_PUBLIC_API 权威定义位于 lv.h（含 lv_USE_SHARED→dllimport 处理），
+ * lv_THREAD_LOCAL 权威定义位于 cross_platform.h。
+ * 此处 include lv_api_spec.h 获取 lv_PUBLIC_API 防御性兜底（独立包含本头时为空），
+ * 避免重复定义造成语义分叉。 */
+#include "lv_api_spec.h"
 
 #ifdef __cplusplus
 extern "C" {

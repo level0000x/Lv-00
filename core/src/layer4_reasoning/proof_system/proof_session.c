@@ -150,42 +150,42 @@ bool proof_session_submit_step(lvProofSession *session, const char *tactic, lvSt
      * This is a simplified implementation that handles basic tactic patterns.
      * A full implementation would parse the tactic and dispatch to the
      * appropriate rule engine or tactic interpreter. */
-    if (strncmp(tactic, "intro ", 6) == 0 || strcmp(tactic, "intro") == 0) {
+    if (lv_str_startswith(tactic, "intro ") || strcmp(tactic, "intro") == 0) {
         /* Introduction tactic: pop current goal (assumed proved) */
         proof_state_pop_goal(session->state);
         local_result = proof_state_is_complete(session->state) ? STEP_RESULT_PROVED : STEP_RESULT_GOAL_CHANGED;
-    } else if (strncmp(tactic, "apply ", 6) == 0) {
+    } else if (lv_str_startswith(tactic, "apply ")) {
         /* Apply tactic: record rule application */
         const char *rule_name = tactic + 6;
         proof_state_record_rule(session->state, rule_name);
         local_result = STEP_RESULT_ACCEPTED;
-    } else if (strncmp(tactic, "have ", 5) == 0) {
+    } else if (lv_str_startswith(tactic, "have ")) {
         /* Have tactic: add a hypothesis */
         const char *hyp = tactic + 5;
         proof_state_add_hypothesis(session->state, hyp);
         local_result = STEP_RESULT_ACCEPTED;
-    } else if (strncmp(tactic, "rewrite", 7) == 0) {
+    } else if (lv_str_startswith(tactic, "rewrite")) {
         /* Rewrite tactic */
         proof_state_record_rule(session->state, "rewrite");
         local_result = STEP_RESULT_GOAL_CHANGED;
-    } else if (strncmp(tactic, "cases ", 6) == 0) {
+    } else if (lv_str_startswith(tactic, "cases ")) {
         /* Case split tactic */
         proof_state_record_rule(session->state, "case_split");
         local_result = STEP_RESULT_GOAL_CHANGED;
-    } else if (strncmp(tactic, "induction ", 10) == 0) {
+    } else if (lv_str_startswith(tactic, "induction ")) {
         /* Induction tactic */
         proof_state_record_rule(session->state, "induction");
         local_result = STEP_RESULT_GOAL_CHANGED;
-    } else if (strncmp(tactic, "contradiction", 13) == 0) {
+    } else if (lv_str_startswith(tactic, "contradiction")) {
         /* Contradiction tactic */
         proof_state_record_rule(session->state, "contradiction");
         proof_state_pop_goal(session->state);
         local_result = proof_state_is_complete(session->state) ? STEP_RESULT_PROVED : STEP_RESULT_GOAL_CHANGED;
-    } else if (strncmp(tactic, "exact ", 6) == 0) {
+    } else if (lv_str_startswith(tactic, "exact ")) {
         /* Exact tactic: close current goal directly */
         proof_state_pop_goal(session->state);
         local_result = proof_state_is_complete(session->state) ? STEP_RESULT_PROVED : STEP_RESULT_GOAL_CHANGED;
-    } else if (strncmp(tactic, "sorry", 5) == 0) {
+    } else if (lv_str_startswith(tactic, "sorry")) {
         /* Admitted tactic: skip current goal */
         proof_state_pop_goal(session->state);
         local_result = proof_state_is_complete(session->state) ? STEP_RESULT_PROVED : STEP_RESULT_GOAL_CHANGED;

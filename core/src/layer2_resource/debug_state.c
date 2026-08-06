@@ -196,12 +196,11 @@ int create_directory(const char *path) {
  * @param buf  输出缓冲区，用于存储格式化后的时间戳
  * @param size 缓冲区大小（字节）
  * @note 时间戳格式为 "YYYY-MM-DD HH:MM:SS"
+ *       统一走 lv_format_time（与 lv_utils_misc.c 的格式化实现同源），
+ *       输出格式逐字符一致。
  */
 void get_timestamp(char *buf, size_t size) {
-    time_t now = time(NULL);
-    struct tm tm_buf;
-    lv_LOCALTIME(&now, &tm_buf);
-    strftime(buf, size, "%Y-%m-%d %H:%M:%S", &tm_buf);
+    lv_format_time((uint64_t) time(NULL) * 1000000ULL, buf, size);
 }
 
 /* 日志文件轮转

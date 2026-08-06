@@ -195,6 +195,7 @@ int lv_plugin_config_set(lvPluginConfig *config, const char *key, const char *va
     for (size_t i = 0; i < config->entry_count; i++) {
         if (strcmp(config->entries[i].key, key) == 0) {
             strncpy(config->entries[i].value, value, sizeof(config->entries[i].value) - 1);
+            config->entries[i].value[sizeof(config->entries[i].value) - 1] = '\0';
             config->entries[i].type = type;
             return 0;
         }

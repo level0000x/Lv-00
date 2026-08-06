@@ -210,7 +210,7 @@ const char *smtsolver_get_last_error_message(const SMTSolver *solver) {
     if (!solver) {
         return "null solver";
     }
-    if (solver->last_error_msg[0] == '\0') {
+    if (lv_str_is_empty(solver->last_error_msg)) {
         return "";
     }
     return solver->last_error_msg;
@@ -414,7 +414,7 @@ SolverBackendType smtsolver_backend_type_from_name(const char *name) {
         return (SolverBackendType) v;
 
     /* 兼容 "grobner" 拼写错误 */
-    if (strcasecmp(name, "grobner") == 0)
+    if (lv_str_icmp(name, "grobner") == 0)
         return GROEBNER;
 
     return COUNT;

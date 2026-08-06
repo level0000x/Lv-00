@@ -42,6 +42,7 @@
 
 #include "lv/allocator.h"
 #include "lv/lv_file.h"
+#include "lv/lv_path.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -504,13 +505,7 @@ int lv_memory_leak_report(FILE *output) {
         char location[64];
         if (curr->file && curr->line > 0) {
             /* 只取文件名部分（去除路径前缀） */
-            const char *filename = strrchr(curr->file, '\\');
-            if (!filename)
-                filename = strrchr(curr->file, '/');
-            if (filename)
-                filename++; /* 跳过路径分隔符 */
-            else
-                filename = curr->file;
+            const char *filename = lv_path_basename(curr->file);
             snprintf(location, sizeof(location), "%s:%d", filename, curr->line);
         } else {
             snprintf(location, sizeof(location), "<未记录>");

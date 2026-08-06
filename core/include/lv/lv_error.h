@@ -22,14 +22,8 @@
 #include <stdarg.h>
 #include "error_codes.h"
 
-/* 确保 lv_FORMAT_PRINTF / lv_PUBLIC_API 可用 */
-#ifndef lv_FORMAT_PRINTF
-  #if defined(__GNUC__) || defined(__clang__)
-    #define lv_FORMAT_PRINTF(fmt_idx, args_idx) __attribute__((format(printf, fmt_idx, args_idx)))
-  #else
-    #define lv_FORMAT_PRINTF(fmt_idx, args_idx)
-  #endif
-#endif
+/* 确保 lv_FORMAT_PRINTF（权威定义位于 cross_platform.h）与 lv_PUBLIC_API 可用 */
+#include "cross_platform.h"
 #ifndef lv_PUBLIC_API
   #define lv_PUBLIC_API
 #endif

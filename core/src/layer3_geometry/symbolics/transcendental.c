@@ -62,7 +62,7 @@ Transcendental *transcendental_create(const char *name) {
     if (strcmp(name, "pi") == 0 || strcmp(name, "e") == 0) {
         /* 裸常量 */
         base = name;
-    } else if (strncmp(name, "-pi", 3) == 0 && (name[3] == '\0' || name[3] == '/')) {
+    } else if (lv_str_startswith(name, "-pi") && (name[3] == '\0' || name[3] == '/')) {
         /* 负 pi 变体: -pi, -pi/2, -pi/3, ... */
         base = "pi";
         coeff_num = -1;
@@ -78,7 +78,7 @@ Transcendental *transcendental_create(const char *name) {
             if (coeff_den <= 0)
                 lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
         }
-    } else if (strncmp(name, "pi/", 3) == 0) {
+    } else if (lv_str_startswith(name, "pi/")) {
         /* pi/N 形式 */
         base = "pi";
         is_mul = false;
@@ -91,7 +91,7 @@ Transcendental *transcendental_create(const char *name) {
         }
         if (coeff_den <= 0)
             lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
-    } else if (strncmp(name, "-pi/", 4) == 0) {
+    } else if (lv_str_startswith(name, "-pi/")) {
         /* 已在上面处理 */
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: unsupported format");
     } else {

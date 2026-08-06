@@ -48,6 +48,8 @@
  */
 typedef struct CellEntry {
     int node_id;            /**< 几何节点 ID */
+    int gx;                 /**< 条目所在网格单元 X 坐标（扩容重哈希用） */
+    int gy;                 /**< 条目所在网格单元 Y 坐标（扩容重哈希用） */
     struct CellEntry *next; /**< 链表下一节点 */
 } CellEntry;
 
@@ -224,9 +226,9 @@ int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, doub
             CellEntry *entry = idx->cells[i].head;
             while (entry) {
                 CellEntry *next = entry->next;
-                /* 重新插入到新桶中（简化处理：加到新桶头部） */
-                int new_idx = cell_hash(i, 0, new_cap); /* 保守重映射 */
-                /* 注意：此处简化处理，完整实现需要记录每个条目的原始坐标 */
+                /* 按条目原始网格坐标 (gx, gy) 重新哈希到新桶（加到新桶头部），
+                 * 避免用旧桶索引冒充坐标导致扩容后条目落错桶、查询丢失 */
+                int new_idx = cell_hash(entry->gx, entry->gy, new_cap);
                 entry->next = new_cells[new_idx].head;
                 new_cells[new_idx].head = entry;
                 new_cells[new_idx].count++;
@@ -247,6 +249,8 @@ int lv_fast_index_insert(lvFastIndex *idx, int node_id, double x, double y, doub
                 continue; /* 尽力而为：内存不足时跳过此单元 */
 
             entry->node_id = node_id;
+            entry->gx = gx;
+            entry->gy = gy;
             entry->next = idx->cells[bucket].head;
             idx->cells[bucket].head = entry;
             idx->cells[bucket].count++;

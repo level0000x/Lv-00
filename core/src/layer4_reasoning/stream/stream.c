@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file stream.c
  * @brief 流式输出系统实现 —— 引擎事件回调与实时状态推送
  *
@@ -42,12 +42,6 @@
 #include "lv.h"
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
-#ifdef _WIN32
-#include <windows.h>
-#define strcasecmp _stricmp
-#else
-#include <strings.h>  /* strcasecmp：不区分大小写的字符串比较 */
-#endif
 
 /* ── 平台线程支持 ── */
 /* 使用统一的 lv/lv_thread.h 抽象 */

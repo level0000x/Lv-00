@@ -147,72 +147,31 @@ static ExprNode *parse_primary(const char **p) {
         return inner ? expr_un(EXPR_NEG, inner) : NULL;
     }
 
-    /* function calls */
-    if (strncmp(s, "sin(", 4) == 0) {
-        *p = s + 4;
-        ExprNode *e = parse_primary(p);
-        s = skip_sp(*p);
-        if (*s == ')') {
-            (*p)++;
-            return expr_un(EXPR_SIN, e);
+    /* function calls（表驱动：name 为形如 "sin(" 的调用头） */
+    static const struct {
+        const char *name;
+        size_t len;
+        ExprNodeType type;
+    } s_func_calls[] = {
+        {"sin(", 4, EXPR_SIN},
+        {"cos(", 4, EXPR_COS},
+        {"abs(", 4, EXPR_ABS},
+        {"exp(", 4, EXPR_EXP},
+        {"log(", 4, EXPR_LOG},
+        {"sqrt(", 5, EXPR_SQRT},
+    };
+    for (size_t i = 0; i < sizeof(s_func_calls) / sizeof(s_func_calls[0]); i++) {
+        if (lv_str_startswith(s, s_func_calls[i].name)) {
+            *p = s + s_func_calls[i].len;
+            ExprNode *e = parse_primary(p);
+            s = skip_sp(*p);
+            if (*s == ')') {
+                (*p)++;
+                return expr_un(s_func_calls[i].type, e);
+            }
+            expr_free_tree(e);
+            return NULL;
         }
-        expr_free_tree(e);
-        return NULL;
-    }
-    if (strncmp(s, "cos(", 4) == 0) {
-        *p = s + 4;
-        ExprNode *e = parse_primary(p);
-        s = skip_sp(*p);
-        if (*s == ')') {
-            (*p)++;
-            return expr_un(EXPR_COS, e);
-        }
-        expr_free_tree(e);
-        return NULL;
-    }
-    if (strncmp(s, "abs(", 4) == 0) {
-        *p = s + 4;
-        ExprNode *e = parse_primary(p);
-        s = skip_sp(*p);
-        if (*s == ')') {
-            (*p)++;
-            return expr_un(EXPR_ABS, e);
-        }
-        expr_free_tree(e);
-        return NULL;
-    }
-    if (strncmp(s, "exp(", 4) == 0) {
-        *p = s + 4;
-        ExprNode *e = parse_primary(p);
-        s = skip_sp(*p);
-        if (*s == ')') {
-            (*p)++;
-            return expr_un(EXPR_EXP, e);
-        }
-        expr_free_tree(e);
-        return NULL;
-    }
-    if (strncmp(s, "log(", 4) == 0) {
-        *p = s + 4;
-        ExprNode *e = parse_primary(p);
-        s = skip_sp(*p);
-        if (*s == ')') {
-            (*p)++;
-            return expr_un(EXPR_LOG, e);
-        }
-        expr_free_tree(e);
-        return NULL;
-    }
-    if (strncmp(s, "sqrt(", 5) == 0) {
-        *p = s + 5;
-        ExprNode *e = parse_primary(p);
-        s = skip_sp(*p);
-        if (*s == ')') {
-            (*p)++;
-            return expr_un(EXPR_SQRT, e);
-        }
-        expr_free_tree(e);
-        return NULL;
     }
 
     /* parenthesized expression */

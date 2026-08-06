@@ -1279,7 +1279,9 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         binding->tuple_capacity = 16;
                         binding->tuples = (int **) lv_malloc((size_t) binding->tuple_capacity * sizeof(int *));
                         if (!binding->tuples) {
-                            lv_free((void **) &binding->name);
+                            /* binding->name 为 Relation 内嵌固定数组（char name[128]），
+                             * 随 lv_calloc 统一分配，不可单独 lv_free（否则堆损坏），
+                             * 仅释放 binding 本身即可 */
                             lv_free((void **) &binding);
                             continue;
                         }

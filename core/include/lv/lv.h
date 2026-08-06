@@ -142,22 +142,8 @@ extern "C" {
 #define lv_PUBLIC_API
 #endif
 
-/* ============================================================
- * 线程局部存储宏（跨平台统一，避免各模块各自定义）
- * ============================================================ */
-#if defined(_MSC_VER)
-#define lv_THREAD_LOCAL __declspec(thread)
-#elif defined(__GNUC__) || defined(__clang__)
-#define lv_THREAD_LOCAL __thread
-#else
-#if __STDC_VERSION__ >= 201112L
-#define lv_THREAD_LOCAL _Thread_local
-#else
-#define lv_THREAD_LOCAL /* 不支持：回退到全局变量 */
-/* 注意：当前编译器不支持线程局部存储（thread-local storage），
- * lv_THREAD_LOCAL 回退为全局变量。多线程场景下需外部同步保护。 */
-#endif
-#endif
+/* lv_THREAD_LOCAL —— 权威定义位于 cross_platform.h（本文件顶部已 include），
+ * 此处不再重复定义，避免多文件语义分叉。 */
 
 /* strdup 兼容性（非标准C函数）
  * 使用 lv_strdup_safe 确保与 lv_malloc/lv_free 内存分配器兼容。
@@ -176,16 +162,10 @@ extern "C" {
 #endif
 #endif
 
-/* 函数废弃标记（跨编译器统一） */
-#ifndef lv_DEPRECATED
-#if defined(__GNUC__) || defined(__clang__)
-#define lv_DEPRECATED(msg) __attribute__((deprecated(msg)))
-#elif defined(_MSC_VER)
-#define lv_DEPRECATED(msg) __declspec(deprecated(msg))
-#else
-#define lv_DEPRECATED(msg) /* 不支持废弃标记 */
-#endif
-#endif
+/* 函数废弃标记（跨编译器统一）
+ * 权威定义位于 lv_api_spec.h（支持 __clang__），此处 include 保证
+ * lv.h 消费方可直接使用 lv_DEPRECATED，避免重复定义造成语义分叉。 */
+#include "lv_api_spec.h"
 
 /* ── 路径分隔符（跨平台） ── */
 #ifdef _WIN32

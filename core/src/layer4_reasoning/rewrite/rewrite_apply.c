@@ -1234,7 +1234,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
                 }
 
                 applied = true;
-                lv_free((void **) &match);
+                rewrite_match_destroy(match);
                 break;
             } else {
                 { StreamContext *rctx5 = rewrite_get_stream_context();
@@ -1243,7 +1243,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
                                        rule->name ? rule->name : "rule rolled back", steps);
                 } }
             }
-            lv_free((void **) &match);
+            rewrite_match_destroy(match);
         }
 
         if (!applied)

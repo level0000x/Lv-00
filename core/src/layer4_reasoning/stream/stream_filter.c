@@ -101,7 +101,7 @@ static uint64_t stream_parse_category(const char *category) {
         return STREAM_FILTER_NONE;
 
     for (size_t i = 0; i < lv_ARRAY_SIZE(s_category_masks); i++) {
-        if (strcasecmp(category, s_category_masks[i].name) == 0)
+        if (lv_str_icmp(category, s_category_masks[i].name) == 0)
             return s_category_masks[i].mask;
     }
     return STREAM_FILTER_NONE;

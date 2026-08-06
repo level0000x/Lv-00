@@ -544,13 +544,13 @@ static double transcendental_expr_to_double(const Transcendental *t) {
             }
         }
 
-        if (strncmp(name, "pi/", 3) == 0) {
+        if (lv_str_startswith(name, "pi/")) {
             int64_t den = safe_atol(name + 3);
             if (den > 0)
                 return M_PI / (double) den;
         }
 
-        if (strncmp(name, "-pi/", 4) == 0) {
+        if (lv_str_startswith(name, "-pi/")) {
             int64_t den = safe_atol(name + 4);
             if (den > 0)
                 return -M_PI / (double) den;

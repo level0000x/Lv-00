@@ -9,6 +9,9 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef _WIN32
+#include <strings.h> /* strcasecmp（lv_str_icmp） */
+#endif
 
 /* ===== 字符串检查 ===== */
 
@@ -39,6 +42,20 @@ bool lv_str_is_empty(const char *s) {
 
 bool lv_str_nonempty(const char *s) {
     return s && s[0] != '\0';
+}
+
+int lv_str_icmp(const char *a, const char *b) {
+    if (a == b)
+        return 0;
+    if (!a)
+        return -1;
+    if (!b)
+        return 1;
+#if defined(_MSC_VER) || defined(_WIN32)
+    return _stricmp(a, b);
+#else
+    return strcasecmp(a, b);
+#endif
 }
 
 /* ===== 关键字表匹配 ===== */
@@ -162,11 +179,9 @@ void lv_str_split_free(lvStrSplitResult *result) {
 
 char *lv_strtok_r(char *str, const char *delim, char **saveptr) {
     if (!delim || !saveptr) return NULL;
-#ifdef _MSC_VER
-    return strtok_s(str, delim, saveptr);
-#else
+    /* MSVC 的 strtok_s 与 POSIX strtok_r 签名兼容（str, delim, context），
+     * 平台差异由 lv_platform.h 的 strtok_s→strtok_r 宏映射统一处理。 */
     return strtok_r(str, delim, saveptr);
-#endif
 }
 
 /* ===== 定界符扫描 ===== */

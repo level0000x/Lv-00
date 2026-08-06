@@ -21,12 +21,6 @@ extern "C" {
 #include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 #include "lv/lv_callback_list.h"
-#ifdef _WIN32
-#include <windows.h>
-#define strcasecmp _stricmp
-#else
-#include <strings.h>
-#endif
 
 /* ==================== 内部常量 ==================== */
 

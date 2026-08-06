@@ -107,9 +107,7 @@ static RewriteMatch *perform_coord_validated_match(ConstraintGraph *target_graph
 
     /* 验证所有已添加到模式图的约束都匹配成功 */
     if (constraint_match_count != pattern_graph->constraint_count) {
-        lv_free((void **) &match->node_bindings);
-        lv_free((void **) &match->constraint_bindings);
-        lv_free((void **) &match);
+        rewrite_match_destroy(match);
         match = NULL;
     }
 
@@ -578,9 +576,7 @@ RewriteMatch *find_best_match(ConstraintGraph *graph, RewriteRule *rule, bool lo
 
     /* 评估前置条件 */
     if (!evaluate_precondition(graph, rule, match)) {
-        lv_free((void **) &match->node_bindings);
-        lv_free((void **) &match->constraint_bindings);
-        lv_free((void **) &match);
+        rewrite_match_destroy(match);
         return NULL;
     }
 

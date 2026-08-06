@@ -121,6 +121,8 @@
  *   3. 本函数对 NULL 指针做了防御性检查，标准 strncpy 对 NULL 调用是未定义行为。
  */
 void safe_strncpy(char *dest, const char *src, size_t max_len) {
+    if (max_len == 0)
+        return; /* 空缓冲区：无操作，避免下方 max_len - 1 下溢为 SIZE_MAX */
     if (!dest || !src) {
         if (dest && max_len > 0)
             dest[0] = '\0';

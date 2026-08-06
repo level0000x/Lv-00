@@ -77,6 +77,15 @@ typedef struct RewriteMatch {
     int binding_count;
 } RewriteMatch;
 
+/**
+ * @brief 销毁重写匹配，释放 node_bindings / constraint_bindings 与结构体本身
+ *
+ * NULL 安全：参数为 NULL 时直接返回（与 lv_free 的 NULL 语义一致）。
+ * 集中替换散落的 lv_free(node_bindings) → lv_free(constraint_bindings) →
+ * lv_free(match) 三连释放样板（先例：lv_rule_match_destroy）。
+ */
+void rewrite_match_destroy(RewriteMatch *match);
+
 /* 前置条件评估回调类型 */
 typedef bool (*RewritePrecondition)(ConstraintGraph *graph, RewriteMatch *match, void *user_data);
 
