@@ -438,121 +438,133 @@ typedef struct lvConfig {
 } lvConfig;
 
 /* ====================================================================
- * 配置键 X-macro —— 用于生成 setter 分发 & JSON 加载
+ * 配置键 X-macro —— lvConfig 配置系统的单一事实来源
  *
- * 格式: X(JSON_KEY_STR, struct_path_member)
+ * 四元组格式: X(key, type, field, default)
+ *   - key     裸标识符；#key 字符串化后即 JSON / 字符串分发的键名，
+ *             同时用于生成 lv_config_get_<key> / lv_config_set_<key> 函数名
+ *   - type    int 或 double（对应字段的 C 类型）
+ *   - field   lvConfig 结构体成员路径（相对路径，如 engine.max_module_depth）
+ *   - default 默认值字面量（C 字面量，如 100000 / 0.85 / 1e-8）
+ *
+ * 由宏一次性生成五件套（定义在 lv_config.c 展开，声明由 config.h 生成）：
+ *   - 默认值初始化    DEFAULT_INT / DEFAULT_DBL      def.field = default;
+ *   - 类型安全 getter GETTER                         type lv_config_get_<key>(void)
+ *   - 类型安全 setter SETTER                         void lv_config_set_<key>(type val)
+ *   - 通用 set 分发    SET_IF（lv_config_set_int / lv_config_set_double 的 strcmp 链）
+ *   - JSON 读写        JLD / TOJSON_INT / TOJSON_DBL
  *
  * 用法:
- *   #define SET_IF(key, field) if (strcmp(k, key)==0) { c->field = val; return true; }
+ *   #define SET_IF(key, type, field, dflt) if (strcmp(k, #key)==0) { c->field = val; return true; }
  *   LV_CONFIG_INT_KEYS(SET_IF)
  * ==================================================================== */
 
 #define LV_CONFIG_INT_KEYS(X) \
-    X("solver_max_var_id", solver.solver_max_var_id) \
-    X("solver_max_iterations", solver.solver_max_iterations) \
-    X("max_module_depth", engine.max_module_depth) \
-    X("graph_adj_max_per_node", engine.graph_adj_max_per_node) \
-    X("default_rewrite_limit", engine.default_rewrite_limit) \
-    X("wl_iterations", engine.wl_iterations) \
-    X("wl_history_size", engine.wl_history_size) \
-    X("vf2_max_depth", engine.vf2_max_depth) \
-    X("buchberger_max_steps", engine.buchberger_max_steps) \
-    X("groebner_reduce_max_steps", engine.groebner_reduce_max_steps) \
-    X("engine_max_collaboration_iterations", engine.engine_max_collaboration_iterations) \
-    X("rewrite_default_max_iterations", engine.rewrite_default_max_iterations) \
-    X("rewrite_engine_init_iterations", engine.rewrite_engine_init_iterations) \
-    X("stream_async_queue_capacity", stream.stream_async_queue_capacity) \
-    X("stream_initial_callbacks", stream.stream_initial_callbacks) \
-    X("stream_max_callbacks", stream.stream_max_callbacks) \
-    X("stream_default_throttle_ms", stream.stream_default_throttle_ms) \
-    X("bit_cutoff_threshold", precision.bit_cutoff_threshold) \
-    X("max_precision_bits", precision.max_precision_bits) \
-    X("continued_fraction_max_iter", precision.continued_fraction_max_iter) \
-    X("max_subintervals", precision.max_subintervals) \
-    X("mini_kernel_max_statements", mini_kernel.mini_kernel_max_statements) \
-    X("mini_kernel_max_proof_depth", mini_kernel.mini_kernel_max_proof_depth) \
-    X("mini_kernel_verify_timeout_ms", mini_kernel.mini_kernel_verify_timeout_ms) \
-    X("parser_max_input_length", parser.parser_max_input_length) \
-    X("parser_max_ast_depth", parser.parser_max_ast_depth) \
-    X("parser_max_ast_nodes", parser.parser_max_ast_nodes) \
-    X("parser_max_token_length", parser.parser_max_token_length) \
-    X("parser_max_coordinates", parser.parser_max_coordinates) \
-    X("parser_max_polygon_vertices", parser.parser_max_polygon_vertices) \
-    X("parser_max_statements", parser.parser_max_statements) \
-    X("parser_max_arguments", parser.parser_max_arguments) \
-    X("parser_max_participants", parser.parser_max_participants) \
-    X("runtime_guard_max_recurse", runtime_guard.runtime_guard_max_recurse) \
-    X("runtime_guard_spin_attempts", runtime_guard.runtime_guard_spin_attempts) \
-    X("runtime_guard_write_warn_us", runtime_guard.runtime_guard_write_warn_us) \
-    X("proto_max_draw_cmds", protocol.proto_max_draw_cmds) \
-    X("proto_max_table_rows", protocol.proto_max_table_rows) \
-    X("proto_max_tree_nodes", protocol.proto_max_tree_nodes) \
-    X("proto_max_topology", protocol.proto_max_topology) \
-    X("proto_max_proof_steps", protocol.proto_max_proof_steps) \
-    X("proto_max_completions", protocol.proto_max_completions) \
-    X("proto_max_terminal_lines", protocol.proto_max_terminal_lines) \
-    X("geo_max_objects", geometry.geo_max_objects) \
-    X("geo_max_constraints", geometry.geo_max_constraints) \
-    X("geo_max_drag_chain", geometry.geo_max_drag_chain) \
-    X("geo_max_snapshots", geometry.geo_max_snapshots) \
-    X("geoevol_max_param_dim", geometry.geoevol_max_param_dim) \
-    X("geoevol_adams_max_order", geometry.geoevol_adams_max_order) \
-    X("geoevol_max_rejections", geometry.geoevol_max_rejections) \
-    X("proof_max_branches", proof.proof_max_branches) \
-    X("proof_max_strategies", proof.proof_max_strategies) \
-    X("max_recursion_depth", context.max_recursion_depth) \
-    X("context_default_max_depth", context.context_default_max_depth) \
-    X("context_max_recursion_depth", context.context_max_recursion_depth) \
-    X("context_default_max_steps", context.context_default_max_steps) \
-    X("context_default_max_consecutive_errors", context.context_default_max_consecutive_errors) \
-    X("context_reasoning_stack_default_capacity", context.context_reasoning_stack_default_capacity) \
-    X("context_reasoning_stack_max_depth", context.context_reasoning_stack_max_depth) \
-    X("interop_max_params", integration.interop_max_params) \
-    X("interop_max_completions", integration.interop_max_completions) \
-    X("interop_ws_default_port", integration.interop_ws_default_port) \
-    X("interop_buffer_size", integration.interop_buffer_size) \
-    X("interop_timeout_ms", integration.interop_timeout_ms) \
-    X("log_max_files", diagnostics.log_max_files) \
-    X("log_max_size", diagnostics.log_max_size) \
-    X("log_ring_buffer_capacity", diagnostics.log_ring_buffer_capacity) \
-    X("perf_sample_max_count", diagnostics.perf_sample_max_count) \
-    X("timer_max_depth", diagnostics.timer_max_depth) \
-    X("max_plugins", integration.max_plugins) \
-    X("max_interfaces", integration.max_interfaces) \
-    X("backend_step_limit", integration.backend_step_limit) \
-    X("backend_timeout_ms", integration.backend_timeout_ms) \
-    X("test_max_suites", test.test_max_suites) \
-    X("test_max_cases", test.test_max_cases) \
-    X("smoke_test_step_limit", test.smoke_test_step_limit) \
-    X("smoke_test_timeout_ms", test.smoke_test_timeout_ms) \
-    X("stress_test_default_chain", test.stress_test_default_chain) \
-    X("stress_test_max_poly_degree", test.stress_test_max_poly_degree) \
-    X("circuit_overflow_threshold", health.circuit_overflow_threshold) \
-    X("max_consecutive_trips", health.max_consecutive_trips) \
-    X("value_too_large", health.value_too_large) \
-    X("downgrade_denominator", health.downgrade_denominator) \
-    X("default_memory_limit_mb", health.default_memory_limit_mb) \
-    X("health_score_max", health.health_score_max) \
-    X("health_memory_warning_penalty", health.health_memory_warning_penalty) \
-    X("health_memory_leak_penalty", health.health_memory_leak_penalty) \
-    X("health_recent_error_penalty", health.health_recent_error_penalty) \
-    X("context_timeout_ms", context.context_timeout_ms) \
-    X("context_cooldown_ms", context.context_cooldown_ms) \
-    X("view_sync_timeout_ms", context.view_sync_timeout_ms) \
-    X("prop_max_iterations", propagation.prop_max_iterations) \
-    X("prop_max_backtracks", propagation.prop_max_backtracks) \
-    X("prop_max_collaboration_iters", propagation.prop_max_collaboration_iters)
+    X(solver_max_var_id, int, solver.solver_max_var_id, 100000) \
+    X(solver_max_iterations, int, solver.solver_max_iterations, 10000) \
+    X(max_module_depth, int, engine.max_module_depth, 32) \
+    X(graph_adj_max_per_node, int, engine.graph_adj_max_per_node, 256) \
+    X(default_rewrite_limit, int, engine.default_rewrite_limit, 1000) \
+    X(wl_iterations, int, engine.wl_iterations, 3) \
+    X(wl_history_size, int, engine.wl_history_size, 64) \
+    X(vf2_max_depth, int, engine.vf2_max_depth, 100) \
+    X(buchberger_max_steps, int, engine.buchberger_max_steps, 50000) \
+    X(groebner_reduce_max_steps, int, engine.groebner_reduce_max_steps, 10000) \
+    X(engine_max_collaboration_iterations, int, engine.engine_max_collaboration_iterations, 10000) \
+    X(rewrite_default_max_iterations, int, engine.rewrite_default_max_iterations, 1000) \
+    X(rewrite_engine_init_iterations, int, engine.rewrite_engine_init_iterations, 100) \
+    X(stream_async_queue_capacity, int, stream.stream_async_queue_capacity, 1024) \
+    X(stream_initial_callbacks, int, stream.stream_initial_callbacks, 16) \
+    X(stream_max_callbacks, int, stream.stream_max_callbacks, 64) \
+    X(stream_default_throttle_ms, int, stream.stream_default_throttle_ms, 50) \
+    X(bit_cutoff_threshold, int, precision.bit_cutoff_threshold, 1000000) \
+    X(max_precision_bits, int, precision.max_precision_bits, 100) \
+    X(continued_fraction_max_iter, int, precision.continued_fraction_max_iter, 1000) \
+    X(max_subintervals, int, precision.max_subintervals, 4096) \
+    X(mini_kernel_max_statements, int, mini_kernel.mini_kernel_max_statements, 10000) \
+    X(mini_kernel_max_proof_depth, int, mini_kernel.mini_kernel_max_proof_depth, 1000) \
+    X(mini_kernel_verify_timeout_ms, int, mini_kernel.mini_kernel_verify_timeout_ms, 30000) \
+    X(parser_max_input_length, int, parser.parser_max_input_length, 1048576) \
+    X(parser_max_ast_depth, int, parser.parser_max_ast_depth, 256) \
+    X(parser_max_ast_nodes, int, parser.parser_max_ast_nodes, 500000) \
+    X(parser_max_token_length, int, parser.parser_max_token_length, 4096) \
+    X(parser_max_coordinates, int, parser.parser_max_coordinates, 16) \
+    X(parser_max_polygon_vertices, int, parser.parser_max_polygon_vertices, 32) \
+    X(parser_max_statements, int, parser.parser_max_statements, 64) \
+    X(parser_max_arguments, int, parser.parser_max_arguments, 16) \
+    X(parser_max_participants, int, parser.parser_max_participants, 16) \
+    X(runtime_guard_max_recurse, int, runtime_guard.runtime_guard_max_recurse, 128) \
+    X(runtime_guard_spin_attempts, int, runtime_guard.runtime_guard_spin_attempts, 1024) \
+    X(runtime_guard_write_warn_us, int, runtime_guard.runtime_guard_write_warn_us, 10000) \
+    X(proto_max_draw_cmds, int, protocol.proto_max_draw_cmds, 4096) \
+    X(proto_max_table_rows, int, protocol.proto_max_table_rows, 512) \
+    X(proto_max_tree_nodes, int, protocol.proto_max_tree_nodes, 256) \
+    X(proto_max_topology, int, protocol.proto_max_topology, 128) \
+    X(proto_max_proof_steps, int, protocol.proto_max_proof_steps, 512) \
+    X(proto_max_completions, int, protocol.proto_max_completions, 64) \
+    X(proto_max_terminal_lines, int, protocol.proto_max_terminal_lines, 512) \
+    X(geo_max_objects, int, geometry.geo_max_objects, 1024) \
+    X(geo_max_constraints, int, geometry.geo_max_constraints, 2048) \
+    X(geo_max_drag_chain, int, geometry.geo_max_drag_chain, 64) \
+    X(geo_max_snapshots, int, geometry.geo_max_snapshots, 32) \
+    X(geoevol_max_param_dim, int, geometry.geoevol_max_param_dim, 256) \
+    X(geoevol_adams_max_order, int, geometry.geoevol_adams_max_order, 12) \
+    X(geoevol_max_rejections, int, geometry.geoevol_max_rejections, 20) \
+    X(proof_max_branches, int, proof.proof_max_branches, 64) \
+    X(proof_max_strategies, int, proof.proof_max_strategies, 16) \
+    X(max_recursion_depth, int, context.max_recursion_depth, 128) \
+    X(context_default_max_depth, int, context.context_default_max_depth, 100) \
+    X(context_max_recursion_depth, int, context.context_max_recursion_depth, 10000) \
+    X(context_default_max_steps, int, context.context_default_max_steps, 1000000) \
+    X(context_default_max_consecutive_errors, int, context.context_default_max_consecutive_errors, 10) \
+    X(context_reasoning_stack_default_capacity, int, context.context_reasoning_stack_default_capacity, 8) \
+    X(context_reasoning_stack_max_depth, int, context.context_reasoning_stack_max_depth, 1000) \
+    X(interop_max_params, int, integration.interop_max_params, 32) \
+    X(interop_max_completions, int, integration.interop_max_completions, 64) \
+    X(interop_ws_default_port, int, integration.interop_ws_default_port, 8765) \
+    X(interop_buffer_size, int, integration.interop_buffer_size, 65536) \
+    X(interop_timeout_ms, int, integration.interop_timeout_ms, 30000) \
+    X(log_max_files, int, diagnostics.log_max_files, 5) \
+    X(log_max_size, int, diagnostics.log_max_size, 10485760) \
+    X(log_ring_buffer_capacity, int, diagnostics.log_ring_buffer_capacity, 256) \
+    X(perf_sample_max_count, int, diagnostics.perf_sample_max_count, 10000) \
+    X(timer_max_depth, int, diagnostics.timer_max_depth, 32) \
+    X(max_plugins, int, integration.max_plugins, 256) \
+    X(max_interfaces, int, integration.max_interfaces, 128) \
+    X(backend_step_limit, int, integration.backend_step_limit, 1000) \
+    X(backend_timeout_ms, int, integration.backend_timeout_ms, 30000) \
+    X(test_max_suites, int, test.test_max_suites, 256) \
+    X(test_max_cases, int, test.test_max_cases, 4096) \
+    X(smoke_test_step_limit, int, test.smoke_test_step_limit, 1000) \
+    X(smoke_test_timeout_ms, int, test.smoke_test_timeout_ms, 30000) \
+    X(stress_test_default_chain, int, test.stress_test_default_chain, 100) \
+    X(stress_test_max_poly_degree, int, test.stress_test_max_poly_degree, 4) \
+    X(circuit_overflow_threshold, int, health.circuit_overflow_threshold, 3) \
+    X(max_consecutive_trips, int, health.max_consecutive_trips, 3) \
+    X(value_too_large, int, health.value_too_large, 1048576) \
+    X(downgrade_denominator, int, health.downgrade_denominator, 100000) \
+    X(default_memory_limit_mb, int, health.default_memory_limit_mb, 0) \
+    X(health_score_max, int, health.health_score_max, 100) \
+    X(health_memory_warning_penalty, int, health.health_memory_warning_penalty, 10) \
+    X(health_memory_leak_penalty, int, health.health_memory_leak_penalty, 20) \
+    X(health_recent_error_penalty, int, health.health_recent_error_penalty, 5) \
+    X(context_timeout_ms, int, context.context_timeout_ms, 30000) \
+    X(context_cooldown_ms, int, context.context_cooldown_ms, 5000) \
+    X(view_sync_timeout_ms, int, context.view_sync_timeout_ms, 1000) \
+    X(prop_max_iterations, int, propagation.prop_max_iterations, 10000) \
+    X(prop_max_backtracks, int, propagation.prop_max_backtracks, 1000) \
+    X(prop_max_collaboration_iters, int, propagation.prop_max_collaboration_iters, 10000)
 
 #define LV_CONFIG_DOUBLE_KEYS(X) \
-    X("geo_min_zoom", geometry.geo_min_zoom) \
-    X("geo_max_zoom", geometry.geo_max_zoom) \
-    X("geoevol_min_step", geometry.geoevol_min_step) \
-    X("geoevol_max_step", geometry.geoevol_max_step) \
-    X("geoevol_pi_smooth_factor", geometry.geoevol_pi_smooth_factor) \
-    X("health_memory_usage_ratio", health.health_memory_usage_ratio) \
-    X("health_memory_leak_ratio", health.health_memory_leak_ratio) \
-    X("high_dim_default_fidelity_threshold", high_dim.high_dim_default_fidelity_threshold) \
-    X("geo_sym_coord_eps", geometry.geo_sym_coord_eps)
+    X(geo_min_zoom, double, geometry.geo_min_zoom, 0.01) \
+    X(geo_max_zoom, double, geometry.geo_max_zoom, 100.0) \
+    X(geoevol_min_step, double, geometry.geoevol_min_step, 1e-15) \
+    X(geoevol_max_step, double, geometry.geoevol_max_step, 1e10) \
+    X(geoevol_pi_smooth_factor, double, geometry.geoevol_pi_smooth_factor, 0.25) \
+    X(health_memory_usage_ratio, double, health.health_memory_usage_ratio, 0.8) \
+    X(health_memory_leak_ratio, double, health.health_memory_leak_ratio, 0.9) \
+    X(high_dim_default_fidelity_threshold, double, high_dim.high_dim_default_fidelity_threshold, 0.85) \
+    X(geo_sym_coord_eps, double, geometry.geo_sym_coord_eps, 1e-8)
 
 /* ====================================================================
  * 运行时配置 API
@@ -568,39 +580,15 @@ int lv_config_to_json(char *buf, size_t buf_size);
  * 运行时单字段修改 API（不重编译，立即生效）
  * ==================================================================== */
 
-/* ---- 类型安全 setter（高频字段，IDE 自动补全） ---- */
-void lv_config_set_solver_max_var_id(int val);
-void lv_config_set_solver_max_iterations(int val);
-void lv_config_set_proof_max_branches(int val);
-void lv_config_set_proto_max_draw_cmds(int val);
-void lv_config_set_proto_max_proof_steps(int val);
-void lv_config_set_proto_max_terminal_lines(int val);
-void lv_config_set_geo_max_objects(int val);
-void lv_config_set_geo_max_constraints(int val);
-void lv_config_set_geo_min_zoom(double val);
-void lv_config_set_geo_max_zoom(double val);
-void lv_config_set_parser_max_input_length(int val);
-void lv_config_set_parser_max_ast_nodes(int val);
-void lv_config_set_max_recursion_depth(int val);
-void lv_config_set_default_rewrite_limit(int val);
-void lv_config_set_geoevol_max_param_dim(int val);
-void lv_config_set_geoevol_max_rejections(int val);
-void lv_config_set_stream_max_callbacks(int val);
-void lv_config_set_max_plugins(int val);
-void lv_config_set_context_timeout_ms(int val);
-void lv_config_set_context_cooldown_ms(int val);
-void lv_config_set_prop_max_iterations(int val);
-void lv_config_set_prop_max_backtracks(int val);
-void lv_config_set_prop_max_collaboration_iters(int val);
-void lv_config_set_high_dim_default_fidelity_threshold(double val);
-void lv_config_set_geo_sym_coord_eps(double val);
-void lv_config_set_engine_max_collaboration_iterations(int val);
-void lv_config_set_rewrite_default_max_iterations(int val);
-void lv_config_set_rewrite_engine_init_iterations(int val);
-void lv_config_set_interop_buffer_size(int val);
-void lv_config_set_interop_timeout_ms(int val);
-void lv_config_set_view_sync_timeout_ms(int val);
-void lv_config_set_max_consecutive_trips(int val);
+/* ---- 类型安全 getter / setter（由四元组 X-macro 生成声明） ---- */
+#define LV_CONFIG_DECL_GET(key, type, field, dflt) type lv_config_get_##key(void);
+#define LV_CONFIG_DECL_SET(key, type, field, dflt) void lv_config_set_##key(type val);
+LV_CONFIG_INT_KEYS(LV_CONFIG_DECL_GET)
+LV_CONFIG_DOUBLE_KEYS(LV_CONFIG_DECL_GET)
+LV_CONFIG_INT_KEYS(LV_CONFIG_DECL_SET)
+LV_CONFIG_DOUBLE_KEYS(LV_CONFIG_DECL_SET)
+#undef LV_CONFIG_DECL_GET
+#undef LV_CONFIG_DECL_SET
 
 /* ---- 通用 key-value setter（低频字段用，一次调用不改编译） ---- */
 bool lv_config_set_int(const char *key, int val);

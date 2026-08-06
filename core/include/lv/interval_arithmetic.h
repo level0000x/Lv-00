@@ -63,11 +63,9 @@ int interval_verify_solution(lvInterval f_interval, double tolerance);
 int interval_verify_adaptive(const char *expr_str, const char **var_names, lvInterval *var_intervals, int var_count,
                              int max_depth, double tolerance);
 
-/* ── Legacy lv_ prefix wrappers (implemented in interval_arithmetic.c) ── */
-lvInterval lv_interval_add(lvInterval a, lvInterval b);
-lvInterval lv_interval_sub(lvInterval a, lvInterval b);
-lvInterval lv_interval_mul(lvInterval a, lvInterval b);
-lvInterval lv_interval_div(lvInterval a, lvInterval b);
+/* 注：原 lv_ prefix legacy 包装（lv_interval_add/sub/mul/div）已迁移至
+ * 公共区间算术库 interval_arith.h/c（以 float_error 语义为基准，定义域外
+ * 返回全实数而非空区间）。本头文件仅保留 IEEE 1788 空区间语义的 interval_* API。 */
 
 #ifdef __cplusplus
 }

@@ -874,6 +874,8 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/geo_invariant_type.c
     # v3.4.0 新增：区间/数值验证模块（MPFI + Gappa + FPTaylor + Herbie + FLINT/Arb 落地）
     core/src/layer3_geometry/interval_arithmetic.c
+    # v1.0.0 公共区间算术库（数值验证策略的统一区间底座；gappa/float_error 收敛于此）
+    core/src/layer3_geometry/interval_arith.c
     core/src/layer3_geometry/gappa_dsl.c
     core/src/layer3_geometry/gappa_propagate.c
     core/src/layer3_geometry/fptaylor_eval.c
@@ -1188,7 +1190,6 @@ set(lv_LAYER4_SOURCES
     # 求解器扩展（新提取模块）
     core/src/layer4_reasoning/solver/solver_eliminate.c
     core/src/layer4_reasoning/solver/solver_engine.c
-    core/src/layer4_reasoning/solver/solver_equation_extract.c
     core/src/layer4_reasoning/solver/solver_geom_templates.c
     core/src/layer4_reasoning/solver/solver_groebner.c
     core/src/layer4_reasoning/solver/solver_multibranch.c

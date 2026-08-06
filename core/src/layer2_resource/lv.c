@@ -22,6 +22,7 @@
 
 #include "lv/bit_burning.h"
 #include "lv/lv_registry.h"
+#include "lv/memory_pool.h"
 
 #include "func_block_registry.h"
 #include "lv_internal.h"
@@ -181,6 +182,21 @@ static void lv_module_cleanup_config(void) {
     }
 }
 
+/** @brief 预设对象池初始化包装
+ * 池是性能优化而非必需：初始化失败仅告警，不阻断系统初始化
+ * （失败时后续分配回退普通 lv_malloc/lv_calloc）。 */
+static bool lv_module_init_preset_pools(void) {
+    if (!lv_init_preset_pools()) {
+        lv_WARN("[Lv-00] 警告: 预设对象池初始化失败，回退普通内存分配");
+    }
+    return true;
+}
+
+/** @brief 预设对象池清理包装 */
+static void lv_module_cleanup_preset_pools(void) {
+    lv_cleanup_preset_pools();
+}
+
 /** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
 bool lv_init(void) {
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
@@ -203,6 +219,8 @@ bool lv_init(void) {
     lv_module_register("memory", lv_module_init_memory,     NULL,                   lv_MODULE_PRIO_CORE);
     lv_module_register("random", lv_module_init_random,     NULL,                   lv_MODULE_PRIO_CORE);
     lv_module_register("config", lv_module_init_config,     lv_module_cleanup_config, lv_MODULE_PRIO_RESOURCE);
+    lv_module_register("preset_pools", lv_module_init_preset_pools, lv_module_cleanup_preset_pools,
+                       lv_MODULE_PRIO_RESOURCE);
 
     LOG_INFO("lv", "Lv-00 v%s 系统初始化开始", lv_VERSION_STRING);
 

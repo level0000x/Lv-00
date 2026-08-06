@@ -732,21 +732,7 @@ int interval_verify_adaptive(const char *expr_str, const char **var_names, lvInt
 }
 
 /* ========================================================================
- * Legacy lv_interval_* wrappers (matching interval_arithmetic.h stubs)
+ * 注：原 Legacy lv_interval_* wrappers（lv_interval_add/sub/mul/div）已迁移至
+ * 公共区间算术库 interval_arith.c（以 float_error 语义为基准）。本文件仅保留
+ * IEEE 1788 空区间语义的 interval_* API（interval_from_symbolic 等使用）。
  * ======================================================================== */
-
-lvInterval lv_interval_add(lvInterval a, lvInterval b) {
-    return interval_add(a, b);
-}
-
-lvInterval lv_interval_sub(lvInterval a, lvInterval b) {
-    return interval_sub(a, b);
-}
-
-lvInterval lv_interval_mul(lvInterval a, lvInterval b) {
-    return interval_mul(a, b);
-}
-
-lvInterval lv_interval_div(lvInterval a, lvInterval b) {
-    return interval_div(a, b);
-}

@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv/lv_arena.h"
 #include "lv/lv_log.h"
 #include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
 
@@ -750,83 +751,40 @@ int expr_compare(Expr *a, Expr *b, const char **varnames, const mpq_t *values, i
 }
 
 /* ================================================================
- *  MemPool  —  Simple Arena Allocator
+ *  MemPool  —  Arena-backed allocator（由 lv_arena 承接）
+ *
+ *  原手写线性分配器（MemChunk 链表，无对齐、无锁）已替换为 lv_arena：
+ *    pool_create  → lv_arena_create(0 默认 64KB, false 无锁)
+ *    pool_alloc   → lv_arena_alloc（lv_arena 默认 8 字节对齐，比原实现更严格，无副作用）
+ *    pool_reset   → lv_arena_reset（释放全部块回到初始状态；原实现仅将各块 used 归零，
+ *                  两者语义均为"重置后所有先前分配的指针失效"）
+ *    pool_destroy → lv_arena_destroy
  * ================================================================ */
 
-typedef struct MemChunk {
-    char *data;
-    size_t used;
-    size_t cap;
-    struct MemChunk *next;
-} MemChunk;
-
-typedef struct {
-    int64_t id;
-    MemChunk *head;
-} MemPool;
+typedef lvArena MemPool;
 
 MemPool *pool_create(void) {
-    MemPool *p = (MemPool *) lv_calloc(1, sizeof(MemPool));
+    MemPool *p = lv_arena_create(0, false);
     if (!p)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_create: calloc failed");
-    p->id = native_id_alloc();
-    p->head = (MemChunk *) lv_calloc(1, sizeof(MemChunk));
-    if (!p->head) {
-        lv_free((void **) &p);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_create: head calloc failed");
-    }
-    p->head->cap = 65536; /* 64KB chunk */
-    p->head->data = (char *) lv_malloc(p->head->cap);
-    if (!p->head->data) {
-        lv_free((void **) &p->head);
-        lv_free((void **) &p);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_create: head->data malloc failed");
-    }
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_create: lv_arena_create failed");
     return p;
 }
 
 void *pool_alloc(MemPool *p, size_t sz) {
-    if (!p || !p->head)
+    if (!p)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "pool_alloc: NULL pool");
-    if (p->head->used + sz > p->head->cap) {
-        MemChunk *c = (MemChunk *) lv_calloc(1, sizeof(MemChunk));
-        if (!c)
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_alloc: chunk calloc failed");
-        c->cap = sz > 65536 ? sz : 65536;
-        c->data = (char *) lv_malloc(c->cap);
-        if (!c->data) {
-            lv_free((void **) &c);
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_alloc: chunk->data malloc failed");
-        }
-        c->next = p->head;
-        p->head = c;
-    }
-    void *ptr = p->head->data + p->head->used;
-    p->head->used += sz;
+    void *ptr = lv_arena_alloc(p, sz);
+    if (!ptr)
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "pool_alloc: lv_arena_alloc failed");
     return ptr;
 }
 
 void pool_reset(MemPool *p) {
-    if (!p)
-        return;
-    MemChunk *c = p->head;
-    while (c) {
-        c->used = 0;
-        c = c->next;
-    }
+    lv_arena_reset(p); /* 内部处理 NULL */
 }
 
 void pool_destroy(MemPool *p) {
-    if (!p)
-        return;
-    MemChunk *c = p->head;
-    while (c) {
-        MemChunk *n = c->next;
-        lv_free((void **) &c->data);
-        lv_free((void **) &c);
-        c = n;
-    }
-    lv_free((void **) &p);
+    lv_arena_destroy(p); /* 内部处理 NULL */
 }
 
 /* ================================================================

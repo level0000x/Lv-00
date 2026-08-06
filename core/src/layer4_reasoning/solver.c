@@ -168,7 +168,7 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
 /* Extracted to solver/solver_eq_system.c       - equation_system_destroy/count/get_var_id/get_coord_index */
 /* Extracted to solver/solver_incremental.c     - propagate_dependency, solver_incremental_solve */
 /* Extracted to solver/solver_result.c          - groebner_result_destroy */
-/* Extracted to solver/solver_equation_extract.c - solver_extract_equations_full */
+/* Extracted to solver/solver_coord_extract.c   - solver_extract_equations_full */
 /* Extracted to solver/solver_multibranch.c     - solver_handle_multiple_solutions */
 
 /* 注意：solver.c 现在仅保留公共类型定义、宏和前向声明。           */

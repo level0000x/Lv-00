@@ -52,126 +52,13 @@ static void lv_config_lock_init(void) {
 static void lv_config_default_init(void) {
     memset(&def, 0, sizeof(def));
 
-    /* 求解器 */
-    def.solver.solver_max_var_id = 100000;
-    def.solver.solver_max_iterations = 10000;
-    /* 引擎（约束图 + 重写） */
-    def.engine.max_module_depth = 32;
-    def.engine.graph_adj_max_per_node = 256;
-    def.engine.default_rewrite_limit = 1000;
-    def.engine.wl_iterations = 3;
-    def.engine.wl_history_size = 64;
-    def.engine.vf2_max_depth = 100;
-    def.engine.buchberger_max_steps = 50000;
-    def.engine.groebner_reduce_max_steps = 10000;
-    def.engine.engine_max_collaboration_iterations = 10000;
-    def.engine.rewrite_default_max_iterations = 1000;
-    def.engine.rewrite_engine_init_iterations = 100;
-    /* 流式 */
-    def.stream.stream_async_queue_capacity = 1024;
-    def.stream.stream_initial_callbacks = 16;
-    def.stream.stream_max_callbacks = 64;
-    def.stream.stream_default_throttle_ms = 50;
-    /* 精度 */
-    def.precision.bit_cutoff_threshold = 1000000;
-    def.precision.max_precision_bits = 100;
-    def.precision.continued_fraction_max_iter = 1000;
-    def.precision.max_subintervals = 4096;
-    /* MiniKernel */
-    def.mini_kernel.mini_kernel_max_statements = 10000;
-    def.mini_kernel.mini_kernel_max_proof_depth = 1000;
-    def.mini_kernel.mini_kernel_verify_timeout_ms = 30000;
-    /* 解析器 */
-    def.parser.parser_max_input_length = 1048576;
-    def.parser.parser_max_ast_depth = 256;
-    def.parser.parser_max_ast_nodes = 500000;
-    def.parser.parser_max_token_length = 4096;
-    def.parser.parser_max_coordinates = 16;
-    def.parser.parser_max_polygon_vertices = 32;
-    def.parser.parser_max_statements = 64;
-    def.parser.parser_max_arguments = 16;
-    def.parser.parser_max_participants = 16;
-    /* 防护 */
-    def.runtime_guard.runtime_guard_max_recurse = 128;
-    def.runtime_guard.runtime_guard_spin_attempts = 1024;
-    def.runtime_guard.runtime_guard_write_warn_us = 10000;
-    /* 协议 */
-    def.protocol.proto_max_draw_cmds = 4096;
-    def.protocol.proto_max_table_rows = 512;
-    def.protocol.proto_max_tree_nodes = 256;
-    def.protocol.proto_max_topology = 128;
-    def.protocol.proto_max_proof_steps = 512;
-    def.protocol.proto_max_completions = 64;
-    def.protocol.proto_max_terminal_lines = 512;
-    /* 几何（交互几何 + ODE） */
-    def.geometry.geo_max_objects = 1024;
-    def.geometry.geo_max_constraints = 2048;
-    def.geometry.geo_max_drag_chain = 64;
-    def.geometry.geo_max_snapshots = 32;
-    def.geometry.geo_min_zoom = 0.01;
-    def.geometry.geo_max_zoom = 100.0;
-    def.geometry.geoevol_max_param_dim = 256;
-    def.geometry.geoevol_adams_max_order = 12;
-    def.geometry.geoevol_max_rejections = 20;
-    def.geometry.geoevol_min_step = 1e-15;
-    def.geometry.geoevol_max_step = 1e10;
-    def.geometry.geoevol_pi_smooth_factor = 0.25;
-    def.geometry.geo_sym_coord_eps = 1e-8;
-    /* 证明 */
-    def.proof.proof_max_branches = 64;
-    def.proof.proof_max_strategies = 16;
-    /* 上下文 */
-    def.context.max_recursion_depth = 128;
-    def.context.context_default_max_depth = 100;
-    def.context.context_max_recursion_depth = 10000;
-    def.context.context_default_max_steps = 1000000;
-    def.context.context_default_max_consecutive_errors = 10;
-    def.context.context_reasoning_stack_default_capacity = 8;
-    def.context.context_reasoning_stack_max_depth = 1000;
-    def.context.context_timeout_ms = 30000;
-    def.context.context_cooldown_ms = 5000;
-    def.context.view_sync_timeout_ms = 1000;
-    /* 集成（互操作 + 插件 + 后端） */
-    def.integration.interop_max_params = 32;
-    def.integration.interop_max_completions = 64;
-    def.integration.interop_ws_default_port = 8765;
-    def.integration.interop_buffer_size = 65536;
-    def.integration.interop_timeout_ms = 30000;
-    def.integration.max_plugins = 256;
-    def.integration.max_interfaces = 128;
-    def.integration.backend_step_limit = 1000;
-    def.integration.backend_timeout_ms = 30000;
-    /* 诊断（日志 + 监控） */
-    def.diagnostics.log_max_files = 5;
-    def.diagnostics.log_max_size = 10485760;
-    def.diagnostics.log_ring_buffer_capacity = 256;
-    def.diagnostics.perf_sample_max_count = 10000;
-    def.diagnostics.timer_max_depth = 32;
-    /* 测试 & 压力测试 */
-    def.test.test_max_suites = 256;
-    def.test.test_max_cases = 4096;
-    def.test.smoke_test_step_limit = 1000;
-    def.test.smoke_test_timeout_ms = 30000;
-    def.test.stress_test_default_chain = 100;
-    def.test.stress_test_max_poly_degree = 4;
-    /* 健康 & 安全 */
-    def.health.health_score_max = 100;
-    def.health.health_memory_usage_ratio = 0.8;
-    def.health.health_memory_warning_penalty = 10;
-    def.health.health_memory_leak_ratio = 0.9;
-    def.health.health_memory_leak_penalty = 20;
-    def.health.health_recent_error_penalty = 5;
-    def.health.circuit_overflow_threshold = 3;
-    def.health.max_consecutive_trips = 3;
-    def.health.value_too_large = 1048576;
-    def.health.downgrade_denominator = 100000;
-    def.health.default_memory_limit_mb = 0;
-    /* 传播引擎 */
-    def.propagation.prop_max_iterations = 10000;
-    def.propagation.prop_max_backtracks = 1000;
-    def.propagation.prop_max_collaboration_iters = 10000;
-    /* 高维几何 */
-    def.high_dim.high_dim_default_fidelity_threshold = 0.85;
+    /* 默认值由 LV_CONFIG_INT_KEYS / LV_CONFIG_DOUBLE_KEYS 四元组统一生成 */
+#define DEFAULT_INT(key, type, field, dflt) def.field = dflt;
+#define DEFAULT_DBL(key, type, field, dflt) def.field = dflt;
+    LV_CONFIG_INT_KEYS(DEFAULT_INT)
+    LV_CONFIG_DOUBLE_KEYS(DEFAULT_DBL)
+#undef DEFAULT_INT
+#undef DEFAULT_DBL
 }
 
 /**
@@ -229,7 +116,7 @@ int lv_config_apply(const lvConfig *cfg) {
     return 0;
 }
 
-/* ---- 类型安全 setter（直接改全局配置，立即生效） ---- */
+/* ---- 类型安全 getter / setter（由四元组 X-macro 生成定义） ---- */
 
 /** @brief 获取可变的全局配置指针（内部辅助） */
 static lvConfig *cfg_mut(void) {
@@ -237,176 +124,19 @@ static lvConfig *cfg_mut(void) {
     return &g_active_config;
 }
 
-/**
- * @brief 设置求解器最大变量 ID
- * @param val 新值
- */
-void lv_config_set_solver_max_var_id(int val) {
-    cfg_mut()->solver.solver_max_var_id = val;
-}
-/**
- * @brief 设置求解器最大迭代次数
- * @param val 新值
- */
-void lv_config_set_solver_max_iterations(int val) {
-    cfg_mut()->solver.solver_max_iterations = val;
-}
-/**
- * @brief 设置证明最大分支数
- * @param val 新值
- */
-void lv_config_set_proof_max_branches(int val) {
-    cfg_mut()->proof.proof_max_branches = val;
-}
-/**
- * @brief 设置协议最大绘制命令数
- * @param val 新值
- */
-void lv_config_set_proto_max_draw_cmds(int val) {
-    cfg_mut()->protocol.proto_max_draw_cmds = val;
-}
-/**
- * @brief 设置协议最大证明步数
- * @param val 新值
- */
-void lv_config_set_proto_max_proof_steps(int val) {
-    cfg_mut()->protocol.proto_max_proof_steps = val;
-}
-/**
- * @brief 设置协议最大终端行数
- * @param val 新值
- */
-void lv_config_set_proto_max_terminal_lines(int val) {
-    cfg_mut()->protocol.proto_max_terminal_lines = val;
-}
-/**
- * @brief 设置交互几何最大对象数
- * @param val 新值
- */
-void lv_config_set_geo_max_objects(int val) {
-    cfg_mut()->geometry.geo_max_objects = val;
-}
-/**
- * @brief 设置交互几何最大约束数
- * @param val 新值
- */
-void lv_config_set_geo_max_constraints(int val) {
-    cfg_mut()->geometry.geo_max_constraints = val;
-}
-/**
- * @brief 设置交互几何最小缩放
- * @param val 新值
- */
-void lv_config_set_geo_min_zoom(double val) {
-    cfg_mut()->geometry.geo_min_zoom = val;
-}
-/**
- * @brief 设置交互几何最大缩放
- * @param val 新值
- */
-void lv_config_set_geo_max_zoom(double val) {
-    cfg_mut()->geometry.geo_max_zoom = val;
-}
-/**
- * @brief 设置解析器最大输入长度
- * @param val 新值
- */
-void lv_config_set_parser_max_input_length(int val) {
-    cfg_mut()->parser.parser_max_input_length = val;
-}
-/**
- * @brief 设置解析器最大 AST 节点数
- * @param val 新值
- */
-void lv_config_set_parser_max_ast_nodes(int val) {
-    cfg_mut()->parser.parser_max_ast_nodes = val;
-}
-/**
- * @brief 设置最大递归深度
- * @param val 新值
- */
-void lv_config_set_max_recursion_depth(int val) {
-    cfg_mut()->context.max_recursion_depth = val;
-}
-/**
- * @brief 设置默认重写限制
- * @param val 新值
- */
-void lv_config_set_default_rewrite_limit(int val) {
-    cfg_mut()->engine.default_rewrite_limit = val;
-}
-/**
- * @brief 设置 ODE 最大参数维度
- * @param val 新值
- */
-void lv_config_set_geoevol_max_param_dim(int val) {
-    cfg_mut()->geometry.geoevol_max_param_dim = val;
-}
-/**
- * @brief 设置 ODE 最大拒绝次数
- * @param val 新值
- */
-void lv_config_set_geoevol_max_rejections(int val) {
-    cfg_mut()->geometry.geoevol_max_rejections = val;
-}
-/**
- * @brief 设置流式最大回调数
- * @param val 新值
- */
-void lv_config_set_stream_max_callbacks(int val) {
-    cfg_mut()->stream.stream_max_callbacks = val;
-}
-/**
- * @brief 设置最大插件数
- * @param val 新值
- */
-void lv_config_set_max_plugins(int val) {
-    cfg_mut()->integration.max_plugins = val;
-}
-void lv_config_set_context_timeout_ms(int val) {
-    cfg_mut()->context.context_timeout_ms = val;
-}
-void lv_config_set_context_cooldown_ms(int val) {
-    cfg_mut()->context.context_cooldown_ms = val;
-}
-void lv_config_set_prop_max_iterations(int val) {
-    cfg_mut()->propagation.prop_max_iterations = val;
-}
-void lv_config_set_prop_max_backtracks(int val) {
-    cfg_mut()->propagation.prop_max_backtracks = val;
-}
-void lv_config_set_prop_max_collaboration_iters(int val) {
-    cfg_mut()->propagation.prop_max_collaboration_iters = val;
-}
+/** @brief 类型安全 getter：读取当前生效配置 */
+#define GETTER(key, type, field, dflt) \
+    type lv_config_get_##key(void) { return lv_config_current()->field; }
+LV_CONFIG_INT_KEYS(GETTER)
+LV_CONFIG_DOUBLE_KEYS(GETTER)
+#undef GETTER
 
-void lv_config_set_high_dim_default_fidelity_threshold(double val) {
-    cfg_mut()->high_dim.high_dim_default_fidelity_threshold = val;
-}
-
-void lv_config_set_geo_sym_coord_eps(double val) {
-    cfg_mut()->geometry.geo_sym_coord_eps = val;
-}
-void lv_config_set_engine_max_collaboration_iterations(int val) {
-    cfg_mut()->engine.engine_max_collaboration_iterations = val;
-}
-void lv_config_set_rewrite_default_max_iterations(int val) {
-    cfg_mut()->engine.rewrite_default_max_iterations = val;
-}
-void lv_config_set_rewrite_engine_init_iterations(int val) {
-    cfg_mut()->engine.rewrite_engine_init_iterations = val;
-}
-void lv_config_set_interop_buffer_size(int val) {
-    cfg_mut()->integration.interop_buffer_size = val;
-}
-void lv_config_set_interop_timeout_ms(int val) {
-    cfg_mut()->integration.interop_timeout_ms = val;
-}
-void lv_config_set_view_sync_timeout_ms(int val) {
-    cfg_mut()->context.view_sync_timeout_ms = val;
-}
-void lv_config_set_max_consecutive_trips(int val) {
-    cfg_mut()->health.max_consecutive_trips = val;
-}
+/** @brief 类型安全 setter：直接修改全局配置，立即生效 */
+#define SETTER(key, type, field, dflt) \
+    void lv_config_set_##key(type val) { cfg_mut()->field = val; }
+LV_CONFIG_INT_KEYS(SETTER)
+LV_CONFIG_DOUBLE_KEYS(SETTER)
+#undef SETTER
 
 /* ---- 通用 key-value setter ---- */
 
@@ -425,8 +155,8 @@ bool lv_config_set_int(const char *key, int val) {
         return false;
     lvConfig *c = cfg_mut();
 
-#define SET_IF(k, f)           \
-    if (strcmp(key, k) == 0) { \
+#define SET_IF(k, t, f, d)     \
+    if (strcmp(key, #k) == 0) { \
         c->f = val;            \
         return true;           \
     }
@@ -447,8 +177,8 @@ bool lv_config_set_double(const char *key, double val) {
         return false;
     lvConfig *c = cfg_mut();
 
-#define SET_IF(k, f)           \
-    if (strcmp(key, k) == 0) { \
+#define SET_IF(k, t, f, d)     \
+    if (strcmp(key, #k) == 0) { \
         c->f = val;            \
         return true;           \
     }
@@ -540,10 +270,10 @@ int lv_config_load_json(const char *json_path) {
     const char *json_data = buf;
 
     /* 使用 X-macro 一次性展开所有整型 JSON 键 */
-#define JLD(key, field) json_config_int(json_data, key, &cfg.field);
+#define JLD(key, type, field, dflt) json_config_int(json_data, #key, &cfg.field);
     LV_CONFIG_INT_KEYS(JLD)
 #undef JLD
-#define JLD(key, field) json_config_double(json_data, key, &cfg.field);
+#define JLD(key, type, field, dflt) json_config_double(json_data, #key, &cfg.field);
     LV_CONFIG_DOUBLE_KEYS(JLD)
 #undef JLD
 
@@ -574,8 +304,8 @@ int lv_config_to_json(char *buf, size_t buf_size) {
     if (!lv_json_buf_init(&jb, 4096))
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to init json buf");
     lv_json_buf_append_raw(&jb, "{\n");
-#define TOJSON_INT(key, field) lv_json_buf_append_fmt(&jb, "  \"" key "\": %d,\n", c->field);
-#define TOJSON_DBL(key, field) lv_json_buf_append_fmt(&jb, "  \"" key "\": %.17g,\n", c->field);
+#define TOJSON_INT(key, type, field, dflt) lv_json_buf_append_fmt(&jb, "  \"" #key "\": %d,\n", c->field);
+#define TOJSON_DBL(key, type, field, dflt) lv_json_buf_append_fmt(&jb, "  \"" #key "\": %.17g,\n", c->field);
     LV_CONFIG_INT_KEYS(TOJSON_INT)
     LV_CONFIG_DOUBLE_KEYS(TOJSON_DBL)
 #undef TOJSON_INT

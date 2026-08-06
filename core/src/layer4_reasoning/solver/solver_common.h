@@ -100,7 +100,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
 /* --- solver_groebner.c (Groebner 基计算) --- */
 SolverStatus groebner_basis_compute(EquationSystem *system);
 
-/* --- solver_equation_extract.c (增强方程提取) --- */
+/* --- solver_coord_extract.c (方程提取公共 API) --- */
 int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *out_system);
 
 #endif /* SOLVER_COMMON_H */

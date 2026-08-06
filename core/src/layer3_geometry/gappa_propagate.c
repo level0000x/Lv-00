@@ -16,6 +16,7 @@
 #include "lv/gappa_propagate.h"
 
 #include "lv/lv_platform.h"
+#include "lv/interval_arith.h" /* 公共区间算术库（lv_interval_*，fnames 函数收敛于此） */
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
@@ -94,92 +95,55 @@ static PropInterval ia_neg(PropInterval a) {
     return r;
 }
 
-/** @brief 区间绝对值 */
+/** @brief 区间绝对值: 收敛到公共区间算术库 lv_interval_abs（逻辑与原实现一致） */
 static PropInterval ia_abs(PropInterval a) {
-    if (a.lo >= 0.0)
-        return a;
-    if (a.hi <= 0.0) {
-        PropInterval r = {-a.hi, -a.lo};
-        return r;
-    }
-    PropInterval r = {0.0, fmax(-a.lo, a.hi)};
+    lvInterval lv_in = {a.lo, a.hi, 0};
+    lvInterval lv_out = lv_interval_abs(lv_in);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 
-/** @brief 区间平方根（要求 a.lo >= 0） */
+/** @brief 区间平方根（收敛到公共区间算术库 lv_interval_sqrt；a.hi<0 保持原 NaN 失败语义） */
 static PropInterval ia_sqrt(PropInterval a) {
     if (a.hi < 0.0) {
         PropInterval r = {NAN, NAN};
         return r;
     }
-    PropInterval r;
-    r.lo = a.lo >= 0.0 ? sqrt(a.lo) : 0.0;
-    r.hi = sqrt(fmax(0.0, a.hi));
+    lvInterval lv_in = {a.lo, a.hi, 0};
+    lvInterval lv_out = lv_interval_sqrt(lv_in);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 
-/** @brief 区间正弦: 在非单调区间上保守估计 [-1, 1] */
+/** @brief 区间正弦: 收敛到公共区间算术库 lv_interval_sin（极值点精确检测，比原 floor 法更紧） */
 static PropInterval ia_sin(PropInterval a) {
-    /* 若区间跨过整个周期 */
-    if (a.hi - a.lo >= 2.0 * M_PI) {
-        PropInterval r = {-1.0, 1.0};
-        return r;
-    }
-    double s_lo = sin(a.lo);
-    double s_hi = sin(a.hi);
-    PropInterval r = {fmin(s_lo, s_hi), fmax(s_lo, s_hi)};
-    /* 检查区间内是否包含极值点 pi/2 + k*pi */
-    double k_lo = floor((a.lo - M_PI / 2.0) / M_PI);
-    double k_hi = floor((a.hi - M_PI / 2.0) / M_PI);
-    if (k_hi >= k_lo) {
-        r.hi = 1.0; /* 包含 sin 最大值点 */
-    }
-    /* 检查是否包含 -pi/2 + k*pi */
-    double j_lo = floor((a.lo + M_PI / 2.0) / M_PI);
-    double j_hi = floor((a.hi + M_PI / 2.0) / M_PI);
-    if (j_hi >= j_lo) {
-        r.lo = -1.0; /* 包含 sin 最小值点 */
-    }
+    lvInterval lv_in = {a.lo, a.hi, 0};
+    lvInterval lv_out = lv_interval_sin(lv_in);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 
-/** @brief 区间余弦: 类似正弦处理非单调性 */
+/** @brief 区间余弦: 收敛到公共区间算术库 lv_interval_cos */
 static PropInterval ia_cos(PropInterval a) {
-    if (a.hi - a.lo >= 2.0 * M_PI) {
-        PropInterval r = {-1.0, 1.0};
-        return r;
-    }
-    double c_lo = cos(a.lo);
-    double c_hi = cos(a.hi);
-    PropInterval r = {fmin(c_lo, c_hi), fmax(c_lo, c_hi)};
-    /* 检查区间内是否包含 k*pi（cos 极值点） */
-    double k_lo = floor(a.lo / M_PI);
-    double k_hi = floor(a.hi / M_PI);
-    if (k_hi >= k_lo) {
-        r.hi = 1.0;
-    }
-    /* 检查是否包含 pi + k*pi */
-    double j_lo = floor((a.lo - M_PI) / M_PI);
-    double j_hi = floor((a.hi - M_PI) / M_PI);
-    if (j_hi >= j_lo) {
-        r.lo = -1.0;
-    }
+    lvInterval lv_in = {a.lo, a.hi, 0};
+    lvInterval lv_out = lv_interval_cos(lv_in);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 
-/** @brief 区间指数: exp 单调递增 */
+/** @brief 区间指数: 收敛到公共区间算术库 lv_interval_exp（端点向外取整，保守 1 ulp） */
 static PropInterval ia_exp(PropInterval a) {
-    PropInterval r = {exp(a.lo), exp(a.hi)};
+    lvInterval lv_in = {a.lo, a.hi, 0};
+    lvInterval lv_out = lv_interval_exp(lv_in);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 
-/** @brief 区间对数: log 单调递增，要求 a.lo > 0 */
+/** @brief 区间对数: 收敛到公共区间算术库 lv_interval_log（非正下界 -> -HUGE_VAL） */
 static PropInterval ia_log(PropInterval a) {
-    if (a.lo <= 0.0) {
-        PropInterval r = {-INFINITY, log(fmax(DBL_MIN, a.hi))};
-        return r;
-    }
-    PropInterval r = {log(a.lo), log(a.hi)};
+    lvInterval lv_in = {a.lo, a.hi, 0};
+    lvInterval lv_out = lv_interval_log(lv_in);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 

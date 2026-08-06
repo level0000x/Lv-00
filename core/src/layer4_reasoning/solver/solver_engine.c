@@ -44,6 +44,39 @@ static void solver_set_stream_context_local(StreamContext *ctx) {
     solver_stream_ctx = ctx;
 }
 
+/**
+ * @brief 释放 solver_handle_multiple_solutions 输出的分支坐标数组
+ *
+ * 分支数组为扁平存储：valid_count 个分支 × 每分支 quadratic_count 个坐标。
+ * solver_multibranch.c 内每分支坐标数（判别式 > 0 的二次方程数）会被截断到
+ * 12（2^12 上限），此处用相同筛选条件在方程系统上重新统计，保证释放计数一致。
+ */
+static void solver_free_multiple_branches(const EquationSystem *sys, SymbolicCoord **branches, int valid_count) {
+    if (!branches || valid_count <= 0)
+        return;
+    int per_branch = 0;
+    for (int i = 0; i < sys->eqs.count; i++) {
+        const PolyEquation *pe = (const PolyEquation *)lv_darray_get(&sys->eqs, i);
+        if (pe->poly.degree != 2)
+            continue;
+        double a = mpz_get_d(pe->poly.coeffs[2]) / lv_SOLVER_SCALE_FACTOR;
+        double b = mpz_get_d(pe->poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR;
+        double c = mpz_get_d(pe->poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
+        if (fabs(a) < lv_EPSILON_DOUBLE)
+            continue;
+        double discriminant = b * b - 4.0 * a * c;
+        if (discriminant <= 0)
+            continue;
+        per_branch++;
+    }
+    if (per_branch > 12)
+        per_branch = 12;
+    for (int i = 0; i < valid_count * per_branch; i++) {
+        symbolic_coord_destroy(branches[i]);
+    }
+    lv_free((void **) &branches);
+}
+
 /* ================================================================== */
 /*  PUBLIC API: solve_algebraic_system                                 */
 /* ================================================================== */
@@ -358,7 +391,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
             remaining++;
     }
 
-    equation_system_clear(&sys);
+    /* 注意：equation_system_clear(&sys) 已推迟到各返回分支内执行，
+     * 因为多解分支处理（solver_handle_multiple_solutions）需要方程系统仍有效。 */
 
     if (solver_stream_ctx) {
         StreamEvent ev;
@@ -387,6 +421,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     }
 
     if (remaining > 0 && solved_count == 0) {
+        equation_system_clear(&sys);
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 未能求解任何变量", 0);
         solver_snapshot_restore(graph, &snapshot);
@@ -395,6 +430,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     }
 
     if (result->overdetermined) {
+        equation_system_clear(&sys);
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 超定系统", 0);
         solver_snapshot_free(&snapshot);
@@ -402,6 +438,40 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     }
 
     if (multiple_solutions > 0) {
+        /* 多解分支处理（任务2接线）：调用 solver_handle_multiple_solutions
+         * 枚举二次方程多解分支（笛卡尔积，上限 2^12），过滤与其余方程矛盾的
+         * 组合。分支坐标为 double 近似值，仅用于过滤与流式输出，正式精确解
+         * 保留在 result->solutions 中（solve_equations_pass 产生的精确根），
+         * 不覆盖。 */
+        SymbolicCoord **branches = NULL;
+        int branch_count = 0;
+        SolverStatus br_status = solver_handle_multiple_solutions(result, &sys, &branches, &branch_count);
+
+        if (br_status == SOLVER_STATUS_NO_SOLUTION) {
+            /* 所有多解分支均与其余方程矛盾 → 无解 */
+            cleanup_groebner_result(result);
+            equation_system_clear(&sys);
+            *out_result = result;
+            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 多解分支均矛盾，无解", 0);
+            solver_snapshot_free(&snapshot);
+            return SOLVER_STATUS_NO_SOLUTION;
+        }
+
+        if (br_status == SOLVER_STATUS_UNIQUE && branch_count > 0) {
+            /* 多解分支过滤后仅剩唯一有效分支 → 修正为唯一解 */
+            result->unique = true;
+            solver_free_multiple_branches(&sys, branches, branch_count);
+            equation_system_clear(&sys);
+            *out_result = result;
+            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 多解分支过滤后唯一解", 0);
+            solver_snapshot_free(&snapshot);
+            return SOLVER_STATUS_UNIQUE;
+        }
+
+        /* br_status == OK（多个有效分支）或 UNIQUE 但无二次分支（如三次多解）
+         * 或 TIMEOUT（资源受限）→ 保持多解状态 */
+        solver_free_multiple_branches(&sys, branches, branch_count);
+        equation_system_clear(&sys);
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 多解", 0);
         solver_snapshot_free(&snapshot);
@@ -409,6 +479,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     }
 
     if (solved_count > 0 && remaining == 0) {
+        equation_system_clear(&sys);
         result->unique = true;
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 唯一解", 0);
@@ -416,6 +487,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         return SOLVER_STATUS_UNIQUE;
     }
 
+    equation_system_clear(&sys);
     *out_result = result;
     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 部分求解/欠定", 0);
     solver_snapshot_free(&snapshot);

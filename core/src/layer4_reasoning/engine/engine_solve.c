@@ -19,6 +19,7 @@
 
 #include "lv/bit_burning.h"
 #include "lv/constraint_graph.h"
+#include "lv/engine_scheduler.h"
 #include "lv/lambda_to_graph.h"
 #include "lv/lv.h"
 #include "lv/lv_config.h"
@@ -72,6 +73,50 @@ static EngineSolveResult run_solver_on_graph(lvEngine *engine, const char *conte
         return ENGINE_SOLVE_CONFLICT;
     }
     if (free_count > 0 && dirty_ids) {
+        /* ── 扩展点：经调度器（scheduler）选择求解后端 ──
+         * 调度器内置的 GROEBNER 后端 groebner_solve 内部即调用
+         * solve_algebraic_system（同一 8 步主求解流程：提取方程→超定检查→
+         * out-of-scope→拓扑排序→几何消元→矛盾检查→Gröbner→结果判定），
+         * 二者语义等价；因此当路由选中 GROEBNER 时走调度器 VTable 分发路径，
+         * 选中其他后端（Z3/CVC5/SINGULAR 等不可用桩实现）或无调度器时，
+         * 回退到原 solve_algebraic_system 直接调用路径，保证对现有输入的
+         * 行为完全不变。 */
+        EngineScheduler *scheduler = engine->scheduler;
+        if (!scheduler) {
+            scheduler = scheduler_create();
+            if (scheduler)
+                engine->scheduler = scheduler;
+        }
+        if (scheduler) {
+            char reason[128] = {0};
+            SolverBackendType backend =
+                scheduler_select_backend(scheduler, engine->main_graph, reason, sizeof(reason));
+            if (backend == GROEBNER) {
+                SMTSolverResult sresult;
+                smtsolver_result_init(&sresult);
+                scheduler_solve_with_backend(scheduler, engine->main_graph, GROEBNER, &sresult);
+                /* SMTSolverResult → EngineSolveResult 映射（与 SolverStatus 映射一致）：
+                 * UNSAT ⇔ NO_SOLUTION/OVERCONSTRAINED → 冲突；
+                 * UNKNOWN + TIMEOUT_REACHED ⇔ TIMEOUT → 超时；
+                 * 其余（SAT/UNKNOWN 非超时/ERROR）→ 成功。 */
+                EngineSolveResult eresult = ENGINE_SOLVE_OK;
+                if (sresult.sat_result == SMT_RESULT_UNSAT) {
+                    engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+                    snprintf(engine->last_error, sizeof(engine->last_error), "%s: 求解器检测到冲突", context);
+                    eresult = ENGINE_SOLVE_CONFLICT;
+                } else if (sresult.sat_result == SMT_RESULT_UNKNOWN &&
+                           sresult.error_code == SMT_ERROR_TIMEOUT_REACHED) {
+                    engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+                    snprintf(engine->last_error, sizeof(engine->last_error), "%s: 求解器超时", context);
+                    eresult = ENGINE_SOLVE_TIMEOUT;
+                }
+                smtsolver_result_clear(&sresult);
+                lv_free((void **) &dirty_ids);
+                return eresult;
+            }
+            /* 路由到非 GROEBNER 后端（当前为不可用桩实现）→ 回退主路径 */
+        }
+
         GroebnerResult *result = NULL;
         SolverStatus sstatus = solve_algebraic_system(engine->main_graph, dirty_ids, free_count, &result);
         if (result)

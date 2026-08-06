@@ -230,53 +230,63 @@ typedef struct {
     const char *description;
     bool (*applicability_check)(const struct ProofMultiStrategy *, const ConstraintGraph *, const Proposition *);
     bool (*execute)(struct ProofMultiStrategy *, ProofNavigator *);
+    ProofSearchAlgorithm search_algorithm; /**< 该策略使用的证明搜索算法（默认 DFS） */
 } StrategyRegistration;
 
-/** @brief 默认策略注册表（新增策略只需在这里添加一条记录） */
+/**
+ * @brief 默认策略注册表（新增策略只需在这里添加一条记录）
+ *
+ * 搜索算法配置说明（默认 PROOF_SEARCH_DFS，保持既有行为不变）：
+ * - GROEBNER_BASIS / DEDUCTIVE_DATABASE -> BFS：前向链演绎与代数方程组合的
+ *   系统分层探索与 BFS 语义一致（从已知条件逐步推出新事实）。
+ * - AREA_METHOD / COORDINATE -> BEST_FIRST：best_first 搜索的内置启发式
+ *   已包含面积/约束密度评分，A* 优先展开最有希望的解析路径。
+ * - 其余策略保持 DFS；MCTS 保留为可选能力（通过 register 按需启用）。
+ */
 static const StrategyRegistration default_strategy_table[] = {
     {PROOF_STRATEGY_DIRECT_CONSTRUCTION, "直接构造法",
      "通过几何构造直接满足命题模式，构造即证明",
-     default_applicability_check, execute_direct_construction},
+     default_applicability_check, execute_direct_construction, PROOF_SEARCH_DFS},
 
     {PROOF_STRATEGY_AREA_METHOD, "面积法",
      "利用面积关系和消点法进行几何推理（借鉴JGEX面积法）",
-     area_method_applicability_check, execute_area_method},
+     area_method_applicability_check, execute_area_method, PROOF_SEARCH_BEST_FIRST},
 
     {PROOF_STRATEGY_GROEBNER_BASIS, "Groebner基法",
      "将几何约束转化为多项式方程组，使用Buchberger算法求解",
-     groebner_applicability_check, execute_groebner_basis},
+     groebner_applicability_check, execute_groebner_basis, PROOF_SEARCH_BFS},
 
     {PROOF_STRATEGY_VECTOR_METHOD, "向量法",
      "使用矢量代数进行几何关系推导",
-     default_applicability_check, execute_vector_method},
+     default_applicability_check, execute_vector_method, PROOF_SEARCH_DFS},
 
     {PROOF_STRATEGY_FULL_ANGLE_METHOD, "全角法",
      "利用全角关系进行角度推理和消点（借鉴JGEX全角法）",
-     default_applicability_check, execute_full_angle_method},
+     default_applicability_check, execute_full_angle_method, PROOF_SEARCH_DFS},
 
     {PROOF_STRATEGY_DEDUCTIVE_DATABASE, "演绎数据库法",
      "前向链推理，从已知条件逐步演绎新事实",
-     default_applicability_check, execute_deductive_database},
+     default_applicability_check, execute_deductive_database, PROOF_SEARCH_BFS},
 
     {PROOF_STRATEGY_COORDINATE, "坐标法",
      "建立坐标系，使用解析几何方法进行计算和验证",
-     default_applicability_check, execute_coordinate},
+     default_applicability_check, execute_coordinate, PROOF_SEARCH_BEST_FIRST},
 
     {PROOF_STRATEGY_LAMBDA_CALCULUS, "λ-演算归约法",
      "通过 β-归约化简 λ-项，基于 Church 编码进行函数式计算",
-     lambda_calculus_applicability_check, execute_lambda_calculus},
+     lambda_calculus_applicability_check, execute_lambda_calculus, PROOF_SEARCH_DFS},
 
     {PROOF_STRATEGY_LAMBDA_UNIFY, "λ-演算合一法",
      "通过 λ-项模式合一自动匹配并实例化证明中的变量",
-     lambda_unify_applicability_check, execute_lambda_unify},
+     lambda_unify_applicability_check, execute_lambda_unify, PROOF_SEARCH_DFS},
 
     {PROOF_STRATEGY_HOL_LIGHT, "HOL Light 微内核验证",
      "使用 10 条基本推理规则验证证明步骤的形式化正确性",
-     default_applicability_check, execute_hol_light},
+     default_applicability_check, execute_hol_light, PROOF_SEARCH_DFS},
 
     {PROOF_STRATEGY_ORACLE, "Oracle法",
      "调用外部求解器辅助验证非构造性命題",
-     NULL, execute_oracle},
+     NULL, execute_oracle, PROOF_SEARCH_DFS},
 };
 
 /**
@@ -295,6 +305,7 @@ static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategy
             desc->description = lv_strdup_safe(default_strategy_table[i].description);
             desc->applicability_check = default_strategy_table[i].applicability_check;
             desc->execute = default_strategy_table[i].execute;
+            desc->search_algorithm = default_strategy_table[i].search_algorithm;
             break;
         }
     }
@@ -383,6 +394,12 @@ bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyD
     target->description = descriptor->description ? lv_strdup_safe(descriptor->description) : NULL;
     target->applicability_check = descriptor->applicability_check;
     target->execute = descriptor->execute;
+
+    /* 复制搜索算法配置；非法值（含调用方未初始化）回退 DFS，保持默认行为 */
+    target->search_algorithm = descriptor->search_algorithm;
+    if (target->search_algorithm < PROOF_SEARCH_DFS || target->search_algorithm >= PROOF_SEARCH_ALGO_COUNT) {
+        target->search_algorithm = PROOF_SEARCH_DFS;
+    }
 
     /* 复制公理包依赖 */
     if (descriptor->required_axiom_packages && descriptor->axiom_package_count > 0) {
@@ -635,23 +652,18 @@ const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {
 /* ============== 策略处理函数查找表 ============== */
 
 /**
- * @brief 策略类型到处理函数的查找表（替代 switch-case）
+ * @brief 搜索算法到搜索执行函数的查找表（替代 switch-case）
  *
- * 每种策略类型映射到对应的搜索执行函数。
- * 添加新策略时只需在此表中添加一条记录。
+ * 每个策略通过其描述符的 search_algorithm 字段索引本表，
+ * 从而按策略配置选择 DFS/BFS/A*（最佳优先）/MCTS 搜索算法。
+ * 数组按 ProofSearchAlgorithm 枚举值升序排列。
+ * 添加新搜索算法时只需在此表中添加一条记录。
  */
-static bool (*const kMultiStrategyHandlers[])(ProofNavigator *, int) = {
-    [PROOF_STRATEGY_DIRECT_CONSTRUCTION] = proof_depth_first_search,
-    [PROOF_STRATEGY_AREA_METHOD]         = proof_depth_first_search,
-    [PROOF_STRATEGY_GROEBNER_BASIS]      = proof_depth_first_search,
-    [PROOF_STRATEGY_VECTOR_METHOD]       = proof_depth_first_search,
-    [PROOF_STRATEGY_FULL_ANGLE_METHOD]   = proof_depth_first_search,
-    [PROOF_STRATEGY_DEDUCTIVE_DATABASE]  = proof_depth_first_search,
-    [PROOF_STRATEGY_COORDINATE]          = proof_depth_first_search,
-    [PROOF_STRATEGY_LAMBDA_CALCULUS]     = proof_depth_first_search,
-    [PROOF_STRATEGY_LAMBDA_UNIFY]        = proof_depth_first_search,
-    [PROOF_STRATEGY_HOL_LIGHT]           = proof_depth_first_search,
-    [PROOF_STRATEGY_ORACLE]              = proof_depth_first_search,
+static bool (*const kSearchAlgorithmHandlers[PROOF_SEARCH_ALGO_COUNT])(ProofNavigator *, int) = {
+    [PROOF_SEARCH_DFS]        = proof_depth_first_search,
+    [PROOF_SEARCH_BFS]        = proof_breadth_first_search,
+    [PROOF_SEARCH_BEST_FIRST] = proof_best_first_search,
+    [PROOF_SEARCH_MCTS]       = proof_mcts_search,
 };
 
 /* ============== 公共简化API ============== */
@@ -676,10 +688,14 @@ bool proof_search_with_strategy(ProofNavigator *proof, ProofStrategyType strateg
         return false;
     }
 
-    /* 通过查找表派发策略处理函数（替代 switch-case） */
-    if (strategy < 0 || strategy >= PROOF_STRATEGY_COUNT)
-        return false;
-    return kMultiStrategyHandlers[strategy](proof, max_steps);
+    /* 按策略配置的搜索算法查表派发（替代 switch-case）
+     * 非法搜索算法值回退 DFS，保证默认行为不变 */
+    ProofMultiStrategy *mse = (ProofMultiStrategy *) proof->engine;
+    ProofSearchAlgorithm algo = mse->strategies[strategy].search_algorithm;
+    if (algo < PROOF_SEARCH_DFS || algo >= PROOF_SEARCH_ALGO_COUNT) {
+        algo = PROOF_SEARCH_DFS;
+    }
+    return kSearchAlgorithmHandlers[algo](proof, max_steps);
 }
 
 /**

@@ -1134,6 +1134,20 @@ typedef enum {
 struct ProofMultiStrategy;
 
 /**
+ * @brief 证明搜索算法（策略可配置的搜索方式）
+ *
+ * 每个策略通过 ProofStrategyDescriptor.search_algorithm 指定其证明搜索算法。
+ * DFS 取值 0：零初始化（memset/{0}）时默认 DFS，保证既有行为不变。
+ */
+typedef enum {
+    PROOF_SEARCH_DFS = 0,        /**< 深度优先搜索（默认，既有行为） */
+    PROOF_SEARCH_BFS,            /**< 广度优先搜索（分层系统探索） */
+    PROOF_SEARCH_BEST_FIRST,     /**< 最佳优先搜索（A* 启发式评分） */
+    PROOF_SEARCH_MCTS,           /**< 蒙特卡洛树搜索（UCB1 随机模拟） */
+    PROOF_SEARCH_ALGO_COUNT      /**< 搜索算法总数（用于数组大小） */
+} ProofSearchAlgorithm;
+
+/**
  * @brief 证明策略状态
  */
 typedef enum {
@@ -1169,6 +1183,9 @@ typedef struct ProofStrategyDescriptor {
     /* 策略执行 */
     bool (*execute)(/**< 策略执行函数 */
                     struct ProofMultiStrategy *mse, ProofNavigator *nav);
+
+    /* 搜索算法配置（默认 DFS，保持既有行为不变） */
+    ProofSearchAlgorithm search_algorithm; /**< 该策略使用的证明搜索算法 */
 
     /* 生成的证明步骤 */
     int generated_step_count; /**< 生成的步骤数 */

@@ -1375,6 +1375,20 @@ push_error:
 }
 
 /* ------------------------------------------------------------------ */
+/*  公共 API：solver_extract_equations_full                            */
+/* ------------------------------------------------------------------ */
+/* 原实现在 solver_equation_extract.c（增强提取器，与上方 6 对约束提取
+ * 函数构成双写）。数学收敛后统一为 solver_coord_extract.c 的
+ * extract_equations_from_constraints 主路径，本函数保留为薄包装以维持
+ * 公共 API 契约（NULL 校验 + 返回方程数 eqs.count）。 */
+int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *out_system) {
+    if (!graph || !out_system)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "solver_extract_equations_full: graph or out_system is NULL");
+    extract_equations_from_constraints(graph, out_system);
+    return out_system->eqs.count;
+}
+
+/* ------------------------------------------------------------------ */
 /*  内部：统计每个变量的有效方程数量                                   */
 /* ------------------------------------------------------------------ */
 

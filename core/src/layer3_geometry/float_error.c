@@ -31,6 +31,8 @@
 #include "lv/lv_platform.h"
 #include "float_error.h"
 
+#include "lv/interval_arith.h" /* 公共区间算术库（lv_interval_*，语义基准） */
+
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
@@ -61,54 +63,15 @@
  * 内部辅助函数
  * ======================================================================== */
 
-/** 返回 a 和 b 的最小值 */
-static double double_min(double a, double b) {
-    return fmin(a, b);
-}
-
-/** 返回 a 和 b 的最大值 */
-static double double_max(double a, double b) {
-    return fmax(a, b);
-}
-
-/**
- * @brief 向下舍入（保留下界计算）
- *
- * 将 double 值向负无穷方向微调，确保区间下界是安全的。
- * 乘以 (1 - DBL_EPSILON) 以处理浮点舍入。
- */
-static double round_down(double x) {
-    if (isnan(x))
-        return x;
-    if (isinf(x))
-        return x;
-    if (x == 0.0)
-        return -0.0; /* 零方向的下一个可表示值 */
-    if (x > 0.0) {
-        return nextafter(x, -INFINITY);
-    } else {
-        return nextafter(x, -INFINITY);
-    }
-}
-
-/**
- * @brief 向上舍入（保留上界计算）
- *
- * 将 double 值向正无穷方向微调，确保区间上界是安全的。
- * 使用 nextafter 确保对零和次正规数也正确。
- */
-static double round_up(double x) {
-    if (isnan(x))
-        return x;
-    if (isinf(x))
-        return x;
-    if (x == 0.0)
-        return +0.0; /* 从零向上 */
-    return nextafter(x, INFINITY);
-}
+/* 原 double_min/double_max/round_down/round_up 已随区间实现迁入
+ * interval_arith.c（公共区间算术库），此处不再保留。 */
 
 /* ========================================================================
- * 区间算术 —— 完整实现（最小/最大原理）
+ * 区间算术 —— 薄包装（实现位于 interval_arith.c 公共区间算术库）
+ *
+ * 底层 lv_interval_* 语义基准即原 float_interval_* 实现（nextafter 方向
+ * 舍入、定义域外返回全实数区间），已整体迁入 interval_arith.c。此处仅
+ * 保留 FloatInterval 对外 API 与类型转换，fptaylor 部分输出语义不变。
  * ======================================================================== */
 
 /**
@@ -126,227 +89,58 @@ FloatInterval interval_make(double lo, double hi, bool is_exact) {
     return iv;
 }
 
-/**
- * @brief 区间加法（带安全舍入）
- * @param a 左操作数区间
- * @param b 右操作数区间
- * @return 结果区间
- */
+/** @brief FloatInterval -> lvInterval 转换（bool -> int） */
+static lvInterval to_lv_interval(FloatInterval a) {
+    lvInterval r;
+    r.lo = a.lo;
+    r.hi = a.hi;
+    r.is_exact = a.is_exact ? 1 : 0;
+    return r;
+}
+
+/** @brief lvInterval -> FloatInterval 转换（int -> bool） */
+static FloatInterval to_float_interval(lvInterval iv) {
+    FloatInterval r;
+    r.lo = iv.lo;
+    r.hi = iv.hi;
+    r.is_exact = (iv.is_exact != 0);
+    return r;
+}
+
 FloatInterval float_interval_add(FloatInterval a, FloatInterval b) {
-    FloatInterval result;
-    result.lo = round_down(a.lo + b.lo);
-    result.hi = round_up(a.hi + b.hi);
-    result.is_exact = a.is_exact && b.is_exact;
-    return result;
+    return to_float_interval(lv_interval_add(to_lv_interval(a), to_lv_interval(b)));
 }
 
-/**
- * @brief 区间减法（带安全舍入）
- * @param a 被减数区间
- * @param b 减数区间
- * @return 结果区间
- */
 FloatInterval float_interval_sub(FloatInterval a, FloatInterval b) {
-    FloatInterval result;
-    /* a - b: 下界 = a.lo - b.hi, 上界 = a.hi - b.lo */
-    result.lo = round_down(a.lo - b.hi);
-    result.hi = round_up(a.hi - b.lo);
-    result.is_exact = a.is_exact && b.is_exact;
-    return result;
+    return to_float_interval(lv_interval_sub(to_lv_interval(a), to_lv_interval(b)));
 }
 
-/**
- * @brief 区间乘法（四角点最小/最大原理）
- * @param a 左操作数区间
- * @param b 右操作数区间
- * @return 结果区间
- */
 FloatInterval float_interval_mul(FloatInterval a, FloatInterval b) {
-    /* 计算四个角点 */
-    double p1 = a.lo * b.lo;
-    double p2 = a.lo * b.hi;
-    double p3 = a.hi * b.lo;
-    double p4 = a.hi * b.hi;
-
-    double min_val = double_min(double_min(p1, p2), double_min(p3, p4));
-    double max_val = double_max(double_max(p1, p2), double_max(p3, p4));
-
-    FloatInterval result;
-    result.lo = round_down(min_val);
-    result.hi = round_up(max_val);
-    result.is_exact = a.is_exact && b.is_exact;
-    return result;
+    return to_float_interval(lv_interval_mul(to_lv_interval(a), to_lv_interval(b)));
 }
 
-/**
- * @brief 区间除法（通过倒数乘法实现，排除零点区间）
- * @param a 被除数区间
- * @param b 除数区间
- * @return 结果区间；若除数跨越零点则返回 [-HUGE_VAL, HUGE_VAL]
- */
 FloatInterval float_interval_div(FloatInterval a, FloatInterval b) {
-    FloatInterval result;
-
-    /* 检查分母是否跨越零点 */
-    if (b.lo <= 0.0 && b.hi >= 0.0) {
-        /* 分母包含零：返回 NaN 区间表示无定义 */
-        result.lo = -HUGE_VAL;
-        result.hi = HUGE_VAL;
-        result.is_exact = false;
-        return result;
-    }
-
-    /* 通过倒数 + 乘法实现除法 */
-    if (b.hi < 0.0) {
-        /* 分母全负：取倒数范围 [1/b.hi, 1/b.lo] */
-        double inv_lo = 1.0 / b.hi;
-        double inv_hi = 1.0 / b.lo;
-        FloatInterval inv_b = interval_make(inv_lo, inv_hi, b.is_exact);
-        result = float_interval_mul(a, inv_b);
-    } else {
-        /* 分母全正：取倒数范围 [1/b.hi, 1/b.lo] */
-        double inv_lo = 1.0 / b.hi;
-        double inv_hi = 1.0 / b.lo;
-        FloatInterval inv_b = interval_make(inv_lo, inv_hi, b.is_exact);
-        result = float_interval_mul(a, inv_b);
-    }
-
-    return result;
+    return to_float_interval(lv_interval_div(to_lv_interval(a), to_lv_interval(b)));
 }
 
-/**
- * @brief 区间平方根（负数部分截断到 0）
- * @param a 输入区间
- * @return 结果区间
- */
 FloatInterval float_interval_sqrt(FloatInterval a) {
-    FloatInterval result;
-    if (a.lo < 0.0) {
-        /* 负数部分无实数定义，截断到 0 */
-        result.lo = 0.0;
-    } else {
-        result.lo = round_down(sqrt(a.lo));
-    }
-    result.hi = round_up(sqrt(a.hi));
-    result.is_exact = a.is_exact && (a.lo == a.hi);
-    return result;
+    return to_float_interval(lv_interval_sqrt(to_lv_interval(a)));
 }
 
-/**
- * @brief 区间正弦函数（处理非单调区间和极值点）
- * @param a 输入区间（弧度）
- * @return 结果区间，范围 [-1, 1]
- */
 FloatInterval float_interval_sin(FloatInterval a) {
-    /* sin 在 [-1, 1] 之间，需要处理非单调区间 */
-    double sin_lo = sin(a.lo);
-    double sin_hi = sin(a.hi);
-
-    /* 检查区间是否跨越 pi/2 + k*pi（极值点） */
-    double width = a.hi - a.lo;
-    double min_val = double_min(sin_lo, sin_hi);
-    double max_val = double_max(sin_lo, sin_hi);
-
-    if (width >= 2.0 * M_PI) {
-        /* 区间超过一个完整周期 -> 覆盖全范围 */
-        min_val = -1.0;
-        max_val = 1.0;
-    } else {
-        /* 检查 pi/2 + 2k*pi 和 3pi/2 + 2k*pi 是否在区间内 */
-        double pi_half = M_PI / 2.0;
-        double k_start = ceil((a.lo - pi_half) / (2.0 * M_PI));
-        double k_end = floor((a.hi - pi_half) / (2.0 * M_PI));
-        for (double k = k_start; k <= k_end; k += 1.0) {
-            double peak = pi_half + k * 2.0 * M_PI;
-            if (peak >= a.lo && peak <= a.hi) {
-                if (fmod(k, 2.0) == 0.0) {
-                    max_val = 1.0; /* sin(pi/2 + 2k*pi) = 1 */
-                } else {
-                    min_val = -1.0; /* sin(3pi/2 + 2k*pi) = -1 */
-                }
-            }
-        }
-    }
-
-    FloatInterval result;
-    result.lo = round_down(min_val);
-    result.hi = round_up(max_val);
-    result.is_exact = a.is_exact && (a.lo == a.hi);
-    return result;
+    return to_float_interval(lv_interval_sin(to_lv_interval(a)));
 }
 
-/**
- * @brief 区间余弦函数（处理非单调区间和极值点）
- * @param a 输入区间（弧度）
- * @return 结果区间，范围 [-1, 1]
- */
 FloatInterval float_interval_cos(FloatInterval a) {
-    /* cos 性质类似 sin，偏移 pi/2 */
-    double cos_lo = cos(a.lo);
-    double cos_hi = cos(a.hi);
-    double width = a.hi - a.lo;
-    double min_val = double_min(cos_lo, cos_hi);
-    double max_val = double_max(cos_lo, cos_hi);
-
-    if (width >= 2.0 * M_PI) {
-        min_val = -1.0;
-        max_val = 1.0;
-    } else {
-        /* 检查 k*pi（cos 的极值点）是否在区间内 */
-        double k_start = ceil(a.lo / M_PI);
-        double k_end = floor(a.hi / M_PI);
-        for (double k = k_start; k <= k_end; k += 1.0) {
-            double peak = k * M_PI;
-            if (peak >= a.lo && peak <= a.hi) {
-                /* cos(k*pi) = (-1)^k */
-                if (fmod(k, 2.0) == 0.0) {
-                    max_val = 1.0;
-                } else {
-                    min_val = -1.0;
-                }
-            }
-        }
-    }
-
-    FloatInterval result;
-    result.lo = round_down(min_val);
-    result.hi = round_up(max_val);
-    result.is_exact = a.is_exact && (a.lo == a.hi);
-    return result;
+    return to_float_interval(lv_interval_cos(to_lv_interval(a)));
 }
 
-/**
- * @brief 区间指数函数（单调递增）
- * @param a 输入区间
- * @return 结果区间
- */
 FloatInterval float_interval_exp(FloatInterval a) {
-    /* exp 单调递增 */
-    FloatInterval result;
-    result.lo = round_down(exp(a.lo));
-    result.hi = round_up(exp(a.hi));
-    result.is_exact = a.is_exact && (a.lo == a.hi);
-    return result;
+    return to_float_interval(lv_interval_exp(to_lv_interval(a)));
 }
 
-/**
- * @brief 区间自然对数函数（非正区间无定义）
- * @param a 输入区间
- * @return 结果区间；若下界 <= 0 则返回 [-HUGE_VAL, ...]
- */
 FloatInterval float_interval_log(FloatInterval a) {
-    FloatInterval result;
-    if (a.lo <= 0.0) {
-        /* log 在非正区间无定义 */
-        result.lo = -HUGE_VAL;
-        result.hi = (a.hi > 0.0) ? round_up(log(a.hi)) : -HUGE_VAL;
-        result.is_exact = false;
-        return result;
-    }
-    result.lo = round_down(log(a.lo));
-    result.hi = round_up(log(a.hi));
-    result.is_exact = a.is_exact && (a.lo == a.hi);
-    return result;
+    return to_float_interval(lv_interval_log(to_lv_interval(a)));
 }
 
 /* ========================================================================
