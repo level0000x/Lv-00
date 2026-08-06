@@ -9,6 +9,8 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 
+#include "lv/lv_callback_list.h"
+
 /* 前向声明 —— 用于 StreamContext 桥接 */
 struct StreamContext;
 
@@ -30,21 +32,11 @@ typedef struct {
 
 #define lv_EVENT_BUS_DEFAULT_CONFIG { 16, 0 }
 
-/** 事件订阅记录 */
-typedef struct lvEventSubscription {
-    int id;                    /**< 唯一订阅 ID */
-    lvEventCallbackFn callback; /**< 回调函数 */
-    void *user_data;           /**< 用户数据 */
-    int event_type;            /**< 监听的事件类型（-1 = 全部） */
-    bool active;               /**< 是否激活 */
-} lvEventSubscription;
-
 /** 事件总线 */
 typedef struct lvEventBus {
-    lvEventSubscription *subscriptions;
-    int subscription_count;
-    int subscription_capacity;
-    int next_id;
+    /** 订阅回调列表（基于公共设施 lvCallbackList 实现，
+     *  条目 filter 字段存储订阅的事件类型，-1 = 监听所有） */
+    lvCallbackList subscriptions;
     lvEventBusConfig config;
 
     /** 关联的 StreamContext（可选，非 NULL 时事件同时桥接到 Stream 系统） */

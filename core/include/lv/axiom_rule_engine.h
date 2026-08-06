@@ -475,13 +475,6 @@ char *lv_rule_to_json(const lvRule *rule);
  * @return 新规则
  */
 lvRule *lv_rule_from_json(const char *json);
-/**
- * @brief 规则库保存到文件
- * @param library 规则库
- * @param path 文件路径
- * @return 是否成功
- */
-bool lv_rule_library_save(const lvRuleLibrary *library, const char *path);
 
 #ifdef __cplusplus
 }

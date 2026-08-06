@@ -825,7 +825,12 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         node->data.circle.center_node_id = ctx.circle_center_id;
                         node->data.circle.radius_node_id = ctx.circle_radius_id;
                     } else if (ctx.node_type == GEOM_PORT) {
-                        Port *port = lv_calloc(1, sizeof(Port));
+                        /* 复用 graph_add_node_with_id -> port_alloc 已分配的 Port，
+                         * 避免重新分配后覆盖指针导致泄漏；仅当 port_alloc 因 OOM
+                         * 未分配（data.port 为 NULL）时回退到新建 */
+                        Port *port = node->data.port;
+                        if (!port)
+                            port = lv_calloc(1, sizeof(Port));
                         if (port) {
                             port->id = ctx.node_id;
                             port->type = ctx.port_type;

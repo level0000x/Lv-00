@@ -71,7 +71,8 @@ typedef struct ProofNavigator ProofNavigator;
 typedef struct ProofDependency ProofDependency;
 typedef struct PropositionEquivalence PropositionEquivalence;
 typedef struct BottomDefinition BottomDefinition;
-typedef struct lvEngine lvEngine; /* 引擎前向声明 */
+typedef struct lvEngine lvEngine;            /* 引擎前向声明 */
+typedef struct lvProofEngine lvProofEngine;  /* 经典证明引擎（proof_engine_enhanced.h）前向声明 */
 
 /* ============== 证明状态颜色 ==============
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
@@ -1127,7 +1128,24 @@ typedef enum {
     PROOF_STRATEGY_LAMBDA_UNIFY,        /**< λ-演算合一法：λ-项模式合一与变量实例化 */
     PROOF_STRATEGY_HOL_LIGHT,           /**< HOL Light 微内核验证：使用 10 条基本规则验证证明步骤 */
     PROOF_STRATEGY_ORACLE,              /**< Oracle 法：外部求解器辅助（不可构造性） */
-    PROOF_STRATEGY_COUNT                /**< 策略总数（用于数组大小） */
+    PROOF_STRATEGY_NUMERIC_VERIFICATION, /**< 数值验证法：区间算术求值 + FPTaylor 误差界分级验证浮点数值命题 */
+
+    /* ── 经典策略体系（proof_engine_enhanced.h 的 lvStrategyType）桥接策略 ──
+     * 默认不可用（proof_multi_strategy_create 置为 UNAVAILABLE），
+     * 调用方通过 proof_multi_strategy_set_legacy_engine 挂载经典引擎后自动启用。
+     * 未挂载时所有搜索算法（DFS/BFS/BEST_FIRST/MCTS/sledge/try_all）跳过这些条目，
+     * 保证既有默认行为完全不变。 */
+    PROOF_STRATEGY_LEGACY_DIRECT,         /**< 桥接：经典引擎的直接证明策略 */
+    PROOF_STRATEGY_LEGACY_CONTRADICTION,  /**< 桥接：经典引擎的反证法策略 */
+    PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE, /**< 桥接：经典引擎的逆否证明策略 */
+    PROOF_STRATEGY_LEGACY_INDUCTION,      /**< 桥接：经典引擎的数学归纳法策略 */
+    PROOF_STRATEGY_LEGACY_CASES,          /**< 桥接：经典引擎的分情况讨论策略 */
+    PROOF_STRATEGY_LEGACY_CONSTRUCTION,   /**< 桥接：经典引擎的构造性证明策略 */
+    PROOF_STRATEGY_LEGACY_UNFOLDING,      /**< 桥接：经典引擎的定义展开策略 */
+    PROOF_STRATEGY_LEGACY_BACKWARD,       /**< 桥接：经典引擎的逆向推理策略 */
+    PROOF_STRATEGY_LEGACY_FORWARD,        /**< 桥接：经典引擎的正向推理策略 */
+    PROOF_STRATEGY_LEGACY_HYBRID,         /**< 桥接：经典引擎的混合策略 */
+    PROOF_STRATEGY_COUNT                  /**< 策略总数（用于数组大小） */
 } ProofStrategyType;
 
 /* Forward declaration: ProofMultiStrategy 结构体在下方完整定义 */
@@ -1217,6 +1235,11 @@ typedef struct ProofMultiStrategy {
     int total_attempts;           /**< 总尝试次数 */
     int success_count;            /**< 成功次数 */
     int64_t *strategy_timings_ms; /**< 每种策略的耗时（毫秒） */
+
+    /* 经典策略引擎（系统A：proof_engine_enhanced.h）桥接实例。
+     * NULL 时 PROOF_STRATEGY_LEGACY_* 桥接策略不可用（状态 UNAVAILABLE）；
+     * 由 proof_multi_strategy_set_legacy_engine 挂载/卸载，所有权归调用方。 */
+    lvProofEngine *legacy_proof_engine;
 } ProofMultiStrategy;
 
 /* --- 多策略引擎 API --- */
@@ -1227,6 +1250,18 @@ typedef struct ProofMultiStrategy {
  * @return 新分配的多策略引擎，失败返回NULL
  */
 lv_PUBLIC_API ProofMultiStrategy *proof_multi_strategy_create(ProofNavigator *nav);
+
+/**
+ * @brief 挂载/卸载经典策略引擎（系统A：proof_engine_enhanced.h 的 lvProofEngine）
+ *
+ * 挂载后 10 个 PROOF_STRATEGY_LEGACY_* 桥接策略自动启用（状态 AVAILABLE），
+ * 其 execute 将目标转交给 lv_proof_engine_prove_with_strategy 执行；
+ * 卸载（传 NULL）后自动禁用（UNAVAILABLE）。默认未挂载。
+ *
+ * @param mse    多策略引擎
+ * @param engine 经典证明引擎实例（可为 NULL 卸载；所有权归调用方）
+ */
+lv_PUBLIC_API void proof_multi_strategy_set_legacy_engine(ProofMultiStrategy *mse, lvProofEngine *engine);
 
 /**
  * @brief 销毁多策略证明引擎

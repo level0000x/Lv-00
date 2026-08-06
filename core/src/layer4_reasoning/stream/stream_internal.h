@@ -20,6 +20,7 @@ extern "C" {
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
+#include "lv/lv_callback_list.h"
 #ifdef _WIN32
 #include <windows.h>
 #define strcasecmp _stricmp
@@ -59,23 +60,11 @@ extern "C" {
 /* ==================== 数据结构 ==================== */
 
 /**
- * @brief 回调记录
- *
- * 每个注册的回调对应一条记录，包含回调函数指针、用户数据、
- * 自增回调 ID 和事件类型过滤掩码。
- */
-typedef struct {
-    StreamCallback callback; /**< 回调函数指针 */
-    void *user_data;         /**< 回调透传数据 */
-    int id;                  /**< 自增回调 ID（>= 1），用于按 ID 注销和更新过滤 */
-    uint64_t filter_mask;    /**< 事件类型过滤掩码（位与运算） */
-} CallbackEntry;
-
-/**
  * @brief 流式上下文
  *
- * 回调数组支持动态扩容：初始容量 STREAM_INITIAL_CALLBACKS，
- * 最多扩容到 STREAM_MAX_CALLBACKS。超过硬上限后注册会失败。
+ * 回调列表基于公共设施 lvCallbackList（初始容量 STREAM_INITIAL_CALLBACKS，
+ * 最多扩容到 STREAM_MAX_CALLBACKS，超过硬上限后注册失败）。
+ * 回调条目的 filter 字段存储事件类型过滤掩码（uint64_t 位掩码）。
  *
  * 事件缓冲区用于 BUFFERED 和 THROTTLED 模式：
  * - BUFFERED: 事件入队，等待 stream_flush() 手动刷新
@@ -84,9 +73,7 @@ typedef struct {
  * 事件统计数组记录每种事件类型的发射次数。
  */
 struct StreamContext {
-    CallbackEntry *callbacks; /**< 已注册回调数组（堆分配，支持动态扩容） */
-    int callback_count;       /**< 当前回调数量 */
-    int callback_capacity;    /**< 当前数组容量 */
+    lvCallbackList callback_list; /**< 已注册回调列表（公共设施，支持动态扩容） */
 
     /* ── 事件缓冲 / 发射策略 ── */
     StreamEmitMode emit_mode; /**< 当前发射策略 */
@@ -96,9 +83,6 @@ struct StreamContext {
     int buffer_capacity;      /**< 缓冲区容量 */
     int buffer_head;          /**< 缓冲区读头（flush 位置） */
     long last_emit_ms;        /**< 上次发射时间戳（节流用） */
-
-    /* ── 回调 ID 管理 ── */
-    int next_callback_id; /**< 下一个可用的回调 ID（自增，从 1 开始） */
 
     /* ── 事件统计 ── */
     long event_counts[STREAM_EVENT_TYPE_COUNT]; /**< 各事件类型发射计数 */

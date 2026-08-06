@@ -650,11 +650,7 @@ char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
         {
             const char *s = node->label[0] ? node->label : "";
             size_t slen = strlen(s);
-            size_t need = lv_str_json_escape(s, slen, NULL, 0);
-            char *esc = (char *)lv_malloc(need + 1);
-            if (esc) {
-                lv_str_json_escape(s, slen, esc, need + 1);
-            }
+            char *esc = lv_str_json_escape_alloc(s, slen, NULL);
             lv_strbuf_printf(&buf, "%s", esc ? esc : "");
             lv_free((void **)&esc);
         }
@@ -663,11 +659,7 @@ char *lv_trace_tree_to_json(const lvProofTraceTree *tree) {
         {
             const char *s = node->description[0] ? node->description : "";
             size_t slen = strlen(s);
-            size_t need = lv_str_json_escape(s, slen, NULL, 0);
-            char *esc = (char *)lv_malloc(need + 1);
-            if (esc) {
-                lv_str_json_escape(s, slen, esc, need + 1);
-            }
+            char *esc = lv_str_json_escape_alloc(s, slen, NULL);
             lv_strbuf_printf(&buf, "%s", esc ? esc : "");
             lv_free((void **)&esc);
         }

@@ -183,16 +183,11 @@ static void test_trust_to_lv(void) {
 /* ================================================================
  * 主函数
  * ================================================================ */
-int main(void) {
-    printf("===== 信任颜色映射系统测试 =====\n\n");
-
-    test_trust_to_proof();
-    test_proof_to_trust();
-    test_roundtrip();
-    test_proof_color_combine();
-    test_color_names();
-    test_trust_to_lv();
-
-    printf("\n===== 结果: %d 通过, %d 失败 =====\n", g_pass_count, g_fail_count);
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("信任颜色映射系统测试")
+    TEST_MAIN_RUN(test_trust_to_proof);
+    TEST_MAIN_RUN(test_proof_to_trust);
+    TEST_MAIN_RUN(test_roundtrip);
+    TEST_MAIN_RUN(test_proof_color_combine);
+    TEST_MAIN_RUN(test_color_names);
+    TEST_MAIN_RUN(test_trust_to_lv);
+TEST_MAIN_END()

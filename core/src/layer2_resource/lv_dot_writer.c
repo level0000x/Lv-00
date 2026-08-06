@@ -26,11 +26,8 @@
  * @param s  源字符串（NUL 结尾）
  */
 static void dot_escape_append(lvStrBuf *sb, const char *s) {
-    size_t len = strlen(s);
-    size_t need = lv_str_json_escape(s, len, NULL, 0);
-    char *esc = (char *) lv_malloc(need + 1);
+    char *esc = lv_str_json_escape_alloc(s, strlen(s), NULL);
     if (esc) {
-        lv_str_json_escape(s, len, esc, need + 1);
         lv_strbuf_printf(sb, "%s", esc);
         lv_free((void **) &esc);
     }

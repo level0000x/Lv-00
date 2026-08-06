@@ -318,21 +318,15 @@ static void test_big_five_subsystems(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    printf("=== Second-Order Arithmetic Axiom Package Tests ===\n\n");
-
-    test_load_from_file();
-    test_templates();
-    test_unconstructible_problems();
-    test_logical_framework();
-    test_content_hash();
-    test_round_trip();
-    test_dependency_validation();
-    test_negative_lookups();
-    test_external_refs();
-    test_big_five_subsystems();
-
-    printf("\n=== Results: %d passed, %d failed ===\n", g_pass_count, g_fail_count);
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("Second-Order Arithmetic Axiom Package Tests")
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_refs);
+    TEST_MAIN_RUN(test_big_five_subsystems);
+TEST_MAIN_END()

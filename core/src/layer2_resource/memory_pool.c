@@ -304,12 +304,41 @@ void *lv_pool_alloc(lvObjectPool *pool) {
 }
 
 bool lv_pool_free(lvObjectPool *pool, void *obj) {
-    if (!pool || !obj) {
+    if (!obj) {
         return false;
+    }
+
+    /* [归属校验] 池未初始化（lv_init 未调用或 preset pools 初始化失败）时，
+     * 无池可归还：对象必然来自回退的普通分配，按 lv_free 语义释放 */
+    if (!pool) {
+        void *tmp = obj;
+        lv_free(&tmp);
+        return true;
     }
 
     if (pool->thread_safe) {
         lv_mutex_lock(&pool->mutex);
+    }
+
+    /* [归属校验] 校验 obj 是否落在池的内存块内且位于对象边界上。
+     * 池外指针（如 lv_pool_alloc 失败后回退 lv_calloc 分配的对象）严禁
+     * 写入空闲链表，否则会破坏链表结构；此类对象按普通分配释放。 */
+    bool belongs = false;
+    for (size_t b = 0; b < pool->block_count && !belongs; b++) {
+        const char *base = (const char *) pool->blocks[b];
+        const char *p = (const char *) obj;
+        if (p >= base && (size_t) (p - base) < pool->block_capacities[b] * pool->object_size &&
+            (size_t) (p - base) % pool->object_size == 0) {
+            belongs = true;
+        }
+    }
+    if (!belongs) {
+        if (pool->thread_safe) {
+            lv_mutex_unlock(&pool->mutex);
+        }
+        void *tmp = obj;
+        lv_free(&tmp);
+        return true;
     }
 
     /* 添加到空闲链表 */

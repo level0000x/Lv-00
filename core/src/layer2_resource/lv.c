@@ -508,10 +508,64 @@ EngineSolveResult lv_solve(lvEngine *engine) {
     return engine_solve(engine);
 }
 
+/* ============================================================
+ * 配置系统收敛：三套 → 两套（系统 C 已消除）
+ *
+ * 历史上有三套配置语义并存：
+ *   - 系统 A（lvConfig，config.h / lv_config.c）：X-macro 注册表
+ *     （LV_CONFIG_INT_KEYS / LV_CONFIG_DOUBLE_KEYS）+ 类型安全
+ *     lv_config_get_<key>() / lv_config_set_<key>()，JSON 持久化；
+ *   - 系统 B（ConfigManager，lv_utils_config.c）：字符串键存储，
+ *     公共 API 即本文件的 lv_config_get_*(key, default)；
+ *   - 系统 C（已消除）：config.h 的 LV_CFG_* 字符串键宏曾构成独立
+ *     键空间——其中与系统 A 同名的键（如 circuit_overflow_threshold、
+ *     smoke_test_step_limit 等）在两侧各有副本，读写路径分裂。
+ *
+ * 收敛方式：字符串键统一分发——先查系统 A 注册表（与 A 同名键
+ * 统一读取 lvConfig 单例，消除第二副本），未命中再回落系统 B。
+ * 对外 API 名与 LV_CFG_* 宏名均保持不变，仅键归属明确为 A 或 B。
+ * ============================================================ */
+
+/** @brief 系统 A 整型键字符串分发：命中返回 true 并写出 *out */
+static bool lv_config_resolve_a_int(const char *key, int *out) {
+    const lvConfig *c = lv_config_current();
+#define A_INT_GET_IF(k, t, f, d) \
+    if (strcmp(key, #k) == 0) {  \
+        *out = c->f;             \
+        return true;             \
+    }
+    LV_CONFIG_INT_KEYS(A_INT_GET_IF)
+#undef A_INT_GET_IF
+    (void) c;
+    return false;
+}
+
+/** @brief 系统 A 浮点键字符串分发：命中返回 true 并写出 *out */
+static bool lv_config_resolve_a_double(const char *key, double *out) {
+    const lvConfig *c = lv_config_current();
+#define A_DBL_GET_IF(k, t, f, d) \
+    if (strcmp(key, #k) == 0) {  \
+        *out = c->f;             \
+        return true;             \
+    }
+    LV_CONFIG_DOUBLE_KEYS(A_DBL_GET_IF)
+#undef A_DBL_GET_IF
+    (void) c;
+    return false;
+}
+
 /**
  * @brief 获取配置值（便捷函数）
+ *
+ * 统一分发：与系统 A（lvConfig 注册表）同名的键读 A 单例；
+ * 其余键回落系统 B（ConfigManager）。
  */
 int lv_config_get_int(const char *key, int default_val) {
+    if (!key)
+        return default_val;
+    int a_val = 0;
+    if (lv_config_resolve_a_int(key, &a_val))
+        return a_val;
     if (!s_lv_state.config)
         return default_val;
     return config_get_int(s_lv_state.config, key, default_val);
@@ -526,6 +580,11 @@ bool lv_config_get_bool(const char *key, bool default_val) {
 
 /** @brief 获取双精度浮点配置项 @param key 配置键名 @param default_val 默认值 @return 配置值 */
 double lv_config_get_double(const char *key, double default_val) {
+    if (!key)
+        return default_val;
+    double a_val = 0.0;
+    if (lv_config_resolve_a_double(key, &a_val))
+        return a_val;
     if (!s_lv_state.config)
         return default_val;
     return config_get_double(s_lv_state.config, key, default_val);

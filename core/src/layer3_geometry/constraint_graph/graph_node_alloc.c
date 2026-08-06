@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/memory_pool.h"
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
 
@@ -38,39 +39,40 @@
 #include "graph_node_internal.h"
 
 /**
- * @brief 安全数组扩容辅助函数（委托给统一的 lv_ensure_capacity）
- * @param arr 当前数组指针
- * @param count 当前元素数量
- * @param capacity 当前容量指针
- * @param elem_size 单个元素大小
- * @param min_growth 最小增长量
- * @return 扩容后的数组指针，失败返回 NULL
- * @note 内部委托给 lv_ensure_capacity
- */
-static void *graph_ensure_capacity(void *arr, int count, int *capacity, size_t elem_size, int min_growth) {
-    void *arr_ptr = arr;
-    if (!lv_ensure_capacity(&arr_ptr, count, capacity, elem_size, min_growth))
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_ensure_capacity: lv_ensure_capacity failed");
-    return arr_ptr;
-}
-
-/**
- * @brief 在约束图中分配并初始化一个新的几何节点
+ * @brief 节点分配内部函数 —— 所有节点创建的统一底层分配路径
  *
- * 分配 GeomNode 内存（lv_malloc + memset），设置唯一 ID、类型、
- * 默认信任等级和命名空间深度。若节点数组容量不足，自动扩容
- * （按 lv_ARRAY_GROWTH_FACTOR 倍增长），扩容失败时释放已分配节点并返回 NULL。
+ * 统一封装节点内存分配、字段初始化（ID/类型/vtable/信任等级/活跃标志/
+ * 命名空间深度/父块ID）、vtable->alloc 类型特定初始化、坐标复制（with_id 路径）、
+ * 节点数组扩容与索引插入。graph_alloc_node 与 graph_add_node_with_id
+ * 均为本函数的薄包装，保证两路径字段初始化、ID 分配、错误处理与返回值
+ * 语义完全一致（节点池化前置条件：所有节点分配唯一入口）。
  *
- * @param graph 约束图指针
- * @param type  几何节点类型（GEOM_POINT / GEOM_SEGMENT / GEOM_REGION / GEOM_PORT / GEOM_FUNCTION_BLOCK）
+ * @param graph       约束图指针
+ * @param type        几何节点类型
+ * @param id          指定 ID（with_id 时生效；否则忽略）
+ * @param with_id     是否为带指定 ID 的添加路径（graph_add_node_with_id）
+ * @param coords      坐标数组（with_id 且 coord_count > 0 时深拷贝）
+ * @param coord_count 坐标数量
  * @return 新分配的 GeomNode 指针，失败返回 NULL
  */
-GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
-    GeomNode *node = lv_calloc(1, sizeof(GeomNode));
-    if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_alloc_node: calloc node failed");
-    /* v3.4.1: 使用原子操作分配节点ID，确保多线程安全 */
-    node->id = GRAPH_ATOMIC_NODE_ID_INCREMENT(graph);
+static GeomNode *node_alloc_internal(ConstraintGraph *graph, GeomType type, int id, bool with_id,
+                                     SymbolicCoord **coords, int coord_count) {
+    /* 错误消息前缀：与两个公开入口的原错误文本保持一致 */
+    const char *fn = with_id ? "graph_add_node_with_id" : "graph_alloc_node";
+    /* 节点外壳池化分配：优先从 ConstraintNode 预设池取（lv_pool_alloc 内部按
+     * object_size(128) 清零，覆盖 sizeof(GeomNode)=104，与 lv_calloc 零初始化语义一致）；
+     * 池不可用（lv_init 未调用 / preset pools 初始化失败）或池扩展失败时回退 lv_calloc。
+     * 回退对象由 lv_pool_free 的归属校验自动按普通分配释放，不进入池空闲链表。 */
+    GeomNode *node = (GeomNode *) lv_pool_alloc(lv_get_node_pool());
+    if (!node) {
+        node = (GeomNode *) lv_calloc(1, sizeof(GeomNode));
+        if (!node) {
+            lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn, "%s: calloc node failed", fn);
+            return NULL;
+        }
+    }
+    /* v3.4.1: 使用原子操作分配节点ID，确保多线程安全（with_id 路径使用指定 ID） */
+    node->id = with_id ? id : GRAPH_ATOMIC_NODE_ID_INCREMENT(graph);
     node->type = type;
     node->vtable = get_vtable_for_type(type);
     node->trust = TRUST_GREEN;
@@ -82,20 +84,135 @@ GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
     if (node->vtable && node->vtable->alloc) {
         node->vtable->alloc(node, graph);
     }
-    GeomNode **new_nodes = (GeomNode **) graph_ensure_capacity(graph->nodes, graph->node_count, &graph->node_capacity,
-                                                               sizeof(GeomNode *), 1);
-    if (!new_nodes) {
-        lv_free((void **) &node);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_alloc_node: ensure_capacity failed");
+
+    /* 复制坐标（graph_add_node_with_id 路径） */
+    if (with_id && coord_count > 0 && coords) {
+        node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
+        if (!node->symbolic_coords) {
+            lv_pool_free(lv_get_node_pool(), node);
+            lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn, "%s: malloc symbolic_coords failed", fn);
+            return NULL;
+        }
+        for (int i = 0; i < coord_count; i++) {
+            node->symbolic_coords[i] = symbolic_coord_copy(coords[i]);
+            if (!node->symbolic_coords[i]) {
+                /* 坐标拷贝失败：清理已分配的坐标并返回 NULL */
+                for (int j = 0; j < i; j++) {
+                    symbolic_coord_destroy(node->symbolic_coords[j]);
+                }
+                lv_free((void **) &node->symbolic_coords);
+                lv_pool_free(lv_get_node_pool(), node);
+                lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn, "%s: symbolic_coord_copy failed", fn);
+                return NULL;
+            }
+        }
+        node->coord_count = coord_count;
     }
-    graph->nodes = new_nodes;
+
+    /* 扩展数组（统一委托 lv_ensure_capacity，内部含 INT_MAX/SIZE_MAX 溢出检查与倍增；
+     * graph_alloc_node 原走 graph_ensure_capacity（min_growth=1），
+     * graph_add_node_with_id 原直接 lv_ensure_capacity（min_growth=0），保持原扩容行为） */
+    if (!lv_ensure_capacity((void **) &graph->nodes, graph->node_count, &graph->node_capacity, sizeof(GeomNode *),
+                            with_id ? 0 : 1)) {
+        /* 清理已分配的坐标 */
+        if (with_id && coord_count > 0 && coords) {
+            for (int i = 0; i < coord_count; i++) {
+                if (node->symbolic_coords[i])
+                    symbolic_coord_destroy(node->symbolic_coords[i]);
+            }
+            lv_free((void **) &node->symbolic_coords);
+        }
+        lv_pool_free(lv_get_node_pool(), node);
+        lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn,
+                         with_id ? "%s: realloc nodes failed" : "%s: ensure_capacity failed", fn);
+        return NULL;
+    }
+
     graph->nodes[graph->node_count++] = node;
     graph_node_index_insert(graph, node);
     return node;
 }
 
 /**
- * @brief 在约束图中分配并初始化一个新的约束
+ * @brief 在约束图中分配并初始化一个新的几何节点（统一分配路径的薄包装）
+ *
+ * 分配 GeomNode 内存（lv_malloc + memset），设置唯一 ID、类型、
+ * 默认信任等级和命名空间深度。若节点数组容量不足，自动扩容
+ * （按 lv_ARRAY_GROWTH_FACTOR 倍增长），扩容失败时释放已分配节点并返回 NULL。
+ *
+ * @param graph 约束图指针
+ * @param type  几何节点类型（GEOM_POINT / GEOM_SEGMENT / GEOM_REGION / GEOM_PORT / GEOM_FUNCTION_BLOCK）
+ * @return 新分配的 GeomNode 指针，失败返回 NULL
+ */
+GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
+    return node_alloc_internal(graph, type, 0, false, NULL, 0);
+}
+
+/**
+ * @brief 约束分配内部函数 —— 所有约束创建的统一底层分配路径
+ *
+ * 统一封装约束内存分配、字段初始化（ID/类型/活跃标志）、参与者分配
+ * （with_id 路径）、约束数组扩容与索引插入。graph_alloc_constraint 与
+ * graph_add_constraint_with_id 均为本函数的薄包装，保证两路径字段初始化、
+ * ID 分配、错误处理与返回值语义完全一致（节点池化前置条件：所有约束分配唯一入口）。
+ *
+ * @param graph            约束图指针
+ * @param type             约束类型
+ * @param id               指定 ID（with_id 时生效；否则忽略）
+ * @param with_id          是否为带指定 ID 的添加路径（graph_add_constraint_with_id）
+ * @param participants     参与者节点 ID 数组（with_id 时复制）
+ * @param participant_count 参与者数量
+ * @return 新分配的 Constraint 指针，失败返回 NULL
+ */
+static Constraint *constraint_alloc_internal(ConstraintGraph *graph, ConstraintType type, int id, bool with_id,
+                                             const int *participants, int participant_count) {
+    /* 错误消息前缀：与两个公开入口的原错误文本保持一致 */
+    const char *fn = with_id ? "graph_add_constraint_with_id" : "graph_alloc_constraint";
+    /* 约束外壳池化分配：优先从 Constraint 预设池取（lv_pool_alloc 内部按
+     * object_size(96) 清零，覆盖 sizeof(Constraint)=48，与 lv_calloc 零初始化语义一致）；
+     * 池不可用或池扩展失败时回退 lv_calloc。回退对象由 lv_pool_free 的归属校验
+     * 自动按普通分配释放，不进入池空闲链表。 */
+    Constraint *con = (Constraint *) lv_pool_alloc(lv_get_constraint_pool());
+    if (!con) {
+        con = (Constraint *) lv_calloc(1, sizeof(Constraint));
+        if (!con) {
+            lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn, "%s: calloc con failed", fn);
+            return NULL;
+        }
+    }
+    /* v3.4.1: 使用原子操作分配约束ID，确保多线程安全（with_id 路径使用指定 ID） */
+    con->id = with_id ? id : GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph);
+    con->type = type;
+    con->is_active = true; /* v3.5.0: 新约束默认活跃 */
+    if (with_id) {
+        /* 复用共享的参与者分配器（graph_index.c）：malloc + 复制 + 设置 participant_count */
+        if (!graph_constraint_assign_participants(con, participants, participant_count)) {
+            lv_pool_free(lv_get_constraint_pool(), con);
+            lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn, "%s: malloc participants failed", fn);
+            return NULL;
+        }
+    }
+
+    /* 扩展数组（统一委托 lv_ensure_capacity，内部含 INT_MAX/SIZE_MAX 溢出检查与倍增；
+     * graph_alloc_constraint 原走 graph_ensure_capacity（min_growth=1），
+     * graph_add_constraint_with_id 原直接 lv_ensure_capacity（min_growth=0），保持原扩容行为） */
+    if (!lv_ensure_capacity((void **) &graph->constraints, graph->constraint_count, &graph->constraint_capacity,
+                            sizeof(Constraint *), with_id ? 0 : 1)) {
+        if (with_id)
+            lv_free((void **) &con->participants);
+        lv_pool_free(lv_get_constraint_pool(), con);
+        lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn,
+                         with_id ? "%s: realloc constraints failed" : "%s: ensure_capacity failed", fn);
+        return NULL;
+    }
+
+    graph->constraints[graph->constraint_count++] = con;
+    graph_constraint_index_insert(graph, con);
+    return con;
+}
+
+/**
+ * @brief 在约束图中分配并初始化一个新的约束（统一分配路径的薄包装）
  *
  * 分配 Constraint 内存（lv_malloc + memset），设置唯一 ID 和约束类型。
  * 若约束数组容量不足，自动按 lv_ARRAY_GROWTH_FACTOR 倍扩容，
@@ -106,23 +223,7 @@ GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
  * @return 新分配的 Constraint 指针，失败返回 NULL
  */
 Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType type) {
-    Constraint *con = lv_calloc(1, sizeof(Constraint));
-    if (!con)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_alloc_constraint: calloc con failed");
-    /* v3.4.1: 使用原子操作分配约束ID，确保多线程安全 */
-    con->id = GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph);
-    con->type = type;
-    con->is_active = true; /* v3.5.0: 新约束默认活跃 */
-    Constraint **new_constraints = (Constraint **) graph_ensure_capacity(
-        graph->constraints, graph->constraint_count, &graph->constraint_capacity, sizeof(Constraint *), 1);
-    if (!new_constraints) {
-        lv_free((void **) &con);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_alloc_constraint: ensure_capacity failed");
-    }
-    graph->constraints = new_constraints;
-    graph->constraints[graph->constraint_count++] = con;
-    graph_constraint_index_insert(graph, con);
-    return con;
+    return constraint_alloc_internal(graph, type, 0, false, NULL, 0);
 }
 
 /* 带指定ID添加节点（用于反序列化） */
@@ -136,59 +237,10 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
         lv_RETURN_ERROR_NULL(lv_ERROR_ALREADY_EXISTS, "graph_add_node_with_id: node ID %d already exists", node_id);
     }
 
-    GeomNode *node = lv_calloc(1, sizeof(GeomNode));
+    /* 统一分配路径：字段初始化 / 坐标复制 / 数组挂接 / 索引插入均在内部完成 */
+    GeomNode *node = node_alloc_internal(graph, type, node_id, true, coords, coord_count);
     if (!node)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: calloc node failed");
-
-    node->id = node_id;
-    node->type = type;
-    node->vtable = get_vtable_for_type(type);
-    node->trust = TRUST_GREEN;
-    node->is_active = true; /* v3.6.0: 新节点默认活跃 */
-    node->namespace_depth = 0;
-    node->parent_block_id = -1;
-
-    /* 通过 vtable 调用类型特定的初始化 */
-    if (node->vtable && node->vtable->alloc) {
-        node->vtable->alloc(node, graph);
-    }
-
-    /* 复制坐标 */
-    if (coord_count > 0 && coords) {
-        node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
-        if (!node->symbolic_coords) {
-            lv_free((void **) &node);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: malloc symbolic_coords failed");
-        }
-        for (int i = 0; i < coord_count; i++) {
-            node->symbolic_coords[i] = symbolic_coord_copy(coords[i]);
-            if (!node->symbolic_coords[i]) {
-                /* 坐标拷贝失败：清理已分配的坐标并返回 NULL */
-                for (int j = 0; j < i; j++) {
-                    symbolic_coord_destroy(node->symbolic_coords[j]);
-                }
-                lv_free((void **) &node->symbolic_coords);
-                lv_free((void **) &node);
-                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: symbolic_coord_copy failed");
-            }
-        }
-        node->coord_count = coord_count;
-    }
-
-    /* 扩展数组（统一委托 lv_ensure_capacity，内部含 INT_MAX/SIZE_MAX 溢出检查与倍增） */
-    if (!lv_ensure_capacity((void **) &graph->nodes, graph->node_count, &graph->node_capacity, sizeof(GeomNode *), 0)) {
-        /* 清理已分配的坐标 */
-        for (int i = 0; i < coord_count; i++) {
-            if (node->symbolic_coords[i])
-                symbolic_coord_destroy(node->symbolic_coords[i]);
-        }
-        lv_free((void **) &node->symbolic_coords);
-        lv_free((void **) &node);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_node_with_id: realloc nodes failed");
-    }
-
-    graph->nodes[graph->node_count++] = node;
-    graph_node_index_insert(graph, node);
+        return NULL;
 
     /* 更新 next_node_id 以确保新节点ID不会冲突（使用原子 CAS 循环保证线程安全） */
     if (node_id >= graph->next_node_id) {
@@ -227,29 +279,10 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
         lv_RETURN_ERROR_NULL(lv_ERROR_ALREADY_EXISTS, "graph_add_constraint_with_id: constraint ID %d already exists", constraint_id);
     }
 
-    Constraint *con = lv_calloc(1, sizeof(Constraint));
+    /* 统一分配路径：字段初始化 / 参与者复制 / 数组挂接 / 索引插入均在内部完成 */
+    Constraint *con = constraint_alloc_internal(graph, type, constraint_id, true, participants, participant_count);
     if (!con)
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: calloc con failed");
-
-    con->id = constraint_id;
-    con->type = type;
-    con->is_active = true; /* v3.5.0: 新约束默认活跃 */
-    /* 复用共享的参与者分配器（graph_index.c）：malloc + 复制 + 设置 participant_count */
-    if (!graph_constraint_assign_participants(con, participants, participant_count)) {
-        lv_free((void **) &con);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: malloc participants failed");
-    }
-
-    /* 扩展数组（统一委托 lv_ensure_capacity，内部含 INT_MAX/SIZE_MAX 溢出检查与倍增） */
-    if (!lv_ensure_capacity((void **) &graph->constraints, graph->constraint_count, &graph->constraint_capacity,
-                            sizeof(Constraint *), 0)) {
-        lv_free((void **) &con->participants);
-        lv_free((void **) &con);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "graph_add_constraint_with_id: realloc constraints failed");
-    }
-
-    graph->constraints[graph->constraint_count++] = con;
-    graph_constraint_index_insert(graph, con);
+        return NULL;
 
     /* 更新 next_constraint_id 以确保新约束ID不会冲突 */
     if (constraint_id >= graph->next_constraint_id) {

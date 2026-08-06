@@ -12,9 +12,6 @@
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-int main(void) {
-    printf("=== test_benchmark ===\n");
+TEST_MAIN_BEGIN("test_benchmark")
     TEST_ASSERT_CONTINUE(1, "placeholder");
-    printf("Passed: %d, Failed: %d\n", g_pass_count, g_fail_count);
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

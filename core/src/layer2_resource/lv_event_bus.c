@@ -5,6 +5,28 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* ============================================================
+ * 分发参数包装：event_type + event_data
+ * ============================================================ */
+typedef struct {
+    int event_type;
+    void *event_data;
+} EventBusDispatchArgs;
+
+/** @brief 过滤：事件类型匹配（订阅 event_type 为 -1 = 监听所有） */
+static bool ev_bus_filter(const lvCallbackEntry *entry, const void *arg) {
+    const EventBusDispatchArgs *d = (const EventBusDispatchArgs *) arg;
+    uint64_t et = (uint64_t) d->event_type;
+    return entry->filter == (uint64_t) -1 || entry->filter == et;
+}
+
+/** @brief 调用：将泛型回调转回 lvEventCallbackFn 签名后调用 */
+static void ev_bus_invoke(const lvCallbackEntry *entry, const void *arg) {
+    const EventBusDispatchArgs *d = (const EventBusDispatchArgs *) arg;
+    lvEventCallbackFn cb = (lvEventCallbackFn) entry->callback;
+    cb(d->event_type, d->event_data, entry->user_data);
+}
+
 void lv_event_bus_init(lvEventBus *bus, const lvEventBusConfig *config) {
     memset(bus, 0, sizeof(*bus));
     if (config) {
@@ -14,51 +36,33 @@ void lv_event_bus_init(lvEventBus *bus, const lvEventBusConfig *config) {
     }
     if (bus->config.initial_capacity <= 0)
         bus->config.initial_capacity = 16;
-    bus->subscriptions = NULL;
-    bus->subscription_count = 0;
-    bus->subscription_capacity = 0;
-    bus->next_id = 1;
+    /* 订阅列表委托公共设施：初始容量 initial_capacity，硬上限 max_callbacks（0 = 无限制） */
+    lv_callback_list_init(&bus->subscriptions, bus->config.initial_capacity, bus->config.max_callbacks);
 }
 
 void lv_event_bus_cleanup(lvEventBus *bus) {
-    if (bus->subscriptions)
-        lv_free((void **)&bus->subscriptions);
+    if (!bus)
+        return;
+    lv_callback_list_cleanup(&bus->subscriptions);
     memset(bus, 0, sizeof(*bus));
 }
 
 int lv_event_subscribe(lvEventBus *bus, int event_type, lvEventCallbackFn callback, void *user_data) {
     if (!bus || !callback)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "bus or callback is NULL");
-    if (bus->config.max_callbacks > 0 && bus->subscription_count >= bus->config.max_callbacks)
+    if (bus->config.max_callbacks > 0 &&
+        lv_callback_list_count(&bus->subscriptions) >= bus->config.max_callbacks)
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "max callbacks reached");
 
-    int idx = bus->subscription_count;
-    if (!lv_ensure_capacity((void **)&bus->subscriptions, idx + 1, &bus->subscription_capacity,
-                            sizeof(lvEventSubscription), 1))
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate subscription array");
-
-    bus->subscriptions[idx].id = bus->next_id++;
-    bus->subscriptions[idx].callback = callback;
-    bus->subscriptions[idx].user_data = user_data;
-    bus->subscriptions[idx].event_type = event_type;
-    bus->subscriptions[idx].active = true;
-    bus->subscription_count++;
-    return bus->subscriptions[idx].id;
+    /* 订阅 ID 由公共设施自增分配（>= 1），event_type 存入 filter 字段 */
+    return lv_callback_list_add(&bus->subscriptions, (lvCallbackFn) callback, user_data,
+                                (uint64_t) event_type);
 }
 
 bool lv_event_unsubscribe(lvEventBus *bus, int subscription_id) {
     if (!bus || subscription_id <= 0)
         return false;
-    for (int i = 0; i < bus->subscription_count; i++) {
-        if (bus->subscriptions[i].id == subscription_id) {
-            // Swap with last and decrement
-            bus->subscriptions[i] = bus->subscriptions[--bus->subscription_count];
-            // Clear the vacated slot
-            memset(&bus->subscriptions[bus->subscription_count], 0, sizeof(lvEventSubscription));
-            return true;
-        }
-    }
-    return false;
+    return lv_callback_list_remove_by_id(&bus->subscriptions, subscription_id);
 }
 
 void lv_event_bus_set_stream(lvEventBus *bus, struct StreamContext *stream_ctx) {
@@ -77,18 +81,13 @@ void lv_event_emit(lvEventBus *bus, int event_type, void *event_data) {
     if (!bus)
         return;
 
-    /* ---- 原有分发逻辑：通知所有 lvEventBus 订阅者 ---- */
-    // Iterate all subscriptions. Use index-based loop since callbacks may unsubscribe.
-    for (int i = 0; i < bus->subscription_count; ) {
-        lvEventSubscription *sub = &bus->subscriptions[i];
-        if (sub->active && (sub->event_type == -1 || sub->event_type == event_type)) {
-            sub->callback(event_type, event_data, sub->user_data);
-            // After callback, re-read since the array may have changed via unsubscription
-            i = 0; // Reset scan - simple and safe
-        } else {
-            i++;
-        }
-    }
+    /* ---- 原有分发逻辑：通知所有 lvEventBus 订阅者 ----
+     * 委托公共设施分发（迭代安全：遍历中注销/注册安全），
+     * 订阅者按注册顺序调用，与原有语义一致。 */
+    EventBusDispatchArgs args;
+    args.event_type = event_type;
+    args.event_data = event_data;
+    lv_callback_list_dispatch(&bus->subscriptions, &args, ev_bus_filter, ev_bus_invoke);
 
     /* ---- Stream 桥接：若关联了 StreamContext，同步投射到 Stream 系统 ---- */
     if (bus->stream_ctx) {

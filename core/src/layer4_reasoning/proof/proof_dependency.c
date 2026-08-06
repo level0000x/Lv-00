@@ -847,10 +847,8 @@ bool proof_search_tree_export_dot(const ProofSearchTree *tree, const char *filep
         lv_strbuf_printf(&lbl, "\nSuccess: %d | Failure: %d | Backtrack: %d | Pruned: %d | Max Depth: %d",
                          tree->success_paths, tree->failure_paths, tree->backtrack_count,
                          tree->pruned_branches, tree->max_depth);
-        size_t need = lv_str_json_escape(lbl.data, lbl.len, NULL, 0);
-        char *esc = (char *) lv_malloc(need + 1);
+        char *esc = lv_str_json_escape_alloc(lbl.data, lbl.len, NULL);
         if (esc) {
-            lv_str_json_escape(lbl.data, lbl.len, esc, need + 1);
             lv_strbuf_printf(&sb, "    label=\"%s\";\n", esc);
             lv_free((void **) &esc);
         }

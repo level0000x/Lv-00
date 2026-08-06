@@ -452,34 +452,25 @@ void test_high_dim_serialization() {
     printf("  PASSED\n");
 }
 
-int main() {
-    printf("=== Lv-00 High Dimension Module Test Suite ===\n\n");
-
-    test_high_dim_manager_lifecycle();
+TEST_MAIN_BEGIN("Lv-00 High Dimension Module Test Suite")
+    TEST_MAIN_RUN(test_high_dim_manager_lifecycle);
     fflush(stdout);
-    test_high_dim_block_registration();
+    TEST_MAIN_RUN(test_high_dim_block_registration);
     fflush(stdout);
-    test_high_dim_projection_preset();
+    TEST_MAIN_RUN(test_high_dim_projection_preset);
     fflush(stdout);
-    test_high_dim_coordinate_projection();
+    TEST_MAIN_RUN(test_high_dim_coordinate_projection);
     fflush(stdout);
-    test_high_dim_transform();
+    TEST_MAIN_RUN(test_high_dim_transform);
     fflush(stdout);
-    test_high_dim_fidelity();
+    TEST_MAIN_RUN(test_high_dim_fidelity);
     fflush(stdout);
-    test_high_dim_semantic_zoom();
+    TEST_MAIN_RUN(test_high_dim_semantic_zoom);
     fflush(stdout);
-    test_high_dim_multi_projection_view();
+    TEST_MAIN_RUN(test_high_dim_multi_projection_view);
     fflush(stdout);
-    test_high_dim_link_highlight();
+    TEST_MAIN_RUN(test_high_dim_link_highlight);
     fflush(stdout);
-    test_high_dim_serialization();
+    TEST_MAIN_RUN(test_high_dim_serialization);
     fflush(stdout);
-
-    if (g_fail_count > 0) {
-        printf("\n=== high_dim tests FAILED (%d failures, %d passed) ===\n", g_fail_count, g_pass_count);
-        return 1;
-    }
-    printf("\n=== All high_dim tests PASSED! (%d checks) ===\n", g_pass_count);
-    return 0;
-}
+TEST_MAIN_END()

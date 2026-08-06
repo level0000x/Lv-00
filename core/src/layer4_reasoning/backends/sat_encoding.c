@@ -1046,6 +1046,24 @@ SatResult sat_solve_and_decode(SatEncoding *enc, SatModel **out_model) {
         model->decoded_graph = NULL;
         model->decoded_instance = NULL;
         *out_model = model;
+    } else {
+        /* 协同求解：SAT 无解 → 代数回退（Gröbner 基验证）
+         *
+         * 语义（见 doc/docs/14_solver_backends.md「代数协同」）：
+         * CDCL 判定 UNSAT/UNKNOWN 时，对同一组 CNF 子句调用代数路径
+         * lv_solver_solve_algebraic()（内部经 groebner_parallel 计算
+         * 子句理想的多项式 Gröbner 基）。
+         *   - 代数路径证实无解（约化基含非零常数 1，理想 = <1>）
+         *     → 结果收敛为 UNSAT（可将 CDCL 的 UNKNOWN 升级为确定判定）；
+         *   - 代数路径判定有解或无法判定 → 保持原 CDCL 判定不变。
+         * 注：当前 groebner_parallel API 只提供 SAT/UNSAT 判定，不提供
+         * 具体模型/坐标提取，故代数有解时无法解码坐标输出，不伪造模型，
+         * 以原判定返回（安全优先）。
+         * 安全保证：SAT 有解路径完全不经由此分支，行为逐位不变。 */
+        lvSolverResult algebraic = lv_solver_solve_algebraic(solver);
+        if (algebraic == lv_SOLVER_UNSAT) {
+            result = lv_SOLVER_UNSAT;
+        }
     }
 
     lv_solver_destroy(solver);

@@ -1392,11 +1392,15 @@ lvSolverResult lv_solver_solve_algebraic(lvSolver *solver) {
         return lv_SOLVER_UNKNOWN;
     }
 
-    /* 将几何约束编码为多项式方程。
-     * 每个 CNF 子句转换为多项式约束：
-     *   子句 (l1 v l2 v ... v ln) 对应多项式 (1 - l1)(1 - l2)...(1 - ln) = 0
-     *   其中文字 li 映射为变量 xi（正文字）或 (1 - xi)（负文字）。
-     * 这里使用简化编码：直接将子句作为多项式输入。 */
+    /* 将 CNF 子句编码为忠实布尔 Groebner 系统（编码在
+     * lv_groebner_parallel_compute 内部完成）：
+     *   变量 xi（i = 1..n，n = 所有子句中 |文字| 的最大值），
+     *   布尔公理 xi^2 - xi = 0 显式加入基；
+     *   子句 (l1 v ... v lk) 编码为多项式 ∏_j (1 - lj') = 0，
+     *     正文字 lj = xi   -> lj' = xi，因子 (1 - xi)
+     *     负文字 lj = ¬xi  -> lj' = 1 - xi，因子 xi
+     *   子句多项式 = 0 <=> 至少一个因子为 0 <=> 至少一个文字为真。
+     * 输入仍为 SAT 子句数组（int*，0 结尾文字），引擎内部完成编码。 */
     int poly_count = solver->clause_count;
     /* 使用 void* 传递子句数组（Groebner 引擎内部将解析） */
     void **polynomials = (void **) lv_malloc((size_t) poly_count * sizeof(void *));

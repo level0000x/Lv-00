@@ -116,11 +116,10 @@ static int lv_dstr_append_json_string(lvDStr *d, const char *str) {
         return lv_dstr_append_fmt(d, "null");
     }
     size_t len = strlen(str);
-    size_t need = lv_str_json_escape(str, len, NULL, 0);
-    char *buf = (char *) lv_malloc(need + 1);
+    size_t need;
+    char *buf = lv_str_json_escape_alloc(str, len, &need);
     if (!buf)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_dstr_append_json_string: escape buffer alloc failed");
-    lv_str_json_escape(str, len, buf, need + 1);
     int rc = lv_dstr_append_fmt(d, "\"");
     if (rc == 0)
         rc = lv_dstr_append_raw(d, buf, need);
@@ -440,10 +439,8 @@ static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *co
     /* 图级 label：定理名（经 JSON/DOT 转义，原实现未转义） */
     const char *theorem = safe_str(proof->theorem);
     size_t t_len = strlen(theorem);
-    size_t t_need = lv_str_json_escape(theorem, t_len, NULL, 0);
-    char *t_esc = (char *) lv_malloc(t_need + 1);
+    char *t_esc = lv_str_json_escape_alloc(theorem, t_len, NULL);
     if (t_esc) {
-        lv_str_json_escape(theorem, t_len, t_esc, t_need + 1);
         lv_strbuf_printf(&sb, "    label=\"%s\";\n", t_esc);
         lv_free((void **) &t_esc);
     }

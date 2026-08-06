@@ -9,10 +9,7 @@
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-int main(void) {
-    printf("=== test_critical_pair ===\n");
+TEST_MAIN_BEGIN("test_critical_pair")
     /* TODO: add actual critical pair tests */
     TEST_ASSERT_CONTINUE(1, "placeholder");
-    printf("Passed: %d, Failed: %d\n", g_pass_count, g_fail_count);
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

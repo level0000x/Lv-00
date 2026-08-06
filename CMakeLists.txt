@@ -709,6 +709,7 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_numeric.c
     core/src/layer2_resource/lv_json.c
     core/src/layer2_resource/lv_event_bus.c
+    core/src/layer2_resource/lv_callback_list.c
     core/src/layer2_resource/lv_config.c
     core/src/layer2_resource/lv.c
     core/src/layer2_resource/context.c
@@ -974,6 +975,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_system/proof_strategy_deductive.c
     core/src/layer4_reasoning/proof_system/proof_strategy_coordinate.c
     core/src/layer4_reasoning/proof_system/proof_strategy_hol_oracle.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_numeric.c
     core/src/layer4_reasoning/proof_trace.c
     core/src/layer4_reasoning/proof/proof_tree.c
     core/src/layer4_reasoning/proof_system/logic_check.c
@@ -1556,8 +1558,8 @@ add_library(lv ALIAS lv_static)
 # ============================================================
 # 辅助函数：添加测试可执行文件
 # ============================================================
-function(add_lv_test name source)
-    add_executable(${name} ${source})
+function(add_lv_test name)
+    add_executable(${name} ${ARGN})
     target_include_directories(${name} PRIVATE
         ${CMAKE_SOURCE_DIR}/test/c
     )
@@ -1567,9 +1569,34 @@ function(add_lv_test name source)
     endif()
 endfunction()
 
-function(add_lv_test_and_register test_name source ctest_name)
-    add_lv_test(${test_name} ${source})
-    add_test(NAME ${ctest_name} COMMAND ${test_name}
+# 历史遗留：ctest 名与 target 名相同的测试（保持现有 CTest 名不变）
+set(LV_SAME_NAME_CTEST_TESTS
+    test_ga_multivector test_geo_invariant test_interval_arithmetic
+    test_gappa_dsl test_smt_bitvector test_proof_rule_engine
+    test_nt_number_theory test_sym_expr test_rewrite_strategy
+    test_proof_version test_autodiff)
+
+# 自动推导注册：源路径默认 test/c/<name>.c；ctest 名按既有命名规律推导，保持不变：
+#   test_<x>_<y>_...            → <x>_<y>_..._test         （一般规则）
+#   test_axiom_<x>_<y>_...      → <x>_<y>_..._axiom_test   （56 个公理包测试的既有规律）
+#   同名特例（LV_SAME_NAME_CTEST_TESTS）→ ctest 名与 target 名相同（历史遗留）
+# EXTRA_SOURCES 供多源特例使用（如 test_prop_verifier 直接编译 prop_verifier 各源文件）
+function(add_lv_test_auto name)
+    cmake_parse_arguments(_lvta "" "" "EXTRA_SOURCES" ${ARGN})
+    add_lv_test(${name} test/c/${name}.c ${_lvta_EXTRA_SOURCES})
+    if(name MATCHES "^test_axiom_[a-z]+_[a-z_]+$" AND NOT name STREQUAL "test_axiom_pkg")
+        string(SUBSTRING "${name}" 5 -1 _lvta_rest)
+        string(REGEX REPLACE "^axiom_(.+)$" "\\1_axiom" _lvta_ctest "${_lvta_rest}")
+        set(_lvta_ctest "${_lvta_ctest}_test")
+    elseif(name IN_LIST LV_SAME_NAME_CTEST_TESTS)
+        set(_lvta_ctest "${name}")
+    elseif(name MATCHES "^test_")
+        string(SUBSTRING "${name}" 5 -1 _lvta_rest)
+        set(_lvta_ctest "${_lvta_rest}_test")
+    else()
+        set(_lvta_ctest "${name}_test")
+    endif()
+    add_test(NAME "${_lvta_ctest}" COMMAND "${name}"
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endfunction()
 
@@ -1580,208 +1607,116 @@ if(BUILD_TESTS)
     enable_testing()
 
     # 正式模块测试（注册到 CTest）
-    add_lv_test_and_register(test_basic
-        test/c/test_basic.c basic_test)
-    add_lv_test_and_register(test_edge_cases
-        test/c/test_edge_cases.c edge_cases_test)
-    add_lv_test_and_register(test_complex_graph
-        test/c/test_complex_graph.c complex_graph_test)
-    add_lv_test_and_register(test_normalization
-        test/c/test_normalization.c normalization_test)
-    add_lv_test_and_register(test_constraint_graph_ops
-        test/c/test_constraint_graph_ops.c constraint_graph_ops_test)
+    add_lv_test_auto(test_basic)
+    add_lv_test_auto(test_edge_cases)
+    add_lv_test_auto(test_complex_graph)
+    add_lv_test_auto(test_normalization)
+    add_lv_test_auto(test_constraint_graph_ops)
     # 图哈希模块测试
-    add_lv_test_and_register(test_graph_hash
-        test/c/test_graph_hash.c graph_hash_test)
-    add_lv_test_and_register(test_constraint_compatibility
-        test/c/test_constraint_compatibility.c constraint_compatibility_test)
-    add_lv_test_and_register(test_unify
-        test/c/test_unify.c unify_test)
-    add_lv_test_and_register(test_func_block
-        test/c/test_func_block.c func_block_test)
-    add_lv_test_and_register(test_solver
-        test/c/test_solver.c solver_test)
-    add_lv_test_and_register(test_solver_enhanced
-        test/c/test_solver_enhanced.c solver_enhanced_test)
-    add_lv_test_and_register(test_groebner_basis
-        test/c/test_groebner_basis.c groebner_basis_test)
-    add_lv_test_and_register(test_rewrite
-        test/c/test_rewrite.c rewrite_test)
-    add_lv_test_and_register(test_critical_pair
-        test/c/test_critical_pair.c critical_pair_test)
-    add_lv_test_and_register(test_type_system
-        test/c/test_type_system.c type_system_test)
-    add_lv_test_and_register(test_type_equiv_explorer
-        test/c/test_type_equiv_explorer.c type_equiv_explorer_test)
-    add_lv_test_and_register(test_proof
-        test/c/test_proof.c proof_test)
-    add_lv_test_and_register(test_axiom_pkg
-        test/c/test_axiom_pkg.c axiom_pkg_test)
-    add_lv_test_and_register(test_template_test
-        test/c/test_template_test.c template_test_test)
-    add_lv_test_and_register(test_module
-        test/c/test_module.c module_test)
-    add_lv_test_and_register(test_graph_serialize
-        test/c/test_graph_serialize.c graph_serialize_test)
-    add_lv_test_and_register(test_recursion
-        test/c/test_recursion.c recursion_test)
-    add_lv_test_and_register(test_implementation
-        test/c/test_implementation.c implementation_test)
-    add_lv_test_and_register(test_minimal_parse
-        test/c/test_minimal_parse.c minimal_parse_test)
-    add_lv_test_and_register(test_axiom_euclidean_plane
-        test/c/test_axiom_euclidean_plane.c euclidean_plane_axiom_test)
-    add_lv_test_and_register(test_axiom_boolean_algebra
-        test/c/test_axiom_boolean_algebra.c boolean_algebra_axiom_test)
-    add_lv_test_and_register(test_axiom_classical_propositional_logic
-        test/c/test_axiom_classical_propositional_logic.c classical_propositional_logic_axiom_test)
-    add_lv_test_and_register(test_axiom_group_theory
-        test/c/test_axiom_group_theory.c group_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_zfc_set_theory
-        test/c/test_axiom_zfc_set_theory.c zfc_set_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_ring_theory
-        test/c/test_axiom_ring_theory.c ring_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_intuitionistic_logic
-        test/c/test_axiom_intuitionistic_logic.c intuitionistic_logic_axiom_test)
-    add_lv_test_and_register(test_axiom_intuitionistic_propositional_logic
-        test/c/test_axiom_intuitionistic_propositional_logic.c intuitionistic_propositional_logic_axiom_test)
-    add_lv_test_and_register(test_axiom_category_theory
-        test/c/test_axiom_category_theory.c category_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_point_set_topology
-        test/c/test_axiom_point_set_topology.c point_set_topology_axiom_test)
-    add_lv_test_and_register(test_axiom_hyperbolic_geometry
-        test/c/test_axiom_hyperbolic_geometry.c hyperbolic_geometry_axiom_test)
-    add_lv_test_and_register(test_axiom_elliptic_geometry
-        test/c/test_axiom_elliptic_geometry.c elliptic_geometry_axiom_test)
-    add_lv_test_and_register(test_axiom_simple_type_theory
-        test/c/test_axiom_simple_type_theory.c simple_type_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_field_theory
-        test/c/test_axiom_field_theory.c field_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_nbg_set_theory
-        test/c/test_axiom_nbg_set_theory.c nbg_set_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_real_analysis
-        test/c/test_axiom_real_analysis.c real_analysis_axiom_test)
-    add_lv_test_and_register(test_axiom_combinatorics
-        test/c/test_axiom_combinatorics.c combinatorics_axiom_test)
-    add_lv_test_and_register(test_axiom_algebraic_topology
-        test/c/test_axiom_algebraic_topology.c algebraic_topology_axiom_test)
-    add_lv_test_and_register(test_axiom_model_theory
-        test/c/test_axiom_model_theory.c model_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_dependent_type_theory
-        test/c/test_axiom_dependent_type_theory.c dependent_type_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_homological_algebra
-        test/c/test_axiom_homological_algebra.c homological_algebra_axiom_test)
-    add_lv_test_and_register(test_axiom_universal_algebra
-        test/c/test_axiom_universal_algebra.c universal_algebra_axiom_test)
-    add_lv_test_and_register(test_axiom_differential_geometry
-        test/c/test_axiom_differential_geometry.c differential_geometry_axiom_test)
-    add_lv_test_and_register(test_axiom_number_theory
-        test/c/test_axiom_number_theory.c number_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_functional_analysis
-        test/c/test_axiom_functional_analysis.c functional_analysis_axiom_test)
-    add_lv_test_and_register(test_axiom_algebraic_geometry
-        test/c/test_axiom_algebraic_geometry.c algebraic_geometry_axiom_test)
-    add_lv_test_and_register(test_axiom_proof_theory
-        test/c/test_axiom_proof_theory.c proof_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_homotopy_type_theory
-        test/c/test_axiom_homotopy_type_theory.c homotopy_type_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_affine_geometry
-        test/c/test_axiom_affine_geometry.c affine_geometry_axiom_test)
-    add_lv_test_and_register(test_axiom_projective_geometry
-        test/c/test_axiom_projective_geometry.c projective_geometry_axiom_test)
-    add_lv_test_and_register(test_axiom_lattice_theory
-        test/c/test_axiom_lattice_theory.c lattice_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_lie_theory
-        test/c/test_axiom_lie_theory.c lie_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_modal_logic
-        test/c/test_axiom_modal_logic.c modal_logic_axiom_test)
-    add_lv_test_and_register(test_axiom_linear_logic
-        test/c/test_axiom_linear_logic.c linear_logic_axiom_test)
-    add_lv_test_and_register(test_axiom_metric_space
-        test/c/test_axiom_metric_space.c metric_space_axiom_test)
-    add_lv_test_and_register(test_axiom_game_theory
-        test/c/test_axiom_game_theory.c game_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_information_theory
-        test/c/test_axiom_information_theory.c information_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_descriptive_set_theory
-        test/c/test_axiom_descriptive_set_theory.c descriptive_set_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_domain_theory
-        test/c/test_axiom_domain_theory.c domain_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_computability_theory
-        test/c/test_axiom_computability_theory.c computability_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_computational_complexity_theory
-        test/c/test_axiom_computational_complexity_theory.c computational_complexity_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_presburger_arithmetic
-        test/c/test_axiom_presburger_arithmetic.c presburger_arithmetic_axiom_test)
-    add_lv_test_and_register(test_utils
-        test/c/test_utils.c utils_test)
-    add_lv_test_and_register(test_stream
-        test/c/test_stream.c stream_test)
-    add_lv_test_and_register(test_stream_extended
-        test/c/test_stream_extended.c stream_extended_test)
-    add_lv_test_and_register(test_func_block_utils
-        test/c/test_func_block_utils.c func_block_utils_test)
+    add_lv_test_auto(test_graph_hash)
+    add_lv_test_auto(test_constraint_compatibility)
+    add_lv_test_auto(test_unify)
+    add_lv_test_auto(test_func_block)
+    add_lv_test_auto(test_solver)
+    add_lv_test_auto(test_solver_enhanced)
+    add_lv_test_auto(test_groebner_basis)
+    add_lv_test_auto(test_rewrite)
+    add_lv_test_auto(test_critical_pair)
+    add_lv_test_auto(test_type_system)
+    add_lv_test_auto(test_type_equiv_explorer)
+    add_lv_test_auto(test_proof)
+    add_lv_test_auto(test_axiom_pkg)
+    add_lv_test_auto(test_template_test)
+    add_lv_test_auto(test_module)
+    add_lv_test_auto(test_graph_serialize)
+    add_lv_test_auto(test_recursion)
+    add_lv_test_auto(test_implementation)
+    add_lv_test_auto(test_minimal_parse)
+    add_lv_test_auto(test_axiom_euclidean_plane)
+    add_lv_test_auto(test_axiom_boolean_algebra)
+    add_lv_test_auto(test_axiom_classical_propositional_logic)
+    add_lv_test_auto(test_axiom_group_theory)
+    add_lv_test_auto(test_axiom_zfc_set_theory)
+    add_lv_test_auto(test_axiom_ring_theory)
+    add_lv_test_auto(test_axiom_intuitionistic_logic)
+    add_lv_test_auto(test_axiom_intuitionistic_propositional_logic)
+    add_lv_test_auto(test_axiom_category_theory)
+    add_lv_test_auto(test_axiom_point_set_topology)
+    add_lv_test_auto(test_axiom_hyperbolic_geometry)
+    add_lv_test_auto(test_axiom_elliptic_geometry)
+    add_lv_test_auto(test_axiom_simple_type_theory)
+    add_lv_test_auto(test_axiom_field_theory)
+    add_lv_test_auto(test_axiom_nbg_set_theory)
+    add_lv_test_auto(test_axiom_real_analysis)
+    add_lv_test_auto(test_axiom_combinatorics)
+    add_lv_test_auto(test_axiom_algebraic_topology)
+    add_lv_test_auto(test_axiom_model_theory)
+    add_lv_test_auto(test_axiom_dependent_type_theory)
+    add_lv_test_auto(test_axiom_homological_algebra)
+    add_lv_test_auto(test_axiom_universal_algebra)
+    add_lv_test_auto(test_axiom_differential_geometry)
+    add_lv_test_auto(test_axiom_number_theory)
+    add_lv_test_auto(test_axiom_functional_analysis)
+    add_lv_test_auto(test_axiom_algebraic_geometry)
+    add_lv_test_auto(test_axiom_proof_theory)
+    add_lv_test_auto(test_axiom_homotopy_type_theory)
+    add_lv_test_auto(test_axiom_affine_geometry)
+    add_lv_test_auto(test_axiom_projective_geometry)
+    add_lv_test_auto(test_axiom_lattice_theory)
+    add_lv_test_auto(test_axiom_lie_theory)
+    add_lv_test_auto(test_axiom_modal_logic)
+    add_lv_test_auto(test_axiom_linear_logic)
+    add_lv_test_auto(test_axiom_metric_space)
+    add_lv_test_auto(test_axiom_game_theory)
+    add_lv_test_auto(test_axiom_information_theory)
+    add_lv_test_auto(test_axiom_descriptive_set_theory)
+    add_lv_test_auto(test_axiom_domain_theory)
+    add_lv_test_auto(test_axiom_computability_theory)
+    add_lv_test_auto(test_axiom_computational_complexity_theory)
+    add_lv_test_auto(test_axiom_presburger_arithmetic)
+    add_lv_test_auto(test_utils)
+    add_lv_test_auto(test_stream)
+    add_lv_test_auto(test_stream_extended)
+    add_lv_test_auto(test_func_block_utils)
     # 恢复：preset_blocks.c 已加入 Layer 4 构建列表，依赖已满足
-    add_lv_test_and_register(test_func_block_preset
-        test/c/test_func_block_preset.c func_block_preset_test)
-    add_lv_test_and_register(test_error_codes
-        test/c/test_error_codes.c error_codes_test)
+    add_lv_test_auto(test_func_block_preset)
+    add_lv_test_auto(test_error_codes)
     # 恢复：interop.c 已在 Layer 5 构建列表中，依赖已满足
-    add_lv_test_and_register(test_interop
-        test/c/test_interop.c interop_test)
+    add_lv_test_auto(test_interop)
     # 新增：高维结构模块测试
-    add_lv_test_and_register(test_high_dim
-        test/c/test_high_dim.c high_dim_test)
+    add_lv_test_auto(test_high_dim)
     # 新增：符号坐标系统测试
-    add_lv_test_and_register(test_symbolic_coord
-        test/c/test_symbolic_coord.c symbolic_coord_test)
+    add_lv_test_auto(test_symbolic_coord)
     # 新增：v1.1.0 新模块集成测试
-    add_lv_test_and_register(test_rational
-        test/c/test_rational.c rational_test)
-    add_lv_test_and_register(test_expr_canon
-        test/c/test_expr_canon.c expr_canon_test)
-    add_lv_test_and_register(test_proof_trace
-        test/c/test_proof_trace.c proof_trace_test)
+    add_lv_test_auto(test_rational)
+    add_lv_test_auto(test_expr_canon)
+    add_lv_test_auto(test_proof_trace)
     # v1.1.0 新模块集成测试
-    add_lv_test_and_register(test_new_modules
-        test/c/test_new_modules.c new_modules_test)
-    add_lv_test_and_register(test_circuit_breaker
-        test/c/test_circuit_breaker.c circuit_breaker_test)
+    add_lv_test_auto(test_new_modules)
+    add_lv_test_auto(test_circuit_breaker)
     # v3.4.0 新增：几何代数模块测试
-    add_lv_test_and_register(test_ga_multivector
-        test/c/test_ga_multivector.c test_ga_multivector)
-    add_lv_test_and_register(test_geo_invariant
-        test/c/test_geo_invariant.c test_geo_invariant)
+    add_lv_test_auto(test_ga_multivector)
+    add_lv_test_auto(test_geo_invariant)
     # v3.4.0 新增：区间/数值验证模块测试
-    add_lv_test_and_register(test_interval_arithmetic
-        test/c/test_interval_arithmetic.c test_interval_arithmetic)
-    add_lv_test_and_register(test_gappa_dsl
-        test/c/test_gappa_dsl.c test_gappa_dsl)
+    add_lv_test_auto(test_interval_arithmetic)
+    add_lv_test_auto(test_gappa_dsl)
     # v3.4.0 新增：SMT/SAT 模块测试
-    add_lv_test_and_register(test_smt_bitvector
-        test/c/test_smt_bitvector.c test_smt_bitvector)
+    add_lv_test_auto(test_smt_bitvector)
     # v3.4.0 新增：证明策略模块测试
-    add_lv_test_and_register(test_proof_rule_engine
-        test/c/test_proof_rule_engine.c test_proof_rule_engine)
+    add_lv_test_auto(test_proof_rule_engine)
     # v3.4.0 新增：数论/代数模块测试
-    add_lv_test_and_register(test_nt_number_theory
-        test/c/test_nt_number_theory.c test_nt_number_theory)
-    add_lv_test_and_register(test_sym_expr
-        test/c/test_sym_expr.c test_sym_expr)
+    add_lv_test_auto(test_nt_number_theory)
+    add_lv_test_auto(test_sym_expr)
     # v3.4.0 新增：重写引擎测试
-    add_lv_test_and_register(test_rewrite_strategy
-        test/c/test_rewrite_strategy.c test_rewrite_strategy)
-    add_lv_test_and_register(test_rewrite_strategy_impl
-        test/c/test_rewrite_strategy_impl.c rewrite_strategy_impl_test)
+    add_lv_test_auto(test_rewrite_strategy)
+    add_lv_test_auto(test_rewrite_strategy_impl)
     # v3.4.0 新增：版本控制测试
-    add_lv_test_and_register(test_proof_version
-        test/c/test_proof_version.c test_proof_version)
+    add_lv_test_auto(test_proof_version)
     # v3.4.0 新增：自动微分测试
-    add_lv_test_and_register(test_autodiff
-        test/c/test_autodiff.c test_autodiff)
-    # prop_verifier 测试：链接 lv 库以获取 lv_malloc/lv_free 等工具函数
+    add_lv_test_auto(test_autodiff)
+    # prop_verifier 测试：直接编译 prop_verifier 各源文件（链接 lv 库以获取 lv_malloc/lv_free 等工具函数）
     # [QA] Also listed in lv_LAYER4_SOURCES; test target requires separate compilation
-    add_executable(test_prop_verifier test/c/test_prop_verifier.c
+    add_lv_test_auto(test_prop_verifier EXTRA_SOURCES
         core/src/layer4_reasoning/proof_system/prop_verifier.c
         core/src/layer4_reasoning/proof_system/prop_verifier_formula.c
         core/src/layer4_reasoning/proof_system/prop_verifier_compare.c
@@ -1801,183 +1736,130 @@ if(BUILD_TESTS)
         core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c
         core/src/layer4_reasoning/proof_system/prop_formula_ops.c)
     target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv)
-    target_link_libraries(test_prop_verifier lv ${GMP_LIBRARIES})
-    if(WIN32)
-        target_link_libraries(test_prop_verifier ws2_32)
-    endif()
-    add_test(NAME prop_verifier_test COMMAND test_prop_verifier
-             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     # v3.6.0 新增：WFC 范式三模块集成测试
-    add_lv_test_and_register(test_wfc_modules
-        test/c/test_wfc_modules.c wfc_modules_test)
+    add_lv_test_auto(test_wfc_modules)
 
     # v3.5.0 新增：几何约束求解器模块测试
-    add_lv_test_and_register(test_geo_constraint_solver
-        test/c/test_geo_constraint_solver.c geo_constraint_solver_test)
-    add_lv_test_and_register(test_geo_constraint_solver_ext
-        test/c/test_geo_constraint_solver_ext.c geo_constraint_solver_ext_test)
+    add_lv_test_auto(test_geo_constraint_solver)
+    add_lv_test_auto(test_geo_constraint_solver_ext)
     # ODE 求解器模块测试
-    add_lv_test_and_register(test_ode_solver
-        test/c/test_ode_solver.c ode_solver_test)
-    add_lv_test_and_register(test_proof_export_enhanced
-        test/c/test_proof_export_enhanced.c proof_export_enhanced_test)
-    add_lv_test_and_register(test_performance
-        test/c/test_performance.c performance_test)
+    add_lv_test_auto(test_ode_solver)
+    add_lv_test_auto(test_proof_export_enhanced)
+    add_lv_test_auto(test_performance)
     # 内存管理综合测试
-    add_lv_test_and_register(test_memory_management
-        test/c/test_memory_management.c memory_management_test)
+    add_lv_test_auto(test_memory_management)
     # 最小化群论公理加载测试
-    add_lv_test_and_register(test_group_minimal
-        test/c/test_group_minimal.c group_minimal_test)
+    add_lv_test_auto(test_group_minimal)
     # 几何拓扑模块测试
-    add_lv_test_and_register(test_geo_topology
-        test/c/test_geo_topology.c geo_topology_test)
+    add_lv_test_auto(test_geo_topology)
     # 几何谓词模块测试
-    add_lv_test_and_register(test_geo_predicate
-        test/c/test_geo_predicate.c geo_predicate_test)
+    add_lv_test_auto(test_geo_predicate)
     # Halfedge 网格拓扑模块测试
-    add_lv_test_and_register(test_geo_halfedge_mesh
-        test/c/test_geo_halfedge_mesh.c geo_halfedge_mesh_test)
+    add_lv_test_auto(test_geo_halfedge_mesh)
     # 动态几何依赖图模块测试
-    add_lv_test_and_register(test_geo_dynamic
-        test/c/test_geo_dynamic.c geo_dynamic_test)
+    add_lv_test_auto(test_geo_dynamic)
     # 几何可视化渲染模块测试
-    add_lv_test_and_register(test_geo_visual
-        test/c/test_geo_visual.c geo_visual_test)
+    add_lv_test_auto(test_geo_visual)
     # v3.6.0 WFC 约束传播引擎测试
-    add_lv_test_and_register(test_propagation
-        test/c/test_propagation.c propagation_test)
+    add_lv_test_auto(test_propagation)
     # v3.6.0 等价类管理器测试
-    add_lv_test_and_register(test_equiv_class
-        test/c/test_equiv_class.c equiv_class_test)
+    add_lv_test_auto(test_equiv_class)
     # v3.6.0 交互几何系统测试
-    add_lv_test_and_register(test_interactive_geo
-        test/c/test_interactive_geo.c interactive_geo_test)
+    add_lv_test_auto(test_interactive_geo)
     # v3.7.0 几何变换预设测试
-    add_lv_test_and_register(test_geom_transform_presets
-        test/c/test_geom_transform_presets.c geom_transform_presets_test)
+    add_lv_test_auto(test_geom_transform_presets)
     # AABB 树空间索引模块测试
-    add_lv_test_and_register(test_geo_aabb_tree
-        test/c/test_geo_aabb_tree.c geo_aabb_tree_test)
+    add_lv_test_auto(test_geo_aabb_tree)
     # 错误处理与边界条件测试
-    add_lv_test_and_register(test_error_handling
-        test/c/test_error_handling.c error_handling_test)
+    add_lv_test_auto(test_error_handling)
     # 矛盾约束检测器测试
-    add_lv_test_and_register(test_conflict_detector
-        test/c/test_conflict_detector.c conflict_detector_test)
-    add_lv_test_and_register(test_adaptive_threshold
-        test/c/test_adaptive_threshold.c adaptive_threshold_test)
+    add_lv_test_auto(test_conflict_detector)
+    add_lv_test_auto(test_adaptive_threshold)
     # 引擎核心操作测试
-    add_lv_test_and_register(test_engine_ops
-        test/c/test_engine_ops.c engine_ops_test)
+    add_lv_test_auto(test_engine_ops)
     # 引擎调度器测试
-    add_lv_test_and_register(test_engine_scheduler
-        test/c/test_engine_scheduler.c engine_scheduler_test)
+    add_lv_test_auto(test_engine_scheduler)
     # 信任颜色映射系统测试（Gap 1）
-    add_lv_test_and_register(test_trust_color
-        test/c/test_trust_color.c trust_color_test)
+    add_lv_test_auto(test_trust_color)
     # Layer5 输出层操作测试
-    add_lv_test_and_register(test_layer5_output_ops
-        test/c/test_layer5_output_ops.c layer5_output_ops_test)
+    add_lv_test_auto(test_layer5_output_ops)
     # 求解器调试测试
-    add_lv_test_and_register(test_solve_debug
-        test/c/test_solve_debug.c solve_debug_test)
+    add_lv_test_auto(test_solve_debug)
     # .lv 词法分析器测试
-    add_lv_test_and_register(test_lv_lexer
-        test/c/test_lv_lexer.c lv_lexer_test)
+    add_lv_test_auto(test_lv_lexer)
 
     # .lv 解析器测试
-    add_lv_test_and_register(test_lv_parser
-        test/c/test_lv_parser.c lv_parser_test)
+    add_lv_test_auto(test_lv_parser)
 
     # v1.9.0 micro-bootstrap: 集成测试
-    add_lv_test_and_register(test_lv_bootstrap
-        test/c/test_lv_bootstrap.c lv_bootstrap_test)
+    add_lv_test_auto(test_lv_bootstrap)
 
     # 元验证逻辑测试
-    add_lv_test_and_register(test_meta_verify
-        test/c/test_meta_verify.c meta_verify_test)
+    add_lv_test_auto(test_meta_verify)
 
     # λ-演算端到端测试（Church 数字编码、β-归约、Y 组合子）
-    add_lv_test_and_register(test_lambda_church
-        test/c/test_lambda_church.c lambda_church_test)
+    add_lv_test_auto(test_lambda_church)
 
     # λ-演算 β-归约结果验证（图结构指纹比对）
-    add_lv_test_and_register(test_lambda_eval
-        test/c/test_lambda_eval.c lambda_eval_test)
+    add_lv_test_auto(test_lambda_eval)
 
     # λ-演算句法合一 + Miller 模式合一测试
-    add_lv_test_and_register(test_lambda_unify
-        test/c/test_lambda_unify.c lambda_unify_test)
+    add_lv_test_auto(test_lambda_unify)
 
     # 新增公理包测试
-    add_lv_test_and_register(test_axiom_topos_theory
-        test/c/test_axiom_topos_theory.c topos_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_synthetic_differential_geometry
-        test/c/test_axiom_synthetic_differential_geometry.c synthetic_differential_geometry_axiom_test)
-    add_lv_test_and_register(test_axiom_second_order_arithmetic
-        test/c/test_axiom_second_order_arithmetic.c second_order_arithmetic_axiom_test)
-    add_lv_test_and_register(test_axiom_robin_arithmetic
-        test/c/test_axiom_robin_arithmetic.c robin_arithmetic_axiom_test)
-    add_lv_test_and_register(test_axiom_quantum_information_theory
-        test/c/test_axiom_quantum_information_theory.c quantum_information_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_probability_theory
-        test/c/test_axiom_probability_theory.c probability_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_peano_arithmetic
-        test/c/test_axiom_peano_arithmetic.c peano_arithmetic_axiom_test)
-    add_lv_test_and_register(test_axiom_order_theory
-        test/c/test_axiom_order_theory.c order_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_non_well_founded_set_theory
-        test/c/test_axiom_non_well_founded_set_theory.c non_well_founded_set_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_measure_theory
-        test/c/test_axiom_measure_theory.c measure_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_linear_algebra
-        test/c/test_axiom_linear_algebra.c linear_algebra_axiom_test)
-    add_lv_test_and_register(test_axiom_graph_theory
-        test/c/test_axiom_graph_theory.c graph_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_galois_theory
-        test/c/test_axiom_galois_theory.c galois_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_ergodic_theory
-        test/c/test_axiom_ergodic_theory.c ergodic_theory_axiom_test)
-    add_lv_test_and_register(test_axiom_cartesian_closed_category
-        test/c/test_axiom_cartesian_closed_category.c cartesian_closed_category_axiom_test)
+    add_lv_test_auto(test_axiom_topos_theory)
+    add_lv_test_auto(test_axiom_synthetic_differential_geometry)
+    add_lv_test_auto(test_axiom_second_order_arithmetic)
+    add_lv_test_auto(test_axiom_robin_arithmetic)
+    add_lv_test_auto(test_axiom_quantum_information_theory)
+    add_lv_test_auto(test_axiom_probability_theory)
+    add_lv_test_auto(test_axiom_peano_arithmetic)
+    add_lv_test_auto(test_axiom_order_theory)
+    add_lv_test_auto(test_axiom_non_well_founded_set_theory)
+    add_lv_test_auto(test_axiom_measure_theory)
+    add_lv_test_auto(test_axiom_linear_algebra)
+    add_lv_test_auto(test_axiom_graph_theory)
+    add_lv_test_auto(test_axiom_galois_theory)
+    add_lv_test_auto(test_axiom_ergodic_theory)
+    add_lv_test_auto(test_axiom_cartesian_closed_category)
 
     # === New tests: Layer 3 geometry core ===
-    add_lv_test_and_register(test_symbolic_coord_ops
-        test/c/test_symbolic_coord_ops.c symbolic_coord_ops_test)
-    add_lv_test_and_register(test_geometry_core
-        test/c/test_geometry_core.c geometry_core_test)
+    add_lv_test_auto(test_symbolic_coord_ops)
+    add_lv_test_auto(test_geometry_core)
 
     # === New tests: Layer 4 backends ===
-    add_lv_test_and_register(test_smt_backend
-        test/c/test_smt_backend.c smt_backend_test)
-    add_lv_test_and_register(test_bdd_sat_atp
-        test/c/test_bdd_sat_atp.c bdd_sat_atp_test)
+    add_lv_test_auto(test_smt_backend)
+    add_lv_test_auto(test_bdd_sat_atp)
 
     # === New tests: Layer 4 solver submodules ===
-    add_lv_test_and_register(test_solver_submodules
-        test/c/test_solver_submodules.c solver_submodules_test)
+    add_lv_test_auto(test_solver_submodules)
 
     # === New tests: Layer 4 misc (mini_kernel / relation_model / algebra_mode / rewrite) ===
-    add_lv_test_and_register(test_layer4_misc
-        test/c/test_layer4_misc.c layer4_misc_test)
+    add_lv_test_auto(test_layer4_misc)
 
     # === New tests: Layer 5 output (magic / plugin / tikz / proof_compiler / protocol) ===
-    add_lv_test_and_register(test_layer5_output
-        test/c/test_layer5_output.c layer5_output_test)
-    add_lv_test_and_register(test_layer5_core
-        test/c/test_layer5_core.c layer5_core_test)
-    add_lv_test_and_register(test_output_export
-        test/c/test_output_export.c output_export_test)
+    add_lv_test_auto(test_layer5_output)
+    add_lv_test_auto(test_layer5_core)
+    add_lv_test_auto(test_output_export)
 
     # === New tests: Layer 6 visual (canvas / scheduler / type / converter) ===
-    add_lv_test_and_register(test_layer6_visual
-        test/c/test_layer6_visual.c layer6_visual_test)
+    add_lv_test_auto(test_layer6_visual)
 
     # === New tests: Proof infrastructure (command_log / proof_navigator / dependency) ===
-    add_lv_test_and_register(test_proof_infra
-        test/c/test_proof_infra.c proof_infra_test)
+    add_lv_test_auto(test_proof_infra)
+
+    # v3.7.0 新增：数值验证策略测试（proof_strategy_numeric.c）与
+    # 区间算术公共库扩展函数测试（interval_arith.c）
+    add_lv_test_auto(test_proof_strategy_numeric)
+    add_lv_test_auto(test_interval_arith)
+
+    # 公共设施与规则/桥接守护测试：lvCallbackList、并行 Groebner 忠实
+    # 布尔编码、数值验证规则入口、经典策略桥接
+    add_lv_test_auto(test_callback_list)
+    add_lv_test_auto(test_groebner_parallel)
+    add_lv_test_auto(test_proof_rule_numeric)
+    add_lv_test_auto(test_proof_strategy_legacy)
 
     # 基准测试（构建但不注册到 CTest，手动运行）
     add_lv_test(test_benchmark test/c/test_benchmark.c)

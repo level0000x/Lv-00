@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/engine.h"
 #include "lv/proof.h"
 #include "lv/solver.h"
 #include "lv/lv_xmacro.h"
@@ -30,6 +31,7 @@
 #include "lv/lambda_to_graph.h"
 #include "lv/lambda_unify.h"
 #include "normalization.h"
+#include "proof_engine_enhanced.h" /* 经典策略引擎（系统A）：桥接策略依赖其公共入口 */
 #include "proof_multi_strategy_internal.h"
 #include "type_system.h"
 #include "unify.h"
@@ -231,7 +233,79 @@ typedef struct {
     bool (*applicability_check)(const struct ProofMultiStrategy *, const ConstraintGraph *, const Proposition *);
     bool (*execute)(struct ProofMultiStrategy *, ProofNavigator *);
     ProofSearchAlgorithm search_algorithm; /**< 该策略使用的证明搜索算法（默认 DFS） */
+    const char **required_axiom_packages;  /**< 依赖的公理包名称列表（静态字符串，填充时逐项深拷贝） */
+    int axiom_package_count;               /**< 依赖的公理包数量（0 = 无依赖） */
 } StrategyRegistration;
+
+/* ── 经典策略体系（系统A：proof_strategy.c / lvProofEngine）桥接 ──
+ * 两套平行策略体系并存：
+ *   A: lvStrategyType（10 策略）+ kStrategyDispatch + lv_proof_engine_prove_with_strategy
+ *   B: ProofStrategyType（12 策略）+ default_strategy_table + proof_multi_strategy_execute
+ * 桥接策略把 B 的执行上下文（ProofNavigator）转交给 A 的公共入口，
+ * 使 A 的 10 个策略对 B 可见，而无需改动 A 的任何策略实现。 */
+
+/**
+ * @brief 桥接枚举 → 经典引擎策略类型映射
+ */
+static lvStrategyType legacy_bridge_to_lv_strategy(ProofStrategyType t) {
+    switch (t) {
+    case PROOF_STRATEGY_LEGACY_DIRECT:         return STRATEGY_DIRECT;
+    case PROOF_STRATEGY_LEGACY_CONTRADICTION:  return STRATEGY_CONTRADICTION;
+    case PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE: return STRATEGY_CONTRAPOSITIVE;
+    case PROOF_STRATEGY_LEGACY_INDUCTION:      return STRATEGY_INDUCTION;
+    case PROOF_STRATEGY_LEGACY_CASES:          return STRATEGY_CASES;
+    case PROOF_STRATEGY_LEGACY_CONSTRUCTION:   return STRATEGY_CONSTRUCTION;
+    case PROOF_STRATEGY_LEGACY_UNFOLDING:      return STRATEGY_UNFOLDING;
+    case PROOF_STRATEGY_LEGACY_BACKWARD:       return STRATEGY_BACKWARD;
+    case PROOF_STRATEGY_LEGACY_FORWARD:        return STRATEGY_FORWARD;
+    case PROOF_STRATEGY_LEGACY_HYBRID:         return STRATEGY_HYBRID;
+    default:                                   return STRATEGY_DIRECT; /* 不可达 */
+    }
+}
+
+/**
+ * @brief 桥接策略适用性检查：经典引擎未挂载时不可用
+ */
+static bool legacy_bridge_applicability_check(const ProofMultiStrategy *mse, const ConstraintGraph *graph,
+                                              const Proposition *prop) {
+    if (!mse || !mse->legacy_proof_engine)
+        return false; /* 未挂载经典引擎：桥接策略不可用 */
+    return (graph != NULL) && (prop != NULL);
+}
+
+/**
+ * @brief 桥接策略执行：将目标转交给经典引擎的公共入口
+ *
+ * 以 nav->target_prop 为目标、nav->construction 为约束图，
+ * 调用 lv_proof_engine_prove_with_strategy 执行对应的 lvStrategyType 策略。
+ * 经典引擎的 graph 由该入口内部设置；navigator 手动挂接以提供完整上下文。
+ */
+static bool execute_legacy_bridge(ProofMultiStrategy *mse, ProofNavigator *nav) {
+    if (!mse || !nav || !nav->target_prop)
+        return false;
+
+    lvProofEngine *pe = mse->legacy_proof_engine;
+    if (!pe)
+        return false;
+
+    if (mse->active_strategy_index < 0 || mse->active_strategy_index >= PROOF_STRATEGY_COUNT)
+        return false;
+
+    ProofStrategyType bridge_type = mse->strategies[mse->active_strategy_index].type;
+    lvStrategyType legacy_type = legacy_bridge_to_lv_strategy(bridge_type);
+
+    pe->navigator = nav;
+
+    lvProofTraceTree *trace = NULL;
+    bool ok = lv_proof_engine_prove_with_strategy(pe, nav->target_prop, nav->construction, legacy_type, &trace);
+
+    /* 切断经典引擎对临时溯源树的引用，避免后续 lv_proof_engine_destroy 二次释放 */
+    pe->current_trace = NULL;
+    if (trace)
+        lv_trace_tree_destroy(trace);
+
+    return ok;
+}
 
 /**
  * @brief 默认策略注册表（新增策略只需在这里添加一条记录）
@@ -254,7 +328,8 @@ static const StrategyRegistration default_strategy_table[] = {
 
     {PROOF_STRATEGY_GROEBNER_BASIS, "Groebner基法",
      "将几何约束转化为多项式方程组，使用Buchberger算法求解",
-     groebner_applicability_check, execute_groebner_basis, PROOF_SEARCH_BFS},
+     groebner_applicability_check, execute_groebner_basis, PROOF_SEARCH_BFS,
+     (const char *[]) { "field_theory" }, 1},
 
     {PROOF_STRATEGY_VECTOR_METHOD, "向量法",
      "使用矢量代数进行几何关系推导",
@@ -266,11 +341,13 @@ static const StrategyRegistration default_strategy_table[] = {
 
     {PROOF_STRATEGY_DEDUCTIVE_DATABASE, "演绎数据库法",
      "前向链推理，从已知条件逐步演绎新事实",
-     default_applicability_check, execute_deductive_database, PROOF_SEARCH_BFS},
+     default_applicability_check, execute_deductive_database, PROOF_SEARCH_BFS,
+     (const char *[]) { "classical_propositional_logic" }, 1},
 
     {PROOF_STRATEGY_COORDINATE, "坐标法",
      "建立坐标系，使用解析几何方法进行计算和验证",
-     default_applicability_check, execute_coordinate, PROOF_SEARCH_BEST_FIRST},
+     default_applicability_check, execute_coordinate, PROOF_SEARCH_BEST_FIRST,
+     (const char *[]) { "field_theory" }, 1},
 
     {PROOF_STRATEGY_LAMBDA_CALCULUS, "λ-演算归约法",
      "通过 β-归约化简 λ-项，基于 Church 编码进行函数式计算",
@@ -287,6 +364,55 @@ static const StrategyRegistration default_strategy_table[] = {
     {PROOF_STRATEGY_ORACLE, "Oracle法",
      "调用外部求解器辅助验证非构造性命題",
      NULL, execute_oracle, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_NUMERIC_VERIFICATION, "数值验证",
+     "使用区间算术求值 + FPTaylor 误差界分级验证浮点数值命题（含实数常量/比较谓词）",
+     numeric_verification_applicability_check, execute_numeric_verification, PROOF_SEARCH_DFS},
+
+    /* ── 经典策略体系（系统A）桥接条目 ──
+     * execute 统一走 execute_legacy_bridge，将目标转交给
+     * lv_proof_engine_prove_with_strategy。默认状态 UNAVAILABLE
+     * （proof_multi_strategy_create 中设置），未挂载经典引擎时
+     * 所有搜索算法跳过这些条目，既有默认行为完全不变。 */
+    {PROOF_STRATEGY_LEGACY_DIRECT, "经典-直接证明",
+     "桥接经典策略引擎：直接证明（合一+规则匹配）",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_CONTRADICTION, "经典-反证法",
+     "桥接经典策略引擎：假设目标否定推导矛盾",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE, "经典-逆否证明",
+     "桥接经典策略引擎：证明目标命题的逆否形式",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_INDUCTION, "经典-数学归纳法",
+     "桥接经典策略引擎：数学归纳法证明",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_CASES, "经典-分情况讨论",
+     "桥接经典策略引擎：分情况讨论证明",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_CONSTRUCTION, "经典-构造性证明",
+     "桥接经典策略引擎：构造性证明",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_UNFOLDING, "经典-定义展开",
+     "桥接经典策略引擎：定义展开证明",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_BACKWARD, "经典-逆向推理",
+     "桥接经典策略引擎：逆向推理证明",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_FORWARD, "经典-正向推理",
+     "桥接经典策略引擎：正向推理证明",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
+
+    {PROOF_STRATEGY_LEGACY_HYBRID, "经典-混合策略",
+     "桥接经典策略引擎：混合策略（正向推理+反证法回退）",
+     legacy_bridge_applicability_check, execute_legacy_bridge, PROOF_SEARCH_DFS},
 };
 
 /**
@@ -306,6 +432,22 @@ static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategy
             desc->applicability_check = default_strategy_table[i].applicability_check;
             desc->execute = default_strategy_table[i].execute;
             desc->search_algorithm = default_strategy_table[i].search_algorithm;
+
+            /* 复制公理包依赖（与 proof_multi_strategy_register 相同的深拷贝约定：
+             * 逐项 lv_strdup_safe，由 destroy 逐项 lv_free 释放） */
+            if (default_strategy_table[i].required_axiom_packages && default_strategy_table[i].axiom_package_count > 0) {
+                desc->axiom_package_count = default_strategy_table[i].axiom_package_count;
+                desc->required_axiom_packages =
+                    (char **) lv_calloc((size_t) desc->axiom_package_count, sizeof(char *));
+                if (desc->required_axiom_packages) {
+                    for (int j = 0; j < desc->axiom_package_count; j++) {
+                        if (default_strategy_table[i].required_axiom_packages[j]) {
+                            desc->required_axiom_packages[j] =
+                                lv_strdup_safe(default_strategy_table[i].required_axiom_packages[j]);
+                        }
+                    }
+                }
+            }
             break;
         }
     }
@@ -332,6 +474,13 @@ ProofMultiStrategy *proof_multi_strategy_create(ProofNavigator *nav) {
     /* Oracle 默认不可用 */
     mse->strategies[PROOF_STRATEGY_ORACLE].status = PROOF_STRATEGY_UNAVAILABLE;
 
+    /* 经典策略桥接默认不可用：未挂载经典引擎时，所有搜索算法
+     * （DFS/BFS/BEST_FIRST/MCTS/sledge/try_all）跳过这些条目，
+     * 保证既有默认行为完全不变；挂载后由 setter 统一启用 */
+    for (int t = PROOF_STRATEGY_LEGACY_DIRECT; t <= PROOF_STRATEGY_LEGACY_HYBRID; t++) {
+        mse->strategies[t].status = PROOF_STRATEGY_UNAVAILABLE;
+    }
+
     /* 分配计时数组 */
     mse->strategy_timings_ms = (int64_t *) lv_calloc(PROOF_STRATEGY_COUNT, sizeof(int64_t));
     if (!mse->strategy_timings_ms) {
@@ -339,16 +488,30 @@ ProofMultiStrategy *proof_multi_strategy_create(ProofNavigator *nav) {
         return NULL;
     }
 
-    /* 默认回退顺序：直接构造 -> 面积法 -> Groebner -> 向量 -> 全角 -> 演绎 -> 坐标 -> HOL Light */
+    /* 默认回退顺序：直接构造 -> 面积法 -> Groebner -> 向量 -> 全角 -> 演绎 -> 坐标 -> HOL Light -> 数值验证 */
     int default_order[] = {
         PROOF_STRATEGY_DIRECT_CONSTRUCTION, PROOF_STRATEGY_AREA_METHOD,       PROOF_STRATEGY_GROEBNER_BASIS,
         PROOF_STRATEGY_VECTOR_METHOD,       PROOF_STRATEGY_FULL_ANGLE_METHOD, PROOF_STRATEGY_DEDUCTIVE_DATABASE,
         PROOF_STRATEGY_COORDINATE,          PROOF_STRATEGY_HOL_LIGHT,
+        PROOF_STRATEGY_NUMERIC_VERIFICATION, /* 追加于末尾：既有策略全部失败后才尝试，纯增量 */
     };
     int default_count = sizeof(default_order) / sizeof(default_order[0]);
     proof_multi_strategy_set_fallback_order(mse, default_order, default_count);
 
     return mse;
+}
+
+void proof_multi_strategy_set_legacy_engine(ProofMultiStrategy *mse, lvProofEngine *engine) {
+    if (!mse)
+        return;
+
+    mse->legacy_proof_engine = engine;
+
+    /* 挂载/卸载经典引擎时同步启用/禁用桥接策略：
+     * 默认 UNAVAILABLE（见 create），保证未挂载时既有行为不变 */
+    for (int t = PROOF_STRATEGY_LEGACY_DIRECT; t <= PROOF_STRATEGY_LEGACY_HYBRID; t++) {
+        mse->strategies[t].status = engine ? PROOF_STRATEGY_AVAILABLE : PROOF_STRATEGY_UNAVAILABLE;
+    }
 }
 
 void proof_multi_strategy_destroy(ProofMultiStrategy *mse) {
@@ -417,6 +580,47 @@ bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyD
     return true;
 }
 
+/* ============== 公理包依赖校验 ============== */
+
+/**
+ * @brief 校验策略声明的公理包依赖是否已全部加载
+ *
+ * 将策略声明的依赖包名与引擎已加载公理包逐一比较
+ * （engine->axiom_packages[0..axiom_package_count) 的 pkg->name，
+ * 包名取自 .lvz 文件首行 `axiom "name" "version"`，与 INDEX.json 键名一致）。
+ *
+ * 未声明依赖（count<=0 或数组为 NULL）恒返回 true —— 保持默认行为不变。
+ * 声明了依赖但引擎/导航器不可用、或任一依赖包未加载 → 返回 false。
+ */
+static bool proof_multi_strategy_axiom_deps_loaded(const ProofMultiStrategy *mse,
+                                                   const ProofStrategyDescriptor *desc) {
+    if (!mse || !desc || desc->axiom_package_count <= 0 || !desc->required_axiom_packages)
+        return true; /* 未声明依赖：恒可用 */
+
+    const ProofNavigator *nav = mse->shared_navigator;
+    const lvEngine *engine = nav ? nav->engine : NULL;
+    if (!engine || engine->axiom_package_count <= 0 || !engine->axiom_packages)
+        return false; /* 声明了依赖，但引擎没有已加载的公理包 */
+
+    for (int i = 0; i < desc->axiom_package_count; i++) {
+        const char *want = desc->required_axiom_packages[i];
+        if (!want || want[0] == '\0')
+            continue; /* 空名称条目忽略 */
+
+        bool found = false;
+        for (int j = 0; j < engine->axiom_package_count; j++) {
+            const AxiomPackage *pkg = engine->axiom_packages[j];
+            if (pkg && pkg->name && strcmp(pkg->name, want) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            return false; /* 任一依赖未加载即视为依赖不足 */
+    }
+    return true;
+}
+
 bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType strategy_type) {
     if (!mse)
         return false;
@@ -426,6 +630,14 @@ bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType st
     ProofStrategyDescriptor *desc = &mse->strategies[strategy_type];
     if (desc->status == PROOF_STRATEGY_UNAVAILABLE)
         return false;
+
+    /* 公理包依赖校验：声明依赖的策略仅在依赖包全部已加载时才可激活；
+     * 依赖不足 → 跳过该策略（不激活、不改状态），不影响其他策略 */
+    if (!proof_multi_strategy_axiom_deps_loaded(mse, desc)) {
+        lv_LOG_WARN("策略 '%s' 因公理包依赖未全部加载被跳过（%d 个依赖）", desc->name ? desc->name : "?",
+                    desc->axiom_package_count);
+        return false;
+    }
 
     /* 取消旧激活 */
     if (mse->active_strategy_index >= 0) {
@@ -524,7 +736,9 @@ bool proof_multi_strategy_pipeline(ProofMultiStrategy *mse, const ProofStrategyT
         if (!desc->execute)
             return false;
 
-        proof_multi_strategy_activate(mse, type);
+        if (!proof_multi_strategy_activate(mse, type)) {
+            return false; /* 流水线中断（含公理包依赖不足） */
+        }
         if (!proof_multi_strategy_execute(mse)) {
             return false; /* 流水线中断 */
         }
@@ -595,6 +809,16 @@ static const lvStrToEnumEntry s_proof_strategy_type_to_string_entries[] = {
     {"λ-演算合一法", PROOF_STRATEGY_LAMBDA_UNIFY},
     {"HOL Light 微内核验证", PROOF_STRATEGY_HOL_LIGHT},
     {"Oracle法", PROOF_STRATEGY_ORACLE},
+    {"经典-直接证明", PROOF_STRATEGY_LEGACY_DIRECT},
+    {"经典-反证法", PROOF_STRATEGY_LEGACY_CONTRADICTION},
+    {"经典-逆否证明", PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE},
+    {"经典-数学归纳法", PROOF_STRATEGY_LEGACY_INDUCTION},
+    {"经典-分情况讨论", PROOF_STRATEGY_LEGACY_CASES},
+    {"经典-构造性证明", PROOF_STRATEGY_LEGACY_CONSTRUCTION},
+    {"经典-定义展开", PROOF_STRATEGY_LEGACY_UNFOLDING},
+    {"经典-逆向推理", PROOF_STRATEGY_LEGACY_BACKWARD},
+    {"经典-正向推理", PROOF_STRATEGY_LEGACY_FORWARD},
+    {"经典-混合策略", PROOF_STRATEGY_LEGACY_HYBRID},
 };
 
 const char *proof_strategy_type_to_string(ProofStrategyType type) {
@@ -643,6 +867,17 @@ static const lvStrToEnumEntry s_proof_strategy_type_to_string_en_entries[] = {
     {"lambda_unify", PROOF_STRATEGY_LAMBDA_UNIFY},
     {"hol_light", PROOF_STRATEGY_HOL_LIGHT},
     {"oracle", PROOF_STRATEGY_ORACLE},
+    {"numeric_verification", PROOF_STRATEGY_NUMERIC_VERIFICATION},
+    {"legacy_direct", PROOF_STRATEGY_LEGACY_DIRECT},
+    {"legacy_contradiction", PROOF_STRATEGY_LEGACY_CONTRADICTION},
+    {"legacy_contrapositive", PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE},
+    {"legacy_induction", PROOF_STRATEGY_LEGACY_INDUCTION},
+    {"legacy_cases", PROOF_STRATEGY_LEGACY_CASES},
+    {"legacy_construction", PROOF_STRATEGY_LEGACY_CONSTRUCTION},
+    {"legacy_unfolding", PROOF_STRATEGY_LEGACY_UNFOLDING},
+    {"legacy_backward", PROOF_STRATEGY_LEGACY_BACKWARD},
+    {"legacy_forward", PROOF_STRATEGY_LEGACY_FORWARD},
+    {"legacy_hybrid", PROOF_STRATEGY_LEGACY_HYBRID},
 };
 
 const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {

@@ -11,7 +11,7 @@
 /**
  * @brief 创建流式上下文
  *
- * 分配并初始化 StreamContext，预分配 STREAM_INITIAL_CALLBACKS 容量的回调数组。
+ * 分配并初始化 StreamContext，回调列表预分配 STREAM_INITIAL_CALLBACKS 容量。
  * @return 新上下文指针，内存不足返回 NULL
  */
 StreamContext *stream_context_create(void) {
@@ -20,13 +20,9 @@ StreamContext *stream_context_create(void) {
         return NULL;
     memset(ctx, 0, sizeof(StreamContext));
 
-    /* 预分配初始容量的回调数组 */
-    ctx->callbacks = (CallbackEntry *) lv_calloc(1, sizeof(CallbackEntry) * STREAM_INITIAL_CALLBACKS);
-    if (!ctx->callbacks) {
-        lv_free((void **) &ctx);
-        return NULL;
-    }
-    ctx->callback_capacity = STREAM_INITIAL_CALLBACKS;
+    /* 初始化回调列表（公共设施）：初始容量 STREAM_INITIAL_CALLBACKS，
+     * 硬上限 STREAM_MAX_CALLBACKS（超过后注册失败） */
+    lv_callback_list_init(&ctx->callback_list, STREAM_INITIAL_CALLBACKS, STREAM_MAX_CALLBACKS);
 
     /* 初始化发射策略：默认立即发射模式 */
     ctx->emit_mode = STREAM_EMIT_IMMEDIATE;
@@ -36,9 +32,6 @@ StreamContext *stream_context_create(void) {
     ctx->buffer_capacity = 0;
     ctx->buffer_head = 0;
     ctx->last_emit_ms = 0;
-
-    /* 初始化回调 ID 计数器 */
-    ctx->next_callback_id = 1;
 
     /* 初始化事件统计 */
     memset(ctx->event_counts, 0, sizeof(ctx->event_counts));
@@ -67,7 +60,7 @@ StreamContext *stream_context_create(void) {
 /**
  * @brief 销毁流式上下文
  *
- * 释放 StreamContext 及其所有资源（包括动态分配的回调数组和事件缓冲区）。
+ * 释放 StreamContext 及其所有资源（包括回调列表和事件缓冲区）。
  * 传入 NULL 安全返回。
  * @param ctx 流式上下文指针
  */
@@ -93,45 +86,8 @@ void stream_context_destroy(StreamContext *ctx) {
     if (ctx->lazy_queue) {
         lv_free((void **) &ctx->lazy_queue);
     }
-    lv_free((void **) &ctx->callbacks);
+    lv_callback_list_cleanup(&ctx->callback_list);
     lv_free((void **) &ctx);
-}
-
-/**
- * @brief 确保回调数组有足够容量（动态扩容）
- *
- * @param ctx        流式上下文
- * @param min_capacity 所需的最小容量
- * @return true 容量足够或扩容成功，false 扩容失败或在硬上限
- */
-static bool stream_ensure_capacity(StreamContext *ctx, int min_capacity) {
-    if (min_capacity <= ctx->callback_capacity)
-        return true;
-    if (min_capacity > STREAM_MAX_CALLBACKS)
-        return false; /* 超过硬上限 */
-
-    /* 先计算目标容量：while 翻倍并钳制到硬上限 STREAM_MAX_CALLBACKS */
-    int new_cap = ctx->callback_capacity;
-    while (new_cap < min_capacity) {
-        if (new_cap > STREAM_MAX_CALLBACKS / 2) {
-            new_cap = STREAM_MAX_CALLBACKS;
-            break;
-        }
-        new_cap *= 2;
-    }
-    if (new_cap > STREAM_MAX_CALLBACKS)
-        new_cap = STREAM_MAX_CALLBACKS;
-
-    int old_cap = ctx->callback_capacity;
-    /* 统一扩容（min_growth 使 min_required = 钳制后的目标容量；
-     * 注：倍增策略下分配容量可能略大于 STREAM_MAX_CALLBACKS，
-     * 硬上限仍由上方 min_capacity 检查保证） */
-    if (!lv_ensure_capacity((void **) &ctx->callbacks, old_cap,
-                            &ctx->callback_capacity, sizeof(CallbackEntry),
-                            new_cap - old_cap))
-        return false;
-
-    return true;
 }
 
 /* ==================== 回调管理 ==================== */
@@ -150,18 +106,8 @@ bool stream_register_callback(StreamContext *ctx, StreamCallback callback, void 
     if (!ctx || !callback)
         return false;
 
-    /* 动态扩容确保足够容量 */
-    if (!stream_ensure_capacity(ctx, ctx->callback_count + 1)) {
-        return false; /* 超过硬上限或内存分配失败 */
-    }
-
-    ctx->callbacks[ctx->callback_count].callback = callback;
-    ctx->callbacks[ctx->callback_count].user_data = user_data;
-    ctx->callbacks[ctx->callback_count].id = ctx->next_callback_id++;
-    ctx->callbacks[ctx->callback_count].filter_mask = STREAM_FILTER_ALL;
-    ctx->callback_count++;
-
-    return true;
+    return lv_callback_list_add(&ctx->callback_list, (lvCallbackFn) callback, user_data,
+                                STREAM_FILTER_ALL) >= 0;
 }
 
 /**
@@ -177,19 +123,7 @@ int stream_register_callback_ex(StreamContext *ctx, StreamCallback callback, voi
     if (!ctx || !callback)
         return -1;
 
-    /* 动态扩容确保足够容量 */
-    if (!stream_ensure_capacity(ctx, ctx->callback_count + 1)) {
-        return -1; /* 超过硬上限或内存分配失败 */
-    }
-
-    int assigned_id = ctx->next_callback_id++;
-    ctx->callbacks[ctx->callback_count].callback = callback;
-    ctx->callbacks[ctx->callback_count].user_data = user_data;
-    ctx->callbacks[ctx->callback_count].id = assigned_id;
-    ctx->callbacks[ctx->callback_count].filter_mask = filter_mask;
-    ctx->callback_count++;
-
-    return assigned_id;
+    return lv_callback_list_add(&ctx->callback_list, (lvCallbackFn) callback, user_data, filter_mask);
 }
 
 /**
@@ -203,15 +137,7 @@ bool stream_unregister_callback(StreamContext *ctx, StreamCallback callback) {
     if (!ctx || !callback)
         return false;
 
-    for (int i = 0; i < ctx->callback_count; i++) {
-        if (ctx->callbacks[i].callback == callback) {
-            /* 将后续回调前移一位（统一走 lv_shift_left 的 memmove 路径） */
-            lv_shift_left(ctx->callbacks, sizeof(ctx->callbacks[0]), (size_t) i, (size_t) ctx->callback_count);
-            ctx->callback_count--;
-            return true;
-        }
-    }
-    return false;
+    return lv_callback_list_remove_by_fn(&ctx->callback_list, (lvCallbackFn) callback);
 }
 
 /**
@@ -225,15 +151,7 @@ bool stream_unregister_callback_by_id(StreamContext *ctx, int callback_id) {
     if (!ctx || callback_id <= 0)
         return false;
 
-    for (int i = 0; i < ctx->callback_count; i++) {
-        if (ctx->callbacks[i].id == callback_id) {
-            /* 将后续回调前移一位（与 stream_unregister_callback 统一走 lv_shift_left） */
-            lv_shift_left(ctx->callbacks, sizeof(ctx->callbacks[0]), (size_t) i, (size_t) ctx->callback_count);
-            ctx->callback_count--;
-            return true;
-        }
-    }
-    return false;
+    return lv_callback_list_remove_by_id(&ctx->callback_list, callback_id);
 }
 
 /**
@@ -248,13 +166,7 @@ bool stream_set_callback_filter(StreamContext *ctx, int callback_id, uint64_t fi
     if (!ctx || callback_id <= 0)
         return false;
 
-    for (int i = 0; i < ctx->callback_count; i++) {
-        if (ctx->callbacks[i].id == callback_id) {
-            ctx->callbacks[i].filter_mask = filter_mask;
-            return true;
-        }
-    }
-    return false;
+    return lv_callback_list_set_filter(&ctx->callback_list, callback_id, filter_mask);
 }
 
 /**
@@ -267,11 +179,6 @@ uint64_t stream_get_callback_filter(StreamContext *ctx, int callback_id) {
     if (!ctx || callback_id <= 0)
         return STREAM_FILTER_NONE;
 
-    for (int i = 0; i < ctx->callback_count; i++) {
-        if (ctx->callbacks[i].id == callback_id) {
-            return ctx->callbacks[i].filter_mask;
-        }
-    }
-    return STREAM_FILTER_NONE;
+    return lv_callback_list_get_filter(&ctx->callback_list, callback_id);
 }
 

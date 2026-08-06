@@ -649,6 +649,23 @@ lv_PUBLIC_API int lv_set_numeric_assumption(lvEngine *engine, int node_id, doubl
  * === 配置管理 ===
  * ============================================================ */
 
+/*
+ * 配置系统说明（三套收敛为两套，系统 C 已消除）：
+ *   - 系统 A（lvConfig）：config.h / lv_config.c。X-macro 注册表键
+ *     （LV_CONFIG_INT_KEYS / LV_CONFIG_DOUBLE_KEYS）+ 类型安全
+ *     lv_config_get_<key>() / lv_config_set_<key>()，JSON 持久化；
+ *   - 系统 B（ConfigManager）：lv_utils_config.c。字符串键存储，
+ *     公共 API 即本节的 lv_config_get_*(key, default) 等。
+ *
+ * 本节的 lv_config_get_int/bool/double/string(key, default) 与
+ * lv_config_set_bool/set_string 为系统 B 的公共 API；lv_config_set_int /
+ * lv_config_set_double 为系统 A 的通用 setter（与 config.h 中同一符号，
+ * 定义于 lv_config.c），仅接受 A 注册表内的键，未知键返回 false。
+ *
+ * config.h 的 LV_CFG_* 字符串键宏不再构成独立配置系统：与 A 同名的键
+ * 经 lv.c 的统一分发读取 lvConfig 单例，其余键归属 B 的键空间。
+ */
+
 /**
  * @brief 获取整数配置值（便捷函数）
  *
@@ -693,6 +710,9 @@ lv_PUBLIC_API const char *lv_config_get_string(const char *key, const char *defa
 /**
  * @brief 设置整数配置值
  *
+ * 系统 A 通用 setter（与 config.h 声明为同一符号，定义于 lv_config.c）：
+ * 仅接受 lvConfig 注册表（LV_CONFIG_INT_KEYS）内的键，未知键返回 false。
+ *
  * @param[in] key   配置键名
  * @param[in] value 配置值
  * @return true 成功，false 失败（键名无效或值超出范围）
@@ -710,6 +730,9 @@ lv_PUBLIC_API bool lv_config_set_bool(const char *key, bool value);
 
 /**
  * @brief 设置浮点配置值
+ *
+ * 系统 A 通用 setter（与 config.h 声明为同一符号，定义于 lv_config.c）：
+ * 仅接受 lvConfig 注册表（LV_CONFIG_DOUBLE_KEYS）内的键，未知键返回 false。
  *
  * @param[in] key   配置键名
  * @param[in] value 配置值

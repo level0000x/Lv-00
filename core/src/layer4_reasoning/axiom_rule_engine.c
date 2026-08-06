@@ -695,22 +695,3 @@ lvRule *lv_rule_copy(const lvRule *rule) {
     }
     return copy;
 }
-
-bool lv_rule_library_save(const lvRuleLibrary *library, const char *path) {
-    if (!library || !path)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_library_save: NULL library or path");
-    FILE *f = fopen(path, "w");
-    if (!f)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_INTERNAL, "lv_rule_library_save: fopen failed");
-    lvJsonBuf buf;
-    lv_json_buf_init(&buf, 64);
-    lv_json_buf_append_fmt(&buf, "{\"rule_count\":%u}", library->rule_count);
-    char *json = lv_json_buf_finalize(&buf);
-    if (json) {
-        fputs(json, f);
-        fputc('\n', f);
-        lv_free(json);
-    }
-    fclose(f);
-    return true;
-}

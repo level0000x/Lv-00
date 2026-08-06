@@ -359,21 +359,13 @@ void test_rational_boundary(void) {
     printf("  PASSED\n");
 }
 
-int main() {
-    printf("=== Lv-00 Geometry Metalanguage Test Suite ===\n\n");
-    test_rational();
-    test_rational_boundary();
-    test_constraint_graph();
-    test_normalization();
-    test_module();
-    test_axiom_package();
-    test_unify();
-    test_engine();
-
-    if (g_fail_count > 0) {
-        printf("\n=== %d test(s) FAILED ===\n", g_fail_count);
-        return 1;
-    }
-    printf("\n=== All tests PASSED! ===\n");
-    return 0;
-}
+TEST_MAIN_BEGIN("Lv-00 Geometry Metalanguage Test Suite")
+    TEST_MAIN_RUN(test_rational);
+    TEST_MAIN_RUN(test_rational_boundary);
+    TEST_MAIN_RUN(test_constraint_graph);
+    TEST_MAIN_RUN(test_normalization);
+    TEST_MAIN_RUN(test_module);
+    TEST_MAIN_RUN(test_axiom_package);
+    TEST_MAIN_RUN(test_unify);
+    TEST_MAIN_RUN(test_engine);
+TEST_MAIN_END()

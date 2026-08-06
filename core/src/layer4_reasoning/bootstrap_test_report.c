@@ -107,10 +107,8 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
             if (results[i]->error_message) {
                 /* error_message 经完整 JSON 转义（两遍法），status/comparison 为内部固定串无需转义 */
                 size_t err_len = strlen(results[i]->error_message);
-                size_t need = lv_str_json_escape(results[i]->error_message, err_len, NULL, 0);
-                char *esc_err = (char *) lv_malloc(need + 1);
+                char *esc_err = lv_str_json_escape_alloc(results[i]->error_message, err_len, NULL);
                 if (esc_err) {
-                    lv_str_json_escape(results[i]->error_message, err_len, esc_err, need + 1);
                     lv_strbuf_printf(&sb,
                                     "    {\"index\": %u, \"status\": \"%s\", \"comparison\": \"%s\", \"error\": \"%s\"}",
                                     i, status, comp, esc_err);

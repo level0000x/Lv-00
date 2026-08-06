@@ -1,19 +1,29 @@
 /**
  * @file rational.c
- * @brief Rational 有理数类型（GMP mpq_t 封装层）
+ * @brief Rational 公共 API（薄转发层）+ 位数电路/代数辅助函数
  *
- * @details 基于 GMP 有理数实现精确分数表示 a/b（a∈Z, b∈Z⁺）。
- *          核心数据结构 Rational 封装 mpq_t，提供：
- *          - rational_create / rational_destroy: 生命周期管理
- *          - rational_add / rational_sub / rational_mul / rational_div: 四则运算
- *          - rational_compare / rational_is_zero: 比较与判零
- *          - rational_to_double / rational_serialize: 数值转换与序列化
+ * @details 本文件原有的独立 Rational 实现与
+ *          layer4_reasoning/expr/rational.c 的 lvRational 统一原语
+ *          同构且语义相同（均为 mpq_t 单成员封装），已合并为单一实现体：
+ *          实现体保留在 layer4_reasoning/expr/rational.c（约 640 行），
+ *          本文件的 13 个 public API（rational_*，声明于 symbolic_coord.h）
+ *          保持签名不变，薄转发到 lv_rational_*，调用点零改动。
  *
- *          所有运算均在创建时自动约分（mpq_canonicalize），
- *          保证内部表示始终为最简分数形式。
+ *          行为保持说明：
+ *          - rational_serialize 保留 "分子/分母" 恒定斜杠格式（与
+ *            lv_rational_to_string 的"整数无斜杠"格式语义不同，按
+ *            被调用最多侧（R1）的语义统一，测试守护不变）；
+ *          - rational_to_double 直接 mpq_get_d（Inf/NaN 场景与原行为一致）；
+ *          - rational_compare 对 NULL 参数保留原 ±1 语义；
+ *          - rational_parse 转发 lv_rational_from_string（同基于
+ *            mpq_set_str，失败返回 NULL，语义等价）。
+ *
+ *          本文件其余部分为位数电路（check_digit_circuit / circuit_*）
+ *          与代数数辅助函数（evaluate_poly_at_double 等），与有理数
+ *          实现无关，原样保留。
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 3.4.0 (merged)
  */
 
 #include <float.h>
@@ -26,6 +36,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv.h"
+#include "lv/rational.h"
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
@@ -44,178 +55,59 @@ extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
 #define COORD_SEVEN_OVER_FIVE_N 32
 /* ── Rational type ── */
 
+/* ────────────────────────────────────────────────────────────────
+ * Rational 公共 API —— 薄转发到统一原语实现（lvRational, rational.h）
+ * ──────────────────────────────────────────────────────────────── */
+
 Rational *rational_create(int64_t numerator, uint64_t denominator) {
-    if (denominator == 0)
-        return NULL;
-    Rational *r = lv_calloc(1, sizeof(Rational));
-    if (!r)
-        return NULL;
-    mpq_init(r->value);
-    /* 修复：使用 mpz_set_str 通过字符串中转，避免 int64_t 到 long 的截断。
-     * 在 Windows 64 位 (LLP64) 下 long 为 32 位，
-     * 直接使用 mpz_set_si 会截断超过 LONG_MAX 的分子值。 */
-    {
-        char numer_str[21]; /* int64_t 最大值为 9223372036854775807，占 19 位 + 符号 + '\0' */
-        char denom_str[21]; /* uint64_t 最大值为 18446744073709551615，占 20 位 + '\0' */
-        snprintf(numer_str, sizeof(numer_str), "%" PRId64, (int64_t) numerator);
-        snprintf(denom_str, sizeof(denom_str), "%" PRIu64, (uint64_t) denominator);
-        /* 防御性检查：mpq_numref/mpq_denref 在 GMP 中理论上不会返回 NULL
-         * （mpq_init 后已分配内部存储），但为健壮性仍做检查，
-         * 防止在极端环境下出现未定义行为。 */
-        mpz_ptr num_ptr = mpq_numref(r->value);
-        mpz_ptr den_ptr = mpq_denref(r->value);
-        if (!num_ptr || !den_ptr) {
-            mpq_clear(r->value);
-            lv_free((void **) &r);
-            return NULL;
-        }
-        mpz_set_str(num_ptr, numer_str, 10);
-        mpz_set_str(den_ptr, denom_str, 10);
-    }
-    mpq_canonicalize(r->value);
-    /* 保护：检测 "0/0" 等导致分母为零的输入 */
-    if (mpz_sgn(mpq_denref(r->value)) == 0) {
-        mpq_clear(r->value);
-        lv_free((void **) &r);
-        return NULL;
-    }
-    return r;
+    return (Rational *) lv_rational_create_from_i64(numerator, denominator);
 }
 
-/**
- * 使用已有的 mpz_t 整数创建有理数对象。
- *
- * @param numerator   分子（GMP 多精度整数）
- * @param denominator 分母（GMP 多精度整数，必须非零）
- * @return 新创建的有理数对象，失败时返回 NULL；调用者需负责释放
- */
 Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominator) {
-    /* 参数有效性检查：分子和分母均不能为 NULL，分母不能为零 */
-    if (!numerator) {
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_create_from_mpz: numerator is NULL");
-    }
-    if (!denominator || mpz_sgn(denominator) == 0) {
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_create_from_mpz: denominator is NULL or zero");
-    }
-    Rational *r = lv_calloc(1, sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_create_from_mpz: allocation failed");
-    mpq_init(r->value);
-    mpq_set_num(r->value, numerator);
-    mpq_set_den(r->value, denominator);
-    mpq_canonicalize(r->value);
-    return r;
+    /* 保持原实现的分母为零 / 指针无效检查语义 */
+    if (!numerator || !denominator)
+        return NULL;
+    return (Rational *) lv_rational_create_from_mpz(numerator, denominator);
 }
 
 Rational *rational_copy(const Rational *src) {
-    if (!src)
-        return NULL;
-    Rational *r = lv_calloc(1, sizeof(Rational));
-    if (!r)
-        return NULL;
-    mpq_init(r->value);
-    mpq_set(r->value, src->value);
-    return r;
+    return (Rational *) lv_rational_clone((const lvRational *) src);
 }
 
 void rational_destroy(Rational *r) {
     if (r) {
-        mpq_clear(r->value);
-        lv_free((void **) &r);
+        lvRational *p = (lvRational *) r;
+        lv_rational_destroy(&p);
     }
 }
 
 int rational_compare(const Rational *a, const Rational *b) {
     if (!a || !b) {
-        /* 无效参数：返回非零值表示不相等 */
+        /* 保持原语义：一空一非空时返回 ±1，均空返回 0 */
         return (a != b) ? ((a ? 1 : -1)) : 0;
     }
-    return mpq_cmp(a->value, b->value);
+    return lv_rational_cmp((const lvRational *) a, (const lvRational *) b);
 }
 
-/**
- * 有理数加法：计算 a + b。
- *
- * @param a 被加数（不能为 NULL）
- * @param b 加数（不能为 NULL）
- * @return 新的有理数对象表示 a + b，失败时返回 NULL；调用者需负责释放
- */
 Rational *rational_add(const Rational *a, const Rational *b) {
-    if (!a || !b)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_add: a or b is NULL");
-    Rational *r = lv_malloc(sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_add: allocation failed");
-    mpq_init(r->value);
-    mpq_add(r->value, a->value, b->value);
-    return r;
+    return (Rational *) lv_rational_add((const lvRational *) a, (const lvRational *) b);
 }
 
 Rational *rational_subtract(const Rational *a, const Rational *b) {
-    if (!a || !b)
-        return NULL;
-    Rational *r = lv_calloc(1, sizeof(Rational));
-    if (!r)
-        return NULL;
-    mpq_init(r->value);
-    mpq_sub(r->value, a->value, b->value);
-    return r;
+    return (Rational *) lv_rational_sub((const lvRational *) a, (const lvRational *) b);
 }
 
-/**
- * 有理数乘法：计算 a * b。
- *
- * @param a 第一个因数（不能为 NULL）
- * @param b 第二个因数（不能为 NULL）
- * @return 新的有理数对象表示 a * b，失败时返回 NULL；调用者需负责释放
- */
 Rational *rational_multiply(const Rational *a, const Rational *b) {
-    if (!a || !b)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_multiply: a or b is NULL");
-    Rational *r = lv_calloc(1, sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_multiply: allocation failed");
-    mpq_init(r->value);
-    mpq_mul(r->value, a->value, b->value);
-    return r;
+    return (Rational *) lv_rational_mul((const lvRational *) a, (const lvRational *) b);
 }
 
-/**
- * 有理数除法：计算 a / b。
- *
- * @param a 被除数（不能为 NULL）
- * @param b 除数（不能为 NULL，且不能为零）
- * @return 新的有理数对象表示 a / b，除数为零或失败时返回 NULL；调用者需负责释放
- */
 Rational *rational_divide(const Rational *a, const Rational *b) {
-    /* NULL 指针检查，与 rational_add / rational_multiply 保持一致 */
-    if (!a || !b)
-        return NULL;
-    if (mpq_cmp_ui(b->value, 0, 1) == 0)
-        return NULL;
-    Rational *r = lv_malloc(sizeof(Rational));
-    if (!r)
-        return NULL;
-    mpq_init(r->value);
-    mpq_div(r->value, a->value, b->value);
-    return r;
+    /* lv_rational_div 与原始实现一致：b 为零时返回 NULL */
+    return (Rational *) lv_rational_div((const lvRational *) a, (const lvRational *) b);
 }
 
-/**
- * 有理数取负：计算 -a。
- *
- * @param a 有理数（不能为 NULL）
- * @return 新的有理数对象表示 -a，失败时返回 NULL；调用者需负责释放
- */
 Rational *rational_negate(const Rational *a) {
-    if (!a)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "rational_negate: a is NULL");
-    Rational *r = lv_calloc(1, sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_negate: allocation failed");
-    mpq_init(r->value);
-    mpq_neg(r->value, a->value);
-    return r;
+    return (Rational *) lv_rational_neg((const lvRational *) a);
 }
 
 /**
@@ -228,7 +120,9 @@ Rational *rational_negate(const Rational *a) {
  * @return  新分配的字符串，调用者需负责释放；失败时返回 NULL
  */
 char *rational_serialize(const Rational *r) {
-    /* 空指针检查：调用者不得传入 NULL */
+    /* 保留原实现：恒定输出 "分子/分母" 格式（整数时带 /1），
+     * 与 lv_rational_to_string 的"整数无斜杠"格式语义不同，
+     * 按被调用最多侧（R1）的语义统一，保证序列化输出不变。 */
     if (!r)
         return NULL;
 
@@ -258,24 +152,16 @@ char *rational_serialize(const Rational *r) {
 }
 
 Rational *rational_parse(const char *str) {
-    Rational *r = lv_calloc(1, sizeof(Rational));
-    if (!r)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rational_parse: allocation failed");
-    mpq_init(r->value);
-    if (mpq_set_str(r->value, str, 10) != 0) {
-        mpq_clear(r->value);
-        lv_free((void **) &r);
-        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "rational_parse: mpq_set_str failed for input string");
-    }
-    mpq_canonicalize(r->value);
-    return r;
+    /* 转发到统一实现（同基于 mpq_set_str，失败返回 NULL，语义等价） */
+    return (Rational *) lv_rational_from_string(str);
 }
 
 /**
  * 将有理数转换为双精度浮点数。
  *
- * 使用 GMP 库的 mpq_get_d 函数进行转换，返回有理数的近似 double 值。
- * 此函数主要用于需要数值近似值的场景（如数值比较或输出）。
+ * 直接使用 GMP 的 mpq_get_d，保持与原实现完全一致
+ * （含极大值溢出为 Inf 的场景，与 lv_rational_to_double 的
+ * 非有限值返回 false 语义不同）。
  *
  * @param r 有理数对象（不能为 NULL）
  * @return 有理数的双精度浮点数近似值

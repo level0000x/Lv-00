@@ -26,6 +26,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/context.h"
+#include "lv/memory_pool.h"
 #include "lv/stream.h"
 #include "lv/symbolic_coord.h"
 
@@ -44,6 +45,9 @@ void node_index_remove(ConstraintGraph *graph, int node_id);
 bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *new_constraint);
 unsigned node_id_hash(int id, int capacity);
 unsigned constraint_id_hash(int id, int capacity);
+/* graph_index.c 实现：统一约束释放路径（参与者数组 + 约束外壳），
+ * 与 constraint_alloc_internal（统一分配入口）对称，供删除/回滚场景复用 */
+void constraint_destroy(Constraint *con);
 
 /**
  * 验证函数块的跨边界约束引用是否合法。
@@ -141,7 +145,7 @@ static AddConstraintResult graph_add_constraint_typed(ConstraintGraph *graph, Co
     if (!graph_constraint_assign_participants(con, participants, count)) {
         graph->constraint_count--;
         constraint_index_remove(graph, con->id);
-        lv_free((void **) &con);
+        constraint_destroy(con); /* 统一约束释放路径（参与者保持 NULL，内部安全跳过） */
         return ADD_CONSTRAINT_CONFLICT;
     }
     *out_con = con;
@@ -471,8 +475,7 @@ RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
         }
         if (references_node) {
             int cid = con->id;
-            lv_free((void **) &con->participants);
-            lv_free((void **) &con);
+            constraint_destroy(con); /* 统一约束释放路径（参与者数组 + 外壳） */
             constraint_index_remove(graph, cid);
             for (int k = i; k < graph->constraint_count - 1; k++) {
                 graph->constraints[k] = graph->constraints[k + 1];
@@ -529,8 +532,7 @@ RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int const
 
     /* 先从哈希索引中移除，再释放约束内存（避免 use-after-free） */
     constraint_index_remove(graph, cid);
-    lv_free((void **) &con->participants);
-    lv_free((void **) &con);
+    constraint_destroy(con); /* 统一约束释放路径（参与者数组 + 外壳） */
     for (int i = constraint_index; i < graph->constraint_count - 1; i++) {
         graph->constraints[i] = graph->constraints[i + 1];
     }
@@ -990,7 +992,28 @@ void node_destroy(GeomNode *node) {
     if (node->vtable && node->vtable->free) {
         node->vtable->free(node);
     }
-    lv_free((void **) &node);
+    /* 节点外壳归还 ConstraintNode 预设池（池不可用/回退分配对象由
+     * lv_pool_free 归属校验自动按普通分配释放） */
+    lv_pool_free(lv_get_node_pool(), node);
+}
+
+/**
+ * @brief 销毁约束并释放其所有资源（约束统一释放路径）
+ *
+ * 释放参与者数组与约束结构体本身，与 constraint_alloc_internal
+ * （统一分配入口，graph_node_alloc.c）对称，供约束删除/回滚等
+ * 释放场景复用，避免绕过统一释放路径。参与者数组可为 NULL
+ * （graph_constraint_assign_participants 失败回滚场景），lv_free 内部跳过。
+ *
+ * @param con 要销毁的约束指针（可以为 NULL，空操作）
+ */
+void constraint_destroy(Constraint *con) {
+    if (!con)
+        return;
+    lv_free((void **) &con->participants);
+    /* 约束外壳归还 Constraint 预设池（池不可用/回退分配对象由
+     * lv_pool_free 归属校验自动按普通分配释放） */
+    lv_pool_free(lv_get_constraint_pool(), con);
 }
 
 /**

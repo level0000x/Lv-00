@@ -42,4 +42,11 @@ bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav);
 bool execute_hol_light(ProofMultiStrategy *mse, ProofNavigator *nav);
 bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav);
 
+/* 数值验证策略（proof_strategy_numeric.c）：
+ * 区间算术求值（interval_arith.h, lv_interval_*）+ FPTaylor 误差界分级
+ * （float_error.h, fptaylor_verify_safety），验证含实数常量/比较谓词的浮点数值命题 */
+bool execute_numeric_verification(ProofMultiStrategy *mse, ProofNavigator *nav);
+bool numeric_verification_applicability_check(const ProofMultiStrategy *mse, const ConstraintGraph *graph,
+                                              const Proposition *prop);
+
 #endif /* lv_PROOF_MULTI_STRATEGY_INTERNAL_H */

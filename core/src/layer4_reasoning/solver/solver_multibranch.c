@@ -367,10 +367,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                 if (coord_str) {
                     /* 坐标串经 JSON 转义后再包引号（防止其中的引号/反斜杠破坏 JSON） */
                     size_t c_len = strlen(coord_str);
-                    size_t c_need = lv_str_json_escape(coord_str, c_len, NULL, 0);
-                    char *esc_coord = (char *) lv_malloc(c_need + 1);
+                    char *esc_coord = lv_str_json_escape_alloc(coord_str, c_len, NULL);
                     if (esc_coord) {
-                        lv_str_json_escape(coord_str, c_len, esc_coord, c_need + 1);
                         int _sn_tmp;
                         lv_SAFE_SNPRINTF(_sn_tmp, detail + pos, (size_t) (sizeof(detail) - pos - 5), "%s\"%s\"",
                                          (v > 0 ? "," : ""), esc_coord);

@@ -377,6 +377,17 @@ size_t lv_str_json_escape(const char *src, size_t src_len, char *dst, size_t dst
     return need;
 }
 
+char *lv_str_json_escape_alloc(const char *src, size_t src_len, size_t *out_len) {
+    size_t need = lv_str_json_escape(src, src_len, NULL, 0);
+    char *buf = (char *) lv_malloc(need + 1);
+    if (!buf)
+        return NULL;
+    lv_str_json_escape(src, src_len, buf, need + 1);
+    if (out_len)
+        *out_len = need;
+    return buf;
+}
+
 size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst_cap) {
     if (!src)
         src_len = 0;

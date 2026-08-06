@@ -334,22 +334,12 @@ static void test_negative_lookups(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    printf("===============================================\n");
-    printf("Lv-00 Axiom Package Test: Topos Theory\n");
-    printf("===============================================\n\n");
-
-    test_load_from_file();
-    test_templates();
-    test_unconstructible_problems();
-    test_logical_framework();
-    test_content_hash();
-    test_round_trip_save_load();
-    test_negative_lookups();
-
-    printf("\n===============================================\n");
-    printf("Results: %d passed, %d failed\n", g_pass_count, g_fail_count);
-    printf("===============================================\n");
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("Lv-00 Axiom Package Test: Topos Theory")
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip_save_load);
+    TEST_MAIN_RUN(test_negative_lookups);
+TEST_MAIN_END()

@@ -572,33 +572,27 @@ void test_meta_proof_strategy_toggle(void) {
  * 主函数
  * ================================================================ */
 
-int main(void) {
-    printf("=== WFC 范式模块集成测试 ===\n\n");
-
+TEST_MAIN_BEGIN("WFC 范式模块集成测试")
     printf("--- Module A: 约束传播引擎 ---\n");
-    test_prop_context_lifecycle();
-    test_prop_init_state_spaces();
-    test_prop_ac3_collapsed();
-    test_prop_entropy();
-    test_prop_snapshot();
-    test_prop_statistics();
+    TEST_MAIN_RUN(test_prop_context_lifecycle);
+    TEST_MAIN_RUN(test_prop_init_state_spaces);
+    TEST_MAIN_RUN(test_prop_ac3_collapsed);
+    TEST_MAIN_RUN(test_prop_entropy);
+    TEST_MAIN_RUN(test_prop_snapshot);
+    TEST_MAIN_RUN(test_prop_statistics);
 
     printf("\n--- Module B: 等价类管理器 ---\n");
-    test_equiv_lifecycle();
-    test_equiv_coord_merge();
-    test_equiv_non_equivalent();
-    test_equiv_query();
-    test_equiv_statistics();
+    TEST_MAIN_RUN(test_equiv_lifecycle);
+    TEST_MAIN_RUN(test_equiv_coord_merge);
+    TEST_MAIN_RUN(test_equiv_non_equivalent);
+    TEST_MAIN_RUN(test_equiv_query);
+    TEST_MAIN_RUN(test_equiv_statistics);
 
     printf("\n--- Module C: 剪枝合法性元证明 ---\n");
-    test_meta_proof_lifecycle();
-    test_meta_proof_l1();
-    test_meta_proof_completeness_empty();
-    test_meta_proof_record();
-    test_meta_proof_statistics();
-    test_meta_proof_strategy_toggle();
-
-    printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", g_pass_count, g_fail_count);
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+    TEST_MAIN_RUN(test_meta_proof_lifecycle);
+    TEST_MAIN_RUN(test_meta_proof_l1);
+    TEST_MAIN_RUN(test_meta_proof_completeness_empty);
+    TEST_MAIN_RUN(test_meta_proof_record);
+    TEST_MAIN_RUN(test_meta_proof_statistics);
+    TEST_MAIN_RUN(test_meta_proof_strategy_toggle);
+TEST_MAIN_END()

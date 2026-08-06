@@ -423,24 +423,14 @@ void test_equiv_null_safety(void) {
 /* ================================================================
  * 主函数
  * ================================================================ */
-int main(void) {
-    setvbuf(stdout, NULL, _IONBF, 0);
-    lv_init();
-
-    printf("=== EquivClass (等价类管理器) 单元测试 ===\n\n");
-
-    test_equiv_lifecycle();
-    test_equiv_merge_by_coord();
-    test_equiv_find();
-    test_equiv_are_equivalent();
-    test_equiv_class_count();
-    test_equiv_get_class();
-    test_equiv_merge_all();
-    test_equiv_prove_merge_valid();
-    test_equiv_null_safety();
-
-    int total = g_pass_count + g_fail_count;
-    printf("\n=== Result: %d passed, %d failed ===\n", g_pass_count, g_fail_count);
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("EquivClass (等价类管理器) 单元测试")
+    TEST_MAIN_RUN(test_equiv_lifecycle);
+    TEST_MAIN_RUN(test_equiv_merge_by_coord);
+    TEST_MAIN_RUN(test_equiv_find);
+    TEST_MAIN_RUN(test_equiv_are_equivalent);
+    TEST_MAIN_RUN(test_equiv_class_count);
+    TEST_MAIN_RUN(test_equiv_get_class);
+    TEST_MAIN_RUN(test_equiv_merge_all);
+    TEST_MAIN_RUN(test_equiv_prove_merge_valid);
+    TEST_MAIN_RUN(test_equiv_null_safety);
+TEST_MAIN_END()

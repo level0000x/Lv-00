@@ -45,18 +45,7 @@ static char *json_escape_string(const char *str, size_t *out_len) {
         return lv_strdup_safe("");
     }
 
-    /* 预计算转义后长度 */
-    size_t len = lv_str_json_escape(str, strlen(str), NULL, 0);
-
-    char *escaped = (char *) lv_malloc(len + 1);
-    if (!escaped)
-        return NULL;
-
-    lv_str_json_escape(str, strlen(str), escaped, len + 1);
-
-    if (out_len)
-        *out_len = len;
-    return escaped;
+    return lv_str_json_escape_alloc(str, strlen(str), out_len);
 }
 
 /**

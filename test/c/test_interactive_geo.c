@@ -263,20 +263,10 @@ void test_geo_null_safety(void) {
 /* ================================================================
  * 主函数
  * ================================================================ */
-int main(void) {
-    setvbuf(stdout, NULL, _IONBF, 0);
-    lv_init();
-
-    printf("=== InteractiveGeo (交互几何系统) 单元测试 ===\n\n");
-
-    test_geo_lifecycle();
-    test_geo_mode();
-    test_geo_select_deselect();
-    test_geo_coord_transform();
-    test_geo_null_safety();
-
-    int total = g_pass_count + g_fail_count;
-    printf("\n=== Result: %d passed, %d failed ===\n", g_pass_count, g_fail_count);
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("InteractiveGeo (交互几何系统) 单元测试")
+    TEST_MAIN_RUN(test_geo_lifecycle);
+    TEST_MAIN_RUN(test_geo_mode);
+    TEST_MAIN_RUN(test_geo_select_deselect);
+    TEST_MAIN_RUN(test_geo_coord_transform);
+    TEST_MAIN_RUN(test_geo_null_safety);
+TEST_MAIN_END()

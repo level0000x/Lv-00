@@ -43,6 +43,24 @@
  * =========================================================================== */
 
 /**
+ * @brief 回滚 graph_alloc_node 之后尚未完成的节点添加（分配失败路径）
+ *
+ * 与 graph_node_conflict.c 的 graph_rollback_point 同构：递减节点计数、
+ * 从节点索引中移除、经 node_destroy 统一释放节点（含 vtable->free
+ * 类型特定数据，如 region.boundary_segments / func_block 各数组）。
+ *
+ * @param graph 约束图指针
+ * @param node  待回滚的节点
+ */
+static void graph_rollback_node(ConstraintGraph *graph, GeomNode *node) {
+    if (!graph || !node)
+        return;
+    graph->node_count--;
+    node_index_remove(graph, node->id);
+    node_destroy(node);
+}
+
+/**
  * @brief 向约束图添加区域节点（存根实现）
  *
  * @param graph                约束图
@@ -60,8 +78,13 @@ AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segme
     node->coord_count = 0;
     node->symbolic_coords = NULL;
     node->data.region.boundary_segments = (GeomNode **) lv_calloc((size_t) segment_count, sizeof(GeomNode *));
-    if (!node->data.region.boundary_segments)
+    if (!node->data.region.boundary_segments) {
+        /* 分配失败：完整回滚（恢复 node_count、移除节点索引、释放节点；
+         * node_destroy -> region_free 一并释放 boundary_segments），
+         * 避免残留节点挂在图中 */
+        graph_rollback_node(graph, node);
         return ADD_NODE_CONFLICT;
+    }
     node->data.region.segment_count = segment_count;
     for (int i = 0; i < segment_count; i++) {
         node->data.region.boundary_segments[i] = graph_get_node(graph, boundary_segment_ids[i]);
@@ -126,9 +149,18 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
     node->parent_block_id = parent_block_id;
     node->coord_count = 0;
     node->symbolic_coords = NULL;
-    /* 设置端口类型 */
+    /* 设置端口类型：port_alloc（vtable->alloc）已在节点创建时分配 Port；
+     * 此处仅当 port_alloc 因 OOM 未分配（data.port 为 NULL）时二次尝试。
+     * 二次分配仍失败则完整回滚（恢复 node_count、移除节点索引、
+     * 经 node_destroy -> port_free 释放节点外壳），避免 data.port 为 NULL
+     * 的 GEOM_PORT 节点残留图中——graph_add_connection 解引用
+     * src->data.port->type 会崩溃（graph_index.c），不再静默返回 ADD_NODE_OK。 */
     if (!node->data.port) {
         node->data.port = lv_calloc(1, sizeof(Port));
+        if (!node->data.port) {
+            graph_rollback_node(graph, node);
+            return ADD_NODE_CONFLICT;
+        }
     }
     if (node->data.port) {
         node->data.port->type = type;
@@ -171,26 +203,34 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
         return ADD_NODE_CONFLICT;
     node->coord_count = 0;
     node->symbolic_coords = NULL;
-    /* 初始化函数块数据 */
+    /* 初始化函数块数据：任一数组分配失败即完整回滚节点（恢复 node_count、
+     * 移除节点索引、经 node_destroy -> func_block_free 释放已分配数组），
+     * count 仅在对应分配成功后递增，避免 count>0 而数组为 NULL 的不一致状态 */
     if (!node->data.func_block.internal_nodes && internal_count > 0 && internal_node_ids) {
         node->data.func_block.internal_nodes = lv_malloc((size_t) internal_count * sizeof(GeomNode *));
-        if (node->data.func_block.internal_nodes) {
-            memset(node->data.func_block.internal_nodes, 0, (size_t) internal_count * sizeof(GeomNode *));
+        if (!node->data.func_block.internal_nodes) {
+            graph_rollback_node(graph, node);
+            return ADD_NODE_CONFLICT;
         }
+        memset(node->data.func_block.internal_nodes, 0, (size_t) internal_count * sizeof(GeomNode *));
         node->data.func_block.internal_node_count = internal_count;
     }
     if (input_count > 0 && input_port_ids) {
         node->data.func_block.input_port_ids = lv_malloc((size_t) input_count * sizeof(int));
-        if (node->data.func_block.input_port_ids) {
-            memcpy(node->data.func_block.input_port_ids, input_port_ids, (size_t) input_count * sizeof(int));
+        if (!node->data.func_block.input_port_ids) {
+            graph_rollback_node(graph, node);
+            return ADD_NODE_CONFLICT;
         }
+        memcpy(node->data.func_block.input_port_ids, input_port_ids, (size_t) input_count * sizeof(int));
         node->data.func_block.input_count = input_count;
     }
     if (output_count > 0 && output_port_ids) {
         node->data.func_block.output_port_ids = lv_malloc((size_t) output_count * sizeof(int));
-        if (node->data.func_block.output_port_ids) {
-            memcpy(node->data.func_block.output_port_ids, output_port_ids, (size_t) output_count * sizeof(int));
+        if (!node->data.func_block.output_port_ids) {
+            graph_rollback_node(graph, node);
+            return ADD_NODE_CONFLICT;
         }
+        memcpy(node->data.func_block.output_port_ids, output_port_ids, (size_t) output_count * sizeof(int));
         node->data.func_block.output_count = output_count;
     }
     (void) internal_node_ids; /* 已在上方处理 */

@@ -51,14 +51,7 @@ static int json_escape_string(const char *src, char *dst, int dst_size) {
  * @return 转义后的堆字符串，失败返回 NULL
  */
 static char *json_escape_alloc(const char *src, size_t src_len) {
-    if (!src)
-        src_len = 0;
-    size_t need = lv_str_json_escape(src, src_len, NULL, 0);
-    char *buf = (char *) lv_malloc(need + 1);
-    if (!buf)
-        return NULL;
-    lv_str_json_escape(src, src_len, buf, need + 1);
-    return buf;
+    return lv_str_json_escape_alloc(src, src_len, NULL);
 }
 
 /* Lv-00 证明步骤类型枚举（与 lean4_bridge.c 相同；注意 coq_bridge.c 是 8 项子集且含 UNIFY/EX_FALSO，值定义不重叠时勿混用） */

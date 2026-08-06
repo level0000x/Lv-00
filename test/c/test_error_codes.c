@@ -216,17 +216,12 @@ static void test_all_codes_mapped(void) {
 
 /* ============== 入口 ============== */
 
-int main(void) {
-    printf("=== Lv-00 错误码系统测试 ===\n\n");
-
-    test_error_strings();
-    test_error_names();
-    test_error_state();
-    test_error_macros();
-    test_error_table_validation();
-    test_error_code_conversion();
-    test_all_codes_mapped();
-
-    printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", g_pass_count, g_fail_count);
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("Lv-00 错误码系统测试")
+    TEST_MAIN_RUN(test_error_strings);
+    TEST_MAIN_RUN(test_error_names);
+    TEST_MAIN_RUN(test_error_state);
+    TEST_MAIN_RUN(test_error_macros);
+    TEST_MAIN_RUN(test_error_table_validation);
+    TEST_MAIN_RUN(test_error_code_conversion);
+    TEST_MAIN_RUN(test_all_codes_mapped);
+TEST_MAIN_END()

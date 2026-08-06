@@ -385,24 +385,14 @@ static void test_key_templates_present(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    printf("========================================\n");
-    printf("Lv-00 Quantum Information Theory Axiom Package Test\n");
-    printf("========================================\n\n");
-
-    test_load_from_file();
-    test_templates();
-    test_unconstructibles();
-    test_logical_framework();
-    test_content_hash();
-    test_round_trip_save_load();
-    test_dependency_validation();
-    test_negative_lookups();
-    test_key_templates_present();
-
-    printf("\n========================================\n");
-    printf("Test Summary: %d passed, %d failed\n", g_pass_count, g_fail_count);
-    printf("========================================\n");
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("Lv-00 Quantum Information Theory Axiom Package Test")
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip_save_load);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_key_templates_present);
+TEST_MAIN_END()

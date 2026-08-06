@@ -400,25 +400,15 @@ void test_prop_null_safety(void) {
 /* ================================================================
  * 主函数
  * ================================================================ */
-int main(void) {
-    setvbuf(stdout, NULL, _IONBF, 0);
-    lv_init();
-
-    printf("=== Propagation (WFC约束传播) 单元测试 ===\n\n");
-
-    test_prop_lifecycle();
-    test_prop_init_empty();
-    test_prop_get_state_space();
-    test_prop_run_simple();
-    test_prop_select_node();
-    test_prop_collapse();
-    test_prop_entropy();
-    test_prop_wfc_solve();
-    test_prop_snapshot();
-    test_prop_null_safety();
-
-    int total = g_pass_count + g_fail_count;
-    printf("\n=== Result: %d passed, %d failed ===\n", g_pass_count, g_fail_count);
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("Propagation (WFC约束传播) 单元测试")
+    TEST_MAIN_RUN(test_prop_lifecycle);
+    TEST_MAIN_RUN(test_prop_init_empty);
+    TEST_MAIN_RUN(test_prop_get_state_space);
+    TEST_MAIN_RUN(test_prop_run_simple);
+    TEST_MAIN_RUN(test_prop_select_node);
+    TEST_MAIN_RUN(test_prop_collapse);
+    TEST_MAIN_RUN(test_prop_entropy);
+    TEST_MAIN_RUN(test_prop_wfc_solve);
+    TEST_MAIN_RUN(test_prop_snapshot);
+    TEST_MAIN_RUN(test_prop_null_safety);
+TEST_MAIN_END()

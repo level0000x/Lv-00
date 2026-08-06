@@ -57,27 +57,41 @@ static void stream_buffer_push(StreamContext *ctx, const StreamEvent *event) {
     ctx->buffer_count++;
 }
 
+/* ==================== 事件发射 ==================== */
+
+/**
+ * @brief 分发过滤：事件类型位掩码匹配（与 stream 蓝本原逻辑一致）
+ */
+static bool stream_cb_filter(const lvCallbackEntry *entry, const void *arg) {
+    const StreamEvent *event = (const StreamEvent *) arg;
+    uint64_t mask = entry->filter;
+    return (mask & STREAM_EVENT_MASK(event->type)) != 0;
+}
+
+/**
+ * @brief 分发调用：将泛型回调转回 StreamCallback 签名后调用
+ */
+static void stream_cb_invoke(const lvCallbackEntry *entry, const void *arg) {
+    const StreamEvent *event = (const StreamEvent *) arg;
+    StreamCallback cb = (StreamCallback) entry->callback;
+    cb(event, entry->user_data);
+}
+
 /**
  * @brief 内部发射函数：分发事件到所有过滤匹配的回调
  *
- * 遍历回调数组，对每个回调检查其 filter_mask 是否与事件类型匹配。
- * 仅当 (filter_mask & STREAM_EVENT_MASK(event->type)) != 0 时才调用回调。
+ * 遍历回调列表，对每个回调检查其 filter 过滤值（事件类型位掩码）
+ * 是否与事件类型匹配。仅当 (filter & STREAM_EVENT_MASK(event->type)) != 0
+ * 时才调用回调。迭代安全由公共设施保证（快照 count + 越界检查，
+ * 遍历中注册/注销安全）。
  *
  * @param ctx   流式上下文
  * @param event 事件数据
  */
 void stream_dispatch(StreamContext *ctx, const StreamEvent *event) {
-    uint64_t event_bit = STREAM_EVENT_MASK(event->type);
-    /* 快照当前回调数量，防止回调函数中注册/注销回调导致迭代器失效 */
-    int saved_count = ctx->callback_count;
-    for (int i = 0; i < saved_count; i++) {
-        /* 检查索引是否仍然有效（回调可能已被注销导致前移） */
-        if (i >= ctx->callback_count)
-            break;
-        if (ctx->callbacks[i].callback && (ctx->callbacks[i].filter_mask & event_bit) != 0) {
-            ctx->callbacks[i].callback(event, ctx->callbacks[i].user_data);
-        }
-    }
+    if (!ctx || !event)
+        return;
+    lv_callback_list_dispatch(&ctx->callback_list, event, stream_cb_filter, stream_cb_invoke);
 }
 
 /**

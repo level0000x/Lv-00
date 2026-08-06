@@ -305,11 +305,9 @@ char *lv_proof_compiler_to_json(const lvProofObject *proof, const lvProofTrace *
     {
         /* theorem_name 经 JSON 转义后写入（两遍法，防止 JSON 注入/破坏） */
         const char *name = proof->theorem_name ? proof->theorem_name : "unknown";
-        size_t need = lv_str_json_escape(name, strlen(name), NULL, 0);
-        char *esc = (char *) lv_malloc(need + 1);
+        char *esc = lv_str_json_escape_alloc(name, strlen(name), NULL);
         if (!esc)
             lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_compiler_to_json: theorem_name escape alloc failed");
-        lv_str_json_escape(name, strlen(name), esc, need + 1);
         lv_strbuf_printf(&sb, "  \"theorem_name\": \"%s\",\n", esc);
         lv_free((void **) &esc);
     }

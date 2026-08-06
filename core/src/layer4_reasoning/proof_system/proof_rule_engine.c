@@ -29,6 +29,11 @@
 #include "lv.h"
 #include "lv_utils.h"
 
+/* 数值验证策略公共入口（proof_strategy_numeric.c：区间算术求值 + FPTaylor 误差界分级）：
+ * 本文件的数值验证规则通过这两个公共 API 复用其提取/求值/TrustColor 能力，
+ * 不在本文件复制解析逻辑。 */
+#include "proof_multi_strategy_internal.h"
+
 /* ============== Internal Helpers ============== */
 
 /**
@@ -925,6 +930,92 @@ const char *search_result_status_to_string(lvSearchResultStatus status) {
 }
 
 /* ============================================================
+ * 数值验证规则（lv_PROOF_RULE_NAME_NUMERIC_VERIFICATION）
+ *
+ * 将 PROOF_STRATEGY_NUMERIC_VERIFICATION（proof_strategy_numeric.c：
+ * 常量表达式提取 + lv_interval_* 区间求值 + fptaylor_verify_safety
+ * TrustColor 分级）接入规则引擎，使区间验证成为可用规则：
+ *   - 适用性：当前目标为「仅含实数常量的比较表达式」（复用
+ *     numeric_verification_applicability_check；规则引擎状态是字符串目标，
+ *     故构造仅填充 name 的临时 Proposition 承载目标文本）；
+ *   - 应用：复用 execute_numeric_verification 完成区间求值与 TrustColor
+ *     判定，成立则弹出该目标（目标被解决），返回 true。
+ *
+ * 复用方式（最小侵入）：proof_strategy_numeric.c 的提取/解析函数均为 static
+ * 且该文件只读，故不复制解析逻辑，改经其公共 API 重新调用。execute 需要
+ * ProofNavigator，这里构造仅填充 target_prop 的临时导航器（execute 只使用
+ * target_prop + proof_navigator_add_step + proof_navigator_set_strategy_note，
+ * 其余字段零初始化即可），调用后手动释放其持有的步骤与策略注释。
+ * ============================================================ */
+
+static bool rule_numeric_verification_applicable(const void *rule, const void *state) {
+    const lvProofState *ps;
+    Proposition tmp_prop;
+    (void) rule;
+
+    ps = (const lvProofState *) state;
+    if (!ps || !ps->current_goal)
+        return false;
+
+    /* 临时命题：仅承载目标文本（extract_claim 只读 name/label/description） */
+    memset(&tmp_prop, 0, sizeof(tmp_prop));
+    tmp_prop.name = ps->current_goal;
+
+    return numeric_verification_applicability_check(NULL, NULL, &tmp_prop);
+}
+
+static bool rule_numeric_verification_apply(void *rule, void *state) {
+    lvProofState *ps;
+    Proposition tmp_prop;
+    ProofNavigator tmp_nav;
+    bool ok;
+    int i;
+    (void) rule;
+
+    ps = (lvProofState *) state;
+    if (!ps || !ps->current_goal)
+        return false;
+
+    memset(&tmp_prop, 0, sizeof(tmp_prop));
+    tmp_prop.name = ps->current_goal;
+
+    memset(&tmp_nav, 0, sizeof(tmp_nav));
+    tmp_nav.target_prop = &tmp_prop;
+
+    ok = execute_numeric_verification(NULL, &tmp_nav);
+
+    /* 释放临时导航器持有的资源（成功/失败路径都可能已 add 步骤） */
+    if (tmp_nav.steps) {
+        for (i = 0; i < tmp_nav.step_count; i++) {
+            proof_step_destroy(tmp_nav.steps[i]);
+        }
+        lv_free((void **) &tmp_nav.steps);
+    }
+    lv_free((void **) &tmp_nav.strategy_note);
+
+    if (ok) {
+        proof_state_pop_goal(ps); /* 目标经数值验证解决 */
+        return true;
+    }
+    return false;
+}
+
+lvProofRule *lv_proof_rule_numeric_verification_create(void) {
+    lvProofRule *rule = (lvProofRule *) lv_calloc(1, sizeof(lvProofRule));
+    if (!rule)
+        return NULL;
+
+    strncpy(rule->name, lv_PROOF_RULE_NAME_NUMERIC_VERIFICATION, lv_PROOF_RULE_NAME_MAX - 1);
+    rule->name[lv_PROOF_RULE_NAME_MAX - 1] = '\0';
+    rule->weight = 1.0;
+    rule->type = RULE_REWRITE; /* 数值求值判定，语义等同重写步骤（策略层对应 PROOF_STEP_REWRITE） */
+    rule->priority = 0;
+    rule->applicability_check_fn = rule_numeric_verification_applicable;
+    rule->apply_fn = rule_numeric_verification_apply;
+    return rule;
+}
+
+/* ============================================================
  * lv_proof_rule_apply — 公开入口 API
  * ============================================================ */
 
@@ -942,24 +1033,46 @@ int lv_proof_rule_apply(const char *rule, const void *input, void **output) {
     /* 从 rule 名称查找内置规则 */
     const lvProofRule *existing = rule_engine_find_rule(engine, rule);
     if (!existing) {
-        /* 用名称作为匹配模式创建临时规则 */
-        lvProofRule tmp_rule;
-        memset(&tmp_rule, 0, sizeof(tmp_rule));
-        int name_len = (int) strlen(rule);
-        if (name_len >= lv_PROOF_RULE_NAME_MAX) {
-            name_len = lv_PROOF_RULE_NAME_MAX - 1;
-        }
-        memcpy(tmp_rule.name, rule, (size_t) name_len);
-        tmp_rule.name[name_len] = '\0';
-        tmp_rule.weight = 1.0;
-        tmp_rule.type = RULE_REWRITE;
-        tmp_rule.priority = 0;
-        tmp_rule.applicability_check_fn = NULL;
-        tmp_rule.apply_fn = NULL;
+        /* 内置数值验证规则：规则引擎默认无内置规则集（rule_engine_create 为空），
+         * 仅当调用方显式点名该规则时才实例化启用，其余行为保持不变 */
+        if (strcmp(rule, lv_PROOF_RULE_NAME_NUMERIC_VERIFICATION) == 0) {
+            lvProofRule *numeric_rule = lv_proof_rule_numeric_verification_create();
+            if (!numeric_rule) {
+                rule_engine_destroy(engine);
+                return -1;
+            }
+            if (!rule_engine_add_rule(engine, numeric_rule)) {
+                lv_free((void **) &numeric_rule);
+                rule_engine_destroy(engine);
+                return -1;
+            }
+        } else {
+            /* 用名称作为匹配模式创建临时规则。
+             * 必须堆分配：rule_engine_add_rule 后规则由引擎持有，
+             * rule_engine_destroy 会逐条 lv_free；若用栈上对象，
+             * destroy 将对栈地址调用 free（堆损坏）。 */
+            lvProofRule *tmp_rule = (lvProofRule *) lv_calloc(1, sizeof(lvProofRule));
+            if (!tmp_rule) {
+                rule_engine_destroy(engine);
+                return -1;
+            }
+            int name_len = (int) strlen(rule);
+            if (name_len >= lv_PROOF_RULE_NAME_MAX) {
+                name_len = lv_PROOF_RULE_NAME_MAX - 1;
+            }
+            memcpy(tmp_rule->name, rule, (size_t) name_len);
+            tmp_rule->name[name_len] = '\0';
+            tmp_rule->weight = 1.0;
+            tmp_rule->type = RULE_REWRITE;
+            tmp_rule->priority = 0;
+            tmp_rule->applicability_check_fn = NULL;
+            tmp_rule->apply_fn = NULL;
 
-        if (!rule_engine_add_rule(engine, &tmp_rule)) {
-            rule_engine_destroy(engine);
-            return -1;
+            if (!rule_engine_add_rule(engine, tmp_rule)) {
+                lv_free((void **) &tmp_rule);
+                rule_engine_destroy(engine);
+                return -1;
+            }
         }
     }
 

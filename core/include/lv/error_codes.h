@@ -58,94 +58,119 @@ extern "C" {
  * - 800-899: 类型系统相关错误
  * - 900-999: 证明系统相关错误
  */
+/**
+ * @brief Lv-00 错误码 X-macro 列表 —— 错误码体系的单一事实来源
+ *
+ * 条目形态：x(枚举名, 数值, 名称字符串, 中文消息, 类别)
+ *
+ * 由本列表自动生成：
+ * - lvErrorCode 枚举（数值显式赋值，与历史值严格一致，含跳号与预留段）
+ * - error_codes.c 的 g_error_table（生成顺序即列表顺序 = 枚举值升序，
+ *   find_error_info() 二分查找的排序不变量由编译期宏展开保证，
+ *   不再需要运行时排序校验 lv_error_table_validate 的扫描）
+ *
+ * 约束：
+ * - 条目必须按数值升序排列（错误表生成依赖此顺序）
+ * - 新增错误码只需在此追加一条，枚举与错误表自动同步
+ * - lv_ERROR_COUNT 为哨兵成员（错误码总数），不属于错误码，不在此列出
+ */
+#define LV_ERROR_CODES_X(x) \
+    /* 成功 */ \
+    x(lv_OK, 0, "lv_OK", "操作成功", "成功") \
+    /* 通用系统错误 (1-99)，16/19-69 为预留 */ \
+    x(lv_ERROR_UNKNOWN, 1, "lv_ERROR_UNKNOWN", "未知错误", "系统") \
+    x(lv_ERROR_INVALID_PARAM, 2, "lv_ERROR_INVALID_PARAM", "无效参数", "系统") \
+    x(lv_ERROR_NULL_POINTER, 3, "lv_ERROR_NULL_POINTER", "空指针", "系统") \
+    x(lv_ERROR_NOT_INITIALIZED, 4, "lv_ERROR_NOT_INITIALIZED", "未初始化", "系统") \
+    x(lv_ERROR_ALREADY_EXISTS, 5, "lv_ERROR_ALREADY_EXISTS", "已存在", "系统") \
+    x(lv_ERROR_NOT_FOUND, 6, "lv_ERROR_NOT_FOUND", "未找到", "系统") \
+    x(lv_ERROR_UNSUPPORTED, 7, "lv_ERROR_UNSUPPORTED", "不支持的操作", "系统") \
+    x(lv_ERROR_OVERFLOW, 8, "lv_ERROR_OVERFLOW", "数值溢出", "系统") \
+    x(lv_ERROR_UNDERFLOW, 9, "lv_ERROR_UNDERFLOW", "数值下溢", "系统") \
+    x(lv_ERROR_TIMEOUT, 10, "lv_ERROR_TIMEOUT", "操作超时", "系统") \
+    x(lv_ERROR_CANCELLED, 11, "lv_ERROR_CANCELLED", "操作被取消", "系统") \
+    x(lv_ERROR_IO, 12, "lv_ERROR_IO", "IO错误", "系统") \
+    x(lv_ERROR_PARSE, 13, "lv_ERROR_PARSE", "解析错误", "系统") \
+    x(lv_ERROR_INVALID_STATE, 14, "lv_ERROR_INVALID_STATE", "无效状态", "系统") \
+    x(lv_ERROR_INVALID_ARGUMENT, 15, "lv_ERROR_INVALID_ARGUMENT", "无效参数（字符串为空等）", "系统") /* @deprecated 与 lv_ERROR_INVALID_PARAM 语义重叠，请使用后者替代 */ \
+    x(lv_ERROR_INDEX_OUT_OF_RANGE, 17, "lv_ERROR_INDEX_OUT_OF_RANGE", "索引越界", "系统") \
+    x(lv_ERROR_VALUE_OUT_OF_RANGE, 18, "lv_ERROR_VALUE_OUT_OF_RANGE", "数值越界", "系统") \
+    x(lv_ERROR_INTERNAL, 70, "lv_ERROR_INTERNAL", "内部错误", "系统") \
+    /* 内存与资源错误 (100-199) */ \
+    x(lv_ERROR_OUT_OF_MEMORY, 100, "lv_ERROR_OUT_OF_MEMORY", "内存不足", "内存") \
+    x(lv_ERROR_ALLOCATION_FAILED, 101, "lv_ERROR_ALLOCATION_FAILED", "内存分配失败", "内存") \
+    x(lv_ERROR_RESOURCE_EXHAUSTED, 102, "lv_ERROR_RESOURCE_EXHAUSTED", "资源耗尽", "内存") \
+    x(lv_ERROR_BUFFER_TOO_SMALL, 103, "lv_ERROR_BUFFER_TOO_SMALL", "缓冲区太小", "内存") \
+    /* 解析器安全错误 (130-139) */ \
+    x(lv_ERROR_PARSER_NULL_INPUT, 130, "lv_ERROR_PARSER_NULL_INPUT", "解析器输入为NULL", "解析器") \
+    x(lv_ERROR_PARSER_EMPTY_INPUT, 131, "lv_ERROR_PARSER_EMPTY_INPUT", "解析器输入为空", "解析器") \
+    x(lv_ERROR_PARSER_INPUT_TOO_LONG, 132, "lv_ERROR_PARSER_INPUT_TOO_LONG", "解析器输入长度超限", "解析器") \
+    x(lv_ERROR_PARSER_ILLEGAL_CHARS, 133, "lv_ERROR_PARSER_ILLEGAL_CHARS", "解析器输入含非法字符", "解析器") \
+    x(lv_ERROR_PARSER_TOO_MANY_TOKENS, 134, "lv_ERROR_PARSER_TOO_MANY_TOKENS", "解析器token数量超限", "解析器") \
+    x(lv_ERROR_PARSER_DEPTH_EXCEEDED, 135, "lv_ERROR_PARSER_DEPTH_EXCEEDED", "AST深度超限", "解析器") \
+    x(lv_ERROR_PARSER_NODE_LIMIT, 136, "lv_ERROR_PARSER_NODE_LIMIT", "AST节点数超限", "解析器") \
+    x(lv_ERROR_PARSER_TOKEN_TOO_LONG, 137, "lv_ERROR_PARSER_TOKEN_TOO_LONG", "解析器token长度超限", "解析器") \
+    x(lv_ERROR_PARSER_POOL_EXHAUSTED, 138, "lv_ERROR_PARSER_POOL_EXHAUSTED", "解析器内存池耗尽", "解析器") \
+    /* 约束图错误 (200-299) */ \
+    x(lv_ERROR_NODE_CONFLICT, 200, "lv_ERROR_NODE_CONFLICT", "节点冲突", "约束图") \
+    x(lv_ERROR_NODE_NOT_FOUND, 201, "lv_ERROR_NODE_NOT_FOUND", "节点未找到", "约束图") \
+    x(lv_ERROR_CONSTRAINT_CONFLICT, 202, "lv_ERROR_CONSTRAINT_CONFLICT", "约束冲突", "约束图") \
+    x(lv_ERROR_CONSTRAINT_DUPLICATE, 203, "lv_ERROR_CONSTRAINT_DUPLICATE", "重复约束", "约束图") \
+    x(lv_ERROR_INVALID_REGION, 204, "lv_ERROR_INVALID_REGION", "无效区域", "约束图") \
+    x(lv_ERROR_INVALID_GEOM_TYPE, 205, "lv_ERROR_INVALID_GEOM_TYPE", "无效几何类型", "约束图") \
+    x(lv_ERROR_CYCLIC_DEPENDENCY, 206, "lv_ERROR_CYCLIC_DEPENDENCY", "循环依赖", "约束图") \
+    x(lv_ERROR_GRAPH_CORRUPTED, 207, "lv_ERROR_GRAPH_CORRUPTED", "图结构损坏", "约束图") \
+    /* 符号坐标错误 (300-399) */ \
+    x(lv_ERROR_COORD_INVALID, 300, "lv_ERROR_COORD_INVALID", "无效坐标", "符号坐标") \
+    x(lv_ERROR_COORD_OVERFLOW, 301, "lv_ERROR_COORD_OVERFLOW", "坐标溢出", "符号坐标") \
+    x(lv_ERROR_PRECISION_LOSS, 302, "lv_ERROR_PRECISION_LOSS", "精度丢失", "符号坐标") \
+    x(lv_ERROR_SYMBOLIC_EVAL_FAILED, 303, "lv_ERROR_SYMBOLIC_EVAL_FAILED", "符号求值失败", "符号坐标") \
+    /* 求解器错误 (400-499) */ \
+    x(lv_ERROR_SOLVER_NO_SOLUTION, 400, "lv_ERROR_SOLVER_NO_SOLUTION", "方程无解", "求解器") \
+    x(lv_ERROR_SOLVER_INFINITE, 401, "lv_ERROR_SOLVER_INFINITE", "无穷多解", "求解器") \
+    x(lv_ERROR_SOLVER_NUMERIC, 402, "lv_ERROR_SOLVER_NUMERIC", "数值计算错误", "求解器") \
+    x(lv_ERROR_SOLVER_SINGULAR, 403, "lv_ERROR_SOLVER_SINGULAR", "奇异矩阵", "求解器") \
+    x(lv_ERROR_SOLVER_NOT_CONVERGED, 404, "lv_ERROR_SOLVER_NOT_CONVERGED", "求解未收敛", "求解器") \
+    x(lv_ERROR_GROEBNER_FAILED, 405, "lv_ERROR_GROEBNER_FAILED", "Gröbner基计算失败", "求解器") \
+    /* 重写引擎错误 (500-599) */ \
+    x(lv_ERROR_REWRITE_NO_MATCH, 500, "lv_ERROR_REWRITE_NO_MATCH", "无匹配规则", "重写引擎") \
+    x(lv_ERROR_REWRITE_CYCLE, 501, "lv_ERROR_REWRITE_CYCLE", "重写循环", "重写引擎") \
+    x(lv_ERROR_REWRITE_DEPTH, 502, "lv_ERROR_REWRITE_DEPTH", "重写深度超限", "重写引擎") \
+    /* 合一检查错误 (600-699) */ \
+    x(lv_ERROR_UNIFY_FAILED, 600, "lv_ERROR_UNIFY_FAILED", "合一失败", "合一检查") \
+    x(lv_ERROR_UNIFY_OCCUR_CHECK, 601, "lv_ERROR_UNIFY_OCCUR_CHECK", "发生检查失败", "合一检查") \
+    x(lv_ERROR_UNIFY_TYPE_MISMATCH, 602, "lv_ERROR_UNIFY_TYPE_MISMATCH", "类型不匹配", "合一检查") \
+    /* 函数块错误 (700-799) */ \
+    x(lv_ERROR_FUNC_BLOCK_INVALID, 700, "lv_ERROR_FUNC_BLOCK_INVALID", "无效函数块", "函数块") \
+    x(lv_ERROR_FUNC_BLOCK_NON_DETERMINISTIC, 701, "lv_ERROR_FUNC_BLOCK_NON_DETERMINISTIC", "非确定性函数块", "函数块") \
+    x(lv_ERROR_FUNC_BLOCK_CIRCULAR, 702, "lv_ERROR_FUNC_BLOCK_CIRCULAR", "循环函数块", "函数块") \
+    x(lv_ERROR_FUNC_BLOCK_TYPE_ERROR, 703, "lv_ERROR_FUNC_BLOCK_TYPE_ERROR", "函数块类型错误", "函数块") \
+    /* 预设系统错误 (750-799) */ \
+    x(lv_ERROR_PRESET_REGISTRATION_FAILED, 750, "lv_ERROR_PRESET_REGISTRATION_FAILED", "预设注册失败", "预设系统") \
+    x(lv_ERROR_PRESET_INSTANTIATION_FAILED, 751, "lv_ERROR_PRESET_INSTANTIATION_FAILED", "预设实例化失败", "预设系统") \
+    /* 类型系统错误 (800-899) */ \
+    x(lv_ERROR_TYPE_MISMATCH, 800, "lv_ERROR_TYPE_MISMATCH", "类型不匹配", "类型系统") \
+    x(lv_ERROR_TYPE_INFERENCE_FAILED, 801, "lv_ERROR_TYPE_INFERENCE_FAILED", "类型推断失败", "类型系统") \
+    x(lv_ERROR_UNIVERSE_INCONSISTENT, 802, "lv_ERROR_UNIVERSE_INCONSISTENT", "宇宙层级不一致", "类型系统") \
+    /* 证明系统错误 (900-999) */ \
+    x(lv_ERROR_PROOF_INVALID, 900, "lv_ERROR_PROOF_INVALID", "无效证明", "证明系统") \
+    x(lv_ERROR_PROOF_INCOMPLETE, 901, "lv_ERROR_PROOF_INCOMPLETE", "证明不完整", "证明系统") \
+    x(lv_ERROR_PROOF_VERIFICATION_FAILED, 902, "lv_ERROR_PROOF_VERIFICATION_FAILED", "证明验证失败", "证明系统") \
+    x(lv_ERROR_CIRCUIT_OPEN, 903, "lv_ERROR_CIRCUIT_OPEN", "熔断器已跳闸（OPEN态）", "证明系统")
+
+/** @brief 枚举生成辅助宏（LV_ERROR_CODES_X → `枚举名 = 数值,`） */
+#define LV_X_EC_ENUM_ITEM(name, value, name_str, msg, category) name = value,
+
+/**
+ * @brief Lv-00 系统错误码枚举（由 LV_ERROR_CODES_X 宏生成，数值与历史值严格一致）
+ */
 typedef enum {
     /* 成功 */
-    lv_OK = 0,
-    /* 通用系统错误 (1-99) */
-    lv_ERROR_UNKNOWN = 1, /**< 未知错误 */
-    /* 16-69: 预留范围 / Reserved range */
-    lv_ERROR_INVALID_PARAM = 2,       /**< 无效参数 */
-    lv_ERROR_NULL_POINTER = 3,        /**< 空指针 */
-    lv_ERROR_NOT_INITIALIZED = 4,     /**< 未初始化 */
-    lv_ERROR_ALREADY_EXISTS = 5,      /**< 已存在 */
-    lv_ERROR_NOT_FOUND = 6,           /**< 未找到 */
-    lv_ERROR_UNSUPPORTED = 7,         /**< 不支持的操作 */
-    lv_ERROR_OVERFLOW = 8,            /**< 数值溢出 */
-    lv_ERROR_UNDERFLOW = 9,           /**< 数值下溢 */
-    lv_ERROR_TIMEOUT = 10,            /**< 操作超时 */
-    lv_ERROR_CANCELLED = 11,          /**< 操作被取消 */
-    lv_ERROR_IO = 12,                 /**< IO错误 */
-    lv_ERROR_PARSE = 13,              /**< 解析错误 */
-    lv_ERROR_INVALID_STATE = 14,      /**< 无效状态 */
-    lv_ERROR_INVALID_ARGUMENT = 15,   /**< 无效参数（字符串为空等）
-                                              @deprecated 与 lv_ERROR_INVALID_PARAM 语义重叠，
-                                              请使用 lv_ERROR_INVALID_PARAM 替代 */
-    lv_ERROR_INDEX_OUT_OF_RANGE = 17, /**< 索引越界 */
-    lv_ERROR_VALUE_OUT_OF_RANGE = 18, /**< 数值越界 */
-    lv_ERROR_INTERNAL = 70,           /**< 内部错误 */
-    /* 解析器安全错误 (130-139) */
-    lv_ERROR_PARSER_NULL_INPUT = 130,      /**< 输入为NULL */
-    lv_ERROR_PARSER_EMPTY_INPUT = 131,     /**< 输入为空字符串 */
-    lv_ERROR_PARSER_INPUT_TOO_LONG = 132,  /**< 输入长度超限 */
-    lv_ERROR_PARSER_ILLEGAL_CHARS = 133,   /**< 输入含非法控制字符或null字节 */
-    lv_ERROR_PARSER_TOO_MANY_TOKENS = 134, /**< token数量超限 */
-    lv_ERROR_PARSER_DEPTH_EXCEEDED = 135,  /**< AST深度超限 */
-    lv_ERROR_PARSER_NODE_LIMIT = 136,      /**< AST节点数超限 */
-    lv_ERROR_PARSER_TOKEN_TOO_LONG = 137,  /**< token长度超限 */
-    lv_ERROR_PARSER_POOL_EXHAUSTED = 138,  /**< 内存池耗尽 */
-    /* 内存与资源错误 (100-199) */
-    lv_ERROR_OUT_OF_MEMORY = 100,      /**< 内存不足 */
-    lv_ERROR_ALLOCATION_FAILED = 101,  /**< 内存分配失败 */
-    lv_ERROR_RESOURCE_EXHAUSTED = 102, /**< 资源耗尽 */
-    lv_ERROR_BUFFER_TOO_SMALL = 103,   /**< 缓冲区太小 */
-    /* 约束图错误 (200-299) */
-    lv_ERROR_NODE_CONFLICT = 200,        /**< 节点冲突 */
-    lv_ERROR_NODE_NOT_FOUND = 201,       /**< 节点未找到 */
-    lv_ERROR_CONSTRAINT_CONFLICT = 202,  /**< 约束冲突 */
-    lv_ERROR_CONSTRAINT_DUPLICATE = 203, /**< 重复约束 */
-    lv_ERROR_INVALID_REGION = 204,       /**< 无效区域 */
-    lv_ERROR_INVALID_GEOM_TYPE = 205,    /**< 无效几何类型 */
-    lv_ERROR_CYCLIC_DEPENDENCY = 206,    /**< 循环依赖 */
-    lv_ERROR_GRAPH_CORRUPTED = 207,      /**< 图结构损坏 */
-    /* 符号坐标错误 (300-399) */
-    lv_ERROR_COORD_INVALID = 300,        /**< 无效坐标 */
-    lv_ERROR_COORD_OVERFLOW = 301,       /**< 坐标溢出 */
-    lv_ERROR_PRECISION_LOSS = 302,       /**< 精度丢失 */
-    lv_ERROR_SYMBOLIC_EVAL_FAILED = 303, /**< 符号求值失败 */
-    /* 求解器错误 (400-499) */
-    lv_ERROR_SOLVER_NO_SOLUTION = 400,   /**< 无解 */
-    lv_ERROR_SOLVER_INFINITE = 401,      /**< 无穷多解 */
-    lv_ERROR_SOLVER_NUMERIC = 402,       /**< 数值计算错误 */
-    lv_ERROR_SOLVER_SINGULAR = 403,      /**< 奇异矩阵 */
-    lv_ERROR_SOLVER_NOT_CONVERGED = 404, /**< 未收敛 */
-    lv_ERROR_GROEBNER_FAILED = 405,      /**< Gröbner基计算失败 */
-    /* 重写引擎错误 (500-599) */
-    lv_ERROR_REWRITE_NO_MATCH = 500, /**< 无匹配规则 */
-    lv_ERROR_REWRITE_CYCLE = 501,    /**< 重写循环 */
-    lv_ERROR_REWRITE_DEPTH = 502,    /**< 重写深度超限 */
-    /* 合一检查错误 (600-699) */
-    lv_ERROR_UNIFY_FAILED = 600,        /**< 合一失败 */
-    lv_ERROR_UNIFY_OCCUR_CHECK = 601,   /**< 发生检查失败 */
-    lv_ERROR_UNIFY_TYPE_MISMATCH = 602, /**< 类型不匹配 */
-    /* 函数块错误 (700-799) */
-    lv_ERROR_FUNC_BLOCK_INVALID = 700,           /**< 无效函数块 */
-    lv_ERROR_FUNC_BLOCK_NON_DETERMINISTIC = 701, /**< 非确定性函数块 */
-    lv_ERROR_FUNC_BLOCK_CIRCULAR = 702,          /**< 循环函数块 */
-    lv_ERROR_FUNC_BLOCK_TYPE_ERROR = 703,        /**< 函数块类型错误 */
-    /* 预设系统错误 (750-799) */
-    lv_ERROR_PRESET_REGISTRATION_FAILED = 750,  /**< 预设注册失败 */
-    lv_ERROR_PRESET_INSTANTIATION_FAILED = 751, /**< 预设实例化失败 */
-    /* 类型系统错误 (800-899) */
-    lv_ERROR_TYPE_MISMATCH = 800,         /**< 类型不匹配 */
-    lv_ERROR_TYPE_INFERENCE_FAILED = 801, /**< 类型推断失败 */
-    lv_ERROR_UNIVERSE_INCONSISTENT = 802, /**< 宇宙层级不一致 */
-    /* 证明系统错误 (900-999) */
-    lv_ERROR_PROOF_INVALID = 900,             /**< 无效证明 */
-    lv_ERROR_PROOF_INCOMPLETE = 901,          /**< 证明不完整 */
-    lv_ERROR_PROOF_VERIFICATION_FAILED = 902, /**< 证明验证失败 */
-    lv_ERROR_CIRCUIT_OPEN = 903,              /**< 熔断器已跳闸（OPEN 态） */
-    lv_ERROR_COUNT                            /**< 错误码总数，用于数组大小计算 */
+    LV_ERROR_CODES_X(LV_X_EC_ENUM_ITEM)
+    lv_ERROR_COUNT /**< 错误码总数，用于数组大小计算 */
 } lvErrorCode;
+
+#undef LV_X_EC_ENUM_ITEM
 
 /* ============================================================
  * lvResult —— 统一错误传播结果类型

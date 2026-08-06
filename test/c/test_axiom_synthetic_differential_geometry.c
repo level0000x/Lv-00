@@ -294,24 +294,14 @@ static void test_dependency_validation(void) {
 }
 
 /* Main entry point */
-int main(void) {
-    printf("==============================================\n");
-    printf("  Synthetic Differential Geometry Test Suite\n");
-    printf("==============================================\n\n");
-
-    test_load_from_file();
-    test_templates();
-    test_unconstructibles();
-    test_logical_framework();
-    test_content_hash();
-    test_save_load_roundtrip();
-    test_template_retrieval();
-    test_unconstructible_lookup();
-    test_dependency_validation();
-
-    printf("\n==============================================\n");
-    printf("  Results: %d passed, %d failed\n", g_pass_count, g_fail_count);
-    printf("==============================================\n");
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("Synthetic Differential Geometry Test Suite")
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_template_retrieval);
+    TEST_MAIN_RUN(test_unconstructible_lookup);
+    TEST_MAIN_RUN(test_dependency_validation);
+TEST_MAIN_END()

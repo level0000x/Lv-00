@@ -177,6 +177,20 @@ void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len);
 size_t lv_str_json_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
 
 /**
+ * @brief 对字符串执行 JSON 转义并分配新缓冲区（两遍法封装）
+ *
+ * 内部先经 lv_str_json_escape 计算所需长度，再分配 need+1 字节写入完整转义
+ * 结果（含结尾 NUL），避免各调用点重复"先算长度再 malloc"的手写两遍法。
+ *
+ * @param src     源字符串（可为 NULL，按空串处理，返回分配的空串）
+ * @param src_len 源字符串长度（字节）
+ * @param out_len 可选输出：转义后所需长度（不含 NUL）；分配失败时不写入
+ * @return 堆分配的转义后字符串（含 NUL），调用者需用 lv_free 释放；
+ *         分配失败返回 NULL
+ */
+char *lv_str_json_escape_alloc(const char *src, size_t src_len, size_t *out_len);
+
+/**
  * @brief 对字符串执行 JSON 反转义（snprintf 语义）
  *
  * 解码 "、\\、\/、\b、\f、\n、\r、\t 及 \uXXXX（编码为 UTF-8）。

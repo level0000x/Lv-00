@@ -34,6 +34,7 @@
 
 /* ── 前向声明（graph_index.c 中定义） ── */
 void node_destroy(GeomNode *node);
+void constraint_destroy(Constraint *con);
 
 /* 冗余约束检测用的哈希排序辅助结构 */
 typedef struct {
@@ -72,8 +73,8 @@ void graph_destroy(ConstraintGraph *graph) {
     lv_free((void **) &graph->nodes);
     for (int i = 0; i < graph->constraint_count; i++) {
         if (graph->constraints[i]) {
-            lv_free((void **) &graph->constraints[i]->participants);
-            lv_free((void **) &graph->constraints[i]);
+            /* 统一约束释放路径（参与者数组 + 外壳，外壳归还预设池） */
+            constraint_destroy(graph->constraints[i]);
         }
     }
     lv_free((void **) &graph->constraints);

@@ -187,6 +187,67 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
 }
 
 /* ================================================================== */
+/*  内部: 并行 Gröbner 可选入口（默认关闭，保守接入）                   */
+/*                                                                    */
+/*  背景：backends/groebner_parallel.c（v5.0.0 并行引擎）与主流程       */
+/*  数据结构不兼容，且当前为「单线程并行框架」：                        */
+/*   - 公共入口 lv_groebner_parallel_compute() 将输入强转为 int**      */
+/*     子句（SAT 编码），内部按「单项式 x^|lit|、系数 1.0、var_count   */
+/*     =1」构造基；MVPolynomial 为多变量、mpz 精确系数、完整指数向量， */
+/*     两者不存在无损双向映射。                                        */
+/*   - 结果 groebner_basis 为 .c 内部私有类型 SimplePoly，头文件        */
+/*     groebner_parallel.h 不暴露项/系数/指数读取接口，无法反转换      */
+/*     回 MVPolynomial。                                               */
+/*   - 线程模型：注释明示「顺序执行所有线程的工作（当前为单线程并行    */
+/*     框架）」；worker_process 对共享基的 realloc 与计数器 ++ 均无锁， */
+/*     仅因顺序执行未暴露数据竞争；系数为 double + epsilon 截断，      */
+/*     与主流程 mpz 精确语义不符。                                     */
+/*  因此并行路径当前不可用。本函数作为预留接入点：开关（env            */
+/*  LV_GROEBNER_PARALLEL=1）开启时先做阈值与格式可行性检查，任何       */
+/*  不兼容/失败一律返回 false，由调用方回退下方串行 Buchberger，       */
+/*  保证主流程行为与原来逐位一致（方案 A 的「转换→并行→反转换→校验」  */
+/*  待并行引擎提供通用多项式输入/输出 API 后在此补齐）。               */
+/* ================================================================== */
+
+/* 并行路径开关：内部静态，默认关闭；最小侵入，不动 config.h / lvConfig */
+static bool groebner_parallel_path_enabled(void) {
+    static int enabled = -1;
+    if (enabled < 0) {
+        const char *e = getenv("LV_GROEBNER_PARALLEL");
+        enabled = (e && e[0] == '1') ? 1 : 0;
+    }
+    return enabled != 0;
+}
+
+/* 尝试并行 Gröbner 路径。成功返回 true 并填充 out_G/out_g_count；
+ * 不可用/失败返回 false，调用方回退串行实现。 */
+static bool groebner_try_parallel(MVPolynomial **F, int f_count,
+                                  MVPolynomial ***out_G, int *out_g_count) {
+    *out_G = NULL;
+    *out_g_count = 0;
+
+    /* 开关默认关闭（保守优先） */
+    if (!groebner_parallel_path_enabled())
+        return false;
+
+    /* 输入规模阈值：并行仅在输入规模可估计的范围内尝试（S 对数量
+     * 与 f_count 平方同阶），避免无谓开销；与串行 step_limit=10000
+     * 的规模语义对齐。 */
+    if (f_count < 2 || f_count > 4096)
+        return false;
+
+    /* 格式可行性检查：并行引擎公共输入为 SAT 子句编码（int**，单变量
+     * x^|lit|，double 系数），MVPolynomial 为多变量 mpz 精确多项式，
+     * 不存在无损双向映射 → 并行路径不可用，回退串行并告警。 */
+    LOG_WARN("solver",
+             "groebner_try_parallel: 并行引擎输入为 SAT 子句编码(int**，单变量"
+             "double)，与 MVPolynomial 精确多变量格式不兼容，回退串行"
+             "Buchberger（f_count=%d, var_count=%d）",
+             f_count, (F && F[0]) ? F[0]->var_count : 0);
+    return false;
+}
+
+/* ================================================================== */
 /*  内部: Buchberger Groebner 基算法                                    */
 /* ================================================================== */
 
@@ -196,6 +257,18 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
         *out_G = NULL;
         *out_g_count = 0;
         return SOLVER_STATUS_OK;
+    }
+
+    /* 并行增强路径（默认关闭）：成功则直接返回；
+     * 不可用/失败一律回退下方原有串行实现，行为逐位不变。 */
+    {
+        MVPolynomial **par_G = NULL;
+        int par_g_count = 0;
+        if (groebner_try_parallel(F, f_count, &par_G, &par_g_count)) {
+            *out_G = par_G;
+            *out_g_count = par_g_count;
+            return SOLVER_STATUS_OK;
+        }
     }
 
     int var_count = F[0]->var_count;
