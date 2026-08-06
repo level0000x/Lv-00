@@ -409,10 +409,8 @@ static int apply_uf_merges(ConstraintGraph *graph, int *parent, int *rank, int *
         normalization_log_record(log, old_id, new_id, true);
 
         if (normalization_stream_ctx) {
-            lvStrBuf sb = {0};
-            lv_strbuf_printf(&sb, "%s: 节点 %d → %d", merge_type, old_id, new_id);
-            stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_MERGE, sb.data, stream_phase);
-            lv_strbuf_destroy(&sb);
+            stream_emit_fmt(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_MERGE, stream_phase, "%s: 节点 %d → %d",
+                            merge_type, old_id, new_id);
         }
     }
 
@@ -837,10 +835,7 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
 
     /* 流式事件：候选扫描完成 */
     if (normalization_stream_ctx) {
-        lvStrBuf sb_2 = {0};
-        lv_strbuf_printf(&sb_2, "合并候选扫描完成: 发现 %d 对候选", *out_count);
-        stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_INFO, sb_2.data, 0);
-        lv_strbuf_destroy(&sb_2);
+        stream_emit_fmt(normalization_stream_ctx, STREAM_EVENT_INFO, 0, "合并候选扫描完成: 发现 %d 对候选", *out_count);
     }
 
     return candidates;
@@ -941,10 +936,7 @@ int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates, int cou
 
     /* 流式事件：批量合并进度 */
     if (normalization_stream_ctx) {
-        lvStrBuf sb_3 = {0};
-        lv_strbuf_printf(&sb_3, "批量合并: %d 个节点被合并", merged_total);
-        stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_PROGRESS, sb_3.data, 0);
-        lv_strbuf_destroy(&sb_3);
+        stream_emit_fmt(normalization_stream_ctx, STREAM_EVENT_PROGRESS, 0, "批量合并: %d 个节点被合并", merged_total);
     }
 
     /* 从图中移除已合并的节点（逆序遍历，以确保索引有效） */
@@ -1140,11 +1132,8 @@ static int normalize_phase(ConstraintGraph *graph, NormalizationResult *result, 
 
                     /* 流式输出: 点合并事件 (Phase 1) */
                     if (normalization_stream_ctx) {
-                        lvStrBuf sb_4 = {0};
-                        lv_strbuf_printf(&sb_4, "点合并: 节点 %d → %d", old_id, rep_id);
-                        stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_MERGE, sb_4.data,
-                                           1); /* phase 1 = point */
-                        lv_strbuf_destroy(&sb_4);
+                        stream_emit_fmt(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_MERGE, 1,
+                                        "点合并: 节点 %d → %d", old_id, rep_id); /* phase 1 = point */
                     }
                 }
             }
@@ -1177,10 +1166,8 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
 
     /* 流式输出: 规范化开始 */
     if (normalization_stream_ctx) {
-        lvStrBuf sb_5 = {0};
-        lv_strbuf_printf(&sb_5, "规范化开始: %d 个节点, %d 个约束", graph->node_count, graph->constraint_count);
-        stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_START, sb_5.data, 0);
-        lv_strbuf_destroy(&sb_5);
+        stream_emit_fmt(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_START, 0, "规范化开始: %d 个节点, %d 个约束",
+                        graph->node_count, graph->constraint_count);
     }
 
     /* 阶段1：点合并（使用 find_merge_candidates + apply_merges） */
@@ -1235,19 +1222,15 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
 
     /* 流式输出: 拓扑排序完成 (Phase 4 progress) */
     if (normalization_stream_ctx) {
-        lvStrBuf sb_6 = {0};
-        lv_strbuf_printf(&sb_6, "拓扑排序完成, 节点: %d", graph->node_count);
-        stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_PROGRESS, sb_6.data, 4); /* phase 4 = stabilization */
-        lv_strbuf_destroy(&sb_6);
+        stream_emit_fmt(normalization_stream_ctx, STREAM_EVENT_PROGRESS, 4, "拓扑排序完成, 节点: %d",
+                        graph->node_count); /* phase 4 = stabilization */
     }
 
     /* 流式输出: 规范化完成 */
     if (normalization_stream_ctx) {
-        lvStrBuf sb_7 = {0};
-        lv_strbuf_printf(&sb_7, "规范化完成: 合并 %d 个节点 (P1:%d P2:%d P3:%d), 剩余 %d 个节点", total_merges,
-                 phase1, phase2, phase3, graph->node_count);
-        stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_DONE, sb_7.data, 5);
-        lv_strbuf_destroy(&sb_7);
+        stream_emit_fmt(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_DONE, 5,
+                        "规范化完成: 合并 %d 个节点 (P1:%d P2:%d P3:%d), 剩余 %d 个节点", total_merges, phase1, phase2,
+                        phase3, graph->node_count);
     }
 
     return result;

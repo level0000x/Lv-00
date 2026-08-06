@@ -754,19 +754,6 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
     return written;
 }
 
-/**
- * @brief 获取上下文的运行时间（微秒）
- */
-uint64_t lv_context_get_uptime_us(const lvContext *ctx) {
-    if (!ctx) {
-        return 0;
-    }
-    if (ctx->circuit_breaker.start_time_us == 0) {
-        return 0;
-    }
-    return lv_get_time_us() - ctx->circuit_breaker.start_time_us;
-}
-
 /* ============================================================
  * 第六部分（补充）：生命周期管理 API
  * ============================================================ */

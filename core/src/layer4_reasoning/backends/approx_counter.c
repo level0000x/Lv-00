@@ -666,8 +666,7 @@ bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int pr
 
     /* 使用投影变量的数量计算哈希轮数 */
     int xor_count = (proj_count < 8) ? 4 : (proj_count / 2);
-    if (xor_count > 20) xor_count = 20;
-    if (xor_count < 2) xor_count = 2;
+    xor_count = lv_CLAMP(xor_count, 2, 20);
 
     uint64_t total = 0;
     uint64_t seed = cfg ? cfg->seed : 42;

@@ -16,6 +16,7 @@
 #include "lv/lv.h"
 #include "lv/lv_graph_traversal.h"
 #include "lv/lv_thread.h"
+#include "lv/lv_check.h"
 
 #include <float.h>
 #include <math.h>
@@ -262,8 +263,7 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
         return lv_ERROR_INVALID_PARAM;
 
     /* 校验算法类型在默认配置表范围内 */
-    if ((unsigned) algo >= lv_ARRAY_SIZE(kAlgoDefaults))
-        return lv_ERROR_INVALID_PARAM;
+    lv_CHECK_ENUM(algo, lv_ARRAY_SIZE(kAlgoDefaults));
 
     /* 自动初始化 */
     lv_adaptive_threshold_init();
@@ -315,16 +315,14 @@ size_t lv_adaptive_threshold_compute(lvAdaptiveThresholdCtx *ctx) {
     double threshold = cfg->base_threshold + (double) node_count * density * cfg->scale_factor;
 
     /* 钳制到 [min, max] 范围 */
-    if (threshold < cfg->min_threshold)
-        threshold = cfg->min_threshold;
-    if (threshold > cfg->max_threshold)
-        threshold = cfg->max_threshold;
+    threshold = lv_CLAMP(threshold, cfg->min_threshold, cfg->max_threshold);
 
     return (size_t) threshold;
 }
 
 lvError lv_adaptive_threshold_default_config(lvAlgorithmType algo, lvThresholdConfig *config) {
-    if ((unsigned) algo >= lv_ARRAY_SIZE(kAlgoDefaults) || !config)
+    lv_CHECK_ENUM(algo, lv_ARRAY_SIZE(kAlgoDefaults));
+    if (!config)
         return lv_ERROR_INVALID_PARAM;
 
     lv_adaptive_threshold_init();
@@ -383,7 +381,8 @@ void lv_adaptive_threshold_should_prune(lvAdaptiveThresholdCtx *ctx, bool *shoul
 }
 
 lvError lv_adaptive_threshold_set_global_config(lvAlgorithmType algo, const lvThresholdConfig *config) {
-    if ((unsigned) algo >= lv_ARRAY_SIZE(kAlgoDefaults) || !config)
+    lv_CHECK_ENUM(algo, lv_ARRAY_SIZE(kAlgoDefaults));
+    if (!config)
         return lv_ERROR_INVALID_PARAM;
     THRESHOLD_LOCK();
     s_threshold_state.configs[algo] = *config;
@@ -437,10 +436,7 @@ int lv_threshold_is_adaptive(void) {
 }
 
 void lv_set_adaptive_threshold(double value) {
-    if (value < 0.0)
-        value = 0.0;
-    if (value > 1.0)
-        value = 1.0;
+    value = lv_CLAMP(value, 0.0, 1.0);
     THRESHOLD_LOCK();
     s_threshold_state.threshold = value;
     s_threshold_state.is_adaptive = 1;

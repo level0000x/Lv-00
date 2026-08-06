@@ -316,29 +316,6 @@ typedef struct lvVersionInfo {
 lv_PUBLIC_API const char *lv_get_version_string(void);
 
 /**
- * @brief 获取详细版本信息（运行时）
- *
- * 填充 lvVersionInfo 结构体，包含版本号、平台、编译器、构建时间等详细信息。
- * 适用于日志记录、调试输出和系统信息报告。
- *
- * @param[out] info 指向 lvVersionInfo 结构体的指针（调用者分配）
- * @return true 成功，false 失败（info 为 NULL 时）
- *
- * @note   返回的字符串指针（version_string, platform 等）指向静态内存，无需释放。
- *
- * 示例:
- * @code
- *   lvVersionInfo info;
- *   if (lv_get_version_info(&info)) {
- *       printf("Lv-00 v%d.%d.%d (%s, %s, %s)\n",
- *              info.major, info.minor, info.patch,
- *              info.platform, info.compiler, info.arch);
- *   }
- * @endcode
- */
-lv_PUBLIC_API bool lv_get_version_info(lvVersionInfo *info);
-
-/**
  * @brief 检查运行时版本与编译时头文件版本的兼容性
  *
  * 如果运行时库的主版本号与编译时头文件的主版本号不匹配，返回 false。
@@ -731,50 +708,6 @@ lv_PUBLIC_API bool lv_config_set_double(const char *key, double value);
  * @return true 成功，false 失败
  */
 lv_PUBLIC_API bool lv_config_set_string(const char *key, const char *value);
-
-/* ============================================================
- * === 内存管理 ===
- * ============================================================ */
-
-/**
- * @brief 获取当前内存使用统计
- *
- * 获取 Lv-00 内存管理器的统计信息，包括当前分配量、峰值、
- * 分配次数和释放次数等。
- *
- * @param[out] stats 输出统计信息结构体（调用者分配）
- * @return true 成功，false 失败（stats 为 NULL 或系统未初始化）
- *
- * 示例:
- * @code
- *   MemoryStats stats;
- *   if (lv_get_memory_stats_ex(&stats)) {
- *       printf("Memory: %zu bytes current, %zu peak\n",
- *              stats.current_bytes, stats.peak_bytes);
- *   }
- * @endcode
- */
-lv_PUBLIC_API bool lv_get_memory_stats_ex(MemoryStats *stats);
-
-/**
- * @brief 设置内存使用上限
- *
- * 限制 Lv-00 可分配的总内存。达到上限后，新的分配请求将失败
- * 并返回 NULL，同时设置错误码 lv_ERROR_OUT_OF_MEMORY。
- *
- * @param[in] limit_bytes 内存上限（字节），0 表示无限制
- *
- * @note   该限制是软限制，仅在通过 lv_malloc/lv_calloc 分配时生效。
- *          外部通过标准 malloc 分配的内存不计入此限制。
- */
-lv_PUBLIC_API void lv_set_memory_limit_ex(size_t limit_bytes);
-
-/**
- * @brief 获取当前内存使用上限
- *
- * @return 内存上限（字节），0 表示无限制
- */
-lv_PUBLIC_API size_t lv_get_memory_limit_ex(void);
 
 /* ============================================================
  * === 调试和日志 ===

@@ -15,7 +15,8 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h> /* FILE */
+#include <stdio.h>
+#include <string.h> /* FILE */
 
 /* ── Size constants ──
  * 与 config.h 的 "test_framework.h compat" 段（#ifndef 保护）保持一致。
@@ -165,6 +166,7 @@ uint32_t lv_test_get_data_index(void);
 #define lv_TEST_MACROS_DEFINED
 
 #include <stdio.h>
+#include <string.h>
 
 #define lv_TEST(suite, name)                 \
     static void test_##suite##_##name(void); \
@@ -202,6 +204,35 @@ uint32_t lv_test_get_data_index(void);
                     #actual, (long) (intptr_t) (expected), (long) (intptr_t) (actual));                            \
             return;                                                                                                \
         }                                                                                                          \
+    } while (0)
+
+#define lv_ASSERT_STR_EQ(actual, expected)                                                                      \
+    do {                                                                                                        \
+        const char *_lv_actual = (actual);                                                                      \
+        const char *_lv_expected = (expected);                                                                  \
+        int _lv_cmp = 0;                                                                                        \
+        if (_lv_actual == NULL && _lv_expected == NULL) {                                                       \
+            _lv_cmp = 0;                                                                                        \
+        } else if (_lv_actual == NULL || _lv_expected == NULL) {                                                \
+            _lv_cmp = 1;                                                                                        \
+        } else {                                                                                                \
+            _lv_cmp = strcmp(_lv_actual, _lv_expected);                                                         \
+        }                                                                                                       \
+        if (_lv_cmp != 0) {                                                                                     \
+            fprintf(stderr, "  FAIL [%s:%d] %s != %s (actual='%s', expected='%s')\n", __FILE__, __LINE__,       \
+                    #actual, #expected, _lv_actual ? _lv_actual : "(null)",                                     \
+                    _lv_expected ? _lv_expected : "(null)");                                                    \
+            return;                                                                                             \
+        }                                                                                                       \
+    } while (0)
+
+#define lv_ASSERT_NE(a, e)                                                                                      \
+    do {                                                                                                        \
+        if ((intptr_t) (a) == (intptr_t) (e)) {                                                                 \
+            fprintf(stderr, "  FAIL [%s:%d] %s == %s (value=%ld)\n", __FILE__, __LINE__, #a, #e,                 \
+                    (long) (intptr_t) (a));                                                                     \
+            return;                                                                                             \
+        }                                                                                                       \
     } while (0)
 
 #define lv_ASSERT_FLOAT_EQ(expected, actual, tol)                                                             \

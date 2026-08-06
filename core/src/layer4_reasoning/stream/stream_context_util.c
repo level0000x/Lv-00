@@ -18,7 +18,11 @@
 
 #include <stddef.h>
 
+#include <stdarg.h>
+
 #include "lv/lv_thread.h"
+
+#include "lv/lv_strbuf.h"
 
 /* ---- 依赖前向声明：内置模块的 setter 函数 ---- */
 
@@ -103,6 +107,32 @@ void stream_context_clear_all(void) {
             s_setter_registry.setters[i](NULL);
         }
     }
+}
+
+/**
+ * @brief 便捷函数: 格式化文本并发射简单流式事件
+ *
+ * 内部完成「lvStrBuf 组装 + stream_emit_simple + lvStrBuf 销毁」。
+ *
+ * @param ctx         流式上下文（可为 NULL，此时为空操作）
+ * @param type        事件类型
+ * @param step_number 步骤编号（各模块可将其视为阶段号 phase）
+ * @param fmt         printf 风格格式串
+ * @param ...         格式化参数
+ */
+void stream_emit_fmt(StreamContext *ctx, StreamEventType type, int step_number, const char *fmt, ...) {
+    if (!ctx || !fmt)
+        return;
+
+    va_list args;
+    va_start(args, fmt);
+
+    lvStrBuf sb = {0};
+    lv_strbuf_vprintf(&sb, fmt, args);
+    va_end(args);
+
+    stream_emit_simple(ctx, type, sb.data, step_number);
+    lv_strbuf_destroy(&sb);
 }
 
 /* ================================================================

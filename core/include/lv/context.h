@@ -924,13 +924,6 @@ lv_PUBLIC_API const char *lv_context_get_error_message(const lvContext *ctx);
  */
 lv_PUBLIC_API int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size);
 
-/**
- * @brief 获取上下文的运行时间（微秒）
- * @param ctx 上下文（非 NULL）
- * @return 自创建或最近一次 reset 以来的微秒数
- */
-lv_PUBLIC_API uint64_t lv_context_get_uptime_us(const lvContext *ctx);
-
 #ifdef __cplusplus
 }
 #endif

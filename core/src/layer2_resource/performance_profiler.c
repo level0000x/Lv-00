@@ -186,10 +186,7 @@ int lv_perf_benchmark_run(const char *name, void (*fn)(void), void *setup_fn, lv
     }
 
     int iterations = (int) (1000000000.0 / ns_per_iter) + 1;
-    if (iterations < 100)
-        iterations = 100;
-    if (iterations > 100000000)
-        iterations = 100000000;
+    iterations = lv_CLAMP(iterations, 100, 100000000);
 
     /* ---- 正式计时：使用 Welford 在线统计算法 ---- */
     double mean = 0.0;

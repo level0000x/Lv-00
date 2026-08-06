@@ -615,81 +615,12 @@ bool lv_config_set_string(const char *key, const char *value) {
     return config_set_string(s_lv_state.config, key, value);
 }
 
-/* ============================================================
- * 版本信息 API
- * ============================================================ */
-
-bool lv_get_version_info(lvVersionInfo *info) {
-    if (!info)
-        return false;
-
-    info->major = lv_VERSION_MAJOR;
-    info->minor = lv_VERSION_MINOR;
-    info->patch = lv_VERSION_PATCH;
-    info->version_string = lv_get_version_string();
-
-    /* 平台/编译器/架构信息统一走 cross_platform.h 的运行时查询函数
-     * （lv_platform_name/lv_compiler_name/lv_arch_name），
-     * 消除本文件与跨平台层重复的 if/elif 检测链。 */
-    info->platform = lv_platform_name();
-    info->compiler = lv_compiler_name();
-    info->arch = lv_arch_name();
-
-    info->build_date = __DATE__;
-    info->build_time = __TIME__;
-
-    return true;
-}
-
 bool lv_check_version_compat(void) {
     /* 检查运行时主版本号与编译时主版本号是否一致 */
     if (lv_VERSION_MAJOR != 3) {
         return false;
     }
     return true;
-}
-
-/* ============================================================
- * 内存管理便捷API实现
- * ============================================================ */
-
-/* ===== 向后兼容保留的别名（已弃用）=====
- * 本函数纯做 1:1 转发到 lv_get_memory_stats()，仅为旧版调用方提供兼容。
- * 新代码请直接使用 lv_get_memory_stats()。
- * 该函数计划在后续主版本中移除。
- */
-lv_DEPRECATED("use lv_get_memory_stats instead")
-    /**
- * @brief 获取扩展内存统计信息（便捷封装）
- *
- * @param stats  输出参数，用于接收内存统计信息
- * @return true  成功获取并写入统计信息
- * @return false stats 为 NULL 指针，未执行任何操作
- * @note 内部委托 lv_get_memory_stats() 完成实际统计
- */
-    bool lv_get_memory_stats_ex(MemoryStats *stats) {
-    if (!stats)
-        return false;
-    lv_get_memory_stats(stats);
-    return true;
-}
-
-/* ===== 向后兼容保留的别名（已弃用）=====
- * 本函数纯做 1:1 转发到 lv_set_memory_limit()，仅为旧版调用方提供兼容。
- * 新代码请直接使用 lv_set_memory_limit()。
- * 该函数计划在后续主版本中移除。
- */
-lv_DEPRECATED("use lv_set_memory_limit instead") void lv_set_memory_limit_ex(size_t limit_bytes) {
-    lv_set_memory_limit(limit_bytes);
-}
-
-/* ===== 向后兼容保留的别名（已弃用）=====
- * 本函数纯做 1:1 转发到 lv_get_memory_limit()，仅为旧版调用方提供兼容。
- * 新代码请直接使用 lv_get_memory_limit()。
- * 该函数计划在后续主版本中移除。
- */
-lv_DEPRECATED("use lv_get_memory_limit instead") size_t lv_get_memory_limit_ex(void) {
-    return lv_get_memory_limit();
 }
 
 /* ============================================================

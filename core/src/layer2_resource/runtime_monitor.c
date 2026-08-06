@@ -726,10 +726,7 @@ lvHealthReport *lv_runtime_health_check(void) {
     const char *env_threads = getenv("lv_MONITOR_THREADS");
     if (env_threads && env_threads[0] != '\0') {
         long parsed = strtol(env_threads, NULL, 10);
-        if (parsed < 1)
-            parsed = 1;
-        if (parsed > 64)
-            parsed = 64;
+        parsed = lv_CLAMP(parsed, 1, 64);
         monitor_threads = (int) parsed;
     }
     check->value = (double) monitor_threads;

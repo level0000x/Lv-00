@@ -92,7 +92,6 @@ extern "C" {
     x(lv_ERROR_IO, 12, "lv_ERROR_IO", "IO错误", "系统") \
     x(lv_ERROR_PARSE, 13, "lv_ERROR_PARSE", "解析错误", "系统") \
     x(lv_ERROR_INVALID_STATE, 14, "lv_ERROR_INVALID_STATE", "无效状态", "系统") \
-    x(lv_ERROR_INVALID_ARGUMENT, 15, "lv_ERROR_INVALID_ARGUMENT", "无效参数（字符串为空等）", "系统") /* @deprecated 与 lv_ERROR_INVALID_PARAM 语义重叠，请使用后者替代 */ \
     x(lv_ERROR_INDEX_OUT_OF_RANGE, 17, "lv_ERROR_INDEX_OUT_OF_RANGE", "索引越界", "系统") \
     x(lv_ERROR_VALUE_OUT_OF_RANGE, 18, "lv_ERROR_VALUE_OUT_OF_RANGE", "数值越界", "系统") \
     x(lv_ERROR_INTERNAL, 70, "lv_ERROR_INTERNAL", "内部错误", "系统") \

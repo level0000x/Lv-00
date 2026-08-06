@@ -33,59 +33,11 @@
  * ================================================================ */
 
 /**
- * @brief 异步任务数据结构（供 sledgehammer_async_task_execute 使用）
- *
- * 每个策略的异步任务数据，包含执行上下文和结果输出。
- */
-typedef struct {
-    ProofMultiStrategy *mse;
-    ProofStrategyType strategy_type;
-    int strategy_index;
-    bool success;
-    double elapsed_sec;
-    char *isar_proof_script;
-} _SledgehammerAsyncTaskData;
-
-/**
- * @brief 异步策略执行的实际任务函数
- *
- * @param user_data 指向 _SledgehammerAsyncTaskData 的指针
- * @return 0 成功，-1 失败
- */
-static int sledgehammer_async_task_execute(void *user_data) {
-    if (!user_data)
-        return -1;
-
-    _SledgehammerAsyncTaskData *td = (_SledgehammerAsyncTaskData *) user_data;
-
-    clock_t start = clock();
-
-    /* 激活并执行策略 */
-    proof_multi_strategy_activate(td->mse, td->strategy_type);
-    bool success = proof_multi_strategy_execute(td->mse);
-
-    td->elapsed_sec = lv_clock_elapsed_sec(start);
-    td->success = success;
-
-    /* 生成 Isar 证明脚本 */
-    if (success) {
-        const char *sname = proof_strategy_type_to_string(td->strategy_type);
-        size_t len = strlen(sname) + 64;
-        td->isar_proof_script = (char *) lv_malloc(len);
-        if (td->isar_proof_script) {
-            snprintf(td->isar_proof_script, len, "proof (induction) -\n  (* 策略: %s *)\n  apply auto\nqed", sname);
-        }
-    }
-
-    return success ? 0 : -1;
-}
-
-/**
  * @brief Sledgehammer 风格 — 自动尝试多个证明策略，返回最优结果
  *
  * 遍历 proof_multi_strategy_try_all 的结果：
  * - SLEDGE_SYNC 模式：逐个尝试每种策略，记录成功/失败和耗时，选最优
- * - SLEDGE_ASYNC 模式：使用全局线程池并行执行所有策略
+ * - SLEDGE_ASYNC 模式：曾为全局线程池并行执行，因并发缺陷已回退为同步执行（见下）
  * - SLEDGE_TIMEOUT 模式：同 SYNC 但带超时控制
  */
 SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, SledgehammerMode mode, int timeout_ms) {
@@ -96,113 +48,48 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
     if (!report)
         return NULL;
 
-    /* ---- 异步模式：使用全局线程池并行执行所有策略 ---- */
+    /* ---- 异步模式 ----
+     *
+     * 【并发缺陷修复说明】
+     * 原 SLEDGE_ASYNC 实现使用全局线程池并行执行所有策略，存在两类真实缺陷，
+     * 现回退为同步执行（行为与 SLEDGE_SYNC 完全一致），从根因上消除：
+     *
+     * 1) 共享 mse/nav 并发执行（数据竞争 + 堆损坏）：
+     *    - 所有任务共享同一 mse（task_data_array[i].mse = mse）；worker 线程内
+     *      proof_multi_strategy_activate 写 mse->active_strategy_index 与
+     *      mse->strategies[x].status（proof_multi_strategy.c:642-649），
+     *      proof_multi_strategy_execute 写 mse->total_attempts++ / success_count++
+     *      （proof_multi_strategy.c:677-696）；
+     *    - 各策略执行函数 desc->execute(mse, mse->shared_navigator) 并行向共享
+     *      ProofNavigator 追加步骤：proof_navigator_add_step 内 lv_realloc(nav->steps)
+     *      （proof_proposition.c:660），并 graph_normalize(nav->construction) 修改
+     *      共享图（proof_strategy_core.c:83）→ 数据竞争 + 堆破坏。
+     *    - 深拷贝评估：mse 深拷贝可行但中等成本（strategies 的动态字符串、
+     *      required_axiom_packages、fallback_order、strategy_timings_ms 等）；
+     *      ProofNavigator 无克隆 API（proof.h 中无 clone/deep_copy），结构含
+     *      steps/dep_tree/equivalences/lemma_view/scope/construction 图等大量
+     *      动态结构，深拷贝成本极高、易错，故不采用"每任务独立 mse/nav"方案。
+     *
+     * 2) 等待语义错误（UAF + 漏等 + 泄漏）：
+     *    - lv_thread_pool_submit 内部新建 wait group 并覆盖 task->group
+     *      （thread_pool.c:204），外层 lvTaskGroup 的 pending 永不被 worker 递减
+     *      （worker 只递减 task->group，thread_pool.c:89-97）；
+     *    - lv_thread_pool_wait_group(pool, group, 0) 的 timeout=0 是非阻塞检查、
+     *      立即返回（thread_pool.c:251-255）→ 未等完成即读取 td->success /
+     *      elapsed_sec / isar_proof_script（数据竞争）；lv_task_group_destroy +
+     *      lv_free(task_data_array) 时 worker 可能仍在执行（use-after-free）；
+     *      每次 submit 的内部 wait group 永不释放（泄漏）。
+     *    - 正确用法（若未来恢复异步必须遵循）：收集 lv_thread_pool_submit 返回的
+     *      内部 wait group 指针数组，逐个以 timeout_ms=-1 阻塞等待（thread_pool.c:
+     *      243-250，等待 pending==0 后内部自动销毁释放），先等后收，再 destroy
+     *      外层 group + free task_data_array。
+     */
     if (mode == SLEDGE_ASYNC) {
-        lvThreadPool *pool = lv_get_global_thread_pool();
-        if (!pool) {
-            /* 线程池不可用，回退到同步模式并输出警告 */
-            if (proof_stream_ctx) {
-                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
-                                   "SLEDGE_ASYNC: 全局线程池未初始化，回退到同步模式", 0);
-            }
-            /* 回退：继续执行下面的同步逻辑 */
-        } else {
-            /* 分配结果数组 */
-            report->results =
-                (SledgehammerStrategyResult *) lv_calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
-            if (!report->results) {
-                lv_free((void **) &report);
-                return NULL;
-            }
-
-            /* 第一遍：收集可用策略并分配任务数据 */
-            int available_count = 0;
-            _SledgehammerAsyncTaskData *task_data_array =
-                (_SledgehammerAsyncTaskData *) lv_calloc(PROOF_STRATEGY_COUNT, sizeof(_SledgehammerAsyncTaskData));
-            if (!task_data_array) {
-                lv_free((void **) &report->results);
-                lv_free((void **) &report);
-                return NULL;
-            }
-
-            for (int st = 0; st < PROOF_STRATEGY_COUNT; st++) {
-                ProofStrategyDescriptor *desc = &mse->strategies[st];
-                if (desc->status == PROOF_STRATEGY_UNAVAILABLE || !desc->execute)
-                    continue;
-                task_data_array[available_count].mse = mse;
-                task_data_array[available_count].strategy_type = (ProofStrategyType) st;
-                task_data_array[available_count].strategy_index = st;
-                task_data_array[available_count].success = false;
-                task_data_array[available_count].elapsed_sec = 0.0;
-                task_data_array[available_count].isar_proof_script = NULL;
-                available_count++;
-            }
-
-            if (available_count == 0) {
-                /* 无可用策略 */
-                lv_free((void **) &task_data_array);
-                report->result_count = 0;
-                report->best_index = -1;
-                return report;
-            }
-
-            /* 创建任务组 */
-            lvTaskGroup *group = lv_task_group_create("sledgehammer_async");
-            if (!group) {
-                /* 任务组创建失败，回退到同步模式 */
-                lv_free((void **) &task_data_array);
-                if (proof_stream_ctx) {
-                    stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
-                                       "SLEDGE_ASYNC: 任务组创建失败，回退到同步模式", 0);
-                }
-                /* 回退：释放 results 并继续执行下面的同步逻辑 */
-                lv_free((void **) &report->results);
-                report->results = NULL;
-            } else {
-                /* 为每个可用策略创建并提交任务 */
-                for (int i = 0; i < available_count; i++) {
-                    lvTask *task =
-                        lv_task_create(sledgehammer_async_task_execute, &task_data_array[i], "sledgehammer_strategy");
-                    if (!task) {
-                        continue;
-                    }
-                    lv_task_group_add(group, task);
-                    lv_thread_pool_submit(pool, task);
-                }
-
-                /* 等待所有任务完成 */
-                lv_thread_pool_wait_group(pool, group, 0);
-
-                /* 收集结果 */
-                clock_t total_start_a = clock();
-                int best_index_a = -1;
-                double best_time_a = 1e18;
-
-                for (int i = 0; i < available_count; i++) {
-                    _SledgehammerAsyncTaskData *td = &task_data_array[i];
-                    int idx = report->result_count;
-
-                    report->results[idx].strategy = td->strategy_type;
-                    report->results[idx].success = td->success;
-                    report->results[idx].elapsed_sec = td->elapsed_sec;
-                    report->results[idx].isar_proof_script = td->isar_proof_script;
-
-                    if (td->success && td->elapsed_sec < best_time_a) {
-                        best_time_a = td->elapsed_sec;
-                        best_index_a = idx;
-                    }
-
-                    report->result_count++;
-                }
-
-                report->total_time_sec = lv_clock_elapsed_sec(total_start_a);
-                report->best_index = best_index_a;
-
-                lv_task_group_destroy(group);
-                lv_free((void **) &task_data_array);
-                return report;
-            }
+        if (proof_stream_ctx) {
+            stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
+                               "SLEDGE_ASYNC: 并行执行存在并发缺陷，已回退为同步执行", 0);
         }
+        /* 回退：继续执行下面的同步逻辑（与 SLEDGE_SYNC 一致） */
     }
 
     /* ---- 同步 / 超时模式（含异步回退） ---- */

@@ -89,6 +89,9 @@ extern "C" {
     } while (0)
 
 /* lv_CHECK_ALLOC(ptr, ret) 已在 error_codes.h 中定义 */
+/* lv_CLAMP(val, min, max) 已在 lv_utils.h 中定义（就地钳制，返回钳后值） */
+/* lv_CHECK_RANGE(val, min, max) 3 参数版 与 lv_CHECK_ENUM(val, max) 见本文件下方定义；
+ * lv_CLAMP(val, min, max) 已在 lv_utils.h 中定义 */
 
 /**
  * @brief 检查边界
@@ -118,6 +121,44 @@ extern "C" {
                      (int)(idx), (size_t)(max), fmt, __FILE__, __LINE__); \
             return NULL;                                                \
         }                                                              \
+    } while (0)
+
+/**
+ * @brief 检查值范围（含边界）
+ * @param v    待检查的值
+ * @param min  下界（包含）
+ * @param max  上界（包含）
+ *
+ * 越界时返回 -1（lv_ERROR_INVALID_PARAM）。
+ * 若需自定义返回值，请使用 error_codes.h 中的 4 参数版 lv_CHECK_RANGE(val, min, max, ret)。
+ * 注意：error_codes.h 亦定义同名 4 参数版宏，此处 #undef 后统一为 3 参数版。
+ */
+#ifdef lv_CHECK_RANGE
+#undef lv_CHECK_RANGE
+#endif
+#define lv_CHECK_RANGE(v, min, max)                                       \
+    do {                                                                  \
+        if ((v) < (min) || (v) > (max)) {                                 \
+            lv_ERROR("CHECK: %s 越界，有效范围 [%s, %s] [%s:%d]", #v, #min, #max, __FILE__, __LINE__); \
+            lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, #v);                  \
+        }                                                                 \
+    } while (0)
+
+/**
+ * @brief 检查枚举值边界（枚举数组下标防护）
+ * @param v    枚举值
+ * @param max  枚举上界（不包含，通常为 lv_ARRAY_SIZE(...)）
+ *
+ * 等价于手写 (unsigned)(v) >= (unsigned)(max) 检查。
+ * 失败时返回 lv_ERROR_INVALID_PARAM（枚举值），适配 lvError 返回型函数。
+ */
+#define lv_CHECK_ENUM(v, max)                                             \
+    do {                                                                  \
+        if ((unsigned)(v) >= (unsigned)(max)) {                           \
+            lv_ERROR("CHECK: 枚举 %s 越界 %u/%u [%s:%d]", #v,             \
+                     (unsigned)(v), (unsigned)(max), __FILE__, __LINE__); \
+            lv_RETURN_ERROR_VAL(lv_ERROR_INVALID_PARAM, lv_ERROR_INVALID_PARAM, "枚举值越界: %s", #v); \
+        }                                                                 \
     } while (0)
 
 /**
