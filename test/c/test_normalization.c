@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_normalization.c
  * @brief Lv-00 图规范化测试 - 点合并、线段规范化、含约束图规范化
  *
@@ -240,6 +240,60 @@ static int test_segment_merge_after_normalize(void) {
     return 0;
 }
 
+/* 测试 find_merge_candidates 直接检测合并候选（并入自 manual/test_comprehensive.c） */
+static int test_find_merge_candidates(void) {
+    printf("\n=== Testing find_merge_candidates ===\n");
+
+    ConstraintGraph *graph = graph_create();
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
+
+    SymbolicCoord *c = symbolic_coord_create_rational(5, 2);
+    if (!c) {
+        printf("  FAILED: Could not create symbolic coord\n");
+        graph_destroy(graph);
+        return -1;
+    }
+
+    graph_add_point(graph, &c, 1);
+    graph_add_point(graph, &c, 1);
+    if (graph->node_count != 2) {
+        printf("  FAILED: Expected 2 nodes, got %d\n", graph->node_count);
+        graph_destroy(graph);
+        return -1;
+    }
+
+    int count = 0;
+    NodeMergeCandidate *candidates = find_merge_candidates(graph, &count);
+    if (!candidates || count != 1) {
+        printf("  FAILED: Expected 1 candidate, got %d\n", count);
+        graph_destroy(graph);
+        return -1;
+    }
+    bool ab = candidates[0].node_a_id == 0 && candidates[0].node_b_id == 1;
+    bool ba = candidates[0].node_a_id == 1 && candidates[0].node_b_id == 0;
+    if (!ab && !ba) {
+        printf("  FAILED: Expected candidate nodes {0, 1}, got (%d, %d)\n",
+               candidates[0].node_a_id, candidates[0].node_b_id);
+        merge_candidates_destroy(candidates, count);
+        graph_destroy(graph);
+        return -1;
+    }
+    if (candidates[0].scope_a != candidates[0].scope_b) {
+        printf("  FAILED: Expected equal candidate scopes\n");
+        merge_candidates_destroy(candidates, count);
+        graph_destroy(graph);
+        return -1;
+    }
+
+    printf("  find_merge_candidates: PASSED\n");
+    merge_candidates_destroy(candidates, count);
+    graph_destroy(graph);
+    return 0;
+}
+
 int main(void) {
     printf("=== Lv-00 Normalization Test Suite ===\n");
     int failures = 0;
@@ -249,6 +303,7 @@ int main(void) {
     failures += test_no_merge_different_coords();
     failures += test_large_scale_merge();
     failures += test_segment_merge_after_normalize();
+    failures += test_find_merge_candidates();
 
     printf("\n=== Test Summary ===\n");
     if (failures == 0)

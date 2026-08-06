@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/hash_history.h"
 #include "lv/rewrite.h"
 #include "lv/stream.h"
 
@@ -126,106 +127,136 @@ static RewriteMatch *perform_coord_validated_match(ConstraintGraph *target_graph
 /**
  * @brief 初始化 WL 哈希历史环形缓冲区
  *
- * 分配 hash_history 和 light_hash_history 缓冲区，初始化为零。
+ * 委托给公共 hash_history 核心（环形 + 32 位轻量预筛）。
  * 两个缓冲区都使用 WL_HISTORY_SIZE 作为容量。
  *
  * @param hist WL 哈希历史结构体指针（不能为 NULL）
  */
 void wl_history_init(WLHashHistory *hist) {
-    hist->hash_history = lv_malloc(WL_HISTORY_SIZE * sizeof(uint64_t));
-    if (hist->hash_history)
-        memset(hist->hash_history, 0, WL_HISTORY_SIZE * sizeof(uint64_t));
-    hist->light_hash_history = lv_malloc(WL_HISTORY_SIZE * sizeof(uint32_t));
-    if (hist->light_hash_history)
-        memset(hist->light_hash_history, 0, WL_HISTORY_SIZE * sizeof(uint32_t));
-    hist->history_count = 0;
-    hist->history_pos = 0;
-    hist->light_history_count = 0;
-    hist->light_history_pos = 0;
+    hash_history_init((HashHistory *) hist, WL_HISTORY_SIZE, true);
 }
 
 /**
  * @brief 销毁 WL 哈希历史，释放内存
  *
- * 释放 hash_history 和 light_hash_history 缓冲区，并将所有字段归零。
+ * 委托给公共 hash_history 核心。
  *
  * @param hist WL 哈希历史结构体指针
  */
 void wl_history_destroy(WLHashHistory *hist) {
-    lv_free((void **) &hist->hash_history);
-    lv_free((void **) &hist->light_hash_history);
-    hist->hash_history = NULL;
-    hist->light_hash_history = NULL;
-    hist->history_count = 0;
-    hist->history_pos = 0;
-    hist->light_history_count = 0;
-    hist->light_history_pos = 0;
+    hash_history_destroy((HashHistory *) hist);
 }
 
 /**
  * @brief 向环形缓冲区中推入一个新的图哈希（64 位完整哈希 + 32 位轻量哈希）
  *
- * 将哈希值写入环形缓冲区当前位置，并同步更新 light_hash_history。
+ * 委托给公共 hash_history 核心。
  *
  * @param hist WL 哈希历史结构体指针
  * @param hash 64 位图哈希值
  */
 static void wl_history_push(WLHashHistory *hist, uint64_t hash) {
-    hist->hash_history[hist->history_pos] = hash;
-    hist->history_pos = (hist->history_pos + 1) % WL_HISTORY_SIZE;
-    if (hist->history_count < WL_HISTORY_SIZE) {
-        hist->history_count++;
-    }
-    /* 同步更新32位轻量哈希（用于快速预筛选） */
-    uint32_t light = (uint32_t) (hash ^ (hash >> 32));
-    hist->light_hash_history[hist->light_history_pos] = light;
-    hist->light_history_pos = (hist->light_history_pos + 1) % WL_HISTORY_SIZE;
-    if (hist->light_history_count < WL_HISTORY_SIZE) {
-        hist->light_history_count++;
-    }
-}
-
-/**
- * @brief 两阶段检查：先用 32 位轻量哈希快速预筛选，匹配时再用 64 位确认
- *
- * 仅检查轻量哈希历史，不涉及完整哈希比较。
- *
- * @param hist      WL 哈希历史结构体指针
- * @param light_hash 32 位轻量哈希值
- * @return true 轻量哈希存在于历史中，false 不存在
- */
-static bool wl_history_contains_light(WLHashHistory *hist, uint32_t light_hash) {
-    for (int i = 0; i < hist->light_history_count; i++) {
-        if (hist->light_hash_history[i] == light_hash) {
-            return true;
-        }
-    }
-    return false;
+    hash_history_add((HashHistory *) hist, WL_HISTORY_SIZE, hash);
 }
 
 /**
  * @brief 检查环形缓冲区中是否已包含指定的哈希值（两阶段检查）
  *
  * 阶段 1：32 位轻量预筛选；阶段 2：64 位精确确认。
+ * 委托给公共 hash_history 核心。
  *
  * @param hist WL 哈希历史结构体指针
  * @param hash 64 位图哈希值
  * @return true 哈希值已存在于历史中，false 不存在
  */
 static bool wl_history_contains(WLHashHistory *hist, uint64_t hash) {
-    /* 阶段1：32位轻量预筛选 */
-    uint32_t light = (uint32_t) (hash ^ (hash >> 32));
-    if (!wl_history_contains_light(hist, light)) {
-        return false; /* 快速路径：轻量哈希不匹配，直接排除 */
+    return hash_history_contains((HashHistory *) hist, hash);
+}
+
+/* ===========================================================================
+ * 公共哈希历史（HashHistory）—— 通用 uint64 环形缓冲 + 可选 32 位轻量预筛
+ *
+ * 同时服务本文件的 WLHashHistory 与 normalization.c 的 RewriteHistory，
+ * 消除两套同构实现。结构与 WLHashHistory 布局兼容（见 lv/hash_history.h）。
+ * =========================================================================== */
+
+void hash_history_init(HashHistory *hh, int capacity, bool use_light) {
+    if (!hh || capacity <= 0)
+        return;
+    hh->full_history = lv_malloc((size_t) capacity * sizeof(uint64_t));
+    if (hh->full_history)
+        memset(hh->full_history, 0, (size_t) capacity * sizeof(uint64_t));
+    hh->light_history = NULL;
+    if (use_light) {
+        hh->light_history = lv_malloc((size_t) capacity * sizeof(uint32_t));
+        if (hh->light_history)
+            memset(hh->light_history, 0, (size_t) capacity * sizeof(uint32_t));
+    }
+    hh->full_count = 0;
+    hh->full_pos = 0;
+    hh->light_count = 0;
+    hh->light_pos = 0;
+}
+
+void hash_history_destroy(HashHistory *hh) {
+    if (!hh)
+        return;
+    lv_free((void **) &hh->full_history);
+    lv_free((void **) &hh->light_history);
+    hh->full_count = 0;
+    hh->full_pos = 0;
+    hh->light_count = 0;
+    hh->light_pos = 0;
+}
+
+void hash_history_add(HashHistory *hh, int capacity, uint64_t hash) {
+    if (!hh || capacity <= 0)
+        return;
+    hh->full_history[hh->full_pos] = hash;
+    hh->full_pos = (hh->full_pos + 1) % capacity;
+    if (hh->full_count < capacity) {
+        hh->full_count++;
+    }
+    /* 同步更新32位轻量哈希（用于快速预筛选） */
+    if (hh->light_history) {
+        uint32_t light = (uint32_t) (hash ^ (hash >> 32));
+        hh->light_history[hh->light_pos] = light;
+        hh->light_pos = (hh->light_pos + 1) % capacity;
+        if (hh->light_count < capacity) {
+            hh->light_count++;
+        }
+    }
+}
+
+bool hash_history_contains(const HashHistory *hh, uint64_t hash) {
+    if (!hh)
+        return false;
+    /* 阶段1：32位轻量预筛选（启用时） */
+    if (hh->light_history) {
+        uint32_t light = (uint32_t) (hash ^ (hash >> 32));
+        bool light_hit = false;
+        for (int i = 0; i < hh->light_count; i++) {
+            if (hh->light_history[i] == light) {
+                light_hit = true;
+                break;
+            }
+        }
+        if (!light_hit) {
+            return false; /* 快速路径：轻量哈希不匹配，直接排除 */
+        }
     }
 
     /* 阶段2：64位精确确认 */
-    for (int i = 0; i < hist->history_count; i++) {
-        if (hist->hash_history[i] == hash) {
+    for (int i = 0; i < hh->full_count; i++) {
+        if (hh->full_history[i] == hash) {
             return true;
         }
     }
     return false;
+}
+
+int hash_history_count(const HashHistory *hh) {
+    return hh ? hh->full_count : 0;
 }
 
 /* ================================================================
@@ -395,27 +426,72 @@ static uint64_t *wl_refine_labels(ConstraintGraph *graph, uint64_t *labels, int 
     return new_labels;
 }
 
+/* 初始标签模式（compute_wl_hash_core 参数） */
+#ifndef WL_INIT_STRUCTURED
+#define WL_INIT_STRUCTURED 0
+#endif
+#ifndef WL_INIT_DEGREE
+#define WL_INIT_DEGREE 1
+#endif
+
 /**
- * @brief 计算 WL 图核哈希（2 轮迭代，基于拓扑结构，忽略坐标值）
+ * @brief 计算节点的初始 WL 标签（度数模式：参与活跃约束数 + 1）
  *
- * 将所有节点标签聚合为一个 64 位图哈希。
+ * 供参数化核心 compute_wl_hash_core 使用（原 bootstrap_test_iso.c
+ * graph_isomorphism_hash 的初始标签语义）。
  *
- * @param graph 约束图指针
- * @return 64 位图哈希值，图为空或出错返回 0
+ * @param graph     约束图指针
+ * @param node_count 节点数量
+ * @return 动态分配的 uint64_t 标签数组，失败返回 NULL；调用者负责释放
  */
-uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
+static uint64_t *compute_wl_initial_labels_degree(ConstraintGraph *graph, int node_count) {
+    uint64_t *labels = lv_malloc((size_t) node_count * sizeof(uint64_t));
+    if (!labels)
+        return NULL;
+
+    for (int i = 0; i < node_count; i++) {
+        int cids[64];
+        int deg = graph_find_constraints_involving(graph, graph->nodes[i]->id, cids, 64);
+        labels[i] = (uint64_t) (deg + 1);
+    }
+
+    return labels;
+}
+
+/**
+ * @brief 参数化 WL 图核哈希核心（单一 WL 实现，收敛两处重复实现）
+ *
+ * 将所有节点标签聚合为一个 64 位图哈希：
+ * - init_mode = WL_INIT_STRUCTURED：结构化初始标签（类型+信任+lo_subtype+约束拓扑计数）
+ * - init_mode = WL_INIT_DEGREE：度数初始标签（参与活跃约束数 + 1）
+ * - 迭代轮数由 iterations 指定（rewrite 侧为 WL_ITERATIONS，bootstrap 侧为 3）
+ * - 混入与聚合统一为 FNV 乘加 + 排序邻居的确定性算法（基于拓扑结构，忽略坐标值）
+ *
+ * @param graph      约束图指针
+ * @param init_mode  初始标签模式（WL_INIT_STRUCTURED / WL_INIT_DEGREE）
+ * @param iterations WL 迭代轮数
+ * @return 64 位图哈希值，图为空、参数非法或出错返回 0
+ */
+uint64_t compute_wl_hash_core(ConstraintGraph *graph, int init_mode, int iterations) {
     if (!graph || graph->node_count == 0)
         return 0;
 
     int node_count = graph->node_count;
 
-    /* 计算初始标签 */
-    uint64_t *labels = compute_wl_initial_labels(graph, node_count);
+    /* 按模式计算初始标签 */
+    uint64_t *labels = NULL;
+    if (init_mode == WL_INIT_STRUCTURED) {
+        labels = compute_wl_initial_labels(graph, node_count);
+    } else if (init_mode == WL_INIT_DEGREE) {
+        labels = compute_wl_initial_labels_degree(graph, node_count);
+    } else {
+        return 0;
+    }
     if (!labels)
         return 0;
 
-    /* 执行 WL_ITERATIONS 轮迭代 */
-    for (int iter = 0; iter < WL_ITERATIONS; iter++) {
+    /* 执行 iterations 轮迭代 */
+    for (int iter = 0; iter < iterations; iter++) {
         uint64_t *new_labels = wl_refine_labels(graph, labels, node_count);
         lv_free((void **) &labels);
         if (!new_labels)
@@ -431,6 +507,19 @@ uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
 
     lv_free((void **) &labels);
     return graph_hash;
+}
+
+/**
+ * @brief 计算 WL 图核哈希（WL_ITERATIONS 轮迭代，基于拓扑结构，忽略坐标值）
+ *
+ * 封装参数化核心 compute_wl_hash_core（结构化初始标签），供循环检测与
+ * rewrite_compute_wl_hash 公共 API 使用。
+ *
+ * @param graph 约束图指针
+ * @return 64 位图哈希值，图为空或出错返回 0
+ */
+uint64_t compute_wl_graph_hash(ConstraintGraph *graph) {
+    return compute_wl_hash_core(graph, WL_INIT_STRUCTURED, WL_ITERATIONS);
 }
 
 /**

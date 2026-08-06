@@ -1400,11 +1400,11 @@ class NormalizationResult(_PtrOwner):
 
     @property
     def merged_count(self) -> int:
-        """被合并的等价节点数量（对应 C 结构体 merged_nodes 字段）。"""
+        """被合并的等价节点数量（对应 C 结构体 merged_count 字段）。"""
         if self._ptr is None:
             return 0
         try:
-            return int(self._ptr.contents.merged_nodes)
+            return int(self._ptr.contents.merged_count)
         except Exception:
             logger.debug("Property access failed", exc_info=True)
             return 0
@@ -1412,77 +1412,56 @@ class NormalizationResult(_PtrOwner):
     @property
     def original_ids(self) -> list:
         """
-        被合并的原始节点 ID 列表。
-
-        C 结构体不直接存储逐对的原始/代表 ID 数组，
-        因此返回空列表。如需合并映射，请使用 normalize_build_mapping()。
+        被合并的原始节点 ID 列表（对应 C 结构体 original_ids 数组，
+        有效长度由 merged_count 字段决定）。
         """
-        return []
+        if self._ptr is None:
+            return []
+        try:
+            count = int(self._ptr.contents.merged_count)
+            raw = self._ptr.contents.original_ids
+            if not raw or count <= 0:
+                return []
+            arr = ctypes.cast(raw, ctypes.POINTER(ctypes.c_int))
+            return [int(arr[i]) for i in range(count)]
+        except Exception:
+            logger.debug("Property access failed", exc_info=True)
+            return []
 
     @property
     def representative_ids(self) -> list:
         """
-        代表节点 ID 列表。
-
-        C 结构体不直接存储逐对的原始/代表 ID 数组，
-        因此返回空列表。如需合并映射，请使用 normalize_build_mapping()。
+        代表节点 ID 列表（对应 C 结构体 representative_ids 数组，
+        有效长度由 merged_count 字段决定）。
         """
-        return []
+        if self._ptr is None:
+            return []
+        try:
+            count = int(self._ptr.contents.merged_count)
+            raw = self._ptr.contents.representative_ids
+            if not raw or count <= 0:
+                return []
+            arr = ctypes.cast(raw, ctypes.POINTER(ctypes.c_int))
+            return [int(arr[i]) for i in range(count)]
+        except Exception:
+            logger.debug("Property access failed", exc_info=True)
+            return []
 
     @property
     def user_confirmed(self) -> bool:
-        """归一化是否经过用户确认（对应 C 结构体 success 字段）。"""
+        """归一化是否经过用户确认（对应 C 结构体 user_confirmed 字段）。"""
         if self._ptr is None:
             return False
         try:
-            return bool(self._ptr.contents.success)
+            return bool(self._ptr.contents.user_confirmed)
         except Exception:
             logger.debug("Property access failed", exc_info=True)
             return False
-
-    @property
-    def simplified_constraints(self) -> int:
-        """化简的约束数量。"""
-        if self._ptr is None:
-            return 0
-        try:
-            return int(self._ptr.contents.simplified_constraints)
-        except Exception:
-            logger.debug("Property access failed", exc_info=True)
-            return 0
-
-    @property
-    def removed_nodes(self) -> int:
-        """移除的冗余节点数量。"""
-        if self._ptr is None:
-            return 0
-        try:
-            return int(self._ptr.contents.removed_nodes)
-        except Exception:
-            logger.debug("Property access failed", exc_info=True)
-            return 0
-
-    @property
-    def iterations(self) -> int:
-        """规范化迭代次数。"""
-        if self._ptr is None:
-            return 0
-        try:
-            return int(self._ptr.contents.iterations)
-        except Exception:
-            logger.debug("Property access failed", exc_info=True)
-            return 0
 
     @property
     def success(self) -> bool:
-        """规范化是否成功。"""
-        if self._ptr is None:
-            return False
-        try:
-            return bool(self._ptr.contents.success)
-        except Exception:
-            logger.debug("Property access failed", exc_info=True)
-            return False
+        """归一化是否成功（C 结构体无 success 字段，映射到 user_confirmed）。"""
+        return self.user_confirmed
 
 
 # ============================================================

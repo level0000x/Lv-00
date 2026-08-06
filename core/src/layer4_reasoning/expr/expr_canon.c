@@ -6,9 +6,9 @@
  *          规范形式确保代数等价的表达式产生相同的序列化形式。
  *
  *          核心算法:
- *          - 合并同类项: O(n) 哈希分组后逐组合并
- *          - 排序: 按总次数降序 + 字典序
- *          - 符号归一化: 首项系数为正
+ *          - 合并同类项: O(n) 哈希分组（FNV-1a 指数数组哈希桶）后逐组合并
+ *          - 排序: 按总次数降序 + 字典序（插入排序）
+ *          - 符号归一化: 规范形式要求首项系数为正（由 lv_expr_is_canonical 校验）
  *
  * @author Lv-00 Project
  * @version v1.0.0
@@ -75,6 +75,38 @@ int lv_canonical_compare_terms(const int *a, const int *b, int var_count) {
         }
     }
     return 0; /* 完全相同 */
+}
+
+/** 哈希分组合并桶节点：指数数组 FNV-1a 哈希（term_hash 结果）→ merged 数组下标 */
+typedef struct MergeBucketNode {
+    uint64_t hash;       /**< 指数数组哈希值 */
+    int merged_index;    /**< merged 数组中的项下标 */
+    int next;            /**< 桶内链表下一节点，-1 表示链尾 */
+} MergeBucketNode;
+
+/** 计算不小于 min 的 2 的幂桶数（上限 2^30，防止 int 溢出） */
+static int merge_bucket_count(int min) {
+    int buckets = 1;
+    while (buckets < min && buckets <= (1 << 29)) {
+        buckets <<= 1;
+    }
+    return buckets;
+}
+
+/** 排序比较回调（lv_insertion_sort 语义：<0 表示 a 排在 b 前）：
+ *  总次数降序；同次数按规范字典序降序（与旧冒泡排序结果逐位一致） */
+static int cmp_canon_terms_sort(const void *a, const void *b, void *ctx) {
+    int vc = *(const int *) ctx;
+    const lvExprTerm *ta = (const lvExprTerm *) a;
+    const lvExprTerm *tb = (const lvExprTerm *) b;
+    int deg_a = term_total_degree(ta->exponents, ta->var_count);
+    int deg_b = term_total_degree(tb->exponents, tb->var_count);
+    if (deg_a != deg_b)
+        return deg_a > deg_b ? -1 : 1;
+    int cmp = lv_canonical_compare_terms(ta->exponents, tb->exponents, vc);
+    if (cmp != 0)
+        return cmp > 0 ? -1 : 1;
+    return 0;
 }
 
 /* ========================================================================
@@ -264,17 +296,49 @@ bool lv_expr_canonicalize(lvExprCanonical *expr) {
     int merged_count = 0;
     bool ok = true;
 
-    /* 深拷贝并合并同类项，避免浅拷贝导致指针所有权混乱。 */
+    /* 深拷贝并合并同类项，避免浅拷贝导致指针所有权混乱。
+     * 哈希分组：term_hash 建桶（FNV-1a），桶内精确比较指数数组，平均 O(n)；
+     * 合并后归零的项就地销毁并从桶链表摘除，删除槽位推迟到合并结束后统一压缩。
+     * 结果与线性扫描逐项合并逐位一致（lvRational 为精确算术，加法满足交换/结合律，
+     * 且排序结果只由唯一元素决定，与合并顺序无关）。 */
+    int bucket_count = merge_bucket_count(old_count);
+    int *bucket_head = (int *) lv_malloc((size_t) bucket_count * sizeof(int));
+    MergeBucketNode *bucket_nodes = (MergeBucketNode *) lv_malloc((size_t) old_count * sizeof(MergeBucketNode));
+    if (!bucket_head || !bucket_nodes) {
+        lv_free((void **) &bucket_head);
+        lv_free((void **) &bucket_nodes);
+        for (int i = 0; i < expr->term_capacity; i++) {
+            if (merged[i].coeff)
+                lv_rational_destroy(&merged[i].coeff);
+            lv_free((void **) &merged[i].exponents);
+        }
+        lv_free((void **) &merged);
+        return false;
+    }
+    for (int b = 0; b < bucket_count; b++)
+        bucket_head[b] = -1;
+    int node_count = 0;
+
     for (int i = 0; i < old_count && ok; i++) {
         if (!expr->terms[i].coeff || !expr->terms[i].exponents || lv_rational_is_zero(expr->terms[i].coeff))
             continue;
 
+        uint64_t h = term_hash(expr->terms[i].exponents, vc);
+        int b = (int) (h % (uint64_t) bucket_count);
         int found = -1;
-        for (int j = 0; j < merged_count; j++) {
-            if (exponents_equal(merged[j].exponents, expr->terms[i].exponents, vc)) {
-                found = j;
+        int found_node = -1;
+        int prev = -1;
+        for (int node = bucket_head[b]; node >= 0; node = bucket_nodes[node].next) {
+            int midx = bucket_nodes[node].merged_index;
+            if (!merged[midx].coeff || !merged[midx].exponents)
+                continue; /* 已删除（合并后归零）的槽位 */
+            if (bucket_nodes[node].hash == h &&
+                exponents_equal(merged[midx].exponents, expr->terms[i].exponents, vc)) {
+                found = midx;
+                found_node = node;
                 break;
             }
+            prev = node;
         }
 
         if (found >= 0) {
@@ -282,15 +346,20 @@ bool lv_expr_canonicalize(lvExprCanonical *expr) {
             if (lv_rational_is_zero(merged[found].coeff)) {
                 lv_rational_destroy(&merged[found].coeff);
                 lv_free((void **) &merged[found].exponents);
-                for (int k = found; k + 1 < merged_count; k++) {
-                    merged[k] = merged[k + 1];
-                }
-                merged_count--;
-                merged[merged_count].coeff = NULL;
-                merged[merged_count].exponents = NULL;
-                merged[merged_count].var_count = 0;
+                merged[found].var_count = 0;
+                /* 从桶链表中摘除该节点，后续同类项将作为新项重新加入 */
+                if (prev < 0)
+                    bucket_head[b] = bucket_nodes[found_node].next;
+                else
+                    bucket_nodes[prev].next = bucket_nodes[found_node].next;
             }
         } else {
+            bucket_nodes[node_count].hash = h;
+            bucket_nodes[node_count].merged_index = merged_count;
+            bucket_nodes[node_count].next = bucket_head[b];
+            bucket_head[b] = node_count;
+            node_count++;
+
             merged[merged_count].coeff = lv_rational_clone(expr->terms[i].coeff);
             if (!merged[merged_count].coeff) {
                 ok = false;
@@ -308,6 +377,9 @@ bool lv_expr_canonicalize(lvExprCanonical *expr) {
         }
     }
 
+    lv_free((void **) &bucket_head);
+    lv_free((void **) &bucket_nodes);
+
     if (!ok) {
         for (int i = 0; i < expr->term_capacity; i++) {
             if (merged[i].coeff)
@@ -318,24 +390,23 @@ bool lv_expr_canonicalize(lvExprCanonical *expr) {
         return false;
     }
 
-    /* 排序：总次数降序，同次数按规范字典序。直接交换结构体，不复制内部指针。 */
+    /* 压缩合并阶段标记删除的槽位（浅拷贝移动后清空源槽位，防止析构时重复释放） */
+    int compact = 0;
     for (int i = 0; i < merged_count; i++) {
-        for (int j = i + 1; j < merged_count; j++) {
-            int deg_i = term_total_degree(merged[i].exponents, merged[i].var_count);
-            int deg_j = term_total_degree(merged[j].exponents, merged[j].var_count);
-            bool should_swap = false;
-            if (deg_i < deg_j) {
-                should_swap = true;
-            } else if (deg_i == deg_j && lv_canonical_compare_terms(merged[i].exponents, merged[j].exponents, vc) < 0) {
-                should_swap = true;
+        if (merged[i].coeff && merged[i].exponents) {
+            if (compact != i) {
+                merged[compact] = merged[i];
+                merged[i].coeff = NULL;
+                merged[i].exponents = NULL;
+                merged[i].var_count = 0;
             }
-            if (should_swap) {
-                lvExprTerm tmp = merged[i];
-                merged[i] = merged[j];
-                merged[j] = tmp;
-            }
+            compact++;
         }
     }
+    merged_count = compact;
+
+    /* 排序：总次数降序，同次数按规范字典序（插入排序；合并后元素唯一，结果确定） */
+    lv_insertion_sort(merged, (size_t) merged_count, sizeof(lvExprTerm), cmp_canon_terms_sort, &vc);
 
     /* 规范化必须保持多项式值，不对整体符号做归一化。 */
 

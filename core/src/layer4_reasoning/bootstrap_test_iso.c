@@ -29,6 +29,16 @@
 
 #include "bootstrap_test_internal.h"
 
+/* ============== 参数化 WL 哈希核心（实现于 rewrite/rewrite_wl.c） ============== */
+/* 初始标签模式常量（与 rewrite_wl.c 保持一致） */
+#ifndef WL_INIT_STRUCTURED
+#define WL_INIT_STRUCTURED 0
+#endif
+#ifndef WL_INIT_DEGREE
+#define WL_INIT_DEGREE 1
+#endif
+extern uint64_t compute_wl_hash_core(ConstraintGraph *graph, int init_mode, int iterations);
+
 /* ============== 图同构比较器 ============== */
 
 /** @brief 图同构比较器结构体 */
@@ -323,8 +333,9 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *gra
 /**
  * @brief 计算约束图的 Weisfeiler-Lehman 图核哈希
  *
- * 执行 3 轮 WL 迭代：初始标签为度数，每轮将节点标签
- * 与其邻居标签和约束类型哈希混合，最后聚合为 64 位哈希值。
+ * 统一调用公共 WL 哈希核心（rewrite/rewrite_wl.c 的 compute_wl_hash_core）：
+ * 初始标签为度数（WL_INIT_DEGREE），执行 3 轮迭代。
+ * 混入与聚合使用公共核心的 FNV 乘加 + 排序邻居确定性算法。
  *
  * @param graph 约束图
  * @return 64 位哈希值，失败返回 0
@@ -334,60 +345,11 @@ uint64_t graph_isomorphism_hash(const void *graph) {
         return 0;
     }
 
-    /* WL (Weisfeiler-Lehman) 图核哈希：迭代压缩节点标签 */
     const ConstraintGraph *g = (const ConstraintGraph *) graph;
-    int n = graph_get_node_count(g);
-    if (n == 0)
+    if (graph_get_node_count(g) == 0)
         return 0;
 
-    /* 初始标签：度数 */
-    uint64_t *labels = (uint64_t *) lv_calloc((size_t) n, sizeof(uint64_t));
-    if (!labels)
-        return 0;
-
-    for (int i = 0; i < n; i++) {
-        int cids[64];
-        int deg = graph_find_constraints_involving(g, i, cids, 64);
-        labels[i] = (uint64_t) (deg + 1);
-    }
-
-    /* WL 迭代（3 轮） */
-    for (int iter = 0; iter < 3; iter++) {
-        uint64_t *new_labels = (uint64_t *) lv_calloc((size_t) n, sizeof(uint64_t));
-        if (!new_labels) {
-            lv_free((void **) &labels);
-            return 0;
-        }
-
-        for (int i = 0; i < n; i++) {
-            int cids[64];
-            int nc = graph_find_constraints_involving(g, i, cids, 64);
-            uint64_t hash = labels[i];
-            for (int c = 0; c < nc; c++) {
-                Constraint *cons = graph_get_constraint(g, cids[c]);
-                if (!cons)
-                    continue;
-                for (int p = 0; p < cons->participant_count; p++) {
-                    int nb = cons->participants[p];
-                    if (nb >= 0 && nb < n) {
-                        hash ^= (labels[nb] * 2654435761ULL + (uint64_t) cons->type);
-                    }
-                }
-            }
-            new_labels[i] = hash;
-        }
-        lv_free((void **) &labels);
-        labels = new_labels;
-    }
-
-    /* 聚合所有标签为最终哈希 */
-    uint64_t final_hash = 0;
-    for (int i = 0; i < n; i++) {
-        final_hash ^= (labels[i] * (uint64_t) (i + 1));
-    }
-    lv_free((void **) &labels);
-
-    return final_hash;
+    return compute_wl_hash_core((ConstraintGraph *) g, WL_INIT_DEGREE, 3);
 }
 
 /**

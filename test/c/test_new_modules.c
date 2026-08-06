@@ -385,6 +385,26 @@ lv_TEST(RuntimeMonitor, EventTrace) {
 /* ============== 主函数 ============== */
 
 int main(int argc, char **argv) {
+    (void) argc;
+    (void) argv;
+
+    /* 注册所有测试用例（lv_TEST 宏生成的函数名为 test_<Suite>_<Name>） */
+    lv_test_register("MemoryPool", "CreateDestroy", test_MemoryPool_CreateDestroy);
+    lv_test_register("MemoryPool", "AutoGrow", test_MemoryPool_AutoGrow);
+    lv_test_register("MemoryPool", "ArenaAllocator", test_MemoryPool_ArenaAllocator);
+    lv_test_register("GeometryTransform", "Identity", test_GeometryTransform_Identity);
+    lv_test_register("GeometryTransform", "Translation", test_GeometryTransform_Translation);
+    lv_test_register("GeometryTransform", "Rotation90", test_GeometryTransform_Rotation90);
+    lv_test_register("GeometryTransform", "Reflection", test_GeometryTransform_Reflection);
+    lv_test_register("GeometryTransform", "Compose", test_GeometryTransform_Compose);
+    lv_test_register("GeometryTransform", "Inverse", test_GeometryTransform_Inverse);
+    lv_test_register("RuntimeMonitor", "LogInit", test_RuntimeMonitor_LogInit);
+    lv_test_register("RuntimeMonitor", "Timer", test_RuntimeMonitor_Timer);
+    lv_test_register("RuntimeMonitor", "PerfStats", test_RuntimeMonitor_PerfStats);
+    lv_test_register("RuntimeMonitor", "HealthCheck", test_RuntimeMonitor_HealthCheck);
+    lv_test_register("RuntimeMonitor", "Diagnostics", test_RuntimeMonitor_Diagnostics);
+    lv_test_register("RuntimeMonitor", "EventTrace", test_RuntimeMonitor_EventTrace);
+
     /* 运行所有测试 */
     lvTestReport *report = lv_test_run_all();
     if (!report) {

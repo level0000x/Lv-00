@@ -41,6 +41,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/graph_hash.h"
+#include "lv/hash_history.h"
 
 #include "lv_internal.h"
 #include "union_find_util.h"
@@ -1266,28 +1267,29 @@ void normalization_result_destroy(NormalizationResult *result) {
 /*  重写历史记录                                                       */
 /* ------------------------------------------------------------------ */
 
+/* history 字段承载公共 hash_history 实例（uint64 环形缓冲）。
+ * RewriteHistory 的公共结构（normalization.h）保持不变以兼容 ABI。 */
+
 RewriteHistory *rewrite_history_create(int capacity) {
     RewriteHistory *rh = lv_calloc(1, sizeof(RewriteHistory));
     if (!rh)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rewrite_history_create: calloc failed for RewriteHistory");
-    rh->capacity = capacity;
-    rh->count = 0;
-    rh->history = lv_calloc((size_t) capacity, sizeof(GraphHash *));
-    if (!rh->history) {
+    HashHistory *hh = lv_calloc(1, sizeof(HashHistory));
+    if (!hh) {
         lv_free((void **) &rh);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rewrite_history_create: calloc failed for history array");
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "rewrite_history_create: calloc failed for HashHistory");
     }
-    for (int i = 0; i < capacity; i++) {
-        rh->history[i] = NULL;
-    }
+    hash_history_init(hh, capacity, false);
+    rh->history = (GraphHash **) hh;
+    rh->count = 0;
+    rh->capacity = capacity;
     return rh;
 }
 
 void rewrite_history_destroy(RewriteHistory *history) {
     if (history) {
-        for (int i = 0; i < history->count; i++) {
-            graph_hash_destroy(history->history[i]);
-        }
+        HashHistory *hh = (HashHistory *) history->history;
+        hash_history_destroy(hh);
         lv_free((void **) &history->history);
         lv_free((void **) &history);
     }
@@ -1297,31 +1299,27 @@ bool rewrite_history_check_cycle(const RewriteHistory *history, const Constraint
     GraphHash *current_hash = compute_complete_graph_hash(graph);
     if (!current_hash)
         return false;
-    bool cycle = false;
-    for (int i = 0; i < history->count; i++) {
-        if (graph_hash_equal(history->history[i], current_hash)) {
-            cycle = true;
-            /* 流式事件：检测到重写循环 */
-            if (normalization_stream_ctx) {
-                stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_WARNING,
-                                   "重写循环检测: 当前图哈希匹配历史条目", 0);
-            }
-            break;
+    const HashHistory *hh = (const HashHistory *) history->history;
+    bool cycle = hash_history_contains(hh, current_hash->hash);
+    graph_hash_destroy(current_hash);
+    if (cycle) {
+        /* 流式事件：检测到重写循环 */
+        if (normalization_stream_ctx) {
+            stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_WARNING,
+                               "重写循环检测: 当前图哈希匹配历史条目", 0);
         }
     }
-    graph_hash_destroy(current_hash);
     return cycle;
 }
 
 void rewrite_history_add(RewriteHistory *history, ConstraintGraph *graph) {
-    if (history->count >= history->capacity) {
-        graph_hash_destroy(history->history[0]);
-        for (int i = 1; i < history->capacity; i++) {
-            history->history[i - 1] = history->history[i];
-        }
-        history->count--;
-    }
-    history->history[history->count++] = compute_complete_graph_hash(graph);
+    GraphHash *h = compute_complete_graph_hash(graph);
+    if (!h)
+        return;
+    HashHistory *hh = (HashHistory *) history->history;
+    hash_history_add(hh, history->capacity, h->hash);
+    graph_hash_destroy(h);
+    history->count = hash_history_count(hh);
 }
 
 /* ------------------------------------------------------------------ */
