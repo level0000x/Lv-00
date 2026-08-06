@@ -260,9 +260,6 @@ struct lvProofEngine {
     uint64_t total_proofs;    /**< 总证明次数 */
     uint64_t success_proofs;  /**< 成功次数 */
     double avg_proof_time_ms; /**< 平均证明时间 */
-
-    /* 缓存 */
-    void *proof_cache;
 };
 
 /* ============== 溯源树操作 ============== */

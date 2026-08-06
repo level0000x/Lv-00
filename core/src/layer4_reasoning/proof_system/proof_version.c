@@ -29,6 +29,7 @@
 #include "lv/config.h"
 #include "lv/lv_config.h"
 #include "lv/lv_file.h"
+#include "lv/lv_path.h"
 #include "lv/lv_platform.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
@@ -50,58 +51,11 @@ void safe_strncpy(char *dest, const char *src, size_t max_len);
  * Internal helpers
  * ============================================================ */
 
-/** 最大路径长度（包含 null 终止符） */
-#define MAX_PATH_LEN 4096
-
-/**
- * @brief Build a path by joining directory and filename.
- *
- * Uses a temporary buffer to avoid undefined behavior when
- * dir and out point to the same memory region.
- *
- * @param dir   Directory path
- * @param file  Filename
- * @param out   Output buffer
- * @param out_size  Size of output buffer
- * @return true on success, false if buffer is too small or paths are invalid
- */
-static bool build_path(const char *dir, const char *file, char *out, size_t out_size) {
-    if (dir == NULL || file == NULL || out == NULL || out_size == 0) {
-        return false;
-    }
-
-    /* 计算所需缓冲区大小 */
-    size_t dir_len = strlen(dir);
-    size_t file_len = strlen(file);
-    size_t sep_len = 1; /* 分隔符长度 */
-
-    /* 检查路径长度是否超过安全限制 */
-    if (dir_len + sep_len + file_len >= MAX_PATH_LEN) {
-        return false;
-    }
-
-    /* 检查输出缓冲区是否足够 */
-    if (out_size < dir_len + sep_len + file_len + 1) {
-        return false;
-    }
-
-    const char *sep =
-#ifdef _WIN32
-        "\\";
-#else
-        "/";
-#endif
-
-    /* 安全构建路径 */
-    int written = snprintf(out, out_size, "%s%s%s", dir, sep, file);
-    return (written >= 0 && (size_t) written < out_size);
-}
-
 /**
  * @brief Build the .lv_repo directory path.
  */
 static void repo_dir_path(const char *repo_path, char *out, size_t out_size) {
-    build_path(repo_path, ".lv_repo", out, out_size);
+    lv_path_join(repo_path, ".lv_repo", out, out_size);
 }
 
 /**
@@ -114,13 +68,13 @@ static bool create_repo_dirs(const char *repo_path) {
     repo_dir_path(repo_path, repo_dir, sizeof(repo_dir));
     lv_mkdir(repo_dir);
 
-    build_path(repo_dir, "commits", path, sizeof(path));
+    lv_path_join(repo_dir, "commits", path, sizeof(path));
     lv_mkdir(path);
 
-    build_path(repo_dir, "objects", path, sizeof(path));
+    lv_path_join(repo_dir, "objects", path, sizeof(path));
     lv_mkdir(path);
 
-    build_path(repo_dir, "branches", path, sizeof(path));
+    lv_path_join(repo_dir, "branches", path, sizeof(path));
     lv_mkdir(path);
 
     return true;
@@ -143,33 +97,31 @@ static bool write_file(const char *path, const char *content) {
 /**
  * @brief Read a file into a newly allocated string.
  *
+ * 收编自手写 fopen/ftell/malloc/fread 实现：底层统一走 lv_file_read_all。
+ * lv_file_read_all 以 "rb" 读取，原实现以 "r"（文本模式）读取；
+ * 在 Windows 上文本模式会将 "\r\n" 归一为 "\n"，此处手动执行相同的
+ * 归一转换，保持调用方行为逐位一致。
+ *
  * @param path  File path
  * @return Newly allocated string, or NULL on failure
+ * @note 与 lv_file_read_all 相同：空文件返回 NULL（原实现返回空字符串）。
  */
 static char *read_file(const char *path) {
-    FILE *f = lv_file_open(path, "r");
-    if (!f)
-        return NULL;
-
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    if (size < 0) {
-        lv_file_close(f);
+    char *content = (char *) lv_file_read_all(path, NULL);
+    if (!content) {
         return NULL;
     }
-
-    char *buf = (char *) lv_malloc((size_t) size + 1);
-    if (!buf) {
-        lv_file_close(f);
-        return NULL;
+    char *src = content;
+    char *dst = content;
+    while (*src) {
+        if (src[0] == '\r' && src[1] == '\n') {
+            src++;
+            continue;
+        }
+        *dst++ = *src++;
     }
-
-    size_t read = fread(buf, 1, (size_t) size, f);
-    buf[read] = '\0';
-    lv_file_close(f);
-    return buf;
+    *dst = '\0';
+    return content;
 }
 
 /**
@@ -221,8 +173,8 @@ static bool write_commit_file(const char *repo_path, const lvProofCommit *commit
     char dir[lv_PATH_BUF_SIZE], tmp[lv_PATH_BUF_SIZE], path[lv_PATH_BUF_SIZE];
 
     repo_dir_path(repo_path, dir, sizeof(dir));
-    build_path(dir, "commits", tmp, sizeof(tmp));
-    build_path(tmp, commit->oid, path, sizeof(path));
+    lv_path_join(dir, "commits", tmp, sizeof(tmp));
+    lv_path_join(tmp, commit->oid, path, sizeof(path));
 
     FILE *f = lv_file_open(path, "w");
     if (!f)
@@ -327,7 +279,7 @@ lvProofRepo *proof_repo_init(const char *path) {
     char head_path[lv_PATH_BUF_SIZE];
     char dir[lv_PATH_BUF_SIZE];
     repo_dir_path(path, dir, sizeof(dir));
-    build_path(dir, "HEAD", head_path, sizeof(head_path));
+    lv_path_join(dir, "HEAD", head_path, sizeof(head_path));
     write_file(head_path, root.oid);
 
     /* Create default 'main' branch */
@@ -337,8 +289,8 @@ lvProofRepo *proof_repo_init(const char *path) {
 
     /* Write branch file */
     char branch_path[lv_PATH_BUF_SIZE], branches_dir_init[lv_PATH_BUF_SIZE];
-    build_path(dir, "branches", branches_dir_init, sizeof(branches_dir_init));
-    build_path(branches_dir_init, "main", branch_path, sizeof(branch_path));
+    lv_path_join(dir, "branches", branches_dir_init, sizeof(branches_dir_init));
+    lv_path_join(branches_dir_init, "main", branch_path, sizeof(branch_path));
     write_file(branch_path, root.oid);
 
     return repo;
@@ -358,7 +310,7 @@ lvProofRepo *proof_repo_open(const char *path) {
     /* Read HEAD */
     char head_path[lv_PATH_BUF_SIZE], dir[lv_PATH_BUF_SIZE];
     repo_dir_path(path, dir, sizeof(dir));
-    build_path(dir, "HEAD", head_path, sizeof(head_path));
+    lv_path_join(dir, "HEAD", head_path, sizeof(head_path));
 
     char *head = read_file(head_path);
     if (!head) {
@@ -376,7 +328,7 @@ lvProofRepo *proof_repo_open(const char *path) {
 
     /* Read branches */
     char branches_dir[lv_PATH_BUF_SIZE];
-    build_path(dir, "branches", branches_dir, sizeof(branches_dir));
+    lv_path_join(dir, "branches", branches_dir, sizeof(branches_dir));
 
     /* Scan branch files */
     repo->branch_count = 0;
@@ -398,7 +350,7 @@ lvProofRepo *proof_repo_open(const char *path) {
                 continue;
 
             char bp[lv_PATH_BUF_SIZE];
-            build_path(branches_dir, known_branches[j], bp, sizeof(bp));
+            lv_path_join(branches_dir, known_branches[j], bp, sizeof(bp));
             char *content = read_file(bp);
             if (content) {
                 safe_strncpy(repo->branches[repo->branch_count], known_branches[j], lv_BRANCH_NAME_MAX);
@@ -446,7 +398,7 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
 
     char dir[lv_PATH_BUF_SIZE], obj_dir[lv_PATH_BUF_SIZE], obj_path[lv_PATH_BUF_SIZE];
     repo_dir_path(repo->path, dir, sizeof(dir));
-    build_path(dir, "objects", obj_dir, sizeof(obj_dir));
+    lv_path_join(dir, "objects", obj_dir, sizeof(obj_dir));
 
     for (size_t i = 0; i < file_count; i++) {
         if (!files[i] || !contents[i])
@@ -457,7 +409,7 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
         lv_sha256_hex((const uint8_t *) contents[i], strlen(contents[i]), hash);
 
         /* Store object */
-        build_path(obj_dir, hash, obj_path, sizeof(obj_path));
+        lv_path_join(obj_dir, hash, obj_path, sizeof(obj_path));
         write_file(obj_path, contents[i]);
 
         /* Append to hash buffer */
@@ -488,7 +440,7 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
     /* Update HEAD */
     safe_strncpy(repo->head_commit, commit.oid, lv_OID_LENGTH);
     char head_path[lv_PATH_BUF_SIZE];
-    build_path(dir, "HEAD", head_path, sizeof(head_path));
+    lv_path_join(dir, "HEAD", head_path, sizeof(head_path));
     write_file(head_path, commit.oid);
 
     /* Update current branch head */
@@ -496,8 +448,8 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
         if (strcmp(repo->branch_heads[i], commit.parent_oid) == 0) {
             safe_strncpy(repo->branch_heads[i], commit.oid, lv_OID_LENGTH);
             char branch_path[lv_PATH_BUF_SIZE], branches_dir[lv_PATH_BUF_SIZE];
-            build_path(dir, "branches", branches_dir, sizeof(branches_dir));
-            build_path(branches_dir, repo->branches[i], branch_path, sizeof(branch_path));
+            lv_path_join(dir, "branches", branches_dir, sizeof(branches_dir));
+            lv_path_join(branches_dir, repo->branches[i], branch_path, sizeof(branch_path));
             write_file(branch_path, commit.oid);
             break;
         }
@@ -521,10 +473,10 @@ size_t proof_repo_log(lvProofRepo *repo, lvProofCommit *commits, size_t max_coun
 
     char dir[lv_PATH_BUF_SIZE], commits_dir[lv_PATH_BUF_SIZE], commit_path[lv_PATH_BUF_SIZE];
     repo_dir_path(repo->path, dir, sizeof(dir));
-    build_path(dir, "commits", commits_dir, sizeof(commits_dir));
+    lv_path_join(dir, "commits", commits_dir, sizeof(commits_dir));
 
     while (count < max_count && current_oid[0] != '\0') {
-        build_path(commits_dir, current_oid, commit_path, sizeof(commit_path));
+        lv_path_join(commits_dir, current_oid, commit_path, sizeof(commit_path));
 
         if (!read_commit_file(commit_path, &commits[count])) {
             break;
@@ -625,8 +577,8 @@ bool proof_repo_branch(lvProofRepo *repo, const char *name) {
     /* Write branch file */
     char dir[lv_PATH_BUF_SIZE], branch_path[lv_PATH_BUF_SIZE], branches_dir[lv_PATH_BUF_SIZE];
     repo_dir_path(repo->path, dir, sizeof(dir));
-    build_path(dir, "branches", branches_dir, sizeof(branches_dir));
-    build_path(branches_dir, name, branch_path, sizeof(branch_path));
+    lv_path_join(dir, "branches", branches_dir, sizeof(branches_dir));
+    lv_path_join(branches_dir, name, branch_path, sizeof(branch_path));
     write_file(branch_path, repo->head_commit);
 
     return true;
@@ -645,7 +597,7 @@ bool proof_repo_checkout(lvProofRepo *repo, const char *name) {
             /* Write HEAD file */
             char dir[lv_PATH_BUF_SIZE], head_path[lv_PATH_BUF_SIZE];
             repo_dir_path(repo->path, dir, sizeof(dir));
-            build_path(dir, "HEAD", head_path, sizeof(head_path));
+            lv_path_join(dir, "HEAD", head_path, sizeof(head_path));
             write_file(head_path, repo->head_commit);
 
             return true;

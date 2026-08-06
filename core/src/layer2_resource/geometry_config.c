@@ -10,14 +10,8 @@ static lvGeometryConfig g_geometry_config;
 /** @brief 全局几何配置快照（每线程一份，保证读端在锁外安全使用返回指针） */
 static lv_THREAD_LOCAL lvGeometryConfig g_geometry_config_snapshot;
 
-/** @brief 全局几何配置保护互斥锁（懒初始化，由 lv_once 保证只初始化一次） */
-static lv_mutex_t g_geometry_mutex;
-static lv_once_t g_geometry_mutex_once = lv_ONCE_INIT;
-
-/** @brief 初始化几何配置互斥锁（仅执行一次） */
-static void lv_geometry_mutex_init(void) {
-    lv_mutex_init(&g_geometry_mutex);
-}
+/** @brief 全局几何配置保护互斥锁（懒初始化，首次加锁时自动完成） */
+lv_LAZY_LOCK_DEFINE(g_geometry_lock);
 
 lvGeometryConfig lv_geometry_config_default(void) {
     lvGeometryConfig cfg;
@@ -41,18 +35,16 @@ static void lv_geometry_config_init(void) {
 
 const lvGeometryConfig *lv_geometry_get_config(void) {
     lv_once(&g_geometry_config_once, lv_geometry_config_init);
-    lv_once(&g_geometry_mutex_once, lv_geometry_mutex_init);
-    lv_mutex_lock(&g_geometry_mutex);
+    lv_lazy_lock_lock(&g_geometry_lock, g_geometry_lock_init_once);
     g_geometry_config_snapshot = g_geometry_config;
-    lv_mutex_unlock(&g_geometry_mutex);
+    lv_lazy_lock_unlock(&g_geometry_lock);
     return &g_geometry_config_snapshot;
 }
 
 void lv_geometry_set_config(const lvGeometryConfig *cfg) {
     if (cfg != NULL) {
-        lv_once(&g_geometry_mutex_once, lv_geometry_mutex_init);
-        lv_mutex_lock(&g_geometry_mutex);
+        lv_lazy_lock_lock(&g_geometry_lock, g_geometry_lock_init_once);
         g_geometry_config = *cfg;
-        lv_mutex_unlock(&g_geometry_mutex);
+        lv_lazy_lock_unlock(&g_geometry_lock);
     }
 }

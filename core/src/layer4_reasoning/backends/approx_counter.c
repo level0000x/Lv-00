@@ -30,14 +30,6 @@
  * 64-bit 哈希函数
  * ============================================================ */
 
-/** SplitMix64 风格哈希 */
-static uint64_t splitmix64(uint64_t x) {
-    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
-    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
-    x = x ^ (x >> 31);
-    return x;
-}
-
 /** 为变量集合生成哈希值 */
 static uint64_t simple_hash(const int *vars, int count, uint64_t seed) {
     uint64_t h = seed;
@@ -290,11 +282,14 @@ static XORConstraint *xor_generate(int num_vars, uint64_t seed) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "xor_generate: 分配 vars 数组失败");
     }
 
-    uint64_t rng = splitmix64(seed);
+    /* 使用共享 lv_random_*（xorshift64*，见 lv_utils_misc.c）替代原 splitmix64
+     * 手写状态机。注意：lv_random_* 是进程级共享 RNG 状态（lv_utils_misc.c
+     * 内文件级静态变量），此处按 seed 重置全局状态以保持各哈希轮次独立，
+     * 与 approx_count_solutions / approx_count_projected 传入的种子约定一致。 */
+    lv_random_init(seed);
     int parity_sum = 0;
     for (int i = 0; i < num_vars; i++) {
-        rng = splitmix64(rng);
-        if (rng & 1) {
+        if (lv_random_int(0, 2)) { /* 50% 概率参与（[min, max) 语义） */
             xc->vars[xc->count++] = i + 1; /* 1-indexed */
             parity_sum ^= 1;
         }
@@ -586,8 +581,8 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, 
     int effective_hash = 0;
 
     for (int h = 1; h <= num_hashes && h < 8; h++) {
-        /* 生成 XOR 约束 */
-        uint64_t s = splitmix64((uint64_t) (seed + h * 131));
+        /* 生成 XOR 约束（h*131 保证各哈希轮次使用不同种子流） */
+        uint64_t s = (uint64_t) (seed + h * 131);
         XORConstraint *xc = xor_generate(base->var_count, s);
         if (!xc)
             continue;

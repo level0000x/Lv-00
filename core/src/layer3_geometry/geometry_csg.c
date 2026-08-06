@@ -46,69 +46,52 @@
 
 /* ================================================================
  * 内部辅助函数：向量 / 三角形几何运算
- * ================================================================ */
+ * ================================================================
+ * csg_vec3_* 已收敛：核心运算委托公共内联 lv_vec3_*（core/include/lv/lv_vec3.h），
+ * 此处保留外部符号作为薄转发入口（geometry_csg_internal.h 仍对外声明），
+ * double 运算与收敛前逐位一致。 */
 
 /**
  * @brief 计算两个向量的叉积
  */
 CSGVec3 csg_vec3_cross(CSGVec3 a, CSGVec3 b) {
-    CSGVec3 r;
-    r.x = a.y * b.z - a.z * b.y;
-    r.y = a.z * b.x - a.x * b.z;
-    r.z = a.x * b.y - a.y * b.x;
-    return r;
+    return lv_vec3_cross(a, b);
 }
 
 /**
  * @brief 计算两个向量的点积
  */
 double csg_vec3_dot(CSGVec3 a, CSGVec3 b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
+    return lv_vec3_dot(a, b);
 }
 
 /**
  * @brief 向量减法
  */
 CSGVec3 csg_vec3_sub(CSGVec3 a, CSGVec3 b) {
-    CSGVec3 r;
-    r.x = a.x - b.x;
-    r.y = a.y - b.y;
-    r.z = a.z - b.z;
-    return r;
+    return lv_vec3_sub(a, b);
 }
 
 /**
  * @brief 向量加法
  */
 CSGVec3 csg_vec3_add(CSGVec3 a, CSGVec3 b) {
-    CSGVec3 r;
-    r.x = a.x + b.x;
-    r.y = a.y + b.y;
-    r.z = a.z + b.z;
-    return r;
+    return lv_vec3_add(a, b);
 }
 
 /**
  * @brief 标量乘法
  */
 CSGVec3 csg_vec3_scale(CSGVec3 v, double s) {
-    CSGVec3 r;
-    r.x = v.x * s;
-    r.y = v.y * s;
-    r.z = v.z * s;
-    return r;
+    return lv_vec3_scale(v, s);
 }
 
 /**
  * @brief 向量归一化
+ * @note 判零阈值 lv_EPSILON_MEDIUM（1e-9）与原 CSG_BSP_EPSILON 数值一致，行为不变
  */
 CSGVec3 csg_vec3_normalize(CSGVec3 v) {
-    double len = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-    if (len < CSG_BSP_EPSILON) {
-        CSGVec3 zero = {0.0, 0.0, 0.0};
-        return zero;
-    }
-    return csg_vec3_scale(v, 1.0 / len);
+    return lv_vec3_normalize(v);
 }
 
 /**
@@ -146,17 +129,14 @@ void csg_trilist_init(CSGTriList *list, int init_cap) {
 
 /**
  * @brief 向三角形面列表追加一个三角形
+ * @note 扩容已收敛到 lv_ensure_capacity（lv_utils.h）：倍增策略、溢出检查
+ *       与失败静默返回语义一致（lv_ensure_capacity 失败返回 false 且不修改数组）
  */
 void csg_trilist_append(CSGTriList *list, const CSGTriangle *tri) {
     if (list->count >= list->capacity) {
-        if (list->capacity > INT_MAX / 2)
+        if (!lv_ensure_capacity((void **) &list->tris, list->count, &list->capacity,
+                                sizeof(CSGTriangle), 1))
             return;
-        int new_cap = list->capacity * 2;
-        CSGTriangle *new_tris = (CSGTriangle *) lv_realloc(list->tris, (size_t) new_cap * sizeof(CSGTriangle));
-        if (!new_tris)
-            return;
-        list->tris = new_tris;
-        list->capacity = new_cap;
     }
     list->tris[list->count] = *tri;
     list->count++;

@@ -49,8 +49,9 @@
 /**
  * @brief 近似模式中使用的默认容差。
  * 当浮点结果绝对值小于此阈值时判定为零。
+ * @note 收敛：数值 = 1e-9，引用 config.h 的 lv_EPSILON_MEDIUM（同值），行为不变
  */
-#define APPROX_EPSILON (1e-9)
+#define APPROX_EPSILON (lv_EPSILON_MEDIUM)
 
 /* ========================================================================
  * 全局状态

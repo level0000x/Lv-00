@@ -21,6 +21,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_render_visitor.h"
+#include "lv/simd_ops.h" /* lv_mat4_identity_f / lv_mat4_mul_f（4x4 列主序 float，收敛共享） */
 
 
 
@@ -28,24 +29,6 @@
 /* ========================================================================
  * 内部辅助函数
  * ======================================================================== */
-
-/** 初始化单位矩阵（4x4 列主序） */
-static void identity_matrix(float *m) {
-    memset(m, 0, 16 * sizeof(float));
-    m[0] = m[5] = m[10] = m[15] = 1.0f;
-}
-
-/** 矩阵乘法: out = a * b（4x4 列主序） */
-static void matrix_multiply(float *out, const float *a, const float *b) {
-    float tmp[16];
-    for (int col = 0; col < 4; col++) {
-        for (int row = 0; row < 4; row++) {
-            tmp[col * 4 + row] = a[0 * 4 + row] * b[col * 4 + 0] + a[1 * 4 + row] * b[col * 4 + 1] +
-                                 a[2 * 4 + row] * b[col * 4 + 2] + a[3 * 4 + row] * b[col * 4 + 3];
-        }
-    }
-    memcpy(out, tmp, 16 * sizeof(float));
-}
 
 /** 设置默认样式 */
 static void set_default_style(lvVisualStyle *style) {
@@ -74,7 +57,7 @@ lvVisualObject *lv_visual_point_create(float x, float y) {
 
     obj->type = lv_VISUAL_POINT;
     set_default_style(&obj->style);
-    identity_matrix(obj->transform);
+    lv_mat4_identity_f(obj->transform);
     obj->children = NULL;
     obj->children_count = 0;
 
@@ -96,7 +79,7 @@ lvVisualObject *lv_visual_line_create(float x1, float y1, float x2, float y2) {
 
     obj->type = lv_VISUAL_SEGMENT;
     set_default_style(&obj->style);
-    identity_matrix(obj->transform);
+    lv_mat4_identity_f(obj->transform);
     obj->children = NULL;
     obj->children_count = 0;
 
@@ -120,7 +103,7 @@ lvVisualObject *lv_visual_circle_create(float cx, float cy, float r) {
 
     obj->type = lv_VISUAL_CIRCLE;
     set_default_style(&obj->style);
-    identity_matrix(obj->transform);
+    lv_mat4_identity_f(obj->transform);
     obj->children = NULL;
     obj->children_count = 0;
 
@@ -146,7 +129,7 @@ lvVisualObject *lv_visual_group_create(lvVisualObject **objs, size_t n) {
 
     obj->type = lv_VISUAL_MOBJECT_GROUP;
     set_default_style(&obj->style);
-    identity_matrix(obj->transform);
+    lv_mat4_identity_f(obj->transform);
 
     obj->children = (lvVisualObject **) lv_calloc(n, sizeof(lvVisualObject *));
     if (obj->children == NULL) {
@@ -192,21 +175,21 @@ void lv_visual_translate(lvVisualObject *obj, float dx, float dy, float dz) {
     if (obj == NULL)
         return;
     float t[16];
-    identity_matrix(t);
+    lv_mat4_identity_f(t);
     t[12] = dx;
     t[13] = dy;
     t[14] = dz;
-    matrix_multiply(obj->transform, obj->transform, t);
+    lv_mat4_mul_f(obj->transform, obj->transform, t);
 }
 
 void lv_visual_scale(lvVisualObject *obj, float sx, float sy) {
     if (obj == NULL)
         return;
     float s[16];
-    identity_matrix(s);
+    lv_mat4_identity_f(s);
     s[0] = sx;
     s[5] = sy;
-    matrix_multiply(obj->transform, obj->transform, s);
+    lv_mat4_mul_f(obj->transform, obj->transform, s);
 }
 
 void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3]) {
@@ -227,7 +210,7 @@ void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3]) {
     float c = cosf(angle);
     float s = sinf(angle);
     float t[16];
-    identity_matrix(t);
+    lv_mat4_identity_f(t);
 
     /* Rodrigues 旋转矩阵 */
     t[0] = c + ax * ax * (1 - c);
@@ -240,7 +223,7 @@ void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3]) {
     t[9] = ay * az * (1 - c) - ax * s;
     t[10] = c + az * az * (1 - c);
 
-    matrix_multiply(obj->transform, obj->transform, t);
+    lv_mat4_mul_f(obj->transform, obj->transform, t);
 }
 
 /* ========================================================================

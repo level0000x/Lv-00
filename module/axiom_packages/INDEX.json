@@ -1,8 +1,8 @@
-﻿{
+{
   "$schema": "https://lv.dev/schemas/package-index-v1.json",
   "registry_version": "1.0",
   "registry_name": "Lv-00 Axiom Package Registry",
-  "last_updated": "2026-05-25",
+  "last_updated": "2026-08-06",
   "packages": {
     "euclidean_plane": {
       "version": "1.0.0",
@@ -51,7 +51,7 @@
       "manifest_path": null,
       "axiom_file": "projective_geometry.lvz",
       "test_file": "test_axiom_projective_geometry.c",
-      "test_save": null
+      "test_save": "projective_geometry_test_save.lvz"
     },
     "affine_geometry": {
       "version": "1.0.0",
@@ -62,7 +62,7 @@
       "manifest_path": null,
       "axiom_file": "affine_geometry.lvz",
       "test_file": "test_axiom_affine_geometry.c",
-      "test_save": null
+      "test_save": "affine_geometry_test_save.lvz"
     },
     "differential_geometry": {
       "version": "1.0.0",
@@ -161,7 +161,7 @@
       "manifest_path": null,
       "axiom_file": "lattice_theory.lvz",
       "test_file": "test_axiom_lattice_theory.c",
-      "test_save": null
+      "test_save": "lattice_theory_test_save.lvz"
     },
     "boolean_algebra": {
       "version": "1.0.0",
@@ -183,7 +183,7 @@
       "manifest_path": null,
       "axiom_file": "lie_theory.lvz",
       "test_file": "test_axiom_lie_theory.c",
-      "test_save": null
+      "test_save": "lie_theory_test_save.lvz"
     },
     "real_analysis": {
       "version": "1.0.0",
@@ -249,7 +249,7 @@
       "manifest_path": null,
       "axiom_file": "modal_logic.lvz",
       "test_file": "test_axiom_modal_logic.c",
-      "test_save": null
+      "test_save": "modal_logic_test_save.lvz"
     },
     "linear_logic": {
       "version": "1.0.0",
@@ -260,7 +260,7 @@
       "manifest_path": null,
       "axiom_file": "linear_logic.lvz",
       "test_file": "test_axiom_linear_logic.c",
-      "test_save": null
+      "test_save": "linear_logic_test_save.lvz"
     },
     "simple_type_theory": {
       "version": "1.0.0",
@@ -326,7 +326,7 @@
       "manifest_path": null,
       "axiom_file": "metric_space.lvz",
       "test_file": null,
-      "test_save": null
+      "test_save": "metric_space_test_save.lvz"
     },
     "point_set_topology": {
       "version": "1.0.0",
@@ -381,7 +381,7 @@
       "manifest_path": null,
       "axiom_file": "game_theory.lvz",
       "test_file": "test_axiom_game_theory.c",
-      "test_save": null
+      "test_save": "game_theory_test_save.lvz"
     },
     "information_theory": {
       "version": "1.0.0",
@@ -392,7 +392,7 @@
       "manifest_path": null,
       "axiom_file": "information_theory.lvz",
       "test_file": "test_axiom_information_theory.c",
-      "test_save": null
+      "test_save": "information_theory_test_save.lvz"
     },
     "descriptive_set_theory": {
       "version": "1.0.0",
@@ -403,7 +403,7 @@
       "manifest_path": null,
       "axiom_file": "descriptive_set_theory.lvz",
       "test_file": "test_axiom_descriptive_set_theory.c",
-      "test_save": null
+      "test_save": "descriptive_set_theory_test_save.lvz"
     },
     "domain_theory": {
       "version": "1.0.0",
@@ -414,7 +414,7 @@
       "manifest_path": null,
       "axiom_file": "domain_theory.lvz",
       "test_file": "test_axiom_domain_theory.c",
-      "test_save": null
+      "test_save": "domain_theory_test_save.lvz"
     },
     "computability_theory": {
       "version": "1.0.0",
@@ -425,7 +425,7 @@
       "manifest_path": null,
       "axiom_file": "computability_theory.lvz",
       "test_file": "test_axiom_computability_theory.c",
-      "test_save": null
+      "test_save": "computability_theory_test_save.lvz"
     },
     "computational_complexity_theory": {
       "version": "1.0.0",
@@ -436,7 +436,7 @@
       "manifest_path": null,
       "axiom_file": "computational_complexity_theory.lvz",
       "test_file": "test_axiom_computational_complexity_theory.c",
-      "test_save": null
+      "test_save": "computational_complexity_theory_test_save.lvz"
     },
     "homological_algebra": {
       "version": "1.0.0",
@@ -469,7 +469,7 @@
       "manifest_path": null,
       "axiom_file": "order_theory.lvz",
       "test_file": "test_axiom_order_theory.c",
-      "test_save": null
+      "test_save": "order_theory_test_save.lvz"
     },
     "graph_theory": {
       "version": "1.0.0",
@@ -480,7 +480,7 @@
       "manifest_path": null,
       "axiom_file": "graph_theory.lvz",
       "test_file": "test_axiom_graph_theory.c",
-      "test_save": null
+      "test_save": "graph_theory_test_save.lvz"
     },
     "ergodic_theory": {
       "version": "1.0.0",
@@ -491,7 +491,7 @@
       "manifest_path": null,
       "axiom_file": "ergodic_theory.lvz",
       "test_file": "test_axiom_ergodic_theory.c",
-      "test_save": null
+      "test_save": "ergodic_theory_test_save.lvz"
     },
     "probability_theory": {
       "version": "1.0.0",
@@ -502,7 +502,7 @@
       "manifest_path": null,
       "axiom_file": "probability_theory.lvz",
       "test_file": "test_axiom_probability_theory.c",
-      "test_save": null
+      "test_save": "probability_theory_test_save.lvz"
     },
     "robin_arithmetic": {
       "version": "1.0.0",
@@ -513,7 +513,7 @@
       "manifest_path": null,
       "axiom_file": "robin_arithmetic.lvz",
       "test_file": "test_axiom_robin_arithmetic.c",
-      "test_save": null
+      "test_save": "robin_arithmetic_test_save.lvz"
     },
     "topos_theory": {
       "version": "1.0.0",
@@ -524,7 +524,7 @@
       "manifest_path": null,
       "axiom_file": "topos_theory.lvz",
       "test_file": "test_axiom_topos_theory.c",
-      "test_save": null
+      "test_save": "topos_theory_test_save.lvz"
     },
     "peano_arithmetic": {
       "version": "1.0.0",
@@ -535,7 +535,7 @@
       "manifest_path": null,
       "axiom_file": "peano_arithmetic.lvz",
       "test_file": "test_axiom_peano_arithmetic.c",
-      "test_save": null
+      "test_save": "peano_arithmetic_test_save.lvz"
     },
     "presburger_arithmetic": {
       "version": "1.0.0",
@@ -557,7 +557,7 @@
       "manifest_path": null,
       "axiom_file": "second_order_arithmetic.lvz",
       "test_file": "test_axiom_second_order_arithmetic.c",
-      "test_save": null
+      "test_save": "second_order_arithmetic_test_save.lvz"
     },
     "cartesian_closed_category": {
       "version": "1.0.0",
@@ -568,7 +568,7 @@
       "manifest_path": null,
       "axiom_file": "cartesian_closed_category.lvz",
       "test_file": "test_axiom_cartesian_closed_category.c",
-      "test_save": null
+      "test_save": "cartesian_closed_category_test_save.lvz"
     },
     "galois_theory": {
       "version": "1.0.0",
@@ -590,7 +590,7 @@
       "manifest_path": null,
       "axiom_file": "measure_theory.lvz",
       "test_file": "test_axiom_measure_theory.c",
-      "test_save": null
+      "test_save": "measure_theory_test_save.lvz"
     },
     "quantum_information_theory": {
       "version": "1.0.0",
@@ -601,7 +601,7 @@
       "manifest_path": null,
       "axiom_file": "quantum_information_theory.lvz",
       "test_file": "test_axiom_quantum_information_theory.c",
-      "test_save": null
+      "test_save": "quantum_information_theory_test_save.lvz"
     },
     "linear_algebra": {
       "version": "1.0.0",
@@ -613,6 +613,28 @@
       "axiom_file": "linear_algebra.lvz",
       "test_file": "test_axiom_linear_algebra.c",
       "test_save": null
+    },
+    "non_well_founded_set_theory": {
+      "version": "1.0.0",
+      "category": "foundations",
+      "layers": ["afa"],
+      "dependencies": ["zfc_set_theory"],
+      "description": "Non-well-founded set theory (hyperset theory) -- ZF with the Axiom of Regularity (Foundation) replaced by Aczel's Anti-Foundation Axiom (AFA); sets may contain themselves and form infinite descending membership chains, extensionality strengthened by bisimulation",
+      "manifest_path": null,
+      "axiom_file": "non_well_founded_set_theory.lvz",
+      "test_file": "test_axiom_non_well_founded_set_theory.c",
+      "test_save": "non_well_founded_test_save.lvz"
+    },
+    "synthetic_differential_geometry": {
+      "version": "1.0.0",
+      "category": "geometry",
+      "layers": ["synthetic_differential"],
+      "dependencies": ["differential_geometry", "topos_theory"],
+      "description": "Synthetic differential geometry -- differential geometry reformulated in the language of topos theory (Lawvere, Kock); infinitesimal objects D = {d | d^2 = 0}, tangent vectors, differential forms",
+      "manifest_path": null,
+      "axiom_file": "synthetic_differential_geometry.lvz",
+      "test_file": "test_axiom_synthetic_differential_geometry.c",
+      "test_save": "synthetic_differential_geometry_test_save.lvz"
     }
   }
 }

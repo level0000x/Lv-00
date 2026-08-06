@@ -18,7 +18,7 @@
 
 #include "lv/module.h"
 #include "lv/module_internal.h"
-#include "lv/sha256.h"
+#include "lv/lv_hash.h"
 
 
 #include "debug.h"
@@ -493,63 +493,49 @@ ModuleSaveStatus module_save(const Module *mod, const char *filepath) {
     return MODULE_SAVE_OK;
 }
 
-/* ============== FNV-1a 哈希（统一委托 lv_utils.h 公共 API） ============== */
-
-/** 字符串混入：NULL 混入 "(null)"（保持原有语义） */
-static void fnv1a_hash_string(uint64_t *hash, const char *str) {
-    *hash = lv_fnv1a_update(*hash, str ? str : "(null)", str ? strlen(str) : 6);
-}
-
-/** int 混入：按 sizeof(int) 字节混入（保持原有语义） */
-static void fnv1a_hash_int(uint64_t *hash, int value) {
-    *hash = lv_fnv1a_update(*hash, &value, sizeof(int));
-}
+/* ============== FNV-1a 版本哈希（统一委托 lv_hash 模块） ============== */
 
 char *module_compute_version_hash(const Module *mod) {
     if (!mod)
         return NULL;
 
-    uint64_t hash = lv_FNV64_OFFSET_BASIS;
+    lvHashCtx ctx;
+    lv_hash_init(&ctx, LV_HASH_FNV1A);
 
     /* 哈希模块名和版本 */
-    fnv1a_hash_string(&hash, mod->name);
-    fnv1a_hash_string(&hash, mod->version);
+    lv_hash_str(&ctx, mod->name);
+    lv_hash_str(&ctx, mod->version);
 
     /* 哈希依赖信息 */
-    fnv1a_hash_int(&hash, mod->dependencies.count);
+    lv_hash_int32(&ctx, mod->dependencies.count);
     for (int i = 0; i < mod->dependencies.count; i++) {
-        fnv1a_hash_string(&hash, ((ModuleDependency *) mod->dependencies.data)[i].name);
-        fnv1a_hash_string(&hash, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
+        lv_hash_str(&ctx, ((ModuleDependency *) mod->dependencies.data)[i].name);
+        lv_hash_str(&ctx, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
     }
 
     /* 哈希导出信息 */
-    fnv1a_hash_int(&hash, mod->exports->function_block_ids.count);
-    fnv1a_hash_int(&hash, mod->exports->type_region_ids.count);
+    lv_hash_int32(&ctx, mod->exports->function_block_ids.count);
+    lv_hash_int32(&ctx, mod->exports->type_region_ids.count);
 
     for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
-        fnv1a_hash_int(&hash, ((int *) mod->exports->function_block_ids.data)[i]);
+        lv_hash_int32(&ctx, ((int *) mod->exports->function_block_ids.data)[i]);
     }
 
     for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
-        fnv1a_hash_int(&hash, ((int *) mod->exports->type_region_ids.data)[i]);
+        lv_hash_int32(&ctx, ((int *) mod->exports->type_region_ids.data)[i]);
     }
 
     /* 哈希公理包信息 */
-    fnv1a_hash_int(&hash, mod->axiom_packages.count);
+    lv_hash_int32(&ctx, mod->axiom_packages.count);
     for (int i = 0; i < mod->axiom_packages.count; i++) {
         if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
-            fnv1a_hash_string(&hash, ((AxiomPackage **) mod->axiom_packages.data)[i]->name);
-            fnv1a_hash_string(&hash, ((AxiomPackage **) mod->axiom_packages.data)[i]->version);
+            lv_hash_str(&ctx, ((AxiomPackage **) mod->axiom_packages.data)[i]->name);
+            lv_hash_str(&ctx, ((AxiomPackage **) mod->axiom_packages.data)[i]->version);
         }
     }
 
     /* 转换为十六进制字符串 (64位 = 16个十六进制字符) */
-    char *result = lv_calloc(17, 1);
-    if (result) {
-        snprintf(result, 17, "%016llx", (unsigned long long) hash);
-    }
-
-    return result;
+    return lv_hash_to_hex_alloc(&ctx);
 }
 
 bool module_validate_dependency_chain(Module *mod, Module **all_modules, int module_count) {

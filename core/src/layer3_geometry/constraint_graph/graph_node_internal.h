@@ -35,6 +35,10 @@ void node_destroy(GeomNode *node);
  * 与 constraint_alloc_internal（统一分配入口）对称，供删除/回滚场景复用 */
 void constraint_destroy(Constraint *con);
 
+/* graph_rank.c 实现：mpq 精确行阶梯消元核心（部分选主元 + 主元映射 + 秩），
+ * 供 graph_conflict.c / graph_memory.c 冗余约束检测复用 */
+int cg_mpq_row_echelon(mpq_t *matrix, int num_linear, int num_vars, int *pivot_row);
+
 #ifdef __cplusplus
 }
 #endif

@@ -15,19 +15,18 @@ extern "C" {
 
 #include "geometry_types.h"
 #include "lv_internal.h"
+#include "lv_vec3.h" /* 收敛：CSGVec3 统一 typedef 到公共 lvVec3 */
 
 /* ---- constants ---- */
-#define CSG_CHILD_CAPACITY_INIT 4
-#define CSG_CHILD_CAPACITY_GROW_FACTOR 2
 #define CSG_BSP_EPSILON 1e-9
 #define CSG_EXPORT_BUF_INIT 4096
 #define CSG_TRI_VERT_COUNT 3
 #define CSG_MAX_TRI_BUFFER 256
 
-/* ---- internal data structures ---- */
-typedef struct {
-    double x, y, z;
-} CSGVec3;
+/* ---- internal data structures ----
+ * CSGVec3 收敛为 lvVec3 的别名（结构 { double x,y,z } 逐位一致，
+ * 全部 CSG 调用点无需改动，csg_vec3_* 函数仍保留为薄转发入口） */
+typedef lvVec3 CSGVec3;
 
 typedef struct {
     CSGVec3 v[CSG_TRI_VERT_COUNT];
@@ -115,6 +114,18 @@ void csg_gen_sphere_tris(double radius, CSGTriList *out);
 void csg_gen_cube_tris(double w, double h, double d, CSGTriList *out);
 void csg_gen_cylinder_tris(double radius, double height, CSGTriList *out);
 void csg_gen_cone_tris(double radius1, double radius2, double height, CSGTriList *out);
+
+/* ---- 网格骨架共享（geometry_csg_mesh.c；圆柱/圆锥/球体共用） ----
+ * csg_emit_quad / csg_gen_lathe_side_tris / csg_gen_disk_tris 为圆柱、圆锥、
+ * 球体的网格生成提取的公共骨架：四角网格扇区、车削体侧带（常数/线性半径）、
+ * 圆盘扇形（CCW/CW 绕序）。行为与收敛前逐位一致
+ * （三角顶点顺序、winding、face_id 分配均不变）。 */
+#define CSG_DISK_CCW 1 /**< 圆盘扇形 CCW：顶点序 (center, p1, p2)，法线朝 +Z（顶面） */
+#define CSG_DISK_CW -1 /**< 圆盘扇形 CW ：顶点序 (center, p2, p1)，法线朝 -Z（底面） */
+
+void csg_emit_quad(CSGTriList *out, CSGVec3 v00, CSGVec3 v01, CSGVec3 v10, CSGVec3 v11);
+void csg_gen_lathe_side_tris(double r1, double r2, double z1, double z2, int slices, CSGTriList *out);
+void csg_gen_disk_tris(CSGVec3 center, double radius, double z, int slices, int winding, CSGTriList *out);
 
 /* bounding box (geometry_csg_bbox.c，供图元 vtable 引用) */
 void csg_bbox_sphere(CSGNode *node);

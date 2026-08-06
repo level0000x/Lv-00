@@ -35,20 +35,12 @@
 #include "lv/lv_thread.h"
 #include "lv_internal.h"
 
-static lv_mutex_t g_state_mutex;
-static lv_once_t g_state_once = lv_ONCE_INIT;
+lv_LAZY_LOCK_DEFINE(g_state_lock);
 
-static void state_mutex_init_func(void) {
-    lv_mutex_init(&g_state_mutex);
-}
-
-#define GS_LOCK() do { \
-    lv_once(&g_state_once, state_mutex_init_func); \
-    lv_mutex_lock(&g_state_mutex); \
-} while (0)
-#define GS_UNLOCK() lv_mutex_unlock(&g_state_mutex)
-#define GS_INIT_LOCK() lv_once(&g_state_once, state_mutex_init_func)
-#define GS_DESTROY_LOCK() lv_mutex_destroy(&g_state_mutex)
+#define GS_LOCK() lv_lazy_lock_lock(&g_state_lock, g_state_lock_init_once)
+#define GS_UNLOCK() lv_lazy_lock_unlock(&g_state_lock)
+#define GS_INIT_LOCK() lv_lazy_lock_init(&g_state_lock, g_state_lock_init_once)
+#define GS_DESTROY_LOCK() lv_lazy_lock_destroy(&g_state_lock)
 
 /* ── 常量 ─────────────────────────────────────────────────────────── */
 

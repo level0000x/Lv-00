@@ -161,11 +161,11 @@ CSGNode *geometry_csg_intersection(CSGNode *a, CSGNode *b) {
 /**
  * @brief 生成圆锥/圆台的三角形面
  *
- * 与圆柱体网格生成同风格：侧面按 strips × slices 分段三角带，
- * 半径沿高度从 radius1（z=-h/2）线性过渡到 radius2（z=+h/2），
- * 另加底面/顶面圆盘（对应半径大于零时生成，避免退化三角形）。
- * 该实现位于本文件（geometry_csg_primitive.c），
- * 因任务限定重构文件范围、geometry_csg_mesh.c 不在修改之列。
+ * 与圆柱体网格生成共用同一骨架（geometry_csg_mesh.c 的
+ * csg_gen_lathe_side_tris / csg_gen_disk_tris，声明于 geometry_csg_internal.h）：
+ * 侧面按 strips × slices 分段三角带，半径沿高度从 radius1（z=-h/2）
+ * 线性过渡到 radius2（z=+h/2），另加底面/顶面圆盘（对应半径大于零时
+ * 生成，避免退化三角形）。
  */
 void csg_gen_cone_tris(double radius1, double radius2, double height, CSGTriList *out) {
     if (height <= 0.0)
@@ -175,80 +175,25 @@ void csg_gen_cone_tris(double radius1, double radius2, double height, CSGTriList
     int strips = 8;
     double hh = height * 0.5;
 
-    /* 侧面三角带：半径随 z 线性插值 */
+    /* 侧面三角带：半径随 z 线性插值（与圆柱共用车削体侧带骨架） */
     for (int i = 0; i < strips; i++) {
         double z1 = -hh + height * (double) i / (double) strips;
         double z2 = -hh + height * (double) (i + 1) / (double) strips;
         double r1 = radius1 + (radius2 - radius1) * (z1 + hh) / height;
         double r2 = radius1 + (radius2 - radius1) * (z2 + hh) / height;
-        for (int j = 0; j < slices; j++) {
-            double t1 = 2.0 * M_PI * (double) j / (double) slices;
-            double t2 = 2.0 * M_PI * (double) (j + 1) / (double) slices;
-            double c1 = cos(t1), s1 = sin(t1);
-            double c2 = cos(t2), s2 = sin(t2);
-
-            CSGVec3 v00 = {r1 * c1, r1 * s1, z1};
-            CSGVec3 v01 = {r1 * c2, r1 * s2, z1};
-            CSGVec3 v10 = {r2 * c1, r2 * s1, z2};
-            CSGVec3 v11 = {r2 * c2, r2 * s2, z2};
-
-            CSGTriangle tri;
-            tri.v[0] = v00;
-            tri.v[1] = v10;
-            tri.v[2] = v01;
-            tri.normal = csg_tri_normal(&tri);
-            tri.face_id = out->count;
-            csg_trilist_append(out, &tri);
-
-            tri.v[0] = v01;
-            tri.v[1] = v10;
-            tri.v[2] = v11;
-            tri.normal = csg_tri_normal(&tri);
-            tri.face_id = out->count;
-            csg_trilist_append(out, &tri);
-        }
+        csg_gen_lathe_side_tris(r1, r2, z1, z2, slices, out);
     }
 
     /* 底面圆盘（z=-hh，半径 radius1），绕序与圆柱底面一致（法线朝 -Z） */
     if (radius1 > CSG_BSP_EPSILON) {
         CSGVec3 center_bottom = {0.0, 0.0, -hh};
-        for (int j = 0; j < slices; j++) {
-            double t1 = 2.0 * M_PI * (double) j / (double) slices;
-            double t2 = 2.0 * M_PI * (double) (j + 1) / (double) slices;
-            double c1 = cos(t1), s1 = sin(t1);
-            double c2 = cos(t2), s2 = sin(t2);
-            CSGVec3 p1_bot = {radius1 * c1, radius1 * s1, -hh};
-            CSGVec3 p2_bot = {radius1 * c2, radius1 * s2, -hh};
-
-            CSGTriangle tri;
-            tri.v[0] = center_bottom;
-            tri.v[1] = p2_bot;
-            tri.v[2] = p1_bot;
-            tri.normal = csg_tri_normal(&tri);
-            tri.face_id = out->count;
-            csg_trilist_append(out, &tri);
-        }
+        csg_gen_disk_tris(center_bottom, radius1, -hh, slices, CSG_DISK_CW, out);
     }
 
     /* 顶面圆盘（z=+hh，半径 radius2），绕序与圆柱顶面一致（法线朝 +Z） */
     if (radius2 > CSG_BSP_EPSILON) {
         CSGVec3 center_top = {0.0, 0.0, hh};
-        for (int j = 0; j < slices; j++) {
-            double t1 = 2.0 * M_PI * (double) j / (double) slices;
-            double t2 = 2.0 * M_PI * (double) (j + 1) / (double) slices;
-            double c1 = cos(t1), s1 = sin(t1);
-            double c2 = cos(t2), s2 = sin(t2);
-            CSGVec3 p1_top = {radius2 * c1, radius2 * s1, hh};
-            CSGVec3 p2_top = {radius2 * c2, radius2 * s2, hh};
-
-            CSGTriangle tri;
-            tri.v[0] = center_top;
-            tri.v[1] = p1_top;
-            tri.v[2] = p2_top;
-            tri.normal = csg_tri_normal(&tri);
-            tri.face_id = out->count;
-            csg_trilist_append(out, &tri);
-        }
+        csg_gen_disk_tris(center_top, radius2, hh, slices, CSG_DISK_CCW, out);
     }
 }
 

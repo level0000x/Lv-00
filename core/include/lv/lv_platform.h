@@ -251,19 +251,27 @@ extern "C" {
 #endif
 
 /* ═══════════════════════════════════════════════════════════════════
- * 第 8 节：互斥锁抽象（Mutex Abstraction）
+ * 第 8 节：互斥锁抽象（Mutex Abstraction）—— 兼容别名层
  *
- * 将 Windows CRITICAL_SECTION 和 POSIX pthread_mutex_t
- * 统一为 lv_MUTEX_* 宏，消除分散的 #ifdef _WIN32 分支。
+ * 历史 API lvMutex / lv_MUTEX_* 与 lv_thread.h 的新 API
+ * lv_mutex_t / lv_mutex_init/lock/unlock/destroy 底层原语完全一致
+ * （同一 CRITICAL_SECTION / pthread_mutex_t 的两套薄包装）。
+ *
+ * 统一方案：lv_thread.h 的新 API 为唯一实现；此处保留旧名作为
+ * 兼容别名（类型别名 + 宏别名），调用点零改动即获得统一语义。
  *
  * 定义的类：
- *   lvMutex               —— 互斥锁类型（联合体，保证足够大）
- *   lv_MUTEX_INIT(m)      —— 初始化互斥锁
- *   lv_MUTEX_LOCK(m)      —— 加锁
- *   lv_MUTEX_UNLOCK(m)    —— 解锁
- *   lv_MUTEX_DESTROY(m)   —— 销毁互斥锁
+ *   lv_mutex_t            —— 互斥锁类型（唯一实现，本头定义）
+ *   lvMutex               —— 旧名类型别名（== lv_mutex_t）
+ *   lv_MUTEX_INIT(m)      —— == lv_mutex_init((m))
+ *   lv_MUTEX_LOCK(m)      —— == lv_mutex_lock((m))
+ *   lv_MUTEX_UNLOCK(m)    —— == lv_mutex_unlock((m))
+ *   lv_MUTEX_DESTROY(m)   —— == lv_mutex_destroy((m))
  *
- * 使用方式：
+ * 注意：使用 lv_MUTEX_* 宏的编译单元必须包含 lv/lv_thread.h
+ * （lv_mutex_* 为 static inline 函数，需要其声明可见）。
+ *
+ * 使用方式（旧 API，语义不变）：
  *   lvMutex my_mutex;
  *   lv_MUTEX_INIT(&my_mutex);
  *   lv_MUTEX_LOCK(&my_mutex);
@@ -273,19 +281,19 @@ extern "C" {
  * ═══════════════════════════════════════════════════════════════════ */
 
 #ifdef _WIN32
-  typedef CRITICAL_SECTION lvMutex;
-  #define lv_MUTEX_INIT(m)      InitializeCriticalSection((m))
-  #define lv_MUTEX_LOCK(m)      EnterCriticalSection((m))
-  #define lv_MUTEX_UNLOCK(m)    LeaveCriticalSection((m))
-  #define lv_MUTEX_DESTROY(m)   DeleteCriticalSection((m))
+  typedef CRITICAL_SECTION lv_mutex_t;  /* 与 lv_thread.h 统一的新 API 类型 */
+  typedef lv_mutex_t lvMutex;           /* 旧名兼容别名 */
 #else
   #include <pthread.h>
-  typedef pthread_mutex_t lvMutex;
-  #define lv_MUTEX_INIT(m)      pthread_mutex_init((m), NULL)
-  #define lv_MUTEX_LOCK(m)      pthread_mutex_lock((m))
-  #define lv_MUTEX_UNLOCK(m)    pthread_mutex_unlock((m))
-  #define lv_MUTEX_DESTROY(m)   pthread_mutex_destroy((m))
+  typedef pthread_mutex_t lv_mutex_t;
+  typedef lv_mutex_t lvMutex;
 #endif
+
+/* 兼容别名宏：统一映射到 lv_thread.h 的 lv_mutex_*（唯一实现） */
+#define lv_MUTEX_INIT(m)      lv_mutex_init((m))
+#define lv_MUTEX_LOCK(m)      lv_mutex_lock((m))
+#define lv_MUTEX_UNLOCK(m)    lv_mutex_unlock((m))
+#define lv_MUTEX_DESTROY(m)   lv_mutex_destroy((m))
 
 #ifdef __cplusplus
 }

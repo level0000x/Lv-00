@@ -5,6 +5,7 @@
  */
 
 #include "lv/lv_file.h"
+#include "lv/lv_path.h"
 #include "lv/lv_platform.h"
 #include "lv/lv_thread.h"
 
@@ -181,36 +182,12 @@ const char *get_home_dir(void) {
  * @brief 递归创建目录
  * @param path 要创建的目录路径
  * @return 0 成功，-1 失败
+ * @note 逐级建目录实现已收编至 lv_path_mkdirs（core/src/layer2_resource/lv_path.c）
  */
 int create_directory(const char *path) {
-    char tmp[lv_LOG_PATH_MAX];
-    char *p = NULL;
-    size_t len;
-
-    /* 使用安全的字符串复制函数，确保零终止后再计算 strlen */
-    lv_strlcpy(tmp, path, sizeof(tmp));
-    len = strlen(tmp);
-    if (len > 0 && tmp[len - 1] == lv_PATH_SEPARATOR) {
-        tmp[len - 1] = '\0';
-    }
-
-    for (p = tmp + 1; *p; p++) {
-        if (*p == lv_PATH_SEPARATOR) {
-            *p = '\0';
-            /* 直接尝试创建目录，处理 EEXIST（目录已存在）而非预先检查，
-             * 避免 TOCTOU（检查时间-使用时间）竞争条件 */
-            if (lv_mkdir(tmp) != 0 && errno != EEXIST) {
-                lv_RETURN_ERROR(lv_ERROR_INTERNAL, "创建目录失败");
-            }
-            *p = lv_PATH_SEPARATOR;
-        }
-    }
-
-    /* 创建路径最后一个组件 */
-    if (lv_mkdir(tmp) != 0 && errno != EEXIST) {
+    if (lv_path_mkdirs(path) != 0) {
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "创建目录失败");
     }
-
     return 0;
 }
 
@@ -233,20 +210,22 @@ void get_timestamp(char *buf, size_t size) {
 void rotate_logs(void) {
     char old_path[lv_LOG_PATH_MAX];
     char new_path[lv_LOG_PATH_MAX];
+    char name_buf[64];
     int i;
 
     /* 如果存在则删除最旧的文件 */
-    snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
-             lv_LOG_MAX_FILES);
+    snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, lv_LOG_MAX_FILES);
+    lv_path_join(s_debug_state.log_dir_path, name_buf, old_path, lv_LOG_PATH_MAX);
     if (lv_file_exists(old_path)) {
         remove(old_path);
     }
 
     /* 重命名现有文件: .4 -> .5, .3 -> .4, 依此类推 */
     for (i = lv_LOG_MAX_FILES - 1; i >= 1; i--) {
-        snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s.%d", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME, i);
-        snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.%d", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME,
-                 i + 1);
+        snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, i);
+        lv_path_join(s_debug_state.log_dir_path, name_buf, old_path, lv_LOG_PATH_MAX);
+        snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, i + 1);
+        lv_path_join(s_debug_state.log_dir_path, name_buf, new_path, lv_LOG_PATH_MAX);
         if (lv_file_exists(old_path)) {
             rename(old_path, new_path);
         }
@@ -261,8 +240,9 @@ void rotate_logs(void) {
     /* 重置日志大小计数器，因为旧文件已被关闭 */
     s_debug_state.current_log_size = 0;
 
-    snprintf(old_path, lv_LOG_PATH_MAX, "%s%c%s", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
-    snprintf(new_path, lv_LOG_PATH_MAX, "%s%c%s.1", s_debug_state.log_dir_path, lv_PATH_SEPARATOR, lv_DEBUG_LOG_BASENAME);
+    lv_path_join(s_debug_state.log_dir_path, lv_DEBUG_LOG_BASENAME, old_path, lv_LOG_PATH_MAX);
+    snprintf(name_buf, sizeof(name_buf), "%s.1", lv_DEBUG_LOG_BASENAME);
+    lv_path_join(s_debug_state.log_dir_path, name_buf, new_path, lv_LOG_PATH_MAX);
     if (lv_file_exists(old_path)) {
         rename(old_path, new_path);
     }

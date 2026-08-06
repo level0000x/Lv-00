@@ -351,28 +351,18 @@ static const AllocatorOps g_debug_allocator = {
 /** 当前分配器指针，初始为调试分配器（向后兼容） */
 static const AllocatorOps *s_current_allocator = &g_debug_allocator;
 
-/** 写操作互斥锁 */
-static lv_mutex_t s_allocator_mutex;
-
-/** 一次性初始化标志 */
-static lv_once_t s_allocator_once = lv_ONCE_INIT;
-
-/** 初始化分配器环境（互斥锁） */
-static void allocator_env_init(void) {
-    lv_mutex_init(&s_allocator_mutex);
-}
+/** 写操作互斥锁（惰性初始化，首次加锁时自动完成） */
+lv_LAZY_LOCK_DEFINE(s_allocator_lock);
 
 const AllocatorOps *lv_allocator_set(const AllocatorOps *ops) {
-    lv_once(&s_allocator_once, allocator_env_init);
-
     const AllocatorOps *prev = NULL;
 
-    lv_mutex_lock(&s_allocator_mutex);
+    lv_lazy_lock_lock(&s_allocator_lock, s_allocator_lock_init_once);
     prev = s_current_allocator;
     if (ops && ops->alloc && ops->free) {
         s_current_allocator = ops;
     }
-    lv_mutex_unlock(&s_allocator_mutex);
+    lv_lazy_lock_unlock(&s_allocator_lock);
 
     return prev;
 }

@@ -4,7 +4,7 @@
  *
  * @details 实现内存管理策略：
  *   1. 固定大小对象池
- *   （线性分配器已移除，由 lv_arena 承接；LRU 对象缓存已移除，由 cache_manager 承担）
+ *   （线性分配器已移除，由 lv_arena 承接；LRU 对象缓存已移除，缓存职责不再由本模块承担）
  *
  * 设计说明：本模块作为底层内存基础设施，池结构体本身使用 lv_malloc/lv_free
  * 分配，而内部数据块（性能关键路径）保留原生 malloc/free/realloc/calloc，

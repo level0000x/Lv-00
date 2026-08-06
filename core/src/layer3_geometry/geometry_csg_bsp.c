@@ -29,17 +29,16 @@ CSGBSPNode *csg_bsp_node_create(void) {
 
 /**
  * @brief 向 BSP 节点添加一个共面三角形
+ * @note 扩容已收敛到 lv_ensure_capacity（lv_utils.h）；首次分配容量
+ *       lv_INITIAL_ARRAY_CAPACITY(8)，原实现为 4，仅初始容量不同，功能等价
  */
 void csg_bsp_node_add_tri(CSGBSPNode *node, const CSGTriangle *tri) {
     if (!node || !tri)
         return;
     if (node->tri_count >= node->tri_capacity) {
-        int new_cap = node->tri_capacity > 0 ? node->tri_capacity * 2 : 4;
-        CSGTriangle *new_tris = (CSGTriangle *) lv_realloc(node->tris, (size_t) new_cap * sizeof(CSGTriangle));
-        if (!new_tris)
+        if (!lv_ensure_capacity((void **) &node->tris, node->tri_count, &node->tri_capacity,
+                                sizeof(CSGTriangle), 1))
             return;
-        node->tris = new_tris;
-        node->tri_capacity = new_cap;
     }
     node->tris[node->tri_count] = *tri;
     node->tri_count++;

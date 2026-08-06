@@ -1,37 +1,34 @@
-const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel,
-        AlignmentType, BorderStyle, WidthType, ShadingType, LevelFormat } = require('docx');
+const { Document, Packer, Paragraph, TextRun, Table, TableRow, HeadingLevel,
+        AlignmentType, WidthType } = require('docx');
 const fs = require('fs');
+const path = require('path');
 
-const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
-const borders = { top: border, bottom: border, left: border, right: border };
+// 共享辅助（来自 tool/report_generators/docx_helpers.js）
+const { font, borders, PAGE_WIDTH, PAGE_HEIGHT, MARGIN, makeCell, makeBulletConfig } =
+    require('../tool/report_generators/docx_helpers');
 
 function cell(text, opts = {}) {
-    const children = Array.isArray(text)
-        ? text.map(t => new Paragraph({ children: [new TextRun({ text: t, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 20 })] }))
-        : [new Paragraph({ children: [new TextRun({ text: text, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 20 })] })];
-    return new TableCell({
-        borders,
-        width: { size: opts.width || 2340, type: WidthType.DXA },
-        shading: opts.shade ? { fill: opts.shade, type: ShadingType.CLEAR } : undefined,
-        margins: { top: 60, bottom: 60, left: 80, right: 80 },
-        children
+    return makeCell(text, {
+        width: opts.width || 2340,
+        shading: opts.shade,
+        margins: { top: 60, bottom: 60, left: 80, right: 80 }
     });
 }
 
 function h1(text) {
-    return new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 32, bold: true })] });
+    return new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text, font: font(), size: 32, bold: true })] });
 }
 function h2(text) {
-    return new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 28, bold: true })] });
+    return new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text, font: font(), size: 28, bold: true })] });
 }
 function h3(text) {
-    return new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun({ text, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 24, bold: true })] });
+    return new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun({ text, font: font(), size: 24, bold: true })] });
 }
 function p(text, opts = {}) {
-    return new Paragraph({ children: [new TextRun({ text, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 21, ...opts })] });
+    return new Paragraph({ children: [new TextRun({ text, font: font(), size: 21, ...opts })] });
 }
 function bullet(text) {
-    return new Paragraph({ numbering: { reference: "bullets", level: 0 }, children: [new TextRun({ text, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 21 })] });
+    return new Paragraph({ numbering: { reference: "bullets", level: 0 }, children: [new TextRun({ text, font: font(), size: 21 })] });
 }
 
 const doc = new Document({
@@ -54,17 +51,13 @@ const doc = new Document({
         ]
     },
     numbering: {
-        config: [{
-            reference: "bullets",
-            levels: [{ level: 0, format: LevelFormat.BULLET, text: "\u2022", alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 720, hanging: 360 } } } }]
-        }]
+        config: [makeBulletConfig()]
     },
     sections: [{
         properties: {
             page: {
-                size: { width: 12240, height: 15840 },
-                margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+                size: { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+                margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN }
             }
         },
         children: [
@@ -470,7 +463,11 @@ const doc = new Document({
     }]
 });
 
+// 输出路径：优先使用环境变量 LV00_VERSION_DOC_OUTPUT（参数化），
+// 否则输出到本脚本所在目录（doc/），不再硬编码绝对路径。
+const OUTPUT_FILE = process.env.LV00_VERSION_DOC_OUTPUT || path.join(__dirname, "VERSION_5.0.0.docx");
+
 Packer.toBuffer(doc).then(buffer => {
-    fs.writeFileSync("C:\\Users\\xingg\\Documents\\Lv-00\\doc\\VERSION_5.0.0.docx", buffer);
-    console.log("VERSION_5.0.0.docx generated successfully");
+    fs.writeFileSync(OUTPUT_FILE, buffer);
+    console.log("VERSION_5.0.0.docx generated successfully: " + OUTPUT_FILE);
 });

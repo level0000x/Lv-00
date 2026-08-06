@@ -2,7 +2,7 @@ const {
   Document, Packer, Paragraph, TextRun, HeadingLevel,
   TableOfContents, Table, TableRow, TableCell,
   WidthType, AlignmentType, BorderStyle, ShadingType,
-  PageBreak, Tab, TabStopPosition, TabStopType,
+  Tab, TabStopPosition, TabStopType,
   Header, Footer, PageNumber, NumberFormat,
   convertInchesToTwip, LevelFormat, UnderlineType,
   TableBorders, VerticalAlign
@@ -11,44 +11,16 @@ const fs = require("fs");
 const path = require("path");
 
 // ============================================================
-// 辅助函数
+// 共享样式常量（来自 docx_helpers.js）
 // ============================================================
 
-const FONT_CN = "Microsoft YaHei";
-const FONT_EN = "Arial";
-const FONT_SIZE_BODY = 22; // 11pt = 22 half-points
+const { FONT_CN, FONT_EN, FONT_SIZE_BODY, TABLE_BORDERS,
+        HEADER_SHADING, ALT_ROW_SHADING, emptyLine, pageBreakPara } = require('../report_generators/docx_helpers');
+
+// 本生成器差异常量（标题字号）
 const FONT_SIZE_H1 = 32;
 const FONT_SIZE_H2 = 28;
 const FONT_SIZE_H3 = 24;
-
-// 表格边框样式
-const TABLE_BORDER = {
-  style: BorderStyle.SINGLE,
-  size: 1,
-  color: "999999",
-};
-const TABLE_BORDERS = {
-  top: TABLE_BORDER,
-  bottom: TABLE_BORDER,
-  left: TABLE_BORDER,
-  right: TABLE_BORDER,
-  insideHorizontal: TABLE_BORDER,
-  insideVertical: TABLE_BORDER,
-};
-
-// 表头着色
-const HEADER_SHADING = {
-  type: ShadingType.SOLID,
-  color: "1F4E79",
-  fill: "1F4E79",
-};
-
-// 交替行着色
-const ALT_ROW_SHADING = {
-  type: ShadingType.SOLID,
-  color: "F2F7FB",
-  fill: "F2F7FB",
-};
 
 function headerCell(text, widthPct) {
   return new TableCell({
@@ -179,16 +151,6 @@ function bulletPara(text, level = 0) {
         size: FONT_SIZE_BODY,
       }),
     ],
-  });
-}
-
-function emptyLine() {
-  return new Paragraph({ spacing: { before: 100, after: 100 }, children: [] });
-}
-
-function pageBreakPara() {
-  return new Paragraph({
-    children: [new PageBreak()],
   });
 }
 

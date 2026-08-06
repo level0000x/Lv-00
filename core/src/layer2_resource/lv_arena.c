@@ -15,6 +15,7 @@
 
 #include "lv/lv_arena.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_thread.h"  /* lv_MUTEX_* 兼容宏依赖 lv_mutex_* 实现 */
 #include "lv/cross_platform.h"  /* lv_THREAD_LOCAL */
 #include <string.h>
 

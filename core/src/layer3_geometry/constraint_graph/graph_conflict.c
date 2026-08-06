@@ -31,6 +31,7 @@
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
+#include "graph_node_internal.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -161,54 +162,12 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph, int *out
         }
     }
 
-    /* 高斯消元 */
-    int rank = 0;
-    for (int col = 0; col < num_vars && rank < num_linear; col++) {
-        int pivot = -1;
-        for (int row = rank; row < num_linear; row++) {
-            if (mpq_sgn(matrix[row * (num_vars + 1) + col]) != 0) {
-                pivot = row;
-                break;
-            }
-        }
-        if (pivot < 0)
-            continue;
-        /* 交换行 */
-        if (pivot != rank) {
-            for (int c2 = 0; c2 <= num_vars; c2++) {
-                mpq_t tmp;
-                mpq_init(tmp);
-                mpq_set(tmp, matrix[rank * (num_vars + 1) + c2]);
-                mpq_set(matrix[rank * (num_vars + 1) + c2], matrix[pivot * (num_vars + 1) + c2]);
-                mpq_set(matrix[pivot * (num_vars + 1) + c2], tmp);
-                mpq_clear(tmp);
-            }
-        }
-        pivot_row[rank] = linear_constraint_indices[pivot < num_linear ? pivot : rank];
-        /* 消元 */
-        mpq_t lead;
-        mpq_init(lead);
-        mpq_set(lead, matrix[rank * (num_vars + 1) + col]);
-        for (int c2 = col; c2 <= num_vars; c2++)
-            mpq_div(matrix[rank * (num_vars + 1) + c2], matrix[rank * (num_vars + 1) + c2], lead);
-        mpq_clear(lead);
-        for (int row = 0; row < num_linear; row++) {
-            if (row == rank)
-                continue;
-            mpq_t factor;
-            mpq_init(factor);
-            mpq_set(factor, matrix[row * (num_vars + 1) + col]);
-            for (int c2 = col; c2 <= num_vars; c2++) {
-                mpq_t prod;
-                mpq_init(prod);
-                mpq_mul(prod, factor, matrix[rank * (num_vars + 1) + c2]);
-                mpq_sub(matrix[row * (num_vars + 1) + c2], matrix[row * (num_vars + 1) + c2], prod);
-                mpq_clear(prod);
-            }
-            mpq_clear(factor);
-        }
-        rank++;
-    }
+    /* 高斯消元（公共 mpq 行阶梯实现：部分选主元 + 主元映射 + 秩）。
+     * pivot_row 预填充为原始约束索引，行交换时由公共实现同步交换，
+     * 与旧内联实现（消元时直接记录 linear_constraint_indices[pivot]）结果一致。 */
+    for (int i = 0; i < num_linear; i++)
+        pivot_row[i] = linear_constraint_indices[i];
+    int rank = cg_mpq_row_echelon(matrix, num_linear, num_vars, pivot_row);
 
     /* Also check among the rank rows: if two rows have identical
      * coefficient patterns, one is redundant */

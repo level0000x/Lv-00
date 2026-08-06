@@ -85,31 +85,27 @@
  * 和 POSIX pthread_mutex_t 的平台分支代码。
  */
 
-static lv_mutex_t g_stdout_mutex;
-static lv_once_t g_stdout_once = lv_ONCE_INIT;
+/** stdout 互斥锁（惰性初始化，首次加锁时自动完成） */
+lv_LAZY_LOCK_DEFINE(g_stdout_lock);
 
-static void stdout_lock_init_once(void) {
-    lv_mutex_init(&g_stdout_mutex);
-}
-
-/** @brief 初始化 stdout 互斥锁（在 interop_server_create 中调用） */
+/** @brief 初始化 stdout 互斥锁（在 interop_server_create 中调用，可安全多次调用） */
 static void stdout_lock_init(void) {
-    lv_once(&g_stdout_once, stdout_lock_init_once);
+    lv_lazy_lock_init(&g_stdout_lock, g_stdout_lock_init_once);
 }
 
 /** @brief 获取 stdout 锁 */
 static void stdout_lock_acquire(void) {
-    lv_mutex_lock(&g_stdout_mutex);
+    lv_lazy_lock_lock(&g_stdout_lock, g_stdout_lock_init_once);
 }
 
 /** @brief 释放 stdout 锁 */
 static void stdout_lock_release(void) {
-    lv_mutex_unlock(&g_stdout_mutex);
+    lv_lazy_lock_unlock(&g_stdout_lock);
 }
 
 /** @brief 销毁 stdout 互斥锁 */
 static void stdout_lock_destroy(void) {
-    lv_mutex_destroy(&g_stdout_mutex);
+    lv_lazy_lock_destroy(&g_stdout_lock);
 }
 
 /* ==================== 模块级流式上下文 ==================== */

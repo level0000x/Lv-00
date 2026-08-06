@@ -20,6 +20,7 @@
 #include "lv/lv_internal.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
+#include "lv/simd_ops.h" /* lv_mat4_identity / lv_mat4_mul（4x4 列主序，收敛共享） */
 
 /* ================================================================
  * 内部辅助
@@ -44,28 +45,6 @@ enum {
 
 /** 全局 ID 计数器 */
 static _Atomic int g_algebra_id_counter = 0;
-
-/** 为 identity 矩阵赋值 */
-static void identity_matrix(double m[16]) {
-    memset(m, 0, 16 * sizeof(double));
-    m[0] = m[5] = m[10] = m[15] = 1.0;
-}
-
-/** 4x4 矩阵乘法：result = a * b（列主序） */
-static void mul_matrix(double result[16], const double a[16], const double b[16]) {
-    int i, j, k;
-    double tmp[16];
-    for (j = 0; j < 4; j++) {
-        for (i = 0; i < 4; i++) {
-            double sum = 0.0;
-            for (k = 0; k < 4; k++) {
-                sum += a[i + k * 4] * b[k + j * 4];
-            }
-            tmp[i + j * 4] = sum;
-        }
-    }
-    memcpy(result, tmp, 16 * sizeof(double));
-}
 
 /** 向历史中追加步骤 */
 static void history_push(AlgebraicGeom *geom, int step) {
@@ -98,7 +77,7 @@ AlgebraicGeom *algebra_create(lvPlane plane, const char *name) {
     geom->current_entity = -1;
     geom->id = atomic_fetch_add(&g_algebra_id_counter, 1) + 1;
 
-    identity_matrix(geom->transform);
+    lv_mat4_identity(geom->transform);
     geom->has_transform = false;
 
     if (name) {
@@ -464,13 +443,13 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, lvTransformOp op, const do
     if (op < TRANSFORM_TRANSLATE || op > TRANSFORM_PROJECT)
         return NULL;
 
-    identity_matrix(m);
+    lv_mat4_identity(m);
 
     if (!kTransformOpVTables[op].apply(m, params, param_count))
         return NULL;
 
     /* 累积变换：new_transform = m * old_transform */
-    mul_matrix(geom->transform, m, geom->transform);
+    lv_mat4_mul(geom->transform, m, geom->transform);
     geom->has_transform = true;
     history_push(geom, HISTORY_TRANSFORM);
     return geom;

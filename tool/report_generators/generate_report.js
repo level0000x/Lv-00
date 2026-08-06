@@ -1,103 +1,25 @@
 const fs = require('fs');
-const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-        Header, Footer, AlignmentType, LevelFormat,
-        HeadingLevel, BorderStyle, WidthType, ShadingType,
+const { Document, Packer, Paragraph, TextRun,
+        Header, Footer, AlignmentType,
         PageNumber, PageBreak } = require('docx');
 
-// ==================== 配置 ====================
-const FONT_ASCII = "Arial";
-const FONT_CJK = "Microsoft YaHei";
-const PAGE_WIDTH = 12240;  // US Letter
-const PAGE_HEIGHT = 15840;
-const MARGIN = 1440;
-const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN; // 9360
+// ==================== 配置与共享辅助（来自 docx_helpers.js） ====================
+const { FONT_ASCII, FONT_CJK, PAGE_WIDTH, PAGE_HEIGHT, MARGIN, CONTENT_WIDTH,
+        heading, para, boldPara, makeTable: makeTableShared,
+        makeNumberConfigs, makeBulletConfig, makeNumGroup } = require('./docx_helpers');
 
-const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
-const borders = { top: border, bottom: border, left: border, right: border };
-
-// ==================== 辅助函数 ====================
-function heading(text, level) {
-    return new Paragraph({
-        heading: level,
-        children: [new TextRun({ text, font: { ascii: FONT_ASCII, hAnsi: FONT_ASCII, eastAsia: FONT_CJK } })]
-    });
-}
-
-function para(text, opts = {}) {
-    return new Paragraph({
-        spacing: { after: 120 },
-        ...opts,
-        children: [new TextRun({ text, font: { ascii: FONT_ASCII, hAnsi: FONT_ASCII, eastAsia: FONT_CJK }, size: 22 })]
-    });
-}
-
-function boldPara(text) {
-    return new Paragraph({
-        spacing: { after: 120 },
-        children: [new TextRun({ text, font: { ascii: FONT_ASCII, hAnsi: FONT_ASCII, eastAsia: FONT_CJK }, size: 22, bold: true })]
-    });
-}
-
-function bulletItem(text, ref) {
-    return new Paragraph({
-        numbering: { reference: ref, level: 0 },
-        spacing: { after: 60 },
-        children: [new TextRun({ text, font: { ascii: FONT_ASCII, hAnsi: FONT_ASCII, eastAsia: FONT_CJK }, size: 22 })]
-    });
-}
-
-function makeTableRow(cells, isHeader = false) {
-    return new TableRow({
-        cantSplit: true,
-        children: cells.map(([text, width]) => new TableCell({
-            borders,
-            width: { size: width, type: WidthType.DXA },
-            shading: isHeader ? { fill: "D5E8F0", type: ShadingType.CLEAR } : undefined,
-            margins: { top: 60, bottom: 60, left: 100, right: 100 },
-            children: [new Paragraph({
-                children: [new TextRun({
-                    text,
-                    font: { ascii: FONT_ASCII, hAnsi: FONT_ASCII, eastAsia: FONT_CJK },
-                    size: 20,
-                    bold: isHeader
-                })]
-            })]
-        }))
-    });
-}
-
+// 本生成器 makeTable 表宽为 CONTENT_WIDTH（9360）
 function makeTable(headers, rows, colWidths) {
-    const tableRows = [
-        makeTableRow(headers.map((h, i) => [h, colWidths[i]]), true),
-        ...rows.map(row => makeTableRow(row.map((cell, i) => [cell, colWidths[i]])))
-    ];
-    return new Table({
-        width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-        columnWidths: colWidths,
-        rows: tableRows
-    });
+    return makeTableShared(headers, rows, colWidths, CONTENT_WIDTH);
 }
 
 // ==================== 文档内容 ====================
-const numGroupCounter = { value: 0 };
-function startNumGroup() { numGroupCounter.value++; }
-function numItem(text) {
-    return new Paragraph({
-        numbering: { reference: `numbers-${numGroupCounter.value}`, level: 0 },
-        spacing: { after: 60 },
-        children: [new TextRun({ text, font: { ascii: FONT_ASCII, hAnsi: FONT_ASCII, eastAsia: FONT_CJK }, size: 22 })]
-    });
-}
+const numGroup = makeNumGroup();
+function startNumGroup() { numGroup.start(); }
+function numItem(text) { return numGroup.item(text); }
 
 // 编号配置
-const numberConfigs = [];
-for (let i = 0; i < 30; i++) {
-    numberConfigs.push({
-        reference: `numbers-${i}`,
-        levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
-            style: { paragraph: { indent: { left: 720, hanging: 360 } } } }]
-    });
-}
+const numberConfigs = makeNumberConfigs();
 
 const children = [];
 
@@ -354,9 +276,7 @@ const doc = new Document({
     },
     numbering: {
         config: [
-            { reference: "bullets",
-              levels: [{ level: 0, format: LevelFormat.BULLET, text: "\u2022", alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] },
+            makeBulletConfig(),
             ...numberConfigs
         ]
     },

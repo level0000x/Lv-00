@@ -19,6 +19,8 @@
 #include "lv/lv_check.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
+#include "lv/config.h"
+#include "lv/lv_path.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -140,7 +142,11 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
     /* 扫描目录中的 .dll 文件（Windows）或 .so 文件（Linux） */
 #ifdef _WIN32
     lvStrBuf sb_2 = {0};
-    lv_strbuf_printf(&sb_2, "%s\\*.dll", directory);
+    char pattern_buf[lv_PATH_BUF_SIZE];
+    if (!lv_path_join(directory, "*.dll", pattern_buf, sizeof(pattern_buf))) {
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_autoload: 路径过长");
+    }
+    lv_strbuf_printf(&sb_2, "%s", pattern_buf);
 
     WIN32_FIND_DATAA find_data;
     HANDLE hFind = FindFirstFileA(sb_2.data, &find_data);
@@ -157,10 +163,10 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
 
         /* 构造完整路径 */
         lvStrBuf sb_3 = {0};
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-        lv_strbuf_printf(&sb_3, "%s\\%s", directory, find_data.cFileName);
-#pragma GCC diagnostic pop
+        char full_path[lv_PATH_BUF_SIZE];
+        if (lv_path_join(directory, find_data.cFileName, full_path, sizeof(full_path))) {
+            lv_strbuf_printf(&sb_3, "%s", full_path);
+        }
 
         /* 尝试加载为插件 */
         lvPlugin *plugin = lv_plugin_load(system, sb_3.data);
@@ -201,7 +207,10 @@ int lv_plugin_system_autoload(lvPluginSystem *system, const char *directory) {
         size_t name_len = strlen(entry->d_name);
         if (name_len > 3 && strcmp(entry->d_name + name_len - 3, ".so") == 0) {
             lvStrBuf sb_4 = {0};
-            lv_strbuf_printf(&sb_4, "%s/%s", directory, entry->d_name);
+            char full_path[lv_PATH_BUF_SIZE];
+            if (lv_path_join(directory, entry->d_name, full_path, sizeof(full_path))) {
+                lv_strbuf_printf(&sb_4, "%s", full_path);
+            }
 
             /* 尝试加载为插件 */
             lvPlugin *plugin = lv_plugin_load(system, sb_4.data);

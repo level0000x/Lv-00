@@ -5,7 +5,7 @@
  *          支持内存使用统计和线程安全（可选）。
  *          说明：线性分配器（lvLinearAllocator）已移除，由 lv_arena
  *          （支持自定义对齐）承接；LRU 对象缓存（lvObjectCache）已移除，
- *          缓存职责由 cache_manager 模块承担。
+ *          缓存职责不再由本模块承担。
  *
  * 主要 API：
  *   - lv_pool_create / alloc / free / destroy  — 固定大小对象池

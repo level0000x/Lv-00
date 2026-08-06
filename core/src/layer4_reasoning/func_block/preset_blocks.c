@@ -191,34 +191,18 @@ static ExtendedPresetRegistry g_preset_registry = {
 
 /* 线程安全：注册表互斥锁
  *
- * 使用原子操作+双重检查锁定模式消除 TOCTOU 竞态条件。
- * 锁的初始化在 preset_blocks_init() 中提前完成，
- * LOCK() 宏不再执行惰性初始化，避免多线程竞态。
+ * 使用 lv_lazy_lock 惰性互斥锁：首次加锁时自动完成初始化
+ * （lv_once 保证仅执行一次且同步完成），消除 TOCTOU 竞态。
+ * 锁生命周期与进程一致，不销毁（lv_once 不可重置）。
  */
 #include "lv/lv_platform.h"
 #include "lv/lv_thread.h"
 
-static lvMutex g_preset_registry_lock;
-static lv_once_t g_preset_registry_lock_once = lv_ONCE_INIT;
+/** 预设注册表互斥锁（惰性初始化，首次加锁时自动完成） */
+lv_LAZY_LOCK_DEFINE(g_preset_registry_lock);
 
-/** @brief 预设注册表锁一次性初始化回调（lv_once 保证仅执行一次且同步完成） */
-static void preset_registry_lock_init_impl(void) {
-    lv_MUTEX_INIT(&g_preset_registry_lock);
-}
-
-/**
- * @brief 初始化预设注册表锁（线程安全，仅执行一次）
- */
-static void preset_registry_lock_init_once(void) {
-    lv_once(&g_preset_registry_lock_once, preset_registry_lock_init_impl);
-}
-
-#define PRESET_REGISTRY_LOCK()                         \
-    do {                                               \
-        preset_registry_lock_init_once();              \
-        lv_MUTEX_LOCK(&g_preset_registry_lock);        \
-    } while (0)
-#define PRESET_REGISTRY_UNLOCK() lv_MUTEX_UNLOCK(&g_preset_registry_lock)
+#define PRESET_REGISTRY_LOCK()   lv_lazy_lock_lock(&g_preset_registry_lock, g_preset_registry_lock_init_once)
+#define PRESET_REGISTRY_UNLOCK() lv_lazy_lock_unlock(&g_preset_registry_lock)
 
 /* ==================== 内部辅助函数 ==================== */
 

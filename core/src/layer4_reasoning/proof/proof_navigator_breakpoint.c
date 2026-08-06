@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "lv/lv_platform.h"
+#include "lv/lv_thread.h"  /* lv_MUTEX_* 兼容宏依赖 lv_mutex_* 实现 */
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 #include "lv/axiom_pkg.h"

@@ -19,7 +19,7 @@
 
 #include "lv/module.h"
 #include "lv/module_internal.h"
-#include "lv/sha256.h"
+#include "lv/lv_hash.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -81,92 +81,54 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
 
 /* module_set_autosave_config 已在 module_delta.c 中实现 */
 
-/* ============== 模块内容哈希（SHA-256） ============== */
+/* ============== 模块内容哈希（SHA-256，统一委托 lv_hash 模块） ============== */
 
 char *module_compute_content_hash(const Module *mod) {
     if (!mod)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "module_compute_content_hash: mod is NULL");
 
-    lvSha256Context ctx;
-    lv_sha256_init(&ctx);
+    lvHashCtx ctx;
+    lv_hash_init(&ctx, LV_HASH_SHA256);
 
     /* 哈希模块名称和版本 */
-    if (mod->name) {
-        lv_sha256_update(&ctx, (const uint8_t *) mod->name, strlen(mod->name));
-    } else {
-        lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-    }
-    if (mod->version) {
-        lv_sha256_update(&ctx, (const uint8_t *) mod->version, strlen(mod->version));
-    } else {
-        lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-    }
+    lv_hash_str(&ctx, mod->name);
+    lv_hash_str(&ctx, mod->version);
 
     /* 哈希依赖信息 */
-    lv_sha256_update(&ctx, (const uint8_t *) &mod->dependencies.count, sizeof(mod->dependencies.count));
+    lv_hash_int32(&ctx, mod->dependencies.count);
     for (int i = 0; i < mod->dependencies.count; i++) {
-        if (((ModuleDependency *) mod->dependencies.data)[i].name) {
-            lv_sha256_update(&ctx, (const uint8_t *) ((ModuleDependency *) mod->dependencies.data)[i].name, strlen(((ModuleDependency *) mod->dependencies.data)[i].name));
-        } else {
-            lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-        }
-        if (((ModuleDependency *) mod->dependencies.data)[i].version_constraint) {
-            lv_sha256_update(&ctx, (const uint8_t *) ((ModuleDependency *) mod->dependencies.data)[i].version_constraint,
-                             strlen(((ModuleDependency *) mod->dependencies.data)[i].version_constraint));
-        } else {
-            lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-        }
+        lv_hash_str(&ctx, ((ModuleDependency *) mod->dependencies.data)[i].name);
+        lv_hash_str(&ctx, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
     }
 
     /* 哈希导出信息 */
     if (mod->exports) {
-        lv_sha256_update(&ctx, (const uint8_t *) &mod->exports->function_block_ids.count, sizeof(mod->exports->function_block_ids.count));
+        lv_hash_int32(&ctx, mod->exports->function_block_ids.count);
         for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
-            lv_sha256_update(&ctx, (const uint8_t *) &((int *) mod->exports->function_block_ids.data)[i], sizeof(int));
+            lv_hash_int32(&ctx, ((int *) mod->exports->function_block_ids.data)[i]);
         }
-        lv_sha256_update(&ctx, (const uint8_t *) &mod->exports->type_region_ids.count, sizeof(mod->exports->type_region_ids.count));
+        lv_hash_int32(&ctx, mod->exports->type_region_ids.count);
         for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
-            lv_sha256_update(&ctx, (const uint8_t *) &((int *) mod->exports->type_region_ids.data)[i], sizeof(int));
+            lv_hash_int32(&ctx, ((int *) mod->exports->type_region_ids.data)[i]);
         }
     } else {
-        int zero = 0;
-        lv_sha256_update(&ctx, (const uint8_t *) &zero, sizeof(zero));
-        lv_sha256_update(&ctx, (const uint8_t *) &zero, sizeof(zero));
+        lv_hash_int32(&ctx, 0);
+        lv_hash_int32(&ctx, 0);
     }
 
     /* 哈希公理包信息 */
-    lv_sha256_update(&ctx, (const uint8_t *) &mod->axiom_packages.count, sizeof(mod->axiom_packages.count));
+    lv_hash_int32(&ctx, mod->axiom_packages.count);
     for (int i = 0; i < mod->axiom_packages.count; i++) {
-        if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
-            if (((AxiomPackage **) mod->axiom_packages.data)[i]->name) {
-                lv_sha256_update(&ctx, (const uint8_t *) ((AxiomPackage **) mod->axiom_packages.data)[i]->name,
-                                 strlen(((AxiomPackage **) mod->axiom_packages.data)[i]->name));
-            } else {
-                lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-            }
-            if (((AxiomPackage **) mod->axiom_packages.data)[i]->version) {
-                lv_sha256_update(&ctx, (const uint8_t *) ((AxiomPackage **) mod->axiom_packages.data)[i]->version,
-                                 strlen(((AxiomPackage **) mod->axiom_packages.data)[i]->version));
-            } else {
-                lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-            }
+        AxiomPackage *pkg = ((AxiomPackage **) mod->axiom_packages.data)[i];
+        if (pkg) {
+            lv_hash_str(&ctx, pkg->name);
+            lv_hash_str(&ctx, pkg->version);
         } else {
-            lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-            lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
+            lv_hash_str(&ctx, NULL);
+            lv_hash_str(&ctx, NULL);
         }
     }
 
     /* 计算最终哈希并转换为十六进制字符串 */
-    uint8_t hash[32];
-    lv_sha256_final(&ctx, hash);
-
-    char *result = (char *) lv_calloc(65, 1);
-    if (result) {
-        for (int i = 0; i < 32; i++) {
-            snprintf(result + i * 2, 65 - (size_t) (i * 2), "%02x", hash[i]);
-        }
-        result[64] = '\0';
-    }
-
-    return result;
+    return lv_hash_to_hex_alloc(&ctx);
 }

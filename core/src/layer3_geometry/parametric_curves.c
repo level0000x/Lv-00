@@ -21,6 +21,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv_vec3.h" /* 收敛：本地 lvPoint3D 副本统一 typedef 到公共 lvVec3 */
 
 /* ============================================================
  * 第一部分：数据结构定义
@@ -42,12 +43,9 @@ typedef struct {
 
 /**
  * @brief 三维点（double 精度，用于数值求值）
+ * @note 收敛：与 parametric_curves.h 一致 typedef 到公共 lvVec3
  */
-typedef struct {
-    double x;
-    double y;
-    double z;
-} lvPoint3D;
+typedef lvVec3 lvPoint3D;
 
 /**
  * @brief 参数曲线的求值函数类型

@@ -79,9 +79,6 @@ lvProofEngine *lv_proof_engine_create(const lvProofEngineConfig *config) {
     engine->success_proofs = 0;
     engine->avg_proof_time_ms = 0.0;
 
-    /* 初始化缓存 */
-    engine->proof_cache = NULL;
-
     return engine;
 }
 
@@ -101,11 +98,6 @@ void lv_proof_engine_destroy(lvProofEngine *engine) {
     if (engine->current_trace) {
         lv_trace_tree_destroy(engine->current_trace);
         engine->current_trace = NULL;
-    }
-
-    /* 释放缓存（如果有） */
-    if (engine->proof_cache) {
-        lv_free((void **) &engine->proof_cache);
     }
 
     lv_free((void **) &engine);

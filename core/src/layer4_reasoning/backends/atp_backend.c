@@ -27,10 +27,9 @@
 
 #include "lv/lv_platform.h"
 
-#include "lv/lv_file.h"
-
 #include "atp_backend.h"
 #include "lv/lv_backend_plugin.h"
+#include "lv/lv_process.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_xmacro.h"
 
@@ -357,33 +356,13 @@ static const char *atp_executable_name(ATPBackendType type) {
 }
 
 /**
- * @brief 通过尝试执行 "exec --version" 检测 ATP 可执行文件是否可用
+ * @brief 检测 ATP 可执行文件是否可用
  *
- * 使用 popen 检测可执行文件是否在 PATH 中。
+ * 统一委托 lv_external_process_available 做 PATH 搜索
+ * （无需启动 shell，消除 popen/where/command -v 依赖）。
  */
 static bool atp_check_executable(const char *name) {
-    if (!name)
-        return false;
-
-    char cmd[512];
-#ifdef _WIN32
-    snprintf(cmd, sizeof(cmd), "where %s 2>NUL", name);
-#else
-    snprintf(cmd, sizeof(cmd), "command -v %s 2>/dev/null", name);
-#endif
-
-    FILE *fp = lv_popen(cmd, "r");
-    if (!fp)
-        return false;
-
-    char buffer[256];
-    bool found = false;
-    if (fgets(buffer, sizeof(buffer), fp)) {
-        /* 如果命令找到了文件，输出包含路径 */
-        found = (buffer[0] != '\0' && buffer[0] != '\n');
-    }
-    lv_pclose(fp);
-    return found;
+    return lv_external_process_available(name);
 }
 
 /* ============================================================
@@ -393,188 +372,34 @@ static bool atp_check_executable(const char *name) {
 /**
  * @brief 通过子进程调用 ATP 求解器并捕获输出
  *
+ * 委托统一外部进程执行器 lv_external_process_run：
+ * - TPTP 输入经 stdin 管道传递（不再写临时文件、不依赖临时文件路径）
+ * - stdout+stderr 合并捕获；超时由执行器统一处理（0 = 无超时）
+ *
  * @param[in]  executable  可执行文件名
  * @param[in]  tptp_text   TPTP 编码文本
- * @param[in]  timeout_sec 超时秒数
+ * @param[in]  timeout_sec 超时秒数（0 = 无超时）
  * @param[in]  extra_args  额外命令行参数（可为 NULL）
- * @param[out] out_output  捕获的 stdout（调用者 free）
- * @param[out] out_exit_code 进程退出码
+ * @param[out] out_output  捕获的 stdout（调用者 lv_free）
+ * @param[out] out_exit_code 进程退出码（超时强杀为 -1）
  * @return lv_OK 成功
  */
 static int atp_run_subprocess(const char *executable, const char *tptp_text, double timeout_sec, const char *extra_args,
                               char **out_output, int *out_exit_code) {
-    /* 记录开始时间，用于超时检查 */
-    time_t start_time = time(NULL);
-    if (start_time == (time_t) -1)
-        start_time = 0;
-
     if (!executable || !tptp_text || !out_output || !out_exit_code)
         return (int) lv_ERROR_NULL_POINTER;
 
     *out_output = NULL;
     *out_exit_code = -1;
 
-    /* 将 TPTP 文本写入临时文件 */
-#ifdef _WIN32
-    char temp_path[MAX_PATH + 64];
-    char temp_dir[MAX_PATH];
-
-    /* 获取临时目录 */
-    DWORD len = GetTempPathA(MAX_PATH, temp_dir);
-    if (len == 0) {
-        snprintf(temp_dir, sizeof(temp_dir), ".");
-    }
-
-    /* 生成唯一临时文件名 */
-    snprintf(temp_path, sizeof(temp_path), "%slv_atp_%d.p", temp_dir, (int) GetCurrentProcessId());
-
-    FILE *tmp = lv_file_open(temp_path, "w");
-    if (!tmp)
-        return (int) lv_ERROR_IO;
-
-    fputs(tptp_text, tmp);
-    lv_file_close(tmp);
-
-    /* 构建命令行 */
-    char cmd[2048];
-    if (extra_args && extra_args[0] != '\0') {
-        snprintf(cmd, sizeof(cmd), "%s %s %s 2>&1", executable, extra_args, temp_path);
-    } else {
-        snprintf(cmd, sizeof(cmd), "%s %s 2>&1", executable, temp_path);
-    }
-
-    /* 创建匿名管道用于捕获 stdout+stderr */
-    HANDLE hReadPipe, hWritePipe;
-    SECURITY_ATTRIBUTES sa;
-    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sa.lpSecurityDescriptor = NULL;
-    sa.bInheritHandle = TRUE;
-
-    if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
-        remove(temp_path);
-        return (int) lv_ERROR_IO;
-    }
-    /* 确保读端不继承给子进程 */
-    if (!SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0)) {
-        CloseHandle(hReadPipe);
-        CloseHandle(hWritePipe);
-        remove(temp_path);
-        return (int) lv_ERROR_IO;
-    }
-
-    /* 设置子进程启动信息 */
-    STARTUPINFOA si;
-    PROCESS_INFORMATION pi;
-    memset(&si, 0, sizeof(si));
-    memset(&pi, 0, sizeof(pi));
-    si.cb = sizeof(STARTUPINFOA);
-    si.hStdError = hWritePipe;
-    si.hStdOutput = hWritePipe;
-    si.dwFlags |= STARTF_USESTDHANDLES;
-
-    BOOL created = CreateProcessA(
-        NULL,      /* 可执行文件名（在命令行中指定） */
-        cmd,       /* 命令行 */
-        NULL,      /* 进程安全属性 */
-        NULL,      /* 线程安全属性 */
-        TRUE,      /* 句柄可继承 */
-        0,         /* 创建标志 */
-        NULL,      /* 环境变量 */
-        NULL,      /* 当前目录 */
-        &si,
-        &pi
-    );
-
-    /* 关闭写端句柄——子进程拥有其副本 */
-    CloseHandle(hWritePipe);
-
-    if (!created) {
-        CloseHandle(hReadPipe);
-        remove(temp_path);
-        return (int) lv_ERROR_IO;
-    }
-
-    /* 分配输出缓冲区 */
-    size_t out_size = 65536;
-    size_t out_len = 0;
-    char *output = (char *) lv_malloc(out_size);
-    if (!output) {
-        CloseHandle(hReadPipe);
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        remove(temp_path);
-        return (int) lv_ERROR_OUT_OF_MEMORY;
-    }
-
-    /* 等待进程完成或超时 */
-    DWORD timeout_ms = (timeout_sec > 0.0) ? (DWORD)(timeout_sec * 1000.0) : INFINITE;
-    DWORD wait_result = WaitForSingleObject(pi.hProcess, timeout_ms);
-
-    int exit_code = -1;
-    if (wait_result == WAIT_TIMEOUT) {
-        /* 超时：强制终止子进程 */
-        TerminateProcess(pi.hProcess, 1);
-        WaitForSingleObject(pi.hProcess, 5000);
-        exit_code = -1;
-    } else {
-        /* 正常退出，获取退出码 */
-        DWORD code = 0;
-        if (GetExitCodeProcess(pi.hProcess, &code)) {
-            exit_code = (int) code;
-        }
-    }
-
-    /* 读取管道中的所有输出（进程已终止或已完成） */
-    DWORD bytes_read;
-    char buffer[lv_LARGE_BUF_SIZE];
-    while (ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytes_read, NULL) && bytes_read > 0) {
-        buffer[bytes_read] = '\0';
-        size_t chunk_len = strlen(buffer);
-        while (out_len + chunk_len + 1 >= out_size) {
-            out_size *= 2;
-            char *new_output = (char *) lv_realloc(output, out_size);
-            if (!new_output) {
-                lv_free((void **) &output);
-                CloseHandle(hReadPipe);
-                CloseHandle(pi.hProcess);
-                CloseHandle(pi.hThread);
-                remove(temp_path);
-                return (int) lv_ERROR_OUT_OF_MEMORY;
-            }
-            output = new_output;
-        }
-        memcpy(output + out_len, buffer, chunk_len);
-        out_len += chunk_len;
-    }
-    output[out_len] = '\0';
-
-    /* 清理 */
-    CloseHandle(hReadPipe);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-
-    /* 清理临时文件 */
-    remove(temp_path);
-
-#else /* POSIX: fork + execvp + pipe + dup2 */
-    char temp_path[256];
-    const char *tmpdir = getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp";
-    snprintf(temp_path, sizeof(temp_path), "%s/lv_atp_%d.p", tmpdir, (int) getpid());
-
-    FILE *tmp = lv_file_open(temp_path, "w");
-    if (!tmp)
-        return (int) lv_ERROR_IO;
-
-    fputs(tptp_text, tmp);
-    lv_file_close(tmp);
-
-    /* 准备参数列表 */
+    /* 构造 argv：可执行文件 + 空格切分的额外参数（切分逻辑与原实现一致）。
+     * 原实现将 TPTP 文本写入临时文件并把路径作为最后一个参数传入；
+     * 新实现经 stdin 管道传递输入，argv 不含输入文件路径。 */
     char *exec_argv[16];
     char *extra_copy = NULL;
     int argc = 0;
     exec_argv[argc++] = (char *) executable;
     if (extra_args && extra_args[0] != '\0') {
-        /* 简单参数切分（空格分隔） */
         extra_copy = lv_strdup(extra_args);
         if (extra_copy) {
             char *save_ptr = NULL;
@@ -585,178 +410,21 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
             }
         }
     }
-    /* bounds check: ensure indices 14 (temp_path) and 15 (NULL) fit in exec_argv[16] */
-    if (argc > 14) {
-        lv_free((void **) &extra_copy);
-        return (int) lv_ERROR_IO;
-    }
-    exec_argv[argc++] = temp_path;
     exec_argv[argc] = NULL;
 
-    /* 创建管道 */
-    int pipefd[2];
-    if (pipe(pipefd) != 0) {
-        remove(temp_path);
-        return (int) lv_ERROR_IO;
-    }
+    int timeout_ms = (timeout_sec > 0.0) ? (int) (timeout_sec * 1000.0) : 0;
 
-    pid_t pid = fork();
-    if (pid < 0) {
-        close(pipefd[0]);
-        close(pipefd[1]);
-        remove(temp_path);
-        return (int) lv_ERROR_IO;
-    }
-
-    if (pid == 0) {
-        /* 子进程：重定向 stdout/stderr 到管道写端 */
-        close(pipefd[0]);
-        dup2(pipefd[1], STDOUT_FILENO);
-        dup2(pipefd[1], STDERR_FILENO);
-        close(pipefd[1]);
-
-        execvp(executable, exec_argv);
-        /* 如果 execvp 返回，说明出错 */
-        _exit(127);
-    }
-
-    /* 父进程：关闭写端，使用 poll + WNOHANG 实现带超时的进程等待 */
-    lv_free((void **) &extra_copy);
-    close(pipefd[1]);
-
-    size_t out_size = 65536;
+    char *output = NULL;
     size_t out_len = 0;
-    char *output = (char *) lv_malloc(out_size);
-    if (!output) {
-        close(pipefd[0]);
-        kill(pid, SIGKILL);
-        waitpid(pid, NULL, 0);
-        remove(temp_path);
-        return (int) lv_ERROR_OUT_OF_MEMORY;
-    }
-
-    bool process_exited = false;
-    bool timed_out = false;
     int exit_code = -1;
+    int rc = lv_external_process_run(executable, exec_argv, tptp_text, strlen(tptp_text), timeout_ms,
+                                     &output, &out_len, &exit_code);
+    lv_free((void **) &extra_copy);
 
-    /* 使用 poll() 实现带超时的管道读取和进程状态监控 */
-    struct pollfd pfd;
-    pfd.fd = pipefd[0];
-    pfd.events = POLLIN;
-
-    while (1) {
-        /* 检查是否超时 */
-        if (timeout_sec > 0.0 && !timed_out) {
-            double elapsed = difftime(time(NULL), start_time);
-            if (elapsed >= timeout_sec) {
-                timed_out = true;
-                kill(pid, SIGTERM);
-                /* 给 1.5 秒优雅退出，然后强制终止 */
-                struct timespec ts = { .tv_sec = 1, .tv_nsec = 500000000L };
-                nanosleep(&ts, NULL);
-                kill(pid, SIGKILL);
-                exit_code = -1;
-            }
-        }
-
-        /* 如果已超时终止，做最终读取 */
-        if (timed_out) {
-            char buf[lv_LARGE_BUF_SIZE];
-            ssize_t n;
-            while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
-                while (out_len + (size_t) n + 1 >= out_size) {
-                    out_size *= 2;
-                    char *new_output = (char *) lv_realloc(output, out_size);
-                    if (!new_output) {
-                        lv_free((void **) &output);
-                        close(pipefd[0]);
-                        waitpid(pid, NULL, 0);
-                        remove(temp_path);
-                        return (int) lv_ERROR_OUT_OF_MEMORY;
-                    }
-                    output = new_output;
-                }
-                memcpy(output + out_len, buf, (size_t) n);
-                out_len += (size_t) n;
-            }
-            break;
-        }
-
-        /* 非阻塞地检查子进程是否已退出 */
-        int status = 0;
-        pid_t ret = waitpid(pid, &status, WNOHANG);
-        if (ret == pid) {
-            /* 子进程已正常退出 */
-            process_exited = true;
-            exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-            /* 读取剩余管道数据 */
-            char buf[lv_LARGE_BUF_SIZE];
-            ssize_t n;
-            while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
-                while (out_len + (size_t) n + 1 >= out_size) {
-                    out_size *= 2;
-                    char *new_output = (char *) lv_realloc(output, out_size);
-                    if (!new_output) {
-                        lv_free((void **) &output);
-                        close(pipefd[0]);
-                        remove(temp_path);
-                        return (int) lv_ERROR_OUT_OF_MEMORY;
-                    }
-                    output = new_output;
-                }
-                memcpy(output + out_len, buf, (size_t) n);
-                out_len += (size_t) n;
-            }
-            break;
-        }
-
-        /* 使用 poll 等待管道数据就绪（100ms 超时） */
-        int poll_ret = poll(&pfd, 1, 100);
-        if (poll_ret > 0 && (pfd.revents & POLLIN)) {
-            char buf[lv_LARGE_BUF_SIZE];
-            ssize_t nread = read(pipefd[0], buf, sizeof(buf));
-            if (nread > 0) {
-                while (out_len + (size_t) nread + 1 >= out_size) {
-                    out_size *= 2;
-                    char *new_output = (char *) lv_realloc(output, out_size);
-                    if (!new_output) {
-                        lv_free((void **) &output);
-                        close(pipefd[0]);
-                        kill(pid, SIGKILL);
-                        waitpid(pid, NULL, 0);
-                        remove(temp_path);
-                        return (int) lv_ERROR_OUT_OF_MEMORY;
-                    }
-                    output = new_output;
-                }
-                memcpy(output + out_len, buf, (size_t) nread);
-                out_len += (size_t) nread;
-            } else if (nread == 0) {
-                /* EOF — 子进程已关闭 stdout，继续检查进程状态 */
-                continue;
-            }
-        }
-        /* poll_ret == 0：100ms 内无数据，回到循环开头重新检查超时和进程状态 */
+    if (rc != (int) lv_OK) {
+        lv_free((void **) &output);
+        return rc;
     }
-
-    if (out_len == 0) {
-        output[0] = '\0';
-    } else {
-        output[out_len] = '\0';
-    }
-    close(pipefd[0]);
-
-    /* 如果进程尚未被回收（非超时情况），最后阻塞等待一次 */
-    if (!process_exited && !timed_out) {
-        int status = 0;
-        waitpid(pid, &status, 0);
-        exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    }
-
-    /* 清理临时文件 */
-    remove(temp_path);
-
-#endif
 
     *out_output = output;
     *out_exit_code = exit_code;

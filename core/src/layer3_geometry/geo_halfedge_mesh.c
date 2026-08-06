@@ -683,27 +683,10 @@ void lv_he_face_iter_next(lvHeFaceIterator *iter) {
 
 /* ========================================================================
  * 第六部分：几何量计算
- * ======================================================================== */
-
-static double vector_dot(lvPoint3D a, lvPoint3D b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-static lvPoint3D vector_cross(lvPoint3D a, lvPoint3D b) {
-    lvPoint3D c;
-    c.x = a.y * b.z - a.z * b.y;
-    c.y = a.z * b.x - a.x * b.z;
-    c.z = a.x * b.y - a.y * b.x;
-    return c;
-}
-
-static lvPoint3D vector_sub(lvPoint3D a, lvPoint3D b) {
-    lvPoint3D c;
-    c.x = a.x - b.x;
-    c.y = a.y - b.y;
-    c.z = a.z - b.z;
-    return c;
-}
+ * ========================================================================
+ * 向量运算（dot/cross/sub）已收敛到公共内联 lv_vec3_dot/lv_vec3_cross/
+ * lv_vec3_sub（core/include/lv/lv_vec3.h），原本地 static vector_* 已删除；
+ * lvPoint3D 即 lvVec3，double 运算逐位一致。 */
 
 double lv_he_mesh_vertex_angle(const lvHeMesh *mesh, lvVertex v) {
     if (!mesh || v < 0 || v >= mesh->vertex_count)
@@ -727,12 +710,12 @@ double lv_he_mesh_vertex_angle(const lvHeMesh *mesh, lvVertex v) {
         lvPoint3D p1 = mesh->vertex_data[v1].position;
         lvPoint3D p2 = mesh->vertex_data[v2].position;
 
-        lvPoint3D a = vector_sub(p0, p1);
-        lvPoint3D b = vector_sub(p2, p1);
+        lvPoint3D a = lv_vec3_sub(p0, p1);
+        lvPoint3D b = lv_vec3_sub(p2, p1);
 
-        double dot = vector_dot(a, b);
-        double len_a = sqrt(vector_dot(a, a));
-        double len_b = sqrt(vector_dot(b, b));
+        double dot = lv_vec3_dot(a, b);
+        double len_a = sqrt(lv_vec3_dot(a, a));
+        double len_b = sqrt(lv_vec3_dot(b, b));
 
         if (len_a > 0 && len_b > 0) {
             double cos_angle = dot / (len_a * len_b);
@@ -778,10 +761,10 @@ lvPoint3D lv_he_mesh_vertex_normal(const lvHeMesh *mesh, lvVertex v) {
         lvPoint3D p1 = mesh->vertex_data[v].position;
         lvPoint3D p2 = mesh->vertex_data[v2].position;
 
-        lvPoint3D a = vector_sub(p0, p1);
-        lvPoint3D b = vector_sub(p2, p1);
-        lvPoint3D cross = vector_cross(a, b);
-        double area = sqrt(vector_dot(cross, cross)) / 2.0;
+        lvPoint3D a = lv_vec3_sub(p0, p1);
+        lvPoint3D b = lv_vec3_sub(p2, p1);
+        lvPoint3D cross = lv_vec3_cross(a, b);
+        double area = sqrt(lv_vec3_dot(cross, cross)) / 2.0;
 
         n.x += cross.x;
         n.y += cross.y;
@@ -790,7 +773,7 @@ lvPoint3D lv_he_mesh_vertex_normal(const lvHeMesh *mesh, lvVertex v) {
     }
 
     if (total_area > 0) {
-        double len = sqrt(vector_dot(n, n));
+        double len = sqrt(lv_vec3_dot(n, n));
         if (len > 0) {
             n.x /= len;
             n.y /= len;
@@ -813,12 +796,12 @@ double lv_he_mesh_halfedge_angle(const lvHeMesh *mesh, lvHalfedge he1, lvHalfedg
     lvPoint3D p1 = mesh->vertex_data[v].position;
     lvPoint3D p2 = mesh->vertex_data[v2].position;
 
-    lvPoint3D a = vector_sub(p0, p1);
-    lvPoint3D b = vector_sub(p2, p1);
+    lvPoint3D a = lv_vec3_sub(p0, p1);
+    lvPoint3D b = lv_vec3_sub(p2, p1);
 
-    double dot = vector_dot(a, b);
-    double len_a = sqrt(vector_dot(a, a));
-    double len_b = sqrt(vector_dot(b, b));
+    double dot = lv_vec3_dot(a, b);
+    double len_a = sqrt(lv_vec3_dot(a, a));
+    double len_b = sqrt(lv_vec3_dot(b, b));
 
     if (len_a == 0 || len_b == 0)
         return 0;
@@ -855,10 +838,10 @@ void lv_he_mesh_update_geometry(lvHeMesh *mesh) {
         lvPoint3D p1 = mesh->vertex_data[v1].position;
         lvPoint3D p2 = mesh->vertex_data[v2].position;
 
-        lvPoint3D a = vector_sub(p1, p0);
-        lvPoint3D b = vector_sub(p2, p0);
-        lvPoint3D cross = vector_cross(a, b);
-        double area = sqrt(vector_dot(cross, cross)) / 2.0;
+        lvPoint3D a = lv_vec3_sub(p1, p0);
+        lvPoint3D b = lv_vec3_sub(p2, p0);
+        lvPoint3D cross = lv_vec3_cross(a, b);
+        double area = sqrt(lv_vec3_dot(cross, cross)) / 2.0;
 
         /* 使用相对 epsilon 防止零面积面产生未归一化法线：
          * area 较小时，用 |cross|^(1/2) 的量级缩放 epsilon */

@@ -58,6 +58,12 @@
 /** @brief 误差测试阈值：error <= 1.0 则接受步 */
 #define GEOEVOL_ERROR_THRESHOLD 1.0
 
+/** @brief BDF Newton LU 分解的奇异阈值（绝对主元下界）。
+ *  刻意取极小值 1e-30，仅在主元真正趋于零时判定奇异并回退对角近似；
+ *  项目公共 epsilon（lv_EPSILON_*，最小 1e-15）均大于该值，替换会改变
+ *  奇异判定行为，故保持原数值、仅命名化。 */
+#define GEOEVOL_LU_SINGULAR_EPS 1e-30
+
 /** @brief Adams 方法最大历史步数（由 geom_evol.h 统一定义，此处不再重复） */
 
 /* ========================================================================
@@ -651,7 +657,7 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
                     }
                 }
 
-                if (max_val < 1e-30) {
+                if (max_val < GEOEVOL_LU_SINGULAR_EPS) {
                     /* 矩阵奇异或接近奇异 */
                     lu_ok = 0;
                     break;
@@ -713,8 +719,8 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
                 /* 使用 LU 分解前保存的原始对角线副本，而非部分修改后的 J */
                 for (int i = 0; i < dim; ++i) {
                     double J_ii = J_diag[i];
-                    if (fabs(J_ii) < 1e-30) {
-                        J_ii = (J_ii >= 0.0) ? 1e-30 : -1e-30;
+                    if (fabs(J_ii) < GEOEVOL_LU_SINGULAR_EPS) {
+                        J_ii = (J_ii >= 0.0) ? GEOEVOL_LU_SINGULAR_EPS : -GEOEVOL_LU_SINGULAR_EPS;
                     }
                     delta[i] = -G[i] / J_ii;
                 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_thread.h
  * @brief 跨平台线程抽象层 —— 互斥锁、条件变量、线程创建、一次性初始化
  *
@@ -48,7 +48,7 @@ extern "C" {
 #include <windows.h>
 #include <process.h> /* _beginthreadex */
 
-typedef CRITICAL_SECTION   lv_mutex_t;
+/* lv_mutex_t 由 lv_platform.h 定义（本头文件已包含） */
 typedef CONDITION_VARIABLE lv_cond_t;
 
 /** Windows 下线程句柄类型（可用于 WaitForSingleObject / CloseHandle） */
@@ -57,7 +57,6 @@ typedef HANDLE lv_thread_t;
 #else /* POSIX */
 #include <pthread.h>
 
-typedef pthread_mutex_t lv_mutex_t;
 typedef pthread_cond_t  lv_cond_t;
 typedef pthread_t       lv_thread_t;
 
@@ -353,6 +352,77 @@ static inline void lv_once(lv_once_t *once, void (*init_func)(void)) {
     pthread_once(once, init_func);
 }
 #endif
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 第 6 节：惰性互斥锁（Lazy Mutex）
+ *
+ * 消除「static lv_once_t g_x_once = lv_ONCE_INIT;
+ *          static void x_init(void){ lv_mutex_init(&g_x_mutex); }
+ *          lv_once(&g_x_once, x_init); lv_mutex_lock(&g_x_mutex);」
+ * 的样板：将 once 初始化守卫与互斥锁捆绑为 lv_lazy_lock 对象，
+ * 首次 lock（或显式 lv_lazy_lock_init）时自动完成互斥锁初始化，
+ * 且仅初始化一次、初始化 happens-before 后续所有加锁。
+ *
+ * 使用方式（独立静态锁，声明宏自动生成 once 回调）：
+ *   lv_LAZY_LOCK_DEFINE(g_log_lock);
+ *   lv_lazy_lock_lock(&g_log_lock, g_log_lock_init_once);  // 首次调用自动初始化
+ *   // ... 临界区 ...
+ *   lv_lazy_lock_unlock(&g_log_lock);
+ *
+ * 使用方式（结构体内嵌锁 / 自定义 once 回调）：
+ *   static struct { ...; lv_lazy_lock lock; } s_state = {0};
+ *   static void state_lock_init_once(void){ lv_mutex_init(&s_state.lock.mutex); }
+ *   lv_lazy_lock_lock(&s_state.lock, state_lock_init_once);
+ *
+ * 说明：
+ *   - 初始化回调由调用方显式传入（无需闭包/上下文绑定），线程安全、无竞态。
+ *   - lv_LAZY_LOCK_DEFINE 仅适用于「只初始化互斥锁」的纯惰性锁场景。
+ *   - 销毁语义与 lv_mutex_destroy 一致；销毁后不可再使用（once 不可重置）。
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/** @brief 惰性互斥锁：once 初始化守卫 + 实际互斥锁 */
+typedef struct {
+    lv_once_t  once;   /**< 一次性初始化守卫 */
+    lv_mutex_t mutex;  /**< 实际互斥锁 */
+} lv_lazy_lock;
+
+/** @brief 惰性锁静态初始化器（once 零值与 lv_ONCE_INIT 等价，见 lv_once 注释惯例） */
+#define lv_LAZY_LOCK_INIT { lv_ONCE_INIT, {0} }
+
+/**
+ * @brief 声明独立静态惰性锁（自动生成 once 初始化回调 name##_init_once）
+ *
+ * 等价于：
+ *   static lv_lazy_lock name;
+ *   static void name##_init_once(void){ lv_mutex_init(&(name).mutex); }
+ *   static lv_lazy_lock name = lv_LAZY_LOCK_INIT;
+ * 使用时配合 lv_lazy_lock_lock(&name, name##_init_once)。
+ */
+#define lv_LAZY_LOCK_DEFINE(name)                                         \
+    static lv_lazy_lock name;                                             \
+    static void name##_init_once(void) { lv_mutex_init(&(name).mutex); }  \
+    static lv_lazy_lock name = lv_LAZY_LOCK_INIT
+
+/** @brief 立即执行惰性锁的一次性初始化（等价于首次 lock 的效果；可安全多次调用） */
+static inline void lv_lazy_lock_init(lv_lazy_lock *ll, void (*init_once)(void)) {
+    lv_once(&ll->once, init_once);
+}
+
+/** @brief 获取惰性锁（阻塞；首次调用时自动完成互斥锁初始化） */
+static inline void lv_lazy_lock_lock(lv_lazy_lock *ll, void (*init_once)(void)) {
+    lv_once(&ll->once, init_once);
+    lv_mutex_lock(&ll->mutex);
+}
+
+/** @brief 释放惰性锁 */
+static inline void lv_lazy_lock_unlock(lv_lazy_lock *ll) {
+    lv_mutex_unlock(&ll->mutex);
+}
+
+/** @brief 销毁惰性锁的互斥锁（与 lv_mutex_destroy 语义一致；销毁后不可再用） */
+static inline void lv_lazy_lock_destroy(lv_lazy_lock *ll) {
+    lv_mutex_destroy(&ll->mutex);
+}
 
 #ifdef __cplusplus
 }

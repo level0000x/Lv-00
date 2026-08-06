@@ -416,7 +416,7 @@ set(lv_HEADERS
     core/include/lv/proof.h
     core/include/lv/recursion.h
     core/include/lv/lv_utils.h
-    core/include/lv/lv_hashtable.h
+    core/include/lv/lv_path.h
     core/include/lv/lv_heap.h
     core/include/lv/high_dim.h
     core/include/lv/interop.h
@@ -544,7 +544,6 @@ set(lv_HEADERS
     core/include/lv/proof_rule_engine.h
     core/include/lv/proof_session.h
     core/include/lv/proof_version.h
-    core/include/lv/reasoning_cache.h
     core/include/lv/rewrite_strategy.h
     core/include/lv/smt_bitvector.h
     core/include/lv/sym_expr.h
@@ -741,8 +740,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
     # 补全遗漏文件：全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息
-    # 泛型容器：哈希表和二叉堆
-    core/src/layer2_resource/lv_hashtable.c
+    # 泛型容器：二叉堆；统一路径工具族（lv_path）
+    core/src/layer2_resource/lv_path.c
     core/src/layer2_resource/lv_heap.c
     core/src/layer2_resource/global_state.c
     core/src/layer2_resource/geometry_config.c
@@ -768,6 +767,8 @@ set(lv_LAYER2_SOURCES
     # bootstrap_test.c 已移至 L4（依赖 L3+L4 类型）
     # SHA-256 共享实现（从 axiom_pkg.c 提取）
     core/src/layer2_resource/sha256.c
+    # 统一内容哈希抽象（SHA-256 / FNV-1a 字段级哈希 + 统一 hex 输出）
+    core/src/layer2_resource/lv_hash.c
     # v1.1.0 线程池（原在 L3，v2.0.0 移入 L2 作为基础设施）
     core/src/layer2_resource/thread_pool.c
     # v1.1.0 SIMD 运算（原在 L4/unify，v2.0.0 移入 L2 作为基础设施）
@@ -784,6 +785,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_dot_writer.c
     # v3.8.0 统一文件 I/O 抽象层
     core/src/layer2_resource/lv_file.c
+    # 统一外部进程执行器（子进程调用基础设施，ATP/SMT 后端共用）
+    core/src/layer2_resource/lv_process.c
     # v1.1.0 通用注册表（统一 ATP/SMT/Groebner 后端注册表模式）
     core/src/layer2_resource/lv_registry.c
     # v1.1.0 统一后端插件系统抽象层
@@ -927,6 +930,7 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph/graph_node_hash.c
     core/src/layer3_geometry/constraint_graph/graph_node_conflict.c
     core/src/layer3_geometry/constraint_graph/graph_node_stub.c
+    core/src/layer3_geometry/constraint_graph/graph_rank.c
     core/src/layer3_geometry/constraint_graph/graph_serialize.c
     # 图/树遍历抽象层实现
     core/src/layer3_geometry/constraint_graph/lv_graph_traversal.c
@@ -1171,9 +1175,9 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/engine/conflict_detector.c
     core/src/layer4_reasoning/proof_contradiction.c
     core/src/layer4_reasoning/func_block/preset_abstract_algebra.c
-    # v1.1.0 补全遗漏：公理规则引擎、推理缓存、SIMD 运算
+    # v1.1.0 补全遗漏：公理规则引擎、SIMD 运算
     core/src/layer4_reasoning/axiom_rule_engine.c
-    # reasoning_cache is in model/reasoning_cache.c (below)
+    # reasoning_cache（推理缓存）已删除：全库零调用
     # simd_ops.c 在 unify/simd_ops.c（已统一）
     # core/src/layer4_reasoning/simd_ops.c（已删除，使用 unify/ 版本）
     # 求解器子模块：坐标提取、方程组、线性、快照、符号
@@ -1248,8 +1252,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/backends/approx_counter.c
     # 命令日志系统
     core/src/layer4_reasoning/command_log.c
-    # 推理缓存
-    core/src/layer4_reasoning/model/reasoning_cache.c
     # v2.0.0 自举差分测试（原在 L2，依赖 L3+L4 类型，故归位 L4）
     core/src/layer4_reasoning/bootstrap_test.c
     core/src/layer4_reasoning/bootstrap_test_init.c

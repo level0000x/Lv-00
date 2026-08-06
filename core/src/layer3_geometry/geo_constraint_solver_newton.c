@@ -82,6 +82,10 @@ static void build_jacobian_and_residual(const lvSolverSystem *sys, double *J, do
     compute_residuals(sys, F, nrows);
 
     /* 使用数值差分计算雅可比矩阵 */
+    /* 收敛说明：差分步长与 geom_evol.c BDF 的 fd_eps（1e-8）、float_error.c 的
+     * sqrt(DBL_EPSILON)（≈1.49e-8）量级一致（~1e-8）；三处数值保持各自原值
+     * （安全优先，数值不变是底线），常量定义方式受共享头文件作用域限制，
+     * 详见收敛任务报告。 */
     double eps = NUMERICAL_DIFF_EPSILON;
 
     for (int j = 0; j < ncols; j++) {

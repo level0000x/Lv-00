@@ -92,18 +92,12 @@ static lvTestSuite *find_or_create_suite(const char *name) {
     return suite;
 }
 
-static lv_mutex_t g_test_init_mutex;
-static lv_once_t g_test_init_once = lv_ONCE_INIT;
-
-static void test_init_mutex_func(void) {
-    lv_mutex_init(&g_test_init_mutex);
-}
+lv_LAZY_LOCK_DEFINE(g_test_init_lock);
 
 static void init_test_system(void) {
-    lv_once(&g_test_init_once, test_init_mutex_func);
-    lv_mutex_lock(&g_test_init_mutex);
+    lv_lazy_lock_lock(&g_test_init_lock, g_test_init_lock_init_once);
     if (g_test_system.initialized) {
-        lv_mutex_unlock(&g_test_init_mutex);
+        lv_lazy_lock_unlock(&g_test_init_lock);
         return;
     }
 
@@ -111,7 +105,7 @@ static void init_test_system(void) {
     lv_mutex_init(&g_test_system.mutex);
     g_test_system.timeout_ms = 30000; /* 默认 30 秒超时 */
     g_test_system.initialized = true;
-    lv_mutex_unlock(&g_test_init_mutex);
+    lv_lazy_lock_unlock(&g_test_init_lock);
 }
 
 /* ============== 测试注册实现 ============== */

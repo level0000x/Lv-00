@@ -165,5 +165,5 @@ void axiom_template_compress(ConstraintTemplate *tmpl) {
     if (!tmpl || tmpl->level != TEMPLATE_LEVEL_TWO)
         return;
     tmpl->is_compressed = true;
-    /* 展开缓存由缓存管理器自行处理，此处仅恢复压缩态标记 */
+    /* 展开缓存由缓存系统自行处理，此处仅恢复压缩态标记 */
 }

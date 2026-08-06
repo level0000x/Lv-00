@@ -1,4 +1,4 @@
-﻿#ifndef lv_GEO_HALFEDGE_MESH_H
+#ifndef lv_GEO_HALFEDGE_MESH_H
 #define lv_GEO_HALFEDGE_MESH_H
 
 #ifdef __cplusplus
@@ -10,6 +10,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+#include "lv_vec3.h" /* lvVec3：3D 向量单一事实来源，lvPoint3D 为其 typedef */
+
 /* ── Opaque indices ── */
 #define lv_HE_INVALID (-1)
 typedef int32_t lvHalfedge;
@@ -17,10 +19,8 @@ typedef int32_t lvVertex;
 typedef int32_t lvFace;
 typedef int32_t lvEdge; /* halfedge-specific int index */
 
-/* ── Point 3D ── */
-typedef struct {
-    double x, y, z;
-} lvPoint3D;
+/* ── Point 3D（收敛：typedef 到公共 lvVec3，结构 { double x,y,z } 逐位一致） ── */
+typedef lvVec3 lvPoint3D;
 
 /* ── Mesh config ── */
 typedef struct {

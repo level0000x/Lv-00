@@ -22,7 +22,7 @@
 
 #include "lv/lv_utils.h"   /* lv_malloc, lv_free, lv_calloc, lv_realloc */
 #include "lv/lv_log.h"     /* lv_ERROR, lv_WARN, lv_DEBUG */
-#include "lv/lv_thread.h"  /* lv_once_t / lv_once 一次性初始化 */
+#include "lv/lv_thread.h"  /* lv_lazy_lock / lv_mutex_* */
 
 /* ═══════════════════════════════════════════════════════════════════
  * 内部常量
@@ -448,15 +448,12 @@ typedef struct {
 static struct {
     BackendEntry entries[lv_STORAGE_MAX_BACKENDS];
     int          count;
-    lvMutex      mutex;
+    lv_lazy_lock lock;   /**< 惰性互斥锁：首次加锁时自动初始化 */
 } s_backend_registry = {0};
 
-/** @brief 后端注册表一次性初始化控件（lv_once 保证仅执行一次且同步完成） */
-static lv_once_t s_backend_registry_once = lv_ONCE_INIT;
-
-/** @brief 后端注册表一次性初始化回调：初始化互斥锁并注册默认后端 */
+/** @brief 后端注册表一次性初始化回调：初始化互斥锁并注册默认后端（首次加锁时执行一次） */
 static void backend_registry_init_once(void) {
-    lv_MUTEX_INIT(&s_backend_registry.mutex);
+    lv_mutex_init(&s_backend_registry.lock.mutex);
     s_backend_registry.count = 0;
 
     /* 注册 file:// 后端 */
@@ -516,12 +513,12 @@ static BackendEntry *find_backend(const char *scheme) {
  * ═══════════════════════════════════════════════════════════════════ */
 
 void lv_storage_system_init(void) {
-    /* 线程安全的一次性初始化：互斥锁初始化与默认后端注册仅首次调用时执行 */
-    lv_once(&s_backend_registry_once, backend_registry_init_once);
+    /* 线程安全的一次性初始化：互斥锁初始化与默认后端注册仅首次执行（lv_lazy_lock 幂等） */
+    lv_lazy_lock_init(&s_backend_registry.lock, backend_registry_init_once);
 }
 
 void lv_storage_system_cleanup(void) {
-    lv_MUTEX_LOCK(&s_backend_registry.mutex);
+    lv_lazy_lock_lock(&s_backend_registry.lock, backend_registry_init_once);
 
     /* 清理所有后端上下文 */
     for (int i = 0; i < s_backend_registry.count; i++) {
@@ -533,31 +530,31 @@ void lv_storage_system_cleanup(void) {
     }
     s_backend_registry.count = 0;
 
-    lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
-    /* 注：注册表互斥锁由 lv_once 一次性初始化，生命周期与进程一致，
-     * 不在此销毁；lv_once 不可重置，清理后系统仍可安全继续使用。 */
+    lv_lazy_lock_unlock(&s_backend_registry.lock);
+    /* 注：注册表互斥锁由 lv_lazy_lock 一次性初始化，生命周期与进程一致，
+     * 不在此销毁；once 不可重置，清理后系统仍可安全继续使用。 */
 }
 
 bool lv_storage_register_backend(const lvStorageBackendInfo *info) {
     if (!info || !info->scheme || !info->ops) return false;
 
-    /* 延迟初始化（lv_once 幂等，仅首次生效） */
+    /* 延迟初始化（lv_lazy_lock 幂等，仅首次生效） */
     lv_storage_system_init();
 
-    lv_MUTEX_LOCK(&s_backend_registry.mutex);
+    lv_lazy_lock_lock(&s_backend_registry.lock, backend_registry_init_once);
 
     /* 检查 scheme 是否已存在 */
     for (int i = 0; i < s_backend_registry.count; i++) {
         if (strcmp(s_backend_registry.entries[i].scheme, info->scheme) == 0) {
             lv_WARN("存储后端 scheme 已存在: %s", info->scheme);
-            lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
+            lv_lazy_lock_unlock(&s_backend_registry.lock);
             return false;
         }
     }
 
     if (s_backend_registry.count >= lv_STORAGE_MAX_BACKENDS) {
         lv_ERROR("存储后端注册表已满 (max=%d)", lv_STORAGE_MAX_BACKENDS);
-        lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
+        lv_lazy_lock_unlock(&s_backend_registry.lock);
         return false;
     }
 
@@ -567,7 +564,7 @@ bool lv_storage_register_backend(const lvStorageBackendInfo *info) {
     s_backend_registry.entries[s_backend_registry.count].destroy_ctx = info->destroy_ctx;
     s_backend_registry.count++;
 
-    lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
+    lv_lazy_lock_unlock(&s_backend_registry.lock);
     return true;
 }
 
@@ -581,12 +578,12 @@ lvStorage *lv_storage_open(const char *uri, int mode) {
     char scheme_buf[64] = {0};
     const char *scheme = extract_scheme(uri, scheme_buf, sizeof(scheme_buf));
 
-    lv_MUTEX_LOCK(&s_backend_registry.mutex);
+    lv_lazy_lock_lock(&s_backend_registry.lock, backend_registry_init_once);
     BackendEntry *entry = find_backend(scheme);
     if (!entry) {
         lv_ERROR("不支持的存储 URI scheme: %s (uri=%s)",
                   scheme ? scheme : "(null)", uri);
-        lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
+        lv_lazy_lock_unlock(&s_backend_registry.lock);
         return NULL;
     }
 
@@ -594,11 +591,11 @@ lvStorage *lv_storage_open(const char *uri, int mode) {
     void *ctx = entry->create_ctx ? entry->create_ctx() : NULL;
     if (!ctx) {
         lv_ERROR("创建存储后端上下文失败: scheme=%s", entry->scheme);
-        lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
+        lv_lazy_lock_unlock(&s_backend_registry.lock);
         return NULL;
     }
 
-    lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
+    lv_lazy_lock_unlock(&s_backend_registry.lock);
 
     /* 打开后端 */
     if (!entry->ops->open(ctx, uri, mode)) {
@@ -635,7 +632,7 @@ void lv_storage_close(lvStorage *storage) {
     char scheme_buf[64] = {0};
     const char *scheme = extract_scheme(storage->uri, scheme_buf, sizeof(scheme_buf));
 
-    lv_MUTEX_LOCK(&s_backend_registry.mutex);
+    lv_lazy_lock_lock(&s_backend_registry.lock, backend_registry_init_once);
     BackendEntry *entry = find_backend(scheme);
     if (entry && entry->destroy_ctx) {
         entry->destroy_ctx(storage->ctx);
@@ -643,7 +640,7 @@ void lv_storage_close(lvStorage *storage) {
         /* 兜底释放 */
         lv_free((void **)&storage->ctx);
     }
-    lv_MUTEX_UNLOCK(&s_backend_registry.mutex);
+    lv_lazy_lock_unlock(&s_backend_registry.lock);
 
     storage->ops     = NULL;
     storage->ctx     = NULL;
@@ -765,21 +762,13 @@ typedef struct {
 static struct {
     SerializeEntry entries[lv_SERIALIZE_MAX_ENTRIES];
     int            count;
-    lvMutex        mutex;
+    lv_lazy_lock   lock;   /**< 惰性互斥锁：首次加锁时自动初始化 */
 } s_serialize_registry = {0};
 
-/** @brief 序列化注册表一次性初始化控件（lv_once 保证仅执行一次且同步完成） */
-static lv_once_t s_serialize_registry_once = lv_ONCE_INIT;
-
-/** @brief 序列化注册表一次性初始化回调 */
+/** @brief 序列化注册表一次性初始化回调（首次加锁时执行一次） */
 static void serialize_registry_init_once(void) {
-    lv_MUTEX_INIT(&s_serialize_registry.mutex);
+    lv_mutex_init(&s_serialize_registry.lock.mutex);
     s_serialize_registry.count = 0;
-}
-
-/** @brief 确保序列化注册表已初始化 */
-static void serialize_registry_init(void) {
-    lv_once(&s_serialize_registry_once, serialize_registry_init_once);
 }
 
 bool lv_serialize_register(const char *type_name,
@@ -787,9 +776,7 @@ bool lv_serialize_register(const char *type_name,
                             lvDeserializeFunc deser) {
     if (!type_name) return false;
 
-    serialize_registry_init();
-
-    lv_MUTEX_LOCK(&s_serialize_registry.mutex);
+    lv_lazy_lock_lock(&s_serialize_registry.lock, serialize_registry_init_once);
 
     /* 检查类型是否已注册 */
     for (int i = 0; i < s_serialize_registry.count; i++) {
@@ -797,14 +784,14 @@ bool lv_serialize_register(const char *type_name,
             lv_WARN("序列化器已注册，覆盖: %s", type_name);
             s_serialize_registry.entries[i].ser   = ser;
             s_serialize_registry.entries[i].deser = deser;
-            lv_MUTEX_UNLOCK(&s_serialize_registry.mutex);
+            lv_lazy_lock_unlock(&s_serialize_registry.lock);
             return true;
         }
     }
 
     if (s_serialize_registry.count >= lv_SERIALIZE_MAX_ENTRIES) {
         lv_ERROR("序列化注册表已满 (max=%d)", lv_SERIALIZE_MAX_ENTRIES);
-        lv_MUTEX_UNLOCK(&s_serialize_registry.mutex);
+        lv_lazy_lock_unlock(&s_serialize_registry.lock);
         return false;
     }
 
@@ -813,7 +800,7 @@ bool lv_serialize_register(const char *type_name,
     s_serialize_registry.entries[s_serialize_registry.count].deser     = deser;
     s_serialize_registry.count++;
 
-    lv_MUTEX_UNLOCK(&s_serialize_registry.mutex);
+    lv_lazy_lock_unlock(&s_serialize_registry.lock);
     return true;
 }
 
@@ -833,11 +820,9 @@ bool lv_serialize_to_storage(const char *type_name,
                               lvStorage *storage) {
     if (!type_name || !obj || !storage) return false;
 
-    serialize_registry_init();
-
-    lv_MUTEX_LOCK(&s_serialize_registry.mutex);
+    lv_lazy_lock_lock(&s_serialize_registry.lock, serialize_registry_init_once);
     SerializeEntry *entry = find_serialize_entry(type_name);
-    lv_MUTEX_UNLOCK(&s_serialize_registry.mutex);
+    lv_lazy_lock_unlock(&s_serialize_registry.lock);
 
     if (!entry) {
         lv_ERROR("未注册的序列化类型: %s", type_name);
@@ -856,11 +841,9 @@ bool lv_deserialize_from_storage(const char *type_name,
                                   lvStorage *storage) {
     if (!type_name || !obj || !storage) return false;
 
-    serialize_registry_init();
-
-    lv_MUTEX_LOCK(&s_serialize_registry.mutex);
+    lv_lazy_lock_lock(&s_serialize_registry.lock, serialize_registry_init_once);
     SerializeEntry *entry = find_serialize_entry(type_name);
-    lv_MUTEX_UNLOCK(&s_serialize_registry.mutex);
+    lv_lazy_lock_unlock(&s_serialize_registry.lock);
 
     if (!entry) {
         lv_ERROR("未注册的反序列化类型: %s", type_name);

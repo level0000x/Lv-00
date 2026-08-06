@@ -116,6 +116,50 @@ float lv_vec8f_hsum(lvVec8f a);
 /* ── Matrix SIMD helper ── */
 lvVec4d lv_simd_mat4x4_vec4_mul(const double mat[16], lvVec4d vec);
 
+/* ── 4x4 列主序矩阵（收敛：algebra_mode.c / geo_visual_complete.c 原静态实现上移共享） ──
+ * 语义与收敛前逐位一致：
+ *   - identity：清零后对角置 1（+0.0 / +1.0，与各调用方原 memset 置 0 位型一致）；
+ *   - mul：result 允许与 a / b 别名（内部先写 tmp 再复制），double 版按 k 序累加、
+ *     float 版按展开式自左向右累加，与各调用方原实现表达式结构完全相同。 */
+static inline void lv_mat4_identity(double m[16]) {
+    for (int i = 0; i < 16; i++)
+        m[i] = 0.0;
+    m[0] = m[5] = m[10] = m[15] = 1.0;
+}
+
+static inline void lv_mat4_mul(double result[16], const double a[16], const double b[16]) {
+    double tmp[16];
+    for (int j = 0; j < 4; j++) {
+        for (int i = 0; i < 4; i++) {
+            double sum = 0.0;
+            for (int k = 0; k < 4; k++) {
+                sum += a[i + k * 4] * b[k + j * 4];
+            }
+            tmp[i + j * 4] = sum;
+        }
+    }
+    for (int i = 0; i < 16; i++)
+        result[i] = tmp[i];
+}
+
+static inline void lv_mat4_identity_f(float m[16]) {
+    for (int i = 0; i < 16; i++)
+        m[i] = 0.0f;
+    m[0] = m[5] = m[10] = m[15] = 1.0f;
+}
+
+static inline void lv_mat4_mul_f(float result[16], const float a[16], const float b[16]) {
+    float tmp[16];
+    for (int col = 0; col < 4; col++) {
+        for (int row = 0; row < 4; row++) {
+            tmp[col * 4 + row] = a[0 * 4 + row] * b[col * 4 + 0] + a[1 * 4 + row] * b[col * 4 + 1] +
+                                 a[2 * 4 + row] * b[col * 4 + 2] + a[3 * 4 + row] * b[col * 4 + 3];
+        }
+    }
+    for (int i = 0; i < 16; i++)
+        result[i] = tmp[i];
+}
+
 /* ── 批量数组运算 ── */
 double lv_simd_dot_product_array(const double *a, const double *b, size_t count);
 void lv_simd_norm_array(const double *in, double *out, size_t count);

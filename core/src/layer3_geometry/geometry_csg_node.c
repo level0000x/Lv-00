@@ -61,30 +61,16 @@ void csg_node_add_child(CSGNode *parent, CSGNode *child) {
     if (!parent || !child)
         return;
 
-    /* 首次分配子节点数组 */
-    if (!parent->children) {
-        parent->child_capacity = CSG_CHILD_CAPACITY_INIT;
-        parent->children = (CSGNode **) lv_calloc((size_t) parent->child_capacity, sizeof(CSGNode *));
-        if (!parent->children)
-            return;
-    }
-
-    /* 扩容 */
-    if (parent->child_count >= parent->child_capacity) {
-        /* 溢出保护：确保 child_capacity * GROW_FACTOR 不会溢出 */
-        if (parent->child_capacity > INT_MAX / CSG_CHILD_CAPACITY_GROW_FACTOR)
-            return;
-        int new_cap = parent->child_capacity * CSG_CHILD_CAPACITY_GROW_FACTOR;
-        CSGNode **new_arr = (CSGNode **) lv_realloc(parent->children, (size_t) new_cap * sizeof(CSGNode *));
-        if (!new_arr)
-            return;
-
-        /* 清零新槽位 */
-        for (int i = parent->child_capacity; i < new_cap; i++) {
-            new_arr[i] = NULL;
-        }
-        parent->children = new_arr;
-        parent->child_capacity = new_cap;
+    /* 扩容（收敛到 lv_ensure_capacity：倍增策略 + 溢出检查 + 失败返回 false）。
+     * 注意：lv_ensure_capacity 使用 realloc，新增槽位内存未初始化，
+     * 此处保持原语义对新槽位清零（首次分配从 capacity 0 -> lv_INITIAL_ARRAY_CAPACITY(8)，
+     * 原实现为 4，仅初始容量不同，功能等价）。 */
+    int old_cap = parent->child_capacity;
+    if (!lv_ensure_capacity((void **) &parent->children, parent->child_count, &parent->child_capacity,
+                            sizeof(CSGNode *), 1))
+        return;
+    for (int i = old_cap; i < parent->child_capacity; i++) {
+        parent->children[i] = NULL;
     }
 
     parent->children[parent->child_count] = child;

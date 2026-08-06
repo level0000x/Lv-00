@@ -18,6 +18,7 @@
 #include "lv/module.h"
 #include "lv/module_internal.h"
 #include "lv/lv_file.h"
+#include "lv/lv_path.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -1535,16 +1536,15 @@ bool lvz_load_presets_file(const char *filepath) {
     /* 解析 .lvz 内容（presets 节会自动注册预设） */
     LvzParser parser;
     lvz_parser_init(&parser, source);
-    /* 记录模块目录路径，以便在解析错误时提供上下文 */
+    /* 记录模块目录路径，以便在解析错误时提供上下文
+     * （lv_path_dirname 同时识别 '/' 与 '\\'，无分隔符时返回 NULL 不分配） */
     {
-        const char *slash = strrchr(filepath, '/');
-        const char *bslash = strrchr(filepath, '\\');
-        const char *last_sep = (slash > bslash) ? slash : bslash;
-        if (last_sep) {
-            size_t dir_len = (size_t)(last_sep - filepath);
+        size_t dir_len = 0;
+        const char *dir_start = lv_path_dirname(filepath, &dir_len);
+        if (dir_start) {
             parser.module_dir = (char *) lv_malloc(dir_len + 1);
             if (parser.module_dir) {
-                memcpy(parser.module_dir, filepath, dir_len);
+                memcpy(parser.module_dir, dir_start, dir_len);
                 parser.module_dir[dir_len] = '\0';
             }
         }

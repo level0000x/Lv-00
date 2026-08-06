@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/sha256.h"
+#include "lv/lv_hash.h"
 
 #include "debug.h"
 #include "error_codes.h"
@@ -218,83 +218,42 @@ static char *compute_lemma_block_hash(AxiomPackage *pkg, int lemma_block_id) {
     if (!pkg)
         return NULL;
 
-    lvSha256Context ctx;
-    lv_sha256_init(&ctx);
+    lvHashCtx ctx;
+    lv_hash_init(&ctx, LV_HASH_SHA256);
 
     /* 哈希引理块 ID 作为标识 */
-    lv_sha256_update(&ctx, (const uint8_t *) &lemma_block_id, sizeof(lemma_block_id));
+    lv_hash_update(&ctx, &lemma_block_id, sizeof(lemma_block_id));
 
     /* 哈希所有已知不可构造问题中的依赖链（这些构成引理块的约束逻辑） */
     for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
         KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
-        if (uc->name) {
-            lv_sha256_update(&ctx, (const uint8_t *) uc->name, strlen(uc->name));
-        } else {
-            lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-        }
-        if (uc->reduces_to) {
-            lv_sha256_update(&ctx, (const uint8_t *) uc->reduces_to, strlen(uc->reduces_to));
-        } else {
-            lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-        }
-        lv_sha256_update(&ctx, (const uint8_t *) &uc->green_verified, sizeof(bool));
+        lv_hash_str(&ctx, uc->name);
+        lv_hash_str(&ctx, uc->reduces_to);
+        lv_hash_bool(&ctx, uc->green_verified);
 
         /* 哈希依赖链 */
         for (int j = 0; j < uc->dependency_chain.count; j++) {
-            char *dep = *(char **)lv_darray_get(&uc->dependency_chain, j);
-            if (dep) {
-                lv_sha256_update(&ctx, (const uint8_t *) dep, strlen(dep));
-            } else {
-                lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-            }
+            lv_hash_str(&ctx, *(char **)lv_darray_get(&uc->dependency_chain, j));
         }
 
-        if (uc->external_ref) {
-            lv_sha256_update(&ctx, (const uint8_t *) uc->external_ref, strlen(uc->external_ref));
-        } else {
-            lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-        }
+        lv_hash_str(&ctx, uc->external_ref);
     }
 
     /* 哈希所有模板名称和参数（构成构造性基础） */
     for (int i = 0; i < pkg->templates.count; i++) {
         ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
-        if (t->name) {
-            lv_sha256_update(&ctx, (const uint8_t *) t->name, strlen(t->name));
-        } else {
-            lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-        }
-        lv_sha256_update(&ctx, (const uint8_t *) &t->param_count, sizeof(int));
-        lv_sha256_update(&ctx, (const uint8_t *) &t->verified, sizeof(bool));
+        lv_hash_str(&ctx, t->name);
+        lv_hash_int32(&ctx, t->param_count);
+        lv_hash_bool(&ctx, t->verified);
     }
 
     /* 哈希几何信息和矛盾行为 */
-    if (pkg->bottom_geometry) {
-        lv_sha256_update(&ctx, (const uint8_t *) pkg->bottom_geometry, strlen(pkg->bottom_geometry));
-    } else {
-        lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-    }
-    if (pkg->negation_encoding) {
-        lv_sha256_update(&ctx, (const uint8_t *) pkg->negation_encoding, strlen(pkg->negation_encoding));
-    } else {
-        lv_sha256_update(&ctx, (const uint8_t *) "(null)", 6);
-    }
-    lv_sha256_update(&ctx, (const uint8_t *) &pkg->contradiction_behavior, sizeof(int));
+    lv_hash_str(&ctx, pkg->bottom_geometry);
+    lv_hash_str(&ctx, pkg->negation_encoding);
+    lv_hash_int32(&ctx, pkg->contradiction_behavior);
 
-    /* 计算最终哈希 */
-    uint8_t hash[AXIOM_SHA256_OUTPUT_SIZE];
-    lv_sha256_final(&ctx, hash);
-
-    /* 转换为十六进制字符串 */
-    char *result = lv_malloc(AXIOM_SHA256_HEX_SIZE);
-    if (result) {
-        for (int i = 0; i < AXIOM_SHA256_OUTPUT_SIZE; i++) {
-            snprintf(result + i * 2, 3, "%02x", hash[i]);
-        }
-        result[AXIOM_SHA256_HEX_SIZE - 1] = '\0';
-    }
-
-    return result;
+    /* 计算最终哈希并转换为十六进制字符串 */
+    return lv_hash_to_hex_alloc(&ctx);
 }
 
 int axiom_package_add_internal_ref(AxiomPackage *pkg, int lemma_block_id, int dependent_node_id) {

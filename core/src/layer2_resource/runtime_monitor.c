@@ -52,13 +52,13 @@ void lv_log_shutdown(void);
  *
  * 将 4 个子系统（日志、性能、健康、事件追踪）的数据体与初始化锁
  * 归并到单一上下文结构体中：原先每子系统一套 init_mutex/init_once +
- * 独立 static 数据体的重复模式，统一为一把 init_mutex + 一个 init_once，
- * 各子系统的数据互斥锁按原锁粒度保留（不改变并发语义）。
+ * 独立 static 数据体的重复模式，统一为一把 lv_lazy_lock 惰性锁
+ * （首次加锁时自动初始化），各子系统的数据互斥锁按原锁粒度保留
+ * （不改变并发语义）。
  */
 typedef struct RuntimeMonitorState {
     /* 统一初始化互斥锁（替代原先 4 把子系统 init 锁） */
-    lv_mutex_t init_mutex;
-    lv_once_t init_once;
+    lv_lazy_lock init_lock;   /**< 子系统初始化保护锁（惰性初始化，首次加锁时自动完成） */
 
     /* 日志子系统（原 g_log_system） */
     struct {
@@ -106,16 +106,15 @@ typedef struct RuntimeMonitorState {
 /** 模块级唯一状态实例（替代原有的 10 个分散 static 变量） */
 static RuntimeMonitorState s_runtime_state = {0};
 
-/** 统一初始化互斥锁的惰性初始化（由 init_once 保证只执行一次） */
+/** 统一初始化互斥锁的惰性初始化（首次加锁时由 lv_lazy_lock 自动完成） */
 static void runtime_init_mutex_func(void) {
-    lv_mutex_init(&s_runtime_state.init_mutex);
+    lv_mutex_init(&s_runtime_state.init_lock.mutex);
 }
 
 bool lv_log_init(const lvLogConfig *config) {
-    lv_once(&s_runtime_state.init_once, runtime_init_mutex_func);
-    lv_mutex_lock(&s_runtime_state.init_mutex);
+    lv_lazy_lock_lock(&s_runtime_state.init_lock, runtime_init_mutex_func);
     if (s_runtime_state.log.initialized) {
-        lv_mutex_unlock(&s_runtime_state.init_mutex);
+        lv_lazy_lock_unlock(&s_runtime_state.init_lock);
         return true;
     }
 
@@ -146,7 +145,7 @@ bool lv_log_init(const lvLogConfig *config) {
     }
 
     s_runtime_state.log.initialized = true;
-    lv_mutex_unlock(&s_runtime_state.init_mutex);
+    lv_lazy_lock_unlock(&s_runtime_state.init_lock);
     return true;
 }
 
@@ -266,22 +265,17 @@ void lv_log_write(lvLogLevel level, const char *tag, const char *file, int line,
 
 /* ============== 性能监控实现 ============== */
 
-static void perf_init_mutex_func(void) {
-    lv_mutex_init(&s_runtime_state.init_mutex);
-}
-
 bool lv_perf_init(void) {
-    lv_once(&s_runtime_state.init_once, runtime_init_mutex_func);
-    lv_mutex_lock(&s_runtime_state.init_mutex);
+    lv_lazy_lock_lock(&s_runtime_state.init_lock, runtime_init_mutex_func);
     if (s_runtime_state.perf.initialized) {
-        lv_mutex_unlock(&s_runtime_state.init_mutex);
+        lv_lazy_lock_unlock(&s_runtime_state.init_lock);
         return true;
     }
 
     memset(&s_runtime_state.perf, 0, sizeof(s_runtime_state.perf));
     lv_mutex_init(&s_runtime_state.perf.mutex);
     s_runtime_state.perf.initialized = true;
-    lv_mutex_unlock(&s_runtime_state.init_mutex);
+    lv_lazy_lock_unlock(&s_runtime_state.init_lock);
     return true;
 }
 
@@ -517,15 +511,10 @@ void lv_perf_stats_reset(lvPerfStats *stats) {
 
 /* ============== 健康检查实现 ============== */
 
-static void health_init_mutex_func(void) {
-    lv_mutex_init(&s_runtime_state.init_mutex);
-}
-
 bool lv_health_init(void) {
-    lv_once(&s_runtime_state.init_once, runtime_init_mutex_func);
-    lv_mutex_lock(&s_runtime_state.init_mutex);
+    lv_lazy_lock_lock(&s_runtime_state.init_lock, runtime_init_mutex_func);
     if (s_runtime_state.health.initialized) {
-        lv_mutex_unlock(&s_runtime_state.init_mutex);
+        lv_lazy_lock_unlock(&s_runtime_state.init_lock);
         return true;
     }
 
@@ -539,7 +528,7 @@ bool lv_health_init(void) {
     s_runtime_state.health.cpu_critical_percent = 95;
 
     s_runtime_state.health.initialized = true;
-    lv_mutex_unlock(&s_runtime_state.init_mutex);
+    lv_lazy_lock_unlock(&s_runtime_state.init_lock);
     return true;
 }
 
@@ -920,19 +909,14 @@ char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
 
 /* ============== 事件追踪实现 ============== */
 
-static void event_init_mutex_func(void) {
-    lv_mutex_init(&s_runtime_state.init_mutex);
-}
-
 static void event_bus_init_func(void) {
     lv_event_bus_init(&s_runtime_state.event_bus, NULL);
 }
 
 bool lv_event_trace_init(uint32_t max_events) {
-    lv_once(&s_runtime_state.init_once, runtime_init_mutex_func);
-    lv_mutex_lock(&s_runtime_state.init_mutex);
+    lv_lazy_lock_lock(&s_runtime_state.init_lock, runtime_init_mutex_func);
     if (s_runtime_state.event.initialized) {
-        lv_mutex_unlock(&s_runtime_state.init_mutex);
+        lv_lazy_lock_unlock(&s_runtime_state.init_lock);
         return true;
     }
 
@@ -942,13 +926,13 @@ bool lv_event_trace_init(uint32_t max_events) {
     memset(&s_runtime_state.event, 0, sizeof(s_runtime_state.event));
     s_runtime_state.event.events = (lvEventRecord *) lv_calloc(actual_max, sizeof(lvEventRecord));
     if (!s_runtime_state.event.events) {
-        lv_mutex_unlock(&s_runtime_state.init_mutex);
+        lv_lazy_lock_unlock(&s_runtime_state.init_lock);
         lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lv_event_trace_init: calloc events failed");
     }
     s_runtime_state.event.max_events = actual_max;
     lv_mutex_init(&s_runtime_state.event.mutex);
     s_runtime_state.event.initialized = true;
-    lv_mutex_unlock(&s_runtime_state.init_mutex);
+    lv_lazy_lock_unlock(&s_runtime_state.init_lock);
     return true;
 }
 

@@ -21,9 +21,8 @@ static bool g_timestamp_enabled = false;
 /** 是否输出源位置（重定向到主管道后不再实际生效，保留兼容） */
 static bool g_source_enabled = false;
 
-/** 全局状态互斥锁：保护上述 4 个配置项的并发读写（惰性初始化） */
-static lv_mutex_t g_log_state_mutex;
-static lv_once_t g_log_state_once;
+/** 全局状态互斥锁：保护上述 4 个配置项的并发读写（惰性初始化，首次加锁时自动完成） */
+lv_LAZY_LOCK_DEFINE(g_log_state_lock);
 
 /**
  * @brief lvLogLevel(0=DEBUG..4=FATAL) -> lv_LOG_LEVEL_* 映射表
@@ -40,11 +39,6 @@ static const int g_lvlog_level_map[] = {
     lv_LOG_LEVEL_ERROR,   /* lv_LOG_FATAL(4) */
 };
 
-/** 惰性初始化日志状态互斥锁（lv_once 保证只执行一次） */
-static void log_state_mutex_init_func(void) {
-    lv_mutex_init(&g_log_state_mutex);
-}
-
 /* ================================================================
  * 公共 API 实现
  * ================================================================ */
@@ -54,15 +48,14 @@ void lv_log(lvLogLevel level, const char *fmt, ...) {
         return;
     }
 
-    lv_once(&g_log_state_once, log_state_mutex_init_func);
-    lv_mutex_lock(&g_log_state_mutex);
+    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
 
     if (level < g_min_level) {
-        lv_mutex_unlock(&g_log_state_mutex);
+        lv_lazy_lock_unlock(&g_log_state_lock);
         return;
     }
 
-    lv_mutex_unlock(&g_log_state_mutex);
+    lv_lazy_lock_unlock(&g_log_state_lock);
 
     /* 格式化消息后委托统一日志主管道（lv_log_message -> debug_log）：
      * 时间戳、级别过滤、文件输出与环形缓冲区等均由主管道统一处理，
@@ -78,30 +71,26 @@ void lv_log(lvLogLevel level, const char *fmt, ...) {
 
 lvLogLevel lv_log_get_level(void) {
     lvLogLevel level;
-    lv_once(&g_log_state_once, log_state_mutex_init_func);
-    lv_mutex_lock(&g_log_state_mutex);
+    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
     level = g_min_level;
-    lv_mutex_unlock(&g_log_state_mutex);
+    lv_lazy_lock_unlock(&g_log_state_lock);
     return level;
 }
 
 void lv_log_set_output(FILE *fp) {
-    lv_once(&g_log_state_once, log_state_mutex_init_func);
-    lv_mutex_lock(&g_log_state_mutex);
+    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
     g_output = fp;
-    lv_mutex_unlock(&g_log_state_mutex);
+    lv_lazy_lock_unlock(&g_log_state_lock);
 }
 
 void lv_log_enable_timestamp(bool enable) {
-    lv_once(&g_log_state_once, log_state_mutex_init_func);
-    lv_mutex_lock(&g_log_state_mutex);
+    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
     g_timestamp_enabled = enable;
-    lv_mutex_unlock(&g_log_state_mutex);
+    lv_lazy_lock_unlock(&g_log_state_lock);
 }
 
 void lv_log_enable_source(bool enable) {
-    lv_once(&g_log_state_once, log_state_mutex_init_func);
-    lv_mutex_lock(&g_log_state_mutex);
+    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
     g_source_enabled = enable;
-    lv_mutex_unlock(&g_log_state_mutex);
+    lv_lazy_lock_unlock(&g_log_state_lock);
 }

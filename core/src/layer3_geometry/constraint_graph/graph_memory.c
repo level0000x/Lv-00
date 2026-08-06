@@ -29,6 +29,7 @@
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
+#include "graph_node_internal.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -523,67 +524,14 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
         }
     }
 
-    /* Gaussian elimination with partial pivoting using mpq_t */
+    /* Gaussian elimination with partial pivoting using mpq_t（公共行阶梯实现） */
     pivot_row = lv_malloc((size_t) num_linear * sizeof(int)); /* maps row i -> original constraint index */
     if (!pivot_row)
         goto cleanup;
     for (int i = 0; i < num_linear; i++)
         pivot_row[i] = linear_constraint_indices[i];
 
-    int rank = 0;
-    for (int col = 0; col < num_vars && rank < num_linear; col++) {
-        /* Find pivot row (first non-zero entry in this column) */
-        int pivot = -1;
-        for (int row = rank; row < num_linear; row++) {
-            if (mpq_sgn(matrix[row * (num_vars + 1) + col]) != 0) {
-                pivot = row;
-                break;
-            }
-        }
-        if (pivot < 0)
-            continue; /* All zeros in this column */
-
-        /* Swap rows rank and pivot */
-        if (pivot != rank) {
-            for (int j = 0; j <= num_vars; j++) {
-                mpq_swap(matrix[rank * (num_vars + 1) + j], matrix[pivot * (num_vars + 1) + j]);
-            }
-            int tmp = pivot_row[rank];
-            pivot_row[rank] = pivot_row[pivot];
-            pivot_row[pivot] = tmp;
-        }
-
-        /* Scale pivot row so leading coefficient is 1 */
-        mpq_t inv_pivot;
-        mpq_init(inv_pivot);
-        mpq_inv(inv_pivot, matrix[rank * (num_vars + 1) + col]);
-        for (int j = col; j <= num_vars; j++) {
-            mpq_mul(matrix[rank * (num_vars + 1) + j], matrix[rank * (num_vars + 1) + j], inv_pivot);
-        }
-        mpq_clear(inv_pivot);
-
-        /* Eliminate this column from all other rows */
-        for (int row = 0; row < num_linear; row++) {
-            if (row == rank)
-                continue;
-            if (mpq_sgn(matrix[row * (num_vars + 1) + col]) == 0)
-                continue;
-
-            mpq_t factor;
-            mpq_init(factor);
-            mpq_set(factor, matrix[row * (num_vars + 1) + col]);
-            for (int j = col; j <= num_vars; j++) {
-                mpq_t tmp;
-                mpq_init(tmp);
-                mpq_mul(tmp, factor, matrix[rank * (num_vars + 1) + j]);
-                mpq_sub(matrix[row * (num_vars + 1) + j], matrix[row * (num_vars + 1) + j], tmp);
-                mpq_clear(tmp);
-            }
-            mpq_clear(factor);
-        }
-
-        rank++;
-    }
+    int rank = cg_mpq_row_echelon(matrix, num_linear, num_vars, pivot_row);
 
     /* After Gaussian elimination, rows from 'rank' to 'num_linear-1'
      * should be all-zero. These correspond to linearly dependent constraints.

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file parametric_curves.h
  * @brief 参数曲线曲面模块 -- 参数化几何对象的创建、求值与分析
  *
@@ -10,6 +10,8 @@
 #define lv_PARAMETRIC_CURVES_H
 
 #include <stdbool.h>
+
+#include "lv_vec3.h" /* lvVec3：3D 向量单一事实来源，lvPoint3D 为其 typedef */
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,10 +26,8 @@ typedef struct {
     double x, y;
 } lvPoint2D;
 
-/** 三维点（double 精度） */
-typedef struct {
-    double x, y, z;
-} lvPoint3D;
+/** 三维点（double 精度，收敛：typedef 到公共 lvVec3，结构逐位一致） */
+typedef lvVec3 lvPoint3D;
 
 /** 参数曲线求值函数: C(t) -> Point2D */
 typedef void (*lvCurveEvalFunc)(double t, void *user_data, lvPoint2D *out);

@@ -1,103 +1,33 @@
 const fs = require('fs');
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-        Header, Footer, AlignmentType, LevelFormat,
-        HeadingLevel, BorderStyle, WidthType, ShadingType,
+        Header, Footer, AlignmentType,
+        HeadingLevel, BorderStyle, WidthType,
         PageNumber, PageBreak } = require('docx');
 
 // ============================================================
-// 辅助函数
+// 共享辅助（来自 docx_helpers.js）
 // ============================================================
 
-const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
-const borders = { top: border, bottom: border, left: border, right: border };
+const { para: body, boldPara: boldBody, heading,
+        makeTable: makeTableShared, makeNumberConfigs, makeBulletConfigs,
+        makeBulletGroup } = require('./docx_helpers');
 
-function heading(text, level) {
-  return new Paragraph({
-    heading: level,
-    children: [new TextRun(text)]
-  });
-}
-
-function body(text, opts = {}) {
-  return new Paragraph({
-    spacing: { after: 120 },
-    ...opts,
-    children: [new TextRun({ text, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 22 })]
-  });
-}
-
-function boldBody(text) {
-  return new Paragraph({
-    spacing: { after: 120 },
-    children: [new TextRun({ text, bold: true, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 22 })]
-  });
-}
-
-function bulletItem(text, ref) {
-  return new Paragraph({
-    numbering: { reference: ref, level: 0 },
-    spacing: { after: 60 },
-    children: [new TextRun({ text, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 22 })]
-  });
-}
-
-function makeCell(text, opts = {}) {
-  const { bold = false, shading, width } = opts;
-  const cellOpts = {
-    borders,
-    margins: { top: 60, bottom: 60, left: 100, right: 100 },
-    children: [new Paragraph({
-      children: [new TextRun({ text, bold, font: { ascii: "Arial", hAnsi: "Arial", eastAsia: "Microsoft YaHei" }, size: 20 })]
-    })]
-  };
-  if (shading) cellOpts.shading = { fill: shading, type: ShadingType.CLEAR };
-  if (width) cellOpts.width = { size: width, type: WidthType.DXA };
-  return new TableCell(cellOpts);
-}
-
+// 本生成器 makeTable 表宽为列宽之和（8800）
 function makeTable(headers, rows, colWidths) {
   const totalWidth = colWidths.reduce((a, b) => a + b, 0);
-  const headerRow = new TableRow({
-    cantSplit: true,
-    children: headers.map((h, i) => makeCell(h, { bold: true, shading: "D5E8F0", width: colWidths[i] }))
-  });
-  const dataRows = rows.map(row => new TableRow({
-    cantSplit: true,
-    children: row.map((cell, i) => makeCell(cell, { width: colWidths[i] }))
-  }));
-  return new Table({
-    width: { size: totalWidth, type: WidthType.DXA },
-    columnWidths: colWidths,
-    rows: [headerRow, ...dataRows]
-  });
+  return makeTableShared(headers, rows, colWidths, totalWidth);
 }
 
 // ============================================================
 // 编号配置
 // ============================================================
 
-let numGroupCounter = 0;
-const numberConfigs = [];
-for (let i = 0; i < 30; i++) {
-  numberConfigs.push({
-    reference: `numbers-${i}`,
-    levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
-      style: { paragraph: { indent: { left: 720, hanging: 360 } } } }]
-  });
-}
+const numberConfigs = makeNumberConfigs();
+const bulletConfigs = makeBulletConfigs();
 
-let bulletCounter = 0;
-const bulletConfigs = [];
-for (let i = 0; i < 30; i++) {
-  bulletConfigs.push({
-    reference: `bullets-${i}`,
-    levels: [{ level: 0, format: LevelFormat.BULLET, text: "\u2022", alignment: AlignmentType.LEFT,
-      style: { paragraph: { indent: { left: 720, hanging: 360 } } } }]
-  });
-}
-
-function startBulletGroup() { bulletCounter++; }
-function bul(text) { return bulletItem(text, `bullets-${bulletCounter}`); }
+const bulletGroup = makeBulletGroup();
+function startBulletGroup() { bulletGroup.start(); }
+function bul(text) { return bulletGroup.item(text); }
 
 // ============================================================
 // 文档内容

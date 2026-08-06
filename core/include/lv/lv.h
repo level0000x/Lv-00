@@ -195,7 +195,10 @@ extern "C" {
 #define lv_PATH_SEPARATOR_CHAR '/'
 #define lv_PATH_SEPARATOR_STR "/"
 #endif
-/* 向后兼容：旧宏名 lv_PATH_SEPARATOR 保留 */
+/* 向后兼容：旧宏名 lv_PATH_SEPARATOR 保留
+ * （权威定义在 config.h，此处 include 以保证单一定义来源；若 config.h
+ *   已先定义则下方 #ifndef 兜底不生效） */
+#include "config.h"
 #ifndef lv_PATH_SEPARATOR
 #define lv_PATH_SEPARATOR lv_PATH_SEPARATOR_CHAR
 #endif

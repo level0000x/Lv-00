@@ -19,13 +19,11 @@
 
 /* ========================================================================
  * 数值容差常量
- * ======================================================================== */
-/* 浮点比较容差统一引用 lv_utils.h 的 lv_EPSILON_DOUBLE（1e-12，与原值一致），
-   消除 lv_utils.h / lv_config.h 之间的重复定义 */
-#define GEO_EPSILON lv_EPSILON_DOUBLE /**< 浮点比较容差（= lv_EPSILON_DOUBLE 1e-12） */
-/* 注意：GEO_ANGLE_EPSILON（1e-9）与 config.h 的 lv_GEO_ANGLE_EPSILON（1e-10）
-   语义相同但量级不同，暂保留原值，待统一决策（见容差体系报告） */
-#define GEO_ANGLE_EPSILON 1e-9 /**< 角度比较容差 */
+ * ========================================================================
+ * GEO_EPSILON / GEO_ANGLE_EPSILON 已收敛到 geo_utils.h 的分级常量表
+ * （分别引用 lv_EPSILON_DOUBLE / lv_GEO_ANGLE_EPSILON），此处不再本地定义。
+ * 注意：GEO_ANGLE_EPSILON 原先地值 1e-9 与 config.h 的 lv_GEO_ANGLE_EPSILON
+ * （1e-10）不一致，已统一为引用 config 权威值（该宏无使用点，行为零影响）。 */
 
 /* ========================================================================
  * 坐标转换工具

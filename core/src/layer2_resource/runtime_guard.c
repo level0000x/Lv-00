@@ -12,6 +12,7 @@
  */
 
 #include "runtime_guard.h"
+#include "lv/lv_thread.h"  /* lv_MUTEX_* 兼容宏依赖 lv_mutex_* 实现 */
 
 #ifdef lv_ENABLE_RUNTIME_GUARDS
 

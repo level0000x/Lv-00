@@ -34,6 +34,25 @@ extern "C" {
 #endif
 
 /* ========================================================================
+ * 数值容差常量（分级汇总）
+ *
+ * 统一引用 lv_utils.h / config.h 的权威常量，禁止在实现文件中本地再定义数值。
+ * 收敛说明（几何层收敛任务）：
+ *   - GEO_EPSILON（1e-12）引用 lv_EPSILON_DOUBLE（原 geo_utils.c 已是引用，上移汇总）；
+ *   - GEO_ANGLE_EPSILON 原 geo_utils.c 本地定义 1e-9，与 config.h 的
+ *     lv_GEO_ANGLE_EPSILON（1e-10）不一致（代码注释曾自曝）——已统一引用 config 权威值；
+ *     该宏无使用点，实际判定行为不受影响。
+ *   - 私有 epsilon（geo_predicate.c APPROX_EPSILON / ADAPTIVE_THRESHOLD、
+ *     geo_constraint_solver_internal.h NUMERICAL_DIFF_EPSILON 等）按语义
+ *     分别引用 lv_EPSILON_MEDIUM 或保留本地定义，见各文件。
+ * ======================================================================== */
+#include "lv_utils.h" /* lv_EPSILON_DOUBLE / lv_EPSILON_NEWTON 等 */
+#include "config.h"   /* lv_GEO_ANGLE_EPSILON / lv_EPSILON_MEDIUM 等 */
+
+#define GEO_EPSILON lv_EPSILON_DOUBLE          /**< 浮点比较容差（1e-12，= lv_EPSILON_DOUBLE） */
+#define GEO_ANGLE_EPSILON lv_GEO_ANGLE_EPSILON /**< 角度比较容差（1e-10，= config.h 权威值） */
+
+/* ========================================================================
  * 几何计算工具函数（实现位于 layer3_geometry/geo_utils.c）
  * ======================================================================== */
 

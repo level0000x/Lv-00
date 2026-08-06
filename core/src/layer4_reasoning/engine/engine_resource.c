@@ -16,6 +16,7 @@
 
 #include "lv/axiom_pkg.h"
 #include "lv/lv.h"
+#include "lv/lv_path.h"
 #include "lv/module.h"
 
 #include "lv_utils.h"
@@ -76,20 +77,14 @@ static const char *engine_extract_module_name(const char *filepath) {
         return name_buf;
     }
 
-    /* 找到最后一个路径分隔符 */
-    const char *last_sep = strrchr(filepath, '/');
-    const char *last_bsep = strrchr(filepath, '\\');
-    if (last_bsep > last_sep)
-        last_sep = last_bsep;
-    const char *base = last_sep ? last_sep + 1 : filepath;
+    /* 提取最后一个路径分隔符之后的部分（lv_path_basename 同时识别 '/' 与 '\\'） */
+    const char *base = lv_path_basename(filepath);
 
     /* 复制基础文件名 */
     lv_strlcpy(name_buf, base, lv_MAX_NAME_LENGTH);
 
     /* 去掉扩展名（最后一个 '.' 之后的部分） */
-    char *dot = strrchr(name_buf, '.');
-    if (dot)
-        *dot = '\0';
+    lv_path_strip_ext(name_buf);
 
     /* 如果提取后为空，回退到 "temp" */
     if (name_buf[0] == '\0')

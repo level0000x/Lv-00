@@ -114,20 +114,11 @@ typedef struct {
 /** @brief 自适应阈值模块全局单例 */
 static ThresholdState s_threshold_state = {0};
 
-/** @brief 保护 s_threshold_state 并发读写的互斥锁（lv_once 懒初始化） */
-static lv_mutex_t s_threshold_mutex;
-static lv_once_t s_threshold_mutex_once = lv_ONCE_INIT;
+/** @brief 保护 s_threshold_state 并发读写的互斥锁（惰性初始化，首次加锁时自动完成） */
+lv_LAZY_LOCK_DEFINE(s_threshold_lock);
 
-/** @brief 阈值状态互斥锁初始化回调（仅由 lv_once 调用一次） */
-static void threshold_mutex_init_func(void) {
-    lv_mutex_init(&s_threshold_mutex);
-}
-
-#define THRESHOLD_LOCK() do { \
-    lv_once(&s_threshold_mutex_once, threshold_mutex_init_func); \
-    lv_mutex_lock(&s_threshold_mutex); \
-} while (0)
-#define THRESHOLD_UNLOCK() lv_mutex_unlock(&s_threshold_mutex)
+#define THRESHOLD_LOCK() lv_lazy_lock_lock(&s_threshold_lock, s_threshold_lock_init_once)
+#define THRESHOLD_UNLOCK() lv_lazy_lock_unlock(&s_threshold_lock)
 
 /* ================================================================
  * 内部辅助函数

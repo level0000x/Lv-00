@@ -6,6 +6,7 @@
  */
 
 #include "lv/lv_file.h"
+#include "lv/lv_path.h"
 #include "lv/lv_platform.h"
 #include "lv/lv_thread.h"
 
@@ -97,8 +98,9 @@ int debug_log_init(void) {
 
     /* 构建日志目录路径: ~/.lv/logs */
     const char *home = get_home_dir();
-    snprintf(s_debug_state.log_dir_path, lv_LOG_PATH_MAX, "%s%c.lv%clogs", home, lv_PATH_SEPARATOR,
-             lv_PATH_SEPARATOR);
+    char home_lv[lv_LOG_PATH_MAX];
+    lv_path_join(home, ".lv", home_lv, sizeof(home_lv));
+    lv_path_join(home_lv, "logs", s_debug_state.log_dir_path, lv_LOG_PATH_MAX);
 
     /* 创建日志目录 */
     if (create_directory(s_debug_state.log_dir_path) != 0) {
@@ -107,8 +109,7 @@ int debug_log_init(void) {
     }
 
     /* 构建日志文件路径 */
-    snprintf(s_debug_state.log_file_path, lv_LOG_PATH_MAX, "%s%c%s", s_debug_state.log_dir_path, lv_PATH_SEPARATOR,
-             lv_DEBUG_LOG_BASENAME);
+    lv_path_join(s_debug_state.log_dir_path, lv_DEBUG_LOG_BASENAME, s_debug_state.log_file_path, lv_LOG_PATH_MAX);
 
     /* 打开日志文件 */
     s_debug_state.log_file = fopen(s_debug_state.log_file_path, "a");
