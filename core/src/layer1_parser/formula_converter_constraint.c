@@ -130,8 +130,8 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
     }
 
     /* 获取 A 和 B 的坐标，计算中点 */
-    GeomNode *node_a = graph_get_node_by_id(graph, a_id);
-    GeomNode *node_b = graph_get_node_by_id(graph, b_id);
+    GeomNode *node_a = graph_get_node(graph, a_id);
+    GeomNode *node_b = graph_get_node(graph, b_id);
 
     if (!node_a || !node_b) {
         return false;
@@ -167,7 +167,7 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
 
     /* 如果中点 M 已存在，更新其坐标 */
     if (m_id >= 0) {
-        GeomNode *node_m = graph_get_node_by_id(graph, m_id);
+        GeomNode *node_m = graph_get_node(graph, m_id);
         if (node_m && node_m->symbolic_coords) {
             int update_count = node_m->coord_count < 2 ? node_m->coord_count : 2;
             for (int i = 0; i < update_count; i++) {
@@ -189,7 +189,7 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
         AddNodeResult result = graph_add_point(graph, mid_coords, 2);
         if (result == ADD_NODE_OK) {
             *out_node_id = graph_get_node_count(graph) - 1;
-            GeomNode *new_node = graph_get_node_by_id(graph, *out_node_id);
+            GeomNode *new_node = graph_get_node(graph, *out_node_id);
             if (new_node) {
                 *out_node_id = new_node->id;
             }

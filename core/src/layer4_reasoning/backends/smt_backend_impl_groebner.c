@@ -1087,6 +1087,25 @@ int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_result) {
     return 0;
 }
 
+/* ---- 外部求解器后端表：Z3 / cvc5 / Singular 共享同一调用骨架 ----
+ * 三个外部后端在 smtsolver_check() 中的处理完全同构：
+ * 编码检查 → smt_external_solver_check 子进程调用 → UNKNOWN 告警 →
+ * 回退 Groebner 后端。此处收敛为表驱动，Z3/cvc5 原先只打日志不真回退
+ * 的"伪降级"一并修复为与 Singular 一致的真回退。 */
+typedef struct {
+    SolverBackendType type;    /**< 后端类型 */
+    const char *display_name;  /**< 日志显示名 */
+    const char *executable;    /**< 外部可执行文件名 */
+    const char *encode_error;  /**< 编码缺失时的错误信息 */
+    bool fallback_to_groebner; /**< UNKNOWN 时是否回退到 Groebner 后端 */
+} ExternalBackendEntry;
+
+static const ExternalBackendEntry kExternalBackends[] = {
+    {SMT_Z3, "Z3", "z3", "No SMT-LIB2 formula encoded for Z3 backend", true},
+    {SMT_CVC5, "cvc5", "cvc5", "No SMT-LIB2 formula encoded for cvc5 backend", true},
+    {SMT_SINGULAR, "Singular", "singular", "No Singular script encoded", true},
+};
+
 /**
  * @brief 执行可满足性检查
  *
@@ -1133,53 +1152,27 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
         return SMT_RESULT_UNKNOWN;
     }
 
-    /* ---- Z3 后端：通过子进程调用 ---- */
-    if (solver->type == SMT_Z3) {
-        if (!solver->encoded_formula || solver->encoded_len <= 0) {
-            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, "No SMT-LIB2 formula encoded for Z3 backend");
-            return SMT_RESULT_ERROR;
-        }
-        lv_LOG_INFO("Z3 后端: 通过子进程调用 z3 (输入长度=%d)", solver->encoded_len);
-        SMTSatResult z3_result =
-            smt_external_solver_check(solver, "z3", solver->encoded_formula, solver->encoded_len, NULL, 0);
-        if (z3_result == SMT_RESULT_UNKNOWN) {
-            lv_LOG_WARNING("Z3 后端: 求解器返回 UNKNOWN（可能未安装 z3），回退到内部求解");
-        }
-        return z3_result;
-    }
+    /* ---- 外部求解器后端（Z3 / cvc5 / Singular）：表驱动统一调用 ---- */
+    for (size_t i = 0; i < sizeof(kExternalBackends) / sizeof(kExternalBackends[0]); i++) {
+        const ExternalBackendEntry *be = &kExternalBackends[i];
+        if (solver->type != be->type)
+            continue;
 
-    /* ---- cvc5 后端：通过子进程调用 ---- */
-    if (solver->type == SMT_CVC5) {
         if (!solver->encoded_formula || solver->encoded_len <= 0) {
-            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, "No SMT-LIB2 formula encoded for cvc5 backend");
+            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, be->encode_error);
             return SMT_RESULT_ERROR;
         }
-        lv_LOG_INFO("cvc5 后端: 通过子进程调用 cvc5 (输入长度=%d)", solver->encoded_len);
-        SMTSatResult cvc5_result =
-            smt_external_solver_check(solver, "cvc5", solver->encoded_formula, solver->encoded_len, NULL, 0);
-        if (cvc5_result == SMT_RESULT_UNKNOWN) {
-            lv_LOG_WARNING("cvc5 后端: 求解器返回 UNKNOWN（可能未安装 cvc5），回退到内部求解");
-        }
-        return cvc5_result;
-    }
-
-    /* ---- Singular 后端：通过子进程调用 ---- */
-    if (solver->type == SMT_SINGULAR) {
-        if (!solver->encoded_formula || solver->encoded_len <= 0) {
-            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, "No Singular script encoded");
-            return SMT_RESULT_ERROR;
-        }
-        lv_LOG_INFO("Singular 后端: 通过子进程调用 singular");
-        /* Singular 使用 -q 静默模式执行脚本 */
-        SMTSatResult singular_result =
-            smt_external_solver_check(solver, "singular", solver->encoded_formula, solver->encoded_len, NULL, 0);
-        if (singular_result == SMT_RESULT_UNKNOWN) {
-            lv_LOG_WARNING("Singular 后端: 求解器返回 UNKNOWN（可能未安装 Singular），回退到 Groebner 后端");
+        lv_LOG_INFO("%s 后端: 通过子进程调用 %s (输入长度=%d)", be->display_name, be->executable, solver->encoded_len);
+        SMTSatResult ext_result =
+            smt_external_solver_check(solver, be->executable, solver->encoded_formula, solver->encoded_len, NULL, 0);
+        if (ext_result == SMT_RESULT_UNKNOWN && be->fallback_to_groebner) {
+            lv_LOG_WARNING("%s 后端: 求解器返回 UNKNOWN（可能未安装 %s），回退到 Groebner 后端",
+                           be->display_name, be->executable);
             /* 回退到内部 Groebner 后端 */
             solver->type = SMT_GROEBNER;
             return smtsolver_check(solver);
         }
-        return singular_result;
+        return ext_result;
     }
     return SMT_RESULT_ERROR;
 }

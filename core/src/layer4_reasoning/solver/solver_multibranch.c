@@ -76,30 +76,23 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         return SOLVER_STATUS_TIMEOUT;
 
     int branch_count = 0;
-    int64_t scale_factor = lv_SOLVER_SCALE_FACTOR;
 
     for (int i = 0; i < system->eqs.count; i++) {
         PolyEquation *pe = ((PolyEquation *)lv_darray_get(&system->eqs, i));
         if (pe->poly.degree != 2)
             continue;
 
-        /* Extract coefficients from GMP scaled integers */
-        double a = mpz_get_d(pe->poly.coeffs[2]) / scale_factor;
-        double b = mpz_get_d(pe->poly.coeffs[1]) / scale_factor;
-        double c = mpz_get_d(pe->poly.coeffs[0]) / scale_factor;
-
-        if (fabs(a) < lv_EPSILON_DOUBLE)
-            continue;
-
-        double D = b * b - 4.0 * a * c; /* discriminant */
-        if (D <= 0)
-            continue; /* no distinct real roots */
-
-        double sqrt_D = sqrt(D);
-        double root1 = (-b + sqrt_D) / (2.0 * a);
-        double root2 = (-b - sqrt_D) / (2.0 * a);
+        /* 判别式筛选与求根收敛到共享的 solver_quadratic_distinct_roots
+         * （solver_types.h）：无容差语义（|a| < lv_EPSILON_DOUBLE 或
+         * 判别式 D <= 0 直接跳过），与 solver_engine.c 的释放计数共用，
+         * 保证 scale 常量与判定语义单一来源。 */
+        double roots_pair[2];
+        if (!solver_quadratic_distinct_roots(&pe->poly, lv_SOLVER_SCALE_FACTOR, roots_pair))
+            continue; /* 无两个不同实根（退化系数或判别式 D <= 0） */
 
         /* Store as distinct roots */
+        double root1 = roots_pair[0];
+        double root2 = roots_pair[1];
         branch_vars[branch_count].var_node_id = pe->var_node_id;
         branch_vars[branch_count].coord_index = pe->coord_index;
         branch_vars[branch_count].eq_index = i;

@@ -17,6 +17,7 @@
 #include "lv_utils.h"
 #include "lv/lv_arena.h"
 #include "lv/lv_log.h"
+#include "lv/lv_numeric.h"
 #include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
 
 /* ================================================================
@@ -874,10 +875,8 @@ Coord *coord_rotate(const Coord *c, double angle) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "coord_rotate: NULL input");
     double cs = cos(angle), sn = sin(angle);
     mpq_t cs_q, sn_q;
-    mpq_init(cs_q);
-    mpq_set_d(cs_q, cs);
-    mpq_init(sn_q);
-    mpq_set_d(sn_q, sn);
+    lv_mpq_set_d_checked(cs_q, cs);
+    lv_mpq_set_d_checked(sn_q, sn);
     Coord *r = (Coord *) lv_malloc(sizeof(Coord));
     if (!r) {
         mpq_clears(cs_q, sn_q, NULL);
@@ -901,12 +900,9 @@ Coord *coord_rotate(const Coord *c, double angle) {
 Coord *coord_from_polar(double r, double theta) {
     double cs = cos(theta), sn = sin(theta);
     mpq_t rq, cq, sq;
-    mpq_init(rq);
-    mpq_set_d(rq, r);
-    mpq_init(cq);
-    mpq_set_d(cq, cs);
-    mpq_init(sq);
-    mpq_set_d(sq, sn);
+    lv_mpq_set_d_checked(rq, r);
+    lv_mpq_set_d_checked(cq, cs);
+    lv_mpq_set_d_checked(sq, sn);
     Coord *c = (Coord *) lv_malloc(sizeof(Coord));
     if (!c) {
         mpq_clears(rq, cq, sq, NULL);

@@ -22,6 +22,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
 #include "lv/lv_xmacro.h"
+#include "lv/lv_parse_utils.h"
 
 #include "lv_internal.h"
 
@@ -153,7 +154,8 @@ static DslAST *parse_primary(ParserCtx *ctx) {
         DslAST *node = ast_alloc(DSL_AST_NUMBER, t.line, t.col);
         if (!node)
             return NULL;
-        node->num_value = strtod(t.lexeme, NULL);
+        if (lv_parse_double(t.lexeme, &node->num_value) != 0)
+            node->num_value = 0.0;
         return node;
     }
     return NULL;
@@ -269,8 +271,10 @@ static DslAST *parse_fix_stmt(ParserCtx *ctx, int line, int col) {
         dsl_ast_destroy(cy);
         return NULL;
     }
-    cx->num_value = strtod(tok_x.lexeme, NULL);
-    cy->num_value = strtod(tok_y.lexeme, NULL);
+    if (lv_parse_double(tok_x.lexeme, &cx->num_value) != 0)
+        cx->num_value = 0.0;
+    if (lv_parse_double(tok_y.lexeme, &cy->num_value) != 0)
+        cy->num_value = 0.0;
     ast_add_child(node, cx);
     ast_add_child(node, cy);
 
@@ -548,8 +552,10 @@ static DslAST *parse_number_stmt(ParserCtx *ctx) {
     DslToken t = parser_peek(ctx);
     parser_advance(ctx);
     DslAST *node = ast_alloc(DSL_AST_NUMBER, t.line, t.col);
-    if (node)
-        node->num_value = strtod(t.lexeme, NULL);
+    if (node) {
+        if (lv_parse_double(t.lexeme, &node->num_value) != 0)
+            node->num_value = 0.0;
+    }
     return node;
 }
 

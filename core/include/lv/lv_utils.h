@@ -1377,6 +1377,90 @@ lv_PUBLIC_API void *lv_darray_get(const lvDArray *arr, int index);
  */
 lv_PUBLIC_API void lv_darray_clear(lvDArray *arr);
 
+/* ============================================================
+ * lv_dirty_set —— 去重 int 元素集合
+ *
+ * 收敛项目中多套"元素集合 + 含属 + 遍历/清空"脏标记数据结构：
+ *   - block_scheduler 的 dirty_blocks（int 数组）
+ *   - incremental_exec 的 validity_bitmap（位图，语义取反后等价）
+ *   - view_synchronizer 的 dirty_views（int 数组）
+ *   - solver 侧 DirtyVariableSet（layer4，lvDArray 版，与此同构）
+ *
+ * 语义与 DirtyVariableSet 完全一致（lvDArray of int + 线性查重 add），
+ * 但为 header-only 静态内联实现，layer6 各模块直接复用无需引入
+ * solver 依赖：
+ *   - add:      已存在则忽略（幂等去重）
+ *   - contains: 线性包含查询
+ *   - clear:    计数归零、保留容量（供复用）
+ *   - count/at: 按插入顺序遍历
+ * ============================================================ */
+
+/** 脏元素集合：包装 lvDArray（int 元素） */
+typedef struct {
+    lvDArray ids; /**< lvDArray of int */
+} lv_dirty_set;
+
+/**
+ * @brief 初始化脏集合（内部为 int 元素 lvDArray）
+ * @param ds 集合指针（可为零初始化后直接使用）
+ */
+static inline void lv_dirty_set_init(lv_dirty_set *ds) {
+    lv_darray_init(&ds->ids, sizeof(int));
+}
+
+/**
+ * @brief 释放脏集合内部缓冲区并重置
+ */
+static inline void lv_dirty_set_free(lv_dirty_set *ds) {
+    lv_darray_free(&ds->ids);
+}
+
+/**
+ * @brief 检查元素是否在集合中
+ * @return true 已包含，false 未包含
+ */
+static inline bool lv_dirty_set_contains(const lv_dirty_set *ds, int id) {
+    for (int i = 0; i < ds->ids.count; i++) {
+        const int *p = (const int *) lv_darray_get(&ds->ids, i);
+        if (p && *p == id)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief 添加元素（已存在则忽略）
+ * @return true 添加成功或已存在，false 内存不足
+ */
+static inline bool lv_dirty_set_add(lv_dirty_set *ds, int id) {
+    if (lv_dirty_set_contains(ds, id))
+        return true;
+    return lv_darray_push(&ds->ids, &id) >= 0;
+}
+
+/**
+ * @brief 清空集合（count 归零，保留容量）
+ */
+static inline void lv_dirty_set_clear(lv_dirty_set *ds) {
+    lv_darray_clear(&ds->ids);
+}
+
+/**
+ * @brief 获取集合元素数量
+ */
+static inline int lv_dirty_set_count(const lv_dirty_set *ds) {
+    return ds->ids.count;
+}
+
+/**
+ * @brief 按插入顺序获取第 index 个元素
+ * @return 元素值，越界返回 0
+ */
+static inline int lv_dirty_set_at(const lv_dirty_set *ds, int index) {
+    const int *p = (const int *) lv_darray_get(&ds->ids, index);
+    return p ? *p : 0;
+}
+
 #ifdef __cplusplus
 }
 #endif

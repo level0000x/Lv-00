@@ -376,8 +376,8 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
         fprintf(fp, "  <!-- Constraint id=%d type=%s -->\n", c->id, constraint_type_name(c->type));
 
         /* 获取参与者节点的位置 */
-        GeomNode *p0 = graph_get_node_by_id(graph, c->participants[0]);
-        GeomNode *p1 = graph_get_node_by_id(graph, c->participants[1]);
+        GeomNode *p0 = graph_get_node(graph, c->participants[0]);
+        GeomNode *p1 = graph_get_node(graph, c->participants[1]);
         if (!p0 || !p1)
             continue;
         if (p0->coord_count < 2 || p1->coord_count < 2)

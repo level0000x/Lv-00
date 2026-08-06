@@ -34,13 +34,13 @@ typedef struct {
 /**
  * @brief 求解一元二次方程 a*x^2 + b*x + c = 0
  *
- * 使用判别式 b^2 - 4ac 求根。判别式为负时返回零个实根，
- * 接近零时返回一个重根，否则返回两个实根。系数 a 接近零时
- * 退化为线性方程求解。
+ * 数值求根逻辑收敛到共享的 solver_quadratic_roots_double
+ * （solver_types.h），本函数仅做次数检查与系数提取。
  *
  * @param poly 一元多项式指针（次数必须为 2）
  * @param out  输出：QuadraticRoots 结构体，包含根数组和根数量
  * @return true 表示成功（含无实根情况），false 表示输入的次数不是 2
+ *         或系数退化（a、b 均接近零，无法求解）
  */
 static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
     if (poly->degree != 2)
@@ -48,31 +48,10 @@ static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
     double a = mpz_get_d(poly->coeffs[2]);
     double b = mpz_get_d(poly->coeffs[1]);
     double c = mpz_get_d(poly->coeffs[0]);
-    if (fabs(a) < lv_EPSILON_NEWTON) {
-        /* 坍缩为一元一次方程 */
-        if (fabs(b) < lv_EPSILON_NEWTON)
-            return false;
-        out->roots[0] = -c / b;
-        out->root_count = 1;
-        return true;
-    }
-    double disc = b * b - 4.0 * a * c;
-    /* 使用相对容差判断判别式是否为负/零。
-     * 当系数量级很大时（如 b² ~ 1e20），判别式的浮点计算舍入误差
-     * 可达 O(|b²| * eps_machine)，远超绝对容差 lv_EPSILON_DOUBLE。
-     * 使用 max(|b²|, |4ac|) * eps 作为相对容差。 */
-    double disc_tol = lv_EPSILON_DOUBLE * fmax(1.0, fmax(b * b, fabs(4.0 * a * c)));
-    if (disc < -disc_tol) {
-        /* 无实数根 */
-        out->root_count = 0;
-        return true;
-    }
-    if (disc < 0)
-        disc = 0.0;
-    double sq = sqrt(disc);
-    out->roots[0] = (-b - sq) / (2.0 * a);
-    out->roots[1] = (-b + sq) / (2.0 * a);
-    out->root_count = (fabs(disc) < disc_tol) ? 1 : 2;
+    int n = solver_quadratic_roots_double(a, b, c, out->roots);
+    if (n < 0)
+        return false;
+    out->root_count = n;
     return true;
 }
 

@@ -92,14 +92,19 @@ lvViewType lv_visual_editor_active_view(const lvVisualEditor *editor) {
 }
 
 /**
- * @brief 全量执行块图
+ * @brief 内部执行入口：按策略创建调度器并执行块图
  *
- * 创建调度器并执行块图中所有块。执行结果会更新编辑器状态和错误信息。
+ * 全量/增量执行共用同一流程，差异仅参数化：
+ *   - 调度策略（lv_SCHED_FULL / lv_SCHED_INCREMENTAL）
+ *   - 是否先标记所有块为脏（增量执行）
+ * 错误处理、编辑器状态切换与错误信息样板统一在此保留。
  *
- * @param editor 编辑器指针
+ * @param editor   编辑器指针
+ * @param strategy 调度策略
+ * @param mark_all 是否先标记所有块为脏（增量执行）
  * @return 成功返回0，失败返回-1
  */
-int lv_visual_editor_execute(lvVisualEditor *editor) {
+static int editor_run(lvVisualEditor *editor, lvSchedStrategy strategy, bool mark_all) {
     lv_CHECK_NOT_NULL(editor);
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
@@ -122,11 +127,16 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to create scheduler");
     }
 
-    /* 设置全量执行策略 */
-    lv_block_scheduler_set_strategy(sched, lv_SCHED_FULL);
+    /* 设置执行策略 */
+    lv_block_scheduler_set_strategy(sched, strategy);
 
-    /* 运行调度器 */
-    lvExecResult exec_result = lv_block_scheduler_run(sched);
+    /* 增量执行：标记所有块为脏（首次增量执行） */
+    if (mark_all)
+        lv_block_scheduler_mark_all_dirty(sched);
+
+    /* 运行调度器（增量模式使用调度器内部脏块列表） */
+    lvExecResult exec_result = mark_all ? lv_block_scheduler_run_incremental(sched, NULL, 0)
+                                        : lv_block_scheduler_run(sched);
 
     /* 根据执行结果更新编辑器状态 */
     if (exec_result.success) {
@@ -147,7 +157,19 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
     lv_block_scheduler_destroy(sched);
     if (exec_result.success)
         return 0;
-    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "execution failed");
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, mark_all ? "incremental execution failed" : "execution failed");
+}
+
+/**
+ * @brief 全量执行块图
+ *
+ * 创建调度器并执行块图中所有块。执行结果会更新编辑器状态和错误信息。
+ *
+ * @param editor 编辑器指针
+ * @return 成功返回0，失败返回-1
+ */
+int lv_visual_editor_execute(lvVisualEditor *editor) {
+    return editor_run(editor, lv_SCHED_FULL, false);
 }
 
 /**
@@ -159,57 +181,7 @@ int lv_visual_editor_execute(lvVisualEditor *editor) {
  * @return 成功返回0，失败返回-1
  */
 int lv_visual_editor_execute_incremental(lvVisualEditor *editor) {
-    lv_CHECK_NOT_NULL(editor);
-    if (!editor->block_graph) {
-        editor->state = lv_EDITOR_ERROR;
-        strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error) - 1);
-        editor->last_error[sizeof(editor->last_error) - 1] = '\0';
-        editor->error_count++;
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "no block graph loaded");
-    }
-
-    /* 设置编辑器状态为执行中 */
-    editor->state = lv_EDITOR_EXECUTING;
-
-    /* 创建增量调度器 */
-    lvBlockScheduler *sched = lv_block_scheduler_create(editor->block_graph);
-    if (!sched) {
-        editor->state = lv_EDITOR_ERROR;
-        strncpy(editor->last_error, "failed to create scheduler", sizeof(editor->last_error));
-        editor->last_error[sizeof(editor->last_error) - 1] = '\0';
-        editor->error_count++;
-        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to create scheduler");
-    }
-
-    /* 设置增量执行策略 */
-    lv_block_scheduler_set_strategy(sched, lv_SCHED_INCREMENTAL);
-
-    /* 获取脏块列表（标记所有块为脏，首次增量执行） */
-    lv_block_scheduler_mark_all_dirty(sched);
-
-    /* 获取脏块并执行增量调度 */
-    /* 传入 NULL 表示使用调度器内部脏块列表 */
-    lvExecResult exec_result = lv_block_scheduler_run_incremental(sched, NULL, 0);
-
-    /* 根据执行结果更新编辑器状态 */
-    if (exec_result.success) {
-        editor->state = lv_EDITOR_IDLE;
-        editor->error_count = 0;
-        memset(editor->last_error, 0, sizeof(editor->last_error));
-    } else {
-        editor->state = lv_EDITOR_ERROR;
-        /* [安全] 防止 exec_result.error_msg 过长导致缓冲区问题 */
-        strncpy(editor->last_error, exec_result.error_msg[0] ? exec_result.error_msg : "unknown error",
-                sizeof(editor->last_error) - 1);
-        editor->last_error[sizeof(editor->last_error) - 1] = '\0';
-        editor->error_count++;
-    }
-
-    /* 销毁调度器 */
-    lv_block_scheduler_destroy(sched);
-    if (exec_result.success)
-        return 0;
-    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "incremental execution failed");
+    return editor_run(editor, lv_SCHED_INCREMENTAL, true);
 }
 
 /**

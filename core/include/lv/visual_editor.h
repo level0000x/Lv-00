@@ -4,6 +4,7 @@
 #include "lv/func_block.h"
 #include "lv/type_system.h"
 #include "lv/lv_view.h"
+#include "lv/lv_utils.h" /* lv_dirty_set */
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,9 +38,7 @@ struct lvViewSynchronizer {
     char last_conflict[512];
 
     /* 脏视图追踪 */
-    int *dirty_views;
-    int dirty_count;
-    int dirty_capacity;
+    lv_dirty_set dirty_views; /* 脏视图 ID 集合（去重、插入序、clear 保留容量） */
 
     /* 待处理的变更记录 */
     struct {

@@ -29,16 +29,11 @@ lvViewSynchronizer *lv_view_sync_create(void) {
     if (!sync)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate view synchronizer");
     sync->sync_enabled = 1;
-    sync->dirty_capacity = 8;
-    sync->dirty_views = lv_calloc(sync->dirty_capacity, sizeof(int));
-    if (!sync->dirty_views) {
-        lv_free((void **) &sync);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate dirty views array");
-    }
+    /* 脏视图集合（懒分配扩容，语义同原预分配数组） */
+    lv_dirty_set_init(&sync->dirty_views);
     sync->pending_capacity = 8;
     sync->pending_changes = lv_calloc(sync->pending_capacity, sizeof(sync->pending_changes[0]));
     if (!sync->pending_changes) {
-        lv_free((void **) &sync->dirty_views);
         lv_free((void **) &sync);
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate pending changes array");
     }
@@ -55,7 +50,7 @@ lvViewSynchronizer *lv_view_sync_create(void) {
 void lv_view_sync_destroy(lvViewSynchronizer *sync) {
     if (!sync)
         return;
-    lv_free((void **) &sync->dirty_views);
+    lv_dirty_set_free(&sync->dirty_views);
     lv_free((void **) &sync->pending_changes);
     lv_free((void **) &sync);
 }
@@ -125,20 +120,9 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
     sync->pending_changes[sync->pending_count].change_type[sizeof(sync->pending_changes[0].change_type) - 1] = '\0';
     sync->pending_count++;
 
-    /* 将源视图标记为脏（如果尚未标记） */
-    int already_dirty = 0;
-    for (int i = 0; i < sync->dirty_count; i++) {
-        if (sync->dirty_views[i] == source_view_id) {
-            already_dirty = 1;
-            break;
-        }
-    }
-    if (!already_dirty) {
-        /* 扩容脏视图列表（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
-        if (!lv_ensure_capacity((void **) &sync->dirty_views, sync->dirty_count, &sync->dirty_capacity, sizeof(int), 1))
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc dirty views");
-        sync->dirty_views[sync->dirty_count++] = source_view_id;
-    }
+    /* 将源视图标记为脏（集合 add 内部去重，等价原有线性查重 + 追加） */
+    if (!lv_dirty_set_add(&sync->dirty_views, source_view_id))
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to add dirty view");
 
     return 0;
 }
@@ -169,8 +153,8 @@ int lv_view_sync_flush(lvViewSynchronizer *sync) {
 
     /* 清空待处理队列 */
     sync->pending_count = 0;
-    /* 清空脏视图列表 */
-    sync->dirty_count = 0;
+    /* 清空脏视图列表（count 归零，保留容量供复用） */
+    lv_dirty_set_clear(&sync->dirty_views);
 
     return processed;
 }

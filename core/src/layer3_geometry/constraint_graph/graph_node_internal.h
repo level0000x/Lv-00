@@ -24,6 +24,19 @@ const GeomNodeVTable *get_vtable_for_type(GeomType type);
 /* graph_node_hash.c 实现，供 conflict 模块回滚删除使用 */
 void node_index_remove(ConstraintGraph *graph, int node_id);
 
+/* graph_node_stub.c 实现：统一节点添加回滚辅助（递减节点计数、移除节点索引、
+ * 经 node_destroy 统一释放节点），供 conflict 模块回滚复用 */
+void graph_rollback_node(ConstraintGraph *graph, GeomNode *node);
+
+/* graph_node_alloc.c 实现：集中化图编辑流式事件发射。
+ * 消息文案与集中前逐字一致；step_number 逐字保持原调用点
+ * （graph_add_node_with_id / graph_add_constraint_with_id 传节点/约束 ID，其余传 0）；
+ * use_generic_message 选择通用模板（with_id 反序列化路径）或按类型组装的具体模板 */
+void graph_emit_node_added(ConstraintGraph *graph, GeomNode *node, int step_number, bool use_generic_message);
+void graph_emit_constraint_added(ConstraintGraph *graph, Constraint *con, int step_number, bool use_generic_message);
+void graph_emit_node_removed(ConstraintGraph *graph, int node_id);
+void graph_emit_constraint_removed(ConstraintGraph *graph, int constraint_id, bool deactivated);
+
 /* graph_index.c 实现，供 alloc 模块反序列化复用 */
 bool graph_constraint_assign_participants(Constraint *con, const int *participants, int count);
 

@@ -3,18 +3,54 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/block_graph_view.h"
 #include "lv/func_block.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
-/* 块图视图结构（与 converter/block_to_text.c 保持一致） */
-typedef struct {
-    FuncBlock **blocks;
-    int count;
-} BlockGraphView;
+/* 构建邻接表：根据输出端口和输入端口的连接关系确定依赖 */
+/* 通过端口 ID 匹配确定块间依赖（run 与 run_incremental 共用；in_degree 可为 NULL） */
+static int build_block_adjacency(BlockGraphView *bg, int n, int *in_degree, int ***out_adj, int **out_adj_count) {
+    int **adj = *out_adj;
+    int *adj_count = *out_adj_count;
 
-/* 脏块集合的初始容量 */
-#define DIRTY_INITIAL_CAPACITY 16
+    for (int i = 0; i < n; i++) {
+        FuncBlock *fb = bg->blocks[i];
+        if (!fb)
+            continue;
+        int out_count = func_block_get_output_count(fb);
+        for (int oi = 0; oi < out_count; oi++) {
+            int out_port = fb->output_port_ids ? fb->output_port_ids[oi] : -1;
+            if (out_port < 0)
+                continue;
+            /* 查找哪些块的输入端口连接到此输出端口 */
+            for (int j = 0; j < n; j++) {
+                if (i == j)
+                    continue;
+                FuncBlock *other = bg->blocks[j];
+                if (!other)
+                    continue;
+                int in_count = func_block_get_input_count(other);
+                for (int ii = 0; ii < in_count; ii++) {
+                    int in_port = other->input_port_ids ? other->input_port_ids[ii] : -1;
+                    if (in_port == out_port) {
+                        /* 存在连接：i -> j */
+                        /* 线性增长：每次 +1 个元素直接 realloc（adj 无 cap 字段，不引入 lv_ensure_capacity） */
+                        adj_count[i]++;
+                        int *new_adj = lv_realloc(adj[i], adj_count[i] * sizeof(int));
+                        if (new_adj) {
+                            adj[i] = new_adj;
+                            adj[i][adj_count[i] - 1] = j;
+                        }
+                        if (in_degree)
+                            in_degree[j]++;
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
 
 lvBlockScheduler *lv_block_scheduler_create(void *graph) {
     lvBlockScheduler *sched = lv_calloc(1, sizeof(lvBlockScheduler));
@@ -23,6 +59,7 @@ lvBlockScheduler *lv_block_scheduler_create(void *graph) {
     sched->graph = graph;
     sched->strategy = lv_SCHED_FULL;
     sched->effect_tracker = lv_effect_tracker_create();
+    lv_dirty_set_init(&sched->incremental.dirty_set);
     return sched;
 }
 
@@ -30,7 +67,7 @@ void lv_block_scheduler_destroy(lvBlockScheduler *sched) {
     if (!sched)
         return;
     lv_free((void **) &sched->queue);
-    lv_free((void **) &sched->incremental.dirty_blocks);
+    lv_dirty_set_free(&sched->incremental.dirty_set);
     if (sched->effect_tracker)
         lv_effect_tracker_destroy(sched->effect_tracker);
     lv_free((void **) &sched);
@@ -75,40 +112,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
 
     /* 构建邻接表：根据输出端口和输入端口的连接关系确定依赖 */
     /* 通过端口 ID 匹配确定块间依赖 */
-    for (int i = 0; i < n; i++) {
-        FuncBlock *fb = bg->blocks[i];
-        if (!fb)
-            continue;
-        int out_count = func_block_get_output_count(fb);
-        for (int oi = 0; oi < out_count; oi++) {
-            int out_port = fb->output_port_ids ? fb->output_port_ids[oi] : -1;
-            if (out_port < 0)
-                continue;
-            /* 查找哪些块的输入端口连接到此输出端口 */
-            for (int j = 0; j < n; j++) {
-                if (i == j)
-                    continue;
-                FuncBlock *other = bg->blocks[j];
-                if (!other)
-                    continue;
-                int in_count = func_block_get_input_count(other);
-                for (int ii = 0; ii < in_count; ii++) {
-                    int in_port = other->input_port_ids ? other->input_port_ids[ii] : -1;
-                    if (in_port == out_port) {
-                        /* 存在连接：i -> j */
-                        /* 线性增长：每次 +1 个元素直接 realloc（adj 无 cap 字段，不引入 lv_ensure_capacity） */
-                        adj_count[i]++;
-                        int *new_adj = lv_realloc(adj[i], adj_count[i] * sizeof(int));
-                        if (new_adj) {
-                            adj[i] = new_adj;
-                            adj[i][adj_count[i] - 1] = j;
-                        }
-                        in_degree[j]++;
-                    }
-                }
-            }
-        }
-    }
+    build_block_adjacency(bg, n, in_degree, &adj, &adj_count);
 
     /* Kahn 算法：将入度为0的节点入队 */
     int front = 0, back = 0;
@@ -187,16 +191,12 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
 
     int n = bg->count;
 
-    /* 确定脏块集合：优先使用参数传入的，否则使用调度器内部的 */
-    int *dirty_set = NULL;
-    int dirty_set_count = 0;
-
+    /* 确定脏块来源：优先使用参数传入的数组，否则使用调度器内部的脏集合 */
+    int use_internal_dirty = 0;
     if (dirty && count > 0) {
-        dirty_set = dirty;
-        dirty_set_count = count;
-    } else if (sched->incremental.dirty_blocks && sched->incremental.dirty_count > 0) {
-        dirty_set = sched->incremental.dirty_blocks;
-        dirty_set_count = sched->incremental.dirty_count;
+        use_internal_dirty = 0; /* 使用外部数组 dirty/count */
+    } else if (lv_dirty_set_count(&sched->incremental.dirty_set) > 0) {
+        use_internal_dirty = 1;
     } else {
         /* 没有脏块，无需执行 */
         result.success = 1;
@@ -214,37 +214,7 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
         return result;
     }
 
-    for (int i = 0; i < n; i++) {
-        FuncBlock *fb = bg->blocks[i];
-        if (!fb)
-            continue;
-        int out_count = func_block_get_output_count(fb);
-        for (int oi = 0; oi < out_count; oi++) {
-            int out_port = fb->output_port_ids ? fb->output_port_ids[oi] : -1;
-            if (out_port < 0)
-                continue;
-            for (int j = 0; j < n; j++) {
-                if (i == j)
-                    continue;
-                FuncBlock *other = bg->blocks[j];
-                if (!other)
-                    continue;
-                int in_count = func_block_get_input_count(other);
-                for (int ii = 0; ii < in_count; ii++) {
-                    int in_port = other->input_port_ids ? other->input_port_ids[ii] : -1;
-                    if (in_port == out_port) {
-                        /* 线性增长：每次 +1 个元素直接 realloc（adj 无 cap 字段，不引入 lv_ensure_capacity） */
-                        adj_count[i]++;
-                        int *_tmp = lv_realloc(adj[i], adj_count[i] * sizeof(int));
-                        if (_tmp) {
-                            adj[i] = _tmp;
-                            adj[i][adj_count[i] - 1] = j;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    build_block_adjacency(bg, n, NULL, &adj, &adj_count);
 
     /* 计算脏块的传递闭包（包括所有下游依赖） */
     int *need_exec = lv_calloc(n, sizeof(int));
@@ -257,14 +227,27 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
         return result;
     }
 
-    /* 标记初始脏块 */
-    for (int d = 0; d < dirty_set_count; d++) {
-        int block_id = dirty_set[d];
-        /* 查找块索引 */
-        for (int i = 0; i < n; i++) {
-            if (bg->blocks[i] && bg->blocks[i]->id == block_id) {
-                need_exec[i] = 1;
-                break;
+    /* 标记初始脏块（外部数组按传入顺序；内部集合按插入顺序，即块索引升序） */
+    if (use_internal_dirty) {
+        for (int d = 0; d < lv_dirty_set_count(&sched->incremental.dirty_set); d++) {
+            int block_id = lv_dirty_set_at(&sched->incremental.dirty_set, d);
+            /* 查找块索引 */
+            for (int i = 0; i < n; i++) {
+                if (bg->blocks[i] && bg->blocks[i]->id == block_id) {
+                    need_exec[i] = 1;
+                    break;
+                }
+            }
+        }
+    } else {
+        for (int d = 0; d < count; d++) {
+            int block_id = dirty[d];
+            /* 查找块索引 */
+            for (int i = 0; i < n; i++) {
+                if (bg->blocks[i] && bg->blocks[i]->id == block_id) {
+                    need_exec[i] = 1;
+                    break;
+                }
             }
         }
     }
@@ -322,18 +305,8 @@ void lv_block_scheduler_mark_dirty(lvBlockScheduler *sched, int block_id) {
     if (!sched || block_id <= 0)
         return;
 
-    /* 检查是否已在脏集合中 */
-    for (int i = 0; i < sched->incremental.dirty_count; i++) {
-        if (sched->incremental.dirty_blocks[i] == block_id)
-            return;
-    }
-
-    /* 自动扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
-    if (!lv_ensure_capacity((void **) &sched->incremental.dirty_blocks, sched->incremental.dirty_count,
-                            &sched->incremental.dirty_capacity, sizeof(int), 0))
-        return;
-    sched->incremental.dirty_blocks[sched->incremental.dirty_count] = block_id;
-    sched->incremental.dirty_count++;
+    /* add 内部去重（已存在则忽略），与原有线性查重语义一致 */
+    lv_dirty_set_add(&sched->incremental.dirty_set, block_id);
 }
 
 /* 标记所有块为脏 */
@@ -345,28 +318,12 @@ void lv_block_scheduler_mark_all_dirty(lvBlockScheduler *sched) {
     if (!bg || !bg->blocks)
         return;
 
-    /* 释放旧的脏块列表 */
-    lv_free((void **) &sched->incremental.dirty_blocks);
-    sched->incremental.dirty_blocks = NULL;
-    sched->incremental.dirty_count = 0;
-    sched->incremental.dirty_capacity = 0;
-
-    /* 分配新列表 */
+    /* 清空旧脏集合（保留容量供复用），再按块索引升序逐个加入 */
+    lv_dirty_set_clear(&sched->incremental.dirty_set);
     int n = bg->count;
-    if (n <= 0)
-        return;
-
-    int *dirty = lv_calloc(n, sizeof(int));
-    if (!dirty)
-        return;
-
     for (int i = 0; i < n; i++) {
         if (bg->blocks[i]) {
-            dirty[i] = bg->blocks[i]->id;
+            lv_dirty_set_add(&sched->incremental.dirty_set, bg->blocks[i]->id);
         }
     }
-
-    sched->incremental.dirty_blocks = dirty;
-    sched->incremental.dirty_count = n;
-    sched->incremental.dirty_capacity = n; /* 外部数组容量即 n，后续按需扩容 */
 }

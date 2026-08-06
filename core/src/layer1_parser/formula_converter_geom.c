@@ -81,7 +81,7 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
 
     /* 获取新创建的节点 ID */
     *out_node_id = graph_get_node_count(graph) - 1;
-    GeomNode *new_node = graph_get_node_by_id(graph, *out_node_id);
+    GeomNode *new_node = graph_get_node(graph, *out_node_id);
     if (new_node) {
         *out_node_id = new_node->id;
     }
@@ -145,7 +145,7 @@ bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *g
 
     /* 获取新创建的节点 ID */
     *out_node_id = graph_get_node_count(graph) - 1;
-    GeomNode *new_node = graph_get_node_by_id(graph, *out_node_id);
+    GeomNode *new_node = graph_get_node(graph, *out_node_id);
     if (new_node) {
         *out_node_id = new_node->id;
     }
@@ -199,7 +199,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
         }
 
         center_id = graph_get_node_count(graph) - 1;
-        GeomNode *center_node = graph_get_node_by_id(graph, center_id);
+        GeomNode *center_node = graph_get_node(graph, center_id);
         if (center_node) {
             center_id = center_node->id;
         }
@@ -233,7 +233,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
     }
 
     int radius_point_id = graph_get_node_count(graph) - 1;
-    GeomNode *radius_node = graph_get_node_by_id(graph, radius_point_id);
+    GeomNode *radius_node = graph_get_node(graph, radius_point_id);
     if (radius_node) {
         radius_point_id = radius_node->id;
     }

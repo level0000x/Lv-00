@@ -54,21 +54,10 @@ static void solver_set_stream_context_local(StreamContext *ctx) {
 static void solver_free_multiple_branches(const EquationSystem *sys, SymbolicCoord **branches, int valid_count) {
     if (!branches || valid_count <= 0)
         return;
-    int per_branch = 0;
-    for (int i = 0; i < sys->eqs.count; i++) {
-        const PolyEquation *pe = (const PolyEquation *)lv_darray_get(&sys->eqs, i);
-        if (pe->poly.degree != 2)
-            continue;
-        double a = mpz_get_d(pe->poly.coeffs[2]) / lv_SOLVER_SCALE_FACTOR;
-        double b = mpz_get_d(pe->poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR;
-        double c = mpz_get_d(pe->poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
-        if (fabs(a) < lv_EPSILON_DOUBLE)
-            continue;
-        double discriminant = b * b - 4.0 * a * c;
-        if (discriminant <= 0)
-            continue;
-        per_branch++;
-    }
+    /* 每分支坐标数（判别式 > 0 的二次方程数）与 solver_multibranch.c 的分支
+     * 收集共用 solver_count_positive_disc_quadratics 判定（solver_types.h），
+     * 保证 scale 常量与判定语义单一来源，释放计数不会漂移。 */
+    int per_branch = solver_count_positive_disc_quadratics(sys, lv_SOLVER_SCALE_FACTOR);
     if (per_branch > 12)
         per_branch = 12;
     for (int i = 0; i < valid_count * per_branch; i++) {

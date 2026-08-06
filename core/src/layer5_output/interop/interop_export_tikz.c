@@ -323,8 +323,8 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
 
         TIKZ_FRAG_PRINTF("    %% Constraint id=%d type=%s\n", c->id, constraint_type_name(c->type));
 
-        GeomNode *p0 = graph_get_node_by_id(graph, c->participants[0]);
-        GeomNode *p1 = graph_get_node_by_id(graph, c->participants[1]);
+        GeomNode *p0 = graph_get_node(graph, c->participants[0]);
+        GeomNode *p1 = graph_get_node(graph, c->participants[1]);
         if (!p0 || !p1)
             continue;
         if (p0->coord_count < 2 || p1->coord_count < 2)

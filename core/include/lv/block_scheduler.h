@@ -3,6 +3,7 @@
 
 #include "lv/effect_system.h"
 #include "lv/func_block.h"
+#include "lv/lv_utils.h" /* lv_dirty_set */
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,9 +34,7 @@ typedef struct lvBlockScheduler {
 
     /* Incremental state */
     struct {
-        int *dirty_blocks;
-        int dirty_count;
-        int dirty_capacity; /**< dirty_blocks 数组容量（由 lv_ensure_capacity 管理） */
+        lv_dirty_set dirty_set; /**< 脏块集合（去重、插入序、clear 保留容量） */
     } incremental;
 
     /* Effect tracking */

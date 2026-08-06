@@ -23,6 +23,7 @@ extern "C" {
 
 #include <math.h>
 #include <stdbool.h>
+#include <gmp.h>
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
@@ -189,6 +190,27 @@ lv_PUBLIC_API double lv_evaluate_quadratic(double a, double b, double c, double 
  * @return 多项式在 x 处的值
  */
 lv_PUBLIC_API double lv_evaluate_cubic(double a, double b, double c, double d, double x);
+
+/* ============================================================
+ * double → mpq 转换
+ * ============================================================ */
+
+/**
+ * @brief 从 double 构造 mpq_t 有理数（初始化 + 赋值）
+ *
+ * 封装 mpq_init + mpq_set_d 样板，替代各处的「mpq_t q; mpq_init(q);
+ * mpq_set_d(q, v);」重复代码。注意：
+ * - q 在调用前必须是未初始化状态（与 mpq_init 语义一致），使用完毕后
+ *   由调用方 mpq_clear / mpq_clears 释放；
+ * - 不做 isfinite 防御（与现有调用点行为保持一致：lv_impl_native.c
+ *   无守卫，double_to_mpz_scaled 在调用前自行 isfinite 检查）；
+ * - 语义与裸 mpq_init + mpq_set_d 完全一致，mpq_set_d 保留 double 的
+ *   最佳精度二进制分数表示。
+ *
+ * @param q 输出 mpq_t（未初始化）
+ * @param v 输入 double 值
+ */
+lv_PUBLIC_API void lv_mpq_set_d_checked(mpq_t q, double v);
 
 #ifdef __cplusplus
 }

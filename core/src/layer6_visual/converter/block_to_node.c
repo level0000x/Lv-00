@@ -1,5 +1,6 @@
 #include <string.h>
 
+#include "lv/block_graph_view.h"
 #include "lv/func_block.h"
 #include "lv/lv_utils.h"
 #include "lv/representation_converter.h"
@@ -45,11 +46,6 @@ lvConvertResult lv_convert_block_to_node(void *block) {
     }
 
     /* block 指向 FuncBlock 数组结构 */
-    typedef struct {
-        FuncBlock **blocks;
-        int count;
-    } BlockGraphView;
-
     BlockGraphView *bg = (BlockGraphView *) block;
 
     /* 创建节点图 */
@@ -197,11 +193,6 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     NodeGraph *ng = (NodeGraph *) node;
 
     /* 创建 BlockGraphView 结构作为输出 */
-    typedef struct {
-        FuncBlock **blocks;
-        int count;
-    } BlockGraphView;
-
     BlockGraphView *bg = lv_calloc(1, sizeof(BlockGraphView));
     if (!bg) {
         result.success = 0;

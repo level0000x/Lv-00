@@ -45,14 +45,14 @@
 /**
  * @brief 回滚 graph_alloc_node 之后尚未完成的节点添加（分配失败路径）
  *
- * 与 graph_node_conflict.c 的 graph_rollback_point 同构：递减节点计数、
- * 从节点索引中移除、经 node_destroy 统一释放节点（含 vtable->free
- * 类型特定数据，如 region.boundary_segments / func_block 各数组）。
+ * 统一节点添加回滚辅助（graph_node_internal.h 声明，供 stub/conflict 共享）：
+ * 递减节点计数、从节点索引中移除、经 node_destroy 统一释放节点
+ * （含 vtable->free 类型特定数据，如 region.boundary_segments / func_block 各数组）。
  *
  * @param graph 约束图指针
  * @param node  待回滚的节点
  */
-static void graph_rollback_node(ConstraintGraph *graph, GeomNode *node) {
+void graph_rollback_node(ConstraintGraph *graph, GeomNode *node) {
     if (!graph || !node)
         return;
     graph->node_count--;
@@ -89,12 +89,7 @@ AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segme
     for (int i = 0; i < segment_count; i++) {
         node->data.region.boundary_segments[i] = graph_get_node(graph, boundary_segment_ids[i]);
     }
-    if (graph_stream_ctx) {
-        lvStrBuf sb_4 = {0};
-        lv_strbuf_printf(&sb_4, "添加区域节点: id=%d, segments=%d", node->id, segment_count);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_4.data, 0);
-        lv_strbuf_destroy(&sb_4);
-    }
+    graph_emit_node_added(graph, node, 0, false);
     return ADD_NODE_OK;
 }
 
@@ -121,12 +116,7 @@ AddNodeResult graph_add_circle(ConstraintGraph *graph, int center_node_id, int r
     /* 与反序列化创建的 circle 语义一致：设置圆心与半径端点节点 ID */
     node->data.circle.center_node_id = center_node_id;
     node->data.circle.radius_node_id = radius_node_id;
-    if (graph_stream_ctx) {
-        lvStrBuf sb_7 = {0};
-        lv_strbuf_printf(&sb_7, "添加圆节点: id=%d, center=%d, radius=%d", node->id, center_node_id, radius_node_id);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_7.data, 0);
-        lv_strbuf_destroy(&sb_7);
-    }
+    graph_emit_node_added(graph, node, 0, false);
     return ADD_NODE_OK;
 }
 
@@ -171,13 +161,7 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
         /* is_formal_param 默认为 false（calloc 零初始化），
          * 后续由调用方通过 update_port_namespace_depth 或打包函数设置 */
     }
-    if (graph_stream_ctx) {
-        lvStrBuf sb_5 = {0};
-        lv_strbuf_printf(&sb_5, "添加端口节点: id=%d, type=%d, depth=%d, parent=%d", node->id, (int) type,
-                 namespace_depth, parent_block_id);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_5.data, 0);
-        lv_strbuf_destroy(&sb_5);
-    }
+    graph_emit_node_added(graph, node, 0, false);
     return ADD_NODE_OK;
 }
 
@@ -234,13 +218,7 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
         node->data.func_block.output_count = output_count;
     }
     (void) internal_node_ids; /* 已在上方处理 */
-    if (graph_stream_ctx) {
-        lvStrBuf sb_6 = {0};
-        lv_strbuf_printf(&sb_6, "添加函数块节点: id=%d, internal=%d, in=%d, out=%d", node->id, internal_count,
-                 input_count, output_count);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_6.data, 0);
-        lv_strbuf_destroy(&sb_6);
-    }
+    graph_emit_node_added(graph, node, 0, false);
     return ADD_NODE_OK;
 }
 

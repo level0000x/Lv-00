@@ -1,6 +1,7 @@
 #include <math.h>
 #include <string.h>
 
+#include "lv/block_graph_view.h"
 #include "lv/func_block.h"
 #include "lv/geometry_types.h"
 #include "lv/lv_internal.h"
@@ -137,11 +138,6 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
         strncpy(result.error_msg, "NULL block", sizeof(result.error_msg));
         return result;
     }
-
-    typedef struct {
-        FuncBlock **blocks;
-        int count;
-    } BlockGraphView;
 
     BlockGraphView *bg = (BlockGraphView *) block;
 
@@ -327,12 +323,6 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
     }
 
     GeometryEncoding *enc = (GeometryEncoding *) entity;
-
-    typedef struct {
-        FuncBlock **blocks;
-        int count;
-        int cap;
-    } SimpleBlockGraph;
 
     SimpleBlockGraph *sg = lv_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {

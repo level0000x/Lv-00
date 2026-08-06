@@ -9,6 +9,8 @@
 
 #include "solver_common.h"
 #include "lv/coeff_pool.h" /* 共享的多项式系数内存池（实现与池拥有权见 lv/coeff_pool.h） */
+#include "lv/lv_parse_utils.h"
+#include "lv/lv_numeric.h"
 
 /* ── 多项式系数内存池 ──
  * 使用 lv/coeff_pool.h 提供的共享池：g_coeff_pool 拥有权在
@@ -57,10 +59,11 @@ static bool coord_to_double_via_serialize(const SymbolicCoord *c, double *out) {
     char *str = symbolic_coord_serialize(c);
     if (!str)
         return false;
-    char *endptr = NULL;
-    *out = strtod(str, &endptr);
+    bool ok = (lv_parse_double(str, out) == 0);
+    if (!ok)
+        *out = 0.0;
     lv_free((void **) &str);
-    return (endptr != str);
+    return ok;
 }
 
 /* ── CoordToDouble VTable ── */
@@ -294,8 +297,7 @@ void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
 
     /* 使用 GMP 的 mpq_set_d 获取最佳精度 */
     mpq_t q;
-    mpq_init(q);
-    mpq_set_d(q, val);
+    lv_mpq_set_d_checked(q, val);
 
     /* result = q * scale = (num * scale) / den */
     mpz_t scaled_num;
@@ -1176,7 +1178,8 @@ static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys,
             continue;
         const char *decl = n->numeric_assumption_declaration;
         if (strncmp(decl, prefix, prefix_len) == 0) {
-            dist_val = strtod(decl + prefix_len, NULL);
+            if (lv_parse_double(decl + prefix_len, &dist_val) != 0)
+                dist_val = 0.0;
             dist_node = n;
             break;
         }
@@ -1296,13 +1299,13 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
         const char *prefix = "distance=";
         size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免重复计算 */
         if (strncmp(decl, prefix, prefix_len) == 0) {
-            dist_sq = strtod(decl + prefix_len, NULL);
+            if (lv_parse_double(decl + prefix_len, &dist_sq) != 0)
+                dist_sq = 0.0;
             dist_sq = dist_sq * dist_sq; /* 存储平方值 */
         } else {
             /* 尝试解析为纯数字（视为距离的平方） */
-            char *end = NULL;
-            double val = strtod(decl, &end);
-            if (end != decl && val >= 0) {
+            double val;
+            if (lv_parse_double(decl, &val) == 0 && val >= 0) {
                 dist_sq = val;
             }
         }

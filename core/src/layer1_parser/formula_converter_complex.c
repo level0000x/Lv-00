@@ -80,7 +80,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
             symbolic_coord_destroy(coords[1]);
             if (r == ADD_NODE_OK) {
                 v_id = graph_get_node_count(graph) - 1;
-                GeomNode *n = graph_get_node_by_id(graph, v_id);
+                GeomNode *n = graph_get_node(graph, v_id);
                 if (n)
                     v_id = n->id;
             }
@@ -105,7 +105,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         AddNodeResult r = graph_add_line_segment(graph, vertex_ids[i], vertex_ids[next_i]);
         if (r == ADD_NODE_OK) {
             int seg_id = graph_get_node_count(graph) - 1;
-            GeomNode *n = graph_get_node_by_id(graph, seg_id);
+            GeomNode *n = graph_get_node(graph, seg_id);
             if (n)
                 seg_id = n->id;
             segment_ids[seg_count++] = seg_id;
@@ -120,7 +120,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         AddNodeResult r = graph_add_region(graph, segment_ids, seg_count);
         if (r == ADD_NODE_OK) {
             int region_id = graph_get_node_count(graph) - 1;
-            GeomNode *n = graph_get_node_by_id(graph, region_id);
+            GeomNode *n = graph_get_node(graph, region_id);
             if (n)
                 region_id = n->id;
             if (*out_count < FORMULA_VAR_MAP_SIZE) {
@@ -194,7 +194,7 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
 
     if (r == ADD_NODE_OK) {
         *out_node_id = graph_get_node_count(graph) - 1;
-        GeomNode *n = graph_get_node_by_id(graph, *out_node_id);
+        GeomNode *n = graph_get_node(graph, *out_node_id);
         if (n) {
             *out_node_id = n->id;
         }
@@ -250,7 +250,7 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
         symbolic_coord_destroy(coords[1]);
         if (r == ADD_NODE_OK) {
             center_id = graph_get_node_count(graph) - 1;
-            GeomNode *n = graph_get_node_by_id(graph, center_id);
+            GeomNode *n = graph_get_node(graph, center_id);
             if (n)
                 center_id = n->id;
         }
@@ -312,7 +312,7 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
 
     if (r == ADD_NODE_OK) {
         int rp_id = graph_get_node_count(graph) - 1;
-        GeomNode *n = graph_get_node_by_id(graph, rp_id);
+        GeomNode *n = graph_get_node(graph, rp_id);
         if (n)
             rp_id = n->id;
         out_node_ids[(*out_count)++] = rp_id;
@@ -321,7 +321,7 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
         r = graph_add_line_segment(graph, center_id, rp_id);
         if (r == ADD_NODE_OK) {
             int seg_id = graph_get_node_count(graph) - 1;
-            n = graph_get_node_by_id(graph, seg_id);
+            n = graph_get_node(graph, seg_id);
             if (n)
                 seg_id = n->id;
             out_node_ids[(*out_count)++] = seg_id;

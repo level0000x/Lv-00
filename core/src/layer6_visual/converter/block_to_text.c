@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/block_graph_view.h"
 #include "lv/func_block.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
@@ -25,11 +26,6 @@ lvConvertResult lv_convert_block_to_text(void *graph) {
 
     /* graph 指向 FuncBlock 数组（通过 block_graph 传递） */
     /* 假设 graph 是一个包含 FuncBlock** 指针和数量的结构体 */
-    typedef struct {
-        FuncBlock **blocks;
-        int count;
-    } BlockGraphView;
-
     BlockGraphView *bg = (BlockGraphView *) graph;
     lvStrBuf buf = {0};
 
@@ -92,12 +88,6 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
 
     /* 逐行扫描 "block <name> {" 模式 */
     /* 为每个块创建 FuncBlock，收集输入/输出端口 */
-    typedef struct {
-        FuncBlock **blocks;
-        int count;
-        int cap;
-    } SimpleBlockGraph;
-
     SimpleBlockGraph *sg = lv_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
         result.success = 0;

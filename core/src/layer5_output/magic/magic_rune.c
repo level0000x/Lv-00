@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "lv/lv_json.h"
+#include "lv/lv_parse_utils.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
@@ -337,9 +338,8 @@ Rune *rune_parse(const char *str) {
     /* 检查是否为代数数格式 */
     if (strncmp(str, "algebraic:", 10) == 0) {
         const char *value_start = str + 10;
-        char *end = NULL;
-        double value = strtod(value_start, &end);
-        if (end != value_start && value_start != colon) {
+        double value = 0.0;
+        if (lv_parse_double(value_start, &value) == 0 && value_start != colon) {
             return rune_create_algebraic(value, element);
         }
         lv_LOG_WARNING("rune_parse: 无法解析代数数值 '%s'", value_start);

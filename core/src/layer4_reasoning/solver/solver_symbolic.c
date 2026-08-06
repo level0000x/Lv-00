@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include "lv/symbolic_coord.h"
 #include "solver_common.h"
+#include "lv/lv_parse_utils.h"
 
 /**
  * @brief 在符号坐标上求值多项式
@@ -353,11 +354,10 @@ bool check_incompatible_distances(const ConstraintGraph *graph) {
         const char *prefix = "distance=";
         size_t prefix_len = strlen(prefix);
         if (strncmp(di, prefix, prefix_len) == 0) {
-            dist_i = strtod(di + prefix_len, NULL);
+            if (lv_parse_double(di + prefix_len, &dist_i) != 0)
+                dist_i = 0.0;
         } else {
-            char *end = NULL;
-            dist_i = strtod(di, &end);
-            if (end == di)
+            if (lv_parse_double(di, &dist_i) != 0)
                 dist_i = -1.0;
         }
         if (dist_i < 0)
@@ -385,11 +385,10 @@ bool check_incompatible_distances(const ConstraintGraph *graph) {
             const char *dj = nj->numeric_assumption_declaration;
             double dist_j = -1.0;
             if (strncmp(dj, prefix, prefix_len) == 0) {
-                dist_j = strtod(dj + prefix_len, NULL);
+                if (lv_parse_double(dj + prefix_len, &dist_j) != 0)
+                    dist_j = 0.0;
             } else {
-                char *end = NULL;
-                dist_j = strtod(dj, &end);
-                if (end == dj)
+                if (lv_parse_double(dj, &dist_j) != 0)
                     dist_j = -1.0;
             }
             if (dist_j < 0)

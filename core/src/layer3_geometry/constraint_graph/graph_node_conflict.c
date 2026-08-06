@@ -239,25 +239,6 @@ bool check_incremental_conflict(const ConstraintGraph *graph, const Constraint *
 }
 
 /**
- * @brief 回滚 graph_alloc_node 之后尚未完成的点节点添加
- *
- * 递减节点计数、从节点索引表中移除并释放节点自身。
- * 注意：调用前需自行清理 node->symbolic_coords 的内容
- * （清理后该字段为 NULL，node_destroy 内部跳过坐标销毁，行为等价于
- * 原先仅释放节点外壳的 lv_free，并保持所有节点释放统一走 node_destroy 路径）。
- *
- * @param graph 约束图指针
- * @param node  待回滚的节点
- */
-static void graph_rollback_point(ConstraintGraph *graph, GeomNode *node) {
-    if (!graph || !node)
-        return;
-    graph->node_count--;
-    node_index_remove(graph, node->id);
-    node_destroy(node);
-}
-
-/**
  * 在约束图中添加点节点。
  *
  * @param graph       约束图指针
@@ -273,7 +254,7 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coor
         return ADD_NODE_CONFLICT;
     node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
     if (!node->symbolic_coords) {
-        graph_rollback_point(graph, node);
+        graph_rollback_node(graph, node);
         return ADD_NODE_CONFLICT;
     }
     /* 深拷贝坐标，使节点拥有这些坐标 */
@@ -287,17 +268,12 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coor
             lv_free((void **) &node->symbolic_coords);
             node->symbolic_coords = NULL;
             node->coord_count = 0;
-            graph_rollback_point(graph, node);
+            graph_rollback_node(graph, node);
             return ADD_NODE_CONFLICT;
         }
     }
     node->coord_count = coord_count;
-    if (graph_stream_ctx) {
-        lvStrBuf sb_3 = {0};
-        lv_strbuf_printf(&sb_3, "添加点节点: id=%d", node->id);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_NODE_ADDED, sb_3.data, 0);
-        lv_strbuf_destroy(&sb_3);
-    }
+    graph_emit_node_added(graph, node, 0, false);
     return ADD_NODE_OK;
 }
 
@@ -331,9 +307,9 @@ AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int endpoint1_id, i
     node->symbolic_coords = lv_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
     if (!node->symbolic_coords) {
         /* 统一回滚路径：节点尚未挂接坐标（symbolic_coords 为 NULL、coord_count 为 0），
-         * 与 graph_add_point 的回滚场景一致，graph_rollback_point 内部经 node_destroy
+         * 与 graph_add_point 的回滚场景一致，graph_rollback_node 内部经 node_destroy
          * 走统一节点释放路径（内部跳过 NULL 坐标销毁，等价于原仅释放外壳的 lv_free） */
-        graph_rollback_point(graph, node);
+        graph_rollback_node(graph, node);
         return ADD_NODE_CONFLICT;
     }
 

@@ -1,4 +1,5 @@
 #include "lv/lv_parser.h"
+#include "lv/lv_parse_utils.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -1120,10 +1121,8 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
 
     if (p->current.type == LV_TOKEN_DECIMAL) {
         const char *txt = token_text(&p->current);
-        char *end = NULL;
-        errno = 0;
-        double val = strtod(txt, &end);
-        if (errno != 0 || end == txt) {
+        double val;
+        if (lv_parse_double(txt, &val) != 0) {
             val = 0.0;
         }
         advance(p);

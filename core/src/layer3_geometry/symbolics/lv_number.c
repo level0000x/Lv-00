@@ -11,6 +11,7 @@
 
 #include "lv/lv_number.h"
 #include "lv/rational.h"
+#include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
 
@@ -479,10 +480,10 @@ lvNumber *lv_number_from_string(const char *str) {
         return lv_number_alloc(&g_rational_ops, r);
     }
 
-    /* 尝试解析为双精度浮点数 */
-    char *end = NULL;
-    double d = strtod(str, &end);
-    if (end != str && *end == '\0') {
+    /* 尝试解析为双精度浮点数（严格整串消费，与 lv_rational_from_string 失败
+     * 后尾随残留字符即拒绝的语义一致；errno 检查使溢出/下溢字符串被拒绝） */
+    double d = 0.0;
+    if (lv_parse_double_strict(str, &d) == 0) {
         FloatImpl *f = (FloatImpl *) lv_malloc(sizeof(FloatImpl));
         lv_CHECK_ALLOC(f, NULL);
         f->value = d;

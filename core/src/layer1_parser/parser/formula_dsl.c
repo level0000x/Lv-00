@@ -17,6 +17,7 @@
 
 #include "lv/formula_parser.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_parse_utils.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -118,8 +119,10 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
     memcpy(num_str, ctx->input + start, len);
     num_str[len] = '\0';
 
-    /* 转换为数值 */
-    double value = strtod(num_str, NULL);
+    /* 转换为数值（失败回退 0.0，与 strtod 无转换时返回 0.0 一致） */
+    double value = 0.0;
+    if (lv_parse_double(num_str, &value) != 0)
+        value = 0.0;
     lv_free((void **) &num_str);
 
     /* 创建节点 */

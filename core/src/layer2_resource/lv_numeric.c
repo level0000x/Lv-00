@@ -184,3 +184,17 @@ double lv_evaluate_quadratic(double a, double b, double c, double x) {
 double lv_evaluate_cubic(double a, double b, double c, double d, double x) {
     return ((a * x + b) * x + c) * x + d;
 }
+
+/* ============================================================
+ * double → mpq 转换
+ * ============================================================ */
+
+/**
+ * @brief 从 double 构造 mpq_t 有理数（初始化 + 赋值）
+ *
+ * 等价于 mpq_init(q) + mpq_set_d(q, v)，见 lv_numeric.h 的语义说明。
+ */
+void lv_mpq_set_d_checked(mpq_t q, double v) {
+    mpq_init(q);
+    mpq_set_d(q, v);
+}

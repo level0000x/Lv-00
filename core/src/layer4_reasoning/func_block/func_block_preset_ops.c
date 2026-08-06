@@ -341,6 +341,117 @@ bool preset_chain_execute(PresetChain *chain, ConstraintGraph *graph, const int 
  * 预设批量操作实现
  * ================================================================ */
 
+/* ================================================================
+ * 预设批量操作共享骨架
+ *
+ * preset_batch_instantiate / preset_batch_apply 的逐项处理同构：
+ * 查找预设 → 组装参数 → func_block_instantiate → 保存输出，
+ * 任一失败即回滚前 i 项已分配的结果。此处收敛为 batch_execute 骨架
+ * + per-iter 回调，原三处重复的失败清理块统一为 preset_batch_cleanup。
+ * ================================================================ */
+
+/** 批量操作逐项上下文：instantiate 模式用 arg_sets，apply 模式用 target_nodes */
+typedef struct {
+    const char *preset_name; /**< 预设名称 */
+    ConstraintGraph *graph;  /**< 约束图 */
+    const int **arg_sets;    /**< instantiate：参数集合数组（NULL 表示 apply 模式） */
+    int args_per_set;        /**< instantiate：每集参数数量 */
+    const int *target_nodes; /**< apply：目标节点数组 */
+    int input_count;         /**< apply：预设输入端口数 */
+} PresetBatchContext;
+
+/** 释放 results[0..done_count) 及 results 数组本身 */
+static void preset_batch_cleanup(int **results, int done_count) {
+    if (!results)
+        return;
+    for (int j = 0; j < done_count; j++) {
+        lv_free((void **) &results[j]);
+    }
+    lv_free((void **) &results);
+}
+
+/**
+ * @brief 批量执行骨架：分配 results → 逐项执行 iter_fn → 失败回滚前 i 项
+ */
+static bool preset_batch_execute(int item_count, bool (*iter_fn)(void *ctx, int index, int **results), void *ctx,
+                                 int ***out_results) {
+    if (item_count <= 0 || !iter_fn || !ctx || !out_results)
+        return false;
+
+    int **results = lv_malloc((size_t) item_count * sizeof(int *));
+    if (!results)
+        return false;
+
+    for (int i = 0; i < item_count; i++) {
+        results[i] = NULL;
+        if (!iter_fn(ctx, i, results)) {
+            preset_batch_cleanup(results, i);
+            return false;
+        }
+    }
+
+    *out_results = results;
+    return true;
+}
+
+/** 逐项执行：查找预设 → 组装参数 → 实例化 → 保存输出（失败返回 false 由骨架回滚） */
+static bool preset_batch_iter(void *ctx_v, int index, int **results) {
+    PresetBatchContext *ctx = (PresetBatchContext *) ctx_v;
+
+    FuncBlock *fb = func_block_registry_lookup(ctx->preset_name);
+    if (!fb)
+        return false;
+
+    const bool is_instantiate = (ctx->arg_sets != NULL);
+    const int arg_count = is_instantiate ? ctx->args_per_set : ctx->input_count;
+
+    int *args = lv_malloc((size_t) arg_count * sizeof(int));
+    if (!args) {
+        func_block_destroy(fb);
+        return false;
+    }
+
+    if (is_instantiate) {
+        /* 复制参数（因为实例化可能修改参数数组） */
+        memcpy(args, ctx->arg_sets[index], (size_t) arg_count * sizeof(int));
+    } else {
+        for (int j = 0; j < arg_count; j++) {
+            args[j] = ctx->target_nodes[index * arg_count + j];
+        }
+    }
+
+    int *outputs = NULL;
+    int output_count = 0;
+
+    InstantiateResult result = func_block_instantiate(fb, ctx->graph, args, arg_count, &outputs, &output_count);
+
+    func_block_destroy(fb);
+    lv_free((void **) &args);
+
+    if (result != INSTANTIATE_OK) {
+        /* 【修复】错误路径：释放可能已被 func_block_instantiate 分配的 outputs，防止内存泄漏 */
+        lv_free((void **) &outputs);
+        return false;
+    }
+
+    /* 保存输出：instantiate 只保存第一个输出节点ID，apply 保存全部 */
+    if (output_count > 0) {
+        if (is_instantiate) {
+            results[index] = lv_malloc(sizeof(int));
+            if (results[index]) {
+                results[index][0] = outputs[0];
+            }
+        } else {
+            results[index] = lv_malloc((size_t) output_count * sizeof(int));
+            if (results[index]) {
+                memcpy(results[index], outputs, (size_t) output_count * sizeof(int));
+            }
+        }
+    }
+    lv_free((void **) &outputs);
+    return true;
+}
+
 bool preset_batch_instantiate(const char *preset_name, ConstraintGraph *graph, const int **arg_sets, int set_count,
                               int args_per_set, int ***out_results) {
     if (!preset_name || !graph || !arg_sets || !out_results || set_count <= 0) {
@@ -364,70 +475,13 @@ bool preset_batch_instantiate(const char *preset_name, ConstraintGraph *graph, c
 
     func_block_destroy(template_fb);
 
-    /* 分配结果数组 */
-    int **results = lv_malloc((size_t) set_count * sizeof(int *));
-    if (!results)
-        return false;
-
-    /* 批量实例化 */
-    for (int i = 0; i < set_count; i++) {
-        results[i] = NULL;
-
-        FuncBlock *fb = func_block_registry_lookup(preset_name);
-        if (!fb) {
-            /* 清理已分配的结果 */
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &results[j]);
-            }
-            lv_free((void **) &results);
-            return false;
-        }
-
-        int *outputs = NULL;
-        int output_count = 0;
-
-        /* 复制参数（因为实例化可能修改参数数组） */
-        int *args_copy = lv_malloc((size_t) args_per_set * sizeof(int));
-        if (!args_copy) {
-            func_block_destroy(fb);
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &results[j]);
-            }
-            lv_free((void **) &results);
-            return false;
-        }
-        memcpy(args_copy, arg_sets[i], (size_t) args_per_set * sizeof(int));
-
-        InstantiateResult result = func_block_instantiate(fb, graph, args_copy, args_per_set, &outputs, &output_count);
-
-        func_block_destroy(fb);
-        lv_free((void **) &args_copy);
-
-        if (result != INSTANTIATE_OK) {
-            /* 【修复】错误路径：释放可能已被 func_block_instantiate 分配的 outputs，防止内存泄漏 */
-            lv_free((void **) &outputs);
-            /* 清理已分配的结果 */
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &results[j]);
-            }
-            lv_free((void **) &results);
-            return false;
-        }
-
-        /* 简化：只保存第一个输出节点ID */
-        if (output_count > 0) {
-            results[i] = lv_malloc(sizeof(int));
-            if (results[i]) {
-                results[i][0] = outputs[0];
-            }
-            lv_free((void **) &outputs);
-        } else {
-            results[i] = NULL;
-        }
-    }
-
-    *out_results = results;
-    return true;
+    PresetBatchContext ctx = {.preset_name = preset_name,
+                              .graph = graph,
+                              .arg_sets = arg_sets,
+                              .args_per_set = args_per_set,
+                              .target_nodes = NULL,
+                              .input_count = 0};
+    return preset_batch_execute(set_count, preset_batch_iter, &ctx, out_results);
 }
 
 bool preset_batch_apply(const char *preset_name, ConstraintGraph *graph, const int *target_nodes, int node_count,
@@ -456,69 +510,13 @@ bool preset_batch_apply(const char *preset_name, ConstraintGraph *graph, const i
         return false;
     }
 
-    /* 分配结果数组 */
-    int **results = lv_malloc((size_t) apply_count * sizeof(int *));
-    if (!results)
-        return false;
-
-    /* 批量应用 */
-    for (int i = 0; i < apply_count; i++) {
-        results[i] = NULL;
-
-        FuncBlock *fb = func_block_registry_lookup(preset_name);
-        if (!fb) {
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &results[j]);
-            }
-            lv_free((void **) &results);
-            return false;
-        }
-
-        /* 准备参数 */
-        int *args = lv_malloc((size_t) input_count * sizeof(int));
-        if (!args) {
-            func_block_destroy(fb);
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &results[j]);
-            }
-            lv_free((void **) &results);
-            return false;
-        }
-
-        for (int j = 0; j < input_count; j++) {
-            args[j] = target_nodes[i * input_count + j];
-        }
-
-        int *outputs = NULL;
-        int output_count = 0;
-
-        InstantiateResult result = func_block_instantiate(fb, graph, args, input_count, &outputs, &output_count);
-
-        func_block_destroy(fb);
-        lv_free((void **) &args);
-
-        if (result != INSTANTIATE_OK) {
-            /* 【修复】错误路径：释放可能已被 func_block_instantiate 分配的 outputs，防止内存泄漏 */
-            lv_free((void **) &outputs);
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &results[j]);
-            }
-            lv_free((void **) &results);
-            return false;
-        }
-
-        /* 保存输出 */
-        if (output_count > 0) {
-            results[i] = lv_malloc((size_t) output_count * sizeof(int));
-            if (results[i]) {
-                memcpy(results[i], outputs, (size_t) output_count * sizeof(int));
-            }
-        }
-        lv_free((void **) &outputs);
-    }
-
-    *out_results = results;
-    return true;
+    PresetBatchContext ctx = {.preset_name = preset_name,
+                              .graph = graph,
+                              .arg_sets = NULL,
+                              .args_per_set = 0,
+                              .target_nodes = target_nodes,
+                              .input_count = input_count};
+    return preset_batch_execute(apply_count, preset_batch_iter, &ctx, out_results);
 }
 
 /* ================================================================
