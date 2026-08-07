@@ -82,6 +82,13 @@ PRESET_TYPE_MAP = {
     "0": "ANY",
 }
 
+# helper 布局自定义宏（展开为 lv_preset_register_helper，参数顺序：name, desc, inputs数组, in_count,
+# output, math, comp, cons, rev —— 与 LV_PRESET_REGISTER 的 success_counter 布局不同）
+HELPER_LAYOUT_MACROS = {
+    'REGISTER_LATTICE',
+    'REGISTER_LOGIC',
+}
+
 # ============================================================
 # PresetCategory mapping (from func_block_registry.h)
 # ============================================================
@@ -156,8 +163,11 @@ def find_register_calls(content, name_map):
     # Pattern 1: LV_PRESET_REGISTER or custom REGISTER_XXX macros
     # Match: MACRO_NAME(success_var, NAME_OR_STRING, "desc", N, TYPE, "math", "complexity", bool, bool, ...)
     lines = content.split('\n')
-    # First, join continuation lines (lines ending with backslash or with open parens)
-    joined = content.replace('\\\n', ' ')
+    # 预处理：剥离 C 注释（保护字符串字面量）→ 移除 #define 宏定义块（防占位符误解析）
+    # → 连接反斜杠续行
+    joined = strip_c_comments(content)
+    joined = remove_define_blocks(joined)
+    joined = joined.replace('\\\n', ' ')
 
     # Find all macro calls that look like register patterns
     # We need to handle multi-line calls carefully
@@ -175,7 +185,7 @@ def find_register_calls(content, name_map):
         for pattern_prefix in ['LV_PRESET_REGISTER(', 'REGISTER_', 'lv_preset_register_helper(']:
             idx = joined.find(pattern_prefix, i)
             if idx >= 0:
-                # Found a potential call, extract balanced parens
+                # Found a potential call, extract balanced parens (respecting quotes)
                 start = joined.rfind('\n', 0, idx) + 1
                 if start < 0:
                     start = 0
@@ -184,29 +194,53 @@ def find_register_calls(content, name_map):
                 if paren_start >= 0:
                     depth = 1
                     pos = paren_start + 1
+                    in_quote = False
+                    quote_char = None
                     while pos < len(joined) and depth > 0:
-                        if joined[pos] == '(':
+                        ch = joined[pos]
+                        if in_quote:
+                            if ch == quote_char:
+                                in_quote = False
+                        elif ch in ('"', "'"):
+                            in_quote = True
+                            quote_char = ch
+                        elif ch == '(':
                             depth += 1
-                        elif joined[pos] == ')':
+                        elif ch == ')':
                             depth -= 1
                         pos += 1
                     if depth == 0:
                         call_text = joined[paren_start:pos]
-                        calls.append((pattern_prefix, call_text))
+                        # 提取实际宏名（如 REGISTER_LATTICE），用于布局分发
+                        macro_name = None
+                        if pattern_prefix == 'REGISTER_':
+                            m = re.match(r'(\w+)\s*\(', joined[idx:])
+                            if m:
+                                macro_name = m.group(1)
+                        calls.append((pattern_prefix, call_text, idx, macro_name))
                         i = pos
                         break
         else:
             i += 1
 
-    for prefix, call_text in calls:
+    for prefix, call_text, idx, macro_name in calls:
         try:
             # Parse the call based on prefix
             if prefix == 'lv_preset_register_helper(':
-                preset = parse_helper_call(call_text, name_map)
+                preset = parse_helper_call(call_text, name_map, joined, idx)
                 if preset:
                     presets.append(preset)
-            elif prefix == 'LV_PRESET_REGISTER(' or prefix.startswith('REGISTER_'):
+            elif prefix == 'LV_PRESET_REGISTER(':
                 preset = parse_register_macro(call_text, name_map)
+                if preset:
+                    presets.append(preset)
+            elif prefix.startswith('REGISTER_'):
+                # helper 布局宏（展开为 lv_preset_register_helper）：REGISTER_LATTICE / REGISTER_LOGIC
+                if macro_name in HELPER_LAYOUT_MACROS:
+                    preset = parse_helper_call(call_text, name_map, joined, idx)
+                else:
+                    # LV 布局（含 success_counter 或 REGISTER_RT 风格）：走标准宏解析
+                    preset = parse_register_macro(call_text, name_map)
                 if preset:
                     presets.append(preset)
         except Exception as e:
@@ -246,7 +280,7 @@ def find_register_calls(content, name_map):
                 if prefix.startswith('preset_blocks_register_by_category'):
                     preset = parse_register_by_category(call_text)
                 else:
-                    preset = parse_register_simple(call_text, name_map)
+                    preset = parse_register_simple(call_text, name_map, joined, idx)
                 if preset:
                     presets.append(preset)
                 i = pos
@@ -264,7 +298,7 @@ def parse_register_macro(call_text, name_map):
         inner = inner[1:-1]
 
     # Split by top-level commas (not inside parens or quotes)
-    args = split_by_comma(inner)
+    args = merge_arg_strings(split_by_comma(inner))
     if len(args) < 9:
         return None
 
@@ -315,20 +349,26 @@ def parse_register_macro(call_text, name_map):
     }
 
 
-def parse_helper_call(call_text, name_map):
-    """Parse lv_preset_register_helper call."""
+def parse_helper_call(call_text, name_map, joined=None, idx=0):
+    """Parse lv_preset_register_helper call.
+
+    Args 布局: name, "desc", types_array, input_count, OUTPUT_TYPE, "math_def", "complexity", cons, rev
+    types_array 为 `PresetType inputs[] = { ... }` 声明中的数组名（或内联初始化列表），
+    通过 parse_input_array_arg 解析为类型名列表。
+    """
     inner = call_text.strip()
     if inner.startswith('(') and inner.endswith(')'):
         inner = inner[1:-1]
 
-    args = split_by_comma(inner)
+    args = merge_arg_strings(split_by_comma(inner))
     if len(args) < 8:
         return None
 
     # Args: name, "desc", types_array, input_count, OUTPUT_TYPE, "math_def", "complexity", cons, rev
     name_raw = args[0].strip()
     desc = unquote(args[1].strip())
-    # args[2] is types_array - skip
+    # args[2] 是类型数组（内联 {..} 或向前查找 `PresetType <name>[] = {..}` 声明）
+    input_types = parse_input_array_arg(args[2], joined, idx)
     input_count_str = args[3].strip()
     output_type_raw = args[4].strip()
     math_def = unquote(args[5].strip())
@@ -350,7 +390,7 @@ def parse_helper_call(call_text, name_map):
     return {
         'name': name,
         'description': desc,
-        'input_types': [],
+        'input_types': input_types,
         'input_count': input_count,
         'output_type': output_type,
         'math_def': math_def,
@@ -366,7 +406,7 @@ def parse_register_by_category(inner):
     if inner.startswith('(') and inner.endswith(')'):
         inner = inner[1:-1]
 
-    args = split_by_comma(inner)
+    args = merge_arg_strings(split_by_comma(inner))
     if len(args) < 5:
         return None
 
@@ -394,20 +434,21 @@ def parse_register_by_category(inner):
     }
 
 
-def parse_register_simple(inner, name_map):
+def parse_register_simple(inner, name_map, joined=None, idx=0):
     """Parse direct preset_blocks_register_simple call."""
     inner = inner.strip()
     if inner.startswith('(') and inner.endswith(')'):
         inner = inner[1:-1]
 
-    args = split_by_comma(inner)
+    args = merge_arg_strings(split_by_comma(inner))
     if len(args) < 10:
         return None
 
     name_raw = args[0].strip()
     desc = unquote(args[1].strip())
     # args[2] is category_enum - skip
-    # args[3] is input_types array - skip
+    # args[3] 是 input_types 数组（内联 {..} 或向前查找声明）
+    input_types = parse_input_array_arg(args[3], joined, idx)
     input_count = int(args[4].strip())
     output_type_raw = args[5].strip()
     math_def = unquote(args[6].strip())
@@ -423,7 +464,7 @@ def parse_register_simple(inner, name_map):
     return {
         'name': name,
         'description': desc,
-        'input_types': [],
+        'input_types': input_types,
         'input_count': input_count,
         'output_type': output_type,
         'math_def': math_def,
@@ -447,6 +488,144 @@ def unquote(s):
     if s.startswith('"') and s.endswith('"'):
         return s[1:-1]
     return s
+
+
+# ============ C 源码预处理辅助 ============
+
+def strip_c_comments(text):
+    """剥离 C 注释（/* */ 与 //），保护字符串字面量内的文本。"""
+    out = []
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == '"':
+            out.append(ch)
+            i += 1
+            while i < n:
+                c = text[i]
+                out.append(c)
+                i += 1
+                if c == '\\' and i < n:
+                    out.append(text[i])
+                    i += 1
+                elif c == '"':
+                    break
+        elif ch == '/' and i + 1 < n and text[i + 1] == '*':
+            i += 2
+            while i + 1 < n and not (text[i] == '*' and text[i + 1] == '/'):
+                i += 1
+            i += 2
+            out.append(' ')
+        elif ch == '/' and i + 1 < n and text[i + 1] == '/':
+            i += 2
+            while i < n and text[i] != '\n':
+                i += 1
+            out.append(' ')
+        else:
+            out.append(ch)
+            i += 1
+    return ''.join(out)
+
+
+def remove_define_blocks(text):
+    """移除 #define 宏定义块（含 \\ 续行），避免宏占位符被当作真实调用。"""
+    lines = text.split('\n')
+    out = []
+    in_block = False
+    for ln in lines:
+        if in_block:
+            if ln.rstrip().endswith('\\'):
+                continue
+            in_block = False
+            out.append(ln)
+        else:
+            if ln.strip().startswith('#define'):
+                if not ln.rstrip().endswith('\\'):
+                    pass
+                else:
+                    in_block = True
+            else:
+                out.append(ln)
+    return '\n'.join(out)
+
+
+def merge_c_strings(s):
+    """合并 C 相邻字符串字面量（"a" "b" -> "ab"）。"""
+    s = s.strip()
+    if not s or s[0] != '"':
+        return s
+    parts = []
+    i = 0
+    n = len(s)
+    while i < n:
+        while i < n and s[i] in ' \t\r\n':
+            i += 1
+        if i >= n:
+            break
+        if s[i] != '"':
+            return s
+        j = i + 1
+        while j < n and s[j] != '"':
+            if s[j] == '\\' and j + 1 < n:
+                j += 2
+            else:
+                j += 1
+        if j >= n:
+            return s
+        parts.append(s[i + 1:j])
+        i = j + 1
+    if len(parts) < 2:
+        return s
+    return '"' + ''.join(parts) + '"'
+
+
+def merge_arg_strings(args):
+    return [merge_c_strings(a) for a in args]
+
+
+def is_number_str(s):
+    try:
+        int(s.strip())
+        return True
+    except ValueError:
+        return False
+
+
+def find_type_array(joined, idx, var_name):
+    """在 joined[0:idx] 向前找最近的 `PresetType <name>[] = {...}` 声明。"""
+    if not var_name:
+        return None
+    region = joined[:idx]
+    pattern = re.compile(r'\bPresetType\s+' + re.escape(var_name) +
+                         r'\s*\[\s*\d*\s*\]\s*=\s*\{(.*?)\}', re.S)
+    matches = list(pattern.finditer(region))
+    if not matches:
+        return None
+    return matches[-1].group(1)
+
+
+def extract_type_names_from_array(array_text):
+    """从 {PRESET_TYPE_X, ...} 文本提取类型名列表（映射为字符串，支持 0=ANY）。"""
+    tokens = re.findall(r'\bPRESET_TYPE_\w+|\b0\b', array_text or '')
+    return [PRESET_TYPE_MAP.get(t, 'ANY') for t in tokens]
+
+
+def parse_input_array_arg(raw_arg, joined, idx):
+    """解析 helper 的类型数组参数：内联 {..} 或向前查 `PresetType name[] = {..}`。"""
+    arg = raw_arg.strip()
+    if '{' in arg:
+        m = re.search(r'\{(.*)\}', arg, re.S)
+        if m:
+            return extract_type_names_from_array(m.group(1))
+        return []
+    var_name = arg.strip('() \t\r\n')
+    if not re.fullmatch(r'[A-Za-z_]\w*', var_name or ''):
+        return []
+    array_text = find_type_array(joined, idx, var_name)
+    if array_text is None:
+        return []
+    return extract_type_names_from_array(array_text)
 
 
 def split_by_comma(text):
@@ -509,7 +688,13 @@ def generate_lvz_content(module_name, category, presets):
         lines.append(f'        description "{desc}"')
         lines.append(f'        category "{category}"')
         if p['input_count'] > 0:
-            types_str = ' '.join(f'"{t}"' for t in p['input_types'])
+            # 类型数量必须与 input_count 一致（loader 要求 N 个类型 token）：
+            # 不足补 ANY，超出截断
+            types = list(p.get('input_types') or [])
+            if len(types) < p['input_count']:
+                types += ['ANY'] * (p['input_count'] - len(types))
+            types = types[:p['input_count']]
+            types_str = ' '.join(f'"{t}"' for t in types)
             lines.append(f'        inputs {p["input_count"]} {types_str}')
         lines.append(f'        output "{p["output_type"]}"')
         if p['math_def']:

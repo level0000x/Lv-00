@@ -10,16 +10,6 @@ lvz 1
 
 presets {
 
-    preset "desc" {
-        description "n_inputs"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "comp"
-        complexity "constructive"
-        constructive false
-        reversible false
-    }
-
     preset "线性表示：构造群 G 在向量空间 V 上的群同态 rho: G -> GL(V)，用线性变换刻画群结构" {
         description "2"
         category "GROUP_THEORY"

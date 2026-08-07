@@ -52,6 +52,10 @@ typedef enum {
     LV_AST_MEASURE,        // length(A,B)
     LV_AST_GEOMETRY_EXPR,  // point(1,2), line(A,B)
     LV_AST_COMPARE,        // a == b, a != b, a < b, etc.
+    LV_AST_STRUCT_LITERAL, // { field: value, ... } 记录字面量
+    LV_AST_STRUCT_FIELD,   // 结构字段 name: value
+    LV_AST_UNION,          // A | B 类型联合
+    LV_AST_PREDICATE_APP,  // 无符号中缀谓词: expr pred
 
     LV_AST_MODULE_DECL,
     LV_AST_IMPORT_DECL,
@@ -93,6 +97,7 @@ struct LvAstNode {
         struct {
             int entity_type; /* LvEntityType */
             char *names;     /* "A,B,C" 逗号分隔 */
+            LvAstNode *value; /* 可选：":= Expr" 声明值（如 Point Spec := {...}），无名为 NULL */
         } decl;
 
         /* LV_AST_LET */
@@ -154,8 +159,15 @@ struct LvAstNode {
 
         /* 约束/假设/断言/证明（单表达式语句） */
         struct {
-            LvAstNode *expr;
+            LvAstNode *expr; /* 注意：expr 必须保持在偏移 0，兼容既有二进制对象 */
+            char *name;      /* 可选：命名语句（如 Constraint Name: ...）的名字，无名为 NULL */
         } stmt;
+
+        /* LV_AST_STRUCT_FIELD */
+        struct {
+            char *name;
+            LvAstNode *value;
+        } field;
 
         /* ExportStmt */
         struct {

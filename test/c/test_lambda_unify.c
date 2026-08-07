@@ -656,6 +656,116 @@ static void test_apply_to_graph_not_found(void) {
     PASS();
     graph_destroy(graph);
 }
+
+/* ================================================================
+ * roundtrip 忠实 + 真实编译图合一实例化
+ * ================================================================ */
+
+/**
+ * @brief 测试 14: 真实编译图 → 反编译（忠实）→ 模式合一 → 图实例化
+ *
+ * 对应策略 execute_lambda_unify 的完整链路，但输入是 lambda_to_graph
+ * 编译的真实闭项图（而非手工构造图）：
+ * 1. lambda_to_graph 编译 λx.x
+ * 2. graph_to_lambda 反编译 → 应忠实还原 "λ#0"（修复前反编译按
+ *    namespace_depth（编译深度）回退，还原出的变量索引偏移，
+ *    合一结果含自由变量 → 探针编译失败 → 实例化诚实返回 false）
+ * 3. 构造目标模式 λx. F x（F=100 自由），lambda_pattern_unify 合一
+ * 4. 在编译图上附加槽位端口（F=100）与消费者，apply_to_graph 实例化
+ *    → 替换项为闭项，探针编译通过 → 返回 0，槽位停用
+ */
+static void test_roundtrip_unify_apply(void) {
+    TEST("roundtrip_unify_apply");
+
+    /* 1. 编译真实闭项 λx.x */
+    LvLambdaTerm *id = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    ConstraintGraph *g = graph_create();
+    int root = -1;
+    if (!id || !g) {
+        lv_lambda_destroy(id);
+        if (g) graph_destroy(g);
+        FAIL("创建失败");
+        return;
+    }
+    if (!lambda_to_graph(id, g, &root) || root < 0) {
+        lv_lambda_destroy(id);
+        graph_destroy(g);
+        FAIL("编译 λx.x 失败");
+        return;
+    }
+    lv_lambda_destroy(id);
+
+    /* 2. 反编译应忠实还原 λx.x（修复前会还原出带偏移索引的项） */
+    LvLambdaTerm *term = graph_to_lambda(g, root);
+    if (!term) {
+        graph_destroy(g);
+        FAIL("反编译失败");
+        return;
+    }
+    char *ts = lv_lambda_to_string(term);
+    if (!ts || strcmp(ts, "λ#0") != 0) {
+        printf("        decompile=%s\n", ts ? ts : "(null)");
+        lv_free((void **) &ts);
+        lv_lambda_destroy(term);
+        graph_destroy(g);
+        FAIL("反编译应忠实还原 λx.x");
+        return;
+    }
+    lv_free((void **) &ts);
+
+    /* 3. 目标模式 λx. F x（F=100 自由）与反编译项 λx.x 模式合一 */
+    LvLambdaTerm *target = lv_lambda_create_abs(
+        0, lv_lambda_create_app(lv_lambda_create_var(100), lv_lambda_create_var(0)));
+    if (!target) {
+        lv_lambda_destroy(term);
+        graph_destroy(g);
+        FAIL("构造目标模式失败");
+        return;
+    }
+    LambdaSubstitution *subs = NULL;
+    LambdaUnifyStatus st = lambda_pattern_unify(target, term, &subs, 1024);
+    lv_lambda_destroy(target);
+    lv_lambda_destroy(term);
+    if (st != LAMBDA_UNIFY_OK || !subs) {
+        graph_destroy(g);
+        FAIL("模式合一失败（应得到 F↦闭项）");
+        return;
+    }
+
+    /* 4. 附加槽位端口（F=100）与消费者 */
+    AddNodeResult nr = graph_add_port(g, PORT_OUTPUT, 100, -1);
+    int slot_id = graph_get_last_added_node_id(g);
+    nr = graph_add_port(g, PORT_INPUT, 100, -1);
+    int cons_id = graph_get_last_added_node_id(g);
+    if (nr != ADD_NODE_OK || slot_id < 0 || cons_id < 0 ||
+        graph_add_connection(g, slot_id, cons_id) != ADD_CONSTRAINT_OK) {
+        lambda_substitution_list_destroy(subs);
+        graph_destroy(g);
+        FAIL("附加槽位失败");
+        return;
+    }
+
+    /* 5. 实例化：替换项为闭项 → 探针编译通过 → 返回 0 */
+    int rc = lambda_unify_apply_to_graph(g, subs, 0);
+    lambda_substitution_list_destroy(subs);
+    if (rc != 0) {
+        printf("        apply_to_graph rc=%d\n", rc);
+        graph_destroy(g);
+        FAIL("实例化应成功（替换项为闭项，探针应编译通过）");
+        return;
+    }
+
+    /* 6. 槽位被停用 */
+    GeomNode *slot = graph_get_node(g, slot_id);
+    if (!slot || slot->is_active) {
+        graph_destroy(g);
+        FAIL("槽位应被实例化（停用）");
+        return;
+    }
+
+    graph_destroy(g);
+    PASS();
+}
 /* ================================================================
  * main
  * ================================================================ */
@@ -681,6 +791,8 @@ TEST_MAIN_BEGIN("Test Lambda Unify")
     printf("\n--- apply_to_graph 图实例化 ---\n");
     TEST_MAIN_RUN(test_apply_to_graph_instantiates);
     TEST_MAIN_RUN(test_apply_to_graph_not_found);
+    printf("\n--- roundtrip 忠实 + 真实编译图合一实例化 ---\n");
+    TEST_MAIN_RUN(test_roundtrip_unify_apply);
     printf("\n--- 工具函数 ---\n");
     TEST_MAIN_RUN(test_subs_snprint);
 TEST_MAIN_END()

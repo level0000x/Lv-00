@@ -408,6 +408,28 @@ static LvSemanticType check_expr_quantifier(LvSemaContext *ctx, LvAstNode *node)
     return LV_TYPE_PROPOSITION;
 }
 
+static LvSemanticType check_expr_struct_literal(LvSemaContext *ctx, LvAstNode *node) {
+    for (LvAstNode *f = node->child; f; f = f->next) {
+        if (f->data.field.value)
+            check_expr(ctx, f->data.field.value);
+    }
+    return LV_TYPE_UNKNOWN;
+}
+
+static LvSemanticType check_expr_union(LvSemaContext *ctx, LvAstNode *node) {
+    if (node->data.binary.left)
+        check_expr(ctx, node->data.binary.left);
+    if (node->data.binary.right)
+        check_expr(ctx, node->data.binary.right);
+    return LV_TYPE_UNKNOWN;
+}
+
+static LvSemanticType check_expr_predicate_app(LvSemaContext *ctx, LvAstNode *node) {
+    if (node->data.call.args)
+        check_expr(ctx, node->data.call.args);
+    return LV_TYPE_PROPOSITION;
+}
+
 static LvSemanticType check_expr_default(LvSemaContext *ctx, LvAstNode *node) {
     (void)ctx;
     (void)node;
@@ -435,6 +457,10 @@ static const CheckExprFn check_expr_table[LV_AST_COUNT] = {
     [LV_AST_LOGIC_IFF] = check_expr_logic_implies_iff,
     [LV_AST_LOGIC_FORALL] = check_expr_quantifier,
     [LV_AST_LOGIC_EXISTS] = check_expr_quantifier,
+    [LV_AST_STRUCT_LITERAL] = check_expr_struct_literal,
+    [LV_AST_STRUCT_FIELD] = check_expr_struct_literal,
+    [LV_AST_UNION] = check_expr_union,
+    [LV_AST_PREDICATE_APP] = check_expr_predicate_app,
 };
 
 /** 递归检查表达式，返回其语义类型 */

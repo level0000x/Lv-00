@@ -1,0 +1,56 @@
+// 首次自举（路线图步骤 6）—— 命题逻辑验证器
+// 用 lv 语言编写并验证一个"命题逻辑验证器"：
+//   - 命题公式类型（原子命题、¬、∧、∨、→、↔）的表示；
+//   - 真值表求值语义 verify(formula) → Verdict（恒真 ⟺ 验证通过）；
+//   - 一组可验证的命题逻辑定律断言（Prove 语句）。
+// 加载本文件时，loader 内建验证语义（lv_loader.c 的 C 实现，含
+// 命题变量全真值表枚举）会真实验证下列 Prove 断言 —— 构成
+// "lv 用自身语言验证自身证明"的首次自举闭环。
+//
+// 说明：parser 当前支持语言子集（无记录类型字面量 / 用户函数体），
+// 故本文件用可加载子集描述验证器规格；完整语法设计见
+// bootstrap/src/compiler/verifier.lv（Verdict/ProofTerm 记录类型规格）。
+
+// ── 命题逻辑公式与判定（规格化描述）──
+// 公式语法：F ::= 原子命题 P | ¬F | F∧F | F∨F | F→F | F↔F
+// 判定语义：verify(f) 穷举全部原子命题的真值赋值（2^n 行真值表），
+//           所有赋值下为真（恒真）→ Verdict 通过；存在反例 → 不通过。
+Point Formula, Atom, Neg, Conj, Disj, Impl, Iff, Verdict;
+
+// 健全性约束（规格化描述；语义：验证通过 ⟺ 公式是恒真式）
+Constraint forall f: Formula. verify(f) == tautology(f);
+
+// ── 具体真值验证（无变量公式直接求值，无需枚举）──
+Prove true;
+Prove not false;
+Prove true and (false or true);
+Prove not (true and false);
+
+// ── 命题逻辑定律（含原子命题 P, Q —— loader 穷举真值表验证恒真）──
+
+// 1. 排中律：P ∨ ¬P
+Prove P or not P;
+
+// 2. 双重否定（经典逻辑）：¬¬P → P，以及 P → ¬¬P
+Prove not (not P) -> P;
+Prove P -> not (not P);
+
+// 3. 德摩根律：¬(P ∧ Q) ↔ (¬P ∨ ¬Q)
+Prove not (P and Q) iff (not P or not Q);
+
+// 4. 蕴含弱化：P → (Q → P)
+Prove P -> (Q -> P);
+
+// 5. 交换律：P ∧ Q ↔ Q ∧ P；P ∨ Q ↔ Q ∨ P
+Prove (P and Q) iff (Q and P);
+Prove (P or Q) iff (Q or P);
+
+// 6. 矛盾律：P ∧ ¬P 恒假（即 ¬(P ∧ ¬P) 恒真）
+Prove not (P and not P);
+
+// 7. 爆炸律（ex falso quodlibet）：(P ∧ ¬P) → Q
+Prove (P and not P) -> Q;
+
+// 注：parser 的 parse_normalize_stmt 对无参 Normalize; 存在缺陷（误消费分号），
+// 故此处用 Normalize all; 形式（parser 层缺陷修复不在本任务范围内）。
+Normalize all;

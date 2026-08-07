@@ -38,18 +38,23 @@ typedef enum {
  * - Var:   变量，通过 De Bruijn 索引引用绑定变量
  * - Abs:   抽象（λ 绑定），包含绑定变量索引和体子项
  * - App:   应用，包含左右两个子项
+ *
+ * 编码约定（与 lambda_to_graph 的 scope_lookup 一致）：
+ *   - Var.index 为标准 De Bruijn 相对索引：0 = 最近（最内层）binder。
+ *   - Abs.binder 恒为 0 占位，不参与求值。
+ *   - 开放项中的自由变量直接用超出当前作用域深度的 Var.index 表示。
  */
 typedef struct LvLambdaTerm {
     LvLambdaTermType type; /**< 节点类型（决定 data 联合体的活跃成员） */
     union {
         /** @brief 变量数据 */
         struct {
-            int index; /**< De Bruijn 索引 */
+            int index; /**< De Bruijn 索引（0 = 最近 binder） */
         } var;
 
         /** @brief 抽象数据 */
         struct {
-            int binder;                /**< 绑定变量索引 */
+            int binder;                /**< 绑定变量索引（恒为 0 占位） */
             struct LvLambdaTerm *body; /**< 体子项（生命周期由本节点管理） */
         } abs;
 
@@ -121,6 +126,75 @@ lv_PUBLIC_API LvLambdaTerm *lv_lambda_copy(LvLambdaTerm *term);
  * @return 字符串表示（调用者负责释放），失败返回 NULL
  */
 lv_PUBLIC_API char *lv_lambda_to_string(LvLambdaTerm *term);
+
+/* ===========================================================================
+ * β-归约求值器
+ *
+ * 编码约定（与 lambda_to_graph 的 scope_lookup 一致）：
+ *   - VAR.index 为标准 De Bruijn 相对索引：0 = 最近（最内层）binder。
+ *   - ABS.binder 恒为 0 占位，不参与求值。
+ *   - 开放项中的自由变量直接用超出当前作用域深度的 VAR.index 表示。
+ *
+ * 求值策略：规范序（最左最外）β-归约到规范形（normal form），基于标准
+ * TAPL 的 De Bruijn shift/subst（替换时以 shift 重定位变量索引）+ 迭代
+ * 单步 β-归约。返回新分配的项（调用者负责 lv_lambda_destroy），与原项
+ * 完全独立（深拷贝式求值）。
+ * =========================================================================== */
+
+/**
+ * @brief β-归约求值器的默认步数上限
+ *
+ * 规范序求值可对非终止项（如 Y 组合子）无限展开，求值器在 β 步数超过
+ * 上限时安全终止并返回 NULL。默认 10000（与 test_lambda_church 的
+ * Y 组合子 10000 步上限一致），可用 lv_lambda_eval_set_max_steps 调整。
+ */
+#define LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS 10000
+
+/**
+ * @brief 规范序求值到规范形
+ *
+ * - 闭合项：返回其规范形（normal form）的深拷贝。
+ * - 开放项：自由变量（无对应 binder 的 VAR）原样保留，不报错。
+ * - 非终止项（如 Y 组合子应用到实参）：β 步数超过上限时安全终止，
+ *   返回 NULL（调用者视为"超限/失败"）。
+ *
+ * 内存所有权：返回值是新分配的独立项，调用者负责 lv_lambda_destroy；
+ * 输入 term 不被修改、不被释放。
+ *
+ * @param term 待求值的 λ-项（可为 NULL，返回 NULL）
+ * @return 规范形的深拷贝；超限/内存不足返回 NULL
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_lambda_eval(LvLambdaTerm *term);
+
+/**
+ * @brief 完整求值到规范形
+ *
+ * 当前求值策略下 lv_lambda_eval 已直接返回规范形，本函数是其语义别名
+ * （对结果再做一次不动点求值，保证在任何未来求值策略调整下语义不变）。
+ *
+ * @param term 待求值的 λ-项（可为 NULL，返回 NULL）
+ * @return 规范形的深拷贝；超限/内存不足返回 NULL
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_lambda_eval_full(LvLambdaTerm *term);
+
+/**
+ * @brief 返回对 term 完整求值消耗的 β-归约步数
+ *
+ * 内部执行一次完整求值（与 lv_lambda_eval 相同的策略与上限），丢弃结果，
+ * 仅返回统计的 β 步数。超限时返回达到的步数（即当前上限值）。
+ *
+ * @param term 待统计的 λ-项（可为 NULL，返回 0）
+ * @return β-归约步数（≥ 0）
+ */
+lv_PUBLIC_API int lv_lambda_eval_steps(LvLambdaTerm *term);
+
+/**
+ * @brief 设置 β-归约求值器的步数上限
+ *
+ * @param max_steps 新上限；小于等于 0 时恢复默认值
+ *                  LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS（10000）
+ */
+lv_PUBLIC_API void lv_lambda_eval_set_max_steps(int max_steps);
 
 #ifdef __cplusplus
 }

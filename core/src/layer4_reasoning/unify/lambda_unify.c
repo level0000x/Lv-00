@@ -705,7 +705,16 @@ int lambda_unify_apply_to_graph(struct ConstraintGraph *graph,
             conn_undo[undo_count].dst_id = dst_id;
             conn_undo[undo_count].old_connected_to = dst->data.port->connected_to;
             undo_count++;
+            /* 替换子图输出端口若为 ABS 输出端口，其 connected_to 记录的是
+             * body 根；graph_add_connection 的双向覆盖会破坏该关联（影响
+             * 后续 graph_to_lambda 反编译），连接后恢复原值。 */
+            GeomNode *repl_out_node = graph_get_node(graph, e->repl_out_id);
+            GeomNode *repl_ct_saved = (repl_out_node && repl_out_node->data.port)
+                                          ? repl_out_node->data.port->connected_to
+                                          : NULL;
             AddConstraintResult cr = graph_add_connection(graph, e->repl_out_id, dst_id);
+            if (repl_ct_saved && repl_out_node && repl_out_node->data.port)
+                repl_out_node->data.port->connected_to = repl_ct_saved;
             if (cr != ADD_CONSTRAINT_OK && cr != ADD_CONSTRAINT_DUPLICATE)
                 goto commit_fail;
         }

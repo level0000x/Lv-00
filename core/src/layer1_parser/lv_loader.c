@@ -357,7 +357,9 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
  *   2. 算术验证：整数表达式（+ - * / ^ 与括号）求值比较；
  *   3. 布尔验证：布尔字面量、逻辑运算（and/or/not/->/iff）、纯布尔目标；
  *   4. 反射律：全同名参数的关系调用（collinear(A,A,A)）恒真；
- *   其余（量词、未知函数、除零、开放变量等）→ SKIP，不误报。
+ *   5. 命题逻辑验证（首次自举）：对纯命题公式（and/or/not/->/iff +
+ *      原子命题）穷举全真值表（2^n）验证恒真，反例判 FAIL；
+ *   其余（量词、未知函数、除零等）→ SKIP，不误报。
  * ================================================================ */
 
 #define LV_PROVE_MAX_REPORTS 64
@@ -659,6 +661,173 @@ static int eval_proposition(LvAstNode *node, int depth) {
     }
 }
 
+/* ── 命题逻辑验证：全真值表枚举（首次自举，路线图步骤 6）──
+ *
+ * 对"纯命题骨架"表达式（仅由布尔字面量、逻辑运算符 and/or/not/->/iff
+ * 与裸标识符（原子命题）构成）穷举全部命题变量赋值（2^n 行真值表）：
+ *   - 所有赋值下公式为真 → 恒真（tautology）→ 返回 1；
+ *   - 存在反例赋值 → 返回 0；
+ *   - 变量数超限 / 非纯命题骨架 / 求值失败 → 返回 -1（回退既有语义）。
+ * 既有验证语义（Church 归约、算术、反射律、量词/未知函数 → SKIP）
+ * 完全不受影响：本函数仅在纯命题骨架时接管，其余情况一律返回 -1 回退。 */
+
+#define LV_PROP_MAX_VARS 8       /**< 真值表枚举的命题变量数上限（2^8 行） */
+#define LV_PROP_VAR_NAME_MAX 32  /**< 命题变量名长度上限 */
+
+/** @brief 是否为纯命题骨架：仅布尔字面量 + 逻辑运算 + 裸标识符 */
+static bool is_pure_propositional(LvAstNode *node, int depth) {
+    if (!node || depth > LV_PROVE_MAX_DEPTH)
+        return false;
+    switch (node->type) {
+    case LV_AST_BOOL_LITERAL:
+    case LV_AST_IDENTIFIER_EXPR:
+        return true;
+    case LV_AST_LOGIC_AND:
+    case LV_AST_LOGIC_OR:
+    case LV_AST_LOGIC_IMPLIES:
+    case LV_AST_LOGIC_IFF:
+        return is_pure_propositional(node->data.binary.left, depth + 1) &&
+               is_pure_propositional(node->data.binary.right, depth + 1);
+    case LV_AST_LOGIC_NOT:
+        return is_pure_propositional(node->data.unary.operand, depth + 1);
+    default:
+        return false;
+    }
+}
+
+/** @brief 收集表达式中的原子命题名（去重，按首次出现顺序）；变量数超限置 overflow */
+static void collect_prop_vars(LvAstNode *node,
+                              char vars[][LV_PROP_VAR_NAME_MAX],
+                              int *count,
+                              bool *overflow,
+                              int depth) {
+    if (!node || depth > LV_PROVE_MAX_DEPTH || *overflow)
+        return;
+    switch (node->type) {
+    case LV_AST_IDENTIFIER_EXPR: {
+        const char *name = node->data.ident.name;
+        if (!name) {
+            *overflow = true;
+            return;
+        }
+        for (int i = 0; i < *count; i++) {
+            if (strcmp(vars[i], name) == 0)
+                return;
+        }
+        if (*count >= LV_PROP_MAX_VARS) {
+            *overflow = true;
+            return;
+        }
+        lv_strncpy(vars[*count], name, LV_PROP_VAR_NAME_MAX);
+        (*count)++;
+        return;
+    }
+    case LV_AST_LOGIC_AND:
+    case LV_AST_LOGIC_OR:
+    case LV_AST_LOGIC_IMPLIES:
+    case LV_AST_LOGIC_IFF:
+        collect_prop_vars(node->data.binary.left, vars, count, overflow, depth + 1);
+        collect_prop_vars(node->data.binary.right, vars, count, overflow, depth + 1);
+        return;
+    case LV_AST_LOGIC_NOT:
+        collect_prop_vars(node->data.unary.operand, vars, count, overflow, depth + 1);
+        return;
+    default:
+        return;
+    }
+}
+
+/** @brief 在给定赋值下求值纯命题骨架：返回 -1 无法判定，0 假，1 真 */
+static int eval_prop_skeleton(LvAstNode *node,
+                              const char vars[][LV_PROP_VAR_NAME_MAX],
+                              const int *vals,
+                              int nvars,
+                              int depth) {
+    if (!node || depth > LV_PROVE_MAX_DEPTH)
+        return -1;
+    switch (node->type) {
+    case LV_AST_BOOL_LITERAL:
+        return node->data.literal.bool_value ? 1 : 0;
+    case LV_AST_IDENTIFIER_EXPR: {
+        const char *name = node->data.ident.name;
+        if (!name)
+            return -1;
+        for (int i = 0; i < nvars; i++) {
+            if (strcmp(vars[i], name) == 0)
+                return vals[i] ? 1 : 0;
+        }
+        return -1;
+    }
+    case LV_AST_LOGIC_AND: {
+        int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
+        int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
+        if (l < 0 || r < 0)
+            return -1;
+        return (l && r) ? 1 : 0;
+    }
+    case LV_AST_LOGIC_OR: {
+        int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
+        int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
+        if (l < 0 || r < 0)
+            return -1;
+        return (l || r) ? 1 : 0;
+    }
+    case LV_AST_LOGIC_NOT: {
+        int v = eval_prop_skeleton(node->data.unary.operand, vars, vals, nvars, depth + 1);
+        return v < 0 ? -1 : (v ? 0 : 1);
+    }
+    case LV_AST_LOGIC_IMPLIES: {
+        int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
+        int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
+        if (l < 0 || r < 0)
+            return -1;
+        return (l == 1 && r == 0) ? 0 : 1;
+    }
+    case LV_AST_LOGIC_IFF: {
+        int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
+        int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
+        if (l < 0 || r < 0)
+            return -1;
+        return (l == r) ? 1 : 0;
+    }
+    default:
+        return -1;
+    }
+}
+
+/** @brief 命题逻辑全真值表验证：恒真 → 1，有反例 → 0，无法判定 → -1 */
+static int eval_propositional_truth_table(LvAstNode *node) {
+    if (!node || !is_pure_propositional(node, 0))
+        return -1;
+
+    char vars[LV_PROP_MAX_VARS][LV_PROP_VAR_NAME_MAX];
+    int nvars = 0;
+    bool overflow = false;
+    collect_prop_vars(node, vars, &nvars, &overflow, 0);
+    if (overflow)
+        return -1; /* 变量数超限：保守回退既有语义（SKIP） */
+
+    /* 无命题变量：直接求值（与既有布尔逻辑语义一致） */
+    if (nvars == 0)
+        return eval_prop_skeleton(node, vars, NULL, 0, 0);
+
+    int total = 1;
+    for (int i = 0; i < nvars; i++)
+        total *= 2;
+
+    for (int mask = 0; mask < total; mask++) {
+        int vals[LV_PROP_MAX_VARS];
+        for (int i = 0; i < nvars; i++)
+            vals[i] = (mask >> i) & 1;
+        int r = eval_prop_skeleton(node, vars, vals, nvars, 0);
+        if (r < 0)
+            return -1; /* 骨架求值失败：回退既有语义 */
+        if (r == 0)
+            return 0;  /* 存在反例：非恒真 */
+    }
+    return 1; /* 所有赋值均为真：恒真 */
+}
+
 /* ── 逐条验证 Prove 语句 ── */
 
 static void verify_prove_node(LvAstNode *prove, int index, LvProveSummary *summary) {
@@ -683,7 +852,11 @@ static void verify_prove_node(LvAstNode *prove, int index, LvProveSummary *summa
         return;
     }
 
-    int r = eval_proposition(expr, 0);
+    /* 首次自举：先尝试命题逻辑全真值表验证（纯命题骨架）；
+       非骨架表达式返回 -1 回退既有语义（Church/算术/反射律/SKIP） */
+    int r = eval_propositional_truth_table(expr);
+    if (r < 0)
+        r = eval_proposition(expr, 0);
     if (r < 0) {
         rep->verdict = LV_PROVE_SKIP;
         lv_snprintf(rep->detail, sizeof(rep->detail),
@@ -692,7 +865,7 @@ static void verify_prove_node(LvAstNode *prove, int index, LvProveSummary *summa
     } else if (r == 1) {
         rep->verdict = LV_PROVE_PASS;
         lv_snprintf(rep->detail, sizeof(rep->detail),
-                    "verified: conclusion holds (church-eval / arith / logic)");
+                    "verified: conclusion holds (truth-table / church-eval / arith / logic)");
         summary->pass_count++;
     } else {
         rep->verdict = LV_PROVE_FAIL;

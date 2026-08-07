@@ -10,16 +10,6 @@ lvz 1
 
 presets {
 
-    preset "preset_name" {
-        description "desc"
-        category "TOPOLOGY"
-        output "ANY"
-        math_def "math"
-        complexity "comp"
-        constructive false
-        reversible false
-    }
-
     preset "at_simplicial_homology" {
         description "单纯同调群：基于单纯复形的单纯链复形计算同调群 H_n(K; G)"
         category "TOPOLOGY"
@@ -113,8 +103,7 @@ presets {
         category "TOPOLOGY"
         inputs 2 "TOPOLOGY" "GROUP"
         output "GROUP"
-        math_def "H^n(X; G) = \\frac{\\ker \\delta^n}{\\operatorname{im} \\delta^{n-1}}, \\quad \"
-                \"\\delta^n = (\\partial_{n+1})^*"
+        math_def "H^n(X; G) = \\frac{\\ker \\delta^n}{\\operatorname{im} \\delta^{n-1}}, \\quad \\delta^n = (\\partial_{n+1})^*"
         complexity "O(2^n)"
         constructive false
         reversible false
@@ -125,8 +114,7 @@ presets {
         category "TOPOLOGY"
         inputs 2 "GROUP" "GROUP"
         output "GROUP"
-        math_def "(\\alpha \\smile \\beta)(\\sigma) = \"
-                \"\\alpha(\\sigma|_{[v_0\\ldots v_p]})\\beta(\\sigma|_{[v_p\\ldots v_{p+q}]})"
+        math_def "(\\alpha \\smile \\beta)(\\sigma) = \\alpha(\\sigma|_{[v_0\\ldots v_p]})\\beta(\\sigma|_{[v_p\\ldots v_{p+q}]})"
         complexity "O(n^2)"
         constructive true
         reversible false
@@ -137,8 +125,7 @@ presets {
         category "TOPOLOGY"
         inputs 1 "MANIFOLD"
         output "GROUP"
-        math_def "H_{dR}^k(M) = \\frac{\\ker d_k}{\\operatorname{im} d_{k-1}}, \\quad \"
-                \"H_{dR}^k(M) \\cong H^k(M; \\mathbb{R})"
+        math_def "H_{dR}^k(M) = \\frac{\\ker d_k}{\\operatorname{im} d_{k-1}}, \\quad H_{dR}^k(M) \\cong H^k(M; \\mathbb{R})"
         complexity "O(n^2)"
         constructive true
         reversible false

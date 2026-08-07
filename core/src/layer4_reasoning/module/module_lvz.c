@@ -1194,12 +1194,14 @@ static bool preset_field_inputs(LvzParser *p, LvzPresetCtx *ctx) {
             lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法分配输入类型数组", p->current.line);
         }
         for (int i = 0; i < count; i++) {
-            if (!lvz_parser_expect(p, TOK_STRING)) {
-                lv_free((void **) ctx->out_types);
-                return false;
+            if (p->current.type == TOK_STRING) {
+                (*ctx->out_types)[i] = lvz_type_from_string(p->current.str_value);
+                lvz_parser_advance(p);
+            } else {
+                /* 容错：类型 token 缺失时（历史活数据 `inputs N` 省略类型）用 ANY 填充，
+                 * 保持输入数量语义；已加载模块（类型齐全）不受影响。 */
+                (*ctx->out_types)[i] = PRESET_TYPE_ANY;
             }
-            (*ctx->out_types)[i] = lvz_type_from_string(p->current.str_value);
-            lvz_parser_advance(p);
         }
     }
     *ctx->out_type_count = count;
@@ -1448,14 +1450,14 @@ bool lvz_parse(LvzParser *p, Module *mod) {
     int major = (int) p->current.num_value;
     lvz_parser_advance(p);
 
-    /* 可选的次版本号 */
+    /* 可选的次版本号（仅当下一 token 确实是数字时才消费）
+     *
+     * 注意：不消费 IDENTIFIER——历史实现曾将 `lvz 1` 后紧跟的节名（如 presets）
+     * 误当作 "1.0" 格式吞掉，导致全部 .lvz 的 presets 节无法加载。
+     * `1.0` 由词法器解析为单个 TOK_NUMBER，此处数字分支已覆盖。 */
     int minor = 0;
     if (p->current.type == TOK_NUMBER) {
         minor = (int) p->current.num_value;
-        lvz_parser_advance(p);
-    } else if (p->current.type == TOK_IDENTIFIER) {
-        /* 可能是 "1.0" 格式，标识符包含点 */
-        /* 已经作为标识符读取，跳过 */
         lvz_parser_advance(p);
     }
 

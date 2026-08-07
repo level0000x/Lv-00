@@ -76,6 +76,14 @@ static const char *dbg_ast_type(LvAstNodeType t) {
             return "GEOMETRY";
         case LV_AST_COMPARE:
             return "COMPARE";
+        case LV_AST_STRUCT_LITERAL:
+            return "STRUCT_LITERAL";
+        case LV_AST_STRUCT_FIELD:
+            return "STRUCT_FIELD";
+        case LV_AST_UNION:
+            return "UNION";
+        case LV_AST_PREDICATE_APP:
+            return "PREDICATE_APP";
         case LV_AST_MODULE_DECL:
             return "MODULE";
         case LV_AST_IMPORT_DECL:
@@ -360,6 +368,25 @@ static void test_normalize(void) {
     printf("[Normalize 语句]\n");
 
     {
+        const char *src = "Normalize;";
+        LvParseResult res = parse_source(src);
+        TEST("Normalize (no target)");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_NORMALIZE_STMT && res.error_count == 0) {
+            LvAstNode *n = res.ast->child;
+            if (strcmp(n->data.normalize.target, "all") == 0) {
+                PASS();
+            } else {
+                printf("  <- target='%s'\n", n->data.normalize.target ? n->data.normalize.target : "NULL");
+                FAIL("target mismatch, expected 'all'");
+            }
+        } else {
+            printf("  errors=%d\n", res.error_count);
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
         const char *src = "Normalize all;";
         LvParseResult res = parse_source(src);
         TEST("Normalize all");
@@ -556,6 +583,228 @@ static void test_error_recovery(void) {
             PASS();
         } else {
             FAIL("should handle gracefully");
+        }
+        lv_ast_destroy(res.ast);
+    }
+}
+
+static void test_bool_literal_expr(void) {
+    printf("[布尔字面量在表达式位置]\n");
+
+    /* Prove x == true; 中 true 作为布尔字面量（缺陷2） */
+    {
+        const char *src = "Point A;\nProve A == true;";
+        LvParseResult res = parse_source(src);
+        TEST("Prove x == true");
+        if (res.ast && res.error_count == 0) {
+            LvAstNode *prove = res.ast->child;
+            while (prove && prove->type != LV_AST_PROVE_STMT)
+                prove = prove->next;
+            if (prove && prove->data.stmt.expr && prove->data.stmt.expr->type == LV_AST_COMPARE &&
+                strcmp(prove->data.stmt.expr->data.compare.op, "==") == 0 &&
+                prove->data.stmt.expr->data.compare.right &&
+                prove->data.stmt.expr->data.compare.right->type == LV_AST_BOOL_LITERAL) {
+                PASS();
+            } else {
+                FAIL("expected COMPARE(==) with right BOOL_LITERAL");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* true 在比较左侧 */
+    {
+        const char *src = "Prove true == false;";
+        LvParseResult res = parse_source(src);
+        TEST("Prove true == false");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_PROVE_STMT && res.error_count == 0) {
+            LvAstNode *expr = res.ast->child->data.stmt.expr;
+            if (expr && expr->type == LV_AST_COMPARE && expr->data.compare.left &&
+                expr->data.compare.left->type == LV_AST_BOOL_LITERAL && expr->data.compare.right &&
+                expr->data.compare.right->type == LV_AST_BOOL_LITERAL) {
+                PASS();
+            } else {
+                FAIL("expected COMPARE with BOOL_LITERAL operands");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* true and true（and 关键字左右字面量） */
+    {
+        const char *src = "Prove true and true;";
+        LvParseResult res = parse_source(src);
+        TEST("Prove true and true");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_PROVE_STMT && res.error_count == 0) {
+            LvAstNode *expr = res.ast->child->data.stmt.expr;
+            if (expr && expr->type == LV_AST_LOGIC_AND) {
+                PASS();
+            } else {
+                FAIL("expected LOGIC_AND");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* not false（前缀逻辑非 + 字面量操作数） */
+    {
+        const char *src = "Prove not false;";
+        LvParseResult res = parse_source(src);
+        TEST("Prove not false");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_PROVE_STMT && res.error_count == 0) {
+            LvAstNode *expr = res.ast->child->data.stmt.expr;
+            if (expr && expr->type == LV_AST_LOGIC_NOT && expr->data.unary.operand &&
+                expr->data.unary.operand->type == LV_AST_BOOL_LITERAL) {
+                PASS();
+            } else {
+                FAIL("expected LOGIC_NOT wrapping BOOL_LITERAL");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+}
+
+static void test_spec_extensions(void) {
+    printf("[规格文件扩展：命名约束 / 记录字面量 / 类型联合]\n");
+
+    /* 命名约束: Constraint Name: formula;（缺陷3） */
+    {
+        const char *src = "Constraint VerifierSound: forall o: Output, s: Spec. verify(o, s) = Pass(_) -> output_satisfies(o, s);";
+        LvParseResult res = parse_source(src);
+        TEST("Constraint Name: formula");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_CONSTRAINT_STMT && res.error_count == 0) {
+            LvAstNode *c = res.ast->child;
+            if (c->data.stmt.name && strcmp(c->data.stmt.name, "VerifierSound") == 0 && c->data.stmt.expr &&
+                c->data.stmt.expr->type == LV_AST_LOGIC_FORALL) {
+                PASS();
+            } else {
+                printf("  <- name='%s' expr_type=%s\n", c->data.stmt.name ? c->data.stmt.name : "NULL",
+                       c->data.stmt.expr ? dbg_ast_type(c->data.stmt.expr->type) : "NULL");
+                FAIL("named constraint mismatch");
+            }
+        } else {
+            printf("  errors=%d\n", res.error_count);
+            for (int i = 0; i < res.error_count && i < 5; i++)
+                printf("    error %d: %s\n", i, res.errors[i].message);
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* 普通约束不带名字（兼容） */
+    {
+        const char *src = "Constraint collinear(A, B, C);";
+        LvParseResult res = parse_source(src);
+        TEST("Constraint without name");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_CONSTRAINT_STMT && res.error_count == 0) {
+            LvAstNode *c = res.ast->child;
+            if (c->data.stmt.name == NULL && c->data.stmt.expr && c->data.stmt.expr->type == LV_AST_RELATION) {
+                PASS();
+            } else {
+                FAIL("expected unnamed constraint with RELATION");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* 记录字面量: Point Spec := { field: value, ... };（缺陷3） */
+    {
+        const char *src = "Point Spec := { preconditions: List<Formula>, postconditions: List<Formula> };";
+        LvParseResult res = parse_source(src);
+        TEST("Point Spec := { ... }");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_DECLARATION && res.error_count == 0) {
+            LvAstNode *d = res.ast->child;
+            if (d->data.decl.value && d->data.decl.value->type == LV_AST_STRUCT_LITERAL &&
+                d->data.decl.value->child && d->data.decl.value->child->type == LV_AST_STRUCT_FIELD &&
+                d->data.decl.value->child->data.field.name &&
+                strcmp(d->data.decl.value->child->data.field.name, "preconditions") == 0) {
+                PASS();
+            } else {
+                FAIL("expected STRUCT_LITERAL with preconditions field");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* 类型联合: Point Output := A | B | C;（缺陷3） */
+    {
+        const char *src = "Point Output := AST | ResolvedAST | TypedAST;";
+        LvParseResult res = parse_source(src);
+        TEST("Point Output := A | B | C");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_DECLARATION && res.error_count == 0) {
+            LvAstNode *v = res.ast->child->data.decl.value;
+            if (v && v->type == LV_AST_UNION && v->data.binary.left && v->data.binary.left->type == LV_AST_UNION &&
+                v->data.binary.left->data.binary.left &&
+                v->data.binary.left->data.binary.left->type == LV_AST_IDENTIFIER_EXPR) {
+                PASS();
+            } else {
+                FAIL("expected nested UNION chain");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* 构造子 + 命名参数 + 联合: Point Verdict := Pass(proof: ProofTerm) | Fail(...); */
+    {
+        const char *src = "Point Verdict := Pass(proof: ProofTerm) | Fail(reason: Set<Error>, cex: Option<Model>);";
+        LvParseResult res = parse_source(src);
+        TEST("constructor with named args + union");
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_DECLARATION && res.error_count == 0) {
+            LvAstNode *v = res.ast->child->data.decl.value;
+            if (v && v->type == LV_AST_UNION && v->data.binary.left &&
+                v->data.binary.left->type == LV_AST_FUNCTION_CALL &&
+                strcmp(v->data.binary.left->data.call.func_name, "Pass") == 0) {
+                PASS();
+            } else {
+                FAIL("expected UNION(FUNCTION_CALL Pass | ...)");
+            }
+        } else {
+            printf("  errors=%d\n", res.error_count);
+            for (int i = 0; i < res.error_count && i < 5; i++)
+                printf("    error %d: %s\n", i, res.errors[i].message);
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* 无符号中缀谓词 + 成员访问 + 命题相等 "=" + 蕴含箭头（verifier.lv 风格） */
+    {
+        const char *src =
+            "Constraint VerifierComplete: forall o: Output, s: Spec, v: Verifier.\n"
+            "  output_satisfies(o, s) /\\ v.mode = Full -> verify(o, s, v) = Pass(_);\n"
+            "Constraint VerifierFinite: forall o: Output, s: Spec, v: Verifier.\n"
+            "  verify(o, s, v) terminates_in_finite_steps;\n";
+        LvParseResult res = parse_source(src);
+        TEST("verifier.lv 风格约束（/\\ 成员访问 中缀谓词）");
+        if (res.ast && res.error_count == 0) {
+            int count = 0;
+            for (LvAstNode *s = res.ast->child; s; s = s->next)
+                count++;
+            if (count == 2) {
+                PASS();
+            } else {
+                printf("  (got %d statements)\n", count);
+                FAIL("statement count mismatch");
+            }
+        } else {
+            printf("  errors=%d\n", res.error_count);
+            for (int i = 0; i < res.error_count && i < 5; i++)
+                printf("    error %d: %s\n", i, res.errors[i].message);
+            FAIL("parse failed");
         }
         lv_ast_destroy(res.ast);
     }
@@ -798,6 +1047,10 @@ TEST_MAIN_BEGIN("lv parser test")
     TEST_MAIN_RUN(test_compute_export);
     printf("\n");
     TEST_MAIN_RUN(test_error_recovery);
+    printf("\n");
+    TEST_MAIN_RUN(test_bool_literal_expr);
+    printf("\n");
+    TEST_MAIN_RUN(test_spec_extensions);
     printf("\n");
     TEST_MAIN_RUN(test_full_program);
 TEST_MAIN_END()

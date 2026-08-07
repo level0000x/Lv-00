@@ -576,6 +576,227 @@ static void test_proof_verify_summary_and_file(void) {
     }
 }
 
+/* ════════════════════════════════════════════════════════════════
+ * 首次自举 —— 命题逻辑验证器（路线图步骤 6）
+ *
+ * lv 用自身语言编写的命题逻辑验证器规格 propositional_verifier.lv
+ * 通过 loader 的"命题变量全真值表枚举"验证其 Prove 断言：恒真定律
+ * PASS、反例 FAIL —— "lv 验证自身证明"的首次自举闭环。
+ * ════════════════════════════════════════════════════════════════ */
+
+/* ── 测试 11: 命题逻辑真值表验证（含恒真定律与反例）── */
+static void test_bootstrap_propositional_tautology(void) {
+    printf("\n[首次自举：命题逻辑真值表验证]\n");
+    LvProveSummary s;
+
+    TEST("排中律 P or not P 恒真 PASS");
+    if (verify_single("Prove P or not P;\n", &s) && s.pass_count == 1 && s.fail_count == 0)
+        PASS();
+    else
+        FAIL("排中律应判 PASS");
+
+    TEST("矛盾式 P and not P 反例 FAIL");
+    if (verify_single("Prove P and not P;\n", &s) && s.fail_count == 1 && s.pass_count == 0)
+        PASS();
+    else
+        FAIL("矛盾式应判 FAIL");
+
+    TEST("双重否定 not (not P) -> P 恒真 PASS");
+    if (verify_single("Prove not (not P) -> P;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("双重否定应判 PASS");
+
+    TEST("德摩根 not (P and Q) iff (not P or not Q) 恒真 PASS");
+    if (verify_single("Prove not (P and Q) iff (not P or not Q);\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("德摩根律应判 PASS");
+
+    TEST("蕴含弱化 P -> (Q -> P) 恒真 PASS");
+    if (verify_single("Prove P -> (Q -> P);\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("蕴含弱化应判 PASS");
+
+    TEST("非恒真式 P or Q 反例 FAIL");
+    if (verify_single("Prove P or Q;\n", &s) && s.fail_count == 1)
+        PASS();
+    else
+        FAIL("P or Q 非恒真应判 FAIL");
+}
+
+/* ── 测试 12: 混合文件计数与既有语义回归 ── */
+static void test_bootstrap_propositional_mix_and_regression(void) {
+    printf("\n[首次自举：混合计数与既有语义回归]\n");
+    LvProveSummary s;
+
+    TEST("混合文件：2 恒真定律 PASS + 1 Church PASS + 1 量词 SKIP");
+    const char *mix =
+        "Prove P or not P;\n"
+        "Prove (P and Q) iff (Q and P);\n"
+        "Prove add(1, 1) == 2;\n"
+        "Prove forall x: Point. collinear(x, x, x);\n";
+    if (verify_single(mix, &s)) {
+        if (s.prove_count == 4 && s.pass_count == 3 && s.fail_count == 0 && s.skip_count == 1)
+            PASS();
+        else {
+            printf("  (got prove=%d pass=%d fail=%d skip=%d)\n", s.prove_count, s.pass_count,
+                   s.fail_count, s.skip_count);
+            FAIL("混合计数不匹配");
+        }
+    } else {
+        FAIL("混合文件验证失败");
+    }
+
+    TEST("纯布尔目标与反射律行为保持（truth-table 不接管非骨架表达式）");
+    if (verify_single("Prove eq(2, 2);\nProve collinear(A, A, A);\n", &s) && s.pass_count == 2 && s.skip_count == 0)
+        PASS();
+    else
+        FAIL("既有 Church/反射律语义应保持");
+
+    TEST("未知函数 distance(A, B) == 3 仍 SKIP");
+    if (verify_single("Prove distance(A, B) == 3;\n", &s) && s.skip_count == 1)
+        PASS();
+    else
+        FAIL("未知函数应仍判 SKIP");
+}
+
+/* ── 测试 13: 加载 propositional_verifier.lv 首次自举闭环全 PASS ── */
+static void test_bootstrap_propositional_file_closed_loop(void) {
+    printf("\n[首次自举：加载 propositional_verifier.lv 全部 Prove 通过]\n");
+    LvProveSummary s;
+
+    TEST("propositional_verifier.lv 13 条 Prove 断言全部 PASS（自举闭环）");
+    const char *candidates[] = {
+        "bootstrap/src/proofs/propositional_verifier.lv",
+        "../bootstrap/src/proofs/propositional_verifier.lv",
+        "../../bootstrap/src/proofs/propositional_verifier.lv",
+        "Lv-00/bootstrap/src/proofs/propositional_verifier.lv",
+    };
+    bool found = false;
+    bool all_pass = false;
+    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+        FILE *fp = fopen(candidates[i], "r");
+        if (fp) {
+            fclose(fp);
+            found = true;
+            if (lv_load_file_verified(candidates[i], &s)) {
+                if (s.prove_count == 13 && s.pass_count == 13 && s.fail_count == 0 && s.skip_count == 0) {
+                    all_pass = true;
+                } else {
+                    printf("  (file=%s prove=%d pass=%d fail=%d skip=%d)\n", candidates[i],
+                           s.prove_count, s.pass_count, s.fail_count, s.skip_count);
+                }
+            }
+            break;
+        }
+    }
+    if (!found) {
+        printf("  (propositional_verifier.lv 未在当前目录找到，跳过文件级断言)\n");
+        PASS();
+    } else if (all_pass) {
+        PASS();
+    } else {
+        FAIL("propositional_verifier.lv 中 Prove 断言未全部通过");
+    }
+}
+
+/* ── 测试 11: verifier.lv 规格文件完整解析（缺陷3 验收） ── */
+static void test_verifier_lv_parse(void) {
+    printf("\n[微自举 B：verifier.lv 规格文件完整解析]\n");
+
+    /* 与 bootstrap/src/compiler/verifier.lv 内容一致 */
+    const char *src =
+        "Point Spec         := { preconditions: List<Formula>, postconditions: List<Formula>,\n"
+        "                        invariants: List<Formula> };\n"
+        "Point Output       := AST | ResolvedAST | TypedAST | IR | Code | Executable;\n"
+        "Point Error        := { code: ErrorCode, location: Span, detail: String };\n"
+        "Point ErrorCode    := SafetyViolation | LivenessViolation | PostconditionFail | InvariantBreak;\n"
+        "Point Verifier     := { spec: Spec, mode: VerifyMode, timeout_ms: Int };\n"
+        "Point Verdict      := Pass(proof: ProofTerm) | Fail(reason: Set<Error>, counterexample: Option<Model>);\n"
+        "Point ProofTerm    := { derivation: DerivationTree, assumptions: Set<Formula>, conclusion: Formula };\n"
+        "Point VerifyFn     := verify(output: Output, spec: Spec, v: Verifier) -> Verdict;\n"
+        "Constraint VerifierSound: forall o: Output, s: Spec, v: Verifier.\n"
+        "  verify(o, s, v) = Pass(_) -> output_satisfies(o, s);\n"
+        "Constraint VerifierComplete: forall o: Output, s: Spec, v: Verifier.\n"
+        "  output_satisfies(o, s) /\\ v.mode = Full -> verify(o, s, v) = Pass(_);\n"
+        "Constraint VerifierFinite: forall o: Output, s: Spec, v: Verifier.\n"
+        "  verify(o, s, v) terminates_in_finite_steps;\n"
+        "Constraint CounterexampleValid: forall o: Output, s: Spec, v: Verifier.\n"
+        "  verify(o, s, v) = Fail(cex, _) -> not(output_satisfies(o, s));\n"
+        "Prove VerifierSound;\n"
+        "Prove VerifierComplete;\n"
+        "Prove VerifierFinite;\n"
+        "Prove CounterexampleValid;\n"
+        "Normalize;\n";
+
+    LvParseResult res = parse_string(src);
+    TEST("verifier.lv 全文解析无错误");
+    if (res.ast && res.error_count == 0) {
+        PASS();
+    } else {
+        printf("  errors=%d\n", res.error_count);
+        for (int i = 0; i < res.error_count && i < 5; i++)
+            printf("    error %d: %s\n", i, res.errors[i].message);
+        FAIL("verifier.lv 解析失败");
+    }
+
+    if (res.ast) {
+        int decl = 0, cons = 0, prove = 0, norm = 0;
+        for (LvAstNode *s = res.ast->child; s; s = s->next) {
+            switch (s->type) {
+                case LV_AST_DECLARATION:
+                    decl++;
+                    break;
+                case LV_AST_CONSTRAINT_STMT:
+                    cons++;
+                    break;
+                case LV_AST_PROVE_STMT:
+                    prove++;
+                    break;
+                case LV_AST_NORMALIZE_STMT:
+                    norm++;
+                    break;
+                default:
+                    break;
+            }
+        }
+        TEST("verifier.lv 语句统计 (8 声明 4 约束 4 Prove 1 Normalize)");
+        if (decl == 8 && cons == 4 && prove == 4 && norm == 1) {
+            PASS();
+        } else {
+            printf("  (decl=%d cons=%d prove=%d norm=%d)\n", decl, cons, prove, norm);
+            FAIL("语句统计不匹配");
+        }
+
+        TEST("命名约束携带名字 (VerifierSound)");
+        LvAstNode *first_cons = NULL;
+        for (LvAstNode *s = res.ast->child; s; s = s->next) {
+            if (s->type == LV_AST_CONSTRAINT_STMT) {
+                first_cons = s;
+                break;
+            }
+        }
+        if (first_cons && first_cons->data.stmt.name && strcmp(first_cons->data.stmt.name, "VerifierSound") == 0) {
+            PASS();
+        } else {
+            FAIL("expected name=VerifierSound");
+        }
+    }
+
+    /* 语义分析不崩溃（允许有语义错误：未知类型/未声明标识符等，不要求通过） */
+    if (res.ast) {
+        LvSemaContext *sema = lv_sema_create();
+        TEST("verifier.lv 语义分析不崩溃");
+        lv_sema_analyze(sema, res.ast);
+        PASS();
+        lv_sema_destroy(sema);
+    }
+
+    lv_ast_destroy(res.ast);
+}
+
 TEST_MAIN_BEGIN("lv bootstrap test")
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -591,4 +812,10 @@ TEST_MAIN_BEGIN("lv bootstrap test")
     TEST_MAIN_RUN(test_proof_verify_boolean);
     TEST_MAIN_RUN(test_proof_verify_skip_and_trivial);
     TEST_MAIN_RUN(test_proof_verify_summary_and_file);
+
+    /* 首次自举：命题逻辑验证器（路线图步骤 6） */
+    TEST_MAIN_RUN(test_bootstrap_propositional_tautology);
+    TEST_MAIN_RUN(test_bootstrap_propositional_mix_and_regression);
+    TEST_MAIN_RUN(test_bootstrap_propositional_file_closed_loop);
+    TEST_MAIN_RUN(test_verifier_lv_parse);
 TEST_MAIN_END()

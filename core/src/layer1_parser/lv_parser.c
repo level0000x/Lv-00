@@ -235,16 +235,28 @@ static LvAstNode *parse_declaration_stmt(LvParser *p) {
     }
     names_buf[pos] = '\0';
 
+    LvAstNode *node = lv_ast_create(LV_AST_DECLARATION, loc);
+    LvAstNode *decl_value = NULL;
+    if (node) {
+        node->data.decl.entity_type = (int) entity;
+        node->data.decl.names = lv_strdup(names_buf);
+    }
+
+    /* EntityType Identifier ":=" Expr ";" — 声明值（如 "Point Spec := {...}"）。
+     * 注意：":=" 由 COLON + EQUALS 两个 token 组成。 */
+    if (p->current.type == LV_TOKEN_COLON && check(p, 0, LV_TOKEN_EQUALS)) {
+        advance(p); /* ':' */
+        advance(p); /* '=' */
+        decl_value = parse_logic_expr(p);
+        if (node)
+            node->data.decl.value = decl_value;
+    }
+
     if (!match(p, LV_TOKEN_SEMICOLON)) {
         expect(p, LV_TOKEN_SEMICOLON, "expected ';' after declaration");
         synchronize(p);
     }
 
-    LvAstNode *node = lv_ast_create(LV_AST_DECLARATION, loc);
-    if (node) {
-        node->data.decl.entity_type = (int) entity;
-        node->data.decl.names = lv_strdup(names_buf);
-    }
     return node;
 }
 
@@ -311,9 +323,31 @@ static LvAstNode *parse_simple_stmt(LvParser *p, LvTokenType kw, LvAstNodeType n
     return node;
 }
 
-/** ConstraintStmt ::= "Constraint" LogicExpr ";" */
+/** ConstraintStmt ::= "Constraint" Identifier? ":"? LogicExpr ";" */
 static LvAstNode *parse_constraint_stmt(LvParser *p) {
-    return parse_simple_stmt(p, LV_TOKEN_KW_CONSTRAINT, LV_AST_CONSTRAINT_STMT);
+    LvSourceLoc loc = p->current.loc;
+    advance(p); /* Constraint */
+
+    char name[128] = {0};
+    /* 命名约束: "Constraint Name: formula;"（Name 为 Identifier 且后随冒号） */
+    if (p->current.type == LV_TOKEN_IDENTIFIER && check(p, 0, LV_TOKEN_COLON)) {
+        lv_strncpy(name, token_text(&p->current), sizeof(name));
+        advance(p);
+        advance(p); /* 消费 ':' */
+    }
+
+    LvAstNode *expr = parse_logic_expr(p);
+    if (!match(p, LV_TOKEN_SEMICOLON)) {
+        expect(p, LV_TOKEN_SEMICOLON, "expected ';' after statement");
+        synchronize(p);
+    }
+
+    LvAstNode *node = lv_ast_create(LV_AST_CONSTRAINT_STMT, loc);
+    if (node) {
+        node->data.stmt.name = name[0] ? lv_strdup(name) : NULL;
+        node->data.stmt.expr = expr;
+    }
+    return node;
 }
 
 /** ProveStmt ::= "Prove" LogicExpr ";" */
@@ -434,7 +468,7 @@ static LvAstNode *parse_theorem_stmt(LvParser *p) {
     return node;
 }
 
-/** NormalizeStmt ::= "Normalize" (Identifier | "all") ";" */
+/** NormalizeStmt ::= "Normalize" (Identifier | "all")? ";" */
 static LvAstNode *parse_normalize_stmt(LvParser *p) {
     LvSourceLoc loc = p->current.loc;
     advance(p); /* Normalize */
@@ -444,10 +478,9 @@ static LvAstNode *parse_normalize_stmt(LvParser *p) {
         lv_strncpy(target, token_text(&p->current), sizeof(target));
         advance(p);
     } else {
-        /* "all" might be an identifier */
-        const char *txt = token_text(&p->current);
-        lv_strncpy(target, txt, sizeof(target));
-        advance(p);
+        /* 无参形式 "Normalize;"：target 语义为"全部"（"all"）。
+         * 注意：不能消费当前 token（分号/EOF），否则后续 match(SEMICOLON) 必然失败。 */
+        lv_strncpy(target, "all", sizeof(target));
     }
 
     if (!match(p, LV_TOKEN_SEMICOLON)) {
@@ -742,17 +775,25 @@ static LvAstNode *parse_or_expr(LvParser *p) {
         if (p->current.type == LV_TOKEN_KW_OR) {
             is_or = 1;
         }
+        /* 类型联合 |：与 or 同优先级（规格写法，如 Point Output := AST | IR） */
+        if (p->current.type == LV_TOKEN_PIPE) {
+            is_or = 1;
+        }
         /* "\/" is not a single token, would be SLASH, CARET... actually not used in practice */
         if (!is_or)
             break;
 
-        advance(p); /* consume "or" */
+        int is_pipe = (p->current.type == LV_TOKEN_PIPE);
+        advance(p); /* consume "or" / "|" */
 
         LvAstNode *right = parse_and_expr(p);
         if (!right)
             break;
 
-        left = lv_ast_create_logic_binary(LV_AST_LOGIC_OR, left->loc, "or", left, right);
+        if (is_pipe)
+            left = lv_ast_create_logic_binary(LV_AST_UNION, left->loc, "|", left, right);
+        else
+            left = lv_ast_create_logic_binary(LV_AST_LOGIC_OR, left->loc, "or", left, right);
     }
 
     return left;
@@ -907,26 +948,33 @@ static LvAstNode *parse_quantified_expr(LvParser *p) {
     return parse_predicate_expr(p);
 }
 
-/** PredicateExpr ::= RelationExpr | CompareExpr | "true" | "false" | "bottom" */
+/** PredicateExpr ::= CompareExpr
+ *                   | CompareExpr Identifier（无符号中缀谓词）
+ * true/false/bottom 字面量由 parse_primary_expr 处理（表达式任意位置）。 */
 static LvAstNode *parse_predicate_expr(LvParser *p) {
-    /* Handle true / false / bottom as boolean literals */
-    if (p->current.type == LV_TOKEN_KW_TRUE) {
-        LvAstNode *node = lv_ast_create_bool(p->current.loc, 1);
-        advance(p);
-        return node;
-    }
-    if (p->current.type == LV_TOKEN_KW_FALSE) {
-        LvAstNode *node = lv_ast_create_bool(p->current.loc, 0);
-        advance(p);
-        return node;
-    }
-    if (p->current.type == LV_TOKEN_KW_BOTTOM) {
-        LvAstNode *node = lv_ast_create_bool(p->current.loc, 0);
-        advance(p);
-        return node;
+    LvAstNode *expr = parse_compare_expr(p);
+    if (!expr)
+        return NULL;
+
+    /* 无符号中缀谓词: expr predicate（如 verify(o,s,v) terminates_in_finite_steps）。
+     * 排除 implies/iff 标识符——它们由上层 parse_implies_expr 处理。 */
+    if (p->current.type == LV_TOKEN_IDENTIFIER) {
+        const char *txt = token_text(&p->current);
+        if (strcmp(txt, "implies") != 0 && strcmp(txt, "iff") != 0) {
+            char pname[128];
+            lv_strncpy(pname, txt, sizeof(pname));
+            LvSourceLoc ploc = p->current.loc;
+            advance(p);
+            LvAstNode *pnode = lv_ast_create(LV_AST_PREDICATE_APP, ploc);
+            if (pnode) {
+                pnode->data.call.func_name = lv_strdup(pname);
+                pnode->data.call.args = expr;
+            }
+            return pnode ? pnode : expr;
+        }
     }
 
-    return parse_compare_expr(p);
+    return expr;
 }
 
 /** CompareExpr ::= AddExpr (("==" | "!=" | "<" | "<=" | ">" | ">=") AddExpr)? */
@@ -937,6 +985,7 @@ static const char *kCompareOpNames[] = {
     [LV_TOKEN_LE]   = "<=",
     [LV_TOKEN_GT]   = ">",
     [LV_TOKEN_GE]   = ">=",
+    [LV_TOKEN_EQUALS] = "=",  /* 命题相等（规格写法），如 verify(o,s,v) = Pass(_) */
 };
 
 static LvAstNode *parse_compare_expr(LvParser *p) {
@@ -1070,6 +1119,12 @@ static LvAstNode *parse_arg_list(LvParser *p) {
 
     if (p->current.type != LV_TOKEN_RPAREN) {
         while (1) {
+            /* 命名参数: "name: value"（如 verify(output: Output, ...)）。
+             * 参数名仅作标注，AST 中只保留值。 */
+            if (p->current.type == LV_TOKEN_IDENTIFIER && check(p, 0, LV_TOKEN_COLON)) {
+                advance(p); /* name */
+                advance(p); /* ':' */
+            }
             LvAstNode *arg = parse_logic_expr(p);
             if (!arg)
                 break;
@@ -1093,10 +1148,80 @@ static LvAstNode *parse_arg_list(LvParser *p) {
     return first_arg;
 }
 
+/** 解析记录字面量: { Field (, Field)* }；Field ::= Identifier : Expr */
+static LvAstNode *parse_struct_literal(LvParser *p) {
+    LvSourceLoc loc = p->current.loc;
+    advance(p); /* { */
+
+    LvAstNode *first_field = NULL;
+    LvAstNode *last_field = NULL;
+    int field_count = 0;
+
+    while (p->current.type != LV_TOKEN_RBRACE && p->current.type != LV_TOKEN_EOF) {
+        char fname[128] = {0};
+        if (p->current.type == LV_TOKEN_IDENTIFIER) {
+            lv_strncpy(fname, token_text(&p->current), sizeof(fname));
+            advance(p);
+        } else {
+            expect(p, LV_TOKEN_IDENTIFIER, "expected field name in record literal");
+            break;
+        }
+
+        expect(p, LV_TOKEN_COLON, "expected ':' after field name in record literal");
+
+        LvAstNode *value = parse_logic_expr(p);
+
+        LvAstNode *field = lv_ast_create(LV_AST_STRUCT_FIELD, loc);
+        if (field) {
+            field->data.field.name = lv_strdup(fname);
+            field->data.field.value = value;
+        }
+        if (!first_field) {
+            first_field = field;
+        } else {
+            last_field->next = field;
+        }
+        last_field = field;
+        field_count++;
+
+        if (p->current.type == LV_TOKEN_COMMA) {
+            advance(p);
+        } else {
+            break;
+        }
+    }
+
+    expect(p, LV_TOKEN_RBRACE, "expected '}' to close record literal");
+
+    LvAstNode *node = lv_ast_create(LV_AST_STRUCT_LITERAL, loc);
+    if (node) {
+        node->child = first_field;
+        node->child_count = field_count;
+    }
+    return node;
+}
+
 /** PrimaryExpr ::= Literal | Identifier | FunctionCall | MeasureExpr |
  *                  GeometryExpr | "(" Expr ")" */
 static LvAstNode *parse_primary_expr(LvParser *p) {
     LvSourceLoc loc = p->current.loc;
+
+    /* 布尔字面量关键字（表达式任意位置，如 Prove x == true; / not false） */
+    if (p->current.type == LV_TOKEN_KW_TRUE) {
+        LvAstNode *node = lv_ast_create_bool(p->current.loc, 1);
+        advance(p);
+        return node;
+    }
+    if (p->current.type == LV_TOKEN_KW_FALSE) {
+        LvAstNode *node = lv_ast_create_bool(p->current.loc, 0);
+        advance(p);
+        return node;
+    }
+    if (p->current.type == LV_TOKEN_KW_BOTTOM) {
+        LvAstNode *node = lv_ast_create_bool(p->current.loc, 0);
+        advance(p);
+        return node;
+    }
 
     /* 整数/有理数/小数 */
     if (p->current.type == LV_TOKEN_INTEGER) {
@@ -1163,12 +1288,57 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
         return expr;
     }
 
+    /* 记录字面量: { field: value, ... }（规格文件，如 Point Spec := { a: T }） */
+    if (p->current.type == LV_TOKEN_LBRACE) {
+        return parse_struct_literal(p);
+    }
+
     /* 标识符（可能是函数调用、关系、度量、几何表达式） */
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
         char name[128];
         lv_strncpy(name, token_text(&p->current), sizeof(name));
         LvSourceLoc ident_loc = p->current.loc;
         advance(p);
+
+        /* 成员访问: ident . ident（如 v.mode）→ 拼接为 v.mode */
+        if (p->current.type == LV_TOKEN_DOT && check(p, 0, LV_TOKEN_IDENTIFIER)) {
+            /* member 文本取自 peek 到的下一个 token（p->current 此刻是 '.'） */
+            LvToken member_tok = lv_lexer_peek(p->lexer, 0);
+            char mbuf[128];
+            lv_token_text(&member_tok, mbuf, sizeof(mbuf));
+            size_t nlen = strlen(name);
+            if (nlen < sizeof(name) - 1) {
+                name[nlen++] = '.';
+                size_t mlen = strlen(mbuf);
+                if (mlen > sizeof(name) - nlen - 1)
+                    mlen = sizeof(name) - nlen - 1;
+                memcpy(name + nlen, mbuf, mlen);
+                name[nlen + mlen] = '\0';
+            }
+            advance(p); /* 弹出 member token 到 current */
+            advance(p); /* 再消费，使 current 指向 member 之后的 token */
+        }
+
+        /* 泛型类型应用: T<Arg>（如 List<Formula>、Set<Error>）→ 拼接名字 "T<Arg>" */
+        if (p->current.type == LV_TOKEN_LT && check(p, 0, LV_TOKEN_IDENTIFIER) && check(p, 1, LV_TOKEN_GT)) {
+            LvToken arg_tok = lv_lexer_peek(p->lexer, 0);
+            char gbuf[128];
+            lv_token_text(&arg_tok, gbuf, sizeof(gbuf));
+            size_t nlen = strlen(name);
+            if (nlen < sizeof(name) - 1) {
+                name[nlen++] = '<';
+                size_t glen = strlen(gbuf);
+                if (glen > sizeof(name) - nlen - 2)
+                    glen = sizeof(name) - nlen - 2;
+                memcpy(name + nlen, gbuf, glen);
+                nlen += glen;
+                name[nlen++] = '>';
+                name[nlen] = '\0';
+            }
+            advance(p); /* < */
+            advance(p); /* Arg */
+            advance(p); /* > */
+        }
 
         /* 检查后面是不是 "(" --- FunctionCall, Relation, Measure, Geometry */
         if (p->current.type == LV_TOKEN_LPAREN) {

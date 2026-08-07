@@ -115,6 +115,10 @@ int main(void) {
     test_single_token("=>", LV_TOKEN_THEREFORE);
     test_single_token("|-", LV_TOKEN_DARROW);
     test_single_token("|=", LV_TOKEN_MODELS);
+    test_single_token("|", LV_TOKEN_PIPE);
+
+    /* 合取符号 /\ 等价于关键字 and */
+    test_single_token("/\\", LV_TOKEN_KW_AND);
 
     /* 注释 */
     printf("[注释]\n");

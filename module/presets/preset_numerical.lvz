@@ -70,8 +70,7 @@ presets {
         category "NUMERICAL"
         inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
         output "SCALAR"
-        math_def "S_n = \\frac{h}{3}\\left[f(a) + 4\\sum_{\\text{odd}} f(x_i) + \"
-            \"2\\sum_{\\text{even}} f(x_i) + f(b)\\right]"
+        math_def "S_n = \\frac{h}{3}\\left[f(a) + 4\\sum_{\\text{odd}} f(x_i) + 2\\sum_{\\text{even}} f(x_i) + f(b)\\right]"
         complexity "O(n)"
         constructive true
         reversible false
@@ -82,8 +81,7 @@ presets {
         category "NUMERICAL"
         inputs 4 "FUNCTION" "SCALAR" "SCALAR" "INTEGER"
         output "SCALAR"
-        math_def "\\int_a^b f(x)\\,dx \\approx \\sum_{i=1}^{n} A_i \\, f(x_i), \\quad x_i \\text{ \"
-            \"为 Legendre 多项式零点}"
+        math_def "\\int_a^b f(x)\\,dx \\approx \\sum_{i=1}^{n} A_i \\, f(x_i), \\quad x_i \\text{ 为 Legendre 多项式零点}"
         complexity "O(n)"
         constructive true
         reversible false
@@ -249,8 +247,7 @@ presets {
         inputs 4 "MATRIX" "LIST" "SCALAR" "INTEGER"
         output "LIST"
         math_def "x^{(k+1)} = D^{-1}(b - (L+U)x^{(k)})"
-        complexity "/* Jacobi迭代 */
-            "O(n^2 \\cdot k)""
+        complexity "O(n^2 \\cdot k)"
         constructive true
         reversible false
     }

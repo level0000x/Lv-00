@@ -10,44 +10,32 @@ lvz 1
 
 presets {
 
-    preset "desc" {
-        description "inputs"
+    preset "prop_and" {
+        description "命题合取：P ∧ Q，当且仅当 P 和 Q 均为真时结果为真"
         category "LOGIC"
-        output "ANY"
-        math_def "math"
-        complexity "comp"
-        constructive false
-        reversible false
-    }
-
-    preset "命题合取：P ∧ Q，当且仅当 P 和 Q 均为真时结果为真" {
-        description "inputs"
-        category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
-        math_def "P \\land Q \\equiv \\begin{cases} \\text{T} & P = \\text{T} \\land Q = \\text{T} \\\\ \"
-                       \"\\text{F} & \\text{otherwise} \\end{cases}"
+        math_def "P \\land Q \\equiv \\begin{cases} \\text{T} & P = \\text{T} \\land Q = \\text{T} \\\\ \\text{F} & \\text{otherwise} \\end{cases}"
         complexity "O(1)"
         constructive true
         reversible false
     }
 
-    preset "命题析取：P ∨ Q，当 P 或 Q 至少一个为真时结果为真" {
-        description "inputs"
+    preset "prop_or" {
+        description "命题析取：P ∨ Q，当 P 或 Q 至少一个为真时结果为真"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
-        math_def "P \\lor Q \\equiv \\begin{cases} \\text{F} & P = \\text{F} \\land Q = \\text{F} \\\\ \\text{T} \"
-                       \"& \\text{otherwise} \\end{cases}"
+        math_def "P \\lor Q \\equiv \\begin{cases} \\text{F} & P = \\text{F} \\land Q = \\text{F} \\\\ \\text{T} & \\text{otherwise} \\end{cases}"
         complexity "O(1)"
         constructive true
         reversible false
     }
 
-    preset "命题否定：¬P，当 P 为真时结果为假，反之亦然" {
-        description "inputs"
+    preset "prop_not" {
+        description "命题否定：¬P，当 P 为真时结果为假，反之亦然"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
         math_def "\\lnot P \\equiv \\begin{cases} \\text{F} & P = \\text{T} \\\\ \\text{T} & P = \\text{F} \\end{cases}"
         complexity "O(1)"
@@ -55,22 +43,21 @@ presets {
         reversible true
     }
 
-    preset "命题蕴涵：P → Q，等价于 ¬P ∨ Q，仅在 P 真且 Q 假时为假" {
-        description "inputs"
+    preset "prop_implies" {
+        description "命题蕴涵：P → Q，等价于 ¬P ∨ Q，仅在 P 真且 Q 假时为假"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
-        math_def "P \\to Q \\equiv \\lnot P \\lor Q \\equiv \\begin{cases} \\text{F} & P = \\text{T}, Q = \"
-                       \"\\text{F} \\\\ \\text{T} & \\text{otherwise} \\end{cases}"
+        math_def "P \\to Q \\equiv \\lnot P \\lor Q \\equiv \\begin{cases} \\text{F} & P = \\text{T}, Q = \\text{F} \\\\ \\text{T} & \\text{otherwise} \\end{cases}"
         complexity "O(1)"
         constructive true
         reversible false
     }
 
-    preset "命题等价：P ↔ Q，当 P 和 Q 真值相同时结果为真" {
-        description "inputs"
+    preset "prop_iff" {
+        description "命题等价：P ↔ Q，当 P 和 Q 真值相同时结果为真"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "P \\leftrightarrow Q \\equiv (P \\to Q) \\land (Q \\to P)"
         complexity "O(1)"
@@ -78,10 +65,10 @@ presets {
         reversible true
     }
 
-    preset "命题异或：P ⊕ Q，当 P 和 Q 恰好一个为真时结果为真" {
-        description "inputs"
+    preset "prop_xor" {
+        description "命题异或：P ⊕ Q，当 P 和 Q 恰好一个为真时结果为真"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "P \\oplus Q \\equiv (P \\lor Q) \\land \\lnot(P \\land Q)"
         complexity "O(1)"
@@ -89,10 +76,10 @@ presets {
         reversible true
     }
 
-    preset "命题与非：P ↑ Q ≡ ¬(P ∧ Q)，Sheffer竖线，功能完备联结词" {
-        description "inputs"
+    preset "prop_nand" {
+        description "命题与非：P ↑ Q ≡ ¬(P ∧ Q)，Sheffer竖线，功能完备联结词"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "P \\uparrow Q \\equiv \\lnot(P \\land Q)"
         complexity "O(1)"
@@ -100,10 +87,10 @@ presets {
         reversible false
     }
 
-    preset "命题或非：P ↓ Q ≡ ¬(P ∨ Q)，Peirce箭头，功能完备联结词" {
-        description "inputs"
+    preset "prop_nor" {
+        description "命题或非：P ↓ Q ≡ ¬(P ∨ Q)，Peirce箭头，功能完备联结词"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "P \\downarrow Q \\equiv \\lnot(P \\lor Q)"
         complexity "O(1)"
@@ -111,10 +98,10 @@ presets {
         reversible false
     }
 
-    preset "重言式判定：判定命题公式是否对所有真值指派均为真" {
-        description "inputs"
+    preset "prop_tautology_check" {
+        description "重言式判定：判定命题公式是否对所有真值指派均为真"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "BOOLEAN"
         math_def "\\varphi \\text{ 是重言式} \\Leftrightarrow \\forall v \\in \\{0,1\\}^n: v(\\varphi) = \\text{T}"
         complexity "O(2^n)，n 为命题变元数"
@@ -122,10 +109,10 @@ presets {
         reversible false
     }
 
-    preset "矛盾式判定：判定命题公式是否对所有真值指派均为假" {
-        description "inputs"
+    preset "prop_contradiction_check" {
+        description "矛盾式判定：判定命题公式是否对所有真值指派均为假"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "BOOLEAN"
         math_def "\\varphi \\text{ 是矛盾式} \\Leftrightarrow \\forall v \\in \\{0,1\\}^n: v(\\varphi) = \\text{F}"
         complexity "O(2^n)，n 为命题变元数"
@@ -133,10 +120,10 @@ presets {
         reversible false
     }
 
-    preset "可满足性判定（SAT）：判定命题公式是否存在使其为真的真值指派" {
-        description "inputs"
+    preset "prop_satisfiable_check" {
+        description "可满足性判定（SAT）：判定命题公式是否存在使其为真的真值指派"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "BOOLEAN"
         math_def "\\varphi \\text{ 可满足} \\Leftrightarrow \\exists v \\in \\{0,1\\}^n: v(\\varphi) = \\text{T}"
         complexity "NP 完全（Cook-Levin 定理）"
@@ -144,10 +131,10 @@ presets {
         reversible false
     }
 
-    preset "析取范式转换：将命题公式转换为等价的析取范式（DNF）" {
-        description "inputs"
+    preset "prop_dnf" {
+        description "析取范式转换：将命题公式转换为等价的析取范式（DNF）"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "EXPRESSION"
         math_def "\\varphi \\equiv \\bigvee_{i=1}^{m} \\bigwedge_{j=1}^{k_i} l_{ij}, \\quad l_{ij} \\in \\{p, \\lnot p\\}"
         complexity "O(2^n)，n 为命题变元数"
@@ -155,10 +142,10 @@ presets {
         reversible false
     }
 
-    preset "全称量化：∀x P(x)，论域中所有元素均满足谓词 P" {
-        description "inputs"
+    preset "fol_forall" {
+        description "全称量化：∀x P(x)，论域中所有元素均满足谓词 P"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "SET"
         output "EXPRESSION"
         math_def "\\forall x \\in D, \\; P(x) \\Leftrightarrow \\forall d \\in D: P(d) = \\text{T}"
         complexity "O(|D|)，|D| 为论域大小"
@@ -166,10 +153,10 @@ presets {
         reversible false
     }
 
-    preset "存在量化：∃x P(x)，论域中至少存在一个元素满足谓词 P" {
-        description "inputs"
+    preset "fol_exists" {
+        description "存在量化：∃x P(x)，论域中至少存在一个元素满足谓词 P"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "SET"
         output "EXPRESSION"
         math_def "\\exists x \\in D, \\; P(x) \\Leftrightarrow \\exists d \\in D: P(d) = \\text{T}"
         complexity "O(|D|)，|D| 为论域大小"
@@ -177,22 +164,21 @@ presets {
         reversible false
     }
 
-    preset "量词否定：¬∀x P(x) ≡ ∃x ¬P(x)，¬∃x P(x) ≡ ∀x ¬P(x)" {
-        description "inputs"
+    preset "fol_negate_quantifier" {
+        description "量词否定：¬∀x P(x) ≡ ∃x ¬P(x)，¬∃x P(x) ≡ ∀x ¬P(x)"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "EXPRESSION"
-        math_def "\\lnot\\forall x \\, P(x) \\equiv \\exists x \\, \\lnot P(x), \\quad \\lnot\\exists x \\, P(x) \"
-                       \"\\equiv \\forall x \\, \\lnot P(x)"
+        math_def "\\lnot\\forall x \\, P(x) \\equiv \\exists x \\, \\lnot P(x), \\quad \\lnot\\exists x \\, P(x) \\equiv \\forall x \\, \\lnot P(x)"
         complexity "O(n)，n 为公式长度"
         constructive true
         reversible true
     }
 
-    preset "项代入：将公式中的自由变量 x 用项 t 代入，得到 P[x/t]" {
-        description "inputs"
+    preset "fol_substitution" {
+        description "项代入：将公式中的自由变量 x 用项 t 代入，得到 P[x/t]"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "EXPRESSION"
         output "EXPRESSION"
         math_def "P[x/t] \\text{，要求 } t \\text{ 对 } x \\text{ 在 } P \\text{ 中可代入（无变元捕获）}"
         complexity "O(n)，n 为公式长度"
@@ -200,10 +186,10 @@ presets {
         reversible false
     }
 
-    preset "自由变量检查：提取一阶逻辑公式中的所有自由变量集合 FV(P)" {
-        description "inputs"
+    preset "fol_free_variable_check" {
+        description "自由变量检查：提取一阶逻辑公式中的所有自由变量集合 FV(P)"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "SET"
         math_def "\\text{FV}(P): \\text{递归定义} \\quad \\text{FV}(\\forall x \\, Q) = \\text{FV}(Q) \\setminus \\{x\\}"
         complexity "O(n)，n 为公式长度"
@@ -211,10 +197,10 @@ presets {
         reversible false
     }
 
-    preset "约束变量检查：提取一阶逻辑公式中的所有约束变量集合 BV(P)" {
-        description "inputs"
+    preset "fol_bound_variable_check" {
+        description "约束变量检查：提取一阶逻辑公式中的所有约束变量集合 BV(P)"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "SET"
         math_def "\\text{BV}(P): \\text{递归定义} \\quad \\text{BV}(\\forall x \\, Q) = \\text{BV}(Q) \\cup \\{x\\}"
         complexity "O(n)，n 为公式长度"
@@ -222,10 +208,10 @@ presets {
         reversible false
     }
 
-    preset "全称实例化：从 ∀x P(x) 推出 P(t)，t 为论域中任意项" {
-        description "inputs"
+    preset "fol_universal_instantiation" {
+        description "全称实例化：从 ∀x P(x) 推出 P(t)，t 为论域中任意项"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "EXPRESSION"
         output "EXPRESSION"
         math_def "\\forall x \\, P(x) \\vdash P(t), \\quad t \\text{ 为任意项}"
         complexity "O(1)"
@@ -233,10 +219,10 @@ presets {
         reversible false
     }
 
-    preset "存在泛化：从 P(t) 推出 ∃x P(x)，t 为论域中某个项" {
-        description "inputs"
+    preset "fol_existential_generalization" {
+        description "存在泛化：从 P(t) 推出 ∃x P(x)，t 为论域中某个项"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "EXPRESSION"
         output "EXPRESSION"
         math_def "P(t) \\vdash \\exists x \\, P(x), \\quad t \\text{ 为某个项}"
         complexity "O(1)"
@@ -244,10 +230,10 @@ presets {
         reversible false
     }
 
-    preset "前束范式转换：将一阶逻辑公式转换为等价的前束范式 Q1x1...Qnxn M" {
-        description "inputs"
+    preset "fol_prenex_normal_form" {
+        description "前束范式转换：将一阶逻辑公式转换为等价的前束范式 Q1x1...Qnxn M"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "EXPRESSION"
         math_def "\\varphi \\equiv Q_1 x_1 \\, Q_2 x_2 \\, \\cdots \\, Q_n x_n \\, M, \\quad M \\text{ 无量词}"
         complexity "O(n^2)，n 为公式长度"
@@ -255,10 +241,10 @@ presets {
         reversible false
     }
 
-    preset "Skolem范式转换：通过Skolem化消除存在量词，保持可满足性" {
-        description "inputs"
+    preset "fol_skolem_normal_form" {
+        description "Skolem范式转换：通过Skolem化消除存在量词，保持可满足性"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "EXPRESSION"
         output "EXPRESSION"
         math_def "\\forall x_1 \\cdots \\forall x_m \\, M', \\quad \\text{引入Skolem函数消除 } \\exists"
         complexity "O(n^2)，n 为公式长度"
@@ -266,10 +252,10 @@ presets {
         reversible false
     }
 
-    preset "假言推理（Modus Ponens）：从 P 和 P → Q 推出 Q" {
-        description "inputs"
+    preset "proof_modus_ponens" {
+        description "假言推理（Modus Ponens）：从 P 和 P → Q 推出 Q"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "EXPRESSION"
         output "EXPRESSION"
         math_def "P, \\; P \\to Q \\vdash Q"
         complexity "O(1)"
@@ -277,10 +263,10 @@ presets {
         reversible false
     }
 
-    preset "否定后件（Modus Tollens）：从 P → Q 和 ¬Q 推出 ¬P" {
-        description "inputs"
+    preset "proof_modus_tollens" {
+        description "否定后件（Modus Tollens）：从 P → Q 和 ¬Q 推出 ¬P"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "EXPRESSION"
         output "EXPRESSION"
         math_def "P \\to Q, \\; \\lnot Q \\vdash \\lnot P"
         complexity "O(1)"
@@ -288,10 +274,10 @@ presets {
         reversible false
     }
 
-    preset "合取引入（∧I）：从 P 和 Q 推出 P ∧ Q" {
-        description "inputs"
+    preset "proof_conjunction_intro" {
+        description "合取引入（∧I）：从 P 和 Q 推出 P ∧ Q"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "EXPRESSION"
         output "EXPRESSION"
         math_def "P, \\; Q \\vdash P \\land Q"
         complexity "O(1)"
@@ -299,10 +285,10 @@ presets {
         reversible false
     }
 
-    preset "析取消除（∨E）：从 P ∨ Q，以及 P ⊢ R 和 Q ⊢ R，推出 R" {
-        description "inputs"
+    preset "proof_disjunction_elim" {
+        description "析取消除（∨E）：从 P ∨ Q，以及 P ⊢ R 和 Q ⊢ R，推出 R"
         category "LOGIC"
-        inputs 3 
+        inputs 3 "EXPRESSION" "EXPRESSION" "EXPRESSION"
         output "EXPRESSION"
         math_def "P \\lor Q, \\; P \\vdash R, \\; Q \\vdash R \\vdash R"
         complexity "O(1)"
@@ -310,10 +296,10 @@ presets {
         reversible false
     }
 
-    preset "归谬法：假设 P 推导出矛盾 ⊥，从而得出 ¬P" {
-        description "inputs"
+    preset "proof_reductio_ad_absurdum" {
+        description "归谬法：假设 P 推导出矛盾 ⊥，从而得出 ¬P"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "SEQUENCE"
         output "EXPRESSION"
         math_def "P \\vdash \\bot \\Rightarrow \\vdash \\lnot P"
         complexity "取决于推导过程"
@@ -321,10 +307,10 @@ presets {
         reversible false
     }
 
-    preset "条件证明：假设 P 推导出 Q，从而得出 P → Q" {
-        description "inputs"
+    preset "proof_conditional_proof" {
+        description "条件证明：假设 P 推导出 Q，从而得出 P → Q"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "SEQUENCE"
         output "EXPRESSION"
         math_def "[P] \\cdots Q \\Rightarrow \\vdash P \\to Q"
         complexity "取决于推导过程"
@@ -332,10 +318,10 @@ presets {
         reversible false
     }
 
-    preset "反证法：假设 ¬P 推导出矛盾 ⊥，从而得出 P（经典逻辑特有）" {
-        description "inputs"
+    preset "proof_by_contradiction" {
+        description "反证法：假设 ¬P 推导出矛盾 ⊥，从而得出 P（经典逻辑特有）"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "EXPRESSION" "SEQUENCE"
         output "EXPRESSION"
         math_def "\\lnot P \\vdash \\bot \\Rightarrow \\vdash P \\quad \\text{（经典逻辑）}"
         complexity "取决于推导过程"
@@ -343,10 +329,10 @@ presets {
         reversible false
     }
 
-    preset "自然演绎系统：基于引入规则和消去规则的完整证明系统（Gentzen, 1935）" {
-        description "inputs"
+    preset "proof_natural_deduction" {
+        description "自然演绎系统：基于引入规则和消去规则的完整证明系统（Gentzen, 1935）"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "SEQUENCE" "EXPRESSION"
         output "BOOLEAN"
         math_def "\\Gamma \\vdash_{\\text{ND}} \\varphi \\quad \\text{（引入/消去规则集）}"
         complexity "O(2^{|\\Gamma|})，取决于策略"
@@ -354,10 +340,10 @@ presets {
         reversible false
     }
 
-    preset "模型满足关系：判定结构 M 是否满足公式 φ（M ⊨ φ）" {
-        description "inputs"
+    preset "model_satisfies" {
+        description "模型满足关系：判定结构 M 是否满足公式 φ（M ⊨ φ）"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "SET" "EXPRESSION"
         output "BOOLEAN"
         math_def "M \\models \\varphi[s] \\text{，递归判定结构 } M \\text{ 在赋值 } s \\text{ 下是否满足 } \\varphi"
         complexity "O(|M| \\cdot |\\varphi|)"
@@ -365,10 +351,10 @@ presets {
         reversible false
     }
 
-    preset "理论一致性判定：判定一阶理论 T 是否一致（无矛盾）" {
-        description "inputs"
+    preset "model_theory_check" {
+        description "理论一致性判定：判定一阶理论 T 是否一致（无矛盾）"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "SEQUENCE"
         output "BOOLEAN"
         math_def "T \\text{ 一致} \\Leftrightarrow \\nexists \\varphi: T \\vdash \\varphi \\land T \\vdash \\lnot \\varphi"
         complexity "不可判定"
@@ -376,46 +362,43 @@ presets {
         reversible false
     }
 
-    preset "初等等价：判定两个结构 M 和 N 是否满足 M ≡ N" {
-        description "inputs"
+    preset "model_elementary_equivalence" {
+        description "初等等价：判定两个结构 M 和 N 是否满足 M ≡ N"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "SET" "SET"
         output "BOOLEAN"
-        math_def "M \\equiv N \\Leftrightarrow \\forall \\text{ 句子 } \\varphi: M \\models \\varphi \"
-                       \"\\Leftrightarrow N \\models \\varphi"
+        math_def "M \\equiv N \\Leftrightarrow \\forall \\text{ 句子 } \\varphi: M \\models \\varphi \\Leftrightarrow N \\models \\varphi"
         complexity "不可判定（一般情况）"
         constructive false
         reversible false
     }
 
-    preset "紧致性定理应用：Γ 有模型当且仅当 Γ 的每个有限子集都有模型" {
-        description "inputs"
+    preset "model_compactness" {
+        description "紧致性定理应用：Γ 有模型当且仅当 Γ 的每个有限子集都有模型"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "SEQUENCE"
         output "BOOLEAN"
-        math_def "\\Gamma \\text{ 有模型} \\Leftrightarrow \\forall \\Gamma_0 \\subseteq_{\\text{fin}} \\Gamma: \"
-                       \"\\Gamma_0 \\text{ 有模型}"
+        math_def "\\Gamma \\text{ 有模型} \\Leftrightarrow \\forall \\Gamma_0 \\subseteq_{\\text{fin}} \\Gamma: \\Gamma_0 \\text{ 有模型}"
         complexity "不可判定"
         constructive false
         reversible false
     }
 
-    preset "Lowenheim-Skolem定理：可满足的可数理论有可数模型，有无穷模型则有任意大无穷模型" {
-        description "inputs"
+    preset "model_lowenheim_skolem" {
+        description "Lowenheim-Skolem定理：可满足的可数理论有可数模型，有无穷模型则有任意大无穷模型"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "SEQUENCE" "INTEGER"
         output "BOOLEAN"
-        math_def "\\Gamma \\text{ 可满足} \\Rightarrow \\exists \\text{ 可数模型}; \\quad \\Gamma \\text{ 有无穷模型} \"
-            \"\\Rightarrow \\forall \\kappa \\geq |L|, \\exists \\text{ 基数为 } \\kappa \\text{ 的模型}"
+        math_def "\\Gamma \\text{ 可满足} \\Rightarrow \\exists \\text{ 可数模型}; \\quad \\Gamma \\text{ 有无穷模型} \\Rightarrow \\forall \\kappa \\geq |L|, \\exists \\text{ 基数为 } \\kappa \\text{ 的模型}"
         complexity "不可判定（一般情况）"
         constructive false
         reversible false
     }
 
-    preset "可计算函数判定：判定函数是否为可计算函数（存在图灵机计算）" {
-        description "inputs"
+    preset "computable_function_check" {
+        description "可计算函数判定：判定函数是否为可计算函数（存在图灵机计算）"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "FUNCTION"
         output "BOOLEAN"
         math_def "f \\text{ 可计算} \\Leftrightarrow \\exists \\text{ 图灵机 } M: \\forall x, M(x) \\downarrow = f(x)"
         complexity "不可判定"
@@ -423,34 +406,32 @@ presets {
         reversible false
     }
 
-    preset "图灵机模拟：给定图灵机描述和输入带，模拟执行过程" {
-        description "inputs"
+    preset "turing_machine_simulate" {
+        description "图灵机模拟：给定图灵机描述和输入带，模拟执行过程"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "STRING" "STRING"
         output "STRING"
-        math_def "T = (Q, \\Sigma, \\Gamma, \\delta, q_0, q_{\\text{acc}}, q_{\\text{rej}}), \\quad M \\text{ \"
-                       \"在输入 } w \\text{ 上的逐步模拟}"
+        math_def "T = (Q, \\Sigma, \\Gamma, \\delta, q_0, q_{\\text{acc}}, q_{\\text{rej}}), \\quad M \\text{ 在输入 } w \\text{ 上的逐步模拟}"
         complexity "取决于运行步数"
         constructive true
         reversible false
     }
 
-    preset "停机问题：判定图灵机 M 在输入 w 上是否停机（Turing, 1936，不可判定）" {
-        description "inputs"
+    preset "halting_problem" {
+        description "停机问题：判定图灵机 M 在输入 w 上是否停机（Turing, 1936，不可判定）"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "STRING" "STRING"
         output "BOOLEAN"
-        math_def "H(M, w) = \\begin{cases} 1 & M \\text{ 在 } w \\text{ 上停机} \\\\ 0 & M \\text{ 在 } w \"
-                       \"\\text{ 上不停机} \\end{cases} \\quad \\text{不可判定}"
+        math_def "H(M, w) = \\begin{cases} 1 & M \\text{ 在 } w \\text{ 上停机} \\\\ 0 & M \\text{ 在 } w \\text{ 上不停机} \\end{cases} \\quad \\text{不可判定}"
         complexity "不可判定"
         constructive false
         reversible false
     }
 
-    preset "递归可枚举判定：判定语言是否为递归可枚举集（半可判定集）" {
-        description "inputs"
+    preset "recursive_enumerable_check" {
+        description "递归可枚举判定：判定语言是否为递归可枚举集（半可判定集）"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "SET"
         output "BOOLEAN"
         math_def "L \\text{ 是 r.e.} \\Leftrightarrow \\exists M: L = \\{w : M \\text{ 接受 } w\\}"
         complexity "不可判定"
@@ -458,13 +439,12 @@ presets {
         reversible false
     }
 
-    preset "可判定性检查：判定语言是否为可判定集（递归集）" {
-        description "inputs"
+    preset "decidability_check" {
+        description "可判定性检查：判定语言是否为可判定集（递归集）"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "SET"
         output "BOOLEAN"
-        math_def "L \\text{ 可判定} \\Leftrightarrow \\exists M: \\forall w, M(w) \\downarrow \\land M \\text{ \"
-                       \"接受 } w \\Leftrightarrow w \\in L"
+        math_def "L \\text{ 可判定} \\Leftrightarrow \\exists M: \\forall w, M(w) \\downarrow \\land M \\text{ 接受 } w \\Leftrightarrow w \\in L"
         complexity "不可判定"
         constructive false
         reversible false

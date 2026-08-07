@@ -68,15 +68,15 @@ LvLambdaTerm *lv_church_pred(void) {
                                 lv_lambda_create_app(lv_lambda_create_var(1), lv_lambda_create_var(3))));
     LvLambdaTerm *pair_fn = lv_lambda_create_abs(0, inner1);
 
-    /* λu.x — x is at depth 2: scope=[n(3),f(2),x(1),u(0)] */
-    LvLambdaTerm *const_x = lv_lambda_create_abs(0, lv_lambda_create_var(2));
+    /* λu.x — x is at depth 1（scope=[n(3),f(2),x(1),u(0)]，De Bruijn 相对索引） */
+    LvLambdaTerm *const_x = lv_lambda_create_abs(0, lv_lambda_create_var(1));
 
     /* λu.u */
     LvLambdaTerm *const_u = lv_lambda_create_abs(0, lv_lambda_create_var(0));
 
-    /* n pair_fn const_x const_u */
+    /* n pair_fn const_x const_u — n 在 λn.λf.λx 内索引 2（x=0, f=1, n=2） */
     LvLambdaTerm *body = lv_lambda_create_app(
-        lv_lambda_create_app(lv_lambda_create_app(lv_lambda_create_var(0), pair_fn), const_x), const_u);
+        lv_lambda_create_app(lv_lambda_create_app(lv_lambda_create_var(2), pair_fn), const_x), const_u);
 
     return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
 }

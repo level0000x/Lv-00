@@ -311,6 +311,10 @@ typedef struct {
 
 static void ast_destroy_declaration(LvAstNode *node) {
     lv_free((void **) &node->data.decl.names);
+    if (node->data.decl.value) {
+        lv_ast_destroy(node->data.decl.value);
+        node->data.decl.value = NULL;
+    }
 }
 
 static void ast_destroy_let(LvAstNode *node) {
@@ -351,6 +355,37 @@ static void ast_destroy_theorem(LvAstNode *node) {
 
 static void ast_destroy_normalize(LvAstNode *node) {
     lv_free((void **) &node->data.normalize.target);
+}
+
+static void ast_destroy_stmt_name(LvAstNode *node) {
+    lv_free((void **) &node->data.stmt.name);
+}
+
+static void ast_destroy_struct_field(LvAstNode *node) {
+    lv_free((void **) &node->data.field.name);
+    if (node->data.field.value) {
+        lv_ast_destroy(node->data.field.value);
+        node->data.field.value = NULL;
+    }
+}
+
+static void ast_destroy_union(LvAstNode *node) {
+    if (node->data.binary.left) {
+        lv_ast_destroy(node->data.binary.left);
+        node->data.binary.left = NULL;
+    }
+    if (node->data.binary.right) {
+        lv_ast_destroy(node->data.binary.right);
+        node->data.binary.right = NULL;
+    }
+}
+
+static void ast_destroy_predicate_app(LvAstNode *node) {
+    lv_free((void **) &node->data.call.func_name);
+    if (node->data.call.args) {
+        lv_ast_destroy(node->data.call.args);
+        node->data.call.args = NULL;
+    }
 }
 
 static void ast_destroy_nop(LvAstNode *node) {
@@ -463,6 +498,23 @@ static int ast_debug_normalize(const LvAstNode *node, lvStrBuf *sb) {
     return 0;
 }
 
+static int ast_debug_stmt_name(const LvAstNode *node, lvStrBuf *sb) {
+    lv_strbuf_printf(sb, " [name=%s]",
+                     node->data.stmt.name ? node->data.stmt.name : "");
+    return 0;
+}
+
+static int ast_debug_struct_literal(const LvAstNode *node, lvStrBuf *sb) {
+    lv_strbuf_printf(sb, " [fields=%d]", node->child_count);
+    return 0;
+}
+
+static int ast_debug_struct_field(const LvAstNode *node, lvStrBuf *sb) {
+    lv_strbuf_printf(sb, " [%s]",
+                     node->data.field.name ? node->data.field.name : "");
+    return 0;
+}
+
 static int ast_debug_nop(const LvAstNode *node, lvStrBuf *sb) {
     (void)node;
     (void)sb;
@@ -515,6 +567,16 @@ static void ast_print_call(const LvAstNode *node, int indent) {
         lv_ast_print(node->data.call.args, indent + 1);
 }
 
+static void ast_print_declaration(const LvAstNode *node, int indent) {
+    if (node->data.decl.value)
+        lv_ast_print(node->data.decl.value, indent + 1);
+}
+
+static void ast_print_struct_field(const LvAstNode *node, int indent) {
+    if (node->data.field.value)
+        lv_ast_print(node->data.field.value, indent + 1);
+}
+
 static void ast_print_quantifier(const LvAstNode *node, int indent) {
     if (node->data.quantifier.body)
         lv_ast_print(node->data.quantifier.body, indent + 1);
@@ -531,9 +593,9 @@ static void ast_print_nop(const LvAstNode *node, int indent) {
 
 static const LvAstVTable kAstVTable[LV_AST_VTABLE_COUNT] = {
     [LV_AST_PROGRAM]         = { ast_destroy_nop,        ast_debug_nop,        ast_print_nop },
-    [LV_AST_DECLARATION]     = { ast_destroy_declaration, ast_debug_declaration, ast_print_nop },
+    [LV_AST_DECLARATION]     = { ast_destroy_declaration, ast_debug_declaration, ast_print_declaration },
     [LV_AST_LET]             = { ast_destroy_let,         ast_debug_let,         ast_print_let },
-    [LV_AST_CONSTRAINT_STMT] = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
+    [LV_AST_CONSTRAINT_STMT] = { ast_destroy_stmt_name,   ast_debug_stmt_name,   ast_print_stmt },
     [LV_AST_ASSUME_STMT]     = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
     [LV_AST_ASSERT_STMT]     = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
     [LV_AST_PROVE_STMT]      = { ast_destroy_nop,        ast_debug_nop,         ast_print_stmt },
@@ -562,6 +624,10 @@ static const LvAstVTable kAstVTable[LV_AST_VTABLE_COUNT] = {
     [LV_AST_MEASURE]         = { ast_destroy_call,       ast_debug_call,        ast_print_call },
     [LV_AST_GEOMETRY_EXPR]   = { ast_destroy_call,       ast_debug_call,        ast_print_call },
     [LV_AST_COMPARE]         = { ast_destroy_nop,        ast_debug_compare,     ast_print_compare },
+    [LV_AST_STRUCT_LITERAL]  = { ast_destroy_nop,        ast_debug_struct_literal, ast_print_nop },
+    [LV_AST_STRUCT_FIELD]    = { ast_destroy_struct_field, ast_debug_struct_field, ast_print_struct_field },
+    [LV_AST_UNION]           = { ast_destroy_union,      ast_debug_binary_op,   ast_print_binary_op },
+    [LV_AST_PREDICATE_APP]   = { ast_destroy_predicate_app, ast_debug_call,      ast_print_call },
     [LV_AST_MODULE_DECL]     = { ast_destroy_module_import, ast_debug_module_import, ast_print_nop },
     [LV_AST_IMPORT_DECL]     = { ast_destroy_module_import, ast_debug_module_import, ast_print_nop },
     [LV_AST_PROOF_BLOCK]     = { ast_destroy_nop,        ast_debug_nop,         ast_print_nop },
@@ -617,8 +683,9 @@ static const char *ast_type_name(LvAstNodeType type) {
                                   "LOGIC_IMPLIES",   "LOGIC_IFF",       "LOGIC_FORALL",
                                   "LOGIC_EXISTS",    "BINARY_OP",       "UNARY_OP",
                                   "FUNCTION_CALL",   "RELATION",        "MEASURE",
-                                  "GEOMETRY_EXPR",   "COMPARE",         "MODULE_DECL",
-                                  "IMPORT_DECL",     "PROOF_BLOCK"};
+                                  "GEOMETRY_EXPR",   "COMPARE",         "STRUCT_LITERAL",
+                                  "STRUCT_FIELD",    "UNION",           "PREDICATE_APP",
+                                  "MODULE_DECL",     "IMPORT_DECL",     "PROOF_BLOCK"};
     if (type >= 0 && type < LV_AST_COUNT)
         return names[type];
     return "UNKNOWN";

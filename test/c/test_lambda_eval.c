@@ -1,6 +1,6 @@
 /**
  * @file test_lambda_eval.c
- * @brief λ-演算 β-归约结果验证测试
+ * @brief λ-演算 β-归约结果验证测试（含显式环境求值器 lv_lambda_eval 测试）
  *
  * 通过图结构对比验证 β-归约的正确性：
  * - 编译 Church 运算表达式（如 add 2 3）
@@ -360,6 +360,121 @@ static void test_reduction_steps_reasonable(void) {
     PASS();
 }
 
+/* ── roundtrip 忠实性测试 ── */
+
+/**
+ * 测试 8b: 编译 → 反编译 roundtrip 忠实性
+ *
+ * 验证 graph_to_lambda 对 lambda_to_graph 编译产物的反编译是忠实的：
+ * 1. 反编译项与原项字符串完全一致（De Bruijn 索引无偏移）；
+ * 2. 反编译项重新编译后的图指纹与原图一致（结构等价）。
+ *
+ * 修复前：lambda_to_graph_var 未记录引用端口与 binder 端口的绑定关联，
+ * graph_to_lambda 回退到 namespace_depth（编译深度）作为 De Bruijn 索引，
+ * 导致多参抽象（如 add 的 m/n）反编译出越界自由变量（#4 等）。
+ */
+static void check_roundtrip_faithful(LvLambdaTerm *term, const char *label) {
+    char *orig_str = lv_lambda_to_string(term);
+    ConstraintGraph *g1 = graph_create();
+    if (!orig_str || !g1) {
+        lv_free((void **) &orig_str);
+        if (g1) graph_destroy(g1);
+        FAIL(label);
+        return;
+    }
+    int root1 = compile_lambda(term, g1);
+    if (root1 < 0) {
+        lv_free((void **) &orig_str);
+        graph_destroy(g1);
+        FAIL(label);
+        return;
+    }
+    GraphMetrics m1 = extract_metrics(g1);
+
+    LvLambdaTerm *t2 = graph_to_lambda(g1, root1);
+    if (!t2) {
+        lv_free((void **) &orig_str);
+        graph_destroy(g1);
+        FAIL(label);
+        return;
+    }
+    char *t2_str = lv_lambda_to_string(t2);
+    if (!t2_str || strcmp(orig_str, t2_str) != 0) {
+        printf("        %s: orig=%s\n        %s: roundtrip=%s\n", label, orig_str ? orig_str : "(null)", label,
+               t2_str ? t2_str : "(null)");
+        lv_free((void **) &orig_str);
+        lv_free((void **) &t2_str);
+        lv_lambda_destroy(t2);
+        graph_destroy(g1);
+        FAIL(label);
+        return;
+    }
+
+    /* 反编译项重新编译：图指纹应与原图一致 */
+    ConstraintGraph *g2 = graph_create();
+    int root2 = -1;
+    GraphMetrics m2;
+    memset(&m2, 0, sizeof(m2));
+    if (g2)
+        root2 = compile_lambda(t2, g2);
+    if (g2)
+        m2 = extract_metrics(g2);
+    if (root2 < 0 || !metrics_equal(&m1, &m2)) {
+        print_metrics(label, &m1);
+        print_metrics("roundtrip", &m2);
+        lv_free((void **) &orig_str);
+        lv_free((void **) &t2_str);
+        lv_lambda_destroy(t2);
+        if (g1) graph_destroy(g1);
+        if (g2) graph_destroy(g2);
+        FAIL(label);
+        return;
+    }
+
+    lv_free((void **) &orig_str);
+    lv_free((void **) &t2_str);
+    lv_lambda_destroy(t2);
+    graph_destroy(g1);
+    graph_destroy(g2);
+    PASS();
+}
+
+static void test_roundtrip_church_2(void) {
+    LvLambdaTerm *t = lv_church_2();
+    check_roundtrip_faithful(t, "roundtrip c2");
+    lv_lambda_destroy(t);
+}
+
+static void test_roundtrip_church_5(void) {
+    LvLambdaTerm *t = lv_church_n(5);
+    check_roundtrip_faithful(t, "roundtrip c5");
+    lv_lambda_destroy(t);
+}
+
+static void test_roundtrip_add(void) {
+    LvLambdaTerm *t = lv_church_add();
+    check_roundtrip_faithful(t, "roundtrip add");
+    lv_lambda_destroy(t);
+}
+
+static void test_roundtrip_mul(void) {
+    LvLambdaTerm *t = lv_church_mul();
+    check_roundtrip_faithful(t, "roundtrip mul");
+    lv_lambda_destroy(t);
+}
+
+static void test_roundtrip_succ(void) {
+    LvLambdaTerm *t = lv_church_succ();
+    check_roundtrip_faithful(t, "roundtrip succ");
+    lv_lambda_destroy(t);
+}
+
+static void test_roundtrip_pred(void) {
+    LvLambdaTerm *t = lv_church_pred();
+    check_roundtrip_faithful(t, "roundtrip pred");
+    lv_lambda_destroy(t);
+}
+
 /**
  * 测试 9: λ-演算合一策略端到端（函数块签名合一 + 图实例化 + 证明步骤）
  *
@@ -480,6 +595,262 @@ static void test_lambda_unify_strategy(void) {
     PASS();
 }
 /* ====================================================================
+ * 显式环境求值器（lv_lambda_eval）测试
+ * ==================================================================== */
+
+/* ── 辅助：Church 数字 → 整数 ──
+ * 识别 λf.λx. f^n x 结构返回 n；非 Church 数字返回 -1 */
+static int church_to_int(LvLambdaTerm *t) {
+    LvLambdaTerm *f_abs;
+    LvLambdaTerm *body;
+    int n = 0;
+
+    if (!t || t->type != LV_LAMBDA_ABS)
+        return -1;
+    f_abs = t->data.abs.body;
+    if (!f_abs || f_abs->type != LV_LAMBDA_ABS)
+        return -1;
+    body = f_abs->data.abs.body;
+    while (body && body->type == LV_LAMBDA_APP) {
+        LvLambdaTerm *lf = body->data.app.left;
+        if (!lf || lf->type != LV_LAMBDA_VAR || lf->data.var.index != 1)
+            return -1;
+        body = body->data.app.right;
+        n++;
+    }
+    if (!body || body->type != LV_LAMBDA_VAR || body->data.var.index != 0)
+        return -1;
+    return n;
+}
+
+/* ── 辅助：Church 布尔识别 ──
+ * true = λx.λy.x（选中 var(1)）；false = λx.λy.y（选中 var(0)） */
+static bool is_church_bool(LvLambdaTerm *t, int expected_index) {
+    LvLambdaTerm *y_abs;
+    LvLambdaTerm *sel;
+
+    if (!t || t->type != LV_LAMBDA_ABS)
+        return false;
+    y_abs = t->data.abs.body;
+    if (!y_abs || y_abs->type != LV_LAMBDA_ABS)
+        return false;
+    sel = y_abs->data.abs.body;
+    if (!sel || sel->type != LV_LAMBDA_VAR)
+        return false;
+    return sel->data.var.index == expected_index;
+}
+
+/**
+ * 测试 A1: eval(add 2 3) 与折叠语义 op_add(2,3)=5 一致
+ */
+static void test_eval_add_23(void) {
+    LvLambdaTerm *add = lv_church_add();
+    LvLambdaTerm *c2 = lv_church_2();
+    LvLambdaTerm *c3 = lv_church_n(3);
+    LvLambdaTerm *term = lv_lambda_create_app(lv_lambda_create_app(add, c2), c3);
+    LvLambdaTerm *res = lv_lambda_eval(term);
+    lv_lambda_destroy(term);
+    if (!res) { FAIL("eval(add 2 3) 超限/失败"); return; }
+    if (church_to_int(res) == 5)
+        PASS();
+    else
+        FAIL("eval(add 2 3) != 5");
+    lv_lambda_destroy(res);
+}
+
+/**
+ * 测试 A2: eval(mul 2 4) 与折叠语义 op_mul(2,4)=8 一致
+ */
+static void test_eval_mul_24(void) {
+    LvLambdaTerm *mul = lv_church_mul();
+    LvLambdaTerm *c2 = lv_church_2();
+    LvLambdaTerm *c4 = lv_church_n(4);
+    LvLambdaTerm *term = lv_lambda_create_app(lv_lambda_create_app(mul, c2), c4);
+    LvLambdaTerm *res = lv_lambda_eval(term);
+    lv_lambda_destroy(term);
+    if (!res) { FAIL("eval(mul 2 4) 超限/失败"); return; }
+    if (church_to_int(res) == 8)
+        PASS();
+    else
+        FAIL("eval(mul 2 4) != 8");
+    lv_lambda_destroy(res);
+}
+
+/**
+ * 测试 A3: eval(pow 2 3) 与折叠语义 op_pow(2,3)=8 一致
+ * pow = λm.λn.n m，即 pow 2 3 = 3 2 = 8
+ */
+static void test_eval_pow_23(void) {
+    LvLambdaTerm *powf = lv_church_pow();
+    LvLambdaTerm *c2 = lv_church_2();
+    LvLambdaTerm *c3 = lv_church_n(3);
+    LvLambdaTerm *term = lv_lambda_create_app(lv_lambda_create_app(powf, c2), c3);
+    LvLambdaTerm *res = lv_lambda_eval(term);
+    lv_lambda_destroy(term);
+    if (!res) { FAIL("eval(pow 2 3) 超限/失败"); return; }
+    if (church_to_int(res) == 8)
+        PASS();
+    else
+        FAIL("eval(pow 2 3) != 8");
+    lv_lambda_destroy(res);
+}
+
+/**
+ * 测试 A4: eval(sub 9 4) 与折叠语义 op_sub(9,4)=5 一致
+ * sub = λm.λn.n pred m；依赖 lv_church_pred 修正后的前驱
+ */
+static void test_eval_sub_94(void) {
+    LvLambdaTerm *subf = lv_church_sub();
+    LvLambdaTerm *c9 = lv_church_n(9);
+    LvLambdaTerm *c4 = lv_church_n(4);
+    LvLambdaTerm *term = lv_lambda_create_app(lv_lambda_create_app(subf, c9), c4);
+    LvLambdaTerm *res = lv_lambda_eval(term);
+    lv_lambda_destroy(term);
+    if (!res) { FAIL("eval(sub 9 4) 超限/失败"); return; }
+    if (church_to_int(res) == 5)
+        PASS();
+    else
+        FAIL("eval(sub 9 4) != 5");
+    lv_lambda_destroy(res);
+}
+
+/**
+ * 测试 B1: eval(not true) = false（Church 布尔）
+ */
+static void test_eval_not_true(void) {
+    LvLambdaTerm *nf = lv_church_not();
+    LvLambdaTerm *t = lv_church_true();
+    LvLambdaTerm *term = lv_lambda_create_app(nf, t);
+    LvLambdaTerm *res = lv_lambda_eval(term);
+    lv_lambda_destroy(term);
+    if (!res) { FAIL("eval(not true) 超限/失败"); return; }
+    if (is_church_bool(res, 0))
+        PASS();
+    else
+        FAIL("eval(not true) != false");
+    lv_lambda_destroy(res);
+}
+
+/**
+ * 测试 B2: eval(and true true) = true（Church 布尔）
+ */
+static void test_eval_and_tt(void) {
+    LvLambdaTerm *andf = lv_church_and();
+    LvLambdaTerm *t1 = lv_church_true();
+    LvLambdaTerm *t2 = lv_church_true();
+    LvLambdaTerm *term = lv_lambda_create_app(lv_lambda_create_app(andf, t1), t2);
+    LvLambdaTerm *res = lv_lambda_eval(term);
+    lv_lambda_destroy(term);
+    if (!res) { FAIL("eval(and true true) 超限/失败"); return; }
+    if (is_church_bool(res, 1))
+        PASS();
+    else
+        FAIL("eval(and true true) != true");
+    lv_lambda_destroy(res);
+}
+
+/**
+ * 测试 B3: eval(eq 2 2) = true（Church 比较，折叠语义 op_eq 一致）
+ */
+static void test_eval_eq_22(void) {
+    LvLambdaTerm *eqf = lv_church_eq();
+    LvLambdaTerm *c2a = lv_church_2();
+    LvLambdaTerm *c2b = lv_church_2();
+    LvLambdaTerm *term = lv_lambda_create_app(lv_lambda_create_app(eqf, c2a), c2b);
+    LvLambdaTerm *res = lv_lambda_eval(term);
+    lv_lambda_destroy(term);
+    if (!res) { FAIL("eval(eq 2 2) 超限/失败"); return; }
+    if (is_church_bool(res, 1))
+        PASS();
+    else
+        FAIL("eval(eq 2 2) != true");
+    lv_lambda_destroy(res);
+}
+
+/**
+ * 测试 C1: 开放项求值——自由变量原样返回，不崩溃
+ *
+ * - eval(#0)（自由变量 X）→ #0
+ * - eval((λx.x) y) → y（y 为自由变量）
+ */
+static void test_eval_open_var(void) {
+    LvLambdaTerm *x = lv_lambda_create_var(0);
+    LvLambdaTerm *res = lv_lambda_eval(x);
+    if (!res) {
+        lv_lambda_destroy(x);
+        FAIL("eval(自由变量) 返回 NULL");
+        return;
+    }
+    if (res->type == LV_LAMBDA_VAR && res->data.var.index == 0)
+        PASS();
+    else
+        FAIL("eval(自由变量) 结果异常");
+    lv_lambda_destroy(x);
+    lv_lambda_destroy(res);
+
+    /* (λx.x) y → y */
+    LvLambdaTerm *id = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    LvLambdaTerm *y = lv_lambda_create_var(0);
+    LvLambdaTerm *app2 = lv_lambda_create_app(id, y);
+    res = lv_lambda_eval(app2);
+    lv_lambda_destroy(app2);
+    if (!res) {
+        FAIL("eval((λx.x) y) 返回 NULL");
+        return;
+    }
+    if (res->type == LV_LAMBDA_VAR && res->data.var.index == 0)
+        PASS();
+    else
+        FAIL("eval((λx.x) y) != y");
+    lv_lambda_destroy(res);
+}
+
+/**
+ * 测试 C2: 非终止项——Y 组合子应用到恒等函数超限，安全返回 NULL
+ */
+static void test_eval_y_timeout(void) {
+    LvLambdaTerm *Y = lv_church_y_combinator();
+    LvLambdaTerm *id = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    LvLambdaTerm *term = lv_lambda_create_app(Y, id);
+    LvLambdaTerm *res = lv_lambda_eval(term);
+    lv_lambda_destroy(term);
+    if (!res)
+        PASS();
+    else {
+        FAIL("eval(Y id) 应超限返回 NULL");
+        lv_lambda_destroy(res);
+    }
+}
+
+/**
+ * 测试 D1: eval_steps——(λx.x) c3 至少 1 步 β-归约
+ */
+static void test_eval_steps_reduce(void) {
+    LvLambdaTerm *id = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    LvLambdaTerm *c3 = lv_church_n(3);
+    LvLambdaTerm *term = lv_lambda_create_app(id, c3);
+    int steps = lv_lambda_eval_steps(term);
+    lv_lambda_destroy(term);
+    if (steps >= 1)
+        PASS();
+    else
+        FAIL("eval_steps((λx.x) c3) 应 >= 1");
+}
+
+/**
+ * 测试 D2: eval_steps——闭合 Church 数字自身无 redex，0 步
+ */
+static void test_eval_steps_church5_noop(void) {
+    LvLambdaTerm *c5 = lv_church_n(5);
+    int steps = lv_lambda_eval_steps(c5);
+    lv_lambda_destroy(c5);
+    if (steps == 0)
+        PASS();
+    else
+        FAIL("eval_steps(Church 5) 应为 0");
+}
+
+/* ====================================================================
  * main
  * ==================================================================== */
 TEST_MAIN_BEGIN("λ-演算 β-归约结果验证")
@@ -496,6 +867,28 @@ TEST_MAIN_BEGIN("λ-演算 β-归约结果验证")
     TEST_MAIN_RUN(test_pow_23_reduces);
     printf("\n[归约步数合理性]\n");
     TEST_MAIN_RUN(test_reduction_steps_reasonable);
+    printf("\n[roundtrip 忠实性]\n");
+    TEST_MAIN_RUN(test_roundtrip_church_2);
+    TEST_MAIN_RUN(test_roundtrip_church_5);
+    TEST_MAIN_RUN(test_roundtrip_add);
+    TEST_MAIN_RUN(test_roundtrip_mul);
+    TEST_MAIN_RUN(test_roundtrip_succ);
+    TEST_MAIN_RUN(test_roundtrip_pred);
+    printf("\n[显式环境求值器：闭合算术]\n");
+    TEST_MAIN_RUN(test_eval_add_23);
+    TEST_MAIN_RUN(test_eval_mul_24);
+    TEST_MAIN_RUN(test_eval_pow_23);
+    TEST_MAIN_RUN(test_eval_sub_94);
+    printf("\n[显式环境求值器：布尔与比较]\n");
+    TEST_MAIN_RUN(test_eval_not_true);
+    TEST_MAIN_RUN(test_eval_and_tt);
+    TEST_MAIN_RUN(test_eval_eq_22);
+    printf("\n[显式环境求值器：开放项与非终止]\n");
+    TEST_MAIN_RUN(test_eval_open_var);
+    TEST_MAIN_RUN(test_eval_y_timeout);
+    printf("\n[显式环境求值器：步数统计]\n");
+    TEST_MAIN_RUN(test_eval_steps_reduce);
+    TEST_MAIN_RUN(test_eval_steps_church5_noop);
     printf("\n[λ-演算合一策略]\n");
     TEST_MAIN_RUN(test_lambda_unify_strategy);
 TEST_MAIN_END()

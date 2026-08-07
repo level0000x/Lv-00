@@ -13,7 +13,7 @@ presets {
     preset "trig_sin" {
         description "正弦函数：计算 sin(x)，输入 x 为弧度制角度"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\sin x = x - \\frac{x^3}{3!} + \\frac{x^5}{5!} - \\cdots"
         complexity "O(1)"
@@ -24,7 +24,7 @@ presets {
     preset "trig_cos" {
         description "余弦函数：计算 cos(x)，输入 x 为弧度制角度"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\cos x = 1 - \\frac{x^2}{2!} + \\frac{x^4}{4!} - \\cdots"
         complexity "O(1)"
@@ -35,7 +35,7 @@ presets {
     preset "trig_tan" {
         description "正切函数：计算 tan(x) = sin(x) / cos(x)"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\tan x = \\frac{\\sin x}{\\cos x}, \\quad x \\neq \\frac{\\pi}{2} + k\\pi"
         complexity "O(1)"
@@ -46,7 +46,7 @@ presets {
     preset "trig_cot" {
         description "余切函数：计算 cot(x) = cos(x) / sin(x)"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\cot x = \\frac{\\cos x}{\\sin x}, \\quad x \\neq k\\pi"
         complexity "O(1)"
@@ -57,7 +57,7 @@ presets {
     preset "trig_sec" {
         description "正割函数：计算 sec(x) = 1 / cos(x)"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\sec x = \\frac{1}{\\cos x}, \\quad |\\sec x| \\geq 1"
         complexity "O(1)"
@@ -68,7 +68,7 @@ presets {
     preset "trig_csc" {
         description "余割函数：计算 csc(x) = 1 / sin(x)"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\csc x = \\frac{1}{\\sin x}, \\quad |\\csc x| \\geq 1"
         complexity "O(1)"
@@ -79,7 +79,7 @@ presets {
     preset "trig_arcsin" {
         description "反正弦函数：计算 arcsin(x)，x ∈ [-1, 1]，值域 [-π/2, π/2]"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\arcsin x = \\int_0^x \\frac{dt}{\\sqrt{1-t^2}}, \\quad x \\in [-1, 1]"
         complexity "O(1)"
@@ -90,7 +90,7 @@ presets {
     preset "trig_arccos" {
         description "反余弦函数：计算 arccos(x)，x ∈ [-1, 1]，值域 [0, π]"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\arccos x = \\frac{\\pi}{2} - \\arcsin x, \\quad x \\in [-1, 1]"
         complexity "O(1)"
@@ -101,7 +101,7 @@ presets {
     preset "trig_arctan" {
         description "反正切函数：计算 arctan(x)，x ∈ R，值域 (-π/2, π/2)"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\arctan x = \\int_0^x \\frac{dt}{1+t^2}, \\quad x \\in \\mathbb{R}"
         complexity "O(1)"
@@ -112,7 +112,7 @@ presets {
     preset "trig_arccot" {
         description "反余切函数：计算 arccot(x)，x ∈ R，值域 (0, π)"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\operatorname{arccot} x = \\frac{\\pi}{2} - \\arctan x, \\quad x \\in \\mathbb{R}"
         complexity "O(1)"
@@ -123,7 +123,7 @@ presets {
     preset "trig_sinh" {
         description "双曲正弦：计算 sinh(x) = (e^x - e^{-x}) / 2，奇函数"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\sinh x = \\frac{e^x - e^{-x}}{2}"
         complexity "O(1)"
@@ -134,7 +134,7 @@ presets {
     preset "trig_cosh" {
         description "双曲余弦：计算 cosh(x) = (e^x + e^{-x}) / 2，偶函数"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\cosh x = \\frac{e^x + e^{-x}}{2}, \\quad \\cosh x \\geq 1"
         complexity "O(1)"
@@ -145,7 +145,7 @@ presets {
     preset "trig_tanh" {
         description "双曲正切：计算 tanh(x) = sinh(x) / cosh(x)，值域 (-1, 1)"
         category "ALGEBRAIC"
-        inputs 1 
+        inputs 1 "SCALAR"
         output "SCALAR"
         math_def "\\tanh x = \\frac{\\sinh x}{\\cosh x} = \\frac{e^x - e^{-x}}{e^x + e^{-x}}"
         complexity "O(1)"
@@ -156,11 +156,9 @@ presets {
     preset "trig_sum_to_product" {
         description "和差化积：将三角函数的和差转化为积，包含4种公式"
         category "ALGEBRAIC"
-        inputs 3 
+        inputs 3 "SCALAR" "SCALAR" "INTEGER"
         output "SCALAR"
-        math_def "\\sin A \\pm \\sin B = 2\\sin\\frac{A\\pm B}{2}\\cos\\frac{A\\mp B}{2},\"
-                                 \"\\quad \\cos A + \\cos B = 2\\cos\\frac{A+B}{2}\\cos\\frac{A-B}{2},\"
-                                 \"\\quad \\cos A - \\cos B = -2\\sin\\frac{A+B}{2}\\sin\\frac{A-B}{2}"
+        math_def "\\sin A \\pm \\sin B = 2\\sin\\frac{A\\pm B}{2}\\cos\\frac{A\\mp B}{2},\\quad \\cos A + \\cos B = 2\\cos\\frac{A+B}{2}\\cos\\frac{A-B}{2},\\quad \\cos A - \\cos B = -2\\sin\\frac{A+B}{2}\\sin\\frac{A-B}{2}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -169,11 +167,9 @@ presets {
     preset "trig_product_to_sum" {
         description "积化和差：将三角函数的积转化为和差，包含4种公式"
         category "ALGEBRAIC"
-        inputs 3 
+        inputs 3 "SCALAR" "SCALAR" "INTEGER"
         output "SCALAR"
-        math_def "\\sin A \\cos B = \\frac{1}{2}[\\sin(A+B) + \\sin(A-B)],\"
-                                 \"\\quad \\cos A \\cos B = \\frac{1}{2}[\\cos(A+B) + \\cos(A-B)],\"
-                                 \"\\quad \\sin A \\sin B = -\\frac{1}{2}[\\cos(A+B) - \\cos(A-B)]"
+        math_def "\\sin A \\cos B = \\frac{1}{2}[\\sin(A+B) + \\sin(A-B)],\\quad \\cos A \\cos B = \\frac{1}{2}[\\cos(A+B) + \\cos(A-B)],\\quad \\sin A \\sin B = -\\frac{1}{2}[\\cos(A+B) - \\cos(A-B)]"
         complexity "O(1)"
         constructive true
         reversible false
@@ -182,11 +178,9 @@ presets {
     preset "trig_double_angle" {
         description "倍角公式：计算 sin(2θ), cos(2θ), tan(2θ)"
         category "ALGEBRAIC"
-        inputs 2 
+        inputs 2 "SCALAR" "INTEGER"
         output "SCALAR"
-        math_def "\\sin 2\\theta = 2\\sin\\theta\\cos\\theta,\"
-                                 \"\\quad \\cos 2\\theta = \\cos^2\\theta - \\sin^2\\theta,\"
-                                 \"\\quad \\tan 2\\theta = \\frac{2\\tan\\theta}{1-\\tan^2\\theta}"
+        math_def "\\sin 2\\theta = 2\\sin\\theta\\cos\\theta,\\quad \\cos 2\\theta = \\cos^2\\theta - \\sin^2\\theta,\\quad \\tan 2\\theta = \\frac{2\\tan\\theta}{1-\\tan^2\\theta}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -195,11 +189,9 @@ presets {
     preset "trig_half_angle" {
         description "半角公式：计算 sin(θ/2), cos(θ/2), tan(θ/2)"
         category "ALGEBRAIC"
-        inputs 2 
+        inputs 2 "SCALAR" "INTEGER"
         output "SCALAR"
-        math_def "\\sin\\frac{\\theta}{2} = \\pm\\sqrt{\\frac{1-\\cos\\theta}{2}},\"
-                                 \"\\quad \\cos\\frac{\\theta}{2} = \\pm\\sqrt{\\frac{1+\\cos\\theta}{2}},\"
-                                 \"\\quad \\tan\\frac{\\theta}{2} = \\frac{\\sin\\theta}{1+\\cos\\theta}"
+        math_def "\\sin\\frac{\\theta}{2} = \\pm\\sqrt{\\frac{1-\\cos\\theta}{2}},\\quad \\cos\\frac{\\theta}{2} = \\pm\\sqrt{\\frac{1+\\cos\\theta}{2}},\\quad \\tan\\frac{\\theta}{2} = \\frac{\\sin\\theta}{1+\\cos\\theta}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -208,11 +200,9 @@ presets {
     preset "trig_equation_solve" {
         description "三角方程求解：求解 sin x = a, cos x = a, tan x = a 的通解"
         category "ALGEBRAIC"
-        inputs 2 
+        inputs 2 "SCALAR" "INTEGER"
         output "LIST"
-        math_def "\\sin x = a \\Rightarrow x = (-1)^k\\arcsin a + k\\pi,\"
-                                 \"\\quad \\cos x = a \\Rightarrow x = \\pm\\arccos a + 2k\\pi,\"
-                                 \"\\quad \\tan x = a \\Rightarrow x = \\arctan a + k\\pi"
+        math_def "\\sin x = a \\Rightarrow x = (-1)^k\\arcsin a + k\\pi,\\quad \\cos x = a \\Rightarrow x = \\pm\\arccos a + 2k\\pi,\\quad \\tan x = a \\Rightarrow x = \\arctan a + k\\pi"
         complexity "O(1)"
         constructive true
         reversible false
@@ -221,10 +211,9 @@ presets {
     preset "trig_series_expand" {
         description "三角函数的Taylor级数展开：用有限项Taylor多项式近似 sin x 或 cos x"
         category "ALGEBRAIC"
-        inputs 3 
+        inputs 3 "SCALAR" "INTEGER" "INTEGER"
         output "SCALAR"
-        math_def "\\sin x = \\sum_{n=0}^{N} (-1)^n \\frac{x^{2n+1}}{(2n+1)!},\"
-                                 \"\\quad \\cos x = \\sum_{n=0}^{N} (-1)^n \\frac{x^{2n}}{(2n)!}"
+        math_def "\\sin x = \\sum_{n=0}^{N} (-1)^n \\frac{x^{2n+1}}{(2n+1)!},\\quad \\cos x = \\sum_{n=0}^{N} (-1)^n \\frac{x^{2n}}{(2n)!}"
         complexity "O(N)"
         constructive true
         reversible false
@@ -233,10 +222,9 @@ presets {
     preset "trig_fourier_series" {
         description "傅里叶三角级数展开：计算周期函数的傅里叶系数 a_n, b_n"
         category "ALGEBRAIC"
-        inputs 3 
+        inputs 3 "FUNCTION" "SCALAR" "INTEGER"
         output "LIST"
-        math_def "f(t) = \\frac{a_0}{2} + \\sum_{n=1}^{N} \"
-                                 \"\\left(a_n\\cos\\frac{2\\pi nt}{T} + b_n\\sin\\frac{2\\pi nt}{T}\\right)"
+        math_def "f(t) = \\frac{a_0}{2} + \\sum_{n=1}^{N} \\left(a_n\\cos\\frac{2\\pi nt}{T} + b_n\\sin\\frac{2\\pi nt}{T}\\right)"
         complexity "O(N)"
         constructive true
         reversible false

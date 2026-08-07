@@ -42,6 +42,9 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
  *   - 布尔验证：Prove true / Prove false、逻辑运算（and/or/not/->/iff）、
  *     纯布尔 λ 目标（如 Prove eq(2, 2);）；
  *   - 反射律：全同名参数的关系调用（如 collinear(A, A, A)）恒真。
+ *   - 命题逻辑验证（首次自举，路线图步骤 6）：对纯命题公式（and/or/
+ *     not/->/iff + 原子命题）穷举全真值表（2^n）验证恒真；恒真→PASS，
+ *     存在反例→FAIL。配套规格文件：bootstrap/src/proofs/propositional_verifier.lv。
  *
  * 无法机械判定的形式（量词、未知函数、除零等）标记为 SKIP，不误报。
  * ================================================================ */

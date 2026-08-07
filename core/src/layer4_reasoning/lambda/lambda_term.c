@@ -242,3 +242,232 @@ static char *lambda_to_string_internal(const LvLambdaTerm *term, size_t *out_len
 char *lv_lambda_to_string(LvLambdaTerm *term) {
     return lambda_to_string_internal(term, NULL);
 }
+
+/* ===========================================================================
+ * β-归约求值器（规范序，最左最外）
+ *
+ * 编码约定（见 lambda_term.h）：
+ *   - VAR.index 为标准 De Bruijn 相对索引（0 = 最近 binder）。
+ *   - ABS.binder 恒为 0 占位，不参与求值。
+ *
+ * 实现：标准 TAPL shift/subst（De Bruijn 版）+ 迭代单步 β-归约。
+ *   - shift(d, c, t)：把 t 中所有索引 ≥ c 的变量加 d（d 可为负；cutoff
+ *     随 ABS 嵌套递增，绑定变量不受影响）。
+ *   - subst(j, s, t)：把 t 中索引等于 j 的变量替换为 s（TAPL 完整版，
+ *     进入 ABS 时 j+1；s 按 termSubstTop 约定预先 shift）。
+ *   - 单步 β-归约（最左最外，规范序）：
+ *       APP(ABS(_, body), arg) → shift(-1, subst(0, shift(1, arg), body))
+ *     其余情形沿 left → right → ABS body 顺序递归寻找 redex。
+ *   - lv_lambda_eval 循环调用单步归约直到无 redex（规范形）或
+ *     β 步数超过上限（返回 NULL）。
+ *
+ * 开放项：自由变量（无法归约）原样保留，不报错。
+ * 非终止项（如 Y 组合子）：β 步数超限安全返回 NULL。
+ * =========================================================================== */
+
+/* ── shift/subst 辅助 ── */
+
+/** 对 t 做 shift：索引 ≥ cutoff 的变量加 d（d 可为负）；返回新项 */
+static LvLambdaTerm *shift_internal(const LvLambdaTerm *t, int d, int cutoff) {
+    LvLambdaTerm *body;
+    LvLambdaTerm *l;
+    LvLambdaTerm *r;
+
+    if (!t)
+        return NULL;
+    switch (t->type) {
+    case LV_LAMBDA_VAR:
+        return lv_lambda_create_var(t->data.var.index >= cutoff ? t->data.var.index + d
+                                                                : t->data.var.index);
+    case LV_LAMBDA_ABS:
+        body = shift_internal(t->data.abs.body, d, cutoff + 1);
+        if (!body)
+            return NULL;
+        return lv_lambda_create_abs(t->data.abs.binder, body);
+    case LV_LAMBDA_APP:
+        l = shift_internal(t->data.app.left, d, cutoff);
+        if (!l)
+            return NULL;
+        r = shift_internal(t->data.app.right, d, cutoff);
+        if (!r) {
+            lv_lambda_destroy(l);
+            return NULL;
+        }
+        return lv_lambda_create_app(l, r);
+    }
+    return NULL;
+}
+
+/** 把 s 从替换点提升 j 层（TAPL termShift j s：cutoff 0，全部索引 +j） */
+static LvLambdaTerm *shift_lift(const LvLambdaTerm *s, int j) {
+    return shift_internal(s, j, 0);
+}
+
+/* β 步数上限（全局可配置，默认见头文件宏） */
+static int s_eval_max_steps = LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS;
+
+/** 用 s 替换 t 中所有索引等于 j 的变量（进入 ABS 时 j+1，s 不变） */
+static LvLambdaTerm *subst_internal(const LvLambdaTerm *t, int j, const LvLambdaTerm *s) {
+    LvLambdaTerm *body;
+    LvLambdaTerm *l;
+    LvLambdaTerm *r;
+    LvLambdaTerm *tmp;
+
+    if (!t)
+        return NULL;
+    switch (t->type) {
+    case LV_LAMBDA_VAR:
+        if (t->data.var.index == j)
+            return shift_lift(s, j);
+        return lv_lambda_create_var(t->data.var.index);
+    case LV_LAMBDA_ABS:
+        body = subst_internal(t->data.abs.body, j + 1, s);
+        if (!body)
+            return NULL;
+        return lv_lambda_create_abs(t->data.abs.binder, body);
+    case LV_LAMBDA_APP:
+        l = subst_internal(t->data.app.left, j, s);
+        if (!l)
+            return NULL;
+        r = subst_internal(t->data.app.right, j, s);
+        if (!r) {
+            lv_lambda_destroy(l);
+            return NULL;
+        }
+        tmp = lv_lambda_create_app(l, r);
+        if (!tmp) {
+            lv_lambda_destroy(l);
+            lv_lambda_destroy(r);
+            return NULL;
+        }
+        return tmp;
+    }
+    return NULL;
+}
+
+/* ── 单步 β-归约 ── */
+
+/**
+ * @brief 最左最外（规范序）单步 β-归约
+ *
+ * 找到最左最外 redex 并归约一步，返回新分配的项；无 redex 返回 NULL。
+ * 输入 t 为借用；返回值由调用者负责 lv_lambda_destroy。
+ */
+static LvLambdaTerm *beta_step(const LvLambdaTerm *t) {
+    LvLambdaTerm *mid;
+    LvLambdaTerm *res;
+    LvLambdaTerm *sub;
+    LvLambdaTerm *lf;
+    LvLambdaTerm *rt;
+
+    if (!t)
+        return NULL;
+
+    switch (t->type) {
+    case LV_LAMBDA_APP:
+        if (t->data.app.left->type == LV_LAMBDA_ABS) {
+            /* (λ. body) arg → shift(-1, subst(0, shift(1, arg), body)) */
+            sub = shift_lift(t->data.app.right, 1);
+            if (!sub)
+                return NULL;
+            mid = subst_internal(t->data.app.left->data.abs.body, 0, sub);
+            lv_lambda_destroy(sub);
+            if (!mid)
+                return NULL;
+            res = shift_internal(mid, -1, 0);
+            lv_lambda_destroy(mid);
+            return res;
+        }
+        /* 最左最外：先 left，后 right */
+        lf = beta_step(t->data.app.left);
+        if (lf)
+            return lv_lambda_create_app(lf, lv_lambda_copy(t->data.app.right));
+        rt = beta_step(t->data.app.right);
+        if (rt)
+            return lv_lambda_create_app(lv_lambda_copy(t->data.app.left), rt);
+        return NULL;
+
+    case LV_LAMBDA_ABS:
+        res = beta_step(t->data.abs.body);
+        if (res)
+            return lv_lambda_create_abs(t->data.abs.binder, res);
+        return NULL;
+
+    case LV_LAMBDA_VAR:
+    default:
+        return NULL;
+    }
+}
+
+/* ── 公共 API ── */
+
+LvLambdaTerm *lv_lambda_eval(LvLambdaTerm *term) {
+    LvLambdaTerm *cur;
+    LvLambdaTerm *next;
+    int steps = 0;
+
+    if (!term)
+        return NULL;
+    cur = lv_lambda_copy(term);
+    if (!cur)
+        return NULL;
+    for (;;) {
+        next = beta_step(cur);
+        if (!next)
+            break;
+        steps++;
+        if (steps > s_eval_max_steps) {
+            lv_lambda_destroy(cur);
+            lv_lambda_destroy(next);
+            return NULL;
+        }
+        lv_lambda_destroy(cur);
+        cur = next;
+    }
+    return cur;
+}
+
+LvLambdaTerm *lv_lambda_eval_full(LvLambdaTerm *term) {
+    LvLambdaTerm *r1;
+    LvLambdaTerm *r2;
+
+    if (!term)
+        return NULL;
+    r1 = lv_lambda_eval(term);
+    if (!r1)
+        return NULL;
+    r2 = lv_lambda_eval(r1); /* 不动点：规范形再次求值不变 */
+    lv_lambda_destroy(r1);
+    return r2;
+}
+
+int lv_lambda_eval_steps(LvLambdaTerm *term) {
+    LvLambdaTerm *cur;
+    LvLambdaTerm *next;
+    int steps = 0;
+
+    if (!term)
+        return 0;
+    cur = lv_lambda_copy(term);
+    if (!cur)
+        return 0;
+    for (;;) {
+        next = beta_step(cur);
+        if (!next)
+            break;
+        steps++;
+        if (steps > s_eval_max_steps) {
+            lv_lambda_destroy(cur);
+            lv_lambda_destroy(next);
+            return steps;
+        }
+        lv_lambda_destroy(cur);
+        cur = next;
+    }
+    lv_lambda_destroy(cur);
+    return steps;
+}
+
+void lv_lambda_eval_set_max_steps(int max_steps) {
+    s_eval_max_steps = (max_steps > 0) ? max_steps : LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS;
+}

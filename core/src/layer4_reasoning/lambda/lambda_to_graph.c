@@ -301,6 +301,17 @@ static bool lambda_to_graph_var(LvLambdaTerm *term, ConstraintGraph *graph, Lamb
     }
     int ref_port_id = graph_get_last_added_node_id(graph);
 
+    /* 绑定关联：引用端口的 parent_block_id 指向其 binder 端口（而非函数块）。
+     * graph_to_lambda 反编译时据此在 binder 栈中定位，恢复忠实的 De Bruijn
+     * 索引；否则只能回退到 namespace_depth（编译深度，非 De Bruijn 索引）
+     * 导致反编译出的 λ-项出现索引偏移。只写 GeomNode 层 parent_block_id
+     * （与 lambda_to_graph_abs 对输入/输出端口的写法一致），namespace_depth
+     * 保持编译深度语义供连接深度规则/端口继承/unify 深度平移使用。 */
+    GeomNode *ref_node = graph_get_node(graph, ref_port_id);
+    if (ref_node && ref_node->data.port) {
+        ref_node->parent_block_id = binder_port_id;
+    }
+
     LOG_DEBUG("lambda_to_graph", "编译 VAR(%d): binder=%d, ref_port=%d", index, binder_port_id, ref_port_id);
 
     *out_node_id = ref_port_id;
@@ -442,7 +453,16 @@ static bool lambda_to_graph_app(LvLambdaTerm *term, ConstraintGraph *graph, Lamb
             return false;
         }
 
+        /* 实参若为嵌套 ABS（FB 输出端口），graph_add_connection 的双向
+         * connected_to 会覆盖其"输出端口 → body 根"关联，破坏反编译；
+         * 连接后恢复原值。 */
+        GeomNode *right_out_node = graph_get_node(graph, right_output);
+        GeomNode *right_ct_saved = (right_out_node && right_out_node->data.port)
+                                       ? right_out_node->data.port->connected_to
+                                       : NULL;
         AddConstraintResult cr = graph_add_connection(graph, right_output, left_input);
+        if (right_ct_saved && right_out_node && right_out_node->data.port)
+            right_out_node->data.port->connected_to = right_ct_saved;
         if (cr == ADD_CONSTRAINT_OK)
             LOG_DEBUG("lambda_to_graph", "APP redex: arg_out=%d → func_in=%d", right_output, left_input);
         else if (cr == ADD_CONSTRAINT_DUPLICATE)
@@ -490,7 +510,15 @@ static bool lambda_to_graph_app(LvLambdaTerm *term, ConstraintGraph *graph, Lamb
                         sink_in_node->data.port->is_formal_param = false;
                         sink_in_node->parent_block_id = sink_out;
                     }
+                    /* 实参若为嵌套 ABS（FB 输出端口），graph_add_connection
+                     * 双向 connected_to 会覆盖其 body 根关联，连接后恢复。 */
+                    GeomNode *sink_arg_node = graph_get_node(graph, right_output);
+                    GeomNode *sink_arg_ct = (sink_arg_node && sink_arg_node->data.port)
+                                                ? sink_arg_node->data.port->connected_to
+                                                : NULL;
                     AddConstraintResult cr = graph_add_connection(graph, right_output, sink_in);
+                    if (sink_arg_ct && sink_arg_node && sink_arg_node->data.port)
+                        sink_arg_node->data.port->connected_to = sink_arg_ct;
                     if (cr != ADD_CONSTRAINT_OK && cr != ADD_CONSTRAINT_DUPLICATE) {
                         LOG_WARN("lambda_to_graph", "APP non-redex 连接 %d→%d 失败 (result=%d)",
                                  right_output, sink_in, (int)cr);
@@ -738,12 +766,26 @@ static LvLambdaTerm *graph_to_lambda_internal(ConstraintGraph *graph, int node_i
                 }
             }
 
-            /* ── 常规 VAR 查找逻辑 ── */
+            /* ── 常规 VAR 查找逻辑 ──
+             * 1. 端口自身就在 binder 栈中（如 body 直接引用 binder 端口本身）；
+             * 2. 编译时记录的绑定关联：lambda_to_graph_var 把引用端口的
+             *    parent_block_id 指向其 binder 端口，据此在栈中定位，得到
+             *    忠实的 De Bruijn 索引（修复受绑定变量偏移）；
+             * 3. 回退：namespace_depth（兼容未记录绑定关联的图/手工图）。 */
             int de_bruijn_index = -1;
             for (int i = 0; i < binder_count; i++) {
                 if (binder_port_ids[i] == node_id) {
                     de_bruijn_index = binder_count - 1 - i;
                     break;
+                }
+            }
+
+            if (de_bruijn_index < 0 && node->parent_block_id >= 0) {
+                for (int i = 0; i < binder_count; i++) {
+                    if (binder_port_ids[i] == node->parent_block_id) {
+                        de_bruijn_index = binder_count - 1 - i;
+                        break;
+                    }
                 }
             }
 

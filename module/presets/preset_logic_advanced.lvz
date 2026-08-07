@@ -13,7 +13,7 @@ presets {
     preset "logic_modus_ponens" {
         description "假言推理：从蕴含式 P -> Q 和前件 P 推出后件 Q"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "(P \\to Q), P \\vdash Q"
         complexity "O(1)"
@@ -24,7 +24,7 @@ presets {
     preset "logic_modus_tollens" {
         description "逆否推理：从蕴含式 P -> Q 和后件的否定 ~Q 推出前件的否定 ~P"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "(P \\to Q), \\neg Q \\vdash \\neg P"
         complexity "O(1)"
@@ -35,7 +35,7 @@ presets {
     preset "logic_hypothetical_syllogism" {
         description "假言三段论：从 P -> Q 和 Q -> R 推出 P -> R"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "(P \\to Q), (Q \\to R) \\vdash (P \\to R)"
         complexity "O(1)"
@@ -46,7 +46,7 @@ presets {
     preset "logic_disjunctive_syllogism" {
         description "析取三段论：从 P \\/ Q 和 ~P 推出 Q"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "(P \\lor Q), \\neg P \\vdash Q"
         complexity "O(1)"
@@ -57,7 +57,7 @@ presets {
     preset "logic_conjunction_intro" {
         description "合取引入：从 P 和 Q 推出 P /\\ Q"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "P, Q \\vdash P \\land Q"
         complexity "O(1)"
@@ -68,7 +68,7 @@ presets {
     preset "logic_conjunction_elim" {
         description "合取消除：从 P /\\ Q 推出 P（左消除）或 Q（右消除）"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
         math_def "P \\land Q \\vdash P \\quad \\text{（或 } Q \\text{）}"
         complexity "O(1)"
@@ -79,7 +79,7 @@ presets {
     preset "logic_disjunction_intro" {
         description "析取引入：从 P 推出 P \\/ Q（左引入）或 Q \\/ P（右引入）"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
         math_def "P \\vdash P \\lor Q \\quad \\text{（或 } Q \\lor P \\text{）}"
         complexity "O(1)"
@@ -90,7 +90,7 @@ presets {
     preset "logic_disjunction_elim" {
         description "析取消除：从 P \\/ Q、P -> R、Q -> R 推出 R"
         category "LOGIC"
-        inputs 3 
+        inputs 3 "BOOLEAN" "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "(P \\lor Q), (P \\to R), (Q \\to R) \\vdash R"
         complexity "O(1)"
@@ -101,7 +101,7 @@ presets {
     preset "logic_negation_intro" {
         description "否定引入（反证法）：若假设 P 推出矛盾 F，则推出 ~P"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
         math_def "\\text{若 } (P \\vdash \\bot) \\text{ 则 } \\vdash \\neg P"
         complexity "O(n)"
@@ -112,7 +112,7 @@ presets {
     preset "logic_double_negation_elim" {
         description "双重否定消除：从 ~~P 推出 P"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
         math_def "\\neg \\neg P \\vdash P"
         complexity "O(1)"
@@ -123,7 +123,7 @@ presets {
     preset "logic_universal_intro" {
         description "全称引入：若对任意常数 c 都能证明 P(c)，则推出 forall x P(x)"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "FUNCTION"
         output "BOOLEAN"
         math_def "\\text{若 } c \\text{ 是任意的，且 } P(c) \\text{ 可证，则 } \\vdash \\forall x \\, P(x)"
         complexity "O(n)"
@@ -134,7 +134,7 @@ presets {
     preset "logic_universal_elim" {
         description "全称消除：从 forall x P(x) 推出 P(t)（对任意项 t）"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "ANY"
         output "BOOLEAN"
         math_def "\\forall x \\, P(x) \\vdash P(t)"
         complexity "O(1)"
@@ -145,7 +145,7 @@ presets {
     preset "logic_existential_intro" {
         description "存在引入：从 P(t) 推出 exists x P(x)"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "ANY"
         output "BOOLEAN"
         math_def "P(t) \\vdash \\exists x \\, P(x)"
         complexity "O(1)"
@@ -156,7 +156,7 @@ presets {
     preset "logic_existential_elim" {
         description "存在消除：从 exists x P(x) 和 P(c) -> C（c 不在 C 中自由出现）推出 C"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "FUNCTION"
         output "BOOLEAN"
         math_def "\\exists x \\, P(x), \\; (\\forall x, P(x) \\to C) \\vdash C"
         complexity "O(n)"
@@ -167,7 +167,7 @@ presets {
     preset "logic_proof_by_contradiction" {
         description "归谬法：若假设 ~P 推出矛盾 F，则推出 P"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
         math_def "\\text{若 } (\\neg P \\vdash \\bot) \\text{ 则 } \\vdash P"
         complexity "O(n)"
@@ -178,7 +178,7 @@ presets {
     preset "logic_resolution" {
         description "消解原理：从两个互补文字的子句推出消解式"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "BOOLEAN" "BOOLEAN"
         output "BOOLEAN"
         math_def "(P \\lor Q), (\\neg P \\lor R) \\vdash (Q \\lor R)"
         complexity "O(n)"
@@ -189,7 +189,7 @@ presets {
     preset "logic_unification" {
         description "合一算法：求解两个原子公式的最一般合一（MGU），如 unify(P(x, a), P(b, y)) = {x->b, y->a}"
         category "LOGIC"
-        inputs 2 
+        inputs 2 "FUNCTION" "FUNCTION"
         output "FUNCTION"
         math_def "\\text{mgu}(A_1, A_2) = \\theta, \\quad A_1\\theta = A_2\\theta"
         complexity "O(n^2)"
@@ -200,10 +200,9 @@ presets {
     preset "logic_skolemize" {
         description "斯柯伦化：消除前束范式中的存在量词，引入斯柯伦函数"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
-        math_def "\\forall x_1 \\exists y_1 \\forall x_2 \\exists y_2 \\, \\phi \"
-                \"\\Rightarrow \\forall x_1 \\forall x_2 \\, \\phi[y_1/f(x_1), y_2/g(x_1,x_2)]"
+        math_def "\\forall x_1 \\exists y_1 \\forall x_2 \\exists y_2 \\, \\phi \\Rightarrow \\forall x_1 \\forall x_2 \\, \\phi[y_1/f(x_1), y_2/g(x_1,x_2)]"
         complexity "O(n^2)"
         constructive true
         reversible false
@@ -212,10 +211,9 @@ presets {
     preset "logic_cnf_convert" {
         description "合取范式转换：将一阶逻辑公式转换为合取范式 CNF"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
-        math_def "\\phi \\Rightarrow \\bigwedge_{i=1}^{m} \\bigvee_{j=1}^{n_i} L_{ij}, \"
-                                           \"\\quad L_{ij} \\text{ 为文字}"
+        math_def "\\phi \\Rightarrow \\bigwedge_{i=1}^{m} \\bigvee_{j=1}^{n_i} L_{ij}, \\quad L_{ij} \\text{ 为文字}"
         complexity "O(2^n)"
         constructive true
         reversible false
@@ -224,10 +222,9 @@ presets {
     preset "logic_dnf_convert" {
         description "析取范式转换：将一阶逻辑公式转换为析取范式 DNF"
         category "LOGIC"
-        inputs 1 
+        inputs 1 "BOOLEAN"
         output "BOOLEAN"
-        math_def "\\phi \\Rightarrow \\bigvee_{i=1}^{m} \\bigwedge_{j=1}^{n_i} L_{ij}, \"
-                                           \"\\quad L_{ij} \\text{ 为文字}"
+        math_def "\\phi \\Rightarrow \\bigvee_{i=1}^{m} \\bigwedge_{j=1}^{n_i} L_{ij}, \\quad L_{ij} \\text{ 为文字}"
         complexity "O(2^n)"
         constructive true
         reversible false

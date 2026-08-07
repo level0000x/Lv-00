@@ -106,12 +106,232 @@ def regen_lvz(c_file, lvz_file, c_presets, category):
     return convert_presets.generate_lvz_content(module_name, category, c_presets)
 
 
+# ============================================================
+# --verify: 模拟 module_lvz.c 的 .lvz 词法/语法解析（load_presets_from_lvz 语义）
+# 忠实复刻：'#' 行注释、字符串转义（\n \t \r \" \\）、数字、标识符、
+# presets 节语法、字段表分发、inputs 类型缺失容错（ANY 填充，与修复后 C loader 一致）
+# ============================================================
+
+# token 类型（对齐 module_lvz.c 的 LvzTokenType）
+T_EOF, T_IDENTIFIER, T_STRING, T_NUMBER, T_LBRACE, T_RBRACE = range(6)
+
+PRESET_FIELDS = {'description', 'category', 'inputs', 'output', 'math_def', 'complexity', 'constructive', 'reversible'}
+
+
+def lvz_tokenize(text):
+    """复刻 lvz_lexer_next_token + lv_lexer_skip_whitespace_and_comments。返回 (tokens, error)。"""
+    tokens = []
+    i, n = 0, len(text)
+    line = 1
+    while i < n:
+        ch = text[i]
+        if ch in ' \t\r\n\f\v':
+            if ch == '\n':
+                line += 1
+            i += 1
+            continue
+        if ch == '#':  # 注释到行尾
+            while i < n and text[i] != '\n':
+                i += 1
+            continue
+        if ch == '{':
+            tokens.append((T_LBRACE, None, line))
+            i += 1
+            continue
+        if ch == '}':
+            tokens.append((T_RBRACE, None, line))
+            i += 1
+            continue
+        if ch == '"':  # 字符串（含转义）
+            i += 1
+            s = []
+            ok = False
+            while i < n:
+                c = text[i]
+                if c == '\\':
+                    if i + 1 >= n:
+                        break
+                    nxt = text[i + 1]
+                    s.append({'n': '\n', 't': '\t', 'r': '\r', '"': '"', '\\': '\\'}.get(nxt, nxt))
+                    i += 2
+                elif c == '"':
+                    ok = True
+                    i += 1
+                    break
+                else:
+                    s.append(c)
+                    i += 1
+            if not ok:
+                return None, f'字符串字面量解析失败 (行 {line})'
+            tokens.append((T_STRING, ''.join(s), line))
+            continue
+        if ch.isdigit() or (ch == '-' and i + 1 < n and text[i + 1].isdigit()):  # 数字
+            start = i
+            if ch == '-':
+                i += 1
+            while i < n and text[i].isdigit():
+                i += 1
+            if i < n and text[i] == '.':
+                i += 1
+                while i < n and text[i].isdigit():
+                    i += 1
+            tokens.append((T_NUMBER, float(text[start:i]), line))
+            continue
+        if ch.isalpha() or ch == '_':  # 标识符（可含 - .，与 C 一致）
+            start = i
+            while i < n and (text[i].isalnum() or text[i] in '_-.'):
+                i += 1
+            tokens.append((T_IDENTIFIER, text[start:i], line))
+            continue
+        return None, f'意外的字符 {ch!r} (行 {line})'
+    tokens.append((T_EOF, None, line))
+    return tokens, None
+
+
+class _Tk:
+    """轻量 token 游标，复刻 LvzParser 的 advance/expect 语义。"""
+
+    def __init__(self, tokens):
+        self.tokens = tokens
+        self.pos = 0
+
+    def cur(self):
+        return self.tokens[self.pos] if self.pos < len(self.tokens) else (T_EOF, None, 0)
+
+    def advance(self):
+        if self.pos < len(self.tokens) - 1:
+            self.pos += 1
+
+    def expect(self, ttype):
+        if self.cur()[0] != ttype:
+            return False
+        self.advance()
+        return True
+
+
+def _verify_preset_body(tk, name):
+    """复刻 lvz_parse_preset_body + kPresetFieldTable 分发。返回错误消息或 None。"""
+    if not tk.expect(T_LBRACE):
+        return f"预设 '{name}': 期望 '{{'"
+    while tk.cur()[0] not in (T_RBRACE, T_EOF):
+        if tk.cur()[0] != T_IDENTIFIER:
+            return f"预设 '{name}': 期望字段名"
+        field = tk.cur()[1]
+        if field not in PRESET_FIELDS:
+            return f"预设 '{name}': 未知字段 '{field}'"
+        tk.advance()
+        if field == 'inputs':
+            if tk.cur()[0] != T_NUMBER:
+                return f"预设 '{name}': inputs 期望数量"
+            count = int(tk.cur()[1])
+            tk.advance()
+            # 消费 count 个类型字符串；不足时 ANY 填充（与修复后 C loader 容错一致）
+            got = 0
+            while got < count and tk.cur()[0] == T_STRING:
+                tk.advance()
+                got += 1
+        elif field in ('description', 'category', 'output', 'math_def', 'complexity'):
+            if not tk.expect(T_STRING):
+                return f"预设 '{name}': {field} 期望字符串"
+        elif field in ('constructive', 'reversible'):
+            if tk.cur()[0] == T_IDENTIFIER:
+                tk.advance()
+    if not tk.expect(T_RBRACE):
+        return f"预设 '{name}': 期望 '}}' 结束预设体"
+    return None
+
+
+def verify_lvz_load(path):
+    """模拟 lvz_load_presets_file。返回 (ok, 错误消息或 OK 摘要)。"""
+    try:
+        with open(path, 'rb') as f:
+            data = f.read()
+    except OSError as e:
+        return False, f'无法读取: {e}'
+    try:
+        text = data.decode('utf-8')
+    except UnicodeDecodeError:
+        return False, '非 UTF-8 编码'
+    tokens, err = lvz_tokenize(text)
+    if err:
+        return False, err
+    tk = _Tk(tokens)
+    # ---- 复刻 lvz_parse 主循环 ----
+    if not (tk.cur()[0] == T_IDENTIFIER and tk.cur()[1] == 'lvz'):
+        return False, "无效的 LVZ 文件: 缺少 'lvz' 头"
+    tk.advance()
+    if tk.cur()[0] != T_NUMBER:
+        return False, '无效的 LVZ 文件: 缺少版本号'
+    major = int(tk.cur()[1])
+    tk.advance()
+    # 可选的次版本号：仅数字分支消费（`1.0` 已被词法器解析为单个 NUMBER）；
+    # 与修复后的 C loader 一致：不消费标识符，避免吞掉节名（如 presets）
+    if tk.cur()[0] == T_NUMBER:
+        tk.advance()
+    if major > 1:
+        return False, f'不支持的 LVZ 版本: {major}'
+    # ---- 节循环 ----
+    preset_count = 0
+    while tk.cur()[0] != T_EOF:
+        if tk.cur()[0] != T_IDENTIFIER:
+            return False, f'解析错误 (行 {tk.cur()[2]}): 期望节名称'
+        section = tk.cur()[1]
+        if section != 'presets':
+            if section == 'end':
+                tk.advance()
+                break
+            return False, f'解析错误 (行 {tk.cur()[2]}): 未知的节 {section!r}'
+        tk.advance()  # 跳过 'presets'
+        # ---- 复刻 lvz_parse_presets_section ----
+        if not tk.expect(T_LBRACE):
+            return False, f'解析错误 (行 {tk.cur()[2]}): 期望 \'{{\' 开始预设节'
+        while tk.cur()[0] == T_IDENTIFIER and tk.cur()[1] == 'preset':
+            tk.advance()
+            if not tk.expect(T_STRING):
+                return False, '解析错误: 期望预设名称字符串'
+            pname = tk.cur()[1]
+            err = _verify_preset_body(tk, pname)
+            if err:
+                return False, err
+            preset_count += 1
+        if not tk.expect(T_RBRACE):
+            return False, '解析错误: 期望 \'}\' 结束 presets 节'
+    return True, f'OK: {preset_count} 个预设'
+
+
+def run_verify(lvz_dir):
+    """对所有 .lvz 执行模拟加载验证，返回 (results, summary)。"""
+    results = {}
+    summary = {'LOAD_OK': 0, 'LOAD_FAIL': 0}
+    for name in sorted(f for f in os.listdir(lvz_dir) if f.endswith('.lvz')):
+        path = os.path.join(lvz_dir, name)
+        ok, msg = verify_lvz_load(path)
+        results[name] = {'ok': ok, 'msg': msg}
+        summary['LOAD_OK' if ok else 'LOAD_FAIL'] += 1
+    return results, summary
+
+
 def main():
     ap = argparse.ArgumentParser(description='校验 .lvz 与 C 预设注册数据的同步状态')
     ap.add_argument('--fix', action='store_true', help='修复可安全修复的差异（先备份 .lvz.bak）')
     ap.add_argument('--json', action='store_true', help='输出 JSON 摘要')
     ap.add_argument('--module', default=None, help='仅检查指定模块（不含前缀，如 information_theory）')
+    ap.add_argument('--verify', action='store_true',
+                    help='模拟 C loader（module_lvz.c）验证所有 .lvz 可被加载（Python 复刻词法/语法）')
     args = ap.parse_args()
+
+    # ---- --verify：模拟 loader 加载验证（不依赖同步状态） ----
+    if args.verify:
+        results, summary = run_verify(LVZ_DIR)
+        for name in sorted(results):
+            r = results[name]
+            tag = 'LOAD_OK  ' if r['ok'] else 'LOAD_FAIL'
+            print(f'[{tag}] {name:42s} {r["msg"]}')
+        print()
+        print(f'汇总: LOAD_OK={summary["LOAD_OK"]}, LOAD_FAIL={summary["LOAD_FAIL"]}')
+        if args.json:
+            print(json.dumps({'verify': results, 'summary': summary}, ensure_ascii=False))
+        sys.exit(0)
 
     name_map = convert_presets.load_name_defs(NAME_DEFS_PATH)
     if not os.path.isdir(LVZ_DIR):

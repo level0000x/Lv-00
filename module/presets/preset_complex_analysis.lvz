@@ -37,8 +37,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "BOOLEAN"
-        math_def "f \\text{ 在 } z_0 \\text{ 连续} \\Leftrightarrow \"
-                \"\\lim_{z \\to z_0} f(z) = f(z_0)"
+        math_def "f \\text{ 在 } z_0 \\text{ 连续} \\Leftrightarrow \\lim_{z \\to z_0} f(z) = f(z_0)"
         complexity "O(1)"
         constructive true
         reversible false
@@ -49,8 +48,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "BOOLEAN"
-        math_def "f'(z_0) = \\lim_{\\Delta z \\to 0} \"
-                \"\\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z} \\text{ 存在}"
+        math_def "f'(z_0) = \\lim_{\\Delta z \\to 0} \\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z} \\text{ 存在}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -61,8 +59,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "SCALAR"
-        math_def "f'(z_0) = \\lim_{\\Delta z \\to 0} \"
-                \"\\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z}"
+        math_def "f'(z_0) = \\lim_{\\Delta z \\to 0} \\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -73,8 +70,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "BOOLEAN"
-        math_def "\\frac{\\partial u}{\\partial x} = \\frac{\\partial v}{\\partial y}, \"
-                \"\\quad \\frac{\\partial u}{\\partial y} = -\\frac{\\partial v}{\\partial x}"
+        math_def "\\frac{\\partial u}{\\partial x} = \\frac{\\partial v}{\\partial y}, \\quad \\frac{\\partial u}{\\partial y} = -\\frac{\\partial v}{\\partial x}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -85,8 +81,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "BOOLEAN"
-        math_def "\\Delta u = \\frac{\\partial^2 u}{\\partial x^2} + \"
-                \"\\frac{\\partial^2 u}{\\partial y^2} = 0"
+        math_def "\\Delta u = \\frac{\\partial^2 u}{\\partial x^2} + \\frac{\\partial^2 u}{\\partial y^2} = 0"
         complexity "O(1)"
         constructive true
         reversible false
@@ -108,8 +103,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "BOOLEAN"
-        math_def "f \\text{ 在 } z_0 \\text{ 解析} \\Leftrightarrow \"
-                \"f \\text{ 在 } z_0 \\text{ 的某邻域内复可微}"
+        math_def "f \\text{ 在 } z_0 \\text{ 解析} \\Leftrightarrow f \\text{ 在 } z_0 \\text{ 的某邻域内复可微}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -120,8 +114,7 @@ presets {
         category "ANALYSIS"
         inputs 1 "FUNCTION"
         output "BOOLEAN"
-        math_def "f \\text{ 是整函数} \\Leftrightarrow \"
-                \"f \\text{ 在 } \\mathbb{C} \\text{ 上处处解析}"
+        math_def "f \\text{ 是整函数} \\Leftrightarrow f \\text{ 在 } \\mathbb{C} \\text{ 上处处解析}"
         complexity "O(\\infty)"
         constructive true
         reversible false
@@ -143,8 +136,7 @@ presets {
         category "ANALYSIS"
         inputs 3 "FUNCTION" "SCALAR" "PATH"
         output "SCALAR"
-        math_def "f(z_0) = \\frac{1}{2\\pi i} \\oint_{\\gamma} \"
-                \"\\frac{f(z)}{z - z_0} \\, dz"
+        math_def "f(z_0) = \\frac{1}{2\\pi i} \\oint_{\\gamma} \\frac{f(z)}{z - z_0} \\, dz"
         complexity "O(n)"
         constructive true
         reversible false
@@ -155,8 +147,7 @@ presets {
         category "ANALYSIS"
         inputs 4 "FUNCTION" "SCALAR" "PATH" "INTEGER"
         output "SCALAR"
-        math_def "f^{(n)}(z_0) = \\frac{n!}{2\\pi i} \\oint_{\\gamma} \"
-                \"\\frac{f(z)}{(z - z_0)^{n+1}} \\, dz"
+        math_def "f^{(n)}(z_0) = \\frac{n!}{2\\pi i} \\oint_{\\gamma} \\frac{f(z)}{(z - z_0)^{n+1}} \\, dz"
         complexity "O(n)"
         constructive true
         reversible false
@@ -178,8 +169,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "REGION"
         output "BOOLEAN"
-        math_def "\\oint_{\\Delta} f(z) \\, dz = 0, \\forall \\Delta \\subset \\Omega \"
-                \"\\Rightarrow f \\text{ 在 } \\Omega \\text{ 内解析}"
+        math_def "\\oint_{\\Delta} f(z) \\, dz = 0, \\forall \\Delta \\subset \\Omega \\Rightarrow f \\text{ 在 } \\Omega \\text{ 内解析}"
         complexity "O(\\infty)"
         constructive true
         reversible false
@@ -190,8 +180,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "PATH" "SCALAR"
         output "INTEGER"
-        math_def "n(\\gamma, z_0) = \\frac{1}{2\\pi i} \"
-                \"\\oint_{\\gamma} \\frac{dz}{z - z_0}"
+        math_def "n(\\gamma, z_0) = \\frac{1}{2\\pi i} \\oint_{\\gamma} \\frac{dz}{z - z_0}"
         complexity "O(n)"
         constructive true
         reversible false
@@ -202,8 +191,7 @@ presets {
         category "ANALYSIS"
         inputs 3 "FUNCTION" "TUPLE" "PATH"
         output "SCALAR"
-        math_def "\\oint_{\\gamma} f(z) \\, dz = \"
-                \"2\\pi i \\sum_{k} \\text{Res}(f, z_k)"
+        math_def "\\oint_{\\gamma} f(z) \\, dz = 2\\pi i \\sum_{k} \\text{Res}(f, z_k)"
         complexity "O(n)"
         constructive true
         reversible false
@@ -214,8 +202,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "PATH"
         output "EXPRESSION"
-        math_def "\\int_{\\gamma} f(z) \\, dz = \"
-                \"\\int_a^b f(\\gamma(t)) \\, \\gamma'(t) \\, dt"
+        math_def "\\int_{\\gamma} f(z) \\, dz = \\int_a^b f(\\gamma(t)) \\, \\gamma'(t) \\, dt"
         complexity "O(n)"
         constructive true
         reversible false
@@ -226,8 +213,7 @@ presets {
         category "ANALYSIS"
         inputs 3 "FUNCTION" "SCALAR" "INTEGER"
         output "TUPLE"
-        math_def "f(z) = \\sum_{n=0}^{\\infty} \"
-                \"\\frac{f^{(n)}(z_0)}{n!} (z - z_0)^n"
+        math_def "f(z) = \\sum_{n=0}^{\\infty} \\frac{f^{(n)}(z_0)}{n!} (z - z_0)^n"
         complexity "O(n)"
         constructive true
         reversible false
@@ -238,8 +224,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "TUPLE"
-        math_def "f(z) = \\sum_{n=-\\infty}^{\\infty} a_n (z - z_0)^n, \"
-                \"\\quad 0 < |z - z_0| < R"
+        math_def "f(z) = \\sum_{n=-\\infty}^{\\infty} a_n (z - z_0)^n, \\quad 0 < |z - z_0| < R"
         complexity "O(n)"
         constructive true
         reversible false
@@ -261,8 +246,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "EXPRESSION"
-        math_def "\\text{PP}(f, z_0) = \\sum_{n=1}^{\\infty} \"
-                \"a_{-n} (z - z_0)^{-n}"
+        math_def "\\text{PP}(f, z_0) = \\sum_{n=1}^{\\infty} a_{-n} (z - z_0)^{-n}"
         complexity "O(n)"
         constructive true
         reversible false
@@ -273,8 +257,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "SCALAR"
-        math_def "\\text{Res}(f, z_0) = a_{-1} = \"
-                \"\\frac{1}{2\\pi i} \\oint_{\\gamma} f(z) \\, dz"
+        math_def "\\text{Res}(f, z_0) = a_{-1} = \\frac{1}{2\\pi i} \\oint_{\\gamma} f(z) \\, dz"
         complexity "O(1)"
         constructive true
         reversible false
@@ -285,8 +268,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "INTEGER"
-        math_def "\\lim_{z \\to z_0} (z - z_0)^m f(z) \\neq 0, \"
-                \"\\lim_{z \\to z_0} (z - z_0)^{m+1} f(z) = 0"
+        math_def "\\lim_{z \\to z_0} (z - z_0)^m f(z) \\neq 0, \\lim_{z \\to z_0} (z - z_0)^{m+1} f(z) = 0"
         complexity "O(1)"
         constructive true
         reversible false
@@ -297,8 +279,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "BOOLEAN"
-        math_def "\\text{本性奇点} \\Leftrightarrow \"
-                \"\\text{Laurent级数主部有无穷多项}"
+        math_def "\\text{本性奇点} \\Leftrightarrow \\text{Laurent级数主部有无穷多项}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -309,8 +290,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "BOOLEAN"
-        math_def "\\lim_{z \\to z_0} f(z) \\text{ 存在且有限} \"
-                \"\\Leftrightarrow \\text{Laurent级数主部为零}"
+        math_def "\\lim_{z \\to z_0} f(z) \\text{ 存在且有限} \\Leftrightarrow \\text{Laurent级数主部为零}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -321,8 +301,7 @@ presets {
         category "ANALYSIS"
         inputs 2 "FUNCTION" "SCALAR"
         output "BOOLEAN"
-        math_def "f \\text{ 在 } z_0 \\text{ 共形} \\Leftrightarrow \"
-                \"f'(z_0) \\neq 0"
+        math_def "f \\text{ 在 } z_0 \\text{ 共形} \\Leftrightarrow f'(z_0) \\neq 0"
         complexity "O(1)"
         constructive true
         reversible false
@@ -366,8 +345,7 @@ presets {
         category "ANALYSIS"
         inputs 1 "REGION"
         output "BOOLEAN"
-        math_def "\\exists f: \\Omega \\to \\mathbb{D} \\text{ 共形双射}, \"
-                \"\\Omega \\text{ 单连通开集}"
+        math_def "\\exists f: \\Omega \\to \\mathbb{D} \\text{ 共形双射}, \\Omega \\text{ 单连通开集}"
         complexity "O(\\infty)"
         constructive false
         reversible false
@@ -384,13 +362,23 @@ presets {
         reversible false
     }
 
+    preset "complex_log" {
+        description "复对数函数：Log(z) = ln|z| + i Arg(z)，Arg(z) in (-pi, pi]"
+        category "ANALYSIS"
+        inputs 1 "SCALAR"
+        output "SCALAR"
+        math_def "\\text{Log}(z) = \\ln r + i\\Theta, \\quad \\Theta \\in (-\\pi, \\pi]"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
     preset "complex_trig" {
         description "复三角函数：sin(z), cos(z), tan(z) 等，z in C"
         category "ANALYSIS"
         inputs 2 "SCALAR" "SCALAR"
         output "SCALAR"
-        math_def "\\sin z = \\frac{e^{iz} - e^{-iz}}{2i}, \\quad \"
-                \"\\cos z = \\frac{e^{iz} + e^{-iz}}{2}"
+        math_def "\\sin z = \\frac{e^{iz} - e^{-iz}}{2i}, \\quad \\cos z = \\frac{e^{iz} + e^{-iz}}{2}"
         complexity "O(1)"
         constructive true
         reversible false
@@ -401,8 +389,7 @@ presets {
         category "ANALYSIS"
         inputs 1 "SCALAR"
         output "SCALAR"
-        math_def "\\Gamma(z) = \\int_0^{\\infty} t^{z-1} e^{-t} \\, dt, \"
-                \"\\quad \\text{Re}(z) > 0"
+        math_def "\\Gamma(z) = \\int_0^{\\infty} t^{z-1} e^{-t} \\, dt, \\quad \\text{Re}(z) > 0"
         complexity "O(n)"
         constructive true
         reversible false

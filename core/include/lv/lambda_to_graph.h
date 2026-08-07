@@ -23,7 +23,10 @@ extern "C" {
  * @brief 将 λ-项编译为约束图
  *
  * 递归遍历 λ-项，为每个节点创建相应的几何构造：
- * - LV_LAMBDA_VAR(index): 创建一个带有输入端口的几何节点
+ * - LV_LAMBDA_VAR(index): 创建一个带有输入端口的几何节点。
+ *   该引用端口的 parent_block_id 指向其 binder 端口（GeomNode 层），
+ *   供 graph_to_lambda 反编译时恢复忠实的 De Bruijn 索引；
+ *   namespace_depth 保持编译深度语义（连接深度规则 |Δdepth|≤1）。
  * - LV_LAMBDA_ABS(binder, body): 创建一个函数块，其输入端口对应 binder
  * - LV_LAMBDA_APP(left, right): 将 left 的输出端口连接到 right 的输入端口
  *

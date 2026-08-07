@@ -13,7 +13,7 @@ presets {
     preset "gamma_function" {
         description "计算Gamma函数 Γ(z) = ∫_0^∞ t^{z-1} e^{-t} dt"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +22,7 @@ presets {
     preset "beta_function" {
         description "计算Beta函数 B(a,b) = Γ(a)Γ(b)/Γ(a+b)"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -31,7 +31,7 @@ presets {
     preset "incomplete_gamma" {
         description "计算不完全Gamma函数 γ(s,x) 和 Γ(s,x)"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -40,7 +40,7 @@ presets {
     preset "error_function" {
         description "计算误差函数 erf(x) = (2/√π) ∫_0^x e^{-t²} dt"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -49,7 +49,7 @@ presets {
     preset "bessel_j" {
         description "计算第一类Bessel函数 J_ν(x)"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -58,7 +58,7 @@ presets {
     preset "bessel_y" {
         description "计算第二类Bessel函数 Y_ν(x)（Neumann函数）"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -67,7 +67,7 @@ presets {
     preset "bessel_i" {
         description "计算第一类修正Bessel函数 I_ν(x)"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -76,7 +76,7 @@ presets {
     preset "hypergeometric_2f1" {
         description "计算Gauss超几何函数 _2F_1(a,b;c;z)"
         category "CUSTOM"
-        inputs 4 
+        inputs 4 "ANY" "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -85,7 +85,7 @@ presets {
     preset "confluent_hypergeometric" {
         description "计算合流超几何函数 _1F_1(a;b;z)（Kummer函数）"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -94,7 +94,7 @@ presets {
     preset "legendre_polynomial" {
         description "计算Legendre多项式 P_n(x)"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -103,7 +103,7 @@ presets {
     preset "chebyshev_polynomial" {
         description "计算Chebyshev多项式 T_n(x) 和 U_n(x)"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -112,7 +112,7 @@ presets {
     preset "hermite_polynomial" {
         description "计算Hermite多项式 H_n(x)"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -121,7 +121,7 @@ presets {
     preset "laguerre_polynomial" {
         description "计算Laguerre多项式 L_n(x)"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -130,7 +130,7 @@ presets {
     preset "elliptic_integral" {
         description "计算第一类和第二类椭圆积分 F(φ,k), E(φ,k)"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -139,7 +139,7 @@ presets {
     preset "riemann_zeta" {
         description "计算Riemann Zeta函数 ζ(s) = Σ n^{-s}"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -148,7 +148,7 @@ presets {
     preset "digamma_function" {
         description "计算Digamma函数 ψ(z) = Γ'(z)/Γ(z)"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false

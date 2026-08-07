@@ -324,6 +324,12 @@ static LvToken lex_raw(LvLexer *lexer) {
     }
 
     /* 多字符运算符 */
+    if (c == '/' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '\\') {
+        /* 合取符号 "/\" 等价于关键字 "and"（规格文件惯用写法） */
+        lexer->pos += 2;
+        lexer->column += 2;
+        return make_token_at(lexer, LV_TOKEN_KW_AND, start, 2, start_col);
+    }
     if (c == '-' && lexer->pos + 1 < lexer->source_len && lexer->source[lexer->pos + 1] == '>') {
         lexer->pos += 2;
         lexer->column += 2;
@@ -366,6 +372,12 @@ static LvToken lex_raw(LvLexer *lexer) {
             lexer->column += 2;
             return make_token_at(lexer, LV_TOKEN_MODELS, start, 2, start_col);
         }
+    }
+    if (c == '|') {
+        /* 单独 '|'：类型联合分隔符 */
+        lexer->pos++;
+        lexer->column++;
+        return make_token_at(lexer, LV_TOKEN_PIPE, start, 1, start_col);
     }
 
     /* 单字符运算符 */
@@ -556,6 +568,7 @@ const char *lv_token_type_name(LvTokenType type) {
                                   "DARROW",
                                   "MODELS",
                                   "THEREFORE",
+                                  "PIPE",
                                   "EOF",
                                   "ERROR"};
     if (type >= 0 && type < LV_TOKEN_COUNT)

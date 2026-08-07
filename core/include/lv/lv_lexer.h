@@ -89,6 +89,7 @@ typedef enum {
     LV_TOKEN_DARROW,     // |-
     LV_TOKEN_MODELS,     // |=
     LV_TOKEN_THEREFORE,  // =>
+    LV_TOKEN_PIPE,       // |
 
     /* 特殊 */
     LV_TOKEN_EOF,
