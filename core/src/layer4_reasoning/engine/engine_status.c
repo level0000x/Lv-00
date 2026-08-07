@@ -57,7 +57,7 @@ static const char *s_engine_status_descriptions[] = {
     "操作成功完成。系统处于正常状态，可以继续后续操作。",                                    /* ENGINE_STATUS_OK */
     "内存分配失败。系统无法分配所需的内存资源。建议：检查系统内存使用情况，尝试释放不必要的资源，或减小"
     "问题规模。",                                                                           /* ENGINE_STATUS_OUT_OF_MEMORY */
-    "引擎处于无效状态。当前操作与引擎状态不兼容。建议：检查引擎当前状态，必要时调用 engine_reset() "
+    "引擎处于无效状态。当前操作与引擎状态不兼容。建议：检查引擎当前状态，必要时通过 lv_engine_transition_state() 转回 IDLE " 
     "重置。",                                                                               /* ENGINE_STATUS_INVALID_STATE */
     "传入参数无效。可能是空指针、越界值或格式错误的参数。建议：检查函数调用的参数是否符合文档要求。",  /* ENGINE_STATUS_INVALID_ARGUMENT */
     "约束冲突。几何约束之间存在矛盾，无法满足所有约束条件。建议：检查约束定义，移除或修改冲突的约束。",  /* ENGINE_STATUS_CONSTRAINT_CONFLICT */

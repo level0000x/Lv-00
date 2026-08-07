@@ -453,6 +453,7 @@ set(lv_HEADERS
     core/include/lv/geo_visual.h
     core/include/lv/lv_render_visitor.h
     core/include/lv/lv_numeric.h
+    core/include/lv/lv_arith_safe.h
     core/include/lv/probabilistic_constraint.h
     # v1.1.0 新增模块头文件（第三轮：几何构造与交互模块）
     core/include/lv/algebra_mode.h

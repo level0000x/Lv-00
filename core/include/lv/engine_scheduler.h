@@ -144,6 +144,7 @@ GroebnerResult *scheduler_convert_smt_to_groebner(const SMTSolverResult *smt_res
 /* ── 向后兼容 ── */
 struct lvEngine;
 void lv_engine_scheduler_init(struct lvEngine *engine);
+void lv_engine_scheduler_shutdown(struct lvEngine *engine);
 int lv_engine_schedule(const char *task_name, int priority);
 bool lv_engine_execute_pending(void);
 int lv_engine_pending_count(void);

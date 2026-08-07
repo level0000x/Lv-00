@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/formula_parser.h"
+#include "lv/lv_arith_safe.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_parse_utils.h"
 
@@ -257,17 +258,11 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
         /**
          * 步骤6：使用欧几里得算法计算 GCD 进行约分
          * GCD(a, b) = GCD(b, a % b)，直到 b = 0
+         * （复用公共设施 lv_rational_simplify_i64，gcd 采用
+         *  uint64 安全语义，正确处理 INT64_MIN 绝对值）
          */
         if (numerator != 0 && denominator > 0) {
-            int64_t a = numerator < 0 ? -numerator : numerator;
-            int64_t b = denominator;
-            while (b != 0) {
-                int64_t t = b;
-                b = a % b;
-                a = t;
-            }
-            numerator /= a;
-            denominator /= a;
+            lv_rational_simplify_i64(&numerator, &denominator);
         }
 
         node = formula_create_number(numerator, (uint64_t) denominator);

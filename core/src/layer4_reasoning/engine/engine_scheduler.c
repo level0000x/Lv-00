@@ -1072,6 +1072,16 @@ void lv_engine_scheduler_init(lvEngine *engine) {
     }
 }
 
+void lv_engine_scheduler_shutdown(lvEngine *engine) {
+    if (!engine)
+        return;
+
+    /* 仅当本线程 TLS 仍关联到该引擎时清空，避免旧版 API 解引用已销毁的引擎 */
+    if (g_tls_engine == engine) {
+        g_tls_engine = NULL;
+    }
+}
+
 int lv_engine_schedule(const char *task_name, int priority) {
     if (!task_name)
         return -1;

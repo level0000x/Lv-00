@@ -10,6 +10,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/lv_arith_safe.h"
 #include "formula_converter.h"
 #include "formula_converter_internal.h"
 
@@ -110,30 +111,17 @@ SymbolicCoord *formula_number_to_coord(const FormulaNode *node) {
     if (node->data.number.is_integer) {
         return symbolic_coord_create_rational(node->data.number.numerator, 1);
     } else {
-        /* 简化分数 */
+        /* 简化分数
+         * 复用公共设施 lv_rational_simplify_i64：gcd 采用 uint64 安全语义，
+         * INT64_MIN 的绝对值 2^63 以 (uint64_t)INT64_MAX + 1 表示，
+         * 与原实现的 uint64 约分逻辑行为完全一致。
+         * 解析器生成的分母恒 <= INT64_MAX，int64 中转安全。 */
         int64_t num = node->data.number.numerator;
         uint64_t denom = node->data.number.denominator;
+        int64_t denom_i64 = (int64_t) denom;
+        lv_rational_simplify_i64(&num, &denom_i64);
 
-        /* 计算 GCD（最大公约数）
-         * 修复 INT64_MIN 取反溢出：当 num == INT64_MIN 时，
-         * -num 会导致有符号整数溢出（未定义行为）。
-         * 解决方案：使用 uint64_t 接收绝对值。
-         * INT64_MIN 的绝对值 = -(INT64_MIN) = 2^63，
-         * 在 uint64_t 中安全表示为 (uint64_t)INT64_MAX + 1。 */
-        uint64_t a = (num == INT64_MIN) ? ((uint64_t) INT64_MAX + 1) : (uint64_t) (num < 0 ? -num : num);
-        uint64_t b = denom;
-        while (b != 0) {
-            uint64_t t = b;
-            b = a % b;
-            a = t;
-        }
-        /* 当 GCD > 1 时约分分子和分母 */
-        if (a > 1) {
-            num /= (int64_t) a;
-            denom /= a;
-        }
-
-        return symbolic_coord_create_rational(num, denom);
+        return symbolic_coord_create_rational(num, (uint64_t) denom_i64);
     }
 }
 

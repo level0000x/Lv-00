@@ -8,6 +8,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/lv_arith_safe.h"
 
 #include "exact_arithmetic.h"
 
@@ -35,25 +36,11 @@ lvTimestamp lv_timestamp_now(void) {
 
 /**
  * @brief 安全乘法 —— a * b，检测溢出
+ *
+ * 薄转发到公共设施 lv_safe_mul_i64（返回 true=成功）。
  */
 bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
-    if (!out)
-        return false;
-    if (a == 0 || b == 0) {
-        *out = 0;
-        return true;
-    }
-    /* 检查是否会溢出: |a * b| > INT64_MAX */
-    if (a > 0 && b > 0 && a > INT64_MAX / b)
-        return false;
-    if (a > 0 && b < 0 && b < INT64_MIN / a)
-        return false;
-    if (a < 0 && b > 0 && a < INT64_MIN / b)
-        return false;
-    if (a < 0 && b < 0 && a < INT64_MAX / b)
-        return false;
-    *out = a * b;
-    return true;
+    return lv_safe_mul_i64(a, b, out);
 }
 
 /* ========================================================================
@@ -115,21 +102,11 @@ bool lv_safe_pow(int64_t a, int64_t b, int64_t *result) {
  * @param b  加数 b
  * @param out 输出：a + b 的结果
  * @return true 成功（无溢出），false 溢出或 out 为 NULL
+ *
+ * 薄转发到公共设施 lv_safe_add_i64。
  */
 bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out) {
-    if (!out)
-        return false;
-
-    /* 溢出条件检测：
-     * 正溢出: a > 0 && b > 0 && a > INT64_MAX - b
-     * 负溢出: a < 0 && b < 0 && a < INT64_MIN - b */
-    if (b > 0 && a > INT64_MAX - b)
-        return false;
-    if (b < 0 && a < INT64_MIN - b)
-        return false;
-
-    *out = a + b;
-    return true;
+    return lv_safe_add_i64(a, b, out);
 }
 
 /* ========================================================================
@@ -143,19 +120,9 @@ bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out) {
  * @param b  减数 b
  * @param out 输出：a - b 的结果
  * @return true 成功（无溢出），false 溢出或 out 为 NULL
+ *
+ * 薄转发到公共设施 lv_safe_sub_i64。
  */
 bool lv_safe_sub_impl(int64_t a, int64_t b, int64_t *out) {
-    if (!out)
-        return false;
-
-    /* 溢出条件检测：
-     * 正溢出: b < 0 && a > INT64_MAX + b  (减负数可能溢出)
-     * 负溢出: b > 0 && a < INT64_MIN + b  (减正数可能下溢) */
-    if (b < 0 && a > INT64_MAX + b)
-        return false;
-    if (b > 0 && a < INT64_MIN + b)
-        return false;
-
-    *out = a - b;
-    return true;
+    return lv_safe_sub_i64(a, b, out);
 }

@@ -33,19 +33,18 @@
 /* ============== 证明断点保存/恢复 ============== */
 
 /** 模块级唯一状态实例（替代原有的 6 个分散 static 变量） */
-
-/** 模块级唯一状态实例（替代原有的 6 个分散 static 变量） */
 ProofNavigatorState s_proof_state = {0};
 
-/** 互斥锁惰性初始化标记 */
-static volatile int g_breakpoint_mutex_inited = 0;
+/** 断点互斥锁一次性初始化守卫（项目惯例：lv_once 消除 check-then-init 竞态） */
+static lv_once_t g_breakpoint_mutex_once = lv_ONCE_INIT;
+
+static void breakpoint_mutex_init_once(void) {
+    lv_mutex_init(&s_proof_state.breakpoint_mutex);
+}
 
 #define BREAKPOINT_LOCK()                                                         \
     do {                                                                          \
-        if (!g_breakpoint_mutex_inited) {                                         \
-            lv_MUTEX_INIT(&s_proof_state.breakpoint_mutex);                       \
-            lv_ATOMIC_EXCHANGE(&g_breakpoint_mutex_inited, 1);                    \
-        }                                                                         \
+        lv_once(&g_breakpoint_mutex_once, breakpoint_mutex_init_once);            \
         lv_MUTEX_LOCK(&s_proof_state.breakpoint_mutex);                           \
     } while (0)
 #define BREAKPOINT_UNLOCK() lv_MUTEX_UNLOCK(&s_proof_state.breakpoint_mutex)

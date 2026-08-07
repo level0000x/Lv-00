@@ -79,6 +79,21 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name) {
     return &s_autosave_state.entries[s_autosave_state.count - 1].config;
 }
 
+/**
+ * @brief 释放全部自动保存配置（供程序退出或模块卸载时调用）
+ *
+ * 释放 module_name 与 backup_directory 的 strdup 副本并清空计数。
+ */
+void module_autosave_cleanup(void) {
+    for (int i = 0; i < s_autosave_state.count; i++) {
+        lv_free((void **) &s_autosave_state.entries[i].module_name);
+        if (s_autosave_state.entries[i].config.backup_directory) {
+            lv_free((void **) &s_autosave_state.entries[i].config.backup_directory);
+        }
+    }
+    s_autosave_state.count = 0;
+}
+
 /* module_set_autosave_config 已在 module_delta.c 中实现 */
 
 /* ============== 模块内容哈希（SHA-256，统一委托 lv_hash 模块） ============== */

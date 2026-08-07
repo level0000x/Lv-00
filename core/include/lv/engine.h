@@ -203,11 +203,11 @@ typedef enum {
     ENGINE_STATE_REASONING,
 
     /** 错误状态 —— 遇到不可恢复的错误（解析失败、约束冲突、资源耗尽等）。
-     *  必须通过 engine_reset() 清理后重新开始。 */
+     *  必须通过 lv_engine_transition_state() 转回 IDLE 清理后重新开始。 */
     ENGINE_STATE_ERROR,
 
     /** 完成状态 —— 当前问题的求解/证明已成功完成。
-     *  可查询结果，或通过 engine_reset() 开始新问题。 */
+     *  可查询结果，或通过 lv_engine_transition_state() 转回 IDLE 开始新问题。 */
     ENGINE_STATE_COMPLETE
 } EngineState;
 

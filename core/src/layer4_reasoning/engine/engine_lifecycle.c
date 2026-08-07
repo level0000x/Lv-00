@@ -98,12 +98,12 @@ void engine_destroy(lvEngine *engine) {
      * 状态检查：如果引擎正处于 REASONING 状态，拒绝销毁。
      * 推理过程中销毁会导致约束图、重写规则等共享数据结构处于不一致状态，
      * 可能引发悬垂指针、内存损坏等严重问题。
-     * 调用者应先等待推理完成或通过 engine_reset() 将状态置为 IDLE/ERROR。
+     * 调用者应先等待推理完成，或通过 lv_engine_transition_state() 将状态转回 IDLE。
      */
     if (engine->state == ENGINE_STATE_REASONING) {
         engine_set_error(engine, ENGINE_STATUS_INVALID_STATE,
                          "engine_destroy: 引擎处于 REASONING 状态，无法安全销毁。"
-                         "请先等待推理完成或调用 engine_reset() 重置状态。");
+                         "请先等待推理完成，或调用 lv_engine_transition_state() 将状态转回 IDLE。");
         return;
     }
 
@@ -114,6 +114,8 @@ void engine_destroy(lvEngine *engine) {
         engine_destroy_frozen_point(engine->frozen_point);
         engine->frozen_point = NULL;
     }
+    /* 解除旧版调度 API 对本线程 TLS 引擎指针的关联，防止销毁后 UAF */
+    lv_engine_scheduler_shutdown(engine);
     if (engine->scheduler) {
         scheduler_destroy(engine->scheduler);
         engine->scheduler = NULL;

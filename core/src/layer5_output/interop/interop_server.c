@@ -564,7 +564,7 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
             interop_detach_stream_callback(server, engine);
         }
 
-        /* 命令失败时回滚引擎状态，成功时更新快照 */
+        /* 命令失败时回滚引擎状态，成功时释放快照 */
         if (result != lv_OK && frozen) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -573,10 +573,11 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
             }
 #pragma GCC diagnostic pop
         } else if (frozen) {
-            /* 命令成功：释放旧快照（引擎状态已更新，下次命令将基于当前状态） */
-            /* 注意：engine_destroy_frozen_point 的具体 API 取决于 engine 模块 */
+            /* 命令成功：快照不再需要（引擎状态已更新，下次命令将基于当前状态）。
+             * engine_create_frozen_point 返回的是 graph_copy 深拷贝，所有权归调用方，
+             * 此处必须显式销毁，否则每次成功命令泄漏整图。 */
+            engine_destroy_frozen_point(frozen);
         }
-        /* frozen 指针由 engine 模块管理，此处不手动释放 */
     }
 
     /* 序列化响应 */
