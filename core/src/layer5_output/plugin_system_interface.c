@@ -17,7 +17,9 @@
 #include <string.h>
 
 #include "lv/lv_check.h"
+#include "lv/lv_registry.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_thread.h"
 #include "lv/lv_utils.h"
 
 #ifdef _WIN32
@@ -30,6 +32,39 @@
 #include "plugin_system_internal.h"
 
 /* ============ 接口注册与查询 ============ */
+
+/* ============================================================
+ * 接口注册表（泛型注册表设施 lv_registry）
+ *
+ * 插件级注册表：key = "P:<plugin>:<name>"，value = lvPluginInterface*。
+ *   每个插件独立查重（同一插件不得重复注册同名接口）。
+ * 系统级注册表：key = "S:<system>:<iface>"，value = lvPluginInterface*。
+ *   每个接口指针唯一，支持不同插件注册同名接口，按指针精确删除。
+ *
+ * 两个注册表均为文件级单例（lv_once 惰性初始化，线程安全）。
+ * plugin->registered_interfaces / system->interfaces 数组保留为影子视图，
+ * 供 plugin_system_load.c 卸载流程遍历注销与释放，以及 version.c 统计输出。
+ * ============================================================ */
+
+/** @brief 插件级接口注册表（文件级单例） */
+static lvRegistry g_plugin_iface_registry;
+
+/** @brief 系统级接口注册表（文件级单例） */
+static lvRegistry g_system_iface_registry;
+
+/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t g_iface_registry_once = lv_ONCE_INIT;
+
+/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
+static void iface_registry_init_once(void) {
+    lv_registry_init(&g_plugin_iface_registry, 16);
+    lv_registry_init(&g_system_iface_registry, lv_MAX_INTERFACES);
+}
+
+/** @brief 确保注册表已初始化 */
+static inline void iface_registry_ensure(void) {
+    lv_once(&g_iface_registry_once, iface_registry_init_once);
+}
 
 /**
  * @brief 注册插件接口到系统和插件注册表
@@ -44,14 +79,10 @@ int lv_plugin_register_interface(lvPlugin *plugin, lvPluginInterface *iface) {
     lv_CHECK_ARG(plugin->registered_interface_count < lv_MAX_INTERFACES, lv_ERROR_RESOURCE_EXHAUSTED,
                  "max interfaces reached");
 
-    /* 检查是否已注册 */
-    for (size_t i = 0; i < plugin->registered_interface_count; i++) {
-        if (strcmp(plugin->registered_interfaces[i]->name, iface->name) == 0) {
-            lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_plugin_register_interface: interface already registered");
-        }
-    }
+    lvPluginSystem *system = plugin->context->system;
+    iface_registry_ensure();
 
-    /* 添加到插件注册表 */
+    /* 确保影子数组可分配（供 unload 遍历注销，见 plugin_system_load.c） */
     if (!plugin->registered_interfaces) {
         plugin->registered_interfaces =
             (lvPluginInterface **) lv_malloc(sizeof(lvPluginInterface *) * lv_MAX_INTERFACES);
@@ -59,12 +90,23 @@ int lv_plugin_register_interface(lvPlugin *plugin, lvPluginInterface *iface) {
             lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_register_interface: malloc failed");
     }
 
+    /* 插件级查重（per-plugin：同一插件不能注册同名接口），
+     * 由 lv_registry 完成 strcmp 查重 + 尾部追加 + 扩容 */
+    char plugin_key[lv_PLUGIN_NAME_MAX + 32];
+    snprintf(plugin_key, sizeof(plugin_key), "P:%p:%s", (const void *) plugin, iface->name);
+    if (!lv_registry_put(&g_plugin_iface_registry, plugin_key, iface)) {
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_plugin_register_interface: interface already registered");
+    }
+
     iface->owner = plugin;
     plugin->registered_interfaces[plugin->registered_interface_count++] = iface;
 
-    /* 添加到系统注册表 */
-    lvPluginSystem *system = plugin->context->system;
-    if (system->interface_count < system->interface_capacity) {
+    /* 系统级注册表（key 按 iface 指针唯一，允许不同插件注册同名接口）。
+     * 容量不足或内存不足时跳过，与旧语义（容量满仅跳过系统注册表）一致 */
+    if (system && system->interface_count < system->interface_capacity) {
+        char system_key[64];
+        snprintf(system_key, sizeof(system_key), "S:%p:%p", (const void *) system, (const void *) iface);
+        lv_registry_put(&g_system_iface_registry, system_key, iface);
         system->interfaces[system->interface_count++] = iface;
     }
 
@@ -82,24 +124,44 @@ int lv_plugin_unregister_interface(lvPlugin *plugin, const char *name) {
     lv_CHECK_ARG(plugin->context != NULL, lv_ERROR_NULL_POINTER, "plugin context is NULL");
     lv_CHECK_NOT_NULL(name);
 
-    /* 从插件注册表中移除 */
-    for (size_t i = 0; i < plugin->registered_interface_count; i++) {
-        if (strcmp(plugin->registered_interfaces[i]->name, name) == 0) {
-            /* 从系统注册表中移除 */
-            lvPluginSystem *system = plugin->context->system;
-            for (size_t j = 0; j < system->interface_count; j++) {
-                if (system->interfaces[j] == plugin->registered_interfaces[i]) {
-                    system->interfaces[j] = system->interfaces[--system->interface_count];
-                    break;
-                }
-            }
+    iface_registry_ensure();
 
-            plugin->registered_interfaces[i] = plugin->registered_interfaces[--plugin->registered_interface_count];
-            return 0;
+    /* 从插件注册表中查找并移除（lv_registry_remove 前移紧凑） */
+    char plugin_key[lv_PLUGIN_NAME_MAX + 32];
+    snprintf(plugin_key, sizeof(plugin_key), "P:%p:%s", (const void *) plugin, name);
+    lvPluginInterface *iface = (lvPluginInterface *) lv_registry_get(&g_plugin_iface_registry, plugin_key);
+    if (!iface) {
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_plugin_unregister_interface: interface not found");
+    }
+    lv_registry_remove(&g_plugin_iface_registry, plugin_key);
+
+    /* 从系统注册表移除（按 iface 指针精确删除） */
+    lvPluginSystem *system = plugin->context->system;
+    if (system) {
+        char system_key[64];
+        snprintf(system_key, sizeof(system_key), "S:%p:%p", (const void *) system, (const void *) iface);
+        lv_registry_remove(&g_system_iface_registry, system_key);
+
+        /* 影子数组按指针删除（尾部交换，保持旧语义） */
+        for (size_t j = 0; j < system->interface_count; j++) {
+            if (system->interfaces[j] == iface) {
+                system->interfaces[j] = system->interfaces[--system->interface_count];
+                break;
+            }
         }
     }
 
-    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_plugin_unregister_interface: interface not found");
+    /* 插件影子数组按指针删除（尾部交换，保持旧语义） */
+    if (plugin->registered_interfaces) {
+        for (size_t i = 0; i < plugin->registered_interface_count; i++) {
+            if (plugin->registered_interfaces[i] == iface) {
+                plugin->registered_interfaces[i] = plugin->registered_interfaces[--plugin->registered_interface_count];
+                break;
+            }
+        }
+    }
+
+    return 0;
 }
 
 /**
@@ -113,9 +175,26 @@ lvPluginInterface *lv_plugin_query_interface(lvPluginSystem *system, const char 
     if (!system || !name)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_query_interface: system or name is NULL");
 
-    for (size_t i = 0; i < system->interface_count; i++) {
-        if (strcmp(system->interfaces[i]->name, name) == 0 && system->interfaces[i]->version == version) {
-            return system->interfaces[i];
+    iface_registry_ensure();
+
+    /* 遍历系统级注册表条目，仅匹配当前 system */
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), "S:%p:", (const void *) system);
+    size_t prefix_len = strlen(prefix);
+
+    int count = lv_registry_count(&g_system_iface_registry);
+    for (int i = 0; i < count; i++) {
+        const char *entry_name = NULL;
+        void *entry_value = NULL;
+        if (!lv_registry_get_at(&g_system_iface_registry, i, &entry_name, &entry_value)) {
+            continue;
+        }
+        if (strncmp(entry_name, prefix, prefix_len) != 0) {
+            continue;
+        }
+        lvPluginInterface *iface = (lvPluginInterface *) entry_value;
+        if (strcmp(iface->name, name) == 0 && iface->version == version) {
+            return iface;
         }
     }
     return NULL;
@@ -166,10 +245,27 @@ lvPluginInterface **lv_plugin_query_interfaces(lvPluginSystem *system, const cha
     if (!system || !pattern || !count)
         return NULL;
 
+    iface_registry_ensure();
+
+    /* 遍历系统级注册表条目，仅匹配当前 system */
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), "S:%p:", (const void *) system);
+    size_t prefix_len = strlen(prefix);
+
+    int total = lv_registry_count(&g_system_iface_registry);
+
     /* 第一遍：统计匹配数量 */
     size_t match_count = 0;
-    for (size_t i = 0; i < system->interface_count; i++) {
-        if (wildcard_match(pattern, system->interfaces[i]->name)) {
+    for (int i = 0; i < total; i++) {
+        const char *entry_name = NULL;
+        void *entry_value = NULL;
+        if (!lv_registry_get_at(&g_system_iface_registry, i, &entry_name, &entry_value)) {
+            continue;
+        }
+        if (strncmp(entry_name, prefix, prefix_len) != 0) {
+            continue;
+        }
+        if (wildcard_match(pattern, ((lvPluginInterface *) entry_value)->name)) {
             match_count++;
         }
     }
@@ -188,9 +284,18 @@ lvPluginInterface **lv_plugin_query_interfaces(lvPluginSystem *system, const cha
 
     /* 第二遍：填充匹配结果 */
     size_t idx = 0;
-    for (size_t i = 0; i < system->interface_count; i++) {
-        if (wildcard_match(pattern, system->interfaces[i]->name)) {
-            result[idx++] = system->interfaces[i];
+    for (int i = 0; i < total; i++) {
+        const char *entry_name = NULL;
+        void *entry_value = NULL;
+        if (!lv_registry_get_at(&g_system_iface_registry, i, &entry_name, &entry_value)) {
+            continue;
+        }
+        if (strncmp(entry_name, prefix, prefix_len) != 0) {
+            continue;
+        }
+        lvPluginInterface *iface = (lvPluginInterface *) entry_value;
+        if (wildcard_match(pattern, iface->name)) {
+            result[idx++] = iface;
         }
     }
 

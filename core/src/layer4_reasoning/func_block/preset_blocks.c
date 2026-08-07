@@ -21,6 +21,7 @@
 #include "lv_internal.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_strbuf.h"
+#include "lv/preset_category.h" /* LV_PRESET_EXTENDED_CATEGORY_ENTRY 单一事实来源 */
 #include "lv_utils.h"
 #include "preset_common.h"
 
@@ -382,35 +383,13 @@ int preset_blocks_find_by_category(PresetExtendedCategory category, const char *
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief preset_extended_category_to_string 名称表（按枚举值升序） */
+/** @brief preset_extended_category_to_string 名称表（按枚举值升序，
+ *  由共享条目宏 LV_PRESET_EXTENDED_CATEGORY_ENTRY 生成） */
+#define LV_PRESET_EXT_ROW_ZH(ENUM, ZH_NAME) { ZH_NAME, ENUM },
 static const lvStrToEnumEntry s_preset_extended_category_to_string_entries[] = {
-    {"基础几何构造", PRESET_EXT_BASIC_CONSTRUCTION},
-    {"高级几何构造", PRESET_EXT_ADVANCED_CONSTRUCTION},
-    {"多边形", PRESET_EXT_POLYGON},
-    {"圆相关", PRESET_EXT_CIRCLE},
-    {"基本变换", PRESET_EXT_TRANSFORMATION_BASIC},
-    {"高级变换", PRESET_EXT_TRANSFORMATION_ADVANCED},
-    {"度量计算", PRESET_EXT_MEASUREMENT},
-    {"三角函数", PRESET_EXT_TRIGONOMETRY},
-    {"坐标运算", PRESET_EXT_COORDINATE},
-    {"基础代数", PRESET_EXT_ALGEBRA_BASIC},
-    {"高级代数", PRESET_EXT_ALGEBRA_ADVANCED},
-    {"线性代数", PRESET_EXT_LINEAR_ALGEBRA},
-    {"多项式", PRESET_EXT_POLYNOMIAL},
-    {"命题逻辑", PRESET_EXT_LOGIC_PROPOSITIONAL},
-    {"谓词逻辑", PRESET_EXT_LOGIC_PREDICATE},
-    {"证明策略", PRESET_EXT_PROOF_TACTICS},
-    {"极限", PRESET_EXT_ANALYSIS_LIMIT},
-    {"微分", PRESET_EXT_ANALYSIS_DIFFERENTIAL},
-    {"积分", PRESET_EXT_ANALYSIS_INTEGRAL},
-    {"拓扑", PRESET_EXT_TOPOLOGY},
-    {"微分几何", PRESET_EXT_DIFFERENTIAL_GEOMETRY},
-    {"数论", PRESET_EXT_NUMBER_THEORY},
-    {"群论", PRESET_EXT_GROUP_THEORY},
-    {"分析学", PRESET_EXT_ANALYSIS},
-    {"组合数学", PRESET_EXT_COMBINATORICS},
-    {"类别总数", PRESET_EXT_CATEGORY_COUNT},
+    LV_PRESET_EXTENDED_CATEGORY_ENTRY(LV_PRESET_EXT_ROW_ZH)
 };
+#undef LV_PRESET_EXT_ROW_ZH
 
 const char *preset_extended_category_to_string(PresetExtendedCategory cat) {
     return lv_enum_to_str(s_preset_extended_category_to_string_entries, lv_ARRAY_SIZE(s_preset_extended_category_to_string_entries), (int) cat, "未知类别");
@@ -445,7 +424,6 @@ static const PresetExtendedCategory kCategoryToExtendedMap[PRESET_CATEGORY_COUNT
     PRESET_EXT_NUMERICAL_ANALYSIS,       /* PRESET_CATEGORY_NUMERICAL */
     PRESET_EXT_OPTIMIZATION_THEORY,      /* PRESET_CATEGORY_OPTIMIZATION */
     PRESET_EXT_MATH_LOGIC,               /* PRESET_CATEGORY_MATH_LOGIC */
-    PRESET_EXT_BASIC_CONSTRUCTION,       /* PRESET_CATEGORY_COUNT */
 };
 lv_STATIC_ASSERT(sizeof(kCategoryToExtendedMap) / sizeof(kCategoryToExtendedMap[0]) == PRESET_CATEGORY_COUNT,
                  "kCategoryToExtendedMap 大小必须与 PRESET_CATEGORY_COUNT 一致");

@@ -327,8 +327,7 @@ bool config_load(ConfigManager *mgr) {
 
             const char *p = value + 1;
             while (*p) {
-                while (*p && isspace((unsigned char) *p))
-                    p++;
+                p = lv_str_ltrim((char *) p);
                 if (*p == '\0' || *p == ']')
                     break;
                 if (*p == ',') {

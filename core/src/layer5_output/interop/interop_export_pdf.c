@@ -48,6 +48,43 @@ static void constraint_rgb_to_pdf_rg(const ConstraintVisual *vis, char *rg, size
              vis->rgb[0] / 255.0, vis->rgb[1] / 255.0, vis->rgb[2] / 255.0);
 }
 
+/* ---- PDF 约束渲染 ops（原 6 case 合并分支收敛为单渲染函数；
+ *       经 constraint_render_dispatch 分发，PDF 坐标变换用 ctx.pdf_margin/pdf_ox/pdf_oy） ---- */
+
+static bool pdf_render_constraint(const ConstraintRenderCtx *ctx) {
+    /* 原语义：6 种合法类型全部走同一合并分支；非法类型走 default（不渲染） */
+    if ((unsigned) ctx->c->type >= (unsigned) (sizeof(constraint_pdf_syntax) / sizeof(constraint_pdf_syntax[0])))
+        return false;
+    /* 公共核心表（颜色/线宽）+ 本语法窄适配（dash/恢复标志） */
+    const ConstraintVisual *vis = constraint_visual_find(ctx->c->type);
+    const ConstraintPdfSyntax *syn = &constraint_pdf_syntax[ctx->c->type];
+    char rg[16];
+    constraint_rgb_to_pdf_rg(vis ? vis : &kConstraintVisuals[0], rg, sizeof(rg));
+    lv_strbuf_printf(ctx->sb, "%s RG\n", rg);
+    if (syn->dash_pattern)
+        lv_strbuf_printf(ctx->sb, "%s\n", syn->dash_pattern);
+    lv_strbuf_printf(ctx->sb, "%.2f w\n", vis->line_width);
+    lv_strbuf_printf(ctx->sb, "%.2f %.2f m\n",
+                     ctx->pdf_margin + (ctx->x0 - ctx->pdf_ox),
+                     ctx->pdf_margin + (ctx->y0 - ctx->pdf_oy));
+    lv_strbuf_printf(ctx->sb, "%.2f %.2f l\n",
+                     ctx->pdf_margin + (ctx->x1 - ctx->pdf_ox),
+                     ctx->pdf_margin + (ctx->y1 - ctx->pdf_oy));
+    lv_strbuf_printf(ctx->sb, "S\n");
+    if (syn->reset_dash)
+        lv_strbuf_printf(ctx->sb, "[] 0 d\n");
+    if (syn->reset_width)
+        lv_strbuf_printf(ctx->sb, "%.2f w\n", 1.5);
+    return true;
+}
+
+/** @brief PDF 约束渲染 ops 实例（原 6 case 合并分支收敛为单渲染函数） */
+static const ConstraintRenderOps kPdfConstraintOps = {
+    pdf_render_constraint, /* BETWEENNESS（原合并分支） */
+    pdf_render_constraint, /* INTERSECTION（原合并分支） */
+    pdf_render_constraint, /* 其余类型（原合并分支；非法类型内部拒绝，对应原 default break） */
+};
+
 /**
  * @brief 将约束图导出为 PDF 文档（最小化纯C实现，无外部库依赖）
  * @param graph  约束图指针
@@ -269,53 +306,22 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         BUF_APPEND("%.2f w\n", 1.5);
     }
 
-    /* ---- 渲染约束关系 ---- */
+    /* ---- 渲染约束关系（经公共分发表 ConstraintRenderOps 分发，替代原 6 case 合并 switch） ---- */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (!c || c->participant_count < 2)
             continue;
 
-        GeomNode *p0 = graph_get_node(graph, c->participants[0]);
-        GeomNode *p1 = graph_get_node(graph, c->participants[1]);
-        if (!p0 || !p1)
+        ConstraintRenderCtx ctx = {0};
+        ctx.graph = graph;
+        ctx.c = c;
+        if (!constraint_render_prepare(graph, c, &ctx.p0, &ctx.p1, &ctx.x0, &ctx.y0, &ctx.x1, &ctx.y1))
             continue;
-        if (p0->coord_count < 2 || p1->coord_count < 2)
-            continue;
-
-        double x0 = symbolic_coord_to_double(p0->symbolic_coords[0]);
-        double y0 = symbolic_coord_to_double(p0->symbolic_coords[1]);
-        double x1 = symbolic_coord_to_double(p1->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(p1->symbolic_coords[1]);
-
-        switch (c->type) {
-            case INCIDENCE:
-            case CONNECTION:
-            case BETWEENNESS:
-            case INTERSECTION:
-            case CONTAINMENT:
-            case ANGLE: {
-                /* 公共核心表（颜色/线宽）+ 本语法窄适配（dash/恢复标志） */
-                const ConstraintVisual *vis = constraint_visual_find(c->type);
-                const ConstraintPdfSyntax *syn = &constraint_pdf_syntax[c->type];
-                char rg[16];
-                constraint_rgb_to_pdf_rg(vis ? vis : &kConstraintVisuals[0], rg, sizeof(rg));
-                BUF_APPEND("%s RG\n", rg);
-                if (syn->dash_pattern)
-                    BUF_APPEND("%s\n", syn->dash_pattern);
-                BUF_APPEND("%.2f w\n", vis->line_width);
-                BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
-                BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
-                BUF_APPEND("S\n");
-                if (syn->reset_dash)
-                    BUF_APPEND("[] 0 d\n");
-                if (syn->reset_width)
-                    BUF_APPEND("%.2f w\n", 1.5);
-                break;
-            }
-
-            default:
-                break;
-        }
+        ctx.sb = &content;
+        ctx.pdf_margin = margin;
+        ctx.pdf_ox = min_x;
+        ctx.pdf_oy = min_y;
+        constraint_render_dispatch(&kPdfConstraintOps, &ctx, c->type);
     }
 
     /* ---- 文本标签（最小化实现） ---- */

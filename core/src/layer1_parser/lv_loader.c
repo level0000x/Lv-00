@@ -478,187 +478,241 @@ static const ChurchFnEntry kChurchFnTable[] = {
     {"eq", op_eq, 2},     {"leq", op_leq, 2}, {"gt", op_gt, 2},
 };
 
-/* ── 表达式折叠：闭合表达式 → LvVal ── */
+/* ── 表达式折叠：闭合表达式 → LvVal（VTable 化：按节点类型查表分发，替代 switch）──
+ *
+ * 说明：LvAstVTable 类型与 kAstVTable 定义于 lv_ast.c 内部（lv_ast.h 为公共头，
+ * 被 lv_parser.h/lv_sema.h 等多文件消费，VTable 类型按约定不对外暴露），且本文件
+ * 求值 handler 依赖本文件私有的 LvVal/Church 表，故 AST 求值分发表定义于本文件；
+ * 槽位语义与 lv_ast.c 中 LvAstVTable 新增的求值槽位一一对应。 */
+
+static bool fold_expr(LvAstNode *node, LvVal *out, int depth);
+
+/** @brief 折叠 handler 类型：闭合表达式 → LvVal */
+typedef bool (*AstFoldFn)(LvAstNode *node, LvVal *out, int depth);
+
+static bool fold_integer_literal(LvAstNode *node, LvVal *out, int depth) {
+    (void) depth;
+    out->kind = LV_VAL_NUM;
+    out->num = node->data.literal.integer_value;
+    return true;
+}
+
+static bool fold_bool_literal(LvAstNode *node, LvVal *out, int depth) {
+    (void) depth;
+    out->kind = LV_VAL_BOOL;
+    out->boolean = node->data.literal.bool_value ? 1 : 0;
+    return true;
+}
+
+static bool fold_binary_op(LvAstNode *node, LvVal *out, int depth) {
+    LvVal l, r;
+    if (!fold_expr(node->data.binary.left, &l, depth + 1))
+        return false;
+    if (!fold_expr(node->data.binary.right, &r, depth + 1))
+        return false;
+    if (l.kind != LV_VAL_NUM || r.kind != LV_VAL_NUM)
+        return false;
+    const char *op = node->data.binary.op;
+    if (strcmp(op, "+") == 0) {
+        out->kind = LV_VAL_NUM; out->num = l.num + r.num; return true;
+    }
+    if (strcmp(op, "-") == 0) {
+        out->kind = LV_VAL_NUM; out->num = l.num - r.num; return true;
+    }
+    if (strcmp(op, "*") == 0) {
+        out->kind = LV_VAL_NUM; out->num = l.num * r.num; return true;
+    }
+    if (strcmp(op, "/") == 0) {
+        if (r.num == 0)
+            return false;
+        out->kind = LV_VAL_NUM; out->num = l.num / r.num; return true;
+    }
+    if (strcmp(op, "^") == 0) {
+        if (r.num < 0)
+            return false;
+        long long v = 1;
+        for (long long i = 0; i < r.num && v <= 0x3fffffffffffffffLL; i++)
+            v *= l.num;
+        out->kind = LV_VAL_NUM; out->num = v; return true;
+    }
+    return false;
+}
+
+static bool fold_unary_op(LvAstNode *node, LvVal *out, int depth) {
+    LvVal v;
+    if (!fold_expr(node->data.unary.operand, &v, depth + 1))
+        return false;
+    if (v.kind != LV_VAL_NUM)
+        return false;
+    if (strcmp(node->data.unary.op, "-") == 0) {
+        out->kind = LV_VAL_NUM; out->num = -v.num; return true;
+    }
+    if (strcmp(node->data.unary.op, "+") == 0) {
+        *out = v; return true;
+    }
+    return false;
+}
+
+static bool fold_function_call(LvAstNode *node, LvVal *out, int depth) {
+    const char *fname = node->data.call.func_name;
+    if (!fname)
+        return false;
+    const ChurchFnEntry *entry = NULL;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kChurchFnTable); i++) {
+        if (strcmp(kChurchFnTable[i].name, fname) == 0) {
+            entry = &kChurchFnTable[i];
+            break;
+        }
+    }
+    if (!entry)
+        return false;
+    LvVal args[LV_PROVE_MAX_ARGS];
+    int argc = 0;
+    for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+        if (argc >= LV_PROVE_MAX_ARGS)
+            return false;
+        if (!fold_expr(a, &args[argc], depth + 1))
+            return false;
+        argc++;
+    }
+    if (argc != entry->min_args)
+        return false;
+    return entry->fn(args, argc, out);
+}
+
+/** @brief 折叠分发表（按节点类型索引；未登记类型为 NULL，对应原 default 分支返回 false） */
+static const AstFoldFn kFoldDispatch[LV_AST_COUNT] = {
+    [LV_AST_INTEGER_LITERAL] = fold_integer_literal,
+    [LV_AST_BOOL_LITERAL]    = fold_bool_literal,
+    [LV_AST_BINARY_OP]       = fold_binary_op,
+    [LV_AST_UNARY_OP]        = fold_unary_op,
+    [LV_AST_FUNCTION_CALL]   = fold_function_call,
+};
 
 static bool fold_expr(LvAstNode *node, LvVal *out, int depth) {
     if (!node || !out)
         return false;
     if (depth > LV_PROVE_MAX_DEPTH)
         return false;
-    switch (node->type) {
-    case LV_AST_INTEGER_LITERAL:
-        out->kind = LV_VAL_NUM;
-        out->num = node->data.literal.integer_value;
-        return true;
-    case LV_AST_BOOL_LITERAL:
-        out->kind = LV_VAL_BOOL;
-        out->boolean = node->data.literal.bool_value ? 1 : 0;
-        return true;
-    case LV_AST_BINARY_OP: {
-        LvVal l, r;
-        if (!fold_expr(node->data.binary.left, &l, depth + 1))
-            return false;
-        if (!fold_expr(node->data.binary.right, &r, depth + 1))
-            return false;
-        if (l.kind != LV_VAL_NUM || r.kind != LV_VAL_NUM)
-            return false;
-        const char *op = node->data.binary.op;
-        if (strcmp(op, "+") == 0) {
-            out->kind = LV_VAL_NUM; out->num = l.num + r.num; return true;
-        }
-        if (strcmp(op, "-") == 0) {
-            out->kind = LV_VAL_NUM; out->num = l.num - r.num; return true;
-        }
-        if (strcmp(op, "*") == 0) {
-            out->kind = LV_VAL_NUM; out->num = l.num * r.num; return true;
-        }
-        if (strcmp(op, "/") == 0) {
-            if (r.num == 0)
-                return false;
-            out->kind = LV_VAL_NUM; out->num = l.num / r.num; return true;
-        }
-        if (strcmp(op, "^") == 0) {
-            if (r.num < 0)
-                return false;
-            long long v = 1;
-            for (long long i = 0; i < r.num && v <= 0x3fffffffffffffffLL; i++)
-                v *= l.num;
-            out->kind = LV_VAL_NUM; out->num = v; return true;
-        }
-        return false;
-    }
-    case LV_AST_UNARY_OP: {
-        LvVal v;
-        if (!fold_expr(node->data.unary.operand, &v, depth + 1))
-            return false;
-        if (v.kind != LV_VAL_NUM)
-            return false;
-        if (strcmp(node->data.unary.op, "-") == 0) {
-            out->kind = LV_VAL_NUM; out->num = -v.num; return true;
-        }
-        if (strcmp(node->data.unary.op, "+") == 0) {
-            *out = v; return true;
-        }
-        return false;
-    }
-    case LV_AST_FUNCTION_CALL: {
-        const char *fname = node->data.call.func_name;
-        if (!fname)
-            return false;
-        const ChurchFnEntry *entry = NULL;
-        for (size_t i = 0; i < lv_ARRAY_SIZE(kChurchFnTable); i++) {
-            if (strcmp(kChurchFnTable[i].name, fname) == 0) {
-                entry = &kChurchFnTable[i];
-                break;
-            }
-        }
-        if (!entry)
-            return false;
-        LvVal args[LV_PROVE_MAX_ARGS];
-        int argc = 0;
-        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
-            if (argc >= LV_PROVE_MAX_ARGS)
-                return false;
-            if (!fold_expr(a, &args[argc], depth + 1))
-                return false;
-            argc++;
-        }
-        if (argc != entry->min_args)
-            return false;
-        return entry->fn(args, argc, out);
-    }
-    default:
-        return false;
-    }
+    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kFoldDispatch[node->type])
+        return kFoldDispatch[node->type](node, out, depth);
+    return false; /* 原 default 分支 */
 }
 
-/* ── 命题求值：返回 -1 无法判定，0 假，1 真 ── */
+/* ── 命题求值：返回 -1 无法判定，0 假，1 真（VTable 化：按节点类型查表分发，替代 switch）── */
+
+static int eval_proposition(LvAstNode *node, int depth);
+
+static int eval_bool_literal(const LvAstNode *node, int depth) {
+    (void) depth;
+    return node->data.literal.bool_value ? 1 : 0;
+}
+
+static int eval_compare(const LvAstNode *node, int depth) {
+    const char *op = node->data.compare.op;
+    LvVal l, r;
+    if (!fold_expr(node->data.compare.left, &l, depth + 1))
+        return -1;
+    if (!fold_expr(node->data.compare.right, &r, depth + 1))
+        return -1;
+    if (l.kind == LV_VAL_NUM && r.kind == LV_VAL_NUM) {
+        if (strcmp(op, "==") == 0) return l.num == r.num ? 1 : 0;
+        if (strcmp(op, "!=") == 0) return l.num != r.num ? 1 : 0;
+        if (strcmp(op, "<") == 0)  return l.num < r.num ? 1 : 0;
+        if (strcmp(op, "<=") == 0) return l.num <= r.num ? 1 : 0;
+        if (strcmp(op, ">") == 0)  return l.num > r.num ? 1 : 0;
+        if (strcmp(op, ">=") == 0) return l.num >= r.num ? 1 : 0;
+        return -1;
+    }
+    if (l.kind == LV_VAL_BOOL && r.kind == LV_VAL_BOOL) {
+        if (strcmp(op, "==") == 0) return l.boolean == r.boolean ? 1 : 0;
+        if (strcmp(op, "!=") == 0) return l.boolean != r.boolean ? 1 : 0;
+        return -1;
+    }
+    return -1;
+}
+
+static int eval_logic_and(const LvAstNode *node, int depth) {
+    int l = eval_proposition(node->data.binary.left, depth + 1);
+    int r = eval_proposition(node->data.binary.right, depth + 1);
+    if (l < 0 || r < 0)
+        return -1;
+    return (l && r) ? 1 : 0;
+}
+
+static int eval_logic_or(const LvAstNode *node, int depth) {
+    int l = eval_proposition(node->data.binary.left, depth + 1);
+    int r = eval_proposition(node->data.binary.right, depth + 1);
+    if (l < 0 || r < 0)
+        return -1;
+    return (l || r) ? 1 : 0;
+}
+
+static int eval_logic_not(const LvAstNode *node, int depth) {
+    int v = eval_proposition(node->data.unary.operand, depth + 1);
+    return v < 0 ? -1 : (v ? 0 : 1);
+}
+
+static int eval_logic_implies(const LvAstNode *node, int depth) {
+    int l = eval_proposition(node->data.binary.left, depth + 1);
+    int r = eval_proposition(node->data.binary.right, depth + 1);
+    if (l < 0 || r < 0)
+        return -1;
+    return (l == 1 && r == 0) ? 0 : 1;
+}
+
+static int eval_logic_iff(const LvAstNode *node, int depth) {
+    int l = eval_proposition(node->data.binary.left, depth + 1);
+    int r = eval_proposition(node->data.binary.right, depth + 1);
+    if (l < 0 || r < 0)
+        return -1;
+    return (l == r) ? 1 : 0;
+}
+
+static int eval_relation(const LvAstNode *node, int depth) {
+    (void) depth;
+    /* 反射律：所有参数为同一标识符的关系调用恒真（如 collinear(A,A,A)） */
+    const char *first_name = NULL;
+    for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+        if (a->type != LV_AST_IDENTIFIER_EXPR || !a->data.ident.name)
+            return -1;
+        if (!first_name)
+            first_name = a->data.ident.name;
+        else if (strcmp(first_name, a->data.ident.name) != 0)
+            return -1;
+    }
+    return first_name ? 1 : -1;
+}
+
+/** @brief 命题求值 handler 类型 */
+typedef int (*AstEvalPropFn)(const LvAstNode *node, int depth);
+
+/** @brief 命题求值分发表（按节点类型索引；未登记类型走原 default 分支） */
+static const AstEvalPropFn kEvalPropDispatch[LV_AST_COUNT] = {
+    [LV_AST_BOOL_LITERAL]  = eval_bool_literal,
+    [LV_AST_COMPARE]       = eval_compare,
+    [LV_AST_LOGIC_AND]     = eval_logic_and,
+    [LV_AST_LOGIC_OR]      = eval_logic_or,
+    [LV_AST_LOGIC_NOT]     = eval_logic_not,
+    [LV_AST_LOGIC_IMPLIES] = eval_logic_implies,
+    [LV_AST_LOGIC_IFF]     = eval_logic_iff,
+    [LV_AST_RELATION]      = eval_relation,
+};
 
 static int eval_proposition(LvAstNode *node, int depth) {
     if (!node)
         return -1;
     if (depth > LV_PROVE_MAX_DEPTH)
         return -1;
-    switch (node->type) {
-    case LV_AST_BOOL_LITERAL:
-        return node->data.literal.bool_value ? 1 : 0;
-    case LV_AST_COMPARE: {
-        const char *op = node->data.compare.op;
-        LvVal l, r;
-        if (!fold_expr(node->data.compare.left, &l, depth + 1))
-            return -1;
-        if (!fold_expr(node->data.compare.right, &r, depth + 1))
-            return -1;
-        if (l.kind == LV_VAL_NUM && r.kind == LV_VAL_NUM) {
-            if (strcmp(op, "==") == 0) return l.num == r.num ? 1 : 0;
-            if (strcmp(op, "!=") == 0) return l.num != r.num ? 1 : 0;
-            if (strcmp(op, "<") == 0)  return l.num < r.num ? 1 : 0;
-            if (strcmp(op, "<=") == 0) return l.num <= r.num ? 1 : 0;
-            if (strcmp(op, ">") == 0)  return l.num > r.num ? 1 : 0;
-            if (strcmp(op, ">=") == 0) return l.num >= r.num ? 1 : 0;
-            return -1;
-        }
-        if (l.kind == LV_VAL_BOOL && r.kind == LV_VAL_BOOL) {
-            if (strcmp(op, "==") == 0) return l.boolean == r.boolean ? 1 : 0;
-            if (strcmp(op, "!=") == 0) return l.boolean != r.boolean ? 1 : 0;
-            return -1;
-        }
-        return -1;
+    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kEvalPropDispatch[node->type])
+        return kEvalPropDispatch[node->type](node, depth);
+    /* 纯布尔目标：如 Prove eq(2, 2); / Prove iszero(0);（原 default 分支） */
+    {
+        LvVal v;
+        if (fold_expr(node, &v, depth + 1) && v.kind == LV_VAL_BOOL)
+            return v.boolean ? 1 : 0;
     }
-    case LV_AST_LOGIC_AND: {
-        int l = eval_proposition(node->data.binary.left, depth + 1);
-        int r = eval_proposition(node->data.binary.right, depth + 1);
-        if (l < 0 || r < 0)
-            return -1;
-        return (l && r) ? 1 : 0;
-    }
-    case LV_AST_LOGIC_OR: {
-        int l = eval_proposition(node->data.binary.left, depth + 1);
-        int r = eval_proposition(node->data.binary.right, depth + 1);
-        if (l < 0 || r < 0)
-            return -1;
-        return (l || r) ? 1 : 0;
-    }
-    case LV_AST_LOGIC_NOT: {
-        int v = eval_proposition(node->data.unary.operand, depth + 1);
-        return v < 0 ? -1 : (v ? 0 : 1);
-    }
-    case LV_AST_LOGIC_IMPLIES: {
-        int l = eval_proposition(node->data.binary.left, depth + 1);
-        int r = eval_proposition(node->data.binary.right, depth + 1);
-        if (l < 0 || r < 0)
-            return -1;
-        return (l == 1 && r == 0) ? 0 : 1;
-    }
-    case LV_AST_LOGIC_IFF: {
-        int l = eval_proposition(node->data.binary.left, depth + 1);
-        int r = eval_proposition(node->data.binary.right, depth + 1);
-        if (l < 0 || r < 0)
-            return -1;
-        return (l == r) ? 1 : 0;
-    }
-    case LV_AST_RELATION: {
-        /* 反射律：所有参数为同一标识符的关系调用恒真（如 collinear(A,A,A)） */
-        const char *first_name = NULL;
-        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
-            if (a->type != LV_AST_IDENTIFIER_EXPR || !a->data.ident.name)
-                return -1;
-            if (!first_name)
-                first_name = a->data.ident.name;
-            else if (strcmp(first_name, a->data.ident.name) != 0)
-                return -1;
-        }
-        return first_name ? 1 : -1;
-    }
-    default:
-        /* 纯布尔目标：如 Prove eq(2, 2); / Prove iszero(0); */
-        {
-            LvVal v;
-            if (fold_expr(node, &v, depth + 1) && v.kind == LV_VAL_BOOL)
-                return v.boolean ? 1 : 0;
-        }
-        return -1;
-    }
+    return -1;
 }
 
 /* ── 命题逻辑验证：全真值表枚举（首次自举，路线图步骤 6）──
@@ -674,28 +728,107 @@ static int eval_proposition(LvAstNode *node, int depth) {
 #define LV_PROP_MAX_VARS 8       /**< 真值表枚举的命题变量数上限（2^8 行） */
 #define LV_PROP_VAR_NAME_MAX 32  /**< 命题变量名长度上限 */
 
-/** @brief 是否为纯命题骨架：仅布尔字面量 + 逻辑运算 + 裸标识符 */
+/** @brief 是否为纯命题骨架：仅布尔字面量 + 逻辑运算 + 裸标识符（查表分发，替代 switch） */
+static bool is_pure_propositional(LvAstNode *node, int depth);
+
+static bool is_pure_leaf(const LvAstNode *node, int depth) {
+    (void) node;
+    (void) depth;
+    return true; /* BOOL_LITERAL / IDENTIFIER_EXPR */
+}
+
+static bool is_pure_logic_binary(const LvAstNode *node, int depth) {
+    return is_pure_propositional(node->data.binary.left, depth + 1) &&
+           is_pure_propositional(node->data.binary.right, depth + 1);
+}
+
+static bool is_pure_logic_not(const LvAstNode *node, int depth) {
+    return is_pure_propositional(node->data.unary.operand, depth + 1);
+}
+
+/** @brief 纯命题骨架判定 handler 类型 */
+typedef bool (*AstIsPureFn)(const LvAstNode *node, int depth);
+
+/** @brief 纯命题骨架判定分发表（未登记类型走原 default 分支返回 false） */
+static const AstIsPureFn kIsPureDispatch[LV_AST_COUNT] = {
+    [LV_AST_BOOL_LITERAL]    = is_pure_leaf,
+    [LV_AST_IDENTIFIER_EXPR] = is_pure_leaf,
+    [LV_AST_LOGIC_AND]       = is_pure_logic_binary,
+    [LV_AST_LOGIC_OR]        = is_pure_logic_binary,
+    [LV_AST_LOGIC_IMPLIES]   = is_pure_logic_binary,
+    [LV_AST_LOGIC_IFF]       = is_pure_logic_binary,
+    [LV_AST_LOGIC_NOT]       = is_pure_logic_not,
+};
+
 static bool is_pure_propositional(LvAstNode *node, int depth) {
     if (!node || depth > LV_PROVE_MAX_DEPTH)
         return false;
-    switch (node->type) {
-    case LV_AST_BOOL_LITERAL:
-    case LV_AST_IDENTIFIER_EXPR:
-        return true;
-    case LV_AST_LOGIC_AND:
-    case LV_AST_LOGIC_OR:
-    case LV_AST_LOGIC_IMPLIES:
-    case LV_AST_LOGIC_IFF:
-        return is_pure_propositional(node->data.binary.left, depth + 1) &&
-               is_pure_propositional(node->data.binary.right, depth + 1);
-    case LV_AST_LOGIC_NOT:
-        return is_pure_propositional(node->data.unary.operand, depth + 1);
-    default:
-        return false;
-    }
+    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kIsPureDispatch[node->type])
+        return kIsPureDispatch[node->type](node, depth);
+    return false; /* 原 default 分支 */
 }
 
-/** @brief 收集表达式中的原子命题名（去重，按首次出现顺序）；变量数超限置 overflow */
+/** @brief 收集表达式中的原子命题名（去重，按首次出现顺序）；变量数超限置 overflow（查表分发，替代 switch） */
+static void collect_prop_vars(LvAstNode *node,
+                              char vars[][LV_PROP_VAR_NAME_MAX],
+                              int *count,
+                              bool *overflow,
+                              int depth);
+
+static void collect_ident(LvAstNode *node,
+                          char vars[][LV_PROP_VAR_NAME_MAX],
+                          int *count,
+                          bool *overflow,
+                          int depth) {
+    (void) depth;
+    const char *name = node->data.ident.name;
+    if (!name) {
+        *overflow = true;
+        return;
+    }
+    for (int i = 0; i < *count; i++) {
+        if (strcmp(vars[i], name) == 0)
+            return;
+    }
+    if (*count >= LV_PROP_MAX_VARS) {
+        *overflow = true;
+        return;
+    }
+    lv_strncpy(vars[*count], name, LV_PROP_VAR_NAME_MAX);
+    (*count)++;
+}
+
+static void collect_logic_binary(LvAstNode *node,
+                                 char vars[][LV_PROP_VAR_NAME_MAX],
+                                 int *count,
+                                 bool *overflow,
+                                 int depth) {
+    collect_prop_vars(node->data.binary.left, vars, count, overflow, depth + 1);
+    collect_prop_vars(node->data.binary.right, vars, count, overflow, depth + 1);
+}
+
+static void collect_logic_not(LvAstNode *node,
+                              char vars[][LV_PROP_VAR_NAME_MAX],
+                              int *count,
+                              bool *overflow,
+                              int depth) {
+    collect_prop_vars(node->data.unary.operand, vars, count, overflow, depth + 1);
+}
+
+/** @brief 原子命题名收集 handler 类型 */
+typedef void (*AstCollectVarsFn)(LvAstNode *node, char vars[][LV_PROP_VAR_NAME_MAX], int *count, bool *overflow,
+                                 int depth);
+
+/** @brief 原子命题名收集分发表（未登记类型走原 default 分支，无操作） */
+static const AstCollectVarsFn kCollectVarsDispatch[LV_AST_COUNT] = {
+    [LV_AST_IDENTIFIER_EXPR] = collect_ident,
+    [LV_AST_LOGIC_AND]       = collect_logic_binary,
+    [LV_AST_LOGIC_OR]        = collect_logic_binary,
+    [LV_AST_LOGIC_IMPLIES]   = collect_logic_binary,
+    [LV_AST_LOGIC_IFF]       = collect_logic_binary,
+    [LV_AST_LOGIC_NOT]       = collect_logic_not,
+};
+
 static void collect_prop_vars(LvAstNode *node,
                               char vars[][LV_PROP_VAR_NAME_MAX],
                               int *count,
@@ -703,41 +836,103 @@ static void collect_prop_vars(LvAstNode *node,
                               int depth) {
     if (!node || depth > LV_PROVE_MAX_DEPTH || *overflow)
         return;
-    switch (node->type) {
-    case LV_AST_IDENTIFIER_EXPR: {
-        const char *name = node->data.ident.name;
-        if (!name) {
-            *overflow = true;
-            return;
-        }
-        for (int i = 0; i < *count; i++) {
-            if (strcmp(vars[i], name) == 0)
-                return;
-        }
-        if (*count >= LV_PROP_MAX_VARS) {
-            *overflow = true;
-            return;
-        }
-        lv_strncpy(vars[*count], name, LV_PROP_VAR_NAME_MAX);
-        (*count)++;
+    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kCollectVarsDispatch[node->type]) {
+        kCollectVarsDispatch[node->type](node, vars, count, overflow, depth);
         return;
     }
-    case LV_AST_LOGIC_AND:
-    case LV_AST_LOGIC_OR:
-    case LV_AST_LOGIC_IMPLIES:
-    case LV_AST_LOGIC_IFF:
-        collect_prop_vars(node->data.binary.left, vars, count, overflow, depth + 1);
-        collect_prop_vars(node->data.binary.right, vars, count, overflow, depth + 1);
-        return;
-    case LV_AST_LOGIC_NOT:
-        collect_prop_vars(node->data.unary.operand, vars, count, overflow, depth + 1);
-        return;
-    default:
-        return;
-    }
+    /* 原 default 分支：无操作 */
 }
 
-/** @brief 在给定赋值下求值纯命题骨架：返回 -1 无法判定，0 假，1 真 */
+/** @brief 在给定赋值下求值纯命题骨架：返回 -1 无法判定，0 假，1 真（查表分发，替代 switch） */
+static int eval_prop_skeleton(LvAstNode *node,
+                              const char vars[][LV_PROP_VAR_NAME_MAX],
+                              const int *vals,
+                              int nvars,
+                              int depth);
+
+static int skeleton_bool_literal(const LvAstNode *node,
+                                 const char vars[][LV_PROP_VAR_NAME_MAX],
+                                 const int *vals, int nvars, int depth) {
+    (void) vars; (void) vals; (void) nvars; (void) depth;
+    return node->data.literal.bool_value ? 1 : 0;
+}
+
+static int skeleton_ident(const LvAstNode *node,
+                          const char vars[][LV_PROP_VAR_NAME_MAX],
+                          const int *vals, int nvars, int depth) {
+    (void) depth;
+    const char *name = node->data.ident.name;
+    if (!name)
+        return -1;
+    for (int i = 0; i < nvars; i++) {
+        if (strcmp(vars[i], name) == 0)
+            return vals[i] ? 1 : 0;
+    }
+    return -1;
+}
+
+static int skeleton_logic_and(const LvAstNode *node,
+                              const char vars[][LV_PROP_VAR_NAME_MAX],
+                              const int *vals, int nvars, int depth) {
+    int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
+    int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
+    if (l < 0 || r < 0)
+        return -1;
+    return (l && r) ? 1 : 0;
+}
+
+static int skeleton_logic_or(const LvAstNode *node,
+                             const char vars[][LV_PROP_VAR_NAME_MAX],
+                             const int *vals, int nvars, int depth) {
+    int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
+    int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
+    if (l < 0 || r < 0)
+        return -1;
+    return (l || r) ? 1 : 0;
+}
+
+static int skeleton_logic_not(const LvAstNode *node,
+                              const char vars[][LV_PROP_VAR_NAME_MAX],
+                              const int *vals, int nvars, int depth) {
+    int v = eval_prop_skeleton(node->data.unary.operand, vars, vals, nvars, depth + 1);
+    return v < 0 ? -1 : (v ? 0 : 1);
+}
+
+static int skeleton_logic_implies(const LvAstNode *node,
+                                  const char vars[][LV_PROP_VAR_NAME_MAX],
+                                  const int *vals, int nvars, int depth) {
+    int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
+    int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
+    if (l < 0 || r < 0)
+        return -1;
+    return (l == 1 && r == 0) ? 0 : 1;
+}
+
+static int skeleton_logic_iff(const LvAstNode *node,
+                              const char vars[][LV_PROP_VAR_NAME_MAX],
+                              const int *vals, int nvars, int depth) {
+    int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
+    int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
+    if (l < 0 || r < 0)
+        return -1;
+    return (l == r) ? 1 : 0;
+}
+
+/** @brief 真值表骨架求值 handler 类型 */
+typedef int (*AstEvalSkeletonFn)(const LvAstNode *node, const char vars[][LV_PROP_VAR_NAME_MAX],
+                                 const int *vals, int nvars, int depth);
+
+/** @brief 真值表骨架求值分发表（未登记类型走原 default 分支返回 -1） */
+static const AstEvalSkeletonFn kEvalSkeletonDispatch[LV_AST_COUNT] = {
+    [LV_AST_BOOL_LITERAL]    = skeleton_bool_literal,
+    [LV_AST_IDENTIFIER_EXPR] = skeleton_ident,
+    [LV_AST_LOGIC_AND]       = skeleton_logic_and,
+    [LV_AST_LOGIC_OR]        = skeleton_logic_or,
+    [LV_AST_LOGIC_NOT]       = skeleton_logic_not,
+    [LV_AST_LOGIC_IMPLIES]   = skeleton_logic_implies,
+    [LV_AST_LOGIC_IFF]       = skeleton_logic_iff,
+};
+
 static int eval_prop_skeleton(LvAstNode *node,
                               const char vars[][LV_PROP_VAR_NAME_MAX],
                               const int *vals,
@@ -745,54 +940,9 @@ static int eval_prop_skeleton(LvAstNode *node,
                               int depth) {
     if (!node || depth > LV_PROVE_MAX_DEPTH)
         return -1;
-    switch (node->type) {
-    case LV_AST_BOOL_LITERAL:
-        return node->data.literal.bool_value ? 1 : 0;
-    case LV_AST_IDENTIFIER_EXPR: {
-        const char *name = node->data.ident.name;
-        if (!name)
-            return -1;
-        for (int i = 0; i < nvars; i++) {
-            if (strcmp(vars[i], name) == 0)
-                return vals[i] ? 1 : 0;
-        }
-        return -1;
-    }
-    case LV_AST_LOGIC_AND: {
-        int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
-        int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
-        if (l < 0 || r < 0)
-            return -1;
-        return (l && r) ? 1 : 0;
-    }
-    case LV_AST_LOGIC_OR: {
-        int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
-        int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
-        if (l < 0 || r < 0)
-            return -1;
-        return (l || r) ? 1 : 0;
-    }
-    case LV_AST_LOGIC_NOT: {
-        int v = eval_prop_skeleton(node->data.unary.operand, vars, vals, nvars, depth + 1);
-        return v < 0 ? -1 : (v ? 0 : 1);
-    }
-    case LV_AST_LOGIC_IMPLIES: {
-        int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
-        int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
-        if (l < 0 || r < 0)
-            return -1;
-        return (l == 1 && r == 0) ? 0 : 1;
-    }
-    case LV_AST_LOGIC_IFF: {
-        int l = eval_prop_skeleton(node->data.binary.left, vars, vals, nvars, depth + 1);
-        int r = eval_prop_skeleton(node->data.binary.right, vars, vals, nvars, depth + 1);
-        if (l < 0 || r < 0)
-            return -1;
-        return (l == r) ? 1 : 0;
-    }
-    default:
-        return -1;
-    }
+    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kEvalSkeletonDispatch[node->type])
+        return kEvalSkeletonDispatch[node->type](node, vars, vals, nvars, depth);
+    return -1; /* 原 default 分支 */
 }
 
 /** @brief 命题逻辑全真值表验证：恒真 → 1，有反例 → 0，无法判定 → -1 */

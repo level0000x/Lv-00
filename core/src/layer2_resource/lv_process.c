@@ -21,6 +21,7 @@
 #include "lv/lv_platform.h"   /* 必须最先包含（功能测试宏） */
 
 #include "lv/lv_process.h"
+#include "lv/lv_strbuf.h"     /* lvStrBuf 动态输出缓冲（SSO+倍增，收敛 lv_out_buf） */
 #include "lv_internal.h"      /* lv_LOG_* / lv_CHECK_* / 错误码 / lv_malloc 等 */
 
 #include <errno.h>
@@ -35,46 +36,14 @@
 
 /* ============================================================
  * 动态输出缓冲
+ *
+ * 直接复用 lvStrBuf（SSO+倍增扩容、始终 NUL 结尾），替代原手写
+ * lv_out_buf（data/len/cap + 倍增 realloc + memcpy + '\0'）——两者
+ * 扩容策略与输出字节语义一致。
  * ============================================================ */
 
-typedef struct {
-    char *data;   /**< 缓冲区（lv_realloc 管理，NUL 结尾） */
-    size_t len;   /**< 已写入字节数（不含 NUL） */
-    size_t cap;   /**< 缓冲区容量 */
-} lv_out_buf;
-
-/** @brief 追加数据到输出缓冲；返回 0 或 lv_ERROR_OUT_OF_MEMORY */
-static int lv_out_append(lv_out_buf *ob, const char *chunk, size_t n) {
-    if (n == 0) {
-        return 0;
-    }
-    if (ob->len + n + 1 > ob->cap) {
-        size_t new_cap = ob->cap ? ob->cap : 4096;
-        while (new_cap < ob->len + n + 1) {
-            new_cap *= 2;
-        }
-        char *nd = (char *) lv_realloc(ob->data, new_cap);
-        if (!nd) {
-            return (int) lv_ERROR_OUT_OF_MEMORY;
-        }
-        ob->data = nd;
-        ob->cap = new_cap;
-    }
-    memcpy(ob->data + ob->len, chunk, n);
-    ob->len += n;
-    ob->data[ob->len] = '\0';
-    return 0;
-}
-
-/** @brief 成功收尾：保证 out_stdout 始终为非 NULL 的 NUL 结尾缓冲 */
-static int lv_process_finalize(lv_out_buf *ob, char **out_stdout, size_t *out_len, int *exit_code, int exit_code_v) {
-    if (!ob->data) {
-        ob->data = (char *) lv_malloc(1);
-        if (!ob->data) {
-            return (int) lv_ERROR_OUT_OF_MEMORY;
-        }
-        ob->data[0] = '\0';
-    }
+/** @brief 成功收尾：保证 out_stdout 始终为非 NULL 的 NUL 结尾缓冲（lvStrBuf 恒 NUL 结尾） */
+static int lv_process_finalize(lvStrBuf *ob, char **out_stdout, size_t *out_len, int *exit_code, int exit_code_v) {
     *out_stdout = ob->data;
     *out_len = ob->len;
     *exit_code = exit_code_v;
@@ -113,7 +82,8 @@ static int lv_run_posix(const char *exe, char *const argv[], const char *input_t
     bool timed_out = false;
     int exit_code_v = -1;
     size_t in_off = 0;
-    lv_out_buf ob = {0};
+    lvStrBuf ob;
+    lv_strbuf_init(&ob);
 
     if (pipe(stdin_pipe) != 0) {
         rc = (int) lv_ERROR_IO;
@@ -215,10 +185,7 @@ static int lv_run_posix(const char *exe, char *const argv[], const char *input_t
                     char buf[lv_LARGE_BUF_SIZE];
                     ssize_t n = read(stdout_pipe[0], buf, sizeof(buf));
                     if (n > 0) {
-                        rc = lv_out_append(&ob, buf, (size_t) n);
-                        if (rc != 0) {
-                            break;
-                        }
+                        lv_strbuf_append_raw(&ob, buf, (size_t) n);
                     }
                 }
             } else {
@@ -259,10 +226,7 @@ static int lv_run_posix(const char *exe, char *const argv[], const char *input_t
             char buf[lv_LARGE_BUF_SIZE];
             ssize_t n = read(stdout_pipe[0], buf, sizeof(buf));
             if (n > 0) {
-                int rc2 = lv_out_append(&ob, buf, (size_t) n);
-                if (rc2 != 0 && rc == 0) {
-                    rc = rc2;
-                }
+                lv_strbuf_append_raw(&ob, buf, (size_t) n);
             } else if (n == 0) {
                 break;
             } else if (errno == EINTR) {
@@ -294,7 +258,7 @@ cleanup:
     }
 
     if (rc != 0) {
-        lv_free((void **) &ob.data);
+        lv_strbuf_destroy(&ob);
         return rc;
     }
     return lv_process_finalize(&ob, out_stdout, out_len, exit_code, exit_code_v);
@@ -395,7 +359,8 @@ static int lv_run_win(const char *exe, char *const argv[], const char *input_tex
     PROCESS_INFORMATION pi;
     char cmdline[8192];
     STARTUPINFOA si;
-    lv_out_buf ob = {0};
+    lvStrBuf ob;
+    lv_strbuf_init(&ob);
     int rc = (int) lv_OK;
     int exit_code_v = -1;
     bool timed_out = false;
@@ -498,10 +463,7 @@ static int lv_run_win(const char *exe, char *const argv[], const char *input_tex
             if (!ReadFile(hParentStdoutRead, buf, want, &n, NULL) || n == 0) {
                 break;
             }
-            rc = lv_out_append(&ob, buf, (size_t) n);
-            if (rc != 0) {
-                break;
-            }
+            lv_strbuf_append_raw(&ob, buf, (size_t) n);
         }
         if (rc != 0 || proc_exited) {
             break;
@@ -520,10 +482,7 @@ static int lv_run_win(const char *exe, char *const argv[], const char *input_tex
             if (!ReadFile(hParentStdoutRead, buf, (DWORD) sizeof(buf), &n, NULL) || n == 0) {
                 break;
             }
-            rc = lv_out_append(&ob, buf, (size_t) n);
-            if (rc != 0) {
-                break;
-            }
+            lv_strbuf_append_raw(&ob, buf, (size_t) n);
         }
         if (!timed_out) {
             DWORD code = 0;
@@ -538,7 +497,7 @@ static int lv_run_win(const char *exe, char *const argv[], const char *input_tex
     CloseHandle(pi.hThread);
 
     if (rc != 0) {
-        lv_free((void **) &ob.data);
+        lv_strbuf_destroy(&ob);
         return rc;
     }
     return lv_process_finalize(&ob, out_stdout, out_len, exit_code, exit_code_v);

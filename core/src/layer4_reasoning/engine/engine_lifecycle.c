@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/stream.h"
 
 #include "debug.h"
@@ -81,6 +82,58 @@ lvEngine *engine_create(void) {
     return engine;
 }
 
+/* ── engine_destroy 子资源销毁适配（签名统一为 void (*)(void *)） ── */
+
+static void destroy_engine_frozen_point(void *obj) {
+    engine_destroy_frozen_point(obj);
+}
+
+static void destroy_engine_scheduler(void *obj) {
+    scheduler_destroy((EngineScheduler *) obj);
+}
+
+static void destroy_engine_module(void *obj) {
+    module_destroy((Module *) obj);
+}
+
+static void destroy_engine_axiom_package(void *obj) {
+    axiom_package_destroy((AxiomPackage *) obj);
+}
+
+static void destroy_engine_rewrite_rule(void *obj) {
+    rewrite_rule_destroy((RewriteRule *) obj);
+}
+
+static void destroy_engine_main_graph(void *obj) {
+    graph_destroy((ConstraintGraph *) obj);
+}
+
+/* 流式上下文需先清除所有已注册模块的全局指针（stream_context_clear_all），
+ * 再销毁流式上下文，防止 type_system_stream_ctx、rewrite_stream_ctx 等
+ * 全局变量成为悬挂指针，导致后续操作堆损坏 */
+static void destroy_engine_stream_ctx(void *obj, void *field_ptr) {
+    lvEngine *engine = (lvEngine *) obj;
+    (void) field_ptr;
+    if (engine->stream_ctx) {
+        stream_context_clear_all();
+        stream_context_destroy(engine->stream_ctx);
+        engine->stream_ctx = NULL;
+    }
+}
+
+/* engine_destroy 字段描述表：释放顺序与原实现一致
+ * （冻结点 → 调度器 → 流式上下文 → 主图 → 模块/公理包/重写规则数组 → 外壳），
+ * 全部置 NULL 安全 */
+static const lvFieldDesc s_engine_destroy_fields[] = {
+    lv_FIELD_OBJECT(lvEngine, frozen_point, destroy_engine_frozen_point),
+    lv_FIELD_OBJECT(lvEngine, scheduler, destroy_engine_scheduler),
+    lv_FIELD_CUSTOM(lvEngine, stream_ctx, destroy_engine_stream_ctx),
+    lv_FIELD_OBJECT(lvEngine, main_graph, destroy_engine_main_graph),
+    lv_FIELD_ARRAY(lvEngine, loaded_modules, module_count, destroy_engine_module),
+    lv_FIELD_ARRAY(lvEngine, axiom_packages, axiom_package_count, destroy_engine_axiom_package),
+    lv_FIELD_ARRAY(lvEngine, rewrite_rules, rewrite_rule_count, destroy_engine_rewrite_rule),
+};
+
 /**
  * @brief 销毁引擎实例并释放所有关联资源
  *
@@ -110,39 +163,11 @@ void engine_destroy(lvEngine *engine) {
     /* 标记引擎为销毁中状态，防止并发操作 */
     engine->state = ENGINE_STATE_IDLE;
 
-    if (engine->frozen_point) {
-        engine_destroy_frozen_point(engine->frozen_point);
-        engine->frozen_point = NULL;
-    }
     /* 解除旧版调度 API 对本线程 TLS 引擎指针的关联，防止销毁后 UAF */
     lv_engine_scheduler_shutdown(engine);
-    if (engine->scheduler) {
-        scheduler_destroy(engine->scheduler);
-        engine->scheduler = NULL;
-    }
-    if (engine->stream_ctx) {
-        /* 在销毁流式上下文前，清除所有已注册模块的全局指针，
-         * 防止 type_system_stream_ctx、rewrite_stream_ctx 等
-         * 全局变量成为悬挂指针，导致后续操作堆损坏。 */
-        stream_context_clear_all();
-        stream_context_destroy(engine->stream_ctx);
-        engine->stream_ctx = NULL;
-    }
-    if (engine->main_graph) {
-        graph_destroy(engine->main_graph);
-        engine->main_graph = NULL;
-    }
-    for (int i = 0; i < engine->module_count; i++) {
-        module_destroy(engine->loaded_modules[i]);
-    }
-    lv_free((void **) &engine->loaded_modules);
-    for (int i = 0; i < engine->axiom_package_count; i++) {
-        axiom_package_destroy(engine->axiom_packages[i]);
-    }
-    lv_free((void **) &engine->axiom_packages);
-    for (int i = 0; i < engine->rewrite_rule_count; i++) {
-        rewrite_rule_destroy(engine->rewrite_rules[i]);
-    }
-    lv_free((void **) &engine->rewrite_rules);
+
+    /* 按字段描述表统一销毁全部子资源（顺序与原实现一致，全部置 NULL 安全） */
+    lv_obj_destroy_fields(engine, s_engine_destroy_fields,
+                          sizeof(s_engine_destroy_fields) / sizeof(s_engine_destroy_fields[0]));
     lv_free((void **) &engine);
 }

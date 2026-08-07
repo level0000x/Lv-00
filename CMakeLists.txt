@@ -796,6 +796,10 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_storage.c
     # v1.0.0 竞技场分配器抽象层
     core/src/layer2_resource/lv_arena.c
+    # 字节流编解码基础设施（lvByteWriter/lvByteReader：endian/varint/zigzag，收敛 msgpack/压缩引擎手写位移）
+    core/src/layer2_resource/lv_bytes.c
+    # 复合对象生命周期管理（lv_obj_destroy_fields 字段销毁描述表 + lv_DEFER/lv_SCOPE_EXIT 作用域守卫）
+    core/src/layer2_resource/lv_lifecycle.c
 )
 
 # ── Core: 核心便利层 (Core Convenience) ──
@@ -1676,6 +1680,11 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_axiom_computational_complexity_theory)
     add_lv_test_auto(test_axiom_presburger_arithmetic)
     add_lv_test_auto(test_utils)
+    # 抽象化重构（枚举映射/字节流/生命周期/注册表）新增测试
+    add_lv_test_auto(test_enum_maps)
+    add_lv_test_auto(test_bytes)
+    add_lv_test_auto(test_lifecycle)
+    add_lv_test_auto(test_registry)
     add_lv_test_auto(test_stream)
     add_lv_test_auto(test_stream_extended)
     add_lv_test_auto(test_func_block_utils)

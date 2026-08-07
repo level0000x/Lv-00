@@ -89,7 +89,34 @@ char *lv_strbuf_to_string(lvStrBuf *sb) {
 
 void lv_strbuf_append_n(lvStrBuf *sb, char ch, size_t count) {
     if (!sb || count == 0) return;
-    for (size_t i = 0; i < count; i++) {
-        lv_strbuf_printf(sb, "%c", ch);
-    }
+    size_t required = sb->len + count + 1;
+    lv_strbuf_grow(sb, required);
+    /* grow 失败（内存不足/容量溢出保护）时按剩余容量截断，与 vprintf 语义一致 */
+    size_t avail = sb->cap - sb->len - 1;
+    if (count > avail)
+        count = avail;
+    memset(sb->data + sb->len, ch, count);
+    sb->len += count;
+    sb->data[sb->len] = '\0';
+}
+
+void lv_strbuf_append_raw(lvStrBuf *sb, const char *s, size_t n) {
+    if (!sb || !s || n == 0) return;
+    size_t required = sb->len + n + 1;
+    lv_strbuf_grow(sb, required);
+    /* grow 失败（内存不足/容量溢出保护）时按剩余容量截断，与 vprintf 语义一致 */
+    size_t avail = sb->cap - sb->len - 1;
+    if (n > avail)
+        n = avail;
+    if (n == 0)
+        return;
+    memcpy(sb->data + sb->len, s, n);
+    sb->len += n;
+    sb->data[sb->len] = '\0';
+}
+
+void lv_strbuf_append_str(lvStrBuf *sb, const char *s) {
+    if (!sb || !s) return;
+    size_t n = strlen(s);
+    lv_strbuf_append_raw(sb, s, n);
 }

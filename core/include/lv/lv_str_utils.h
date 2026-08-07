@@ -161,6 +161,19 @@ char *lv_str_join(const char **items, size_t count, const char *separator);
  */
 bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, const char *item);
 
+/* ===== 十六进制编码 ===== */
+
+/**
+ * @brief 将字节数组编码为小写十六进制字符串（等价于逐字节 "%02x" 循环）
+ *
+ * 每字节输出 2 个字符（小写、无空格、无分隔符），并写入结尾 '\0'。
+ *
+ * @param bytes 输入字节数组
+ * @param n     字节数
+ * @param out   输出缓冲区（调用方保证容量 >= 2*n + 1）
+ */
+void lv_str_hex_encode(const unsigned char *bytes, size_t n, char *out);
+
 /* ===== 字符串转义 ===== */
 
 /**

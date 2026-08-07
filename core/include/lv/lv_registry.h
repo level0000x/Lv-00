@@ -9,10 +9,12 @@
 extern "C" {
 #endif
 
-/** @brief 通用注册表条目：名称 + 创建函数指针 */
+/** @brief 通用注册表条目：名称 + 工厂函数/泛型值 */
 typedef struct lvRegistryEntry {
-    const char *name;          /**< 后端/插件名称 */
-    void *(*create)(void);     /**< 创建函数（返回 void*，调用者转型） */
+    char *name;                /**< 条目名称（key，注册表内部拷贝并管理生命周期） */
+    void *(*create)(void);     /**< 创建函数（name→factory 形态，返回 void*，调用者转型） */
+    void *value;               /**< 泛型值（name→value 形态，任意指针） */
+    void (*destroy)(void *);   /**< 值析构函数（remove/destroy 时调用，可为 NULL） */
 } lvRegistryEntry;
 
 /** @brief 通用注册表（线程安全） */
@@ -32,13 +34,15 @@ void lv_registry_init(lvRegistry *reg, int capacity);
 
 /**
  * @brief 销毁注册表
+ *
+ * 依次调用每个条目的 destroy 回调（若有）并释放内部拷贝的 name。
  */
 void lv_registry_destroy(lvRegistry *reg);
 
 /**
- * @brief 注册一个条目
+ * @brief 注册一个条目（name→factory 形态，向后兼容 API）
  * @param reg    注册表指针
- * @param name   条目名称
+ * @param name   条目名称（注册表内部拷贝）
  * @param create 创建函数指针
  * @return true 成功，false name 重复或内存不足
  */
@@ -57,6 +61,70 @@ void *lv_registry_create(const lvRegistry *reg, const char *name);
  * @return 索引，未找到返回 -1
  */
 int lv_registry_find(const lvRegistry *reg, const char *name);
+
+/* ============================================================
+ * 泛型条目 API（name→value 形态）
+ *
+ * 与上面的 name→factory API 共用同一注册表结构与互斥锁：
+ * 同一注册表内 name 唯一，put/register 重复注册均返回 false。
+ * name 由注册表内部拷贝管理，value 的所有权由 destroy 回调决定。
+ * ============================================================ */
+
+/**
+ * @brief 存入一个泛型条目（不带析构回调）
+ * @param reg    注册表指针
+ * @param name   条目名称（内部拷贝）
+ * @param value  泛型值指针
+ * @return true 成功，false name 重复或内存不足
+ */
+bool lv_registry_put(lvRegistry *reg, const char *name, void *value);
+
+/**
+ * @brief 存入一个泛型条目（带析构回调）
+ * @param reg     注册表指针
+ * @param name    条目名称（内部拷贝）
+ * @param value   泛型值指针
+ * @param destroy 值析构回调（remove/destroy 时调用，可为 NULL）
+ * @return true 成功，false name 重复或内存不足
+ */
+bool lv_registry_put_ex(lvRegistry *reg, const char *name, void *value, void (*destroy)(void *));
+
+/**
+ * @brief 按名称获取泛型值
+ * @param reg  注册表指针
+ * @param name 条目名称
+ * @return 值指针，未找到返回 NULL
+ */
+void *lv_registry_get(const lvRegistry *reg, const char *name);
+
+/**
+ * @brief 按名称删除条目
+ *
+ * 删除时先调用该条目的 destroy 回调（若有），再释放内部 name，
+ * 并将后续条目前移紧凑（保持注册顺序）。
+ *
+ * @param reg  注册表指针
+ * @param name 条目名称
+ * @return true 删除成功，false 未找到
+ */
+bool lv_registry_remove(lvRegistry *reg, const char *name);
+
+/**
+ * @brief 获取当前条目数
+ * @param reg 注册表指针
+ * @return 条目数
+ */
+int lv_registry_count(const lvRegistry *reg);
+
+/**
+ * @brief 按索引获取条目（用于遍历）
+ * @param reg   注册表指针
+ * @param index 条目索引（0..count-1）
+ * @param name  输出条目名称（可为 NULL）
+ * @param value 输出条目值（可为 NULL）
+ * @return true 成功，false 索引越界
+ */
+bool lv_registry_get_at(const lvRegistry *reg, int index, const char **name, void **value);
 
 /* ============================================================
  * 模块生命周期管理（Module Lifecycle）

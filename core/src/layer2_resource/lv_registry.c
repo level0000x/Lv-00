@@ -1,9 +1,10 @@
 /**
  * @file lv_registry.c
- * @brief 通用注册表实现 —— 线程安全的名称→工厂函数映射
+ * @brief 通用注册表实现 —— 线程安全的名称→工厂函数 / 泛型值映射
  *
- * @details 提供统一的注册表模式，消除 ATP、SMT、Groebner 等后端中
- *          重复的注册表实现代码。支持动态扩容、互斥锁保护、名称唯一性检查。
+ * @details 提供统一的注册表模式，消除 ATP、SMT、Groebner 后端以及
+ *          插件接口、插件配置、几何事件等模块中重复的注册表实现代码。
+ *          支持动态扩容、互斥锁保护、名称唯一性检查、条目删除与析构回调。
  *
  * @author Lv-00 Project
  * @version 1.0.0
@@ -50,6 +51,12 @@ void lv_registry_destroy(lvRegistry *reg) {
 
     lv_MUTEX_LOCK(&reg->mutex);
     if (reg->entries) {
+        for (int i = 0; i < reg->count; i++) {
+            if (reg->entries[i].destroy && reg->entries[i].value) {
+                reg->entries[i].destroy(reg->entries[i].value);
+            }
+            lv_free((void **) &reg->entries[i].name);
+        }
         lv_free((void **) &reg->entries);
     }
     reg->entries = NULL;
@@ -59,32 +66,66 @@ void lv_registry_destroy(lvRegistry *reg) {
     lv_MUTEX_DESTROY(&reg->mutex);
 }
 
-bool lv_registry_register(lvRegistry *reg, const char *name, void *(*create)(void)) {
-    if (!reg || !name) return false;
+/* ============================================================
+ * 内部辅助
+ * ============================================================ */
 
-    lv_MUTEX_LOCK(&reg->mutex);
-
+/**
+ * @brief 插入条目（调用方须持有互斥锁）
+ *
+ * 支持两种形态：name→factory（create 非 NULL）与 name→value（value 非 NULL）。
+ * name 在此处内部拷贝，由注册表统一管理生命周期（remove/destroy 时释放）。
+ */
+static bool registry_insert_locked(lvRegistry *reg, const char *name, void *(*create)(void), void *value,
+                                   void (*destroy)(void *)) {
     /* 检查名称是否已存在 */
     for (int i = 0; i < reg->count; i++) {
         if (strcmp(reg->entries[i].name, name) == 0) {
-            lv_MUTEX_UNLOCK(&reg->mutex);
             return false;
         }
     }
 
     /* 检查容量，必要时扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
     if (!lv_ensure_capacity((void **) &reg->entries, reg->count, &reg->capacity, sizeof(lvRegistryEntry), 0)) {
-        lv_MUTEX_UNLOCK(&reg->mutex);
+        return false;
+    }
+
+    /* 拷贝 name（注册表持有，remove/destroy 时释放） */
+    char *name_copy = lv_strdup(name);
+    if (!name_copy) {
         return false;
     }
 
     /* 添加新条目 */
-    reg->entries[reg->count].name = name;
+    reg->entries[reg->count].name = name_copy;
     reg->entries[reg->count].create = create;
+    reg->entries[reg->count].value = value;
+    reg->entries[reg->count].destroy = destroy;
     reg->count++;
 
-    lv_MUTEX_UNLOCK(&reg->mutex);
     return true;
+}
+
+bool lv_registry_register(lvRegistry *reg, const char *name, void *(*create)(void)) {
+    if (!reg || !name) return false;
+
+    lv_MUTEX_LOCK(&reg->mutex);
+    bool ok = registry_insert_locked(reg, name, create, NULL, NULL);
+    lv_MUTEX_UNLOCK(&reg->mutex);
+    return ok;
+}
+
+bool lv_registry_put(lvRegistry *reg, const char *name, void *value) {
+    return lv_registry_put_ex(reg, name, value, NULL);
+}
+
+bool lv_registry_put_ex(lvRegistry *reg, const char *name, void *value, void (*destroy)(void *)) {
+    if (!reg || !name) return false;
+
+    lv_MUTEX_LOCK(&reg->mutex);
+    bool ok = registry_insert_locked(reg, name, NULL, value, destroy);
+    lv_MUTEX_UNLOCK(&reg->mutex);
+    return ok;
 }
 
 void *lv_registry_create(const lvRegistry *reg, const char *name) {
@@ -115,6 +156,73 @@ int lv_registry_find(const lvRegistry *reg, const char *name) {
         }
     }
     return -1;
+}
+
+void *lv_registry_get(const lvRegistry *reg, const char *name) {
+    if (!reg || !name) return NULL;
+
+    /* 读取操作需要加锁（const cast 因为 lvMutex 操作需要非 const） */
+    lvRegistry *r = (lvRegistry *) reg;
+    lv_MUTEX_LOCK(&r->mutex);
+
+    void *result = NULL;
+    for (int i = 0; i < reg->count; i++) {
+        if (strcmp(reg->entries[i].name, name) == 0) {
+            result = reg->entries[i].value;
+            break;
+        }
+    }
+
+    lv_MUTEX_UNLOCK(&r->mutex);
+    return result;
+}
+
+bool lv_registry_remove(lvRegistry *reg, const char *name) {
+    if (!reg || !name) return false;
+
+    lv_MUTEX_LOCK(&reg->mutex);
+
+    for (int i = 0; i < reg->count; i++) {
+        if (strcmp(reg->entries[i].name, name) == 0) {
+            /* 先调用析构回调并释放 name，再前移紧凑（lv_shift_left 先例） */
+            if (reg->entries[i].destroy && reg->entries[i].value) {
+                reg->entries[i].destroy(reg->entries[i].value);
+            }
+            lv_free((void **) &reg->entries[i].name);
+            lv_shift_left(reg->entries, sizeof(lvRegistryEntry), (size_t) i, (size_t) reg->count);
+            reg->count--;
+            lv_MUTEX_UNLOCK(&reg->mutex);
+            return true;
+        }
+    }
+
+    lv_MUTEX_UNLOCK(&reg->mutex);
+    return false;
+}
+
+int lv_registry_count(const lvRegistry *reg) {
+    if (!reg) return 0;
+
+    lvRegistry *r = (lvRegistry *) reg;
+    lv_MUTEX_LOCK(&r->mutex);
+    int count = reg->count;
+    lv_MUTEX_UNLOCK(&r->mutex);
+    return count;
+}
+
+bool lv_registry_get_at(const lvRegistry *reg, int index, const char **name, void **value) {
+    if (!reg || index < 0) return false;
+
+    lvRegistry *r = (lvRegistry *) reg;
+    lv_MUTEX_LOCK(&r->mutex);
+    if (index >= reg->count) {
+        lv_MUTEX_UNLOCK(&r->mutex);
+        return false;
+    }
+    if (name) *name = reg->entries[index].name;
+    if (value) *value = reg->entries[index].value;
+    lv_MUTEX_UNLOCK(&r->mutex);
+    return true;
 }
 
 /* ============================================================

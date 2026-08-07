@@ -910,6 +910,69 @@ const char *lv_constraint_type_name(ConstraintType type) {
     return kConstraintTypeLabels[type];
 }
 
+/* ================================================================
+ * GeomType / ConstraintType 全字段条目表（单一事实来源）
+ *
+ * 由 constraint_graph.h 的 LV_GEOM_TYPE_ENTRY / LV_CONSTRAINT_TYPE_ENTRY
+ * 生成；graph_node_alloc.c / interop_command.c 等文件散落的
+ * GeomType 名称/别名/形状表一律改经下列公共 API 引用，禁止重复定义。
+ * ================================================================ */
+
+/** @brief GeomType 全字段条目（名称 / CLI 别名 / DOT 形状） */
+typedef struct {
+    const char *name;      /* 规范名（大写） */
+    const char *alias;     /* CLI 协议小写别名 */
+    const char *dot_shape; /* Graphviz DOT 节点形状 */
+} GeomTypeEntry;
+
+#define LV_GEOM_TYPE_ROW(ENUM, NAME, ALIAS, SHAPE) { NAME, ALIAS, SHAPE },
+static const GeomTypeEntry kGeomTypeEntries[] = {
+    LV_GEOM_TYPE_ENTRY(LV_GEOM_TYPE_ROW)
+};
+#undef LV_GEOM_TYPE_ROW
+
+/** @brief ConstraintType 全字段条目（名称 / CLI 别名） */
+typedef struct {
+    const char *name;  /* 规范名（大写） */
+    const char *alias; /* CLI 协议小写别名 */
+} ConstraintTypeEntry;
+
+#define LV_CONSTRAINT_TYPE_ROW(ENUM, NAME, ALIAS) { NAME, ALIAS },
+static const ConstraintTypeEntry kConstraintTypeEntries[] = {
+    LV_CONSTRAINT_TYPE_ENTRY(LV_CONSTRAINT_TYPE_ROW)
+};
+#undef LV_CONSTRAINT_TYPE_ROW
+
+/* 编译期校验：条目宏行数与枚举值数量严格对齐（防止枚举与映射表漂移） */
+_Static_assert(lv_ARRAY_SIZE(kGeomTypeEntries) == (GEOM_FUNCTION_BLOCK + 1),
+               "LV_GEOM_TYPE_ENTRY row count must match GeomType enum count");
+_Static_assert(lv_ARRAY_SIZE(kConstraintTypeEntries) == (ANGLE + 1),
+               "LV_CONSTRAINT_TYPE_ENTRY row count must match ConstraintType enum count");
+
+const char *lv_geom_type_name(int type) {
+    if ((unsigned) type >= lv_ARRAY_SIZE(kGeomTypeEntries))
+        return "UNKNOWN";
+    return kGeomTypeEntries[type].name;
+}
+
+const char *lv_geom_type_alias(int type) {
+    if ((unsigned) type >= lv_ARRAY_SIZE(kGeomTypeEntries))
+        return "UNKNOWN";
+    return kGeomTypeEntries[type].alias;
+}
+
+const char *lv_geom_type_dot_shape(int type) {
+    if ((unsigned) type >= lv_ARRAY_SIZE(kGeomTypeEntries))
+        return "UNKNOWN";
+    return kGeomTypeEntries[type].dot_shape;
+}
+
+const char *lv_constraint_type_alias(int type) {
+    if ((unsigned) type >= lv_ARRAY_SIZE(kConstraintTypeEntries))
+        return "UNKNOWN";
+    return kConstraintTypeEntries[type].alias;
+}
+
 bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *filepath) {
     if (!encoded_graph || !filepath)
         return false;
@@ -919,19 +982,8 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
 
     lv_dot_begin(&sb, "MetaRepr", "LR", NULL, NULL);
 
-    /* GeomType -> DOT shape 映射（6 项，与 GeomType 枚举严格对齐；
-     * 原实现缺 CIRCLE 且 FUNCTION_BLOCK 下标越界，已修复） */
-    static const char *type_shapes[] = {
-        "ellipse", /* GEOM_POINT */
-        "diamond", /* GEOM_LINE_SEGMENT */
-        "box",     /* GEOM_REGION */
-        "circle",  /* GEOM_CIRCLE */
-        "box",     /* GEOM_PORT */
-        "box"      /* GEOM_FUNCTION_BLOCK */
-    };
-    static const char *type_names[] = {
-        lv_XMACRO_TO_NAME_ARRAY(LV_GEOM_TYPE_X)
-    };
+    /* GeomType -> DOT shape / 规范名 统一由共享条目宏 API 提供
+     * （lv_geom_type_dot_shape / lv_geom_type_name，原手写 type_shapes/type_names 已删除） */
 
     /* 输出节点 */
     for (int i = 0; i < encoded_graph->node_count; i++) {
@@ -941,9 +993,9 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
 
         const char *shape = "ellipse";
         const char *tname = "POINT";
-        if (node->type >= 0 && node->type <= GEOM_FUNCTION_BLOCK) {
-            shape = type_shapes[(int) node->type];
-            tname = type_names[(int) node->type];
+        if ((unsigned) node->type <= (unsigned) GEOM_FUNCTION_BLOCK) {
+            shape = lv_geom_type_dot_shape((int) node->type);
+            tname = lv_geom_type_name((int) node->type);
         }
 
         char idbuf[32], extra[64], lbuf[128];

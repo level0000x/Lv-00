@@ -42,55 +42,89 @@
 
 /* ============== 查找表 ============== */
 
-/* 状态名称表（按 lvTraceNodeStatus 枚举值索引） */
-static const char *kStatusNameZh[] = {
-    "[探索中]",  /* TRACE_STATUS_UNEXPLORED */
-    "[探索中]",  /* TRACE_STATUS_EXPLORING */
-    "[已证明]",  /* TRACE_STATUS_PROVED */
-    "[已证伪]",  /* TRACE_STATUS_DISPROVED */
-    "[阻塞]"     /* TRACE_STATUS_BLOCKED */
-};
-static const char *kStatusNameEn[] = {
-    "[EXPLORING]",
-    "[EXPLORING]",
-    "[PROVED]",
-    "[DISPROVED]",
-    "[BLOCKED]"
-};
+/* ================================================================
+ * lvTraceNodeType / lvTraceNodeStatus 呈现属性（单一事实来源）
+ *
+ * 由下列条目宏生成 kTraceNodeProps[] / kTraceStatusProps[] 结构体数组；
+ * proof_export.c 与 proof_trace_tree.c 一律索引该数组取呈现属性，
+ * 禁止再手写任何按 lvTraceNodeType / lvTraceNodeStatus 下标的平行表。
+ * ================================================================ */
 
-/* 类型名称表（按 lvTraceNodeType 枚举值索引） */
-static const char *kTypeNameZh[] = {
-    "公理",         /* TRACE_NODE_AXIOM */
-    "定义",         /* TRACE_NODE_DEFINITION */
-    "定理",         /* TRACE_NODE_THEOREM */
-    "引理",         /* TRACE_NODE_LEMMA */
-    "假设",         /* TRACE_NODE_HYPOTHESIS */
-    "推导",         /* TRACE_NODE_DERIVATION */
-    "矛盾",         /* TRACE_NODE_CONTRADICTION */
-    "目标"          /* TRACE_NODE_GOAL */
-};
-static const char *kTypeNameEn[] = {
-    "Axiom",
-    "Definition",
-    "Theorem",
-    "Lemma",
-    "Hypothesis",
-    "Derivation",
-    "Contradiction",
-    "Goal"
-};
+/* 信任色哨兵值（与 proof_trace_tree.c 定义一致）：
+ * DERIVATION / GOAL 需递归取子节点最小颜色；UNKNOWN 表示未知类型 */
+#define TRACE_NODE_COLOR_AUTO (-1)
+#define TRACE_NODE_COLOR_UNKNOWN (-2)
 
-/* LaTeX 类型标签表（按 lvTraceNodeType 枚举值索引） */
-static const char *kTypeLatexLabel[] = {
-    "\\textbf{Axiom}",      /* TRACE_NODE_AXIOM */
-    "\\textbf{Def}",        /* TRACE_NODE_DEFINITION */
-    "\\textbf{Thm}",        /* TRACE_NODE_THEOREM */
-    "\\textbf{Lemma}",      /* TRACE_NODE_LEMMA */
-    "\\textit{Hyp}",        /* TRACE_NODE_HYPOTHESIS */
-    "\\textbf{Step}",       /* TRACE_NODE_DERIVATION */
-    "\\textbf{Contr!}",     /* TRACE_NODE_CONTRADICTION */
-    "\\textbf{Goal}"        /* TRACE_NODE_GOAL */
+/**
+ * @brief lvTraceNodeType 全字段条目宏（单一事实来源）
+ *
+ * 每行携带 7 列：ENUM（枚举值）、ZH（中文名）、EN（英文名）、
+ * LATEX（LaTeX 标签）、TRUST（初始信任色，可为 TRACE_NODE_COLOR_* 哨兵）、
+ * DOT_FILL（DOT 填充色）、DOT_SHAPE（DOT 形状）。
+ */
+#define LV_TRACE_NODE_TYPE_ENTRY(x) \
+    x(TRACE_NODE_AXIOM, "公理", "Axiom", "\\textbf{Axiom}", TRUST_GREEN, "lightgreen", "ellipse") \
+    x(TRACE_NODE_DEFINITION, "定义", "Definition", "\\textbf{Def}", TRUST_GREEN, "palegreen", "box") \
+    x(TRACE_NODE_THEOREM, "定理", "Theorem", "\\textbf{Thm}", TRUST_GREEN, "green", "box") \
+    x(TRACE_NODE_LEMMA, "引理", "Lemma", "\\textbf{Lemma}", TRUST_GREEN, "limegreen", "box") \
+    x(TRACE_NODE_HYPOTHESIS, "假设", "Hypothesis", "\\textit{Hyp}", TRUST_BLUE_UNEXPLORED, "lightblue", "diamond") \
+    x(TRACE_NODE_DERIVATION, "推导", "Derivation", "\\textbf{Step}", TRACE_NODE_COLOR_AUTO, "lightgray", "rounded") \
+    x(TRACE_NODE_CONTRADICTION, "矛盾", "Contradiction", "\\textbf{Contr!}", TRUST_GREEN, "salmon", "octagon") \
+    x(TRACE_NODE_GOAL, "目标", "Goal", "\\textbf{Goal}", TRACE_NODE_COLOR_AUTO, "gold", "doublecircle")
+
+/** @brief lvTraceNodeType 呈现属性条目（索引 kTraceNodeProps[]） */
+typedef struct TraceNodeProps {
+    const char *name_zh;     /* 中文名 */
+    const char *name_en;     /* 英文名 */
+    const char *latex_label; /* LaTeX 标签 */
+    int         trust_color; /* 初始信任色（TRACE_NODE_COLOR_* 哨兵除外） */
+    const char *dot_fill;    /* DOT 填充色 */
+    const char *dot_shape;   /* DOT 形状 */
+} TraceNodeProps;
+
+#define LV_TRACE_NODE_PROP_ROW(ENUM, ZH, EN, LATEX, TRUST, DOT_FILL, DOT_SHAPE) \
+    { ZH, EN, LATEX, TRUST, DOT_FILL, DOT_SHAPE },
+
+/* extern 前向声明：确保 const 数组具有 external linkage，
+ * proof_trace_tree.c 可 extern 引用并按下标索引（单一事实来源） */
+extern const TraceNodeProps kTraceNodeProps[];
+const TraceNodeProps kTraceNodeProps[] = {
+    LV_TRACE_NODE_TYPE_ENTRY(LV_TRACE_NODE_PROP_ROW)
 };
+#undef LV_TRACE_NODE_PROP_ROW
+
+/**
+ * @brief lvTraceNodeStatus 全字段条目宏（单一事实来源，中文/英文显示名）
+ */
+#define LV_TRACE_NODE_STATUS_ENTRY(x) \
+    x(TRACE_STATUS_UNEXPLORED, "[探索中]", "[EXPLORING]") \
+    x(TRACE_STATUS_EXPLORING, "[探索中]", "[EXPLORING]") \
+    x(TRACE_STATUS_PROVED, "[已证明]", "[PROVED]") \
+    x(TRACE_STATUS_DISPROVED, "[已证伪]", "[DISPROVED]") \
+    x(TRACE_STATUS_BLOCKED, "[阻塞]", "[BLOCKED]")
+
+/** @brief lvTraceNodeStatus 呈现属性条目（索引 kTraceStatusProps[]） */
+typedef struct TraceStatusProps {
+    const char *name_zh; /* 中文名 */
+    const char *name_en; /* 英文名 */
+} TraceStatusProps;
+
+#define LV_TRACE_NODE_STATUS_ROW(ENUM, ZH, EN) { ZH, EN },
+static const TraceStatusProps kTraceStatusProps[] = {
+    LV_TRACE_NODE_STATUS_ENTRY(LV_TRACE_NODE_STATUS_ROW)
+};
+#undef LV_TRACE_NODE_STATUS_ROW
+
+/**
+ * @brief 获取溯源节点类型的呈现属性条目（kTraceNodeProps 越界安全访问）
+ * @param type 溯源节点类型
+ * @return 指向 kTraceNodeProps[type] 的指针；越界返回 NULL
+ */
+const TraceNodeProps *lv_trace_node_type_props(lvTraceNodeType type) {
+    if ((unsigned) type >= lv_ARRAY_SIZE(kTraceNodeProps))
+        return NULL;
+    return &kTraceNodeProps[type];
+}
 
 /* Coq 格式条目 */
 typedef struct {
@@ -130,10 +164,11 @@ static const IsarFormatEntry kIsarFormats[] = {
     [TRACE_NODE_GOAL]          = { "  -- Sub-goal: %s\n",           "  moreover have \"%s\"\n",         NULL, NULL },
 };
 
-/* 数组大小常量 */
-#define kStatusNameCount (sizeof(kStatusNameZh) / sizeof(kStatusNameZh[0]))
-#define kTypeNameCount   (sizeof(kTypeNameZh)   / sizeof(kTypeNameZh[0]))
-#define kTypeLatexCount  (sizeof(kTypeLatexLabel)/ sizeof(kTypeLatexLabel[0]))
+/* 数组大小常量（kStatusNameZh/kTypeNameZh/kTypeLatexLabel 已并入
+ * kTraceStatusProps/kTraceNodeProps 结构体数组） */
+#define kStatusNameCount (sizeof(kTraceStatusProps) / sizeof(kTraceStatusProps[0]))
+#define kTypeNameCount   (sizeof(kTraceNodeProps)   / sizeof(kTraceNodeProps[0]))
+#define kTypeLatexCount  (sizeof(kTraceNodeProps)   / sizeof(kTraceNodeProps[0]))
 #define kCoqFormatCount  (sizeof(kCoqFormats)    / sizeof(kCoqFormats[0]))
 #define kIsarFormatCount (sizeof(kIsarFormats)   / sizeof(kIsarFormats[0]))
 
@@ -180,7 +215,7 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace, ProofNaturalLa
         {
             int idx = (int)node->status;
             if (idx >= 0 && idx < (int)kStatusNameCount) {
-                status_str = (lang == PROOF_NL_LANG_ZH_CN) ? kStatusNameZh[idx] : kStatusNameEn[idx];
+                status_str = (lang == PROOF_NL_LANG_ZH_CN) ? kTraceStatusProps[idx].name_zh : kTraceStatusProps[idx].name_en;
             } else {
                 status_str = (lang == PROOF_NL_LANG_ZH_CN) ? "[探索中]" : "[EXPLORING]";
             }
@@ -190,7 +225,7 @@ char *lv_proof_to_natural_language(const lvProofTraceTree *trace, ProofNaturalLa
         {
             int idx = (int)node->type;
             if (idx >= 0 && idx < (int)kTypeNameCount) {
-                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? kTypeNameZh[idx] : kTypeNameEn[idx];
+                type_str = (lang == PROOF_NL_LANG_ZH_CN) ? kTraceNodeProps[idx].name_zh : kTraceNodeProps[idx].name_en;
             } else {
                 type_str = (lang == PROOF_NL_LANG_ZH_CN) ? "未知" : "Unknown";
             }
@@ -301,7 +336,7 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
         {
             int idx = (int)node->type;
             if (idx >= 0 && idx < (int)kTypeLatexCount) {
-                type_label = kTypeLatexLabel[idx];
+                type_label = kTraceNodeProps[idx].latex_label;
             } else {
                 type_label = "Step";
             }

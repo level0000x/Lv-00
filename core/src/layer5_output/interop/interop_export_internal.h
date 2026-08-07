@@ -12,7 +12,10 @@
 #ifndef lv_INTEROP_EXPORT_INTERNAL_H
 #define lv_INTEROP_EXPORT_INTERNAL_H
 
+#include <stdio.h>
+
 #include "lv/constraint_graph.h"
+#include "lv/lv_strbuf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,12 +57,15 @@ static const ConstraintVisual kConstraintVisuals[] = {
     [ANGLE]        = { ANGLE,        {168,  85, 247}, CONSTRAINT_LINE_DASH_DOTTED, 1.0f },
 };
 
-/** @brief 按约束类型查找核心表条目（未命中返回 NULL） */
+/**
+ * @brief 按约束类型查找核心表条目（O(1) 下标直查；未命中返回 NULL）
+ * @note 表按 ConstraintType 连续枚举（INCIDENCE..ANGLE）组织，type 即下标；
+ *       仍校验条目 type 字段，防止未来枚举出现空隙时误命中。
+ */
 static inline const ConstraintVisual *constraint_visual_find(ConstraintType type) {
-    for (size_t i = 0; i < sizeof(kConstraintVisuals) / sizeof(kConstraintVisuals[0]); i++) {
-        if (kConstraintVisuals[i].type == type)
-            return &kConstraintVisuals[i];
-    }
+    if ((unsigned) type < (unsigned) (sizeof(kConstraintVisuals) / sizeof(kConstraintVisuals[0])) &&
+        kConstraintVisuals[type].type == type)
+        return &kConstraintVisuals[type];
     return NULL;
 }
 
@@ -128,6 +134,92 @@ void compute_bezier_control_points(double p1x, double p1y, double p2x, double p2
 bool segment_intersection(double p1x, double p1y, double p2x, double p2y,
                           double q1x, double q1y, double q2x, double q2y,
                           double *ix, double *iy);
+
+/* ==================== 约束渲染分发表（SVG/TikZ/PDF 共用） ==================== */
+
+/**
+ * @brief 约束渲染上下文
+ *
+ * 承载约束、前两个参与者坐标与输出介质。三个导出器按需取用介质：
+ * SVG 使用 fp（FILE*），TikZ/PDF 使用 sb（lvStrBuf*）；
+ * pdf_margin/pdf_ox/pdf_oy 为 PDF 图形空间 → 页面空间变换参数（仅 PDF 设置）。
+ */
+typedef struct {
+    const ConstraintGraph *graph; /**< 约束图（参与者节点解析用） */
+    const Constraint *c;          /**< 约束（非 NULL） */
+    const GeomNode *p0;           /**< 第一参与者节点（坐标已解析） */
+    const GeomNode *p1;           /**< 第二参与者节点（坐标已解析） */
+    double x0, y0;                /**< 第一参与者坐标 */
+    double x1, y1;                /**< 第二参与者坐标 */
+    FILE *fp;                     /**< SVG 导出输出流（SVG 渲染函数使用） */
+    lvStrBuf *sb;                 /**< TikZ/PDF 导出输出缓冲（TikZ/PDF 渲染函数使用） */
+    double pdf_margin;            /**< PDF 页边距（PDF 专用；tx = margin + (x - min_x)） */
+    double pdf_ox;                /**< PDF 图形空间原点 min_x（PDF 专用） */
+    double pdf_oy;                /**< PDF 图形空间原点 min_y（PDF 专用） */
+} ConstraintRenderCtx;
+
+/**
+ * @brief 约束渲染操作分发表（每导出器注册一个实例）
+ *
+ * BETWEENNESS/INTERSECTION 为特判渲染，其余类型走 default（由核心视觉表
+ * kConstraintVisuals 驱动本语法窄适配）。三个导出器的约束渲染循环不再各自
+ * 维护 switch，统一经 constraint_render_dispatch 分发。
+ */
+typedef struct {
+    bool (*render_betweenness)(const ConstraintRenderCtx *ctx); /**< BETWEENNESS 特判渲染 */
+    bool (*render_intersection)(const ConstraintRenderCtx *ctx); /**< INTERSECTION 特判渲染 */
+    bool (*render_default)(const ConstraintRenderCtx *ctx);      /**< 核心表驱动的默认渲染 */
+} ConstraintRenderOps;
+
+/** @brief 按约束类型分发约束渲染（BETWEENNESS/INTERSECTION 特判 + default 核心表驱动） */
+static inline bool constraint_render_dispatch(const ConstraintRenderOps *ops, const ConstraintRenderCtx *ctx,
+                                              ConstraintType type) {
+    if (!ops || !ctx)
+        return false;
+    switch (type) {
+        case BETWEENNESS:
+            return ops->render_betweenness(ctx);
+        case INTERSECTION:
+            return ops->render_intersection(ctx);
+        default:
+            return ops->render_default(ctx);
+    }
+}
+
+/**
+ * @brief 准备约束渲染：解析前两个参与者节点与坐标
+ * @return 参与者有效（均已解析出坐标）返回 true；节点缺失/坐标不足返回 false
+ */
+static inline bool constraint_render_prepare(const ConstraintGraph *graph, const Constraint *c,
+                                             const GeomNode **p0, const GeomNode **p1,
+                                             double *x0, double *y0, double *x1, double *y1) {
+    *p0 = graph_get_node(graph, c->participants[0]);
+    *p1 = graph_get_node(graph, c->participants[1]);
+    if (!*p0 || !*p1)
+        return false;
+    if ((*p0)->coord_count < 2 || (*p1)->coord_count < 2)
+        return false;
+    *x0 = symbolic_coord_to_double((*p0)->symbolic_coords[0]);
+    *y0 = symbolic_coord_to_double((*p0)->symbolic_coords[1]);
+    *x1 = symbolic_coord_to_double((*p1)->symbolic_coords[0]);
+    *y1 = symbolic_coord_to_double((*p1)->symbolic_coords[1]);
+    return true;
+}
+
+/**
+ * @brief 计算两参与者线段交点（INTERSECTION 特判渲染共用）
+ * @details 仅当两个参与者均为 GEOM_LINE_SEGMENT 且坐标充足时求解精确交点；
+ *          否则回退默认点 (dflt_x, dflt_y)。内部调用公共几何函数
+ *          segment_intersection，其返回值被忽略（交点无效时保持默认点，
+ *          与导出器历史内联实现语义一致）。
+ * @param p0,p1 参与者节点
+ * @param dflt_x,dflt_y 非两线段时的回退交点
+ * @param ix,iy [out] 交点坐标
+ * @note 实现位于 interop_export_svg.c（当前唯一调用方）。
+ */
+void constraint_intersection_point(const GeomNode *p0, const GeomNode *p1,
+                                   double dflt_x, double dflt_y,
+                                   double *ix, double *iy);
 
 #ifdef __cplusplus
 }

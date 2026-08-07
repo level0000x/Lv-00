@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
@@ -42,6 +43,21 @@ typedef struct {
     int constraint_idx;
     unsigned long hash;
 } ConstraintHashEntry;
+
+/* GMP mpq_t 系数矩阵的 defer 清理守卫（mpq_clear 逐个清理后 lv_free） */
+typedef struct {
+    mpq_t *matrix; /* 系数矩阵（每行 num_vars + 1 个 mpq_t） */
+    int count;     /* mpq_t 元素总数 */
+} MpqMatrixGuard;
+
+static void mpq_matrix_guard_cleanup(void *p) {
+    MpqMatrixGuard *g = (MpqMatrixGuard *) p;
+    if (g->matrix) {
+        for (int i = 0; i < g->count; i++)
+            mpq_clear(g->matrix[i]);
+        lv_free((void **) &g->matrix);
+    }
+}
 
 /* 按 hash 升序比较（插入排序使用） */
 static int cmp_constraint_hash(const void *a, const void *b, void *ctx) {
@@ -64,26 +80,32 @@ static int cmp_constraint_hash(const void *a, const void *b, void *ctx) {
  *
  * @param graph 约束图指针（可以为 NULL，此时直接返回）
  */
+/* 节点/约束元素销毁适配（node_destroy / constraint_destroy 由 graph_index.c 定义，
+ * 均为统一释放路径：节点含内部字段与 vtable->free，约束含参与者数组 + 外壳） */
+static void destroy_graph_node_elem(void *elem) {
+    node_destroy((GeomNode *) elem);
+}
+
+static void destroy_graph_constraint_elem(void *elem) {
+    constraint_destroy((Constraint *) elem);
+}
+
+/* graph_destroy 字段描述表：释放顺序与原实现一致
+ * （节点 → 约束 → 哈希索引 → 错误/序列化缓冲区 → 外壳），全部置 NULL 安全 */
+static const lvFieldDesc s_graph_destroy_fields[] = {
+    lv_FIELD_ARRAY(ConstraintGraph, nodes, node_count, destroy_graph_node_elem),
+    lv_FIELD_ARRAY(ConstraintGraph, constraints, constraint_count, destroy_graph_constraint_elem),
+    lv_FIELD_PLAIN(ConstraintGraph, node_index),
+    lv_FIELD_PLAIN(ConstraintGraph, constraint_index),
+    lv_FIELD_PLAIN(ConstraintGraph, error_buffer),
+    lv_FIELD_PLAIN(ConstraintGraph, serialize_buffer),
+};
+
 void graph_destroy(ConstraintGraph *graph) {
     if (!graph)
         return;
-    for (int i = 0; i < graph->node_count; i++) {
-        if (graph->nodes[i])
-            node_destroy(graph->nodes[i]);
-    }
-    lv_free((void **) &graph->nodes);
-    for (int i = 0; i < graph->constraint_count; i++) {
-        if (graph->constraints[i]) {
-            /* 统一约束释放路径（参与者数组 + 外壳，外壳归还预设池） */
-            constraint_destroy(graph->constraints[i]);
-        }
-    }
-    lv_free((void **) &graph->constraints);
-    lv_free((void **) &graph->node_index);
-    lv_free((void **) &graph->constraint_index);
-    /* 释放每图级的错误缓冲区（v3.3.0） */
-    lv_free((void **) &graph->error_buffer);
-    lv_free((void **) &graph->serialize_buffer);
+    lv_obj_destroy_fields(graph, s_graph_destroy_fields,
+                          sizeof(s_graph_destroy_fields) / sizeof(s_graph_destroy_fields[0]));
     lv_free((void **) &graph);
 }
 
@@ -219,13 +241,22 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Collect all coordinate variables (point x,y pairs) */
     /* First, find all points referenced by INCIDENCE/BETWEENNESS constraints */
-    /* Phase 2 资源统一提前声明，所有失败路径 goto cleanup 统一释放 */
+    /* Phase 2 资源统一生命周期管理：lv_DEFER 作用域守卫在函数出口
+     * （含 goto cleanup / 正常返回）逆序自动释放，替代手写 cleanup 块 */
     int *point_ids = NULL;
     bool *point_seen = NULL;
     int *node_id_to_var_idx = NULL;
     int *linear_constraint_indices = NULL;
     mpq_t *matrix = NULL;
     int *pivot_row = NULL;
+    MpqMatrixGuard matrix_guard = {NULL, 0}; /* GMP 矩阵专用守卫（mpq_clear 循环 + lv_free） */
+
+    lv_DEFER(lv_defer_free_ptr, &point_ids);
+    lv_DEFER(lv_defer_free_ptr, &point_seen);
+    lv_DEFER(lv_defer_free_ptr, &node_id_to_var_idx);
+    lv_DEFER(lv_defer_free_ptr, &linear_constraint_indices);
+    lv_DEFER(mpq_matrix_guard_cleanup, &matrix_guard);
+    lv_DEFER(lv_defer_free_ptr, &pivot_row);
 
     point_ids = lv_malloc((size_t) graph->node_count * sizeof(int));
     if (!point_ids)
@@ -302,6 +333,8 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     matrix = lv_calloc(matrix_size, sizeof(mpq_t));
     if (!matrix)
         goto cleanup;
+    matrix_guard.matrix = matrix;
+    matrix_guard.count = num_linear * (num_vars + 1);
 
     for (int i = 0; i < num_linear * (num_vars + 1); i++) {
         mpq_init(matrix[i]);
@@ -598,17 +631,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     }
 
 cleanup:
-    /* 统一清理 Phase 2 资源（matrix 的 GMP 逐个释放；NULL 保护保证任意失败点安全） */
-    if (matrix) {
-        for (int i = 0; i < num_linear * (num_vars + 1); i++)
-            mpq_clear(matrix[i]);
-        lv_free((void **) &matrix);
-    }
-    lv_free((void **) &pivot_row);
-    lv_free((void **) &linear_constraint_indices);
-    lv_free((void **) &node_id_to_var_idx);
-    lv_free((void **) &point_seen);
-    lv_free((void **) &point_ids);
-
+    /* 全部 Phase 2 资源已由 lv_DEFER 守卫在函数出口逆序自动释放
+     * （redundant 数组归调用者释放） */
     return redundant;
 }

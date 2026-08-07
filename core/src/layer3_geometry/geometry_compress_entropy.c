@@ -130,16 +130,14 @@ bool entropy_decode_real(const uint8_t *data, size_t size, uint8_t **out_data, s
     if (size < header_size)
         return false;
 
-    /* Verify magic */
-    uint32_t magic =
-        ((uint32_t) data[0]) | ((uint32_t) data[1] << 8) | ((uint32_t) data[2] << 16) | ((uint32_t) data[3] << 24);
+    /* Verify magic（小端序，与写端 lv_store_le32 约定一致） */
+    uint32_t magic = lv_load_le32(data);
     if (magic != LVZD_COMPRESS_MAGIC) {
         /* Fall back to legacy Huffman-only format */
         return entropy_decode_huffman(data, size, out_data, out_size);
     }
 
-    uint32_t orig_sz =
-        ((uint32_t) data[4]) | ((uint32_t) data[5] << 8) | ((uint32_t) data[6] << 16) | ((uint32_t) data[7] << 24);
+    uint32_t orig_sz = lv_load_le32(data + 4);
     (void) orig_sz; /* Used for validation */
 
     /* Huffman decode to get RLE data */

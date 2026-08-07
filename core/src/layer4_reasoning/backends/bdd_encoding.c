@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 
 /* ========================================================================
@@ -1072,19 +1073,17 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
 
     /* 终端节点特例 */
     if (bdd->var_id < 0) {
-        size_t buf_size = 128;
-        char *buf = (char *) lv_malloc(buf_size);
-        if (!buf)
-            return false;
+        lvStrBuf sb;
+        lv_strbuf_init(&sb);
         if (bdd->complemented) {
             /* False 节点 -> 空 CNF（不可满足） */
-            snprintf(buf, buf_size, "c BDD is FALSE\np cnf 1 1\n1 0\n-1 0\n");
+            lv_strbuf_printf(&sb, "c BDD is FALSE\np cnf 1 1\n1 0\n-1 0\n");
         } else {
             /* True 节点 -> 空 CNF（可满足） */
-            snprintf(buf, buf_size, "c BDD is TRUE\np cnf 1 1\n1 0\n");
+            lv_strbuf_printf(&sb, "c BDD is TRUE\np cnf 1 1\n1 0\n");
         }
-        *out_cnf = buf;
-        return true;
+        *out_cnf = lv_strbuf_to_string(&sb);
+        return *out_cnf != NULL;
     }
 
     /* 收集所有非终端节点 */
@@ -1116,22 +1115,11 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
         }
     }
 
-    /* 估算缓冲区大小 */
-    size_t buf_size = (size_t) (4096 + node_count * 256);
-    char *buf = (char *) lv_malloc(buf_size);
-    if (!buf) {
-        lv_free((void **) &entries);
-        return false;
-    }
-
-    int offset = 0;
-    size_t remaining = buf_size;
+    /* 子句体先构建到临时 lvStrBuf（自动扩容，消除原固定估算 4096+node_count*256 的静默截断），
+     * 最后与 DIMACS 头部合并输出 */
+    lvStrBuf body;
+    lv_strbuf_init(&body);
     int clause_count = 0;
-
-    /* DIMACS 头部（先写占位，后面回填） */
-    int header_pos = offset;
-    offset += snprintf(buf + offset, (size_t) remaining, "c BDD-to-CNF conversion (Tseitin)\n");
-    remaining -= offset - header_pos;
 
     /* 辅助变量查找函数 */
     /* 对于终端节点，返回其布尔值对应的变量 */
@@ -1183,85 +1171,54 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
          */
 
         /* 子句 1: ~v | ~x | high */
-        if (remaining > 64) {
-            int n;
-            if (high_lit > 0) {
-                n = snprintf(buf + offset, (size_t) remaining, "%d %d %d 0\n", -v, -x, high_lit);
-            } else {
-                /* high 是 false (0)，子句变为 ~v | ~x（省略 0） */
-                n = snprintf(buf + offset, (size_t) remaining, "%d %d 0\n", -v, -x);
-            }
-            if (n > 0 && n < remaining) {
-                offset += n;
-                remaining -= n;
-            }
-            clause_count++;
+        if (high_lit > 0) {
+            lv_strbuf_printf(&body, "%d %d %d 0\n", -v, -x, high_lit);
+        } else {
+            /* high 是 false (0)，子句变为 ~v | ~x（省略 0） */
+            lv_strbuf_printf(&body, "%d %d 0\n", -v, -x);
         }
+        clause_count++;
 
         /* 子句 2: ~v | x | low */
-        if (remaining > 64) {
-            int n;
-            if (low_lit > 0) {
-                n = snprintf(buf + offset, (size_t) remaining, "%d %d %d 0\n", -v, x, low_lit);
-            } else {
-                n = snprintf(buf + offset, (size_t) remaining, "%d %d 0\n", -v, x);
-            }
-            if (n > 0 && n < remaining) {
-                offset += n;
-                remaining -= n;
-            }
-            clause_count++;
+        if (low_lit > 0) {
+            lv_strbuf_printf(&body, "%d %d %d 0\n", -v, x, low_lit);
+        } else {
+            lv_strbuf_printf(&body, "%d %d 0\n", -v, x);
         }
+        clause_count++;
 
         /* 子句 3: v | ~x | ~high */
-        if (remaining > 64 && high_lit > 0) {
-            int n = snprintf(buf + offset, (size_t) remaining, "%d %d %d 0\n", v, -x, -high_lit);
-            if (n > 0 && n < remaining) {
-                offset += n;
-                remaining -= n;
-            }
+        if (high_lit > 0) {
+            lv_strbuf_printf(&body, "%d %d %d 0\n", v, -x, -high_lit);
             clause_count++;
         }
 
         /* 子句 4: v | x | ~low */
-        if (remaining > 64 && low_lit > 0) {
-            int n = snprintf(buf + offset, (size_t) remaining, "%d %d %d 0\n", v, x, -low_lit);
-            if (n > 0 && n < remaining) {
-                offset += n;
-                remaining -= n;
-            }
+        if (low_lit > 0) {
+            lv_strbuf_printf(&body, "%d %d %d 0\n", v, x, -low_lit);
             clause_count++;
         }
     }
 
     /* 根节点单位子句：root_aux 必须为 true */
-    if (root_aux > 0 && remaining > 32) {
-        int n = snprintf(buf + offset, (size_t) remaining, "%d 0\n", root_aux);
-        if (n > 0 && n < remaining) {
-            offset += n;
-            remaining -= n;
-        }
+    if (root_aux > 0) {
+        lv_strbuf_printf(&body, "%d 0\n", root_aux);
         clause_count++;
     }
 
-    /* 回填 DIMACS p 行 */
+    /* 组装最终输出：注释行 + DIMACS p 行 + 子句体（顺序与原回填实现字节级一致） */
     int total_vars = aux_base + node_count - 1;
-    char header[256];
-    snprintf(header, sizeof(header), "p cnf %d %d\n", total_vars, clause_count);
-
-    /* 将 header 插入到头部位置之后 */
-    size_t header_len = strlen(header);
-    if (offset + (int) header_len < (int) buf_size) {
-        /* 移动现有内容为 header腾出空间 */
-        memmove(buf + header_pos + (int) header_len, buf + header_pos, (size_t) (offset - header_pos));
-        memcpy(buf + header_pos, header, header_len);
-        offset += (int) header_len;
-    }
+    lvStrBuf out;
+    lv_strbuf_init(&out);
+    lv_strbuf_printf(&out, "c BDD-to-CNF conversion (Tseitin)\n");
+    lv_strbuf_printf(&out, "p cnf %d %d\n", total_vars, clause_count);
+    lv_strbuf_append_str(&out, lv_strbuf_cstr(&body));
+    lv_strbuf_destroy(&body);
 
     lv_free((void **) &entries);
 
-    *out_cnf = buf;
-    return true;
+    *out_cnf = lv_strbuf_to_string(&out);
+    return *out_cnf != NULL;
 }
 
 /* ========================================================================

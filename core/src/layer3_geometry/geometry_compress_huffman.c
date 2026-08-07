@@ -217,11 +217,7 @@ bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uint8_t **
     uint8_t *bw_buf = (uint8_t *)lv_malloc(bitstream_capacity);
     if (!bw_buf) { lv_free((void**)&output); return false; }
     BitWriter bw;
-    bw.buf = bw_buf;
-    bw.capacity = bitstream_capacity;
-    bw.byte_pos = 0;
-    bw.bit_pos = 7;
-    bw.buf[0] = 0;
+    bitwriter_init(&bw, bw_buf, bitstream_capacity);
 
     for (size_t i = 0; i < raw_size; i++) {
         uint8_t byte_val = raw_data[i];
@@ -278,13 +274,11 @@ bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **out_data
     /* Step 1: Read frequency table and rebuild Huffman tree */
     uint32_t freq[256];
     for (int i = 0; i < 256; i++) {
-        freq[i] = ((uint32_t) data[i * 4 + 0]) | ((uint32_t) data[i * 4 + 1] << 8) |
-                  ((uint32_t) data[i * 4 + 2] << 16) | ((uint32_t) data[i * 4 + 3] << 24);
+        freq[i] = lv_load_le32(data + i * 4); /* 小端序，与写端 lv_store_le32 约定一致 */
     }
 
     size_t offset = 256 * sizeof(uint32_t);
-    uint32_t raw_sz = ((uint32_t) data[offset + 0]) | ((uint32_t) data[offset + 1] << 8) |
-                      ((uint32_t) data[offset + 2] << 16) | ((uint32_t) data[offset + 3] << 24);
+    uint32_t raw_sz = lv_load_le32(data + offset);
     offset += sizeof(uint32_t);
 
     if (raw_sz == 0) {

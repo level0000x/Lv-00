@@ -1350,15 +1350,14 @@ char *relation_model_export_alloy(const RelModel *model) {
 char *relation_instance_export_xml(const RelInstance *inst) {
     lv_CHECK_NULL(inst, NULL);
 
-    int buf_size = EXPORT_BUF_INITIAL_SIZE;
-    char *buf = (char *) lv_malloc((size_t) buf_size);
-    lv_CHECK_ALLOC(buf, NULL);
+    /* lvStrBuf 动态构建（自动扩容），消除原固定 4KB 缓冲的静默截断 */
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
-    int pos = 0;
-    pos += snprintf(buf + pos, (size_t) (buf_size - pos), "<?xml version=\"1.0\"?>\n<alloy>\n");
+    lv_strbuf_printf(&sb, "<?xml version=\"1.0\"?>\n<alloy>\n");
 
     /* 导出实例中的原子 */
-    pos += snprintf(buf + pos, (size_t) (buf_size - pos), "  <instance>\n");
+    lv_strbuf_printf(&sb, "  <instance>\n");
     for (int ai = 0; ai < inst->atom_count; ai++) {
         RelAtom *atom = inst->atoms[ai];
         if (!atom)
@@ -1367,13 +1366,10 @@ char *relation_instance_export_xml(const RelInstance *inst) {
         if (atom->type >= 0 && (size_t)atom->type < sizeof(atom_type_names) / sizeof(atom_type_names[0])) {
             type_name = atom_type_names[atom->type];
         }
-        pos += snprintf(buf + pos, (size_t) (buf_size - pos), "    <atom id=\"%d\" label=\"%s\"/>\n", atom->atom_id,
-                        type_name);
-        if (pos >= buf_size - 128)
-            break;
+        lv_strbuf_printf(&sb, "    <atom id=\"%d\" label=\"%s\"/>\n", atom->atom_id, type_name);
     }
 
-    pos += snprintf(buf + pos, (size_t) (buf_size - pos), "  </instance>\n</alloy>\n");
+    lv_strbuf_printf(&sb, "  </instance>\n</alloy>\n");
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }

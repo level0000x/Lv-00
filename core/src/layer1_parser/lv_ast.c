@@ -14,6 +14,7 @@
 
 #include "lv/lv_ast.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -293,6 +294,36 @@ typedef int (*LvAstDebugPrintFunc)(const LvAstNode *node, lvStrBuf *sb);
 /** 子节点打印 handler 函数指针类型 */
 typedef void (*LvAstPrintFunc)(const LvAstNode *node, int indent);
 
+/* ── 求值/折叠/比较 handler 类型（VTable 分发契约；签名与 lv_loader.c 求值函数对应）── */
+
+/** @brief 命题变量名长度上限（与 lv_loader.c 的 LV_PROP_VAR_NAME_MAX 一致） */
+#define LV_AST_PROP_VAR_NAME_MAX 32
+
+/** @brief AST 折叠值类型（与 lv_loader.c 的 LvVal 布局一致；仅用于槽位签名） */
+typedef enum {
+    LV_AST_VAL_NUM,
+    LV_AST_VAL_BOOL
+} LvAstValKind;
+
+typedef struct {
+    LvAstValKind kind;
+    long long num;
+    int boolean;
+} LvAstVal;
+
+/** 折叠 handler：闭合表达式 → LvAstVal；返回 false 表示无法折叠 */
+typedef bool (*LvAstFoldFunc)(LvAstNode *node, LvAstVal *out, int depth);
+/** 命题求值 handler：返回 -1 无法判定，0 假，1 真 */
+typedef int (*LvAstEvalPropFunc)(const LvAstNode *node, int depth);
+/** 纯命题骨架判定 handler */
+typedef bool (*LvAstIsPurePropFunc)(const LvAstNode *node, int depth);
+/** 原子命题名收集 handler */
+typedef void (*LvAstCollectVarsFunc)(const LvAstNode *node, char vars[][LV_AST_PROP_VAR_NAME_MAX], int *count,
+                                     bool *overflow, int depth);
+/** 真值表骨架求值 handler */
+typedef int (*LvAstEvalSkeletonFunc)(const LvAstNode *node, const char vars[][LV_AST_PROP_VAR_NAME_MAX],
+                                     const int *vals, int nvars, int depth);
+
 /**
  * @brief AST VTable 结构体
  *
@@ -300,11 +331,21 @@ typedef void (*LvAstPrintFunc)(const LvAstNode *node, int indent);
  * - destroy:    释放节点 union data 中的动态分配内存
  * - debug_print:向缓冲区追加节点类型相关的调试信息，返回新偏移量
  * - print:      递归打印节点特有的子节点
+ *
+ * 求值/折叠/比较槽位（fold / eval_proposition / is_pure_propositional /
+ * collect_prop_vars / eval_prop_skeleton）为 AST 求值分发契约：实际求值逻辑
+ * 定义于 lv_loader.c 的 AST 求值分发表（handler 依赖 lv_loader.c 私有的
+ * LvVal/Church 表），本表对应槽位保持 NULL。
  */
 typedef struct {
     LvAstDestroyFunc    destroy;
     LvAstDebugPrintFunc debug_print;
     LvAstPrintFunc      print;
+    LvAstFoldFunc         fold;              /**< 表达式折叠（闭合 → 值） */
+    LvAstEvalPropFunc     eval_proposition;  /**< 命题求值（-1/0/1） */
+    LvAstIsPurePropFunc   is_pure_propositional; /**< 纯命题骨架判定 */
+    LvAstCollectVarsFunc  collect_prop_vars; /**< 原子命题名收集 */
+    LvAstEvalSkeletonFunc eval_prop_skeleton;/**< 真值表骨架求值 */
 } LvAstVTable;
 
 /* ── Destroy handlers ── */
@@ -676,20 +717,55 @@ void lv_ast_destroy(LvAstNode *node) {
  * @param type 节点类型枚举值
  * @return 类型名称字符串（静态存储，无需释放）
  */
+/* LV_AST_TYPE_X：AST 节点类型 → 规范名 单一事实来源（ast_type_name 由宏生成） */
+#define LV_AST_TYPE_X(x) \
+    x(LV_AST_PROGRAM, "PROGRAM") \
+    x(LV_AST_DECLARATION, "DECLARATION") \
+    x(LV_AST_LET, "LET") \
+    x(LV_AST_CONSTRAINT_STMT, "CONSTRAINT_STMT") \
+    x(LV_AST_ASSUME_STMT, "ASSUME_STMT") \
+    x(LV_AST_ASSERT_STMT, "ASSERT_STMT") \
+    x(LV_AST_PROVE_STMT, "PROVE_STMT") \
+    x(LV_AST_COMPUTE_STMT, "COMPUTE_STMT") \
+    x(LV_AST_NORMALIZE_STMT, "NORMALIZE_STMT") \
+    x(LV_AST_EXPORT_STMT, "EXPORT_STMT") \
+    x(LV_AST_AXIOM_STMT, "AXIOM_STMT") \
+    x(LV_AST_THEOREM_STMT, "THEOREM_STMT") \
+    x(LV_AST_IDENTIFIER_EXPR, "IDENTIFIER_EXPR") \
+    x(LV_AST_INTEGER_LITERAL, "INTEGER_LITERAL") \
+    x(LV_AST_RATIONAL_LITERAL, "RATIONAL_LITERAL") \
+    x(LV_AST_DECIMAL_LITERAL, "DECIMAL_LITERAL") \
+    x(LV_AST_STRING_LITERAL, "STRING_LITERAL") \
+    x(LV_AST_BOOL_LITERAL, "BOOL_LITERAL") \
+    x(LV_AST_LOGIC_AND, "LOGIC_AND") \
+    x(LV_AST_LOGIC_OR, "LOGIC_OR") \
+    x(LV_AST_LOGIC_NOT, "LOGIC_NOT") \
+    x(LV_AST_LOGIC_IMPLIES, "LOGIC_IMPLIES") \
+    x(LV_AST_LOGIC_IFF, "LOGIC_IFF") \
+    x(LV_AST_LOGIC_FORALL, "LOGIC_FORALL") \
+    x(LV_AST_LOGIC_EXISTS, "LOGIC_EXISTS") \
+    x(LV_AST_BINARY_OP, "BINARY_OP") \
+    x(LV_AST_UNARY_OP, "UNARY_OP") \
+    x(LV_AST_FUNCTION_CALL, "FUNCTION_CALL") \
+    x(LV_AST_RELATION, "RELATION") \
+    x(LV_AST_MEASURE, "MEASURE") \
+    x(LV_AST_GEOMETRY_EXPR, "GEOMETRY_EXPR") \
+    x(LV_AST_COMPARE, "COMPARE") \
+    x(LV_AST_STRUCT_LITERAL, "STRUCT_LITERAL") \
+    x(LV_AST_STRUCT_FIELD, "STRUCT_FIELD") \
+    x(LV_AST_NAMED_ARG, "NAMED_ARG") \
+    x(LV_AST_UNION, "UNION") \
+    x(LV_AST_PREDICATE_APP, "PREDICATE_APP") \
+    x(LV_AST_MODULE_DECL, "MODULE_DECL") \
+    x(LV_AST_IMPORT_DECL, "IMPORT_DECL") \
+    x(LV_AST_PROOF_BLOCK, "PROOF_BLOCK")
+
 static const char *ast_type_name(LvAstNodeType type) {
-    static const char *names[] = {"PROGRAM",         "DECLARATION",     "LET",
-                                  "CONSTRAINT_STMT", "ASSUME_STMT",     "ASSERT_STMT",
-                                  "PROVE_STMT",      "COMPUTE_STMT",    "NORMALIZE_STMT",
-                                  "EXPORT_STMT",     "AXIOM_STMT",      "THEOREM_STMT",
-                                  "IDENTIFIER_EXPR", "INTEGER_LITERAL", "RATIONAL_LITERAL",
-                                  "DECIMAL_LITERAL", "STRING_LITERAL",  "BOOL_LITERAL",
-                                  "LOGIC_AND",       "LOGIC_OR",        "LOGIC_NOT",
-                                  "LOGIC_IMPLIES",   "LOGIC_IFF",       "LOGIC_FORALL",
-                                  "LOGIC_EXISTS",    "BINARY_OP",       "UNARY_OP",
-                                  "FUNCTION_CALL",   "RELATION",        "MEASURE",
-                                  "GEOMETRY_EXPR",   "COMPARE",         "STRUCT_LITERAL",
-                                  "STRUCT_FIELD",    "NAMED_ARG",       "UNION",           "PREDICATE_APP",
-                                  "MODULE_DECL",     "IMPORT_DECL",     "PROOF_BLOCK"};
+    static const char *const names[LV_AST_COUNT] = {
+#define LV_AST_NAME_ENTRY(tag, str) [tag] = str,
+        LV_AST_TYPE_X(LV_AST_NAME_ENTRY)
+#undef LV_AST_NAME_ENTRY
+    };
     if (type >= 0 && type < LV_AST_COUNT)
         return names[type];
     return "UNKNOWN";

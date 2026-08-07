@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_utils.c
  * @brief 工具函数库测试
  *
@@ -25,6 +25,8 @@
 #include <string.h>
 
 #include "lv.h"
+#include "lv/lv_str_utils.h" /* lv_str_hex_encode / lv_str_ltrim / rtrim / trim */
+#include "lv/lv_strbuf.h"
 
 /* ============================================================
  * 内存管理测试
@@ -142,6 +144,84 @@ static void test_string_operations(void) {
 
     char trim_test2[] = "\t\n  world  \t\n";
     assert(strcmp(lv_str_trim(trim_test2), "world") == 0);
+
+    printf("  PASSED\n");
+}
+
+/* ============================================================
+ * 字符串构建设施收敛测试（lvStrBuf / lv_str_hex_encode / trim）
+ * ============================================================ */
+
+static void test_strbuf_converge(void) {
+    printf("Testing strbuf convergence...\n");
+
+    /* lvStrBuf append_raw / append_str / append_n 与 printf 等价性 */
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
+    lv_strbuf_printf(&sb, "a=%d,", 1);
+    lv_strbuf_append_raw(&sb, "raw", 3);
+    lv_strbuf_append_str(&sb, ",str");
+    lv_strbuf_append_n(&sb, '!', 2);
+    assert(strcmp(lv_strbuf_cstr(&sb), "a=1,raw,str!!") == 0);
+    lv_strbuf_destroy(&sb);
+
+    /* 大内容自动扩容（SSO 溢出后转堆分配），输出与手工 snprintf 拼接一致 */
+    lvStrBuf big;
+    lv_strbuf_init(&big);
+    for (int i = 0; i < 1000; i++) {
+        lv_strbuf_printf(&big, "%d ", i);
+    }
+    char expect[4096];
+    int pos = 0;
+    for (int i = 0; i < 1000; i++) {
+        pos += snprintf(expect + pos, sizeof(expect) - (size_t) pos, "%d ", i);
+    }
+    assert((int) big.len == pos);
+    assert(strncmp(lv_strbuf_cstr(&big), expect, (size_t) pos) == 0);
+    lv_strbuf_destroy(&big);
+
+    /* lv_strbuf_to_string 返回堆拷贝（lv_free 释放） */
+    lvStrBuf t = {0};
+    lv_strbuf_printf(&t, "to_string:%d", 7);
+    char *s = lv_strbuf_to_string(&t);
+    assert(s != NULL);
+    assert(strcmp(s, "to_string:7") == 0);
+    lv_free((void **) &s);
+
+    /* hex 编码：小写、每字节 2 字符、无空格 */
+    unsigned char bytes[] = {0x00, 0x01, 0x0f, 0x10, 0xab, 0xff};
+    char hex[13];
+    lv_str_hex_encode(bytes, 6, hex);
+    assert(strcmp(hex, "00010f10abff") == 0);
+
+    /* hex 与手工逐字节 %02x 循环逐字节一致（64 字节随机样式数据） */
+    unsigned char big_bytes[64];
+    char hex_a[129], hex_b[129];
+    for (int i = 0; i < 64; i++)
+        big_bytes[i] = (unsigned char) (i * 7 + 3);
+    lv_str_hex_encode(big_bytes, 64, hex_a);
+    for (int i = 0; i < 64; i++)
+        snprintf(hex_b + i * 2, 3, "%02x", big_bytes[i]);
+    hex_b[128] = '\0';
+    assert(strcmp(hex_a, hex_b) == 0);
+    assert(strlen(hex_a) == 128);
+
+    /* trim 语义：ltrim 只去左端，rtrim 只去右端 */
+    char t1[] = "   hello  ";
+    assert(strcmp(lv_str_ltrim(t1), "hello  ") == 0);
+    char t2[] = "  world \t\n";
+    assert(strcmp(lv_str_rtrim(t2), "  world") == 0);
+    char t3[] = "\t\n  trim  \r\n";
+    assert(strcmp(lv_str_trim(t3), "trim") == 0);
+
+    /* 全空白输入 */
+    char t4[] = "   ";
+    assert(lv_str_trim(t4)[0] == '\0');
+    assert(lv_str_ltrim(t4)[0] == '\0');
+
+    /* NULL 安全 */
+    assert(lv_str_ltrim(NULL) == NULL);
+    assert(lv_str_trim(NULL) == NULL);
 
     printf("  PASSED\n");
 }
@@ -391,6 +471,7 @@ int main(void) {
     test_memory_management();
     test_memory_limit();
     test_string_operations();
+    test_strbuf_converge();
     test_int_array();
     test_config_management();
     test_version_management();

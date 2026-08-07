@@ -13,6 +13,7 @@
  */
 
 #include "context.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_xmacro.h"
 
 #include <stdarg.h>
@@ -100,78 +101,78 @@ lvContext *lv_context_create(void) {
     return ctx;
 }
 
+/* ── lv_context_destroy 子资源销毁适配 ── */
+
+static void destroy_ctx_main_graph(void *obj) {
+    graph_destroy((ConstraintGraph *) obj);
+}
+
+static void destroy_ctx_stream_ctx(void *obj) {
+    stream_context_destroy((StreamContext *) obj);
+}
+
+static void destroy_ctx_normalization(void *obj) {
+    normalization_result_destroy((NormalizationResult *) obj);
+}
+
+/* 推理栈帧数组（含每帧的子资源）就地清空 */
+static void destroy_ctx_reasoning_stack(void *obj, void *field_ptr) {
+    lvContext *ctx = (lvContext *) obj;
+    (void) field_ptr;
+    lv_reasoning_stack_clear(&ctx->reasoning_stack);
+}
+
+/* 父快照引用计数递减：-1 后若归零则递归销毁（与 lv_context_reset 共用） */
+static void ctx_release_parent_snapshot(lvContext *ctx) {
+    if (!ctx->parent_snapshot)
+        return;
+    ctx->parent_snapshot->snapshot_refcount--;
+    if (ctx->parent_snapshot->snapshot_refcount <= 0) {
+        lv_context_destroy(ctx->parent_snapshot);
+    }
+    ctx->parent_snapshot = NULL;
+}
+
+static void destroy_ctx_parent_snapshot(void *obj, void *field_ptr) {
+    (void) field_ptr;
+    ctx_release_parent_snapshot((lvContext *) obj);
+}
+
+/* lv_context_destroy 字段描述表：释放顺序与原实现一致
+ * （推理栈 → 主图 → 流式上下文 → 规范化结果 → 内存池 → 引用数组 →
+ *   父快照（引用计数） → 名称 → 熔断器错误原因 → 外壳），全部置 NULL 安全 */
+static const lvFieldDesc s_context_destroy_fields[] = {
+    lv_FIELD_CUSTOM(lvContext, reasoning_stack, destroy_ctx_reasoning_stack),
+    lv_FIELD_OBJECT(lvContext, main_graph, destroy_ctx_main_graph),
+    lv_FIELD_OBJECT(lvContext, stream_ctx, destroy_ctx_stream_ctx),
+    lv_FIELD_OBJECT(lvContext, last_normalization, destroy_ctx_normalization),
+    lv_FIELD_PLAIN(lvContext, memory_pool),
+    lv_FIELD_PLAIN(lvContext, module_refs),
+    lv_FIELD_PLAIN(lvContext, axiom_pkg_refs),
+    lv_FIELD_PLAIN(lvContext, rewrite_rule_refs),
+    lv_FIELD_CUSTOM(lvContext, parent_snapshot, destroy_ctx_parent_snapshot),
+    lv_FIELD_PLAIN(lvContext, name),
+    /* circuit_breaker.trip_reason 为嵌套字段，手动给出复合偏移 */
+    {"circuit_breaker.trip_reason", LV_FIELD_PLAIN_FREE,
+     offsetof(lvContext, circuit_breaker) + offsetof(lvCircuitBreaker, trip_reason), 0, {NULL}},
+};
+
 /**
  * @brief 销毁上下文，释放所有关联资源
  *
  * 按顺序释放上下文持有的资源，最后释放结构体本身。
- * 释放顺序：推理栈帧 → 约束图 → 流式上下文 → 规范化结果 → 名称 → 熔断器
+ * 释放顺序：推理栈帧 → 约束图 → 流式上下文 → 规范化结果 → 内存池 →
+ * 引用数组 → 父快照（引用计数） → 名称 → 熔断器
  */
 void lv_context_destroy(lvContext *ctx) {
     if (!ctx) {
         return;
     }
 
-    /* 1. 释放推理栈帧数组（含每帧的子资源） */
-    lv_reasoning_stack_clear(&ctx->reasoning_stack);
+    /* 注意：ctx->ast_root 为不透明指针，由 DSL 编译器管理，不在此释放 */
 
-    /* 2. 释放主约束图 */
-    if (ctx->main_graph) {
-        graph_destroy((ConstraintGraph *) ctx->main_graph);
-        ctx->main_graph = NULL;
-    }
-
-    /* 4. 释放 AST 根节点（不透明指针，由 DSL 编译器管理） */
-    /* ctx->ast_root 由外部管理，不释放 */
-
-    /* 5. 释放流式输出上下文 */
-    if (ctx->stream_ctx) {
-        stream_context_destroy(ctx->stream_ctx);
-        ctx->stream_ctx = NULL;
-    }
-
-    /* 6. 释放规范化结果 */
-    if (ctx->last_normalization) {
-        normalization_result_destroy(ctx->last_normalization);
-        ctx->last_normalization = NULL;
-    }
-
-    /* 7. 释放内存池（不透明指针） */
-    if (ctx->memory_pool) {
-        lv_free((void **) &ctx->memory_pool);
-    }
-
-    /* 8. 释放模块/公理/规则引用数组（不拥有所指对象，仅释放数组本身） */
-    if (ctx->module_refs) {
-        lv_free((void **) &ctx->module_refs);
-    }
-    if (ctx->axiom_pkg_refs) {
-        lv_free((void **) &ctx->axiom_pkg_refs);
-    }
-    if (ctx->rewrite_rule_refs) {
-        lv_free((void **) &ctx->rewrite_rule_refs);
-    }
-
-    /* 9. 释放父快照链（递归销毁） */
-    if (ctx->parent_snapshot) {
-        /* 递减父快照的引用计数 */
-        ctx->parent_snapshot->snapshot_refcount--;
-        if (ctx->parent_snapshot->snapshot_refcount <= 0) {
-            lv_context_destroy(ctx->parent_snapshot);
-        }
-        ctx->parent_snapshot = NULL;
-    }
-
-    /* 10. 释放名称字符串 */
-    if (ctx->name) {
-        lv_free((void **) &ctx->name);
-    }
-
-    /* 11. 释放熔断器错误原因字符串 */
-    if (ctx->circuit_breaker.trip_reason) {
-        lv_free((void **) &ctx->circuit_breaker.trip_reason);
-    }
-
-    /* 12. 释放上下文结构体本身 */
+    lv_obj_destroy_fields(ctx, s_context_destroy_fields,
+                          sizeof(s_context_destroy_fields) / sizeof(s_context_destroy_fields[0]));
     lv_free((void **) &ctx);
 }
 
@@ -803,14 +804,8 @@ void lv_context_reset(lvContext *ctx) {
         ctx->last_normalization = NULL;
     }
 
-    /* 5. 释放父快照链 */
-    if (ctx->parent_snapshot) {
-        ctx->parent_snapshot->snapshot_refcount--;
-        if (ctx->parent_snapshot->snapshot_refcount <= 0) {
-            lv_context_destroy(ctx->parent_snapshot);
-        }
-        ctx->parent_snapshot = NULL;
-    }
+    /* 5. 释放父快照链（引用计数递减，归零时递归销毁，与 destroy 共用同一基元） */
+    ctx_release_parent_snapshot(ctx);
     ctx->snapshot_refcount = 0;
     ctx->snapshot_depth = 0;
 

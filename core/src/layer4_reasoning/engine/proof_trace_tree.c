@@ -40,6 +40,24 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_dot_writer.h"
 
+/* ================================================================
+ * lvTraceNodeType 呈现属性（单一事实来源，定义于 proof_export.c）
+ *
+ * kTraceNodeProps[] 由 proof_export.c 的 LV_TRACE_NODE_TYPE_ENTRY 条目宏生成，
+ * 本文件经 extern 声明直接按下标索引取 信任色/DOT 填充色/DOT 形状，
+ * 禁止再手写任何按 lvTraceNodeType 下标的平行表。
+ * 注意：TraceNodeProps 结构体字段布局必须与 proof_export.c 完全一致。
+ * ================================================================ */
+typedef struct TraceNodeProps {
+    const char *name_zh;     /* 中文名 */
+    const char *name_en;     /* 英文名 */
+    const char *latex_label; /* LaTeX 标签 */
+    int         trust_color; /* 初始信任色（TRACE_NODE_COLOR_* 哨兵除外） */
+    const char *dot_fill;    /* DOT 填充色 */
+    const char *dot_shape;   /* DOT 形状 */
+} TraceNodeProps;
+extern const TraceNodeProps kTraceNodeProps[];
+
 /* ============== 溯源树常量 ============== */
 
 #define TRACE_TREE_INITIAL_CAPACITY 64
@@ -208,21 +226,12 @@ void lv_trace_node_set_status(lvProofTraceNode *node, lvTraceNodeStatus status) 
     }
 }
 
-/* 溯源节点类型 → 初始信任颜色 映射表（数据表化，替代 lv_trace_node_compute_color 中的 switch）。
- * TRACE_NODE_DERIVATION / TRACE_NODE_GOAL 需递归取子节点最小颜色，用哨兵值标记。 */
+/* 溯源节点类型 → 初始信任颜色 由共享条目表 kTraceNodeProps（proof_export.c
+ * 的 LV_TRACE_NODE_TYPE_ENTRY 生成）提供，替代原手写 s_trace_node_initial_colors。
+ * TRACE_NODE_DERIVATION / TRACE_NODE_GOAL 的 trust_color 为哨兵值，需递归
+ * 取子节点最小颜色。 */
 #define TRACE_NODE_COLOR_AUTO (-1)    /* 需递归计算（推导/目标节点） */
 #define TRACE_NODE_COLOR_UNKNOWN (-2) /* 未知类型：保持节点原有颜色 */
-
-static const int s_trace_node_initial_colors[] = {
-    [TRACE_NODE_AXIOM]         = TRUST_GREEN,
-    [TRACE_NODE_DEFINITION]    = TRUST_GREEN,
-    [TRACE_NODE_THEOREM]       = TRUST_GREEN,
-    [TRACE_NODE_LEMMA]         = TRUST_GREEN,
-    [TRACE_NODE_HYPOTHESIS]    = TRUST_BLUE_UNEXPLORED,
-    [TRACE_NODE_DERIVATION]    = TRACE_NODE_COLOR_AUTO,
-    [TRACE_NODE_CONTRADICTION] = TRUST_GREEN, /* 矛盾节点在反证法中视为有效推导 */
-    [TRACE_NODE_GOAL]          = TRACE_NODE_COLOR_AUTO,
-};
 
 /**
  * @brief 计算溯源节点的信任颜色
@@ -245,10 +254,10 @@ TrustColor lv_trace_node_compute_color(lvProofTraceNode *node) {
     if (!node)
         return TRUST_GREEN;
 
-    /* 通过查找表获取初始颜色，越界类型保持节点原有颜色 */
+    /* 通过共享条目表 kTraceNodeProps 获取初始颜色，越界类型保持节点原有颜色 */
     int initial = TRACE_NODE_COLOR_UNKNOWN;
-    if ((unsigned) node->type < lv_ARRAY_SIZE(s_trace_node_initial_colors))
-        initial = s_trace_node_initial_colors[node->type];
+    if ((unsigned) node->type <= (unsigned) TRACE_NODE_GOAL)
+        initial = kTraceNodeProps[node->type].trust_color;
 
     if (initial == TRACE_NODE_COLOR_AUTO) {
         /* 推导/目标节点：取子节点中最低信任颜色 */
@@ -556,35 +565,15 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
                  "fontname=\"Helvetica\", fontsize=10",
                  "fontname=\"Helvetica\", fontsize=8");
 
-    /* 节点颜色映射 */
-    static const char *node_colors[] = {
-        "lightgreen", /* TRACE_NODE_AXIOM */
-        "palegreen",  /* TRACE_NODE_DEFINITION */
-        "green",      /* TRACE_NODE_THEOREM */
-        "limegreen",  /* TRACE_NODE_LEMMA */
-        "lightblue",  /* TRACE_NODE_HYPOTHESIS */
-        "lightgray",  /* TRACE_NODE_DERIVATION */
-        "salmon",     /* TRACE_NODE_CONTRADICTION */
-        "gold"        /* TRACE_NODE_GOAL */
-    };
-
-    static const char *node_shapes[] = {
-        "ellipse",     /* TRACE_NODE_AXIOM */
-        "box",         /* TRACE_NODE_DEFINITION */
-        "box",         /* TRACE_NODE_THEOREM */
-        "box",         /* TRACE_NODE_LEMMA */
-        "diamond",     /* TRACE_NODE_HYPOTHESIS */
-        "rounded",     /* TRACE_NODE_DERIVATION */
-        "octagon",     /* TRACE_NODE_CONTRADICTION */
-        "doublecircle" /* TRACE_NODE_GOAL */
-    };
+    /* 节点填充色/形状由共享条目表 kTraceNodeProps 提供
+     * （原手写 node_colors/node_shapes 已删除） */
 
     /* 输出所有节点（label 经 lv_dot_node 内部 JSON/DOT 转义，行为与原实现一致） */
     for (int i = 0; i < tree->all_nodes.count; i++) {
         lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&tree->all_nodes, i);
         lvProofTraceNode *node = *node_p;
-        int type_idx = (int) node->type;
-        if (type_idx > 7)
+        unsigned type_idx = (unsigned) node->type;
+        if (type_idx > (unsigned) TRACE_NODE_GOAL)
             type_idx = 0;
 
         const char *label = node->label[0] ? node->label : "";
@@ -600,7 +589,7 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
         char idbuf[32], extra[128];
         snprintf(idbuf, sizeof(idbuf), "n%d", node->id);
         snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=%s",
-                 node_shapes[type_idx], node_colors[type_idx]);
+                 kTraceNodeProps[type_idx].dot_shape, kTraceNodeProps[type_idx].dot_fill);
         lv_dot_node(&sb, idbuf, lv_strbuf_cstr(&lbl), extra);
         lv_strbuf_destroy(&lbl);
     }

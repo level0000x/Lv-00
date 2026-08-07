@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "lv/sha256.h"
+#include "lv/lv_str_utils.h" /* lv_str_hex_encode */
 
 #include "debug.h"
 #include "error_codes.h"
@@ -190,12 +191,10 @@ char *axiom_package_compute_content_hash(AxiomPackage *pkg) {
     uint8_t hash[AXIOM_SHA256_OUTPUT_SIZE];
     lv_sha256_final(&ctx, hash);
 
-    /* 转换为十六进制字符串（64个字符 + 空终止符） */
+    /* 转换为十六进制字符串（64个字符 + 空终止符，统一 lv_str_hex_encode） */
     char *result = lv_malloc(AXIOM_SHA256_HEX_SIZE);
     if (result) {
-        for (int i = 0; i < AXIOM_SHA256_OUTPUT_SIZE; i++) {
-            snprintf(result + i * 2, 3, "%02x", hash[i]);
-        }
+        lv_str_hex_encode(hash, AXIOM_SHA256_OUTPUT_SIZE, result);
         result[AXIOM_SHA256_HEX_SIZE - 1] = '\0';
     }
 

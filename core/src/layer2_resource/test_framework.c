@@ -834,72 +834,54 @@ char *lv_test_report_to_xml(const lvTestReport *report) {
         return NULL;
     }
 
-    char *xml = (char *) lv_malloc(16384);
-    if (!xml) {
-        return NULL;
-    }
+    /* lvStrBuf 动态构建（自动扩容），消除原 16KB 固定缓冲的报告截断 */
+    lvStrBuf xml;
+    lv_strbuf_init(&xml);
 
-    int pos = snprintf(xml, 16384,
-                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                       "<testsuites tests=\"%u\" failures=\"%u\" skipped=\"%u\" time=\"%.3f\">\n",
-                       report->total_tests, report->failed_count, report->skipped_count,
-                       (double) report->total_time_ns / 1e9);
-    if (pos < 0) {
-        xml[0] = '\0';
-        return xml;
-    }
+    lv_strbuf_printf(&xml,
+                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                     "<testsuites tests=\"%u\" failures=\"%u\" skipped=\"%u\" time=\"%.3f\">\n",
+                     report->total_tests, report->failed_count, report->skipped_count,
+                     (double) report->total_time_ns / 1e9);
 
-    for (uint32_t i = 0; i < report->suite_count && pos < 16384; i++) {
+    for (uint32_t i = 0; i < report->suite_count; i++) {
         const lvTestSuite *suite = &report->suites[i];
         /* suite->name 经 XML 实体转义后写入属性（防止 XML 注入） */
         lvStrBuf esc_name = {0};
         lv_str_escape_xml(&esc_name, suite->name, suite->name ? strlen(suite->name) : 0);
-        pos +=
-            snprintf(xml + pos, 16384 - pos, "  <testsuite name=\"%s\" tests=\"%u\" failures=\"%u\" skipped=\"%u\">\n",
-                     lv_strbuf_cstr(&esc_name), suite->case_count, suite->failed_count, suite->skipped_count);
+        lv_strbuf_printf(&xml, "  <testsuite name=\"%s\" tests=\"%u\" failures=\"%u\" skipped=\"%u\">\n",
+                         lv_strbuf_cstr(&esc_name), suite->case_count, suite->failed_count, suite->skipped_count);
         lv_strbuf_destroy(&esc_name);
-        if (pos < 0)
-            break;
 
-        for (uint32_t j = 0; j < suite->case_count && pos < 16384; j++) {
+        for (uint32_t j = 0; j < suite->case_count; j++) {
             const lvTestCase *test = &suite->cases[j];
             /* test->name 经 XML 实体转义后写入属性 */
             lvStrBuf esc_tname = {0};
             lv_str_escape_xml(&esc_tname, test->name, test->name ? strlen(test->name) : 0);
-            pos += snprintf(xml + pos, 16384 - pos, "    <testcase name=\"%s\" time=\"%.6f\"",
-                            lv_strbuf_cstr(&esc_tname), (double) test->elapsed_ns / 1e9);
+            lv_strbuf_printf(&xml, "    <testcase name=\"%s\" time=\"%.6f\"",
+                             lv_strbuf_cstr(&esc_tname), (double) test->elapsed_ns / 1e9);
             lv_strbuf_destroy(&esc_tname);
-            if (pos < 0)
-                break;
 
-            if (test->status == TEST_STATUS_FAILED && pos < 16384) {
+            if (test->status == TEST_STATUS_FAILED) {
                 /* test->message 经 XML 实体转义后写入 <failure message> */
                 lvStrBuf esc_msg = {0};
                 lv_str_escape_xml(&esc_msg, test->message, test->message ? strlen(test->message) : 0);
-                pos += snprintf(xml + pos, 16384 - pos, ">\n      <failure message=\"%s\"/>\n    </testcase>\n",
-                                lv_strbuf_cstr(&esc_msg));
+                lv_strbuf_printf(&xml, ">\n      <failure message=\"%s\"/>\n    </testcase>\n",
+                                 lv_strbuf_cstr(&esc_msg));
                 lv_strbuf_destroy(&esc_msg);
-                if (pos < 0)
-                    break;
-            } else if (test->status == TEST_STATUS_SKIPPED && pos < 16384) {
-                pos += snprintf(xml + pos, 16384 - pos, ">\n      <skipped/>\n    </testcase>\n");
-                if (pos < 0)
-                    break;
-            } else if (pos < 16384) {
-                pos += snprintf(xml + pos, 16384 - pos, "/>\n");
-                if (pos < 0)
-                    break;
+            } else if (test->status == TEST_STATUS_SKIPPED) {
+                lv_strbuf_printf(&xml, ">\n      <skipped/>\n    </testcase>\n");
+            } else {
+                lv_strbuf_printf(&xml, "/>\n");
             }
         }
 
-        if (pos >= 0 && pos < 16384)
-            pos += snprintf(xml + pos, 16384 - pos, "  </testsuite>\n");
+        lv_strbuf_printf(&xml, "  </testsuite>\n");
     }
 
-    if (pos >= 0 && pos < 16384)
-        snprintf(xml + pos, 16384 - pos, "</testsuites>\n");
+    lv_strbuf_printf(&xml, "</testsuites>\n");
 
-    return xml;
+    return lv_strbuf_to_string(&xml);
 }
 
 char *lv_test_report_to_html(const lvTestReport *report) {
@@ -907,32 +889,27 @@ char *lv_test_report_to_html(const lvTestReport *report) {
         return NULL;
     }
 
-    char *html = (char *) lv_malloc(32768);
-    if (!html) {
-        return NULL;
-    }
+    /* lvStrBuf 动态构建（自动扩容），消除原 32KB 固定缓冲的报告截断 */
+    lvStrBuf html;
+    lv_strbuf_init(&html);
 
-    int pos = snprintf(html, 32768,
-                       "<!DOCTYPE html>\n"
-                       "<html><head><title>Test Results</title>\n"
-                       "<style>body{font-family:Arial,sans-serif;margin:20px;}"
-                       ".passed{color:green;}.failed{color:red;}.skipped{color:orange;}"
-                       "table{border-collapse:collapse;width:100%%;}"
-                       "th,td{border:1px solid #ddd;padding:8px;text-align:left;}"
-                       "th{background-color:#4CAF50;color:white;}</style></head>\n"
-                       "<body><h1>Test Results</h1>\n"
-                       "<p>Total: %u | Passed: <span class=\"passed\">%u</span> | "
-                       "Failed: <span class=\"failed\">%u</span> | Skipped: <span class=\"skipped\">%u</span></p>\n"
-                       "<table><tr><th>Suite</th><th>Test</th><th>Status</th><th>Time (ms)</th></tr>\n",
-                       report->total_tests, report->passed_count, report->failed_count, report->skipped_count);
-    if (pos < 0) {
-        html[0] = '\0';
-        return html;
-    }
+    lv_strbuf_printf(&html,
+                     "<!DOCTYPE html>\n"
+                     "<html><head><title>Test Results</title>\n"
+                     "<style>body{font-family:Arial,sans-serif;margin:20px;}"
+                     ".passed{color:green;}.failed{color:red;}.skipped{color:orange;}"
+                     "table{border-collapse:collapse;width:100%%;}"
+                     "th,td{border:1px solid #ddd;padding:8px;text-align:left;}"
+                     "th{background-color:#4CAF50;color:white;}</style></head>\n"
+                     "<body><h1>Test Results</h1>\n"
+                     "<p>Total: %u | Passed: <span class=\"passed\">%u</span> | "
+                     "Failed: <span class=\"failed\">%u</span> | Skipped: <span class=\"skipped\">%u</span></p>\n"
+                     "<table><tr><th>Suite</th><th>Test</th><th>Status</th><th>Time (ms)</th></tr>\n",
+                     report->total_tests, report->passed_count, report->failed_count, report->skipped_count);
 
-    for (uint32_t i = 0; i < report->suite_count && pos < 32768; i++) {
+    for (uint32_t i = 0; i < report->suite_count; i++) {
         const lvTestSuite *suite = &report->suites[i];
-        for (uint32_t j = 0; j < suite->case_count && pos < 32768; j++) {
+        for (uint32_t j = 0; j < suite->case_count; j++) {
             const lvTestCase *test = &suite->cases[j];
             const char *status_class = test->status == TEST_STATUS_PASSED   ? "passed"
                                        : test->status == TEST_STATUS_FAILED ? "failed"
@@ -953,22 +930,19 @@ char *lv_test_report_to_html(const lvTestReport *report) {
             if (esc_test)
                 lv_str_html_escape(test->name, esc_tlen, esc_test, need_t + 1);
 
-            pos += snprintf(html + pos, 32768 - pos,
-                            "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n",
-                            esc_suite ? esc_suite : (suite->name ? suite->name : ""),
-                            esc_test ? esc_test : (test->name ? test->name : ""), status_class, status_text,
-                            (double) test->elapsed_ns / 1e6);
+            lv_strbuf_printf(&html,
+                             "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n",
+                             esc_suite ? esc_suite : (suite->name ? suite->name : ""),
+                             esc_test ? esc_test : (test->name ? test->name : ""), status_class, status_text,
+                             (double) test->elapsed_ns / 1e6);
             lv_free((void **) &esc_suite);
             lv_free((void **) &esc_test);
-            if (pos < 0)
-                break;
         }
     }
 
-    if (pos >= 0 && pos < 32768)
-        snprintf(html + pos, 32768 - pos, "</table></body></html>\n");
+    lv_strbuf_printf(&html, "</table></body></html>\n");
 
-    return html;
+    return lv_strbuf_to_string(&html);
 }
 
 bool lv_test_report_write_file(const lvTestReport *report, const char *path, const char *format) {

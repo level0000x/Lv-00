@@ -120,9 +120,8 @@ static void expr_free_tree(ExprNode *n) {
 /* ── Recursive descent expression parser ── */
 
 static const char *skip_sp(const char *s) {
-    while (s && *s && isspace((unsigned char) *s))
-        s++;
-    return s;
+    /* lv_str_ltrim 不修改原串（仅返回首指针），const 转换安全 */
+    return lv_str_ltrim((char *) s);
 }
 
 static ExprNode *parse_primary(const char **p) {
@@ -665,8 +664,7 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
         char *token = lv_strtok_r(buf, ";", &saveptr);
         while (token) {
             /* 跳过空白 */
-            while (*token && isspace((unsigned char) *token))
-                token++;
+            token = lv_str_ltrim(token);
             if (*token) {
                 char varname[256] = {0};
                 double lo = 0.0, hi = 0.0;
@@ -698,8 +696,7 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
         char *saveptr = NULL;
         char *token = lv_strtok_r(buf, ";", &saveptr);
         while (token) {
-            while (*token && isspace((unsigned char) *token))
-                token++;
+            token = lv_str_ltrim(token);
             if (*token) {
                 /* 尝试解析 "|...| <= bound" */
                 char *abs_start = strchr(token, '|');

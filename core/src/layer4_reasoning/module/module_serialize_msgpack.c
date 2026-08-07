@@ -17,6 +17,7 @@
 
 #include "lv/lv_file.h"
 
+#include "lv/lv_bytes.h"
 #include "lv/module.h"
 #include "lv/module_internal.h"
 #include "lv/sha256.h"
@@ -54,12 +55,10 @@ typedef enum {
     MSGPACK_FIXINT = 0x00 /* fixint: 0xxxxxxx, 0~127 */
 } MsgPackType;
 
-/* 编码器 */
+/* 编码器：构建在公共字节流设施 lvByteWriter 之上（消除手写 {buf,cap,pos} 游标） */
 typedef struct {
-    uint8_t *buffer;
-    size_t capacity;
-    size_t pos;
-    bool error; /* 编码错误标志：ensure 失败时设置 */
+    lvByteWriter w; /* 动态字节流（内部 buf/capacity/pos） */
+    bool error;     /* 编码错误标志：写失败时设置 */
 } MsgPackEncoder;
 
 /* 解码器 */
@@ -72,67 +71,42 @@ typedef struct {
 /* ---------- 编码器辅助函数 ---------- */
 
 static bool mp_encoder_init(MsgPackEncoder *enc, size_t initial_capacity) {
-    enc->buffer = (uint8_t *) lv_calloc(initial_capacity, 1);
-    if (!enc->buffer)
+    if (!lv_byte_writer_init(&enc->w, initial_capacity))
         return false;
-    enc->capacity = initial_capacity;
-    enc->pos = 0;
     enc->error = false;
     return true;
 }
 
 static bool mp_encoder_ensure(MsgPackEncoder *enc, size_t extra) {
-    if (enc->pos + extra <= enc->capacity)
-        return true;
-    /* enc->capacity/pos 为 size_t，经局部 int 桥接后统一委托 lv_ensure_capacity（内部含溢出检查与倍增） */
-    int cap = (int) enc->capacity;
-    if (!lv_ensure_capacity((void **) &enc->buffer, (int) (enc->pos + extra), &cap, 1, 0))
-        return false;
-    enc->capacity = (size_t) cap;
-    return true;
+    return lv_byte_writer_ensure(&enc->w, extra);
 }
 
 static void mp_encoder_write_byte(MsgPackEncoder *enc, uint8_t b) {
     if (enc->error)
         return;
-    if (!mp_encoder_ensure(enc, 1)) {
+    if (!lv_byte_writer_write_u8(&enc->w, b))
         enc->error = true;
-        return;
-    }
-    enc->buffer[enc->pos++] = b;
 }
 
 static void mp_encoder_write_u16(MsgPackEncoder *enc, uint16_t v) {
     if (enc->error)
         return;
-    if (!mp_encoder_ensure(enc, 2)) {
+    if (!lv_byte_writer_write_u16_be(&enc->w, v))
         enc->error = true;
-        return;
-    }
-    lv_store_be16(&enc->buffer[enc->pos], v);
-    enc->pos += 2;
 }
 
 static void mp_encoder_write_u32(MsgPackEncoder *enc, uint32_t v) {
     if (enc->error)
         return;
-    if (!mp_encoder_ensure(enc, 4)) {
+    if (!lv_byte_writer_write_u32_be(&enc->w, v))
         enc->error = true;
-        return;
-    }
-    lv_store_be32(&enc->buffer[enc->pos], v);
-    enc->pos += 4;
 }
 
 static void mp_encoder_write_u64(MsgPackEncoder *enc, uint64_t v) {
     if (enc->error)
         return;
-    if (!mp_encoder_ensure(enc, 8)) {
+    if (!lv_byte_writer_write_u64_be(&enc->w, v))
         enc->error = true;
-        return;
-    }
-    lv_store_be64(&enc->buffer[enc->pos], v);
-    enc->pos += 8;
 }
 
 static void mp_encoder_write_i16(MsgPackEncoder *enc, int16_t v) {
@@ -211,11 +185,8 @@ static void mp_encoder_write_str(MsgPackEncoder *enc, const char *str) {
         mp_encoder_write_byte(enc, MSGPACK_STR32);
         mp_encoder_write_u32(enc, (uint32_t) len);
     }
-    mp_encoder_ensure(enc, len);
-    if (enc->error)
-        return;
-    memcpy(enc->buffer + enc->pos, str, len);
-    enc->pos += len;
+    if (!lv_byte_writer_write_bytes(&enc->w, str, len))
+        enc->error = true;
 }
 
 /* 编码二进制数据 */
@@ -232,11 +203,8 @@ static void mp_encoder_write_bin(MsgPackEncoder *enc, const uint8_t *data, size_
         mp_encoder_write_byte(enc, MSGPACK_BIN32);
         mp_encoder_write_u32(enc, (uint32_t) len);
     }
-    mp_encoder_ensure(enc, len);
-    if (enc->error)
-        return;
-    memcpy(enc->buffer + enc->pos, data, len);
-    enc->pos += len;
+    if (!lv_byte_writer_write_bytes(&enc->w, data, len))
+        enc->error = true;
 }
 
 /* 编码数组头 */
@@ -260,10 +228,7 @@ static void mp_encoder_write_map_header(MsgPackEncoder *enc, uint16_t count) {
 }
 
 static void mp_encoder_destroy(MsgPackEncoder *enc) {
-    lv_free((void **) &enc->buffer);
-    enc->buffer = NULL;
-    enc->capacity = 0;
-    enc->pos = 0;
+    lv_byte_writer_destroy(&enc->w);
     enc->error = false;
 }
 
@@ -289,24 +254,27 @@ static uint8_t mp_decoder_read_byte(MsgPackDecoder *dec) {
 }
 
 static uint16_t mp_decoder_read_u16(MsgPackDecoder *dec) {
-    uint16_t hi = mp_decoder_read_byte(dec);
-    uint16_t lo = mp_decoder_read_byte(dec);
-    return (uint16_t) ((hi << 8) | lo);
+    /* 大端序，与写端一致（复用公共 lv_load_be16，替换手写位移拼装） */
+    if (dec->size - dec->pos < 2)
+        return 0;
+    uint16_t v = lv_load_be16(dec->data + dec->pos);
+    dec->pos += 2;
+    return v;
 }
 
 static uint32_t mp_decoder_read_u32(MsgPackDecoder *dec) {
-    uint32_t b0 = mp_decoder_read_byte(dec);
-    uint32_t b1 = mp_decoder_read_byte(dec);
-    uint32_t b2 = mp_decoder_read_byte(dec);
-    uint32_t b3 = mp_decoder_read_byte(dec);
-    return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+    if (dec->size - dec->pos < 4)
+        return 0;
+    uint32_t v = lv_load_be32(dec->data + dec->pos);
+    dec->pos += 4;
+    return v;
 }
 
 static uint64_t mp_decoder_read_u64(MsgPackDecoder *dec) {
-    uint64_t v = 0;
-    for (int i = 0; i < 8; i++) {
-        v = (v << 8) | mp_decoder_read_byte(dec);
-    }
+    if (dec->size - dec->pos < 8)
+        return 0;
+    uint64_t v = lv_load_be64(dec->data + dec->pos);
+    dec->pos += 8;
     return v;
 }
 
@@ -826,12 +794,12 @@ ModuleSaveStatus module_save_to_binary(const Module *mod, uint8_t **out_data, si
         }
     }
 
-    *out_data = enc.buffer;
-    *out_size = enc.pos;
+    *out_data = enc.w.buf;
+    *out_size = enc.w.pos;
     /* 注意：不调用 mp_encoder_destroy，因为 buffer 已转移给调用者 */
     if (enc.error) {
         lv_set_error(lv_ERROR_OUT_OF_MEMORY, "module_save_to_binary: 编码过程中内存不足");
-        lv_free((void **) &enc.buffer);
+        lv_free((void **) &enc.w.buf);
         *out_data = NULL;
         *out_size = 0;
         return MODULE_SAVE_WRITE_ERROR;

@@ -7,6 +7,7 @@
  */
 
 #include "lv/sha256.h"
+#include "lv/lv_str_utils.h" /* lv_str_hex_encode */
 
 #include <stdio.h>
 #include <string.h>
@@ -172,16 +173,13 @@ void lv_sha256_final(lvSha256Context *ctx, uint8_t hash[32]) {
 void lv_sha256_hex(const uint8_t *data, size_t len, char hex[65]) {
     lvSha256Context ctx;
     uint8_t hash[32];
-    int i;
 
     lv_sha256_init(&ctx);
     lv_sha256_update(&ctx, data, len);
     lv_sha256_final(&ctx, hash);
 
-    for (i = 0; i < 32; i++) {
-        /* 使用 snprintf 确保缓冲区安全 */
-        snprintf(hex + i * 2, 65 - (size_t) (i * 2), "%02x", hash[i]);
-    }
+    /* 统一 hex 编码（小写、每字节 2 字符、无空格，与逐字节 "%02x" 语义逐字节一致） */
+    lv_str_hex_encode(hash, 32, hex);
     hex[64] = '\0';
 }
 

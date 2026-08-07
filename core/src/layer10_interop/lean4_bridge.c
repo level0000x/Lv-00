@@ -191,8 +191,7 @@ static int lean4_lookup_tactic(const char *name, int name_len) {
 
 /* 辅助：提取标识符（字母/数字/下划线/点/单引号） */
 static const char *lean4_extract_ident(const char *p, const char **ident_start, const char **ident_end) {
-    while (p && isspace((unsigned char) *p))
-        p++;
+    p = lv_str_ltrim((char *) p); /* lv_str_ltrim 不修改原串 */
     *ident_start = p;
     while (*p && (isalnum((unsigned char) *p) || *p == '_' || *p == '.' || *p == '\'' || *p == '!'))
         p++;
@@ -435,8 +434,7 @@ static int lean4_import_proof(const char *input, void **proof) {
 
     /* 提取定理名（theorem 后的第一个标识符） */
     const char *name_start = theorem_kw + 7; /* 跳过 "theorem" */
-    while (*name_start && isspace((unsigned char) *name_start))
-        name_start++;
+    name_start = lv_str_ltrim((char *) name_start); /* lv_str_ltrim 不修改原串 */
     const char *name_end = name_start;
     while (*name_end && !isspace((unsigned char) *name_end) && *name_end != ':')
         name_end++;
@@ -449,8 +447,7 @@ static int lean4_import_proof(const char *input, void **proof) {
     if (!by_kw)
         lv_RETURN_ERROR(lv_ERROR_PARSE, "missing ':= by' keyword");
     const char *script_start = by_kw + 5; /* 跳过 ":= by" */
-    while (*script_start && isspace((unsigned char) *script_start))
-        script_start++;
+    script_start = lv_str_ltrim((char *) script_start); /* lv_str_ltrim 不修改原串 */
 
     /* 分配证明结构体 */
     lvBridgeProof *p = (lvBridgeProof *) lv_calloc(1, sizeof(lvBridgeProof));

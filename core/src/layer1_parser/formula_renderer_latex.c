@@ -450,34 +450,40 @@ static int helper_latex_constraint_angle(const FormulaNode *node, char *buffer, 
 static int helper_latex_compound(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     int written = 0;
-    char *ptr = buffer;
-    size_t remaining = size;
-    int total = 0;
+    /* lvStrBuf 动态构建（自动扩容），消除游标式 snprintf 的静默截断；
+     * 首遍探测（buffer==NULL）与第二遍写入（buffer 非 NULL）行为一致 */
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
     for (int i = 0; i < node->data.compound.statement_count; i++) {
         /* HEAP_ALLOCATED: 池分配语句缓冲区 */
         char *stmt_buf = formula_pool_alloc(lv_FORMULA_BUF_SIZE);
-        if (!stmt_buf)
-            break;
+        if (!stmt_buf) {
+            lv_strbuf_destroy(&sb);
+            return 0;
+        }
 
         int stmt_ret =
             render_latex_internal(node->data.compound.statements[i], stmt_buf, lv_FORMULA_BUF_SIZE, options);
         if (stmt_ret < 0) {
             formula_pool_free(stmt_buf);
+            lv_strbuf_destroy(&sb);
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "compound sub-render failed");
         }
 
-        int w = snprintf(ptr, remaining, "%s%s\\\\\n", stmt_buf,
-                         (i < node->data.compound.statement_count - 1) ? "" : "");
+        lv_strbuf_printf(&sb, "%s\\\\\n", stmt_buf);
         formula_pool_free(stmt_buf);
-
-        if (w < 0 || (size_t) w >= remaining)
-            break;
-        ptr += w;
-        remaining -= w;
-        total += w;
     }
-    written = total;
+
+    /* 按 snprintf 语义写入调用方缓冲区：空间不足时截断安全，返回完整长度
+     * （formula_render_ex 两遍法中首遍返回完整长度触发扩容，第二遍容量充足） */
+    written = (int) sb.len;
+    if (buffer && size > 0) {
+        size_t copy_len = (sb.len < size) ? sb.len : size - 1;
+        memcpy(buffer, sb.data, copy_len);
+        buffer[copy_len] = '\0';
+    }
+    lv_strbuf_destroy(&sb);
     return written;
 }
 

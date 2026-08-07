@@ -48,6 +48,51 @@ static const char *tikz_constraint_style(const ConstraintVisual *vis) {
     return "constraint"; /* default：与 INCIDENCE 一致的样式 */
 }
 
+/* ---- TikZ 约束渲染 ops（BETWEENNESS/INTERSECTION 特判 + default 核心表驱动，
+ *       原约束渲染 switch 收敛为 kTikzConstraintOps 经 constraint_render_dispatch 分发） ---- */
+
+static bool tikz_render_betweenness(const ConstraintRenderCtx *ctx) {
+    /* 之间约束：中点处渲染紫色斜体标签（与 SVG 同构的 2-case 特判之一） */
+    double mx = (ctx->x0 + ctx->x1) / 2.0;
+    double my = (ctx->y0 + ctx->y1) / 2.0;
+    lv_strbuf_printf(ctx->sb,
+                     "    \\node[label, purple, font=\\itshape] at (%.2f, %.2f) "
+                     "{B(%d, %d",
+                     mx, my, ctx->c->participants[0], ctx->c->participants[1]);
+    if (ctx->c->participant_count >= 3) {
+        lv_strbuf_printf(ctx->sb, ", %d", ctx->c->participants[2]);
+    }
+    lv_strbuf_printf(ctx->sb, ")};\n");
+    return true;
+}
+
+static bool tikz_render_intersection(const ConstraintRenderCtx *ctx) {
+    /* 与 SVG 同构的 2-case 特例；TikZ 语义本就简单（连线 + 圆点标记），
+     * 无需线段求交，故不调用公共几何函数 segment_intersection */
+    lv_strbuf_printf(ctx->sb, "    \\draw[constraint, purple] (%.2f, %.2f) -- (%.2f, %.2f);\n",
+                     ctx->x0, ctx->y0, ctx->x1, ctx->y1);
+    lv_strbuf_printf(ctx->sb, "    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n",
+                     ctx->x0, ctx->y0);
+    return true;
+}
+
+static bool tikz_render_default(const ConstraintRenderCtx *ctx) {
+    /* 使用公共核心表 + 本语法窄适配 */
+    const ConstraintVisual *vis = constraint_visual_find(ctx->c->type);
+    if (!vis)
+        vis = &kConstraintVisuals[0]; /* 正常路径不会发生 */
+    lv_strbuf_printf(ctx->sb, "    \\draw[%s] (%.2f, %.2f) -- (%.2f, %.2f);\n",
+                     tikz_constraint_style(vis), ctx->x0, ctx->y0, ctx->x1, ctx->y1);
+    return true;
+}
+
+/** @brief TikZ 约束渲染 ops 实例（约束渲染循环经 constraint_render_dispatch 分发） */
+static const ConstraintRenderOps kTikzConstraintOps = {
+    tikz_render_betweenness,
+    tikz_render_intersection,
+    tikz_render_default,
+};
+
 /* ---- 图例标志索引 ---- */
 enum {
     LEGEND_POINT_IDX,
@@ -315,7 +360,7 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
         }
     }
 
-    /* ---- 渲染约束 ---- */
+    /* ---- 渲染约束（经公共分发表 ConstraintRenderOps 分发，替代原 switch） ---- */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (!c || c->participant_count < 2)
@@ -323,50 +368,13 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
 
         TIKZ_FRAG_PRINTF("    %% Constraint id=%d type=%s\n", c->id, constraint_type_name(c->type));
 
-        GeomNode *p0 = graph_get_node(graph, c->participants[0]);
-        GeomNode *p1 = graph_get_node(graph, c->participants[1]);
-        if (!p0 || !p1)
+        ConstraintRenderCtx ctx = {0};
+        ctx.graph = graph;
+        ctx.c = c;
+        if (!constraint_render_prepare(graph, c, &ctx.p0, &ctx.p1, &ctx.x0, &ctx.y0, &ctx.x1, &ctx.y1))
             continue;
-        if (p0->coord_count < 2 || p1->coord_count < 2)
-            continue;
-
-        double x0 = symbolic_coord_to_double(p0->symbolic_coords[0]);
-        double y0 = symbolic_coord_to_double(p0->symbolic_coords[1]);
-        double x1 = symbolic_coord_to_double(p1->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(p1->symbolic_coords[1]);
-
-        switch (c->type) {
-            case BETWEENNESS: {
-                double mx = (x0 + x1) / 2.0;
-                double my = (y0 + y1) / 2.0;
-                TIKZ_FRAG_PRINTF(
-                    "    \\node[label, purple, font=\\itshape] at (%.2f, %.2f) "
-                    "{B(%d, %d",
-                    mx, my, c->participants[0], c->participants[1]);
-                if (c->participant_count >= 3) {
-                    TIKZ_FRAG_PRINTF(", %d", c->participants[2]);
-                }
-                TIKZ_FRAG_PRINTF(")};\n");
-                break;
-            }
-
-            case INTERSECTION:
-                /* 与 SVG 同构的 2-case 特例；TikZ 语义本就简单（连线 + 圆点标记），
-                 * 无需线段求交，故不调用公共几何函数 segment_intersection */
-                TIKZ_FRAG_PRINTF("    \\draw[constraint, purple] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
-                TIKZ_FRAG_PRINTF("    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n", x0, y0);
-                break;
-
-            default: {
-                /* 使用公共核心表 + 本语法窄适配 */
-                const ConstraintVisual *vis = constraint_visual_find(c->type);
-                if (!vis)
-                    vis = &kConstraintVisuals[0]; /* 正常路径不会发生 */
-                TIKZ_FRAG_PRINTF("    \\draw[%s] (%.2f, %.2f) -- (%.2f, %.2f);\n",
-                                 tikz_constraint_style(vis), x0, y0, x1, y1);
-                break;
-            }
-        }
+        ctx.sb = &sb;
+        constraint_render_dispatch(&kTikzConstraintOps, &ctx, c->type);
     }
 
     /* ---- 图例（Legend） ---- */

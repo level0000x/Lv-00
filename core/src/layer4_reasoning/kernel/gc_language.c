@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file gc_language.c
  * @brief GC 语言支持模块（子目录版本）
  *
@@ -7,6 +7,7 @@
  */
 
 #include "lv/gc_language.h"
+#include "lv/lv_str_utils.h"
 
 #include <ctype.h>
 #include <string.h>
@@ -58,10 +59,8 @@ static void gc_set_error(const char *msg) {
  * @return 跳过后的指针位置
  */
 static const char *gc_skip_whitespace(const char *p) {
-    while (*p && isspace((unsigned char) *p)) {
-        p++;
-    }
-    return p;
+    /* lv_str_ltrim 不修改原串（仅返回首指针），const 转换安全 */
+    return lv_str_ltrim((char *) p);
 }
 
 /**

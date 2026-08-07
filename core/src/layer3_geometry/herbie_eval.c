@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 /* ============================================================
@@ -245,10 +246,8 @@ static int parse_herbie_output(const char *herbie_output, HerbieOptimizer *opt) 
         if (!suggest)
             break;
 
-        /* 跳过标记和空白 */
-        suggest += 10;
-        while (*suggest && isspace((unsigned char) *suggest))
-            suggest++;
+        /* 跳过标记和空白（统一 lv_str_ltrim，lv_str_ltrim 不修改原串） */
+        suggest = lv_str_ltrim((char *) (suggest + 10));
 
         /* 提取优化后的表达式（到行尾或分隔符） */
         const char *end = suggest;

@@ -12,18 +12,10 @@
 
 #include "lv/config.h"    /* lv_FNV64_OFFSET_BASIS */
 #include "lv/lv_utils.h"  /* lv_calloc, lv_fnv1a_update */
+#include "lv/lv_str_utils.h" /* lv_str_hex_encode */
 
 #include <stdio.h>
 #include <string.h>
-
-/* 小写 hex 转换（等价于逐字节 "%02x" 循环） */
-static void lv_hash_hex_lower(char *out, const uint8_t *bytes, size_t n) {
-    static const char kDigits[] = "0123456789abcdef";
-    for (size_t i = 0; i < n; i++) {
-        out[i * 2] = kDigits[bytes[i] >> 4];
-        out[i * 2 + 1] = kDigits[bytes[i] & 0x0F];
-    }
-}
 
 void lv_hash_init(lvHashCtx *ctx, lvHashAlgorithm algorithm) {
     if (!ctx)
@@ -79,7 +71,7 @@ void lv_hash_to_hex(lvHashCtx *ctx, char *buf, size_t buf_size) {
     if (ctx->algorithm == LV_HASH_SHA256) {
         uint8_t hash[32];
         lv_sha256_final(&ctx->u.sha256, hash);
-        lv_hash_hex_lower(buf, hash, 32);
+        lv_str_hex_encode(hash, 32, buf);
     } else {
         snprintf(buf, buf_size, "%016llx", (unsigned long long) ctx->u.fnv1a);
     }
@@ -95,4 +87,17 @@ char *lv_hash_to_hex_alloc(lvHashCtx *ctx) {
         lv_hash_to_hex(ctx, result, digest * 2 + 1);
     }
     return result;
+}
+
+/* 公共 hex 编码：查表版，等价于逐字节 "%02x"（小写、每字节 2 字符、无空格）。
+ * 收敛 sha256.c / axiom_pkg_serialize.c 中重复的逐字节 snprintf 循环。 */
+void lv_str_hex_encode(const unsigned char *bytes, size_t n, char *out) {
+    if (!bytes || !out)
+        return;
+    static const char kHexDigits[] = "0123456789abcdef";
+    for (size_t i = 0; i < n; i++) {
+        out[i * 2] = kHexDigits[(bytes[i] >> 4) & 0x0F];
+        out[i * 2 + 1] = kHexDigits[bytes[i] & 0x0F];
+    }
+    out[n * 2] = '\0';
 }

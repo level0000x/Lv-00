@@ -1,4 +1,4 @@
-﻿/*
+/*
  * @file geometry_compress_decompress.c
  * @brief Geometry compression engine - decompress pipeline
  * @details Split from geometry_compress.c
@@ -105,7 +105,8 @@ static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph
                     break;
                 }
                 double val;
-                memcpy(&val, ptr, sizeof(double));
+                uint64_t bits = lv_load_le64(ptr); /* 小端序，与写端 serialize_coords_raw 的 lv_store_le64 约定一致 */
+                memcpy(&val, &bits, sizeof(double));
                 ptr += sizeof(double);
                 coords[d] = symbolic_coord_from_double_scaled(val, lv_RATIONAL_SCALE_DEFAULT);
                 if (!coords[d]) {

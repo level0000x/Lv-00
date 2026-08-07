@@ -75,9 +75,11 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
     if (!buf)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "serialize_coords_raw: malloc failed");
 
+    /* 端序说明：与读端 deserialize_coords（lv_load_le32 / lv_load_le64）约定一致，
+     * 显式小端序写入（x86 上输出与原先 memcpy 主机序逐字节一致） */
     uint8_t *ptr = buf;
     int32_t count = (int32_t) graph->node_count;
-    memcpy(ptr, &count, sizeof(int32_t));
+    lv_store_le32(ptr, (uint32_t) count);
     ptr += sizeof(int32_t);
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -87,14 +89,16 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
 
         int32_t nid = (int32_t) node->id;
         int32_t cc = (int32_t) node->coord_count;
-        memcpy(ptr, &nid, sizeof(int32_t));
+        lv_store_le32(ptr, (uint32_t) nid);
         ptr += sizeof(int32_t);
-        memcpy(ptr, &cc, sizeof(int32_t));
+        lv_store_le32(ptr, (uint32_t) cc);
         ptr += sizeof(int32_t);
 
         for (int d = 0; d < node->coord_count; d++) {
             double val = symbolic_coord_to_double(node->symbolic_coords[d]);
-            memcpy(ptr, &val, sizeof(double));
+            uint64_t bits;
+            memcpy(&bits, &val, sizeof(double)); /* 取位模式，按小端序写 8 字节 */
+            lv_store_le64(ptr, bits);
             ptr += sizeof(double);
         }
     }
@@ -123,7 +127,7 @@ static uint8_t *serialize_clers(const EdgebreakerMode *seq, int seq_len, size_t 
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "serialize_clers: malloc failed");
 
     int32_t len = (int32_t) seq_len;
-    memcpy(buf, &len, sizeof(int32_t));
+    lv_store_le32(buf, (uint32_t) len); /* 小端序，与读端 deserialize_clers 的 lv_load_le32 约定一致 */
 
     for (int i = 0; i < seq_len; i++) {
         buf[sizeof(int32_t) + i] = (uint8_t) seq[i];

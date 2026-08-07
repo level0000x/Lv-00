@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv/lv_loader.h"
 #include "lv/lv_parser.h"
 
 #define TEST_PASS_STATEMENT g_pass_count++
@@ -1121,10 +1122,116 @@ static void test_ast_creation(void) {
     }
 }
 
+/* ── VTable 化求值/折叠分发表测试（lv_loader.c 5 处 switch 收敛后的行为验证）── */
+
+/** 辅助：解析单个 .lv 片段并执行证明验证（经 lv_verify_proofs 走 AST 求值分发表） */
+static bool verify_prove_src(const char *src, LvProveSummary *summary) {
+    LvParseResult res = parse_source(src);
+    bool ok = false;
+    if (res.ast && res.error_count == 0)
+        ok = lv_verify_proofs(&res, summary);
+    lv_ast_destroy(res.ast);
+    return ok;
+}
+
+/**
+ * @brief AST 求值/折叠分发表测试
+ *
+ * 覆盖 lv_loader.c 由 5 处 switch 收敛而来的 AST 求值分发表：
+ * - fold 分发表：整数/布尔字面量、BINARY_OP（含除零短路）、UNARY_OP、FUNCTION_CALL（Church 表）；
+ * - eval_proposition 分发表：COMPARE（数值/布尔比较）、逻辑运算、RELATION 反射律、
+ *   default 纯布尔目标回退；
+ * - is_pure/collect/eval_skeleton 分发表：纯命题骨架真值表（恒真 PASS / 反例 FAIL）。
+ */
+static void test_fold_eval_vtable(void) {
+    printf("[AST 求值/折叠分发表]\n");
+    LvProveSummary s;
+
+    TEST("fold: 整数算术 2 + 2 == 4 通过");
+    if (verify_prove_src("Prove 2 + 2 == 4;\n", &s) && s.pass_count == 1 && s.fail_count == 0)
+        PASS();
+    else
+        FAIL("2+2==4 应 PASS");
+
+    TEST("fold: 错误结论 2 + 2 == 5 失败");
+    if (verify_prove_src("Prove 2 + 2 == 5;\n", &s) && s.fail_count == 1 && s.pass_count == 0)
+        PASS();
+    else
+        FAIL("2+2==5 应 FAIL");
+
+    TEST("fold: 括号优先级 (2 + 3) * 4 == 20 通过");
+    if (verify_prove_src("Prove (2 + 3) * 4 == 20;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("括号优先级求值失败");
+
+    TEST("fold: 一元负号 -5 + 3 == -2 通过");
+    if (verify_prove_src("Prove -5 + 3 == -2;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("一元运算求值失败");
+
+    TEST("fold: 除零短路 SKIP");
+    if (verify_prove_src("Prove 1 / 0 == 0;\n", &s) && s.skip_count == 1)
+        PASS();
+    else
+        FAIL("除零应 SKIP");
+
+    TEST("fold: Church 函数 add(2, 3) == 5 通过");
+    if (verify_prove_src("Prove add(2, 3) == 5;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("Church add 求值失败");
+
+    TEST("eval_proposition: 布尔比较 true != false 通过");
+    if (verify_prove_src("Prove true != false;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("true != false 应 PASS");
+
+    TEST("eval_proposition: 逻辑 not false 通过");
+    if (verify_prove_src("Prove not false;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("not false 应 PASS");
+
+    TEST("eval_proposition: 反射律 collinear(A, A, A) 通过");
+    if (verify_prove_src("Prove collinear(A, A, A);\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("反射律应 PASS");
+
+    TEST("eval_proposition: 纯布尔目标 eq(2, 2) 通过（default 回退）");
+    if (verify_prove_src("Prove eq(2, 2);\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("eq(2,2) 应 PASS");
+
+    TEST("真值表: 恒真 A or not A 通过");
+    if (verify_prove_src("Prove A or not A;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("A or not A 应恒真 PASS");
+
+    TEST("真值表: 非恒真 A and B 失败");
+    if (verify_prove_src("Prove A and B;\n", &s) && s.fail_count == 1)
+        PASS();
+    else
+        FAIL("A and B 应 FAIL");
+
+    TEST("真值表: 蕴含恒真 A -> A 通过");
+    if (verify_prove_src("Prove A -> A;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("A -> A 应恒真 PASS");
+}
+
 TEST_MAIN_BEGIN("lv parser test")
     setvbuf(stdout, NULL, _IONBF, 0);
 
     TEST_MAIN_RUN(test_ast_creation);
+    printf("\n");
+    TEST_MAIN_RUN(test_fold_eval_vtable);
     printf("\n");
     TEST_MAIN_RUN(test_declaration);
     printf("\n");

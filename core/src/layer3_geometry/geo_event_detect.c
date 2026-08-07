@@ -32,6 +32,8 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv/lv_registry.h"
+#include "lv/lv_thread.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -47,6 +49,40 @@
 
 /** @brief 周期性事件检测的分辨率（每周期内检测的精细点数） */
 #define GEODET_PERIODIC_PTS 16
+
+/* ========================================================================
+ * 事件注册表（泛型注册表设施）
+ *
+ * key = "<detector>:<event_id>"，value = lvEventEntry*（指向 detector->events[i]）。
+ * 注册表承担 event_id 查重、尾部追加与动态扩容；
+ * detector->events 数组仍为事件数据的主存储（geodet_eval_event_func 等按索引访问），
+ * 两者追加顺序一致（注册表条目下标 == events 下标，无删除路径）。
+ * 文件级单例（lv_once 惰性初始化，线程安全）。
+ * ======================================================================== */
+
+/** @brief 事件注册表 key 缓冲区大小 */
+#define GEODET_REGKEY_MAX 96
+
+/** @brief 事件注册表（文件级单例） */
+static lvRegistry g_geo_event_registry;
+
+/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t g_geo_event_registry_once = lv_ONCE_INIT;
+
+/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
+static void geo_event_registry_init_once(void) {
+    lv_registry_init(&g_geo_event_registry, GEO_EVENT_MAX_EVENTS);
+}
+
+/** @brief 确保注册表已初始化 */
+static inline void geo_event_registry_ensure(void) {
+    lv_once(&g_geo_event_registry_once, geo_event_registry_init_once);
+}
+
+/** @brief 构造事件注册表 key（栈缓冲区，调用方提供） */
+static void geodet_build_key(const lvEventDetector *detector, int event_id, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%p:%d", (const void *) detector, event_id);
+}
 
 /* ========================================================================
  * 静态辅助函数的前向声明
@@ -114,12 +150,18 @@ static int geodet_find_event_index(const lvEventDetector *detector, int event_id
     if (!detector) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "geodet_find_event_index: NULL detector");
     }
-    for (int i = 0; i < detector->num_events; ++i) {
-        if (detector->events[i].event_id == event_id) {
-            return i;
-        }
+
+    geo_event_registry_ensure();
+
+    /* 委托注册表按 key（"<detector>:<event_id>"）查找；
+     * 注册表条目下标与 events 数组下标一致（同步尾部追加、无删除路径） */
+    char regkey[GEODET_REGKEY_MAX];
+    geodet_build_key(detector, event_id, regkey, sizeof(regkey));
+    int idx = lv_registry_find(&g_geo_event_registry, regkey);
+    if (idx < 0) {
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "geodet_find_event_index: event_id %d not found", event_id);
     }
-    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "geodet_find_event_index: event_id %d not found", event_id);
+    return idx;
 }
 
 /* ========================================================================
@@ -382,6 +424,164 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id, const d
 }
 
 /* ========================================================================
+ * Brent 法求根 + 符号变化检测
+ *
+ * geo_event_root_brent / geo_event_check_sign 由头文件声明为公共辅助函数，
+ * 此前仅有声明与调用点而无定义（任何链接到本文件的程序在调用路径上
+ * 会触发未定义引用）。此处补齐完整实现：
+ *   - geo_event_check_sign：判定 [g_prev, g_curr] 是否发生满足方向条件的穿越；
+ *   - geo_event_root_brent：标准 Brent 逆二次插值求根（Numerical Recipes zbrent
+ *     风格），风格与同文件 Illinois/二分实现保持一致（event_idx 定位、
+ *     经 geodet_eval_event_func 求值、发散检测、tol/max_iter 驱动）。
+ * ======================================================================== */
+
+/**
+ * @brief 判定事件函数值在 [g_prev, g_curr] 上是否发生满足方向条件的符号变化
+ *
+ * direction 约定（与 SUNDIALS Rootfinding 一致）：
+ *   - direction > 0：仅检测从负到正的上升穿越（g_prev <= 0 且 g_curr >= 0）；
+ *   - direction < 0：仅检测从正到负的下降穿越（g_prev >= 0 且 g_curr <= 0）；
+ *   - direction == 0：任意符号变化均触发。
+ * 端点恰好为零（过零）也视为一次有效穿越。
+ *
+ * @return 满足方向条件的符号变化返回 1，否则返回 0
+ */
+int geo_event_check_sign(double g_prev, double g_curr, int direction) {
+    bool rising = (g_prev < 0.0 && g_curr > 0.0) || (g_prev == 0.0 && g_curr > 0.0) ||
+                  (g_prev < 0.0 && g_curr == 0.0);
+    bool falling = (g_prev > 0.0 && g_curr < 0.0) || (g_prev == 0.0 && g_curr < 0.0) ||
+                   (g_prev > 0.0 && g_curr == 0.0);
+    bool any_change = rising || falling;
+
+    if (direction > 0)
+        return rising ? 1 : 0;
+    if (direction < 0)
+        return falling ? 1 : 0;
+    return any_change ? 1 : 0;
+}
+
+/**
+ * @brief Brent 逆二次插值求根
+ *
+ * 在区间 [a, b] 上求事件函数 g 的根（调用方已通过 geo_event_check_sign
+ * 确认区间端点异号）。混合二分与逆二次插值，收敛速度优于二分法，
+ * 且保证不脱离包含根的区间。
+ *
+ * @param[in]  detector   事件检测器
+ * @param[in]  event_id   事件 ID
+ * @param[in]  param_a    左端点参数向量（本实现未用，保留签名一致性）
+ * @param[in]  param_b    右端点参数向量（求值时按 b 处参数计算，与同文件其他求根方法一致）
+ * @param[in]  dim        参数维度
+ * @param[in]  a,b        区间端点
+ * @param[in]  ga,gb      端点处事件函数值
+ * @param[in]  tol        区间宽度收敛容差
+ * @param[in]  max_iter   最大迭代次数
+ * @param[out] root       求得的根
+ * @return 收敛返回 0，未收敛/发散返回错误码
+ */
+int geo_event_root_brent(lvEventDetector *detector, int event_id, const double *param_a, const double *param_b,
+                         int dim, double a, double b, double ga, double gb, double tol, int max_iter,
+                         double *root) {
+    lv_UNUSED(param_a);
+    if (!detector || !root)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "geo_event_root_brent: NULL parameter");
+
+    int event_idx = geodet_find_event_index(detector, event_id);
+    if (event_idx < 0)
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "geo_event_root_brent: event_id %d not found", event_id);
+
+    double fa = ga;
+    double fb = gb;
+    /* 保证 |fa| >= |fb|：交换端点使 b 为更接近根的一端 */
+    if (fabs(fa) < fabs(fb)) {
+        double tmp = a;
+        a = b;
+        b = tmp;
+        tmp = fa;
+        fa = fb;
+        fb = tmp;
+    }
+    double c = a;
+    double fc = fa;
+    double d = b - a;
+    double e = b - a;
+    double f_initial = fabs(fa); /* 发散检测参考值 */
+
+    for (int iter = 0; iter < max_iter; ++iter) {
+        /* 重新选取最优点：使 b 为当前最小函数值端点 */
+        if (fabs(fc) < fabs(fb)) {
+            a = b;
+            b = c;
+            c = a;
+            fa = fb;
+            fb = fc;
+            fc = fa;
+        }
+        double tol1 = 2.0 * lv_EPSILON_DOUBLE * fabs(b) + 0.5 * tol;
+        double xm = 0.5 * (c - b);
+        if (fabs(xm) <= tol1 || fb == 0.0) {
+            *root = b;
+            return 0;
+        }
+        if (fabs(e) >= tol1 && fabs(fa) > fabs(fb)) {
+            /* 逆二次插值 */
+            double s = fb / fa;
+            double p, q;
+            if (a == c) {
+                p = 2.0 * xm * s;
+                q = 1.0 - s;
+            } else {
+                double r = fb / fc;
+                q = fa / fc;
+                p = s * (2.0 * xm * q * (q - r) - (b - a) * (r - 1.0));
+                q = (q - 1.0) * (r - 1.0) * (s - 1.0);
+            }
+            if (p > 0.0)
+                q = -q;
+            p = fabs(p);
+            double min1 = 3.0 * xm * q - fabs(tol1 * q);
+            double min2 = fabs(e * q);
+            if (2.0 * p < (min1 < min2 ? min1 : min2)) {
+                e = d;
+                d = p / q;
+            } else {
+                d = xm;
+                e = d;
+            }
+        } else {
+            /* 二分步 */
+            d = xm;
+            e = d;
+        }
+        a = b;
+        fa = fb;
+        if (fabs(d) > tol1)
+            b += d;
+        else
+            b += (xm > 0.0 ? fabs(tol1) : -fabs(tol1));
+
+        double fnew;
+        int ret = geodet_eval_event_func(detector, event_idx, b, param_b, dim, &fnew);
+        if (ret != 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geo_event_root_brent: eval_event_func failed at x=%.17g", b);
+
+        /* 发散检测：|fnew| 超过初始参考值 1e6 倍视为极点而非根 */
+        if (f_initial > 0.0 && fabs(fnew) > f_initial * 1e6)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geo_event_root_brent: divergence detected, x=%.17g f=%.17g", b, fnew);
+
+        fb = fnew;
+        if ((fb > 0.0 && fc > 0.0) || (fb < 0.0 && fc < 0.0)) {
+            c = a;
+            fc = fa;
+            e = d = b - a;
+        }
+    }
+
+    *root = b;
+    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geo_event_root_brent: failed to converge in %d iterations", max_iter);
+}
+
+/* ========================================================================
  * 生命周期管理
  * ======================================================================== */
 
@@ -419,6 +619,24 @@ void geo_event_detector_destroy(lvEventDetector *detector) {
     if (!detector) {
         return;
     }
+
+    /* 从事件注册表移除该检测器的所有条目（防止残留悬垂 value） */
+    geo_event_registry_ensure();
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), "%p:", (const void *) detector);
+    size_t prefix_len = strlen(prefix);
+    int total = lv_registry_count(&g_geo_event_registry);
+    for (int i = total - 1; i >= 0; i--) {
+        const char *reg_name = NULL;
+        void *reg_value = NULL;
+        if (!lv_registry_get_at(&g_geo_event_registry, i, &reg_name, &reg_value)) {
+            continue;
+        }
+        if (strncmp(reg_name, prefix, prefix_len) == 0) {
+            lv_registry_remove(&g_geo_event_registry, reg_name);
+        }
+    }
+
     lv_free((void **) &detector);
 }
 
@@ -437,11 +655,13 @@ int geo_event_register(lvEventDetector *detector, int event_id, lvEventType type
         lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "事件注册已满，最大%d个事件", GEO_EVENT_MAX_EVENTS);
     }
 
-    /* 检查 ID 是否重复 */
-    for (int i = 0; i < detector->num_events; ++i) {
-        if (detector->events[i].event_id == event_id) {
-            lv_RETURN_ERROR(lv_ERROR_ALREADY_EXISTS, "事件ID=%d已存在", event_id);
-        }
+    geo_event_registry_ensure();
+
+    /* 检查 ID 是否重复（委托注册表 strcmp 查重） */
+    char regkey[GEODET_REGKEY_MAX];
+    geodet_build_key(detector, event_id, regkey, sizeof(regkey));
+    if (lv_registry_find(&g_geo_event_registry, regkey) >= 0) {
+        lv_RETURN_ERROR(lv_ERROR_ALREADY_EXISTS, "事件ID=%d已存在", event_id);
     }
 
     /* 若未提供自定义事件函数，使用类型默认函数 */
@@ -460,7 +680,12 @@ int geo_event_register(lvEventDetector *detector, int event_id, lvEventType type
         }
     }
 
+    /* 尾部追加到注册表（value = 事件描述结构体指针，指向 events[idx]） */
     int idx = detector->num_events;
+    if (!lv_registry_put(&g_geo_event_registry, regkey, &detector->events[idx])) {
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "事件注册失败：注册表容量不足");
+    }
+
     detector->events[idx].event_id = event_id;
     detector->events[idx].type = type;
     detector->events[idx].func = func;
@@ -505,9 +730,24 @@ lvEventResult geo_event_detect(lvEventDetector *detector, double t_prev, const d
         return lv_EVENT_RESULT_NONE;
     }
 
-    /* 遍历所有注册事件 */
-    for (int i = 0; i < detector->num_events; ++i) {
-        lvEventEntry *evt = &detector->events[i];
+    geo_event_registry_ensure();
+
+    /* 遍历所有注册事件（通过注册表条目，仅处理当前检测器） */
+    char geodet_prefix[64];
+    snprintf(geodet_prefix, sizeof(geodet_prefix), "%p:", (const void *) detector);
+    size_t geodet_prefix_len = strlen(geodet_prefix);
+
+    int geo_reg_count = lv_registry_count(&g_geo_event_registry);
+    for (int i = 0; i < geo_reg_count; ++i) {
+        const char *reg_name = NULL;
+        void *reg_value = NULL;
+        if (!lv_registry_get_at(&g_geo_event_registry, i, &reg_name, &reg_value)) {
+            continue;
+        }
+        if (strncmp(reg_name, geodet_prefix, geodet_prefix_len) != 0) {
+            continue;
+        }
+        lvEventEntry *evt = (lvEventEntry *) reg_value;
         if (!evt->enabled || !evt->func) {
             continue;
         }

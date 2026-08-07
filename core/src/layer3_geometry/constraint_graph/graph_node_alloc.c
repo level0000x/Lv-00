@@ -1574,9 +1574,7 @@ void graph_emit_node_added(ConstraintGraph *graph, GeomNode *node, int step_numb
     lvStrBuf sb = {0};
     if (use_generic_message) {
         /* 通用模板：graph_add_node_with_id 反序列化路径 */
-        static const char *type_names[] = {"POINT", "LINE", "REGION", "CIRCLE", "PORT", "FUNC_BLOCK"};
-        const char *tname = (node->type >= 0 && node->type <= 5) ? type_names[node->type] : "UNKNOWN";
-        lv_strbuf_printf(&sb, "添加节点 #%d (类型: %s)", node->id, tname);
+        lv_strbuf_printf(&sb, "添加节点 #%d (类型: %s)", node->id, lv_geom_type_name(node->type));
     } else {
         /* 具体模板：graph_add_point / graph_add_region / graph_add_circle /
          * graph_add_port / graph_add_function_block 各路径，文案与集中前逐字一致 */

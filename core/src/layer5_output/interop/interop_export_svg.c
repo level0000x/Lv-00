@@ -56,6 +56,104 @@ static void constraint_rgb_to_svg_hex(const ConstraintVisual *vis, char *hex, si
     snprintf(hex, hex_size, "#%02x%02x%02x", vis->rgb[0], vis->rgb[1], vis->rgb[2]);
 }
 
+/* ---- SVG 约束渲染 ops（BETWEENNESS/INTERSECTION 特判 + default 核心表驱动，
+ *       原约束渲染 switch 收敛为 kSvgConstraintOps 经 constraint_render_dispatch 分发） ---- */
+
+static bool svg_render_betweenness(const ConstraintRenderCtx *ctx) {
+    /* 之间约束：三点之间用标签标注 */
+    double mx = (ctx->x0 + ctx->x1) / 2.0;
+    double my = (ctx->y0 + ctx->y1) / 2.0;
+    fprintf(ctx->fp,
+            "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
+            "text-anchor=\"middle\" fill=\"#6366f1\" font-style=\"italic\">"
+            "B(%d,%d",
+            mx, my, ctx->c->participants[0], ctx->c->participants[1]);
+    if (ctx->c->participant_count >= 3) {
+        fprintf(ctx->fp, ",%d", ctx->c->participants[2]);
+    }
+    fprintf(ctx->fp, ")</text>\n");
+    return true;
+}
+
+static bool svg_render_intersection(const ConstraintRenderCtx *ctx) {
+    /* 相交约束：计算精确交点并标记紫色十字 */
+    double ix = ctx->x0, iy = ctx->y0; /* 默认交点为第一个参与者 */
+    double a1x = ctx->x0, a1y = ctx->y0;
+    double b1x = ctx->x1, b1y = ctx->y1;
+
+    /* 公共几何辅助：两线段时求精确交点，否则回退 (x0,y0)（与原内联实现语义一致） */
+    constraint_intersection_point(ctx->p0, ctx->p1, ctx->x0, ctx->y0, &ix, &iy);
+
+    fprintf(ctx->fp,
+            "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
+            "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#a855f7\"/>\n",
+            a1x, a1y, b1x, b1y);
+
+    /* 在精确交点处绘制紫色十字标记 */
+    double cross_r = 5.0;
+    fprintf(ctx->fp,
+            "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
+            "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
+            ix - cross_r, iy - cross_r, ix + cross_r, iy + cross_r);
+    fprintf(ctx->fp,
+            "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
+            "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
+            ix - cross_r, iy + cross_r, ix + cross_r, iy - cross_r);
+    fprintf(ctx->fp,
+            "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
+            "fill=\"none\" stroke=\"#a855f7\" stroke-width=\"1.5\"/>\n",
+            ix, iy);
+    return true;
+}
+
+static bool svg_render_default(const ConstraintRenderCtx *ctx) {
+    /* 使用公共核心表颜色 + 本语法窄适配（default 可达类型均有条目） */
+    const ConstraintVisual *vis = constraint_visual_find(ctx->c->type);
+    const ConstraintSvgSyntax *syn = &constraint_svg_syntax[ctx->c->type];
+    char stroke[8];
+    constraint_rgb_to_svg_hex(vis ? vis : &kConstraintVisuals[0], stroke, sizeof(stroke));
+    fprintf(ctx->fp, "  <line");
+    if (syn->class_attr)
+        fprintf(ctx->fp, " class=\"%s\"", syn->class_attr);
+    fprintf(ctx->fp, " x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" stroke=\"%s\"",
+            ctx->x0, ctx->y0, ctx->x1, ctx->y1, stroke);
+    if (syn->dasharray)
+        fprintf(ctx->fp, " stroke-dasharray=\"%s\"", syn->dasharray);
+    if (syn->extra_attr)
+        fprintf(ctx->fp, " %s", syn->extra_attr);
+    fprintf(ctx->fp, "/>\n");
+    return true;
+}
+
+/** @brief SVG 约束渲染 ops 实例（约束渲染循环经 constraint_render_dispatch 分发） */
+static const ConstraintRenderOps kSvgConstraintOps = {
+    svg_render_betweenness,
+    svg_render_intersection,
+    svg_render_default,
+};
+
+/** @brief 计算两参与者线段交点（公共几何辅助；内部复用 segment_intersection） */
+void constraint_intersection_point(const GeomNode *p0, const GeomNode *p1,
+                                   double dflt_x, double dflt_y,
+                                   double *ix, double *iy) {
+    double rx = dflt_x, ry = dflt_y;
+    if (p0 && p1 && p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 &&
+        p1->type == GEOM_LINE_SEGMENT && p1->coord_count >= 4) {
+        double a1x = symbolic_coord_to_double(p0->symbolic_coords[0]);
+        double a1y = symbolic_coord_to_double(p0->symbolic_coords[1]);
+        double a2x = symbolic_coord_to_double(p0->symbolic_coords[2]);
+        double a2y = symbolic_coord_to_double(p0->symbolic_coords[3]);
+        double b1x = symbolic_coord_to_double(p1->symbolic_coords[0]);
+        double b1y = symbolic_coord_to_double(p1->symbolic_coords[1]);
+        double b2x = symbolic_coord_to_double(p1->symbolic_coords[2]);
+        double b2y = symbolic_coord_to_double(p1->symbolic_coords[3]);
+        /* 与原内联实现一致：忽略返回值，无效交点保持默认点 */
+        segment_intersection(a1x, a1y, a2x, a2y, b1x, b1y, b2x, b2y, &rx, &ry);
+    }
+    *ix = rx;
+    *iy = ry;
+}
+
 /**
  * @brief TikZ转义特殊字符
  *
@@ -367,7 +465,7 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
         }
     }
 
-    /* ---- 渲染约束 ---- */
+    /* ---- 渲染约束（经公共分发表 ConstraintRenderOps 分发，替代原 switch） ---- */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (!c || c->participant_count < 2)
@@ -375,95 +473,13 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
 
         fprintf(fp, "  <!-- Constraint id=%d type=%s -->\n", c->id, constraint_type_name(c->type));
 
-        /* 获取参与者节点的位置 */
-        GeomNode *p0 = graph_get_node(graph, c->participants[0]);
-        GeomNode *p1 = graph_get_node(graph, c->participants[1]);
-        if (!p0 || !p1)
+        ConstraintRenderCtx ctx = {0};
+        ctx.graph = graph;
+        ctx.c = c;
+        if (!constraint_render_prepare(graph, c, &ctx.p0, &ctx.p1, &ctx.x0, &ctx.y0, &ctx.x1, &ctx.y1))
             continue;
-        if (p0->coord_count < 2 || p1->coord_count < 2)
-            continue;
-
-        double x0 = symbolic_coord_to_double(p0->symbolic_coords[0]);
-        double y0 = symbolic_coord_to_double(p0->symbolic_coords[1]);
-        double x1 = symbolic_coord_to_double(p1->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(p1->symbolic_coords[1]);
-
-        switch (c->type) {
-            case BETWEENNESS: {
-                /* 之间约束：三点之间用标签标注 */
-                double mx = (x0 + x1) / 2.0;
-                double my = (y0 + y1) / 2.0;
-                fprintf(fp,
-                        "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
-                        "text-anchor=\"middle\" fill=\"#6366f1\" font-style=\"italic\">"
-                        "B(%d,%d",
-                        mx, my, c->participants[0], c->participants[1]);
-                if (c->participant_count >= 3) {
-                    fprintf(fp, ",%d", c->participants[2]);
-                }
-                fprintf(fp, ")</text>\n");
-                break;
-            }
-
-            case INTERSECTION: {
-                /* 相交约束：计算精确交点并标记紫色十字 */
-                double ix = x0, iy = y0; /* 默认交点为第一个参与者 */
-                double a1x = x0, a1y = y0;
-                double b1x = x1, b1y = y1;
-
-                /* 使用公共几何函数 segment_intersection 求精确交点（与原内联实现语义一致） */
-                if (p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 && p1->type == GEOM_LINE_SEGMENT &&
-                    p1->coord_count >= 4) {
-                    double a2x = symbolic_coord_to_double(p0->symbolic_coords[2]);
-                    double a2y = symbolic_coord_to_double(p0->symbolic_coords[3]);
-                    double b2x = symbolic_coord_to_double(p1->symbolic_coords[2]);
-                    double b2y = symbolic_coord_to_double(p1->symbolic_coords[3]);
-
-                    /* 解线性方程组：P1 + t*(P2-P1) = Q1 + s*(Q2-Q1)；有效时更新 ix/iy */
-                    segment_intersection(a1x, a1y, a2x, a2y, b1x, b1y, b2x, b2y, &ix, &iy);
-                }
-
-                fprintf(fp,
-                        "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
-                        "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#a855f7\"/>\n",
-                        a1x, a1y, b1x, b1y);
-
-                /* 在精确交点处绘制紫色十字标记 */
-                double cross_r = 5.0;
-                fprintf(fp,
-                        "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-                        "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
-                        ix - cross_r, iy - cross_r, ix + cross_r, iy + cross_r);
-                fprintf(fp,
-                        "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-                        "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
-                        ix - cross_r, iy + cross_r, ix + cross_r, iy - cross_r);
-                fprintf(fp,
-                        "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
-                        "fill=\"none\" stroke=\"#a855f7\" stroke-width=\"1.5\"/>\n",
-                        ix, iy);
-                break;
-            }
-
-            default: {
-                /* 使用公共核心表颜色 + 本语法窄适配（default 可达类型均有条目） */
-                const ConstraintVisual *vis = constraint_visual_find(c->type);
-                const ConstraintSvgSyntax *syn = &constraint_svg_syntax[c->type];
-                char stroke[8];
-                constraint_rgb_to_svg_hex(vis ? vis : &kConstraintVisuals[0], stroke, sizeof(stroke));
-                fprintf(fp, "  <line");
-                if (syn->class_attr)
-                    fprintf(fp, " class=\"%s\"", syn->class_attr);
-                fprintf(fp, " x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" stroke=\"%s\"",
-                        x0, y0, x1, y1, stroke);
-                if (syn->dasharray)
-                    fprintf(fp, " stroke-dasharray=\"%s\"", syn->dasharray);
-                if (syn->extra_attr)
-                    fprintf(fp, " %s", syn->extra_attr);
-                fprintf(fp, "/>\n");
-                break;
-            }
-        }
+        ctx.fp = fp;
+        constraint_render_dispatch(&kSvgConstraintOps, &ctx, c->type);
     }
 
     /* ---- 图例 ---- */

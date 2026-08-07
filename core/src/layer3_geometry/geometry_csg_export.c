@@ -14,6 +14,7 @@
 #include "geometry_csg_internal.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 
 void csg_evaluate(const CSGNode *node, CSGTriList *out) {
     if (!node || !out)
@@ -30,37 +31,43 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 /**
  * @brief 内部递归函数：将 CSG 子树转为 OpenSCAD 脚本片段
  *
- * @param node    当前节点
- * @param buf     输出缓冲区
- * @param buf_size 缓冲区容量
- * @param written 已写入的字符数
- * @param indent  缩进层级
- * @return 更新后的已写入字符数，出错返回 -1
+ * 经 lvStrBuf 动态构建（自动扩容），消除固定缓冲的静默截断。
+ *
+ * @param node   当前节点
+ * @param sb     输出构建器
+ * @param indent 缩进层级
+ * @return 0 成功，-1 失败
  */
 
-/* ── 导出处理器函数类型 ── */
-typedef int (*CsgExportHandler)(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
+/* ── 导出处理器函数类型 ──
+ * 统一使用 lvStrBuf 动态构建（自动扩容），替代手写 pos 游标 + snprintf 偏移
+ * （原固定 CSG_EXPORT_BUF_INIT 缓冲在深树时静默截断） */
+typedef int (*CsgExportHandler)(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str);
 
 /* 基本图元导出辅助函数 */
-static int prim_sphere(char *buf, int buf_size, int written, const char *indent_str, double *params) {
-    return snprintf(buf + written, (size_t)(buf_size - written), "%ssphere(r=%.10g);\n", indent_str, params[0]);
+static int prim_sphere(lvStrBuf *sb, const char *indent_str, double *params) {
+    lv_strbuf_printf(sb, "%ssphere(r=%.10g);\n", indent_str, params[0]);
+    return 0;
 }
-static int prim_cube(char *buf, int buf_size, int written, const char *indent_str, double *params) {
-    return snprintf(buf + written, (size_t)(buf_size - written), "%scube([%.10g, %.10g, %.10g], center=true);\n", indent_str, params[0], params[1], params[2]);
+static int prim_cube(lvStrBuf *sb, const char *indent_str, double *params) {
+    lv_strbuf_printf(sb, "%scube([%.10g, %.10g, %.10g], center=true);\n", indent_str, params[0], params[1], params[2]);
+    return 0;
 }
-static int prim_cylinder(char *buf, int buf_size, int written, const char *indent_str, double *params) {
-    return snprintf(buf + written, (size_t)(buf_size - written), "%scylinder(r=%.10g, h=%.10g, center=true);\n", indent_str, params[0], params[1]);
+static int prim_cylinder(lvStrBuf *sb, const char *indent_str, double *params) {
+    lv_strbuf_printf(sb, "%scylinder(r=%.10g, h=%.10g, center=true);\n", indent_str, params[0], params[1]);
+    return 0;
 }
-static int prim_cone(char *buf, int buf_size, int written, const char *indent_str, double *params) {
+static int prim_cone(lvStrBuf *sb, const char *indent_str, double *params) {
     /* OpenSCAD 无独立 cone 基元，圆锥/圆台用 cylinder(r1, r2, h) 表达 */
-    return snprintf(buf + written, (size_t)(buf_size - written), "%scylinder(r1=%.10g, r2=%.10g, h=%.10g, center=true);\n", indent_str, params[0], params[1], params[2]);
+    lv_strbuf_printf(sb, "%scylinder(r1=%.10g, r2=%.10g, h=%.10g, center=true);\n", indent_str, params[0], params[1], params[2]);
+    return 0;
 }
 
 /* 处理器函数前向声明 */
-static int export_primitive(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
-static int export_boolean_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
-static int export_transform_handler(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
-static int export_children_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str);
+static int export_primitive(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str);
+static int export_boolean_op(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str);
+static int export_transform_handler(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str);
+static int export_children_op(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str);
 
 /* ── CSG 节点类型 → 导出处理器 查找表 ── */
 static CsgExportHandler kCsgExportOps[] = {
@@ -100,9 +107,9 @@ static const char *csg_op_name_for(CSGNodeKind kind, const char *fallback) {
     return fallback;
 }
 
-static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int written, int indent) {
-    if (!node || !buf || written < 0 || written >= buf_size)
-        return written;
+static int csg_export_node(const CSGNode *node, lvStrBuf *sb, int indent) {
+    if (!node || !sb)
+        return 0;
 
     /* 生成缩进空格 */
     char indent_str[33];
@@ -114,24 +121,23 @@ static int csg_export_node(const CSGNode *node, char *buf, int buf_size, int wri
 
     /* 通过查找表分发到对应处理器 */
     if (node->kind >= 0 && node->kind < kCsgExportOpsCount && kCsgExportOps[node->kind]) {
-        return kCsgExportOps[node->kind](node, buf, buf_size, written, indent, indent_str);
+        return kCsgExportOps[node->kind](node, sb, indent, indent_str);
     }
 
-    return written;
+    return 0;
 }
 
 /* ================================================================
  * 导出处理器函数实现
  * ================================================================ */
 
-static int export_primitive(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
+static int export_primitive(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str) {
     (void)indent;
     int ptype = node->data.prim.type;
     double *p = node->data.prim.params;
-    int n;
 
     /* 图元类型 → 导出函数 查找表 */
-    static int (*const kPrimOps[])(char *buf, int buf_size, int written, const char *indent_str, double *params) = {
+    static int (*const kPrimOps[])(lvStrBuf *sb, const char *indent_str, double *params) = {
         prim_sphere,   /* 0 = CSG_PRIM_SPHERE */
         prim_cube,     /* 1 = CSG_PRIM_CUBE */
         prim_cylinder, /* 2 = CSG_PRIM_CYLINDER */
@@ -140,76 +146,47 @@ static int export_primitive(const CSGNode *node, char *buf, int buf_size, int wr
     int prim_count = (int)(sizeof(kPrimOps) / sizeof(kPrimOps[0]));
 
     if (ptype >= 0 && ptype < prim_count) {
-        n = kPrimOps[ptype](buf, buf_size, written, indent_str, p);
-    } else {
-        n = snprintf(buf + written, (size_t)(buf_size - written), "%s// unknown primitive type %d\n", indent_str, ptype);
+        return kPrimOps[ptype](sb, indent_str, p);
     }
-
-    if (n > 0)
-        written += n;
-    if (n < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for primitive");
-    return written;
+    lv_strbuf_printf(sb, "%s// unknown primitive type %d\n", indent_str, ptype);
+    return 0;
 }
 
-static int export_boolean_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
+static int export_boolean_op(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str) {
     const char *op_name = csg_op_name_for(node->kind, "union");
 
-    int n = snprintf(buf + written, (size_t)(buf_size - written), "%s%s() {\n", indent_str, op_name);
-    if (n > 0)
-        written += n;
-    else if (n < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for boolean op");
+    lv_strbuf_printf(sb, "%s%s() {\n", indent_str, op_name);
 
     for (int i = 0; i < node->child_count; i++) {
-        written = csg_export_node(node->children[i], buf, buf_size, written, indent + 1);
-        if (written < 0)
+        if (csg_export_node(node->children[i], sb, indent + 1) < 0)
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: child export failed");
     }
 
-    n = snprintf(buf + written, (size_t)(buf_size - written), "%s}\n", indent_str);
-    if (n > 0)
-        written += n;
-    else if (n < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for boolean close");
-    return written;
+    lv_strbuf_printf(sb, "%s}\n", indent_str);
+    return 0;
 }
 
-static int export_transform_handler(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
-    int n = snprintf(buf + written, (size_t)(buf_size - written), "%s// transform (TBI)\n", indent_str);
-    if (n > 0)
-        written += n;
-    else if (n < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for transform");
+static int export_transform_handler(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str) {
+    lv_strbuf_printf(sb, "%s// transform (TBI)\n", indent_str);
     if (node->child_count > 0) {
-        written = csg_export_node(node->children[0], buf, buf_size, written, indent);
-        if (written < 0)
+        if (csg_export_node(node->children[0], sb, indent) < 0)
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: transform child export failed");
     }
-    return written;
+    return 0;
 }
 
-static int export_children_op(const CSGNode *node, char *buf, int buf_size, int written, int indent, const char *indent_str) {
+static int export_children_op(const CSGNode *node, lvStrBuf *sb, int indent, const char *indent_str) {
     const char *op_name = csg_op_name_for(node->kind, "hull");
 
-    int n = snprintf(buf + written, (size_t)(buf_size - written), "%s%s() {\n", indent_str, op_name);
-    if (n > 0)
-        written += n;
-    else if (n < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for hull/minkowski/extrude");
+    lv_strbuf_printf(sb, "%s%s() {\n", indent_str, op_name);
 
     for (int i = 0; i < node->child_count; i++) {
-        written = csg_export_node(node->children[i], buf, buf_size, written, indent + 1);
-        if (written < 0)
+        if (csg_export_node(node->children[i], sb, indent + 1) < 0)
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: child export failed");
     }
 
-    n = snprintf(buf + written, (size_t)(buf_size - written), "%s}\n", indent_str);
-    if (n > 0)
-        written += n;
-    else if (n < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "csg_export_node: snprintf failed for hull/minkowski/extrude close");
-    return written;
+    lv_strbuf_printf(sb, "%s}\n", indent_str);
+    return 0;
 }
 
 /**
@@ -225,29 +202,22 @@ char *csg_export_to_openscad(const CSGNode *root) {
     if (!root)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "csg_export_to_openscad: root is NULL");
 
-    int buf_size = CSG_EXPORT_BUF_INIT;
-    char *buf = (char *) lv_calloc((size_t) buf_size, sizeof(char));
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "csg_export_to_openscad: buffer allocation failed");
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
 
     /* 添加文件头 */
-    int written = snprintf(buf, (size_t) buf_size,
-                           "// Generated by Lv-00 CSG module\n"
-                           "// Date: 2026-05-24\n"
-                           "// Engine: geometry_csg.c (BSP-based)\n"
-                           "$fn = 64;\n\n");
-    if (written < 0) {
-        lv_free((void **) &buf);
+    lv_strbuf_printf(&sb,
+                     "// Generated by Lv-00 CSG module\n"
+                     "// Date: 2026-05-24\n"
+                     "// Engine: geometry_csg.c (BSP-based)\n"
+                     "$fn = 64;\n\n");
+
+    if (csg_export_node(root, &sb, 0) < 0) {
+        lv_strbuf_destroy(&sb);
         return NULL;
     }
 
-    written = csg_export_node(root, buf, buf_size, written, 0);
-    if (written < 0) {
-        lv_free((void **) &buf);
-        return NULL;
-    }
-
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /* ================================================================

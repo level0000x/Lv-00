@@ -35,6 +35,7 @@
 #include <string.h>
 
 #include "lv/config.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/ode_integrator.h"
 
 #include "error_codes.h"
@@ -519,28 +520,36 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
     const double *gamma = bdf_gamma[order - 1];
     double gamma0 = gamma[0];
 
-    /* 分配临时空间 */
-    double *y_new = lv_malloc((size_t) dim * sizeof(double));   /* Newton 迭代当前值 */
-    double *G = lv_malloc((size_t) dim * sizeof(double));       /* 残差函数值 */
-    double *delta = lv_malloc((size_t) dim * sizeof(double));   /* Newton 修正量 */
-    double *f_new = lv_malloc((size_t) dim * sizeof(double));   /* f(t_{n+1}, y_new) */
-    double *f_pert = lv_malloc((size_t) dim * sizeof(double));  /* 有限差分扰动 RHS */
-    double *rhs_sum = lv_malloc((size_t) dim * sizeof(double)); /* 历史项累加 */
-    if (!y_new || !G || !delta || !f_new || !f_pert || !rhs_sum) {
-        if (y_new)
-            lv_free((void **) &y_new);
-        if (G)
-            lv_free((void **) &G);
-        if (delta)
-            lv_free((void **) &delta);
-        if (f_new)
-            lv_free((void **) &f_new);
-        if (f_pert)
-            lv_free((void **) &f_pert);
-        if (rhs_sum)
-            lv_free((void **) &rhs_sum);
+    /* 分配临时空间：NULL 初始化 + lv_DEFER 作用域守卫统一清理。
+     * 任一分配失败 / 中途 goto cleanup_bdf / 正常返回，均在函数出口逆序自动释放，
+     * 消除"先手动 free 再 goto 统一清理"的双重释放形态。 */
+    double *y_new = NULL;   /* Newton 迭代当前值 */
+    double *G = NULL;       /* 残差函数值 */
+    double *delta = NULL;   /* Newton 修正量 */
+    double *f_new = NULL;   /* f(t_{n+1}, y_new) */
+    double *f_pert = NULL;  /* 有限差分扰动 RHS */
+    double *rhs_sum = NULL; /* 历史项累加 */
+    double *J = NULL;       /* 稠密 Jacobian 矩阵（行优先存储） */
+    int *piv = NULL;        /* LU 分解主元数组 */
+    double *J_diag = NULL;  /* LU 分解前对角副本 */
+    lv_DEFER(lv_defer_free_ptr, &y_new);
+    lv_DEFER(lv_defer_free_ptr, &G);
+    lv_DEFER(lv_defer_free_ptr, &delta);
+    lv_DEFER(lv_defer_free_ptr, &f_new);
+    lv_DEFER(lv_defer_free_ptr, &f_pert);
+    lv_DEFER(lv_defer_free_ptr, &rhs_sum);
+    lv_DEFER(lv_defer_free_ptr, &J);
+    lv_DEFER(lv_defer_free_ptr, &piv);
+    lv_DEFER(lv_defer_free_ptr, &J_diag);
+
+    y_new = lv_malloc((size_t) dim * sizeof(double));
+    G = lv_malloc((size_t) dim * sizeof(double));
+    delta = lv_malloc((size_t) dim * sizeof(double));
+    f_new = lv_malloc((size_t) dim * sizeof(double));
+    f_pert = lv_malloc((size_t) dim * sizeof(double));
+    rhs_sum = lv_malloc((size_t) dim * sizeof(double));
+    if (!y_new || !G || !delta || !f_new || !f_pert || !rhs_sum)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "BDF temporary space allocation failed");
-    }
 
     /* 计算历史项累加：sum_{j=1}^{order} gamma_j * y_{n+1-j} */
     for (int i = 0; i < dim; ++i) {
@@ -591,7 +600,7 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
          * 当 dim 较大时，可替换为带状 LU 或稀疏直接求解器以提升性能。 */
         {
             /* 分配稠密 Jacobian 矩阵（行优先存储） */
-            double *J = lv_malloc((size_t) dim * dim * sizeof(double));
+            J = lv_malloc((size_t) dim * dim * sizeof(double));
             if (!J) {
                 goto cleanup_bdf;
             }
@@ -605,7 +614,7 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
                 ret = geoevol_rhs_eval(evol, evol->t + h, y_new, f_pert);
                 if (ret != 0) {
                     y_new[j] = y_save_j;
-                    lv_free((void **) &J);
+                    /* J 由 lv_DEFER 守卫在函数出口统一释放，此处不再手动 free */
                     goto cleanup_bdf;
                 }
                 y_new[j] = y_save_j;
@@ -625,19 +634,16 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
             /* 部分选主元 LU 分解（原地分解，结果存回 J） */
             /* 使用紧凑存储：J 的上三角存 U，下三角存 L（对角线为 1），
              * piv 记录行交换信息 */
-            int *piv = lv_malloc((size_t) dim * sizeof(int));
+            piv = lv_malloc((size_t) dim * sizeof(int));
             if (!piv) {
-                lv_free((void **) &J);
                 goto cleanup_bdf;
             }
             for (int i = 0; i < dim; ++i)
                 piv[i] = i;
 
             /* 在 LU 分解前保存原始对角线副本，用于分解失败时的对角回退 */
-            double *J_diag = lv_malloc((size_t) dim * sizeof(double));
+            J_diag = lv_malloc((size_t) dim * sizeof(double));
             if (!J_diag) {
-                lv_free((void **) &piv);
-                lv_free((void **) &J);
                 goto cleanup_bdf;
             }
             for (int i = 0; i < dim; ++i)
@@ -754,18 +760,8 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
     geoevol_ms_history_push(evol, evol->t + h, y_out, NULL);
 
 cleanup_bdf:
-    if (y_new)
-        lv_free((void **) &y_new);
-    if (G)
-        lv_free((void **) &G);
-    if (delta)
-        lv_free((void **) &delta);
-    if (f_new)
-        lv_free((void **) &f_new);
-    if (f_pert)
-        lv_free((void **) &f_pert);
-    if (rhs_sum)
-        lv_free((void **) &rhs_sum);
+    /* 所有临时数组已由 lv_DEFER 守卫在函数出口逆序自动释放（NULL 安全），
+     * 此处仅保留统一的错误语义出口，行为与原实现完全一致 */
     if (!newton_converged)
         lv_RETURN_ERROR(lv_ERROR_SOLVER_NOT_CONVERGED, "BDF Newton iteration did not converge");
     return 0;

@@ -43,6 +43,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/float_error.h"
 #include "lv/interval_arith.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/proof.h"
 #include "lv/trust_color.h"
@@ -210,10 +211,8 @@ static bool numeric_verify_extract_claim(const Proposition *prop, NumericClaim *
     memcpy(out->lhs, text, lhs_len);
     out->lhs[lhs_len] = '\0';
 
-    /* rhs：谓词之后到首个空白（去首空白） */
-    const char *rhs_start = found + found_len;
-    while (*rhs_start && isspace((unsigned char) *rhs_start))
-        rhs_start++;
+    /* rhs：谓词之后到首个空白（去首空白，统一 lv_str_ltrim） */
+    const char *rhs_start = lv_str_ltrim(found + found_len);
     const char *rhs_end = rhs_start;
     while (*rhs_end && !isspace((unsigned char) *rhs_end))
         rhs_end++;

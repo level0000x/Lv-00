@@ -8,6 +8,7 @@
 #include "axiom_pkg_internal.h"
 
 #include "lv/lv_file.h"
+#include "lv/lv_lifecycle.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -73,67 +74,76 @@ const ConstraintTemplate *axiom_package_get_template_by_index(const AxiomPackage
     return (const ConstraintTemplate *)lv_darray_get(arr, index);
 }
 
+/* ── axiom_package_destroy 逐元素销毁适配 ── */
+
+/* ConstraintTemplate 元素：name / params 指针 + compressed_subgraph 图 */
+static void destroy_axiom_template_elem(void *elem) {
+    ConstraintTemplate *t = (ConstraintTemplate *) elem;
+    lv_free((void **) &t->name);
+    lv_free((void **) &t->params);
+    if (t->compressed_subgraph) {
+        graph_destroy(t->compressed_subgraph);
+        t->compressed_subgraph = NULL;
+    }
+}
+
+/* KnownUnconstructible 元素：三个字符串 + dependency_chain（lvDArray<char*>） */
+static void destroy_axiom_unconstructible_elem(void *elem) {
+    KnownUnconstructible *uc = (KnownUnconstructible *) elem;
+    lv_free((void **) &uc->name);
+    lv_free((void **) &uc->reduces_to);
+    lv_free((void **) &uc->external_ref);
+
+    /* 释放依赖链（元素为 char*，逐个释放后释放数组） */
+    for (int j = 0; j < uc->dependency_chain.count; j++) {
+        lv_free((void **) lv_darray_get(&uc->dependency_chain, j));
+    }
+    lv_darray_free(&uc->dependency_chain);
+}
+
+/* UnconstructibleTemplate 元素：两个名称字符串 + reduction_construction 图 + description */
+static void destroy_axiom_uctemplate_elem(void *elem) {
+    UnconstructibleTemplate *tmpl = (UnconstructibleTemplate *) elem;
+    lv_free((void **) &tmpl->target_problem_name);
+    lv_free((void **) &tmpl->known_unconstructible_name);
+    if (tmpl->reduction_construction) {
+        graph_destroy(tmpl->reduction_construction);
+        tmpl->reduction_construction = NULL;
+    }
+    lv_free((void **) &tmpl->description);
+}
+
+/* TemplateExpansionCache 元素：template_name 字符串 + expanded_graph 图 */
+static void destroy_axiom_expansion_cache_elem(void *elem) {
+    TemplateExpansionCache *c = (TemplateExpansionCache *) elem;
+    lv_free((void **) &c->template_name);
+    if (c->expanded_graph) {
+        graph_destroy(c->expanded_graph);
+        c->expanded_graph = NULL;
+    }
+}
+
+/* axiom_package_destroy 字段描述表：释放顺序与原实现一致
+ * （name/version → 6 个 darray → bottom_geometry/negation_encoding → 外壳），
+ * 全部置 NULL 安全 */
+static const lvFieldDesc s_axiom_package_destroy_fields[] = {
+    lv_FIELD_PLAIN(AxiomPackage, name),
+    lv_FIELD_PLAIN(AxiomPackage, version),
+    lv_FIELD_DARRAY_ELEMS(AxiomPackage, templates, destroy_axiom_template_elem),
+    lv_FIELD_DARRAY_ELEMS(AxiomPackage, known_unconstructibles, destroy_axiom_unconstructible_elem),
+    lv_FIELD_DARRAY_ELEMS(AxiomPackage, unconstructible_templates, destroy_axiom_uctemplate_elem),
+    lv_FIELD_PLAIN(AxiomPackage, bottom_geometry),
+    lv_FIELD_PLAIN(AxiomPackage, negation_encoding),
+    lv_FIELD_DARRAY_ELEMS(AxiomPackage, expansion_cache, destroy_axiom_expansion_cache_elem),
+    lv_FIELD_DARRAY(AxiomPackage, dep_refs),
+};
+
 void axiom_package_destroy(AxiomPackage *pkg) {
     if (!pkg)
         return;
 
-    lv_free((void **) &pkg->name);
-    lv_free((void **) &pkg->version);
-
-    /* 释放模板 */
-    for (int i = 0; i < pkg->templates.count; i++) {
-        ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
-        lv_free((void **) &t->name);
-        lv_free((void **) &t->params);
-        if (t->compressed_subgraph) {
-            graph_destroy(t->compressed_subgraph);
-        }
-    }
-    lv_darray_free(&pkg->templates);
-
-    /* 释放不可构造问题 */
-    for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
-        KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
-        lv_free((void **) &uc->name);
-        lv_free((void **) &uc->reduces_to);
-        lv_free((void **) &uc->external_ref);
-
-        /* 释放依赖链 */
-        for (int j = 0; j < uc->dependency_chain.count; j++) {
-            lv_free((void **) lv_darray_get(&uc->dependency_chain, j));
-        }
-        lv_darray_free(&uc->dependency_chain);
-    }
-    lv_darray_free(&pkg->known_unconstructibles);
-
-    /* 释放不可构造性证明模板 */
-    for (int i = 0; i < pkg->unconstructible_templates.count; i++) {
-        UnconstructibleTemplate *tmpl = (UnconstructibleTemplate *)lv_darray_get(&pkg->unconstructible_templates, i);
-        lv_free((void **) &tmpl->target_problem_name);
-        lv_free((void **) &tmpl->known_unconstructible_name);
-        if (tmpl->reduction_construction) {
-            graph_destroy(tmpl->reduction_construction);
-        }
-        lv_free((void **) &tmpl->description);
-    }
-    lv_darray_free(&pkg->unconstructible_templates);
-
-    lv_free((void **) &pkg->bottom_geometry);
-    lv_free((void **) &pkg->negation_encoding);
-
-    /* 释放模板展开缓存 */
-    for (int i = 0; i < pkg->expansion_cache.count; i++) {
-        TemplateExpansionCache *c = (TemplateExpansionCache *)lv_darray_get(&pkg->expansion_cache, i);
-        lv_free((void **) &c->template_name);
-        if (c->expanded_graph) {
-            graph_destroy(c->expanded_graph);
-        }
-    }
-    lv_darray_free(&pkg->expansion_cache);
-
-    /* 释放依赖引用数组 */
-    lv_darray_free(&pkg->dep_refs);
-
+    lv_obj_destroy_fields(pkg, s_axiom_package_destroy_fields,
+                          sizeof(s_axiom_package_destroy_fields) / sizeof(s_axiom_package_destroy_fields[0]));
     lv_free((void **) &pkg);
 }
 

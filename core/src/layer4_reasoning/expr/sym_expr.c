@@ -116,8 +116,8 @@ typedef struct {
     lvSymExpr *(*diff)(const lvSymExpr *expr, const char *var_name);
     /** 化简（接收已递归化简的子节点，应用代数规则后返回新节点） */
     lvSymExpr *(*simplify)(lvSymExprKind kind, lvSymExpr **simplified_children, int child_count);
-    /** 字符串格式 */
-    int (*to_string)(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op);
+    /** 字符串格式（lvStrBuf 动态构建，消除游标式 snprintf） */
+    void (*to_string)(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op);
 } SymExprVTableEntry;
 
 /* ── 各 kind 的 eval 实现 ── */
@@ -347,129 +347,92 @@ static lvSymExpr *simplify_unary_fn(lvSymExprKind kind, lvSymExpr **children, in
 /* ── 各 kind 的 to_string 实现 ── */
 
 /* Forward declaration（to_string 的 vtable 处理函数调用的递归格式化函数） */
-static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op);
+static void sym_expr_to_string_impl(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op);
 
-static int to_string_const(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+static void to_string_const(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
     (void)parent_op;
-    lvStrBuf sb = {0};
     if (expr->value == (double)(long long)expr->value && fabs(expr->value) < 1e15)
-        lv_strbuf_printf(&sb, "%lld", (long long)expr->value);
+        lv_strbuf_printf(sb, "%lld", (long long)expr->value);
     else
-        lv_strbuf_printf(&sb, "%.6g", expr->value);
-    int len = (int)sb.len;
-    if (buf && bufsize > 0) {
-        int copy_len = (len < bufsize) ? len : bufsize - 1;
-        memcpy(buf, sb.data, (size_t)copy_len);
-        buf[copy_len] = '\0';
-    }
-    lv_strbuf_destroy(&sb);
-    return len;
+        lv_strbuf_printf(sb, "%.6g", expr->value);
 }
 
-static int to_string_var(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+static void to_string_var(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
     (void)parent_op;
-    lvStrBuf sb = {0};
-    lv_strbuf_printf(&sb, "%s", expr->var_name ? expr->var_name : "?");
-    int len = (int)sb.len;
-    if (buf && bufsize > 0) {
-        int copy_len = (len < bufsize) ? len : bufsize - 1;
-        memcpy(buf, sb.data, (size_t)copy_len);
-        buf[copy_len] = '\0';
-    }
-    lv_strbuf_destroy(&sb);
-    return len;
+    lv_strbuf_printf(sb, "%s", expr->var_name ? expr->var_name : "?");
 }
 
-static int to_string_binary_op(const lvSymExpr *expr, char *buf, int bufsize,
+static void to_string_binary_op(const lvSymExpr *expr, lvStrBuf *sb,
                                 lvSymExprKind parent_op, const char *op_str) {
     (void)parent_op;
-    int l = sym_expr_to_string_impl(expr->children[0], NULL, 0, expr->kind);
-    int r = sym_expr_to_string_impl(expr->children[1], NULL, 0, expr->kind);
     int need_paren_l = (expr->kind == lv_SYM_MUL && expr->children[0]->kind == lv_SYM_ADD);
     int need_paren_r = (expr->kind == lv_SYM_MUL && expr->children[1]->kind == lv_SYM_ADD);
-    int len = l + (need_paren_l ? 2 : 0) + (int)strlen(op_str) + r + (need_paren_r ? 2 : 0);
-    if (buf && bufsize > 0) {
-        int pos = 0;
-        if (need_paren_l && pos < bufsize) buf[pos++] = '(';
-        pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, expr->kind);
-        if (need_paren_l && pos < bufsize) buf[pos++] = ')';
-        if (pos < bufsize) pos += snprintf(buf + pos, bufsize - pos, "%s", op_str);
-        if (need_paren_r && pos < bufsize) buf[pos++] = '(';
-        pos += sym_expr_to_string_impl(expr->children[1], buf + pos, bufsize - pos, expr->kind);
-        if (need_paren_r && pos < bufsize) buf[pos++] = ')';
-    }
-    return len;
+    if (need_paren_l)
+        lv_strbuf_printf(sb, "(");
+    sym_expr_to_string_impl(expr->children[0], sb, expr->kind);
+    if (need_paren_l)
+        lv_strbuf_printf(sb, ")");
+    lv_strbuf_printf(sb, "%s", op_str);
+    if (need_paren_r)
+        lv_strbuf_printf(sb, "(");
+    sym_expr_to_string_impl(expr->children[1], sb, expr->kind);
+    if (need_paren_r)
+        lv_strbuf_printf(sb, ")");
 }
 
-static int to_string_add(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
-    return to_string_binary_op(expr, buf, bufsize, parent_op, " + ");
+static void to_string_add(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
+    to_string_binary_op(expr, sb, parent_op, " + ");
 }
 
-static int to_string_mul(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
-    return to_string_binary_op(expr, buf, bufsize, parent_op, " * ");
+static void to_string_mul(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
+    to_string_binary_op(expr, sb, parent_op, " * ");
 }
 
-static int to_string_pow(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+static void to_string_pow(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
     (void)parent_op;
-    int l = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_POW);
-    int r = sym_expr_to_string_impl(expr->children[1], NULL, 0, lv_SYM_POW);
     int need_paren_l = (expr->children[0]->kind != lv_SYM_CONST && expr->children[0]->kind != lv_SYM_VAR);
-    int len = l + (need_paren_l ? 2 : 0) + 3 + r;
-    if (buf && bufsize > 0) {
-        int pos = 0;
-        if (need_paren_l && pos < bufsize) buf[pos++] = '(';
-        pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_POW);
-        if (need_paren_l && pos < bufsize) buf[pos++] = ')';
-        if (pos < bufsize) pos += snprintf(buf + pos, bufsize - pos, " ^ ");
-        pos += sym_expr_to_string_impl(expr->children[1], buf + pos, bufsize - pos, lv_SYM_POW);
-    }
-    return len;
+    if (need_paren_l)
+        lv_strbuf_printf(sb, "(");
+    sym_expr_to_string_impl(expr->children[0], sb, lv_SYM_POW);
+    if (need_paren_l)
+        lv_strbuf_printf(sb, ")");
+    lv_strbuf_printf(sb, " ^ ");
+    sym_expr_to_string_impl(expr->children[1], sb, lv_SYM_POW);
 }
 
-static int to_string_neg(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
+static void to_string_neg(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
     (void)parent_op;
     int need_paren = (expr->children[0]->kind == lv_SYM_ADD);
-    int inner_len = sym_expr_to_string_impl(expr->children[0], NULL, 0, lv_SYM_NEG);
-    int len = 1 + inner_len + (need_paren ? 2 : 0);
-    if (buf && bufsize > 0) {
-        int pos = 0;
-        buf[pos++] = '-';
-        if (need_paren && pos < bufsize) buf[pos++] = '(';
-        pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, lv_SYM_NEG);
-        if (need_paren && pos < bufsize) buf[pos++] = ')';
-    }
-    return len;
+    lv_strbuf_printf(sb, "-");
+    if (need_paren)
+        lv_strbuf_printf(sb, "(");
+    sym_expr_to_string_impl(expr->children[0], sb, lv_SYM_NEG);
+    if (need_paren)
+        lv_strbuf_printf(sb, ")");
 }
 
-static int to_string_unary_fn(const lvSymExpr *expr, char *buf, int bufsize,
+static void to_string_unary_fn(const lvSymExpr *expr, lvStrBuf *sb,
                                lvSymExprKind parent_op, const char *fn_name) {
     (void)parent_op;
-    int fn_len = (int)strlen(fn_name);
-    int inner_len = sym_expr_to_string_impl(expr->children[0], NULL, 0, expr->kind);
-    int len = fn_len + inner_len + 1;
-    if (buf && bufsize > 0) {
-        int pos = 0;
-        pos += snprintf(buf + pos, bufsize - pos, "%s(", fn_name);
-        pos += sym_expr_to_string_impl(expr->children[0], buf + pos, bufsize - pos, expr->kind);
-        if (pos < bufsize) buf[pos++] = ')';
-    }
-    return len;
+    lv_strbuf_printf(sb, "%s(", fn_name);
+    sym_expr_to_string_impl(expr->children[0], sb, expr->kind);
+    lv_strbuf_printf(sb, ")");
 }
 
-static int to_string_sin(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
-    return to_string_unary_fn(expr, buf, bufsize, parent_op, "sin");
+static void to_string_sin(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
+    to_string_unary_fn(expr, sb, parent_op, "sin");
 }
 
-static int to_string_cos(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
-    return to_string_unary_fn(expr, buf, bufsize, parent_op, "cos");
+static void to_string_cos(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
+    to_string_unary_fn(expr, sb, parent_op, "cos");
 }
 
-static int to_string_sqrt(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
-    return to_string_unary_fn(expr, buf, bufsize, parent_op, "sqrt");
+static void to_string_sqrt(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
+    to_string_unary_fn(expr, sb, parent_op, "sqrt");
 }
 
-static int to_string_log(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
-    return to_string_unary_fn(expr, buf, bufsize, parent_op, "log");
+static void to_string_log(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
+    to_string_unary_fn(expr, sb, parent_op, "log");
 }
 
 /* ── VTable 数组 ── */
@@ -660,53 +623,33 @@ lv_PUBLIC_API double sym_expr_eval_double(const lvSymExpr *expr, const char **va
  * ============================================================ */
 
 /**
- * @brief Internal recursive string builder
+ * @brief Internal recursive string builder（lvStrBuf 动态构建，消除两遍法长度预估）
  *
  * @param expr      Expression node
- * @param buf       Output buffer
- * @param bufsize   Buffer size
+ * @param sb        lvStrBuf 构建器
  * @param parent_op Kind of parent operation (for parenthesization)
- * @return Number of characters written (excluding null terminator),
- *         or number of characters that would have been written if bufsize is 0
  */
-static int sym_expr_to_string_impl(const lvSymExpr *expr, char *buf, int bufsize, lvSymExprKind parent_op) {
-    if (!expr) {
-        if (buf && bufsize > 0)
-            buf[0] = '\0';
-        return 0;
-    }
+static void sym_expr_to_string_impl(const lvSymExpr *expr, lvStrBuf *sb, lvSymExprKind parent_op) {
+    if (!expr)
+        return;
 
     /* VTable dispatch: 使用 kind 对应的 to_string 函数 */
     const SymExprVTableEntry *vt = sym_expr_get_vtable(expr->kind);
     if (vt && vt->to_string) {
-        return vt->to_string(expr, buf, bufsize, parent_op);
+        vt->to_string(expr, sb, parent_op);
     }
-
-    /* Unknown kind: empty string */
-    if (buf && bufsize > 0) buf[0] = '\0';
-    return 0;
+    /* Unknown kind: empty string（不写入） */
 }
 
 lv_PUBLIC_API char *sym_expr_to_string(const lvSymExpr *expr) {
     if (!expr)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "sym_expr_to_string: input expr is NULL");
 
-    /* First pass: compute required length */
-    int len = sym_expr_to_string_impl(expr, NULL, 0, lv_SYM_CONST);
-    if (len <= 0) {
-        char *s = (char *) lv_malloc(1);
-        if (s)
-            s[0] = '\0';
-        return s;
-    }
-
-    /* Allocate and second pass: fill buffer */
-    char *buf = (char *) lv_malloc((size_t) (len + 1));
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "sym_expr_to_string: malloc buf failed");
-    sym_expr_to_string_impl(expr, buf, len + 1, lv_SYM_CONST);
-    buf[len] = '\0';
-    return buf;
+    /* lvStrBuf 单遍构建（自动扩容），替代原"先算长度再写入"的两遍法 */
+    lvStrBuf sb;
+    lv_strbuf_init(&sb);
+    sym_expr_to_string_impl(expr, &sb, lv_SYM_CONST);
+    return lv_strbuf_to_string(&sb);
 }
 
 /* ============================================================

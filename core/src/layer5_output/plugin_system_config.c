@@ -17,7 +17,9 @@
 #include <string.h>
 
 #include "lv/lv_check.h"
+#include "lv/lv_registry.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_thread.h"
 #include "lv/lv_utils.h"
 
 #ifdef _WIN32
@@ -31,6 +33,41 @@
 
 /* ============ 插件配置 ============ */
 
+/* ============================================================
+ * 配置项注册表（泛型注册表设施 lv_registry）
+ *
+ * key = "C:<config>:<key>"，value = lvPluginConfigEntry*。
+ * 复合 key 使多个 lvPluginConfig 实例互不干扰（per-instance 查重/覆盖），
+ * 注册表内部拷贝 key 并管理生命周期，entry 由 destroy 回调释放。
+ * ============================================================ */
+
+/** @brief 配置项注册表（文件级单例） */
+static lvRegistry g_config_registry;
+
+/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t g_config_registry_once = lv_ONCE_INIT;
+
+/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
+static void config_registry_init_once(void) {
+    lv_registry_init(&g_config_registry, 64);
+}
+
+/** @brief 确保注册表已初始化 */
+static inline void config_registry_ensure(void) {
+    lv_once(&g_config_registry_once, config_registry_init_once);
+}
+
+/** @brief 构造复合注册表 key（栈缓冲区，调用方提供） */
+static void config_build_key(const lvPluginConfig *config, const char *key, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "C:%p:%s", (const void *) config, key);
+}
+
+/** @brief 配置项析构回调（lv_registry remove/destroy 时释放 entry） */
+static void config_entry_destroy(void *value) {
+    lvPluginConfigEntry *entry = (lvPluginConfigEntry *) value;
+    lv_free((void **) &entry);
+}
+
 /**
  * @brief 创建插件配置对象
  * @return 成功返回配置指针，失败返回 NULL
@@ -39,13 +76,8 @@ lvPluginConfig *lv_plugin_config_create(void) {
     lvPluginConfig *config = (lvPluginConfig *) lv_calloc(1, sizeof(lvPluginConfig));
     if (!config)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_config_create: config calloc failed");
-    config->entry_capacity = 256;
-    config->entries = (lvPluginConfigEntry *) lv_calloc(config->entry_capacity, sizeof(lvPluginConfigEntry));
 
-    if (!config->entries) {
-        lv_free((void **) &config);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_config_create: entries calloc failed");
-    }
+    config_registry_ensure();
 
     return config;
 }
@@ -57,6 +89,24 @@ lvPluginConfig *lv_plugin_config_create(void) {
 void lv_plugin_config_destroy(lvPluginConfig *config) {
     if (!config)
         return;
+
+    /* 从注册表移除并释放该 config 的所有条目（倒序遍历避免前移跳过） */
+    config_registry_ensure();
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), "C:%p:", (const void *) config);
+    size_t prefix_len = strlen(prefix);
+    int total = lv_registry_count(&g_config_registry);
+    for (int i = total - 1; i >= 0; i--) {
+        const char *entry_name = NULL;
+        void *entry_value = NULL;
+        if (!lv_registry_get_at(&g_config_registry, i, &entry_name, &entry_value)) {
+            continue;
+        }
+        if (strncmp(entry_name, prefix, prefix_len) == 0) {
+            lv_registry_remove(&g_config_registry, entry_name);
+        }
+    }
+
     if (config->entries)
         lv_free((void **) &config->entries);
     lv_free((void **) &config);
@@ -167,8 +217,25 @@ int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
     if (!fp)
         lv_RETURN_ERROR(lv_ERROR_IO, "lv_plugin_config_save: fopen failed");
 
-    for (size_t i = 0; i < config->entry_count; i++) {
-        fprintf(fp, "%s=%s\n", config->entries[i].key, config->entries[i].value);
+    config_registry_ensure();
+
+    /* 遍历注册表条目，仅输出当前 config 的配置项 */
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), "C:%p:", (const void *) config);
+    size_t prefix_len = strlen(prefix);
+
+    int total = lv_registry_count(&g_config_registry);
+    for (int i = 0; i < total; i++) {
+        const char *entry_name = NULL;
+        void *entry_value = NULL;
+        if (!lv_registry_get_at(&g_config_registry, i, &entry_name, &entry_value)) {
+            continue;
+        }
+        if (strncmp(entry_name, prefix, prefix_len) != 0) {
+            continue;
+        }
+        lvPluginConfigEntry *entry = (lvPluginConfigEntry *) entry_value;
+        fprintf(fp, "%s=%s\n", entry->key, entry->value);
     }
 
     fclose(fp);
@@ -187,27 +254,35 @@ int lv_plugin_config_set(lvPluginConfig *config, const char *key, const char *va
     lv_CHECK_NOT_NULL(config);
     lv_CHECK_NOT_NULL(key);
     lv_CHECK_NOT_NULL(value);
-    lv_CHECK_ARG(config->entries != NULL, lv_ERROR_INTERNAL, "config entries is NULL");
-    if (config->entry_count >= config->entry_capacity)
-        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "lv_plugin_config_set: entry_capacity exhausted");
 
-    /* 检查是否已存在 */
-    for (size_t i = 0; i < config->entry_count; i++) {
-        if (strcmp(config->entries[i].key, key) == 0) {
-            strncpy(config->entries[i].value, value, sizeof(config->entries[i].value) - 1);
-            config->entries[i].value[sizeof(config->entries[i].value) - 1] = '\0';
-            config->entries[i].type = type;
-            return 0;
-        }
+    config_registry_ensure();
+
+    char regkey[192];
+    config_build_key(config, key, regkey, sizeof(regkey));
+
+    /* 已存在：覆盖（保持旧语义），否则追加新条目 */
+    lvPluginConfigEntry *entry = (lvPluginConfigEntry *) lv_registry_get(&g_config_registry, regkey);
+    if (entry) {
+        strncpy(entry->value, value, sizeof(entry->value) - 1);
+        entry->value[sizeof(entry->value) - 1] = '\0';
+        entry->type = type;
+        return 0;
     }
 
-    /* 添加新条目 */
-    lvPluginConfigEntry *entry = &config->entries[config->entry_count++];
-    strncpy(entry->key, key, sizeof(entry->key));
+    /* 添加新条目（动态分配，注册表持指针并带析构回调） */
+    entry = (lvPluginConfigEntry *) lv_calloc(1, sizeof(lvPluginConfigEntry));
+    if (!entry)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_config_set: entry calloc failed");
+    strncpy(entry->key, key, sizeof(entry->key) - 1);
     entry->key[sizeof(entry->key) - 1] = '\0';
-    strncpy(entry->value, value, sizeof(entry->value));
+    strncpy(entry->value, value, sizeof(entry->value) - 1);
     entry->value[sizeof(entry->value) - 1] = '\0';
     entry->type = type;
+
+    if (!lv_registry_put_ex(&g_config_registry, regkey, entry, config_entry_destroy)) {
+        lv_free((void **) &entry);
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "lv_plugin_config_set: registry exhausted");
+    }
 
     return 0;
 }
@@ -225,10 +300,14 @@ const char *lv_plugin_config_get(const lvPluginConfig *config, const char *key, 
     if (!key)
         return default_value;
 
-    for (size_t i = 0; i < config->entry_count; i++) {
-        if (strcmp(config->entries[i].key, key) == 0) {
-            return config->entries[i].value;
-        }
+    config_registry_ensure();
+
+    char regkey[192];
+    config_build_key(config, key, regkey, sizeof(regkey));
+
+    lvPluginConfigEntry *entry = (lvPluginConfigEntry *) lv_registry_get(&g_config_registry, regkey);
+    if (entry) {
+        return entry->value;
     }
 
     return default_value;

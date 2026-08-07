@@ -103,6 +103,21 @@ char *lv_strbuf_to_string(lvStrBuf *sb);
  */
 void lv_strbuf_append_n(lvStrBuf *sb, char ch, size_t count);
 
+/**
+ * @brief 追加原始字节数据（可含中间 '\0'）
+ * @param sb lvStrBuf 指针
+ * @param s  数据源指针（可为 NULL，空操作）
+ * @param n  字节数
+ */
+void lv_strbuf_append_raw(lvStrBuf *sb, const char *s, size_t n);
+
+/**
+ * @brief 追加 C 字符串
+ * @param sb lvStrBuf 指针
+ * @param s  要追加的字符串（可为 NULL，空操作）
+ */
+void lv_strbuf_append_str(lvStrBuf *sb, const char *s);
+
 #ifdef __cplusplus
 }
 #endif

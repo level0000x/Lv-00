@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 
 /**
  * @brief 解析并规范化数学输入表达式
@@ -68,12 +69,10 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
         return (int) out_len;
     }
 
-    /* 纯文本表达式：去除首尾空白 */
-    const char *p = input;
-    while (isspace((unsigned char) *p))
-        p++;
+    /* 纯文本表达式：去除首尾空白（左端收敛到 lv_str_ltrim，右端与 lv_str_rtrim 空白定义一致） */
+    const char *p = lv_str_ltrim((char *) input);
     size_t len = strlen(p);
-    while (len > 0 && isspace((unsigned char) p[len - 1]))
+    while (len > 0 && (unsigned char) p[len - 1] <= ' ')
         len--;
 
     if (len >= buf_size)

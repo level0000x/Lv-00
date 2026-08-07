@@ -27,6 +27,17 @@
  * Huffman encoder/decoder
  * ======================================================================== */
 
+void bitwriter_init(BitWriter *bw, uint8_t *buf, size_t capacity) {
+    if (!bw)
+        return;
+    bw->buf = buf;
+    bw->capacity = capacity;
+    bw->byte_pos = 0;
+    bw->bit_pos = 7;
+    if (buf && capacity > 0)
+        buf[0] = 0;
+}
+
 bool bitwriter_write_bit(BitWriter *bw, int bit) {
     if (bit) {
         bw->buf[bw->byte_pos] |= (uint8_t) (1 << bw->bit_pos);

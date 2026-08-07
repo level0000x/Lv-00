@@ -14,6 +14,7 @@
 #include "lv/allocator.h"
 #include "lv/lv_file.h"
 #include "lv/lv_path.h"
+#include "lv/lv_strbuf.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -732,22 +733,26 @@ void lv_free_ptr(void *ptr) {
 }
 
 /* ============================================================
- * 动态字符串（lv_dstr）
+ * 动态字符串（lv_dstr）—— 兼容薄封装
+ *
+ * 已收敛：唯一使用方 proof_export_enhanced.c 已迁移到 lvStrBuf
+ * （lv_strbuf.h）。此处保留 API 为兼容薄封装：格式化统一走
+ * lvStrBuf（lv_strbuf_vprintf），避免平行维护两套扩容/格式化逻辑。
  * ============================================================ */
 
 /**
- * @brief 初始化动态字符串构建器
+ * @brief 初始化动态字符串构建器（惰性分配，首次追加时才分配）
  * @param d   字符串构建器指针
- * @param cap 初始容量
- * @return 0 成功，-1 内存分配失败
+ * @param cap 初始容量（兼容参数，lvStrBuf 自动扩容故忽略）
+ * @return 0 成功，-1 参数错误
  */
 int lv_dstr_init(lvDStr *d, size_t cap) {
-    d->data = (char *) lv_malloc(cap);
-    if (!d->data)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "dstr_init malloc 失败");
-    d->data[0] = '\0';
+    (void) cap;
+    if (!d)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "dstr_init: d is NULL");
+    d->data = NULL;
     d->len = 0;
-    d->cap = cap;
+    d->cap = 0;
     return 0;
 }
 
@@ -758,12 +763,19 @@ int lv_dstr_init(lvDStr *d, size_t cap) {
  * @return 0 成功，-1 内存分配失败
  */
 int lv_dstr_grow(lvDStr *d, size_t extra) {
+    if (!d)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "dstr_grow: d is NULL");
     size_t needed = d->len + extra + 1;
     if (needed <= d->cap)
         return 0;
-    size_t new_cap = d->cap * 2;
-    while (new_cap < needed)
+    size_t new_cap = d->cap ? d->cap : lv_DSTR_INIT_CAP;
+    while (new_cap < needed) {
+        if (new_cap > SIZE_MAX / 2) {
+            new_cap = needed;
+            break;
+        }
         new_cap *= 2;
+    }
     char *nd = (char *) lv_realloc(d->data, new_cap);
     if (!nd)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "dstr_grow realloc 失败");
@@ -773,26 +785,25 @@ int lv_dstr_grow(lvDStr *d, size_t extra) {
 }
 
 /**
- * @brief 向动态字符串追加格式化内容（printf 风格）
+ * @brief 向动态字符串追加格式化内容（printf 风格，经 lvStrBuf 格式化）
  * @param d   字符串构建器指针
  * @param fmt printf 格式字符串
  * @param ... 格式化参数
  * @return 0 成功，-1 失败
  */
 int lv_dstr_append_fmt(lvDStr *d, const char *fmt, ...) {
+    if (!d || !fmt)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "dstr_append_fmt: NULL");
+    /* 格式化收敛到 lvStrBuf（统一 SSO+倍增设施），再整体追加 */
+    lvStrBuf tmp;
+    lv_strbuf_init(&tmp);
     va_list ap;
     va_start(ap, fmt);
-    int needed = vsnprintf(NULL, 0, fmt, ap);
+    lv_strbuf_vprintf(&tmp, fmt, ap);
     va_end(ap);
-    if (needed < 0)
-        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "dstr_append_fmt vsnprintf 失败");
-    if (lv_dstr_grow(d, (size_t) needed) != 0)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "dstr_append_fmt grow 失败");
-    va_start(ap, fmt);
-    vsnprintf(d->data + d->len, d->cap - d->len, fmt, ap);
-    va_end(ap);
-    d->len += (size_t) needed;
-    return 0;
+    int rc = lv_dstr_append_raw(d, tmp.data, tmp.len);
+    lv_strbuf_destroy(&tmp);
+    return rc;
 }
 
 /**

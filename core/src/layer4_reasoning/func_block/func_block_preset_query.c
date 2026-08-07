@@ -9,6 +9,7 @@
 
 #include "func_block_preset_internal.h"
 #include "lv/lv_xmacro.h"
+#include "lv/preset_category.h" /* LV_PRESET_CATEGORY_ENTRY 单一事实来源 */
 
 #include <math.h>
 #include <stdio.h>
@@ -208,34 +209,13 @@ bool func_block_preset_exists(const char *preset_name) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief func_block_preset_category_string 名称表（按枚举值升序） */
+/** @brief func_block_preset_category_string 名称表（按枚举值升序，
+ *  由共享条目宏 LV_PRESET_CATEGORY_ENTRY 生成，中文名以本查询侧为 UI 显示源） */
+#define LV_PRESET_CATEGORY_ROW_ZH(ENUM, EN_KEY, ZH_NAME) { ZH_NAME, ENUM },
 static const lvStrToEnumEntry s_func_block_preset_category_string_entries[] = {
-    {"几何构造", PRESET_CATEGORY_CONSTRUCTION},
-    {"度量计算", PRESET_CATEGORY_MEASUREMENT},
-    {"几何变换", PRESET_CATEGORY_TRANSFORMATION},
-    {"代数运算", PRESET_CATEGORY_ALGEBRAIC},
-    {"逻辑推导", PRESET_CATEGORY_LOGIC},
-    {"数学分析", PRESET_CATEGORY_ANALYSIS},
-    {"数论", PRESET_CATEGORY_NUMBER_THEORY},
-    {"群论", PRESET_CATEGORY_GROUP_THEORY},
-    {"环论", PRESET_CATEGORY_RING_THEORY},
-    {"域论", PRESET_CATEGORY_FIELD_THEORY},
-    {"拓扑学", PRESET_CATEGORY_TOPOLOGY},
-    {"线性代数", PRESET_CATEGORY_LINEAR_ALGEBRA},
-    {"组合数学", PRESET_CATEGORY_COMBINATORICS},
-    {"复分析", PRESET_CATEGORY_COMPLEX_ANALYSIS},
-    {"概率统计", PRESET_CATEGORY_PROBABILITY},
-    {"几何学", PRESET_CATEGORY_GEOMETRY},
-    {"代数学", PRESET_CATEGORY_ALGEBRA},
-    {"范畴论", PRESET_CATEGORY_CATEGORY_THEORY},
-    {"集合论", PRESET_CATEGORY_SET_THEORY},
-    {"自定义", PRESET_CATEGORY_CUSTOM},
-    {"图论", PRESET_CATEGORY_GRAPH_THEORY},
-    {"微分几何", PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY},
-    {"数值分析", PRESET_CATEGORY_NUMERICAL},
-    {"优化理论", PRESET_CATEGORY_OPTIMIZATION},
-    {"数理逻辑", PRESET_CATEGORY_MATH_LOGIC},
+    LV_PRESET_CATEGORY_ENTRY(LV_PRESET_CATEGORY_ROW_ZH)
 };
+#undef LV_PRESET_CATEGORY_ROW_ZH
 
 const char *func_block_preset_category_string(PresetCategory category) {
     return lv_enum_to_str(s_func_block_preset_category_string_entries, lv_ARRAY_SIZE(s_func_block_preset_category_string_entries), (int) category, "未知类别");

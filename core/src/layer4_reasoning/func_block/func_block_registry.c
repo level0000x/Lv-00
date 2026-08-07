@@ -14,6 +14,7 @@
 
 #include "func_block_registry.h"
 #include "lv/lv_xmacro.h"
+#include "lv/preset_category.h" /* LV_PRESET_CATEGORY_ENTRY 单一事实来源 */
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -659,24 +660,13 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief preset_category_to_string 名称表（按枚举值升序） */
+/** @brief preset_category_to_string 名称表（按枚举值升序，
+ *  由共享条目宏 LV_PRESET_CATEGORY_ENTRY 生成，中文名与查询侧 UI 统一） */
+#define LV_PRESET_CATEGORY_ROW_ZH(ENUM, EN_KEY, ZH_NAME) { ZH_NAME, ENUM },
 static const lvStrToEnumEntry s_preset_category_to_string_entries[] = {
-    {"几何构造", PRESET_CATEGORY_CONSTRUCTION},
-    {"度量计算", PRESET_CATEGORY_MEASUREMENT},
-    {"几何变换", PRESET_CATEGORY_TRANSFORMATION},
-    {"代数运算", PRESET_CATEGORY_ALGEBRAIC},
-    {"逻辑推导", PRESET_CATEGORY_LOGIC},
-    {"分析运算", PRESET_CATEGORY_ANALYSIS},
-    {"数论运算", PRESET_CATEGORY_NUMBER_THEORY},
-    {"群论运算", PRESET_CATEGORY_GROUP_THEORY},
-    {"环论运算", PRESET_CATEGORY_RING_THEORY},
-    {"域论运算", PRESET_CATEGORY_FIELD_THEORY},
-    {"拓扑构造", PRESET_CATEGORY_TOPOLOGY},
-    {"线性代数", PRESET_CATEGORY_LINEAR_ALGEBRA},
-    {"组合数学", PRESET_CATEGORY_COMBINATORICS},
-    {"复分析", PRESET_CATEGORY_COMPLEX_ANALYSIS},
-    {"概率统计", PRESET_CATEGORY_PROBABILITY},
+    LV_PRESET_CATEGORY_ENTRY(LV_PRESET_CATEGORY_ROW_ZH)
 };
+#undef LV_PRESET_CATEGORY_ROW_ZH
 
 const char *preset_category_to_string(PresetCategory cat) {
     return lv_enum_to_str(s_preset_category_to_string_entries, lv_ARRAY_SIZE(s_preset_category_to_string_entries), (int) cat, "未知类别");
@@ -697,33 +687,14 @@ bool preset_category_from_string(const char *str, PresetCategory *category) {
     if (!str || !category)
         return false;
 
-    /* 中文名称映射（与 preset_category_to_string 返回值对应） */
+    /* 中文名称映射（与 preset_category_to_string 返回值对应，由共享条目宏生成） */
     static const struct {
         const char *name;
         PresetCategory cat;
     } cn_map[] = {
-        {"几何构造", PRESET_CATEGORY_CONSTRUCTION},
-        {"度量计算", PRESET_CATEGORY_MEASUREMENT},
-        {"几何变换", PRESET_CATEGORY_TRANSFORMATION},
-        {"代数运算", PRESET_CATEGORY_ALGEBRAIC},
-        {"逻辑推导", PRESET_CATEGORY_LOGIC},
-        {"分析运算", PRESET_CATEGORY_ANALYSIS},
-        {"数论运算", PRESET_CATEGORY_NUMBER_THEORY},
-        {"群论运算", PRESET_CATEGORY_GROUP_THEORY},
-        {"环论运算", PRESET_CATEGORY_RING_THEORY},
-        {"域论运算", PRESET_CATEGORY_FIELD_THEORY},
-        {"拓扑构造", PRESET_CATEGORY_TOPOLOGY},
-        {"线性代数", PRESET_CATEGORY_LINEAR_ALGEBRA},
-        {"组合数学", PRESET_CATEGORY_COMBINATORICS},
-        {"复分析", PRESET_CATEGORY_COMPLEX_ANALYSIS},
-        {"概率统计", PRESET_CATEGORY_PROBABILITY},
-        {"几何", PRESET_CATEGORY_GEOMETRY},
-        {"代数", PRESET_CATEGORY_ALGEBRA},
-        {"范畴论", PRESET_CATEGORY_CATEGORY_THEORY},
-        {"集合论", PRESET_CATEGORY_SET_THEORY},
-        {"自定义", PRESET_CATEGORY_CUSTOM},
-        {"图论", PRESET_CATEGORY_GRAPH_THEORY},
-        {"微分几何", PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY},
+#define LV_PRESET_CATEGORY_ROW_CN(ENUM, EN_KEY, ZH_NAME) { ZH_NAME, ENUM },
+        LV_PRESET_CATEGORY_ENTRY(LV_PRESET_CATEGORY_ROW_CN)
+#undef LV_PRESET_CATEGORY_ROW_CN
     };
 
     for (size_t i = 0; i < sizeof(cn_map) / sizeof(cn_map[0]); i++) {
@@ -733,33 +704,14 @@ bool preset_category_from_string(const char *str, PresetCategory *category) {
         }
     }
 
-    /* 英文名称映射（用于序列化/反序列化） */
+    /* 英文名称映射（用于序列化/反序列化，由共享条目宏生成） */
     static const struct {
         const char *name;
         PresetCategory cat;
     } en_map[] = {
-        {"construction", PRESET_CATEGORY_CONSTRUCTION},
-        {"measurement", PRESET_CATEGORY_MEASUREMENT},
-        {"transformation", PRESET_CATEGORY_TRANSFORMATION},
-        {"algebraic", PRESET_CATEGORY_ALGEBRAIC},
-        {"logic", PRESET_CATEGORY_LOGIC},
-        {"analysis", PRESET_CATEGORY_ANALYSIS},
-        {"number_theory", PRESET_CATEGORY_NUMBER_THEORY},
-        {"group_theory", PRESET_CATEGORY_GROUP_THEORY},
-        {"ring_theory", PRESET_CATEGORY_RING_THEORY},
-        {"field_theory", PRESET_CATEGORY_FIELD_THEORY},
-        {"topology", PRESET_CATEGORY_TOPOLOGY},
-        {"linear_algebra", PRESET_CATEGORY_LINEAR_ALGEBRA},
-        {"combinatorics", PRESET_CATEGORY_COMBINATORICS},
-        {"complex_analysis", PRESET_CATEGORY_COMPLEX_ANALYSIS},
-        {"probability", PRESET_CATEGORY_PROBABILITY},
-        {"geometry", PRESET_CATEGORY_GEOMETRY},
-        {"algebra", PRESET_CATEGORY_ALGEBRA},
-        {"category_theory", PRESET_CATEGORY_CATEGORY_THEORY},
-        {"set_theory", PRESET_CATEGORY_SET_THEORY},
-        {"custom", PRESET_CATEGORY_CUSTOM},
-        {"graph_theory", PRESET_CATEGORY_GRAPH_THEORY},
-        {"differential_geometry", PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY},
+#define LV_PRESET_CATEGORY_ROW_EN(ENUM, EN_KEY, ZH_NAME) { EN_KEY, ENUM },
+        LV_PRESET_CATEGORY_ENTRY(LV_PRESET_CATEGORY_ROW_EN)
+#undef LV_PRESET_CATEGORY_ROW_EN
     };
 
     for (size_t i = 0; i < sizeof(en_map) / sizeof(en_map[0]); i++) {

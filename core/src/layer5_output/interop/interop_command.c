@@ -1075,20 +1075,14 @@ const char *interop_trust_color_to_tikz(TrustColor trust) {
  * @param type 几何类型枚举值
  * @return 对应的类型名称字符串（如 "point"、"line_segment"），未知类型返回 "unknown"
  */
-/** @brief interop_geom_type_name 名称表（按枚举值升序）
- *  @note 对外命令协议要求小写名（"point"），与序列化格式的大写
- *        （LV_GEOM_TYPE_X 生成）是两种对外格式，故不共用 X-macro 表。 */
-static const lvStrToEnumEntry s_interop_geom_type_name_entries[] = {
-    {"point", GEOM_POINT},
-    {"line_segment", GEOM_LINE_SEGMENT},
-    {"region", GEOM_REGION},
-    {"circle", GEOM_CIRCLE},
-    {"port", GEOM_PORT},
-    {"function_block", GEOM_FUNCTION_BLOCK},
-};
-
+/** @brief interop_geom_type_name 由共享条目宏 API 提供
+ *  @note 对外命令协议要求小写名（"point"），由 constraint_graph.h 的
+ *        LV_GEOM_TYPE_ENTRY 别名列生成（lv_geom_type_alias），
+ *        原手写小写表 s_interop_geom_type_name_entries 已删除。 */
 const char *interop_geom_type_name(GeomType type) {
-    return lv_enum_to_str(s_interop_geom_type_name_entries, lv_ARRAY_SIZE(s_interop_geom_type_name_entries), (int) type, "unknown");
+    const char *alias = lv_geom_type_alias((int) type);
+    /* lv_geom_type_alias 越界返回 "UNKNOWN"，此处保持本接口既有的 "unknown" 回退语义 */
+    return (alias && strcmp(alias, "UNKNOWN") != 0) ? alias : "unknown";
 }
 
 /**
@@ -1099,16 +1093,10 @@ const char *interop_geom_type_name(GeomType type) {
  * @param type 约束类型枚举值
  * @return 对应的类型名称字符串（如 "incidence"、"betweenness"），未知类型返回 "unknown"
  */
-/** @brief interop_constraint_type_name 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_interop_constraint_type_name_entries[] = {
-    {"incidence", INCIDENCE},
-    {"betweenness", BETWEENNESS},
-    {"intersection", INTERSECTION},
-    {"containment", CONTAINMENT},
-    {"connection", CONNECTION},
-    {"angle", ANGLE},
-};
-
+/** @brief interop_constraint_type_name 由共享条目宏 API 提供
+ *  @note 小写别名由 constraint_graph.h 的 LV_CONSTRAINT_TYPE_ENTRY 别名列生成
+ *        （lv_constraint_type_alias），原手写小写表已删除。 */
 const char *interop_constraint_type_name(ConstraintType type) {
-    return lv_enum_to_str(s_interop_constraint_type_name_entries, lv_ARRAY_SIZE(s_interop_constraint_type_name_entries), (int) type, "unknown");
+    const char *alias = lv_constraint_type_alias((int) type);
+    return (alias && strcmp(alias, "UNKNOWN") != 0) ? alias : "unknown";
 }

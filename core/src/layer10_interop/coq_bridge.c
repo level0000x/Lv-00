@@ -149,8 +149,7 @@ static int coq_import_proof(const char *input, void **proof) {
 
     /* 提取定理名（Theorem 后的第一个标识符） */
     const char *name_start = theorem_kw + 7; /* 跳过 "Theorem" */
-    while (*name_start && isspace((unsigned char) *name_start))
-        name_start++;
+    name_start = lv_str_ltrim((char *) name_start); /* lv_str_ltrim 不修改原串 */
     const char *name_end = name_start;
     while (*name_end && !isspace((unsigned char) *name_end) && *name_end != ':')
         name_end++;
@@ -162,8 +161,7 @@ static int coq_import_proof(const char *input, void **proof) {
     if (!proof_kw)
         lv_RETURN_ERROR(lv_ERROR_PARSE, "missing 'Proof.' keyword");
     const char *script_start = proof_kw + 6; /* 跳过 "Proof." */
-    while (*script_start && isspace((unsigned char) *script_start))
-        script_start++;
+    script_start = lv_str_ltrim((char *) script_start); /* lv_str_ltrim 不修改原串 */
 
     /* 查找 "Qed." 关键字，确定 tactic 脚本结束位置 */
     const char *qed_kw = strstr(script_start, "Qed.");

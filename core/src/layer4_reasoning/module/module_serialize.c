@@ -19,6 +19,7 @@
 #include "lv/module.h"
 #include "lv/module_internal.h"
 #include "lv/lv_hash.h"
+#include "lv/lv_strbuf.h"
 
 
 #include "debug.h"
@@ -307,19 +308,22 @@ ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_
     int *cycle_path = NULL;
     int cycle_path_len = 0;
     if (module_full_cycle_detect(loaded, count, &cycle_path, &cycle_path_len)) {
-        /* 构建错误消息：报告循环路径 */
-        char buf[512] = {0};
-        int pos = snprintf(buf, sizeof(buf), "模块循环依赖: ");
+        /* 构建错误消息：报告循环路径（lvStrBuf 动态构建，消除固定 512 缓冲截断） */
+        lvStrBuf msg;
+        lv_strbuf_init(&msg);
+        lv_strbuf_printf(&msg, "模块循环依赖: ");
         for (int i = 0; i < cycle_path_len; i++) {
             Module *m = loaded[cycle_path[i]];
             if (m) {
-                pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", m->name);
+                lv_strbuf_printf(&msg, "%s", m->name);
                 if (i < cycle_path_len - 1) {
-                    pos += snprintf(buf + pos, sizeof(buf) - pos, " → ");
+                    lv_strbuf_printf(&msg, " → ");
                 }
             }
         }
-        lv_set_error(lv_ERROR_INVALID_PARAM, "%s", buf);
+        char *msg_str = lv_strbuf_to_string(&msg);
+        lv_set_error(lv_ERROR_INVALID_PARAM, "%s", msg_str ? msg_str : "");
+        lv_free((void **) &msg_str);
         lv_free((void **) &cycle_path);
         return MODULE_LOAD_CIRCULAR_DEPENDENCY;
     }

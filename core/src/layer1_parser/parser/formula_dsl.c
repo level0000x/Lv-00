@@ -381,9 +381,8 @@ const char *formula_detect_syntax(const char *input) {
     /* 检测 DSL 关键字（逐词扫描 + 边界校验） */
     const char *p = input;
     while (*p) {
-        /* 跳过空白 */
-        while (*p && isspace((unsigned char) *p))
-            p++;
+        /* 跳过空白（统一 lv_str_ltrim，lv_str_ltrim 不修改原串） */
+        p = lv_str_ltrim((char *) p);
         if (!*p)
             break;
 

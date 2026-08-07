@@ -111,6 +111,23 @@ typedef enum {
     x(GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK")
 
 /**
+ * @brief GeomType 全字段条目宏（枚举↔字符串映射的单一事实来源，并行于 LV_GEOM_TYPE_X）
+ *
+ * 每行携带 4 列：ENUM（枚举值）、NAME（规范名，与 LV_GEOM_TYPE_X 一致）、
+ * ALIAS（CLI 命令协议小写别名，interop_command.c 对外格式）、
+ * DOT_SHAPE（Graphviz DOT 节点形状，meta_repr_export_dot 使用）。
+ * graph_node_alloc / interop_command / meta_repr 等文件散落的
+ * GeomType 名称/别名/形状表统一由本宏生成，禁止在其他文件重复定义。
+ */
+#define LV_GEOM_TYPE_ENTRY(x) \
+    x(GEOM_POINT, "POINT", "point", "ellipse") \
+    x(GEOM_LINE_SEGMENT, "LINE_SEGMENT", "line_segment", "diamond") \
+    x(GEOM_REGION, "REGION", "region", "box") \
+    x(GEOM_CIRCLE, "CIRCLE", "circle", "circle") \
+    x(GEOM_PORT, "PORT", "port", "box") \
+    x(GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK", "function_block", "box")
+
+/**
  * @brief 端口方向枚举
  *
  * 标识端口是函数块的输入还是输出。
@@ -149,12 +166,57 @@ typedef enum {
     x(ANGLE, "ANGLE")
 
 /**
+ * @brief ConstraintType 全字段条目宏（单一事实来源，并行于 LV_CONSTRAINT_TYPE_X）
+ *
+ * 每行携带 3 列：ENUM（枚举值）、NAME（规范名，与 LV_CONSTRAINT_TYPE_X 一致）、
+ * ALIAS（CLI 命令协议小写别名，interop_command.c 对外格式）。
+ * 散落的约束类型名称/别名表统一由本宏生成，禁止在其他文件重复定义。
+ */
+#define LV_CONSTRAINT_TYPE_ENTRY(x) \
+    x(INCIDENCE, "INCIDENCE", "incidence") \
+    x(BETWEENNESS, "BETWEENNESS", "betweenness") \
+    x(INTERSECTION, "INTERSECTION", "intersection") \
+    x(CONTAINMENT, "CONTAINMENT", "containment") \
+    x(CONNECTION, "CONNECTION", "connection") \
+    x(ANGLE, "ANGLE", "angle")
+
+/**
  * @brief 获取约束类型的规范名称（与 ConstraintType 枚举严格对齐）
  * @param type 约束类型
  * @return 类型名称字符串（如 "INCIDENCE"）；非法/越界返回 NULL
  * @note 权威名称表定义于 meta_repr.c（kConstraintTypeLabels）
  */
 lv_PUBLIC_API const char *lv_constraint_type_name(ConstraintType type);
+
+/**
+ * @brief 获取几何节点类型的规范名称（单一事实来源：LV_GEOM_TYPE_ENTRY）
+ * @param type 几何类型枚举值
+ * @return 规范名称字符串（如 "POINT"、"LINE_SEGMENT"）；越界返回 "UNKNOWN"
+ * @note 权威表定义于 meta_repr.c（kGeomTypeEntries），由 LV_GEOM_TYPE_ENTRY 生成；
+ *       散落各文件的 GeomType 名称表禁止另行定义。
+ */
+lv_PUBLIC_API const char *lv_geom_type_name(int type);
+
+/**
+ * @brief 获取几何节点类型的 CLI 小写别名（单一事实来源：LV_GEOM_TYPE_ENTRY）
+ * @param type 几何类型枚举值
+ * @return 小写别名字符串（如 "point"、"line_segment"）；越界返回 "UNKNOWN"
+ */
+lv_PUBLIC_API const char *lv_geom_type_alias(int type);
+
+/**
+ * @brief 获取几何节点类型的 Graphviz DOT 形状（单一事实来源：LV_GEOM_TYPE_ENTRY）
+ * @param type 几何类型枚举值
+ * @return DOT 形状字符串（如 "ellipse"、"diamond"）；越界返回 "UNKNOWN"
+ */
+lv_PUBLIC_API const char *lv_geom_type_dot_shape(int type);
+
+/**
+ * @brief 获取约束类型的 CLI 小写别名（单一事实来源：LV_CONSTRAINT_TYPE_ENTRY）
+ * @param type 约束类型枚举值
+ * @return 小写别名字符串（如 "incidence"）；越界返回 "UNKNOWN"
+ */
+lv_PUBLIC_API const char *lv_constraint_type_alias(int type);
 
 typedef struct GeomNode GeomNode;
 typedef struct GeomNodeVTable GeomNodeVTable;

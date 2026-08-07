@@ -93,6 +93,8 @@ bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **out_data
 bool bitwriter_write_bit(BitWriter *bw, int bit);
 bool bitwriter_write_bits(BitWriter *bw, uint32_t code, int bit_count);
 size_t bitwriter_flush(const BitWriter *bw);
+/* 初始化位写入器：统一初始化内部字段（禁止调用方手工赋值内部结构） */
+void bitwriter_init(BitWriter *bw, uint8_t *buf, size_t capacity);
 void bitreader_init(BitReader *br, const uint8_t *buf, size_t size);
 int bitreader_read_bit(BitReader *br);
 
