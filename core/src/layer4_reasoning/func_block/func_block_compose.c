@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_compose.c
  * @brief 函数块组合子实现
  * @details 提供函数块的组合操作，包括顺序组合（g o f）和并行乘积（f x g）。
@@ -16,13 +16,6 @@
 #include "error_codes.h"
 #include "func_block.h"
 #include "lv_utils.h"
-
-/* ==================== 命名常量 ==================== */
-
-/** 组合函数块名称格式中额外字符数（括号、空格、运算符） */
-#define COMPOSE_NAME_EXTRA_CHARS 8
-/** 乘积函数块名称格式中额外字符数（括号、空格、运算符） */
-#define PRODUCT_NAME_EXTRA_CHARS 6
 
 /* ============== 函数块组合子 ============== */
 
@@ -114,16 +107,8 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
 
     /* 设置组合函数块的名称，格式为 "(g_name >> f_name)" */
     if (f->name && g->name) {
-        size_t name_len = strlen(f->name) + strlen(g->name) + COMPOSE_NAME_EXTRA_CHARS;
-        composed->name = lv_malloc(name_len);
-        if (composed->name) {
-            int written = snprintf(composed->name, name_len, "(%s >> %s)", g->name, f->name);
-            if (written < 0 || (size_t) written >= name_len) {
-                lv_set_error(lv_ERROR_BUFFER_TOO_SMALL,
-                             "func_block_compose: 组合函数块名称截断（需要%zu字节，已分配%zu字节）",
-                             strlen(f->name) + strlen(g->name) + COMPOSE_NAME_EXTRA_CHARS, name_len);
-            }
-        }
+        /* lv_asprintf 精确分配，消除固定余量估算与截断分支 */
+        composed->name = lv_asprintf("(%s >> %s)", g->name, f->name);
     }
 
     composed->determinism = DETERMINISM_UNVERIFIED;
@@ -215,16 +200,8 @@ bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
 
     /* 设置乘积函数块的名称，格式为 "(f_name * g_name)" */
     if (f->name && g->name) {
-        size_t name_len = strlen(f->name) + strlen(g->name) + PRODUCT_NAME_EXTRA_CHARS;
-        product->name = lv_malloc(name_len);
-        if (product->name) {
-            int written = snprintf(product->name, name_len, "(%s * %s)", f->name, g->name);
-            if (written < 0 || (size_t) written >= name_len) {
-                lv_set_error(lv_ERROR_BUFFER_TOO_SMALL,
-                             "func_block_product: 乘积函数块名称截断（需要%zu字节，已分配%zu字节）",
-                             strlen(f->name) + strlen(g->name) + PRODUCT_NAME_EXTRA_CHARS, name_len);
-            }
-        }
+        /* lv_asprintf 精确分配，消除固定余量估算与截断分支 */
+        product->name = lv_asprintf("(%s * %s)", f->name, g->name);
     }
 
     product->determinism = DETERMINISM_UNVERIFIED;

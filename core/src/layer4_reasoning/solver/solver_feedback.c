@@ -34,13 +34,12 @@ SolverFeedback *solver_feedback_create(SolverFeedbackType type, const char *mess
     fb->overconstrained_count = 0;
 
     if (message && message[0] != '\0') {
-        fb->message = lv_malloc(strlen(message) + 1);
+        /* 手写 malloc+lv_strlcpy 收敛为 lv_strdup */
+        fb->message = lv_strdup(message);
         if (!fb->message) {
             lv_free((void **) &fb);
             lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "solver_feedback_create: lv_malloc for message failed");
         }
-        /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
-        lv_strlcpy(fb->message, message, strlen(message) + 1);
     }
 
     return fb;
@@ -77,10 +76,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
     if (!result) {
         fb->type = SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED;
         lv_free((void **) &fb->message);
-        fb->message = lv_malloc(64);
-        if (fb->message)
-            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
-            lv_strlcpy(fb->message, "求解失败：约束系统无解或超出范围", 64);
+        fb->message = lv_strdup("求解失败：约束系统无解或超出范围");
         return fb;
     }
 
@@ -102,10 +98,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
     if (result->overdetermined) {
         fb->type = SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED;
         lv_free((void **) &fb->message);
-        fb->message = lv_malloc(64);
-        if (fb->message)
-            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
-            lv_strlcpy(fb->message, "检测到过约束：某些变量被过多方程约束", 64);
+        fb->message = lv_strdup("检测到过约束：某些变量被过多方程约束");
 
         /* 标记过约束变量（简化处理：标记脏变量为过约束候选） */
         if (dirty_count > 0 && dirty_vars) {
@@ -118,22 +111,15 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
     } else if (dof == 0) {
         fb->type = SOLVER_FEEDBACK_TYPE_VARIABLE_SOLVED;
         lv_free((void **) &fb->message);
-        fb->message = lv_malloc(64);
-        if (fb->message)
-            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
-            lv_strlcpy(fb->message, "所有变量已唯一确定（零自由度）", 64);
+        fb->message = lv_strdup("所有变量已唯一确定（零自由度）");
         if (dirty_count > 0 && dirty_vars) {
             fb->affected_var_id = dirty_vars[0];
         }
     } else if (dof > 0) {
         fb->type = SOLVER_FEEDBACK_TYPE_DOF_CHANGED;
-        char buf[lv_SOLVER_DETAIL_BUF_SIZE];
-        snprintf(buf, sizeof(buf), "当前仍有 %d 个自由度", dof);
+        /* 手写 snprintf 到栈缓冲 + malloc + strlcpy 收敛为 lv_asprintf */
         lv_free((void **) &fb->message);
-        fb->message = lv_malloc(strlen(buf) + 1);
-        if (fb->message)
-            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
-            lv_strlcpy(fb->message, buf, strlen(buf) + 1);
+        fb->message = lv_asprintf("当前仍有 %d 个自由度", dof);
         if (dirty_count > 0 && dirty_vars) {
             fb->affected_var_id = dirty_vars[0];
         }

@@ -1218,14 +1218,10 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
 
 char *algebraic_serialize(const Algebraic *a) {
     char *poly_str = mpz_poly_get_str(&a->minimal_poly);
-    size_t len = strlen(poly_str) + 128;
-    char *result = lv_malloc(len);
-    if (!result) {
-        lv_free((void **) &poly_str);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_serialize: result malloc failed");
-    }
-    snprintf(result, len, "poly:%s left:%.15g right:%.15g", poly_str, a->left_bound, a->right_bound);
+    char *result = lv_asprintf("poly:%s left:%.15g right:%.15g", poly_str, a->left_bound, a->right_bound);
     lv_free((void **) &poly_str);
+    if (!result)
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_serialize: result malloc failed");
     return result;
 }
 

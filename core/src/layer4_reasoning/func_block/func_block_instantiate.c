@@ -281,25 +281,27 @@ static InstantiateResult instantiate_copy_internal_nodes(FuncBlock *fb, Constrai
             id_map[old_id] = copy->id;
         }
 
-        /* 使用 lv_realloc 统一内存管理，确保内存追踪系统可以追踪此分配 */
-        GeomNode **new_nodes = lv_realloc(graph->nodes, (size_t) (graph->node_count + 1) * sizeof(GeomNode *));
-        if (!new_nodes) {
-            if (copy->type == GEOM_PORT)
-                lv_free((void **) &copy->data.port);
-            if (copy->type == GEOM_REGION)
-                lv_free((void **) &copy->data.region.boundary_segments);
-            if (copy->type == GEOM_FUNCTION_BLOCK) {
-                lv_free((void **) &copy->data.func_block.internal_nodes);
-                lv_free((void **) &copy->data.func_block.input_port_ids);
-                lv_free((void **) &copy->data.func_block.output_port_ids);
+        /* 统一扩容（倍增，与 graph_alloc_node 的 lv_ensure_capacity 路径一致，
+         * 并同步维护 graph->node_capacity） */
+        if (graph->node_count >= graph->node_capacity) {
+            if (!lv_ensure_capacity((void **) &graph->nodes, graph->node_count, &graph->node_capacity,
+                                    sizeof(GeomNode *), 1)) {
+                if (copy->type == GEOM_PORT)
+                    lv_free((void **) &copy->data.port);
+                if (copy->type == GEOM_REGION)
+                    lv_free((void **) &copy->data.region.boundary_segments);
+                if (copy->type == GEOM_FUNCTION_BLOCK) {
+                    lv_free((void **) &copy->data.func_block.internal_nodes);
+                    lv_free((void **) &copy->data.func_block.input_port_ids);
+                    lv_free((void **) &copy->data.func_block.output_port_ids);
+                }
+                lv_free((void **) &copy->symbolic_coords);
+                lv_free((void **) &copy->numeric_assumption_declaration);
+                lv_free((void **) &copy);
+                lv_free((void **) &new_node_ids);
+                return INSTANTIATE_OUT_OF_MEMORY;
             }
-            lv_free((void **) &copy->symbolic_coords);
-            lv_free((void **) &copy->numeric_assumption_declaration);
-            lv_free((void **) &copy);
-            lv_free((void **) &new_node_ids);
-            return INSTANTIATE_OUT_OF_MEMORY;
         }
-        graph->nodes = new_nodes;
         graph->nodes[graph->node_count++] = copy;
         /* 将新节点注册到哈希索引，确保 graph_get_node 能通过 ID 查找到该节点 */
         graph_node_index_insert(graph, copy);
@@ -497,15 +499,16 @@ static void instantiate_copy_constraints(FuncBlock *fb, ConstraintGraph *graph, 
         }
 
         /* 添加到图 */
-        /* 使用 lv_realloc 统一内存管理 */
-        Constraint **new_constraints =
-            lv_realloc(graph->constraints, (size_t) (graph->constraint_count + 1) * sizeof(Constraint *));
-        if (!new_constraints) {
-            lv_free((void **) &new_c->participants);
-            lv_free((void **) &new_c);
-            continue;
+        /* 统一扩容（倍增，与 constraint_alloc_internal 的 lv_ensure_capacity 路径一致，
+         * 并同步维护 graph->constraint_capacity） */
+        if (graph->constraint_count >= graph->constraint_capacity) {
+            if (!lv_ensure_capacity((void **) &graph->constraints, graph->constraint_count,
+                                    &graph->constraint_capacity, sizeof(Constraint *), 1)) {
+                lv_free((void **) &new_c->participants);
+                lv_free((void **) &new_c);
+                continue;
+            }
         }
-        graph->constraints = new_constraints;
         graph->constraints[graph->constraint_count++] = new_c;
         /* 将新约束注册到哈希索引，确保 graph_get_constraint 能通过 ID 查找到该约束 */
         graph_constraint_index_insert(graph, new_c);
@@ -647,15 +650,16 @@ static void instantiate_copy_connection_constraints(FuncBlock *fb, ConstraintGra
         new_c->participants[1] = new_dst_id;
 
         /* 添加到图 */
-        /* 使用 lv_realloc 统一内存管理 */
-        Constraint **new_constraints =
-            lv_realloc(graph->constraints, (size_t) (graph->constraint_count + 1) * sizeof(Constraint *));
-        if (!new_constraints) {
-            lv_free((void **) &new_c->participants);
-            lv_free((void **) &new_c);
-            continue;
+        /* 统一扩容（倍增，与 constraint_alloc_internal 的 lv_ensure_capacity 路径一致，
+         * 并同步维护 graph->constraint_capacity） */
+        if (graph->constraint_count >= graph->constraint_capacity) {
+            if (!lv_ensure_capacity((void **) &graph->constraints, graph->constraint_count,
+                                    &graph->constraint_capacity, sizeof(Constraint *), 1)) {
+                lv_free((void **) &new_c->participants);
+                lv_free((void **) &new_c);
+                continue;
+            }
         }
-        graph->constraints = new_constraints;
         graph->constraints[graph->constraint_count++] = new_c;
         /* 将新 CONNECTION 约束注册到哈希索引 */
         graph_constraint_index_insert(graph, new_c);

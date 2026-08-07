@@ -34,6 +34,7 @@
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_thread.h"
 #include "lv_utils.h" /* lv_malloc / lv_realloc / lv_free —— 统一内存分配器 */
 
@@ -81,32 +82,36 @@ char *formula_render_ex(const FormulaNode *node, OutputFormat format, const Rend
         return NULL;
     }
 
-    /* HEAP_ALLOCATED: 输出缓冲区使用 lv_malloc */
-    char *buffer = (char *) lv_malloc(lv_MAX_RENDER_BUFFER);
-    if (!buffer) {
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "Memory allocation failed");
-        return NULL;
-    }
-
-    int written = 0;
-
-    if ((unsigned)format < sizeof(s_render_funcs) / sizeof(s_render_funcs[0]) && s_render_funcs[format]) {
-        written = s_render_funcs[format](node, buffer, lv_MAX_RENDER_BUFFER, options);
-    } else {
+    /* 校验格式 */
+    if ((unsigned)format >= sizeof(s_render_funcs) / sizeof(s_render_funcs[0]) || !s_render_funcs[format]) {
         lv_set_error(lv_ERROR_UNSUPPORTED, "Unknown output format");
-        lv_free((void **) &buffer);
         return NULL;
     }
 
+    /* 用 lvStrBuf 消除固定上限与 realloc 增长：
+     * 1) 以 snprintf 语义探测所需长度（renderer 为纯函数，可安全调用两次）；
+     * 2) 用 lv_strbuf_printf 将容量扩张到所需大小；
+     * 3) 渲染到 sb.data 并转出。结果不再受 lv_MAX_RENDER_BUFFER 截断。 */
+    int needed = s_render_funcs[format](node, NULL, 0, options);
+    if (needed < 0) {
+        lv_set_error(lv_ERROR_INTERNAL, "Render failed");
+        return NULL;
+    }
+
+    lvStrBuf sb = {0};
+    /* 触发扩容到 needed+1（生成 needed 个空格占位，内部几何增长） */
+    lv_strbuf_printf(&sb, "%*s", needed, "");
+    sb.len = 0; /* 占位清零，复用已扩容的 data/cap */
+
+    int written = s_render_funcs[format](node, sb.data, sb.cap, options);
     if (written < 0) {
         lv_set_error(lv_ERROR_INTERNAL, "Render failed");
-        lv_free((void **) &buffer);
+        lv_strbuf_destroy(&sb);
         return NULL;
     }
 
-    /* 重新分配到实际大小 */
-    char *result = (char *) lv_realloc(buffer, written + 1);
-    return result ? result : buffer;
+    sb.len = (size_t) written;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**

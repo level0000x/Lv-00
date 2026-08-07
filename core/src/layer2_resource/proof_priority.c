@@ -8,11 +8,35 @@
 #include "lv/lv_heap.h"
 #include "lv/lv_internal.h"
 
+/* ==================================================================
+ * 收敛说明：原实现自写最大堆（sift_up/sift_down + 双数组 node_ids/scores
+ * 扩容），现复用 lv_heap.c 的泛型二叉堆（lv_MAX_HEAP + 外置比较器）。
+ * 元素为 {int node_id; double score} 对（8 字节，lv_heap 栈交换无动态
+ * 分配），比较器按 score 比较，语义与原最大堆完全一致：
+ *   - 原 sift_up 以 scores[idx] > scores[parent] 上浮 → lv_MAX_HEAP 的
+ *     higher_than（cmp > 0）等价；
+ *   - 原 ensure_capacity 双数组扩容 → lv_heap_push 内置几何扩容。
+ * ================================================================== */
+
+/** @brief 优先级队列元素：节点 ID + 分数 */
+typedef struct {
+    int node_id;
+    double score;
+} PriorityEntry;
+
+/** @brief 按 score 比较（lv_MAX_HEAP 模式下 score 大者优先） */
+static int compare_by_score(const void *a, const void *b) {
+    double sa = ((const PriorityEntry *) a)->score;
+    double sb = ((const PriorityEntry *) b)->score;
+    if (sa < sb)
+        return -1;
+    if (sa > sb)
+        return 1;
+    return 0;
+}
+
 struct lvProofPriority {
-    int capacity;
-    int count;
-    int *node_ids;
-    double *scores;
+    lvHeap heap; /**< 泛型最大堆（元素为 PriorityEntry） */
 };
 
 /** @brief 创建证明优先级队列（最大堆） */
@@ -22,16 +46,10 @@ lvProofPriority *lv_proof_priority_create(int capacity) {
     lvProofPriority *pq = (lvProofPriority *) lv_malloc(sizeof(lvProofPriority));
     if (!pq)
         return NULL;
-    pq->node_ids = (int *) lv_malloc((size_t) capacity * sizeof(int));
-    pq->scores = (double *) lv_malloc((size_t) capacity * sizeof(double));
-    if (!pq->node_ids || !pq->scores) {
-        lv_free((void **) &pq->node_ids);
-        lv_free((void **) &pq->scores);
+    if (!lv_heap_init(&pq->heap, sizeof(PriorityEntry), lv_MAX_HEAP, compare_by_score, (size_t) capacity)) {
         lv_free((void **) &pq);
         return NULL;
     }
-    pq->capacity = capacity;
-    pq->count = 0;
     return pq;
 }
 
@@ -39,98 +57,34 @@ lvProofPriority *lv_proof_priority_create(int capacity) {
 void lv_proof_priority_destroy(lvProofPriority *pq) {
     if (!pq)
         return;
-    lv_free((void **) &pq->node_ids);
-    lv_free((void **) &pq->scores);
+    lv_heap_destroy(&pq->heap);
     lv_free((void **) &pq);
-}
-
-/* ---- 最大堆辅助函数 ---- */
-
-static void swap_entries(lvProofPriority *pq, int i, int j) {
-    int tmp_id = pq->node_ids[i];
-    pq->node_ids[i] = pq->node_ids[j];
-    pq->node_ids[j] = tmp_id;
-
-    double tmp_sc = pq->scores[i];
-    pq->scores[i] = pq->scores[j];
-    pq->scores[j] = tmp_sc;
-}
-
-static void sift_up(lvProofPriority *pq, int idx) {
-    while (idx > 0) {
-        int parent = (idx - 1) / 2;
-        if (pq->scores[idx] <= pq->scores[parent])
-            break;
-        swap_entries(pq, idx, parent);
-        idx = parent;
-    }
-}
-
-static void sift_down(lvProofPriority *pq, int idx) {
-    int n = pq->count;
-    while (1) {
-        int largest = idx;
-        int left = 2 * idx + 1;
-        int right = 2 * idx + 2;
-        if (left < n && pq->scores[left] > pq->scores[largest])
-            largest = left;
-        if (right < n && pq->scores[right] > pq->scores[largest])
-            largest = right;
-        if (largest == idx)
-            break;
-        swap_entries(pq, idx, largest);
-        idx = largest;
-    }
-}
-
-static int ensure_capacity(lvProofPriority *pq) {
-    if (pq->count < pq->capacity)
-        return 0;
-
-    int old_cap = pq->capacity;
-    /* 第一次：扩容 node_ids（溢出检查由 lv_ensure_capacity 内部完成） */
-    if (!lv_ensure_capacity((void **) &pq->node_ids, old_cap,
-                            &pq->capacity, sizeof(int), 1))
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity: lv_ensure_capacity failed for node_ids");
-
-    /* 第二次：扩容 scores。临时回退容量指针使扩容真实执行，保持双数组容量一致 */
-    pq->capacity = old_cap;
-    if (!lv_ensure_capacity((void **) &pq->scores, old_cap,
-                            &pq->capacity, sizeof(double), 1))
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity: lv_ensure_capacity failed for scores");
-    return 0;
 }
 
 /** @brief 向优先级队列中压入一个证明节点（最大堆插入） */
 int lv_proof_priority_push(lvProofPriority *pq, int node_id, double score) {
     if (!pq)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_proof_priority_push: pq is NULL");
-    if (ensure_capacity(pq) != 0)
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_proof_priority_push: ensure_capacity failed");
 
-    int pos = pq->count++;
-    pq->node_ids[pos] = node_id;
-    pq->scores[pos] = score;
-    sift_up(pq, pos);
+    PriorityEntry entry;
+    entry.node_id = node_id;
+    entry.score = score;
+    if (!lv_heap_push(&pq->heap, &entry))
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_proof_priority_push: heap push failed");
     return 0;
 }
 
 /** @brief 从优先级队列中弹出最高优先级的节点（最大堆提取） */
 int lv_proof_priority_pop(lvProofPriority *pq, int *node_id, double *score) {
-    if (!pq || pq->count == 0)
+    if (!pq || lv_heap_empty(&pq->heap))
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_proof_priority_pop: pq is NULL or empty");
     if (!node_id || !score)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_proof_priority_pop: node_id or score is NULL");
 
-    *node_id = pq->node_ids[0];
-    *score = pq->scores[0];
-
-    pq->count--;
-    if (pq->count > 0) {
-        pq->node_ids[0] = pq->node_ids[pq->count];
-        pq->scores[0] = pq->scores[pq->count];
-        sift_down(pq, 0);
-    }
+    PriorityEntry entry;
+    lv_heap_pop(&pq->heap, &entry);
+    *node_id = entry.node_id;
+    *score = entry.score;
     return 0;
 }
 
@@ -138,5 +92,5 @@ int lv_proof_priority_pop(lvProofPriority *pq, int *node_id, double *score) {
 int lv_proof_priority_empty(const lvProofPriority *pq) {
     if (!pq)
         return 1;
-    return pq->count == 0 ? 1 : 0;
+    return lv_heap_empty(&pq->heap) ? 1 : 0;
 }

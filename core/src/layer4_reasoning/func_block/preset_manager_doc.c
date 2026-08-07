@@ -25,6 +25,20 @@
 #include "preset_manager_internal.h"
 
 /* ============================================================
+ * lv_hashtable 遍历辅助（foreach 回调）
+ * ============================================================ */
+
+/** foreach 回调：统计各类别数量（preset_generate_library_documentation 用） */
+static void doc_cat_count_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    InternalPresetEntry *entry = (InternalPresetEntry *) value;
+    int *cat_counts = (int *) ctx;
+    if (entry->is_active && entry->metadata.category >= 0 && entry->metadata.category < PRESET_CATEGORY_COUNT) {
+        cat_counts[entry->metadata.category]++;
+    }
+}
+
+/* ============================================================
  * 使用示例生成
  * ============================================================ */
 
@@ -308,17 +322,9 @@ bool preset_generate_library_documentation(const char *format, char **out_docume
                      g_library.entry_count);
     offset += (size_t) n;
 
-    /* 按类别统计 */
+    /* 按类别统计（复用 lv_hashtable string 形态） */
     int cat_counts[PRESET_CATEGORY_COUNT] = {0};
-    for (int i = 0; i < g_library.hash_table_size; i++) {
-        InternalPresetEntry *entry = g_library.hash_table[i];
-        while (entry != NULL) {
-            if (entry->is_active && entry->metadata.category >= 0 && entry->metadata.category < PRESET_CATEGORY_COUNT) {
-                cat_counts[entry->metadata.category]++;
-            }
-            entry = entry->next;
-        }
-    }
+    lv_hashtable_str_foreach(g_library.hash_table, doc_cat_count_visitor, cat_counts);
 
     for (int c = 0; c < PRESET_CATEGORY_COUNT; c++) {
         if (cat_counts[c] > 0) {

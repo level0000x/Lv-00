@@ -296,8 +296,8 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, 
 
             /* 步骤 4：扩展 CriticalPairSet 数组容量 */
             if (set->pair_count >= set->capacity) {
-                int new_cap = (set->capacity == 0) ? INITIAL_PAIR_CAPACITY : set->capacity * 2;
-                if (set->capacity > 0 && set->capacity > INT_MAX / 2) {
+                if (!lv_ensure_capacity((void **) &set->pairs, set->pair_count, &set->capacity,
+                                        sizeof(CriticalPair), 1)) {
                     graph_destroy(overlap);
                     lv_free((void **) &match_ij);
                     lv_free((void **) &node_map_i);
@@ -305,17 +305,6 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, 
                     graph_destroy(tmp);
                     continue;
                 }
-                CriticalPair *new_pairs = lv_realloc(set->pairs, (size_t) new_cap * sizeof(CriticalPair));
-                if (!new_pairs) {
-                    graph_destroy(overlap);
-                    lv_free(match_ij);
-                    lv_free(node_map_i);
-                    lv_free(node_map_j);
-                    graph_destroy(tmp);
-                    continue;
-                }
-                set->pairs = new_pairs;
-                set->capacity = new_cap;
             }
 
             /* 步骤 5：填充关键对条目 */

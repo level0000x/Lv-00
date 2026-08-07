@@ -263,6 +263,11 @@ void interop_server_destroy(InteropServer *server) {
         server->persistent_engine = NULL;
     }
 
+    /* 插件注册表为进程级单例且只增不减（MAX_PLUGINS=32）：
+     * 服务器销毁即互操作生命周期结束，清理插件状态，保证进程复用/
+     * 测试隔离时下一次注册从空表开始。 */
+    lv_interop_reset_plugins();
+
     stdout_lock_destroy();
     lv_free((void **) &server);
 }
@@ -1921,5 +1926,18 @@ int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin) {
         lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "lv_interop_register_plugin: plugin count exhausted");
     memcpy(&s_plugin_state.plugins[s_plugin_state.count], plugin, sizeof(lvPlugin));
     s_plugin_state.count++;
+    return 0;
+}
+
+/**
+ * @brief 重置插件注册表（清空全部已注册插件）
+ *
+ * 插件结构体为纯值类型（固定长度字符数组 + 函数指针，无堆内资源），
+ * 直接清零即可，无需逐项释放。
+ *
+ * @return 0 成功
+ */
+int lv_interop_reset_plugins(void) {
+    memset(&s_plugin_state, 0, sizeof(s_plugin_state));
     return 0;
 }

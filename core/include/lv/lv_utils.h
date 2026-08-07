@@ -1083,6 +1083,34 @@ lv_PUBLIC_API uint16_t lv_load_le16(const uint8_t *src);
  */
 lv_PUBLIC_API uint32_t lv_load_le32(const uint8_t *src);
 
+/**
+ * @brief 按大端序写入 64 位整数
+ * @param dst 目标缓冲区（至少 8 字节）
+ * @param v   要写入的值
+ */
+lv_PUBLIC_API void lv_store_be64(uint8_t *dst, uint64_t v);
+
+/**
+ * @brief 按大端序读取 64 位整数
+ * @param src 源缓冲区（至少 8 字节）
+ * @return 读取的值
+ */
+lv_PUBLIC_API uint64_t lv_load_be64(const uint8_t *src);
+
+/**
+ * @brief 按小端序写入 64 位整数
+ * @param dst 目标缓冲区（至少 8 字节）
+ * @param v   要写入的值
+ */
+lv_PUBLIC_API void lv_store_le64(uint8_t *dst, uint64_t v);
+
+/**
+ * @brief 按小端序读取 64 位整数
+ * @param src 源缓冲区（至少 8 字节）
+ * @return 读取的值
+ */
+lv_PUBLIC_API uint64_t lv_load_le64(const uint8_t *src);
+
 /* ============================================================
  * qsort 比较器
  * ============================================================ */

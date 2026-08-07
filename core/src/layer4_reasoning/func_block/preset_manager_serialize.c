@@ -17,6 +17,7 @@
 #include "func_block_preset.h"
 #include "func_block_registry.h"
 #include "lv_internal.h"
+#include "lv/lv_file.h"
 #include "lv/lv_json.h"
 #include "lv/lv_str_utils.h"
 #include "lv_utils.h"
@@ -287,23 +288,14 @@ bool preset_export_to_file(const char *name, const char *filepath) {
         return false;
     }
 
-    /* 写入文件 */
-    FILE *fp = fopen(filepath, "w");
-    if (!fp) {
+    /* 写入文件（统一 lv_file_write_all：打开/写入失败均返回非零） */
+    if (lv_file_write_all(filepath, data, size) != 0) {
         lv_free((void **) &data);
-        set_error("无法打开文件 '%s' 进行写入", filepath);
+        set_error("无法写入文件 '%s'", filepath);
         return false;
     }
-
-    size_t written = fwrite(data, 1, size, fp);
-    fclose(fp);
 
     lv_free((void **) &data);
-
-    if (written != size) {
-        set_error("文件写入不完整：期望 %zu 字节，实际写入 %zu 字节", size, written);
-        return false;
-    }
 
     ; /* 注册完成 */
     return true;
@@ -325,45 +317,18 @@ error:
 bool preset_import_from_file(const char *filepath, char **out_name) {
     PRESET_CHECK_STRING(filepath, error);
 
-    /* 打开文件 */
-    FILE *fp = fopen(filepath, "r");
-    if (!fp) {
-        set_error("无法打开文件 '%s'", filepath);
-        return false;
-    }
-
-    /* 获取文件大小 */
-    fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    if (file_size <= 0 || file_size > (long) (PRESET_BUFFER_SIZE * 10)) {
-        fclose(fp);
-        set_error("文件大小无效：%ld 字节", file_size);
-        return false;
-    }
-
-    /* 读取文件内容 */
-    uint8_t *data = (uint8_t *) lv_malloc((size_t) file_size + 1);
+    /* 读取文件（统一 lv_file_read_all_limited；上限 PRESET_BUFFER_SIZE*10 与原实现一致，
+     * 不存在/为空/超限/短读均返回 NULL） */
+    size_t file_size = 0;
+    uint8_t *data = lv_file_read_all_limited(filepath, &file_size, (size_t) PRESET_BUFFER_SIZE * 10);
     if (!data) {
-        fclose(fp);
-        set_error("内存分配失败");
+        set_error("无法读取文件 '%s'（不存在、为空、超出大小上限或读取不完整）", filepath);
         return false;
     }
-
-    size_t read_size = fread(data, 1, (size_t) file_size, fp);
-    fclose(fp);
-
-    if (read_size != (size_t) file_size) {
-        lv_free((void **) &data);
-        set_error("文件读取不完整");
-        return false;
-    }
-    data[file_size] = '\0';
 
     /* 反序列化 */
     PresetEntryHandle entry = NULL;
-    bool ok = preset_deserialize(data, (size_t) file_size, &entry);
+    bool ok = preset_deserialize(data, file_size, &entry);
 
     lv_free((void **) &data);
 

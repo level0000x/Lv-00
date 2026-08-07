@@ -20,6 +20,7 @@
 
 #include "lv_internal.h"
 #include "lv/lv_xmacro.h"
+#include "lv/lv_strbuf.h"
 #include "lv_utils.h"
 #include "preset_common.h"
 
@@ -717,36 +718,13 @@ int preset_blocks_get_all_names(const char **out_names, int max_count) {
 char *preset_blocks_generate_documentation(void) {
     PRESET_REGISTRY_LOCK();
 
-    /* 计算所需缓冲区大小 */
-    size_t total_size = 4096; /* 基础大小 */
-    for (int i = 0; i < g_preset_registry.count; i++) {
-        if (g_preset_registry.entries[i].name) {
-            total_size += strlen(g_preset_registry.entries[i].name) + 256;
-        }
-        if (g_preset_registry.entries[i].description) {
-            total_size += strlen(g_preset_registry.entries[i].description);
-        }
-    }
-
-    char *doc = lv_malloc(total_size);
-    if (!doc) {
-        PRESET_REGISTRY_UNLOCK();
-        return NULL;
-    }
-
-    int written = snprintf(doc, total_size,
-                           "# Lv-00 预设函数块文档\n\n"
-                           "## 概述\n\n"
-                           "本系统提供 %d 个预设函数块，涵盖以下数学领域：\n\n",
-                           g_preset_registry.count);
-    if (written < 0) {
-        lv_free((void **) &doc);
-        PRESET_REGISTRY_UNLOCK();
-        return NULL;
-    }
-    if ((size_t) written >= total_size) {
-        doc[total_size - 1] = '\0';
-    }
+    /* 用 lvStrBuf 累积输出（自动扩容），消除预算式大小估算与截断防护 */
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb,
+                     "# Lv-00 预设函数块文档\n\n"
+                     "## 概述\n\n"
+                     "本系统提供 %d 个预设函数块，涵盖以下数学领域：\n\n",
+                     g_preset_registry.count);
 
     /* 按类别分组输出 */
     for (int cat = 0; cat < PRESET_EXT_CATEGORY_COUNT; cat++) {
@@ -761,44 +739,22 @@ char *preset_blocks_generate_documentation(void) {
         }
 
         if (cat_count > 0) {
-            int w = snprintf(doc + written, total_size - written, "### %s (%d个)\n\n", cat_name, cat_count);
-            if (w < 0)
-                break;
-            if ((size_t) w >= total_size - (size_t) written) {
-                written = (int) total_size - 1;
-                break;
-            }
-            written += w;
+            lv_strbuf_printf(&sb, "### %s (%d个)\n\n", cat_name, cat_count);
 
             for (int i = 0; i < g_preset_registry.count; i++) {
                 if (g_preset_registry.entries[i].category == (PresetExtendedCategory) cat) {
-                    w = snprintf(
-                        doc + written, total_size - written, "- **%s**: %s\n", g_preset_registry.entries[i].name,
-                        g_preset_registry.entries[i].description ? g_preset_registry.entries[i].description : "");
-                    if (w < 0)
-                        break;
-                    if ((size_t) w >= total_size - (size_t) written) {
-                        written = (int) total_size - 1;
-                        break;
-                    }
-                    written += w;
+                    lv_strbuf_printf(&sb, "- **%s**: %s\n", g_preset_registry.entries[i].name,
+                                     g_preset_registry.entries[i].description
+                                         ? g_preset_registry.entries[i].description
+                                         : "");
                 }
             }
-            if ((size_t) written >= total_size - 1)
-                break;
-            w = snprintf(doc + written, total_size - written, "\n");
-            if (w < 0)
-                break;
-            if ((size_t) w >= total_size - (size_t) written) {
-                written = (int) total_size - 1;
-                break;
-            }
-            written += w;
+            lv_strbuf_printf(&sb, "\n");
         }
     }
 
     PRESET_REGISTRY_UNLOCK();
-    return doc;
+    return lv_strbuf_to_string(&sb);
 }
 
 char *preset_blocks_generate_single_doc(const char *name) {

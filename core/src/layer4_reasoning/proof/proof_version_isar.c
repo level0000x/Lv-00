@@ -384,20 +384,12 @@ static VerifyResult verify_refl_handler(const char **premises, const char *concl
     (void)premises;
     if (is_refl_form(conclusion)) {
         if (out_trace) {
-            size_t len = strlen(conclusion) + 64;
-            *out_trace = (char *) lv_malloc(len);
-            if (*out_trace) {
-                snprintf(*out_trace, len, "VERIFY_VALID [REFL]: \"%s\" ≡ t=t, 自反性成立", conclusion);
-            }
+            *out_trace = lv_asprintf("VERIFY_VALID [REFL]: \"%s\" ≡ t=t, 自反性成立", conclusion);
         }
         return VERIFY_VALID;
     }
     if (out_trace) {
-        size_t len = strlen(conclusion) + 64;
-        *out_trace = (char *) lv_malloc(len);
-        if (*out_trace) {
-            snprintf(*out_trace, len, "VERIFY_INVALID [REFL]: \"%s\" 非 t=t 形式", conclusion);
-        }
+        *out_trace = lv_asprintf("VERIFY_INVALID [REFL]: \"%s\" 非 t=t 形式", conclusion);
     }
     return VERIFY_INVALID;
 }
@@ -436,23 +428,15 @@ static VerifyResult verify_trans_handler(const char **premises, const char *conc
         /* 比较两个 t 是否一致 */
         if (strncmp(t_from_p0, p1, t_in_p1_len) != 0) {
             if (out_trace) {
-                size_t len = strlen(p0) + strlen(p1) + 128;
-                *out_trace = (char *) lv_malloc(len);
-                if (*out_trace) {
-                    snprintf(*out_trace, len, "VERIFY_INVALID [TRANS]: \"%s\" 和 \"%s\" 中间项不匹配", p0, p1);
-                }
+                *out_trace = lv_asprintf("VERIFY_INVALID [TRANS]: \"%s\" 和 \"%s\" 中间项不匹配", p0, p1);
             }
             return VERIFY_INVALID;
         }
 
         /* s=u: 从 s=t 取 s，从 t=u 取 u 构造结论并比较 */
         if (out_trace) {
-            size_t len = strlen(conclusion) + strlen(p0) + strlen(p1) + 128;
-            *out_trace = (char *) lv_malloc(len);
-            if (*out_trace) {
-                snprintf(*out_trace, len, "VERIFY_VALID [TRANS]: s=t \"%s\", t=u \"%s\" => s=u \"%s\"", p0, p1,
-                         conclusion);
-            }
+            *out_trace = lv_asprintf("VERIFY_VALID [TRANS]: s=t \"%s\", t=u \"%s\" => s=u \"%s\"", p0, p1,
+                                     conclusion);
         }
         return VERIFY_VALID;
     }
@@ -468,21 +452,13 @@ static VerifyResult verify_assume_handler(const char **premises, const char *con
     for (int i = 0; premises[i] != NULL; i++) {
         if (strcmp(premises[i], conclusion) == 0) {
             if (out_trace) {
-                size_t len = strlen(conclusion) + 64;
-                *out_trace = (char *) lv_malloc(len);
-                if (*out_trace) {
-                    snprintf(*out_trace, len, "VERIFY_VALID [ASSUME]: 结论 \"%s\" 在前提[%d]中", conclusion, i);
-                }
+                *out_trace = lv_asprintf("VERIFY_VALID [ASSUME]: 结论 \"%s\" 在前提[%d]中", conclusion, i);
             }
             return VERIFY_VALID;
         }
     }
     if (out_trace) {
-        size_t len = strlen(conclusion) + 64;
-        *out_trace = (char *) lv_malloc(len);
-        if (*out_trace) {
-            snprintf(*out_trace, len, "VERIFY_INVALID [ASSUME]: 结论 \"%s\" 不在前提中", conclusion);
-        }
+        *out_trace = lv_asprintf("VERIFY_INVALID [ASSUME]: 结论 \"%s\" 不在前提中", conclusion);
     }
     return VERIFY_INVALID;
 }

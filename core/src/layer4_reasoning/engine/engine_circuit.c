@@ -17,6 +17,7 @@
 
 #include "lv/lv.h"
 #include "lv/lv_config.h"
+#include "lv/lv_internal.h" /* lv_LOG_WARNING */
 #include "lv/symbolic_coord.h"
 
 /**
@@ -142,8 +143,14 @@ static EngineCircuitResult handle_action_rollback(lvEngine *engine, SymbolicCoor
     (void) overflow_coord;
     if (engine->frozen_point) {
         if (!engine_restore_frozen_point(engine, engine->frozen_point)) {
-            /* lv_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致"); */
+            lv_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致");
         }
+        /* 注意：engine_restore_frozen_point 成功后会自动重新打点
+         * （engine->frozen_point = 新快照），保证下一次跳闸仍可回滚。 */
+    } else {
+        /* engine->frozen_point 为 NULL：从未打点或上次打点失败，
+         * 无可用回滚目标 —— 显式告警，避免静默跳过导致状态不一致 */
+        lv_LOG_WARNING("engine: 电路跳闸但无可用冻结点，跳过回滚，引擎状态可能不一致");
     }
     circuit_reset_context();
     engine->last_status = ENGINE_STATUS_OK;

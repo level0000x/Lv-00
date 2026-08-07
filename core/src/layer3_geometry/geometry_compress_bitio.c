@@ -36,12 +36,8 @@ bool bitwriter_write_bit(BitWriter *bw, int bit) {
         bw->bit_pos = 7;
         bw->byte_pos++;
         if (bw->byte_pos >= bw->capacity) {
-            size_t new_cap = bw->capacity * 2;
-            uint8_t *new_buf = (uint8_t *) lv_realloc(bw->buf, new_cap);
-            if (!new_buf)
-                return false;
-            bw->buf = new_buf;
-            bw->capacity = new_cap;
+            /* 统一扩容（倍增并更新容量） */
+            lv_ENSURE_ARRAY_CAP(bw->buf, bw->byte_pos, bw->capacity, false);
         }
         bw->buf[bw->byte_pos] = 0;
     }

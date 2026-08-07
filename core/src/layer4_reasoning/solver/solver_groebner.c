@@ -451,25 +451,20 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                     if (within_limit) {
                         if (g_count >= g_capacity) {
                             int old_capacity = g_capacity;
-                            if (g_capacity > INT_MAX / 2) {
-                                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基容量翻倍将溢出 INT_MAX");
+                            /* G 数组统一扩容（内部含 INT_MAX 溢出检查与倍增） */
+                            if (!lv_ensure_capacity((void **) &G, g_count, &g_capacity,
+                                                    sizeof(MVPolynomial *), 1)) {
+                                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基扩容失败");
                                 mv_poly_clear(&remainder);
                                 break;
                             }
-                            g_capacity *= 2;
+                            /* pair 矩阵按新容量（g_capacity²）重建 */
                             if (g_capacity > 0 && g_capacity > INT_MAX / g_capacity) {
                                 lv_set_error(lv_ERROR_OUT_OF_MEMORY,
                                              "buchberger_groebner: pair矩阵容量平方将溢出 INT_MAX");
                                 mv_poly_clear(&remainder);
                                 break;
                             }
-                            MVPolynomial **new_G = lv_realloc(G, g_capacity * sizeof(MVPolynomial *));
-                            if (!new_G) {
-                                lv_set_error(lv_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基扩容失败");
-                                mv_poly_clear(&remainder);
-                                break;
-                            }
-                            G = new_G;
                             bool *new_pair = lv_calloc((size_t) (g_capacity * g_capacity), sizeof(bool));
                             if (!new_pair) {
                                 lv_set_error(lv_ERROR_OUT_OF_MEMORY, "buchberger_groebner: pair矩阵扩容失败");

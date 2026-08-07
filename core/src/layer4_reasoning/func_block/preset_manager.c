@@ -36,7 +36,6 @@
 #endif
 
 PresetLibraryState g_library = {.hash_table = NULL,
-                                       .hash_table_size = 0,
                                        .entry_count = 0,
                                        .builtin_count = 0,
                                        .custom_count = 0,
@@ -131,19 +130,8 @@ InternalPresetEntry *find_entry(const char *name) {
     if (name == NULL || g_library.hash_table == NULL) {
         return NULL;
     }
-
-    uint32_t hash = hash_string(name);
-    int index = (int) (hash % (uint32_t) g_library.hash_table_size);
-
-    InternalPresetEntry *entry = g_library.hash_table[index];
-    while (entry != NULL) {
-        if (strcmp(entry->metadata.name, name) == 0) {
-            return entry;
-        }
-        entry = entry->next;
-    }
-
-    return NULL;
+    /* 复用 lv_hashtable string 形态（键 = 预设名称，值 = 条目指针） */
+    return (InternalPresetEntry *) lv_hashtable_str_get(g_library.hash_table, name);
 }
 
 /**
@@ -153,18 +141,10 @@ bool insert_entry(InternalPresetEntry *entry) {
     if (entry == NULL || g_library.hash_table == NULL) {
         return false;
     }
-
-    /* 检查是否已存在 */
-    if (find_entry(entry->metadata.name) != NULL) {
+    /* lv_hashtable_str_insert 内部查重：键已存在（或分配失败）返回 false */
+    if (!lv_hashtable_str_insert(g_library.hash_table, entry->metadata.name, entry)) {
         return false;
     }
-
-    uint32_t hash = hash_string(entry->metadata.name);
-    int index = (int) (hash % (uint32_t) g_library.hash_table_size);
-
-    /* 插入到链表头部 */
-    entry->next = g_library.hash_table[index];
-    g_library.hash_table[index] = entry;
 
     g_library.entry_count++;
     if (entry->is_builtin) {
@@ -184,39 +164,61 @@ bool remove_entry(const char *name) {
         return false;
     }
 
-    uint32_t hash = hash_string(name);
-    int index = (int) (hash % (uint32_t) g_library.hash_table_size);
-
-    InternalPresetEntry *entry = g_library.hash_table[index];
-    InternalPresetEntry *prev = NULL;
-
-    while (entry != NULL) {
-        if (strcmp(entry->metadata.name, name) == 0) {
-            /* 从链表中移除 */
-            if (prev == NULL) {
-                g_library.hash_table[index] = entry->next;
-            } else {
-                prev->next = entry->next;
-            }
-
-            /* 更新计数 */
-            g_library.entry_count--;
-            if (entry->is_builtin) {
-                g_library.builtin_count--;
-            } else {
-                g_library.custom_count--;
-            }
-
-            /* 释放条目 */
-            free_entry(entry);
-            return true;
-        }
-
-        prev = entry;
-        entry = entry->next;
+    InternalPresetEntry *entry = find_entry(name);
+    if (entry == NULL) {
+        return false;
     }
 
-    return false;
+    if (!lv_hashtable_str_remove(g_library.hash_table, name)) {
+        return false;
+    }
+
+    /* 更新计数 */
+    g_library.entry_count--;
+    if (entry->is_builtin) {
+        g_library.builtin_count--;
+    } else {
+        g_library.custom_count--;
+    }
+
+    /* 释放条目 */
+    free_entry(entry);
+    return true;
+}
+
+/* ============================================================
+ * lv_hashtable 遍历辅助（foreach 回调）
+ * ============================================================ */
+
+/** 收集全部条目指针的上下文 */
+typedef struct {
+    InternalPresetEntry **entries;
+    int idx;
+} PresetCollectCtx;
+
+/** foreach 回调：收集条目指针（shutdown / reset 的先收集后统一处理） */
+static void collect_entry_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    PresetCollectCtx *c = (PresetCollectCtx *) ctx;
+    c->entries[c->idx++] = (InternalPresetEntry *) value;
+}
+
+/** foreach 回调：直接释放条目（shutdown 全量释放专用；表内 value 随后悬垂无害，
+ *  因为 lv_hashtable_str_destroy 只释放键副本与节点，不触碰 value） */
+static void free_entry_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    (void) ctx;
+    free_entry((InternalPresetEntry *) value);
+}
+
+/** foreach 回调：统计各类别数量 */
+static void stats_category_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    InternalPresetEntry *entry = (InternalPresetEntry *) value;
+    int *category_counts = (int *) ctx;
+    if (entry->metadata.category >= 0 && entry->metadata.category < PRESET_CATEGORY_COUNT) {
+        category_counts[entry->metadata.category]++;
+    }
 }
 
 /**
@@ -296,9 +298,8 @@ bool preset_library_init(void) {
         return false;
     }
 
-    /* 初始化哈希表 */
-    g_library.hash_table_size = 256;
-    g_library.hash_table = (InternalPresetEntry **) lv_calloc(g_library.hash_table_size, sizeof(InternalPresetEntry *));
+    /* 初始化哈希表（string 形态，初始 256 桶与旧实现一致，复用 lv_hashtable） */
+    g_library.hash_table = lv_hashtable_str_create(256);
 
     if (g_library.hash_table == NULL) {
         unlock_library();
@@ -328,23 +329,13 @@ bool preset_library_shutdown(void) {
         return false;
     }
 
-    /* 释放所有条目 */
-    for (int i = 0; i < g_library.hash_table_size; i++) {
-        InternalPresetEntry *entry = g_library.hash_table[i];
-        while (entry != NULL) {
-            InternalPresetEntry *next = entry->next;
-            free_entry(entry);
-            entry = next;
-        }
-    }
+    /* 释放所有条目：foreach 回调中直接释放 value（条目指针）是安全的，
+     * lv_hashtable 的值所有权归调用方，随后 destroy 只释放键副本与节点 */
+    lv_hashtable_str_foreach(g_library.hash_table, free_entry_visitor, NULL);
 
-    /* 释放哈希表（使用正确的双重指针方式调用 lv_free） */
-    {
-        void *tmp = g_library.hash_table;
-        lv_free(&tmp);
-    }
+    /* 释放哈希表 */
+    lv_hashtable_str_destroy(g_library.hash_table);
     g_library.hash_table = NULL;
-    g_library.hash_table_size = 0;
 
     g_library.entry_count = 0;
     g_library.builtin_count = 0;
@@ -390,15 +381,7 @@ bool preset_library_get_statistics(PresetStatistics *stats) {
     stats->active_count = g_library.entry_count; /* 简化实现 */
 
     /* 统计各类别数量 */
-    for (int i = 0; i < g_library.hash_table_size; i++) {
-        InternalPresetEntry *entry = g_library.hash_table[i];
-        while (entry != NULL) {
-            if (entry->metadata.category >= 0 && entry->metadata.category < PRESET_CATEGORY_COUNT) {
-                stats->category_counts[entry->metadata.category]++;
-            }
-            entry = entry->next;
-        }
-    }
+    lv_hashtable_str_foreach(g_library.hash_table, stats_category_visitor, stats->category_counts);
 
     unlock_library();
     return true;
@@ -416,30 +399,29 @@ bool preset_library_reset(void) {
         return false;
     }
 
-    /* 移除所有自定义预设 */
-    for (int i = 0; i < g_library.hash_table_size; i++) {
-        InternalPresetEntry *entry = g_library.hash_table[i];
-        InternalPresetEntry *prev = NULL;
-
-        while (entry != NULL) {
-            InternalPresetEntry *next = entry->next;
-
-            if (!entry->is_builtin) {
-                /* 从链表中移除 */
-                if (prev == NULL) {
-                    g_library.hash_table[i] = next;
-                } else {
-                    prev->next = next;
-                }
-
-                free_entry(entry);
-                g_library.entry_count--;
-                g_library.custom_count--;
-            } else {
-                prev = entry;
+    /* 移除所有自定义预设：先收集全部条目，再逐个移除自定义项
+     * （foreach 回调中不得修改表，故先收集后统一处理；仅 OOM 时返回 false，
+     * 正常路径行为与旧实现一致） */
+    {
+        int n = lv_hashtable_str_count(g_library.hash_table);
+        if (n > 0) {
+            InternalPresetEntry **all = (InternalPresetEntry **) lv_malloc((size_t) n * sizeof(InternalPresetEntry *));
+            if (!all) {
+                unlock_library();
+                set_error("内存分配失败");
+                return false;
             }
-
-            entry = next;
+            PresetCollectCtx cctx = {all, 0};
+            lv_hashtable_str_foreach(g_library.hash_table, collect_entry_visitor, &cctx);
+            for (int i = 0; i < n; i++) {
+                if (!all[i]->is_builtin) {
+                    lv_hashtable_str_remove(g_library.hash_table, all[i]->metadata.name);
+                    free_entry(all[i]);
+                    g_library.entry_count--;
+                    g_library.custom_count--;
+                }
+            }
+            lv_free((void **) &all);
         }
     }
 

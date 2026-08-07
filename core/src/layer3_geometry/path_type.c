@@ -748,13 +748,11 @@ int path_system_create_interval(lvPathSystem *sys, double left, double right, co
 
     /* 扩容检查 */
     if (sys->interval_count >= sys->interval_capacity) {
-        int new_cap = sys->interval_capacity * 2;
-        lvInterval *new_arr = lv_realloc(sys->intervals, (size_t) new_cap * sizeof(lvInterval));
-        if (!new_arr)
-            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "path_system_create_interval: realloc failed");
-        sys->intervals = new_arr;
-        memset(&sys->intervals[sys->interval_count], 0, (size_t) (new_cap - sys->interval_count) * sizeof(lvInterval));
-        sys->interval_capacity = new_cap;
+        if (!lv_ensure_capacity((void **) &sys->intervals, sys->interval_count, &sys->interval_capacity,
+                                sizeof(lvInterval), 1))
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "path_system_create_interval: 扩容失败");
+        memset(&sys->intervals[sys->interval_count], 0,
+               (size_t) (sys->interval_capacity - sys->interval_count) * sizeof(lvInterval));
     }
 
     int id = sys->interval_count;

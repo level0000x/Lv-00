@@ -16,6 +16,7 @@
 
 #include "lv/module.h"
 #include "lv/module_internal.h"
+#include "lv/lv_file.h"
 #include "lv/lv_json.h"
 
 #include "debug.h"
@@ -131,10 +132,10 @@ ModuleSaveStatus module_autosave(const Module *mod) {
         char bin_path[lv_PATH_BUF_SIZE];
         make_backup_binpath(bin_path, sizeof(bin_path), config->backup_directory, mod->name, 0);
 
-        FILE *f = fopen(bin_path, "wb");
-        if (f) {
-            fwrite(bin_data, 1, bin_size, f);
-            fclose(f);
+        /* 统一 lv_file_write_all（写失败/打开失败返回非零，补全原 fwrite 返回值未检查缺陷；
+         * 二进制备份失败不影响文本备份的返回值，与原静默降级语义一致） */
+        if (lv_file_write_all(bin_path, bin_data, bin_size) != 0) {
+            lv_set_error(lv_ERROR_IO, "module_autosave: 二进制备份写入失败");
         }
         lv_free((void **) &bin_data);
     }
@@ -156,79 +157,48 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
         max_attempts = 5;
 
     for (int i = 0; i < max_attempts; i++) {
-        /* 优先尝试二进制格式 */
+        /* 优先尝试二进制格式（lv_file_read_all：不存在/为空/短读均返回 NULL） */
         char bin_path[lv_PATH_BUF_SIZE];
         make_backup_binpath(bin_path, sizeof(bin_path), config ? config->backup_directory : NULL, module_name, i);
 
-        FILE *f = fopen(bin_path, "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            long fsize = ftell(f);
-            fseek(f, 0, SEEK_SET);
-
-            if (fsize > 0) {
-                uint8_t *data = (uint8_t *) lv_malloc((size_t) fsize);
-                if (data) {
-                    size_t read_len = fread(data, 1, (size_t) fsize, f);
-                    fclose(f);
-
-                    ModuleLoadStatus status = module_load_from_binary(data, read_len, out_module);
-                    lv_free((void **) &data);
-                    if (status == MODULE_LOAD_OK) {
-                        return MODULE_LOAD_OK;
-                    }
-                } else {
-                    fclose(f);
-                }
-            } else {
-                fclose(f);
+        size_t bin_size = 0;
+        uint8_t *bin_data = lv_file_read_all(bin_path, &bin_size);
+        if (bin_data) {
+            ModuleLoadStatus status = module_load_from_binary(bin_data, bin_size, out_module);
+            lv_free((void **) &bin_data);
+            if (status == MODULE_LOAD_OK) {
+                return MODULE_LOAD_OK;
             }
         }
 
-        /* 尝试文本格式 */
+        /* 尝试文本格式（lv_file_read_all 返回的缓冲以 NUL 结尾，供 lvz_parse 使用） */
         char txt_path[lv_PATH_BUF_SIZE];
         make_backup_filepath(txt_path, sizeof(txt_path), config ? config->backup_directory : NULL, module_name, i);
 
-        f = fopen(txt_path, "r");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            long fsize = ftell(f);
-            fseek(f, 0, SEEK_SET);
+        size_t txt_size = 0;
+        char *data = (char *) lv_file_read_all(txt_path, &txt_size);
+        if (data) {
+            /* 尝试作为 LVZ 格式加载 */
+            Module *mod = module_create(module_name, "0.0.0");
+            if (mod) {
+                LvzParser parser;
+                lvz_parser_init(&parser, data);
+                bool parse_ok = lvz_parse(&parser, mod);
+                lvz_parser_cleanup(&parser);
 
-            if (fsize > 0) {
-                char *data = (char *) lv_malloc((size_t) fsize + 1);
-                if (data) {
-                    size_t read_len = fread(data, 1, (size_t) fsize, f);
-                    data[read_len] = '\0';
-                    fclose(f);
-
-                    /* 尝试作为 LVZ 格式加载 */
-                    Module *mod = module_create(module_name, "0.0.0");
-                    if (mod) {
-                        LvzParser parser;
-                        lvz_parser_init(&parser, data);
-                        bool parse_ok = lvz_parse(&parser, mod);
-                        lvz_parser_cleanup(&parser);
-
-                        if (parse_ok) {
-                            lv_free((void **) &data);
-                            *out_module = mod;
-                            return MODULE_LOAD_OK;
-                        }
-                        module_destroy(mod);
-                    }
-
-                    /* 尝试作为 JSON 格式加载 */
-                    ModuleLoadStatus json_status = module_deserialize_from_json(data, out_module);
+                if (parse_ok) {
                     lv_free((void **) &data);
-                    if (json_status == MODULE_LOAD_OK) {
-                        return MODULE_LOAD_OK;
-                    }
-                } else {
-                    fclose(f);
+                    *out_module = mod;
+                    return MODULE_LOAD_OK;
                 }
-            } else {
-                fclose(f);
+                module_destroy(mod);
+            }
+
+            /* 尝试作为 JSON 格式加载 */
+            ModuleLoadStatus json_status = module_deserialize_from_json(data, out_module);
+            lv_free((void **) &data);
+            if (json_status == MODULE_LOAD_OK) {
+                return MODULE_LOAD_OK;
             }
         }
     }

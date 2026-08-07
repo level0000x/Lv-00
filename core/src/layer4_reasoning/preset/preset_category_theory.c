@@ -160,8 +160,7 @@ bool preset_category_theory_get_names(char ***out_names, int *out_count) {
     };
 
     for (int i = 0; i < CATEGORY_THEORY_PRESET_COUNT; i++) {
-        size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *) lv_malloc(len);
+        names[i] = lv_strdup(preset_names[i]);
         if (!names[i]) {
             for (int j = 0; j < i; j++) {
                 void *tmp = names[j];
@@ -173,7 +172,6 @@ bool preset_category_theory_get_names(char ***out_names, int *out_count) {
             }
             return false;
         }
-        memcpy(names[i], preset_names[i], len);
     }
     *out_names = names;
     return true;

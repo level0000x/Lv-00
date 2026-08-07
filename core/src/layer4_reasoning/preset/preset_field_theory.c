@@ -612,8 +612,7 @@ bool preset_field_theory_get_names(char ***out_names, int *out_count) {
     };
 
     for (int i = 0; i < FIELD_THEORY_PRESET_COUNT; i++) {
-        size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *) lv_malloc(len);
+        names[i] = lv_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 分配失败时释放已分配的内存 */
             for (int j = 0; j < i; j++) {
@@ -628,7 +627,6 @@ bool preset_field_theory_get_names(char ***out_names, int *out_count) {
             }
             return false;
         }
-        memcpy(names[i], preset_names[i], len);
     }
 
     *out_names = names;

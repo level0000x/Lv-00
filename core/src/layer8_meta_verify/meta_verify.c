@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_graph_traversal.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
@@ -709,6 +710,43 @@ static int handle_verify_complete(const lvProofObject *p, lvStrBuf *sb) {
     return 1;
 }
 
+/* handle_verify_sound 的 BFS 上下文（统一遍历设施 lv_bfs_run） */
+typedef struct {
+    const lvProofObject *p;
+    int self;              /* 当前检查的步骤索引 s */
+    bool found_cycle;
+} MetaVerifyBfsCtx;
+
+/* BFS 出队回调：前提链是否回到 self（循环依赖） */
+static lvTraversalResult meta_verify_bfs_visit(void *ctx, int node_id) {
+    MetaVerifyBfsCtx *c = (MetaVerifyBfsCtx *)ctx;
+    if (node_id == c->self) {
+        c->found_cycle = true;
+        return lv_TRAVERSAL_STOP;
+    }
+    return lv_TRAVERSAL_CONTINUE;
+}
+
+/* BFS 邻居回调：步骤的前提引用（全部前提作为批次 0；node_id 出队前已范围检查） */
+static int meta_verify_bfs_neighbors(void *ctx, int node_id, int batch_index,
+                                     int *out_neighbors, void **out_edge_infos,
+                                     int max_neighbors) {
+    MetaVerifyBfsCtx *c = (MetaVerifyBfsCtx *)ctx;
+    (void)batch_index;
+    (void)out_edge_infos;
+    if (!out_neighbors || max_neighbors <= 0)
+        return 0;
+    lvProofStepRecord *cur_step = c->p->steps[node_id];
+    if (!cur_step)
+        return 0;
+    int cnt = cur_step->premise_count;
+    if (cnt > max_neighbors)
+        cnt = max_neighbors;
+    if (cnt > 0)
+        memcpy(out_neighbors, cur_step->premise_step_ids, (size_t)cnt * sizeof(int));
+    return cnt;
+}
+
 /**
  * @brief 处理器 4: 可靠性 (lv_CHECK_SOUND)
  *
@@ -723,49 +761,35 @@ static int handle_verify_sound(const lvProofObject *p, lvStrBuf *sb) {
         lvProofStepRecord *step = p->steps[s];
         if (!step)
             continue;
-        /* BFS 检查前提链中是否包含步骤 s 自身 */
+        /* BFS 检查前提链中是否包含步骤 s 自身（统一遍历设施 lv_bfs_run）。
+         * 语义与原手写 BFS 等价：
+         *  - 起点前提直接入队（不查 visited，负/越界前提出队时跳过）；
+         *  - visited[s] 初始标记（出队时 cur==s 检查先于 visited，仍能检出）；
+         *  - 队列上限 max(16, step_count*4) 的截断语义保留（max_queue）。 */
         int queue_cap = p->step_count * 4;
         if (queue_cap < 16)
             queue_cap = 16;
-        int *queue = (int *) lv_malloc((size_t) queue_cap * sizeof(int));
-        int *visited = (int *) lv_calloc((size_t) p->step_count, sizeof(int));
-        if (!queue || !visited) {
-            lv_free((void **) &queue);
-            lv_free((void **) &visited);
+        bool *visited = (bool *) lv_calloc((size_t) p->step_count, sizeof(bool));
+        if (!visited) {
             lv_strbuf_printf(sb, "Memory allocation failed");
             return 0;
         }
-        int head = 0, tail = 0;
-        for (int j = 0; j < step->premise_count; j++) {
-            if (tail < queue_cap) {
-                queue[tail++] = step->premise_step_ids[j];
-            }
-        }
-        visited[s] = 1;
-        int found_cycle = 0;
-        while (head < tail) {
-            int cur = queue[head++];
-            if (cur == s) {
-                found_cycle = 1;
-                break;
-            }
-            if (cur < 0 || cur >= p->step_count)
-                continue;
-            if (visited[cur])
-                continue;
-            visited[cur] = 1;
-            lvProofStepRecord *cur_step = p->steps[cur];
-            if (cur_step) {
-                for (int j = 0; j < cur_step->premise_count; j++) {
-                    if (tail < queue_cap) {
-                        queue[tail++] = cur_step->premise_step_ids[j];
-                    }
-                }
-            }
-        }
-        lv_free((void **) &queue);
+        visited[s] = true;
+        MetaVerifyBfsCtx bfs_ctx = { p, s, false };
+        lvBfsSpec spec = {
+            .node_count = p->step_count,
+            .seeds = step->premise_step_ids,
+            .seed_count = step->premise_count,
+            .visited = visited,
+            .mark_on_enqueue = false, /* 出队时检查 visited（前提入队不检查） */
+            .max_queue = queue_cap,   /* 定长截断：与原 tail < queue_cap 一致 */
+            .neighbors = meta_verify_bfs_neighbors,
+            .visit = meta_verify_bfs_visit,
+            .ctx = &bfs_ctx,
+        };
+        (void) lv_bfs_run(&spec);
         lv_free((void **) &visited);
-        if (found_cycle) {
+        if (bfs_ctx.found_cycle) {
             lv_strbuf_printf(sb, "Circular dependency detected at step %d", s);
             return 0;
         }

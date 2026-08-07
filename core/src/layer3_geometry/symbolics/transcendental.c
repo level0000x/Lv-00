@@ -300,26 +300,17 @@ char *transcendental_serialize(const Transcendental *t) {
 
     if (t->expr->out_of_scope) {
         /* Out-of-scope expression: mark clearly */
-        size_t len = strlen(t->name) + strlen(op_str) + 32;
-        char *buf = lv_malloc(len);
-        if (!buf)
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "transcendental_serialize: malloc failed");
-        snprintf(buf, len, "[%s %s <out-of-scope>]", t->name, op_str);
-        return buf;
+        return lv_asprintf("[%s %s <out-of-scope>]", t->name, op_str);
     }
 
     if (t->expr->rational_operand) {
         char *rat_str = rational_serialize(t->expr->rational_operand);
         if (!rat_str)
             return lv_strdup(t->name); /* rational_serialize 失败时使用 lv_strdup */
-        size_t len = strlen(t->name) + strlen(op_str) + strlen(rat_str) + 8;
-        char *buf = lv_malloc(len);
-        if (!buf) {
-            lv_free((void **) &rat_str); /* lv_malloc分配 */
-            return lv_strdup(t->name);   /* 内存不足时使用 lv_strdup */
-        }
-        snprintf(buf, len, "(%s %s %s)", t->name, op_str, rat_str);
+        char *buf = lv_asprintf("(%s %s %s)", t->name, op_str, rat_str);
         lv_free((void **) &rat_str); /* lv_malloc分配 */
+        if (!buf)
+            return lv_strdup(t->name); /* 内存不足时使用 lv_strdup */
         return buf;
     }
 

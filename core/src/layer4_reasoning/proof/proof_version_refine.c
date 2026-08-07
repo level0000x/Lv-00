@@ -90,13 +90,11 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
             SMTSolver *smt_solver = smtsolver_create(SMT_GROEBNER, &smt_cfg);
             if (smt_solver) {
                 /* 将谓词编码为 SMT-LIB2 断言 */
-                char *smt_script = (char *) lv_malloc(strlen(entry->refinement_pred) + 256);
+                char *smt_script = lv_asprintf("(set-logic QF_LRA)\n"
+                                               "(assert %s)\n"
+                                               "(check-sat)\n",
+                                               entry->refinement_pred);
                 if (smt_script) {
-                    snprintf(smt_script, strlen(entry->refinement_pred) + 256,
-                             "(set-logic QF_LRA)\n"
-                             "(assert %s)\n"
-                             "(check-sat)\n",
-                             entry->refinement_pred);
                     smtsolver_encode(smt_solver, smt_script, strlen(smt_script));
                     SMTSatResult smt_result = smtsolver_check(smt_solver);
                     if (smt_result == SMT_RESULT_UNSAT) {

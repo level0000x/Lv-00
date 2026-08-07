@@ -959,3 +959,31 @@ uint16_t lv_load_le16(const uint8_t *src) {
 uint32_t lv_load_le32(const uint8_t *src) {
     return ((uint32_t) src[0]) | ((uint32_t) src[1] << 8) | ((uint32_t) src[2] << 16) | ((uint32_t) src[3] << 24);
 }
+
+void lv_store_be64(uint8_t *dst, uint64_t v) {
+    for (int i = 0; i < 8; i++) {
+        dst[i] = (uint8_t) ((v >> (56 - i * 8)) & 0xFF);
+    }
+}
+
+uint64_t lv_load_be64(const uint8_t *src) {
+    uint64_t v = 0;
+    for (int i = 0; i < 8; i++) {
+        v = (v << 8) | src[i];
+    }
+    return v;
+}
+
+void lv_store_le64(uint8_t *dst, uint64_t v) {
+    for (int i = 0; i < 8; i++) {
+        dst[i] = (uint8_t) ((v >> (i * 8)) & 0xFF);
+    }
+}
+
+uint64_t lv_load_le64(const uint8_t *src) {
+    uint64_t v = 0;
+    for (int i = 0; i < 8; i++) {
+        v |= ((uint64_t) src[i]) << (i * 8);
+    }
+    return v;
+}

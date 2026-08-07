@@ -589,17 +589,14 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
                 lv_free((void **) &cand_scores);
                 lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "VF2: in_set capacity overflow (cap=%d)", state->in_capacity);
             }
-            int new_cap = state->in_capacity * 2;
-            int *new_in = lv_realloc(state->in_set, (size_t) new_cap * sizeof(int));
-            if (!new_in) {
-                LOG_WARN("rewrite", "VF2: in_set realloc failed (cap=%d), skipping candidate", new_cap);
+            if (!lv_ensure_capacity((void **) &state->in_set, state->in_count, &state->in_capacity,
+                                    sizeof(int), 1)) {
+                LOG_WARN("rewrite", "VF2: in_set realloc failed (cap=%d), skipping candidate", state->in_capacity);
                 state->core_1[best_p] = -1;
                 state->core_2[t] = -1;
                 state->core_count--;
                 continue;
             }
-            state->in_set = new_in;
-            state->in_capacity = new_cap;
         }
         state->in_set[state->in_count++] = t;
 
@@ -633,17 +630,14 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
                 lv_free((void **) &cand_scores);
                 lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "VF2: out_set capacity overflow (cap=%d)", state->out_capacity);
             }
-            int new_cap = state->out_capacity * 2;
-            int *new_out = lv_realloc(state->out_set, (size_t) new_cap * sizeof(int));
-            if (!new_out) {
-                LOG_WARN("rewrite", "VF2: out_set realloc failed (cap=%d), skipping candidate", new_cap);
+            if (!lv_ensure_capacity((void **) &state->out_set, state->out_count, &state->out_capacity,
+                                    sizeof(int), 1)) {
+                LOG_WARN("rewrite", "VF2: out_set realloc failed (cap=%d), skipping candidate", state->out_capacity);
                 state->core_1[best_p] = -1;
                 state->core_2[t] = -1;
                 state->core_count--;
                 continue;
             }
-            state->out_set = new_out;
-            state->out_capacity = new_cap;
         }
         state->out_set[state->out_count++] = t;
 

@@ -194,9 +194,10 @@ char *debug_counters_report(void) {
         "\n"
         "========================================\n";
 
-    /* 第一遍：计算所需缓冲区大小 */
-    int needed = snprintf(
-        NULL, 0, report_format, (unsigned long long) counters.total_nodes_created,
+    /* 用 lvStrBuf 累积输出（自动扩容），消除"两遍探测 + 精确分配"样板 */
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(
+        &sb, report_format, (unsigned long long) counters.total_nodes_created,
         (unsigned long long) counters.current_nodes_alive, (unsigned long long) counters.total_constraints_created,
         (unsigned long long) counters.current_constraints_alive, (unsigned long long) counters.solver_call_count,
         (double) counters.solver_total_time_us / 1000.0, counters.solver_avg_time_us,
@@ -204,32 +205,7 @@ char *debug_counters_report(void) {
         (unsigned long long) counters.unify_check_count, (unsigned long long) counters.unify_success_count,
         counters.unify_check_count > 0 ? (100.0 * counters.unify_success_count / counters.unify_check_count) : 0.0,
         (double) counters.memory_current / (1024.0 * 1024.0), (double) counters.memory_usage_peak / (1024.0 * 1024.0));
-
-    if (needed < 0)
-        lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL, "计算报告大小失败");
-
-    /* 分配精确大小的缓冲区（+1 用于终止符） */
-    char *report = lv_malloc(needed + 1);
-    if (!report)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配报告缓冲区失败");
-
-    /* 使用安全的 snprintf 替代裸 snprintf */
-    {
-        int _snw;
-        lv_SAFE_SNPRINTF(
-            _snw, report, (size_t) needed + 1, report_format, (unsigned long long) counters.total_nodes_created,
-            (unsigned long long) counters.current_nodes_alive, (unsigned long long) counters.total_constraints_created,
-            (unsigned long long) counters.current_constraints_alive, (unsigned long long) counters.solver_call_count,
-            (double) counters.solver_total_time_us / 1000.0, counters.solver_avg_time_us,
-            (unsigned long long) counters.rewrite_total_steps, (unsigned long long) counters.rewrite_rule_applications,
-            (unsigned long long) counters.unify_check_count, (unsigned long long) counters.unify_success_count,
-            counters.unify_check_count > 0 ? (100.0 * counters.unify_success_count / counters.unify_check_count) : 0.0,
-            (double) counters.memory_current / (1024.0 * 1024.0),
-            (double) counters.memory_usage_peak / (1024.0 * 1024.0));
-        (void) _snw; /* 结果已直接写入 report，无需使用返回值 */
-    }
-
-    return report;
+    return lv_strbuf_to_string(&sb);
 }
 
 int debug_get_log_path(char *buf, size_t size) {

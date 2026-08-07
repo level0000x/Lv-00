@@ -17,13 +17,11 @@
 #include "func_block.h"
 #include "lv_internal.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 #include "lv_utils.h"
 
 /* ==================== 命名常量 ==================== */
-
-/** 序列化缓冲区的初始大小 */
-#define SERIALIZE_BUFFER_INITIAL_SIZE 1024
 
 /* ============== 确定性状态持久化 ============== */
 
@@ -77,47 +75,21 @@ char *func_block_serialize_state(const FuncBlock *fb) {
     if (!fb)
         return NULL;
 
-    /* 估算缓冲区大小 */
-    size_t buf_size = SERIALIZE_BUFFER_INITIAL_SIZE;
-    if (fb->name)
-        buf_size += strlen(fb->name);
-    if (fb->description)
-        buf_size += strlen(fb->description);
-    buf_size += (size_t) (fb->internal_node_count + fb->input_count + fb->output_count + fb->port_dep_count +
-                          fb->precondition_count) *
-                32;
-
-    char *buf = lv_malloc(buf_size);
-    if (!buf)
-        return NULL;
-    buf[0] = '\0';
-    size_t pos = 0;
-
-/* 辅助宏：安全写入格式化字符串，防止缓冲区溢出 */
-#define WRITE_FMT(fmt, ...)                                              \
-    do {                                                                 \
-        int w = snprintf(buf + pos, buf_size - pos, fmt, ##__VA_ARGS__); \
-        if (w < 0)                                                       \
-            goto done;                                                   \
-        if ((size_t) w >= buf_size - pos) {                              \
-            pos = buf_size - 1;                                          \
-            goto done;                                                   \
-        }                                                                \
-        pos += (size_t) w;                                               \
-    } while (0)
+    /* 使用 lvStrBuf 动态构建（自动扩容，替代手写 WRITE_FMT 宏 + 固定估算缓冲区） */
+    lvStrBuf sb = {0};
 
     /* 头部：函数块ID和名称 */
-    WRITE_FMT("func_block {\n  id = %d\n", fb->id);
+    lv_strbuf_printf(&sb, "func_block {\n  id = %d\n", fb->id);
 
     if (fb->name) {
-        WRITE_FMT("  name = \"%s\"\n", fb->name);
+        lv_strbuf_printf(&sb, "  name = \"%s\"\n", fb->name);
     }
     if (fb->description) {
-        WRITE_FMT("  description = \"%s\"\n", fb->description);
+        lv_strbuf_printf(&sb, "  description = \"%s\"\n", fb->description);
     }
 
     /* 确定性状态 */
-    WRITE_FMT("  determinism = %s\n", determinism_state_to_string(fb->determinism));
+    lv_strbuf_printf(&sb, "  determinism = %s\n", determinism_state_to_string(fb->determinism));
 
     /* 视图状态 */
     {
@@ -133,105 +105,66 @@ char *func_block_serialize_state(const FuncBlock *fb) {
                 vs = "EXPANDED";
                 break;
         }
-        WRITE_FMT("  view_state = %s\n", vs);
+        lv_strbuf_printf(&sb, "  view_state = %s\n", vs);
     }
 
     /* 内部节点 */
-    WRITE_FMT("  internal_nodes = [");
+    lv_strbuf_printf(&sb, "  internal_nodes = [");
     for (int i = 0; i < fb->internal_node_count; i++) {
-        char id_buf[32];
-        int id_w = snprintf(id_buf, sizeof(id_buf), "%d", fb->internal_node_ids[i]);
-        if (id_w < 0 || (size_t) id_w >= sizeof(id_buf)) {
-            pos = buf_size - 1;
-            goto done;
-        }
-        if (!lv_str_append_sep(buf, buf_size, &pos, (i > 0) ? ", " : "", id_buf)) {
-            pos = buf_size - 1;
-            goto done;
-        }
+        lv_strbuf_printf(&sb, "%s%d", (i > 0) ? ", " : "", fb->internal_node_ids[i]);
     }
-    WRITE_FMT("]\n");
+    lv_strbuf_printf(&sb, "]\n");
 
     /* 输入端口 */
-    WRITE_FMT("  input_ports = [");
+    lv_strbuf_printf(&sb, "  input_ports = [");
     for (int i = 0; i < fb->input_count; i++) {
-        char id_buf[32];
-        int id_w = snprintf(id_buf, sizeof(id_buf), "%d", fb->input_port_ids[i]);
-        if (id_w < 0 || (size_t) id_w >= sizeof(id_buf)) {
-            pos = buf_size - 1;
-            goto done;
-        }
-        if (!lv_str_append_sep(buf, buf_size, &pos, (i > 0) ? ", " : "", id_buf)) {
-            pos = buf_size - 1;
-            goto done;
-        }
+        lv_strbuf_printf(&sb, "%s%d", (i > 0) ? ", " : "", fb->input_port_ids[i]);
     }
-    WRITE_FMT("]\n");
+    lv_strbuf_printf(&sb, "]\n");
 
     /* 输出端口 */
-    WRITE_FMT("  output_ports = [");
+    lv_strbuf_printf(&sb, "  output_ports = [");
     for (int i = 0; i < fb->output_count; i++) {
-        char id_buf[32];
-        int id_w = snprintf(id_buf, sizeof(id_buf), "%d", fb->output_port_ids[i]);
-        if (id_w < 0 || (size_t) id_w >= sizeof(id_buf)) {
-            pos = buf_size - 1;
-            goto done;
-        }
-        if (!lv_str_append_sep(buf, buf_size, &pos, (i > 0) ? ", " : "", id_buf)) {
-            pos = buf_size - 1;
-            goto done;
-        }
+        lv_strbuf_printf(&sb, "%s%d", (i > 0) ? ", " : "", fb->output_port_ids[i]);
     }
-    WRITE_FMT("]\n");
+    lv_strbuf_printf(&sb, "]\n");
 
     /* 选择器配置 */
     if (fb->selector) {
-        WRITE_FMT("  selector {\n    type = %d\n    reference_node_id = %d\n  }\n", (int) fb->selector->type,
-                  fb->selector->reference_node_id);
+        lv_strbuf_printf(&sb, "  selector {\n    type = %d\n    reference_node_id = %d\n  }\n", (int) fb->selector->type,
+                         fb->selector->reference_node_id);
     }
 
     /* 端口依赖 */
     for (int i = 0; i < fb->port_dep_count; i++) {
         PortDependency *dep = &fb->port_deps[i];
-        WRITE_FMT(
-            "  port_dep {\n"
-            "    type = %s\n"
-            "    port_id = %d\n"
-            "    external_node_id = %d\n"
-            "    internal_node_id = %d\n"
-            "  }\n",
-            port_dep_type_to_string(dep->type), dep->port_id, dep->external_node_id, dep->internal_node_id);
+        lv_strbuf_printf(&sb,
+                         "  port_dep {\n"
+                         "    type = %s\n"
+                         "    port_id = %d\n"
+                         "    external_node_id = %d\n"
+                         "    internal_node_id = %d\n"
+                         "  }\n",
+                         port_dep_type_to_string(dep->type), dep->port_id, dep->external_node_id, dep->internal_node_id);
     }
 
     /* 前置条件 */
     if (fb->precondition_count > 0) {
-        WRITE_FMT("  preconditions = [");
+        lv_strbuf_printf(&sb, "  preconditions = [");
         for (int i = 0; i < fb->precondition_count; i++) {
-            char id_buf[32];
-            int id_w = snprintf(id_buf, sizeof(id_buf), "%d", fb->precondition_region_ids[i]);
-            if (id_w < 0 || (size_t) id_w >= sizeof(id_buf)) {
-                pos = buf_size - 1;
-                goto done;
-            }
-            if (!lv_str_append_sep(buf, buf_size, &pos, (i > 0) ? ", " : "", id_buf)) {
-                pos = buf_size - 1;
-                goto done;
-            }
+            lv_strbuf_printf(&sb, "%s%d", (i > 0) ? ", " : "", fb->precondition_region_ids[i]);
         }
-        WRITE_FMT("]\n");
+        lv_strbuf_printf(&sb, "]\n");
     }
 
     /* 测度 */
     if (fb->has_measure) {
-        WRITE_FMT("  measure = { node_id = %d }\n", fb->measure_node_id);
+        lv_strbuf_printf(&sb, "  measure = { node_id = %d }\n", fb->measure_node_id);
     }
 
-    WRITE_FMT("}\n");
+    lv_strbuf_printf(&sb, "}\n");
 
-#undef WRITE_FMT
-done:
-    buf[pos] = '\0';
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /**

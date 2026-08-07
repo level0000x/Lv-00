@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_utils.h"
 #include "lv/rewrite.h"
 
 /* ---- 外部函数声明（type_region 深拷贝/释放声明已收口到 type_system.h） ---- */
@@ -105,18 +106,16 @@ static bool apply_rule_to_type(TypeSystem *ts, TypeRegion *inout_type) {
 }
 
 /**
- * @brief 扩展 BFS 搜索队列容量（翻倍）
+ * @brief 扩展 BFS 搜索队列容量
+ *
+ * 统一扩容工具 lv_ensure_capacity：容量不足时翻倍扩容，等价于原
+ * new_cap = queue_capacity * 2（失败时队列不变，与原 lv_realloc 失败语义一致）。
  *
  * @return true 扩展成功；false 内存不足，队列不变
  */
 static bool expand_queue(TypeEquivExplorer *explorer) {
-    int new_cap = explorer->queue_capacity * 2;
-    TypeEquivNode **new_q = lv_realloc(explorer->queue, (size_t) new_cap * sizeof(TypeEquivNode *));
-    if (!new_q)
-        return false;
-    explorer->queue = new_q;
-    explorer->queue_capacity = new_cap;
-    return true;
+    return lv_ensure_capacity((void **) &explorer->queue, explorer->queue_tail,
+                              &explorer->queue_capacity, sizeof(TypeEquivNode *), 1);
 }
 
 /**

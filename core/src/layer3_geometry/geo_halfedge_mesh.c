@@ -367,6 +367,64 @@ void lv_he_mesh_edge_vertices(const lvHeMesh *mesh, lvEdge e, lvVertex *out_v1, 
  * 第四部分：面操作
  * ======================================================================== */
 
+/**
+ * @brief 同步扩容 5 个共享 halfedge_capacity 的平行数组（事务语义）
+ *
+ * 5 个数组共享同一容量，必须同步扩容。任一数组扩容失败时，
+ * 已成功扩容的新块会被释放，所有数组保持原状（旧指针仍有效）。
+ *
+ * @param mesh 网格
+ * @return true 扩容成功，false 失败（数组保持原状）
+ */
+static bool he_mesh_grow_halfedge_arrays(lvHeMesh *mesh) {
+    /* [安全] 防止整数溢出（与 lv_ensure_capacity 内部检查一致） */
+    if (mesh->halfedge_capacity > INT_MAX / 2)
+        return false;
+
+    /* 各数组独立持有容量变量，以相同参数调用 lv_ensure_capacity，
+     * 保证所有数组同步扩容到相同的新容量 */
+    int cap_twin = mesh->halfedge_capacity;
+    int cap_next = mesh->halfedge_capacity;
+    int cap_prev = mesh->halfedge_capacity;
+    int cap_face = mesh->halfedge_capacity;
+    int cap_vertex = mesh->halfedge_capacity;
+    lvHalfedge *new_twin = mesh->he_twin;
+    lvHalfedge *new_next = mesh->he_next;
+    lvHalfedge *new_prev = mesh->he_prev;
+    lvFace *new_face = mesh->he_face;
+    lvVertex *new_vertex = mesh->he_vertex;
+
+    /* [安全] 先全部扩容，任一失败则回滚整个操作 */
+    bool ok = lv_ensure_capacity((void **) &new_twin, mesh->halfedge_count + 1, &cap_twin, sizeof(lvHalfedge), 1) &&
+              lv_ensure_capacity((void **) &new_next, mesh->halfedge_count + 1, &cap_next, sizeof(lvHalfedge), 1) &&
+              lv_ensure_capacity((void **) &new_prev, mesh->halfedge_count + 1, &cap_prev, sizeof(lvHalfedge), 1) &&
+              lv_ensure_capacity((void **) &new_face, mesh->halfedge_count + 1, &cap_face, sizeof(lvFace), 1) &&
+              lv_ensure_capacity((void **) &new_vertex, mesh->halfedge_count + 1, &cap_vertex, sizeof(lvVertex), 1);
+    if (!ok) {
+        /* [安全] 任一失败：仅释放已成功扩容的新块（失败时 new_* 仍指向旧数组，跳过）；
+         * 旧数组未被覆盖，仍由 mesh 持有 */
+        if (new_twin != mesh->he_twin)
+            lv_free((void **) &new_twin);
+        if (new_next != mesh->he_next)
+            lv_free((void **) &new_next);
+        if (new_prev != mesh->he_prev)
+            lv_free((void **) &new_prev);
+        if (new_face != mesh->he_face)
+            lv_free((void **) &new_face);
+        if (new_vertex != mesh->he_vertex)
+            lv_free((void **) &new_vertex);
+        return false;
+    }
+
+    mesh->he_twin = new_twin;
+    mesh->he_next = new_next;
+    mesh->he_prev = new_prev;
+    mesh->he_face = new_face;
+    mesh->he_vertex = new_vertex;
+    mesh->halfedge_capacity = cap_twin;
+    return true;
+}
+
 static lvHalfedge add_halfedge_pair(lvHeMesh *mesh, lvVertex v1, lvVertex v2) {
     /* 检查是否已存在 */
     for (lvEdge e = 0; e < mesh->edge_count; e++) {
@@ -384,43 +442,20 @@ static lvHalfedge add_halfedge_pair(lvHeMesh *mesh, lvVertex v1, lvVertex v2) {
 
     /* 创建新边 */
     if (mesh->edge_count >= mesh->edge_capacity) {
-        int new_cap = mesh->edge_capacity * 2;
-        lvHalfedge *new_edge_he = (lvHalfedge *) lv_realloc(mesh->edge_he, new_cap * sizeof(lvHalfedge));
-        if (!new_edge_he)
+        if (!lv_ensure_capacity((void **) &mesh->edge_he, mesh->edge_count, &mesh->edge_capacity,
+                                sizeof(lvHalfedge), 1))
             return lv_HE_INVALID;
-        mesh->edge_he = new_edge_he;
-        mesh->edge_capacity = new_cap;
     }
 
     lvEdge new_edge = mesh->edge_count++;
 
     /* 创建两个半边 */
     if (mesh->halfedge_count + 1 >= mesh->halfedge_capacity) {
-        /* [安全] 防止整数溢出 */
-        if (mesh->halfedge_capacity > INT_MAX / 2)
-            return lv_HE_INVALID;
-        int new_cap = mesh->halfedge_capacity * 2;
-        /* [安全] 先全部 realloc，任一失败则回滚整个操作 */
-        lvHalfedge *new_twin = (lvHalfedge *) lv_realloc(mesh->he_twin, new_cap * sizeof(lvHalfedge));
-        lvHalfedge *new_next = (lvHalfedge *) lv_realloc(mesh->he_next, new_cap * sizeof(lvHalfedge));
-        lvHalfedge *new_prev = (lvHalfedge *) lv_realloc(mesh->he_prev, new_cap * sizeof(lvHalfedge));
-        lvFace *new_face = (lvFace *) lv_realloc(mesh->he_face, new_cap * sizeof(lvFace));
-        lvVertex *new_vertex = (lvVertex *) lv_realloc(mesh->he_vertex, new_cap * sizeof(lvVertex));
-
-        if (!new_twin || !new_next || !new_prev || !new_face || !new_vertex) {
-            /* [安全] 任一失败：释放已分配的内存（原有旧指针仍有效，未被覆盖） */
-            lv_free_many((void **) &new_twin, (void **) &new_next, (void **) &new_prev, (void **) &new_face,
-                         (void **) &new_vertex, NULL);
+        /* [安全] 5 个平行数组同步扩容，任一失败则回滚整个操作 */
+        if (!he_mesh_grow_halfedge_arrays(mesh)) {
             mesh->edge_count--;
             return lv_HE_INVALID;
         }
-
-        mesh->he_twin = new_twin;
-        mesh->he_next = new_next;
-        mesh->he_prev = new_prev;
-        mesh->he_face = new_face;
-        mesh->he_vertex = new_vertex;
-        mesh->halfedge_capacity = new_cap;
     }
 
     lvHalfedge he1 = mesh->halfedge_count++;
@@ -468,21 +503,24 @@ lvFace lv_he_mesh_add_face_triangle(lvHeMesh *mesh, lvVertex v1, lvVertex v2, lv
 
     /* 创建面 */
     if (mesh->face_count >= mesh->face_capacity) {
-        int new_cap = mesh->face_capacity * 2;
-        lvHalfedge *new_face_he = (lvHalfedge *) lv_realloc(mesh->face_he, new_cap * sizeof(lvHalfedge));
-        lvFaceData *new_face_data = (lvFaceData *) lv_realloc(mesh->face_data, new_cap * sizeof(lvFaceData));
-
-        if (!new_face_he || !new_face_data) {
-            if (new_face_he)
-                lv_free((void **) &(new_face_he));
-            if (new_face_data)
-                lv_free((void **) &(new_face_data));
+        /* [安全] 2 个平行数组同步扩容，任一失败则回滚整个操作 */
+        int cap_he = mesh->face_capacity;
+        int cap_data = mesh->face_capacity;
+        lvHalfedge *new_face_he = mesh->face_he;
+        lvFaceData *new_face_data = mesh->face_data;
+        bool ok = lv_ensure_capacity((void **) &new_face_he, mesh->face_count, &cap_he, sizeof(lvHalfedge), 1) &&
+                  lv_ensure_capacity((void **) &new_face_data, mesh->face_count, &cap_data, sizeof(lvFaceData), 1);
+        if (!ok) {
+            /* [安全] 仅释放已成功扩容的新块（失败时 new_* 仍指向旧数组，跳过） */
+            if (new_face_he != mesh->face_he)
+                lv_free((void **) &new_face_he);
+            if (new_face_data != mesh->face_data)
+                lv_free((void **) &new_face_data);
             return lv_HE_INVALID;
         }
-
         mesh->face_he = new_face_he;
         mesh->face_data = new_face_data;
-        mesh->face_capacity = new_cap;
+        mesh->face_capacity = cap_he;
     }
 
     lvFace f = mesh->face_count++;

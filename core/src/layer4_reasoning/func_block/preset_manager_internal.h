@@ -16,6 +16,7 @@
 
 #include "func_block_preset.h"
 #include "lv/preset_common.h"
+#include "lv/lv_hashtable.h"
 #include "preset_core.h"
 
 #ifdef __cplusplus
@@ -140,13 +141,11 @@ typedef struct InternalPresetEntry {
     bool is_builtin;                  /* 是否为内置预设 */
     bool is_active;                   /* 是否激活 */
     int reference_count;              /* 引用计数 */
-    struct InternalPresetEntry *next; /* 哈希表冲突链 */
 } InternalPresetEntry;
 
 /** @brief 预设库状态结构 */
 typedef struct {
-    InternalPresetEntry **hash_table; /* 哈希表 */
-    int hash_table_size;              /* 哈希表大小 */
+    lvHashtable *hash_table;          /* 名称 -> InternalPresetEntry* 哈希表（string 形态，复用 lv_hashtable） */
     int entry_count;                  /* 条目数量 */
     int builtin_count;                /* 内置预设数量 */
     int custom_count;                 /* 自定义预设数量 */

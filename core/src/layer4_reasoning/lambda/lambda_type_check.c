@@ -55,13 +55,9 @@ bool lambda_type_check_push(LambdaTypingContext *ctx, TypeRegion *type) {
         return false;
 
     if (ctx->stack_count >= ctx->stack_capacity) {
-        int new_cap = ctx->stack_capacity * 2;
-        TypeRegion **new_stack =
-            (TypeRegion **) lv_realloc(ctx->type_stack, (size_t) new_cap * sizeof(TypeRegion *));
-        if (!new_stack)
+        if (!lv_ensure_capacity((void **) &ctx->type_stack, ctx->stack_count, &ctx->stack_capacity,
+                                sizeof(TypeRegion *), 1))
             return false;
-        ctx->type_stack = new_stack;
-        ctx->stack_capacity = new_cap;
     }
 
     ctx->type_stack[ctx->stack_count++] = type;

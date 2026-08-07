@@ -227,6 +227,17 @@ typedef lvInteropPlugin lvPlugin;
 int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin);
 
 /**
+ * @brief 重置互操作插件注册表（清空所有已注册插件）
+ *
+ * 插件注册表是进程级全局单例（固定容量，只增不减）。
+ * 此函数用于测试隔离与进程复用场景：在服务器销毁或测试夹具
+ * 清理时调用，使下一次注册重新从空表开始。
+ *
+ * @return 成功返回0
+ */
+int lv_interop_reset_plugins(void);
+
+/**
  * @brief 导出配置
  */
 typedef struct {

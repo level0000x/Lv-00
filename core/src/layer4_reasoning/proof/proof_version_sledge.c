@@ -144,12 +144,8 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
         /* 生成 Isar 证明脚本（当前仅标注策略名称，完整版应输出完整的 Isar 证明文本） */
         if (success) {
             const char *sname = proof_strategy_type_to_string(strategy_type);
-            size_t len = strlen(sname) + 32;
-            report->results[idx].isar_proof_script = (char *) lv_malloc(len);
-            if (report->results[idx].isar_proof_script) {
-                snprintf(report->results[idx].isar_proof_script, len,
-                         "proof (induction) -\n  (* 策略: %s *)\n  apply auto\nqed", sname);
-            }
+            report->results[idx].isar_proof_script =
+                lv_asprintf("proof (induction) -\n  (* 策略: %s *)\n  apply auto\nqed", sname);
 
             /* 选最优（耗时最短的成功策略） */
             if (elapsed < best_time) {

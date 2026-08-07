@@ -21,6 +21,7 @@
 
 #include "lv/lv.h"
 #include "lv/lv_internal.h" /* lv_LOG_WARNING 等统一日志宏 */
+#include "lv/lv_graph_traversal.h"
 #include "lv/config.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_numeric.h"
@@ -388,6 +389,55 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
     return (state_id == target);
 }
 
+/* PCTL 可达性 BFS 上下文（统一遍历设施 lv_bfs_run） */
+typedef struct {
+    const SimpleDTMC *mc;
+    const char *predicate;    /* always：实时谓词检查 */
+    const bool *is_target;    /* eventually：预计算的目标状态标记 */
+    const double *initial_dist;
+    bool found;               /* eventually：是否存在可达目标状态 */
+    bool all_satisfy;         /* always：是否所有可达状态满足谓词 */
+    double violating_prob;    /* always：违反状态的初始概率累加 */
+} PctlBfsCtx;
+
+/* BFS 邻居回调：DTMC 转移目标（全部转移作为批次 0；越界目标由核心范围检查过滤） */
+static int pctl_bfs_neighbors(void *ctx, int node_id, int batch_index,
+                              int *out_neighbors, void **out_edge_infos,
+                              int max_neighbors) {
+    PctlBfsCtx *c = (PctlBfsCtx *)ctx;
+    (void)batch_index;
+    (void)out_edge_infos;
+    if (!out_neighbors || max_neighbors <= 0)
+        return 0;
+    int cnt = c->mc->trans_count[node_id];
+    if (cnt > max_neighbors)
+        cnt = max_neighbors;
+    for (int t = 0; t < cnt; t++)
+        out_neighbors[t] = c->mc->trans_targets[node_id][t];
+    return cnt;
+}
+
+/* eventually：出队时检查目标谓词（命中即 STOP，与原"入队时检测到目标即停止"结果等价） */
+static lvTraversalResult pctl_eventually_visit(void *ctx, int node_id) {
+    PctlBfsCtx *c = (PctlBfsCtx *)ctx;
+    if (c->is_target && c->is_target[node_id]) {
+        c->found = true;
+        return lv_TRAVERSAL_STOP;
+    }
+    return lv_TRAVERSAL_CONTINUE;
+}
+
+/* always：出队时检查谓词，违反则累计概率并跳过扩展（等价原 continue） */
+static lvTraversalResult pctl_always_visit(void *ctx, int node_id) {
+    PctlBfsCtx *c = (PctlBfsCtx *)ctx;
+    if (!eval_state_predicate(c->predicate, node_id)) {
+        c->all_satisfy = false;
+        c->violating_prob += c->initial_dist[node_id];
+        return lv_TRAVERSAL_SKIP_CHILDREN;
+    }
+    return lv_TRAVERSAL_CONTINUE;
+}
+
 /**
  * @brief BFS 搜索可达状态，计算 Eventually (F phi) 概率
  *
@@ -411,73 +461,42 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
         is_target[i] = eval_state_predicate(target_predicate, i);
     }
 
-    /* BFS 找出从每个初始状态可达的目标状态 */
-    bool *visited = (bool *) lv_calloc((size_t) n, sizeof(bool));
-    bool *can_reach_target = (bool *) lv_calloc((size_t) n, sizeof(bool));
-    int queue_capacity = (n < PCTL_BFS_QUEUE_INIT) ? PCTL_BFS_QUEUE_INIT : n * 2;
-    int *queue = (int *) lv_malloc((size_t) queue_capacity * sizeof(int));
-    if (!visited || !can_reach_target || !queue) {
-        lv_free((void **) &is_target);
-        lv_free((void **) &visited);
-        lv_free((void **) &can_reach_target);
-        lv_free((void **) &queue);
-        return 0.0;
-    }
-
-    /* 对每个初始状态做 BFS */
+    /* 对每个初始状态做 BFS 可达性（统一遍历设施 lv_bfs_run）。
+     * 原实现队列初始容量 ≥ 2n ≥ n，其溢出检查（PCTL_MAX_STATE_LIMIT）为不可达
+     * 分支，核心内部动态队列与之等价。 */
     double total_prob = 0.0;
 
     for (int start = 0; start < n; start++) {
         if (mc->initial_dist[start] < PCTL_EPSILON)
             continue;
 
-        /* 重置 */
-        memset(visited, 0, (size_t) n * sizeof(bool));
-
-        int front = 0, back = 0;
-        queue[back++] = start;
-        visited[start] = true;
-        bool found = is_target[start];
-
-        while (front < back && !found) {
-            int cur = queue[front++];
-            for (int t = 0; t < mc->trans_count[cur]; t++) {
-                int next = mc->trans_targets[cur][t];
-                if (next >= 0 && next < n && !visited[next]) {
-                    visited[next] = true;
-                    /* 队列满时动态扩容 */
-                    if (back >= queue_capacity) {
-                        if (queue_capacity > PCTL_MAX_STATE_LIMIT / 2) {
-                            /* 超出合理上限，标记溢出（等价于原 new_cap = cap*2 超限判断） */
-                            lv_LOG_WARNING("[PCTL] BFS queue overflow at %d states (limit %d)\n", back,
-                                            PCTL_MAX_STATE_LIMIT);
-                            found = false; /* 标记失败 */
-                            break;
-                        }
-                        if (!lv_ensure_capacity((void **) &queue, back, &queue_capacity, sizeof(int), 1)) {
-                            lv_LOG_WARNING("[PCTL] BFS queue realloc failed\n");
-                            found = false;
-                            break;
-                        }
-                    }
-                    queue[back++] = next;
-                    if (is_target[next]) {
-                        found = true;
-                        break;
-                    }
-                }
-            }
+        bool *visited = (bool *) lv_calloc((size_t) n, sizeof(bool));
+        if (!visited) {
+            lv_free((void **) &is_target);
+            return 0.0;
         }
 
-        if (found) {
+        PctlBfsCtx ctx = { mc, target_predicate, is_target, mc->initial_dist,
+                           false, true, 0.0 };
+        lvBfsSpec spec = {
+            .node_count = n,
+            .seeds = &start, /* 单起点 */
+            .seed_count = 1,
+            .visited = visited,
+            .mark_on_enqueue = true, /* 标准 BFS：入队时检查并标记 */
+            .max_queue = 0,
+            .neighbors = pctl_bfs_neighbors,
+            .visit = pctl_eventually_visit,
+            .ctx = &ctx,
+        };
+        (void) lv_bfs_run(&spec);
+        lv_free((void **) &visited);
+
+        if (ctx.found)
             total_prob += mc->initial_dist[start];
-        }
     }
 
     lv_free((void **) &is_target);
-    lv_free((void **) &visited);
-    lv_free((void **) &can_reach_target);
-    lv_free((void **) &queue);
 
     /* 限制在 [0, 1] */
     total_prob = lv_clamp(total_prob, 0.0, 1.0);
@@ -498,66 +517,45 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
     int n = mc->state_count;
 
     bool *visited = (bool *) lv_calloc((size_t) n, sizeof(bool));
-    int queue_capacity = (n < PCTL_BFS_QUEUE_INIT) ? PCTL_BFS_QUEUE_INIT : n * 2;
-    int *queue = (int *) lv_malloc((size_t) queue_capacity * sizeof(int));
-    if (!visited || !queue) {
+    int *seeds = (int *) lv_malloc((size_t) n * sizeof(int));
+    if (!visited || !seeds) {
         lv_free((void **) &visited);
-        lv_free((void **) &queue);
+        lv_free((void **) &seeds);
         return 0.0;
     }
 
-    /* BFS 从所有初始状态出发 */
-    int front = 0, back = 0;
+    /* 起点 = 初始分布非零的状态（入队时标记 visited，由核心 push seeds 完成） */
+    int seed_count = 0;
     for (int i = 0; i < n; i++) {
-        if (mc->initial_dist[i] >= PCTL_EPSILON) {
-            /* 动态扩容 */
-            if (back >= queue_capacity) {
-                if (queue_capacity > PCTL_MAX_STATE_LIMIT / 2)
-                    break;
-                if (!lv_ensure_capacity((void **) &queue, back, &queue_capacity, sizeof(int), 1))
-                    break;
-            }
-            queue[back++] = i;
-            visited[i] = true;
-        }
+        if (mc->initial_dist[i] >= PCTL_EPSILON)
+            seeds[seed_count++] = i;
     }
 
-    bool all_satisfy = true;
-    double violating_prob = 0.0;
+    /* BFS 从所有初始状态出发（统一遍历设施 lv_bfs_run）。
+     * 原实现队列初始容量 ≥ 2n ≥ n，其溢出检查（PCTL_MAX_STATE_LIMIT）为不可达
+     * 分支，核心内部动态队列与之等价。 */
+    PctlBfsCtx ctx = { mc, target_predicate, NULL, mc->initial_dist,
+                       false, true, 0.0 };
+    lvBfsSpec spec = {
+        .node_count = n,
+        .seeds = seeds,
+        .seed_count = seed_count,
+        .visited = visited,
+        .mark_on_enqueue = true, /* 标准 BFS：入队时检查并标记 */
+        .max_queue = 0,
+        .neighbors = pctl_bfs_neighbors,
+        .visit = pctl_always_visit,
+        .ctx = &ctx,
+    };
+    (void) lv_bfs_run(&spec);
 
-    while (front < back) {
-        int cur = queue[front++];
-        if (!eval_state_predicate(target_predicate, cur)) {
-            all_satisfy = false;
-            /* 累加违反状态的初始概率 */
-            violating_prob += mc->initial_dist[cur];
-            continue;
-        }
-        for (int t = 0; t < mc->trans_count[cur]; t++) {
-            int next = mc->trans_targets[cur][t];
-            if (next >= 0 && next < n && !visited[next]) {
-                visited[next] = true;
-                /* 动态扩容 */
-                if (back >= queue_capacity) {
-                    if (queue_capacity > PCTL_MAX_STATE_LIMIT / 2) {
-                        lv_LOG_WARNING("[PCTL] Always BFS overflow at %d (limit %d)\n", back, PCTL_MAX_STATE_LIMIT);
-                        break;
-                    }
-                    if (!lv_ensure_capacity((void **) &queue, back, &queue_capacity, sizeof(int), 1))
-                        break;
-                }
-                queue[back++] = next;
-            }
-        }
-    }
-
+    lv_free((void **) &seeds);
     lv_free((void **) &visited);
-    lv_free((void **) &queue);
 
-    if (all_satisfy)
+    if (ctx.all_satisfy)
         return 1.0;
 
-    return 1.0 - violating_prob;
+    return 1.0 - ctx.violating_prob;
 }
 
 /**

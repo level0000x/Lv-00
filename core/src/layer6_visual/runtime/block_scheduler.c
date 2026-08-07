@@ -5,6 +5,7 @@
 
 #include "lv/block_graph_view.h"
 #include "lv/func_block.h"
+#include "lv/lv_graph_traversal.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
@@ -50,6 +51,29 @@ static int build_block_adjacency(BlockGraphView *bg, int n, int *in_degree, int 
         }
     }
     return 0;
+}
+
+/* 增量执行 BFS 的邻接表访问上下文（统一遍历设施 lv_bfs_run） */
+typedef struct {
+    int **adj;       /* 邻接表（块索引 -> 下游块索引） */
+    int *adj_count;  /* 每块下游邻居数 */
+} BlockBfsCtx;
+
+/* BFS 邻居回调：读块邻接表（下游依赖；全部邻居作为批次 0） */
+static int block_adj_neighbors_cb(void *ctx, int node_id, int batch_index,
+                                  int *out_neighbors, void **out_edge_infos,
+                                  int max_neighbors) {
+    BlockBfsCtx *c = (BlockBfsCtx *)ctx;
+    (void)batch_index;
+    (void)out_edge_infos;
+    if (!out_neighbors || max_neighbors <= 0)
+        return 0;
+    int cnt = c->adj_count[node_id];
+    if (cnt > max_neighbors)
+        cnt = max_neighbors;
+    if (cnt > 0)
+        memcpy(out_neighbors, c->adj[node_id], (size_t)cnt * sizeof(int));
+    return cnt;
 }
 
 lvBlockScheduler *lv_block_scheduler_create(void *graph) {
@@ -217,7 +241,8 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
     build_block_adjacency(bg, n, NULL, &adj, &adj_count);
 
     /* 计算脏块的传递闭包（包括所有下游依赖） */
-    int *need_exec = lv_calloc(n, sizeof(int));
+    /* need_exec 同时充当 BFS 的 visited（lv_bfs_run 要求 bool*，故用 bool 数组） */
+    bool *need_exec = lv_calloc(n, sizeof(bool));
     if (!need_exec) {
         for (int i = 0; i < n; i++)
             lv_free((void **) &adj[i]);
@@ -252,25 +277,31 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
         }
     }
 
-    /* BFS 扩展：标记所有下游依赖 */
-    int *bfs_queue = lv_calloc(n, sizeof(int));
-    if (bfs_queue) {
-        int front = 0, back = 0;
+    /* BFS 扩展：标记所有下游依赖（统一遍历设施 lv_bfs_run） */
+    /* 起点 = 已标记的脏块；visited 复用 need_exec（初始脏块已标记，与手写
+     * BFS 的 "if (!need_exec[next]) { need_exec[next] = 1; 入队 }" 语义一致） */
+    int *seeds = lv_calloc(n, sizeof(int));
+    if (seeds) {
+        int seed_count = 0;
         for (int i = 0; i < n; i++) {
             if (need_exec[i])
-                bfs_queue[back++] = i;
+                seeds[seed_count++] = i;
         }
-        while (front < back) {
-            int cur = bfs_queue[front++];
-            for (int k = 0; k < adj_count[cur]; k++) {
-                int next = adj[cur][k];
-                if (!need_exec[next]) {
-                    need_exec[next] = 1;
-                    bfs_queue[back++] = next;
-                }
-            }
-        }
-        lv_free((void **) &bfs_queue);
+        BlockBfsCtx bfs_ctx = { adj, adj_count };
+        lvBfsSpec spec = {
+            .node_count = n,
+            .seeds = seeds,
+            .seed_count = seed_count,
+            .visited = need_exec,          /* 复用 need_exec 作为 visited */
+            .mark_on_enqueue = true,       /* 标准 BFS：入队时检查并标记 */
+            .max_queue = 0,                /* 队列不限长 */
+            .neighbors = block_adj_neighbors_cb,
+            .visit = NULL,
+            .ctx = &bfs_ctx,
+        };
+        /* 与原实现一致：seeds 分配失败时静默跳过 BFS 扩展（仅执行已标记块） */
+        (void) lv_bfs_run(&spec);
+        lv_free((void **) &seeds);
     }
 
     /* 执行需要执行的块（按原始数组顺序，即拓扑序） */

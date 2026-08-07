@@ -83,14 +83,24 @@ static void cnf_add_clause(CNFBuilder *cnf, const int *literals, int count) {
         return;
 
     if (cnf->clause_count >= cnf->clause_capacity) {
-        int new_cap = cnf->clause_capacity * 2;
-        int **new_clauses = (int **) lv_realloc(cnf->clauses, (size_t) new_cap * sizeof(int *));
-        int *new_sizes = (int *) lv_realloc(cnf->clause_sizes, (size_t) new_cap * sizeof(int));
-        if (!new_clauses || !new_sizes)
+        /* [安全] 2 个平行数组共享 clause_capacity，先全部扩容、任一失败则回滚已成功者 */
+        int cap_c = cnf->clause_capacity;
+        int cap_s = cnf->clause_capacity;
+        int **new_clauses = cnf->clauses;
+        int *new_sizes = cnf->clause_sizes;
+        bool ok = lv_ensure_capacity((void **) &new_clauses, cnf->clause_count, &cap_c, sizeof(int *), 1) &&
+                  lv_ensure_capacity((void **) &new_sizes, cnf->clause_count, &cap_s, sizeof(int), 1);
+        if (!ok) {
+            /* 仅释放已成功扩容的新块（失败时 new_* 仍指向旧数组，跳过） */
+            if (new_clauses != cnf->clauses)
+                lv_free((void **) &new_clauses);
+            if (new_sizes != cnf->clause_sizes)
+                lv_free((void **) &new_sizes);
             return;
+        }
         cnf->clauses = new_clauses;
         cnf->clause_sizes = new_sizes;
-        cnf->clause_capacity = new_cap;
+        cnf->clause_capacity = cap_c;
     }
 
     int *clause = (int *) lv_malloc((size_t) (count + 1) * sizeof(int));

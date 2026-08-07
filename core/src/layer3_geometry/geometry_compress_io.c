@@ -28,28 +28,6 @@
  * 小端序二进制格式：Magic(4B) + Header + Payload + Checksum
  * ======================================================================== */
 
-static void write_uint32_le(uint8_t *buf, uint32_t val) {
-    lv_store_le32(buf, val);
-}
-
-static void write_uint64_le(uint8_t *buf, uint64_t val) {
-    for (int i = 0; i < 8; i++) {
-        buf[i] = (uint8_t) ((val >> (i * 8)) & 0xFF);
-    }
-}
-
-static uint32_t read_uint32_le(const uint8_t *buf) {
-    return ((uint32_t) buf[0]) | ((uint32_t) buf[1] << 8) | ((uint32_t) buf[2] << 16) | ((uint32_t) buf[3] << 24);
-}
-
-static uint64_t read_uint64_le(const uint8_t *buf) {
-    uint64_t val = 0;
-    for (int i = 0; i < 8; i++) {
-        val |= ((uint64_t) buf[i]) << (i * 8);
-    }
-    return val;
-}
-
 bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename) {
     if (!data || size == 0 || !filename)
         return false;
@@ -62,11 +40,11 @@ bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename)
     uint8_t header[LVZD_HEADER_SIZE];
     memset(header, 0, LVZD_HEADER_SIZE);
 
-    write_uint32_le(header, LVZD_MAGIC);
-    write_uint32_le(header + 4, LVZD_VERSION_MAJOR);
-    write_uint32_le(header + 8, LVZD_VERSION_MINOR);
-    write_uint64_le(header + 12, (uint64_t) size);
-    write_uint64_le(header + 20, (uint64_t) size);
+    lv_store_le32(header, LVZD_MAGIC);
+    lv_store_le32(header + 4, LVZD_VERSION_MAJOR);
+    lv_store_le32(header + 8, LVZD_VERSION_MINOR);
+    lv_store_le64(header + 12, (uint64_t) size);
+    lv_store_le64(header + 20, (uint64_t) size);
 
     /* Write file header */
     size_t written = fwrite(header, 1, LVZD_HEADER_SIZE, fp);
@@ -98,15 +76,15 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     }
 
     /* Verify magic */
-    uint32_t magic = read_uint32_le(header);
+    uint32_t magic = lv_load_le32(header);
     if (magic != LVZD_MAGIC) {
         lv_file_close(fp);
         return false;
     }
 
     /* Verify version */
-    uint32_t ver_major = read_uint32_le(header + 4);
-    uint32_t ver_minor = read_uint32_le(header + 8);
+    uint32_t ver_major = lv_load_le32(header + 4);
+    uint32_t ver_minor = lv_load_le32(header + 8);
     if (ver_major > LVZD_VERSION_MAJOR) {
         lv_file_close(fp);
         return false;
@@ -114,7 +92,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     (void) ver_minor;
 
     /* Read compressed data size */
-    uint64_t comp_size = read_uint64_le(header + 20);
+    uint64_t comp_size = lv_load_le64(header + 20);
     if (comp_size == 0) {
         lv_file_close(fp);
         *out_data = NULL;

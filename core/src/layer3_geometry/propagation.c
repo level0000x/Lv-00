@@ -460,27 +460,26 @@ static void queue_destroy(PropagationContext *ctx) {
 static bool queue_ensure_capacity(PropagationContext *ctx) {
     if (ctx->queue_size < ctx->queue_capacity)
         return true;
-    if (ctx->queue_capacity > INT_MAX / 2)
-        return false;
-    int new_cap = ctx->queue_capacity * 2;
-    int *new_q = (int *) lv_realloc(ctx->propagation_queue, (size_t) new_cap * sizeof(int));
-    if (!new_q)
+    /* 记录旧容量：环形展开依赖旧容量计算段长（lv_ensure_capacity 成功后
+     * ctx->queue_capacity 已更新为新值，故需在调用前保存） */
+    int old_cap = ctx->queue_capacity;
+    if (!lv_ensure_capacity((void **) &ctx->propagation_queue, ctx->queue_size, &ctx->queue_capacity,
+                            sizeof(int), 1))
         return false;
 
     /* 将数据从环形缓冲区展开到线性数组 */
+    int *new_q = ctx->propagation_queue;
     if (ctx->queue_tail > ctx->queue_head) {
         memmove(new_q, new_q + ctx->queue_head, (size_t) ctx->queue_size * sizeof(int));
     } else if (ctx->queue_tail < ctx->queue_head) {
         /* 两段数据：head..end 和 0..tail */
-        int seg1 = ctx->queue_capacity - ctx->queue_head;
+        int seg1 = old_cap - ctx->queue_head;
         int seg2 = ctx->queue_tail;
         memmove(new_q, new_q + ctx->queue_head, (size_t) seg1 * sizeof(int));
         memmove(new_q + seg1, ctx->propagation_queue, (size_t) seg2 * sizeof(int));
     }
-    ctx->propagation_queue = new_q;
     ctx->queue_head = 0;
     ctx->queue_tail = ctx->queue_size;
-    ctx->queue_capacity = new_cap;
     return true;
 }
 

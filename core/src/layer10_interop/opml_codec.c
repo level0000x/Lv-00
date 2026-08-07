@@ -5,6 +5,7 @@
 #include "lv/interop.h"
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_json.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
@@ -253,90 +254,6 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 /* OPML JSON 导入 —— 解析 OPML JSON 并构建 Lv-00 证明树 */
 
 /**
- * @brief 跳过 JSON 空白字符
- */
-static const char *json_skip_ws(const char *p) {
-    while (p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
-        p++;
-    return p;
-}
-
-/**
- * @brief 提取 JSON 字符串值并写入缓冲区
- */
-static const char *json_extract_string(const char *p, char *buf, int buf_size) {
-    if (!p || *p != '"')
-        lv_RETURN_ERROR_NULL(lv_ERROR_PARSE, "expected JSON string");
-    p++; /* 跳过开头 " */
-    int i = 0;
-    while (*p && *p != '"' && i < buf_size - 1) {
-        if (*p == '\\' && *(p + 1)) {
-            p++; /* 跳过反斜杠 */
-            if (*p == 'u' && p[1] && p[2] && p[3] && p[4]) {
-                /* \uXXXX: 解析4位十六进制并写入UTF-8 */
-                unsigned int cp = 0;
-                for (int k = 0; k < 4; k++) {
-                    char hc = p[k + 1];
-                    cp <<= 4;
-                    if (hc >= '0' && hc <= '9')
-                        cp |= (unsigned int) (hc - '0');
-                    else if (hc >= 'a' && hc <= 'f')
-                        cp |= (unsigned int) (hc - 'a' + 10);
-                    else if (hc >= 'A' && hc <= 'F')
-                        cp |= (unsigned int) (hc - 'A' + 10);
-                }
-                p += 4; /* 跳过 uXXXX */
-                /* BMP 字符直接写UTF-8 (最多3字节) */
-                if (cp < 0x80) {
-                    buf[i++] = (char) cp;
-                } else if (cp < 0x800) {
-                    buf[i++] = (char) (0xC0 | (cp >> 6));
-                    if (i < buf_size - 1)
-                        buf[i++] = (char) (0x80 | (cp & 0x3F));
-                } else {
-                    buf[i++] = (char) (0xE0 | (cp >> 12));
-                    if (i < buf_size - 2) {
-                        buf[i++] = (char) (0x80 | ((cp >> 6) & 0x3F));
-                        buf[i++] = (char) (0x80 | (cp & 0x3F));
-                    }
-                }
-                continue; /* 跳过下面的 buf[i++] = *p++ */
-            }
-        }
-        buf[i++] = *p++;
-    }
-    buf[i] = '\0';
-    if (*p == '"')
-        p++; /* 跳过结尾 " */
-    return p;
-}
-
-/**
- * @brief 在 JSON 对象中查找指定键的值位置
- */
-static const char *json_find_key(const char *obj_start, const char *key) {
-    if (!obj_start || !key)
-        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "NULL obj_start or key");
-    lvStrBuf sb = {0};
-    lv_strbuf_printf(&sb, "\"%s\"", key);
-    const char *p = obj_start;
-    while (p && *p) {
-        p = strstr(p, sb.data);
-        if (!p)
-            lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "key \"%s\" not found", key);
-        p += strlen(sb.data);
-        p = json_skip_ws(p);
-        if (*p == ':') {
-            p++;
-            p = json_skip_ws(p);
-            lv_strbuf_destroy(&sb);
-            return p;
-        }
-    }
-    lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "key \"%s\" not found in object", key);
-}
-
-/**
  * @brief 解析嵌套 JSON 对象并返回结束位置
  *
  * 从 '{' 开始，正确处理嵌套的花括号和字符串转义内容，
@@ -352,6 +269,9 @@ static const char *json_skip_object(const char *p) {
 
 /**
  * @brief 从 theory 段提取公理和定义名称列表
+ *
+ * 基于统一 JSON 解析器 lvJsonParser（lv/lv_json.h），
+ * 替代原手写 json_find_key/json_extract_string 实现。
  */
 static void parse_theory_section(const char *theory_json, char axioms[][256], int *axiom_count, int max_axioms,
                                  char definitions[][256], int *def_count, int max_defs) {
@@ -360,40 +280,56 @@ static void parse_theory_section(const char *theory_json, char axioms[][256], in
     if (!theory_json)
         return;
 
-    /* 查找 "axioms" 键 */
-    const char *axioms_val = json_find_key(theory_json, "axioms");
+    /* 查找 "axioms" 键（统一 lv_json_find_key） */
+    const char *axioms_val = lv_json_find_key(theory_json, "axioms", 6);
     if (axioms_val && *axioms_val == '[') {
-        const char *end = axioms_val;
+        lvJsonParser p;
+        lv_json_parser_init(&p, axioms_val, strlen(axioms_val));
+        lv_json_next(&p); /* 跳过 '[' */
         while (*axiom_count < max_axioms) {
-            end = json_skip_ws(end + 1); /* 跳过 [ 或 , */
-            if (*end == ']' || !*end)
+            char c = lv_json_peek(&p);
+            if (c == ']' || c == '\0')
                 break;
-            end = json_skip_ws(end);
-            if (*end == '"') {
-                end = json_extract_string(end, axioms[*axiom_count], 256);
-                if (end)
+            if (c == ',') {
+                lv_json_next(&p);
+                continue;
+            }
+            if (c == '"') {
+                char *s = lv_json_parse_string(&p);
+                if (s) {
+                    lv_strlcpy(axioms[*axiom_count], s, 256);
                     (*axiom_count)++;
+                    lv_free((void **) &s);
+                }
             } else {
-                end++;
+                lv_json_skip_value(&p);
             }
         }
     }
 
-    /* 查找 "definitions" 键 */
-    const char *defs_val = json_find_key(theory_json, "definitions");
+    /* 查找 "definitions" 键（统一 lv_json_find_key） */
+    const char *defs_val = lv_json_find_key(theory_json, "definitions", 11);
     if (defs_val && *defs_val == '[') {
-        const char *end = defs_val;
+        lvJsonParser p;
+        lv_json_parser_init(&p, defs_val, strlen(defs_val));
+        lv_json_next(&p); /* 跳过 '[' */
         while (*def_count < max_defs) {
-            end = json_skip_ws(end + 1);
-            if (*end == ']' || !*end)
+            char c = lv_json_peek(&p);
+            if (c == ']' || c == '\0')
                 break;
-            end = json_skip_ws(end);
-            if (*end == '"') {
-                end = json_extract_string(end, definitions[*def_count], 256);
-                if (end)
+            if (c == ',') {
+                lv_json_next(&p);
+                continue;
+            }
+            if (c == '"') {
+                char *s = lv_json_parse_string(&p);
+                if (s) {
+                    lv_strlcpy(definitions[*def_count], s, 256);
                     (*def_count)++;
+                    lv_free((void **) &s);
+                }
             } else {
-                end++;
+                lv_json_skip_value(&p);
             }
         }
     }
@@ -417,45 +353,75 @@ static const lvStrToEnumEntry step_type_map[] = {
 
 /**
  * @brief 从 proof 段提取证明步骤
+ *
+ * 基于统一 JSON 解析器 lvJsonParser（lv/lv_json.h），
+ * 替代原手写 json_find_key/json_extract_string 实现。
  */
 static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int max_steps) {
     if (!proof_json || !proof)
         return;
 
-    /* 查找 "steps" 键 */
-    const char *steps_val = json_find_key(proof_json, "steps");
+    /* 查找 "steps" 键（统一 lv_json_find_key） */
+    const char *steps_val = lv_json_find_key(proof_json, "steps", 5);
     if (!steps_val || *steps_val != '[')
         return;
 
-    const char *p = steps_val + 1; /* 跳过 [ */
-    while (p && *p && *p != ']' && proof->step_count < max_steps) {
-        p = json_skip_ws(p);
-        if (*p != '{') {
-            p++;
+    lvJsonParser p;
+    lv_json_parser_init(&p, steps_val, strlen(steps_val));
+    lv_json_next(&p); /* 跳过 '[' */
+
+    while (proof->step_count < max_steps) {
+        char c = lv_json_peek(&p);
+        if (c == ']' || c == '\0')
+            break;
+        if (c == ',') {
+            lv_json_next(&p);
+            continue;
+        }
+        if (c != '{') {
+            lv_json_skip_value(&p);
             continue;
         }
 
-        /* 解析单个 step 对象 */
-        const char *step_end = json_skip_object(p);
-        const char *name_val = json_find_key(p, "name");
-        const char *type_val = json_find_key(p, "type");
+        lv_json_next(&p); /* 跳过 '{' */
 
         lvProofStep *step = &proof->steps[proof->step_count];
         memset(step, 0, sizeof(lvProofStep));
         step->id = proof->step_count;
 
-        if (name_val && *name_val == '"') {
-            json_extract_string(name_val, step->description, sizeof(step->description));
+        /* 遍历 step 对象字段（键序无关） */
+        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+            char *key = lv_json_parse_string(&p);
+            if (!key)
+                break;
+            if (!lv_json_expect(&p, ':')) {
+                lv_free((void **) &key);
+                break;
+            }
+            if (strcmp(key, "name") == 0 && lv_json_peek(&p) == '"') {
+                char *val = lv_json_parse_string(&p);
+                if (val) {
+                    lv_strlcpy(step->description, val, sizeof(step->description));
+                    lv_free((void **) &val);
+                }
+            } else if (strcmp(key, "type") == 0 && lv_json_peek(&p) == '"') {
+                char *val = lv_json_parse_string(&p);
+                if (val) {
+                    /* 映射类型名到 lvProofStepType */
+                    step->type = (int) lv_str_to_enum(step_type_map, 8, val, lv_STEP_ORACLE);
+                    lv_free((void **) &val);
+                }
+            } else {
+                lv_json_skip_value(&p);
+            }
+            lv_free((void **) &key);
+            if (lv_json_peek(&p) == ',')
+                lv_json_next(&p);
         }
-        if (type_val && *type_val == '"') {
-            char type_name[64];
-            json_extract_string(type_val, type_name, sizeof(type_name));
-            /* 映射类型名到 lvProofStepType */
-            step->type = (int)lv_str_to_enum(step_type_map, 8, type_name, lv_STEP_ORACLE);
-        }
+        if (lv_json_peek(&p) == '}')
+            lv_json_next(&p);
 
         proof->step_count++;
-        p = step_end;
     }
 }
 
@@ -548,12 +514,18 @@ static int opml_import_proof(const char *input, void **proof) {
         }
     }
 
-    /* 查找定理名称（可选：从 "theorem_name" 或 "name" 键） */
-    const char *name_val = json_find_key(input, "theorem_name");
+    /* 查找定理名称（可选：从 "theorem_name" 或 "name" 键，统一 lv_json_find_key） */
+    const char *name_val = lv_json_find_key(input, "theorem_name", 13);
     if (!name_val)
-        name_val = json_find_key(input, "name");
+        name_val = lv_json_find_key(input, "name", 4);
     if (name_val && *name_val == '"') {
-        json_extract_string(name_val, p->theorem_name, sizeof(p->theorem_name));
+        lvJsonParser tp;
+        lv_json_parser_init(&tp, name_val, strlen(name_val));
+        char *tname = lv_json_parse_string(&tp);
+        if (tname) {
+            lv_strlcpy(p->theorem_name, tname, sizeof(p->theorem_name));
+            lv_free((void **) &tname);
+        }
     }
 
     *proof = p;

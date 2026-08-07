@@ -22,6 +22,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/interop.h"
+#include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
@@ -265,6 +266,204 @@ int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config)
 
 /* ── SVG 解析器 ── */
 
+/* ── GeoJSON 解析辅助（基于统一 lvJsonParser，替代原手写 GJ_* 宏） ── */
+
+#define GJ_MAX_FEATURES 4096
+#define GJ_MAX_COORDS 8192
+
+/* 解析 [[x,y],[x,y],...] 点列表，输出到 xs/ys（各至多 max 个），返回点数 */
+static int gj_parse_coord_list(lvJsonParser *p, double *xs, double *ys, int max) {
+    if (lv_json_peek(p) != '[')
+        return 0;
+    lv_json_next(p); /* 跳过 '[' */
+    int n = 0;
+    for (;;) {
+        char c = lv_json_peek(p);
+        if (c == ']') {
+            lv_json_next(p);
+            break;
+        }
+        if (c == ',') {
+            lv_json_next(p);
+            continue;
+        }
+        if (n >= max)
+            break;
+        double pair[2];
+        size_t cnt = 0;
+        if (!lv_json_parse_double_array(p, pair, 2, &cnt))
+            break;
+        if (cnt >= 2) {
+            xs[n] = pair[0];
+            ys[n] = pair[1];
+        }
+        n++;
+        c = lv_json_peek(p);
+        if (c == ',') {
+            lv_json_next(p);
+            continue;
+        }
+        if (c == ']') {
+            lv_json_next(p);
+            break;
+        }
+        break; /* 意外 token，停止 */
+    }
+    return n;
+}
+
+/* 解析 geometry 对象（p 位于 '{' 处）并把坐标导入约束图 */
+static void gj_import_geometry(lvJsonParser *p, ConstraintGraph *graph, int *imported_count, int *prev_node_id,
+                               double *coords_x, double *coords_y) {
+    if (lv_json_peek(p) != '{')
+        return;
+    lv_json_next(p); /* 跳过 '{' */
+
+    bool is_point = false, is_multipoint = false;
+    bool is_linestring = false, is_multilinestring = false;
+    bool is_polygon = false;
+    const char *coords_val = NULL;
+
+    /* 遍历 geometry 对象字段（键序无关：先收集 type，再记录 coordinates 值位置） */
+    while (lv_json_peek(p) != '}' && lv_json_peek(p) != '\0') {
+        char *key = lv_json_parse_string(p);
+        if (!key)
+            break;
+        if (!lv_json_expect(p, ':')) {
+            lv_free((void **) &key);
+            break;
+        }
+        if (strcmp(key, "type") == 0 && lv_json_peek(p) == '"') {
+            char *t = lv_json_parse_string(p);
+            if (t) {
+                if (strcmp(t, "Point") == 0)
+                    is_point = true;
+                else if (strcmp(t, "MultiPoint") == 0)
+                    is_multipoint = true;
+                else if (strcmp(t, "LineString") == 0)
+                    is_linestring = true;
+                else if (strcmp(t, "MultiLineString") == 0)
+                    is_multilinestring = true;
+                else if (strcmp(t, "Polygon") == 0)
+                    is_polygon = true;
+                lv_free((void **) &t);
+            }
+        } else if (strcmp(key, "coordinates") == 0) {
+            coords_val = p->data + p->pos; /* 记录值起始位置 */
+            lv_json_skip_value(p);
+        } else {
+            lv_json_skip_value(p);
+        }
+        lv_free((void **) &key);
+        if (lv_json_peek(p) == ',')
+            lv_json_next(p);
+    }
+    if (lv_json_peek(p) == '}')
+        lv_json_next(p);
+
+    /* 类型未知或缺少 coordinates：无导入 */
+    if (!is_point && !is_multipoint && !is_linestring && !is_multilinestring && !is_polygon)
+        return;
+    if (!coords_val || *coords_val != '[')
+        return;
+
+    /* 解析坐标数组 */
+    int coord_count = 0;
+    lvJsonParser cp;
+    lv_json_parser_init(&cp, coords_val, strlen(coords_val));
+
+    if (is_point) {
+        /* Point: [x, y(, z)] — 与原实现一致仅取前两个元素 */
+        double pair[4];
+        size_t cnt = 0;
+        if (lv_json_parse_double_array(&cp, pair, 4, &cnt) && cnt >= 2) {
+            coords_x[0] = pair[0];
+            coords_y[0] = pair[1];
+            coord_count = 1;
+        }
+    } else if (is_multipoint || is_linestring) {
+        /* MultiPoint / LineString: [[x,y],...] */
+        coord_count = gj_parse_coord_list(&cp, coords_x, coords_y, GJ_MAX_COORDS);
+    } else if (is_multilinestring) {
+        /* MultiLineString: [[[x,y],...], ...] — 展平所有线段 */
+        if (lv_json_peek(&cp) == '[') {
+            lv_json_next(&cp);
+            int n = 0;
+            for (;;) {
+                if (lv_json_peek(&cp) == ']') {
+                    lv_json_next(&cp);
+                    break;
+                }
+                if (lv_json_peek(&cp) == ',') {
+                    lv_json_next(&cp);
+                    continue;
+                }
+                int m = gj_parse_coord_list(&cp, coords_x + n, coords_y + n, GJ_MAX_COORDS - n);
+                n += m;
+                if (n >= GJ_MAX_COORDS)
+                    break;
+                if (lv_json_peek(&cp) == ',') {
+                    lv_json_next(&cp);
+                    continue;
+                }
+                break;
+            }
+            coord_count = n;
+        }
+    } else if (is_polygon) {
+        /* Polygon: [[[x,y],...], [内环...]] — 只处理外环 */
+        if (lv_json_peek(&cp) == '[') {
+            lv_json_next(&cp);
+            coord_count = gj_parse_coord_list(&cp, coords_x, coords_y, GJ_MAX_COORDS);
+            lv_json_skip_value(&cp); /* 跳过剩余内环 */
+        }
+    }
+
+    /* --- 将坐标导入到约束图（与原实现逻辑一致） --- */
+    if (coord_count > 0) {
+        int first_node_id = -1;
+        *prev_node_id = -1;
+
+        for (int i = 0; i < coord_count; i++) {
+            /* 将 double 坐标转为有理数 SymbolicCoord */
+            int64_t xn = (int64_t) (coords_x[i] * 1e9 + (coords_x[i] >= 0 ? 0.5 : -0.5));
+            int64_t yn = (int64_t) (coords_y[i] * 1e9 + (coords_y[i] >= 0 ? 0.5 : -0.5));
+            SymbolicCoord *cx = symbolic_coord_create_rational(xn, 1000000000ULL);
+            SymbolicCoord *cy = symbolic_coord_create_rational(yn, 1000000000ULL);
+            if (!cx || !cy) {
+                if (cx)
+                    symbolic_coord_destroy(cx);
+                continue;
+            }
+            SymbolicCoord *coords[] = {cx, cy};
+            AddNodeResult res = graph_add_point(graph, coords, 2);
+            if (res != ADD_NODE_OK) {
+                symbolic_coord_destroy(cx);
+                symbolic_coord_destroy(cy);
+                continue;
+            }
+            int node_id = graph->next_node_id - 1;
+            if (node_id < 0)
+                continue;
+
+            if (first_node_id < 0)
+                first_node_id = node_id;
+
+            if (*prev_node_id >= 0 && (is_linestring || is_multilinestring || is_polygon)) {
+                graph_add_line_segment(graph, *prev_node_id, node_id);
+            }
+
+            *prev_node_id = node_id;
+            (*imported_count)++;
+        }
+
+        /* 闭合多边形 */
+        if (is_polygon && first_node_id >= 0 && *prev_node_id >= 0 && first_node_id != *prev_node_id) {
+            graph_add_line_segment(graph, *prev_node_id, first_node_id);
+        }
+    }
+}
+
 int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) {
     if (!engine || !config)
         return lv_ERROR_INVALID_PARAM;
@@ -282,390 +481,93 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
         lv_RETURN_ERROR_VAL(lv_ERROR_IO, lv_ERROR_IO, "GeoJSON导入失败：无法读取文件'%s'（不存在、为空或读取失败）", config->input_path);
     }
 
-/* --- 手写 JSON 解析辅助（不依赖外部 JSON 库） --- */
-/* 跳过空白 */
-#define GJ_SKIP_WS(p)                                                       \
-    do {                                                                    \
-        while (*(p) == ' ' || *(p) == '\t' || *(p) == '\n' || *(p) == '\r') \
-            (p)++;                                                          \
-    } while (0)
-/* 跳过JSON字符串值 */
-#define GJ_SKIP_STRING(p)                 \
-    do {                                  \
-        if (*(p) == '"') {                \
-            (p)++;                        \
-            while (*(p) && *(p) != '"') { \
-                if (*(p) == '\\')         \
-                    (p)++;                \
-                (p)++;                    \
-            }                             \
-            if (*(p) == '"')              \
-                (p)++;                    \
-        }                                 \
-    } while (0)
-/* 跳过JSON数字 */
-#define GJ_SKIP_NUMBER(p)                                                                          \
-    do {                                                                                           \
-        while (*(p) && (*(p) == '-' || *(p) == '.' || *(p) == 'e' || *(p) == 'E' || *(p) == '+' || \
-                        (*(p) >= '0' && *(p) <= '9')))                                             \
-            (p)++;                                                                                 \
-    } while (0)
+    /* 统一 JSON 解析器（lvJsonParser，替代原手写 GJ_* 宏） */
+    lvJsonParser p;
+    lv_json_parser_init(&p, json, strlen(json));
 
-    const char *s = json;
     int imported_count = 0;
     ConstraintGraph *graph = engine->main_graph;
 
     /* --- 解析顶层 FeatureCollection 或 Feature --- */
-    GJ_SKIP_WS(s);
-    if (*s != '{') {
+    if (lv_json_peek(&p) != '{') {
         lv_free((void **) &json);
         lv_RETURN_ERROR_VAL(lv_ERROR_PARSE, lv_ERROR_PARSE, "GeoJSON导入失败：根元素不是JSON对象");
     }
 
     /* 查找 "type" 字段来识别根类型 */
-    const char *type_tag = strstr(s, "\"type\"");
-    if (!type_tag) {
+    const char *type_val = lv_json_find_key(json, "type", 4);
+    if (!type_val) {
         lv_free((void **) &json);
         lv_RETURN_ERROR_VAL(lv_ERROR_PARSE, lv_ERROR_PARSE, "GeoJSON导入失败：缺少type字段");
     }
-    type_tag += 6;
-    GJ_SKIP_WS(type_tag);
-    if (*type_tag == ':')
-        type_tag++;
-    GJ_SKIP_WS(type_tag);
 
     bool is_feature_collection = false;
-    if (*type_tag == '"') {
-        if (strncmp(type_tag + 1, "FeatureCollection", 17) == 0) {
-            is_feature_collection = true;
+    if (*type_val == '"') {
+        lvJsonParser tp;
+        lv_json_parser_init(&tp, type_val, strlen(type_val));
+        char *tstr = lv_json_parse_string(&tp);
+        if (tstr) {
+            /* 与原实现一致的宽松前缀比较（strncmp 17 字符，不要求结尾引号） */
+            if (strncmp(tstr, "FeatureCollection", 17) == 0)
+                is_feature_collection = true;
+            lv_free((void **) &tstr);
         }
     }
 
-    /* 定位 "features" 或 "coordinates" 数组 */
-    const char *cursor = s;
+    /* 定位 "features" 数组 */
     if (is_feature_collection) {
-        const char *features_tag = strstr(cursor, "\"features\"");
-        if (!features_tag) {
+        const char *features_val = lv_json_find_key(json, "features", 8);
+        if (!features_val) {
             lv_free((void **) &json);
             lv_RETURN_ERROR_VAL(lv_ERROR_PARSE, lv_ERROR_PARSE, "GeoJSON导入失败：FeatureCollection缺少features数组");
         }
-        features_tag += 10;
-        GJ_SKIP_WS(features_tag);
-        if (*features_tag == ':')
-            features_tag++;
-        GJ_SKIP_WS(features_tag);
-        if (*features_tag != '[') {
+        if (*features_val != '[') {
             lv_free((void **) &json);
             lv_RETURN_ERROR_VAL(lv_ERROR_PARSE, lv_ERROR_PARSE, "GeoJSON导入失败：features不是数组");
         }
-        cursor = features_tag + 1; /* 进入features数组 */
+        lv_json_parser_init(&p, features_val, strlen(features_val));
+        lv_json_next(&p); /* 跳过 '['，进入 features 数组 */
     }
-
-/* --- 解析每个 feature / geometry --- */
-#define GJ_MAX_FEATURES 4096
-#define GJ_MAX_COORDS 8192
 
     double coords_x[GJ_MAX_COORDS];
     double coords_y[GJ_MAX_COORDS];
-    int coord_count = 0;
     int prev_node_id = -1;
 
-    while (*cursor && imported_count < GJ_MAX_FEATURES) {
-        GJ_SKIP_WS(cursor);
-        if (*cursor == ']' || *cursor == '\0')
+    while (imported_count < GJ_MAX_FEATURES) {
+        char c = lv_json_peek(&p);
+        if (c == ']' || c == '\0')
             break;
-        if (*cursor == ',') {
-            cursor++;
+        if (c == ',') {
+            lv_json_next(&p);
             continue;
         }
-        if (*cursor != '{')
+        if (c != '{')
             break;
 
         /* 进入一个 feature 对象 */
-        cursor++;
+        lv_json_next(&p);
 
-        /* 查找 "geometry" 子对象 */
-        const char *geom_tag = strstr(cursor, "\"geometry\"");
-        if (!geom_tag || geom_tag > strchr(cursor, '}')) {
-            /* 跳过此对象 */
-            int brace_depth = 1;
-            while (*cursor && brace_depth > 0) {
-                if (*cursor == '{')
-                    brace_depth++;
-                else if (*cursor == '}')
-                    brace_depth--;
-                cursor++;
+        /* 遍历 feature 对象字段，处理 geometry 子对象 */
+        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
+            char *key = lv_json_parse_string(&p);
+            if (!key)
+                break;
+            if (!lv_json_expect(&p, ':')) {
+                lv_free((void **) &key);
+                break;
             }
-            continue;
-        }
-        geom_tag += 10;
-        GJ_SKIP_WS(geom_tag);
-        if (*geom_tag == ':')
-            geom_tag++;
-        GJ_SKIP_WS(geom_tag);
-        if (*geom_tag != '{') {
-            cursor = geom_tag;
-            continue;
-        }
-        geom_tag++; /* 进入geometry对象 */
-
-        /* 提取 geometry type */
-        const char *gtype_tag = strstr(geom_tag, "\"type\"");
-        if (!gtype_tag) {
-            cursor = geom_tag;
-            continue;
-        }
-        gtype_tag += 6;
-        GJ_SKIP_WS(gtype_tag);
-        if (*gtype_tag == ':')
-            gtype_tag++;
-        GJ_SKIP_WS(gtype_tag);
-        if (*gtype_tag != '"') {
-            cursor = geom_tag;
-            continue;
-        }
-        gtype_tag++;
-
-        /* 识别几何类型 */
-        bool is_point = false, is_multipoint = false;
-        bool is_linestring = false, is_multilinestring = false;
-        bool is_polygon = false;
-
-        if (strncmp(gtype_tag, "Point\"", 6) == 0)
-            is_point = true;
-        else if (strncmp(gtype_tag, "MultiPoint\"", 11) == 0)
-            is_multipoint = true;
-        else if (strncmp(gtype_tag, "LineString\"", 11) == 0)
-            is_linestring = true;
-        else if (strncmp(gtype_tag, "MultiLineString\"", 16) == 0)
-            is_multilinestring = true;
-        else if (strncmp(gtype_tag, "Polygon\"", 8) == 0)
-            is_polygon = true;
-        else {
-            /* 不支持的类型，跳过 */
-            cursor = geom_tag;
-            continue;
-        }
-
-        /* 查找 "coordinates" */
-        const char *coord_tag = strstr(geom_tag, "\"coordinates\"");
-        if (!coord_tag) {
-            cursor = geom_tag;
-            continue;
-        }
-        coord_tag += 14;
-        GJ_SKIP_WS(coord_tag);
-        if (*coord_tag == ':')
-            coord_tag++;
-        GJ_SKIP_WS(coord_tag);
-        if (*coord_tag != '[') {
-            cursor = geom_tag;
-            continue;
-        }
-
-        /* 解析坐标数组 */
-        coord_count = 0;
-        const char *cs = coord_tag + 1;
-
-        if (is_point) {
-            /* Point: [x, y] */
-            while (*cs && *cs != ']' && coord_count < 1) {
-                GJ_SKIP_WS(cs);
-                coords_x[coord_count] = strtod(cs, (char **) &cs);
-                GJ_SKIP_WS(cs);
-                if (*cs == ',')
-                    cs++;
-                GJ_SKIP_WS(cs);
-                coords_y[coord_count] = strtod(cs, (char **) &cs);
-                coord_count++;
+            if (strcmp(key, "geometry") == 0) {
+                gj_import_geometry(&p, graph, &imported_count, &prev_node_id, coords_x, coords_y);
+            } else {
+                lv_json_skip_value(&p);
             }
-        } else if (is_multipoint) {
-            /* MultiPoint: [[x1,y1], [x2,y2], ...] */
-            while (*cs && coord_count < GJ_MAX_COORDS) {
-                GJ_SKIP_WS(cs);
-                if (*cs == ']')
-                    break;
-                if (*cs == ',') {
-                    cs++;
-                    continue;
-                }
-                if (*cs != '[')
-                    break;
-                cs++; /* 进入[x,y] */
-                GJ_SKIP_WS(cs);
-                coords_x[coord_count] = strtod(cs, (char **) &cs);
-                GJ_SKIP_WS(cs);
-                if (*cs == ',')
-                    cs++;
-                GJ_SKIP_WS(cs);
-                coords_y[coord_count] = strtod(cs, (char **) &cs);
-                coord_count++;
-                GJ_SKIP_WS(cs);
-                if (*cs == ']')
-                    cs++;
-            }
-        } else if (is_linestring) {
-            /* LineString: [[x1,y1], [x2,y2], ...] */
-            while (*cs && coord_count < GJ_MAX_COORDS) {
-                GJ_SKIP_WS(cs);
-                if (*cs == ']')
-                    break;
-                if (*cs == ',') {
-                    cs++;
-                    continue;
-                }
-                if (*cs != '[')
-                    break;
-                cs++;
-                GJ_SKIP_WS(cs);
-                coords_x[coord_count] = strtod(cs, (char **) &cs);
-                GJ_SKIP_WS(cs);
-                if (*cs == ',')
-                    cs++;
-                GJ_SKIP_WS(cs);
-                coords_y[coord_count] = strtod(cs, (char **) &cs);
-                coord_count++;
-                GJ_SKIP_WS(cs);
-                if (*cs == ']')
-                    cs++;
-            }
-        } else if (is_multilinestring) {
-            /* MultiLineString: [[[x1,y1],[x2,y2]], [[x3,y3],...]] */
-            while (*cs && coord_count < GJ_MAX_COORDS) {
-                GJ_SKIP_WS(cs);
-                if (*cs == ']')
-                    break;
-                if (*cs == ',' || *cs == '[') {
-                    cs++;
-                    continue;
-                }
-                if (*cs != '[')
-                    break;
-                cs++;
-                while (*cs && coord_count < GJ_MAX_COORDS) {
-                    GJ_SKIP_WS(cs);
-                    if (*cs == ']') {
-                        cs++;
-                        break;
-                    }
-                    if (*cs == ',') {
-                        cs++;
-                        continue;
-                    }
-                    if (*cs != '[')
-                        break;
-                    cs++;
-                    GJ_SKIP_WS(cs);
-                    coords_x[coord_count] = strtod(cs, (char **) &cs);
-                    GJ_SKIP_WS(cs);
-                    if (*cs == ',')
-                        cs++;
-                    GJ_SKIP_WS(cs);
-                    coords_y[coord_count] = strtod(cs, (char **) &cs);
-                    coord_count++;
-                    GJ_SKIP_WS(cs);
-                    if (*cs == ']')
-                        cs++;
-                }
-            }
-        } else if (is_polygon) {
-            /* Polygon: [[[x1,y1],[x2,y2],...,[x1,y1]]] */
-            while (*cs && coord_count < GJ_MAX_COORDS) {
-                GJ_SKIP_WS(cs);
-                if (*cs == ']')
-                    break;
-                if (*cs == ',' || *cs == '[') {
-                    cs++;
-                    continue;
-                }
-                if (*cs != '[')
-                    break;
-                cs++;
-                while (*cs && coord_count < GJ_MAX_COORDS) {
-                    GJ_SKIP_WS(cs);
-                    if (*cs == ']') {
-                        cs++;
-                        break;
-                    }
-                    if (*cs == ',') {
-                        cs++;
-                        continue;
-                    }
-                    if (*cs != '[')
-                        break;
-                    cs++;
-                    GJ_SKIP_WS(cs);
-                    coords_x[coord_count] = strtod(cs, (char **) &cs);
-                    GJ_SKIP_WS(cs);
-                    if (*cs == ',')
-                        cs++;
-                    GJ_SKIP_WS(cs);
-                    coords_y[coord_count] = strtod(cs, (char **) &cs);
-                    coord_count++;
-                    GJ_SKIP_WS(cs);
-                    if (*cs == ']')
-                        cs++;
-                }
-                break; /* 只处理外环 */
-            }
+            lv_free((void **) &key);
+            if (lv_json_peek(&p) == ',')
+                lv_json_next(&p);
         }
-
-        /* --- 将坐标导入到约束图 --- */
-        if (coord_count > 0) {
-            int first_node_id = -1;
-            prev_node_id = -1;
-
-            for (int i = 0; i < coord_count; i++) {
-                /* 将 double 坐标转为有理数 SymbolicCoord */
-                int64_t xn = (int64_t) (coords_x[i] * 1e9 + (coords_x[i] >= 0 ? 0.5 : -0.5));
-                int64_t yn = (int64_t) (coords_y[i] * 1e9 + (coords_y[i] >= 0 ? 0.5 : -0.5));
-                SymbolicCoord *cx = symbolic_coord_create_rational(xn, 1000000000ULL);
-                SymbolicCoord *cy = symbolic_coord_create_rational(yn, 1000000000ULL);
-                if (!cx || !cy) {
-                    if (cx)
-                        symbolic_coord_destroy(cx);
-                    continue;
-                }
-                SymbolicCoord *coords[] = {cx, cy};
-                AddNodeResult res = graph_add_point(graph, coords, 2);
-                if (res != ADD_NODE_OK) {
-                    symbolic_coord_destroy(cx);
-                    symbolic_coord_destroy(cy);
-                    continue;
-                }
-                int node_id = graph->next_node_id - 1;
-                if (node_id < 0)
-                    continue;
-
-                if (first_node_id < 0)
-                    first_node_id = node_id;
-
-                if (prev_node_id >= 0 && (is_linestring || is_multilinestring || is_polygon)) {
-                    graph_add_line_segment(graph, prev_node_id, node_id);
-                }
-
-                prev_node_id = node_id;
-                imported_count++;
-            }
-
-            /* 闭合多边形 */
-            if (is_polygon && first_node_id >= 0 && prev_node_id >= 0 && first_node_id != prev_node_id) {
-                graph_add_line_segment(graph, prev_node_id, first_node_id);
-            }
-        }
-
-        /* 跳过此 feature 对象剩余部分 */
-        int brace_depth = 0;
-        const char *end = strchr(cursor, '}');
-        if (end)
-            cursor = end + 1;
-        else
-            break;
+        if (lv_json_peek(&p) == '}')
+            lv_json_next(&p);
     }
-
-#undef GJ_SKIP_WS
-#undef GJ_SKIP_STRING
-#undef GJ_SKIP_NUMBER
 
     lv_free((void **) &json);
 

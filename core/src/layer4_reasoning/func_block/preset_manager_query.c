@@ -67,6 +67,170 @@ static bool wildcard_match(const char *pattern, const char *name) {
     return false;
 }
 
+/* ============================================================
+ * lv_hashtable 遍历辅助（foreach 回调）
+ * ============================================================ */
+
+/** preset_query 筛选上下文 */
+typedef struct {
+    const PresetQueryCriteria *criteria;
+    const char **candidate_names;
+    int max_candidates;
+    int match_count;
+} PresetQueryCtx;
+
+/** preset_query foreach 回调：按条件筛选并收集匹配名称（条件逻辑与旧桶序遍历一致） */
+static void preset_query_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    PresetQueryCtx *qc = (PresetQueryCtx *) ctx;
+    InternalPresetEntry *entry = (InternalPresetEntry *) value;
+    if (!entry->is_active)
+        return;
+
+    const PresetQueryCriteria *criteria = qc->criteria;
+    const PresetMetadata *meta = &entry->metadata;
+    bool matches = true;
+
+    /* 条件1：名称模式匹配（支持通配符） */
+    if (criteria->name_pattern && criteria->name_pattern[0] != '\0') {
+        if (!wildcard_match(criteria->name_pattern, meta->name)) {
+            matches = false;
+        }
+    }
+
+    /* 条件2：类别筛选 */
+    if (matches && criteria->category >= 0 && meta->category != criteria->category) {
+        matches = false;
+    }
+
+    /* 条件3：必须属性检查 */
+    if (matches && criteria->required_properties != PRESET_PROPERTY_NONE) {
+        if ((meta->properties & criteria->required_properties) != criteria->required_properties) {
+            matches = false;
+        }
+    }
+
+    /* 条件4：禁止属性检查 */
+    if (matches && criteria->forbidden_properties != PRESET_PROPERTY_NONE) {
+        if ((meta->properties & criteria->forbidden_properties) != 0) {
+            matches = false;
+        }
+    }
+
+    /* 条件5：输入数量范围 */
+    if (matches && criteria->min_inputs > 0 && meta->input_count > 0) {
+        if (meta->input_count < criteria->min_inputs)
+            matches = false;
+    }
+    if (matches && criteria->max_inputs > 0 && meta->input_count > 0) {
+        if (meta->input_count > criteria->max_inputs)
+            matches = false;
+    }
+
+    /* 条件6：输出数量范围 */
+    if (matches && criteria->min_outputs > 0 && meta->output_count > 0) {
+        if (meta->output_count < criteria->min_outputs)
+            matches = false;
+    }
+    if (matches && criteria->max_outputs > 0 && meta->output_count > 0) {
+        if (meta->output_count > criteria->max_outputs)
+            matches = false;
+    }
+
+    /* 条件7：搜索描述（关键词匹配） */
+    if (matches && criteria->search_description && criteria->name_pattern &&
+        criteria->name_pattern[0] != '\0') {
+        /* 在描述中搜索名称模式（不使用通配符） */
+        if (meta->description) {
+            const char *found = strstr(meta->description, criteria->name_pattern);
+            if (!found) {
+                /* 替换通配符后重新搜索 */
+                matches = false;
+                /* 如果通配符匹配了名称但描述中没有对应的关键词，
+                 * 接受这个匹配（描述搜索为可选项） */
+                if (criteria->search_description) {
+                    matches = true; /* 名称匹配即通过 */
+                }
+            }
+        } else {
+            matches = false;
+        }
+    }
+
+    /* 通过所有筛选条件 */
+    if (matches && qc->match_count < qc->max_candidates) {
+        qc->candidate_names[qc->match_count] = meta->name;
+        qc->match_count++;
+    }
+}
+
+/** preset_list_by_category 第一遍统计上下文 */
+typedef struct {
+    PresetCategory category;
+    int count;
+} PresetListCountCtx;
+
+/** preset_list_by_category 统计回调 */
+static void list_count_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    InternalPresetEntry *entry = (InternalPresetEntry *) value;
+    PresetListCountCtx *lc = (PresetListCountCtx *) ctx;
+    if (entry->is_active && entry->metadata.category == lc->category) {
+        lc->count++;
+    }
+}
+
+/** preset_list_by_category 第二遍填充上下文 */
+typedef struct {
+    PresetCategory category;
+    char **names;
+    int idx;
+    int limit;
+    bool oom;
+} PresetListFillCtx;
+
+/** preset_list_by_category 填充回调 */
+static void list_fill_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    PresetListFillCtx *fc = (PresetListFillCtx *) ctx;
+    if (fc->oom || fc->idx >= fc->limit)
+        return;
+    InternalPresetEntry *entry = (InternalPresetEntry *) value;
+    if (entry->is_active && entry->metadata.category == fc->category) {
+        fc->names[fc->idx] = lv_strdup_safe(entry->metadata.name);
+        if (!fc->names[fc->idx]) {
+            fc->oom = true;
+            return;
+        }
+        fc->idx++;
+    }
+}
+
+/** preset_list_all 填充上下文 */
+typedef struct {
+    char **names;
+    int idx;
+    int limit;
+    bool oom;
+} PresetListAllCtx;
+
+/** preset_list_all 填充回调 */
+static void list_all_fill_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    PresetListAllCtx *ac = (PresetListAllCtx *) ctx;
+    if (ac->oom || ac->idx >= ac->limit)
+        return;
+    InternalPresetEntry *entry = (InternalPresetEntry *) value;
+    if (entry->is_active) {
+        ac->names[ac->idx] = lv_strdup_safe(entry->metadata.name);
+        if (!ac->names[ac->idx]) {
+            ac->oom = true;
+            return;
+        }
+        ac->idx++;
+    }
+}
+
 /**
  * @brief 高级查询预设
  *
@@ -109,95 +273,10 @@ bool preset_query(const PresetQueryCriteria *criteria, PresetQueryResult **out_r
         goto error;
     }
 
-    int match_count = 0;
-
-    /* ── 第二步：遍历所有条目并逐项筛选 ── */
-    for (int i = 0; i < g_library.hash_table_size; i++) {
-        InternalPresetEntry *entry = g_library.hash_table[i];
-        while (entry != NULL) {
-            if (!entry->is_active) {
-                entry = entry->next;
-                continue;
-            }
-
-            const PresetMetadata *meta = &entry->metadata;
-            bool matches = true;
-
-            /* 条件1：名称模式匹配（支持通配符） */
-            if (criteria->name_pattern && criteria->name_pattern[0] != '\0') {
-                if (!wildcard_match(criteria->name_pattern, meta->name)) {
-                    matches = false;
-                }
-            }
-
-            /* 条件2：类别筛选 */
-            if (matches && criteria->category >= 0 && meta->category != criteria->category) {
-                matches = false;
-            }
-
-            /* 条件3：必须属性检查 */
-            if (matches && criteria->required_properties != PRESET_PROPERTY_NONE) {
-                if ((meta->properties & criteria->required_properties) != criteria->required_properties) {
-                    matches = false;
-                }
-            }
-
-            /* 条件4：禁止属性检查 */
-            if (matches && criteria->forbidden_properties != PRESET_PROPERTY_NONE) {
-                if ((meta->properties & criteria->forbidden_properties) != 0) {
-                    matches = false;
-                }
-            }
-
-            /* 条件5：输入数量范围 */
-            if (matches && criteria->min_inputs > 0 && meta->input_count > 0) {
-                if (meta->input_count < criteria->min_inputs)
-                    matches = false;
-            }
-            if (matches && criteria->max_inputs > 0 && meta->input_count > 0) {
-                if (meta->input_count > criteria->max_inputs)
-                    matches = false;
-            }
-
-            /* 条件6：输出数量范围 */
-            if (matches && criteria->min_outputs > 0 && meta->output_count > 0) {
-                if (meta->output_count < criteria->min_outputs)
-                    matches = false;
-            }
-            if (matches && criteria->max_outputs > 0 && meta->output_count > 0) {
-                if (meta->output_count > criteria->max_outputs)
-                    matches = false;
-            }
-
-            /* 条件7：搜索描述（关键词匹配） */
-            if (matches && criteria->search_description && criteria->name_pattern &&
-                criteria->name_pattern[0] != '\0') {
-                /* 在描述中搜索名称模式（不使用通配符） */
-                if (meta->description) {
-                    const char *found = strstr(meta->description, criteria->name_pattern);
-                    if (!found) {
-                        /* 替换通配符后重新搜索 */
-                        matches = false;
-                        /* 如果通配符匹配了名称但描述中没有对应的关键词，
-                         * 接受这个匹配（描述搜索为可选项） */
-                        if (criteria->search_description) {
-                            matches = true; /* 名称匹配即通过 */
-                        }
-                    }
-                } else {
-                    matches = false;
-                }
-            }
-
-            /* 通过所有筛选条件 */
-            if (matches && match_count < max_candidates) {
-                candidate_names[match_count] = meta->name;
-                match_count++;
-            }
-
-            entry = entry->next;
-        }
-    }
+    /* ── 第二步：遍历所有条目并逐项筛选（复用 lv_hashtable string 形态） ── */
+    PresetQueryCtx qctx = {criteria, candidate_names, max_candidates, 0};
+    lv_hashtable_str_foreach(g_library.hash_table, preset_query_visitor, &qctx);
+    int match_count = qctx.match_count;
 
     /* ── 第三步：组装结果 ── */
     result->total_matches = match_count;
@@ -274,17 +353,10 @@ bool preset_list_by_category(PresetCategory category, char ***out_names, int *ou
         return false;
     }
 
-    /* 第一遍：统计匹配数量 */
-    int count = 0;
-    for (int i = 0; i < g_library.hash_table_size; i++) {
-        InternalPresetEntry *entry = g_library.hash_table[i];
-        while (entry != NULL) {
-            if (entry->is_active && entry->metadata.category == category) {
-                count++;
-            }
-            entry = entry->next;
-        }
-    }
+    /* 第一遍：统计匹配数量（复用 lv_hashtable string 形态） */
+    PresetListCountCtx cctx = {category, 0};
+    lv_hashtable_str_foreach(g_library.hash_table, list_count_visitor, &cctx);
+    int count = cctx.count;
 
     /* 分配结果数组 */
     char **names = NULL;
@@ -298,27 +370,17 @@ bool preset_list_by_category(PresetCategory category, char ***out_names, int *ou
         memset(names, 0, (size_t) count * sizeof(char *));
 
         /* 第二遍：填充名称 */
-        int idx = 0;
-        for (int i = 0; i < g_library.hash_table_size && idx < count; i++) {
-            InternalPresetEntry *entry = g_library.hash_table[i];
-            while (entry != NULL && idx < count) {
-                if (entry->is_active && entry->metadata.category == category) {
-                    names[idx] = lv_strdup_safe(entry->metadata.name);
-                    if (!names[idx]) {
-                        /* 部分分配失败，释放已分配的元素 */
-                        unlock_library();
-                        for (int j = 0; j < idx; j++) {
-                            void *tmp = names[j];
-                            lv_free(&tmp);
-                        }
-                        lv_free((void **) &names);
-                        set_error("内存分配失败");
-                        return false;
-                    }
-                    idx++;
-                }
-                entry = entry->next;
+        PresetListFillCtx fctx = {category, names, 0, count, false};
+        lv_hashtable_str_foreach(g_library.hash_table, list_fill_visitor, &fctx);
+        if (fctx.oom) {
+            unlock_library();
+            for (int j = 0; j < fctx.idx; j++) {
+                void *tmp = names[j];
+                lv_free(&tmp);
             }
+            lv_free((void **) &names);
+            set_error("内存分配失败");
+            return false;
         }
     }
 
@@ -364,26 +426,17 @@ bool preset_list_all(char ***out_names, int *out_count) {
         }
         memset(names, 0, (size_t) count * sizeof(char *));
 
-        int idx = 0;
-        for (int i = 0; i < g_library.hash_table_size && idx < count; i++) {
-            InternalPresetEntry *entry = g_library.hash_table[i];
-            while (entry != NULL && idx < count) {
-                if (entry->is_active) {
-                    names[idx] = lv_strdup_safe(entry->metadata.name);
-                    if (!names[idx]) {
-                        unlock_library();
-                        for (int j = 0; j < idx; j++) {
-                            void *tmp = names[j];
-                            lv_free(&tmp);
-                        }
-                        lv_free((void **) &names);
-                        set_error("内存分配失败");
-                        return false;
-                    }
-                    idx++;
-                }
-                entry = entry->next;
+        PresetListAllCtx actx = {names, 0, count, false};
+        lv_hashtable_str_foreach(g_library.hash_table, list_all_fill_visitor, &actx);
+        if (actx.oom) {
+            unlock_library();
+            for (int j = 0; j < actx.idx; j++) {
+                void *tmp = names[j];
+                lv_free(&tmp);
             }
+            lv_free((void **) &names);
+            set_error("内存分配失败");
+            return false;
         }
     }
 

@@ -24,6 +24,8 @@ void lv_log_shutdown(void);
 
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_file.h"
+#include "lv/lv_strbuf.h"
 #include "lv_internal.h"
 #include "lv/lv_event_bus.h"
 
@@ -824,38 +826,39 @@ bool lv_diagnostics_write_file(const lvDiagnostics *diag, const char *path) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_diagnostics_write_file: NULL diag or path");
     }
 
-    FILE *fp = fopen(path, "w");
-    if (!fp) {
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_diagnostics_write_file: fopen failed");
-    }
-
-    fprintf(fp, "========== Lv-00 Diagnostics Report ==========\n\n");
-    fprintf(fp, "Version: %s\n", diag->version);
-    fprintf(fp, "Build Date: %s\n", diag->build_date);
-    fprintf(fp, "Uptime: %lld ms\n", (long long) diag->uptime_ms);
-    fprintf(fp, "\n--- Memory ---\n");
-    fprintf(fp, "Total Used: %llu bytes\n", (unsigned long long) diag->memory_total);
-    fprintf(fp, "Peak Used: %llu bytes\n", (unsigned long long) diag->memory_peak);
-    fprintf(fp, "Allocations: %llu\n", (unsigned long long) diag->alloc_count);
-    fprintf(fp, "Frees: %llu\n", (unsigned long long) diag->free_count);
-    fprintf(fp, "\n--- Performance ---\n");
-    fprintf(fp, "Proof Count: %llu\n", (unsigned long long) diag->proof_count);
-    fprintf(fp, "Solve Count: %llu\n", (unsigned long long) diag->solve_count);
-    fprintf(fp, "Avg Proof Time: %.2f ms\n", diag->avg_proof_time_ms);
-    fprintf(fp, "Avg Solve Time: %.2f ms\n", diag->avg_solve_time_ms);
-    fprintf(fp, "\n--- Errors ---\n");
-    fprintf(fp, "Error Count: %llu\n", (unsigned long long) diag->error_count);
-    fprintf(fp, "Warning Count: %llu\n", (unsigned long long) diag->warning_count);
+    /* 使用 lvStrBuf 构建文本报告（与旧 fprintf 输出逐字节一致），再经 lv_file_write_all 原子写出 */
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "========== Lv-00 Diagnostics Report ==========\n\n");
+    lv_strbuf_printf(&sb, "Version: %s\n", diag->version);
+    lv_strbuf_printf(&sb, "Build Date: %s\n", diag->build_date);
+    lv_strbuf_printf(&sb, "Uptime: %lld ms\n", (long long) diag->uptime_ms);
+    lv_strbuf_printf(&sb, "\n--- Memory ---\n");
+    lv_strbuf_printf(&sb, "Total Used: %llu bytes\n", (unsigned long long) diag->memory_total);
+    lv_strbuf_printf(&sb, "Peak Used: %llu bytes\n", (unsigned long long) diag->memory_peak);
+    lv_strbuf_printf(&sb, "Allocations: %llu\n", (unsigned long long) diag->alloc_count);
+    lv_strbuf_printf(&sb, "Frees: %llu\n", (unsigned long long) diag->free_count);
+    lv_strbuf_printf(&sb, "\n--- Performance ---\n");
+    lv_strbuf_printf(&sb, "Proof Count: %llu\n", (unsigned long long) diag->proof_count);
+    lv_strbuf_printf(&sb, "Solve Count: %llu\n", (unsigned long long) diag->solve_count);
+    lv_strbuf_printf(&sb, "Avg Proof Time: %.2f ms\n", diag->avg_proof_time_ms);
+    lv_strbuf_printf(&sb, "Avg Solve Time: %.2f ms\n", diag->avg_solve_time_ms);
+    lv_strbuf_printf(&sb, "\n--- Errors ---\n");
+    lv_strbuf_printf(&sb, "Error Count: %llu\n", (unsigned long long) diag->error_count);
+    lv_strbuf_printf(&sb, "Warning Count: %llu\n", (unsigned long long) diag->warning_count);
     if (diag->last_error[0]) {
-        fprintf(fp, "Last Error: %s\n", diag->last_error);
+        lv_strbuf_printf(&sb, "Last Error: %s\n", diag->last_error);
     }
-    fprintf(fp, "\n--- System ---\n");
-    fprintf(fp, "OS: %s\n", diag->os_info);
-    fprintf(fp, "CPU Cores: %u\n", diag->cpu_cores);
-    fprintf(fp, "Total Memory: %u MB\n", diag->total_memory_mb);
-    fprintf(fp, "\n==============================================\n");
+    lv_strbuf_printf(&sb, "\n--- System ---\n");
+    lv_strbuf_printf(&sb, "OS: %s\n", diag->os_info);
+    lv_strbuf_printf(&sb, "CPU Cores: %u\n", diag->cpu_cores);
+    lv_strbuf_printf(&sb, "Total Memory: %u MB\n", diag->total_memory_mb);
+    lv_strbuf_printf(&sb, "\n==============================================\n");
 
-    fclose(fp);
+    int rc = lv_file_write_all(path, lv_strbuf_cstr(&sb), sb.len);
+    lv_strbuf_destroy(&sb);
+    if (rc != 0) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_diagnostics_write_file: write failed");
+    }
     return true;
 }
 
@@ -1109,14 +1112,11 @@ bool lv_event_trace_export_chrome(const char *path) {
 
     lv_json_buf_append_raw(&buf, "]\n");
 
-    /* 写入文件 */
-    FILE *fp = fopen(path, "w");
-    if (!fp) {
+    /* 写入文件（统一 lv_file_write_all：打开/写入失败返回非零，补全原 fwrite 返回值未检查缺陷） */
+    if (lv_file_write_all(path, buf.buffer, buf.pos) != 0) {
         lv_json_buf_free(&buf);
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_event_trace_export_chrome: fopen failed");
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_event_trace_export_chrome: write failed");
     }
-    fwrite(buf.buffer, 1, buf.pos, fp);
-    fclose(fp);
 
     lv_json_buf_free(&buf);
     return true;

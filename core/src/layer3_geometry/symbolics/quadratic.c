@@ -358,14 +358,7 @@ char *quadratic_serialize(const Quadratic *q) {
         lv_free((void **) &b_str); /* lv_malloc分配 */
         return NULL;
     }
-    size_t len = strlen(a_str) + strlen(b_str) + 32;
-    char *result = lv_malloc(len);
-    if (!result) {
-        lv_free((void **) &a_str); /* lv_malloc分配 */
-        lv_free((void **) &b_str); /* lv_malloc分配 */
-        return NULL;
-    }
-    snprintf(result, len, "%s + %s*sqrt(%u)", a_str, b_str, q->n);
+    char *result = lv_asprintf("%s + %s*sqrt(%u)", a_str, b_str, q->n);
     lv_free((void **) &a_str); /* lv_malloc分配 */
     lv_free((void **) &b_str); /* lv_malloc分配 */
     return result;

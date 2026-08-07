@@ -258,9 +258,8 @@ lvInequality *lv_ineq_copy(const lvInequality *ineq) {
     copy->type = ineq->type;
     copy->status = ineq->status;
     if (ineq->label) {
-        copy->label = (char *) lv_malloc(strlen(ineq->label) + 1);
-        if (copy->label)
-            snprintf(copy->label, strlen(ineq->label) + 1, "%s", ineq->label);
+        /* 手写 malloc+snprintf 收敛为 lv_strdup */
+        copy->label = lv_strdup(ineq->label);
     }
     return copy;
 }

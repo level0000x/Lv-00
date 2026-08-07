@@ -650,6 +650,59 @@ lv_PUBLIC_API void lv_context_destroy(lvContext *ctx);
  */
 lv_PUBLIC_API void lv_context_reset(lvContext *ctx);
 
+/**
+ * @brief 创建当前上下文的快照
+ *
+ * 返回一个独立的 lvContext 快照实例，用于分支推理 / 试验性操作前
+ * 保存状态，失败时通过 lv_context_rollback() 回滚。用法：
+ *
+ * @code
+ *   lvContext *snap = lv_context_snapshot(ctx);
+ *   // ... 执行可能失败的操作，修改 ctx ...
+ *   if (失败) {
+ *       lv_context_rollback(ctx, snap);   // 恢复到快照时点
+ *   }
+ *   lv_context_destroy(snap);             // 快照用毕显式释放
+ * @endcode
+ *
+ * 快照内容（当前实现）：
+ *   - 约束图：通过 graph_copy 深拷贝（节点/约束/类型特定数据/哈希索引）
+ *   - 标量配置：状态机、错误码/消息、熔断器（含 trip_reason 深拷贝）、
+ *     递归深度、重写步数上限、统计字段、名称
+ *   - 快照链：快照通过 parent_snapshot 链接回源上下文并递增其
+ *     snapshot_refcount；调用方持有快照期间，源上下文不会被意外销毁。
+ *
+ * 当前能力边界（最小可用版本，v3.3.0）：
+ *   - 推理栈不复制（快照的 reasoning_stack 为空栈）
+ *   - 共享资源引用数组（module_refs / axiom_pkg_refs / rewrite_rule_refs）
+ *     不复制（快照不持有这些数组）
+ *   - stream_ctx、memory_pool 不复制
+ *
+ * @param ctx 要快照的上下文（非 NULL）
+ * @return 新快照指针；失败返回 NULL 并通过 lv_get_last_error_code()
+ *         设置错误码（lv_ERROR_NULL_POINTER / lv_ERROR_OUT_OF_MEMORY）
+ *
+ * @note 快照使用完毕后必须调用 lv_context_destroy() 释放。
+ */
+lv_PUBLIC_API lvContext *lv_context_snapshot(lvContext *ctx);
+
+/**
+ * @brief 将上下文回滚到快照记录的状态
+ *
+ * 用快照的约束图深拷贝替换 ctx 的当前主图，并恢复标量状态字段
+ * （状态机、错误码/消息、熔断器、递归深度、重写步数上限等）。
+ * 快照本身不被修改，可多次回滚到同一快照。
+ *
+ * @param ctx      要恢复的上下文（非 NULL）
+ * @param snapshot 由 lv_context_snapshot() 创建的快照（非 NULL）
+ * @return lv_OK 成功；lv_ERROR_NULL_POINTER 参数为空；
+ *         lv_ERROR_OUT_OF_MEMORY 恢复约束图时内存不足
+ *
+ * @note 由于快照不记录推理栈（见能力边界），回滚会清空 ctx 当前的
+ *       推理栈。回滚不释放 snapshot，调用方自行决定何时销毁。
+ */
+lv_PUBLIC_API lvErrorCode lv_context_rollback(lvContext *ctx, const lvContext *snapshot);
+
 /* ============================================================
  * 第七部分：状态机管理 API
  * ============================================================ */

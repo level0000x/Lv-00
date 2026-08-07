@@ -43,50 +43,48 @@ typedef struct {
 
 /* ============================================================
  * 区间算术运算（加减乘除、函数复合）
+ *
+ * 说明：PropInterval {lo, hi} 与 lvInterval {lo, hi, is_exact} 前导字段
+ * 布局兼容，四则运算统一转发到公共区间算术库 lv_interval_*
+ * （与下方 ia_abs/ia_sqrt/ia_sin/ia_cos/ia_exp/ia_log 的收敛方式一致）。
+ * 行为差异仅在保守方向：lv_interval_* 对端点做 nextafter 向外取整
+ * （1 ulp），区间略宽但保证包含真实数学结果，对误差传播分析安全。
  * ============================================================ */
 
-/** @brief 区间加法: [a.lo+b.lo, a.hi+b.hi] */
+/** @brief 区间加法: 收敛到公共区间算术库 lv_interval_add */
 static PropInterval ia_add(PropInterval a, PropInterval b) {
-    PropInterval r;
-    r.lo = a.lo + b.lo;
-    r.hi = a.hi + b.hi;
+    lvInterval lv_in_a = {a.lo, a.hi, 0};
+    lvInterval lv_in_b = {b.lo, b.hi, 0};
+    lvInterval lv_out = lv_interval_add(lv_in_a, lv_in_b);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 
-/** @brief 区间减法: [a.lo-b.hi, a.hi-b.lo] */
+/** @brief 区间减法: 收敛到公共区间算术库 lv_interval_sub */
 static PropInterval ia_sub(PropInterval a, PropInterval b) {
-    PropInterval r;
-    r.lo = a.lo - b.hi;
-    r.hi = a.hi - b.lo;
+    lvInterval lv_in_a = {a.lo, a.hi, 0};
+    lvInterval lv_in_b = {b.lo, b.hi, 0};
+    lvInterval lv_out = lv_interval_sub(lv_in_a, lv_in_b);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 
-/** @brief 区间乘法: 取四个角点的最小-最大值 */
+/** @brief 区间乘法: 收敛到公共区间算术库 lv_interval_mul（四角点 min/max + 向外取整） */
 static PropInterval ia_mul(PropInterval a, PropInterval b) {
-    double p[4];
-    p[0] = a.lo * b.lo;
-    p[1] = a.lo * b.hi;
-    p[2] = a.hi * b.lo;
-    p[3] = a.hi * b.hi;
-    PropInterval r = {p[0], p[0]};
-    for (int i = 1; i < 4; i++) {
-        if (p[i] < r.lo)
-            r.lo = p[i];
-        if (p[i] > r.hi)
-            r.hi = p[i];
-    }
+    lvInterval lv_in_a = {a.lo, a.hi, 0};
+    lvInterval lv_in_b = {b.lo, b.hi, 0};
+    lvInterval lv_out = lv_interval_mul(lv_in_a, lv_in_b);
+    PropInterval r = {lv_out.lo, lv_out.hi};
     return r;
 }
 
-/** @brief 区间除法: 检查除数不包含零点 */
+/** @brief 区间除法: 收敛到公共区间算术库 lv_interval_div（除数跨零 -> 全实数 [-HUGE_VAL, HUGE_VAL]） */
 static PropInterval ia_div(PropInterval a, PropInterval b) {
-    /* 除数包含零 -> 返回全实数 */
-    if (b.lo <= 0.0 && b.hi >= 0.0) {
-        PropInterval r = {-INFINITY, INFINITY};
-        return r;
-    }
-    PropInterval inv_b = {1.0 / b.hi, 1.0 / b.lo};
-    return ia_mul(a, inv_b);
+    lvInterval lv_in_a = {a.lo, a.hi, 0};
+    lvInterval lv_in_b = {b.lo, b.hi, 0};
+    lvInterval lv_out = lv_interval_div(lv_in_a, lv_in_b);
+    PropInterval r = {lv_out.lo, lv_out.hi};
+    return r;
 }
 
 /** @brief 区间取反: [-a.hi, -a.lo] */

@@ -357,15 +357,14 @@ static const char *constraint_type_to_string(ConstraintType type) {
     return lv_enum_to_str(s_constraint_type_to_string_entries, lv_ARRAY_SIZE(s_constraint_type_to_string_entries), (int) type, "UNKNOWN");
 }
 
-/** @brief CoordType → 序列化前缀与缓冲区余量 查找表 */
+/** @brief CoordType → 序列化前缀 查找表 */
 static const struct {
     const char *prefix;
-    int extra;
 } kCoordPrefix[] = {
-    [RATIONAL]       = {"rational ", 16},
-    [QUADRATIC]      = {"quadratic ", 16},
-    [ALGEBRAIC]      = {"algebraic ", 16},
-    [TRANSCENDENTAL] = {"transcendental ", 20},
+    [RATIONAL]       = {"rational "},
+    [QUADRATIC]      = {"quadratic "},
+    [ALGEBRAIC]      = {"algebraic "},
+    [TRANSCENDENTAL] = {"transcendental "},
 };
 
 /* 将符号坐标序列化为字符串（调用者需释放返回的字符串） */
@@ -375,13 +374,10 @@ static char *serialize_symbolic_coord(const SymbolicCoord *coord) {
 
     char *result = NULL;
     if ((unsigned) coord->type < lv_ARRAY_SIZE(kCoordPrefix)) {
-        /* 安全：使用 snprintf 并分配足够大的缓冲区 */
+        /* 使用 lv_asprintf 精确分配（消除固定余量估算与截断风险） */
         char *str = symbolic_coord_serialize(coord);
         if (str) {
-            result = lv_calloc(strlen(str) + kCoordPrefix[coord->type].extra, 1);
-            if (result)
-                snprintf(result, strlen(str) + kCoordPrefix[coord->type].extra, "%s%s",
-                         kCoordPrefix[coord->type].prefix, str);
+            result = lv_asprintf("%s%s", kCoordPrefix[coord->type].prefix, str);
             lv_free((void **) &str);
         }
     } else {

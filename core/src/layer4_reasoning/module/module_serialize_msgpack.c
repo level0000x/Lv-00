@@ -109,8 +109,8 @@ static void mp_encoder_write_u16(MsgPackEncoder *enc, uint16_t v) {
         enc->error = true;
         return;
     }
-    enc->buffer[enc->pos++] = (uint8_t) (v >> 8);
-    enc->buffer[enc->pos++] = (uint8_t) (v & 0xff);
+    lv_store_be16(&enc->buffer[enc->pos], v);
+    enc->pos += 2;
 }
 
 static void mp_encoder_write_u32(MsgPackEncoder *enc, uint32_t v) {
@@ -120,10 +120,8 @@ static void mp_encoder_write_u32(MsgPackEncoder *enc, uint32_t v) {
         enc->error = true;
         return;
     }
-    enc->buffer[enc->pos++] = (uint8_t) (v >> 24);
-    enc->buffer[enc->pos++] = (uint8_t) (v >> 16);
-    enc->buffer[enc->pos++] = (uint8_t) (v >> 8);
-    enc->buffer[enc->pos++] = (uint8_t) (v & 0xff);
+    lv_store_be32(&enc->buffer[enc->pos], v);
+    enc->pos += 4;
 }
 
 static void mp_encoder_write_u64(MsgPackEncoder *enc, uint64_t v) {
@@ -133,9 +131,8 @@ static void mp_encoder_write_u64(MsgPackEncoder *enc, uint64_t v) {
         enc->error = true;
         return;
     }
-    for (int i = 7; i >= 0; i--) {
-        enc->buffer[enc->pos++] = (uint8_t) ((v >> (i * 8)) & 0xff);
-    }
+    lv_store_be64(&enc->buffer[enc->pos], v);
+    enc->pos += 8;
 }
 
 static void mp_encoder_write_i16(MsgPackEncoder *enc, int16_t v) {

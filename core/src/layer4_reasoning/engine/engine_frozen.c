@@ -44,9 +44,21 @@ bool engine_restore_frozen_point(lvEngine *engine, void *frozen_point) {
     /* 用快照替换（所有权转移给引擎） */
     engine->main_graph = snapshot;
 
-    /* 同时更新电路系统的冻结点状态 */
+    /* 同步电路系统的冻结点状态：本次快照已消耗（所有权已转给引擎主图） */
     circuit_set_frozen_point(NULL);
-    engine->frozen_point = NULL;
+
+    /* 引擎若此前另持有旧冻结点（非本次被消耗的快照），先释放，
+     * 避免"失败回滚 → 后续成功命令"交替时旧快照泄漏 */
+    if (engine->frozen_point && engine->frozen_point != frozen_point) {
+        engine_destroy_frozen_point(engine->frozen_point);
+    }
+
+    /* 语义：回滚后引擎继续使用（电路跳闸处理器 engine_circuit.c 与
+     * interop 命令路径均会在回滚后继续处理后续操作），因此立即重新打点，
+     * 保证下一次电路跳闸仍可回滚，不再被静默跳过。
+     * 注意：engine_create_frozen_point 仅执行 graph_copy，不触发 restore，
+     * 此处无递归/死循环风险。 */
+    engine->frozen_point = engine_create_frozen_point(engine);
 
     return true;
 }

@@ -418,6 +418,7 @@ set(lv_HEADERS
     core/include/lv/lv_utils.h
     core/include/lv/lv_path.h
     core/include/lv/lv_heap.h
+    core/include/lv/lv_hashtable.h
     core/include/lv/high_dim.h
     core/include/lv/interop.h
     core/include/lv/formula_parser.h
@@ -767,6 +768,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/sha256.c
     # 统一内容哈希抽象（SHA-256 / FNV-1a 字段级哈希 + 统一 hex 输出）
     core/src/layer2_resource/lv_hash.c
+    # v6.0.0 统一哈希表设施（int/string 双形态，收敛 graph/geo/preset 手写哈希）
+    core/src/layer2_resource/lv_hashtable.c
     # v1.1.0 线程池（原在 L3，v2.0.0 移入 L2 作为基础设施）
     core/src/layer2_resource/thread_pool.c
     # v1.1.0 SIMD 运算（原在 L4/unify，v2.0.0 移入 L2 作为基础设施）

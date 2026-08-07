@@ -89,7 +89,10 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
     }
     lv_strbuf_append_n(&sb, '\n', 1);
 
-    /* 追加到累积缓冲区 */
+    /* 追加到累积缓冲区（保持 ctx->exported_calls 对外连续的 NUL 结尾字符串语义：
+     * 该字段为 InteropTheoremContext 公开结构的 char* + calls_len，跨调用存活，
+     * 且 export_calls 按 calls_len 直接读取，故无法用局部 lvStrBuf 替代累积——
+     * 采用"lvStrBuf 构建单条记录 + 一次 realloc 追加"的收敛形态） */
     size_t new_len = ctx->calls_len + sb.len;
     char *new_buf = (char *) lv_realloc(ctx->exported_calls, new_len + 1);
     if (!new_buf) {
@@ -171,13 +174,13 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
 
     /* 解析调用记录并生成 apply 语句 */
     if (ctx->exported_calls && ctx->calls_len > 0) {
-        char *buf = (char *) lv_malloc(ctx->calls_len + 1);
+        /* 手写 malloc+memcpy 复制收敛为 lv_strdup */
+        char *buf = lv_strdup(ctx->exported_calls);
         if (!buf) {
             lv_strbuf_destroy(&sb);
             lv_RETURN_ERROR_VAL(lv_ERROR_OUT_OF_MEMORY, lv_ERROR_OUT_OF_MEMORY,
                                 "定理导出失败：无法分配%zu字节的临时解析缓冲区", ctx->calls_len + 1);
         }
-        memcpy(buf, ctx->exported_calls, ctx->calls_len + 1);
 
         /* 按行分割 */
         char *save_ptr_line = NULL;

@@ -31,11 +31,20 @@ int lv_file_close(FILE *fp) {
 }
 
 uint8_t *lv_file_read_all(const char *path, size_t *out_len) {
+    return lv_file_read_all_limited(path, out_len, SIZE_MAX);
+}
+
+uint8_t *lv_file_read_all_limited(const char *path, size_t *out_len, size_t max_size) {
     if (out_len) *out_len = 0;
     FILE *fp = lv_file_open(path, "rb");
     if (!fp) return NULL;
     size_t sz = lv_file_size(fp);
     if (sz == 0) {
+        lv_file_close(fp);
+        return NULL;
+    }
+    if (sz > max_size) {
+        lv_ERROR("文件超出大小上限: %s (%zu > %zu)", path, sz, max_size);
         lv_file_close(fp);
         return NULL;
     }

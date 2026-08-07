@@ -494,12 +494,9 @@ bool proof_search_tree_add_child(ProofSearchTree *tree, BacktrackNode *parent, B
         /* 添加到父节点的子节点数组 */
         BacktrackNode *p = parent;
         if (p->child_count >= p->child_capacity) {
-            int new_cap = p->child_capacity == 0 ? 4 : p->child_capacity * 2;
-            BacktrackNode **new_children = lv_realloc(p->children, new_cap * sizeof(BacktrackNode *));
-            if (!new_children)
+            if (!lv_ensure_capacity((void **) &p->children, p->child_count, &p->child_capacity,
+                                    sizeof(BacktrackNode *), 1))
                 return false;
-            p->children = new_children;
-            p->child_capacity = new_cap;
         }
         p->children[p->child_count] = child;
         p->child_count++;
@@ -533,12 +530,9 @@ bool proof_search_tree_add_child(ProofSearchTree *tree, BacktrackNode *parent, B
 
     /* 将节点加入 all_nodes 数组 */
     if (tree->node_count >= tree->node_capacity) {
-        int new_cap = tree->node_capacity == 0 ? 16 : tree->node_capacity * 2;
-        BacktrackNode **new_nodes = lv_realloc(tree->all_nodes, new_cap * sizeof(BacktrackNode *));
-        if (!new_nodes)
+        if (!lv_ensure_capacity((void **) &tree->all_nodes, tree->node_count, &tree->node_capacity,
+                                sizeof(BacktrackNode *), 1))
             return false;
-        tree->all_nodes = new_nodes;
-        tree->node_capacity = new_cap;
     }
     tree->all_nodes[tree->node_count] = child;
     tree->node_count++;

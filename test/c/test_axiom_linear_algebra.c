@@ -268,18 +268,21 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-TEST_MAIN_BEGIN("Linear Algebra")
+int main(void) {
+    TEST_SUITE_BEGIN("Linear Algebra");
 
-    TEST_MAIN_RUN(test_load_from_file);
-    TEST_MAIN_RUN(test_templates);
-    TEST_MAIN_RUN(test_unconstructibles);
-    TEST_MAIN_RUN(test_logical_framework);
-    TEST_MAIN_RUN(test_content_hash);
-    TEST_MAIN_RUN(test_save_load_roundtrip);
-    TEST_MAIN_RUN(test_dependency_validation);
-    TEST_MAIN_RUN(test_negative_lookups);
-    TEST_MAIN_RUN(test_external_references);
-    TEST_MAIN_RUN(test_key_templates);
+    TEST_RUN(test_load_from_file);
+    TEST_RUN(test_templates);
+    TEST_RUN(test_unconstructibles);
+    TEST_RUN(test_logical_framework);
+    TEST_RUN(test_content_hash);
+    TEST_RUN(test_save_load_roundtrip);
+    TEST_RUN(test_dependency_validation);
+    TEST_RUN(test_negative_lookups);
+    TEST_RUN(test_external_references);
+    TEST_RUN(test_key_templates);
 
-TEST_MAIN_END()
+    TEST_SUMMARY();
 
+    return 0;
+}

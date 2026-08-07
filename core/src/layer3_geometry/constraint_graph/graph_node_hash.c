@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_hashtable.h"
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
 
@@ -39,6 +40,15 @@
 /* ============================================================================
  * 节点哈希索引：用于 O(1) 节点查找
  * 初始大小和负载因子定义在 lv_internal.h 中
+ *
+ * 收敛说明（lv_hashtable）：node_id_hash / constraint_id_hash 统一委托
+ * lv_hashtable_int_hash()（同一 FNV-1a 单步哈希，逐位一致），消除两套重复
+ * 手写哈希函数。索引数组本身（node_index / constraint_index 为 GeomNode** /
+ * Constraint** 开放寻址数组）必须保持现状：graph_index.c 的
+ * graph_get_node()/graph_get_constraint() 直接线性探测该数组，且 graph_memory.c
+ * /bit_burning.c 直接 lv_free 该数组（公共结构 constraint_graph.h 与这些文件
+ * 均不可改），故无法替换为 lv_hashtable 句柄式表；哈希、2 的幂容量、负载
+ * 因子 0.75、前移紧凑删除策略均与 lv_hashtable int 形态保持一致。
  * ============================================================================ */
 
 /**
@@ -48,18 +58,7 @@
  * @return 哈希值
  */
 unsigned node_id_hash(int id, int capacity) {
-    /* FNV-1a-like hash，乘数定义在 lv_internal.h 中 */
-    unsigned h = (unsigned) id * lv_FNV_HASH_MULTIPLIER;
-    /*
-     * 运行时检查：哈希表容量通常为 2 的幂，此时使用高效的位掩码取模。
-     * 若容量不是 2 的幂（防御性场景），回退到安全的取模操作，
-     * 避免在 Release 构建中因 assert 被移除而导致未定义行为。
-     */
-    if (capacity > 0 && (capacity & (capacity - 1)) == 0) {
-        return h & (unsigned) (capacity - 1);
-    } else {
-        return h % (unsigned) (capacity > 0 ? capacity : 1);
-    }
+    return lv_hashtable_int_hash(id, capacity);
 }
 
 /**
@@ -191,8 +190,7 @@ void node_index_remove(ConstraintGraph *graph, int node_id) {
  * @return 哈希值
  */
 unsigned constraint_id_hash(int id, int capacity) {
-    unsigned h = (unsigned) id * lv_FNV_HASH_MULTIPLIER;
-    return h & (unsigned) (capacity - 1);
+    return lv_hashtable_int_hash(id, capacity);
 }
 
 /**

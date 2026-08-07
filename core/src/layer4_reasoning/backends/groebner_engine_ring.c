@@ -150,14 +150,11 @@ int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count
     }
 
     if (registry->ring_count >= registry->ring_capacity) {
-        int new_cap = registry->ring_capacity * 2;
-        lvPolynomialRing **new_rings =
-            (lvPolynomialRing **) lv_realloc(registry->rings, (size_t) new_cap * sizeof(lvPolynomialRing *));
-        if (!new_rings) {
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ring_create: lv_realloc for rings failed (cap=%d)", new_cap);
+        if (!lv_ensure_capacity((void **) &registry->rings, registry->ring_count, &registry->ring_capacity,
+                                sizeof(lvPolynomialRing *), 1)) {
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ring_create: lv_realloc for rings failed (cap=%d)",
+                            registry->ring_capacity);
         }
-        registry->rings = new_rings;
-        registry->ring_capacity = new_cap;
     }
 
     lvPolynomialRing *ring = (lvPolynomialRing *) lv_calloc(1, sizeof(lvPolynomialRing));
@@ -229,14 +226,10 @@ int ring_register(lvRingRegistry *registry, lvPolynomialRing *ring) {
     }
 
     if (registry->ring_count >= registry->ring_capacity) {
-        int new_cap = registry->ring_capacity * 2;
-        lvPolynomialRing **new_rings =
-            (lvPolynomialRing **) lv_realloc(registry->rings, (size_t) new_cap * sizeof(lvPolynomialRing *));
-        if (!new_rings) {
+        if (!lv_ensure_capacity((void **) &registry->rings, registry->ring_count, &registry->ring_capacity,
+                                sizeof(lvPolynomialRing *), 1)) {
             return -1;
         }
-        registry->rings = new_rings;
-        registry->ring_capacity = new_cap;
     }
 
     int ring_id = registry->ring_count;

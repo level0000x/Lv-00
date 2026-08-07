@@ -18,6 +18,7 @@
 #include "lv/lv_json.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 /* ==================================================================
@@ -52,28 +53,6 @@ static const char s_json_escape_decode[256] = {
     ['n']  = '\n',
     ['r']  = '\r',
     ['t']  = '\t',
-};
-
-/** @brief 写出阶段：转义字符 → 转义后长度增量 查找表（0 表示未声明，走 default 控制字符逻辑） */
-static const unsigned char s_json_escape_len[256] = {
-    ['"']  = 2,
-    ['\\'] = 2,
-    ['\n'] = 2,
-    ['\t'] = 2,
-    ['\r'] = 2,
-    ['\b'] = 2,
-    ['\f'] = 2,
-};
-
-/** @brief 写出阶段：转义字符 → 转义对字符串 查找表（NULL 表示未声明，走 default） */
-static const char *const s_json_escape_pairs[256] = {
-    ['"']  = "\\\"",
-    ['\\'] = "\\\\",
-    ['\n'] = "\\n",
-    ['\t'] = "\\t",
-    ['\r'] = "\\r",
-    ['\b'] = "\\b",
-    ['\f'] = "\\f",
 };
 
 /* ==================================================================
@@ -715,43 +694,16 @@ void lv_json_buf_append_string(lvJsonBuf *buf, const char *str) {
         return;
     }
 
-    /* 计算转义后长度：初始 2 字节给引号 */
-    size_t escaped_len = 2;
-    for (const char *s = str; *s; s++) {
-        /* 查找表：转义字符 → 长度增量（0 表示未命中，走 default） */
-        unsigned char inc = s_json_escape_len[(unsigned char)*s];
-        if (inc > 0) {
-            escaped_len += inc;
-        } else {
-            /* default：其他控制字符 \u00XX 占 6 字节，其余原样 1 字节 */
-            if ((unsigned char)*s < 0x20)
-                escaped_len += 6;
-            else
-                escaped_len += 1;
-        }
-    }
+    /* 转义统一走公共 API lv_str_json_escape（两遍法；转义表唯一收敛于 lv_str_utils.c，
+     * 与 lv_str_json_escape_alloc 等输出格式一致：\" \\ \n \t \r \b \f 及 \u00XX 控制字符） */
+    size_t need = lv_str_json_escape(str, strlen(str), NULL, 0);
 
-    lv_json_buf_ensure(buf, escaped_len + 1);
+    /* 2 个引号 + 转义内容 + NUL */
+    lv_json_buf_ensure(buf, need + 3);
 
     buf->buffer[buf->pos++] = '"';
-    for (const char *s = str; *s; s++) {
-        unsigned char c = (unsigned char)*s;
-        /* 查找表：转义字符 → 转义对字符串（NULL 表示未命中，走 default） */
-        const char *pair = s_json_escape_pairs[c];
-        if (pair) {
-            buf->buffer[buf->pos++] = pair[0];
-            buf->buffer[buf->pos++] = pair[1];
-        } else {
-            /* default：其他控制字符：\u00XX，其余原样写入 */
-            if (c < 0x20) {
-                buf->pos += (size_t)snprintf(buf->buffer + buf->pos,
-                                              buf->capacity - buf->pos,
-                                              "\\u%04x", c);
-            } else {
-                buf->buffer[buf->pos++] = (char)c;
-            }
-        }
-    }
+    lv_str_json_escape(str, strlen(str), buf->buffer + buf->pos, buf->capacity - buf->pos);
+    buf->pos += need;
     buf->buffer[buf->pos++] = '"';
     buf->buffer[buf->pos] = '\0';
 }

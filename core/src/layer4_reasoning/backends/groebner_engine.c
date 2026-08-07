@@ -369,11 +369,11 @@ static void groebner_engine_encode_incidence(const GroebnerEngineEncodeCtx *ctx,
     }
     if (inc_poly) {
         if (ctx->ideal->generator_count >= ctx->ideal->generator_capacity) {
-            int new_cap = ctx->ideal->generator_capacity * 2;
-            lvPolynomial **new_g = (lvPolynomial **)lv_realloc(ctx->ideal->generators, (size_t)new_cap * sizeof(lvPolynomial *));
-            if (!new_g) { lv_free((void **)&inc_poly); return; }
-            ctx->ideal->generators = new_g;
-            ctx->ideal->generator_capacity = new_cap;
+            if (!lv_ensure_capacity((void **) &ctx->ideal->generators, ctx->ideal->generator_count,
+                                    &ctx->ideal->generator_capacity, sizeof(lvPolynomial *), 1)) {
+                lv_free((void **) &inc_poly);
+                return;
+            }
         }
         ctx->ideal->generators[ctx->ideal->generator_count++] = inc_poly;
     }
@@ -501,11 +501,8 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
 #define ADD_GENERATOR_LOCKED(poly) do { \
     if (!(poly)) goto gen_fail; \
     if (ideal->generator_count >= ideal->generator_capacity) { \
-        int new_cap = ideal->generator_capacity * 2; \
-        lvPolynomial **new_g = (lvPolynomial **)lv_realloc(ideal->generators, (size_t)new_cap * sizeof(lvPolynomial *)); \
-        if (!new_g) goto gen_fail; \
-        ideal->generators = new_g; \
-        ideal->generator_capacity = new_cap; \
+        if (!lv_ensure_capacity((void **) &ideal->generators, ideal->generator_count, \
+                                &ideal->generator_capacity, sizeof(lvPolynomial *), 1)) goto gen_fail; \
     } \
     ideal->generators[ideal->generator_count++] = (poly); \
 } while(0)

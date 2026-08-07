@@ -453,46 +453,12 @@ bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
 
     /* 使用指数扩容策略，避免每次添加依赖都触发 realloc */
     if (fb->port_dep_count >= fb->port_dep_capacity) {
-        /* v3.4.2: 使用安全计算确定新容量 */
-        int new_cap;
-        if (fb->port_dep_capacity == 0) {
-            new_cap = 4;
-        } else {
-            /* 检查乘法溢出 */
-            if (fb->port_dep_capacity > INT_MAX / 2) {
-                lv_LOG_ERROR("func_block_add_port_dependency: 容量溢出 (capacity=%d)", fb->port_dep_capacity);
-                return false;
-            }
-            new_cap = fb->port_dep_capacity * 2;
-        }
-
-        /* 确保满足最小需求 */
-        int min_required = fb->port_dep_count + 1;
-        if (min_required < fb->port_dep_count) { /* 加法溢出检查 */
-            lv_LOG_ERROR("func_block_add_port_dependency: 计数溢出 (count=%d)", fb->port_dep_count);
+        /* v3.4.2 起改用统一扩容设施（内部含 INT_MAX/SIZE_MAX 溢出检查与倍增策略） */
+        if (!lv_ensure_capacity((void **) &fb->port_deps, fb->port_dep_count, &fb->port_dep_capacity,
+                                sizeof(PortDependency), 1)) {
+            lv_LOG_ERROR("func_block_add_port_dependency: 扩容失败 (count=%d)", fb->port_dep_count);
             return false;
         }
-
-        if (new_cap < min_required) {
-            new_cap = min_required;
-        }
-
-        /* 检查 size_t 溢出 */
-        size_t alloc_size;
-        if ((size_t) new_cap > SIZE_MAX / sizeof(PortDependency)) {
-            lv_LOG_ERROR("func_block_add_port_dependency: 分配大小溢出 (new_cap=%d)", new_cap);
-            return false;
-        }
-        alloc_size = (size_t) new_cap * sizeof(PortDependency);
-
-        PortDependency *new_deps = (PortDependency *) lv_realloc(fb->port_deps, alloc_size);
-        if (!new_deps) {
-            lv_LOG_ERROR("func_block_add_port_dependency: 内存分配失败 (size=%zu)", alloc_size);
-            return false;
-        }
-
-        fb->port_deps = new_deps;
-        fb->port_dep_capacity = new_cap;
     }
 
     fb->port_deps[fb->port_dep_count] = *dep;

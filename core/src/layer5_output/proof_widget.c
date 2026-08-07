@@ -468,10 +468,8 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
                 lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_apply_tactic: strdup failed");
             return 0;
         }
-        int buf_size = (int) (strlen(tactic_name) + (tactic_args ? strlen(tactic_args) : 0) + 4);
-        char *note = (char *) lv_malloc((size_t) buf_size);
+        char *note = lv_asprintf("%s %s", tactic_name, tactic_args);
         if (note) {
-            snprintf(note, (size_t) buf_size, "%s %s", tactic_name, tactic_args);
             proof_step_set_note(step, note);
             lv_free((void **) &(note));
         }

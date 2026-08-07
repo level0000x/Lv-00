@@ -131,12 +131,9 @@ lv_PUBLIC_API int lv_solver_add_entity(lvSolverSystem *sys, const lvEntity *enti
 
     /* 扩容 */
     if (sys->entity_count >= sys->entity_capacity) {
-        int new_cap = sys->entity_capacity * 2;
-        lvEntity *tmp = (lvEntity *) lv_realloc(sys->entities, new_cap * sizeof(lvEntity));
-        if (!tmp)
+        if (!lv_ensure_capacity((void **) &sys->entities, sys->entity_count, &sys->entity_capacity,
+                                sizeof(lvEntity), 1))
             return -1;
-        sys->entities = tmp;
-        sys->entity_capacity = new_cap;
     }
 
     int new_index = sys->entity_count;
@@ -211,12 +208,9 @@ lv_PUBLIC_API int lv_geo_solver_add_constraint(lvSolverSystem *sys, const lvCons
 
     /* 扩容 */
     if (sys->constraint_count >= sys->constraint_capacity) {
-        int new_cap = sys->constraint_capacity * 2;
-        lvConstraint *tmp = (lvConstraint *) lv_realloc(sys->constraints, new_cap * sizeof(lvConstraint));
-        if (!tmp)
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_geo_solver_add_constraint: realloc failed");
-        sys->constraints = tmp;
-        sys->constraint_capacity = new_cap;
+        if (!lv_ensure_capacity((void **) &sys->constraints, sys->constraint_count, &sys->constraint_capacity,
+                                sizeof(lvConstraint), 1))
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_geo_solver_add_constraint: 扩容失败");
     }
 
     int new_index = sys->constraint_count;

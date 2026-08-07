@@ -1,9 +1,18 @@
 /**
  * @file geo_constraint_solver_hash.c
  * @brief 几何约束求解器 —— 哈希表实现（O(1) ID 到索引映射）
+ *
+ * 收敛说明（lv_hashtable）：IdHashTable 内嵌固定数组（ID_HASH_TABLE_SIZE=512）于
+ * lvSolverSystemEx（geo_constraint_solver_internal.h 不可改），无句柄字段且无销毁入口
+ * （lv_geo_solver_destroy 直接释放整个结构），无法持有 lvHashtable 句柄，故复用
+ * lv_hashtable 的 int 键哈希函数（id_hash 委托 lv_hashtable_int_hash，表内一致）与
+ * 负载因子策略（HASH_LOAD_FACTOR_MAX=0.75）。删除语义按 lv_hashtable 的 tombstone
+ * 语义修正（见 id_hash_remove 注释）。
  */
 
 #include "geo_constraint_solver_internal.h"
+
+#include "lv/lv_hashtable.h"
 
 #include <float.h>
 #include <math.h>
@@ -23,14 +32,8 @@ static int id_hash_find(const IdHashTable *table, int id);
  * @return 哈希值（0 到 ID_HASH_TABLE_SIZE-1）
  */
 static inline uint32_t id_hash(int id) {
-    /* 使用简单的整数哈希：
-     * 对于正 ID：直接取模
-     * 对于负 ID：先取绝对值再取模
-     * 使用位运算 (&) 代替取模 (%)，要求表大小为 2 的幂次 */
-    uint32_t hash = (uint32_t) (id >= 0 ? id : -id);
-    /* 混合高位和低位，提高分布均匀性 */
-    hash = (hash ^ (hash >> 16)) & (ID_HASH_TABLE_SIZE - 1);
-    return hash;
+    /* 统一委托 lv_hashtable 的 int 键哈希（FNV-1a 单步，512 为 2 的幂走掩码） */
+    return lv_hashtable_int_hash(id, ID_HASH_TABLE_SIZE);
 }
 
 /**
@@ -111,16 +114,11 @@ static int id_hash_find(const IdHashTable *table, int id) {
         const HashEntry *entry = &table->entries[idx];
 
         if (!entry->occupied) {
-            /* 遇到未占用槽：区分 tombstone 和从未使用的空槽 */
-            /* tombstone: id=0 且 index=-1 但 occupied=false */
-            /* 从未使用的空槽: id=0 且 index=-1 且 occupied=false */
-            /* 由于初始化时所有条目都是 id=0, index=-1, occupied=false， */
-            /* tombstone 是从 occupied=true 变为 false 的，所以需要额外判断 */
-            /* 简化判断：如果 id=0 且 index=-1，认为是从未使用的空槽 */
-            if (entry->id == 0 && entry->index == -1) {
-                return -1; /* 从未使用的空槽，说明不存在 */
+            /* 空槽（index == -1，从未使用）：探测链结束，说明不存在 */
+            if (entry->index == -1) {
+                return -1;
             }
-            /* 否则是 tombstone，继续探测 */
+            /* index == -2：tombstone（已删除槽位），继续探测保持链完整 */
             continue;
         }
 
@@ -153,10 +151,13 @@ bool id_hash_remove(IdHashTable *table, int id) {
         }
 
         if (table->entries[idx].id == id) {
-            /* 标记为删除（不实际删除，保持探测链完整） */
+            /* tombstone 删除：置 DELETED 标记（index == -2），保持探测链完整。
+             * 原实现删除后复位为空槽（index == -1），导致同探测链后续条目在删除后
+             * 查找时提前终止而不可见（链断裂缺陷）；lv_hashtable 的 tombstone 语义
+             * 修正为：删除槽继续参与探测，同链条目仍可查找到，墓碑槽可被后续插入复用。 */
             table->entries[idx].occupied = false;
             table->entries[idx].id = 0;
-            table->entries[idx].index = -1;
+            table->entries[idx].index = -2;
             table->count--;
             return true;
         }

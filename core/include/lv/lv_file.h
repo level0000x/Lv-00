@@ -41,6 +41,19 @@ int lv_file_close(FILE *fp);
 uint8_t *lv_file_read_all(const char *path, size_t *out_len);
 
 /**
+ * @brief 读取整个文件到堆缓冲区（带大小上限校验）
+ *
+ * 与 lv_file_read_all 行为一致，额外增加 max_size 上限校验：
+ * 文件大小超过上限时返回 NULL（防止无界分配）。
+ *
+ * @param path     文件路径
+ * @param out_len  输出：读取的字节数
+ * @param max_size 允许的最大文件大小（字节）；文件大小等于 max_size 时允许读取
+ * @return         堆分配的缓冲区（调用者 lv_free），失败返回 NULL
+ */
+uint8_t *lv_file_read_all_limited(const char *path, size_t *out_len, size_t max_size);
+
+/**
  * @brief 写入缓冲区到文件
  * @param path  文件路径
  * @param data  数据

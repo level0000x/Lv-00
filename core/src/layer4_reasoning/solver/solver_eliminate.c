@@ -114,10 +114,8 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                                 lv_SAFE_SNPRINTF(_snw, buf, sizeof(buf), "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
                                                  x1, y1, x3, y3);
                                 lv_UNUSED(_snw);
-                                target->numeric_assumption_declaration = lv_malloc(strlen(buf) + 1);
-                                if (target->numeric_assumption_declaration) {
-                                    lv_strlcpy(target->numeric_assumption_declaration, buf, strlen(buf) + 1);
-                                }
+                                /* 手写 malloc+strlcpy 收敛为 lv_strdup */
+                                target->numeric_assumption_declaration = lv_strdup(buf);
                             }
                         }
                     }
@@ -283,23 +281,12 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         char *f1_str = mpz_poly_get_str(&factor1);
         char *f2_str = mpz_poly_get_str(&factor2);
 
-        size_t needed = 256 + strlen(f1_str) + strlen(f2_str);
-        if (needed > INT_MAX) {
-            lv_free((void **) &f1_str);
-            lv_free((void **) &f2_str);
-            mpz_poly_clear(&factor1);
-            mpz_poly_clear(&factor2);
-            return SOLVER_STATUS_OUT_OF_SCOPE;
-        }
-        *suggestion = lv_malloc(needed);
-        int _snw;
-        lv_SAFE_SNPRINTF(_snw, *suggestion, needed,
-                         "Polynomial factors into (%s) * (%s). "
-                         "Split into multiple quadratic steps with auxiliary lines: "
-                         "solve each factor separately and combine solutions. "
-                         "Each factor of degree <= 2 is within constructible scope.",
-                         f1_str, f2_str);
-        lv_UNUSED(_snw);
+        *suggestion = lv_asprintf(
+            "Polynomial factors into (%s) * (%s). "
+            "Split into multiple quadratic steps with auxiliary lines: "
+            "solve each factor separately and combine solutions. "
+            "Each factor of degree <= 2 is within constructible scope.",
+            f1_str, f2_str);
 
         if (solver_stream_ctx) {
             StreamEvent ev;

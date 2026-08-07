@@ -238,12 +238,19 @@ int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
                                 &mgr->var_capacity, sizeof(int), 1))
             return -1;
 
-        /* 同步扩容 var_names 和 var_types 数组（共享同一容量） */
-        char **new_names = (char **) lv_realloc(mgr->var_names, (size_t) mgr->var_capacity * sizeof(char *));
-        BDDVarType *new_types = (BDDVarType *) lv_realloc(mgr->var_types, (size_t) mgr->var_capacity * sizeof(BDDVarType));
-        if (!new_names || !new_types) {
-            lv_free((void **) &new_names);
-            lv_free((void **) &new_types);
+        /* 同步扩容 var_names 和 var_types 数组（统一 lv_ensure_capacity；
+         * 以旧容量独立扩容（增长因子相同 → 三数组容量一致），部分失败时已
+         * 扩容的临时指针释放、未动的指针保持旧值，避免泄漏） */
+        char **new_names = mgr->var_names;
+        BDDVarType *new_types = mgr->var_types;
+        int names_cap = old_capacity;
+        int types_cap = old_capacity;
+        if (!lv_ensure_capacity((void **) &new_names, mgr->var_count, &names_cap, sizeof(char *), 1) ||
+            !lv_ensure_capacity((void **) &new_types, mgr->var_count, &types_cap, sizeof(BDDVarType), 1)) {
+            if (new_names != mgr->var_names)
+                lv_free((void **) &new_names);
+            if (new_types != mgr->var_types)
+                lv_free((void **) &new_types);
             return -1;
         }
         mgr->var_names = new_names;

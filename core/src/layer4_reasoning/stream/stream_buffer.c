@@ -23,16 +23,16 @@ static bool stream_ensure_buffer(StreamContext *ctx) {
     if (ctx->buffer_capacity >= STREAM_MAX_BUFFER)
         return false;
 
+    /* 先按原策略计算目标容量（含初始容量与硬上限钳制），再统一委托
+     * lv_ensure_capacity（内部含溢出检查与倍增；min_growth 使
+     * min_required = 目标容量，保证不超出 STREAM_MAX_BUFFER） */
     int new_cap = ctx->buffer_capacity == 0 ? STREAM_INITIAL_BUFFER : ctx->buffer_capacity * 2;
     if (new_cap > STREAM_MAX_BUFFER)
         new_cap = STREAM_MAX_BUFFER;
 
-    StreamEvent *new_buf = (StreamEvent *) lv_realloc(ctx->buffer, (size_t) new_cap * sizeof(StreamEvent));
-    if (!new_buf)
+    if (!lv_ensure_capacity((void **) &ctx->buffer, ctx->buffer_count, &ctx->buffer_capacity,
+                            sizeof(StreamEvent), new_cap - ctx->buffer_count))
         return false;
-
-    ctx->buffer = new_buf;
-    ctx->buffer_capacity = new_cap;
     return true;
 }
 

@@ -256,6 +256,11 @@ int lv_config_load_json(const char *json_path) {
     }
     size_t n = fread(buf, 1, (size_t) sz, f);
     lv_file_close(f);
+    /* 短读校验：实际读取字节数必须与文件大小一致，否则缓冲区未完整填充 */
+    if (n != (size_t) sz) {
+        lv_free((void **) &buf);
+        lv_RETURN_ERROR(lv_ERROR_IO, "failed to read config file (short read)");
+    }
     buf[n] = '\0';
 
     lvConfig cfg = *lv_config_default();

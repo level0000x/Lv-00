@@ -119,19 +119,12 @@ GeoInvariant *geo_invariant_create(GeoInvariantKind kind, const char *name, doub
 
     /* Copy name */
     if (name) {
-        size_t name_len = strlen(name) + 1;
-        inv->name = (char *) lv_malloc(name_len);
-        if (inv->name) {
-            memcpy(inv->name, name, name_len);
-        }
+        /* 手写 malloc+memcpy 收敛为 lv_strdup */
+        inv->name = lv_strdup(name);
     } else {
         /* Use default name from kind */
         const char *def = kind_default_name(kind);
-        size_t def_len = strlen(def) + 1;
-        inv->name = (char *) lv_malloc(def_len);
-        if (inv->name) {
-            memcpy(inv->name, def, def_len);
-        }
+        inv->name = lv_strdup(def);
     }
 
     /* Copy entity IDs */

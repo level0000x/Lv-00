@@ -52,8 +52,16 @@ static lvExportResult *make_error(const char *msg) {
 
 /**
  * @brief 创建成功结果对象（接管 lvDStr 内部缓冲区所有权）
- * @param d 已完成写入的字符串构建器（释放调用者职责）
+ * @param d 已完成写入的字符串构建器
  * @return 成功结果对象指针，失败返回 NULL
+ *
+ * @note 所有权语义（与 lv_dstr_free 的参数注释"释放为调用者职责"
+ *       区分开，避免误读为"返回后仍需对 d 调用 lv_dstr_free"）：
+ *       - 返回后，d->data 的所有权已转移给 r->output，由调用方持有；
+ *       - 调用方使用完毕后应通过 proof_export_result_destroy() 释放
+ *         （内部对 r->output 执行 lv_free）；
+ *       - 切勿再对原始 d 调用 lv_dstr_free()，否则会对同一指针
+ *         双重释放（双 free）。
  */
 static lvExportResult *make_success(lvDStr *d) {
     lvExportResult *r = (lvExportResult *) lv_calloc(1, sizeof(lvExportResult));

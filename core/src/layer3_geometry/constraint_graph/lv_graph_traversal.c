@@ -884,6 +884,339 @@ int lv_tree_traverse(void *root,
 }
 
 /* ============================================================
+ * 通用图算法核心（lv_bfs_run / lv_cycle_detect）
+ * ============================================================ */
+
+/**
+ * @brief 收集节点 node_id 的第 batch_index 批邻居（对 lvGraphNeighborFunc
+ * 自动扩容重试，直至返回 < 容量；返回 -1 表示该批次槽位无效）
+ *
+ * 回调返回 == 容量时视为"可能截断"，扩容后以同一 batch_index 重试，保证结果完整。
+ * @param out_edges 是否同时收集边信息数组（环检测报告用）
+ * @return 批次邻居数；0 = 无更多批次；-1 = 槽位无效（回调返回 -1）；-2 = 内存不足
+ */
+static int collect_neighbor_batch(lvGraphNeighborFunc fn, void *ctx, int node_id, int batch_index,
+                                  int **out_ids, void ***out_edges, int *buf_cap,
+                                  bool with_edges) {
+    if (*buf_cap <= 0) {
+        *buf_cap = 256;
+        *out_ids = (int *)lv_malloc((size_t)*buf_cap * sizeof(int));
+        if (!*out_ids)
+            return -2;
+        if (with_edges) {
+            *out_edges = (void **)lv_malloc((size_t)*buf_cap * sizeof(void *));
+            if (!*out_edges)
+                return -2;
+        }
+    }
+    for (;;) {
+        int cnt = fn(ctx, node_id, batch_index, *out_ids,
+                     with_edges ? *out_edges : NULL, *buf_cap);
+        if (cnt < 0) /* 槽位无效（回调返回 -1） */
+            return cnt;
+        if (cnt < *buf_cap)
+            return cnt;
+        /* 可能截断：扩容重试 */
+        int new_cap = *buf_cap * 2;
+        if (new_cap <= *buf_cap) /* 溢出保护 */
+            return -2;
+        int *new_ids = (int *)lv_realloc(*out_ids, (size_t)new_cap * sizeof(int));
+        if (!new_ids)
+            return -2;
+        *out_ids = new_ids;
+        if (with_edges) {
+            void **new_edges = (void **)lv_realloc(*out_edges, (size_t)new_cap * sizeof(void *));
+            if (!new_edges)
+                return -2;
+            *out_edges = new_edges;
+        }
+        *buf_cap = new_cap;
+    }
+}
+
+/**
+ * @brief 通用 BFS 驱动：对任意整数 id 图（0..node_count-1）做广度优先遍历
+ *
+ * - seeds 起点直接入队（不查 visited；mark_on_enqueue 时标记 visited）；
+ * - 出队顺序：范围检查 → visit 回调（STOP 终止 / SKIP_CHILDREN 跳过扩展）
+ *   →（mark_on_enqueue=false 时）visited 检查与标记 → 出边扩展；
+ * - mark_on_enqueue=true 时扩展入队前做范围 + visited 检查并标记（标准 BFS）；
+ * - max_queue > 0 时队列 tail 达到上限即丢弃新元素（定长截断语义）。
+ */
+int lv_bfs_run(const lvBfsSpec *spec) {
+    if (!spec || !spec->neighbors || spec->node_count <= 0)
+        return -1;
+
+    int n = spec->node_count;
+    bool owned_visited = false;
+    bool *visited = spec->visited;
+    if (!visited) {
+        visited = (bool *)lv_calloc((size_t)n, sizeof(bool));
+        if (!visited)
+            return -1;
+        owned_visited = true;
+    }
+
+    /* 队列（非环形：head/tail 单调递增，与原各调用方手写队列一致） */
+    int qcap = 64;
+    if (n > qcap)
+        qcap = n;
+    if (spec->max_queue > 0 && spec->max_queue < qcap)
+        qcap = spec->max_queue < 64 ? 64 : spec->max_queue;
+    int *queue = (int *)lv_malloc((size_t)qcap * sizeof(int));
+    if (!queue) {
+        if (owned_visited)
+            lv_free((void **)&visited);
+        return -1;
+    }
+
+    int head = 0, tail = 0;
+
+    /* 邻居缓冲（惰性分配） */
+    int buf_cap = 0;
+    int *nbr_ids = NULL;
+    void **nbr_edges = NULL;
+
+    /* 起点入队 */
+    for (int i = 0; i < spec->seed_count; i++) {
+        if (spec->max_queue > 0 && tail >= spec->max_queue)
+            break;
+        int s = spec->seeds[i];
+        if (s < 0 || s >= n) {
+            /* 越界起点：原手写实现中由出队处范围检查兜底（meta_verify 语义），
+             * 直接跳过与"入队后出队跳过"等价 */
+            continue;
+        }
+        if (spec->mark_on_enqueue)
+            visited[s] = true;
+        if (tail >= qcap) {
+            if (!lv_ensure_capacity((void **)&queue, tail, &qcap, sizeof(int), 1)) {
+                if (owned_visited)
+                    lv_free((void **)&visited);
+                lv_free((void **)&nbr_ids);
+                lv_free((void **)&nbr_edges);
+                lv_free((void **)&queue);
+                return -1;
+            }
+        }
+        queue[tail++] = s;
+    }
+
+    int processed = 0;
+
+    while (head < tail) {
+        int cur = queue[head++];
+        processed++;
+
+        /* 范围检查（先于 visit：与 meta_verify 原"越界前提出队即跳过"语义一致） */
+        if (cur < 0 || cur >= n)
+            continue;
+
+        /* visit 回调（在 visited 判定之前：meta_verify 依赖"起点已标记仍可检测 cur==self"） */
+        bool skip_children = false;
+        if (spec->visit) {
+            lvTraversalResult tr = spec->visit(spec->ctx, cur);
+            if (tr == lv_TRAVERSAL_STOP)
+                break;
+            if (tr == lv_TRAVERSAL_SKIP_CHILDREN)
+                skip_children = true;
+        }
+
+        if (!spec->mark_on_enqueue) {
+            if (visited[cur])
+                continue;
+            visited[cur] = true;
+        }
+
+        if (skip_children)
+            continue;
+
+        /* 出边扩展（BFS：全部邻居作为批次 0；返回 0 表示无邻居） */
+        int cnt = collect_neighbor_batch(spec->neighbors, spec->ctx, cur, 0,
+                                         &nbr_ids, &nbr_edges, &buf_cap, false);
+        if (cnt < 0) {
+            if (owned_visited)
+                lv_free((void **)&visited);
+            lv_free((void **)&nbr_ids);
+            lv_free((void **)&nbr_edges);
+            lv_free((void **)&queue);
+            return -1;
+        }
+        for (int j = 0; j < cnt; j++) {
+            int nb = nbr_ids[j];
+            if (spec->mark_on_enqueue) {
+                if (nb < 0 || nb >= n)
+                    continue;
+                if (visited[nb])
+                    continue;
+                visited[nb] = true;
+            }
+            if (spec->max_queue > 0 && tail >= spec->max_queue)
+                continue; /* 定长截断：丢弃新元素 */
+            if (tail >= qcap) {
+                if (!lv_ensure_capacity((void **)&queue, tail, &qcap, sizeof(int), 1)) {
+                    if (owned_visited)
+                        lv_free((void **)&visited);
+                    lv_free((void **)&nbr_ids);
+                    lv_free((void **)&nbr_edges);
+                    lv_free((void **)&queue);
+                    return -1;
+                }
+            }
+            queue[tail++] = nb;
+        }
+    }
+
+    lv_free((void **)&nbr_ids);
+    lv_free((void **)&nbr_edges);
+    lv_free((void **)&queue);
+    if (owned_visited)
+        lv_free((void **)&visited);
+    return processed;
+}
+
+/**
+ * @brief 通用三色环检测核心（非递归三色 DFS）
+ *
+ * 语义与手写实现（conflict_detector 的 detect_cyclic_dependency_conflicts、
+ * 原 lv_graph_has_cycle）等价：
+ *  - 0=WHITE 未访问, 1=GRAY 栈中, 2=BLACK 已完成；
+ *  - 起点按 seeds 顺序（NULL 时 0..node_count-1），仅从 WHITE 节点开新根；
+ *  - 压栈时标灰；枚举出边时遇到 GRAY 邻居 → on_cycle 回调（CONTINUE 继续枚举）；
+ *  - 遇到 WHITE 邻居 → 标灰、压入"恢复帧 + 子帧"后下潜（回溯时从下一批次继续，
+ *    与手写 iter 按约束恢复的语义一致：当前批次剩余项跳过）；批次耗尽 → 标黑。
+ * on_cycle 返回 lv_TRAVERSAL_STOP 或未提供回调时，发现首个环即终止并返回 true。
+ */
+bool lv_cycle_detect(const lvCycleDetectSpec *spec) {
+    if (!spec || !spec->neighbors || spec->node_count <= 0)
+        return false;
+
+    int n = spec->node_count;
+    char *color = (char *)lv_calloc((size_t)n, sizeof(char)); /* 0 WHITE 1 GRAY 2 BLACK */
+    if (!color)
+        return false;
+
+    typedef struct {
+        int node_id;
+        int iter; /* 批次恢复位置（下一批次索引） */
+    } CycleFrame;
+
+    int stack_cap = 64;
+    CycleFrame *stack = (CycleFrame *)lv_malloc((size_t)stack_cap * sizeof(CycleFrame));
+    if (!stack) {
+        lv_free((void **)&color);
+        return false;
+    }
+
+    int buf_cap = 0;
+    int *nbr_ids = NULL;
+    void **nbr_edges = NULL;
+
+    bool detected = false;
+
+    int seed_total = spec->seeds ? spec->seed_count : n;
+    for (int si = 0; si < seed_total && !detected; si++) {
+        int s = spec->seeds ? spec->seeds[si] : si;
+        if (s < 0 || s >= n)
+            continue;
+        if (color[s] != 0) /* 非 WHITE */
+            continue;
+
+        int top = 0;
+        stack[top].node_id = s;
+        stack[top].iter = 0;
+        top++;
+        color[s] = 1; /* GRAY：压栈时标灰 */
+
+        while (top > 0 && !detected) {
+            top--;
+            CycleFrame f = stack[top];
+            if (f.node_id < 0 || f.node_id >= n)
+                continue;
+            if (color[f.node_id] == 2) /* BLACK：已完成（防御，正常不会入栈） */
+                continue;
+
+            /* 按批次枚举（f.iter = 下一批次索引），与手写 iter 按约束恢复语义一致 */
+            int bi = f.iter;
+            bool descended = false;
+            while (!descended && !detected) {
+                int cnt = collect_neighbor_batch(spec->neighbors, spec->ctx, f.node_id, bi,
+                                                 &nbr_ids, &nbr_edges, &buf_cap, true);
+                if (cnt == -1) {
+                    /* 槽位无效（非活跃超边）：推进批次继续 */
+                    bi++;
+                    continue;
+                }
+                if (cnt < 0) {
+                    /* 内存不足：按"无环"返回（与原实现 OOM 返回 false 一致） */
+                    goto cleanup;
+                }
+                if (cnt == 0) {
+                    /* 无更多批次 → 枚举耗尽 → 标黑 */
+                    color[f.node_id] = 2;
+                    break;
+                }
+
+                /* 处理本批次参与者 */
+                int j = 0;
+                while (j < cnt && !detected) {
+                    int nb = nbr_ids[j];
+                    if (nb < 0 || nb >= n) {
+                        j++;
+                        continue;
+                    }
+                    if (color[nb] == 1) {
+                        /* GRAY 邻居 → 反向边（环） */
+                        if (spec->on_cycle) {
+                            lvTraversalResult tr = spec->on_cycle(spec->ctx, f.node_id, nb,
+                                                                  nbr_edges ? nbr_edges[j] : NULL);
+                            if (tr == lv_TRAVERSAL_STOP) {
+                                detected = true;
+                                break;
+                            }
+                        } else {
+                            detected = true;
+                            break;
+                        }
+                        j++;
+                    } else if (color[nb] == 0) {
+                        /* WHITE：标灰并下潜（恢复帧 = 下一批次，跳过本批次剩余项，
+                         * 与原实现 iter 按约束推进的恢复语义一致） */
+                        color[nb] = 1;
+                        if (top + 2 > stack_cap) {
+                            if (!lv_ensure_capacity((void **)&stack, top, &stack_cap,
+                                                    sizeof(CycleFrame), 1)) {
+                                goto cleanup;
+                            }
+                        }
+                        stack[top].node_id = f.node_id;
+                        stack[top].iter = bi + 1;
+                        top++;
+                        stack[top].node_id = nb;
+                        stack[top].iter = 0;
+                        top++;
+                        descended = true;
+                        break;
+                    } else {
+                        j++; /* BLACK */
+                    }
+                }
+
+                if (!descended && !detected)
+                    bi++; /* 本批次处理完（未下潜），继续下一批次 */
+            }
+        }
+    }
+
+cleanup:
+    lv_free((void **)&stack);
+    lv_free((void **)&nbr_ids);
+    lv_free((void **)&nbr_edges);
+    lv_free((void **)&color);
+    return detected;
+}
+
+/* ============================================================
  * 便利函数实现
  * ============================================================ */
 
@@ -900,12 +1233,38 @@ int lv_graph_count_nodes(ConstraintGraph *graph) {
 }
 
 /**
+ * @brief lv_graph_has_cycle 的邻居枚举回调
+ *
+ * 保持原实现语义：约束超图无向邻居（find_neighbors，skip_disabled=true），
+ * 且保留原 256 邻居截断上限。
+ */
+static int has_cycle_neighbors_cb(void *ctx, int node_id, int batch_index,
+                                  int *out_neighbors, void **out_edge_infos,
+                                  int max_neighbors) {
+    ConstraintGraph *graph = (ConstraintGraph *)ctx;
+    (void)node_id;
+    (void)out_edge_infos;
+    if (!out_neighbors || max_neighbors <= 0)
+        return 0;
+    if (batch_index != 0)
+        return 0; /* 单批次（全部邻居合并为一个批次），批次 1 起为空 */
+    int cap = max_neighbors < 256 ? max_neighbors : 256;
+    lvGraphTraversalConfig cfg = lv_GRAPH_TRAVERSAL_DEFAULT_CONFIG;
+    cfg.skip_disabled = true;
+    return find_neighbors(graph, node_id, out_neighbors, cap, &cfg);
+}
+
+/**
  * @brief 三色标记法环检测
  *
  * 使用 DFS 对图进行三色标记：
  *   - 0 (WHITE): 未访问
  *   - 1 (GRAY):  正在访问（在当前 DFS 路径上）
  *   - 2 (BLACK): 已访问完成
+ *
+ * 委托给通用核心 lv_cycle_detect（无 on_cycle 回调，发现首个环即返回 true），
+ * 语义与原手写实现等价：起点为 nodes 数组序的活跃节点、邻居为约束超图
+ * 无向邻居（跳过 disabled、256 截断）。
  */
 bool lv_graph_has_cycle(ConstraintGraph *graph) {
     if (!graph || graph->node_count <= 0)
@@ -915,102 +1274,25 @@ bool lv_graph_has_cycle(ConstraintGraph *graph) {
     if (visited_size <= 0)
         return false;
 
-    char *color = (char *)lv_calloc((size_t)visited_size, sizeof(char));
-    /* 0 = WHITE, 1 = GRAY, 2 = BLACK */
-    if (!color)
+    /* 起点：nodes 数组序的活跃节点（与原实现一致） */
+    int *seeds = (int *)lv_malloc((size_t)graph->node_count * sizeof(int));
+    if (!seeds)
         return false;
-
-    /* 栈实现非递归三色 DFS */
-    int stack_cap = 256;
-    typedef struct {
-        int node_id;
-        int state; /* 0 = enter, 1 = exit */
-    } CycleFrame;
-    CycleFrame *stack = (CycleFrame *)lv_malloc((size_t)stack_cap * sizeof(CycleFrame));
-    if (!stack) {
-        lv_free((void **)&color);
-        return false;
-    }
-
-    bool has_cycle = false;
-
-    for (int i = 0; i < graph->node_count && !has_cycle; i++) {
+    int seed_count = 0;
+    for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
         if (!node || !node->is_active)
             continue;
-        int nid = node->id;
-        if (nid < 0 || nid >= visited_size)
-            continue;
-        if (color[nid] != 0) /* 非 WHITE */
-            continue;
-
-        int top = 0;
-        stack[top].node_id = nid;
-        stack[top].state = 0;
-        top++;
-
-        while (top > 0 && !has_cycle) {
-            top--;
-            CycleFrame f = stack[top];
-
-            if (f.state == 1) {
-                /* 退出节点 */
-                color[f.node_id] = 2; /* BLACK */
-                continue;
-            }
-
-            if (color[f.node_id] == 1) {
-                /* 发现 GRAY 节点 → 环 */
-                has_cycle = true;
-                break;
-            }
-
-            if (color[f.node_id] != 0)
-                continue;
-
-            /* 标记为 GRAY */
-            color[f.node_id] = 1;
-
-            /* 压入退出帧 */
-            if (top >= stack_cap) {
-                if (!lv_ensure_capacity((void **)&stack, top, &stack_cap, sizeof(CycleFrame), 0)) {
-                    lv_free((void **)&stack);
-                    lv_free((void **)&color);
-                    return false;
-                }
-            }
-            stack[top].node_id = f.node_id;
-            stack[top].state = 1;
-            top++;
-
-            /* 压入邻居 */
-            int neighbors[256];
-            int ncount = find_neighbors(graph, f.node_id, neighbors, 256,
-                &(lvGraphTraversalConfig){lv_TRAVERSAL_DFS_PRE, 0, false, false, true});
-
-            for (int j = 0; j < ncount; j++) {
-                int nb = neighbors[j];
-                if (nb < 0 || nb >= visited_size)
-                    continue;
-                if (color[nb] == 2) /* BLACK: 已处理 */
-                    continue;
-
-                if (top >= stack_cap) {
-                    if (!lv_ensure_capacity((void **)&stack, top, &stack_cap, sizeof(CycleFrame), 0)) {
-                        lv_free((void **)&stack);
-                        lv_free((void **)&color);
-                        return false;
-                    }
-                }
-                stack[top].node_id = nb;
-                stack[top].state = 0;
-                top++;
-            }
-        }
+        if (node->id >= 0 && node->id < visited_size)
+            seeds[seed_count++] = node->id;
     }
 
-    lv_free((void **)&stack);
-    lv_free((void **)&color);
+    lvCycleDetectSpec spec = {
+        visited_size, seeds, seed_count,
+        has_cycle_neighbors_cb, NULL, graph
+    };
+    bool has_cycle = lv_cycle_detect(&spec);
+    lv_free((void **)&seeds);
     return has_cycle;
 }
 

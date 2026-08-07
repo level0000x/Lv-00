@@ -11,42 +11,51 @@
 
 #include "solver_common.h"
 #include "lv/solver_dirty_set.h"
+#include "lv/lv_utils.h" /* lv_dirty_set（header-only，lv_utils.h 内联实现） */
 
 /* ================================================================== */
 /*  脏变量集合（共享实现，供增量求解模块使用）                          */
 /* ================================================================== */
 
+/*
+ * 收敛说明：DirtyVariableSet（{lvDArray dirty_ids}）与 lv_dirty_set
+ * （{lvDArray ids}）为同构结构（均为单一 lvDArray of int 成员），
+ * lv_utils.h 中 lv_dirty_set 的文档明确声明"语义与 DirtyVariableSet
+ * 完全一致"。此处以静态断言保护布局兼容后，将各公开函数内部转调
+ * lv_dirty_set 的 header-only 实现，消除同构重复代码。
+ * 公开函数签名保持不变（solver_incremental.c 等调用方无需改动）。
+ */
+typedef char lv_DIRTY_SET_LAYOUT_CHECK[(sizeof(DirtyVariableSet) == sizeof(lv_dirty_set)) ? 1 : -1];
+
+/** @brief 同布局指针转换（两结构体均仅含一个 lvDArray 成员） */
+static lv_dirty_set *as_lv_dirty_set(DirtyVariableSet *ds) {
+    return (lv_dirty_set *) ds;
+}
+
 /* 初始化脏变量集合 */
 void dirty_set_init(DirtyVariableSet *ds) {
-    lv_darray_init(&ds->dirty_ids, sizeof(int));
+    lv_dirty_set_init(as_lv_dirty_set(ds));
 }
 
 /* 检查变量 ID 是否在脏集合中 */
 bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
-    for (int i = 0; i < ds->dirty_ids.count; i++) {
-        int *p = (int *)lv_darray_get(&ds->dirty_ids, i);
-        if (p && *p == var_id)
-            return true;
-    }
-    return false;
+    return lv_dirty_set_contains(as_lv_dirty_set(ds), var_id);
 }
 
 /* 向脏集合中添加变量 ID */
 void dirty_set_add(DirtyVariableSet *ds, int var_id) {
-    if (dirty_set_contains(ds, var_id))
-        return;
-    lv_darray_push(&ds->dirty_ids, &var_id);
+    (void) lv_dirty_set_add(as_lv_dirty_set(ds), var_id); /* 幂等去重，OOM 时忽略（与原实现一致） */
 }
 
 /* 清空脏变量集合 */
 void dirty_set_clear(DirtyVariableSet *ds) {
-    lv_darray_clear(&ds->dirty_ids);
+    lv_dirty_set_clear(as_lv_dirty_set(ds));
     /* 不释放内存, 保留容量以供复用 */
 }
 
 /* 释放脏变量集合资源 */
 void dirty_set_free(DirtyVariableSet *ds) {
-    lv_darray_free(&ds->dirty_ids);
+    lv_dirty_set_free(as_lv_dirty_set(ds));
 }
 
 /* 判断两个 (var_node_id, coord_index) 键是否相同 */

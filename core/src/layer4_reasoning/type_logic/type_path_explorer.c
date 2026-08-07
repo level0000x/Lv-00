@@ -236,14 +236,9 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     /* 应用前：将当前类型压入撤销栈 */
     if (explorer->undo_count >= explorer->undo_capacity) {
-        if (explorer->undo_capacity > INT_MAX / 2)
+        if (!lv_ensure_capacity((void **) &explorer->undo_stack, explorer->undo_count, &explorer->undo_capacity,
+                                sizeof(TypeRegion *), 1))
             return EXPLORER_ERROR;
-        int new_cap = explorer->undo_capacity * 2;
-        TypeRegion **new_stack = (TypeRegion **) lv_realloc(explorer->undo_stack, new_cap * sizeof(TypeRegion *));
-        if (!new_stack)
-            return EXPLORER_ERROR;
-        explorer->undo_stack = new_stack;
-        explorer->undo_capacity = new_cap;
     }
 
     TypeRegion *snapshot = type_region_deep_copy(explorer->current);
@@ -269,18 +264,11 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     /* 记录步骤 */
     if (explorer->step_count >= explorer->step_capacity) {
-        if (explorer->step_capacity > INT_MAX / 2) {
+        if (!lv_ensure_capacity((void **) &explorer->steps, explorer->step_count, &explorer->step_capacity,
+                                sizeof(ExplorerStep), 1)) {
             /* 步骤记录失败，但状态已改变，仍返回成功 */
             return EXPLORER_OK;
         }
-        int new_cap = explorer->step_capacity * 2;
-        ExplorerStep *new_steps = (ExplorerStep *) lv_realloc(explorer->steps, new_cap * sizeof(ExplorerStep));
-        if (!new_steps) {
-            /* 步骤记录失败，但状态已改变，仍返回成功 */
-            return EXPLORER_OK;
-        }
-        explorer->steps = new_steps;
-        explorer->step_capacity = new_cap;
     }
 
     ExplorerStep *step = &explorer->steps[explorer->step_count];

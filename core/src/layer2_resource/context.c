@@ -328,10 +328,12 @@ lvErrorCode lv_context_push_reasoning(lvContext *ctx, ReasoningBranchType branch
     frame->created_at_us = lv_get_time_us();
     frame->ast_root_ref = ctx->ast_root;
 
-    /* 创建约束图快照 */
+    /* 创建约束图快照：通过 graph_copy 对当前主图做真深拷贝（节点/约束/
+     * 类型特定数据/哈希索引），作为分支失败时回滚的目标。
+     * graph_copy 失败时 frame->graph_snapshot 保持 NULL，
+     * 推理栈释放（reasoning_frame_release）对 NULL 安全，回滚能力降级。 */
     if (ctx->main_graph) {
-        frame->graph_snapshot = graph_create();
-        /* 完整版应深拷贝约束图的节点和约束 */
+        frame->graph_snapshot = graph_copy((ConstraintGraph *) ctx->main_graph);
     }
 
     /* 递增熔断器深度 */
@@ -858,4 +860,143 @@ void lv_context_reset(lvContext *ctx) {
 
     /* 离开不可取消区域 */
     lv_context_leave_uncancellable(ctx);
+}
+
+/* ============================================================
+ * 第六部分（补充）：快照/回滚 API
+ *
+ * 实现 context.h 承诺的 lv_context_snapshot() / lv_context_rollback()。
+ * 当前为"基于 graph_copy 的图快照"最小可用版本（能力边界见头文件文档）：
+ *   - 约束图深拷贝：graph_copy（唯一公共图级深拷贝入口，恒等 ID 方案）
+ *   - 标量状态字段逐字段复制/恢复（状态机、错误、熔断器、递归深度等）
+ *   - 推理栈不复制（快照的 reasoning_stack 为空栈，回滚后清空）
+ *   - 共享资源引用（模块/公理/重写规则数组）与 stream_ctx/memory_pool 不复制
+ * ============================================================ */
+
+/**
+ * @brief 创建当前上下文的快照（基于 graph_copy 的图快照）
+ *
+ * 快照是独立的 lvContext 实例：约束图做深拷贝，标量配置逐字段复制。
+ * 快照通过 parent_snapshot 链接回源上下文并递增其 snapshot_refcount，
+ * 因此调用方持有快照期间，源上下文不会被意外销毁（见 destroy 中
+ * 父快照链释放逻辑）。
+ */
+lvContext *lv_context_snapshot(lvContext *ctx) {
+    if (!ctx) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_context_snapshot: ctx is NULL");
+    }
+
+    lvContext *snap = (lvContext *) lv_calloc(1, sizeof(lvContext));
+    if (!snap) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: 分配快照失败");
+    }
+
+    /* 约束图深拷贝（唯一公共深拷贝入口 graph_copy） */
+    if (ctx->main_graph) {
+        snap->main_graph = graph_copy((ConstraintGraph *) ctx->main_graph);
+        if (!snap->main_graph) {
+            lv_free((void **) &snap);
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: 复制约束图失败");
+        }
+    }
+
+    /* 标量状态字段逐字段复制 */
+    snap->error_code = ctx->error_code;
+    memcpy(snap->error_message, ctx->error_message, sizeof(snap->error_message));
+    snap->last_status = ctx->last_status;
+
+    snap->state = ctx->state;
+    snap->previous_state = ctx->previous_state;
+    snap->state_transition_count = ctx->state_transition_count;
+
+    /* 熔断器：结构体浅拷贝 + trip_reason 深拷贝（避免与源上下文共享字符串所有权） */
+    snap->circuit_breaker = ctx->circuit_breaker;
+    if (ctx->circuit_breaker.trip_reason) {
+        snap->circuit_breaker.trip_reason = lv_strdup_safe(ctx->circuit_breaker.trip_reason);
+    }
+
+    snap->recursion_depth = ctx->recursion_depth;
+    snap->max_recursion_depth = ctx->max_recursion_depth;
+    snap->recursion_policy = ctx->recursion_policy;
+
+    snap->rewrite_step_limit = ctx->rewrite_step_limit;
+    snap->mem_stats = ctx->mem_stats;
+    snap->user_extension = ctx->user_extension;
+    snap->ast_root = ctx->ast_root; /* 浅拷贝（AST 由 DSL 编译器管理，上下文不拥有） */
+    snap->problems_processed = ctx->problems_processed;
+
+    /* 快照元数据：继承源上下文 ID（同一逻辑任务的快照） */
+    snap->context_id = ctx->context_id;
+    snap->created_at_us = lv_get_time_us();
+    snap->name = ctx->name ? lv_strdup_safe(ctx->name) : NULL;
+
+    /* 推理栈：最小版本不复制（能力边界见头文件文档） */
+    lv_reasoning_stack_init(&snap->reasoning_stack);
+
+    /* 快照链：链接回源上下文并递增引用计数 */
+    snap->parent_snapshot = ctx;
+    ctx->snapshot_refcount++;
+    snap->snapshot_depth = ctx->snapshot_depth + 1;
+
+    return snap;
+}
+
+/**
+ * @brief 将上下文回滚到快照记录的状态
+ *
+ * 用快照的约束图深拷贝替换 ctx 的当前主图，并恢复标量状态字段。
+ * 快照本身不被修改，可多次回滚到同一快照。
+ */
+lvErrorCode lv_context_rollback(lvContext *ctx, const lvContext *snapshot) {
+    if (!ctx || !snapshot) {
+        return lv_ERROR_NULL_POINTER;
+    }
+
+    /* 1. 约束图恢复：以快照图为源做深拷贝，替换当前主图
+     *    （不转移所有权，快照可重复使用） */
+    if (snapshot->main_graph) {
+        ConstraintGraph *new_graph = graph_copy((ConstraintGraph *) snapshot->main_graph);
+        if (!new_graph) {
+            lv_context_set_error(ctx, lv_ERROR_OUT_OF_MEMORY, "lv_context_rollback: 恢复约束图失败（内存不足）");
+            return lv_ERROR_OUT_OF_MEMORY;
+        }
+        if (ctx->main_graph) {
+            graph_destroy((ConstraintGraph *) ctx->main_graph);
+        }
+        ctx->main_graph = new_graph;
+    }
+
+    /* 2. 恢复标量状态字段 */
+    ctx->error_code = snapshot->error_code;
+    memcpy(ctx->error_message, snapshot->error_message, sizeof(ctx->error_message));
+    ctx->last_status = snapshot->last_status;
+
+    ctx->state = snapshot->state;
+    ctx->previous_state = snapshot->previous_state;
+    ctx->state_transition_count = snapshot->state_transition_count;
+
+    /* 熔断器：先释放旧 trip_reason，再整体恢复并深拷贝快照的 trip_reason */
+    if (ctx->circuit_breaker.trip_reason) {
+        lv_free((void **) &ctx->circuit_breaker.trip_reason);
+    }
+    ctx->circuit_breaker = snapshot->circuit_breaker;
+    ctx->circuit_breaker.trip_reason = snapshot->circuit_breaker.trip_reason
+                                           ? lv_strdup_safe(snapshot->circuit_breaker.trip_reason)
+                                           : NULL;
+
+    ctx->recursion_depth = snapshot->recursion_depth;
+    ctx->max_recursion_depth = snapshot->max_recursion_depth;
+    ctx->recursion_policy = snapshot->recursion_policy;
+
+    ctx->rewrite_step_limit = snapshot->rewrite_step_limit;
+    ctx->problems_processed = snapshot->problems_processed;
+    ctx->ast_root = snapshot->ast_root; /* 浅拷贝 */
+
+    /* 3. 推理栈：快照未记录推理栈（能力边界），回滚后清空当前推理栈 */
+    if (ctx->reasoning_stack.frames) {
+        lv_reasoning_stack_clear(&ctx->reasoning_stack);
+    }
+    ctx->circuit_breaker.current_depth = 0;
+
+    return lv_OK;
 }

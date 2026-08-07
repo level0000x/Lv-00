@@ -112,6 +112,86 @@ int lv_graph_topological_sort(ConstraintGraph *graph, int **out_nodes, int *out_
 const char *lv_traversal_order_to_string(lvTraversalOrder order);
 const char *lv_traversal_result_to_string(lvTraversalResult result);
 
+// ---- 通用图算法核心（任意整数 id 图：回调驱动，供各模块复用） ----
+//
+// lv_bfs_run / lv_cycle_detect 面向"节点为 0..node_count-1 的整数 id、出边由
+// 回调枚举"的任意图结构，消除各模块手写 BFS / 三色环检测的重复实现
+// （block_scheduler、meta_verify、probabilistic_constraint、conflict_detector 等）。
+// ConstraintGraph 专用遍历（lv_graph_traverse 等）保持原 API 不变。
+
+/**
+ * @brief 邻居枚举回调（BFS / 环检测核心共用，按"批次"枚举）
+ *
+ * 输出 node_id 的第 batch_index 个批次邻居（环检测中每个批次对应约束超图的
+ * 一条超边/一个约束的全部参与者；BFS 使用方忽略 batch_index，把全部邻居作为
+ * 批次 0 输出）。
+ *
+ * 将本批次邻居 id 写入 out_neighbors（容量 max_neighbors）。out_edge_infos
+ * 非 NULL 时，可顺带写入每条边对应的边信息（如约束指针，用于环检测的报告；
+ * 不需要时传 NULL）。
+ *
+ * 返回写入数（> 0）：本批次邻居数。返回 0：无更多批次（批次结束）。
+ * 返回 -1：batch_index 槽位无效（环检测中用于跳过非活跃超边，调用方应推进
+ * batch_index 后继续）。
+ *
+ * 本批次邻居数超过 max_neighbors 时写入前 max_neighbors 个并返回
+ * max_neighbors —— 驱动层会把该返回值视为"可能截断"，扩容后以同一
+ * batch_index 重试，直至返回 < max_neighbors。因此回调须可重复调用且结果
+ * 稳定（无副作用）。out_neighbors 为 NULL 或 max_neighbors <= 0 时返回 0。
+ *
+ * 注意：回调应压缩空批次（含 0 个有效邻居的批次直接跳过），使返回 0 仅表示
+ * "无更多批次"。
+ */
+typedef int (*lvGraphNeighborFunc)(void *ctx, int node_id, int batch_index,
+                                   int *out_neighbors, void **out_edge_infos,
+                                   int max_neighbors);
+
+/**
+ * @brief BFS 出队访问回调（在 visited 判定之前调用）
+ *
+ * 返回 lv_TRAVERSAL_STOP 终止整个 BFS；lv_TRAVERSAL_SKIP_CHILDREN 跳过该节点
+ * 的出边扩展；其余继续。
+ */
+typedef lvTraversalResult (*lvBfsVisitFunc)(void *ctx, int node_id);
+
+/** @brief 通用 BFS 驱动配置 */
+typedef struct lvBfsSpec {
+    int node_count;       /**< 节点 id 空间 0..node_count-1 */
+    const int *seeds;     /**< 起点 id 列表（入队时不查 visited；mark_on_enqueue 时标记） */
+    int seed_count;
+    bool *visited;        /**< 可为 NULL（内部申请并清零）；否则长度须 >= node_count */
+    bool mark_on_enqueue; /**< true=入队时查 visited 并标记（标准 BFS）；false=出队时查 visited 并标记 */
+    int max_queue;        /**< 队列 tail 上限（0 = 不限；满则丢弃新元素，与原定长队列截断语义一致） */
+    lvGraphNeighborFunc neighbors; /**< 出边枚举 */
+    lvBfsVisitFunc visit;          /**< 出队回调，可为 NULL */
+    void *ctx;
+} lvBfsSpec;
+
+/** @brief 通用 BFS：返回出队节点数；内存不足返回 -1（visited 状态不可靠，调用方应中止） */
+int lv_bfs_run(const lvBfsSpec *spec);
+
+/**
+ * @brief 三色环检测：发现 from_id → to_id 反向边（to_id 为 GRAY）时回调
+ *
+ * 返回 lv_TRAVERSAL_STOP 立即终止整个检测（detected = true）；返回
+ * lv_TRAVERSAL_CONTINUE 继续遍历（可借此逐环报告并限量）。
+ */
+typedef lvTraversalResult (*lvCycleFoundFunc)(void *ctx, int from_id, int to_id,
+                                              void *edge_info);
+
+/** @brief 通用三色环检测配置 */
+typedef struct lvCycleDetectSpec {
+    int node_count;              /**< 节点 id 空间 0..node_count-1 */
+    const int *seeds;            /**< DFS 森林根 id 列表；NULL 时使用 0..node_count-1 */
+    int seed_count;
+    lvGraphNeighborFunc neighbors; /**< 出边枚举（无向/有向语义由实现决定） */
+    lvCycleFoundFunc on_cycle;     /**< 可为 NULL（发现即返回 true） */
+    void *ctx;
+} lvCycleDetectSpec;
+
+/** @brief 通用三色环检测：返回是否存在环 */
+bool lv_cycle_detect(const lvCycleDetectSpec *spec);
+
 #ifdef __cplusplus
 }
 #endif

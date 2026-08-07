@@ -77,7 +77,22 @@ int lv_canonical_compare_terms(const int *a, const int *b, int var_count) {
     return 0; /* 完全相同 */
 }
 
-/** 哈希分组合并桶节点：指数数组 FNV-1a 哈希（term_hash 结果）→ merged 数组下标 */
+/**
+ * 哈希分组合并桶节点：指数数组 FNV-1a 哈希（term_hash 结果）→ merged 数组下标
+ *
+ * 【lv_hashtable 收敛评估结论（不收敛，保留本实现）】
+ *   1. 键特殊性：桶键是 64 位 term_hash（uint64_t），超出 lv_hashtable int 键
+ *      （32 位）范围，折叠成 32 位会引入碰撞，而开放寻址要求键唯一。
+ *   2. 键等价性：同一哈希桶内还需 exponents_equal() 对指数数组做精确比较
+ *      （term_hash 是分组哈希而非唯一键），lv_hashtable 的 int == 无法承载。
+ *   3. 合并语义：合并归零的项需从桶链表中"动态摘除"（链表节点复用数组），
+ *      与 lv_hashtable 的键值增删模型不同。
+ *   4. 本桶是 lv_expr_canonicalize 内部的单次临时结构：一次性分配
+ *      bucket_head + bucket_nodes 两个数组、无逐节点 malloc、用完即释放，
+ *      是当前热路径上的最优形态；改用 lv_hashtable 将引入逐节点分配、
+ *      扩容重哈希与键折叠，纯性能退化。
+ * 故保留原实现，仅与 lv_hashtable 共享 FNV-1a 哈希族（lv_fnv1a_update）。
+ */
 typedef struct MergeBucketNode {
     uint64_t hash;       /**< 指数数组哈希值 */
     int merged_index;    /**< merged 数组中的项下标 */

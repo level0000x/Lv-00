@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_graph_traversal.h"
 #include "lv/lv_xmacro.h"
 
 #include "debug.h"
@@ -842,11 +843,92 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph, co
 }
 
 /**
+ * @brief 循环依赖检测的邻居枚举上下文（经回调传给通用环检测核心）
+ */
+typedef struct {
+    const ConstraintGraph *graph;
+    int max_id;
+    ConflictReport *report;
+    int max_conflicts;
+} CyclicDetectCtx;
+
+/**
+ * @brief 环检测邻居枚举回调（批次 = 一条活跃约束的全部有效参与者）
+ *
+ * 与原手写实现语义一致：
+ *  - 仅枚举活跃约束（graph_find_constraints_involving 上限 128）；
+ *  - 跳过 cur 自身与越界参与者（nb < 0 || nb > max_id）；
+ *  - 不去重（同一邻居经多条约束/多个参与者重复出现时重复保留，环回调可多次
+ *    触发，与原实现逐约束逐参与者检查一致）；
+ *  - 批次按"有效约束"压缩计数（inactive 约束 / 空批次不占序号），使恢复语义
+ *    与原 iter（cids 位置）等价：下潜后从下一有效约束继续；
+ *  - 边信息携带所属约束指针，供环报告使用。
+ */
+static int cyclic_neighbors_cb(void *ctx, int node_id, int batch_index,
+                               int *out_neighbors, void **out_edge_infos,
+                               int max_neighbors) {
+    CyclicDetectCtx *c = (CyclicDetectCtx *)ctx;
+    if (!out_neighbors || max_neighbors <= 0)
+        return 0;
+
+    int cids[128];
+    int cc = graph_find_constraints_involving(c->graph, node_id, cids, 128);
+
+    int seen = 0; /* 已扫描的有效约束数（压缩计数） */
+    for (int i = 0; i < cc; i++) {
+        Constraint *con = graph_get_constraint(c->graph, cids[i]);
+        if (!con || !con->is_active)
+            continue;
+        if (seen++ != batch_index)
+            continue;
+
+        int count = 0;
+        for (int p = 0; p < con->participant_count && count < max_neighbors; p++) {
+            int nb = con->participants[p];
+            if (nb == node_id || nb < 0 || nb > c->max_id)
+                continue;
+            out_neighbors[count] = nb;
+            if (out_edge_infos)
+                out_edge_infos[count] = con;
+            count++;
+        }
+        if (count == 0)
+            return -1; /* 空批次（参与者全被自身/越界过滤）：槽位无效，调用方推进批次 */
+        return count;
+    }
+    return 0; /* 无更多有效约束 */
+}
+
+/**
+ * @brief 环回调：报告循环依赖冲突，受 max_conflicts 限量
+ *
+ * 返回 STOP 表示达到报告上限，终止检测（与原实现 goto cycle_detect_done 等价）。
+ */
+static lvTraversalResult cyclic_on_cycle_cb(void *ctx, int from_id, int to_id, void *edge_info) {
+    CyclicDetectCtx *c = (CyclicDetectCtx *)ctx;
+    Constraint *con = (Constraint *)edge_info;
+    char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+    snprintf(desc, sizeof(desc),
+             "循环依赖检测到环：节点 %d → 节点 %d（经由约束 %d）。"
+             "约束图中存在循环引用，可能导致求解器无法收敛。",
+             from_id, to_id, con ? con->id : -1);
+    report_constraint_conflict(c->report, con, CONFLICT_CYCLIC_DEPENDENCY, CONFLICT_SEVERITY_ERROR, desc,
+                               "检查约束关系，移除或打破循环依赖链。");
+    /* 达到最大冲突数限制时提前退出 */
+    if (c->max_conflicts > 0 && c->report->conflict_count >= c->max_conflicts)
+        return lv_TRAVERSAL_STOP;
+    return lv_TRAVERSAL_CONTINUE;
+}
+
+/**
  * @brief 检测循环依赖矛盾
+ *
+ * 委托通用三色环检测核心 lv_cycle_detect 遍历约束图，发现反向边（环）时
+ * 逐环报告冲突。语义与原手写 DFS 等价：起点为 nodes 数组序的活跃节点、
+ * 邻居为活跃约束参与者（无向超边、不去重、不跳过 disabled 邻居）。
  */
 static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph, const ConflictDetectorConfig *config,
                                               ConflictReport *report) {
-    /* DFS 检测约束图中的环 */
     if (!graph || !report)
         return lv_ERROR_NULL_POINTER;
 
@@ -866,114 +948,27 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph, cons
     if (max_id <= 0)
         return 0;
 
-    /* 0=白色(未访问), 1=灰色(在栈中), 2=黑色(已完成) */
-    int *color = (int *) lv_calloc(1, sizeof(int) * (size_t) (max_id + 1));
-    int *parent_node = (int *) lv_calloc(1, sizeof(int) * (size_t) (max_id + 1));
-    if (!color || !parent_node) {
-        lv_free((void **) &color);
-        lv_free((void **) &parent_node);
+    /* 起点：nodes 数组序的活跃节点（与原实现一致；负 id 防御性跳过，原实现
+     * 对负 id 会越界访问 color 数组，属未定义行为） */
+    int *seeds = (int *) lv_malloc((size_t) graph->node_count * sizeof(int));
+    if (!seeds)
         return lv_ERROR_NULL_POINTER;
-    }
-    for (int i = 0; i <= max_id; i++) {
-        color[i] = 0;
-        parent_node[i] = -1;
-    }
-
-    /* DFS 递归栈（手动实现避免栈溢出） */
-    /* 栈大小为 max_id+1，但 DFS 深度可能超过此值，需要动态检查 */
-    int stack_cap = max_id + 1;
-    int *stack = (int *) lv_calloc((size_t) stack_cap, sizeof(int));
-    int *iter = (int *) lv_calloc((size_t) stack_cap, sizeof(int));
-    if (!stack || !iter) {
-        lv_free((void **) &color);
-        lv_free((void **) &parent_node);
-        lv_free((void **) &stack);
-        lv_free((void **) &iter);
-        return lv_ERROR_NULL_POINTER;
-    }
-
+    int seed_count = 0;
     for (int start = 0; start < graph->node_count; start++) {
         GeomNode *sn = graph->nodes[start];
-        if (!sn || !sn->is_active || color[sn->id] != 0)
+        if (!sn || !sn->is_active)
             continue;
-
-        int sp = 0;
-        stack[sp] = sn->id;
-        iter[sp] = 0;
-        color[sn->id] = 1;
-
-        while (sp >= 0) {
-            int cur = stack[sp];
-            /* 查找 cur 的所有邻接约束 */
-            int cids[128];
-            int cc = graph_find_constraints_involving(graph, cur, cids, 128);
-
-            bool found_next = false;
-            while (iter[sp] < cc) {
-                Constraint *c = graph_get_constraint(graph, cids[iter[sp]]);
-                iter[sp]++;
-                if (!c || !c->is_active)
-                    continue;
-
-                /* 遍历约束的参与者找到邻接节点 */
-                for (int p = 0; p < c->participant_count; p++) {
-                    int nb = c->participants[p];
-                    if (nb == cur || nb < 0 || nb > max_id)
-                        continue;
-
-                    if (color[nb] == 1) {
-                        /* 发现环 */
-                        char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-                        snprintf(desc, sizeof(desc),
-                                 "循环依赖检测到环：节点 %d → 节点 %d（经由约束 %d）。"
-                                 "约束图中存在循环引用，可能导致求解器无法收敛。",
-                                 cur, nb, c->id);
-                        report_constraint_conflict(report, c, CONFLICT_CYCLIC_DEPENDENCY, CONFLICT_SEVERITY_ERROR, desc,
-                                                   "检查约束关系，移除或打破循环依赖链。");
-                        /* 达到最大冲突数限制时提前退出 */
-                        if (max_conflicts > 0 && report->conflict_count >= max_conflicts) {
-                            goto cycle_detect_done;
-                        }
-                    } else if (color[nb] == 0) {
-                        color[nb] = 1;
-                        parent_node[nb] = cur;
-                        sp++;
-                        /* 动态扩容检查 */
-                        if (sp >= stack_cap) {
-                            int old_cap = stack_cap;
-                            /* 第一次：扩容 stack */
-                            if (!lv_ensure_capacity((void **) &stack, old_cap,
-                                                    &stack_cap, sizeof(int), 1))
-                                goto cycle_detect_done;
-                            /* 第二次：扩容 iter。临时回退容量指针使扩容真实执行，
-                             * 保持双数组容量一致；任一失败 goto 清理（指针均有效） */
-                            stack_cap = old_cap;
-                            if (!lv_ensure_capacity((void **) &iter, old_cap,
-                                                    &stack_cap, sizeof(int), 1))
-                                goto cycle_detect_done;
-                        }
-                        stack[sp] = nb;
-                        iter[sp] = 0;
-                        found_next = true;
-                        break;
-                    }
-                }
-                if (found_next)
-                    break;
-            }
-
-            if (!found_next) {
-                color[cur] = 2;
-                sp--;
-            }
-        }
+        if (sn->id >= 0 && sn->id <= max_id)
+            seeds[seed_count++] = sn->id;
     }
 
-cycle_detect_done:
-    lv_free((void **) &color);
-    lv_free((void **) &parent_node);
-    lv_free((void **) &stack);
-    lv_free((void **) &iter);
+    CyclicDetectCtx ctx = { graph, max_id, report, max_conflicts };
+    lvCycleDetectSpec spec = {
+        max_id + 1, seeds, seed_count,
+        cyclic_neighbors_cb, cyclic_on_cycle_cb, &ctx
+    };
+    (void) lv_cycle_detect(&spec);
+    lv_free((void **) &seeds);
     return 0;
 }
 
