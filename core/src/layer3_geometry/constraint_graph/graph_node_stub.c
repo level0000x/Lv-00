@@ -108,6 +108,14 @@ AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segme
 AddNodeResult graph_add_circle(ConstraintGraph *graph, int center_node_id, int radius_node_id) {
     if (!graph || center_node_id < 0 || radius_node_id < 0)
         return ADD_NODE_CONFLICT;
+    /* 与 graph_add_line_segment 一致：校验圆心/半径端点节点存在且为点，
+     * 避免创建引用不存在节点或非点节点的悬空圆节点 */
+    GeomNode *center = graph_get_node(graph, center_node_id);
+    GeomNode *radius_pt = graph_get_node(graph, radius_node_id);
+    if (!center || !radius_pt)
+        return ADD_NODE_CONFLICT;
+    if (center->type != GEOM_POINT || radius_pt->type != GEOM_POINT)
+        return ADD_NODE_CONFLICT;
     GeomNode *node = graph_alloc_node(graph, GEOM_CIRCLE);
     if (!node)
         return ADD_NODE_CONFLICT;

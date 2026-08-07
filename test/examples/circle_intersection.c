@@ -3,15 +3,18 @@
  * @brief 完整示例：圆与线段的相交构造
  *
  * 本示例演示：
- * 1. 构造一个圆（圆心和半径点，通过包含约束建模）
+ * 1. 构造一个圆（圆心和半径点，通过 graph_add_circle 建模）
  * 2. 构造一条线段
  * 3. 计算交点
- * 4. 验证交点在圆上
+ * 4. 验证交点在圆上且在线段上
  *
  * 几何语义：
- * - 圆由圆心O和半径点R定义，通过CONTAINMENT约束表示"R在O为心、|OR|为半径的圆上"
- * - 线段AB与圆的交点由CONSTRAINT_INTERSECTION约束建模
- * - 交点同时关联于线段（INCIDENCE）确保交点在线段上
+ * - 圆由圆心O和半径点R定义（graph_add_circle 创建 GEOM_CIRCLE 节点，
+ *   圆心到半径点的距离即半径）
+ * - "交点在圆上"由 CONTAINMENT 约束表达（其 outer 参与者支持 GEOM_CIRCLE）
+ * - "交点在线段上"由 INCIDENCE 约束表达
+ * - 约束图 API 的 INTERSECTION 仅接受两条线段，无法直接表达圆-线段相交，
+ *   因此用 CONTAINMENT(交点,圆) + INCIDENCE(交点,线段) 组合表达
  * - 本例中圆: x² + y² = 9, 线段: y = 2, 交点: x = ±√5
  */
 
@@ -26,10 +29,11 @@
  * 构造圆与线段的相交
  *
  * 整体结构：
- *   圆心(0,0) --[包含约束]--> 半径点(3,0)   ← 定义圆
+ *   圆心O(0,0) + 半径点R(3,0) --[graph_add_circle]--> 圆节点 (半径=3)
  *   线段AB: A(-4,2), B(4,2)
- *   交点: 线段AB 与 圆心O 相交于 (±√5, 2)
- *         其中交点也通过关联约束绑定到线段AB上
+ *   交点: 线段AB 与 圆 相交于 (±√5, 2)
+ *         "交点在圆上"由 CONTAINMENT 约束（outer=圆节点）表达，
+ *         "交点在线段上"由 INCIDENCE 约束表达
  */
 int main(void) {
     printf("========================================\n");
@@ -44,7 +48,7 @@ int main(void) {
 
     /* 步骤1: 创建圆心 */
     /* 圆心O：圆的几何中心，位于(0, 0) */
-    printf("[1/5] 创建圆心 O(0, 0)...\n");
+    printf("[1/6] 创建圆心 O(0, 0)...\n");
     int center = add_point(g, 0, 1, 0, 1);
     if (center < 0) {
         fprintf(stderr, "错误: 创建圆心失败\n");
@@ -54,7 +58,7 @@ int main(void) {
 
     /* 步骤2: 创建圆上的点（定义半径） */
     /* 半径点R(3, 0)：圆心到R的距离即圆的半径，半径=3 */
-    printf("[2/5] 创建圆上的点 R(3, 0)（半径=3）...\n");
+    printf("[2/6] 创建圆上的点 R(3, 0)（半径=3）...\n");
     int radius_point = add_point(g, 3, 1, 0, 1);
     if (radius_point < 0) {
         fprintf(stderr, "错误: 创建半径点失败\n");
@@ -63,22 +67,23 @@ int main(void) {
     }
 
     /*
-     * 添加包含约束：半径点R在圆心O定义的圆上。
-     * CONTAINMENT 约束在这里的语义是：O包含R，
-     * 即R位于以O为圆心、|OR|为半径的圆周上。
-     * 这使得后续的交点约束可以引用圆心O作为圆的代表。
+     * 创建圆节点：以 center 为圆心、radius_point 为半径端点。
+     * graph_add_circle 创建 GEOM_CIRCLE 节点，圆心到半径点的距离
+     * 即为圆的半径（这里 |OR| = 3）。
+     * 后续"交点在圆上"通过 CONTAINMENT 约束关联到该圆节点。
      */
-    printf("  添加圆的包含约束 O→R...\n");
-    AddConstraintResult cres = graph_add_containment(g, center, radius_point);
-    if (cres != ADD_CONSTRAINT_OK) {
-        fprintf(stderr, "错误: 添加包含约束失败 (错误码=%d)\n", cres);
+    printf("[3/6] 创建圆（圆心 O, 半径点 R）...\n");
+    AddNodeResult cires = graph_add_circle(g, center, radius_point);
+    if (cires != ADD_NODE_OK) {
+        fprintf(stderr, "错误: 创建圆失败 (错误码=%d)\n", cires);
         graph_destroy(g);
         return 1;
     }
+    int circle = g->next_node_id - 1;
 
     /* 步骤3: 创建线段的端点 */
     /* 线段AB：A(-4, 2), B(4, 2) 是一条水平线段，位于y=2 */
-    printf("[3/5] 创建线段端点 A(-4, 2), B(4, 2)...\n");
+    printf("[4/6] 创建线段端点 A(-4, 2), B(4, 2)...\n");
     int a = add_point(g, -4, 1, 2, 1);
     if (a < 0) {
         fprintf(stderr, "错误: 创建端点A失败\n");
@@ -94,7 +99,7 @@ int main(void) {
 
     /* 步骤4: 创建线段 */
     /* 线段AB由两个端点A和B定义 */
-    printf("[4/5] 创建线段 AB...\n");
+    printf("[5/6] 创建线段 AB...\n");
     AddNodeResult ares = graph_add_line_segment(g, a, b);
     if (ares != ADD_NODE_OK) {
         fprintf(stderr, "错误: 创建线段AB失败 (错误码=%d)\n", ares);
@@ -109,7 +114,7 @@ int main(void) {
      * 代入得 x² + 4 = 9 → x = ±√5。
      * √5 使用 exact quadratic 坐标 (0 + 1*√5) 表示，而非有理数近似值。
      */
-    printf("[5/5] 计算交点...\n");
+    printf("[6/6] 计算交点...\n");
 
     /*
      * 交点1: (-√5, 2)
@@ -183,20 +188,22 @@ int main(void) {
     int intersection2 = g->next_node_id - 1;
 
     /*
-     * 添加相交约束：线段AB与圆（以圆心O为代表）相交。
-     * 使用两个不同的参与者（线段和圆心）代替原来的自相交模式，
-     * 语义上表示"线段与圆相交"，圆心作为圆的代表参与相交判定。
+     * 添加"交点在圆上"约束：交点位于圆节点 circle 上。
+     * graph_add_intersection 仅接受两条线段，无法直接表达"圆与线段相交"；
+     * 因此用 CONTAINMENT 约束（outer 支持 GEOM_CIRCLE）表达交点属于圆，
+     * 结合下方 INCIDENCE 约束（交点在线段上），组合表达
+     * "圆与线段相交、交点在圆上且在线段上"。
      */
-    printf("  添加相交约束...\n");
-    cres = graph_add_intersection(g, segment, center, intersection1);
+    printf("  添加圆上约束...\n");
+    AddConstraintResult cres = graph_add_containment(g, intersection1, circle);
     if (cres != ADD_CONSTRAINT_OK) {
-        fprintf(stderr, "错误: 添加交点1相交约束失败 (错误码=%d)\n", cres);
+        fprintf(stderr, "错误: 添加交点1圆上约束失败 (错误码=%d)\n", cres);
         graph_destroy(g);
         return 1;
     }
-    cres = graph_add_intersection(g, segment, center, intersection2);
+    cres = graph_add_containment(g, intersection2, circle);
     if (cres != ADD_CONSTRAINT_OK) {
-        fprintf(stderr, "错误: 添加交点2相交约束失败 (错误码=%d)\n", cres);
+        fprintf(stderr, "错误: 添加交点2圆上约束失败 (错误码=%d)\n", cres);
         graph_destroy(g);
         return 1;
     }
@@ -239,7 +246,7 @@ int main(void) {
     int dof = count_degrees_of_freedom(g, &free_vars);
     printf("  自由度: %d\n", dof);
     if (free_vars)
-        free(free_vars);
+        lv_free(&free_vars); /* count_degrees_of_freedom 经 lv_calloc 分配，须用 lv_free 释放 */
 
     /* 清理 */
     printf("\n清理资源...\n");

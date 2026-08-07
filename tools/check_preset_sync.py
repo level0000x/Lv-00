@@ -42,6 +42,18 @@ EXTRA_ONLY = 'EXTRA_ONLY'    # .lvz 有 C 没有的条目 → 预期（活数据
 MISSING_ONLY = 'MISSING_ONLY'  # C 有 .lvz 没有的条目（纯缺失）→ 可修复候选
 BOTH = 'BOTH'                # 双向都有差异 → 保守不修
 
+# 5 个 C_EMPTY 活数据模块：C 源为死代码（无注册、无类型信息），.lvz 为唯一数据源，
+# 且 `inputs N` 后无类型 token（历史活数据格式）——loader（module_lvz.c 的
+# preset_field_inputs）以 ANY 填充容错加载。这是预期状态（不误报），
+# C 侧无类型来源，不可用生成器补类型。
+TYPELESS_INPUTS_MODULES = {
+    'preset_algebraic.lvz',
+    'preset_basic_geometry.lvz',
+    'preset_measurements.lvz',
+    'preset_polygons.lvz',
+    'preset_transformations.lvz',
+}
+
 
 def read_text_robust(path):
     """读取文本，按 utf-8 → gbk → latin-1 依次尝试（条目名均为 ASCII，不影响比较）。"""
@@ -367,6 +379,8 @@ def main():
             continue
         line = f"[{r['status']:<13}] {lvz_name:42s} C={r['c_count']:3d} lvz={r['lvz_count']:3d}"
         print(line)
+        if lvz_name in TYPELESS_INPUTS_MODULES and r['status'] == 'C_EMPTY':
+            print('      - 活数据格式：inputs N 无类型 token，依赖 loader ANY 容错加载（预期，不误报）')
         if r['missing']:
             print(f"      - 缺失 (C 有、.lvz 无): {', '.join(r['missing'])}")
         if r['extra']:
@@ -381,6 +395,9 @@ def main():
         print('  BOTH          : 双向都有差异 → 保守不修')
         print('  C_EMPTY       : C 无条目、.lvz 有条目 → 预期差异（死 C vs 活数据）')
         print('  NO_C_FILE     : .lvz 无对应 C 文件')
+        print('  注：5 个 C_EMPTY 活数据模块（algebraic/basic_geometry/measurements/polygons/')
+        print('      transformations）的 inputs 无类型 token，依赖 loader（module_lvz.c）ANY')
+        print('      容错加载，属预期状态，不误报')
         print()
         print('汇总: ' + ', '.join(f'{k}={v}' for k, v in summary.items()))
 

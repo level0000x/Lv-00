@@ -194,6 +194,27 @@ static int is_entity_type(LvTokenType t) {
     return t >= 0 && t < LV_TOKEN_COUNT && s_is_entity_type_tokens[t];
 }
 
+/** 在声明值上下文中识别 "F(args) -> Type" 的返回类型标注。
+ *  判定条件（保守，避免与逻辑蕴含 P -> Q 冲突）：
+ *  1. 整个声明值恰好是单层 LV_AST_LOGIC_IMPLIES（parse_logic_expr 已把 "->" 吞成蕴含）；
+ *  2. 左端为调用表达式（FUNCTION_CALL / RELATION / MEASURE / GEOMETRY_EXPR）；
+ *  3. 右端为裸标识符（类型名）。
+ *  满足则返回复制的类型名（调用者负责释放）；否则返回 NULL，保持逻辑蕴含语义。
+ *  边界（诚实）：右端仅支持裸类型名，不支持泛型返回类型（如 -> List<X>），
+ *  该类场景仍解析为逻辑蕴含；仅 ":= 声明值" 上下文启用本识别。 */
+static char *extract_return_type(LvAstNode *value) {
+    if (!value || value->type != LV_AST_LOGIC_IMPLIES)
+        return NULL;
+    LvAstNode *left = value->data.binary.left;
+    LvAstNode *right = value->data.binary.right;
+    if (!left || !right || right->type != LV_AST_IDENTIFIER_EXPR)
+        return NULL;
+    if (left->type != LV_AST_FUNCTION_CALL && left->type != LV_AST_RELATION &&
+        left->type != LV_AST_MEASURE && left->type != LV_AST_GEOMETRY_EXPR)
+        return NULL;
+    return lv_strdup(right->data.ident.name);
+}
+
 /** DeclarationStmt ::= EntityType IdentifierList ";" */
 static LvAstNode *parse_declaration_stmt(LvParser *p) {
     LvSourceLoc loc = p->current.loc;
@@ -243,13 +264,28 @@ static LvAstNode *parse_declaration_stmt(LvParser *p) {
     }
 
     /* EntityType Identifier ":=" Expr ";" — 声明值（如 "Point Spec := {...}"）。
-     * 注意：":=" 由 COLON + EQUALS 两个 token 组成。 */
+     * 注意：":=" 由 COLON + EQUALS 两个 token 组成。
+     * 返回类型标注："F(args) -> Type" 中 "-> Type" 记录到 decl.return_type
+     *（识别规则见 extract_return_type，与逻辑蕴含 P -> Q 的区分条件见该函数注释）。 */
     if (p->current.type == LV_TOKEN_COLON && check(p, 0, LV_TOKEN_EQUALS)) {
         advance(p); /* ':' */
         advance(p); /* '=' */
         decl_value = parse_logic_expr(p);
-        if (node)
+        if (node) {
             node->data.decl.value = decl_value;
+            node->data.decl.return_type = extract_return_type(decl_value);
+            if (node->data.decl.return_type) {
+                /* 剥离 IMPLIES 外壳：left 为调用表达式（作为声明值），right 类型名已复制 */
+                LvAstNode *call = decl_value->data.binary.left;
+                LvAstNode *rt_ident = decl_value->data.binary.right;
+                decl_value->data.binary.left = NULL;
+                decl_value->data.binary.right = NULL;
+                lv_ast_destroy(decl_value); /* 释放 IMPLIES 外壳节点 */
+                if (rt_ident)
+                    lv_ast_destroy(rt_ident); /* 释放右端标识符节点及其名字 */
+                node->data.decl.value = call;
+            }
+        }
     }
 
     if (!match(p, LV_TOKEN_SEMICOLON)) {
@@ -1120,14 +1156,27 @@ static LvAstNode *parse_arg_list(LvParser *p) {
     if (p->current.type != LV_TOKEN_RPAREN) {
         while (1) {
             /* 命名参数: "name: value"（如 verify(output: Output, ...)）。
-             * 参数名仅作标注，AST 中只保留值。 */
+             * 保留参数名：包装为 LV_AST_NAMED_ARG(name, value)，value 为类型/值表达式。 */
+            char arg_name[128] = {0};
+            int has_name = 0;
             if (p->current.type == LV_TOKEN_IDENTIFIER && check(p, 0, LV_TOKEN_COLON)) {
+                lv_strncpy(arg_name, token_text(&p->current), sizeof(arg_name));
+                has_name = 1;
                 advance(p); /* name */
                 advance(p); /* ':' */
             }
             LvAstNode *arg = parse_logic_expr(p);
             if (!arg)
                 break;
+
+            if (has_name) {
+                LvAstNode *named = lv_ast_create(LV_AST_NAMED_ARG, arg->loc);
+                if (named) {
+                    named->data.field.name = lv_strdup(arg_name);
+                    named->data.field.value = arg;
+                    arg = named;
+                }
+            }
 
             if (!first_arg) {
                 first_arg = arg;
@@ -1199,6 +1248,119 @@ static LvAstNode *parse_struct_literal(LvParser *p) {
         node->child_count = field_count;
     }
     return node;
+}
+
+/* ── 嵌套泛型辅助（前瞻扫描 + 消费式拼接） ── */
+
+static int scan_generic_arg(LvParser *p, int i, char *buf, size_t cap, size_t *pos);
+static int scan_generic_list(LvParser *p, int i, char *buf, size_t cap, size_t *pos);
+
+/** 追加 token 文本到缓冲区（截断安全），返回新的 pos */
+static size_t generic_append_text(const LvToken *tok, char *buf, size_t cap, size_t pos) {
+    if (!tok || !buf || pos >= cap - 1)
+        return pos;
+    size_t copy = tok->length < cap - 1 - pos ? tok->length : cap - 1 - pos;
+    memcpy(buf + pos, tok->start, copy);
+    return pos + copy;
+}
+
+/** 前瞻扫描一个泛型参数（offset i 处应为 identifier 或 identifier<...>）。
+ *  成功返回下一 offset；失败返回 -1。文本追加到 buf（供拼接）。 */
+static int scan_generic_arg(LvParser *p, int i, char *buf, size_t cap, size_t *pos) {
+    LvToken t = lv_lexer_peek(p->lexer, i);
+    if (t.type != LV_TOKEN_IDENTIFIER)
+        return -1;
+    *pos = generic_append_text(&t, buf, cap, *pos);
+    i++;
+    LvToken n = lv_lexer_peek(p->lexer, i);
+    if (n.type == LV_TOKEN_LT) {
+        i = scan_generic_list(p, i, buf, cap, pos);
+        if (i < 0)
+            return -1;
+    }
+    return i;
+}
+
+/** 前瞻扫描 '<' Arg (',' Arg)* '>'（offset i 处应为 '<'）。成功返回下一 offset，失败返回 -1。 */
+static int scan_generic_list(LvParser *p, int i, char *buf, size_t cap, size_t *pos) {
+    LvToken t = lv_lexer_peek(p->lexer, i);
+    if (t.type != LV_TOKEN_LT)
+        return -1;
+    if (*pos + 1 < cap)
+        buf[(*pos)++] = '<';
+    i++;
+    i = scan_generic_arg(p, i, buf, cap, pos);
+    if (i < 0)
+        return -1;
+    while (1) {
+        t = lv_lexer_peek(p->lexer, i);
+        if (t.type == LV_TOKEN_COMMA) {
+            if (*pos + 1 < cap)
+                buf[(*pos)++] = ',';
+            i++;
+            i = scan_generic_arg(p, i, buf, cap, pos);
+            if (i < 0)
+                return -1;
+        } else {
+            break;
+        }
+    }
+    t = lv_lexer_peek(p->lexer, i);
+    if (t.type != LV_TOKEN_GT)
+        return -1;
+    if (*pos + 1 < cap)
+        buf[(*pos)++] = '>';
+    return i + 1;
+}
+
+/** 尝试把当前 token（应为 '<'）之后的泛型参数序列解析并拼接到 name（如 List<List<Formula>>）。
+ *  先前瞻验证（不消费 token），验证通过后消费 '<' 及参数 token 并拼接 "name<...>"；
+ *  验证失败不消费任何 token（"<" 留给比较运算符）。
+ *  返回 1 表示成功消费并拼接，返回 0 表示失败（未消费）。
+ *  边界（诚实）：泛型参数须为普通标识符（关键字实体名如 Point 不支持）；
+ *  拼接缓冲 256 字节上限；"a < b > c" 形似泛型的比较仍会被拼接为 "a<b>"（与既有行为一致）。 */
+static int try_parse_generic_type(LvParser *p, char *name, size_t name_cap) {
+    char tmp[256];
+    size_t pos = 0;
+
+    /* 前瞻验证（不消费） */
+    int i = scan_generic_arg(p, 0, tmp, sizeof(tmp), &pos);
+    if (i < 0)
+        return 0;
+    while (1) {
+        LvToken t = lv_lexer_peek(p->lexer, i);
+        if (t.type == LV_TOKEN_COMMA) {
+            if (pos + 1 < sizeof(tmp))
+                tmp[pos++] = ',';
+            i++;
+            i = scan_generic_arg(p, i, tmp, sizeof(tmp), &pos);
+            if (i < 0)
+                return 0;
+        } else {
+            break;
+        }
+    }
+    LvToken gt = lv_lexer_peek(p->lexer, i);
+    if (gt.type != LV_TOKEN_GT)
+        return 0;
+    tmp[pos] = '\0';
+
+    /* 拼接 "name<tmp>"；缓冲区不足则放弃（不消费 token） */
+    size_t nlen = strlen(name);
+    size_t tlen = strlen(tmp);
+    if (nlen + tlen + 3 > name_cap)
+        return 0;
+    name[nlen++] = '<';
+    memcpy(name + nlen, tmp, tlen);
+    nlen += tlen;
+    name[nlen++] = '>';
+    name[nlen] = '\0';
+
+    /* 消费 '<'（p->current）及 peek(0..i) 共 i+1 个 token */
+    advance(p); /* < */
+    for (int k = 0; k <= i; k++)
+        advance(p);
+    return 1;
 }
 
 /** PrimaryExpr ::= Literal | Identifier | FunctionCall | MeasureExpr |
@@ -1319,25 +1481,11 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
             advance(p); /* 再消费，使 current 指向 member 之后的 token */
         }
 
-        /* 泛型类型应用: T<Arg>（如 List<Formula>、Set<Error>）→ 拼接名字 "T<Arg>" */
-        if (p->current.type == LV_TOKEN_LT && check(p, 0, LV_TOKEN_IDENTIFIER) && check(p, 1, LV_TOKEN_GT)) {
-            LvToken arg_tok = lv_lexer_peek(p->lexer, 0);
-            char gbuf[128];
-            lv_token_text(&arg_tok, gbuf, sizeof(gbuf));
-            size_t nlen = strlen(name);
-            if (nlen < sizeof(name) - 1) {
-                name[nlen++] = '<';
-                size_t glen = strlen(gbuf);
-                if (glen > sizeof(name) - nlen - 2)
-                    glen = sizeof(name) - nlen - 2;
-                memcpy(name + nlen, gbuf, glen);
-                nlen += glen;
-                name[nlen++] = '>';
-                name[nlen] = '\0';
-            }
-            advance(p); /* < */
-            advance(p); /* Arg */
-            advance(p); /* > */
+        /* 泛型类型应用: T<Arg> / T<A, B> / T<T<...>>（嵌套，如 List<List<Formula>>）。
+         * 前瞻验证（不消费）通过后才消费并拼接名字；失败则 "<" 留给比较运算符。
+         * 边界见 try_parse_generic_type：形似泛型的比较 "a < b > c" 仍会被拼接为 "a<b>"（与既有行为一致）。 */
+        if (p->current.type == LV_TOKEN_LT) {
+            try_parse_generic_type(p, name, sizeof(name));
         }
 
         /* 检查后面是不是 "(" --- FunctionCall, Relation, Measure, Geometry */

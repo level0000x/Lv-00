@@ -783,6 +783,47 @@ static void test_verifier_lv_parse(void) {
         } else {
             FAIL("expected name=VerifierSound");
         }
+
+        TEST("VerifyFn 返回类型标注 -> Verdict");
+        LvAstNode *verifyfn_decl = NULL;
+        for (LvAstNode *s = res.ast->child; s; s = s->next) {
+            if (s->type == LV_AST_DECLARATION && s->data.decl.names &&
+                strcmp(s->data.decl.names, "VerifyFn") == 0) {
+                verifyfn_decl = s;
+                break;
+            }
+        }
+        if (verifyfn_decl && verifyfn_decl->data.decl.return_type &&
+            strcmp(verifyfn_decl->data.decl.return_type, "Verdict") == 0 &&
+            verifyfn_decl->data.decl.value &&
+            verifyfn_decl->data.decl.value->type == LV_AST_FUNCTION_CALL) {
+            PASS();
+        } else {
+            FAIL("expected return_type=Verdict with FUNCTION_CALL value");
+        }
+
+        TEST("Verdict 构造子命名参数保留 (Pass(proof: ...))");
+        LvAstNode *verdict_decl = NULL;
+        for (LvAstNode *s = res.ast->child; s; s = s->next) {
+            if (s->type == LV_AST_DECLARATION && s->data.decl.names &&
+                strcmp(s->data.decl.names, "Verdict") == 0) {
+                verdict_decl = s;
+                break;
+            }
+        }
+        LvAstNode *pass_call = NULL;
+        if (verdict_decl && verdict_decl->data.decl.value &&
+            verdict_decl->data.decl.value->type == LV_AST_UNION) {
+            pass_call = verdict_decl->data.decl.value->data.binary.left;
+        }
+        if (pass_call && pass_call->type == LV_AST_FUNCTION_CALL && pass_call->data.call.args &&
+            pass_call->data.call.args->type == LV_AST_NAMED_ARG &&
+            pass_call->data.call.args->data.field.name &&
+            strcmp(pass_call->data.call.args->data.field.name, "proof") == 0) {
+            PASS();
+        } else {
+            FAIL("expected named arg 'proof' on Pass");
+        }
     }
 
     /* 语义分析不崩溃（允许有语义错误：未知类型/未声明标识符等，不要求通过） */

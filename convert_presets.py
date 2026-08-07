@@ -89,6 +89,15 @@ HELPER_LAYOUT_MACROS = {
     'REGISTER_LOGIC',
 }
 
+# 无 success_counter 的标准 LV 布局宏（参数顺序与 LV_PRESET_REGISTER 相同，但首位是 name 而非
+# success_counter）：name, "desc", input_count, OUTPUT_TYPE, "math_def", "complexity", cons, rev,
+# INPUT_TYPES...
+# 例：REGISTER_RT —— 宏展开为 lv_preset_register_helper，类型数组以变参形式放在末尾，
+# 不能按 parse_register_macro（含 success_counter）解析，否则 name/desc/类型参数全部串位。
+NO_COUNTER_LV_LAYOUT_MACROS = {
+    'REGISTER_RT',
+}
+
 # ============================================================
 # PresetCategory mapping (from func_block_registry.h)
 # ============================================================
@@ -238,6 +247,9 @@ def find_register_calls(content, name_map):
                 # helper 布局宏（展开为 lv_preset_register_helper）：REGISTER_LATTICE / REGISTER_LOGIC
                 if macro_name in HELPER_LAYOUT_MACROS:
                     preset = parse_helper_call(call_text, name_map, joined, idx)
+                elif macro_name in NO_COUNTER_LV_LAYOUT_MACROS:
+                    # 无 success_counter 的 LV 布局（REGISTER_RT）：name 在首位，类型变参在末尾
+                    preset = parse_register_no_counter(call_text, name_map)
                 else:
                     # LV 布局（含 success_counter 或 REGISTER_RT 风格）：走标准宏解析
                     preset = parse_register_macro(call_text, name_map)
@@ -333,6 +345,61 @@ def parse_register_macro(call_text, name_map):
             input_types.append(PRESET_TYPE_MAP.get(t, "ANY"))
 
     # Parse bools
+    constructive = cons_raw.lower() in ('true', '1')
+    reversible = rev_raw.lower() in ('true', '1')
+
+    return {
+        'name': name,
+        'description': desc,
+        'input_types': input_types[:input_count] if input_count > 0 else [],
+        'input_count': input_count,
+        'output_type': output_type,
+        'math_def': math_def,
+        'complexity': complexity,
+        'constructive': constructive,
+        'reversible': reversible,
+    }
+
+
+def parse_register_no_counter(call_text, name_map):
+    """Parse REGISTER_RT 风格宏（无 success_counter 的 LV 布局）。
+
+    Args 布局: name, "desc", input_count, OUTPUT_TYPE, "math_def", "complexity", cons, rev,
+    INPUT_TYPES...（类型参数为末尾变参，宏展开为 lv_preset_register_helper）。
+    """
+    inner = call_text.strip()
+    if inner.startswith('(') and inner.endswith(')'):
+        inner = inner[1:-1]
+
+    args = merge_arg_strings(split_by_comma(inner))
+    if len(args) < 9:
+        return None
+
+    # Args: name, "desc", input_count, OUTPUT_TYPE, "math_def", "complexity", cons, rev, INPUT_TYPES...
+    name_raw = args[0].strip()
+    desc = unquote(args[1].strip())
+    input_count_str = args[2].strip()
+    output_type_raw = args[3].strip()
+    math_def = unquote(args[4].strip())
+    complexity = unquote(args[5].strip())
+    cons_raw = args[6].strip()
+    rev_raw = args[7].strip()
+
+    name = resolve_name(name_raw, name_map)
+    output_type = PRESET_TYPE_MAP.get(output_type_raw, "ANY")
+
+    try:
+        input_count = int(input_count_str)
+    except ValueError:
+        input_count = 0
+
+    # 末尾变参：输入类型（数量按 input_count 截断/补 ANY，与生成器其他路径一致）
+    input_types = []
+    for i in range(8, len(args)):
+        t = args[i].strip()
+        if t:
+            input_types.append(PRESET_TYPE_MAP.get(t, "ANY"))
+
     constructive = cons_raw.lower() in ('true', '1')
     reversible = rev_raw.lower() in ('true', '1')
 

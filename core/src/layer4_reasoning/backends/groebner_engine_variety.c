@@ -91,6 +91,198 @@ static double groebner_newton_refine(double (*eval)(double, void *), double (*de
 }
 
 /**
+ * @brief 线性系统快速求解：基中所有非零多项式总次数 <= 1 时，
+ *        用高斯消元（部分主元）直接求解，支持任意变量数。
+ *
+ * 仅处理"恰好一个解"（满秩方阵）的零维情形；无解或欠定（无穷解）返回 NULL。
+ *
+ * @param basis           已计算的 Groebner 基（线性基元）
+ * @param ring            多项式环
+ * @param solution_count  输出解的数量（成功且唯一解时为 1）
+ * @return 解点多项式数组（每个多项式 coeffs[0..vc-1] 为坐标值），失败返回 NULL
+ */
+static lvPolynomial **groebner_solve_linear_basis(const lvGroebnerBasis *basis, const lvPolynomialRing *ring,
+                                                  int *solution_count) {
+    *solution_count = 0;
+    if (!basis || !ring) {
+        return NULL;
+    }
+
+    int vc = ring->var_count;
+    if (vc < 1) {
+        return NULL;
+    }
+    double zero_thr = lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD);
+
+    /* 第一遍：统计线性方程行数，检测常数矛盾方程（c = 0 且 c != 0 → 无解） */
+    int m = 0;
+    for (int i = 0; i < basis->bases_count; i++) {
+        lvPolynomial *p = basis->basis_polys[i];
+        if (!p || poly_internal_is_zero(p))
+            continue;
+        bool is_const = true;
+        for (int ti = 0; ti < p->term_count; ti++) {
+            for (int v = 0; v < vc; v++) {
+                if (p->powers[ti * vc + v] != 0) {
+                    is_const = false;
+                    break;
+                }
+            }
+            if (!is_const)
+                break;
+        }
+        if (is_const) {
+            if (fabs(((double *) p->coeffs)[0]) > zero_thr) {
+                return NULL; /* 1 = 0 型矛盾方程：方程组无解 */
+            }
+            continue;
+        }
+        m++;
+    }
+    if (m == 0) {
+        return NULL; /* 无有效方程：欠定 */
+    }
+
+    /* 构造增广矩阵 mat[m][vc+1]：每行系数 + 右端常数项 */
+    double *mat = (double *) lv_calloc((size_t) m * (size_t) (vc + 1), sizeof(double));
+    if (!mat) {
+        return NULL;
+    }
+    int row = 0;
+    for (int i = 0; i < basis->bases_count && row < m; i++) {
+        lvPolynomial *p = basis->basis_polys[i];
+        if (!p || poly_internal_is_zero(p))
+            continue;
+        bool is_const = true;
+        for (int ti = 0; ti < p->term_count; ti++) {
+            for (int v = 0; v < vc; v++) {
+                if (p->powers[ti * vc + v] != 0) {
+                    is_const = false;
+                    break;
+                }
+            }
+            if (!is_const)
+                break;
+        }
+        if (is_const)
+            continue;
+        for (int ti = 0; ti < p->term_count; ti++) {
+            double c = ((double *) p->coeffs)[ti];
+            int var = -1;
+            for (int v = 0; v < vc; v++) {
+                if (p->powers[ti * vc + v] != 0) {
+                    var = v;
+                    break;
+                }
+            }
+            if (var < 0) {
+                mat[row * (vc + 1) + vc] = -c; /* 常数项移到右端 */
+            } else {
+                mat[row * (vc + 1) + var] = c;
+            }
+        }
+        row++;
+    }
+    m = row;
+
+    /* 高斯消元（部分主元，化为 RREF） */
+    int rank = 0;
+    for (int col = 0; col < vc && rank < m; col++) {
+        int pivot = -1;
+        for (int r = rank; r < m; r++) {
+            if (fabs(mat[r * (vc + 1) + col]) > zero_thr) {
+                pivot = r;
+                break;
+            }
+        }
+        if (pivot < 0)
+            continue;
+        if (pivot != rank) {
+            for (int k = col; k <= vc; k++) {
+                double t = mat[rank * (vc + 1) + k];
+                mat[rank * (vc + 1) + k] = mat[pivot * (vc + 1) + k];
+                mat[pivot * (vc + 1) + k] = t;
+            }
+        }
+        double pv = mat[rank * (vc + 1) + col];
+        for (int r = 0; r < m; r++) {
+            if (r == rank)
+                continue;
+            double f = mat[r * (vc + 1) + col] / pv;
+            if (fabs(f) < zero_thr)
+                continue;
+            for (int k = col; k <= vc; k++) {
+                mat[r * (vc + 1) + k] -= f * mat[rank * (vc + 1) + k];
+            }
+        }
+        rank++;
+    }
+
+    /* 一致性检查：消元后左侧全零但右端非零的行 → 无解 */
+    for (int r = rank; r < m; r++) {
+        bool all_zero = true;
+        for (int c = 0; c < vc; c++) {
+            if (fabs(mat[r * (vc + 1) + c]) > zero_thr) {
+                all_zero = false;
+                break;
+            }
+        }
+        if (all_zero && fabs(mat[r * (vc + 1) + vc]) > zero_thr) {
+            lv_free((void **) &mat);
+            return NULL;
+        }
+    }
+
+    /* 欠定（rank < vc）→ 无穷多解，非零维簇 */
+    if (rank < vc) {
+        lv_free((void **) &mat);
+        return NULL;
+    }
+
+    /* 回代提取唯一解 */
+    double *sol = (double *) lv_calloc((size_t) vc, sizeof(double));
+    if (!sol) {
+        lv_free((void **) &mat);
+        return NULL;
+    }
+    for (int r = 0; r < rank; r++) {
+        int pc = -1;
+        for (int c = 0; c < vc; c++) {
+            if (fabs(mat[r * (vc + 1) + c]) > zero_thr) {
+                pc = c;
+                break;
+            }
+        }
+        if (pc >= 0) {
+            sol[pc] = mat[r * (vc + 1) + vc] / mat[r * (vc + 1) + pc];
+        }
+    }
+    lv_free((void **) &mat);
+
+    /* 构造解点多项式：coeffs[0..vc-1] 即坐标值（与单变量路径格式一致） */
+    lvPolynomial *sol_poly = poly_internal_create(ring, vc, NULL);
+    if (!sol_poly) {
+        lv_free((void **) &sol);
+        return NULL;
+    }
+    sol_poly->term_count = vc;
+    for (int v = 0; v < vc; v++) {
+        ((double *) sol_poly->coeffs)[v] = sol[v];
+    }
+    sol_poly->total_degree = 1;
+    lv_free((void **) &sol);
+
+    lvPolynomial **solutions = (lvPolynomial **) lv_malloc(sizeof(lvPolynomial *));
+    if (!solutions) {
+        poly_internal_destroy(sol_poly);
+        return NULL;
+    }
+    solutions[0] = sol_poly;
+    *solution_count = 1;
+    return solutions;
+}
+
+/**
  * @brief 从零维 Groebner 基求解多项式方程组
  *
  * 对于零维理想，Groebner 基（在 lex 序下）具有三角形形式：
@@ -110,6 +302,24 @@ lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis, const lvPol
     int vc = ring->var_count;
     if (vc < 1) {
         return NULL;
+    }
+
+    /* 线性系统快速路径：基中所有非零多项式总次数 <= 1 时，
+     * 直接用高斯消元求解，支持任意变量数（几何约束系统多为线性）。 */
+    {
+        bool all_linear = true;
+        for (int i = 0; i < basis->bases_count; i++) {
+            lvPolynomial *p = basis->basis_polys[i];
+            if (!p || poly_internal_is_zero(p))
+                continue;
+            if (p->total_degree > 1) {
+                all_linear = false;
+                break;
+            }
+        }
+        if (all_linear) {
+            return groebner_solve_linear_basis(basis, ring, solution_count);
+        }
     }
 
     /* 仅支持变量数 <= 3 的简单零维求解 */

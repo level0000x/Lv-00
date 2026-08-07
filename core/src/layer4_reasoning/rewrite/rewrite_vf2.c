@@ -105,10 +105,82 @@ static void vf2_state_destroy(VF2State *state) {
     state->in_set = state->out_set = NULL;
 }
 
+/* 模式变量节点类型推导：与标准匹配器（rewrite_match_search.c 的
+ * rewrite_pattern_var_type_masks）保持同一约定，依据模式约束的
+ * 参与者槽位推导每个模式变量可绑定的 GeomType 集合：
+ *   INCIDENCE:    [0]=POINT, [1]=LINE_SEGMENT/REGION/CIRCLE
+ *   BETWEENNESS:  全部为 POINT
+ *   INTERSECTION: [0][1]=LINE_SEGMENT, [2]=POINT
+ *   CONTAINMENT:  [0]=POINT/REGION, [1]=REGION/CIRCLE
+ *   CONNECTION:   全部为 PORT
+ *   ANGLE:        全部为 LINE_SEGMENT
+ * 类型约束与 graph_index.c 中 typed add_* 系列的类型校验保持一致。
+ */
+#define VF2_GEOM_TYPE_COUNT 6
+#define VF2_ALL_GEOM_TYPES_MASK ((1u << VF2_GEOM_TYPE_COUNT) - 1u)
+
+static unsigned vf2_participant_type_mask(ConstraintType type, int position) {
+    static const unsigned kMasks[][3] = {
+        [INCIDENCE]    = {1u << GEOM_POINT, (1u << GEOM_LINE_SEGMENT) | (1u << GEOM_REGION) | (1u << GEOM_CIRCLE), 0},
+        [BETWEENNESS]  = {1u << GEOM_POINT, 1u << GEOM_POINT, 1u << GEOM_POINT},
+        [INTERSECTION] = {1u << GEOM_LINE_SEGMENT, 1u << GEOM_LINE_SEGMENT, 1u << GEOM_POINT},
+        [CONTAINMENT]  = {(1u << GEOM_POINT) | (1u << GEOM_REGION), (1u << GEOM_REGION) | (1u << GEOM_CIRCLE), 0},
+        [CONNECTION]   = {1u << GEOM_PORT, 1u << GEOM_PORT, 0},
+        [ANGLE]        = {1u << GEOM_LINE_SEGMENT, 1u << GEOM_LINE_SEGMENT, 0},
+    };
+    if ((unsigned) type < sizeof(kMasks) / sizeof(kMasks[0]) && (unsigned) position < 3) {
+        unsigned mask = kMasks[type][position];
+        if (mask != 0)
+            return mask;
+    }
+    return VF2_ALL_GEOM_TYPES_MASK;
+}
+
+static void vf2_pattern_var_type_masks(const RewritePattern *pat, unsigned *masks, int var_count) {
+    for (int j = 0; j < var_count; j++)
+        masks[j] = VF2_ALL_GEOM_TYPES_MASK;
+    for (int c = 0; c < pat->pattern_constraint_count; c++) {
+        Constraint *pc = pat->pattern_constraints[c];
+        if (!pc)
+            continue;
+        for (int p = 0; p < pc->participant_count; p++) {
+            int pid = pc->participants[p];
+            if (pid >= 0)
+                continue; /* 固定节点（非模式变量）：不参与类型推导 */
+            int slot = -1;
+            for (int j = 0; j < var_count; j++) {
+                if (pat->variable_node_ids[j] == pid) {
+                    slot = j;
+                    break;
+                }
+            }
+            if (slot < 0)
+                continue;
+            masks[slot] &= vf2_participant_type_mask(pc->type, p);
+        }
+    }
+}
+
+/* ── 目标图节点 ID → 数组下标 ─────────────────────────────────
+ * 目标约束的参与者字段保存的是节点 ID，而 VF2 内部 core_2 / nodes[]
+ * 均按数组下标访问。节点被 graph_remove_node 移除后数组会压缩，
+ * 下标与 ID 不再相等（例如剩 3 个节点但 ID 为 2/3/5），因此必须
+ * 通过 ID 查询实际下标，否则会出现越界读取或错误比较。 */
+static int vf2_target_node_index(const ConstraintGraph *graph, int node_id) {
+    if (!graph || !graph->nodes || graph->node_count <= 0)
+        return -1;
+    for (int i = 0; i < graph->node_count; i++) {
+        if (graph->nodes[i] && graph->nodes[i]->id == node_id)
+            return i;
+    }
+    return -1;
+}
+
 /**
  * @brief 检查模式节点 p 与目标节点 t 的匹配可行性
  *
- * 验证节点类型、信任颜色、LO 子类型、端口类型、函数块状态等语义属性一致。
+ * 验证节点类型（模式变量的允许类型集合）、信任颜色、LO 子类型、
+ * 端口类型、函数块状态等语义属性一致。
  * 在 local_equivalence_tolerant 模式下，对 POINT 和 LINE_SEGMENT 节点
  * 使用 symbolic_coord_compare 进行符号坐标判等。
  * 同时检查已映射邻居在双方图中的约束兼容性（正向和反向）。
@@ -118,16 +190,21 @@ static void vf2_state_destroy(VF2State *state) {
  * @param t                          目标图节点索引
  * @param pattern_graph              模式约束图
  * @param target_graph               目标约束图
+ * @param var_type_masks             每个模式变量可绑定的 GeomType 位掩码数组
  * @param local_equivalence_tolerant 是否允许局部等价近似（启用符号坐标比较）
  * @return true 匹配可行，false 不可行
  */
 static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern_graph, ConstraintGraph *target_graph,
-                         bool local_equivalence_tolerant) {
+                         const unsigned *var_type_masks, bool local_equivalence_tolerant) {
     GeomNode *pn = pattern_graph->nodes[p];
     GeomNode *tn = target_graph->nodes[t];
+    int t_id = tn->id; /* 约束参与者保存节点 ID，与数组下标 t 区分 */
 
-    /* 节点类型必须匹配 */
-    if (pn->type != tn->type)
+    /* 节点类型必须匹配：模式变量的允许类型集合（由模式约束参与者槽位
+     * 推导，见 vf2_participant_type_mask）须包含目标节点类型。
+     * 例如 INCIDENCE 的 participants[1] 槽位只接受
+     * LINE_SEGMENT/REGION/CIRCLE，避免把线段变量绑定到 POINT 节点。 */
+    if (!(var_type_masks[p] & (1u << (unsigned) tn->type)))
         return false;
 
     /* 增强语义可行性检查：信任颜色和 Light Orange 子类型 */
@@ -150,8 +227,10 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
             return false;
     }
 
-    /* 对于 POINT 节点，在局部等价容忍模式下检查符号坐标 */
-    if (pn->type == GEOM_POINT && local_equivalence_tolerant) {
+    /* 对于 POINT 节点，在局部等价容忍模式下检查符号坐标。
+     * 仅当该模式变量允许绑定 POINT 时执行，避免对线段等非 POINT
+     * 变量误走坐标比较路径。 */
+    if (pn->type == GEOM_POINT && (var_type_masks[p] & (1u << GEOM_POINT)) && local_equivalence_tolerant) {
         if (pn->coord_count != tn->coord_count)
             return false;
         for (int c = 0; c < pn->coord_count; c++) {
@@ -197,9 +276,9 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
             Constraint *tc = target_graph->constraints[c];
             if (tc->type == INCIDENCE && tc->participant_count == 2) {
                 for (int k = 0; k < 2; k++) {
-                    if (tc->participants[k] == t) {
-                        int ep_idx = tc->participants[1 - k];
-                        GeomNode *ep_node = graph_get_node(target_graph, ep_idx);
+                    if (tc->participants[k] == t_id) {
+                        int ep_id = tc->participants[1 - k];
+                        GeomNode *ep_node = graph_get_node(target_graph, ep_id);
                         if (ep_node && ep_node->type == GEOM_POINT && ep_node->coord_count > 0 &&
                             ep_node->symbolic_coords) {
                             t_endpoint_coords[t_ep_count++] = ep_node->symbolic_coords[0];
@@ -236,19 +315,28 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
 
     /* 检查已匹配邻居的一致性：
      * 对于模式图中 p 的每个已映射邻居 p'，目标图中 t 必须有对应的
-     * 已映射邻居 t'，且 (p', t') 必须在 core 中。 */
+     * 已映射邻居 t'，且 (p', t') 必须在 core 中。
+     * 注意：只有当 p 实际参与某条约束时，该约束的其他参与者才是 p 的邻居；
+     * p 不参与的约束必须整体跳过，否则会误把无关参与者当作邻居检查。 */
     for (int c = 0; c < pattern_graph->constraint_count; c++) {
         Constraint *pc = pattern_graph->constraints[c];
         bool p_participates = false;
         for (int k = 0; k < pc->participant_count; k++) {
             if (pc->participants[k] == p) {
                 p_participates = true;
-                continue;
+                break;
             }
+        }
+        if (!p_participates)
+            continue;
+        for (int k = 0; k < pc->participant_count; k++) {
+            if (pc->participants[k] == p)
+                continue;
             int p_neighbor = pc->participants[k];
             if (state->core_1[p_neighbor] < 0)
                 continue;
             int t_neighbor = state->core_1[p_neighbor];
+            int t_neighbor_id = target_graph->nodes[t_neighbor]->id;
             /* 检查 t 和 t_neighbor 之间是否存在相同类型的约束 */
             bool found = false;
             for (int ci = 0; ci < target_graph->constraint_count; ci++) {
@@ -257,9 +345,9 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
                     continue;
                 bool t_in = false, tn_in = false;
                 for (int kk = 0; kk < tc->participant_count; kk++) {
-                    if (tc->participants[kk] == t)
+                    if (tc->participants[kk] == t_id)
                         t_in = true;
-                    if (tc->participants[kk] == t_neighbor)
+                    if (tc->participants[kk] == t_neighbor_id)
                         tn_in = true;
                 }
                 if (t_in && tn_in) {
@@ -270,23 +358,31 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
             if (!found)
                 return false;
         }
-        if (!p_participates)
-            continue;
     }
 
-    /* 反向检查：目标图中 t 的已映射邻居在模式图中也必须兼容 */
+    /* 反向检查：目标图中 t 的已映射邻居在模式图中也必须兼容。
+     * 同样必须先判定 t 是否参与约束，不参与则整体跳过。 */
     for (int c = 0; c < target_graph->constraint_count; c++) {
         Constraint *tc = target_graph->constraints[c];
         bool t_participates = false;
         for (int k = 0; k < tc->participant_count; k++) {
-            if (tc->participants[k] == t) {
+            if (tc->participants[k] == t_id) {
                 t_participates = true;
-                continue;
+                break;
             }
-            int t_neighbor = tc->participants[k];
-            if (state->core_2[t_neighbor] < 0)
+        }
+        if (!t_participates)
+            continue;
+        for (int k = 0; k < tc->participant_count; k++) {
+            if (tc->participants[k] == t_id)
                 continue;
-            int p_mapped = state->core_2[t_neighbor];
+            int t_neighbor = tc->participants[k];
+            int t_neighbor_idx = vf2_target_node_index(target_graph, t_neighbor);
+            if (t_neighbor_idx < 0)
+                continue;
+            if (state->core_2[t_neighbor_idx] < 0)
+                continue;
+            int p_mapped = state->core_2[t_neighbor_idx];
             /* 在模式图中，p 和 p_mapped 之间必须存在相同类型的约束 */
             bool found = false;
             for (int ci = 0; ci < pattern_graph->constraint_count; ci++) {
@@ -308,8 +404,6 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
             if (!found)
                 return false;
         }
-        if (!t_participates)
-            continue;
     }
 
     return true;
@@ -327,10 +421,11 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
  * @param t             目标图节点索引
  * @param pattern_graph 模式约束图
  * @param target_graph  目标约束图
+ * @param var_type_masks 每个模式变量可绑定的 GeomType 位掩码数组
  * @return true 有前景（可继续匹配），false 无前景（应回溯）
  */
 static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *pattern_graph,
-                          ConstraintGraph *target_graph) {
+                          ConstraintGraph *target_graph, const unsigned *var_type_masks) {
     /* 统计模式图中 p 的未映射邻居数量 */
     int p_unmapped_neighbors = 0;
     for (int c = 0; c < pattern_graph->constraint_count; c++) {
@@ -350,17 +445,20 @@ static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *patter
     }
 
     /* 统计目标图中 t 的未映射邻居数量 */
+    int t_id = target_graph->nodes[t]->id; /* 约束参与者是节点 ID，与数组下标 t 区分 */
     int t_unmapped_neighbors = 0;
     for (int c = 0; c < target_graph->constraint_count; c++) {
         Constraint *tc = target_graph->constraints[c];
         bool t_in = false;
         bool all_unmapped = true;
         for (int k = 0; k < tc->participant_count; k++) {
-            if (tc->participants[k] == t) {
+            if (tc->participants[k] == t_id) {
                 t_in = true;
-            } else if (state->core_2[tc->participants[k]] >= 0) {
-                all_unmapped = false;
+                continue;
             }
+            int nb_idx = vf2_target_node_index(target_graph, tc->participants[k]);
+            if (nb_idx >= 0 && state->core_2[nb_idx] >= 0)
+                all_unmapped = false;
         }
         if (t_in && all_unmapped) {
             t_unmapped_neighbors++;
@@ -373,40 +471,44 @@ static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *patter
 
     /* 检查未映射邻居的度数兼容性：
      * 对于模式图中 p 的每个未映射邻居 p'，
-     * 目标图中至少要有一个类型兼容的未映射邻居 t' */
+     * 目标图中至少要有一个类型兼容的未映射邻居 t'。
+     * 注意：p 不参与的约束必须整体跳过，其参与者不是 p 的邻居。 */
     for (int c = 0; c < pattern_graph->constraint_count; c++) {
         Constraint *pc = pattern_graph->constraints[c];
         bool p_in = false;
         for (int k = 0; k < pc->participant_count; k++) {
             if (pc->participants[k] == p) {
                 p_in = true;
-                continue;
+                break;
             }
+        }
+        if (!p_in)
+            continue;
+        for (int k = 0; k < pc->participant_count; k++) {
+            if (pc->participants[k] == p)
+                continue;
             int p_neighbor = pc->participants[k];
             if (state->core_1[p_neighbor] >= 0)
                 continue; /* 已映射，跳过 */
 
-            GeomNode *pn = pattern_graph->nodes[p_neighbor];
-
-            /* 在目标图中查找类型兼容的未映射邻居 */
+            /* 在目标图中查找类型兼容的未映射邻居（按模式变量的类型掩码判定） */
             bool has_compatible = false;
             for (int gc = 0; gc < target_graph->constraint_count; gc++) {
                 Constraint *tc = target_graph->constraints[gc];
                 if (tc->type != pc->type)
                     continue;
 
-                bool t_in = false;
                 for (int kk = 0; kk < tc->participant_count; kk++) {
-                    if (tc->participants[kk] == t) {
-                        t_in = true;
+                    if (tc->participants[kk] == t_id)
                         continue;
-                    }
-                    int t_neighbor = tc->participants[kk];
-                    if (state->core_2[t_neighbor] >= 0)
+                    int t_neighbor_idx = vf2_target_node_index(target_graph, tc->participants[kk]);
+                    if (t_neighbor_idx < 0)
+                        continue;
+                    if (state->core_2[t_neighbor_idx] >= 0)
                         continue; /* 已映射，跳过 */
 
-                    GeomNode *tn = target_graph->nodes[t_neighbor];
-                    if (tn->type == pn->type) {
+                    GeomNode *tn = target_graph->nodes[t_neighbor_idx];
+                    if (var_type_masks[p_neighbor] & (1u << (unsigned) tn->type)) {
                         has_compatible = true;
                         break;
                     }
@@ -417,8 +519,6 @@ static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *patter
             if (!has_compatible)
                 return false;
         }
-        if (!p_in)
-            continue;
     }
 
     return true;
@@ -435,6 +535,7 @@ static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *patter
  * @param state                      VF2 匹配状态
  * @param pattern_graph              模式约束图
  * @param target_graph               目标约束图
+ * @param var_type_masks             每个模式变量可绑定的 GeomType 位掩码数组
  * @param local_equivalence_tolerant 是否允许局部等价近似
  * @param best_match                 最佳匹配结果（当前未使用）
  * @param best_match_size            最佳匹配大小（当前未使用）
@@ -442,8 +543,8 @@ static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *patter
  * @return true 找到完整匹配，false 未找到
  */
 static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph, ConstraintGraph *target_graph,
-                                bool local_equivalence_tolerant, RewriteMatch *best_match, int *best_match_size,
-                                int depth, int max_depth) {
+                                const unsigned *var_type_masks, bool local_equivalence_tolerant,
+                                RewriteMatch *best_match, int *best_match_size, int depth, int max_depth) {
     /* 递归深度保护：超过限制则立即返回失败，防止栈溢出 */
     if (depth > max_depth) {
         LOG_WARN("rewrite", "VF2: max recursion depth (%d) exceeded", max_depth);
@@ -527,10 +628,11 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
 
         /* 计算目标节点度数 & 兼容性评分 */
         int t_degree = 0;
+        int t_id = target_graph->nodes[t]->id; /* 约束参与者是节点 ID，与数组下标 t 区分 */
         for (int c = 0; c < target_graph->constraint_count; c++) {
             Constraint *tc = target_graph->constraints[c];
             for (int k = 0; k < tc->participant_count; k++) {
-                if (tc->participants[k] == t) {
+                if (tc->participants[k] == t_id) {
                     t_degree++;
                     break;
                 }
@@ -566,11 +668,11 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
         int t = candidates[ci];
 
         /* 可行性检查 */
-        if (!vf2_feasible(state, best_p, t, pattern_graph, target_graph, local_equivalence_tolerant))
+        if (!vf2_feasible(state, best_p, t, pattern_graph, target_graph, var_type_masks, local_equivalence_tolerant))
             continue;
 
         /* 前瞻检查 */
-        if (!vf2_lookahead(state, best_p, t, pattern_graph, target_graph))
+        if (!vf2_lookahead(state, best_p, t, pattern_graph, target_graph, var_type_masks))
             continue;
 
         /* 执行匹配 */
@@ -603,8 +705,8 @@ static bool vf2_match_recursive(VF2State *state, ConstraintGraph *pattern_graph,
         /* 递归搜索 */
         int saved_out_count = state->out_count;
 
-        if (vf2_match_recursive(state, pattern_graph, target_graph, local_equivalence_tolerant, best_match,
-                                best_match_size, depth + 1, max_depth)) {
+        if (vf2_match_recursive(state, pattern_graph, target_graph, var_type_masks, local_equivalence_tolerant,
+                                best_match, best_match_size, depth + 1, max_depth)) {
             lv_free((void **) &candidates);
             lv_free((void **) &cand_scores);
             return true;
@@ -674,7 +776,8 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
     /* ----------------------------------------------------------------
      * 构建模式图的约束图结构。
      *
-     * 为每个模式变量节点创建一个 GeomNode（类型为 GEOM_POINT），
+     * 为每个模式变量节点创建一个 GeomNode（类型为 GEOM_POINT 占位，
+     * 真实类型门控由 var_type_masks 按模式约束参与者槽位推导），
      * 节点在 nodes 数组中的索引对应 variable_node_ids 的下标。
      * 节点 ID 设为模式变量的负 ID（如 -1, -2, ...），
      * 以便在可行性检查中通过 graph_get_node 查找。
@@ -698,7 +801,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
             return NULL;
         }
         node->id = pattern->variable_node_ids[i]; /* 负数 ID */
-        node->type = GEOM_POINT;
+        node->type = GEOM_POINT; /* 占位类型；真实类型门控由 var_type_masks 完成 */
         node->trust = TRUST_GREEN;
         node->coord_count = 0;
         node->symbolic_coords = NULL;
@@ -790,6 +893,17 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
 
     lv_free((void **) &var_id_to_idx);
 
+    /* 推导每个模式变量可绑定的节点类型集合（依据模式约束的参与者槽位），
+     * 使可行性检查具备类型感知能力，与标准匹配器 find_rewrite_match 的
+     * 约定一致（例如 INCIDENCE 的 participants[1] 槽位只接受
+     * LINE_SEGMENT/REGION/CIRCLE，允许线段变量绑定线段节点）。 */
+    unsigned *var_type_masks = lv_malloc((size_t) pattern->var_count * sizeof(unsigned));
+    if (!var_type_masks) {
+        graph_destroy(pattern_graph);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_malloc for var_type_masks failed");
+    }
+    vf2_pattern_var_type_masks(pattern, var_type_masks, pattern->var_count);
+
     /* 初始化 VF2 匹配状态 */
     VF2State state;
     vf2_state_init(&state, pattern_graph->node_count, target_graph->node_count);
@@ -798,8 +912,10 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
      * 递归深度上限统一通过自适应阈值函数获取（单一通道，不再使用配置键），
      * 在入口计算一次后沿递归传递，避免每次递归重建阈值上下文。 */
     int vf2_max_depth = (int) lv_get_vf2_max_depth(pattern_graph);
-    bool found = vf2_match_recursive(&state, pattern_graph, target_graph, local_equivalence_tolerant, NULL, NULL, 0,
-                                     vf2_max_depth);
+    bool found = vf2_match_recursive(&state, pattern_graph, target_graph, var_type_masks, local_equivalence_tolerant,
+                                     NULL, NULL, 0, vf2_max_depth);
+
+    lv_free((void **) &var_type_masks);
 
     RewriteMatch *match = NULL;
 

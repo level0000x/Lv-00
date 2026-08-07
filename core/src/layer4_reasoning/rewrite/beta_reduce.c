@@ -96,6 +96,33 @@ static bool is_free_variable_ref(const GeomNode *node, int func_block_id) {
     return (node->parent_block_id != func_block_id);
 }
 
+/**
+ * @brief 判断端口节点是否是对被归约函数块形式参数（binder）的引用
+ *
+ * 三字段规则 Case A 的扩展判定：除"直接是函数块的形式参数端口"
+ * （parent_block_id == func_block_id 且 is_formal_param）外，还覆盖嵌套
+ * ABS body 中对外层参数的引用端口（lambda_to_graph_var 编译时将其
+ * parent_block_id 指向 binder 端口）。引用端口 parent_block_id 等于被
+ * 归约函数块任一输入端口时，应随参数替换重定向到实参；否则多参应用
+ * body 内的参数引用被误判为"自由变量"（Case B）而保持原样，迭代归约
+ * 第二步无法建立新 redex（(add 2 3) 只归约 1 步的已知限制）。
+ */
+static bool is_formal_param_ref(const ConstraintGraph *graph, const GeomNode *node, int func_block_id,
+                                const int *fb_input_ids, int fb_input_count) {
+    (void)graph;
+    if (!node || node->type != GEOM_PORT || !node->data.port)
+        return false;
+    if (node->parent_block_id == func_block_id && node->data.port->is_formal_param)
+        return true;
+    if (node->parent_block_id >= 0 && fb_input_ids && fb_input_count > 0) {
+        for (int i = 0; i < fb_input_count; i++) {
+            if (node->parent_block_id == fb_input_ids[i])
+                return true;
+        }
+    }
+    return false;
+}
+
 /* ===========================================================================
  * 内部辅助：创建节点的深拷贝（适配 graph_add_* 公共 API）
  * =========================================================================== */
@@ -278,6 +305,12 @@ static int build_id_mapping(ConstraintGraph *graph, int func_block_id, const int
     if (!graph || !internal_ids || !out_id_map)
         return -1;
 
+    /* 被归约函数块的输入端口列表：用于识别嵌套 ABS body 中
+     * 对该函数块 binder 的引用端口（Case A'，见 is_formal_param_ref） */
+    GeomNode *fb_node = graph_get_node(graph, func_block_id);
+    int *fb_input_ids = (fb_node) ? fb_node->data.func_block.input_port_ids : NULL;
+    int fb_input_count = (fb_node) ? fb_node->data.func_block.input_count : 0;
+
     int copy_count = 0;
     for (int i = 0; i < internal_count; i++) {
         int old_id = internal_ids[i];
@@ -304,6 +337,13 @@ static int build_id_mapping(ConstraintGraph *graph, int func_block_id, const int
                 copy_count++;
                 LOG_DEBUG("beta_reduce", "  [C] 内部局部 %d (type=%d) → 副本 %d", old_id, (int) node->type, new_id);
             }
+        } else if (is_formal_param_ref(graph, node, func_block_id, fb_input_ids, fb_input_count)) {
+            /* 情况 A'：嵌套 ABS body 中对被归约 binder 的引用
+             * （parent_block_id 指向该函数块输入端口）→ 重定向到实参。
+             * 原实现将这类引用归入情况 B（保持原样），导致多参应用
+             * body 内的参数未替换，迭代归约第二步无新 redex。 */
+            out_id_map[old_id] = arg_node_id;
+            LOG_DEBUG("beta_reduce", "  [A'] 嵌套引用 port=%d (binder=%d) → 实参 %d", old_id, node->parent_block_id, arg_node_id);
         } else {
             /* 情况 B：自由变量 → 保持原目标 */
             out_id_map[old_id] = old_id;
@@ -585,6 +625,70 @@ bool beta_reduce_match(ConstraintGraph *graph, int *out_func_block_id, int *out_
     return false;
 }
 
+/* ===========================================================================
+ * 内部辅助：柯里化后续参数（app_sink）重定向
+ *
+ * 编译阶段（lambda_to_graph_app 的 non-redex 分支）为柯里化应用的后续
+ * 参数创建 app_sink 端口对：sink_out（PORT_OUTPUT，parent_block_id 指向
+ * 应用左端端口）与 sink_in（PORT_INPUT，parent_block_id 指向配套 sink_out，
+ * 实参 CONNECTION(src → sink_in)）。归约完外层函数块后，后续实参必须
+ * 重连到新函数值上才能形成新的 redex 供迭代归约。
+ * =========================================================================== */
+
+/**
+ * @brief 在图中查找 parent_block_id 指定的 PORT_INPUT 非形式参数端口
+ *
+ * 对应 app_sink 端口对的实参侧（sink_in）：编译时其 parent_block_id
+ * 指向配套的 sink_out 结果端口，is_formal_param 为 false 与 binder 端口
+ * 可区分。
+ *
+ * @param graph     约束图
+ * @param parent_id 期望的 parent_block_id（sink_out 端口 ID）
+ * @return sink_in 端口节点 ID，未找到返回 -1
+ */
+static int find_app_sink_in(const ConstraintGraph *graph, int parent_id) {
+    if (!graph || parent_id < 0)
+        return -1;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active)
+            continue;
+        if (node->type != GEOM_PORT)
+            continue;
+        if (node->parent_block_id != parent_id)
+            continue;
+        if (node->data.port && node->data.port->type == PORT_INPUT &&
+            !node->data.port->is_formal_param) {
+            return node->id;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief 查找进入某端口的第一条活跃 CONNECTION 的源端口
+ *
+ * @param graph        约束图
+ * @param dst_node_id  目标端口 ID（CONNECTION 的 dst）
+ * @return 源端口 ID，未找到返回 -1
+ */
+static int find_connection_src(const ConstraintGraph *graph, int dst_node_id) {
+    if (!graph || dst_node_id < 0)
+        return -1;
+    int con_indices[32];
+    int con_count = graph_find_constraints_involving(graph, dst_node_id, con_indices, 32);
+    for (int c = 0; c < con_count; c++) {
+        Constraint *con = graph->constraints[con_indices[c]];
+        if (!con || !con->is_active)
+            continue;
+        if (con->type != CONNECTION || con->participant_count != 2)
+            continue;
+        if (con->participants[1] == dst_node_id)
+            return con->participants[0];
+    }
+    return -1;
+}
+
 /**
  * @brief 执行 β-归约应用
  *
@@ -706,6 +810,116 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id, int arg_node_i
         }
     }
 
+    /* Step 5b: 柯里化后续参数（app_sink）重定向——支撑多步迭代归约。
+     *
+     * 多参应用（柯里化）的后续实参在编译阶段经 app_sink 端口对接入
+     * （lambda_to_graph_app 的 non-redex 分支）：sink_out.parent_block_id
+     * 指向本函数块输出端口，实参 CONNECTION(src → sink_in) 挂在配套的
+     * sink_in 上。归约后 body 根（经 id_map 映射）即新的函数值：
+     * - 函数块（body 根是嵌套 ABS 的编译产物）：把实参重连到其输入端口，
+     *   使下一次迭代归约能匹配到新 redex（如 (add 2 3) 第二步）；同时
+     *   停用旧 CONNECTION(src → sink_in) 避免实参被双重消费，并把
+     *   sink_out 的 parent 重定向到新函数块的输出端口；
+     * - 端口（body 根是变量引用/实参输出端口）：把 sink_out 的 parent
+     *   重定向到该端口，保持反编译 APP(left, arg) 链；
+     * - 其他节点类型：不动（无法重建应用链）。
+     * 重连受 graph_add_connection 深度规则（|Δdepth|≤1）约束，失败时保持
+     * 原 app_sink 结构（与修改前行为一致，不恶化）。 */
+    int body_root_id = -1;
+    {
+        GeomNode *op_node = graph_get_node(graph, output_port_id);
+        if (op_node && op_node->data.port && op_node->data.port->connected_to)
+            body_root_id = op_node->data.port->connected_to->id;
+    }
+    int result_id = (body_root_id >= 0 && body_root_id < map_size) ? id_map[body_root_id] : -1;
+    if (result_id < 0)
+        result_id = body_root_id;
+
+    if (result_id >= 0) {
+        GeomNode *result_node = graph_get_node(graph, result_id);
+        /* 结果端口提升：结果端口为活跃函数块输出端口时，函数值即该函数块 */
+        if (result_node && result_node->type == GEOM_PORT) {
+            int pfb = result_node->parent_block_id;
+            if (pfb >= 0 && pfb != func_block_id) {
+                GeomNode *pf = graph_get_node(graph, pfb);
+                if (pf && pf->is_active && pf->type == GEOM_FUNCTION_BLOCK && pf->data.func_block.output_count > 0 && pf->data.func_block.output_port_ids) {
+                    for (int oi = 0; oi < pf->data.func_block.output_count; oi++) {
+                        if (pf->data.func_block.output_port_ids[oi] == result_id) { result_node = pf; break; }
+                    }
+                }
+            }
+        }
+        if (result_node && result_node->type == GEOM_FUNCTION_BLOCK) {
+            /* 结果为新函数块（保持的嵌套 ABS 副本）：重连后续实参形成新 redex */
+            if (result_node->data.func_block.input_count > 0 && result_node->data.func_block.input_port_ids) {
+                int result_in = result_node->data.func_block.input_port_ids[0];
+                int result_out = -1;
+                if (result_node->data.func_block.output_count > 0 && result_node->data.func_block.output_port_ids)
+                    result_out = result_node->data.func_block.output_port_ids[0];
+
+                for (int i = 0; i < graph->node_count; i++) {
+                    GeomNode *snk = graph->nodes[i];
+                    if (!snk || !snk->is_active)
+                        continue;
+                    if (snk->type != GEOM_PORT || !snk->data.port)
+                        continue;
+                    if (snk->data.port->type != PORT_OUTPUT || snk->data.port->is_formal_param)
+                        continue;
+                    if (snk->parent_block_id != output_port_id)
+                        continue;
+
+                    int sink_in = find_app_sink_in(graph, snk->id);
+                    int arg_src = (sink_in >= 0) ? find_connection_src(graph, sink_in) : -1;
+                    if (arg_src < 0)
+                        continue;
+
+                    /* 重连实参到新函数块输入端口（生成下一轮 redex）；
+                     * 实参若为嵌套 ABS（FB 输出端口），连接后恢复其
+                     * connected_to（body 根关联），保证反编译忠实。 */
+                    GeomNode *arg_node = graph_get_node(graph, arg_src);
+                    GeomNode *arg_ct = (arg_node && arg_node->data.port) ? arg_node->data.port->connected_to : NULL;
+                    AddConstraintResult cr = graph_add_connection(graph, arg_src, result_in);
+                    if (arg_ct && arg_node && arg_node->data.port)
+                        arg_node->data.port->connected_to = arg_ct;
+
+                    if (cr == ADD_CONSTRAINT_OK || cr == ADD_CONSTRAINT_DUPLICATE) {
+                        /* 停用旧 CONNECTION(src → sink_in)，避免实参被双重消费 */
+                        int old_cons[16];
+                        int old_count = graph_find_constraints_involving(graph, sink_in, old_cons, 16);
+                        for (int oc = 0; oc < old_count; oc++) {
+                            Constraint *old_con = graph->constraints[old_cons[oc]];
+                            if (old_con && old_con->is_active && old_con->type == CONNECTION)
+                                graph_deactivate_constraint(graph, old_con->id);
+                        }
+                        if (result_out >= 0)
+                            snk->parent_block_id = result_out;
+                        LOG_DEBUG("beta_reduce", "app_sink 重连: 实参 %d → 新函数块输入 %d, sink_out=%d → 输出 %d",
+                                  arg_src, result_in, snk->id, result_out);
+                    } else {
+                        LOG_DEBUG("beta_reduce", "app_sink 重连失败 (深度差>1?): %d → %d (result=%d)",
+                                  arg_src, result_in, (int)cr);
+                    }
+                }
+            }
+        } else if (result_node && result_node->type == GEOM_PORT) {
+            /* 结果为端口（变量引用/实参输出端口）：sink_out 的 parent 重定向
+             * 到结果端口，保持反编译 APP(left, arg) 链 */
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *snk = graph->nodes[i];
+                if (!snk || !snk->is_active)
+                    continue;
+                if (snk->type != GEOM_PORT || !snk->data.port)
+                    continue;
+                if (snk->data.port->type != PORT_OUTPUT || snk->data.port->is_formal_param)
+                    continue;
+                if (snk->parent_block_id != output_port_id)
+                    continue;
+                snk->parent_block_id = result_id;
+                LOG_DEBUG("beta_reduce", "app_sink 重定向: sink_out %d → 结果端口 %d", snk->id, result_id);
+            }
+        }
+    }
+
     /* Step 6: 移除函数块节点（这会自动移除相关的 CONNECTION 约束和边界端口） */
     RemoveNodeResult rr = graph_remove_node(graph, func_block_id);
     if (rr != REMOVE_NODE_OK) {
@@ -765,8 +979,11 @@ int beta_reduce_fully(ConstraintGraph *graph) {
     int steps = 0;
     while (beta_reduce(graph)) {
         steps++;
-        if (steps > 5000) {
-            LOG_ERROR("beta_reduce", "beta_reduce_fully: 超过 5000 步，疑似无限循环");
+        /* 上限保护：与显式环境求值器 lv_lambda_eval 的步数上限
+         * （LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS=10000）对齐，防止非终止项
+         * （如 Y 组合子类）导致的无限循环 */
+        if (steps > 10000) {
+            LOG_ERROR("beta_reduce", "beta_reduce_fully: 超过 10000 步，疑似无限循环");
             break;
         }
     }

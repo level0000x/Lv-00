@@ -4,8 +4,8 @@
  *
  * @details 实现 .lv 源文件的词法分析功能，将源代码文本转换为 Token 流。
  *          支持 75 种 Token 类型，包括关键字、运算符、字面量（整数、有理数、
- *          小数、字符串、布尔值）和分隔符。使用三 Token 前瞻缓冲区实现
- *          lookahead 解析支持。
+ *          小数、字符串、布尔值）和分隔符。使用 32 Token 前瞻缓冲区实现
+ *          lookahead 解析支持（支持嵌套泛型等深度前瞻扫描）。
  *
  *          主要特性：
  *          - 整数、有理数（3/4）、小数（3.14）数字字面量
@@ -39,7 +39,7 @@ struct LvLexer {
     size_t pos;          /**< 当前扫描位置 */
     int line;            /**< 当前行号（从 1 开始） */
     int column;          /**< 当前列号（从 1 开始） */
-    LvToken peek_buf[3]; /**< 前瞻缓冲区 */
+    LvToken peek_buf[32]; /**< 前瞻缓冲区（容量支持嵌套泛型等深度前瞻扫描） */
     int peek_count;      /**< 前瞻缓冲区中有效 Token 数量 */
 };
 
@@ -454,15 +454,15 @@ LvToken lv_lexer_next(LvLexer *lexer) {
  * @brief 前瞻获取 Token
  *
  * 返回当前位置之后第 lookahead 个 Token，不消耗任何 Token。
- * 前瞻缓冲区最多缓存 3 个 Token（lookahead 有效范围为 0~2）。
+ * 前瞻缓冲区最多缓存 32 个 Token（lookahead 有效范围为 0~31）。
  *
  * @param lexer     词法分析器指针
- * @param lookahead 前瞻偏移量（0 为下一个 Token，最大 2）
+ * @param lookahead 前瞻偏移量（0 为下一个 Token，最大 31）
  * @return 前瞻位置的 LvToken；若 lookahead 越界则返回 LV_TOKEN_ERROR
  */
 LvToken lv_lexer_peek(LvLexer *lexer, int lookahead) {
-    /* [安全] 限制 lookahead 最大为 2，防止 peek_buf[3] 越界写入 */
-    if (lookahead < 0 || lookahead >= 3) {
+    /* [安全] 限制 lookahead 最大为 31，防止 peek_buf[32] 越界写入 */
+    if (lookahead < 0 || lookahead >= 32) {
         LvToken err_tok;
         memset(&err_tok, 0, sizeof(err_tok));
         err_tok.type = LV_TOKEN_ERROR;

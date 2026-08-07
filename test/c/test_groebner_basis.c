@@ -328,6 +328,237 @@ static void test_constraint_graph_to_ideal(void) {
     graph_destroy(g);
 }
 
+
+/* ================================================================
+ *  Group 8: 复杂约束回归测试 —— Buchberger 算法深度验证
+ * ================================================================
+ *  覆盖审计缺口：多变量多项式环、含符号常量的 Groebner 基、
+ *  约束图→理想→基→簇端到端、非零特征环。
+ */
+
+/* 辅助：在多项式上直接设置单项（coeff * x_var^power，var_idx=-1 为常数项） */
+static void poly_fill_single_term(lvPolynomial *p, int var_idx, int power, double coeff) {
+    int vc = p->var_count;
+    for (int v = 0; v < vc; v++) {
+        p->powers[v] = 0;
+    }
+    if (var_idx >= 0) {
+        p->powers[var_idx] = power;
+    }
+    ((double *)p->coeffs)[0] = coeff;
+    p->term_count = 1;
+    p->total_degree = power;
+}
+
+/* 辅助：设置二项式 ca * x_a^pa + cb * x_b^pb（var 为 -1 表示常数项） */
+static void poly_fill_binomial(lvPolynomial *p, int var_a, int pa, double ca, int var_b, int pb, double cb) {
+    int vc = p->var_count;
+    for (int v = 0; v < vc; v++) {
+        p->powers[v] = 0;
+        p->powers[vc + v] = 0;
+    }
+    if (var_a >= 0) {
+        p->powers[var_a] = pa;
+    }
+    if (var_b >= 0) {
+        p->powers[vc + var_b] = pb;
+    }
+    ((double *)p->coeffs)[0] = ca;
+    ((double *)p->coeffs)[1] = cb;
+    p->term_count = 2;
+    p->total_degree = (pa > pb) ? pa : pb;
+}
+
+static void test_multivar_buchberger(void) {
+    printf("  Running: test_multivar_buchberger ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y", "z"};
+    int rid = ring_create(reg, vars, 3, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "Q[x,y,z]");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    /* I = <x^2 - y, y - z^2> 包含于 Q[x,y,z] */
+    int iid = ideal_create(reg, rid, "I");
+    TEST_ASSERT(iid >= 0, "ideal_create");
+
+    int g1 = poly_create(reg, rid, 4, "x^2-y");
+    int g2 = poly_create(reg, rid, 4, "y-z^2");
+    TEST_ASSERT(g1 >= 0 && g2 >= 0, "poly_create");
+
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, g1), 0, 2, 1.0, 1, 1, -1.0);
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, g2), 1, 1, 1.0, 2, 2, -1.0);
+
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, g1), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, g2), 0);
+
+    /* 计算 Groebner 基（显式 Buchberger 算法） */
+    TEST_ASSERT_EQ(groebner_compute(reg, iid, GROEBNER_BUCHBERGER), 0);
+
+    /* f = x^2 - z^2 = (x^2 - y) + (y - z^2) 属于 I */
+    int f = poly_create(reg, rid, 4, "x^2-z^2");
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, f), 0, 2, 1.0, 2, 2, -1.0);
+    TEST_ASSERT(ideal_membership(reg, iid, f), "x^2 - z^2 should be in I");
+
+    /* g = x - z 不属于 I（grevlex 下不可约化为 0） */
+    int g = poly_create(reg, rid, 4, "x-z");
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, g), 0, 1, 1.0, 2, 1, -1.0);
+    TEST_ASSERT(!ideal_membership(reg, iid, g), "x - z should NOT be in I");
+
+    ring_registry_destroy(reg);
+}
+
+static void test_symbolic_constant_basis(void) {
+    printf("  Running: test_symbolic_constant_basis ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    /* 符号常量建模为变量 a，环 Q[a,x,y] */
+    const char *vars[] = {"a", "x", "y"};
+    int rid = ring_create(reg, vars, 3, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "Q[a,x,y]");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    /* I = <x + a, y - a>：x 与 y 均被符号常量 a 固定 */
+    int iid = ideal_create(reg, rid, "I");
+    TEST_ASSERT(iid >= 0, "ideal_create");
+
+    int g1 = poly_create(reg, rid, 4, "x+a");
+    int g2 = poly_create(reg, rid, 4, "y-a");
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, g1), 1, 1, 1.0, 0, 1, 1.0);
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, g2), 2, 1, 1.0, 0, 1, -1.0);
+
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, g1), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, g2), 0);
+    TEST_ASSERT_EQ(groebner_compute(reg, iid, GROEBNER_BUCHBERGER), 0);
+
+    /* f = x + y 属于 I（x ≡ -a, y ≡ a → x + y ≡ 0） */
+    int f = poly_create(reg, rid, 4, "x+y");
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, f), 1, 1, 1.0, 2, 1, 1.0);
+    TEST_ASSERT(ideal_membership(reg, iid, f), "x + y should be in I");
+
+    /* g = x + y + 1 不属于 I（余式为非零常数） */
+    int g = poly_create(reg, rid, 4, "x+y+1");
+    {
+        lvPolynomial *pg = (lvPolynomial *)poly_get(reg, g);
+        poly_fill_binomial(pg, 1, 1, 1.0, 2, 1, 1.0);
+        pg->powers[2 * pg->var_count] = 0;
+        ((double *)pg->coeffs)[2] = 1.0;
+        pg->term_count = 3;
+    }
+    TEST_ASSERT(!ideal_membership(reg, iid, g), "x + y + 1 should NOT be in I");
+
+    ring_registry_destroy(reg);
+}
+
+static void test_graph_collinear_end_to_end(void) {
+    printf("  Running: test_graph_collinear_end_to_end ...\n");
+
+    /* 共线三点 (0,0), (1,1), (2,2) + BETWEENNESS */
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT_NOT_NULL(g);
+    int p0 = add_rat_point(g, 0, 1, 0, 1);
+    int p1 = add_rat_point(g, 1, 1, 1, 1);
+    int p2 = add_rat_point(g, 2, 1, 2, 1);
+    TEST_ASSERT(p0 >= 0 && p1 >= 0 && p2 >= 0, "add points");
+    graph_add_betweenness(g, p0, p1, p2);
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x0", "y0", "x1", "y1", "x2", "y2"};
+    int rid = ring_create(reg, vars, 6, RING_FIELD_REAL, MONOMIAL_GREVLEX, "collinear");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    /* 先创建多项式以确保全局池初始化（constraint_graph_to_ideal 内部检查 g_data） */
+    int dummy = poly_create(reg, rid, 2, "dummy");
+    TEST_ASSERT(dummy >= 0, "dummy poly for pool init");
+
+    /* 端到端：约束图 → 多项式理想 → Groebner 基 → 代数簇 */
+    int iid = constraint_graph_to_ideal(reg, g, rid, "collinear_ideal");
+    TEST_ASSERT(iid >= 0, "constraint_graph_to_ideal");
+
+    TEST_ASSERT_EQ(groebner_compute(reg, iid, GROEBNER_AUTO), 0);
+
+    int vid = variety_compute(reg, iid, "collinear_variety");
+    TEST_ASSERT(vid >= 0, "variety_compute");
+    TEST_ASSERT(variety_is_zero_dimensional(reg, vid), "3 fixed points -> zero-dimensional");
+
+    double coords[6];
+    TEST_ASSERT(variety_get_solution_point(reg, vid, 0, coords, 6), "should have a solution point");
+    TEST_ASSERT_NEAR(coords[0], 0.0, 1e-6, "x0");
+    TEST_ASSERT_NEAR(coords[1], 0.0, 1e-6, "y0");
+    TEST_ASSERT_NEAR(coords[2], 1.0, 1e-6, "x1");
+    TEST_ASSERT_NEAR(coords[3], 1.0, 1e-6, "y1");
+    TEST_ASSERT_NEAR(coords[4], 2.0, 1e-6, "x2");
+    TEST_ASSERT_NEAR(coords[5], 2.0, 1e-6, "y2");
+
+    graph_destroy(g);
+    ring_registry_destroy(reg);
+}
+
+static void test_finite_field_ring(void) {
+    printf("  Running: test_finite_field_ring ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_FINITE, MONOMIAL_GRLEX, "GF(2)[x,y]");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    /* 非零特征：GF(2)，特征通过公开结构字段设置（引擎无专用 setter） */
+    lvPolynomialRing *r = ring_find(reg, rid);
+    TEST_ASSERT_NOT_NULL(r);
+    r->finite_field_char = 2;
+    TEST_ASSERT_EQ(r->finite_field_char, 2);
+    TEST_ASSERT_EQ((int)r->field, (int)RING_FIELD_FINITE);
+
+    /* I = <x^2 + x, y^2 + y>（GF(2) 中 x^2 = x 的背景下） */
+    int iid = ideal_create(reg, rid, "I");
+    TEST_ASSERT(iid >= 0, "ideal_create");
+
+    int g1 = poly_create(reg, rid, 4, "x2+x");
+    int g2 = poly_create(reg, rid, 4, "y2+y");
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, g1), 0, 2, 1.0, 0, 1, 1.0);
+    poly_fill_binomial((lvPolynomial *)poly_get(reg, g2), 1, 2, 1.0, 1, 1, 1.0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, g1), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, g2), 0);
+
+    /* 有限域环上 Buchberger 计算路径可用（引擎系数为浮点近似，仅验证框架完整性） */
+    TEST_ASSERT_EQ(groebner_compute(reg, iid, GROEBNER_BUCHBERGER), 0);
+
+    /* 生成元的线性组合仍属于理想 */
+    int f = poly_create(reg, rid, 8, "2(x2+x)+(y2+y)");
+    {
+        lvPolynomial *pf = (lvPolynomial *)poly_get(reg, f);
+        int vc = pf->var_count;
+        for (int v = 0; v < vc; v++) {
+            pf->powers[v] = 0;
+            pf->powers[vc + v] = 0;
+        }
+        pf->powers[0] = 2;              /* 2*x^2 */
+        ((double *)pf->coeffs)[0] = 2.0;
+        pf->powers[vc] = 1;             /* 2*x */
+        ((double *)pf->coeffs)[1] = 2.0;
+        pf->powers[2 * vc + 1] = 2;     /* y^2 */
+        ((double *)pf->coeffs)[2] = 1.0;
+        pf->powers[3 * vc + 1] = 1;     /* y */
+        ((double *)pf->coeffs)[3] = 1.0;
+        pf->term_count = 4;
+        pf->total_degree = 2;
+    }
+    TEST_ASSERT(ideal_membership(reg, iid, f), "linear combination of generators should be in I");
+
+    /* 非成员：常数 1 不在理想中 */
+    int one = poly_create(reg, rid, 2, "1");
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, one), -1, 0, 1.0);
+    TEST_ASSERT(!ideal_membership(reg, iid, one), "constant 1 should NOT be in I");
+
+    ring_registry_destroy(reg);
+}
+
 /* ================================================================
  *  Main
  * ================================================================ */
@@ -345,6 +576,10 @@ TEST_MAIN_BEGIN("Groebner Basis")
     TEST_MAIN_RUN(test_engine_poly_arith);
     TEST_MAIN_RUN(test_engine_ideal_lifecycle);
     TEST_MAIN_RUN(test_constraint_graph_to_ideal);
+    TEST_MAIN_RUN(test_multivar_buchberger);
+    TEST_MAIN_RUN(test_symbolic_constant_basis);
+    TEST_MAIN_RUN(test_graph_collinear_end_to_end);
+    TEST_MAIN_RUN(test_finite_field_ring);
 
     printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
            g_pass_count + g_fail_count);

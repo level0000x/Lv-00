@@ -430,6 +430,13 @@ static LvSemanticType check_expr_predicate_app(LvSemaContext *ctx, LvAstNode *no
     return LV_TYPE_PROPOSITION;
 }
 
+/** 命名参数（LV_AST_NAMED_ARG）：检查其值表达式，返回值的类型 */
+static LvSemanticType check_expr_named_arg(LvSemaContext *ctx, LvAstNode *node) {
+    if (node->data.field.value)
+        return check_expr(ctx, node->data.field.value);
+    return LV_TYPE_UNKNOWN;
+}
+
 static LvSemanticType check_expr_default(LvSemaContext *ctx, LvAstNode *node) {
     (void)ctx;
     (void)node;
@@ -459,6 +466,7 @@ static const CheckExprFn check_expr_table[LV_AST_COUNT] = {
     [LV_AST_LOGIC_EXISTS] = check_expr_quantifier,
     [LV_AST_STRUCT_LITERAL] = check_expr_struct_literal,
     [LV_AST_STRUCT_FIELD] = check_expr_struct_literal,
+    [LV_AST_NAMED_ARG] = check_expr_named_arg,
     [LV_AST_UNION] = check_expr_union,
     [LV_AST_PREDICATE_APP] = check_expr_predicate_app,
 };

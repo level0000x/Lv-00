@@ -54,6 +54,7 @@ typedef enum {
     LV_AST_COMPARE,        // a == b, a != b, a < b, etc.
     LV_AST_STRUCT_LITERAL, // { field: value, ... } 记录字面量
     LV_AST_STRUCT_FIELD,   // 结构字段 name: value
+    LV_AST_NAMED_ARG,      // 命名参数 name: value（函数/构造子调用中，复用 field 布局）
     LV_AST_UNION,          // A | B 类型联合
     LV_AST_PREDICATE_APP,  // 无符号中缀谓词: expr pred
 
@@ -98,6 +99,7 @@ struct LvAstNode {
             int entity_type; /* LvEntityType */
             char *names;     /* "A,B,C" 逗号分隔 */
             LvAstNode *value; /* 可选：":= Expr" 声明值（如 Point Spec := {...}），无名为 NULL */
+            char *return_type; /* 可选：声明值后的 "-> Type" 返回类型标注（如 VerifyFn := f(...) -> Verdict），无名为 NULL */
         } decl;
 
         /* LV_AST_LET */

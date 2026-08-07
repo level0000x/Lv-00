@@ -311,6 +311,7 @@ typedef struct {
 
 static void ast_destroy_declaration(LvAstNode *node) {
     lv_free((void **) &node->data.decl.names);
+    lv_free((void **) &node->data.decl.return_type);
     if (node->data.decl.value) {
         lv_ast_destroy(node->data.decl.value);
         node->data.decl.value = NULL;
@@ -398,6 +399,8 @@ static int ast_debug_declaration(const LvAstNode *node, lvStrBuf *sb) {
     lv_strbuf_printf(sb, " [entity=%s, names=%s]",
                      lv_entity_type_name((LvEntityType) node->data.decl.entity_type),
                      node->data.decl.names ? node->data.decl.names : "");
+    if (node->data.decl.return_type)
+        lv_strbuf_printf(sb, " [return_type=%s]", node->data.decl.return_type);
     return 0;
 }
 
@@ -626,6 +629,7 @@ static const LvAstVTable kAstVTable[LV_AST_VTABLE_COUNT] = {
     [LV_AST_COMPARE]         = { ast_destroy_nop,        ast_debug_compare,     ast_print_compare },
     [LV_AST_STRUCT_LITERAL]  = { ast_destroy_nop,        ast_debug_struct_literal, ast_print_nop },
     [LV_AST_STRUCT_FIELD]    = { ast_destroy_struct_field, ast_debug_struct_field, ast_print_struct_field },
+    [LV_AST_NAMED_ARG]       = { ast_destroy_struct_field, ast_debug_struct_field, ast_print_struct_field },
     [LV_AST_UNION]           = { ast_destroy_union,      ast_debug_binary_op,   ast_print_binary_op },
     [LV_AST_PREDICATE_APP]   = { ast_destroy_predicate_app, ast_debug_call,      ast_print_call },
     [LV_AST_MODULE_DECL]     = { ast_destroy_module_import, ast_debug_module_import, ast_print_nop },
@@ -684,7 +688,7 @@ static const char *ast_type_name(LvAstNodeType type) {
                                   "LOGIC_EXISTS",    "BINARY_OP",       "UNARY_OP",
                                   "FUNCTION_CALL",   "RELATION",        "MEASURE",
                                   "GEOMETRY_EXPR",   "COMPARE",         "STRUCT_LITERAL",
-                                  "STRUCT_FIELD",    "UNION",           "PREDICATE_APP",
+                                  "STRUCT_FIELD",    "NAMED_ARG",       "UNION",           "PREDICATE_APP",
                                   "MODULE_DECL",     "IMPORT_DECL",     "PROOF_BLOCK"};
     if (type >= 0 && type < LV_AST_COUNT)
         return names[type];

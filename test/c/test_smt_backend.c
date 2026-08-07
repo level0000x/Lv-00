@@ -26,6 +26,7 @@
 #include "smt_backend.h"
 #include "smt_theory_combiner.h"
 #include "smt_trigger_engine.h"
+#include "lv/lv_backend_plugin.h"
 #include "test_helpers.h"
 
 /* ========================================================================
@@ -66,6 +67,53 @@ static ConstraintGraph *create_simple_graph(void) {
     SymbolicCoord *pt1_coords[] = {c1_x, c1_y};
     graph_add_point(g, pt0_coords, 2);
     graph_add_point(g, pt1_coords, 2);
+    return g;
+}
+
+/* ========================================================================
+ * Helper: 带约束的图（两点 + 线段 + 两条 incidence）
+ * 用于验证 Groebner 后端完整求解管线产生变量赋值。
+ * ======================================================================== */
+static ConstraintGraph *create_constrained_graph(void) {
+    ConstraintGraph *g = graph_create();
+    if (!g)
+        return NULL;
+
+    SymbolicCoord *c0_x = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *c0_y = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *c1_x = symbolic_coord_create_rational(3, 1);
+    SymbolicCoord *c1_y = symbolic_coord_create_rational(0, 1);
+    if (!c0_x || !c0_y || !c1_x || !c1_y) {
+        if (c0_x)
+            symbolic_coord_destroy(c0_x);
+        if (c0_y)
+            symbolic_coord_destroy(c0_y);
+        if (c1_x)
+            symbolic_coord_destroy(c1_x);
+        if (c1_y)
+            symbolic_coord_destroy(c1_y);
+        graph_destroy(g);
+        return NULL;
+    }
+
+    SymbolicCoord *pt0_coords[] = {c0_x, c0_y};
+    SymbolicCoord *pt1_coords[] = {c1_x, c1_y};
+    graph_add_point(g, pt0_coords, 2);
+    graph_add_point(g, pt1_coords, 2);
+
+    int p0 = g->next_node_id - 2;
+    int p1 = g->next_node_id - 1;
+    if (graph_add_line_segment(g, p0, p1) != ADD_NODE_OK) {
+        graph_destroy(g);
+        return NULL;
+    }
+    int seg = graph_get_last_added_node_id(g);
+    if (seg < 0) {
+        graph_destroy(g);
+        return NULL;
+    }
+    graph_add_incidence(g, p0, seg);
+    graph_add_incidence(g, p1, seg);
     return g;
 }
 
@@ -470,6 +518,79 @@ static void test_registry_register_find(void) {
 }
 
 /* ========================================================================
+ * Test Group 6b: 内置后端自动注册（注册表接线）
+ * ======================================================================== */
+
+static void test_registry_builtin_backends(void) {
+    SMTBackendRegistry *reg = smtsolver_get_registry();
+    TEST_ASSERT_NOT_NULL(reg);
+
+    /* 内置 4 个后端应自动注册：Groebner 可用，Z3/cvc5/Singular 不可用但条目存在 */
+    TEST_ASSERT(reg->count >= 4, "registry should auto-register 4 built-in backends");
+
+    const SMTBackendEntry *e = smtsolver_find_backend(reg, GROEBNER);
+    TEST_ASSERT_NOT_NULL(e);
+    TEST_ASSERT_STR_EQ(e->name, "Groebner");
+    TEST_ASSERT(e->available, "Groebner should be marked available");
+
+    e = smtsolver_find_backend(reg, SMT_Z3);
+    TEST_ASSERT_NOT_NULL(e);
+    TEST_ASSERT(!e->available, "Z3 should be marked unavailable (not linked)");
+
+    e = smtsolver_find_backend(reg, SMT_SINGULAR);
+    TEST_ASSERT_NOT_NULL(e);
+    TEST_ASSERT_STR_EQ(e->name, "Singular");
+}
+
+/* ========================================================================
+ * Test Group 3b: 带约束图的完整求解管线（产生变量赋值）
+ * ======================================================================== */
+
+static void test_solve_with_constraints(void) {
+    ConstraintGraph *g = create_constrained_graph();
+    TEST_ASSERT_NOT_NULL(g);
+    TEST_ASSERT(g->constraint_count >= 2, "should have incidence constraints");
+
+    SMTSolver *s = smtsolver_create(GROEBNER, NULL);
+    TEST_ASSERT_NOT_NULL(s);
+
+    SMTSolverResult result;
+    smtsolver_result_init(&result);
+
+    int rc = smtsolver_solve(s, g, &result);
+    TEST_ASSERT(rc == 0, "constrained system should be SAT (fixed points)");
+    TEST_ASSERT_EQ(result.sat_result, SMT_RESULT_SAT);
+    TEST_ASSERT_EQ(result.backend_used, GROEBNER);
+
+    /* Groebner 后端应从代数簇解码出变量赋值（每个点 x/y 各一条） */
+    TEST_ASSERT(result.assignment_count > 0, "should decode assignments");
+
+    smtsolver_result_free(&result);
+    smtsolver_destroy(s);
+    graph_destroy(g);
+}
+
+/* ========================================================================
+ * Test Group 6c: SMT 后端统一插件注册（smt_register_all_plugins 接线）
+ * ======================================================================== */
+
+static void test_plugins_registration(void) {
+    /* 注册全部 SMT 后端到统一插件注册表（幂等，可多次调用） */
+    smt_register_all_plugins();
+    smt_register_all_plugins();
+
+    lvBackendPluginRegistry *reg = lv_backend_plugin_registry_global();
+    TEST_ASSERT_NOT_NULL(reg);
+    TEST_ASSERT(lv_backend_plugin_count(reg) >= 4, "should register 4 SMT backends");
+
+    lvBackendPlugin *out[8];
+    int n = lv_backend_plugin_find_by_type(reg, lv_PLUGIN_TYPE_GROEBNER, out, 8);
+    TEST_ASSERT(n >= 1, "should find Groebner plugin");
+    TEST_ASSERT_NOT_NULL(out[0]);
+    TEST_ASSERT_STR_EQ(out[0]->name, "Groebner");
+}
+
+/* ========================================================================
  * Test Group 7: SMT Theory Combiner
  * ======================================================================== */
 
@@ -778,6 +899,9 @@ TEST_MAIN_BEGIN("SMT Backend")
     /* Group 6: Backend registry */
     TEST_MAIN_RUN(test_registry_lifecycle);
     TEST_MAIN_RUN(test_registry_register_find);
+    TEST_MAIN_RUN(test_registry_builtin_backends);
+    TEST_MAIN_RUN(test_solve_with_constraints);
+    TEST_MAIN_RUN(test_plugins_registration);
 
     /* Group 7: Theory combiner */
     TEST_MAIN_RUN(test_combiner_create_destroy);

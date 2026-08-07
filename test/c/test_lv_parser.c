@@ -808,6 +808,108 @@ static void test_spec_extensions(void) {
         }
         lv_ast_destroy(res.ast);
     }
+
+    /* 命名参数名保留: Pass(proof: ProofTerm) 的参数名 "proof" 进入 AST（缺陷1） */
+    {
+        const char *src = "Point Verdict := Pass(proof: ProofTerm) | Fail(reason: Set<Error>);";
+        LvParseResult res = parse_source(src);
+        TEST("named argument name preserved");
+        int ok = 0;
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_DECLARATION && res.error_count == 0) {
+            LvAstNode *v = res.ast->child->data.decl.value;
+            if (v && v->type == LV_AST_UNION && v->data.binary.left &&
+                v->data.binary.left->type == LV_AST_FUNCTION_CALL) {
+                LvAstNode *pass = v->data.binary.left;
+                if (strcmp(pass->data.call.func_name, "Pass") == 0 && pass->data.call.args &&
+                    pass->data.call.args->type == LV_AST_NAMED_ARG &&
+                    pass->data.call.args->data.field.name &&
+                    strcmp(pass->data.call.args->data.field.name, "proof") == 0 &&
+                    pass->data.call.args->data.field.value &&
+                    pass->data.call.args->data.field.value->type == LV_AST_IDENTIFIER_EXPR &&
+                    strcmp(pass->data.call.args->data.field.value->data.ident.name, "ProofTerm") == 0) {
+                    ok = 1;
+                }
+            }
+        }
+        if (ok) {
+            PASS();
+        } else {
+            FAIL("named arg 'proof' not preserved");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* "-> 类型名" 返回类型标注: VerifyFn := verify(...) -> Verdict（缺陷2） */
+    {
+        const char *src = "Point VerifyFn := verify(output: Output, spec: Spec, v: Verifier) -> Verdict;";
+        LvParseResult res = parse_source(src);
+        TEST("-> return type annotation");
+        int ok = 0;
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_DECLARATION && res.error_count == 0) {
+            LvAstNode *d = res.ast->child;
+            if (d->data.decl.value && d->data.decl.value->type == LV_AST_FUNCTION_CALL &&
+                d->data.decl.value->data.call.func_name &&
+                strcmp(d->data.decl.value->data.call.func_name, "verify") == 0 &&
+                d->data.decl.return_type && strcmp(d->data.decl.return_type, "Verdict") == 0) {
+                ok = 1;
+            }
+        }
+        if (ok) {
+            PASS();
+        } else {
+            printf("  value_type=%s return_type=%s\n",
+                   res.ast && res.ast->child ? dbg_ast_type(res.ast->child->type) : "NULL",
+                   res.ast && res.ast->child && res.ast->child->type == LV_AST_DECLARATION
+                       ? (res.ast->child->data.decl.return_type ? res.ast->child->data.decl.return_type : "NULL")
+                       : "NULL");
+            FAIL("expected FUNCTION_CALL value with return_type=Verdict (not IMPLIES)");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* 边界：非调用左端的 "->" 保持逻辑蕴含（P -> Q 不被误判为返回类型） */
+    {
+        const char *src = "Point Impl := P -> Q;";
+        LvParseResult res = parse_source(src);
+        TEST("P -> Q stays LOGIC_IMPLIES in decl value");
+        int ok = 0;
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_DECLARATION && res.error_count == 0) {
+            LvAstNode *v = res.ast->child->data.decl.value;
+            if (v && v->type == LV_AST_LOGIC_IMPLIES && res.ast->child->data.decl.return_type == NULL) {
+                ok = 1;
+            }
+        }
+        if (ok) {
+            PASS();
+        } else {
+            FAIL("expected LOGIC_IMPLIES, not return_type");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    /* 嵌套泛型: List<List<Formula>> 递归拼接（缺陷3） */
+    {
+        const char *src = "Point Spec := { nested: List<List<Formula>> };";
+        LvParseResult res = parse_source(src);
+        TEST("nested generic List<List<Formula>>");
+        int ok = 0;
+        if (res.ast && res.ast->child && res.ast->child->type == LV_AST_DECLARATION && res.error_count == 0) {
+            LvAstNode *v = res.ast->child->data.decl.value;
+            if (v && v->type == LV_AST_STRUCT_LITERAL && v->child &&
+                v->child->type == LV_AST_STRUCT_FIELD && v->child->data.field.value &&
+                v->child->data.field.value->type == LV_AST_IDENTIFIER_EXPR &&
+                v->child->data.field.value->data.ident.name &&
+                strcmp(v->child->data.field.value->data.ident.name, "List<List<Formula>>") == 0) {
+                ok = 1;
+            }
+        }
+        if (ok) {
+            PASS();
+        } else {
+            FAIL("expected ident name 'List<List<Formula>>'");
+        }
+        lv_ast_destroy(res.ast);
+    }
 }
 
 static void test_full_program(void) {

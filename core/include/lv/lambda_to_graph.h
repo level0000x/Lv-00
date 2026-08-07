@@ -76,8 +76,11 @@ lv_PUBLIC_API int beta_reduce_n(ConstraintGraph *graph, int n);
 /**
  * @brief 在约束图上反复 β-归约至不动点
  *
- * 持续调用 beta_reduce 直到无可归约模式。
- * 内置 5000 步安全边界防止无限循环。
+ * 持续调用 beta_reduce 直到无可归约模式。多参应用（柯里化）的
+ * 后续实参经 app_sink 重定向生成新 redex，故能迭代归约至多步
+ * （如 (add 2 3) 两步）。
+ * 内置 10000 步安全边界（与 lv_lambda_eval 的
+ * LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS 对齐）防止非终止项无限循环。
  *
  * @param graph 约束图
  * @return 实际执行的归约步数

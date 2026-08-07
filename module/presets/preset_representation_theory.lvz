@@ -10,183 +10,201 @@ lvz 1
 
 presets {
 
-    preset "线性表示：构造群 G 在向量空间 V 上的群同态 rho: G -> GL(V)，用线性变换刻画群结构" {
-        description "2"
+    preset "rt_linear_representation" {
+        description "线性表示：构造群 G 在向量空间 V 上的群同态 rho: G -> GL(V)，用线性变换刻画群结构"
         category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G| \\cdot n^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "置换表示：由群 G 在有限集 X 上的作用构造维数为 |X| 的置换矩阵表示" {
-        description "2"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G| \\cdot |X|^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "正则表示：构造群代数上的左平移表示，每个不可约表示出现 dim(rho) 次" {
-        description "1"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G|^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "酉表示：在 Hilbert 空间上构造保持内积的酉表示 rho: G -> U(H)（可酉化）" {
-        description "1"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G| \\cdot n^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "表示维数：计算线性表示 rho: G -> GL(V) 的维数 dim(rho) = dim V = chi(e)" {
-        description "1"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(1)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "表示的直和与张量积：构造函数 rho1⊕rho2 (维数相加) 或 rho1⊗rho2 (维数相乘)" {
-        description "3"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(n^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "特征标计算：对表示 rho 计算特征标函数 chi(g) = Tr(rho(g))（等价不变量）" {
-        description "1"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G| \\cdot n^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "特征标表：构造有限群的不可约特征标表（行=不可约表示，列=共轭类），行正交" {
-        description "1"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G|^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "特征标内积：计算类函数的内积 (chi, psi)_G = 1/|G| ∑ chi(g)·conj(psi(g))" {
-        description "3"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G|)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "不可约特征标正交性：验证 Schur 正交关系 sum χ_i(g)·conj(χ_j(g)) = |G|·δ_ij" {
-        description "2"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G|^2)"
-        complexity "false"
-        constructive false
-        reversible false
-    }
-
-    preset "不可约表示判定：验证表示是否不可约（特征标内积 (chi, chi) = 1 则不可约）" {
-        description "2"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G| \\cdot n^2)"
-        complexity "false"
-        constructive false
-        reversible false
-    }
-
-    preset "Maschke定理：验证有限群在 char(F)∤|G| 的域上的表示完全可约" {
-        description "2"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G| \\cdot n^2)"
-        complexity "false"
-        constructive false
-        reversible false
-    }
-
-    preset "不可约表示分解：将可约表示分解为不可约表示的直和 rho ≅ ⊕ d_i·rho_i，d_i = (chi, chi_i)" {
-        description "2"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G|^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "Schur引理：计算 Intertwiner 空间 Hom_G(rho1, rho2) 维数（不可约时 0 或 1）" {
-        description "3"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(n^2)"
-        complexity "false"
-        constructive false
-        reversible false
-    }
-
-    preset "Frobenius互反律：(Ind_H^G chi, psi)_G = (chi, Res_H^G psi)_H，诱导与限制对偶" {
-        description "2"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G|)"
-        complexity "false"
-        constructive false
-        reversible false
-    }
-
-    preset "诱导特征标：计算 Ind_H^G chi(g) = 1/|H|·sum_{x∈G, xgx^{-1}∈H} chi(xgx^{-1})" {
-        description "3"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(|G|^2)"
-        complexity "true"
-        constructive false
-        reversible false
-    }
-
-    preset "伴随表示：构造李代数的伴随表示 ad_X(Y) = [X, Y]，Killing 形式 B(X,Y)=Tr(ad_X ad_Y)" {
-        description "1"
-        category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(n^2)"
-        complexity "true"
+        inputs 2 "GROUP" "SPACE"
+        output "HOMOMORPHISM"
+        math_def "\\rho: G \\to GL(V), \\quad \\rho(gh) = \\rho(g)\\rho(h), \\quad \\rho(e) = I_V"
+        complexity "O(|G| \\cdot n^2)"
         constructive true
         reversible false
     }
 
-    preset "最高权表示：从统治整权 lambda 构造有限维不可约表示 V_lambda（Cartan-Weyl理论）" {
-        description "2"
+    preset "rt_permutation_rep" {
+        description "置换表示：由群 G 在有限集 X 上的作用构造维数为 |X| 的置换矩阵表示"
         category "GROUP_THEORY"
-        output "ANY"
-        math_def "O(n^3)"
-        complexity "true"
+        inputs 2 "GROUP" "SET"
+        output "LIST"
+        math_def "P_g: \\mathbb{C}X \\to \\mathbb{C}X, \\quad P_g(e_x) = e_{g\\cdot x}"
+        complexity "O(|G| \\cdot |X|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_regular_representation" {
+        description "正则表示：构造群代数上的左平移表示，每个不可约表示出现 dim(rho) 次"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "HOMOMORPHISM"
+        math_def "\\lambda: G \\to GL(\\mathbb{C}G), \\quad \\lambda(g)(h) = gh, \\quad \\mathbb{C}G \\cong \\bigoplus_\\rho (\\dim\\rho)\\rho"
+        complexity "O(|G|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_unitary_representation" {
+        description "酉表示：在 Hilbert 空间上构造保持内积的酉表示 rho: G -> U(H)（可酉化）"
+        category "GROUP_THEORY"
+        inputs 1 "HOMOMORPHISM"
+        output "HOMOMORPHISM"
+        math_def "\\rho: G \\to U(\\mathcal{H}), \\quad \\langle\\rho(g)v,\\rho(g)w\\rangle = \\langle v,w\\rangle"
+        complexity "O(|G| \\cdot n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_representation_dimension" {
+        description "表示维数：计算线性表示 rho: G -> GL(V) 的维数 dim(rho) = dim V = chi(e)"
+        category "GROUP_THEORY"
+        inputs 1 "HOMOMORPHISM"
+        output "INTEGER"
+        math_def "\\dim\\rho = \\dim V = \\chi_\\rho(e)"
+        complexity "O(1)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_rep_direct_sum_tensor" {
+        description "表示的直和与张量积：构造函数 rho1⊕rho2 (维数相加) 或 rho1⊗rho2 (维数相乘)"
+        category "GROUP_THEORY"
+        inputs 3 "HOMOMORPHISM" "HOMOMORPHISM" "BOOLEAN"
+        output "HOMOMORPHISM"
+        math_def "(\\rho_1 \\oplus \\rho_2)(g) = \\begin{pmatrix} \\rho_1(g) & 0 \\\\ 0 & \\rho_2(g) \\end{pmatrix}, \\quad (\\rho_1 \\otimes \\rho_2)(g) = \\rho_1(g) \\otimes \\rho_2(g)"
+        complexity "O(n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_character_calculation" {
+        description "特征标计算：对表示 rho 计算特征标函数 chi(g) = Tr(rho(g))（等价不变量）"
+        category "GROUP_THEORY"
+        inputs 1 "HOMOMORPHISM"
+        output "FUNCTION"
+        math_def "\\chi_\\rho(g) = \\operatorname{Tr}(\\rho(g))"
+        complexity "O(|G| \\cdot n^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_character_table" {
+        description "特征标表：构造有限群的不可约特征标表（行=不可约表示，列=共轭类），行正交"
+        category "GROUP_THEORY"
+        inputs 1 "GROUP"
+        output "MATRIX"
+        math_def "\\chi_{i}(C_j) = \\operatorname{Tr}(\\rho_i(g_j)), \\quad \\sum_{g\\in G} \\chi_i(g)\\overline{\\chi_j(g)} = |G|\\,\\delta_{ij}"
+        complexity "O(|G|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_character_inner_product" {
+        description "特征标内积：计算类函数的内积 (chi, psi)_G = 1/|G| ∑ chi(g)·conj(psi(g))"
+        category "GROUP_THEORY"
+        inputs 3 "FUNCTION" "FUNCTION" "GROUP"
+        output "SCALAR"
+        math_def "\\langle\\chi, \\psi\\rangle_G = \\frac{1}{|G|}\\sum_{g\\in G} \\chi(g)\\overline{\\psi(g)}"
+        complexity "O(|G|)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_character_orthogonality" {
+        description "不可约特征标正交性：验证 Schur 正交关系 sum χ_i(g)·conj(χ_j(g)) = |G|·δ_ij"
+        category "GROUP_THEORY"
+        inputs 2 "MATRIX" "GROUP"
+        output "BOOLEAN"
+        math_def "\\sum_{g\\in G} \\chi_i(g)\\overline{\\chi_j(g)} = |G|\\,\\delta_{ij}, \\quad \\sum_{\\chi} \\chi(C_i)\\overline{\\chi(C_j)} = \\frac{|G|}{|C_i|}\\,\\delta_{ij}"
+        complexity "O(|G|^2)"
         constructive false
+        reversible false
+    }
+
+    preset "rt_irreducibility_test" {
+        description "不可约表示判定：验证表示是否不可约（特征标内积 (chi, chi) = 1 则不可约）"
+        category "GROUP_THEORY"
+        inputs 2 "HOMOMORPHISM" "GROUP"
+        output "BOOLEAN"
+        math_def "\\rho \\text{ 不可约} \\Leftrightarrow \\langle\\chi_\\rho, \\chi_\\rho\\rangle_G = 1"
+        complexity "O(|G| \\cdot n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "rt_maschke_theorem" {
+        description "Maschke定理：验证有限群在 char(F)∤|G| 的域上的表示完全可约"
+        category "GROUP_THEORY"
+        inputs 2 "HOMOMORPHISM" "INTEGER"
+        output "BOOLEAN"
+        math_def "\\operatorname{char}(F) \\nmid |G| \\Rightarrow \\rho = \\bigoplus_i \\rho_i"
+        complexity "O(|G| \\cdot n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "rt_irreducible_decomposition" {
+        description "不可约表示分解：将可约表示分解为不可约表示的直和 rho ≅ ⊕ d_i·rho_i，d_i = (chi, chi_i)"
+        category "GROUP_THEORY"
+        inputs 2 "HOMOMORPHISM" "GROUP"
+        output "LIST"
+        math_def "\\rho \\cong \\bigoplus_i d_i\\,\\rho_i, \\quad d_i = \\langle\\chi_\\rho, \\chi_i\\rangle_G"
+        complexity "O(|G|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_schurs_lemma" {
+        description "Schur引理：计算 Intertwiner 空间 Hom_G(rho1, rho2) 维数（不可约时 0 或 1）"
+        category "GROUP_THEORY"
+        inputs 3 "HOMOMORPHISM" "HOMOMORPHISM" "GROUP"
+        output "INTEGER"
+        math_def "\\dim\\operatorname{Hom}_G(\\rho_1, \\rho_2) = \\begin{cases} 1, & \\rho_1 \\cong \\rho_2 \\\\ 0, & \\text{否则} \\end{cases}"
+        complexity "O(n^2)"
+        constructive false
+        reversible false
+    }
+
+    preset "rt_frobenius_reciprocity" {
+        description "Frobenius互反律：(Ind_H^G chi, psi)_G = (chi, Res_H^G psi)_H，诱导与限制对偶"
+        category "GROUP_THEORY"
+        inputs 2 "FUNCTION" "FUNCTION"
+        output "SCALAR"
+        math_def "\\langle\\operatorname{Ind}_H^G \\chi, \\psi\\rangle_G = \\langle\\chi, \\operatorname{Res}_H^G \\psi\\rangle_H"
+        complexity "O(|G|)"
+        constructive false
+        reversible false
+    }
+
+    preset "rt_induced_character" {
+        description "诱导特征标：计算 Ind_H^G chi(g) = 1/|H|·sum_{x∈G, xgx^{-1}∈H} chi(xgx^{-1})"
+        category "GROUP_THEORY"
+        inputs 3 "FUNCTION" "SUBGROUP" "GROUP"
+        output "FUNCTION"
+        math_def "\\operatorname{Ind}_H^G \\chi(g) = \\frac{1}{|H|}\\sum_{\\substack{x\\in G \\\\ xgx^{-1}\\in H}} \\chi(xgx^{-1})"
+        complexity "O(|G|^2)"
+        constructive true
+        reversible false
+    }
+
+    preset "rt_adjoint_representation" {
+        description "伴随表示：构造李代数的伴随表示 ad_X(Y) = [X, Y]，Killing 形式 B(X,Y)=Tr(ad_X ad_Y)"
+        category "GROUP_THEORY"
+        inputs 1 "ALGEBRA"
+        output "MATRIX"
+        math_def "\\operatorname{ad}: \\mathfrak{g} \\to \\mathfrak{gl}(\\mathfrak{g}), \\quad \\operatorname{ad}_X(Y) = [X, Y]"
+        complexity "O(n^2)"
+        constructive true
+        reversible true
+    }
+
+    preset "rt_highest_weight_rep" {
+        description "最高权表示：从统治整权 lambda 构造有限维不可约表示 V_lambda（Cartan-Weyl理论）"
+        category "GROUP_THEORY"
+        inputs 2 "VECTOR" "MATRIX"
+        output "HOMOMORPHISM"
+        math_def "V_\\lambda \\text{ 由 } \\lambda \\in P^+ \\text{ 唯一决定}, \\quad \\dim V_\\lambda = \\prod_{\\alpha>0} \\frac{\\langle\\lambda+\\rho,\\alpha^\\vee\\rangle}{\\langle\\rho,\\alpha^\\vee\\rangle}"
+        complexity "O(n^3)"
+        constructive true
         reversible false
     }
 

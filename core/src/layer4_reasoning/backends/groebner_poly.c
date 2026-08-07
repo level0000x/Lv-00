@@ -871,12 +871,11 @@ lvPolynomial *poly_internal_reduce(const lvPolynomial *p, lvPolynomial **basis, 
                 continue;
             }
 
-            /* 从 remainder 中移除当前项并加上减去的部分（实际上是从 remainder 中
-             * 减去 subtrahend）*/
-            /* 先标记第 i 项为 0 */
-            rem_coeffs[i] = 0.0;
-
-            /* remainder = remainder - subtrahend = remainder + (-subtrahend) */
+            /* 从 remainder 中减去 subtrahend：new_rem = remainder + (-subtrahend)。
+             * 注意：第 i 项（系数 coeff_i）与 -subtrahend 中对应项（系数 -coeff_i）
+             * 会在 poly_internal_add 中合并为零并被跳过，从而被正确消除；
+             * 若在此处先将第 i 项系数置 0，该项将与 -coeff_i 合并为 -coeff_i 被
+             * 保留，导致约化不收敛（normal form 计算永不终止）。 */
             poly_internal_scale(subtrahend, -1.0);
             lvPolynomial *new_rem = poly_internal_add(remainder, subtrahend, ring);
             poly_internal_destroy(subtrahend);

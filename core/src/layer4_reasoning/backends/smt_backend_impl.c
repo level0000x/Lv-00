@@ -493,6 +493,34 @@ SMTBackendRegistry *smtsolver_get_registry(void) {
     if (!s_smt_registry_state.registry_inited) {
         memset(&s_smt_registry_state.registry, 0, sizeof(s_smt_registry_state.registry));
         s_smt_registry_state.registry.count = 0;
+
+        /* 自动注册内置后端（与 smtsolver_is_backend_available / 名称表保持一致），
+         * 避免注册表单例长期为空导致 smtsolver_find_backend 永远查不到后端。 */
+        static const struct {
+            SolverBackendType type;
+            const char *name;
+            const char *version;
+            int priority;
+        } kBuiltinBackends[] = {
+            {GROEBNER, "Groebner", "3.x", 1},
+            {SMT_Z3, "Z3", "4.x", 2},
+            {SMT_CVC5, "cvc5", "1.x", 3},
+            {SMT_SINGULAR, "Singular", "4.x", 4},
+        };
+        for (size_t i = 0;
+             i < sizeof(kBuiltinBackends) / sizeof(kBuiltinBackends[0]) &&
+             s_smt_registry_state.registry.count < SMT_BACKEND_REGISTRY_CAPACITY;
+             i++) {
+            SMTBackendEntry *entry = &s_smt_registry_state.registry.entries[s_smt_registry_state.registry.count];
+            memset(entry, 0, sizeof(*entry));
+            entry->type = kBuiltinBackends[i].type;
+            snprintf(entry->name, sizeof(entry->name), "%s", kBuiltinBackends[i].name);
+            snprintf(entry->version, sizeof(entry->version), "%s", kBuiltinBackends[i].version);
+            entry->available = smtsolver_is_backend_available(kBuiltinBackends[i].type);
+            entry->priority = kBuiltinBackends[i].priority;
+            s_smt_registry_state.registry.count++;
+        }
+
         s_smt_registry_state.registry_inited = true;
     }
     lv_lazy_lock_unlock(&s_smt_registry_state.lock);

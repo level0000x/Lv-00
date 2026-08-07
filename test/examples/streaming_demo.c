@@ -141,9 +141,36 @@ static void demo_triangle(void) {
     fprintf(stderr, "  顶点: A=%d, B=%d, C=%d\n", a, b, c);
 
     /* 三条边 */
-    int ab = graph_add_line_segment(g, a, b);
-    int bc = graph_add_line_segment(g, b, c);
-    int ca = graph_add_line_segment(g, c, a);
+    AddNodeResult ab_res = graph_add_line_segment(g, a, b);
+    if (ab_res != ADD_NODE_OK) {
+        fprintf(stderr, "  错误: 添加边AB失败 (错误码=%d)\n", ab_res);
+        if (sctx && cb_id >= 0) {
+            stream_unregister_callback_by_id(sctx, cb_id);
+        }
+        engine_destroy(engine);
+        return;
+    }
+    int ab = g->next_node_id - 1;
+    AddNodeResult bc_res = graph_add_line_segment(g, b, c);
+    if (bc_res != ADD_NODE_OK) {
+        fprintf(stderr, "  错误: 添加边BC失败 (错误码=%d)\n", bc_res);
+        if (sctx && cb_id >= 0) {
+            stream_unregister_callback_by_id(sctx, cb_id);
+        }
+        engine_destroy(engine);
+        return;
+    }
+    int bc = g->next_node_id - 1;
+    AddNodeResult ca_res = graph_add_line_segment(g, c, a);
+    if (ca_res != ADD_NODE_OK) {
+        fprintf(stderr, "  错误: 添加边CA失败 (错误码=%d)\n", ca_res);
+        if (sctx && cb_id >= 0) {
+            stream_unregister_callback_by_id(sctx, cb_id);
+        }
+        engine_destroy(engine);
+        return;
+    }
+    int ca = g->next_node_id - 1;
     fprintf(stderr, "  边: AB=%d, BC=%d, CA=%d\n", ab, bc, ca);
 
     /* A 在 AB 上，B 在 AB 上，等等 */
@@ -203,8 +230,26 @@ static void demo_circle_line(void) {
     fprintf(stderr, "  O=%d, P=%d(半径3), Q=%d, R=%d, X=%d(待求)\n", o, p, q, r, x);
 
     /* 线段 QR 和 OX */
-    int qr = graph_add_line_segment(g, q, r);
-    int op_seg = graph_add_line_segment(g, o, p);
+    AddNodeResult qr_res = graph_add_line_segment(g, q, r);
+    if (qr_res != ADD_NODE_OK) {
+        fprintf(stderr, "  错误: 创建线段 QR 失败 (错误码=%d)\n", qr_res);
+        if (sctx && cb_id >= 0) {
+            stream_unregister_callback_by_id(sctx, cb_id);
+        }
+        engine_destroy(engine);
+        return;
+    }
+    int qr = g->next_node_id - 1;
+    AddNodeResult op_res = graph_add_line_segment(g, o, p);
+    if (op_res != ADD_NODE_OK) {
+        fprintf(stderr, "  错误: 创建线段 OP 失败 (错误码=%d)\n", op_res);
+        if (sctx && cb_id >= 0) {
+            stream_unregister_callback_by_id(sctx, cb_id);
+        }
+        engine_destroy(engine);
+        return;
+    }
+    int op_seg = g->next_node_id - 1;
 
     /* 关联约束 */
     graph_add_incidence(g, q, qr);
@@ -216,8 +261,8 @@ static void demo_circle_line(void) {
     graph_add_incidence(g, x, qr);
 
     /* 交点约束: 线段 OP 与 QR 相交于点 X */
-    int inter_result = graph_add_intersection(g, op_seg, qr, x);
-    if (inter_result < 0) {
+    AddConstraintResult inter_result = graph_add_intersection(g, op_seg, qr, x);
+    if (inter_result != ADD_CONSTRAINT_OK) {
         fprintf(stderr, "  警告: 添加交点约束失败 (返回值=%d)\n", inter_result);
     }
 
@@ -262,15 +307,16 @@ static void demo_stream_stats(void) {
         }
     }
 
-    /* 连接所有点 */
+    /* 连接所有点：依次连接 5 个点 (0-1, 1-2, 2-3, 3-4) */
     for (int i = 0; i < 4; i++) {
-        int sid = g->next_node_id - 5 + i;
-        int tid = sid + 1;
-        int seg = graph_add_line_segment(g, sid, tid);
-        if (seg < 0) {
-            fprintf(stderr, "  警告: 创建第%d条线段失败\n", i);
+        int sid = i;
+        int tid = i + 1;
+        AddNodeResult seg_res = graph_add_line_segment(g, sid, tid);
+        if (seg_res != ADD_NODE_OK) {
+            fprintf(stderr, "  警告: 创建第%d条线段失败 (错误码=%d)\n", i, seg_res);
             continue;
         }
+        int seg = g->next_node_id - 1;
         graph_add_incidence(g, sid, seg);
         graph_add_incidence(g, tid, seg);
     }

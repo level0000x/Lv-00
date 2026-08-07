@@ -277,6 +277,7 @@ lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, const lv
         lvPolynomial *pi = basis->basis_polys[i];
         if (poly_internal_is_zero(pi)) {
             poly_internal_destroy(pi);
+            basis->basis_polys[i] = NULL; /* 防止后续 j 循环对已释放内存的 use-after-free */
             continue;
         }
         int *lt_pi = (int *) lv_calloc((size_t) vc, sizeof(int));
@@ -285,6 +286,7 @@ lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, const lv
         if (poly_leading_term(pi, ring, lt_pi, NULL) != 0) {
             lv_free((void **) &lt_pi);
             poly_internal_destroy(pi);
+            basis->basis_polys[i] = NULL; /* 防止后续 j 循环对已释放内存的 use-after-free */
             continue;
         }
 
@@ -315,6 +317,7 @@ lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, const lv
             write_pos++;
         } else {
             poly_internal_destroy(pi);
+            basis->basis_polys[i] = NULL; /* 防止后续 j 循环对已释放内存的 use-after-free */
         }
     }
     basis->bases_count = write_pos;
@@ -327,7 +330,7 @@ lvGroebnerBasis *groebner_internal_reduce_basis(lvGroebnerBasis *basis, const lv
             continue;
         int o_count = 0;
         for (int j = 0; j < basis->bases_count; j++) {
-            if (j != i) {
+            if (j != i && basis->basis_polys[j]) {
                 others[o_count++] = basis->basis_polys[j];
             }
         }

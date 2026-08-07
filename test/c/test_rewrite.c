@@ -538,6 +538,179 @@ static void test_local_equiv_matching(void) {
     graph_destroy(g);
 }
 
+
+/* ============================================================
+ * 测试：VF2 子图同构匹配（高级匹配算法验证）
+ *
+ * 覆盖审计缺口：模式匹配命中 / 未命中 / 非重叠批量匹配。
+ * ============================================================ */
+
+static RewritePattern *make_vf2_pattern(void) {
+    /* 模式：3 变量 (-1=point, -2=segment, -3=point) + 2 条 incidence 约束 */
+    int var_ids[] = {-1, -2, -3};
+    int part1[] = {-1, -2};
+    int part2[] = {-3, -2};
+    Constraint *c1 = make_constraint(INCIDENCE, 2, part1);
+    Constraint *c2 = make_constraint(INCIDENCE, 2, part2);
+    if (!c1 || !c2) {
+        destroy_constraint(c1);
+        destroy_constraint(c2);
+        return NULL;
+    }
+    RewritePattern *pattern = lv_calloc(1, sizeof(RewritePattern));
+    if (!pattern) {
+        destroy_constraint(c1);
+        destroy_constraint(c2);
+        return NULL;
+    }
+    pattern->variable_node_ids = lv_malloc(3 * sizeof(int));
+    pattern->pattern_constraints = lv_malloc(2 * sizeof(Constraint *));
+    if (!pattern->variable_node_ids || !pattern->pattern_constraints) {
+        lv_free((void **)&pattern->variable_node_ids);
+        lv_free((void **)&pattern->pattern_constraints);
+        lv_free((void **)&pattern);
+        destroy_constraint(c1);
+        destroy_constraint(c2);
+        return NULL;
+    }
+    memcpy(pattern->variable_node_ids, var_ids, 3 * sizeof(int));
+    pattern->var_count = 3;
+    Constraint *constraints[] = {c1, c2};
+    memcpy(pattern->pattern_constraints, constraints, 2 * sizeof(Constraint *));
+    pattern->pattern_constraint_count = 2;
+    return pattern;
+}
+
+static void test_vf2_match_hit(void) {
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, true);
+    TEST_ASSERT_NOT_NULL(g);
+
+    RewritePattern *pattern = make_vf2_pattern();
+    TEST_ASSERT_NOT_NULL(pattern);
+
+    RewriteMatch *match = vf2_find_match(g, pattern, false);
+    TEST_ASSERT_NOT_NULL(match);
+    TEST_ASSERT_EQ(match->binding_count, 3);
+
+    /* 验证绑定：-1/-3 绑定 POINT，-2 绑定 LINE_SEGMENT */
+    int bind_p1 = -1, bind_s = -1, bind_p2 = -1;
+    for (int i = 0; i < match->binding_count; i++) {
+        int pat = match->node_bindings[i * 2];
+        int gid = match->node_bindings[i * 2 + 1];
+        GeomNode *node = graph_get_node(g, gid);
+        TEST_ASSERT_NOT_NULL(node);
+        if (pat == -1) {
+            bind_p1 = gid;
+            TEST_ASSERT_EQ((int)node->type, (int)GEOM_POINT);
+        }
+        if (pat == -2) {
+            bind_s = gid;
+            TEST_ASSERT_EQ((int)node->type, (int)GEOM_LINE_SEGMENT);
+        }
+        if (pat == -3) {
+            bind_p2 = gid;
+            TEST_ASSERT_EQ((int)node->type, (int)GEOM_POINT);
+        }
+    }
+    TEST_ASSERT(bind_p1 >= 0 && bind_p2 >= 0 && bind_s >= 0, "all pattern vars bound");
+    TEST_ASSERT(bind_p1 != bind_p2, "two points should be distinct");
+
+    rewrite_match_destroy(match);
+    lv_free((void **)&pattern->variable_node_ids);
+    lv_free((void **)&pattern->pattern_constraints[0]->participants);
+    lv_free((void **)&pattern->pattern_constraints[1]->participants);
+    lv_free((void **)&pattern->pattern_constraints[0]);
+    lv_free((void **)&pattern->pattern_constraints[1]);
+    lv_free((void **)&pattern->pattern_constraints);
+    lv_free((void **)&pattern);
+    graph_destroy(g);
+}
+
+static void test_vf2_match_miss(void) {
+    /* 图上只有 2 点 + 1 线段 + 2 incidence，无 BETWEENNESS 约束 */
+    ConstraintGraph *g = lv_test_line_graph(NULL, 0, 0, 1, 0, true);
+    TEST_ASSERT_NOT_NULL(g);
+
+    /* 模式要求 BETWEENNESS 约束：图上不存在 → 未命中 */
+    int var_ids[] = {-1, -2, -3};
+    int part1[] = {-1, -2, -3};
+    Constraint *c1 = make_constraint(BETWEENNESS, 3, part1);
+    TEST_ASSERT_NOT_NULL(c1);
+
+    RewritePattern *pattern = lv_calloc(1, sizeof(RewritePattern));
+    TEST_ASSERT_NOT_NULL(pattern);
+    pattern->variable_node_ids = lv_malloc(3 * sizeof(int));
+    TEST_ASSERT_NOT_NULL(pattern->variable_node_ids);
+    memcpy(pattern->variable_node_ids, var_ids, 3 * sizeof(int));
+    pattern->var_count = 3;
+    pattern->pattern_constraints = lv_malloc(1 * sizeof(Constraint *));
+    TEST_ASSERT_NOT_NULL(pattern->pattern_constraints);
+    pattern->pattern_constraints[0] = c1;
+    pattern->pattern_constraint_count = 1;
+
+    RewriteMatch *match = vf2_find_match(g, pattern, false);
+    TEST_ASSERT_NULL(match);
+
+    destroy_constraint(c1);
+    lv_free((void **)&pattern->variable_node_ids);
+    lv_free((void **)&pattern->pattern_constraints);
+    lv_free((void **)&pattern);
+    graph_destroy(g);
+}
+
+static void test_vf2_non_overlapping_matches(void) {
+    /* 双分离线段图：p0-p1 与 p2-p3 */
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT_NOT_NULL(g);
+
+    int p0 = add_point(g, 0, 1, 0, 1);
+    int p1 = add_point(g, 1, 1, 0, 1);
+    int p2 = add_point(g, 5, 1, 0, 1);
+    int p3 = add_point(g, 6, 1, 0, 1);
+    TEST_ASSERT(p0 >= 0 && p1 >= 0 && p2 >= 0 && p3 >= 0, "points");
+
+    TEST_ASSERT(graph_add_line_segment(g, p0, p1) == ADD_NODE_OK, "seg1");
+    int s1 = graph_get_last_added_node_id(g);
+    TEST_ASSERT(graph_add_line_segment(g, p2, p3) == ADD_NODE_OK, "seg2");
+    int s2 = graph_get_last_added_node_id(g);
+    TEST_ASSERT(s1 >= 0 && s2 >= 0, "segments");
+
+    graph_add_incidence(g, p0, s1);
+    graph_add_incidence(g, p1, s1);
+    graph_add_incidence(g, p2, s2);
+    graph_add_incidence(g, p3, s2);
+
+    RewritePattern *pattern = make_vf2_pattern();
+    TEST_ASSERT_NOT_NULL(pattern);
+
+    RewriteReplacement *replacement = lv_calloc(1, sizeof(RewriteReplacement));
+    TEST_ASSERT_NOT_NULL(replacement);
+    RewriteRule *rule = rewrite_rule_create("vf2_nonoverlap", pattern, replacement, 1);
+    TEST_ASSERT_NOT_NULL(rule);
+
+    RewriteMatch **matches = NULL;
+    int match_count = 0;
+    int rc = find_all_non_overlapping_matches(g, rule, NULL, 0, &matches, &match_count);
+    TEST_ASSERT_EQ(rc, 0);
+    TEST_ASSERT_EQ(match_count, 2);
+
+    for (int i = 0; i < match_count; i++) {
+        rewrite_match_destroy(matches[i]);
+    }
+    lv_free((void **)&matches);
+
+    rewrite_rule_destroy(rule);
+    lv_free((void **)&pattern->variable_node_ids);
+    lv_free((void **)&pattern->pattern_constraints[0]->participants);
+    lv_free((void **)&pattern->pattern_constraints[1]->participants);
+    lv_free((void **)&pattern->pattern_constraints[0]);
+    lv_free((void **)&pattern->pattern_constraints[1]);
+    lv_free((void **)&pattern->pattern_constraints);
+    lv_free((void **)&pattern);
+    lv_free((void **)&replacement);
+    graph_destroy(g);
+}
+
 /* ============================================================
  * 主函数
  * ============================================================ */
@@ -553,6 +726,9 @@ TEST_MAIN_BEGIN("Rewrite System (Constraint Graph)")
     TEST_MAIN_RUN(test_rule_unload);
     TEST_MAIN_RUN(test_rule_destroy_null);
     TEST_MAIN_RUN(test_local_equiv_matching);
+    TEST_MAIN_RUN(test_vf2_match_hit);
+    TEST_MAIN_RUN(test_vf2_match_miss);
+    TEST_MAIN_RUN(test_vf2_non_overlapping_matches);
 
 TEST_MAIN_END()
 

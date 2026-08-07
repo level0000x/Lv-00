@@ -476,6 +476,81 @@ static void test_roundtrip_pred(void) {
 }
 
 /**
+ * 测试 8c: 多参应用 beta_reduce_fully 迭代归约到不动点
+ *
+ * 验证 (add 2 3) 的多步迭代归约：
+ * 1. 至少 2 步（先 (λm.λn.… ) 2 → λn.…，再 λn.… 3 → body），
+ *    修复前只归约 1 步（后续实参经 app_sink 接入，未形成新 redex）；
+ * 2. 函数块数量减少（被归约的函数块移除）；
+ * 3. 完全归约后无更多可归约项（不动点）。
+ */
+static void test_beta_fully_multi_arg(void) {
+    LvLambdaTerm *add = lv_church_add();
+    LvLambdaTerm *two = lv_church_2();
+    LvLambdaTerm *three = lv_church_n(3);
+    LvLambdaTerm *term = lv_lambda_create_app(lv_lambda_create_app(add, two), three);
+
+    ConstraintGraph *graph = graph_create();
+    int root = compile_lambda(term, graph);
+    lv_lambda_destroy(term);
+    if (root < 0) { graph_destroy(graph); FAIL("add 2 3 编译失败"); return; }
+
+    GraphMetrics before = extract_metrics(graph);
+    int steps = beta_reduce_fully(graph);
+    GraphMetrics after = extract_metrics(graph);
+
+    /* 不动点验证：无更多可归约项 */
+    bool more = beta_reduce(graph);
+    graph_destroy(graph);
+
+    print_metrics("before", &before);
+    print_metrics("after", &after);
+    printf("    beta_reduce_fully steps: %d, 仍有 redex: %s\n", steps, more ? "是" : "否");
+
+    if (steps < 2) { FAIL("add 2 3 多参应用应迭代归约至少 2 步"); return; }
+    if (after.func_blocks >= before.func_blocks) { FAIL("β-归约应减少函数块数量"); return; }
+    if (more) { FAIL("完全归约后不应再有 redex"); return; }
+    PASS();
+}
+
+/**
+ * 测试 8d: 嵌套 ABS 作实参的 roundtrip 忠实性
+ *
+ * 覆盖"嵌套 ABS 作实参"边界：实参为函数块时，graph_add_connection 的
+ * 双向 connected_to 会覆盖其"输出端口 → body 根"关联，编译/反编译必须
+ * 恢复该关联，反编译出的 λ-项才忠实（含嵌套绑定的 De Bruijn 索引）。
+ */
+static void test_roundtrip_nested_abs_arg(void) {
+    /* (λx.x) (λy.y) */
+    LvLambdaTerm *id = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    LvLambdaTerm *arg = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    LvLambdaTerm *term = lv_lambda_create_app(id, arg);
+    check_roundtrip_faithful(term, "roundtrip (λx.x)(λy.y)");
+    lv_lambda_destroy(term);
+
+    /* (λx.λy.x) (λa.λb.b) — K 组合子应用于嵌套 ABS */
+    LvLambdaTerm *k = lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_var(1)));
+    LvLambdaTerm *arg2 = lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_var(0)));
+    LvLambdaTerm *term2 = lv_lambda_create_app(k, arg2);
+    check_roundtrip_faithful(term2, "roundtrip K(λa.λb.b)");
+    lv_lambda_destroy(term2);
+}
+
+/**
+ * 测试 8e: pred 应用于 Church 数字的 roundtrip 忠实性
+ *
+ * pred 是含多层嵌套 ABS（λg.λh.h (g f) 等）的复杂闭项，应用于 Church 2
+ * 后验证反编译忠实（绑定关联 + 嵌套 binder 栈定位无回归）。
+ */
+static void test_roundtrip_pred_app(void) {
+    LvLambdaTerm *pred = lv_church_pred();
+    LvLambdaTerm *c2 = lv_church_2();
+    LvLambdaTerm *term = lv_lambda_create_app(pred, c2);
+    check_roundtrip_faithful(term, "roundtrip pred 2");
+    lv_lambda_destroy(term);
+}
+
+/**
  * 测试 9: λ-演算合一策略端到端（函数块签名合一 + 图实例化 + 证明步骤）
  *
  * 构造"恒等函数块 + 顶层 λ-变量槽位（depth=100）"图，激活并执行
@@ -874,6 +949,11 @@ TEST_MAIN_BEGIN("λ-演算 β-归约结果验证")
     TEST_MAIN_RUN(test_roundtrip_mul);
     TEST_MAIN_RUN(test_roundtrip_succ);
     TEST_MAIN_RUN(test_roundtrip_pred);
+    printf("\n[多步迭代归约]\n");
+    TEST_MAIN_RUN(test_beta_fully_multi_arg);
+    printf("\n[roundtrip 边界场景]\n");
+    TEST_MAIN_RUN(test_roundtrip_nested_abs_arg);
+    TEST_MAIN_RUN(test_roundtrip_pred_app);
     printf("\n[显式环境求值器：闭合算术]\n");
     TEST_MAIN_RUN(test_eval_add_23);
     TEST_MAIN_RUN(test_eval_mul_24);
