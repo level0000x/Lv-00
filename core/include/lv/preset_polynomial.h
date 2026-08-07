@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define POLYNOMIAL_PRESET_COUNT 14
+#define POLYNOMIAL_PRESET_COUNT 18
 bool preset_polynomial_register(void);
 
 #ifdef __cplusplus

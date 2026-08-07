@@ -157,5 +157,10 @@ TypeRegion *lambda_type_check_and_infer(LvLambdaTerm *term) {
     lambda_type_check_destroy(&ctx);
     type_system_destroy(ts);
 
-    return result;
+    if (!result)
+        return NULL;
+
+    /* result 由 TypeSystem 的 type_regions 数组管理，ts 销毁后即悬垂。
+     * 深拷贝一份独立副本返回，避免调用者拿到悬垂指针。 */
+    return type_region_deep_copy(result);
 }

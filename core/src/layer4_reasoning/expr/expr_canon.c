@@ -91,6 +91,11 @@ int lv_canonical_compare_terms(const int *a, const int *b, int var_count) {
  *      bucket_head + bucket_nodes 两个数组、无逐节点 malloc、用完即释放，
  *      是当前热路径上的最优形态；改用 lv_hashtable 将引入逐节点分配、
  *      扩容重哈希与键折叠，纯性能退化。
+ * 二次收敛评估（lv_hashtable 增加 64 位键形态 lv_hashtable_i64 的方案）：
+ *   即使键升级为 uint64_t，理由 2（分组哈希 + 桶内精确比较，键唯一性由
+ *   hash 与指数数组共同决定，lv_hashtable 键比较模型无法承载）与理由 3
+ *   （动态摘除）依然成立，且理由 4 的一次性数组形态与逐节点分配模型相悖，
+ *   故仍不采用。
  * 故保留原实现，仅与 lv_hashtable 共享 FNV-1a 哈希族（lv_fnv1a_update）。
  */
 typedef struct MergeBucketNode {

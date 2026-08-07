@@ -97,8 +97,8 @@ lv_PUBLIC_API TypeRegion *lambda_type_infer(LvLambdaTerm *term, LambdaTypingCont
  * 自动创建 TypeSystem 并在使用后销毁。
  *
  * @param term λ-项
- * @return 推断得到的 TypeRegion（调用者负责通过 type_region_destroy 释放），
- *         失败返回 NULL
+ * @return 推断得到的 TypeRegion 深拷贝副本（调用者负责通过
+ *         type_region_deep_free 释放），失败返回 NULL
  */
 lv_PUBLIC_API TypeRegion *lambda_type_check_and_infer(LvLambdaTerm *term);
 

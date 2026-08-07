@@ -995,6 +995,18 @@ typedef struct BDDVisitEntry {
 /** 最大 BDD 节点数（用于遍历数组） */
 #define BDD_TRAVERSE_MAX 65536
 
+/* 【lv_bfs_run / lv_cycle_detect 收敛评估结论（不收敛，保留本实现）】
+ *   lv_bfs_run / lv_cycle_detect 要求"整数 id 空间 0..node_count-1 + 出边
+ *   邻居回调"。本函数是 BDD DAG 的"收集"语义，两者形态不匹配：
+ *     1. 节点无整数 id：BDDNode 是指针 DAG（high/low 边），无 id 字段、
+ *        var_id 为变量编号且终端节点为负，无法映射到连续的 int id 空间。
+ *     2. 收集语义：调用方 bdd_to_cnf 需要 entries 数组按 DFS 顺序直接索引
+ *        （随后为每个条目分配 aux_var 并回查 root），是"填充调用方预分配
+ *        数组"而非"遍历回调"；max_entries（BDD_TRAVERSE_MAX）硬上限截断
+ *        语义也无法用 lv_bfs_run 表达。
+ *     3. 指针去重：本函数按 BDDNode* 指针线性去重；lv_bfs_run 的 visited
+ *        是 bool 数组，按 id 索引，无法承载指针键。
+ *   结论：语义确实不同（指针 DAG 收集 vs 整数 id 图回调遍历），保持本实现。 */
 /** 收集 BDD 中所有非终端节点（拓扑排序） */
 static int bdd_collect_nodes(BDDNode *root, BDDVisitEntry *entries, int max_entries) {
     if (!root || max_entries <= 0)

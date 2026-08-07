@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define ADVANCED_GEOMETRY_PRESET_COUNT 18
+#define ADVANCED_GEOMETRY_PRESET_COUNT 55
 bool preset_advanced_geometry_register(void);
 
 #ifdef __cplusplus

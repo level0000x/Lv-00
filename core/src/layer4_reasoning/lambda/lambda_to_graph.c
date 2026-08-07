@@ -459,8 +459,57 @@ static bool lambda_to_graph_app(LvLambdaTerm *term, ConstraintGraph *graph, Lamb
 
         LOG_DEBUG("lambda_to_graph", "编译 APP: redex, left=FB%d, result=port%d", left_node_id, left_output);
     } else {
-        LOG_DEBUG("lambda_to_graph", "编译 APP: non-redex, left=node%d (type=%d)", left_node_id, (int)left_node->type);
-        *out_node_id = left_node_id;
+        /* non-redex：left 不是函数块（变量引用端口或上一层应用的结果端口），
+         * 即柯里化应用的后续参数。创建"应用汇"端口对（app_sink）：
+         *   - sink_out（PORT_OUTPUT）：结果侧，parent_block_id 标记为
+         *     left 节点（应用左端），作为本层应用的结果；
+         *   - sink_in（PORT_INPUT）：实参侧，实参输出连接到 sink_in，
+         *     parent_block_id 标记为 sink_out。
+         * 反编译阶段从 sink_out 出发，经 parent 找到 left、经配套 sink_in
+         * 找到实参，重建 APP(left, arg)，使 COMPILE→DECOMPILE 链对
+         * 多参应用（柯里化）完整。
+         *
+         * 对 β-归约无影响：beta_reduce_match 只匹配"函数块输入端口的
+         * 外部实参连接"，app_sink 不属于任何函数块的输入端口。 */
+        int right_output = get_node_output_port(graph, right_node_id);
+        if (right_output >= 0) {
+            AddNodeResult nr = graph_add_port(graph, PORT_OUTPUT, depth, -1);
+            if (nr == ADD_NODE_OK) {
+                int sink_out = graph_get_last_added_node_id(graph);
+                GeomNode *sink_out_node = graph_get_node(graph, sink_out);
+                if (sink_out_node && sink_out_node->data.port) {
+                    sink_out_node->data.port->is_formal_param = false;
+                    sink_out_node->parent_block_id = left_node_id;
+                }
+
+                nr = graph_add_port(graph, PORT_INPUT, depth, -1);
+                if (nr == ADD_NODE_OK) {
+                    int sink_in = graph_get_last_added_node_id(graph);
+                    GeomNode *sink_in_node = graph_get_node(graph, sink_in);
+                    if (sink_in_node && sink_in_node->data.port) {
+                        sink_in_node->data.port->is_formal_param = false;
+                        sink_in_node->parent_block_id = sink_out;
+                    }
+                    AddConstraintResult cr = graph_add_connection(graph, right_output, sink_in);
+                    if (cr != ADD_CONSTRAINT_OK && cr != ADD_CONSTRAINT_DUPLICATE) {
+                        LOG_WARN("lambda_to_graph", "APP non-redex 连接 %d→%d 失败 (result=%d)",
+                                 right_output, sink_in, (int)cr);
+                    }
+                    LOG_DEBUG("lambda_to_graph", "编译 APP: non-redex, arg_out=%d → sink_in=%d, sink_out=%d, left=%d",
+                              right_output, sink_in, sink_out, left_node_id);
+                    *out_node_id = sink_out;
+                } else {
+                    LOG_WARN("lambda_to_graph", "APP non-redex: 创建 sink_in 端口失败");
+                    *out_node_id = sink_out;
+                }
+            } else {
+                LOG_WARN("lambda_to_graph", "APP non-redex: 创建 sink_out 端口失败");
+                *out_node_id = left_node_id;
+            }
+        } else {
+            LOG_WARN("lambda_to_graph", "APP non-redex: 实参 %d 无输出端口", right_node_id);
+            *out_node_id = left_node_id;
+        }
     }
     return true;
 }
@@ -511,6 +560,37 @@ bool lambda_to_graph(LvLambdaTerm *term, ConstraintGraph *graph, int *out_node_i
     return result;
 }
 
+/**
+ * @brief 在约束图中查找 parent_block_id == parent_id 的 PORT_INPUT 端口
+ *
+ * 用于反编译阶段定位 app_sink 端口对的实参侧（sink_in）：
+ * 编译 non-redex APP 时，sink_in 的 parent_block_id 被标记为配套的
+ * sink_out 结果端口。sink_in 是非形式参数（is_formal_param == false），
+ * 与 binder 端口（形式参数）可区分。
+ *
+ * @param graph    约束图
+ * @param parent_id 期望的 parent_block_id
+ * @return sink_in 端口节点 ID，未找到返回 -1
+ */
+static int find_app_sink_input(const ConstraintGraph *graph, int parent_id) {
+    if (!graph || parent_id < 0)
+        return -1;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active)
+            continue;
+        if (node->type != GEOM_PORT)
+            continue;
+        if (node->parent_block_id != parent_id)
+            continue;
+        if (node->data.port && node->data.port->type == PORT_INPUT &&
+            !node->data.port->is_formal_param) {
+            return node->id;
+        }
+    }
+    return -1;
+}
+
 /* ===========================================================================
  * graph_to_lambda：从约束图还原 λ-项
  * =========================================================================== */
@@ -552,6 +632,48 @@ static LvLambdaTerm *graph_to_lambda_internal(ConstraintGraph *graph, int node_i
             if (!node->data.port) {
                 LOG_ERROR("graph_to_lambda", "端口节点 %d port 数据为空", node_id);
                 return NULL;
+            }
+
+            /* ── 检测 app_sink 端口对 ──
+             * 编译阶段为柯里化应用的后续参数创建（见 lambda_to_graph_app 的
+             * non-redex 分支）：
+             *   - sink_out（PORT_OUTPUT）：parent_block_id 指向应用左端节点
+             *     （PORT），经配套 sink_in 的 CONNECTION 来源找到实参，
+             *     重建 APP(left, arg)；
+             *   - sink_in（PORT_INPUT）：parent_block_id 指向配套 sink_out。
+             * 不会误判 binder 端口（is_formal_param=true）与普通 VAR 引用
+             * 端口（parent_block_id 为 -1 或函数块，而非 PORT）。 */
+            if (!node->data.port->is_formal_param && node->parent_block_id >= 0) {
+                int left_id = node->parent_block_id;
+                GeomNode *left_node = graph_get_node(graph, left_id);
+                if (left_node && left_node->type == GEOM_PORT) {
+                    int arg_src = -1;
+                    if (node->data.port->type == PORT_OUTPUT) {
+                        /* sink_out：经配套 sink_in 找实参来源 */
+                        int sink_in = find_app_sink_input(graph, node_id);
+                        if (sink_in >= 0)
+                            find_connection_target(graph, sink_in, 1, &arg_src);
+                    } else {
+                        /* sink_in：直接找进入本端口的实参来源 */
+                        find_connection_target(graph, node_id, 1, &arg_src);
+                    }
+                    if (arg_src >= 0) {
+                        LvLambdaTerm *left_term = graph_to_lambda_internal(graph, left_id,
+                                                                           binder_port_ids,
+                                                                           binder_count, binder_capacity);
+                        if (!left_term) return NULL;
+
+                        LvLambdaTerm *arg_term = graph_to_lambda_internal(graph, arg_src,
+                                                                          binder_port_ids,
+                                                                          binder_count, binder_capacity);
+                        if (!arg_term) {
+                            lv_lambda_destroy(left_term);
+                            return NULL;
+                        }
+                        LOG_DEBUG("graph_to_lambda", "APP(non-redex): func=node%d, arg=node%d", left_id, arg_src);
+                        return lv_lambda_create_app(left_term, arg_term);
+                    }
+                }
             }
 
             /* ── 检测是否是函数块输出端口 ── */

@@ -4,6 +4,24 @@
  *
  * @details 溯源节点与溯源树的创建/销毁、子节点管理、状态与信任色计算、
  *          路径查找、DOT 导出与 JSON 序列化。
+ *
+ * 【lv_graph_traversal / lv_bfs_run 收敛评估结论（不收敛，保留本实现）】
+ *   lv_graph_traversal 系列是 ConstraintGraph 专用（GeomNode 节点、约束超边、
+ *   int id 空间 0..node_count-1）；lv_bfs_run / lv_cycle_detect 要求整数 id
+ *   空间 + 邻居回调。本模块是 lvProofTraceNode 指针树：
+ *     1. 节点类型/ID 空间不同：节点是 lvProofTraceNode*（uint32 id 由
+ *        g_trace_node_id_counter 递增生成、不连续），无 GeomNode、无
+ *        ConstraintGraph，无法套用任何 lv_graph_traversal 入口。
+ *     2. find_path 是"路径回溯"语义（DFS 栈 + 路径数组 + visited 集合），
+ *        不是"遍历回调"语义；lv_tree_traverse 虽为通用树遍历（void* +
+ *        get_children 回调），但仅有访问回调模式、无"查找两节点间路径并
+ *        填充输出数组"的 API，为其新增路径查找接口等于新增功能而非收敛。
+ *     3. find_path 内的 visited_map（uint32 开放寻址集合）是函数内一次性
+ *        临时结构，仅存键不存值，且生命周期极短；lv_hashtable 是键值对
+ *        （值为 NULL 视同键不存在），形态与用途均不匹配，强行迁移纯退化。
+ *   结论：语义确实不同（指针树路径回溯 vs 整数 id 图遍历回调），无法通过
+ *   给 lv_graph_traversal 增加"父指针回传/后向遍历"接口收敛（类型空间根本
+ *   不同），保持本实现。
  */
 
 #include "proof_engine_enhanced_internal.h"

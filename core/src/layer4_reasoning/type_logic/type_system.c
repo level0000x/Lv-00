@@ -402,12 +402,12 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
     /* 创建类型变量 */
     TypeVariable *tv = lv_calloc(1, sizeof(TypeVariable));
     if (tv) {
-        /* 线性 +1 扩容（TypeSystem 无 type_vars 容量字段，改动最小：保持原样，
-         * 不迁移到 lv_ensure_capacity） */
-        int new_count = ts->type_var_count + 1;
-        TypeVariable **new_arr = (TypeVariable **) lv_realloc(ts->type_vars, new_count * sizeof(TypeVariable *));
-        if (!new_arr) {
-            /* 修复：realloc 失败时，需清理已分配的 TypeVariable 和已创建的 TypeRegion，
+        /* 倍增扩容（TypeSystem 已新增 type_var_capacity 字段，统一委托
+         * lv_ensure_capacity；与原线性 +1 realloc 行为等价：type_vars 数组
+         * 内容、计数与 tv->id 赋值语义完全一致，仅分配时机/容量不同） */
+        if (!lv_ensure_capacity((void **) &ts->type_vars, ts->type_var_count,
+                                &ts->type_var_capacity, sizeof(TypeVariable *), 1)) {
+            /* 修复：扩容失败时，需清理已分配的 TypeVariable 和已创建的 TypeRegion，
              * 防止内存泄漏 */
             lv_free((void **) &tv);
             lv_free((void **) &tr->variable_name);
@@ -417,13 +417,12 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
                 ts->type_region_count--;
             }
             lv_free((void **) &tr);
-            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_variable: lv_realloc type_vars failed");
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "type_create_variable: lv_ensure_capacity type_vars failed");
         }
-        ts->type_vars = new_arr;
 
-        ts->type_var_count = new_count;
-        ts->type_vars[new_count - 1] = tv;
-        tv->id = new_count;
+        ts->type_vars[ts->type_var_count] = tv;
+        ts->type_var_count++;
+        tv->id = ts->type_var_count;
         tv->name = name ? lv_strdup(name) : NULL;
         tv->is_polymorphic = true;
         tr->variable_id = tv->id;

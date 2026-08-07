@@ -2,6 +2,8 @@
  * @file preset_differential_geometry.c
  * @brief 微分几何预设函数块 - 实现
  *
+ * H1 评估结论（2026-08-07）：注册样板已由 LV_PRESET_REGISTER 宏抽象（每条目 1 行），无需代码生成；运行时注册由 module/presets/differential_geometry.lvz 数据驱动（convert_presets.py 生成）。
+ *
  * 实现理论数学研究中常用的微分几何运算预设函数块。
  * 涵盖曲线论、曲面论、联络与曲率、测地线和张量分析五大领域。
  * 共25个预设函数块，均遵循模块化、确定性原则。
@@ -26,7 +28,7 @@
 
 /* ==================== 预设函数块数量 ==================== */
 
-/** 微分几何模块预设函数块总数（与头文件中 DIFFERENTIAL_GEOMETRY_PRESET_COUNT 一致） */
+/** 微分几何模块预设函数块总数：25（与头文件中 DIFFERENTIAL_GEOMETRY_PRESET_COUNT 一致） */
 #define DG_PRESET_COUNT DIFFERENTIAL_GEOMETRY_PRESET_COUNT
 
 /* ==================== 内部辅助函数 ==================== */

@@ -46,6 +46,17 @@ enum {
 /** 全局 ID 计数器 */
 static _Atomic int g_algebra_id_counter = 0;
 
+/**
+ * @brief 重置代数模式全局 ID 计数器（测试进程内隔离用）
+ *
+ * 将 g_algebra_id_counter 恢复为 0，使同一进程内多次测试构造的
+ * AlgebraicGeom ID（= 计数 + 1）从同一基线开始，不相互漂移。
+ * 正常路径（atomic_fetch_add 单调递增）行为完全不变。
+ */
+void lv_algebra_reset_id_counter(void) {
+    atomic_store(&g_algebra_id_counter, 0);
+}
+
 /** 向历史中追加步骤 */
 static void history_push(AlgebraicGeom *geom, int step) {
     if (!geom)

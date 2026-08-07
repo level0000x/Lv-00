@@ -296,6 +296,78 @@ LvLambdaTerm *lv_church_head(void) {
 }
 
 /**
+ * tail: λl.l (λh.λt.t) (error)
+ * De Bruijn: l=0, h=1, t=0
+ * 应用列表到 (\h.\t.t) 和 error 项：
+ *   - nil 返回 error（空列表无尾部）
+ *   - cons h t 返回 (\h.\t.t) h t = t
+ */
+LvLambdaTerm *lv_church_tail(void) {
+    /* λh.λt.t */
+    LvLambdaTerm *step = lv_lambda_create_abs(
+        0, lv_lambda_create_abs(0, lv_lambda_create_var(0)));
+    /* 使用 id 函数作为 error 占位（与 head 一致） */
+    LvLambdaTerm *error_term = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    /* l step error */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), step), error_term);
+    return lv_lambda_create_abs(0, body);
+}
+
+/**
+ * map: λf.λl.l (λh.λt.cons (f h) t) nil
+ * De Bruijn: f=1, l=0；step(λh.λt) 内 f=3, h=1, t=0
+ * 通过 Church 列表折叠语义实现：
+ *   map f nil = nil step nil = nil
+ *   map f (cons h t) = step h (t step nil) = cons (f h) (map f t)
+ */
+LvLambdaTerm *lv_church_map(void) {
+    LvLambdaTerm *cons_term = lv_church_cons();
+    LvLambdaTerm *nil_term = lv_church_nil();
+    /* f h */
+    LvLambdaTerm *fh = lv_lambda_create_app(lv_lambda_create_var(3), lv_lambda_create_var(1));
+    /* cons (f h) */
+    LvLambdaTerm *cons_fh = lv_lambda_create_app(cons_term, fh);
+    /* cons (f h) t */
+    LvLambdaTerm *cons_fh_t = lv_lambda_create_app(cons_fh, lv_lambda_create_var(0));
+    /* λh.λt.cons (f h) t */
+    LvLambdaTerm *step = lv_lambda_create_abs(0, lv_lambda_create_abs(0, cons_fh_t));
+    /* l step nil */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), step), nil_term);
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/**
+ * filter: λp.λl.l (λh.λt.if (p h) (cons h t) t) nil
+ * De Bruijn: p=1, l=0；step(λh.λt) 内 p=3, h=1, t=0
+ * 通过 Church 列表折叠语义实现：
+ *   filter p nil = nil
+ *   filter p (cons h t) = if (p h) (cons h (filter p t)) (filter p t)
+ */
+LvLambdaTerm *lv_church_filter(void) {
+    LvLambdaTerm *if_term = lv_church_if();
+    LvLambdaTerm *cons_term = lv_church_cons();
+    LvLambdaTerm *nil_term = lv_church_nil();
+    /* p h */
+    LvLambdaTerm *ph = lv_lambda_create_app(lv_lambda_create_var(3), lv_lambda_create_var(1));
+    /* cons h */
+    LvLambdaTerm *cons_h = lv_lambda_create_app(cons_term, lv_lambda_create_var(1));
+    /* cons h t */
+    LvLambdaTerm *cons_h_t = lv_lambda_create_app(cons_h, lv_lambda_create_var(0));
+    /* if (p h) (cons h t) t */
+    LvLambdaTerm *branch = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_app(if_term, ph), cons_h_t),
+        lv_lambda_create_var(0));
+    /* λh.λt.if (p h) (cons h t) t */
+    LvLambdaTerm *step = lv_lambda_create_abs(0, lv_lambda_create_abs(0, branch));
+    /* l step nil */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(0), step), nil_term);
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, body));
+}
+
+/**
  * foldr: λf.λz.λl.l f z
  * De Bruijn: f=2, z=1, l=0
  * 利用 Church 列表编码自身实现折叠：
@@ -306,6 +378,31 @@ LvLambdaTerm *lv_church_foldr(void) {
     /* l f z */
     LvLambdaTerm *body = lv_lambda_create_app(
         lv_lambda_create_app(lv_lambda_create_var(0), lv_lambda_create_var(2)),
+        lv_lambda_create_var(1));
+    return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
+}
+
+/**
+ * foldl: λf.λz.λl.l (λx.λg.λa.g (f a x)) (λa.a) z
+ * De Bruijn: f=2, z=1, l=0；step(λx.λg.λa) 内 f=5, x=2, g=1, a=0
+ * 累积器传递技巧：
+ *   foldl f z nil = nil step id z = z
+ *   foldl f z (cons h t) = step h (t step id) z = (t step id) (f z h) = foldl f (f z h) t
+ */
+LvLambdaTerm *lv_church_foldl(void) {
+    /* f a x = App(App(f, a), x) */
+    LvLambdaTerm *f_a_x = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_var(5), lv_lambda_create_var(0)),
+        lv_lambda_create_var(2));
+    /* g (f a x) */
+    LvLambdaTerm *g_fax = lv_lambda_create_app(lv_lambda_create_var(1), f_a_x);
+    /* λx.λg.λa.g (f a x) */
+    LvLambdaTerm *step = lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, g_fax)));
+    /* id = λa.a */
+    LvLambdaTerm *id_term = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    /* l step id z */
+    LvLambdaTerm *body = lv_lambda_create_app(
+        lv_lambda_create_app(lv_lambda_create_app(lv_lambda_create_var(0), step), id_term),
         lv_lambda_create_var(1));
     return lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_abs(0, body)));
 }

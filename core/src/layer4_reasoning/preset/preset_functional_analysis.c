@@ -2,6 +2,8 @@
  * @file preset_functional_analysis.c
  * @brief 泛函分析预设函数块 - 实现
  *
+ * H1 评估结论（2026-08-07）：注册样板已由 LV_PRESET_REGISTER 宏抽象（每条目 1 行），无需代码生成；运行时注册由 module/presets/functional_analysis.lvz 数据驱动（convert_presets.py 生成）。
+ *
  * @details 实现泛函分析模块的所有预设函数块。
  *          采用统一的注册接口 preset_blocks_register_simple。
  *          共22个预设，涵盖赋范空间、内积空间、线性算子理论、
@@ -26,7 +28,7 @@
  * 预设数量定义
  * ============================================================ */
 
-/** 泛函分析模块预设函数块总数 */
+/** 泛函分析模块预设函数块总数：21（与头文件中 FUNCTIONAL_ANALYSIS_PRESET_COUNT 一致） */
 
 /* ============================================================
  * 内部辅助函数

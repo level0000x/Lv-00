@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define PROBABILITY_PRESET_COUNT 18
+#define PROBABILITY_PRESET_COUNT 25
 bool preset_probability_register(void);
 
 #ifdef __cplusplus

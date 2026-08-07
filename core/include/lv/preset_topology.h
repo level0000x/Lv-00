@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define TOPOLOGY_PRESET_COUNT 16
+#define TOPOLOGY_PRESET_COUNT 49
 bool preset_topology_register(void);
 
 #ifdef __cplusplus

@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define ANALYSIS_PRESET_COUNT 20
+#define ANALYSIS_PRESET_COUNT 49
 bool preset_analysis_register(void);
 
 #ifdef __cplusplus

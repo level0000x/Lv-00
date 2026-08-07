@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define COMBINATORICS_PRESET_COUNT 14
+#define COMBINATORICS_PRESET_COUNT 20
 bool preset_combinatorics_register(void);
 
 #ifdef __cplusplus

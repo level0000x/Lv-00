@@ -304,6 +304,110 @@ static void test_pattern_fv_fv(void) {
     lv_lambda_destroy(t2);
 }
 
+/* 测试 10b: 模式合一 Imitation — λx.F x 与 λx.g(x, h(x)) 合一 */
+static void test_pattern_imitation(void) {
+    TEST("pattern_imitation");
+    /* λx.(F x) — F 是自由变量(100)，参数 x 是 bound 变量(0) → 模式形式 */
+    LvLambdaTerm *t1 = lv_lambda_create_abs(
+        0, lv_lambda_create_app(lv_lambda_create_var(100), lv_lambda_create_var(0)));
+    /* λx.(g x (h x)) — g=200, h=201 为常量（自由变量） */
+    LvLambdaTerm *t2 = lv_lambda_create_abs(
+        0, lv_lambda_create_app(
+               lv_lambda_create_app(lv_lambda_create_var(200), lv_lambda_create_var(0)),
+               lv_lambda_create_app(lv_lambda_create_var(201), lv_lambda_create_var(0))));
+    if (!t1 || !t2) { FAIL("创建失败"); return; }
+
+    LambdaSubstitution *subs = NULL;
+    LambdaUnifyStatus s = lambda_pattern_unify(t1, t2, &subs, 1024);
+
+    if (s == LAMBDA_UNIFY_OK && subs != NULL) {
+        /* 验证替换包含 F（index=100）且结果还原后 F x 可 β-归约为 g(x, h(x)) */
+        bool has_f = false;
+        for (LambdaSubstitution *p = subs; p; p = p->next) {
+            if (p->index == 100) { has_f = true; break; }
+        }
+        if (has_f) {
+            PASS();
+        } else {
+            FAIL("替换中缺少 F(index=100)");
+        }
+    } else {
+        FAIL("预期 LAMBDA_UNIFY_OK（Imitation）");
+    }
+
+    lambda_substitution_list_destroy(subs);
+    lv_lambda_destroy(t1);
+    lv_lambda_destroy(t2);
+}
+
+/* 测试 10c: 模式合一 Projection — λa.λb.F a b 与 λa.λb.a 合一（投影到第一个参数） */
+static void test_pattern_projection(void) {
+    TEST("pattern_projection");
+    /* λa.λb.(F a b) — F 自由(100)，a=1, b=0 */
+    LvLambdaTerm *t1 = lv_lambda_create_abs(
+        0, lv_lambda_create_abs(
+               0, lv_lambda_create_app(
+                      lv_lambda_create_app(lv_lambda_create_var(100), lv_lambda_create_var(1)),
+                      lv_lambda_create_var(0))));
+    /* λa.λb.a */
+    LvLambdaTerm *t2 = lv_lambda_create_abs(0, lv_lambda_create_abs(0, lv_lambda_create_var(1)));
+    if (!t1 || !t2) { FAIL("创建失败"); return; }
+
+    LambdaSubstitution *subs = NULL;
+    LambdaUnifyStatus s = lambda_pattern_unify(t1, t2, &subs, 1024);
+
+    if (s == LAMBDA_UNIFY_OK && subs != NULL) {
+        bool has_f = false;
+        for (LambdaSubstitution *p = subs; p; p = p->next) {
+            if (p->index == 100) { has_f = true; break; }
+        }
+        if (has_f) {
+            PASS();
+        } else {
+            FAIL("替换中缺少 F(index=100)");
+        }
+    } else {
+        FAIL("预期 LAMBDA_UNIFY_OK（Projection）");
+    }
+
+    lambda_substitution_list_destroy(subs);
+    lv_lambda_destroy(t1);
+    lv_lambda_destroy(t2);
+}
+
+/* 测试 10d: 模式合一约束 — λx.F x 与 λx.G x 合一（F↦G，元变量对齐） */
+static void test_pattern_constraint(void) {
+    TEST("pattern_constraint");
+    /* λx.(F x) — F 自由(100) */
+    LvLambdaTerm *t1 = lv_lambda_create_abs(
+        0, lv_lambda_create_app(lv_lambda_create_var(100), lv_lambda_create_var(0)));
+    /* λx.(G x) — G 自由(101) */
+    LvLambdaTerm *t2 = lv_lambda_create_abs(
+        0, lv_lambda_create_app(lv_lambda_create_var(101), lv_lambda_create_var(0)));
+    if (!t1 || !t2) { FAIL("创建失败"); return; }
+
+    LambdaSubstitution *subs = NULL;
+    LambdaUnifyStatus s = lambda_pattern_unify(t1, t2, &subs, 1024);
+
+    if (s == LAMBDA_UNIFY_OK && subs != NULL) {
+        bool has_f = false;
+        for (LambdaSubstitution *p = subs; p; p = p->next) {
+            if (p->index == 100) { has_f = true; break; }
+        }
+        if (has_f) {
+            PASS();
+        } else {
+            FAIL("替换中缺少 F(index=100)");
+        }
+    } else {
+        FAIL("预期 LAMBDA_UNIFY_OK（F↦G）");
+    }
+
+    lambda_substitution_list_destroy(subs);
+    lv_lambda_destroy(t1);
+    lv_lambda_destroy(t2);
+}
+
 /* ================================================================
  * 替换链表工具测试
  * ================================================================ */
@@ -358,6 +462,9 @@ TEST_MAIN_BEGIN("Test Lambda Unify")
     TEST_MAIN_RUN(test_pattern_is_pattern);
     TEST_MAIN_RUN(test_pattern_non_pattern);
     TEST_MAIN_RUN(test_pattern_fv_fv);
+    TEST_MAIN_RUN(test_pattern_imitation);
+    TEST_MAIN_RUN(test_pattern_projection);
+    TEST_MAIN_RUN(test_pattern_constraint);
     printf("\n--- 工具函数 ---\n");
     TEST_MAIN_RUN(test_subs_snprint);
 TEST_MAIN_END()

@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define ALGEBRAIC_TOPOLOGY_ADV_PRESET_COUNT 10
+#define ALGEBRAIC_TOPOLOGY_ADV_PRESET_COUNT 8
 bool preset_algebraic_topology_adv_register(void);
 
 #ifdef __cplusplus

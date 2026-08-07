@@ -191,12 +191,44 @@ lv_PUBLIC_API LvLambdaTerm *lv_church_isnil(void);
 lv_PUBLIC_API LvLambdaTerm *lv_church_head(void);
 
 /**
+ * @brief 取列表尾部: λl.l (λh.λt.t) (error)
+ *
+ * 返回去掉第一个元素后的列表。空列表上调用返回 error 项。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_tail(void);
+
+/**
+ * @brief Church 映射 (map): λf.λl.l (λh.λt.cons (f h) t) nil
+ *
+ * 对列表的每个元素应用 f：map f [x1,x2,...,xn] = [f x1, f x2, ..., f xn]。
+ * 通过 Church 列表自身的折叠语义实现（等价于 foldr (λh.λt.cons (f h) t) nil）。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_map(void);
+
+/**
+ * @brief Church 过滤 (filter): λp.λl.l (λh.λt.if (p h) (cons h t) t) nil
+ *
+ * 保留满足谓词 p 的元素：filter p [x1,...,xn] = [xi | p xi = true]。
+ * 通过 Church 列表自身的折叠语义实现（等价于 foldr (λh.λt.if (p h) (cons h t) t) nil）。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_filter(void);
+
+/**
  * @brief Church 右折叠 (foldr): λf.λz.λl.l f z
  *
  * 从右向左折叠列表：foldr f z [x1,x2,...,xn] = f x1 (f x2 (... (f xn z)...))
  * 利用 Church 列表的编码本身实现折叠。
  */
 lv_PUBLIC_API LvLambdaTerm *lv_church_foldr(void);
+
+/**
+ * @brief Church 左折叠 (foldl): λf.λz.λl.l (λx.λg.λa.g (f a x)) (λa.a) z
+ *
+ * 从左向右折叠列表：foldl f z [x1,x2,...,xn] = f (... (f (f z x1) x2) ...) xn。
+ * 利用累积器传递技巧（step = λx.λg.λa.g (f a x)，以恒等函数为种子）实现，
+ * 是闭合的 λ-项（无需 Y 组合子）。
+ */
+lv_PUBLIC_API LvLambdaTerm *lv_church_foldl(void);
 
 /**
  * @brief Church 求列表长度: λl.l (λh.λt.succ t) zero

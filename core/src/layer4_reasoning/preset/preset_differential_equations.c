@@ -2,6 +2,8 @@
  * @file preset_differential_equations.c
  * @brief 微分方程预设函数块 - 实现
  *
+ * H1 评估结论（2026-08-07）：注册样板已由 LV_PRESET_REGISTER 宏抽象（每条目 1 行），无需代码生成；运行时注册由 module/presets/differential_equations.lvz 数据驱动（convert_presets.py 生成）。
+ *
  * @details 实现微分方程模块的所有预设函数块。
  *          采用统一的注册接口 preset_blocks_register_simple。
  *          共20个预设，涵盖ODE求解方法、特殊ODE、PDE基本方法、
@@ -25,7 +27,7 @@
  * 预设数量定义
  * ============================================================ */
 
-/** 微分方程模块预设函数块总数 */
+/** 微分方程模块预设函数块总数：20（与头文件中 DIFFERENTIAL_EQUATIONS_PRESET_COUNT 一致） */
 
 /* ============================================================
  * 内部辅助函数

@@ -710,7 +710,7 @@ static void test_type_check_app_id(void) {
  * @brief 测试 Church 编码公共 API 的各个函数不会崩溃或返回 NULL
  */
 static void test_church_public_api(void) {
-    LvLambdaTerm *terms[27];
+    LvLambdaTerm *terms[33];
     int count = 0;
     bool ok = true;
 
@@ -734,6 +734,16 @@ static void test_church_public_api(void) {
     terms[count++] = lv_church_second();
     terms[count++] = lv_church_nil();
     terms[count++] = lv_church_cons();
+    terms[count++] = lv_church_tail();
+    terms[count++] = lv_church_map();
+    terms[count++] = lv_church_filter();
+    terms[count++] = lv_church_foldr();
+    terms[count++] = lv_church_foldl();
+    terms[count++] = lv_church_length();
+    terms[count++] = lv_church_append();
+    terms[count++] = lv_church_leq();
+    terms[count++] = lv_church_eq();
+    terms[count++] = lv_church_gt();
     terms[count++] = lv_church_y_combinator();
     terms[count++] = lv_church_div();
     terms[count++] = lv_church_factorial();
@@ -892,6 +902,34 @@ static void test_church_head_compile(void) {
     if (rc == 0) PASS(); else FAIL("head 编译失败");
 }
 
+static void test_church_tail_compile(void) {
+    LvLambdaTerm *t = lv_church_tail();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("tail 编译失败");
+}
+
+static void test_church_map_compile(void) {
+    LvLambdaTerm *t = lv_church_map();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("map 编译失败");
+}
+
+static void test_church_filter_compile(void) {
+    LvLambdaTerm *t = lv_church_filter();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("filter 编译失败");
+}
+
+static void test_church_foldl_compile(void) {
+    LvLambdaTerm *t = lv_church_foldl();
+    int rc = compile_and_check_roundtrip(t);
+    lv_lambda_destroy(t);
+    if (rc == 0) PASS(); else FAIL("foldl 编译失败");
+}
+
 static void test_church_foldr_compile(void) {
     LvLambdaTerm *t = lv_church_foldr();
     int rc = compile_and_check_roundtrip(t);
@@ -982,7 +1020,11 @@ TEST_MAIN_BEGIN("λ-演算端到端测试")
     printf("\n[Church 列表操作]\n");
     TEST_MAIN_RUN(test_church_isnil_compile);
     TEST_MAIN_RUN(test_church_head_compile);
+    TEST_MAIN_RUN(test_church_tail_compile);
+    TEST_MAIN_RUN(test_church_map_compile);
+    TEST_MAIN_RUN(test_church_filter_compile);
     TEST_MAIN_RUN(test_church_foldr_compile);
+    TEST_MAIN_RUN(test_church_foldl_compile);
     TEST_MAIN_RUN(test_church_length_compile);
     TEST_MAIN_RUN(test_church_append_compile);
     printf("\n[Church 比较运算]\n");

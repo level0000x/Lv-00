@@ -9,6 +9,19 @@
  * - Lean 4（现代定理证明器）
  * - JSON（结构化数据交换）
  * - DOT（Graphviz 图形化证明树）
+ *
+ * 【与其他导出模块的定位关系（勿误合并）】
+ * 本模块（layer5_output）与 layer4_reasoning/engine/proof_export.c 是双轨设计：
+ *   - 本模块：输入 lvProof*（轻量步骤数组，见 lv/proof_export_enhanced.h），
+ *     输出 lvExportResult*（proof_export_result_destroy 释放），格式为
+ *     HTML / LaTeX / Coq / Lean4 / JSON / DOT；格式分发已表驱动
+ *     （kExportHandlers[]，按 lvExportFormat 索引）。
+ *   - proof_export.c：输入 lvProofTraceTree*（引擎追踪树），输出 char*
+ *     （lv_free 释放），格式为 自然语言 / LaTeX / Coq / Isar；其格式分发
+ *     同样已表驱动（kCoqFormats / kIsarFormats 等，按 lvTraceNodeType 索引）。
+ * 两模块格式枚举语义不同（导出格式 vs 节点类型），输入数据模型不同，
+ * 无法统一为单一 dispatch；本模块的导出格式表是"格式枚举 → 处理函数"
+ * 的唯一事实来源，新增格式只需在 lvExportFormat 与 kExportHandlers 各加一项。
  */
 
 #include "lv/proof_export_enhanced.h"

@@ -27,6 +27,17 @@
 static int64_t g_native_id = 2000000;
 
 /**
+ * @brief 重置全局原生 ID 计数器（测试进程内隔离用）
+ *
+ * 将 g_native_id 恢复为初始值 2000000，使同一进程内多次测试
+ * 得到的原生 ID 从同一基线开始，不相互漂移。
+ * 正常路径（native_id_alloc 单调递增）行为完全不变。
+ */
+void lv_native_reset_id_counter(void) {
+    g_native_id = 2000000;
+}
+
+/**
  * @brief 分配全局原生ID
  */
 static int64_t native_id_alloc(void) {

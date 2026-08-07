@@ -4,6 +4,17 @@
  *
  * @details 本文件从 proof_engine_enhanced.c 拆分子模块生成（Lv-00 v3.3.0+）。
  *
+ * 【与其他导出模块的定位关系（勿误合并）】
+ * 本模块（layer4_reasoning）与 layer5_output/proof_export_enhanced.c
+ * 是双轨设计，输入类型与输出契约均不同，无法统一为单一 dispatch：
+ *   - 本模块：输入 lvProofTraceTree*（引擎追踪树），输出 char*（lv_free 释放），
+ *     格式为 自然语言 / LaTeX / Coq / Isar；格式分发已表驱动
+ *     （kCoqFormats / kIsarFormats / kTypeLatexLabel 等，按 lvTraceNodeType 索引）。
+ *   - proof_export_enhanced.c：输入 lvProof*（轻量步骤数组），输出 lvExportResult*
+ *     （proof_export_result_destroy 释放），格式为 HTML / LaTeX / Coq / Lean4 /
+ *     JSON / DOT；格式分发已表驱动（kExportHandlers[]，按 lvExportFormat 索引）。
+ * 两模块格式枚举语义不同（节点类型 vs 导出格式），层方向为 layer5 依赖 layer4。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

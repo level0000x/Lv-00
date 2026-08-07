@@ -359,6 +359,7 @@ struct TypeSystem {
 
     TypeVariable **type_vars; /* 类型变量数组 */
     int type_var_count;       /* 类型变量数量 */
+    int type_var_capacity;    /* 类型变量数组容量（倍增扩容） */
 
     RewriteRule **rewrite_rules; /* 重写规则数组（用于类型等价检查） */
     int rewrite_rule_count;      /* 重写规则数量 */

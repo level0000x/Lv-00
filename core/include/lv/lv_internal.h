@@ -267,6 +267,23 @@ static inline size_t align_up(size_t size, size_t alignment) {
  */
 int lv_error_table_size(void);
 
+/* ================================================================
+ * 全局 ID 计数器 reset（测试进程内隔离）
+ *
+ * 各模块的 static 全局 ID 计数器在测试进程内会持续漂移，导致跨用例
+ * 的 ID 断言不可重复。以下 reset 函数将对应计数器恢复为初始值，
+ * 仅供测试在用例间调用；正常路径行为完全不变。
+ * ================================================================ */
+
+/** @brief 重置原生实现全局 ID 计数器（lv_impl_native.c，恢复初始值 2000000） */
+void lv_native_reset_id_counter(void);
+
+/** @brief 重置 .lv 加载器名称映射表（lv_loader.c，清空 s_loader_names） */
+void lv_loader_reset(void);
+
+/** @brief 重置代数模式全局 ID 计数器（algebra_mode.c，恢复 0） */
+void lv_algebra_reset_id_counter(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define LINEAR_ALGEBRA_PRESET_COUNT 18
+#define LINEAR_ALGEBRA_PRESET_COUNT 32
 bool preset_linear_algebra_register(void);
 
 #ifdef __cplusplus

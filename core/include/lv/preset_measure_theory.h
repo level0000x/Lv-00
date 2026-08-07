@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define MEASURE_THEORY_PRESET_COUNT 12
+#define MEASURE_THEORY_PRESET_COUNT 20
 bool preset_measure_theory_register(void);
 
 #ifdef __cplusplus

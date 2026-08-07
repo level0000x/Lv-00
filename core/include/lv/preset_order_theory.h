@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define ORDER_THEORY_PRESET_COUNT 10
+#define ORDER_THEORY_PRESET_COUNT 8
 bool preset_order_theory_register(void);
 
 #ifdef __cplusplus

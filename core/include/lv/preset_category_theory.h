@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define CATEGORY_THEORY_PRESET_COUNT 12
+#define CATEGORY_THEORY_PRESET_COUNT 15
 bool preset_category_theory_register(void);
 
 #ifdef __cplusplus

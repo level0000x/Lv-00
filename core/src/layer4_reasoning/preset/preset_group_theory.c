@@ -2,6 +2,8 @@
  * @file preset_group_theory.c
  * @brief 群论预设函数块 - 实现
  *
+ * H1 评估结论（2026-08-07）：注册样板已由 LV_PRESET_REGISTER 宏抽象（每条目 1 行），无需代码生成；运行时注册由 module/presets/group_theory.lvz 数据驱动（convert_presets.py 生成）。
+ *
  * 实现理论数学研究中常用的群论运算预设函数块。
  * 涵盖群基础运算、子群理论、同态同构、特殊群及群结构分析。
  *
@@ -32,6 +34,10 @@
 #include "lv_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h" /* 预设公共宏与辅助函数（PRESET_ERROR_LOG 等） */
+
+/* ==================== 预设函数块数量 ==================== */
+
+/** 群论模块预设函数块总数：38（与头文件中 GROUP_THEORY_PRESET_COUNT 一致） */
 
 /* ==================== 内部辅助函数 ==================== */
 

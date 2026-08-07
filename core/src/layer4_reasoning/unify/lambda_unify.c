@@ -555,10 +555,406 @@ static int free_var_depth(LvLambdaTerm *term, int free_idx, int depth) {
 }
 
 /**
+ * @brief 柔性头应用信息（Miller 模式合一辅助）
+ *
+ * 柔性项：应用链的头是自由变量（元变量），且所有参数都是不同的
+ * bound 变量（模式条件）。如 F x1 x2 ... xn。
+ */
+typedef struct {
+    int head;                /* 柔性头自由变量的 De Bruijn 索引 */
+    LvLambdaTerm *args[256]; /* 参数（bound 变量项，从左到右） */
+    int arg_count;           /* 参数个数 */
+} FlexAppInfo;
+
+/**
+ * @brief 收集应用链为柔性头应用（若满足模式条件）
+ *
+ * 拆解 App(App(...App(F, a1), a2)..., an) 应用链：
+ * - 头必须是自由变量（index >= binder_count）
+ * - 所有参数必须是 bound 变量（index < binder_count）且互不相同
+ *
+ * @param term         待检查项
+ * @param binder_count 当前绑定层数
+ * @param info         输出：柔性头信息（head/args 均为 term 的子节点，不拥有）
+ * @return true 是合法的柔性头应用
+ */
+static bool collect_flex_app(LvLambdaTerm *term, int binder_count, FlexAppInfo *info) {
+    if (!term || !info || term->type != LV_LAMBDA_APP)
+        return false;
+
+    LvLambdaTerm *args_buf[256];
+    int count = 0;
+    LvLambdaTerm *cur = term;
+    while (cur && cur->type == LV_LAMBDA_APP) {
+        if (count >= 256)
+            return false;
+        args_buf[count++] = cur->data.app.right;
+        cur = cur->data.app.left;
+    }
+
+    if (!cur || cur->type != LV_LAMBDA_VAR)
+        return false;
+    if (cur->data.var.index < binder_count)
+        return false; /* 头是 bound 变量 → 刚性项，非柔性 */
+
+    /* 参数必须是 bound 变量且互不相同 */
+    for (int i = 0; i < count; i++) {
+        if (!args_buf[i] || args_buf[i]->type != LV_LAMBDA_VAR)
+            return false;
+        if (args_buf[i]->data.var.index >= binder_count)
+            return false;
+        for (int j = 0; j < i; j++) {
+            if (args_buf[i]->data.var.index == args_buf[j]->data.var.index)
+                return false;
+        }
+    }
+
+    info->head = cur->data.var.index;
+    info->arg_count = count;
+    /* 应用链的 right 是从右到左收集的，反转得到从左到右的参数顺序 */
+    for (int i = 0; i < count; i++) {
+        info->args[i] = args_buf[count - 1 - i];
+    }
+    return true;
+}
+
+/**
+ * @brief 用 n 层 λ-抽象包裹 body
+ *
+ * 构造 λx1.λx2.…λxn.body。包裹后 x_i（第 i+1 个参数，1-based）的
+ * De Bruijn 索引为 n-1-i（x1 最外层 = n-1，xn 最内层 = 0）。
+ */
+static LvLambdaTerm *lambda_wrap(LvLambdaTerm *body, int n) {
+    for (int i = 0; i < n; i++) {
+        body = lv_lambda_create_abs(0, body);
+    }
+    return body;
+}
+
+/**
+ * @brief 构造应用链：head 应用到 n 个"新 binder"参数
+ *
+ * 用于 Imitation 构造 F ↦ λx1..λxn.(head x1 x2 ... xn)。
+ * head_index 必须已包含提升（处于 λx1..λxn 下时 head 为自由变量需 +n）；
+ * 参数 x_i 使用新 binder 的索引 n-1-i（x1 = n-1，xn = 0）。
+ */
+static LvLambdaTerm *chain_new_binders(int head_index_lifted, int nargs) {
+    LvLambdaTerm *result = lv_lambda_create_var(head_index_lifted);
+    for (int k = 0; k < nargs; k++) {
+        result = lv_lambda_create_app(result, lv_lambda_create_var(nargs - 1 - k));
+    }
+    return result;
+}
+
+/**
+ * @brief 构造应用链：head 应用到"提升后的旧参数"
+ *
+ * 用于柔性-柔性绑定 F ↦ λx1..λxn.(G y1 y2 ... ym)。
+ * head_index 已含提升；每个参数取其原 De Bruijn 索引 + lift。
+ */
+static LvLambdaTerm *chain_lifted_args(int head_index_lifted, const FlexAppInfo *info, int lift) {
+    LvLambdaTerm *result = lv_lambda_create_var(head_index_lifted);
+    for (int k = 0; k < info->arg_count; k++) {
+        result = lv_lambda_create_app(result,
+                                      lv_lambda_create_var(info->args[k]->data.var.index + lift));
+    }
+    return result;
+}
+
+/**
+ * @brief 求 λ-项中最大的变量 De Bruijn 索引（用于分配 fresh 元变量）
+ */
+static int max_var_index_in_term(LvLambdaTerm *t, int cur) {
+    if (!t)
+        return cur;
+    if (t->type == LV_LAMBDA_VAR) {
+        return t->data.var.index > cur ? t->data.var.index : cur;
+    }
+    if (t->type == LV_LAMBDA_ABS) {
+        return max_var_index_in_term(t->data.abs.body, cur);
+    }
+    if (t->type == LV_LAMBDA_APP) {
+        int m = max_var_index_in_term(t->data.app.left, cur);
+        return max_var_index_in_term(t->data.app.right, m);
+    }
+    return cur;
+}
+
+/**
+ * @brief 计算 fresh 元变量起始索引（大于 t1/t2 与替换链中的所有索引）
+ */
+static int compute_fresh_start(LvLambdaTerm *t1, LvLambdaTerm *t2, LambdaSubstitution *subs) {
+    int m = max_var_index_in_term(t1, -1);
+    m = max_var_index_in_term(t2, m);
+    for (LambdaSubstitution *s = subs; s; s = s->next) {
+        m = max_var_index_in_term(s->replacement, m);
+    }
+    return m + 1;
+}
+
+/* 前向声明（互相递归） */
+static LambdaUnifyStatus pattern_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
+                                            LambdaSubstitution **subs,
+                                            int binder_count,
+                                            int *fresh_counter,
+                                            int depth, int max_depth);
+
+/**
+ * @brief 柔性头 vs 刚性项合一（Imitation / Projection 规则）
+ *
+ * 合一 F x1..xn 与刚性项 rigid（F 不在 rigid 中自由出现）：
+ * - n == 0：直接绑定 F ↦ rigid（一阶情况）
+ * - rigid 是 bound 变量且是参数之一：Projection，F ↦ λx1..λxn.x_{k+1}
+ * - rigid 是自由常量 G：Imitation 常量，F ↦ λx1..λxn.G
+ * - rigid 是抽象 λb.M：F ↦ λx1..λxn.λb.(F' x1..xn b)，递归合一 F' x1..xn b ≡ M'
+ * - rigid 是应用 u v：F ↦ λx1..λxn.(F_u x1..xn)(F_v x1..xn)，递归合一两侧
+ * - rigid 是柔性头 G y1..ym：F ↦ λx1..λxn.(G y1..ym)（参数提升）
+ *
+ * @param fv_idx        元变量索引（柔性头）
+ * @param info          柔性头参数信息
+ * @param rigid         刚性目标项
+ * @param subs          替换链表
+ * @param binder_count  当前绑定层数
+ * @param fresh_counter 计数器：新元变量索引分配（调用方持有，单调递增）
+ * @param depth, max_depth 递归深度控制
+ */
+static LambdaUnifyStatus solve_flex_rigid(int fv_idx, const FlexAppInfo *info,
+                                          LvLambdaTerm *rigid,
+                                          LambdaSubstitution **subs,
+                                          int binder_count,
+                                          int *fresh_counter,
+                                          int depth, int max_depth) {
+    if (depth >= max_depth) {
+        lv_LOG_ERROR("lambda_unify", "模式合一（柔性-刚性）：最大递归深度 %d 超限", max_depth);
+        return LAMBDA_UNIFY_ERROR;
+    }
+    if (!rigid)
+        return LAMBDA_UNIFY_ERROR;
+
+    int nargs = info->arg_count;
+
+    /* Occurs check：F 不得出现在 rigid 中 */
+    if (occurs_check_rec(fv_idx, rigid, *subs, binder_count)) {
+        return LAMBDA_UNIFY_OCCURS_CHECK;
+    }
+
+    /* ── n == 0：裸元变量直接绑定（一阶情况） ── */
+    if (nargs == 0) {
+        LvLambdaTerm *copy = lv_lambda_copy(rigid);
+        if (!copy)
+            return LAMBDA_UNIFY_ERROR;
+        if (!add_substitution_head(subs, fv_idx, copy)) {
+            lv_lambda_destroy(copy);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        return LAMBDA_UNIFY_OK;
+    }
+
+    /* ── 柔性-柔性：F x1..xn ≡ G y1..ym ── */
+    FlexAppInfo rigid_info;
+    if (collect_flex_app(rigid, binder_count, &rigid_info)) {
+        if (rigid_info.head == fv_idx) {
+            /* 同一元变量：参数必须逐位一致 */
+            if (rigid_info.arg_count != nargs)
+                return LAMBDA_UNIFY_FAIL;
+            for (int i = 0; i < nargs; i++) {
+                if (rigid_info.args[i]->data.var.index != info->args[i]->data.var.index)
+                    return LAMBDA_UNIFY_FAIL;
+            }
+            return LAMBDA_UNIFY_OK;
+        }
+        /* G 已有替换 → 展开 (r2 y1..ym) 后递归 */
+        LvLambdaTerm *r2 = find_substitution(*subs, rigid_info.head);
+        if (r2) {
+            LvLambdaTerm *app_chain = lv_lambda_copy(r2);
+            if (!app_chain)
+                return LAMBDA_UNIFY_ERROR;
+            for (int i = 0; i < rigid_info.arg_count; i++) {
+                app_chain = lv_lambda_create_app(app_chain, lv_lambda_copy(rigid_info.args[i]));
+                if (!app_chain)
+                    return LAMBDA_UNIFY_ERROR;
+            }
+            return solve_flex_rigid(fv_idx, info, app_chain, subs, binder_count,
+                                    fresh_counter, depth + 1, max_depth);
+        }
+        /* 直接绑定：F ↦ λx1..λxn.(G y1..ym)（G 与 y 均提升 n 层） */
+        LvLambdaTerm *chain = chain_lifted_args(rigid_info.head + nargs, &rigid_info, nargs);
+        if (!chain)
+            return LAMBDA_UNIFY_ERROR;
+        LvLambdaTerm *repl = lambda_wrap(chain, nargs);
+        if (!repl)
+            return LAMBDA_UNIFY_ERROR;
+        if (!add_substitution_head(subs, fv_idx, repl)) {
+            lv_lambda_destroy(repl);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        return LAMBDA_UNIFY_OK;
+    }
+
+    /* ── rigid 是 bound 变量：Projection ── */
+    if (rigid->type == LV_LAMBDA_VAR && rigid->data.var.index < binder_count) {
+        int k = -1;
+        for (int i = 0; i < nargs; i++) {
+            if (info->args[i]->data.var.index == rigid->data.var.index) {
+                k = i;
+                break;
+            }
+        }
+        if (k < 0)
+            return LAMBDA_UNIFY_FAIL; /* 目标不是参数之一 → 无解 */
+        /* F ↦ λx1..λxn.x_{k+1}（x_{k+1} 的 De Bruijn 索引 = n-1-k） */
+        LvLambdaTerm *body = lv_lambda_create_var(nargs - 1 - k);
+        if (!body)
+            return LAMBDA_UNIFY_ERROR;
+        LvLambdaTerm *repl = lambda_wrap(body, nargs);
+        if (!repl)
+            return LAMBDA_UNIFY_ERROR;
+        if (!add_substitution_head(subs, fv_idx, repl)) {
+            lv_lambda_destroy(repl);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        return LAMBDA_UNIFY_OK;
+    }
+
+    /* ── rigid 是自由变量（常量）：Imitation 常量 ── */
+    if (rigid->type == LV_LAMBDA_VAR) {
+        /* F ↦ λx1..λxn.G（G 提升 n 层） */
+        LvLambdaTerm *body = lv_lambda_create_var(rigid->data.var.index + nargs);
+        if (!body)
+            return LAMBDA_UNIFY_ERROR;
+        LvLambdaTerm *repl = lambda_wrap(body, nargs);
+        if (!repl)
+            return LAMBDA_UNIFY_ERROR;
+        if (!add_substitution_head(subs, fv_idx, repl)) {
+            lv_lambda_destroy(repl);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        return LAMBDA_UNIFY_OK;
+    }
+
+    /* ── rigid 是抽象 λb.M：剥离一层抽象，递归合一 ── */
+    if (rigid->type == LV_LAMBDA_ABS) {
+        if (!rigid->data.abs.body)
+            return LAMBDA_UNIFY_ERROR;
+        int fp = (*fresh_counter)++;
+
+        /* 递归合一 F' x1'..xn' b ≡ M'（binder_count+1 上下文）：
+         * x_i' = x_i + 1（多一层 λb），b = Var(0)，M' = M 提升 nargs+1 层 */
+        FlexAppInfo args_p1;
+        args_p1.head = fp;
+        args_p1.arg_count = nargs + 1;
+        for (int i = 0; i < nargs; i++) {
+            args_p1.args[i] = lv_lambda_create_var(info->args[i]->data.var.index + 1);
+        }
+        args_p1.args[nargs] = lv_lambda_create_var(0);
+
+        LvLambdaTerm *lifted_body = lift_free_vars(rigid->data.abs.body, nargs + 1);
+        if (!lifted_body) {
+            for (int i = 0; i < nargs + 1; i++)
+                lv_lambda_destroy(args_p1.args[i]);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        LambdaUnifyStatus s = solve_flex_rigid(fp, &args_p1, lifted_body, subs,
+                                               binder_count + 1, fresh_counter,
+                                               depth + 1, max_depth);
+        for (int i = 0; i < nargs + 1; i++)
+            lv_lambda_destroy(args_p1.args[i]);
+        lv_lambda_destroy(lifted_body);
+        if (s != LAMBDA_UNIFY_OK)
+            return s;
+
+        /* 构造绑定：F ↦ λx1..λxn.λb.(F' x1..xn b)
+         * λx1..λxn.λb 下：F' 索引 = fp + nargs + 1，x_{k+1} = nargs - k，b = 0 */
+        LvLambdaTerm *chain = lv_lambda_create_var(fp + nargs + 1);
+        if (!chain)
+            return LAMBDA_UNIFY_ERROR;
+        for (int k = 0; k < nargs; k++) {
+            chain = lv_lambda_create_app(chain, lv_lambda_create_var(nargs - k));
+            if (!chain)
+                return LAMBDA_UNIFY_ERROR;
+        }
+        chain = lv_lambda_create_app(chain, lv_lambda_create_var(0));
+        if (!chain)
+            return LAMBDA_UNIFY_ERROR;
+        LvLambdaTerm *repl = lv_lambda_create_abs(0, chain); /* λb */
+        if (!repl)
+            return LAMBDA_UNIFY_ERROR;
+        repl = lambda_wrap(repl, nargs); /* λx1..λxn.λb */
+        if (!repl)
+            return LAMBDA_UNIFY_ERROR;
+        if (!add_substitution_head(subs, fv_idx, repl)) {
+            lv_lambda_destroy(repl);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        return LAMBDA_UNIFY_OK;
+    }
+
+    /* ── rigid 是应用 u v：Imitation（对齐分解） ── */
+    if (rigid->type == LV_LAMBDA_APP) {
+        if (!rigid->data.app.left || !rigid->data.app.right)
+            return LAMBDA_UNIFY_ERROR;
+        int fu = (*fresh_counter)++;
+        int fv2 = (*fresh_counter)++;
+
+        /* 递归合一 F_u x1..xn ≡ u'、F_v x1..xn ≡ v'（u/v 提升 nargs 层） */
+        FlexAppInfo args_n;
+        args_n.head = fu;
+        args_n.arg_count = nargs;
+        for (int i = 0; i < nargs; i++)
+            args_n.args[i] = info->args[i];
+
+        LvLambdaTerm *lift_u = lift_free_vars(rigid->data.app.left, nargs);
+        LvLambdaTerm *lift_v = lift_free_vars(rigid->data.app.right, nargs);
+        if (!lift_u || !lift_v) {
+            lv_lambda_destroy(lift_u);
+            lv_lambda_destroy(lift_v);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        LambdaUnifyStatus s = solve_flex_rigid(fu, &args_n, lift_u, subs, binder_count,
+                                               fresh_counter, depth + 1, max_depth);
+        if (s != LAMBDA_UNIFY_OK) {
+            lv_lambda_destroy(lift_u);
+            lv_lambda_destroy(lift_v);
+            return s;
+        }
+        args_n.head = fv2;
+        s = solve_flex_rigid(fv2, &args_n, lift_v, subs, binder_count,
+                             fresh_counter, depth + 1, max_depth);
+        lv_lambda_destroy(lift_u);
+        lv_lambda_destroy(lift_v);
+        if (s != LAMBDA_UNIFY_OK)
+            return s;
+
+        /* 构造绑定：F ↦ λx1..λxn.(F_u x1..xn)(F_v x1..xn) */
+        LvLambdaTerm *cu = chain_new_binders(fu + nargs, nargs);
+        LvLambdaTerm *cv = chain_new_binders(fv2 + nargs, nargs);
+        if (!cu || !cv) {
+            lv_lambda_destroy(cu);
+            lv_lambda_destroy(cv);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        LvLambdaTerm *body = lv_lambda_create_app(cu, cv);
+        if (!body)
+            return LAMBDA_UNIFY_ERROR;
+        LvLambdaTerm *repl = lambda_wrap(body, nargs);
+        if (!repl)
+            return LAMBDA_UNIFY_ERROR;
+        if (!add_substitution_head(subs, fv_idx, repl)) {
+            lv_lambda_destroy(repl);
+            return LAMBDA_UNIFY_ERROR;
+        }
+        return LAMBDA_UNIFY_OK;
+    }
+
+    return LAMBDA_UNIFY_FAIL;
+}
+
+/**
  * @brief 模式合一递归核心
  *
  * @param t1, t2    待合一项
  * @param binder_count  当前绑定的抽象层数
+ * @param fresh_counter 新元变量索引计数器
  * @param depth     递归深度
  * @param max_depth 最大深度
  * @param subs      替换链表
@@ -566,6 +962,7 @@ static int free_var_depth(LvLambdaTerm *term, int free_idx, int depth) {
 static LambdaUnifyStatus pattern_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
                                             LambdaSubstitution **subs,
                                             int binder_count,
+                                            int *fresh_counter,
                                             int depth, int max_depth) {
     if (depth >= max_depth) {
         return LAMBDA_UNIFY_ERROR;
@@ -579,14 +976,14 @@ static LambdaUnifyStatus pattern_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
 
     /* === 处理变量 === */
 
-    /* t1 是自由变量（高阶变量候选） */
+    /* t1 是自由变量（高阶变量候选，裸元变量） */
     if (t1->type == LV_LAMBDA_VAR && t1->data.var.index >= binder_count) {
         int fv_idx = t1->data.var.index;
 
         /* 检查是否已有替换 */
         LvLambdaTerm *r1 = find_substitution(*subs, fv_idx);
         if (r1) {
-            return pattern_unify_rec(r1, t2, subs, binder_count, depth + 1, max_depth);
+            return pattern_unify_rec(r1, t2, subs, binder_count, fresh_counter, depth + 1, max_depth);
         }
 
         /* t2 也是自由变量 */
@@ -594,7 +991,7 @@ static LambdaUnifyStatus pattern_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
             int fv2 = t2->data.var.index;
             LvLambdaTerm *r2 = find_substitution(*subs, fv2);
             if (r2) {
-                return pattern_unify_rec(t1, r2, subs, binder_count, depth + 1, max_depth);
+                return pattern_unify_rec(t1, r2, subs, binder_count, fresh_counter, depth + 1, max_depth);
             }
             if (fv_idx == fv2) return LAMBDA_UNIFY_OK;
 
@@ -608,9 +1005,8 @@ static LambdaUnifyStatus pattern_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
             return LAMBDA_UNIFY_OK;
         }
 
-        /* t2 是刚性项 → Imitation + Projection 决策 */
+        /* t2 是刚性项 → 直接绑定（一阶情况，occurs check 后） */
         if (!occurs_check_rec(fv_idx, t2, *subs, binder_count)) {
-            /* 直接替换（一阶情况）：绑定 fv_idx ↦ t2 */
             LvLambdaTerm *copy = lv_lambda_copy(t2);
             if (!copy) return LAMBDA_UNIFY_ERROR;
             if (!add_substitution_head(subs, fv_idx, copy)) {
@@ -625,7 +1021,37 @@ static LambdaUnifyStatus pattern_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
 
     /* t2 是自由变量但 t1 不是 → 交换合一 */
     if (t2->type == LV_LAMBDA_VAR && t2->data.var.index >= binder_count) {
-        return pattern_unify_rec(t2, t1, subs, binder_count, depth + 1, max_depth);
+        return pattern_unify_rec(t2, t1, subs, binder_count, fresh_counter, depth + 1, max_depth);
+    }
+
+    /* t1 是柔性头应用（模式形式）：F x1..xn */
+    if (t1->type == LV_LAMBDA_APP) {
+        FlexAppInfo t1_flex;
+        if (collect_flex_app(t1, binder_count, &t1_flex)) {
+            int fv_idx = t1_flex.head;
+
+            /* 柔性头已有替换 → 展开 (r1 x1..xn) 后递归 */
+            LvLambdaTerm *r1 = find_substitution(*subs, fv_idx);
+            if (r1) {
+                LvLambdaTerm *app_chain = lv_lambda_copy(r1);
+                if (!app_chain)
+                    return LAMBDA_UNIFY_ERROR;
+                for (int k = 0; k < t1_flex.arg_count; k++) {
+                    app_chain = lv_lambda_create_app(app_chain,
+                                                     lv_lambda_copy(t1_flex.args[k]));
+                    if (!app_chain)
+                        return LAMBDA_UNIFY_ERROR;
+                }
+                LambdaUnifyStatus s = pattern_unify_rec(app_chain, t2, subs, binder_count,
+                                                        fresh_counter, depth + 1, max_depth);
+                lv_lambda_destroy(app_chain);
+                return s;
+            }
+
+            /* t2 也是柔性头应用 → 逐位对齐（交由 solve_flex_rigid 的柔性-柔性分支） */
+            return solve_flex_rigid(fv_idx, &t1_flex, t2, subs, binder_count,
+                                    fresh_counter, depth + 1, max_depth);
+        }
     }
 
     /* === 处理 bound 变量 === */
@@ -645,18 +1071,18 @@ static LambdaUnifyStatus pattern_unify_rec(LvLambdaTerm *t1, LvLambdaTerm *t2,
     if (t1->type == LV_LAMBDA_ABS) {
         if (t2->type != LV_LAMBDA_ABS) return LAMBDA_UNIFY_FAIL;
         return pattern_unify_rec(t1->data.abs.body, t2->data.abs.body,
-                                 subs, binder_count + 1, depth + 1, max_depth);
+                                 subs, binder_count + 1, fresh_counter, depth + 1, max_depth);
     }
 
-    /* === 处理应用 === */
+    /* === 处理应用（非柔性头） === */
     if (t1->type == LV_LAMBDA_APP) {
         if (t2->type != LV_LAMBDA_APP) return LAMBDA_UNIFY_FAIL;
 
         LambdaUnifyStatus s = pattern_unify_rec(t1->data.app.left, t2->data.app.left,
-                                                 subs, binder_count, depth + 1, max_depth);
+                                                 subs, binder_count, fresh_counter, depth + 1, max_depth);
         if (s != LAMBDA_UNIFY_OK) return s;
         return pattern_unify_rec(t1->data.app.right, t2->data.app.right,
-                                 subs, binder_count, depth + 1, max_depth);
+                                 subs, binder_count, fresh_counter, depth + 1, max_depth);
     }
 
     return LAMBDA_UNIFY_ERROR;
@@ -675,5 +1101,7 @@ LambdaUnifyStatus lambda_pattern_unify(LvLambdaTerm *t1, LvLambdaTerm *t2,
         return lambda_unify(t1, t2, out_subs, max_depth);
     }
 
-    return pattern_unify_rec(t1, t2, out_subs, 0, 0, max_depth);
+    /* fresh 元变量计数器：从所有已用索引之上开始 */
+    int fresh_counter = compute_fresh_start(t1, t2, NULL);
+    return pattern_unify_rec(t1, t2, out_subs, 0, &fresh_counter, 0, max_depth);
 }

@@ -467,6 +467,32 @@ void scheduler_set_backend_available(EngineScheduler *scheduler, SolverBackendTy
 }
 
 /* ============================================================
+ * 预设路由规则描述符表（静态数组，替代逐条字段填充）
+ * ============================================================ */
+static const RoutingRule kPresetRoutingRules[] = {
+    {
+        /* 规则 1: small-groebner — 变量数 <= 50 时使用 Groebner */
+        .name = "small-groebner",
+        .priority = 20,
+        .enabled = true,
+        .conditions = {{ROUTE_COND_VAR_COUNT_LE, 50, 0.0}},
+        .condition_count = 1,
+        .combine_mode = ROUTE_COMBINE_AND,
+        .target_backend = GROEBNER,
+    },
+    {
+        /* 规则 2: default-groebner — 无条件回退 */
+        .name = "default-groebner",
+        .priority = 100,
+        .enabled = true,
+        .conditions = {{ROUTE_COND_NONE, 0, 0.0}},
+        .condition_count = 1,
+        .combine_mode = ROUTE_COMBINE_AND,
+        .target_backend = GROEBNER,
+    },
+};
+
+/* ============================================================
  * 路由规则管理
  * ============================================================ */
 int scheduler_add_routing_rule(EngineScheduler *scheduler, RoutingRule *rule) {
@@ -515,31 +541,15 @@ int scheduler_load_preset_rules(EngineScheduler *scheduler) {
     scheduler->routing_rule_count = 0;
     memset(scheduler->routing_rules, 0, sizeof(scheduler->routing_rules));
 
-    /* 规则 1: small-groebner — 变量数 < 50 时使用 Groebner */
-    RoutingRule *r1 = &scheduler->routing_rules[scheduler->routing_rule_count];
-    lv_strncpy(r1->name, "small-groebner", sizeof(r1->name));
-    r1->priority = 20;
-    r1->enabled = true;
-    r1->conditions[0].type = ROUTE_COND_VAR_COUNT_LE;
-    r1->conditions[0].int_value = 50;
-    r1->conditions[0].float_value = 0.0;
-    r1->condition_count = 1;
-    r1->combine_mode = ROUTE_COMBINE_AND;
-    r1->target_backend = GROEBNER;
-    scheduler->routing_rule_count++;
-
-    /* 规则 2: default-groebner — 无条件回退 */
-    RoutingRule *r2 = &scheduler->routing_rules[scheduler->routing_rule_count];
-    lv_strncpy(r2->name, "default-groebner", sizeof(r2->name));
-    r2->priority = 100;
-    r2->enabled = true;
-    r2->conditions[0].type = ROUTE_COND_NONE;
-    r2->conditions[0].int_value = 0;
-    r2->conditions[0].float_value = 0.0;
-    r2->condition_count = 1;
-    r2->combine_mode = ROUTE_COMBINE_AND;
-    r2->target_backend = GROEBNER;
-    scheduler->routing_rule_count++;
+    /* 从静态描述符表批量拷贝预设规则（防止超出容量） */
+    size_t count = sizeof(kPresetRoutingRules) / sizeof(kPresetRoutingRules[0]);
+    if (count > SCHEDULER_MAX_ROUTING_RULES) {
+        count = SCHEDULER_MAX_ROUTING_RULES;
+    }
+    for (size_t i = 0; i < count; i++) {
+        scheduler->routing_rules[i] = kPresetRoutingRules[i];
+    }
+    scheduler->routing_rule_count = (int) count;
 
     return 0;
 }
@@ -1082,6 +1092,50 @@ void lv_engine_scheduler_shutdown(lvEngine *engine) {
     }
 }
 
+/* ============================================================
+ * 向后兼容 —— 旧版调度任务描述符表
+ *
+ * 旧版调度器是一个简单的优先级队列；在新的设计下，task_name
+ * 决定操作类型（映射到描述符表中的处理函数），priority 保留
+ * 兼容（不参与路由）。
+ * ============================================================ */
+typedef void (*SchedulerTaskHandler)(EngineScheduler *scheduler, lvEngine *engine, SMTSolverResult *result);
+
+typedef struct {
+    const char *name;            /**< 任务名（lv_engine_schedule 的 task_name） */
+    SchedulerTaskHandler handler; /**< 任务处理函数 */
+} SchedulerTaskEntry;
+
+static void sched_task_solve(EngineScheduler *scheduler, lvEngine *engine, SMTSolverResult *result) {
+    scheduler_solve(scheduler, engine->main_graph, result);
+}
+
+static void sched_task_normalize(EngineScheduler *scheduler, lvEngine *engine, SMTSolverResult *result) {
+    (void)scheduler; (void)result;
+    graph_normalize(engine->main_graph, false);
+}
+
+static void sched_task_unify(EngineScheduler *scheduler, lvEngine *engine, SMTSolverResult *result) {
+    (void)scheduler; (void)engine; (void)result;
+    /* unify 任务需要两个图（构造图 + 命题图），调度器只有一个主图。
+     * 当前直接返回 0 表示"无操作完成"，上层应通过
+     * unify_construction_with_proposition() 显式调用。 */
+    LOG_WARN("scheduler", "unify 任务需要命题图，当前为无操作。请使用 unify_construction_with_proposition() 直接调用。");
+}
+
+static void sched_task_rewrite(EngineScheduler *scheduler, lvEngine *engine, SMTSolverResult *result) {
+    /* rewrite 与 solve 当前共享同一求解路径 */
+    scheduler_solve(scheduler, engine->main_graph, result);
+}
+
+/** 任务名 → 处理函数描述符表（新增任务只需追加一条） */
+static const SchedulerTaskEntry kSchedulerTasks[] = {
+    {"solve",     sched_task_solve},
+    {"normalize", sched_task_normalize},
+    {"unify",     sched_task_unify},
+    {"rewrite",   sched_task_rewrite},
+};
+
 int lv_engine_schedule(const char *task_name, int priority) {
     if (!task_name)
         return -1;
@@ -1099,9 +1153,6 @@ int lv_engine_schedule(const char *task_name, int priority) {
         engine->scheduler = scheduler;
     }
 
-    /* 旧版调度器是一个简单的优先级队列。
-     * 在新的设计下，将其转换为路由规则的后端分发。
-     * task_name 决定操作类型，priority 影响路由 */
     lv_UNUSED(priority);
 
     if (!engine->main_graph)
@@ -1110,17 +1161,13 @@ int lv_engine_schedule(const char *task_name, int priority) {
     SMTSolverResult result;
     smtsolver_result_init(&result);
 
-    if (strcmp(task_name, "solve") == 0) {
-        scheduler_solve(scheduler, engine->main_graph, &result);
-    } else if (strcmp(task_name, "normalize") == 0) {
-        graph_normalize(engine->main_graph, false);
-    } else if (strcmp(task_name, "unify") == 0) {
-        /* unify 任务需要两个图（构造图 + 命题图），调度器只有一个主图。
-         * 当前直接返回 0 表示"无操作完成"，上层应通过
-         * unify_construction_with_proposition() 显式调用。 */
-        LOG_WARN("scheduler", "unify 任务需要命题图，当前为无操作。请使用 unify_construction_with_proposition() 直接调用。");
-    } else if (strcmp(task_name, "rewrite") == 0) {
-        scheduler_solve(scheduler, engine->main_graph, &result);
+    /* 描述符表分发 —— 替代 if/else 任务名链；
+     * 未知任务名保持原语义：无操作，返回 0 */
+    for (size_t i = 0; i < sizeof(kSchedulerTasks) / sizeof(kSchedulerTasks[0]); i++) {
+        if (strcmp(task_name, kSchedulerTasks[i].name) == 0) {
+            kSchedulerTasks[i].handler(scheduler, engine, &result);
+            break;
+        }
     }
 
     smtsolver_result_clear(&result);

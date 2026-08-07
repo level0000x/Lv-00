@@ -65,6 +65,19 @@ static void loader_names_clear(void) {
 }
 
 /**
+ * @brief 重置加载器名称映射表（测试进程内隔离用）
+ *
+ * 清空 static 全局名称映射表 s_loader_names（名称 → 引擎节点 ID）。
+ * lv_loader.c 无独立 ID 计数器（引擎节点 ID 由引擎生成，loader 仅记录），
+ * 本函数为名称表这一 static 全局状态提供显式重置能力，供测试进程内
+ * 隔离使用。正常加载路径（lv_apply_parse_result 每次调用已内部清空）
+ * 行为完全不变。
+ */
+void lv_loader_reset(void) {
+    loader_names_clear();
+}
+
+/**
  * @brief 向名称映射表添加条目
  *
  * @param name    实体名称

@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define FIELD_THEORY_PRESET_COUNT 12
+#define FIELD_THEORY_PRESET_COUNT 30
 bool preset_field_theory_register(void);
 
 #ifdef __cplusplus

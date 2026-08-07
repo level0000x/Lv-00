@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define MATRIX_PRESET_COUNT 16
+#define MATRIX_PRESET_COUNT 28
 bool preset_matrix_register(void);
 
 #ifdef __cplusplus

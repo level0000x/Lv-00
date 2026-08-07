@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define RING_THEORY_PRESET_COUNT 12
+#define RING_THEORY_PRESET_COUNT 31
 bool preset_ring_theory_register(void);
 
 #ifdef __cplusplus

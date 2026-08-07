@@ -15,7 +15,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#define OPTIMIZATION_PRESET_COUNT 14
+#define OPTIMIZATION_PRESET_COUNT 22
 bool preset_optimization_register(void);
 
 #ifdef __cplusplus
