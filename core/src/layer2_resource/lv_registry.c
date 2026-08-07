@@ -66,6 +66,22 @@ void lv_registry_destroy(lvRegistry *reg) {
     lv_MUTEX_DESTROY(&reg->mutex);
 }
 
+void lv_registry_clear(lvRegistry *reg) {
+    if (!reg) return;
+
+    lv_MUTEX_LOCK(&reg->mutex);
+    if (reg->entries) {
+        for (int i = 0; i < reg->count; i++) {
+            if (reg->entries[i].destroy && reg->entries[i].value) {
+                reg->entries[i].destroy(reg->entries[i].value);
+            }
+            lv_free((void **) &reg->entries[i].name);
+        }
+    }
+    reg->count = 0;
+    lv_MUTEX_UNLOCK(&reg->mutex);
+}
+
 /* ============================================================
  * 内部辅助
  * ============================================================ */

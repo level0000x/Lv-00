@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_graph_serialize.c
  * @brief 测试约束图的序列化与反序列化
  */
@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "lv.h"
+#include "node_deep_copy.h" /* node_deep_copy_geom_node：深拷贝一致性断言 */
 
 void test_point_serialization(void) {
     printf("=== 测试点序列化 ===\n");
@@ -34,6 +35,17 @@ void test_point_serialization(void) {
     ConstraintGraph *restored = graph_deserialize_from_json(json);
     assert(restored != NULL);
     assert(graph_get_node_count(restored) == 1);
+
+    /* 坐标 round-trip 断言（守护修复：序列化器输出 "num/den" 简写，
+     * 反序列化器此前静默丢弃坐标导致节点添加失败/坐标丢失） */
+    GeomNode *p0 = graph_get_node(restored, 0);
+    assert(p0 != NULL);
+    assert(p0->coord_count == 2);
+    assert(p0->symbolic_coords != NULL);
+    for (int i = 0; i < 2; i++) {
+        assert(p0->symbolic_coords[i] != NULL);
+        assert(p0->symbolic_coords[i]->type == RATIONAL);
+    }
 
     /* 清理 */
     lv_free_ptr(json);
@@ -168,6 +180,178 @@ void test_module_graph_serialization(void) {
     printf("模块图序列化测试通过!\n\n");
 }
 
+/* 销毁 node_deep_copy_geom_node 返回的游离深拷贝节点（测试辅助：
+ * 指针类字段（boundary_segments / internal_nodes）仅释放数组本身，
+ * 元素为源图引用，不得释放） */
+static void destroy_detached_node(GeomNode *node) {
+    if (!node)
+        return;
+    if (node->symbolic_coords) {
+        for (int i = 0; i < node->coord_count; i++)
+            symbolic_coord_destroy(node->symbolic_coords[i]);
+        lv_free_ptr(node->symbolic_coords);
+    }
+    lv_free_ptr(node->numeric_assumption_declaration);
+    switch (node->type) {
+    case GEOM_PORT:
+        lv_free_ptr(node->data.port);
+        break;
+    case GEOM_REGION:
+        lv_free_ptr(node->data.region.boundary_segments);
+        break;
+    case GEOM_FUNCTION_BLOCK:
+        lv_free_ptr(node->data.func_block.internal_nodes);
+        lv_free_ptr(node->data.func_block.input_port_ids);
+        lv_free_ptr(node->data.func_block.output_port_ids);
+        break;
+    default:
+        break;
+    }
+    lv_free_ptr(node);
+}
+
+void test_advanced_node_roundtrip_and_deepcopy(void) {
+    printf("=== 测试 区域/端口/函数块/圆 序列化-反序列化-深拷贝三方一致 ===\n");
+
+    ConstraintGraph *graph = graph_create();
+    assert(graph != NULL);
+
+    /* 4 个点 (id 0..3) */
+    int p_ids[4];
+    for (int i = 0; i < 4; i++) {
+        SymbolicCoord *c[2] = {symbolic_coord_create_rational(i % 2, 1), symbolic_coord_create_rational(i / 2, 1)};
+        assert(graph_add_point(graph, c, 2) == ADD_NODE_OK);
+        p_ids[i] = graph_get_node_count(graph) - 1;
+        /* graph_add_point 深拷贝坐标，节点拥有副本；测试自建坐标须自行销毁 */
+        symbolic_coord_destroy(c[0]);
+        symbolic_coord_destroy(c[1]);
+    }
+
+    /* 4 条线段 (id 4..7) */
+    int s_ids[4];
+    for (int i = 0; i < 4; i++) {
+        assert(graph_add_line_segment(graph, p_ids[i], p_ids[(i + 1) % 4]) == ADD_NODE_OK);
+        s_ids[i] = graph_get_node_count(graph) - 1;
+    }
+
+    /* 区域 (id 8)：边界为 4 条线段 */
+    assert(graph_add_region(graph, s_ids, 4) == ADD_NODE_OK);
+    int region_id = graph_get_node_count(graph) - 1;
+
+    /* 输入/输出端口 (id 9/10) */
+    assert(graph_add_port(graph, PORT_INPUT, 1, -1) == ADD_NODE_OK);
+    int in_port_id = graph_get_node_count(graph) - 1;
+    assert(graph_add_port(graph, PORT_OUTPUT, 1, -1) == ADD_NODE_OK);
+    int out_port_id = graph_get_node_count(graph) - 1;
+
+    /* 函数块 (id 11)：内部节点 p0,p1；输入端口 in；输出端口 out */
+    int internal[] = {p_ids[0], p_ids[1]};
+    int inputs[] = {in_port_id};
+    int outputs[] = {out_port_id};
+    assert(graph_add_function_block(graph, internal, 2, inputs, 1, outputs, 1) == ADD_NODE_OK);
+    int fb_id = graph_get_node_count(graph) - 1;
+
+    /* 圆 (id 12)：圆心 p0，半径端点 p1 */
+    assert(graph_add_circle(graph, p_ids[0], p_ids[1]) == ADD_NODE_OK);
+    int circle_id = graph_get_node_count(graph) - 1;
+
+    /* ── 序列化 → 反序列化 ── */
+    char *json = graph_serialize_to_json(graph);
+    assert(json != NULL);
+    ConstraintGraph *restored = graph_deserialize_from_json(json);
+    assert(restored != NULL);
+    assert(graph_get_node_count(restored) == graph_get_node_count(graph));
+
+    /* ── 断言 1：round-trip 后区域/端口/函数块/圆字段与序列化前一致 ── */
+    GeomNode *r_region = graph_get_node(restored, region_id);
+    assert(r_region && r_region->type == GEOM_REGION);
+    assert(r_region->data.region.segment_count == 4);
+    for (int i = 0; i < 4; i++) {
+        assert(r_region->data.region.boundary_segments[i] != NULL);
+        assert(r_region->data.region.boundary_segments[i]->id == s_ids[i]);
+    }
+
+    GeomNode *r_in = graph_get_node(restored, in_port_id);
+    assert(r_in && r_in->type == GEOM_PORT && r_in->data.port);
+    assert(r_in->data.port->type == PORT_INPUT);
+    assert(r_in->data.port->namespace_depth == 1);
+    assert(r_in->data.port->parent_block_id == -1);
+    assert(r_in->data.port->connected_to == NULL);
+
+    GeomNode *r_out = graph_get_node(restored, out_port_id);
+    assert(r_out && r_out->type == GEOM_PORT && r_out->data.port);
+    assert(r_out->data.port->type == PORT_OUTPUT);
+
+    GeomNode *r_fb = graph_get_node(restored, fb_id);
+    assert(r_fb && r_fb->type == GEOM_FUNCTION_BLOCK);
+    assert(r_fb->data.func_block.internal_node_count == 2);
+    assert(r_fb->data.func_block.internal_nodes[0]->id == p_ids[0]);
+    assert(r_fb->data.func_block.internal_nodes[1]->id == p_ids[1]);
+    assert(r_fb->data.func_block.input_count == 1);
+    assert(r_fb->data.func_block.input_port_ids[0] == in_port_id);
+    assert(r_fb->data.func_block.output_count == 1);
+    assert(r_fb->data.func_block.output_port_ids[0] == out_port_id);
+
+    GeomNode *r_circle = graph_get_node(restored, circle_id);
+    assert(r_circle && r_circle->type == GEOM_CIRCLE);
+    assert(r_circle->data.circle.center_node_id == p_ids[0]);
+    assert(r_circle->data.circle.radius_node_id == p_ids[1]);
+
+    /* ── 断言 2：node_deep_copy_geom_node（统一走 vtable->clone）深拷贝
+     *           restored 图节点后，类型特定字段与反序列化节点一致 ── */
+    GeomNode *fb_copy = node_deep_copy_geom_node(r_fb, NULL);
+    assert(fb_copy != NULL);
+    assert(fb_copy->type == GEOM_FUNCTION_BLOCK);
+    assert(fb_copy->id == fb_id);
+    assert(fb_copy->data.func_block.internal_node_count == 2);
+    assert(fb_copy->data.func_block.internal_nodes[0]->id == p_ids[0]);
+    assert(fb_copy->data.func_block.internal_nodes[1]->id == p_ids[1]);
+    assert(fb_copy->data.func_block.input_count == 1);
+    assert(fb_copy->data.func_block.input_port_ids[0] == in_port_id);
+    assert(fb_copy->data.func_block.output_count == 1);
+    assert(fb_copy->data.func_block.output_port_ids[0] == out_port_id);
+
+    GeomNode *region_copy = node_deep_copy_geom_node(r_region, NULL);
+    assert(region_copy != NULL);
+    assert(region_copy->type == GEOM_REGION);
+    assert(region_copy->data.region.segment_count == 4);
+    for (int i = 0; i < 4; i++) {
+        assert(region_copy->data.region.boundary_segments[i]->id == s_ids[i]);
+    }
+
+    GeomNode *port_copy = node_deep_copy_geom_node(r_in, NULL);
+    assert(port_copy != NULL);
+    assert(port_copy->type == GEOM_PORT && port_copy->data.port);
+    assert(port_copy->data.port->type == PORT_INPUT);
+    assert(port_copy->data.port->namespace_depth == 1);
+    assert(port_copy->data.port->parent_block_id == -1);
+
+    GeomNode *circle_copy = node_deep_copy_geom_node(r_circle, NULL);
+    assert(circle_copy != NULL);
+    assert(circle_copy->type == GEOM_CIRCLE);
+    assert(circle_copy->data.circle.center_node_id == p_ids[0]);
+    assert(circle_copy->data.circle.radius_node_id == p_ids[1]);
+
+    GeomNode *point_copy = node_deep_copy_geom_node(graph_get_node(restored, p_ids[0]), NULL);
+    assert(point_copy != NULL);
+    assert(point_copy->type == GEOM_POINT);
+    assert(point_copy->coord_count == 2);
+    assert(point_copy->symbolic_coords != NULL);
+
+    /* 清理深拷贝的游离节点 */
+    destroy_detached_node(fb_copy);
+    destroy_detached_node(region_copy);
+    destroy_detached_node(port_copy);
+    destroy_detached_node(circle_copy);
+    destroy_detached_node(point_copy);
+
+    lv_free_ptr(json);
+    graph_destroy(restored);
+    graph_destroy(graph);
+
+    printf("区域/端口/函数块/圆 三方一致测试通过!\n\n");
+}
+
 int main(void) {
     printf("========================================\n");
     printf("约束图序列化与反序列化测试\n");
@@ -177,6 +361,7 @@ int main(void) {
     test_line_segment_serialization();
     test_constraint_serialization();
     test_module_graph_serialization();
+    test_advanced_node_roundtrip_and_deepcopy();
 
     printf("========================================\n");
     printf("所有序列化测试通过!\n");

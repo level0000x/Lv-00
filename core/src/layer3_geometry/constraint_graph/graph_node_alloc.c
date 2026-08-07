@@ -1559,6 +1559,88 @@ ConstraintGraph *graph_copy(const ConstraintGraph *graph) {
     return new_graph;
 }
 
+/**
+ * @brief 从零创建源节点的深拷贝游离节点（不挂入常驻图）
+ *
+ * GeomNodeVTable::clone 的契约要求"目标节点已存在于 dst_graph 且 ID 与源节点
+ * 相同"（如 graph_copy 通过 graph_add_node_with_id 先建目标节点再 clone）。
+ * 本函数为无目标图的从零创建场景（node_deep_copy_geom_node）提供契约适配：
+ * 1. 创建临时图；
+ * 2. 通过统一分配路径 node_alloc_internal（with_id，不发射流事件）创建外壳
+ *    并深拷贝 symbolic_coords；
+ * 3. 拷贝增强字段（trust/is_active/lo_subtype/numeric_precision/
+ *    namespace_depth/parent_block_id/numeric_assumption_declaration），
+ *    字段集与 node_deep_copy_geom_node 原实现（node_deep_copy.c）一致；
+ * 4. 调用 src->vtable->clone 深拷贝 union data —— node_deep_copy.c 原
+ *    kDataCopyHandlers 分发表（copy_func_block/copy_port/copy_region/
+ *    copy_circle）已收敛至各类型 vtable clone 合并实现；
+ * 5. 从临时图摘除副本并销毁临时图，返回游离节点。
+ *
+ * 指针类字段（region.boundary_segments / func_block.internal_nodes /
+ * port.connected_to）与 clone 契约一致保留源图引用，由调用方通过 ID 映射重建。
+ *
+ * @param src    源节点（不修改）
+ * @param new_id 副本节点 ID。clone 契约要求目标 ID 与源节点一致（内部以
+ *               src->id 创建），故 ID 重映射在 clone 完成后进行；Port.id 与
+ *               func_block 端口 ID 数组保持源值不参与重映射（与原语义一致）
+ * @return 深拷贝的游离节点，失败返回 NULL（已分配资源已回滚）
+ */
+GeomNode *graph_node_deep_copy_detached(const GeomNode *src, int new_id) {
+    if (!src)
+        return NULL;
+
+    ConstraintGraph *tmp = graph_create();
+    if (!tmp)
+        return NULL;
+
+    /* clone 契约：目标节点 ID 与源节点一致（clone 内部 graph_get_node(dst_graph,
+     * node->id)）；ID 重映射在 clone 完成后进行 */
+    GeomNode *dst = node_alloc_internal(tmp, src->type, src->id, true, src->symbolic_coords, src->coord_count);
+    if (!dst) {
+        graph_destroy(tmp);
+        return NULL;
+    }
+
+    /* 拷贝增强字段（与 graph_copy 深拷贝路径字段集一致） */
+    dst->trust = src->trust;
+    dst->is_active = src->is_active;
+    dst->lo_subtype = src->lo_subtype;
+    dst->namespace_depth = src->namespace_depth;
+    dst->parent_block_id = src->parent_block_id;
+    dst->numeric_precision = src->numeric_precision;
+    if (src->numeric_assumption_declaration) {
+        dst->numeric_assumption_declaration = lv_strdup_safe(src->numeric_assumption_declaration);
+        if (!dst->numeric_assumption_declaration) {
+            graph_destroy(tmp);
+            return NULL;
+        }
+    }
+
+    /* union data 深拷贝走 vtable->clone（node_deep_copy.c 原 kDataCopyHandlers
+     * 分发表四类 handler 的合并实现：func_block_clone / port_clone /
+     * region_clone / circle_clone；point/line_segment 无类型特定数据） */
+    if (!src->vtable || !src->vtable->clone) {
+        graph_destroy(tmp);
+        return NULL;
+    }
+    if (!src->vtable->clone(src, tmp)) {
+        graph_destroy(tmp);
+        return NULL;
+    }
+
+    /* 从临时图摘除副本（nodes 末尾 + 节点索引），销毁临时图 */
+    if (tmp->node_count > 0 && tmp->nodes[tmp->node_count - 1] == dst) {
+        tmp->node_count--;
+        tmp->nodes[tmp->node_count] = NULL;
+    }
+    node_index_remove(tmp, src->id);
+    graph_destroy(tmp);
+
+    /* clone 完成后重设副本 ID（id_map 重映射语义与 node_deep_copy_geom_node 一致） */
+    dst->id = new_id;
+    return dst;
+}
+
 /* ========================================================================
  * 集中化图编辑流式事件发射（graph_node_internal.h 声明）
  *

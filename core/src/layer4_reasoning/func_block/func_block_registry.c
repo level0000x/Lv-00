@@ -8,13 +8,15 @@
  *
  * 内存管理：
  * - 使用 lv_malloc / lv_free / lv_strdup 进行内存管理
- * - 使用 lv_realloc 进行数组扩容
+ * - 条目数组扩容由通用 lvRegistry 统一管理（lv_ensure_capacity）
  * - cleanup 时释放所有条目及其模板函数块
  */
 
 #include "func_block_registry.h"
 #include "lv/lv_xmacro.h"
 #include "lv/preset_category.h" /* LV_PRESET_CATEGORY_ENTRY 单一事实来源 */
+#include "lv/lv_registry.h"     /* 通用注册表（查重/扩容/删除/析构回调） */
+#include "lv/lv_thread.h"       /* lv_once_t / lv_once */
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -26,56 +28,39 @@
 
 /* ==================== 命名常量 ==================== */
 
-/** 注册表初始容量 */
+/** 注册表初始容量（lv_registry_init 使用） */
 #define REGISTRY_INITIAL_CAPACITY 32
-
-/** 数组扩容增长因子 */
-#define REGISTRY_GROWTH_FACTOR 2
 
 /** 预设函数块 ID 起始偏移（引用 lv_internal.h 中的统一定义） */
 #define PRESET_FB_ID_OFFSET lv_PRESET_ID_OFFSET
 
 /* ==================== 全局注册表 ==================== */
 
-/** 全局预设函数块注册表（单例模式）
+/** 全局预设函数块注册表（文件级单例，lv_once 惰性初始化）
  *
- * 存储所有已注册的预设函数块条目。首次使用时惰性初始化，
- * 通过 ensure_registry_capacity() 动态扩容。
+ * 基于通用 lvRegistry：key = 预设名称，value = PresetEntry*（堆分配，
+ * 由 preset_entry_destroy 回调接管释放）。注册表统一承担 strcmp 查重、
+ * 尾部追加、lv_ensure_capacity 扩容与删除前移（保持注册顺序）。
  */
-static FuncBlockRegistry g_registry = {
-    .entries = NULL,     /**< 条目数组（动态分配，初始为 NULL） */
-    .count = 0,          /**< 当前已注册的预设数量 */
-    .capacity = 0,       /**< 数组容量（0 表示尚未分配） */
-    .initialized = false /**< 是否已完成初始化（含内置预设注册） */
-};
+static lvRegistry g_func_block_registry;
+
+/** 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t g_func_block_registry_once = lv_ONCE_INIT;
+
+/** 是否已完成内置预设注册（cleanup 后置 false，允许重新 init） */
+static bool g_initialized = false;
+
+/** 注册表初始化回调（仅由 lv_once 调用一次） */
+static void func_block_registry_init_once(void) {
+    lv_registry_init(&g_func_block_registry, REGISTRY_INITIAL_CAPACITY);
+}
+
+/** 确保注册表已初始化（互斥锁就绪，可安全多次调用） */
+static inline void func_block_registry_ensure(void) {
+    lv_once(&g_func_block_registry_once, func_block_registry_init_once);
+}
 
 /* ==================== 内部辅助函数 ==================== */
-
-/**
- * @brief 确保注册表数组有足够的容量
- *
- * 当 count >= capacity 时，以 REGISTRY_GROWTH_FACTOR 倍率扩容。
- * 包含整数溢出检查，防止 capacity * REGISTRY_GROWTH_FACTOR 超出 int 范围。
- *
- * @return true 扩容成功或无需扩容，false 内存不足或溢出
- */
-static bool ensure_registry_capacity(void) {
-    if (g_registry.count < g_registry.capacity) {
-        return true;
-    }
-
-    /* 统一委托 lv_ensure_capacity（内部含 INT_MAX/SIZE_MAX 溢出检查与倍增；失败时 entries/capacity 不变） */
-    PresetEntry *old_entries = g_registry.entries;
-    if (!lv_ensure_capacity((void **) &g_registry.entries, g_registry.count, &g_registry.capacity,
-                            sizeof(PresetEntry), 0)) {
-        /* 防御性重置：lv_ensure_capacity 失败保证不修改指针，此分支实际不会触发 */
-        if (g_registry.entries != old_entries) {
-            g_registry.entries = NULL;
-        }
-        return false;
-    }
-    return true;
-}
 
 /**
  * @brief 释放单个预设条目的资源
@@ -95,6 +80,20 @@ static void free_preset_entry(PresetEntry *entry) {
         entry->template_fb = NULL;
     }
     entry->category = PRESET_CATEGORY_CONSTRUCTION;
+}
+
+/**
+ * @brief PresetEntry 的 lvRegistry destroy 回调适配器（void(*)(void*) 形态）
+ *
+ * 注册表 remove/clear/destroy 时调用：先释放条目内部资源
+ * （name/description/template_fb），再释放 PresetEntry 外壳。
+ */
+static void preset_entry_destroy(void *value) {
+    PresetEntry *entry = (PresetEntry *) value;
+    if (!entry)
+        return;
+    free_preset_entry(entry);
+    lv_free((void **) &entry);
 }
 
 /**
@@ -145,7 +144,10 @@ static FuncBlock *create_preset_template(int id, const char *name, const char *d
  *
  * 调用者应确保名称唯一（除非 check_duplicate 为 false）。
  * 当 deep_copy 为 true 时，对 fb 做深拷贝（调用者仍持有 fb 所有权）；
- * 当 deep_copy 为 false 时，直接接管 fb 的所有权（失败时由本函数释放）。
+ * 当 deep_copy 为 false 时，直接接管 fb 的所有权（失败时由调用方释放）。
+ *
+ * 条目外壳（PresetEntry）与 name/description/template_fb 均堆分配，
+ * 通过 lv_registry_put_ex 交给注册表（destroy = preset_entry_destroy）。
  *
  * @param name            预设名称（将被 lv_strdup 复制）
  * @param description     描述（将被 lv_strdup 复制，可为 NULL）
@@ -161,26 +163,26 @@ static bool add_preset_entry_ex(const char *name, const char *description, Prese
         return false;
     }
 
+    func_block_registry_ensure();
+
     /* 可选：检查是否已存在同名预设（公共 API 路径需要） */
     if (check_duplicate) {
-        for (int i = 0; i < g_registry.count; i++) {
-            if (g_registry.entries[i].name && strcmp(g_registry.entries[i].name, name) == 0) {
-                return false; /* 同名预设已存在 */
-            }
+        if (lv_registry_get(&g_func_block_registry, name) != NULL) {
+            return false; /* 同名预设已存在 */
         }
     }
 
-    /* 确保注册表数组有足够容量 */
-    if (!ensure_registry_capacity()) {
+    /* 构造 PresetEntry（堆分配外壳，内部字段由 free_preset_entry 管理） */
+    PresetEntry *entry = (PresetEntry *) lv_calloc(1, sizeof(PresetEntry));
+    if (!entry) {
         return false;
     }
-
-    PresetEntry *entry = &g_registry.entries[g_registry.count];
 
     /* 复制名称 */
     entry->name = lv_strdup(name);
     if (!entry->name) {
-        goto fail; /* 名称复制失败，清理并返回 */
+        lv_free((void **) &entry);
+        return false;
     }
 
     /* 复制描述（description 为 NULL 是允许的） */
@@ -192,22 +194,29 @@ static bool add_preset_entry_ex(const char *name, const char *description, Prese
     if (deep_copy) {
         entry->template_fb = func_block_copy(fb);
         if (!entry->template_fb) {
-            goto fail; /* 深拷贝失败，清理已分配的资源 */
+            /* 深拷贝失败：fb 仍归调用方 */
+            free_preset_entry(entry);
+            lv_free((void **) &entry);
+            return false;
         }
     } else {
         entry->template_fb = fb; /* 直接接管所有权 */
     }
 
-    g_registry.count++;
-    return true;
+    /* 写入通用注册表（内部查重 + 尾部追加 + lv_ensure_capacity 扩容） */
+    if (!lv_registry_put_ex(&g_func_block_registry, name, entry, preset_entry_destroy)) {
+        /* 失败（同名重复或内存不足）：释放本条目资源。
+           deep_copy=false 且未接管时 fb 归调用方（register_builtin_presets
+           失败路径手动 func_block_destroy(fb)），先摘除避免双重释放 */
+        if (!deep_copy) {
+            entry->template_fb = NULL;
+        }
+        free_preset_entry(entry);
+        lv_free((void **) &entry);
+        return false;
+    }
 
-fail:
-    /* 错误路径：释放本条目已分配的资源，避免内存泄漏 */
-    lv_free((void **) &entry->name);
-    lv_free((void **) &entry->description);
-    entry->template_fb = NULL;
-    entry->category = PRESET_CATEGORY_CONSTRUCTION;
-    return false;
+    return true;
 }
 
 /* ==================== 内置预设注册 ==================== */
@@ -516,9 +525,8 @@ static bool register_builtin_presets(void) {
 
         /* 内部注册路径：不检查重复，直接接管 fb 所有权 */
         if (!add_preset_entry_ex(def->name, def->description, def->category, fb, false, false)) {
-            /* add_preset_entry_ex 失败时已释放 fb（deep_copy=false 模式下
-               goto fail 会将 template_fb 置 NULL，但 fb 是传入参数，
-               需要在此处手动释放未被接管的 fb） */
+            /* add_preset_entry_ex 失败时未接管 fb（deep_copy=false 失败路径
+               已将 entry->template_fb 置 NULL），在此处手动释放未被接管的 fb */
             func_block_destroy(fb);
             return false;
         }
@@ -531,8 +539,11 @@ static bool register_builtin_presets(void) {
 /* ==================== 公共 API 实现 ==================== */
 
 bool func_block_registry_init(void) {
+    /* 确保互斥锁就绪（首次调用时初始化注册表） */
+    func_block_registry_ensure();
+
     /* 幂等操作：已初始化则直接返回 */
-    if (g_registry.initialized) {
+    if (g_initialized) {
         return true;
     }
 
@@ -543,40 +554,30 @@ bool func_block_registry_init(void) {
         return false;
     }
 
-    g_registry.initialized = true;
+    g_initialized = true;
     return true;
 }
 
 void lv_func_block_registry_cleanup(void) {
-    /* 释放所有条目的资源 */
-    for (int i = 0; i < g_registry.count; i++) {
-        free_preset_entry(&g_registry.entries[i]);
-    }
+    /* 确保互斥锁就绪（从未 init 时直接清理也安全） */
+    func_block_registry_ensure();
 
-    /* 释放条目数组本身 */
-    lv_free((void **) &g_registry.entries);
+    /* 释放所有条目（destroy 回调 + 注册表 name），保留数组与互斥锁
+       以便再次 init；lv_registry_clear 可安全多次调用（幂等） */
+    lv_registry_clear(&g_func_block_registry);
 
-    /* 重置注册表状态 */
-    g_registry.count = 0;
-    g_registry.capacity = 0;
-    g_registry.initialized = false;
+    g_initialized = false;
 }
 
 int func_block_registry_unregister(const char *name) {
-    if (!name || !g_registry.initialized)
+    if (!name || !g_initialized)
         return -1;
 
-    for (int i = 0; i < g_registry.count; i++) {
-        if (g_registry.entries[i].name && strcmp(g_registry.entries[i].name, name) == 0) {
-            /* 释放条目资源 */
-            free_preset_entry(&g_registry.entries[i]);
-            /* 将后面的条目前移（统一走 lv_shift_left 的 memmove 路径） */
-            lv_shift_left(g_registry.entries, sizeof(g_registry.entries[0]), (size_t) i, (size_t) g_registry.count);
-            g_registry.count--;
-            return 0;
-        }
-    }
-    return -1; /* 未找到 */
+    func_block_registry_ensure();
+
+    /* 委托注册表删除：先调用 destroy 回调释放 PresetEntry，
+       再释放内部 name 并将后续条目前移紧凑 */
+    return lv_registry_remove(&g_func_block_registry, name) ? 0 : -1;
 }
 
 bool func_block_register(const char *name, const char *description, PresetCategory category, FuncBlock *fb) {
@@ -591,27 +592,25 @@ FuncBlock *func_block_registry_lookup(const char *name) {
     if (!name)
         return NULL;
 
-    for (int i = 0; i < g_registry.count; i++) {
-        if (g_registry.entries[i].name && strcmp(g_registry.entries[i].name, name) == 0) {
-            /* 创建深拷贝返回给调用者 */
-            return func_block_copy(g_registry.entries[i].template_fb);
-        }
+    func_block_registry_ensure();
+
+    PresetEntry *entry = (PresetEntry *) lv_registry_get(&g_func_block_registry, name);
+    if (!entry) {
+        return NULL; /* 未找到 */
     }
 
-    return NULL; /* 未找到 */
+    /* 创建深拷贝返回给调用者 */
+    return func_block_copy(entry->template_fb);
 }
 
 PresetEntry *func_block_registry_find(const char *name) {
     if (!name)
         return NULL;
 
-    for (int i = 0; i < g_registry.count; i++) {
-        if (g_registry.entries[i].name && strcmp(g_registry.entries[i].name, name) == 0) {
-            return &g_registry.entries[i];
-        }
-    }
+    func_block_registry_ensure();
 
-    return NULL; /* 未找到 */
+    /* 返回注册表 value（PresetEntry*），未找到返回 NULL */
+    return (PresetEntry *) lv_registry_get(&g_func_block_registry, name);
 }
 
 int func_block_registry_find_by_category(PresetCategory category, PresetEntry **out_entries, int max_count) {
@@ -619,13 +618,22 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
         return 0;
     }
 
+    func_block_registry_ensure();
+
     int found = 0;
     int total = 0;
-    for (int i = 0; i < g_registry.count; i++) {
-        if (g_registry.entries[i].category == category) {
+    const int count = lv_registry_count(&g_func_block_registry);
+    for (int i = 0; i < count; i++) {
+        const char *rname = NULL;
+        void *value = NULL;
+        if (!lv_registry_get_at(&g_func_block_registry, i, &rname, &value)) {
+            break;
+        }
+        PresetEntry *entry = (PresetEntry *) value;
+        if (entry->category == category) {
             total++;
             if (found < max_count) {
-                out_entries[found++] = &g_registry.entries[i];
+                out_entries[found++] = entry;
             }
         }
     }
@@ -725,5 +733,6 @@ bool preset_category_from_string(const char *str, PresetCategory *category) {
 }
 
 int func_block_registry_get_count(void) {
-    return g_registry.count;
+    func_block_registry_ensure();
+    return lv_registry_count(&g_func_block_registry);
 }

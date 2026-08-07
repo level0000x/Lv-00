@@ -221,21 +221,6 @@ typedef struct {
     PresetParamDef *input_params; /* 输入参数定义数组 */
 } PresetEntry;
 
-/* ============== 注册表结构 ============== */
-
-/**
- * @brief 预设函数块注册表
- *
- * 管理所有已注册的预设函数块。内置预设在首次调用 init 时惰性创建，
- * 用户可通过 register 接口添加自定义预设。
- */
-typedef struct {
-    PresetEntry *entries; /* 条目数组 */
-    int count;            /* 当前条目数 */
-    int capacity;         /* 数组容量 */
-    bool initialized;     /* 是否已初始化内置预设 */
-} FuncBlockRegistry;
-
 /* ============== 注册表生命周期 ============== */
 
 /**

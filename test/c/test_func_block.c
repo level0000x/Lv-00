@@ -1418,6 +1418,109 @@ static int test_registry_category_filter(void) {
     return 0;
 }
 
+/* ============== Test: registry register / duplicate / unregister / cleanup / order ============== */
+
+static int test_registry_register_unregister(void) {
+    printf("Test: registry register/unregister/traversal order...\n");
+
+    /* init registry */
+    bool ok = func_block_registry_init();
+    assert(ok);
+    int base_count = func_block_registry_get_count();
+    assert(base_count == 75);
+
+    /* create three custom preset templates */
+    FuncBlock *fb_a = func_block_create(9001);
+    assert(fb_a != NULL);
+    ok = func_block_set_name(fb_a, "test_custom_a");
+    assert(ok);
+    FuncBlock *fb_b = func_block_create(9002);
+    assert(fb_b != NULL);
+    ok = func_block_set_name(fb_b, "test_custom_b");
+    assert(ok);
+    FuncBlock *fb_c = func_block_create(9003);
+    assert(fb_c != NULL);
+    ok = func_block_set_name(fb_c, "test_custom_c");
+    assert(ok);
+
+    /* register: deep-copy path, original fb stays owned by caller */
+    ok = func_block_register("test_custom_a", "custom preset A", PRESET_CATEGORY_CONSTRUCTION, fb_a);
+    assert(ok);
+    ok = func_block_register("test_custom_b", "custom preset B", PRESET_CATEGORY_MEASUREMENT, fb_b);
+    assert(ok);
+    ok = func_block_register("test_custom_c", "custom preset C", PRESET_CATEGORY_LOGIC, fb_c);
+    assert(ok);
+    assert(fb_a->name != NULL && strcmp(fb_a->name, "test_custom_a") == 0);
+    func_block_destroy(fb_a);
+    func_block_destroy(fb_b);
+    func_block_destroy(fb_c);
+
+    /* count increased by 3 */
+    assert(func_block_registry_get_count() == base_count + 3);
+
+    /* duplicate registration rejected */
+    FuncBlock *dup = func_block_create(9004);
+    assert(dup != NULL);
+    ok = func_block_set_name(dup, "test_custom_a_dup");
+    assert(ok);
+    assert(func_block_register("test_custom_a", "duplicate", PRESET_CATEGORY_CONSTRUCTION, dup) == false);
+    func_block_destroy(dup);
+
+    /* lookup returns deep copy */
+    FuncBlock *lookup_fb = func_block_registry_lookup("test_custom_b");
+    assert(lookup_fb != NULL);
+    assert(lookup_fb->name != NULL);
+    assert(strcmp(lookup_fb->name, "test_custom_b") == 0);
+    func_block_destroy(lookup_fb);
+
+    /* find returns internal entry */
+    PresetEntry *entry = func_block_registry_find("test_custom_c");
+    assert(entry != NULL);
+    assert(entry->category == PRESET_CATEGORY_LOGIC);
+    assert(entry->template_fb != NULL);
+
+    /* unregister middle entry: remaining order preserved (a, c) */
+    assert(func_block_registry_unregister("test_custom_b") == 0);
+    assert(func_block_registry_get_count() == base_count + 2);
+    assert(func_block_registry_find("test_custom_b") == NULL);
+    assert(func_block_registry_find("test_custom_a") != NULL);
+    assert(func_block_registry_find("test_custom_c") != NULL);
+
+    /* unregister missing name -> -1 */
+    assert(func_block_registry_unregister("test_no_such_preset") == -1);
+
+    /* traversal order: b removed, so measurement count back to builtin 12 */
+    PresetEntry *entries_buf[128];
+    int count = func_block_registry_find_by_category(PRESET_CATEGORY_MEASUREMENT, entries_buf, 128);
+    assert(count == 12);
+
+    /* order: last logic entry is c (registered after 10 builtin logic presets) */
+    PresetEntry *order_buf[128];
+    count = func_block_registry_find_by_category(PRESET_CATEGORY_LOGIC, order_buf, 128);
+    assert(count == 11); /* 10 builtin + test_custom_c */
+    assert(strcmp(order_buf[10]->name, "test_custom_c") == 0);
+
+    /* order: last construction entry is a (registered after 27 builtin construction presets) */
+    count = func_block_registry_find_by_category(PRESET_CATEGORY_CONSTRUCTION, order_buf, 128);
+    assert(count == 28); /* 27 builtin + test_custom_a */
+    assert(strcmp(order_buf[27]->name, "test_custom_a") == 0);
+
+    /* cleanup is idempotent: call twice */
+    lv_func_block_registry_cleanup();
+    lv_func_block_registry_cleanup();
+    assert(func_block_registry_get_count() == 0);
+
+    /* re-init works after cleanup */
+    ok = func_block_registry_init();
+    assert(ok);
+    assert(func_block_registry_get_count() == 75);
+    assert(func_block_registry_find("midpoint") != NULL);
+    lv_func_block_registry_cleanup();
+
+    printf("  PASSED\n");
+    return 0;
+}
+
 /* ============== 娴嬭瘯锛氶€夋嫨鍣ㄥけ璐ユ儏鍐?============== */
 
 static int test_selector_failure_cases(void) {
@@ -1555,6 +1658,9 @@ int main(void) {
 
     /* 鎸夌被鍒瓫閫夋祴璇?*/
     test_registry_category_filter();
+
+    /* registry register/unregister/cleanup/traversal order test */
+    test_registry_register_unregister();
 
     /* 閫夋嫨鍣ㄥけ璐ユ儏鍐垫祴璇?*/
     test_selector_failure_cases();

@@ -603,7 +603,32 @@ static void node_field_coords(lvJsonParser *p, NodeDeserCtx *ctx) {
             if (lv_json_peek(p) == '}')
                 p->pos++;
         } else {
-            lv_json_skip_value(p);
+            /* 序列化器对 RATIONAL 坐标实际输出简写 "num/den"（rational_serialize
+             * 的恒定 "分子/分母" 格式，整数亦带 /1；见 json_buf_append_coord），
+             * 读取原始 token 直至 ',' 或 ']' 后用 rational_parse 还原（比手写
+             * strtoll 更健壮：自动规范化 + 任意精度）。algebraic/quadratic/
+             * transcendental 的简写输出含空格/特殊字符无法无损还原，保持
+             * coord 为 NULL —— 与对象分支仅重建 RATIONAL 的语义一致。 */
+            lv_json_skip_ws(p);
+            size_t tok_start = p->pos;
+            while (p->pos < p->size && p->data[p->pos] != ',' && p->data[p->pos] != ']')
+                p->pos++;
+            if (p->pos > tok_start) {
+                size_t tok_len = p->pos - tok_start;
+                char *tok = lv_malloc(tok_len + 1);
+                if (tok) {
+                    memcpy(tok, p->data + tok_start, tok_len);
+                    tok[tok_len] = '\0';
+                    Rational *rat = rational_parse(tok);
+                    if (rat) {
+                        ctx->coords[i] = symbolic_coord_create_rational(
+                            (int64_t) mpz_get_si(mpq_numref(rat->value)),
+                            (uint64_t) mpz_get_ui(mpq_denref(rat->value)));
+                        rational_destroy(rat);
+                    }
+                    lv_free((void **) &tok);
+                }
+            }
         }
     }
 
@@ -797,6 +822,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                     lv_free((void **) &node_key);
                     lv_json_skip_ws(&p);
+                    if (lv_json_peek(&p) == ',')
+                        p.pos++;
                 }
 
                 if (lv_json_peek(&p) == '}')
@@ -811,64 +838,88 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                     node->namespace_depth = ctx.ns_depth;
                     node->parent_block_id = ctx.parent_block_id;
 
-                    /* 设置类型特定数据 */
+                    /* 设置类型特定数据。
+                     * REGION / PORT / FUNCTION_BLOCK 的类型特定数据（boundary_segments /
+                     * Port 逐字段 / 三数组）重建改走 vtable->clone 公共入口
+                     * （graph_node_alloc.c 的 region_clone / port_clone /
+                     * func_block_clone），消除反序列化与节点深拷贝（node_deep_copy.c
+                     * 原 kDataCopyHandlers）平行的手写分配+拷贝实现。
+                     * clone 契约要求目标节点已存在于图中且 ID 与源一致：目标节点即
+                     * graph_add_node_with_id 刚创建的 node，故构造承载 JSON 解析结果的
+                     * 临时源节点（内部节点 ID 解析为图中引用）后调用 clone。 */
                     if (ctx.node_type == GEOM_REGION && ctx.boundary_segs && ctx.boundary_seg_count > 0) {
-                        node->data.region.boundary_segments =
+                        GeomNode src;
+                        memset(&src, 0, sizeof(src));
+                        src.id = ctx.node_id;
+                        src.type = GEOM_REGION;
+                        src.vtable = node->vtable;
+                        src.data.region.boundary_segments =
                             lv_malloc((size_t) ctx.boundary_seg_count * sizeof(GeomNode *));
-                        if (node->data.region.boundary_segments) {
+                        if (src.data.region.boundary_segments) {
                             for (int i = 0; i < ctx.boundary_seg_count; i++) {
-                                node->data.region.boundary_segments[i] = graph_get_node(graph, ctx.boundary_segs[i]);
+                                src.data.region.boundary_segments[i] = graph_get_node(graph, ctx.boundary_segs[i]);
                             }
-                            node->data.region.segment_count = ctx.boundary_seg_count;
+                            src.data.region.segment_count = ctx.boundary_seg_count;
+                            if (!node->vtable->clone(&src, graph)) {
+                                /* clone 失败（OOM）：region_clone 已重置 segment_count=0，
+                                 * 目标节点保持数组/计数一致的空数据 */
+                            }
+                            lv_free((void **) &src.data.region.boundary_segments);
                         }
                     } else if (ctx.node_type == GEOM_CIRCLE) {
                         node->data.circle.center_node_id = ctx.circle_center_id;
                         node->data.circle.radius_node_id = ctx.circle_radius_id;
                     } else if (ctx.node_type == GEOM_PORT) {
-                        /* 复用 graph_add_node_with_id -> port_alloc 已分配的 Port，
-                         * 避免重新分配后覆盖指针导致泄漏；仅当 port_alloc 因 OOM
-                         * 未分配（data.port 为 NULL）时回退到新建 */
-                        Port *port = node->data.port;
-                        if (!port)
-                            port = lv_calloc(1, sizeof(Port));
-                        if (port) {
-                            port->id = ctx.node_id;
-                            port->type = ctx.port_type;
-                            port->namespace_depth = ctx.ns_depth;
-                            port->parent_block_id = ctx.parent_block_id;
-                            port->is_formal_param = ctx.is_formal_param;
-                            port->is_polymorphic = ctx.is_polymorphic;
-                            port->connected_to = NULL;
-                            node->data.port = port;
-                        }
+                        /* Port 逐字段填充改走 port_clone；目标 data.port 已由
+                         * graph_add_node_with_id -> port_alloc 分配（复用避免泄漏） */
+                        Port src_port;
+                        memset(&src_port, 0, sizeof(src_port));
+                        src_port.id = ctx.node_id;
+                        src_port.type = ctx.port_type;
+                        src_port.namespace_depth = ctx.ns_depth;
+                        src_port.parent_block_id = ctx.parent_block_id;
+                        src_port.is_formal_param = ctx.is_formal_param;
+                        src_port.is_polymorphic = ctx.is_polymorphic;
+                        src_port.connected_to = NULL;
+                        GeomNode src;
+                        memset(&src, 0, sizeof(src));
+                        src.id = ctx.node_id;
+                        src.type = GEOM_PORT;
+                        src.vtable = node->vtable;
+                        src.data.port = &src_port;
+                        node->vtable->clone(&src, graph);
                     } else if (ctx.node_type == GEOM_FUNCTION_BLOCK) {
-                        node->data.func_block.internal_node_count = ctx.internal_node_count;
-                        node->data.func_block.input_count = ctx.input_port_count;
-                        node->data.func_block.output_count = ctx.output_port_count;
+                        /* 三数组重建改走 func_block_clone；counts 仅在对应数组存在时
+                         * 设置，保证传入 clone 的源数据一致（数组与计数同生共死） */
+                        GeomNode src;
+                        memset(&src, 0, sizeof(src));
+                        src.id = ctx.node_id;
+                        src.type = GEOM_FUNCTION_BLOCK;
+                        src.vtable = node->vtable;
+                        src.data.func_block.internal_nodes = NULL;
                         if (ctx.internal_nodes && ctx.internal_node_count > 0) {
-                            node->data.func_block.internal_nodes =
+                            src.data.func_block.internal_nodes =
                                 lv_malloc((size_t) ctx.internal_node_count * sizeof(GeomNode *));
-                            if (node->data.func_block.internal_nodes) {
+                            if (src.data.func_block.internal_nodes) {
                                 for (int i = 0; i < ctx.internal_node_count; i++) {
-                                    node->data.func_block.internal_nodes[i] = graph_get_node(graph, ctx.internal_nodes[i]);
+                                    src.data.func_block.internal_nodes[i] =
+                                        graph_get_node(graph, ctx.internal_nodes[i]);
                                 }
+                                src.data.func_block.internal_node_count = ctx.internal_node_count;
                             }
+                            /* 分配失败：internal_node_count 保持 0，与数组 NULL 保持一致 */
                         }
                         if (ctx.input_port_ids && ctx.input_port_count > 0) {
-                            node->data.func_block.input_port_ids = lv_malloc((size_t) ctx.input_port_count * sizeof(int));
-                            if (node->data.func_block.input_port_ids) {
-                                memcpy(node->data.func_block.input_port_ids, ctx.input_port_ids,
-                                       ctx.input_port_count * sizeof(int));
-                            }
+                            src.data.func_block.input_port_ids = ctx.input_port_ids;
+                            src.data.func_block.input_count = ctx.input_port_count;
                         }
                         if (ctx.output_port_ids && ctx.output_port_count > 0) {
-                            node->data.func_block.output_port_ids = lv_malloc((size_t) ctx.output_port_count * sizeof(int));
-                            if (node->data.func_block.output_port_ids) {
-                                memcpy(node->data.func_block.output_port_ids, ctx.output_port_ids,
-                                       ctx.output_port_count * sizeof(int));
-                            }
+                            src.data.func_block.output_port_ids = ctx.output_port_ids;
+                            src.data.func_block.output_count = ctx.output_port_count;
                         }
-                        node->data.func_block.determinism_state = UNVERIFIED;
+                        src.data.func_block.determinism_state = UNVERIFIED;
+                        node->vtable->clone(&src, graph);
+                        lv_free((void **) &src.data.func_block.internal_nodes);
                     }
 
                     /* 更新 next_node_id */
@@ -944,6 +995,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                     lv_free((void **) &ckey);
                     lv_json_skip_ws(&p);
+                    if (lv_json_peek(&p) == ',')
+                        p.pos++;
                 }
 
                 if (lv_json_peek(&p) == '}')

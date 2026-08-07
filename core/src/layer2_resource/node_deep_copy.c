@@ -15,6 +15,14 @@
  * - QUADRATIC: 通过 mpq_set 深拷贝有理数分量，再调用 quadratic_create
  * - TRANSCENDENTAL: 通过 transcendental_create 重建，深拷贝表达式树
  *
+ * 【2026-08 重构】节点类型特定数据（union data：port / region.boundary_segments /
+ * func_block 三数组 / circle 标量）的深拷贝已收敛至 GeomNodeVTable::clone
+ * （graph_node_alloc.c 各类型 vtable 的 *_clone 实现）。本文件的
+ * kDataCopyHandlers 分发表（copy_port / copy_region / copy_circle /
+ * copy_func_block 三数组手写拷贝）与 graph_node_alloc.c 的 clone 并行实现
+ * 已删除，node_deep_copy_geom_node 委托 graph_node_deep_copy_detached
+ * （内部创建临时图适配 clone 的"目标节点已存在"契约）。
+ *
  * @author Lv-00 Project
  */
 
@@ -26,6 +34,8 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+
+#include "../layer3_geometry/constraint_graph/graph_node_internal.h" /* graph_node_deep_copy_detached */
 
 /* ============================================================
  * 符号坐标深拷贝
@@ -101,229 +111,34 @@ Port *node_deep_copy_port(const Port *orig) {
  *
  * 创建指定节点及其所有持有数据的深拷贝副本。
  * 拷贝策略：
- * - 标量字段：直接赋值
+ * - 标量/增强字段：直接赋值（trust / is_active / lo_subtype / numeric_precision /
+ *   namespace_depth / parent_block_id）
  * - numeric_assumption_declaration：通过 lv_strdup_safe 深拷贝字符串
- * - symbolic_coords 数组：对每个坐标调用 node_deep_copy_symbolic_coord 深拷贝
- * - data.port：调用 node_deep_copy_port 深拷贝
- * - data.region.boundary_segments：分配新数组并拷贝引用（线段由图拥有）
- * - data.func_block：分配新数组并拷贝内部节点引用和端口 ID 数组
+ * - symbolic_coords 数组：深拷贝（委托 symbolic_coord_copy）
+ * - union data（data.port / data.region.boundary_segments / data.func_block
+ *   三数组 / data.circle 标量）：经 orig->vtable->clone 深拷贝
+ *   （graph_node_deep_copy_detached 内部创建临时图适配 clone 契约）；
+ *   指针类字段保留源引用，由调用方通过 ID 映射重绑定
  *
  * @param orig   原始节点
- * @param id_map 旧节点ID到新节点ID的映射（可为 NULL，当前未使用，预留扩展）
+ * @param id_map 旧节点ID到新节点ID的映射（可为 NULL）
  * @return 深拷贝后的新节点，失败返回 NULL
  */
 
-/* ── 类型特定数据深拷贝 VTable 处理器函数 ── */
-
-/** 类型特定数据深拷贝处理器函数类型（失败时自行完成全部清理） */
-typedef bool (*DataCopyHandler)(GeomNode *copy, const GeomNode *orig);
-
-/** 深拷贝 PORT 节点数据 */
-static bool copy_port(GeomNode *copy, const GeomNode *orig) {
-    copy->data.port = node_deep_copy_port(orig->data.port);
-    if (!copy->data.port && orig->data.port) {
-        /* 失败时清理 */
-        if (copy->symbolic_coords) {
-            for (int i = 0; i < copy->coord_count; i++) {
-                symbolic_coord_destroy(copy->symbolic_coords[i]);
-            }
-            lv_free((void **) &copy->symbolic_coords);
-        }
-        lv_free((void **) &copy->numeric_assumption_declaration);
-        lv_free((void **) &copy);
-        return false;
-    }
-    return true;
-}
-
-/** 深拷贝 REGION 节点数据（边界线段数组引用共享，非拥有） */
-static bool copy_region(GeomNode *copy, const GeomNode *orig) {
-    /* Region类型：分配边界线段数组（引用共享，非拥有） */
-    copy->data.region.segment_count = orig->data.region.segment_count;
-    if (orig->data.region.boundary_segments && orig->data.region.segment_count > 0) {
-        copy->data.region.boundary_segments = lv_calloc(orig->data.region.segment_count, sizeof(GeomNode *));
-        if (!copy->data.region.boundary_segments) {
-            if (copy->symbolic_coords) {
-                for (int i = 0; i < copy->coord_count; i++) {
-                    symbolic_coord_destroy(copy->symbolic_coords[i]);
-                }
-                lv_free((void **) &copy->symbolic_coords);
-            }
-            lv_free((void **) &copy->numeric_assumption_declaration);
-            lv_free((void **) &copy);
-            return false;
-        }
-        /* 拷贝线段引用（线段由图拥有，区域仅持有引用） */
-        for (int i = 0; i < orig->data.region.segment_count; i++) {
-            copy->data.region.boundary_segments[i] = orig->data.region.boundary_segments[i];
-        }
-    } else {
-        copy->data.region.boundary_segments = NULL;
-    }
-    return true;
-}
-
-/** 深拷贝 CIRCLE 节点数据（圆心和半径端点 ID） */
-static bool copy_circle(GeomNode *copy, const GeomNode *orig) {
-    /* CIRCLE 类型：直接复制圆心和半径端点 ID */
-    copy->data.circle.center_node_id = orig->data.circle.center_node_id;
-    copy->data.circle.radius_node_id = orig->data.circle.radius_node_id;
-    return true;
-}
-
-/** 深拷贝 FUNCTION_BLOCK 节点数据（内部节点与端口 ID 数组，引用共享） */
-static bool copy_func_block(GeomNode *copy, const GeomNode *orig) {
-    /* FunctionBlock类型：分配内部节点和端口ID数组 */
-    copy->data.func_block.internal_node_count = orig->data.func_block.internal_node_count;
-    copy->data.func_block.input_count = orig->data.func_block.input_count;
-    copy->data.func_block.output_count = orig->data.func_block.output_count;
-    copy->data.func_block.determinism_state = orig->data.func_block.determinism_state;
-
-    /* 分配并拷贝内部节点数组（引用，非拥有） */
-    if (orig->data.func_block.internal_nodes && orig->data.func_block.internal_node_count > 0) {
-        copy->data.func_block.internal_nodes =
-            lv_malloc(orig->data.func_block.internal_node_count * sizeof(GeomNode *));
-        if (!copy->data.func_block.internal_nodes) {
-            if (copy->symbolic_coords) {
-                for (int i = 0; i < copy->coord_count; i++) {
-                    symbolic_coord_destroy(copy->symbolic_coords[i]);
-                }
-                lv_free((void **) &copy->symbolic_coords);
-            }
-            lv_free((void **) &copy->numeric_assumption_declaration);
-            lv_free((void **) &copy);
-            return false;
-        }
-        for (int i = 0; i < orig->data.func_block.internal_node_count; i++) {
-            copy->data.func_block.internal_nodes[i] = orig->data.func_block.internal_nodes[i];
-        }
-    } else {
-        copy->data.func_block.internal_nodes = NULL;
-    }
-
-    /* 分配并拷贝输入端口ID数组 */
-    if (orig->data.func_block.input_port_ids && orig->data.func_block.input_count > 0) {
-        copy->data.func_block.input_port_ids = lv_malloc(orig->data.func_block.input_count * sizeof(int));
-        if (!copy->data.func_block.input_port_ids) {
-            lv_free((void **) &copy->data.func_block.internal_nodes);
-            if (copy->symbolic_coords) {
-                for (int i = 0; i < copy->coord_count; i++) {
-                    symbolic_coord_destroy(copy->symbolic_coords[i]);
-                }
-                lv_free((void **) &copy->symbolic_coords);
-            }
-            lv_free((void **) &copy->numeric_assumption_declaration);
-            lv_free((void **) &copy);
-            return false;
-        }
-        memcpy(copy->data.func_block.input_port_ids, orig->data.func_block.input_port_ids,
-               orig->data.func_block.input_count * sizeof(int));
-    } else {
-        copy->data.func_block.input_port_ids = NULL;
-    }
-
-    /* 分配并拷贝输出端口ID数组 */
-    if (orig->data.func_block.output_port_ids && orig->data.func_block.output_count > 0) {
-        copy->data.func_block.output_port_ids = lv_calloc(orig->data.func_block.output_count, sizeof(int));
-        if (!copy->data.func_block.output_port_ids) {
-            lv_free((void **) &copy->data.func_block.input_port_ids);
-            lv_free((void **) &copy->data.func_block.internal_nodes);
-            if (copy->symbolic_coords) {
-                for (int i = 0; i < copy->coord_count; i++) {
-                    symbolic_coord_destroy(copy->symbolic_coords[i]);
-                }
-                lv_free((void **) &copy->symbolic_coords);
-            }
-            lv_free((void **) &copy->numeric_assumption_declaration);
-            lv_free((void **) &copy);
-            return false;
-        }
-        memcpy(copy->data.func_block.output_port_ids, orig->data.func_block.output_port_ids,
-               orig->data.func_block.output_count * sizeof(int));
-    } else {
-        copy->data.func_block.output_port_ids = NULL;
-    }
-    return true;
-}
-
-/** GeomType → 类型特定数据深拷贝处理器 VTable */
-static const DataCopyHandler kDataCopyHandlers[] = {
-    [GEOM_PORT] = copy_port,
-    [GEOM_REGION] = copy_region,
-    [GEOM_CIRCLE] = copy_circle,
-    [GEOM_FUNCTION_BLOCK] = copy_func_block,
-};
+/* 类型特定数据（union data）的深拷贝已收敛至 GeomNodeVTable::clone
+ * （graph_node_alloc.c 各类型 *_clone 实现）；原 kDataCopyHandlers 分发表
+ * （copy_port / copy_region / copy_circle / copy_func_block）已删除。
+ * node_deep_copy_geom_node 委托 graph_node_deep_copy_detached 完成全部
+ * 深拷贝（外壳 + symbolic_coords + 增强字段 + vtable->clone）。 */
 
 GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
     if (!orig)
         return NULL;
 
-    GeomNode *copy = lv_calloc(1, sizeof(GeomNode));
-    if (!copy)
-        return NULL;
+    /* id_map 重映射语义保持原实现：id_map[0] != 0 时副本 ID 取映射值，否则保持源 ID */
+    int new_id = (id_map && id_map[0] != 0) ? id_map[0] : orig->id;
 
-    /* 拷贝标量字段 */
-    if (id_map && id_map[0] != 0) {
-        copy->id = id_map[0];  /* 使用映射后的 ID */
-    } else {
-        copy->id = orig->id;   /* 保持原始 ID */
-    }
-    copy->type = orig->type;
-    copy->vtable = orig->vtable; /* 保留多态分发表（fixup_refs/free 等依赖它） */
-    copy->coord_count = orig->coord_count;
-    copy->trust = orig->trust;
-    copy->is_active = orig->is_active;
-    copy->lo_subtype = orig->lo_subtype;
-    copy->numeric_precision = orig->numeric_precision;
-    copy->namespace_depth = orig->namespace_depth;
-    copy->parent_block_id = orig->parent_block_id;
-
-    /* 深拷贝 numeric_assumption_declaration 字符串 */
-    if (orig->numeric_assumption_declaration) {
-        copy->numeric_assumption_declaration = lv_strdup_safe(orig->numeric_assumption_declaration);
-        if (!copy->numeric_assumption_declaration) {
-            lv_free((void **) &copy);
-            return NULL;
-        }
-    } else {
-        copy->numeric_assumption_declaration = NULL;
-    }
-
-    /* 深拷贝符号坐标数组 */
-    if (orig->symbolic_coords && orig->coord_count > 0) {
-        copy->symbolic_coords = lv_malloc(orig->coord_count * sizeof(SymbolicCoord *));
-        if (!copy->symbolic_coords) {
-            lv_free((void **) &copy->numeric_assumption_declaration);
-            lv_free((void **) &copy);
-            return NULL;
-        }
-        for (int i = 0; i < orig->coord_count; i++) {
-            copy->symbolic_coords[i] = node_deep_copy_symbolic_coord(orig->symbolic_coords[i]);
-            if (!copy->symbolic_coords[i] && orig->symbolic_coords[i]) {
-                /* 失败时清理已分配的坐标 */
-                for (int j = 0; j < i; j++) {
-                    symbolic_coord_destroy(copy->symbolic_coords[j]);
-                }
-                lv_free((void **) &copy->symbolic_coords);
-                lv_free((void **) &copy->numeric_assumption_declaration);
-                lv_free((void **) &copy);
-                return NULL;
-            }
-        }
-    } else {
-        copy->symbolic_coords = NULL;
-    }
-
-    /* 拷贝类型特定数据（通过 VTable 分发） */
-    if (orig->type >= 0 && orig->type < (int)(sizeof(kDataCopyHandlers) / sizeof(kDataCopyHandlers[0]))
-        && kDataCopyHandlers[orig->type]) {
-        if (!kDataCopyHandlers[orig->type](copy, orig)) {
-            return NULL; /* handler 内部已完成失败清理（含释放 copy） */
-        }
-    } else {
-        /* GEOM_POINT 和 GEOM_LINE_SEGMENT 类型无额外数据需要拷贝 */
-        memset(&copy->data, 0, sizeof(copy->data));
-    }
-
-    return copy;
+    /* 委托 graph_node_deep_copy_detached：内部创建临时图适配 vtable->clone 的
+     * "目标节点已存在"契约，深拷贝外壳/坐标/增强字段/union data 后返回游离副本 */
+    return graph_node_deep_copy_detached(orig, new_id);
 }

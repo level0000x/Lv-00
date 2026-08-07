@@ -197,8 +197,10 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
     node->symbolic_coords = NULL;
     /* 初始化函数块数据：任一数组分配失败即完整回滚节点（恢复 node_count、
      * 移除节点索引、经 node_destroy -> func_block_free 释放已分配数组），
-     * count 仅在对应分配成功后递增，避免 count>0 而数组为 NULL 的不一致状态 */
-    if (!node->data.func_block.internal_nodes && internal_count > 0 && internal_node_ids) {
+     * count 仅在对应分配成功后递增，避免 count>0 而数组为 NULL 的不一致状态。
+     * internal_nodes 将 internal_node_ids 解析为图中节点指针后填充，
+     * 供序列化/深拷贝/克隆路径按指针读取（此前存根丢弃 ID 导致全 NULL）。 */
+    if (internal_count > 0 && internal_node_ids) {
         node->data.func_block.internal_nodes = lv_malloc((size_t) internal_count * sizeof(GeomNode *));
         if (!node->data.func_block.internal_nodes) {
             graph_rollback_node(graph, node);
@@ -206,6 +208,14 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
         }
         memset(node->data.func_block.internal_nodes, 0, (size_t) internal_count * sizeof(GeomNode *));
         node->data.func_block.internal_node_count = internal_count;
+        for (int i = 0; i < internal_count; i++) {
+            GeomNode *inner = graph_get_node(graph, internal_node_ids[i]);
+            if (!inner) {
+                graph_rollback_node(graph, node);
+                return ADD_NODE_CONFLICT;
+            }
+            node->data.func_block.internal_nodes[i] = inner;
+        }
     }
     if (input_count > 0 && input_port_ids) {
         node->data.func_block.input_port_ids = lv_malloc((size_t) input_count * sizeof(int));
@@ -225,7 +235,6 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
         memcpy(node->data.func_block.output_port_ids, output_port_ids, (size_t) output_count * sizeof(int));
         node->data.func_block.output_count = output_count;
     }
-    (void) internal_node_ids; /* 已在上方处理 */
     graph_emit_node_added(graph, node, 0, false);
     return ADD_NODE_OK;
 }

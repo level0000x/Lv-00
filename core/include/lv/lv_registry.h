@@ -40,6 +40,17 @@ void lv_registry_init(lvRegistry *reg, int capacity);
 void lv_registry_destroy(lvRegistry *reg);
 
 /**
+ * @brief 清空注册表（释放所有条目，保留数组与互斥锁）
+ *
+ * 依次调用每个条目的 destroy 回调（若有）并释放内部拷贝的 name，
+ * 但保留 entries 数组与互斥锁，后续可继续 put/register（无需重新 init）。
+ * 与 lv_registry_destroy 的区别：不销毁互斥锁，可安全多次调用（幂等）。
+ *
+ * @param reg 注册表指针
+ */
+void lv_registry_clear(lvRegistry *reg);
+
+/**
  * @brief 注册一个条目（name→factory 形态，向后兼容 API）
  * @param reg    注册表指针
  * @param name   条目名称（注册表内部拷贝）

@@ -21,6 +21,13 @@ GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type);
 /* 根据 GeomType 获取对应的 vtable 指针 */
 const GeomNodeVTable *get_vtable_for_type(GeomType type);
 
+/* graph_node_alloc.c 实现：从零创建源节点的深拷贝游离节点（不挂入常驻图）。
+ * GeomNodeVTable::clone 契约要求"目标节点已存在于目标图中（ID 与源节点相同）"，
+ * 本函数内部创建临时图适配该契约：统一分配路径创建外壳并深拷贝坐标与增强字段，
+ * 经 src->vtable->clone 深拷贝 union data 后从临时图摘除并返回。
+ * 供 layer2 的 node_deep_copy_geom_node 委托，收敛节点深拷贝的平行实现。 */
+GeomNode *graph_node_deep_copy_detached(const GeomNode *src, int new_id);
+
 /* graph_node_hash.c 实现，供 conflict 模块回滚删除使用 */
 void node_index_remove(ConstraintGraph *graph, int node_id);
 
